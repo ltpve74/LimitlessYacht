@@ -1,0 +1,4 @@
+User-agent: *
+Allow: /
+
+Sitemap: https://limitlessyacht.netlify.app/sitemap.xml

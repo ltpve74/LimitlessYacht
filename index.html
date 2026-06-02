@@ -9,6 +9,12 @@
 <meta name="author" content="Limitless Yacht Experience" />
 <link rel="canonical" href="https://limitlessyacht.netlify.app/" />
 
+<!-- Geo / local SEO -->
+<meta name="geo.region" content="ES-IB" />
+<meta name="geo.placename" content="Palma de Mallorca" />
+<meta name="geo.position" content="39.5582;2.6196" />
+<meta name="ICBM" content="39.5582, 2.6196" />
+
 <!-- Open Graph / social sharing -->
 <meta property="og:type" content="website" />
 <meta property="og:site_name" content="Limitless Yacht Experience" />
@@ -18,6 +24,7 @@
 <meta property="og:image" content="https://limitlessyacht.netlify.app/images/maiora_20s_02.jpg" />
 <meta property="og:image:width" content="960" />
 <meta property="og:image:height" content="639" />
+<meta property="og:image:alt" content="The Maiora yacht Limitless cruising off Mallorca" />
 <meta property="og:locale" content="en_GB" />
 
 <!-- Twitter card -->
@@ -32,6 +39,66 @@
 <link rel="preconnect" href="https://fonts.googleapis.com" />
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
 <link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,300;0,400;0,600;1,300;1,400&family=Montserrat:wght@300;400;500;600&display=swap" rel="stylesheet" />
+
+<!-- Structured data -->
+<script type="application/ld+json">
+{
+  "@context": "https://schema.org",
+  "@graph": [
+    {
+      "@type": "LocalBusiness",
+      "@id": "https://limitlessyacht.netlify.app/#business",
+      "name": "Limitless Yacht Experience",
+      "legalName": "Limitless Opportunities S.L.",
+      "description": "Private charter of the 21.5 m Maiora motor yacht \"Limitless\" from Club de Mar, Palma de Mallorca, with an experienced crew of two.",
+      "url": "https://limitlessyacht.netlify.app/",
+      "image": "https://limitlessyacht.netlify.app/images/maiora_20s_02.jpg",
+      "email": "ltpve74@gmail.com",
+      "telephone": "+34643678072",
+      "priceRange": "€€€",
+      "vatID": "B21726427",
+      "address": {
+        "@type": "PostalAddress",
+        "streetAddress": "Carrer Castella 1",
+        "addressLocality": "Calvià",
+        "postalCode": "07180",
+        "addressRegion": "Balearic Islands",
+        "addressCountry": "ES"
+      },
+      "geo": {
+        "@type": "GeoCoordinates",
+        "latitude": 39.5582,
+        "longitude": 2.6196
+      },
+      "areaServed": {
+        "@type": "Place",
+        "name": "Mallorca, Balearic Islands, Spain"
+      }
+    },
+    {
+      "@type": "Product",
+      "name": "Maiora 21.5 m Yacht Charter – \"Limitless\"",
+      "description": "Charter the Maiora motor yacht \"Limitless\" in Mallorca. Up to 12 guests by day and 7 overnight, with a dedicated crew, water toys and access to Mallorca's most beautiful coves.",
+      "brand": { "@type": "Brand", "name": "Maiora" },
+      "category": "Yacht Charter",
+      "image": [
+        "https://limitlessyacht.netlify.app/images/maiora_20s_02.jpg",
+        "https://limitlessyacht.netlify.app/images/maiora_20s_04.jpg"
+      ],
+      "offers": {
+        "@type": "AggregateOffer",
+        "priceCurrency": "EUR",
+        "lowPrice": "3300",
+        "highPrice": "26000",
+        "offerCount": "4",
+        "availability": "https://schema.org/InStock",
+        "url": "https://limitlessyacht.netlify.app/#pricing",
+        "seller": { "@id": "https://limitlessyacht.netlify.app/#business" }
+      }
+    }
+  ]
+}
+</script>
 <style>
   :root {
     --navy: #0a1628;
@@ -675,7 +742,7 @@
   <div class="container">
     <div class="about-grid">
       <div class="about-image-wrap reveal">
-        <img src="images/maiora_20s_04.jpg" alt="Limitless Yacht" />
+        <img loading="lazy" decoding="async" src="images/maiora_20s_04.jpg" alt="Limitless Yacht" />
         <div class="about-image-accent"></div>
       </div>
       <div class="about-text reveal reveal-delay-1">
@@ -766,68 +833,68 @@
     <div class="gallery-grid" id="galleryGrid">
       <!-- Outdoor / sailing shots -->
       <div class="gallery-item reveal" data-index="0">
-        <img src="images/maiora_20s_01.jpg" alt="Maiora 20S" />
+        <img loading="lazy" decoding="async" src="images/maiora_20s_01.jpg" alt="Maiora 20S" />
       </div>
       <div class="gallery-item reveal reveal-delay-1" data-index="1">
-        <img src="images/maiora_20s_02.jpg" alt="Maiora Running" />
+        <img loading="lazy" decoding="async" src="images/maiora_20s_02.jpg" alt="Maiora Running" />
       </div>
       <div class="gallery-item reveal reveal-delay-2" data-index="2">
-        <img src="images/maiora_20s_03.jpg" alt="Maiora Side View" />
+        <img loading="lazy" decoding="async" src="images/maiora_20s_03.jpg" alt="Maiora Side View" />
       </div>
       <div class="gallery-item reveal reveal-delay-1" data-index="3">
-        <img src="images/maiora_20s_04.jpg" alt="Maiora at Sea" />
+        <img loading="lazy" decoding="async" src="images/maiora_20s_04.jpg" alt="Maiora at Sea" />
       </div>
       <div class="gallery-item reveal reveal-delay-2" data-index="4">
-        <img src="images/maiora_20s_05.jpg" alt="Maiora Cruising" />
+        <img loading="lazy" decoding="async" src="images/maiora_20s_05.jpg" alt="Maiora Cruising" />
       </div>
       <div class="gallery-item reveal reveal-delay-3" data-index="5">
-        <img src="images/maiora_20s_06.jpg" alt="Maiora Top View" />
+        <img loading="lazy" decoding="async" src="images/maiora_20s_06.jpg" alt="Maiora Top View" />
       </div>
       <div class="gallery-item reveal reveal-delay-1" data-index="6">
-        <img src="images/maiora_20s_07.jpg" alt="Maiora Aerial" />
+        <img loading="lazy" decoding="async" src="images/maiora_20s_07.jpg" alt="Maiora Aerial" />
       </div>
       <div class="gallery-item reveal reveal-delay-2" data-index="7">
-        <img src="images/maiora_20s_08.jpg" alt="Maiora Anchoring" />
+        <img loading="lazy" decoding="async" src="images/maiora_20s_08.jpg" alt="Maiora Anchoring" />
       </div>
       <div class="gallery-item reveal reveal-delay-3" data-index="8">
-        <img src="images/IMG_3948-scaled-1-768x576.jpg" alt="Yacht Limitless" />
+        <img loading="lazy" decoding="async" src="images/IMG_3948-scaled-1-768x576.jpg" alt="Yacht Limitless" />
       </div>
       <div class="gallery-item reveal reveal-delay-1" data-index="9">
-        <img src="images/IMG_3979-scaled-1-768x576.jpg" alt="Exterior" />
+        <img loading="lazy" decoding="async" src="images/IMG_3979-scaled-1-768x576.jpg" alt="Exterior" />
       </div>
       <div class="gallery-item reveal reveal-delay-2" data-index="10">
-        <img src="images/IMG_3993-scaled-1-768x576.jpg" alt="Swim Platform" />
+        <img loading="lazy" decoding="async" src="images/IMG_3993-scaled-1-768x576.jpg" alt="Swim Platform" />
       </div>
       <div class="gallery-item reveal reveal-delay-3" data-index="11">
-        <img src="images/IMG_4309.jpeg" alt="Mediterranean" />
+        <img loading="lazy" decoding="async" src="images/IMG_4309.jpeg" alt="Mediterranean" />
       </div>
       <div class="gallery-item reveal reveal-delay-1" data-index="12">
-        <img src="images/IMG_3949-scaled-1-768x576.jpg" alt="Deck" />
+        <img loading="lazy" decoding="async" src="images/IMG_3949-scaled-1-768x576.jpg" alt="Deck" />
       </div>
       <div class="gallery-item reveal reveal-delay-2" data-index="13">
-        <img src="images/IMG_3986-scaled-1-768x576.jpg" alt="Cockpit" />
+        <img loading="lazy" decoding="async" src="images/IMG_3986-scaled-1-768x576.jpg" alt="Cockpit" />
       </div>
       <div class="gallery-item reveal reveal-delay-3" data-index="14">
-        <img src="images/IMG_4196.jpeg" alt="On Deck" />
+        <img loading="lazy" decoding="async" src="images/IMG_4196.jpeg" alt="On Deck" />
       </div>
       <div class="gallery-item reveal reveal-delay-1" data-index="15">
-        <img src="images/IMG_4197.jpeg" alt="Bow" />
+        <img loading="lazy" decoding="async" src="images/IMG_4197.jpeg" alt="Bow" />
       </div>
       <div class="gallery-item reveal reveal-delay-2" data-index="16">
-        <img src="images/IMG_4198.jpeg" alt="Aft Deck" />
+        <img loading="lazy" decoding="async" src="images/IMG_4198.jpeg" alt="Aft Deck" />
       </div>
       <div class="gallery-item reveal reveal-delay-3" data-index="17">
-        <img src="images/IMG_4199.jpeg" alt="Sun Deck" />
+        <img loading="lazy" decoding="async" src="images/IMG_4199.jpeg" alt="Sun Deck" />
       </div>
       <!-- Interior shots -->
       <div class="gallery-item reveal reveal-delay-1" data-index="18">
-        <img src="images/IMG_3952-scaled-1-768x576.jpg" alt="Interior" />
+        <img loading="lazy" decoding="async" src="images/IMG_3952-scaled-1-768x576.jpg" alt="Interior" />
       </div>
       <div class="gallery-item reveal reveal-delay-2" data-index="19">
-        <img src="images/IMG_3974-scaled-1-768x576.jpg" alt="Salon" />
+        <img loading="lazy" decoding="async" src="images/IMG_3974-scaled-1-768x576.jpg" alt="Salon" />
       </div>
       <div class="gallery-item reveal reveal-delay-3" data-index="20">
-        <img src="images/IMG_3990-scaled-1-768x576.jpg" alt="Cabin" />
+        <img loading="lazy" decoding="async" src="images/IMG_3990-scaled-1-768x576.jpg" alt="Cabin" />
       </div>
     </div>
   </div>
