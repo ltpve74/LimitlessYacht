@@ -623,8 +623,9 @@
     .hero-actions { flex-direction: column; align-items: center; gap: .8rem; }
     .btn-primary, .btn-ghost { width: 100%; max-width: 280px; text-align: center; }
     .section-title { font-size: clamp(1.8rem, 6vw, 3rem); }
-    .specs-grid { grid-template-columns: 1fr; }
-    .spec-card { padding: 1.8rem 1.6rem; }
+    .specs-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+    .spec-card { padding: 1.5rem 1.1rem; }
+    .spec-card .spec-value { font-size: 1.25rem; }
     .spec-card[style*="span"] { grid-column: span 1 !important; }
     .amenities-grid { grid-template-columns: 1fr; }
     .pricing-grid { grid-template-columns: 1fr; }
@@ -646,7 +647,7 @@
     .nav-logo { font-size: 1rem; }
     .gallery-grid { grid-template-columns: 1fr; }
     .gallery-item:nth-child(1), .gallery-item:nth-child(5) { grid-column: span 1; }
-    .specs-grid { grid-template-columns: 1fr; }
+    .spec-card { padding: 1.3rem 0.9rem; }
   }
 
   /* mobile nav */
@@ -733,8 +734,8 @@
       <div class="intro-label">Day / Overnight Guests</div>
     </div>
     <div class="intro-item reveal reveal-delay-3">
-      <div class="intro-num">2006</div>
-      <div class="intro-label">Built Year Maiora</div>
+      <div class="intro-num">21</div>
+      <div class="intro-label">Knots Cruising</div>
     </div>
   </div>
 </section>
@@ -772,11 +773,6 @@
         <div class="spec-value">Maiora</div>
       </div>
       <div class="spec-card reveal reveal-delay-1">
-        <div class="spec-icon">📅</div>
-        <div class="spec-title">Built</div>
-        <div class="spec-value">2006</div>
-      </div>
-      <div class="spec-card reveal reveal-delay-2">
         <div class="spec-icon">⚡</div>
         <div class="spec-title">Engines</div>
         <div class="spec-value">2 × MTU 10</div>
@@ -816,7 +812,7 @@
         <div class="spec-title">Cruising Speed</div>
         <div class="spec-value">21 Knots</div>
       </div>
-      <div class="spec-card reveal reveal-delay-1" style="grid-column:span 2;">
+      <div class="spec-card reveal reveal-delay-1" style="grid-column:span 3;">
         <div class="spec-icon">📍</div>
         <div class="spec-title">Home Port</div>
         <div class="spec-value">Club de Mar – Mallorca</div>
