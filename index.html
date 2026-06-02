@@ -604,7 +604,8 @@
     .nav-links { display: none; }
     .hamburger { display: flex; }
     .about-grid { grid-template-columns: 1fr; gap: 3rem; }
-    .specs-grid { grid-template-columns: repeat(2,1fr); }
+    .specs-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+    .spec-home { grid-column: span 2; }
     .contact-grid { grid-template-columns: 1fr; gap: 3.5rem; }
     .gallery-grid { grid-template-columns: repeat(2,1fr); }
     .gallery-item:nth-child(1) { grid-column: span 2; grid-row: span 1; }
@@ -623,10 +624,8 @@
     .hero-actions { flex-direction: column; align-items: center; gap: .8rem; }
     .btn-primary, .btn-ghost { width: 100%; max-width: 280px; text-align: center; }
     .section-title { font-size: clamp(1.8rem, 6vw, 3rem); }
-    .specs-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
     .spec-card { padding: 1.5rem 1.1rem; }
     .spec-card .spec-value { font-size: 1.25rem; }
-    .spec-card[style*="span"] { grid-column: span 1 !important; }
     .amenities-grid { grid-template-columns: 1fr; }
     .pricing-grid { grid-template-columns: 1fr; }
     .pricing-amount { font-size: 1.8rem; }
@@ -774,13 +773,8 @@
       </div>
       <div class="spec-card reveal reveal-delay-1">
         <div class="spec-icon">⚡</div>
-        <div class="spec-title">Engines</div>
-        <div class="spec-value">2 × MTU 10</div>
-      </div>
-      <div class="spec-card reveal">
-        <div class="spec-icon">🔥</div>
-        <div class="spec-title">Power</div>
-        <div class="spec-value">2 × 1,500 HP</div>
+        <div class="spec-title">Engines &amp; Power</div>
+        <div class="spec-value">2 × MTU · 1,500 HP</div>
       </div>
       <div class="spec-card reveal reveal-delay-1">
         <div class="spec-icon">📐</div>
@@ -812,7 +806,7 @@
         <div class="spec-title">Cruising Speed</div>
         <div class="spec-value">21 Knots</div>
       </div>
-      <div class="spec-card reveal reveal-delay-1" style="grid-column:span 3;">
+      <div class="spec-card spec-home reveal reveal-delay-1">
         <div class="spec-icon">📍</div>
         <div class="spec-title">Home Port</div>
         <div class="spec-value">Club de Mar – Mallorca</div>
