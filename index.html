@@ -623,7 +623,9 @@
     .hero-actions { flex-direction: column; align-items: center; gap: .8rem; }
     .btn-primary, .btn-ghost { width: 100%; max-width: 280px; text-align: center; }
     .section-title { font-size: clamp(1.8rem, 6vw, 3rem); }
-    .specs-grid { grid-template-columns: 1fr 1fr; }
+    .specs-grid { grid-template-columns: 1fr; }
+    .spec-card { padding: 1.8rem 1.6rem; }
+    .spec-card[style*="span"] { grid-column: span 1 !important; }
     .amenities-grid { grid-template-columns: 1fr; }
     .pricing-grid { grid-template-columns: 1fr; }
     .pricing-amount { font-size: 1.8rem; }
