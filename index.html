@@ -24,6 +24,15 @@
     }
   } catch (e) {}
 </script>
+<!-- Google tag (gtag.js) -->
+<script async src="https://www.googletagmanager.com/gtag/js?id=AW-18209943491"></script>
+<script>
+  window.dataLayer = window.dataLayer || [];
+  function gtag(){dataLayer.push(arguments);}
+  gtag('js', new Date());
+
+  gtag('config', 'AW-18209943491');
+</script>
 <!-- Google Tag Manager -->
 <script>(function(w,d,s,l,i){w[l]=w[l]||[];w[l].push({'gtm.start':
 new Date().getTime(),event:'gtm.js'});var f=d.getElementsByTagName(s)[0],
@@ -310,7 +319,9 @@ j=d.createElement(s),dl=l!='dataLayer'?'&l='+l:'';j.async=true;j.src=
     position: relative;
   }
   .about-image-wrap img {
-    width: 100%; display: block;
+    width: 100%;
+    height: auto;
+    display: block;
     filter: brightness(.9) contrast(1.05);
   }
   .about-image-accent {
@@ -679,7 +690,16 @@ j=d.createElement(s),dl=l!='dataLayer'?'&l='+l:'';j.async=true;j.src=
     .destination-meta { flex-wrap: wrap; gap: .8rem; }
     .destination-meta span { font-size: .58rem; }
     .contact-grid { grid-template-columns: 1fr; gap: 2.5rem; }
-    .about-image-wrap { max-height: 320px; overflow: hidden; }
+    .about-image-wrap {
+      height: 320px;
+      max-height: 320px;
+      overflow: hidden;
+    }
+    .about-image-wrap img {
+      height: 100%;
+      object-fit: cover;
+      object-position: center 40%; /* bias toward the yacht rather than sky/water */
+    }
   }
   @media (max-width: 400px) {
     .nav-logo { font-size: 1rem; }
@@ -1275,7 +1295,7 @@ height="0" width="0" style="display:none;visibility:hidden"></iframe></noscript>
     <a href="legal.html">Legal Notice & Privacy</a>
     <a href="#" id="cookie-settings-link">Cookie Settings</a>
   </div>
-  <div class="footer-copy">© 2025 Limitless Yacht Experience · Yacht Support Group · All Rights Reserved. Location images sourced from Wikimedia Commons contributors (CC BY / CC BY-SA).</div>
+  <div class="footer-copy">© 2026 Limitless Yacht Experience · Limitless Opportunities S.L. · All Rights Reserved.</div>
 </footer>
 
 <script>
@@ -1380,6 +1400,15 @@ height="0" width="0" style="display:none;visibility:hidden"></iframe></noscript>
         successEl.style.display = 'block';
         this.reset();
         btn.textContent = '✓ Sent';
+
+        // Google Tag event for successful enquiry (use for GA4 generate_lead + Google Ads conversion)
+        window.dataLayer.push({
+          event: 'generate_lead',
+          form_name: 'booking_enquiry',
+          value: 1,
+          currency: 'EUR'
+        });
+
         setTimeout(() => {
           btn.textContent = 'Send Enquiry';
           btn.disabled = false;
@@ -1394,6 +1423,30 @@ height="0" width="0" style="display:none;visibility:hidden"></iframe></noscript>
       btn.disabled = false;
       btn.style.opacity = '1';
     }
+  });
+
+  // Google Tag / dataLayer events for conversions (GTM + GA4 + Google Ads)
+  window.dataLayer = window.dataLayer || [];
+
+  // WhatsApp clicks (primary conversion)
+  document.querySelectorAll('a[href*="wa.me"]').forEach(function (link) {
+    link.addEventListener('click', function () {
+      window.dataLayer.push({
+        event: 'whatsapp_click',
+        contact_method: 'whatsapp',
+        location: window.location.pathname
+      });
+    });
+  });
+
+  // Enquire / CTA clicks to contact (secondary)
+  document.querySelectorAll('a[href="#contact"], .nav-cta').forEach(function (link) {
+    link.addEventListener('click', function () {
+      window.dataLayer.push({
+        event: 'enquire_click',
+        cta_location: link.classList.contains('nav-cta') ? 'nav' : 'content'
+      });
+    });
   });
 </script>
 

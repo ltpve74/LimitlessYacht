@@ -1,3 +1,11 @@
 .DS_Store
 images/.DS_Store
 .claude/
+unused media/
+
+# Internal project notes and AI memory (not part of the website)
+memory/
+google-ads-*.md
+
+# Ad creative assets not yet integrated into the live site
+limitless-logo-square-1200.png
