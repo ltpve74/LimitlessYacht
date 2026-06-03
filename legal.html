@@ -3,6 +3,34 @@
 <head>
 <meta charset="UTF-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<!-- Google Consent Mode v2 defaults (must run before GTM) -->
+<script>
+  window.dataLayer = window.dataLayer || [];
+  function gtag(){dataLayer.push(arguments);}
+  gtag('consent', 'default', {
+    'ad_storage': 'denied',
+    'ad_user_data': 'denied',
+    'ad_personalization': 'denied',
+    'analytics_storage': 'denied',
+    'functionality_storage': 'granted',
+    'security_storage': 'granted',
+    'wait_for_update': 500
+  });
+  try {
+    if (localStorage.getItem('ly_consent') === 'granted') {
+      gtag('consent', 'update', {
+        'analytics_storage': 'granted'
+      });
+    }
+  } catch (e) {}
+</script>
+<!-- Google Tag Manager -->
+<script>(function(w,d,s,l,i){w[l]=w[l]||[];w[l].push({'gtm.start':
+new Date().getTime(),event:'gtm.js'});var f=d.getElementsByTagName(s)[0],
+j=d.createElement(s),dl=l!='dataLayer'?'&l='+l:'';j.async=true;j.src=
+'https://www.googletagmanager.com/gtm.js?id='+i+dl;f.parentNode.insertBefore(j,f);
+})(window,document,'script','dataLayer','GTM-NN8V25BR');</script>
+<!-- End Google Tag Manager -->
 <title>Legal Notice & Privacy Policy – Limitless Yacht Experience</title>
 <meta name="description" content="Legal notice (Impressum) and privacy policy for the Limitless Yacht Experience website." />
 <meta name="robots" content="noindex, follow" />
@@ -117,9 +145,45 @@
     .nav-back { padding: .45rem 1rem; font-size: .6rem; }
     .legal-wrap { padding: 7rem 1.3rem 4rem; }
   }
+
+  /* Cookie consent */
+  .cookie-consent {
+    position: fixed; left: 0; right: 0; bottom: 0; z-index: 300;
+    background: rgba(8,18,34,.97); border-top: 1px solid rgba(201,168,76,.25);
+    padding: 1.2rem 1.5rem;
+  }
+  .cookie-consent[hidden] { display: none; }
+  .cookie-consent-inner {
+    max-width: 1100px; margin: 0 auto;
+    display: flex; align-items: center; justify-content: space-between;
+    gap: 1.5rem; flex-wrap: wrap;
+  }
+  .cookie-consent-text {
+    font-size: .78rem; line-height: 1.7; color: rgba(245,240,232,.75);
+    flex: 1 1 320px; margin: 0;
+  }
+  .cookie-consent-text a { color: var(--gold); text-decoration: underline; }
+  .cookie-consent-actions { display: flex; gap: .8rem; flex-shrink: 0; }
+  .cookie-btn {
+    font-family: 'Montserrat', sans-serif; font-size: .62rem;
+    letter-spacing: .15em; text-transform: uppercase; cursor: pointer;
+    padding: .7rem 1.6rem; border: 1px solid var(--gold); transition: all .2s;
+  }
+  .cookie-btn-primary { background: var(--gold); color: var(--navy); font-weight: 600; }
+  .cookie-btn-primary:hover { background: var(--gold-light); border-color: var(--gold-light); }
+  .cookie-btn-ghost { background: transparent; color: var(--gold); }
+  .cookie-btn-ghost:hover { background: rgba(201,168,76,.12); }
+  @media (max-width: 640px) {
+    .cookie-consent-inner { flex-direction: column; align-items: stretch; gap: 1rem; }
+    .cookie-btn { flex: 1; text-align: center; }
+  }
 </style>
 </head>
 <body>
+<!-- Google Tag Manager (noscript) -->
+<noscript><iframe src="https://www.googletagmanager.com/ns.html?id=GTM-NN8V25BR"
+height="0" width="0" style="display:none;visibility:hidden"></iframe></noscript>
+<!-- End Google Tag Manager (noscript) -->
 
 <nav>
   <a href="index.html" class="nav-logo">LIMITLESS <span>YACHT</span></a>
@@ -145,7 +209,7 @@
     <h3>Contact</h3>
     <p>
       Phone: <a href="tel:+34643678072">+34 643 678 072</a><br />
-      Email: <a href="mailto:ltpve74@gmail.com">ltpve74@gmail.com</a>
+      Email: <a href="mailto:info@limitlessyachtcharter.com">info@limitlessyachtcharter.com</a>
     </p>
     <h3>Tax / VAT Identification</h3>
     <p>VAT No.: B21726427</p>
@@ -159,7 +223,7 @@
   <p>Photographs of the yacht "Limitless" and on-board imagery are the property of the operator. Certain illustrative images of the Maiora 20S model and of Mallorca's coastal locations have been sourced from publicly licensed stock libraries (Unsplash, Pexels) and their respective contributors. All other content, layout and design of this website are protected by copyright. Reproduction without prior written consent is not permitted.</p>
 
   <!-- ===== PRIVACY POLICY ===== -->
-  <h2>Privacy Policy</h2>
+  <h2 id="privacy-policy">Privacy Policy</h2>
   <p>We take the protection of your personal data seriously. This policy explains what data we collect when you use this website, why we collect it, and the rights you have under the EU General Data Protection Regulation (GDPR).</p>
 
   <h3>Controller</h3>
@@ -174,6 +238,10 @@
 
   <h3>Fonts</h3>
   <p>This website loads typefaces from <strong>Google Fonts</strong>. When a page loads, your browser may connect to Google's servers, which can involve the transfer of your IP address. This is used only to display the fonts correctly. If you prefer, you can block external font loading in your browser settings.</p>
+
+  <h3>Analytics (Google Tag Manager &amp; Google Analytics)</h3>
+  <p>This website uses <strong>Google Tag Manager</strong> to manage tags, which in turn may load <strong>Google Analytics</strong>, a web analytics service provided by Google Ireland Limited. These tools help us understand how visitors use the site (for example, which pages are viewed and for how long) so we can improve it. For this purpose they may set cookies and process data such as your IP address (typically truncated/anonymised), device and browser information, and pages visited.</p>
+  <p>This processing is carried out on the basis of your consent (Art. 6(1)(a) GDPR) where required. You can prevent it by declining analytics cookies, using your browser's privacy settings, or installing Google's opt-out browser add-on. Data may be transferred to Google servers; Google applies the EU Standard Contractual Clauses for any such transfers.</p>
 
   <h3>Third-Party Communication</h3>
   <p>Our website offers a direct link to contact us via <strong>WhatsApp</strong> and by email. If you choose to contact us through these channels, your communication will be subject to the respective provider's privacy policy and to ours for the purpose of handling your enquiry.</p>
@@ -192,10 +260,10 @@
     <li>withdraw any consent you have given at any time;</li>
     <li>lodge a complaint with the relevant supervisory authority (in Spain, the Agencia Española de Protección de Datos).</li>
   </ul>
-  <p>To exercise any of these rights, please contact us at <a href="mailto:ltpve74@gmail.com">ltpve74@gmail.com</a>.</p>
+  <p>To exercise any of these rights, please contact us at <a href="mailto:info@limitlessyachtcharter.com">info@limitlessyachtcharter.com</a>.</p>
 
   <h3>Cookies</h3>
-  <p>This website does not set tracking or advertising cookies. Only technical data strictly necessary to deliver the site (as described under Hosting) is processed.</p>
+  <p>Besides the technical data strictly necessary to deliver the site (as described under Hosting), this website uses analytics cookies set via Google Tag Manager / Google Analytics, as described above. We do not use advertising or remarketing cookies. You can manage or block cookies at any time through your browser settings.</p>
 
   <h3>Changes to This Policy</h3>
   <p>We may update this policy to reflect changes to our practices or for legal reasons. The "last updated" date at the top of this page indicates when it was last revised.</p>
@@ -207,11 +275,47 @@
   <div class="footer-tagline">Club de Mar · Palma de Mallorca · Mediterranean</div>
   <div class="footer-links">
     <a href="index.html">Home</a>
-    <a href="mailto:ltpve74@gmail.com">ltpve74@gmail.com</a>
-    <a href="tel:+34643678072">+34 643 678 072</a>
+    <a href="mailto:info@limitlessyachtcharter.com">info@limitlessyachtcharter.com</a>
+    <a href="#" id="cookie-settings-link">Cookie Settings</a>
   </div>
   <div class="footer-copy">© 2026 Limitless Yacht Experience · Limitless Opportunities S.L. · All Rights Reserved.</div>
 </footer>
 
+<!-- Cookie consent banner -->
+<div id="cookie-consent" class="cookie-consent" role="dialog" aria-label="Cookie consent" hidden>
+  <div class="cookie-consent-inner">
+    <p class="cookie-consent-text">
+      We use cookies to analyse site traffic and improve your experience. Analytics cookies are only set if you accept.
+      See our <a href="#privacy-policy">Privacy Policy</a>.
+    </p>
+    <div class="cookie-consent-actions">
+      <button type="button" id="cookie-decline" class="cookie-btn cookie-btn-ghost">Decline</button>
+      <button type="button" id="cookie-accept" class="cookie-btn cookie-btn-primary">Accept</button>
+    </div>
+  </div>
+</div>
+<script>
+  (function () {
+    var KEY = 'ly_consent';
+    var banner = document.getElementById('cookie-consent');
+    function push(){ window.dataLayer = window.dataLayer || []; window.dataLayer.push(arguments); }
+    function show(){ banner.hidden = false; }
+    function hide(){ banner.hidden = true; }
+    function choose(value) {
+      try { localStorage.setItem(KEY, value); } catch (e) {}
+      if (value === 'granted') {
+        push('consent', 'update', { 'analytics_storage': 'granted' });
+      }
+      hide();
+    }
+    var stored;
+    try { stored = localStorage.getItem(KEY); } catch (e) {}
+    if (stored !== 'granted' && stored !== 'denied') { show(); }
+    document.getElementById('cookie-accept').addEventListener('click', function () { choose('granted'); });
+    document.getElementById('cookie-decline').addEventListener('click', function () { choose('denied'); });
+    var settings = document.getElementById('cookie-settings-link');
+    if (settings) settings.addEventListener('click', function (e) { e.preventDefault(); show(); });
+  })();
+</script>
 </body>
 </html>
