@@ -19,7 +19,10 @@
   try {
     if (localStorage.getItem('ly_consent') === 'granted') {
       gtag('consent', 'update', {
-        'analytics_storage': 'granted'
+        'analytics_storage': 'granted',
+        'ad_storage': 'granted',
+        'ad_user_data': 'granted',
+        'ad_personalization': 'granted'
       });
     }
   } catch (e) {}
@@ -32,6 +35,24 @@
   gtag('js', new Date());
 
   gtag('config', 'AW-18209943491');
+</script>
+<!-- Event snippet for lead conversion (form + WhatsApp)
+In your html page, add the snippet and call gtag_report_conversion when a lead is submitted (form success or WhatsApp click). -->
+<script>
+function gtag_report_conversion(url) {
+  var callback = function () {
+    if (typeof(url) != 'undefined') {
+      window.location = url;
+    }
+  };
+  gtag('event', 'conversion', {
+      'send_to': 'AW-18209943491/qm5KCJi-sbgcEMPflutD',
+      'value': 1.0,
+      'currency': 'EUR',
+      'event_callback': callback
+  });
+  return false;
+}
 </script>
 <!-- Google Tag Manager -->
 <script>(function(w,d,s,l,i){w[l]=w[l]||[];w[l].push({'gtm.start':
@@ -1409,6 +1430,16 @@ height="0" width="0" style="display:none;visibility:hidden"></iframe></noscript>
           currency: 'EUR'
         });
 
+        // Grant ad consent for this explicit lead conversion action
+        gtag('consent', 'update', {
+          'ad_storage': 'granted',
+          'ad_user_data': 'granted',
+          'ad_personalization': 'granted'
+        });
+
+        // Google Ads conversion tracking (shared with WhatsApp button)
+        gtag_report_conversion();
+
         setTimeout(() => {
           btn.textContent = 'Send Enquiry';
           btn.disabled = false;
@@ -1430,12 +1461,30 @@ height="0" width="0" style="display:none;visibility:hidden"></iframe></noscript>
 
   // WhatsApp clicks (primary conversion)
   document.querySelectorAll('a[href*="wa.me"]').forEach(function (link) {
-    link.addEventListener('click', function () {
+    link.addEventListener('click', function (e) {
       window.dataLayer.push({
         event: 'whatsapp_click',
         contact_method: 'whatsapp',
         location: window.location.pathname
       });
+
+      // Grant ad consent for this explicit lead conversion action (WhatsApp click)
+      gtag('consent', 'update', {
+        'ad_storage': 'granted',
+        'ad_user_data': 'granted',
+        'ad_personalization': 'granted'
+      });
+
+      // Google Ads conversion tracking (same as form submit)
+      gtag_report_conversion();
+
+      // Small delay + preventDefault to give the conversion pixel time to fire
+      // before the new tab opens. Then manually open in _blank.
+      e.preventDefault();
+      const href = link.getAttribute('href');
+      setTimeout(function () {
+        window.open(href, '_blank');
+      }, 150);
     });
   });
 
@@ -1454,7 +1503,7 @@ height="0" width="0" style="display:none;visibility:hidden"></iframe></noscript>
 <div id="cookie-consent" class="cookie-consent" role="dialog" aria-label="Cookie consent" hidden>
   <div class="cookie-consent-inner">
     <p class="cookie-consent-text">
-      We use cookies to analyse site traffic and improve your experience. Analytics cookies are only set if you accept.
+      We use cookies to analyse site traffic, measure conversions (including Google Ads), and improve your experience. Cookies for analytics and advertising are only set if you accept.
       See our <a href="legal.html">Privacy Policy</a>.
     </p>
     <div class="cookie-consent-actions">
@@ -1473,7 +1522,12 @@ height="0" width="0" style="display:none;visibility:hidden"></iframe></noscript>
     function choose(value) {
       try { localStorage.setItem(KEY, value); } catch (e) {}
       if (value === 'granted') {
-        push('consent', 'update', { 'analytics_storage': 'granted' });
+        push('consent', 'update', {
+          'analytics_storage': 'granted',
+          'ad_storage': 'granted',
+          'ad_user_data': 'granted',
+          'ad_personalization': 'granted'
+        });
       }
       hide();
     }
