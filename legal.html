@@ -19,7 +19,10 @@
   try {
     if (localStorage.getItem('ly_consent') === 'granted') {
       gtag('consent', 'update', {
-        'analytics_storage': 'granted'
+        'analytics_storage': 'granted',
+        'ad_storage': 'granted',
+        'ad_user_data': 'granted',
+        'ad_personalization': 'granted'
       });
     }
   } catch (e) {}
@@ -294,7 +297,7 @@ height="0" width="0" style="display:none;visibility:hidden"></iframe></noscript>
 <div id="cookie-consent" class="cookie-consent" role="dialog" aria-label="Cookie consent" hidden>
   <div class="cookie-consent-inner">
     <p class="cookie-consent-text">
-      We use cookies to analyse site traffic and improve your experience. Analytics cookies are only set if you accept.
+      We use cookies to analyse site traffic, measure conversions (including Google Ads), and improve your experience. Cookies for analytics and advertising are only set if you accept.
       See our <a href="#privacy-policy">Privacy Policy</a>.
     </p>
     <div class="cookie-consent-actions">
@@ -313,7 +316,12 @@ height="0" width="0" style="display:none;visibility:hidden"></iframe></noscript>
     function choose(value) {
       try { localStorage.setItem(KEY, value); } catch (e) {}
       if (value === 'granted') {
-        push('consent', 'update', { 'analytics_storage': 'granted' });
+        push('consent', 'update', {
+          'analytics_storage': 'granted',
+          'ad_storage': 'granted',
+          'ad_user_data': 'granted',
+          'ad_personalization': 'granted'
+        });
       }
       hide();
     }
