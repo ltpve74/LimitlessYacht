@@ -60,7 +60,6 @@ PAIRS = [
         "Charter-Inserat im Club de Mar, Palma.",
     ),
     ("Loading guest reviews…", "Gästebewertungen werden geladen…"),
-    ("View on Click&amp;Boat", "Auf Click&amp;Boat ansehen"),
     ("1 verified review", "1 verifizierte Bewertung"),
     (" verified reviews", " verifizierte Bewertungen"),
     ("No reviews to display yet.", "Noch keine Bewertungen vorhanden."),

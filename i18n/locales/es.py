@@ -57,7 +57,6 @@ PAIRS = [
         "anuncio de charter en el Club de Mar, Palma.",
     ),
     ("Loading guest reviews…", "Cargando reseñas…"),
-    ("View on Click&amp;Boat", "Ver en Click&amp;Boat"),
     ("1 verified review", "1 reseña verificada"),
     (" verified reviews", " reseñas verificadas"),
     ("No reviews to display yet.", "Aún no hay reseñas para mostrar."),
