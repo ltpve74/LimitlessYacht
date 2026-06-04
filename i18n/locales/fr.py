@@ -250,6 +250,10 @@ PAIRS = [
     ("See our <a href=\"legal.html\">Privacy Policy</a>.", "Voir notre <a href=\"/fr/legal.html\">politique de confidentialité</a>."),
     ("Decline", "Refuser"),
     ("Accept", "Accepter"),
+    ("Close", "Fermer"),
+    ("Close gallery", "Fermer la galerie"),
+    ("Previous image", "Image précédente"),
+    ("Next image", "Image suivante"),
     (
         "Private charter of the 21.5 m Maiora motor yacht \"Limitless\" from Club de Mar, Palma de Mallorca, with an experienced crew of two.",
         "Location privée du yacht à moteur Maiora de 21,5 m « Limitless » au Club de Mar, Palma de Majorque, avec un équipage expérimenté de deux personnes.",

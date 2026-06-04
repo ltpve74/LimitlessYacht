@@ -524,19 +524,63 @@ j=d.createElement(s),dl=l!='dataLayer'?'&l='+l:'';j.async=true;j.src=
   #lightbox.open { display: flex; }
   #lightbox img { max-width: 90vw; max-height: 85vh; object-fit: contain; }
   #lightbox-close {
-    position: absolute; top: 2rem; right: 2.5rem;
-    font-size: 2rem; color: var(--cream); cursor: pointer; opacity: .6;
-    transition: opacity .2s;
+    position: absolute; top: 1.25rem; right: 1.25rem; z-index: 2;
+    display: inline-flex; align-items: center; justify-content: center; gap: .45rem;
+    min-width: 3rem; min-height: 3rem; padding: 0 .85rem;
+    font-family: 'Montserrat', sans-serif; font-size: .62rem; font-weight: 600;
+    letter-spacing: .14em; text-transform: uppercase;
+    color: var(--cream); cursor: pointer;
+    background: rgba(10,22,40,.92);
+    border: 1px solid rgba(201,168,76,.65);
+    border-radius: 999px;
+    box-shadow: 0 4px 28px rgba(0,0,0,.55);
+    transition: background .2s, border-color .2s, transform .2s, box-shadow .2s;
   }
-  #lightbox-close:hover { opacity: 1; }
+  #lightbox-close .lightbox-close-icon {
+    font-size: 1.15rem; line-height: 1; font-weight: 400; letter-spacing: 0;
+    text-transform: none;
+  }
+  #lightbox-close:hover {
+    background: rgba(26,58,92,.95);
+    border-color: var(--gold-light);
+    box-shadow: 0 6px 32px rgba(0,0,0,.65);
+    transform: scale(1.04);
+  }
+  #lightbox-close:focus-visible {
+    outline: 2px solid var(--gold-light);
+    outline-offset: 3px;
+  }
   #lightbox-prev, #lightbox-next {
-    position: absolute; top: 50%; transform: translateY(-50%);
-    font-size: 2rem; color: var(--cream); cursor: pointer; opacity: .5;
-    background: none; border: none; padding: 1rem; transition: opacity .2s;
+    position: absolute; top: 50%; transform: translateY(-50%); z-index: 2;
+    display: flex; align-items: center; justify-content: center;
+    width: 3rem; height: 3rem;
+    font-size: 1.75rem; line-height: 1; color: var(--cream); cursor: pointer;
+    background: rgba(10,22,40,.75);
+    border: 1px solid rgba(201,168,76,.35);
+    border-radius: 50%;
+    padding: 0;
+    box-shadow: 0 4px 20px rgba(0,0,0,.4);
+    transition: background .2s, border-color .2s, opacity .2s;
   }
-  #lightbox-prev { left: 1.5rem; }
-  #lightbox-next { right: 1.5rem; }
-  #lightbox-prev:hover, #lightbox-next:hover { opacity: 1; }
+  #lightbox-prev { left: 1rem; }
+  #lightbox-next { right: 1rem; }
+  #lightbox-prev:hover, #lightbox-next:hover {
+    opacity: 1;
+    background: rgba(26,58,92,.9);
+    border-color: rgba(201,168,76,.6);
+  }
+  @media (max-width: 640px) {
+    #lightbox-close {
+      top: max(1rem, env(safe-area-inset-top));
+      right: max(1rem, env(safe-area-inset-right));
+      min-width: 2.75rem; min-height: 2.75rem; padding: 0 .65rem;
+      font-size: .58rem;
+    }
+    #lightbox-close .lightbox-close-label { display: none; }
+    #lightbox-close .lightbox-close-icon { font-size: 1.35rem; }
+    #lightbox-prev { left: .5rem; }
+    #lightbox-next { right: .5rem; }
+  }
 
   /* ── AMENITIES ── */
   #amenities { background: var(--deep); }
@@ -1154,7 +1198,7 @@ height="0" width="0" style="display:none;visibility:hidden"></iframe></noscript>
 
 <!-- MOBILE NAV -->
 <div class="mobile-nav" id="mobileNav" role="dialog" aria-modal="true" aria-label="Site menu" hidden>
-  <button type="button" class="mobile-nav-close" id="mobileClose" aria-label="Close menu">✕</button>
+  <button type="button" class="mobile-nav-close" id="mobileFermer" aria-label="Fermer menu">✕</button>
   <a href="#contact" class="mobile-nav-cta" onclick="closeMobile()">Demander</a>
   <a href="#about" onclick="closeMobile()">À propos</a>
   <a href="#specs" onclick="closeMobile()">Details</a>
@@ -1368,10 +1412,13 @@ height="0" width="0" style="display:none;visibility:hidden"></iframe></noscript>
 
 <!-- LIGHTBOX -->
 <div id="lightbox">
-  <button id="lightbox-close">✕</button>
-  <button id="lightbox-prev">‹</button>
+  <button type="button" id="lightbox-close" aria-label="Fermer la galerie">
+    <span class="lightbox-close-icon" aria-hidden="true">✕</span>
+    <span class="lightbox-close-label">Fermer</span>
+  </button>
+  <button type="button" id="lightbox-prev" aria-label="Image précédente">‹</button>
   <img id="lightbox-img" src="" alt="Limitless yacht gallery photo" />
-  <button id="lightbox-next">›</button>
+  <button type="button" id="lightbox-next" aria-label="Image suivante">›</button>
 </div>
 
 <!-- AMENITIES -->
@@ -1746,7 +1793,7 @@ height="0" width="0" style="display:none;visibility:hidden"></iframe></noscript>
     mobileNav.classList.add('open');
     document.body.style.overflow = 'hidden';
     hamburger.setAttribute('aria-expanded', 'true');
-    hamburger.setAttribute('aria-label', 'Close menu');
+    hamburger.setAttribute('aria-label', 'Fermer menu');
   }
   function closeMobile() {
     mobileNav.classList.remove('open');
@@ -1759,7 +1806,7 @@ height="0" width="0" style="display:none;visibility:hidden"></iframe></noscript>
     if (mobileNav.classList.contains('open')) closeMobile();
     else openMobile();
   });
-  document.getElementById('mobileClose').addEventListener('click', closeMobile);
+  document.getElementById('mobileFermer').addEventListener('click', closeMobile);
   document.addEventListener('keydown', (e) => {
     if (e.key === 'Escape' && mobileNav.classList.contains('open')) closeMobile();
   });

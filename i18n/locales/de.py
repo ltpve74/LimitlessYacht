@@ -267,6 +267,10 @@ PAIRS = [
     ("See our <a href=\"legal.html\">Privacy Policy</a>.", "Siehe unsere <a href=\"/de/legal.html\">Datenschutzerklärung</a>."),
     ("Decline", "Ablehnen"),
     ("Accept", "Akzeptieren"),
+    ("Close", "Schließen"),
+    ("Close gallery", "Galerie schließen"),
+    ("Previous image", "Vorheriges Bild"),
+    ("Next image", "Nächstes Bild"),
     # Structured data snippets
     (
         "Private charter of the 21.5 m Maiora motor yacht \"Limitless\" from Club de Mar, Palma de Mallorca, with an experienced crew of two.",
