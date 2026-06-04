@@ -11,6 +11,11 @@
   to = "/.netlify/functions/availability"
   status = 200
 
+[[redirects]]
+  from = "/api/reviews"
+  to = "/.netlify/functions/reviews"
+  status = 200
+
 # Long-cache static media (filenames are stable; rename to bust cache)
 [[headers]]
   for = "/images/*"
