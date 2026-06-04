@@ -15,6 +15,13 @@ from locales import de, es, fr  # noqa: E402
 
 LOCALES = {"de": de, "fr": fr, "es": es}
 
+# Separate Netlify form names per locale (avoids merged German field labels on EN emails).
+NETLIFY_FORM = {
+    "de": "contact-de",
+    "fr": "contact-fr",
+    "es": "contact-es",
+}
+
 LANGS = [
     ("en", "/", "EN"),
     ("de", "/de/", "DE"),
@@ -70,6 +77,15 @@ def patch_html_lang(html: str, lang: str) -> str:
     return re.sub(r"<html lang=\"[^\"]+\">", f'<html lang="{lang}">', html, count=1)
 
 
+def patch_netlify_form(html: str, code: str) -> str:
+    form_name = NETLIFY_FORM.get(code)
+    if not form_name:
+        return html
+    html = html.replace('name="contact-en"', f'name="{form_name}"')
+    html = html.replace('value="contact-en"', f'value="{form_name}"')
+    return html
+
+
 def patch_calendar(html: str, months: list[str], dow: list[str]) -> str:
     html = re.sub(
         r"var MONTHS = \[[^\]]+\];",
@@ -108,6 +124,7 @@ def build_index(locale_mod) -> str:
     )
 
     html = apply_pairs(html, locale_mod.PAIRS)
+    html = patch_netlify_form(html, locale_mod.CODE)
     html = patch_calendar(html, locale_mod.MONTHS, locale_mod.DOW)
     return html
 
