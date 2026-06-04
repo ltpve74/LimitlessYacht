@@ -9,3 +9,5 @@ google-ads-*.md
 
 # Ad creative assets not yet integrated into the live site
 limitless-logo-square-1200.png
+__pycache__/
+*.pyc
