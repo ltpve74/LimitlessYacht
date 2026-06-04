@@ -245,8 +245,8 @@ PAIRS = [
     ("✓ Sent", "✓ Enviado"),
     ('aria-label="Cookie consent"', 'aria-label="Consentimiento de cookies"'),
     (
-        "We use cookies to analyse site traffic, measure conversions (including Google Ads), and improve your experience. Cookies for analytics and advertising are only set if you accept.",
-        "Utilizamos cookies para analizar el tráfico, medir conversiones (incluido Google Ads) y mejorar su experiencia. Las cookies de análisis y publicidad solo se instalan si acepta.",
+        "We use cookies to analyse site traffic (including how far you scroll and which sections you view), measure conversions (including Google Ads), and improve your experience. Analytics only run if you accept.",
+        "Usamos cookies para analizar el tráfico (incluido el desplazamiento y las secciones que ve), medir conversiones (incluido Google Ads) y mejorar su experiencia. El análisis solo funciona si acepta.",
     ),
     ("See our <a href=\"legal.html\">Privacy Policy</a>.", "Consulte nuestra <a href=\"/es/legal.html\">política de privacidad</a>."),
     ("Decline", "Rechazar"),
@@ -330,8 +330,12 @@ LEGAL_PAIRS = [
         "Este sitio usa <strong>Google Tag Manager</strong>, que puede cargar <strong>Google Analytics</strong>. También cargamos la etiqueta de Google para <strong>Google Ads</strong> (ID AW-18209943491) para conversiones y remarketing. Pueden instalarse cookies y tratarse datos como IP (normalmente truncada), dispositivo, navegador y páginas visitadas.",
     ),
     (
-        "This processing is carried out on the basis of your consent (Art. 6(1)(a) GDPR) where required. Advertising-related storage (ad_storage, ad_user_data, ad_personalization) is denied by default. You can prevent analytics by declining cookies in the banner, using your browser's privacy settings, or installing Google's opt-out browser add-on. Data may be transferred to Google servers; Google applies the EU Standard Contractual Clauses for any such transfers.",
-        "El tratamiento se basa en su consentimiento (art. 6.1.a RGPD) cuando proceda. El almacenamiento publicitario está denegado por defecto. Puede rechazar cookies en el banner, ajustar la privacidad del navegador o usar el complemento de exclusión de Google. Los datos pueden transferirse a Google, que aplica las cláusulas contractuales tipo de la UE.",
+        "With your consent, we may also record <strong>how far you scroll</strong> and <strong>which page sections you view</strong> (for example Gallery, Reviews, or Pricing), so we can improve the layout of the site. This uses our own scripts and sends events via Google Tag Manager; it does not identify you by name. We may temporarily use <strong>Microsoft Clarity</strong> (session recordings and heatmaps) for the same purpose; if enabled, Clarity is provided by Microsoft and subject to Microsoft's privacy terms.",
+        "Con su consentimiento podemos registrar <strong>hasta dónde se desplaza</strong> y <strong>qué secciones ve</strong> (p. ej. galería, reseñas, precios) para mejorar el sitio, con scripts propios y Google Tag Manager, sin identificarle por nombre. Puede usarse temporalmente <strong>Microsoft Clarity</strong> (grabaciones de sesión, mapas de calor), sujeto a la privacidad de Microsoft.",
+    ),
+    (
+        "This processing is carried out on the basis of your consent (Art. 6(1)(a) GDPR) where required. Advertising-related storage (ad_storage, ad_user_data, ad_personalization) is denied by default. You can prevent analytics by declining cookies in the banner, using your browser's privacy settings, or installing Google's opt-out browser add-on. Data may be transferred to Google or Microsoft servers; those providers apply appropriate safeguards for international transfers.",
+        "El tratamiento se basa en su consentimiento (art. 6.1.a RGPD) cuando proceda. El almacenamiento publicitario está denegado por defecto. Puede rechazar cookies en el banner, ajustar la privacidad del navegador o usar el complemento de exclusión de Google. Los datos pueden transferirse a Google o Microsoft con garantías adecuadas.",
     ),
     ("Availability Calendar", "Calendario de disponibilidad"),
     (

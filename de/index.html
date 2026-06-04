@@ -73,6 +73,15 @@ j=d.createElement(s),dl=l!='dataLayer'?'&l='+l:'';j.async=true;j.src=
 'https://www.googletagmanager.com/gtm.js?id='+i+dl;f.parentNode.insertBefore(j,f);
 })(window,document,'script','dataLayer','GTM-NN8V25BR');</script>
 <!-- End Google Tag Manager -->
+<!-- Behaviour analytics (section views → dataLayer; optional Microsoft Clarity) -->
+<script>
+  window.LY_ANALYTICS = {
+    // Create a free project at https://clarity.microsoft.com and paste the ID here (or leave empty).
+    clarityProjectId: '',
+    sectionDwellSeconds: 3,
+    sectionVisibleRatio: 0.4
+  };
+</script>
 <title>Limitless Yacht Experience – Luxus-Maiora-Charter auf Mallorca</title>
 <meta name="description" content="Chartern Sie die 21,5 m Maiora-Motoryacht „Limitless“ ab Club de Mar, Palma de Mallorca. Entspanntes Cruisen, eine außergewöhnliche Crew und Mallorcas schönste Buchten — bis zu 12 Gäste tagsüber, 7 über Nacht." />
 <meta name="keywords" content="Yachtcharter Mallorca, Maiora Yacht, Limitless Yacht, Bootcharter Palma de Mallorca, Luxusyacht Mittelmeer, Club de Mar Charter" />
@@ -2081,7 +2090,7 @@ height="0" width="0" style="display:none;visibility:hidden"></iframe></noscript>
 <div id="cookie-consent" class="cookie-consent" role="dialog" aria-label="Cookie-Einwilligung" hidden>
   <div class="cookie-consent-inner">
     <p class="cookie-consent-text">
-      Wir verwenden Cookies, um den Websiteverkehr zu analysieren, Conversions zu messen (einschließlich Google Ads) und Ihr Erlebnis zu verbessern. Analyse- und Werbe-Cookies werden nur gesetzt, wenn Sie zustimmen.
+      Wir verwenden Cookies, um den Verkehr zu analysieren (inkl. Scrolltiefe und angesehene Bereiche), Conversions zu messen (inkl. Google Ads) und Ihr Erlebnis zu verbessern. Analyse nur bei Zustimmung.
       Siehe unsere <a href="/de/legal.html">Datenschutzerklärung</a>.
     </p>
     <div class="cookie-consent-actions">
@@ -2106,6 +2115,8 @@ height="0" width="0" style="display:none;visibility:hidden"></iframe></noscript>
           'ad_user_data': 'granted',
           'ad_personalization': 'granted'
         });
+        document.dispatchEvent(new CustomEvent('ly-consent-granted'));
+        if (window.LY_initBehaviorAnalytics) window.LY_initBehaviorAnalytics();
       }
       hide();
     }
@@ -2118,6 +2129,7 @@ height="0" width="0" style="display:none;visibility:hidden"></iframe></noscript>
     if (settings) settings.addEventListener('click', function (e) { e.preventDefault(); show(); });
   })();
 </script>
+<script src="/js/behavior-analytics.js" defer></script>
 
 </body>
 </html>

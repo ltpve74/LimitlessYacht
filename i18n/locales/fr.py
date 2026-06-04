@@ -244,8 +244,8 @@ PAIRS = [
     ("✓ Sent", "✓ Envoyé"),
     ('aria-label="Cookie consent"', 'aria-label="Consentement aux cookies"'),
     (
-        "We use cookies to analyse site traffic, measure conversions (including Google Ads), and improve your experience. Cookies for analytics and advertising are only set if you accept.",
-        "Nous utilisons des cookies pour analyser le trafic, mesurer les conversions (dont Google Ads) et améliorer votre expérience. Les cookies d'analyse et de publicité ne sont déposés qu'avec votre accord.",
+        "We use cookies to analyse site traffic (including how far you scroll and which sections you view), measure conversions (including Google Ads), and improve your experience. Analytics only run if you accept.",
+        "Nous utilisons des cookies pour analyser le trafic (dont le défilement et les sections consultées), mesurer les conversions (dont Google Ads) et améliorer votre expérience. L'analyse ne s'active qu'avec votre accord.",
     ),
     ("See our <a href=\"legal.html\">Privacy Policy</a>.", "Voir notre <a href=\"/fr/legal.html\">politique de confidentialité</a>."),
     ("Decline", "Refuser"),
@@ -329,8 +329,12 @@ LEGAL_PAIRS = [
         "Ce site utilise <strong>Google Tag Manager</strong>, pouvant charger <strong>Google Analytics</strong>. Nous chargeons aussi la balise Google pour <strong>Google Ads</strong> (ID AW-18209943491) pour le suivi des conversions et le remarketing. Des cookies peuvent être déposés et des données (IP souvent tronquée/anonymisée, appareil, navigateur, pages) traitées.",
     ),
     (
-        "This processing is carried out on the basis of your consent (Art. 6(1)(a) GDPR) where required. Advertising-related storage (ad_storage, ad_user_data, ad_personalization) is denied by default. You can prevent analytics by declining cookies in the banner, using your browser's privacy settings, or installing Google's opt-out browser add-on. Data may be transferred to Google servers; Google applies the EU Standard Contractual Clauses for any such transfers.",
-        "Ce traitement repose sur votre consentement (art. 6(1)(a) RGPD) lorsque requis. Le stockage publicitaire est refusé par défaut. Vous pouvez refuser les cookies dans la bannière, via les paramètres du navigateur ou le module de désactivation Google. Les données peuvent être transférées vers Google, qui applique les clauses contractuelles types de l'UE.",
+        "With your consent, we may also record <strong>how far you scroll</strong> and <strong>which page sections you view</strong> (for example Gallery, Reviews, or Pricing), so we can improve the layout of the site. This uses our own scripts and sends events via Google Tag Manager; it does not identify you by name. We may temporarily use <strong>Microsoft Clarity</strong> (session recordings and heatmaps) for the same purpose; if enabled, Clarity is provided by Microsoft and subject to Microsoft's privacy terms.",
+        "Avec votre accord, nous pouvons enregistrer <strong>jusqu'où vous faites défiler</strong> et <strong>quelles sections vous consultez</strong> (ex. galerie, avis, tarifs) pour améliorer le site, via nos scripts et Google Tag Manager, sans vous identifier par nom. <strong>Microsoft Clarity</strong> (enregistrements de session, heatmaps) peut être utilisé temporairement — alors les conditions Microsoft s'appliquent.",
+    ),
+    (
+        "This processing is carried out on the basis of your consent (Art. 6(1)(a) GDPR) where required. Advertising-related storage (ad_storage, ad_user_data, ad_personalization) is denied by default. You can prevent analytics by declining cookies in the banner, using your browser's privacy settings, or installing Google's opt-out browser add-on. Data may be transferred to Google or Microsoft servers; those providers apply appropriate safeguards for international transfers.",
+        "Ce traitement repose sur votre consentement (art. 6(1)(a) RGPD) lorsque requis. Le stockage publicitaire est refusé par défaut. Vous pouvez refuser les cookies dans la bannière, via les paramètres du navigateur ou le module de désactivation Google. Les données peuvent être transférées vers Google ou Microsoft, avec des garanties appropriées.",
     ),
     ("Availability Calendar", "Calendrier de disponibilité"),
     (

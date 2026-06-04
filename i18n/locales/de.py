@@ -261,8 +261,8 @@ PAIRS = [
     # Cookie banner
     ('aria-label="Cookie consent"', 'aria-label="Cookie-Einwilligung"'),
     (
-        "We use cookies to analyse site traffic, measure conversions (including Google Ads), and improve your experience. Cookies for analytics and advertising are only set if you accept.",
-        "Wir verwenden Cookies, um den Websiteverkehr zu analysieren, Conversions zu messen (einschließlich Google Ads) und Ihr Erlebnis zu verbessern. Analyse- und Werbe-Cookies werden nur gesetzt, wenn Sie zustimmen.",
+        "We use cookies to analyse site traffic (including how far you scroll and which sections you view), measure conversions (including Google Ads), and improve your experience. Analytics only run if you accept.",
+        "Wir verwenden Cookies, um den Verkehr zu analysieren (inkl. Scrolltiefe und angesehene Bereiche), Conversions zu messen (inkl. Google Ads) und Ihr Erlebnis zu verbessern. Analyse nur bei Zustimmung.",
     ),
     ("See our <a href=\"legal.html\">Privacy Policy</a>.", "Siehe unsere <a href=\"/de/legal.html\">Datenschutzerklärung</a>."),
     ("Decline", "Ablehnen"),
@@ -347,8 +347,12 @@ LEGAL_PAIRS = [
         "Diese Website nutzt <strong>Google Tag Manager</strong>, der u. a. <strong>Google Analytics</strong> laden kann. Zudem laden wir das Google-Tag (gtag.js) für <strong>Google Ads</strong> (ID AW-18209943491) zu Conversion-Tracking und Remarketing. Dabei können Cookies gesetzt und Daten wie IP-Adresse (typischerweise gekürzt/anonymisiert), Geräte- und Browserinformationen sowie besuchte Seiten verarbeitet werden.",
     ),
     (
-        "This processing is carried out on the basis of your consent (Art. 6(1)(a) GDPR) where required. Advertising-related storage (ad_storage, ad_user_data, ad_personalization) is denied by default. You can prevent analytics by declining cookies in the banner, using your browser's privacy settings, or installing Google's opt-out browser add-on. Data may be transferred to Google servers; Google applies the EU Standard Contractual Clauses for any such transfers.",
-        "Die Verarbeitung erfolgt auf Grundlage Ihrer Einwilligung (Art. 6 Abs. 1 lit. a DSGVO), soweit erforderlich. Werbebezogene Speicherung ist standardmäßig deaktiviert. Sie können Analyse durch Ablehnung im Banner, Browser-Einstellungen oder Googles Opt-out-Add-on verhindern. Daten können an Google-Server übermittelt werden; Google nutzt EU-Standardvertragsklauseln.",
+        "With your consent, we may also record <strong>how far you scroll</strong> and <strong>which page sections you view</strong> (for example Gallery, Reviews, or Pricing), so we can improve the layout of the site. This uses our own scripts and sends events via Google Tag Manager; it does not identify you by name. We may temporarily use <strong>Microsoft Clarity</strong> (session recordings and heatmaps) for the same purpose; if enabled, Clarity is provided by Microsoft and subject to Microsoft's privacy terms.",
+        "Mit Ihrer Einwilligung erfassen wir ggf. <strong>Scrolltiefe</strong> und <strong>welche Bereiche Sie ansehen</strong> (z. B. Galerie, Bewertungen, Preise), um die Seite zu verbessern. Dazu nutzen wir eigene Skripte und senden Ereignisse über Google Tag Manager; ohne Namenszuordnung. Vorübergehend kann <strong>Microsoft Clarity</strong> (Sitzungsaufzeichnungen, Heatmaps) genutzt werden — dann gelten Microsofts Datenschutzbedingungen.",
+    ),
+    (
+        "This processing is carried out on the basis of your consent (Art. 6(1)(a) GDPR) where required. Advertising-related storage (ad_storage, ad_user_data, ad_personalization) is denied by default. You can prevent analytics by declining cookies in the banner, using your browser's privacy settings, or installing Google's opt-out browser add-on. Data may be transferred to Google or Microsoft servers; those providers apply appropriate safeguards for international transfers.",
+        "Die Verarbeitung erfolgt auf Grundlage Ihrer Einwilligung (Art. 6 Abs. 1 lit. a DSGVO), soweit erforderlich. Werbebezogene Speicherung ist standardmäßig deaktiviert. Sie können Analyse durch Ablehnung im Banner, Browser-Einstellungen oder Googles Opt-out-Add-on verhindern. Daten können an Google- oder Microsoft-Server übermittelt werden; geeignete Garantien für Drittlandübermittlungen.",
     ),
     ("Availability Calendar", "Verfügbarkeitskalender"),
     (
