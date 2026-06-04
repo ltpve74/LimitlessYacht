@@ -304,28 +304,49 @@ j=d.createElement(s),dl=l!='dataLayer'?'&l='+l:'';j.async=true;j.src=
   @keyframes heroZoom { to { transform: scale(1); } }
   .hero-overlay {
     position: absolute; inset: 0;
-    background: linear-gradient(135deg, rgba(10,22,40,.82) 0%, rgba(10,22,40,.45) 60%, rgba(10,22,40,.65) 100%);
+    background:
+      linear-gradient(to bottom, rgba(10,22,40,.88) 0%, rgba(10,22,40,.4) 38%, rgba(10,22,40,.55) 62%, rgba(10,22,40,.92) 100%),
+      linear-gradient(135deg, rgba(10,22,40,.75) 0%, rgba(10,22,40,.28) 50%, rgba(10,22,40,.72) 100%);
   }
   .hero-content {
     position: relative; text-align: center; padding: 0 2rem;
+    max-width: 52rem; margin: 0 auto;
     animation: fadeUp 1.2s ease both;
+  }
+  .hero-content::before {
+    content: '';
+    position: absolute;
+    inset: -2.5rem -3rem;
+    background: radial-gradient(ellipse 80% 70% at 50% 50%, rgba(10,22,40,.55) 0%, transparent 72%);
+    z-index: -1;
+    pointer-events: none;
   }
   @keyframes fadeUp { from { opacity:0; transform: translateY(30px); } to { opacity:1; transform: translateY(0); } }
   .hero-eyebrow {
-    font-size: .65rem; letter-spacing: .35em; text-transform: uppercase;
-    color: var(--gold); margin-bottom: 1.2rem; opacity: 0;
+    font-size: .72rem; letter-spacing: .32em; text-transform: uppercase;
+    color: var(--gold-light); margin-bottom: 1.2rem; opacity: 0;
+    font-weight: 500;
+    text-shadow: 0 1px 14px rgba(0,0,0,.75);
     animation: fadeUp .9s .3s ease both;
   }
   .hero-title {
     font-family: 'Cormorant Garamond', serif;
-    font-size: clamp(3.5rem, 9vw, 8rem); font-weight: 300; line-height: .95;
-    color: var(--white); letter-spacing: .04em;
+    font-size: clamp(3.5rem, 9vw, 8rem); font-weight: 400; line-height: 1;
+    color: var(--white); letter-spacing: .06em;
+    text-shadow: 0 2px 28px rgba(0,0,0,.7), 0 1px 6px rgba(0,0,0,.55);
+    -webkit-font-smoothing: antialiased;
     opacity: 0; animation: fadeUp 1s .5s ease both;
   }
-  .hero-title em { font-style: italic; color: var(--gold-light); }
+  .hero-title em {
+    font-style: italic; color: var(--gold-light);
+    text-shadow: 0 2px 24px rgba(0,0,0,.65);
+  }
   .hero-sub {
-    margin-top: 1.6rem; font-size: .85rem; letter-spacing: .12em;
-    color: rgba(245,240,232,.7); font-weight: 300;
+    margin-top: 1.6rem;
+    font-size: clamp(.82rem, 1.6vw, .95rem);
+    letter-spacing: .1em; line-height: 1.7;
+    color: rgba(245,240,232,.95); font-weight: 400;
+    text-shadow: 0 1px 18px rgba(0,0,0,.8), 0 0 1px rgba(0,0,0,.5);
     opacity: 0; animation: fadeUp 1s .8s ease both;
   }
   .hero-actions {
@@ -952,7 +973,7 @@ j=d.createElement(s),dl=l!='dataLayer'?'&l='+l:'';j.async=true;j.src=
   @media (max-width: 640px) {
     section { padding: 4rem 1.2rem; }
     nav { padding: 0.65rem 1rem; }
-    .hero-sub { font-size: .72rem; }
+    .hero-sub { font-size: .82rem; letter-spacing: .08em; }
     .hero-actions { flex-direction: column; align-items: center; gap: .8rem; }
     .btn-primary, .btn-ghost { width: 100%; max-width: 280px; text-align: center; }
     .section-title { font-size: clamp(1.8rem, 6vw, 3rem); }
@@ -1281,55 +1302,40 @@ height="0" width="0" style="display:none;visibility:hidden"></iframe></noscript>
         <picture><source type="image/webp" srcset="images/IMG_3948-scaled-1-768x576.webp" /><img loading="lazy" decoding="async" src="images/IMG_3948-scaled-1-768x576.jpg" width="768" height="576" alt="Limitless yacht exterior in Mallorca" /></picture>
       </div>
       <div class="gallery-item reveal reveal-delay-1" data-index="9">
-        <picture><source type="image/webp" srcset="images/IMG_3979-scaled-1-768x576.webp" /><img loading="lazy" decoding="async" src="images/IMG_3979-scaled-1-768x576.jpg" width="768" height="576" alt="Limitless yacht exterior and decks" /></picture>
-      </div>
-      <div class="gallery-item reveal reveal-delay-2" data-index="10">
         <picture><source type="image/webp" srcset="images/IMG_3993-scaled-1-768x576.webp" /><img loading="lazy" decoding="async" src="images/IMG_3993-scaled-1-768x576.jpg" width="768" height="576" alt="Swim platform of the Limitless yacht" /></picture>
       </div>
-      <div class="gallery-item reveal reveal-delay-3" data-index="11">
-        <picture><source type="image/webp" srcset="images/IMG_4309.webp" /><img loading="lazy" decoding="async" src="images/IMG_4309.jpeg" width="1280" height="960" alt="Limitless yacht in the Mediterranean off Mallorca" /></picture>
-      </div>
-      <div class="gallery-item reveal reveal-delay-1" data-index="12">
+      <div class="gallery-item reveal reveal-delay-2" data-index="10">
         <picture><source type="image/webp" srcset="images/IMG_3949-scaled-1-768x576.webp" /><img loading="lazy" decoding="async" src="images/IMG_3949-scaled-1-768x576.jpg" width="768" height="576" alt="Spacious deck of the Limitless yacht" /></picture>
       </div>
-      <div class="gallery-item reveal reveal-delay-2" data-index="13">
+      <div class="gallery-item reveal reveal-delay-3" data-index="11">
         <picture><source type="image/webp" srcset="images/IMG_3986-scaled-1-768x576.webp" /><img loading="lazy" decoding="async" src="images/IMG_3986-scaled-1-768x576.jpg" width="768" height="576" alt="Helm and cockpit of the Limitless yacht" /></picture>
       </div>
-      <div class="gallery-item reveal reveal-delay-3" data-index="14">
-        <picture><source type="image/webp" srcset="images/IMG_4196.webp" /><img loading="lazy" decoding="async" src="images/IMG_4196.jpeg" width="1280" height="960" alt="On board the Limitless yacht in Mallorca" /></picture>
-      </div>
-      <div class="gallery-item reveal reveal-delay-1" data-index="15">
+      <div class="gallery-item reveal reveal-delay-1" data-index="12">
         <picture><source type="image/webp" srcset="images/IMG_4197.webp" /><img loading="lazy" decoding="async" src="images/IMG_4197.jpeg" width="1280" height="960" alt="Bow and foredeck of the Limitless yacht" /></picture>
       </div>
-      <div class="gallery-item reveal reveal-delay-2" data-index="16">
-        <picture><source type="image/webp" srcset="images/IMG_4198.webp" /><img loading="lazy" decoding="async" src="images/IMG_4198.jpeg" width="1280" height="960" alt="Aft deck and seating of the Limitless yacht" /></picture>
-      </div>
-      <div class="gallery-item reveal reveal-delay-3" data-index="17">
-        <picture><source type="image/webp" srcset="images/IMG_4199.webp" /><img loading="lazy" decoding="async" src="images/IMG_4199.jpeg" width="1280" height="960" alt="Sun deck of the Limitless yacht" /></picture>
-      </div>
-      <div class="gallery-item reveal reveal-delay-1" data-index="18">
+      <div class="gallery-item reveal reveal-delay-2" data-index="13">
         <picture><source type="image/webp" srcset="images/limitless_stern.webp" /><img loading="lazy" decoding="async" src="images/limitless_stern.jpg" width="960" height="1280" alt="Stern of the Limitless yacht berthed at Club de Mar, Mallorca" /></picture>
       </div>
-      <div class="gallery-item reveal reveal-delay-2" data-index="19">
+      <div class="gallery-item reveal reveal-delay-3" data-index="14">
         <picture><source type="image/webp" srcset="images/limitless_aft_dining.webp" /><img loading="lazy" decoding="async" src="images/limitless_aft_dining.jpg" width="1280" height="960" alt="Al fresco dining on the aft deck of the Limitless yacht" /></picture>
       </div>
-      <div class="gallery-item reveal reveal-delay-3" data-index="20">
+      <div class="gallery-item reveal reveal-delay-1" data-index="15">
         <picture><source type="image/webp" srcset="images/limitless_aft_deck.webp" /><img loading="lazy" decoding="async" src="images/limitless_aft_deck.jpg" width="1280" height="960" alt="Aft deck dining area of the Limitless yacht" /></picture>
       </div>
-      <div class="gallery-item reveal reveal-delay-1" data-index="21">
+      <div class="gallery-item reveal reveal-delay-2" data-index="16">
         <picture><source type="image/webp" srcset="images/limitless_flybridge.webp" /><img loading="lazy" decoding="async" src="images/limitless_flybridge.jpg" width="1280" height="960" alt="Flybridge lounge and dining on the Limitless yacht" /></picture>
       </div>
-      <div class="gallery-item reveal reveal-delay-2" data-index="22">
+      <div class="gallery-item reveal reveal-delay-3" data-index="17">
         <picture><source type="image/webp" srcset="images/limitless_sundeck.webp" /><img loading="lazy" decoding="async" src="images/limitless_sundeck.jpg" width="1280" height="960" alt="Flybridge sun deck and sunpads on the Limitless yacht" /></picture>
       </div>
       <!-- Interior shots -->
-      <div class="gallery-item reveal reveal-delay-3" data-index="23">
+      <div class="gallery-item reveal reveal-delay-1" data-index="18">
         <picture><source type="image/webp" srcset="images/IMG_3952-scaled-1-768x576.webp" /><img loading="lazy" decoding="async" src="images/IMG_3952-scaled-1-768x576.jpg" width="768" height="576" alt="Interior of the Limitless yacht" /></picture>
       </div>
-      <div class="gallery-item reveal reveal-delay-1" data-index="24">
+      <div class="gallery-item reveal reveal-delay-2" data-index="19">
         <picture><source type="image/webp" srcset="images/IMG_3974-scaled-1-768x576.webp" /><img loading="lazy" decoding="async" src="images/IMG_3974-scaled-1-768x576.jpg" width="768" height="576" alt="Salon of the Limitless yacht" /></picture>
       </div>
-      <div class="gallery-item reveal reveal-delay-2" data-index="25">
+      <div class="gallery-item reveal reveal-delay-3" data-index="20">
         <picture><source type="image/webp" srcset="images/IMG_3990-scaled-1-768x576.webp" /><img loading="lazy" decoding="async" src="images/IMG_3990-scaled-1-768x576.jpg" width="768" height="576" alt="Guest cabin aboard the Limitless yacht" /></picture>
       </div>
     </div>
@@ -1755,15 +1761,10 @@ height="0" width="0" style="display:none;visibility:hidden"></iframe></noscript>
     "images/maiora_20s_07.jpg",
     "images/maiora_20s_08.jpg",
     "images/IMG_3948-scaled-1-768x576.jpg",
-    "images/IMG_3979-scaled-1-768x576.jpg",
     "images/IMG_3993-scaled-1-768x576.jpg",
-    "images/IMG_4309.jpeg",
     "images/IMG_3949-scaled-1-768x576.jpg",
     "images/IMG_3986-scaled-1-768x576.jpg",
-    "images/IMG_4196.jpeg",
     "images/IMG_4197.jpeg",
-    "images/IMG_4198.jpeg",
-    "images/IMG_4199.jpeg",
     "images/limitless_stern.jpg",
     "images/limitless_aft_dining.jpg",
     "images/limitless_aft_deck.jpg",
