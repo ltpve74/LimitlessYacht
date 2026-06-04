@@ -101,7 +101,9 @@ j=d.createElement(s),dl=l!='dataLayer'?'&l='+l:'';j.async=true;j.src=
 
 <link rel="preconnect" href="https://fonts.googleapis.com" />
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
-<link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,300;0,400;1,300;1,400&family=Montserrat:wght@300;400;500;600&display=swap" rel="stylesheet" />
+<link rel="preload" as="style" href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,300;0,400;1,300;1,400&family=Montserrat:wght@300;400;500;600&display=swap" />
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,300;0,400;1,300;1,400&family=Montserrat:wght@300;400;500;600&display=swap" media="print" onload="this.media='all'" />
+<noscript><link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,300;0,400;1,300;1,400&family=Montserrat:wght@300;400;500;600&display=swap" /></noscript>
 
 <!-- Structured data -->
 <script type="application/ld+json">
@@ -606,7 +608,7 @@ j=d.createElement(s),dl=l!='dataLayer'?'&l='+l:'';j.async=true;j.src=
   }
   .footer-links a:hover { color: var(--gold); }
   .footer-copy {
-    margin-top: 2rem; font-size: .65rem; color: rgba(138,155,181,.4);
+    margin-top: 2rem; font-size: .65rem; color: var(--text-muted);
   }
 
   /* ── ITINERARY ── */
@@ -1330,30 +1332,30 @@ height="0" width="0" style="display:none;visibility:hidden"></iframe></noscript>
 
           <div class="form-row">
             <div class="form-field">
-              <label>First Name</label>
-              <input type="text" name="first_name" placeholder="John" required />
+              <label for="first_name">First Name</label>
+              <input type="text" name="first_name" id="first_name" placeholder="John" required />
             </div>
             <div class="form-field">
-              <label>Last Name</label>
-              <input type="text" name="last_name" placeholder="Smith" />
+              <label for="last_name">Last Name</label>
+              <input type="text" name="last_name" id="last_name" placeholder="Smith" />
             </div>
           </div>
           <div class="form-field">
-            <label>Email</label>
-            <input type="email" name="email" placeholder="john@example.com" required />
+            <label for="email">Email</label>
+            <input type="email" name="email" id="email" placeholder="john@example.com" required />
           </div>
           <div class="form-field">
-            <label>Phone</label>
-            <input type="tel" name="phone" placeholder="+1 / +44 / +34 ..." />
+            <label for="phone">Phone</label>
+            <input type="tel" name="phone" id="phone" placeholder="+1 / +44 / +34 ..." />
           </div>
           <div class="form-row">
             <div class="form-field">
-              <label>Preferred Date</label>
-              <input type="date" name="preferred_date" />
+              <label for="preferred_date">Preferred Date</label>
+              <input type="date" name="preferred_date" id="preferred_date" />
             </div>
             <div class="form-field">
-              <label>Charter Duration</label>
-              <select name="charter_duration">
+              <label for="charter_duration">Charter Duration</label>
+              <select name="charter_duration" id="charter_duration">
                 <option>1 Day</option>
                 <option>2–3 Days</option>
                 <option>1 Week</option>
@@ -1362,16 +1364,16 @@ height="0" width="0" style="display:none;visibility:hidden"></iframe></noscript>
             </div>
           </div>
           <div class="form-field">
-            <label>Number of Guests</label>
-            <select name="guests">
+            <label for="guests">Number of Guests</label>
+            <select name="guests" id="guests">
               <option>1–4 Guests</option>
               <option>5–7 Guests</option>
               <option>8–12 Guests (Day Charter Only)</option>
             </select>
           </div>
           <div class="form-field">
-            <label>Message / Special Requests</label>
-            <textarea rows="4" name="message" placeholder="Tell us about your wishes..."></textarea>
+            <label for="message">Message / Special Requests</label>
+            <textarea rows="4" name="message" id="message" placeholder="Tell us about your wishes..."></textarea>
           </div>
           <button type="submit" class="form-submit" id="submitBtn">Send Enquiry</button>
           <div id="form-success" style="display:none;color:var(--gold);font-size:.85rem;margin-top:.8rem;padding:.8rem;border:1px solid rgba(201,168,76,.3);background:rgba(201,168,76,.05);">
