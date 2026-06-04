@@ -154,9 +154,9 @@ j=d.createElement(s),dl=l!='dataLayer'?'&l='+l:'';j.async=true;j.src=
       "offers": {
         "@type": "AggregateOffer",
         "priceCurrency": "EUR",
-        "lowPrice": "3300",
+        "lowPrice": "1850",
         "highPrice": "26000",
-        "offerCount": "4",
+        "offerCount": "8",
         "availability": "https://schema.org/InStock",
         "url": "https://limitlessyachtcharter.com/#pricing",
         "seller": { "@id": "https://limitlessyachtcharter.com/#business" }
@@ -711,6 +711,9 @@ j=d.createElement(s),dl=l!='dataLayer'?'&l='+l:'';j.async=true;j.src=
   @media (min-width: 820px) {
     .cal { max-width: 900px; }
   }
+  @media (min-width: 1100px) {
+    .cal { max-width: 1180px; }
+  }
   .availability-actions { margin-top: 2.5rem; display: flex; gap: 1.2rem; flex-wrap: wrap; }
   @media (max-width: 640px) {
     .availability-actions { flex-direction: column; }
@@ -1228,6 +1231,14 @@ height="0" width="0" style="display:none;visibility:hidden"></iframe></noscript>
       <div class="pricing-card reveal">
         <div class="pricing-season">September – May</div>
         <div class="pricing-row">
+          <span class="pricing-duration">4 Hours</span>
+          <span class="pricing-amount"><sup>€</sup> 1,850</span>
+        </div>
+        <div class="pricing-row">
+          <span class="pricing-duration">6 Hours</span>
+          <span class="pricing-amount"><sup>€</sup> 2,600</span>
+        </div>
+        <div class="pricing-row">
           <span class="pricing-duration">1 Day</span>
           <span class="pricing-amount"><sup>€</sup> 3,300</span>
         </div>
@@ -1245,6 +1256,14 @@ height="0" width="0" style="display:none;visibility:hidden"></iframe></noscript>
       <div class="pricing-card featured reveal reveal-delay-1">
         <div class="pricing-badge">Peak Season</div>
         <div class="pricing-season">June – August</div>
+        <div class="pricing-row">
+          <span class="pricing-duration">4 Hours</span>
+          <span class="pricing-amount"><sup>€</sup> 2,200</span>
+        </div>
+        <div class="pricing-row">
+          <span class="pricing-duration">6 Hours</span>
+          <span class="pricing-amount"><sup>€</sup> 3,100</span>
+        </div>
         <div class="pricing-row">
           <span class="pricing-duration">1 Day</span>
           <span class="pricing-amount"><sup>€</sup> 3,950</span>
@@ -1356,6 +1375,8 @@ height="0" width="0" style="display:none;visibility:hidden"></iframe></noscript>
             <div class="form-field">
               <label for="charter_duration">Charter Duration</label>
               <select name="charter_duration" id="charter_duration">
+                <option>4 Hours</option>
+                <option>6 Hours</option>
                 <option>1 Day</option>
                 <option>2–3 Days</option>
                 <option>1 Week</option>
@@ -1594,7 +1615,11 @@ height="0" width="0" style="display:none;visibility:hidden"></iframe></noscript>
   var maxIndex = minIndex + 17;                            // ~18-month window
   var viewIndex = minIndex;
 
-  function monthsToShow(){ return window.matchMedia('(min-width: 820px)').matches ? 2 : 1; }
+  function monthsToShow(){
+    if (window.matchMedia('(min-width: 1100px)').matches) return 3;
+    if (window.matchMedia('(min-width: 820px)').matches) return 2;
+    return 1;
+  }
   function pad(n){ return (n < 10 ? '0' : '') + n; }
   function todayStr(){ var t = new Date(); return t.getFullYear() + '-' + pad(t.getMonth() + 1) + '-' + pad(t.getDate()); }
 
