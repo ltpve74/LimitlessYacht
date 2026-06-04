@@ -1,7 +1,8 @@
 /**
  * Temporary behaviour analytics: section visibility, scroll depth, time on page.
- * Fires dataLayer events for GTM/GA4. Optionally loads Microsoft Clarity.
+ * Fires dataLayer events for GTM/GA4.
  * Only runs when cookie consent (ly_consent) is granted.
+ * Clarity is loaded separately via the official head tag + clarity-consent.js.
  */
 (function (global) {
   'use strict';
@@ -16,8 +17,6 @@
   var VISIBLE_RATIO = Number(CONFIG.sectionVisibleRatio) || 0.4;
   var SCROLL_MARKS = [25, 50, 75, 90, 100];
   var TIME_MARKS = [30, 60, 120, 180, 300];
-  var CLARITY_ID = (CONFIG.clarityProjectId || '').trim();
-
   var started = false;
   var startMs = 0;
   var scrollFired = {};
@@ -52,19 +51,6 @@
       page_path: global.location.pathname || '/',
       page_title: document.title || ''
     };
-  }
-
-  function loadClarity() {
-    if (!CLARITY_ID || global.clarity) return;
-    (function (c, l, a, r, i, t, y) {
-      c[a] = c[a] || function () { (c[a].q = c[a].q || []).push(arguments); };
-      t = l.createElement(r);
-      t.async = 1;
-      t.src = 'https://www.clarity.ms/tag/' + i;
-      y = l.getElementsByTagName(r)[0];
-      y.parentNode.insertBefore(t, y);
-    })(global, document, 'clarity', 'script', CLARITY_ID);
-    debug('Clarity loaded', CLARITY_ID);
   }
 
   function trackScrollDepth() {
@@ -167,7 +153,6 @@
     startMs = Date.now();
 
     push('behavior_analytics_start', pageMeta());
-    loadClarity();
     initSections();
 
     global.addEventListener('scroll', trackScrollDepth, { passive: true });
