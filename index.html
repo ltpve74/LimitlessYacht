@@ -97,11 +97,11 @@ j=d.createElement(s),dl=l!='dataLayer'?'&l='+l:'';j.async=true;j.src=
 <meta name="theme-color" content="#0a1628" />
 
 <!-- Preload hero image (LCP) -->
-<link rel="preload" as="image" href="images/maiora_20s_02.jpg" fetchpriority="high" />
+<link rel="preload" as="image" href="images/maiora_20s_02.webp" type="image/webp" fetchpriority="high" />
 
 <link rel="preconnect" href="https://fonts.googleapis.com" />
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
-<link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,300;0,400;0,600;1,300;1,400&family=Montserrat:wght@300;400;500;600&display=swap" rel="stylesheet" />
+<link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,300;0,400;1,300;1,400&family=Montserrat:wght@300;400;500;600&display=swap" rel="stylesheet" />
 
 <!-- Structured data -->
 <script type="application/ld+json">
@@ -229,6 +229,7 @@ j=d.createElement(s),dl=l!='dataLayer'?'&l='+l:'';j.async=true;j.src=
   .hero-bg {
     position: absolute; inset: 0;
     background: url('images/maiora_20s_02.jpg') center/cover no-repeat;
+    background-image: image-set(url('images/maiora_20s_02.webp') type('image/webp'), url('images/maiora_20s_02.jpg') type('image/jpeg'));
     transform: scale(1.08);
     animation: heroZoom 14s ease-out forwards;
   }
@@ -462,6 +463,7 @@ j=d.createElement(s),dl=l!='dataLayer'?'&l='+l:'';j.async=true;j.src=
     position: absolute;
     inset: 0;
     background-image: url('images/maiora_20s_03.jpg'), url('images/maiora_20s_04.jpg');
+    background-image: image-set(url('images/maiora_20s_03.webp') type('image/webp'), url('images/maiora_20s_03.jpg') type('image/jpeg')), image-set(url('images/maiora_20s_04.webp') type('image/webp'), url('images/maiora_20s_04.jpg') type('image/jpeg'));
     background-size: cover, cover;
     background-position: center top, center bottom;
     background-repeat: no-repeat, no-repeat;
@@ -670,26 +672,29 @@ j=d.createElement(s),dl=l!='dataLayer'?'&l='+l:'';j.async=true;j.src=
   }
   /* custom calendar */
   .cal {
-    margin-top: 2.5rem; max-width: 540px;
+    margin-top: 2.5rem; max-width: 560px;
     background: rgba(255,255,255,.025);
     border: 1px solid rgba(201,168,76,.18);
-    border-radius: 8px; padding: 1.6rem 1.6rem 1.4rem;
+    border-radius: 8px; padding: 1.6rem;
   }
-  .cal-head { display: flex; align-items: center; justify-content: space-between; margin-bottom: 1.3rem; }
-  .cal-title { font-family: 'Cormorant Garamond', serif; font-size: 1.6rem; font-weight: 400; color: var(--gold-light); letter-spacing: .02em; }
+  .cal-bar { display: flex; align-items: flex-start; gap: .5rem; }
+  .cal-months { display: flex; gap: 1.8rem; flex: 1; min-width: 0; }
+  .cal-month { flex: 1; min-width: 0; }
+  .cal-title { text-align: center; font-family: 'Cormorant Garamond', serif; font-size: 1.5rem; font-weight: 400; color: var(--gold-light); letter-spacing: .02em; margin-bottom: 1rem; }
   .cal-nav {
+    flex: none; margin-top: 2px;
     background: transparent; border: 1px solid rgba(201,168,76,.35); color: var(--gold);
-    width: 38px; height: 38px; border-radius: 50%; cursor: pointer; font-size: 1.1rem; line-height: 1;
+    width: 36px; height: 36px; border-radius: 50%; cursor: pointer; font-size: 1.05rem; line-height: 1;
     transition: background .2s, color .2s, opacity .2s;
   }
   .cal-nav:hover { background: var(--gold); color: var(--navy); }
   .cal-nav:disabled { opacity: .25; cursor: default; }
   .cal-grid { display: grid; grid-template-columns: repeat(7, 1fr); gap: 5px; }
-  .cal-dow { margin-bottom: .55rem; }
-  .cal-dow span { text-align: center; font-size: .56rem; letter-spacing: .12em; text-transform: uppercase; color: var(--text-muted); }
+  .cal-dow { margin-bottom: .5rem; }
+  .cal-dow span { text-align: center; font-size: .54rem; letter-spacing: .1em; text-transform: uppercase; color: var(--text-muted); }
   .cal-cell {
     aspect-ratio: 1 / 1; display: flex; align-items: center; justify-content: center;
-    font-size: .82rem; color: var(--cream); border-radius: 6px; position: relative;
+    font-size: .8rem; color: var(--cream); border-radius: 6px; position: relative;
   }
   .cal-cell.empty { background: none; }
   .cal-cell.past { color: rgba(245,240,232,.22); }
@@ -701,7 +706,9 @@ j=d.createElement(s),dl=l!='dataLayer'?'&l='+l:'';j.async=true;j.src=
   .leg-available { border: 1px solid rgba(245,240,232,.4); }
   .leg-booked { background: rgba(176,124,130,.9); }
   .leg-tentative { background: rgba(208,164,78,.45); }
-  .cal-note { margin-top: 1rem; font-size: .68rem; color: var(--text-muted); }
+  @media (min-width: 820px) {
+    .cal { max-width: 900px; }
+  }
   .availability-actions { margin-top: 2.5rem; display: flex; gap: 1.2rem; flex-wrap: wrap; }
   @media (max-width: 640px) {
     .availability-actions { flex-direction: column; }
@@ -910,7 +917,7 @@ height="0" width="0" style="display:none;visibility:hidden"></iframe></noscript>
   <div class="container">
     <div class="about-grid">
       <div class="about-image-wrap reveal">
-        <img loading="lazy" decoding="async" src="images/maiora_20s_04.jpg" width="960" height="639" alt="Limitless yacht cruising the Mallorca coastline" />
+        <picture><source type="image/webp" srcset="images/maiora_20s_04.webp" /><img loading="lazy" decoding="async" src="images/maiora_20s_04.jpg" width="960" height="639" alt="Limitless yacht cruising the Mallorca coastline" /></picture>
         <div class="about-image-accent"></div>
       </div>
       <div class="about-text reveal reveal-delay-1">
@@ -991,83 +998,83 @@ height="0" width="0" style="display:none;visibility:hidden"></iframe></noscript>
     <div class="gallery-grid" id="galleryGrid">
       <!-- Outdoor / sailing shots -->
       <div class="gallery-item reveal" data-index="0">
-        <img loading="lazy" decoding="async" src="images/maiora_20s_01.jpg" width="960" height="640" alt="Maiora 20S yacht Limitless at anchor in Mallorca" />
+        <picture><source type="image/webp" srcset="images/maiora_20s_01.webp" /><img loading="lazy" decoding="async" src="images/maiora_20s_01.jpg" width="960" height="640" alt="Maiora 20S yacht Limitless at anchor in Mallorca" /></picture>
       </div>
       <div class="gallery-item reveal reveal-delay-1" data-index="1">
-        <img loading="lazy" decoding="async" src="images/maiora_20s_02.jpg" width="960" height="639" alt="Maiora yacht Limitless cruising off Mallorca" />
+        <picture><source type="image/webp" srcset="images/maiora_20s_02.webp" /><img loading="lazy" decoding="async" src="images/maiora_20s_02.jpg" width="960" height="639" alt="Maiora yacht Limitless cruising off Mallorca" /></picture>
       </div>
       <div class="gallery-item reveal reveal-delay-2" data-index="2">
-        <img loading="lazy" decoding="async" src="images/maiora_20s_03.jpg" width="960" height="640" alt="Maiora 20S Limitless side profile underway at sea" />
+        <picture><source type="image/webp" srcset="images/maiora_20s_03.webp" /><img loading="lazy" decoding="async" src="images/maiora_20s_03.jpg" width="960" height="640" alt="Maiora 20S Limitless side profile underway at sea" /></picture>
       </div>
       <div class="gallery-item reveal reveal-delay-1" data-index="3">
-        <img loading="lazy" decoding="async" src="images/maiora_20s_04.jpg" width="960" height="639" alt="Limitless yacht cruising the Mallorca coastline" />
+        <picture><source type="image/webp" srcset="images/maiora_20s_04.webp" /><img loading="lazy" decoding="async" src="images/maiora_20s_04.jpg" width="960" height="639" alt="Limitless yacht cruising the Mallorca coastline" /></picture>
       </div>
       <div class="gallery-item reveal reveal-delay-2" data-index="4">
-        <img loading="lazy" decoding="async" src="images/maiora_20s_05.jpg" width="960" height="640" alt="Maiora Limitless cruising the Mediterranean" />
+        <picture><source type="image/webp" srcset="images/maiora_20s_05.webp" /><img loading="lazy" decoding="async" src="images/maiora_20s_05.jpg" width="960" height="640" alt="Maiora Limitless cruising the Mediterranean" /></picture>
       </div>
       <div class="gallery-item reveal reveal-delay-3" data-index="5">
-        <img loading="lazy" decoding="async" src="images/maiora_20s_06.jpg" width="960" height="639" alt="Aerial top view of the Limitless Maiora yacht" />
+        <picture><source type="image/webp" srcset="images/maiora_20s_06.webp" /><img loading="lazy" decoding="async" src="images/maiora_20s_06.jpg" width="960" height="639" alt="Aerial top view of the Limitless Maiora yacht" /></picture>
       </div>
       <div class="gallery-item reveal reveal-delay-1" data-index="6">
-        <img loading="lazy" decoding="async" src="images/maiora_20s_07.jpg" width="960" height="639" alt="Aerial view of Limitless yacht in Mallorca waters" />
+        <picture><source type="image/webp" srcset="images/maiora_20s_07.webp" /><img loading="lazy" decoding="async" src="images/maiora_20s_07.jpg" width="960" height="639" alt="Aerial view of Limitless yacht in Mallorca waters" /></picture>
       </div>
       <div class="gallery-item reveal reveal-delay-2" data-index="7">
-        <img loading="lazy" decoding="async" src="images/maiora_20s_08.jpg" width="960" height="639" alt="Limitless Maiora yacht anchored off a Mallorca cove" />
+        <picture><source type="image/webp" srcset="images/maiora_20s_08.webp" /><img loading="lazy" decoding="async" src="images/maiora_20s_08.jpg" width="960" height="639" alt="Limitless Maiora yacht anchored off a Mallorca cove" /></picture>
       </div>
       <div class="gallery-item reveal reveal-delay-3" data-index="8">
-        <img loading="lazy" decoding="async" src="images/IMG_3948-scaled-1-768x576.jpg" width="768" height="576" alt="Limitless yacht exterior in Mallorca" />
+        <picture><source type="image/webp" srcset="images/IMG_3948-scaled-1-768x576.webp" /><img loading="lazy" decoding="async" src="images/IMG_3948-scaled-1-768x576.jpg" width="768" height="576" alt="Limitless yacht exterior in Mallorca" /></picture>
       </div>
       <div class="gallery-item reveal reveal-delay-1" data-index="9">
-        <img loading="lazy" decoding="async" src="images/IMG_3979-scaled-1-768x576.jpg" width="768" height="576" alt="Limitless yacht exterior and decks" />
+        <picture><source type="image/webp" srcset="images/IMG_3979-scaled-1-768x576.webp" /><img loading="lazy" decoding="async" src="images/IMG_3979-scaled-1-768x576.jpg" width="768" height="576" alt="Limitless yacht exterior and decks" /></picture>
       </div>
       <div class="gallery-item reveal reveal-delay-2" data-index="10">
-        <img loading="lazy" decoding="async" src="images/IMG_3993-scaled-1-768x576.jpg" width="768" height="576" alt="Swim platform of the Limitless yacht" />
+        <picture><source type="image/webp" srcset="images/IMG_3993-scaled-1-768x576.webp" /><img loading="lazy" decoding="async" src="images/IMG_3993-scaled-1-768x576.jpg" width="768" height="576" alt="Swim platform of the Limitless yacht" /></picture>
       </div>
       <div class="gallery-item reveal reveal-delay-3" data-index="11">
-        <img loading="lazy" decoding="async" src="images/IMG_4309.jpeg" width="1280" height="960" alt="Limitless yacht in the Mediterranean off Mallorca" />
+        <picture><source type="image/webp" srcset="images/IMG_4309.webp" /><img loading="lazy" decoding="async" src="images/IMG_4309.jpeg" width="1280" height="960" alt="Limitless yacht in the Mediterranean off Mallorca" /></picture>
       </div>
       <div class="gallery-item reveal reveal-delay-1" data-index="12">
-        <img loading="lazy" decoding="async" src="images/IMG_3949-scaled-1-768x576.jpg" width="768" height="576" alt="Spacious deck of the Limitless yacht" />
+        <picture><source type="image/webp" srcset="images/IMG_3949-scaled-1-768x576.webp" /><img loading="lazy" decoding="async" src="images/IMG_3949-scaled-1-768x576.jpg" width="768" height="576" alt="Spacious deck of the Limitless yacht" /></picture>
       </div>
       <div class="gallery-item reveal reveal-delay-2" data-index="13">
-        <img loading="lazy" decoding="async" src="images/IMG_3986-scaled-1-768x576.jpg" width="768" height="576" alt="Helm and cockpit of the Limitless yacht" />
+        <picture><source type="image/webp" srcset="images/IMG_3986-scaled-1-768x576.webp" /><img loading="lazy" decoding="async" src="images/IMG_3986-scaled-1-768x576.jpg" width="768" height="576" alt="Helm and cockpit of the Limitless yacht" /></picture>
       </div>
       <div class="gallery-item reveal reveal-delay-3" data-index="14">
-        <img loading="lazy" decoding="async" src="images/IMG_4196.jpeg" width="1280" height="960" alt="On board the Limitless yacht in Mallorca" />
+        <picture><source type="image/webp" srcset="images/IMG_4196.webp" /><img loading="lazy" decoding="async" src="images/IMG_4196.jpeg" width="1280" height="960" alt="On board the Limitless yacht in Mallorca" /></picture>
       </div>
       <div class="gallery-item reveal reveal-delay-1" data-index="15">
-        <img loading="lazy" decoding="async" src="images/IMG_4197.jpeg" width="1280" height="960" alt="Bow and foredeck of the Limitless yacht" />
+        <picture><source type="image/webp" srcset="images/IMG_4197.webp" /><img loading="lazy" decoding="async" src="images/IMG_4197.jpeg" width="1280" height="960" alt="Bow and foredeck of the Limitless yacht" /></picture>
       </div>
       <div class="gallery-item reveal reveal-delay-2" data-index="16">
-        <img loading="lazy" decoding="async" src="images/IMG_4198.jpeg" width="1280" height="960" alt="Aft deck and seating of the Limitless yacht" />
+        <picture><source type="image/webp" srcset="images/IMG_4198.webp" /><img loading="lazy" decoding="async" src="images/IMG_4198.jpeg" width="1280" height="960" alt="Aft deck and seating of the Limitless yacht" /></picture>
       </div>
       <div class="gallery-item reveal reveal-delay-3" data-index="17">
-        <img loading="lazy" decoding="async" src="images/IMG_4199.jpeg" width="1280" height="960" alt="Sun deck of the Limitless yacht" />
+        <picture><source type="image/webp" srcset="images/IMG_4199.webp" /><img loading="lazy" decoding="async" src="images/IMG_4199.jpeg" width="1280" height="960" alt="Sun deck of the Limitless yacht" /></picture>
       </div>
       <div class="gallery-item reveal reveal-delay-1" data-index="18">
-        <img loading="lazy" decoding="async" src="images/limitless_stern.jpg" width="960" height="1280" alt="Stern of the Limitless yacht berthed at Club de Mar, Mallorca" />
+        <picture><source type="image/webp" srcset="images/limitless_stern.webp" /><img loading="lazy" decoding="async" src="images/limitless_stern.jpg" width="960" height="1280" alt="Stern of the Limitless yacht berthed at Club de Mar, Mallorca" /></picture>
       </div>
       <div class="gallery-item reveal reveal-delay-2" data-index="19">
-        <img loading="lazy" decoding="async" src="images/limitless_aft_dining.jpg" width="1280" height="960" alt="Al fresco dining on the aft deck of the Limitless yacht" />
+        <picture><source type="image/webp" srcset="images/limitless_aft_dining.webp" /><img loading="lazy" decoding="async" src="images/limitless_aft_dining.jpg" width="1280" height="960" alt="Al fresco dining on the aft deck of the Limitless yacht" /></picture>
       </div>
       <div class="gallery-item reveal reveal-delay-3" data-index="20">
-        <img loading="lazy" decoding="async" src="images/limitless_aft_deck.jpg" width="1280" height="960" alt="Aft deck dining area of the Limitless yacht" />
+        <picture><source type="image/webp" srcset="images/limitless_aft_deck.webp" /><img loading="lazy" decoding="async" src="images/limitless_aft_deck.jpg" width="1280" height="960" alt="Aft deck dining area of the Limitless yacht" /></picture>
       </div>
       <div class="gallery-item reveal reveal-delay-1" data-index="21">
-        <img loading="lazy" decoding="async" src="images/limitless_flybridge.jpg" width="1280" height="960" alt="Flybridge lounge and dining on the Limitless yacht" />
+        <picture><source type="image/webp" srcset="images/limitless_flybridge.webp" /><img loading="lazy" decoding="async" src="images/limitless_flybridge.jpg" width="1280" height="960" alt="Flybridge lounge and dining on the Limitless yacht" /></picture>
       </div>
       <div class="gallery-item reveal reveal-delay-2" data-index="22">
-        <img loading="lazy" decoding="async" src="images/limitless_sundeck.jpg" width="1280" height="960" alt="Flybridge sun deck and sunpads on the Limitless yacht" />
+        <picture><source type="image/webp" srcset="images/limitless_sundeck.webp" /><img loading="lazy" decoding="async" src="images/limitless_sundeck.jpg" width="1280" height="960" alt="Flybridge sun deck and sunpads on the Limitless yacht" /></picture>
       </div>
       <!-- Interior shots -->
       <div class="gallery-item reveal reveal-delay-3" data-index="23">
-        <img loading="lazy" decoding="async" src="images/IMG_3952-scaled-1-768x576.jpg" width="768" height="576" alt="Interior of the Limitless yacht" />
+        <picture><source type="image/webp" srcset="images/IMG_3952-scaled-1-768x576.webp" /><img loading="lazy" decoding="async" src="images/IMG_3952-scaled-1-768x576.jpg" width="768" height="576" alt="Interior of the Limitless yacht" /></picture>
       </div>
       <div class="gallery-item reveal reveal-delay-1" data-index="24">
-        <img loading="lazy" decoding="async" src="images/IMG_3974-scaled-1-768x576.jpg" width="768" height="576" alt="Salon of the Limitless yacht" />
+        <picture><source type="image/webp" srcset="images/IMG_3974-scaled-1-768x576.webp" /><img loading="lazy" decoding="async" src="images/IMG_3974-scaled-1-768x576.jpg" width="768" height="576" alt="Salon of the Limitless yacht" /></picture>
       </div>
       <div class="gallery-item reveal reveal-delay-2" data-index="25">
-        <img loading="lazy" decoding="async" src="images/IMG_3990-scaled-1-768x576.jpg" width="768" height="576" alt="Guest cabin aboard the Limitless yacht" />
+        <picture><source type="image/webp" srcset="images/IMG_3990-scaled-1-768x576.webp" /><img loading="lazy" decoding="async" src="images/IMG_3990-scaled-1-768x576.jpg" width="768" height="576" alt="Guest cabin aboard the Limitless yacht" /></picture>
       </div>
     </div>
   </div>
@@ -1142,7 +1149,7 @@ height="0" width="0" style="display:none;visibility:hidden"></iframe></noscript>
     <div class="itinerary-grid">
 
       <div class="destination-card reveal">
-        <div class="destination-card-bg" style="background:url('images/place_es_trenc.jpg') center/cover no-repeat;"></div>
+        <div class="destination-card-bg" style="background:url('images/place_es_trenc.jpg') center/cover no-repeat;background-image:image-set(url('images/place_es_trenc.webp') type('image/webp'),url('images/place_es_trenc.jpg') type('image/jpeg'));"></div>
         <div class="destination-card-overlay"></div>
         <div class="destination-card-body">
           <div class="destination-num">01 · Southwest Coast</div>
@@ -1158,7 +1165,7 @@ height="0" width="0" style="display:none;visibility:hidden"></iframe></noscript>
       </div>
 
       <div class="destination-card reveal reveal-delay-1">
-        <div class="destination-card-bg" style="background:url('images/place_cala_llamp.jpg') center/cover no-repeat;"></div>
+        <div class="destination-card-bg" style="background:url('images/place_cala_llamp.jpg') center/cover no-repeat;background-image:image-set(url('images/place_cala_llamp.webp') type('image/webp'),url('images/place_cala_llamp.jpg') type('image/jpeg'));"></div>
         <div class="destination-card-overlay"></div>
         <div class="destination-card-body">
           <div class="destination-num">02 · Southwest Coast</div>
@@ -1174,7 +1181,7 @@ height="0" width="0" style="display:none;visibility:hidden"></iframe></noscript>
       </div>
 
       <div class="destination-card reveal reveal-delay-1">
-        <div class="destination-card-bg" style="background:url('images/place_portals_vells.jpg') center/cover no-repeat;"></div>
+        <div class="destination-card-bg" style="background:url('images/place_portals_vells.jpg') center/cover no-repeat;background-image:image-set(url('images/place_portals_vells.webp') type('image/webp'),url('images/place_portals_vells.jpg') type('image/jpeg'));"></div>
         <div class="destination-card-overlay"></div>
         <div class="destination-card-body">
           <div class="destination-num">03 · Southwest Coast</div>
@@ -1190,7 +1197,7 @@ height="0" width="0" style="display:none;visibility:hidden"></iframe></noscript>
       </div>
 
       <div class="destination-card reveal reveal-delay-2">
-        <div class="destination-card-bg" style="background:url('images/place_sa_calobra.jpg') center/cover no-repeat;"></div>
+        <div class="destination-card-bg" style="background:url('images/place_sa_calobra.jpg') center/cover no-repeat;background-image:image-set(url('images/place_sa_calobra.webp') type('image/webp'),url('images/place_sa_calobra.jpg') type('image/jpeg'));"></div>
         <div class="destination-card-overlay"></div>
         <div class="destination-card-body">
           <div class="destination-num">04 · Northwest Coast</div>
@@ -1265,15 +1272,11 @@ height="0" width="0" style="display:none;visibility:hidden"></iframe></noscript>
     <h2 class="section-title reveal reveal-delay-1">Check the<em> Calendar</em></h2>
     <p class="availability-intro reveal reveal-delay-2">See which dates are open below, then send us an enquiry — we'll confirm your charter personally. The calendar is kept up to date by our crew.</p>
     <div class="cal reveal reveal-delay-2" id="availCal" aria-label="Availability calendar">
-      <div class="cal-head">
+      <div class="cal-bar">
         <button type="button" class="cal-nav" id="calPrev" aria-label="Previous month">‹</button>
-        <div class="cal-title" id="calTitle">&nbsp;</div>
+        <div class="cal-months" id="calMonths"></div>
         <button type="button" class="cal-nav" id="calNext" aria-label="Next month">›</button>
       </div>
-      <div class="cal-grid cal-dow" aria-hidden="true">
-        <span>Mon</span><span>Tue</span><span>Wed</span><span>Thu</span><span>Fri</span><span>Sat</span><span>Sun</span>
-      </div>
-      <div class="cal-grid" id="calDays"></div>
       <div class="cal-legend">
         <span><i class="leg-available"></i>Available</span>
         <span><i class="leg-booked"></i>Booked</span>
@@ -1574,58 +1577,79 @@ height="0" width="0" style="display:none;visibility:hidden"></iframe></noscript>
 <!-- Availability calendar (custom UI, fed by a shared iCal feed via Netlify function) -->
 <script>
 (function () {
-  var titleEl = document.getElementById('calTitle');
-  var daysEl  = document.getElementById('calDays');
-  var prevBtn = document.getElementById('calPrev');
-  var nextBtn = document.getElementById('calNext');
-  if (!daysEl) return;
+  var monthsEl = document.getElementById('calMonths');
+  var prevBtn  = document.getElementById('calPrev');
+  var nextBtn  = document.getElementById('calNext');
+  if (!monthsEl) return;
 
   var MONTHS = ['January','February','March','April','May','June','July','August','September','October','November','December'];
+  var DOW = ['Mon','Tue','Wed','Thu','Fri','Sat','Sun'];
   var booked = new Set();
   var tentative = new Set();
 
   var now = new Date();
-  var viewY = now.getFullYear();
-  var viewM = now.getMonth();
-  var minIndex = viewY * 12 + viewM;      // can't page before current month
-  var maxIndex = minIndex + 18;           // up to 18 months ahead
+  var minIndex = now.getFullYear() * 12 + now.getMonth();  // can't page before current month
+  var maxIndex = minIndex + 17;                            // ~18-month window
+  var viewIndex = minIndex;
 
+  function monthsToShow(){ return window.matchMedia('(min-width: 820px)').matches ? 2 : 1; }
   function pad(n){ return (n < 10 ? '0' : '') + n; }
-  function key(y, m, d){ return y + '-' + pad(m + 1) + '-' + pad(d); }
-  function todayStr(){ var t = new Date(); return key(t.getFullYear(), t.getMonth(), t.getDate()); }
+  function todayStr(){ var t = new Date(); return t.getFullYear() + '-' + pad(t.getMonth() + 1) + '-' + pad(t.getDate()); }
 
-  function render() {
-    titleEl.textContent = MONTHS[viewM] + ' ' + viewY;
-    var first = new Date(viewY, viewM, 1);
-    var startDow = (first.getDay() + 6) % 7;            // Monday = 0
-    var daysInMonth = new Date(viewY, viewM + 1, 0).getDate();
+  function monthHtml(index) {
+    var y = Math.floor(index / 12), m = index % 12;
+    var startDow = (new Date(y, m, 1).getDay() + 6) % 7;   // Monday = 0
+    var daysInMonth = new Date(y, m + 1, 0).getDate();
     var ts = todayStr();
-    var html = '';
-    for (var i = 0; i < startDow; i++) html += '<div class="cal-cell empty"></div>';
+    var cells = '';
+    for (var i = 0; i < startDow; i++) cells += '<div class="cal-cell empty"></div>';
     for (var d = 1; d <= daysInMonth; d++) {
-      var k = key(viewY, viewM, d);
+      var k = y + '-' + pad(m + 1) + '-' + pad(d);
       var cls = 'cal-cell';
       if (k < ts) cls += ' past';
       if (k === ts) cls += ' today';
       if (booked.has(k)) cls += ' booked';
       else if (tentative.has(k)) cls += ' tentative';
-      html += '<div class="' + cls + '">' + d + '</div>';
+      cells += '<div class="' + cls + '">' + d + '</div>';
     }
-    daysEl.innerHTML = html;
-    var idx = viewY * 12 + viewM;
-    prevBtn.disabled = (idx <= minIndex);
-    nextBtn.disabled = (idx >= maxIndex);
+    var dow = DOW.map(function(x){ return '<span>' + x + '</span>'; }).join('');
+    return '<div class="cal-month">' +
+             '<div class="cal-title">' + MONTHS[m] + ' ' + y + '</div>' +
+             '<div class="cal-grid cal-dow" aria-hidden="true">' + dow + '</div>' +
+             '<div class="cal-grid cal-days">' + cells + '</div>' +
+           '</div>';
   }
 
-  function shift(delta) {
-    var idx = viewY * 12 + viewM + delta;
-    if (idx < minIndex || idx > maxIndex) return;
-    viewY = Math.floor(idx / 12);
-    viewM = idx % 12;
+  function render() {
+    var count = monthsToShow();
+    var maxFirst = maxIndex - (count - 1);
+    if (viewIndex > maxFirst) viewIndex = maxFirst;
+    if (viewIndex < minIndex) viewIndex = minIndex;
+    var html = '';
+    for (var i = 0; i < count; i++) {
+      if (viewIndex + i > maxIndex) break;
+      html += monthHtml(viewIndex + i);
+    }
+    monthsEl.innerHTML = html;
+    prevBtn.disabled = (viewIndex <= minIndex);
+    nextBtn.disabled = (viewIndex >= maxFirst);
+  }
+
+  function shift(dir) {
+    var count = monthsToShow();
+    var maxFirst = maxIndex - (count - 1);
+    var next = viewIndex + dir * count;
+    if (next < minIndex) next = minIndex;
+    if (next > maxFirst) next = maxFirst;
+    if (next === viewIndex) return;
+    viewIndex = next;
     render();
   }
   prevBtn.addEventListener('click', function(){ shift(-1); });
   nextBtn.addEventListener('click', function(){ shift(1); });
+
+  var resizeTimer;
+  window.addEventListener('resize', function(){ clearTimeout(resizeTimer); resizeTimer = setTimeout(render, 150); });
 
   render(); // instant paint (all available) before data loads
 
