@@ -11,3 +11,8 @@ google-ads-*.md
 limitless-logo-square-1200.png
 __pycache__/
 *.pyc
+
+# Google Ads API secrets (local only)
+scripts/google-ads/google-ads.yaml
+scripts/google-ads/client_secrets.json
+scripts/google-ads/.venv/
