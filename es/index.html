@@ -46,9 +46,21 @@ function gtag_report_conversion(url) {
     }
   };
   gtag('event', 'conversion', {
-      'send_to': 'AW-18209943491/qm5KCJi-sbgcEMPflutD',
+      'send_to': 'AW-18209943491/CkJfCKPt7rgcEMPflutD',
       'value': 1.0,
       'currency': 'EUR',
+      'event_callback': callback
+  });
+  return false;
+}
+function gtag_report_conversion_form(url) {
+  var callback = function () {
+    if (typeof(url) != 'undefined') {
+      window.location = url;
+    }
+  };
+  gtag('event', 'conversion', {
+      'send_to': 'AW-18209943491/Pd-9CKDt7rgcEMPflutD',
       'event_callback': callback
   });
   return false;
@@ -1843,8 +1855,8 @@ height="0" width="0" style="display:none;visibility:hidden"></iframe></noscript>
           'ad_personalization': 'granted'
         });
 
-        // Google Ads conversion tracking (shared with WhatsApp button)
-        gtag_report_conversion();
+        // Google Ads conversion tracking (dedicated lead-form-submission action)
+        gtag_report_conversion_form();
 
         setTimeout(() => {
           btn.textContent = 'Enviar consulta';
