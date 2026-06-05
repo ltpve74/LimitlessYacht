@@ -1,5 +1,5 @@
 """
-Generate web-ready destination card assets (jpg + webp) for the Destinations section cards (recalculated at 16 knots, west-coast multi-day redesign, circumnavigation, Ibiza crossing).
+Generate web-ready destination card assets (jpg + webp) for the Destinations section cards (recalculated at 16 knots, west-coast multi-day redesign, circumnavigation, Ibiza + Menorca crossings).
 
 Sources:
   - Downloaded free-license masters in media-library/destinations/<slug>/
@@ -69,6 +69,9 @@ JOBS = {
     ],
     "circumnavigation": [
         (1, os.path.join(DEST_DIR, "circumnavigation", "west_mallorca_coastline.jpeg")),
+    ],
+    "menorca": [
+        (1, os.path.join(DEST_DIR, "menorca", "cala_macarella.jpg")),
     ],
 }
 
