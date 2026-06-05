@@ -1,7 +1,8 @@
 .DS_Store
 images/.DS_Store
 .claude/
-unused media/
+media-library/
+.venv/
 
 # Internal project notes and AI memory (not part of the website)
 memory/
