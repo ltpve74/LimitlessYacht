@@ -784,7 +784,7 @@ j=d.createElement(s),dl=l!='dataLayer'?'&l='+l:'';j.async=true;j.src=
     display: grid; grid-template-columns: repeat(2, 1fr); gap: 2px; margin-top: 3.5rem;
   }
   .destination-card {
-    position: relative; overflow: hidden; min-height: 380px;
+    position: relative; overflow: hidden; min-height: 420px;
     display: flex; flex-direction: column; justify-content: flex-end;
     cursor: default;
   }
@@ -837,6 +837,26 @@ j=d.createElement(s),dl=l!='dataLayer'?'&l='+l:'';j.async=true;j.src=
   }
   .dest-tier .tier-note {
     font-size: .72rem; letter-spacing: .12em; color: rgba(201,168,76,.55); font-weight: 400;
+  }
+
+  /* Large screen tweaks for destination cards */
+  @media (min-width: 1400px) {
+    .itinerary-wrap {
+      max-width: 1600px;
+    }
+    .destination-card {
+      min-height: 460px;
+    }
+    .destination-card-body {
+      padding: 2.8rem;
+    }
+    .destination-name {
+      font-size: 2.2rem;
+    }
+    .destination-desc {
+      font-size: 0.95rem;
+      max-width: 42ch;
+    }
   }
 
   /* ── REVIEWS ── */
@@ -924,7 +944,7 @@ j=d.createElement(s),dl=l!='dataLayer'?'&l='+l:'';j.async=true;j.src=
       margin-right: -1.2rem !important;
       padding: 0 1rem !important;
     }
-    .destination-card { min-height: 360px; }
+    .destination-card { min-height: 380px; }
     .destination-desc { font-size: .82rem; line-height: 1.65; }
     .destination-meta span { font-size: .65rem; }
   }
@@ -1055,7 +1075,7 @@ j=d.createElement(s),dl=l!='dataLayer'?'&l='+l:'';j.async=true;j.src=
     .intro-grid { grid-template-columns: repeat(2,1fr); }
     .intro-item:nth-child(2) { border-right: none; }
     .itinerary-grid { grid-template-columns: 1fr; }
-    .destination-card { min-height: 320px; }
+    .destination-card { min-height: 380px; }
     .dest-tier { font-size: .76rem; margin: 1.1rem 0 .2rem; }
   }
   /* Phone: compact header + slide-down menu */
@@ -1380,7 +1400,7 @@ height="0" width="0" style="display:none;visibility:hidden"></iframe></noscript>
     <h2 class="section-title reveal reveal-delay-1">Where <em>Limitless</em> Takes You</h2>
     <p class="itinerary-intro reveal reveal-delay-2">From a relaxed <strong>half-day escape</strong> to a <strong>multi-day voyage</strong> exploring Mallorca's most beautiful coastlines. Every charter is <strong>tailored to you</strong> — our crew plans the route together with you, with flexible per-day options and the freedom to overnight when the mood takes you.</p>
   </div>
-  <div style="max-width:1400px;margin:0 auto;padding:0 2rem;">
+  <div class="itinerary-wrap" style="max-width:1400px;margin:0 auto;padding:0 2rem;">
     <div class="itinerary-grid">
 
       <!-- Half-Day Escapes -->
