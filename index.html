@@ -450,7 +450,7 @@ j=d.createElement(s),dl=l!='dataLayer'?'&l='+l:'';j.async=true;j.src=
   }
 
   /* ── ABOUT ── */
-  #about { background: var(--navy); }
+  #about { background: var(--navy); padding-bottom: 4rem; }
   .about-grid {
     display: grid; grid-template-columns: 1fr 1fr; gap: 6rem; align-items: center;
   }
@@ -476,7 +476,7 @@ j=d.createElement(s),dl=l!='dataLayer'?'&l='+l:'';j.async=true;j.src=
   .about-text p strong { color: var(--gold-light); font-weight: 500; }
 
   /* ── SPECS ── */
-  #specs { background: var(--deep); }
+  #specs { background: var(--deep); padding-bottom: 3.5rem; }
   .specs-grid {
     display: grid; grid-template-columns: repeat(3,1fr); gap: 2px;
     margin-top: 3.5rem;
@@ -498,7 +498,7 @@ j=d.createElement(s),dl=l!='dataLayer'?'&l='+l:'';j.async=true;j.src=
   }
 
   /* ── GALLERY ── */
-  #gallery { background: var(--navy); padding-bottom: 5rem; }
+  #gallery { background: var(--navy); padding-top: 3.5rem; padding-bottom: 4rem; }
   .gallery-grid {
     display: grid;
     grid-template-columns: repeat(4,1fr);
@@ -592,7 +592,7 @@ j=d.createElement(s),dl=l!='dataLayer'?'&l='+l:'';j.async=true;j.src=
   }
 
   /* ── AMENITIES ── */
-  #amenities { background: var(--deep); }
+  #amenities { background: var(--deep); padding-top: 3.5rem; padding-bottom: 3.5rem; }
   .amenities-grid {
     display: grid; grid-template-columns: repeat(2,1fr); gap: 1.5rem; margin-top: 3.5rem;
   }
@@ -774,7 +774,7 @@ j=d.createElement(s),dl=l!='dataLayer'?'&l='+l:'';j.async=true;j.src=
   }
 
   /* ── ITINERARY ── */
-  #itinerary { background: var(--navy); padding-bottom: 4rem; }
+  #itinerary { background: var(--navy); padding-top: 3.5rem; padding-bottom: 5rem; }
   .itinerary-intro {
     max-width: 720px; margin-top: 1.8rem;
     font-size: .95rem; line-height: 1.9; color: rgba(245,240,232,.75);
@@ -843,7 +843,7 @@ j=d.createElement(s),dl=l!='dataLayer'?'&l='+l:'';j.async=true;j.src=
   #reviews {
     background: var(--deep);
     padding-top: 4rem;
-    padding-bottom: 7rem;
+    padding-bottom: 6rem;
   }
   .reviews-intro {
     max-width: 640px; margin-top: 1.2rem;
@@ -912,7 +912,11 @@ j=d.createElement(s),dl=l!='dataLayer'?'&l='+l:'';j.async=true;j.src=
     letter-spacing: .08em;
   }
   @media (max-width: 640px) {
-    #itinerary { padding-bottom: 3rem; }
+    #about { padding-bottom: 3rem; }
+    #gallery { padding-top: 2.5rem; padding-bottom: 3rem; }
+    #itinerary { padding-top: 2.5rem; padding-bottom: 3.5rem; }
+    #specs { padding-bottom: 2.5rem; }
+    #amenities { padding-top: 2.5rem; padding-bottom: 2.5rem; }
     #reviews { padding-top: 3rem; padding-bottom: 4rem; }
     /* Full-bleed single column for destinations on phone (match gallery breakout) */
     #itinerary > div[style*="max-width:1400px"] {
