@@ -798,10 +798,15 @@ j=d.createElement(s),dl=l!='dataLayer'?'&l='+l:'';j.async=true;j.src=
   .destination-card:hover .destination-card-bg { transform: scale(1.04); }
   .destination-card-overlay {
     position: absolute; inset: 0;
-    background: linear-gradient(to top, rgba(8,18,34,.92) 0%, rgba(8,18,34,.4) 55%, rgba(8,18,34,.1) 100%);
+    background: linear-gradient(to top, rgba(8,18,34,.98) 0%, rgba(8,18,34,.65) 35%, rgba(8,18,34,.25) 65%, rgba(8,18,34,.05) 100%);
   }
   .destination-card-body {
     position: relative; z-index: 1; padding: 2.5rem;
+  }
+  .destination-name,
+  .destination-tagline,
+  .destination-desc {
+    text-shadow: 0 1px 4px rgba(0, 0, 0, 0.75);
   }
   .destination-num {
     font-size: .65rem; letter-spacing: .22em; text-transform: uppercase;
@@ -828,6 +833,7 @@ j=d.createElement(s),dl=l!='dataLayer'?'&l='+l:'';j.async=true;j.src=
   .destination-meta span {
     font-size: .72rem; letter-spacing: .08em; text-transform: uppercase;
     color: rgba(245,240,232,.68);
+    text-shadow: 0 1px 3px rgba(0, 0, 0, 0.7);
   }
   .destination-meta strong { color: var(--gold-light); font-weight: 500; }
 
