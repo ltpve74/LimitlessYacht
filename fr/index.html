@@ -1061,7 +1061,9 @@ j=d.createElement(s),dl=l!='dataLayer'?'&l='+l:'';j.async=true;j.src=
     .intro-grid { grid-template-columns: 1fr 1fr; }
     .intro-item { padding: 1.5rem 1rem; }
     .intro-num { font-size: 2rem; }
-    .gallery-grid { grid-template-columns: 1fr 1fr; }
+    .gallery-grid { grid-template-columns: 1fr 1fr; gap: 3px; }
+    /* Full-bleed gallery on phones; heading stays padded via the section */
+    .gallery-wrap { margin-left: -1.2rem !important; margin-right: -1.2rem !important; padding: 0 !important; }
     .gallery-item:nth-child(1) { grid-column: span 2; grid-row: span 1; }
     .gallery-item:nth-child(5) { grid-column: span 1; }
     .gallery-item:nth-child(10) { grid-column: span 1; }
@@ -1295,7 +1297,7 @@ height="0" width="0" style="display:none;visibility:hidden"></iframe></noscript>
     <p class="section-label reveal">Gallery</p>
     <h2 class="section-title reveal reveal-delay-1">Galerie <em>à bord</em></h2>
   </div>
-  <div style="max-width:1400px;margin:0 auto;padding:0 2rem;">
+  <div class="gallery-wrap" style="max-width:1400px;margin:0 auto;padding:0 2rem;">
     <div class="gallery-grid" id="galleryGrid">
       <div class="gallery-item reveal" data-index="0">
         <picture><source type="image/webp" srcset="/images/maiora_20s_01.webp" /><img loading="lazy" decoding="async" src="/images/maiora_20s_01.jpg" width="960" height="640" alt="Maiora 20S yacht Limitless cruising off the Mallorca coast" /></picture>
