@@ -511,6 +511,7 @@ j=d.createElement(s),dl=l!='dataLayer'?'&l='+l:'';j.async=true;j.src=
   }
   .gallery-item:nth-child(1) { grid-column: span 2; grid-row: span 2; }
   .gallery-item:nth-child(5) { grid-column: span 2; }
+  .gallery-item:nth-child(10) { grid-column: span 2; }
   .gallery-item img {
     width: 100%; height: 100%; object-fit: cover; display: block;
     transition: transform .6s ease, filter .4s;
@@ -1025,6 +1026,7 @@ j=d.createElement(s),dl=l!='dataLayer'?'&l='+l:'';j.async=true;j.src=
     .gallery-grid { grid-template-columns: repeat(2,1fr); }
     .gallery-item:nth-child(1) { grid-column: span 2; grid-row: span 1; }
     .gallery-item:nth-child(5) { grid-column: span 1; }
+    .gallery-item:nth-child(10) { grid-column: span 1; }
     .intro-grid { grid-template-columns: repeat(2,1fr); }
     .intro-item:nth-child(2) { border-right: none; }
     .itinerary-grid { grid-template-columns: 1fr; }
@@ -1062,6 +1064,7 @@ j=d.createElement(s),dl=l!='dataLayer'?'&l='+l:'';j.async=true;j.src=
     .gallery-grid { grid-template-columns: 1fr 1fr; }
     .gallery-item:nth-child(1) { grid-column: span 2; grid-row: span 1; }
     .gallery-item:nth-child(5) { grid-column: span 1; }
+    .gallery-item:nth-child(10) { grid-column: span 1; }
     .destination-card { min-height: 420px; }
     .destination-meta { flex-wrap: wrap; gap: .8rem; }
     .destination-meta span { font-size: .58rem; }
@@ -1080,7 +1083,7 @@ j=d.createElement(s),dl=l!='dataLayer'?'&l='+l:'';j.async=true;j.src=
   @media (max-width: 400px) {
     .nav-logo { letter-spacing: .08em; }
     .gallery-grid { grid-template-columns: 1fr; }
-    .gallery-item:nth-child(1), .gallery-item:nth-child(5) { grid-column: span 1; }
+    .gallery-item:nth-child(1), .gallery-item:nth-child(5), .gallery-item:nth-child(10) { grid-column: span 1; }
     .spec-card { padding: 1.3rem 0.9rem; }
   }
 
@@ -1338,9 +1341,6 @@ height="0" width="0" style="display:none;visibility:hidden"></iframe></noscript>
       </div>
       <div class="gallery-item reveal reveal-delay-2" data-index="14">
         <picture><source type="image/webp" srcset="/images/limitless_aft_deck.webp" /><img loading="lazy" decoding="async" src="/images/limitless_aft_deck.jpg" width="1280" height="960" alt="Aft deck lounge of the Limitless yacht" /></picture>
-      </div>
-      <div class="gallery-item reveal reveal-delay-3" data-index="15">
-        <picture><source type="image/webp" srcset="/images/lifestyle_sunset.webp" /><img loading="lazy" decoding="async" src="/images/lifestyle_sunset.jpg" width="1280" height="960" alt="Sunset above the clouds over the Mallorca mountains" /></picture>
       </div>
     </div>
   </div>
@@ -1829,7 +1829,6 @@ height="0" width="0" style="display:none;visibility:hidden"></iframe></noscript>
     "/images/int_vip_cabin.jpg",
     "/images/int_twin_cabin.jpg",
     "/images/limitless_aft_deck.jpg",
-    "/images/lifestyle_sunset.jpg",
   ];
   let currentIdx = 0;
   const lightbox = document.getElementById('lightbox');
