@@ -1577,7 +1577,8 @@ height="0" width="0" style="display:none;visibility:hidden"></iframe></noscript>
     <h2 class="section-title reveal reveal-delay-1">Transparentes y <em>justas</em></h2>
     <div class="divider reveal reveal-delay-1"></div>
     <div class="pricing-grid">
-      <div class="pricing-card reveal">
+      <div class="pricing-card reveal" data-season="low">
+        <div class="pricing-badge">Temporada baja</div>
         <div class="pricing-season">septiembre – mayo</div>
         <div class="pricing-row">
           <span class="pricing-duration">4 horas</span>
@@ -1602,7 +1603,7 @@ height="0" width="0" style="display:none;visibility:hidden"></iframe></noscript>
           <li>Combustible, comida y bebidas aparte</li>
         </ul>
       </div>
-      <div class="pricing-card featured reveal reveal-delay-1">
+      <div class="pricing-card featured reveal reveal-delay-1" data-season="peak">
         <div class="pricing-badge">Temporada alta</div>
         <div class="pricing-season">junio – agosto</div>
         <div class="pricing-row">
@@ -1637,6 +1638,21 @@ height="0" width="0" style="display:none;visibility:hidden"></iframe></noscript>
     </p>
   </div>
 </section>
+
+<script>
+/* Highlight & show the current season's prices first: peak (Jun–Aug) in high
+   season, low season (Sep–May) otherwise. Self-correcting — no manual swap. */
+(function(){
+  var grid = document.querySelector('.pricing-grid');
+  if (!grid) return;
+  var m = new Date().getMonth();              // 0=Jan … 5=Jun,6=Jul,7=Aug
+  var isPeak = m >= 5 && m <= 7;
+  var current = grid.querySelector('[data-season="' + (isPeak ? 'peak' : 'low') + '"]');
+  var other   = grid.querySelector('[data-season="' + (isPeak ? 'low' : 'peak') + '"]');
+  if (current) { current.classList.add('featured'); grid.insertBefore(current, grid.firstElementChild); }
+  if (other)   { other.classList.remove('featured'); }
+})();
+</script>
 
 <!-- AVAILABILITY -->
 <section id="availability">
