@@ -449,30 +449,7 @@ j=d.createElement(s),dl=l!='dataLayer'?'&l='+l:'';j.async=true;j.src=
     text-transform: uppercase; color: var(--text-muted);
   }
 
-  .intro-item.intro-cta {
-    background: rgba(201,168,76,0.06);
-    border-right: none;
-  }
-  .intro-item.intro-cta .intro-cta-link {
-    display: block;
-    text-decoration: none;
-    color: inherit;
-    transition: color .2s;
-  }
-  .intro-item.intro-cta .intro-cta-link:hover {
-    color: var(--gold);
-  }
-  .intro-item.intro-cta .intro-num {
-    font-family: 'Montserrat', sans-serif;
-    font-size: 1.05rem;
-    letter-spacing: .12em;
-    color: var(--gold);
-    font-weight: 500;
-  }
-  .intro-item.intro-cta .intro-label {
-    color: var(--gold-light);
-    margin-top: .35rem;
-  }
+
 
   /* ── ABOUT ── */
   #about { background: var(--navy); padding-bottom: 4rem; }
@@ -1099,7 +1076,7 @@ j=d.createElement(s),dl=l!='dataLayer'?'&l='+l:'';j.async=true;j.src=
     .gallery-item:nth-child(10) { grid-column: span 1; }
     .intro-grid { grid-template-columns: repeat(2,1fr); }
     .intro-item:nth-child(2) { border-right: none; }
-    .intro-item.intro-cta .intro-num { font-family: 'Montserrat', sans-serif; font-size: 1.2rem; }
+
     .itinerary-grid { grid-template-columns: 1fr; }
     .destination-card { min-height: 380px; }
     .dest-tier { font-size: .76rem; margin: 1.1rem 0 .2rem; }
@@ -1133,8 +1110,7 @@ j=d.createElement(s),dl=l!='dataLayer'?'&l='+l:'';j.async=true;j.src=
     .intro-grid { grid-template-columns: 1fr 1fr; }
     .intro-item { padding: 1.5rem 1rem; }
     .intro-num { font-size: 2rem; }
-    .intro-item.intro-cta .intro-num { font-family: 'Montserrat', sans-serif; font-size: 1.35rem; }
-    .intro-item.intro-cta { padding: 1.2rem 1rem; background: rgba(201,168,76,0.08); }
+
     .gallery-grid { grid-template-columns: 1fr 1fr; gap: 3px; }
     /* Full-bleed gallery on phones; heading stays padded via the section */
     .gallery-wrap { margin-left: -1.2rem !important; margin-right: -1.2rem !important; padding: 0 !important; }
@@ -1326,21 +1302,19 @@ height="0" width="0" style="display:none;visibility:hidden"></iframe></noscript>
   <div class="intro-grid">
     <div class="intro-item reveal">
       <div class="intro-num">21.5</div>
-      <div class="intro-label">Metres of comfort for 12</div>
+      <div class="intro-label">Metres of luxury</div>
     </div>
     <div class="intro-item reveal reveal-delay-1">
       <div class="intro-num">2</div>
-      <div class="intro-label">Dedicated crew on board</div>
+      <div class="intro-label">Dedicated crew</div>
     </div>
     <div class="intro-item reveal reveal-delay-2">
       <div class="intro-num">12 / 7</div>
-      <div class="intro-label">Day or overnight private</div>
+      <div class="intro-label">Day / overnight guests</div>
     </div>
-    <div class="intro-item intro-cta reveal reveal-delay-3">
-      <a href="#availability" class="intro-cta-link">
-        <span class="intro-num">See dates</span>
-        <span class="intro-label">Real-time availability</span>
-      </a>
+    <div class="intro-item reveal reveal-delay-3">
+      <div class="intro-num">21</div>
+      <div class="intro-label">Knots to the coves</div>
     </div>
   </div>
 </section>
