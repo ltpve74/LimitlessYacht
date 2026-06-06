@@ -263,6 +263,441 @@ PAIRS = [
         "Charter the Maiora motor yacht \"Limitless\" in Mallorca. Up to 12 guests by day and 7 overnight, with a dedicated crew, water toys and access to Mallorca's most beautiful coves.",
         "Alquile el yate Maiora «Limitless» en Mallorca. Hasta 12 invitados de día y 7 de noche, tripulación dedicada, juguetes acuáticos y acceso a las calas más bellas.",
     ),
+    # --- added: 2026 site refresh (itinerary, reviews form, hero, FAB) ---
+    (
+        "Charter the 21.5 m Maiora 'Limitless' from Palma de Mallorca — day and multi-day cruises to Mallorca's finest coves, Cabrera and Formentera. Crewed, up to 12 guests.",
+        'Alquile el Maiora de 21,5 m «Limitless» desde Palma de Mallorca — chárteres de día y de varios días a las calas de Mallorca, Cabrera y Formentera. Con tripulación, hasta 12 invitados.',
+    ),
+    (
+        "Day and multi-day charters on the 21.5 m Maiora 'Limitless' from Palma — Mallorca's coves, Cabrera and Formentera, with an exceptional crew.",
+        'Chárteres de día y de varios días en el Maiora de 21,5 m «Limitless» desde Palma — calas de Mallorca, Cabrera y Formentera, con tripulación excepcional.',
+    ),
+    (
+        '>Destinations</a>',
+        '>Destinos</a>',
+    ),
+    (
+        'onclick="closeMobile()">Destinations</a>',
+        'onclick="closeMobile()">Destinos</a>',
+    ),
+    (
+        '>Details</a>',
+        '>Detalles</a>',
+    ),
+    (
+        'onclick="closeMobile()">Details</a>',
+        'onclick="closeMobile()">Detalles</a>',
+    ),
+    (
+        '>Gallery</p>',
+        '>Galería</p>',
+    ),
+    (
+        'Club de Mar · Mallorca · Mediterranean',
+        'Club de Mar · Mallorca · Mediterráneo',
+    ),
+    (
+        'Explore Destinations',
+        'Explorar destinos',
+    ),
+    (
+        '· Verified guest reviews',
+        '· Reseñas verificadas de huéspedes',
+    ),
+    (
+        'Where <em>Limitless</em> Takes You',
+        'Adonde te lleva <em>Limitless</em>',
+    ),
+    (
+        'Metres of luxury',
+        'Metros de lujo',
+    ),
+    (
+        'Dedicated crew',
+        'Tripulación propia',
+    ),
+    (
+        'Day / overnight guests',
+        'Invitados día / noche',
+    ),
+    (
+        'Knots to the coves',
+        'Nudos hacia las calas',
+    ),
+    (
+        "What truly sets Limitless apart is her <strong>dedicated crew</strong>. Attentive, experienced and genuinely passionate about the sea, they take care of everything — from organizing catering to reserving beach club access — so you can focus entirely on the people you're with and the places you're discovering.",
+        'Lo que de verdad distingue a Limitless es su <strong>tripulación dedicada</strong>. Atentos, experimentados y verdaderamente apasionados por el mar, se ocupan de todo — desde organizar el catering hasta reservar el acceso a un beach club — para que pueda centrarse por completo en su compañía y en los lugares que descubre.',
+    ),
+    (
+        'The destinations and routes shown below are <strong>suggestions only</strong>. Every charter is <strong>fully tailored to you</strong> — our experienced crew works with you in advance or even <strong>on the day itself</strong> (weather permitting) to design the perfect itinerary, whether that’s a relaxed half-day escape, a full-day cruise, or a multi-day voyage exploring Mallorca’s most beautiful coastlines. <strong>Flexible per-day options</strong>, the <strong>freedom to overnight when the mood takes you</strong>, and the <strong>option to arrange catering or beach club access</strong> are all part of the experience.',
+        'Los destinos y rutas que se muestran a continuación son <strong>solo sugerencias</strong>. Cada chárter está <strong>totalmente hecho a su medida</strong> — nuestra experimentada tripulación planifica con usted por adelantado o incluso <strong>el mismo día</strong> (según el tiempo) el itinerario perfecto, ya sea una escapada de medio día, una travesía de día completo o un viaje de varios días por las costas más bellas de Mallorca. <strong>Opciones flexibles por día</strong>, la <strong>libertad de pernoctar cuando le apetezca</strong> y la <strong>posibilidad de organizar catering o acceso a un beach club</strong> forman parte de la experiencia.',
+    ),
+    (
+        'Suggested Half-Day Escapes ',
+        'Escapadas de medio día sugeridas ',
+    ),
+    (
+        '— 4 to 6 hours',
+        '— 4 a 6 horas',
+    ),
+    (
+        'Suggested Full-Day Cruises ',
+        'Travesías de día completo sugeridas ',
+    ),
+    (
+        '— a full day out',
+        '— un día entero en el mar',
+    ),
+    (
+        'Suggested Multi-Day Voyages ',
+        'Travesías de varios días sugeridas ',
+    ),
+    (
+        '— overnight &amp; long-range',
+        '— noche a bordo &amp; largo alcance',
+    ),
+    (
+        '01 · Southwest Coast',
+        '01 · Costa suroeste',
+    ),
+    (
+        '02 · Southwest Coast',
+        '02 · Costa suroeste',
+    ),
+    (
+        '03 · Southwest Coast',
+        '03 · Costa suroeste',
+    ),
+    (
+        '04 · West Coast',
+        '04 · Costa oeste',
+    ),
+    (
+        '05 · South Coast',
+        '05 · Costa sur',
+    ),
+    (
+        '06 · South Coast',
+        '06 · Costa sur',
+    ),
+    (
+        '07 · South Archipelago',
+        '07 · Archipiélago sur',
+    ),
+    (
+        '08 · Southeast Coast',
+        '08 · Costa sureste',
+    ),
+    (
+        '09 · Northwest Coast · Multi-Day',
+        '09 · Costa noroeste · Varios días',
+    ),
+    (
+        '10 · Full Island · Multi-Day',
+        '10 · Isla completa · Varios días',
+    ),
+    (
+        '11 · Balearics Crossing · Multi-Day',
+        '11 · Travesía a las Baleares · Varios días',
+    ),
+    (
+        '12 · Balearics Crossing · Multi-Day',
+        '12 · Travesía a las Baleares · Varios días',
+    ),
+    (
+        'Cabrera National Park',
+        'Parque Nacional de Cabrera',
+    ),
+    (
+        'West Coast Exploration',
+        'Exploración de la costa oeste',
+    ),
+    (
+        'Mallorca Circumnavigation',
+        'Vuelta a Mallorca',
+    ),
+    (
+        'Ibiza Crossing',
+        'Travesía a Ibiza',
+    ),
+    (
+        'Menorca Crossing',
+        'Travesía a Menorca',
+    ),
+    (
+        'Sea Caves &amp; Turquoise Coves',
+        'Cuevas marinas &amp; calas turquesa',
+    ),
+    (
+        'Marine Reserve &amp; Snorkelling',
+        'Reserva marina &amp; snorkel',
+    ),
+    (
+        'Sheltered &amp; Serene',
+        'Resguardada &amp; serena',
+    ),
+    (
+        'Island Nature Reserve',
+        'Reserva natural insular',
+    ),
+    (
+        'Sheltered Cliffs &amp; Fine Sand',
+        'Acantilados resguardados &amp; arena fina',
+    ),
+    (
+        'Caribbean-White Sand',
+        'Arena blanca caribeña',
+    ),
+    (
+        'Protected Archipelago',
+        'Archipiélago protegido',
+    ),
+    (
+        "Mallorca's Most Photographed Cove",
+        'La cala más fotografiada de Mallorca',
+    ),
+    (
+        'Complete 200 nm Loop',
+        'Vuelta completa de 200 nm',
+    ),
+    (
+        'White Isle &amp; Turquoise Spits',
+        'Isla blanca &amp; bancos de arena turquesa',
+    ),
+    (
+        'Wild Coves &amp; Ancient Shores',
+        'Calas salvajes &amp; costas milenarias',
+    ),
+    (
+        'Three secluded coves at the tip of the Calvià peninsula, famous for their sea caves carved into the limestone cliffs. The water is a vivid blue-green — ideal for swimming, snorkelling and a short escape just 35 minutes from the marina.',
+        'Tres calas apartadas en la punta de la península de Calvià, famosas por sus cuevas marinas excavadas en los acantilados de piedra caliza. El agua es de un vivo azul verdoso, ideal para nadar, hacer snorkel y una escapada corta a solo 35 minutos del puerto.',
+    ),
+    (
+        'A protected marine reserve around the Malgrats islets and El Toro headland. Crystal water teeming with fish, easy snorkelling and a relaxed half-day with lunch at anchor. One of the best quick escapes for nature in the water.',
+        'Una reserva marina protegida en torno a los islotes Malgrats y el cabo de El Toro. Aguas cristalinas repletas de peces, snorkel fácil y medio día relajado con almuerzo fondeados. Una de las mejores escapadas rápidas para disfrutar de la naturaleza en el agua.',
+    ),
+    (
+        "A calm, pine-fringed bay tucked just south of Port d'Andratx. Protected from the prevailing winds, its still green water and relaxed atmosphere make it perfect for a long lunch at anchor or a peaceful swim.",
+        "Una bahía tranquila y bordeada de pinos justo al sur de Port d'Andratx. Resguardada de los vientos dominantes, sus aguas verdes y serenas y su ambiente relajado la hacen perfecta para un largo almuerzo fondeados o un baño tranquilo.",
+    ),
+    (
+        'The uninhabited, dragon-shaped island of Sa Dragonera is a Parc Natural. Anchor outside the buoy line (keep 50 m off March–September) and hike the trails or snorkel the pristine waters. Often paired with lunch in the pretty harbour of Sant Elm.',
+        'La isla deshabitada y con forma de dragón de Sa Dragonera es un Parc Natural. Fondee fuera de la línea de boyas (mantenga 50 m de marzo a septiembre) y recorra los senderos o haga snorkel en sus aguas vírgenes. A menudo se combina con un almuerzo en el bonito puerto de Sant Elm.',
+    ),
+    (
+        "A dramatic, pine-backed cove on Mallorca's south coast enclosed by towering limestone walls and opening onto a fine sandy beach with shallow turquoise water. Excellent holding in sand for anchoring; a peaceful and photogenic stop for swimming and lunch.",
+        'Una espectacular cala bordeada de pinos en la costa sur de Mallorca, encajada entre altas paredes de piedra caliza y abierta a una fina playa de arena con aguas turquesas y poco profundas. Excelente tenedero de arena para fondear; una parada tranquila y fotogénica para nadar y almorzar.',
+    ),
+    (
+        "One of Mallorca's last unspoilt beaches — a sweeping arc of powdery white sand lapped by shallow, crystal-clear water. Anchor in the sand (Posidonia protected) and wade in for a truly secluded escape.",
+        'Una de las últimas playas vírgenes de Mallorca — un amplio arco de fina arena blanca bañado por aguas poco profundas y cristalinas. Fondee en la arena (posidonia protegida) y adéntrese a pie para una escapada realmente apartada.',
+    ),
+    (
+        "Spain's first maritime-terrestrial national park — a pristine archipelago with crystal waters and rich wildlife. We hold the free annual permit, allowing access to mooring buoys only (no anchoring). Overnight buoys must be pre-booked; day buoys first-come, first-served (rarely full). Perfect for a full day or the start of a multi-day voyage.",
+        'El primer parque nacional marítimo-terrestre de España — un archipiélago virgen de aguas cristalinas y rica fauna. Disponemos del permiso anual gratuito, que da acceso únicamente a boyas de amarre (no se permite fondear). Las boyas para pernoctar deben reservarse con antelación; las de día son por orden de llegada (rara vez se llenan). Perfecto para un día completo o el inicio de una travesía de varios días.',
+    ),
+    (
+        "The tiny, impossibly turquoise inlet of Caló des Moro backed by dramatic cliffs — one of the island's most iconic and photographed spots. Nearby Cala Figuera offers a charming fishing harbour and a relaxed contrast. A longer cruise that feels like a real destination.",
+        'La diminuta y de un turquesa imposible cala de Caló des Moro, enmarcada por espectaculares acantilados — uno de los rincones más icónicos y fotografiados de la isla. La cercana Cala Figuera ofrece un encantador puerto pesquero y un contraste relajado. Una travesía más larga que se siente como un verdadero destino.',
+    ),
+    (
+        "A multi-day voyage along Mallorca's most dramatic coastline. Weave through the towering cliffs of the Serra de Tramuntana, anchor off the iconic pierced rock of Sa Foradada, moor in the pretty harbour of Port de Sóller for a tram ride into the valley town, and discover the secluded pebble beach of Cala Tuent at the foot of Puig Major. Sa Calobra and the Torrent de Pareis gorge are within easy reach — the ultimate payoff of a 2–4 night charter with overnight anchorages or marina stops.",
+        'Una travesía de varios días por la costa más espectacular de Mallorca. Navegue entre los imponentes acantilados de la Serra de Tramuntana, fondee frente a la emblemática roca horadada de Sa Foradada, amarre en el bonito puerto de Port de Sóller para subir en tranvía al pueblo del valle y descubra la apartada playa de cantos de Cala Tuent al pie del Puig Major. Sa Calobra y el barranco del Torrent de Pareis quedan al alcance — la recompensa definitiva de un chárter de 2 a 4 noches con fondeos o escalas en marina para pernoctar.',
+    ),
+    (
+        'The definitive multi-day voyage: a full circumnavigation of Mallorca, roughly 200 nautical miles of ever-changing coastline. From the gentle southwest, past the dragon-shaped island and wild west cliffs, around the dramatic north and Cap de Formentor, down the east and back home. Flexible 5–7 day itinerary with nights at anchor in hidden coves or alongside in harbour towns — the ultimate way to experience the whole island from the water.',
+        'La travesía de varios días por excelencia: una vuelta completa a Mallorca, unas 200 millas náuticas de costa siempre cambiante. Desde el suave suroeste, pasando por la isla con forma de dragón y los agrestes acantilados del oeste, rodeando el espectacular norte y el Cap de Formentor, bajando por el este y de vuelta a casa. Itinerario flexible de 5 a 7 días con noches fondeados en calas escondidas o atracados en pueblos portuarios — la mejor manera de vivir toda la isla desde el mar.',
+    ),
+    (
+        "A proper ~70 nm crossing to the Pityusic archipelago. Discover Ibiza's vibrant harbours, hidden coves and legendary beach clubs, with the option to push on to Formentera's world-famous Ses Illetes — the luminous sandbar and shallow turquoise waters often called the Caribbean of the Med. Open-sea adventure with the rewards of a different island vibe; ideal for 2–4 nights with marina stays or wild anchorages.",
+        'Una verdadera travesía de unas 70 nm al archipiélago de las Pitiusas. Descubra los animados puertos de Ibiza, sus calas escondidas y sus legendarios beach clubs, con la opción de continuar hasta el mundialmente famoso Ses Illetes de Formentera — el luminoso banco de arena y las aguas turquesas y poco profundas que muchos llaman el Caribe del Mediterráneo. Una aventura en alta mar con el aliciente de un ambiente isleño distinto; ideal para 2–4 noches con estancias en marina o fondeos salvajes.',
+    ),
+    (
+        "A scenic ~60 nm crossing northeast to Menorca, the most unspoilt of the main Balearics. Anchor in the famous south coast coves like Cala Macarella and Cala Mitjana — pine-backed turquoise jewels — or moor in the world's longest natural harbour at Mahón. Explore prehistoric Talayotic monuments and quiet fishing towns. Perfect for 2–5 night charters, with the option to circumnavigate Menorca's own coastline.",
+        'Una pintoresca travesía de unas 60 nm hacia el noreste, hasta Menorca, la más virgen de las grandes Baleares. Fondee en las famosas calas de la costa sur como Cala Macarella y Cala Mitjana — joyas turquesas rodeadas de pinos — o amarre en el puerto natural más largo del mundo, en Mahón. Explore los monumentos talayóticos prehistóricos y los tranquilos pueblos pesqueros. Perfecto para chárteres de 2 a 5 noches, con la opción de dar la vuelta a la propia costa de Menorca.',
+    ),
+    (
+        'From Club de Mar <strong>',
+        'Desde Club de Mar <strong>',
+    ),
+    (
+        'Depth <strong>',
+        'Profundidad <strong>',
+    ),
+    (
+        'Round trip <strong>',
+        'Ida y vuelta <strong>',
+    ),
+    (
+        'Cruising time <strong>',
+        'Tiempo de navegación <strong>',
+    ),
+    (
+        'Total <strong>',
+        'Total <strong>',
+    ),
+    (
+        'Diesel est. <strong>',
+        'Diésel aprox. <strong>',
+    ),
+    (
+        'Diesel <strong>',
+        'Diésel <strong>',
+    ),
+    (
+        'Parc Natural — buoys only',
+        'Parc Natural — solo boyas',
+    ),
+    (
+        'Permit held • Buoys only',
+        'Permiso vigente • solo boyas',
+    ),
+    (
+        'Multi-day anchorages &amp; moorings',
+        'Fondeos y amarres de varios días',
+    ),
+    (
+        '5–7 days recommended',
+        '5–7 días recomendados',
+    ),
+    (
+        'Marina or anchorage options',
+        'Opciones de marina o fondeo',
+    ),
+    (
+        'Protected coves &amp; natural harbour',
+        'Calas protegidas y puerto natural',
+    ),
+    (
+        'Still deciding where to go?',
+        '¿Aún decidiendo el destino?',
+    ),
+    (
+        'Explore the destinations →',
+        'Explorar destinos →',
+    ),
+    (
+        'aria-label="Explore destinations"',
+        'aria-label="Explorar destinos"',
+    ),
+    (
+        '✦</span>Explore destinations</a>',
+        '✦</span>Explorar destinos</a>',
+    ),
+    (
+        'Low Season',
+        'Temporada baja',
+    ),
+    (
+        '>Multi-day</span>',
+        '>Varios días</span>',
+    ),
+    (
+        'class="amt-sm">from </span>',
+        'class="amt-sm">desde </span>',
+    ),
+    (
+        'class="amt-sm"> /day</span>',
+        'class="amt-sm"> /día</span>',
+    ),
+    (
+        'All charters',
+        'Todos los chárteres',
+    ),
+    (
+        'Fuel & drinks extra for day charters',
+        'Combustible &amp; bebidas aparte en chárteres de día',
+    ),
+    (
+        'Provisioning (food & supplies) & mooring fees extra for multi-day',
+        'Aprovisionamiento (comida &amp; suministros) &amp; tasas de amarre aparte en travesías de varios días',
+    ),
+    (
+        'Catering & beach club bookings can be arranged',
+        'Catering &amp; reservas en beach club bajo petición',
+    ),
+    (
+        'Multi-day & overnight charters available — priced per day. Stay as many days as you like.',
+        'Chárteres de varios días y con noche a bordo disponibles — precio por día. Quédese tantos días como desee.',
+    ),
+    (
+        'Real experiences from guests who have chartered <strong>Limitless</strong>. Reviews are published after a quick moderation step.',
+        'Experiencias reales de huéspedes que han alquilado <strong>Limitless</strong>. Las reseñas se publican tras una rápida moderación.',
+    ),
+    (
+        'Share your experience',
+        'Comparta su experiencia',
+    ),
+    (
+        'We love hearing from our guests. Submit your review below — it will be reviewed and published shortly.',
+        'Nos encanta saber de nuestros huéspedes. Envíe su reseña a continuación — la revisaremos y publicaremos en breve.',
+    ),
+    (
+        '>Your Name<',
+        '>Su nombre<',
+    ),
+    (
+        'Email (private)',
+        'Correo electrónico (privado)',
+    ),
+    (
+        'How would you rate your charter?',
+        '¿Cómo valoraría su chárter?',
+    ),
+    (
+        '★★★★★ Excellent (5)',
+        '★★★★★ Excelente (5)',
+    ),
+    (
+        '★★★★ Very good (4)',
+        '★★★★ Muy bueno (4)',
+    ),
+    (
+        '★★★ Good (3)',
+        '★★★ Bueno (3)',
+    ),
+    (
+        '★★ Fair (2)',
+        '★★ Regular (2)',
+    ),
+    (
+        '★ Poor (1)',
+        '★ Malo (1)',
+    ),
+    (
+        'Your review',
+        'Su reseña',
+    ),
+    (
+        'placeholder="Tell future guests about your day on Limitless..."',
+        'placeholder="Cuente a futuros huéspedes cómo fue su día a bordo del Limitless..."',
+    ),
+    (
+        'To help prevent spam, please solve: 4 + 3 = ?',
+        'Para evitar spam, resuelva: 4 + 3 = ?',
+    ),
+    (
+        'Submit Review',
+        'Enviar reseña',
+    ),
+    (
+        '✓ Thank you! Your review has been received and will be published after moderation.',
+        '✓ ¡Gracias! Hemos recibido su reseña y se publicará tras la moderación.',
+    ),
+    (
+        'Something went wrong. Please try again or email us directly.',
+        'Algo salió mal. Inténtelo de nuevo o escríbanos directamente.',
+    ),
+    (
+        'Club de Mar · Palma de Mallorca · Mediterranean',
+        'Club de Mar · Palma de Mallorca · Mediterráneo',
+    ),
+    # --- fixes ---
+    ('aria-label="Open menu"', 'aria-label="Abrir menú"'),
+    ('aria-label="Site menu"', 'aria-label="Menú del sitio"'),
+    ('class="section-label reveal">Destinations<', 'class="section-label reveal">Destinos<'),
+    ('>Contact</p>', '>Contacto</p>'),
+    ('Multi-day &amp; overnight charters available — priced per day. Stay as many days as you like.', 'Chárteres de varios días y con noche a bordo disponibles — precio por día. Quédese tantos días como desee.'),
 ]
 
 LEGAL_PAIRS = [

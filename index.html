@@ -1414,7 +1414,17 @@ j=d.createElement(s),dl=l!='dataLayer'?'&l='+l:'';j.async=true;j.crossOrigin='an
     .cookie-btn { flex: 1; text-align: center; padding: .6rem 1rem; font-size: .58rem; }
   }
   /* Hero: shorter on mobile to reveal content below the fold */
-  @media (max-width: 768px) { #hero { height: 85vh; min-height: 520px; } }
+  @media (max-width: 768px) {
+    #hero {
+      height: 85dvh;
+      min-height: 520px;
+      /* Better handling for iOS dynamic viewport / address bar */
+    }
+    .hero-scroll {
+      bottom: max(2.2rem, env(safe-area-inset-bottom) + 1rem);
+      animation: fadeUp 0.9s 0.6s ease both; /* appear a bit sooner on mobile */
+    }
+  }
   /* Hero trust cue */
   .hero-trust { margin-top: 1.6rem; font-size: .72rem; letter-spacing: .12em; text-transform: uppercase; color: var(--text-muted); }
   .hero-trust .stars { color: var(--gold); letter-spacing: .14em; }
@@ -2778,11 +2788,28 @@ height="0" width="0" style="display:none;visibility:hidden"></iframe></noscript>
 (function(){try{
   var fab=document.getElementById('destFab'), itin=document.getElementById('itinerary');
   if(!fab||!itin) return;
-  var inView=false;
-  function update(){ var past=window.scrollY>window.innerHeight*0.6; if(past&&!inView){fab.classList.add('show');}else{fab.classList.remove('show');} }
-  if('IntersectionObserver' in window){ new IntersectionObserver(function(e){inView=e[0].isIntersecting;update();},{threshold:0.12}).observe(itin); }
-  window.addEventListener('scroll',update,{passive:true});
-  window.addEventListener('resize',update,{passive:true});
+
+  function isDestinationsInView() {
+    var r = itin.getBoundingClientRect();
+    // Hide the fab once the destinations section has entered the upper portion of the viewport
+    return r.top < window.innerHeight * 0.35 && r.bottom > 80;
+  }
+
+  function update() {
+    var past = window.scrollY > window.innerHeight * 0.6;
+    var visible = isDestinationsInView();
+    if (past && !visible) {
+      fab.classList.add('show');
+    } else {
+      fab.classList.remove('show');
+    }
+  }
+
+  window.addEventListener('scroll', update, {passive: true});
+  window.addEventListener('resize', update, {passive: true});
+  // Also run after any hash navigation (e.g. from Rates click)
+  window.addEventListener('hashchange', function(){ setTimeout(update, 50); });
+
   update();
 }catch(e){}})();
 </script>
