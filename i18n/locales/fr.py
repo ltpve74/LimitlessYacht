@@ -579,8 +579,16 @@ PAIRS = [
         'aria-label="Découvrir les destinations"',
     ),
     (
+        'aria-label="Explore the yacht"',
+        'aria-label="Explorer le yacht"',
+    ),
+    (
         '✦</span>Explore destinations</a>',
         '✦</span>Découvrir les destinations</a>',
+    ),
+    (
+        '✦</span>Explore the yacht</a>',
+        '✦</span>Explorer le yacht</a>',
     ),
     (
         'Low Season',

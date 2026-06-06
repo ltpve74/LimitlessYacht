@@ -1464,12 +1464,34 @@ j=d.createElement(s),dl=l!='dataLayer'?'&l='+l:'';j.async=true;j.crossOrigin='an
   .section-back-cta { text-align: center; margin-top: 2.6rem; font-size: .85rem; color: var(--text-muted); letter-spacing: .02em; }
   .section-back-cta a { color: var(--gold); text-decoration: none; font-weight: 500; border-bottom: 1px solid rgba(201,168,76,.4); padding-bottom: 2px; transition: color .2s, border-color .2s; }
   .section-back-cta a:hover { color: var(--gold-light); border-color: var(--gold-light); }
-  /* Floating 'explore destinations' affordance */
+  /* Floating pill buttons (mobile-only contextual actions after viewing Rates) */
   .dest-fab { position: fixed; right: 1.4rem; bottom: 1.4rem; z-index: 250; display: inline-flex; align-items: center; gap: .5rem; padding: .7rem 1.15rem; background: rgba(10,22,40,.92); backdrop-filter: blur(6px); border: 1px solid var(--gold); color: var(--gold); font-family: 'Montserrat', sans-serif; font-size: .62rem; letter-spacing: .16em; text-transform: uppercase; text-decoration: none; border-radius: 999px; box-shadow: 0 6px 24px rgba(0,0,0,.35); opacity: 0; transform: translateY(12px); pointer-events: none; transition: opacity .35s ease, transform .35s ease, background .2s, color .2s; }
   .dest-fab.show { opacity: 1; transform: translateY(0); pointer-events: auto; }
   .dest-fab:hover { background: var(--gold); color: var(--navy); }
   .dest-fab-icon { font-size: .8rem; line-height: 1; }
-  @media (max-width: 640px) { .dest-fab { right: 1rem; bottom: 1rem; padding: .6rem 1rem; font-size: .58rem; } }
+
+  /* Desktop/tablet: pills not needed (regular nav + in-page links are sufficient) */
+  @media (min-width: 641px) {
+    .dest-fab { display: none !important; }
+  }
+
+  /* Mobile: more compact + stack the two pills so they don't obstruct or overlap too much */
+  @media (max-width: 640px) {
+    .dest-fab, .gallery-fab {
+      right: 1rem;
+      bottom: 1rem;
+      padding: .52rem .85rem;
+      font-size: .55rem;
+      gap: .4rem;
+    }
+    .dest-fab-icon {
+      font-size: .72rem;
+    }
+    /* Stack the secondary (gallery) pill above the primary (destinations) one */
+    .gallery-fab {
+      bottom: calc(1rem + 2.15rem);
+    }
+  }
 </style>
 </head>
 <body>
@@ -2869,34 +2891,89 @@ height="0" width="0" style="display:none;visibility:hidden"></iframe></noscript>
   for(var i=0;i<ls.length;i++){(function(a){a.addEventListener('click',function(){try{localStorage.setItem('ly_lang',a.getAttribute('hreflang'));}catch(e){}});})(ls[i]);}
 }catch(e){}})();
 </script>
+<a href="#gallery" class="dest-fab gallery-fab" id="galleryFab" aria-label="Yacht entdecken"><span class="dest-fab-icon" aria-hidden="true">✦</span>Yacht entdecken</a>
 <a href="#itinerary" class="dest-fab" id="destFab" aria-label="Reiseziele entdecken"><span class="dest-fab-icon" aria-hidden="true">✦</span>Reiseziele entdecken</a>
 <script>
 (function(){try{
-  var fab=document.getElementById('destFab'), itin=document.getElementById('itinerary');
-  if(!fab||!itin) return;
+  var galleryFab = document.getElementById('galleryFab');
+  var destFab = document.getElementById('destFab');
+  var pricing = document.getElementById('pricing');
+  if (!destFab || !galleryFab || !pricing) return;
 
-  function isDestinationsInView() {
-    var r = itin.getBoundingClientRect();
-    // Hide the fab once the destinations section has entered the upper portion of the viewport
-    return r.top < window.innerHeight * 0.35 && r.bottom > 80;
+  var showTimer = null;
+
+  function isPricingStillRelevant() {
+    var r = pricing.getBoundingClientRect();
+    // Keep the pills visible while the rates section is still substantially on screen.
+    // Hide automatically once the user scrolls meaningfully away from it.
+    return r.bottom > 100 && r.top < window.innerHeight * 0.82;
   }
 
-  function update() {
-    var past = window.scrollY > window.innerHeight * 0.6;
-    var visible = isDestinationsInView();
-    if (past && !visible) {
-      fab.classList.add('show');
-    } else {
-      fab.classList.remove('show');
+  function hidePills() {
+    if (showTimer) { clearTimeout(showTimer); showTimer = null; }
+    destFab.classList.remove('show');
+    galleryFab.classList.remove('show');
+  }
+
+  function showPills() {
+    destFab.classList.add('show');
+    galleryFab.classList.add('show');
+  }
+
+  function scheduleShowPills() {
+    if (showTimer) clearTimeout(showTimer);
+    showTimer = setTimeout(function() {
+      showPills();
+      showTimer = null;
+    }, 800);
+  }
+
+  function onEnterRates() {
+    hidePills();
+    scheduleShowPills();
+  }
+
+  // Hide the cluster when scrolling away from the prices/rates section
+  function onScrollCheck() {
+    if ((destFab.classList.contains('show') || galleryFab.classList.contains('show')) && !isPricingStillRelevant()) {
+      hidePills();
     }
   }
 
-  window.addEventListener('scroll', update, {passive: true});
-  window.addEventListener('resize', update, {passive: true});
-  // Also run after any hash navigation (e.g. from Rates click)
-  window.addEventListener('hashchange', function(){ setTimeout(update, 50); });
+  // Trigger specifically when user clicks a Rates link (from hero, nav, mobile menu, etc.)
+  // Both pills appear together on mobile after viewing rates — one to jump to destinations, one to the yacht gallery.
+  var ratesLinks = document.querySelectorAll('a[href="#pricing"]');
+  for (var i = 0; i < ratesLinks.length; i++) {
+    ratesLinks[i].addEventListener('click', function() {
+      // Let the scroll to #pricing begin, then show the contextual pills after a short delay
+      setTimeout(onEnterRates, 160);
+    }, {passive: true});
+  }
 
-  update();
+  // Also cover hash changes (direct links, browser nav, etc.)
+  window.addEventListener('hashchange', function() {
+    if (location.hash === '#pricing') {
+      onEnterRates();
+    } else {
+      hidePills();
+    }
+  });
+
+  window.addEventListener('scroll', onScrollCheck, {passive: true});
+  window.addEventListener('resize', onScrollCheck, {passive: true});
+
+  // Clicking either pill dismisses the cluster (navigation happens)
+  destFab.addEventListener('click', function() { hidePills(); });
+  galleryFab.addEventListener('click', function() { hidePills(); });
+
+  // If landing directly on #pricing, show the cluster after delay
+  if (location.hash === '#pricing') {
+    setTimeout(onEnterRates, 450);
+  }
+
+  // Start hidden (both pills are mobile-only via CSS)
+  destFab.classList.remove('show');
+  galleryFab.classList.remove('show');
 }catch(e){}})();
 </script>
 </body>
