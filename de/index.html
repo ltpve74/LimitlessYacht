@@ -365,6 +365,8 @@ j=d.createElement(s),dl=l!='dataLayer'?'&l='+l:'';j.async=true;j.crossOrigin='an
     pointer-events: none;
   }
   @keyframes fadeUp { from { opacity:0; transform: translateY(30px); } to { opacity:1; transform: translateY(0); } }
+  /* keeps the horizontal centering (translateX -50%) while fading up */
+  @keyframes heroScrollUp { from { opacity:0; transform: translate(-50%, 30px); } to { opacity:1; transform: translate(-50%, 0); } }
   .hero-eyebrow {
     font-size: .72rem; letter-spacing: .32em; text-transform: uppercase;
     color: var(--gold-light); margin-bottom: 1.2rem; opacity: 0;
@@ -414,7 +416,7 @@ j=d.createElement(s),dl=l!='dataLayer'?'&l='+l:'';j.async=true;j.crossOrigin='an
   .hero-scroll {
     position: absolute; bottom: 2.5rem; left: 50%; transform: translateX(-50%);
     display: flex; flex-direction: column; align-items: center; gap: .5rem;
-    opacity: 0; animation: fadeUp 1s 1.4s ease both;
+    opacity: 0; animation: heroScrollUp 1s 1.4s ease both;
   }
   .hero-scroll span { font-size: .55rem; letter-spacing: .25em; text-transform: uppercase; color: var(--text-muted); }
   .scroll-line {
@@ -862,7 +864,7 @@ j=d.createElement(s),dl=l!='dataLayer'?'&l='+l:'';j.async=true;j.crossOrigin='an
   /* ── ITINERARY ── */
   #itinerary { background: var(--navy); padding-top: 3.5rem; padding-bottom: 5rem; }
   .itinerary-intro {
-    max-width: 720px; margin-top: 1.8rem;
+    max-width: 720px; margin-top: 1.5rem;
     font-size: .95rem; line-height: 1.9; color: rgba(245,240,232,.75);
   }
   .itinerary-intro strong { color: var(--gold-light); font-weight: 500; }
@@ -987,7 +989,7 @@ j=d.createElement(s),dl=l!='dataLayer'?'&l='+l:'';j.async=true;j.crossOrigin='an
     padding-bottom: 6rem;
   }
   .reviews-intro {
-    max-width: 640px; margin-top: 1.2rem;
+    max-width: 640px; margin-top: 1.5rem;
     font-size: .95rem; line-height: 1.9; color: rgba(245,240,232,.75);
   }
   .reviews-summary {
@@ -1104,7 +1106,7 @@ j=d.createElement(s),dl=l!='dataLayer'?'&l='+l:'';j.async=true;j.crossOrigin='an
   /* ── AVAILABILITY ── */
   #availability { background: var(--deep); }
   .availability-intro {
-    max-width: 660px; margin-top: 1.6rem;
+    max-width: 660px; margin-top: 1.5rem;
     font-size: .95rem; line-height: 1.9; color: rgba(245,240,232,.75);
   }
   /* custom calendar */
@@ -1234,7 +1236,8 @@ j=d.createElement(s),dl=l!='dataLayer'?'&l='+l:'';j.async=true;j.crossOrigin='an
       padding: 0 !important;
     }
     .destination-card { min-height: 380px; }
-    .dest-tier { font-size: .82rem; margin: 1.5rem 0 .3rem; }
+    .dest-tier { font-size: .72rem; letter-spacing: .1em; margin: 1.5rem 0 .4rem; padding-left: 2.5rem; padding-right: 1.5rem; }
+    .dest-tier .tier-note { display: block; margin-top: .25rem; letter-spacing: .06em; }
   }
   /* Telefon: compact header + slide-down menu */
   @media (max-width: 768px) {
@@ -1411,11 +1414,13 @@ j=d.createElement(s),dl=l!='dataLayer'?'&l='+l:'';j.async=true;j.crossOrigin='an
     #hero {
       height: 85dvh;
       min-height: 520px;
-      /* Better handling for iOS dynamic viewport / address bar */
+      /* reserve space at the bottom so the centred hero content never sits
+         under the scroll indicator on short screens */
+      padding-bottom: 7rem;
     }
     .hero-scroll {
-      bottom: max(2.2rem, env(safe-area-inset-bottom) + 1rem);
-      animation: fadeUp 0.9s 0.6s ease both; /* appear a bit sooner on mobile */
+      bottom: max(1.6rem, env(safe-area-inset-bottom) + .6rem);
+      animation: heroScrollUp 0.9s 0.6s ease both; /* appear a bit sooner on mobile */
     }
   }
   /* Hero trust cue */
