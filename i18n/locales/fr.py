@@ -243,14 +243,25 @@ PAIRS = [
     ("Sending…", "Envoi en cours…"),
     ("✓ Sent", "✓ Envoyé"),
     ('aria-label="Cookie consent"', 'aria-label="Consentement aux cookies"'),
+    ('aria-label="Close cookie banner"', 'aria-label="Fermer la bannière de cookies"'),
+    (
+        "We use cookies for analytics and to improve the site. \n      <a href=\"legal.html\">Privacy Policy</a>.",
+        "Nous utilisons des cookies pour l'analyse et l'amélioration du site. \n      <a href=\"/fr/legal.html\">Politique de confidentialité</a>.",
+    ),
+    (
+        "We use cookies for analytics and to improve the site. <a href=\"legal.html\">Privacy Policy</a>.",
+        "Nous utilisons des cookies pour l'analyse et l'amélioration du site. <a href=\"/fr/legal.html\">Politique de confidentialité</a>.",
+    ),
+    ("Decline analytics", "Refuser l'analyse"),
+    ("Decline", "Refuser"),
+    ("Accept", "Accepter"),
+    ("Close", "Fermer"),
+    # old longer banner text (kept for safety)
     (
         "We use cookies to analyse site traffic (including how far you scroll and which sections you view), measure conversions (including Google Ads), and improve your experience. Analytics only run if you accept.",
         "Nous utilisons des cookies pour analyser le trafic (dont le défilement et les sections consultées), mesurer les conversions (dont Google Ads) et améliorer votre expérience. L'analyse ne s'active qu'avec votre accord.",
     ),
     ("See our <a href=\"legal.html\">Privacy Policy</a>.", "Voir notre <a href=\"/fr/legal.html\">politique de confidentialité</a>."),
-    ("Decline", "Refuser"),
-    ("Accept", "Accepter"),
-    ("Close", "Fermer"),
     ("Close gallery", "Fermer la galerie"),
     ("Previous image", "Image précédente"),
     ("Next image", "Image suivante"),
@@ -662,6 +673,10 @@ PAIRS = [
     (
         'To help prevent spam, please solve: 4 + 3 = ?',
         'Pour éviter le spam, résolvez : 4 + 3 = ?',
+    ),
+    (
+        'Please solve the anti-spam question correctly (4 + 3 = 7).',
+        'Veuillez résoudre correctement la question anti-spam (4 + 3 = 7).',
     ),
     (
         'Submit Review',

@@ -244,14 +244,25 @@ PAIRS = [
     ("Sending…", "Enviando…"),
     ("✓ Sent", "✓ Enviado"),
     ('aria-label="Cookie consent"', 'aria-label="Consentimiento de cookies"'),
+    ('aria-label="Close cookie banner"', 'aria-label="Cerrar banner de cookies"'),
+    (
+        "We use cookies for analytics and to improve the site. \n      <a href=\"legal.html\">Privacy Policy</a>.",
+        "Usamos cookies para analítica y mejorar el sitio. \n      <a href=\"/es/legal.html\">Política de privacidad</a>.",
+    ),
+    (
+        "We use cookies for analytics and to improve the site. <a href=\"legal.html\">Privacy Policy</a>.",
+        "Usamos cookies para analítica y mejorar el sitio. <a href=\"/es/legal.html\">Política de privacidad</a>.",
+    ),
+    ("Decline analytics", "Rechazar analítica"),
+    ("Decline", "Rechazar"),
+    ("Accept", "Aceptar"),
+    ("Close", "Cerrar"),
+    # old longer banner text (kept for safety)
     (
         "We use cookies to analyse site traffic (including how far you scroll and which sections you view), measure conversions (including Google Ads), and improve your experience. Analytics only run if you accept.",
         "Usamos cookies para analizar el tráfico (incluido el desplazamiento y las secciones que ve), medir conversiones (incluido Google Ads) y mejorar su experiencia. El análisis solo funciona si acepta.",
     ),
     ("See our <a href=\"legal.html\">Privacy Policy</a>.", "Consulte nuestra <a href=\"/es/legal.html\">política de privacidad</a>."),
-    ("Decline", "Rechazar"),
-    ("Accept", "Aceptar"),
-    ("Close", "Cerrar"),
     ("Close gallery", "Cerrar galería"),
     ("Previous image", "Imagen anterior"),
     ("Next image", "Imagen siguiente"),
@@ -675,6 +686,10 @@ PAIRS = [
     (
         'To help prevent spam, please solve: 4 + 3 = ?',
         'Para evitar spam, resuelva: 4 + 3 = ?',
+    ),
+    (
+        'Please solve the anti-spam question correctly (4 + 3 = 7).',
+        'Resuelva correctamente la pregunta anti-spam (4 + 3 = 7).',
     ),
     (
         'Submit Review',

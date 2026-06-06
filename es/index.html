@@ -418,6 +418,8 @@ j=d.createElement(s),dl=l!='dataLayer'?'&l='+l:'';j.async=true;j.crossOrigin='an
     display: flex; flex-direction: column; align-items: center; gap: .5rem;
     opacity: 0; animation: heroScrollUp 1s 1.4s ease both;
   }
+
+
   .hero-scroll span { font-size: .55rem; letter-spacing: .25em; text-transform: uppercase; color: var(--text-muted); }
   .scroll-line {
     width: 1px; height: 50px;
@@ -439,6 +441,11 @@ j=d.createElement(s),dl=l!='dataLayer'?'&l='+l:'';j.async=true;j.crossOrigin='an
     line-height: 1.1; color: var(--white);
   }
   .section-title em { font-style: normal; color: var(--gold-light); }
+
+  /* Extra breathing room after the h2 in the yacht description */
+  #about .section-title {
+    margin-bottom: 1.5rem;
+  }
 
   /* ── INTRO STRIP ── */
   #intro {
@@ -485,11 +492,8 @@ j=d.createElement(s),dl=l!='dataLayer'?'&l='+l:'';j.async=true;j.crossOrigin='an
     pointer-events: none;
   }
   .about-text p {
-    font-size: .9rem; line-height: 1.9; color: rgba(245,240,232,.75);
-    margin-bottom: 1.4rem;
-  }
-  .about-text p:first-of-type {
-    margin-top: 1.5rem;
+    font-size: .9rem; line-height: 1.85; color: rgba(245,240,232,.75);
+    margin-bottom: 1.1rem;
   }
   .about-text p strong { color: var(--gold-light); font-weight: 500; }
 
@@ -1379,7 +1383,8 @@ j=d.createElement(s),dl=l!='dataLayer'?'&l='+l:'';j.async=true;j.crossOrigin='an
     position: fixed; left: 0; right: 0; bottom: 0; z-index: 300;
     background: rgba(8,18,34,.97); backdrop-filter: blur(6px);
     border-top: 1px solid rgba(201,168,76,.25);
-    padding: 1.2rem 1.5rem;
+    padding: 1rem 1.5rem 0.9rem; /* slightly tighter vertical padding */
+    position: relative; /* allows absolutely positioned close button */
   }
   .cookie-consent[hidden] { display: none; }
   .cookie-consent-inner {
@@ -1402,24 +1407,52 @@ j=d.createElement(s),dl=l!='dataLayer'?'&l='+l:'';j.async=true;j.crossOrigin='an
   .cookie-btn-primary:hover { background: var(--gold-light); border-color: var(--gold-light); }
   .cookie-btn-ghost { background: transparent; color: var(--gold); }
   .cookie-btn-ghost:hover { background: rgba(201,168,76,.12); }
+  .cookie-decline-link {
+    font-size: .68rem; color: var(--text-muted); text-decoration: underline;
+    padding: .5rem .3rem; align-self: center; white-space: nowrap;
+  }
+  .cookie-decline-link:hover { color: var(--gold); }
   @media (max-width: 640px) {
-    .cookie-consent { padding: .8rem 1rem; }
-    .cookie-consent-inner { flex-direction: column; align-items: stretch; gap: .7rem; }
-    .cookie-consent-text { font-size: .7rem; line-height: 1.45; flex: 0 0 auto; }
-    .cookie-consent-actions { justify-content: stretch; }
-    .cookie-btn { flex: 1; text-align: center; padding: .6rem 1rem; font-size: .58rem; }
+    .cookie-consent { 
+      padding: 0.6rem 0.8rem 0.5rem; 
+      font-size: .7rem;
+    }
+    .cookie-consent-inner { 
+      flex-direction: row; 
+      align-items: center; 
+      gap: 0.6rem; 
+    }
+    .cookie-consent-text { 
+      font-size: .65rem; 
+      line-height: 1.3; 
+      flex: 1 1 auto; 
+    }
+    .cookie-consent-actions { 
+      flex-shrink: 0; 
+      gap: 0.4rem;
+    }
+    .cookie-btn { 
+      padding: 0.4rem 0.7rem; 
+      font-size: .52rem; 
+      min-width: auto;
+    }
+    .cookie-decline-link {
+      font-size: .6rem;
+      padding: 0.3rem;
+    }
   }
   /* Hero: shorter on mobile to reveal content below the fold */
   @media (max-width: 768px) {
     #hero {
       height: 85dvh;
       min-height: 520px;
-      /* reserve space at the bottom so the centred hero content never sits
-         under the scroll indicator on short screens */
-      padding-bottom: 7rem;
+      /* reserve extra space at the bottom on mobile (esp. iTeléfono 15) so the
+         animated scroll indicator never overlaps the hero content (trust/actions)
+         above it during its upward animation */
+      padding-bottom: 9rem;
     }
     .hero-scroll {
-      bottom: max(1.6rem, env(safe-area-inset-bottom) + .6rem);
+      bottom: max(1.2rem, env(safe-area-inset-bottom) + 0.5rem);
       animation: heroScrollUp 0.9s 0.6s ease both; /* appear a bit sooner on mobile */
     }
   }
@@ -1552,7 +1585,7 @@ height="0" width="0" style="display:none;visibility:hidden"></iframe></noscript>
         <p>El Maiora <strong>«Limitless»</strong> es un yate a motor de 21 metros muy apreciado para días relajados en el mar. Amplias cubiertas soleadas, espacios generosos y un ambiente acogedor — como en casa desde el primer momento a bordo.</p>
         <p>Lo que de verdad distingue a Limitless es su <strong>tripulación dedicada</strong>. Atentos, experimentados y verdaderamente apasionados por el mar, se ocupan de todo — desde organizar el catering hasta reservar el acceso a un beach club — para que pueda centrarse por completo en su compañía y en los lugares que descubre.</p>
         <p>Desde las calas escondidas del suroeste de Mallorca hasta los acantilados de Sa Calobra — <strong>los destinos hablan por sí solos</strong>. Limitless es la mejor forma de llegar a ellos.</p>
-        <a href="#contact" class="btn-primary" style="display:inline-block;margin-top:1.5rem;">Consultar ahora</a>
+        <a href="#contact" class="btn-primary" style="margin-top: 1.25rem;">Consultar ahora</a>
       </div>
     </div>
   </div>
@@ -2479,7 +2512,7 @@ height="0" width="0" style="display:none;visibility:hidden"></iframe></noscript>
       // Client-side spam check (simple math question)
       var spamCheck = this.querySelector('[name="spam_check"]');
       if (spamCheck && spamCheck.value.trim() !== '7') {
-        errorEl.textContent = 'Please solve the anti-spam question correctly (4 + 3 = 7).';
+        errorEl.textContent = 'Resuelva correctamente la pregunta anti-spam (4 + 3 = 7).';
         errorEl.style.display = 'block';
         btn.textContent = 'Enviar reseña';
         btn.disabled = false;
@@ -2732,12 +2765,13 @@ height="0" width="0" style="display:none;visibility:hidden"></iframe></noscript>
 <!-- Cookie consent banner -->
 <div id="cookie-consent" class="cookie-consent" role="dialog" aria-label="Consentimiento de cookies" hidden>
   <div class="cookie-consent-inner">
+    <button type="button" id="cookie-close" class="cookie-close" aria-label="Cerrar banner de cookies">×</button>
     <p class="cookie-consent-text">
-      Usamos cookies para analizar el tráfico (incluido el desplazamiento y las secciones que ve), medir conversiones (incluido Google Ads) y mejorar su experiencia. El análisis solo funciona si acepta.
-      Consulte nuestra <a href="/es/legal.html">política de privacidad</a>.
+      Usamos cookies para analítica y mejorar el sitio. 
+      <a href="/es/legal.html">Política de privacidad</a>.
     </p>
     <div class="cookie-consent-actions">
-      <button type="button" id="cookie-decline" class="cookie-btn cookie-btn-ghost">Rechazar</button>
+      <a href="#" id="cookie-decline" class="cookie-decline-link">Rechazar analítica</a>
       <button type="button" id="cookie-accept" class="cookie-btn cookie-btn-primary">Aceptar</button>
     </div>
   </div>
@@ -2768,11 +2802,62 @@ height="0" width="0" style="display:none;visibility:hidden"></iframe></noscript>
     }
     var stored;
     try { stored = localStorage.getItem(KEY); } catch (e) {}
-    if (stored !== 'granted' && stored !== 'denied') { show(); }
+    if (stored !== 'granted' && stored !== 'denied') {
+      // Delay showing the banner slightly so users see the main hero and
+      // "Tarifas y reserva" CTA first. Makes the banner less intrusive on first load.
+      setTimeout(show, 1400);
+    }
+
     document.getElementById('cookie-accept').addEventListener('click', function () { choose('granted'); });
     document.getElementById('cookie-decline').addEventListener('click', function () { choose('denied'); });
     var settings = document.getElementById('cookie-settings-link');
     if (settings) settings.addEventListener('click', function (e) { e.preventDefault(); show(); });
+
+    // Cerrar button = quick decline (same as clicking Rechazar)
+    var closeBtn = document.getElementById('cookie-close');
+    if (closeBtn) {
+      closeBtn.addEventListener('click', function () { choose('denied'); });
+    }
+
+    // Auto-accept after significant scroll or engagement.
+    // During dev/testing phase we want maximum tracking.
+    // (Note: for production you may want to switch back to auto-deny for stricter compliance.)
+    var autoAceptared = false;
+    function maybeAutoAceptarOnScroll() {
+      if (autoAceptared || banner.hidden) return;
+      if (window.scrollY > 250) {
+        autoAceptared = true;
+        choose('granted');
+        window.removeEventListener('scroll', maybeAutoAceptarOnScroll, {passive: true});
+      }
+    }
+    // Attach scroll listener for auto-accept (dev phase)
+    var scrollListenerAttached = false;
+    function attachScrollListenerIfNeeded() {
+      if (!scrollListenerAttached && !banner.hidden) {
+        window.addEventListener('scroll', maybeAutoAceptarOnScroll, {passive: true});
+        scrollListenerAttached = true;
+      }
+    }
+    setTimeout(attachScrollListenerIfNeeded, 100);
+    if (settings) {
+      settings.addEventListener('click', function () {
+        setTimeout(attachScrollListenerIfNeeded, 50);
+      });
+    }
+
+    // Auto-accept on main CTAs if no consent decision yet.
+    // Aggressive tracking during development/user testing phase.
+    function autoAceptarOnEngagement() {
+      var current = '';
+      try { current = localStorage.getItem(KEY) || ''; } catch(e){}
+      if (current !== 'granted' && current !== 'denied') {
+        choose('granted');
+      }
+    }
+    document.querySelectorAll('.btn-primary, .nav-cta, a[href="#pricing"], a[href="#contact"], a[href*="wa.me"]').forEach(function (el) {
+      el.addEventListener('click', autoAceptarOnEngagement, { once: true });
+    });
   })();
 </script>
 <script src="/js/behavior-analytics.js" defer></script>
