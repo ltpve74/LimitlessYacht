@@ -229,7 +229,7 @@ j=d.createElement(s),dl=l!='dataLayer'?'&l='+l:'';j.async=true;j.crossOrigin='an
 
   html {
     scroll-behavior: smooth;
-    scroll-padding-top: 4.5rem;
+    scroll-padding-top: 5rem; /* a bit more breathing room under the fixed nav for all anchor targets */
   }
 
   body {
@@ -689,10 +689,24 @@ j=d.createElement(s),dl=l!='dataLayer'?'&l='+l:'';j.async=true;j.crossOrigin='an
   .pricing-row {
     display: flex; justify-content: space-between; align-items: baseline;
     padding: 1.2rem 0; border-bottom: 1px solid rgba(255,255,255,.06);
+    text-decoration: none; color: inherit; cursor: pointer;
+    transition: background 0.2s ease;
+  }
+  .pricing-row:hover {
+    background: rgba(201,168,76, 0.04);
   }
   .pricing-duration {
     font-family: 'Montserrat', sans-serif;
     font-size: 1.1rem; color: var(--cream);
+  }
+  .pricing-duration a {
+    color: inherit;
+    text-decoration: none;
+    transition: color .2s, text-decoration .2s;
+  }
+  .pricing-duration a:hover {
+    color: var(--gold);
+    text-decoration: underline;
   }
   .pricing-amount {
     font-family: 'Montserrat', sans-serif;
@@ -927,11 +941,30 @@ j=d.createElement(s),dl=l!='dataLayer'?'&l='+l:'';j.async=true;j.crossOrigin='an
   /* New tier headings for rebuilt destinations */
   .dest-tier {
     grid-column: 1 / -1;
-    font-size: .82rem; letter-spacing: .22em; text-transform: uppercase;
-    color: var(--gold); margin: 1.6rem 0 .4rem; padding-left: .15rem;
+    font-size: .92rem; letter-spacing: .2em; text-transform: uppercase;
+    color: var(--gold); margin: 2rem 0 .5rem; padding-left: .15rem;
+    scroll-margin-top: 2.25rem; /* extra breathing room so the tier title doesn't butt up against the fixed nav */
   }
   .dest-tier .tier-note {
-    font-size: .72rem; letter-spacing: .12em; color: rgba(201,168,76,.55); font-weight: 400;
+    font-size: .78rem; letter-spacing: .1em; color: rgba(201,168,76,.65); font-weight: 400;
+  }
+
+  /* Highlight when coming from pricing row links */
+  .dest-tier:target {
+    background: linear-gradient(to right, rgba(201,168,76,0.12), transparent);
+    padding-left: 1rem;
+    border-left: 4px solid var(--gold);
+    animation: tierFlash 1.8s ease-out;
+  }
+  @keyframes tierFlash {
+    0% { background-color: rgba(201,168,76,0.35); }
+    100% { background-color: rgba(201,168,76,0.12); }
+  }
+
+  .destination-card.price-linked {
+    border-color: var(--gold);
+    box-shadow: 0 0 0 3px rgba(201,168,76,0.18);
+    transition: box-shadow 0.4s ease, border-color 0.4s ease;
   }
 
   /* Large screen tweaks for destination cards */
@@ -1187,7 +1220,7 @@ j=d.createElement(s),dl=l!='dataLayer'?'&l='+l:'';j.async=true;j.crossOrigin='an
     .nav-lang { display: flex; }
     .nav-header-cta { display: inline-flex; align-items: center; }
     .hamburger { display: none !important; }
-    html { scroll-padding-top: 5.75rem; }
+    html { scroll-padding-top: 6.25rem; } /* extra padding on tablet for anchors */
   }
   @media (max-width: 1024px) {
     .about-grid { grid-template-columns: 1fr; gap: 3rem; }
@@ -1208,7 +1241,7 @@ j=d.createElement(s),dl=l!='dataLayer'?'&l='+l:'';j.async=true;j.crossOrigin='an
       padding: 0 !important;
     }
     .destination-card { min-height: 380px; }
-    .dest-tier { font-size: .76rem; margin: 1.1rem 0 .2rem; }
+    .dest-tier { font-size: .82rem; margin: 1.5rem 0 .3rem; }
   }
   /* Teléfono: compact header + slide-down menu */
   @media (max-width: 768px) {
@@ -1579,13 +1612,13 @@ height="0" width="0" style="display:none;visibility:hidden"></iframe></noscript>
   <div class="container">
     <p class="section-label reveal">Destinations</p>
     <h2 class="section-title reveal reveal-delay-1">Where <em>Limitless</em> Takes You</h2>
-    <p class="itinerary-intro reveal reveal-delay-2">From a relaxed <strong>half-day escape</strong> to a <strong>multi-day voyage</strong> exploring Mallorca's most beautiful coastlines. Every charter is <strong>tailored to you</strong> — our crew plans the route together with you, with flexible per-day options, the freedom to overnight when the mood takes you, and the option to organize catering or beach club access.</p>
+    <p class="itinerary-intro reveal reveal-delay-2">The destinations and routes shown below are <strong>suggestions only</strong>. Every charter is <strong>fully tailored to you</strong> — our experienced crew works with you in advance or even <strong>on the day itself</strong> (weather permitting) to design the perfect itinerary, whether that’s a relaxed half-day escape, a full-day cruise, or a multi-day voyage exploring Mallorca’s most beautiful coastlines. <strong>Flexible per-day options</strong>, the <strong>freedom to overnight when the mood takes you</strong>, and the <strong>option to arrange catering or beach club access</strong> are all part of the experience.</p>
   </div>
   <div class="itinerary-wrap" style="max-width:1400px;margin:0 auto;padding:0 2rem;">
     <div class="itinerary-grid">
 
       <!-- Half-Day Escapes -->
-      <div class="dest-tier reveal">Half-Day Escapes <span class="tier-note">— 4 to 6 hours</span></div>
+      <div class="dest-tier reveal" id="half-day">Suggested Half-Day Escapes <span class="tier-note">— 4 to 6 hours</span></div>
 
       <div class="destination-card reveal">
         <picture class="destination-card-bg">
@@ -1648,7 +1681,7 @@ height="0" width="0" style="display:none;visibility:hidden"></iframe></noscript>
       </div>
 
       <!-- Full-Day Cruises -->
-      <div class="dest-tier reveal">Full-Day Cruises <span class="tier-note">— a full day out</span></div>
+      <div class="dest-tier reveal" id="full-day">Suggested Full-Day Cruises <span class="tier-note">— a full day out</span></div>
 
       <div class="destination-card reveal">
         <picture class="destination-card-bg">
@@ -1720,11 +1753,11 @@ height="0" width="0" style="display:none;visibility:hidden"></iframe></noscript>
           <div class="destination-num">07 · South Archipelago</div>
           <div class="destination-name">Cabrera National Park</div>
           <div class="destination-tagline">Protected Archipelago</div>
-          <p class="destination-desc">Spain's first maritime-terrestrial national park — a pristine archipelago with crystal waters and rich wildlife. Free annual permit required; pre-book a mooring buoy (no anchoring allowed). Perfect for a full day or the start of a multi-day voyage.</p>
+          <p class="destination-desc">Spain's first maritime-terrestrial national park — a pristine archipelago with crystal waters and rich wildlife. We hold the free annual permit, allowing access to mooring buoys only (no anchoring). Overnight buoys must be pre-booked; day buoys first-come, first-served (rarely full). Perfect for a full day or the start of a multi-day voyage.</p>
           <div class="destination-meta">
             <span>From Club de Mar <strong>~1 h 40</strong></span>
             <span>Round trip <strong>~52 nm</strong></span>
-            <span>Permit + buoy required</span>
+            <span>Permit held • Buoys only</span>
             <span>Diesel <strong>~800 L</strong></span>
           </div>
         </div>
@@ -1751,7 +1784,7 @@ height="0" width="0" style="display:none;visibility:hidden"></iframe></noscript>
       </div>
 
       <!-- Multi-Day Voyages -->
-      <div class="dest-tier reveal">Multi-Day Voyages <span class="tier-note">— overnight &amp; long-range</span></div>
+      <div class="dest-tier reveal" id="multi-day">Suggested Multi-Day Voyages <span class="tier-note">— overnight &amp; long-range</span></div>
 
       <div class="destination-card reveal">
         <picture class="destination-card-bg">
@@ -1837,6 +1870,33 @@ height="0" width="0" style="display:none;visibility:hidden"></iframe></noscript>
   </div>
 </section>
 
+<script>
+  /* When user arrives via a pricing row link, highlight the matching itinerary cards briefly */
+  function highlightPriceLinkedItinerary() {
+    document.querySelectorAll('.destination-card.price-linked').forEach(el => el.classList.remove('price-linked'));
+
+    const hash = location.hash;
+    if (!hash) return;
+
+    const tier = document.getElementById(hash.substring(1));
+    if (!tier || !tier.classList.contains('dest-tier')) return;
+
+    // The CSS :target already animates the tier header
+    let next = tier.nextElementSibling;
+    while (next && next.classList.contains('destination-card')) {
+      next.classList.add('price-linked');
+      next = next.nextElementSibling;
+    }
+
+    // Auto-remove card highlight after a few seconds (tier highlight via :target stays while hash is active)
+    setTimeout(() => {
+      document.querySelectorAll('.destination-card.price-linked').forEach(el => el.classList.remove('price-linked'));
+    }, 4200);
+  }
+
+  window.addEventListener('hashchange', highlightPriceLinkedItinerary);
+  window.addEventListener('DOMContentLoaded', highlightPriceLinkedItinerary);
+</script>
 
 <!-- SPECS -->
 <section id="specs">
@@ -1963,43 +2023,43 @@ height="0" width="0" style="display:none;visibility:hidden"></iframe></noscript>
       <div class="pricing-card reveal" data-season="low">
         <div class="pricing-badge">Low Season</div>
         <div class="pricing-season">septiembre – mayo</div>
-        <div class="pricing-row">
+        <a class="pricing-row" href="#half-day">
           <span class="pricing-duration">4 horas</span>
           <span class="pricing-amount"><sup>€</sup> 1,850</span>
-        </div>
-        <div class="pricing-row">
+        </a>
+        <a class="pricing-row" href="#half-day">
           <span class="pricing-duration">6 horas</span>
           <span class="pricing-amount"><sup>€</sup> 2,600</span>
-        </div>
-        <div class="pricing-row">
+        </a>
+        <a class="pricing-row" href="#full-day">
           <span class="pricing-duration">1 día</span>
           <span class="pricing-amount"><sup>€</sup> 3,300</span>
-        </div>
-        <div class="pricing-row">
+        </a>
+        <a class="pricing-row" href="#multi-day">
           <span class="pricing-duration">Multi-day</span>
           <span class="pricing-amount"><span class="amt-sm">from </span><sup>€</sup> 3,100<span class="amt-sm"> /day</span></span>
-        </div>
+        </a>
 
       </div>
       <div class="pricing-card featured reveal reveal-delay-1" data-season="peak">
         <div class="pricing-badge">Temporada alta</div>
         <div class="pricing-season">junio – agosto</div>
-        <div class="pricing-row">
+        <a class="pricing-row" href="#half-day">
           <span class="pricing-duration">4 horas</span>
           <span class="pricing-amount"><sup>€</sup> 2,200</span>
-        </div>
-        <div class="pricing-row">
+        </a>
+        <a class="pricing-row" href="#half-day">
           <span class="pricing-duration">6 horas</span>
           <span class="pricing-amount"><sup>€</sup> 3,100</span>
-        </div>
-        <div class="pricing-row">
+        </a>
+        <a class="pricing-row" href="#full-day">
           <span class="pricing-duration">1 día</span>
           <span class="pricing-amount"><sup>€</sup> 3,950</span>
-        </div>
-        <div class="pricing-row">
+        </a>
+        <a class="pricing-row" href="#multi-day">
           <span class="pricing-duration">Multi-day</span>
           <span class="pricing-amount"><span class="amt-sm">from </span><sup>€</sup> 3,600<span class="amt-sm"> /day</span></span>
-        </div>
+        </a>
 
       </div>
     </div>
