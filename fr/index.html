@@ -358,8 +358,8 @@ j=d.createElement(s),dl=l!='dataLayer'?'&l='+l:'';j.async=true;j.src=
     animation: fadeUp .9s .3s ease both;
   }
   .hero-title {
-    font-family: 'Cormorant Garamond', serif;
-    font-size: clamp(3.5rem, 9vw, 8rem); font-weight: 400; line-height: 1;
+    font-family: 'Montserrat', sans-serif;
+    font-size: clamp(3.5rem, 9vw, 8rem); font-weight: 300; line-height: 1;
     color: var(--white); letter-spacing: .06em;
     text-shadow: 0 2px 28px rgba(0,0,0,.7), 0 1px 6px rgba(0,0,0,.55);
     -webkit-font-smoothing: antialiased;
@@ -417,7 +417,7 @@ j=d.createElement(s),dl=l!='dataLayer'?'&l='+l:'';j.async=true;j.src=
     color: var(--gold); margin-bottom: 1rem;
   }
   .section-title {
-    font-family: 'Cormorant Garamond', serif;
+    font-family: 'Montserrat', sans-serif;
     font-size: clamp(2.2rem, 5vw, 4rem); font-weight: 300;
     line-height: 1.1; color: var(--white);
   }
@@ -441,7 +441,7 @@ j=d.createElement(s),dl=l!='dataLayer'?'&l='+l:'';j.async=true;j.src=
   }
   .intro-item:last-child { border-right: none; }
   .intro-num {
-    font-family: 'Cormorant Garamond', serif;
+    font-family: 'Montserrat', sans-serif;
     font-size: 3rem; font-weight: 300; color: var(--gold); line-height: 1;
   }
   .intro-label {
@@ -449,8 +449,10 @@ j=d.createElement(s),dl=l!='dataLayer'?'&l='+l:'';j.async=true;j.src=
     text-transform: uppercase; color: var(--text-muted);
   }
 
+
+
   /* ── ABOUT ── */
-  #about { background: var(--navy); }
+  #about { background: var(--navy); padding-bottom: 4rem; }
   .about-grid {
     display: grid; grid-template-columns: 1fr 1fr; gap: 6rem; align-items: center;
   }
@@ -476,29 +478,33 @@ j=d.createElement(s),dl=l!='dataLayer'?'&l='+l:'';j.async=true;j.src=
   .about-text p strong { color: var(--gold-light); font-weight: 500; }
 
   /* ── SPECS ── */
-  #specs { background: var(--deep); }
+  #specs { background: var(--deep); padding-bottom: 3.5rem; }
   .specs-grid {
     display: grid; grid-template-columns: repeat(3,1fr); gap: 2px;
-    margin-top: 3.5rem;
+    margin-top: 2rem;
   }
   .spec-card {
-    background: rgba(26,58,92,.3); padding: 2.5rem;
+    background: rgba(26,58,92,.3); padding: 1.6rem;
     border: 1px solid rgba(201,168,76,.1);
     transition: background .3s, border-color .3s;
   }
   .spec-card:hover { background: rgba(26,58,92,.6); border-color: rgba(201,168,76,.35); }
-  .spec-icon { font-size: 1.8rem; margin-bottom: 1rem; }
+  .spec-icon { font-size: 1.4rem; margin-bottom: 0.5rem; }
   .spec-title {
-    font-size: .6rem; letter-spacing: .2em; text-transform: uppercase;
-    color: var(--gold); margin-bottom: .5rem;
+    font-size: .5rem; letter-spacing: .2em; text-transform: uppercase;
+    color: var(--gold); margin-bottom: .3rem;
   }
   .spec-value {
-    font-family: 'Cormorant Garamond', serif;
-    font-size: 1.5rem; font-weight: 300; color: var(--white);
+    font-family: 'Montserrat', sans-serif;
+    font-size: 1.2rem; font-weight: 300; color: var(--white);
+  }
+  .spec-cruise .spec-value {
+    font-size: 1.0rem;
+    line-height: 1.3;
   }
 
   /* ── GALLERY ── */
-  #gallery { background: var(--navy); padding-bottom: 5rem; }
+  #gallery { background: var(--navy); padding-top: 3.5rem; padding-bottom: 4rem; }
   .gallery-grid {
     display: grid;
     grid-template-columns: repeat(4,1fr);
@@ -592,7 +598,7 @@ j=d.createElement(s),dl=l!='dataLayer'?'&l='+l:'';j.async=true;j.src=
   }
 
   /* ── AMENITIES ── */
-  #amenities { background: var(--deep); }
+  #amenities { background: var(--deep); padding-top: 3.5rem; padding-bottom: 3.5rem; }
   .amenities-grid {
     display: grid; grid-template-columns: repeat(2,1fr); gap: 1.5rem; margin-top: 3.5rem;
   }
@@ -671,20 +677,72 @@ j=d.createElement(s),dl=l!='dataLayer'?'&l='+l:'';j.async=true;j.src=
     padding: 1.2rem 0; border-bottom: 1px solid rgba(255,255,255,.06);
   }
   .pricing-duration {
-    font-family: 'Cormorant Garamond', serif;
+    font-family: 'Montserrat', sans-serif;
     font-size: 1.1rem; color: var(--cream);
   }
   .pricing-amount {
-    font-family: 'Cormorant Garamond', serif;
+    font-family: 'Montserrat', sans-serif;
     font-size: 2.2rem; font-weight: 300; color: var(--gold);
   }
   .pricing-amount sup { font-size: .9rem; vertical-align: super; }
   .pricing-amount .amt-sm { font-size: .8rem; color: var(--text-muted); font-weight: 400; letter-spacing: .03em; }
-  .pricing-notes {
-    margin-top: 2rem; font-size: .72rem; color: var(--text-muted); line-height: 1.8;
+
+  .pricing-terms {
+    max-width: 720px;
+    margin: 2.5rem auto 0;
+    padding: 1.75rem 2rem 1.25rem;
+    border: 1px solid rgba(201,168,76,.15);
+    border-radius: 6px;
+    background: rgba(10,22,40,.25);
   }
-  .pricing-notes li { margin-bottom: .3rem; padding-left: 1rem; position: relative; }
-  .pricing-notes li::before { content: '·'; position: absolute; left: 0; color: var(--gold); }
+  .pricing-terms-title {
+    font-size: .65rem; letter-spacing: .25em; text-transform: uppercase;
+    color: var(--gold); margin-bottom: .6rem; text-align: center;
+  }
+  .pricing-notes {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: .35rem .9rem;
+    font-size: .78rem;
+    color: var(--text-muted);
+    line-height: 1.5;
+    margin: 0;
+    padding: 0;
+    list-style: none;
+  }
+  .pricing-notes li {
+    position: relative;
+    padding-left: .95rem;
+  }
+  .pricing-notes li::before {
+    content: '·';
+    position: absolute;
+    left: 0;
+    color: var(--gold);
+    font-weight: 700;
+  }
+  .pricing-terms-extra {
+    margin-top: 1.1rem;
+    padding-top: 1rem;
+    border-top: 1px solid rgba(201,168,76,.12);
+    font-size: .85rem;
+    color: var(--cream);
+    text-align: center;
+    line-height: 1.55;
+  }
+  .pricing-terms-extra p {
+    margin: .35rem 0;
+  }
+  .pricing-terms-extra p:first-child {
+    font-size: .95rem;
+    color: var(--white);
+    font-weight: 400;
+  }
+  .pricing-terms-extra p:last-child {
+    font-size: .72rem;
+    color: var(--text-muted);
+    margin-top: .5rem;
+  }
 
   /* ── CONTACT ── */
   #contact {
@@ -754,8 +812,8 @@ j=d.createElement(s),dl=l!='dataLayer'?'&l='+l:'';j.async=true;j.src=
     padding: 3rem 2rem; text-align: center;
   }
   .footer-logo {
-    font-family: 'Cormorant Garamond', serif;
-    font-size: 1.4rem; letter-spacing: .2em; color: var(--gold); text-transform: uppercase;
+    font-family: 'Montserrat', sans-serif;
+    font-size: 1.4rem; font-weight: 300; letter-spacing: .2em; color: var(--gold); text-transform: uppercase;
   }
   .footer-tagline {
     margin-top: .5rem; font-size: .62rem; letter-spacing: .25em;
@@ -774,7 +832,7 @@ j=d.createElement(s),dl=l!='dataLayer'?'&l='+l:'';j.async=true;j.src=
   }
 
   /* ── ITINERARY ── */
-  #itinerary { background: var(--navy); padding-bottom: 4rem; }
+  #itinerary { background: var(--navy); padding-top: 3.5rem; padding-bottom: 5rem; }
   .itinerary-intro {
     max-width: 720px; margin-top: 1.8rem;
     font-size: .95rem; line-height: 1.9; color: rgba(245,240,232,.75);
@@ -784,7 +842,7 @@ j=d.createElement(s),dl=l!='dataLayer'?'&l='+l:'';j.async=true;j.src=
     display: grid; grid-template-columns: repeat(2, 1fr); gap: 2px; margin-top: 3.5rem;
   }
   .destination-card {
-    position: relative; overflow: hidden; min-height: 380px;
+    position: relative; overflow: hidden; min-height: 420px;
     display: flex; flex-direction: column; justify-content: flex-end;
     cursor: default;
   }
@@ -796,43 +854,96 @@ j=d.createElement(s),dl=l!='dataLayer'?'&l='+l:'';j.async=true;j.src=
   .destination-card:hover .destination-card-bg { transform: scale(1.04); }
   .destination-card-overlay {
     position: absolute; inset: 0;
-    background: linear-gradient(to top, rgba(8,18,34,.92) 0%, rgba(8,18,34,.4) 55%, rgba(8,18,34,.1) 100%);
+    background: linear-gradient(to top, rgba(8,18,34,.98) 0%, rgba(8,18,34,.65) 35%, rgba(8,18,34,.25) 65%, rgba(8,18,34,.05) 100%);
+  }
+
+  .destination-card::after {
+    content: '';
+    position: absolute;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    height: 75%;
+    background: linear-gradient(
+      to top,
+      rgba(8,18,34,0.55) 0%,
+      rgba(8,18,34,0.55) 80%,
+      rgba(8,18,34,0) 100%
+    );
+    z-index: 1;
   }
   .destination-card-body {
-    position: relative; z-index: 1; padding: 2.5rem;
+    position: relative; z-index: 2; padding: 2.5rem;
+  }
+  .destination-name,
+  .destination-tagline,
+  .destination-desc {
+    text-shadow: 0 1px 4px rgba(0, 0, 0, 0.75);
   }
   .destination-num {
-    font-size: .58rem; letter-spacing: .25em; text-transform: uppercase;
+    font-size: .65rem; letter-spacing: .22em; text-transform: uppercase;
     color: var(--gold); margin-bottom: .8rem;
   }
   .destination-name {
-    font-family: 'Cormorant Garamond', serif;
-    font-size: 2rem; font-weight: 300; color: var(--white);
-    line-height: 1.1; margin-bottom: .6rem;
+    font-family: 'Montserrat', sans-serif;
+    font-size: 2.05rem; font-weight: 300; color: var(--white);
+    line-height: 1.15; margin-bottom: .6rem;
   }
   .destination-tagline {
-    font-size: .65rem; letter-spacing: .15em; text-transform: uppercase;
-    color: rgba(201,168,76,.7); margin-bottom: 1rem;
+    font-size: .72rem; letter-spacing: .12em; text-transform: uppercase;
+    color: rgba(201,168,76,.82); margin-bottom: 1rem;
   }
   .destination-desc {
-    font-size: .82rem; line-height: 1.75; color: rgba(245,240,232,.65);
+    font-size: .9rem; line-height: 1.72; color: rgba(245,240,232,.78);
     max-width: 38ch;
   }
   .destination-meta {
     display: flex; gap: 1.5rem; margin-top: 1.2rem; padding-top: 1.2rem;
     border-top: 1px solid rgba(201,168,76,.15);
+    flex-wrap: wrap;
   }
   .destination-meta span {
-    font-size: .6rem; letter-spacing: .12em; text-transform: uppercase;
-    color: rgba(245,240,232,.45);
+    font-size: .72rem; letter-spacing: .08em; text-transform: uppercase;
+    color: rgba(245,240,232,.68);
+    text-shadow: 0 1px 3px rgba(0, 0, 0, 0.7);
   }
   .destination-meta strong { color: var(--gold-light); font-weight: 500; }
+
+  /* New tier headings for rebuilt destinations */
+  .dest-tier {
+    grid-column: 1 / -1;
+    font-size: .82rem; letter-spacing: .22em; text-transform: uppercase;
+    color: var(--gold); margin: 1.6rem 0 .4rem; padding-left: .15rem;
+  }
+  .dest-tier .tier-note {
+    font-size: .72rem; letter-spacing: .12em; color: rgba(201,168,76,.55); font-weight: 400;
+  }
+
+  /* Large screen tweaks for destination cards */
+  @media (min-width: 1400px) {
+    .itinerary-wrap {
+      max-width: 1600px;
+    }
+    .destination-card {
+      min-height: 460px;
+    }
+    .destination-card-body {
+      padding: 2.8rem;
+    }
+    .destination-name {
+      font-size: 2.2rem;
+    }
+    .destination-desc {
+      font-size: 0.95rem;
+      max-width: 42ch;
+    }
+  }
 
   /* ── REVIEWS ── */
   #reviews {
     background: var(--deep);
     padding-top: 4rem;
-    padding-bottom: 7rem;
+    padding-bottom: 6rem;
   }
   .reviews-intro {
     max-width: 640px; margin-top: 1.2rem;
@@ -848,7 +959,7 @@ j=d.createElement(s),dl=l!='dataLayer'?'&l='+l:'';j.async=true;j.src=
     display: flex; align-items: center; gap: 1rem;
   }
   .reviews-score-num {
-    font-family: 'Cormorant Garamond', serif;
+    font-family: 'Montserrat', sans-serif;
     font-size: 3rem; font-weight: 300; color: var(--gold-light); line-height: 1;
   }
   .reviews-stars {
@@ -901,8 +1012,21 @@ j=d.createElement(s),dl=l!='dataLayer'?'&l='+l:'';j.async=true;j.src=
     letter-spacing: .08em;
   }
   @media (max-width: 640px) {
-    #itinerary { padding-bottom: 3rem; }
+    #about { padding-bottom: 3rem; }
+    #gallery { padding-top: 2.5rem; padding-bottom: 3rem; }
+    #itinerary { padding-top: 2.5rem; padding-bottom: 3.5rem; }
+    #specs { padding-bottom: 2.5rem; }
+    #amenities { padding-top: 2.5rem; padding-bottom: 2.5rem; }
     #reviews { padding-top: 3rem; padding-bottom: 4rem; }
+    /* Full-bleed single column for destinations on phone (match gallery breakout) */
+    .itinerary-wrap {
+      margin-left: -1.2rem !important;
+      margin-right: -1.2rem !important;
+      padding: 0 !important;
+    }
+    .destination-card { min-height: 380px; }
+    .destination-desc { font-size: .82rem; line-height: 1.65; }
+    .destination-meta span { font-size: .65rem; }
   }
 
   /* ── AVAILABILITY ── */
@@ -921,7 +1045,7 @@ j=d.createElement(s),dl=l!='dataLayer'?'&l='+l:'';j.async=true;j.src=
   .cal-bar { display: flex; align-items: flex-start; gap: .5rem; }
   .cal-months { display: flex; gap: 1.8rem; flex: 1; min-width: 0; }
   .cal-month { flex: 1; min-width: 0; }
-  .cal-title { text-align: center; font-family: 'Cormorant Garamond', serif; font-size: 1.5rem; font-weight: 400; color: var(--gold-light); letter-spacing: .02em; margin-bottom: 1rem; }
+  .cal-title { text-align: center; font-family: 'Montserrat', sans-serif; font-size: 1.5rem; font-weight: 300; color: var(--gold-light); letter-spacing: .02em; margin-bottom: 1rem; }
   .cal-nav {
     flex: none; margin-top: 2px;
     background: transparent; border: 1px solid rgba(201,168,76,.35); color: var(--gold);
@@ -1030,8 +1154,15 @@ j=d.createElement(s),dl=l!='dataLayer'?'&l='+l:'';j.async=true;j.src=
     .gallery-item:nth-child(10) { grid-column: span 1; }
     .intro-grid { grid-template-columns: repeat(2,1fr); }
     .intro-item:nth-child(2) { border-right: none; }
+
     .itinerary-grid { grid-template-columns: 1fr; }
-    .destination-card { min-height: 320px; }
+    .itinerary-wrap {
+      margin-left: -2rem !important;
+      margin-right: -2rem !important;
+      padding: 0 !important;
+    }
+    .destination-card { min-height: 380px; }
+    .dest-tier { font-size: .76rem; margin: 1.1rem 0 .2rem; }
   }
   /* Téléphone: compact header + slide-down menu */
   @media (max-width: 768px) {
@@ -1053,15 +1184,43 @@ j=d.createElement(s),dl=l!='dataLayer'?'&l='+l:'';j.async=true;j.src=
     .hero-actions { flex-direction: column; align-items: center; gap: .8rem; }
     .btn-primary, .btn-ghost { width: 100%; max-width: 280px; text-align: center; }
     .section-title { font-size: clamp(1.8rem, 6vw, 3rem); }
-    .spec-card { padding: 1.5rem 1.1rem; }
-    .spec-card .spec-value { font-size: 1.25rem; }
+    .spec-card { padding: 1.0rem 0.75rem; }
+    .spec-card .spec-value { font-size: 1.0rem; }
+    .spec-cruise .spec-value { font-size: 0.9rem; line-height: 1.25; }
     .amenities-grid { grid-template-columns: 1fr; }
     .pricing-grid { grid-template-columns: 1fr; }
     .pricing-amount { font-size: 1.8rem; }
     .form-row { grid-template-columns: 1fr; }
+
+    .pricing-terms {
+      padding: 1.25rem 1rem 1rem;
+      margin: 1.75rem auto 0;
+    }
+    .pricing-notes {
+      grid-template-columns: 1fr;
+      gap: .2rem .5rem;
+      font-size: .72rem;
+    }
+    .pricing-terms-extra {
+      margin-top: .6rem;
+      padding-top: .6rem;
+      font-size: .78rem;
+    }
+    .pricing-terms-extra p:first-child {
+      font-size: .85rem;
+      color: var(--white);
+    }
+    .pricing-terms-extra p:last-child {
+      font-size: .68rem;
+      color: var(--text-muted);
+    }
+    .pricing-terms-title {
+      font-size: .6rem; margin-bottom: .4rem;
+    }
     .intro-grid { grid-template-columns: 1fr 1fr; }
     .intro-item { padding: 1.5rem 1rem; }
     .intro-num { font-size: 2rem; }
+
     .gallery-grid { grid-template-columns: 1fr 1fr; gap: 3px; }
     /* Full-bleed gallery on phones; heading stays padded via the section */
     .gallery-wrap { margin-left: -1.2rem !important; margin-right: -1.2rem !important; padding: 0 !important; }
@@ -1070,7 +1229,7 @@ j=d.createElement(s),dl=l!='dataLayer'?'&l='+l:'';j.async=true;j.src=
     .gallery-item:nth-child(10) { grid-column: span 1; }
     .destination-card { min-height: 420px; }
     .destination-meta { flex-wrap: wrap; gap: .8rem; }
-    .destination-meta span { font-size: .58rem; }
+    .destination-meta span { font-size: .65rem; }
     .contact-grid { grid-template-columns: 1fr; gap: 2.5rem; }
     .about-image-wrap {
       height: 320px;
@@ -1087,7 +1246,7 @@ j=d.createElement(s),dl=l!='dataLayer'?'&l='+l:'';j.async=true;j.src=
     .nav-logo { letter-spacing: .08em; }
     .gallery-grid { grid-template-columns: 1fr; }
     .gallery-item:nth-child(1), .gallery-item:nth-child(5), .gallery-item:nth-child(10) { grid-column: span 1; }
-    .spec-card { padding: 1.3rem 0.9rem; }
+    .spec-card { padding: 0.85rem 0.6rem; }
   }
 
   /* mobile nav */
@@ -1187,6 +1346,7 @@ height="0" width="0" style="display:none;visibility:hidden"></iframe></noscript>
   <ul class="nav-links">
     <li><a href="#about">À propos</a></li>
     <li><a href="#gallery">Galerie</a></li>
+    <li><a href="#itinerary">Destinations</a></li>
     <li><a href="#specs">Details</a></li>
     <li><a href="#amenities">Équipements</a></li>
     <li><a href="#reviews">Avis</a></li>
@@ -1216,6 +1376,7 @@ height="0" width="0" style="display:none;visibility:hidden"></iframe></noscript>
   <a href="#contact" class="mobile-nav-cta" onclick="closeMobile()">Demander</a>
   <a href="#about" onclick="closeMobile()">À propos</a>
   <a href="#gallery" onclick="closeMobile()">Galerie</a>
+  <a href="#itinerary" onclick="closeMobile()">Destinations</a>
   <a href="#specs" onclick="closeMobile()">Details</a>
   <a href="#amenities" onclick="closeMobile()">Équipements</a>
   <a href="#reviews" onclick="closeMobile()">Avis</a>
@@ -1240,7 +1401,7 @@ height="0" width="0" style="display:none;visibility:hidden"></iframe></noscript>
     <p class="hero-sub">Yacht Maiora exclusif · 21,5 m · Jusqu'à 12 invités de jour · 7 de nuit</p>
     <div class="hero-actions">
       <a href="#pricing" class="btn-primary">Tarifs & réservation</a>
-      <a href="#gallery" class="btn-ghost">Voir la galerie</a>
+      <a href="#itinerary" class="btn-ghost">Explore Destinations</a>
     </div>
   </div>
   <div class="hero-scroll">
@@ -1254,19 +1415,19 @@ height="0" width="0" style="display:none;visibility:hidden"></iframe></noscript>
   <div class="intro-grid">
     <div class="intro-item reveal">
       <div class="intro-num">21.5</div>
-      <div class="intro-label">mètres de longueur</div>
+      <div class="intro-label">Metres of luxury</div>
     </div>
     <div class="intro-item reveal reveal-delay-1">
-      <div class="intro-num">3,000</div>
-      <div class="intro-label">CV puissance totale</div>
+      <div class="intro-num">2</div>
+      <div class="intro-label">Dedicated crew</div>
     </div>
     <div class="intro-item reveal reveal-delay-2">
       <div class="intro-num">12 / 7</div>
-      <div class="intro-label">Invités jour / nuit</div>
+      <div class="intro-label">Day / overnight guests</div>
     </div>
     <div class="intro-item reveal reveal-delay-3">
       <div class="intro-num">21</div>
-      <div class="intro-label">nœuds de croisière</div>
+      <div class="intro-label">Knots to the coves</div>
     </div>
   </div>
 </section>
@@ -1284,7 +1445,7 @@ height="0" width="0" style="display:none;visibility:hidden"></iframe></noscript>
         <h2 class="section-title">Votre maison sur la<br><em>Méditerranée</em></h2>
         <div class="divider"></div>
         <p>Le Maiora <strong>« Limitless »</strong> est un yacht à moteur de 21 mètres apprécié pour des journées détendues sur l'eau. Ponts soleil spacieux, volumes généreux et atmosphère chaleureuse — comme à la maison dès l'embarquement.</p>
-        <p>Ce qui distingue Limitless, c'est son <strong>équipage dévoué</strong>. Attentionné, expérimenté et passionné par la mer — il s'occupe de tout pour que vous profitiez pleinement de vos proches et des lieux découverts.</p>
+        <p>What truly sets Limitless apart is her <strong>dedicated crew</strong>. Attentive, experienced and genuinely passionate about the sea, they take care of everything — from organizing catering to reserving beach club access — so you can focus entirely on the people you're with and the places you're discovering.</p>
         <p>Des criques cachées du sud-ouest de Majorque aux falaises spectaculaires de Sa Calobra — <strong>les destinations parlent d'elles-mêmes</strong>. Limitless est la meilleure façon d'y accéder.</p>
         <a href="#contact" class="btn-primary" style="display:inline-block;margin-top:1.5rem;">Demander maintenant</a>
       </div>
@@ -1349,6 +1510,234 @@ height="0" width="0" style="display:none;visibility:hidden"></iframe></noscript>
   </div>
 </section>
 
+<!-- ITINERARY / DESTINATIONS -->
+<section id="itinerary">
+  <div class="container">
+    <p class="section-label reveal">Destinations</p>
+    <h2 class="section-title reveal reveal-delay-1">Where <em>Limitless</em> Takes You</h2>
+    <p class="itinerary-intro reveal reveal-delay-2">From a relaxed <strong>half-day escape</strong> to a <strong>multi-day voyage</strong> exploring Mallorca's most beautiful coastlines. Every charter is <strong>tailored to you</strong> — our crew plans the route together with you, with flexible per-day options, the freedom to overnight when the mood takes you, and the option to organize catering or beach club access.</p>
+  </div>
+  <div class="itinerary-wrap" style="max-width:1400px;margin:0 auto;padding:0 2rem;">
+    <div class="itinerary-grid">
+
+      <!-- Half-Day Escapes -->
+      <div class="dest-tier reveal">Half-Day Escapes <span class="tier-note">— 4 to 6 hours</span></div>
+
+      <div class="destination-card reveal">
+        <div class="destination-card-bg" style="background:url('/images/dest/portals-vells-1.jpg') center/cover no-repeat;background-image:image-set(url('/images/dest/portals-vells-1.webp') type('image/webp'),url('/images/dest/portals-vells-1.jpg') type('image/jpeg'));"></div>
+        <div class="destination-card-overlay"></div>
+        <div class="destination-card-body">
+          <div class="destination-num">01 · Côte sud-ouest</div>
+          <div class="destination-name">Portals Vells</div>
+          <div class="destination-tagline">Sea Caves &amp; Turquoise Coves</div>
+          <p class="destination-desc">Three secluded coves at the tip of the Calvià peninsula, famous for their sea caves carved into the limestone cliffs. The water is a vivid blue-green — ideal for swimming, snorkelling and a short escape just 35 minutes from the marina.</p>
+          <div class="destination-meta">
+            <span>From Club de Mar <strong>~35 min</strong></span>
+            <span>Depth <strong>4–10 m</strong></span>
+            <span>Round trip <strong>~18 nm</strong></span>
+            <span>Diesel <strong>~300 L</strong></span>
+          </div>
+        </div>
+      </div>
+
+      <div class="destination-card reveal reveal-delay-1">
+        <div class="destination-card-bg" style="background:url('/images/dest/el-toro-malgrats-1.jpg') center/cover no-repeat;background-image:image-set(url('/images/dest/el-toro-malgrats-1.webp') type('image/webp'),url('/images/dest/el-toro-malgrats-1.jpg') type('image/jpeg'));"></div>
+        <div class="destination-card-overlay"></div>
+        <div class="destination-card-body">
+          <div class="destination-num">02 · Côte sud-ouest</div>
+          <div class="destination-name">El Toro &amp; Illes Malgrats</div>
+          <div class="destination-tagline">Marine Reserve &amp; Snorkelling</div>
+          <p class="destination-desc">A protected marine reserve around the Malgrats islets and El Toro headland. Crystal water teeming with fish, easy snorkelling and a relaxed half-day with lunch at anchor. One of the best quick escapes for nature in the water.</p>
+          <div class="destination-meta">
+            <span>From Club de Mar <strong>~40 min</strong></span>
+            <span>Depth <strong>5–12 m</strong></span>
+            <span>Round trip <strong>~22 nm</strong></span>
+            <span>Diesel <strong>~350 L</strong></span>
+          </div>
+        </div>
+      </div>
+
+      <div class="destination-card reveal reveal-delay-1">
+        <div class="destination-card-bg" style="background:url('/images/dest/cala-llamp-1.jpg') center/cover no-repeat;background-image:image-set(url('/images/dest/cala-llamp-1.webp') type('image/webp'),url('/images/dest/cala-llamp-1.jpg') type('image/jpeg'));"></div>
+        <div class="destination-card-overlay"></div>
+        <div class="destination-card-body">
+          <div class="destination-num">03 · Côte sud-ouest</div>
+          <div class="destination-name">Cala Llamp</div>
+          <div class="destination-tagline">Abritée &amp; paisible</div>
+          <p class="destination-desc">A calm, pine-fringed bay tucked just south of Port d'Andratx. Protected from the prevailing winds, its still green water and relaxed atmosphere make it perfect for a long lunch at anchor or a peaceful swim.</p>
+          <div class="destination-meta">
+            <span>From Club de Mar <strong>~55 min</strong></span>
+            <span>Depth <strong>4–8 m</strong></span>
+            <span>Round trip <strong>~30 nm</strong></span>
+            <span>Diesel <strong>~450 L</strong></span>
+          </div>
+        </div>
+      </div>
+
+      <!-- Full-Day Cruises -->
+      <div class="dest-tier reveal">Full-Day Cruises <span class="tier-note">— a full day out</span></div>
+
+      <div class="destination-card reveal">
+        <div class="destination-card-bg" style="background:url('/images/dest/sa-dragonera-1.jpg') center/cover no-repeat;background-image:image-set(url('/images/dest/sa-dragonera-1.webp') type('image/webp'),url('/images/dest/sa-dragonera-1.jpg') type('image/jpeg'));"></div>
+        <div class="destination-card-overlay"></div>
+        <div class="destination-card-body">
+          <div class="destination-num">04 · West Coast</div>
+          <div class="destination-name">Sa Dragonera &amp; Sant Elm</div>
+          <div class="destination-tagline">Island Nature Reserve</div>
+          <p class="destination-desc">The uninhabited, dragon-shaped island of Sa Dragonera is a Parc Natural. Anchor outside the buoy line (keep 50 m off March–September) and hike the trails or snorkel the pristine waters. Often paired with lunch in the pretty harbour of Sant Elm.</p>
+          <div class="destination-meta">
+            <span>From Club de Mar <strong>~1 h 10</strong></span>
+            <span>Round trip <strong>~36 nm</strong></span>
+            <span>Parc Natural — buoys only</span>
+            <span>Diesel <strong>~550 L</strong></span>
+          </div>
+        </div>
+      </div>
+
+      <div class="destination-card reveal reveal-delay-1">
+        <div class="destination-card-bg" style="background:url('/images/dest/cala-pi-1.jpg') center/cover no-repeat;background-image:image-set(url('/images/dest/cala-pi-1.webp') type('image/webp'),url('/images/dest/cala-pi-1.jpg') type('image/jpeg'));"></div>
+        <div class="destination-card-overlay"></div>
+        <div class="destination-card-body">
+          <div class="destination-num">05 · South Coast</div>
+          <div class="destination-name">Cala Pi</div>
+          <div class="destination-tagline">Sheltered Cliffs &amp; Fine Sand</div>
+          <p class="destination-desc">A dramatic, pine-backed cove on Mallorca's south coast enclosed by towering limestone walls and opening onto a fine sandy beach with shallow turquoise water. Excellent holding in sand for anchoring; a peaceful and photogenic stop for swimming and lunch.</p>
+          <div class="destination-meta">
+            <span>From Club de Mar <strong>~1 h 5</strong></span>
+            <span>Profondeur <strong>3–6 m</strong></span>
+            <span>Round trip <strong>~34 nm</strong></span>
+            <span>Diesel <strong>~550 L</strong></span>
+          </div>
+        </div>
+      </div>
+
+      <div class="destination-card reveal reveal-delay-1">
+        <div class="destination-card-bg" style="background:url('/images/dest/es-trenc-1.jpg') center/cover no-repeat;background-image:image-set(url('/images/dest/es-trenc-1.webp') type('image/webp'),url('/images/dest/es-trenc-1.jpg') type('image/jpeg'));"></div>
+        <div class="destination-card-overlay"></div>
+        <div class="destination-card-body">
+          <div class="destination-num">06 · South Coast</div>
+          <div class="destination-name">Es Trenc</div>
+          <div class="destination-tagline">Caribbean-White Sand</div>
+          <p class="destination-desc">One of Mallorca's last unspoilt beaches — a sweeping arc of powdery white sand lapped by shallow, crystal-clear water. Anchor in the sand (Posidonia protected) and wade in for a truly secluded escape.</p>
+          <div class="destination-meta">
+            <span>From Club de Mar <strong>~1 h 30</strong></span>
+            <span>Profondeur <strong>3–6 m</strong></span>
+            <span>Round trip <strong>~48 nm</strong></span>
+            <span>Diesel <strong>~750 L</strong></span>
+          </div>
+        </div>
+      </div>
+
+      <div class="destination-card reveal reveal-delay-1">
+        <div class="destination-card-bg" style="background:url('/images/dest/cabrera-1.jpg') center/cover no-repeat;background-image:image-set(url('/images/dest/cabrera-1.webp') type('image/webp'),url('/images/dest/cabrera-1.jpg') type('image/jpeg'));"></div>
+        <div class="destination-card-overlay"></div>
+        <div class="destination-card-body">
+          <div class="destination-num">07 · South Archipelago</div>
+          <div class="destination-name">Cabrera National Park</div>
+          <div class="destination-tagline">Protected Archipelago</div>
+          <p class="destination-desc">Spain's first maritime-terrestrial national park — a pristine archipelago with crystal waters and rich wildlife. Free annual permit required; pre-book a mooring buoy (no anchoring allowed). Perfect for a full day or the start of a multi-day voyage.</p>
+          <div class="destination-meta">
+            <span>From Club de Mar <strong>~1 h 40</strong></span>
+            <span>Round trip <strong>~52 nm</strong></span>
+            <span>Permit + buoy required</span>
+            <span>Diesel <strong>~800 L</strong></span>
+          </div>
+        </div>
+      </div>
+
+      <div class="destination-card reveal reveal-delay-2">
+        <div class="destination-card-bg" style="background:url('/images/dest/calo-des-moro-1.jpg') center/cover no-repeat;background-image:image-set(url('/images/dest/calo-des-moro-1.webp') type('image/webp'),url('/images/dest/calo-des-moro-1.jpg') type('image/jpeg'));"></div>
+        <div class="destination-card-overlay"></div>
+        <div class="destination-card-body">
+          <div class="destination-num">08 · Southeast Coast</div>
+          <div class="destination-name">Caló des Moro &amp; Cala Figuera</div>
+          <div class="destination-tagline">Mallorca's Most Photographed Cove</div>
+          <p class="destination-desc">The tiny, impossibly turquoise inlet of Caló des Moro backed by dramatic cliffs — one of the island's most iconic and photographed spots. Nearby Cala Figuera offers a charming fishing harbour and a relaxed contrast. A longer cruise that feels like a real destination.</p>
+          <div class="destination-meta">
+            <span>From Club de Mar <strong>~2 h 10</strong></span>
+            <span>Depth <strong>4–10 m</strong></span>
+            <span>Round trip <strong>~70 nm</strong></span>
+            <span>Diesel <strong>~1,100 L</strong></span>
+          </div>
+        </div>
+      </div>
+
+      <!-- Multi-Day Voyages -->
+      <div class="dest-tier reveal">Multi-Day Voyages <span class="tier-note">— overnight &amp; long-range</span></div>
+
+      <div class="destination-card reveal">
+        <div class="destination-card-bg" style="background:url('/images/dest/sa-calobra-1.jpg') center/cover no-repeat;background-image:image-set(url('/images/dest/sa-calobra-1.webp') type('image/webp'),url('/images/dest/sa-calobra-1.jpg') type('image/jpeg'));"></div>
+        <div class="destination-card-overlay"></div>
+        <div class="destination-card-body">
+          <div class="destination-num">09 · Northwest Coast · Multi-Day</div>
+          <div class="destination-name">West Coast Exploration</div>
+          <div class="destination-tagline">Sa Foradada, Port Sóller &amp; Cala Tuent</div>
+          <p class="destination-desc">A multi-day voyage along Mallorca's most dramatic coastline. Weave through the towering cliffs of the Serra de Tramuntana, anchor off the iconic pierced rock of Sa Foradada, moor in the pretty harbour of Port de Sóller for a tram ride into the valley town, and discover the secluded pebble beach of Cala Tuent at the foot of Puig Major. Sa Calobra and the Torrent de Pareis gorge are within easy reach — the ultimate payoff of a 2–4 night charter with overnight anchorages or marina stops.</p>
+          <div class="destination-meta">
+            <span>From Club de Mar <strong>~2 h 55</strong></span>
+            <span>Round trip <strong>~94 nm</strong></span>
+            <span>Multi-day anchorages &amp; moorings</span>
+            <span>Diesel <strong>~1,450 L</strong></span>
+          </div>
+        </div>
+      </div>
+
+      <div class="destination-card reveal reveal-delay-1">
+        <div class="destination-card-bg" style="background:url('/images/dest/circumnavigation-1.jpg') center/cover no-repeat;background-image:image-set(url('/images/dest/circumnavigation-1.webp') type('image/webp'),url('/images/dest/circumnavigation-1.jpg') type('image/jpeg'));"></div>
+        <div class="destination-card-overlay"></div>
+        <div class="destination-card-body">
+          <div class="destination-num">10 · Full Island · Multi-Day</div>
+          <div class="destination-name">Mallorca Circumnavigation</div>
+          <div class="destination-tagline">Complete 200 nm Loop</div>
+          <p class="destination-desc">The definitive multi-day voyage: a full circumnavigation of Mallorca, roughly 200 nautical miles of ever-changing coastline. From the gentle southwest, past the dragon-shaped island and wild west cliffs, around the dramatic north and Cap de Formentor, down the east and back home. Flexible 5–7 day itinerary with nights at anchor in hidden coves or alongside in harbour towns — the ultimate way to experience the whole island from the water.</p>
+          <div class="destination-meta">
+            <span>Cruising time <strong>~12 h 30</strong></span>
+            <span>Total <strong>~200 nm</strong></span>
+            <span>5–7 days recommended</span>
+            <span>Diesel est. <strong>~3,150 L</strong></span>
+          </div>
+        </div>
+      </div>
+
+      <div class="destination-card reveal reveal-delay-2">
+        <div class="destination-card-bg" style="background:url('/images/dest/formentera-1.jpg') center/cover no-repeat;background-image:image-set(url('/images/dest/formentera-1.webp') type('image/webp'),url('/images/dest/formentera-1.jpg') type('image/jpeg'));"></div>
+        <div class="destination-card-overlay"></div>
+        <div class="destination-card-body">
+          <div class="destination-num">11 · Balearics Crossing · Multi-Day</div>
+          <div class="destination-name">Ibiza Crossing</div>
+          <div class="destination-tagline">White Isle &amp; Turquoise Spits</div>
+          <p class="destination-desc">A proper ~70 nm crossing to the Pityusic archipelago. Discover Ibiza's vibrant harbours, hidden coves and legendary beach clubs, with the option to push on to Formentera's world-famous Ses Illetes — the luminous sandbar and shallow turquoise waters often called the Caribbean of the Med. Open-sea adventure with the rewards of a different island vibe; ideal for 2–4 nights with marina stays or wild anchorages.</p>
+          <div class="destination-meta">
+            <span>From Club de Mar <strong>~4 h 25</strong></span>
+            <span>Round trip <strong>~140 nm</strong></span>
+            <span>Marina or anchorage options</span>
+            <span>Diesel <strong>~2,200 L</strong></span>
+          </div>
+        </div>
+      </div>
+
+      <div class="destination-card reveal reveal-delay-3">
+        <div class="destination-card-bg" style="background:url('/images/dest/menorca-1.jpg') center/cover no-repeat;background-image:image-set(url('/images/dest/menorca-1.webp') type('image/webp'),url('/images/dest/menorca-1.jpg') type('image/jpeg'));"></div>
+        <div class="destination-card-overlay"></div>
+        <div class="destination-card-body">
+          <div class="destination-num">12 · Balearics Crossing · Multi-Day</div>
+          <div class="destination-name">Menorca Crossing</div>
+          <div class="destination-tagline">Wild Coves &amp; Ancient Shores</div>
+          <p class="destination-desc">A scenic ~60 nm crossing northeast to Menorca, the most unspoilt of the main Balearics. Anchor in the famous south coast coves like Cala Macarella and Cala Mitjana — pine-backed turquoise jewels — or moor in the world's longest natural harbour at Mahón. Explore prehistoric Talayotic monuments and quiet fishing towns. Perfect for 2–5 night charters, with the option to circumnavigate Menorca's own coastline.</p>
+          <div class="destination-meta">
+            <span>From Club de Mar <strong>~3 h 45</strong></span>
+            <span>Round trip <strong>~120 nm</strong></span>
+            <span>Protected coves &amp; natural harbour</span>
+            <span>Diesel <strong>~1,900 L</strong></span>
+          </div>
+        </div>
+      </div>
+
+    </div>
+  </div>
+</section>
+
+
 <!-- SPECS -->
 <section id="specs">
   <div class="container">
@@ -1390,10 +1779,10 @@ height="0" width="0" style="display:none;visibility:hidden"></iframe></noscript>
         <div class="spec-title">Capacité eau</div>
         <div class="spec-value">1,800 L</div>
       </div>
-      <div class="spec-card reveal reveal-delay-2">
+      <div class="spec-card spec-cruise reveal reveal-delay-2">
         <div class="spec-icon">🚀</div>
-        <div class="spec-title">Vitesse de croisière</div>
-        <div class="spec-value">21 Knots</div>
+        <div class="spec-title">Vitesse de croisières</div>
+        <div class="spec-value">16 kn · 300 L/h<br>21 kn · 400 L/h</div>
       </div>
       <div class="spec-card spec-home reveal reveal-delay-1">
         <div class="spec-icon">📍</div>
@@ -1465,84 +1854,6 @@ height="0" width="0" style="display:none;visibility:hidden"></iframe></noscript>
   </div>
 </section>
 
-<!-- ITINERARY -->
-<section id="itinerary">
-  <div class="container">
-    <p class="section-label reveal">Itinéraires suggérés</p>
-    <h2 class="section-title reveal reveal-delay-1">Les <em>criques secrètes</em> de Majorque</h2>
-    <p class="itinerary-intro reveal reveal-delay-2">Voici quelques destinations accessibles. Chaque charter est <strong>personnalisé</strong> — notre équipage planifie avec vous un itinéraire sur mesure, qu'il s'agisse d'une <strong>journée détente</strong> ou d'un <strong>voyage de plusieurs jours</strong> le long de la côte à votre rythme.</p>
-  </div>
-  <div style="max-width:1400px;margin:0 auto;padding:0 2rem;">
-    <div class="itinerary-grid">
-
-      <div class="destination-card reveal">
-        <div class="destination-card-bg" style="background:url('/images/place_es_trenc.jpg') center/cover no-repeat;background-image:image-set(url('/images/place_es_trenc.webp') type('image/webp'),url('/images/place_es_trenc.jpg') type('image/jpeg'));"></div>
-        <div class="destination-card-overlay"></div>
-        <div class="destination-card-body">
-          <div class="destination-num">01 · Côte sud-ouest</div>
-          <div class="destination-name">Es Trenc</div>
-          <div class="destination-tagline">Sable blanc &amp; eaux turquoise</div>
-          <p class="destination-desc">L'une des dernières plages préservées de Majorque — un arc de sable fin baigné par une eau peu profonde et cristalline. Ancrez au large pour une escapade vraiment isolée.</p>
-          <div class="destination-meta">
-            <span>Depuis Club de Mar <strong>~2 h</strong></span>
-            <span>Profondeur <strong>3–6 m</strong></span>
-            <span>Idéal pour <strong>bronzer</strong></span>
-          </div>
-        </div>
-      </div>
-
-      <div class="destination-card reveal reveal-delay-1">
-        <div class="destination-card-bg" style="background:url('/images/place_cala_llamp.jpg') center/cover no-repeat;background-image:image-set(url('/images/place_cala_llamp.webp') type('image/webp'),url('/images/place_cala_llamp.jpg') type('image/jpeg'));"></div>
-        <div class="destination-card-overlay"></div>
-        <div class="destination-card-body">
-          <div class="destination-num">02 · Côte sud-ouest</div>
-          <div class="destination-name">Cala Llamp</div>
-          <div class="destination-tagline">Abritée &amp; paisible</div>
-          <p class="destination-desc">Une baie calme bordée de pins, au sud de Port d'Andratx. Protégée des vents dominants — parfaite pour un long déjeuner au mouillage.</p>
-          <div class="destination-meta">
-            <span>Depuis Club de Mar <strong>~45 min</strong></span>
-            <span>Depth <strong>4–8 m</strong></span>
-            <span>Idéal pour la <strong>plongée</strong></span>
-          </div>
-        </div>
-      </div>
-
-      <div class="destination-card reveal reveal-delay-1">
-        <div class="destination-card-bg" style="background:url('/images/place_portals_vells.jpg') center/cover no-repeat;background-image:image-set(url('/images/place_portals_vells.webp') type('image/webp'),url('/images/place_portals_vells.jpg') type('image/jpeg'));"></div>
-        <div class="destination-card-overlay"></div>
-        <div class="destination-card-body">
-          <div class="destination-num">03 · Côte sud-ouest</div>
-          <div class="destination-name">Portals Vells</div>
-          <div class="destination-tagline">Grottes anciennes &amp; eaux limpides</div>
-          <p class="destination-desc">Trois criques isolées à la pointe de Calvià, célèbres pour leurs grottes marines dans les falaises calcaires. Eau bleu-vert éclatante — idéale pour plonger et nager.</p>
-          <div class="destination-meta">
-            <span>Depuis Club de Mar <strong>~1 h</strong></span>
-            <span>Depth <strong>5–10 m</strong></span>
-            <span>Idéal <strong>plongée &amp; grottes</strong></span>
-          </div>
-        </div>
-      </div>
-
-      <div class="destination-card reveal reveal-delay-2">
-        <div class="destination-card-bg" style="background:url('/images/place_sa_calobra.jpg') center/cover no-repeat;background-image:image-set(url('/images/place_sa_calobra.webp') type('image/webp'),url('/images/place_sa_calobra.jpg') type('image/jpeg'));"></div>
-        <div class="destination-card-overlay"></div>
-        <div class="destination-card-body">
-          <div class="destination-num">04 · Côte nord-ouest</div>
-          <div class="destination-name">Sa Calobra</div>
-          <div class="destination-tagline">Gorge spectaculaire &amp; nature sauvage</div>
-          <p class="destination-desc">Accessible uniquement par la mer ou une route de montagne légendaire — ce ravin à travers d'imposantes falaises calcaires est l'un des plus beaux spectacles de Majorque. Incontournable.</p>
-          <div class="destination-meta">
-            <span>Depuis Club de Mar <strong>~2,5 h</strong></span>
-            <span>Depth <strong>6–12 m</strong></span>
-            <span>Idéal <strong>randonnée &amp; paysages</strong></span>
-          </div>
-        </div>
-      </div>
-
-    </div>
-  </div>
-</section>
-
 <!-- REVIEWS -->
 <section id="reviews">
   <div class="container">
@@ -1578,7 +1889,7 @@ height="0" width="0" style="display:none;visibility:hidden"></iframe></noscript>
     <div class="divider reveal reveal-delay-1"></div>
     <div class="pricing-grid">
       <div class="pricing-card reveal" data-season="low">
-        <div class="pricing-badge">Basse saison</div>
+        <div class="pricing-badge">Low Season</div>
         <div class="pricing-season">septembre – mai</div>
         <div class="pricing-row">
           <span class="pricing-duration">4 heures</span>
@@ -1593,15 +1904,10 @@ height="0" width="0" style="display:none;visibility:hidden"></iframe></noscript>
           <span class="pricing-amount"><sup>€</sup> 3,300</span>
         </div>
         <div class="pricing-row">
-          <span class="pricing-duration">Plusieurs jours</span>
-          <span class="pricing-amount"><span class="amt-sm">dès </span><sup>€</sup> 3,100<span class="amt-sm"> /jour</span></span>
+          <span class="pricing-duration">Multi-day</span>
+          <span class="pricing-amount"><span class="amt-sm">from </span><sup>€</sup> 3,100<span class="amt-sm"> /day</span></span>
         </div>
-        <ul class="pricing-notes">
-          <li>TVA incluse</li>
-          <li>Caution : 20 %</li>
-          <li>Équipage & ménage inclus</li>
-          <li>Carburant, repas & boissons en sus</li>
-        </ul>
+
       </div>
       <div class="pricing-card featured reveal reveal-delay-1" data-season="peak">
         <div class="pricing-badge">Haute saison</div>
@@ -1619,23 +1925,27 @@ height="0" width="0" style="display:none;visibility:hidden"></iframe></noscript>
           <span class="pricing-amount"><sup>€</sup> 3,950</span>
         </div>
         <div class="pricing-row">
-          <span class="pricing-duration">Plusieurs jours</span>
-          <span class="pricing-amount"><span class="amt-sm">dès </span><sup>€</sup> 3,600<span class="amt-sm"> /jour</span></span>
+          <span class="pricing-duration">Multi-day</span>
+          <span class="pricing-amount"><span class="amt-sm">from </span><sup>€</sup> 3,600<span class="amt-sm"> /day</span></span>
         </div>
-        <ul class="pricing-notes">
-          <li>TVA incluse</li>
-          <li>Caution : 20 %</li>
-          <li>Équipage & ménage inclus</li>
-          <li>Carburant, repas & boissons en sus</li>
-        </ul>
+
       </div>
     </div>
-    <p style="margin-top:2.2rem;font-size:.92rem;color:var(--cream);text-align:center;line-height:1.7;" class="reveal">
-      Croisières de plusieurs jours et avec nuit à bord disponibles — tarif par jour, autant de jours que vous le souhaitez.
-    </p>
-    <p style="margin-top:2rem;font-size:.78rem;color:var(--text-muted);text-align:center;" class="reveal">
-      Les pourboires de l'équipage ne sont pas inclus. Contactez-nous pour toute demande particulière.
-    </p>
+    <div class="pricing-terms reveal">
+      <div class="pricing-terms-title">All charters</div>
+      <ul class="pricing-notes">
+        <li>TVA incluse</li>
+        <li>Caution : 20 %</li>
+        <li>Équipage & ménage inclus</li>
+        <li>Fuel & drinks extra for day charters</li>
+        <li>Provisioning (food & supplies) & mooring fees extra for multi-day</li>
+        <li>Catering & beach club bookings can be arranged</li>
+      </ul>
+      <div class="pricing-terms-extra">
+        <p>Multi-day &amp; overnight charters available — priced per day. Stay as many days as you like.</p>
+        <p>Les pourboires de l'équipage ne sont pas inclus. Contactez-nous pour toute demande particulière.</p>
+      </div>
+    </div>
   </div>
 </section>
 
@@ -1748,7 +2058,7 @@ height="0" width="0" style="display:none;visibility:hidden"></iframe></noscript>
                 <option>6 heures</option>
                 <option selected>1 jour</option>
                 <option>2–3 jours</option>
-                <option>4–6 jours</option>
+                <option>4–6 Days</option>
                 <option>Plus long</option>
               </select>
             </div>
