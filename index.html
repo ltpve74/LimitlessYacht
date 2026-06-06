@@ -1343,10 +1343,18 @@ j=d.createElement(s),dl=l!='dataLayer'?'&l='+l:'';j.async=true;j.crossOrigin='an
   .cookie-btn-ghost { background: transparent; color: var(--gold); }
   .cookie-btn-ghost:hover { background: rgba(201,168,76,.12); }
   @media (max-width: 640px) {
-    .cookie-consent-inner { flex-direction: column; align-items: stretch; gap: 1rem; }
+    .cookie-consent { padding: .8rem 1rem; }
+    .cookie-consent-inner { flex-direction: column; align-items: stretch; gap: .7rem; }
+    .cookie-consent-text { font-size: .7rem; line-height: 1.45; flex: 0 0 auto; }
     .cookie-consent-actions { justify-content: stretch; }
-    .cookie-btn { flex: 1; text-align: center; }
+    .cookie-btn { flex: 1; text-align: center; padding: .6rem 1rem; font-size: .58rem; }
   }
+  /* Hero: shorter on mobile to reveal content below the fold */
+  @media (max-width: 768px) { #hero { height: 85vh; min-height: 520px; } }
+  /* Hero trust cue */
+  .hero-trust { margin-top: 1.6rem; font-size: .72rem; letter-spacing: .12em; text-transform: uppercase; color: var(--text-muted); }
+  .hero-trust .stars { color: var(--gold); letter-spacing: .14em; }
+  .hero-trust strong { color: var(--cream); font-weight: 500; }
 </style>
 </head>
 <body>
@@ -1364,8 +1372,8 @@ height="0" width="0" style="display:none;visibility:hidden"></iframe></noscript>
     <li><a href="#itinerary">Destinations</a></li>
     <li><a href="#specs">Details</a></li>
     <li><a href="#amenities">Amenities</a></li>
-    <li><a href="#reviews">Reviews</a></li>
     <li><a href="#pricing">Rates</a></li>
+    <li><a href="#reviews">Reviews</a></li>
     <li><a href="#availability">Availability</a></li>
   </ul>
   <div class="nav-end">
@@ -1391,8 +1399,8 @@ height="0" width="0" style="display:none;visibility:hidden"></iframe></noscript>
   <a href="#itinerary" onclick="closeMobile()">Destinations</a>
   <a href="#specs" onclick="closeMobile()">Details</a>
   <a href="#amenities" onclick="closeMobile()">Amenities</a>
-  <a href="#reviews" onclick="closeMobile()">Reviews</a>
   <a href="#pricing" onclick="closeMobile()">Rates</a>
+  <a href="#reviews" onclick="closeMobile()">Reviews</a>
   <a href="#availability" onclick="closeMobile()">Availability</a>
   <a href="#contact" onclick="closeMobile()">Contact</a>
   <div class="mobile-lang" aria-label="Language">
@@ -1415,6 +1423,7 @@ height="0" width="0" style="display:none;visibility:hidden"></iframe></noscript>
       <a href="#pricing" class="btn-primary">Rates & Booking</a>
       <a href="#itinerary" class="btn-ghost">Explore Destinations</a>
     </div>
+    <p class="hero-trust"><span class="stars">★★★★★</span> <strong>5.0</strong> · Verified guest reviews</p>
   </div>
   <div class="hero-scroll">
     <span>Scroll</span>
@@ -1901,33 +1910,6 @@ height="0" width="0" style="display:none;visibility:hidden"></iframe></noscript>
   </div>
 </section>
 
-<!-- REVIEWS -->
-<section id="reviews">
-  <div class="container">
-    <p class="section-label reveal">Guest Reviews</p>
-    <h2 class="section-title reveal reveal-delay-1">What Our<em> Guests Say</em></h2>
-    <p class="reviews-intro reveal reveal-delay-2">Verified reviews from guests who chartered <strong>Limitless</strong> via Click&amp;Boat — updated automatically from our listing.</p>
-
-    <div class="reviews-summary reveal reveal-delay-2" id="reviewsSummary" aria-live="polite">
-      <div class="reviews-score">
-        <div class="reviews-score-num" id="reviewsScore">5.0</div>
-        <div>
-          <div class="reviews-stars" id="reviewsStars" aria-hidden="true">★★★★★</div>
-          <div class="reviews-count" id="reviewsCount">Loading reviews…</div>
-        </div>
-      </div>
-      <p class="reviews-source">
-        Reviews sourced from our
-        <a href="https://www.clickandboat.com/en/activities/mallorca/half-day-mallorca-yacht-cruise-with-swim-stops-sea-toys-18390#review-comment-1" target="_blank" rel="noopener noreferrer">Click&amp;Boat</a>
-        charter listing at Club de Mar, Palma.
-      </p>
-    </div>
-
-    <p class="reviews-loading" id="reviewsLoading">Loading guest reviews…</p>
-    <div class="reviews-grid reveal reveal-delay-3" id="reviewsGrid" hidden></div>
-  </div>
-</section>
-
 <!-- PRICING -->
 <section id="pricing">
   <div class="container">
@@ -2009,6 +1991,33 @@ height="0" width="0" style="display:none;visibility:hidden"></iframe></noscript>
   if (other)   { other.classList.remove('featured'); }
 })();
 </script>
+
+<!-- REVIEWS -->
+<section id="reviews">
+  <div class="container">
+    <p class="section-label reveal">Guest Reviews</p>
+    <h2 class="section-title reveal reveal-delay-1">What Our<em> Guests Say</em></h2>
+    <p class="reviews-intro reveal reveal-delay-2">Verified reviews from guests who chartered <strong>Limitless</strong> via Click&amp;Boat — updated automatically from our listing.</p>
+
+    <div class="reviews-summary reveal reveal-delay-2" id="reviewsSummary" aria-live="polite">
+      <div class="reviews-score">
+        <div class="reviews-score-num" id="reviewsScore">5.0</div>
+        <div>
+          <div class="reviews-stars" id="reviewsStars" aria-hidden="true">★★★★★</div>
+          <div class="reviews-count" id="reviewsCount">Loading reviews…</div>
+        </div>
+      </div>
+      <p class="reviews-source">
+        Reviews sourced from our
+        <a href="https://www.clickandboat.com/en/activities/mallorca/half-day-mallorca-yacht-cruise-with-swim-stops-sea-toys-18390#review-comment-1" target="_blank" rel="noopener noreferrer">Click&amp;Boat</a>
+        charter listing at Club de Mar, Palma.
+      </p>
+    </div>
+
+    <p class="reviews-loading" id="reviewsLoading">Loading guest reviews…</p>
+    <div class="reviews-grid reveal reveal-delay-3" id="reviewsGrid" hidden></div>
+  </div>
+</section>
 
 <!-- AVAILABILITY -->
 <section id="availability">
