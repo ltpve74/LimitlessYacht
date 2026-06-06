@@ -733,6 +733,16 @@ j=d.createElement(s),dl=l!='dataLayer'?'&l='+l:'';j.async=true;j.src=
   .pricing-terms-extra p {
     margin: .35rem 0;
   }
+  .pricing-terms-extra p:first-child {
+    font-size: .95rem;
+    color: var(--white);
+    font-weight: 400;
+  }
+  .pricing-terms-extra p:last-child {
+    font-size: .72rem;
+    color: var(--text-muted);
+    margin-top: .5rem;
+  }
 
   /* ── CONTACT ── */
   #contact {
@@ -1009,10 +1019,10 @@ j=d.createElement(s),dl=l!='dataLayer'?'&l='+l:'';j.async=true;j.src=
     #amenities { padding-top: 2.5rem; padding-bottom: 2.5rem; }
     #reviews { padding-top: 3rem; padding-bottom: 4rem; }
     /* Full-bleed single column for destinations on phone (match gallery breakout) */
-    #itinerary > div[style*="max-width:1400px"] {
+    .itinerary-wrap {
       margin-left: -1.2rem !important;
       margin-right: -1.2rem !important;
-      padding: 0 1rem !important;
+      padding: 0 !important;
     }
     .destination-card { min-height: 380px; }
     .destination-desc { font-size: .82rem; line-height: 1.65; }
@@ -1146,6 +1156,11 @@ j=d.createElement(s),dl=l!='dataLayer'?'&l='+l:'';j.async=true;j.src=
     .intro-item:nth-child(2) { border-right: none; }
 
     .itinerary-grid { grid-template-columns: 1fr; }
+    .itinerary-wrap {
+      margin-left: -2rem !important;
+      margin-right: -2rem !important;
+      padding: 0 !important;
+    }
     .destination-card { min-height: 380px; }
     .dest-tier { font-size: .76rem; margin: 1.1rem 0 .2rem; }
   }
@@ -1190,6 +1205,14 @@ j=d.createElement(s),dl=l!='dataLayer'?'&l='+l:'';j.async=true;j.src=
       margin-top: .6rem;
       padding-top: .6rem;
       font-size: .78rem;
+    }
+    .pricing-terms-extra p:first-child {
+      font-size: .85rem;
+      color: var(--white);
+    }
+    .pricing-terms-extra p:last-child {
+      font-size: .68rem;
+      color: var(--text-muted);
     }
     .pricing-terms-title {
       font-size: .6rem; margin-bottom: .4rem;
