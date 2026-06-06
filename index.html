@@ -496,7 +496,11 @@ j=d.createElement(s),dl=l!='dataLayer'?'&l='+l:'';j.async=true;j.src=
   }
   .spec-value {
     font-family: 'Montserrat', sans-serif;
-    font-size: 1.5rem; font-weight: 300; color: var(--white);
+    font-size: 1.35rem; font-weight: 300; color: var(--white);
+  }
+  .spec-cruise .spec-value {
+    font-size: 1.15rem;
+    line-height: 1.4;
   }
 
   /* ── GALLERY ── */
@@ -800,9 +804,24 @@ j=d.createElement(s),dl=l!='dataLayer'?'&l='+l:'';j.async=true;j.src=
     position: absolute; inset: 0;
     background: linear-gradient(to top, rgba(8,18,34,.98) 0%, rgba(8,18,34,.65) 35%, rgba(8,18,34,.25) 65%, rgba(8,18,34,.05) 100%);
   }
+
+  .destination-card::after {
+    content: '';
+    position: absolute;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    height: 75%;
+    background: linear-gradient(
+      to top,
+      rgba(8,18,34,0.55) 0%,
+      rgba(8,18,34,0.55) 80%,
+      rgba(8,18,34,0) 100%
+    );
+    z-index: 1;
+  }
   .destination-card-body {
-    position: relative; z-index: 1; padding: 2.5rem;
-    background: rgba(8,18,34,0.55);
+    position: relative; z-index: 2; padding: 2.5rem;
   }
   .destination-name,
   .destination-tagline,
@@ -1109,7 +1128,8 @@ j=d.createElement(s),dl=l!='dataLayer'?'&l='+l:'';j.async=true;j.src=
     .btn-primary, .btn-ghost { width: 100%; max-width: 280px; text-align: center; }
     .section-title { font-size: clamp(1.8rem, 6vw, 3rem); }
     .spec-card { padding: 1.5rem 1.1rem; }
-    .spec-card .spec-value { font-size: 1.25rem; }
+    .spec-card .spec-value { font-size: 1.15rem; }
+    .spec-cruise .spec-value { font-size: 1.0rem; line-height: 1.35; }
     .amenities-grid { grid-template-columns: 1fr; }
     .pricing-grid { grid-template-columns: 1fr; }
     .pricing-amount { font-size: 1.8rem; }
@@ -1673,10 +1693,10 @@ height="0" width="0" style="display:none;visibility:hidden"></iframe></noscript>
         <div class="spec-title">Water Capacity</div>
         <div class="spec-value">1,800 L</div>
       </div>
-      <div class="spec-card reveal reveal-delay-2">
+      <div class="spec-card spec-cruise reveal reveal-delay-2">
         <div class="spec-icon">🚀</div>
-        <div class="spec-title">Cruising Speed</div>
-        <div class="spec-value">21 Knots</div>
+        <div class="spec-title">Cruising Speeds</div>
+        <div class="spec-value">16 kn · 300 L/h<br>21 kn · 400 L/h</div>
       </div>
       <div class="spec-card spec-home reveal reveal-delay-1">
         <div class="spec-icon">📍</div>
