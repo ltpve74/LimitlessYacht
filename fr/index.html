@@ -90,7 +90,7 @@ j=d.createElement(s),dl=l!='dataLayer'?'&l='+l:'';j.async=true;j.src=
 </script>
 <script src="/js/clarity-consent.js" defer></script>
 <title>Limitless Yacht Experience – Charter de luxe Maiora à Majorque</title>
-<meta name="description" content="Louez le yacht à moteur Maiora de 21,5 m « Limitless » au Club de Mar, Palma de Majorque. Croisière confortable, équipage exceptionnel et les plus belles criques de Majorque — jusqu'à 12 invités de jour, 7 de nuit." />
+<meta name="description" content="Louez le Maiora de 21,5 m « Limitless » depuis Palma de Majorque — croisières à la journée et sur plusieurs jours vers les criques de Majorque, Cabrera et Formentera. Avec équipage, jusqu'à 12 invités." />
 <meta name="keywords" content="location yacht Majorque, yacht Maiora, yacht Limitless, location bateau Palma de Majorque, yacht de luxe Méditerranée, charter Club de Mar" />
 <meta name="author" content="Limitless Yacht Experience" />
 <link rel="canonical" href="https://limitlessyachtcharter.com/fr/" />
@@ -110,7 +110,7 @@ j=d.createElement(s),dl=l!='dataLayer'?'&l='+l:'';j.async=true;j.src=
 <meta property="og:type" content="website" />
 <meta property="og:site_name" content="Limitless Yacht Experience" />
 <meta property="og:title" content="Limitless Yacht Experience – Charter de luxe Maiora à Majorque" />
-<meta property="og:description" content="Louez le Maiora de 21,5 m « Limitless » depuis Palma de Majorque. Équipage exceptionnel, croisière confortable et les plus belles criques de Majorque." />
+<meta property="og:description" content="Croisières à la journée et sur plusieurs jours sur le Maiora de 21,5 m « Limitless » depuis Palma — criques de Majorque, Cabrera et Formentera, équipage d'exception." />
 <meta property="og:url" content="https://limitlessyachtcharter.com/fr/" />
 <meta property="og:image" content="https://limitlessyachtcharter.com/images/maiora_20s_02.jpg" />
 <meta property="og:image:width" content="960" />
@@ -121,7 +121,7 @@ j=d.createElement(s),dl=l!='dataLayer'?'&l='+l:'';j.async=true;j.src=
 <!-- Twitter card -->
 <meta name="twitter:card" content="summary_large_image" />
 <meta name="twitter:title" content="Limitless Yacht Experience – Charter de luxe Maiora à Majorque" />
-<meta name="twitter:description" content="Louez le Maiora de 21,5 m « Limitless » depuis Palma de Majorque. Équipage exceptionnel, croisière confortable et les plus belles criques de Majorque." />
+<meta name="twitter:description" content="Croisières à la journée et sur plusieurs jours sur le Maiora de 21,5 m « Limitless » depuis Palma — criques de Majorque, Cabrera et Formentera, équipage d'exception." />
 <meta name="twitter:image" content="https://limitlessyachtcharter.com/images/maiora_20s_02.jpg" />
 
 <!-- Favicon -->
@@ -188,7 +188,7 @@ j=d.createElement(s),dl=l!='dataLayer'?'&l='+l:'';j.async=true;j.src=
         "@type": "AggregateOffer",
         "priceCurrency": "EUR",
         "lowPrice": "1850",
-        "highPrice": "26000",
+        "highPrice": "3950",
         "offerCount": "8",
         "availability": "https://schema.org/InStock",
         "url": "https://limitlessyachtcharter.com/#pricing",
@@ -851,6 +851,7 @@ j=d.createElement(s),dl=l!='dataLayer'?'&l='+l:'';j.async=true;j.src=
     background: var(--deep);
     transition: transform .7s ease;
   }
+  .destination-card-bg img { width: 100%; height: 100%; object-fit: cover; display: block; }
   .destination-card:hover .destination-card-bg { transform: scale(1.04); }
   .destination-card-overlay {
     position: absolute; inset: 0;
@@ -1524,7 +1525,10 @@ height="0" width="0" style="display:none;visibility:hidden"></iframe></noscript>
       <div class="dest-tier reveal">Escapades d'une demi-journée <span class="tier-note">— 4 à 6 heures</span></div>
 
       <div class="destination-card reveal">
-        <div class="destination-card-bg" style="background:url('/images/dest/portals-vells-1.jpg') center/cover no-repeat;background-image:image-set(url('/images/dest/portals-vells-1.webp') type('image/webp'),url('/images/dest/portals-vells-1.jpg') type('image/jpeg'));"></div>
+        <picture class="destination-card-bg">
+          <source type="image/webp" srcset="/images/dest/portals-vells-1.webp" />
+          <img loading="lazy" decoding="async" src="/images/dest/portals-vells-1.jpg" alt="" width="1200" height="900" />
+        </picture>
         <div class="destination-card-overlay"></div>
         <div class="destination-card-body">
           <div class="destination-num">01 · Côte sud-ouest</div>
@@ -1541,7 +1545,10 @@ height="0" width="0" style="display:none;visibility:hidden"></iframe></noscript>
       </div>
 
       <div class="destination-card reveal reveal-delay-1">
-        <div class="destination-card-bg" style="background:url('/images/dest/el-toro-malgrats-1.jpg') center/cover no-repeat;background-image:image-set(url('/images/dest/el-toro-malgrats-1.webp') type('image/webp'),url('/images/dest/el-toro-malgrats-1.jpg') type('image/jpeg'));"></div>
+        <picture class="destination-card-bg">
+          <source type="image/webp" srcset="/images/dest/el-toro-malgrats-1.webp" />
+          <img loading="lazy" decoding="async" src="/images/dest/el-toro-malgrats-1.jpg" alt="" width="800" height="1200" />
+        </picture>
         <div class="destination-card-overlay"></div>
         <div class="destination-card-body">
           <div class="destination-num">02 · Côte sud-ouest</div>
@@ -1558,7 +1565,10 @@ height="0" width="0" style="display:none;visibility:hidden"></iframe></noscript>
       </div>
 
       <div class="destination-card reveal reveal-delay-1">
-        <div class="destination-card-bg" style="background:url('/images/dest/cala-llamp-1.jpg') center/cover no-repeat;background-image:image-set(url('/images/dest/cala-llamp-1.webp') type('image/webp'),url('/images/dest/cala-llamp-1.jpg') type('image/jpeg'));"></div>
+        <picture class="destination-card-bg">
+          <source type="image/webp" srcset="/images/dest/cala-llamp-1.webp" />
+          <img loading="lazy" decoding="async" src="/images/dest/cala-llamp-1.jpg" alt="" width="1200" height="900" />
+        </picture>
         <div class="destination-card-overlay"></div>
         <div class="destination-card-body">
           <div class="destination-num">03 · Côte sud-ouest</div>
@@ -1578,7 +1588,10 @@ height="0" width="0" style="display:none;visibility:hidden"></iframe></noscript>
       <div class="dest-tier reveal">Croisières d'une journée <span class="tier-note">— une journée entière en mer</span></div>
 
       <div class="destination-card reveal">
-        <div class="destination-card-bg" style="background:url('/images/dest/sa-dragonera-1.jpg') center/cover no-repeat;background-image:image-set(url('/images/dest/sa-dragonera-1.webp') type('image/webp'),url('/images/dest/sa-dragonera-1.jpg') type('image/jpeg'));"></div>
+        <picture class="destination-card-bg">
+          <source type="image/webp" srcset="/images/dest/sa-dragonera-1.webp" />
+          <img loading="lazy" decoding="async" src="/images/dest/sa-dragonera-1.jpg" alt="" width="1200" height="800" />
+        </picture>
         <div class="destination-card-overlay"></div>
         <div class="destination-card-body">
           <div class="destination-num">04 · Côte ouest</div>
@@ -1595,7 +1608,10 @@ height="0" width="0" style="display:none;visibility:hidden"></iframe></noscript>
       </div>
 
       <div class="destination-card reveal reveal-delay-1">
-        <div class="destination-card-bg" style="background:url('/images/dest/cala-pi-1.jpg') center/cover no-repeat;background-image:image-set(url('/images/dest/cala-pi-1.webp') type('image/webp'),url('/images/dest/cala-pi-1.jpg') type('image/jpeg'));"></div>
+        <picture class="destination-card-bg">
+          <source type="image/webp" srcset="/images/dest/cala-pi-1.webp" />
+          <img loading="lazy" decoding="async" src="/images/dest/cala-pi-1.jpg" alt="" width="1200" height="902" />
+        </picture>
         <div class="destination-card-overlay"></div>
         <div class="destination-card-body">
           <div class="destination-num">05 · Côte sud</div>
@@ -1612,7 +1628,10 @@ height="0" width="0" style="display:none;visibility:hidden"></iframe></noscript>
       </div>
 
       <div class="destination-card reveal reveal-delay-1">
-        <div class="destination-card-bg" style="background:url('/images/dest/es-trenc-1.jpg') center/cover no-repeat;background-image:image-set(url('/images/dest/es-trenc-1.webp') type('image/webp'),url('/images/dest/es-trenc-1.jpg') type('image/jpeg'));"></div>
+        <picture class="destination-card-bg">
+          <source type="image/webp" srcset="/images/dest/es-trenc-1.webp" />
+          <img loading="lazy" decoding="async" src="/images/dest/es-trenc-1.jpg" alt="" width="1200" height="800" />
+        </picture>
         <div class="destination-card-overlay"></div>
         <div class="destination-card-body">
           <div class="destination-num">06 · Côte sud</div>
@@ -1629,7 +1648,10 @@ height="0" width="0" style="display:none;visibility:hidden"></iframe></noscript>
       </div>
 
       <div class="destination-card reveal reveal-delay-1">
-        <div class="destination-card-bg" style="background:url('/images/dest/cabrera-1.jpg') center/cover no-repeat;background-image:image-set(url('/images/dest/cabrera-1.webp') type('image/webp'),url('/images/dest/cabrera-1.jpg') type('image/jpeg'));"></div>
+        <picture class="destination-card-bg">
+          <source type="image/webp" srcset="/images/dest/cabrera-1.webp" />
+          <img loading="lazy" decoding="async" src="/images/dest/cabrera-1.jpg" alt="" width="1200" height="797" />
+        </picture>
         <div class="destination-card-overlay"></div>
         <div class="destination-card-body">
           <div class="destination-num">07 · Archipel sud</div>
@@ -1646,7 +1668,10 @@ height="0" width="0" style="display:none;visibility:hidden"></iframe></noscript>
       </div>
 
       <div class="destination-card reveal reveal-delay-2">
-        <div class="destination-card-bg" style="background:url('/images/dest/calo-des-moro-1.jpg') center/cover no-repeat;background-image:image-set(url('/images/dest/calo-des-moro-1.webp') type('image/webp'),url('/images/dest/calo-des-moro-1.jpg') type('image/jpeg'));"></div>
+        <picture class="destination-card-bg">
+          <source type="image/webp" srcset="/images/dest/calo-des-moro-1.webp" />
+          <img loading="lazy" decoding="async" src="/images/dest/calo-des-moro-1.jpg" alt="" width="1200" height="797" />
+        </picture>
         <div class="destination-card-overlay"></div>
         <div class="destination-card-body">
           <div class="destination-num">08 · Côte sud-est</div>
@@ -1666,7 +1691,10 @@ height="0" width="0" style="display:none;visibility:hidden"></iframe></noscript>
       <div class="dest-tier reveal">Voyages de plusieurs jours <span class="tier-note">— nuit à bord &amp; longue distance</span></div>
 
       <div class="destination-card reveal">
-        <div class="destination-card-bg" style="background:url('/images/dest/sa-calobra-1.jpg') center/cover no-repeat;background-image:image-set(url('/images/dest/sa-calobra-1.webp') type('image/webp'),url('/images/dest/sa-calobra-1.jpg') type('image/jpeg'));"></div>
+        <picture class="destination-card-bg">
+          <source type="image/webp" srcset="/images/dest/sa-calobra-1.webp" />
+          <img loading="lazy" decoding="async" src="/images/dest/sa-calobra-1.jpg" alt="" width="800" height="1200" />
+        </picture>
         <div class="destination-card-overlay"></div>
         <div class="destination-card-body">
           <div class="destination-num">09 · Côte nord-ouest · Plusieurs jours</div>
@@ -1683,7 +1711,10 @@ height="0" width="0" style="display:none;visibility:hidden"></iframe></noscript>
       </div>
 
       <div class="destination-card reveal reveal-delay-1">
-        <div class="destination-card-bg" style="background:url('/images/dest/circumnavigation-1.jpg') center/cover no-repeat;background-image:image-set(url('/images/dest/circumnavigation-1.webp') type('image/webp'),url('/images/dest/circumnavigation-1.jpg') type('image/jpeg'));"></div>
+        <picture class="destination-card-bg">
+          <source type="image/webp" srcset="/images/dest/circumnavigation-1.webp" />
+          <img loading="lazy" decoding="async" src="/images/dest/circumnavigation-1.jpg" alt="" width="1200" height="648" />
+        </picture>
         <div class="destination-card-overlay"></div>
         <div class="destination-card-body">
           <div class="destination-num">10 · Île entière · Plusieurs jours</div>
@@ -1700,7 +1731,10 @@ height="0" width="0" style="display:none;visibility:hidden"></iframe></noscript>
       </div>
 
       <div class="destination-card reveal reveal-delay-2">
-        <div class="destination-card-bg" style="background:url('/images/dest/formentera-1.jpg') center/cover no-repeat;background-image:image-set(url('/images/dest/formentera-1.webp') type('image/webp'),url('/images/dest/formentera-1.jpg') type('image/jpeg'));"></div>
+        <picture class="destination-card-bg">
+          <source type="image/webp" srcset="/images/dest/formentera-1.webp" />
+          <img loading="lazy" decoding="async" src="/images/dest/formentera-1.jpg" alt="" width="1200" height="900" />
+        </picture>
         <div class="destination-card-overlay"></div>
         <div class="destination-card-body">
           <div class="destination-num">11 · Traversée des Baléares · Plusieurs jours</div>
@@ -1717,7 +1751,10 @@ height="0" width="0" style="display:none;visibility:hidden"></iframe></noscript>
       </div>
 
       <div class="destination-card reveal reveal-delay-3">
-        <div class="destination-card-bg" style="background:url('/images/dest/menorca-1.jpg') center/cover no-repeat;background-image:image-set(url('/images/dest/menorca-1.webp') type('image/webp'),url('/images/dest/menorca-1.jpg') type('image/jpeg'));"></div>
+        <picture class="destination-card-bg">
+          <source type="image/webp" srcset="/images/dest/menorca-1.webp" />
+          <img loading="lazy" decoding="async" src="/images/dest/menorca-1.jpg" alt="" width="900" height="1200" />
+        </picture>
         <div class="destination-card-overlay"></div>
         <div class="destination-card-body">
           <div class="destination-num">12 · Traversée des Baléares · Plusieurs jours</div>
