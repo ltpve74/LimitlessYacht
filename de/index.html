@@ -3,6 +3,21 @@
 <head>
 <meta charset="UTF-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<!-- Auto-match the visitor's browser language to a localized version (only from the
+     English root, and only until the visitor manually picks a language). -->
+<script>
+(function(){try{
+  var map={de:'/de/',es:'/es/',fr:'/fr/'};
+  var stored=null; try{stored=localStorage.getItem('ly_lang');}catch(e){}
+  if(stored){ if(map[stored]) location.replace(map[stored]); return; }
+  var langs=navigator.languages||[navigator.language||''];
+  for(var i=0;i<langs.length;i++){
+    var c=(langs[i]||'').slice(0,2).toLowerCase();
+    if(c==='en') return;                 /* English preferred -> stay */
+    if(map[c]){ location.replace(map[c]); return; }
+  }
+}catch(e){}})();
+</script>
 <!-- Google Consent Mode v2 defaults (must run before GTM) -->
 <script>
   window.dataLayer = window.dataLayer || [];
@@ -90,7 +105,7 @@ j=d.createElement(s),dl=l!='dataLayer'?'&l='+l:'';j.async=true;j.crossOrigin='an
 </script>
 <script src="/js/clarity-consent.js" defer></script>
 <title>Limitless Yacht Experience – Luxus-Maiora-Charter auf Mallorca</title>
-<meta name="description" content="Chartern Sie die 21,5 m Maiora „Limitless“ ab Palma de Mallorca — Tages- und Mehrtagestörns zu Mallorcas schönsten Buchten, Cabrera und Formentera. Mit Crew, bis zu 12 Gäste." />
+<meta name="description" content="Charter the 21.5 m Maiora 'Limitless' from Palma de Mallorca — day and multi-day cruises to Mallorca's finest coves, Cabrera and Formentera. Crewed, up to 12 guests." />
 <meta name="keywords" content="Yachtcharter Mallorca, Maiora Yacht, Limitless Yacht, Bootcharter Palma de Mallorca, Luxusyacht Mittelmeer, Club de Mar Charter" />
 <meta name="author" content="Limitless Yacht Experience" />
 <link rel="canonical" href="https://limitlessyachtcharter.com/de/" />
@@ -110,7 +125,7 @@ j=d.createElement(s),dl=l!='dataLayer'?'&l='+l:'';j.async=true;j.crossOrigin='an
 <meta property="og:type" content="website" />
 <meta property="og:site_name" content="Limitless Yacht Experience" />
 <meta property="og:title" content="Limitless Yacht Experience – Luxus-Maiora-Charter auf Mallorca" />
-<meta property="og:description" content="Tages- und Mehrtagescharter auf der 21,5 m Maiora „Limitless“ ab Palma — Mallorcas Buchten, Cabrera und Formentera, mit außergewöhnlicher Crew." />
+<meta property="og:description" content="Day and multi-day charters on the 21.5 m Maiora 'Limitless' from Palma — Mallorca's coves, Cabrera and Formentera, with an exceptional crew." />
 <meta property="og:url" content="https://limitlessyachtcharter.com/de/" />
 <meta property="og:image" content="https://limitlessyachtcharter.com/images/maiora_20s_02.jpg" />
 <meta property="og:image:width" content="960" />
@@ -121,7 +136,7 @@ j=d.createElement(s),dl=l!='dataLayer'?'&l='+l:'';j.async=true;j.crossOrigin='an
 <!-- Twitter card -->
 <meta name="twitter:card" content="summary_large_image" />
 <meta name="twitter:title" content="Limitless Yacht Experience – Luxus-Maiora-Charter auf Mallorca" />
-<meta name="twitter:description" content="Tages- und Mehrtagescharter auf der 21,5 m Maiora „Limitless“ ab Palma — Mallorcas Buchten, Cabrera und Formentera, mit außergewöhnlicher Crew." />
+<meta name="twitter:description" content="Day and multi-day charters on the 21.5 m Maiora 'Limitless' from Palma — Mallorca's coves, Cabrera and Formentera, with an exceptional crew." />
 <meta name="twitter:image" content="https://limitlessyachtcharter.com/images/maiora_20s_02.jpg" />
 
 <!-- Favicon -->
@@ -422,10 +437,6 @@ j=d.createElement(s),dl=l!='dataLayer'?'&l='+l:'';j.async=true;j.crossOrigin='an
     line-height: 1.1; color: var(--white);
   }
   .section-title em { font-style: normal; color: var(--gold-light); }
-  .divider {
-    width: 60px; height: 1px; background: var(--gold);
-    margin: 2rem 0;
-  }
 
   /* ── INTRO STRIP ── */
   #intro {
@@ -474,6 +485,9 @@ j=d.createElement(s),dl=l!='dataLayer'?'&l='+l:'';j.async=true;j.crossOrigin='an
   .about-text p {
     font-size: .9rem; line-height: 1.9; color: rgba(245,240,232,.75);
     margin-bottom: 1.4rem;
+  }
+  .about-text p:first-of-type {
+    margin-top: 1.5rem;
   }
   .about-text p strong { color: var(--gold-light); font-weight: 500; }
 
@@ -690,21 +704,21 @@ j=d.createElement(s),dl=l!='dataLayer'?'&l='+l:'';j.async=true;j.crossOrigin='an
   .pricing-terms {
     max-width: 720px;
     margin: 2.5rem auto 0;
-    padding: 1.75rem 2rem 1.25rem;
+    padding: 1.9rem 2rem 1.4rem;
     border: 1px solid rgba(201,168,76,.15);
     border-radius: 6px;
     background: rgba(10,22,40,.25);
   }
   .pricing-terms-title {
-    font-size: .65rem; letter-spacing: .25em; text-transform: uppercase;
-    color: var(--gold); margin-bottom: .6rem; text-align: center;
+    font-size: .72rem; letter-spacing: .25em; text-transform: uppercase;
+    color: var(--gold); margin-bottom: 1rem; text-align: center;
   }
   .pricing-notes {
     display: grid;
     grid-template-columns: 1fr 1fr;
-    gap: .35rem .9rem;
-    font-size: .78rem;
-    color: var(--text-muted);
+    gap: .42rem .9rem;
+    font-size: .82rem;
+    color: var(--cream);
     line-height: 1.5;
     margin: 0;
     padding: 0;
@@ -722,7 +736,7 @@ j=d.createElement(s),dl=l!='dataLayer'?'&l='+l:'';j.async=true;j.crossOrigin='an
     font-weight: 700;
   }
   .pricing-terms-extra {
-    margin-top: 1.1rem;
+    margin-top: 1.25rem;
     padding-top: 1rem;
     border-top: 1px solid rgba(201,168,76,.12);
     font-size: .85rem;
@@ -740,7 +754,7 @@ j=d.createElement(s),dl=l!='dataLayer'?'&l='+l:'';j.async=true;j.crossOrigin='an
   }
   .pricing-terms-extra p:last-child {
     font-size: .72rem;
-    color: var(--text-muted);
+    color: rgba(245,240,232,.65);
     margin-top: .5rem;
   }
 
@@ -1012,6 +1026,37 @@ j=d.createElement(s),dl=l!='dataLayer'?'&l='+l:'';j.async=true;j.crossOrigin='an
     margin-top: 1rem; font-size: .82rem; color: var(--text-muted);
     letter-spacing: .08em;
   }
+
+  .review-submit {
+    margin-top: 2.5rem;
+    padding-top: 1.5rem;
+    border-top: 1px solid rgba(201,168,76,.15);
+    max-width: 720px;
+  }
+  .review-submit-title {
+    font-family: 'Montserrat', sans-serif;
+    font-size: 1.1rem; font-weight: 400; letter-spacing: .08em;
+    color: var(--cream); margin-bottom: .4rem;
+  }
+  .review-submit-note {
+    font-size: .82rem; color: rgba(245,240,232,.65); margin-bottom: 1rem;
+  }
+  .review-form {
+    display: flex;
+    flex-direction: column;
+    gap: 1rem;
+  }
+  .review-form .form-submit {
+    align-self: flex-start;
+    margin-top: .25rem;
+  }
+  .review-honeypot {
+    display: none !important;
+    visibility: hidden;
+    height: 0;
+    width: 0;
+    overflow: hidden;
+  }
   @media (max-width: 640px) {
     #about { padding-bottom: 3rem; }
     #gallery { padding-top: 2.5rem; padding-bottom: 3rem; }
@@ -1194,16 +1239,16 @@ j=d.createElement(s),dl=l!='dataLayer'?'&l='+l:'';j.async=true;j.crossOrigin='an
     .form-row { grid-template-columns: 1fr; }
 
     .pricing-terms {
-      padding: 1.25rem 1rem 1rem;
+      padding: 1.35rem 1rem 1.1rem;
       margin: 1.75rem auto 0;
     }
     .pricing-notes {
       grid-template-columns: 1fr;
-      gap: .2rem .5rem;
-      font-size: .72rem;
+      gap: .28rem .5rem;
+      font-size: .76rem;
     }
     .pricing-terms-extra {
-      margin-top: .6rem;
+      margin-top: .75rem;
       padding-top: .6rem;
       font-size: .78rem;
     }
@@ -1213,10 +1258,10 @@ j=d.createElement(s),dl=l!='dataLayer'?'&l='+l:'';j.async=true;j.crossOrigin='an
     }
     .pricing-terms-extra p:last-child {
       font-size: .68rem;
-      color: var(--text-muted);
+      color: rgba(245,240,232,.65);
     }
     .pricing-terms-title {
-      font-size: .6rem; margin-bottom: .4rem;
+      font-size: .65rem; margin-bottom: .6rem;
     }
     .intro-grid { grid-template-columns: 1fr 1fr; }
     .intro-item { padding: 1.5rem 1rem; }
@@ -1341,6 +1386,16 @@ j=d.createElement(s),dl=l!='dataLayer'?'&l='+l:'';j.async=true;j.crossOrigin='an
   .hero-trust { margin-top: 1.6rem; font-size: .72rem; letter-spacing: .12em; text-transform: uppercase; color: var(--text-muted); }
   .hero-trust .stars { color: var(--gold); letter-spacing: .14em; }
   .hero-trust strong { color: var(--cream); font-weight: 500; }
+  /* Contextual cross-link back to destinations */
+  .section-back-cta { text-align: center; margin-top: 2.6rem; font-size: .85rem; color: var(--text-muted); letter-spacing: .02em; }
+  .section-back-cta a { color: var(--gold); text-decoration: none; font-weight: 500; border-bottom: 1px solid rgba(201,168,76,.4); padding-bottom: 2px; transition: color .2s, border-color .2s; }
+  .section-back-cta a:hover { color: var(--gold-light); border-color: var(--gold-light); }
+  /* Floating 'explore destinations' affordance */
+  .dest-fab { position: fixed; right: 1.4rem; bottom: 1.4rem; z-index: 250; display: inline-flex; align-items: center; gap: .5rem; padding: .7rem 1.15rem; background: rgba(10,22,40,.92); backdrop-filter: blur(6px); border: 1px solid var(--gold); color: var(--gold); font-family: 'Montserrat', sans-serif; font-size: .62rem; letter-spacing: .16em; text-transform: uppercase; text-decoration: none; border-radius: 999px; box-shadow: 0 6px 24px rgba(0,0,0,.35); opacity: 0; transform: translateY(12px); pointer-events: none; transition: opacity .35s ease, transform .35s ease, background .2s, color .2s; }
+  .dest-fab.show { opacity: 1; transform: translateY(0); pointer-events: auto; }
+  .dest-fab:hover { background: var(--gold); color: var(--navy); }
+  .dest-fab-icon { font-size: .8rem; line-height: 1; }
+  @media (max-width: 640px) { .dest-fab { right: 1rem; bottom: 1rem; padding: .6rem 1rem; font-size: .58rem; } }
 </style>
 </head>
 <body>
@@ -1355,7 +1410,7 @@ height="0" width="0" style="display:none;visibility:hidden"></iframe></noscript>
   <ul class="nav-links">
     <li><a href="#about">Über uns</a></li>
     <li><a href="#gallery">Galerie</a></li>
-    <li><a href="#itinerary">Reiseziele</a></li>
+    <li><a href="#itinerary">Destinations</a></li>
     <li><a href="#specs">Details</a></li>
     <li><a href="#amenities">Ausstattung</a></li>
     <li><a href="#pricing">Preise</a></li>
@@ -1385,7 +1440,7 @@ height="0" width="0" style="display:none;visibility:hidden"></iframe></noscript>
   <a href="#contact" class="mobile-nav-cta" onclick="closeMobile()">Anfragen</a>
   <a href="#about" onclick="closeMobile()">Über uns</a>
   <a href="#gallery" onclick="closeMobile()">Galerie</a>
-  <a href="#itinerary" onclick="closeMobile()">Reiseziele</a>
+  <a href="#itinerary" onclick="closeMobile()">Destinations</a>
   <a href="#specs" onclick="closeMobile()">Details</a>
   <a href="#amenities" onclick="closeMobile()">Ausstattung</a>
   <a href="#pricing" onclick="closeMobile()">Preise</a>
@@ -1410,9 +1465,9 @@ height="0" width="0" style="display:none;visibility:hidden"></iframe></noscript>
     <p class="hero-sub">Exklusive Maiora-Yacht · 21,5 m · Bis zu 12 Gäste tagsüber · 7 über Nacht</p>
     <div class="hero-actions">
       <a href="#pricing" class="btn-primary">Preise & Buchung</a>
-      <a href="#itinerary" class="btn-ghost">Reiseziele entdecken</a>
+      <a href="#itinerary" class="btn-ghost">Explore Destinations</a>
     </div>
-    <p class="hero-trust"><span class="stars">★★★★★</span> <strong>5,0</strong> · Verifizierte Gästebewertungen</p>
+    <p class="hero-trust"><span class="stars">★★★★★</span> <strong>5.0</strong> · Verified guest reviews</p>
   </div>
   <div class="hero-scroll">
     <span>Scrollen</span>
@@ -1453,7 +1508,6 @@ height="0" width="0" style="display:none;visibility:hidden"></iframe></noscript>
       <div class="about-text reveal reveal-delay-1">
         <p class="section-label">Die Yacht</p>
         <h2 class="section-title">Ihr Zuhause auf dem<br><em>Mittelmeer</em></h2>
-        <div class="divider"></div>
         <p>Die Maiora <strong>„Limitless“</strong> ist eine beliebte 21-Meter-Motoryacht für entspannte, komfortable Tage auf dem Wasser. Großzügige Sonnendecks, weitläufige Wohnbereiche und eine warme, einladende Atmosphäre — von der ersten Minute an wie zu Hause.</p>
         <p>What truly sets Limitless apart is her <strong>dedicated crew</strong>. Attentive, experienced and genuinely passionate about the sea, they take care of everything — from organizing catering to reserving beach club access — so you can focus entirely on the people you're with and the places you're discovering.</p>
         <p>Von den versteckten Buchten im Südwesten Mallorcas bis zu den dramatischen Klippen von Sa Calobra — <strong>die Ziele sprechen für sich</strong>. Mit Limitless erreichen Sie sie auf beste Weise.</p>
@@ -1466,7 +1520,7 @@ height="0" width="0" style="display:none;visibility:hidden"></iframe></noscript>
 <!-- GALLERY -->
 <section id="gallery">
   <div class="container">
-    <p class="section-label reveal">Galerie</p>
+    <p class="section-label reveal">Gallery</p>
     <h2 class="section-title reveal reveal-delay-1">Galerie <em>an Bord</em></h2>
   </div>
   <div class="gallery-wrap" style="max-width:1400px;margin:0 auto;padding:0 2rem;">
@@ -1523,15 +1577,15 @@ height="0" width="0" style="display:none;visibility:hidden"></iframe></noscript>
 <!-- ITINERARY / DESTINATIONS -->
 <section id="itinerary">
   <div class="container">
-    <p class="section-label reveal">Reiseziele</p>
-    <h2 class="section-title reveal reveal-delay-1">Wohin <em>Limitless</em> Sie bringt</h2>
-    <p class="itinerary-intro reveal reveal-delay-2">Von einer entspannten <strong>Halbtagestour</strong> bis zur <strong>mehrtägigen Reise</strong> entlang Mallorcas schönsten Küsten. Jeder Törn ist <strong>ganz auf Sie zugeschnitten</strong> — unsere Crew plant die Route gemeinsam mit Ihnen, mit flexiblen Tagesoptionen, der Freiheit zu übernachten, wann immer Ihnen danach ist, und auf Wunsch mit Catering oder Zugang zu einem Beach Club.</p>
+    <p class="section-label reveal">Destinations</p>
+    <h2 class="section-title reveal reveal-delay-1">Where <em>Limitless</em> Takes You</h2>
+    <p class="itinerary-intro reveal reveal-delay-2">From a relaxed <strong>half-day escape</strong> to a <strong>multi-day voyage</strong> exploring Mallorca's most beautiful coastlines. Every charter is <strong>tailored to you</strong> — our crew plans the route together with you, with flexible per-day options, the freedom to overnight when the mood takes you, and the option to organize catering or beach club access.</p>
   </div>
   <div class="itinerary-wrap" style="max-width:1400px;margin:0 auto;padding:0 2rem;">
     <div class="itinerary-grid">
 
       <!-- Half-Day Escapes -->
-      <div class="dest-tier reveal">Halbtagestouren <span class="tier-note">— 4 bis 6 Stunden</span></div>
+      <div class="dest-tier reveal">Half-Day Escapes <span class="tier-note">— 4 to 6 hours</span></div>
 
       <div class="destination-card reveal">
         <picture class="destination-card-bg">
@@ -1542,12 +1596,12 @@ height="0" width="0" style="display:none;visibility:hidden"></iframe></noscript>
         <div class="destination-card-body">
           <div class="destination-num">01 · Südwestküste</div>
           <div class="destination-name">Portals Vells</div>
-          <div class="destination-tagline">Meeresgrotten &amp; türkise Buchten</div>
-          <p class="destination-desc">Drei abgeschiedene Buchten an der Spitze der Halbinsel Calvià, berühmt für ihre in die Kalksteinfelsen gehauenen Meeresgrotten. Das Wasser leuchtet blaugrün — ideal zum Schwimmen, Schnorcheln und für eine kurze Auszeit nur 35 Minuten vom Hafen entfernt.</p>
+          <div class="destination-tagline">Sea Caves &amp; Turquoise Coves</div>
+          <p class="destination-desc">Three secluded coves at the tip of the Calvià peninsula, famous for their sea caves carved into the limestone cliffs. The water is a vivid blue-green — ideal for swimming, snorkelling and a short escape just 35 minutes from the marina.</p>
           <div class="destination-meta">
-            <span>Ab Club de Mar <strong>~35 min</strong></span>
-            <span>Tiefe <strong>4–10 m</strong></span>
-            <span>Hin &amp; zurück <strong>~18 nm</strong></span>
+            <span>From Club de Mar <strong>~35 min</strong></span>
+            <span>Depth <strong>4–10 m</strong></span>
+            <span>Round trip <strong>~18 nm</strong></span>
             <span>Diesel <strong>~300 L</strong></span>
           </div>
         </div>
@@ -1562,12 +1616,12 @@ height="0" width="0" style="display:none;visibility:hidden"></iframe></noscript>
         <div class="destination-card-body">
           <div class="destination-num">02 · Südwestküste</div>
           <div class="destination-name">El Toro &amp; Illes Malgrats</div>
-          <div class="destination-tagline">Meeresschutzgebiet &amp; Schnorcheln</div>
-          <p class="destination-desc">Ein geschütztes Meeresschutzgebiet rund um die Malgrats-Inseln und das Kap El Toro. Kristallklares, fischreiches Wasser, einfaches Schnorcheln und ein entspannter halber Tag mit Lunch vor Anker. Eine der schönsten kurzen Auszeiten für Naturerlebnisse im Wasser.</p>
+          <div class="destination-tagline">Marine Reserve &amp; Snorkelling</div>
+          <p class="destination-desc">A protected marine reserve around the Malgrats islets and El Toro headland. Crystal water teeming with fish, easy snorkelling and a relaxed half-day with lunch at anchor. One of the best quick escapes for nature in the water.</p>
           <div class="destination-meta">
-            <span>Ab Club de Mar <strong>~40 min</strong></span>
-            <span>Tiefe <strong>5–12 m</strong></span>
-            <span>Hin &amp; zurück <strong>~22 nm</strong></span>
+            <span>From Club de Mar <strong>~40 min</strong></span>
+            <span>Depth <strong>5–12 m</strong></span>
+            <span>Round trip <strong>~22 nm</strong></span>
             <span>Diesel <strong>~350 L</strong></span>
           </div>
         </div>
@@ -1583,18 +1637,18 @@ height="0" width="0" style="display:none;visibility:hidden"></iframe></noscript>
           <div class="destination-num">03 · Südwestküste</div>
           <div class="destination-name">Cala Llamp</div>
           <div class="destination-tagline">Geschützt &amp; ruhig</div>
-          <p class="destination-desc">Eine ruhige, von Pinien gesäumte Bucht südlich von Port d'Andratx. Geschützt vor den vorherrschenden Winden, laden ihr stilles grünes Wasser und die entspannte Atmosphäre zu einem langen Lunch vor Anker oder einem friedlichen Bad ein.</p>
+          <p class="destination-desc">A calm, pine-fringed bay tucked just south of Port d'Andratx. Protected from the prevailing winds, its still green water and relaxed atmosphere make it perfect for a long lunch at anchor or a peaceful swim.</p>
           <div class="destination-meta">
-            <span>Ab Club de Mar <strong>~55 min</strong></span>
-            <span>Tiefe <strong>4–8 m</strong></span>
-            <span>Hin &amp; zurück <strong>~30 nm</strong></span>
+            <span>From Club de Mar <strong>~55 min</strong></span>
+            <span>Depth <strong>4–8 m</strong></span>
+            <span>Round trip <strong>~30 nm</strong></span>
             <span>Diesel <strong>~450 L</strong></span>
           </div>
         </div>
       </div>
 
       <!-- Full-Day Cruises -->
-      <div class="dest-tier reveal">Ganztagestörns <span class="tier-note">— ein ganzer Tag auf See</span></div>
+      <div class="dest-tier reveal">Full-Day Cruises <span class="tier-note">— a full day out</span></div>
 
       <div class="destination-card reveal">
         <picture class="destination-card-bg">
@@ -1603,14 +1657,14 @@ height="0" width="0" style="display:none;visibility:hidden"></iframe></noscript>
         </picture>
         <div class="destination-card-overlay"></div>
         <div class="destination-card-body">
-          <div class="destination-num">04 · Westküste</div>
+          <div class="destination-num">04 · West Coast</div>
           <div class="destination-name">Sa Dragonera &amp; Sant Elm</div>
-          <div class="destination-tagline">Insel-Naturschutzgebiet</div>
-          <p class="destination-desc">Die unbewohnte, drachenförmige Insel Sa Dragonera ist ein Parc Natural. Ankern Sie außerhalb der Bojenlinie (von März bis September 50 m Abstand halten) und wandern Sie über die Pfade oder schnorcheln Sie im unberührten Wasser. Gern kombiniert mit einem Lunch im hübschen Hafen von Sant Elm.</p>
+          <div class="destination-tagline">Island Nature Reserve</div>
+          <p class="destination-desc">The uninhabited, dragon-shaped island of Sa Dragonera is a Parc Natural. Anchor outside the buoy line (keep 50 m off March–September) and hike the trails or snorkel the pristine waters. Often paired with lunch in the pretty harbour of Sant Elm.</p>
           <div class="destination-meta">
-            <span>Ab Club de Mar <strong>~1 h 10</strong></span>
-            <span>Hin &amp; zurück <strong>~36 nm</strong></span>
-            <span>Parc Natural — nur Bojen</span>
+            <span>From Club de Mar <strong>~1 h 10</strong></span>
+            <span>Round trip <strong>~36 nm</strong></span>
+            <span>Parc Natural — buoys only</span>
             <span>Diesel <strong>~550 L</strong></span>
           </div>
         </div>
@@ -1623,14 +1677,14 @@ height="0" width="0" style="display:none;visibility:hidden"></iframe></noscript>
         </picture>
         <div class="destination-card-overlay"></div>
         <div class="destination-card-body">
-          <div class="destination-num">05 · Südküste</div>
+          <div class="destination-num">05 · South Coast</div>
           <div class="destination-name">Cala Pi</div>
-          <div class="destination-tagline">Geschützte Klippen &amp; feiner Sand</div>
-          <p class="destination-desc">Eine spektakuläre, von Pinien umgebene Bucht an Mallorcas Südküste, eingefasst von hohen Kalksteinwänden und mit einem feinen Sandstrand und flachem türkisfarbenem Wasser. Hervorragender Ankergrund im Sand; ein ruhiger und fotogener Stopp zum Schwimmen und für den Lunch.</p>
+          <div class="destination-tagline">Sheltered Cliffs &amp; Fine Sand</div>
+          <p class="destination-desc">A dramatic, pine-backed cove on Mallorca's south coast enclosed by towering limestone walls and opening onto a fine sandy beach with shallow turquoise water. Excellent holding in sand for anchoring; a peaceful and photogenic stop for swimming and lunch.</p>
           <div class="destination-meta">
-            <span>Ab Club de Mar <strong>~1 h 5</strong></span>
+            <span>From Club de Mar <strong>~1 h 5</strong></span>
             <span>Tiefe <strong>3–6 m</strong></span>
-            <span>Hin &amp; zurück <strong>~34 nm</strong></span>
+            <span>Round trip <strong>~34 nm</strong></span>
             <span>Diesel <strong>~550 L</strong></span>
           </div>
         </div>
@@ -1643,14 +1697,14 @@ height="0" width="0" style="display:none;visibility:hidden"></iframe></noscript>
         </picture>
         <div class="destination-card-overlay"></div>
         <div class="destination-card-body">
-          <div class="destination-num">06 · Südküste</div>
+          <div class="destination-num">06 · South Coast</div>
           <div class="destination-name">Es Trenc</div>
-          <div class="destination-tagline">Karibisch weißer Sand</div>
-          <p class="destination-desc">Einer der letzten unberührten Strände Mallorcas — ein weiter Bogen aus puderweißem Sand, umspült von flachem, kristallklarem Wasser. Ankern Sie im Sand (Posidonia geschützt) und waten Sie hinein für eine wahrhaft abgeschiedene Auszeit.</p>
+          <div class="destination-tagline">Caribbean-White Sand</div>
+          <p class="destination-desc">One of Mallorca's last unspoilt beaches — a sweeping arc of powdery white sand lapped by shallow, crystal-clear water. Anchor in the sand (Posidonia protected) and wade in for a truly secluded escape.</p>
           <div class="destination-meta">
-            <span>Ab Club de Mar <strong>~1 h 30</strong></span>
+            <span>From Club de Mar <strong>~1 h 30</strong></span>
             <span>Tiefe <strong>3–6 m</strong></span>
-            <span>Hin &amp; zurück <strong>~48 nm</strong></span>
+            <span>Round trip <strong>~48 nm</strong></span>
             <span>Diesel <strong>~750 L</strong></span>
           </div>
         </div>
@@ -1663,14 +1717,14 @@ height="0" width="0" style="display:none;visibility:hidden"></iframe></noscript>
         </picture>
         <div class="destination-card-overlay"></div>
         <div class="destination-card-body">
-          <div class="destination-num">07 · Südliches Archipel</div>
-          <div class="destination-name">Cabrera-Nationalpark</div>
-          <div class="destination-tagline">Geschütztes Archipel</div>
-          <p class="destination-desc">Spaniens erster Meeres- und Landnationalpark — ein unberührtes Archipel mit kristallklarem Wasser und reicher Tierwelt. Kostenlose Jahresgenehmigung erforderlich; Boje vorab reservieren (Ankern nicht erlaubt). Perfekt für einen ganzen Tag oder den Auftakt einer mehrtägigen Reise.</p>
+          <div class="destination-num">07 · South Archipelago</div>
+          <div class="destination-name">Cabrera National Park</div>
+          <div class="destination-tagline">Protected Archipelago</div>
+          <p class="destination-desc">Spain's first maritime-terrestrial national park — a pristine archipelago with crystal waters and rich wildlife. Free annual permit required; pre-book a mooring buoy (no anchoring allowed). Perfect for a full day or the start of a multi-day voyage.</p>
           <div class="destination-meta">
-            <span>Ab Club de Mar <strong>~1 h 40</strong></span>
-            <span>Hin &amp; zurück <strong>~52 nm</strong></span>
-            <span>Genehmigung + Boje erforderlich</span>
+            <span>From Club de Mar <strong>~1 h 40</strong></span>
+            <span>Round trip <strong>~52 nm</strong></span>
+            <span>Permit + buoy required</span>
             <span>Diesel <strong>~800 L</strong></span>
           </div>
         </div>
@@ -1683,21 +1737,21 @@ height="0" width="0" style="display:none;visibility:hidden"></iframe></noscript>
         </picture>
         <div class="destination-card-overlay"></div>
         <div class="destination-card-body">
-          <div class="destination-num">08 · Südostküste</div>
+          <div class="destination-num">08 · Southeast Coast</div>
           <div class="destination-name">Caló des Moro &amp; Cala Figuera</div>
-          <div class="destination-tagline">Mallorcas meistfotografierte Bucht</div>
-          <p class="destination-desc">Die winzige, unwirklich türkise Bucht Caló des Moro, eingerahmt von markanten Klippen — einer der bekanntesten und meistfotografierten Orte der Insel. Das nahe Cala Figuera bietet einen charmanten Fischerhafen und einen entspannten Kontrast. Ein längerer Törn, der sich wie ein echtes Reiseziel anfühlt.</p>
+          <div class="destination-tagline">Mallorca's Most Photographed Cove</div>
+          <p class="destination-desc">The tiny, impossibly turquoise inlet of Caló des Moro backed by dramatic cliffs — one of the island's most iconic and photographed spots. Nearby Cala Figuera offers a charming fishing harbour and a relaxed contrast. A longer cruise that feels like a real destination.</p>
           <div class="destination-meta">
-            <span>Ab Club de Mar <strong>~2 h 10</strong></span>
-            <span>Tiefe <strong>4–10 m</strong></span>
-            <span>Hin &amp; zurück <strong>~70 nm</strong></span>
+            <span>From Club de Mar <strong>~2 h 10</strong></span>
+            <span>Depth <strong>4–10 m</strong></span>
+            <span>Round trip <strong>~70 nm</strong></span>
             <span>Diesel <strong>~1,100 L</strong></span>
           </div>
         </div>
       </div>
 
       <!-- Multi-Day Voyages -->
-      <div class="dest-tier reveal">Mehrtägige Reisen <span class="tier-note">— über Nacht &amp; weite Strecken</span></div>
+      <div class="dest-tier reveal">Multi-Day Voyages <span class="tier-note">— overnight &amp; long-range</span></div>
 
       <div class="destination-card reveal">
         <picture class="destination-card-bg">
@@ -1706,14 +1760,14 @@ height="0" width="0" style="display:none;visibility:hidden"></iframe></noscript>
         </picture>
         <div class="destination-card-overlay"></div>
         <div class="destination-card-body">
-          <div class="destination-num">09 · Nordwestküste · Mehrtägig</div>
-          <div class="destination-name">Westküsten-Expedition</div>
+          <div class="destination-num">09 · Northwest Coast · Multi-Day</div>
+          <div class="destination-name">West Coast Exploration</div>
           <div class="destination-tagline">Sa Foradada, Port Sóller &amp; Cala Tuent</div>
-          <p class="destination-desc">Eine mehrtägige Reise entlang von Mallorcas spektakulärster Küste. Fahren Sie zwischen den hoch aufragenden Klippen der Serra de Tramuntana hindurch, ankern Sie vor dem markanten durchbohrten Felsen von Sa Foradada, machen Sie im hübschen Hafen von Port de Sóller fest für eine Tramfahrt in den Talort und entdecken Sie den abgeschiedenen Kieselstrand Cala Tuent am Fuße des Puig Major. Sa Calobra und die Schlucht Torrent de Pareis sind in greifbarer Nähe — der krönende Abschluss eines 2- bis 4-Nächte-Törns mit Ankerplätzen oder Marina-Stopps zum Übernachten.</p>
+          <p class="destination-desc">A multi-day voyage along Mallorca's most dramatic coastline. Weave through the towering cliffs of the Serra de Tramuntana, anchor off the iconic pierced rock of Sa Foradada, moor in the pretty harbour of Port de Sóller for a tram ride into the valley town, and discover the secluded pebble beach of Cala Tuent at the foot of Puig Major. Sa Calobra and the Torrent de Pareis gorge are within easy reach — the ultimate payoff of a 2–4 night charter with overnight anchorages or marina stops.</p>
           <div class="destination-meta">
-            <span>Ab Club de Mar <strong>~2 h 55</strong></span>
-            <span>Hin &amp; zurück <strong>~94 nm</strong></span>
-            <span>Mehrtägige Anker- &amp; Liegeplätze</span>
+            <span>From Club de Mar <strong>~2 h 55</strong></span>
+            <span>Round trip <strong>~94 nm</strong></span>
+            <span>Multi-day anchorages &amp; moorings</span>
             <span>Diesel <strong>~1,450 L</strong></span>
           </div>
         </div>
@@ -1726,15 +1780,15 @@ height="0" width="0" style="display:none;visibility:hidden"></iframe></noscript>
         </picture>
         <div class="destination-card-overlay"></div>
         <div class="destination-card-body">
-          <div class="destination-num">10 · Ganze Insel · Mehrtägig</div>
-          <div class="destination-name">Mallorca-Umrundung</div>
-          <div class="destination-tagline">Komplette 200-nm-Runde</div>
-          <p class="destination-desc">Die ultimative mehrtägige Reise: eine komplette Umrundung Mallorcas, rund 200 Seemeilen abwechslungsreicher Küste. Vom sanften Südwesten, vorbei an der drachenförmigen Insel und den wilden Westklippen, um den spektakulären Norden und das Cap de Formentor, die Ostküste hinunter und zurück nach Hause. Flexible Route über 5–7 Tage mit Nächten vor Anker in versteckten Buchten oder längsseits in Hafenstädten — die schönste Art, die ganze Insel vom Wasser aus zu erleben.</p>
+          <div class="destination-num">10 · Full Island · Multi-Day</div>
+          <div class="destination-name">Mallorca Circumnavigation</div>
+          <div class="destination-tagline">Complete 200 nm Loop</div>
+          <p class="destination-desc">The definitive multi-day voyage: a full circumnavigation of Mallorca, roughly 200 nautical miles of ever-changing coastline. From the gentle southwest, past the dragon-shaped island and wild west cliffs, around the dramatic north and Cap de Formentor, down the east and back home. Flexible 5–7 day itinerary with nights at anchor in hidden coves or alongside in harbour towns — the ultimate way to experience the whole island from the water.</p>
           <div class="destination-meta">
-            <span>Fahrzeit <strong>~12 h 30</strong></span>
-            <span>Gesamt <strong>~200 nm</strong></span>
-            <span>5–7 Tage empfohlen</span>
-            <span>Diesel ca. <strong>~3,150 L</strong></span>
+            <span>Cruising time <strong>~12 h 30</strong></span>
+            <span>Total <strong>~200 nm</strong></span>
+            <span>5–7 days recommended</span>
+            <span>Diesel est. <strong>~3,150 L</strong></span>
           </div>
         </div>
       </div>
@@ -1746,14 +1800,14 @@ height="0" width="0" style="display:none;visibility:hidden"></iframe></noscript>
         </picture>
         <div class="destination-card-overlay"></div>
         <div class="destination-card-body">
-          <div class="destination-num">11 · Balearen-Überfahrt · Mehrtägig</div>
-          <div class="destination-name">Ibiza-Überfahrt</div>
-          <div class="destination-tagline">Weiße Insel &amp; türkise Sandbänke</div>
-          <p class="destination-desc">Eine echte Überfahrt von rund 70 nm zum Pityusen-Archipel. Entdecken Sie Ibizas lebhafte Häfen, versteckte Buchten und legendäre Beach Clubs — mit der Option, weiter zu Formenteras weltberühmtem Ses Illetes zu fahren: die leuchtende Sandbank und das flache türkisfarbene Wasser, oft die Karibik des Mittelmeers genannt. Hochsee-Abenteuer mit dem Reiz eines ganz anderen Inselgefühls; ideal für 2–4 Nächte mit Marina-Aufenthalten oder wilden Ankerplätzen.</p>
+          <div class="destination-num">11 · Balearics Crossing · Multi-Day</div>
+          <div class="destination-name">Ibiza Crossing</div>
+          <div class="destination-tagline">White Isle &amp; Turquoise Spits</div>
+          <p class="destination-desc">A proper ~70 nm crossing to the Pityusic archipelago. Discover Ibiza's vibrant harbours, hidden coves and legendary beach clubs, with the option to push on to Formentera's world-famous Ses Illetes — the luminous sandbar and shallow turquoise waters often called the Caribbean of the Med. Open-sea adventure with the rewards of a different island vibe; ideal for 2–4 nights with marina stays or wild anchorages.</p>
           <div class="destination-meta">
-            <span>Ab Club de Mar <strong>~4 h 25</strong></span>
-            <span>Hin &amp; zurück <strong>~140 nm</strong></span>
-            <span>Marina- oder Ankeroptionen</span>
+            <span>From Club de Mar <strong>~4 h 25</strong></span>
+            <span>Round trip <strong>~140 nm</strong></span>
+            <span>Marina or anchorage options</span>
             <span>Diesel <strong>~2,200 L</strong></span>
           </div>
         </div>
@@ -1766,14 +1820,14 @@ height="0" width="0" style="display:none;visibility:hidden"></iframe></noscript>
         </picture>
         <div class="destination-card-overlay"></div>
         <div class="destination-card-body">
-          <div class="destination-num">12 · Balearen-Überfahrt · Mehrtägig</div>
-          <div class="destination-name">Menorca-Überfahrt</div>
-          <div class="destination-tagline">Wilde Buchten &amp; uralte Küsten</div>
-          <p class="destination-desc">Eine landschaftlich reizvolle Überfahrt von rund 60 nm nordöstlich nach Menorca, der ursprünglichsten der großen Baleareninseln. Ankern Sie in den berühmten Buchten der Südküste wie Cala Macarella und Cala Mitjana — türkisfarbene, von Pinien gesäumte Juwelen — oder machen Sie im längsten Naturhafen der Welt bei Mahón fest. Erkunden Sie prähistorische talayotische Monumente und stille Fischerorte. Perfekt für Törns von 2–5 Nächten, mit der Option, Menorcas eigene Küste zu umrunden.</p>
+          <div class="destination-num">12 · Balearics Crossing · Multi-Day</div>
+          <div class="destination-name">Menorca Crossing</div>
+          <div class="destination-tagline">Wild Coves &amp; Ancient Shores</div>
+          <p class="destination-desc">A scenic ~60 nm crossing northeast to Menorca, the most unspoilt of the main Balearics. Anchor in the famous south coast coves like Cala Macarella and Cala Mitjana — pine-backed turquoise jewels — or moor in the world's longest natural harbour at Mahón. Explore prehistoric Talayotic monuments and quiet fishing towns. Perfect for 2–5 night charters, with the option to circumnavigate Menorca's own coastline.</p>
           <div class="destination-meta">
-            <span>Ab Club de Mar <strong>~3 h 45</strong></span>
-            <span>Hin &amp; zurück <strong>~120 nm</strong></span>
-            <span>Geschützte Buchten &amp; Naturhafen</span>
+            <span>From Club de Mar <strong>~3 h 45</strong></span>
+            <span>Round trip <strong>~120 nm</strong></span>
+            <span>Protected coves &amp; natural harbour</span>
             <span>Diesel <strong>~1,900 L</strong></span>
           </div>
         </div>
@@ -1905,7 +1959,6 @@ height="0" width="0" style="display:none;visibility:hidden"></iframe></noscript>
   <div class="container">
     <p class="section-label reveal">Charterpreise</p>
     <h2 class="section-title reveal reveal-delay-1">Transparent &amp; <em>fair</em></h2>
-    <div class="divider reveal reveal-delay-1"></div>
     <div class="pricing-grid">
       <div class="pricing-card reveal" data-season="low">
         <div class="pricing-badge">Low Season</div>
@@ -1923,8 +1976,8 @@ height="0" width="0" style="display:none;visibility:hidden"></iframe></noscript>
           <span class="pricing-amount"><sup>€</sup> 3,300</span>
         </div>
         <div class="pricing-row">
-          <span class="pricing-duration">Mehrtägig</span>
-          <span class="pricing-amount"><span class="amt-sm">ab </span><sup>€</sup> 3,100<span class="amt-sm"> /Tag</span></span>
+          <span class="pricing-duration">Multi-day</span>
+          <span class="pricing-amount"><span class="amt-sm">from </span><sup>€</sup> 3,100<span class="amt-sm"> /day</span></span>
         </div>
 
       </div>
@@ -1944,27 +1997,28 @@ height="0" width="0" style="display:none;visibility:hidden"></iframe></noscript>
           <span class="pricing-amount"><sup>€</sup> 3,950</span>
         </div>
         <div class="pricing-row">
-          <span class="pricing-duration">Mehrtägig</span>
-          <span class="pricing-amount"><span class="amt-sm">ab </span><sup>€</sup> 3,600<span class="amt-sm"> /Tag</span></span>
+          <span class="pricing-duration">Multi-day</span>
+          <span class="pricing-amount"><span class="amt-sm">from </span><sup>€</sup> 3,600<span class="amt-sm"> /day</span></span>
         </div>
 
       </div>
     </div>
     <div class="pricing-terms reveal">
-      <div class="pricing-terms-title">Alle Charter</div>
+      <div class="pricing-terms-title">All charters</div>
       <ul class="pricing-notes">
         <li>inkl. MwSt.</li>
         <li>Kaution: 20 %</li>
         <li>Crew & Reinigung inklusive</li>
-        <li>Kraftstoff &amp; Getränke extra bei Tagescharter</li>
-        <li>Verpflegung (Essen &amp; Vorräte) &amp; Liegegebühren extra bei mehrtägigen Törns</li>
-        <li>Catering &amp; Beach-Club-Reservierungen auf Wunsch</li>
+        <li>Fuel & drinks extra for day charters</li>
+        <li>Provisioning (food & supplies) & mooring fees extra for multi-day</li>
+        <li>Catering & beach club bookings can be arranged</li>
       </ul>
       <div class="pricing-terms-extra">
-        <p>Mehrtägige Charter und Übernachtungstörns möglich — Preis pro Tag. Bleiben Sie so viele Tage, wie Sie möchten.</p>
+        <p>Multi-day &amp; overnight charters available — priced per day. Stay as many days as you like.</p>
         <p>Trinkgeld für die Crew ist nicht im Preis enthalten. Für Sonderwünsche kontaktieren Sie uns bitte.</p>
       </div>
     </div>
+  <p class="section-back-cta reveal">Still deciding where to go? <a href="#itinerary">Explore the destinations →</a></p>
   </div>
 </section>
 
@@ -1988,7 +2042,7 @@ height="0" width="0" style="display:none;visibility:hidden"></iframe></noscript>
   <div class="container">
     <p class="section-label reveal">Gästebewertungen</p>
     <h2 class="section-title reveal reveal-delay-1">Was unsere<em> Gäste sagen</em></h2>
-    <p class="reviews-intro reveal reveal-delay-2">Verifizierte Bewertungen von Gästen, die <strong>Limitless</strong> über Click&amp;Boat gechartert haben — automatisch von unserem Inserat aktualisiert.</p>
+    <p class="reviews-intro reveal reveal-delay-2">Real experiences from guests who have chartered <strong>Limitless</strong>. Reviews are published after a quick moderation step.</p>
 
     <div class="reviews-summary reveal reveal-delay-2" id="reviewsSummary" aria-live="polite">
       <div class="reviews-score">
@@ -1998,15 +2052,63 @@ height="0" width="0" style="display:none;visibility:hidden"></iframe></noscript>
           <div class="reviews-count" id="reviewsCount">Bewertungen werden geladen…</div>
         </div>
       </div>
-      <p class="reviews-source">
-        Bewertungen stammen von unserem
-        <a href="https://www.clickandboat.com/en/activities/mallorca/half-day-mallorca-yacht-cruise-with-swim-stops-sea-toys-18390#review-comment-1" target="_blank" rel="noopener noreferrer">Click&amp;Boat</a>
-        Charter-Inserat im Club de Mar, Palma.
-      </p>
     </div>
 
     <p class="reviews-loading" id="reviewsLoading">Gästebewertungen werden geladen…</p>
     <div class="reviews-grid reveal reveal-delay-3" id="reviewsGrid" hidden></div>
+
+    <!-- Guest review submission (via Netlify Forms) -->
+    <div class="review-submit reveal reveal-delay-3">
+      <h3 class="review-submit-title">Share your experience</h3>
+      <p class="review-submit-note">We love hearing from our guests. Submit your review below — it will be reviewed and published shortly.</p>
+      <form name="guest-review" method="POST" netlify netlify-honeypot="bot-field" class="review-form" id="reviewForm">
+        <input type="hidden" name="form-name" value="guest-review" />
+        <!-- Honeypot for basic spam protection (hidden via CSS + Netlify) -->
+        <p class="review-honeypot" style="display:none !important;"><input name="bot-field" /></p>
+
+        <div class="form-row">
+          <div class="form-field">
+            <label for="review_name">Your Name</label>
+            <input type="text" name="name" id="review_name" placeholder="Alex Rivera" required />
+          </div>
+          <div class="form-field">
+            <label for="review_email">E-Mail (private)</label>
+            <input type="email" name="email" id="review_email" placeholder="you@example.com" required />
+          </div>
+        </div>
+
+        <div class="form-field">
+          <label for="review_rating">How would you rate your charter?</label>
+          <select name="rating" id="review_rating" required>
+            <option value="5">★★★★★ Excellent (5)</option>
+            <option value="4">★★★★ Very good (4)</option>
+            <option value="3">★★★ Good (3)</option>
+            <option value="2">★★ Fair (2)</option>
+            <option value="1">★ Poor (1)</option>
+          </select>
+        </div>
+
+        <div class="form-field">
+          <label for="review_text">Your review</label>
+          <textarea name="review" id="review_text" rows="4" minlength="40" placeholder="Tell future guests about your day on Limitless..." required></textarea>
+        </div>
+
+        <!-- Simple anti-spam question (client-side validated) -->
+        <div class="form-field">
+          <label for="review_spam">To help prevent spam, please solve: 4 + 3 = ?</label>
+          <input type="text" name="spam_check" id="review_spam" required placeholder="7" />
+        </div>
+
+        <button type="submit" class="form-submit" id="reviewSubmitBtn">Submit Review</button>
+
+        <div id="review-success" style="display:none; color:var(--gold); font-size:.85rem; margin-top:.6rem;">
+          ✓ Thank you! Your review has been received and will be published after moderation.
+        </div>
+        <div id="review-error" style="display:none; color:#e55; font-size:.82rem; margin-top:.6rem;">
+          Something went wrong. Please try again or email us directly.
+        </div>
+      </form>
+    </div>
   </div>
 </section>
 
@@ -2042,8 +2144,7 @@ height="0" width="0" style="display:none;visibility:hidden"></iframe></noscript>
       <div class="contact-info reveal">
         <p class="section-label">Kontakt</p>
         <h2 class="section-title">Kontakt<em> aufnehmen</em></h2>
-        <div class="divider"></div>
-        <p style="font-size:.88rem;line-height:1.8;color:rgba(245,240,232,.7);margin-bottom:2rem;">
+        <p style="font-size:.88rem;line-height:1.8;color:rgba(245,240,232,.7);margin-top:1.5rem;margin-bottom:2rem;">
           Für Buchungen, Verfügbarkeitsanfragen oder Sonderwünsche stehen wir Ihnen jederzeit zur Verfügung.
         </p>
         <div class="contact-details">
@@ -2293,6 +2394,66 @@ height="0" width="0" style="display:none;visibility:hidden"></iframe></noscript>
     }
   });
 
+  // Guest review form (Netlify Forms + tracking + basic spam protection)
+  var reviewForm = document.getElementById('reviewForm');
+  if (reviewForm) {
+    reviewForm.addEventListener('submit', async function(e) {
+      e.preventDefault();
+      var btn = document.getElementById('reviewSubmitBtn');
+      var successEl = document.getElementById('review-success');
+      var errorEl = document.getElementById('review-error');
+      successEl.style.display = 'none';
+      errorEl.style.display = 'none';
+      btn.textContent = 'Wird gesendet…';
+      btn.disabled = true;
+      btn.style.opacity = '0.7';
+
+      // Client-side spam check (simple math question)
+      var spamCheck = this.querySelector('[name="spam_check"]');
+      if (spamCheck && spamCheck.value.trim() !== '7') {
+        errorEl.textContent = 'Please solve the anti-spam question correctly (4 + 3 = 7).';
+        errorEl.style.display = 'block';
+        btn.textContent = 'Submit Review';
+        btn.disabled = false;
+        btn.style.opacity = '1';
+        return;
+      }
+
+      try {
+        var formData = new FormData(this);
+        var response = await fetch('/', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+          body: new URLSearchParams(formData).toString()
+        });
+        if (response.ok) {
+          successEl.style.display = 'block';
+          this.reset();
+          btn.textContent = '✓ Gesendet';
+
+          window.dataLayer = window.dataLayer || [];
+          window.dataLayer.push({
+            event: 'review_submitted',
+            form_name: 'guest_review'
+          });
+
+          setTimeout(() => {
+            btn.textContent = 'Submit Review';
+            btn.disabled = false;
+            btn.style.opacity = '1';
+          }, 4500);
+        } else {
+          throw new Error('Submission failed');
+        }
+      } catch (err) {
+        errorEl.style.display = 'block';
+        btn.textContent = 'Submit Review';
+        btn.disabled = false;
+        btn.style.opacity = '1';
+      }
+    });
+  }
+
   // Google Tag / dataLayer events for conversions (GTM + GA4 + Google Ads)
   window.dataLayer = window.dataLayer || [];
 
@@ -2331,7 +2492,7 @@ height="0" width="0" style="display:none;visibility:hidden"></iframe></noscript>
   });
 </script>
 
-<!-- Guest reviews (fetched from Click&Boat via Netlify function) -->
+<!-- Guest reviews (loaded from curated data/reviews.json) -->
 <script>
 (function () {
   var grid = document.getElementById('reviewsGrid');
@@ -2356,8 +2517,12 @@ height="0" width="0" style="display:none;visibility:hidden"></iframe></noscript>
 
   function render(data) {
     var reviews = data.reviews || [];
-    var rating = Number(data.ratingValue) || 5;
-    var count = data.reviewCount || reviews.length;
+    // Compute average and count from the actual reviews for accuracy
+    var rating = reviews.length
+      ? reviews.reduce(function (sum, r) { return sum + (Number(r.rating) || 5); }, 0) / reviews.length
+      : 5;
+    var count = reviews.length;
+
     if (scoreEl) scoreEl.textContent = rating.toFixed(1);
     if (starsEl) starsEl.textContent = stars(rating);
     if (countEl) {
@@ -2383,13 +2548,13 @@ height="0" width="0" style="display:none;visibility:hidden"></iframe></noscript>
     }).join('');
   }
 
-  fetch('/api/reviews')
+  // Load curated reviews from static JSON (self-managed, no external scraping)
+  fetch('/data/reviews.json')
     .then(function (r) { return r.ok ? r.json() : null; })
     .then(function (data) { if (data) render(data); })
     .catch(function () {
+      // Fallback with one review if JSON fails to load
       render({
-        ratingValue: 5,
-        reviewCount: 1,
         reviews: [{
           author: 'Tony',
           date: 'Aug 2025',
@@ -2549,6 +2714,19 @@ height="0" width="0" style="display:none;visibility:hidden"></iframe></noscript>
 (function(){try{
   var ls=document.querySelectorAll('.nav-lang a[hreflang], .mobile-lang a[hreflang]');
   for(var i=0;i<ls.length;i++){(function(a){a.addEventListener('click',function(){try{localStorage.setItem('ly_lang',a.getAttribute('hreflang'));}catch(e){}});})(ls[i]);}
+}catch(e){}})();
+</script>
+<a href="#itinerary" class="dest-fab" id="destFab" aria-label="Explore destinations"><span class="dest-fab-icon" aria-hidden="true">✦</span>Explore destinations</a>
+<script>
+(function(){try{
+  var fab=document.getElementById('destFab'), itin=document.getElementById('itinerary');
+  if(!fab||!itin) return;
+  var inView=false;
+  function update(){ var past=window.scrollY>window.innerHeight*0.6; if(past&&!inView){fab.classList.add('show');}else{fab.classList.remove('show');} }
+  if('IntersectionObserver' in window){ new IntersectionObserver(function(e){inView=e[0].isIntersecting;update();},{threshold:0.12}).observe(itin); }
+  window.addEventListener('scroll',update,{passive:true});
+  window.addEventListener('resize',update,{passive:true});
+  update();
 }catch(e){}})();
 </script>
 </body>

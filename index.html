@@ -1026,6 +1026,37 @@ j=d.createElement(s),dl=l!='dataLayer'?'&l='+l:'';j.async=true;j.crossOrigin='an
     margin-top: 1rem; font-size: .82rem; color: var(--text-muted);
     letter-spacing: .08em;
   }
+
+  .review-submit {
+    margin-top: 2.5rem;
+    padding-top: 1.5rem;
+    border-top: 1px solid rgba(201,168,76,.15);
+    max-width: 720px;
+  }
+  .review-submit-title {
+    font-family: 'Montserrat', sans-serif;
+    font-size: 1.1rem; font-weight: 400; letter-spacing: .08em;
+    color: var(--cream); margin-bottom: .4rem;
+  }
+  .review-submit-note {
+    font-size: .82rem; color: rgba(245,240,232,.65); margin-bottom: 1rem;
+  }
+  .review-form {
+    display: flex;
+    flex-direction: column;
+    gap: 1rem;
+  }
+  .review-form .form-submit {
+    align-self: flex-start;
+    margin-top: .25rem;
+  }
+  .review-honeypot {
+    display: none !important;
+    visibility: hidden;
+    height: 0;
+    width: 0;
+    overflow: hidden;
+  }
   @media (max-width: 640px) {
     #about { padding-bottom: 3rem; }
     #gallery { padding-top: 2.5rem; padding-bottom: 3rem; }
@@ -1355,6 +1386,16 @@ j=d.createElement(s),dl=l!='dataLayer'?'&l='+l:'';j.async=true;j.crossOrigin='an
   .hero-trust { margin-top: 1.6rem; font-size: .72rem; letter-spacing: .12em; text-transform: uppercase; color: var(--text-muted); }
   .hero-trust .stars { color: var(--gold); letter-spacing: .14em; }
   .hero-trust strong { color: var(--cream); font-weight: 500; }
+  /* Contextual cross-link back to destinations */
+  .section-back-cta { text-align: center; margin-top: 2.6rem; font-size: .85rem; color: var(--text-muted); letter-spacing: .02em; }
+  .section-back-cta a { color: var(--gold); text-decoration: none; font-weight: 500; border-bottom: 1px solid rgba(201,168,76,.4); padding-bottom: 2px; transition: color .2s, border-color .2s; }
+  .section-back-cta a:hover { color: var(--gold-light); border-color: var(--gold-light); }
+  /* Floating 'explore destinations' affordance */
+  .dest-fab { position: fixed; right: 1.4rem; bottom: 1.4rem; z-index: 250; display: inline-flex; align-items: center; gap: .5rem; padding: .7rem 1.15rem; background: rgba(10,22,40,.92); backdrop-filter: blur(6px); border: 1px solid var(--gold); color: var(--gold); font-family: 'Montserrat', sans-serif; font-size: .62rem; letter-spacing: .16em; text-transform: uppercase; text-decoration: none; border-radius: 999px; box-shadow: 0 6px 24px rgba(0,0,0,.35); opacity: 0; transform: translateY(12px); pointer-events: none; transition: opacity .35s ease, transform .35s ease, background .2s, color .2s; }
+  .dest-fab.show { opacity: 1; transform: translateY(0); pointer-events: auto; }
+  .dest-fab:hover { background: var(--gold); color: var(--navy); }
+  .dest-fab-icon { font-size: .8rem; line-height: 1; }
+  @media (max-width: 640px) { .dest-fab { right: 1rem; bottom: 1rem; padding: .6rem 1rem; font-size: .58rem; } }
 </style>
 </head>
 <body>
@@ -1974,6 +2015,7 @@ height="0" width="0" style="display:none;visibility:hidden"></iframe></noscript>
         <p>Crew gratuity is not included in the price. Please contact us for any special requests.</p>
       </div>
     </div>
+  <p class="section-back-cta reveal">Still deciding where to go? <a href="#itinerary">Explore the destinations →</a></p>
   </div>
 </section>
 
@@ -1997,7 +2039,7 @@ height="0" width="0" style="display:none;visibility:hidden"></iframe></noscript>
   <div class="container">
     <p class="section-label reveal">Guest Reviews</p>
     <h2 class="section-title reveal reveal-delay-1">What Our<em> Guests Say</em></h2>
-    <p class="reviews-intro reveal reveal-delay-2">Verified reviews from guests who chartered <strong>Limitless</strong> via Click&amp;Boat — updated automatically from our listing.</p>
+    <p class="reviews-intro reveal reveal-delay-2">Real experiences from guests who have chartered <strong>Limitless</strong>. Reviews are published after a quick moderation step.</p>
 
     <div class="reviews-summary reveal reveal-delay-2" id="reviewsSummary" aria-live="polite">
       <div class="reviews-score">
@@ -2007,15 +2049,63 @@ height="0" width="0" style="display:none;visibility:hidden"></iframe></noscript>
           <div class="reviews-count" id="reviewsCount">Loading reviews…</div>
         </div>
       </div>
-      <p class="reviews-source">
-        Reviews sourced from our
-        <a href="https://www.clickandboat.com/en/activities/mallorca/half-day-mallorca-yacht-cruise-with-swim-stops-sea-toys-18390#review-comment-1" target="_blank" rel="noopener noreferrer">Click&amp;Boat</a>
-        charter listing at Club de Mar, Palma.
-      </p>
     </div>
 
     <p class="reviews-loading" id="reviewsLoading">Loading guest reviews…</p>
     <div class="reviews-grid reveal reveal-delay-3" id="reviewsGrid" hidden></div>
+
+    <!-- Guest review submission (via Netlify Forms) -->
+    <div class="review-submit reveal reveal-delay-3">
+      <h3 class="review-submit-title">Share your experience</h3>
+      <p class="review-submit-note">We love hearing from our guests. Submit your review below — it will be reviewed and published shortly.</p>
+      <form name="guest-review" method="POST" netlify netlify-honeypot="bot-field" class="review-form" id="reviewForm">
+        <input type="hidden" name="form-name" value="guest-review" />
+        <!-- Honeypot for basic spam protection (hidden via CSS + Netlify) -->
+        <p class="review-honeypot" style="display:none !important;"><input name="bot-field" /></p>
+
+        <div class="form-row">
+          <div class="form-field">
+            <label for="review_name">Your Name</label>
+            <input type="text" name="name" id="review_name" placeholder="Alex Rivera" required />
+          </div>
+          <div class="form-field">
+            <label for="review_email">Email (private)</label>
+            <input type="email" name="email" id="review_email" placeholder="you@example.com" required />
+          </div>
+        </div>
+
+        <div class="form-field">
+          <label for="review_rating">How would you rate your charter?</label>
+          <select name="rating" id="review_rating" required>
+            <option value="5">★★★★★ Excellent (5)</option>
+            <option value="4">★★★★ Very good (4)</option>
+            <option value="3">★★★ Good (3)</option>
+            <option value="2">★★ Fair (2)</option>
+            <option value="1">★ Poor (1)</option>
+          </select>
+        </div>
+
+        <div class="form-field">
+          <label for="review_text">Your review</label>
+          <textarea name="review" id="review_text" rows="4" minlength="40" placeholder="Tell future guests about your day on Limitless..." required></textarea>
+        </div>
+
+        <!-- Simple anti-spam question (client-side validated) -->
+        <div class="form-field">
+          <label for="review_spam">To help prevent spam, please solve: 4 + 3 = ?</label>
+          <input type="text" name="spam_check" id="review_spam" required placeholder="7" />
+        </div>
+
+        <button type="submit" class="form-submit" id="reviewSubmitBtn">Submit Review</button>
+
+        <div id="review-success" style="display:none; color:var(--gold); font-size:.85rem; margin-top:.6rem;">
+          ✓ Thank you! Your review has been received and will be published after moderation.
+        </div>
+        <div id="review-error" style="display:none; color:#e55; font-size:.82rem; margin-top:.6rem;">
+          Something went wrong. Please try again or email us directly.
+        </div>
+      </form>
+    </div>
   </div>
 </section>
 
@@ -2301,6 +2391,66 @@ height="0" width="0" style="display:none;visibility:hidden"></iframe></noscript>
     }
   });
 
+  // Guest review form (Netlify Forms + tracking + basic spam protection)
+  var reviewForm = document.getElementById('reviewForm');
+  if (reviewForm) {
+    reviewForm.addEventListener('submit', async function(e) {
+      e.preventDefault();
+      var btn = document.getElementById('reviewSubmitBtn');
+      var successEl = document.getElementById('review-success');
+      var errorEl = document.getElementById('review-error');
+      successEl.style.display = 'none';
+      errorEl.style.display = 'none';
+      btn.textContent = 'Sending…';
+      btn.disabled = true;
+      btn.style.opacity = '0.7';
+
+      // Client-side spam check (simple math question)
+      var spamCheck = this.querySelector('[name="spam_check"]');
+      if (spamCheck && spamCheck.value.trim() !== '7') {
+        errorEl.textContent = 'Please solve the anti-spam question correctly (4 + 3 = 7).';
+        errorEl.style.display = 'block';
+        btn.textContent = 'Submit Review';
+        btn.disabled = false;
+        btn.style.opacity = '1';
+        return;
+      }
+
+      try {
+        var formData = new FormData(this);
+        var response = await fetch('/', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+          body: new URLSearchParams(formData).toString()
+        });
+        if (response.ok) {
+          successEl.style.display = 'block';
+          this.reset();
+          btn.textContent = '✓ Sent';
+
+          window.dataLayer = window.dataLayer || [];
+          window.dataLayer.push({
+            event: 'review_submitted',
+            form_name: 'guest_review'
+          });
+
+          setTimeout(() => {
+            btn.textContent = 'Submit Review';
+            btn.disabled = false;
+            btn.style.opacity = '1';
+          }, 4500);
+        } else {
+          throw new Error('Submission failed');
+        }
+      } catch (err) {
+        errorEl.style.display = 'block';
+        btn.textContent = 'Submit Review';
+        btn.disabled = false;
+        btn.style.opacity = '1';
+      }
+    });
+  }
+
   // Google Tag / dataLayer events for conversions (GTM + GA4 + Google Ads)
   window.dataLayer = window.dataLayer || [];
 
@@ -2339,7 +2489,7 @@ height="0" width="0" style="display:none;visibility:hidden"></iframe></noscript>
   });
 </script>
 
-<!-- Guest reviews (fetched from Click&Boat via Netlify function) -->
+<!-- Guest reviews (loaded from curated data/reviews.json) -->
 <script>
 (function () {
   var grid = document.getElementById('reviewsGrid');
@@ -2364,8 +2514,12 @@ height="0" width="0" style="display:none;visibility:hidden"></iframe></noscript>
 
   function render(data) {
     var reviews = data.reviews || [];
-    var rating = Number(data.ratingValue) || 5;
-    var count = data.reviewCount || reviews.length;
+    // Compute average and count from the actual reviews for accuracy
+    var rating = reviews.length
+      ? reviews.reduce(function (sum, r) { return sum + (Number(r.rating) || 5); }, 0) / reviews.length
+      : 5;
+    var count = reviews.length;
+
     if (scoreEl) scoreEl.textContent = rating.toFixed(1);
     if (starsEl) starsEl.textContent = stars(rating);
     if (countEl) {
@@ -2391,13 +2545,13 @@ height="0" width="0" style="display:none;visibility:hidden"></iframe></noscript>
     }).join('');
   }
 
-  fetch('/api/reviews')
+  // Load curated reviews from static JSON (self-managed, no external scraping)
+  fetch('/data/reviews.json')
     .then(function (r) { return r.ok ? r.json() : null; })
     .then(function (data) { if (data) render(data); })
     .catch(function () {
+      // Fallback with one review if JSON fails to load
       render({
-        ratingValue: 5,
-        reviewCount: 1,
         reviews: [{
           author: 'Tony',
           date: 'Aug 2025',
@@ -2557,6 +2711,19 @@ height="0" width="0" style="display:none;visibility:hidden"></iframe></noscript>
 (function(){try{
   var ls=document.querySelectorAll('.nav-lang a[hreflang], .mobile-lang a[hreflang]');
   for(var i=0;i<ls.length;i++){(function(a){a.addEventListener('click',function(){try{localStorage.setItem('ly_lang',a.getAttribute('hreflang'));}catch(e){}});})(ls[i]);}
+}catch(e){}})();
+</script>
+<a href="#itinerary" class="dest-fab" id="destFab" aria-label="Explore destinations"><span class="dest-fab-icon" aria-hidden="true">✦</span>Explore destinations</a>
+<script>
+(function(){try{
+  var fab=document.getElementById('destFab'), itin=document.getElementById('itinerary');
+  if(!fab||!itin) return;
+  var inView=false;
+  function update(){ var past=window.scrollY>window.innerHeight*0.6; if(past&&!inView){fab.classList.add('show');}else{fab.classList.remove('show');} }
+  if('IntersectionObserver' in window){ new IntersectionObserver(function(e){inView=e[0].isIntersecting;update();},{threshold:0.12}).observe(itin); }
+  window.addEventListener('scroll',update,{passive:true});
+  window.addEventListener('resize',update,{passive:true});
+  update();
 }catch(e){}})();
 </script>
 </body>
