@@ -2535,5 +2535,12 @@ height="0" width="0" style="display:none;visibility:hidden"></iframe></noscript>
 </script>
 <script src="/js/behavior-analytics.js" defer></script>
 
+<!-- Remember the visitor's manual language choice (suppresses auto-redirect) -->
+<script>
+(function(){try{
+  var ls=document.querySelectorAll('.nav-lang a[hreflang], .mobile-lang a[hreflang]');
+  for(var i=0;i<ls.length;i++){(function(a){a.addEventListener('click',function(){try{localStorage.setItem('ly_lang',a.getAttribute('hreflang'));}catch(e){}});})(ls[i]);}
+}catch(e){}})();
+</script>
 </body>
 </html>
