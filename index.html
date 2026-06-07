@@ -373,6 +373,8 @@ j=d.createElement(s),dl=l!='dataLayer'?'&l='+l:'';j.async=true;j.crossOrigin='an
     pointer-events: none;
   }
   @keyframes fadeUp { from { opacity:0; transform: translateY(30px); } to { opacity:1; transform: translateY(0); } }
+  @keyframes fadeIn { from { opacity: 0; } to { opacity: 1; } }
+  @keyframes scrollBob { 0%,100% { transform: translateY(0); } 50% { transform: translateY(-8px); } }
   /* keeps the horizontal centering (translateX -50%) while fading up */
   @keyframes heroScrollUp { from { opacity:0; transform: translate(-50%, 30px); } to { opacity:1; transform: translate(-50%, 0); } }
   .hero-eyebrow {
@@ -404,7 +406,7 @@ j=d.createElement(s),dl=l!='dataLayer'?'&l='+l:'';j.async=true;j.crossOrigin='an
   }
   .hero-actions {
     margin-top: 3rem; display: flex; gap: 1.2rem; justify-content: center; flex-wrap: wrap;
-    opacity: 0; animation: fadeUp 1s 1s ease both;
+    opacity: 0; animation: fadeIn 0.6s 1s ease both;
   }
   .btn-primary {
     background: var(--gold); color: var(--navy);
@@ -433,8 +435,9 @@ j=d.createElement(s),dl=l!='dataLayer'?'&l='+l:'';j.async=true;j.crossOrigin='an
     width: 1px; height: 50px;
     background: linear-gradient(to bottom, var(--gold), transparent);
     animation: scrollPulse 2s infinite;
+    transform-origin: top;
   }
-  @keyframes scrollPulse { 0%,100%{opacity:.4;height:50px} 50%{opacity:1;height:70px} }
+  @keyframes scrollPulse { 0%,100%{opacity:.4; transform: scaleY(0.8)} 50%{opacity:1; transform: scaleY(1.6)} }
 
   /* ── SECTIONS COMMON ── */
   section { padding: 7rem 2rem; }
@@ -457,23 +460,23 @@ j=d.createElement(s),dl=l!='dataLayer'?'&l='+l:'';j.async=true;j.crossOrigin='an
 
   /* ── INTRO STRIP ── */
   #intro {
-    background: var(--deep); padding: 3.5rem 2rem;
+    background: var(--deep); padding: 1.8rem 1.2rem;
   }
   .intro-grid {
     display: grid; grid-template-columns: repeat(4,1fr); gap: 0;
     max-width: 1200px; margin: 0 auto;
   }
   .intro-item {
-    text-align: center; padding: 2.5rem 1.5rem;
+    text-align: center; padding: 1.5rem 0.8rem;
     border-right: 1px solid rgba(201,168,76,.15);
   }
   .intro-item:last-child { border-right: none; }
   .intro-num {
     font-family: 'Montserrat', sans-serif;
-    font-size: 3rem; font-weight: 300; color: var(--gold); line-height: 1;
+    font-size: 2.2rem; font-weight: 300; color: var(--gold); line-height: 1;
   }
   .intro-label {
-    margin-top: .5rem; font-size: .6rem; letter-spacing: .2em;
+    margin-top: .25rem; font-size: .52rem; letter-spacing: .18em;
     text-transform: uppercase; color: var(--text-muted);
   }
 
@@ -1240,6 +1243,9 @@ j=d.createElement(s),dl=l!='dataLayer'?'&l='+l:'';j.async=true;j.crossOrigin='an
     .gallery-item:nth-child(10) { grid-column: span 1; }
     .intro-grid { grid-template-columns: repeat(2,1fr); }
     .intro-item:nth-child(2) { border-right: none; }
+    .intro-item { padding: 1rem 0.6rem; }
+    .intro-num { font-size: 1.8rem; }
+    .intro-label { font-size: .48rem; }
 
     .itinerary-grid { grid-template-columns: 1fr; }
     .itinerary-wrap {
@@ -1267,7 +1273,7 @@ j=d.createElement(s),dl=l!='dataLayer'?'&l='+l:'';j.async=true;j.crossOrigin='an
   @media (max-width: 640px) {
     section { padding: 4rem 1.2rem; }
     nav { padding: 0.65rem 1rem; }
-    .hero-eyebrow { font-size: .62rem; margin-bottom: 1.8rem; }
+    .hero-eyebrow { font-size: .62rem; margin-bottom: 1.6rem; }
     .hero-title { font-size: clamp(2.8rem, 7.5vw, 4.2rem); }
     .hero-sub { font-size: .82rem; letter-spacing: .08em; }
     .hero-actions { flex-direction: column; align-items: center; gap: .8rem; }
@@ -1314,8 +1320,9 @@ j=d.createElement(s),dl=l!='dataLayer'?'&l='+l:'';j.async=true;j.crossOrigin='an
       font-size: .65rem; margin-bottom: .6rem;
     }
     .intro-grid { grid-template-columns: 1fr 1fr; }
-    .intro-item { padding: 1.5rem 1rem; }
-    .intro-num { font-size: 2rem; }
+    .intro-item { padding: 0.8rem 0.4rem; }
+    .intro-num { font-size: 1.6rem; }
+    .intro-label { font-size: .46rem; margin-top: .15rem; }
 
     .gallery-grid { grid-template-columns: 1fr 1fr; gap: 3px; }
     /* Full-bleed gallery on phones; heading stays padded via the section */
@@ -1461,35 +1468,68 @@ j=d.createElement(s),dl=l!='dataLayer'?'&l='+l:'';j.async=true;j.crossOrigin='an
   /* Hero: shorter on mobile to reveal content below the fold */
   @media (max-width: 768px) {
     #hero {
-      height: 85dvh;
+      min-height: 100dvh;
       min-height: 520px;
       display: flex;
-      align-items: flex-start;
+      align-items: stretch;
       justify-content: center;
       /* more top padding on mobile (esp. iPhone 15 with Dynamic Island) so the
          club de mar text has extra space below the fixed top bar / nav, while
          keeping eyebrow and title from interfering with nav or each other. */
       padding-top: max(4rem, env(safe-area-inset-top) + 1.5rem);
-      padding-bottom: 4rem;
+      padding-bottom: max(0.25rem, env(safe-area-inset-bottom));
+    }
+    .hero-content {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      animation: none; /* prevent container fade/translate from making bottom-anchored buttons + strapline appear to animate */
     }
     .hero-scroll {
-      bottom: env(safe-area-inset-bottom);
-      animation: heroScrollUp 0.9s 0.6s ease both; /* appear a bit sooner on mobile */
+      margin-top: 1.75rem; /* placed lower so the scroll indicator feels like it's coming from the very bottom of the page / viewport, while cta group and all other elements stay exactly in their current positions */
+      margin-bottom: 0;
+      position: static;
+      left: auto;
+      transform: none;
+      animation: fadeUp 0.9s 0.6s ease both, scrollBob 2s 1.6s infinite ease-in-out;
     }
-    /* balanced spacing:
-       - increased hero padding-top for space between top nav bar and Club de Mar text
-       - eyebrow-to-title gap at previous fine value (1.6rem)
-       - generous margins for breathing room (less compressed)
-       - trust margin-bottom + scroll positioned right at the bottom (env safe-area only) so it feels like popping up from the very bottom of the screen, with enough clearance above it */
+    /* Mobile hero: top content (eyebrow/title/sub) higher to reveal background image.
+       The buttons (.hero-actions), review strapline (.hero-trust), and scroll animation
+       are all anchored to the bottom of the hero / close to the viewport end.
+       margin-top:auto on actions creates the separation after the title area and
+       pushes the entire bottom cluster (buttons + reviews + scroll) low.
+       Tight gaps inside the cluster keep it compact and "strapped" together near the edge.
+       Reduced #hero padding-bottom lets the anchored elements sit close to the true viewport bottom. */
     .hero-eyebrow { margin-bottom: 1.6rem; }
-    .hero-sub { margin-top: 1.5rem; }
-    .hero-actions { margin-top: 2.8rem; }
-    .hero-trust { margin-top: 1.5rem; margin-bottom: 2rem; }
+    .hero-sub { margin-top: clamp(1rem, 4vh, 2rem); }
+    .hero-cta-group { margin-top: auto; }
+    .hero-actions { margin-top: 0; }
+    .hero-trust { margin-top: 0.4rem; margin-bottom: 0.25rem; }
     .scroll-line { height: 40px; }
     .hero-scroll span { font-size: .52rem; }
+
+    /* More responsive buttons on larger phones (481-768px): row layout for the bottom-anchored cluster */
+    @media (min-width: 481px) {
+      .hero-actions {
+        flex-direction: row;
+        flex-wrap: wrap;
+        justify-content: center;
+        gap: 0.5rem;
+      }
+      .btn-primary, .btn-ghost {
+        width: auto;
+        max-width: 170px;
+        font-size: .58rem;
+        padding: 0.7rem 1rem;
+        flex: 1 1 140px;
+      }
+    }
   }
   /* Hero trust cue */
-  .hero-trust { margin-top: 1.6rem; font-size: .72rem; letter-spacing: .12em; text-transform: uppercase; color: var(--text-muted); }
+  .hero-trust {
+    margin-top: 1.6rem; font-size: .72rem; letter-spacing: .12em; text-transform: uppercase; color: var(--text-muted);
+    opacity: 0; animation: fadeIn 0.6s 1.2s ease both;
+  }
   .hero-trust .stars { color: var(--gold); letter-spacing: .14em; }
   .hero-trust strong { color: var(--cream); font-weight: 500; }
   /* Contextual cross-link back to destinations */
@@ -1588,15 +1628,18 @@ height="0" width="0" style="display:none;visibility:hidden"></iframe></noscript>
     <p class="hero-eyebrow">Club de Mar · Mallorca · Mediterranean</p>
     <h1 class="hero-title">LIMIT<em>LESS</em></h1>
     <p class="hero-sub">Exclusive Maiora Yacht · 21.5 m · Up to 12 Guests Day · 7 Overnight</p>
-    <div class="hero-actions">
-      <a href="#pricing" class="btn-primary">Rates & Booking</a>
-      <a href="#itinerary" class="btn-ghost">Explore Destinations</a>
+    <div class="hero-cta-group">
+      <div class="hero-actions">
+        <a href="#pricing" class="btn-primary">Rates & Booking</a>
+        <a href="#itinerary" class="btn-ghost">Explore Destinations</a>
+        <a href="#gallery" class="btn-ghost">Explore the yacht</a>
+      </div>
+      <p class="hero-trust"><span class="stars">★★★★★</span> <strong>5.0</strong> · Verified guest reviews</p>
     </div>
-    <p class="hero-trust"><span class="stars">★★★★★</span> <strong>5.0</strong> · Verified guest reviews</p>
-  </div>
-  <div class="hero-scroll">
-    <span>Scroll</span>
-    <div class="scroll-line"></div>
+    <div class="hero-scroll">
+      <span>Scroll</span>
+      <div class="scroll-line"></div>
+    </div>
   </div>
 </section>
 
