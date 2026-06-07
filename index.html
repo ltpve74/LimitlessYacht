@@ -1293,16 +1293,17 @@ j=d.createElement(s),dl=l!='dataLayer'?'&l='+l:'';j.async=true;j.crossOrigin='an
     .amenities-grid { grid-template-columns: 1fr; }
     .pricing-grid { grid-template-columns: 1fr; margin-top: 0; }
     .pricing-amount { font-size: 1.6rem; }
-    .pricing-card { display: none; padding: 1.25rem 1.25rem 1rem; }
+    .pricing-card { display: none; padding: 1rem 1.25rem; }
     .pricing-card.tab-active { display: block; }
     .pricing-badge { display: none; }
     .pricing-season { display: none; }
-    .pricing-row { padding: .65rem 0; }
-    .pricing-urgency { margin: -.25rem 0 .4rem; font-size: .65rem; }
-    #pricing { padding-top: 2rem; padding-bottom: 2.5rem; }
+    .pricing-row { padding: .6rem 0; }
+    .pricing-duration { font-size: .95rem; }
+    .pricing-urgency { margin: -.25rem 0 .35rem; font-size: .65rem; }
+    #pricing { padding-top: 1.75rem; padding-bottom: 2.5rem; }
     #pricing .section-label { display: none; }
-    #pricing .section-title { margin-bottom: .35rem; }
-    .pricing-tabs { margin-top: .5rem; margin-bottom: .5rem; }
+    #pricing .section-title { margin-bottom: .3rem; }
+    .pricing-tabs { margin-top: .4rem; margin-bottom: .4rem; }
     .pricing-tabs {
       display: flex; margin-top: 2rem; margin-bottom: 1.25rem;
       border: 1px solid rgba(201,168,76,.25); border-radius: 3px; overflow: hidden;
@@ -3038,6 +3039,27 @@ height="0" width="0" style="display:none;visibility:hidden"></iframe></noscript>
     <span>Chat on WhatsApp</span>
   </a>
 </div>
+<script>
+/* Intercept internal anchor clicks and use programmatic scroll instead of native
+   hash navigation — avoids triggering Safari's auto-show toolbar on iOS */
+(function(){try{
+  var nav = document.querySelector('nav');
+  function navH() { return nav ? nav.getBoundingClientRect().height : 60; }
+  document.addEventListener('click', function(e) {
+    var a = e.target.closest('a[href^="#"]');
+    if (!a) return;
+    var hash = a.getAttribute('href');
+    if (!hash || hash === '#') return;
+    var target = document.querySelector(hash);
+    if (!target) return;
+    e.preventDefault();
+    var top = target.getBoundingClientRect().top + window.pageYOffset - navH() - 8;
+    window.scrollTo({ top: top, behavior: 'smooth' });
+    /* Update hash silently so back-button still works */
+    history.pushState(null, '', hash);
+  }, { passive: false });
+}catch(e){}})();
+</script>
 <script>
 /* Show sticky WhatsApp bar only after the user scrolls past the hero */
 (function(){try{
