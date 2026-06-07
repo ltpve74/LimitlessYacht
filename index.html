@@ -1464,6 +1464,11 @@ j=d.createElement(s),dl=l!='dataLayer'?'&l='+l:'';j.async=true;j.crossOrigin='an
       padding-top: max(3.5rem, env(safe-area-inset-top) + 1.2rem);
       padding-bottom: 9rem;
     }
+    .hero-content {
+      /* reserve space below the trust/reviews so the absolute scroll indicator
+         (label + line) can never overlap the content above it, on any device */
+      padding-bottom: 5rem;
+    }
     .hero-scroll {
       bottom: max(1.2rem, env(safe-area-inset-bottom) + 0.5rem);
       animation: heroScrollUp 0.9s 0.6s ease both; /* appear a bit sooner on mobile */
