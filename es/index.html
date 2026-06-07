@@ -1267,7 +1267,7 @@ j=d.createElement(s),dl=l!='dataLayer'?'&l='+l:'';j.async=true;j.crossOrigin='an
   @media (max-width: 640px) {
     section { padding: 4rem 1.2rem; }
     nav { padding: 0.65rem 1rem; }
-    .hero-eyebrow { font-size: .62rem; margin-bottom: 2rem; }
+    .hero-eyebrow { font-size: .62rem; margin-bottom: 1.8rem; }
     .hero-title { font-size: clamp(2.8rem, 7.5vw, 4.2rem); }
     .hero-sub { font-size: .82rem; letter-spacing: .08em; }
     .hero-actions { flex-direction: column; align-items: center; gap: .8rem; }
@@ -1467,22 +1467,22 @@ j=d.createElement(s),dl=l!='dataLayer'?'&l='+l:'';j.async=true;j.crossOrigin='an
       align-items: flex-start;
       justify-content: center;
       /* more top padding on mobile (esp. iTeléfono 15 with Dynamic Island) so the
-         eyebrow and title don't sit too high or interfere with each other or the nav */
-      padding-top: max(3.5rem, env(safe-area-inset-top) + 1.2rem);
+         club de mar text has extra space below the fixed top bar / nav, while
+         keeping eyebrow and title from interfering with nav or each other. */
+      padding-top: max(4rem, env(safe-area-inset-top) + 1.5rem);
       padding-bottom: 6rem;
     }
     .hero-scroll {
       bottom: max(0.5rem, env(safe-area-inset-bottom) + 0.1rem);
       animation: heroScrollUp 0.9s 0.6s ease both; /* appear a bit sooner on mobile */
     }
-    /* more balanced vertical spacing in hero content on mobile:
-       more breathing room between elements so it doesn't feel compressed,
-       making the overall content block taller so the trust/reviews sits
-       lower (less empty space at the bottom before the scroll indicator). */
+    /* balanced spacing: reverted eyebrow-to-title gap to previous fine value;
+       kept generous margins for sub/actions/trust to avoid compression;
+       margin-bottom on trust gives scroll animation balanced clearance and space. */
     .hero-eyebrow { margin-bottom: 1.6rem; }
     .hero-sub { margin-top: 1.5rem; }
     .hero-actions { margin-top: 2.8rem; }
-    .hero-trust { margin-top: 1.5rem; }
+    .hero-trust { margin-top: 1.5rem; margin-bottom: 1.5rem; }
     .scroll-line { height: 40px; }
     .hero-scroll span { font-size: .52rem; }
   }
