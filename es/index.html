@@ -369,7 +369,7 @@ j=d.createElement(s),dl=l!='dataLayer'?'&l='+l:'';j.async=true;j.crossOrigin='an
   @keyframes heroScrollUp { from { opacity:0; transform: translate(-50%, 30px); } to { opacity:1; transform: translate(-50%, 0); } }
   .hero-eyebrow {
     font-size: .72rem; letter-spacing: .32em; text-transform: uppercase;
-    color: var(--gold-light); margin-bottom: 1.8rem; opacity: 0;
+    color: var(--gold-light); margin-bottom: 2.5rem; opacity: 0;
     font-weight: 500;
     text-shadow: 0 1px 14px rgba(0,0,0,.75);
     animation: fadeUp .9s .3s ease both;
@@ -1259,7 +1259,8 @@ j=d.createElement(s),dl=l!='dataLayer'?'&l='+l:'';j.async=true;j.crossOrigin='an
   @media (max-width: 640px) {
     section { padding: 4rem 1.2rem; }
     nav { padding: 0.65rem 1rem; }
-    .hero-eyebrow { font-size: .65rem; margin-bottom: 1.4rem; }
+    .hero-eyebrow { font-size: .62rem; margin-bottom: 2rem; }
+    .hero-title { font-size: clamp(2.8rem, 7.5vw, 4.2rem); }
     .hero-sub { font-size: .82rem; letter-spacing: .08em; }
     .hero-actions { flex-direction: column; align-items: center; gap: .8rem; }
     .btn-primary, .btn-ghost { width: 100%; max-width: 280px; text-align: center; }
@@ -1447,10 +1448,12 @@ j=d.createElement(s),dl=l!='dataLayer'?'&l='+l:'';j.async=true;j.crossOrigin='an
     #hero {
       height: 85dvh;
       min-height: 520px;
-      /* reserve extra space at the bottom on mobile (esp. iTeléfono 15) so the
-         animated scroll indicator never overlaps the hero content (trust/actions)
-         above it during its upward animation */
-      padding-top: max(2.8rem, env(safe-area-inset-top) + 0.8rem);
+      display: flex;
+      align-items: flex-start;
+      justify-content: center;
+      /* more top padding on mobile (esp. iTeléfono 15 with Dynamic Island) so the
+         eyebrow and title don't sit too high or interfere with each other or the nav */
+      padding-top: max(3.5rem, env(safe-area-inset-top) + 1.2rem);
       padding-bottom: 9rem;
     }
     .hero-scroll {
