@@ -1462,17 +1462,24 @@ j=d.createElement(s),dl=l!='dataLayer'?'&l='+l:'';j.async=true;j.crossOrigin='an
       /* more top padding on mobile (esp. iTelefon 15 with Dynamic Island) so the
          eyebrow and title don't sit too high or interfere with each other or the nav */
       padding-top: max(3.5rem, env(safe-area-inset-top) + 1.2rem);
-      padding-bottom: 9rem;
+      padding-bottom: 10rem;
     }
     .hero-content {
-      /* reserve space below the trust/reviews so the absolute scroll indicator
-         (label + line) can never overlap the content above it, on any device */
-      padding-bottom: 5rem;
+      /* no extra padding-bottom here - we control via reduced internal margins below */
     }
     .hero-scroll {
       bottom: max(1.2rem, env(safe-area-inset-bottom) + 0.5rem);
       animation: heroScrollUp 0.9s 0.6s ease both; /* appear a bit sooner on mobile */
     }
+    /* shrink vertical spacing inside hero content on mobile so the trust/reviews
+       ends higher up, leaving plenty of room for the scroll indicator at the
+       bottom without ever overlapping, even on small screens or with safe areas */
+    .hero-eyebrow { margin-bottom: 0.8rem; }
+    .hero-sub { margin-top: 0.6rem; }
+    .hero-actions { margin-top: 1rem; }
+    .hero-trust { margin-top: 0.6rem; }
+    .scroll-line { height: 35px; }
+    .hero-scroll span { font-size: .48rem; }
   }
   /* Hero trust cue */
   .hero-trust { margin-top: 1.6rem; font-size: .72rem; letter-spacing: .12em; text-transform: uppercase; color: var(--text-muted); }
