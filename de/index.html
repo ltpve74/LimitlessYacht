@@ -1473,16 +1473,18 @@ j=d.createElement(s),dl=l!='dataLayer'?'&l='+l:'';j.async=true;j.crossOrigin='an
       padding-bottom: 6rem;
     }
     .hero-scroll {
-      bottom: max(0.5rem, env(safe-area-inset-bottom) + 0.1rem);
+      bottom: max(0.3rem, env(safe-area-inset-bottom));
       animation: heroScrollUp 0.9s 0.6s ease both; /* appear a bit sooner on mobile */
     }
-    /* balanced spacing: reverted eyebrow-to-title gap to previous fine value;
-       kept generous margins for sub/actions/trust to avoid compression;
-       margin-bottom on trust gives scroll animation balanced clearance and space. */
+    /* balanced spacing:
+       - increased hero padding-top for space between top nav bar and Club de Mar text
+       - eyebrow-to-title gap at previous fine value (1.6rem)
+       - generous margins for breathing room (less compressed)
+       - larger margin-bottom on trust + lower scroll bottom to ensure scroll animation has enough balanced space/clearance below the reviews */
     .hero-eyebrow { margin-bottom: 1.6rem; }
     .hero-sub { margin-top: 1.5rem; }
     .hero-actions { margin-top: 2.8rem; }
-    .hero-trust { margin-top: 1.5rem; margin-bottom: 1.5rem; }
+    .hero-trust { margin-top: 1.5rem; margin-bottom: 2rem; }
     .scroll-line { height: 40px; }
     .hero-scroll span { font-size: .52rem; }
   }
