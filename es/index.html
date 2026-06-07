@@ -1470,17 +1470,17 @@ j=d.createElement(s),dl=l!='dataLayer'?'&l='+l:'';j.async=true;j.crossOrigin='an
          club de mar text has extra space below the fixed top bar / nav, while
          keeping eyebrow and title from interfering with nav or each other. */
       padding-top: max(4rem, env(safe-area-inset-top) + 1.5rem);
-      padding-bottom: 6rem;
+      padding-bottom: 4rem;
     }
     .hero-scroll {
-      bottom: max(0.3rem, env(safe-area-inset-bottom));
+      bottom: env(safe-area-inset-bottom);
       animation: heroScrollUp 0.9s 0.6s ease both; /* appear a bit sooner on mobile */
     }
     /* balanced spacing:
        - increased hero padding-top for space between top nav bar and Club de Mar text
        - eyebrow-to-title gap at previous fine value (1.6rem)
        - generous margins for breathing room (less compressed)
-       - larger margin-bottom on trust + lower scroll bottom to ensure scroll animation has enough balanced space/clearance below the reviews */
+       - trust margin-bottom + scroll positioned right at the bottom (env safe-area only) so it feels like popping up from the very bottom of the screen, with enough clearance above it */
     .hero-eyebrow { margin-bottom: 1.6rem; }
     .hero-sub { margin-top: 1.5rem; }
     .hero-actions { margin-top: 2.8rem; }
