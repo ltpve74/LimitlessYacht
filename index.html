@@ -3063,7 +3063,14 @@ height="0" width="0" style="display:none;visibility:hidden"></iframe></noscript>
     var target = document.querySelector(hash);
     if (!target) return;
     e.preventDefault();
-    var top = target.getBoundingClientRect().top + window.pageYOffset - navH() - 8;
+    /* On mobile, jump to the pricing tabs instead of the section header so
+       prices fill the screen immediately rather than landing on the title */
+    var scrollTarget = target;
+    if (hash === '#pricing' && window.innerWidth <= 768) {
+      var tabs = document.querySelector('.pricing-tabs');
+      if (tabs) scrollTarget = tabs;
+    }
+    var top = scrollTarget.getBoundingClientRect().top + window.pageYOffset - navH() - 8;
     window.scrollTo({ top: top, behavior: 'smooth' });
     /* Update hash silently so back-button still works */
     history.pushState(null, '', hash);
