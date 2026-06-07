@@ -342,7 +342,7 @@ j=d.createElement(s),dl=l!='dataLayer'?'&l='+l:'';j.async=true;j.crossOrigin='an
 
   /* ── HERO ── */
   #hero {
-    position: relative; height: 100vh; overflow: hidden;
+    position: relative; height: 100vh; height: 100svh; overflow: hidden;
     display: flex; align-items: center; justify-content: center;
   }
   .hero-bg {
@@ -1274,7 +1274,8 @@ j=d.createElement(s),dl=l!='dataLayer'?'&l='+l:'';j.async=true;j.crossOrigin='an
   @media (max-width: 640px) {
     section { padding: 4rem 1.2rem; }
     nav { padding: 0.65rem 1rem; }
-    .hero-eyebrow { font-size: .62rem; margin-bottom: 1.6rem; letter-spacing: .1em; }
+    .hero-eyebrow { font-size: .62rem; margin-bottom: 1.6rem; letter-spacing: .03em; }
+    .eyebrow-stars { letter-spacing: .03em; }
     .hero-title { font-size: clamp(2.8rem, 7.5vw, 4.2rem); }
     .hero-sub { font-size: .82rem; letter-spacing: .08em; }
     .hero-actions { flex-direction: column; align-items: center; gap: .8rem; }
