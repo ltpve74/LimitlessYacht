@@ -1271,7 +1271,14 @@ j=d.createElement(s),dl=l!='dataLayer'?'&l='+l:'';j.async=true;j.crossOrigin='an
     .hero-title { font-size: clamp(2.8rem, 7.5vw, 4.2rem); }
     .hero-sub { font-size: .82rem; letter-spacing: .08em; }
     .hero-actions { flex-direction: column; align-items: center; gap: .8rem; }
-    .btn-primary, .btn-ghost { width: 100%; max-width: 280px; text-align: center; }
+    .btn-primary, .btn-ghost { 
+      width: 100%; 
+      max-width: 300px; 
+      text-align: center; 
+      white-space: nowrap; 
+      letter-spacing: .12em; 
+      padding: 1rem 1.6rem; 
+    }
     .section-title { font-size: clamp(1.8rem, 6vw, 3rem); }
     .spec-card { padding: 1.0rem 0.75rem; }
     .spec-card .spec-value { font-size: 1.0rem; }
@@ -1465,18 +1472,16 @@ j=d.createElement(s),dl=l!='dataLayer'?'&l='+l:'';j.async=true;j.crossOrigin='an
       padding-bottom: 6rem;
     }
     .hero-scroll {
-      bottom: max(0.7rem, env(safe-area-inset-bottom) + 0.2rem);
+      bottom: max(0.5rem, env(safe-area-inset-bottom) + 0.1rem);
       animation: heroScrollUp 0.9s 0.6s ease both; /* appear a bit sooner on mobile */
     }
-    /* balanced vertical spacing in hero content on mobile:
-       enough breathing room so it doesn't feel cramped/compressed,
-       but not so much that the trust/reviews ends too high leaving excessive
-       empty space before the scroll indicator at the bottom.
-       Scroll line and label also slightly larger for visibility. */
-    .hero-eyebrow { margin-bottom: 1.1rem; }
-    .hero-sub { margin-top: 1rem; }
-    .hero-actions { margin-top: 1.8rem; }
-    .hero-trust { margin-top: 1rem; }
+    /* slightly more generous vertical spacing in hero content on mobile for better balance
+       and breathing room (less cramped), while nudging the scroll indicator a bit lower.
+       Still keeps the trust/reviews safely clear of the animation. */
+    .hero-eyebrow { margin-bottom: 1.3rem; }
+    .hero-sub { margin-top: 1.2rem; }
+    .hero-actions { margin-top: 2.2rem; }
+    .hero-trust { margin-top: 1.2rem; }
     .scroll-line { height: 40px; }
     .hero-scroll span { font-size: .52rem; }
   }
