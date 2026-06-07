@@ -8,8 +8,16 @@
 <script>
 (function(){try{
   var map={de:'/de/',es:'/es/',fr:'/fr/'};
+  // Only run auto-redirect logic when on the bare English root.
+  // Locale subpages (e.g. /es/) must not auto-redirect away based on browser lang
+  // or they can cause loops / failed loads for matching languages (e.g. Spanish phones).
+  var isRoot = (location.pathname === '/' || location.pathname === '/index.html');
   var stored=null; try{stored=localStorage.getItem('ly_lang');}catch(e){}
-  if(stored){ if(map[stored]) location.replace(map[stored]); return; }
+  if(stored){
+    if(map[stored] && isRoot){ location.replace(map[stored]); return; }
+    // If stored but not on root, or unknown, do nothing (stay where we are).
+  }
+  if(!isRoot) return;
   var langs=navigator.languages||[navigator.language||''];
   for(var i=0;i<langs.length;i++){
     var c=(langs[i]||'').slice(0,2).toLowerCase();
