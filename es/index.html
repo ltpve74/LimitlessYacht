@@ -369,7 +369,7 @@ j=d.createElement(s),dl=l!='dataLayer'?'&l='+l:'';j.async=true;j.crossOrigin='an
   @keyframes heroScrollUp { from { opacity:0; transform: translate(-50%, 30px); } to { opacity:1; transform: translate(-50%, 0); } }
   .hero-eyebrow {
     font-size: .72rem; letter-spacing: .32em; text-transform: uppercase;
-    color: var(--gold-light); margin-bottom: 1.2rem; opacity: 0;
+    color: var(--gold-light); margin-bottom: 1.8rem; opacity: 0;
     font-weight: 500;
     text-shadow: 0 1px 14px rgba(0,0,0,.75);
     animation: fadeUp .9s .3s ease both;
@@ -1259,6 +1259,7 @@ j=d.createElement(s),dl=l!='dataLayer'?'&l='+l:'';j.async=true;j.crossOrigin='an
   @media (max-width: 640px) {
     section { padding: 4rem 1.2rem; }
     nav { padding: 0.65rem 1rem; }
+    .hero-eyebrow { font-size: .65rem; margin-bottom: 1.4rem; }
     .hero-sub { font-size: .82rem; letter-spacing: .08em; }
     .hero-actions { flex-direction: column; align-items: center; gap: .8rem; }
     .btn-primary, .btn-ghost { width: 100%; max-width: 280px; text-align: center; }
@@ -1449,6 +1450,7 @@ j=d.createElement(s),dl=l!='dataLayer'?'&l='+l:'';j.async=true;j.crossOrigin='an
       /* reserve extra space at the bottom on mobile (esp. iTeléfono 15) so the
          animated scroll indicator never overlaps the hero content (trust/actions)
          above it during its upward animation */
+      padding-top: max(2.8rem, env(safe-area-inset-top) + 0.8rem);
       padding-bottom: 9rem;
     }
     .hero-scroll {
