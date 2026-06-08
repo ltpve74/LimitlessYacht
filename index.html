@@ -3091,6 +3091,11 @@ height="0" width="0" style="display:none;visibility:hidden"></iframe></noscript>
       var tabs = document.querySelector('.pricing-tabs');
       if (tabs) scrollTarget = tabs;
     }
+    /* On mobile, jump straight to the form rather than the contact info block */
+    if (hash === '#contact' && window.innerWidth <= 768) {
+      var form = document.querySelector('#contactForm');
+      if (form) scrollTarget = form;
+    }
     var top = scrollTarget.getBoundingClientRect().top + window.pageYOffset - navH() - 8;
     window.scrollTo({ top: top, behavior: 'smooth' });
     /* Update hash silently so back-button still works */
