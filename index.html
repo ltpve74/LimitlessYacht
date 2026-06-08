@@ -1414,7 +1414,14 @@ j=d.createElement(s),dl=l!='dataLayer'?'&l='+l:'';j.async=true;j.crossOrigin='an
     .destination-card { min-height: 420px; }
     .destination-meta { flex-wrap: wrap; gap: .8rem; }
     .destination-meta span { font-size: .65rem; }
-    .dest-tabs { max-width: none; }
+    .dest-tabs {
+      position: sticky; top: 52px; z-index: 200;
+      max-width: none;
+      margin: 0 -1.2rem;
+      border-left: none; border-right: none; border-radius: 0;
+      background: var(--navy);
+      box-shadow: 0 2px 12px rgba(0,0,0,.35);
+    }
     .destination-desc { display: none; }
     .destination-meta span:not(:first-child) { display: none; }
     .contact-grid { grid-template-columns: 1fr; gap: 2.5rem; }
@@ -3129,6 +3136,12 @@ height="0" width="0" style="display:none;visibility:hidden"></iframe></noscript>
     if (hash === '#contact' && window.innerWidth <= 768) {
       var form = document.querySelector('#contactForm');
       if (form) scrollTarget = form;
+    }
+    /* On mobile, jump to the active card group so cards are immediately visible
+       and the sticky tab bar sits naturally between the nav and the cards */
+    if (hash === '#itinerary' && window.innerWidth <= 768) {
+      var activeGroup = document.querySelector('.dest-group.tab-active');
+      if (activeGroup) scrollTarget = activeGroup;
     }
     var top = scrollTarget.getBoundingClientRect().top + window.pageYOffset - navH() - 8;
     window.scrollTo({ top: top, behavior: 'smooth' });
