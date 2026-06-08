@@ -527,6 +527,7 @@ j=d.createElement(s),dl=l!='dataLayer'?'&l='+l:'';j.async=true;j.crossOrigin='an
   .dest-group { display: none; }
   .dest-group.tab-active { display: block; }
   .dest-group .itinerary-grid { margin-top: 1.5rem; }
+  .carousel-nav { display: none; }
 
   /* ── SPECS ── */
   #specs { background: var(--deep); padding-bottom: 3.5rem; }
@@ -1429,6 +1430,24 @@ j=d.createElement(s),dl=l!='dataLayer'?'&l='+l:'';j.async=true;j.crossOrigin='an
     .destination-tagline { font-size: .54rem; letter-spacing: .1em; margin-bottom: 0; }
     .destination-meta { margin-top: .5rem; padding-top: .5rem; }
     .destination-meta span { font-size: .6rem; }
+    .carousel-nav {
+      display: flex; align-items: center; justify-content: center;
+      gap: 1.25rem; padding: .6rem 0 .5rem;
+    }
+    .carousel-btn {
+      background: transparent; border: 1px solid rgba(201,168,76,.3);
+      color: var(--gold); width: 2.2rem; height: 2.2rem; border-radius: 50%;
+      font-size: 1.3rem; cursor: pointer;
+      display: flex; align-items: center; justify-content: center;
+      transition: opacity .2s; -webkit-tap-highlight-color: transparent;
+      flex-shrink: 0;
+    }
+    .carousel-btn:disabled { opacity: .2; }
+    .carousel-pos {
+      font-family: 'Montserrat', sans-serif; font-size: .55rem;
+      letter-spacing: .15em; text-transform: uppercase;
+      color: rgba(245,240,232,.45); min-width: 2.5rem; text-align: center;
+    }
     .dest-tabs {
       position: sticky; top: 50px; z-index: 90;
       max-width: none;
@@ -1945,6 +1964,11 @@ height="0" width="0" style="display:none;visibility:hidden"></iframe></noscript>
           </div>
         </div>
       </div>
+      <div class="carousel-nav">
+        <button class="carousel-btn carousel-prev" aria-label="Previous destination">&#8249;</button>
+        <span class="carousel-pos"></span>
+        <button class="carousel-btn carousel-next" aria-label="Next destination">&#8250;</button>
+      </div>
     </div>
 
     <!-- Full-Day -->
@@ -2046,6 +2070,11 @@ height="0" width="0" style="display:none;visibility:hidden"></iframe></noscript>
           </div>
         </div>
       </div>
+      <div class="carousel-nav">
+        <button class="carousel-btn carousel-prev" aria-label="Previous destination">&#8249;</button>
+        <span class="carousel-pos"></span>
+        <button class="carousel-btn carousel-next" aria-label="Next destination">&#8250;</button>
+      </div>
     </div>
 
     <!-- Multi-Day -->
@@ -2128,6 +2157,11 @@ height="0" width="0" style="display:none;visibility:hidden"></iframe></noscript>
           </div>
         </div>
       </div>
+      <div class="carousel-nav">
+        <button class="carousel-btn carousel-prev" aria-label="Previous destination">&#8249;</button>
+        <span class="carousel-pos"></span>
+        <button class="carousel-btn carousel-next" aria-label="Next destination">&#8250;</button>
+      </div>
     </div>
 
   </div>
@@ -2167,24 +2201,36 @@ height="0" width="0" style="display:none;visibility:hidden"></iframe></noscript>
     });
   });
 
-  /* Directional touch lock: horizontal swipe stays in carousel, vertical swipe scrolls page */
-  document.querySelectorAll('.dest-group .itinerary-grid').forEach(function(grid) {
-    var startX, startY, decided = false, horizontal = false;
-    grid.addEventListener('touchstart', function(e) {
-      startX = e.touches[0].clientX;
-      startY = e.touches[0].clientY;
-      decided = false; horizontal = false;
-    }, { passive: true });
-    grid.addEventListener('touchmove', function(e) {
-      if (!decided) {
-        var dx = Math.abs(e.touches[0].clientX - startX);
-        var dy = Math.abs(e.touches[0].clientY - startY);
-        if (dx + dy < 4) return;
-        horizontal = dx > dy;
-        decided = true;
-      }
-      if (horizontal) e.preventDefault();
-    }, { passive: false });
+  /* Carousel prev/next navigation */
+  document.querySelectorAll('.dest-group').forEach(function(group) {
+    var grid = group.querySelector('.itinerary-grid');
+    if (!grid) return;
+    var btnPrev = group.querySelector('.carousel-prev');
+    var btnNext = group.querySelector('.carousel-next');
+    var posEl   = group.querySelector('.carousel-pos');
+    var cards   = Array.from(grid.querySelectorAll('.destination-card'));
+    var total   = cards.length;
+
+    function step() {
+      return cards.length > 1 ? cards[1].offsetLeft - cards[0].offsetLeft : grid.scrollWidth;
+    }
+    function idx() {
+      return Math.round(grid.scrollLeft / step());
+    }
+    function update() {
+      var i = idx();
+      if (btnPrev) btnPrev.disabled = i <= 0;
+      if (btnNext) btnNext.disabled = i >= total - 1;
+      if (posEl)   posEl.textContent = (i + 1) + ' / ' + total;
+    }
+    if (btnPrev) btnPrev.addEventListener('click', function() {
+      grid.scrollTo({ left: (idx() - 1) * step(), behavior: 'smooth' });
+    });
+    if (btnNext) btnNext.addEventListener('click', function() {
+      grid.scrollTo({ left: (idx() + 1) * step(), behavior: 'smooth' });
+    });
+    grid.addEventListener('scroll', update, { passive: true });
+    update();
   });
 })();
 </script>
