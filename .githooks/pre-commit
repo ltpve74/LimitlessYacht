@@ -1,0 +1,36 @@
+#!/bin/sh
+# Auto-rebuild the localized pages (de/es/fr) whenever the English sources or the
+# locale translation data are part of a commit, so the localized pages never
+# silently drift out of sync with index.html / legal.html again.
+#
+# Enable once per clone with:
+#   git config core.hooksPath .githooks
+#
+# Note: build-locales.py reads the working-tree index.html, so commit a clean
+# tree (stage your HTML edits before committing) for the rebuild to match.
+
+set -e
+
+CHANGED=$(git diff --cached --name-only)
+
+if printf '%s\n' "$CHANGED" | grep -qE '^(index\.html|legal\.html|i18n/locales/[^/]+\.py|i18n/build-locales\.py)$'; then
+  echo "[pre-commit] EN source / locale data changed — rebuilding locales…"
+
+  # Prefer the project venv; fall back to python3 (build-locales.py is stdlib-only).
+  if [ -x ".venv/bin/python" ]; then
+    PY=".venv/bin/python"
+  else
+    PY="python3"
+  fi
+
+  if ! "$PY" i18n/build-locales.py; then
+    echo "[pre-commit] ERROR: locale build failed — aborting commit." >&2
+    exit 1
+  fi
+
+  # Re-stage any regenerated locale files so they're part of this commit.
+  git add de/index.html de/legal.html es/index.html es/legal.html fr/index.html fr/legal.html
+  echo "[pre-commit] Locales rebuilt and staged."
+fi
+
+exit 0
