@@ -1415,12 +1415,12 @@ j=d.createElement(s),dl=l!='dataLayer'?'&l='+l:'';j.async=true;j.crossOrigin='an
     .destination-meta { flex-wrap: wrap; gap: .8rem; }
     .destination-meta span { font-size: .65rem; }
     .dest-tabs {
-      position: sticky; top: 52px; z-index: 200;
+      position: sticky; top: 50px; z-index: 90;
       max-width: none;
-      margin: 0 -1.2rem;
+      margin: 0 -2rem;
       border-left: none; border-right: none; border-radius: 0;
       background: var(--navy);
-      box-shadow: 0 2px 12px rgba(0,0,0,.35);
+      box-shadow: 0 2px 12px rgba(0,0,0,.4);
     }
     .destination-desc { display: none; }
     .destination-meta span:not(:first-child) { display: none; }
@@ -1855,6 +1855,8 @@ height="0" width="0" style="display:none;visibility:hidden"></iframe></noscript>
     <p class="section-label reveal">Destinations</p>
     <h2 class="section-title reveal reveal-delay-1">Where <em>Limitless</em> Takes You</h2>
     <p class="itinerary-intro reveal reveal-delay-2">Every route is shaped around your group — the suggestions below are a starting point. Your crew handles the rest.</p>
+  </div>
+  <div class="itinerary-wrap" style="max-width:1400px;margin:0 auto;padding:0 2rem;">
     <div class="dest-tabs reveal reveal-delay-2" role="tablist" aria-label="Charter duration">
       <button class="dest-tab" role="tab" data-tier="half-day" id="half-day" aria-selected="true">
         Half-Day<span class="tab-period">4 – 6 hours</span>
@@ -1866,8 +1868,6 @@ height="0" width="0" style="display:none;visibility:hidden"></iframe></noscript>
         Multi-Day<span class="tab-period">Overnight +</span>
       </button>
     </div>
-  </div>
-  <div class="itinerary-wrap" style="max-width:1400px;margin:0 auto;padding:0 2rem;">
 
     <!-- Half-Day -->
     <div class="dest-group tab-active" data-tier="half-day">
@@ -3137,11 +3137,10 @@ height="0" width="0" style="display:none;visibility:hidden"></iframe></noscript>
       var form = document.querySelector('#contactForm');
       if (form) scrollTarget = form;
     }
-    /* On mobile, jump to the active card group so cards are immediately visible
-       and the sticky tab bar sits naturally between the nav and the cards */
+    /* On mobile, jump to the dest-tabs so the tab bar and cards fill the screen */
     if (hash === '#itinerary' && window.innerWidth <= 768) {
-      var activeGroup = document.querySelector('.dest-group.tab-active');
-      if (activeGroup) scrollTarget = activeGroup;
+      var destTabs = document.querySelector('.dest-tabs');
+      if (destTabs) scrollTarget = destTabs;
     }
     var top = scrollTarget.getBoundingClientRect().top + window.pageYOffset - navH() - 8;
     window.scrollTo({ top: top, behavior: 'smooth' });
