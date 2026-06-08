@@ -2491,7 +2491,7 @@ height="0" width="0" style="display:none;visibility:hidden"></iframe></noscript>
           <div class="form-row">
             <div class="form-field">
               <label for="preferred_date">Preferred Date</label>
-              <input type="date" name="preferred_date" id="preferred_date" />
+              <input type="date" name="preferred_date" id="preferred_date" min="" />
             </div>
             <div class="form-field">
               <label for="charter_duration">Duration</label>
@@ -2621,6 +2621,15 @@ height="0" width="0" style="display:none;visibility:hidden"></iframe></noscript>
     if (e.key === 'ArrowLeft') { currentIdx=(currentIdx-1+images.length)%images.length; lbImg.src=images[currentIdx]; }
     if (e.key === 'ArrowRight') { currentIdx=(currentIdx+1)%images.length; lbImg.src=images[currentIdx]; }
   });
+
+  // Set date min to tomorrow so past/today dates can't be submitted
+  (function(){
+    var d = document.getElementById('preferred_date');
+    if (!d) return;
+    var tomorrow = new Date();
+    tomorrow.setDate(tomorrow.getDate() + 1);
+    d.min = tomorrow.toISOString().split('T')[0];
+  })();
 
   // Form submission via Netlify Forms
   document.getElementById('contactForm').addEventListener('submit', async function(e) {
