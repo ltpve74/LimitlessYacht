@@ -3255,20 +3255,12 @@ height="0" width="0" style="display:none;visibility:hidden"></iframe></noscript>
         window.removeEventListener('scroll', maybeAutoAcceptOnScroll, {passive: true});
       }
     }
-    // Attach scroll listener for auto-accept (dev phase)
-    var scrollListenerAttached = false;
-    function attachScrollListenerIfNeeded() {
-      if (!scrollListenerAttached && !banner.hidden) {
-        window.addEventListener('scroll', maybeAutoAcceptOnScroll, {passive: true});
-        scrollListenerAttached = true;
-      }
-    }
-    setTimeout(attachScrollListenerIfNeeded, 100);
-    if (settings) {
-      settings.addEventListener('click', function () {
-        setTimeout(attachScrollListenerIfNeeded, 50);
-      });
-    }
+    // Attach the scroll listener up front. maybeAutoAcceptOnScroll already
+    // guards on banner.hidden, so it only auto-grants once the banner is
+    // actually visible. (The previous version attached at 100ms while the
+    // banner was still hidden until 1400ms, so the listener never attached
+    // and scroll-based auto-consent silently never fired.)
+    window.addEventListener('scroll', maybeAutoAcceptOnScroll, { passive: true });
 
     // Auto-accept on main CTAs if no consent decision yet.
     // Aggressive tracking during development/user testing phase.
