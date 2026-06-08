@@ -1144,9 +1144,7 @@ j=d.createElement(s),dl=l!='dataLayer'?'&l='+l:'';j.async=true;j.crossOrigin='an
       margin-right: -1.2rem !important;
       padding: 0 !important;
     }
-    .destination-card { min-height: 380px; }
     .destination-desc { font-size: .82rem; line-height: 1.65; }
-    .destination-meta span { font-size: .65rem; }
   }
 
   /* ── AVAILABILITY ── */
@@ -1411,9 +1409,26 @@ j=d.createElement(s),dl=l!='dataLayer'?'&l='+l:'';j.async=true;j.crossOrigin='an
     .gallery-item:nth-child(1) { grid-column: span 2; grid-row: span 1; }
     .gallery-item:nth-child(5) { grid-column: span 1; }
     .gallery-item:nth-child(10) { grid-column: span 1; }
-    .destination-card { min-height: 420px; }
-    .destination-meta { flex-wrap: wrap; gap: .8rem; }
-    .destination-meta span { font-size: .65rem; }
+    /* Breathing space above sticky tabs */
+    .itinerary-wrap { padding-top: 1.25rem !important; }
+    /* Horizontal swipe carousel — one card at a time, next peeks at right */
+    .dest-group .itinerary-grid {
+      display: flex; flex-direction: row;
+      overflow-x: auto; scroll-snap-type: x mandatory;
+      -webkit-overflow-scrolling: touch; scrollbar-width: none;
+      padding: 1rem 1.5rem 1.75rem; gap: .75rem; margin-top: 0;
+    }
+    .dest-group .itinerary-grid::-webkit-scrollbar { display: none; }
+    .destination-card {
+      flex: 0 0 78vw; scroll-snap-align: start;
+      height: 60vw; min-height: unset; border-radius: 8px;
+    }
+    .destination-card-body { padding: .9rem 1rem .85rem; }
+    .destination-num { font-size: .5rem; margin-bottom: .3rem; letter-spacing: .18em; }
+    .destination-name { font-size: 1.15rem; margin-bottom: .25rem; line-height: 1.2; }
+    .destination-tagline { font-size: .54rem; letter-spacing: .1em; margin-bottom: 0; }
+    .destination-meta { margin-top: .5rem; padding-top: .5rem; }
+    .destination-meta span { font-size: .6rem; }
     .dest-tabs {
       position: sticky; top: 50px; z-index: 90;
       max-width: none;
