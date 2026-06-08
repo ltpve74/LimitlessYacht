@@ -836,6 +836,15 @@ j=d.createElement(s),dl=l!='dataLayer'?'&l='+l:'';j.async=true;j.crossOrigin='an
     border-color: rgba(201,168,76,.5);
   }
   .form-field select option { background: var(--deep); }
+  .field-optional {
+    font-size: .72rem; font-weight: 400; letter-spacing: 0;
+    color: rgba(245,240,232,.45); text-transform: none;
+  }
+  .form-reassurance {
+    font-size: .68rem; letter-spacing: .04em;
+    color: rgba(245,240,232,.45); text-align: center;
+    margin: .75rem 0 .5rem;
+  }
   .form-submit {
     background: var(--gold); color: var(--navy); border: none;
     padding: 1.1rem 2.5rem; font-family: 'Montserrat', sans-serif;
@@ -2471,23 +2480,17 @@ height="0" width="0" style="display:none;visibility:hidden"></iframe></noscript>
           <input type="hidden" name="locale" value="en" />
           <p style="display:none;"><input name="bot-field" /></p>
 
-          <div class="form-row">
-            <div class="form-field">
-              <label for="first_name">First Name</label>
-              <input type="text" name="first_name" id="first_name" placeholder="John" required />
-            </div>
-            <div class="form-field">
-              <label for="last_name">Last Name</label>
-              <input type="text" name="last_name" id="last_name" placeholder="Smith" />
-            </div>
+          <div class="form-field">
+            <label for="name">Your Name</label>
+            <input type="text" name="name" id="name" placeholder="First and last name" required />
           </div>
           <div class="form-field">
             <label for="email">Email</label>
-            <input type="email" name="email" id="email" placeholder="john@example.com" required />
+            <input type="email" name="email" id="email" placeholder="your@email.com" required />
           </div>
           <div class="form-field">
-            <label for="phone">Phone</label>
-            <input type="tel" name="phone" id="phone" placeholder="+1 / +44 / +34 ..." />
+            <label for="phone">Phone <span class="field-optional">(optional)</span></label>
+            <input type="tel" name="phone" id="phone" placeholder="WhatsApp or mobile number" />
           </div>
           <div class="form-row">
             <div class="form-field">
@@ -2495,11 +2498,12 @@ height="0" width="0" style="display:none;visibility:hidden"></iframe></noscript>
               <input type="date" name="preferred_date" id="preferred_date" />
             </div>
             <div class="form-field">
-              <label for="charter_duration">Charter Duration</label>
+              <label for="charter_duration">Duration</label>
               <select name="charter_duration" id="charter_duration">
+                <option value="" disabled selected>Select…</option>
                 <option>4 Hours</option>
                 <option>6 Hours</option>
-                <option selected>1 Day</option>
+                <option>1 Day</option>
                 <option>2–3 Days</option>
                 <option>4–6 Days</option>
                 <option>Longer</option>
@@ -2509,16 +2513,14 @@ height="0" width="0" style="display:none;visibility:hidden"></iframe></noscript>
           <div class="form-field">
             <label for="guests">Number of Guests</label>
             <select name="guests" id="guests">
-              <option>1–4 Guests</option>
-              <option>5–7 Guests</option>
-              <option>8–12 Guests (Day Charter Only)</option>
+              <option value="" disabled selected>How many guests?</option>
+              <option>1–4</option>
+              <option>5–7</option>
+              <option>8–12</option>
             </select>
           </div>
-          <div class="form-field">
-            <label for="message">Message / Special Requests</label>
-            <textarea rows="4" name="message" id="message" placeholder="Tell us about your wishes..."></textarea>
-          </div>
-          <button type="submit" class="form-submit" id="submitBtn">Send Enquiry</button>
+          <p class="form-reassurance">We reply within a few hours · your details stay private</p>
+          <button type="submit" class="form-submit" id="submitBtn">Send My Enquiry</button>
           <div id="form-success" style="display:none;color:var(--gold);font-size:.85rem;margin-top:.8rem;padding:.8rem;border:1px solid rgba(201,168,76,.3);background:rgba(201,168,76,.05);">
             ✓ Thank you! Your enquiry has been sent. We will be in touch shortly.
           </div>
