@@ -570,6 +570,9 @@ j=d.createElement(s),dl=l!='dataLayer'?'&l='+l:'';j.async=true;j.crossOrigin='an
   .gallery-item:nth-child(1) { grid-column: span 2; grid-row: span 2; }
   .gallery-item:nth-child(5) { grid-column: span 2; }
   .gallery-item:nth-child(10) { grid-column: span 2; }
+  .gallery-tabs { display: none; }
+  .gallery-group { display: block; }
+  .gallery-group + .gallery-group { margin-top: 2rem; }
   .gallery-item img {
     width: 100%; height: 100%; object-fit: cover; display: block;
     transition: transform .6s ease, filter .4s;
@@ -1404,12 +1407,43 @@ j=d.createElement(s),dl=l!='dataLayer'?'&l='+l:'';j.async=true;j.crossOrigin='an
     .intro-num { font-size: 1.6rem; }
     .intro-label { font-size: .46rem; margin-top: .15rem; }
 
-    .gallery-grid { grid-template-columns: 1fr 1fr; gap: 3px; }
     /* Full-bleed gallery on phones; heading stays padded via the section */
-    .gallery-wrap { margin-left: -1.2rem !important; margin-right: -1.2rem !important; padding: 0 !important; }
-    .gallery-item:nth-child(1) { grid-column: span 2; grid-row: span 1; }
-    .gallery-item:nth-child(5) { grid-column: span 1; }
-    .gallery-item:nth-child(10) { grid-column: span 1; }
+    .gallery-wrap { margin-left: -1.2rem !important; margin-right: -1.2rem !important; padding: 1.25rem 0 0 !important; }
+    /* Gallery tab switcher */
+    .gallery-tabs {
+      display: flex;
+      position: sticky; top: 50px; z-index: 90;
+      margin: 0;
+      border: 1px solid rgba(201,168,76,.25); border-left: none; border-right: none; border-radius: 0;
+      background: var(--navy);
+      box-shadow: 0 2px 12px rgba(0,0,0,.4);
+      overflow: hidden;
+    }
+    .gallery-tab {
+      flex: 1; padding: .85rem .5rem;
+      background: transparent; border: none;
+      color: var(--text-muted);
+      font-family: 'Montserrat', sans-serif; font-size: .58rem;
+      letter-spacing: .13em; text-transform: uppercase;
+      cursor: pointer; transition: background .2s, color .2s; line-height: 1.5; text-align: center;
+    }
+    .gallery-tab + .gallery-tab { border-left: 1px solid rgba(201,168,76,.25); }
+    .gallery-tab.tab--active { background: var(--gold); color: var(--navy); }
+    /* Gallery groups — carousel on mobile */
+    .gallery-group { display: none; }
+    .gallery-group.tab-active { display: block; }
+    .gallery-group .gallery-grid {
+      display: flex; flex-direction: row;
+      overflow-x: auto; scroll-snap-type: x mandatory;
+      -webkit-overflow-scrolling: touch; scrollbar-width: none;
+      padding: 1rem 1.5rem 1.75rem; gap: .75rem; margin-top: 0;
+    }
+    .gallery-group .gallery-grid::-webkit-scrollbar { display: none; }
+    .gallery-group .gallery-item {
+      flex: 0 0 78vw; scroll-snap-align: start;
+      height: calc(100svh - 13rem); border-radius: 8px;
+    }
+    .gallery-group .gallery-item picture { display: block; height: 100%; }
     /* Breathing space above sticky tabs */
     .itinerary-wrap { padding-top: 1.25rem !important; }
     /* Horizontal swipe carousel — one card at a time, next peeks at right */
@@ -1833,51 +1867,87 @@ height="0" width="0" style="display:none;visibility:hidden"></iframe></noscript>
     <h2 class="section-title reveal reveal-delay-1">On<em>board Gallery</em></h2>
   </div>
   <div class="gallery-wrap" style="max-width:1400px;margin:0 auto;padding:0 2rem;">
-    <div class="gallery-grid" id="galleryGrid">
-      <div class="gallery-item reveal" data-index="0">
-        <picture><source type="image/webp" srcset="images/maiora_20s_01.webp" /><img loading="lazy" decoding="async" src="images/maiora_20s_01.jpg" width="960" height="640" alt="Maiora 20S yacht Limitless cruising off the Mallorca coast" /></picture>
+    <div class="gallery-tabs" role="tablist" aria-label="Gallery category">
+      <button class="gallery-tab tab--active" role="tab" data-gtab="water">On the Water</button>
+      <button class="gallery-tab" role="tab" data-gtab="deck">Deck Life</button>
+      <button class="gallery-tab" role="tab" data-gtab="interior">Interiors</button>
+    </div>
+
+    <!-- On the Water: exterior / sailing shots -->
+    <div class="gallery-group tab-active" data-gtab="water">
+      <div class="gallery-grid">
+        <div class="gallery-item reveal" data-index="0">
+          <picture><source type="image/webp" srcset="images/maiora_20s_01.webp" /><img loading="lazy" decoding="async" src="images/maiora_20s_01.jpg" width="960" height="640" alt="Maiora 20S yacht Limitless cruising off the Mallorca coast" /></picture>
+        </div>
+        <div class="gallery-item reveal reveal-delay-1" data-index="1">
+          <picture><source type="image/webp" srcset="images/maiora_20s_03.webp" /><img loading="lazy" decoding="async" src="images/maiora_20s_03.jpg" width="960" height="640" alt="Aerial side profile of the Limitless yacht underway at sea" /></picture>
+        </div>
+        <div class="gallery-item reveal reveal-delay-2" data-index="5">
+          <picture><source type="image/webp" srcset="images/IMG_3986-scaled-1-768x576.webp" /><img loading="lazy" decoding="async" src="images/IMG_3986-scaled-1-768x576.jpg" width="768" height="576" alt="Helm and cockpit of the Limitless yacht" /></picture>
+        </div>
       </div>
-      <div class="gallery-item reveal reveal-delay-1" data-index="1">
-        <picture><source type="image/webp" srcset="images/maiora_20s_03.webp" /><img loading="lazy" decoding="async" src="images/maiora_20s_03.jpg" width="960" height="640" alt="Aerial side profile of the Limitless yacht underway at sea" /></picture>
+      <div class="carousel-nav">
+        <button class="carousel-btn carousel-prev" aria-label="Previous">&#8249;</button>
+        <span class="carousel-pos"></span>
+        <button class="carousel-btn carousel-next" aria-label="Next">&#8250;</button>
       </div>
-      <div class="gallery-item reveal reveal-delay-2" data-index="2">
-        <picture><source type="image/webp" srcset="images/limitless_aft_dining.webp" /><img loading="lazy" decoding="async" src="images/limitless_aft_dining.jpg" width="1280" height="960" alt="Al fresco dining on the aft deck of the Limitless yacht" /></picture>
+    </div>
+
+    <!-- Deck Life: outdoor spaces -->
+    <div class="gallery-group" data-gtab="deck">
+      <div class="gallery-grid">
+        <div class="gallery-item reveal" data-index="2">
+          <picture><source type="image/webp" srcset="images/limitless_aft_dining.webp" /><img loading="lazy" decoding="async" src="images/limitless_aft_dining.jpg" width="1280" height="960" alt="Al fresco dining on the aft deck of the Limitless yacht" /></picture>
+        </div>
+        <div class="gallery-item reveal reveal-delay-1" data-index="3">
+          <picture><source type="image/webp" srcset="images/limitless_flybridge.webp" /><img loading="lazy" decoding="async" src="images/limitless_flybridge.jpg" width="1280" height="960" alt="Flybridge lounge and dining on the Limitless yacht" /></picture>
+        </div>
+        <div class="gallery-item reveal reveal-delay-2" data-index="4">
+          <picture><source type="image/webp" srcset="images/limitless_sundeck.webp" /><img loading="lazy" decoding="async" src="images/limitless_sundeck.jpg" width="1280" height="960" alt="Flybridge sun deck and sunpads on the Limitless yacht" /></picture>
+        </div>
+        <div class="gallery-item reveal reveal-delay-3" data-index="14">
+          <picture><source type="image/webp" srcset="images/limitless_aft_deck.webp" /><img loading="lazy" decoding="async" src="images/limitless_aft_deck.jpg" width="1280" height="960" alt="Aft deck lounge of the Limitless yacht" /></picture>
+        </div>
       </div>
-      <div class="gallery-item reveal reveal-delay-3" data-index="3">
-        <picture><source type="image/webp" srcset="images/limitless_flybridge.webp" /><img loading="lazy" decoding="async" src="images/limitless_flybridge.jpg" width="1280" height="960" alt="Flybridge lounge and dining on the Limitless yacht" /></picture>
+      <div class="carousel-nav">
+        <button class="carousel-btn carousel-prev" aria-label="Previous">&#8249;</button>
+        <span class="carousel-pos"></span>
+        <button class="carousel-btn carousel-next" aria-label="Next">&#8250;</button>
       </div>
-      <div class="gallery-item reveal reveal-delay-1" data-index="4">
-        <picture><source type="image/webp" srcset="images/limitless_sundeck.webp" /><img loading="lazy" decoding="async" src="images/limitless_sundeck.jpg" width="1280" height="960" alt="Flybridge sun deck and sunpads on the Limitless yacht" /></picture>
+    </div>
+
+    <!-- Interiors: saloon and cabins -->
+    <div class="gallery-group" data-gtab="interior">
+      <div class="gallery-grid">
+        <div class="gallery-item reveal" data-index="6">
+          <picture><source type="image/webp" srcset="images/int_saloon_artwork.webp" /><img loading="lazy" decoding="async" src="images/int_saloon_artwork.jpg" width="1280" height="960" alt="Salon of the Limitless yacht with designer sofa and artwork" /></picture>
+        </div>
+        <div class="gallery-item reveal reveal-delay-1" data-index="7">
+          <picture><source type="image/webp" srcset="images/int_saloon_marina_view.webp" /><img loading="lazy" decoding="async" src="images/int_saloon_marina_view.jpg" width="1280" height="960" alt="Salon lounge of the Limitless yacht with marina views" /></picture>
+        </div>
+        <div class="gallery-item reveal reveal-delay-2" data-index="8">
+          <picture><source type="image/webp" srcset="images/int_saloon_reverse.webp" /><img loading="lazy" decoding="async" src="images/int_saloon_reverse.jpg" width="1280" height="960" alt="Salon seating area aboard the Limitless yacht" /></picture>
+        </div>
+        <div class="gallery-item reveal reveal-delay-3" data-index="9">
+          <picture><source type="image/webp" srcset="images/int_master_headboard.webp" /><img loading="lazy" decoding="async" src="images/int_master_headboard.jpg" width="1280" height="960" alt="Master cabin aboard the Limitless yacht" /></picture>
+        </div>
+        <div class="gallery-item reveal reveal-delay-1" data-index="10">
+          <picture><source type="image/webp" srcset="images/int_master_amber_glow.webp" /><img loading="lazy" decoding="async" src="images/int_master_amber_glow.jpg" width="1280" height="960" alt="Master cabin with ambient lighting on the Limitless yacht" /></picture>
+        </div>
+        <div class="gallery-item reveal reveal-delay-2" data-index="11">
+          <picture><source type="image/webp" srcset="images/int_master_wide.webp" /><img loading="lazy" decoding="async" src="images/int_master_wide.jpg" width="1280" height="960" alt="Spacious master cabin aboard the Limitless yacht" /></picture>
+        </div>
+        <div class="gallery-item reveal reveal-delay-3" data-index="12">
+          <picture><source type="image/webp" srcset="images/int_vip_cabin.webp" /><img loading="lazy" decoding="async" src="images/int_vip_cabin.jpg" width="1280" height="960" alt="VIP guest cabin aboard the Limitless yacht" /></picture>
+        </div>
+        <div class="gallery-item reveal reveal-delay-1" data-index="13">
+          <picture><source type="image/webp" srcset="images/int_twin_cabin.webp" /><img loading="lazy" decoding="async" src="images/int_twin_cabin.jpg" width="960" height="1280" alt="Twin guest cabin aboard the Limitless yacht" /></picture>
+        </div>
       </div>
-      <div class="gallery-item reveal reveal-delay-2" data-index="5">
-        <picture><source type="image/webp" srcset="images/IMG_3986-scaled-1-768x576.webp" /><img loading="lazy" decoding="async" src="images/IMG_3986-scaled-1-768x576.jpg" width="768" height="576" alt="Helm and cockpit of the Limitless yacht" /></picture>
-      </div>
-      <div class="gallery-item reveal reveal-delay-3" data-index="6">
-        <picture><source type="image/webp" srcset="images/int_saloon_artwork.webp" /><img loading="lazy" decoding="async" src="images/int_saloon_artwork.jpg" width="1280" height="960" alt="Salon of the Limitless yacht with designer sofa and artwork" /></picture>
-      </div>
-      <div class="gallery-item reveal reveal-delay-1" data-index="7">
-        <picture><source type="image/webp" srcset="images/int_saloon_marina_view.webp" /><img loading="lazy" decoding="async" src="images/int_saloon_marina_view.jpg" width="1280" height="960" alt="Salon lounge of the Limitless yacht with marina views" /></picture>
-      </div>
-      <div class="gallery-item reveal reveal-delay-2" data-index="8">
-        <picture><source type="image/webp" srcset="images/int_saloon_reverse.webp" /><img loading="lazy" decoding="async" src="images/int_saloon_reverse.jpg" width="1280" height="960" alt="Salon seating area aboard the Limitless yacht" /></picture>
-      </div>
-      <div class="gallery-item reveal reveal-delay-3" data-index="9">
-        <picture><source type="image/webp" srcset="images/int_master_headboard.webp" /><img loading="lazy" decoding="async" src="images/int_master_headboard.jpg" width="1280" height="960" alt="Master cabin aboard the Limitless yacht" /></picture>
-      </div>
-      <div class="gallery-item reveal reveal-delay-1" data-index="10">
-        <picture><source type="image/webp" srcset="images/int_master_amber_glow.webp" /><img loading="lazy" decoding="async" src="images/int_master_amber_glow.jpg" width="1280" height="960" alt="Master cabin with ambient lighting on the Limitless yacht" /></picture>
-      </div>
-      <div class="gallery-item reveal reveal-delay-2" data-index="11">
-        <picture><source type="image/webp" srcset="images/int_master_wide.webp" /><img loading="lazy" decoding="async" src="images/int_master_wide.jpg" width="1280" height="960" alt="Spacious master cabin aboard the Limitless yacht" /></picture>
-      </div>
-      <div class="gallery-item reveal reveal-delay-3" data-index="12">
-        <picture><source type="image/webp" srcset="images/int_vip_cabin.webp" /><img loading="lazy" decoding="async" src="images/int_vip_cabin.jpg" width="1280" height="960" alt="VIP guest cabin aboard the Limitless yacht" /></picture>
-      </div>
-      <div class="gallery-item reveal reveal-delay-1" data-index="13">
-        <picture><source type="image/webp" srcset="images/int_twin_cabin.webp" /><img loading="lazy" decoding="async" src="images/int_twin_cabin.jpg" width="960" height="1280" alt="Twin guest cabin aboard the Limitless yacht" /></picture>
-      </div>
-      <div class="gallery-item reveal reveal-delay-2" data-index="14">
-        <picture><source type="image/webp" srcset="images/limitless_aft_deck.webp" /><img loading="lazy" decoding="async" src="images/limitless_aft_deck.jpg" width="1280" height="960" alt="Aft deck lounge of the Limitless yacht" /></picture>
+      <div class="carousel-nav">
+        <button class="carousel-btn carousel-prev" aria-label="Previous">&#8249;</button>
+        <span class="carousel-pos"></span>
+        <button class="carousel-btn carousel-next" aria-label="Next">&#8250;</button>
       </div>
     </div>
   </div>
@@ -2699,6 +2769,43 @@ height="0" width="0" style="display:none;visibility:hidden"></iframe></noscript>
     entries.forEach(e => { if (e.isIntersecting) e.target.classList.add('visible'); });
   }, { threshold: 0.12 });
   reveals.forEach(el => observer.observe(el));
+
+  // Gallery tabs + carousel nav
+  (function(){
+    var tabs   = document.querySelectorAll('.gallery-tab');
+    var groups = document.querySelectorAll('.gallery-group');
+
+    function setGalleryTab(tab) {
+      tabs.forEach(function(t)   { t.classList.toggle('tab--active', t.dataset.gtab === tab); });
+      groups.forEach(function(g) { g.classList.toggle('tab-active',  g.dataset.gtab === tab); });
+    }
+    tabs.forEach(function(tab) {
+      tab.addEventListener('click', function() { setGalleryTab(tab.dataset.gtab); });
+    });
+
+    groups.forEach(function(group) {
+      var grid    = group.querySelector('.gallery-grid');
+      if (!grid) return;
+      var btnPrev = group.querySelector('.carousel-prev');
+      var btnNext = group.querySelector('.carousel-next');
+      var posEl   = group.querySelector('.carousel-pos');
+      var cards   = Array.from(grid.querySelectorAll('.gallery-item'));
+      var total   = cards.length;
+
+      function step() { return cards.length > 1 ? cards[1].offsetLeft - cards[0].offsetLeft : grid.scrollWidth; }
+      function idx()  { return Math.round(grid.scrollLeft / step()); }
+      function update() {
+        var i = idx();
+        if (btnPrev) btnPrev.disabled = i <= 0;
+        if (btnNext) btnNext.disabled = i >= total - 1;
+        if (posEl)   posEl.textContent = (i + 1) + ' / ' + total;
+      }
+      if (btnPrev) btnPrev.addEventListener('click', function() { grid.scrollTo({ left: (idx()-1)*step(), behavior:'smooth' }); });
+      if (btnNext) btnNext.addEventListener('click', function() { grid.scrollTo({ left: (idx()+1)*step(), behavior:'smooth' }); });
+      grid.addEventListener('scroll', update, { passive: true });
+      update();
+    });
+  })();
 
   // Gallery lightbox
   const images = [
