@@ -1416,7 +1416,6 @@ j=d.createElement(s),dl=l!='dataLayer'?'&l='+l:'';j.async=true;j.crossOrigin='an
       display: flex; flex-direction: row;
       overflow-x: auto; scroll-snap-type: x mandatory;
       -webkit-overflow-scrolling: touch; scrollbar-width: none;
-      touch-action: pan-x;
       padding: 1rem 1.5rem 1.75rem; gap: .75rem; margin-top: 0;
     }
     .dest-group .itinerary-grid::-webkit-scrollbar { display: none; }
@@ -2166,6 +2165,26 @@ height="0" width="0" style="display:none;visibility:hidden"></iframe></noscript>
       setDestTab(tab.dataset.tier);
       history.pushState(null, '', '#' + tab.dataset.tier);
     });
+  });
+
+  /* Directional touch lock: horizontal swipe stays in carousel, vertical swipe scrolls page */
+  document.querySelectorAll('.dest-group .itinerary-grid').forEach(function(grid) {
+    var startX, startY, decided = false, horizontal = false;
+    grid.addEventListener('touchstart', function(e) {
+      startX = e.touches[0].clientX;
+      startY = e.touches[0].clientY;
+      decided = false; horizontal = false;
+    }, { passive: true });
+    grid.addEventListener('touchmove', function(e) {
+      if (!decided) {
+        var dx = Math.abs(e.touches[0].clientX - startX);
+        var dy = Math.abs(e.touches[0].clientY - startY);
+        if (dx + dy < 4) return;
+        horizontal = dx > dy;
+        decided = true;
+      }
+      if (horizontal) e.preventDefault();
+    }, { passive: false });
   });
 })();
 </script>
