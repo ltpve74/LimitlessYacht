@@ -706,6 +706,200 @@ PAIRS = [
     ('aria-label="Open menu"', 'aria-label="Ouvrir le menu"'),
     ('aria-label="Site menu"', 'aria-label="Menu du site"'),
     ('Multi-day &amp; overnight charters available — priced per day. Stay as many days as you like.', 'Croisières de plusieurs jours et avec nuit à bord disponibles — tarif par jour. Restez autant de jours que vous le souhaitez.'),
+    # --- 2026 content refresh (auto-added) ---
+    (
+        'Private Charter',
+        'Charter Privé',
+    ),
+    (
+        'Your crew handles everything — you focus on the people and the views.',
+        "Votre équipage s'occupe de tout — vous profitez des autres et des paysages.",
+    ),
+    (
+        ' is a 21-metre Maiora with a flybridge, aft deck and sun pads — space for twelve guests by day, comfortable for seven overnight. Built for the sea and maintained to charter standard.',
+        ' est un Maiora de 21 mètres avec flybridge, pont arrière et bains de soleil — de la place pour douze invités en journée, confortable pour sept en nuitée. Conçu pour la mer et entretenu aux normes du charter.',
+    ),
+    (
+        "What truly sets Limitless apart is her <strong>dedicated crew</strong>. Attentive, experienced and genuinely passionate about the sea, they take care of everything — from organising catering to reserving beach club access — so you can focus entirely on the people you're with and the places you're discovering.",
+        "Ce qui distingue véritablement Limitless, c'est son <strong>équipage dévoué</strong>. Attentif, expérimenté et réellement passionné par la mer, il s'occupe de tout — de l'organisation du traiteur à la réservation de l'accès aux beach clubs — pour que vous puissiez vous consacrer pleinement à vos proches et aux lieux que vous découvrez.",
+    ),
+    (
+        "See where you'd go",
+        'Voyez où vous iriez',
+    ),
+    (
+        'On the Water',
+        "Sur l'eau",
+    ),
+    (
+        'Deck Life',
+        'La vie à bord',
+    ),
+    (
+        'Interiors',
+        'Intérieurs',
+    ),
+    (
+        'Every route is shaped around your group — the suggestions below are a starting point. Your crew handles the rest.',
+        "Chaque itinéraire s'adapte à votre groupe — les suggestions ci-dessous ne sont qu'un point de départ. Votre équipage s'occupe du reste.",
+    ),
+    (
+        'Half-Day',
+        'Demi-journée',
+    ),
+    (
+        '4 – 6 hours',
+        '4 – 6 heures',
+    ),
+    (
+        'Full Day',
+        'Journée complète',
+    ),
+    (
+        'A full day out',
+        'Une journée entière',
+    ),
+    (
+        'Multi-Day',
+        'Plusieurs jours',
+    ),
+    (
+        'Overnight +',
+        'Avec nuitée +',
+    ),
+    (
+        'A protected marine reserve around the Malgrats islets and El Toro headland. Crystal water teeming with fish, easy snorkelling and a relaxed half-day with lunch at anchor.',
+        "Une réserve marine protégée autour des îlots Malgrats et de la pointe d'El Toro. Une eau cristalline grouillante de poissons, du snorkeling facile et une demi-journée détendue avec déjeuner au mouillage.",
+    ),
+    (
+        'A calm, pine-fringed bay tucked just south of Port d’Andratx. Protected from the prevailing winds — perfect for a long lunch at anchor or a peaceful swim.',
+        "Une baie calme bordée de pins, juste au sud de Port d'Andratx. Abritée des vents dominants — parfaite pour un long déjeuner au mouillage ou une baignade paisible.",
+    ),
+    (
+        'The uninhabited, dragon-shaped island of Sa Dragonera is a Parc Natural. Snorkel the pristine waters, then lunch in the pretty harbour of Sant Elm.',
+        "L'île inhabitée en forme de dragon de Sa Dragonera est un Parc Natural. Faites du snorkeling dans ses eaux préservées, puis déjeunez dans le joli port de Sant Elm.",
+    ),
+    (
+        'A dramatic cove enclosed by towering limestone walls opening onto a sandy beach with shallow turquoise water. Peaceful, photogenic and perfect for swimming and lunch.',
+        "Une crique spectaculaire, encadrée d'imposantes parois calcaires s'ouvrant sur une plage de sable aux eaux turquoise peu profondes. Paisible, photogénique et parfaite pour la baignade et le déjeuner.",
+    ),
+    (
+        'One of Mallorca’s last unspoilt beaches — powdery white sand, shallow crystal-clear water. Anchor and wade in for a truly secluded escape.',
+        "L'une des dernières plages préservées de Majorque — sable blanc et poudreux, eau peu profonde et limpide. Jetez l'ancre et entrez à pied pour une évasion vraiment isolée.",
+    ),
+    (
+        'Spain’s first maritime-terrestrial national park. We hold the annual permit — crystal waters, rich wildlife and a true sense of remoteness just 90 minutes from the marina.',
+        "Le premier parc national maritime-terrestre d'Espagne. Nous détenons le permis annuel — eaux cristallines, faune riche et un véritable sentiment d'isolement à seulement 90 minutes de la marina.",
+    ),
+    (
+        'Permit held · Buoys only',
+        'Permis détenu · Bouées uniquement',
+    ),
+    (
+        'Mallorca’s Most Photographed Cove',
+        'La crique la plus photographiée de Majorque',
+    ),
+    (
+        'The impossibly turquoise inlet of Caló des Moro backed by dramatic cliffs — one of the island’s most iconic spots. Pair with Cala Figuera’s charming fishing harbour for contrast.',
+        "La crique d'un turquoise irréel de Caló des Moro, adossée à des falaises spectaculaires — l'un des sites les plus emblématiques de l'île. À associer au charmant port de pêche de Cala Figuera pour le contraste.",
+    ),
+    (
+        'Northwest Coast',
+        'Côte nord-ouest',
+    ),
+    (
+        'Mallorca’s most dramatic coastline — towering Serra de Tramuntana cliffs, the pierced rock of Sa Foradada, the harbour town of Port Sóller and the secluded pebble beach of Cala Tuent. 2–4 nights.',
+        'La côte la plus spectaculaire de Majorque — les hautes falaises de la Serra de Tramuntana, le rocher percé de Sa Foradada, le port de Port Sóller et la plage de galets isolée de Cala Tuent. 2–4 nuits.',
+    ),
+    (
+        'Anchorages &amp; moorings',
+        'Mouillages &amp; corps-morts',
+    ),
+    (
+        'Full Island',
+        'Île entière',
+    ),
+    (
+        'The definitive Mallorca voyage — all 200 nm of coastline, from the wild west cliffs and Cap de Formentor to the calm eastern bays and back. 5–7 flexible days at anchor or in harbour towns.',
+        "Le voyage ultime autour de Majorque — les 200 milles de côte, des falaises sauvages de l'ouest et du Cap de Formentor jusqu'aux baies calmes de l'est, puis retour. 5–7 jours flexibles au mouillage ou dans les ports.",
+    ),
+    (
+        'Balearics Crossing',
+        'Traversée des Baléares',
+    ),
+    (
+        'A ~70 nm open-sea crossing to Ibiza’s vibrant harbours and hidden coves, with the option to push on to Formentera’s Ses Illetes — the Caribbean of the Med. 2–4 nights.',
+        "Une traversée de ~70 milles en haute mer vers les ports animés et les criques cachées d'Ibiza, avec la possibilité de pousser jusqu'à Ses Illetes à Formentera — les Caraïbes de la Méditerranée. 2–4 nuits.",
+    ),
+    (
+        'Marina or anchorage',
+        'Marina ou mouillage',
+    ),
+    (
+        '~60 nm northeast to Menorca — the most unspoilt Balearic. Anchor in Cala Macarella and Cala Mitjana, moor in Mahón’s vast natural harbour, discover quiet fishing towns. 2–5 nights.',
+        "~60 milles au nord-est vers Minorque — la plus préservée des Baléares. Mouillez à Cala Macarella et Cala Mitjana, amarrez dans l'immense port naturel de Mahón et découvrez de paisibles villages de pêcheurs. 2–5 nuits.",
+    ),
+    (
+        'Coves &amp; natural harbour',
+        'Criques &amp; port naturel',
+    ),
+    (
+        'Transparent &amp;<em> fair</em>',
+        'Transparent &amp;<em> équitable</em>',
+    ),
+    (
+        'Peak season (Jun–Aug) books fast — <strong>limited summer dates remaining</strong>',
+        "La haute saison (juin–août) se remplit vite — <strong>dates d'été en quantité limitée</strong>",
+    ),
+    (
+        'Sep – May',
+        'sep – mai',
+    ),
+    (
+        'Jun – Aug',
+        'juin – août',
+    ),
+    (
+        'Tap a duration to explore matching destinations',
+        'Touchez une durée pour voir les destinations correspondantes',
+    ),
+    (
+        'Request a quote',
+        'Demander un devis',
+    ),
+    (
+        '"Spacious, comfortable and spotless — the crew made sure we were well taken care of wherever we went."',
+        "« Spacieux, confortable et impeccable — l'équipage a veillé à ce que nous soyons parfaitement pris en charge partout. »",
+    ),
+    (
+        ' — Tony, Aug 2025',
+        ' — Tony, août 2025',
+    ),
+    (
+        'Duration',
+        'Durée',
+    ),
+    (
+        'Select…',
+        'Sélectionner…',
+    ),
+    (
+        '4–6 Days',
+        '4–6 jours',
+    ),
+    (
+        'We reply within a few hours · your details stay private',
+        'Nous répondons sous quelques heures · vos données restent privées',
+    ),
+    (
+        'Send My Enquiry',
+        'Envoyer ma demande',
+    ),
+    (
+        'Chat on WhatsApp',
+        'Discuter sur WhatsApp',
+    ),
+
 ]
 
 LEGAL_PAIRS = [
