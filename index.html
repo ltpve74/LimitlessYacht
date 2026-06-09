@@ -360,8 +360,10 @@ j=d.createElement(s),dl=l!='dataLayer'?'&l='+l:'';j.async=true;j.crossOrigin='an
       linear-gradient(135deg, rgba(10,22,40,.75) 0%, rgba(10,22,40,.28) 50%, rgba(10,22,40,.72) 100%);
   }
   .hero-content {
-    position: relative; text-align: center; padding: 0 2rem;
+    position: absolute; top: 0; bottom: 0; left: 0; right: 0;
     max-width: 52rem; margin: 0 auto;
+    text-align: center; padding: 5rem 2rem 5.5rem;
+    display: flex; flex-direction: column; align-items: center;
     animation: fadeUp 1.2s ease both;
   }
   .hero-content::before {
@@ -1639,6 +1641,7 @@ j=d.createElement(s),dl=l!='dataLayer'?'&l='+l:'';j.async=true;j.crossOrigin='an
       padding-bottom: max(0.25rem, env(safe-area-inset-bottom));
     }
     .hero-content {
+      position: relative; top: auto; bottom: auto; left: auto; right: auto;
       display: flex;
       flex-direction: column;
       align-items: center;

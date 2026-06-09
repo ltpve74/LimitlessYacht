@@ -342,7 +342,7 @@ j=d.createElement(s),dl=l!='dataLayer'?'&l='+l:'';j.async=true;j.crossOrigin='an
 
   /* ── HERO ── */
   #hero {
-    position: relative; height: 100vh; overflow: hidden;
+    position: relative; height: 100vh; height: 100svh; overflow: hidden;
     display: flex; align-items: center; justify-content: center;
   }
   .hero-bg {
@@ -360,8 +360,10 @@ j=d.createElement(s),dl=l!='dataLayer'?'&l='+l:'';j.async=true;j.crossOrigin='an
       linear-gradient(135deg, rgba(10,22,40,.75) 0%, rgba(10,22,40,.28) 50%, rgba(10,22,40,.72) 100%);
   }
   .hero-content {
-    position: relative; text-align: center; padding: 0 2rem;
+    position: absolute; top: 0; bottom: 0; left: 0; right: 0;
     max-width: 52rem; margin: 0 auto;
+    text-align: center; padding: 5rem 2rem 5.5rem;
+    display: flex; flex-direction: column; align-items: center;
     animation: fadeUp 1.2s ease both;
   }
   .hero-content::before {
@@ -508,6 +510,27 @@ j=d.createElement(s),dl=l!='dataLayer'?'&l='+l:'';j.async=true;j.crossOrigin='an
   }
   .about-text p strong { color: var(--gold-light); font-weight: 500; }
 
+  /* ── DESTINATION TABS ── */
+  .dest-tabs {
+    display: flex; margin-top: 1.5rem;
+    border: 1px solid rgba(201,168,76,.25); border-radius: 3px; overflow: hidden;
+    max-width: 480px;
+  }
+  .dest-tab {
+    flex: 1; padding: .85rem .5rem; background: transparent; border: none;
+    color: var(--text-muted); font-family: 'Montserrat', sans-serif;
+    font-size: .58rem; letter-spacing: .13em; text-transform: uppercase;
+    cursor: pointer; transition: background .2s, color .2s; line-height: 1.5;
+    text-align: center;
+  }
+  .dest-tab .tab-period { display: block; font-size: .5rem; letter-spacing: .06em; margin-top: .15rem; opacity: .75; }
+  .dest-tab.tab--active { background: var(--gold); color: var(--navy); }
+  .dest-tab + .dest-tab { border-left: 1px solid rgba(201,168,76,.25); }
+  .dest-group { display: none; }
+  .dest-group.tab-active { display: block; }
+  .dest-group .itinerary-grid { margin-top: 1.5rem; }
+  .carousel-nav { display: none; }
+
   /* ── SPECS ── */
   #specs { background: var(--deep); padding-bottom: 3.5rem; }
   .specs-grid {
@@ -549,6 +572,9 @@ j=d.createElement(s),dl=l!='dataLayer'?'&l='+l:'';j.async=true;j.crossOrigin='an
   .gallery-item:nth-child(1) { grid-column: span 2; grid-row: span 2; }
   .gallery-item:nth-child(5) { grid-column: span 2; }
   .gallery-item:nth-child(10) { grid-column: span 2; }
+  .gallery-tabs { display: none; }
+  .gallery-group { display: block; }
+  .gallery-group + .gallery-group { margin-top: 2rem; }
   .gallery-item img {
     width: 100%; height: 100%; object-fit: cover; display: block;
     transition: transform .6s ease, filter .4s;
@@ -680,6 +706,8 @@ j=d.createElement(s),dl=l!='dataLayer'?'&l='+l:'';j.async=true;j.crossOrigin='an
     position: relative;
     z-index: 1;
   }
+  .pricing-tabs { display: none; } /* shown on mobile via max-width:768px override */
+  .pricing-book-cta { display: none; }
   .pricing-grid {
     display: grid; grid-template-columns: 1fr 1fr; gap: 2rem; margin-top: 3.5rem;
   }
@@ -834,6 +862,15 @@ j=d.createElement(s),dl=l!='dataLayer'?'&l='+l:'';j.async=true;j.crossOrigin='an
     border-color: rgba(201,168,76,.5);
   }
   .form-field select option { background: var(--deep); }
+  .field-optional {
+    font-size: .72rem; font-weight: 400; letter-spacing: 0;
+    color: rgba(245,240,232,.45); text-transform: none;
+  }
+  .form-reassurance {
+    font-size: .68rem; letter-spacing: .04em;
+    color: rgba(245,240,232,.45); text-align: center;
+    margin: .75rem 0 .5rem;
+  }
   .form-submit {
     background: var(--gold); color: var(--navy); border: none;
     padding: 1.1rem 2.5rem; font-family: 'Montserrat', sans-serif;
@@ -1113,9 +1150,7 @@ j=d.createElement(s),dl=l!='dataLayer'?'&l='+l:'';j.async=true;j.crossOrigin='an
       margin-right: -1.2rem !important;
       padding: 0 !important;
     }
-    .destination-card { min-height: 380px; }
     .destination-desc { font-size: .82rem; line-height: 1.65; }
-    .destination-meta span { font-size: .65rem; }
   }
 
   /* ── AVAILABILITY ── */
@@ -1273,7 +1308,8 @@ j=d.createElement(s),dl=l!='dataLayer'?'&l='+l:'';j.async=true;j.crossOrigin='an
   @media (max-width: 640px) {
     section { padding: 4rem 1.2rem; }
     nav { padding: 0.65rem 1rem; }
-    .hero-eyebrow { font-size: .62rem; margin-bottom: 1.6rem; }
+    .hero-eyebrow { font-size: .62rem; margin-bottom: 1.6rem; letter-spacing: .03em; }
+    .eyebrow-stars { letter-spacing: .03em; }
     .hero-title { font-size: clamp(2.8rem, 7.5vw, 4.2rem); }
     .hero-sub { font-size: .82rem; letter-spacing: .08em; }
     .hero-actions { flex-direction: column; align-items: center; gap: .8rem; }
@@ -1290,8 +1326,57 @@ j=d.createElement(s),dl=l!='dataLayer'?'&l='+l:'';j.async=true;j.crossOrigin='an
     .spec-card .spec-value { font-size: 1.0rem; }
     .spec-cruise .spec-value { font-size: 0.9rem; line-height: 1.25; }
     .amenities-grid { grid-template-columns: 1fr; }
-    .pricing-grid { grid-template-columns: 1fr; }
-    .pricing-amount { font-size: 1.8rem; }
+    .pricing-grid { grid-template-columns: 1fr; margin-top: 0; }
+    .pricing-amount { font-size: 1.6rem; }
+    .pricing-card { display: none; padding: 1rem 1.25rem; }
+    .pricing-card.tab-active { display: block; }
+    .pricing-badge { display: none; }
+    .pricing-season { display: none; }
+    .pricing-row { padding: .6rem 0; }
+    .pricing-duration { font-size: .95rem; }
+    .pricing-urgency { margin: -.25rem 0 .35rem; font-size: .65rem; }
+    #pricing { padding-top: 1.75rem; padding-bottom: 2.5rem; }
+    #pricing .section-label { display: none; }
+    #pricing .section-title { margin-bottom: .3rem; }
+    .pricing-tabs {
+      display: flex; margin-top: 1rem; margin-bottom: .75rem;
+      border: 1px solid rgba(201,168,76,.25); border-radius: 3px; overflow: hidden;
+    }
+    .pricing-tab {
+      flex: 1; padding: .85rem .5rem; background: transparent; border: none;
+      color: var(--text-muted); font-family: 'Montserrat', sans-serif;
+      font-size: .58rem; letter-spacing: .13em; text-transform: uppercase;
+      cursor: pointer; transition: background .2s, color .2s; line-height: 1.5;
+    }
+    .pricing-tab .tab-period { display: block; font-size: .5rem; letter-spacing: .06em; margin-top: .15rem; opacity: .75; }
+    .pricing-tab.tab--active { background: var(--gold); color: var(--navy); }
+    .pricing-tab + .pricing-tab { border-left: 1px solid rgba(201,168,76,.25); }
+    .pricing-explore-hint {
+      margin: 0 0 .35rem;
+      font-size: .65rem; letter-spacing: .03em;
+      color: rgba(245,240,232,.6);
+      font-style: italic;
+    }
+.pricing-review-snippet {
+      margin-top: .75rem;
+      font-size: .68rem; line-height: 1.6;
+      color: rgba(245,240,232,.72);
+    }
+    .pricing-review-snippet .review-stars { color: var(--gold); }
+    .review-attr {
+      font-style: normal;
+      color: rgba(245,240,232,.55);
+    }
+    .pricing-book-cta {
+      display: block; margin-top: .75rem;
+      padding: .72rem 1rem;
+      background: transparent; color: var(--gold);
+      border: 1px solid rgba(201,168,76,.4);
+      text-align: center; text-decoration: none;
+      font-family: 'Montserrat', sans-serif; font-size: .6rem;
+      letter-spacing: .14em; text-transform: uppercase; font-weight: 600;
+      border-radius: 2px;
+    }
     .form-row { grid-template-columns: 1fr; }
 
     .pricing-terms {
@@ -1324,15 +1409,91 @@ j=d.createElement(s),dl=l!='dataLayer'?'&l='+l:'';j.async=true;j.crossOrigin='an
     .intro-num { font-size: 1.6rem; }
     .intro-label { font-size: .46rem; margin-top: .15rem; }
 
-    .gallery-grid { grid-template-columns: 1fr 1fr; gap: 3px; }
     /* Full-bleed gallery on phones; heading stays padded via the section */
-    .gallery-wrap { margin-left: -1.2rem !important; margin-right: -1.2rem !important; padding: 0 !important; }
-    .gallery-item:nth-child(1) { grid-column: span 2; grid-row: span 1; }
-    .gallery-item:nth-child(5) { grid-column: span 1; }
-    .gallery-item:nth-child(10) { grid-column: span 1; }
-    .destination-card { min-height: 420px; }
-    .destination-meta { flex-wrap: wrap; gap: .8rem; }
-    .destination-meta span { font-size: .65rem; }
+    .gallery-wrap { margin-left: -1.2rem !important; margin-right: -1.2rem !important; padding: 1.25rem 0 0 !important; }
+    /* Gallery tab switcher */
+    .gallery-tabs {
+      display: flex;
+      position: sticky; top: 50px; z-index: 90;
+      margin: 0;
+      border: 1px solid rgba(201,168,76,.25); border-left: none; border-right: none; border-radius: 0;
+      background: var(--navy);
+      box-shadow: 0 2px 12px rgba(0,0,0,.4);
+      overflow: hidden;
+    }
+    .gallery-tab {
+      flex: 1; padding: .85rem .5rem;
+      background: transparent; border: none;
+      color: var(--text-muted);
+      font-family: 'Montserrat', sans-serif; font-size: .58rem;
+      letter-spacing: .13em; text-transform: uppercase;
+      cursor: pointer; transition: background .2s, color .2s; line-height: 1.5; text-align: center;
+    }
+    .gallery-tab + .gallery-tab { border-left: 1px solid rgba(201,168,76,.25); }
+    .gallery-tab.tab--active { background: var(--gold); color: var(--navy); }
+    /* Gallery groups — carousel on mobile */
+    .gallery-group { display: none; }
+    .gallery-group.tab-active { display: block; }
+    .gallery-group .gallery-grid {
+      display: flex; flex-direction: row;
+      overflow-x: auto; scroll-snap-type: x mandatory;
+      -webkit-overflow-scrolling: touch; scrollbar-width: none;
+      padding: 1rem 1.5rem 1.75rem; gap: .75rem; margin-top: 0;
+    }
+    .gallery-group .gallery-grid::-webkit-scrollbar { display: none; }
+    .gallery-group .gallery-item {
+      flex: 0 0 78vw; scroll-snap-align: start;
+      height: calc(100svh - 13rem); border-radius: 8px;
+    }
+    .gallery-group .gallery-item picture { display: block; height: 100%; }
+    /* Breathing space above sticky tabs */
+    .itinerary-wrap { padding-top: 1.25rem !important; }
+    /* Horizontal swipe carousel — one card at a time, next peeks at right */
+    .dest-group .itinerary-grid {
+      display: flex; flex-direction: row;
+      overflow-x: auto; scroll-snap-type: x mandatory;
+      -webkit-overflow-scrolling: touch; scrollbar-width: none;
+      padding: 1rem 1.5rem 1.75rem; gap: .75rem; margin-top: 0;
+    }
+    .dest-group .itinerary-grid::-webkit-scrollbar { display: none; }
+    .destination-card {
+      flex: 0 0 78vw; scroll-snap-align: start;
+      height: calc(100svh - 13rem); min-height: unset; border-radius: 8px;
+    }
+    .destination-card-body { padding: .9rem 1rem .85rem; }
+    .destination-num { font-size: .5rem; margin-bottom: .3rem; letter-spacing: .18em; }
+    .destination-name { font-size: 1.15rem; margin-bottom: .25rem; line-height: 1.2; }
+    .destination-tagline { font-size: .54rem; letter-spacing: .1em; margin-bottom: 0; }
+    .destination-meta { margin-top: .5rem; padding-top: .5rem; }
+    .destination-meta span { font-size: .6rem; }
+    .carousel-nav {
+      display: flex; align-items: center; justify-content: center;
+      gap: 1.25rem; padding: .6rem 0 .5rem;
+    }
+    .carousel-btn {
+      background: transparent; border: 1px solid rgba(201,168,76,.3);
+      color: var(--gold); width: 2.2rem; height: 2.2rem; border-radius: 50%;
+      font-size: 1.3rem; cursor: pointer;
+      display: flex; align-items: center; justify-content: center;
+      transition: opacity .2s; -webkit-tap-highlight-color: transparent;
+      flex-shrink: 0;
+    }
+    .carousel-btn:disabled { opacity: .2; }
+    .carousel-pos {
+      font-family: 'Montserrat', sans-serif; font-size: .55rem;
+      letter-spacing: .15em; text-transform: uppercase;
+      color: rgba(245,240,232,.45); min-width: 2.5rem; text-align: center;
+    }
+    .dest-tabs {
+      position: sticky; top: 50px; z-index: 90;
+      max-width: none;
+      margin: 0;
+      border-left: none; border-right: none; border-radius: 0;
+      background: var(--navy);
+      box-shadow: 0 2px 12px rgba(0,0,0,.4);
+    }
+    .destination-desc { display: none; }
+    .destination-meta span:not(:first-child) { display: none; }
     .contact-grid { grid-template-columns: 1fr; gap: 2.5rem; }
     .about-image-wrap {
       height: 320px;
@@ -1480,6 +1641,7 @@ j=d.createElement(s),dl=l!='dataLayer'?'&l='+l:'';j.async=true;j.crossOrigin='an
       padding-bottom: max(0.25rem, env(safe-area-inset-bottom));
     }
     .hero-content {
+      position: relative; top: auto; bottom: auto; left: auto; right: auto;
       display: flex;
       flex-direction: column;
       align-items: center;
@@ -1502,9 +1664,11 @@ j=d.createElement(s),dl=l!='dataLayer'?'&l='+l:'';j.async=true;j.crossOrigin='an
        Reduced #hero padding-bottom lets the anchored elements sit close to the true viewport bottom. */
     .hero-eyebrow { margin-bottom: 1.6rem; }
     .hero-sub { margin-top: clamp(1rem, 4vh, 2rem); }
+    .hero-value { margin-top: 0.5rem; font-size: .7rem; }
     .hero-cta-group { margin-top: auto; }
     .hero-actions { margin-top: 0; }
     .hero-trust { margin-top: 0.4rem; margin-bottom: 0.25rem; }
+    @media (max-height: 640px) { .hero-value { display: none; } }
     .scroll-line { height: 40px; }
     .hero-scroll span { font-size: .52rem; }
 
@@ -1526,43 +1690,58 @@ j=d.createElement(s),dl=l!='dataLayer'?'&l='+l:'';j.async=true;j.crossOrigin='an
     }
   }
   /* Hero trust cue */
-  .hero-trust {
-    margin-top: 1.6rem; font-size: .72rem; letter-spacing: .12em; text-transform: uppercase; color: var(--text-muted);
-    opacity: 0; animation: fadeIn 0.6s 1.2s ease both;
+  .eyebrow-stars { color: var(--gold); letter-spacing: .1em; }
+  .hero-value {
+    margin-top: 0.75rem;
+    font-size: clamp(.72rem, 1.4vw, .84rem);
+    letter-spacing: .04em; line-height: 1.65;
+    color: rgba(245,240,232,.68);
+    font-style: italic;
+    opacity: 0; animation: fadeUp 1s .9s ease both;
   }
-  .hero-trust .stars { color: var(--gold); letter-spacing: .14em; }
-  .hero-trust strong { color: var(--cream); font-weight: 500; }
+  .hero-trust {
+    margin-top: 1.4rem; font-size: .65rem; letter-spacing: .12em; text-transform: uppercase; color: var(--text-muted);
+    opacity: 0; animation: fadeIn 0.6s 1.3s ease both;
+  }
   /* Contextual cross-link back to destinations */
   .section-back-cta { text-align: center; margin-top: 2.6rem; font-size: .85rem; color: var(--text-muted); letter-spacing: .02em; }
   .section-back-cta a { color: var(--gold); text-decoration: none; font-weight: 500; border-bottom: 1px solid rgba(201,168,76,.4); padding-bottom: 2px; transition: color .2s, border-color .2s; }
   .section-back-cta a:hover { color: var(--gold-light); border-color: var(--gold-light); }
-  /* Floating pill buttons (mobile-only contextual actions after viewing Rates) */
-  .dest-fab { position: fixed; right: 1.4rem; bottom: 1.4rem; z-index: 250; display: inline-flex; align-items: center; gap: .5rem; padding: .7rem 1.15rem; background: rgba(10,22,40,.92); backdrop-filter: blur(6px); border: 1px solid var(--gold); color: var(--gold); font-family: 'Montserrat', sans-serif; font-size: .62rem; letter-spacing: .16em; text-transform: uppercase; text-decoration: none; border-radius: 999px; box-shadow: 0 6px 24px rgba(0,0,0,.35); opacity: 0; transform: translateY(12px); pointer-events: none; transition: opacity .35s ease, transform .35s ease, background .2s, color .2s; }
-  .dest-fab.show { opacity: 1; transform: translateY(0); pointer-events: auto; }
-  .dest-fab:hover { background: var(--gold); color: var(--navy); }
-  .dest-fab-icon { font-size: .8rem; line-height: 1; }
 
-  /* Desktop/tablet: pills not needed (regular nav + in-page links are sufficient) */
-  @media (min-width: 641px) {
-    .dest-fab { display: none !important; }
+  /* ── PRICING TABS (mobile toggle — display:none overridden inside max-width:768px block above) ── */
+
+  /* ── HERO WHATSAPP LINK ── */
+  /* ── PRICING URGENCY NOTE ── */
+  .pricing-urgency {
+    text-align: center; margin: -.5rem 0 2rem;
+    font-size: .72rem; letter-spacing: .08em; color: var(--gold-light);
+    font-family: 'Montserrat', sans-serif;
   }
+  .pricing-urgency strong { color: var(--gold); font-weight: 600; }
 
-  /* Mobile: more compact + stack the two pills so they don't obstruct or overlap too much */
-  @media (max-width: 640px) {
-    .dest-fab, .gallery-fab {
-      right: 1rem;
-      bottom: 1rem;
-      padding: .52rem .85rem;
-      font-size: .55rem;
-      gap: .4rem;
-    }
-    .dest-fab-icon {
-      font-size: .72rem;
-    }
-    /* Stack the secondary (gallery) pill above the primary (destinations) one */
-    .gallery-fab {
-      bottom: calc(1rem + 2.15rem);
-    }
+  /* ── STICKY MOBILE WHATSAPP BAR ── */
+  .wa-bar {
+    display: none; /* hidden on desktop */
+    position: fixed; left: 0; right: 0; bottom: 0; z-index: 400;
+    background: #25D366;
+    box-shadow: 0 -2px 16px rgba(0,0,0,.25);
+    transform: translateY(100%);
+    transition: transform .35s cubic-bezier(.4,0,.2,1);
+  }
+  .wa-bar.wa-bar--visible { transform: translateY(0); }
+  .wa-bar-link {
+    display: flex; align-items: center; justify-content: center; gap: .65rem;
+    padding: .72rem 1rem;
+    color: #fff; text-decoration: none;
+    font-family: 'Montserrat', sans-serif; font-size: .72rem;
+    letter-spacing: .14em; text-transform: uppercase; font-weight: 600;
+  }
+  .wa-bar-icon { width: 1.25rem; height: 1.25rem; flex-shrink: 0; }
+
+  /* Show only on mobile/tablet */
+  @media (max-width: 768px) {
+    .wa-bar { display: block; }
+    body { padding-bottom: 46px; }
   }
 </style>
 </head>
@@ -1628,16 +1807,16 @@ height="0" width="0" style="display:none;visibility:hidden"></iframe></noscript>
   <div class="hero-bg"></div>
   <div class="hero-overlay"></div>
   <div class="hero-content">
-    <p class="hero-eyebrow">Club de Mar · Mallorca · Mittelmeer</p>
+    <p class="hero-eyebrow"><span class="eyebrow-stars">★★★★★</span> 5.0 &nbsp;·&nbsp; Private Charter<br>Club de Mar · Mallorca</p>
     <h1 class="hero-title">LIMIT<em>LESS</em></h1>
     <p class="hero-sub">Exklusive Maiora-Yacht · 21,5 m · Bis zu 12 Gäste tagsüber · 7 über Nacht</p>
+    <p class="hero-value">Your crew handles everything — you focus on the people and the views.</p>
     <div class="hero-cta-group">
       <div class="hero-actions">
         <a href="#pricing" class="btn-primary">Preise & Buchung</a>
         <a href="#itinerary" class="btn-ghost">Reiseziele entdecken</a>
-        <a href="#gallery" class="btn-ghost">Explore the yacht</a>
       </div>
-      <p class="hero-trust"><span class="stars">★★★★★</span> <strong>5.0</strong> · Verifizierte Gästebewertungen</p>
+      <p class="hero-trust">Verified reviews on Click&amp;Boat · Crewed &amp; fully equipped</p>
     </div>
     <div class="hero-scroll">
       <span>Scrollen</span>
@@ -1679,10 +1858,9 @@ height="0" width="0" style="display:none;visibility:hidden"></iframe></noscript>
       <div class="about-text reveal reveal-delay-1">
         <p class="section-label">Die Yacht</p>
         <h2 class="section-title">Ihr Zuhause auf dem<br><em>Mittelmeer</em></h2>
-        <p>Die Maiora <strong>„Limitless“</strong> ist eine beliebte 21-Meter-Motoryacht für entspannte, komfortable Tage auf dem Wasser. Großzügige Sonnendecks, weitläufige Wohnbereiche und eine warme, einladende Atmosphäre — von der ersten Minute an wie zu Hause.</p>
-        <p>Was Limitless wirklich auszeichnet, ist ihre <strong>engagierte Crew</strong>. Aufmerksam, erfahren und mit echter Leidenschaft fürs Meer kümmern sie sich um alles — vom Catering bis zur Reservierung im Beach Club —, damit Sie sich ganz auf Ihre Begleitung und die Orte konzentrieren können, die Sie entdecken.</p>
-        <p>Von den versteckten Buchten im Südwesten Mallorcas bis zu den dramatischen Klippen von Sa Calobra — <strong>die Ziele sprechen für sich</strong>. Mit Limitless erreichen Sie sie auf beste Weise.</p>
-        <a href="#contact" class="btn-primary" style="margin-top: 1.25rem;">Jetzt anfragen</a>
+        <p><strong>Limitless</strong> is a 21-metre Maiora with a flybridge, aft deck and sun pads — space for twelve guests by day, comfortable for seven overnight. Built for the sea and maintained to charter standard.</p>
+        <p>What truly sets Limitless apart is her <strong>dedicated crew</strong>. Attentive, experienced and genuinely passionate about the sea, they take care of everything — from organising catering to reserving beach club access — so you can focus entirely on the people you're with and the places you're discovering.</p>
+        <a href="#itinerary" class="btn-primary" style="margin-top: 1.25rem;">See where you'd go</a>
       </div>
     </div>
   </div>
@@ -1695,51 +1873,87 @@ height="0" width="0" style="display:none;visibility:hidden"></iframe></noscript>
     <h2 class="section-title reveal reveal-delay-1">Galerie <em>an Bord</em></h2>
   </div>
   <div class="gallery-wrap" style="max-width:1400px;margin:0 auto;padding:0 2rem;">
-    <div class="gallery-grid" id="galleryGrid">
-      <div class="gallery-item reveal" data-index="0">
-        <picture><source type="image/webp" srcset="/images/maiora_20s_01.webp" /><img loading="lazy" decoding="async" src="/images/maiora_20s_01.jpg" width="960" height="640" alt="Maiora 20S yacht Limitless cruising off the Mallorca coast" /></picture>
+    <div class="gallery-tabs" role="tablist" aria-label="Gallery category">
+      <button class="gallery-tab tab--active" role="tab" data-gtab="water">On the Water</button>
+      <button class="gallery-tab" role="tab" data-gtab="deck">Deck Life</button>
+      <button class="gallery-tab" role="tab" data-gtab="interior">Interiors</button>
+    </div>
+
+    <!-- On the Water: exterior / sailing shots -->
+    <div class="gallery-group tab-active" data-gtab="water">
+      <div class="gallery-grid">
+        <div class="gallery-item reveal" data-index="0">
+          <picture><source type="image/webp" srcset="/images/maiora_20s_01.webp" /><img loading="lazy" decoding="async" src="/images/maiora_20s_01.jpg" width="960" height="640" alt="Maiora 20S yacht Limitless cruising off the Mallorca coast" /></picture>
+        </div>
+        <div class="gallery-item reveal reveal-delay-1" data-index="1">
+          <picture><source type="image/webp" srcset="/images/maiora_20s_03.webp" /><img loading="lazy" decoding="async" src="/images/maiora_20s_03.jpg" width="960" height="640" alt="Aerial side profile of the Limitless yacht underway at sea" /></picture>
+        </div>
+        <div class="gallery-item reveal reveal-delay-2" data-index="5">
+          <picture><source type="image/webp" srcset="/images/IMG_3986-scaled-1-768x576.webp" /><img loading="lazy" decoding="async" src="/images/IMG_3986-scaled-1-768x576.jpg" width="768" height="576" alt="Helm and cockpit of the Limitless yacht" /></picture>
+        </div>
       </div>
-      <div class="gallery-item reveal reveal-delay-1" data-index="1">
-        <picture><source type="image/webp" srcset="/images/maiora_20s_03.webp" /><img loading="lazy" decoding="async" src="/images/maiora_20s_03.jpg" width="960" height="640" alt="Aerial side profile of the Limitless yacht underway at sea" /></picture>
+      <div class="carousel-nav">
+        <button class="carousel-btn carousel-prev" aria-label="Previous">&#8249;</button>
+        <span class="carousel-pos"></span>
+        <button class="carousel-btn carousel-next" aria-label="Next">&#8250;</button>
       </div>
-      <div class="gallery-item reveal reveal-delay-2" data-index="2">
-        <picture><source type="image/webp" srcset="/images/limitless_aft_dining.webp" /><img loading="lazy" decoding="async" src="/images/limitless_aft_dining.jpg" width="1280" height="960" alt="Al fresco dining on the aft deck of the Limitless yacht" /></picture>
+    </div>
+
+    <!-- Deck Life: outdoor spaces -->
+    <div class="gallery-group" data-gtab="deck">
+      <div class="gallery-grid">
+        <div class="gallery-item reveal" data-index="2">
+          <picture><source type="image/webp" srcset="/images/limitless_aft_dining.webp" /><img loading="lazy" decoding="async" src="/images/limitless_aft_dining.jpg" width="1280" height="960" alt="Al fresco dining on the aft deck of the Limitless yacht" /></picture>
+        </div>
+        <div class="gallery-item reveal reveal-delay-1" data-index="3">
+          <picture><source type="image/webp" srcset="/images/limitless_flybridge.webp" /><img loading="lazy" decoding="async" src="/images/limitless_flybridge.jpg" width="1280" height="960" alt="Flybridge lounge and dining on the Limitless yacht" /></picture>
+        </div>
+        <div class="gallery-item reveal reveal-delay-2" data-index="4">
+          <picture><source type="image/webp" srcset="/images/limitless_sundeck.webp" /><img loading="lazy" decoding="async" src="/images/limitless_sundeck.jpg" width="1280" height="960" alt="Flybridge sun deck and sunpads on the Limitless yacht" /></picture>
+        </div>
+        <div class="gallery-item reveal reveal-delay-3" data-index="14">
+          <picture><source type="image/webp" srcset="/images/limitless_aft_deck.webp" /><img loading="lazy" decoding="async" src="/images/limitless_aft_deck.jpg" width="1280" height="960" alt="Aft deck lounge of the Limitless yacht" /></picture>
+        </div>
       </div>
-      <div class="gallery-item reveal reveal-delay-3" data-index="3">
-        <picture><source type="image/webp" srcset="/images/limitless_flybridge.webp" /><img loading="lazy" decoding="async" src="/images/limitless_flybridge.jpg" width="1280" height="960" alt="Flybridge lounge and dining on the Limitless yacht" /></picture>
+      <div class="carousel-nav">
+        <button class="carousel-btn carousel-prev" aria-label="Previous">&#8249;</button>
+        <span class="carousel-pos"></span>
+        <button class="carousel-btn carousel-next" aria-label="Next">&#8250;</button>
       </div>
-      <div class="gallery-item reveal reveal-delay-1" data-index="4">
-        <picture><source type="image/webp" srcset="/images/limitless_sundeck.webp" /><img loading="lazy" decoding="async" src="/images/limitless_sundeck.jpg" width="1280" height="960" alt="Flybridge sun deck and sunpads on the Limitless yacht" /></picture>
+    </div>
+
+    <!-- Interiors: saloon and cabins -->
+    <div class="gallery-group" data-gtab="interior">
+      <div class="gallery-grid">
+        <div class="gallery-item reveal" data-index="6">
+          <picture><source type="image/webp" srcset="/images/int_saloon_artwork.webp" /><img loading="lazy" decoding="async" src="/images/int_saloon_artwork.jpg" width="1280" height="960" alt="Salon of the Limitless yacht with designer sofa and artwork" /></picture>
+        </div>
+        <div class="gallery-item reveal reveal-delay-1" data-index="7">
+          <picture><source type="image/webp" srcset="/images/int_saloon_marina_view.webp" /><img loading="lazy" decoding="async" src="/images/int_saloon_marina_view.jpg" width="1280" height="960" alt="Salon lounge of the Limitless yacht with marina views" /></picture>
+        </div>
+        <div class="gallery-item reveal reveal-delay-2" data-index="8">
+          <picture><source type="image/webp" srcset="/images/int_saloon_reverse.webp" /><img loading="lazy" decoding="async" src="/images/int_saloon_reverse.jpg" width="1280" height="960" alt="Salon seating area aboard the Limitless yacht" /></picture>
+        </div>
+        <div class="gallery-item reveal reveal-delay-3" data-index="9">
+          <picture><source type="image/webp" srcset="/images/int_master_headboard.webp" /><img loading="lazy" decoding="async" src="/images/int_master_headboard.jpg" width="1280" height="960" alt="Master cabin aboard the Limitless yacht" /></picture>
+        </div>
+        <div class="gallery-item reveal reveal-delay-1" data-index="10">
+          <picture><source type="image/webp" srcset="/images/int_master_amber_glow.webp" /><img loading="lazy" decoding="async" src="/images/int_master_amber_glow.jpg" width="1280" height="960" alt="Master cabin with ambient lighting on the Limitless yacht" /></picture>
+        </div>
+        <div class="gallery-item reveal reveal-delay-2" data-index="11">
+          <picture><source type="image/webp" srcset="/images/int_master_wide.webp" /><img loading="lazy" decoding="async" src="/images/int_master_wide.jpg" width="1280" height="960" alt="Spacious master cabin aboard the Limitless yacht" /></picture>
+        </div>
+        <div class="gallery-item reveal reveal-delay-3" data-index="12">
+          <picture><source type="image/webp" srcset="/images/int_vip_cabin.webp" /><img loading="lazy" decoding="async" src="/images/int_vip_cabin.jpg" width="1280" height="960" alt="VIP guest cabin aboard the Limitless yacht" /></picture>
+        </div>
+        <div class="gallery-item reveal reveal-delay-1" data-index="13">
+          <picture><source type="image/webp" srcset="/images/int_twin_cabin.webp" /><img loading="lazy" decoding="async" src="/images/int_twin_cabin.jpg" width="960" height="1280" alt="Twin guest cabin aboard the Limitless yacht" /></picture>
+        </div>
       </div>
-      <div class="gallery-item reveal reveal-delay-2" data-index="5">
-        <picture><source type="image/webp" srcset="/images/IMG_3986-scaled-1-768x576.webp" /><img loading="lazy" decoding="async" src="/images/IMG_3986-scaled-1-768x576.jpg" width="768" height="576" alt="Helm and cockpit of the Limitless yacht" /></picture>
-      </div>
-      <div class="gallery-item reveal reveal-delay-3" data-index="6">
-        <picture><source type="image/webp" srcset="/images/int_saloon_artwork.webp" /><img loading="lazy" decoding="async" src="/images/int_saloon_artwork.jpg" width="1280" height="960" alt="Salon of the Limitless yacht with designer sofa and artwork" /></picture>
-      </div>
-      <div class="gallery-item reveal reveal-delay-1" data-index="7">
-        <picture><source type="image/webp" srcset="/images/int_saloon_marina_view.webp" /><img loading="lazy" decoding="async" src="/images/int_saloon_marina_view.jpg" width="1280" height="960" alt="Salon lounge of the Limitless yacht with marina views" /></picture>
-      </div>
-      <div class="gallery-item reveal reveal-delay-2" data-index="8">
-        <picture><source type="image/webp" srcset="/images/int_saloon_reverse.webp" /><img loading="lazy" decoding="async" src="/images/int_saloon_reverse.jpg" width="1280" height="960" alt="Salon seating area aboard the Limitless yacht" /></picture>
-      </div>
-      <div class="gallery-item reveal reveal-delay-3" data-index="9">
-        <picture><source type="image/webp" srcset="/images/int_master_headboard.webp" /><img loading="lazy" decoding="async" src="/images/int_master_headboard.jpg" width="1280" height="960" alt="Master cabin aboard the Limitless yacht" /></picture>
-      </div>
-      <div class="gallery-item reveal reveal-delay-1" data-index="10">
-        <picture><source type="image/webp" srcset="/images/int_master_amber_glow.webp" /><img loading="lazy" decoding="async" src="/images/int_master_amber_glow.jpg" width="1280" height="960" alt="Master cabin with ambient lighting on the Limitless yacht" /></picture>
-      </div>
-      <div class="gallery-item reveal reveal-delay-2" data-index="11">
-        <picture><source type="image/webp" srcset="/images/int_master_wide.webp" /><img loading="lazy" decoding="async" src="/images/int_master_wide.jpg" width="1280" height="960" alt="Spacious master cabin aboard the Limitless yacht" /></picture>
-      </div>
-      <div class="gallery-item reveal reveal-delay-3" data-index="12">
-        <picture><source type="image/webp" srcset="/images/int_vip_cabin.webp" /><img loading="lazy" decoding="async" src="/images/int_vip_cabin.jpg" width="1280" height="960" alt="VIP guest cabin aboard the Limitless yacht" /></picture>
-      </div>
-      <div class="gallery-item reveal reveal-delay-1" data-index="13">
-        <picture><source type="image/webp" srcset="/images/int_twin_cabin.webp" /><img loading="lazy" decoding="async" src="/images/int_twin_cabin.jpg" width="960" height="1280" alt="Twin guest cabin aboard the Limitless yacht" /></picture>
-      </div>
-      <div class="gallery-item reveal reveal-delay-2" data-index="14">
-        <picture><source type="image/webp" srcset="/images/limitless_aft_deck.webp" /><img loading="lazy" decoding="async" src="/images/limitless_aft_deck.jpg" width="1280" height="960" alt="Aft deck lounge of the Limitless yacht" /></picture>
+      <div class="carousel-nav">
+        <button class="carousel-btn carousel-prev" aria-label="Previous">&#8249;</button>
+        <span class="carousel-pos"></span>
+        <button class="carousel-btn carousel-next" aria-label="Next">&#8250;</button>
       </div>
     </div>
   </div>
@@ -1750,290 +1964,351 @@ height="0" width="0" style="display:none;visibility:hidden"></iframe></noscript>
   <div class="container">
     <p class="section-label reveal">Reiseziele</p>
     <h2 class="section-title reveal reveal-delay-1">Wohin <em>Limitless</em> Sie bringt</h2>
-    <p class="itinerary-intro reveal reveal-delay-2">Die unten gezeigten Ziele und Routen sind <strong>nur Vorschläge</strong>. Jeder Törn ist <strong>ganz auf Sie zugeschnitten</strong> — unsere erfahrene Crew plant gemeinsam mit Ihnen im Voraus oder sogar <strong>am Tag selbst</strong> (je nach Wetter) die perfekte Route, ob entspannte Halbtagestour, Ganztagestörn oder mehrtägige Reise entlang Mallorcas schönsten Küsten. <strong>Flexible Tagesoptionen</strong>, die <strong>Freiheit zu übernachten, wann immer Ihnen danach ist</strong>, und die <strong>Möglichkeit, Catering oder Beach-Club-Zugang zu arrangieren</strong> gehören selbstverständlich dazu.</p>
+    <p class="itinerary-intro reveal reveal-delay-2">Every route is shaped around your group — the suggestions below are a starting point. Your crew handles the rest.</p>
   </div>
   <div class="itinerary-wrap" style="max-width:1400px;margin:0 auto;padding:0 2rem;">
-    <div class="itinerary-grid">
-
-      <!-- Half-Day Escapes -->
-      <div class="dest-tier reveal" id="half-day">Empfohlene Halbtagestouren <span class="tier-note">— 4 bis 6 Stunden</span></div>
-
-      <div class="destination-card reveal">
-        <picture class="destination-card-bg">
-          <source type="image/webp" srcset="/images/dest/portals-vells-1.webp" />
-          <img loading="lazy" decoding="async" src="/images/dest/portals-vells-1.jpg" alt="" width="1200" height="900" />
-        </picture>
-        <div class="destination-card-overlay"></div>
-        <div class="destination-card-body">
-          <div class="destination-num">01 · Südwestküste</div>
-          <div class="destination-name">Portals Vells</div>
-          <div class="destination-tagline">Meeresgrotten &amp; türkise Buchten</div>
-          <p class="destination-desc">Drei abgeschiedene Buchten an der Spitze der Halbinsel Calvià, berühmt für ihre in die Kalksteinfelsen gehauenen Meeresgrotten. Das Wasser leuchtet blaugrün — ideal zum Schwimmen, Schnorcheln und für eine kurze Auszeit nur 35 Minuten vom Hafen entfernt.</p>
-          <div class="destination-meta">
-            <span>Ab Club de Mar <strong>~35 min</strong></span>
-            <span>Tiefe <strong>4–10 m</strong></span>
-            <span>Hin &amp; zurück <strong>~18 nm</strong></span>
-            <span>Diesel <strong>~300 L</strong></span>
-          </div>
-        </div>
-      </div>
-
-      <div class="destination-card reveal reveal-delay-1">
-        <picture class="destination-card-bg">
-          <source type="image/webp" srcset="/images/dest/el-toro-malgrats-1.webp" />
-          <img loading="lazy" decoding="async" src="/images/dest/el-toro-malgrats-1.jpg" alt="" width="800" height="1200" />
-        </picture>
-        <div class="destination-card-overlay"></div>
-        <div class="destination-card-body">
-          <div class="destination-num">02 · Südwestküste</div>
-          <div class="destination-name">El Toro &amp; Illes Malgrats</div>
-          <div class="destination-tagline">Meeresschutzgebiet &amp; Schnorcheln</div>
-          <p class="destination-desc">Ein geschütztes Meeresschutzgebiet rund um die Malgrats-Inseln und das Kap El Toro. Kristallklares, fischreiches Wasser, einfaches Schnorcheln und ein entspannter halber Tag mit Lunch vor Anker. Eine der schönsten kurzen Auszeiten für Naturerlebnisse im Wasser.</p>
-          <div class="destination-meta">
-            <span>Ab Club de Mar <strong>~40 min</strong></span>
-            <span>Tiefe <strong>5–12 m</strong></span>
-            <span>Hin &amp; zurück <strong>~22 nm</strong></span>
-            <span>Diesel <strong>~350 L</strong></span>
-          </div>
-        </div>
-      </div>
-
-      <div class="destination-card reveal reveal-delay-1">
-        <picture class="destination-card-bg">
-          <source type="image/webp" srcset="/images/dest/cala-llamp-1.webp" />
-          <img loading="lazy" decoding="async" src="/images/dest/cala-llamp-1.jpg" alt="" width="1200" height="900" />
-        </picture>
-        <div class="destination-card-overlay"></div>
-        <div class="destination-card-body">
-          <div class="destination-num">03 · Südwestküste</div>
-          <div class="destination-name">Cala Llamp</div>
-          <div class="destination-tagline">Geschützt &amp; ruhig</div>
-          <p class="destination-desc">Eine ruhige, von Pinien gesäumte Bucht südlich von Port d'Andratx. Geschützt vor den vorherrschenden Winden, laden ihr stilles grünes Wasser und die entspannte Atmosphäre zu einem langen Lunch vor Anker oder einem friedlichen Bad ein.</p>
-          <div class="destination-meta">
-            <span>Ab Club de Mar <strong>~55 min</strong></span>
-            <span>Tiefe <strong>4–8 m</strong></span>
-            <span>Hin &amp; zurück <strong>~30 nm</strong></span>
-            <span>Diesel <strong>~450 L</strong></span>
-          </div>
-        </div>
-      </div>
-
-      <!-- Full-Day Cruises -->
-      <div class="dest-tier reveal" id="full-day">Empfohlene Ganztagestörns <span class="tier-note">— ein ganzer Tag auf See</span></div>
-
-      <div class="destination-card reveal">
-        <picture class="destination-card-bg">
-          <source type="image/webp" srcset="/images/dest/sa-dragonera-1.webp" />
-          <img loading="lazy" decoding="async" src="/images/dest/sa-dragonera-1.jpg" alt="" width="1200" height="800" />
-        </picture>
-        <div class="destination-card-overlay"></div>
-        <div class="destination-card-body">
-          <div class="destination-num">04 · Westküste</div>
-          <div class="destination-name">Sa Dragonera &amp; Sant Elm</div>
-          <div class="destination-tagline">Insel-Naturschutzgebiet</div>
-          <p class="destination-desc">Die unbewohnte, drachenförmige Insel Sa Dragonera ist ein Parc Natural. Ankern Sie außerhalb der Bojenlinie (von März bis September 50 m Abstand halten) und wandern Sie über die Pfade oder schnorcheln Sie im unberührten Wasser. Gern kombiniert mit einem Lunch im hübschen Hafen von Sant Elm.</p>
-          <div class="destination-meta">
-            <span>Ab Club de Mar <strong>~1 h 10</strong></span>
-            <span>Hin &amp; zurück <strong>~36 nm</strong></span>
-            <span>Parc Natural — nur Bojen</span>
-            <span>Diesel <strong>~550 L</strong></span>
-          </div>
-        </div>
-      </div>
-
-      <div class="destination-card reveal reveal-delay-1">
-        <picture class="destination-card-bg">
-          <source type="image/webp" srcset="/images/dest/cala-pi-1.webp" />
-          <img loading="lazy" decoding="async" src="/images/dest/cala-pi-1.jpg" alt="" width="1200" height="902" />
-        </picture>
-        <div class="destination-card-overlay"></div>
-        <div class="destination-card-body">
-          <div class="destination-num">05 · Südküste</div>
-          <div class="destination-name">Cala Pi</div>
-          <div class="destination-tagline">Geschützte Klippen &amp; feiner Sand</div>
-          <p class="destination-desc">Eine spektakuläre, von Pinien umgebene Bucht an Mallorcas Südküste, eingefasst von hohen Kalksteinwänden und mit einem feinen Sandstrand und flachem türkisfarbenem Wasser. Hervorragender Ankergrund im Sand; ein ruhiger und fotogener Stopp zum Schwimmen und für den Lunch.</p>
-          <div class="destination-meta">
-            <span>Ab Club de Mar <strong>~1 h 5</strong></span>
-            <span>Tiefe <strong>3–6 m</strong></span>
-            <span>Hin &amp; zurück <strong>~34 nm</strong></span>
-            <span>Diesel <strong>~550 L</strong></span>
-          </div>
-        </div>
-      </div>
-
-      <div class="destination-card reveal reveal-delay-1">
-        <picture class="destination-card-bg">
-          <source type="image/webp" srcset="/images/dest/es-trenc-1.webp" />
-          <img loading="lazy" decoding="async" src="/images/dest/es-trenc-1.jpg" alt="" width="1200" height="800" />
-        </picture>
-        <div class="destination-card-overlay"></div>
-        <div class="destination-card-body">
-          <div class="destination-num">06 · Südküste</div>
-          <div class="destination-name">Es Trenc</div>
-          <div class="destination-tagline">Karibisch weißer Sand</div>
-          <p class="destination-desc">Einer der letzten unberührten Strände Mallorcas — ein weiter Bogen aus puderweißem Sand, umspült von flachem, kristallklarem Wasser. Ankern Sie im Sand (Posidonia geschützt) und waten Sie hinein für eine wahrhaft abgeschiedene Auszeit.</p>
-          <div class="destination-meta">
-            <span>Ab Club de Mar <strong>~1 h 30</strong></span>
-            <span>Tiefe <strong>3–6 m</strong></span>
-            <span>Hin &amp; zurück <strong>~48 nm</strong></span>
-            <span>Diesel <strong>~750 L</strong></span>
-          </div>
-        </div>
-      </div>
-
-      <div class="destination-card reveal reveal-delay-1">
-        <picture class="destination-card-bg">
-          <source type="image/webp" srcset="/images/dest/cabrera-1.webp" />
-          <img loading="lazy" decoding="async" src="/images/dest/cabrera-1.jpg" alt="" width="1200" height="797" />
-        </picture>
-        <div class="destination-card-overlay"></div>
-        <div class="destination-card-body">
-          <div class="destination-num">07 · Südliches Archipel</div>
-          <div class="destination-name">Cabrera-Nationalpark</div>
-          <div class="destination-tagline">Geschütztes Archipel</div>
-          <p class="destination-desc">Spaniens erster Meeres- und Landnationalpark — ein unberührtes Archipel mit kristallklarem Wasser und reicher Tierwelt. Wir besitzen die kostenlose Jahresgenehmigung und dürfen ausschließlich Mooringbojen nutzen (kein Ankern). Bojen für Übernachtungen müssen vorab reserviert werden; Tagesbojen nach dem Prinzip „first come, first served“ (selten voll). Perfekt für einen ganzen Tag oder den Auftakt einer mehrtägigen Reise.</p>
-          <div class="destination-meta">
-            <span>Ab Club de Mar <strong>~1 h 40</strong></span>
-            <span>Hin &amp; zurück <strong>~52 nm</strong></span>
-            <span>Genehmigung vorhanden • nur Bojen</span>
-            <span>Diesel <strong>~800 L</strong></span>
-          </div>
-        </div>
-      </div>
-
-      <div class="destination-card reveal reveal-delay-2">
-        <picture class="destination-card-bg">
-          <source type="image/webp" srcset="/images/dest/calo-des-moro-1.webp" />
-          <img loading="lazy" decoding="async" src="/images/dest/calo-des-moro-1.jpg" alt="" width="1200" height="797" />
-        </picture>
-        <div class="destination-card-overlay"></div>
-        <div class="destination-card-body">
-          <div class="destination-num">08 · Südostküste</div>
-          <div class="destination-name">Caló des Moro &amp; Cala Figuera</div>
-          <div class="destination-tagline">Mallorcas meistfotografierte Bucht</div>
-          <p class="destination-desc">Die winzige, unwirklich türkise Bucht Caló des Moro, eingerahmt von markanten Klippen — einer der bekanntesten und meistfotografierten Orte der Insel. Das nahe Cala Figuera bietet einen charmanten Fischerhafen und einen entspannten Kontrast. Ein längerer Törn, der sich wie ein echtes Reiseziel anfühlt.</p>
-          <div class="destination-meta">
-            <span>Ab Club de Mar <strong>~2 h 10</strong></span>
-            <span>Tiefe <strong>4–10 m</strong></span>
-            <span>Hin &amp; zurück <strong>~70 nm</strong></span>
-            <span>Diesel <strong>~1,100 L</strong></span>
-          </div>
-        </div>
-      </div>
-
-      <!-- Multi-Day Voyages -->
-      <div class="dest-tier reveal" id="multi-day">Empfohlene mehrtägige Reisen <span class="tier-note">— über Nacht &amp; weite Strecken</span></div>
-
-      <div class="destination-card reveal">
-        <picture class="destination-card-bg">
-          <source type="image/webp" srcset="/images/dest/sa-calobra-1.webp" />
-          <img loading="lazy" decoding="async" src="/images/dest/sa-calobra-1.jpg" alt="" width="800" height="1200" />
-        </picture>
-        <div class="destination-card-overlay"></div>
-        <div class="destination-card-body">
-          <div class="destination-num">09 · Nordwestküste · Mehrtägig</div>
-          <div class="destination-name">Westküsten-Expedition</div>
-          <div class="destination-tagline">Sa Foradada, Port Sóller &amp; Cala Tuent</div>
-          <p class="destination-desc">Eine mehrtägige Reise entlang von Mallorcas spektakulärster Küste. Fahren Sie zwischen den hoch aufragenden Klippen der Serra de Tramuntana hindurch, ankern Sie vor dem markanten durchbohrten Felsen von Sa Foradada, machen Sie im hübschen Hafen von Port de Sóller fest für eine Tramfahrt in den Talort und entdecken Sie den abgeschiedenen Kieselstrand Cala Tuent am Fuße des Puig Major. Sa Calobra und die Schlucht Torrent de Pareis sind in greifbarer Nähe — der krönende Abschluss eines 2- bis 4-Nächte-Törns mit Ankerplätzen oder Marina-Stopps zum Übernachten.</p>
-          <div class="destination-meta">
-            <span>Ab Club de Mar <strong>~2 h 55</strong></span>
-            <span>Hin &amp; zurück <strong>~94 nm</strong></span>
-            <span>Mehrtägige Anker- &amp; Liegeplätze</span>
-            <span>Diesel <strong>~1,450 L</strong></span>
-          </div>
-        </div>
-      </div>
-
-      <div class="destination-card reveal reveal-delay-1">
-        <picture class="destination-card-bg">
-          <source type="image/webp" srcset="/images/dest/circumnavigation-1.webp" />
-          <img loading="lazy" decoding="async" src="/images/dest/circumnavigation-1.jpg" alt="" width="1200" height="648" />
-        </picture>
-        <div class="destination-card-overlay"></div>
-        <div class="destination-card-body">
-          <div class="destination-num">10 · Ganze Insel · Mehrtägig</div>
-          <div class="destination-name">Mallorca-Umrundung</div>
-          <div class="destination-tagline">Komplette 200-nm-Runde</div>
-          <p class="destination-desc">Die ultimative mehrtägige Reise: eine komplette Umrundung Mallorcas, rund 200 Seemeilen abwechslungsreicher Küste. Vom sanften Südwesten, vorbei an der drachenförmigen Insel und den wilden Westklippen, um den spektakulären Norden und das Cap de Formentor, die Ostküste hinunter und zurück nach Hause. Flexible Route über 5–7 Tage mit Nächten vor Anker in versteckten Buchten oder längsseits in Hafenstädten — die schönste Art, die ganze Insel vom Wasser aus zu erleben.</p>
-          <div class="destination-meta">
-            <span>Fahrzeit <strong>~12 h 30</strong></span>
-            <span>Gesamt <strong>~200 nm</strong></span>
-            <span>5–7 Tage empfohlen</span>
-            <span>Diesel ca. <strong>~3,150 L</strong></span>
-          </div>
-        </div>
-      </div>
-
-      <div class="destination-card reveal reveal-delay-2">
-        <picture class="destination-card-bg">
-          <source type="image/webp" srcset="/images/dest/formentera-1.webp" />
-          <img loading="lazy" decoding="async" src="/images/dest/formentera-1.jpg" alt="" width="1200" height="900" />
-        </picture>
-        <div class="destination-card-overlay"></div>
-        <div class="destination-card-body">
-          <div class="destination-num">11 · Balearen-Überfahrt · Mehrtägig</div>
-          <div class="destination-name">Ibiza-Überfahrt</div>
-          <div class="destination-tagline">Weiße Insel &amp; türkise Sandbänke</div>
-          <p class="destination-desc">Eine echte Überfahrt von rund 70 nm zum Pityusen-Archipel. Entdecken Sie Ibizas lebhafte Häfen, versteckte Buchten und legendäre Beach Clubs — mit der Option, weiter zu Formenteras weltberühmtem Ses Illetes zu fahren: die leuchtende Sandbank und das flache türkisfarbene Wasser, oft die Karibik des Mittelmeers genannt. Hochsee-Abenteuer mit dem Reiz eines ganz anderen Inselgefühls; ideal für 2–4 Nächte mit Marina-Aufenthalten oder wilden Ankerplätzen.</p>
-          <div class="destination-meta">
-            <span>Ab Club de Mar <strong>~4 h 25</strong></span>
-            <span>Hin &amp; zurück <strong>~140 nm</strong></span>
-            <span>Marina- oder Ankeroptionen</span>
-            <span>Diesel <strong>~2,200 L</strong></span>
-          </div>
-        </div>
-      </div>
-
-      <div class="destination-card reveal reveal-delay-3">
-        <picture class="destination-card-bg">
-          <source type="image/webp" srcset="/images/dest/menorca-1.webp" />
-          <img loading="lazy" decoding="async" src="/images/dest/menorca-1.jpg" alt="" width="900" height="1200" />
-        </picture>
-        <div class="destination-card-overlay"></div>
-        <div class="destination-card-body">
-          <div class="destination-num">12 · Balearen-Überfahrt · Mehrtägig</div>
-          <div class="destination-name">Menorca-Überfahrt</div>
-          <div class="destination-tagline">Wilde Buchten &amp; uralte Küsten</div>
-          <p class="destination-desc">Eine landschaftlich reizvolle Überfahrt von rund 60 nm nordöstlich nach Menorca, der ursprünglichsten der großen Baleareninseln. Ankern Sie in den berühmten Buchten der Südküste wie Cala Macarella und Cala Mitjana — türkisfarbene, von Pinien gesäumte Juwelen — oder machen Sie im längsten Naturhafen der Welt bei Mahón fest. Erkunden Sie prähistorische talayotische Monumente und stille Fischerorte. Perfekt für Törns von 2–5 Nächten, mit der Option, Menorcas eigene Küste zu umrunden.</p>
-          <div class="destination-meta">
-            <span>Ab Club de Mar <strong>~3 h 45</strong></span>
-            <span>Hin &amp; zurück <strong>~120 nm</strong></span>
-            <span>Geschützte Buchten &amp; Naturhafen</span>
-            <span>Diesel <strong>~1,900 L</strong></span>
-          </div>
-        </div>
-      </div>
-
+    <div class="dest-tabs reveal reveal-delay-2" role="tablist" aria-label="Charter duration">
+      <button class="dest-tab" role="tab" data-tier="half-day" id="half-day" aria-selected="true">
+        Half-Day<span class="tab-period">4 – 6 hours</span>
+      </button>
+      <button class="dest-tab" role="tab" data-tier="full-day" id="full-day" aria-selected="false">
+        Full Day<span class="tab-period">A full day out</span>
+      </button>
+      <button class="dest-tab" role="tab" data-tier="multi-day" id="multi-day" aria-selected="false">
+        Multi-Day<span class="tab-period">Overnight +</span>
+      </button>
     </div>
+
+    <!-- Half-Day -->
+    <div class="dest-group tab-active" data-tier="half-day">
+      <div class="itinerary-grid">
+        <div class="destination-card reveal">
+          <picture class="destination-card-bg">
+            <source type="image/webp" srcset="/images/dest/portals-vells-1.webp" />
+            <img loading="lazy" decoding="async" src="/images/dest/portals-vells-1.jpg" alt="" width="1200" height="900" />
+          </picture>
+          <div class="destination-card-overlay"></div>
+          <div class="destination-card-body">
+            <div class="destination-num">01 · Südwestküste</div>
+            <div class="destination-name">Portals Vells</div>
+            <div class="destination-tagline">Meeresgrotten &amp; türkise Buchten</div>
+            <p class="destination-desc">Drei abgeschiedene Buchten an der Spitze der Halbinsel Calvià, berühmt für ihre in die Kalksteinfelsen gehauenen Meeresgrotten. Das Wasser leuchtet blaugrün — ideal zum Schwimmen, Schnorcheln und für eine kurze Auszeit nur 35 Minuten vom Hafen entfernt.</p>
+            <div class="destination-meta">
+              <span>Ab Club de Mar <strong>~35 min</strong></span>
+              <span>Tiefe <strong>4–10 m</strong></span>
+              <span>Hin &amp; zurück <strong>~18 nm</strong></span>
+              <span>Diesel <strong>~300 L</strong></span>
+            </div>
+          </div>
+        </div>
+        <div class="destination-card reveal reveal-delay-1">
+          <picture class="destination-card-bg">
+            <source type="image/webp" srcset="/images/dest/el-toro-malgrats-1.webp" />
+            <img loading="lazy" decoding="async" src="/images/dest/el-toro-malgrats-1.jpg" alt="" width="800" height="1200" />
+          </picture>
+          <div class="destination-card-overlay"></div>
+          <div class="destination-card-body">
+            <div class="destination-num">02 · Südwestküste</div>
+            <div class="destination-name">El Toro &amp; Illes Malgrats</div>
+            <div class="destination-tagline">Meeresschutzgebiet &amp; Schnorcheln</div>
+            <p class="destination-desc">A protected marine reserve around the Malgrats islets and El Toro headland. Crystal water teeming with fish, easy snorkelling and a relaxed half-day with lunch at anchor.</p>
+            <div class="destination-meta">
+              <span>Ab Club de Mar <strong>~40 min</strong></span>
+              <span>Tiefe <strong>5–12 m</strong></span>
+              <span>Hin &amp; zurück <strong>~22 nm</strong></span>
+              <span>Diesel <strong>~350 L</strong></span>
+            </div>
+          </div>
+        </div>
+        <div class="destination-card reveal reveal-delay-1">
+          <picture class="destination-card-bg">
+            <source type="image/webp" srcset="/images/dest/cala-llamp-1.webp" />
+            <img loading="lazy" decoding="async" src="/images/dest/cala-llamp-1.jpg" alt="" width="1200" height="900" />
+          </picture>
+          <div class="destination-card-overlay"></div>
+          <div class="destination-card-body">
+            <div class="destination-num">03 · Südwestküste</div>
+            <div class="destination-name">Cala Llamp</div>
+            <div class="destination-tagline">Geschützt &amp; ruhig</div>
+            <p class="destination-desc">A calm, pine-fringed bay tucked just south of Port d’Andratx. Protected from the prevailing winds — perfect for a long lunch at anchor or a peaceful swim.</p>
+            <div class="destination-meta">
+              <span>Ab Club de Mar <strong>~55 min</strong></span>
+              <span>Tiefe <strong>4–8 m</strong></span>
+              <span>Hin &amp; zurück <strong>~30 nm</strong></span>
+              <span>Diesel <strong>~450 L</strong></span>
+            </div>
+          </div>
+        </div>
+      </div>
+      <div class="carousel-nav">
+        <button class="carousel-btn carousel-prev" aria-label="Previous destination">&#8249;</button>
+        <span class="carousel-pos"></span>
+        <button class="carousel-btn carousel-next" aria-label="Next destination">&#8250;</button>
+      </div>
+    </div>
+
+    <!-- Full-Day -->
+    <div class="dest-group" data-tier="full-day">
+      <div class="itinerary-grid">
+        <div class="destination-card reveal">
+          <picture class="destination-card-bg">
+            <source type="image/webp" srcset="/images/dest/sa-dragonera-1.webp" />
+            <img loading="lazy" decoding="async" src="/images/dest/sa-dragonera-1.jpg" alt="" width="1200" height="800" />
+          </picture>
+          <div class="destination-card-overlay"></div>
+          <div class="destination-card-body">
+            <div class="destination-num">04 · Westküste</div>
+            <div class="destination-name">Sa Dragonera &amp; Sant Elm</div>
+            <div class="destination-tagline">Insel-Naturschutzgebiet</div>
+            <p class="destination-desc">The uninhabited, dragon-shaped island of Sa Dragonera is a Parc Natural. Snorkel the pristine waters, then lunch in the pretty harbour of Sant Elm.</p>
+            <div class="destination-meta">
+              <span>Ab Club de Mar <strong>~1 h 10</strong></span>
+              <span>Hin &amp; zurück <strong>~36 nm</strong></span>
+              <span>Parc Natural — nur Bojen</span>
+              <span>Diesel <strong>~550 L</strong></span>
+            </div>
+          </div>
+        </div>
+        <div class="destination-card reveal reveal-delay-1">
+          <picture class="destination-card-bg">
+            <source type="image/webp" srcset="/images/dest/cala-pi-1.webp" />
+            <img loading="lazy" decoding="async" src="/images/dest/cala-pi-1.jpg" alt="" width="1200" height="902" />
+          </picture>
+          <div class="destination-card-overlay"></div>
+          <div class="destination-card-body">
+            <div class="destination-num">05 · Südküste</div>
+            <div class="destination-name">Cala Pi</div>
+            <div class="destination-tagline">Geschützte Klippen &amp; feiner Sand</div>
+            <p class="destination-desc">A dramatic cove enclosed by towering limestone walls opening onto a sandy beach with shallow turquoise water. Peaceful, photogenic and perfect for swimming and lunch.</p>
+            <div class="destination-meta">
+              <span>Ab Club de Mar <strong>~1 h 5</strong></span>
+              <span>Tiefe <strong>3–6 m</strong></span>
+              <span>Hin &amp; zurück <strong>~34 nm</strong></span>
+              <span>Diesel <strong>~550 L</strong></span>
+            </div>
+          </div>
+        </div>
+        <div class="destination-card reveal reveal-delay-1">
+          <picture class="destination-card-bg">
+            <source type="image/webp" srcset="/images/dest/es-trenc-1.webp" />
+            <img loading="lazy" decoding="async" src="/images/dest/es-trenc-1.jpg" alt="" width="1200" height="800" />
+          </picture>
+          <div class="destination-card-overlay"></div>
+          <div class="destination-card-body">
+            <div class="destination-num">06 · Südküste</div>
+            <div class="destination-name">Es Trenc</div>
+            <div class="destination-tagline">Karibisch weißer Sand</div>
+            <p class="destination-desc">One of Mallorca’s last unspoilt beaches — powdery white sand, shallow crystal-clear water. Anchor and wade in for a truly secluded escape.</p>
+            <div class="destination-meta">
+              <span>Ab Club de Mar <strong>~1 h 30</strong></span>
+              <span>Tiefe <strong>3–6 m</strong></span>
+              <span>Hin &amp; zurück <strong>~48 nm</strong></span>
+              <span>Diesel <strong>~750 L</strong></span>
+            </div>
+          </div>
+        </div>
+        <div class="destination-card reveal reveal-delay-1">
+          <picture class="destination-card-bg">
+            <source type="image/webp" srcset="/images/dest/cabrera-1.webp" />
+            <img loading="lazy" decoding="async" src="/images/dest/cabrera-1.jpg" alt="" width="1200" height="797" />
+          </picture>
+          <div class="destination-card-overlay"></div>
+          <div class="destination-card-body">
+            <div class="destination-num">07 · Südliches Archipel</div>
+            <div class="destination-name">Cabrera-Nationalpark</div>
+            <div class="destination-tagline">Geschütztes Archipel</div>
+            <p class="destination-desc">Spain’s first maritime-terrestrial national park. We hold the annual permit — crystal waters, rich wildlife and a true sense of remoteness just 90 minutes from the marina.</p>
+            <div class="destination-meta">
+              <span>Ab Club de Mar <strong>~1 h 40</strong></span>
+              <span>Hin &amp; zurück <strong>~52 nm</strong></span>
+              <span>Permit held · Buoys only</span>
+              <span>Diesel <strong>~800 L</strong></span>
+            </div>
+          </div>
+        </div>
+        <div class="destination-card reveal reveal-delay-2">
+          <picture class="destination-card-bg">
+            <source type="image/webp" srcset="/images/dest/calo-des-moro-1.webp" />
+            <img loading="lazy" decoding="async" src="/images/dest/calo-des-moro-1.jpg" alt="" width="1200" height="797" />
+          </picture>
+          <div class="destination-card-overlay"></div>
+          <div class="destination-card-body">
+            <div class="destination-num">08 · Südostküste</div>
+            <div class="destination-name">Caló des Moro &amp; Cala Figuera</div>
+            <div class="destination-tagline">Mallorca’s Most Photographed Cove</div>
+            <p class="destination-desc">The impossibly turquoise inlet of Caló des Moro backed by dramatic cliffs — one of the island’s most iconic spots. Pair with Cala Figuera’s charming fishing harbour for contrast.</p>
+            <div class="destination-meta">
+              <span>Ab Club de Mar <strong>~2 h 10</strong></span>
+              <span>Tiefe <strong>4–10 m</strong></span>
+              <span>Hin &amp; zurück <strong>~70 nm</strong></span>
+              <span>Diesel <strong>~1,100 L</strong></span>
+            </div>
+          </div>
+        </div>
+      </div>
+      <div class="carousel-nav">
+        <button class="carousel-btn carousel-prev" aria-label="Previous destination">&#8249;</button>
+        <span class="carousel-pos"></span>
+        <button class="carousel-btn carousel-next" aria-label="Next destination">&#8250;</button>
+      </div>
+    </div>
+
+    <!-- Multi-Day -->
+    <div class="dest-group" data-tier="multi-day">
+      <div class="itinerary-grid">
+        <div class="destination-card reveal">
+          <picture class="destination-card-bg">
+            <source type="image/webp" srcset="/images/dest/sa-calobra-1.webp" />
+            <img loading="lazy" decoding="async" src="/images/dest/sa-calobra-1.jpg" alt="" width="800" height="1200" />
+          </picture>
+          <div class="destination-card-overlay"></div>
+          <div class="destination-card-body">
+            <div class="destination-num">09 · Northwest Coast</div>
+            <div class="destination-name">Westküsten-Expedition</div>
+            <div class="destination-tagline">Sa Foradada, Port Sóller &amp; Cala Tuent</div>
+            <p class="destination-desc">Mallorca’s most dramatic coastline — towering Serra de Tramuntana cliffs, the pierced rock of Sa Foradada, the harbour town of Port Sóller and the secluded pebble beach of Cala Tuent. 2–4 nights.</p>
+            <div class="destination-meta">
+              <span>Ab Club de Mar <strong>~2 h 55</strong></span>
+              <span>Hin &amp; zurück <strong>~94 nm</strong></span>
+              <span>Anchorages &amp; moorings</span>
+              <span>Diesel <strong>~1,450 L</strong></span>
+            </div>
+          </div>
+        </div>
+        <div class="destination-card reveal reveal-delay-1">
+          <picture class="destination-card-bg">
+            <source type="image/webp" srcset="/images/dest/circumnavigation-1.webp" />
+            <img loading="lazy" decoding="async" src="/images/dest/circumnavigation-1.jpg" alt="" width="1200" height="648" />
+          </picture>
+          <div class="destination-card-overlay"></div>
+          <div class="destination-card-body">
+            <div class="destination-num">10 · Full Island</div>
+            <div class="destination-name">Mallorca-Umrundung</div>
+            <div class="destination-tagline">Komplette 200-nm-Runde</div>
+            <p class="destination-desc">The definitive Mallorca voyage — all 200 nm of coastline, from the wild west cliffs and Cap de Formentor to the calm eastern bays and back. 5–7 flexible days at anchor or in harbour towns.</p>
+            <div class="destination-meta">
+              <span>Fahrzeit <strong>~12 h 30</strong></span>
+              <span>Gesamt <strong>~200 nm</strong></span>
+              <span>5–7 Tage empfohlen</span>
+              <span>Diesel ca. <strong>~3,150 L</strong></span>
+            </div>
+          </div>
+        </div>
+        <div class="destination-card reveal reveal-delay-2">
+          <picture class="destination-card-bg">
+            <source type="image/webp" srcset="/images/dest/formentera-1.webp" />
+            <img loading="lazy" decoding="async" src="/images/dest/formentera-1.jpg" alt="" width="1200" height="900" />
+          </picture>
+          <div class="destination-card-overlay"></div>
+          <div class="destination-card-body">
+            <div class="destination-num">11 · Balearics Crossing</div>
+            <div class="destination-name">Ibiza &amp; Formentera</div>
+            <div class="destination-tagline">Weiße Insel &amp; türkise Sandbänke</div>
+            <p class="destination-desc">A ~70 nm open-sea crossing to Ibiza’s vibrant harbours and hidden coves, with the option to push on to Formentera’s Ses Illetes — the Caribbean of the Med. 2–4 nights.</p>
+            <div class="destination-meta">
+              <span>Ab Club de Mar <strong>~4 h 25</strong></span>
+              <span>Hin &amp; zurück <strong>~140 nm</strong></span>
+              <span>Marina or anchorage</span>
+              <span>Diesel <strong>~2,200 L</strong></span>
+            </div>
+          </div>
+        </div>
+        <div class="destination-card reveal reveal-delay-3">
+          <picture class="destination-card-bg">
+            <source type="image/webp" srcset="/images/dest/menorca-1.webp" />
+            <img loading="lazy" decoding="async" src="/images/dest/menorca-1.jpg" alt="" width="900" height="1200" />
+          </picture>
+          <div class="destination-card-overlay"></div>
+          <div class="destination-card-body">
+            <div class="destination-num">12 · Balearics Crossing</div>
+            <div class="destination-name">Menorca-Überfahrt</div>
+            <div class="destination-tagline">Wilde Buchten &amp; uralte Küsten</div>
+            <p class="destination-desc">~60 nm northeast to Menorca — the most unspoilt Balearic. Anchor in Cala Macarella and Cala Mitjana, moor in Mahón’s vast natural harbour, discover quiet fishing towns. 2–5 nights.</p>
+            <div class="destination-meta">
+              <span>Ab Club de Mar <strong>~3 h 45</strong></span>
+              <span>Hin &amp; zurück <strong>~120 nm</strong></span>
+              <span>Coves &amp; natural harbour</span>
+              <span>Diesel <strong>~1,900 L</strong></span>
+            </div>
+          </div>
+        </div>
+      </div>
+      <div class="carousel-nav">
+        <button class="carousel-btn carousel-prev" aria-label="Previous destination">&#8249;</button>
+        <span class="carousel-pos"></span>
+        <button class="carousel-btn carousel-next" aria-label="Next destination">&#8250;</button>
+      </div>
+    </div>
+
   </div>
 </section>
 
 <script>
-  /* When user arrives via a pricing row link, highlight the matching itinerary cards briefly */
-  function highlightPriceLinkedItinerary() {
-    document.querySelectorAll('.destination-card.price-linked').forEach(el => el.classList.remove('price-linked'));
+(function(){
+  var tabs = document.querySelectorAll('.dest-tab');
+  var groups = document.querySelectorAll('.dest-group');
 
-    const hash = location.hash;
-    if (!hash) return;
-
-    const tier = document.getElementById(hash.substring(1));
-    if (!tier || !tier.classList.contains('dest-tier')) return;
-
-    // The CSS :target already animates the tier header
-    let next = tier.nextElementSibling;
-    while (next && next.classList.contains('destination-card')) {
-      next.classList.add('price-linked');
-      next = next.nextElementSibling;
-    }
-
-    // Auto-remove card highlight after a few seconds (tier highlight via :target stays while hash is active)
-    setTimeout(() => {
-      document.querySelectorAll('.destination-card.price-linked').forEach(el => el.classList.remove('price-linked'));
-    }, 4200);
+  function setDestTab(tier) {
+    tabs.forEach(function(t) {
+      var on = t.dataset.tier === tier;
+      t.classList.toggle('tab--active', on);
+      t.setAttribute('aria-selected', on ? 'true' : 'false');
+    });
+    groups.forEach(function(g) {
+      g.classList.toggle('tab-active', g.dataset.tier === tier);
+    });
   }
 
-  window.addEventListener('hashchange', highlightPriceLinkedItinerary);
-  window.addEventListener('DOMContentLoaded', highlightPriceLinkedItinerary);
+  setDestTab('half-day');
+
+  function checkHash() {
+    var hash = (window.location.hash || '').replace('#', '');
+    if (hash === 'half-day' || hash === 'full-day' || hash === 'multi-day') {
+      setDestTab(hash);
+    }
+  }
+  checkHash();
+  window.addEventListener('hashchange', checkHash);
+
+  tabs.forEach(function(tab) {
+    tab.addEventListener('click', function() {
+      setDestTab(tab.dataset.tier);
+      history.pushState(null, '', '#' + tab.dataset.tier);
+    });
+  });
+
+  /* Carousel prev/next navigation */
+  document.querySelectorAll('.dest-group').forEach(function(group) {
+    var grid = group.querySelector('.itinerary-grid');
+    if (!grid) return;
+    var btnPrev = group.querySelector('.carousel-prev');
+    var btnNext = group.querySelector('.carousel-next');
+    var posEl   = group.querySelector('.carousel-pos');
+    var cards   = Array.from(grid.querySelectorAll('.destination-card'));
+    var total   = cards.length;
+
+    function step() {
+      return cards.length > 1 ? cards[1].offsetLeft - cards[0].offsetLeft : grid.scrollWidth;
+    }
+    function idx() {
+      return Math.round(grid.scrollLeft / step());
+    }
+    function update() {
+      var i = idx();
+      if (btnPrev) btnPrev.disabled = i <= 0;
+      if (btnNext) btnNext.disabled = i >= total - 1;
+      if (posEl)   posEl.textContent = (i + 1) + ' / ' + total;
+    }
+    if (btnPrev) btnPrev.addEventListener('click', function() {
+      grid.scrollTo({ left: (idx() - 1) * step(), behavior: 'smooth' });
+    });
+    if (btnNext) btnNext.addEventListener('click', function() {
+      grid.scrollTo({ left: (idx() + 1) * step(), behavior: 'smooth' });
+    });
+    grid.addEventListener('scroll', update, { passive: true });
+    update();
+  });
+})();
 </script>
 
 <!-- SPECS -->
@@ -2157,10 +2432,20 @@ height="0" width="0" style="display:none;visibility:hidden"></iframe></noscript>
   <div class="container">
     <p class="section-label reveal">Charterpreise</p>
     <h2 class="section-title reveal reveal-delay-1">Transparent &amp; <em>fair</em></h2>
+    <p class="pricing-urgency reveal reveal-delay-2">Peak season (Jun–Aug) books fast — <strong>limited summer dates remaining</strong></p>
+    <div class="pricing-tabs" role="tablist" aria-label="Charter season">
+      <button class="pricing-tab" role="tab" data-season="low" id="tab-low" aria-selected="false">
+        Nebensaison<span class="tab-period">Sep – May</span>
+      </button>
+      <button class="pricing-tab" role="tab" data-season="peak" id="tab-peak" aria-selected="false">
+        Hochsaison<span class="tab-period">Jun – Aug</span>
+      </button>
+    </div>
     <div class="pricing-grid">
       <div class="pricing-card reveal" data-season="low">
         <div class="pricing-badge">Nebensaison</div>
         <div class="pricing-season">September – Mai</div>
+        <p class="pricing-explore-hint">Tap a duration to explore matching destinations</p>
         <a class="pricing-row" href="#half-day">
           <span class="pricing-duration">4 Stunden</span>
           <span class="pricing-amount"><sup>€</sup> 1,850</span>
@@ -2177,11 +2462,13 @@ height="0" width="0" style="display:none;visibility:hidden"></iframe></noscript>
           <span class="pricing-duration">Mehrtägig</span>
           <span class="pricing-amount"><span class="amt-sm">ab </span><sup>€</sup> 3,100<span class="amt-sm"> /Tag</span></span>
         </a>
-
+        <a class="pricing-book-cta" href="#contact">Request a quote</a>
+        <p class="pricing-review-snippet"><span class="review-stars">★★★★★</span> <em>"Spacious, comfortable and spotless — the crew made sure we were well taken care of wherever we went."</em><span class="review-attr"> — Tony, Aug 2025</span></p>
       </div>
       <div class="pricing-card featured reveal reveal-delay-1" data-season="peak">
         <div class="pricing-badge">Hochsaison</div>
         <div class="pricing-season">Juni – August</div>
+        <p class="pricing-explore-hint">Tap a duration to explore matching destinations</p>
         <a class="pricing-row" href="#half-day">
           <span class="pricing-duration">4 Stunden</span>
           <span class="pricing-amount"><sup>€</sup> 2,200</span>
@@ -2198,7 +2485,8 @@ height="0" width="0" style="display:none;visibility:hidden"></iframe></noscript>
           <span class="pricing-duration">Mehrtägig</span>
           <span class="pricing-amount"><span class="amt-sm">ab </span><sup>€</sup> 3,600<span class="amt-sm"> /Tag</span></span>
         </a>
-
+        <a class="pricing-book-cta" href="#contact">Request a quote</a>
+        <p class="pricing-review-snippet"><span class="review-stars">★★★★★</span> <em>"Spacious, comfortable and spotless — the crew made sure we were well taken care of wherever we went."</em><span class="review-attr"> — Tony, Aug 2025</span></p>
       </div>
     </div>
     <div class="pricing-terms reveal">
@@ -2221,17 +2509,36 @@ height="0" width="0" style="display:none;visibility:hidden"></iframe></noscript>
 </section>
 
 <script>
-/* Highlight & show the current season's prices first: peak (Jun–Aug) in high
-   season, low season (Sep–May) otherwise. Self-correcting — no manual swap. */
 (function(){
-  var grid = document.querySelector('.pricing-grid');
-  if (!grid) return;
-  var m = new Date().getMonth();              // 0=Jan … 5=Jun,6=Jul,7=Aug
+  var m = new Date().getMonth();
   var isPeak = m >= 5 && m <= 7;
-  var current = grid.querySelector('[data-season="' + (isPeak ? 'peak' : 'low') + '"]');
-  var other   = grid.querySelector('[data-season="' + (isPeak ? 'low' : 'peak') + '"]');
-  if (current) { current.classList.add('featured'); grid.insertBefore(current, grid.firstElementChild); }
-  if (other)   { other.classList.remove('featured'); }
+  var activeSeason = isPeak ? 'peak' : 'low';
+
+  function setTab(season) {
+    document.querySelectorAll('.pricing-tab').forEach(function(t) {
+      var on = t.dataset.season === season;
+      t.classList.toggle('tab--active', on);
+      t.setAttribute('aria-selected', on ? 'true' : 'false');
+    });
+    document.querySelectorAll('.pricing-card').forEach(function(c) {
+      c.classList.toggle('tab-active', c.dataset.season === season);
+    });
+  }
+
+  setTab(activeSeason);
+
+  /* Desktop: keep featured card (gold border) on the current season */
+  var grid = document.querySelector('.pricing-grid');
+  if (grid) {
+    var cur = grid.querySelector('[data-season="' + activeSeason + '"]');
+    var oth = grid.querySelector('[data-season="' + (isPeak ? 'low' : 'peak') + '"]');
+    if (cur) { cur.classList.add('featured'); grid.insertBefore(cur, grid.firstElementChild); }
+    if (oth) { oth.classList.remove('featured'); }
+  }
+
+  document.querySelectorAll('.pricing-tab').forEach(function(tab) {
+    tab.addEventListener('click', function() { setTab(tab.dataset.season); });
+  });
 })();
 </script>
 
@@ -2373,54 +2680,34 @@ height="0" width="0" style="display:none;visibility:hidden"></iframe></noscript>
           <input type="hidden" name="locale" value="de" />
           <p style="display:none;"><input name="bot-field" /></p>
 
-          <div class="form-row">
-            <div class="form-field">
-              <label for="first_name">Vorname</label>
-              <input type="text" name="first_name" id="first_name" placeholder="John" required />
-            </div>
-            <div class="form-field">
-              <label for="last_name">Nachname</label>
-              <input type="text" name="last_name" id="last_name" placeholder="Smith" />
-            </div>
+          <div class="form-field">
+            <label for="name">Ihr Name</label>
+            <input type="text" name="name" id="name" placeholder="First and last name" required />
           </div>
           <div class="form-field">
             <label for="email">E-Mail</label>
-            <input type="email" name="email" id="email" placeholder="john@example.com" required />
-          </div>
-          <div class="form-field">
-            <label for="phone">Telefon</label>
-            <input type="tel" name="phone" id="phone" placeholder="+1 / +44 / +34 ..." />
+            <input type="email" name="email" id="email" placeholder="your@email.com" required />
           </div>
           <div class="form-row">
             <div class="form-field">
               <label for="preferred_date">Wunschdatum</label>
-              <input type="date" name="preferred_date" id="preferred_date" />
+              <input type="date" name="preferred_date" id="preferred_date" min="" />
             </div>
             <div class="form-field">
-              <label for="charter_duration">Charterdauer</label>
+              <label for="charter_duration">Duration</label>
               <select name="charter_duration" id="charter_duration">
+                <option value="" disabled selected>Select…</option>
                 <option>4 Stunden</option>
                 <option>6 Stunden</option>
-                <option selected>1 Tag</option>
+                <option>1 Tag</option>
                 <option>2–3 Tage</option>
                 <option>4–6 Days</option>
                 <option>Länger</option>
               </select>
             </div>
           </div>
-          <div class="form-field">
-            <label for="guests">Anzahl Gäste</label>
-            <select name="guests" id="guests">
-              <option>1–4 Gäste</option>
-              <option>5–7 Gäste</option>
-              <option>8–12 Gäste (nur Tagescharter)</option>
-            </select>
-          </div>
-          <div class="form-field">
-            <label for="message">Nachricht / Sonderwünsche</label>
-            <textarea rows="4" name="message" id="message" placeholder="Teilen Sie uns Ihre Wünsche mit..."></textarea>
-          </div>
-          <button type="submit" class="form-submit" id="submitBtn">Anfrage senden</button>
+          <p class="form-reassurance">We reply within a few hours · your details stay private</p>
+          <button type="submit" class="form-submit" id="submitBtn">Send My Enquiry</button>
           <div id="form-success" style="display:none;color:var(--gold);font-size:.85rem;margin-top:.8rem;padding:.8rem;border:1px solid rgba(201,168,76,.3);background:rgba(201,168,76,.05);">
             ✓ Vielen Dank! Ihre Anfrage wurde gesendet. Wir melden uns in Kürze.
           </div>
@@ -2489,6 +2776,43 @@ height="0" width="0" style="display:none;visibility:hidden"></iframe></noscript>
   }, { threshold: 0.12 });
   reveals.forEach(el => observer.observe(el));
 
+  // Gallery tabs + carousel nav
+  (function(){
+    var tabs   = document.querySelectorAll('.gallery-tab');
+    var groups = document.querySelectorAll('.gallery-group');
+
+    function setGalleryTab(tab) {
+      tabs.forEach(function(t)   { t.classList.toggle('tab--active', t.dataset.gtab === tab); });
+      groups.forEach(function(g) { g.classList.toggle('tab-active',  g.dataset.gtab === tab); });
+    }
+    tabs.forEach(function(tab) {
+      tab.addEventListener('click', function() { setGalleryTab(tab.dataset.gtab); });
+    });
+
+    groups.forEach(function(group) {
+      var grid    = group.querySelector('.gallery-grid');
+      if (!grid) return;
+      var btnPrev = group.querySelector('.carousel-prev');
+      var btnNext = group.querySelector('.carousel-next');
+      var posEl   = group.querySelector('.carousel-pos');
+      var cards   = Array.from(grid.querySelectorAll('.gallery-item'));
+      var total   = cards.length;
+
+      function step() { return cards.length > 1 ? cards[1].offsetLeft - cards[0].offsetLeft : grid.scrollWidth; }
+      function idx()  { return Math.round(grid.scrollLeft / step()); }
+      function update() {
+        var i = idx();
+        if (btnPrev) btnPrev.disabled = i <= 0;
+        if (btnNext) btnNext.disabled = i >= total - 1;
+        if (posEl)   posEl.textContent = (i + 1) + ' / ' + total;
+      }
+      if (btnPrev) btnPrev.addEventListener('click', function() { grid.scrollTo({ left: (idx()-1)*step(), behavior:'smooth' }); });
+      if (btnNext) btnNext.addEventListener('click', function() { grid.scrollTo({ left: (idx()+1)*step(), behavior:'smooth' }); });
+      grid.addEventListener('scroll', update, { passive: true });
+      update();
+    });
+  })();
+
   // Gallery lightbox
   const images = [
     "/images/maiora_20s_01.jpg",
@@ -2534,6 +2858,15 @@ height="0" width="0" style="display:none;visibility:hidden"></iframe></noscript>
     if (e.key === 'ArrowLeft') { currentIdx=(currentIdx-1+images.length)%images.length; lbImg.src=images[currentIdx]; }
     if (e.key === 'ArrowRight') { currentIdx=(currentIdx+1)%images.length; lbImg.src=images[currentIdx]; }
   });
+
+  // Set date min to tomorrow so past/today dates can't be submitted
+  (function(){
+    var d = document.getElementById('preferred_date');
+    if (!d) return;
+    var tomorrow = new Date();
+    tomorrow.setDate(tomorrow.getDate() + 1);
+    d.min = tomorrow.toISOString().split('T')[0];
+  })();
 
   // Form submission via Netlify Forms
   document.getElementById('contactForm').addEventListener('submit', async function(e) {
@@ -2966,89 +3299,62 @@ height="0" width="0" style="display:none;visibility:hidden"></iframe></noscript>
   for(var i=0;i<ls.length;i++){(function(a){a.addEventListener('click',function(){try{localStorage.setItem('ly_lang',a.getAttribute('hreflang'));}catch(e){}});})(ls[i]);}
 }catch(e){}})();
 </script>
-<a href="#gallery" class="dest-fab gallery-fab" id="galleryFab" aria-label="Yacht entdecken"><span class="dest-fab-icon" aria-hidden="true">✦</span>Yacht entdecken</a>
-<a href="#itinerary" class="dest-fab" id="destFab" aria-label="Reiseziele entdecken"><span class="dest-fab-icon" aria-hidden="true">✦</span>Reiseziele entdecken</a>
+<div id="waBar" class="wa-bar" role="complementary" aria-label="Chat on WhatsApp">
+  <a href="https://wa.me/34643678072" target="_blank" rel="noopener" class="wa-bar-link" onclick="if(window.gtag_report_conversion)gtag_report_conversion();">
+    <svg class="wa-bar-icon" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M17.472 14.382c-.297-.149-1.758-.867-2.03-.967-.273-.099-.471-.148-.67.15-.197.297-.767.966-.94 1.164-.173.199-.347.223-.644.075-.297-.15-1.255-.463-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.298-.347.446-.52.149-.174.198-.298.298-.497.099-.198.05-.371-.025-.52-.075-.149-.669-1.612-.916-2.207-.242-.579-.487-.5-.669-.51-.173-.008-.371-.01-.57-.01-.198 0-.52.074-.792.372-.272.297-1.04 1.016-1.04 2.479 0 1.462 1.065 2.875 1.213 3.074.149.198 2.096 3.2 5.077 4.487.709.306 1.262.489 1.694.625.712.227 1.36.195 1.871.118.571-.085 1.758-.719 2.006-1.413.248-.694.248-1.289.173-1.413-.074-.124-.272-.198-.57-.347m-5.421 7.403h-.004a9.87 9.87 0 01-5.031-1.378l-.361-.214-3.741.982.998-3.648-.235-.374a9.86 9.86 0 01-1.51-5.26c.001-5.45 4.436-9.884 9.888-9.884 2.64 0 5.122 1.03 6.988 2.898a9.825 9.825 0 012.893 6.994c-.003 5.45-4.437 9.884-9.885 9.884m8.413-18.297A11.815 11.815 0 0012.05 0C5.495 0 .16 5.335.157 11.892c0 2.096.547 4.142 1.588 5.945L.057 24l6.305-1.654a11.882 11.882 0 005.683 1.448h.005c6.554 0 11.89-5.335 11.893-11.893a11.821 11.821 0 00-3.48-8.413z"/></svg>
+    <span>Chat on WhatsApp</span>
+  </a>
+</div>
 <script>
+/* Intercept internal anchor clicks and use programmatic scroll instead of native
+   hash navigation — avoids triggering Safari's auto-show toolbar on iOS */
 (function(){try{
-  var galleryFab = document.getElementById('galleryFab');
-  var destFab = document.getElementById('destFab');
-  var pricing = document.getElementById('pricing');
-  if (!destFab || !galleryFab || !pricing) return;
-
-  var showTimer = null;
-
-  function isPricingStillRelevant() {
-    var r = pricing.getBoundingClientRect();
-    // Keep the pills visible while the rates section is still substantially on screen.
-    // Hide automatically once the user scrolls meaningfully away from it.
-    return r.bottom > 100 && r.top < window.innerHeight * 0.82;
-  }
-
-  function hidePills() {
-    if (showTimer) { clearTimeout(showTimer); showTimer = null; }
-    destFab.classList.remove('show');
-    galleryFab.classList.remove('show');
-  }
-
-  function showPills() {
-    destFab.classList.add('show');
-    galleryFab.classList.add('show');
-  }
-
-  function scheduleShowPills() {
-    if (showTimer) clearTimeout(showTimer);
-    showTimer = setTimeout(function() {
-      showPills();
-      showTimer = null;
-    }, 800);
-  }
-
-  function onEnterRates() {
-    hidePills();
-    scheduleShowPills();
-  }
-
-  // Hide the cluster when scrolling away from the prices/rates section
-  function onScrollCheck() {
-    if ((destFab.classList.contains('show') || galleryFab.classList.contains('show')) && !isPricingStillRelevant()) {
-      hidePills();
+  var nav = document.querySelector('nav');
+  function navH() { return nav ? nav.getBoundingClientRect().height : 60; }
+  document.addEventListener('click', function(e) {
+    var a = e.target.closest('a[href^="#"]');
+    if (!a) return;
+    var hash = a.getAttribute('href');
+    if (!hash || hash === '#') return;
+    var target = document.querySelector(hash);
+    if (!target) return;
+    e.preventDefault();
+    /* On mobile, jump to the pricing tabs instead of the section header so
+       prices fill the screen immediately rather than landing on the title */
+    var scrollTarget = target;
+    if (hash === '#pricing' && window.innerWidth <= 768) {
+      var tabs = document.querySelector('.pricing-tabs');
+      if (tabs) scrollTarget = tabs;
     }
-  }
-
-  // Trigger specifically when user clicks a Rates link (from hero, nav, mobile menu, etc.)
-  // Both pills appear together on mobile after viewing rates — one to jump to destinations, one to the yacht gallery.
-  var ratesLinks = document.querySelectorAll('a[href="#pricing"]');
-  for (var i = 0; i < ratesLinks.length; i++) {
-    ratesLinks[i].addEventListener('click', function() {
-      // Let the scroll to #pricing begin, then show the contextual pills after a short delay
-      setTimeout(onEnterRates, 160);
-    }, {passive: true});
-  }
-
-  // Also cover hash changes (direct links, browser nav, etc.)
-  window.addEventListener('hashchange', function() {
-    if (location.hash === '#pricing') {
-      onEnterRates();
-    } else {
-      hidePills();
+    /* On mobile, jump straight to the form rather than the contact info block */
+    if (hash === '#contact' && window.innerWidth <= 768) {
+      var form = document.querySelector('#contactForm');
+      if (form) scrollTarget = form;
     }
-  });
-
-  window.addEventListener('scroll', onScrollCheck, {passive: true});
-  window.addEventListener('resize', onScrollCheck, {passive: true});
-
-  // Clicking either pill dismisses the cluster (navigation happens)
-  destFab.addEventListener('click', function() { hidePills(); });
-  galleryFab.addEventListener('click', function() { hidePills(); });
-
-  // If landing directly on #pricing, show the cluster after delay
-  if (location.hash === '#pricing') {
-    setTimeout(onEnterRates, 450);
-  }
-
-  // Start hidden (both pills are mobile-only via CSS)
-  destFab.classList.remove('show');
-  galleryFab.classList.remove('show');
+    /* On mobile, jump to the dest-tabs so the tab bar and cards fill the screen */
+    if (hash === '#itinerary' && window.innerWidth <= 768) {
+      var destTabs = document.querySelector('.dest-tabs');
+      if (destTabs) scrollTarget = destTabs;
+    }
+    var top = scrollTarget.getBoundingClientRect().top + window.pageYOffset - navH() - 8;
+    window.scrollTo({ top: top, behavior: 'smooth' });
+    /* Update hash silently so back-button still works */
+    history.pushState(null, '', hash);
+  }, { passive: false });
+}catch(e){}})();
+</script>
+<script>
+/* Show sticky WhatsApp bar only after the user scrolls past the hero */
+(function(){try{
+  var bar = document.getElementById('waBar');
+  var hero = document.getElementById('hero');
+  if (!bar || !hero) return;
+  var observer = new IntersectionObserver(function(entries) {
+    entries[0].isIntersecting
+      ? bar.classList.remove('wa-bar--visible')
+      : bar.classList.add('wa-bar--visible');
+  }, { threshold: 0 });
+  observer.observe(hero);
 }catch(e){}})();
 </script>
 </body>
