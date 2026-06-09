@@ -361,7 +361,7 @@ j=d.createElement(s),dl=l!='dataLayer'?'&l='+l:'';j.async=true;j.crossOrigin='an
   }
   .hero-content {
     position: relative; text-align: center;
-    padding: 6rem 2rem 3rem;
+    padding: 6rem 2rem 5.5rem;
     width: 100%; max-width: 52rem; margin: 0 auto;
     display: flex; flex-direction: column; align-items: center;
     animation: fadeUp 1.2s ease both;
@@ -377,7 +377,7 @@ j=d.createElement(s),dl=l!='dataLayer'?'&l='+l:'';j.async=true;j.crossOrigin='an
   @keyframes heroScrollUp { from { opacity:0; transform: translate(-50%, 30px); } to { opacity:1; transform: translate(-50%, 0); } }
   .hero-eyebrow {
     font-size: .72rem; letter-spacing: .32em; text-transform: uppercase;
-    color: var(--gold-light); margin-bottom: 2.5rem; opacity: 0;
+    color: var(--gold-light); margin-bottom: 1.25rem; opacity: 0;
     font-weight: 500;
     text-shadow: 0 1px 14px rgba(0,0,0,.75);
     animation: fadeUp .9s .3s ease both;
@@ -423,9 +423,8 @@ j=d.createElement(s),dl=l!='dataLayer'?'&l='+l:'';j.async=true;j.crossOrigin='an
   }
   .btn-ghost:hover { border-color: var(--gold); color: var(--gold); }
   .hero-scroll {
-    position: static; left: auto; transform: none;
+    position: absolute; bottom: 1.5rem; left: 0; right: 0;
     display: flex; flex-direction: column; align-items: center; gap: .5rem;
-    margin-top: 1.5rem;
     opacity: 0; animation: fadeUp 0.9s 1.4s ease both, scrollBob 2s 2.2s infinite ease-in-out;
   }
 
@@ -1725,7 +1724,7 @@ j=d.createElement(s),dl=l!='dataLayer'?'&l='+l:'';j.async=true;j.crossOrigin='an
        Reduced #hero padding-bottom lets the anchored elements sit close to the true viewport bottom. */
     .hero-eyebrow { margin-bottom: 1.6rem; }
     .hero-sub { margin-top: clamp(1rem, 4vh, 2rem); }
-    .hero-value { margin-top: 0.5rem; font-size: .7rem; }
+    .hero-value { margin-top: 0.5rem; margin-bottom: 0.6rem; font-size: .7rem; }
     .hero-cta-group { margin-top: auto; }
     .hero-actions { margin-top: 0; }
     .hero-trust { margin-top: 0.4rem; margin-bottom: 0.25rem; }
@@ -1753,7 +1752,7 @@ j=d.createElement(s),dl=l!='dataLayer'?'&l='+l:'';j.async=true;j.crossOrigin='an
   /* Hero trust cue */
   .eyebrow-stars { color: var(--gold); letter-spacing: .1em; }
   .hero-value {
-    margin-top: 0.75rem;
+    margin-top: 0; margin-bottom: 1rem;
     font-size: clamp(.72rem, 1.4vw, .84rem);
     letter-spacing: .04em; line-height: 1.65;
     color: rgba(245,240,232,.68);
@@ -1868,8 +1867,8 @@ height="0" width="0" style="display:none;visibility:hidden"></iframe></noscript>
     <p class="hero-eyebrow"><span class="eyebrow-stars">★★★★★</span> 5.0 &nbsp;·&nbsp; Private Charter<br>Club de Mar · Mallorca</p>
     <h1 class="hero-title">LIMIT<em>LESS</em></h1>
     <p class="hero-sub">Exclusive Maiora Yacht · 21.5 m · Up to 12 Guests Day · 7 Overnight</p>
-    <p class="hero-value">Your crew handles everything — you focus on the people and the views.</p>
     <div class="hero-cta-group">
+      <p class="hero-value">Your crew handles everything — you focus on the people and the views.</p>
       <div class="hero-actions">
         <a href="#pricing" class="btn-primary">Rates & Booking</a>
         <a href="#itinerary" class="btn-ghost">Explore Destinations</a>
