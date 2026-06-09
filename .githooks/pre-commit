@@ -11,6 +11,12 @@
 
 set -e
 
+# Skip locale rebuilds on non-main branches (UX work doesn't need them).
+BRANCH=$(git symbolic-ref --short HEAD 2>/dev/null)
+if [ "$BRANCH" != "main" ]; then
+  exit 0
+fi
+
 CHANGED=$(git diff --cached --name-only)
 
 if printf '%s\n' "$CHANGED" | grep -qE '^(index\.html|legal\.html|i18n/locales/[^/]+\.py|i18n/build-locales\.py)$'; then
