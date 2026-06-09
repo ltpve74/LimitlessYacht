@@ -1348,8 +1348,8 @@ j=d.createElement(s),dl=l!='dataLayer'?'&l='+l:'';j.async=true;j.crossOrigin='an
     .dest-tier { font-size: .72rem; letter-spacing: .1em; margin: 1.5rem 0 .4rem; padding-left: 2.5rem; padding-right: 1.5rem; }
     .dest-tier .tier-note { display: block; margin-top: .25rem; letter-spacing: .06em; }
   }
-  /* Touch devices (tablets/phones) at narrow widths: hamburger */
-  @media (max-width: 950px) and (pointer: coarse) {
+  /* Touch-only devices (tablets/phones — no hover): hamburger */
+  @media (max-width: 950px) and (hover: none) {
     nav {
       display: flex;
       flex-wrap: nowrap;
@@ -1360,11 +1360,16 @@ j=d.createElement(s),dl=l!='dataLayer'?'&l='+l:'';j.async=true;j.crossOrigin='an
     .nav-header-cta { display: none; }
     .hamburger { display: flex; }
   }
-  /* Mouse/trackpad users at narrow widths: compressed single row, never hamburger */
-  @media (max-width: 950px) and (hover: hover) and (pointer: fine) {
+  /* Hover-capable devices (laptops/desktops) at narrow widths: compressed single row */
+  @media (max-width: 950px) and (hover: hover) {
     nav { padding: 0.85rem 1rem; }
     .nav-links { gap: 0.5rem; justify-content: flex-start; }
     .nav-links a { font-size: 0.54rem; letter-spacing: 0.08em; }
+  }
+  /* Very narrow hover-capable windows: also drop the Enquire CTA to prevent overflow */
+  @media (max-width: 780px) and (hover: hover) {
+    .nav-header-cta { display: none; }
+    .nav-links a { font-size: 0.5rem; letter-spacing: 0.07em; }
   }
   @media (max-width: 640px) {
     section { padding: 4rem 1.2rem; }
@@ -1691,8 +1696,8 @@ j=d.createElement(s),dl=l!='dataLayer'?'&l='+l:'';j.async=true;j.crossOrigin='an
       padding: 0.3rem;
     }
   }
-  /* Hero: mobile layout for phones (any input) and touch tablets ≤950px */
-  @media (max-width: 640px), (max-width: 950px) and (pointer: coarse) {
+  /* Hero: mobile layout for phones (any input) and touch-only tablets ≤950px */
+  @media (max-width: 640px), (max-width: 950px) and (hover: none) {
     #hero {
       min-height: 100dvh;
       min-height: 520px;
