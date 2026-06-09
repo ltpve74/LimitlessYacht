@@ -1691,8 +1691,8 @@ j=d.createElement(s),dl=l!='dataLayer'?'&l='+l:'';j.async=true;j.crossOrigin='an
       padding: 0.3rem;
     }
   }
-  /* Hero: shorter on mobile to reveal content below the fold */
-  @media (max-width: 640px) {
+  /* Hero: mobile layout for phones (any input) and touch tablets ≤950px */
+  @media (max-width: 640px), (max-width: 950px) and (pointer: coarse) {
     #hero {
       min-height: 100dvh;
       min-height: 520px;
