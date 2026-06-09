@@ -363,6 +363,7 @@ j=d.createElement(s),dl=l!='dataLayer'?'&l='+l:'';j.async=true;j.crossOrigin='an
     position: relative; text-align: center;
     padding: 6rem 2rem 5.5rem;
     width: 100%; max-width: 52rem; margin: 0 auto;
+    height: 100%; /* explicit height so position:absolute children anchor to viewport edges */
     display: flex; flex-direction: column; align-items: center;
     animation: fadeUp 1.2s ease both;
   }
@@ -1711,7 +1712,7 @@ j=d.createElement(s),dl=l!='dataLayer'?'&l='+l:'';j.async=true;j.crossOrigin='an
       margin-top: 1.75rem; /* placed lower so the scroll indicator feels like it's coming from the very bottom of the page / viewport, while cta group and all other elements stay exactly in their current positions */
       margin-bottom: 0;
       position: static;
-      left: auto;
+      left: auto; right: auto;
       transform: none;
       animation: fadeUp 0.9s 0.6s ease both, scrollBob 2s 1.6s infinite ease-in-out;
     }
