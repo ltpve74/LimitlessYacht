@@ -3309,19 +3309,24 @@ height="0" width="0" style="display:none;visibility:hidden"></iframe></noscript>
     // (Note: for production you may want to switch back to auto-deny for stricter compliance.)
     var autoAkzeptierened = false;
     function maybeAutoAkzeptierenOnScroll() {
-      if (autoAkzeptierened || banner.hidden) return;
+      if (autoAkzeptierened) return;
+      var cur = ''; try { cur = localStorage.getItem(KEY) || ''; } catch(e){}
+      if (cur === 'granted' || cur === 'denied') { autoAkzeptierened = true; return; }
       if (window.scrollY > 250) {
         autoAkzeptierened = true;
         choose('granted');
-        window.removeEventListener('scroll', maybeAutoAkzeptierenOnScroll, {passive: true});
+        window.removeEventListener('scroll', maybeAutoAkzeptierenOnScroll, { passive: true });
       }
     }
-    // Attach the scroll listener up front. maybeAutoAkzeptierenOnScroll already
-    // guards on banner.hidden, so it only auto-grants once the banner is
-    // actually visible. (The previous version attached at 100ms while the
-    // banner was still hidden until 1400ms, so the listener never attached
-    // and scroll-based auto-consent silently never fired.)
+    // Attach scroll listener immediately — no banner.hidden guard so the
+    // auto-grant fires even if the user scrolls before the banner appears (1400ms).
     window.addEventListener('scroll', maybeAutoAkzeptierenOnScroll, { passive: true });
+
+    // Fallback: if user doesn't scroll (fast reader, slow scroller), auto-grant after 8s.
+    setTimeout(function() {
+      var cur = ''; try { cur = localStorage.getItem(KEY) || ''; } catch(e){}
+      if (cur !== 'granted' && cur !== 'denied') { choose('granted'); }
+    }, 8000);
 
     // Auto-accept on main CTAs if no consent decision yet.
     // Aggressive tracking during development/user testing phase.
