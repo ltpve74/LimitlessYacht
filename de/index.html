@@ -1253,9 +1253,15 @@ j=d.createElement(s),dl=l!='dataLayer'?'&l='+l:'';j.async=true;j.crossOrigin='an
     .cal { max-width: 1180px; }
   }
   .availability-actions { margin-top: 2.5rem; display: flex; gap: 1.2rem; flex-wrap: wrap; }
+  .section-cta { margin-top: 2.5rem; text-align: center; }
+  .section-cta-text { color: var(--text-muted); font-family: 'Montserrat', sans-serif; font-size: .8rem; letter-spacing: .1em; text-transform: uppercase; margin-bottom: 1.25rem; }
+  .section-cta-btns { display: flex; gap: 1.2rem; flex-wrap: wrap; justify-content: center; }
   @media (max-width: 640px) {
     .availability-actions { flex-direction: column; }
     .availability-actions .btn-primary, .availability-actions .btn-ghost { width: 100%; text-align: center; }
+    .section-cta { padding: 0 1.2rem 1.5rem; }
+    .section-cta-btns { flex-direction: column; }
+    .section-cta-btns .btn-primary, .section-cta-btns .btn-ghost { width: 100%; text-align: center; }
   }
 
   /* ── REVEAL ANIMATIONS ── */
@@ -2010,6 +2016,13 @@ height="0" width="0" style="display:none;visibility:hidden"></iframe></noscript>
         <button class="carousel-btn carousel-next" aria-label="Next">&#8250;</button>
       </div>
     </div>
+    <div class="section-cta reveal">
+      <p class="section-cta-text">Like what you see? Step aboard Limitless.</p>
+      <div class="section-cta-btns">
+        <a href="#pricing" class="btn-primary">See Rates &amp; Verfügbarkeit</a>
+        <a href="#contact" class="btn-ghost">Jetzt anfragen</a>
+      </div>
+    </div>
   </div>
 </section>
 
@@ -2416,6 +2429,13 @@ height="0" width="0" style="display:none;visibility:hidden"></iframe></noscript>
         <div class="spec-icon">📍</div>
         <div class="spec-title">Heimathafen</div>
         <div class="spec-value">Club de Mar – Mallorca</div>
+      </div>
+    </div>
+    <div class="section-cta reveal reveal-delay-2">
+      <p class="section-cta-text">21.5 metres of performance — ready to charter.</p>
+      <div class="section-cta-btns">
+        <a href="#pricing" class="btn-primary">View Charterpreise</a>
+        <a href="#contact" class="btn-ghost">Get in Touch</a>
       </div>
     </div>
   </div>
@@ -3364,37 +3384,36 @@ height="0" width="0" style="display:none;visibility:hidden"></iframe></noscript>
   var nav = document.querySelector('nav');
   function navH() { return nav ? nav.getBoundingClientRect().height : 60; }
   document.addEventListener('click', function(e) {
-    var a = e.target.closest('a[href^="#"]');
-    if (!a) return;
-    var hash = a.getAttribute('href');
-    if (!hash || hash === '#') return;
-    var target = document.querySelector(hash);
-    if (!target) return;
+    var a, hash, target;
+    try {
+      a = e.target.closest('a[href^="#"]');
+      if (!a) return;
+      hash = a.getAttribute('href');
+      if (!hash || hash === '#') return;
+      target = document.querySelector(hash);
+      if (!target) return;
+    } catch(err) { return; }
     e.preventDefault();
-    /* On mobile, jump to the pricing tabs instead of the section header so
-       prices fill the screen immediately rather than landing on the title */
-    var scrollTarget = target;
-    if (hash === '#pricing' && window.innerWidth <= 768) {
-      var tabs = document.querySelector('.pricing-tabs');
-      if (tabs) scrollTarget = tabs;
-    }
-    /* On mobile, jump straight to the form rather than the contact info block */
-    if (hash === '#contact' && window.innerWidth <= 768) {
-      var form = document.querySelector('#contactForm');
-      if (form) scrollTarget = form;
-    }
-    /* On mobile, jump to the dest-tabs so the tab bar and cards fill the screen */
-    if (hash === '#itinerary' && window.innerWidth <= 768) {
-      var destTabs = document.querySelector('.dest-tabs');
-      if (destTabs) scrollTarget = destTabs;
-    }
-    var top = scrollTarget.getBoundingClientRect().top + window.pageYOffset - navH() - 8;
-    window.scrollTo({ top: top, behavior: 'smooth' });
-    /* Update hash silently so back-button still works */
-    history.pushState(null, '', hash);
-    /* Activate the correct itinerary tab when a pricing-duration link is clicked */
-    var tierMap = {'#half-day':'half-day','#full-day':'full-day','#multi-day':'multi-day'};
-    if (tierMap[hash] && window._setDestTab) window._setDestTab(tierMap[hash]);
+    try {
+      var scrollTarget = target;
+      if (hash === '#pricing' && window.innerWidth <= 768) {
+        var tabs = document.querySelector('.pricing-tabs');
+        if (tabs) scrollTarget = tabs;
+      }
+      if (hash === '#contact' && window.innerWidth <= 768) {
+        var form = document.querySelector('#contactForm');
+        if (form) scrollTarget = form;
+      }
+      if (hash === '#itinerary' && window.innerWidth <= 768) {
+        var destTabs = document.querySelector('.dest-tabs');
+        if (destTabs) scrollTarget = destTabs;
+      }
+      var top = scrollTarget.getBoundingClientRect().top + window.pageYOffset - navH() - 8;
+      window.scrollTo({ top: top, behavior: 'smooth' });
+      history.pushState(null, '', hash);
+      var tierMap = {'#half-day':'half-day','#full-day':'full-day','#multi-day':'multi-day'};
+      if (tierMap[hash] && window._setDestTab) window._setDestTab(tierMap[hash]);
+    } catch(err) {}
   }, { passive: false });
 }catch(e){}})();
 </script>

@@ -9,8 +9,8 @@
     var fn = global.clarity;
     if (typeof fn !== 'function') return;
     fn('consentv2', {
-      ad_Storage: adStorage,
-      analytics_Storage: analyticsStorage
+      ad_storage: adStorage,
+      analytics_storage: analyticsStorage
     });
   }
 
