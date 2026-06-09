@@ -570,9 +570,22 @@ j=d.createElement(s),dl=l!='dataLayer'?'&l='+l:'';j.async=true;j.crossOrigin='an
   .gallery-item:nth-child(1) { grid-column: span 2; grid-row: span 2; }
   .gallery-item:nth-child(5) { grid-column: span 2; }
   .gallery-item:nth-child(10) { grid-column: span 2; }
-  .gallery-tabs { display: none; }
-  .gallery-group { display: block; }
-  .gallery-group + .gallery-group { margin-top: 2rem; }
+  .gallery-tabs {
+    display: flex; margin-top: 1.5rem;
+    border: 1px solid rgba(201,168,76,.25); border-radius: 3px; overflow: hidden;
+    max-width: 480px;
+  }
+  .gallery-tab {
+    flex: 1; padding: .85rem .5rem; background: transparent; border: none;
+    color: var(--text-muted); font-family: 'Montserrat', sans-serif;
+    font-size: .58rem; letter-spacing: .13em; text-transform: uppercase;
+    cursor: pointer; transition: background .2s, color .2s; line-height: 1.5;
+    text-align: center;
+  }
+  .gallery-tab.tab--active { background: var(--gold); color: var(--navy); }
+  .gallery-tab + .gallery-tab { border-left: 1px solid rgba(201,168,76,.25); }
+  .gallery-group { display: none; }
+  .gallery-group.tab-active { display: block; }
   .gallery-item img {
     width: 100%; height: 100%; object-fit: cover; display: block;
     transition: transform .6s ease, filter .4s;
@@ -704,31 +717,71 @@ j=d.createElement(s),dl=l!='dataLayer'?'&l='+l:'';j.async=true;j.crossOrigin='an
     position: relative;
     z-index: 1;
   }
-  .pricing-tabs { display: none; } /* shown on mobile via max-width:768px override */
-  .pricing-book-cta { display: none; }
-  .pricing-grid {
-    display: grid; grid-template-columns: 1fr 1fr; gap: 2rem; margin-top: 3.5rem;
+  .pricing-tabs {
+    display: flex; margin-top: 1.5rem;
+    border: 1px solid rgba(201,168,76,.25); border-radius: 3px; overflow: hidden;
+    max-width: 480px;
   }
+  .pricing-tab {
+    flex: 1; padding: .85rem .5rem; background: transparent; border: none;
+    color: var(--text-muted); font-family: 'Montserrat', sans-serif;
+    font-size: .58rem; letter-spacing: .13em; text-transform: uppercase;
+    cursor: pointer; transition: background .2s, color .2s; line-height: 1.5; text-align: center;
+  }
+  .pricing-tab .tab-period { display: block; font-size: .5rem; letter-spacing: .06em; margin-top: .15rem; opacity: .75; }
+  .pricing-tab.tab--active { background: var(--gold); color: var(--navy); }
+  .pricing-tab + .pricing-tab { border-left: 1px solid rgba(201,168,76,.25); }
+  .pricing-book-cta {
+    display: block; margin-top: 1.75rem;
+    padding: .9rem 2rem;
+    background: transparent; color: var(--gold);
+    border: 1px solid rgba(201,168,76,.4);
+    text-align: center; text-decoration: none;
+    font-family: 'Montserrat', sans-serif; font-size: .6rem;
+    letter-spacing: .14em; text-transform: uppercase; font-weight: 600;
+    border-radius: 2px;
+  }
+  .pricing-grid { display: block; margin-top: 2rem; }
   .pricing-card {
+    display: none; max-width: 960px; margin: 0 auto;
     border: 1px solid rgba(201,168,76,.2);
-    padding: 3.5rem; position: relative; overflow: hidden;
+    padding: 2.75rem 3rem; position: relative; overflow: hidden;
     transition: border-color .3s;
   }
-  .pricing-card:hover { border-color: rgba(201,168,76,.6); }
+  .pricing-card.tab-active {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    column-gap: 2.5rem;
+    background: linear-gradient(135deg, rgba(201,168,76,.08), rgba(26,58,92,.3));
+    border-color: var(--gold);
+  }
+  .pricing-card.tab-active .pricing-explore-hint,
+  .pricing-card.tab-active .pricing-book-cta,
+  .pricing-card.tab-active .pricing-review-snippet { grid-column: 1 / -1; }
+  .pricing-card.tab-active .pricing-row:nth-child(6),
+  .pricing-card.tab-active .pricing-row:nth-child(7) { border-bottom: none; }
+  .pricing-card.tab-active .pricing-row:nth-child(4),
+  .pricing-card.tab-active .pricing-row:nth-child(6) { border-right: 1px solid rgba(255,255,255,.08); }
+  .pricing-card:hover { border-color: rgba(201,168,76,.7); }
   .pricing-card.featured {
     background: linear-gradient(135deg, rgba(201,168,76,.08), rgba(26,58,92,.3));
     border-color: var(--gold);
   }
-  .pricing-badge {
-    position: absolute; top: 1.5rem; right: 1.5rem;
-    background: var(--gold); color: var(--navy);
-    font-size: .55rem; letter-spacing: .2em; text-transform: uppercase;
-    padding: .3rem .9rem; font-weight: 600;
+  .pricing-badge { display: none; }
+  .pricing-season { display: none; }
+  .pricing-explore-hint {
+    font-size: .7rem; letter-spacing: .03em;
+    color: rgba(245,240,232,.55); font-style: italic;
+    margin: 0 0 1.5rem;
   }
-  .pricing-season {
-    font-size: .6rem; letter-spacing: .25em; text-transform: uppercase;
-    color: var(--text-muted); margin-bottom: 2rem;
+  .pricing-review-snippet {
+    margin-top: 1.5rem; padding-top: 1.25rem;
+    border-top: 1px solid rgba(255,255,255,.06);
+    font-size: .78rem; line-height: 1.65;
+    color: rgba(245,240,232,.72);
   }
+  .pricing-review-snippet .review-stars { color: var(--gold); }
+  .review-attr { font-style: normal; color: rgba(245,240,232,.55); }
   .pricing-row {
     display: flex; justify-content: space-between; align-items: baseline;
     padding: 1.2rem 0; border-bottom: 1px solid rgba(255,255,255,.06);
@@ -1328,6 +1381,10 @@ j=d.createElement(s),dl=l!='dataLayer'?'&l='+l:'';j.async=true;j.crossOrigin='an
     .pricing-amount { font-size: 1.6rem; }
     .pricing-card { display: none; padding: 1rem 1.25rem; }
     .pricing-card.tab-active { display: block; }
+    .pricing-card.tab-active .pricing-row:nth-child(6),
+    .pricing-card.tab-active .pricing-row:nth-child(7) { border-bottom: 1px solid rgba(255,255,255,.06); }
+    .pricing-card.tab-active .pricing-row:nth-child(4),
+    .pricing-card.tab-active .pricing-row:nth-child(6) { border-right: none; }
     .pricing-badge { display: none; }
     .pricing-season { display: none; }
     .pricing-row { padding: .6rem 0; }
@@ -1710,7 +1767,7 @@ j=d.createElement(s),dl=l!='dataLayer'?'&l='+l:'';j.async=true;j.crossOrigin='an
   /* ── HERO WHATSAPP LINK ── */
   /* ── PRICING URGENCY NOTE ── */
   .pricing-urgency {
-    text-align: center; margin: -.5rem 0 2rem;
+    margin: .75rem 0 1.75rem;
     font-size: .72rem; letter-spacing: .08em; color: var(--gold-light);
     font-family: 'Montserrat', sans-serif;
   }
@@ -1883,7 +1940,7 @@ height="0" width="0" style="display:none;visibility:hidden"></iframe></noscript>
           <picture><source type="image/webp" srcset="images/maiora_20s_03.webp" /><img loading="lazy" decoding="async" src="images/maiora_20s_03.jpg" width="960" height="640" alt="Aerial side profile of the Limitless yacht underway at sea" /></picture>
         </div>
         <div class="gallery-item reveal reveal-delay-2" data-index="5">
-          <picture><source type="image/webp" srcset="images/IMG_3986-scaled-1-768x576.webp" /><img loading="lazy" decoding="async" src="images/IMG_3986-scaled-1-768x576.jpg" width="768" height="576" alt="Helm and cockpit of the Limitless yacht" /></picture>
+          <picture><source type="image/webp" srcset="images/maiora_20s_07.webp" /><img loading="lazy" decoding="async" src="images/maiora_20s_07.jpg" width="960" height="640" alt="Limitless yacht head-on at full speed" /></picture>
         </div>
       </div>
       <div class="carousel-nav">
@@ -2254,6 +2311,7 @@ height="0" width="0" style="display:none;visibility:hidden"></iframe></noscript>
   }
 
   setDestTab('half-day');
+  window._setDestTab = setDestTab;
 
   function checkHash() {
     var hash = (window.location.hash || '').replace('#', '');
@@ -2814,7 +2872,7 @@ height="0" width="0" style="display:none;visibility:hidden"></iframe></noscript>
     "images/limitless_aft_dining.jpg",
     "images/limitless_flybridge.jpg",
     "images/limitless_sundeck.jpg",
-    "images/IMG_3986-scaled-1-768x576.jpg",
+    "images/maiora_20s_07.jpg",
     "images/int_saloon_artwork.jpg",
     "images/int_saloon_marina_view.jpg",
     "images/int_saloon_reverse.jpg",
@@ -3326,6 +3384,9 @@ height="0" width="0" style="display:none;visibility:hidden"></iframe></noscript>
     window.scrollTo({ top: top, behavior: 'smooth' });
     /* Update hash silently so back-button still works */
     history.pushState(null, '', hash);
+    /* Activate the correct itinerary tab when a pricing-duration link is clicked */
+    var tierMap = {'#half-day':'half-day','#full-day':'full-day','#multi-day':'multi-day'};
+    if (tierMap[hash] && window._setDestTab) window._setDestTab(tierMap[hash]);
   }, { passive: false });
 }catch(e){}})();
 </script>
