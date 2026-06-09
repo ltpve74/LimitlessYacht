@@ -26,38 +26,60 @@
   }
 }catch(e){}})();
 </script>
+<!-- Owner mode: visit ?ly_owner=set once to suppress all analytics on this device.
+     Visit ?ly_owner=unset to re-enable. Flag persists in localStorage. -->
+<script>
+(function(){try{
+  var p=new URLSearchParams(location.search);
+  if(p.get('ly_owner')==='set'){
+    localStorage.setItem('ly_owner','1');
+    history.replaceState(null,'',location.pathname+(location.hash||''));
+  } else if(p.get('ly_owner')==='unset'){
+    localStorage.removeItem('ly_owner');
+    history.replaceState(null,'',location.pathname+(location.hash||''));
+  }
+  if(localStorage.getItem('ly_owner')==='1'){
+    window.LY_OWNER_MODE=true;
+    console.log('%c[Limitless] Owner mode — GTM · GA · Clarity suppressed','color:#c9a84c;font-weight:bold');
+  }
+}catch(e){}})();
+</script>
 <!-- Google Consent Mode v2 defaults (must run before GTM) -->
 <script>
   window.dataLayer = window.dataLayer || [];
   function gtag(){dataLayer.push(arguments);}
-  gtag('consent', 'default', {
-    'ad_storage': 'denied',
-    'ad_user_data': 'denied',
-    'ad_personalization': 'denied',
-    'analytics_storage': 'denied',
-    'functionality_storage': 'granted',
-    'security_storage': 'granted',
-    'wait_for_update': 500
-  });
-  try {
-    if (localStorage.getItem('ly_consent') === 'granted') {
-      gtag('consent', 'update', {
-        'analytics_storage': 'granted',
-        'ad_storage': 'granted',
-        'ad_user_data': 'granted',
-        'ad_personalization': 'granted'
-      });
-    }
-  } catch (e) {}
+  if (!window.LY_OWNER_MODE) {
+    gtag('consent', 'default', {
+      'ad_storage': 'denied',
+      'ad_user_data': 'denied',
+      'ad_personalization': 'denied',
+      'analytics_storage': 'denied',
+      'functionality_storage': 'granted',
+      'security_storage': 'granted',
+      'wait_for_update': 500
+    });
+    try {
+      if (localStorage.getItem('ly_consent') === 'granted') {
+        gtag('consent', 'update', {
+          'analytics_storage': 'granted',
+          'ad_storage': 'granted',
+          'ad_user_data': 'granted',
+          'ad_personalization': 'granted'
+        });
+      }
+    } catch (e) {}
+  }
 </script>
-<!-- Google tag (gtag.js) -->
-<script async crossorigin="anonymous" src="https://www.googletagmanager.com/gtag/js?id=AW-18209943491"></script>
+<!-- Google tag (gtag.js) — not loaded in owner mode -->
 <script>
-  window.dataLayer = window.dataLayer || [];
-  function gtag(){dataLayer.push(arguments);}
-  gtag('js', new Date());
-
-  gtag('config', 'AW-18209943491');
+  if (!window.LY_OWNER_MODE) {
+    var _gt=document.createElement('script');
+    _gt.async=true; _gt.crossOrigin='anonymous';
+    _gt.src='https://www.googletagmanager.com/gtag/js?id=AW-18209943491';
+    document.head.appendChild(_gt);
+    gtag('js', new Date());
+    gtag('config', 'AW-18209943491');
+  }
 </script>
 <!-- Event snippet for lead conversion (form + WhatsApp)
 In your html page, add the snippet and call gtag_report_conversion when a lead is submitted (form success or WhatsApp click). -->
@@ -89,12 +111,12 @@ function gtag_report_conversion_form(url) {
   return false;
 }
 </script>
-<!-- Google Tag Manager -->
-<script>(function(w,d,s,l,i){w[l]=w[l]||[];w[l].push({'gtm.start':
+<!-- Google Tag Manager — not loaded in owner mode -->
+<script>if(!window.LY_OWNER_MODE){(function(w,d,s,l,i){w[l]=w[l]||[];w[l].push({'gtm.start':
 new Date().getTime(),event:'gtm.js'});var f=d.getElementsByTagName(s)[0],
 j=d.createElement(s),dl=l!='dataLayer'?'&l='+l:'';j.async=true;j.crossOrigin='anonymous';j.src=
 'https://www.googletagmanager.com/gtm.js?id='+i+dl;f.parentNode.insertBefore(j,f);
-})(window,document,'script','dataLayer','GTM-NN8V25BR');</script>
+})(window,document,'script','dataLayer','GTM-NN8V25BR');}</script>
 <!-- End Google Tag Manager -->
 <!-- Behaviour analytics (section views → dataLayer) -->
 <script>
@@ -103,15 +125,13 @@ j=d.createElement(s),dl=l!='dataLayer'?'&l='+l:'';j.async=true;j.crossOrigin='an
     sectionVisibleRatio: 0.4
   };
 </script>
-<!-- Microsoft Clarity (official tag — enable "Require cookie consent" in Clarity project settings) -->
-<script type="text/javascript">
-(function(c,l,a,r,i,t,y){
+<!-- Microsoft Clarity — not loaded in owner mode -->
+<script>if(!window.LY_OWNER_MODE){(function(c,l,a,r,i,t,y){
     c[a]=c[a]||function(){(c[a].q=c[a].q||[]).push(arguments)};
     t=l.createElement(r);t.async=1;t.src="https://www.clarity.ms/tag/"+i;
     y=l.getElementsByTagName(r)[0];y.parentNode.insertBefore(t,y);
-})(window, document, "clarity", "script", "x1y8i19q6e");
-</script>
-<script src="/js/clarity-consent.js" defer></script>
+})(window, document, "clarity", "script", "x1y8i19q6e");}</script>
+<script>if(!window.LY_OWNER_MODE){var _cs=document.createElement('script');_cs.defer=true;_cs.src='/js/clarity-consent.js';document.head.appendChild(_cs);}</script>
 <title>Limitless Yacht Experience – Luxury Maiora Charter in Mallorca</title>
 <meta name="description" content="Charter the 21.5 m Maiora 'Limitless' from Palma de Mallorca — day and multi-day cruises to Mallorca's finest coves, Cabrera and Formentera. Crewed, up to 12 guests." />
 <meta name="keywords" content="yacht charter Mallorca, Maiora yacht, Limitless yacht, Palma de Mallorca boat charter, luxury yacht Mediterranean, Club de Mar charter" />
