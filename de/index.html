@@ -362,7 +362,7 @@ j=d.createElement(s),dl=l!='dataLayer'?'&l='+l:'';j.async=true;j.crossOrigin='an
   .hero-content {
     position: absolute; top: 0; bottom: 0; left: 0; right: 0;
     max-width: 52rem; margin: 0 auto;
-    text-align: center; padding: 5rem 2rem 5.5rem;
+    text-align: center; padding: 5rem 2rem 9rem;
     display: flex; flex-direction: column; align-items: center;
     animation: fadeUp 1.2s ease both;
   }
@@ -402,8 +402,8 @@ j=d.createElement(s),dl=l!='dataLayer'?'&l='+l:'';j.async=true;j.crossOrigin='an
     margin-top: 1.6rem;
     font-size: clamp(.82rem, 1.6vw, .95rem);
     letter-spacing: .1em; line-height: 1.7;
-    color: rgba(245,240,232,.95); font-weight: 400;
-    text-shadow: 0 1px 18px rgba(0,0,0,.8), 0 0 1px rgba(0,0,0,.5);
+    color: var(--white); font-weight: 400;
+    text-shadow: 0 1px 24px rgba(0,0,0,.95), 0 0 40px rgba(10,22,40,.9), 0 1px 4px rgba(0,0,0,.9);
     opacity: 0; animation: fadeUp 1s .8s ease both;
   }
   .hero-actions {
@@ -1692,7 +1692,7 @@ j=d.createElement(s),dl=l!='dataLayer'?'&l='+l:'';j.async=true;j.crossOrigin='an
   /* Hero trust cue */
   .eyebrow-stars { color: var(--gold); letter-spacing: .1em; }
   .hero-value {
-    margin-top: 0.75rem;
+    margin-top: auto;
     font-size: clamp(.72rem, 1.4vw, .84rem);
     letter-spacing: .04em; line-height: 1.65;
     color: rgba(245,240,232,.68);
