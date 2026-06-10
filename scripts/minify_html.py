@@ -27,8 +27,39 @@ def minify_css(css):
     return css.strip()
 
 
+def _strip_js_line_comments(js):
+    """Remove // single-line comments, correctly skipping those inside string literals."""
+    result = []
+    for line in js.splitlines():
+        out = []
+        in_single = in_double = False
+        i = 0
+        while i < len(line):
+            c = line[i]
+            # Handle escape sequences inside strings
+            if c == '\\' and (in_single or in_double):
+                out.append(c)
+                i += 1
+                if i < len(line):
+                    out.append(line[i])
+                i += 1
+                continue
+            if c == "'" and not in_double:
+                in_single = not in_single
+            elif c == '"' and not in_single:
+                in_double = not in_double
+            elif (c == '/' and not in_single and not in_double
+                  and i + 1 < len(line) and line[i + 1] == '/'):
+                break  # rest of line is a comment
+            out.append(c)
+            i += 1
+        result.append(''.join(out).rstrip())
+    return '\n'.join(result)
+
+
 def minify_js(js):
     js = re.sub(r'/\*.*?\*/', '', js, flags=re.DOTALL)
+    js = _strip_js_line_comments(js)
     js = re.sub(r'\s+', ' ', js)
     return js.strip()
 
