@@ -257,7 +257,37 @@ j=d.createElement(s),dl=l!='dataLayer'?'&l='+l:'';j.async=true;j.crossOrigin='an
 
   html {
     scroll-behavior: smooth;
-    scroll-padding-top: 5rem; /* a bit more breathing room under the fixed nav for all anchor targets */
+    scroll-padding-top: 1.5rem; /* reduced now that we use positioned href anchors for precise landing; nav active highlighting provides the section context */
+  }
+
+  /* Make manual (and native) anchor scrolls land with breathing room under the fixed nav.
+     We target the main .section-title (big heading) so it lands at the same
+     relative position from the nav bottom as in the latest reference screenshot
+     (desktop/computer viewports). scroll-margin-top is the clean declarative way
+     — no post-scroll JS corrections that cause janky/random movement. */
+  .section-label,
+  .dest-tab[id] {
+    scroll-margin-top: 5rem;
+  }
+  h2.section-title,
+  h1,
+  .section-title {
+    scroll-margin-top: 3.25rem; /* tuned for the high/prominent title position in the latest reference screenshot on desktop */
+  }
+
+  /* Real <a href> anchors (classic href anchors).
+     Placed immediately before the .section-label in every section so that
+     scrollIntoView on them produces the *exact same* relative position under
+     the fixed nav for ALL sections (matching "how I want it.png").
+     The single top value in CSS is the only thing to tweak. */
+  .scroll-anchor {
+    position: relative;
+    top: -25px; /* offset tuned to match the latest reference screenshot for consistent high landing under nav (with active nav highlight) */
+    height: 0;
+    width: 0;
+    overflow: hidden;
+    display: block;
+    pointer-events: none;
   }
 
   body {
@@ -302,9 +332,10 @@ j=d.createElement(s),dl=l!='dataLayer'?'&l='+l:'';j.async=true;j.crossOrigin='an
     line-height: 1.2;
     vertical-align: middle;
     white-space: nowrap;
-    transition: opacity .2s, color .2s;
+    transition: color .2s ease, opacity .2s ease;
   }
   .nav-links a:hover { opacity: 1; color: var(--gold); }
+  .nav-links a.active { color: var(--gold); opacity: 1; }
   .nav-end {
     flex: 0 0 auto;
     display: flex; align-items: center;
@@ -1615,6 +1646,7 @@ j=d.createElement(s),dl=l!='dataLayer'?'&l='+l:'';j.async=true;j.crossOrigin='an
     padding: 0.05rem 0;
   }
   .mobile-nav a:not(.mobile-nav-cta):hover { color: var(--gold); }
+  .mobile-nav a.active:not(.mobile-nav-cta) { color: var(--gold); }
   .mobile-nav-cta {
     display: none;
     background: var(--gold); color: var(--navy);
@@ -1911,6 +1943,7 @@ height="0" width="0" style="display:none;visibility:hidden"></iframe></noscript>
 
 <!-- ABOUT -->
 <section id="about">
+  <a id="about-anchor" class="scroll-anchor" href="#about" aria-hidden="true"></a>
   <div class="container">
     <div class="about-grid">
       <div class="about-image-wrap reveal">
@@ -1930,6 +1963,7 @@ height="0" width="0" style="display:none;visibility:hidden"></iframe></noscript>
 
 <!-- GALLERY -->
 <section id="gallery">
+  <a id="gallery-anchor" class="scroll-anchor" href="#gallery" aria-hidden="true"></a>
   <div class="container">
     <p class="section-label reveal">Gallery</p>
     <h2 class="section-title reveal reveal-delay-1">On<em>board Gallery</em></h2>
@@ -2030,6 +2064,7 @@ height="0" width="0" style="display:none;visibility:hidden"></iframe></noscript>
 
 <!-- ITINERARY / DESTINATIONS -->
 <section id="itinerary">
+  <a id="itinerary-anchor" class="scroll-anchor" href="#itinerary" aria-hidden="true"></a>
   <div class="container">
     <p class="section-label reveal">Destinations</p>
     <h2 class="section-title reveal reveal-delay-1">Where <em>Limitless</em> Takes You</h2>
@@ -2383,6 +2418,7 @@ height="0" width="0" style="display:none;visibility:hidden"></iframe></noscript>
 
 <!-- SPECS -->
 <section id="specs">
+  <a id="specs-anchor" class="scroll-anchor" href="#specs" aria-hidden="true"></a>
   <div class="container">
     <p class="section-label reveal">Technical Specifications</p>
     <h2 class="section-title reveal reveal-delay-1">Yacht<em> Details</em></h2>
@@ -2456,6 +2492,7 @@ height="0" width="0" style="display:none;visibility:hidden"></iframe></noscript>
 
 <!-- AMENITIES -->
 <section id="amenities">
+  <a id="amenities-anchor" class="scroll-anchor" href="#amenities" aria-hidden="true"></a>
   <div class="container">
     <p class="section-label reveal">On-Board Equipment</p>
     <h2 class="section-title reveal reveal-delay-1">Everything<em> On Board</em></h2>
@@ -2506,6 +2543,7 @@ height="0" width="0" style="display:none;visibility:hidden"></iframe></noscript>
 
 <!-- PRICING -->
 <section id="pricing">
+  <a id="pricing-anchor" class="scroll-anchor" href="#pricing" aria-hidden="true"></a>
   <div class="container">
     <p class="section-label reveal">Charter Rates</p>
     <h2 class="section-title reveal reveal-delay-1">Transparent &amp;<em> fair</em></h2>
@@ -2621,6 +2659,7 @@ height="0" width="0" style="display:none;visibility:hidden"></iframe></noscript>
 
 <!-- REVIEWS -->
 <section id="reviews">
+  <a id="reviews-anchor" class="scroll-anchor" href="#reviews" aria-hidden="true"></a>
   <div class="container">
     <p class="section-label reveal">Guest Reviews</p>
     <h2 class="section-title reveal reveal-delay-1">What Our<em> Guests Say</em></h2>
@@ -2696,6 +2735,7 @@ height="0" width="0" style="display:none;visibility:hidden"></iframe></noscript>
 
 <!-- AVAILABILITY -->
 <section id="availability">
+  <a id="availability-anchor" class="scroll-anchor" href="#availability" aria-hidden="true"></a>
   <div class="container">
     <p class="section-label reveal">Availability</p>
     <h2 class="section-title reveal reveal-delay-1">Check the<em> Calendar</em></h2>
@@ -2721,6 +2761,7 @@ height="0" width="0" style="display:none;visibility:hidden"></iframe></noscript>
 
 <!-- CONTACT -->
 <section id="contact">
+  <a id="contact-anchor" class="scroll-anchor" href="#contact" aria-hidden="true"></a>
   <div class="container">
     <div class="contact-grid">
       <div class="contact-info reveal">
@@ -3403,11 +3444,17 @@ height="0" width="0" style="display:none;visibility:hidden"></iframe></noscript>
 }catch(e){}})();
 </script>
 <script>
-/* Intercept internal anchor clicks and use programmatic scroll instead of native
-   hash navigation — avoids triggering Safari's auto-show toolbar on iOS */
 (function(){try{
-  var nav = document.querySelector('nav');
-  function navH() { return nav ? nav.getBoundingClientRect().height : 60; }
+  /* Intercept internal anchor clicks and use programmatic scroll instead of native
+     hash navigation — avoids triggering Safari's auto-show toolbar on iOS.
+     We pick a stable landing element (prefer the section's main title for
+     consistent framing) then delegate to scrollIntoView + CSS scroll-margin-top.
+     This is much more reliable than pre-computing a document Y offset with
+     getBoundingClientRect, because any layout shift after measurement (font
+     swap on the title, image decode above, tab content toggle, reveal anims, etc.)
+     would make a captured "top" value land at the wrong visual position.
+     scrollIntoView asks the browser to compute the final offset using live
+     geometry at the time the scroll is performed. */
   document.addEventListener('click', function(e) {
     var a, hash, target;
     try {
@@ -3420,27 +3467,128 @@ height="0" width="0" style="display:none;visibility:hidden"></iframe></noscript>
     } catch(err) { return; }
     e.preventDefault();
     try {
-      var scrollTarget = target;
-      if (hash === '#pricing' && window.innerWidth <= 768) {
-        var tabs = document.querySelector('.pricing-tabs');
-        if (tabs) scrollTarget = tabs;
-      }
-      if (hash === '#contact' && window.innerWidth <= 768) {
-        var form = document.querySelector('#contactForm');
-        if (form) scrollTarget = form;
-      }
-      if (hash === '#itinerary' && window.innerWidth <= 768) {
-        var destTabs = document.querySelector('.dest-tabs');
-        if (destTabs) scrollTarget = destTabs;
-      }
-      var top = scrollTarget.getBoundingClientRect().top + window.pageYOffset - navH() - 8;
-      window.scrollTo({ top: top, behavior: 'smooth' });
       history.pushState(null, '', hash);
+
       var tierMap = {'#half-day':'half-day','#full-day':'full-day','#multi-day':'multi-day'};
       if (tierMap[hash] && window._setDestTab) window._setDestTab(tierMap[hash]);
+
+      if (hash === '#hero') {
+        window.scrollTo({ top: 0, behavior: 'smooth' });
+      } else {
+        // Target the real <a href> anchor we placed in the HTML at the exact
+        // visual landing spot (before the .section-label in every section).
+        // This is the reliable classic href anchor approach. One CSS offset
+        // + consistent placement = identical relative position for all sections,
+        // exactly as in "how I want it.png".
+        var anchorId = hash.replace('#', '') + '-anchor';
+
+        // Tier tabs land on the main destinations header anchor (content switches via _setDestTab)
+        var tierHashes = ['#half-day', '#full-day', '#multi-day'];
+        if (tierHashes.indexOf(hash) !== -1) {
+          anchorId = 'itinerary-anchor';
+        }
+
+        var anchor = document.getElementById(anchorId);
+        if (anchor) {
+          anchor.scrollIntoView({ behavior: 'smooth', block: 'start' });
+        } else {
+          target.scrollIntoView({ behavior: 'smooth', block: 'start' });
+        }
+      }
+
+      // Immediately reflect the active nav item (use the main section hash for tiers)
+      var activeHash = hash;
+      var tierHashes = ['#half-day', '#full-day', '#multi-day'];
+      if (tierHashes.indexOf(hash) !== -1) {
+        activeHash = '#itinerary';
+      }
+      if (typeof window.updateActiveNavLink === 'function') {
+        window.updateActiveNavLink(activeHash);
+      }
     } catch(err) {}
   }, { passive: false });
 }catch(e){}})();
+</script>
+
+<!-- Active nav highlighting (gold) on click + on scroll for desktop + mobile -->
+<script>
+(function(){
+  function getNavHeight() {
+    var nav = document.querySelector('nav');
+    return nav ? nav.getBoundingClientRect().height : 68;
+  }
+
+  // Map hash -> link elements (desktop + mobile)
+  var linkMap = {};
+  document.querySelectorAll('.nav-links a[href^="#"], .mobile-nav a[href^="#"]').forEach(function(link){
+    var h = link.getAttribute('href');
+    if (!h || h === '#') return;
+    if (!linkMap[h]) linkMap[h] = [];
+    linkMap[h].push(link);
+  });
+
+  window.updateActiveNavLink = function(targetHash) {
+    // remove all
+    document.querySelectorAll('.nav-links a.active, .mobile-nav a.active').forEach(function(l){
+      l.classList.remove('active');
+    });
+    if (!targetHash) return;
+    var links = linkMap[targetHash] || [];
+    links.forEach(function(l){ l.classList.add('active'); });
+  };
+
+  // On scroll: standard scrollspy - the last section whose top has been passed by the viewport (accounting for nav)
+  var ticking = false;
+  function onScroll() {
+    if (ticking) return;
+    ticking = true;
+    requestAnimationFrame(function(){
+      ticking = false;
+      var navH = getNavHeight();
+      var scrollY = window.scrollY;
+      var currentHash = '#hero';
+
+      // Find the last section that is "active" (we have scrolled past its top - nav - small buffer)
+      Object.keys(linkMap).forEach(function(hash){
+        if (hash === '#hero') return;
+        var sec = document.querySelector(hash);
+        if (!sec) return;
+        var sectionTop = sec.offsetTop;
+        if (scrollY >= sectionTop - navH - 30) {  // 30px buffer so it activates a bit before the section reaches the nav
+          currentHash = hash;
+        }
+      });
+
+      window.updateActiveNavLink(currentHash);
+    });
+  }
+
+  // Initial state + listeners
+  function initActiveNav() {
+    // Set from current hash on load
+    var initial = location.hash || '#hero';
+    // small delay so layout is ready
+    setTimeout(function(){
+      window.updateActiveNavLink(initial);
+    }, 50);
+
+    window.addEventListener('scroll', onScroll, { passive: true });
+    window.addEventListener('hashchange', function(){
+      window.updateActiveNavLink(location.hash || '#hero');
+    });
+
+    // Also update once after load in case of images shifting things
+    window.addEventListener('load', function(){
+      setTimeout(function(){ onScroll(); }, 100);
+    });
+  }
+
+  if (document.readyState === 'loading') {
+    document.addEventListener('DOMContentLoaded', initActiveNav);
+  } else {
+    initActiveNav();
+  }
+})();
 </script>
 <script>
 </script>

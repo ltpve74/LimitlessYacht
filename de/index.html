@@ -257,7 +257,37 @@ j=d.createElement(s),dl=l!='dataLayer'?'&l='+l:'';j.async=true;j.crossOrigin='an
 
   html {
     scroll-behavior: smooth;
-    scroll-padding-top: 5rem; /* a bit more breathing room under the fixed nav for all anchor targets */
+    scroll-padding-top: 1.5rem; /* reduced now that we use positioned href anchors for precise landing; nav active highlighting provides the section context */
+  }
+
+  /* Make manual (and native) anchor scrolls land with breathing room under the fixed nav.
+     We target the main .section-title (big heading) so it lands at the same
+     relative position from the nav bottom as in the latest reference screenshot
+     (desktop/computer viewports). scroll-margin-top is the clean declarative way
+     — no post-scroll JS corrections that cause janky/random movement. */
+  .section-label,
+  .dest-tab[id] {
+    scroll-margin-top: 5rem;
+  }
+  h2.section-title,
+  h1,
+  .section-title {
+    scroll-margin-top: 3.25rem; /* tuned for the high/prominent title position in the latest reference screenshot on desktop */
+  }
+
+  /* Real <a href> anchors (classic href anchors).
+     Placed immediately before the .section-label in every section so that
+     scrollIntoView on them produces the *exact same* relative position under
+     the fixed nav for ALL sections (matching "how I want it.png").
+     The single top value in CSS is the only thing to tweak. */
+  .scroll-anchor {
+    position: relative;
+    top: -25px; /* offset tuned to match the latest reference screenshot for consistent high landing under nav (with active nav highlight) */
+    height: 0;
+    width: 0;
+    overflow: hidden;
+    display: block;
+    pointer-events: none;
   }
 
   body {
@@ -291,7 +321,7 @@ j=d.createElement(s),dl=l!='dataLayer'?'&l='+l:'';j.async=true;j.crossOrigin='an
   .nav-links {
     flex: 1 1 auto;
     display: flex; align-items: center; justify-content: flex-start;
-    gap: clamp(0.65rem, 1.4vw, 2.5rem);
+    gap: clamp(0.5rem, 1vw, 1.6rem); /* reduced gap to free horizontal space so the right side (language + Enquire) fits with breathing room from the edge */
     list-style: none; margin: 0; padding: 0;
     min-width: 0;
   }
@@ -299,10 +329,13 @@ j=d.createElement(s),dl=l!='dataLayer'?'&l='+l:'';j.async=true;j.crossOrigin='an
     color: var(--cream); text-decoration: none;
     font-size: clamp(0.6rem, 0.25vw + 0.55rem, 0.68rem); /* reduced size jump for more consistent elegant sizing across desktop widths */
     letter-spacing: .16em; text-transform: uppercase; opacity: .8;
+    line-height: 1.2;
+    vertical-align: middle;
     white-space: nowrap;
     transition: opacity .2s, color .2s;
   }
   .nav-links a:hover { opacity: 1; color: var(--gold); }
+  .nav-links a.active { color: var(--gold); opacity: 1; }
   .nav-end {
     flex: 0 0 auto;
     display: flex; align-items: center;
@@ -317,22 +350,45 @@ j=d.createElement(s),dl=l!='dataLayer'?'&l='+l:'';j.async=true;j.crossOrigin='an
     font-family: 'Montserrat', sans-serif;
     font-size: clamp(0.48rem, 0.25vw + 0.4rem, 0.52rem); /* smaller, more elegant scale matching the compressed nav */
     letter-spacing: .14em; text-transform: uppercase;
+    line-height: 1.2;
+    vertical-align: middle;
     text-decoration: none; white-space: nowrap;
     transition: background .2s, color .2s;
   }
   .nav-cta:hover { background: var(--gold); color: var(--navy); }
-  .nav-lang {
-    flex-shrink: 0;
-    display: flex; align-items: center; gap: .3rem;
-  }
-  .nav-lang a {
+  .nav-lang { position: relative; flex-shrink: 0; }
+  .nav-lang-btn {
+    display: flex; align-items: center; gap: 0.22rem;
+    background: none; border: none; cursor: pointer; padding: 0.3rem 0.35rem;
+    font-family: 'Montserrat', sans-serif;
     font-size: clamp(0.52rem, 0.35vw + 0.48rem, 0.58rem);
-    letter-spacing: .1em; text-transform: uppercase;
-    color: var(--cream); text-decoration: none; opacity: .55;
-    transition: opacity .2s, color .2s;
+    letter-spacing: .12em; text-transform: uppercase;
+    color: rgba(245,240,232,.65); transition: color .2s;
+    -webkit-tap-highlight-color: transparent;
   }
-  .nav-lang a:hover, .nav-lang a.active { opacity: 1; color: var(--gold); }
-  .nav-lang-sep { color: rgba(245,240,232,.25); font-size: .5rem; user-select: none; }
+  .nav-lang-btn:hover, .nav-lang-btn[aria-expanded="true"] { color: var(--gold); }
+  .nav-lang-chevron { flex-shrink: 0; transition: transform .22s ease; }
+  .nav-lang-btn[aria-expanded="true"] .nav-lang-chevron { transform: rotate(180deg); }
+  .nav-lang-popup {
+    position: absolute; top: calc(100% + 0.45rem); right: 0;
+    background: rgba(10,22,40,0.97);
+    border: 1px solid rgba(201,168,76,0.18);
+    padding: 0.3rem 0; min-width: 5rem;
+    box-shadow: 0 8px 28px rgba(0,0,0,0.45);
+    z-index: 110;
+  }
+  .nav-lang-popup[hidden] { display: none; }
+  .nav-lang-popup a {
+    display: flex; align-items: baseline; gap: 0.45rem;
+    padding: 0.42rem 0.85rem;
+    font-family: 'Montserrat', sans-serif;
+    font-size: 0.6rem; letter-spacing: .12em; text-transform: uppercase;
+    color: rgba(245,240,232,.6); text-decoration: none;
+    transition: color .15s, background .15s; white-space: nowrap;
+  }
+  .nav-lang-popup a:hover { color: var(--gold); background: rgba(201,168,76,0.07); }
+  .nav-lang-popup a.active { color: var(--gold); }
+  .nav-lang-popup a span { font-size: 0.48rem; opacity: 0.55; letter-spacing: .04em; font-style: italic; text-transform: none; }
   .hamburger {
     display: none;
     flex-shrink: 0;
@@ -1298,57 +1354,11 @@ j=d.createElement(s),dl=l!='dataLayer'?'&l='+l:'';j.async=true;j.crossOrigin='an
     .nav-links { gap: 0.75rem; justify-content: flex-start; }
     .nav-links a { letter-spacing: .1em; }
   }
-  /* Tablet: two-row bar — logo + actions on top, scrollable section links below */
+  /* Mid-width: single-row, lang popup visible, moderate compression */
   @media (min-width: 951px) and (max-width: 1100px) {
-    nav {
-      display: grid;
-      grid-template-areas: "logo end" "links links";
-      grid-template-columns: minmax(0, 1fr) auto;
-      align-items: center;
-      column-gap: 1rem;
-      row-gap: 0.45rem;
-      padding: 0.65rem 1.35rem 0.55rem;
-      min-height: auto;
-    }
-    .nav-logo {
-      grid-area: logo;
-      font-size: 1rem;
-      letter-spacing: .16em;
-    }
-    .nav-end {
-      grid-area: end;
-      margin-left: 0;
-    }
-    .nav-links {
-      grid-area: links;
-      display: flex;
-      flex: none;
-      justify-content: flex-start;
-      gap: 1.15rem;
-      min-width: 0;
-      overflow-x: auto;
-      overflow-y: hidden;
-      -webkit-overflow-scrolling: touch;
-      scrollbar-width: none;
-      padding: 0.2rem 0 0.35rem;
-      mask-image: linear-gradient(90deg, transparent, #000 12px, #000 calc(100% - 12px), transparent);
-    }
-    .nav-links::-webkit-scrollbar { display: none; }
-    .nav-links li { flex-shrink: 0; }
-    .nav-links a {
-      font-size: 0.62rem;
-      letter-spacing: 0.11em;
-      padding: 0.35rem 0;
-    }
-    .nav-lang { display: flex; }
-    .nav-header-cta { display: inline-flex; align-items: center; }
-    .hamburger { display: none !important; }
-    html { scroll-padding-top: 6.25rem; } /* extra padding on tablet for anchors */
-    /* Hero: push content below the taller two-row nav, tighten inter-element gaps */
-    .hero-content { padding-top: 7.5rem; padding-bottom: 0; }
-    .hero-eyebrow { margin-bottom: 1.25rem; }
-    .hero-sub { margin-top: 1rem; }
-    .hero-actions { margin-top: 1.5rem; }
+    nav { padding: 0.85rem 1.25rem; }
+    .nav-links { gap: 0.6rem; }
+    .nav-links a { font-size: 0.57rem; letter-spacing: 0.1em; }
   }
   @media (max-width: 1024px) {
     .about-grid { grid-template-columns: 1fr; gap: 3rem; }
@@ -1375,8 +1385,8 @@ j=d.createElement(s),dl=l!='dataLayer'?'&l='+l:'';j.async=true;j.crossOrigin='an
     .dest-tier { font-size: .72rem; letter-spacing: .1em; margin: 1.5rem 0 .4rem; padding-left: 2.5rem; padding-right: 1.5rem; }
     .dest-tier .tier-note { display: block; margin-top: .25rem; letter-spacing: .06em; }
   }
-  /* Narrow tablet + phone: compact header + hamburger */
-  @media (max-width: 950px) {
+  /* Touch-only devices (tablets/phones — no hover): hamburger */
+  @media (max-width: 950px) and (hover: none) {
     nav {
       display: flex;
       flex-wrap: nowrap;
@@ -1384,9 +1394,19 @@ j=d.createElement(s),dl=l!='dataLayer'?'&l='+l:'';j.async=true;j.crossOrigin='an
       min-height: 3.5rem;
     }
     .nav-links { display: none; }
-    .nav-lang { display: none; }
     .nav-header-cta { display: none; }
     .hamburger { display: flex; }
+  }
+  /* Hover-capable devices (laptops/desktops) at narrow widths: compressed single row */
+  @media (max-width: 950px) and (hover: hover) {
+    nav { padding: 0.85rem 1rem; }
+    .nav-links { gap: 0.5rem; justify-content: flex-start; }
+    .nav-links a { font-size: 0.54rem; letter-spacing: 0.08em; }
+  }
+  /* Very narrow hover-capable windows: also drop the Enquire CTA to prevent overflow */
+  @media (max-width: 780px) and (hover: hover) {
+    .nav-header-cta { display: none; }
+    .nav-links a { font-size: 0.5rem; letter-spacing: 0.07em; }
   }
   @media (max-width: 640px) {
     section { padding: 4rem 1.2rem; }
@@ -1626,6 +1646,7 @@ j=d.createElement(s),dl=l!='dataLayer'?'&l='+l:'';j.async=true;j.crossOrigin='an
     padding: 0.05rem 0;
   }
   .mobile-nav a:not(.mobile-nav-cta):hover { color: var(--gold); }
+  .mobile-nav a.active:not(.mobile-nav-cta) { color: var(--gold); }
   .mobile-nav-cta {
     display: none;
     background: var(--gold); color: var(--navy);
@@ -1713,8 +1734,8 @@ j=d.createElement(s),dl=l!='dataLayer'?'&l='+l:'';j.async=true;j.crossOrigin='an
       padding: 0.3rem;
     }
   }
-  /* Hero: shorter on mobile to reveal content below the fold */
-  @media (max-width: 768px) {
+  /* Hero: mobile layout for phones (any input) and touch-only tablets ≤950px */
+  @media (max-width: 640px), (max-width: 950px) and (hover: none) {
     #hero {
       min-height: 100dvh;
       min-height: 520px;
@@ -1760,7 +1781,7 @@ j=d.createElement(s),dl=l!='dataLayer'?'&l='+l:'';j.async=true;j.crossOrigin='an
     .scroll-line { height: 40px; }
     .hero-scroll span { font-size: .52rem; }
 
-    /* More responsive buttons on larger phones (481-768px): row layout for the bottom-anchored cluster */
+    /* Small phones (481-640px): row layout for the bottom-anchored cluster */
     @media (min-width: 481px) {
       .hero-actions {
         flex-direction: row;
@@ -1835,14 +1856,17 @@ height="0" width="0" style="display:none;visibility:hidden"></iframe></noscript>
     <li><a href="#availability">Verfügbarkeit</a></li>
   </ul>
   <div class="nav-end">
-        <div class="nav-lang" aria-label="Sprache">
-      <a href="/" hreflang="en" lang="en">EN</a>
-      <span class="nav-lang-sep">|</span>
-      <a href="/de/" hreflang="de" class="active" lang="de">DE</a>
-      <span class="nav-lang-sep">|</span>
-      <a href="/fr/" hreflang="fr" lang="fr">FR</a>
-      <span class="nav-lang-sep">|</span>
-      <a href="/es/" hreflang="es" lang="es">ES</a>
+    <div class="nav-lang">
+      <button class="nav-lang-btn" id="langBtn" aria-expanded="false" aria-haspopup="true" aria-label="Select language">
+        <span class="nav-lang-current">EN</span>
+        <svg class="nav-lang-chevron" width="7" height="4" viewBox="0 0 7 4" fill="none" aria-hidden="true"><path d="M.5.5 3.5 3.5l3-3" stroke="currentColor" stroke-width="1.2" stroke-linecap="round" stroke-linejoin="round"/></svg>
+      </button>
+      <div class="nav-lang-popup" id="langPopup" hidden>
+        <a href="/" hreflang="en" class="active" lang="en">EN <span>English</span></a>
+        <a href="/de/" hreflang="de" lang="de">DE <span>Deutsch</span></a>
+        <a href="/fr/" hreflang="fr" lang="fr">FR <span>Français</span></a>
+        <a href="/es/" hreflang="es" lang="es">ES <span>Español</span></a>
+      </div>
     </div>
     <a href="#contact" class="nav-cta nav-header-cta">Anfragen</a>
     <button type="button" class="hamburger" id="hamburger" aria-label="Menü öffnen" aria-expanded="false" aria-controls="mobileNav">
@@ -1919,6 +1943,7 @@ height="0" width="0" style="display:none;visibility:hidden"></iframe></noscript>
 
 <!-- ABOUT -->
 <section id="about">
+  <a id="about-anchor" class="scroll-anchor" href="#about" aria-hidden="true"></a>
   <div class="container">
     <div class="about-grid">
       <div class="about-image-wrap reveal">
@@ -1938,6 +1963,7 @@ height="0" width="0" style="display:none;visibility:hidden"></iframe></noscript>
 
 <!-- GALLERY -->
 <section id="gallery">
+  <a id="gallery-anchor" class="scroll-anchor" href="#gallery" aria-hidden="true"></a>
   <div class="container">
     <p class="section-label reveal">Galerie</p>
     <h2 class="section-title reveal reveal-delay-1">Galerie <em>an Bord</em></h2>
@@ -2038,6 +2064,7 @@ height="0" width="0" style="display:none;visibility:hidden"></iframe></noscript>
 
 <!-- ITINERARY / DESTINATIONS -->
 <section id="itinerary">
+  <a id="itinerary-anchor" class="scroll-anchor" href="#itinerary" aria-hidden="true"></a>
   <div class="container">
     <p class="section-label reveal">Reiseziele</p>
     <h2 class="section-title reveal reveal-delay-1">Wohin <em>Limitless</em> Sie bringt</h2>
@@ -2391,6 +2418,7 @@ height="0" width="0" style="display:none;visibility:hidden"></iframe></noscript>
 
 <!-- SPECS -->
 <section id="specs">
+  <a id="specs-anchor" class="scroll-anchor" href="#specs" aria-hidden="true"></a>
   <div class="container">
     <p class="section-label reveal">Technische Daten</p>
     <h2 class="section-title reveal reveal-delay-1">Yacht-<em>Details</em></h2>
@@ -2464,6 +2492,7 @@ height="0" width="0" style="display:none;visibility:hidden"></iframe></noscript>
 
 <!-- AMENITIES -->
 <section id="amenities">
+  <a id="amenities-anchor" class="scroll-anchor" href="#amenities" aria-hidden="true"></a>
   <div class="container">
     <p class="section-label reveal">Ausstattung an Bord</p>
     <h2 class="section-title reveal reveal-delay-1">Alles <em>an Bord</em></h2>
@@ -2514,6 +2543,7 @@ height="0" width="0" style="display:none;visibility:hidden"></iframe></noscript>
 
 <!-- PRICING -->
 <section id="pricing">
+  <a id="pricing-anchor" class="scroll-anchor" href="#pricing" aria-hidden="true"></a>
   <div class="container">
     <p class="section-label reveal">Charterpreise</p>
     <h2 class="section-title reveal reveal-delay-1">Transparent &amp; <em>fair</em></h2>
@@ -2629,6 +2659,7 @@ height="0" width="0" style="display:none;visibility:hidden"></iframe></noscript>
 
 <!-- REVIEWS -->
 <section id="reviews">
+  <a id="reviews-anchor" class="scroll-anchor" href="#reviews" aria-hidden="true"></a>
   <div class="container">
     <p class="section-label reveal">Gästebewertungen</p>
     <h2 class="section-title reveal reveal-delay-1">Was unsere<em> Gäste sagen</em></h2>
@@ -2704,6 +2735,7 @@ height="0" width="0" style="display:none;visibility:hidden"></iframe></noscript>
 
 <!-- AVAILABILITY -->
 <section id="availability">
+  <a id="availability-anchor" class="scroll-anchor" href="#availability" aria-hidden="true"></a>
   <div class="container">
     <p class="section-label reveal">Verfügbarkeit</p>
     <h2 class="section-title reveal reveal-delay-1">Verfügbarkeit im<em> Kalender</em></h2>
@@ -2729,6 +2761,7 @@ height="0" width="0" style="display:none;visibility:hidden"></iframe></noscript>
 
 <!-- CONTACT -->
 <section id="contact">
+  <a id="contact-anchor" class="scroll-anchor" href="#contact" aria-hidden="true"></a>
   <div class="container">
     <div class="contact-grid">
       <div class="contact-info reveal">
@@ -2851,8 +2884,37 @@ height="0" width="0" style="display:none;visibility:hidden"></iframe></noscript>
     if (e.key === 'Escape' && mobileNav.classList.contains('open')) closeMobile();
   });
   window.addEventListener('resize', () => {
-    if (window.innerWidth > 768 && mobileNav.classList.contains('open')) closeMobile();
+    if (window.innerWidth > 950 && mobileNav.classList.contains('open')) closeMobile();
   });
+
+  // Language popup
+  const langBtn = document.getElementById('langBtn');
+  const langPopup = document.getElementById('langPopup');
+  if (langBtn && langPopup) {
+    langBtn.addEventListener('click', (e) => {
+      e.stopPropagation();
+      const open = langBtn.getAttribute('aria-expanded') === 'true';
+      langBtn.setAttribute('aria-expanded', String(!open));
+      langPopup.hidden = open;
+    });
+    document.addEventListener('click', () => {
+      langBtn.setAttribute('aria-expanded', 'false');
+      langPopup.hidden = true;
+    });
+    window.addEventListener('scroll', () => {
+      if (!langPopup.hidden) {
+        langBtn.setAttribute('aria-expanded', 'false');
+        langPopup.hidden = true;
+      }
+    }, { passive: true });
+    document.addEventListener('keydown', (e) => {
+      if (e.key === 'Escape' && !langPopup.hidden) {
+        langBtn.setAttribute('aria-expanded', 'false');
+        langPopup.hidden = true;
+        langBtn.focus();
+      }
+    });
+  }
 
   // Reveal on scroll
   const reveals = document.querySelectorAll('.reveal');
@@ -3382,11 +3444,17 @@ height="0" width="0" style="display:none;visibility:hidden"></iframe></noscript>
 }catch(e){}})();
 </script>
 <script>
-/* Intercept internal anchor clicks and use programmatic scroll instead of native
-   hash navigation — avoids triggering Safari's auto-show toolbar on iOS */
 (function(){try{
-  var nav = document.querySelector('nav');
-  function navH() { return nav ? nav.getBoundingClientRect().height : 60; }
+  /* Intercept internal anchor clicks and use programmatic scroll instead of native
+     hash navigation — avoids triggering Safari's auto-show toolbar on iOS.
+     We pick a stable landing element (prefer the section's main title for
+     consistent framing) then delegate to scrollIntoView + CSS scroll-margin-top.
+     This is much more reliable than pre-computing a document Y offset with
+     getBoundingClientRect, because any layout shift after measurement (font
+     swap on the title, image decode above, tab content toggle, reveal anims, etc.)
+     would make a captured "top" value land at the wrong visual position.
+     scrollIntoView asks the browser to compute the final offset using live
+     geometry at the time the scroll is performed. */
   document.addEventListener('click', function(e) {
     var a, hash, target;
     try {
@@ -3399,27 +3467,128 @@ height="0" width="0" style="display:none;visibility:hidden"></iframe></noscript>
     } catch(err) { return; }
     e.preventDefault();
     try {
-      var scrollTarget = target;
-      if (hash === '#pricing' && window.innerWidth <= 768) {
-        var tabs = document.querySelector('.pricing-tabs');
-        if (tabs) scrollTarget = tabs;
-      }
-      if (hash === '#contact' && window.innerWidth <= 768) {
-        var form = document.querySelector('#contactForm');
-        if (form) scrollTarget = form;
-      }
-      if (hash === '#itinerary' && window.innerWidth <= 768) {
-        var destTabs = document.querySelector('.dest-tabs');
-        if (destTabs) scrollTarget = destTabs;
-      }
-      var top = scrollTarget.getBoundingClientRect().top + window.pageYOffset - navH() - 8;
-      window.scrollTo({ top: top, behavior: 'smooth' });
       history.pushState(null, '', hash);
+
       var tierMap = {'#half-day':'half-day','#full-day':'full-day','#multi-day':'multi-day'};
       if (tierMap[hash] && window._setDestTab) window._setDestTab(tierMap[hash]);
+
+      if (hash === '#hero') {
+        window.scrollTo({ top: 0, behavior: 'smooth' });
+      } else {
+        // Target the real <a href> anchor we placed in the HTML at the exact
+        // visual landing spot (before the .section-label in every section).
+        // This is the reliable classic href anchor approach. One CSS offset
+        // + consistent placement = identical relative position for all sections,
+        // exactly as in "how I want it.png".
+        var anchorId = hash.replace('#', '') + '-anchor';
+
+        // Tier tabs land on the main destinations header anchor (content switches via _setDestTab)
+        var tierHashes = ['#half-day', '#full-day', '#multi-day'];
+        if (tierHashes.indexOf(hash) !== -1) {
+          anchorId = 'itinerary-anchor';
+        }
+
+        var anchor = document.getElementById(anchorId);
+        if (anchor) {
+          anchor.scrollIntoView({ behavior: 'smooth', block: 'start' });
+        } else {
+          target.scrollIntoView({ behavior: 'smooth', block: 'start' });
+        }
+      }
+
+      // Immediately reflect the active nav item (use the main section hash for tiers)
+      var activeHash = hash;
+      var tierHashes = ['#half-day', '#full-day', '#multi-day'];
+      if (tierHashes.indexOf(hash) !== -1) {
+        activeHash = '#itinerary';
+      }
+      if (typeof window.updateActiveNavLink === 'function') {
+        window.updateActiveNavLink(activeHash);
+      }
     } catch(err) {}
   }, { passive: false });
 }catch(e){}})();
+</script>
+
+<!-- Active nav highlighting (gold) on click + on scroll for desktop + mobile -->
+<script>
+(function(){
+  function getNavHeight() {
+    var nav = document.querySelector('nav');
+    return nav ? nav.getBoundingClientRect().height : 68;
+  }
+
+  // Map hash -> link elements (desktop + mobile)
+  var linkMap = {};
+  document.querySelectorAll('.nav-links a[href^="#"], .mobile-nav a[href^="#"]').forEach(function(link){
+    var h = link.getAttribute('href');
+    if (!h || h === '#') return;
+    if (!linkMap[h]) linkMap[h] = [];
+    linkMap[h].push(link);
+  });
+
+  window.updateActiveNavLink = function(targetHash) {
+    // remove all
+    document.querySelectorAll('.nav-links a.active, .mobile-nav a.active').forEach(function(l){
+      l.classList.remove('active');
+    });
+    if (!targetHash) return;
+    var links = linkMap[targetHash] || [];
+    links.forEach(function(l){ l.classList.add('active'); });
+  };
+
+  // On scroll: standard scrollspy - the last section whose top has been passed by the viewport (accounting for nav)
+  var ticking = false;
+  function onScroll() {
+    if (ticking) return;
+    ticking = true;
+    requestAnimationFrame(function(){
+      ticking = false;
+      var navH = getNavHeight();
+      var scrollY = window.scrollY;
+      var currentHash = '#hero';
+
+      // Find the last section that is "active" (we have scrolled past its top - nav - small buffer)
+      Object.keys(linkMap).forEach(function(hash){
+        if (hash === '#hero') return;
+        var sec = document.querySelector(hash);
+        if (!sec) return;
+        var sectionTop = sec.offsetTop;
+        if (scrollY >= sectionTop - navH - 30) {  // 30px buffer so it activates a bit before the section reaches the nav
+          currentHash = hash;
+        }
+      });
+
+      window.updateActiveNavLink(currentHash);
+    });
+  }
+
+  // Initial state + listeners
+  function initActiveNav() {
+    // Set from current hash on load
+    var initial = location.hash || '#hero';
+    // small delay so layout is ready
+    setTimeout(function(){
+      window.updateActiveNavLink(initial);
+    }, 50);
+
+    window.addEventListener('scroll', onScroll, { passive: true });
+    window.addEventListener('hashchange', function(){
+      window.updateActiveNavLink(location.hash || '#hero');
+    });
+
+    // Also update once after load in case of images shifting things
+    window.addEventListener('load', function(){
+      setTimeout(function(){ onScroll(); }, 100);
+    });
+  }
+
+  if (document.readyState === 'loading') {
+    document.addEventListener('DOMContentLoaded', initActiveNav);
+  } else {
+    initActiveNav();
+  }
+})();
 </script>
 <script>
 </script>
