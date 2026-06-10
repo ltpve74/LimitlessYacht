@@ -1508,12 +1508,12 @@ j=d.createElement(s),dl=l!='dataLayer'?'&l='+l:'';j.async=true;j.crossOrigin='an
     .gallery-group .gallery-grid {
       display: flex; flex-direction: row;
       overflow-x: auto; scroll-snap-type: x mandatory;
-      -webkit-overflow-scrolling: touch; scrollbar-width: none;
-      padding: 1rem 1.5rem 1.75rem; gap: .75rem; margin-top: 0;
+      scroll-padding-left: 1.5rem; overscroll-behavior-x: contain;
+      scrollbar-width: none; padding: 1rem 1.5rem 1.75rem; gap: .75rem; margin-top: 0;
     }
     .gallery-group .gallery-grid::-webkit-scrollbar { display: none; }
     .gallery-group .gallery-item {
-      flex: 0 0 78vw; scroll-snap-align: start;
+      flex: 0 0 78vw; scroll-snap-align: start; scroll-snap-stop: always;
       height: calc(100svh - 13rem); border-radius: 8px;
     }
     .gallery-group .gallery-item picture { display: block; height: 100%; }
@@ -1523,12 +1523,12 @@ j=d.createElement(s),dl=l!='dataLayer'?'&l='+l:'';j.async=true;j.crossOrigin='an
     .dest-group .itinerary-grid {
       display: flex; flex-direction: row;
       overflow-x: auto; scroll-snap-type: x mandatory;
-      -webkit-overflow-scrolling: touch; scrollbar-width: none;
-      padding: 1rem 1.5rem 1.75rem; gap: .75rem; margin-top: 0;
+      scroll-padding-left: 1.5rem; overscroll-behavior-x: contain;
+      scrollbar-width: none; padding: 1rem 1.5rem 1.75rem; gap: .75rem; margin-top: 0;
     }
     .dest-group .itinerary-grid::-webkit-scrollbar { display: none; }
     .destination-card {
-      flex: 0 0 78vw; scroll-snap-align: start;
+      flex: 0 0 78vw; scroll-snap-align: start; scroll-snap-stop: always;
       height: calc(100svh - 13rem); min-height: unset; border-radius: 8px;
     }
     .destination-card-body { padding: .9rem 1rem .85rem; }
@@ -1549,7 +1549,7 @@ j=d.createElement(s),dl=l!='dataLayer'?'&l='+l:'';j.async=true;j.crossOrigin='an
       transition: opacity .2s; -webkit-tap-highlight-color: transparent;
       flex-shrink: 0;
     }
-    .carousel-btn:disabled { opacity: .2; }
+    .carousel-btn:disabled { opacity: .2; pointer-events: none; }
     .carousel-pos {
       font-family: 'Montserrat', sans-serif; font-size: .55rem;
       letter-spacing: .15em; text-transform: uppercase;
@@ -2318,10 +2318,13 @@ height="0" width="0" style="display:none;visibility:hidden"></iframe></noscript>
       t.setAttribute('aria-selected', on ? 'true' : 'false');
     });
     groups.forEach(function(g) {
-      g.classList.toggle('tab-active', g.dataset.tier === tier);
+      var active = g.dataset.tier === tier;
+      g.classList.toggle('tab-active', active);
+      if (active && controllers[g.dataset.tier]) controllers[g.dataset.tier].reset();
     });
   }
 
+  var controllers = {};
   setDestTab('half-day');
   window._setDestTab = setDestTab;
 
@@ -2341,7 +2344,6 @@ height="0" width="0" style="display:none;visibility:hidden"></iframe></noscript>
     });
   });
 
-  /* Carousel prev/next navigation */
   document.querySelectorAll('.dest-group').forEach(function(group) {
     var grid = group.querySelector('.itinerary-grid');
     if (!grid) return;
@@ -2350,27 +2352,37 @@ height="0" width="0" style="display:none;visibility:hidden"></iframe></noscript>
     var posEl   = group.querySelector('.carousel-pos');
     var cards   = Array.from(grid.querySelectorAll('.destination-card'));
     var total   = cards.length;
+    var scrollTimer = null;
 
-    function step() {
-      return cards.length > 1 ? cards[1].offsetLeft - cards[0].offsetLeft : grid.scrollWidth;
+    function pl() { return parseFloat(getComputedStyle(grid).paddingLeft) || 0; }
+    function closestIdx() {
+      var sl = grid.scrollLeft, p = pl(), best = 0, bestDist = Infinity;
+      cards.forEach(function(c, i) {
+        var d = Math.abs(c.offsetLeft - p - sl);
+        if (d < bestDist) { bestDist = d; best = i; }
+      });
+      return best;
     }
-    function idx() {
-      return Math.round(grid.scrollLeft / step());
+    function scrollToCard(i) {
+      i = Math.max(0, Math.min(total - 1, i));
+      grid.scrollTo({ left: Math.max(0, cards[i].offsetLeft - pl()), behavior: 'smooth' });
     }
     function update() {
-      var i = idx();
+      var i = closestIdx();
       if (btnPrev) btnPrev.disabled = i <= 0;
       if (btnNext) btnNext.disabled = i >= total - 1;
       if (posEl)   posEl.textContent = (i + 1) + ' / ' + total;
     }
-    if (btnPrev) btnPrev.addEventListener('click', function() {
-      grid.scrollTo({ left: (idx() - 1) * step(), behavior: 'smooth' });
-    });
-    if (btnNext) btnNext.addEventListener('click', function() {
-      grid.scrollTo({ left: (idx() + 1) * step(), behavior: 'smooth' });
-    });
-    grid.addEventListener('scroll', update, { passive: true });
+    function reset() { grid.scrollLeft = 0; update(); }
+    function onScroll() {
+      if (scrollTimer) clearTimeout(scrollTimer);
+      scrollTimer = setTimeout(function() { scrollTimer = null; update(); }, 150);
+    }
+    if (btnPrev) btnPrev.addEventListener('click', function() { scrollToCard(closestIdx() - 1); });
+    if (btnNext) btnNext.addEventListener('click', function() { scrollToCard(closestIdx() + 1); });
+    grid.addEventListener('scroll', onScroll, { passive: true });
     update();
+    controllers[group.dataset.tier] = { reset: reset };
   });
 })();
 </script>
@@ -2880,10 +2892,15 @@ height="0" width="0" style="display:none;visibility:hidden"></iframe></noscript>
   (function(){
     var tabs   = document.querySelectorAll('.gallery-tab');
     var groups = document.querySelectorAll('.gallery-group');
+    var controllers = {};
 
     function setGalleryTab(tab) {
-      tabs.forEach(function(t)   { t.classList.toggle('tab--active', t.dataset.gtab === tab); });
-      groups.forEach(function(g) { g.classList.toggle('tab-active',  g.dataset.gtab === tab); });
+      tabs.forEach(function(t) { t.classList.toggle('tab--active', t.dataset.gtab === tab); });
+      groups.forEach(function(g) {
+        var active = g.dataset.gtab === tab;
+        g.classList.toggle('tab-active', active);
+        if (active && controllers[g.dataset.gtab]) controllers[g.dataset.gtab].reset();
+      });
     }
     tabs.forEach(function(tab) {
       tab.addEventListener('click', function() { setGalleryTab(tab.dataset.gtab); });
@@ -2897,19 +2914,37 @@ height="0" width="0" style="display:none;visibility:hidden"></iframe></noscript>
       var posEl   = group.querySelector('.carousel-pos');
       var cards   = Array.from(grid.querySelectorAll('.gallery-item'));
       var total   = cards.length;
+      var scrollTimer = null;
 
-      function step() { return cards.length > 1 ? cards[1].offsetLeft - cards[0].offsetLeft : grid.scrollWidth; }
-      function idx()  { return Math.round(grid.scrollLeft / step()); }
+      function pl() { return parseFloat(getComputedStyle(grid).paddingLeft) || 0; }
+      function closestIdx() {
+        var sl = grid.scrollLeft, p = pl(), best = 0, bestDist = Infinity;
+        cards.forEach(function(c, i) {
+          var d = Math.abs(c.offsetLeft - p - sl);
+          if (d < bestDist) { bestDist = d; best = i; }
+        });
+        return best;
+      }
+      function scrollToCard(i) {
+        i = Math.max(0, Math.min(total - 1, i));
+        grid.scrollTo({ left: Math.max(0, cards[i].offsetLeft - pl()), behavior: 'smooth' });
+      }
       function update() {
-        var i = idx();
+        var i = closestIdx();
         if (btnPrev) btnPrev.disabled = i <= 0;
         if (btnNext) btnNext.disabled = i >= total - 1;
         if (posEl)   posEl.textContent = (i + 1) + ' / ' + total;
       }
-      if (btnPrev) btnPrev.addEventListener('click', function() { grid.scrollTo({ left: (idx()-1)*step(), behavior:'smooth' }); });
-      if (btnNext) btnNext.addEventListener('click', function() { grid.scrollTo({ left: (idx()+1)*step(), behavior:'smooth' }); });
-      grid.addEventListener('scroll', update, { passive: true });
+      function reset() { grid.scrollLeft = 0; update(); }
+      function onScroll() {
+        if (scrollTimer) clearTimeout(scrollTimer);
+        scrollTimer = setTimeout(function() { scrollTimer = null; update(); }, 150);
+      }
+      if (btnPrev) btnPrev.addEventListener('click', function() { scrollToCard(closestIdx() - 1); });
+      if (btnNext) btnNext.addEventListener('click', function() { scrollToCard(closestIdx() + 1); });
+      grid.addEventListener('scroll', onScroll, { passive: true });
       update();
+      controllers[group.dataset.gtab] = { reset: reset };
     });
   })();
 
