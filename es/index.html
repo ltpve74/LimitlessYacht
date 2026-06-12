@@ -1240,7 +1240,11 @@ j=d.createElement(s),dl=l!='dataLayer'?'&l='+l:'';j.async=true;j.crossOrigin='an
   }
   .availability-actions { margin-top: 2.5rem; display: flex; gap: 1.2rem; flex-wrap: wrap; }
   .section-cta { margin-top: 2.5rem; text-align: center; }
+  .section-cta-desktop { margin-top: 2.5rem; text-align: center; }
+  .itinerary-bottom-bar { display: none; }
+  .itinerary-meet-cta { display: none; }
   .section-cta-text { color: var(--text-muted); font-family: 'Montserrat', sans-serif; font-size: .8rem; letter-spacing: .1em; text-transform: uppercase; margin-bottom: 1.25rem; }
+  .section-cta-desktop .section-cta-text { color: var(--text-muted); font-family: 'Montserrat', sans-serif; font-size: .8rem; letter-spacing: .1em; text-transform: uppercase; margin-bottom: 1.25rem; }
   .section-cta-btns { display: flex; gap: 1.2rem; flex-wrap: wrap; justify-content: center; }
   @media (max-width: 640px) {
     .availability-actions { flex-direction: column; }
@@ -1487,6 +1491,16 @@ j=d.createElement(s),dl=l!='dataLayer'?'&l='+l:'';j.async=true;j.crossOrigin='an
       letter-spacing: .15em; text-transform: uppercase;
       color: rgba(245,240,232,.45); min-width: 2.5rem; text-align: center;
     }
+    .itinerary-bottom-bar {
+      display: flex; align-items: center; justify-content: space-between;
+      padding: .5rem 1.2rem .75rem;
+    }
+    .itinerary-bottom-bar .carousel-nav { padding: 0; }
+    .itinerary-meet-cta {
+      font-size: .52rem !important; letter-spacing: .14em;
+      padding: .65rem 1.1rem !important; white-space: nowrap;
+    }
+    .section-cta-desktop { display: none; }
     .dest-tabs {
       display: flex; width: 100%; max-width: none; margin: 0;
       border: 1px solid rgba(201,168,76,.25); border-left: none; border-right: none; border-radius: 0;
@@ -2107,19 +2121,20 @@ height="0" width="0" style="display:none;visibility:hidden"></iframe></noscript>
           </div>
         </div>
       </div>
-      <div class="carousel-nav">
-        <button class="carousel-btn carousel-prev" aria-label="Previous destination">&#8249;</button>
-        <span class="carousel-pos"></span>
-        <button class="carousel-btn carousel-next" aria-label="Next destination">&#8250;</button>
+      <div class="itinerary-bottom-bar">
+        <div class="carousel-nav">
+          <button class="carousel-btn carousel-prev" aria-label="Previous destination">&#8249;</button>
+          <span class="carousel-pos"></span>
+          <button class="carousel-btn carousel-next" aria-label="Next destination">&#8250;</button>
+        </div>
+        <a href="#gallery" class="btn-primary itinerary-meet-cta">Meet El yate</a>
       </div>
     </div>
-    <div class="container">
-      <div class="section-cta reveal">
-        <p class="section-cta-text">Seen somewhere you'd love to go? Now meet the yacht that takes you there.</p>
-        <div class="section-cta-btns">
-          <a href="#gallery" class="btn-primary">Meet El yate</a>
-          <a href="https://wa.me/34643678072" target="_blank" rel="noopener" class="btn-ghost">Preguntar por WhatsApp</a>
-        </div>
+    <div class="section-cta-desktop reveal">
+      <p class="section-cta-text">Seen somewhere you'd love to go? Now meet the yacht that takes you there.</p>
+      <div class="section-cta-btns">
+        <a href="#gallery" class="btn-primary">Meet El yate</a>
+        <a href="https://wa.me/34643678072" target="_blank" rel="noopener" class="btn-ghost">Preguntar por WhatsApp</a>
       </div>
     </div>
   </div>
