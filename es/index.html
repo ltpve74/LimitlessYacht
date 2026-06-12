@@ -226,17 +226,7 @@ j=d.createElement(s),dl=l!='dataLayer'?'&l='+l:'';j.async=true;j.crossOrigin='an
       "image": [
         "https://limitlessyachtcharter.com/images/maiora_20s_02.jpg",
         "https://limitlessyachtcharter.com/images/maiora_20s_04.jpg"
-      ],
-      "offers": {
-        "@type": "AggregateOffer",
-        "priceCurrency": "EUR",
-        "lowPrice": "1850",
-        "highPrice": "3950",
-        "offerCount": "8",
-        "availability": "https://schema.org/InStock",
-        "url": "https://limitlessyachtcharter.com/#pricing",
-        "seller": { "@id": "https://limitlessyachtcharter.com/#business" }
-      }
+      ]
     }
   ]
 }
@@ -829,6 +819,18 @@ j=d.createElement(s),dl=l!='dataLayer'?'&l='+l:'';j.async=true;j.crossOrigin='an
   }
   .pricing-amount sup { font-size: .9rem; vertical-align: super; }
   .pricing-amount .amt-sm { font-size: .8rem; color: var(--text-muted); font-weight: 400; letter-spacing: .03em; }
+
+  .pricing-enquire {
+    font-family: 'Montserrat', sans-serif;
+    font-size: .72rem; font-weight: 500; letter-spacing: .14em; text-transform: uppercase;
+    color: var(--gold); opacity: .85;
+  }
+  .pricing-book-cta-lead {
+    background: var(--gold) !important;
+    color: var(--navy) !important;
+    border-color: var(--gold) !important;
+    font-weight: 600 !important;
+  }
 
   .pricing-terms {
     max-width: 720px;
@@ -1826,7 +1828,7 @@ height="0" width="0" style="display:none;visibility:hidden"></iframe></noscript>
     <li><a href="#itinerary">Destinos</a></li>
     <li><a href="#specs">Detalles</a></li>
     <li><a href="#amenities">Equipamiento</a></li>
-    <li><a href="#pricing">Tarifas</a></li>
+    <li><a href="#contact">Solicitar</a></li>
     <li><a href="#reviews">Reseñas</a></li>
     <li><a href="#availability">Disponibilidad</a></li>
   </ul>
@@ -1856,7 +1858,7 @@ height="0" width="0" style="display:none;visibility:hidden"></iframe></noscript>
   <a href="#itinerary" onclick="closeMobile()">Destinos</a>
   <a href="#specs" onclick="closeMobile()">Detalles</a>
   <a href="#amenities" onclick="closeMobile()">Equipamiento</a>
-  <a href="#pricing" onclick="closeMobile()">Tarifas</a>
+  <a href="#contact" onclick="closeMobile()">Solicitar</a>
   <a href="#reviews" onclick="closeMobile()">Reseñas</a>
   <a href="#availability" onclick="closeMobile()">Disponibilidad</a>
   <a href="#contact" onclick="closeMobile()">Contactoo</a>
@@ -1879,7 +1881,7 @@ height="0" width="0" style="display:none;visibility:hidden"></iframe></noscript>
     <div class="hero-cta-group">
       <p class="hero-value">Su tripulación se encarga de todo: usted se centra en la compañía y las vistas.</p>
       <div class="hero-actions">
-        <a href="#pricing" class="btn-primary">Tarifas y reserva</a>
+        <a href="#contact" class="btn-primary">Solicitar presupuesto</a>
         <a href="#itinerary" class="btn-ghost">Explorar destinos</a>
       </div>
       <p class="hero-trust">Verified reviews on Click&amp;Boat · Tripulacióned &amp; fully equipped</p>
@@ -2025,7 +2027,7 @@ height="0" width="0" style="display:none;visibility:hidden"></iframe></noscript>
     <div class="section-cta reveal">
       <p class="section-cta-text">Like what you see? Step aboard Limitless.</p>
       <div class="section-cta-btns">
-        <a href="#pricing" class="btn-primary">See Rates &amp; Disponibilidad</a>
+        <a href="#contact" class="btn-primary">Solicitar presupuesto</a>
         <a href="#contact" class="btn-ghost">Consultar ahora</a>
       </div>
     </div>
@@ -2440,7 +2442,7 @@ height="0" width="0" style="display:none;visibility:hidden"></iframe></noscript>
     <div class="section-cta reveal reveal-delay-2">
       <p class="section-cta-text">21.5 metres of performance — ready to charter.</p>
       <div class="section-cta-btns">
-        <a href="#pricing" class="btn-primary">View Tarifas de charter</a>
+        <a href="#contact" class="btn-primary">Solicitar presupuesto</a>
         <a href="#contact" class="btn-ghost">Get in Touch</a>
       </div>
     </div>
@@ -2511,9 +2513,9 @@ height="0" width="0" style="display:none;visibility:hidden"></iframe></noscript>
 <!-- PRICING -->
 <section id="pricing">
   <div class="container">
-    <p class="section-label reveal">Tarifas de charter</p>
-    <h2 class="section-title reveal reveal-delay-1">Transparentes y <em>justas</em></h2>
-    <p class="pricing-urgency reveal reveal-delay-2">La temporada alta (jul–ago) se llena rápido — <strong>quedan pocas fechas de verano</strong></p>
+    <p class="section-label reveal">Solicitar</p>
+    <h2 class="section-title reveal reveal-delay-1">Hecho <em>a medida</em></h2>
+    <p class="pricing-urgency reveal reveal-delay-2">Cuéntanos tu grupo y fechas — <strong>te enviamos un presupuesto en 24 horas</strong></p>
     <div class="pricing-tabs" role="tablist" aria-label="Charter season">
       <button class="pricing-tab" role="tab" data-season="low" id="tab-low" aria-selected="false">
         Temporada baja<span class="tab-period">sep – jun</span>
@@ -2526,47 +2528,47 @@ height="0" width="0" style="display:none;visibility:hidden"></iframe></noscript>
       <div class="pricing-card reveal" data-season="low">
         <div class="pricing-badge">Temporada baja</div>
         <div class="pricing-season">septiembre – junio</div>
-        <p class="pricing-explore-hint">Toque una duración para ver los destinos correspondientes</p>
-        <a class="pricing-row" href="#half-day">
+        <p class="pricing-explore-hint">Selecciona una duración — adaptamos tu presupuesto</p>
+        <a class="pricing-row" href="#contact">
           <span class="pricing-duration">4 horas</span>
-          <span class="pricing-amount"><sup>€</sup> 1,850</span>
+          <span class="pricing-enquire">Solicitar →</span>
         </a>
-        <a class="pricing-row" href="#half-day">
+        <a class="pricing-row" href="#contact">
           <span class="pricing-duration">6 horas</span>
-          <span class="pricing-amount"><sup>€</sup> 2,600</span>
+          <span class="pricing-enquire">Solicitar →</span>
         </a>
-        <a class="pricing-row" href="#full-day">
+        <a class="pricing-row" href="#contact">
           <span class="pricing-duration">1 día</span>
-          <span class="pricing-amount"><sup>€</sup> 3,300</span>
+          <span class="pricing-enquire">Solicitar →</span>
         </a>
-        <a class="pricing-row" href="#multi-day">
+        <a class="pricing-row" href="#contact">
           <span class="pricing-duration">Varios días</span>
-          <span class="pricing-amount"><span class="amt-sm">desde </span><sup>€</sup> 3,100<span class="amt-sm"> /día</span></span>
+          <span class="pricing-enquire">Solicitar →</span>
         </a>
-        <a class="pricing-book-cta" href="#contact">Solicitar presupuesto</a>
+        <a class="pricing-book-cta pricing-book-cta-lead" href="#contact">Obtén tu presupuesto gratis</a>
         <p class="pricing-review-snippet"><span class="review-stars">★★★★★</span> <em>«Espaciosa, cómoda e impecable: la tripulación se aseguró de que estuviéramos bien atendidos allá donde fuéramos.»</em><span class="review-attr"> — Tony, ago 2025</span></p>
       </div>
       <div class="pricing-card featured reveal reveal-delay-1" data-season="peak">
         <div class="pricing-badge">Temporada alta</div>
         <div class="pricing-season">julio – agosto</div>
-        <p class="pricing-explore-hint">Toque una duración para ver los destinos correspondientes</p>
-        <a class="pricing-row" href="#half-day">
+        <p class="pricing-explore-hint">Selecciona una duración — adaptamos tu presupuesto</p>
+        <a class="pricing-row" href="#contact">
           <span class="pricing-duration">4 horas</span>
-          <span class="pricing-amount"><sup>€</sup> 2,200</span>
+          <span class="pricing-enquire">Solicitar →</span>
         </a>
-        <a class="pricing-row" href="#half-day">
+        <a class="pricing-row" href="#contact">
           <span class="pricing-duration">6 horas</span>
-          <span class="pricing-amount"><sup>€</sup> 3,100</span>
+          <span class="pricing-enquire">Solicitar →</span>
         </a>
-        <a class="pricing-row" href="#full-day">
+        <a class="pricing-row" href="#contact">
           <span class="pricing-duration">1 día</span>
-          <span class="pricing-amount"><sup>€</sup> 3,950</span>
+          <span class="pricing-enquire">Solicitar →</span>
         </a>
-        <a class="pricing-row" href="#multi-day">
+        <a class="pricing-row" href="#contact">
           <span class="pricing-duration">Varios días</span>
-          <span class="pricing-amount"><span class="amt-sm">desde </span><sup>€</sup> 3,600<span class="amt-sm"> /día</span></span>
+          <span class="pricing-enquire">Solicitar →</span>
         </a>
-        <a class="pricing-book-cta" href="#contact">Solicitar presupuesto</a>
+        <a class="pricing-book-cta pricing-book-cta-lead" href="#contact">Obtén tu presupuesto gratis</a>
         <p class="pricing-review-snippet"><span class="review-stars">★★★★★</span> <em>«Espaciosa, cómoda e impecable: la tripulación se aseguró de que estuviéramos bien atendidos allá donde fuéramos.»</em><span class="review-attr"> — Tony, ago 2025</span></p>
       </div>
     </div>
@@ -2581,7 +2583,7 @@ height="0" width="0" style="display:none;visibility:hidden"></iframe></noscript>
         <li>Catering &amp; reservas en beach club bajo petición</li>
       </ul>
       <div class="pricing-terms-extra">
-        <p>Chárteres de varios días y con noche a bordo disponibles — precio por día. Quédese tantos días como desee.</p>
+        <p>Chárteres de varios días y con noche a bordo disponibles. Quédese tantos días como desee.</p>
         <p>Las propinas para la tripulación no están incluidas. Contáctenos para cualquier petición especial.</p>
       </div>
     </div>
@@ -2728,10 +2730,10 @@ height="0" width="0" style="display:none;visibility:hidden"></iframe></noscript>
   <div class="container">
     <div class="contact-grid">
       <div class="contact-info reveal">
-        <p class="section-label">Contactoo</p>
-        <h2 class="section-title">Póngase en <em>contacto</em></h2>
+        <p class="section-label">Solicitar presupuesto</p>
+        <h2 class="section-title">Tu <em>presupuesto</em></h2>
         <p style="font-size:.88rem;line-height:1.8;color:rgba(245,240,232,.7);margin-top:1.5rem;margin-bottom:2rem;">
-          Para reservas, consultas de disponibilidad o peticiones especiales, estamos a su disposición.
+          Cuéntanos tu grupo, las fechas y lo que buscas — te enviamos un presupuesto personalizado en 24 horas, sin compromiso.
         </p>
         <div class="contact-details">
           <div class="contact-item">
@@ -2755,7 +2757,7 @@ height="0" width="0" style="display:none;visibility:hidden"></iframe></noscript>
         </a>
       </div>
       <div class="reveal reveal-delay-1">
-        <p class="section-label" style="margin-bottom:1.5rem;">Solicitud de reserva</p>
+        <p class="section-label" style="margin-bottom:1.5rem;">Solicitar presupuesto</p>
         <form class="contact-form" id="contactForm" name="contact-es" netlify netlify-honeypot="bot-field" novalidate>
           <input type="hidden" name="form-name" value="contact-es" />
           <input type="hidden" name="locale" value="es" />
