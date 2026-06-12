@@ -256,6 +256,7 @@ j=d.createElement(s),dl=l!='dataLayer'?'&l='+l:'';j.async=true;j.crossOrigin='an
     font-family: 'Montserrat', sans-serif;
     font-weight: 300;
     overflow-x: hidden;
+    overflow-x: clip; /* modern browsers: no scroll container, fixes iOS momentum */
   }
 
   /* ── NAV ── */
@@ -1306,7 +1307,6 @@ j=d.createElement(s),dl=l!='dataLayer'?'&l='+l:'';j.async=true;j.crossOrigin='an
       min-width: 0;
       overflow-x: auto;
       overflow-y: hidden;
-      -webkit-overflow-scrolling: touch;
       scrollbar-width: none;
       padding: 0.2rem 0 0.35rem;
       mask-image: linear-gradient(90deg, transparent, #000 12px, #000 calc(100% - 12px), transparent);
@@ -1501,7 +1501,7 @@ j=d.createElement(s),dl=l!='dataLayer'?'&l='+l:'';j.async=true;j.crossOrigin='an
     .gallery-group .gallery-grid {
       display: flex; flex-direction: row;
       overflow-x: auto; overscroll-behavior-x: contain;
-      -webkit-overflow-scrolling: touch; scrollbar-width: none;
+      scrollbar-width: none;
       padding: 1rem 1.5rem 1.75rem; gap: .75rem; margin-top: 0;
     }
     .gallery-group .gallery-grid::-webkit-scrollbar { display: none; }
@@ -1516,7 +1516,7 @@ j=d.createElement(s),dl=l!='dataLayer'?'&l='+l:'';j.async=true;j.crossOrigin='an
     .dest-group .itinerary-grid {
       display: flex; flex-direction: row;
       overflow-x: auto; overscroll-behavior-x: contain;
-      -webkit-overflow-scrolling: touch; scrollbar-width: none;
+      scrollbar-width: none;
       padding: 1rem 1.5rem 1.75rem; gap: .75rem; margin-top: 0;
     }
     .dest-group .itinerary-grid::-webkit-scrollbar { display: none; }
@@ -1573,8 +1573,10 @@ j=d.createElement(s),dl=l!='dataLayer'?'&l='+l:'';j.async=true;j.crossOrigin='an
     .cal-cell { font-size: .75rem; border-radius: 4px; }
     .cal-nav { width: 30px; height: 30px; font-size: .9rem; }
     .cal-legend { font-size: .55rem; gap: .8rem; margin-top: 1rem; }
-    .reveal { transform: none; }
-    .reveal.visible { transform: none; }
+    .reveal { opacity: 1 !important; transform: none; transition: none !important; }
+    .reveal.visible { opacity: 1; transform: none; }
+    .reveal-delay-1, .reveal-delay-2, .reveal-delay-3 { transition-delay: 0s; }
+    nav::before { transition: none; }
   }
   @media (max-width: 400px) {
     .nav-logo { letter-spacing: .08em; }
@@ -2789,12 +2791,16 @@ height="0" width="0" style="display:none;visibility:hidden"></iframe></noscript>
     if (window.innerWidth > 768 && mobileNav.classList.contains('open')) closeMobile();
   });
 
-  // Reveal on scroll
+  // Reveal on scroll — skip observer on mobile (prevents momentum scroll interruption)
   const reveals = document.querySelectorAll('.reveal');
-  const observer = new IntersectionObserver((entries) => {
-    entries.forEach(e => { if (e.isIntersecting) e.target.classList.add('visible'); });
-  }, { threshold: 0.12 });
-  reveals.forEach(el => observer.observe(el));
+  if (window.innerWidth > 640) {
+    const observer = new IntersectionObserver((entries) => {
+      entries.forEach(e => { if (e.isIntersecting) e.target.classList.add('visible'); });
+    }, { threshold: 0.12 });
+    reveals.forEach(el => observer.observe(el));
+  } else {
+    reveals.forEach(el => el.classList.add('visible'));
+  }
 
   // Gallery tabs + carousel nav
   (function(){
