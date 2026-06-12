@@ -1174,7 +1174,7 @@ j=d.createElement(s),dl=l!='dataLayer'?'&l='+l:'';j.async=true;j.crossOrigin='an
   @media (max-width: 640px) {
     #about { padding-bottom: 3rem; }
     #gallery { padding-top: 2.5rem; padding-bottom: 3rem; padding-left: 0; padding-right: 0; }
-    #itinerary { padding-top: 2.5rem; padding-bottom: 3.5rem; padding-left: 0; padding-right: 0; }
+    #itinerary { padding-top: 1rem; padding-bottom: 3.5rem; padding-left: 0; padding-right: 0; }
     /* Restore heading padding now that section has no side padding */
     #gallery > .container, #itinerary > .container { padding-left: 2rem; padding-right: 2rem; }
     #specs { padding-top: 3rem; padding-bottom: 2.5rem; }
@@ -1409,7 +1409,7 @@ j=d.createElement(s),dl=l!='dataLayer'?'&l='+l:'';j.async=true;j.crossOrigin='an
     /* Gallery wrap spans full viewport (section has no side padding); carousel contained inside */
     .gallery-wrap { margin: 0 !important; padding: 1.25rem 0 0 !important; }
     /* Itinerary wrap — same treatment */
-    .itinerary-wrap { margin: 0 !important; padding: 1.25rem 0 0 !important; }
+    .itinerary-wrap { margin: 0 !important; padding: 0.25rem 0 0 !important; }
     /* Gallery tab switcher */
     .gallery-tabs {
       display: flex;
@@ -1446,14 +1446,14 @@ j=d.createElement(s),dl=l!='dataLayer'?'&l='+l:'';j.async=true;j.crossOrigin='an
     }
     .gallery-group .gallery-item picture { display: block; height: 100%; }
     /* Breathing space above sticky tabs */
-    .itinerary-wrap { padding-top: 1.25rem !important; }
+    .itinerary-wrap { padding-top: 0.25rem !important; }
     /* Horizontal swipe carousel — one card at a time, next peeks at right */
     .dest-group .itinerary-grid {
       display: flex; flex-direction: row;
       overflow-x: auto; overscroll-behavior-x: contain;
       touch-action: pan-x pan-y;
       scrollbar-width: none;
-      padding: 1rem 1.5rem 0.5rem; gap: .75rem; margin-top: 0;
+      padding: 1rem 1.5rem 0.2rem; gap: .75rem; margin-top: 0;
     }
     .dest-group .itinerary-grid::-webkit-scrollbar { display: none; }
     .destination-card {
