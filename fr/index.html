@@ -1262,6 +1262,9 @@ j=d.createElement(s),dl=l!='dataLayer'?'&l='+l:'';j.async=true;j.crossOrigin='an
   .cal-cell.today { outline: 1px solid var(--gold); outline-offset: -1px; }
   .cal-cell.booked { background: rgba(176,124,130,.9); color: #fff; }
   .cal-cell.tentative { background: rgba(208,164,78,.22); color: var(--gold-light); }
+  .cal-cell.free { cursor: pointer; transition: background .15s, color .15s; }
+  .cal-cell.free:hover { background: rgba(201,168,76,.2); color: var(--gold); }
+  .cal-cell.free:focus-visible { outline: 2px solid var(--gold); outline-offset: 1px; }
   .cal-legend { display: flex; gap: 1.4rem; flex-wrap: wrap; margin-top: 1.4rem; font-size: .6rem; letter-spacing: .12em; text-transform: uppercase; color: var(--text-muted); }
   .cal-legend i { display: inline-block; width: 12px; height: 12px; border-radius: 3px; margin-right: .45rem; vertical-align: middle; }
   .leg-available { border: 1px solid rgba(245,240,232,.4); }
@@ -3216,11 +3219,16 @@ height="0" width="0" style="display:none;visibility:hidden"></iframe></noscript>
     for (var d = 1; d <= daysInMonth; d++) {
       var k = y + '-' + pad(m + 1) + '-' + pad(d);
       var cls = 'cal-cell';
-      if (k < ts) cls += ' past';
-      if (k === ts) cls += ' today';
-      if (booked.has(k)) cls += ' booked';
-      else if (tentative.has(k)) cls += ' tentative';
-      cells += '<div class="' + cls + '">' + d + '</div>';
+      if (k < ts) {
+        cls += ' past';
+      } else {
+        if (k === ts) cls += ' today';
+        if (booked.has(k)) cls += ' booked';
+        else if (tentative.has(k)) cls += ' tentative';
+        else cls += ' free';
+      }
+      var attr = cls.indexOf('free') !== -1 ? ' data-date="' + k + '" role="button" tabindex="0"' : '';
+      cells += '<div class="' + cls + '"' + attr + '>' + d + '</div>';
     }
     var dow = DOW.map(function(x){ return '<span>' + x + '</span>'; }).join('');
     return '<div class="cal-month">' +
@@ -3257,6 +3265,17 @@ height="0" width="0" style="display:none;visibility:hidden"></iframe></noscript>
   }
   prevBtn.addEventListener('click', function(){ shift(-1); });
   nextBtn.addEventListener('click', function(){ shift(1); });
+
+  monthsEl.addEventListener('click', function(e) {
+    var cell = e.target.closest ? e.target.closest('.cal-cell.free') : (e.target.className.indexOf('free') !== -1 ? e.target : null);
+    if (!cell) return;
+    var date = cell.getAttribute('data-date');
+    if (!date) return;
+    var inp = document.getElementById('preferred_date');
+    if (inp) inp.value = date;
+    var contact = document.getElementById('contact');
+    if (contact) contact.scrollIntoView({ behavior: 'smooth' });
+  });
 
   var resizeTimer;
   window.addEventListener('resize', function(){ clearTimeout(resizeTimer); resizeTimer = setTimeout(render, 150); });
