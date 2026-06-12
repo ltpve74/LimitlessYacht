@@ -1497,13 +1497,13 @@ j=d.createElement(s),dl=l!='dataLayer'?'&l='+l:'';j.async=true;j.crossOrigin='an
     .gallery-group.tab-active { display: block; }
     .gallery-group .gallery-grid {
       display: flex; flex-direction: row;
-      overflow-x: auto; scroll-snap-type: x proximity; overscroll-behavior-x: contain;
+      overflow-x: auto; overscroll-behavior-x: contain;
       -webkit-overflow-scrolling: touch; scrollbar-width: none;
       padding: 1rem 1.5rem 1.75rem; gap: .75rem; margin-top: 0;
     }
     .gallery-group .gallery-grid::-webkit-scrollbar { display: none; }
     .gallery-group .gallery-item {
-      flex: 0 0 78vw; scroll-snap-align: start;
+      flex: 0 0 78vw;
       height: calc(100svh - 13rem); border-radius: 8px;
     }
     .gallery-group .gallery-item picture { display: block; height: 100%; }
@@ -1512,13 +1512,13 @@ j=d.createElement(s),dl=l!='dataLayer'?'&l='+l:'';j.async=true;j.crossOrigin='an
     /* Horizontal swipe carousel — one card at a time, next peeks at right */
     .dest-group .itinerary-grid {
       display: flex; flex-direction: row;
-      overflow-x: auto; scroll-snap-type: x proximity; overscroll-behavior-x: contain;
+      overflow-x: auto; overscroll-behavior-x: contain;
       -webkit-overflow-scrolling: touch; scrollbar-width: none;
       padding: 1rem 1.5rem 1.75rem; gap: .75rem; margin-top: 0;
     }
     .dest-group .itinerary-grid::-webkit-scrollbar { display: none; }
     .destination-card {
-      flex: 0 0 78vw; scroll-snap-align: start;
+      flex: 0 0 78vw;
       height: calc(100svh - 13rem); min-height: unset; border-radius: 8px;
     }
     .destination-card-body { padding: .9rem 1rem .85rem; }
