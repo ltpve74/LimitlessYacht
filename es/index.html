@@ -1479,8 +1479,12 @@ j=d.createElement(s),dl=l!='dataLayer'?'&l='+l:'';j.async=true;j.crossOrigin='an
     .intro-num { font-size: 1.6rem; }
     .intro-label { font-size: .46rem; margin-top: .15rem; }
 
+    /* Both sections need zero side-padding in this block so their wraps reach the viewport edges */
+    #gallery, #itinerary { padding-left: 0 !important; padding-right: 0 !important; }
     /* Gallery wrap spans full viewport (section has no side padding); carousel contained inside */
     .gallery-wrap { margin: 0 !important; padding: 1.25rem 0 0 !important; overflow-x: hidden; }
+    /* Itinerary wrap — same treatment */
+    .itinerary-wrap { margin: 0 !important; padding: 1.25rem 0 0 !important; overflow-x: hidden; }
     /* Gallery tab switcher */
     .gallery-tabs {
       display: flex;
@@ -1555,9 +1559,9 @@ j=d.createElement(s),dl=l!='dataLayer'?'&l='+l:'';j.async=true;j.crossOrigin='an
       color: rgba(245,240,232,.45); min-width: 2.5rem; text-align: center;
     }
     .dest-tabs {
-      width: 100%; margin: 0;
-      border-left: none; border-right: none; border-radius: 0;
-      background: var(--navy);
+      display: flex; width: 100%; max-width: none; margin: 0;
+      border: 1px solid rgba(201,168,76,.25); border-left: none; border-right: none; border-radius: 0;
+      background: var(--navy); overflow: hidden;
     }
     .destination-desc { display: none; }
     .destination-meta span:not(:first-child) { display: none; }
