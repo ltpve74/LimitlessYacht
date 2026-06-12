@@ -246,7 +246,6 @@ j=d.createElement(s),dl=l!='dataLayer'?'&l='+l:'';j.async=true;j.crossOrigin='an
   *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
 
   html {
-    scroll-behavior: smooth;
     scroll-padding-top: 5rem; /* a bit more breathing room under the fixed nav for all anchor targets */
   }
 
@@ -1571,6 +1570,8 @@ j=d.createElement(s),dl=l!='dataLayer'?'&l='+l:'';j.async=true;j.crossOrigin='an
     .cal-cell { font-size: .75rem; border-radius: 4px; }
     .cal-nav { width: 30px; height: 30px; font-size: .9rem; }
     .cal-legend { font-size: .55rem; gap: .8rem; margin-top: 1rem; }
+    .reveal { transform: none; }
+    .reveal.visible { transform: none; }
   }
   @media (max-width: 400px) {
     .nav-logo { letter-spacing: .08em; }
