@@ -1645,10 +1645,11 @@ j=d.createElement(s),dl=l!='dataLayer'?'&l='+l:'';j.async=true;j.crossOrigin='an
     position: fixed; left: 0; right: 0; bottom: 0; z-index: 300;
     background: rgba(8,18,34,.97); backdrop-filter: blur(6px);
     border-top: 1px solid rgba(201,168,76,.25);
-    padding: 1rem 1.5rem 0.9rem; /* slightly tighter vertical padding */
-    position: relative; /* allows absolutely positioned close button */
+    padding: 1rem 1.5rem 0.9rem;
+    opacity: 1; transition: opacity 0.5s ease;
   }
   .cookie-consent[hidden] { display: none; }
+  .cookie-consent.is-hiding { opacity: 0; pointer-events: none; }
   .cookie-consent-inner {
     max-width: 1100px; margin: 0 auto;
     display: flex; align-items: center; justify-content: space-between;
@@ -3197,8 +3198,11 @@ height="0" width="0" style="display:none;visibility:hidden"></iframe></noscript>
     var KEY = 'ly_consent';
     var banner = document.getElementById('cookie-consent');
     function push(){ window.dataLayer = window.dataLayer || []; window.dataLayer.push(arguments); }
-    function show(){ banner.hidden = false; }
-    function hide(){ banner.hidden = true; }
+    function show(){ banner.classList.remove('is-hiding'); banner.hidden = false; }
+    function hide(){
+      banner.classList.add('is-hiding');
+      setTimeout(function(){ banner.hidden = true; }, 520);
+    }
     function choose(value) {
       try { localStorage.setItem(KEY, value); } catch (e) {}
       if (value === 'granted') {
@@ -3235,29 +3239,14 @@ height="0" width="0" style="display:none;visibility:hidden"></iframe></noscript>
       closeBtn.addEventListener('click', function () { choose('denied'); });
     }
 
-    // Auto-accept after significant scroll or engagement.
-    // During dev/testing phase we want maximum tracking.
-    // (Note: for production you may want to switch back to auto-deny for stricter compliance.)
-    var autoAceptared = false;
-    function maybeAutoAceptarOnScroll() {
-      if (autoAceptared) return;
-      var cur = ''; try { cur = localStorage.getItem(KEY) || ''; } catch(e){}
-      if (cur === 'granted' || cur === 'denied') { autoAceptared = true; return; }
-      if (window.scrollY > 250) {
-        autoAceptared = true;
-        choose('granted');
-        window.removeEventListener('scroll', maybeAutoAceptarOnScroll, { passive: true });
-      }
-    }
-    // Attach scroll listener immediately — no banner.hidden guard so the
-    // auto-grant fires even if the user scrolls before the banner appears (1400ms).
-    window.addEventListener('scroll', maybeAutoAceptarOnScroll, { passive: true });
-
-    // Fallback: if user doesn't scroll (fast reader, slow scroller), auto-grant after 8s.
-    setTimeout(function() {
+    // Auto-accept on any first interaction (scroll, touch, or click).
+    function autoAcceptOnInteraction() {
       var cur = ''; try { cur = localStorage.getItem(KEY) || ''; } catch(e){}
       if (cur !== 'granted' && cur !== 'denied') { choose('granted'); }
-    }, 8000);
+    }
+    document.addEventListener('touchstart', autoAcceptOnInteraction, { once: true, passive: true });
+    document.addEventListener('scroll', autoAcceptOnInteraction, { once: true, passive: true });
+    document.addEventListener('click', autoAcceptOnInteraction, { once: true });
 
     // Auto-accept on main CTAs if no consent decision yet.
     // Aggressive tracking during development/user testing phase.
