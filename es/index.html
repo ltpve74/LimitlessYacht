@@ -248,6 +248,7 @@ j=d.createElement(s),dl=l!='dataLayer'?'&l='+l:'';j.async=true;j.crossOrigin='an
   html {
     scroll-padding-top: 5rem; /* a bit more breathing room under the fixed nav for all anchor targets */
     overscroll-behavior: none; /* must be on html (root) to control iOS viewport rubber-band bounce */
+    overflow-x: clip; /* clip at the viewport scroll container, not just body */
   }
 
   body {
