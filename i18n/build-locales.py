@@ -106,6 +106,9 @@ def build_index(locale_mod) -> str:
     html = (ROOT / "index.html").read_text(encoding="utf-8")
     html = root_paths(html)
     html = patch_html_lang(html, locale_mod.LANG)
+    # Use relative path to shared CSS so direct file:// open on laptop works from subfolders too.
+    # (On http deploy from /de/ , "../css/main.css" resolves correctly to /css/main.css)
+    html = html.replace('href="css/main.css"', 'href="../css/main.css"')
 
     nav_lang, mobile_lang = lang_switcher_nav(locale_mod.CODE)
     html = re.sub(
@@ -135,6 +138,8 @@ def build_legal(locale_mod) -> str:
     html = patch_html_lang(html, locale_mod.LANG)
     html = apply_pairs(html, locale_mod.LEGAL_PAIRS)
     html = html.replace('href="index.html"', f'href="{locale_mod.HOME_HREF}"')
+    # Use relative path to shared CSS for direct file open from subfolder + http deploy compatibility
+    html = html.replace('href="css/main.css"', 'href="../css/main.css"')
     return html
 
 
