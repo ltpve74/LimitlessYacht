@@ -19,10 +19,10 @@ fi
 
 CHANGED=$(git diff --cached --name-only)
 
-if printf '%s\n' "$CHANGED" | grep -qE '^(index\.html|legal\.html|i18n/locales/[^/]+\.py|i18n/build-locales\.py)$'; then
-  echo "[pre-commit] EN source / locale data changed — rebuilding locales…"
+if printf '%s\n' "$CHANGED" | grep -qE '^(index\.html|legal\.html|css/main\.css|scripts/minify_html\.py|i18n/locales/[^/]+\.py|i18n/build-locales\.py)$'; then
+  echo "[pre-commit] EN source / CSS / locale data changed — rebuilding locales + minifying for prod..."
 
-  # Prefer the project venv; fall back to python3 (build-locales.py is stdlib-only).
+  # Prefer the project venv; fall back to python3.
   if [ -x ".venv/bin/python" ]; then
     PY=".venv/bin/python"
   else
@@ -34,9 +34,16 @@ if printf '%s\n' "$CHANGED" | grep -qE '^(index\.html|legal\.html|i18n/locales/[
     exit 1
   fi
 
-  # Re-stage any regenerated locale files so they're part of this commit.
-  git add de/index.html de/legal.html es/index.html es/legal.html fr/index.html fr/legal.html
-  echo "[pre-commit] Locales rebuilt and staged."
+  # Minify HTMLs + the shared CSS (produces the compacted prod versions for main).
+  if ! "$PY" scripts/minify_html.py; then
+    echo "[pre-commit] ERROR: minify failed — aborting commit." >&2
+    exit 1
+  fi
+
+  # Re-stage the compacted sources, CSS, and all regenerated (minified) locale files.
+  git add index.html legal.html css/main.css \
+          de/index.html de/legal.html es/index.html es/legal.html fr/index.html fr/legal.html
+  echo "[pre-commit] Locales rebuilt + minified, all staged for main."
 fi
 
 exit 0

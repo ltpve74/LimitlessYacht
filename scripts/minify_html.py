@@ -89,6 +89,23 @@ def minify_html(html):
 
 def main():
     total_before = total_after = 0
+
+    # Minify the shared external CSS (for prod on main branch)
+    css_rel = 'css/main.css'
+    css_path = os.path.join(ROOT, css_rel)
+    if os.path.exists(css_path):
+        with open(css_path, encoding='utf-8') as f:
+            src = f.read()
+        out = minify_css(src)
+        with open(css_path, 'w', encoding='utf-8') as f:
+            f.write(out)
+        before = len(src.encode())
+        after  = len(out.encode())
+        total_before += before
+        total_after  += after
+        pct = (before - after) / before * 100
+        print(f'  {css_rel}: {before:,} → {after:,} B  ({pct:.0f}% saved)')
+
     for rel in TARGETS:
         path = os.path.join(ROOT, rel)
         if not os.path.exists(path):
