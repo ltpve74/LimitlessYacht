@@ -3303,6 +3303,10 @@ height="0" width="0" style="display:none;visibility:hidden"></iframe></noscript>
         var destTabs = document.querySelector('.dest-tabs');
         if (destTabs) scrollTarget = destTabs;
       }
+      if (hash === '#gallery' && window.innerWidth <= 768) {
+        var galleryTabs = document.querySelector('.gallery-tabs');
+        if (galleryTabs) scrollTarget = galleryTabs;
+      }
       var top = scrollTarget.getBoundingClientRect().top + window.pageYOffset - navH() - 8;
       window.scrollTo({ top: top, behavior: 'smooth' });
       history.pushState(null, '', hash);
