@@ -1179,36 +1179,6 @@ j=d.createElement(s),dl=l!='dataLayer'?'&l='+l:'';j.async=true;j.crossOrigin='an
     letter-spacing: .08em;
   }
 
-  .review-submit {
-    margin-top: 2.5rem;
-    padding-top: 1.5rem;
-    border-top: 1px solid rgba(201,168,76,.15);
-    max-width: 720px;
-  }
-  .review-submit-title {
-    font-family: 'Montserrat', sans-serif;
-    font-size: 1.1rem; font-weight: 400; letter-spacing: .08em;
-    color: var(--cream); margin-bottom: .4rem;
-  }
-  .review-submit-note {
-    font-size: .82rem; color: rgba(245,240,232,.65); margin-bottom: 1rem;
-  }
-  .review-form {
-    display: flex;
-    flex-direction: column;
-    gap: 1rem;
-  }
-  .review-form .form-submit {
-    align-self: flex-start;
-    margin-top: .25rem;
-  }
-  .review-honeypot {
-    display: none !important;
-    visibility: hidden;
-    height: 0;
-    width: 0;
-    overflow: hidden;
-  }
   @media (max-width: 640px) {
     #about { padding-bottom: 3rem; }
     #gallery { padding-top: 2.5rem; padding-bottom: 3rem; }
@@ -1596,6 +1566,12 @@ j=d.createElement(s),dl=l!='dataLayer'?'&l='+l:'';j.async=true;j.crossOrigin='an
       object-fit: cover;
       object-position: center 40%; /* bias toward the yacht rather than sky/water */
     }
+    .cal { padding: 1rem 0.75rem; }
+    .cal-title { font-size: 1.15rem; margin-bottom: .75rem; }
+    .cal-grid { gap: 3px; }
+    .cal-cell { font-size: .75rem; border-radius: 4px; }
+    .cal-nav { width: 30px; height: 30px; font-size: .9rem; }
+    .cal-legend { font-size: .55rem; gap: .8rem; margin-top: 1rem; }
   }
   @media (max-width: 400px) {
     .nav-logo { letter-spacing: .08em; }
@@ -2648,58 +2624,6 @@ height="0" width="0" style="display:none;visibility:hidden"></iframe></noscript>
     <p class="reviews-loading" id="reviewsLoading">Chargement des avis…</p>
     <div class="reviews-grid reveal reveal-delay-3" id="reviewsGrid" hidden></div>
 
-    <!-- Guest review submission (via Netlify Forms) -->
-    <div class="review-submit reveal reveal-delay-3">
-      <h3 class="review-submit-title">Partagez votre expérience</h3>
-      <p class="review-submit-note">Nous aimons avoir des nouvelles de nos clients. Envoyez votre avis ci-dessous — il sera vérifié et publié sous peu.</p>
-      <form name="guest-review" method="POST" netlify netlify-honeypot="bot-field" class="review-form" id="reviewForm">
-        <input type="hidden" name="form-name" value="guest-review" />
-        <!-- Honeypot for basic spam protection (hidden via CSS + Netlify) -->
-        <p class="review-honeypot" style="display:none !important;"><input name="bot-field" /></p>
-
-        <div class="form-row">
-          <div class="form-field">
-            <label for="review_name">Votre nom</label>
-            <input type="text" name="name" id="review_name" placeholder="Alex Rivera" required autocomplete="name" />
-          </div>
-          <div class="form-field">
-            <label for="review_email">E-mail (privé)</label>
-            <input type="email" name="email" id="review_email" placeholder="you@example.com" required autocomplete="email" />
-          </div>
-        </div>
-
-        <div class="form-field">
-          <label for="review_rating">Comment noteriez-vous votre charter ?</label>
-          <select name="rating" id="review_rating" required>
-            <option value="5">★★★★★ Excellent (5)</option>
-            <option value="4">★★★★ Très bien (4)</option>
-            <option value="3">★★★ Bien (3)</option>
-            <option value="2">★★ Moyen (2)</option>
-            <option value="1">★ Médiocre (1)</option>
-          </select>
-        </div>
-
-        <div class="form-field">
-          <label for="review_text">Votre avis</label>
-          <textarea name="review" id="review_text" rows="4" minlength="40" placeholder="Racontez aux futurs clients votre journée à bord du Limitless..." required></textarea>
-        </div>
-
-        <!-- Simple anti-spam question (client-side validated) -->
-        <div class="form-field">
-          <label for="review_spam">Pour éviter le spam, résolvez : 4 + 3 = ?</label>
-          <input type="text" name="spam_check" id="review_spam" required placeholder="7" />
-        </div>
-
-        <button type="submit" class="form-submit" id="reviewSubmitBtn">Envoyer l'avis</button>
-
-        <div id="review-success" style="display:none; color:var(--gold); font-size:.85rem; margin-top:.6rem;">
-          ✓ Merci ! Votre avis a bien été reçu et sera publié après modération.
-        </div>
-        <div id="review-error" style="display:none; color:#e55; font-size:.82rem; margin-top:.6rem;">
-          Une erreur est survenue. Veuillez réessayer ou nous écrire directement.
-        </div>
-      </form>
-    </div>
   </div>
 </section>
 
@@ -3010,66 +2934,6 @@ height="0" width="0" style="display:none;visibility:hidden"></iframe></noscript>
       btn.style.opacity = '1';
     }
   });
-
-  // Guest review form (Netlify Forms + tracking + basic spam protection)
-  var reviewForm = document.getElementById('reviewForm');
-  if (reviewForm) {
-    reviewForm.addEventListener('submit', async function(e) {
-      e.preventDefault();
-      var btn = document.getElementById('reviewSubmitBtn');
-      var successEl = document.getElementById('review-success');
-      var errorEl = document.getElementById('review-error');
-      successEl.style.display = 'none';
-      errorEl.style.display = 'none';
-      btn.textContent = 'Envoi en cours…';
-      btn.disabled = true;
-      btn.style.opacity = '0.7';
-
-      // Client-side spam check (simple math question)
-      var spamCheck = this.querySelector('[name="spam_check"]');
-      if (spamCheck && spamCheck.value.trim() !== '7') {
-        errorEl.textContent = 'Veuillez résoudre correctement la question anti-spam (4 + 3 = 7).';
-        errorEl.style.display = 'block';
-        btn.textContent = 'Envoyer l'avis';
-        btn.disabled = false;
-        btn.style.opacity = '1';
-        return;
-      }
-
-      try {
-        var formData = new FormData(this);
-        var response = await fetch('/', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
-          body: new URLSearchParams(formData).toString()
-        });
-        if (response.ok) {
-          successEl.style.display = 'block';
-          this.reset();
-          btn.textContent = '✓ Envoyé';
-
-          window.dataLayer = window.dataLayer || [];
-          window.dataLayer.push({
-            event: 'review_submitted',
-            form_name: 'guest_review'
-          });
-
-          setTimeout(() => {
-            btn.textContent = 'Envoyer l'avis';
-            btn.disabled = false;
-            btn.style.opacity = '1';
-          }, 4500);
-        } else {
-          throw new Error('Submission failed');
-        }
-      } catch (err) {
-        errorEl.style.display = 'block';
-        btn.textContent = 'Envoyer l'avis';
-        btn.disabled = false;
-        btn.style.opacity = '1';
-      }
-    });
-  }
 
   // Google Tag / dataLayer events for conversions (GTM + GA4 + Google Ads)
   window.dataLayer = window.dataLayer || [];
