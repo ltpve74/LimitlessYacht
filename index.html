@@ -682,6 +682,72 @@ j=d.createElement(s),dl=l!='dataLayer'?'&l='+l:'';j.async=true;j.crossOrigin='an
     #lightbox-next { right: .5rem; }
   }
 
+  /* Destination detail lightbox */
+  #dest-lightbox {
+    display: none; position: fixed; inset: 0; z-index: 350;
+    flex-direction: column; background: var(--navy); overflow: hidden;
+  }
+  #dest-lightbox.open { display: flex; }
+  .dest-lb-img-wrap {
+    flex: 0 0 42vh; position: relative; overflow: hidden; background: var(--deep);
+  }
+  .dest-lb-img-wrap picture { display: block; width: 100%; height: 100%; }
+  #dest-lb-img { width: 100%; height: 100%; object-fit: cover; display: block; }
+  .dest-lb-img-wrap::after {
+    content: ''; position: absolute; bottom: 0; left: 0; right: 0; height: 5rem;
+    background: linear-gradient(to top, var(--navy), transparent); pointer-events: none;
+  }
+  #dest-lb-close {
+    position: absolute;
+    top: max(0.85rem, env(safe-area-inset-top));
+    right: 0.85rem; z-index: 2;
+    display: flex; align-items: center; justify-content: center;
+    width: 2.5rem; height: 2.5rem; font-size: 1.1rem; line-height: 1;
+    color: var(--cream); cursor: pointer;
+    background: rgba(8,18,34,.88); border: 1px solid rgba(201,168,76,.5);
+    border-radius: 50%; transition: background .2s, border-color .2s;
+  }
+  #dest-lb-close:hover { background: rgba(26,58,92,.95); border-color: var(--gold-light); }
+  .dest-lb-body {
+    flex: 1; overflow-y: auto; -webkit-overflow-scrolling: touch;
+    padding: 1.1rem 1.5rem max(1.75rem, env(safe-area-inset-bottom));
+  }
+  .dest-lb-num {
+    font-size: .52rem; letter-spacing: .22em; text-transform: uppercase;
+    color: var(--gold-light); margin-bottom: .35rem;
+  }
+  .dest-lb-name {
+    font-family: 'Montserrat', sans-serif; font-weight: 300;
+    font-size: 1.85rem; line-height: 1.15; color: var(--white); margin: 0 0 .4rem;
+  }
+  .dest-lb-tagline {
+    font-size: .62rem; letter-spacing: .13em; text-transform: uppercase;
+    color: rgba(201,168,76,.82); margin-bottom: .85rem;
+  }
+  .dest-lb-desc {
+    font-size: .88rem; line-height: 1.78; color: rgba(245,240,232,.88);
+    margin-bottom: .9rem;
+  }
+  .dest-lb-meta {
+    display: grid; grid-template-columns: 1fr 1fr;
+    gap: .7rem; padding: .85rem 0;
+    border-top: 1px solid rgba(201,168,76,.15);
+    margin-bottom: 1.25rem;
+  }
+  .dest-lb-meta span {
+    display: flex; flex-direction: column; gap: .15rem;
+    font-size: .54rem; letter-spacing: .1em; text-transform: uppercase;
+    color: rgba(245,240,232,.6);
+  }
+  .dest-lb-meta strong {
+    display: block; font-size: .72rem;
+    color: var(--gold-light); font-weight: 500; letter-spacing: .04em;
+  }
+  .dest-lb-cta {
+    display: block; width: 100%; text-align: center;
+    text-decoration: none; box-sizing: border-box;
+  }
+
   /* ── AMENITIES ── */
   #amenities { background: var(--deep); padding-top: 3.5rem; padding-bottom: 3.5rem; }
   .amenities-grid {
@@ -1531,8 +1597,15 @@ j=d.createElement(s),dl=l!='dataLayer'?'&l='+l:'';j.async=true;j.crossOrigin='an
     .destination-card {
       flex: 0 0 78vw;
       height: calc(100svh - 13rem); min-height: unset; border-radius: 8px;
+      touch-action: pan-x pan-y; cursor: pointer;
     }
     .destination-card-body { padding: .9rem 1rem .85rem; }
+    .destination-card-body::after {
+      content: 'Tap for full details →';
+      display: block; margin-top: .55rem;
+      font-size: .46rem; letter-spacing: .18em; text-transform: uppercase;
+      color: rgba(201,168,76,.48);
+    }
     .destination-num { font-size: .5rem; margin-bottom: .3rem; letter-spacing: .18em; }
     .destination-name { font-size: 1.15rem; margin-bottom: .25rem; line-height: 1.2; }
     .destination-tagline { font-size: .54rem; letter-spacing: .1em; margin-bottom: 0; }
@@ -2452,6 +2525,24 @@ height="0" width="0" style="display:none;visibility:hidden"></iframe></noscript>
   <button type="button" id="lightbox-next" aria-label="Next image">›</button>
 </div>
 
+<div id="dest-lightbox" role="dialog" aria-modal="true" aria-label="Destination details">
+  <div class="dest-lb-img-wrap">
+    <picture>
+      <source id="dest-lb-src-webp" type="image/webp" srcset="" />
+      <img id="dest-lb-img" src="" alt="" decoding="async" />
+    </picture>
+    <button type="button" id="dest-lb-close" aria-label="Close">✕</button>
+  </div>
+  <div class="dest-lb-body">
+    <div class="dest-lb-num" id="dest-lb-num"></div>
+    <h3 class="dest-lb-name" id="dest-lb-name"></h3>
+    <p class="dest-lb-tagline" id="dest-lb-tagline"></p>
+    <p class="dest-lb-desc" id="dest-lb-desc"></p>
+    <div class="dest-lb-meta" id="dest-lb-meta"></div>
+    <a href="#contact" class="btn-primary dest-lb-cta" id="dest-lb-cta">Enquire About This Trip</a>
+  </div>
+</div>
+
 <!-- AMENITIES -->
 <section id="amenities">
   <div class="container">
@@ -2904,6 +2995,61 @@ height="0" width="0" style="display:none;visibility:hidden"></iframe></noscript>
     if (e.key === 'ArrowLeft') { currentIdx=(currentIdx-1+images.length)%images.length; lbImg.src=images[currentIdx]; }
     if (e.key === 'ArrowRight') { currentIdx=(currentIdx+1)%images.length; lbImg.src=images[currentIdx]; }
   });
+
+  // Destination card lightbox (mobile only — shows full desc + all meta on tap)
+  (function(){
+    var destLb   = document.getElementById('dest-lightbox');
+    if (!destLb) return;
+    var lbClose  = document.getElementById('dest-lb-close');
+    var lbSrcWp  = document.getElementById('dest-lb-src-webp');
+    var lbImg2   = document.getElementById('dest-lb-img');
+    var lbNum    = document.getElementById('dest-lb-num');
+    var lbName   = document.getElementById('dest-lb-name');
+    var lbTag    = document.getElementById('dest-lb-tagline');
+    var lbDesc   = document.getElementById('dest-lb-desc');
+    var lbMeta   = document.getElementById('dest-lb-meta');
+    var lbCta    = document.getElementById('dest-lb-cta');
+
+    function openLb(card) {
+      var src = card.querySelector('.destination-card-bg source[type="image/webp"]');
+      var img = card.querySelector('.destination-card-bg img');
+      if (src)  { lbSrcWp.srcset = src.srcset; }
+      if (img)  { lbImg2.src = img.src; lbImg2.alt = img.alt || ''; }
+      lbNum.textContent  = (card.querySelector('.destination-num')     || {}).textContent || '';
+      lbName.textContent = (card.querySelector('.destination-name')    || {}).textContent || '';
+      lbTag.textContent  = (card.querySelector('.destination-tagline') || {}).textContent || '';
+      lbDesc.textContent = (card.querySelector('.destination-desc')    || {}).textContent || '';
+      var metaEl = card.querySelector('.destination-meta');
+      lbMeta.innerHTML = metaEl ? metaEl.innerHTML : '';
+      destLb.classList.add('open');
+      document.body.style.overflow = 'hidden';
+    }
+
+    function closeLb() {
+      destLb.classList.remove('open');
+      document.body.style.overflow = '';
+    }
+
+    lbClose.addEventListener('click', closeLb);
+    if (lbCta) lbCta.addEventListener('click', closeLb);
+    document.addEventListener('keydown', function(e) {
+      if (e.key === 'Escape' && destLb.classList.contains('open')) closeLb();
+    });
+
+    document.querySelectorAll('.destination-card').forEach(function(card) {
+      var sx = 0, sy = 0, swiped = false;
+      card.addEventListener('touchstart', function(e) {
+        sx = e.touches[0].clientX; sy = e.touches[0].clientY; swiped = false;
+      }, { passive: true });
+      card.addEventListener('touchmove', function(e) {
+        if (Math.abs(e.touches[0].clientX - sx) > 8 || Math.abs(e.touches[0].clientY - sy) > 8) swiped = true;
+      }, { passive: true });
+      card.addEventListener('click', function() {
+        if (swiped || window.innerWidth > 640) return;
+        openLb(card);
+      });
+    });
+  })();
 
   // Set date min to tomorrow so past/today dates can't be submitted
   (function(){
