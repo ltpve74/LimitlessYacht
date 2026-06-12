@@ -256,6 +256,7 @@ j=d.createElement(s),dl=l!='dataLayer'?'&l='+l:'';j.async=true;j.crossOrigin='an
     font-family: 'Montserrat', sans-serif;
     font-weight: 300;
     overflow-x: clip; /* prevents horizontal overflow without creating a body scroll container */
+    overscroll-behavior-y: none; /* prevent iOS rubber-band bounce which can feel like snap */
   }
 
   /* ── NAV ── */
@@ -265,7 +266,6 @@ j=d.createElement(s),dl=l!='dataLayer'?'&l='+l:'';j.async=true;j.crossOrigin='an
     padding: 0.85rem clamp(1rem, 3vw, 4rem);
     min-height: 4.25rem;
     background: linear-gradient(to bottom, rgba(10,22,40,0.95), transparent);
-    will-change: transform;
   }
   nav::before {
     content: ''; position: absolute; inset: 0; z-index: -1; pointer-events: none;
@@ -358,7 +358,7 @@ j=d.createElement(s),dl=l!='dataLayer'?'&l='+l:'';j.async=true;j.crossOrigin='an
 
   /* ── HERO ── */
   #hero {
-    position: relative; height: 100vh; height: 100svh; overflow: hidden;
+    position: relative; height: 100vh; height: 100svh; overflow: hidden; overflow: clip;
     display: flex; align-items: stretch; justify-content: center;
   }
   .hero-bg {
