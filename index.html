@@ -1577,6 +1577,10 @@ j=d.createElement(s),dl=l!='dataLayer'?'&l='+l:'';j.async=true;j.crossOrigin='an
     .reveal.visible { opacity: 1; transform: none; }
     .reveal-delay-1, .reveal-delay-2, .reveal-delay-3 { transition-delay: 0s; }
     nav::before { transition: none; }
+    /* background-position animation triggers main-thread repaint every frame — kills scroll on iOS */
+    #pricing::before { animation: none; }
+    /* scrollBob inside overflow:hidden hero can also force compositor updates */
+    .hero-scroll { animation: fadeUp 0.9s 0.6s ease both; }
   }
   @media (max-width: 400px) {
     .nav-logo { letter-spacing: .08em; }
@@ -1726,7 +1730,7 @@ j=d.createElement(s),dl=l!='dataLayer'?'&l='+l:'';j.async=true;j.crossOrigin='an
       position: static;
       left: auto; right: auto;
       transform: none;
-      animation: fadeUp 0.9s 0.6s ease both, scrollBob 2s 1.6s infinite ease-in-out;
+      animation: fadeUp 0.9s 0.6s ease both;
     }
     /* Mobile hero: top content (eyebrow/title/sub) higher to reveal background image.
        The buttons (.hero-actions), review strapline (.hero-trust), and scroll animation
