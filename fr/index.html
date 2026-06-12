@@ -1458,7 +1458,7 @@ j=d.createElement(s),dl=l!='dataLayer'?'&l='+l:'';j.async=true;j.crossOrigin='an
     .dest-group .itinerary-grid::-webkit-scrollbar { display: none; }
     .destination-card {
       flex: 0 0 78vw;
-      height: calc(100svh - 18rem); min-height: unset; border-radius: 8px;
+      height: calc(100svh - 15rem); min-height: unset; border-radius: 8px;
       touch-action: pan-x pan-y; cursor: pointer;
     }
     .destination-card-body { padding: .9rem 1rem .85rem; }
@@ -1491,14 +1491,26 @@ j=d.createElement(s),dl=l!='dataLayer'?'&l='+l:'';j.async=true;j.crossOrigin='an
       letter-spacing: .15em; text-transform: uppercase;
       color: rgba(245,240,232,.45); min-width: 2.5rem; text-align: center;
     }
+    .carousel-nav {
+      gap: .9rem; padding: .35rem 0 0;
+    }
+    .carousel-btn {
+      width: 1.9rem; height: 1.9rem; font-size: 1.1rem;
+      border-color: rgba(201,168,76,.2);
+    }
+    .carousel-pos {
+      font-size: .48rem; letter-spacing: .18em;
+      color: rgba(245,240,232,.35);
+    }
     .itinerary-meet-cta {
       display: block; text-align: center;
-      margin: .5rem 1.2rem .25rem;
-      padding: .7rem 1.5rem;
-      font-size: .52rem; letter-spacing: .16em; text-transform: uppercase;
-      background: var(--gold); color: var(--navy);
-      font-family: 'Montserrat', sans-serif; font-weight: 600;
-      border-radius: 2px; text-decoration: none;
+      padding: .6rem 0 .25rem;
+      font-size: .48rem; letter-spacing: .22em; text-transform: uppercase;
+      color: var(--gold); font-family: 'Montserrat', sans-serif;
+      font-weight: 500; text-decoration: none;
+      border-top: 1px solid rgba(201,168,76,.12);
+      margin: .2rem 1.5rem 0;
+      transition: color .2s, border-color .2s;
     }
     .section-cta-desktop { display: none; }
     .dest-tabs {
