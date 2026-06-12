@@ -1458,7 +1458,7 @@ j=d.createElement(s),dl=l!='dataLayer'?'&l='+l:'';j.async=true;j.crossOrigin='an
     .dest-group .itinerary-grid::-webkit-scrollbar { display: none; }
     .destination-card {
       flex: 0 0 78vw;
-      height: calc(100svh - 13rem); min-height: unset; border-radius: 8px;
+      height: calc(100svh - 18rem); min-height: unset; border-radius: 8px;
       touch-action: pan-x pan-y; cursor: pointer;
     }
     .destination-card-body { padding: .9rem 1rem .85rem; }
@@ -1491,14 +1491,14 @@ j=d.createElement(s),dl=l!='dataLayer'?'&l='+l:'';j.async=true;j.crossOrigin='an
       letter-spacing: .15em; text-transform: uppercase;
       color: rgba(245,240,232,.45); min-width: 2.5rem; text-align: center;
     }
-    .itinerary-bottom-bar {
-      display: flex; align-items: center; justify-content: space-between;
-      padding: .5rem 1.2rem .75rem;
-    }
-    .itinerary-bottom-bar .carousel-nav { padding: 0; }
     .itinerary-meet-cta {
-      font-size: .52rem !important; letter-spacing: .14em;
-      padding: .65rem 1.1rem !important; white-space: nowrap;
+      display: block; text-align: center;
+      margin: .5rem 1.2rem .25rem;
+      padding: .7rem 1.5rem;
+      font-size: .52rem; letter-spacing: .16em; text-transform: uppercase;
+      background: var(--gold); color: var(--navy);
+      font-family: 'Montserrat', sans-serif; font-weight: 600;
+      border-radius: 2px; text-decoration: none;
     }
     .section-cta-desktop { display: none; }
     .dest-tabs {
@@ -1928,14 +1928,12 @@ height="0" width="0" style="display:none;visibility:hidden"></iframe></noscript>
           </div>
         </div>
       </div>
-      <div class="itinerary-bottom-bar">
-        <div class="carousel-nav">
-          <button class="carousel-btn carousel-prev" aria-label="Previous destination">&#8249;</button>
-          <span class="carousel-pos"></span>
-          <button class="carousel-btn carousel-next" aria-label="Next destination">&#8250;</button>
-        </div>
-        <a href="#gallery" class="itinerary-meet-cta">Meet Die Yacht →</a>
+      <div class="carousel-nav">
+        <button class="carousel-btn carousel-prev" aria-label="Previous destination">&#8249;</button>
+        <span class="carousel-pos"></span>
+        <button class="carousel-btn carousel-next" aria-label="Next destination">&#8250;</button>
       </div>
+      <a href="#gallery" class="itinerary-meet-cta">Meet Die Yacht →</a>
     </div>
 
     <!-- Full-Day -->
@@ -2037,14 +2035,12 @@ height="0" width="0" style="display:none;visibility:hidden"></iframe></noscript>
           </div>
         </div>
       </div>
-      <div class="itinerary-bottom-bar">
-        <div class="carousel-nav">
-          <button class="carousel-btn carousel-prev" aria-label="Previous destination">&#8249;</button>
-          <span class="carousel-pos"></span>
-          <button class="carousel-btn carousel-next" aria-label="Next destination">&#8250;</button>
-        </div>
-        <a href="#gallery" class="itinerary-meet-cta">Meet Die Yacht →</a>
+      <div class="carousel-nav">
+        <button class="carousel-btn carousel-prev" aria-label="Previous destination">&#8249;</button>
+        <span class="carousel-pos"></span>
+        <button class="carousel-btn carousel-next" aria-label="Next destination">&#8250;</button>
       </div>
+      <a href="#gallery" class="itinerary-meet-cta">Meet Die Yacht →</a>
     </div>
 
     <!-- Mehrtägig -->
@@ -2127,14 +2123,12 @@ height="0" width="0" style="display:none;visibility:hidden"></iframe></noscript>
           </div>
         </div>
       </div>
-      <div class="itinerary-bottom-bar">
-        <div class="carousel-nav">
-          <button class="carousel-btn carousel-prev" aria-label="Previous destination">&#8249;</button>
-          <span class="carousel-pos"></span>
-          <button class="carousel-btn carousel-next" aria-label="Next destination">&#8250;</button>
-        </div>
-        <a href="#gallery" class="btn-primary itinerary-meet-cta">Meet Die Yacht</a>
+      <div class="carousel-nav">
+        <button class="carousel-btn carousel-prev" aria-label="Previous destination">&#8249;</button>
+        <span class="carousel-pos"></span>
+        <button class="carousel-btn carousel-next" aria-label="Next destination">&#8250;</button>
       </div>
+      <a href="#gallery" class="itinerary-meet-cta">Meet Die Yacht →</a>
     </div>
     <div class="section-cta-desktop reveal">
       <p class="section-cta-text">Seen somewhere you'd love to go? Now meet the yacht that takes you there.</p>
