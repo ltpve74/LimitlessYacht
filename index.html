@@ -1187,16 +1187,18 @@ j=d.createElement(s),dl=l!='dataLayer'?'&l='+l:'';j.async=true;j.crossOrigin='an
 
   @media (max-width: 640px) {
     #about { padding-bottom: 3rem; }
-    #gallery { padding-top: 2.5rem; padding-bottom: 3rem; }
-    #itinerary { padding-top: 2.5rem; padding-bottom: 3.5rem; }
+    #gallery { padding-top: 2.5rem; padding-bottom: 3rem; padding-left: 0; padding-right: 0; }
+    #itinerary { padding-top: 2.5rem; padding-bottom: 3.5rem; padding-left: 0; padding-right: 0; }
+    /* Restore heading padding now that section has no side padding */
+    #gallery > .container, #itinerary > .container { padding-left: 2rem; padding-right: 2rem; }
     #specs { padding-bottom: 2.5rem; }
     #amenities { padding-top: 2.5rem; padding-bottom: 2.5rem; }
     #reviews { padding-top: 3rem; padding-bottom: 4rem; }
-    /* Full-bleed single column for destinations on phone (match gallery breakout) */
+    /* Wrap spans full viewport, overflow-x:hidden contains the carousel */
     .itinerary-wrap {
-      margin-left: -1.2rem !important;
-      margin-right: -1.2rem !important;
+      margin: 0 !important;
       padding: 0 !important;
+      overflow-x: hidden;
     }
     .destination-desc { font-size: .82rem; line-height: 1.65; }
   }
@@ -1475,12 +1477,12 @@ j=d.createElement(s),dl=l!='dataLayer'?'&l='+l:'';j.async=true;j.crossOrigin='an
     .intro-num { font-size: 1.6rem; }
     .intro-label { font-size: .46rem; margin-top: .15rem; }
 
-    /* Full-bleed gallery on phones; heading stays padded via the section */
-    .gallery-wrap { margin-left: -1.2rem !important; margin-right: -1.2rem !important; padding: 1.25rem 0 0 !important; }
+    /* Gallery wrap spans full viewport (section has no side padding); carousel contained inside */
+    .gallery-wrap { margin: 0 !important; padding: 1.25rem 0 0 !important; overflow-x: hidden; }
     /* Gallery tab switcher */
     .gallery-tabs {
       display: flex;
-      width: 100vw; margin: 0 0 0 1.2rem;
+      width: 100%; margin: 0;
       border: 1px solid rgba(201,168,76,.25); border-left: none; border-right: none; border-radius: 0;
       background: var(--navy);
       overflow: hidden;
@@ -1551,7 +1553,7 @@ j=d.createElement(s),dl=l!='dataLayer'?'&l='+l:'';j.async=true;j.crossOrigin='an
       color: rgba(245,240,232,.45); min-width: 2.5rem; text-align: center;
     }
     .dest-tabs {
-      width: 100vw; margin: 0 0 0 1.2rem;
+      width: 100%; margin: 0;
       border-left: none; border-right: none; border-radius: 0;
       background: var(--navy);
     }
