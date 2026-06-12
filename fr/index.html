@@ -226,8 +226,7 @@ j=d.createElement(s),dl=l!='dataLayer'?'&l='+l:'';j.async=true;j.crossOrigin='an
       "image": [
         "https://limitlessyachtcharter.com/images/maiora_20s_02.jpg",
         "https://limitlessyachtcharter.com/images/maiora_20s_04.jpg"
-      ],
-      
+      ]
     }
   ]
 }
@@ -606,7 +605,7 @@ j=d.createElement(s),dl=l!='dataLayer'?'&l='+l:'';j.async=true;j.crossOrigin='an
     width: 100%; height: 100%; object-fit: cover; display: block;
     transition: transform .6s ease, filter .4s;
   }
-  /* First "On the Water" shot: yacht sits right-of-centre in the source image */
+  /* First "Sur l'eau" shot: yacht sits right-of-centre in the source image */
   .gallery-group[data-gtab="water"] .gallery-item:first-child img { object-position: 90% 30%; }
   .gallery-item:hover img { transform: scale(1.06); filter: brightness(1.05); }
   .gallery-item::after {
@@ -801,109 +800,51 @@ j=d.createElement(s),dl=l!='dataLayer'?'&l='+l:'';j.async=true;j.crossOrigin='an
     position: relative;
     z-index: 1;
   }
-  .pricing-tabs {
-    display: flex; margin-top: 1.5rem;
-    border: 1px solid rgba(201,168,76,.25); border-radius: 3px; overflow: hidden;
-    max-width: 480px;
+  .enquiry-intro {
+    max-width: 600px; margin-top: 1rem;
+    font-size: .95rem; line-height: 1.9; color: rgba(245,240,232,.75);
   }
-  .pricing-tab {
-    flex: 1; padding: .85rem .5rem; background: transparent; border: none;
-    color: var(--text-muted); font-family: 'Montserrat', sans-serif;
-    font-size: .58rem; letter-spacing: .13em; text-transform: uppercase;
-    cursor: pointer; transition: background .2s, color .2s; line-height: 1.5; text-align: center;
+  .enquiry-grid {
+    display: grid; grid-template-columns: repeat(2, 1fr);
+    gap: 1rem; margin-top: 2.5rem; max-width: 960px;
   }
-  .pricing-tab .tab-period { display: block; font-size: .5rem; letter-spacing: .06em; margin-top: .15rem; opacity: .75; }
-  .pricing-tab.tab--active { background: var(--gold); color: var(--navy); }
-  .pricing-tab + .pricing-tab { border-left: 1px solid rgba(201,168,76,.25); }
-  .pricing-book-cta {
-    display: block; margin-top: 1.75rem;
-    padding: .9rem 2rem;
-    background: transparent; color: var(--gold);
-    border: 1px solid rgba(201,168,76,.4);
-    text-align: center; text-decoration: none;
-    font-family: 'Montserrat', sans-serif; font-size: .6rem;
-    letter-spacing: .14em; text-transform: uppercase; font-weight: 600;
-    border-radius: 2px;
+  .enquiry-card {
+    display: flex; flex-direction: column; gap: .5rem;
+    border: 1px solid rgba(201,168,76,.2); border-radius: 8px;
+    padding: 1.75rem 2rem;
+    text-decoration: none; color: inherit;
+    transition: border-color .25s, background .25s;
   }
-  .pricing-grid { display: block; margin-top: 2rem; }
-  .pricing-card {
-    display: none; max-width: 960px; margin: 0 auto;
-    border: 1px solid rgba(201,168,76,.2);
-    padding: 2.75rem 3rem; position: relative; overflow: hidden;
-    transition: border-color .3s;
+  .enquiry-card:hover {
+    border-color: rgba(201,168,76,.55); background: rgba(201,168,76,.04);
   }
-  .pricing-card.tab-active {
-    display: grid;
-    grid-template-columns: 1fr 1fr;
-    column-gap: 2.5rem;
-    background: linear-gradient(135deg, rgba(201,168,76,.08), rgba(26,58,92,.3));
-    border-color: var(--gold);
+  .enquiry-label {
+    font-size: .48rem; letter-spacing: .2em; text-transform: uppercase;
+    color: var(--gold-light); opacity: .8;
   }
-  .pricing-card.tab-active .pricing-explore-hint,
-  .pricing-card.tab-active .pricing-book-cta,
-  .pricing-card.tab-active .pricing-review-snippet { grid-column: 1 / -1; }
-  .pricing-card.tab-active .pricing-row:nth-child(6),
-  .pricing-card.tab-active .pricing-row:nth-child(7) { border-bottom: none; }
-  .pricing-card.tab-active .pricing-row:nth-child(4),
-  .pricing-card.tab-active .pricing-row:nth-child(6) { border-right: 1px solid rgba(255,255,255,.08); }
-  .pricing-card:hover { border-color: rgba(201,168,76,.7); }
-  .pricing-card.featured {
-    background: linear-gradient(135deg, rgba(201,168,76,.08), rgba(26,58,92,.3));
-    border-color: var(--gold);
+  .enquiry-title {
+    font-family: 'Cormorant Garamond', serif; font-weight: 400;
+    font-size: 1.55rem; line-height: 1.15; color: var(--white);
+    margin-top: .1rem;
   }
-  .pricing-badge { display: none; }
-  .pricing-season { display: none; }
-  .pricing-explore-hint {
-    font-size: .7rem; letter-spacing: .03em;
-    color: rgba(245,240,232,.55); font-style: italic;
-    margin: 0 0 1.5rem;
+  .enquiry-desc {
+    font-size: .8rem; line-height: 1.75;
+    color: rgba(245,240,232,.6);
+    flex: 1; margin-top: .35rem;
   }
-  .pricing-review-snippet {
-    margin-top: 1.5rem; padding-top: 1.25rem;
-    border-top: 1px solid rgba(255,255,255,.06);
-    font-size: .78rem; line-height: 1.65;
-    color: rgba(245,240,232,.72);
+  .enquiry-link {
+    font-size: .48rem; letter-spacing: .18em; text-transform: uppercase;
+    color: var(--gold); margin-top: .75rem;
+    transition: opacity .2s;
   }
-  .pricing-review-snippet .review-stars { color: var(--gold); }
-  .review-attr { font-style: normal; color: rgba(245,240,232,.55); }
-  .pricing-row {
-    display: flex; justify-content: space-between; align-items: baseline;
-    padding: 1.2rem 0; border-bottom: 1px solid rgba(255,255,255,.06);
-    text-decoration: none; color: inherit; cursor: pointer;
-    transition: background 0.2s ease;
+  .enquiry-card:hover .enquiry-link { opacity: .7; }
+  .enquiry-cta-wrap {
+    text-align: center; margin-top: 2.75rem;
   }
-  .pricing-row:hover {
-    background: rgba(201,168,76, 0.04);
-  }
-  .pricing-duration {
-    font-family: 'Montserrat', sans-serif;
-    font-size: 1.1rem; color: var(--cream);
-  }
-  .pricing-duration a {
-    color: inherit;
-    text-decoration: none;
-    transition: color .2s, text-decoration .2s;
-  }
-  .pricing-duration a:hover {
-    color: var(--gold);
-    text-decoration: underline;
-  }
-  .pricing-amount {
-    font-family: 'Montserrat', sans-serif;
-    font-size: 2.2rem; font-weight: 300; color: var(--gold);
-  }
-  .pricing-amount sup { font-size: .9rem; vertical-align: super; }
-  .pricing-amount .amt-sm { font-size: .8rem; color: var(--text-muted); font-weight: 400; letter-spacing: .03em; }
-  .pricing-enquire {
-    font-family: 'Montserrat', sans-serif;
-    font-size: .72rem; font-weight: 500; letter-spacing: .14em; text-transform: uppercase;
-    color: var(--gold); opacity: .85;
-  }
-  .pricing-book-cta {
-    background: var(--gold) !important;
-    color: var(--navy) !important;
-    border-color: var(--gold) !important;
-    font-weight: 600 !important;
+  .enquiry-flex-note {
+    margin-top: .9rem;
+    font-size: .52rem; letter-spacing: .1em; text-transform: uppercase;
+    color: rgba(245,240,232,.3);
   }
 
   .pricing-terms {
@@ -940,29 +881,6 @@ j=d.createElement(s),dl=l!='dataLayer'?'&l='+l:'';j.async=true;j.crossOrigin='an
     color: var(--gold);
     font-weight: 700;
   }
-  .pricing-terms-extra {
-    margin-top: 1.25rem;
-    padding-top: 1rem;
-    border-top: 1px solid rgba(201,168,76,.12);
-    font-size: .85rem;
-    color: var(--cream);
-    text-align: center;
-    line-height: 1.55;
-  }
-  .pricing-terms-extra p {
-    margin: .35rem 0;
-  }
-  .pricing-terms-extra p:first-child {
-    font-size: .95rem;
-    color: var(--white);
-    font-weight: 400;
-  }
-  .pricing-terms-extra p:last-child {
-    font-size: .72rem;
-    color: rgba(245,240,232,.65);
-    margin-top: .5rem;
-  }
-
   /* ── CONTACT ── */
   #contact {
     background: linear-gradient(135deg, var(--deep) 0%, var(--ocean) 100%);
@@ -1265,7 +1183,6 @@ j=d.createElement(s),dl=l!='dataLayer'?'&l='+l:'';j.async=true;j.crossOrigin='an
     .itinerary-wrap {
       margin: 0 !important;
       padding: 0 !important;
-
     }
     .destination-desc { font-size: .82rem; line-height: 1.65; }
   }
@@ -1457,61 +1374,13 @@ j=d.createElement(s),dl=l!='dataLayer'?'&l='+l:'';j.async=true;j.crossOrigin='an
     .spec-card .spec-value { font-size: 1.0rem; }
     .spec-cruise .spec-value { font-size: 0.9rem; line-height: 1.25; }
     .amenities-grid { grid-template-columns: 1fr; }
-    .pricing-grid { grid-template-columns: 1fr; margin-top: 0; }
-    .pricing-amount { font-size: 1.6rem; }
-    .pricing-card { display: none; padding: 1rem 1.25rem; }
-    .pricing-card.tab-active { display: block; }
-    .pricing-card.tab-active .pricing-row:nth-child(6),
-    .pricing-card.tab-active .pricing-row:nth-child(7) { border-bottom: 1px solid rgba(255,255,255,.06); }
-    .pricing-card.tab-active .pricing-row:nth-child(4),
-    .pricing-card.tab-active .pricing-row:nth-child(6) { border-right: none; }
-    .pricing-badge { display: none; }
-    .pricing-season { display: none; }
-    .pricing-row { padding: .6rem 0; }
-    .pricing-duration { font-size: .95rem; }
-    .pricing-urgency { margin: -.25rem 0 .35rem; font-size: .65rem; }
     #pricing { padding-top: 1.75rem; padding-bottom: 2.5rem; }
     #pricing .section-label { display: none; }
     #pricing .section-title { margin-bottom: .3rem; }
-    .pricing-tabs {
-      display: flex; margin-top: 1rem; margin-bottom: .75rem;
-      border: 1px solid rgba(201,168,76,.25); border-radius: 3px; overflow: hidden;
-    }
-    .pricing-tab {
-      flex: 1; padding: .85rem .5rem; background: transparent; border: none;
-      color: var(--text-muted); font-family: 'Montserrat', sans-serif;
-      font-size: .58rem; letter-spacing: .13em; text-transform: uppercase;
-      cursor: pointer; transition: background .2s, color .2s; line-height: 1.5;
-    }
-    .pricing-tab .tab-period { display: block; font-size: .5rem; letter-spacing: .06em; margin-top: .15rem; opacity: .75; }
-    .pricing-tab.tab--active { background: var(--gold); color: var(--navy); }
-    .pricing-tab + .pricing-tab { border-left: 1px solid rgba(201,168,76,.25); }
-    .pricing-explore-hint {
-      margin: 0 0 .35rem;
-      font-size: .65rem; letter-spacing: .03em;
-      color: rgba(245,240,232,.6);
-      font-style: italic;
-    }
-.pricing-review-snippet {
-      margin-top: .75rem;
-      font-size: .68rem; line-height: 1.6;
-      color: rgba(245,240,232,.72);
-    }
-    .pricing-review-snippet .review-stars { color: var(--gold); }
-    .review-attr {
-      font-style: normal;
-      color: rgba(245,240,232,.55);
-    }
-    .pricing-book-cta {
-      display: block; margin-top: .75rem;
-      padding: .72rem 1rem;
-      background: transparent; color: var(--gold);
-      border: 1px solid rgba(201,168,76,.4);
-      text-align: center; text-decoration: none;
-      font-family: 'Montserrat', sans-serif; font-size: .6rem;
-      letter-spacing: .14em; text-transform: uppercase; font-weight: 600;
-      border-radius: 2px;
-    }
+    .enquiry-grid { grid-template-columns: 1fr; gap: .75rem; margin-top: 1.5rem; }
+    .enquiry-card { padding: 1.25rem 1.4rem; }
+    .enquiry-title { font-size: 1.3rem; }
+    .enquiry-desc { font-size: .78rem; }
     .form-row { grid-template-columns: 1fr; }
 
     .pricing-terms {
@@ -1522,19 +1391,6 @@ j=d.createElement(s),dl=l!='dataLayer'?'&l='+l:'';j.async=true;j.crossOrigin='an
       grid-template-columns: 1fr;
       gap: .28rem .5rem;
       font-size: .76rem;
-    }
-    .pricing-terms-extra {
-      margin-top: .75rem;
-      padding-top: .6rem;
-      font-size: .78rem;
-    }
-    .pricing-terms-extra p:first-child {
-      font-size: .85rem;
-      color: var(--white);
-    }
-    .pricing-terms-extra p:last-child {
-      font-size: .68rem;
-      color: rgba(245,240,232,.65);
     }
     .pricing-terms-title {
       font-size: .65rem; margin-bottom: .6rem;
@@ -1871,14 +1727,6 @@ j=d.createElement(s),dl=l!='dataLayer'?'&l='+l:'';j.async=true;j.crossOrigin='an
   /* ── PRICING TABS (mobile toggle — display:none overridden inside max-width:768px block above) ── */
 
   /* ── HERO WHATSAPP LINK ── */
-  /* ── PRICING URGENCY NOTE ── */
-  .pricing-urgency {
-    margin: .75rem 0 1.75rem;
-    font-size: .72rem; letter-spacing: .08em; color: var(--gold-light);
-    font-family: 'Montserrat', sans-serif;
-  }
-  .pricing-urgency strong { color: var(--gold); font-weight: 600; }
-
   /* ── STICKY MOBILE WHATSAPP BAR ── */
   /* WhatsApp floating bar removed — inline WA links remain in contact + pricing.
      A pill/FAB variant (scroll-triggered, timed) may be added later. */
@@ -1899,7 +1747,7 @@ height="0" width="0" style="display:none;visibility:hidden"></iframe></noscript>
     <li><a href="#itinerary">Destinations</a></li>
     <li><a href="#specs">Détails</a></li>
     <li><a href="#amenities">Équipements</a></li>
-    <li><a href="#contact">Demande</a></li>
+    <li><a href="#contact">Enquire</a></li>
     <li><a href="#reviews">Avis</a></li>
     <li><a href="#availability">Disponibilité</a></li>
   </ul>
@@ -1929,7 +1777,7 @@ height="0" width="0" style="display:none;visibility:hidden"></iframe></noscript>
   <a href="#itinerary" onclick="closeMobile()">Destinations</a>
   <a href="#specs" onclick="closeMobile()">Détails</a>
   <a href="#amenities" onclick="closeMobile()">Équipements</a>
-  <a href="#contact" onclick="closeMobile()">Demande</a>
+  <a href="#contact" onclick="closeMobile()">Enquire</a>
   <a href="#reviews" onclick="closeMobile()">Avis</a>
   <a href="#availability" onclick="closeMobile()">Disponibilité</a>
   <div class="mobile-lang" aria-label="Langue">
@@ -1951,7 +1799,7 @@ height="0" width="0" style="display:none;visibility:hidden"></iframe></noscript>
     <div class="hero-cta-group">
       <p class="hero-value">Votre équipage s'occupe de tout — vous profitez des autres et des paysages.</p>
       <div class="hero-actions">
-        <a href="#contact" class="btn-primary">Demander un devis</a>
+        <a href="#contact" class="btn-primary">Request a Quote</a>
         <a href="#itinerary" class="btn-ghost">Découvrir les destinations</a>
       </div>
       <p class="hero-trust">Verified reviews on Click&amp;Boat · Équipageed &amp; fully equipped</p>
@@ -2097,7 +1945,7 @@ height="0" width="0" style="display:none;visibility:hidden"></iframe></noscript>
     <div class="section-cta reveal">
       <p class="section-cta-text">Like what you see? Step aboard Limitless.</p>
       <div class="section-cta-btns">
-        <a href="#contact" class="btn-primary">Demander un devis</a>
+        <a href="#contact" class="btn-primary">Request a Quote</a>
         <a href="https://wa.me/34643678072" target="_blank" rel="noopener" class="btn-ghost">Demander sur WhatsApp</a>
       </div>
     </div>
@@ -2516,7 +2364,7 @@ height="0" width="0" style="display:none;visibility:hidden"></iframe></noscript>
     <div class="section-cta reveal reveal-delay-2">
       <p class="section-cta-text">21.5 metres of performance — ready to charter.</p>
       <div class="section-cta-btns">
-        <a href="#contact" class="btn-primary">Demander un devis</a>
+        <a href="#contact" class="btn-primary">Request a Quote</a>
         <a href="https://wa.me/34643678072" target="_blank" rel="noopener" class="btn-ghost">Demander sur WhatsApp</a>
       </div>
     </div>
@@ -2534,7 +2382,7 @@ height="0" width="0" style="display:none;visibility:hidden"></iframe></noscript>
   <button type="button" id="lightbox-next" aria-label="Image suivante">›</button>
 </div>
 
-<div id="dest-lightbox" role="dialog" aria-modal="true" aria-label="Détails de la destination">
+<div id="dest-lightbox" role="dialog" aria-modal="true" aria-label="Destination details">
   <div class="dest-lb-img-wrap">
     <picture>
       <source id="dest-lb-src-webp" type="image/webp" srcset="" />
@@ -2548,7 +2396,7 @@ height="0" width="0" style="display:none;visibility:hidden"></iframe></noscript>
     <p class="dest-lb-tagline" id="dest-lb-tagline"></p>
     <p class="dest-lb-desc" id="dest-lb-desc"></p>
     <div class="dest-lb-meta" id="dest-lb-meta"></div>
-    <a href="#contact" class="btn-primary dest-lb-cta" id="dest-lb-cta">Demande pour ce voyage</a>
+    <a href="#contact" class="btn-primary dest-lb-cta" id="dest-lb-cta">Enquire About This Trip</a>
   </div>
 </div>
 
@@ -2605,117 +2453,53 @@ height="0" width="0" style="display:none;visibility:hidden"></iframe></noscript>
 <!-- PRICING -->
 <section id="pricing">
   <div class="container">
-    <p class="section-label reveal">Demande</p>
-    <h2 class="section-title reveal reveal-delay-1">Sur<em> mesure</em></h2>
-    <p class="pricing-urgency reveal reveal-delay-2">Parlez-nous de votre groupe et de vos dates — nous vous répondons sous 24 heures</p>
-    <div class="pricing-tabs" role="tablist" aria-label="Charter season">
-      <button class="pricing-tab" role="tab" data-season="low" id="tab-low" aria-selected="false">
-        Basse saison<span class="tab-period">sep – juin</span>
-      </button>
-      <button class="pricing-tab" role="tab" data-season="peak" id="tab-peak" aria-selected="false">
-        Haute saison<span class="tab-period">juil – août</span>
-      </button>
+    <p class="section-label reveal">Enquire</p>
+    <h2 class="section-title reveal reveal-delay-1">Charter Your<em> Way</em></h2>
+    <p class="enquiry-intro reveal reveal-delay-2">From a sun-soaked morning to a week at anchor — every charter is built around you. Tell us your dates and we'll craft the perfect itinerary within 24 hours.</p>
+    <div class="enquiry-grid">
+      <a class="enquiry-card reveal" href="#contact">
+        <span class="enquiry-label">4 – 6 heures</span>
+        <span class="enquiry-title">Demi-journée</span>
+        <span class="enquiry-desc">A morning cruise, a sunset sail, or a midday swim stop. Perfect for a taste of the Adriatic without committing a full day.</span>
+        <span class="enquiry-link">Enquire →</span>
+      </a>
+      <a class="enquiry-card reveal reveal-delay-1" href="#contact">
+        <span class="enquiry-label">8 – 10 Hours</span>
+        <span class="enquiry-title">Journée complète</span>
+        <span class="enquiry-desc">Explore two or three destinations, swim in crystal-clear coves, and dine on board. The most popular way to experience the coast.</span>
+        <span class="enquiry-link">Enquire →</span>
+      </a>
+      <a class="enquiry-card reveal reveal-delay-2" href="#contact">
+        <span class="enquiry-label">2 – 3 Days</span>
+        <span class="enquiry-title">Weekend Escape</span>
+        <span class="enquiry-desc">Sleep under the stars and wake in a new bay each morning. Ideal for a birthday, anniversary, or simply switching off properly.</span>
+        <span class="enquiry-link">Enquire →</span>
+      </a>
+      <a class="enquiry-card reveal reveal-delay-3" href="#contact">
+        <span class="enquiry-label">4 Days +</span>
+        <span class="enquiry-title">Extended Journey</span>
+        <span class="enquiry-desc">Island-hop at your own pace. From Montenegro to Albania or deeper into Greece — your route, entirely bespoke.</span>
+        <span class="enquiry-link">Enquire →</span>
+      </a>
     </div>
-    <div class="pricing-grid">
-      <div class="pricing-card reveal" data-season="low">
-        <div class="pricing-badge">Basse saison</div>
-        <div class="pricing-season">septembre – juin</div>
-        <p class="pricing-explore-hint">Choisissez une durée — nous adaptons votre devis</p>
-        <a class="pricing-row" href="#contact">
-          <span class="pricing-duration">4 heures</span>
-          <span class="pricing-enquire">Demander →</span>
-        </a>
-        <a class="pricing-row" href="#contact">
-          <span class="pricing-duration">6 heures</span>
-          <span class="pricing-enquire">Demander →</span>
-        </a>
-        <a class="pricing-row" href="#contact">
-          <span class="pricing-duration">1 jour</span>
-          <span class="pricing-enquire">Demander →</span>
-        </a>
-        <a class="pricing-row" href="#contact">
-          <span class="pricing-duration">Plusieurs jours</span>
-          <span class="pricing-enquire">Demander →</span>
-        </a>
-        <a class="pricing-book-cta" href="#contact">Obtenir votre devis gratuit</a>
-        <p class="pricing-review-snippet"><span class="review-stars">★★★★★</span> <em>« Spacieux, confortable et impeccable — l'équipage a veillé à ce que nous soyons parfaitement pris en charge partout. »</em><span class="review-attr"> — Tony, août 2025</span></p>
-      </div>
-      <div class="pricing-card featured reveal reveal-delay-1" data-season="peak">
-        <div class="pricing-badge">Haute saison</div>
-        <div class="pricing-season">juillet – août</div>
-        <p class="pricing-explore-hint">Choisissez une durée — nous adaptons votre devis</p>
-        <a class="pricing-row" href="#contact">
-          <span class="pricing-duration">4 heures</span>
-          <span class="pricing-enquire">Demander →</span>
-        </a>
-        <a class="pricing-row" href="#contact">
-          <span class="pricing-duration">6 heures</span>
-          <span class="pricing-enquire">Demander →</span>
-        </a>
-        <a class="pricing-row" href="#contact">
-          <span class="pricing-duration">1 jour</span>
-          <span class="pricing-enquire">Demander →</span>
-        </a>
-        <a class="pricing-row" href="#contact">
-          <span class="pricing-duration">Plusieurs jours</span>
-          <span class="pricing-enquire">Demander →</span>
-        </a>
-        <a class="pricing-book-cta" href="#contact">Obtenir votre devis gratuit</a>
-        <p class="pricing-review-snippet"><span class="review-stars">★★★★★</span> <em>« Spacieux, confortable et impeccable — l'équipage a veillé à ce que nous soyons parfaitement pris en charge partout. »</em><span class="review-attr"> — Tony, août 2025</span></p>
-      </div>
+    <div class="enquiry-cta-wrap reveal">
+      <a href="#contact" class="btn-primary">Get Your Free Quote</a>
+      <p class="enquiry-flex-note">Disponible year-round &nbsp;·&nbsp; Rates vary by season &nbsp;·&nbsp; We respond within 24 hours</p>
     </div>
     <div class="pricing-terms reveal">
-      <div class="pricing-terms-title">Tous les charters</div>
+      <div class="pricing-terms-title">Tous les charters include</div>
       <ul class="pricing-notes">
-        <li>TVA incluse</li>
+        <li>VAT included</li>
+        <li>Équipage &amp; cleaning</li>
+        <li>Fuel for half-day charters</li>
         <li>Caution : 20 %</li>
-        <li>Équipage & ménage inclus</li>
-        <li>Carburant &amp; boissons en sus pour les charters à la journée</li>
-        <li>Avitaillement (nourriture &amp; provisions) &amp; frais d'amarrage en sus sur plusieurs jours</li>
-        <li>Traiteur &amp; réservations en beach club sur demande</li>
+        <li>Catering &amp; beach clubs on request</li>
+        <li>Provisioning &amp; mooring extra on multi-day</li>
       </ul>
-      <div class="pricing-terms-extra">
-        <p>Croisières de plusieurs jours et avec nuit à bord disponibles. Restez autant de jours que vous le souhaitez — nous établissons votre devis en conséquence.</p>
-        <p>Les pourboires de l'équipage ne sont pas inclus dans le devis. Contactez-nous pour toute demande particulière.</p>
-      </div>
     </div>
-  <p class="section-back-cta reveal">Vous hésitez sur la destination ? <a href="#itinerary">Découvrir les destinations →</a></p>
+    <p class="section-back-cta reveal">Vous hésitez sur la destination ? <a href="#itinerary">Découvrir les destinations →</a></p>
   </div>
 </section>
-
-<script>
-(function(){
-  var m = new Date().getMonth();
-  var isPeak = m >= 5 && m <= 7;
-  var activeSeason = isPeak ? 'peak' : 'low';
-
-  function setTab(season) {
-    document.querySelectorAll('.pricing-tab').forEach(function(t) {
-      var on = t.dataset.season === season;
-      t.classList.toggle('tab--active', on);
-      t.setAttribute('aria-selected', on ? 'true' : 'false');
-    });
-    document.querySelectorAll('.pricing-card').forEach(function(c) {
-      c.classList.toggle('tab-active', c.dataset.season === season);
-    });
-  }
-
-  setTab(activeSeason);
-
-  /* Desktop: keep featured card (gold border) on the current season */
-  var grid = document.querySelector('.pricing-grid');
-  if (grid) {
-    var cur = grid.querySelector('[data-season="' + activeSeason + '"]');
-    var oth = grid.querySelector('[data-season="' + (isPeak ? 'low' : 'peak') + '"]');
-    if (cur) { cur.classList.add('featured'); grid.insertBefore(cur, grid.firstElementChild); }
-    if (oth) { oth.classList.remove('featured'); }
-  }
-
-  document.querySelectorAll('.pricing-tab').forEach(function(tab) {
-    tab.addEventListener('click', function() { setTab(tab.dataset.season); });
-  });
-})();
-</script>
 
 <!-- REVIEWS -->
 <section id="reviews">
@@ -2770,10 +2554,10 @@ height="0" width="0" style="display:none;visibility:hidden"></iframe></noscript>
   <div class="container">
     <div class="contact-grid">
       <div class="contact-info reveal">
-        <p class="section-label">Demander un devis</p>
-        <h2 class="section-title">Votre<em> devis</em></h2>
+        <p class="section-label">Get a Quote</p>
+        <h2 class="section-title">Request<em> Your Quote</em></h2>
         <p style="font-size:.88rem;line-height:1.8;color:rgba(245,240,232,.7);margin-top:1.5rem;margin-bottom:2rem;">
-          Parlez-nous de votre groupe, de vos dates et de vos envies. Nous vous préparons un devis personnalisé sous 24 heures — sans engagement.
+          Tell us about your group, preferred dates, and the experience you're after. We'll get back to you with a personalised quote within 24 hours — no commitment required.
         </p>
         <div class="contact-details">
           <div class="contact-item">
@@ -3015,7 +2799,7 @@ height="0" width="0" style="display:none;visibility:hidden"></iframe></noscript>
   (function(){
     var destLb   = document.getElementById('dest-lightbox');
     if (!destLb) return;
-    var lbClose  = document.getElementById('dest-lb-close');
+    var lbFermer  = document.getElementById('dest-lb-close');
     var lbSrcWp  = document.getElementById('dest-lb-src-webp');
     var lbImg2   = document.getElementById('dest-lb-img');
     var lbNum    = document.getElementById('dest-lb-num');
@@ -3045,7 +2829,7 @@ height="0" width="0" style="display:none;visibility:hidden"></iframe></noscript>
       document.body.style.overflow = '';
     }
 
-    lbClose.addEventListener('click', closeLb);
+    lbFermer.addEventListener('click', closeLb);
     if (lbCta) lbCta.addEventListener('click', closeLb);
     document.addEventListener('keydown', function(e) {
       if (e.key === 'Escape' && destLb.classList.contains('open')) closeLb();
@@ -3131,6 +2915,7 @@ height="0" width="0" style="display:none;visibility:hidden"></iframe></noscript>
       btn.style.opacity = '1';
     }
   });
+
 
   // Google Tag / dataLayer events for conversions (GTM + GA4 + Google Ads)
   window.dataLayer = window.dataLayer || [];
@@ -3416,13 +3201,13 @@ height="0" width="0" style="display:none;visibility:hidden"></iframe></noscript>
     }
 
     // Auto-accept on any first interaction (scroll, touch, or click).
-    function autoAcceptOnInteraction() {
+    function autoAccepterOnInteraction() {
       var cur = ''; try { cur = localStorage.getItem(KEY) || ''; } catch(e){}
       if (cur !== 'granted' && cur !== 'denied') { choose('granted'); }
     }
-    document.addEventListener('touchstart', autoAcceptOnInteraction, { once: true, passive: true });
-    document.addEventListener('scroll', autoAcceptOnInteraction, { once: true, passive: true });
-    document.addEventListener('click', autoAcceptOnInteraction, { once: true });
+    document.addEventListener('touchstart', autoAccepterOnInteraction, { once: true, passive: true });
+    document.addEventListener('scroll', autoAccepterOnInteraction, { once: true, passive: true });
+    document.addEventListener('click', autoAccepterOnInteraction, { once: true });
 
     // Auto-accept on main CTAs if no consent decision yet.
     // Aggressive tracking during development/user testing phase.
@@ -3467,8 +3252,8 @@ height="0" width="0" style="display:none;visibility:hidden"></iframe></noscript>
     try {
       var scrollTarget = target;
       if (hash === '#pricing' && window.innerWidth <= 768) {
-        var tabs = document.querySelector('.pricing-tabs');
-        if (tabs) scrollTarget = tabs;
+        var grid = document.querySelector('.enquiry-grid');
+        if (grid) scrollTarget = grid;
       }
       if (hash === '#contact' && window.innerWidth <= 768) {
         var form = document.querySelector('#contactForm');
