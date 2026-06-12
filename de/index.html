@@ -265,9 +265,15 @@ j=d.createElement(s),dl=l!='dataLayer'?'&l='+l:'';j.async=true;j.crossOrigin='an
     padding: 0.85rem clamp(1rem, 3vw, 4rem);
     min-height: 4.25rem;
     background: linear-gradient(to bottom, rgba(10,22,40,0.95), transparent);
-    transition: background .4s;
+    will-change: transform;
   }
-  nav.scrolled { background: rgba(10,22,40,0.97); box-shadow: 0 2px 30px rgba(0,0,0,.4); }
+  nav::before {
+    content: ''; position: absolute; inset: 0; z-index: -1; pointer-events: none;
+    background: rgba(10,22,40,0.97);
+    box-shadow: 0 2px 30px rgba(0,0,0,.4);
+    opacity: 0; transition: opacity .4s;
+  }
+  nav.scrolled::before { opacity: 1; }
   .nav-logo {
     flex: 0 1 auto;
     min-width: 0;
@@ -2741,11 +2747,18 @@ height="0" width="0" style="display:none;visibility:hidden"></iframe></noscript>
 </footer>
 
 <script>
-  // Navbar scroll
+  // Navbar scroll — rAF-throttled so class toggle never blocks momentum scroll
   const navbar = document.getElementById('navbar');
-  window.addEventListener('scroll', () => {
-    navbar.classList.toggle('scrolled', window.scrollY > 60);
-  });
+  var _navTick = false;
+  window.addEventListener('scroll', function() {
+    if (!_navTick) {
+      _navTick = true;
+      requestAnimationFrame(function() {
+        navbar.classList.toggle('scrolled', window.scrollY > 60);
+        _navTick = false;
+      });
+    }
+  }, { passive: true });
 
   // Mobile menu
   const hamburger = document.getElementById('hamburger');
