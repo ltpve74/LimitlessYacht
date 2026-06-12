@@ -523,13 +523,13 @@ j=d.createElement(s),dl=l!='dataLayer'?'&l='+l:'';j.async=true;j.crossOrigin='an
   }
   .about-text p strong { color: var(--gold-light); font-weight: 500; }
 
-  /* ── DESTINATION TABS ── */
-  .dest-tabs {
+  /* ── CAROUSEL TABS (dest + gallery share common styles) ── */
+  .dest-tabs, .gallery-tabs {
     display: flex; margin-top: 1.5rem;
     border: 1px solid rgba(201,168,76,.25); border-radius: 3px; overflow: hidden;
     max-width: 480px;
   }
-  .dest-tab {
+  .dest-tab, .gallery-tab {
     flex: 1; padding: .85rem .5rem; background: transparent; border: none;
     color: var(--text-muted); font-family: 'Montserrat', sans-serif;
     font-size: .58rem; letter-spacing: .13em; text-transform: uppercase;
@@ -537,11 +537,13 @@ j=d.createElement(s),dl=l!='dataLayer'?'&l='+l:'';j.async=true;j.crossOrigin='an
     text-align: center;
   }
   .dest-tab .tab-period { display: block; font-size: .5rem; letter-spacing: .06em; margin-top: .15rem; opacity: .75; }
-  .dest-tab.tab--active { background: var(--gold); color: var(--navy); }
-  .dest-tab + .dest-tab { border-left: 1px solid rgba(201,168,76,.25); }
+  .dest-tab.tab--active, .gallery-tab.tab--active { background: var(--gold); color: var(--navy); }
+  .dest-tab + .dest-tab, .gallery-tab + .gallery-tab { border-left: 1px solid rgba(201,168,76,.25); }
   .dest-group { display: none; }
   .dest-group.tab-active { display: block; }
   .dest-group .itinerary-grid { margin-top: 1.5rem; }
+  .gallery-group { display: none; }
+  .gallery-group.tab-active { display: block; }
   .carousel-nav { display: none; }
 
   /* ── SPECS ── */
@@ -585,22 +587,6 @@ j=d.createElement(s),dl=l!='dataLayer'?'&l='+l:'';j.async=true;j.crossOrigin='an
   .gallery-item:nth-child(1) { grid-column: span 2; grid-row: span 2; }
   .gallery-item:nth-child(5) { grid-column: span 2; }
   .gallery-item:nth-child(10) { grid-column: span 2; }
-  .gallery-tabs {
-    display: flex; margin-top: 1.5rem;
-    border: 1px solid rgba(201,168,76,.25); border-radius: 3px; overflow: hidden;
-    max-width: 480px;
-  }
-  .gallery-tab {
-    flex: 1; padding: .85rem .5rem; background: transparent; border: none;
-    color: var(--text-muted); font-family: 'Montserrat', sans-serif;
-    font-size: .58rem; letter-spacing: .13em; text-transform: uppercase;
-    cursor: pointer; transition: background .2s, color .2s; line-height: 1.5;
-    text-align: center;
-  }
-  .gallery-tab.tab--active { background: var(--gold); color: var(--navy); }
-  .gallery-tab + .gallery-tab { border-left: 1px solid rgba(201,168,76,.25); }
-  .gallery-group { display: none; }
-  .gallery-group.tab-active { display: block; }
   .gallery-item img {
     width: 100%; height: 100%; object-fit: cover; display: block;
     transition: transform .6s ease, filter .4s;
@@ -1173,8 +1159,8 @@ j=d.createElement(s),dl=l!='dataLayer'?'&l='+l:'';j.async=true;j.crossOrigin='an
 
   @media (max-width: 640px) {
     #about { padding-bottom: 3rem; }
-    #gallery { padding-top: 1rem; padding-bottom: 3rem; padding-left: 0; padding-right: 0; }
-    #itinerary { padding-top: 1rem; padding-bottom: 3.5rem; padding-left: 0; padding-right: 0; }
+    #gallery { padding-top: 0.5rem; padding-bottom: 3rem; padding-left: 0; padding-right: 0; }
+    #itinerary { padding-top: 0.5rem; padding-bottom: 3.5rem; padding-left: 0; padding-right: 0; }
     /* Restore heading padding now that section has no side padding */
     #gallery > .container, #itinerary > .container { padding-left: 2rem; padding-right: 2rem; }
     #specs { padding-top: 3rem; padding-bottom: 2.5rem; }
@@ -1348,8 +1334,8 @@ j=d.createElement(s),dl=l!='dataLayer'?'&l='+l:'';j.async=true;j.crossOrigin='an
     nav {
       display: flex;
       flex-wrap: nowrap;
-      padding: 0.7rem 1rem;
-      min-height: 3.5rem;
+      padding: 0.85rem 1rem;
+      min-height: 3.8rem;
     }
     .nav-links { display: none; }
     .nav-lang { display: none; }
@@ -1357,9 +1343,9 @@ j=d.createElement(s),dl=l!='dataLayer'?'&l='+l:'';j.async=true;j.crossOrigin='an
     .hamburger { display: flex; }
   }
   @media (max-width: 640px) {
-    html { scroll-padding-top: 4.5rem; }
+    html { scroll-padding-top: 4.9rem; }
     section { padding: 0 1.2rem 4rem; }
-    nav { padding: 0.65rem 1rem; }
+    nav { padding: 0.8rem 1rem; min-height: 3.8rem; }
     .hero-eyebrow { font-size: .62rem; margin-bottom: 1.6rem; letter-spacing: .03em; }
     .eyebrow-stars { letter-spacing: .03em; }
     .hero-title { font-size: clamp(2.8rem, 7.5vw, 4.2rem); }
@@ -1407,9 +1393,9 @@ j=d.createElement(s),dl=l!='dataLayer'?'&l='+l:'';j.async=true;j.crossOrigin='an
     /* Both sections need zero side-padding in this block so their wraps reach the viewport edges */
     #gallery, #itinerary { padding-left: 0 !important; padding-right: 0 !important; }
     /* Gallery wrap spans full viewport (section has no side padding); carousel contained inside */
-    .gallery-wrap { margin: 0 !important; padding: 0.25rem 0 0 !important; }
+    .gallery-wrap { margin: 0 !important; padding: 0.05rem 0 0 !important; }
     /* Itinerary wrap — same treatment */
-    .itinerary-wrap { margin: 0 !important; padding: 0.25rem 0 0 !important; }
+    .itinerary-wrap { margin: 0 !important; padding: 0.05rem 0 0 !important; }
     /* Gallery tab switcher */
     .gallery-tabs {
       display: flex;
@@ -1436,7 +1422,7 @@ j=d.createElement(s),dl=l!='dataLayer'?'&l='+l:'';j.async=true;j.crossOrigin='an
       overflow-x: auto; overscroll-behavior-x: contain;
       touch-action: pan-x pan-y;
       scrollbar-width: none;
-      padding: 1rem 1.5rem 0.2rem; gap: .75rem; margin-top: 0;
+      padding: 0.55rem 1.5rem 0.05rem; gap: .75rem; margin-top: 0;
     }
     .gallery-group .gallery-grid::-webkit-scrollbar { display: none; }
     .gallery-group .gallery-item {
@@ -1445,15 +1431,15 @@ j=d.createElement(s),dl=l!='dataLayer'?'&l='+l:'';j.async=true;j.crossOrigin='an
       touch-action: pan-x pan-y;
     }
     .gallery-group .gallery-item picture { display: block; height: 100%; }
-    /* Breathing space above sticky tabs */
-    .itinerary-wrap { padding-top: 0.25rem !important; }
+    /* Breathing space above sticky tabs (kept minimal to move tabs+carousel up) */
+    .itinerary-wrap { padding-top: 0.05rem !important; }
     /* Horizontal swipe carousel — one card at a time, next peeks at right */
     .dest-group .itinerary-grid {
       display: flex; flex-direction: row;
       overflow-x: auto; overscroll-behavior-x: contain;
       touch-action: pan-x pan-y;
       scrollbar-width: none;
-      padding: 1rem 1.5rem 0.2rem; gap: .75rem; margin-top: 0;
+      padding: 0.55rem 1.5rem 0.05rem; gap: .75rem; margin-top: 0;
     }
     .dest-group .itinerary-grid::-webkit-scrollbar { display: none; }
     .destination-card {
@@ -1473,34 +1459,24 @@ j=d.createElement(s),dl=l!='dataLayer'?'&l='+l:'';j.async=true;j.crossOrigin='an
     .destination-tagline { font-size: .54rem; letter-spacing: .1em; margin-bottom: 0; }
     .destination-meta { margin-top: .5rem; padding-top: .5rem; }
     .destination-meta span { font-size: .6rem; }
+    /* Common carousel nav (shared dest/gallery) — slightly bigger, tight to images for fingers */
     .carousel-nav {
       display: flex; align-items: center; justify-content: center;
-      gap: 1.25rem; padding: .6rem 0 .5rem;
+      gap: .6rem; padding: 0.1rem 0 0.15rem;
     }
     .carousel-btn {
-      background: transparent; border: 1px solid rgba(201,168,76,.3);
-      color: var(--gold); width: 2.2rem; height: 2.2rem; border-radius: 50%;
-      font-size: 1.3rem; cursor: pointer;
+      background: transparent; border: 1px solid rgba(201,168,76,.4);
+      color: var(--gold); width: 2.1rem; height: 2.1rem; border-radius: 50%;
+      font-size: 1.25rem; cursor: pointer;
       display: flex; align-items: center; justify-content: center;
       transition: opacity .2s; -webkit-tap-highlight-color: transparent;
       flex-shrink: 0;
     }
     .carousel-btn:disabled { opacity: .2; }
     .carousel-pos {
-      font-family: 'Montserrat', sans-serif; font-size: .55rem;
-      letter-spacing: .15em; text-transform: uppercase;
-      color: rgba(245,240,232,.45); min-width: 2.5rem; text-align: center;
-    }
-    .carousel-nav {
-      gap: .5rem; padding: 0 0 .1rem;
-    }
-    .carousel-btn {
-      width: 1.9rem; height: 1.9rem; font-size: 1.1rem;
-      border-color: rgba(201,168,76,.4);
-    }
-    .carousel-pos {
-      font-size: .48rem; letter-spacing: .18em;
-      color: var(--gold);
+      font-family: 'Montserrat', sans-serif; font-size: .52rem;
+      letter-spacing: .16em; text-transform: uppercase;
+      color: var(--gold); min-width: 2.5rem; text-align: center;
     }
     .itinerary-meet-cta {
       display: block; text-align: center;
@@ -1516,13 +1492,10 @@ j=d.createElement(s),dl=l!='dataLayer'?'&l='+l:'';j.async=true;j.crossOrigin='an
       transition: background .2s, color .2s;
     }
     .section-cta-desktop { display: none; }
-    .dest-tabs {
-      display: flex; width: 100%; max-width: none; margin: 0;
-      border: 1px solid rgba(201,168,76,.25); border-left: none; border-right: none; border-radius: 0;
-      background: var(--navy); overflow: hidden;
-    }
     .destination-desc { display: none; }
     .destination-meta span:not(:first-child) { display: none; }
+    /* Move tabs+carousel up under the section header (less space after intro) */
+    .itinerary-intro { margin-top: 0.55rem; margin-bottom: 0.3rem; }
     .contact-grid { grid-template-columns: 1fr; gap: 2.5rem; }
     .about-image-wrap {
       height: 320px;
