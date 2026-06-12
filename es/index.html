@@ -2401,6 +2401,10 @@ height="0" width="0" style="display:none;visibility:hidden"></iframe></noscript>
     });
     groups.forEach(function(g) {
       g.classList.toggle('tab-active', g.dataset.tier === tier);
+      if (g.dataset.tier === tier) {
+        var gr = g.querySelector('.itinerary-grid');
+        if (gr) { gr.scrollLeft = 0; setTimeout(function(){ gr.dispatchEvent(new Event('scroll')); }, 0); }
+      }
     });
   }
 
@@ -2437,7 +2441,7 @@ height="0" width="0" style="display:none;visibility:hidden"></iframe></noscript>
       return cards.length > 1 ? cards[1].offsetLeft - cards[0].offsetLeft : grid.scrollWidth;
     }
     function idx() {
-      return Math.round(grid.scrollLeft / step());
+      var s = step(); return s > 0 ? Math.round(grid.scrollLeft / s) : 0;
     }
     function update() {
       var i = idx();
@@ -2913,7 +2917,13 @@ height="0" width="0" style="display:none;visibility:hidden"></iframe></noscript>
 
     function setGalleryTab(tab) {
       tabs.forEach(function(t)   { t.classList.toggle('tab--active', t.dataset.gtab === tab); });
-      groups.forEach(function(g) { g.classList.toggle('tab-active',  g.dataset.gtab === tab); });
+      groups.forEach(function(g) {
+        g.classList.toggle('tab-active', g.dataset.gtab === tab);
+        if (g.dataset.gtab === tab) {
+          var gr = g.querySelector('.gallery-grid');
+          if (gr) { gr.scrollLeft = 0; setTimeout(function(){ gr.dispatchEvent(new Event('scroll')); }, 0); }
+        }
+      });
     }
     tabs.forEach(function(tab) {
       tab.addEventListener('click', function() { setGalleryTab(tab.dataset.gtab); });
@@ -2929,7 +2939,7 @@ height="0" width="0" style="display:none;visibility:hidden"></iframe></noscript>
       var total   = cards.length;
 
       function step() { return cards.length > 1 ? cards[1].offsetLeft - cards[0].offsetLeft : grid.scrollWidth; }
-      function idx()  { return Math.round(grid.scrollLeft / step()); }
+      function idx()  { var s = step(); return s > 0 ? Math.round(grid.scrollLeft / s) : 0; }
       function update() {
         var i = idx();
         if (btnPrev) btnPrev.disabled = i <= 0;
