@@ -1516,6 +1516,7 @@ j=d.createElement(s),dl=l!='dataLayer'?'&l='+l:'';j.async=true;j.crossOrigin='an
     .gallery-group .gallery-item {
       flex: 0 0 78vw;
       height: calc(100svh - 13rem); border-radius: 8px;
+      touch-action: pan-x pan-y;
     }
     .gallery-group .gallery-item picture { display: block; height: 100%; }
     /* Breathing space above sticky tabs */
@@ -2875,7 +2876,19 @@ height="0" width="0" style="display:none;visibility:hidden"></iframe></noscript>
   const lbImg = document.getElementById('lightbox-img');
 
   document.querySelectorAll('.gallery-item').forEach(item => {
+    let touchStartX = 0, touchStartY = 0, wasSwiped = false;
+    item.addEventListener('touchstart', e => {
+      touchStartX = e.touches[0].clientX;
+      touchStartY = e.touches[0].clientY;
+      wasSwiped = false;
+    }, { passive: true });
+    item.addEventListener('touchmove', e => {
+      if (Math.abs(e.touches[0].clientX - touchStartX) > 8 || Math.abs(e.touches[0].clientY - touchStartY) > 8) {
+        wasSwiped = true;
+      }
+    }, { passive: true });
     item.addEventListener('click', () => {
+      if (wasSwiped) return;
       currentIdx = parseInt(item.dataset.index);
       lbImg.src = images[currentIdx];
       lightbox.classList.add('open');
