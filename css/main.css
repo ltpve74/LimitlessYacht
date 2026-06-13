@@ -934,10 +934,10 @@ footer {
 
 @media (max-width: 640px) {
   #about { padding-bottom: 3rem; }
-  #gallery { padding-top: 0.5rem; padding-bottom: 3rem; padding-left: 0; padding-right: 0; }
-  #itinerary { padding-top: 0.5rem; padding-bottom: 3.5rem; padding-left: 0; padding-right: 0; }
-  /* Restore heading padding now that section has no side padding */
-  #gallery > .container, #itinerary > .container { padding-left: 2rem; padding-right: 2rem; }
+  #gallery { padding-top: 0; padding-bottom: 0; padding-left: 0; padding-right: 0; }
+  #itinerary { padding-top: 0; padding-bottom: 0; padding-left: 0; padding-right: 0; }
+  /* Hide section headers on mobile — tabs are the first visible element, matching hero */
+  #gallery > .container, #itinerary > .container { display: none; }
   #specs { padding-top: 3rem; padding-bottom: 2.5rem; }
   #amenities { padding-top: 2.5rem; padding-bottom: 2.5rem; }
   #reviews { padding-top: 3rem; padding-bottom: 4rem; }
@@ -1200,7 +1200,7 @@ footer {
   .gallery-group .gallery-grid::-webkit-scrollbar { display: none; }
   .gallery-group .gallery-item {
     flex: 0 0 78vw;
-    height: calc(100svh - 13rem); border-radius: 8px;
+    height: calc(100svh - 11rem); border-radius: 8px;
     touch-action: pan-x pan-y;
   }
   .gallery-group .gallery-item picture { display: block; height: 100%; }
@@ -1217,7 +1217,7 @@ footer {
   .dest-group .itinerary-grid::-webkit-scrollbar { display: none; }
   .destination-card {
     flex: 0 0 78vw;
-    height: calc(100svh - 15rem); min-height: unset; border-radius: 8px;
+    height: calc(100svh - 11rem); min-height: unset; border-radius: 8px;
     touch-action: pan-x pan-y; cursor: pointer;
   }
   .destination-card-body { padding: .9rem 1rem .85rem; }
@@ -1261,7 +1261,7 @@ footer {
     font-weight: 600;
     text-decoration: none;
     border-radius: 2px;
-    margin: .5rem 1rem 0;
+    margin: .5rem 1rem .75rem;
     transition: background .2s, color .2s;
   }
   .section-cta-desktop { display: none; }
