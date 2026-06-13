@@ -949,6 +949,29 @@ footer {
   .destination-desc { font-size: .82rem; line-height: 1.65; }
 }
 
+/* ── CONTACT + AVAILABILITY PAIR ── */
+.contact-cal-pair {
+  display: block; /* stacked on mobile */
+}
+@media (min-width: 769px) {
+  .contact-cal-pair {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    align-items: start;
+    background: linear-gradient(135deg, var(--deep) 0%, var(--ocean) 100%);
+  }
+  .contact-cal-pair #contact {
+    background: transparent;
+  }
+  .contact-cal-pair #availability {
+    background: transparent;
+    padding-top: 7rem;
+  }
+  /* Drop verbose intro + action buttons — form is right there */
+  .contact-cal-pair #availability .availability-intro,
+  .contact-cal-pair #availability .availability-actions { display: none; }
+}
+
 /* ── AVAILABILITY ── */
 #availability { background: var(--deep); }
 .availability-intro {
