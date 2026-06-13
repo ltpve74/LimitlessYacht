@@ -138,8 +138,8 @@ nav.scrolled::before { opacity: 1; }
 }
 .hero-bg {
   position: absolute; inset: 0;
-  background: url('/images/maiora_20s_02.jpg') center/cover no-repeat;
-  background-image: image-set(url('/images/maiora_20s_02.webp') type('image/webp'), url('/images/maiora_20s_02.jpg') type('image/jpeg'));
+  background: url('../images/maiora_20s_02.jpg') center/cover no-repeat;
+  background-image: image-set(url('../images/maiora_20s_02.webp') type('image/webp'), url('../images/maiora_20s_02.jpg') type('image/jpeg'));
   transform: scale(1.08);
   animation: heroZoom 14s ease-out forwards;
 }
@@ -543,8 +543,8 @@ section { padding: 7rem 2rem; }
   content: '';
   position: absolute;
   inset: 0;
-  background-image: url('/images/maiora_20s_03.jpg'), url('/images/maiora_20s_04.jpg');
-  background-image: image-set(url('/images/maiora_20s_03.webp') type('image/webp'), url('/images/maiora_20s_03.jpg') type('image/jpeg')), image-set(url('/images/maiora_20s_04.webp') type('image/webp'), url('/images/maiora_20s_04.jpg') type('image/jpeg'));
+  background-image: url('../images/maiora_20s_03.jpg'), url('../images/maiora_20s_04.jpg');
+  background-image: image-set(url('../images/maiora_20s_03.webp') type('image/webp'), url('../images/maiora_20s_03.jpg') type('image/jpeg')), image-set(url('../images/maiora_20s_04.webp') type('image/webp'), url('../images/maiora_20s_04.jpg') type('image/jpeg'));
   background-size: cover, cover;
   background-position: center top, center bottom;
   background-repeat: no-repeat, no-repeat;
