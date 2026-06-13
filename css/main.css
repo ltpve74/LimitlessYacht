@@ -965,7 +965,7 @@ footer {
   .contact-cal-pair #availability { min-width: 0; }
   .contact-cal-pair #contact { background: transparent; }
   .contact-cal-pair .contact-grid {
-    grid-template-columns: 1fr;
+    grid-template-columns: 1fr !important;
     gap: 2.5rem;
   }
   /* Reveal animation doesn't trigger reliably inside the pair — show immediately */
