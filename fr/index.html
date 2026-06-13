@@ -180,7 +180,7 @@ j=d.createElement(s),dl=l!='dataLayer'?'&l='+l:'';j.async=true;j.crossOrigin='an
 <link rel="preload" as="style" href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,300;0,400;1,300;1,400&family=Montserrat:wght@300;400;500;600&display=swap" />
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,300;0,400;1,300;1,400&family=Montserrat:wght@300;400;500;600&display=swap" media="print" onload="this.media='all'" />
 <noscript><link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,300;0,400;1,300;1,400&family=Montserrat:wght@300;400;500;600&display=swap" /></noscript>
-<link rel="stylesheet" href="../css/main.css">
+<link rel="stylesheet" href="../css/main.css?v=3">
 
 <!-- Structured data -->
 <script type="application/ld+json">
@@ -331,6 +331,25 @@ height="0" width="0" style="display:none;visibility:hidden"></iframe></noscript>
     <div class="intro-item reveal reveal-delay-3">
       <div class="intro-num">21</div>
       <div class="intro-label">Nœuds vers les criques</div>
+    </div>
+  </div>
+</section>
+
+<!-- ABOUT -->
+<section id="about">
+  <div class="container">
+    <div class="about-grid">
+      <div class="about-image-wrap reveal">
+        <picture><source type="image/webp" srcset="/images/maiora_20s_04.webp" /><img loading="lazy" decoding="async" src="/images/maiora_20s_04.jpg" width="960" height="639" alt="Limitless yacht cruising the Mallorca coastline" /></picture>
+        <div class="about-image-accent"></div>
+      </div>
+      <div class="about-text reveal reveal-delay-1">
+        <p class="section-label">Le yacht</p>
+        <h2 class="section-title">Votre maison sur la<br><em>Méditerranée</em></h2>
+        <p><strong>Limitless</strong> est un Maiora de 21 mètres avec flybridge, pont arrière et bains de soleil — de la place pour douze invités en journée, confortable pour sept en nuitée. Conçu pour la mer et entretenu aux normes du charter.</p>
+        <p>Ce qui distingue véritablement Limitless, c'est son <strong>équipage dévoué</strong>. Attentif, expérimenté et réellement passionné par la mer, il s'occupe de tout — de l'organisation du traiteur à la réservation de l'accès aux beach clubs — pour que vous puissiez vous consacrer pleinement à vos proches et aux lieux que vous découvrez.</p>
+        <a href="#itinerary" class="btn-primary" style="margin-top: 1.25rem;">Découvrir les destinations</a>
+      </div>
     </div>
   </div>
 </section>
@@ -701,25 +720,6 @@ height="0" width="0" style="display:none;visibility:hidden"></iframe></noscript>
 })();
 </script>
 
-<!-- ABOUT -->
-<section id="about">
-  <div class="container">
-    <div class="about-grid">
-      <div class="about-image-wrap reveal">
-        <picture><source type="image/webp" srcset="/images/maiora_20s_04.webp" /><img loading="lazy" decoding="async" src="/images/maiora_20s_04.jpg" width="960" height="639" alt="Limitless yacht cruising the Mallorca coastline" /></picture>
-        <div class="about-image-accent"></div>
-      </div>
-      <div class="about-text reveal reveal-delay-1">
-        <p class="section-label">Le yacht</p>
-        <h2 class="section-title">Votre maison sur la<br><em>Méditerranée</em></h2>
-        <p><strong>Limitless</strong> est un Maiora de 21 mètres avec flybridge, pont arrière et bains de soleil — de la place pour douze invités en journée, confortable pour sept en nuitée. Conçu pour la mer et entretenu aux normes du charter.</p>
-        <p>Ce qui distingue véritablement Limitless, c'est son <strong>équipage dévoué</strong>. Attentif, expérimenté et réellement passionné par la mer, il s'occupe de tout — de l'organisation du traiteur à la réservation de l'accès aux beach clubs — pour que vous puissiez vous consacrer pleinement à vos proches et aux lieux que vous découvrez.</p>
-        <a href="#gallery" class="btn-primary" style="margin-top: 1.25rem;">See Her in Action</a>
-      </div>
-    </div>
-  </div>
-</section>
-
 <!-- GALLERY -->
 <section id="gallery">
   <div class="container">
@@ -814,6 +814,249 @@ height="0" width="0" style="display:none;visibility:hidden"></iframe></noscript>
   </div>
 </section>
 
+<!-- LIGHTBOX -->
+<div id="lightbox">
+  <button type="button" id="lightbox-close" aria-label="Fermer la galerie">
+    <span class="lightbox-close-icon" aria-hidden="true">✕</span>
+    <span class="lightbox-close-label">Fermer</span>
+  </button>
+  <button type="button" id="lightbox-prev" aria-label="Image précédente">‹</button>
+  <img id="lightbox-img" src="" alt="Limitless yacht gallery photo" />
+  <button type="button" id="lightbox-next" aria-label="Image suivante">›</button>
+</div>
+
+<div id="dest-lightbox" role="dialog" aria-modal="true" aria-label="Destination details">
+  <div class="dest-lb-img-wrap">
+    <picture>
+      <source id="dest-lb-src-webp" type="image/webp" srcset="" />
+      <img id="dest-lb-img" src="" alt="" decoding="async" />
+    </picture>
+    <button type="button" id="dest-lb-close" aria-label="Fermer">✕</button>
+  </div>
+  <div class="dest-lb-body">
+    <div class="dest-lb-num" id="dest-lb-num"></div>
+    <h3 class="dest-lb-name" id="dest-lb-name"></h3>
+    <p class="dest-lb-tagline" id="dest-lb-tagline"></p>
+    <p class="dest-lb-desc" id="dest-lb-desc"></p>
+    <div class="dest-lb-meta" id="dest-lb-meta"></div>
+    <a href="#contact" class="btn-primary dest-lb-cta" id="dest-lb-cta">Enquire About This Trip</a>
+  </div>
+</div>
+
+<!-- PRICING -->
+<section id="pricing">
+  <div class="container">
+    <p class="section-label reveal">Enquire</p>
+    <h2 class="section-title reveal reveal-delay-1">Charter Your<em> Way</em></h2>
+    <p class="enquiry-intro reveal reveal-delay-2">From a sun-soaked morning to a week at anchor — every charter is built around you. Tell us your dates and we'll craft the perfect itinerary within 24 hours.</p>
+    <div class="enquiry-grid">
+      <a class="enquiry-card reveal" href="#contact">
+        <span class="enquiry-label">4 – 6 heures</span>
+        <span class="enquiry-title">Demi-journée</span>
+        <span class="enquiry-desc">A morning cruise, a sunset sail, or a midday swim stop. Perfect for a taste of the Adriatic without committing a full day.</span>
+        <span class="enquiry-link">Enquire →</span>
+      </a>
+      <a class="enquiry-card reveal reveal-delay-1" href="#contact">
+        <span class="enquiry-label">8 – 10 Hours</span>
+        <span class="enquiry-title">Journée complète</span>
+        <span class="enquiry-desc">Explore two or three destinations, swim in crystal-clear coves, and dine on board. The most popular way to experience the coast.</span>
+        <span class="enquiry-link">Enquire →</span>
+      </a>
+      <a class="enquiry-card reveal reveal-delay-2" href="#contact">
+        <span class="enquiry-label">2 – 3 Days</span>
+        <span class="enquiry-title">Weekend Escape</span>
+        <span class="enquiry-desc">Sleep under the stars and wake in a new bay each morning. Ideal for a birthday, anniversary, or simply switching off properly.</span>
+        <span class="enquiry-link">Enquire →</span>
+      </a>
+      <a class="enquiry-card reveal reveal-delay-3" href="#contact">
+        <span class="enquiry-label">4 Days +</span>
+        <span class="enquiry-title">Extended Journey</span>
+        <span class="enquiry-desc">Island-hop at your own pace. From Montenegro to Albania or deeper into Greece — your route, entirely bespoke.</span>
+        <span class="enquiry-link">Enquire →</span>
+      </a>
+    </div>
+    <div class="enquiry-cta-wrap reveal">
+      <a href="#contact" class="btn-primary">Get Your Free Quote</a>
+      <p class="enquiry-flex-note">Disponible year-round &nbsp;·&nbsp; Rates vary by season &nbsp;·&nbsp; We respond within 24 hours</p>
+    </div>
+    <div class="pricing-terms reveal">
+      <div class="pricing-terms-title">Tous les charters include</div>
+      <ul class="pricing-notes">
+        <li>VAT included</li>
+        <li>Équipage &amp; cleaning</li>
+        <li>Fuel for half-day charters</li>
+        <li>Caution : 20 %</li>
+        <li>Catering &amp; beach clubs on request</li>
+        <li>Provisioning &amp; mooring extra on multi-day</li>
+      </ul>
+    </div>
+    <p class="section-back-cta reveal">Vous hésitez sur la destination ? <a href="#itinerary">Découvrir les destinations →</a></p>
+  </div>
+</section>
+
+<!-- CONTACT + AVAILABILITY (paired on desktop) -->
+<div class="contact-cal-pair">
+<!-- CONTACT -->
+<section id="contact">
+  <div class="container">
+    <div class="contact-grid">
+      <div class="contact-info reveal">
+        <p class="section-label">Get a Quote</p>
+        <h2 class="section-title">Request<em> Your Quote</em></h2>
+        <p style="font-size:.88rem;line-height:1.8;color:rgba(245,240,232,.7);margin-top:1.5rem;margin-bottom:2rem;">
+          Tell us about your group, preferred dates, and the experience you're after. We'll get back to you with a personalised quote within 24 hours — no commitment required.
+        </p>
+        <a href="https://wa.me/34643678072" target="_blank" class="whatsapp-btn">
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor"><path d="M17.472 14.382c-.297-.149-1.758-.867-2.03-.967-.273-.099-.471-.148-.67.15-.197.297-.767.966-.94 1.164-.173.199-.347.223-.644.075-.297-.15-1.255-.463-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.298-.347.446-.52.149-.174.198-.298.298-.497.099-.198.05-.371-.025-.52-.075-.149-.669-1.612-.916-2.207-.242-.579-.487-.5-.669-.51-.173-.008-.371-.01-.57-.01-.198 0-.52.074-.792.372-.272.297-1.04 1.016-1.04 2.479 0 1.462 1.065 2.875 1.213 3.074.149.198 2.096 3.2 5.077 4.487.709.306 1.262.489 1.694.625.712.227 1.36.195 1.871.118.571-.085 1.758-.719 2.006-1.413.248-.694.248-1.289.173-1.413-.074-.124-.272-.198-.57-.347m-5.421 7.403h-.004a9.87 9.87 0 01-5.031-1.378l-.361-.214-3.741.982.998-3.648-.235-.374a9.86 9.86 0 01-1.51-5.26c.001-5.45 4.436-9.884 9.888-9.884 2.64 0 5.122 1.03 6.988 2.898a9.825 9.825 0 012.893 6.994c-.003 5.45-4.437 9.884-9.885 9.884m8.413-18.297A11.815 11.815 0 0012.05 0C5.495 0 .16 5.335.157 11.892c0 2.096.547 4.142 1.588 5.945L.057 24l6.305-1.654a11.882 11.882 0 005.683 1.448h.005c6.554 0 11.89-5.335 11.893-11.893a11.821 11.821 0 00-3.48-8.413Z"/></svg>
+          Demander via WhatsApp
+        </a>
+      </div>
+      <div class="reveal reveal-delay-1">
+        <p class="section-label" style="margin-bottom:1.5rem;">Demande de réservation</p>
+        <form class="contact-form" id="contactForm" name="contact-fr" netlify netlify-honeypot="bot-field" novalidate>
+          <input type="hidden" name="form-name" value="contact-fr" />
+          <input type="hidden" name="locale" value="fr" />
+          <p style="display:none;"><input name="bot-field" /></p>
+
+          <div class="form-field">
+            <label for="name">Votre nom</label>
+            <input type="text" name="name" id="name" placeholder="First and last name" required autocomplete="name" />
+          </div>
+          <div class="form-field">
+            <label for="email">E-mail</label>
+            <input type="email" name="email" id="email" placeholder="your@email.com" required autocomplete="email" />
+          </div>
+          <div class="form-row">
+            <div class="form-field">
+              <label for="preferred_date">Date souhaitée</label>
+              <input type="date" name="preferred_date" id="preferred_date" min="" />
+            </div>
+            <div class="form-field">
+              <label for="charter_duration">Durée</label>
+              <select name="charter_duration" id="charter_duration">
+                <option value="" disabled selected>Sélectionner…</option>
+                <option>4 heures</option>
+                <option>6 heures</option>
+                <option>1 jour</option>
+                <option>2–3 jours</option>
+                <option>4–6 jours</option>
+                <option>Plus long</option>
+              </select>
+            </div>
+          </div>
+          <p class="form-reassurance">Nous répondons sous quelques heures · vos données restent privées</p>
+          <button type="submit" class="form-submit" id="submitBtn">Envoyer ma demande</button>
+          <div id="form-success" style="display:none;color:var(--gold);font-size:.85rem;margin-top:.8rem;padding:.8rem;border:1px solid rgba(201,168,76,.3);background:rgba(201,168,76,.05);">
+            ✓ Merci ! Votre demande a été envoyée. Nous vous recontacterons rapidement.
+          </div>
+          <div id="form-error" style="display:none;color:#e55;font-size:.82rem;margin-top:.8rem;">
+            ✗ Une erreur s'est produite. Réessayez ou écrivez-nous à info@limitlessyachtcharter.com
+          </div>
+        </form>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- AVAILABILITY -->
+<section id="availability">
+  <div class="container">
+    <p class="section-label reveal">Disponibilité</p>
+    <h2 class="section-title reveal reveal-delay-1">Consultez le<em> calendrier</em></h2>
+    <p class="availability-intro reveal reveal-delay-2">Voyez les dates libres ci-dessous, puis envoyez-nous une demande — nous confirmerons votre charter personnellement. Le calendrier est tenu à jour par notre équipage.</p>
+    <div class="cal reveal reveal-delay-2" id="availCal" aria-label="Calendrier de disponibilité">
+      <div class="cal-bar">
+        <button type="button" class="cal-nav" id="calPrev" aria-label="Mois précédent">‹</button>
+        <div class="cal-months" id="calMonths"></div>
+        <button type="button" class="cal-nav" id="calNext" aria-label="Mois suivant">›</button>
+      </div>
+      <div class="cal-legend">
+        <span><i class="leg-available"></i>Disponible</span>
+        <span><i class="leg-booked"></i>Réservé</span>
+        <span><i class="leg-tentative"></i>En attente</span>
+      </div>
+    </div>
+    <div class="availability-actions reveal reveal-delay-3">
+      <a href="#contact" class="btn-primary">Demander ces dates</a>
+      <a href="https://wa.me/34643678072" target="_blank" rel="noopener" class="btn-ghost">Demander sur WhatsApp</a>
+    </div>
+  </div>
+</section>
+</div><!-- /.contact-cal-pair -->
+
+<!-- REVIEWS -->
+<section id="reviews">
+  <div class="container">
+    <p class="section-label reveal">Avis clients</p>
+    <h2 class="section-title reveal reveal-delay-1">Ce que disent<em> nos clients</em></h2>
+    <p class="reviews-intro reveal reveal-delay-2">Des expériences réelles de clients ayant loué <strong>Limitless</strong>. Les avis sont publiés après une rapide modération.</p>
+
+    <div class="reviews-summary reveal reveal-delay-2" id="reviewsSummary" aria-live="polite">
+      <div class="reviews-score">
+        <div class="reviews-score-num" id="reviewsScore">5.0</div>
+        <div>
+          <div class="reviews-stars" id="reviewsStars" aria-hidden="true">★★★★★</div>
+          <div class="reviews-count" id="reviewsCount">Chargement des avis…</div>
+        </div>
+      </div>
+    </div>
+
+    <p class="reviews-loading" id="reviewsLoading">Chargement des avis…</p>
+    <div class="reviews-grid reveal reveal-delay-3" id="reviewsGrid" hidden></div>
+
+  </div>
+</section>
+
+<!-- AMENITIES -->
+<section id="amenities">
+  <div class="container">
+    <p class="section-label reveal">Équipement à bord</p>
+    <h2 class="section-title reveal reveal-delay-1">Tout <em>à bord</em></h2>
+    <div class="amenities-grid">
+      <div class="amenity-group reveal">
+        <div class="amenity-group-title">Sur le pont</div>
+        <ul class="amenity-list">
+          <li>Bar extérieur avec 4 réfrigérateurs</li>
+          <li>Machine à glaçons</li>
+          <li>Échelle de bain & plateforme</li>
+          <li>Grand pont soleil</li>
+          <li>Assises élégantes sur le pont</li>
+        </ul>
+      </div>
+      <div class="amenity-group reveal reveal-delay-1">
+        <div class="amenity-group-title">Sports nautiques</div>
+        <ul class="amenity-list">
+          <li>Annexe 330 Jet</li>
+          <li>2 × Seabobs</li>
+          <li>Paddle</li>
+          <li>Kit de plongée</li>
+          <li>Tapis de flottaison</li>
+        </ul>
+      </div>
+      <div class="amenity-group reveal">
+        <div class="amenity-group-title">Navigation & sécurité</div>
+        <ul class="amenity-list">
+          <li>GPS + traceur de cartes</li>
+          <li>Radio VHF</li>
+          <li>Équipement de sécurité complet</li>
+          <li>Propulseur d'étrave</li>
+          <li>Ancre électrique</li>
+        </ul>
+      </div>
+      <div class="amenity-group reveal reveal-delay-1">
+        <div class="amenity-group-title">Divertissement & confort</div>
+        <ul class="amenity-list">
+          <li>Système HiFi Bose</li>
+          <li>Commande Sonos</li>
+          <li>TV connectées</li>
+          <li>Design intérieur moderne</li>
+          <li>Climatisation à bord</li>
+        </ul>
+      </div>
+    </div>
+  </div>
+</section>
+
 <!-- SPECS -->
 <section id="specs">
   <div class="container">
@@ -871,262 +1114,6 @@ height="0" width="0" style="display:none;visibility:hidden"></iframe></noscript>
       <div class="section-cta-btns">
         <a href="#pricing" class="btn-primary">Get Your Free Quote</a>
         <a href="https://wa.me/34643678072" target="_blank" rel="noopener" class="btn-ghost">Demander sur WhatsApp</a>
-      </div>
-    </div>
-  </div>
-</section>
-
-<!-- LIGHTBOX -->
-<div id="lightbox">
-  <button type="button" id="lightbox-close" aria-label="Fermer la galerie">
-    <span class="lightbox-close-icon" aria-hidden="true">✕</span>
-    <span class="lightbox-close-label">Fermer</span>
-  </button>
-  <button type="button" id="lightbox-prev" aria-label="Image précédente">‹</button>
-  <img id="lightbox-img" src="" alt="Limitless yacht gallery photo" />
-  <button type="button" id="lightbox-next" aria-label="Image suivante">›</button>
-</div>
-
-<div id="dest-lightbox" role="dialog" aria-modal="true" aria-label="Destination details">
-  <div class="dest-lb-img-wrap">
-    <picture>
-      <source id="dest-lb-src-webp" type="image/webp" srcset="" />
-      <img id="dest-lb-img" src="" alt="" decoding="async" />
-    </picture>
-    <button type="button" id="dest-lb-close" aria-label="Fermer">✕</button>
-  </div>
-  <div class="dest-lb-body">
-    <div class="dest-lb-num" id="dest-lb-num"></div>
-    <h3 class="dest-lb-name" id="dest-lb-name"></h3>
-    <p class="dest-lb-tagline" id="dest-lb-tagline"></p>
-    <p class="dest-lb-desc" id="dest-lb-desc"></p>
-    <div class="dest-lb-meta" id="dest-lb-meta"></div>
-    <a href="#contact" class="btn-primary dest-lb-cta" id="dest-lb-cta">Enquire About This Trip</a>
-  </div>
-</div>
-
-<!-- AMENITIES -->
-<section id="amenities">
-  <div class="container">
-    <p class="section-label reveal">Équipement à bord</p>
-    <h2 class="section-title reveal reveal-delay-1">Tout <em>à bord</em></h2>
-    <div class="amenities-grid">
-      <div class="amenity-group reveal">
-        <div class="amenity-group-title">Sur le pont</div>
-        <ul class="amenity-list">
-          <li>Bar extérieur avec 4 réfrigérateurs</li>
-          <li>Machine à glaçons</li>
-          <li>Échelle de bain & plateforme</li>
-          <li>Grand pont soleil</li>
-          <li>Assises élégantes sur le pont</li>
-        </ul>
-      </div>
-      <div class="amenity-group reveal reveal-delay-1">
-        <div class="amenity-group-title">Sports nautiques</div>
-        <ul class="amenity-list">
-          <li>Annexe 330 Jet</li>
-          <li>2 × Seabobs</li>
-          <li>Paddle</li>
-          <li>Kit de plongée</li>
-          <li>Tapis de flottaison</li>
-        </ul>
-      </div>
-      <div class="amenity-group reveal">
-        <div class="amenity-group-title">Navigation & sécurité</div>
-        <ul class="amenity-list">
-          <li>GPS + traceur de cartes</li>
-          <li>Radio VHF</li>
-          <li>Équipement de sécurité complet</li>
-          <li>Propulseur d'étrave</li>
-          <li>Ancre électrique</li>
-        </ul>
-      </div>
-      <div class="amenity-group reveal reveal-delay-1">
-        <div class="amenity-group-title">Divertissement & confort</div>
-        <ul class="amenity-list">
-          <li>Système HiFi Bose</li>
-          <li>Commande Sonos</li>
-          <li>TV connectées</li>
-          <li>Design intérieur moderne</li>
-          <li>Climatisation à bord</li>
-        </ul>
-      </div>
-    </div>
-  </div>
-</section>
-
-<!-- PRICING -->
-<section id="pricing">
-  <div class="container">
-    <p class="section-label reveal">Enquire</p>
-    <h2 class="section-title reveal reveal-delay-1">Charter Your<em> Way</em></h2>
-    <p class="enquiry-intro reveal reveal-delay-2">From a sun-soaked morning to a week at anchor — every charter is built around you. Tell us your dates and we'll craft the perfect itinerary within 24 hours.</p>
-    <div class="enquiry-grid">
-      <a class="enquiry-card reveal" href="#contact">
-        <span class="enquiry-label">4 – 6 heures</span>
-        <span class="enquiry-title">Demi-journée</span>
-        <span class="enquiry-desc">A morning cruise, a sunset sail, or a midday swim stop. Perfect for a taste of the Adriatic without committing a full day.</span>
-        <span class="enquiry-link">Enquire →</span>
-      </a>
-      <a class="enquiry-card reveal reveal-delay-1" href="#contact">
-        <span class="enquiry-label">8 – 10 Hours</span>
-        <span class="enquiry-title">Journée complète</span>
-        <span class="enquiry-desc">Explore two or three destinations, swim in crystal-clear coves, and dine on board. The most popular way to experience the coast.</span>
-        <span class="enquiry-link">Enquire →</span>
-      </a>
-      <a class="enquiry-card reveal reveal-delay-2" href="#contact">
-        <span class="enquiry-label">2 – 3 Days</span>
-        <span class="enquiry-title">Weekend Escape</span>
-        <span class="enquiry-desc">Sleep under the stars and wake in a new bay each morning. Ideal for a birthday, anniversary, or simply switching off properly.</span>
-        <span class="enquiry-link">Enquire →</span>
-      </a>
-      <a class="enquiry-card reveal reveal-delay-3" href="#contact">
-        <span class="enquiry-label">4 Days +</span>
-        <span class="enquiry-title">Extended Journey</span>
-        <span class="enquiry-desc">Island-hop at your own pace. From Montenegro to Albania or deeper into Greece — your route, entirely bespoke.</span>
-        <span class="enquiry-link">Enquire →</span>
-      </a>
-    </div>
-    <div class="enquiry-cta-wrap reveal">
-      <a href="#contact" class="btn-primary">Get Your Free Quote</a>
-      <p class="enquiry-flex-note">Disponible year-round &nbsp;·&nbsp; Rates vary by season &nbsp;·&nbsp; We respond within 24 hours</p>
-    </div>
-    <div class="pricing-terms reveal">
-      <div class="pricing-terms-title">Tous les charters include</div>
-      <ul class="pricing-notes">
-        <li>VAT included</li>
-        <li>Équipage &amp; cleaning</li>
-        <li>Fuel for half-day charters</li>
-        <li>Caution : 20 %</li>
-        <li>Catering &amp; beach clubs on request</li>
-        <li>Provisioning &amp; mooring extra on multi-day</li>
-      </ul>
-    </div>
-    <p class="section-back-cta reveal">Vous hésitez sur la destination ? <a href="#itinerary">Découvrir les destinations →</a></p>
-  </div>
-</section>
-
-<!-- REVIEWS -->
-<section id="reviews">
-  <div class="container">
-    <p class="section-label reveal">Avis clients</p>
-    <h2 class="section-title reveal reveal-delay-1">Ce que disent<em> nos clients</em></h2>
-    <p class="reviews-intro reveal reveal-delay-2">Des expériences réelles de clients ayant loué <strong>Limitless</strong>. Les avis sont publiés après une rapide modération.</p>
-
-    <div class="reviews-summary reveal reveal-delay-2" id="reviewsSummary" aria-live="polite">
-      <div class="reviews-score">
-        <div class="reviews-score-num" id="reviewsScore">5.0</div>
-        <div>
-          <div class="reviews-stars" id="reviewsStars" aria-hidden="true">★★★★★</div>
-          <div class="reviews-count" id="reviewsCount">Chargement des avis…</div>
-        </div>
-      </div>
-    </div>
-
-    <p class="reviews-loading" id="reviewsLoading">Chargement des avis…</p>
-    <div class="reviews-grid reveal reveal-delay-3" id="reviewsGrid" hidden></div>
-
-  </div>
-</section>
-
-<!-- AVAILABILITY -->
-<section id="availability">
-  <div class="container">
-    <p class="section-label reveal">Disponibilité</p>
-    <h2 class="section-title reveal reveal-delay-1">Consultez le<em> calendrier</em></h2>
-    <p class="availability-intro reveal reveal-delay-2">Voyez les dates libres ci-dessous, puis envoyez-nous une demande — nous confirmerons votre charter personnellement. Le calendrier est tenu à jour par notre équipage.</p>
-    <div class="cal reveal reveal-delay-2" id="availCal" aria-label="Calendrier de disponibilité">
-      <div class="cal-bar">
-        <button type="button" class="cal-nav" id="calPrev" aria-label="Mois précédent">‹</button>
-        <div class="cal-months" id="calMonths"></div>
-        <button type="button" class="cal-nav" id="calNext" aria-label="Mois suivant">›</button>
-      </div>
-      <div class="cal-legend">
-        <span><i class="leg-available"></i>Disponible</span>
-        <span><i class="leg-booked"></i>Réservé</span>
-        <span><i class="leg-tentative"></i>En attente</span>
-      </div>
-    </div>
-    <div class="availability-actions reveal reveal-delay-3">
-      <a href="#contact" class="btn-primary">Demander ces dates</a>
-      <a href="https://wa.me/34643678072" target="_blank" rel="noopener" class="btn-ghost">Demander sur WhatsApp</a>
-    </div>
-  </div>
-</section>
-
-<!-- CONTACT -->
-<section id="contact">
-  <div class="container">
-    <div class="contact-grid">
-      <div class="contact-info reveal">
-        <p class="section-label">Get a Quote</p>
-        <h2 class="section-title">Request<em> Your Quote</em></h2>
-        <p style="font-size:.88rem;line-height:1.8;color:rgba(245,240,232,.7);margin-top:1.5rem;margin-bottom:2rem;">
-          Tell us about your group, preferred dates, and the experience you're after. We'll get back to you with a personalised quote within 24 hours — no commitment required.
-        </p>
-        <div class="contact-details">
-          <div class="contact-item">
-            <div class="contact-item-icon">✉</div>
-            <div class="contact-item-text">
-              <strong style="display:block;color:var(--cream);font-size:.7rem;letter-spacing:.1em;text-transform:uppercase;margin-bottom:.2rem;">E-mail</strong>
-              <a href="mailto:info@limitlessyachtcharter.com">info@limitlessyachtcharter.com</a>
-            </div>
-          </div>
-          <div class="contact-item">
-            <div class="contact-item-icon">📍</div>
-            <div class="contact-item-text">
-              <strong style="display:block;color:var(--cream);font-size:.7rem;letter-spacing:.1em;text-transform:uppercase;margin-bottom:.2rem;">Poste d'amarrage</strong>
-              Club de Mar – Palma de Mallorca · Mooring 6008
-            </div>
-          </div>
-        </div>
-        <a href="https://wa.me/34643678072" target="_blank" class="whatsapp-btn">
-          <svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor"><path d="M17.472 14.382c-.297-.149-1.758-.867-2.03-.967-.273-.099-.471-.148-.67.15-.197.297-.767.966-.94 1.164-.173.199-.347.223-.644.075-.297-.15-1.255-.463-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.298-.347.446-.52.149-.174.198-.298.298-.497.099-.198.05-.371-.025-.52-.075-.149-.669-1.612-.916-2.207-.242-.579-.487-.5-.669-.51-.173-.008-.371-.01-.57-.01-.198 0-.52.074-.792.372-.272.297-1.04 1.016-1.04 2.479 0 1.462 1.065 2.875 1.213 3.074.149.198 2.096 3.2 5.077 4.487.709.306 1.262.489 1.694.625.712.227 1.36.195 1.871.118.571-.085 1.758-.719 2.006-1.413.248-.694.248-1.289.173-1.413-.074-.124-.272-.198-.57-.347m-5.421 7.403h-.004a9.87 9.87 0 01-5.031-1.378l-.361-.214-3.741.982.998-3.648-.235-.374a9.86 9.86 0 01-1.51-5.26c.001-5.45 4.436-9.884 9.888-9.884 2.64 0 5.122 1.03 6.988 2.898a9.825 9.825 0 012.893 6.994c-.003 5.45-4.437 9.884-9.885 9.884m8.413-18.297A11.815 11.815 0 0012.05 0C5.495 0 .16 5.335.157 11.892c0 2.096.547 4.142 1.588 5.945L.057 24l6.305-1.654a11.882 11.882 0 005.683 1.448h.005c6.554 0 11.89-5.335 11.893-11.893a11.821 11.821 0 00-3.48-8.413Z"/></svg>
-          Demander via WhatsApp
-        </a>
-      </div>
-      <div class="reveal reveal-delay-1">
-        <p class="section-label" style="margin-bottom:1.5rem;">Demande de réservation</p>
-        <form class="contact-form" id="contactForm" name="contact-fr" netlify netlify-honeypot="bot-field" novalidate>
-          <input type="hidden" name="form-name" value="contact-fr" />
-          <input type="hidden" name="locale" value="fr" />
-          <p style="display:none;"><input name="bot-field" /></p>
-
-          <div class="form-field">
-            <label for="name">Votre nom</label>
-            <input type="text" name="name" id="name" placeholder="First and last name" required autocomplete="name" />
-          </div>
-          <div class="form-field">
-            <label for="email">E-mail</label>
-            <input type="email" name="email" id="email" placeholder="your@email.com" required autocomplete="email" />
-          </div>
-          <div class="form-row">
-            <div class="form-field">
-              <label for="preferred_date">Date souhaitée</label>
-              <input type="date" name="preferred_date" id="preferred_date" min="" />
-            </div>
-            <div class="form-field">
-              <label for="charter_duration">Durée</label>
-              <select name="charter_duration" id="charter_duration">
-                <option value="" disabled selected>Sélectionner…</option>
-                <option>4 heures</option>
-                <option>6 heures</option>
-                <option>1 jour</option>
-                <option>2–3 jours</option>
-                <option>4–6 jours</option>
-                <option>Plus long</option>
-              </select>
-            </div>
-          </div>
-          <p class="form-reassurance">Nous répondons sous quelques heures · vos données restent privées</p>
-          <button type="submit" class="form-submit" id="submitBtn">Envoyer ma demande</button>
-          <div id="form-success" style="display:none;color:var(--gold);font-size:.85rem;margin-top:.8rem;padding:.8rem;border:1px solid rgba(201,168,76,.3);background:rgba(201,168,76,.05);">
-            ✓ Merci ! Votre demande a été envoyée. Nous vous recontacterons rapidement.
-          </div>
-          <div id="form-error" style="display:none;color:#e55;font-size:.82rem;margin-top:.8rem;">
-            ✗ Une erreur s'est produite. Réessayez ou écrivez-nous à info@limitlessyachtcharter.com
-          </div>
-        </form>
       </div>
     </div>
   </div>
