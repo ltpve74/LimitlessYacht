@@ -960,17 +960,29 @@ footer {
     align-items: start;
     background: linear-gradient(135deg, var(--deep) 0%, var(--ocean) 100%);
   }
-  .contact-cal-pair #contact {
-    background: transparent;
-  }
+  /* Prevent either column from blowing out the grid */
+  .contact-cal-pair #contact,
+  .contact-cal-pair #availability { min-width: 0; }
+  .contact-cal-pair #contact { background: transparent; }
   .contact-cal-pair .contact-grid {
     grid-template-columns: 1fr;
     gap: 2.5rem;
+  }
+  /* Reveal animation doesn't trigger reliably inside the pair — show immediately */
+  .contact-cal-pair .reveal {
+    opacity: 1 !important; transform: none !important; transition: none !important;
   }
   .contact-cal-pair #availability {
     background: transparent;
     padding-top: 7rem;
   }
+  /* Smaller calendar heading inside pair */
+  .contact-cal-pair #availability .section-title {
+    font-size: clamp(1.4rem, 2.5vw, 2rem);
+    margin-bottom: 1rem;
+  }
+  /* Show only 2 months — 3 don't fit in a 50% column */
+  .contact-cal-pair .cal-month:nth-child(n+3) { display: none; }
   /* Drop verbose intro + action buttons — form is right there */
   .contact-cal-pair #availability .availability-intro,
   .contact-cal-pair #availability .availability-actions { display: none; }
