@@ -1237,7 +1237,7 @@ footer {
   /* Common carousel nav (shared dest/gallery) — slightly bigger, tight to images for fingers */
   .carousel-nav {
     display: flex; align-items: center; justify-content: center;
-    gap: .6rem; padding: 0.1rem 0 0.15rem;
+    gap: .6rem; padding: 0 0 0.15rem;
   }
   .carousel-btn {
     background: transparent; border: 1px solid rgba(201,168,76,.4);
