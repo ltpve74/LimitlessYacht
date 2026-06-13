@@ -963,6 +963,10 @@ footer {
   .contact-cal-pair #contact {
     background: transparent;
   }
+  .contact-cal-pair .contact-grid {
+    grid-template-columns: 1fr;
+    gap: 2.5rem;
+  }
   .contact-cal-pair #availability {
     background: transparent;
     padding-top: 7rem;
