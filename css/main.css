@@ -1188,6 +1188,7 @@ footer {
   }
   .dest-tab + .dest-tab, .gallery-tab + .gallery-tab { border-left: 1px solid rgba(201,168,76,.25); }
   .dest-tab.tab--active, .gallery-tab.tab--active { background: var(--gold); color: var(--navy); }
+  .dest-tab .tab-period { display: none; }
   /* Gallery groups — carousel on mobile */
   .gallery-group { display: none; }
   .gallery-group.tab-active { display: block; }
