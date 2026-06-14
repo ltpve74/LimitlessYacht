@@ -21,7 +21,7 @@ TARGETS = [
 def minify_css(css):
     css = re.sub(r'/\*.*?\*/', '', css, flags=re.DOTALL)
     css = re.sub(r'\s+', ' ', css)
-    css = re.sub(r'\s*([{}:;,>~+])\s*', r'\1', css)
+    css = re.sub(r'\s*([{}:;,>~])\s*', r'\1', css)  # preserve spaces around + (required in CSS math functions like calc/max/min)
     css = re.sub(r';\s*}', '}', css)
     css = re.sub(r'\s*!\s*important', '!important', css)
     return css.strip()
