@@ -102,6 +102,7 @@ PAIRS = [
         "Von den versteckten Buchten im Südwesten Mallorcas bis zu den dramatischen Klippen von Sa Calobra — <strong>die Ziele sprechen für sich</strong>. Mit Limitless erreichen Sie sie auf beste Weise.",
     ),
     ("Enquire Now", "Jetzt anfragen"),
+    ("Enquire About This Trip", "Diese Reise anfragen"),
     # Specs
     ("Technical Specifications", "Technische Daten"),
     ("Yacht<em> Details</em>", "Yacht-<em>Details</em>"),

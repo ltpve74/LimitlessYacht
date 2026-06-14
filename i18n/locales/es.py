@@ -96,6 +96,7 @@ PAIRS = [
         "Desde las calas escondidas del suroeste de Mallorca hasta los acantilados de Sa Calobra — <strong>los destinos hablan por sí solos</strong>. Limitless es la mejor forma de llegar a ellos.",
     ),
     ("Enquire Now", "Consultar ahora"),
+    ("Enquire About This Trip", "Consultar este viaje"),
     ("Technical Specifications", "Especificaciones técnicas"),
     ("Yacht<em> Details</em>", "Detalles del <em>yate</em>"),
     ("Manufacturer", "Fabricante"),
