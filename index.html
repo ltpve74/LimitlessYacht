@@ -938,9 +938,7 @@ height="0" width="0" style="display:none;visibility:hidden"></iframe></noscript>
                 <option>4 Hours</option>
                 <option>6 Hours</option>
                 <option>1 Day</option>
-                <option>2–3 Days</option>
-                <option>4–6 Days</option>
-                <option>Longer</option>
+                <option>Multi-Day</option>
               </select>
             </div>
           </div>
@@ -1312,7 +1310,7 @@ height="0" width="0" style="display:none;visibility:hidden"></iframe></noscript>
       lbDesc.textContent = (card.querySelector('.destination-desc')    || {}).textContent || '';
       var metaEl = card.querySelector('.destination-meta');
       lbMeta.innerHTML = metaEl ? metaEl.innerHTML : '';
-      var tierMap = { 'half-day': '4 Hours', 'full-day': '1 Day', 'multi-day': '2–3 Days' };
+      var tierMap = { 'half-day': '4 Hours', 'full-day': '1 Day', 'multi-day': 'Multi-Day' };
       var group = card.closest ? card.closest('.dest-group') : null;
       var tier = group ? group.getAttribute('data-tier') : '';
       lbCta._prefillDuration = tierMap[tier] || '';
