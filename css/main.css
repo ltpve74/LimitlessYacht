@@ -1492,7 +1492,7 @@ footer {
      pushes the entire bottom cluster (buttons + reviews + scroll) low.
      Tight gaps inside the cluster keep it compact and "strapped" together near the edge.
      Reduced #hero padding-bottom lets the anchored elements sit close to the true viewport bottom. */
-  .hero-eyebrow { padding-top: max(5rem, env(safe-area-inset-top) + 1.5rem); margin-bottom: 0.5rem; }
+  .hero-eyebrow { padding-top: 5rem; margin-bottom: 0.5rem; }
   .hero-sub { margin-top: 0.5rem; }
   .hero-value { margin-top: 0.5rem; margin-bottom: 0.6rem; font-size: .7rem; }
   .hero-cta-group { margin-top: auto; }
