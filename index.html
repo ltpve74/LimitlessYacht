@@ -1311,9 +1311,14 @@ height="0" width="0" style="display:none;visibility:hidden"></iframe></noscript>
       var metaEl = card.querySelector('.destination-meta');
       lbMeta.innerHTML = metaEl ? metaEl.innerHTML : '';
       var tierMap = { 'half-day': '4 Hours', 'full-day': '1 Day', 'multi-day': 'Multi-Day' };
+      var tierLabel = { 'half-day': 'half-day', 'full-day': 'full-day', 'multi-day': 'multi-day' };
       var group = card.closest ? card.closest('.dest-group') : null;
       var tier = group ? group.getAttribute('data-tier') : '';
+      var destName = (card.querySelector('.destination-name') || {}).textContent || '';
       lbCta._prefillDuration = tierMap[tier] || '';
+      lbCta._waMsg = destName
+        ? 'Hi, I\'d like to enquire about a ' + (tierLabel[tier] || '') + ' charter to ' + destName + ' on Limitless.'
+        : 'Hi, I\'d like to enquire about a charter on Limitless.';
       destLb.classList.add('open');
       document.body.style.overflow = 'hidden';
     }
@@ -1328,6 +1333,10 @@ height="0" width="0" style="display:none;visibility:hidden"></iframe></noscript>
       if (lbCta._prefillDuration) {
         var sel = document.getElementById('charter_duration');
         if (sel) sel.value = lbCta._prefillDuration;
+      }
+      if (lbCta._waMsg) {
+        var waBtn = document.querySelector('.form-col-wa');
+        if (waBtn) waBtn.href = 'https://wa.me/34643678072?text=' + encodeURIComponent(lbCta._waMsg);
       }
       closeLb();
     });
