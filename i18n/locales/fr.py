@@ -96,6 +96,7 @@ PAIRS = [
         "Des criques cachées du sud-ouest de Majorque aux falaises spectaculaires de Sa Calobra — <strong>les destinations parlent d'elles-mêmes</strong>. Limitless est la meilleure façon d'y accéder.",
     ),
     ("Enquire Now", "Demander maintenant"),
+    ("Enquire About This Trip", "Demander ce voyage"),
     ("Technical Specifications", "Caractéristiques techniques"),
     ("Yacht<em> Details</em>", "Détails du <em>yacht</em>"),
     ("Manufacturer", "Constructeur"),

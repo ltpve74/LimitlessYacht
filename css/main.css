@@ -1268,6 +1268,9 @@ footer {
     font-size: .46rem; letter-spacing: .18em; text-transform: uppercase;
     color: rgba(201,168,76,.48);
   }
+  html[lang="de"] .destination-card-body::after { content: 'Details antippen →'; }
+  html[lang="es"] .destination-card-body::after { content: 'Pulsa para más detalles →'; }
+  html[lang="fr"] .destination-card-body::after { content: 'Appuyer pour les détails →'; }
   .destination-num { font-size: .5rem; margin-bottom: .3rem; letter-spacing: .18em; }
   .destination-name { font-size: 1.15rem; margin-bottom: .25rem; line-height: 1.2; }
   .destination-tagline { font-size: .54rem; letter-spacing: .1em; margin-bottom: 0; }
