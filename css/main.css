@@ -1466,10 +1466,7 @@ footer {
     display: flex;
     align-items: stretch;
     justify-content: center;
-    /* more top padding on mobile (esp. iPhone 15 with Dynamic Island) so the
-       club de mar text has extra space below the fixed top bar / nav, while
-       keeping eyebrow and title from interfering with nav or each other. */
-    padding-top: max(5rem, env(safe-area-inset-top) + 1.5rem);
+    padding-top: 0;
     padding-bottom: max(0.25rem, env(safe-area-inset-bottom));
   }
   .hero-content {
@@ -1495,8 +1492,8 @@ footer {
      pushes the entire bottom cluster (buttons + reviews + scroll) low.
      Tight gaps inside the cluster keep it compact and "strapped" together near the edge.
      Reduced #hero padding-bottom lets the anchored elements sit close to the true viewport bottom. */
-  .hero-eyebrow { margin-bottom: 1.6rem; }
-  .hero-sub { margin-top: clamp(1rem, 4vh, 2rem); }
+  .hero-eyebrow { padding-top: max(5rem, env(safe-area-inset-top) + 1.5rem); margin-bottom: 0.5rem; }
+  .hero-sub { margin-top: 0.5rem; }
   .hero-value { margin-top: 0.5rem; margin-bottom: 0.6rem; font-size: .7rem; }
   .hero-cta-group { margin-top: auto; }
   .hero-actions { margin-top: 0; }
