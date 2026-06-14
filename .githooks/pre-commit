@@ -40,6 +40,14 @@ if printf '%s\n' "$CHANGED" | grep -qE '^(index\.html|legal\.html|css/main\.css|
     exit 1
   fi
 
+  # Run site tests on the freshly minified locale files.
+  # Blocks commit if any conversion-critical element is missing or JS has syntax errors.
+  echo "[pre-commit] Running site tests..."
+  if ! "$PY" scripts/test-site.py; then
+    echo "[pre-commit] ERROR: site tests failed — fix the issues above and try again." >&2
+    exit 1
+  fi
+
   # Re-stage the compacted sources, CSS, and all regenerated (minified) locale files.
   git add index.html legal.html css/main.css \
           de/index.html de/legal.html es/index.html es/legal.html fr/index.html fr/legal.html
