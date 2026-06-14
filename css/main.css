@@ -725,6 +725,8 @@ section { padding: 7rem 2rem; }
 .form-divider::before, .form-divider::after {
   content: ''; flex: 1; height: 1px; background: rgba(201,168,76,.15);
 }
+/* Scroll target for enquiry CTAs — clears the fixed nav */
+#enquire { scroll-margin-top: 5rem; }
 /* On desktop inside the pair, the contact-info column already shows WhatsApp above;
    hide the form-col duplicate to keep the layout clean */
 @media (min-width: 769px) {
