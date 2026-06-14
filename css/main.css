@@ -1469,7 +1469,7 @@ footer {
     /* more top padding on mobile (esp. iPhone 15 with Dynamic Island) so the
        club de mar text has extra space below the fixed top bar / nav, while
        keeping eyebrow and title from interfering with nav or each other. */
-    padding-top: max(4rem, env(safe-area-inset-top) + 1.5rem);
+    padding-top: max(5rem, env(safe-area-inset-top) + 1.5rem);
     padding-bottom: max(0.25rem, env(safe-area-inset-bottom));
   }
   .hero-content {
