@@ -712,6 +712,29 @@ section { padding: 7rem 2rem; }
   margin-top: 1.5rem; transition: background .2s;
 }
 .whatsapp-btn:hover { background: #1db954; }
+/* WhatsApp button inside the form column — always full-width, no top margin */
+.form-col-wa {
+  width: 100%; justify-content: center; margin-top: 0;
+}
+/* "or fill in the form" divider between WhatsApp and form */
+.form-divider {
+  display: flex; align-items: center; gap: .75rem;
+  margin: 1.5rem 0 1.25rem;
+  font-size: .55rem; letter-spacing: .18em; text-transform: uppercase; color: var(--text-muted);
+}
+.form-divider::before, .form-divider::after {
+  content: ''; flex: 1; height: 1px; background: rgba(201,168,76,.15);
+}
+/* On desktop inside the pair, the contact-info column already shows WhatsApp above;
+   hide the form-col duplicate to keep the layout clean */
+@media (min-width: 769px) {
+  .form-col-wa, .form-divider { display: none; }
+}
+/* On mobile, contact-info WhatsApp is far above the form — hide it there,
+   show only the one paired with the form */
+@media (max-width: 768px) {
+  .contact-info .whatsapp-btn { display: none; }
+}
 
 /* ── FOOTER ── */
 footer {
