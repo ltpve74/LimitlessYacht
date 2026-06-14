@@ -1048,6 +1048,7 @@ footer {
 .section-cta-desktop .section-cta-text { color: var(--text-muted); font-family: 'Montserrat', sans-serif; font-size: .8rem; letter-spacing: .1em; text-transform: uppercase; margin-bottom: 1.25rem; }
 .section-cta-btns { display: flex; gap: 1.2rem; flex-wrap: wrap; justify-content: center; }
 @media (max-width: 640px) {
+  .form-submit { width: 100%; align-self: stretch; }
   .availability-actions { flex-direction: column; }
   .availability-actions .btn-primary, .availability-actions .btn-ghost { width: 100%; text-align: center; }
   .section-cta { padding: 0 1.2rem 1.5rem; }
