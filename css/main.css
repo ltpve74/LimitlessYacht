@@ -934,8 +934,8 @@ footer {
 
 @media (max-width: 640px) {
   #about { padding-bottom: 3rem; }
-  #gallery { padding-top: 0; padding-bottom: 0; padding-left: 0; padding-right: 0; }
-  #itinerary { padding-top: 0; padding-bottom: 0; padding-left: 0; padding-right: 0; }
+  #gallery { padding-top: 0; padding-bottom: 0; padding-left: 0; padding-right: 0; overflow: hidden; }
+  #itinerary { padding-top: 0; padding-bottom: 0; padding-left: 0; padding-right: 0; min-height: 100svh; overflow: hidden; }
   /* Hide section headers — tabs are the first visible element, matching hero immersion */
   #gallery > .container, #itinerary > .container { display: none !important; height: 0 !important; overflow: hidden !important; margin: 0 !important; padding: 0 !important; }
   #gallery .section-label, #gallery .section-title, #itinerary .section-label, #itinerary .section-title, #itinerary .itinerary-intro { display: none !important; }
