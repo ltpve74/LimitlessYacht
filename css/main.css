@@ -964,6 +964,7 @@ footer {
   /* Hide section headers — tabs are the first visible element, matching hero immersion */
   #gallery > .container, #itinerary > .container { display: none !important; height: 0 !important; overflow: hidden !important; margin: 0 !important; padding: 0 !important; }
   #gallery .section-label, #gallery .section-title, #itinerary .section-label, #itinerary .section-title, #itinerary .itinerary-intro { display: none !important; }
+  #availability { padding-top: 3rem; }
   #specs { padding-top: 3rem; padding-bottom: 2.5rem; }
   #amenities { padding-top: 2.5rem; padding-bottom: 2.5rem; }
   #reviews { padding-top: 3rem; padding-bottom: 4rem; }
