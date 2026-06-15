@@ -1367,7 +1367,10 @@ height="0" width="0" style="display:none;visibility:hidden"></iframe></noscript>
         var waBtn = document.querySelector('.form-col-wa');
         if (waBtn) waBtn.href = 'https://wa.me/34622581486?text=' + encodeURIComponent(lbCta._waMsg);
       }
-      closeLb();
+      /* Close visually without history.back() — native href="#enquire" handles the scroll */
+      destLb.classList.remove('open');
+      document.body.style.overflow = '';
+      try { if (history.state && history.state.lb === 'dest') history.replaceState(null, ''); } catch(e) {}
     });
     destLb.addEventListener('click', function(e) { if (e.target === destLb) closeLb(); });
     document.addEventListener('keydown', function(e) {
