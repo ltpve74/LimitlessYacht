@@ -1264,11 +1264,22 @@ height="0" width="0" style="display:none;visibility:hidden"></iframe></noscript>
       if (wasSwiped) return;
       currentIdx = parseInt(item.dataset.index);
       lbImg.src = images[currentIdx];
-      lightbox.classList.add('open');
+      openGalleryLb();
     });
   });
-  document.getElementById('lightbox-close').addEventListener('click', () => lightbox.classList.remove('open'));
-  lightbox.addEventListener('click', e => { if(e.target === lightbox) lightbox.classList.remove('open'); });
+
+  function openGalleryLb() {
+    lightbox.classList.add('open');
+    if (!history.state || history.state.lb !== 'gallery') { history.pushState({ lb: 'gallery' }, ''); }
+  }
+  function closeGalleryLb() {
+    if (!lightbox.classList.contains('open')) return;
+    lightbox.classList.remove('open');
+    if (history.state && history.state.lb === 'gallery') { history.back(); }
+  }
+
+  document.getElementById('lightbox-close').addEventListener('click', closeGalleryLb);
+  lightbox.addEventListener('click', e => { if(e.target === lightbox) closeGalleryLb(); });
   document.getElementById('lightbox-prev').addEventListener('click', () => {
     currentIdx = (currentIdx - 1 + images.length) % images.length;
     lbImg.src = images[currentIdx];
@@ -1279,7 +1290,7 @@ height="0" width="0" style="display:none;visibility:hidden"></iframe></noscript>
   });
   document.addEventListener('keydown', e => {
     if (!lightbox.classList.contains('open')) return;
-    if (e.key === 'Escape') lightbox.classList.remove('open');
+    if (e.key === 'Escape') closeGalleryLb();
     if (e.key === 'ArrowLeft') { currentIdx=(currentIdx-1+images.length)%images.length; lbImg.src=images[currentIdx]; }
     if (e.key === 'ArrowRight') { currentIdx=(currentIdx+1)%images.length; lbImg.src=images[currentIdx]; }
   });
@@ -1320,11 +1331,14 @@ height="0" width="0" style="display:none;visibility:hidden"></iframe></noscript>
         : 'Hi, I\'d like to enquire about a charter on Limitless.';
       destLb.classList.add('open');
       document.body.style.overflow = 'hidden';
+      if (!history.state || history.state.lb !== 'dest') { history.pushState({ lb: 'dest' }, ''); }
     }
 
     function closeLb() {
+      if (!destLb.classList.contains('open')) return;
       destLb.classList.remove('open');
       document.body.style.overflow = '';
+      if (history.state && history.state.lb === 'dest') { history.back(); }
     }
 
     lbClose.addEventListener('click', closeLb);
@@ -1358,6 +1372,13 @@ height="0" width="0" style="display:none;visibility:hidden"></iframe></noscript>
       });
     });
   })();
+
+  // Back button closes whichever lightbox is open instead of navigating away
+  window.addEventListener('popstate', function() {
+    if (lightbox.classList.contains('open')) lightbox.classList.remove('open');
+    var dLb = document.getElementById('dest-lightbox');
+    if (dLb && dLb.classList.contains('open')) { dLb.classList.remove('open'); document.body.style.overflow = ''; }
+  });
 
   // Set date min to tomorrow so past/today dates can't be submitted
   (function(){
