@@ -1373,7 +1373,8 @@ height="0" width="0" style="display:none;visibility:hidden"></iframe></noscript>
   })();
 
   // Form submission via Netlify Forms
-  document.getElementById('contactForm').addEventListener('submit', async function(e) {
+  var _cf = document.getElementById('contactForm');
+  if (_cf) _cf.addEventListener('submit', async function(e) {
     e.preventDefault();
     const btn = document.getElementById('submitBtn');
     const successEl = document.getElementById('form-success');
@@ -1782,9 +1783,11 @@ height="0" width="0" style="display:none;visibility:hidden"></iframe></noscript>
       }
       var top = scrollTarget.getBoundingClientRect().top + window.pageYOffset - navH() - 8;
       window.scrollTo({ top: top, behavior: 'smooth' });
-      history.pushState(null, '', hash);
       var tierMap = {'#half-day':'half-day','#full-day':'full-day','#multi-day':'multi-day'};
-      if (tierMap[hash] && window._setDestTab) window._setDestTab(tierMap[hash]);
+      if (tierMap[hash]) {
+        history.pushState(null, '', hash);
+        if (window._setDestTab) window._setDestTab(tierMap[hash]);
+      }
     } catch(err) {}
   }, { passive: false });
 }catch(e){}})();
