@@ -900,6 +900,61 @@ PAIRS = [
         'Chat on WhatsApp',
         'Discuter sur WhatsApp',
     ),
+    # --- missing translations (2026 gap-fill) ---
+    # Trust line — must come before short ("Crew","Équipage") pair to avoid garbling "Crewed"
+    ('Verified reviews on Click&amp;Boat · Crewed &amp; fully equipped', 'Avis vérifiés sur Click&amp;Boat · Avec équipage &amp; entièrement équipé'),
+    # Nav Enquire links (not the CTA buttons)
+    ('href="#contact">Enquire</a>', 'href="#contact">Demander</a>'),
+    ('href="#enquire" onclick="closeMobile()">Enquire</a>', 'href="#enquire" onclick="closeMobile()">Demander</a>'),
+    ('>Destinations</a>', '>Destinations</a>'),
+    ('onclick="closeMobile()">Destinations</a>', 'onclick="closeMobile()">Destinations</a>'),
+    ('aria-label="Close menu"', 'aria-label="Fermer le menu"'),
+    # Hero ghost button and itinerary CTA
+    ('>Meet The Yacht</a>', '>Découvrir le yacht</a>'),
+    ('Meet The Yacht →', 'Découvrir le yacht →'),
+    # Itinerary section
+    ('aria-label="Charter duration"', 'aria-label="Durée du charter"'),
+    ('aria-label="Previous destination"', 'aria-label="Destination précédente"'),
+    ('aria-label="Next destination"', 'aria-label="Destination suivante"'),
+    ("Seen somewhere you'd love to go? Now meet the yacht that takes you there.", "Vous avez repéré un endroit qui vous fait rêver ? Découvrez maintenant le yacht qui vous y emmène."),
+    # Gallery section
+    ('aria-label="Gallery category"', 'aria-label="Catégorie de galerie"'),
+    ('aria-label="Previous"', 'aria-label="Précédent"'),
+    ('aria-label="Next"', 'aria-label="Suivant"'),
+    ('ENQUIRE NOW →', 'DEMANDER MAINTENANT →'),
+    # Destination lightbox
+    ('aria-label="Destination details"', 'aria-label="Détails de la destination"'),
+    # Pricing section — new enquiry-card layout
+    ('class="section-label reveal">Enquire<', 'class="section-label reveal">Demander<'),
+    ('Charter Your<em> Way</em>', 'Votre charter<em> à votre façon</em>'),
+    ("From a sun-soaked morning to a week at anchor — every charter is built around you. Tell us your dates and we'll craft the perfect itinerary within 24 hours.", "D'une matinée ensoleillée à une semaine au mouillage — chaque charter est conçu autour de vous. Indiquez-nous vos dates et nous créerons l'itinéraire parfait en 24 heures."),
+    ('4 – 6 Hours', '4 – 6 heures'),
+    ('8 – 10 Hours', '8 – 10 heures'),
+    ('2 – 3 Days', '2 – 3 jours'),
+    ('4 Days +', '4 jours +'),
+    ('Weekend Escape', 'Escapade du week-end'),
+    ('Extended Journey', 'Voyage prolongé'),
+    ('A morning cruise, a sunset sail, or a midday swim stop. Perfect for a taste of the Mediterranean without committing a full day.', "Une croisière matinale, une sortie au coucher du soleil ou un arrêt baignade à midi. Parfait pour découvrir la Méditerranée sans consacrer une journée entière."),
+    ('Explore two or three destinations, swim in crystal-clear coves, and dine on board. The most popular way to experience the coast.', "Explorez deux ou trois destinations, nagez dans des criques aux eaux limpides et déjeunez à bord. La façon la plus populaire de découvrir la côte."),
+    ('Sleep under the stars and wake in a new bay each morning. Ideal for a birthday, anniversary, or simply switching off properly.', "Dormez sous les étoiles et réveillez-vous dans une nouvelle baie chaque matin. Idéal pour un anniversaire ou pour vraiment décrocher."),
+    ("Island-hop at your own pace — Formentera, Ibiza, Menorca or Mallorca's remotest coves. Your route, entirely bespoke.", "Sautez d'île en île à votre rythme — Formentera, Ibiza, Minorque ou les criques les plus reculées de Majorque. Votre itinéraire, entièrement sur mesure."),
+    ('>Enquire →</span>', '>Demander →</span>'),
+    ('Get Your Free Quote', 'Obtenir votre devis gratuit'),
+    ("Available year-round &nbsp;·&nbsp; Rates vary by season &nbsp;·&nbsp; We respond within 24 hours", "Disponible toute l'année &nbsp;·&nbsp; Tarifs variables selon la saison &nbsp;·&nbsp; Nous répondons en 24 heures"),
+    ('All charters include', 'Tous les charters comprennent'),
+    ('VAT included', 'TVA incluse'),
+    ('Crew &amp; cleaning', 'Équipage &amp; nettoyage'),
+    ('Fuel for half-day charters', 'Carburant inclus pour les demi-journées'),
+    ('Catering &amp; beach clubs on request', 'Traiteur &amp; beach clubs sur demande'),
+    ('Provisioning &amp; mooring extra on multi-day', 'Avitaillement &amp; amarrage en sus sur plusieurs jours'),
+    # Contact section — new layout
+    ('>Get a Quote<', '>Obtenir un devis<'),
+    ('Request<em> Your Quote</em>', 'Demandez<em> votre devis</em>'),
+    ("Tell us about your group, preferred dates, and the experience you're after. We'll get back to you with a personalised quote within 24 hours — no commitment required.", "Parlez-nous de votre groupe, de vos dates préférées et de l'expérience recherchée. Nous vous répondrons avec un devis personnalisé en 24 heures — sans engagement."),
+    ('or fill in the form', 'ou remplissez le formulaire'),
+    ('placeholder="First and last name"', 'placeholder="Prénom et nom"'),
+    # Specs section CTA
+    ("Ready to plan your charter? We'll have a quote back within 24 hours.", 'Prêt à planifier votre charter ? Nous vous enverrons un devis en 24 heures.'),
 
 ]
 
