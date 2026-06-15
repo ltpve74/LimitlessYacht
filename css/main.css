@@ -1017,9 +1017,14 @@ footer {
   }
   /* Show only 2 months — 3 don't fit in a 50% column */
   .contact-cal-pair .cal-month:nth-child(n+3) { display: none; }
-  /* Drop verbose intro + action buttons — form is right there */
-  .contact-cal-pair #availability .availability-intro,
-  .contact-cal-pair #availability .availability-actions { display: none; }
+  /* Drop verbose intro text — form is right there */
+  .contact-cal-pair #availability .availability-intro { display: none; }
+  /* Show action buttons stacked in the narrower paired column */
+  .contact-cal-pair #availability .availability-actions {
+    flex-direction: column; gap: 0.75rem; margin-top: 1.5rem;
+  }
+  .contact-cal-pair #availability .availability-actions .btn-primary,
+  .contact-cal-pair #availability .availability-actions .btn-ghost { text-align: center; }
 }
 
 /* ── AVAILABILITY ── */
@@ -1169,12 +1174,7 @@ footer {
   .intro-num { font-size: 1.8rem; }
   .intro-label { font-size: .48rem; }
 
-  .itinerary-grid { grid-template-columns: 1fr; }
-  .itinerary-wrap {
-    margin-left: -2rem !important;
-    margin-right: -2rem !important;
-    padding: 0 !important;
-  }
+  .itinerary-grid { grid-template-columns: repeat(2, 1fr); }
   .destination-card { min-height: 380px; }
   .dest-tier { font-size: .72rem; letter-spacing: .1em; margin: 1.5rem 0 .4rem; padding-left: 2.5rem; padding-right: 1.5rem; }
   .dest-tier .tier-note { display: block; margin-top: .25rem; letter-spacing: .06em; }
