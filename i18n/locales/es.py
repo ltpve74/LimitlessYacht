@@ -919,7 +919,7 @@ PAIRS = [
     # Trust line — must come before short ("Crew","Tripulación") pair to avoid garbling "Crewed"
     ('Verified reviews on Click&amp;Boat · Crewed &amp; fully equipped', 'Reseñas verificadas en Click&amp;Boat · Con tripulación &amp; totalmente equipado'),
     # Nav Enquire links (not the CTA buttons)
-    ('href="#contact">Enquire</a>', 'href="#contact">Consultar</a>'),
+    ('href="#enquire">Enquire</a>', 'href="#enquire">Consultar</a>'),
     ('href="#enquire" onclick="closeMobile()">Enquire</a>', 'href="#enquire" onclick="closeMobile()">Consultar</a>'),
     ('aria-label="Close menu"', 'aria-label="Cerrar menú"'),
     # Hero ghost button and itinerary CTA
