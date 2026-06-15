@@ -922,6 +922,8 @@ PAIRS = [
     ('aria-label="Previous"', 'aria-label="Précédent"'),
     ('aria-label="Next"', 'aria-label="Suivant"'),
     ('ENQUIRE NOW →', 'DEMANDER MAINTENANT →'),
+    ("Liked what you see? Start planning your charter.", "Vous aimez ce que vous voyez ? Commencez à planifier votre charter."),
+    ("Ready to create your own story on the water?", "Prêt à écrire votre propre histoire sur l'eau ?"),
     # Destination lightbox
     ('aria-label="Destination details"', 'aria-label="Détails de la destination"'),
     # Pricing section — new enquiry-card layout
