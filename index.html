@@ -1779,51 +1779,5 @@ height="0" width="0" style="display:none;visibility:hidden"></iframe></noscript>
   for(var i=0;i<ls.length;i++){(function(a){a.addEventListener('click',function(){try{localStorage.setItem('ly_lang',a.getAttribute('hreflang'));}catch(e){}});})(ls[i]);}
 }catch(e){}})();
 </script>
-<script>
-/* Intercept internal anchor clicks and use programmatic scroll instead of native
-   hash navigation — avoids triggering Safari's auto-show toolbar on iOS */
-(function(){try{
-  var nav = document.querySelector('nav');
-  function navH() { return nav ? nav.getBoundingClientRect().height : 60; }
-  document.addEventListener('click', function(e) {
-    var a, hash, target;
-    try {
-      a = e.target.closest('a[href^="#"]');
-      if (!a) return;
-      hash = a.getAttribute('href');
-      if (!hash || hash === '#') return;
-      target = document.querySelector(hash);
-      if (!target) return;
-    } catch(err) { return; }
-    e.preventDefault();
-    try {
-      /* #enquire uses CSS scroll-margin-top per viewport — let the browser handle it natively */
-      if (hash === '#enquire') { target.scrollIntoView(); return; }
-      var scrollTarget = target;
-      if (hash === '#pricing' && window.innerWidth <= 768) {
-        var grid = document.querySelector('.enquiry-grid');
-        if (grid) scrollTarget = grid;
-      }
-      if (hash === '#itinerary' && window.innerWidth <= 768) {
-        var destTabs = document.querySelector('.dest-tabs');
-        if (destTabs) scrollTarget = destTabs;
-      }
-      if (hash === '#gallery' && window.innerWidth <= 768) {
-        var galleryTabs = document.querySelector('.gallery-tabs');
-        if (galleryTabs) scrollTarget = galleryTabs;
-      }
-      var top = scrollTarget.getBoundingClientRect().top + window.pageYOffset - navH() - 8;
-      window.scrollTo({ top: top, behavior: 'smooth' });
-      var tierMap = {'#half-day':'half-day','#full-day':'full-day','#multi-day':'multi-day'};
-      if (tierMap[hash]) {
-        history.pushState(null, '', hash);
-        if (window._setDestTab) window._setDestTab(tierMap[hash]);
-      }
-    } catch(err) {}
-  }, { passive: false });
-}catch(e){}})();
-</script>
-<script>
-</script>
 </body>
 </html>
