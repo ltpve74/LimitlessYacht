@@ -1811,6 +1811,9 @@ height="0" width="0" style="display:none;visibility:hidden"></iframe></noscript>
         if (galleryTabs) scrollTarget = galleryTabs;
       }
       var top = scrollTarget.getBoundingClientRect().top + window.pageYOffset - navH() - 8;
+      if (hash === '#enquire' && window.innerWidth >= 769 && window.innerHeight >= 840) {
+        top -= 352; /* match scroll-margin-top: 22rem — show section heading on tall viewports */
+      }
       window.scrollTo({ top: top, behavior: 'smooth' });
       var tierMap = {'#half-day':'half-day','#full-day':'full-day','#multi-day':'multi-day'};
       if (tierMap[hash]) {
