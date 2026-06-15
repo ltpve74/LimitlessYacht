@@ -1582,11 +1582,14 @@ footer {
 /* ── ENQUIRE SECTION — VIEWPORT-AWARE LANDING ── */
 /* scroll-margin-top offsets the zero-height #enquire anchor so the section heading
    (label, title, paragraph, WhatsApp button) appears above the form on viewports
-   tall enough to fit both without clipping the form at the bottom.
+   tall enough to fit both without clipping the form at the bottom. */
 
-   641–768px portrait tablets (hamburger nav, ~80px scroll-padding-top):
-     contact-info (no WA, ~199px) + grid-gap (3.5rem/56px) ≈ 255px → 16rem
-     min-height 900px ensures form (≈475px) still fits below. */
+/* Base breathing room on all viewports — overridden by tall-viewport rules below */
+#enquire { scroll-margin-top: 2rem; }
+
+/* 641–768px portrait tablets (hamburger nav, ~80px scroll-padding-top):
+   contact-info (no WA, ~199px) + grid-gap (3.5rem/56px) ≈ 255px → 16rem
+   min-height 900px ensures form (≈475px) still fits below. */
 @media (min-width: 641px) and (max-width: 768px) and (min-height: 900px) {
   #enquire { scroll-margin-top: 16rem; }
 }
