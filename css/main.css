@@ -1215,6 +1215,7 @@ footer {
   .spec-cruise .spec-value { font-size: 0.9rem; line-height: 1.25; }
   .amenities-grid { grid-template-columns: 1fr; }
   #pricing { padding-top: 1.75rem; padding-bottom: 2.5rem; }
+  #contact { padding-top: 3rem; }
   #pricing .section-label { display: none; }
   #pricing .section-title { margin-bottom: .3rem; }
   .enquiry-grid { grid-template-columns: 1fr; gap: .75rem; margin-top: 1.5rem; }
