@@ -1351,8 +1351,8 @@ j=d.createElement(s),dl=l!='dataLayer'?'&l='+l:'';j.async=true;j.crossOrigin='an
   /* Touch-only devices (tablets/phones — no hover): hamburger */
   @media (max-width: 950px) and (hover: none) {
     html { scroll-padding-top: 4rem; }
-    #hero { scroll-margin-top: -4rem; }
-    .reveal { transform: none; }
+    #hero { scroll-margin-top: -4rem; } /* hero is at y=0; neutralise scroll-padding so nav-logo always lands at scrollY=0 */
+    .reveal { transform: none; } /* drop translateY on touch — keeps fade but stops content appearing 40px below its anchor position */
     nav {
       display: flex;
       flex-wrap: nowrap;
@@ -1699,8 +1699,8 @@ j=d.createElement(s),dl=l!='dataLayer'?'&l='+l:'';j.async=true;j.crossOrigin='an
       padding: 0.3rem;
     }
   }
-  /* Hero: shorter on mobile to reveal content below the fold */
-  @media (max-width: 768px) {
+  /* Hero: mobile layout for phones (any input) and touch-only tablets ≤950px */
+  @media (max-width: 640px), (max-width: 950px) and (hover: none) {
     #hero {
       min-height: 100dvh;
       min-height: 520px;
@@ -1746,7 +1746,7 @@ j=d.createElement(s),dl=l!='dataLayer'?'&l='+l:'';j.async=true;j.crossOrigin='an
     .scroll-line { height: 40px; }
     .hero-scroll span { font-size: .52rem; }
 
-    /* More responsive buttons on larger phones (481-768px): row layout for the bottom-anchored cluster */
+    /* Small phones (481-640px): row layout for the bottom-anchored cluster */
     @media (min-width: 481px) {
       .hero-actions {
         flex-direction: row;
@@ -1821,13 +1821,13 @@ height="0" width="0" style="display:none;visibility:hidden"></iframe></noscript>
   </ul>
   <div class="nav-end">
     <div class="nav-lang">
-      <button class="nav-lang-btn" id="langBtn" aria-expanded="false" aria-haspopup="true" aria-label="Sprache auswählen">
-        <span class="nav-lang-current">DE</span>
+      <button class="nav-lang-btn" id="langBtn" aria-expanded="false" aria-haspopup="true" aria-label="Select language">
+        <span class="nav-lang-current">EN</span>
         <svg class="nav-lang-chevron" width="7" height="4" viewBox="0 0 7 4" fill="none" aria-hidden="true"><path d="M.5.5 3.5 3.5l3-3" stroke="currentColor" stroke-width="1.2" stroke-linecap="round" stroke-linejoin="round"/></svg>
       </button>
       <div class="nav-lang-popup" id="langPopup" hidden>
-        <a href="/" hreflang="en" lang="en">EN <span>English</span></a>
-        <a href="/de/" hreflang="de" class="active" lang="de">DE <span>Deutsch</span></a>
+        <a href="/" hreflang="en" class="active" lang="en">EN <span>English</span></a>
+        <a href="/de/" hreflang="de" lang="de">DE <span>Deutsch</span></a>
         <a href="/fr/" hreflang="fr" lang="fr">FR <span>Français</span></a>
         <a href="/es/" hreflang="es" lang="es">ES <span>Español</span></a>
       </div>
@@ -1841,7 +1841,7 @@ height="0" width="0" style="display:none;visibility:hidden"></iframe></noscript>
 
 <!-- MOBILE NAV -->
 <div class="mobile-nav" id="mobileNav" role="dialog" aria-modal="true" aria-label="Seitenmenü" hidden>
-  <button type="button" class="mobile-nav-close" id="mobileSchließen" aria-label="Schließen menu">✕</button>
+  <button type="button" class="mobile-nav-close" id="mobileSchließen" aria-label="Menü schließen">✕</button>
   <a href="#contact" class="mobile-nav-cta" onclick="closeMobile()">Anfragen</a>
   <a href="#about" onclick="closeMobile()">Über uns</a>
   <a href="#gallery" onclick="closeMobile()">Galerie</a>
@@ -1931,7 +1931,7 @@ height="0" width="0" style="display:none;visibility:hidden"></iframe></noscript>
     <h2 class="section-title reveal reveal-delay-1">Galerie <em>an Bord</em></h2>
   </div>
   <div class="gallery-wrap" style="max-width:1400px;margin:0 auto;padding:0 2rem;">
-    <div class="gallery-tabs" role="tablist" aria-label="Gallery category">
+    <div class="gallery-tabs" role="tablist" aria-label="Galerie-Kategorie">
       <button class="gallery-tab tab--active" role="tab" data-gtab="water">Auf dem Wasser</button>
       <button class="gallery-tab" role="tab" data-gtab="deck">Leben an Deck</button>
       <button class="gallery-tab" role="tab" data-gtab="interior">Innenräume</button>
@@ -1951,9 +1951,9 @@ height="0" width="0" style="display:none;visibility:hidden"></iframe></noscript>
         </div>
       </div>
       <div class="carousel-nav">
-        <button class="carousel-btn carousel-prev" aria-label="Previous">&#8249;</button>
+        <button class="carousel-btn carousel-prev" aria-label="Zurück">&#8249;</button>
         <span class="carousel-pos"></span>
-        <button class="carousel-btn carousel-next" aria-label="Next">&#8250;</button>
+        <button class="carousel-btn carousel-next" aria-label="Weiter">&#8250;</button>
       </div>
     </div>
 
@@ -1974,9 +1974,9 @@ height="0" width="0" style="display:none;visibility:hidden"></iframe></noscript>
         </div>
       </div>
       <div class="carousel-nav">
-        <button class="carousel-btn carousel-prev" aria-label="Previous">&#8249;</button>
+        <button class="carousel-btn carousel-prev" aria-label="Zurück">&#8249;</button>
         <span class="carousel-pos"></span>
-        <button class="carousel-btn carousel-next" aria-label="Next">&#8250;</button>
+        <button class="carousel-btn carousel-next" aria-label="Weiter">&#8250;</button>
       </div>
     </div>
 
@@ -2009,9 +2009,9 @@ height="0" width="0" style="display:none;visibility:hidden"></iframe></noscript>
         </div>
       </div>
       <div class="carousel-nav">
-        <button class="carousel-btn carousel-prev" aria-label="Previous">&#8249;</button>
+        <button class="carousel-btn carousel-prev" aria-label="Zurück">&#8249;</button>
         <span class="carousel-pos"></span>
-        <button class="carousel-btn carousel-next" aria-label="Next">&#8250;</button>
+        <button class="carousel-btn carousel-next" aria-label="Weiter">&#8250;</button>
       </div>
     </div>
     <div class="section-cta reveal">
@@ -2032,7 +2032,7 @@ height="0" width="0" style="display:none;visibility:hidden"></iframe></noscript>
     <p class="itinerary-intro reveal reveal-delay-2">Jede Route richtet sich nach Ihrer Gruppe — die folgenden Vorschläge sind ein Ausgangspunkt. Um den Rest kümmert sich Ihre Crew.</p>
   </div>
   <div class="itinerary-wrap" style="max-width:1400px;margin:0 auto;padding:0 2rem;">
-    <div class="dest-tabs reveal reveal-delay-2" role="tablist" aria-label="Charter duration">
+    <div class="dest-tabs reveal reveal-delay-2" role="tablist" aria-label="Charter-Dauer">
       <button class="dest-tab" role="tab" data-tier="half-day" id="half-day" aria-selected="true">
         Halbtags<span class="tab-period">4 – 6 Stunden</span>
       </button>
@@ -2106,9 +2106,9 @@ height="0" width="0" style="display:none;visibility:hidden"></iframe></noscript>
         </div>
       </div>
       <div class="carousel-nav">
-        <button class="carousel-btn carousel-prev" aria-label="Previous destination">&#8249;</button>
+        <button class="carousel-btn carousel-prev" aria-label="Vorheriges Ziel">&#8249;</button>
         <span class="carousel-pos"></span>
-        <button class="carousel-btn carousel-next" aria-label="Next destination">&#8250;</button>
+        <button class="carousel-btn carousel-next" aria-label="Nächstes Ziel">&#8250;</button>
       </div>
     </div>
 
@@ -2212,9 +2212,9 @@ height="0" width="0" style="display:none;visibility:hidden"></iframe></noscript>
         </div>
       </div>
       <div class="carousel-nav">
-        <button class="carousel-btn carousel-prev" aria-label="Previous destination">&#8249;</button>
+        <button class="carousel-btn carousel-prev" aria-label="Vorheriges Ziel">&#8249;</button>
         <span class="carousel-pos"></span>
-        <button class="carousel-btn carousel-next" aria-label="Next destination">&#8250;</button>
+        <button class="carousel-btn carousel-next" aria-label="Nächstes Ziel">&#8250;</button>
       </div>
     </div>
 
@@ -2299,9 +2299,9 @@ height="0" width="0" style="display:none;visibility:hidden"></iframe></noscript>
         </div>
       </div>
       <div class="carousel-nav">
-        <button class="carousel-btn carousel-prev" aria-label="Previous destination">&#8249;</button>
+        <button class="carousel-btn carousel-prev" aria-label="Vorheriges Ziel">&#8249;</button>
         <span class="carousel-pos"></span>
-        <button class="carousel-btn carousel-next" aria-label="Next destination">&#8250;</button>
+        <button class="carousel-btn carousel-next" aria-label="Nächstes Ziel">&#8250;</button>
       </div>
     </div>
 
@@ -2767,7 +2767,7 @@ height="0" width="0" style="display:none;visibility:hidden"></iframe></noscript>
 
           <div class="form-field">
             <label for="name">Ihr Name</label>
-            <input type="text" name="name" id="name" placeholder="First and last name" required />
+            <input type="text" name="name" id="name" placeholder="Vor- und Nachname" required />
           </div>
           <div class="form-field">
             <label for="email">E-Mail</label>
@@ -2854,6 +2854,7 @@ height="0" width="0" style="display:none;visibility:hidden"></iframe></noscript>
     if (window.innerWidth > 950 && mobileNav.classList.contains('open')) closeMobile();
   });
 
+  // Language popup
   const langBtn = document.getElementById('langBtn');
   const langPopup = document.getElementById('langPopup');
   if (langBtn && langPopup) {
@@ -3005,7 +3006,8 @@ height="0" width="0" style="display:none;visibility:hidden"></iframe></noscript>
   })();
 
   // Form submission via Netlify Forms
-  document.getElementById('contactForm').addEventListener('submit', async function(e) {
+  var _cf = document.getElementById('contactForm');
+  if (_cf) _cf.addEventListener('submit', async function(e) {
     e.preventDefault();
     const btn = document.getElementById('submitBtn');
     const successEl = document.getElementById('form-success');
@@ -3465,9 +3467,11 @@ height="0" width="0" style="display:none;visibility:hidden"></iframe></noscript>
       }
       var top = scrollTarget.getBoundingClientRect().top + window.pageYOffset - navH() - 8;
       window.scrollTo({ top: top, behavior: 'smooth' });
-      history.pushState(null, '', hash);
       var tierMap = {'#half-day':'half-day','#full-day':'full-day','#multi-day':'multi-day'};
-      if (tierMap[hash] && window._setDestTab) window._setDestTab(tierMap[hash]);
+      if (tierMap[hash]) {
+        history.pushState(null, '', hash);
+        if (window._setDestTab) window._setDestTab(tierMap[hash]);
+      }
     } catch(err) {}
   }, { passive: false });
 }catch(e){}})();
