@@ -25,6 +25,9 @@ html {
   overscroll-behavior: none; /* must be on html (root) to control iOS viewport rubber-band bounce */
   overflow-x: clip; /* clip at the viewport scroll container, not just body */
 }
+@media (prefers-reduced-motion: no-preference) {
+  html { scroll-behavior: smooth; }
+}
 
 body {
   background: var(--navy);
@@ -1576,10 +1579,20 @@ footer {
 
 /* ── PRICING TABS (mobile toggle — display:none overridden inside max-width:768px block above) ── */
 
-/* ── ENQUIRE SECTION — TALL VIEWPORT OFFSET ── */
-/* On ≥769px viewports tall enough to fit the section heading + form without clipping,
-   push the #enquire span down so the heading (label, title, paragraph, WhatsApp)
-   appears above the form in the viewport. 22rem ≈ 352px = contact-info height + grid gap. */
+/* ── ENQUIRE SECTION — VIEWPORT-AWARE LANDING ── */
+/* scroll-margin-top offsets the zero-height #enquire anchor so the section heading
+   (label, title, paragraph, WhatsApp button) appears above the form on viewports
+   tall enough to fit both without clipping the form at the bottom.
+
+   641–768px portrait tablets (hamburger nav, ~80px scroll-padding-top):
+     contact-info (no WA, ~199px) + grid-gap (3.5rem/56px) ≈ 255px → 16rem
+     min-height 900px ensures form (≈475px) still fits below. */
+@media (min-width: 641px) and (max-width: 768px) and (min-height: 900px) {
+  #enquire { scroll-margin-top: 16rem; }
+}
+/* ≥769px pair layout (two-row nav, 6.25rem scroll-padding-top on 769–1100px):
+   contact-info (WITH WA, ~312px) + grid-gap (2.5rem/40px) ≈ 352px → 22rem
+   min-height 840px ensures form (≈388px) still fits below. */
 @media (min-width: 769px) and (min-height: 840px) {
   #enquire { scroll-margin-top: 22rem; }
 }
