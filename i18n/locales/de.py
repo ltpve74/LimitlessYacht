@@ -917,7 +917,7 @@ PAIRS = [
     ),
     # --- missing translations (2026 gap-fill) ---
     # Nav Enquire links (not the CTA buttons)
-    ('href="#contact">Enquire</a>', 'href="#contact">Anfragen</a>'),
+    ('href="#enquire">Enquire</a>', 'href="#enquire">Anfragen</a>'),
     ('href="#enquire" onclick="closeMobile()">Enquire</a>', 'href="#enquire" onclick="closeMobile()">Anfragen</a>'),
     ('aria-label="Close menu"', 'aria-label="Menü schließen"'),
     # Hero ghost button and itinerary CTA

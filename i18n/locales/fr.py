@@ -904,7 +904,7 @@ PAIRS = [
     # Trust line — must come before short ("Crew","Équipage") pair to avoid garbling "Crewed"
     ('Verified reviews on Click&amp;Boat · Crewed &amp; fully equipped', 'Avis vérifiés sur Click&amp;Boat · Avec équipage &amp; entièrement équipé'),
     # Nav Enquire links (not the CTA buttons)
-    ('href="#contact">Enquire</a>', 'href="#contact">Demander</a>'),
+    ('href="#enquire">Enquire</a>', 'href="#enquire">Demander</a>'),
     ('href="#enquire" onclick="closeMobile()">Enquire</a>', 'href="#enquire" onclick="closeMobile()">Demander</a>'),
     ('>Destinations</a>', '>Destinations</a>'),
     ('onclick="closeMobile()">Destinations</a>', 'onclick="closeMobile()">Destinations</a>'),
