@@ -915,6 +915,59 @@ PAIRS = [
         'Chat on WhatsApp',
         'Chatear por WhatsApp',
     ),
+    # --- missing translations (2026 gap-fill) ---
+    # Trust line — must come before short ("Crew","Tripulación") pair to avoid garbling "Crewed"
+    ('Verified reviews on Click&amp;Boat · Crewed &amp; fully equipped', 'Reseñas verificadas en Click&amp;Boat · Con tripulación &amp; totalmente equipado'),
+    # Nav Enquire links (not the CTA buttons)
+    ('href="#contact">Enquire</a>', 'href="#contact">Consultar</a>'),
+    ('href="#enquire" onclick="closeMobile()">Enquire</a>', 'href="#enquire" onclick="closeMobile()">Consultar</a>'),
+    ('aria-label="Close menu"', 'aria-label="Cerrar menú"'),
+    # Hero ghost button and itinerary CTA
+    ('>Meet The Yacht</a>', '>Conoce el yate</a>'),
+    ('Meet The Yacht →', 'Conoce el yate →'),
+    # Itinerary section
+    ('aria-label="Charter duration"', 'aria-label="Duración del charter"'),
+    ('aria-label="Previous destination"', 'aria-label="Destino anterior"'),
+    ('aria-label="Next destination"', 'aria-label="Destino siguiente"'),
+    ("Seen somewhere you'd love to go? Now meet the yacht that takes you there.", '¿Ha visto un lugar al que le encantaría ir? Conozca ahora el yate que le llevará allí.'),
+    # Gallery section
+    ('aria-label="Gallery category"', 'aria-label="Categoría de galería"'),
+    ('aria-label="Previous"', 'aria-label="Anterior"'),
+    ('aria-label="Next"', 'aria-label="Siguiente"'),
+    ('ENQUIRE NOW →', 'CONSULTAR AHORA →'),
+    # Destination lightbox
+    ('aria-label="Destination details"', 'aria-label="Detalles del destino"'),
+    # Pricing section — new enquiry-card layout
+    ('class="section-label reveal">Enquire<', 'class="section-label reveal">Consultar<'),
+    ('Charter Your<em> Way</em>', 'Tu chárter<em> a tu manera</em>'),
+    ("From a sun-soaked morning to a week at anchor — every charter is built around you. Tell us your dates and we'll craft the perfect itinerary within 24 hours.", 'Desde una mañana soleada hasta una semana fondeados — cada chárter está diseñado para usted. Cuéntenos sus fechas y prepararemos el itinerario perfecto en 24 horas.'),
+    ('4 – 6 Hours', '4 – 6 horas'),
+    ('8 – 10 Hours', '8 – 10 horas'),
+    ('2 – 3 Days', '2 – 3 días'),
+    ('4 Days +', '4 días +'),
+    ('Weekend Escape', 'Escapada de fin de semana'),
+    ('Extended Journey', 'Viaje prolongado'),
+    ('A morning cruise, a sunset sail, or a midday swim stop. Perfect for a taste of the Mediterranean without committing a full day.', 'Un paseo matutino, una salida al atardecer o una parada de baño a mediodía. Perfecto para disfrutar del Mediterráneo sin dedicar el día entero.'),
+    ('Explore two or three destinations, swim in crystal-clear coves, and dine on board. The most popular way to experience the coast.', 'Explore dos o tres destinos, nade en calas de aguas cristalinas y cene a bordo. La forma más popular de disfrutar de la costa.'),
+    ('Sleep under the stars and wake in a new bay each morning. Ideal for a birthday, anniversary, or simply switching off properly.', 'Duerma bajo las estrellas y despierte en una bahía diferente cada mañana. Ideal para un cumpleaños, aniversario o simplemente para desconectar de verdad.'),
+    ("Island-hop at your own pace — Formentera, Ibiza, Menorca or Mallorca's remotest coves. Your route, entirely bespoke.", 'Isla a isla a su propio ritmo — Formentera, Ibiza, Menorca o las calas más remotas de Mallorca. Su ruta, enteramente a medida.'),
+    ('>Enquire →</span>', '>Consultar →</span>'),
+    ('Get Your Free Quote', 'Obtenga su presupuesto gratuito'),
+    ('Available year-round &nbsp;·&nbsp; Rates vary by season &nbsp;·&nbsp; We respond within 24 hours', 'Disponible todo el año &nbsp;·&nbsp; Los precios varían según la temporada &nbsp;·&nbsp; Respondemos en 24 horas'),
+    ('All charters include', 'Todos los chárteres incluyen'),
+    ('VAT included', 'IVA incluido'),
+    ('Crew &amp; cleaning', 'Tripulación &amp; limpieza'),
+    ('Fuel for half-day charters', 'Combustible para chárteres de medio día'),
+    ('Catering &amp; beach clubs on request', 'Catering &amp; beach clubs bajo petición'),
+    ('Provisioning &amp; mooring extra on multi-day', 'Aprovisionamiento &amp; amarre extra en travesías de varios días'),
+    # Contact section — new layout
+    ('>Get a Quote<', '>Solicitar presupuesto<'),
+    ('Request<em> Your Quote</em>', 'Solicite<em> su presupuesto</em>'),
+    ("Tell us about your group, preferred dates, and the experience you're after. We'll get back to you with a personalised quote within 24 hours — no commitment required.", 'Cuéntenos sobre su grupo, las fechas preferidas y la experiencia que busca. Le responderemos con un presupuesto personalizado en 24 horas — sin compromiso.'),
+    ('or fill in the form', 'o rellene el formulario'),
+    ('placeholder="First and last name"', 'placeholder="Nombre y apellidos"'),
+    # Specs section CTA
+    ("Ready to plan your charter? We'll have a quote back within 24 hours.", 'Listo para planificar su chárter. Le enviaremos un presupuesto en 24 horas.'),
 
 ]
 
