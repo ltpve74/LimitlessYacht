@@ -1587,6 +1587,14 @@ footer {
 /* Base breathing room on all viewports — overridden by tall-viewport rules below */
 #enquire { scroll-margin-top: 2rem; }
 
+/* ≤640px tall phones (scroll-padding-top: 4.9rem):
+   section-padding(3rem/48px) + contact-info(~215px) + grid-gap(2.5rem/40px) ≈ 303px → 18rem
+   min-height 800px ensures form (~440px) still fits below (iPhone XR 896px, 13 mini 812px ✓;
+   iPhone SE 667px stays on WhatsApp-first landing). */
+@media (max-width: 640px) and (min-height: 800px) {
+  #enquire { scroll-margin-top: 18rem; }
+}
+
 /* 641–768px portrait tablets (hamburger nav, ~80px scroll-padding-top):
    contact-info (no WA, ~199px) + grid-gap (3.5rem/56px) ≈ 255px → 16rem
    min-height 900px ensures form (≈475px) still fits below. */
