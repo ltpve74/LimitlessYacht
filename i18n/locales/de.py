@@ -950,7 +950,7 @@ PAIRS = [
     ('Sleep under the stars and wake in a new bay each morning. Ideal for a birthday, anniversary, or simply switching off properly.', 'Schlafen Sie unter dem Sternenhimmel und wachen Sie jeden Morgen in einer neuen Bucht auf. Ideal für einen Geburtstag, Jahrestag oder um wirklich abzuschalten.'),
     ("Island-hop at your own pace — Formentera, Ibiza, Menorca or Mallorca's remotest coves. Your route, entirely bespoke.", 'Auf eigene Faust durch die Inseln — Formentera, Ibiza, Menorca oder Mallorcas entlegenste Buchten. Ihre Route, ganz nach Wunsch.'),
     ('>Enquire →</span>', '>Anfragen →</span>'),
-    ('Get Your Free Quote', 'Kostenloses Angebot anfordern'),
+    ('Get Your Quote', 'Angebot anfordern'),
     ('Available year-round &nbsp;·&nbsp; Rates vary by season &nbsp;·&nbsp; We respond within 24 hours', 'Ganzjährig verfügbar &nbsp;·&nbsp; Preise variieren je nach Saison &nbsp;·&nbsp; Wir antworten innerhalb von 24 Stunden'),
     ('All charters include', 'Alle Charter beinhalten'),
     ('VAT included', 'MwSt. inklusive'),
