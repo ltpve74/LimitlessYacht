@@ -654,10 +654,15 @@ height="0" width="0" style="display:none;visibility:hidden"></iframe></noscript>
       t.setAttribute('aria-selected', on ? 'true' : 'false');
     });
     groups.forEach(function(g) {
-      g.classList.toggle('tab-active', g.dataset.tier === tier);
-      if (g.dataset.tier === tier) {
+      var on = g.dataset.tier === tier;
+      var switching = on && !g.classList.contains('tab-active');
+      g.classList.toggle('tab-active', on);
+      if (on) {
         var gr = g.querySelector('.itinerary-grid');
-        if (gr) { gr.scrollLeft = 0; setTimeout(function(){ gr.dispatchEvent(new Event('scroll')); }, 0); }
+        if (gr) {
+          if (switching) gr.scrollLeft = 0;
+          setTimeout(function(){ gr.dispatchEvent(new Event('scroll')); }, 0);
+        }
       }
     });
   }
