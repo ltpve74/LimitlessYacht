@@ -725,8 +725,6 @@ section { padding: 7rem 2rem; }
 .form-divider::before, .form-divider::after {
   content: ''; flex: 1; height: 1px; background: rgba(201,168,76,.15);
 }
-/* Scroll target for enquiry CTAs — clears the fixed nav */
-#enquire { scroll-margin-top: 5rem; }
 /* On desktop inside the pair, the contact-info column already shows WhatsApp above;
    hide the form-col duplicate to keep the layout clean */
 @media (min-width: 769px) {
@@ -966,7 +964,6 @@ footer {
   #gallery .section-label, #gallery .section-title, #itinerary .section-label, #itinerary .section-title, #itinerary .itinerary-intro { display: none !important; }
   #availability { padding-top: 3rem; }
   /* Compact form so the submit button stays above Safari's bottom chrome */
-  #enquire { scroll-margin-top: 4.25rem; }
   .form-col-wa { padding-top: .7rem; padding-bottom: .7rem; }
   .form-divider { margin-top: .8rem; margin-bottom: .6rem; }
   .contact-form { gap: .6rem; }
