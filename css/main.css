@@ -1226,10 +1226,12 @@ footer {
   .enquiry-title { font-size: 1.3rem; }
   .enquiry-desc { font-size: .78rem; }
   .form-row { grid-template-columns: 1fr; }
+  .enquiry-cta-wrap { margin-top: 1.25rem; }
+  .enquiry-flex-note { margin-top: .5rem; }
 
   .pricing-terms {
     padding: 1.35rem 1rem 1.1rem;
-    margin: 1.75rem auto 0;
+    margin: 1rem auto 0;
   }
   .pricing-notes {
     grid-template-columns: 1fr;
