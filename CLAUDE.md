@@ -28,7 +28,7 @@ git config core.hooksPath .githooks          # one-time per clone
 | Branch | Purpose | HTML/CSS format | Pre-commit on commit |
 |--------|---------|-----------------|----------------------|
 | `experiment-no-prices` | Daily development | Readable (multi-line) | Rebuild locales when EN source changes. **No minify.** |
-| `main` | Production (Netlify) | Minified (single-line) | **Minify → 49 site tests.** Locales already built on dev. |
+| `main` | Production (Netlify) | Minified (single-line) | **Minify → site tests (~193 checks).** Locales already built on dev. |
 
 **Rules**
 - Never minify on `experiment-no-prices`.
@@ -115,7 +115,7 @@ git push origin main
 **Pre-commit on `main`** (every commit):
 
 1. Runs `python3 scripts/minify_html.py` (HTML + `css/main.css`)
-2. Runs `python3 scripts/test-site.py` (49 checks)
+2. Runs `python3 scripts/test-site.py` (conversion, LCP, i18n, assets, JS syntax)
 3. Re-stages minified files
 
 **Netlify** (`netlify.toml`): `publish = "."` — no build step. Serves committed files as-is.
