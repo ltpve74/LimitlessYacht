@@ -13,7 +13,7 @@
   font-family: 'Montserrat';
   font-style: normal;
   font-weight: 300 600;
-  font-display: swap;
+  font-display: optional;
   src: url('/fonts/montserrat-latin.woff2') format('woff2');
 }
 :root {
@@ -513,56 +513,6 @@ nav.scrolled::before { opacity: 1; }
 </head>
 <body>
 
-
-<!-- NAV -->
-<nav id="navbar">
-  <a href="#hero" class="nav-logo">Limitless <span>Yacht</span></a>
-  <ul class="nav-links">
-    <li><a href="#about">Sobre nosotros</a></li>
-    <li><a href="#itinerary">Destinos</a></li>
-    <li><a href="#gallery">Galería</a></li>
-    <li><a href="#enquire">Consultar</a></li>
-    <li><a href="#availability">Disponibilidad</a></li>
-    <li><a href="#reviews">Reseñas</a></li>
-    <li><a href="#amenities">Equipamiento</a></li>
-    <li><a href="#specs">Detalles</a></li>
-  </ul>
-  <div class="nav-end">
-        <div class="nav-lang" aria-label="Idioma">
-      <a href="/" hreflang="en" lang="en">EN</a>
-      <span class="nav-lang-sep">|</span>
-      <a href="/de/" hreflang="de" lang="de">DE</a>
-      <span class="nav-lang-sep">|</span>
-      <a href="/fr/" hreflang="fr" lang="fr">FR</a>
-      <span class="nav-lang-sep">|</span>
-      <a href="/es/" hreflang="es" class="active" lang="es">ES</a>
-    </div>
-    <a href="#enquire" class="nav-cta nav-header-cta">Consultar</a>
-    <button type="button" class="hamburger" id="hamburger" aria-label="Abrir menú" aria-expanded="false" aria-controls="mobileNav">
-      <span></span><span></span><span></span>
-    </button>
-  </div>
-</nav>
-
-<!-- MOBILE NAV -->
-<div class="mobile-nav" id="mobileNav" role="dialog" aria-modal="true" aria-label="Menú del sitio" hidden>
-  <button type="button" class="mobile-nav-close" id="mobileCerrar" aria-label="Cerrar menú">✕</button>
-  <a href="#enquire" class="mobile-nav-cta" onclick="closeMobile()">Consultar</a>
-  <a href="#about" onclick="closeMobile()">Sobre nosotros</a>
-  <a href="#itinerary" onclick="closeMobile()">Destinos</a>
-  <a href="#gallery" onclick="closeMobile()">Galería</a>
-  <a href="#availability" onclick="closeMobile()">Disponibilidad</a>
-  <a href="#reviews" onclick="closeMobile()">Reseñas</a>
-  <a href="#amenities" onclick="closeMobile()">Equipamiento</a>
-  <a href="#specs" onclick="closeMobile()">Detalles</a>
-  <div class="mobile-lang" aria-label="Idioma">
-    <a href="/" hreflang="en" lang="en">EN</a>
-    <a href="/de/" hreflang="de" lang="de">DE</a>
-    <a href="/fr/" hreflang="fr" lang="fr">FR</a>
-    <a href="/es/" hreflang="es" class="active" lang="es">ES</a>
-  </div>
-</div>
-
 <!-- HERO -->
 <section id="hero">
   <picture class="hero-bg-wrap">
@@ -589,151 +539,6 @@ nav.scrolled::before { opacity: 1; }
     </div>
   </div>
 </section>
-
-<!-- INTRO STRIP -->
-<section id="intro">
-  <div class="intro-grid">
-    <div class="intro-item reveal">
-      <div class="intro-num">21.5</div>
-      <div class="intro-label">Metros de lujo</div>
-    </div>
-    <div class="intro-item reveal reveal-delay-1">
-      <div class="intro-num">2</div>
-      <div class="intro-label">Tripulación propia</div>
-    </div>
-    <div class="intro-item reveal reveal-delay-2">
-      <div class="intro-num">12 / 7</div>
-      <div class="intro-label">Invitados día / noche</div>
-    </div>
-    <div class="intro-item reveal reveal-delay-3">
-      <div class="intro-num">21</div>
-      <div class="intro-label">Nudos hacia las calas</div>
-    </div>
-  </div>
-</section>
-
-<!-- ABOUT -->
-<section id="about">
-  <div class="container">
-    <div class="about-grid">
-      <div class="about-image-wrap reveal">
-        <picture><source type="image/webp" srcset="/images/maiora_20s_04.webp 960w, /images/mobile/maiora_20s_04.webp 800w" sizes="(max-width: 640px) 100vw, 50vw" /><img loading="lazy" decoding="async" src="/images/maiora_20s_04.jpg" width="960" height="639" alt="Limitless yacht cruising the Mallorca coastline" /></picture>
-        <div class="about-image-accent"></div>
-      </div>
-      <div class="about-text reveal reveal-delay-1">
-        <p class="section-label">El yate</p>
-        <h2 class="section-title">Su hogar en el<br><em>Mediterráneo</em></h2>
-        <p><strong>Limitless</strong> es una Maiora de 21 metros con flybridge, cubierta de popa y solárium: espacio para doce invitados de día y cómodo para siete a bordo de noche. Construida para el mar y mantenida según el estándar de chárter.</p>
-        <p>Lo que de verdad distingue a Limitless es su <strong>tripulación dedicada</strong>. Atenta, experimentada y verdaderamente apasionada por el mar, se ocupa de todo — desde organizar el catering hasta reservar el acceso a clubes de playa — para que usted pueda centrarse por completo en su compañía y en los lugares que descubre.</p>
-      </div>
-    </div>
-  </div>
-</section>
-
-<!-- ITINERARY / DESTINATIONS -->
-<section id="itinerary">
-  <div class="container">
-    <p class="section-label reveal">Destinos</p>
-    <h2 class="section-title reveal reveal-delay-1">Adonde te lleva <em>Limitless</em></h2>
-    <p class="itinerary-intro reveal reveal-delay-2">Cada ruta se adapta a su grupo: las sugerencias siguientes son solo un punto de partida. Su tripulación se encarga del resto.</p>
-  </div>
-  <div class="itinerary-wrap" style="max-width:1400px;margin:0 auto;padding:0 2rem;">
-    <div class="dest-tabs reveal reveal-delay-2" role="tablist" aria-label="Duración del charter">
-      <button class="dest-tab" role="tab" data-tier="half-day" id="half-day" aria-selected="true">
-        Medio día<span class="tab-period">4 – 6 horas</span>
-      </button>
-      <button class="dest-tab" role="tab" data-tier="full-day" id="full-day" aria-selected="false">
-        Día completo<span class="tab-period">Un día entero</span>
-      </button>
-      <button class="dest-tab" role="tab" data-tier="multi-day" id="multi-day" aria-selected="false">
-        Varios días<span class="tab-period">Con pernocta +</span>
-      </button>
-    </div>
-
-    <!-- Medio día -->
-    <div class="dest-group tab-active" data-tier="half-day">
-      <div class="itinerary-grid">
-        <div class="destination-card reveal" data-dest-idx="0">
-          <picture class="destination-card-bg">
-            <source type="image/webp" srcset="/images/dest/portals-vells-1.webp 1200w, /images/mobile/dest/portals-vells-1.webp 800w" sizes="(max-width: 640px) 100vw, 500px" />
-            <img loading="lazy" decoding="async" src="/images/dest/portals-vells-1.jpg" alt="" width="1200" height="900" />
-          </picture>
-          <div class="destination-card-overlay"></div>
-          <div class="destination-card-body">
-            <div class="destination-num">01 · Costa suroeste</div>
-            <div class="destination-name">Portals Vells</div>
-            <div class="destination-tagline">Cuevas marinas &amp; calas turquesa</div>
-            <p class="destination-desc">Tres calas apartadas en la punta de la península de Calvià, famosas por sus cuevas marinas excavadas en los acantilados de piedra caliza. El agua es de un vivo azul verdoso, ideal para nadar, hacer snorkel y una escapada corta a solo 35 minutos del puerto.</p>
-            <div class="destination-meta">
-              <span>Desde Club de Mar <strong>~35 min</strong></span>
-              <span>Profundidad <strong>4–10 m</strong></span>
-              <span>Ida y vuelta <strong>~18 nm</strong></span>
-              <span>Diésel <strong>~300 L</strong></span>
-            </div>
-          </div>
-        </div>
-        <div class="destination-card reveal reveal-delay-1" data-dest-idx="1">
-          <picture class="destination-card-bg">
-            <source type="image/webp" srcset="/images/dest/el-toro-malgrats-1.webp" />
-            <img loading="lazy" decoding="async" src="/images/dest/el-toro-malgrats-1.jpg" alt="" width="800" height="1200" />
-          </picture>
-          <div class="destination-card-overlay"></div>
-          <div class="destination-card-body">
-            <div class="destination-num">02 · Costa suroeste</div>
-            <div class="destination-name">El Toro &amp; Illes Malgrats</div>
-            <div class="destination-tagline">Reserva marina &amp; snorkel</div>
-            <p class="destination-desc">Una reserva marina protegida en torno a los islotes Malgrats y el cabo de El Toro. Aguas cristalinas repletas de peces, snorkel fácil y un medio día relajado con almuerzo fondeados.</p>
-            <div class="destination-meta">
-              <span>Desde Club de Mar <strong>~40 min</strong></span>
-              <span>Profundidad <strong>5–12 m</strong></span>
-              <span>Ida y vuelta <strong>~22 nm</strong></span>
-              <span>Diésel <strong>~350 L</strong></span>
-            </div>
-          </div>
-        </div>
-        <div class="destination-card reveal reveal-delay-1" data-dest-idx="2">
-          <picture class="destination-card-bg">
-            <source type="image/webp" srcset="/images/dest/cala-llamp-1.webp 1200w, /images/mobile/dest/cala-llamp-1.webp 800w" sizes="(max-width: 640px) 100vw, 500px" />
-            <img loading="lazy" decoding="async" src="/images/dest/cala-llamp-1.jpg" alt="" width="1200" height="900" />
-          </picture>
-          <div class="destination-card-overlay"></div>
-          <div class="destination-card-body">
-            <div class="destination-num">03 · Costa suroeste</div>
-            <div class="destination-name">Cala Llamp</div>
-            <div class="destination-tagline">Protegida y tranquila</div>
-            <p class="destination-desc">Una cala tranquila y bordeada de pinos, justo al sur de Port d'Andratx. Protegida de los vientos dominantes: perfecta para un largo almuerzo fondeados o un baño tranquilo.</p>
-            <div class="destination-meta">
-              <span>Desde Club de Mar <strong>~55 min</strong></span>
-              <span>Profundidad <strong>4–8 m</strong></span>
-              <span>Ida y vuelta <strong>~30 nm</strong></span>
-              <span>Diésel <strong>~450 L</strong></span>
-            </div>
-          </div>
-        </div>
-      </div>
-      <div class="carousel-nav">
-        <button class="carousel-btn carousel-prev" aria-label="Destino anterior">&#8249;</button>
-        <span class="carousel-pos"></span>
-        <button class="carousel-btn carousel-next" aria-label="Destino siguiente">&#8250;</button>
-      </div>
-      <a href="#gallery" class="itinerary-meet-cta">Conoce el yate →</a>
-    </div>
-
-    <!-- Full-Day -->
-    <div class="dest-group" data-tier="full-day">
-      <div class="itinerary-grid">
-        <div class="destination-card reveal" data-dest-idx="3">
-          <picture class="destination-card-bg">
-            <source type="image/webp" srcset="/images/dest/sa-dragonera-1.webp 1200w, /images/mobile/dest/sa-dragonera-1.webp 800w" sizes="(max-width: 640px) 100vw, 500px" />
-            <img loading="lazy" decoding="async" src="/images/dest/sa-dragonera-1.jpg" alt="" width="1200" height="800" />
-          </picture>
-          <div class="destination-card-overlay"></div>
-          <div class="destination-card-body">
-            <div class="destination-num">04 · Costa oeste</div>
-            <div class="destination-name">Sa Dragonera &amp; Sant Elm</div>
-            <div class="destination-tagline">Reserva natural insular</div>
-            <p class="destination-desc">La isla deshabitada y con forma de dragón de Sa Dragonera es un Parc Natural. Practique snorkel en sus aguas vírgenes y almuerce después en el bonito puerto de Sant Elm.</p>
-            <div class="destination-meta">
 
 <!-- Deferred head bootstrap (after hero for LCP) -->
 <!-- Owner mode: visit ?ly_owner=set once to suppress all analytics on this device.
@@ -2459,3 +2264,203 @@ window.LY_afterLcp(function() {
 </script>
 </body>
 </html>
+<!-- NAV -->
+<nav id="navbar">
+  <a href="#hero" class="nav-logo">Limitless <span>Yacht</span></a>
+  <ul class="nav-links">
+    <li><a href="#about">Sobre nosotros</a></li>
+    <li><a href="#itinerary">Destinos</a></li>
+    <li><a href="#gallery">Galería</a></li>
+    <li><a href="#enquire">Consultar</a></li>
+    <li><a href="#availability">Disponibilidad</a></li>
+    <li><a href="#reviews">Reseñas</a></li>
+    <li><a href="#amenities">Equipamiento</a></li>
+    <li><a href="#specs">Detalles</a></li>
+  </ul>
+  <div class="nav-end">
+        <div class="nav-lang" aria-label="Idioma">
+      <a href="/" hreflang="en" lang="en">EN</a>
+      <span class="nav-lang-sep">|</span>
+      <a href="/de/" hreflang="de" lang="de">DE</a>
+      <span class="nav-lang-sep">|</span>
+      <a href="/fr/" hreflang="fr" lang="fr">FR</a>
+      <span class="nav-lang-sep">|</span>
+      <a href="/es/" hreflang="es" class="active" lang="es">ES</a>
+    </div>
+    <a href="#enquire" class="nav-cta nav-header-cta">Consultar</a>
+    <button type="button" class="hamburger" id="hamburger" aria-label="Abrir menú" aria-expanded="false" aria-controls="mobileNav">
+      <span></span><span></span><span></span>
+    </button>
+  </div>
+</nav>
+
+<!-- MOBILE NAV -->
+<div class="mobile-nav" id="mobileNav" role="dialog" aria-modal="true" aria-label="Menú del sitio" hidden>
+  <button type="button" class="mobile-nav-close" id="mobileCerrar" aria-label="Cerrar menú">✕</button>
+  <a href="#enquire" class="mobile-nav-cta" onclick="closeMobile()">Consultar</a>
+  <a href="#about" onclick="closeMobile()">Sobre nosotros</a>
+  <a href="#itinerary" onclick="closeMobile()">Destinos</a>
+  <a href="#gallery" onclick="closeMobile()">Galería</a>
+  <a href="#availability" onclick="closeMobile()">Disponibilidad</a>
+  <a href="#reviews" onclick="closeMobile()">Reseñas</a>
+  <a href="#amenities" onclick="closeMobile()">Equipamiento</a>
+  <a href="#specs" onclick="closeMobile()">Detalles</a>
+  <div class="mobile-lang" aria-label="Idioma">
+    <a href="/" hreflang="en" lang="en">EN</a>
+    <a href="/de/" hreflang="de" lang="de">DE</a>
+    <a href="/fr/" hreflang="fr" lang="fr">FR</a>
+    <a href="/es/" hreflang="es" class="active" lang="es">ES</a>
+  </div>
+</div>
+
+
+
+
+
+
+<!-- INTRO STRIP -->
+<section id="intro">
+  <div class="intro-grid">
+    <div class="intro-item reveal">
+      <div class="intro-num">21.5</div>
+      <div class="intro-label">Metros de lujo</div>
+    </div>
+    <div class="intro-item reveal reveal-delay-1">
+      <div class="intro-num">2</div>
+      <div class="intro-label">Tripulación propia</div>
+    </div>
+    <div class="intro-item reveal reveal-delay-2">
+      <div class="intro-num">12 / 7</div>
+      <div class="intro-label">Invitados día / noche</div>
+    </div>
+    <div class="intro-item reveal reveal-delay-3">
+      <div class="intro-num">21</div>
+      <div class="intro-label">Nudos hacia las calas</div>
+    </div>
+  </div>
+</section>
+
+<!-- ABOUT -->
+<section id="about">
+  <div class="container">
+    <div class="about-grid">
+      <div class="about-image-wrap reveal">
+        <picture><source type="image/webp" srcset="/images/maiora_20s_04.webp 960w, /images/mobile/maiora_20s_04.webp 800w" sizes="(max-width: 640px) 100vw, 50vw" /><img loading="lazy" decoding="async" src="/images/maiora_20s_04.jpg" width="960" height="639" alt="Limitless yacht cruising the Mallorca coastline" /></picture>
+        <div class="about-image-accent"></div>
+      </div>
+      <div class="about-text reveal reveal-delay-1">
+        <p class="section-label">El yate</p>
+        <h2 class="section-title">Su hogar en el<br><em>Mediterráneo</em></h2>
+        <p><strong>Limitless</strong> es una Maiora de 21 metros con flybridge, cubierta de popa y solárium: espacio para doce invitados de día y cómodo para siete a bordo de noche. Construida para el mar y mantenida según el estándar de chárter.</p>
+        <p>Lo que de verdad distingue a Limitless es su <strong>tripulación dedicada</strong>. Atenta, experimentada y verdaderamente apasionada por el mar, se ocupa de todo — desde organizar el catering hasta reservar el acceso a clubes de playa — para que usted pueda centrarse por completo en su compañía y en los lugares que descubre.</p>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ITINERARY / DESTINATIONS -->
+<section id="itinerary">
+  <div class="container">
+    <p class="section-label reveal">Destinos</p>
+    <h2 class="section-title reveal reveal-delay-1">Adonde te lleva <em>Limitless</em></h2>
+    <p class="itinerary-intro reveal reveal-delay-2">Cada ruta se adapta a su grupo: las sugerencias siguientes son solo un punto de partida. Su tripulación se encarga del resto.</p>
+  </div>
+  <div class="itinerary-wrap" style="max-width:1400px;margin:0 auto;padding:0 2rem;">
+    <div class="dest-tabs reveal reveal-delay-2" role="tablist" aria-label="Duración del charter">
+      <button class="dest-tab" role="tab" data-tier="half-day" id="half-day" aria-selected="true">
+        Medio día<span class="tab-period">4 – 6 horas</span>
+      </button>
+      <button class="dest-tab" role="tab" data-tier="full-day" id="full-day" aria-selected="false">
+        Día completo<span class="tab-period">Un día entero</span>
+      </button>
+      <button class="dest-tab" role="tab" data-tier="multi-day" id="multi-day" aria-selected="false">
+        Varios días<span class="tab-period">Con pernocta +</span>
+      </button>
+    </div>
+
+    <!-- Medio día -->
+    <div class="dest-group tab-active" data-tier="half-day">
+      <div class="itinerary-grid">
+        <div class="destination-card reveal" data-dest-idx="0">
+          <picture class="destination-card-bg">
+            <source type="image/webp" srcset="/images/dest/portals-vells-1.webp 1200w, /images/mobile/dest/portals-vells-1.webp 800w" sizes="(max-width: 640px) 100vw, 500px" />
+            <img loading="lazy" decoding="async" src="/images/dest/portals-vells-1.jpg" alt="" width="1200" height="900" />
+          </picture>
+          <div class="destination-card-overlay"></div>
+          <div class="destination-card-body">
+            <div class="destination-num">01 · Costa suroeste</div>
+            <div class="destination-name">Portals Vells</div>
+            <div class="destination-tagline">Cuevas marinas &amp; calas turquesa</div>
+            <p class="destination-desc">Tres calas apartadas en la punta de la península de Calvià, famosas por sus cuevas marinas excavadas en los acantilados de piedra caliza. El agua es de un vivo azul verdoso, ideal para nadar, hacer snorkel y una escapada corta a solo 35 minutos del puerto.</p>
+            <div class="destination-meta">
+              <span>Desde Club de Mar <strong>~35 min</strong></span>
+              <span>Profundidad <strong>4–10 m</strong></span>
+              <span>Ida y vuelta <strong>~18 nm</strong></span>
+              <span>Diésel <strong>~300 L</strong></span>
+            </div>
+          </div>
+        </div>
+        <div class="destination-card reveal reveal-delay-1" data-dest-idx="1">
+          <picture class="destination-card-bg">
+            <source type="image/webp" srcset="/images/dest/el-toro-malgrats-1.webp" />
+            <img loading="lazy" decoding="async" src="/images/dest/el-toro-malgrats-1.jpg" alt="" width="800" height="1200" />
+          </picture>
+          <div class="destination-card-overlay"></div>
+          <div class="destination-card-body">
+            <div class="destination-num">02 · Costa suroeste</div>
+            <div class="destination-name">El Toro &amp; Illes Malgrats</div>
+            <div class="destination-tagline">Reserva marina &amp; snorkel</div>
+            <p class="destination-desc">Una reserva marina protegida en torno a los islotes Malgrats y el cabo de El Toro. Aguas cristalinas repletas de peces, snorkel fácil y un medio día relajado con almuerzo fondeados.</p>
+            <div class="destination-meta">
+              <span>Desde Club de Mar <strong>~40 min</strong></span>
+              <span>Profundidad <strong>5–12 m</strong></span>
+              <span>Ida y vuelta <strong>~22 nm</strong></span>
+              <span>Diésel <strong>~350 L</strong></span>
+            </div>
+          </div>
+        </div>
+        <div class="destination-card reveal reveal-delay-1" data-dest-idx="2">
+          <picture class="destination-card-bg">
+            <source type="image/webp" srcset="/images/dest/cala-llamp-1.webp 1200w, /images/mobile/dest/cala-llamp-1.webp 800w" sizes="(max-width: 640px) 100vw, 500px" />
+            <img loading="lazy" decoding="async" src="/images/dest/cala-llamp-1.jpg" alt="" width="1200" height="900" />
+          </picture>
+          <div class="destination-card-overlay"></div>
+          <div class="destination-card-body">
+            <div class="destination-num">03 · Costa suroeste</div>
+            <div class="destination-name">Cala Llamp</div>
+            <div class="destination-tagline">Protegida y tranquila</div>
+            <p class="destination-desc">Una cala tranquila y bordeada de pinos, justo al sur de Port d'Andratx. Protegida de los vientos dominantes: perfecta para un largo almuerzo fondeados o un baño tranquilo.</p>
+            <div class="destination-meta">
+              <span>Desde Club de Mar <strong>~55 min</strong></span>
+              <span>Profundidad <strong>4–8 m</strong></span>
+              <span>Ida y vuelta <strong>~30 nm</strong></span>
+              <span>Diésel <strong>~450 L</strong></span>
+            </div>
+          </div>
+        </div>
+      </div>
+      <div class="carousel-nav">
+        <button class="carousel-btn carousel-prev" aria-label="Destino anterior">&#8249;</button>
+        <span class="carousel-pos"></span>
+        <button class="carousel-btn carousel-next" aria-label="Destino siguiente">&#8250;</button>
+      </div>
+      <a href="#gallery" class="itinerary-meet-cta">Conoce el yate →</a>
+    </div>
+
+    <!-- Full-Day -->
+    <div class="dest-group" data-tier="full-day">
+      <div class="itinerary-grid">
+        <div class="destination-card reveal" data-dest-idx="3">
+          <picture class="destination-card-bg">
+            <source type="image/webp" srcset="/images/dest/sa-dragonera-1.webp 1200w, /images/mobile/dest/sa-dragonera-1.webp 800w" sizes="(max-width: 640px) 100vw, 500px" />
+            <img loading="lazy" decoding="async" src="/images/dest/sa-dragonera-1.jpg" alt="" width="1200" height="800" />
+          </picture>
+          <div class="destination-card-overlay"></div>
+          <div class="destination-card-body">
+            <div class="destination-num">04 · Costa oeste</div>
+            <div class="destination-name">Sa Dragonera &amp; Sant Elm</div>
+            <div class="destination-tagline">Reserva natural insular</div>
+            <p class="destination-desc">La isla deshabitada y con forma de dragón de Sa Dragonera es un Parc Natural. Practique snorkel en sus aguas vírgenes y almuerce después en el bonito puerto de Sant Elm.</p>
+            <div class="destination-meta">
+
+

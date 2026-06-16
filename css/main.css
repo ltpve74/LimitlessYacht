@@ -12,7 +12,7 @@
   font-family: 'Montserrat';
   font-style: normal;
   font-weight: 300 600;
-  font-display: swap;
+  font-display: optional;
   src: url('../fonts/montserrat-latin.woff2') format('woff2');
 }
 

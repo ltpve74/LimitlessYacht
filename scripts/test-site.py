@@ -255,6 +255,10 @@ def check_html(r: Runner, rel: str, html: str) -> None:
         html.find('id="hero"') > 0 and html.find('id="hero"') < html.find('LY_afterLcp'),
     )
     r.check(
+        'hero section precedes navigation in document order',
+        html.find('id="hero"') > 0 and html.find('id="hero"') < html.find('id="navbar"'),
+    )
+    r.check(
         'below-fold preloads deferred until after LCP window',
         'window.LY_afterLcp' in html and 'LY_destPreloadReady' in html,
     )

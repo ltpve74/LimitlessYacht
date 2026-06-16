@@ -13,7 +13,7 @@
   font-family: 'Montserrat';
   font-style: normal;
   font-weight: 300 600;
-  font-display: swap;
+  font-display: optional;
   src: url('/fonts/montserrat-latin.woff2') format('woff2');
 }
 :root {
@@ -513,53 +513,6 @@ nav.scrolled::before { opacity: 1; }
 </head>
 <body>
 
-
-<!-- NAV -->
-<nav id="navbar">
-  <a href="#hero" class="nav-logo">Limitless <span>Yacht</span></a>
-  <ul class="nav-links">
-    <li><a href="#about">About</a></li>
-    <li><a href="#itinerary">Destinations</a></li>
-    <li><a href="#gallery">Gallery</a></li>
-    <li><a href="#enquire">Enquire</a></li>
-    <li><a href="#availability">Availability</a></li>
-    <li><a href="#reviews">Reviews</a></li>
-    <li><a href="#amenities">Amenities</a></li>
-    <li><a href="#specs">Details</a></li>
-  </ul>
-  <div class="nav-end">
-    <div class="nav-lang" aria-label="Language">
-      <a href="/" hreflang="en" class="active" lang="en">EN</a><span class="nav-lang-sep">|</span>
-      <a href="/de/" hreflang="de" lang="de">DE</a><span class="nav-lang-sep">|</span>
-      <a href="/fr/" hreflang="fr" lang="fr">FR</a><span class="nav-lang-sep">|</span>
-      <a href="/es/" hreflang="es" lang="es">ES</a>
-    </div>
-    <a href="#enquire" class="nav-cta nav-header-cta">Enquire</a>
-    <button type="button" class="hamburger" id="hamburger" aria-label="Open menu" aria-expanded="false" aria-controls="mobileNav">
-      <span></span><span></span><span></span>
-    </button>
-  </div>
-</nav>
-
-<!-- MOBILE NAV -->
-<div class="mobile-nav" id="mobileNav" role="dialog" aria-modal="true" aria-label="Site menu" hidden>
-  <button type="button" class="mobile-nav-close" id="mobileClose" aria-label="Close menu">✕</button>
-  <a href="#enquire" class="mobile-nav-cta" onclick="closeMobile()">Enquire</a>
-  <a href="#about" onclick="closeMobile()">About</a>
-  <a href="#itinerary" onclick="closeMobile()">Destinations</a>
-  <a href="#gallery" onclick="closeMobile()">Gallery</a>
-  <a href="#availability" onclick="closeMobile()">Availability</a>
-  <a href="#reviews" onclick="closeMobile()">Reviews</a>
-  <a href="#amenities" onclick="closeMobile()">Amenities</a>
-  <a href="#specs" onclick="closeMobile()">Details</a>
-  <div class="mobile-lang" aria-label="Language">
-    <a href="/" hreflang="en" class="active" lang="en">EN</a>
-    <a href="/de/" hreflang="de" lang="de">DE</a>
-    <a href="/fr/" hreflang="fr" lang="fr">FR</a>
-    <a href="/es/" hreflang="es" lang="es">ES</a>
-  </div>
-</div>
-
 <!-- HERO -->
 <section id="hero">
   <picture class="hero-bg-wrap">
@@ -586,151 +539,6 @@ nav.scrolled::before { opacity: 1; }
     </div>
   </div>
 </section>
-
-<!-- INTRO STRIP -->
-<section id="intro">
-  <div class="intro-grid">
-    <div class="intro-item reveal">
-      <div class="intro-num">21.5</div>
-      <div class="intro-label">Metres of luxury</div>
-    </div>
-    <div class="intro-item reveal reveal-delay-1">
-      <div class="intro-num">2</div>
-      <div class="intro-label">Dedicated crew</div>
-    </div>
-    <div class="intro-item reveal reveal-delay-2">
-      <div class="intro-num">12 / 7</div>
-      <div class="intro-label">Day / overnight guests</div>
-    </div>
-    <div class="intro-item reveal reveal-delay-3">
-      <div class="intro-num">21</div>
-      <div class="intro-label">Knots to the coves</div>
-    </div>
-  </div>
-</section>
-
-<!-- ABOUT -->
-<section id="about">
-  <div class="container">
-    <div class="about-grid">
-      <div class="about-image-wrap reveal">
-        <picture><source type="image/webp" srcset="images/maiora_20s_04.webp 960w, images/mobile/maiora_20s_04.webp 800w" sizes="(max-width: 640px) 100vw, 50vw" /><img loading="lazy" decoding="async" src="images/maiora_20s_04.jpg" width="960" height="639" alt="Limitless yacht cruising the Mallorca coastline" /></picture>
-        <div class="about-image-accent"></div>
-      </div>
-      <div class="about-text reveal reveal-delay-1">
-        <p class="section-label">The Yacht</p>
-        <h2 class="section-title">Your Home on the<br><em>Mediterranean</em></h2>
-        <p><strong>Limitless</strong> is a 21-metre Maiora with a flybridge, aft deck and sun pads — space for twelve guests by day, comfortable for seven overnight. Built for the sea and maintained to charter standard.</p>
-        <p>What truly sets Limitless apart is her <strong>dedicated crew</strong>. Attentive, experienced and genuinely passionate about the sea, they take care of everything — from organising catering to reserving beach club access — so you can focus entirely on the people you're with and the places you're discovering.</p>
-      </div>
-    </div>
-  </div>
-</section>
-
-<!-- ITINERARY / DESTINATIONS -->
-<section id="itinerary">
-  <div class="container">
-    <p class="section-label reveal">Destinations</p>
-    <h2 class="section-title reveal reveal-delay-1">Where <em>Limitless</em> Takes You</h2>
-    <p class="itinerary-intro reveal reveal-delay-2">Every route is shaped around your group — the suggestions below are a starting point. Your crew handles the rest.</p>
-  </div>
-  <div class="itinerary-wrap" style="max-width:1400px;margin:0 auto;padding:0 2rem;">
-    <div class="dest-tabs reveal reveal-delay-2" role="tablist" aria-label="Charter duration">
-      <button class="dest-tab" role="tab" data-tier="half-day" id="half-day" aria-selected="true">
-        Half-Day<span class="tab-period">4 – 6 hours</span>
-      </button>
-      <button class="dest-tab" role="tab" data-tier="full-day" id="full-day" aria-selected="false">
-        Full Day<span class="tab-period">A full day out</span>
-      </button>
-      <button class="dest-tab" role="tab" data-tier="multi-day" id="multi-day" aria-selected="false">
-        Multi-Day<span class="tab-period">Overnight +</span>
-      </button>
-    </div>
-
-    <!-- Half-Day -->
-    <div class="dest-group tab-active" data-tier="half-day">
-      <div class="itinerary-grid">
-        <div class="destination-card reveal" data-dest-idx="0">
-          <picture class="destination-card-bg">
-            <source type="image/webp" srcset="images/dest/portals-vells-1.webp 1200w, images/mobile/dest/portals-vells-1.webp 800w" sizes="(max-width: 640px) 100vw, 500px" />
-            <img loading="lazy" decoding="async" src="images/dest/portals-vells-1.jpg" alt="" width="1200" height="900" />
-          </picture>
-          <div class="destination-card-overlay"></div>
-          <div class="destination-card-body">
-            <div class="destination-num">01 · Southwest Coast</div>
-            <div class="destination-name">Portals Vells</div>
-            <div class="destination-tagline">Sea Caves &amp; Turquoise Coves</div>
-            <p class="destination-desc">Three secluded coves at the tip of the Calvià peninsula, famous for their sea caves carved into the limestone cliffs. The water is a vivid blue-green — ideal for swimming, snorkelling and a short escape just 35 minutes from the marina.</p>
-            <div class="destination-meta">
-              <span>From Club de Mar <strong>~35 min</strong></span>
-              <span>Depth <strong>4–10 m</strong></span>
-              <span>Round trip <strong>~18 nm</strong></span>
-              <span>Diesel <strong>~300 L</strong></span>
-            </div>
-          </div>
-        </div>
-        <div class="destination-card reveal reveal-delay-1" data-dest-idx="1">
-          <picture class="destination-card-bg">
-            <source type="image/webp" srcset="images/dest/el-toro-malgrats-1.webp" />
-            <img loading="lazy" decoding="async" src="images/dest/el-toro-malgrats-1.jpg" alt="" width="800" height="1200" />
-          </picture>
-          <div class="destination-card-overlay"></div>
-          <div class="destination-card-body">
-            <div class="destination-num">02 · Southwest Coast</div>
-            <div class="destination-name">El Toro &amp; Illes Malgrats</div>
-            <div class="destination-tagline">Marine Reserve &amp; Snorkelling</div>
-            <p class="destination-desc">A protected marine reserve around the Malgrats islets and El Toro headland. Crystal water teeming with fish, easy snorkelling and a relaxed half-day with lunch at anchor.</p>
-            <div class="destination-meta">
-              <span>From Club de Mar <strong>~40 min</strong></span>
-              <span>Depth <strong>5–12 m</strong></span>
-              <span>Round trip <strong>~22 nm</strong></span>
-              <span>Diesel <strong>~350 L</strong></span>
-            </div>
-          </div>
-        </div>
-        <div class="destination-card reveal reveal-delay-1" data-dest-idx="2">
-          <picture class="destination-card-bg">
-            <source type="image/webp" srcset="images/dest/cala-llamp-1.webp 1200w, images/mobile/dest/cala-llamp-1.webp 800w" sizes="(max-width: 640px) 100vw, 500px" />
-            <img loading="lazy" decoding="async" src="images/dest/cala-llamp-1.jpg" alt="" width="1200" height="900" />
-          </picture>
-          <div class="destination-card-overlay"></div>
-          <div class="destination-card-body">
-            <div class="destination-num">03 · Southwest Coast</div>
-            <div class="destination-name">Cala Llamp</div>
-            <div class="destination-tagline">Sheltered &amp; Serene</div>
-            <p class="destination-desc">A calm, pine-fringed bay tucked just south of Port d’Andratx. Protected from the prevailing winds — perfect for a long lunch at anchor or a peaceful swim.</p>
-            <div class="destination-meta">
-              <span>From Club de Mar <strong>~55 min</strong></span>
-              <span>Depth <strong>4–8 m</strong></span>
-              <span>Round trip <strong>~30 nm</strong></span>
-              <span>Diesel <strong>~450 L</strong></span>
-            </div>
-          </div>
-        </div>
-      </div>
-      <div class="carousel-nav">
-        <button class="carousel-btn carousel-prev" aria-label="Previous destination">&#8249;</button>
-        <span class="carousel-pos"></span>
-        <button class="carousel-btn carousel-next" aria-label="Next destination">&#8250;</button>
-      </div>
-      <a href="#gallery" class="itinerary-meet-cta">Meet The Yacht →</a>
-    </div>
-
-    <!-- Full-Day -->
-    <div class="dest-group" data-tier="full-day">
-      <div class="itinerary-grid">
-        <div class="destination-card reveal" data-dest-idx="3">
-          <picture class="destination-card-bg">
-            <source type="image/webp" srcset="images/dest/sa-dragonera-1.webp 1200w, images/mobile/dest/sa-dragonera-1.webp 800w" sizes="(max-width: 640px) 100vw, 500px" />
-            <img loading="lazy" decoding="async" src="images/dest/sa-dragonera-1.jpg" alt="" width="1200" height="800" />
-          </picture>
-          <div class="destination-card-overlay"></div>
-          <div class="destination-card-body">
-            <div class="destination-num">04 · West Coast</div>
-            <div class="destination-name">Sa Dragonera &amp; Sant Elm</div>
-            <div class="destination-tagline">Island Nature Reserve</div>
-            <p class="destination-desc">The uninhabited, dragon-shaped island of Sa Dragonera is a Parc Natural. Snorkel the pristine waters, then lunch in the pretty harbour of Sant Elm.</p>
-            <div class="destination-meta">
 
 <!-- Deferred head bootstrap (after hero for LCP) -->
 <!-- Owner mode: visit ?ly_owner=set once to suppress all analytics on this device.
@@ -2456,3 +2264,200 @@ window.LY_afterLcp(function() {
 </script>
 </body>
 </html>
+<!-- NAV -->
+<nav id="navbar">
+  <a href="#hero" class="nav-logo">Limitless <span>Yacht</span></a>
+  <ul class="nav-links">
+    <li><a href="#about">About</a></li>
+    <li><a href="#itinerary">Destinations</a></li>
+    <li><a href="#gallery">Gallery</a></li>
+    <li><a href="#enquire">Enquire</a></li>
+    <li><a href="#availability">Availability</a></li>
+    <li><a href="#reviews">Reviews</a></li>
+    <li><a href="#amenities">Amenities</a></li>
+    <li><a href="#specs">Details</a></li>
+  </ul>
+  <div class="nav-end">
+    <div class="nav-lang" aria-label="Language">
+      <a href="/" hreflang="en" class="active" lang="en">EN</a><span class="nav-lang-sep">|</span>
+      <a href="/de/" hreflang="de" lang="de">DE</a><span class="nav-lang-sep">|</span>
+      <a href="/fr/" hreflang="fr" lang="fr">FR</a><span class="nav-lang-sep">|</span>
+      <a href="/es/" hreflang="es" lang="es">ES</a>
+    </div>
+    <a href="#enquire" class="nav-cta nav-header-cta">Enquire</a>
+    <button type="button" class="hamburger" id="hamburger" aria-label="Open menu" aria-expanded="false" aria-controls="mobileNav">
+      <span></span><span></span><span></span>
+    </button>
+  </div>
+</nav>
+
+<!-- MOBILE NAV -->
+<div class="mobile-nav" id="mobileNav" role="dialog" aria-modal="true" aria-label="Site menu" hidden>
+  <button type="button" class="mobile-nav-close" id="mobileClose" aria-label="Close menu">✕</button>
+  <a href="#enquire" class="mobile-nav-cta" onclick="closeMobile()">Enquire</a>
+  <a href="#about" onclick="closeMobile()">About</a>
+  <a href="#itinerary" onclick="closeMobile()">Destinations</a>
+  <a href="#gallery" onclick="closeMobile()">Gallery</a>
+  <a href="#availability" onclick="closeMobile()">Availability</a>
+  <a href="#reviews" onclick="closeMobile()">Reviews</a>
+  <a href="#amenities" onclick="closeMobile()">Amenities</a>
+  <a href="#specs" onclick="closeMobile()">Details</a>
+  <div class="mobile-lang" aria-label="Language">
+    <a href="/" hreflang="en" class="active" lang="en">EN</a>
+    <a href="/de/" hreflang="de" lang="de">DE</a>
+    <a href="/fr/" hreflang="fr" lang="fr">FR</a>
+    <a href="/es/" hreflang="es" lang="es">ES</a>
+  </div>
+</div>
+
+
+
+
+
+
+<!-- INTRO STRIP -->
+<section id="intro">
+  <div class="intro-grid">
+    <div class="intro-item reveal">
+      <div class="intro-num">21.5</div>
+      <div class="intro-label">Metres of luxury</div>
+    </div>
+    <div class="intro-item reveal reveal-delay-1">
+      <div class="intro-num">2</div>
+      <div class="intro-label">Dedicated crew</div>
+    </div>
+    <div class="intro-item reveal reveal-delay-2">
+      <div class="intro-num">12 / 7</div>
+      <div class="intro-label">Day / overnight guests</div>
+    </div>
+    <div class="intro-item reveal reveal-delay-3">
+      <div class="intro-num">21</div>
+      <div class="intro-label">Knots to the coves</div>
+    </div>
+  </div>
+</section>
+
+<!-- ABOUT -->
+<section id="about">
+  <div class="container">
+    <div class="about-grid">
+      <div class="about-image-wrap reveal">
+        <picture><source type="image/webp" srcset="images/maiora_20s_04.webp 960w, images/mobile/maiora_20s_04.webp 800w" sizes="(max-width: 640px) 100vw, 50vw" /><img loading="lazy" decoding="async" src="images/maiora_20s_04.jpg" width="960" height="639" alt="Limitless yacht cruising the Mallorca coastline" /></picture>
+        <div class="about-image-accent"></div>
+      </div>
+      <div class="about-text reveal reveal-delay-1">
+        <p class="section-label">The Yacht</p>
+        <h2 class="section-title">Your Home on the<br><em>Mediterranean</em></h2>
+        <p><strong>Limitless</strong> is a 21-metre Maiora with a flybridge, aft deck and sun pads — space for twelve guests by day, comfortable for seven overnight. Built for the sea and maintained to charter standard.</p>
+        <p>What truly sets Limitless apart is her <strong>dedicated crew</strong>. Attentive, experienced and genuinely passionate about the sea, they take care of everything — from organising catering to reserving beach club access — so you can focus entirely on the people you're with and the places you're discovering.</p>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ITINERARY / DESTINATIONS -->
+<section id="itinerary">
+  <div class="container">
+    <p class="section-label reveal">Destinations</p>
+    <h2 class="section-title reveal reveal-delay-1">Where <em>Limitless</em> Takes You</h2>
+    <p class="itinerary-intro reveal reveal-delay-2">Every route is shaped around your group — the suggestions below are a starting point. Your crew handles the rest.</p>
+  </div>
+  <div class="itinerary-wrap" style="max-width:1400px;margin:0 auto;padding:0 2rem;">
+    <div class="dest-tabs reveal reveal-delay-2" role="tablist" aria-label="Charter duration">
+      <button class="dest-tab" role="tab" data-tier="half-day" id="half-day" aria-selected="true">
+        Half-Day<span class="tab-period">4 – 6 hours</span>
+      </button>
+      <button class="dest-tab" role="tab" data-tier="full-day" id="full-day" aria-selected="false">
+        Full Day<span class="tab-period">A full day out</span>
+      </button>
+      <button class="dest-tab" role="tab" data-tier="multi-day" id="multi-day" aria-selected="false">
+        Multi-Day<span class="tab-period">Overnight +</span>
+      </button>
+    </div>
+
+    <!-- Half-Day -->
+    <div class="dest-group tab-active" data-tier="half-day">
+      <div class="itinerary-grid">
+        <div class="destination-card reveal" data-dest-idx="0">
+          <picture class="destination-card-bg">
+            <source type="image/webp" srcset="images/dest/portals-vells-1.webp 1200w, images/mobile/dest/portals-vells-1.webp 800w" sizes="(max-width: 640px) 100vw, 500px" />
+            <img loading="lazy" decoding="async" src="images/dest/portals-vells-1.jpg" alt="" width="1200" height="900" />
+          </picture>
+          <div class="destination-card-overlay"></div>
+          <div class="destination-card-body">
+            <div class="destination-num">01 · Southwest Coast</div>
+            <div class="destination-name">Portals Vells</div>
+            <div class="destination-tagline">Sea Caves &amp; Turquoise Coves</div>
+            <p class="destination-desc">Three secluded coves at the tip of the Calvià peninsula, famous for their sea caves carved into the limestone cliffs. The water is a vivid blue-green — ideal for swimming, snorkelling and a short escape just 35 minutes from the marina.</p>
+            <div class="destination-meta">
+              <span>From Club de Mar <strong>~35 min</strong></span>
+              <span>Depth <strong>4–10 m</strong></span>
+              <span>Round trip <strong>~18 nm</strong></span>
+              <span>Diesel <strong>~300 L</strong></span>
+            </div>
+          </div>
+        </div>
+        <div class="destination-card reveal reveal-delay-1" data-dest-idx="1">
+          <picture class="destination-card-bg">
+            <source type="image/webp" srcset="images/dest/el-toro-malgrats-1.webp" />
+            <img loading="lazy" decoding="async" src="images/dest/el-toro-malgrats-1.jpg" alt="" width="800" height="1200" />
+          </picture>
+          <div class="destination-card-overlay"></div>
+          <div class="destination-card-body">
+            <div class="destination-num">02 · Southwest Coast</div>
+            <div class="destination-name">El Toro &amp; Illes Malgrats</div>
+            <div class="destination-tagline">Marine Reserve &amp; Snorkelling</div>
+            <p class="destination-desc">A protected marine reserve around the Malgrats islets and El Toro headland. Crystal water teeming with fish, easy snorkelling and a relaxed half-day with lunch at anchor.</p>
+            <div class="destination-meta">
+              <span>From Club de Mar <strong>~40 min</strong></span>
+              <span>Depth <strong>5–12 m</strong></span>
+              <span>Round trip <strong>~22 nm</strong></span>
+              <span>Diesel <strong>~350 L</strong></span>
+            </div>
+          </div>
+        </div>
+        <div class="destination-card reveal reveal-delay-1" data-dest-idx="2">
+          <picture class="destination-card-bg">
+            <source type="image/webp" srcset="images/dest/cala-llamp-1.webp 1200w, images/mobile/dest/cala-llamp-1.webp 800w" sizes="(max-width: 640px) 100vw, 500px" />
+            <img loading="lazy" decoding="async" src="images/dest/cala-llamp-1.jpg" alt="" width="1200" height="900" />
+          </picture>
+          <div class="destination-card-overlay"></div>
+          <div class="destination-card-body">
+            <div class="destination-num">03 · Southwest Coast</div>
+            <div class="destination-name">Cala Llamp</div>
+            <div class="destination-tagline">Sheltered &amp; Serene</div>
+            <p class="destination-desc">A calm, pine-fringed bay tucked just south of Port d’Andratx. Protected from the prevailing winds — perfect for a long lunch at anchor or a peaceful swim.</p>
+            <div class="destination-meta">
+              <span>From Club de Mar <strong>~55 min</strong></span>
+              <span>Depth <strong>4–8 m</strong></span>
+              <span>Round trip <strong>~30 nm</strong></span>
+              <span>Diesel <strong>~450 L</strong></span>
+            </div>
+          </div>
+        </div>
+      </div>
+      <div class="carousel-nav">
+        <button class="carousel-btn carousel-prev" aria-label="Previous destination">&#8249;</button>
+        <span class="carousel-pos"></span>
+        <button class="carousel-btn carousel-next" aria-label="Next destination">&#8250;</button>
+      </div>
+      <a href="#gallery" class="itinerary-meet-cta">Meet The Yacht →</a>
+    </div>
+
+    <!-- Full-Day -->
+    <div class="dest-group" data-tier="full-day">
+      <div class="itinerary-grid">
+        <div class="destination-card reveal" data-dest-idx="3">
+          <picture class="destination-card-bg">
+            <source type="image/webp" srcset="images/dest/sa-dragonera-1.webp 1200w, images/mobile/dest/sa-dragonera-1.webp 800w" sizes="(max-width: 640px) 100vw, 500px" />
+            <img loading="lazy" decoding="async" src="images/dest/sa-dragonera-1.jpg" alt="" width="1200" height="800" />
+          </picture>
+          <div class="destination-card-overlay"></div>
+          <div class="destination-card-body">
+            <div class="destination-num">04 · West Coast</div>
+            <div class="destination-name">Sa Dragonera &amp; Sant Elm</div>
+            <div class="destination-tagline">Island Nature Reserve</div>
+            <p class="destination-desc">The uninhabited, dragon-shaped island of Sa Dragonera is a Parc Natural. Snorkel the pristine waters, then lunch in the pretty harbour of Sant Elm.</p>
+            <div class="destination-meta">
+
+
