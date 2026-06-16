@@ -151,13 +151,22 @@ window.addEventListener('load', function() {
 });
 window.addEventListener('load', function() {
   var mob = window.innerWidth <= 640;
-  var imgs = mob ? [
+  var dest = mob ? [
     '/images/mobile/dest/portals-vells-1.webp','/images/mobile/dest/el-toro-malgrats-1.webp',
     '/images/mobile/dest/cala-llamp-1.webp','/images/mobile/dest/sa-dragonera-1.webp',
     '/images/mobile/dest/cala-pi-1.webp','/images/mobile/dest/es-trenc-1.webp',
     '/images/mobile/dest/cabrera-1.webp','/images/mobile/dest/calo-des-moro-1.webp',
     '/images/mobile/dest/formentera-1.webp','/images/mobile/dest/menorca-1.webp',
-    '/images/mobile/dest/sa-calobra-1.webp','/images/mobile/dest/circumnavigation-1.webp',
+    '/images/mobile/dest/sa-calobra-1.webp','/images/mobile/dest/circumnavigation-1.webp'
+  ] : [
+    '/images/dest/portals-vells-1.webp','/images/dest/el-toro-malgrats-1.webp',
+    '/images/dest/cala-llamp-1.webp','/images/dest/sa-dragonera-1.webp',
+    '/images/dest/cala-pi-1.webp','/images/dest/es-trenc-1.webp',
+    '/images/dest/cabrera-1.webp','/images/dest/calo-des-moro-1.webp',
+    '/images/dest/formentera-1.webp','/images/dest/menorca-1.webp',
+    '/images/dest/sa-calobra-1.webp','/images/dest/circumnavigation-1.webp'
+  ];
+  var gallery = mob ? [
     '/images/mobile/maiora_20s_01.webp','/images/mobile/maiora_20s_03.webp','/images/mobile/maiora_20s_07.webp',
     '/images/mobile/limitless_aft_dining.webp','/images/mobile/limitless_flybridge.webp',
     '/images/mobile/limitless_sundeck.webp','/images/mobile/limitless_aft_deck.webp',
@@ -166,12 +175,6 @@ window.addEventListener('load', function() {
     '/images/mobile/int_master_amber_glow.webp','/images/mobile/int_master_wide.webp',
     '/images/mobile/int_vip_cabin.webp','/images/mobile/int_twin_cabin.webp'
   ] : [
-    '/images/dest/portals-vells-1.webp','/images/dest/el-toro-malgrats-1.webp',
-    '/images/dest/cala-llamp-1.webp','/images/dest/sa-dragonera-1.webp',
-    '/images/dest/cala-pi-1.webp','/images/dest/es-trenc-1.webp',
-    '/images/dest/cabrera-1.webp','/images/dest/calo-des-moro-1.webp',
-    '/images/dest/formentera-1.webp','/images/dest/menorca-1.webp',
-    '/images/dest/sa-calobra-1.webp','/images/dest/circumnavigation-1.webp',
     '/images/maiora_20s_01.webp','/images/maiora_20s_03.webp','/images/maiora_20s_07.webp',
     '/images/limitless_aft_dining.webp','/images/limitless_flybridge.webp',
     '/images/limitless_sundeck.webp','/images/limitless_aft_deck.webp',
@@ -180,9 +183,10 @@ window.addEventListener('load', function() {
     '/images/int_master_amber_glow.webp','/images/int_master_wide.webp',
     '/images/int_vip_cabin.webp','/images/int_twin_cabin.webp'
   ];
+  dest.forEach(function(src) { new Image().src = src; });
   var i = 0;
-  function next() { if (i < imgs.length) { new Image().src = imgs[i++]; (window.requestIdleCallback || function(fn){setTimeout(fn,150);})(next); } }
-  (window.requestIdleCallback || function(fn){setTimeout(fn,500);})(next);
+  function nextGallery() { if (i < gallery.length) { new Image().src = gallery[i++]; (window.requestIdleCallback || function(fn){setTimeout(fn,200);})(nextGallery); } }
+  (window.requestIdleCallback || function(fn){setTimeout(fn,800);})(nextGallery);
 });
 </script>
 <title>Limitless Yacht Experience – Charter de luxe Maiora à Majorque</title>
