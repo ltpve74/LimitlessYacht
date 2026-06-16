@@ -996,7 +996,7 @@ footer {
   .form-col-wa { padding-top: .7rem; padding-bottom: .7rem; }
   .form-divider { margin-top: .8rem; margin-bottom: .6rem; }
   .contact-form { gap: .6rem; }
-  .form-field input, .form-field select { padding: .6rem .85rem; }
+  .form-field input, .form-field select { padding: .6rem .85rem; font-size: 1rem; }
   .form-reassurance { margin: .25rem 0 .15rem; }
   .form-submit { padding-top: .85rem; padding-bottom: .85rem; margin-top: .25rem; }
   #specs { padding-top: 3rem; padding-bottom: 2.5rem; }
