@@ -149,6 +149,41 @@ window.addEventListener('load', function() {
 window.addEventListener('load', function() {
   if(!window.LY_OWNER_MODE){var _cs=document.createElement('script');_cs.defer=true;_cs.src='/js/clarity-consent.js';document.head.appendChild(_cs);}
 });
+window.addEventListener('load', function() {
+  var mob = window.innerWidth <= 640;
+  var imgs = mob ? [
+    '/images/mobile/dest/portals-vells-1.webp','/images/mobile/dest/el-toro-malgrats-1.webp',
+    '/images/mobile/dest/cala-llamp-1.webp','/images/mobile/dest/sa-dragonera-1.webp',
+    '/images/mobile/dest/cala-pi-1.webp','/images/mobile/dest/es-trenc-1.webp',
+    '/images/mobile/dest/cabrera-1.webp','/images/mobile/dest/calo-des-moro-1.webp',
+    '/images/mobile/dest/formentera-1.webp','/images/mobile/dest/menorca-1.webp',
+    '/images/mobile/dest/sa-calobra-1.webp','/images/mobile/dest/circumnavigation-1.webp',
+    '/images/mobile/maiora_20s_01.webp','/images/mobile/maiora_20s_03.webp','/images/mobile/maiora_20s_07.webp',
+    '/images/mobile/limitless_aft_dining.webp','/images/mobile/limitless_flybridge.webp',
+    '/images/mobile/limitless_sundeck.webp','/images/mobile/limitless_aft_deck.webp',
+    '/images/mobile/int_saloon_artwork.webp','/images/mobile/int_saloon_marina_view.webp',
+    '/images/mobile/int_saloon_reverse.webp','/images/mobile/int_master_headboard.webp',
+    '/images/mobile/int_master_amber_glow.webp','/images/mobile/int_master_wide.webp',
+    '/images/mobile/int_vip_cabin.webp','/images/mobile/int_twin_cabin.webp'
+  ] : [
+    '/images/dest/portals-vells-1.webp','/images/dest/el-toro-malgrats-1.webp',
+    '/images/dest/cala-llamp-1.webp','/images/dest/sa-dragonera-1.webp',
+    '/images/dest/cala-pi-1.webp','/images/dest/es-trenc-1.webp',
+    '/images/dest/cabrera-1.webp','/images/dest/calo-des-moro-1.webp',
+    '/images/dest/formentera-1.webp','/images/dest/menorca-1.webp',
+    '/images/dest/sa-calobra-1.webp','/images/dest/circumnavigation-1.webp',
+    '/images/maiora_20s_01.webp','/images/maiora_20s_03.webp','/images/maiora_20s_07.webp',
+    '/images/limitless_aft_dining.webp','/images/limitless_flybridge.webp',
+    '/images/limitless_sundeck.webp','/images/limitless_aft_deck.webp',
+    '/images/int_saloon_artwork.webp','/images/int_saloon_marina_view.webp',
+    '/images/int_saloon_reverse.webp','/images/int_master_headboard.webp',
+    '/images/int_master_amber_glow.webp','/images/int_master_wide.webp',
+    '/images/int_vip_cabin.webp','/images/int_twin_cabin.webp'
+  ];
+  var i = 0;
+  function next() { if (i < imgs.length) { new Image().src = imgs[i++]; (window.requestIdleCallback || function(fn){setTimeout(fn,150);})(next); } }
+  (window.requestIdleCallback || function(fn){setTimeout(fn,500);})(next);
+});
 </script>
 <title>Limitless Yacht Experience – Luxus-Maiora-Charter auf Mallorca</title>
 <meta name="description" content="Chartern Sie die 21,5 m Maiora „Limitless“ ab Palma de Mallorca — Tages- und Mehrtagestörns zu Mallorcas schönsten Buchten, Cabrera und Formentera. Mit Crew, bis zu 12 Gäste." />
