@@ -1271,6 +1271,23 @@ height="0" width="0" style="display:none;visibility:hidden"></iframe></noscript>
     "images/int_twin_cabin.webp",
     "images/limitless_aft_deck.webp",
   ];
+  const imagePositions = [
+    'center 45%',    // 0: maiora_20s_01 — bow quarter, horizon mid-frame
+    'center 40%',    // 1: maiora_20s_03 — aerial, keep deck prominent
+    'center center', // 2: aft dining
+    'center 35%',    // 3: flybridge — sky above, keep people visible
+    'center 40%',    // 4: sundeck
+    'center 45%',    // 5: maiora_20s_07 — head-on shot, waterline matters
+    'center center', // 6: saloon artwork wall
+    'center center', // 7: saloon marina view
+    'center center', // 8: saloon reverse angle
+    'center 30%',    // 9: master headboard — show full headboard
+    'center 40%',    // 10: master amber glow
+    'center center', // 11: master wide shot
+    'center center', // 12: vip cabin
+    'center 20%',    // 13: twin cabin (portrait orientation — keep bunks in frame)
+    'center center', // 14: aft deck
+  ];
   let currentIdx = 0;
   const lightbox = document.getElementById('lightbox');
   const lbImg = document.getElementById('lightbox-img');
@@ -1280,6 +1297,7 @@ height="0" width="0" style="display:none;visibility:hidden"></iframe></noscript>
   function showImage(idx) {
     currentIdx = (idx + images.length) % images.length;
     lbImg.src = images[currentIdx];
+    lbImg.style.objectPosition = imagePositions[currentIdx] || 'center center';
     if (lbCounter) lbCounter.textContent = (currentIdx + 1) + ' / ' + images.length;
   }
 
