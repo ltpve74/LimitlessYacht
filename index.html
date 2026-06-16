@@ -1412,7 +1412,7 @@ height="0" width="0" style="display:none;visibility:hidden"></iframe></noscript>
       lbMeta.innerHTML = metaEl ? metaEl.innerHTML : '';
       var tierMap = { 'half-day': '4 Hours', 'full-day': '1 Day', 'multi-day': 'Multi-Day' };
       var tierLabel = { 'half-day': 'half-day', 'full-day': 'full-day', 'multi-day': 'multi-day' };
-      var tierBadge = { 'half-day': 'Half-Day · 4–6 h', 'full-day': 'Full Day · 8–10 h', 'multi-day': 'Multi-Day · Overnight +' };
+      var tierBadge = { 'half-day': 'Half-Day · 4–6 h', 'full-day': 'Full Day', 'multi-day': 'Multi-Day · Overnight +' };
       var group = card.closest ? card.closest('.dest-group') : null;
       var tier = group ? group.getAttribute('data-tier') : '';
       var destName = (card.querySelector('.destination-name') || {}).textContent || '';
