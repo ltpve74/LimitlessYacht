@@ -1,7 +1,8 @@
 #!/bin/sh
-# Pre-commit hook for the `main` branch.
-# Always minifies CSS + HTML for production on every commit to main.
-# Rebuilds locales only when EN source or translation data changed.
+# Branch-aware pre-commit hook.
+#
+# experiment-no-prices (dev): rebuild locales when EN source changes — keep HTML/CSS readable.
+# main (production): minify → test only (locales already built on dev branch before merge).
 #
 # Enable once per clone with:
 #   git config core.hooksPath .githooks
@@ -11,11 +12,7 @@
 
 set -e
 
-# Nothing to do on non-main branches.
 BRANCH=$(git symbolic-ref --short HEAD 2>/dev/null)
-if [ "$BRANCH" != "main" ]; then
-  exit 0
-fi
 
 # Prefer the project venv; fall back to python3.
 if [ -x ".venv/bin/python" ]; then
@@ -26,30 +23,40 @@ fi
 
 CHANGED=$(git diff --cached --name-only)
 
-# Rebuild locales only when EN source or translation data changed.
+LOCALE_REBUILD=0
 if printf '%s\n' "$CHANGED" | grep -qE '^(index\.html|legal\.html|i18n/locales/[^/]+\.py|i18n/build-locales\.py)$'; then
-  echo "[pre-commit] EN source / locale data changed — rebuilding locales..."
-  if ! "$PY" i18n/build-locales.py; then
-    echo "[pre-commit] ERROR: locale build failed — aborting commit." >&2
-    exit 1
-  fi
+  LOCALE_REBUILD=1
 fi
 
-# Always minify CSS + HTML on main (guards against merges bringing in dev source).
+if [ "$BRANCH" = "experiment-no-prices" ]; then
+  if [ "$LOCALE_REBUILD" -eq 1 ]; then
+    echo "[pre-commit] EN source / locale data changed — rebuilding locales (readable dev branch)..."
+    if ! "$PY" i18n/build-locales.py; then
+      echo "[pre-commit] ERROR: locale build failed — aborting commit." >&2
+      exit 1
+    fi
+    git add de/index.html de/legal.html es/index.html es/legal.html fr/index.html fr/legal.html
+    echo "[pre-commit] Locales rebuilt and staged (no minification on dev branch)."
+  fi
+  exit 0
+fi
+
+if [ "$BRANCH" != "main" ]; then
+  exit 0
+fi
+
 echo "[pre-commit] Minifying CSS + HTML for production..."
 if ! "$PY" scripts/minify_html.py; then
   echo "[pre-commit] ERROR: minify failed — aborting commit." >&2
   exit 1
 fi
 
-# Always run site tests on main.
 echo "[pre-commit] Running site tests..."
 if ! "$PY" scripts/test-site.py; then
   echo "[pre-commit] ERROR: site tests failed — fix the issues above and try again." >&2
   exit 1
 fi
 
-# Re-stage everything that minification may have changed.
 git add index.html legal.html css/main.css \
         de/index.html de/legal.html es/index.html es/legal.html fr/index.html fr/legal.html
 echo "[pre-commit] Minified + staged for main."
