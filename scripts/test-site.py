@@ -170,16 +170,32 @@ def check_html(r: Runner, rel: str, html: str) -> None:
         'const images = [' in html and 'function showImage(idx)' in html,
     )
     r.check(
-        'destination lightbox uses centralized destImages arrays',
-        'var destImages = [' in html and 'var destImagesMobile = [' in html,
+        'shared destination image registry (LY_DEST_IMAGES)',
+        'window.LY_DEST_IMAGES = [' in html and 'window.LY_DEST_IMAGES_MOBILE = [' in html,
     )
     r.check(
-        'destination lightbox prefetches from image arrays',
-        'pi.src = arr[(destIdx + d + arr.length) % arr.length]' in html,
+        'destination lightbox uses shared image registry',
+        'var destImages = window.LY_DEST_IMAGES' in html,
     )
     r.check(
-        'gallery and destination idle drip-feed preloads',
-        'function nextGallery()' in html and 'function nextDest()' in html,
+        'destination preload shares cache with carousel/lightbox',
+        'window.LY_preloadDestAdjacent' in html and 'window.LY_destPreloaded' in html,
+    )
+    r.check(
+        'itinerary carousel cards have data-dest-idx',
+        html.count('data-dest-idx="') == 12,
+    )
+    r.check(
+        'itinerary carousel syncs card webp with lightbox URL',
+        'window.LY_syncDestCardImages' in html,
+    )
+    r.check(
+        'itinerary carousel prefetches on scroll',
+        'window.LY_preloadDestAdjacent(gi)' in html,
+    )
+    r.check(
+        'gallery and itinerary tier idle drip-feed preloads',
+        'function nextGallery()' in html and 'window.LY_dripDestTier' in html,
     )
     r.check(
         'destination preload not burst on DOMContentLoaded',
@@ -257,11 +273,11 @@ def check_html(r: Runner, rel: str, html: str) -> None:
     # Locale subfolders — asset paths must be root-relative
     if rel != 'index.html':
         r.check(
-            f'{rel} destImages uses root-relative paths',
+            f'{rel} LY_DEST_IMAGES uses root-relative paths',
             "'/images/dest/" in html,
         )
         r.check(
-            f'{rel} no relative images/ in destImages',
+            f'{rel} no relative images/ in LY_DEST_IMAGES',
             "'images/dest/" not in html,
         )
         r.check(
