@@ -199,8 +199,11 @@ nav.scrolled::before { opacity: 1; }
   color: var(--white); letter-spacing: .06em;
   text-shadow: 0 2px 28px rgba(0,0,0,.7), 0 1px 6px rgba(0,0,0,.55);
   -webkit-font-smoothing: antialiased;
-  opacity: 0; animation: fadeUp 1s .5s ease both;
+  opacity: 1;
+  transform: translateY(20px);
+  animation: heroTitleIn 0.9s 0.1s ease forwards;
 }
+@keyframes heroTitleIn { to { transform: translateY(0); } }
 .hero-title em {
   font-style: normal; color: var(--gold-light);
   text-shadow: 0 2px 24px rgba(0,0,0,.65);

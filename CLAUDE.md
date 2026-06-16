@@ -1,8 +1,15 @@
 # Limitless Yacht — Claude Code Guidelines
 
 ## Branch strategy
-- `experiment-no-prices` — unminified dev source, always work here
-- `main` — production; merge from experiment-no-prices, resolve conflicts with `git checkout --theirs`, pre-commit hook rebuilds locales → minifies → runs 49 tests
+- `experiment-no-prices` — **readable dev source** (multi-line HTML/CSS). Always edit here.
+- `main` — production on Netlify. Merge from `experiment-no-prices` when publishing; resolve conflicts with `git checkout --theirs`.
+
+## Publishing workflow
+1. Commit on `experiment-no-prices` — pre-commit **only rebuilds locales** (no minification).
+2. Merge into `main` and commit — pre-commit **rebuilds locales → minifies → runs 49 tests**.
+3. Push `main` — Netlify publishes the already-minified files as-is (no build/minify step).
+
+Never minify on `experiment-no-prices`. Never hand-edit minified files on `main`.
 
 ## Navigation / scrolling
 **Always use native browser anchor navigation.** CSS handles positioning:
