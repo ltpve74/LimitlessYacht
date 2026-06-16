@@ -70,16 +70,22 @@
     } catch (e) {}
   }
 </script>
-<!-- Google tag (gtag.js) — not loaded in owner mode -->
+<!-- Google tag (gtag.js) — deferred until after load -->
 <script>
-  if (!window.LY_OWNER_MODE) {
-    var _gt=document.createElement('script');
-    _gt.async=true; _gt.crossOrigin='anonymous';
-    _gt.src='https://www.googletagmanager.com/gtag/js?id=AW-18209943491';
-    document.head.appendChild(_gt);
-    gtag('js', new Date());
-    gtag('config', 'AW-18209943491');
+  function _ly_loadAnalytics() {
+    if (window._ly_analytics_loaded) return;
+    window._ly_analytics_loaded = true;
+    if (!window.LY_OWNER_MODE) {
+      var _gt=document.createElement('script');
+      _gt.async=true; _gt.crossOrigin='anonymous';
+      _gt.src='https://www.googletagmanager.com/gtag/js?id=AW-18209943491';
+      document.head.appendChild(_gt);
+      gtag('js', new Date());
+      gtag('config', 'AW-18209943491');
+    }
   }
+  if (document.readyState === 'complete') { _ly_loadAnalytics(); }
+  else { window.addEventListener('load', _ly_loadAnalytics); }
 </script>
 <!-- Event snippet for lead conversion (form + WhatsApp)
 In your html page, add the snippet and call gtag_report_conversion when a lead is submitted (form success or WhatsApp click). -->
@@ -111,12 +117,16 @@ function gtag_report_conversion_form(url) {
   return false;
 }
 </script>
-<!-- Google Tag Manager — not loaded in owner mode -->
-<script>if(!window.LY_OWNER_MODE){(function(w,d,s,l,i){w[l]=w[l]||[];w[l].push({'gtm.start':
-new Date().getTime(),event:'gtm.js'});var f=d.getElementsByTagName(s)[0],
-j=d.createElement(s),dl=l!='dataLayer'?'&l='+l:'';j.async=true;j.crossOrigin='anonymous';j.src=
-'https://www.googletagmanager.com/gtm.js?id='+i+dl;f.parentNode.insertBefore(j,f);
-})(window,document,'script','dataLayer','GTM-NN8V25BR');}</script>
+<!-- Google Tag Manager — deferred until after load -->
+<script>
+window.addEventListener('load', function() {
+  if(!window.LY_OWNER_MODE){(function(w,d,s,l,i){w[l]=w[l]||[];w[l].push({'gtm.start':
+  new Date().getTime(),event:'gtm.js'});var f=d.getElementsByTagName(s)[0],
+  j=d.createElement(s),dl=l!='dataLayer'?'&l='+l:'';j.async=true;j.crossOrigin='anonymous';j.src=
+  'https://www.googletagmanager.com/gtm.js?id='+i+dl;f.parentNode.insertBefore(j,f);
+  })(window,document,'script','dataLayer','GTM-NN8V25BR')}
+});
+</script>
 <!-- End Google Tag Manager -->
 <!-- Behaviour analytics (section views → dataLayer) -->
 <script>
@@ -125,13 +135,21 @@ j=d.createElement(s),dl=l!='dataLayer'?'&l='+l:'';j.async=true;j.crossOrigin='an
     sectionVisibleRatio: 0.4
   };
 </script>
-<!-- Microsoft Clarity — not loaded in owner mode -->
-<script>if(!window.LY_OWNER_MODE){(function(c,l,a,r,i,t,y){
-    c[a]=c[a]||function(){(c[a].q=c[a].q||[]).push(arguments)};
-    t=l.createElement(r);t.async=1;t.src="https://www.clarity.ms/tag/"+i;
-    y=l.getElementsByTagName(r)[0];y.parentNode.insertBefore(t,y);
-})(window, document, "clarity", "script", "x1y8i19q6e");}</script>
-<script>if(!window.LY_OWNER_MODE){var _cs=document.createElement('script');_cs.defer=true;_cs.src='/js/clarity-consent.js';document.head.appendChild(_cs);}</script>
+<!-- Microsoft Clarity — deferred until after load -->
+<script>
+window.addEventListener('load', function() {
+  if(!window.LY_OWNER_MODE){(function(c,l,a,r,i,t,y){
+      c[a]=c[a]||function(){(c[a].q=c[a].q||[]).push(arguments)};
+      t=l.createElement(r);t.async=1;t.src="https://www.clarity.ms/tag/"+i;
+      y=l.getElementsByTagName(r)[0];y.parentNode.insertBefore(t,y);
+  })(window, document, "clarity", "script", "x1y8i19q6e");}
+});
+</script>
+<script>
+window.addEventListener('load', function() {
+  if(!window.LY_OWNER_MODE){var _cs=document.createElement('script');_cs.defer=true;_cs.src='/js/clarity-consent.js';document.head.appendChild(_cs);}
+});
+</script>
 <title>Limitless Yacht Experience – Charter de lujo Maiora en Mallorca</title>
 <meta name="description" content="Alquile el Maiora de 21,5 m «Limitless» desde Palma de Mallorca — chárteres de día y de varios días a las calas de Mallorca, Cabrera y Formentera. Con tripulación, hasta 12 invitados." />
 <meta name="keywords" content="alquiler yate Mallorca, yate Maiora, yate Limitless, charter barco Palma de Mallorca, yate de lujo Mediterráneo, charter Club de Mar" />
@@ -175,11 +193,6 @@ j=d.createElement(s),dl=l!='dataLayer'?'&l='+l:'';j.async=true;j.crossOrigin='an
 <!-- Preload hero image (LCP) -->
 <link rel="preload" as="image" href="/images/maiora_20s_02.webp" type="image/webp" fetchpriority="high" />
 
-<link rel="preconnect" href="https://fonts.googleapis.com" />
-<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
-<link rel="preload" as="style" href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,300;0,400;1,300;1,400&family=Montserrat:wght@300;400;500;600&display=swap" />
-<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,300;0,400;1,300;1,400&family=Montserrat:wght@300;400;500;600&display=swap" media="print" onload="this.media='all'" />
-<noscript><link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,300;0,400;1,300;1,400&family=Montserrat:wght@300;400;500;600&display=swap" /></noscript>
 <link rel="stylesheet" href="../css/main.css?v=8">
 
 <!-- Structured data -->
@@ -339,7 +352,7 @@ height="0" width="0" style="display:none;visibility:hidden"></iframe></noscript>
   <div class="container">
     <div class="about-grid">
       <div class="about-image-wrap reveal">
-        <picture><source type="image/webp" srcset="/images/maiora_20s_04.webp" /><img loading="lazy" decoding="async" src="/images/maiora_20s_04.jpg" width="960" height="639" alt="Limitless yacht cruising the Mallorca coastline" /></picture>
+        <picture><source type="image/webp" srcset="/images/maiora_20s_04.webp 960w, /images/mobile/maiora_20s_04.webp 800w" sizes="(max-width: 640px) 100vw, 50vw" /><img loading="lazy" decoding="async" src="/images/maiora_20s_04.jpg" width="960" height="639" alt="Limitless yacht cruising the Mallorca coastline" /></picture>
         <div class="about-image-accent"></div>
       </div>
       <div class="about-text reveal reveal-delay-1">
