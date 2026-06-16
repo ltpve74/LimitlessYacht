@@ -1298,17 +1298,24 @@ footer {
   .gallery-group .gallery-grid {
     display: flex; flex-direction: row;
     overflow-x: auto; overscroll-behavior-x: contain;
+    scroll-snap-type: x mandatory;
     touch-action: pan-x pan-y;
     scrollbar-width: none;
-    padding: 0.55rem 1.5rem 0.05rem; gap: .75rem; margin-top: 0;
+    padding: 0; gap: 0; margin-top: 0;
   }
   .gallery-group .gallery-grid::-webkit-scrollbar { display: none; }
   .gallery-group .gallery-item {
-    flex: 0 0 78vw;
-    height: calc(100svh - 15rem); border-radius: 8px;
+    flex: 0 0 100vw;
+    aspect-ratio: 4/3; height: auto;
+    border-radius: 0;
+    scroll-snap-align: start;
     touch-action: pan-x pan-y;
   }
-  .gallery-group .gallery-item picture { display: block; height: 100%; }
+  .gallery-group .gallery-item picture { display: block; width: 100%; height: 100%; }
+  .gallery-group .gallery-item img { width: 100%; height: 100%; object-fit: cover; display: block; }
+  /* portrait photo — bias to headboard rather than random crop */
+  .gallery-group[data-gtab="interior"] .gallery-item[data-index="13"] img { object-position: center 15%; }
+  #gallery .carousel-nav { padding: 0.65rem 0 0.3rem; }
   /* Breathing space above sticky tabs (kept minimal to move tabs+carousel up) */
   .itinerary-wrap { padding-top: 0.05rem !important; }
   /* Horizontal swipe carousel — one card at a time, next peeks at right */
