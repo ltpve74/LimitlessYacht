@@ -2,7 +2,7 @@
 # Branch-aware pre-commit hook.
 #
 # experiment-no-prices (dev): rebuild locales when EN source changes — keep HTML/CSS readable.
-# main (production): rebuild locales → minify → test — publishing step only.
+# main (production): minify → test only (locales already built on dev branch before merge).
 #
 # Enable once per clone with:
 #   git config core.hooksPath .githooks
@@ -43,14 +43,6 @@ fi
 
 if [ "$BRANCH" != "main" ]; then
   exit 0
-fi
-
-if [ "$LOCALE_REBUILD" -eq 1 ]; then
-  echo "[pre-commit] EN source / locale data changed — rebuilding locales..."
-  if ! "$PY" i18n/build-locales.py; then
-    echo "[pre-commit] ERROR: locale build failed — aborting commit." >&2
-    exit 1
-  fi
 fi
 
 echo "[pre-commit] Minifying CSS + HTML for production..."

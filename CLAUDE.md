@@ -5,11 +5,11 @@
 - `main` — production on Netlify. Merge from `experiment-no-prices` when publishing; resolve conflicts with `git checkout --theirs`.
 
 ## Publishing workflow
-1. Commit on `experiment-no-prices` — pre-commit **only rebuilds locales** (no minification).
-2. Merge into `main` and commit — pre-commit **rebuilds locales → minifies → runs 49 tests**.
+1. Commit on `experiment-no-prices` — pre-commit **rebuilds locales** when EN source changes (no minification).
+2. Merge into `main` and commit — pre-commit **minifies → runs 49 tests** (locales already built in step 1).
 3. Push `main` — Netlify publishes the already-minified files as-is (no build/minify step).
 
-Never minify on `experiment-no-prices`. Never hand-edit minified files on `main`.
+Never minify on `experiment-no-prices`. Never edit EN source directly on `main` — always merge from dev.
 
 ## Navigation / scrolling
 **Always use native browser anchor navigation.** CSS handles positioning:
