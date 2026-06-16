@@ -251,6 +251,10 @@ def check_html(r: Runner, rel: str, html: str) -> None:
         < html.find('window.LY_DEST_IMAGES'),
     )
     r.check(
+        'analytics and preload bootstrap deferred until after hero',
+        html.find('id="hero"') > 0 and html.find('id="hero"') < html.find('LY_afterLcp'),
+    )
+    r.check(
         'below-fold preloads deferred until after LCP window',
         'window.LY_afterLcp' in html and 'LY_destPreloadReady' in html,
     )

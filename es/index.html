@@ -417,151 +417,6 @@ nav.scrolled::before { opacity: 1; }
   }
 }catch(e){}})();
 </script>
-<!-- Owner mode: visit ?ly_owner=set once to suppress all analytics on this device.
-     Visit ?ly_owner=unset to re-enable. Flag persists in localStorage. -->
-<script>
-(function(){try{
-  var p=new URLSearchParams(location.search);
-  if(p.get('ly_owner')==='set'){
-    localStorage.setItem('ly_owner','1');
-    history.replaceState(null,'',location.pathname+(location.hash||''));
-  } else if(p.get('ly_owner')==='unset'){
-    localStorage.removeItem('ly_owner');
-    history.replaceState(null,'',location.pathname+(location.hash||''));
-  }
-  if(localStorage.getItem('ly_owner')==='1'){
-    window.LY_OWNER_MODE=true;
-    console.log('%c[Limitless] Owner mode — GA · Clarity suppressed','color:#c9a84c;font-weight:bold');
-  }
-}catch(e){}})();
-</script>
-<!-- Google Consent Mode v2 defaults -->
-<script>
-  window.dataLayer = window.dataLayer || [];
-  function gtag(){dataLayer.push(arguments);}
-  if (!window.LY_OWNER_MODE) {
-    gtag('consent', 'default', {
-      'ad_storage': 'denied',
-      'ad_user_data': 'denied',
-      'ad_personalization': 'denied',
-      'analytics_storage': 'denied',
-      'functionality_storage': 'granted',
-      'security_storage': 'granted',
-      'wait_for_update': 500
-    });
-    try {
-      if (localStorage.getItem('ly_consent') === 'granted') {
-        gtag('consent', 'update', {
-          'analytics_storage': 'granted',
-          'ad_storage': 'granted',
-          'ad_user_data': 'granted',
-          'ad_personalization': 'granted'
-        });
-      }
-    } catch (e) {}
-  }
-</script>
-<!-- Google tag (gtag.js) — deferred until after load -->
-<script>
-  function _ly_loadAnalytics() {
-    if (window._ly_analytics_loaded) return;
-    window._ly_analytics_loaded = true;
-    if (!window.LY_OWNER_MODE) {
-      var _gt=document.createElement('script');
-      _gt.async=true; _gt.crossOrigin='anonymous';
-      _gt.src='https://www.googletagmanager.com/gtag/js?id=AW-18209943491';
-      document.head.appendChild(_gt);
-      gtag('js', new Date());
-      gtag('config', 'AW-18209943491');
-    }
-  }
-  if (document.readyState === 'complete') { _ly_loadAnalytics(); }
-  else { window.addEventListener('load', _ly_loadAnalytics); }
-</script>
-<!-- Event snippet for lead conversion (form + WhatsApp)
-In your html page, add the snippet and call gtag_report_conversion when a lead is submitted (form success or WhatsApp click). -->
-<script>
-function gtag_report_conversion(url) {
-  var callback = function () {
-    if (typeof(url) != 'undefined') {
-      window.location = url;
-    }
-  };
-  gtag('event', 'conversion', {
-      'send_to': 'AW-18209943491/CkJfCKPt7rgcEMPflutD',
-      'value': 1.0,
-      'currency': 'EUR',
-      'event_callback': callback
-  });
-  return false;
-}
-function gtag_report_conversion_form(url) {
-  var callback = function () {
-    if (typeof(url) != 'undefined') {
-      window.location = url;
-    }
-  };
-  gtag('event', 'conversion', {
-      'send_to': 'AW-18209943491/Pd-9CKDt7rgcEMPflutD',
-      'event_callback': callback
-  });
-  return false;
-}
-</script>
-<!-- Behaviour analytics (section views → dataLayer) -->
-<script>
-  window.LY_ANALYTICS = {
-    sectionDwellSeconds: 3,
-    sectionVisibleRatio: 0.4
-  };
-</script>
-<!-- Microsoft Clarity — deferred until after load -->
-<script>
-window.addEventListener('load', function() {
-  if(!window.LY_OWNER_MODE){(function(c,l,a,r,i,t,y){
-      c[a]=c[a]||function(){(c[a].q=c[a].q||[]).push(arguments)};
-      t=l.createElement(r);t.async=1;t.src="https://www.clarity.ms/tag/"+i;
-      y=l.getElementsByTagName(r)[0];y.parentNode.insertBefore(t,y);
-  })(window, document, "clarity", "script", "x1y8i19q6e");}
-});
-</script>
-<script>
-window.addEventListener('load', function() {
-  if(!window.LY_OWNER_MODE){var _cs=document.createElement('script');_cs.defer=true;_cs.src='/js/clarity-consent.js';document.head.appendChild(_cs);}
-});
-// Below-fold images: wait until after the LCP window before any idle preloads
-window.LY_afterLcp = function(fn) {
-  window.addEventListener('load', function() {
-    setTimeout(function() {
-      (window.requestIdleCallback || function(f){setTimeout(f,200);})(fn);
-    }, 3000);
-  });
-};
-// Gallery: drip-feed at idle priority after page load
-window.LY_afterLcp(function() {
-  var mob = window.innerWidth <= 640;
-  var gallery = mob ? [
-    '/images/mobile/maiora_20s_01.webp','/images/mobile/maiora_20s_03.webp','/images/mobile/maiora_20s_07.webp',
-    '/images/mobile/limitless_aft_dining.webp','/images/mobile/limitless_flybridge.webp',
-    '/images/mobile/limitless_sundeck.webp','/images/mobile/limitless_aft_deck.webp',
-    '/images/mobile/int_saloon_artwork.webp','/images/mobile/int_saloon_marina_view.webp',
-    '/images/mobile/int_saloon_reverse.webp','/images/mobile/int_master_headboard.webp',
-    '/images/mobile/int_master_amber_glow.webp','/images/mobile/int_master_wide.webp',
-    '/images/mobile/int_vip_cabin.webp','/images/mobile/int_twin_cabin.webp'
-  ] : [
-    '/images/maiora_20s_01.webp','/images/maiora_20s_03.webp','/images/maiora_20s_07.webp',
-    '/images/limitless_aft_dining.webp','/images/limitless_flybridge.webp',
-    '/images/limitless_sundeck.webp','/images/limitless_aft_deck.webp',
-    '/images/int_saloon_artwork.webp','/images/int_saloon_marina_view.webp',
-    '/images/int_saloon_reverse.webp','/images/int_master_headboard.webp',
-    '/images/int_master_amber_glow.webp','/images/int_master_wide.webp',
-    '/images/int_vip_cabin.webp','/images/int_twin_cabin.webp'
-  ];
-  var i = 0;
-  function nextGallery() { if (i < gallery.length) { new Image().src = gallery[i++]; (window.requestIdleCallback || function(fn){setTimeout(fn,200);})(nextGallery); } }
-  nextGallery();
-});
-</script>
 <title>Limitless Yacht Experience – Charter de lujo Maiora en Mallorca</title>
 <meta name="description" content="Alquile el Maiora de 21,5 m «Limitless» desde Palma de Mallorca — chárteres de día y de varios días a las calas de Mallorca, Cabrera y Formentera. Con tripulación, hasta 12 invitados." />
 <meta name="keywords" content="alquiler yate Mallorca, yate Maiora, yate Limitless, charter barco Palma de Mallorca, yate de lujo Mediterráneo, charter Club de Mar" />
@@ -879,6 +734,154 @@ window.LY_afterLcp(function() {
             <div class="destination-tagline">Reserva natural insular</div>
             <p class="destination-desc">La isla deshabitada y con forma de dragón de Sa Dragonera es un Parc Natural. Practique snorkel en sus aguas vírgenes y almuerce después en el bonito puerto de Sant Elm.</p>
             <div class="destination-meta">
+
+<!-- Deferred head bootstrap (after hero for LCP) -->
+<!-- Owner mode: visit ?ly_owner=set once to suppress all analytics on this device.
+     Visit ?ly_owner=unset to re-enable. Flag persists in localStorage. -->
+<script>
+(function(){try{
+  var p=new URLSearchParams(location.search);
+  if(p.get('ly_owner')==='set'){
+    localStorage.setItem('ly_owner','1');
+    history.replaceState(null,'',location.pathname+(location.hash||''));
+  } else if(p.get('ly_owner')==='unset'){
+    localStorage.removeItem('ly_owner');
+    history.replaceState(null,'',location.pathname+(location.hash||''));
+  }
+  if(localStorage.getItem('ly_owner')==='1'){
+    window.LY_OWNER_MODE=true;
+    console.log('%c[Limitless] Owner mode — GA · Clarity suppressed','color:#c9a84c;font-weight:bold');
+  }
+}catch(e){}})();
+</script>
+<!-- Google Consent Mode v2 defaults -->
+<script>
+  window.dataLayer = window.dataLayer || [];
+  function gtag(){dataLayer.push(arguments);}
+  if (!window.LY_OWNER_MODE) {
+    gtag('consent', 'default', {
+      'ad_storage': 'denied',
+      'ad_user_data': 'denied',
+      'ad_personalization': 'denied',
+      'analytics_storage': 'denied',
+      'functionality_storage': 'granted',
+      'security_storage': 'granted',
+      'wait_for_update': 500
+    });
+    try {
+      if (localStorage.getItem('ly_consent') === 'granted') {
+        gtag('consent', 'update', {
+          'analytics_storage': 'granted',
+          'ad_storage': 'granted',
+          'ad_user_data': 'granted',
+          'ad_personalization': 'granted'
+        });
+      }
+    } catch (e) {}
+  }
+</script>
+<!-- Google tag (gtag.js) — deferred until after load -->
+<script>
+  function _ly_loadAnalytics() {
+    if (window._ly_analytics_loaded) return;
+    window._ly_analytics_loaded = true;
+    if (!window.LY_OWNER_MODE) {
+      var _gt=document.createElement('script');
+      _gt.async=true; _gt.crossOrigin='anonymous';
+      _gt.src='https://www.googletagmanager.com/gtag/js?id=AW-18209943491';
+      document.head.appendChild(_gt);
+      gtag('js', new Date());
+      gtag('config', 'AW-18209943491');
+    }
+  }
+  if (document.readyState === 'complete') { _ly_loadAnalytics(); }
+  else { window.addEventListener('load', _ly_loadAnalytics); }
+</script>
+<!-- Event snippet for lead conversion (form + WhatsApp)
+In your html page, add the snippet and call gtag_report_conversion when a lead is submitted (form success or WhatsApp click). -->
+<script>
+function gtag_report_conversion(url) {
+  var callback = function () {
+    if (typeof(url) != 'undefined') {
+      window.location = url;
+    }
+  };
+  gtag('event', 'conversion', {
+      'send_to': 'AW-18209943491/CkJfCKPt7rgcEMPflutD',
+      'value': 1.0,
+      'currency': 'EUR',
+      'event_callback': callback
+  });
+  return false;
+}
+function gtag_report_conversion_form(url) {
+  var callback = function () {
+    if (typeof(url) != 'undefined') {
+      window.location = url;
+    }
+  };
+  gtag('event', 'conversion', {
+      'send_to': 'AW-18209943491/Pd-9CKDt7rgcEMPflutD',
+      'event_callback': callback
+  });
+  return false;
+}
+</script>
+<!-- Behaviour analytics (section views → dataLayer) -->
+<script>
+  window.LY_ANALYTICS = {
+    sectionDwellSeconds: 3,
+    sectionVisibleRatio: 0.4
+  };
+</script>
+<!-- Microsoft Clarity — deferred until after load -->
+<script>
+window.addEventListener('load', function() {
+  if(!window.LY_OWNER_MODE){(function(c,l,a,r,i,t,y){
+      c[a]=c[a]||function(){(c[a].q=c[a].q||[]).push(arguments)};
+      t=l.createElement(r);t.async=1;t.src="https://www.clarity.ms/tag/"+i;
+      y=l.getElementsByTagName(r)[0];y.parentNode.insertBefore(t,y);
+  })(window, document, "clarity", "script", "x1y8i19q6e");}
+});
+</script>
+<script>
+window.addEventListener('load', function() {
+  if(!window.LY_OWNER_MODE){var _cs=document.createElement('script');_cs.defer=true;_cs.src='/js/clarity-consent.js';document.head.appendChild(_cs);}
+});
+// Below-fold images: wait until after the LCP window before any idle preloads
+window.LY_afterLcp = function(fn) {
+  window.addEventListener('load', function() {
+    setTimeout(function() {
+      (window.requestIdleCallback || function(f){setTimeout(f,200);})(fn);
+    }, 3000);
+  });
+};
+// Gallery: drip-feed at idle priority after page load
+window.LY_afterLcp(function() {
+  var mob = window.innerWidth <= 640;
+  var gallery = mob ? [
+    '/images/mobile/maiora_20s_01.webp','/images/mobile/maiora_20s_03.webp','/images/mobile/maiora_20s_07.webp',
+    '/images/mobile/limitless_aft_dining.webp','/images/mobile/limitless_flybridge.webp',
+    '/images/mobile/limitless_sundeck.webp','/images/mobile/limitless_aft_deck.webp',
+    '/images/mobile/int_saloon_artwork.webp','/images/mobile/int_saloon_marina_view.webp',
+    '/images/mobile/int_saloon_reverse.webp','/images/mobile/int_master_headboard.webp',
+    '/images/mobile/int_master_amber_glow.webp','/images/mobile/int_master_wide.webp',
+    '/images/mobile/int_vip_cabin.webp','/images/mobile/int_twin_cabin.webp'
+  ] : [
+    '/images/maiora_20s_01.webp','/images/maiora_20s_03.webp','/images/maiora_20s_07.webp',
+    '/images/limitless_aft_dining.webp','/images/limitless_flybridge.webp',
+    '/images/limitless_sundeck.webp','/images/limitless_aft_deck.webp',
+    '/images/int_saloon_artwork.webp','/images/int_saloon_marina_view.webp',
+    '/images/int_saloon_reverse.webp','/images/int_master_headboard.webp',
+    '/images/int_master_amber_glow.webp','/images/int_master_wide.webp',
+    '/images/int_vip_cabin.webp','/images/int_twin_cabin.webp'
+  ];
+  var i = 0;
+  function nextGallery() { if (i < gallery.length) { new Image().src = gallery[i++]; (window.requestIdleCallback || function(fn){setTimeout(fn,200);})(nextGallery); } }
+  nextGallery();
+});
+</script>
+
               <span>Desde Club de Mar <strong>~1 h 10</strong></span>
               <span>Ida y vuelta <strong>~36 nm</strong></span>
               <span>Parc Natural — solo boyas</span>
