@@ -288,7 +288,10 @@ height="0" width="0" style="display:none;visibility:hidden"></iframe></noscript>
 
 <!-- HERO -->
 <section id="hero">
-  <div class="hero-bg"></div>
+  <picture class="hero-bg-wrap">
+    <source srcset="images/maiora_20s_02.webp" type="image/webp">
+    <img class="hero-bg" src="images/maiora_20s_02.jpg" alt="" width="1920" height="1080" fetchpriority="high" decoding="sync" aria-hidden="true">
+  </picture>
   <div class="hero-overlay"></div>
   <div class="hero-content">
     <p class="hero-eyebrow"><a href="#reviews"><span class="eyebrow-stars">★★★★★</span> 5.0</a> &nbsp;·&nbsp; <a href="#pricing">Private Charter</a><br>Club de Mar · Mallorca</p>
@@ -830,6 +833,8 @@ height="0" width="0" style="display:none;visibility:hidden"></iframe></noscript>
   <button type="button" id="lightbox-prev" aria-label="Previous image">‹</button>
   <img id="lightbox-img" src="" alt="Limitless yacht gallery photo" />
   <button type="button" id="lightbox-next" aria-label="Next image">›</button>
+  <div id="lightbox-counter" aria-live="polite"></div>
+  <div id="lightbox-hint" aria-hidden="true">Swipe to browse</div>
 </div>
 
 <div id="dest-lightbox" role="dialog" aria-modal="true" aria-label="Destination details">
@@ -1268,6 +1273,14 @@ height="0" width="0" style="display:none;visibility:hidden"></iframe></noscript>
   let currentIdx = 0;
   const lightbox = document.getElementById('lightbox');
   const lbImg = document.getElementById('lightbox-img');
+  const lbCounter = document.getElementById('lightbox-counter');
+  const lbHint = document.getElementById('lightbox-hint');
+
+  function showImage(idx) {
+    currentIdx = (idx + images.length) % images.length;
+    lbImg.src = images[currentIdx];
+    if (lbCounter) lbCounter.textContent = (currentIdx + 1) + ' / ' + images.length;
+  }
 
   document.querySelectorAll('.gallery-item').forEach(item => {
     let touchStartX = 0, touchStartY = 0, wasSwiped = false;
@@ -1283,8 +1296,7 @@ height="0" width="0" style="display:none;visibility:hidden"></iframe></noscript>
     }, { passive: true });
     item.addEventListener('click', () => {
       if (wasSwiped) return;
-      currentIdx = parseInt(item.dataset.index);
-      lbImg.src = images[currentIdx];
+      showImage(parseInt(item.dataset.index));
       openGalleryLb();
     });
   });
@@ -1292,28 +1304,46 @@ height="0" width="0" style="display:none;visibility:hidden"></iframe></noscript>
   function openGalleryLb() {
     lightbox.classList.add('open');
     if (!history.state || history.state.lb !== 'gallery') { history.pushState({ lb: 'gallery' }, ''); }
+    try {
+      if (!localStorage.getItem('ly_gallery_hinted') && lbHint) {
+        lbHint.classList.add('visible');
+        setTimeout(function() { lbHint.classList.remove('visible'); localStorage.setItem('ly_gallery_hinted', '1'); }, 2000);
+      }
+    } catch(e) {}
   }
   function closeGalleryLb() {
     if (!lightbox.classList.contains('open')) return;
     lightbox.classList.remove('open');
+    if (lbHint) lbHint.classList.remove('visible');
     if (history.state && history.state.lb === 'gallery') { history.back(); }
   }
 
   document.getElementById('lightbox-close').addEventListener('click', closeGalleryLb);
   lightbox.addEventListener('click', e => { if(e.target === lightbox) closeGalleryLb(); });
-  document.getElementById('lightbox-prev').addEventListener('click', () => {
-    currentIdx = (currentIdx - 1 + images.length) % images.length;
-    lbImg.src = images[currentIdx];
+  document.getElementById('lightbox-prev').addEventListener('click', () => { showImage(currentIdx - 1); });
+  document.getElementById('lightbox-next').addEventListener('click', () => { showImage(currentIdx + 1); });
+
+  // Swipe inside lightbox
+  let lbSwipeX = 0, lbWasSwiped = false;
+  lightbox.addEventListener('touchstart', e => { lbSwipeX = e.touches[0].clientX; lbWasSwiped = false; }, { passive: true });
+  lightbox.addEventListener('touchmove', e => { if (Math.abs(e.touches[0].clientX - lbSwipeX) > 8) lbWasSwiped = true; }, { passive: true });
+  lightbox.addEventListener('touchend', e => {
+    const dx = e.changedTouches[0].clientX - lbSwipeX;
+    if (Math.abs(dx) > 40) { dx < 0 ? showImage(currentIdx + 1) : showImage(currentIdx - 1); }
+  }, { passive: true });
+
+  // Tap left/right halves of image to navigate
+  lbImg.addEventListener('click', e => {
+    if (lbWasSwiped) return;
+    const rect = lbImg.getBoundingClientRect();
+    e.clientX < rect.left + rect.width / 2 ? showImage(currentIdx - 1) : showImage(currentIdx + 1);
   });
-  document.getElementById('lightbox-next').addEventListener('click', () => {
-    currentIdx = (currentIdx + 1) % images.length;
-    lbImg.src = images[currentIdx];
-  });
+
   document.addEventListener('keydown', e => {
     if (!lightbox.classList.contains('open')) return;
     if (e.key === 'Escape') closeGalleryLb();
-    if (e.key === 'ArrowLeft') { currentIdx=(currentIdx-1+images.length)%images.length; lbImg.src=images[currentIdx]; }
-    if (e.key === 'ArrowRight') { currentIdx=(currentIdx+1)%images.length; lbImg.src=images[currentIdx]; }
+    if (e.key === 'ArrowLeft') showImage(currentIdx - 1);
+    if (e.key === 'ArrowRight') showImage(currentIdx + 1);
   });
 
   // Destination card lightbox (mobile only — shows full desc + all meta on tap)
