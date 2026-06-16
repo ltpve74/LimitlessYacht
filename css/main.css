@@ -1615,33 +1615,9 @@ footer {
 /* ── PRICING TABS (mobile toggle — display:none overridden inside max-width:768px block above) ── */
 
 /* ── ENQUIRE SECTION — VIEWPORT-AWARE LANDING ── */
-/* scroll-margin-top offsets the zero-height #enquire anchor so the section heading
-   (label, title, paragraph, WhatsApp button) appears above the form on viewports
-   tall enough to fit both without clipping the form at the bottom. */
-
-/* Base breathing room on all viewports — overridden by tall-viewport rules below */
-#enquire { scroll-margin-top: 2rem; }
-
-/* ≤640px tall phones (scroll-padding-top: 4.9rem):
-   section-padding(3rem/48px) + contact-info(~215px) + grid-gap(2.5rem/40px) ≈ 303px → 18rem
-   min-height 800px ensures form (~440px) still fits below (iPhone XR 896px, 13 mini 812px ✓;
-   iPhone SE 667px stays on WhatsApp-first landing). */
-@media (max-width: 640px) and (min-height: 800px) {
-  #enquire { scroll-margin-top: 18rem; }
-}
-
-/* 641–768px portrait tablets (hamburger nav, ~80px scroll-padding-top):
-   contact-info (no WA, ~199px) + grid-gap (3.5rem/56px) ≈ 255px → 16rem
-   min-height 900px ensures form (≈475px) still fits below. */
-@media (min-width: 641px) and (max-width: 768px) and (min-height: 900px) {
-  #enquire { scroll-margin-top: 16rem; }
-}
-/* ≥769px pair layout (two-row nav, 6.25rem scroll-padding-top on 769–1100px):
-   contact-info (WITH WA, ~312px) + grid-gap (2.5rem/40px) ≈ 352px → 22rem
-   min-height 840px ensures form (≈388px) still fits below. */
-@media (min-width: 769px) and (min-height: 840px) {
-  #enquire { scroll-margin-top: 22rem; }
-}
+/* #enquire is at the section top — html scroll-padding-top handles nav clearance.
+   #enquire-form lands directly at the WhatsApp/form area (used by lightbox CTA). */
+#enquire-form { scroll-margin-top: 1.5rem; }
 
 /* ── HERO WHATSAPP LINK ── */
 /* ── STICKY MOBILE WHATSAPP BAR ── */
