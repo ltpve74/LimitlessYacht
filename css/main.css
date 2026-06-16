@@ -770,12 +770,12 @@ section { padding: 7rem 2rem; }
 .form-submit:hover { background: var(--gold-light); transform: translateY(-2px); }
 .whatsapp-btn {
   display: inline-flex; align-items: center; gap: .8rem;
-  background: #25D366; color: var(--white);
+  background: #157a47; color: var(--white);
   padding: .9rem 2rem; text-decoration: none;
   font-size: .68rem; letter-spacing: .15em; text-transform: uppercase; font-weight: 500;
   margin-top: 1.5rem; transition: background .2s;
 }
-.whatsapp-btn:hover { background: #1db954; }
+.whatsapp-btn:hover { background: #0e6840; }
 /* WhatsApp button inside the form column — always full-width, no top margin */
 .form-col-wa {
   width: 100%; justify-content: center; margin-top: 0;
@@ -1121,9 +1121,9 @@ footer {
   font-size: .8rem; color: var(--cream); border-radius: 6px; position: relative;
 }
 .cal-cell.empty { background: none; }
-.cal-cell.past { color: rgba(245,240,232,.22); }
+.cal-cell.past { color: var(--text-muted); }
 .cal-cell.today { outline: 1px solid var(--gold); outline-offset: -1px; }
-.cal-cell.booked { background: rgba(176,124,130,.9); color: #fff; }
+.cal-cell.booked { background: #8f4a52; color: #fff; }
 .cal-cell.tentative { background: rgba(208,164,78,.22); color: var(--gold-light); }
 .cal-cell.free { cursor: pointer; transition: background .15s, color .15s; }
 .cal-cell.free:hover { background: rgba(201,168,76,.2); color: var(--gold); }
@@ -1131,7 +1131,7 @@ footer {
 .cal-legend { display: flex; gap: 1.4rem; flex-wrap: wrap; margin-top: 1.4rem; font-size: .6rem; letter-spacing: .12em; text-transform: uppercase; color: var(--text-muted); }
 .cal-legend i { display: inline-block; width: 12px; height: 12px; border-radius: 3px; margin-right: .45rem; vertical-align: middle; }
 .leg-available { border: 1px solid rgba(245,240,232,.4); }
-.leg-booked { background: rgba(176,124,130,.9); }
+.leg-booked { background: #8f4a52; }
 .leg-tentative { background: rgba(208,164,78,.45); }
 @media (min-width: 820px) {
   .cal { max-width: 900px; }
