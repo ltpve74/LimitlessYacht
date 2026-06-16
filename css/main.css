@@ -901,9 +901,9 @@ footer {
 .destination-meta span {
   font-size: .72rem; letter-spacing: .08em; text-transform: uppercase;
   color: var(--cream);
-  text-shadow: 0 1px 5px rgba(0,0,0,.95), 0 0 10px rgba(0,0,0,.85);
+  text-shadow: 0 1px 6px rgba(0,0,0,1), 0 0 14px rgba(0,0,0,.95), 0 2px 24px rgba(0,0,0,.85), 0 4px 48px rgba(0,0,0,.65);
 }
-.destination-meta strong { color: var(--gold-light); font-weight: 500; }
+.destination-meta strong { color: var(--white); font-weight: 600; text-shadow: 0 1px 6px rgba(0,0,0,1), 0 0 14px rgba(0,0,0,.95), 0 2px 24px rgba(0,0,0,.85); }
 
 /* New tier headings for rebuilt destinations */
 .dest-tier {
@@ -1388,9 +1388,9 @@ footer {
   html[lang="fr"] .destination-card-body::after { content: 'Appuyer pour les détails →'; }
   .destination-num { font-size: .5rem; margin-bottom: .3rem; letter-spacing: .18em; }
   .destination-name { font-size: 1.15rem; margin-bottom: .25rem; line-height: 1.2; }
-  .destination-tagline { font-size: .54rem; letter-spacing: .1em; margin-bottom: 0; }
+  .destination-tagline { font-size: .62rem; letter-spacing: .1em; margin-bottom: 0; }
   .destination-meta { margin-top: .5rem; padding-top: .5rem; }
-  .destination-meta span { font-size: .6rem; }
+  .destination-meta span { font-size: .63rem; }
   /* Common carousel nav (shared dest/gallery) — slightly bigger, tight to images for fingers */
   .carousel-nav {
     display: flex; align-items: center; justify-content: center;
