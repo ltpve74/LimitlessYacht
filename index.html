@@ -844,6 +844,9 @@ height="0" width="0" style="display:none;visibility:hidden"></iframe></noscript>
       <img id="dest-lb-img" src="" alt="" decoding="async" />
     </picture>
     <button type="button" id="dest-lb-close" aria-label="Close">✕</button>
+    <button type="button" id="dest-lb-prev" aria-label="Previous destination">‹</button>
+    <button type="button" id="dest-lb-next" aria-label="Next destination">›</button>
+    <div id="dest-lb-counter" aria-live="polite"></div>
   </div>
   <div class="dest-lb-body">
     <div class="dest-lb-num" id="dest-lb-num"></div>
@@ -1373,11 +1376,14 @@ height="0" width="0" style="display:none;visibility:hidden"></iframe></noscript>
     if (e.key === 'ArrowRight') showImage(currentIdx + 1);
   });
 
-  // Destination card lightbox (mobile only — shows full desc + all meta on tap)
+  // Destination card lightbox
   (function(){
     var destLb   = document.getElementById('dest-lightbox');
     if (!destLb) return;
     var lbClose  = document.getElementById('dest-lb-close');
+    var lbPrev   = document.getElementById('dest-lb-prev');
+    var lbNext   = document.getElementById('dest-lb-next');
+    var lbCounter = document.getElementById('dest-lb-counter');
     var lbSrcWp  = document.getElementById('dest-lb-src-webp');
     var lbImg2   = document.getElementById('dest-lb-img');
     var lbNum    = document.getElementById('dest-lb-num');
@@ -1387,7 +1393,12 @@ height="0" width="0" style="display:none;visibility:hidden"></iframe></noscript>
     var lbMeta   = document.getElementById('dest-lb-meta');
     var lbCta    = document.getElementById('dest-lb-cta');
 
-    function openLb(card) {
+    var destCards = [];
+    var destIdx = 0;
+
+    function showDest(idx) {
+      destIdx = (idx + destCards.length) % destCards.length;
+      var card = destCards[destIdx];
       var src = card.querySelector('.destination-card-bg source[type="image/webp"]');
       var img = card.querySelector('.destination-card-bg img');
       if (src)  { lbSrcWp.srcset = src.srcset; }
@@ -1407,6 +1418,20 @@ height="0" width="0" style="display:none;visibility:hidden"></iframe></noscript>
       lbCta._waMsg = destName
         ? 'Hi, I\'d like to enquire about a ' + (tierLabel[tier] || '') + ' charter to ' + destName + ' on Limitless.'
         : 'Hi, I\'d like to enquire about a charter on Limitless.';
+      if (lbCounter) lbCounter.textContent = destCards.length > 1 ? (destIdx + 1) + ' / ' + destCards.length : '';
+      var hasNav = destCards.length > 1;
+      if (lbPrev) lbPrev.style.display = hasNav ? '' : 'none';
+      if (lbNext) lbNext.style.display = hasNav ? '' : 'none';
+      var body = destLb.querySelector('.dest-lb-body');
+      if (body) body.scrollTop = 0;
+    }
+
+    function openLb(card) {
+      var activeGroup = document.querySelector('.dest-group.tab-active');
+      destCards = activeGroup ? Array.from(activeGroup.querySelectorAll('.destination-card')) : [card];
+      destIdx = destCards.indexOf(card);
+      if (destIdx < 0) destIdx = 0;
+      showDest(destIdx);
       destLb.classList.add('open');
       document.body.style.overflow = 'hidden';
       if (!history.state || history.state.lb !== 'dest') { history.pushState({ lb: 'dest' }, ''); }
@@ -1420,6 +1445,9 @@ height="0" width="0" style="display:none;visibility:hidden"></iframe></noscript>
     }
 
     lbClose.addEventListener('click', closeLb);
+    if (lbPrev) lbPrev.addEventListener('click', function() { showDest(destIdx - 1); });
+    if (lbNext) lbNext.addEventListener('click', function() { showDest(destIdx + 1); });
+
     if (lbCta) lbCta.addEventListener('click', function() {
       if (lbCta._prefillDuration) {
         var sel = document.getElementById('charter_duration');
@@ -1429,14 +1457,32 @@ height="0" width="0" style="display:none;visibility:hidden"></iframe></noscript>
         var waBtn = document.querySelector('.form-col-wa');
         if (waBtn) waBtn.href = 'https://wa.me/34622581486?text=' + encodeURIComponent(lbCta._waMsg);
       }
-      /* Close visually without history.back() — native href="#enquire-form" handles the scroll */
       destLb.classList.remove('open');
       document.body.style.overflow = '';
       try { if (history.state && history.state.lb === 'dest') history.replaceState(null, ''); } catch(e) {}
     });
+
     destLb.addEventListener('click', function(e) { if (e.target === destLb) closeLb(); });
+
+    // Swipe between destinations
+    var dlbSwipeX = 0, dlbSwipeY = 0;
+    destLb.addEventListener('touchstart', function(e) {
+      dlbSwipeX = e.touches[0].clientX; dlbSwipeY = e.touches[0].clientY;
+    }, { passive: true });
+    destLb.addEventListener('touchend', function(e) {
+      if (destCards.length < 2) return;
+      var dx = e.changedTouches[0].clientX - dlbSwipeX;
+      var dy = e.changedTouches[0].clientY - dlbSwipeY;
+      if (Math.abs(dx) > 40 && Math.abs(dx) > Math.abs(dy)) {
+        dx < 0 ? showDest(destIdx + 1) : showDest(destIdx - 1);
+      }
+    }, { passive: true });
+
     document.addEventListener('keydown', function(e) {
-      if (e.key === 'Escape' && destLb.classList.contains('open')) closeLb();
+      if (!destLb.classList.contains('open')) return;
+      if (e.key === 'Escape') closeLb();
+      if (e.key === 'ArrowLeft' && destCards.length > 1) showDest(destIdx - 1);
+      if (e.key === 'ArrowRight' && destCards.length > 1) showDest(destIdx + 1);
     });
 
     document.querySelectorAll('.destination-card').forEach(function(card) {
