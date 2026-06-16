@@ -857,7 +857,7 @@ footer {
 .destination-card:hover .destination-card-bg { transform: scale(1.04); }
 .destination-card-overlay {
   position: absolute; inset: 0;
-  background: linear-gradient(to top, rgba(8,18,34,.9) 0%, rgba(8,18,34,.52) 30%, rgba(8,18,34,.1) 58%, rgba(8,18,34,0) 100%);
+  background: linear-gradient(to top, rgba(8,18,34,.93) 0%, rgba(8,18,34,.55) 28%, rgba(8,18,34,.1) 58%, rgba(8,18,34,0) 100%);
 }
 
 .destination-card::after {
@@ -865,7 +865,7 @@ footer {
   position: absolute;
   left: 0; right: 0; bottom: 0;
   height: 52%;
-  background: linear-gradient(to top, rgba(8,18,34,0.28) 0%, rgba(8,18,34,0) 100%);
+  background: linear-gradient(to top, rgba(8,18,34,0.42) 0%, rgba(8,18,34,0) 100%);
   z-index: 1;
 }
 .destination-card-body {
@@ -887,20 +887,20 @@ footer {
 }
 .destination-tagline {
   font-size: .72rem; letter-spacing: .12em; text-transform: uppercase;
-  color: rgba(201,168,76,.82); margin-bottom: 1rem;
+  color: var(--gold-light); margin-bottom: 1rem;
 }
 .destination-desc {
-  font-size: .9rem; line-height: 1.72; color: rgba(245,240,232,.92);
+  font-size: .9rem; line-height: 1.72; color: var(--cream);
   max-width: 38ch;
 }
 .destination-meta {
   display: flex; gap: 1.5rem; margin-top: 1.2rem; padding-top: 1.2rem;
-  border-top: 1px solid rgba(201,168,76,.15);
+  border-top: 1px solid rgba(201,168,76,.25);
   flex-wrap: wrap;
 }
 .destination-meta span {
   font-size: .72rem; letter-spacing: .08em; text-transform: uppercase;
-  color: rgba(245,240,232,.82);
+  color: var(--cream);
   text-shadow: 0 1px 5px rgba(0,0,0,.95), 0 0 10px rgba(0,0,0,.85);
 }
 .destination-meta strong { color: var(--gold-light); font-weight: 500; }
