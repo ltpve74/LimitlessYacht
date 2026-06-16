@@ -149,7 +149,8 @@ window.addEventListener('load', function() {
 window.addEventListener('load', function() {
   if(!window.LY_OWNER_MODE){var _cs=document.createElement('script');_cs.defer=true;_cs.src='/js/clarity-consent.js';document.head.appendChild(_cs);}
 });
-window.addEventListener('load', function() {
+// Destinations: start as soon as HTML is parsed — hero has fetchpriority="high" so it still wins
+document.addEventListener('DOMContentLoaded', function() {
   var mob = window.innerWidth <= 640;
   var dest = mob ? [
     'images/mobile/dest/portals-vells-1.webp','images/mobile/dest/el-toro-malgrats-1.webp',
@@ -166,6 +167,11 @@ window.addEventListener('load', function() {
     'images/dest/formentera-1.webp','images/dest/menorca-1.webp',
     'images/dest/sa-calobra-1.webp','images/dest/circumnavigation-1.webp'
   ];
+  dest.forEach(function(src) { new Image().src = src; });
+});
+// Gallery: drip-feed at idle priority after page load
+window.addEventListener('load', function() {
+  var mob = window.innerWidth <= 640;
   var gallery = mob ? [
     'images/mobile/maiora_20s_01.webp','images/mobile/maiora_20s_03.webp','images/mobile/maiora_20s_07.webp',
     'images/mobile/limitless_aft_dining.webp','images/mobile/limitless_flybridge.webp',
@@ -183,9 +189,6 @@ window.addEventListener('load', function() {
     'images/int_master_amber_glow.webp','images/int_master_wide.webp',
     'images/int_vip_cabin.webp','images/int_twin_cabin.webp'
   ];
-  // Destinations: fetch all in parallel immediately — users navigate here quickly
-  dest.forEach(function(src) { new Image().src = src; });
-  // Gallery: drip-feed at idle priority after destinations are underway
   var i = 0;
   function nextGallery() { if (i < gallery.length) { new Image().src = gallery[i++]; (window.requestIdleCallback || function(fn){setTimeout(fn,200);})(nextGallery); } }
   (window.requestIdleCallback || function(fn){setTimeout(fn,800);})(nextGallery);
