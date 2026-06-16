@@ -24,7 +24,7 @@ fi
 CHANGED=$(git diff --cached --name-only)
 
 LOCALE_REBUILD=0
-if printf '%s\n' "$CHANGED" | grep -qE '^(index\.html|legal\.html|i18n/locales/[^/]+\.py|i18n/build-locales\.py)$'; then
+if printf '%s\n' "$CHANGED" | grep -qE '^(index\.html|legal\.html|data/reviews\.json|i18n/locales/[^/]+\.py|i18n/build-locales\.py)$'; then
   LOCALE_REBUILD=1
 fi
 
@@ -35,8 +35,9 @@ if [ "$BRANCH" = "experiment-no-prices" ]; then
       echo "[pre-commit] ERROR: locale build failed — aborting commit." >&2
       exit 1
     fi
-    git add de/index.html de/legal.html es/index.html es/legal.html fr/index.html fr/legal.html
-    echo "[pre-commit] Locales rebuilt and staged (no minification on dev branch)."
+    git add de/index.html de/legal.html es/index.html es/legal.html fr/index.html fr/legal.html \
+            data/reviews-de.json data/reviews-es.json data/reviews-fr.json
+    echo "[pre-commit] Locales + review JSON rebuilt and staged (no minification on dev branch)."
   fi
   exit 0
 fi
@@ -58,7 +59,8 @@ if ! "$PY" scripts/test-site.py; then
 fi
 
 git add index.html legal.html css/main.css \
-        de/index.html de/legal.html es/index.html es/legal.html fr/index.html fr/legal.html
+        de/index.html de/legal.html es/index.html es/legal.html fr/index.html fr/legal.html \
+        data/reviews-de.json data/reviews-es.json data/reviews-fr.json
 echo "[pre-commit] Minified + staged for main."
 
 exit 0

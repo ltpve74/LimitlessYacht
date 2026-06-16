@@ -86,6 +86,64 @@ def patch_netlify_form(html: str, code: str) -> str:
     return html
 
 
+def load_en_reviews() -> list[dict]:
+    path = ROOT / "data" / "reviews.json"
+    data = json.loads(path.read_text(encoding="utf-8"))
+    reviews = data.get("reviews", [])
+    if not reviews:
+        raise SystemExit("data/reviews.json has no reviews")
+    return reviews
+
+
+def validate_locale_reviews(code: str, locale_reviews: list[dict], en_reviews: list[dict]) -> None:
+    if len(locale_reviews) != len(en_reviews):
+        raise SystemExit(
+            f"{code}: REVIEWS length {len(locale_reviews)} != English {len(en_reviews)} "
+            f"— update i18n/locales/{code}.py"
+        )
+    for i, (en, loc) in enumerate(zip(en_reviews, locale_reviews)):
+        for key in ("author", "rating"):
+            if en.get(key) != loc.get(key):
+                raise SystemExit(
+                    f"{code}: review[{i}] {key} mismatch "
+                    f"(EN {en.get(key)!r} vs {loc.get(key)!r})"
+                )
+        if not (loc.get("text") or "").strip():
+            raise SystemExit(f"{code}: review[{i}] missing translated text")
+
+
+def write_locale_reviews(code: str, reviews: list[dict]) -> None:
+    path = ROOT / "data" / f"reviews-{code}.json"
+    path.write_text(
+        json.dumps({"reviews": reviews}, ensure_ascii=False, indent=2) + "\n",
+        encoding="utf-8",
+    )
+
+
+def patch_reviews_fetch(html: str, code: str) -> str:
+    return html.replace(
+        "fetch('/data/reviews.json')",
+        f"fetch('/data/reviews-{code}.json')",
+    )
+
+
+def patch_reviews_ui(html: str, ui: dict) -> str:
+    html = html.replace("r.author || 'Guest'", f"r.author || '{ui['guest']}'")
+    html = html.replace("' out of 5 stars'", f"'{ui['stars_suffix']}'")
+    return html
+
+
+def patch_reviews_fallback(html: str, review: dict) -> str:
+    """Replace the English fallback review text in the catch block."""
+    text = review["text"].replace("\\", "\\\\").replace('"', '\\"')
+    return re.sub(
+        r'text: "Our group of six had a fantastic day on Limitless[^"]*"',
+        f'text: "{text}"',
+        html,
+        count=1,
+    )
+
+
 def patch_calendar(html: str, months: list[str], dow: list[str]) -> str:
     html = re.sub(
         r"var MONTHS = \[[^\]]+\];",
@@ -129,6 +187,9 @@ def build_index(locale_mod) -> str:
     html = apply_pairs(html, locale_mod.PAIRS)
     html = patch_netlify_form(html, locale_mod.CODE)
     html = patch_calendar(html, locale_mod.MONTHS, locale_mod.DOW)
+    html = patch_reviews_fetch(html, locale_mod.CODE)
+    html = patch_reviews_ui(html, locale_mod.REVIEWS_UI)
+    html = patch_reviews_fallback(html, locale_mod.REVIEWS[0])
     return html
 
 
@@ -144,12 +205,15 @@ def build_legal(locale_mod) -> str:
 
 
 def main() -> None:
+    en_reviews = load_en_reviews()
     for code, mod in LOCALES.items():
+        validate_locale_reviews(code, mod.REVIEWS, en_reviews)
+        write_locale_reviews(code, mod.REVIEWS)
         out_dir = ROOT / code
         out_dir.mkdir(parents=True, exist_ok=True)
         (out_dir / "index.html").write_text(build_index(mod), encoding="utf-8")
         (out_dir / "legal.html").write_text(build_legal(mod), encoding="utf-8")
-        print(f"Wrote {code}/index.html and {code}/legal.html")
+        print(f"Wrote {code}/index.html, {code}/legal.html, data/reviews-{code}.json")
 
 
 if __name__ == "__main__":
