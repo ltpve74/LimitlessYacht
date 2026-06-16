@@ -194,8 +194,8 @@ def check_html(r: Runner, rel: str, html: str) -> None:
         'window.LY_preloadDestAdjacent(gi)' in html,
     )
     r.check(
-        'gallery and itinerary tier idle drip-feed preloads',
-        'function nextGallery()' in html and 'window.LY_dripDestTier' in html,
+        'gallery idle drip-feed after LCP window',
+        'function nextGallery()' in html and 'window.LY_afterLcp' in html,
     )
     r.check(
         'destination preload not burst on DOMContentLoaded',
@@ -237,6 +237,16 @@ def check_html(r: Runner, rel: str, html: str) -> None:
         'images/mobile/maiora_20s_02.webp' in html
         and 'maiora_20s_02.webp' in html
         and 'fetchpriority="high"' in html,
+    )
+    r.check(
+        'hero image preloads discovered before deferred head scripts',
+        html.find('fetchpriority="high"')
+        < html.find('LY_afterLcp')
+        < html.find('window.LY_DEST_IMAGES'),
+    )
+    r.check(
+        'below-fold preloads deferred until after LCP window',
+        'window.LY_afterLcp' in html and 'LY_destPreloadReady' in html,
     )
     r.check(
         'hero title uses heroTitleIn (visible for LCP)',
