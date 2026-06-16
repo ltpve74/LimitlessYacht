@@ -175,6 +175,7 @@ nav.scrolled::before { opacity: 1; }
   font-weight: 500;
   text-shadow: 0 1px 14px rgba(0,0,0,.75);
   animation: fadeUp .9s .3s ease both;
+  text-decoration: none; display: block;
 }
 .hero-title {
   font-family: 'Montserrat', sans-serif;
