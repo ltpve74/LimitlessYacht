@@ -3,6 +3,9 @@
 <head>
 <meta charset="UTF-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<!-- Preload hero image (LCP) — must precede deferred head scripts -->
+<link rel="preload" as="image" href="/images/mobile/maiora_20s_02.webp" type="image/webp" fetchpriority="high" media="(max-width: 640px)" />
+<link rel="preload" as="image" href="/images/maiora_20s_02.webp" type="image/webp" fetchpriority="high" media="(min-width: 641px)" />
 <!-- Auto-match the visitor's browser language to a localized version (only from the
      English root, and only until the visitor manually picks a language). -->
 <script>
@@ -135,91 +138,19 @@ window.addEventListener('load', function() {
 });
 </script>
 <script>
-(function(){
-  window.LY_DEST_IMAGES = [
-    '/images/dest/portals-vells-1.webp',
-    '/images/dest/el-toro-malgrats-1.webp',
-    '/images/dest/cala-llamp-1.webp',
-    '/images/dest/sa-dragonera-1.webp',
-    '/images/dest/cala-pi-1.webp',
-    '/images/dest/es-trenc-1.webp',
-    '/images/dest/cabrera-1.webp',
-    '/images/dest/calo-des-moro-1.webp',
-    '/images/dest/sa-calobra-1.webp',
-    '/images/dest/circumnavigation-1.webp',
-    '/images/dest/formentera-1.webp',
-    '/images/dest/menorca-1.webp',
-  ];
-  window.LY_DEST_IMAGES_MOBILE = [
-    '/images/mobile/dest/portals-vells-1.webp',
-    '/images/mobile/dest/el-toro-malgrats-1.webp',
-    '/images/mobile/dest/cala-llamp-1.webp',
-    '/images/mobile/dest/sa-dragonera-1.webp',
-    '/images/mobile/dest/cala-pi-1.webp',
-    '/images/mobile/dest/es-trenc-1.webp',
-    '/images/mobile/dest/cabrera-1.webp',
-    '/images/mobile/dest/calo-des-moro-1.webp',
-    '/images/mobile/dest/sa-calobra-1.webp',
-    '/images/mobile/dest/circumnavigation-1.webp',
-    '/images/mobile/dest/formentera-1.webp',
-    '/images/mobile/dest/menorca-1.webp',
-  ];
-  window.LY_DEST_TIER_IDX = {
-    'half-day': [0, 1, 2],
-    'full-day': [3, 4, 5, 6, 7],
-    'multi-day': [8, 9, 10, 11],
-  };
-  window.LY_destPreloaded = {};
-  window.LY_destUrl = function(idx) {
-    var arr = window.innerWidth <= 640 ? window.LY_DEST_IMAGES_MOBILE : window.LY_DEST_IMAGES;
-    return arr[idx];
-  };
-  window.LY_preloadDest = function(idx) {
-    if (idx == null || idx < 0 || idx >= window.LY_DEST_IMAGES.length) return;
-    var url = window.LY_destUrl(idx);
-    if (!url || window.LY_destPreloaded[url]) return;
-    window.LY_destPreloaded[url] = 1;
-    new Image().src = url;
-  };
-  window.LY_preloadDestAdjacent = function(idx) {
-    var n = window.LY_DEST_IMAGES.length;
-    [-1, 0, 1].forEach(function(d) {
-      window.LY_preloadDest((idx + d + n) % n);
-    });
-  };
-  window.LY_syncDestCardImages = function() {
-    document.querySelectorAll('.destination-card[data-dest-idx]').forEach(function(card) {
-      var idx = parseInt(card.getAttribute('data-dest-idx'), 10);
-      var url = window.LY_destUrl(idx);
-      var src = card.querySelector('.destination-card-bg source[type="image/webp"]');
-      if (src && url) {
-        src.srcset = url;
-        src.sizes = '(max-width: 640px) 100vw, 500px';
-      }
-    });
-  };
-  window.LY_dripDestIndices = function(indices, delay) {
-    var k = 0;
-    function next() {
-      if (k < indices.length) {
-        window.LY_preloadDest(indices[k++]);
-        (window.requestIdleCallback || function(fn){setTimeout(fn,200);})(next);
-      }
-    }
-    (window.requestIdleCallback || function(fn){setTimeout(fn,delay||800);})(next);
-  };
-  window.LY_dripDestTier = function(tier) {
-    var indices = window.LY_DEST_TIER_IDX[tier];
-    if (indices) window.LY_dripDestIndices(indices, 1200);
-  };
-})();
-</script>
-<script>
 window.addEventListener('load', function() {
   if(!window.LY_OWNER_MODE){var _cs=document.createElement('script');_cs.defer=true;_cs.src='/js/clarity-consent.js';document.head.appendChild(_cs);}
 });
+// Below-fold images: wait until after the LCP window before any idle preloads
+window.LY_afterLcp = function(fn) {
+  window.addEventListener('load', function() {
+    setTimeout(function() {
+      (window.requestIdleCallback || function(f){setTimeout(f,200);})(fn);
+    }, 3000);
+  });
+};
 // Gallery: drip-feed at idle priority after page load
-window.addEventListener('load', function() {
+window.LY_afterLcp(function() {
   var mob = window.innerWidth <= 640;
   var gallery = mob ? [
     '/images/mobile/maiora_20s_01.webp','/images/mobile/maiora_20s_03.webp','/images/mobile/maiora_20s_07.webp',
@@ -240,9 +171,7 @@ window.addEventListener('load', function() {
   ];
   var i = 0;
   function nextGallery() { if (i < gallery.length) { new Image().src = gallery[i++]; (window.requestIdleCallback || function(fn){setTimeout(fn,200);})(nextGallery); } }
-  (window.requestIdleCallback || function(fn){setTimeout(fn,800);})(nextGallery);
-  // Itinerary carousel: idle drip-feed for the active tab only (shared URLs with lightbox)
-  if (window.LY_dripDestTier) window.LY_dripDestTier('half-day');
+  nextGallery();
 });
 </script>
 <title>Limitless Yacht Experience – Luxus-Maiora-Charter auf Mallorca</title>
@@ -285,9 +214,6 @@ window.addEventListener('load', function() {
 <link rel="apple-touch-icon" href="/favicon.svg" />
 <meta name="theme-color" content="#0a1628" />
 
-<!-- Preload hero image (LCP) -->
-<link rel="preload" as="image" href="/images/mobile/maiora_20s_02.webp" type="image/webp" fetchpriority="high" media="(max-width: 640px)" />
-<link rel="preload" as="image" href="/images/maiora_20s_02.webp" type="image/webp" fetchpriority="high" media="(min-width: 641px)" />
 <link rel="preload" as="font" href="/fonts/montserrat-latin.woff2" type="font/woff2" crossorigin />
 <style id="critical-css">
 /* ── SELF-HOSTED FONTS ── */
@@ -1143,17 +1069,105 @@ nav.scrolled::before { opacity: 1; }
 
 <script>
 (function(){
+  window.LY_DEST_IMAGES = [
+    '/images/dest/portals-vells-1.webp',
+    '/images/dest/el-toro-malgrats-1.webp',
+    '/images/dest/cala-llamp-1.webp',
+    '/images/dest/sa-dragonera-1.webp',
+    '/images/dest/cala-pi-1.webp',
+    '/images/dest/es-trenc-1.webp',
+    '/images/dest/cabrera-1.webp',
+    '/images/dest/calo-des-moro-1.webp',
+    '/images/dest/sa-calobra-1.webp',
+    '/images/dest/circumnavigation-1.webp',
+    '/images/dest/formentera-1.webp',
+    '/images/dest/menorca-1.webp',
+  ];
+  window.LY_DEST_IMAGES_MOBILE = [
+    '/images/mobile/dest/portals-vells-1.webp',
+    '/images/mobile/dest/el-toro-malgrats-1.webp',
+    '/images/mobile/dest/cala-llamp-1.webp',
+    '/images/mobile/dest/sa-dragonera-1.webp',
+    '/images/mobile/dest/cala-pi-1.webp',
+    '/images/mobile/dest/es-trenc-1.webp',
+    '/images/mobile/dest/cabrera-1.webp',
+    '/images/mobile/dest/calo-des-moro-1.webp',
+    '/images/mobile/dest/sa-calobra-1.webp',
+    '/images/mobile/dest/circumnavigation-1.webp',
+    '/images/mobile/dest/formentera-1.webp',
+    '/images/mobile/dest/menorca-1.webp',
+  ];
+  window.LY_DEST_TIER_IDX = {
+    'half-day': [0, 1, 2],
+    'full-day': [3, 4, 5, 6, 7],
+    'multi-day': [8, 9, 10, 11],
+  };
+  window.LY_destPreloaded = {};
+  window.LY_destPreloadReady = false;
+  window.LY_destUrl = function(idx) {
+    var arr = window.innerWidth <= 640 ? window.LY_DEST_IMAGES_MOBILE : window.LY_DEST_IMAGES;
+    return arr[idx];
+  };
+  window.LY_preloadDest = function(idx, force) {
+    if (!force && !window.LY_destPreloadReady) return;
+    if (idx == null || idx < 0 || idx >= window.LY_DEST_IMAGES.length) return;
+    var url = window.LY_destUrl(idx);
+    if (!url || window.LY_destPreloaded[url]) return;
+    window.LY_destPreloaded[url] = 1;
+    new Image().src = url;
+  };
+  window.LY_preloadDestAdjacent = function(idx, force) {
+    var n = window.LY_DEST_IMAGES.length;
+    [-1, 0, 1].forEach(function(d) {
+      window.LY_preloadDest((idx + d + n) % n, force);
+    });
+  };
+  window.LY_syncDestCardImages = function() {
+    document.querySelectorAll('.destination-card[data-dest-idx]').forEach(function(card) {
+      var idx = parseInt(card.getAttribute('data-dest-idx'), 10);
+      var url = window.LY_destUrl(idx);
+      var src = card.querySelector('.destination-card-bg source[type="image/webp"]');
+      if (src && url) {
+        src.srcset = url;
+        src.sizes = '(max-width: 640px) 100vw, 500px';
+      }
+    });
+  };
+  window.LY_dripDestIndices = function(indices) {
+    var k = 0;
+    function next() {
+      if (k < indices.length) {
+        window.LY_preloadDest(indices[k++]);
+        (window.requestIdleCallback || function(fn){setTimeout(fn,200);})(next);
+      }
+    }
+    next();
+  };
+  window.LY_dripDestTier = function(tier) {
+    if (!window.LY_destPreloadReady) return;
+    var indices = window.LY_DEST_TIER_IDX[tier];
+    if (indices) window.LY_dripDestIndices(indices);
+  };
+  if (window.LY_afterLcp) {
+    window.LY_afterLcp(function() {
+      window.LY_destPreloadReady = true;
+      if (window.LY_syncDestCardImages) window.LY_syncDestCardImages();
+      if (window.LY_dripDestTier) window.LY_dripDestTier('half-day');
+      document.querySelectorAll('.dest-group.tab-active .itinerary-grid').forEach(function(gr) {
+        gr.dispatchEvent(new Event('scroll'));
+      });
+    });
+  }
+
   var tabs = document.querySelectorAll('.dest-tab');
   var groups = document.querySelectorAll('.dest-group');
 
-  if (window.LY_syncDestCardImages) {
-    window.LY_syncDestCardImages();
-    var destResizeT;
-    window.addEventListener('resize', function() {
-      clearTimeout(destResizeT);
-      destResizeT = setTimeout(window.LY_syncDestCardImages, 150);
-    });
-  }
+  var destResizeT;
+  window.addEventListener('resize', function() {
+    if (!window.LY_destPreloadReady || !window.LY_syncDestCardImages) return;
+    clearTimeout(destResizeT);
+    destResizeT = setTimeout(window.LY_syncDestCardImages, 150);
+  });
 
   function setDestTab(tier) {
     tabs.forEach(function(t) {
@@ -1217,7 +1231,7 @@ nav.scrolled::before { opacity: 1; }
       if (btnNext) btnNext.disabled = i >= total - 1;
       if (posEl)   posEl.textContent = (i + 1) + ' / ' + total;
       var card = cards[i];
-      if (card && window.LY_preloadDestAdjacent) {
+      if (window.LY_destPreloadReady && group.classList.contains('tab-active') && card && window.LY_preloadDestAdjacent) {
         var gi = parseInt(card.getAttribute('data-dest-idx'), 10);
         if (!isNaN(gi)) window.LY_preloadDestAdjacent(gi);
       }
@@ -1972,7 +1986,7 @@ nav.scrolled::before { opacity: 1; }
       if (body) body.scrollTop = 0;
       // Prefetch adjacent destination images (shared cache with carousel)
       if (window.LY_preloadDestAdjacent) {
-        window.LY_preloadDestAdjacent(globalIdx);
+        window.LY_preloadDestAdjacent(globalIdx, true);
       }
     }
 
