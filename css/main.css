@@ -459,7 +459,7 @@ section { padding: 7rem 2rem; }
   pointer-events: none; white-space: nowrap;
 }
 #lightbox-hint {
-  position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%);
+  position: absolute; bottom: 3.5rem; left: 50%; transform: translateX(-50%);
   padding: .7rem 1.4rem;
   background: rgba(10,22,40,.88);
   border: 1px solid rgba(201,168,76,.4);
