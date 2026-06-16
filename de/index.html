@@ -1765,7 +1765,7 @@ height="0" width="0" style="display:none;visibility:hidden"></iframe></noscript>
     function openLb(card) {
       var src = card.querySelector('.destination-card-bg source[type="image/webp"]');
       var img = card.querySelector('.destination-card-bg img');
-      if (src)  { lbSrcWp.srcset = src.srcset; lbSrcWp.sizes = '(max-width: 640px) 800px, 1200px'; }
+      if (src)  { lbSrcWp.srcset = src.srcset; }
       if (img)  { lbImg2.src = img.src; lbImg2.alt = img.alt || ''; }
       lbNum.textContent  = (card.querySelector('.destination-num')     || {}).textContent || '';
       lbName.textContent = (card.querySelector('.destination-name')    || {}).textContent || '';
