@@ -138,26 +138,6 @@ window.addEventListener('load', function() {
 window.addEventListener('load', function() {
   if(!window.LY_OWNER_MODE){var _cs=document.createElement('script');_cs.defer=true;_cs.src='/js/clarity-consent.js';document.head.appendChild(_cs);}
 });
-// Destinations: start as soon as HTML is parsed — hero has fetchpriority="high" so it still wins
-document.addEventListener('DOMContentLoaded', function() {
-  var mob = window.innerWidth <= 640;
-  var dest = mob ? [
-    'images/mobile/dest/portals-vells-1.webp','images/mobile/dest/el-toro-malgrats-1.webp',
-    'images/mobile/dest/cala-llamp-1.webp','images/mobile/dest/sa-dragonera-1.webp',
-    'images/mobile/dest/cala-pi-1.webp','images/mobile/dest/es-trenc-1.webp',
-    'images/mobile/dest/cabrera-1.webp','images/mobile/dest/calo-des-moro-1.webp',
-    'images/mobile/dest/formentera-1.webp','images/mobile/dest/menorca-1.webp',
-    'images/mobile/dest/sa-calobra-1.webp','images/mobile/dest/circumnavigation-1.webp'
-  ] : [
-    'images/dest/portals-vells-1.webp','images/dest/el-toro-malgrats-1.webp',
-    'images/dest/cala-llamp-1.webp','images/dest/sa-dragonera-1.webp',
-    'images/dest/cala-pi-1.webp','images/dest/es-trenc-1.webp',
-    'images/dest/cabrera-1.webp','images/dest/calo-des-moro-1.webp',
-    'images/dest/formentera-1.webp','images/dest/menorca-1.webp',
-    'images/dest/sa-calobra-1.webp','images/dest/circumnavigation-1.webp'
-  ];
-  dest.forEach(function(src) { new Image().src = src; });
-});
 // Gallery: drip-feed at idle priority after page load
 window.addEventListener('load', function() {
   var mob = window.innerWidth <= 640;
@@ -181,6 +161,25 @@ window.addEventListener('load', function() {
   var i = 0;
   function nextGallery() { if (i < gallery.length) { new Image().src = gallery[i++]; (window.requestIdleCallback || function(fn){setTimeout(fn,200);})(nextGallery); } }
   (window.requestIdleCallback || function(fn){setTimeout(fn,800);})(nextGallery);
+  // Destinations: same idle drip-feed (DOM order matches itinerary cards)
+  var dest = mob ? [
+    'images/mobile/dest/portals-vells-1.webp','images/mobile/dest/el-toro-malgrats-1.webp',
+    'images/mobile/dest/cala-llamp-1.webp','images/mobile/dest/sa-dragonera-1.webp',
+    'images/mobile/dest/cala-pi-1.webp','images/mobile/dest/es-trenc-1.webp',
+    'images/mobile/dest/cabrera-1.webp','images/mobile/dest/calo-des-moro-1.webp',
+    'images/mobile/dest/sa-calobra-1.webp','images/mobile/dest/circumnavigation-1.webp',
+    'images/mobile/dest/formentera-1.webp','images/mobile/dest/menorca-1.webp'
+  ] : [
+    'images/dest/portals-vells-1.webp','images/dest/el-toro-malgrats-1.webp',
+    'images/dest/cala-llamp-1.webp','images/dest/sa-dragonera-1.webp',
+    'images/dest/cala-pi-1.webp','images/dest/es-trenc-1.webp',
+    'images/dest/cabrera-1.webp','images/dest/calo-des-moro-1.webp',
+    'images/dest/sa-calobra-1.webp','images/dest/circumnavigation-1.webp',
+    'images/dest/formentera-1.webp','images/dest/menorca-1.webp'
+  ];
+  var j = 0;
+  function nextDest() { if (j < dest.length) { new Image().src = dest[j++]; (window.requestIdleCallback || function(fn){setTimeout(fn,200);})(nextDest); } }
+  (window.requestIdleCallback || function(fn){setTimeout(fn,1200);})(nextDest);
 });
 </script>
 <title>Limitless Yacht Experience – Charter de lujo Maiora en Mallorca</title>
@@ -1854,14 +1853,45 @@ nav.scrolled::before { opacity: 1; }
 
     var destCards = [];
     var destIdx = 0;
+    var destImages = [
+      'images/dest/portals-vells-1.webp',
+      'images/dest/el-toro-malgrats-1.webp',
+      'images/dest/cala-llamp-1.webp',
+      'images/dest/sa-dragonera-1.webp',
+      'images/dest/cala-pi-1.webp',
+      'images/dest/es-trenc-1.webp',
+      'images/dest/cabrera-1.webp',
+      'images/dest/calo-des-moro-1.webp',
+      'images/dest/sa-calobra-1.webp',
+      'images/dest/circumnavigation-1.webp',
+      'images/dest/formentera-1.webp',
+      'images/dest/menorca-1.webp',
+    ];
+    var destImagesMobile = [
+      'images/mobile/dest/portals-vells-1.webp',
+      'images/mobile/dest/el-toro-malgrats-1.webp',
+      'images/mobile/dest/cala-llamp-1.webp',
+      'images/mobile/dest/sa-dragonera-1.webp',
+      'images/mobile/dest/cala-pi-1.webp',
+      'images/mobile/dest/es-trenc-1.webp',
+      'images/mobile/dest/cabrera-1.webp',
+      'images/mobile/dest/calo-des-moro-1.webp',
+      'images/mobile/dest/sa-calobra-1.webp',
+      'images/mobile/dest/circumnavigation-1.webp',
+      'images/mobile/dest/formentera-1.webp',
+      'images/mobile/dest/menorca-1.webp',
+    ];
 
     function showDest(idx) {
       destIdx = (idx + destCards.length) % destCards.length;
       var card = destCards[destIdx];
-      var src = card.querySelector('.destination-card-bg source[type="image/webp"]');
-      var img = card.querySelector('.destination-card-bg img');
-      if (src)  { lbSrcWp.srcset = src.srcset; lbSrcWp.sizes = '(max-width: 640px) 100vw, 50vw'; }
-      if (img)  { lbImg2.src = img.src; lbImg2.alt = img.alt || ''; }
+      var isMobDest = window.innerWidth <= 640;
+      var arr = isMobDest ? destImagesMobile : destImages;
+      var imgUrl = arr[destIdx] || arr[0];
+      if (lbSrcWp) { lbSrcWp.srcset = imgUrl; lbSrcWp.sizes = '(max-width: 640px) 100vw, 50vw'; }
+      lbImg2.src = imgUrl;
+      var cardImg = card.querySelector('.destination-card-bg img');
+      lbImg2.alt = cardImg ? (cardImg.alt || '') : '';
       lbNum.textContent  = (card.querySelector('.destination-num')     || {}).textContent || '';
       lbName.textContent = (card.querySelector('.destination-name')    || {}).textContent || '';
       lbTag.textContent  = (card.querySelector('.destination-tagline') || {}).textContent || '';
@@ -1887,17 +1917,9 @@ nav.scrolled::before { opacity: 1; }
       var body = destLb.querySelector('.dest-lb-body');
       if (body) body.scrollTop = 0;
       // Prefetch adjacent destination images
-      var isMobDest = window.innerWidth <= 640;
-      var total = destCards.length;
       [-1, 1].forEach(function(d) {
-        var adjCard = destCards[(destIdx + d + total) % total];
-        var adjSrc = adjCard.querySelector('.destination-card-bg source[type="image/webp"]');
-        if (adjSrc && adjSrc.srcset) {
-          var parts = adjSrc.srcset.split(',');
-          var entry = isMobDest ? parts[parts.length - 1] : parts[0];
-          var url = entry.trim().split(/\s+/)[0];
-          if (url) { var pi = new Image(); pi.src = url; }
-        }
+        var pi = new Image();
+        pi.src = arr[(destIdx + d + arr.length) % arr.length];
       });
     }
 
