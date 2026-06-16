@@ -238,14 +238,15 @@ def check_html(r: Runner, rel: str, html: str) -> None:
         and 'maiora_20s_02.webp' in html
         and 'fetchpriority="high"' in html,
     )
+    style_pos = html.find('<style')
     r.check(
         'critical hero CSS discovered before deferred head scripts',
-        html.find('critical-css') > 0 and html.find('critical-css') < html.find('<script'),
+        style_pos > 0 and style_pos < html.find('<script'),
     )
     r.check(
         'hero image preloads discovered before deferred head scripts',
         html.find('fetchpriority="high"')
-        < html.find('critical-css')
+        < style_pos
         < html.find('LY_afterLcp')
         < html.find('window.LY_DEST_IMAGES'),
     )
