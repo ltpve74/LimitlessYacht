@@ -616,27 +616,7 @@ section { padding: 7rem 2rem; }
 
 /* ── PRICING ── */
 #pricing {
-  position: relative;
   background: var(--navy);
-  overflow: hidden;
-}
-#pricing::before {
-  content: '';
-  position: absolute;
-  inset: 0;
-  background-image: url('../images/maiora_20s_03.jpg'), url('../images/maiora_20s_04.jpg');
-  background-image: image-set(url('../images/maiora_20s_03.webp') type('image/webp'), url('../images/maiora_20s_03.jpg') type('image/jpeg')), image-set(url('../images/maiora_20s_04.webp') type('image/webp'), url('../images/maiora_20s_04.jpg') type('image/jpeg'));
-  background-size: cover, cover;
-  background-position: center top, center bottom;
-  background-repeat: no-repeat, no-repeat;
-  opacity: 0.18;
-  z-index: 0;
-  animation: sunsetShift 20s ease-in-out infinite alternate;
-}
-@keyframes sunsetShift {
-  0%   { background-position: center top, center bottom; opacity: 0.15; }
-  50%  { opacity: 0.22; }
-  100% { background-position: center 30%, center 70%; opacity: 0.15; }
 }
 #pricing .container {
   position: relative;
@@ -1293,10 +1273,6 @@ footer {
   .spec-cruise .spec-value { font-size: 0.9rem; line-height: 1.25; }
   .amenities-grid { grid-template-columns: 1fr; }
   #pricing { padding-top: 1.75rem; padding-bottom: 2.5rem; }
-  #pricing::before {
-    background-image: url('../images/maiora_20s_03.jpg'), url('../images/maiora_20s_04.jpg');
-    background-image: image-set(url('../images/mobile/maiora_20s_03.webp') type('image/webp'), url('../images/maiora_20s_03.jpg') type('image/jpeg')), image-set(url('../images/mobile/maiora_20s_04.webp') type('image/webp'), url('../images/maiora_20s_04.jpg') type('image/jpeg'));
-  }
   .enquire-section { padding-top: 3rem; }
   #pricing .section-label { display: none; }
   #pricing .section-title { margin-bottom: .3rem; }
