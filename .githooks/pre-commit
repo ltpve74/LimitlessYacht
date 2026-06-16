@@ -1,57 +1,57 @@
 #!/bin/sh
-# Auto-rebuild the localized pages (de/es/fr) whenever the English sources or the
-# locale translation data are part of a commit, so the localized pages never
-# silently drift out of sync with index.html / legal.html again.
+# Pre-commit hook for the `main` branch.
+# Always minifies CSS + HTML for production on every commit to main.
+# Rebuilds locales only when EN source or translation data changed.
 #
 # Enable once per clone with:
 #   git config core.hooksPath .githooks
 #
-# Note: build-locales.py reads the working-tree index.html, so commit a clean
-# tree (stage your HTML edits before committing) for the rebuild to match.
+# Note: build-locales.py reads the working-tree index.html, so stage HTML
+# edits before committing so the rebuild matches the committed content.
 
 set -e
 
-# Skip locale rebuilds on non-main branches (UX work doesn't need them).
+# Nothing to do on non-main branches.
 BRANCH=$(git symbolic-ref --short HEAD 2>/dev/null)
 if [ "$BRANCH" != "main" ]; then
   exit 0
 fi
 
+# Prefer the project venv; fall back to python3.
+if [ -x ".venv/bin/python" ]; then
+  PY=".venv/bin/python"
+else
+  PY="python3"
+fi
+
 CHANGED=$(git diff --cached --name-only)
 
-if printf '%s\n' "$CHANGED" | grep -qE '^(index\.html|legal\.html|css/main\.css|scripts/minify_html\.py|i18n/locales/[^/]+\.py|i18n/build-locales\.py)$'; then
-  echo "[pre-commit] EN source / CSS / locale data changed — rebuilding locales + minifying for prod..."
-
-  # Prefer the project venv; fall back to python3.
-  if [ -x ".venv/bin/python" ]; then
-    PY=".venv/bin/python"
-  else
-    PY="python3"
-  fi
-
+# Rebuild locales only when EN source or translation data changed.
+if printf '%s\n' "$CHANGED" | grep -qE '^(index\.html|legal\.html|i18n/locales/[^/]+\.py|i18n/build-locales\.py)$'; then
+  echo "[pre-commit] EN source / locale data changed — rebuilding locales..."
   if ! "$PY" i18n/build-locales.py; then
     echo "[pre-commit] ERROR: locale build failed — aborting commit." >&2
     exit 1
   fi
-
-  # Minify HTMLs + the shared CSS (produces the compacted prod versions for main).
-  if ! "$PY" scripts/minify_html.py; then
-    echo "[pre-commit] ERROR: minify failed — aborting commit." >&2
-    exit 1
-  fi
-
-  # Run site tests on the freshly minified locale files.
-  # Blocks commit if any conversion-critical element is missing or JS has syntax errors.
-  echo "[pre-commit] Running site tests..."
-  if ! "$PY" scripts/test-site.py; then
-    echo "[pre-commit] ERROR: site tests failed — fix the issues above and try again." >&2
-    exit 1
-  fi
-
-  # Re-stage the compacted sources, CSS, and all regenerated (minified) locale files.
-  git add index.html legal.html css/main.css \
-          de/index.html de/legal.html es/index.html es/legal.html fr/index.html fr/legal.html
-  echo "[pre-commit] Locales rebuilt + minified, all staged for main."
 fi
+
+# Always minify CSS + HTML on main (guards against merges bringing in dev source).
+echo "[pre-commit] Minifying CSS + HTML for production..."
+if ! "$PY" scripts/minify_html.py; then
+  echo "[pre-commit] ERROR: minify failed — aborting commit." >&2
+  exit 1
+fi
+
+# Always run site tests on main.
+echo "[pre-commit] Running site tests..."
+if ! "$PY" scripts/test-site.py; then
+  echo "[pre-commit] ERROR: site tests failed — fix the issues above and try again." >&2
+  exit 1
+fi
+
+# Re-stage everything that minification may have changed.
+git add index.html legal.html css/main.css \
+        de/index.html de/legal.html es/index.html es/legal.html fr/index.html fr/legal.html
+echo "[pre-commit] Minified + staged for main."
 
 exit 0
