@@ -165,6 +165,26 @@ def check_html(r: Runner, rel: str, html: str) -> None:
 
     # Destination lightbox
     r.check('id="dest-lb-cta" lightbox CTA exists', 'id="dest-lb-cta"' in html)
+    r.check(
+        'gallery lightbox uses centralized images array',
+        'const images = [' in html and 'function showImage(idx)' in html,
+    )
+    r.check(
+        'destination lightbox uses centralized destImages arrays',
+        'var destImages = [' in html and 'var destImagesMobile = [' in html,
+    )
+    r.check(
+        'destination lightbox prefetches from image arrays',
+        'pi.src = arr[(destIdx + d + arr.length) % arr.length]' in html,
+    )
+    r.check(
+        'gallery and destination idle drip-feed preloads',
+        'function nextGallery()' in html and 'function nextDest()' in html,
+    )
+    r.check(
+        'destination preload not burst on DOMContentLoaded',
+        'dest.forEach(function(src)' not in html,
+    )
 
     # Availability calendar
     r.check('id="availCal" calendar widget exists', 'id="availCal"' in html)
