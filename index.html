@@ -844,6 +844,7 @@ height="0" width="0" style="display:none;visibility:hidden"></iframe></noscript>
       <img id="dest-lb-img" src="" alt="" decoding="async" />
     </picture>
     <button type="button" id="dest-lb-close" aria-label="Close">✕</button>
+    <div id="dest-lb-tier"></div>
     <button type="button" id="dest-lb-prev" aria-label="Previous destination">‹</button>
     <button type="button" id="dest-lb-next" aria-label="Next destination">›</button>
     <div id="dest-lb-counter" aria-live="polite"></div>
@@ -1411,6 +1412,7 @@ height="0" width="0" style="display:none;visibility:hidden"></iframe></noscript>
       lbMeta.innerHTML = metaEl ? metaEl.innerHTML : '';
       var tierMap = { 'half-day': '4 Hours', 'full-day': '1 Day', 'multi-day': 'Multi-Day' };
       var tierLabel = { 'half-day': 'half-day', 'full-day': 'full-day', 'multi-day': 'multi-day' };
+      var tierBadge = { 'half-day': 'Half-Day · 4–6 h', 'full-day': 'Full Day · 8–10 h', 'multi-day': 'Multi-Day · Overnight +' };
       var group = card.closest ? card.closest('.dest-group') : null;
       var tier = group ? group.getAttribute('data-tier') : '';
       var destName = (card.querySelector('.destination-name') || {}).textContent || '';
@@ -1418,6 +1420,8 @@ height="0" width="0" style="display:none;visibility:hidden"></iframe></noscript>
       lbCta._waMsg = destName
         ? 'Hi, I\'d like to enquire about a ' + (tierLabel[tier] || '') + ' charter to ' + destName + ' on Limitless.'
         : 'Hi, I\'d like to enquire about a charter on Limitless.';
+      var lbTier = document.getElementById('dest-lb-tier');
+      if (lbTier) lbTier.textContent = tierBadge[tier] || '';
       if (lbCounter) lbCounter.textContent = destCards.length > 1 ? (destIdx + 1) + ' / ' + destCards.length : '';
       var hasNav = destCards.length > 1;
       if (lbPrev) lbPrev.style.display = hasNav ? '' : 'none';
@@ -1427,8 +1431,7 @@ height="0" width="0" style="display:none;visibility:hidden"></iframe></noscript>
     }
 
     function openLb(card) {
-      var activeGroup = document.querySelector('.dest-group.tab-active');
-      destCards = activeGroup ? Array.from(activeGroup.querySelectorAll('.destination-card')) : [card];
+      destCards = Array.from(document.querySelectorAll('.destination-card'));
       destIdx = destCards.indexOf(card);
       if (destIdx < 0) destIdx = 0;
       showDest(destIdx);

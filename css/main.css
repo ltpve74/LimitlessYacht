@@ -530,6 +530,17 @@ section { padding: 7rem 2rem; }
   letter-spacing: .1em; color: rgba(245,240,232,.75);
   pointer-events: none; white-space: nowrap;
 }
+#dest-lb-tier {
+  position: absolute;
+  top: max(0.85rem, env(safe-area-inset-top));
+  left: 0.85rem; z-index: 2;
+  font-family: 'Montserrat', sans-serif; font-size: .48rem; font-weight: 600;
+  letter-spacing: .2em; text-transform: uppercase;
+  color: var(--gold-light);
+  background: rgba(8,18,34,.85); border: 1px solid rgba(201,168,76,.45);
+  padding: .32rem .7rem; border-radius: 999px;
+  pointer-events: none; white-space: nowrap;
+}
 .dest-lb-body {
   flex: 1; overflow-y: auto; -webkit-overflow-scrolling: touch;
   padding: 1.1rem 1.5rem max(1.75rem, env(safe-area-inset-bottom));
@@ -863,11 +874,11 @@ footer {
 .destination-name,
 .destination-tagline,
 .destination-desc {
-  text-shadow: 0 1px 3px rgba(0,0,0,.9), 0 0 5px rgba(0,0,0,.6), 0 2px 14px rgba(0,0,0,.5);
+  text-shadow: 0 1px 6px rgba(0,0,0,1), 0 0 14px rgba(0,0,0,.95), 0 2px 24px rgba(0,0,0,.85), 0 4px 48px rgba(0,0,0,.65);
 }
 .destination-num {
   font-size: .65rem; letter-spacing: .22em; text-transform: uppercase;
-  color: var(--gold-light); margin-bottom: .8rem; text-shadow: 0 0 3px rgba(0,0,0,1), 0 1px 2px rgba(0,0,0,1), 0 0 12px rgba(0,0,0,.8);
+  color: var(--gold-light); margin-bottom: .8rem; text-shadow: 0 0 6px rgba(0,0,0,1), 0 1px 4px rgba(0,0,0,1), 0 0 20px rgba(0,0,0,.95);
 }
 .destination-name {
   font-family: 'Montserrat', sans-serif;
@@ -890,7 +901,7 @@ footer {
 .destination-meta span {
   font-size: .72rem; letter-spacing: .08em; text-transform: uppercase;
   color: rgba(245,240,232,.82);
-  text-shadow: 0 1px 3px rgba(0, 0, 0, 0.7);
+  text-shadow: 0 1px 5px rgba(0,0,0,.95), 0 0 10px rgba(0,0,0,.85);
 }
 .destination-meta strong { color: var(--gold-light); font-weight: 500; }
 
@@ -1369,7 +1380,8 @@ footer {
     content: 'Tap for full details →';
     display: block; margin-top: .55rem;
     font-size: .46rem; letter-spacing: .18em; text-transform: uppercase;
-    color: rgba(201,168,76,.48);
+    color: rgba(201,168,76,.8);
+    text-shadow: 0 1px 4px rgba(0,0,0,1), 0 0 10px rgba(0,0,0,.9);
   }
   html[lang="de"] .destination-card-body::after { content: 'Details antippen →'; }
   html[lang="es"] .destination-card-body::after { content: 'Pulsa para más detalles →'; }
