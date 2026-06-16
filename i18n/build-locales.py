@@ -45,6 +45,10 @@ def root_paths(html: str) -> str:
         html = html.replace(f'{attr}="images/', f'{attr}="/images/')
     html = html.replace('href="favicon.svg"', 'href="/favicon.svg"')
     html = html.replace('"images/', '"/images/')
+    # Single-quoted JS strings (idle preload + destImages arrays)
+    html = html.replace("'images/", "'/images/")
+    # Extra srcset candidates after the first URL (e.g. mobile webp)
+    html = html.replace(', images/', ', /images/')
     return html
 
 

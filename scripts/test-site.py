@@ -254,6 +254,21 @@ def check_html(r: Runner, rel: str, html: str) -> None:
     # Structured data
     r.check('schema.org JSON-LD present', 'application/ld+json' in html)
 
+    # Locale subfolders — asset paths must be root-relative
+    if rel != 'index.html':
+        r.check(
+            f'{rel} destImages uses root-relative paths',
+            "'/images/dest/" in html,
+        )
+        r.check(
+            f'{rel} no relative images/ in destImages',
+            "'images/dest/" not in html,
+        )
+        r.check(
+            f'{rel} srcset mobile candidates are root-relative',
+            ', images/mobile/' not in html,
+        )
+
 
 def check_legal(r: Runner, rel: str, html: str) -> None:
     lang = LEGAL_META[rel]['lang']
