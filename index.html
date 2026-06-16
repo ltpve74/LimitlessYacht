@@ -173,7 +173,8 @@ j=d.createElement(s),dl=l!='dataLayer'?'&l='+l:'';j.async=true;j.crossOrigin='an
 <meta name="theme-color" content="#0a1628" />
 
 <!-- Preload hero image (LCP) -->
-<link rel="preload" as="image" href="images/maiora_20s_02.webp" type="image/webp" fetchpriority="high" />
+<link rel="preload" as="image" href="images/mobile/maiora_20s_02.webp" type="image/webp" fetchpriority="high" media="(max-width: 640px)" />
+<link rel="preload" as="image" href="images/maiora_20s_02.webp" type="image/webp" fetchpriority="high" media="(min-width: 641px)" />
 
 <link rel="preconnect" href="https://fonts.googleapis.com" />
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
@@ -289,6 +290,7 @@ height="0" width="0" style="display:none;visibility:hidden"></iframe></noscript>
 <!-- HERO -->
 <section id="hero">
   <picture class="hero-bg-wrap">
+    <source srcset="images/mobile/maiora_20s_02.webp" type="image/webp" media="(max-width: 640px)">
     <source srcset="images/maiora_20s_02.webp" type="image/webp">
     <img class="hero-bg" src="images/maiora_20s_02.jpg" alt="" width="1920" height="1080" fetchpriority="high" decoding="sync" aria-hidden="true">
   </picture>
@@ -377,7 +379,7 @@ height="0" width="0" style="display:none;visibility:hidden"></iframe></noscript>
       <div class="itinerary-grid">
         <div class="destination-card reveal">
           <picture class="destination-card-bg">
-            <source type="image/webp" srcset="images/dest/portals-vells-1.webp" />
+            <source type="image/webp" srcset="images/dest/portals-vells-1.webp 1200w, images/mobile/dest/portals-vells-1.webp 800w" sizes="(max-width: 640px) 100vw, 500px" />
             <img loading="lazy" decoding="async" src="images/dest/portals-vells-1.jpg" alt="" width="1200" height="900" />
           </picture>
           <div class="destination-card-overlay"></div>
@@ -415,7 +417,7 @@ height="0" width="0" style="display:none;visibility:hidden"></iframe></noscript>
         </div>
         <div class="destination-card reveal reveal-delay-1">
           <picture class="destination-card-bg">
-            <source type="image/webp" srcset="images/dest/cala-llamp-1.webp" />
+            <source type="image/webp" srcset="images/dest/cala-llamp-1.webp 1200w, images/mobile/dest/cala-llamp-1.webp 800w" sizes="(max-width: 640px) 100vw, 500px" />
             <img loading="lazy" decoding="async" src="images/dest/cala-llamp-1.jpg" alt="" width="1200" height="900" />
           </picture>
           <div class="destination-card-overlay"></div>
@@ -446,7 +448,7 @@ height="0" width="0" style="display:none;visibility:hidden"></iframe></noscript>
       <div class="itinerary-grid">
         <div class="destination-card reveal">
           <picture class="destination-card-bg">
-            <source type="image/webp" srcset="images/dest/sa-dragonera-1.webp" />
+            <source type="image/webp" srcset="images/dest/sa-dragonera-1.webp 1200w, images/mobile/dest/sa-dragonera-1.webp 800w" sizes="(max-width: 640px) 100vw, 500px" />
             <img loading="lazy" decoding="async" src="images/dest/sa-dragonera-1.jpg" alt="" width="1200" height="800" />
           </picture>
           <div class="destination-card-overlay"></div>
@@ -465,7 +467,7 @@ height="0" width="0" style="display:none;visibility:hidden"></iframe></noscript>
         </div>
         <div class="destination-card reveal reveal-delay-1">
           <picture class="destination-card-bg">
-            <source type="image/webp" srcset="images/dest/cala-pi-1.webp" />
+            <source type="image/webp" srcset="images/dest/cala-pi-1.webp 1200w, images/mobile/dest/cala-pi-1.webp 800w" sizes="(max-width: 640px) 100vw, 500px" />
             <img loading="lazy" decoding="async" src="images/dest/cala-pi-1.jpg" alt="" width="1200" height="902" />
           </picture>
           <div class="destination-card-overlay"></div>
@@ -484,7 +486,7 @@ height="0" width="0" style="display:none;visibility:hidden"></iframe></noscript>
         </div>
         <div class="destination-card reveal reveal-delay-1">
           <picture class="destination-card-bg">
-            <source type="image/webp" srcset="images/dest/es-trenc-1.webp" />
+            <source type="image/webp" srcset="images/dest/es-trenc-1.webp 1200w, images/mobile/dest/es-trenc-1.webp 800w" sizes="(max-width: 640px) 100vw, 500px" />
             <img loading="lazy" decoding="async" src="images/dest/es-trenc-1.jpg" alt="" width="1200" height="800" />
           </picture>
           <div class="destination-card-overlay"></div>
@@ -503,7 +505,7 @@ height="0" width="0" style="display:none;visibility:hidden"></iframe></noscript>
         </div>
         <div class="destination-card reveal reveal-delay-1">
           <picture class="destination-card-bg">
-            <source type="image/webp" srcset="images/dest/cabrera-1.webp" />
+            <source type="image/webp" srcset="images/dest/cabrera-1.webp 1200w, images/mobile/dest/cabrera-1.webp 800w" sizes="(max-width: 640px) 100vw, 500px" />
             <img loading="lazy" decoding="async" src="images/dest/cabrera-1.jpg" alt="" width="1200" height="797" />
           </picture>
           <div class="destination-card-overlay"></div>
@@ -522,7 +524,7 @@ height="0" width="0" style="display:none;visibility:hidden"></iframe></noscript>
         </div>
         <div class="destination-card reveal reveal-delay-2">
           <picture class="destination-card-bg">
-            <source type="image/webp" srcset="images/dest/calo-des-moro-1.webp" />
+            <source type="image/webp" srcset="images/dest/calo-des-moro-1.webp 1200w, images/mobile/dest/calo-des-moro-1.webp 800w" sizes="(max-width: 640px) 100vw, 500px" />
             <img loading="lazy" decoding="async" src="images/dest/calo-des-moro-1.jpg" alt="" width="1200" height="797" />
           </picture>
           <div class="destination-card-overlay"></div>
@@ -572,7 +574,7 @@ height="0" width="0" style="display:none;visibility:hidden"></iframe></noscript>
         </div>
         <div class="destination-card reveal reveal-delay-1">
           <picture class="destination-card-bg">
-            <source type="image/webp" srcset="images/dest/circumnavigation-1.webp" />
+            <source type="image/webp" srcset="images/dest/circumnavigation-1.webp 1200w, images/mobile/dest/circumnavigation-1.webp 800w" sizes="(max-width: 640px) 100vw, 500px" />
             <img loading="lazy" decoding="async" src="images/dest/circumnavigation-1.jpg" alt="" width="1200" height="648" />
           </picture>
           <div class="destination-card-overlay"></div>
@@ -591,7 +593,7 @@ height="0" width="0" style="display:none;visibility:hidden"></iframe></noscript>
         </div>
         <div class="destination-card reveal reveal-delay-2">
           <picture class="destination-card-bg">
-            <source type="image/webp" srcset="images/dest/formentera-1.webp" />
+            <source type="image/webp" srcset="images/dest/formentera-1.webp 1200w, images/mobile/dest/formentera-1.webp 800w" sizes="(max-width: 640px) 100vw, 500px" />
             <img loading="lazy" decoding="async" src="images/dest/formentera-1.jpg" alt="" width="1200" height="900" />
           </picture>
           <div class="destination-card-overlay"></div>
@@ -610,7 +612,7 @@ height="0" width="0" style="display:none;visibility:hidden"></iframe></noscript>
         </div>
         <div class="destination-card reveal reveal-delay-3">
           <picture class="destination-card-bg">
-            <source type="image/webp" srcset="images/dest/menorca-1.webp" />
+            <source type="image/webp" srcset="images/dest/menorca-1.webp 900w, images/mobile/dest/menorca-1.webp 800w" sizes="(max-width: 640px) 100vw, 500px" />
             <img loading="lazy" decoding="async" src="images/dest/menorca-1.jpg" alt="" width="900" height="1200" />
           </picture>
           <div class="destination-card-overlay"></div>
@@ -740,13 +742,13 @@ height="0" width="0" style="display:none;visibility:hidden"></iframe></noscript>
     <div class="gallery-group tab-active" data-gtab="water">
       <div class="gallery-grid">
         <div class="gallery-item reveal" data-index="0">
-          <picture><source type="image/webp" srcset="images/maiora_20s_01.webp" /><img loading="lazy" decoding="async" src="images/maiora_20s_01.jpg" width="960" height="640" alt="Maiora 20S yacht Limitless cruising off the Mallorca coast" /></picture>
+          <picture><source type="image/webp" srcset="images/maiora_20s_01.webp 960w, images/mobile/maiora_20s_01.webp 800w" sizes="(max-width: 640px) 35vw, 22vw" /><img loading="lazy" decoding="async" src="images/maiora_20s_01.jpg" width="960" height="640" alt="Maiora 20S yacht Limitless cruising off the Mallorca coast" /></picture>
         </div>
         <div class="gallery-item reveal reveal-delay-1" data-index="1">
-          <picture><source type="image/webp" srcset="images/maiora_20s_03.webp" /><img loading="lazy" decoding="async" src="images/maiora_20s_03.jpg" width="960" height="640" alt="Aerial side profile of the Limitless yacht underway at sea" /></picture>
+          <picture><source type="image/webp" srcset="images/maiora_20s_03.webp 960w, images/mobile/maiora_20s_03.webp 800w" sizes="(max-width: 640px) 35vw, 22vw" /><img loading="lazy" decoding="async" src="images/maiora_20s_03.jpg" width="960" height="640" alt="Aerial side profile of the Limitless yacht underway at sea" /></picture>
         </div>
         <div class="gallery-item reveal reveal-delay-2" data-index="2">
-          <picture><source type="image/webp" srcset="images/maiora_20s_07.webp" /><img loading="lazy" decoding="async" src="images/maiora_20s_07.jpg" width="960" height="640" alt="Limitless yacht head-on at full speed" /></picture>
+          <picture><source type="image/webp" srcset="images/maiora_20s_07.webp 960w, images/mobile/maiora_20s_07.webp 800w" sizes="(max-width: 640px) 35vw, 22vw" /><img loading="lazy" decoding="async" src="images/maiora_20s_07.jpg" width="960" height="640" alt="Limitless yacht head-on at full speed" /></picture>
         </div>
       </div>
       <div class="carousel-nav">
@@ -760,16 +762,16 @@ height="0" width="0" style="display:none;visibility:hidden"></iframe></noscript>
     <div class="gallery-group" data-gtab="deck">
       <div class="gallery-grid">
         <div class="gallery-item reveal" data-index="3">
-          <picture><source type="image/webp" srcset="images/limitless_aft_dining.webp" /><img loading="lazy" decoding="async" src="images/limitless_aft_dining.jpg" width="1280" height="960" alt="Al fresco dining on the aft deck of the Limitless yacht" /></picture>
+          <picture><source type="image/webp" srcset="images/limitless_aft_dining.webp 1280w, images/mobile/limitless_aft_dining.webp 800w" sizes="(max-width: 640px) 35vw, 22vw" /><img loading="lazy" decoding="async" src="images/limitless_aft_dining.jpg" width="1280" height="960" alt="Al fresco dining on the aft deck of the Limitless yacht" /></picture>
         </div>
         <div class="gallery-item reveal reveal-delay-1" data-index="4">
-          <picture><source type="image/webp" srcset="images/limitless_flybridge.webp" /><img loading="lazy" decoding="async" src="images/limitless_flybridge.jpg" width="1280" height="960" alt="Flybridge lounge and dining on the Limitless yacht" /></picture>
+          <picture><source type="image/webp" srcset="images/limitless_flybridge.webp 1280w, images/mobile/limitless_flybridge.webp 800w" sizes="(max-width: 640px) 35vw, 22vw" /><img loading="lazy" decoding="async" src="images/limitless_flybridge.jpg" width="1280" height="960" alt="Flybridge lounge and dining on the Limitless yacht" /></picture>
         </div>
         <div class="gallery-item reveal reveal-delay-2" data-index="5">
-          <picture><source type="image/webp" srcset="images/limitless_sundeck.webp" /><img loading="lazy" decoding="async" src="images/limitless_sundeck.jpg" width="1280" height="960" alt="Flybridge sun deck and sunpads on the Limitless yacht" /></picture>
+          <picture><source type="image/webp" srcset="images/limitless_sundeck.webp 1280w, images/mobile/limitless_sundeck.webp 800w" sizes="(max-width: 640px) 35vw, 22vw" /><img loading="lazy" decoding="async" src="images/limitless_sundeck.jpg" width="1280" height="960" alt="Flybridge sun deck and sunpads on the Limitless yacht" /></picture>
         </div>
         <div class="gallery-item reveal reveal-delay-3" data-index="6">
-          <picture><source type="image/webp" srcset="images/limitless_aft_deck.webp" /><img loading="lazy" decoding="async" src="images/limitless_aft_deck.jpg" width="1280" height="960" alt="Aft deck lounge of the Limitless yacht" /></picture>
+          <picture><source type="image/webp" srcset="images/limitless_aft_deck.webp 1280w, images/mobile/limitless_aft_deck.webp 800w" sizes="(max-width: 640px) 35vw, 22vw" /><img loading="lazy" decoding="async" src="images/limitless_aft_deck.jpg" width="1280" height="960" alt="Aft deck lounge of the Limitless yacht" /></picture>
         </div>
       </div>
       <div class="carousel-nav">
@@ -783,28 +785,28 @@ height="0" width="0" style="display:none;visibility:hidden"></iframe></noscript>
     <div class="gallery-group" data-gtab="interior">
       <div class="gallery-grid">
         <div class="gallery-item reveal" data-index="7">
-          <picture><source type="image/webp" srcset="images/int_saloon_artwork.webp" /><img loading="lazy" decoding="async" src="images/int_saloon_artwork.jpg" width="1280" height="960" alt="Salon of the Limitless yacht with designer sofa and artwork" /></picture>
+          <picture><source type="image/webp" srcset="images/int_saloon_artwork.webp 1280w, images/mobile/int_saloon_artwork.webp 800w" sizes="(max-width: 640px) 35vw, 22vw" /><img loading="lazy" decoding="async" src="images/int_saloon_artwork.jpg" width="1280" height="960" alt="Salon of the Limitless yacht with designer sofa and artwork" /></picture>
         </div>
         <div class="gallery-item reveal reveal-delay-1" data-index="8">
-          <picture><source type="image/webp" srcset="images/int_saloon_marina_view.webp" /><img loading="lazy" decoding="async" src="images/int_saloon_marina_view.jpg" width="1280" height="960" alt="Salon lounge of the Limitless yacht with marina views" /></picture>
+          <picture><source type="image/webp" srcset="images/int_saloon_marina_view.webp 1280w, images/mobile/int_saloon_marina_view.webp 800w" sizes="(max-width: 640px) 35vw, 22vw" /><img loading="lazy" decoding="async" src="images/int_saloon_marina_view.jpg" width="1280" height="960" alt="Salon lounge of the Limitless yacht with marina views" /></picture>
         </div>
         <div class="gallery-item reveal reveal-delay-2" data-index="9">
-          <picture><source type="image/webp" srcset="images/int_saloon_reverse.webp" /><img loading="lazy" decoding="async" src="images/int_saloon_reverse.jpg" width="1280" height="960" alt="Salon seating area aboard the Limitless yacht" /></picture>
+          <picture><source type="image/webp" srcset="images/int_saloon_reverse.webp 1280w, images/mobile/int_saloon_reverse.webp 800w" sizes="(max-width: 640px) 35vw, 22vw" /><img loading="lazy" decoding="async" src="images/int_saloon_reverse.jpg" width="1280" height="960" alt="Salon seating area aboard the Limitless yacht" /></picture>
         </div>
         <div class="gallery-item reveal reveal-delay-3" data-index="10">
-          <picture><source type="image/webp" srcset="images/int_master_headboard.webp" /><img loading="lazy" decoding="async" src="images/int_master_headboard.jpg" width="1280" height="960" alt="Master cabin aboard the Limitless yacht" /></picture>
+          <picture><source type="image/webp" srcset="images/int_master_headboard.webp 1280w, images/mobile/int_master_headboard.webp 800w" sizes="(max-width: 640px) 35vw, 22vw" /><img loading="lazy" decoding="async" src="images/int_master_headboard.jpg" width="1280" height="960" alt="Master cabin aboard the Limitless yacht" /></picture>
         </div>
         <div class="gallery-item reveal reveal-delay-1" data-index="11">
-          <picture><source type="image/webp" srcset="images/int_master_amber_glow.webp" /><img loading="lazy" decoding="async" src="images/int_master_amber_glow.jpg" width="1280" height="960" alt="Master cabin with ambient lighting on the Limitless yacht" /></picture>
+          <picture><source type="image/webp" srcset="images/int_master_amber_glow.webp 1280w, images/mobile/int_master_amber_glow.webp 800w" sizes="(max-width: 640px) 35vw, 22vw" /><img loading="lazy" decoding="async" src="images/int_master_amber_glow.jpg" width="1280" height="960" alt="Master cabin with ambient lighting on the Limitless yacht" /></picture>
         </div>
         <div class="gallery-item reveal reveal-delay-2" data-index="12">
-          <picture><source type="image/webp" srcset="images/int_master_wide.webp" /><img loading="lazy" decoding="async" src="images/int_master_wide.jpg" width="1280" height="960" alt="Spacious master cabin aboard the Limitless yacht" /></picture>
+          <picture><source type="image/webp" srcset="images/int_master_wide.webp 1280w, images/mobile/int_master_wide.webp 800w" sizes="(max-width: 640px) 35vw, 22vw" /><img loading="lazy" decoding="async" src="images/int_master_wide.jpg" width="1280" height="960" alt="Spacious master cabin aboard the Limitless yacht" /></picture>
         </div>
         <div class="gallery-item reveal reveal-delay-3" data-index="13">
-          <picture><source type="image/webp" srcset="images/int_vip_cabin.webp" /><img loading="lazy" decoding="async" src="images/int_vip_cabin.jpg" width="1280" height="960" alt="VIP guest cabin aboard the Limitless yacht" /></picture>
+          <picture><source type="image/webp" srcset="images/int_vip_cabin.webp 1280w, images/mobile/int_vip_cabin.webp 800w" sizes="(max-width: 640px) 35vw, 22vw" /><img loading="lazy" decoding="async" src="images/int_vip_cabin.jpg" width="1280" height="960" alt="VIP guest cabin aboard the Limitless yacht" /></picture>
         </div>
         <div class="gallery-item reveal reveal-delay-1" data-index="14">
-          <picture><source type="image/webp" srcset="images/int_twin_cabin.webp" /><img loading="lazy" decoding="async" src="images/int_twin_cabin.jpg" width="960" height="1280" alt="Twin guest cabin aboard the Limitless yacht" /></picture>
+          <picture><source type="image/webp" srcset="images/int_twin_cabin.webp 960w, images/mobile/int_twin_cabin.webp 800w" sizes="(max-width: 640px) 35vw, 22vw" /><img loading="lazy" decoding="async" src="images/int_twin_cabin.jpg" width="960" height="1280" alt="Twin guest cabin aboard the Limitless yacht" /></picture>
         </div>
       </div>
       <div class="carousel-nav">
@@ -1275,6 +1277,23 @@ height="0" width="0" style="display:none;visibility:hidden"></iframe></noscript>
     "images/int_vip_cabin.webp",         // 13: interior
     "images/int_twin_cabin.webp",        // 14: interior
   ];
+  const imagesMobile = [
+    "images/mobile/maiora_20s_01.webp",
+    "images/mobile/maiora_20s_03.webp",
+    "images/mobile/maiora_20s_07.webp",
+    "images/mobile/limitless_aft_dining.webp",
+    "images/mobile/limitless_flybridge.webp",
+    "images/mobile/limitless_sundeck.webp",
+    "images/mobile/limitless_aft_deck.webp",
+    "images/mobile/int_saloon_artwork.webp",
+    "images/mobile/int_saloon_marina_view.webp",
+    "images/mobile/int_saloon_reverse.webp",
+    "images/mobile/int_master_headboard.webp",
+    "images/mobile/int_master_amber_glow.webp",
+    "images/mobile/int_master_wide.webp",
+    "images/mobile/int_vip_cabin.webp",
+    "images/mobile/int_twin_cabin.webp",
+  ];
   const imagePositions = [
     '95% 72%',       // 0: maiora_20s_01 — bow bottom-right
     'center center', // 1: maiora_20s_03 — full yacht aerial; shown with contain
@@ -1307,10 +1326,17 @@ height="0" width="0" style="display:none;visibility:hidden"></iframe></noscript>
 
   function showImage(idx) {
     currentIdx = (idx + images.length) % images.length;
-    lbImg.src = images[currentIdx];
+    var isMobLb = window.innerWidth <= 640;
+    lbImg.src = (isMobLb ? imagesMobile : images)[currentIdx];
     lbImg.style.objectPosition = imagePositions[currentIdx] || 'center center';
     lbImg.classList.toggle('lb-contain', !!imageContain[currentIdx]);
     if (lbCounter) lbCounter.textContent = (currentIdx + 1) + ' / ' + images.length;
+    // Prefetch adjacent images
+    var arr = isMobLb ? imagesMobile : images;
+    [-1, 1].forEach(function(d) {
+      var img = new Image();
+      img.src = arr[(currentIdx + d + arr.length) % arr.length];
+    });
   }
 
   document.querySelectorAll('.gallery-item').forEach(item => {
@@ -1402,7 +1428,7 @@ height="0" width="0" style="display:none;visibility:hidden"></iframe></noscript>
       var card = destCards[destIdx];
       var src = card.querySelector('.destination-card-bg source[type="image/webp"]');
       var img = card.querySelector('.destination-card-bg img');
-      if (src)  { lbSrcWp.srcset = src.srcset; }
+      if (src)  { lbSrcWp.srcset = src.srcset; lbSrcWp.sizes = '(max-width: 640px) 100vw, 50vw'; }
       if (img)  { lbImg2.src = img.src; lbImg2.alt = img.alt || ''; }
       lbNum.textContent  = (card.querySelector('.destination-num')     || {}).textContent || '';
       lbName.textContent = (card.querySelector('.destination-name')    || {}).textContent || '';
@@ -1428,6 +1454,19 @@ height="0" width="0" style="display:none;visibility:hidden"></iframe></noscript>
       if (lbNext) lbNext.style.display = hasNav ? '' : 'none';
       var body = destLb.querySelector('.dest-lb-body');
       if (body) body.scrollTop = 0;
+      // Prefetch adjacent destination images
+      var isMobDest = window.innerWidth <= 640;
+      var total = destCards.length;
+      [-1, 1].forEach(function(d) {
+        var adjCard = destCards[(destIdx + d + total) % total];
+        var adjSrc = adjCard.querySelector('.destination-card-bg source[type="image/webp"]');
+        if (adjSrc && adjSrc.srcset) {
+          var parts = adjSrc.srcset.split(',');
+          var entry = isMobDest ? parts[parts.length - 1] : parts[0];
+          var url = entry.trim().split(/\s+/)[0];
+          if (url) { var pi = new Image(); pi.src = url; }
+        }
+      });
     }
 
     function openLb(card) {
