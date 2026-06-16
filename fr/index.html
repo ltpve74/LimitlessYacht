@@ -2133,7 +2133,7 @@ nav.scrolled::before { opacity: 1; }
       return (
         '<article class="review-card">' +
           '<div class="review-card-header">' +
-            '<span class="review-author">' + escapeHtml(r.author || 'Guest') + '</span>' +
+            '<span class="review-author">' + escapeHtml(r.author || 'Client') + '</span>' +
             '<span class="review-date">' + escapeHtml(r.date || '') + '</span>' +
           '</div>' +
           '<div class="review-stars" aria-label="' + (r.rating || 5) + ' out of 5 stars">' + stars(r.rating || 5) + '</div>' +
@@ -2144,7 +2144,7 @@ nav.scrolled::before { opacity: 1; }
   }
 
   // Load curated reviews from static JSON (self-managed, no external scraping)
-  fetch('/data/reviews.json')
+  fetch('/data/reviews-fr.json')
     .then(function (r) { return r.ok ? r.json() : null; })
     .then(function (data) { if (data) render(data); })
     .catch(function () {
@@ -2154,7 +2154,7 @@ nav.scrolled::before { opacity: 1; }
           author: 'Tony',
           date: 'Aug 2025',
           rating: 5,
-          text: "Our group of six had a fantastic day on Limitless, which was spacious, comfortable, and spotless. Paul was highly responsive and organized our charter with less than a day's notice. Once on board, we found Captain Luigi to be both knowledgeable and humorous, and he seamlessly mapped out a smooth itinerary with several fun stops. Throughout the charter, the attentive stewardess made sure we were well taken care of, whether it was bringing us a (very well-stocked) basket of sunscreen and towels or keeping our drinks topped off and bringing them to us wherever we went. Highly recommend!"
+          text: "Notre groupe de six a passé une journée fantastique à bord de Limitless — spacieux, confortable et impeccable. Paul a été très réactif et a organisé notre charter en moins d'un jour. Une fois à bord, le capitaine Luigi s'est révélé compétent et plein d'humour, traçant sans effort un bel itinéraire avec plusieurs escales agréables. L'hôtesse attentive veillait à notre confort — panier de crème solaire et serviettes, verres toujours pleins où que nous soyons. Fortement recommandé !"
         }]
       });
     });

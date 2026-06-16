@@ -14,8 +14,8 @@ git config core.hooksPath .githooks          # one-time per clone
 | Question | Answer |
 |----------|--------|
 | Which branch do I edit? | **`experiment-no-prices`** only |
-| Which files are source of truth? | `index.html`, `legal.html`, `css/main.css`, `i18n/locales/*.py` |
-| Which files are generated? | `de/`, `es/`, `fr/` HTML — never hand-edit |
+| Which files are source of truth? | `index.html`, `legal.html`, `css/main.css`, `data/reviews.json`, `i18n/locales/*.py` |
+| Which files are generated? | `de/`, `es/`, `fr/` HTML and `data/reviews-{de,es,fr}.json` — never hand-edit |
 | When do locales rebuild? | On commit to `experiment-no-prices` (if EN source changed) |
 | When does minification happen? | On commit to **`main`** only (publish step) |
 | What goes live? | Push to **`main`** → Netlify deploys `limitlessyachtcharter.com` |
@@ -59,6 +59,8 @@ For every new or changed visible English string:
 3. Order in the lists does not matter (build sorts longest-first).
 
 Calendar month/day labels live in locale modules (`MONTHS`, `DOW`).
+
+**Guest reviews:** English copy lives in `data/reviews.json`. Translations live in each locale module as `REVIEWS` (plus `REVIEWS_UI` for JS labels). `build-locales.py` writes `data/reviews-de.json`, `data/reviews-es.json`, `data/reviews-fr.json` and patches each locale page to fetch the matching file. When adding or editing a review, update **English JSON and all three `REVIEWS` lists** (same count, same `author`/`rating`).
 
 ### 3. Stage and commit
 
@@ -134,7 +136,7 @@ curl -sL https://limitlessyachtcharter.com/ | head -c 500
 |--------|-------------|--------|
 | `python3 i18n/build-locales.py` | After EN HTML or locale `.py` changes | `experiment-no-prices` |
 | `python3 scripts/minify_html.py` | Automatic on `main` commit; do not run on dev | `main` only |
-| `python3 scripts/test-site.py` | Automatic on `main` commit; can run manually to sanity-check | any |
+| `python3 scripts/test-site.py` | Automatic on `main` commit; run after feature work (reviews, LCP, i18n, etc.) | any |
 
 ---
 
@@ -145,12 +147,16 @@ index.html, legal.html     ← EN source (edit)
 css/main.css               ← shared styles (edit)
 i18n/locales/de.py         ← DE translations (edit)
 i18n/locales/es.py         ← ES translations (edit)
-i18n/locales/fr.py         ← FR translations (edit)
+i18n/locales/fr.py         ← FR translations + REVIEWS (edit)
+data/reviews.json          ← EN guest reviews source (edit)
 i18n/build-locales.py      ← locale generator (rarely edit)
 
 de/index.html, de/legal.html   ← generated (do not edit)
 es/index.html, es/legal.html   ← generated
 fr/index.html, fr/legal.html   ← generated
+data/reviews-de.json           ← generated from de.py REVIEWS
+data/reviews-es.json           ← generated from es.py REVIEWS
+data/reviews-fr.json           ← generated from fr.py REVIEWS
 
 .githooks/pre-commit       ← branch-aware hook (edit with care)
 scripts/minify_html.py       ← production minifier
@@ -165,7 +171,8 @@ netlify.toml                 ← Netlify config (production)
 | Mistake | Why it's wrong |
 |---------|----------------|
 | Editing `main` HTML directly | Files are minified; changes are unreadable and bypass locale build |
-| Hand-editing `de/es/fr/` HTML | Overwritten on next locale build |
+| Hand-editing `de/es/fr/` HTML or `data/reviews-*.json` | Overwritten on next locale build |
+| Adding a review only to `data/reviews.json` | Locale `REVIEWS` lists must stay in sync — build will fail |
 | Running `minify_html.py` on dev branch | Destroys readable source |
 | Committing on `main` without merging dev | Skips readable source of truth |
 | Forgetting locale `.py` tuples | Non-English pages keep old or English text |

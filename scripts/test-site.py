@@ -38,10 +38,16 @@ LEGAL_FILES = [
 ]
 
 LOCALE_META = {
-    'index.html':      {'lang': 'en', 'form': 'contact-en'},
-    'de/index.html':   {'lang': 'de', 'form': 'contact-de'},
-    'fr/index.html':   {'lang': 'fr', 'form': 'contact-fr'},
-    'es/index.html':   {'lang': 'es', 'form': 'contact-es'},
+    'index.html':      {'lang': 'en', 'form': 'contact-en', 'reviews_json': '/data/reviews.json'},
+    'de/index.html':   {'lang': 'de', 'form': 'contact-de', 'reviews_json': '/data/reviews-de.json'},
+    'fr/index.html':   {'lang': 'fr', 'form': 'contact-fr', 'reviews_json': '/data/reviews-fr.json'},
+    'es/index.html':   {'lang': 'es', 'form': 'contact-es', 'reviews_json': '/data/reviews-es.json'},
+}
+
+LOCALE_REVIEW_FILES = {
+    'de': 'data/reviews-de.json',
+    'es': 'data/reviews-es.json',
+    'fr': 'data/reviews-fr.json',
 }
 
 LEGAL_META = {
@@ -219,7 +225,10 @@ def check_html(r: Runner, rel: str, html: str) -> None:
     )
 
     # Data feeds
-    r.check('reviews.json fetch', '/data/reviews.json' in html)
+    reviews_json = meta['reviews_json']
+    r.check(f'reviews fetch uses {reviews_json}', f"fetch('{reviews_json}')" in html)
+    if rel != 'index.html':
+        r.check('does not fetch English reviews.json', "fetch('/data/reviews.json')" not in html)
     r.check('availability API fetch', '/api/availability' in html)
 
     # Structured data
@@ -246,6 +255,75 @@ def check_locale_parity(r: Runner, pages: dict[str, str]) -> None:
             not missing and not extra,
             f'missing={sorted(missing)} extra={sorted(extra)}' if missing or extra else '',
         )
+
+
+def check_localized_reviews(r: Runner) -> None:
+    en_raw = read_file('data/reviews.json')
+    if en_raw is None:
+        r.fail('data/reviews.json exists', 'file not found')
+        return
+    try:
+        en_reviews = json.loads(en_raw).get('reviews', [])
+    except json.JSONDecodeError as exc:
+        r.fail('data/reviews.json is valid JSON', str(exc))
+        return
+
+    en_texts = {item.get('text', '') for item in en_reviews}
+    r.check('English reviews.json is non-empty', len(en_reviews) > 0)
+
+    for code, rel_path in LOCALE_REVIEW_FILES.items():
+        raw = read_file(rel_path)
+        r.check(f'{rel_path} exists', raw is not None)
+        if raw is None:
+            continue
+        try:
+            loc_reviews = json.loads(raw).get('reviews', [])
+        except json.JSONDecodeError as exc:
+            r.fail(f'{rel_path} is valid JSON', str(exc))
+            continue
+
+        r.check(
+            f'{rel_path} review count matches EN ({len(en_reviews)})',
+            len(loc_reviews) == len(en_reviews),
+        )
+        loc_texts = [item.get('text', '') for item in loc_reviews]
+        r.check(
+            f'{rel_path} review texts are translated',
+            all(t and t not in en_texts for t in loc_texts),
+            'one or more texts still match English source',
+        )
+        for i, (en_item, loc_item) in enumerate(zip(en_reviews, loc_reviews)):
+            r.check(
+                f'{rel_path} review[{i}] author matches EN',
+                en_item.get('author') == loc_item.get('author'),
+            )
+            r.check(
+                f'{rel_path} review[{i}] rating matches EN',
+                en_item.get('rating') == loc_item.get('rating'),
+            )
+
+
+def check_locale_modules(r: Runner) -> None:
+    """Ensure locale Python modules stay aligned with English review source."""
+    sys.path.insert(0, os.path.join(ROOT, 'i18n'))
+    try:
+        from locales import de, es, fr  # noqa: WPS433
+    except ImportError as exc:
+        r.fail('locale modules importable', str(exc))
+        return
+
+    en_raw = read_file('data/reviews.json')
+    if not en_raw:
+        return
+    en_count = len(json.loads(en_raw).get('reviews', []))
+    for code, mod in (('de', de), ('es', es), ('fr', fr)):
+        r.check(f'i18n/locales/{code}.py defines REVIEWS', hasattr(mod, 'REVIEWS'))
+        r.check(f'i18n/locales/{code}.py defines REVIEWS_UI', hasattr(mod, 'REVIEWS_UI'))
+        if hasattr(mod, 'REVIEWS'):
+            r.check(
+                f'i18n/locales/{code}.py REVIEWS count matches EN',
+                len(mod.REVIEWS) == en_count,
+            )
 
 
 def check_shared_assets(r: Runner) -> None:
@@ -369,6 +447,12 @@ def main() -> None:
             r.fail(f'{rel}', 'file not found')
             continue
         check_legal(r, rel, html)
+
+    print('\n[localized reviews]')
+    check_localized_reviews(r)
+
+    print('\n[locale modules]')
+    check_locale_modules(r)
 
     print('\n[shared assets]')
     check_shared_assets(r)

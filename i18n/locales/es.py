@@ -973,6 +973,61 @@ PAIRS = [
 
 ]
 
+REVIEWS_UI = {
+    "guest": "Huésped",
+    "stars_suffix": " de 5 estrellas",
+}
+
+REVIEWS = [
+    {
+        "author": "Tony",
+        "date": "Ago 2025",
+        "rating": 5,
+        "text": (
+            "Nuestro grupo de seis disfrutó de un día fantástico a bordo de Limitless: "
+            "espaciosa, cómoda e impecable. Paul respondió con gran rapidez y organizó el "
+            "charter con menos de un día de antelación. A bordo, el capitán Luigi resultó "
+            "experto y con buen humor, trazando sin esfuerzo un itinerario fluido con "
+            "varias paradas muy agradables. La azafata atenta nos cuidó en todo momento, "
+            "ya fuera con una cesta (muy bien surtida) de protector solar y toallas o "
+            "reponiendo nuestras bebidas donde estuviéramos. ¡Muy recomendable!"
+        ),
+    },
+    {
+        "author": "Elena & Family",
+        "date": "Jul 2025",
+        "rating": 5,
+        "text": (
+            "Tuvimos un charter de día completo inolvidable. El yate está magníficamente "
+            "mantenido y la tripulación (Luigi y equipo) fue profesional, amable y superó "
+            "todas las expectativas. Las paradas elegidas fueron perfectas para los niños y "
+            "los juguetes acuáticos mantuvieron a todos entretenidos. Navegación suave en "
+            "todo momento. Sin duda volveremos."
+        ),
+    },
+    {
+        "author": "Marcus R.",
+        "date": "Jun 2025",
+        "rating": 5,
+        "text": (
+            "Primera vez que alquilamos en Mallorca y Limitless superó todas las "
+            "expectativas. Barco impecable, atención al detalle increíble por parte de la "
+            "tripulación e itinerario adaptado exactamente a lo que queríamos. La parada "
+            "al atardecer fue lo más destacado. Reserva fácil y comunicación excelente. 10/10."
+        ),
+    },
+    {
+        "author": "Sophie & Friends",
+        "date": "Sep 2024",
+        "rating": 5,
+        "text": (
+            "Preciosa tarde en el mar. El barco es muy cómodo y la tripulación nos hizo "
+            "sentir como en casa. Gran selección de paradas y las bebidas y aperitivos "
+            "servidos fueron excelentes. Recomendable para un día relajado con amigos."
+        ),
+    },
+]
+
 LEGAL_PAIRS = [
     (
         "Legal Notice & Privacy Policy – Limitless Yacht Experience",
