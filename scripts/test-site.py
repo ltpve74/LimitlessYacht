@@ -393,9 +393,21 @@ def check_shared_assets(r: Runner) -> None:
     if css:
         r.check('main.css defines .hero-bg-wrap', '.hero-bg-wrap' in css)
         r.check('main.css defines heroTitleIn', 'heroTitleIn' in css)
-    r.check('WhatsApp button meets contrast-safe green', '#157a47' in css)
-    r.check('calendar past dates use readable muted text', '.cal-cell.past { color: var(--text-muted); }' in css)
-    r.check('calendar booked dates meet contrast-safe rose', '.cal-cell.booked { background: #8f4a52;' in css)
+    r.check(
+        'WhatsApp button meets contrast-safe green',
+        css is not None and '#157a47' in css and '#25D366' not in css,
+    )
+    r.check(
+        'calendar past dates use readable muted text',
+        css is not None
+        and '.cal-cell.past' in css
+        and 'var(--text-muted)' in css
+        and 'rgba(245,240,232,.22)' not in css,
+    )
+    r.check(
+        'calendar booked dates meet contrast-safe rose',
+        css is not None and '#8f4a52' in css and 'rgba(176,124,130,.9)' not in css,
+    )
 
     for rel in (
         'fonts/montserrat-latin.woff2',
