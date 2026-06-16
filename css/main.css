@@ -19,6 +19,8 @@
 }
 
 *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+/* prevent iOS Safari double-tap zoom on all interactive elements */
+a, button, [role="button"] { touch-action: manipulation; }
 
 html {
   scroll-padding-top: 5rem; /* a bit more breathing room under the fixed nav for all anchor targets */
