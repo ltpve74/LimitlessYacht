@@ -40,11 +40,11 @@
   }
   if(localStorage.getItem('ly_owner')==='1'){
     window.LY_OWNER_MODE=true;
-    console.log('%c[Limitless] Owner mode — GTM · GA · Clarity suppressed','color:#c9a84c;font-weight:bold');
+    console.log('%c[Limitless] Owner mode — GA · Clarity suppressed','color:#c9a84c;font-weight:bold');
   }
 }catch(e){}})();
 </script>
-<!-- Google Consent Mode v2 defaults (must run before GTM) -->
+<!-- Google Consent Mode v2 defaults -->
 <script>
   window.dataLayer = window.dataLayer || [];
   function gtag(){dataLayer.push(arguments);}
@@ -117,17 +117,6 @@ function gtag_report_conversion_form(url) {
   return false;
 }
 </script>
-<!-- Google Tag Manager — deferred until after load -->
-<script>
-window.addEventListener('load', function() {
-  if(!window.LY_OWNER_MODE){(function(w,d,s,l,i){w[l]=w[l]||[];w[l].push({'gtm.start':
-  new Date().getTime(),event:'gtm.js'});var f=d.getElementsByTagName(s)[0],
-  j=d.createElement(s),dl=l!='dataLayer'?'&l='+l:'';j.async=true;j.crossOrigin='anonymous';j.src=
-  'https://www.googletagmanager.com/gtm.js?id='+i+dl;f.parentNode.insertBefore(j,f);
-  })(window,document,'script','dataLayer','GTM-NN8V25BR')}
-});
-</script>
-<!-- End Google Tag Manager -->
 <!-- Behaviour analytics (section views → dataLayer) -->
 <script>
   window.LY_ANALYTICS = {
@@ -676,10 +665,7 @@ nav.scrolled::before { opacity: 1; }
 
 </head>
 <body>
-<!-- Google Tag Manager (noscript) -->
-<noscript><iframe src="https://www.googletagmanager.com/ns.html?id=GTM-NN8V25BR"
-height="0" width="0" style="display:none;visibility:hidden"></iframe></noscript>
-<!-- End Google Tag Manager (noscript) -->
+
 
 <!-- NAV -->
 <nav id="navbar">
@@ -2057,7 +2043,7 @@ height="0" width="0" style="display:none;visibility:hidden"></iframe></noscript>
   });
 
 
-  // Google Tag / dataLayer events for conversions (GTM + GA4 + Google Ads)
+  // Google Tag / dataLayer events for conversions (GA4 + Google Ads)
   window.dataLayer = window.dataLayer || [];
 
   // WhatsApp clicks (primary conversion)
