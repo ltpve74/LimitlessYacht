@@ -239,8 +239,13 @@ def check_html(r: Runner, rel: str, html: str) -> None:
         and 'fetchpriority="high"' in html,
     )
     r.check(
+        'critical hero CSS discovered before deferred head scripts',
+        html.find('critical-css') > 0 and html.find('critical-css') < html.find('<script'),
+    )
+    r.check(
         'hero image preloads discovered before deferred head scripts',
         html.find('fetchpriority="high"')
+        < html.find('critical-css')
         < html.find('LY_afterLcp')
         < html.find('window.LY_DEST_IMAGES'),
     )
