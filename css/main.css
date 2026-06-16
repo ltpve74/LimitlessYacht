@@ -399,8 +399,9 @@ section { padding: 7rem 2rem; }
   position: absolute; inset: 0;
   width: 100%; height: 100%;
   object-fit: cover;
-  /* object-position set per-image by JS */
+  /* object-position and lb-contain class set per-image by JS */
 }
+#lightbox-img.lb-contain { object-fit: contain; }
 #lightbox.open::after {
   content: ''; position: absolute; inset: 0; z-index: 1; pointer-events: none;
   background:

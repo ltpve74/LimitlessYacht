@@ -1273,7 +1273,7 @@ height="0" width="0" style="display:none;visibility:hidden"></iframe></noscript>
   ];
   const imagePositions = [
     '80% 65%',       // 0: maiora_20s_01 — aerial wake shot; yacht is bottom-right
-    'center 40%',    // 1: maiora_20s_03 — aerial, keep deck prominent
+    'center center', // 1: maiora_20s_03 — full yacht aerial; shown with contain
     'center center', // 2: aft dining
     'center 35%',    // 3: flybridge — sky above, keep people visible
     'center 40%',    // 4: sundeck
@@ -1288,6 +1288,13 @@ height="0" width="0" style="display:none;visibility:hidden"></iframe></noscript>
     'center 20%',    // 13: twin cabin (portrait orientation — keep bunks in frame)
     'center center', // 14: aft deck
   ];
+  // Images that should show the full frame (contain) rather than fill (cover)
+  const imageContain = [
+    false, // 0
+    true,  // 1: maiora_20s_03 — full yacht needs to be seen whole
+    false, false, false, false, false, false,
+    false, false, false, false, false, false, false,
+  ];
   let currentIdx = 0;
   const lightbox = document.getElementById('lightbox');
   const lbImg = document.getElementById('lightbox-img');
@@ -1298,6 +1305,7 @@ height="0" width="0" style="display:none;visibility:hidden"></iframe></noscript>
     currentIdx = (idx + images.length) % images.length;
     lbImg.src = images[currentIdx];
     lbImg.style.objectPosition = imagePositions[currentIdx] || 'center center';
+    lbImg.classList.toggle('lb-contain', !!imageContain[currentIdx]);
     if (lbCounter) lbCounter.textContent = (currentIdx + 1) + ' / ' + images.length;
   }
 
