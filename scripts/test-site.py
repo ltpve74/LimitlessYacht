@@ -289,16 +289,19 @@ def check_html(r: Runner, rel: str, html: str) -> None:
     r.check(
         'form uses themed date pickers instead of native date inputs',
         'class="form-date-wrap"' in html
-        and 'class="form-date-popover cal"' in html
+        and 'id="formDateModal"' in html
+        and 'id="formDatePopover"' in html
         and 'type="hidden" name="preferred_date"' in html
         and 'type="hidden" name="preferred_date_end"' in html
         and 'type="date" name="preferred_date"' not in html
-        and 'function initFormDatePicker' in html
+        and 'function openFormDateModal' in html
+        and 'function closeFormDateModal' in html
         and 'window.LY_updateFormDateTriggers' in html
         and 'class="form-date-range-hint"' in html
         and 'class="form-date-icon"' in html
-        and 'document.body.appendChild(pop)' in html
-        and 'toggleDate(k)' in html
+        and 'document.body.appendChild(formDateModal)' in html
+        and 'class="form-date-done-btn"' in html
+        and 'class="form-date-modal-close"' in html
         and 'range-start' in html,
     )
 
@@ -713,12 +716,14 @@ def check_shared_assets(r: Runner) -> None:
     r.check(
         'form date popover is a centered modal with on-brand trigger',
         css is not None
+        and '.form-date-modal' in css
+        and re.search(r'\.form-date-modal\s*\{[^}]*position:\s*fixed', css) is not None
         and '.form-date-popover' in css
-        and re.search(r'\.form-date-popover\s*\{[^}]*position:\s*fixed', css) is not None
         and '.form-date-trigger' in css
         and '.form-date-icon' in css
         and '.form-date-popover .cal-cell' in css
-        and '.form-date-range-hint' in css
+        and '.form-date-done-btn' in css
+        and '.form-date-modal-close' in css
         and '.form-date-backdrop' in css,
     )
     r.check(

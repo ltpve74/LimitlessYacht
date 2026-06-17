@@ -1273,25 +1273,10 @@ window.LY_afterLcp(function() {
               <label for="preferred_date_btn">Date de début</label>
               <div class="form-date-wrap" id="preferredDateWrap">
                 <input type="hidden" name="preferred_date" id="preferred_date" />
-                <button type="button" class="form-date-trigger" id="preferred_date_btn" aria-haspopup="dialog" aria-expanded="false" aria-controls="preferred_date_pop">
+                <button type="button" class="form-date-trigger" id="preferred_date_btn" aria-haspopup="dialog" aria-expanded="false" aria-controls="formDatePopover">
                   <span class="form-date-icon" aria-hidden="true"><svg viewBox="0 0 16 16" width="16" height="16" fill="none" stroke="currentColor" stroke-width="1.2"><rect x="2" y="3" width="12" height="11" rx="1"/><path d="M2 6h12M5 1v3M11 1v3"/></svg></span>
                   <span class="form-date-text">Sélectionner…</span>
                 </button>
-                <div class="form-date-popover cal" id="preferred_date_pop" role="dialog" aria-modal="true" hidden>
-                  <div class="form-date-cal-bar">
-                    <button type="button" class="cal-nav form-date-nav form-date-prev" aria-label="Mois précédent">‹</button>
-                    <div class="form-date-cal-body">
-                      <div class="cal-title form-date-title"></div>
-                      <div class="cal-grid cal-dow form-date-dow" aria-hidden="true"></div>
-                      <div class="cal-grid cal-days form-date-days"></div>
-                    </div>
-                    <button type="button" class="cal-nav form-date-nav form-date-next" aria-label="Mois suivant">›</button>
-                  </div>
-                  <div class="form-date-cal-foot">
-                    <p class="form-date-range-hint">Touchez une deuxième date pour plusieurs jours.</p>
-                    <button type="button" class="cal-clear form-date-clear-btn">Clear</button>
-                  </div>
-                </div>
               </div>
             </div>
             <div class="form-field" id="formDurWrap">
@@ -1308,28 +1293,39 @@ window.LY_afterLcp(function() {
               <label for="preferred_date_end_btn">Date de fin</label>
               <div class="form-date-wrap" id="preferredDateEndFieldWrap">
                 <input type="hidden" name="preferred_date_end" id="preferred_date_end" />
-                <button type="button" class="form-date-trigger" id="preferred_date_end_btn" aria-haspopup="dialog" aria-expanded="false" aria-controls="preferred_date_end_pop">
+                <button type="button" class="form-date-trigger" id="preferred_date_end_btn" aria-haspopup="dialog" aria-expanded="false" aria-controls="formDatePopover">
                   <span class="form-date-icon" aria-hidden="true"><svg viewBox="0 0 16 16" width="16" height="16" fill="none" stroke="currentColor" stroke-width="1.2"><rect x="2" y="3" width="12" height="11" rx="1"/><path d="M2 6h12M5 1v3M11 1v3"/></svg></span>
                   <span class="form-date-text">Sélectionner…</span>
                 </button>
-                <div class="form-date-popover cal" id="preferred_date_end_pop" role="dialog" aria-modal="true" hidden>
-                  <div class="form-date-cal-bar">
-                    <button type="button" class="cal-nav form-date-nav form-date-prev" aria-label="Mois précédent">‹</button>
-                    <div class="form-date-cal-body">
-                      <div class="cal-title form-date-title"></div>
-                      <div class="cal-grid cal-dow form-date-dow" aria-hidden="true"></div>
-                      <div class="cal-grid cal-days form-date-days"></div>
-                    </div>
-                    <button type="button" class="cal-nav form-date-nav form-date-next" aria-label="Mois suivant">›</button>
+              </div>
+            </div>
+            <p class="form-date-hint">Consultez le <a href="#avail-cal" class="form-date-hint-link">calendrier</a> pour un aperçu.</p>
+            <div class="form-date-modal" id="formDateModal" hidden aria-hidden="true">
+              <div class="form-date-backdrop" id="formDateBackdrop" aria-hidden="true"></div>
+              <div class="form-date-popover cal" id="formDatePopover" role="dialog" aria-modal="true" aria-labelledby="formDateModalTitle">
+                <div class="form-date-modal-head">
+                  <p class="form-date-modal-title" id="formDateModalTitle">Choisir les dates</p>
+                  <button type="button" class="form-date-modal-close" id="formDateModalFermer" aria-label="Fermer le calendrier">×</button>
+                </div>
+                <div class="form-date-cal-bar">
+                  <button type="button" class="cal-nav form-date-nav form-date-prev" aria-label="Mois précédent">‹</button>
+                  <div class="form-date-cal-body">
+                    <div class="cal-title form-date-title"></div>
+                    <div class="cal-grid cal-dow form-date-dow" aria-hidden="true"></div>
+                    <div class="cal-grid cal-days form-date-days"></div>
                   </div>
-                  <div class="form-date-cal-foot">
-                    <p class="form-date-range-hint">Touchez une deuxième date pour plusieurs jours.</p>
+                  <button type="button" class="cal-nav form-date-nav form-date-next" aria-label="Mois suivant">›</button>
+                </div>
+                <div class="form-date-cal-foot">
+                  <p class="form-date-range-hint">Touchez une deuxième date pour plusieurs jours.</p>
+                  <p class="form-date-close-hint">Touchez <strong>Terminé</strong> ou ✕ pour fermer.</p>
+                  <div class="form-date-modal-actions">
                     <button type="button" class="cal-clear form-date-clear-btn">Clear</button>
+                    <button type="button" class="form-date-done-btn">Terminé</button>
                   </div>
                 </div>
               </div>
             </div>
-            <p class="form-date-hint">Consultez le <a href="#avail-cal" class="form-date-hint-link">calendrier</a> pour un aperçu.</p>
           </div>
           <script>
           (function(){
@@ -2446,202 +2442,166 @@ window.LY_afterLcp(function() {
   if (window.LY_whenNearSection) window.LY_whenNearSection('availability', loadDisponibilité);
   else loadDisponibilité();
 
-  var formPickers = [];
-  var openPicker = null;
-  var formDateBackdrop = null;
+  var formDateModal = document.getElementById('formDateModal');
+  var formDatePopover = document.getElementById('formDatePopover');
+  var formDateBackdrop = document.getElementById('formDateBackdrop');
+  var formDateFermerBtn = document.getElementById('formDateModalFermer');
+  var formDateTerminéBtn = document.querySelector('.form-date-done-btn');
+  var formDateClearBtn = document.querySelector('.form-date-clear-btn');
+  var formDatePrevBtn = formDatePopover ? formDatePopover.querySelector('.form-date-prev') : null;
+  var formDateNextBtn = formDatePopover ? formDatePopover.querySelector('.form-date-next') : null;
+  var formDateTitleEl = formDatePopover ? formDatePopover.querySelector('.form-date-title') : null;
+  var formDateDaysEl = formDatePopover ? formDatePopover.querySelector('.form-date-days') : null;
+  var formDateDowEl = formDatePopover ? formDatePopover.querySelector('.form-date-dow') : null;
+  var formDateStartBtn = document.getElementById('preferred_date_btn');
+  var formDateEndBtn = document.getElementById('preferred_date_end_btn');
+  var formDateTriggers = [
+    { btn: formDateStartBtn, mode: 'start' },
+    { btn: formDateEndBtn, mode: 'end' }
+  ];
+  var formDateActiveTrigger = null;
+  var formDateViewIndex = minIndex;
+  var formDatePlaceholder = 'Sélectionner…';
 
-  function ensureFormDateBackdrop() {
-    if (formDateBackdrop) return formDateBackdrop;
-    formDateBackdrop = document.createElement('div');
-    formDateBackdrop.className = 'form-date-backdrop';
-    formDateBackdrop.hidden = true;
-    formDateBackdrop.addEventListener('click', closeOpenFormDatePicker);
-    document.body.appendChild(formDateBackdrop);
-    return formDateBackdrop;
+  function updateFormDateTrigger(entry) {
+    if (!entry || !entry.btn) return;
+    var textEl = entry.btn.querySelector('.form-date-text');
+    if (!textEl) return;
+    var label = '';
+    if (entry.mode === 'end') {
+      label = selected.length > 1 ? formatDateLabel(selected[selected.length - 1]) : '';
+    } else if (selected.length === 1) {
+      label = formatDateLabel(selected[0]);
+    } else if (selected.length > 1) {
+      label = formatSelection();
+    }
+    textEl.textContent = label || formDatePlaceholder;
+    entry.btn.classList.toggle('has-value', !!label);
   }
-  function closeOpenFormDatePicker() {
-    if (openPicker) openPicker.close();
+  function updateAllFormDateTriggers() {
+    formDateTriggers.forEach(updateFormDateTrigger);
+  }
+  function renderFormDatePopover() {
+    if (!formDateDaysEl || !formDateTitleEl) return;
+    rebuildLookup();
+    var y = Math.floor(formDateViewIndex / 12), m = formDateViewIndex % 12;
+    var startDow = (new Date(y, m, 1).getDay() + 6) % 7;
+    var daysInMonth = new Date(y, m + 1, 0).getDate();
+    var ts = todayStr();
+    var selStart = selected[0] || '';
+    var selEnd = selected[selected.length - 1] || '';
+    formDateTitleEl.textContent = MONTHS[m] + ' ' + y;
+    var cells = '';
+    for (var i = 0; i < startDow; i++) cells += '<div class="cal-cell empty"></div>';
+    for (var d = 1; d <= daysInMonth; d++) {
+      var k = y + '-' + pad(m + 1) + '-' + pad(d);
+      var cls = 'cal-cell';
+      var isFree = false;
+      if (k < ts) {
+        cls += ' past';
+      } else {
+        if (k === ts) cls += ' today';
+        if (booked.has(k)) cls += ' booked';
+        else if (tentative.has(k)) cls += ' tentative';
+        else if (isSelectable(k)) { cls += ' free'; isFree = true; }
+      }
+      var isSélectionné = !!selectedLookup[k];
+      if (isSélectionné) {
+        cls += ' selected';
+        if (k === selStart) cls += ' range-start';
+        if (k === selEnd) cls += ' range-end';
+      }
+      var attr = isFree
+        ? ' data-date="' + k + '" data-selected="' + (isSélectionné ? 'true' : 'false') + '" role="button" tabindex="0" aria-pressed="' + (isSélectionné ? 'true' : 'false') + '" aria-label="' + d + ' ' + MONTHS[m] + ' ' + y + '"'
+        : '';
+      cells += '<div class="' + cls + '"' + attr + '>' + d + '</div>';
+    }
+    formDateDaysEl.innerHTML = cells;
+    if (formDatePrevBtn) formDatePrevBtn.disabled = (formDateViewIndex <= minIndex);
+    if (formDateNextBtn) formDateNextBtn.disabled = (formDateViewIndex >= maxIndex);
+  }
+  function closeFormDateModal() {
+    if (!formDateModal || formDateModal.hidden) return;
+    formDateModal.hidden = true;
+    formDateModal.setAttribute('aria-hidden', 'true');
+    document.body.classList.remove('form-date-open');
+    if (formDateActiveTrigger) {
+      formDateActiveTrigger.setAttribute('aria-expanded', 'false');
+      formDateActiveTrigger = null;
+    }
+  }
+  function openFormDateModal(trigger) {
+    if (!formDateModal || !formDatePopover) return;
+    if (formDateActiveTrigger) formDateActiveTrigger.setAttribute('aria-expanded', 'false');
+    formDateActiveTrigger = trigger || formDateStartBtn;
+    if (formDateActiveTrigger) formDateActiveTrigger.setAttribute('aria-expanded', 'true');
+    if (selected.length) formDateViewIndex = monthIndexForDate(selected[0]);
+    else if (startInput && startInput.value) formDateViewIndex = monthIndexForDate(startInput.value);
+    else formDateViewIndex = minIndex;
+    renderFormDatePopover();
+    formDateModal.hidden = false;
+    formDateModal.setAttribute('aria-hidden', 'false');
+    document.body.classList.add('form-date-open');
+    if (formDateFermerBtn) formDateFermerBtn.focus();
+  }
+  function shiftFormDateModal(dir) {
+    var next = formDateViewIndex + dir;
+    if (next < minIndex || next > maxIndex) return;
+    formDateViewIndex = next;
+    renderFormDatePopover();
   }
 
-  function initFormDatePicker(opts) {
-    var hidden = opts.input;
-    var btn = opts.trigger;
-    var pop = opts.popover;
-    if (!hidden || !btn || !pop) return null;
-    var prevBtn = pop.querySelector('.form-date-prev');
-    var nextBtn = pop.querySelector('.form-date-next');
-    var titleEl = pop.querySelector('.form-date-title');
-    var daysEl = pop.querySelector('.form-date-days');
-    var dowEl = pop.querySelector('.form-date-dow');
-    var clearBtn = pop.querySelector('.form-date-clear-btn');
-    var textEl = btn.querySelector('.form-date-text');
-    var placeholder = opts.placeholder || 'Sélectionner…';
-    var mode = opts.mode || 'start';
-    var viewIndex = minIndex;
-    var picker = { close: close, refresh: renderPopover, updateTrigger: updateTrigger };
+  if (formDateModal && formDatePopover) {
+    if (formDateModal.parentElement !== document.body) document.body.appendChild(formDateModal);
+    if (formDateDowEl) formDateDowEl.innerHTML = DOW.map(function(x){ return '<span>' + x + '</span>'; }).join('');
 
-    var fieldLabel = document.querySelector('label[for="' + btn.id + '"]');
-    if (fieldLabel) pop.setAttribute('aria-label', fieldLabel.textContent.trim());
-
-    if (dowEl) dowEl.innerHTML = DOW.map(function(x){ return '<span>' + x + '</span>'; }).join('');
-    if (pop.parentElement !== document.body) document.body.appendChild(pop);
-
-    function updateTrigger() {
-      if (!textEl) return;
-      var label = '';
-      if (mode === 'end') {
-        label = selected.length > 1 ? formatDateLabel(selected[selected.length - 1]) : '';
-      } else if (selected.length === 1) {
-        label = formatDateLabel(selected[0]);
-      } else if (selected.length > 1) {
-        label = formatSelection();
-      }
-      textEl.textContent = label || placeholder;
-      btn.classList.toggle('has-value', !!label);
-    }
-
-    function renderPopover() {
-      if (!daysEl || !titleEl) return;
-      rebuildLookup();
-      var y = Math.floor(viewIndex / 12), m = viewIndex % 12;
-      var startDow = (new Date(y, m, 1).getDay() + 6) % 7;
-      var daysInMonth = new Date(y, m + 1, 0).getDate();
-      var ts = todayStr();
-      var selStart = selected[0] || '';
-      var selEnd = selected[selected.length - 1] || '';
-      titleEl.textContent = MONTHS[m] + ' ' + y;
-      var cells = '';
-      for (var i = 0; i < startDow; i++) cells += '<div class="cal-cell empty"></div>';
-      for (var d = 1; d <= daysInMonth; d++) {
-        var k = y + '-' + pad(m + 1) + '-' + pad(d);
-        var cls = 'cal-cell';
-        var isFree = false;
-        if (k < ts) {
-          cls += ' past';
-        } else {
-          if (k === ts) cls += ' today';
-          if (booked.has(k)) cls += ' booked';
-          else if (tentative.has(k)) cls += ' tentative';
-          else if (isSelectable(k)) { cls += ' free'; isFree = true; }
-        }
-        var isSélectionné = !!selectedLookup[k];
-        if (isSélectionné) {
-          cls += ' selected';
-          if (k === selStart) cls += ' range-start';
-          if (k === selEnd) cls += ' range-end';
-        }
-        var attr = isFree
-          ? ' data-date="' + k + '" data-selected="' + (isSélectionné ? 'true' : 'false') + '" role="button" tabindex="0" aria-pressed="' + (isSélectionné ? 'true' : 'false') + '" aria-label="' + d + ' ' + MONTHS[m] + ' ' + y + '"'
-          : '';
-        cells += '<div class="' + cls + '"' + attr + '>' + d + '</div>';
-      }
-      daysEl.innerHTML = cells;
-      if (prevBtn) prevBtn.disabled = (viewIndex <= minIndex);
-      if (nextBtn) nextBtn.disabled = (viewIndex >= maxIndex);
-    }
-
-    function open() {
-      if (openPicker && openPicker !== picker) openPicker.close();
-      openPicker = picker;
-      pop.hidden = false;
-      btn.setAttribute('aria-expanded', 'true');
-      if (selected.length) viewIndex = monthIndexForDate(selected[0]);
-      else if (hidden.value) viewIndex = monthIndexForDate(hidden.value);
-      else viewIndex = minIndex;
-      renderPopover();
-      var backdrop = ensureFormDateBackdrop();
-      backdrop.hidden = false;
-      document.body.classList.add('form-date-open');
-    }
-
-    function close() {
-      pop.hidden = true;
-      btn.setAttribute('aria-expanded', 'false');
-      if (openPicker === picker) openPicker = null;
-      if (formDateBackdrop) formDateBackdrop.hidden = true;
-      document.body.classList.remove('form-date-open');
-    }
-
-    function shift(dir) {
-      var next = viewIndex + dir;
-      if (next < minIndex || next > maxIndex) return;
-      viewIndex = next;
-      renderPopover();
-    }
-
-    function pickDate(k) {
-      toggleDate(k);
-    }
-
-    btn.addEventListener('click', function(e) {
-      e.preventDefault();
-      if (!pop.hidden) close();
-      else open();
+    formDateTriggers.forEach(function(entry) {
+      if (!entry.btn) return;
+      entry.btn.addEventListener('click', function(e) {
+        e.preventDefault();
+        if (!formDateModal.hidden) closeFormDateModal();
+        else openFormDateModal(entry.btn);
+      });
     });
-    if (prevBtn) prevBtn.addEventListener('click', function(e){ e.preventDefault(); shift(-1); });
-    if (nextBtn) nextBtn.addEventListener('click', function(e){ e.preventDefault(); shift(1); });
-    if (clearBtn) clearBtn.addEventListener('click', function(e){
+    if (formDateBackdrop) formDateBackdrop.addEventListener('click', closeFormDateModal);
+    if (formDateFermerBtn) formDateFermerBtn.addEventListener('click', function(e){ e.preventDefault(); closeFormDateModal(); });
+    if (formDateTerminéBtn) formDateTerminéBtn.addEventListener('click', function(e){ e.preventDefault(); closeFormDateModal(); });
+    if (formDatePrevBtn) formDatePrevBtn.addEventListener('click', function(e){ e.preventDefault(); shiftFormDateModal(-1); });
+    if (formDateNextBtn) formDateNextBtn.addEventListener('click', function(e){ e.preventDefault(); shiftFormDateModal(1); });
+    if (formDateClearBtn) formDateClearBtn.addEventListener('click', function(e){
       e.preventDefault();
       selected = [];
       updateSelectionUi();
-      close();
+      renderFormDatePopover();
     });
-    daysEl.addEventListener('click', function(e) {
-      var node = e.target;
-      if (!node || !daysEl.contains(node)) return;
-      if (node.nodeType === 3) node = node.parentElement;
-      var cell = node && node.closest ? node.closest('.cal-cell.free[data-date]') : null;
-      if (!cell) return;
-      e.preventDefault();
-      pickDate(cell.getAttribute('data-date'));
-    });
-    daysEl.addEventListener('keydown', function(e) {
-      if (e.key !== 'Enter' && e.key !== ' ') return;
-      var node = e.target;
-      var cell = node && node.closest ? node.closest('.cal-cell.free[data-date]') : null;
-      if (!cell) return;
-      e.preventDefault();
-      pickDate(cell.getAttribute('data-date'));
+    if (formDateDaysEl) {
+      formDateDaysEl.addEventListener('click', function(e) {
+        var node = e.target;
+        if (!node || !formDateDaysEl.contains(node)) return;
+        if (node.nodeType === 3) node = node.parentElement;
+        var cell = node && node.closest ? node.closest('.cal-cell.free[data-date]') : null;
+        if (!cell) return;
+        e.preventDefault();
+        toggleDate(cell.getAttribute('data-date'));
+      });
+      formDateDaysEl.addEventListener('keydown', function(e) {
+        if (e.key !== 'Enter' && e.key !== ' ') return;
+        var node = e.target;
+        var cell = node && node.closest ? node.closest('.cal-cell.free[data-date]') : null;
+        if (!cell) return;
+        e.preventDefault();
+        toggleDate(cell.getAttribute('data-date'));
+      });
+    }
+    document.addEventListener('keydown', function(e) {
+      if (e.key === 'Escape' && formDateModal && !formDateModal.hidden) closeFormDateModal();
     });
 
-    updateTrigger();
-    return picker;
+    updateAllFormDateTriggers();
   }
 
-  document.addEventListener('click', function(e) {
-    if (!openPicker) return;
-    var node = e.target;
-    if (!node) return;
-    if (node.nodeType === 3) node = node.parentElement;
-    if (!node.closest) return;
-    if (node.closest('.form-date-popover') || node.closest('.form-date-trigger')) return;
-    closeOpenFormDatePicker();
-  });
-  document.addEventListener('keydown', function(e) {
-    if (e.key === 'Escape') closeOpenFormDatePicker();
-  });
-
-  var startPicker = initFormDatePicker({
-    input: startInput,
-    trigger: document.getElementById('preferred_date_btn'),
-    popover: document.getElementById('preferred_date_pop'),
-    mode: 'start'
-  });
-  var endPicker = initFormDatePicker({
-    input: endInput,
-    trigger: document.getElementById('preferred_date_end_btn'),
-    popover: document.getElementById('preferred_date_end_pop'),
-    mode: 'end'
-  });
-  if (startPicker) formPickers.push(startPicker);
-  if (endPicker) formPickers.push(endPicker);
-
-  window.LY_updateFormDateTriggers = function() {
-    formPickers.forEach(function(p){ p.updateTrigger(); });
-  };
-  window.LY_refreshFormDatePickers = function() {
-    formPickers.forEach(function(p){ p.refresh(); });
-  };
+  window.LY_updateFormDateTriggers = updateAllFormDateTriggers;
+  window.LY_refreshFormDatePickers = renderFormDatePopover;
 
   var contactForm = document.getElementById('contactForm');
   if (contactForm) {

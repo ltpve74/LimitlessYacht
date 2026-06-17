@@ -986,6 +986,13 @@ PAIRS = [
         'Tap a second date for multi-day.',
         'Toque una segunda fecha para varios días.',
     ),
+    ('Select dates', 'Elegir fechas'),
+    ('Done', 'Listo'),
+    ('Close calendar', 'Cerrar calendario'),
+    (
+        'Tap <strong>Done</strong> or ✕ to close.',
+        'Pulse <strong>Listo</strong> o ✕ para cerrar.',
+    ),
     # Specs section CTA
     ("Ready to plan your charter? We'll have a quote back within 24 hours.", 'Listo para planificar su chárter. Le enviaremos un presupuesto en 24 horas.'),
 
