@@ -979,8 +979,8 @@ PAIRS = [
     ('or fill in the form', 'o rellene el formulario'),
     ('placeholder="Maria"', 'placeholder="María"'),
     (
-        'Check the <a href="#avail-cal" class="form-date-hint-link">availability calendar</a> for open dates — grey days are already booked.',
-        'Consulte el <a href="#avail-cal" class="form-date-hint-link">calendario de disponibilidad</a> para ver fechas libres — los días en gris ya están reservados.',
+        'Check the <a href="#avail-cal" class="form-date-hint-link">availability calendar</a> for open dates.',
+        'Consulte el <a href="#avail-cal" class="form-date-hint-link">calendario de disponibilidad</a> para ver fechas libres.',
     ),
     # Specs section CTA
     ("Ready to plan your charter? We'll have a quote back within 24 hours.", 'Listo para planificar su chárter. Le enviaremos un presupuesto en 24 horas.'),
