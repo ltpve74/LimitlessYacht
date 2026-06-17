@@ -29,8 +29,21 @@ TIERS = (
     ("-1440", 1440, 66),
 )
 MOBILE_WEBP_Q = 72
+# Lighthouse image-delivery: landscape dest -480 and hero -480 need extra compression.
+DELIVERY_TIGHT_480_Q = 30
+HERO_480_Q = 32
 TIER_SUFFIXES = tuple(suffix for suffix, _, _ in TIERS)
 TIER_ORDER = {suffix: index for index, (suffix, _, _) in enumerate(TIERS)}
+
+
+def tier_quality(src_path: Path, suffix: str, tier_img: Image.Image, default_q: int) -> int:
+    if suffix != "-480":
+        return default_q
+    if src_path.name == "maiora_20s_02.webp":
+        return HERO_480_Q
+    if src_path.parent.name == "dest" and tier_img.size[0] >= 480:
+        return DELIVERY_TIGHT_480_Q
+    return default_q
 
 
 def kb(path: Path) -> float:
@@ -94,7 +107,8 @@ def build_variants() -> dict[str, int]:
                 continue
             if tier_img.size == img.size and suffix != TIERS[-1][0]:
                 continue
-            tier_img.save(tier_path, "WEBP", quality=quality, method=6)
+            q = tier_quality(src_path, suffix, tier_img, quality)
+            tier_img.save(tier_path, "WEBP", quality=q, method=6)
             tw, th = tier_img.size
             tier_kb += kb(tier_path)
             tier_rel = tier_path.relative_to(BASE).as_posix()
