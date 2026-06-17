@@ -264,7 +264,9 @@ def check_html(r: Runner, rel: str, html: str) -> None:
         'function buildContiguousRange' in html
         and 'id="calSelection"' in html
         and 'id="calEnquireBtn"' in html
-        and 'preferred_date_end' in html,
+        and 'preferred_date_end' in html
+        and 'data-selected=' in html
+        and "node.closest('.cal-cell.free[data-date]')" in html,
     )
 
     # Nav
@@ -536,7 +538,8 @@ def check_shared_assets(r: Runner) -> None:
     r.check(
         'calendar selected dates are visually distinct',
         css is not None
-        and '.cal-cell.selected' in css
+        and '.cal-cell.free.selected' in css
+        and '.cal-cell[data-selected="true"]' in css
         and '.cal-footer' in css
         and '.cal-enquire-btn.is-disabled' in css,
     )

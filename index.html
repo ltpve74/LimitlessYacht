@@ -1259,7 +1259,7 @@ window.LY_afterLcp(function() {
     <p class="section-label reveal">Availability</p>
     <h2 class="section-title reveal reveal-delay-1">Check the<em> Calendar</em></h2>
     <p class="availability-intro reveal reveal-delay-2">See which dates are open below, then send us an enquiry — we'll confirm your charter personally. The calendar is kept up to date by our crew.</p>
-    <div class="cal reveal reveal-delay-2" id="availCal" aria-label="Availability calendar" data-i18n-day="day" data-i18n-days="days">
+    <div class="cal" id="availCal" aria-label="Availability calendar" data-i18n-day="day" data-i18n-days="days">
       <div class="cal-bar">
         <button type="button" class="cal-nav" id="calPrev" aria-label="Previous month">‹</button>
         <div class="cal-months" id="calMonths"></div>
@@ -1280,7 +1280,7 @@ window.LY_afterLcp(function() {
         </div>
       </div>
     </div>
-    <div class="availability-actions reveal reveal-delay-3">
+    <div class="availability-actions">
       <a href="#enquire-form" class="btn-primary cal-enquire-btn is-disabled" id="calEnquireBtn" aria-disabled="true">Enquire About These Dates</a>
       <a href="https://wa.me/34622581486?text=Hi%2C%20I%27d%20like%20to%20enquire%20about%20a%20charter%20on%20Limitless." target="_blank" rel="noopener" class="btn-ghost cal-wa-btn is-disabled" id="calWaBtn" aria-disabled="true">Ask on WhatsApp</a>
     </div>
@@ -2214,13 +2214,14 @@ window.LY_afterLcp(function() {
         else if (tentative.has(k)) cls += ' tentative';
         else { cls += ' free'; isFree = true; }
       }
-      if (selectedLookup[k]) {
+      var isSelected = !!selectedLookup[k];
+      if (isSelected) {
         cls += ' selected';
         if (k === selStart) cls += ' range-start';
         if (k === selEnd) cls += ' range-end';
       }
       var attr = isFree
-        ? ' data-date="' + k + '" role="button" tabindex="0" aria-pressed="' + (selectedLookup[k] ? 'true' : 'false') + '" aria-label="' + d + ' ' + MONTHS[m] + ' ' + y + '"'
+        ? ' data-date="' + k + '" data-selected="' + (isSelected ? 'true' : 'false') + '" role="button" tabindex="0" aria-pressed="' + (isSelected ? 'true' : 'false') + '" aria-label="' + d + ' ' + MONTHS[m] + ' ' + y + '"'
         : '';
       cells += '<div class="' + cls + '"' + attr + '>' + d + '</div>';
     }
@@ -2233,6 +2234,7 @@ window.LY_afterLcp(function() {
   }
 
   function render() {
+    rebuildLookup();
     var count = monthsToShow();
     var maxFirst = maxIndex - (count - 1);
     if (viewIndex > maxFirst) viewIndex = maxFirst;
@@ -2263,21 +2265,20 @@ window.LY_afterLcp(function() {
   function cellFromEvent(e) {
     var node = e.target;
     if (!node || !monthsEl.contains(node)) return null;
-    if (node.getAttribute && node.getAttribute('data-date')) return node;
-    return node.closest ? node.closest('[data-date]') : null;
+    if (node.nodeType === 3) node = node.parentElement;
+    if (!node || !node.closest) return null;
+    return node.closest('.cal-cell.free[data-date]');
   }
-  monthsEl.addEventListener('click', function(e) {
+  function handleCalActivate(e) {
     var cell = cellFromEvent(e);
-    if (!cell || cell.className.indexOf('free') === -1) return;
+    if (!cell) return;
     e.preventDefault();
     toggleDate(cell.getAttribute('data-date'));
-  });
+  }
+  monthsEl.addEventListener('click', handleCalActivate);
   monthsEl.addEventListener('keydown', function(e) {
     if (e.key !== 'Enter' && e.key !== ' ') return;
-    var cell = cellFromEvent(e);
-    if (!cell || cell.className.indexOf('free') === -1) return;
-    e.preventDefault();
-    toggleDate(cell.getAttribute('data-date'));
+    handleCalActivate(e);
   });
 
   if (clearBtn) clearBtn.addEventListener('click', function(){ selected = []; updateSelectionUi(); });

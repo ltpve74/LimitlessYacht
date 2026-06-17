@@ -1133,10 +1133,15 @@ footer {
 }
 .cal-cell.booked { background: #8f4a52; color: #fff; }
 .cal-cell.tentative { background: rgba(208,164,78,.22); color: var(--gold-light); }
-.cal-cell.free { cursor: pointer; transition: background .15s, color .15s, box-shadow .15s; touch-action: manipulation; -webkit-tap-highlight-color: transparent; }
-.cal-cell.free:hover { background: rgba(201,168,76,.2); color: var(--gold); }
+.cal-cell.free {
+  cursor: pointer; user-select: none;
+  transition: background .15s, color .15s, box-shadow .15s;
+  touch-action: manipulation; -webkit-tap-highlight-color: transparent;
+}
+.cal-cell.free:hover:not(.selected) { background: rgba(201,168,76,.2); color: var(--gold); }
 .cal-cell.free:focus-visible { outline: 2px solid var(--gold); outline-offset: 1px; }
-.cal-cell.selected {
+.cal-cell.free.selected,
+.cal-cell[data-selected="true"] {
   background: var(--gold) !important;
   color: var(--navy) !important;
   font-weight: 600;
@@ -1144,7 +1149,11 @@ footer {
   outline: none !important;
   z-index: 1;
 }
-.cal-cell.selected:hover { background: var(--gold-light) !important; color: var(--navy) !important; }
+.cal-cell.free.selected:hover,
+.cal-cell[data-selected="true"]:hover {
+  background: var(--gold-light) !important;
+  color: var(--navy) !important;
+}
 .cal-cell.selected.today::after { display: none; }
 .cal-cell.range-start:not(.range-end) { border-radius: 6px 0 0 6px; }
 .cal-cell.range-end:not(.range-start) { border-radius: 0 6px 6px 0; }
