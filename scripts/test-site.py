@@ -567,7 +567,8 @@ def check_html(r: Runner, rel: str, html: str) -> None:
         'responsive hero image preloads',
         'imagesrcset="' in html
         and 'maiora_20s_02-480.webp 480w' in html
-        and 'maiora_20s_02-1440' not in html.split('imagesrcset=')[1][:200]
+        and 'maiora_20s_02-720.webp 720w' in html
+        and 'maiora_20s_02-1440' not in html.split('imagesrcset=')[1][:250]
         and 'maiora_20s_02.webp' in html
         and 'fetchpriority="high"' in html,
     )

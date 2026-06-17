@@ -4,7 +4,7 @@
 <meta charset="UTF-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1.0" />
 <!-- Preload hero image (LCP) — must precede deferred head scripts -->
-<link rel="preload" as="image" imagesrcset="/images/mobile/maiora_20s_02-480.webp 480w" imagesizes="100vw" type="image/webp" fetchpriority="high" media="(max-width: 640px)" />
+<link rel="preload" as="image" imagesrcset="/images/mobile/maiora_20s_02-480.webp 480w, /images/mobile/maiora_20s_02-720.webp 720w" imagesizes="100vw" type="image/webp" fetchpriority="high" media="(max-width: 640px)" />
 <link rel="preload" as="image" href="/images/maiora_20s_02.webp" type="image/webp" fetchpriority="high" media="(min-width: 641px)" />
 <link rel="preload" as="font" href="../fonts/montserrat-latin.woff2" type="font/woff2" crossorigin />
 <style id="critical-css">
@@ -281,7 +281,7 @@ nav{position:fixed;top:0;left:0;right:0;z-index:100;min-height:4.25rem}
 <!-- HERO -->
 <section id="hero">
   <picture class="hero-bg-wrap">
-    <source srcset="/images/mobile/maiora_20s_02-480.webp 480w" sizes="100vw" type="image/webp" media="(max-width: 640px)">
+    <source srcset="/images/mobile/maiora_20s_02-480.webp 480w, /images/mobile/maiora_20s_02-720.webp 720w" sizes="100vw" type="image/webp" media="(max-width: 640px)">
     <source srcset="/images/maiora_20s_02.webp 960w" sizes="100vw" type="image/webp">
     <img class="hero-bg" src="/images/maiora_20s_02.jpg" alt="" width="1920" height="1080" fetchpriority="high" decoding="sync" aria-hidden="true">
   </picture>

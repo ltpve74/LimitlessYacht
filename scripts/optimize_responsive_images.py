@@ -29,19 +29,22 @@ TIERS = (
     ("-1440", 1440, 66),
 )
 MOBILE_WEBP_Q = 72
-# Lighthouse image-delivery: landscape dest -480 and hero -480 need extra compression.
+# Lighthouse image-delivery: landscape dest -480 needs extra compression.
+# Hero keeps sharper -480 for 1x and serves -720 on 2x (see hero srcset max_suffix).
 DELIVERY_TIGHT_480_Q = 30
-HERO_480_Q = 32
+HERO_480_Q = 52
+HERO_720_Q = 58
 TIER_SUFFIXES = tuple(suffix for suffix, _, _ in TIERS)
 TIER_ORDER = {suffix: index for index, (suffix, _, _) in enumerate(TIERS)}
 
 
 def tier_quality(src_path: Path, suffix: str, tier_img: Image.Image, default_q: int) -> int:
-    if suffix != "-480":
-        return default_q
     if src_path.name == "maiora_20s_02.webp":
-        return HERO_480_Q
-    if src_path.parent.name == "dest" and tier_img.size[0] >= 480:
+        if suffix == "-480":
+            return HERO_480_Q
+        if suffix == "-720":
+            return HERO_720_Q
+    if suffix == "-480" and src_path.parent.name == "dest" and tier_img.size[0] >= 480:
         return DELIVERY_TIGHT_480_Q
     return default_q
 
@@ -213,7 +216,7 @@ def write_srcsets(widths: dict[str, int]) -> None:
     html = patch_dest_srcsets(html, widths)
 
     hero_mobile = srcset_for_base(
-        "images/mobile/maiora_20s_02.webp", widths, include_master=False, max_suffix="-480"
+        "images/mobile/maiora_20s_02.webp", widths, include_master=False, max_suffix="-720"
     )
     html = re.sub(
         r'<source srcset="[^"]*maiora_20s_02[^"]*" '
