@@ -5,7 +5,7 @@ Unified model (hero, about, gallery, destinations):
   Mobile tiers: -480, -720, -960, -1440 (capped at native width).
   Desktop tiers: -640, -960, master (up to 1280px where the source allows).
 
-Quality is viewport-matched and sharp — not Lighthouse-aggressive on visible content.
+Quality is viewport-matched: lean encoding on card/grid tiers, higher on lightbox masters.
 
 Run: .venv/bin/python scripts/optimize_responsive_images.py
       .venv/bin/python scripts/optimize_responsive_images.py --write-srcset
@@ -26,25 +26,24 @@ MOBILE = BASE / "images" / "mobile"
 IMAGES = BASE / "images"
 MANIFEST_PATH = MOBILE / "_srcset-widths.json"
 
-# Shared mobile tiers (dest cards + any legacy content paths).
-CONTENT_MOBILE_TIERS = (
-    ("-480", 480, 72),
-    ("-720", 720, 70),
-    ("-960", 960, 68),
-    ("-1440", 1440, 70),
+# Destination: card tiers in carousel srcset; masters for fullscreen lightbox.
+DEST_MOBILE_TIERS = (
+    ("-480", 480, 68),
+    ("-720", 720, 72),
+    ("-960", 960, 70),
 )
-CONTENT_MOBILE_WEBP_Q = 74
-
-# Shared desktop grid tiers (gallery, about, hero, destination cards).
-DESKTOP_CONTENT_TIERS = (
-    ("-640", 640, 84),
-    ("-960", 960, 82),
+DEST_MOBILE_WEBP_Q = 78
+DEST_CARD_DESKTOP_TIERS = (
+    ("-640", 640, 76),
+    ("-960", 960, 74),
 )
-
-# Destinations: card + lightbox masters rebuilt from media-library sources.
 DEST_DESKTOP_MAX_EDGE = 960
-DEST_DESKTOP_WEBP_Q = 74
-DEST_DESKTOP_JPEG_Q = 82
+DEST_DESKTOP_WEBP_Q = 80
+DEST_DESKTOP_JPEG_Q = 84
+
+# Misc mobile fallbacks (non-dest / non-gallery / non-hero).
+CONTENT_MOBILE_TIERS = DEST_MOBILE_TIERS
+CONTENT_MOBILE_WEBP_Q = 72
 DEST_MOBILE_MAX_EDGE = 960
 DEST_HERO_SOURCES: dict[str, Path] = {
     "portals-vells": BASE / "media-library" / "destinations" / "portals-vells" / "01_portals_vells_existing.jpg",
@@ -87,21 +86,25 @@ GALLERY_ITEMS = (
     ("int_twin_cabin", False),
 )
 GALLERY_MOBILE_TIERS = (
-    ("-480", 480, 78),
-    ("-720", 720, 76),
-    ("-960", 960, 74),
-    ("-1440", 1440, 76),
+    ("-480", 480, 72),
+    ("-720", 720, 74),
+    ("-960", 960, 72),
 )
-GALLERY_MOBILE_WEBP_Q = 80
-DESKTOP_GALLERY_TIERS = DESKTOP_CONTENT_TIERS
+GALLERY_MOBILE_WEBP_Q = 82
+GALLERY_CARD_DESKTOP_TIERS = (
+    ("-640", 640, 78),
+    ("-960", 960, 76),
+)
+DESKTOP_GALLERY_TIERS = GALLERY_CARD_DESKTOP_TIERS
 GALLERY_DESKTOP_MAX_EDGE = 1280
-GALLERY_DESKTOP_WEBP_Q = 84
+GALLERY_DESKTOP_WEBP_Q = 86
 
-# About strip (same tier model as gallery).
+# About strip (grid tiers + single master, no lightbox).
 ABOUT_NAME = "maiora_20s_04"
 ABOUT_DESKTOP_MAX_EDGE = 960
-ABOUT_DESKTOP_WEBP_Q = 80
-DESKTOP_ABOUT_TIERS = DESKTOP_CONTENT_TIERS
+ABOUT_DESKTOP_WEBP_Q = 82
+DESKTOP_ABOUT_TIERS = GALLERY_CARD_DESKTOP_TIERS
+DESKTOP_CONTENT_TIERS = GALLERY_CARD_DESKTOP_TIERS
 
 # Hero (LCP): native 2000px Maiora 20S cruising shot (charter promo master).
 HERO_STEM = "maiora_20s_02"
@@ -110,18 +113,17 @@ HERO_JPG = IMAGES / f"{HERO_STEM}.jpg"
 HERO_DESKTOP_WEBP = IMAGES / f"{HERO_STEM}.webp"
 HERO_DESKTOP_MAX_EDGE = 1920
 HERO_MOBILE_TIERS = (
-    ("-480", 480, 80),
-    ("-720", 720, 78),
-    ("-960", 960, 76),
-    ("-1440", 1440, 78),
+    ("-480", 480, 74),
+    ("-720", 720, 72),
+    ("-960", 960, 70),
 )
-HERO_MOBILE_WEBP_Q = 80
+HERO_MOBILE_WEBP_Q = 78
 DESKTOP_HERO_TIERS = (
-    ("-640", 640, 84),
-    ("-960", 960, 82),
-    ("-1280", 1280, 82),
+    ("-640", 640, 78),
+    ("-960", 960, 76),
+    ("-1280", 1280, 76),
 )
-HERO_DESKTOP_WEBP_Q = 84
+HERO_DESKTOP_WEBP_Q = 82
 
 DEST_SLUGS = (
     "portals-vells", "el-toro-malgrats", "cala-llamp", "sa-dragonera",
@@ -132,12 +134,12 @@ DEST_SLUGS = (
 TIER_SUFFIXES = tuple({
     suffix
     for suffix, _, _ in (
-        CONTENT_MOBILE_TIERS
+        DEST_MOBILE_TIERS
         + GALLERY_MOBILE_TIERS
         + HERO_MOBILE_TIERS
+        + DEST_CARD_DESKTOP_TIERS
         + DESKTOP_GALLERY_TIERS
         + DESKTOP_HERO_TIERS
-        + DESKTOP_CONTENT_TIERS
     )
 })
 
@@ -163,7 +165,11 @@ def mobile_profile(src_path: Path) -> str:
 def mobile_tiers_for(profile: str) -> tuple[tuple[str, int, int], ...]:
     if profile == "gallery":
         return GALLERY_MOBILE_TIERS
-    return HERO_MOBILE_TIERS if profile == "hero" else CONTENT_MOBILE_TIERS
+    if profile == "hero":
+        return HERO_MOBILE_TIERS
+    if profile == "dest":
+        return DEST_MOBILE_TIERS
+    return CONTENT_MOBILE_TIERS
 
 
 def mobile_master_q(profile: str) -> int:
@@ -171,6 +177,8 @@ def mobile_master_q(profile: str) -> int:
         return HERO_MOBILE_WEBP_Q
     if profile == "gallery":
         return GALLERY_MOBILE_WEBP_Q
+    if profile == "dest":
+        return DEST_MOBILE_WEBP_Q
     return CONTENT_MOBILE_WEBP_Q
 
 
@@ -356,7 +364,7 @@ def optimize_dest_desktop(widths: dict[str, int]) -> None:
             img,
             stem,
             folder=dest,
-            tiers=DESKTOP_CONTENT_TIERS,
+            tiers=DEST_CARD_DESKTOP_TIERS,
             master_q=DEST_DESKTOP_WEBP_Q,
             widths=widths,
         )
@@ -414,7 +422,7 @@ def optimize_hero_desktop(widths: dict[str, int]) -> None:
         return
     print("\nOptimizing hero image (high quality, viewport tiers)\n")
     img = resize_to_max(load_hero_rgb(), HERO_DESKTOP_MAX_EDGE)
-    img.save(HERO_JPG, "JPEG", quality=88, optimize=True)
+    img.save(HERO_JPG, "JPEG", quality=86, optimize=True)
     before = kb(HERO_DESKTOP_WEBP) if HERO_DESKTOP_WEBP.is_file() else 0.0
     tier_kb = save_desktop_tiers(
         img,
@@ -581,13 +589,13 @@ def patch_dest_srcsets(html: str, widths: dict[str, int]) -> str:
             widths,
             include_master=True,
             max_suffix="-960",
-            tiers=CONTENT_MOBILE_TIERS,
+            tiers=DEST_MOBILE_TIERS,
         )
         desktop = desktop_tier_srcset(
             stem,
             widths,
             folder="images/dest",
-            tiers=DESKTOP_CONTENT_TIERS,
+            tiers=DEST_CARD_DESKTOP_TIERS,
         )
         return (
             f'<source type="image/webp" media="(max-width: 640px)" '
@@ -598,9 +606,10 @@ def patch_dest_srcsets(html: str, widths: dict[str, int]) -> str:
 
     return re.sub(
         r'<source type="image/webp" media="\(max-width: 640px\)" '
-        r'srcset="images/mobile/dest/([a-z0-9-]+?)-\d+\.webp[^"]*" sizes="78vw" />\s*'
-        r'<source type="image/webp" srcset="images/dest/\1[^"]*" '
-        r'sizes="[^"]*" />',
+        r'srcset="images/mobile/dest/([a-z0-9-]+)[^"]*"'
+        r'(?: sizes="78vw")? />\s*'
+        r'<source type="image/webp" srcset="images/dest/\1[^"]*"'
+        r'(?: sizes="[^"]*")? />',
         repl,
         html,
     )
@@ -643,8 +652,8 @@ def patch_gallery_picture(
     )
     pattern = (
         rf'<picture><source type="image/webp" media="\(max-width: 640px\)" '
-        rf'srcset="images/mobile/{re.escape(name)}[^"]*" sizes="[^"]*" />'
-        rf'<source type="image/webp" srcset="images/{re.escape(name)}[^"]*" sizes="[^"]*" />'
+        rf'srcset="images/mobile/{re.escape(name)}[^"]*"(?: sizes="[^"]*")? />'
+        rf'<source type="image/webp" srcset="images/{re.escape(name)}[^"]*"(?: sizes="[^"]*")? />'
         rf'(<img loading="lazy" decoding="async" src="images/{re.escape(name)}\.jpg"[^>]*/>)'
         rf'</picture>'
     )

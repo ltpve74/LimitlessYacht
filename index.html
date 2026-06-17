@@ -513,14 +513,30 @@ window.addEventListener('load', function() {
 window.addEventListener('load', function() {
   if(!window.LY_OWNER_MODE){var _cs=document.createElement('script');_cs.defer=true;_cs.src=(window.LY_BASE||'')+'/js/clarity-consent.js';document.head.appendChild(_cs);}
 });
-// Below-fold images: wait until after the LCP window before any idle preloads
-window.LY_afterLcp = function(fn) {
+// Below-fold preloads: after meaningful paint, card tiers before lightbox masters.
+window.LY_afterMeaningfulPaint = function(fn) {
+  var ran = false;
+  function go() {
+    if (ran) return;
+    ran = true;
+    (window.requestIdleCallback || function(f){ setTimeout(f, 1); })(fn);
+  }
   window.addEventListener('load', function() {
-    setTimeout(function() {
-      (window.requestIdleCallback || function(f){setTimeout(f,200);})(fn);
-    }, 3000);
+    requestAnimationFrame(function() {
+      requestAnimationFrame(go);
+    });
   });
+  if ('PerformanceObserver' in window) {
+    try {
+      var po = new PerformanceObserver(function(list) {
+        if (list.getEntries().length) { po.disconnect(); go(); }
+      });
+      po.observe({ type: 'largest-contentful-paint', buffered: true });
+    } catch (e) { /* ignore */ }
+  }
+  setTimeout(go, 2000);
 };
+window.LY_afterLcp = window.LY_afterMeaningfulPaint;
 window.LY_whenNearSection = function(id, fn) {
   var el = document.getElementById(id);
   if (!el) return;
@@ -540,32 +556,154 @@ window.LY_whenNearSection = function(id, fn) {
     io.observe(el);
     return;
   }
-  if (window.LY_afterLcp) window.LY_afterLcp(fn);
-  else window.addEventListener('load', function() { setTimeout(fn, 3500); });
+  if (window.LY_afterMeaningfulPaint) window.LY_afterMeaningfulPaint(fn);
+  else window.addEventListener('load', function() { setTimeout(fn, 2500); });
 };
-// Gallery: drip-feed at idle priority after page load
-window.LY_afterLcp(function() {
+window.LY_preloadedUrls = {};
+window.LY_cardPreloadQueue = [];
+window.LY_lbPreloadQueue = [];
+window.LY_preloadPumpActive = false;
+window.LY_enqueueCardPreload = function(url) {
+  if (!url || window.LY_preloadedUrls[url]) return;
+  if (window.LY_cardPreloadQueue.indexOf(url) < 0 && window.LY_lbPreloadQueue.indexOf(url) < 0) {
+    window.LY_cardPreloadQueue.push(url);
+  }
+  window.LY_pumpPreloads();
+};
+window.LY_enqueueLbPreload = function(url) {
+  if (!url || window.LY_preloadedUrls[url]) return;
+  if (window.LY_cardPreloadQueue.indexOf(url) < 0 && window.LY_lbPreloadQueue.indexOf(url) < 0) {
+    window.LY_lbPreloadQueue.push(url);
+  }
+  window.LY_pumpPreloads();
+};
+window.LY_pumpPreloads = function() {
+  if (window.LY_preloadPumpActive) return;
+  window.LY_preloadPumpActive = true;
+  function step() {
+    var url = window.LY_cardPreloadQueue.shift() || window.LY_lbPreloadQueue.shift();
+    if (!url) { window.LY_preloadPumpActive = false; return; }
+    if (window.LY_preloadedUrls[url]) { step(); return; }
+    window.LY_preloadedUrls[url] = 1;
+    new Image().src = url;
+    (window.requestIdleCallback || function(fn){ setTimeout(fn, 160); })(step);
+  }
+  step();
+};
+window.LY_GALLERY_IMAGES = [
+  'images/maiora_20s_01.webp',
+  'images/maiora_20s_03.webp',
+  'images/maiora_20s_07.webp',
+  'images/limitless_aft_dining.webp',
+  'images/limitless_flybridge.webp',
+  'images/limitless_sundeck.webp',
+  'images/limitless_aft_deck.webp',
+  'images/int_saloon_artwork.webp',
+  'images/int_saloon_marina_view.webp',
+  'images/int_saloon_reverse.webp',
+  'images/int_master_headboard.webp',
+  'images/int_master_amber_glow.webp',
+  'images/int_master_wide.webp',
+  'images/int_vip_cabin.webp',
+  'images/int_twin_cabin.webp',
+];
+window.LY_GALLERY_IMAGES_MOBILE = [
+  'images/mobile/maiora_20s_01.webp',
+  'images/mobile/maiora_20s_03.webp',
+  'images/mobile/maiora_20s_07.webp',
+  'images/mobile/limitless_aft_dining.webp',
+  'images/mobile/limitless_flybridge.webp',
+  'images/mobile/limitless_sundeck.webp',
+  'images/mobile/limitless_aft_deck.webp',
+  'images/mobile/int_saloon_artwork.webp',
+  'images/mobile/int_saloon_marina_view.webp',
+  'images/mobile/int_saloon_reverse.webp',
+  'images/mobile/int_master_headboard.webp',
+  'images/mobile/int_master_amber_glow.webp',
+  'images/mobile/int_master_wide.webp',
+  'images/mobile/int_vip_cabin.webp',
+  'images/mobile/int_twin_cabin.webp',
+];
+window.LY_GALLERY_FEATURED = { 0: 1, 3: 1, 7: 1 };
+window.LY_DEST_IMAGES = [
+  'images/dest/portals-vells-1.webp',
+  'images/dest/el-toro-malgrats-1.webp',
+  'images/dest/cala-llamp-1.webp',
+  'images/dest/sa-dragonera-1.webp',
+  'images/dest/cala-pi-1.webp',
+  'images/dest/es-trenc-1.webp',
+  'images/dest/cabrera-1.webp',
+  'images/dest/calo-des-moro-1.webp',
+  'images/dest/sa-calobra-1.webp',
+  'images/dest/circumnavigation-1.webp',
+  'images/dest/formentera-1.webp',
+  'images/dest/menorca-1.webp',
+];
+window.LY_DEST_IMAGES_MOBILE = [
+  'images/mobile/dest/portals-vells-1.webp',
+  'images/mobile/dest/el-toro-malgrats-1.webp',
+  'images/mobile/dest/cala-llamp-1.webp',
+  'images/mobile/dest/sa-dragonera-1.webp',
+  'images/mobile/dest/cala-pi-1.webp',
+  'images/mobile/dest/es-trenc-1.webp',
+  'images/mobile/dest/cabrera-1.webp',
+  'images/mobile/dest/calo-des-moro-1.webp',
+  'images/mobile/dest/sa-calobra-1.webp',
+  'images/mobile/dest/circumnavigation-1.webp',
+  'images/mobile/dest/formentera-1.webp',
+  'images/mobile/dest/menorca-1.webp',
+];
+window.LY_DEST_TIER_IDX = {
+  'half-day': [0, 1, 2],
+  'full-day': [3, 4, 5, 6, 7],
+  'multi-day': [8, 9, 10, 11],
+};
+window.LY_cardTierFromMaster = function(master, suffix) {
+  if (!master) return '';
+  return master.replace(/\.webp$/i, suffix + '.webp');
+};
+window.LY_destLbUrl = function(idx) {
+  var arr = window.innerWidth <= 640 ? window.LY_DEST_IMAGES_MOBILE : window.LY_DEST_IMAGES;
+  return arr[idx];
+};
+window.LY_destCardUrl = function(idx) {
   var mob = window.innerWidth <= 640;
-  var gallery = mob ? [
-    'images/mobile/maiora_20s_01.webp','images/mobile/maiora_20s_03.webp','images/mobile/maiora_20s_07.webp',
-    'images/mobile/limitless_aft_dining.webp','images/mobile/limitless_flybridge.webp',
-    'images/mobile/limitless_sundeck.webp','images/mobile/limitless_aft_deck.webp',
-    'images/mobile/int_saloon_artwork.webp','images/mobile/int_saloon_marina_view.webp',
-    'images/mobile/int_saloon_reverse.webp','images/mobile/int_master_headboard.webp',
-    'images/mobile/int_master_amber_glow.webp','images/mobile/int_master_wide.webp',
-    'images/mobile/int_vip_cabin.webp','images/mobile/int_twin_cabin.webp'
-  ] : [
-    'images/maiora_20s_01.webp','images/maiora_20s_03.webp','images/maiora_20s_07.webp',
-    'images/limitless_aft_dining.webp','images/limitless_flybridge.webp',
-    'images/limitless_sundeck.webp','images/limitless_aft_deck.webp',
-    'images/int_saloon_artwork.webp','images/int_saloon_marina_view.webp',
-    'images/int_saloon_reverse.webp','images/int_master_headboard.webp',
-    'images/int_master_amber_glow.webp','images/int_master_wide.webp',
-    'images/int_vip_cabin.webp','images/int_twin_cabin.webp'
-  ];
-  var i = 0;
-  function nextGallery() { if (i < gallery.length) { new Image().src = gallery[i++]; (window.requestIdleCallback || function(fn){setTimeout(fn,200);})(nextGallery); } }
-  nextGallery();
+  return window.LY_cardTierFromMaster(window.LY_destLbUrl(idx), mob ? '-720' : '-640');
+};
+window.LY_galleryLbUrl = function(idx) {
+  var arr = window.innerWidth <= 640 ? window.LY_GALLERY_IMAGES_MOBILE : window.LY_GALLERY_IMAGES;
+  return arr[idx];
+};
+window.LY_galleryCardUrl = function(idx) {
+  var mob = window.innerWidth <= 640;
+  var suffix = mob ? '-720' : (window.LY_GALLERY_FEATURED[idx] ? '-960' : '-640');
+  return window.LY_cardTierFromMaster(window.LY_galleryLbUrl(idx), suffix);
+};
+window.LY_destPreloadReady = false;
+window.LY_afterMeaningfulPaint(function() {
+  window.LY_destPreloadReady = true;
+  var destOrder = [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11];
+  destOrder.forEach(function(i) { window.LY_enqueueCardPreload(window.LY_destCardUrl(i)); });
+  for (var g = 0; g < window.LY_GALLERY_IMAGES.length; g++) {
+    window.LY_enqueueCardPreload(window.LY_galleryCardUrl(g));
+  }
+  destOrder.forEach(function(i) { window.LY_enqueueLbPreload(window.LY_destLbUrl(i)); });
+  for (g = 0; g < window.LY_GALLERY_IMAGES.length; g++) {
+    window.LY_enqueueLbPreload(window.LY_galleryLbUrl(g));
+  }
+  document.querySelectorAll('.dest-group.tab-active .itinerary-grid').forEach(function(gr) {
+    gr.dispatchEvent(new Event('scroll'));
+  });
+});
+window.LY_whenNearSection('itinerary', function() {
+  if (!window.LY_destPreloadReady) return;
+  [0, 1, 2].forEach(function(i) { window.LY_enqueueCardPreload(window.LY_destCardUrl(i)); });
+});
+document.addEventListener('DOMContentLoaded', function() {
+  window.LY_whenNearSection('gallery', function() {
+    if (!window.LY_destPreloadReady) return;
+    [0, 1, 2].forEach(function(i) { window.LY_enqueueCardPreload(window.LY_galleryCardUrl(i)); });
+  });
 });
 </script>
 
@@ -770,52 +908,15 @@ window.LY_afterLcp(function() {
 
 <script>
 (function(){
-  window.LY_DEST_IMAGES = [
-    'images/dest/portals-vells-1.webp',
-    'images/dest/el-toro-malgrats-1.webp',
-    'images/dest/cala-llamp-1.webp',
-    'images/dest/sa-dragonera-1.webp',
-    'images/dest/cala-pi-1.webp',
-    'images/dest/es-trenc-1.webp',
-    'images/dest/cabrera-1.webp',
-    'images/dest/calo-des-moro-1.webp',
-    'images/dest/sa-calobra-1.webp',
-    'images/dest/circumnavigation-1.webp',
-    'images/dest/formentera-1.webp',
-    'images/dest/menorca-1.webp',
-  ];
-  window.LY_DEST_IMAGES_MOBILE = [
-    'images/mobile/dest/portals-vells-1.webp',
-    'images/mobile/dest/el-toro-malgrats-1.webp',
-    'images/mobile/dest/cala-llamp-1.webp',
-    'images/mobile/dest/sa-dragonera-1.webp',
-    'images/mobile/dest/cala-pi-1.webp',
-    'images/mobile/dest/es-trenc-1.webp',
-    'images/mobile/dest/cabrera-1.webp',
-    'images/mobile/dest/calo-des-moro-1.webp',
-    'images/mobile/dest/sa-calobra-1.webp',
-    'images/mobile/dest/circumnavigation-1.webp',
-    'images/mobile/dest/formentera-1.webp',
-    'images/mobile/dest/menorca-1.webp',
-  ];
-  window.LY_DEST_TIER_IDX = {
-    'half-day': [0, 1, 2],
-    'full-day': [3, 4, 5, 6, 7],
-    'multi-day': [8, 9, 10, 11],
-  };
-  window.LY_destPreloaded = {};
-  window.LY_destPreloadReady = false;
-  window.LY_destUrl = function(idx) {
-    var arr = window.innerWidth <= 640 ? window.LY_DEST_IMAGES_MOBILE : window.LY_DEST_IMAGES;
-    return arr[idx];
-  };
+  window.LY_destUrl = window.LY_destLbUrl;
   window.LY_preloadDest = function(idx, force) {
     if (!force && !window.LY_destPreloadReady) return;
     if (idx == null || idx < 0 || idx >= window.LY_DEST_IMAGES.length) return;
-    var url = window.LY_destUrl(idx);
-    if (!url || window.LY_destPreloaded[url]) return;
-    window.LY_destPreloaded[url] = 1;
-    new Image().src = url;
+    window.LY_enqueueCardPreload(window.LY_destCardUrl(idx));
+  };
+  window.LY_preloadDestLb = function(idx) {
+    if (idx == null || idx < 0 || idx >= window.LY_DEST_IMAGES.length) return;
+    window.LY_enqueueLbPreload(window.LY_destLbUrl(idx));
   };
   window.LY_preloadDestAdjacent = function(idx, force) {
     var n = window.LY_DEST_IMAGES.length;
@@ -823,31 +924,20 @@ window.LY_afterLcp(function() {
       window.LY_preloadDest((idx + d + n) % n, force);
     });
   };
-
+  window.LY_preloadDestLbAdjacent = function(idx) {
+    var n = window.LY_DEST_IMAGES.length;
+    [-1, 0, 1].forEach(function(d) {
+      window.LY_preloadDestLb((idx + d + n) % n);
+    });
+  };
   window.LY_dripDestIndices = function(indices) {
-    var k = 0;
-    function next() {
-      if (k < indices.length) {
-        window.LY_preloadDest(indices[k++]);
-        (window.requestIdleCallback || function(fn){setTimeout(fn,200);})(next);
-      }
-    }
-    next();
+    indices.forEach(function(i) { window.LY_enqueueCardPreload(window.LY_destCardUrl(i)); });
   };
   window.LY_dripDestTier = function(tier) {
     if (!window.LY_destPreloadReady) return;
     var indices = window.LY_DEST_TIER_IDX[tier];
     if (indices) window.LY_dripDestIndices(indices);
   };
-  if (window.LY_afterLcp) {
-    window.LY_afterLcp(function() {
-      window.LY_destPreloadReady = true;
-      if (window.LY_dripDestTier) window.LY_dripDestTier('half-day');
-      document.querySelectorAll('.dest-group.tab-active .itinerary-grid').forEach(function(gr) {
-        gr.dispatchEvent(new Event('scroll'));
-      });
-    });
-  }
 
   var tabs = document.querySelectorAll('.dest-tab');
   var groups = document.querySelectorAll('.dest-group');
@@ -1670,41 +1760,9 @@ window.LY_afterLcp(function() {
     });
   })();
 
-  // Gallery lightbox
-  const images = [
-    "images/maiora_20s_01.webp",         // 0: water
-    "images/maiora_20s_03.webp",         // 1: water
-    "images/maiora_20s_07.webp",         // 2: water
-    "images/limitless_aft_dining.webp",  // 3: deck
-    "images/limitless_flybridge.webp",   // 4: deck
-    "images/limitless_sundeck.webp",     // 5: deck
-    "images/limitless_aft_deck.webp",    // 6: deck
-    "images/int_saloon_artwork.webp",    // 7: interior
-    "images/int_saloon_marina_view.webp", // 8: interior
-    "images/int_saloon_reverse.webp",    // 9: interior
-    "images/int_master_headboard.webp",  // 10: interior
-    "images/int_master_amber_glow.webp", // 11: interior
-    "images/int_master_wide.webp",       // 12: interior
-    "images/int_vip_cabin.webp",         // 13: interior
-    "images/int_twin_cabin.webp",        // 14: interior
-  ];
-  const imagesMobile = [
-    "images/mobile/maiora_20s_01.webp",
-    "images/mobile/maiora_20s_03.webp",
-    "images/mobile/maiora_20s_07.webp",
-    "images/mobile/limitless_aft_dining.webp",
-    "images/mobile/limitless_flybridge.webp",
-    "images/mobile/limitless_sundeck.webp",
-    "images/mobile/limitless_aft_deck.webp",
-    "images/mobile/int_saloon_artwork.webp",
-    "images/mobile/int_saloon_marina_view.webp",
-    "images/mobile/int_saloon_reverse.webp",
-    "images/mobile/int_master_headboard.webp",
-    "images/mobile/int_master_amber_glow.webp",
-    "images/mobile/int_master_wide.webp",
-    "images/mobile/int_vip_cabin.webp",
-    "images/mobile/int_twin_cabin.webp",
-  ];
+  // Gallery lightbox (same registry as cards + preload)
+  const images = window.LY_GALLERY_IMAGES;
+  const imagesMobile = window.LY_GALLERY_IMAGES_MOBILE;
   const imagePositions = [
     '95% 72%',       // 0: maiora_20s_01 — bow bottom-right
     'center center', // 1: maiora_20s_03 — full yacht aerial; shown with contain
@@ -1743,11 +1801,12 @@ window.LY_afterLcp(function() {
     lbImg.style.objectPosition = imagePositions[currentIdx] || 'center center';
     lbImg.classList.toggle('lb-contain', !!imageContain[currentIdx]);
     if (lbCounter) lbCounter.textContent = (currentIdx + 1) + ' / ' + images.length;
-    // Prefetch adjacent images
+    // Prefetch adjacent lightbox masters (lower priority than card tiers)
     var arr = isMobLb ? imagesMobile : images;
     [-1, 1].forEach(function(d) {
-      var img = new Image();
-      img.src = arr[(currentIdx + d + arr.length) % arr.length];
+      if (window.LY_enqueueLbPreload) {
+        window.LY_enqueueLbPreload(arr[(currentIdx + d + arr.length) % arr.length]);
+      }
     });
   }
 
@@ -1902,9 +1961,9 @@ window.LY_afterLcp(function() {
       if (lbNext) lbNext.style.display = hasNav ? '' : 'none';
       var content = destLb.querySelector('.dest-lb-content');
       if (content) content.scrollTop = 0;
-      // Prefetch adjacent destination images (shared cache with carousel)
-      if (window.LY_preloadDestAdjacent) {
-        window.LY_preloadDestAdjacent(globalIdx, true);
+      // Prefetch adjacent lightbox masters (card tiers already prioritized in queue)
+      if (window.LY_preloadDestLbAdjacent) {
+        window.LY_preloadDestLbAdjacent(globalIdx);
       }
     }
 
