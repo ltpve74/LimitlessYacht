@@ -748,7 +748,7 @@ def check_shared_assets(r: Runner) -> None:
         'desktop destination cards show click affordance',
         css is not None
         and '.destination-card-body::after' in css
-        and "content: 'View full details →'" in css
+        and re.search(r"content:\s*'View full details →'", css) is not None
         and '.destination-card:hover .destination-card-body::after' in css,
     )
     r.check(
@@ -851,7 +851,10 @@ def check_shared_assets(r: Runner) -> None:
         and re.search(r'\.form-date-popover(?:\.cal)?\s*\{[^}]*background:\s*var\(--deep\)', css) is not None
         and 'body.form-date-popup-open::before' in css
         and 'body.form-date-popup-open .form-date-popover:not([hidden])' in css
-        and 'position: fixed' in css.split('body.form-date-popup-open .form-date-popover:not([hidden])')[1].split('@media')[0],
+        and re.search(
+            r'body\.form-date-popup-open \.form-date-popover:not\(\[hidden\]\)\{[^}]*position:\s*fixed',
+            css,
+        ) is not None,
     )
     r.check(
         'calendar nav buttons avoid sticky touch hover',
