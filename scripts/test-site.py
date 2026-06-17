@@ -277,7 +277,8 @@ def check_html(r: Runner, rel: str, html: str) -> None:
         'destination lightbox CTA routes by viewport',
         'function syncDestLbCta()' in html
         and "'#enquire-land'" in html
-        and "lbCta.href = w <= 768 ? '#avail-cal' : '#enquire-land'" in html
+        and "lbCta.href = w <= 640 ? '#avail-cal' : (w <= 768 ? '#availability-land' : '#enquire-land')" in html
+        and 'function lyGoAvailSectionLand()' in html
         and 'function closeDestLbAndGo(hash)' in html
         and "location.pathname + location.search" in html
         and 'location.hash = dest' in html,
@@ -1245,6 +1246,11 @@ def check_shared_assets(r: Runner) -> None:
         is not None
         and re.search(
             r'@media\s*\(\s*min-width:\s*641px\s*\)\s*and\s*\(\s*max-width:\s*768px\s*\)[\s\S]*?\.contact-cal-pair\s+#availability\s+\.cal\s*\{[^}]*margin-top:\s*0',
+            css,
+        )
+        is not None
+        and re.search(
+            r'@media\s*\(\s*min-width:\s*641px\s*\)\s*and\s*\(\s*max-width:\s*768px\s*\)[\s\S]*?#availability-land\s*\{[^}]*scroll-margin-top:\s*0',
             css,
         )
         is not None,

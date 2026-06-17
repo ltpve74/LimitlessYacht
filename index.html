@@ -100,8 +100,8 @@ nav{position:fixed;top:0;left:0;right:0;z-index:100;min-height:4.25rem}
 .form-field[hidden] { display: none !important; }
 </style>
 <script src="js/analytics-env.js"></script>
-<link rel="preload" as="style" href="css/main.css?v=71" onload="this.rel='stylesheet'" />
-<noscript><link rel="stylesheet" href="css/main.css?v=71" /></noscript>
+<link rel="preload" as="style" href="css/main.css?v=72" onload="this.rel='stylesheet'" />
+<noscript><link rel="stylesheet" href="css/main.css?v=72" /></noscript>
 
 <!-- Auto-match the visitor's browser language to a localized version (only from the
      English root, and only until the visitor manually picks a language). -->
@@ -1953,8 +1953,32 @@ window.LY_afterLcp(function() {
     function syncDestLbCta() {
       if (!lbCta) return;
       var w = window.innerWidth;
-      lbCta.href = w <= 768 ? '#avail-cal' : '#enquire-land';
+      lbCta.href = w <= 640 ? '#avail-cal' : (w <= 768 ? '#availability-land' : '#enquire-land');
     }
+
+    function lyGoAvailSectionLand() {
+      var land = document.getElementById('availability-land');
+      if (!land) return;
+      try {
+        if (history.state && history.state.lb === 'dest') {
+          history.replaceState(null, '', location.pathname + location.search);
+        }
+      } catch (e) { /* ignore */ }
+      requestAnimationFrame(function() {
+        requestAnimationFrame(function() {
+          location.hash = '#availability-land';
+        });
+      });
+    }
+
+    document.addEventListener('click', function(e) {
+      var w = window.innerWidth;
+      if (w < 641 || w > 768) return;
+      var link = e.target.closest && e.target.closest('a[href="#avail-cal"]');
+      if (!link || link.id === 'dest-lb-cta') return;
+      e.preventDefault();
+      lyGoAvailSectionLand();
+    });
 
     var lbHintDest = document.getElementById('dest-lb-hint');
 

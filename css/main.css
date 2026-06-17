@@ -2805,6 +2805,10 @@ footer {
   #avail-cal { scroll-margin-top: .5rem; }
 }
 @media (min-width: 641px) and (max-width: 768px) {
+  /* Land between label and title so heading + intro stay in view (iPad Mini, etc.) */
+  #availability-land {
+    scroll-margin-top: 0;
+  }
   .contact-cal-pair #availability {
     padding-top: 2rem;
   }

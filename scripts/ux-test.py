@@ -311,39 +311,63 @@ def scenario_home_tablet(page, base: str, issues: IssueCollector) -> None:
         )
 
     href = page.locator("#dest-lb-cta").get_attribute("href")
-    if href != "#avail-cal":
-        issues.add(f"{name}: destination lightbox CTA should target calendar on tablet")
+    if href != "#availability-land":
+        issues.add(f"{name}: destination lightbox CTA should target availability section on tablet")
     page.locator("#dest-lb-cta").click()
     page.wait_for_timeout(800)
-    page.wait_for_function("() => location.hash === '#avail-cal'", timeout=8000)
+    page.wait_for_function("() => location.hash === '#availability-land'", timeout=8000)
     landing = page.evaluate(
         "() => {"
-        "  const cal = document.getElementById('availCal');"
         "  const intro = document.querySelector('.availability-intro');"
         "  const title = document.querySelector('#availability .section-title');"
         "  const nav = document.querySelector('nav');"
-        "  if (!cal || !nav) return null;"
-        "  const calRect = cal.getBoundingClientRect();"
+        "  if (!title || !intro || !nav) return null;"
+        "  const titleRect = title.getBoundingClientRect();"
+        "  const introRect = intro.getBoundingClientRect();"
         "  const navBottom = nav.getBoundingClientRect().bottom;"
         "  return {"
-        "    calTop: calRect.top,"
-        "    calBottom: calRect.bottom,"
+        "    titleTop: titleRect.top,"
+        "    introTop: introRect.top,"
+        "    introBottom: introRect.bottom,"
         "    navBottom,"
-        "    titleVisible: title ? getComputedStyle(title).display !== 'none' : false,"
-        "    introVisible: intro ? getComputedStyle(intro).display !== 'none' : false,"
         "  };"
         "}"
     )
     if not landing:
-        issues.add(f"{name}: could not measure calendar landing position")
-    else:
-        cal_top = landing["calTop"]
-        if cal_top < 55 or cal_top > 340:
-            issues.add(f"{name}: calendar CTA landed with cal top at {cal_top:.0f}px")
-        if landing["calBottom"] <= landing["navBottom"] + 40:
-            issues.add(f"{name}: calendar should clear the nav after lightbox CTA")
-        if not landing.get("titleVisible") or not landing.get("introVisible"):
-            issues.add(f"{name}: availability title and intro should stay in the layout")
+        issues.add(f"{name}: could not measure availability landing position")
+    elif landing["titleTop"] < landing["navBottom"]:
+        issues.add(
+            f"{name}: availability title should clear nav after lightbox CTA "
+            f"(top={landing['titleTop']:.0f}px)"
+        )
+    elif landing["introBottom"] <= landing["navBottom"] + 4:
+        issues.add(
+            f"{name}: availability intro should be visible after lightbox CTA "
+            f"(bottom={landing['introBottom']:.0f}px)"
+        )
+
+    page.locator("#itinerary").scroll_into_view_if_needed()
+    page.locator('a[href="#avail-cal"].itinerary-meet-cta').click()
+    page.wait_for_timeout(800)
+    page.wait_for_function("() => location.hash === '#availability-land'", timeout=8000)
+    meet_land = page.evaluate(
+        "() => {"
+        "  const title = document.querySelector('#availability .section-title');"
+        "  const intro = document.querySelector('.availability-intro');"
+        "  const nav = document.querySelector('nav');"
+        "  if (!title || !intro || !nav) return null;"
+        "  const navBottom = nav.getBoundingClientRect().bottom;"
+        "  const titleTop = title.getBoundingClientRect().top;"
+        "  const introBottom = intro.getBoundingClientRect().bottom;"
+        "  return { titleTop, introBottom, navBottom };"
+        "}"
+    )
+    if not meet_land:
+        issues.add(f"{name}: could not measure meet CTA availability landing")
+    elif meet_land["titleTop"] < meet_land["navBottom"]:
+        issues.add(f"{name}: meet CTA should land with availability title visible")
+    elif meet_land["introBottom"] <= meet_land["navBottom"] + 4:
+        issues.add(f"{name}: meet CTA should land with availability intro visible")
 
 
 def scenario_home_mobile(page, base: str, issues: IssueCollector) -> None:
