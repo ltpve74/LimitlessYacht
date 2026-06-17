@@ -52,9 +52,11 @@ if ! "$PY" scripts/minify_html.py; then
   exit 1
 fi
 
-echo "[pre-commit] Running site tests..."
-if ! "$PY" scripts/test-site.py; then
-  echo "[pre-commit] ERROR: site tests failed — fix the issues above and try again." >&2
+echo "[pre-commit] Running publish gate (site tests + UX + Lighthouse)..."
+export PUBLISH_GATE_PYTHON="$PY"
+if ! "$PY" scripts/publish-gate.py; then
+  echo "[pre-commit] ERROR: publish gate failed — fix the issues above and try again." >&2
+  echo "[pre-commit] One-time setup: scripts/setup-qa.sh" >&2
   exit 1
 fi
 

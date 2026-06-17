@@ -1,0 +1,17 @@
+{
+  "categories": {
+    "performance": 88,
+    "accessibility": 98,
+    "best-practices": 95,
+    "seo": 95
+  },
+  "metrics": {
+    "largest-contentful-paint": 3600,
+    "total-blocking-time": 300,
+    "cumulative-layout-shift": 0.05,
+    "first-contentful-paint": 2200
+  },
+  "max_regression": {
+    "performance": 5
+  }
+}

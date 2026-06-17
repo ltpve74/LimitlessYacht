@@ -650,6 +650,15 @@ def check_shared_assets(r: Runner) -> None:
         'prepare-github-pages.py' in preview_yml and "path: '_site'" in preview_yml,
     )
     r.check('prepare-github-pages script exists', os.path.isfile(os.path.join(ROOT, 'scripts/prepare-github-pages.py')))
+    publish_yml = read_file('.github/workflows/publish.yml') or ''
+    r.check(
+        'publish gate workflow runs on main',
+        'publish-gate.py' in publish_yml and 'branches: [main]' in publish_yml,
+    )
+    r.check('publish gate script exists', os.path.isfile(os.path.join(ROOT, 'scripts/publish-gate.py')))
+    r.check('lighthouse check script exists', os.path.isfile(os.path.join(ROOT, 'scripts/lighthouse-check.py')))
+    r.check('ux smoke test script exists', os.path.isfile(os.path.join(ROOT, 'scripts/ux-test.py')))
+    r.check('lighthouse budgets file exists', os.path.isfile(os.path.join(ROOT, 'scripts/lighthouse-budgets.json')))
     index_html = read_file('index.html') or ''
     r.check(
         'font preload uses path relative to site root (GitHub Pages subpath safe)',
