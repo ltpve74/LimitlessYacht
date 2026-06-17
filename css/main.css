@@ -2510,7 +2510,8 @@ footer {
    tucks under the nav and the title lands flush below.
    About (#about) uses section-top landing so labels stay visible.
    Availability (#availability) nudges slightly higher so the paired calendar + form
-   fit within typical desktop viewports. In-page #avail-cal CTAs keep scroll-padding only. */
+   fit within typical desktop viewports. #enquire-land nudges down so the quote title
+   clears the nav in the paired layout. In-page #avail-cal CTAs keep scroll-padding only. */
 @media (min-width: 769px) {
   html { scroll-padding-top: var(--nav-scroll-offset); }
   #itinerary-land,
@@ -2519,13 +2520,15 @@ footer {
   #reviews-land,
   #amenities-land,
   #specs-land,
-  #enquire-land,
   #about,
   #avail-cal {
     scroll-margin-top: 0;
   }
   #availability {
     scroll-margin-top: -2rem;
+  }
+  #enquire-land {
+    scroll-margin-top: 1.5rem;
   }
 }
 .availability-picker { margin-top: 0; }

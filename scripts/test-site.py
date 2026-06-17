@@ -1051,6 +1051,11 @@ def check_shared_assets(r: Runner) -> None:
             css,
         )
         is not None
+        and re.search(
+            r'@media \(min-width: 769px\)[\s\S]*?#enquire-land\s*\{[^}]*scroll-margin-top:\s*1\.5rem',
+            css,
+        )
+        is not None
         and 'funnel below visible intros' in css
         and not re.search(
             r'funnel below visible intros\)[\s\S]*?#gallery\s*>\s*\.container[^}]*\bheight:\s*0\b',
