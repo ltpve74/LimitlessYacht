@@ -100,8 +100,8 @@ nav{position:fixed;top:0;left:0;right:0;z-index:100;min-height:4.25rem}
 .form-field[hidden] { display: none !important; }
 </style>
 <script src="js/analytics-env.js"></script>
-<link rel="preload" as="style" href="../css/main.css?v=67" onload="this.rel='stylesheet'" />
-<noscript><link rel="stylesheet" href="../css/main.css?v=67" /></noscript>
+<link rel="preload" as="style" href="../css/main.css?v=68" onload="this.rel='stylesheet'" />
+<noscript><link rel="stylesheet" href="../css/main.css?v=68" /></noscript>
 
 <!-- Auto-match the visitor's browser language to a localized version (only from the
      English root, and only until the visitor manually picks a language). -->
@@ -1953,7 +1953,7 @@ window.LY_afterLcp(function() {
     function syncDestLbCta() {
       if (!lbCta) return;
       var w = window.innerWidth;
-      lbCta.href = w <= 640 ? '#avail-cal' : (w >= 769 ? '#enquire-land' : '#enquire-form');
+      lbCta.href = w <= 768 ? '#avail-cal' : '#enquire-land';
     }
 
     var lbHintDest = document.getElementById('dest-lb-hint');
@@ -2007,24 +2007,33 @@ window.LY_afterLcp(function() {
       destLb.classList.remove('open');
       if (lbHintDest) lbHintDest.classList.remove('visible');
       document.body.style.overflow = '';
+      var dest = hash.charAt(0) === '#' ? hash : '#' + hash;
       try {
-        if (history.state && history.state.lb === 'dest') history.replaceState(null, '', hash);
-        else history.replaceState(null, '', hash);
+        if (history.state && history.state.lb === 'dest') history.replaceState(null, '', dest);
+        else history.replaceState(null, '', dest);
       } catch (e) {
-        location.hash = hash;
+        location.hash = dest;
+        return;
       }
-      var target = document.getElementById(hash.slice(1));
-      if (target) target.scrollIntoView({ behavior: 'auto', block: 'start' });
-      if (window.matchMedia('(min-width: 769px)').matches) {
+      requestAnimationFrame(function() {
         requestAnimationFrame(function() {
-          var nameInput = document.getElementById('name');
-          if (nameInput) nameInput.focus({ preventScroll: true });
+          var link = document.createElement('a');
+          link.href = dest;
+          document.body.appendChild(link);
+          link.click();
+          link.remove();
+          if (window.matchMedia('(min-width: 769px)').matches) {
+            requestAnimationFrame(function() {
+              var nameInput = document.getElementById('name');
+              if (nameInput) nameInput.focus({ preventScroll: true });
+            });
+          }
         });
-      }
+      });
     }
     if (lbCta) lbCta.addEventListener('click', function(e) {
       e.preventDefault();
-      closeDestLbAndGo(lbCta.getAttribute('href') || '#enquire-form');
+      closeDestLbAndGo(lbCta.getAttribute('href') || '#avail-cal');
     });
     window.addEventListener('resize', syncDestLbCta);
     syncDestLbCta();

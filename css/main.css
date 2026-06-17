@@ -800,7 +800,7 @@ section { padding: 7rem 2rem; }
   html[lang="fr"] .gallery-item::before { content: 'Voir →'; }
   .gallery-item:hover::before { opacity: 1; }
 }
-@media (max-width: 640px) {
+@media (max-width: 768px) {
   .dest-lb-cta-desktop { display: none; }
   .dest-lb-cta-mobile { display: inline; }
 }
@@ -2088,6 +2088,7 @@ footer {
 }
 /* Phone: compact header + slide-down menu */
 @media (max-width: 768px) {
+  html { scroll-padding-top: 4.9rem; }
   nav {
     display: flex;
     flex-wrap: nowrap;
@@ -2788,6 +2789,9 @@ footer {
 @media (max-width: 768px) {
   /* Form/calendar links land on the widget, not the hidden section title */
   #avail-cal { scroll-margin-top: .5rem; }
+}
+@media (min-width: 641px) and (max-width: 768px) {
+  #avail-cal { scroll-margin-top: 2.25rem; }
 }
 /* Desktop nav: native anchor scroll.
    html scroll-padding clears the fixed nav for every fragment jump.

@@ -277,7 +277,7 @@ def check_html(r: Runner, rel: str, html: str) -> None:
         'destination lightbox CTA routes by viewport',
         'function syncDestLbCta()' in html
         and "'#enquire-land'" in html
-        and "lbCta.href = w <= 640 ? '#avail-cal' : (w >= 769 ? '#enquire-land' : '#enquire-form')" in html
+        and "lbCta.href = w <= 768 ? '#avail-cal' : '#enquire-land'" in html
         and 'function closeDestLbAndGo(hash)' in html,
     )
     r.check(
@@ -1202,7 +1202,7 @@ def check_shared_assets(r: Runner) -> None:
         css is not None
         and '.dest-lb-cta-mobile' in css
         and '.dest-lb-cta-desktop' in css
-        and re.search(r'@media\s*\(max-width:\s*640px\)[^{]*\{[^}]*\.dest-lb-cta-desktop\s*\{\s*display:\s*none', css) is not None,
+        and re.search(r'@media\s*\(max-width:\s*768px\)[^{]*\{[^}]*\.dest-lb-cta-desktop\s*\{\s*display:\s*none', css) is not None,
     )
     r.check(
         'destination lightbox mobile CTA copy is trip-specific',

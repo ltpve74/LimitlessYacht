@@ -272,6 +272,16 @@ def scenario_home_tablet(page, base: str, issues: IssueCollector) -> None:
     elif not layout.get("stacked"):
         issues.add(f"{name}: destination lightbox body should sit below image on tablet")
 
+    href = page.locator("#dest-lb-cta").get_attribute("href")
+    if href != "#avail-cal":
+        issues.add(f"{name}: destination lightbox CTA should target calendar on tablet")
+    page.locator("#dest-lb-cta").click()
+    page.wait_for_timeout(800)
+    page.wait_for_function("() => location.hash === '#avail-cal'", timeout=8000)
+    cal_top = page.locator("#availCal").evaluate("el => el.getBoundingClientRect().top")
+    if cal_top < 55 or cal_top > 260:
+        issues.add(f"{name}: calendar CTA landed with cal top at {cal_top:.0f}px")
+
 
 def scenario_home_mobile(page, base: str, issues: IssueCollector) -> None:
     name = "home mobile"
