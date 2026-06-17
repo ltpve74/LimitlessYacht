@@ -1057,7 +1057,14 @@ def check_shared_assets(r: Runner) -> None:
         )
         is not None
         and 'itinerary-intro' in index_html
-        and 'class="section-title reveal reveal-delay-1">On<em>board Gallery</em>' in index_html,
+        and 'class="section-intro reveal reveal-delay-2">Explore life aboard Limitless' in index_html
+        and 'class="section-title reveal reveal-delay-1">On<em>board Gallery</em>' in index_html
+        and css is not None
+        and re.search(
+            r'funnel below visible intros\)[\s\S]*?#gallery,\s*\n\s*#itinerary\s*\{[^}]*padding-bottom:\s*5rem',
+            css,
+        )
+        is not None,
     )
     r.check(
         'calendar nav buttons avoid sticky touch hover',

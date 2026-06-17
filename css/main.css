@@ -1115,10 +1115,12 @@ footer {
 
 /* ── ITINERARY ── */
 #itinerary { background: var(--navy); padding-top: 3.5rem; padding-bottom: 5rem; }
+.section-intro,
 .itinerary-intro {
   max-width: 720px; margin-top: 1.5rem;
   font-size: .95rem; line-height: 1.9; color: rgba(245,240,232,.75);
 }
+.section-intro strong,
 .itinerary-intro strong { color: var(--gold-light); font-weight: 500; }
 .itinerary-grid {
   display: grid; grid-template-columns: repeat(2, 1fr); gap: 2px; margin-top: 3.5rem;
@@ -1315,7 +1317,7 @@ footer {
   }
   /* Hide section headers — tabs are the first visible element, matching hero immersion */
   #gallery > .container, #itinerary > .container { display: none !important; height: 0 !important; overflow: hidden !important; margin: 0 !important; padding: 0 !important; }
-  #gallery .section-label, #gallery .section-title, #itinerary .section-label, #itinerary .section-title, #itinerary .itinerary-intro { display: none !important; }
+  #gallery .section-label, #gallery .section-title, #gallery .section-intro, #itinerary .section-label, #itinerary .section-title, #itinerary .itinerary-intro { display: none !important; }
   #availability { padding-top: 3rem; }
   /* Compact form so the submit button stays above Safari's bottom chrome */
   .form-col-wa { padding-top: .7rem; padding-bottom: .7rem; }
@@ -2114,7 +2116,7 @@ footer {
     padding-top: 3.5rem;
     overflow: visible;
   }
-  #gallery { padding-bottom: 4rem; }
+  #gallery,
   #itinerary { padding-bottom: 5rem; }
   /* Headers stay in flow for natural scrolling; -land anchors still handle nav jumps */
   #gallery > .container,
@@ -2122,6 +2124,7 @@ footer {
     flex-shrink: 0;
     padding: 0 2rem;
   }
+  #gallery .section-intro,
   #itinerary .itinerary-intro {
     margin-bottom: 0.25rem;
   }

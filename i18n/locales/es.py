@@ -113,6 +113,10 @@ PAIRS = [
     ("Cruising Speed", "Velocidad de crucero"),
     ("Home Port", "Puerto base"),
     ("On<em>board Gallery</em>", "Galería <em>a bordo</em>"),
+    (
+        "Explore life aboard Limitless — on the water, on deck, and in the cabins below. Tap any photo to view it full size.",
+        "Explore la vida a bordo de Limitless — en el agua, en cubierta y en los camarotes. Pulse cualquier foto para verla a tamaño completo.",
+    ),
     ("On-Board Equipment", "Equipamiento a bordo"),
     ("Everything<em> On Board</em>", "Todo <em>a bordo</em>"),
     ("On Deck", "En cubierta"),
