@@ -1040,7 +1040,7 @@ def check_shared_assets(r: Runner) -> None:
         )
         is not None
         and re.search(
-            r'@media \(min-width: 769px\)[\s\S]*?#availability[\s\S]*?scroll-margin-top:\s*0',
+            r'@media \(min-width: 769px\)[\s\S]*?#availability\s*\{[^}]*scroll-margin-top:\s*-2rem',
             css,
         )
         is not None
@@ -1071,6 +1071,21 @@ def check_shared_assets(r: Runner) -> None:
             css,
         )
         is not None,
+    )
+    r.check(
+        'desktop availability pair compacts for viewport-height landing',
+        css is not None
+        and re.search(
+            r'@media \(min-width: 769px\)[\s\S]*?\.contact-cal-pair\s+#availability,\s*\n\s*\.contact-cal-pair\s+\.enquire-section\s*\{[^}]*padding-top:\s*3\.5rem',
+            css,
+        )
+        is not None
+        and re.search(
+            r'@media \(min-width: 769px\) and \(max-height: 920px\)[\s\S]*?\.contact-cal-pair',
+            css,
+        )
+        is not None
+        and 'padding-top: 7rem' not in css,
     )
     r.check(
         'charters section keeps includes visible on desktop viewports',
