@@ -1262,7 +1262,6 @@ window.LY_afterLcp(function() {
     <p class="section-label reveal">Disponibilidad</p>
     <h2 class="section-title reveal reveal-delay-1">Consulte el<em> calendario</em></h2>
     <p class="availability-intro reveal reveal-delay-2">Vea las fechas libres a continuación y envíenos una consulta — confirmaremos su charter personalmente. El calendario lo actualiza nuestra tripulación.</p>
-    <p class="cal-hint reveal reveal-delay-2" id="calHint">Toque una o más fechas libres consecutivas para seleccionar sus fechas de charter.</p>
     <div class="cal reveal reveal-delay-2" id="availCal" aria-label="Calendario de disponibilidad" data-i18n-day="día" data-i18n-days="días">
       <div class="cal-bar">
         <button type="button" class="cal-nav" id="calPrev" aria-label="Mes anterior">‹</button>
@@ -1275,11 +1274,14 @@ window.LY_afterLcp(function() {
         <span><i class="leg-booked"></i>Reservado</span>
         <span><i class="leg-tentative"></i>En espera</span>
       </div>
-    </div>
-    <div class="cal-selection reveal reveal-delay-2" id="calSelection" hidden aria-live="polite">
-      <div class="cal-selection-dates" id="calSelectionText"></div>
-      <p class="cal-selection-prompt">¿Listo para consultar? Rellenaremos estas fechas en el formulario.</p>
-      <button type="button" class="cal-clear" id="calClear">Borrar selección</button>
+      <div class="cal-footer">
+        <p class="cal-hint" id="calHint">Toque fechas libres — un día o varios seguidos.</p>
+        <div class="cal-selection" id="calSelection" hidden aria-live="polite">
+          <span class="cal-selection-label">Seleccionado</span>
+          <span class="cal-selection-dates" id="calSelectionText"></span>
+          <button type="button" class="cal-clear" id="calClear">Borrar selección</button>
+        </div>
+      </div>
     </div>
     <div class="availability-actions reveal reveal-delay-3">
       <a href="#enquire-form" class="btn-primary cal-enquire-btn is-disabled" id="calEnquireBtn" aria-disabled="true">Consultar estas fechas</a>
@@ -2062,6 +2064,7 @@ window.LY_afterLcp(function() {
   var booked = new Set();
   var tentative = new Set();
   var selected = [];
+  var selectedLookup = {};
 
   var now = new Date();
   var minIndex = now.getFullYear() * 12 + now.getMonth();
@@ -2112,6 +2115,10 @@ window.LY_afterLcp(function() {
     if (selected.length <= 1) return '1 ' + dayWord;
     return selected.length + ' ' + daysWord;
   }
+  function rebuildLookup(){
+    selectedLookup = {};
+    selected.forEach(function(k){ selectedLookup[k] = true; });
+  }
   function syncForm(){
     if (!startInput) return;
     if (!selected.length) {
@@ -2142,6 +2149,7 @@ window.LY_afterLcp(function() {
     if (selectionEl) selectionEl.hidden = !on;
   }
   function updateSelectionUi(){
+    rebuildLookup();
     if (!selected.length) {
       setCtaState(false);
       if (selectionText) selectionText.textContent = '';
@@ -2151,8 +2159,7 @@ window.LY_afterLcp(function() {
     }
     var label = formatSelection();
     var meta = countLabel();
-    if (selectionText) selectionText.textContent = label + ' (' + meta + ')';
-    if (enquireBtn) enquireBtn.textContent = 'Enquire About ' + label + ' →';
+    if (selectionText) selectionText.textContent = label + ' · ' + meta;
     if (waBtn) {
       var msg = selected.length === 1
         ? "Hi, I'd like to enquire about a charter on Limitless on " + label + "."
@@ -2201,20 +2208,23 @@ window.LY_afterLcp(function() {
     for (var d = 1; d <= daysInMonth; d++) {
       var k = y + '-' + pad(m + 1) + '-' + pad(d);
       var cls = 'cal-cell';
+      var isFree = false;
       if (k < ts) {
         cls += ' past';
       } else {
         if (k === ts) cls += ' today';
         if (booked.has(k)) cls += ' booked';
         else if (tentative.has(k)) cls += ' tentative';
-        else cls += ' free';
+        else { cls += ' free'; isFree = true; }
       }
-      if (k >= selStart && k <= selEnd && selected.indexOf(k) !== -1) {
+      if (selectedLookup[k]) {
         cls += ' selected';
         if (k === selStart) cls += ' range-start';
         if (k === selEnd) cls += ' range-end';
       }
-      var attr = cls.indexOf('free') !== -1 ? ' data-date="' + k + '" role="button" tabindex="0" aria-pressed="' + (selected.indexOf(k) !== -1 ? 'true' : 'false') + '"' : '';
+      var attr = isFree
+        ? ' data-date="' + k + '" role="button" tabindex="0" aria-pressed="' + (selectedLookup[k] ? 'true' : 'false') + '" aria-label="' + d + ' ' + MONTHS[m] + ' ' + y + '"'
+        : '';
       cells += '<div class="' + cls + '"' + attr + '>' + d + '</div>';
     }
     var dow = DOW.map(function(x){ return '<span>' + x + '</span>'; }).join('');
@@ -2253,15 +2263,22 @@ window.LY_afterLcp(function() {
   prevBtn.addEventListener('click', function(){ shift(-1); });
   nextBtn.addEventListener('click', function(){ shift(1); });
 
+  function cellFromEvent(e) {
+    var node = e.target;
+    if (!node || !monthsEl.contains(node)) return null;
+    if (node.getAttribute && node.getAttribute('data-date')) return node;
+    return node.closest ? node.closest('[data-date]') : null;
+  }
   monthsEl.addEventListener('click', function(e) {
-    var cell = e.target.closest ? e.target.closest('.cal-cell.free') : null;
-    if (!cell) return;
+    var cell = cellFromEvent(e);
+    if (!cell || cell.className.indexOf('free') === -1) return;
+    e.preventDefault();
     toggleDate(cell.getAttribute('data-date'));
   });
   monthsEl.addEventListener('keydown', function(e) {
     if (e.key !== 'Enter' && e.key !== ' ') return;
-    var cell = e.target.closest ? e.target.closest('.cal-cell.free') : null;
-    if (!cell) return;
+    var cell = cellFromEvent(e);
+    if (!cell || cell.className.indexOf('free') === -1) return;
     e.preventDefault();
     toggleDate(cell.getAttribute('data-date'));
   });

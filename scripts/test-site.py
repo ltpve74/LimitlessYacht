@@ -537,8 +537,13 @@ def check_shared_assets(r: Runner) -> None:
         'calendar selected dates are visually distinct',
         css is not None
         and '.cal-cell.selected' in css
-        and '.cal-selection' in css
+        and '.cal-footer' in css
         and '.cal-enquire-btn.is-disabled' in css,
+    )
+    index_html = read_file('index.html') or ''
+    r.check(
+        'calendar hint lives inside the calendar card',
+        'class="cal-footer"' in index_html and 'id="calHint"' in index_html,
     )
     r.check(
         'destination cards use pointer cursor (clickable like gallery)',

@@ -1087,6 +1087,7 @@ footer {
   }
   .contact-cal-pair #availability .availability-actions .btn-primary,
   .contact-cal-pair #availability .availability-actions .btn-ghost { text-align: center; }
+  .contact-cal-pair .cal-footer { margin-top: .95rem; padding-top: .85rem; }
 }
 
 /* ── AVAILABILITY ── */
@@ -1123,46 +1124,63 @@ footer {
 }
 .cal-cell.empty { background: none; }
 .cal-cell.past { color: var(--text-muted); }
-.cal-cell.today { outline: 1px solid var(--gold); outline-offset: -1px; }
+.cal-cell.today:not(.selected)::after {
+  content: '';
+  position: absolute; bottom: 5px; left: 50%;
+  transform: translateX(-50%);
+  width: 4px; height: 4px; border-radius: 50%;
+  background: var(--gold);
+}
 .cal-cell.booked { background: #8f4a52; color: #fff; }
 .cal-cell.tentative { background: rgba(208,164,78,.22); color: var(--gold-light); }
-.cal-cell.free { cursor: pointer; transition: background .15s, color .15s; }
+.cal-cell.free { cursor: pointer; transition: background .15s, color .15s, box-shadow .15s; touch-action: manipulation; -webkit-tap-highlight-color: transparent; }
 .cal-cell.free:hover { background: rgba(201,168,76,.2); color: var(--gold); }
 .cal-cell.free:focus-visible { outline: 2px solid var(--gold); outline-offset: 1px; }
 .cal-cell.selected {
-  background: var(--gold); color: var(--navy); font-weight: 600;
+  background: var(--gold) !important;
+  color: var(--navy) !important;
+  font-weight: 600;
+  box-shadow: inset 0 0 0 2px rgba(10,22,40,.25);
+  outline: none !important;
+  z-index: 1;
 }
-.cal-cell.selected:hover { background: var(--gold-light); color: var(--navy); }
-.cal-cell.range-start { border-top-left-radius: 6px; border-bottom-left-radius: 6px; }
-.cal-cell.range-end { border-top-right-radius: 6px; border-bottom-right-radius: 6px; }
+.cal-cell.selected:hover { background: var(--gold-light) !important; color: var(--navy) !important; }
+.cal-cell.selected.today::after { display: none; }
+.cal-cell.range-start:not(.range-end) { border-radius: 6px 0 0 6px; }
+.cal-cell.range-end:not(.range-start) { border-radius: 0 6px 6px 0; }
+.cal-cell.selected:not(.range-start):not(.range-end) { border-radius: 0; }
+.cal-footer {
+  margin-top: 1.15rem;
+  padding-top: 1rem;
+  border-top: 1px solid rgba(201,168,76,.14);
+}
 .cal-hint {
-  margin-top: 1.25rem; max-width: 660px;
-  font-size: .82rem; letter-spacing: .04em; color: rgba(245,240,232,.65);
+  margin: 0;
+  font-size: .58rem; letter-spacing: .14em; text-transform: uppercase;
+  color: var(--text-muted); line-height: 1.75;
 }
 .cal-selection {
-  margin-top: 1.25rem; max-width: 660px;
-  padding: 1rem 1.15rem;
-  border: 1px solid rgba(201,168,76,.35);
-  border-radius: 8px;
-  background: rgba(201,168,76,.08);
+  margin: .7rem 0 0;
+  display: flex; flex-wrap: wrap; align-items: center; gap: .45rem .75rem;
+}
+.cal-selection[hidden] { display: none !important; }
+.cal-selection-label {
+  font-size: .58rem; letter-spacing: .14em; text-transform: uppercase;
+  color: var(--gold); font-weight: 500;
 }
 .cal-selection-dates {
   font-family: 'Montserrat', sans-serif;
-  font-size: 1.05rem; font-weight: 500; color: var(--gold-light);
+  font-size: .92rem; font-weight: 400; color: var(--cream);
   letter-spacing: .02em;
 }
-.cal-selection-prompt {
-  margin: .45rem 0 0;
-  font-size: .82rem; line-height: 1.6; color: rgba(245,240,232,.72);
-}
 .cal-clear {
-  margin-top: .7rem; padding: 0;
+  margin: 0; padding: 0;
   background: none; border: none;
-  font-size: .68rem; letter-spacing: .12em; text-transform: uppercase;
-  color: var(--text-muted); cursor: pointer; text-decoration: underline;
-  text-underline-offset: 3px;
+  font-size: .58rem; letter-spacing: .12em; text-transform: uppercase;
+  color: var(--text-muted); cursor: pointer;
+  text-decoration: underline; text-underline-offset: 3px;
 }
-.cal-clear:hover { color: var(--gold); }
+.cal-clear:hover { color: var(--gold-light); }
 .cal-enquire-btn.is-disabled,
 .cal-wa-btn.is-disabled {
   opacity: .45; pointer-events: none; cursor: default;

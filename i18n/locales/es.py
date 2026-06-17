@@ -207,12 +207,8 @@ PAIRS = [
     ("Booked", "Reservado"),
     ("On hold", "En espera"),
     (
-        "Tap one or more adjacent available dates to select your charter dates.",
-        "Toque una o más fechas libres consecutivas para seleccionar sus fechas de charter.",
-    ),
-    (
-        "Ready to enquire? We'll pre-fill these dates in the form.",
-        "¿Listo para consultar? Rellenaremos estas fechas en el formulario.",
+        "Tap available dates — one day or a run of adjacent dates.",
+        "Toque fechas libres — un día o varios seguidos.",
     ),
     ("Clear selection", "Borrar selección"),
     ('data-i18n-day="day"', 'data-i18n-day="día"'),
