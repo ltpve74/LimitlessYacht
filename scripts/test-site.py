@@ -166,6 +166,16 @@ def check_html(r: Runner, rel: str, html: str) -> None:
     # Destination lightbox
     r.check('id="dest-lb-cta" lightbox CTA exists', 'id="dest-lb-cta"' in html)
     r.check(
+        'destination lightbox CTA has viewport-specific labels',
+        'class="dest-lb-cta-desktop"' in html
+        and 'class="dest-lb-cta-mobile"' in html,
+    )
+    r.check(
+        'destination lightbox CTA routes by viewport',
+        'function syncDestLbCta()' in html
+        and "lbCta.href = window.innerWidth <= 640 ? '#avail-cal' : '#enquire-form'" in html,
+    )
+    r.check(
         'gallery lightbox uses centralized images array',
         'const images = [' in html and 'function showImage(idx)' in html,
     )
@@ -709,6 +719,19 @@ def check_shared_assets(r: Runner) -> None:
         and 'startInput.focus' not in index_html,
     )
     r.check(
+        'desktop paired layout hides redundant calendar CTAs',
+        css is not None
+        and re.search(
+            r'\.contact-cal-pair\s+#availability\s+\.availability-actions\s*\{\s*display:\s*none',
+            css,
+        ) is not None
+        and re.search(
+            r'@media\s*\(min-width:\s*769px\)[^{]*\{[^}]*\.form-col-wa[^}]*display:\s*none',
+            css,
+            re.DOTALL,
+        ) is not None,
+    )
+    r.check(
         'calendar enquire scrolls on mobile, skips scroll on desktop when paired',
         'function isCalendarFormPaired()' in index_html
         and 'if (isCalendarFormPaired())' in index_html
@@ -718,6 +741,34 @@ def check_shared_assets(r: Runner) -> None:
         'mobile gallery CTA routes to availability calendar',
         'CHECK AVAILABILITY →' in index_html
         and 'href="#avail-cal" class="itinerary-meet-cta"' in index_html,
+    )
+    r.check(
+        'mobile gallery section fills viewport like itinerary',
+        css is not None
+        and re.search(
+            r'#gallery,\s*#itinerary\s*\{[^}]*min-height:\s*100svh',
+            css,
+        ) is not None
+        and re.search(
+            r'\.gallery-group\s+\.gallery-item\s*\{[^}]*height:\s*calc\(100svh\s*-\s*15rem\)',
+            css,
+        ) is not None
+        and re.search(
+            r'\.destination-card\s*\{[^}]*height:\s*calc\(100svh\s*-\s*15rem\)',
+            css,
+        ) is not None,
+    )
+    r.check(
+        'destination lightbox CTA labels swap on mobile',
+        css is not None
+        and '.dest-lb-cta-mobile' in css
+        and '.dest-lb-cta-desktop' in css
+        and re.search(r'@media\s*\(max-width:\s*640px\)[^{]*\{[^}]*\.dest-lb-cta-desktop\s*\{\s*display:\s*none', css) is not None,
+    )
+    r.check(
+        'destination lightbox mobile CTA copy is trip-specific',
+        'Check dates for this trip →' in index_html
+        and 'dest-lb-cta-mobile' in index_html,
     )
     r.check(
         'form date hint links to availability calendar overview',
@@ -782,6 +833,34 @@ def check_shared_assets(r: Runner) -> None:
             css,
         ) is not None
         and '.contact-cal-pair #availability .availability-intro { display: none' not in css,
+    )
+    r.check(
+        'availability section title visible on mobile paired layout',
+        css is not None
+        and re.search(
+            r'\.contact-cal-pair\s+#availability\s+\.section-title\s*\{[^}]*display:\s*block',
+            css,
+        ) is not None
+        and '.contact-cal-pair #availability .section-title { display: none' not in css,
+    )
+    r.check(
+        'calendar selection updates WhatsApp enquiry links',
+        'function syncWaEnquiryLinks(msg)' in index_html
+        and "document.querySelector('.form-col-wa')" in index_html
+        and 'syncWaEnquiryLinks(msg)' in index_html
+        and 'syncWaEnquiryLinks(null)' in index_html,
+    )
+    r.check(
+        'WhatsApp CTA copy uses enquire voice',
+        'Ask on WhatsApp' not in index_html
+        and 'Enquire on WhatsApp' in index_html
+        and 'Enquire via WhatsApp' in index_html,
+    )
+    r.check(
+        'calendar WhatsApp label reflects selected dates',
+        'data-wa-label-dates="WhatsApp these dates"' in index_html
+        and 'function syncCalWaLabel(hasDates)' in index_html
+        and 'syncCalWaLabel(true)' in index_html,
     )
     pair_start = index_html.find('class="contact-cal-pair"')
     pair_end = index_html.find('id="reviews"', pair_start)

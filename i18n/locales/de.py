@@ -103,6 +103,7 @@ PAIRS = [
     ),
     ("Enquire Now", "Jetzt anfragen"),
     ("Enquire About This Trip", "Diese Reise anfragen"),
+    ("Check dates for this trip →", "Termine für diese Reise prüfen →"),
     # Specs
     ("Technical Specifications", "Technische Daten"),
     ("Yacht<em> Details</em>", "Yacht-<em>Details</em>"),
@@ -208,8 +209,8 @@ PAIRS = [
     ("Availability", "Verfügbarkeit"),
     ("Check the<em> Calendar</em>", "Verfügbarkeit im<em> Kalender</em>"),
     (
-        "See which dates are open, then complete the form below — we'll confirm your charter personally. The calendar is kept up to date by our crew.",
-        "Sehen Sie freie Termine und füllen Sie dann das Formular unten aus — wir bestätigen Ihren Charter persönlich. Der Kalender wird von unserer Crew aktuell gehalten.",
+        "See which dates are open, then complete the enquiry form — we'll confirm your charter personally. The calendar is kept up to date by our crew.",
+        "Sehen Sie freie Termine und füllen Sie dann das Anfrageformular aus — wir bestätigen Ihren Charter persönlich. Der Kalender wird von unserer Crew aktuell gehalten.",
     ),
     ('aria-label="Availability calendar"', 'aria-label="Verfügbarkeitskalender"'),
     ('aria-label="Previous month"', 'aria-label="Vorheriger Monat"'),
@@ -226,7 +227,8 @@ PAIRS = [
     ('data-i18n-day="day"', 'data-i18n-day="Tag"'),
     ('data-i18n-days="days"', 'data-i18n-days="Tage"'),
     ("Enquire About These Dates", "Diese Termine anfragen"),
-    ("Ask on WhatsApp", "Per WhatsApp fragen"),
+    ("Enquire on WhatsApp", "Per WhatsApp anfragen"),
+    ("WhatsApp these dates", "Diese Termine per WhatsApp senden"),
     # Contact
     ("Contact", "Kontakt"),
     ("Get in<em> Touch</em>", "Kontakt<em> aufnehmen</em>"),
