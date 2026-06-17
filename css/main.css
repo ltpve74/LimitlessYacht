@@ -1285,41 +1285,6 @@ footer {
     font-size: .82rem; line-height: 1.65;
   }
   .contact-cal-pair #availability .cal { margin-top: 0; }
-  body.form-date-popup-open {
-    overflow: hidden;
-  }
-  body.form-date-popup-open::before {
-    content: '';
-    position: fixed;
-    inset: 0;
-    background: rgba(5, 12, 25, 0.86);
-    z-index: 440;
-  }
-  body.form-date-popup-open .enquire-section,
-  body.form-date-popup-open .contact-grid,
-  body.form-date-popup-open .contact-form,
-  body.form-date-popup-open .form-row,
-  body.form-date-popup-open .form-field {
-    overflow: hidden;
-  }
-  body.form-date-popup-open .form-date-wrap.is-open {
-    z-index: 450;
-  }
-  body.form-date-popup-open .form-date-popover:not([hidden]) {
-    position: fixed;
-    left: 1rem;
-    right: 1rem;
-    top: max(4.25rem, env(safe-area-inset-top, 0px) + 3.25rem);
-    bottom: auto;
-    width: auto;
-    max-height: min(78vh, 32rem);
-    overflow-y: auto;
-    -webkit-overflow-scrolling: touch;
-    z-index: 450;
-    isolation: isolate;
-    padding: .55rem .65rem .6rem;
-    box-shadow: 0 16px 40px rgba(0,0,0,.6);
-  }
   .form-date-popover,
   .form-date-popover.cal {
     padding: .55rem .65rem .6rem;
@@ -1331,11 +1296,6 @@ footer {
   .form-date-cal-foot { margin-top: .4rem; padding-top: .4rem; }
   .form-date-popover.opens-up { box-shadow: 0 -10px 28px rgba(0,0,0,.5); }
   .form-date-popover.opens-down { box-shadow: 0 10px 28px rgba(0,0,0,.5); }
-  body.form-date-popup-open .form-date-popover.opens-up,
-  body.form-date-popup-open .form-date-popover.opens-down {
-    bottom: auto;
-    box-shadow: 0 16px 40px rgba(0,0,0,.6);
-  }
   .form-submit { padding-top: .85rem; padding-bottom: .85rem; margin-top: .25rem; }
   #specs { padding-top: 3rem; padding-bottom: 2.5rem; }
   #amenities { padding-top: 2.5rem; padding-bottom: 2.5rem; }
