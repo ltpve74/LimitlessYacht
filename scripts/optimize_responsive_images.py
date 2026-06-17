@@ -103,11 +103,12 @@ ABOUT_DESKTOP_MAX_EDGE = 960
 ABOUT_DESKTOP_WEBP_Q = 80
 DESKTOP_ABOUT_TIERS = DESKTOP_CONTENT_TIERS
 
-# Hero (LCP): viewport tiers; master upscaled to 1280 for large/retina desktops.
+# Hero (LCP): native 2000px Maiora 20S cruising shot (charter promo master).
 HERO_STEM = "maiora_20s_02"
+HERO_SOURCE = BASE / "media-library" / "hero-source" / "maiora-20s-cruising-2000.jpeg"
 HERO_JPG = IMAGES / f"{HERO_STEM}.jpg"
 HERO_DESKTOP_WEBP = IMAGES / f"{HERO_STEM}.webp"
-HERO_DESKTOP_MAX_EDGE = 1280
+HERO_DESKTOP_MAX_EDGE = 1920
 HERO_MOBILE_TIERS = (
     ("-480", 480, 80),
     ("-720", 720, 78),
@@ -115,7 +116,11 @@ HERO_MOBILE_TIERS = (
     ("-1440", 1440, 78),
 )
 HERO_MOBILE_WEBP_Q = 80
-DESKTOP_HERO_TIERS = DESKTOP_CONTENT_TIERS
+DESKTOP_HERO_TIERS = (
+    ("-640", 640, 84),
+    ("-960", 960, 82),
+    ("-1280", 1280, 82),
+)
 HERO_DESKTOP_WEBP_Q = 84
 
 DEST_SLUGS = (
@@ -207,7 +212,9 @@ def hero_desktop_srcset(widths: dict[str, int]) -> str:
 
 
 def load_hero_rgb() -> Image.Image:
-    """Always rebuild hero from the full native JPEG/WebP master on disk."""
+    """Rebuild hero from the archived 2000px source, then deploy-folder fallbacks."""
+    if HERO_SOURCE.is_file():
+        return Image.open(HERO_SOURCE).convert("RGB")
     if HERO_JPG.is_file():
         return Image.open(HERO_JPG).convert("RGB")
     return Image.open(HERO_DESKTOP_WEBP).convert("RGB")
@@ -406,7 +413,8 @@ def optimize_hero_desktop(widths: dict[str, int]) -> None:
     if not HERO_JPG.is_file() and not HERO_DESKTOP_WEBP.is_file():
         return
     print("\nOptimizing hero image (high quality, viewport tiers)\n")
-    img = resize_to_target_max(load_hero_rgb(), HERO_DESKTOP_MAX_EDGE)
+    img = resize_to_max(load_hero_rgb(), HERO_DESKTOP_MAX_EDGE)
+    img.save(HERO_JPG, "JPEG", quality=88, optimize=True)
     before = kb(HERO_DESKTOP_WEBP) if HERO_DESKTOP_WEBP.is_file() else 0.0
     tier_kb = save_desktop_tiers(
         img,

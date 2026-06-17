@@ -572,7 +572,8 @@ def check_html(r: Runner, rel: str, html: str) -> None:
         and 'maiora_20s_02-720.webp' in html
         and 'maiora_20s_02-640.webp 640w' in html
         and 'maiora_20s_02-960.webp 960w' in html
-        and 'maiora_20s_02.webp 1280w' in html
+        and 'maiora_20s_02-1280.webp 1280w' in html
+        and 'maiora_20s_02.webp 1920w' in html
         and 'fetchpriority="high"' in html,
     )
     style_pos = html.find('<style')
@@ -1786,6 +1787,7 @@ def check_shared_assets(r: Runner) -> None:
         'images/maiora_20s_02.webp',
         'images/maiora_20s_02-640.webp',
         'images/maiora_20s_02-960.webp',
+        'images/maiora_20s_02-1280.webp',
         'images/dest/portals-vells-1-640.webp',
         'images/dest/portals-vells-1-960.webp',
         'images/maiora_20s_04-640.webp',
