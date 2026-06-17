@@ -1243,6 +1243,12 @@ def check_shared_assets(r: Runner) -> None:
         is not None,
     )
     r.check(
+        'charters cross-nav desktop show rule follows mobile hide rule',
+        css is not None
+        and css.find('.charters-cross-cta--desktop { display: none; }')
+        < css.rfind('.charters-cross-cta--desktop {')
+    )
+    r.check(
         'reviews desktop uses compact two-column grid',
         re.search(
             r'@media \(min-width: 769px\)[\s\S]*?\.reviews-grid\s*\{[^}]*grid-template-columns:\s*repeat\(2',

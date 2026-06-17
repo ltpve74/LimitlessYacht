@@ -781,21 +781,6 @@ section { padding: 7rem 2rem; }
     padding-bottom: 4.5rem;
   }
   #charters .section-back-cta { display: none; }
-  .charters-cross-cta--desktop {
-    display: block;
-    margin-top: 1.35rem;
-    padding-top: 1.2rem;
-    border-top: 1px solid rgba(201,168,76,.16);
-    max-width: 36rem;
-    margin-left: auto;
-    margin-right: auto;
-  }
-  .charters-cross-cta--desktop .section-cta-text {
-    margin-bottom: 1rem;
-    font-size: .72rem;
-    letter-spacing: .08em;
-  }
-  .charters-cross-cta--desktop .section-cta-btns { gap: 1rem; }
   .charters-main {
     margin-top: 2rem;
   }
@@ -930,6 +915,23 @@ section { padding: 7rem 2rem; }
   text-align: center; margin-top: 2.75rem;
 }
 .charters-cross-cta--desktop { display: none; }
+@media (min-width: 769px) {
+  .charters-cross-cta--desktop {
+    display: block;
+    margin-top: 1.35rem;
+    padding-top: 1.2rem;
+    border-top: 1px solid rgba(201,168,76,.16);
+    max-width: 36rem;
+    margin-left: auto;
+    margin-right: auto;
+  }
+  .charters-cross-cta--desktop .section-cta-text {
+    margin-bottom: 1rem;
+    font-size: .72rem;
+    letter-spacing: .08em;
+  }
+  .charters-cross-cta--desktop .section-cta-btns { gap: 1rem; }
+}
 .enquiry-flex-note {
   margin-top: .9rem;
   font-size: .52rem; letter-spacing: .1em; text-transform: uppercase;
