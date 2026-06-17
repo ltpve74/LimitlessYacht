@@ -1274,6 +1274,7 @@ window.LY_afterLcp(function() {
               <div class="form-date-wrap" id="preferredDateWrap">
                 <input type="hidden" name="preferred_date" id="preferred_date" />
                 <button type="button" class="form-date-trigger" id="preferred_date_btn" aria-haspopup="dialog" aria-expanded="false" aria-controls="preferred_date_pop">
+                  <span class="form-date-icon" aria-hidden="true"><svg viewBox="0 0 16 16" width="16" height="16" fill="none" stroke="currentColor" stroke-width="1.2"><rect x="2" y="3" width="12" height="11" rx="1"/><path d="M2 6h12M5 1v3M11 1v3"/></svg></span>
                   <span class="form-date-text">Seleccionar…</span>
                 </button>
                 <div class="form-date-popover cal" id="preferred_date_pop" role="dialog" aria-modal="true" hidden>
@@ -1308,6 +1309,7 @@ window.LY_afterLcp(function() {
               <div class="form-date-wrap" id="preferredDateEndFieldWrap">
                 <input type="hidden" name="preferred_date_end" id="preferred_date_end" />
                 <button type="button" class="form-date-trigger" id="preferred_date_end_btn" aria-haspopup="dialog" aria-expanded="false" aria-controls="preferred_date_end_pop">
+                  <span class="form-date-icon" aria-hidden="true"><svg viewBox="0 0 16 16" width="16" height="16" fill="none" stroke="currentColor" stroke-width="1.2"><rect x="2" y="3" width="12" height="11" rx="1"/><path d="M2 6h12M5 1v3M11 1v3"/></svg></span>
                   <span class="form-date-text">Seleccionar…</span>
                 </button>
                 <div class="form-date-popover cal" id="preferred_date_end_pop" role="dialog" aria-modal="true" hidden>
@@ -1327,7 +1329,7 @@ window.LY_afterLcp(function() {
                 </div>
               </div>
             </div>
-            <p class="form-date-hint">Consulte el calendario superior para ver fechas libres.</p>
+            <p class="form-date-hint">Consulte el <a href="#avail-cal" class="form-date-hint-link">calendario</a> para una vista general.</p>
           </div>
           <script>
           (function(){
@@ -2482,6 +2484,7 @@ window.LY_afterLcp(function() {
     if (fieldLabel) pop.setAttribute('aria-label', fieldLabel.textContent.trim());
 
     if (dowEl) dowEl.innerHTML = DOW.map(function(x){ return '<span>' + x + '</span>'; }).join('');
+    if (pop.parentElement !== document.body) document.body.appendChild(pop);
 
     function updateTrigger() {
       if (!textEl) return;
@@ -2546,11 +2549,9 @@ window.LY_afterLcp(function() {
       else if (hidden.value) viewIndex = monthIndexForDate(hidden.value);
       else viewIndex = minIndex;
       renderPopover();
-      if (window.matchMedia('(max-width: 640px)').matches) {
-        var backdrop = ensureFormDateBackdrop();
-        backdrop.hidden = false;
-        document.body.classList.add('form-date-open');
-      }
+      var backdrop = ensureFormDateBackdrop();
+      backdrop.hidden = false;
+      document.body.classList.add('form-date-open');
     }
 
     function close() {

@@ -977,8 +977,8 @@ PAIRS = [
     ('or fill in the form', 'oder füllen Sie das Formular aus'),
     ('placeholder="Maria"', 'placeholder="Maria"'),
     (
-        'Check the calendar above for open dates.',
-        'Freie Termine im Kalender oben prüfen.',
+        'See the <a href="#avail-cal" class="form-date-hint-link">calendar</a> for an overview.',
+        'Siehe den <a href="#avail-cal" class="form-date-hint-link">Kalender</a> für eine Übersicht.',
     ),
     (
         'Tap a second date for multi-day.',

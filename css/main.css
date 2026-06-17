@@ -773,28 +773,54 @@ section { padding: 7rem 2rem; }
   text-transform: uppercase;
   color: var(--text-muted);
 }
+.form-date-hint-link {
+  color: var(--gold); text-decoration: underline; text-underline-offset: 3px;
+  transition: color .2s;
+}
+.form-date-hint-link:hover { color: var(--gold-light); }
 .form-date-wrap { position: relative; width: 100%; }
 .form-date-trigger {
+  display: flex; align-items: center; gap: .7rem;
   width: 100%; text-align: left; cursor: pointer;
-  background: rgba(255,255,255,.04); border: 1px solid rgba(201,168,76,.15);
-  color: var(--cream); padding: .85rem 2rem .85rem 1rem;
+  background: linear-gradient(135deg, rgba(201,168,76,.08) 0%, rgba(255,255,255,.03) 100%);
+  border: 1px solid rgba(201,168,76,.28);
+  color: var(--cream); padding: .85rem 2.2rem .85rem 1rem;
   font-family: 'Montserrat', sans-serif; font-size: .8rem; font-weight: 300;
-  outline: none; transition: border-color .2s; position: relative;
+  outline: none; transition: border-color .2s, background .2s, box-shadow .2s;
+  position: relative;
 }
+.form-date-icon {
+  flex: none; display: flex; align-items: center; justify-content: center;
+  width: 1.05rem; height: 1.05rem; color: var(--gold);
+}
+.form-date-text { flex: 1; min-width: 0; }
 .form-date-trigger::after {
   content: '▾'; position: absolute; right: .85rem; top: 50%;
-  transform: translateY(-50%); color: var(--text-muted);
-  font-size: .7rem; pointer-events: none;
+  transform: translateY(-50%); color: var(--gold);
+  font-size: .7rem; pointer-events: none; opacity: .75;
 }
 .form-date-trigger:not(.has-value) .form-date-text { color: rgba(245,240,232,.45); }
-.form-date-trigger:hover,
-.form-date-trigger[aria-expanded="true"] { border-color: rgba(201,168,76,.5); }
-.form-date-trigger:focus-visible { border-color: rgba(201,168,76,.5); outline: none; }
+.form-date-trigger:hover {
+  border-color: rgba(201,168,76,.55);
+  background: rgba(201,168,76,.12);
+}
+.form-date-trigger[aria-expanded="true"] {
+  border-color: var(--gold);
+  background: rgba(201,168,76,.14);
+  box-shadow: 0 0 0 1px rgba(201,168,76,.22);
+}
+.form-date-trigger:focus-visible {
+  border-color: var(--gold); outline: none;
+  box-shadow: 0 0 0 1px rgba(201,168,76,.22);
+}
 .form-date-popover {
-  position: absolute; z-index: 200; left: 0; right: 0; top: calc(100% + .35rem);
-  background: var(--deep); border: 1px solid rgba(201,168,76,.25);
-  border-radius: 8px; padding: .9rem .85rem .75rem;
-  box-shadow: 0 14px 36px rgba(0,0,0,.45);
+  position: fixed; z-index: 10001;
+  left: 50%; top: 50%;
+  width: min(20rem, calc(100vw - 2rem));
+  transform: translate(-50%, -50%);
+  background: var(--deep); border: 1px solid rgba(201,168,76,.3);
+  border-radius: 8px; padding: 1rem .9rem .8rem;
+  box-shadow: 0 18px 48px rgba(0,0,0,.55);
 }
 .form-date-popover[hidden] { display: none !important; }
 .form-date-cal-bar { display: flex; align-items: flex-start; gap: .35rem; }
@@ -851,7 +877,6 @@ body.form-date-open { overflow: hidden; }
    hide the form-col duplicate to keep the layout clean */
 @media (min-width: 769px) {
   .form-col-wa, .form-divider { display: none; }
-  .contact-cal-pair .form-date-hint { display: none; }
 }
 /* On mobile, contact-info WhatsApp is far above the form — hide it there,
    show only the one paired with the form */
@@ -1091,13 +1116,7 @@ footer {
   .form-divider { margin-top: .8rem; margin-bottom: .6rem; }
   .contact-form { gap: .6rem; }
   .form-field input, .form-field select, .form-date-trigger { padding: .6rem .85rem; font-size: 1rem; }
-  .form-date-trigger { padding-right: 2rem; }
-  .form-date-popover {
-    position: fixed; left: 50%; top: 50%;
-    right: auto; width: min(18.5rem, calc(100vw - 2rem));
-    transform: translate(-50%, -50%);
-    z-index: 10001;
-  }
+  .form-date-trigger { padding-right: 2.2rem; }
   .form-reassurance { margin: .25rem 0 .15rem; }
   .form-date-hint { font-size: .56rem; margin: .15rem 0 0; }
   .contact-cal-pair #availability .section-label,

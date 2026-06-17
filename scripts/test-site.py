@@ -296,6 +296,8 @@ def check_html(r: Runner, rel: str, html: str) -> None:
         and 'function initFormDatePicker' in html
         and 'window.LY_updateFormDateTriggers' in html
         and 'class="form-date-range-hint"' in html
+        and 'class="form-date-icon"' in html
+        and 'document.body.appendChild(pop)' in html
         and 'toggleDate(k)' in html
         and 'range-start' in html,
     )
@@ -700,18 +702,21 @@ def check_shared_assets(r: Runner) -> None:
         and 'href="#avail-cal" class="itinerary-meet-cta"' in index_html,
     )
     r.check(
-        'form date hint sits with date fields and is mobile-only in paired layout',
+        'form date hint links to availability calendar overview',
         'class="form-date-hint"' in index_html
-        and 'Check the calendar above for open dates.' in index_html
-        and 'form-date-hint-link' not in index_html
+        and 'class="form-date-hint-link"' in index_html
+        and 'href="#avail-cal"' in index_html
+        and 'for an overview.' in index_html
         and css is not None
-        and re.search(r'\.contact-cal-pair\s+\.form-date-hint\s*\{\s*display:\s*none', css) is not None,
+        and '.form-date-hint-link' in css,
     )
     r.check(
-        'form date popover styled like availability calendar',
+        'form date popover is a centered modal with on-brand trigger',
         css is not None
         and '.form-date-popover' in css
+        and re.search(r'\.form-date-popover\s*\{[^}]*position:\s*fixed', css) is not None
         and '.form-date-trigger' in css
+        and '.form-date-icon' in css
         and '.form-date-popover .cal-cell' in css
         and '.form-date-range-hint' in css
         and '.form-date-backdrop' in css,
