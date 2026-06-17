@@ -122,8 +122,8 @@ nav {
 .form-field[hidden] { display: none !important; }
 </style>
 <script src="js/analytics-env.js"></script>
-<link rel="preload" as="style" href="../css/main.css?v=41" onload="this.rel='stylesheet'" />
-<noscript><link rel="stylesheet" href="../css/main.css?v=41" /></noscript>
+<link rel="preload" as="style" href="../css/main.css?v=42" onload="this.rel='stylesheet'" />
+<noscript><link rel="stylesheet" href="../css/main.css?v=42" /></noscript>
 
 <!-- Auto-match the visitor's browser language to a localized version (only from the
      English root, and only until the visitor manually picks a language). -->
@@ -1537,12 +1537,19 @@ window.LY_afterLcp(function() {
         });
       }
     }, { passive: true });
+    function onNavJumpClick(el) {
+      if (window.innerWidth <= 768) return;
+      navbar.classList.add('scrolled');
+      syncNavSectionSoon();
+      if (el && el.blur) {
+        requestAnimationFrame(function() { el.blur(); });
+      }
+    }
     navSectionLinks.forEach(function(a) {
-      a.addEventListener('click', function() {
-        if (window.innerWidth <= 768) return;
-        navbar.classList.add('scrolled');
-        syncNavSectionSoon();
-      });
+      a.addEventListener('click', function() { onNavJumpClick(a); });
+    });
+    document.querySelectorAll('.nav-cta[href^="#"]').forEach(function(a) {
+      a.addEventListener('click', function() { onNavJumpClick(a); });
     });
     window.addEventListener('hashchange', syncNavSectionSoon);
     if ('onscrollend' in window) {

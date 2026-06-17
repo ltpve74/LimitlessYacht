@@ -348,6 +348,8 @@ def check_html(r: Runner, rel: str, html: str) -> None:
         and 'navSectionLinks' in html
         and "addEventListener('hashchange'" in html
         and 'navMarkerTop' in html
+        and 'onNavJumpClick' in html
+        and ".querySelectorAll('.nav-cta[href^=\"#\"]')" in html
         and 'scrollToLandAnchor' not in html
         and 'preventDefault' not in re.search(
             r'navSectionLinks\.forEach\(function\(a\)[\s\S]{0,400}',
@@ -1030,7 +1032,17 @@ def check_shared_assets(r: Runner) -> None:
         css is not None
         and '.nav-lang-wrap' in css
         and '.nav-lang-popover' in css
-        and '.nav-links a.is-active' in css,
+        and '.nav-links a.is-active' in css
+        and re.search(
+            r'\.nav-cta:focus:not\(:focus-visible\)\s*\{[^}]*background:\s*transparent',
+            css,
+        )
+        is not None
+        and re.search(
+            r'@media \(hover: hover\) and \(pointer: fine\)[\s\S]*?\.nav-cta:hover',
+            css,
+        )
+        is not None,
     )
     r.check(
         'desktop nav landing keeps labels and uses nav scroll offset',
