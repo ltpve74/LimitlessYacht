@@ -2805,14 +2805,21 @@ footer {
   #avail-cal { scroll-margin-top: .5rem; }
 }
 @media (min-width: 641px) and (max-width: 768px) {
-  /* Calendar-first funnel: tuck headers above the viewport on #avail-cal jumps */
-  .contact-cal-pair #availability .section-label,
-  .contact-cal-pair #availability .section-title,
-  .contact-cal-pair #availability .availability-intro {
-    display: none;
-  }
   .contact-cal-pair #availability {
-    padding-top: 1rem;
+    padding-top: 2rem;
+  }
+  .contact-cal-pair #availability .section-title {
+    display: block;
+    font-size: clamp(1.65rem, 4vw, 2.15rem);
+    margin-bottom: 0.65rem;
+  }
+  .contact-cal-pair #availability .availability-intro {
+    display: block;
+    margin-top: 0;
+    margin-bottom: 1rem;
+    font-size: 0.88rem;
+    line-height: 1.7;
+    max-width: none;
   }
   .contact-cal-pair #availability .cal {
     margin-top: 0;

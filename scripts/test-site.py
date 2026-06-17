@@ -1231,10 +1231,15 @@ def check_shared_assets(r: Runner) -> None:
         is not None,
     )
     r.check(
-        'tablet availability funnel hides headers for calendar landing',
+        'tablet availability section shows title and intro',
         css is not None
         and re.search(
-            r'@media\s*\(\s*min-width:\s*641px\s*\)\s*and\s*\(\s*max-width:\s*768px\s*\)[\s\S]*?\.contact-cal-pair\s+#availability\s+\.availability-intro\s*\{[^}]*display:\s*none',
+            r'@media\s*\(\s*min-width:\s*641px\s*\)\s*and\s*\(\s*max-width:\s*768px\s*\)[\s\S]*?\.contact-cal-pair\s+#availability\s+\.section-title\s*\{[^}]*display:\s*block',
+            css,
+        )
+        is not None
+        and re.search(
+            r'@media\s*\(\s*min-width:\s*641px\s*\)\s*and\s*\(\s*max-width:\s*768px\s*\)[\s\S]*?\.contact-cal-pair\s+#availability\s+\.availability-intro\s*\{[^}]*display:\s*block',
             css,
         )
         is not None

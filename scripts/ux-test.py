@@ -247,6 +247,16 @@ def scenario_home_tablet(page, base: str, issues: IssueCollector) -> None:
     page.goto(base + "/", wait_until="domcontentloaded", timeout=60000)
     page.wait_for_timeout(800)
 
+    page.locator("#availability").scroll_into_view_if_needed()
+    title_visible = page.locator("#availability .section-title").evaluate(
+        "el => getComputedStyle(el).display !== 'none' && el.getBoundingClientRect().height > 0"
+    )
+    intro_visible = page.locator(".availability-intro").evaluate(
+        "el => getComputedStyle(el).display !== 'none' && el.getBoundingClientRect().height > 0"
+    )
+    if not title_visible or not intro_visible:
+        issues.add(f"{name}: availability title and intro should be visible on tablet")
+
     page.locator("#itinerary").scroll_into_view_if_needed()
     page.locator(".destination-card").first.click()
     page.wait_for_selector("#dest-lightbox.open", timeout=10000)
@@ -313,16 +323,14 @@ def scenario_home_tablet(page, base: str, issues: IssueCollector) -> None:
         "  const title = document.querySelector('#availability .section-title');"
         "  const nav = document.querySelector('nav');"
         "  if (!cal || !nav) return null;"
-        "  const calTop = cal.getBoundingClientRect().top;"
+        "  const calRect = cal.getBoundingClientRect();"
         "  const navBottom = nav.getBoundingClientRect().bottom;"
-        "  const introTop = intro ? intro.getBoundingClientRect().top : null;"
-        "  const titleTop = title ? title.getBoundingClientRect().top : null;"
         "  return {"
-        "    calTop,"
+        "    calTop: calRect.top,"
+        "    calBottom: calRect.bottom,"
         "    navBottom,"
-        "    introTop,"
-        "    titleTop,"
-        "    introHidden: intro ? getComputedStyle(intro).display === 'none' : true,"
+        "    titleVisible: title ? getComputedStyle(title).display !== 'none' : false,"
+        "    introVisible: intro ? getComputedStyle(intro).display !== 'none' : false,"
         "  };"
         "}"
     )
@@ -330,12 +338,12 @@ def scenario_home_tablet(page, base: str, issues: IssueCollector) -> None:
         issues.add(f"{name}: could not measure calendar landing position")
     else:
         cal_top = landing["calTop"]
-        if cal_top < 55 or cal_top > 145:
+        if cal_top < 55 or cal_top > 340:
             issues.add(f"{name}: calendar CTA landed with cal top at {cal_top:.0f}px")
-        if not landing.get("introHidden"):
-            issues.add(f"{name}: availability intro should be hidden on tablet funnel landing")
-        elif landing.get("introTop") is not None and landing["introTop"] >= landing["navBottom"]:
-            pass  # hidden in layout — no visible intro above calendar
+        if landing["calBottom"] <= landing["navBottom"] + 40:
+            issues.add(f"{name}: calendar should clear the nav after lightbox CTA")
+        if not landing.get("titleVisible") or not landing.get("introVisible"):
+            issues.add(f"{name}: availability title and intro should stay in the layout")
 
 
 def scenario_home_mobile(page, base: str, issues: IssueCollector) -> None:
