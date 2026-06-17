@@ -668,8 +668,8 @@ PAIRS = [
         'Wir freuen uns über Ihr Feedback. Senden Sie unten Ihre Bewertung — sie wird geprüft und in Kürze veröffentlicht.',
     ),
     (
-        '>Your Name<',
-        '>Ihr Name<',
+        '>Name<',
+        '>Name<',
     ),
     (
         'Email (private)',
@@ -975,7 +975,7 @@ PAIRS = [
     ('Request<em> Your Quote</em>', 'Ihr<em> Angebot anfordern</em>'),
     ("Tell us about your group, preferred dates, and the experience you're after. We'll get back to you with a personalised quote within 24 hours — no commitment required.", 'Erzählen Sie uns von Ihrer Gruppe, bevorzugten Terminen und der gewünschten Erfahrung. Wir melden uns innerhalb von 24 Stunden mit einem persönlichen Angebot — unverbindlich.'),
     ('or fill in the form', 'oder füllen Sie das Formular aus'),
-    ('placeholder="First and last name"', 'placeholder="Vor- und Nachname"'),
+    ('placeholder="Maria"', 'placeholder="Maria"'),
     # Specs section CTA
     ("Ready to plan your charter? We'll have a quote back within 24 hours.", 'Bereit, Ihren Charter zu planen? Wir senden Ihnen innerhalb von 24 Stunden ein Angebot.'),
 
