@@ -842,7 +842,8 @@ def check_shared_assets(r: Runner) -> None:
     )
     r.check(
         'desktop immersive sections use mobile-style funnel CTAs',
-        'href="#gallery" class="itinerary-meet-cta"' in index_html
+        'href="#gallery-land" class="itinerary-meet-cta itinerary-meet-cta--gallery-desktop"' in index_html
+        and 'href="#gallery" class="itinerary-meet-cta itinerary-meet-cta--gallery"' in index_html
         and 'href="#availability" class="itinerary-meet-cta itinerary-meet-cta--desktop"' in index_html
         and css is not None
         and re.search(
@@ -913,11 +914,17 @@ def check_shared_assets(r: Runner) -> None:
         and 'href="#avail-cal" class="itinerary-meet-cta itinerary-meet-cta--mobile"' in index_html,
     )
     r.check(
-        'desktop gallery funnel CTA lands on availability section like nav',
+        'desktop funnel CTAs use nav-style landing anchors',
         'href="#availability" class="itinerary-meet-cta itinerary-meet-cta--desktop"' in index_html
+        and 'href="#gallery-land" class="itinerary-meet-cta itinerary-meet-cta--gallery-desktop"' in index_html
         and css is not None
         and re.search(
-            r'@media \(min-width: 769px\)[\s\S]*?\.itinerary-meet-cta--mobile\s*\{\s*display:\s*none\s*!important',
+            r'@media \(min-width: 769px\)[\s\S]*?\.itinerary-meet-cta--mobile[\s\S]*?display:\s*none\s*!important',
+            css,
+        )
+        is not None
+        and re.search(
+            r'@media \(min-width: 769px\)[\s\S]*?\.itinerary-meet-cta--gallery[\s\S]*?display:\s*none\s*!important',
             css,
         )
         is not None,
