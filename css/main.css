@@ -1632,6 +1632,7 @@ footer {
 }
 /* Tablet / narrow desktop: keep single-row nav, tighten spacing */
 @media (min-width: 769px) and (max-width: 1100px) {
+  :root { --nav-scroll-offset: 4rem; }
   nav {
     display: flex;
     flex-wrap: nowrap;

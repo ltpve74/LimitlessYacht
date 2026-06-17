@@ -127,8 +127,8 @@ nav {
   window.LY_BASE = (h.endsWith('.github.io') && parts[0]) ? '/' + parts[0] : '';
 })();
 </script>
-<link rel="preload" as="style" href="../css/main.css?v=20" onload="this.rel='stylesheet'" />
-<noscript><link rel="stylesheet" href="../css/main.css?v=20" /></noscript>
+<link rel="preload" as="style" href="../css/main.css?v=21" onload="this.rel='stylesheet'" />
+<noscript><link rel="stylesheet" href="../css/main.css?v=21" /></noscript>
 
 <!-- Auto-match the visitor's browser language to a localized version (only from the
      English root, and only until the visitor manually picks a language). -->
@@ -1508,19 +1508,33 @@ window.LY_afterLcp(function() {
   const navbar = document.getElementById('navbar');
   var _navTick = false;
   var navSectionLinks = Array.from(document.querySelectorAll('.nav-links a[href^="#"]'));
+  var navHeaderCta = document.querySelector('.nav-header-cta[href^="#"]');
+  function navHeight() {
+    return navbar ? navbar.offsetHeight : 68;
+  }
+  function scrollToLandAnchor(id, behavior) {
+    var land = document.getElementById(id);
+    if (!land || !navbar) return;
+    var y = land.getBoundingClientRect().top + window.scrollY - navHeight();
+    window.scrollTo({ top: Math.max(0, y), behavior: behavior || 'smooth' });
+    if (history.replaceState) {
+      history.replaceState(null, '', '#' + id);
+    } else {
+      location.hash = id;
+    }
+  }
   function updateNavSection() {
     if (window.innerWidth <= 768 || !navSectionLinks.length) return;
-    var probe = (navbar ? navbar.offsetHeight : 68) + 4;
+    var probe = navHeight() + 32;
     var active = null;
-    var activeTop = -Infinity;
     navSectionLinks.forEach(function(a) {
       var land = document.getElementById(a.getAttribute('href').slice(1));
       if (!land) return;
-      var top = land.getBoundingClientRect().top;
-      if (top <= probe && top > activeTop) {
-        activeTop = top;
-        active = a;
-      }
+      var marker = land.previousElementSibling;
+      var top = (marker && marker.classList.contains('section-label'))
+        ? marker.getBoundingClientRect().top
+        : land.getBoundingClientRect().top;
+      if (top <= probe) active = a;
     });
     navSectionLinks.forEach(function(a) {
       a.classList.toggle('is-active', a === active);
@@ -1529,6 +1543,22 @@ window.LY_afterLcp(function() {
   function syncNavSectionSoon() {
     requestAnimationFrame(function() {
       requestAnimationFrame(updateNavSection);
+    });
+  }
+  function bindDesktopNavLand(a) {
+    if (!a) return;
+    a.addEventListener('click', function(e) {
+      if (window.innerWidth <= 768) return;
+      var href = a.getAttribute('href');
+      if (!href || href.charAt(0) !== '#') return;
+      var id = href.slice(1);
+      if (!document.getElementById(id)) return;
+      e.preventDefault();
+      navbar.classList.add('scrolled');
+      navSectionLinks.forEach(function(l) { l.classList.remove('is-active'); });
+      if (navSectionLinks.indexOf(a) !== -1) a.classList.add('is-active');
+      scrollToLandAnchor(id);
+      syncNavSectionSoon();
     });
   }
   if (navbar) {
@@ -1542,16 +1572,20 @@ window.LY_afterLcp(function() {
         });
       }
     }, { passive: true });
-    navSectionLinks.forEach(function(a) {
-      a.addEventListener('click', function() {
-        if (window.innerWidth <= 768) return;
-        navSectionLinks.forEach(function(l) { l.classList.remove('is-active'); });
-        a.classList.add('is-active');
-        syncNavSectionSoon();
-      });
-    });
+    navSectionLinks.forEach(bindDesktopNavLand);
+    bindDesktopNavLand(navHeaderCta);
     window.addEventListener('hashchange', syncNavSectionSoon);
     updateNavSection();
+    if (window.innerWidth > 768 && location.hash) {
+      var initId = location.hash.slice(1);
+      if (document.getElementById(initId) && initId.indexOf('-land') !== -1) {
+        requestAnimationFrame(function() {
+          scrollToLandAnchor(initId, 'instant');
+          navbar.classList.add('scrolled');
+          updateNavSection();
+        });
+      }
+    }
     window.addEventListener('resize', function() {
       if (window.innerWidth <= 768) {
         navSectionLinks.forEach(function(a) { a.classList.remove('is-active'); });

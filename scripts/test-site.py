@@ -340,7 +340,9 @@ def check_html(r: Runner, rel: str, html: str) -> None:
         'updateNavSection' in html
         and "classList.toggle('is-active'" in html
         and 'navSectionLinks' in html
-        and "addEventListener('hashchange'" in html,
+        and "addEventListener('hashchange'" in html
+        and 'scrollToLandAnchor' in html
+        and 'bindDesktopNavLand' in html,
     )
     r.check(
         'desktop nav uses content landing anchors',
