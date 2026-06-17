@@ -736,7 +736,8 @@ def check_shared_assets(r: Runner) -> None:
         and 'opens-down' in index_html
         and 'form-date-row-open' not in index_html
         and '.form-row.form-date-row-open' not in css
-        and '.form-row:has(#formDurWrap[hidden])' in css
+        and '.form-row:has(#formDurWrap[hidden])' not in css
+        and 'max-width: 18.5rem' in css
         and '.form-date-trigger' in css
         and '.form-date-icon' in css
         and '.form-date-popover .cal-cell' in css
