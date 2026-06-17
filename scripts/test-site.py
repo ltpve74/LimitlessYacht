@@ -644,6 +644,12 @@ def check_shared_assets(r: Runner) -> None:
         'function ensureSelectionVisible()' in index_html,
     )
     r.check(
+        'calendar enquire skips scroll when form is beside calendar on desktop',
+        'function isCalendarFormPaired()' in index_html
+        and 'if (!isCalendarFormPaired())' in index_html
+        and 'scrollIntoView' in index_html,
+    )
+    r.check(
         'destination cards use pointer cursor (clickable like gallery)',
         css is not None
         and re.search(r'\.destination-card\s*\{[^}]*cursor:\s*pointer', css) is not None,

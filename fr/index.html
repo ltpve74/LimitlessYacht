@@ -2308,16 +2308,20 @@ window.LY_afterLcp(function() {
     handleCalActivate(e);
   });
 
+  function isCalendarFormPaired(){
+    return window.matchMedia('(min-width: 769px)').matches
+      && !!document.querySelector('.contact-cal-pair');
+  }
   if (clearBtn) clearBtn.addEventListener('click', function(){ selected = []; updateSelectionUi(); });
   if (enquireBtn) enquireBtn.addEventListener('click', function(e){
     if (!selected.length) { e.preventDefault(); return; }
+    e.preventDefault();
     syncForm();
-    var target = document.getElementById('enquire-form') || document.getElementById('enquire');
-    if (target) {
-      e.preventDefault();
-      target.scrollIntoView({ behavior: 'smooth' });
-      if (startInput) startInput.focus({ preventScroll: true });
+    if (!isCalendarFormPaired()) {
+      var target = document.getElementById('enquire-form') || document.getElementById('enquire');
+      if (target) target.scrollIntoView({ behavior: 'smooth' });
     }
+    if (startInput) startInput.focus({ preventScroll: true });
   });
 
   var resizeTimer;
