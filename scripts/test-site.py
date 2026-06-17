@@ -669,15 +669,16 @@ def check_shared_assets(r: Runner) -> None:
         'function ensureSelectionVisible()' in index_html,
     )
     r.check(
-        'calendar enquire focuses name field on all viewports',
+        'calendar enquire focuses name field on desktop only',
         "getElementById('name')" in index_html
+        and 'if (isCalendarFormPaired())' in index_html
         and 'nameInput.focus()' in index_html
         and 'startInput.focus' not in index_html,
     )
     r.check(
-        'calendar enquire skips scroll when form is beside calendar on desktop',
+        'calendar enquire scrolls on mobile, skips scroll on desktop when paired',
         'function isCalendarFormPaired()' in index_html
-        and 'if (!isCalendarFormPaired())' in index_html
+        and 'if (isCalendarFormPaired())' in index_html
         and 'scrollIntoView' in index_html,
     )
     r.check(
