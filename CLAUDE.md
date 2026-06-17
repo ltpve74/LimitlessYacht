@@ -18,6 +18,7 @@ git config core.hooksPath .githooks          # one-time per clone
 | Which files are generated? | `de/`, `es/`, `fr/` HTML and `data/reviews-{de,es,fr}.json` — never hand-edit |
 | When do locales rebuild? | On commit to `experiment-no-prices` (if EN source changed) |
 | When does minification happen? | On commit to **`main`** only (publish step) |
+| Publish QA gate? | Pre-commit on **`main`**: minify → `scripts/publish-gate.py` (site tests + UX smoke + Lighthouse). CI: `.github/workflows/publish.yml` |
 | What goes live? | Push to **`main`** → Netlify deploys `limitlessyachtcharter.com` |
 | Preview branch? | Push to `experiment-no-prices` → GitHub Pages preview (see `.github/workflows/preview.yml`) |
 
@@ -28,7 +29,7 @@ git config core.hooksPath .githooks          # one-time per clone
 | Branch | Purpose | HTML/CSS format | Pre-commit on commit |
 |--------|---------|-----------------|----------------------|
 | `experiment-no-prices` | Daily development | Readable (multi-line) | Rebuild locales when EN source changes. **No minify.** |
-| `main` | Production (Netlify) | Minified (single-line) | **Minify → site tests (~193 checks).** Locales already built on dev. |
+| `main` | Production (Netlify) | Minified (single-line) | **Minify → publish gate** (site tests, UX smoke, Lighthouse). Locales already built on dev. |
 
 **Rules**
 - Never minify on `experiment-no-prices`.
@@ -111,7 +112,8 @@ git merge experiment-no-prices
 # If conflicts: git checkout --theirs <file>   # dev wins
 git add -A
 
-# 3. Commit on main — hook minifies + runs tests (no locale rebuild)
+# 3. Commit on main — hook minifies + publish gate (no locale rebuild)
+#    One-time QA setup: scripts/setup-qa.sh
 git commit -m "Publish: <summary of changes>"
 
 # 4. Deploy
@@ -121,7 +123,7 @@ git push origin main
 **Pre-commit on `main`** (every commit):
 
 1. Runs `python3 scripts/minify_html.py` (HTML + `css/main.css`)
-2. Runs `python3 scripts/test-site.py` (conversion, LCP, i18n, assets, JS syntax)
+2. Runs `python3 scripts/publish-gate.py` (site tests, UX smoke, Lighthouse budgets)
 3. Re-stages minified files
 
 **Netlify** (`netlify.toml`): `publish = "."` — no build step. Serves committed files as-is.
@@ -140,7 +142,9 @@ curl -sL https://limitlessyachtcharter.com/ | head -c 500
 |--------|-------------|--------|
 | `python3 i18n/build-locales.py` | After EN HTML or locale `.py` changes | `experiment-no-prices` |
 | `python3 scripts/minify_html.py` | Automatic on `main` commit; do not run on dev | `main` only |
-| `python3 scripts/test-site.py` | Automatic on `main` commit; run after feature work (reviews, LCP, i18n, etc.) | any |
+| `python3 scripts/test-site.py` | Part of publish gate; run after feature work | any |
+| `python3 scripts/publish-gate.py` | Automatic on `main` commit; manual before merge | `main` / pre-publish |
+| `scripts/setup-qa.sh` | One-time install of Playwright + Lighthouse for publish gate | any |
 
 ---
 
