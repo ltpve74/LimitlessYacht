@@ -837,7 +837,7 @@ footer {
 .destination-card {
   position: relative; overflow: hidden; min-height: 420px;
   display: flex; flex-direction: column; justify-content: flex-end;
-  cursor: default;
+  cursor: pointer;
 }
 .destination-card-bg {
   position: absolute; inset: 0;

@@ -1746,18 +1746,25 @@ window.LY_afterLcp(function() {
     destLb.addEventListener('click', function(e) { if (e.target === destLb) closeLb(); });
 
     // Swipe between destinations
-    var dlbSwipeX = 0, dlbSwipeY = 0;
+    var dlbSwipeX = 0, dlbWasSwiped = false;
     destLb.addEventListener('touchstart', function(e) {
-      dlbSwipeX = e.touches[0].clientX; dlbSwipeY = e.touches[0].clientY;
+      dlbSwipeX = e.touches[0].clientX; dlbWasSwiped = false;
+    }, { passive: true });
+    destLb.addEventListener('touchmove', function(e) {
+      if (Math.abs(e.touches[0].clientX - dlbSwipeX) > 8) dlbWasSwiped = true;
     }, { passive: true });
     destLb.addEventListener('touchend', function(e) {
       if (destCards.length < 2) return;
       var dx = e.changedTouches[0].clientX - dlbSwipeX;
-      var dy = e.changedTouches[0].clientY - dlbSwipeY;
-      if (Math.abs(dx) > 40 && Math.abs(dx) > Math.abs(dy)) {
-        dx < 0 ? showDest(destIdx + 1) : showDest(destIdx - 1);
-      }
+      if (Math.abs(dx) > 40) { dx < 0 ? showDest(destIdx + 1) : showDest(destIdx - 1); }
     }, { passive: true });
+
+    // Tap left/right halves of image to navigate
+    lbImg2.addEventListener('click', function(e) {
+      if (dlbWasSwiped || destCards.length < 2) return;
+      var rect = lbImg2.getBoundingClientRect();
+      e.clientX < rect.left + rect.width / 2 ? showDest(destIdx - 1) : showDest(destIdx + 1);
+    });
 
     document.addEventListener('keydown', function(e) {
       if (!destLb.classList.contains('open')) return;
@@ -1775,7 +1782,7 @@ window.LY_afterLcp(function() {
         if (Math.abs(e.touches[0].clientX - sx) > 8 || Math.abs(e.touches[0].clientY - sy) > 8) swiped = true;
       }, { passive: true });
       card.addEventListener('click', function() {
-        if (swiped || window.innerWidth > 640) return;
+        if (swiped) return;
         openLb(card);
       });
     });
