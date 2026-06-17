@@ -2119,6 +2119,19 @@ footer {
   /* Form/calendar links land on the widget, not the hidden section title */
   #avail-cal { scroll-margin-top: .5rem; }
 }
+/* Desktop nav lands past section headers — nav highlight replaces redundant labels */
+@media (min-width: 769px) {
+  #about-land,
+  #itinerary-land,
+  #gallery-land,
+  #reviews-land,
+  #amenities-land,
+  #specs-land,
+  #enquire-land {
+    scroll-margin-top: 5rem;
+  }
+  #avail-cal { scroll-margin-top: 5rem; }
+}
 .availability-picker { margin-top: 0; }
 
 /* ── HERO WHATSAPP LINK ── */

@@ -341,6 +341,28 @@ def check_html(r: Runner, rel: str, html: str) -> None:
         and "classList.toggle('is-active'" in html
         and 'navSectionLinks' in html,
     )
+    r.check(
+        'desktop nav uses content landing anchors',
+        'href="#about-land"' in html
+        and 'href="#itinerary-land"' in html
+        and 'href="#gallery-land"' in html
+        and 'href="#enquire-land"' in html
+        and 'href="#avail-cal"' in html
+        and 'href="#reviews-land"' in html
+        and 'href="#amenities-land"' in html
+        and 'href="#specs-land"' in html
+        and 'id="about-land"' in html
+        and 'id="enquire-land"' in html,
+    )
+    r.check(
+        'mobile menu keeps section-top anchors',
+        re.search(r'class="mobile-nav"[^>]*>[\s\S]*?href="#about"', html) is not None
+        and 'mobile-nav' in html
+        and re.search(
+            r'class="mobile-nav"[\s\S]*?href="#about-land"',
+            html,
+        ) is None,
+    )
 
     # Netlify form detection
     r.check('Netlify form attribute present', ' netlify ' in html or ' netlify>' in html)
@@ -912,6 +934,20 @@ def check_shared_assets(r: Runner) -> None:
         and '.nav-lang-wrap' in css
         and '.nav-lang-popover' in css
         and '.nav-links a.is-active' in css,
+    )
+    r.check(
+        'desktop nav landing anchors skip redundant headers',
+        css is not None
+        and re.search(
+            r'@media \(min-width: 769px\)[\s\S]*?#about-land[\s\S]*?scroll-margin-top:\s*5rem',
+            css,
+        )
+        is not None
+        and re.search(
+            r'@media \(min-width: 769px\)[\s\S]*?#avail-cal[\s\S]*?scroll-margin-top:\s*5rem',
+            css,
+        )
+        is not None,
     )
     r.check(
         'calendar nav buttons avoid sticky touch hover',
