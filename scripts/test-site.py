@@ -833,10 +833,16 @@ def check_shared_assets(r: Runner) -> None:
         and 'href="#avail-cal" class="itinerary-meet-cta"' in index_html
         and css is not None
         and re.search(
-            r'@media \(min-width: 769px\)[\s\S]*?#gallery,\s*\n\s*#itinerary\s*\{[^}]*min-height:\s*100svh',
+            r'@media \(min-width: 769px\)[\s\S]*?#gallery,\s*\n\s*#itinerary\s*\{[^}]*height:\s*calc\(100svh\s*-\s*var\(--nav-scroll-offset\)\)',
             css,
         )
         is not None
+        and re.search(
+            r'@media \(min-width: 769px\)[\s\S]*?\.gallery-group\s+\.gallery-grid[\s\S]*?flex:\s*1\s*1\s*auto',
+            css,
+        )
+        is not None
+        and 'immersive-chrome' not in css
         and re.search(
             r'@media \(min-width: 769px\)[\s\S]*?\.itinerary-meet-cta\s*\{[^}]*display:\s*block',
             css,

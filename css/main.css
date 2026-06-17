@@ -26,8 +26,6 @@
   --white: #ffffff;
   --text-muted: #8a9bb5;
   --nav-scroll-offset: 4.25rem;
-  /* Tabs + carousel controls + funnel CTA (gallery / itinerary immersive desktop) */
-  --immersive-chrome: 12.5rem;
 }
 
 *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
@@ -2120,7 +2118,10 @@ footer {
   #itinerary {
     display: flex;
     flex-direction: column;
-    min-height: 100svh;
+    /* One viewport below fixed nav — flex children split the rest dynamically */
+    height: calc(100svh - var(--nav-scroll-offset));
+    min-height: calc(100svh - var(--nav-scroll-offset));
+    max-height: calc(100svh - var(--nav-scroll-offset));
     padding: 0;
     overflow: hidden;
   }
@@ -2145,6 +2146,7 @@ footer {
     display: flex;
     flex-direction: column;
     min-height: 0;
+    height: 100%;
     width: 100%;
     max-width: none;
     margin: 0;
@@ -2156,6 +2158,7 @@ footer {
     width: 100%;
     max-width: none;
     margin: 0;
+    margin-top: 0;
     border-radius: 0;
     border-left: none;
     border-right: none;
@@ -2166,6 +2169,7 @@ footer {
     flex-direction: column;
     flex: 1 1 auto;
     min-height: 0;
+    height: 100%;
   }
   .gallery-group .gallery-grid,
   .dest-group .itinerary-grid {
@@ -2173,6 +2177,7 @@ footer {
     flex-direction: row;
     flex: 1 1 auto;
     min-height: 0;
+    align-items: stretch;
     overflow-x: auto;
     overscroll-behavior-x: contain;
     scroll-snap-type: x mandatory;
@@ -2180,9 +2185,7 @@ footer {
     touch-action: pan-x pan-y;
     margin-top: 0;
     gap: .85rem;
-    padding: .65rem 2rem .35rem;
-    height: calc(100svh - var(--immersive-chrome));
-    max-height: calc(100svh - var(--immersive-chrome));
+    padding: .5rem 2rem .25rem;
   }
   .gallery-group .gallery-grid::-webkit-scrollbar,
   .dest-group .itinerary-grid::-webkit-scrollbar {
