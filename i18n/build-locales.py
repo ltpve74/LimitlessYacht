@@ -209,6 +209,7 @@ def build_index(locale_mod) -> str:
 
 def build_legal(locale_mod) -> str:
     html = (ROOT / "legal.html").read_text(encoding="utf-8")
+    html = html.replace('href="/favicon.svg"', 'href="../favicon.svg"')
     html = html.replace('href="favicon.svg"', 'href="../favicon.svg"')
     html = patch_html_lang(html, locale_mod.LANG)
     html = apply_pairs(html, locale_mod.LEGAL_PAIRS)

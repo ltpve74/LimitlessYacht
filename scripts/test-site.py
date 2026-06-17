@@ -439,7 +439,10 @@ def check_legal(r: Runner, rel: str, html: str) -> None:
         r.check('links back to home', 'href="index.html"' in html)
     else:
         r.check('links back to home', 'href="../"' in html)
-        r.check('legal shared assets use parent-relative paths', 'href="../css/main.css"' in html)
+        r.check(
+            'legal shared assets use parent-relative paths',
+            'href="../css/main.css"' in html and 'href="../favicon.svg"' in html,
+        )
 
 
 def check_locale_parity(r: Runner, pages: dict[str, str]) -> None:
