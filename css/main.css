@@ -1282,6 +1282,12 @@ section { padding: 7rem 2rem; }
   bottom: auto; top: calc(100% + .35rem);
   box-shadow: 0 12px 36px rgba(0,0,0,.55);
 }
+@media (max-width: 768px) {
+  /* Keep calendar popup under fixed nav (z-index 100) when it opens upward */
+  .form-date-wrap.is-open { z-index: 50; }
+  .form-date-popover,
+  .form-date-popover.cal { z-index: 50; }
+}
 .form-date-popover[hidden] { display: none !important; }
 .form-date-popover-toolbar {
   display: grid;

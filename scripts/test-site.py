@@ -1509,6 +1509,20 @@ def check_shared_assets(r: Runner) -> None:
         is not None,
     )
     r.check(
+        'mobile date popover stacks below fixed nav',
+        css is not None
+        and re.search(
+            r'@media\s*\(\s*max-width:\s*768px\s*\)[\s\S]*?\.form-date-wrap\.is-open\s*\{[^}]*z-index:\s*50',
+            css,
+        )
+        is not None
+        and re.search(
+            r'@media\s*\(\s*max-width:\s*768px\s*\)[\s\S]*?\.form-date-popover(?:,\s*\.form-date-popover\.cal)?\s*\{[^}]*z-index:\s*50',
+            css,
+        )
+        is not None,
+    )
+    r.check(
         'desktop nav keeps single row on narrow viewports',
         css is not None
         and re.search(
