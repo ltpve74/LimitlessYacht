@@ -1105,6 +1105,19 @@ def check_shared_assets(r: Runner) -> None:
     )
     r.check('publish gate script exists', os.path.isfile(os.path.join(ROOT, 'scripts/publish-gate.py')))
     r.check('lighthouse check script exists', os.path.isfile(os.path.join(ROOT, 'scripts/lighthouse-check.py')))
+    lh_py = read_file('scripts/lighthouse-check.py') or ''
+    r.check(
+        'lighthouse check retries and times out in CI',
+        'def default_retries()' in lh_py
+        and 'LIGHTHOUSE_RETRIES' in lh_py
+        and 'subprocess.TimeoutExpired' in lh_py
+        and '--max-wait-for-load=60000' in lh_py
+        and 'def warmup(' in lh_py,
+    )
+    r.check(
+        'publish gate workflow caps job duration',
+        'timeout-minutes:' in publish_yml and 'LIGHTHOUSE_RETRIES' in publish_yml,
+    )
     r.check('ux smoke test script exists', os.path.isfile(os.path.join(ROOT, 'scripts/ux-test.py')))
     ux_py = read_file('scripts/ux-test.py') or ''
     r.check(
