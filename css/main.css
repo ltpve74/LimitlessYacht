@@ -822,8 +822,8 @@ section { padding: 7rem 2rem; }
   position: absolute; z-index: 400;
   left: 0; right: 0;
   width: auto; min-width: min(100%, 18.5rem);
-  max-height: min(24rem, calc(100vh - 8rem));
-  overflow-y: auto;
+  max-height: none;
+  overflow: visible;
   margin-top: 0; max-width: none;
   background: var(--deep); border: 1px solid rgba(201,168,76,.35);
   border-radius: 8px; padding: .75rem .75rem .8rem;
@@ -838,26 +838,18 @@ section { padding: 7rem 2rem; }
 }
 .form-date-popover[hidden] { display: none !important; }
 .form-date-popover-toolbar {
-  display: flex;
+  display: grid;
+  grid-template-columns: 1fr auto;
   align-items: center;
   gap: .35rem;
   margin-bottom: .55rem;
 }
 .form-date-popover .form-date-title {
-  flex: 1;
-  min-width: 0;
   margin: 0;
   text-align: center;
   font-family: 'Montserrat', sans-serif;
   font-size: .95rem; font-weight: 400;
   color: var(--gold-light); letter-spacing: .02em;
-  white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
-}
-.form-date-popover-toolbar .form-date-popover-dismiss {
-  flex: none;
-  margin-left: .1rem;
 }
 .form-date-popover-dismiss {
   margin-top: 0;
@@ -873,6 +865,7 @@ section { padding: 7rem 2rem; }
   border-top: 1px solid rgba(201,168,76,.1);
 }
 body.form-date-popup-open .enquire-section,
+body.form-date-popup-open .contact-grid,
 body.form-date-popup-open .contact-form,
 body.form-date-popup-open .form-row,
 body.form-date-popup-open .form-field {
@@ -1260,8 +1253,6 @@ footer {
   .form-date-popover,
   .form-date-popover.cal {
     min-width: 100%;
-    max-height: none;
-    overflow-y: visible;
   }
   .contact-cal-pair #availability {
     background: transparent;

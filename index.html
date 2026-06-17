@@ -2541,6 +2541,7 @@ window.LY_afterLcp(function() {
     formDatePopover.style.top = '';
     formDatePopover.style.right = '';
     formDatePopover.style.maxHeight = '';
+    formDatePopover.style.overflowY = '';
   }
   function isFormDateMobileLayout() {
     return window.matchMedia('(max-width: 768px)').matches;
@@ -2575,10 +2576,12 @@ window.LY_afterLcp(function() {
         formDatePopover.style.bottom = (vh - rect.top + gap) + 'px';
         formDatePopover.style.top = 'auto';
         formDatePopover.style.maxHeight = Math.max(160, spaceAbove - gap) + 'px';
+        formDatePopover.style.overflowY = 'auto';
       } else {
         formDatePopover.style.top = (rect.bottom + gap) + 'px';
         formDatePopover.style.bottom = 'auto';
         formDatePopover.style.maxHeight = Math.max(160, spaceBelow - gap) + 'px';
+        formDatePopover.style.overflowY = 'auto';
       }
     } else {
       resetFormDatePopoverPosition();
