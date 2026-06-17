@@ -2151,7 +2151,7 @@ footer {
     width: 100%;
     max-width: none;
     margin: 0;
-    padding: 0;
+    padding: 0 0 .75rem;
   }
   .dest-tabs,
   .gallery-tabs {
@@ -2192,7 +2192,7 @@ footer {
     touch-action: pan-x pan-y;
     margin-top: 0;
     gap: .85rem;
-    padding: .5rem 2rem 0;
+    padding: .5rem 2rem .35rem;
   }
   .gallery-group .gallery-grid::-webkit-scrollbar,
   .dest-group .itinerary-grid::-webkit-scrollbar {
@@ -2235,7 +2235,7 @@ footer {
     justify-content: center;
     flex: 0 0 auto;
     gap: .75rem;
-    padding: .3rem 0;
+    padding: .5rem 0 .85rem;
   }
   .carousel-btn {
     background: transparent;
@@ -2271,7 +2271,7 @@ footer {
     display: block;
     flex: 0 0 auto;
     margin: 0;
-    padding: 1.05rem 2rem;
+    padding: 1.15rem 2rem 1.25rem;
     font-size: .72rem;
     letter-spacing: .14em;
     text-transform: uppercase;
