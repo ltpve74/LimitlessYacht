@@ -969,6 +969,10 @@ PAIRS = [
         'Check the calendar above for open dates.',
         'Consultez le calendrier ci-dessus pour les dates libres.',
     ),
+    (
+        'Tap a second date for multi-day.',
+        'Touchez une deuxième date pour plusieurs jours.',
+    ),
     # Specs section CTA
     ("Ready to plan your charter? We'll have a quote back within 24 hours.", 'Prêt à planifier votre charter ? Nous vous enverrons un devis en 24 heures.'),
 

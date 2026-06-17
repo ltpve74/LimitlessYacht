@@ -1287,6 +1287,7 @@ window.LY_afterLcp(function() {
                     <button type="button" class="cal-nav form-date-nav form-date-next" aria-label="Mes siguiente">›</button>
                   </div>
                   <div class="form-date-cal-foot">
+                    <p class="form-date-range-hint">Toque una segunda fecha para varios días.</p>
                     <button type="button" class="cal-clear form-date-clear-btn">Clear</button>
                   </div>
                 </div>
@@ -1320,6 +1321,7 @@ window.LY_afterLcp(function() {
                     <button type="button" class="cal-nav form-date-nav form-date-next" aria-label="Mes siguiente">›</button>
                   </div>
                   <div class="form-date-cal-foot">
+                    <p class="form-date-range-hint">Toque una segunda fecha para varios días.</p>
                     <button type="button" class="cal-clear form-date-clear-btn">Clear</button>
                   </div>
                 </div>
@@ -2256,6 +2258,7 @@ window.LY_afterLcp(function() {
       if (selectionText) selectionText.textContent = '';
       syncForm();
       render();
+      if (window.LY_refreshFormDatePickers) window.LY_refreshFormDatePickers();
       return;
     }
     var label = formatSelection();
@@ -2271,6 +2274,7 @@ window.LY_afterLcp(function() {
     syncForm();
     ensureSelectionVisible();
     render();
+    if (window.LY_refreshFormDatePickers) window.LY_refreshFormDatePickers();
   }
   function toggleDate(date){
     if (!isSelectable(date)) return;
@@ -2456,45 +2460,6 @@ window.LY_afterLcp(function() {
   function closeOpenFormDatePicker() {
     if (openPicker) openPicker.close();
   }
-  function isSelectableEnd(k) {
-    if (!startInput || !startInput.value) return false;
-    var start = startInput.value;
-    if (k < start) return false;
-    return !!buildContiguousRange(start, k);
-  }
-  function applyFormDateSelection(mode, date) {
-    if (mode === 'end') {
-      if (!isSelectableEnd(date)) return false;
-      var range = buildContiguousRange(startInput.value, date);
-      if (!range) return false;
-      selected = range;
-      updateSelectionUi();
-      return true;
-    }
-    if (!isSelectable(date)) return false;
-    if (durationSelect && durationSelect.value === 'multi-day') {
-      if (endInput && endInput.value) {
-        var rebuilt = buildContiguousRange(date, endInput.value);
-        selected = rebuilt || [date];
-      } else {
-        selected = [date];
-      }
-    } else {
-      selected = [date];
-    }
-    updateSelectionUi();
-    return true;
-  }
-  function clearFormDateSelection(mode) {
-    if (mode === 'end') {
-      if (!selected.length) return;
-      selected = [selected[0]];
-      updateSelectionUi();
-      return;
-    }
-    selected = [];
-    updateSelectionUi();
-  }
 
   function initFormDatePicker(opts) {
     var hidden = opts.input;
@@ -2520,18 +2485,27 @@ window.LY_afterLcp(function() {
 
     function updateTrigger() {
       if (!textEl) return;
-      var v = hidden.value;
-      textEl.textContent = v ? formatDateLabel(v) : placeholder;
-      btn.classList.toggle('has-value', !!v);
+      var label = '';
+      if (mode === 'end') {
+        label = selected.length > 1 ? formatDateLabel(selected[selected.length - 1]) : '';
+      } else if (selected.length === 1) {
+        label = formatDateLabel(selected[0]);
+      } else if (selected.length > 1) {
+        label = formatSelection();
+      }
+      textEl.textContent = label || placeholder;
+      btn.classList.toggle('has-value', !!label);
     }
 
     function renderPopover() {
       if (!daysEl || !titleEl) return;
+      rebuildLookup();
       var y = Math.floor(viewIndex / 12), m = viewIndex % 12;
       var startDow = (new Date(y, m, 1).getDay() + 6) % 7;
       var daysInMonth = new Date(y, m + 1, 0).getDate();
       var ts = todayStr();
-      var picked = hidden.value || '';
+      var selStart = selected[0] || '';
+      var selEnd = selected[selected.length - 1] || '';
       titleEl.textContent = MONTHS[m] + ' ' + y;
       var cells = '';
       for (var i = 0; i < startDow; i++) cells += '<div class="cal-cell empty"></div>';
@@ -2541,20 +2515,20 @@ window.LY_afterLcp(function() {
         var isFree = false;
         if (k < ts) {
           cls += ' past';
-        } else if (mode === 'end' ? isSelectableEnd(k) : isSelectable(k)) {
-          cls += ' free';
-          if (k === ts) cls += ' today';
-          isFree = true;
-        } else if (booked.has(k)) {
-          cls += ' booked';
-        } else if (tentative.has(k)) {
-          cls += ' tentative';
         } else {
-          cls += ' past';
+          if (k === ts) cls += ' today';
+          if (booked.has(k)) cls += ' booked';
+          else if (tentative.has(k)) cls += ' tentative';
+          else if (isSelectable(k)) { cls += ' free'; isFree = true; }
         }
-        if (picked && k === picked) cls += ' selected';
+        var isSeleccionado = !!selectedLookup[k];
+        if (isSeleccionado) {
+          cls += ' selected';
+          if (k === selStart) cls += ' range-start';
+          if (k === selEnd) cls += ' range-end';
+        }
         var attr = isFree
-          ? ' data-date="' + k + '" role="button" tabindex="0" aria-pressed="' + (picked === k ? 'true' : 'false') + '" aria-label="' + d + ' ' + MONTHS[m] + ' ' + y + '"'
+          ? ' data-date="' + k + '" data-selected="' + (isSeleccionado ? 'true' : 'false') + '" role="button" tabindex="0" aria-pressed="' + (isSeleccionado ? 'true' : 'false') + '" aria-label="' + d + ' ' + MONTHS[m] + ' ' + y + '"'
           : '';
         cells += '<div class="' + cls + '"' + attr + '>' + d + '</div>';
       }
@@ -2564,13 +2538,12 @@ window.LY_afterLcp(function() {
     }
 
     function open() {
-      if (mode === 'end' && (!startInput || !startInput.value)) return;
       if (openPicker && openPicker !== picker) openPicker.close();
       openPicker = picker;
       pop.hidden = false;
       btn.setAttribute('aria-expanded', 'true');
-      if (hidden.value) viewIndex = monthIndexForDate(hidden.value);
-      else if (mode === 'end' && startInput && startInput.value) viewIndex = monthIndexForDate(startInput.value);
+      if (selected.length) viewIndex = monthIndexForDate(selected[0]);
+      else if (hidden.value) viewIndex = monthIndexForDate(hidden.value);
       else viewIndex = minIndex;
       renderPopover();
       if (window.matchMedia('(max-width: 640px)').matches) {
@@ -2596,8 +2569,7 @@ window.LY_afterLcp(function() {
     }
 
     function pickDate(k) {
-      if (!applyFormDateSelection(mode, k)) return;
-      close();
+      toggleDate(k);
     }
 
     btn.addEventListener('click', function(e) {
@@ -2609,7 +2581,8 @@ window.LY_afterLcp(function() {
     if (nextBtn) nextBtn.addEventListener('click', function(e){ e.preventDefault(); shift(1); });
     if (clearBtn) clearBtn.addEventListener('click', function(e){
       e.preventDefault();
-      clearFormDateSelection(mode);
+      selected = [];
+      updateSelectionUi();
       close();
     });
     daysEl.addEventListener('click', function(e) {

@@ -295,7 +295,9 @@ def check_html(r: Runner, rel: str, html: str) -> None:
         and 'type="date" name="preferred_date"' not in html
         and 'function initFormDatePicker' in html
         and 'window.LY_updateFormDateTriggers' in html
-        and 'function isSelectableEnd' in html,
+        and 'class="form-date-range-hint"' in html
+        and 'toggleDate(k)' in html
+        and 'range-start' in html,
     )
 
     # Nav
@@ -711,6 +713,7 @@ def check_shared_assets(r: Runner) -> None:
         and '.form-date-popover' in css
         and '.form-date-trigger' in css
         and '.form-date-popover .cal-cell' in css
+        and '.form-date-range-hint' in css
         and '.form-date-backdrop' in css,
     )
     r.check(

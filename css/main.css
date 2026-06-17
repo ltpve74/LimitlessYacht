@@ -807,6 +807,11 @@ section { padding: 7rem 2rem; }
   margin-top: .65rem; padding-top: .55rem;
   border-top: 1px solid rgba(201,168,76,.14); text-align: left;
 }
+.form-date-range-hint {
+  margin: 0 0 .45rem;
+  font-size: .56rem; line-height: 1.5; letter-spacing: .1em;
+  text-transform: uppercase; color: var(--text-muted);
+}
 .form-date-backdrop {
   position: fixed; inset: 0; z-index: 10000;
   background: rgba(10,22,40,.72);
