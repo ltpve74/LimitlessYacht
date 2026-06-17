@@ -719,6 +719,19 @@ def check_shared_assets(r: Runner) -> None:
         and 'startInput.focus' not in index_html,
     )
     r.check(
+        'desktop paired layout hides redundant calendar CTAs',
+        css is not None
+        and re.search(
+            r'\.contact-cal-pair\s+#availability\s+\.availability-actions\s*\{\s*display:\s*none',
+            css,
+        ) is not None
+        and re.search(
+            r'@media\s*\(min-width:\s*769px\)[^{]*\{[^}]*\.form-col-wa[^}]*display:\s*none',
+            css,
+            re.DOTALL,
+        ) is not None,
+    )
+    r.check(
         'calendar enquire scrolls on mobile, skips scroll on desktop when paired',
         'function isCalendarFormPaired()' in index_html
         and 'if (isCalendarFormPaired())' in index_html

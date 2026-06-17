@@ -197,8 +197,8 @@ PAIRS = [
     ("Availability", "Disponibilité"),
     ("Check the<em> Calendar</em>", "Consultez le<em> calendrier</em>"),
     (
-        "See which dates are open, then complete the form below — we'll confirm your charter personally. The calendar is kept up to date by our crew.",
-        "Voyez les dates libres, puis complétez le formulaire ci-dessous — nous confirmerons votre charter personnellement. Le calendrier est tenu à jour par notre équipage.",
+        "See which dates are open, then complete the enquiry form — we'll confirm your charter personally. The calendar is kept up to date by our crew.",
+        "Voyez les dates libres, puis complétez le formulaire de demande — nous confirmerons votre charter personnellement. Le calendrier est tenu à jour par notre équipage.",
     ),
     ('aria-label="Availability calendar"', 'aria-label="Calendrier de disponibilité"'),
     ('aria-label="Previous month"', 'aria-label="Mois précédent"'),
