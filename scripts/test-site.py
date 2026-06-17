@@ -324,9 +324,13 @@ def check_html(r: Runner, rel: str, html: str) -> None:
         and html.count('sizes="(min-width: 1101px) 500px, 48vw"') == 12,
     )
     r.check(
-        'gallery pictures split mobile/desktop sources',
+        'gallery pictures split mobile/desktop sources with viewport sizes',
         'sizes="(max-width: 640px) 35vw, 22vw"' not in html
-        and html.count('sizes="22vw"') >= 15,
+        and '(min-width: 1101px) 25vw, 50vw' in html
+        and '(min-width: 1101px) 50vw, 100vw' in html
+        and 'images/maiora_20s_01-640.webp 640w' in html
+        and 'images/maiora_20s_01-960.webp 960w' in html
+        and 'images/mobile/maiora_20s_01-720.webp' in html,
     )
     r.check(
         'itinerary carousel prefetches on scroll',
@@ -565,9 +569,11 @@ def check_html(r: Runner, rel: str, html: str) -> None:
         'responsive hero image preloads',
         'imagesrcset="' in html
         and 'maiora_20s_02-480.webp 480w' in html
-        and 'maiora_20s_02.webp 960w' in html
-        and 'maiora_20s_02-720.webp' not in html.split('imagesrcset=')[1][:320]
-        and 'maiora_20s_02.webp' in html
+        and 'maiora_20s_02-720.webp' in html
+        and 'maiora_20s_02-640.webp 640w' in html
+        and 'maiora_20s_02-960.webp 960w' in html
+        and 'maiora_20s_02-1280.webp 1280w' in html
+        and 'maiora_20s_02.webp 1920w' in html
         and 'fetchpriority="high"' in html,
     )
     style_pos = html.find('<style')
@@ -625,6 +631,60 @@ def check_html(r: Runner, rel: str, html: str) -> None:
     r.check(
         'below-fold preloads deferred until after LCP window',
         'window.LY_afterLcp' in html and 'LY_destPreloadReady' in html,
+    )
+    r.check(
+        'destination JS preload waits for LY_destPreloadReady',
+        'if (!force && !window.LY_destPreloadReady) return' in html
+        and re.search(
+            r'window\.LY_afterLcp\(function\(\)\s*\{[\s\S]*?LY_destPreloadReady\s*=\s*true',
+            html,
+        )
+        is not None,
+    )
+    head_end = html.find('</head>')
+    head = html[:head_end] if head_end > 0 else ''
+    r.check(
+        'only hero images are preloaded in head (content stays lazy)',
+        head.count('rel="preload" as="image"') == 2
+        and 'maiora_20s_02' in head
+        and 'images/dest/' not in head
+        and 'maiora_20s_04' not in head,
+    )
+    r.check(
+        'destination cards use multi-tier desktop srcsets',
+        'images/dest/portals-vells-1-640.webp 640w' in html
+        and 'images/dest/portals-vells-1-960.webp 960w' in html
+        and 'images/mobile/dest/portals-vells-1-720.webp' in html,
+    )
+    opt_py = read_file('scripts/optimize_responsive_images.py') or ''
+    r.check(
+        'content image quality constants separated from hero LCP tuning',
+        'DEST_DESKTOP_MAX_EDGE' in opt_py
+        and 'DESKTOP_CONTENT_TIERS' in opt_py
+        and 'GALLERY_DESKTOP_WEBP_Q' in opt_py
+        and 'HERO_DESKTOP_MAX_EDGE' in opt_py
+        and 'HERO_DESKTOP_WEBP_Q' in opt_py,
+    )
+    hero_webp = os.path.join(ROOT, 'images', 'maiora_20s_02.webp')
+    r.check(
+        'hero desktop master kept sharp (not destination-grade compression)',
+        os.path.isfile(hero_webp) and os.path.getsize(hero_webp) > 45 * 1024,
+    )
+    gallery_webp = os.path.join(ROOT, 'images', 'maiora_20s_01.webp')
+    r.check(
+        'gallery desktop master kept sharp (not destination-grade compression)',
+        os.path.isfile(gallery_webp) and os.path.getsize(gallery_webp) > 35 * 1024,
+    )
+    portals_webp = os.path.join(ROOT, 'images', 'dest', 'portals-vells-1.webp')
+    r.check(
+        'destination master sharper than old single-tier compression',
+        os.path.isfile(portals_webp) and os.path.getsize(portals_webp) > 25 * 1024,
+    )
+    r.check(
+        'about section uses multi-tier desktop srcset',
+        'images/maiora_20s_04-640.webp 640w' in html
+        and 'images/maiora_20s_04-960.webp 960w' in html
+        and 'images/mobile/maiora_20s_04.webp' in html,
     )
     r.check(
         'hero title has no entrance animation in critical CSS (visible for LCP)',
@@ -1723,6 +1783,15 @@ def check_shared_assets(r: Runner) -> None:
         'fonts/montserrat-latin.woff2',
         'images/mobile/maiora_20s_02.webp',
         'images/mobile/maiora_20s_02-480.webp',
+        'images/mobile/maiora_20s_02-720.webp',
+        'images/maiora_20s_02.webp',
+        'images/maiora_20s_02-640.webp',
+        'images/maiora_20s_02-960.webp',
+        'images/maiora_20s_02-1280.webp',
+        'images/dest/portals-vells-1-640.webp',
+        'images/dest/portals-vells-1-960.webp',
+        'images/maiora_20s_04-640.webp',
+        'images/maiora_20s_04-960.webp',
         'images/mobile/dest/el-toro-malgrats-1-480.webp',
         'images/mobile/dest/el-toro-malgrats-1-720.webp',
         'images/mobile/_srcset-widths.json',
