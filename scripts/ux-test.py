@@ -30,6 +30,8 @@ RESET = "\033[0m"
 
 MOBILE_VIEWPORT = {"width": 390, "height": 844}
 TABLET_VIEWPORT = {"width": 768, "height": 1024}
+IPAD_AIR_VIEWPORT = {"width": 820, "height": 1180}
+IPAD_PRO_VIEWPORT = {"width": 834, "height": 1194}
 DESKTOP_VIEWPORT = {"width": 1280, "height": 900}
 
 # Mobile menu links must keep section-top / calendar anchors (not -land variants).
@@ -179,6 +181,45 @@ def scenario_home_desktop(page, base: str, issues: IssueCollector) -> None:
     page.wait_for_selector("#dest-lightbox.open", timeout=10000)
     if page.locator("#dest-lb-cta-avail").count():
         issues.add(f"{name}: destination lightbox should not show a second CTA on desktop")
+    desktop_lb = page.evaluate(
+        "() => {"
+        "  const lb = document.getElementById('dest-lightbox');"
+        "  const main = lb && lb.querySelector('.dest-lb-main');"
+        "  const img = lb && lb.querySelector('.dest-lb-img-wrap');"
+        "  const body = lb && lb.querySelector('.dest-lb-body');"
+        "  const close = document.getElementById('dest-lb-close');"
+        "  const prev = document.getElementById('dest-lb-prev');"
+        "  const next = document.getElementById('dest-lb-next');"
+        "  const title = document.querySelector('.dest-lb-name');"
+        "  if (!lb || !main || !img || !body || !close || !prev || !next) return null;"
+        "  const lbRect = lb.getBoundingClientRect();"
+        "  const imgRect = img.getBoundingClientRect();"
+        "  const bodyRect = body.getBoundingClientRect();"
+        "  const prevRect = prev.getBoundingClientRect();"
+        "  const nextRect = next.getBoundingClientRect();"
+        "  const titleRect = title ? title.getBoundingClientRect() : null;"
+        "  const prevMid = prevRect.top + prevRect.height / 2;"
+        "  const lbMid = lbRect.top + lbRect.height / 2;"
+        "  return {"
+        "    flexDirection: getComputedStyle(main).flexDirection,"
+        "    sideBySide: bodyRect.left >= imgRect.right - 2,"
+        "    chromeOnCard: lb.contains(close) && !img.contains(close),"
+        "    navFullHeight: Math.abs(prevMid - lbMid) < 48,"
+        "    nextOnCardEdge: nextRect.right >= lbRect.right - 72,"
+        "    copyClearsNext: titleRect ? titleRect.right <= nextRect.left - 8 : false,"
+        "  };"
+        "}"
+    )
+    if not desktop_lb or desktop_lb.get("flexDirection") != "row":
+        issues.add(f"{name}: destination lightbox should use two-column layout on desktop")
+    elif not desktop_lb.get("sideBySide"):
+        issues.add(f"{name}: destination lightbox card should sit beside image on desktop")
+    elif not desktop_lb.get("chromeOnCard"):
+        issues.add(f"{name}: destination lightbox chrome should span the full card")
+    elif not desktop_lb.get("navFullHeight"):
+        issues.add(f"{name}: destination prev/next should sit on full card height on desktop")
+    elif not desktop_lb.get("copyClearsNext"):
+        issues.add(f"{name}: destination copy should clear the next control on desktop")
     page.locator("#dest-lb-cta").click()
     page.wait_for_function(
         "() => {"
@@ -268,46 +309,48 @@ def scenario_home_tablet(page, base: str, issues: IssueCollector) -> None:
         "  const style = getComputedStyle(lb);"
         "  const img = lb.querySelector('.dest-lb-img-wrap');"
         "  const body = lb.querySelector('.dest-lb-body');"
-        "  if (!img || !body) return null;"
+        "  const close = document.getElementById('dest-lb-close');"
+        "  if (!img || !body || !close) return null;"
         "  const imgRect = img.getBoundingClientRect();"
         "  const bodyRect = body.getBoundingClientRect();"
+        "  const content = body.querySelector('.dest-lb-content');"
+        "  const contentRect = content ? content.getBoundingClientRect() : null;"
+        "  const pad = content ? parseFloat(getComputedStyle(content).paddingTop)"
+        "    + parseFloat(getComputedStyle(content).paddingBottom) : 0;"
+        "  let contentH = 0;"
+        "  if (content) {"
+        "    content.querySelectorAll('.dest-lb-num,.dest-lb-name,.dest-lb-tagline,.dest-lb-desc,.dest-lb-meta,.dest-lb-actions')"
+        "      .forEach((el) => { contentH += el.getBoundingClientRect().height; });"
+        "  }"
+        "  const prev = document.getElementById('dest-lb-prev');"
+        "  const prevMid = prev ? prev.getBoundingClientRect().top + prev.getBoundingClientRect().height / 2 : 0;"
         "  return {"
         "    flexDirection: style.flexDirection,"
         "    stacked: bodyRect.top >= imgRect.bottom - 2,"
+        "    chromeOnLightbox: lb.contains(close) && !img.contains(close),"
+        "    navOverImage: prevMid < bodyRect.top - 8,"
+        "    imgShare: imgRect.height / window.innerHeight,"
+        "    bodySlack: contentRect ? contentRect.height - contentH - pad : 0,"
         "  };"
         "}"
     )
     if not layout or layout.get("flexDirection") != "column":
         issues.add(f"{name}: destination lightbox should use stacked layout on tablet")
     elif not layout.get("stacked"):
-        issues.add(f"{name}: destination lightbox body should sit below image on tablet")
-
-    space = page.evaluate(
-        "() => {"
-        "  const img = document.querySelector('.dest-lb-img-wrap');"
-        "  const body = document.querySelector('.dest-lb-body');"
-        "  if (!img || !body) return null;"
-        "  const imgH = img.getBoundingClientRect().height;"
-        "  const bodyH = body.getBoundingClientRect().height;"
-        "  const pad = parseFloat(getComputedStyle(body).paddingTop)"
-        "    + parseFloat(getComputedStyle(body).paddingBottom);"
-        "  let contentH = 0;"
-        "  body.querySelectorAll('.dest-lb-num,.dest-lb-name,.dest-lb-tagline,.dest-lb-desc,.dest-lb-meta,.dest-lb-actions')"
-        "    .forEach((el) => { contentH += el.getBoundingClientRect().height; });"
-        "  return { imgShare: imgH / window.innerHeight, bodySlack: bodyH - contentH - pad };"
-        "}"
-    )
-    if not space:
-        issues.add(f"{name}: could not measure destination lightbox space usage")
-    elif space.get("imgShare", 0) < 0.58:
+        issues.add(f"{name}: destination lightbox card should sit below image on tablet")
+    elif not layout.get("chromeOnLightbox"):
+        issues.add(f"{name}: destination lightbox chrome should use the shared chrome layer")
+    elif not layout.get("navOverImage"):
+        issues.add(f"{name}: destination prev/next should align to the image band on tablet")
+    elif layout.get("imgShare", 0) < 0.38:
         issues.add(
-            f"{name}: destination image should dominate tablet lightbox "
-            f"(share={space.get('imgShare', 0):.2f})"
+            f"{name}: destination image should dominate stacked tablet lightbox "
+            f"(share={layout.get('imgShare', 0):.2f})"
         )
-    elif space.get("bodySlack", 0) > 72:
+    elif layout.get("bodySlack", 0) > 96:
         issues.add(
-            f"{name}: destination body panel has too much empty space "
-            f"(slack={space.get('bodySlack', 0):.0f}px)"
+            f"{name}: destination card panel has too much empty space "
+            f"(slack={layout.get('bodySlack', 0):.0f}px)"
         )
 
     href = page.locator("#dest-lb-cta").get_attribute("href")
@@ -368,6 +411,93 @@ def scenario_home_tablet(page, base: str, issues: IssueCollector) -> None:
         issues.add(f"{name}: meet CTA should land with availability title visible")
     elif meet_land["introBottom"] <= meet_land["navBottom"] + 4:
         issues.add(f"{name}: meet CTA should land with availability intro visible")
+
+
+def _assert_availability_landing(page, name: str, issues: IssueCollector) -> None:
+    landing = page.evaluate(
+        "() => {"
+        "  const intro = document.querySelector('.availability-intro');"
+        "  const title = document.querySelector('#availability .section-title');"
+        "  const nav = document.querySelector('nav');"
+        "  if (!title || !intro || !nav) return null;"
+        "  const titleRect = title.getBoundingClientRect();"
+        "  const introRect = intro.getBoundingClientRect();"
+        "  const navBottom = nav.getBoundingClientRect().bottom;"
+        "  return {"
+        "    titleTop: titleRect.top,"
+        "    introBottom: introRect.bottom,"
+        "    navBottom,"
+        "  };"
+        "}"
+    )
+    if not landing:
+        issues.add(f"{name}: could not measure availability landing position")
+    elif landing["titleTop"] < landing["navBottom"]:
+        issues.add(
+            f"{name}: availability title should clear nav "
+            f"(top={landing['titleTop']:.0f}px)"
+        )
+    elif landing["introBottom"] <= landing["navBottom"] + 4:
+        issues.add(
+            f"{name}: availability intro should be visible "
+            f"(bottom={landing['introBottom']:.0f}px)"
+        )
+
+
+def scenario_home_ipad_wide(page, base: str, issues: IssueCollector) -> None:
+    for label, viewport in (
+        ("home ipad air", IPAD_AIR_VIEWPORT),
+        ("home ipad pro 11", IPAD_PRO_VIEWPORT),
+    ):
+        issues.attach(page, label)
+        page.set_viewport_size(viewport)
+        page.goto(base + "/", wait_until="domcontentloaded", timeout=60000)
+        page.wait_for_timeout(800)
+
+        page.locator("#itinerary").scroll_into_view_if_needed()
+        page.locator(".itinerary-meet-cta--desktop").click()
+        page.wait_for_timeout(800)
+        page.wait_for_function("() => location.hash === '#availability-land'", timeout=8000)
+        _assert_availability_landing(page, label, issues)
+
+        page.locator("#reviews").scroll_into_view_if_needed()
+        page.locator("#reviews .section-cta-avail--desktop").click()
+        page.wait_for_timeout(800)
+        page.wait_for_function("() => location.hash === '#availability-land'", timeout=8000)
+        _assert_availability_landing(page, f"{label} availability redirect", issues)
+
+        page.locator("#itinerary").scroll_into_view_if_needed()
+        page.locator(".destination-card").first.click()
+        page.wait_for_selector("#dest-lightbox.open", timeout=10000)
+        lb_panel = page.evaluate(
+            "() => {"
+            "  const lb = document.getElementById('dest-lightbox');"
+            "  const body = document.querySelector('.dest-lb-body');"
+            "  const img = document.querySelector('.dest-lb-img-wrap');"
+            "  const close = document.getElementById('dest-lb-close');"
+            "  if (!lb || !body || !img || !close) return null;"
+            "  const imgRect = img.getBoundingClientRect();"
+            "  const bodyRect = body.getBoundingClientRect();"
+            "  const prev = document.getElementById('dest-lb-prev');"
+            "  const prevMid = prev ? prev.getBoundingClientRect().top + prev.getBoundingClientRect().height / 2 : 0;"
+            "  return {"
+            "    flexDirection: getComputedStyle(lb).flexDirection,"
+            "    stacked: bodyRect.top >= imgRect.bottom - 2,"
+            "    chromeOnLightbox: lb.contains(close) && !img.contains(close),"
+            "    navOverImage: prevMid < bodyRect.top - 8,"
+            "  };"
+            "}"
+        )
+        if not lb_panel:
+            issues.add(f"{label}: could not measure destination lightbox layout")
+        elif lb_panel.get("flexDirection") != "column":
+            issues.add(f"{label}: destination lightbox should stay stacked on tablet widths")
+        elif not lb_panel.get("stacked"):
+            issues.add(f"{label}: destination lightbox card should sit below image on tablet widths")
+        elif not lb_panel.get("chromeOnLightbox"):
+            issues.add(f"{label}: destination lightbox chrome should use the shared chrome layer")
+        elif not lb_panel.get("navOverImage"):
+            issues.add(f"{label}: destination prev/next should align to the image band on tablet widths")
 
 
 def scenario_home_mobile(page, base: str, issues: IssueCollector) -> None:
@@ -450,6 +580,7 @@ def run_scenarios(base_url: str, quick: bool = False) -> list[str]:
     scenarios = [
         scenario_home_desktop,
         scenario_home_tablet,
+        scenario_home_ipad_wide,
         scenario_home_mobile,
     ]
     if not quick:

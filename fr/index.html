@@ -64,8 +64,10 @@ nav{position:fixed;top:0;left:0;right:0;z-index:100;min-height:4.25rem}
 .btn-primary,.btn-ghost{display:inline-block;padding:1rem 2.8rem;text-decoration:none;font-size:.68rem;letter-spacing:.2em;text-transform:uppercase}
 .btn-primary{background:var(--gold);color:var(--navy);font-weight:600}
 .btn-ghost{border:1px solid rgba(245,240,232,.4);color:var(--cream)}
+#hero .hero-actions :is(.btn-primary,.btn-ghost){display:inline-flex;align-items:center;line-height:1}
+#hero .hero-actions .btn-primary{border:1px solid transparent}
 #hero .hero-cta-link--desktop{display:none}
-@media(min-width:769px){#hero .hero-cta-link--mobile{display:none}#hero .hero-cta-link--desktop{display:inline-block}}
+@media(min-width:769px){#hero .hero-cta-link--mobile{display:none}#hero .hero-cta-link--desktop{display:inline-flex}}
 .hero-trust{margin-top:0;font-size:.65rem;letter-spacing:.12em;text-transform:uppercase;color:var(--text-muted)}
 .hero-scroll{margin-top:0;display:flex;flex-direction:column;align-items:center;gap:.5rem}
 .hero-title{font-family:'Montserrat',sans-serif;font-size:clamp(3.5rem,9vw,8rem);font-weight:300;line-height:1;color:var(--white);letter-spacing:.06em;text-shadow:0 2px 28px rgba(0,0,0,.7),0 1px 6px rgba(0,0,0,.55)}
@@ -100,8 +102,8 @@ nav{position:fixed;top:0;left:0;right:0;z-index:100;min-height:4.25rem}
 .form-field[hidden] { display: none !important; }
 </style>
 <script src="js/analytics-env.js"></script>
-<link rel="preload" as="style" href="../css/main.css?v=72" onload="this.rel='stylesheet'" />
-<noscript><link rel="stylesheet" href="../css/main.css?v=72" /></noscript>
+<link rel="preload" as="style" href="../css/main.css?v=83" onload="this.rel='stylesheet'" />
+<noscript><link rel="stylesheet" href="../css/main.css?v=83" /></noscript>
 
 <!-- Auto-match the visitor's browser language to a localized version (only from the
      English root, and only until the visitor manually picks a language). -->
@@ -1097,29 +1099,35 @@ window.LY_afterLcp(function() {
 </div>
 
 <div id="dest-lightbox" role="dialog" aria-modal="true" aria-label="Détails de la destination">
-  <div class="dest-lb-img-wrap">
-    <picture>
-      <source id="dest-lb-src-webp" type="image/webp" srcset="" />
-      <img id="dest-lb-img" src="" alt="" decoding="async" />
-    </picture>
+  <div class="dest-lb-chrome">
+    <div id="dest-lb-tier"></div>
     <button type="button" id="dest-lb-close" class="lb-close" aria-label="Close destination details">
       <span class="lb-close-icon" aria-hidden="true">✕</span>
       <span class="lb-close-label">Fermer</span>
     </button>
-    <div id="dest-lb-tier"></div>
     <button type="button" id="dest-lb-prev" class="lb-nav lb-nav--prev" aria-label="Destination précédente">‹</button>
     <button type="button" id="dest-lb-next" class="lb-nav lb-nav--next" aria-label="Destination suivante">›</button>
     <div id="dest-lb-counter" class="lb-counter" aria-live="polite"></div>
     <div id="dest-lb-hint" class="lb-hint" aria-hidden="true"></div>
   </div>
-  <div class="dest-lb-body">
-    <div class="dest-lb-num" id="dest-lb-num"></div>
-    <h3 class="dest-lb-name" id="dest-lb-name"></h3>
-    <p class="dest-lb-tagline" id="dest-lb-tagline"></p>
-    <p class="dest-lb-desc" id="dest-lb-desc"></p>
-    <div class="dest-lb-meta" id="dest-lb-meta"></div>
-    <div class="dest-lb-actions">
-      <a href="#enquire-form" class="btn-primary dest-lb-cta" id="dest-lb-cta"><span class="dest-lb-cta-desktop">Demander ce voyage</span><span class="dest-lb-cta-mobile">Voir les dates pour ce voyage →</span></a>
+  <div class="dest-lb-main">
+    <div class="dest-lb-img-wrap">
+      <picture>
+        <source id="dest-lb-src-webp" type="image/webp" srcset="" />
+        <img id="dest-lb-img" src="" alt="" decoding="async" />
+      </picture>
+    </div>
+    <div class="dest-lb-body">
+      <div class="dest-lb-content">
+        <div class="dest-lb-num" id="dest-lb-num"></div>
+        <h3 class="dest-lb-name" id="dest-lb-name"></h3>
+        <p class="dest-lb-tagline" id="dest-lb-tagline"></p>
+        <p class="dest-lb-desc" id="dest-lb-desc"></p>
+        <div class="dest-lb-meta" id="dest-lb-meta"></div>
+        <div class="dest-lb-actions">
+          <a href="#enquire-form" class="btn-primary dest-lb-cta" id="dest-lb-cta"><span class="dest-lb-cta-desktop">Demander ce voyage</span><span class="dest-lb-cta-mobile">Voir les dates pour ce voyage →</span></a>
+        </div>
+      </div>
     </div>
   </div>
 </div>
@@ -1942,8 +1950,8 @@ window.LY_afterLcp(function() {
       var hasNav = destCards.length > 1;
       if (lbPrev) lbPrev.style.display = hasNav ? '' : 'none';
       if (lbNext) lbNext.style.display = hasNav ? '' : 'none';
-      var body = destLb.querySelector('.dest-lb-body');
-      if (body) body.scrollTop = 0;
+      var content = destLb.querySelector('.dest-lb-content');
+      if (content) content.scrollTop = 0;
       // Prefetch adjacent destination images (shared cache with carousel)
       if (window.LY_preloadDestAdjacent) {
         window.LY_preloadDestAdjacent(globalIdx, true);
@@ -1953,7 +1961,7 @@ window.LY_afterLcp(function() {
     function syncDestLbCta() {
       if (!lbCta) return;
       var w = window.innerWidth;
-      lbCta.href = w <= 640 ? '#avail-cal' : (w <= 768 ? '#availability-land' : '#enquire-land');
+      lbCta.href = w <= 640 ? '#avail-cal' : (w <= 1100 ? '#availability-land' : '#enquire-land');
     }
 
     function lyGoAvailSectionLand() {
@@ -1966,6 +1974,9 @@ window.LY_afterLcp(function() {
       } catch (e) { /* ignore */ }
       requestAnimationFrame(function() {
         requestAnimationFrame(function() {
+          if (location.hash === '#availability-land') {
+            history.replaceState(null, '', location.pathname + location.search);
+          }
           location.hash = '#availability-land';
         });
       });
@@ -1973,8 +1984,8 @@ window.LY_afterLcp(function() {
 
     document.addEventListener('click', function(e) {
       var w = window.innerWidth;
-      if (w < 641 || w > 768) return;
-      var link = e.target.closest && e.target.closest('a[href="#avail-cal"]');
+      if (w < 641 || w > 1100) return;
+      var link = e.target.closest && e.target.closest('a[href="#avail-cal"], a[href="#availability"]');
       if (!link || link.id === 'dest-lb-cta') return;
       e.preventDefault();
       lyGoAvailSectionLand();
@@ -1991,8 +2002,8 @@ window.LY_afterLcp(function() {
       if (!history.state || history.state.lb !== 'dest') { history.pushState({ lb: 'dest' }, ''); }
       try {
         if (!localStorage.getItem('ly_dest_hinted') && lbHintDest && destCards.length > 1) {
-          lbHintDest.textContent = window.matchMedia('(min-width: 769px)').matches
-            ? 'Use arrow keys or click sides to browse'
+          lbHintDest.textContent = window.matchMedia('(min-width: 1101px)').matches
+            ? 'Use the arrows or keyboard to browse'
             : 'Swipe to browse';
           lbHintDest.classList.add('visible');
           setTimeout(function() {
@@ -2032,6 +2043,10 @@ window.LY_afterLcp(function() {
       if (lbHintDest) lbHintDest.classList.remove('visible');
       document.body.style.overflow = '';
       var dest = hash.charAt(0) === '#' ? hash : '#' + hash;
+      if (dest === '#availability-land') {
+        lyGoAvailSectionLand();
+        return;
+      }
       try {
         if (history.state && history.state.lb === 'dest') {
           history.replaceState(null, '', location.pathname + location.search);
@@ -2083,8 +2098,10 @@ window.LY_afterLcp(function() {
       if (e.target === destLb) { closeLb(); return; }
       if (e.target.closest('button, a, input, select, textarea')) return;
       if (dlbWasSwiped || dlbWasScrolled || destCards.length < 2) return;
-      var rect = destLb.getBoundingClientRect();
-      e.clientX < rect.left + rect.width / 2 ? showDest(destIdx - 1) : showDest(destIdx + 1);
+      var tapRect = window.matchMedia('(min-width: 1101px)').matches
+        ? destLb.getBoundingClientRect()
+        : (destLb.querySelector('.dest-lb-img-wrap') || destLb).getBoundingClientRect();
+      e.clientX < tapRect.left + tapRect.width / 2 ? showDest(destIdx - 1) : showDest(destIdx + 1);
     });
 
     document.addEventListener('keydown', function(e) {
