@@ -732,8 +732,8 @@ def check_shared_assets(r: Runner) -> None:
         and 'function positionFormDatePopover' in index_html
         and 'isFormDateMobileLayout' in index_html
         and 'opens-down' in index_html
-        and 'form-date-row-open' in index_html
-        and '.form-row.form-date-row-open' in css
+        and 'form-date-row-open' not in index_html
+        and '.form-row.form-date-row-open' not in css
         and '.form-date-trigger' in css
         and '.form-date-icon' in css
         and '.form-date-popover .cal-cell' in css

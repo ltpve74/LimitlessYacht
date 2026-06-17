@@ -1260,15 +1260,8 @@ footer {
   .form-date-popover,
   .form-date-popover.cal {
     min-width: 100%;
-    max-height: min(26rem, 70vh);
-  }
-  .form-row.form-date-row-open .form-date-popover,
-  .form-row.form-date-row-open .form-date-popover.cal {
-    width: calc(200% + 1rem);
-    min-width: calc(200% + 1rem);
-  }
-  .form-row.form-date-row-open .form-date-popover .cal-cell {
-    font-size: .78rem;
+    max-height: none;
+    overflow-y: visible;
   }
   .contact-cal-pair #availability {
     background: transparent;

@@ -2424,7 +2424,6 @@ window.LY_afterLcp(function() {
 
   var formDatePopover = document.getElementById('formDatePopover');
   var formDateWrap = document.getElementById('preferredDateWrap');
-  var formDateRow = formDateWrap ? formDateWrap.closest('.form-row') : null;
   var formDateDismissBtn = document.getElementById('formDatePopoverDismiss');
   var formDateApplyBtn = document.querySelector('.form-date-apply-btn');
   var formDateClearBtn = document.querySelector('.form-date-clear-btn');
@@ -2557,7 +2556,7 @@ window.LY_afterLcp(function() {
     var spaceBelow = vh - rect.bottom - pad;
     var openUp = isFormDateMobileLayout()
       ? (spaceAbove >= popH || spaceAbove >= spaceBelow)
-      : (spaceBelow < Math.min(popH, 260) && spaceAbove > spaceBelow);
+      : true;
     formDatePopover.classList.toggle('opens-up', openUp);
     formDatePopover.classList.toggle('opens-down', !openUp);
     if (formDateStartBtn) {
@@ -2593,7 +2592,6 @@ window.LY_afterLcp(function() {
     resetFormDatePopoverPosition();
     document.body.classList.remove('form-date-popup-open');
     if (formDateWrap) formDateWrap.classList.remove('is-open');
-    if (formDateRow) formDateRow.classList.remove('form-date-row-open');
     if (formDateStartBtn) {
       formDateStartBtn.setAttribute('aria-expanded', 'false');
       formDateStartBtn.classList.remove('popover-opens-up', 'popover-opens-down');
@@ -2611,7 +2609,6 @@ window.LY_afterLcp(function() {
     formDatePopover.setAttribute('aria-hidden', 'false');
     document.body.classList.add('form-date-popup-open');
     if (formDateWrap) formDateWrap.classList.add('is-open');
-    if (formDateRow) formDateRow.classList.add('form-date-row-open');
     if (formDateStartBtn) formDateStartBtn.setAttribute('aria-expanded', 'true');
     positionFormDatePopover();
     requestAnimationFrame(function() { window.scrollTo(0, scrollY); });
