@@ -141,11 +141,12 @@ def check_html(r: Runner, rel: str, html: str) -> None:
     r.check(
         'charters desktop CTA links to destinations and gallery -land anchors',
         re.search(
-            r'<section id="charters">[\s\S]*?href="#itinerary-land"[^>]*class="btn-primary"'
+            r'<section id="charters">[\s\S]*?href="#itinerary-land"[^>]*class="btn-ghost"'
             r'[\s\S]*?href="#gallery-land"[^>]*class="btn-ghost"',
             html,
         )
-        is not None,
+        is not None
+        and 'charters-cross-cta--desktop' in html,
     )
     r.check(
         'reviews desktop CTA links to destinations and gallery -land anchors',
@@ -1228,6 +1229,15 @@ def check_shared_assets(r: Runner) -> None:
         'charters hides text back-link when desktop CTA buttons show',
         re.search(
             r'@media \(min-width: 769px\)[\s\S]*?#charters \.section-back-cta\s*\{[^}]*display:\s*none',
+            css,
+        )
+        is not None,
+    )
+    r.check(
+        'charters cross-nav sits inside quote cluster as ghost buttons',
+        '.charters-cross-cta--desktop{' in css_flat
+        and re.search(
+            r'\.charters-cross-cta--desktop\s*\{[^}]*border-top:',
             css,
         )
         is not None,
