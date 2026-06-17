@@ -127,8 +127,8 @@ nav{position:fixed;top:0;left:0;right:0;z-index:100;min-height:4.25rem}
   if (ownerStored || global.LY_IS_PREVIEW) { global.LY_OWNER_MODE = true; }
 })(window);
 </script>
-<link rel="preload" as="style" href="../css/main.css?v=85" onload="this.rel='stylesheet'" />
-<noscript><link rel="stylesheet" href="../css/main.css?v=85" /></noscript>
+<link rel="preload" as="style" href="../css/main.css?v=86" onload="this.rel='stylesheet'" />
+<noscript><link rel="stylesheet" href="../css/main.css?v=86" /></noscript>
 
 <title>Limitless Yacht Experience – Charter de luxe Maiora à Majorque</title>
 <meta name="description" content="Louez le Maiora de 21,5 m « Limitless » depuis Palma de Majorque — croisières à la journée et sur plusieurs jours vers les criques de Majorque, Cabrera et Formentera. Avec équipage, jusqu'à 12 invités." />
@@ -2236,8 +2236,26 @@ document.addEventListener('DOMContentLoaded', function() {
 
 <script>
 (function () {
+  function lyEnquireScrollPadding() {
+    var raw = getComputedStyle(document.documentElement).scrollPaddingTop;
+    var n = parseFloat(raw);
+    return isNaN(n) ? 78 : n;
+  }
+  function lyEnquireViewportHeight() {
+    return window.visualViewport ? window.visualViewport.height : window.innerHeight;
+  }
+  function lyEnquireSectionFitsViewport() {
+    if (window.matchMedia('(min-width: 769px)').matches) return false;
+    var section = document.querySelector('.enquire-section');
+    var submit = document.getElementById('submitBtn');
+    if (!section || !submit) return false;
+    var available = lyEnquireViewportHeight() - lyEnquireScrollPadding() - 12;
+    return section.offsetHeight <= available;
+  }
   function lyEnquireQuoteHref() {
     var w = window.innerWidth || document.documentElement.clientWidth;
+    if (w > 768) return '#enquire-land';
+    if (lyEnquireSectionFitsViewport()) return '#enquire';
     if (w <= 400) return '#enquire-form';
     return '#enquire-land';
   }
@@ -2247,18 +2265,32 @@ document.addEventListener('DOMContentLoaded', function() {
       link.setAttribute('href', href);
     });
     document.querySelectorAll(
-      'a.section-cta-quote--mobile, a.btn-primary[href="#enquire"], a.btn-ghost[href="#enquire"]'
+      'a.section-cta-quote--mobile, a.btn-primary[href="#enquire"], a.btn-ghost[href="#enquire"],'
+      + ' a.btn-primary[href="#enquire-land"], a.btn-ghost[href="#enquire-land"],'
+      + ' a.btn-primary[href="#enquire-form"], a.btn-ghost[href="#enquire-form"]'
     ).forEach(function (link) {
       if (link.id === 'dest-lb-cta') return;
       link.setAttribute('href', href);
     });
   }
+  var enquireHrefTimer;
+  function scheduleEnquireHrefSync() {
+    clearTimeout(enquireHrefTimer);
+    enquireHrefTimer = setTimeout(syncEnquireQuoteHrefs, 120);
+  }
   window.LY_enquireQuoteHref = lyEnquireQuoteHref;
-  window.addEventListener('resize', syncEnquireQuoteHrefs);
+  window.LY_enquireSectionFitsViewport = lyEnquireSectionFitsViewport;
+  window.addEventListener('resize', scheduleEnquireHrefSync);
+  if (window.visualViewport) {
+    window.visualViewport.addEventListener('resize', scheduleEnquireHrefSync);
+  }
   if (document.readyState === 'loading') {
     document.addEventListener('DOMContentLoaded', syncEnquireQuoteHrefs);
   } else {
     syncEnquireQuoteHrefs();
+  }
+  if (document.fonts && document.fonts.ready) {
+    document.fonts.ready.then(syncEnquireQuoteHrefs);
   }
 })();
 </script>

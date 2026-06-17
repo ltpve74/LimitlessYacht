@@ -2909,8 +2909,12 @@ footer {
   /* Form/calendar links land on the widget, not the section title */
   #avail-cal { scroll-margin-top: .5rem; }
 }
+@media (max-width: 768px) {
+  /* Full-section landing (#enquire): section top clears nav; content fits in one screen */
+  #enquire { scroll-margin-top: 0; }
+}
 @media (min-width: 401px) and (max-width: 768px) {
-  /* Large-phone quote links: land on section intro (label + title), not the form fields */
+  /* Partial landing (#enquire-land): title + intro when the form does not fit */
   #enquire-land { scroll-margin-top: 1rem; }
 }
 @media (min-width: 641px) and (max-width: 1100px) {
