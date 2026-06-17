@@ -747,7 +747,7 @@ PAIRS = [
         'Chárter Privado',
     ),
     (
-        'Your crew handles everything — you focus on the people and the views.',
+        'Your crew handles everything — you focus on the people and&nbsp;the views.',
         'Su tripulación se encarga de todo: usted se centra en la compañía y las vistas.',
     ),
     (
@@ -936,7 +936,7 @@ PAIRS = [
     ),
     # --- missing translations (2026 gap-fill) ---
     # Trust line — must come before short ("Crew","Tripulación") pair to avoid garbling "Crewed"
-    ('Verified reviews on Click&amp;Boat · Crewed &amp; fully equipped', 'Reseñas verificadas en Click&amp;Boat · Con tripulación &amp; totalmente equipado'),
+    ('Verified reviews on Click&amp;Boat · Crewed &amp;&nbsp;fully equipped', 'Reseñas verificadas en Click&amp;Boat · Con tripulación &amp; totalmente equipado'),
 
     ('aria-label="Close menu"', 'aria-label="Cerrar menú"'),
     # Hero ghost button and itinerary CTA

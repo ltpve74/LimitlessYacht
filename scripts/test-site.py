@@ -726,6 +726,12 @@ def check_shared_assets(r: Runner) -> None:
             'hero value line no longer uses margin-top auto on desktop',
             '.hero-value{' in css_flat and 'margin-top:0' in css_flat,
         )
+        r.check(
+            'hero copy uses text-wrap to avoid orphans',
+            '.hero-value{' in css_flat
+            and 'text-wrap:balance' in css_flat
+            and 'people and&nbsp;the views.' in index_html,
+        )
     r.check(
         'WhatsApp button meets contrast-safe green',
         css is not None and '#157a47' in css and '#25D366' not in css,

@@ -732,7 +732,7 @@ PAIRS = [
         'Charter Privé',
     ),
     (
-        'Your crew handles everything — you focus on the people and the views.',
+        'Your crew handles everything — you focus on the people and&nbsp;the views.',
         "Votre équipage s'occupe de tout — vous profitez des autres et des paysages.",
     ),
     (
@@ -921,7 +921,7 @@ PAIRS = [
     ),
     # --- missing translations (2026 gap-fill) ---
     # Trust line — must come before short ("Crew","Équipage") pair to avoid garbling "Crewed"
-    ('Verified reviews on Click&amp;Boat · Crewed &amp; fully equipped', 'Avis vérifiés sur Click&amp;Boat · Avec équipage &amp; entièrement équipé'),
+    ('Verified reviews on Click&amp;Boat · Crewed &amp;&nbsp;fully equipped', 'Avis vérifiés sur Click&amp;Boat · Avec équipage &amp; entièrement équipé'),
 
     ('>Destinations</a>', '>Destinations</a>'),
     ('onclick="closeMobile()">Destinations</a>', 'onclick="closeMobile()">Destinations</a>'),

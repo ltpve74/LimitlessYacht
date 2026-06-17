@@ -751,11 +751,11 @@ PAIRS = [
         'Privatcharter',
     ),
     (
-        'Your crew handles everything — you focus on the people and the views.',
+        'Your crew handles everything — you focus on the people and&nbsp;the views.',
         'Ihre Crew kümmert sich um alles — Sie konzentrieren sich auf die Menschen und die Ausblicke.',
     ),
     (
-        'Verified reviews on Click&amp;Boat · Crewed &amp; fully equipped',
+        'Verified reviews on Click&amp;Boat · Crewed &amp;&nbsp;fully equipped',
         'Verifizierte Bewertungen auf Click&amp;Boat · Mit Crew &amp; voll ausgestattet',
     ),
     (

@@ -296,6 +296,7 @@ nav.scrolled::before { opacity: 1; }
   color: var(--white); font-weight: 400;
   text-shadow: 0 1px 24px rgba(0,0,0,.95), 0 0 40px rgba(10,22,40,.9), 0 1px 4px rgba(0,0,0,.9);
   opacity: 0; animation: heroFade 1s .8s ease both;
+  text-wrap: balance;
 }
 .hero-cta-group {
   margin-top: auto; flex-shrink: 0;
@@ -2313,16 +2314,23 @@ footer {
 /* Hero trust cue */
 .eyebrow-stars { color: var(--gold); letter-spacing: .1em; }
 .hero-value {
-  margin-top: 0; max-width: 28rem;
+  margin-top: 0; max-width: 32rem;
   font-size: clamp(.72rem, 1.4vw, .84rem);
   letter-spacing: .04em; line-height: 1.65;
   color: rgba(245,240,232,.68);
   font-style: italic;
   opacity: 0; animation: heroFade 1s .9s ease both;
+  text-wrap: balance;
 }
 .hero-trust {
   margin-top: 0; font-size: .65rem; letter-spacing: .12em; text-transform: uppercase; color: var(--text-muted);
   opacity: 0; animation: fadeIn 0.6s 1.3s ease both;
+  text-wrap: balance;
+}
+@supports (text-wrap: pretty) {
+  .hero-sub,
+  .hero-value,
+  .hero-trust { text-wrap: pretty; }
 }
 .scroll-line { height: 32px; }
 /* Short viewports (~900px tall): keep title + bottom cluster from colliding */
