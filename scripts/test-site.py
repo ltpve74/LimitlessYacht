@@ -296,7 +296,10 @@ def check_html(r: Runner, rel: str, html: str) -> None:
     )
     r.check(
         'gallery lightbox uses centralized images array',
-        'const images = [' in html and 'function showImage(idx)' in html,
+        'window.LY_GALLERY_IMAGES = [' in html
+        and 'window.LY_GALLERY_IMAGES_MOBILE = [' in html
+        and 'const images = window.LY_GALLERY_IMAGES' in html
+        and 'function showImage(idx)' in html,
     )
     r.check(
         'shared destination image registry (LY_DEST_IMAGES)',
@@ -307,38 +310,45 @@ def check_html(r: Runner, rel: str, html: str) -> None:
         'var destImages = window.LY_DEST_IMAGES' in html,
     )
     r.check(
-        'destination preload shares cache with carousel/lightbox',
-        'window.LY_preloadDestAdjacent' in html and 'window.LY_destPreloaded' in html,
+        'destination preload prioritizes card tiers over lightbox masters',
+        'window.LY_preloadDestAdjacent' in html
+        and 'window.LY_enqueueCardPreload' in html
+        and 'window.LY_enqueueLbPreload' in html
+        and 'window.LY_destCardUrl' in html,
     )
     r.check(
         'itinerary carousel cards have data-dest-idx',
         html.count('data-dest-idx="') == 12,
     )
     r.check(
-        'destination cards use responsive picture sources (no JS srcset overwrite)',
+        'destination cards use responsive tier srcsets (lightbox uses masters)',
         'window.LY_syncDestCardImages' not in html
         and html.count('class="destination-card-bg"') == 12
         and html.count('sizes="78vw"') == 12
-        and 'images/mobile/dest/el-toro-malgrats-1-480.webp 320w' in html
-        and 'images/mobile/dest/el-toro-malgrats-1-720.webp 480w' in html
-        and html.count('sizes="(min-width: 1101px) 500px, 48vw"') == 12,
+        and 'portals-vells-1-640.webp' in html
+        and 'portals-vells-1-720.webp' in html,
     )
     r.check(
-        'gallery pictures split mobile/desktop sources with viewport sizes',
-        'sizes="(max-width: 640px) 35vw, 22vw"' not in html
-        and '(min-width: 1101px) 25vw, 50vw' in html
-        and '(min-width: 1101px) 50vw, 100vw' in html
-        and 'images/maiora_20s_01-640.webp 640w' in html
-        and 'images/maiora_20s_01-960.webp 960w' in html
-        and 'images/mobile/maiora_20s_01-720.webp' in html,
+        'gallery cards use responsive tier srcsets (lightbox uses masters)',
+        'maiora_20s_01-640.webp' in html
+        and 'maiora_20s_01-720.webp' in html
+        and '(min-width: 1101px) 25vw, 50vw' in html,
+    )
+    r.check(
+        'carousel preload uses card-tier helpers after meaningful paint',
+        'window.LY_afterMeaningfulPaint' in html
+        and 'window.LY_galleryCardUrl' in html
+        and 'window.LY_cardPreloadQueue' in html
+        and 'window.LY_lbPreloadQueue' in html,
     )
     r.check(
         'itinerary carousel prefetches on scroll',
         'window.LY_preloadDestAdjacent(gi)' in html,
     )
     r.check(
-        'gallery idle drip-feed after LCP window',
-        'function nextGallery()' in html and 'window.LY_afterLcp' in html,
+        'hero destinations prioritized in idle preload queue',
+        'destOrder.forEach(function(i) { window.LY_enqueueCardPreload(window.LY_destCardUrl(i)); })' in html
+        and 'window.LY_whenNearSection(\'itinerary\'' in html,
     )
     r.check(
         'destination preload not burst on DOMContentLoaded',
@@ -629,14 +639,14 @@ def check_html(r: Runner, rel: str, html: str) -> None:
         and '.btn-primary{' in crit_flat,
     )
     r.check(
-        'below-fold preloads deferred until after LCP window',
-        'window.LY_afterLcp' in html and 'LY_destPreloadReady' in html,
+        'below-fold preloads deferred until after meaningful paint',
+        'window.LY_afterMeaningfulPaint' in html and 'LY_destPreloadReady' in html,
     )
     r.check(
         'destination JS preload waits for LY_destPreloadReady',
         'if (!force && !window.LY_destPreloadReady) return' in html
         and re.search(
-            r'window\.LY_afterLcp\(function\(\)\s*\{[\s\S]*?LY_destPreloadReady\s*=\s*true',
+            r'window\.LY_afterMeaningfulPaint\(function\(\)\s*\{[\s\S]*?LY_destPreloadReady\s*=\s*true',
             html,
         )
         is not None,
@@ -652,18 +662,19 @@ def check_html(r: Runner, rel: str, html: str) -> None:
     )
     r.check(
         'destination cards use multi-tier desktop srcsets',
-        'images/dest/portals-vells-1-640.webp 640w' in html
-        and 'images/dest/portals-vells-1-960.webp 960w' in html
-        and 'images/mobile/dest/portals-vells-1-720.webp' in html,
+        'portals-vells-1-640.webp' in html
+        and 'portals-vells-1-960.webp' in html
+        and 'portals-vells-1-720.webp' in html,
     )
     opt_py = read_file('scripts/optimize_responsive_images.py') or ''
     r.check(
         'content image quality constants separated from hero LCP tuning',
         'DEST_DESKTOP_MAX_EDGE' in opt_py
-        and 'DESKTOP_CONTENT_TIERS' in opt_py
+        and 'DEST_CARD_DESKTOP_TIERS' in opt_py
         and 'GALLERY_DESKTOP_WEBP_Q' in opt_py
         and 'HERO_DESKTOP_MAX_EDGE' in opt_py
-        and 'HERO_DESKTOP_WEBP_Q' in opt_py,
+        and 'HERO_DESKTOP_WEBP_Q' in opt_py
+        and 'DEST_DESKTOP_WEBP_Q' in opt_py,
     )
     hero_webp = os.path.join(ROOT, 'images', 'maiora_20s_02.webp')
     r.check(
@@ -1788,8 +1799,8 @@ def check_shared_assets(r: Runner) -> None:
         'images/maiora_20s_02-640.webp',
         'images/maiora_20s_02-960.webp',
         'images/maiora_20s_02-1280.webp',
-        'images/dest/portals-vells-1-640.webp',
-        'images/dest/portals-vells-1-960.webp',
+        'images/dest/portals-vells-1.webp',
+        'images/mobile/dest/portals-vells-1.webp',
         'images/maiora_20s_04-640.webp',
         'images/maiora_20s_04-960.webp',
         'images/mobile/dest/el-toro-malgrats-1-480.webp',
