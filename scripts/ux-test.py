@@ -176,30 +176,8 @@ def scenario_home_desktop(page, base: str, issues: IssueCollector) -> None:
     page.locator("#itinerary").scroll_into_view_if_needed()
     page.locator(".destination-card").first.click()
     page.wait_for_selector("#dest-lightbox.open", timeout=10000)
-    avail_cta = page.locator("#dest-lb-cta-avail")
-    if not avail_cta.is_visible():
-        issues.add(f"{name}: destination lightbox availability CTA not visible on desktop")
-    else:
-        avail_cta.click()
-        page.wait_for_function(
-            "() => {"
-            "  const el = document.getElementById('availCal');"
-            "  if (!el) return false;"
-            "  const t = el.getBoundingClientRect().top;"
-            "  return location.hash === '#availability' && t >= 0 && t <= 280;"
-            "}",
-            timeout=8000,
-        )
-        cal_top = page.locator("#availCal").evaluate(
-            "el => el.getBoundingClientRect().top"
-        )
-        if cal_top < 0 or cal_top > 280:
-            issues.add(
-                f"{name}: availability CTA landed with calendar top at {cal_top:.0f}px"
-            )
-    page.locator("#itinerary").scroll_into_view_if_needed()
-    page.locator(".destination-card").first.click()
-    page.wait_for_selector("#dest-lightbox.open", timeout=10000)
+    if page.locator("#dest-lb-cta-avail").count():
+        issues.add(f"{name}: destination lightbox should not show a second CTA on desktop")
     page.locator("#dest-lb-cta").click()
     page.wait_for_function(
         "() => {"
@@ -215,6 +193,9 @@ def scenario_home_desktop(page, base: str, issues: IssueCollector) -> None:
     )
     if form_top < 0 or form_top > 420:
         issues.add(f"{name}: enquire CTA landed with form top at {form_top:.0f}px")
+    focused = page.evaluate("document.activeElement && document.activeElement.id")
+    if focused != "name":
+        issues.add(f"{name}: enquire CTA should focus the name field on desktop")
 
     page.locator("#availability").scroll_into_view_if_needed()
     wait_for_calendar(page)

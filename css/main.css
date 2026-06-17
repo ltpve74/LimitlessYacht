@@ -734,17 +734,14 @@ section { padding: 7rem 2rem; }
 .dest-lb-actions {
   display: flex; flex-direction: column; gap: .65rem;
 }
-.dest-lb-cta,
-.dest-lb-cta-secondary {
+.dest-lb-cta {
   display: block; width: 100%; text-align: center;
   text-decoration: none; box-sizing: border-box;
 }
-.dest-lb-cta-secondary { display: none; }
 .dest-lb-cta-mobile { display: none; }
 .cal-enquire-desktop { display: none; }
 .cal-enquire-mobile { display: inline; }
 @media (min-width: 769px) {
-  .dest-lb-cta-secondary { display: block; }
   .contact-cal-pair #availability .availability-actions {
     display: flex;
     flex-direction: column;

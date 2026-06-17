@@ -275,15 +275,16 @@ def check_html(r: Runner, rel: str, html: str) -> None:
     )
     r.check(
         'destination lightbox CTA routes by viewport',
-        'function syncDestLbCtas()' in html
+        'function syncDestLbCta()' in html
         and "'#enquire-land'" in html
-        and "lbCtaAvail.href = w >= 769 ? '#availability' : '#avail-cal'" in html
+        and "lbCta.href = w <= 640 ? '#avail-cal' : (w >= 769 ? '#enquire-land' : '#enquire-form')" in html
         and 'function closeDestLbAndGo(hash)' in html,
     )
     r.check(
-        'destination lightbox availability CTA defaults to desktop section anchor',
-        'id="dest-lb-cta-avail"' in html
-        and 'href="#availability" class="btn-ghost dest-lb-cta-secondary"' in html,
+        'destination lightbox uses single CTA button',
+        'dest-lb-cta-secondary' not in html
+        and 'dest-lb-cta-avail' not in html
+        and html.count('class="btn-primary dest-lb-cta"') == 1,
     )
     r.check(
         'gallery lightbox uses centralized images array',
@@ -1086,10 +1087,10 @@ def check_shared_assets(r: Runner) -> None:
         and '.destination-card:hover .destination-card-body::after' in css,
     )
     r.check(
-        'destination lightbox offers availability path on desktop',
-        'id="dest-lb-cta-avail"' in index_html
-        and 'dest-lb-cta-secondary' in index_html
-        and 'function applyDestLbPrefill()' in index_html,
+        'destination lightbox enquire CTA focuses name field on desktop',
+        'function applyDestLbPrefill()' in index_html
+        and "nameInput.focus({ preventScroll: true })" in index_html
+        and 'dest-lb-cta-secondary' not in index_html,
     )
     r.check(
         'desktop immersive sections use mobile-style funnel CTAs',

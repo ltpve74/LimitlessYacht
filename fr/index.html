@@ -100,8 +100,8 @@ nav{position:fixed;top:0;left:0;right:0;z-index:100;min-height:4.25rem}
 .form-field[hidden] { display: none !important; }
 </style>
 <script src="js/analytics-env.js"></script>
-<link rel="preload" as="style" href="../css/main.css?v=64" onload="this.rel='stylesheet'" />
-<noscript><link rel="stylesheet" href="../css/main.css?v=64" /></noscript>
+<link rel="preload" as="style" href="../css/main.css?v=65" onload="this.rel='stylesheet'" />
+<noscript><link rel="stylesheet" href="../css/main.css?v=65" /></noscript>
 
 <!-- Auto-match the visitor's browser language to a localized version (only from the
      English root, and only until the visitor manually picks a language). -->
@@ -1119,7 +1119,6 @@ window.LY_afterLcp(function() {
     <p class="dest-lb-desc" id="dest-lb-desc"></p>
     <div class="dest-lb-meta" id="dest-lb-meta"></div>
     <div class="dest-lb-actions">
-      <a href="#availability" class="btn-ghost dest-lb-cta-secondary" id="dest-lb-cta-avail">Vérifier les disponibilités</a>
       <a href="#enquire-form" class="btn-primary dest-lb-cta" id="dest-lb-cta"><span class="dest-lb-cta-desktop">Demander ce voyage</span><span class="dest-lb-cta-mobile">Voir les dates pour ce voyage →</span></a>
     </div>
   </div>
@@ -1935,7 +1934,7 @@ window.LY_afterLcp(function() {
         lbCta._waMsg = destName
           ? 'Hi, I\'d like to enquire about a ' + (tierLabel[tier] || '') + ' charter to ' + destName + ' on Limitless.'
           : 'Hi, I\'d like to enquire about a charter on Limitless.';
-        syncDestLbCtas();
+        syncDestLbCta();
       }
       var lbTier = document.getElementById('dest-lb-tier');
       if (lbTier) lbTier.textContent = tierBadge[tier] || '';
@@ -1951,14 +1950,10 @@ window.LY_afterLcp(function() {
       }
     }
 
-    function syncDestLbCtas() {
+    function syncDestLbCta() {
+      if (!lbCta) return;
       var w = window.innerWidth;
-      if (lbCta) {
-        lbCta.href = w <= 640 ? '#avail-cal' : (w >= 769 ? '#enquire-land' : '#enquire-form');
-      }
-      if (lbCtaAvail) {
-        lbCtaAvail.href = w >= 769 ? '#availability' : '#avail-cal';
-      }
+      lbCta.href = w <= 640 ? '#avail-cal' : (w >= 769 ? '#enquire-land' : '#enquire-form');
     }
 
     var lbHintDest = document.getElementById('dest-lb-hint');
@@ -2007,7 +2002,6 @@ window.LY_afterLcp(function() {
         if (infoWa) infoWa.href = 'https://wa.me/34622581486?text=' + encodeURIComponent(lbCta._waMsg);
       }
     }
-    var lbCtaAvail = document.getElementById('dest-lb-cta-avail');
     function closeDestLbAndGo(hash) {
       applyDestLbPrefill();
       destLb.classList.remove('open');
@@ -2021,17 +2015,19 @@ window.LY_afterLcp(function() {
       }
       var target = document.getElementById(hash.slice(1));
       if (target) target.scrollIntoView({ behavior: 'auto', block: 'start' });
+      if (window.matchMedia('(min-width: 769px)').matches) {
+        requestAnimationFrame(function() {
+          var nameInput = document.getElementById('name');
+          if (nameInput) nameInput.focus({ preventScroll: true });
+        });
+      }
     }
     if (lbCta) lbCta.addEventListener('click', function(e) {
       e.preventDefault();
       closeDestLbAndGo(lbCta.getAttribute('href') || '#enquire-form');
     });
-    if (lbCtaAvail) lbCtaAvail.addEventListener('click', function(e) {
-      e.preventDefault();
-      closeDestLbAndGo(lbCtaAvail.getAttribute('href') || '#availability');
-    });
-    window.addEventListener('resize', syncDestLbCtas);
-    syncDestLbCtas();
+    window.addEventListener('resize', syncDestLbCta);
+    syncDestLbCta();
 
     // Swipe / tap navigation across the whole lightbox (body scroll stays vertical)
     var dlbSwipeX = 0, dlbSwipeY = 0, dlbWasSwiped = false, dlbWasScrolled = false;
