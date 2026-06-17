@@ -914,9 +914,9 @@ section { padding: 7rem 2rem; }
 .enquiry-cta-wrap {
   text-align: center; margin-top: 2.75rem;
 }
-.charters-cross-cta--desktop { display: none; }
+.section-cross-cta--desktop { display: none; }
 @media (min-width: 769px) {
-  .charters-cross-cta--desktop {
+  .section-cross-cta--desktop {
     display: block;
     margin-top: 1.35rem;
     padding-top: 1.2rem;
@@ -925,12 +925,12 @@ section { padding: 7rem 2rem; }
     margin-left: auto;
     margin-right: auto;
   }
-  .charters-cross-cta--desktop .section-cta-text {
+  .section-cross-cta--desktop .section-cta-text {
     margin-bottom: 1rem;
     font-size: .72rem;
     letter-spacing: .08em;
   }
-  .charters-cross-cta--desktop .section-cta-btns { gap: 1rem; }
+  .section-cross-cta--desktop .section-cta-btns { gap: 1rem; }
 }
 .enquiry-flex-note {
   margin-top: .9rem;
@@ -1495,7 +1495,6 @@ footer {
     font-size: 0.84rem;
     line-height: 1.7;
   }
-  #reviews .section-cta-desktop { margin-top: 1.75rem; }
   #reviews .section-cta { margin-top: 1.35rem; }
 }
 @media (min-width: 769px) and (max-height: 920px) {
@@ -1513,7 +1512,6 @@ footer {
   .reviews-grid { gap: 0.75rem; }
   .review-card { padding: 1.1rem 1.25rem; }
   #reviews .review-text { font-size: 0.8rem; line-height: 1.65; }
-  #reviews .section-cta-desktop { margin-top: 1.35rem; }
   #reviews .section-cta { margin-top: 1rem; }
 }
 

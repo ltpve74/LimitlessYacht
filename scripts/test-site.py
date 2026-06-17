@@ -146,13 +146,18 @@ def check_html(r: Runner, rel: str, html: str) -> None:
             html,
         )
         is not None
-        and 'charters-cross-cta--desktop' in html,
+        and 'section-cross-cta--desktop' in html,
     )
     r.check(
         'reviews desktop CTA links to destinations and gallery -land anchors',
         re.search(
-            r'<section id="reviews">[\s\S]*?href="#itinerary-land"[^>]*class="btn-primary"'
+            r'<section id="reviews">[\s\S]*?href="#itinerary-land"[^>]*class="btn-ghost"'
             r'[\s\S]*?href="#gallery-land"[^>]*class="btn-ghost"',
+            html,
+        )
+        is not None
+        and re.search(
+            r'<section id="reviews">[\s\S]*?<div class="section-cta[^"]*">[\s\S]*?section-cross-cta--desktop',
             html,
         )
         is not None,
@@ -1234,19 +1239,19 @@ def check_shared_assets(r: Runner) -> None:
         is not None,
     )
     r.check(
-        'charters cross-nav sits inside quote cluster as ghost buttons',
-        '.charters-cross-cta--desktop{' in css_flat
+        'section cross-nav uses shared ghost button cluster styles',
+        '.section-cross-cta--desktop{' in css_flat
         and re.search(
-            r'\.charters-cross-cta--desktop\s*\{[^}]*border-top:',
+            r'\.section-cross-cta--desktop\s*\{[^}]*border-top:',
             css,
         )
         is not None,
     )
     r.check(
-        'charters cross-nav desktop show rule follows mobile hide rule',
+        'section cross-nav desktop show rule follows mobile hide rule',
         css is not None
-        and css.find('.charters-cross-cta--desktop { display: none; }')
-        < css.rfind('.charters-cross-cta--desktop {')
+        and css.find('.section-cross-cta--desktop { display: none; }')
+        < css.rfind('.section-cross-cta--desktop {')
     )
     r.check(
         'reviews desktop uses compact two-column grid',
