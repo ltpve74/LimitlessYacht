@@ -1241,6 +1241,11 @@ def check_shared_assets(r: Runner) -> None:
         is not None,
     )
     r.check(
+        'reviews desktop grid overrides come after base single-column rule',
+        css is not None
+        and css.find('.reviews-grid {') < css.rfind('grid-template-columns: repeat(2, minmax(0, 1fr))'),
+    )
+    r.check(
         'reviews short viewports compact section padding',
         re.search(
             r'@media \(min-width: 769px\) and \(max-height: 920px\)[\s\S]*?#reviews',
