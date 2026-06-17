@@ -682,6 +682,23 @@ def check_shared_assets(r: Runner) -> None:
         and 'scrollIntoView' in index_html,
     )
     r.check(
+        'mobile gallery CTA routes to availability calendar',
+        'CHECK AVAILABILITY →' in index_html
+        and 'href="#availability" class="itinerary-meet-cta"' in index_html,
+    )
+    r.check(
+        'form nudges users to check availability before entering dates',
+        'class="form-date-hint"' in index_html
+        and 'href="#availability">availability calendar</a>' in index_html,
+    )
+    r.check(
+        'mobile stacks calendar before enquiry form',
+        css is not None
+        and '@media (max-width: 640px)' in css
+        and '.contact-cal-pair #availability { order: -1; }' in css
+        and '.contact-cal-pair .enquire-section { order: 0; }' in css,
+    )
+    r.check(
         'destination cards use pointer cursor (clickable like gallery)',
         css is not None
         and re.search(r'\.destination-card\s*\{[^}]*cursor:\s*pointer', css) is not None,

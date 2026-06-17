@@ -765,6 +765,15 @@ section { padding: 7rem 2rem; }
   color: rgba(245,240,232,.45); text-align: center;
   margin: .75rem 0 .5rem;
 }
+.form-date-hint {
+  font-size: .72rem; line-height: 1.55; letter-spacing: .02em;
+  color: rgba(245,240,232,.55); margin: .15rem 0 .35rem;
+}
+.form-date-hint a {
+  color: var(--gold); text-decoration: underline;
+  text-underline-offset: .15em;
+}
+.form-date-hint a:hover { color: var(--gold-light); }
 .form-submit {
   background: var(--gold); color: var(--navy); border: none;
   padding: 1.1rem 2.5rem; font-family: 'Montserrat', sans-serif;
@@ -1038,6 +1047,13 @@ footer {
   .contact-form { gap: .6rem; }
   .form-field input, .form-field select { padding: .6rem .85rem; font-size: 1rem; }
   .form-reassurance { margin: .25rem 0 .15rem; }
+  .form-date-hint { font-size: .7rem; margin: .1rem 0 .25rem; }
+  .contact-cal-pair {
+    display: flex;
+    flex-direction: column; /* calendar before form on mobile funnel */
+  }
+  .contact-cal-pair #availability { order: -1; }
+  .contact-cal-pair .enquire-section { order: 0; }
   .form-submit { padding-top: .85rem; padding-bottom: .85rem; margin-top: .25rem; }
   #specs { padding-top: 3rem; padding-bottom: 2.5rem; }
   #amenities { padding-top: 2.5rem; padding-bottom: 2.5rem; }

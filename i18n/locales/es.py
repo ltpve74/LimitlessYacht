@@ -196,8 +196,8 @@ PAIRS = [
     ("Availability", "Disponibilidad"),
     ("Check the<em> Calendar</em>", "Consulte el<em> calendario</em>"),
     (
-        "See which dates are open below, then send us an enquiry — we'll confirm your charter personally. The calendar is kept up to date by our crew.",
-        "Vea las fechas libres a continuación y envíenos una consulta — confirmaremos su charter personalmente. El calendario lo actualiza nuestra tripulación.",
+        "See which dates are open, then complete the form below — we'll confirm your charter personally. The calendar is kept up to date by our crew.",
+        "Vea las fechas libres y complete el formulario a continuación — confirmaremos su charter personalmente. El calendario lo actualiza nuestra tripulación.",
     ),
     ('aria-label="Availability calendar"', 'aria-label="Calendario de disponibilidad"'),
     ('aria-label="Previous month"', 'aria-label="Mes anterior"'),
@@ -944,7 +944,7 @@ PAIRS = [
     ('aria-label="Gallery category"', 'aria-label="Categoría de galería"'),
     ('aria-label="Previous"', 'aria-label="Anterior"'),
     ('aria-label="Next"', 'aria-label="Siguiente"'),
-    ('ENQUIRE NOW →', 'CONSULTAR AHORA →'),
+    ('CHECK AVAILABILITY →', 'VER DISPONIBILIDAD →'),
     ("Liked what you see? Start planning your charter.", "¿Le gusta lo que ve? Empiece a planificar su charter."),
     ("Ready to create your own story on the water?", "¿Listo para crear su propia historia en el agua?"),
     # Destination lightbox
@@ -978,6 +978,10 @@ PAIRS = [
     ("Tell us about your group, preferred dates, and the experience you're after. We'll get back to you with a personalised quote within 24 hours — no commitment required.", 'Cuéntenos sobre su grupo, las fechas preferidas y la experiencia que busca. Le responderemos con un presupuesto personalizado en 24 horas — sin compromiso.'),
     ('or fill in the form', 'o rellene el formulario'),
     ('placeholder="Maria"', 'placeholder="María"'),
+    (
+        'Check the <a href="#availability">availability calendar</a> for open dates — grey days are already booked.',
+        'Consulte el <a href="#availability">calendario de disponibilidad</a> para ver fechas libres — los días en gris ya están reservados.',
+    ),
     # Specs section CTA
     ("Ready to plan your charter? We'll have a quote back within 24 hours.", 'Listo para planificar su chárter. Le enviaremos un presupuesto en 24 horas.'),
 

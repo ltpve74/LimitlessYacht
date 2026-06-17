@@ -208,8 +208,8 @@ PAIRS = [
     ("Availability", "Verfügbarkeit"),
     ("Check the<em> Calendar</em>", "Verfügbarkeit im<em> Kalender</em>"),
     (
-        "See which dates are open below, then send us an enquiry — we'll confirm your charter personally. The calendar is kept up to date by our crew.",
-        "Sehen Sie unten freie Termine und senden Sie uns eine Anfrage — wir bestätigen Ihren Charter persönlich. Der Kalender wird von unserer Crew aktuell gehalten.",
+        "See which dates are open, then complete the form below — we'll confirm your charter personally. The calendar is kept up to date by our crew.",
+        "Sehen Sie freie Termine und füllen Sie dann das Formular unten aus — wir bestätigen Ihren Charter persönlich. Der Kalender wird von unserer Crew aktuell gehalten.",
     ),
     ('aria-label="Availability calendar"', 'aria-label="Verfügbarkeitskalender"'),
     ('aria-label="Previous month"', 'aria-label="Vorheriger Monat"'),
@@ -942,7 +942,7 @@ PAIRS = [
     ('aria-label="Gallery category"', 'aria-label="Galerie-Kategorie"'),
     ('aria-label="Previous"', 'aria-label="Zurück"'),
     ('aria-label="Next"', 'aria-label="Weiter"'),
-    ('ENQUIRE NOW →', 'JETZT ANFRAGEN →'),
+    ('CHECK AVAILABILITY →', 'VERFÜGBARKEIT PRÜFEN →'),
     ("Liked what you see? Start planning your charter.", "Gefällt Ihnen, was Sie sehen? Beginnen Sie mit der Planung Ihres Charters."),
     ("Ready to create your own story on the water?", "Bereit, Ihre eigene Geschichte auf dem Wasser zu schreiben?"),
     # Destination lightbox
@@ -976,6 +976,10 @@ PAIRS = [
     ("Tell us about your group, preferred dates, and the experience you're after. We'll get back to you with a personalised quote within 24 hours — no commitment required.", 'Erzählen Sie uns von Ihrer Gruppe, bevorzugten Terminen und der gewünschten Erfahrung. Wir melden uns innerhalb von 24 Stunden mit einem persönlichen Angebot — unverbindlich.'),
     ('or fill in the form', 'oder füllen Sie das Formular aus'),
     ('placeholder="Maria"', 'placeholder="Maria"'),
+    (
+        'Check the <a href="#availability">availability calendar</a> for open dates — grey days are already booked.',
+        'Prüfen Sie den <a href="#availability">Verfügbarkeitskalender</a> auf freie Termine — graue Tage sind bereits gebucht.',
+    ),
     # Specs section CTA
     ("Ready to plan your charter? We'll have a quote back within 24 hours.", 'Bereit, Ihren Charter zu planen? Wir senden Ihnen innerhalb von 24 Stunden ein Angebot.'),
 
