@@ -1,5 +1,5 @@
 /**
- * Analytics environment — must load before any GA / Clarity / GTM snippets.
+ * Analytics environment — must load before any GA / Clarity / gtag snippets.
  * Sets LY_OWNER_MODE on preview hosts and optional owner override (?ly_owner=set).
  */
 (function (global) {

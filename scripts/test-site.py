@@ -680,6 +680,10 @@ def check_html(r: Runner, rel: str, html: str) -> None:
         'AW-18209943491/CkJfCKPt7rgcEMPflutD' in html
         and 'AW-18209943491/Pd-9CKDt7rgcEMPflutD' in html,
     )
+    r.check(
+        'no Google Tag Manager container (direct gtag only)',
+        'gtm.js?id=' not in html and 'GTM-NN8V25BR' not in html,
+    )
 
     # Data feeds
     reviews_json = meta['reviews_json']
@@ -744,6 +748,10 @@ def check_html(r: Runner, rel: str, html: str) -> None:
 def check_legal(r: Runner, rel: str, html: str) -> None:
     lang = LEGAL_META[rel]['lang']
     r.check(f'<html lang="{lang}">', re.search(rf'<html lang="{lang}"', html) is not None)
+    r.check(
+        f'{rel} uses direct gtag only (no GTM container)',
+        'gtm.js?id=' not in html and 'GTM-NN8V25BR' not in html,
+    )
     if rel == 'legal.html':
         r.check('links back to home', 'href="index.html"' in html)
     else:
