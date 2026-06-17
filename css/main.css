@@ -26,6 +26,8 @@
   --white: #ffffff;
   --text-muted: #8a9bb5;
   --nav-scroll-offset: 4.25rem;
+  /* Tabs + carousel controls + funnel CTA (gallery / itinerary immersive desktop) */
+  --immersive-chrome: 12.5rem;
 }
 
 *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
@@ -2111,6 +2113,176 @@ footer {
 .section-back-cta a:hover { color: var(--gold-light); border-color: var(--gold-light); }
 
 /* ── PRICING TABS (mobile toggle — display:none overridden inside max-width:768px block above) ── */
+
+/* ── DESKTOP IMMERSIVE GALLERY + ITINERARY (mobile funnel parity) ── */
+@media (min-width: 769px) {
+  #gallery,
+  #itinerary {
+    display: flex;
+    flex-direction: column;
+    min-height: 100svh;
+    padding: 0;
+    overflow: hidden;
+  }
+  /* Keep -land anchors for nav; hide header copy (tabs lead like mobile) */
+  #gallery > .container,
+  #itinerary > .container {
+    height: 0;
+    margin: 0;
+    padding: 0;
+    overflow: hidden;
+  }
+  #gallery > .container .section-label,
+  #gallery > .container .section-title,
+  #itinerary > .container .section-label,
+  #itinerary > .container .section-title,
+  #itinerary > .container .itinerary-intro {
+    display: none;
+  }
+  .gallery-wrap,
+  .itinerary-wrap {
+    flex: 1 1 auto;
+    display: flex;
+    flex-direction: column;
+    min-height: 0;
+    width: 100%;
+    max-width: none;
+    margin: 0;
+    padding: 0;
+  }
+  .dest-tabs,
+  .gallery-tabs {
+    flex-shrink: 0;
+    width: 100%;
+    max-width: none;
+    margin: 0;
+    border-radius: 0;
+    border-left: none;
+    border-right: none;
+  }
+  .dest-group.tab-active,
+  .gallery-group.tab-active {
+    display: flex;
+    flex-direction: column;
+    flex: 1 1 auto;
+    min-height: 0;
+  }
+  .gallery-group .gallery-grid,
+  .dest-group .itinerary-grid {
+    display: flex;
+    flex-direction: row;
+    flex: 1 1 auto;
+    min-height: 0;
+    overflow-x: auto;
+    overscroll-behavior-x: contain;
+    scroll-snap-type: x mandatory;
+    scrollbar-width: none;
+    touch-action: pan-x pan-y;
+    margin-top: 0;
+    gap: .85rem;
+    padding: .65rem 2rem .35rem;
+    height: calc(100svh - var(--immersive-chrome));
+    max-height: calc(100svh - var(--immersive-chrome));
+  }
+  .gallery-group .gallery-grid::-webkit-scrollbar,
+  .dest-group .itinerary-grid::-webkit-scrollbar {
+    display: none;
+  }
+  .gallery-group .gallery-item {
+    flex: 0 0 clamp(420px, 62vw, 920px);
+    height: 100%;
+    min-height: 0;
+    border-radius: 6px;
+    scroll-snap-align: start;
+  }
+  .gallery-group .gallery-item picture {
+    display: block;
+    width: 100%;
+    height: 100%;
+  }
+  .gallery-group .gallery-item img {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+    display: block;
+  }
+  .destination-card {
+    flex: 0 0 clamp(360px, 48vw, 560px);
+    min-height: 0;
+    height: 100%;
+    border-radius: 8px;
+    scroll-snap-align: start;
+  }
+  .destination-card-body {
+    padding: 1.35rem 1.5rem 1.15rem;
+  }
+  .destination-desc {
+    display: none;
+  }
+  .carousel-nav {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    flex-shrink: 0;
+    gap: .75rem;
+    padding: .35rem 0 .15rem;
+  }
+  .carousel-btn {
+    background: transparent;
+    border: 1px solid rgba(201,168,76,.45);
+    color: var(--gold);
+    width: 2.35rem;
+    height: 2.35rem;
+    border-radius: 50%;
+    font-size: 1.3rem;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    transition: opacity .2s, border-color .2s;
+    flex-shrink: 0;
+  }
+  .carousel-btn:hover:not(:disabled) {
+    border-color: var(--gold-light);
+  }
+  .carousel-btn:disabled {
+    opacity: .25;
+  }
+  .carousel-pos {
+    font-family: 'Montserrat', sans-serif;
+    font-size: .56rem;
+    letter-spacing: .16em;
+    text-transform: uppercase;
+    color: var(--gold);
+    min-width: 3rem;
+    text-align: center;
+  }
+  .itinerary-meet-cta {
+    display: block;
+    flex-shrink: 0;
+    margin: 0;
+    padding: 1.05rem 2rem;
+    font-size: .72rem;
+    letter-spacing: .14em;
+    text-transform: uppercase;
+    background: var(--gold);
+    color: var(--navy);
+    font-family: 'Montserrat', sans-serif;
+    font-weight: 600;
+    text-decoration: none;
+    text-align: center;
+    border-top: 1px solid rgba(201,168,76,.22);
+    transition: background .2s, color .2s;
+  }
+  .itinerary-meet-cta:hover {
+    background: var(--gold-light);
+    color: var(--navy);
+  }
+  #gallery .section-cta-desktop,
+  #itinerary .section-cta-desktop {
+    display: none !important;
+  }
+}
 
 /* ── ENQUIRE SECTION — VIEWPORT-AWARE LANDING ── */
 /* #enquire is at the section top — html scroll-padding-top handles nav clearance.

@@ -828,13 +828,30 @@ def check_shared_assets(r: Runner) -> None:
         and 'function applyDestLbPrefill()' in index_html,
     )
     r.check(
-        'desktop section CTAs route to availability calendar',
-        'section-cta-desktop' in index_html
-        and index_html.count('href="#avail-cal"') >= 2
+        'desktop immersive sections use mobile-style funnel CTAs',
+        'href="#gallery" class="itinerary-meet-cta"' in index_html
+        and 'href="#avail-cal" class="itinerary-meet-cta"' in index_html
+        and css is not None
         and re.search(
-            r'section-cta-desktop[\s\S]*?href="#avail-cal"[\s\S]*?Check Availability',
-            index_html,
-        ) is not None,
+            r'@media \(min-width: 769px\)[\s\S]*?#gallery,\s*\n\s*#itinerary\s*\{[^}]*min-height:\s*100svh',
+            css,
+        )
+        is not None
+        and re.search(
+            r'@media \(min-width: 769px\)[\s\S]*?\.itinerary-meet-cta\s*\{[^}]*display:\s*block',
+            css,
+        )
+        is not None
+        and re.search(
+            r'@media \(min-width: 769px\)[\s\S]*?#gallery\s+\.section-cta-desktop[\s\S]*?display:\s*none',
+            css,
+        )
+        is not None
+        and re.search(
+            r'@media \(min-width: 769px\)[\s\S]*?\.carousel-nav\s*\{[^}]*display:\s*flex',
+            css,
+        )
+        is not None,
     )
     r.check(
         'gallery lightbox uses viewport-specific browse hint',
