@@ -227,7 +227,8 @@ PAIRS = [
     ('data-i18n-day="day"', 'data-i18n-day="Tag"'),
     ('data-i18n-days="days"', 'data-i18n-days="Tage"'),
     ("Enquire About These Dates", "Diese Termine anfragen"),
-    ("Ask on WhatsApp", "Per WhatsApp fragen"),
+    ("Enquire on WhatsApp", "Per WhatsApp anfragen"),
+    ("WhatsApp these dates", "Diese Termine per WhatsApp senden"),
     # Contact
     ("Contact", "Kontakt"),
     ("Get in<em> Touch</em>", "Kontakt<em> aufnehmen</em>"),

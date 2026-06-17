@@ -837,6 +837,18 @@ def check_shared_assets(r: Runner) -> None:
         and 'syncWaEnquiryLinks(msg)' in index_html
         and 'syncWaEnquiryLinks(null)' in index_html,
     )
+    r.check(
+        'WhatsApp CTA copy uses enquire voice',
+        'Ask on WhatsApp' not in index_html
+        and 'Enquire on WhatsApp' in index_html
+        and 'Enquire via WhatsApp' in index_html,
+    )
+    r.check(
+        'calendar WhatsApp label reflects selected dates',
+        'data-wa-label-dates="WhatsApp these dates"' in index_html
+        and 'function syncCalWaLabel(hasDates)' in index_html
+        and 'syncCalWaLabel(true)' in index_html,
+    )
     pair_start = index_html.find('class="contact-cal-pair"')
     pair_end = index_html.find('id="reviews"', pair_start)
     pair_html = index_html[pair_start:pair_end] if pair_start != -1 and pair_end != -1 else ''

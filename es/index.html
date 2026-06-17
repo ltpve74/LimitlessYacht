@@ -835,7 +835,7 @@ window.LY_afterLcp(function() {
       <p class="section-cta-text">¿Ha visto un lugar al que le encantaría ir? Conozca ahora el yate que le llevará allí.</p>
       <div class="section-cta-btns">
         <a href="#gallery" class="btn-primary">Conoce el yate</a>
-        <a href="https://wa.me/34622581486?text=Hi%2C%20I%27d%20like%20to%20enquire%20about%20a%20charter%20on%20Limitless." target="_blank" rel="noopener" class="btn-ghost">Preguntar por WhatsApp</a>
+        <a href="https://wa.me/34622581486?text=Hi%2C%20I%27d%20like%20to%20enquire%20about%20a%20charter%20on%20Limitless." target="_blank" rel="noopener" class="btn-ghost">Consultar por WhatsApp</a>
       </div>
     </div>
   </div>
@@ -1100,7 +1100,7 @@ window.LY_afterLcp(function() {
     <p class="section-cta-text">¿Le gusta lo que ve? Empiece a planificar su charter.</p>
     <div class="section-cta-btns">
       <a href="#enquire" class="btn-primary">Obtener su presupuesto</a>
-      <a href="https://wa.me/34622581486?text=Hi%2C%20I%27d%20like%20to%20enquire%20about%20a%20charter%20on%20Limitless." target="_blank" rel="noopener" class="btn-ghost">Preguntar por WhatsApp</a>
+      <a href="https://wa.me/34622581486?text=Hi%2C%20I%27d%20like%20to%20enquire%20about%20a%20charter%20on%20Limitless." target="_blank" rel="noopener" class="btn-ghost">Consultar por WhatsApp</a>
     </div>
   </div>
 </section>
@@ -1224,7 +1224,7 @@ window.LY_afterLcp(function() {
     </div>
     <div class="availability-actions">
       <a href="#enquire-form" class="btn-primary cal-enquire-btn is-disabled" id="calEnquireBtn" aria-disabled="true">Consultar estas fechas</a>
-      <a href="https://wa.me/34622581486?text=Hi%2C%20I%27d%20like%20to%20enquire%20about%20a%20charter%20on%20Limitless." target="_blank" rel="noopener" class="btn-ghost cal-wa-btn is-disabled" id="calWaBtn" aria-disabled="true">Preguntar por WhatsApp</a>
+      <a href="https://wa.me/34622581486?text=Hi%2C%20I%27d%20like%20to%20enquire%20about%20a%20charter%20on%20Limitless." target="_blank" rel="noopener" class="btn-ghost cal-wa-btn is-disabled" id="calWaBtn" aria-disabled="true" data-wa-label-default="Consultar por WhatsApp" data-wa-label-dates="Enviar estas fechas por WhatsApp">Consultar por WhatsApp</a>
     </div>
     </div><!-- /.availability-picker -->
   </div>
@@ -1355,7 +1355,7 @@ window.LY_afterLcp(function() {
       <p class="section-cta-text">¿Listo para crear su propia historia en el agua?</p>
       <div class="section-cta-btns">
         <a href="#enquire" class="btn-primary">Obtener su presupuesto</a>
-        <a href="https://wa.me/34622581486?text=Hi%2C%20I%27d%20like%20to%20enquire%20about%20a%20charter%20on%20Limitless." target="_blank" rel="noopener" class="btn-ghost">Preguntar por WhatsApp</a>
+        <a href="https://wa.me/34622581486?text=Hi%2C%20I%27d%20like%20to%20enquire%20about%20a%20charter%20on%20Limitless." target="_blank" rel="noopener" class="btn-ghost">Consultar por WhatsApp</a>
       </div>
     </div>
 
@@ -1468,7 +1468,7 @@ window.LY_afterLcp(function() {
       <p class="section-cta-text">Listo para planificar su chárter. Le enviaremos un presupuesto en 24 horas.</p>
       <div class="section-cta-btns">
         <a href="#enquire" class="btn-primary">Obtener su presupuesto</a>
-        <a href="https://wa.me/34622581486?text=Hi%2C%20I%27d%20like%20to%20enquire%20about%20a%20charter%20on%20Limitless." target="_blank" rel="noopener" class="btn-ghost">Preguntar por WhatsApp</a>
+        <a href="https://wa.me/34622581486?text=Hi%2C%20I%27d%20like%20to%20enquire%20about%20a%20charter%20on%20Limitless." target="_blank" rel="noopener" class="btn-ghost">Consultar por WhatsApp</a>
       </div>
     </div>
   </div>
@@ -2252,6 +2252,12 @@ window.LY_afterLcp(function() {
     var infoWa = document.querySelector('.contact-info .whatsapp-btn');
     if (infoWa) infoWa.href = href;
   }
+  function syncCalWaLabel(hasFechas) {
+    if (!waBtn) return;
+    waBtn.textContent = hasFechas
+      ? (waBtn.getAttribute('data-wa-label-dates') || 'Enviar estas fechas por WhatsApp')
+      : (waBtn.getAttribute('data-wa-label-default') || 'Consultar por WhatsApp');
+  }
   function setCtaState(on){
     [enquireBtn, waBtn].forEach(function(btn){
       if (!btn) return;
@@ -2267,6 +2273,7 @@ window.LY_afterLcp(function() {
     if (!selected.length) {
       setCtaState(false);
       syncWaEnquiryLinks(null);
+      syncCalWaLabel(false);
       if (selectionText) selectionText.textContent = '';
       syncForm();
       render();
@@ -2281,6 +2288,7 @@ window.LY_afterLcp(function() {
       : "Hi, I'd like to enquire about a charter on Limitless from " + label + ".";
     syncWaEnquiryLinks(msg);
     setCtaState(true);
+    syncCalWaLabel(true);
     syncForm();
     ensureSelectionVisible();
     render();
