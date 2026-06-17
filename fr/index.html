@@ -127,8 +127,8 @@ nav {
   window.LY_BASE = (h.endsWith('.github.io') && parts[0]) ? '/' + parts[0] : '';
 })();
 </script>
-<link rel="preload" as="style" href="../css/main.css?v=17" onload="this.rel='stylesheet'" />
-<noscript><link rel="stylesheet" href="../css/main.css?v=17" /></noscript>
+<link rel="preload" as="style" href="../css/main.css?v=18" onload="this.rel='stylesheet'" />
+<noscript><link rel="stylesheet" href="../css/main.css?v=18" /></noscript>
 
 <!-- Auto-match the visitor's browser language to a localized version (only from the
      English root, and only until the visitor manually picks a language). -->
@@ -257,8 +257,8 @@ nav {
     <li><a href="#about-land">À propos</a></li>
     <li><a href="#itinerary-land">Destinations</a></li>
     <li><a href="#gallery-land">Galerie</a></li>
-    <li><a href="#enquire-land">Enquire</a></li>
-    <li><a href="#avail-cal">Disponibilité</a></li>
+    <li><a href="#pricing-land">Enquire</a></li>
+    <li><a href="#availability-land">Disponibilité</a></li>
     <li><a href="#reviews-land">Avis</a></li>
     <li><a href="#amenities-land">Équipements</a></li>
     <li><a href="#specs-land">Détails</a></li>
@@ -276,7 +276,7 @@ nav {
         <a href="../es/" hreflang="es" lang="es" role="menuitem">ES</a>
       </div>
     </div>
-    <a href="#enquire-land" class="nav-cta nav-header-cta">Demander</a>
+    <a href="#pricing-land" class="nav-cta nav-header-cta">Demander</a>
     <button type="button" class="hamburger" id="hamburger" aria-label="Ouvrir le menu" aria-expanded="false" aria-controls="mobileNav">
       <span></span><span></span><span></span>
     </button>
@@ -360,9 +360,9 @@ nav {
         <div class="about-image-accent"></div>
       </div>
       <div class="about-text reveal reveal-delay-1">
+        <span id="about-land" style="display:block;height:0;overflow:hidden" aria-hidden="true"></span>
         <p class="section-label">Le yacht</p>
         <h2 class="section-title">Votre maison sur la<br><em>Méditerranée</em></h2>
-        <span id="about-land" style="display:block;height:0;overflow:hidden" aria-hidden="true"></span>
         <p><strong>Limitless</strong> est un Maiora de 21 mètres avec flybridge, pont arrière et bains de soleil — de la place pour douze invités en journée, confortable pour sept en nuitée. Conçu pour la mer et entretenu aux normes du charter.</p>
         <p>Ce qui distingue véritablement Limitless, c'est son <strong>équipage dévoué</strong>. Attentif, expérimenté et réellement passionné par la mer, il s'occupe de tout — de l'organisation du traiteur à la réservation de l'accès aux beach clubs — pour que vous puissiez vous consacrer pleinement à vos proches et aux lieux que vous découvrez.</p>
       </div>
@@ -374,10 +374,10 @@ nav {
 <section id="itinerary">
   <div class="container">
     <p class="section-label reveal">Destinations</p>
+    <span id="itinerary-land" style="display:block;height:0;overflow:hidden" aria-hidden="true"></span>
     <h2 class="section-title reveal reveal-delay-1">Là où <em>Limitless</em> vous emmène</h2>
     <p class="itinerary-intro reveal reveal-delay-2">Chaque itinéraire s'adapte à votre groupe — les suggestions ci-dessous ne sont qu'un point de départ. Votre équipage s'occupe du reste.</p>
   </div>
-  <span id="itinerary-land" style="display:block;height:0;overflow:hidden" aria-hidden="true"></span>
   <div class="itinerary-wrap" style="max-width:1400px;margin:0 auto;padding:0 2rem;">
     <div class="dest-tabs reveal reveal-delay-2" role="tablist" aria-label="Durée du charter">
       <button class="dest-tab" role="tab" data-tier="half-day" id="half-day" aria-selected="true">
@@ -1013,9 +1013,9 @@ window.LY_afterLcp(function() {
 <section id="gallery">
   <div class="container">
     <p class="section-label reveal">Galerie</p>
+    <span id="gallery-land" style="display:block;height:0;overflow:hidden" aria-hidden="true"></span>
     <h2 class="section-title reveal reveal-delay-1">Galerie <em>à bord</em></h2>
   </div>
-  <span id="gallery-land" style="display:block;height:0;overflow:hidden" aria-hidden="true"></span>
   <div class="gallery-wrap" style="max-width:1400px;margin:0 auto;padding:0 2rem;">
     <div class="gallery-tabs" role="tablist" aria-label="Catégorie de galerie">
       <button class="gallery-tab tab--active" role="tab" data-gtab="water">Sur l'eau</button>
@@ -1153,6 +1153,7 @@ window.LY_afterLcp(function() {
 <section id="pricing">
   <div class="container">
     <p class="section-label reveal">Demander</p>
+    <span id="pricing-land" style="display:block;height:0;overflow:hidden" aria-hidden="true"></span>
     <h2 class="section-title reveal reveal-delay-1">Votre charter<em> à votre façon</em></h2>
     <p class="enquiry-intro reveal reveal-delay-2">D'une matinée ensoleillée à une semaine au mouillage — chaque charter est conçu autour de vous. Indiquez-nous vos dates et nous créerons l'itinéraire parfait en 24 heures.</p>
     <div class="enquiry-grid">
@@ -1206,6 +1207,7 @@ window.LY_afterLcp(function() {
 <section id="availability">
   <div class="container">
     <p class="section-label reveal">Disponibilité</p>
+    <span id="availability-land" style="display:block;height:0;overflow:hidden" aria-hidden="true"></span>
     <h2 class="section-title reveal reveal-delay-1">Consultez le<em> calendrier</em></h2>
     <p class="availability-intro reveal reveal-delay-2">Voyez les dates libres, puis complétez le formulaire de demande — nous confirmerons votre charter personnellement. Le calendrier est tenu à jour par notre équipage.</p>
     <div class="availability-picker">
@@ -1246,8 +1248,8 @@ window.LY_afterLcp(function() {
     <div class="contact-grid">
       <div class="contact-info reveal">
         <p class="section-label">Obtenir un devis</p>
-        <h2 class="section-title">Demandez<em> votre devis</em></h2>
         <span id="enquire-land" style="display:block;height:0;overflow:hidden" aria-hidden="true"></span>
+        <h2 class="section-title">Demandez<em> votre devis</em></h2>
         <p style="font-size:.88rem;line-height:1.8;color:rgba(245,240,232,.7);margin-top:1.5rem;margin-bottom:1rem;">
           Parlez-nous de votre groupe, de vos dates préférées et de l'expérience recherchée. Nous vous répondrons avec un devis personnalisé en 24 heures — sans engagement.
         </p>
@@ -1345,9 +1347,9 @@ window.LY_afterLcp(function() {
 <section id="reviews">
   <div class="container">
     <p class="section-label reveal">Avis clients</p>
+    <span id="reviews-land" style="display:block;height:0;overflow:hidden" aria-hidden="true"></span>
     <h2 class="section-title reveal reveal-delay-1">Ce que disent<em> nos clients</em></h2>
     <p class="reviews-intro reveal reveal-delay-2">Des expériences réelles de clients ayant loué <strong>Limitless</strong>. Les avis sont publiés après une rapide modération.</p>
-    <span id="reviews-land" style="display:block;height:0;overflow:hidden" aria-hidden="true"></span>
 
     <div class="reviews-summary reveal reveal-delay-2" id="reviewsSummary" aria-live="polite">
       <div class="reviews-score">
@@ -1377,8 +1379,8 @@ window.LY_afterLcp(function() {
 <section id="amenities">
   <div class="container">
     <p class="section-label reveal">Équipement à bord</p>
-    <h2 class="section-title reveal reveal-delay-1">Tout <em>à bord</em></h2>
     <span id="amenities-land" style="display:block;height:0;overflow:hidden" aria-hidden="true"></span>
+    <h2 class="section-title reveal reveal-delay-1">Tout <em>à bord</em></h2>
     <div class="amenities-grid">
       <div class="amenity-group reveal">
         <div class="amenity-group-title">Sur le pont</div>
@@ -1428,8 +1430,8 @@ window.LY_afterLcp(function() {
 <section id="specs">
   <div class="container">
     <p class="section-label reveal">Caractéristiques techniques</p>
-    <h2 class="section-title reveal reveal-delay-1">Détails du <em>yacht</em></h2>
     <span id="specs-land" style="display:block;height:0;overflow:hidden" aria-hidden="true"></span>
+    <h2 class="section-title reveal reveal-delay-1">Détails du <em>yacht</em></h2>
     <div class="specs-grid">
       <div class="spec-card reveal">
         <div class="spec-icon">⚓</div>
@@ -1512,14 +1514,23 @@ window.LY_afterLcp(function() {
     var activeTop = -Infinity;
     navSectionLinks.forEach(function(a) {
       var id = a.getAttribute('href').slice(1);
-      var el = document.getElementById(id);
-      if (!el) return;
-      var section = el.closest('section') || el;
-      var top = section.getBoundingClientRect().top;
-      if (top <= probe && top > activeTop) {
-        activeTop = top;
-        active = a;
+      var sections = [];
+      if (id === 'pricing-land') {
+        var pricing = document.getElementById('pricing');
+        var enquireSec = document.querySelector('.enquire-section');
+        if (pricing) sections.push(pricing);
+        if (enquireSec) sections.push(enquireSec);
+      } else {
+        var el = document.getElementById(id);
+        if (el) sections.push(el.closest('section') || el);
       }
+      sections.forEach(function(section) {
+        var top = section.getBoundingClientRect().top;
+        if (top <= probe && top > activeTop) {
+          activeTop = top;
+          active = a;
+        }
+      });
     });
     navSectionLinks.forEach(function(a) {
       a.classList.toggle('is-active', a === active);

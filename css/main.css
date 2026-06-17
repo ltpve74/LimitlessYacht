@@ -2119,17 +2119,30 @@ footer {
   /* Form/calendar links land on the widget, not the hidden section title */
   #avail-cal { scroll-margin-top: .5rem; }
 }
-/* Desktop nav lands past section headers — nav highlight replaces redundant labels */
+/* Desktop nav: hide labels that repeat the nav item; land on the section title */
 @media (min-width: 769px) {
+  #itinerary > .container > .section-label,
+  #gallery > .container > .section-label,
+  #pricing > .container > .section-label,
+  #availability > .container > .section-label,
+  #reviews > .container > .section-label,
+  #amenities > .container > .section-label,
+  #specs > .container > .section-label,
+  .contact-cal-pair .enquire-section .contact-info > .section-label {
+    display: none;
+  }
   #about-land,
   #itinerary-land,
   #gallery-land,
+  #pricing-land,
+  #availability-land,
   #reviews-land,
   #amenities-land,
   #specs-land,
   #enquire-land {
     scroll-margin-top: 5rem;
   }
+  /* In-page CTAs still jump to the calendar widget */
   #avail-cal { scroll-margin-top: 5rem; }
 }
 .availability-picker { margin-top: 0; }

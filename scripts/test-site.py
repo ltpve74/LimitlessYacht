@@ -346,13 +346,14 @@ def check_html(r: Runner, rel: str, html: str) -> None:
         'href="#about-land"' in html
         and 'href="#itinerary-land"' in html
         and 'href="#gallery-land"' in html
-        and 'href="#enquire-land"' in html
-        and 'href="#avail-cal"' in html
+        and 'href="#pricing-land"' in html
+        and 'href="#availability-land"' in html
         and 'href="#reviews-land"' in html
         and 'href="#amenities-land"' in html
         and 'href="#specs-land"' in html
         and 'id="about-land"' in html
-        and 'id="enquire-land"' in html,
+        and 'id="pricing-land"' in html
+        and 'id="availability-land"' in html,
     )
     r.check(
         'mobile menu keeps section-top anchors',
@@ -936,15 +937,15 @@ def check_shared_assets(r: Runner) -> None:
         and '.nav-links a.is-active' in css,
     )
     r.check(
-        'desktop nav landing anchors skip redundant headers',
+        'desktop nav landing hides redundant section labels',
         css is not None
         and re.search(
-            r'@media \(min-width: 769px\)[\s\S]*?#about-land[\s\S]*?scroll-margin-top:\s*5rem',
+            r'@media \(min-width: 769px\)[\s\S]*?#itinerary\s*>\s*\.container\s*>\s*\.section-label[\s\S]*?display:\s*none',
             css,
         )
         is not None
         and re.search(
-            r'@media \(min-width: 769px\)[\s\S]*?#avail-cal[\s\S]*?scroll-margin-top:\s*5rem',
+            r'@media \(min-width: 769px\)[\s\S]*?#pricing-land[\s\S]*?scroll-margin-top:\s*5rem',
             css,
         )
         is not None,
