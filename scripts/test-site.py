@@ -281,7 +281,8 @@ def check_html(r: Runner, rel: str, html: str) -> None:
         and "durationSelect.value = 'multi-day'" in html
         and 'durOptMultiDay' in html
         and 'durWrap.hidden = true' in html
-        and 'hideMulti = selected.length === 1' in html
+        and 'id="formDurWrap" hidden' in html
+        and 'selected.length === 1' in html
         and 'preferred_date_end_btn' not in html
         and 'class="form-field form-end-date"' not in html
         and 'for="preferred_date_btn"' in html
@@ -735,6 +736,7 @@ def check_shared_assets(r: Runner) -> None:
         and 'opens-down' in index_html
         and 'form-date-row-open' not in index_html
         and '.form-row.form-date-row-open' not in css
+        and '.form-row:has(#formDurWrap[hidden])' in css
         and '.form-date-trigger' in css
         and '.form-date-icon' in css
         and '.form-date-popover .cal-cell' in css

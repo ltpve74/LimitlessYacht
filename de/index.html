@@ -1304,7 +1304,7 @@ window.LY_afterLcp(function() {
                 </div>
               </div>
             </div>
-            <div class="form-field" id="formDurWrap">
+            <div class="form-field" id="formDurWrap" hidden>
               <label for="charter_duration">Dauer</label>
               <select name="charter_duration" id="charter_duration">
                 <option value="" disabled selected>Auswählen…</option>
@@ -2198,13 +2198,21 @@ window.LY_afterLcp(function() {
       durationSelect.value = 'multi-day';
       return;
     }
-    durWrap.hidden = false;
-    if (multiOpt) {
-      var hideMulti = selected.length === 1;
-      multiOpt.hidden = hideMulti;
-      multiOpt.disabled = hideMulti;
+    if (selected.length === 1) {
+      durWrap.hidden = false;
+      if (multiOpt) {
+        multiOpt.hidden = true;
+        multiOpt.disabled = true;
+      }
+      if (durationSelect.value === 'multi-day') durationSelect.value = '';
+      return;
     }
-    if (selected.length === 1 && durationSelect.value === 'multi-day') durationSelect.value = '';
+    durWrap.hidden = true;
+    if (multiOpt) {
+      multiOpt.hidden = false;
+      multiOpt.disabled = false;
+    }
+    if (durationSelect.value === 'multi-day') durationSelect.value = '';
   }
   function syncForm(){
     if (!startInput) return;
