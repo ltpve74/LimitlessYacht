@@ -181,7 +181,7 @@ PAIRS = [
     ("September – May", "septembre – mai"),
     ("4 Hours", "4 heures"),
     ("6 Hours", "6 heures"),
-    ("1 Day", "1 jour"),
+    ("Full Day", "Journée complète"),
     ("1 Week", "1 semaine"),
     ("Peak Season", "Haute saison"),
     ("June – August", "juin – août"),
