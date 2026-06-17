@@ -223,6 +223,11 @@ def check_html(r: Runner, rel: str, html: str) -> None:
         and 'showImage(currentIdx + 1)' in html,
     )
     r.check(
+        'gallery lightbox guards missing DOM nodes',
+        'if (!lbImg || !images.length) return' in html
+        and 'if (lightbox && lbImg)' in html,
+    )
+    r.check(
         'gallery lightbox swipe guard uses touchmove',
         "lightbox.addEventListener('touchmove'" in html
         and 'lbWasSwiped = true' in html,
@@ -238,6 +243,12 @@ def check_html(r: Runner, rel: str, html: str) -> None:
         and 'dlbWasSwiped' in html
         and 'showDest(destIdx - 1)' in html
         and 'showDest(destIdx + 1)' in html,
+    )
+    r.check(
+        'itinerary lightbox resolves card index and null-safe showDest',
+        'function destCardIndex(card)' in html
+        and 'e.stopPropagation()' in html
+        and 'if (!card) return' in html,
     )
     r.check(
         'itinerary lightbox vertical scroll guard preserves body swipe',
@@ -259,6 +270,22 @@ def check_html(r: Runner, rel: str, html: str) -> None:
 
     # Availability calendar
     r.check('id="availCal" calendar widget exists', 'id="availCal"' in html)
+    r.check(
+        'calendar supports adjacent date range selection',
+        'function buildContiguousRange' in html
+        and 'id="calSelection"' in html
+        and 'id="calEnquireBtn"' in html
+        and 'preferred_date_end' in html
+        and 'id="formDurWrap"' in html
+        and 'LY_applyDurDateLayout' in html
+        and "durationSelect.value === 'multi-day'" in html
+        and 'class="form-field form-end-date"' in html
+        and "classList.toggle('is-visible', show)" in html
+        and "durationSelect.value = 'multi-day'" in html
+        and 'preferredDateEndWrap' in html
+        and 'data-selected=' in html
+        and "node.closest('.cal-cell.free[data-date]')" in html,
+    )
 
     # Nav
     r.check('id="navbar" navigation exists', 'id="navbar"' in html)
@@ -365,10 +392,19 @@ def check_html(r: Runner, rel: str, html: str) -> None:
 
     # Data feeds
     reviews_json = meta['reviews_json']
-    r.check(f'reviews fetch uses {reviews_json}', f"fetch('{reviews_json}')" in html)
+    r.check(
+        f'reviews fetch uses {reviews_json}',
+        f"'{reviews_json}'" in html and 'LY_BASE' in html,
+    )
     if rel != 'index.html':
-        r.check('does not fetch English reviews.json', "fetch('/data/reviews.json')" not in html)
+        r.check('does not fetch English reviews.json', "'/data/reviews.json'" not in html)
     r.check('availability API fetch', '/api/availability' in html)
+    if rel == 'index.html':
+        r.check(
+            'availability uses production API on GitHub Pages preview',
+            'limitlessyachtcharter.com' in html and '.github.io' in html,
+        )
+        r.check('LY_BASE set for GitHub Pages subpath', 'window.LY_BASE' in html)
     r.check(
         'reviews fetch deferred until section nears viewport',
         'LY_whenNearSection' in html
@@ -382,7 +418,7 @@ def check_html(r: Runner, rel: str, html: str) -> None:
     # Structured data
     r.check('schema.org JSON-LD present', 'application/ld+json' in html)
 
-    # Locale subfolders — asset paths must be root-relative
+    # Locale subfolders — shared assets step up; images stay root-relative for Netlify
     if rel != 'index.html':
         r.check(
             f'{rel} LY_DEST_IMAGES uses root-relative paths',
@@ -396,12 +432,35 @@ def check_html(r: Runner, rel: str, html: str) -> None:
             f'{rel} srcset mobile candidates are root-relative',
             ', images/mobile/' not in html,
         )
+        r.check(
+            f'{rel} shared assets use parent-relative paths',
+            'href="../css/main.css' in html
+            and 'href="../fonts/montserrat-latin.woff2"' in html
+            and "url('../fonts/montserrat-latin.woff2')" in html
+            and 'href="../favicon.svg"' in html
+            and 'href="/favicon.svg"' not in html,
+        )
+        r.check(
+            f'{rel} lang switcher uses folder-relative hrefs',
+            'href="../fr/"' in html or 'href="../de/"' in html,
+        )
+        r.check(
+            f'{rel} does not use broken root-only font paths',
+            'href="/fonts/' not in html and "url('/fonts/" not in html,
+        )
 
 
 def check_legal(r: Runner, rel: str, html: str) -> None:
     lang = LEGAL_META[rel]['lang']
     r.check(f'<html lang="{lang}">', re.search(rf'<html lang="{lang}"', html) is not None)
-    r.check('links back to home', 'index.html' in html or 'href="/' in html)
+    if rel == 'legal.html':
+        r.check('links back to home', 'href="index.html"' in html)
+    else:
+        r.check('links back to home', 'href="../"' in html)
+        r.check(
+            'legal shared assets use parent-relative paths',
+            'href="../css/main.css"' in html and 'href="../favicon.svg"' in html,
+        )
 
 
 def check_locale_parity(r: Runner, pages: dict[str, str]) -> None:
@@ -525,6 +584,101 @@ def check_shared_assets(r: Runner) -> None:
     r.check(
         'calendar booked dates meet contrast-safe rose',
         css is not None and '#8f4a52' in css and 'rgba(176,124,130,.9)' not in css,
+    )
+    r.check(
+        'calendar selected dates are visually distinct',
+        css is not None
+        and '.cal-cell.selected' in css
+        and '.cal-cell.free.selected' in css
+        and '.cal-cell[data-selected="true"]' in css
+        and '.cal-footer' in css
+        and '.cal-enquire-btn.is-disabled' in css,
+    )
+    r.check(
+        'calendar legend swatches are reliable at narrow widths',
+        css is not None
+        and '.cal-legend-swatch' in css
+        and re.search(r'min-width:\s*12px', css) is not None
+        and '.leg-selected' in css,
+    )
+    r.check(
+        'narrow viewport calendar and CTA layout',
+        css is not None
+        and re.search(r'@media\s*\(max-width:\s*768px\)', css) is not None
+        and re.search(
+            r'@media\s*\(max-width:\s*768px\)[^{]*\{[^}]*\.cal\s*\{[^}]*max-width:\s*none',
+            css,
+            re.DOTALL,
+        ) is not None
+        and re.search(
+            r'#availability\s*\.availability-actions\s*>\s*\.btn-primary[^}]*max-width:\s*none\s*!important',
+            css,
+        ) is not None
+        and re.search(
+            r'#availability\s*\.availability-actions\s*>\s*\.btn-primary[^}]*flex:\s*none\s*!important',
+            css,
+        ) is not None,
+    )
+    preview_yml = read_file('.github/workflows/preview.yml') or ''
+    r.check(
+        'GitHub Pages preview prepares subpath artifact',
+        'prepare-github-pages.py' in preview_yml and "path: '_site'" in preview_yml,
+    )
+    r.check('prepare-github-pages script exists', os.path.isfile(os.path.join(ROOT, 'scripts/prepare-github-pages.py')))
+    index_html = read_file('index.html') or ''
+    r.check(
+        'font preload uses path relative to site root (GitHub Pages subpath safe)',
+        'href="fonts/montserrat-latin.woff2"' in index_html
+        and 'href="/fonts/montserrat-latin.woff2"' not in index_html,
+    )
+    r.check(
+        'behavior-analytics loads via LY_BASE',
+        "LY_BASE || '') + '/js/behavior-analytics.js'" in index_html
+        and 'src="/js/behavior-analytics.js"' not in index_html,
+    )
+    r.check(
+        'hero phone button sizing scoped to hero only',
+        css is not None
+        and re.search(
+            r'#hero \.hero-actions \.btn-primary[^}]*max-width:\s*170px',
+            css,
+        ) is not None
+        and not re.search(
+            r'@media \(min-width: 481px\)[^{]*\{[^}]*^\s*\.btn-primary\s*,',
+            css,
+            re.DOTALL | re.MULTILINE,
+        ),
+    )
+    r.check(
+        'end date field hidden until multi-day (class-based)',
+        css is not None
+        and '.form-end-date' in css
+        and '.form-end-date.is-visible' in css
+        and 'classList.toggle(\'is-visible\', show)' in index_html,
+    )
+    r.check(
+        'calendar hint lives inside the calendar card',
+        'class="cal-footer"' in index_html and 'id="calHint"' in index_html,
+    )
+    r.check(
+        'calendar legend uses swatch spans',
+        'class="cal-legend-swatch leg-selected"' in index_html,
+    )
+    r.check(
+        'calendar pans to keep selection visible',
+        'function ensureSelectionVisible()' in index_html,
+    )
+    r.check(
+        'calendar enquire focuses name field on all viewports',
+        "getElementById('name')" in index_html
+        and 'nameInput.focus()' in index_html
+        and 'startInput.focus' not in index_html,
+    )
+    r.check(
+        'calendar enquire skips scroll when form is beside calendar on desktop',
+        'function isCalendarFormPaired()' in index_html
+        and 'if (!isCalendarFormPaired())' in index_html
+        and 'scrollIntoView' in index_html,
     )
     r.check(
         'destination cards use pointer cursor (clickable like gallery)',
