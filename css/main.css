@@ -2909,6 +2909,10 @@ footer {
   /* Form/calendar links land on the widget, not the section title */
   #avail-cal { scroll-margin-top: .5rem; }
 }
+@media (min-width: 401px) and (max-width: 768px) {
+  /* Large-phone quote links: land on section intro (label + title), not the form fields */
+  #enquire-land { scroll-margin-top: 1rem; }
+}
 @media (min-width: 641px) and (max-width: 1100px) {
   /* Land between label and title; nudge down so title clears nav after dest-card CTA */
   #availability-land {

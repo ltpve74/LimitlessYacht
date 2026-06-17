@@ -29,6 +29,7 @@ RED = "\033[91m"
 RESET = "\033[0m"
 
 MOBILE_VIEWPORT = {"width": 390, "height": 844}
+LARGE_PHONE_VIEWPORT = {"width": 412, "height": 915}
 TABLET_VIEWPORT = {"width": 768, "height": 1024}
 IPAD_AIR_VIEWPORT = {"width": 820, "height": 1180}
 IPAD_PRO_VIEWPORT = {"width": 834, "height": 1194}
@@ -36,7 +37,6 @@ DESKTOP_VIEWPORT = {"width": 1280, "height": 900}
 
 # Mobile menu links must keep section-top / calendar anchors (not -land variants).
 MOBILE_NAV_HREFS = (
-    ("a.mobile-nav-cta", "#enquire-form"),
     ('a[href="#about"]', "#about"),
     ('a[href="#itinerary"]', "#itinerary"),
     ('a[href="#gallery"]', "#gallery"),
@@ -106,8 +106,23 @@ def expect_mobile_menu_closed(page) -> None:
     )
 
 
+def expected_mobile_quote_href(page) -> str:
+    width = (page.viewport_size or {}).get("width", 390)
+    return "#enquire-land" if width > 400 else "#enquire-form"
+
+
 def assert_mobile_nav_hrefs(page, scenario: str, issues: IssueCollector) -> None:
     open_mobile_menu(page)
+    quote = page.locator("#mobileNav a.mobile-nav-cta")
+    if quote.count() == 0:
+        issues.add(f"{scenario}: missing mobile nav link a.mobile-nav-cta")
+    else:
+        expected = expected_mobile_quote_href(page)
+        actual = quote.first.get_attribute("href")
+        if actual != expected:
+            issues.add(
+                f"{scenario}: mobile nav a.mobile-nav-cta href is {actual!r}, expected {expected!r}"
+            )
     for selector, expected in MOBILE_NAV_HREFS:
         loc = page.locator(f"#mobileNav {selector}")
         if loc.count() == 0:
@@ -500,6 +515,35 @@ def scenario_home_ipad_wide(page, base: str, issues: IssueCollector) -> None:
             issues.add(f"{label}: destination prev/next should align to the image band on tablet widths")
 
 
+def scenario_home_large_phone(page, base: str, issues: IssueCollector) -> None:
+    name = "home large phone"
+    issues.attach(page, name)
+    page.set_viewport_size(LARGE_PHONE_VIEWPORT)
+    page.goto(base + "/", wait_until="domcontentloaded", timeout=60000)
+    page.wait_for_timeout(800)
+
+    assert_mobile_nav_hrefs(page, name, issues)
+
+    open_mobile_menu(page)
+    quote = page.locator('#mobileNav a.mobile-nav-cta[href="#enquire-land"]')
+    if quote.count() == 0:
+        issues.add(f"{name}: missing mobile Get Quote link targeting enquire-land")
+    else:
+        quote.first.click()
+        page.wait_for_function(
+            "() => {"
+            "  const label = document.querySelector('.enquire-section .section-label');"
+            "  const title = document.querySelector('.enquire-section .section-title');"
+            "  if (!label || !title) return false;"
+            "  const lt = label.getBoundingClientRect().top;"
+            "  const tt = title.getBoundingClientRect().top;"
+            "  return location.hash === '#enquire-land' && lt >= 36 && lt <= 130 && tt > lt;"
+            "}",
+            timeout=8000,
+        )
+    expect_mobile_menu_closed(page)
+
+
 def scenario_home_mobile(page, base: str, issues: IssueCollector) -> None:
     name = "home mobile"
     issues.attach(page, name)
@@ -581,6 +625,7 @@ def run_scenarios(base_url: str, quick: bool = False) -> list[str]:
         scenario_home_desktop,
         scenario_home_tablet,
         scenario_home_ipad_wide,
+        scenario_home_large_phone,
         scenario_home_mobile,
     ]
     if not quick:

@@ -127,8 +127,8 @@ nav{position:fixed;top:0;left:0;right:0;z-index:100;min-height:4.25rem}
   if (ownerStored || global.LY_IS_PREVIEW) { global.LY_OWNER_MODE = true; }
 })(window);
 </script>
-<link rel="preload" as="style" href="../css/main.css?v=84" onload="this.rel='stylesheet'" />
-<noscript><link rel="stylesheet" href="../css/main.css?v=84" /></noscript>
+<link rel="preload" as="style" href="../css/main.css?v=85" onload="this.rel='stylesheet'" />
+<noscript><link rel="stylesheet" href="../css/main.css?v=85" /></noscript>
 
 <title>Limitless Yacht Experience – Charter de luxe Maiora à Majorque</title>
 <meta name="description" content="Louez le Maiora de 21,5 m « Limitless » depuis Palma de Majorque — croisières à la journée et sur plusieurs jours vers les criques de Majorque, Cabrera et Formentera. Avec équipage, jusqu'à 12 invités." />
@@ -2234,6 +2234,35 @@ document.addEventListener('DOMContentLoaded', function() {
   });
 </script>
 
+<script>
+(function () {
+  function lyEnquireQuoteHref() {
+    var w = window.innerWidth || document.documentElement.clientWidth;
+    if (w <= 400) return '#enquire-form';
+    return '#enquire-land';
+  }
+  function syncEnquireQuoteHrefs() {
+    var href = lyEnquireQuoteHref();
+    document.querySelectorAll('.mobile-nav-cta, #calEnquireBtn').forEach(function (link) {
+      link.setAttribute('href', href);
+    });
+    document.querySelectorAll(
+      'a.section-cta-quote--mobile, a.btn-primary[href="#enquire"], a.btn-ghost[href="#enquire"]'
+    ).forEach(function (link) {
+      if (link.id === 'dest-lb-cta') return;
+      link.setAttribute('href', href);
+    });
+  }
+  window.LY_enquireQuoteHref = lyEnquireQuoteHref;
+  window.addEventListener('resize', syncEnquireQuoteHrefs);
+  if (document.readyState === 'loading') {
+    document.addEventListener('DOMContentLoaded', syncEnquireQuoteHrefs);
+  } else {
+    syncEnquireQuoteHrefs();
+  }
+})();
+</script>
+
 <!-- Guest reviews (loaded from curated data/reviews.json) -->
 <script>
 (function () {
@@ -2659,7 +2688,8 @@ document.addEventListener('DOMContentLoaded', function() {
       var nameInput = document.getElementById('name');
       if (nameInput) nameInput.focus();
     } else {
-      var target = document.getElementById('enquire-form') || document.getElementById('enquire');
+      var href = window.LY_enquireQuoteHref ? window.LY_enquireQuoteHref() : '#enquire-form';
+      var target = document.getElementById(href.slice(1));
       if (target) target.scrollIntoView({ behavior: 'smooth' });
     }
   });
