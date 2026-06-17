@@ -319,7 +319,9 @@ def check_html(r: Runner, rel: str, html: str) -> None:
         'window.LY_syncDestCardImages' not in html
         and html.count('class="destination-card-bg"') == 12
         and html.count('sizes="78vw"') == 12
-        and 'images/mobile/dest/el-toro-malgrats-1-480.webp 480w' in html,
+        and 'images/mobile/dest/el-toro-malgrats-1-480.webp 320w' in html
+        and 'images/mobile/dest/el-toro-malgrats-1-960.webp 640w' in html
+        and html.count('sizes="(min-width: 1101px) 500px, 48vw"') == 12,
     )
     r.check(
         'gallery pictures split mobile/desktop sources',
@@ -563,7 +565,8 @@ def check_html(r: Runner, rel: str, html: str) -> None:
     )
     r.check(
         'responsive hero image preloads',
-        'images/mobile/maiora_20s_02.webp' in html
+        'imagesrcset="' in html
+        and 'maiora_20s_02-480.webp' in html
         and 'maiora_20s_02.webp' in html
         and 'fetchpriority="high"' in html,
     )
@@ -1705,6 +1708,8 @@ def check_shared_assets(r: Runner) -> None:
         'images/mobile/maiora_20s_02.webp',
         'images/mobile/maiora_20s_02-480.webp',
         'images/mobile/dest/el-toro-malgrats-1-480.webp',
+        'images/mobile/dest/el-toro-malgrats-1-960.webp',
+        'images/mobile/_srcset-widths.json',
         'data/reviews.json',
         'netlify/functions/availability.mjs',
         'netlify/functions/reviews.mjs',
