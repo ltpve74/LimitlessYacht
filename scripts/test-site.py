@@ -265,6 +265,9 @@ def check_html(r: Runner, rel: str, html: str) -> None:
         and 'id="calSelection"' in html
         and 'id="calEnquireBtn"' in html
         and 'preferred_date_end' in html
+        and 'id="formDurWrap"' in html
+        and "durationSelect.value = 'multi-day'" in html
+        and 'durationWrap.hidden = true' in html
         and 'data-selected=' in html
         and "node.closest('.cal-cell.free[data-date]')" in html,
     )
@@ -647,7 +650,8 @@ def check_shared_assets(r: Runner) -> None:
         'calendar enquire skips scroll when form is beside calendar on desktop',
         'function isCalendarFormPaired()' in index_html
         and 'if (!isCalendarFormPaired())' in index_html
-        and 'scrollIntoView' in index_html,
+        and 'scrollIntoView' in index_html
+        and 'startInput.focus' not in index_html,
     )
     r.check(
         'destination cards use pointer cursor (clickable like gallery)',

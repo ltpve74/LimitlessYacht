@@ -1234,14 +1234,14 @@ window.LY_afterLcp(function() {
               <label for="preferred_date_end">End Date</label>
               <input type="date" name="preferred_date_end" id="preferred_date_end" min="" />
             </div>
-            <div class="form-field">
+            <div class="form-field" id="formDurWrap">
               <label for="charter_duration">Duration</label>
               <select name="charter_duration" id="charter_duration">
                 <option value="" disabled selected>Select…</option>
-                <option>4 Hours</option>
-                <option>6 Hours</option>
-                <option>1 Day</option>
-                <option>Multi-Day</option>
+                <option value="4-hours">4 Hours</option>
+                <option value="6-hours">6 Hours</option>
+                <option value="1-day">1 Day</option>
+                <option value="multi-day">Multi-Day</option>
               </select>
             </div>
           </div>
@@ -1738,7 +1738,7 @@ window.LY_afterLcp(function() {
       lbDesc.textContent = (card.querySelector('.destination-desc')    || {}).textContent || '';
       var metaEl = card.querySelector('.destination-meta');
       lbMeta.innerHTML = metaEl ? metaEl.innerHTML : '';
-      var tierMap = { 'half-day': '4 Hours', 'full-day': '1 Day', 'multi-day': 'Multi-Day' };
+      var tierMap = { 'half-day': '4-hours', 'full-day': '1-day', 'multi-day': 'multi-day' };
       var tierLabel = { 'half-day': 'half-day', 'full-day': 'full-day', 'multi-day': 'multi-day' };
       var tierBadge = { 'half-day': 'Half-Day · 4–6 h', 'full-day': 'Full Day', 'multi-day': 'Multi-Day · Overnight +' };
       var group = card.closest ? card.closest('.dest-group') : null;
@@ -2058,6 +2058,8 @@ window.LY_afterLcp(function() {
   var startInput = document.getElementById('preferred_date');
   var endInput = document.getElementById('preferred_date_end');
   var endWrap = document.getElementById('preferredDateEndWrap');
+  var durationSelect = document.getElementById('charter_duration');
+  var durationWrap = document.getElementById('formDurWrap');
   if (!calRoot || !monthsEl || !prevBtn || !nextBtn) return;
 
   var MONTHS = ['January','February','March','April','May','June','July','August','September','October','November','December'];
@@ -2145,6 +2147,7 @@ window.LY_afterLcp(function() {
       startInput.value = '';
       if (endInput) endInput.value = '';
       if (endWrap) endWrap.hidden = true;
+      if (durationWrap) durationWrap.hidden = false;
       return;
     }
     startInput.value = selected[0];
@@ -2152,9 +2155,13 @@ window.LY_afterLcp(function() {
       if (selected.length > 1) {
         endInput.value = selected[selected.length - 1];
         endWrap.hidden = false;
+        if (durationSelect) durationSelect.value = 'multi-day';
+        if (durationWrap) durationWrap.hidden = true;
       } else {
         endInput.value = '';
         endWrap.hidden = true;
+        if (durationWrap) durationWrap.hidden = false;
+        if (durationSelect && durationSelect.value === 'multi-day') durationSelect.value = '';
       }
     }
   }
@@ -2318,7 +2325,6 @@ window.LY_afterLcp(function() {
       var target = document.getElementById('enquire-form') || document.getElementById('enquire');
       if (target) target.scrollIntoView({ behavior: 'smooth' });
     }
-    if (startInput) startInput.focus({ preventScroll: true });
   });
 
   var resizeTimer;
