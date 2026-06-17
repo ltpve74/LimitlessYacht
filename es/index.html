@@ -1277,7 +1277,7 @@ window.LY_afterLcp(function() {
                   <span class="form-date-text">Seleccionar…</span>
                 </button>
                 <div class="form-date-popover cal opens-up" id="formDatePopover" role="dialog" aria-modal="false" aria-label="Elegir fechas" hidden>
-                  <div class="form-date-popover-head">
+                  <div class="form-date-popover-toolbar">
                     <p class="form-date-title" id="formDatePopoverTitle"></p>
                     <button type="button" class="cal-nav form-date-nav form-date-popover-dismiss" id="formDatePopoverDismiss" aria-label="Cerrar calendario">✕</button>
                   </div>
@@ -1304,7 +1304,7 @@ window.LY_afterLcp(function() {
                 </div>
               </div>
             </div>
-            <div class="form-field" id="formDurWrap" hidden>
+            <div class="form-field" id="formDurWrap">
               <label for="charter_duration">Duración</label>
               <select name="charter_duration" id="charter_duration">
                 <option value="" disabled selected>Seleccionar…</option>
@@ -2198,21 +2198,13 @@ window.LY_afterLcp(function() {
       durationSelect.value = 'multi-day';
       return;
     }
-    if (selected.length === 1) {
-      durWrap.hidden = false;
-      if (multiOpt) {
-        multiOpt.hidden = true;
-        multiOpt.disabled = true;
-      }
-      if (durationSelect.value === 'multi-day') durationSelect.value = '';
-      return;
-    }
-    durWrap.hidden = true;
+    durWrap.hidden = false;
     if (multiOpt) {
-      multiOpt.hidden = false;
-      multiOpt.disabled = false;
+      var hideMulti = selected.length === 1;
+      multiOpt.hidden = hideMulti;
+      multiOpt.disabled = hideMulti;
     }
-    if (durationSelect.value === 'multi-day') durationSelect.value = '';
+    if (selected.length === 1 && durationSelect.value === 'multi-day') durationSelect.value = '';
   }
   function syncForm(){
     if (!startInput) return;
