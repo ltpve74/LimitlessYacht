@@ -498,9 +498,10 @@ def check_shared_assets(r: Runner) -> None:
     if css:
         r.check('main.css defines .hero-bg-wrap', '.hero-bg-wrap' in css)
         r.check('main.css defines heroTitleIn', 'heroTitleIn' in css)
+        css_flat = re.sub(r'\s+', '', css)
         r.check(
             'hero entrance animations avoid translateY (CLS-safe)',
-            '@keyframes heroFade' in css and 'animation: heroFade' in css,
+            '@keyframesheroFade' in css_flat and 'animation:heroFade' in css_flat,
         )
     r.check(
         'WhatsApp button meets contrast-safe green',
