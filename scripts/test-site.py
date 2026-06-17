@@ -491,6 +491,16 @@ def check_html(r: Runner, rel: str, html: str) -> None:
         is not None,
     )
     r.check(
+        'hero eyebrow desktop links use -land anchors',
+        'href="#reviews-land" class="hero-eyebrow-link--desktop"' in html
+        and 'href="#charters-land" class="hero-eyebrow-link--desktop"' in html,
+    )
+    r.check(
+        'hero eyebrow mobile links keep section anchors',
+        'href="#reviews" class="hero-eyebrow-link--mobile"' in html
+        and 'href="#charters" class="hero-eyebrow-link--mobile"' in html,
+    )
+    r.check(
         'critical CSS defines hero bottom cluster gaps',
         '.hero-cta-group{' in crit_flat
         and 'gap:var(--hero-gap)' in crit_flat
@@ -718,6 +728,15 @@ def check_shared_assets(r: Runner) -> None:
             'short viewports compact hero title for bottom cluster clearance',
             re.search(
                 r'@media \(max-height: 920px\)[\s\S]*?--hero-cluster-gap',
+                css,
+            )
+            is not None,
+        )
+        r.check(
+            'hero eyebrow toggles mobile vs desktop anchor targets',
+            '.hero-eyebrow-link--desktop{' in css_flat
+            and re.search(
+                r'@media \(min-width: 769px\)[\s\S]*?\.hero-eyebrow-link--mobile\s*\{[^}]*display:\s*none',
                 css,
             )
             is not None,

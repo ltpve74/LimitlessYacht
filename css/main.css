@@ -275,6 +275,11 @@ nav.scrolled::before { opacity: 1; }
 .hero-eyebrow a, .hero-trust a {
   color: inherit; text-decoration: none;
 }
+.hero-eyebrow-link--desktop { display: none; }
+@media (min-width: 769px) {
+  .hero-eyebrow-link--mobile { display: none; }
+  .hero-eyebrow-link--desktop { display: inline; }
+}
 .hero-title {
   font-family: 'Montserrat', sans-serif;
   font-size: clamp(3.5rem, 9vw, 8rem); font-weight: 300; line-height: 1;
