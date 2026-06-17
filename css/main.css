@@ -818,14 +818,16 @@ section { padding: 7rem 2rem; }
 .form-date-modal[hidden] { display: none !important; }
 .form-date-backdrop {
   position: absolute; inset: 0;
-  background: rgba(10,22,40,.84);
+  background: var(--navy);
   cursor: pointer;
 }
-.form-date-popover {
+.form-date-popover,
+.form-date-popover.cal {
   position: relative; z-index: 1;
   width: min(20rem, calc(100vw - 2rem));
   max-height: calc(100vh - 2rem);
   overflow-y: auto;
+  margin-top: 0; max-width: none;
   background: var(--deep); border: 1px solid rgba(201,168,76,.35);
   border-radius: 8px; padding: 1rem .9rem .85rem;
   box-shadow: 0 22px 56px rgba(0,0,0,.6);

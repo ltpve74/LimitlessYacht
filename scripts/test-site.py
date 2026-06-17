@@ -724,7 +724,9 @@ def check_shared_assets(r: Runner) -> None:
         and '.form-date-popover .cal-cell' in css
         and '.form-date-apply-btn' in css
         and '.form-date-modal-dismiss' in css
-        and '.form-date-backdrop' in css,
+        and '.form-date-backdrop' in css
+        and re.search(r'\.form-date-popover(?:\.cal)?\s*\{[^}]*background:\s*var\(--deep\)', css) is not None
+        and re.search(r'\.form-date-backdrop\s*\{[^}]*background:\s*var\(--navy\)', css) is not None,
     )
     r.check(
         'availability calendar has app-style landing anchor',
