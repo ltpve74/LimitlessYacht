@@ -327,6 +327,20 @@ def check_html(r: Runner, rel: str, html: str) -> None:
 
     # Nav
     r.check('id="navbar" navigation exists', 'id="navbar"' in html)
+    r.check(
+        'desktop language selector uses popup menu',
+        'id="navLangWrap"' in html
+        and 'id="navLangTrigger"' in html
+        and 'id="navLangPopover"' in html
+        and 'class="nav-lang-popover"' in html
+        and 'class="nav-lang"' not in html,
+    )
+    r.check(
+        'nav scroll section highlighting script',
+        'updateNavSection' in html
+        and "classList.toggle('is-active'" in html
+        and 'navSectionLinks' in html,
+    )
 
     # Netlify form detection
     r.check('Netlify form attribute present', ' netlify ' in html or ' netlify>' in html)
@@ -881,6 +895,23 @@ def check_shared_assets(r: Runner) -> None:
             css,
         )
         is not None,
+    )
+    r.check(
+        'desktop nav keeps single row on narrow viewports',
+        css is not None
+        and re.search(
+            r'@media \(min-width: 769px\) and \(max-width: 1100px\)[\s\S]*?nav\s*\{[^}]*display:\s*flex',
+            css,
+        )
+        is not None
+        and 'grid-template-areas: "logo end" "links links"' not in css,
+    )
+    r.check(
+        'nav language popup and active link styles',
+        css is not None
+        and '.nav-lang-wrap' in css
+        and '.nav-lang-popover' in css
+        and '.nav-links a.is-active' in css,
     )
     r.check(
         'calendar nav buttons avoid sticky touch hover',

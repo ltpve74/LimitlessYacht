@@ -55,16 +55,25 @@ def root_paths(html: str) -> str:
 
 def lang_switcher_nav(active: str) -> tuple[str, str]:
     links = LANG_LINKS[active]
-    parts = []
-    for i, (code, href, label) in enumerate(links):
+    active_label = next(label for code, _href, label in links if code == active)
+    popover_items = []
+    for code, href, label in links:
         cls = ' class="active"' if code == active else ""
-        parts.append(f'<a href="{href}" hreflang="{code}"{cls} lang="{code}">{label}</a>')
-        if i < len(links) - 1:
-            parts.append('<span class="nav-lang-sep">|</span>')
+        popover_items.append(
+            f'        <a href="{href}" hreflang="{code}"{cls} lang="{code}" role="menuitem">{label}</a>'
+        )
     nav = (
-        f'    <div class="nav-lang" aria-label="{ARIA[active]}">\n      '
-        + "\n      ".join(parts)
-        + "\n    </div>"
+        f'    <div class="nav-lang-wrap" id="navLangWrap">\n'
+        f'      <button type="button" class="nav-lang-trigger" id="navLangTrigger" '
+        f'aria-haspopup="menu" aria-expanded="false" aria-controls="navLangPopover" '
+        f'aria-label="{ARIA[active]}">\n'
+        f'        <span class="nav-lang-current" lang="{active}">{active_label}</span>\n'
+        f'        <span class="nav-lang-caret" aria-hidden="true">▾</span>\n'
+        f'      </button>\n'
+        f'      <div class="nav-lang-popover" id="navLangPopover" role="menu" hidden>\n'
+        + "\n".join(popover_items)
+        + "\n      </div>\n"
+        f"    </div>"
     )
     mobile = []
     for code, href, label in links:
@@ -184,11 +193,10 @@ def build_index(locale_mod) -> str:
 
     nav_lang, mobile_lang = lang_switcher_nav(locale_mod.CODE)
     html = re.sub(
-        r'<div class="nav-lang" aria-label="[^"]*">.*?</div>',
+        r'<div class="nav-lang-wrap" id="navLangWrap">[\s\S]*?</div>\s*\n\s*</div>',
         nav_lang,
         html,
         count=1,
-        flags=re.DOTALL,
     )
     html = re.sub(
         r'<div class="mobile-lang" aria-label="[^"]*">.*?</div>',
