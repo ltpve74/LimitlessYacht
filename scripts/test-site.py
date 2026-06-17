@@ -277,26 +277,38 @@ def check_html(r: Runner, rel: str, html: str) -> None:
         and 'id="calEnquireBtn"' in html
         and 'preferred_date_end' in html
         and 'id="formDurWrap"' in html
-        and 'LY_applyDurDateLayout' in html
-        and "durationSelect.value === 'multi-day'" in html
-        and 'class="form-field form-end-date"' in html
-        and "classList.toggle('is-visible', show)" in html
+        and 'function LY_syncFormDur' in html
         and "durationSelect.value = 'multi-day'" in html
-        and 'preferredDateEndWrap' in html
+        and 'durOptMultiDay' in html
+        and 'durWrap.hidden = true' in html
+        and 'id="formDurWrap" hidden' in html
+        and 'selected.length === 1' in html
+        and 'preferred_date_end_btn' not in html
+        and 'class="form-field form-end-date"' not in html
+        and 'for="preferred_date_btn"' in html
         and 'data-selected=' in html
         and "node.closest('.cal-cell.free[data-date]')" in html,
     )
     r.check(
         'form uses themed date pickers instead of native date inputs',
         'class="form-date-wrap"' in html
-        and 'class="form-date-popover cal"' in html
+        and 'id="formDatePopover"' in html
+        and 'id="preferredDateWrap"' in html
         and 'type="hidden" name="preferred_date"' in html
         and 'type="hidden" name="preferred_date_end"' in html
         and 'type="date" name="preferred_date"' not in html
-        and 'function initFormDatePicker' in html
+        and 'function openFormDatePopover' in html
+        and 'function closeFormDatePopover' in html
+        and 'function positionFormDatePopover' in html
         and 'window.LY_updateFormDateTriggers' in html
-        and 'class="form-date-range-hint"' in html
-        and 'toggleDate(k)' in html
+        and 'id="formDateStepHint"' in html
+        and 'function pickFormDate' in html
+        and 'formDatePickGuard' in html
+        and 'class="form-date-icon"' in html
+        and 'form-date-popup-open' in html
+        and 'class="form-date-apply-btn"' in html
+        and 'id="formDatePopoverDismiss"' in html
+        and 'formDateModal' not in html
         and 'range-start' in html,
     )
 
@@ -663,11 +675,10 @@ def check_shared_assets(r: Runner) -> None:
         ),
     )
     r.check(
-        'end date field hidden until multi-day (class-based)',
-        css is not None
-        and '.form-end-date' in css
-        and '.form-end-date.is-visible' in css
-        and 'classList.toggle(\'is-visible\', show)' in index_html,
+        'end date submitted via hidden field only',
+        'type="hidden" name="preferred_date_end"' in index_html
+        and 'preferred_date_end_btn' not in index_html
+        and 'LY_applyDurDateLayout' not in index_html,
     )
     r.check(
         'calendar hint lives inside the calendar card',
@@ -700,27 +711,68 @@ def check_shared_assets(r: Runner) -> None:
         and 'href="#avail-cal" class="itinerary-meet-cta"' in index_html,
     )
     r.check(
-        'form date hint sits with date fields and is mobile-only in paired layout',
+        'form date hint links to availability calendar overview',
         'class="form-date-hint"' in index_html
-        and 'Check the calendar above for open dates.' in index_html
-        and 'form-date-hint-link' not in index_html
+        and 'class="form-date-hint-link"' in index_html
+        and 'href="#avail-cal"' in index_html
+        and 'select free date(s) above.' in index_html
         and css is not None
-        and re.search(r'\.contact-cal-pair\s+\.form-date-hint\s*\{\s*display:\s*none', css) is not None,
+        and '.form-date-hint-link' in css,
     )
     r.check(
-        'form date popover styled like availability calendar',
+        'form date popover is a field-attached popup with on-brand trigger',
         css is not None
-        and '.form-date-popover' in css
+        and '.form-date-wrap' in css
+        and '.form-date-popover.opens-up' in css
+        and '.form-date-popover.opens-down' in css
+        and '.form-date-popover-toolbar' in css
+        and '.form-date-month-nav' in css
+        and 'form-date-month-nav' in index_html
+        and '.form-date-prev' not in index_html.split('form-date-popover-toolbar')[1].split('form-date-cal-grid')[0]
+        and 'class="form-date-popover cal opens-up"' in index_html
+        and 'function positionFormDatePopover' in index_html
+        and "formDatePopover.style.position = 'fixed'" not in index_html
+        and 'formDatePopover.style.overflowY' not in index_html
+        and 'opens-down' in index_html
+        and 'form-date-row-open' not in index_html
+        and '.form-row.form-date-row-open' not in css
+        and '.form-row:has(#formDurWrap[hidden])' not in css
+        and re.search(r'max-width:\s*18\.5rem', css) is not None
         and '.form-date-trigger' in css
+        and '.form-date-icon' in css
         and '.form-date-popover .cal-cell' in css
-        and '.form-date-range-hint' in css
-        and '.form-date-backdrop' in css,
+        and '.form-date-apply-btn' in css
+        and 'class="cal-nav form-date-nav form-date-popover-dismiss"' in index_html
+        and '.form-date-popover-dismiss' in css
+        and '.form-date-popover .form-date-clear-btn' in css
+        and 'form-date-close-hint' not in index_html
+        and '.form-date-modal' not in css
+        and '.form-date-backdrop' not in css
+        and re.search(r'\.form-date-popover(?:\.cal)?\s*\{[^}]*background:\s*var\(--deep\)', css) is not None,
+    )
+    r.check(
+        'calendar nav buttons avoid sticky touch hover',
+        css is not None
+        and re.search(r'@media\s*\(\s*hover:\s*hover\s*\)\s*and\s*\(\s*pointer:\s*fine\s*\)', css) is not None
+        and re.search(r'\.cal-nav:hover:not\(:disabled\)', css) is not None
+        and '.cal-nav:focus:not(:focus-visible)' in css
+        and 'e.currentTarget.blur()' in index_html,
     )
     r.check(
         'availability calendar has app-style landing anchor',
         'id="avail-cal"' in index_html
         and 'class="availability-picker"' in index_html
+        and 'availability-intro' in index_html
         and '#avail-cal' in (css or ''),
+    )
+    r.check(
+        'availability intro visible in paired mobile layout',
+        css is not None
+        and re.search(
+            r'\.contact-cal-pair\s+#availability\s+\.availability-intro\s*\{',
+            css,
+        ) is not None
+        and '.contact-cal-pair #availability .availability-intro { display: none' not in css,
     )
     pair_start = index_html.find('class="contact-cal-pair"')
     pair_end = index_html.find('id="reviews"', pair_start)
