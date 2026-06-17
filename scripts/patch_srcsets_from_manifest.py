@@ -73,7 +73,7 @@ def desktop_tier_srcset(
     widths: dict[str, int],
     *,
     folder: str = "images",
-    tiers: tuple[tuple[str, int, int], ...] = DESKTOP_CONTENT_TIERS,
+    tiers: tuple[tuple[str, int, int], ...] = GALLERY_CARD_DESKTOP_TIERS,
 ) -> str:
     prefix = f"{folder}/" if folder else ""
     entries: list[tuple[int, str]] = []
@@ -183,12 +183,40 @@ def patch_gallery_picture(
     return re.sub(pattern, replacement, html, count=1)
 
 
+def patch_about_picture(html: str, widths: dict[str, int]) -> str:
+    mobile = srcset_for_base(
+        "images/mobile/maiora_20s_04.webp",
+        widths,
+        include_master=True,
+        max_suffix="-960",
+        tiers=GALLERY_MOBILE_TIERS,
+    )
+    desktop = desktop_tier_srcset("maiora_20s_04", widths)
+    pattern = (
+        r'<picture><source type="image/webp" media="\(max-width: 640px\)" '
+        r'srcset="images/mobile/maiora_20s_04[^"]*" sizes="100vw" />'
+        r'<source type="image/webp" srcset="images/maiora_20s_04[^"]*" '
+        r'sizes="\(min-width: 1101px\) 50vw, 100vw" />'
+        r'(<img loading="lazy" decoding="async" src="images/maiora_20s_04\.jpg"[^>]*/>)'
+        r'</picture>'
+    )
+    replacement = (
+        f'<picture><source type="image/webp" media="(max-width: 640px)" '
+        f'srcset="{mobile}" sizes="100vw" />'
+        f'<source type="image/webp" srcset="{desktop}" '
+        f'sizes="(min-width: 1101px) 50vw, 100vw" />'
+        rf'\1</picture>'
+    )
+    return re.sub(pattern, replacement, html, count=1)
+
+
 def main() -> None:
     widths = json.loads(MANIFEST.read_text(encoding="utf-8"))
     index = BASE / "index.html"
     html = index.read_text(encoding="utf-8")
     original = html
     html = patch_dest_srcsets(html, widths)
+    html = patch_about_picture(html, widths)
     for name, featured in GALLERY_ITEMS:
         html = patch_gallery_picture(html, name, featured, widths)
     if html == original:
