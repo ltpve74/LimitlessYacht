@@ -730,6 +730,22 @@ def check_shared_assets(r: Runner) -> None:
         and 'href="#avail-cal" class="itinerary-meet-cta"' in index_html,
     )
     r.check(
+        'mobile gallery section fills viewport like itinerary',
+        css is not None
+        and re.search(
+            r'#gallery,\s*#itinerary\s*\{[^}]*min-height:\s*100svh',
+            css,
+        ) is not None
+        and re.search(
+            r'\.gallery-group\s+\.gallery-item\s*\{[^}]*height:\s*calc\(100svh\s*-\s*15rem\)',
+            css,
+        ) is not None
+        and re.search(
+            r'\.destination-card\s*\{[^}]*height:\s*calc\(100svh\s*-\s*15rem\)',
+            css,
+        ) is not None,
+    )
+    r.check(
         'destination lightbox CTA labels swap on mobile',
         css is not None
         and '.dest-lb-cta-mobile' in css
