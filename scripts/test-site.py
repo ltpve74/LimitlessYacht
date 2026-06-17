@@ -700,12 +700,9 @@ def check_shared_assets(r: Runner) -> None:
         and 'class="availability-picker"' in index_html
         and '#avail-cal' in (css or ''),
     )
-    pair_m = re.search(
-        r'class="contact-cal-pair"[^>]*>(.*?)</div>\s*<!--\s*/\.contact-cal-pair\s*-->',
-        index_html,
-        re.DOTALL,
-    )
-    pair_html = pair_m.group(1) if pair_m else ''
+    pair_start = index_html.find('class="contact-cal-pair"')
+    pair_end = index_html.find('id="reviews"', pair_start)
+    pair_html = index_html[pair_start:pair_end] if pair_start != -1 and pair_end != -1 else ''
     r.check(
         'calendar precedes enquiry form in page structure',
         pair_html.find('id="availability"') != -1
