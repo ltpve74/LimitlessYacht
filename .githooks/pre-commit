@@ -28,6 +28,16 @@ if printf '%s\n' "$CHANGED" | grep -qE '^(index\.html|legal\.html|data/reviews\.
   LOCALE_REBUILD=1
 fi
 
+if printf '%s\n' "$CHANGED" | grep -qE '^css/main\.css$'; then
+  echo "[pre-commit] css/main.css changed — bumping cache-bust version..."
+  if ! "$PY" scripts/bump-css-cache.py; then
+    echo "[pre-commit] ERROR: CSS cache bump failed — aborting commit." >&2
+    exit 1
+  fi
+  git add index.html
+  LOCALE_REBUILD=1
+fi
+
 if [ "$BRANCH" = "experiment-no-prices" ]; then
   if [ "$LOCALE_REBUILD" -eq 1 ]; then
     echo "[pre-commit] EN source / locale data changed — rebuilding locales (readable dev branch)..."

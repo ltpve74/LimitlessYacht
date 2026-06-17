@@ -600,6 +600,20 @@ def check_html_integrity(r: Runner) -> None:
 def check_shared_assets(r: Runner) -> None:
     css = read_file('css/main.css')
     r.check('css/main.css exists', css is not None)
+    index_html = read_file('index.html') or ''
+    en_v = re.search(r'main\.css\?v=(\d+)', index_html)
+    r.check(
+        'main.css cache-bust version is set on EN',
+        en_v is not None,
+    )
+    if en_v:
+        v = en_v.group(1)
+        for loc in ('de', 'es', 'fr'):
+            loc_html = read_file(f'{loc}/index.html') or ''
+            r.check(
+                f'{loc}/index.html uses same main.css cache version as EN',
+                f'main.css?v={v}' in loc_html,
+            )
     if css:
         r.check('main.css defines .hero-bg-wrap', '.hero-bg-wrap' in css)
         r.check('main.css defines heroTitleIn', 'heroTitleIn' in css)
@@ -851,10 +865,18 @@ def check_shared_assets(r: Runner) -> None:
         and re.search(r'\.form-date-popover(?:\.cal)?\s*\{[^}]*background:\s*var\(--deep\)', css) is not None
         and 'body.form-date-popup-open::before' in css
         and 'body.form-date-popup-open .form-date-popover:not([hidden])' in css
-        and re.search(
-            r'body\.form-date-popup-open \.form-date-popover:not\(\[hidden\]\)\{[^}]*position:\s*fixed',
-            css,
-        ) is not None,
+        and (
+            re.search(
+                r'body\.form-date-popup-open \.form-date-popover:not\(\[hidden\]\)\{[^}]*position:\s*fixed',
+                css,
+            )
+            is not None
+            or re.search(
+                r'body\.form-date-popup-open \.form-date-popover:not\(\[hidden\]\)\s*\{[^}]*position:\s*fixed',
+                css,
+            )
+            is not None
+        ),
     )
     r.check(
         'calendar nav buttons avoid sticky touch hover',
