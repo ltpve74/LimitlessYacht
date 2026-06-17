@@ -724,6 +724,14 @@ def check_shared_assets(r: Runner) -> None:
         and '.form-date-popover .cal-cell' in css
         and '.form-date-apply-btn' in css
         and '.form-date-popover-dismiss' in css
+        and re.search(
+            r'\.form-date-popover-dismiss\s*\{[^}]*background:\s*rgba\(8,18,34,\.88\)',
+            css,
+        ) is not None
+        and re.search(
+            r'\.form-date-popover-dismiss:hover\s*\{[^}]*border-color:\s*var\(--gold-light\)',
+            css,
+        ) is not None
         and '.form-date-modal' not in css
         and '.form-date-backdrop' not in css
         and re.search(r'\.form-date-popover(?:\.cal)?\s*\{[^}]*background:\s*var\(--deep\)', css) is not None,
