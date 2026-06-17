@@ -326,12 +326,16 @@ def check_html(r: Runner, rel: str, html: str) -> None:
         and html.count('class="destination-card-bg"') == 12
         and html.count('sizes="78vw"') == 12
         and 'portals-vells-1-640.webp' in html
-        and 'portals-vells-1-720.webp' in html,
+        and 'portals-vells-1-720.webp' in html
+        and 'images/mobile/dest/portals-vells-1-960.webp 800w' in html
+        and 'images/mobile/dest/portals-vells-1.webp 800w' not in html,
     )
     r.check(
         'gallery cards use responsive tier srcsets (lightbox uses masters)',
         'maiora_20s_01-640.webp' in html
         and 'maiora_20s_01-720.webp' in html
+        and 'images/mobile/maiora_20s_03-960.webp 960w' in html
+        and 'images/mobile/maiora_20s_03.webp 960w' not in html
         and '(min-width: 1101px) 25vw, 50vw' in html,
     )
     r.check(
@@ -720,7 +724,8 @@ def check_html(r: Runner, rel: str, html: str) -> None:
         'about section uses multi-tier desktop srcset',
         'images/maiora_20s_04-640.webp 640w' in html
         and 'images/maiora_20s_04-960.webp 960w' in html
-        and 'images/mobile/maiora_20s_04.webp' in html,
+        and 'images/mobile/maiora_20s_04-960.webp 960w' in html
+        and 'images/mobile/maiora_20s_04.webp 960w' not in html,
     )
     r.check(
         'hero title has no entrance animation in critical CSS (visible for LCP)',
