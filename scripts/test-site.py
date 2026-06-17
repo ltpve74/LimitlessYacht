@@ -400,7 +400,7 @@ def check_html(r: Runner, rel: str, html: str) -> None:
     # Structured data
     r.check('schema.org JSON-LD present', 'application/ld+json' in html)
 
-    # Locale subfolders — asset paths must be root-relative
+    # Locale subfolders — shared assets step up; images stay root-relative for Netlify
     if rel != 'index.html':
         r.check(
             f'{rel} LY_DEST_IMAGES uses root-relative paths',
@@ -414,12 +414,32 @@ def check_html(r: Runner, rel: str, html: str) -> None:
             f'{rel} srcset mobile candidates are root-relative',
             ', images/mobile/' not in html,
         )
+        r.check(
+            f'{rel} shared assets use parent-relative paths',
+            'href="../css/main.css' in html
+            and 'href="../fonts/montserrat-latin.woff2"' in html
+            and "url('../fonts/montserrat-latin.woff2')" in html
+            and 'href="../favicon.svg"' in html
+            and 'href="/favicon.svg"' not in html,
+        )
+        r.check(
+            f'{rel} lang switcher uses folder-relative hrefs',
+            'href="../fr/"' in html or 'href="../de/"' in html,
+        )
+        r.check(
+            f'{rel} does not use broken root-only font paths',
+            'href="/fonts/' not in html and "url('/fonts/" not in html,
+        )
 
 
 def check_legal(r: Runner, rel: str, html: str) -> None:
     lang = LEGAL_META[rel]['lang']
     r.check(f'<html lang="{lang}">', re.search(rf'<html lang="{lang}"', html) is not None)
-    r.check('links back to home', 'index.html' in html or 'href="/' in html)
+    if rel == 'legal.html':
+        r.check('links back to home', 'href="index.html"' in html)
+    else:
+        r.check('links back to home', 'href="../"' in html)
+        r.check('legal shared assets use parent-relative paths', 'href="../css/main.css"' in html)
 
 
 def check_locale_parity(r: Runner, pages: dict[str, str]) -> None:

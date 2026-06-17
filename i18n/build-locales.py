@@ -22,12 +22,13 @@ NETLIFY_FORM = {
     "es": "contact-es",
 }
 
-LANGS = [
-    ("en", "/", "EN"),
-    ("de", "/de/", "DE"),
-    ("fr", "/fr/", "FR"),
-    ("es", "/es/", "ES"),
-]
+# Relative hrefs from each locale folder — works on Netlify (/) and GitHub Pages (/Repo/).
+LANG_LINKS = {
+    "en": [("en", "./", "EN"), ("de", "de/", "DE"), ("fr", "fr/", "FR"), ("es", "es/", "ES")],
+    "de": [("en", "../", "EN"), ("de", "./", "DE"), ("fr", "../fr/", "FR"), ("es", "../es/", "ES")],
+    "fr": [("en", "../", "EN"), ("de", "../de/", "DE"), ("fr", "./", "FR"), ("es", "../es/", "ES")],
+    "es": [("en", "../", "EN"), ("de", "../de/", "DE"), ("fr", "../fr/", "FR"), ("es", "./", "ES")],
+}
 
 ARIA = {
     "en": "Language",
@@ -53,11 +54,12 @@ def root_paths(html: str) -> str:
 
 
 def lang_switcher_nav(active: str) -> tuple[str, str]:
+    links = LANG_LINKS[active]
     parts = []
-    for i, (code, href, label) in enumerate(LANGS):
+    for i, (code, href, label) in enumerate(links):
         cls = ' class="active"' if code == active else ""
         parts.append(f'<a href="{href}" hreflang="{code}"{cls} lang="{code}">{label}</a>')
-        if i < len(LANGS) - 1:
+        if i < len(links) - 1:
             parts.append('<span class="nav-lang-sep">|</span>')
     nav = (
         f'    <div class="nav-lang" aria-label="{ARIA[active]}">\n      '
@@ -65,10 +67,20 @@ def lang_switcher_nav(active: str) -> tuple[str, str]:
         + "\n    </div>"
     )
     mobile = []
-    for code, href, label in LANGS:
+    for code, href, label in links:
         cls = ' class="active"' if code == active else ""
         mobile.append(f'    <a href="{href}" hreflang="{code}"{cls} lang="{code}">{label}</a>')
     return nav, "\n".join(mobile)
+
+
+def patch_subfolder_assets(html: str) -> str:
+    """Step up to site root for shared assets (locale pages live in /<code>/)."""
+    html = re.sub(r'href="css/main\.css([^"]*)"', r'href="../css/main.css\1"', html)
+    html = html.replace('href="fonts/', 'href="../fonts/')
+    html = html.replace("url('fonts/", "url('../fonts/")
+    # root_paths() runs before this and may already have promoted favicon to /favicon.svg
+    html = html.replace('href="/favicon.svg"', 'href="../favicon.svg"')
+    return html
 
 
 def apply_pairs(html: str, pairs: list[tuple[str, str]]) -> str:
@@ -168,12 +180,7 @@ def build_index(locale_mod) -> str:
     html = (ROOT / "index.html").read_text(encoding="utf-8")
     html = root_paths(html)
     html = patch_html_lang(html, locale_mod.LANG)
-    # Use relative path to shared CSS so direct file:// open on laptop works from subfolders too.
-    # (On http deploy from /de/ , "../css/main.css" resolves correctly to /css/main.css)
-    html = re.sub(r'href="css/main\.css([^"]*)"', r'href="../css/main.css\1"', html)
-    html = html.replace('href="fonts/', 'href="../fonts/')
-    html = html.replace("url('fonts/", "url('../fonts/")
-    html = html.replace('href="favicon.svg"', 'href="../favicon.svg"')
+    html = patch_subfolder_assets(html)
 
     nav_lang, mobile_lang = lang_switcher_nav(locale_mod.CODE)
     html = re.sub(
@@ -202,11 +209,10 @@ def build_index(locale_mod) -> str:
 
 def build_legal(locale_mod) -> str:
     html = (ROOT / "legal.html").read_text(encoding="utf-8")
-    html = html.replace('href="favicon.svg"', 'href="/favicon.svg"')
+    html = html.replace('href="favicon.svg"', 'href="../favicon.svg"')
     html = patch_html_lang(html, locale_mod.LANG)
     html = apply_pairs(html, locale_mod.LEGAL_PAIRS)
-    html = html.replace('href="index.html"', f'href="{locale_mod.HOME_HREF}"')
-    # Use relative path to shared CSS for direct file open from subfolder + http deploy compatibility
+    html = html.replace('href="index.html"', 'href="../"')
     html = html.replace('href="css/main.css"', 'href="../css/main.css"')
     return html
 
