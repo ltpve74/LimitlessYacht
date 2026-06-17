@@ -563,7 +563,24 @@ def check_shared_assets(r: Runner) -> None:
         and re.search(
             r'#availability \.availability-actions \.btn-primary[^}]*max-width:\s*none',
             css,
+        ) is not None
+        and re.search(
+            r'#availability \.availability-actions \.btn-primary[^}]*flex:\s*none',
+            css,
         ) is not None,
+    )
+    r.check(
+        'hero phone button sizing scoped to hero only',
+        css is not None
+        and re.search(
+            r'#hero \.hero-actions \.btn-primary[^}]*max-width:\s*170px',
+            css,
+        ) is not None
+        and not re.search(
+            r'@media \(min-width: 481px\)[^{]*\{[^}]*^\s*\.btn-primary\s*,',
+            css,
+            re.DOTALL | re.MULTILINE,
+        ),
     )
     index_html = read_file('index.html') or ''
     r.check(

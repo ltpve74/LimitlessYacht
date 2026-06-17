@@ -1244,8 +1244,11 @@ footer {
   .section-cta-btns .btn-ghost {
     width: 100%;
     max-width: none;
+    flex: none;
     box-sizing: border-box;
     text-align: center;
+    white-space: normal;
+    line-height: 1.35;
   }
 }
 .section-cta { margin-top: 2.5rem; text-align: center; }
@@ -1723,13 +1726,14 @@ footer {
 
   /* More responsive buttons on larger phones (481-768px): row layout for the bottom-anchored cluster */
   @media (min-width: 481px) {
-    .hero-actions {
+    #hero .hero-actions {
       flex-direction: row;
       flex-wrap: wrap;
       justify-content: center;
       gap: 0.5rem;
     }
-    .btn-primary, .btn-ghost {
+    #hero .hero-actions .btn-primary,
+    #hero .hero-actions .btn-ghost {
       width: auto;
       max-width: 170px;
       font-size: .58rem;
