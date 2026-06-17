@@ -1414,11 +1414,11 @@ window.LY_afterLcp(function() {
     }, { passive: true });
   }
 
-  // Mobile menu
+  // Mobile menu (closeMobile is global — used by inline onclick handlers)
   const hamburger = document.getElementById('hamburger');
   const mobileNav = document.getElementById('mobileNav');
-  if (!hamburger || !mobileNav) return;
   function openMobile() {
+    if (!mobileNav || !hamburger) return;
     mobileNav.hidden = false;
     mobileNav.classList.add('open');
     document.body.style.overflow = 'hidden';
@@ -1426,24 +1426,27 @@ window.LY_afterLcp(function() {
     hamburger.setAttribute('aria-label', 'Cerrar menu');
   }
   function closeMobile() {
+    if (!mobileNav || !hamburger) return;
     mobileNav.classList.remove('open');
     mobileNav.hidden = true;
     document.body.style.overflow = '';
     hamburger.setAttribute('aria-expanded', 'false');
     hamburger.setAttribute('aria-label', 'Open menu');
   }
-  hamburger.addEventListener('click', () => {
-    if (mobileNav.classList.contains('open')) closeMobile();
-    else openMobile();
-  });
-  var mobileCerrar = document.getElementById('mobileCerrar');
-  if (mobileCerrar) mobileCerrar.addEventListener('click', closeMobile);
-  document.addEventListener('keydown', (e) => {
-    if (e.key === 'Escape' && mobileNav.classList.contains('open')) closeMobile();
-  });
-  window.addEventListener('resize', () => {
-    if (window.innerWidth > 768 && mobileNav.classList.contains('open')) closeMobile();
-  });
+  if (hamburger && mobileNav) {
+    hamburger.addEventListener('click', () => {
+      if (mobileNav.classList.contains('open')) closeMobile();
+      else openMobile();
+    });
+    var mobileCerrar = document.getElementById('mobileCerrar');
+    if (mobileCerrar) mobileCerrar.addEventListener('click', closeMobile);
+    document.addEventListener('keydown', (e) => {
+      if (e.key === 'Escape' && mobileNav.classList.contains('open')) closeMobile();
+    });
+    window.addEventListener('resize', () => {
+      if (window.innerWidth > 768 && mobileNav.classList.contains('open')) closeMobile();
+    });
+  }
 
   // Reveal on scroll — skip observer on mobile (prevents momentum scroll interruption)
   const reveals = document.querySelectorAll('.reveal');
