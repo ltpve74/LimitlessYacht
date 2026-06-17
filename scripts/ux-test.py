@@ -306,9 +306,36 @@ def scenario_home_tablet(page, base: str, issues: IssueCollector) -> None:
     page.locator("#dest-lb-cta").click()
     page.wait_for_timeout(800)
     page.wait_for_function("() => location.hash === '#avail-cal'", timeout=8000)
-    cal_top = page.locator("#availCal").evaluate("el => el.getBoundingClientRect().top")
-    if cal_top < 55 or cal_top > 260:
-        issues.add(f"{name}: calendar CTA landed with cal top at {cal_top:.0f}px")
+    landing = page.evaluate(
+        "() => {"
+        "  const cal = document.getElementById('availCal');"
+        "  const intro = document.querySelector('.availability-intro');"
+        "  const title = document.querySelector('#availability .section-title');"
+        "  const nav = document.querySelector('nav');"
+        "  if (!cal || !nav) return null;"
+        "  const calTop = cal.getBoundingClientRect().top;"
+        "  const navBottom = nav.getBoundingClientRect().bottom;"
+        "  const introTop = intro ? intro.getBoundingClientRect().top : null;"
+        "  const titleTop = title ? title.getBoundingClientRect().top : null;"
+        "  return {"
+        "    calTop,"
+        "    navBottom,"
+        "    introTop,"
+        "    titleTop,"
+        "    introHidden: intro ? getComputedStyle(intro).display === 'none' : true,"
+        "  };"
+        "}"
+    )
+    if not landing:
+        issues.add(f"{name}: could not measure calendar landing position")
+    else:
+        cal_top = landing["calTop"]
+        if cal_top < 55 or cal_top > 145:
+            issues.add(f"{name}: calendar CTA landed with cal top at {cal_top:.0f}px")
+        if not landing.get("introHidden"):
+            issues.add(f"{name}: availability intro should be hidden on tablet funnel landing")
+        elif landing.get("introTop") is not None and landing["introTop"] >= landing["navBottom"]:
+            pass  # hidden in layout — no visible intro above calendar
 
 
 def scenario_home_mobile(page, base: str, issues: IssueCollector) -> None:

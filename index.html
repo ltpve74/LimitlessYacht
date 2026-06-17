@@ -100,8 +100,8 @@ nav{position:fixed;top:0;left:0;right:0;z-index:100;min-height:4.25rem}
 .form-field[hidden] { display: none !important; }
 </style>
 <script src="js/analytics-env.js"></script>
-<link rel="preload" as="style" href="css/main.css?v=69" onload="this.rel='stylesheet'" />
-<noscript><link rel="stylesheet" href="css/main.css?v=69" /></noscript>
+<link rel="preload" as="style" href="css/main.css?v=70" onload="this.rel='stylesheet'" />
+<noscript><link rel="stylesheet" href="css/main.css?v=70" /></noscript>
 
 <!-- Auto-match the visitor's browser language to a localized version (only from the
      English root, and only until the visitor manually picks a language). -->
@@ -2009,19 +2009,13 @@ window.LY_afterLcp(function() {
       document.body.style.overflow = '';
       var dest = hash.charAt(0) === '#' ? hash : '#' + hash;
       try {
-        if (history.state && history.state.lb === 'dest') history.replaceState(null, '', dest);
-        else history.replaceState(null, '', dest);
-      } catch (e) {
-        location.hash = dest;
-        return;
-      }
+        if (history.state && history.state.lb === 'dest') {
+          history.replaceState(null, '', location.pathname + location.search);
+        }
+      } catch (e) { /* ignore */ }
       requestAnimationFrame(function() {
         requestAnimationFrame(function() {
-          var link = document.createElement('a');
-          link.href = dest;
-          document.body.appendChild(link);
-          link.click();
-          link.remove();
+          location.hash = dest;
           if (window.matchMedia('(min-width: 769px)').matches) {
             requestAnimationFrame(function() {
               var nameInput = document.getElementById('name');
