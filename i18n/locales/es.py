@@ -64,9 +64,10 @@ PAIRS = [
         "Reviews could not be loaded. Please try again later.",
         "No se pudieron cargar las reseñas. Inténtelo de nuevo más tarde.",
     ),
-    ('class="nav-cta">Enquire</a>', 'class="nav-cta">Consultar</a>'),
-    ('class="mobile-nav-cta" onclick="closeMobile()">Enquire</a>', 'class="mobile-nav-cta" onclick="closeMobile()">Consultar</a>'),
-    ('class="nav-cta nav-header-cta">Enquire</a>', 'class="nav-cta nav-header-cta">Consultar</a>'),
+    ('href="#charters-land">Charters</a>', 'href="#charters-land">Chárteres</a>'),
+    ('onclick="closeMobile()">Charters</a>', 'onclick="closeMobile()">Chárteres</a>'),
+    ('class="mobile-nav-cta" onclick="closeMobile()">Get Quote</a>', 'class="mobile-nav-cta" onclick="closeMobile()">Solicitar presupuesto</a>'),
+    ('class="nav-cta nav-header-cta">Get Quote</a>', 'class="nav-cta nav-header-cta">Solicitar presupuesto</a>'),
     ('onclick="closeMobile()">About</a>', 'onclick="closeMobile()">Sobre nosotros</a>'),
     ('onclick="closeMobile()">Gallery</a>', 'onclick="closeMobile()">Galería</a>'),
     ('onclick="closeMobile()">Amenities</a>', 'onclick="closeMobile()">Equipamiento</a>'),
@@ -932,9 +933,7 @@ PAIRS = [
     # --- missing translations (2026 gap-fill) ---
     # Trust line — must come before short ("Crew","Tripulación") pair to avoid garbling "Crewed"
     ('Verified reviews on Click&amp;Boat · Crewed &amp; fully equipped', 'Reseñas verificadas en Click&amp;Boat · Con tripulación &amp; totalmente equipado'),
-    # Nav Enquire links (not the CTA buttons)
-    ('href="#enquire">Enquire</a>', 'href="#enquire">Consultar</a>'),
-    ('href="#enquire" onclick="closeMobile()">Enquire</a>', 'href="#enquire" onclick="closeMobile()">Consultar</a>'),
+
     ('aria-label="Close menu"', 'aria-label="Cerrar menú"'),
     # Hero ghost button and itinerary CTA
     ('>Meet The Yacht</a>', '>Conoce el yate</a>'),
@@ -954,7 +953,7 @@ PAIRS = [
     # Destination lightbox
     ('aria-label="Destination details"', 'aria-label="Detalles del destino"'),
     # Pricing section — new enquiry-card layout
-    ('class="section-label reveal">Enquire<', 'class="section-label reveal">Consultar<'),
+    ('class="section-label reveal">Charters<', 'class="section-label reveal">Chárteres<'),
     ('Charter Your<em> Way</em>', 'Tu chárter<em> a tu manera</em>'),
     ("From a sun-soaked morning to a week at anchor — every charter is built around you. Tell us your dates and we'll craft the perfect itinerary within 24 hours.", 'Desde una mañana soleada hasta una semana fondeados — cada chárter está diseñado para usted. Cuéntenos sus fechas y prepararemos el itinerario perfecto en 24 horas.'),
     ('4 – 6 Hours', '4 – 6 horas'),

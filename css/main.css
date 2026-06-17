@@ -758,11 +758,11 @@ section { padding: 7rem 2rem; }
 }
 .amenity-list li::before { content: '—'; color: var(--gold); font-size: .7rem; }
 
-/* ── PRICING ── */
-#pricing {
+/* ── CHARTERS ── */
+#charters {
   background: var(--navy);
 }
-#pricing .container {
+#charters .container {
   position: relative;
   z-index: 1;
 }
@@ -813,7 +813,7 @@ section { padding: 7rem 2rem; }
   color: rgba(245,240,232,.55);
 }
 
-.pricing-terms {
+.charter-includes {
   max-width: 720px;
   margin: 2.5rem auto 0;
   padding: 1.9rem 2rem 1.4rem;
@@ -821,11 +821,11 @@ section { padding: 7rem 2rem; }
   border-radius: 6px;
   background: rgba(10,22,40,.25);
 }
-.pricing-terms-title {
+.charter-includes-title {
   font-size: .72rem; letter-spacing: .25em; text-transform: uppercase;
   color: var(--gold); margin-bottom: 1rem; text-align: center;
 }
-.pricing-notes {
+.charter-includes-list {
   display: grid;
   grid-template-columns: 1fr 1fr;
   gap: .42rem .9rem;
@@ -836,11 +836,11 @@ section { padding: 7rem 2rem; }
   padding: 0;
   list-style: none;
 }
-.pricing-notes li {
+.charter-includes-list li {
   position: relative;
   padding-left: .95rem;
 }
-.pricing-notes li::before {
+.charter-includes-list li::before {
   content: '·';
   position: absolute;
   left: 0;
@@ -1207,7 +1207,7 @@ footer {
   font-size: .78rem; letter-spacing: .1em; color: rgba(201,168,76,.65); font-weight: 400;
 }
 
-/* Highlight when coming from pricing row links */
+/* Highlight when coming from charter card links */
 .dest-tier:target {
   background: linear-gradient(to right, rgba(201,168,76,0.12), transparent);
   padding-left: 1rem;
@@ -1733,10 +1733,10 @@ footer {
   .spec-card .spec-value { font-size: 1.0rem; }
   .spec-cruise .spec-value { font-size: 0.9rem; line-height: 1.25; }
   .amenities-grid { grid-template-columns: 1fr; }
-  #pricing { padding-top: 1.75rem; padding-bottom: 2.5rem; }
+  #charters { padding-top: 1.75rem; padding-bottom: 2.5rem; }
   .enquire-section { padding-top: 3rem; }
-  #pricing .section-label { display: none; }
-  #pricing .section-title { margin-bottom: .3rem; }
+  #charters .section-label { display: none; }
+  #charters .section-title { margin-bottom: .3rem; }
   .enquiry-grid { grid-template-columns: 1fr; gap: .75rem; margin-top: 1.5rem; }
   .enquiry-card { padding: 1.25rem 1.4rem; }
   .enquiry-title { font-size: 1.3rem; }
@@ -1745,16 +1745,16 @@ footer {
   .enquiry-cta-wrap { margin-top: 2rem; }
   .enquiry-flex-note { margin-top: .6rem; }
 
-  .pricing-terms {
+  .charter-includes {
     padding: 1.35rem 1rem 1.1rem;
     margin: 1.5rem auto 0;
   }
-  .pricing-notes {
+  .charter-includes-list {
     grid-template-columns: 1fr;
     gap: .28rem .5rem;
     font-size: .76rem;
   }
-  .pricing-terms-title {
+  .charter-includes-title {
     font-size: .65rem; margin-bottom: .6rem;
   }
   .intro-grid { grid-template-columns: 1fr 1fr; }
@@ -1901,7 +1901,7 @@ footer {
   .reveal-delay-1, .reveal-delay-2, .reveal-delay-3 { transition-delay: 0s; }
   nav::before { transition: none; }
   /* background-position animation triggers main-thread repaint every frame — kills scroll on iOS */
-  #pricing::before { animation: none; }
+  #charters::before { animation: none; }
   /* scrollBob inside overflow:hidden hero can also force compositor updates */
   .hero-scroll { animation: fadeUp 0.9s 0.6s ease both; }
 }
@@ -2123,7 +2123,7 @@ footer {
 @media (min-width: 769px) {
   #itinerary > .container > .section-label,
   #gallery > .container > .section-label,
-  #pricing > .container > .section-label,
+  #charters > .container > .section-label,
   #availability > .container > .section-label,
   #reviews > .container > .section-label,
   #amenities > .container > .section-label,
@@ -2134,7 +2134,7 @@ footer {
   #about-land,
   #itinerary-land,
   #gallery-land,
-  #pricing-land,
+  #charters-land,
   #availability-land,
   #reviews-land,
   #amenities-land,
@@ -2149,5 +2149,5 @@ footer {
 
 /* ── HERO WHATSAPP LINK ── */
 /* ── STICKY MOBILE WHATSAPP BAR ── */
-/* WhatsApp floating bar removed — inline WA links remain in contact + pricing.
+/* WhatsApp floating bar removed — inline WA links remain in contact + charters.
    A pill/FAB variant (scroll-triggered, timed) may be added later. */

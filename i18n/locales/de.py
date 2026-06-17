@@ -67,9 +67,10 @@ PAIRS = [
         "Reviews could not be loaded. Please try again later.",
         "Bewertungen konnten nicht geladen werden. Bitte versuchen Sie es später erneut.",
     ),
-    ('class="nav-cta">Enquire</a>', 'class="nav-cta">Anfragen</a>'),
-    ('class="mobile-nav-cta" onclick="closeMobile()">Enquire</a>', 'class="mobile-nav-cta" onclick="closeMobile()">Anfragen</a>'),
-    ('class="nav-cta nav-header-cta">Enquire</a>', 'class="nav-cta nav-header-cta">Anfragen</a>'),
+    ('href="#charters-land">Charters</a>', 'href="#charters-land">Charter</a>'),
+    ('onclick="closeMobile()">Charters</a>', 'onclick="closeMobile()">Charter</a>'),
+    ('class="mobile-nav-cta" onclick="closeMobile()">Get Quote</a>', 'class="mobile-nav-cta" onclick="closeMobile()">Angebot anfordern</a>'),
+    ('class="nav-cta nav-header-cta">Get Quote</a>', 'class="nav-cta nav-header-cta">Angebot anfordern</a>'),
     ('onclick="closeMobile()">About</a>', 'onclick="closeMobile()">Über uns</a>'),
     ('onclick="closeMobile()">Gallery</a>', 'onclick="closeMobile()">Galerie</a>'),
     ('onclick="closeMobile()">Amenities</a>', 'onclick="closeMobile()">Ausstattung</a>'),
@@ -930,9 +931,7 @@ PAIRS = [
         'Auf WhatsApp chatten',
     ),
     # --- missing translations (2026 gap-fill) ---
-    # Nav Enquire links (not the CTA buttons)
-    ('href="#enquire">Enquire</a>', 'href="#enquire">Anfragen</a>'),
-    ('href="#enquire" onclick="closeMobile()">Enquire</a>', 'href="#enquire" onclick="closeMobile()">Anfragen</a>'),
+
     ('aria-label="Close menu"', 'aria-label="Menü schließen"'),
     # Hero ghost button and itinerary CTA
     ('>Meet The Yacht</a>', '>Die Yacht entdecken</a>'),
@@ -951,8 +950,8 @@ PAIRS = [
     ("Ready to create your own story on the water?", "Bereit, Ihre eigene Geschichte auf dem Wasser zu schreiben?"),
     # Destination lightbox
     ('aria-label="Destination details"', 'aria-label="Reiseziel-Details"'),
-    # Pricing section — new enquiry-card layout
-    ('class="section-label reveal">Enquire<', 'class="section-label reveal">Anfragen<'),
+    # Charters section — duration cards
+    ('class="section-label reveal">Charters<', 'class="section-label reveal">Charter<'),
     ('Charter Your<em> Way</em>', 'Ihr Charter<em> nach Wunsch</em>'),
     ("From a sun-soaked morning to a week at anchor — every charter is built around you. Tell us your dates and we'll craft the perfect itinerary within 24 hours.", "Von einem sonnigen Morgen bis zu einer Woche vor Anker — jeder Charter ist ganz auf Sie zugeschnitten. Teilen Sie uns Ihre Termine mit und wir planen das perfekte Programm innerhalb von 24 Stunden."),
     ('4 – 6 Hours', '4 – 6 Stunden'),

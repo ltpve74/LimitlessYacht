@@ -11,7 +11,7 @@
   var CONSENT_KEY = 'ly_consent';
   var SECTION_IDS = [
     'hero', 'intro', 'about', 'specs', 'gallery', 'amenities',
-    'itinerary', 'reviews', 'pricing', 'availability', 'contact'
+    'itinerary', 'reviews', 'charters', 'availability', 'contact'
   ];
   var DWELL_SEC = Number(CONFIG.sectionDwellSeconds) || 3;
   var VISIBLE_RATIO = Number(CONFIG.sectionVisibleRatio) || 0.4;

@@ -58,7 +58,7 @@ LEGAL_META = {
 }
 
 SECTION_IDS = [
-    'hero', 'intro', 'about', 'itinerary', 'gallery', 'pricing',
+    'hero', 'intro', 'about', 'itinerary', 'gallery', 'charters',
     'availability', 'reviews', 'amenities', 'specs',
 ]
 
@@ -346,14 +346,22 @@ def check_html(r: Runner, rel: str, html: str) -> None:
         'href="#about-land"' in html
         and 'href="#itinerary-land"' in html
         and 'href="#gallery-land"' in html
-        and 'href="#pricing-land"' in html
+        and 'href="#charters-land"' in html
         and 'href="#availability-land"' in html
         and 'href="#reviews-land"' in html
         and 'href="#amenities-land"' in html
         and 'href="#specs-land"' in html
         and 'id="about-land"' in html
-        and 'id="pricing-land"' in html
+        and 'id="charters-land"' in html
         and 'id="availability-land"' in html,
+    )
+    r.check(
+        'desktop nav separates charters, availability, and quote CTA',
+        'href="#charters-land"' in html
+        and 'href="#enquire-land" class="nav-cta nav-header-cta"' in html
+        and 'href="#pricing-land"' not in html
+        and 'id="charters"' in html
+        and 'id="pricing"' not in html,
     )
     r.check(
         'mobile menu keeps section-top anchors',
@@ -945,7 +953,7 @@ def check_shared_assets(r: Runner) -> None:
         )
         is not None
         and re.search(
-            r'@media \(min-width: 769px\)[\s\S]*?#pricing-land[\s\S]*?scroll-margin-top:\s*5rem',
+            r'@media \(min-width: 769px\)[\s\S]*?#charters-land[\s\S]*?scroll-margin-top:\s*5rem',
             css,
         )
         is not None,

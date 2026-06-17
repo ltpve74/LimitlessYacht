@@ -127,8 +127,8 @@ nav {
   window.LY_BASE = (h.endsWith('.github.io') && parts[0]) ? '/' + parts[0] : '';
 })();
 </script>
-<link rel="preload" as="style" href="../css/main.css?v=18" onload="this.rel='stylesheet'" />
-<noscript><link rel="stylesheet" href="../css/main.css?v=18" /></noscript>
+<link rel="preload" as="style" href="../css/main.css?v=19" onload="this.rel='stylesheet'" />
+<noscript><link rel="stylesheet" href="../css/main.css?v=19" /></noscript>
 
 <!-- Auto-match the visitor's browser language to a localized version (only from the
      English root, and only until the visitor manually picks a language). -->
@@ -257,7 +257,7 @@ nav {
     <li><a href="#about-land">À propos</a></li>
     <li><a href="#itinerary-land">Destinations</a></li>
     <li><a href="#gallery-land">Galerie</a></li>
-    <li><a href="#pricing-land">Enquire</a></li>
+    <li><a href="#charters-land">Charters</a></li>
     <li><a href="#availability-land">Disponibilité</a></li>
     <li><a href="#reviews-land">Avis</a></li>
     <li><a href="#amenities-land">Équipements</a></li>
@@ -276,7 +276,7 @@ nav {
         <a href="../es/" hreflang="es" lang="es" role="menuitem">ES</a>
       </div>
     </div>
-    <a href="#pricing-land" class="nav-cta nav-header-cta">Demander</a>
+    <a href="#enquire-land" class="nav-cta nav-header-cta">Demander un devis</a>
     <button type="button" class="hamburger" id="hamburger" aria-label="Ouvrir le menu" aria-expanded="false" aria-controls="mobileNav">
       <span></span><span></span><span></span>
     </button>
@@ -286,10 +286,11 @@ nav {
 <!-- MOBILE NAV -->
 <div class="mobile-nav" id="mobileNav" role="dialog" aria-modal="true" aria-label="Menu du site" hidden>
   <button type="button" class="mobile-nav-close" id="mobileFermer" aria-label="Fermer le menu">✕</button>
-  <a href="#enquire" class="mobile-nav-cta" onclick="closeMobile()">Demander</a>
+  <a href="#enquire-land" class="mobile-nav-cta" onclick="closeMobile()">Demander un devis</a>
   <a href="#about" onclick="closeMobile()">À propos</a>
   <a href="#itinerary" onclick="closeMobile()">Destinations</a>
   <a href="#gallery" onclick="closeMobile()">Galerie</a>
+  <a href="#charters-land" onclick="closeMobile()">Charters</a>
   <a href="#availability" onclick="closeMobile()">Disponibilité</a>
   <a href="#reviews" onclick="closeMobile()">Avis</a>
   <a href="#amenities" onclick="closeMobile()">Équipements</a>
@@ -311,7 +312,7 @@ nav {
   </picture>
   <div class="hero-overlay"></div>
   <div class="hero-content">
-    <p class="hero-eyebrow"><a href="#reviews"><span class="eyebrow-stars">★★★★★</span> 5.0</a> &nbsp;·&nbsp; <a href="#pricing">Charter Privé</a><br>Club de Mar · Mallorca</p>
+    <p class="hero-eyebrow"><a href="#reviews"><span class="eyebrow-stars">★★★★★</span> 5.0</a> &nbsp;·&nbsp; <a href="#charters">Charter Privé</a><br>Club de Mar · Mallorca</p>
     <h1 class="hero-title">LIMIT<em>LESS</em></h1>
     <p class="hero-sub">Yacht Maiora exclusif · 21,5 m · Jusqu'à 12 invités de jour · 7 de nuit</p>
     <div class="hero-cta-group">
@@ -1149,11 +1150,11 @@ window.LY_afterLcp(function() {
   </div>
 </div>
 
-<!-- PRICING -->
-<section id="pricing">
+<!-- CHARTERS -->
+<section id="charters">
   <div class="container">
-    <p class="section-label reveal">Demander</p>
-    <span id="pricing-land" style="display:block;height:0;overflow:hidden" aria-hidden="true"></span>
+    <p class="section-label reveal">Charters</p>
+    <span id="charters-land" style="display:block;height:0;overflow:hidden" aria-hidden="true"></span>
     <h2 class="section-title reveal reveal-delay-1">Votre charter<em> à votre façon</em></h2>
     <p class="enquiry-intro reveal reveal-delay-2">D'une matinée ensoleillée à une semaine au mouillage — chaque charter est conçu autour de vous. Indiquez-nous vos dates et nous créerons l'itinéraire parfait en 24 heures.</p>
     <div class="enquiry-grid">
@@ -1186,9 +1187,9 @@ window.LY_afterLcp(function() {
       <a href="#enquire" class="btn-primary">Obtenir votre devis</a>
       <p class="enquiry-flex-note">Disponible toute l'année &nbsp;·&nbsp; Tarifs variables selon la saison &nbsp;·&nbsp; Nous répondons en 24 heures</p>
     </div>
-    <div class="pricing-terms reveal">
-      <div class="pricing-terms-title">Tous les charters comprennent</div>
-      <ul class="pricing-notes">
+    <div class="charter-includes reveal">
+      <div class="charter-includes-title">Tous les charters comprennent</div>
+      <ul class="charter-includes-list">
         <li>TVA incluse</li>
         <li>Équipage &amp; nettoyage</li>
         <li>Carburant inclus pour les demi-journées</li>
@@ -1515,10 +1516,10 @@ window.LY_afterLcp(function() {
     navSectionLinks.forEach(function(a) {
       var id = a.getAttribute('href').slice(1);
       var sections = [];
-      if (id === 'pricing-land') {
-        var pricing = document.getElementById('pricing');
+      if (id === 'availability-land') {
+        var avail = document.getElementById('availability');
         var enquireSec = document.querySelector('.enquire-section');
-        if (pricing) sections.push(pricing);
+        if (avail) sections.push(avail);
         if (enquireSec) sections.push(enquireSec);
       } else {
         var el = document.getElementById(id);
@@ -2907,7 +2908,7 @@ window.LY_afterLcp(function() {
         choose('granted');
       }
     }
-    document.querySelectorAll('.btn-primary, .nav-cta, a[href="#pricing"], a[href="#contact"], a[href="#enquire"], a[href*="wa.me"]').forEach(function (el) {
+    document.querySelectorAll('.btn-primary, .nav-cta, a[href="#charters"], a[href="#contact"], a[href="#enquire"], a[href*="wa.me"]').forEach(function (el) {
       el.addEventListener('click', autoAccepterOnEngagement, { once: true });
     });
   })();
