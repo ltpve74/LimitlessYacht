@@ -839,13 +839,13 @@ section { padding: 7rem 2rem; }
   margin: 0; font-size: .62rem; letter-spacing: .16em; text-transform: uppercase;
   color: var(--gold); font-weight: 500;
 }
-.form-date-modal-close {
+.form-date-modal-dismiss {
   flex: none; background: none; border: 1px solid rgba(201,168,76,.25);
   color: var(--text-muted); border-radius: 50%;
   width: 2rem; height: 2rem; font-size: 1.2rem; line-height: 1;
   cursor: pointer; transition: color .2s, border-color .2s, background .2s;
 }
-.form-date-modal-close:hover {
+.form-date-modal-dismiss:hover {
   color: var(--gold-light); border-color: rgba(201,168,76,.5);
   background: rgba(201,168,76,.08);
 }
@@ -859,11 +859,12 @@ section { padding: 7rem 2rem; }
   margin-top: .65rem; padding-top: .55rem;
   border-top: 1px solid rgba(201,168,76,.14); text-align: left;
 }
-.form-date-range-hint {
+.form-date-step-hint {
   margin: 0 0 .35rem;
-  font-size: .56rem; line-height: 1.5; letter-spacing: .1em;
-  text-transform: uppercase; color: var(--text-muted);
+  font-size: .58rem; line-height: 1.55; letter-spacing: .08em;
+  color: var(--text-muted);
 }
+.form-date-step-hint.is-pending-end { color: var(--gold); font-weight: 500; }
 .form-date-close-hint {
   margin: 0 0 .55rem; font-size: .56rem; line-height: 1.5;
   letter-spacing: .06em; color: var(--text-muted); text-transform: none;
@@ -873,13 +874,14 @@ section { padding: 7rem 2rem; }
   display: flex; align-items: center; justify-content: space-between;
   gap: .75rem;
 }
-.form-date-done-btn {
+.form-date-apply-btn {
   background: var(--gold); color: var(--navy); border: none;
   padding: .6rem 1.35rem; font-family: 'Montserrat', sans-serif;
   font-size: .58rem; letter-spacing: .14em; text-transform: uppercase;
   font-weight: 600; cursor: pointer; transition: background .2s, transform .2s;
 }
-.form-date-done-btn:hover { background: var(--gold-light); transform: translateY(-1px); }
+.form-date-apply-btn:hover { background: var(--gold-light); transform: translateY(-1px); }
+.form-date-apply-btn.is-ready { box-shadow: 0 0 0 2px rgba(201,168,76,.35); }
 body.form-date-open { overflow: hidden; }
 .form-submit {
   background: var(--gold); color: var(--navy); border: none;

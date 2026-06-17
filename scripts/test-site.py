@@ -296,11 +296,13 @@ def check_html(r: Runner, rel: str, html: str) -> None:
         and 'function openFormDateModal' in html
         and 'function closeFormDateModal' in html
         and 'window.LY_updateFormDateTriggers' in html
-        and 'class="form-date-range-hint"' in html
+        and 'id="formDateStepHint"' in html
+        and 'function pickFormDate' in html
+        and 'formDatePickGuard' in html
         and 'class="form-date-icon"' in html
         and 'document.body.appendChild(formDateModal)' in html
-        and 'class="form-date-done-btn"' in html
-        and 'class="form-date-modal-close"' in html
+        and 'class="form-date-apply-btn"' in html
+        and 'id="formDateModalDismiss"' in html
         and 'range-start' in html,
     )
 
@@ -720,8 +722,8 @@ def check_shared_assets(r: Runner) -> None:
         and '.form-date-trigger' in css
         and '.form-date-icon' in css
         and '.form-date-popover .cal-cell' in css
-        and '.form-date-done-btn' in css
-        and '.form-date-modal-close' in css
+        and '.form-date-apply-btn' in css
+        and '.form-date-modal-dismiss' in css
         and '.form-date-backdrop' in css,
     )
     r.check(

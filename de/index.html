@@ -1294,7 +1294,7 @@ window.LY_afterLcp(function() {
               <div class="form-date-popover cal" id="formDatePopover" role="dialog" aria-modal="true" aria-labelledby="formDateModalTitle">
                 <div class="form-date-modal-head">
                   <p class="form-date-modal-title" id="formDateModalTitle">Daten wählen</p>
-                  <button type="button" class="form-date-modal-close" id="formDateModalSchließen" aria-label="Kalender schließen">×</button>
+                  <button type="button" class="form-date-modal-dismiss" id="formDateModalDismiss" aria-label="Kalender schließen">×</button>
                 </div>
                 <div class="form-date-cal-bar">
                   <button type="button" class="cal-nav form-date-nav form-date-prev" aria-label="Vorheriger Monat">‹</button>
@@ -1306,11 +1306,16 @@ window.LY_afterLcp(function() {
                   <button type="button" class="cal-nav form-date-nav form-date-next" aria-label="Nächster Monat">›</button>
                 </div>
                 <div class="form-date-cal-foot">
-                  <p class="form-date-range-hint">Zweites Datum für Mehrtägig antippen.</p>
+                  <span id="formDateHintTemplates" hidden>
+                    <span data-hint="start">Startdatum antippen.</span>
+                    <span data-hint="end">Enddatum für Mehrtägig antippen oder Fertig für einen Tag.</span>
+                    <span data-hint="ready">Fertig antippen, wenn Sie bereit sind.</span>
+                  </span>
+                  <p class="form-date-step-hint" id="formDateStepHint">Startdatum antippen.</p>
                   <p class="form-date-close-hint">Tippen Sie auf <strong>Fertig</strong> oder ✕ zum Schließen.</p>
                   <div class="form-date-modal-actions">
                     <button type="button" class="cal-clear form-date-clear-btn">Clear</button>
-                    <button type="button" class="form-date-done-btn">Fertig</button>
+                    <button type="button" class="form-date-apply-btn">Fertig</button>
                   </div>
                 </div>
               </div>
@@ -2411,8 +2416,8 @@ window.LY_afterLcp(function() {
   var formDateModal = document.getElementById('formDateModal');
   var formDatePopover = document.getElementById('formDatePopover');
   var formDateBackdrop = document.getElementById('formDateBackdrop');
-  var formDateSchließenBtn = document.getElementById('formDateModalSchließen');
-  var formDateFertigBtn = document.querySelector('.form-date-done-btn');
+  var formDateDismissBtn = document.getElementById('formDateModalDismiss');
+  var formDateApplyBtn = document.querySelector('.form-date-apply-btn');
   var formDateClearBtn = document.querySelector('.form-date-clear-btn');
   var formDatePrevBtn = formDatePopover ? formDatePopover.querySelector('.form-date-prev') : null;
   var formDateNextBtn = formDatePopover ? formDatePopover.querySelector('.form-date-next') : null;
@@ -2423,6 +2428,48 @@ window.LY_afterLcp(function() {
   var formDateActiveTrigger = null;
   var formDateViewIndex = minIndex;
   var formDatePlaceholder = 'Auswählen…';
+  var formDatePickGuard = false;
+  var formDateJustOpened = false;
+  var formDateStepHint = document.getElementById('formDateStepHint');
+  var formDateHintTemplates = document.getElementById('formDateHintTemplates');
+  var formDateHintText = { start: '', end: '', ready: '' };
+
+  function loadFormDateHints() {
+    if (!formDateHintTemplates) return;
+    ['start', 'end', 'ready'].forEach(function(key) {
+      var node = formDateHintTemplates.querySelector('[data-hint="' + key + '"]');
+      if (node) formDateHintText[key] = node.textContent.trim();
+    });
+  }
+  function updateFormDateStepHint() {
+    if (!formDateStepHint) return;
+    var text = formDateHintText.start || 'Startdatum antippen.';
+    var pendingEnd = false;
+    if (selected.length === 1) {
+      text = formDateHintText.end || 'Enddatum für Mehrtägig antippen oder Fertig für einen Tag.';
+      pendingEnd = true;
+    } else if (selected.length > 1) {
+      text = formatSelection() + ' · ' + (formDateHintText.ready || 'Fertig antippen, wenn Sie bereit sind.');
+    }
+    formDateStepHint.textContent = text;
+    formDateStepHint.classList.toggle('is-pending-end', pendingEnd);
+    if (formDateApplyBtn) formDateApplyBtn.classList.toggle('is-ready', selected.length > 0);
+  }
+  function scheduleFormDatePopoverRefresh() {
+    if (!formDateModal || formDateModal.hidden) return;
+    setTimeout(function() {
+      if (!formDateModal || formDateModal.hidden) return;
+      renderFormDatePopover();
+      updateFormDateStepHint();
+    }, 0);
+  }
+  function pickFormDate(k) {
+    formDatePickGuard = true;
+    toggleDate(k);
+    updateFormDateStepHint();
+    scheduleFormDatePopoverRefresh();
+    setTimeout(function(){ formDatePickGuard = false; }, 450);
+  }
 
   function updateAllFormDateTriggers() {
     if (!formDateStartBtn) return;
@@ -2472,8 +2519,10 @@ window.LY_afterLcp(function() {
     formDateDaysEl.innerHTML = cells;
     if (formDatePrevBtn) formDatePrevBtn.disabled = (formDateViewIndex <= minIndex);
     if (formDateNextBtn) formDateNextBtn.disabled = (formDateViewIndex >= maxIndex);
+    updateFormDateStepHint();
   }
   function closeFormDateModal() {
+    if (formDatePickGuard || formDateJustOpened) return;
     if (!formDateModal || formDateModal.hidden) return;
     formDateModal.hidden = true;
     formDateModal.setAttribute('aria-hidden', 'true');
@@ -2492,10 +2541,13 @@ window.LY_afterLcp(function() {
     else if (startInput && startInput.value) formDateViewIndex = monthIndexForDate(startInput.value);
     else formDateViewIndex = minIndex;
     renderFormDatePopover();
+    updateFormDateStepHint();
     formDateModal.hidden = false;
     formDateModal.setAttribute('aria-hidden', 'false');
     document.body.classList.add('form-date-open');
-    if (formDateSchließenBtn) formDateSchließenBtn.focus();
+    formDateJustOpened = true;
+    setTimeout(function(){ formDateJustOpened = false; }, 400);
+    if (formDatePopover) formDatePopover.focus();
   }
   function shiftFormDateModal(dir) {
     var next = formDateViewIndex + dir;
@@ -2507,17 +2559,28 @@ window.LY_afterLcp(function() {
   if (formDateModal && formDatePopover) {
     if (formDateModal.parentElement !== document.body) document.body.appendChild(formDateModal);
     if (formDateDowEl) formDateDowEl.innerHTML = DOW.map(function(x){ return '<span>' + x + '</span>'; }).join('');
+    loadFormDateHints();
 
     if (formDateStartBtn) {
       formDateStartBtn.addEventListener('click', function(e) {
         e.preventDefault();
+        e.stopPropagation();
         if (!formDateModal.hidden) closeFormDateModal();
         else openFormDateModal(formDateStartBtn);
       });
     }
-    if (formDateBackdrop) formDateBackdrop.addEventListener('click', closeFormDateModal);
-    if (formDateSchließenBtn) formDateSchließenBtn.addEventListener('click', function(e){ e.preventDefault(); closeFormDateModal(); });
-    if (formDateFertigBtn) formDateFertigBtn.addEventListener('click', function(e){ e.preventDefault(); closeFormDateModal(); });
+    if (formDateBackdrop) {
+      formDateBackdrop.addEventListener('click', function(e) {
+        if (formDatePickGuard || e.target !== formDateBackdrop) return;
+        closeFormDateModal();
+      });
+    }
+    if (formDatePopover) {
+      formDatePopover.setAttribute('tabindex', '-1');
+      formDatePopover.addEventListener('click', function(e) { e.stopPropagation(); });
+    }
+    if (formDateDismissBtn) formDateDismissBtn.addEventListener('click', function(e){ e.preventDefault(); closeFormDateModal(); });
+    if (formDateApplyBtn) formDateApplyBtn.addEventListener('click', function(e){ e.preventDefault(); closeFormDateModal(); });
     if (formDatePrevBtn) formDatePrevBtn.addEventListener('click', function(e){ e.preventDefault(); shiftFormDateModal(-1); });
     if (formDateNextBtn) formDateNextBtn.addEventListener('click', function(e){ e.preventDefault(); shiftFormDateModal(1); });
     if (formDateClearBtn) formDateClearBtn.addEventListener('click', function(e){
@@ -2534,7 +2597,8 @@ window.LY_afterLcp(function() {
         var cell = node && node.closest ? node.closest('.cal-cell.free[data-date]') : null;
         if (!cell) return;
         e.preventDefault();
-        toggleDate(cell.getAttribute('data-date'));
+        e.stopPropagation();
+        pickFormDate(cell.getAttribute('data-date'));
       });
       formDateDaysEl.addEventListener('keydown', function(e) {
         if (e.key !== 'Enter' && e.key !== ' ') return;
@@ -2542,7 +2606,7 @@ window.LY_afterLcp(function() {
         var cell = node && node.closest ? node.closest('.cal-cell.free[data-date]') : null;
         if (!cell) return;
         e.preventDefault();
-        toggleDate(cell.getAttribute('data-date'));
+        pickFormDate(cell.getAttribute('data-date'));
       });
     }
     document.addEventListener('keydown', function(e) {
@@ -2553,7 +2617,10 @@ window.LY_afterLcp(function() {
   }
 
   window.LY_updateFormDateTriggers = updateAllFormDateTriggers;
-  window.LY_refreshFormDatePickers = renderFormDatePopover;
+  window.LY_refreshFormDatePickers = function() {
+    if (formDateModal && !formDateModal.hidden) scheduleFormDatePopoverRefresh();
+    else renderFormDatePopover();
+  };
 
   var contactForm = document.getElementById('contactForm');
   if (contactForm) {
