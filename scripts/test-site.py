@@ -869,6 +869,20 @@ def check_shared_assets(r: Runner) -> None:
         and re.search(r'\.form-date-popover(?:\.cal)?\s*\{[^}]*position:\s*absolute', css) is not None,
     )
     r.check(
+        'desktop date popover stacks below fixed nav',
+        css is not None
+        and re.search(
+            r'@media \(min-width: 769px\)[\s\S]*?\.form-date-wrap\.is-open\s*\{[^}]*z-index:\s*50',
+            css,
+        )
+        is not None
+        and re.search(
+            r'@media \(min-width: 769px\)[\s\S]*?\.form-date-popover(?:\.cal)?\s*\{[^}]*z-index:\s*50',
+            css,
+        )
+        is not None,
+    )
+    r.check(
         'calendar nav buttons avoid sticky touch hover',
         css is not None
         and re.search(r'@media\s*\(\s*hover:\s*hover\s*\)\s*and\s*\(\s*pointer:\s*fine\s*\)', css) is not None
