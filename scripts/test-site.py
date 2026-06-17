@@ -1048,15 +1048,10 @@ def check_shared_assets(r: Runner) -> None:
     r.check(
         'hero CTA buttons vertically center label text',
         css is not None
-        and re.search(
-            r'#hero \.hero-actions \.btn-primary,\s*\n\s*#hero \.hero-actions \.btn-ghost\s*\{[^}]*display:\s*inline-flex[^}]*align-items:\s*center',
-            css,
-            re.DOTALL,
-        ) is not None
-        and re.search(
-            r'#hero \.hero-actions \.btn-primary\s*\{[^}]*border:\s*1px solid transparent',
-            css,
-        ) is not None,
+        and '#hero.hero-actions.btn-primary,#hero.hero-actions.btn-ghost{display:inline-flex'
+        in re.sub(r'\s+', '', css)
+        and '#hero.hero-actions.btn-primary{border:1pxsolidtransparent'
+        in re.sub(r'\s+', '', css),
     )
     r.check(
         'end date submitted via hidden field only',
