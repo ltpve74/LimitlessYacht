@@ -666,6 +666,31 @@ def check_html(r: Runner, rel: str, html: str) -> None:
         and 'portals-vells-1-960.webp' in html
         and 'portals-vells-1-720.webp' in html,
     )
+    minify_py = read_file('scripts/minify_html.py') or ''
+    r.check(
+        'production minifier includes first-party js/ assets',
+        'def js_targets' in minify_py
+        and "JS_DIR = 'js'" in minify_py
+        and 'for rel in js_targets():' in minify_py,
+    )
+    try:
+        import importlib.util
+
+        minify_path = os.path.join(ROOT, 'scripts', 'minify_html.py')
+        spec = importlib.util.spec_from_file_location('minify_html', minify_path)
+        minify_mod = importlib.util.module_from_spec(spec)
+        spec.loader.exec_module(minify_mod)
+        env_src = read_file('js/analytics-env.js') or ''
+        env_out = minify_mod.minify_js(env_src)
+        r.check(
+            'minify_js preserves analytics-env critical symbols',
+            'LY_IS_PREVIEW' in env_out
+            and 'LY_OWNER_MODE' in env_out
+            and '/**' not in env_out,
+        )
+    except Exception as exc:
+        r.fail('minify_js smoke test', str(exc))
+
     opt_py = read_file('scripts/optimize_responsive_images.py') or ''
     r.check(
         'content image quality constants separated from hero LCP tuning',

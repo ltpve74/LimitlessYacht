@@ -1,7 +1,8 @@
 #!/usr/bin/env python3
 """
-Minify HTML for production.
-Strips HTML/CSS/JS comments, collapses whitespace, shrinks inline style and script blocks.
+Minify HTML and site JS for production.
+Strips HTML/CSS/JS comments, collapses whitespace, shrinks inline style/script blocks,
+and minifies readable sources under js/.
 Run from repo root:  python3 scripts/minify_html.py
 """
 
@@ -16,6 +17,8 @@ TARGETS = [
     'fr/index.html', 'fr/legal.html',
     'es/index.html', 'es/legal.html',
 ]
+
+JS_DIR = 'js'
 
 
 def minify_css(css):
@@ -87,6 +90,18 @@ def minify_html(html):
     return html
 
 
+def js_targets():
+    """All first-party scripts served from js/ (readable source on dev branch)."""
+    js_path = os.path.join(ROOT, JS_DIR)
+    if not os.path.isdir(js_path):
+        return []
+    return sorted(
+        os.path.join(JS_DIR, name)
+        for name in os.listdir(js_path)
+        if name.endswith('.js')
+    )
+
+
 def main():
     total_before = total_after = 0
 
@@ -122,6 +137,21 @@ def main():
         total_after  += after
         pct = (before - after) / before * 100
         print(f'  {rel}: {before:,} → {after:,} B  ({pct:.0f}% saved)')
+
+    for rel in js_targets():
+        path = os.path.join(ROOT, rel)
+        with open(path, encoding='utf-8') as f:
+            src = f.read()
+        out = minify_js(src)
+        with open(path, 'w', encoding='utf-8') as f:
+            f.write(out)
+        before = len(src.encode())
+        after = len(out.encode())
+        total_before += before
+        total_after += after
+        pct = (before - after) / before * 100 if before else 0
+        print(f'  {rel}: {before:,} → {after:,} B  ({pct:.0f}% saved)')
+
     saved = total_before - total_after
     print(f'\nTotal: {total_before:,} → {total_after:,} B  ({saved:,} B saved)')
 
