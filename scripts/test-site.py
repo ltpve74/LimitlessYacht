@@ -339,7 +339,8 @@ def check_html(r: Runner, rel: str, html: str) -> None:
         'nav scroll section highlighting script',
         'updateNavSection' in html
         and "classList.toggle('is-active'" in html
-        and 'navSectionLinks' in html,
+        and 'navSectionLinks' in html
+        and "addEventListener('hashchange'" in html,
     )
     r.check(
         'desktop nav uses content landing anchors',
@@ -945,18 +946,18 @@ def check_shared_assets(r: Runner) -> None:
         and '.nav-links a.is-active' in css,
     )
     r.check(
-        'desktop nav landing hides redundant section labels',
+        'desktop nav landing keeps labels and uses nav scroll offset',
         css is not None
+        and '--nav-scroll-offset' in css
         and re.search(
-            r'@media \(min-width: 769px\)[\s\S]*?#itinerary\s*>\s*\.container\s*>\s*\.section-label[\s\S]*?display:\s*none',
+            r'@media \(min-width: 769px\)[\s\S]*?#charters-land[\s\S]*?scroll-margin-top:\s*var\(--nav-scroll-offset\)',
             css,
         )
         is not None
-        and re.search(
-            r'@media \(min-width: 769px\)[\s\S]*?#charters-land[\s\S]*?scroll-margin-top:\s*5rem',
+        and not re.search(
+            r'@media \(min-width: 769px\)[\s\S]*?#itinerary\s*>\s*\.container\s*>\s*\.section-label[\s\S]*?display:\s*none',
             css,
-        )
-        is not None,
+        ),
     )
     r.check(
         'calendar nav buttons avoid sticky touch hover',

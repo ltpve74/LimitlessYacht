@@ -25,6 +25,7 @@
   --cream: #f5f0e8;
   --white: #ffffff;
   --text-muted: #8a9bb5;
+  --nav-scroll-offset: 4.25rem;
 }
 
 *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
@@ -2119,18 +2120,9 @@ footer {
   /* Form/calendar links land on the widget, not the hidden section title */
   #avail-cal { scroll-margin-top: .5rem; }
 }
-/* Desktop nav: hide labels that repeat the nav item; land on the section title */
+/* Desktop nav: land on title anchor — label sits above and tucks under fixed nav */
 @media (min-width: 769px) {
-  #itinerary > .container > .section-label,
-  #gallery > .container > .section-label,
-  #charters > .container > .section-label,
-  #availability > .container > .section-label,
-  #reviews > .container > .section-label,
-  #amenities > .container > .section-label,
-  #specs > .container > .section-label,
-  .contact-cal-pair .enquire-section .contact-info > .section-label {
-    display: none;
-  }
+  html { scroll-padding-top: var(--nav-scroll-offset); }
   #about-land,
   #itinerary-land,
   #gallery-land,
@@ -2140,10 +2132,10 @@ footer {
   #amenities-land,
   #specs-land,
   #enquire-land {
-    scroll-margin-top: 5rem;
+    scroll-margin-top: var(--nav-scroll-offset);
   }
   /* In-page CTAs still jump to the calendar widget */
-  #avail-cal { scroll-margin-top: 5rem; }
+  #avail-cal { scroll-margin-top: var(--nav-scroll-offset); }
 }
 .availability-picker { margin-top: 0; }
 

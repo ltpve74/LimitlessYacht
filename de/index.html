@@ -127,8 +127,8 @@ nav {
   window.LY_BASE = (h.endsWith('.github.io') && parts[0]) ? '/' + parts[0] : '';
 })();
 </script>
-<link rel="preload" as="style" href="../css/main.css?v=19" onload="this.rel='stylesheet'" />
-<noscript><link rel="stylesheet" href="../css/main.css?v=19" /></noscript>
+<link rel="preload" as="style" href="../css/main.css?v=20" onload="this.rel='stylesheet'" />
+<noscript><link rel="stylesheet" href="../css/main.css?v=20" /></noscript>
 
 <!-- Auto-match the visitor's browser language to a localized version (only from the
      English root, and only until the visitor manually picks a language). -->
@@ -361,8 +361,8 @@ nav {
         <div class="about-image-accent"></div>
       </div>
       <div class="about-text reveal reveal-delay-1">
-        <span id="about-land" style="display:block;height:0;overflow:hidden" aria-hidden="true"></span>
         <p class="section-label">Die Yacht</p>
+        <span id="about-land" style="display:block;height:0;overflow:hidden" aria-hidden="true"></span>
         <h2 class="section-title">Ihr Zuhause auf dem<br><em>Mittelmeer</em></h2>
         <p><strong>Limitless</strong> ist eine 21-Meter-Maiora mit Flybridge, Achterdeck und Sonnenliegen — Platz für zwölf Gäste tagsüber, komfortabel für sieben über Nacht. Für das Meer gebaut und auf Charter-Standard gepflegt.</p>
         <p>Was Limitless wirklich auszeichnet, ist ihre <strong>engagierte Crew</strong>. Aufmerksam, erfahren und mit echter Leidenschaft für das Meer kümmert sie sich um alles — vom Organisieren des Caterings bis zur Reservierung des Beach-Club-Zugangs — damit Sie sich ganz auf Ihre Begleitung und die Orte konzentrieren können, die Sie entdecken.</p>
@@ -1510,31 +1510,25 @@ window.LY_afterLcp(function() {
   var navSectionLinks = Array.from(document.querySelectorAll('.nav-links a[href^="#"]'));
   function updateNavSection() {
     if (window.innerWidth <= 768 || !navSectionLinks.length) return;
-    var probe = (navbar ? navbar.offsetHeight : 80) + 24;
+    var probe = (navbar ? navbar.offsetHeight : 68) + 4;
     var active = null;
     var activeTop = -Infinity;
     navSectionLinks.forEach(function(a) {
-      var id = a.getAttribute('href').slice(1);
-      var sections = [];
-      if (id === 'availability-land') {
-        var avail = document.getElementById('availability');
-        var enquireSec = document.querySelector('.enquire-section');
-        if (avail) sections.push(avail);
-        if (enquireSec) sections.push(enquireSec);
-      } else {
-        var el = document.getElementById(id);
-        if (el) sections.push(el.closest('section') || el);
+      var land = document.getElementById(a.getAttribute('href').slice(1));
+      if (!land) return;
+      var top = land.getBoundingClientRect().top;
+      if (top <= probe && top > activeTop) {
+        activeTop = top;
+        active = a;
       }
-      sections.forEach(function(section) {
-        var top = section.getBoundingClientRect().top;
-        if (top <= probe && top > activeTop) {
-          activeTop = top;
-          active = a;
-        }
-      });
     });
     navSectionLinks.forEach(function(a) {
       a.classList.toggle('is-active', a === active);
+    });
+  }
+  function syncNavSectionSoon() {
+    requestAnimationFrame(function() {
+      requestAnimationFrame(updateNavSection);
     });
   }
   if (navbar) {
@@ -1548,6 +1542,15 @@ window.LY_afterLcp(function() {
         });
       }
     }, { passive: true });
+    navSectionLinks.forEach(function(a) {
+      a.addEventListener('click', function() {
+        if (window.innerWidth <= 768) return;
+        navSectionLinks.forEach(function(l) { l.classList.remove('is-active'); });
+        a.classList.add('is-active');
+        syncNavSectionSoon();
+      });
+    });
+    window.addEventListener('hashchange', syncNavSectionSoon);
     updateNavSection();
     window.addEventListener('resize', function() {
       if (window.innerWidth <= 768) {
