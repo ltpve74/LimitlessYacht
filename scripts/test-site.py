@@ -848,7 +848,10 @@ def check_shared_assets(r: Runner) -> None:
         and 'form-date-close-hint' not in index_html
         and '.form-date-modal' not in css
         and '.form-date-backdrop' not in css
-        and re.search(r'\.form-date-popover(?:\.cal)?\s*\{[^}]*background:\s*var\(--deep\)', css) is not None,
+        and re.search(r'\.form-date-popover(?:\.cal)?\s*\{[^}]*background:\s*var\(--deep\)', css) is not None
+        and 'body.form-date-popup-open::before' in css
+        and 'body.form-date-popup-open .form-date-popover:not([hidden])' in css
+        and 'position: fixed' in css.split('body.form-date-popup-open .form-date-popover:not([hidden])')[1].split('@media')[0],
     )
     r.check(
         'calendar nav buttons avoid sticky touch hover',
