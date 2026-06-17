@@ -147,6 +147,24 @@ def check_html(r: Runner, rel: str, html: str) -> None:
         )
         is not None,
     )
+    r.check(
+        'reviews desktop CTA links to destinations and gallery -land anchors',
+        re.search(
+            r'<section id="reviews">[\s\S]*?href="#itinerary-land"[^>]*class="btn-primary"'
+            r'[\s\S]*?href="#gallery-land"[^>]*class="btn-ghost"',
+            html,
+        )
+        is not None,
+    )
+    r.check(
+        'reviews section groups summary and grid in reviews-main',
+        'class="reviews-main"' in html
+        and re.search(
+            r'<div class="reviews-main">[\s\S]*?id="reviewsGrid"',
+            html,
+        )
+        is not None,
+    )
 
     # WhatsApp — every wa.me link must carry a pre-filled ?text= message
     wa_links = re.findall(r'href="(https://wa\.me/[^"]+)"', html)
@@ -1210,6 +1228,22 @@ def check_shared_assets(r: Runner) -> None:
         'charters hides text back-link when desktop CTA buttons show',
         re.search(
             r'@media \(min-width: 769px\)[\s\S]*?#charters \.section-back-cta\s*\{[^}]*display:\s*none',
+            css,
+        )
+        is not None,
+    )
+    r.check(
+        'reviews desktop uses compact two-column grid',
+        re.search(
+            r'@media \(min-width: 769px\)[\s\S]*?\.reviews-grid\s*\{[^}]*grid-template-columns:\s*repeat\(2',
+            css,
+        )
+        is not None,
+    )
+    r.check(
+        'reviews short viewports compact section padding',
+        re.search(
+            r'@media \(min-width: 769px\) and \(max-height: 920px\)[\s\S]*?#reviews',
             css,
         )
         is not None,

@@ -123,8 +123,8 @@ nav {
 .form-field[hidden] { display: none !important; }
 </style>
 <script src="js/analytics-env.js"></script>
-<link rel="preload" as="style" href="../css/main.css?v=51" onload="this.rel='stylesheet'" />
-<noscript><link rel="stylesheet" href="../css/main.css?v=51" /></noscript>
+<link rel="preload" as="style" href="../css/main.css?v=52" onload="this.rel='stylesheet'" />
+<noscript><link rel="stylesheet" href="../css/main.css?v=52" /></noscript>
 
 <!-- Auto-match the visitor's browser language to a localized version (only from the
      English root, and only until the visitor manually picks a language). -->
@@ -1349,18 +1349,28 @@ window.LY_afterLcp(function() {
     <h2 class="section-title reveal reveal-delay-1">Was unsere<em> Gäste sagen</em></h2>
     <p class="reviews-intro reveal reveal-delay-2">Echte Erlebnisse von Gästen, die <strong>Limitless</strong> gechartert haben. Bewertungen werden nach einer kurzen Prüfung veröffentlicht.</p>
 
-    <div class="reviews-summary reveal reveal-delay-2" id="reviewsSummary" aria-live="polite">
-      <div class="reviews-score">
-        <div class="reviews-score-num" id="reviewsScore">5.0</div>
-        <div>
-          <div class="reviews-stars" id="reviewsStars" aria-hidden="true">★★★★★</div>
-          <div class="reviews-count" id="reviewsCount">Bewertungen werden geladen…</div>
+    <div class="reviews-main">
+      <div class="reviews-summary reveal reveal-delay-2" id="reviewsSummary" aria-live="polite">
+        <div class="reviews-score">
+          <div class="reviews-score-num" id="reviewsScore">5.0</div>
+          <div>
+            <div class="reviews-stars" id="reviewsStars" aria-hidden="true">★★★★★</div>
+            <div class="reviews-count" id="reviewsCount">Bewertungen werden geladen…</div>
+          </div>
         </div>
       </div>
+
+      <p class="reviews-loading" id="reviewsLoading">Gästebewertungen werden geladen…</p>
+      <div class="reviews-grid reveal reveal-delay-3" id="reviewsGrid" hidden></div>
     </div>
 
-    <p class="reviews-loading" id="reviewsLoading">Gästebewertungen werden geladen…</p>
-    <div class="reviews-grid reveal reveal-delay-3" id="reviewsGrid" hidden></div>
+    <div class="section-cta-desktop reveal">
+      <p class="section-cta-text">Noch unentschlossen, wohin — oder möchten Sie zuerst die Yacht sehen?</p>
+      <div class="section-cta-btns">
+        <a href="#itinerary-land" class="btn-primary">Reiseziele entdecken</a>
+        <a href="#gallery-land" class="btn-ghost">Die Yacht entdecken</a>
+      </div>
+    </div>
 
     <div class="section-cta reveal">
       <p class="section-cta-text">Bereit, Ihre eigene Geschichte auf dem Wasser zu schreiben?</p>
