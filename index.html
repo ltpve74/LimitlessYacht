@@ -100,8 +100,8 @@ nav{position:fixed;top:0;left:0;right:0;z-index:100;min-height:4.25rem}
 .form-field[hidden] { display: none !important; }
 </style>
 <script src="js/analytics-env.js"></script>
-<link rel="preload" as="style" href="css/main.css?v=58" onload="this.rel='stylesheet'" />
-<noscript><link rel="stylesheet" href="css/main.css?v=58" /></noscript>
+<link rel="preload" as="style" href="css/main.css?v=62" onload="this.rel='stylesheet'" />
+<noscript><link rel="stylesheet" href="css/main.css?v=62" /></noscript>
 
 <!-- Auto-match the visitor's browser language to a localized version (only from the
      English root, and only until the visitor manually picks a language). -->
@@ -259,12 +259,12 @@ nav{position:fixed;top:0;left:0;right:0;z-index:100;min-height:4.25rem}
 <!-- MOBILE NAV -->
 <div class="mobile-nav" id="mobileNav" role="dialog" aria-modal="true" aria-label="Site menu" hidden>
   <button type="button" class="mobile-nav-close" id="mobileClose" aria-label="Close menu">✕</button>
-  <a href="#availability" class="mobile-nav-cta" onclick="closeMobile()">Get Quote</a>
+  <a href="#enquire-form" class="mobile-nav-cta" onclick="closeMobile()">Get Quote</a>
   <a href="#about" onclick="closeMobile()">About</a>
   <a href="#itinerary" onclick="closeMobile()">Destinations</a>
   <a href="#gallery" onclick="closeMobile()">Gallery</a>
-  <a href="#charters-land" onclick="closeMobile()">Charters</a>
-  <a href="#availability" onclick="closeMobile()">Availability</a>
+  <a href="#charters" onclick="closeMobile()">Charters</a>
+  <a href="#avail-cal" onclick="closeMobile()">Availability</a>
   <a href="#reviews" onclick="closeMobile()">Reviews</a>
   <a href="#amenities" onclick="closeMobile()">Amenities</a>
   <a href="#specs" onclick="closeMobile()">Details</a>
@@ -341,6 +341,14 @@ nav{position:fixed;top:0;left:0;right:0;z-index:100;min-height:4.25rem}
         <h2 class="section-title">Your Home on the<br><em>Mediterranean</em></h2>
         <p><strong>Limitless</strong> is a 21-metre Maiora with a flybridge, aft deck and sun pads — space for twelve guests by day, comfortable for seven overnight. Built for the sea and maintained to charter standard.</p>
         <p>What truly sets Limitless apart is her <strong>dedicated crew</strong>. Attentive, experienced and genuinely passionate about the sea, they take care of everything — from organising catering to reserving beach club access — so you can focus entirely on the people you're with and the places you're discovering.</p>
+      </div>
+    </div>
+    <p class="section-forward-cta reveal">Ready to plan your trip? <a href="#charters">See charter options →</a></p>
+    <div class="section-cross-cta section-cross-cta--desktop reveal">
+      <p class="section-cta-text">Curious how a charter works in practice — or what other guests experienced?</p>
+      <div class="section-cta-btns">
+        <a href="#charters-land" class="btn-ghost">View Charter Options</a>
+        <a href="#reviews-land" class="btn-ghost">Read Guest Reviews</a>
       </div>
     </div>
   </div>
@@ -1166,15 +1174,15 @@ window.LY_afterLcp(function() {
         <a href="#enquire" class="btn-primary">Get Your Quote</a>
         <p class="enquiry-flex-note">Available year-round &nbsp;·&nbsp; Rates vary by season &nbsp;·&nbsp; We respond within 24 hours</p>
         <div class="section-cross-cta section-cross-cta--desktop">
-          <p class="section-cta-text">Still deciding where to go — or want to see the yacht first?</p>
+          <p class="section-cta-text">Rather pin down dates first — or hear from guests who've been on board?</p>
           <div class="section-cta-btns">
-            <a href="#itinerary-land" class="btn-ghost">Explore Destinations</a>
-            <a href="#gallery-land" class="btn-ghost">Meet The Yacht</a>
+            <a href="#availability" class="btn-ghost">Check Availability</a>
+            <a href="#reviews-land" class="btn-ghost">Read Guest Reviews</a>
           </div>
         </div>
       </div>
     </div>
-    <p class="section-back-cta reveal">Still deciding where to go? <a href="#itinerary">Explore the destinations →</a></p>
+    <p class="section-back-cta reveal">Rather pick dates before you choose a route? <a href="#availability">Check the calendar →</a></p>
   </div>
 </section>
 
@@ -1213,6 +1221,13 @@ window.LY_afterLcp(function() {
     <div class="availability-actions">
       <a href="#enquire-form" class="btn-primary cal-enquire-btn is-disabled" id="calEnquireBtn" aria-disabled="true"><span class="cal-enquire-desktop">Continue to enquiry →</span><span class="cal-enquire-mobile">Enquire About These Dates</span></a>
       <a href="https://wa.me/34622581486?text=Hi%2C%20I%27d%20like%20to%20enquire%20about%20a%20charter%20on%20Limitless." target="_blank" rel="noopener" class="btn-ghost cal-wa-btn is-disabled" id="calWaBtn" aria-disabled="true" data-wa-label-default="Enquire on WhatsApp" data-wa-label-dates="WhatsApp these dates">Enquire on WhatsApp</a>
+    </div>
+    <div class="section-cross-cta section-cross-cta--desktop reveal">
+      <p class="section-cta-text">Still weighing a half-day splash against a multi-day escape?</p>
+      <div class="section-cta-btns">
+        <a href="#charters-land" class="btn-ghost">View Charter Options</a>
+        <a href="#reviews-land" class="btn-ghost">Read Guest Reviews</a>
+      </div>
     </div>
     </div><!-- /.availability-picker -->
   </div>
@@ -1350,12 +1365,12 @@ window.LY_afterLcp(function() {
         <a href="#availability" class="btn-primary section-cta-avail--desktop">Check Availability</a>
         <a href="#enquire" class="btn-ghost section-cta-quote--mobile">Get Your Quote</a>
       </div>
-      <div class="section-cross-cta section-cross-cta--desktop">
-        <p class="section-cta-text">Still deciding where to go — or want to see the yacht first?</p>
-        <div class="section-cta-btns">
-          <a href="#itinerary-land" class="btn-ghost">Explore Destinations</a>
-          <a href="#gallery-land" class="btn-ghost">Meet The Yacht</a>
-        </div>
+    </div>
+    <div class="section-cross-cta section-cross-cta--desktop reveal">
+      <p class="section-cta-text">Convinced by the stories? Compare charter lengths or see what's waiting on deck.</p>
+      <div class="section-cta-btns">
+        <a href="#charters-land" class="btn-ghost">View Charter Options</a>
+        <a href="#amenities-land" class="btn-ghost">On-Board Amenities</a>
       </div>
     </div>
 
@@ -1408,6 +1423,14 @@ window.LY_afterLcp(function() {
           <li>Modern interior design</li>
           <li>Air conditioning on board</li>
         </ul>
+      </div>
+    </div>
+    <p class="section-forward-cta reveal">Like what's on board? <a href="#avail-cal">Check availability →</a></p>
+    <div class="section-cross-cta section-cross-cta--desktop reveal">
+      <p class="section-cta-text">Everything you need is on board — now choose how you want to use it.</p>
+      <div class="section-cta-btns">
+        <a href="#charters-land" class="btn-ghost">View Charter Options</a>
+        <a href="#availability" class="btn-ghost">Check Availability</a>
       </div>
     </div>
   </div>
@@ -1472,6 +1495,13 @@ window.LY_afterLcp(function() {
         <a href="#avail-cal" class="btn-primary section-cta-avail--mobile">Check Availability</a>
         <a href="#availability" class="btn-primary section-cta-avail--desktop">Check Availability</a>
         <a href="#enquire" class="btn-ghost section-cta-quote--mobile">Get Your Quote</a>
+      </div>
+    </div>
+    <div class="section-cross-cta section-cross-cta--desktop reveal reveal-delay-2">
+      <p class="section-cta-text">Compare charter lengths — or browse what past guests had to say.</p>
+      <div class="section-cta-btns">
+        <a href="#charters-land" class="btn-ghost">View Charter Options</a>
+        <a href="#reviews-land" class="btn-ghost">Read Guest Reviews</a>
       </div>
     </div>
   </div>

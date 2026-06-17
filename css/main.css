@@ -926,16 +926,30 @@ section { padding: 7rem 2rem; }
     margin-top: 1.35rem;
     padding-top: 1.2rem;
     border-top: 1px solid rgba(201,168,76,.16);
-    max-width: 36rem;
+    max-width: 42rem;
     margin-left: auto;
     margin-right: auto;
+    text-align: center;
+  }
+  .section-cta + .section-cross-cta--desktop {
+    margin-top: 1.35rem;
   }
   .section-cross-cta--desktop .section-cta-text {
     margin-bottom: 1rem;
     font-size: .72rem;
     letter-spacing: .08em;
   }
-  .section-cross-cta--desktop .section-cta-btns { gap: 1rem; }
+  .section-cross-cta--desktop .section-cta-btns {
+    flex-direction: row;
+    flex-wrap: nowrap;
+    justify-content: center;
+    gap: 0.85rem;
+  }
+  .section-cross-cta--desktop .section-cta-btns > .btn-ghost {
+    padding-left: 1.35rem;
+    padding-right: 1.35rem;
+    white-space: nowrap;
+  }
 }
 .enquiry-flex-note {
   margin-top: .9rem;
@@ -1522,13 +1536,6 @@ footer {
 
 @media (max-width: 640px) {
   #about { padding-bottom: 3rem; }
-  #gallery, #itinerary {
-    padding-top: 0; padding-bottom: 0; padding-left: 0; padding-right: 0;
-    min-height: 100svh; overflow: hidden;
-  }
-  /* Hide section headers — tabs are the first visible element, matching hero immersion */
-  #gallery > .container, #itinerary > .container { display: none !important; height: 0 !important; overflow: hidden !important; margin: 0 !important; padding: 0 !important; }
-  #gallery .section-label, #gallery .section-title, #gallery .section-intro, #itinerary .section-label, #itinerary .section-title, #itinerary .itinerary-intro { display: none !important; }
   #availability { padding-top: 3rem; }
   /* Compact form so the submit button stays above Safari's bottom chrome */
   .form-col-wa { padding-top: .7rem; padding-bottom: .7rem; }
@@ -1571,10 +1578,6 @@ footer {
   #specs { padding-top: 3rem; padding-bottom: 2.5rem; }
   #amenities { padding-top: 2.5rem; padding-bottom: 2.5rem; }
   #reviews { padding-top: 3rem; padding-bottom: 4rem; }
-  .itinerary-wrap {
-    margin: 0 !important;
-    padding: 0 !important;
-  }
   .destination-desc { font-size: .82rem; line-height: 1.65; }
 }
 
@@ -1884,6 +1887,10 @@ footer {
     line-height: 1.45;
     word-break: break-word;
   }
+  .section-cta-avail--desktop,
+  .section-cross-cta--desktop {
+    display: none !important;
+  }
   .availability-actions,
   .section-cta-btns {
     flex-direction: column;
@@ -1892,8 +1899,7 @@ footer {
   }
   #availability .availability-actions > .btn-primary,
   #availability .availability-actions > .btn-ghost,
-  .section-cta-btns > .btn-primary,
-  .section-cta-btns > .btn-ghost {
+  .section-cta-btns > .btn-primary:not(.section-cta-avail--desktop) {
     display: block !important;
     width: 100% !important;
     max-width: none !important;
@@ -2028,6 +2034,188 @@ footer {
   .nav-header-cta { display: none; }
   .hamburger { display: flex; }
 }
+/* Mobile + tablet immersive funnel (destinations → gallery → calendar) */
+@media (max-width: 768px) {
+  #gallery, #itinerary {
+    padding-top: 0;
+    padding-bottom: 0;
+    padding-left: 0;
+    padding-right: 0;
+    min-height: 100svh;
+    overflow: hidden;
+  }
+  #gallery > .container,
+  #itinerary > .container {
+    display: none !important;
+    height: 0 !important;
+    overflow: hidden !important;
+    margin: 0 !important;
+    padding: 0 !important;
+  }
+  #gallery .section-label,
+  #gallery .section-title,
+  #gallery .section-intro,
+  #itinerary .section-label,
+  #itinerary .section-title,
+  #itinerary .itinerary-intro {
+    display: none !important;
+  }
+  #gallery, #itinerary { padding-left: 0 !important; padding-right: 0 !important; }
+  .gallery-wrap { margin: 0 !important; padding: 0.05rem 0 0 !important; }
+  .itinerary-wrap { margin: 0 !important; padding: 0.05rem 0 0 !important; }
+  .dest-tabs, .gallery-tabs {
+    display: flex;
+    width: 100%;
+    max-width: none;
+    margin: 0;
+    border: 1px solid rgba(201,168,76,.25);
+    border-left: none;
+    border-right: none;
+    border-radius: 0;
+    background: var(--navy);
+    overflow: hidden;
+  }
+  .dest-tab, .gallery-tab {
+    flex: 1;
+    padding: 1rem .5rem;
+    background: transparent;
+    border: none;
+    color: var(--text-muted);
+    font-family: 'Montserrat', sans-serif;
+    font-size: .58rem;
+    letter-spacing: .13em;
+    text-transform: uppercase;
+    cursor: pointer;
+    transition: background .2s, color .2s;
+    line-height: 1.5;
+    text-align: center;
+  }
+  .dest-tab + .dest-tab, .gallery-tab + .gallery-tab { border-left: 1px solid rgba(201,168,76,.25); }
+  .dest-tab.tab--active, .gallery-tab.tab--active { background: var(--gold); color: var(--navy); }
+  .dest-tab .tab-period { display: none; }
+  .gallery-group { display: none; }
+  .gallery-group.tab-active { display: block; }
+  .gallery-group .gallery-grid {
+    display: flex;
+    flex-direction: row;
+    overflow-x: auto;
+    overscroll-behavior-x: contain;
+    scroll-snap-type: x mandatory;
+    touch-action: pan-x pan-y;
+    scrollbar-width: none;
+    padding: 0;
+    gap: 0;
+    margin-top: 0;
+  }
+  .gallery-group .gallery-grid::-webkit-scrollbar { display: none; }
+  .gallery-group .gallery-item {
+    flex: 0 0 100vw;
+    height: calc(100svh - 15rem);
+    min-height: unset;
+    border-radius: 0;
+    scroll-snap-align: start;
+    touch-action: pan-x pan-y;
+  }
+  .gallery-group .gallery-item picture { display: block; width: 100%; height: 100%; }
+  .gallery-group .gallery-item img { width: 100%; height: 100%; object-fit: cover; display: block; }
+  .gallery-group[data-gtab="interior"] .gallery-item[data-index="14"] img { object-position: center 15%; }
+  #gallery .carousel-nav { padding: 0 0 0.15rem; }
+  .dest-group .itinerary-grid {
+    display: flex;
+    flex-direction: row;
+    overflow-x: auto;
+    overscroll-behavior-x: contain;
+    touch-action: pan-x pan-y;
+    scrollbar-width: none;
+    padding: 0.55rem 1.5rem 0.05rem;
+    gap: .75rem;
+    margin-top: 0;
+  }
+  .dest-group .itinerary-grid::-webkit-scrollbar { display: none; }
+  .destination-card {
+    flex: 0 0 78vw;
+    height: calc(100svh - 15rem);
+    min-height: unset;
+    border-radius: 8px;
+    touch-action: pan-x pan-y;
+    cursor: pointer;
+  }
+  .destination-card-body { padding: .9rem 1rem .85rem; }
+  .destination-card-body::after {
+    content: 'Tap for full details →';
+    display: block;
+    margin-top: .55rem;
+    font-size: .46rem;
+    letter-spacing: .18em;
+    text-transform: uppercase;
+    color: rgba(201,168,76,.8);
+    text-shadow: 0 1px 4px rgba(0,0,0,1), 0 0 10px rgba(0,0,0,.9);
+  }
+  html[lang="de"] .destination-card-body::after { content: 'Details antippen →'; }
+  html[lang="es"] .destination-card-body::after { content: 'Pulsa para más detalles →'; }
+  html[lang="fr"] .destination-card-body::after { content: 'Appuyer pour les détails →'; }
+  .destination-num { font-size: .5rem; margin-bottom: .3rem; letter-spacing: .18em; }
+  .destination-name { font-size: 1.15rem; margin-bottom: .25rem; line-height: 1.2; }
+  .destination-tagline { font-size: .62rem; letter-spacing: .1em; margin-bottom: 0; }
+  .destination-meta { margin-top: .5rem; padding-top: .5rem; }
+  .destination-meta span { font-size: .63rem; }
+  .carousel-nav {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: .6rem;
+    padding: 0 0 0.15rem;
+  }
+  .carousel-btn {
+    background: transparent;
+    border: 1px solid rgba(201,168,76,.4);
+    color: var(--gold);
+    width: 2.1rem;
+    height: 2.1rem;
+    border-radius: 50%;
+    font-size: 1.25rem;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    transition: opacity .2s;
+    -webkit-tap-highlight-color: transparent;
+    flex-shrink: 0;
+  }
+  .carousel-btn:disabled { opacity: .2; }
+  .carousel-pos {
+    font-family: 'Montserrat', sans-serif;
+    font-size: .52rem;
+    letter-spacing: .16em;
+    text-transform: uppercase;
+    color: var(--gold);
+    min-width: 2.5rem;
+    text-align: center;
+  }
+  .itinerary-meet-cta--desktop,
+  .itinerary-meet-cta--gallery-desktop { display: none !important; }
+  .itinerary-meet-cta {
+    display: block;
+    text-align: center;
+    padding: 1rem 1.6rem;
+    font-size: .68rem;
+    letter-spacing: .12em;
+    text-transform: uppercase;
+    background: var(--gold);
+    color: var(--navy);
+    font-family: 'Montserrat', sans-serif;
+    font-weight: 600;
+    text-decoration: none;
+    border-radius: 0;
+    margin: .5rem 0 .75rem;
+    white-space: nowrap;
+    transition: background .2s, color .2s;
+  }
+  .section-cta-desktop { display: none; }
+  .destination-desc { display: none; }
+  .destination-meta span:not(:first-child) { display: none; }
+  .contact-grid { grid-template-columns: 1fr; gap: 2.5rem; }
+}
 @media (max-width: 640px) {
   html { scroll-padding-top: 4.9rem; }
   section { padding: 0 1.2rem 4rem; }
@@ -2087,126 +2275,6 @@ footer {
   .intro-num { font-size: 1.6rem; }
   .intro-label { font-size: .46rem; margin-top: .15rem; }
 
-  /* Both sections need zero side-padding in this block so their wraps reach the viewport edges */
-  #gallery, #itinerary { padding-left: 0 !important; padding-right: 0 !important; }
-  /* Gallery wrap spans full viewport (section has no side padding); carousel contained inside */
-  .gallery-wrap { margin: 0 !important; padding: 0.05rem 0 0 !important; }
-  /* Itinerary wrap — same treatment */
-  .itinerary-wrap { margin: 0 !important; padding: 0.05rem 0 0 !important; }
-  /* Gallery tab switcher */
-  .dest-tabs, .gallery-tabs {
-    display: flex; width: 100%; max-width: none; margin: 0;
-    border: 1px solid rgba(201,168,76,.25); border-left: none; border-right: none; border-radius: 0;
-    background: var(--navy); overflow: hidden;
-  }
-  .dest-tab, .gallery-tab {
-    flex: 1; padding: 1rem .5rem; /* taller top bar for extra px and better touch */
-    background: transparent; border: none;
-    color: var(--text-muted);
-    font-family: 'Montserrat', sans-serif; font-size: .58rem;
-    letter-spacing: .13em; text-transform: uppercase;
-    cursor: pointer; transition: background .2s, color .2s; line-height: 1.5; text-align: center;
-  }
-  .dest-tab + .dest-tab, .gallery-tab + .gallery-tab { border-left: 1px solid rgba(201,168,76,.25); }
-  .dest-tab.tab--active, .gallery-tab.tab--active { background: var(--gold); color: var(--navy); }
-  .dest-tab .tab-period { display: none; }
-  /* Gallery groups — carousel on mobile */
-  .gallery-group { display: none; }
-  .gallery-group.tab-active { display: block; }
-  .gallery-group .gallery-grid {
-    display: flex; flex-direction: row;
-    overflow-x: auto; overscroll-behavior-x: contain;
-    scroll-snap-type: x mandatory;
-    touch-action: pan-x pan-y;
-    scrollbar-width: none;
-    padding: 0; gap: 0; margin-top: 0;
-  }
-  .gallery-group .gallery-grid::-webkit-scrollbar { display: none; }
-  .gallery-group .gallery-item {
-    flex: 0 0 100vw;
-    height: calc(100svh - 15rem); min-height: unset;
-    border-radius: 0;
-    scroll-snap-align: start;
-    touch-action: pan-x pan-y;
-  }
-  .gallery-group .gallery-item picture { display: block; width: 100%; height: 100%; }
-  .gallery-group .gallery-item img { width: 100%; height: 100%; object-fit: cover; display: block; }
-  /* portrait photo — bias to headboard rather than random crop */
-  .gallery-group[data-gtab="interior"] .gallery-item[data-index="14"] img { object-position: center 15%; }
-  #gallery .carousel-nav { padding: 0 0 0.15rem; }
-  /* Breathing space above sticky tabs (kept minimal to move tabs+carousel up) */
-  .itinerary-wrap { padding-top: 0.05rem !important; }
-  /* Horizontal swipe carousel — one card at a time, next peeks at right */
-  .dest-group .itinerary-grid {
-    display: flex; flex-direction: row;
-    overflow-x: auto; overscroll-behavior-x: contain;
-    touch-action: pan-x pan-y;
-    scrollbar-width: none;
-    padding: 0.55rem 1.5rem 0.05rem; gap: .75rem; margin-top: 0;
-  }
-  .dest-group .itinerary-grid::-webkit-scrollbar { display: none; }
-  .destination-card {
-    flex: 0 0 78vw;
-    height: calc(100svh - 15rem); min-height: unset; border-radius: 8px;
-    touch-action: pan-x pan-y; cursor: pointer;
-  }
-  .destination-card-body { padding: .9rem 1rem .85rem; }
-  .destination-card-body::after {
-    content: 'Tap for full details →';
-    display: block; margin-top: .55rem;
-    font-size: .46rem; letter-spacing: .18em; text-transform: uppercase;
-    color: rgba(201,168,76,.8);
-    text-shadow: 0 1px 4px rgba(0,0,0,1), 0 0 10px rgba(0,0,0,.9);
-  }
-  html[lang="de"] .destination-card-body::after { content: 'Details antippen →'; }
-  html[lang="es"] .destination-card-body::after { content: 'Pulsa para más detalles →'; }
-  html[lang="fr"] .destination-card-body::after { content: 'Appuyer pour les détails →'; }
-  .destination-num { font-size: .5rem; margin-bottom: .3rem; letter-spacing: .18em; }
-  .destination-name { font-size: 1.15rem; margin-bottom: .25rem; line-height: 1.2; }
-  .destination-tagline { font-size: .62rem; letter-spacing: .1em; margin-bottom: 0; }
-  .destination-meta { margin-top: .5rem; padding-top: .5rem; }
-  .destination-meta span { font-size: .63rem; }
-  /* Common carousel nav (shared dest/gallery) — slightly bigger, tight to images for fingers */
-  .carousel-nav {
-    display: flex; align-items: center; justify-content: center;
-    gap: .6rem; padding: 0 0 0.15rem;
-  }
-  .carousel-btn {
-    background: transparent; border: 1px solid rgba(201,168,76,.4);
-    color: var(--gold); width: 2.1rem; height: 2.1rem; border-radius: 50%;
-    font-size: 1.25rem; cursor: pointer;
-    display: flex; align-items: center; justify-content: center;
-    transition: opacity .2s; -webkit-tap-highlight-color: transparent;
-    flex-shrink: 0;
-  }
-  .carousel-btn:disabled { opacity: .2; }
-  .carousel-pos {
-    font-family: 'Montserrat', sans-serif; font-size: .52rem;
-    letter-spacing: .16em; text-transform: uppercase;
-    color: var(--gold); min-width: 2.5rem; text-align: center;
-  }
-  .itinerary-meet-cta--desktop,
-  .itinerary-meet-cta--gallery-desktop { display: none !important; }
-  .itinerary-meet-cta {
-    display: block; text-align: center;
-    padding: 1rem 1.6rem;
-    font-size: .68rem; letter-spacing: .12em; text-transform: uppercase;
-    background: var(--gold);
-    color: var(--navy);
-    font-family: 'Montserrat', sans-serif;
-    font-weight: 600;
-    text-decoration: none;
-    border-radius: 0;
-    margin: .5rem 0 .75rem;
-    white-space: nowrap;
-    transition: background .2s, color .2s;
-  }
-  .section-cta-desktop { display: none; }
-  .destination-desc { display: none; }
-  .destination-meta span:not(:first-child) { display: none; }
-  /* Move tabs+carousel up under the section header (less space after intro) */
-  .itinerary-intro { margin-top: 0.55rem; margin-bottom: 0.3rem; }
-  .contact-grid { grid-template-columns: 1fr; gap: 2.5rem; }
   .about-image-wrap {
     height: 320px;
     max-height: 320px;
@@ -2446,6 +2514,26 @@ footer {
 .section-back-cta { text-align: center; margin-top: 2.6rem; font-size: .85rem; color: var(--text-muted); letter-spacing: .02em; }
 .section-back-cta a { color: var(--gold); text-decoration: none; font-weight: 500; border-bottom: 1px solid rgba(201,168,76,.4); padding-bottom: 2px; transition: color .2s, border-color .2s; }
 .section-back-cta a:hover { color: var(--gold-light); border-color: var(--gold-light); }
+.section-forward-cta { display: none; }
+@media (max-width: 768px) {
+  .section-forward-cta {
+    display: block;
+    text-align: center;
+    margin-top: 2.6rem;
+    font-size: .85rem;
+    color: var(--text-muted);
+    letter-spacing: .02em;
+  }
+  .section-forward-cta a {
+    color: var(--gold);
+    text-decoration: none;
+    font-weight: 500;
+    border-bottom: 1px solid rgba(201,168,76,.4);
+    padding-bottom: 2px;
+    transition: color .2s, border-color .2s;
+  }
+  .section-forward-cta a:hover { color: var(--gold-light); border-color: var(--gold-light); }
+}
 
 /* ── PRICING TABS (mobile toggle — display:none overridden inside max-width:768px block above) ── */
 
@@ -2632,7 +2720,7 @@ footer {
    #enquire-form lands directly at the WhatsApp/form area (used by lightbox CTA). */
 #enquire-form { scroll-margin-top: 1.5rem; }
 #avail-cal { scroll-margin-top: 1.25rem; }
-@media (max-width: 640px) {
+@media (max-width: 768px) {
   /* Form/calendar links land on the widget, not the hidden section title */
   #avail-cal { scroll-margin-top: .5rem; }
 }

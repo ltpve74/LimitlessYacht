@@ -600,16 +600,64 @@ PAIRS = [
         'Calas protegidas y puerto natural',
     ),
     (
-        'Still deciding where to go?',
-        '¿Aún decidiendo el destino?',
+        'Curious how a charter works in practice — or what other guests experienced?',
+        '¿Le interesa saber cómo funciona un chárter en la práctica — o qué vivieron otros huéspedes?',
     ),
     (
-        'Still deciding where to go — or want to see the yacht first?',
-        '¿Aún decidiendo el destino — o quiere ver el yate primero?',
+        'Rather pin down dates first — or hear from guests who\'ve been on board?',
+        '¿Prefiere fijar fechas primero — o escuchar a huéspedes que ya estuvieron a bordo?',
     ),
     (
-        'Explore the destinations →',
-        'Explorar destinos →',
+        'Rather pick dates before you choose a route?',
+        '¿Prefiere elegir fechas antes de decidir la ruta?',
+    ),
+    (
+        'Check the calendar →',
+        'Ver el calendario →',
+    ),
+    (
+        'Ready to plan your trip?',
+        '¿Listo para planificar su viaje?',
+    ),
+    (
+        'See charter options →',
+        'Ver opciones de chárter →',
+    ),
+    (
+        'Like what\'s on board?',
+        '¿Le gusta lo que hay a bordo?',
+    ),
+    (
+        'Check availability →',
+        'Ver disponibilidad →',
+    ),
+    (
+        'Still weighing a half-day splash against a multi-day escape?',
+        '¿Aún dudando entre una mañana en el mar y una escapada de varios días?',
+    ),
+    (
+        'Convinced by the stories? Compare charter lengths or see what\'s waiting on deck.',
+        '¿Le convencen las historias? Compare duraciones de chárter o vea lo que le espera a bordo.',
+    ),
+    (
+        'Everything you need is on board — now choose how you want to use it.',
+        'Todo lo que necesita está a bordo — ahora elija cómo quiere disfrutarlo.',
+    ),
+    (
+        'Compare charter lengths — or browse what past guests had to say.',
+        'Compare duraciones de chárter — o lea lo que dijeron huéspedes anteriores.',
+    ),
+    (
+        'View Charter Options',
+        'Ver opciones de chárter',
+    ),
+    (
+        'Read Guest Reviews',
+        'Leer reseñas de huéspedes',
+    ),
+    (
+        'On-Board Amenities',
+        'Equipamiento a bordo',
     ),
     (
         'aria-label="Explore destinations"',

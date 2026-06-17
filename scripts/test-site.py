@@ -139,28 +139,77 @@ def check_html(r: Runner, rel: str, html: str) -> None:
         'class="charters-main"' in html
     )
     r.check(
-        'charters desktop CTA links to destinations and gallery -land anchors',
+        'charters desktop cross-nav nudges availability and reviews',
         re.search(
-            r'<section id="charters">[\s\S]*?href="#itinerary-land"[^>]*class="btn-ghost"'
-            r'[\s\S]*?href="#gallery-land"[^>]*class="btn-ghost"',
+            r'<section id="charters">[\s\S]*?href="#availability"[^>]*class="btn-ghost"'
+            r'[\s\S]*?href="#reviews-land"[^>]*class="btn-ghost"',
             html,
         )
         is not None
         and 'section-cross-cta--desktop' in html,
     )
     r.check(
-        'reviews desktop CTA links to destinations and gallery -land anchors',
+        'reviews desktop cross-nav nudges charters and amenities',
         re.search(
-            r'<section id="reviews">[\s\S]*?href="#itinerary-land"[^>]*class="btn-ghost"'
-            r'[\s\S]*?href="#gallery-land"[^>]*class="btn-ghost"',
+            r'<section id="reviews">[\s\S]*?href="#charters-land"[^>]*class="btn-ghost"'
+            r'[\s\S]*?href="#amenities-land"[^>]*class="btn-ghost"',
             html,
         )
         is not None
         and re.search(
-            r'<section id="reviews">[\s\S]*?<div class="section-cta[^"]*">[\s\S]*?section-cross-cta--desktop',
+            r'<section id="reviews">[\s\S]*?</div>\s*<div class="section-cross-cta section-cross-cta--desktop',
             html,
         )
         is not None,
+    )
+    r.check(
+        'about desktop cross-nav nudges charters and reviews',
+        re.search(
+            r'<section id="about">[\s\S]*?href="#charters-land"[^>]*class="btn-ghost"'
+            r'[\s\S]*?href="#reviews-land"[^>]*class="btn-ghost"',
+            html,
+        )
+        is not None,
+    )
+    r.check(
+        'availability desktop cross-nav nudges charters and reviews',
+        re.search(
+            r'<section id="availability">[\s\S]*?href="#charters-land"[^>]*class="btn-ghost"'
+            r'[\s\S]*?href="#reviews-land"[^>]*class="btn-ghost"',
+            html,
+        )
+        is not None,
+    )
+    r.check(
+        'amenities desktop cross-nav nudges charters and availability',
+        re.search(
+            r'<section id="amenities">[\s\S]*?href="#charters-land"[^>]*class="btn-ghost"'
+            r'[\s\S]*?href="#availability"[^>]*class="btn-ghost"',
+            html,
+        )
+        is not None,
+    )
+    r.check(
+        'specs desktop cross-nav nudges charters and reviews',
+        re.search(
+            r'<section id="specs">[\s\S]*?href="#charters-land"[^>]*class="btn-ghost"'
+            r'[\s\S]*?href="#reviews-land"[^>]*class="btn-ghost"',
+            html,
+        )
+        is not None,
+    )
+    r.check(
+        'charters mobile back-link nudges availability not destinations',
+        re.search(
+            r'<section id="charters">[\s\S]*?<p class="section-back-cta[^"]*">[\s\S]*?href="#availability"',
+            html,
+        )
+        is not None
+        and re.search(
+            r'<section id="charters">[\s\S]*?section-back-cta[\s\S]*?href="#itinerary"',
+            html,
+        )
+        is None,
     )
     r.check(
         'reviews section groups summary and grid in reviews-main',
@@ -421,14 +470,43 @@ def check_html(r: Runner, rel: str, html: str) -> None:
         and 'id="charters"' in html
         and 'id="pricing"' not in html,
     )
+    mobile_nav_m = re.search(
+        r'<div class="mobile-nav" id="mobileNav"[^>]*>([\s\S]*?)</div>\s*\n<!-- HERO -->',
+        html,
+    )
+    mobile_nav = mobile_nav_m.group(1) if mobile_nav_m else ''
     r.check(
         'mobile menu keeps section-top anchors',
-        re.search(r'class="mobile-nav"[^>]*>[\s\S]*?href="#about"', html) is not None
-        and 'mobile-nav' in html
+        mobile_nav_m is not None
+        and 'href="#about"' in mobile_nav
+        and 'href="#about-land"' not in mobile_nav
+        and 'href="#charters"' in mobile_nav
+        and 'href="#charters-land"' not in mobile_nav,
+    )
+    r.check(
+        'mobile menu splits quote form and calendar anchors',
+        mobile_nav_m is not None
         and re.search(
-            r'class="mobile-nav"[\s\S]*?href="#about-land"',
+            r'href="#enquire-form"[^>]*class="mobile-nav-cta"',
+            mobile_nav,
+        )
+        is not None
+        and 'href="#avail-cal"' in mobile_nav
+        and 'href="#availability"' not in mobile_nav,
+    )
+    r.check(
+        'about and amenities offer mobile forward links',
+        'section-forward-cta' in html
+        and re.search(
+            r'<section id="about">[\s\S]*?section-forward-cta[\s\S]*?href="#charters"',
             html,
-        ) is None,
+        )
+        is not None
+        and re.search(
+            r'<section id="amenities">[\s\S]*?section-forward-cta[\s\S]*?href="#avail-cal"',
+            html,
+        )
+        is not None,
     )
 
     # Netlify form detection
@@ -1245,6 +1323,53 @@ def check_shared_assets(r: Runner) -> None:
         is not None,
     )
     r.check(
+        'tablet and phone share immersive destinations gallery funnel',
+        css is not None
+        and re.search(
+            r'@media \(max-width: 768px\)[\s\S]*?#gallery,\s*#itinerary\s*\{[^}]*min-height:\s*100svh',
+            css,
+        )
+        is not None
+        and re.search(
+            r'@media \(max-width: 768px\)[\s\S]*?\.itinerary-meet-cta\s*\{[^}]*display:\s*block',
+            css,
+        )
+        is not None,
+    )
+    r.check(
+        'mobile forward links stay hidden on desktop',
+        css is not None
+        and re.search(
+            r'\.section-forward-cta\s*\{[^}]*display:\s*none',
+            css,
+        )
+        is not None
+        and re.search(
+            r'@media \(max-width: 768px\)[\s\S]*?\.section-forward-cta\s*\{[^}]*display:\s*block',
+            css,
+        )
+        is not None,
+    )
+    r.check(
+        'mobile hides desktop-only section CTAs and cross-nav',
+        css is not None
+        and re.search(
+            r'@media \(max-width: 768px\)[\s\S]*?\.section-cta-avail--desktop[\s\S]*?display:\s*none !important',
+            css,
+        )
+        is not None
+        and re.search(
+            r'@media \(max-width: 768px\)[\s\S]*?\.section-cross-cta--desktop[\s\S]*?display:\s*none !important',
+            css,
+        )
+        is not None
+        and re.search(
+            r'@media \(max-width: 768px\)[\s\S]*?\.section-cta-btns > \.btn-primary:not\(\.section-cta-avail--desktop\)',
+            css,
+        )
+        is not None,
+    )
+    r.check(
         'desktop availability pair compacts for viewport-height landing',
         css is not None
         and re.search(
@@ -1272,6 +1397,14 @@ def check_shared_assets(r: Runner) -> None:
         '.section-cross-cta--desktop{' in css_flat
         and re.search(
             r'\.section-cross-cta--desktop\s*\{[^}]*border-top:',
+            css,
+        )
+        is not None,
+    )
+    r.check(
+        'section cross-nav desktop keeps ghost buttons in one row',
+        re.search(
+            r'@media \(min-width: 769px\)[\s\S]*?\.section-cross-cta--desktop \.section-cta-btns\s*\{[^}]*flex-wrap:\s*nowrap',
             css,
         )
         is not None,

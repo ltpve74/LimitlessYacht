@@ -100,8 +100,8 @@ nav{position:fixed;top:0;left:0;right:0;z-index:100;min-height:4.25rem}
 .form-field[hidden] { display: none !important; }
 </style>
 <script src="js/analytics-env.js"></script>
-<link rel="preload" as="style" href="../css/main.css?v=58" onload="this.rel='stylesheet'" />
-<noscript><link rel="stylesheet" href="../css/main.css?v=58" /></noscript>
+<link rel="preload" as="style" href="../css/main.css?v=62" onload="this.rel='stylesheet'" />
+<noscript><link rel="stylesheet" href="../css/main.css?v=62" /></noscript>
 
 <!-- Auto-match the visitor's browser language to a localized version (only from the
      English root, and only until the visitor manually picks a language). -->
@@ -259,12 +259,12 @@ nav{position:fixed;top:0;left:0;right:0;z-index:100;min-height:4.25rem}
 <!-- MOBILE NAV -->
 <div class="mobile-nav" id="mobileNav" role="dialog" aria-modal="true" aria-label="Menú del sitio" hidden>
   <button type="button" class="mobile-nav-close" id="mobileCerrar" aria-label="Cerrar menú">✕</button>
-  <a href="#availability" class="mobile-nav-cta" onclick="closeMobile()">Solicitar presupuesto</a>
+  <a href="#enquire-form" class="mobile-nav-cta" onclick="closeMobile()">Solicitar presupuesto</a>
   <a href="#about" onclick="closeMobile()">Sobre nosotros</a>
   <a href="#itinerary" onclick="closeMobile()">Destinos</a>
   <a href="#gallery" onclick="closeMobile()">Galería</a>
-  <a href="#charters-land" onclick="closeMobile()">Chárteres</a>
-  <a href="#availability" onclick="closeMobile()">Disponibilidad</a>
+  <a href="#charters" onclick="closeMobile()">Chárteres</a>
+  <a href="#avail-cal" onclick="closeMobile()">Disponibilidad</a>
   <a href="#reviews" onclick="closeMobile()">Reseñas</a>
   <a href="#amenities" onclick="closeMobile()">Equipamiento</a>
   <a href="#specs" onclick="closeMobile()">Detalles</a>
@@ -341,6 +341,14 @@ nav{position:fixed;top:0;left:0;right:0;z-index:100;min-height:4.25rem}
         <h2 class="section-title">Su hogar en el<br><em>Mediterráneo</em></h2>
         <p><strong>Limitless</strong> es una Maiora de 21 metros con flybridge, cubierta de popa y solárium: espacio para doce invitados de día y cómodo para siete a bordo de noche. Construida para el mar y mantenida según el estándar de chárter.</p>
         <p>Lo que de verdad distingue a Limitless es su <strong>tripulación dedicada</strong>. Atenta, experimentada y verdaderamente apasionada por el mar, se ocupa de todo — desde organizar el catering hasta reservar el acceso a clubes de playa — para que usted pueda centrarse por completo en su compañía y en los lugares que descubre.</p>
+      </div>
+    </div>
+    <p class="section-forward-cta reveal">¿Listo para planificar su viaje? <a href="#charters">Ver opciones de chárter →</a></p>
+    <div class="section-cross-cta section-cross-cta--desktop reveal">
+      <p class="section-cta-text">¿Le interesa saber cómo funciona un chárter en la práctica — o qué vivieron otros huéspedes?</p>
+      <div class="section-cta-btns">
+        <a href="#charters-land" class="btn-ghost">Ver opciones de chárter</a>
+        <a href="#reviews-land" class="btn-ghost">Leer reseñas de huéspedes</a>
       </div>
     </div>
   </div>
@@ -1166,15 +1174,15 @@ window.LY_afterLcp(function() {
         <a href="#enquire" class="btn-primary">Obtener su presupuesto</a>
         <p class="enquiry-flex-note">Disponible todo el año &nbsp;·&nbsp; Los precios varían según la temporada &nbsp;·&nbsp; Respondemos en 24 horas</p>
         <div class="section-cross-cta section-cross-cta--desktop">
-          <p class="section-cta-text">¿Aún decidiendo el destino — o quiere ver el yate primero?</p>
+          <p class="section-cta-text">¿Prefiere fijar fechas primero — o escuchar a huéspedes que ya estuvieron a bordo?</p>
           <div class="section-cta-btns">
-            <a href="#itinerary-land" class="btn-ghost">Explorar destinos</a>
-            <a href="#gallery-land" class="btn-ghost">Conoce el yate</a>
+            <a href="#availability" class="btn-ghost">Ver disponibilidad</a>
+            <a href="#reviews-land" class="btn-ghost">Leer reseñas de huéspedes</a>
           </div>
         </div>
       </div>
     </div>
-    <p class="section-back-cta reveal">¿Aún decidiendo el destino? <a href="#itinerary">Explorar destinos →</a></p>
+    <p class="section-back-cta reveal">¿Prefiere elegir fechas antes de decidir la ruta? <a href="#availability">Ver el calendario →</a></p>
   </div>
 </section>
 
@@ -1213,6 +1221,13 @@ window.LY_afterLcp(function() {
     <div class="availability-actions">
       <a href="#enquire-form" class="btn-primary cal-enquire-btn is-disabled" id="calEnquireBtn" aria-disabled="true"><span class="cal-enquire-desktop">Continuar con la consulta →</span><span class="cal-enquire-mobile">Consultar estas fechas</span></a>
       <a href="https://wa.me/34622581486?text=Hi%2C%20I%27d%20like%20to%20enquire%20about%20a%20charter%20on%20Limitless." target="_blank" rel="noopener" class="btn-ghost cal-wa-btn is-disabled" id="calWaBtn" aria-disabled="true" data-wa-label-default="Consultar por WhatsApp" data-wa-label-dates="Enviar estas fechas por WhatsApp">Consultar por WhatsApp</a>
+    </div>
+    <div class="section-cross-cta section-cross-cta--desktop reveal">
+      <p class="section-cta-text">¿Aún dudando entre una mañana en el mar y una escapada de varios días?</p>
+      <div class="section-cta-btns">
+        <a href="#charters-land" class="btn-ghost">Ver opciones de chárter</a>
+        <a href="#reviews-land" class="btn-ghost">Leer reseñas de huéspedes</a>
+      </div>
     </div>
     </div><!-- /.availability-picker -->
   </div>
@@ -1350,12 +1365,12 @@ window.LY_afterLcp(function() {
         <a href="#availability" class="btn-primary section-cta-avail--desktop">Ver disponibilidad</a>
         <a href="#enquire" class="btn-ghost section-cta-quote--mobile">Obtener su presupuesto</a>
       </div>
-      <div class="section-cross-cta section-cross-cta--desktop">
-        <p class="section-cta-text">¿Aún decidiendo el destino — o quiere ver el yate primero?</p>
-        <div class="section-cta-btns">
-          <a href="#itinerary-land" class="btn-ghost">Explorar destinos</a>
-          <a href="#gallery-land" class="btn-ghost">Conoce el yate</a>
-        </div>
+    </div>
+    <div class="section-cross-cta section-cross-cta--desktop reveal">
+      <p class="section-cta-text">¿Le convencen las historias? Compare duraciones de chárter o vea lo que le espera a bordo.</p>
+      <div class="section-cta-btns">
+        <a href="#charters-land" class="btn-ghost">Ver opciones de chárter</a>
+        <a href="#amenities-land" class="btn-ghost">Equipamiento a bordo</a>
       </div>
     </div>
 
@@ -1408,6 +1423,14 @@ window.LY_afterLcp(function() {
           <li>Diseño interior moderno</li>
           <li>Aire acondicionado a bordo</li>
         </ul>
+      </div>
+    </div>
+    <p class="section-forward-cta reveal">¿Le gusta lo que hay a bordo? <a href="#avail-cal">Ver disponibilidad →</a></p>
+    <div class="section-cross-cta section-cross-cta--desktop reveal">
+      <p class="section-cta-text">Todo lo que necesita está a bordo — ahora elija cómo quiere disfrutarlo.</p>
+      <div class="section-cta-btns">
+        <a href="#charters-land" class="btn-ghost">Ver opciones de chárter</a>
+        <a href="#availability" class="btn-ghost">Ver disponibilidad</a>
       </div>
     </div>
   </div>
@@ -1472,6 +1495,13 @@ window.LY_afterLcp(function() {
         <a href="#avail-cal" class="btn-primary section-cta-avail--mobile">Ver disponibilidad</a>
         <a href="#availability" class="btn-primary section-cta-avail--desktop">Ver disponibilidad</a>
         <a href="#enquire" class="btn-ghost section-cta-quote--mobile">Obtener su presupuesto</a>
+      </div>
+    </div>
+    <div class="section-cross-cta section-cross-cta--desktop reveal reveal-delay-2">
+      <p class="section-cta-text">Compare duraciones de chárter — o lea lo que dijeron huéspedes anteriores.</p>
+      <div class="section-cta-btns">
+        <a href="#charters-land" class="btn-ghost">Ver opciones de chárter</a>
+        <a href="#reviews-land" class="btn-ghost">Leer reseñas de huéspedes</a>
       </div>
     </div>
   </div>
