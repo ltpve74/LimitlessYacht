@@ -977,8 +977,8 @@ PAIRS = [
     ('or fill in the form', 'oder füllen Sie das Formular aus'),
     ('placeholder="Maria"', 'placeholder="Maria"'),
     (
-        'Check the <a href="#avail-cal" class="form-date-hint-link">availability calendar</a> for open dates.',
-        'Prüfen Sie den <a href="#avail-cal" class="form-date-hint-link">Verfügbarkeitskalender</a> auf freie Termine.',
+        'Check the calendar above for open dates.',
+        'Freie Termine im Kalender oben prüfen.',
     ),
     # Specs section CTA
     ("Ready to plan your charter? We'll have a quote back within 24 hours.", 'Bereit, Ihren Charter zu planen? Wir senden Ihnen innerhalb von 24 Stunden ein Angebot.'),

@@ -687,9 +687,12 @@ def check_shared_assets(r: Runner) -> None:
         and 'href="#avail-cal" class="itinerary-meet-cta"' in index_html,
     )
     r.check(
-        'form nudges users to check availability before entering dates',
+        'form date hint sits with date fields and is mobile-only in paired layout',
         'class="form-date-hint"' in index_html
-        and 'href="#avail-cal" class="form-date-hint-link">availability calendar</a>' in index_html,
+        and 'Check the calendar above for open dates.' in index_html
+        and 'form-date-hint-link' not in index_html
+        and css is not None
+        and re.search(r'\.contact-cal-pair\s+\.form-date-hint\s*\{\s*display:\s*none', css) is not None,
     )
     r.check(
         'availability calendar has app-style landing anchor',
@@ -697,12 +700,21 @@ def check_shared_assets(r: Runner) -> None:
         and 'class="availability-picker"' in index_html
         and '#avail-cal' in (css or ''),
     )
+    pair_start = index_html.find('class="contact-cal-pair"')
+    pair_end = index_html.find('id="reviews"', pair_start)
+    pair_html = index_html[pair_start:pair_end] if pair_start != -1 and pair_end != -1 else ''
     r.check(
-        'mobile stacks calendar before enquiry form',
+        'calendar precedes enquiry form in page structure',
+        pair_html.find('id="availability"') != -1
+        and pair_html.find('class="enquire-section"') != -1
+        and pair_html.find('id="availability"') < pair_html.find('class="enquire-section"'),
+    )
+    r.check(
+        'desktop paired layout keeps form left of calendar',
         css is not None
-        and re.search(r'@media\s*\(max-width:\s*640px\)', css) is not None
-        and re.search(r'\.contact-cal-pair\s+#availability\s*\{\s*order:\s*-1', css) is not None
-        and re.search(r'\.contact-cal-pair\s+\.enquire-section\s*\{\s*order:\s*0', css) is not None,
+        and re.search(r'@media\s*\(min-width:\s*769px\)', css) is not None
+        and re.search(r'\.contact-cal-pair\s+\.enquire-section\s*\{\s*order:\s*1', css) is not None
+        and re.search(r'\.contact-cal-pair\s+#availability\s*\{\s*order:\s*2', css) is not None,
     )
     r.check(
         'destination cards use pointer cursor (clickable like gallery)',
