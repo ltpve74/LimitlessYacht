@@ -1515,22 +1515,17 @@ window.LY_afterLcp(function() {
     var id = href.slice(1);
     var el = document.getElementById(id);
     if (!el) return null;
-    if (id === 'about') return el.getBoundingClientRect().top;
-    if (id === 'availability') return el.getBoundingClientRect().top;
     return el.getBoundingClientRect().top;
   }
   function updateNavSection() {
     if (window.innerWidth <= 768 || !navSectionLinks.length) return;
+    var probe = navHeight() + 56;
     var active = null;
     navSectionLinks.forEach(function(a) {
       var href = a.getAttribute('href');
       if (!href || href.charAt(0) !== '#') return;
-      var id = href.slice(1);
       var top = navMarkerTop(href);
       if (top == null) return;
-      var probe = (id === 'about' || id === 'availability')
-        ? navHeight() + 112
-        : navHeight() + 4;
       if (top <= probe) active = a;
     });
     navSectionLinks.forEach(function(a) {
@@ -1557,12 +1552,13 @@ window.LY_afterLcp(function() {
       a.addEventListener('click', function() {
         if (window.innerWidth <= 768) return;
         navbar.classList.add('scrolled');
-        navSectionLinks.forEach(function(l) { l.classList.remove('is-active'); });
-        a.classList.add('is-active');
         syncNavSectionSoon();
       });
     });
     window.addEventListener('hashchange', syncNavSectionSoon);
+    if ('onscrollend' in window) {
+      window.addEventListener('scrollend', syncNavSectionSoon, { passive: true });
+    }
     updateNavSection();
     window.addEventListener('resize', function() {
       if (window.innerWidth <= 768) {
