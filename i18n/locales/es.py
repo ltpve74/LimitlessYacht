@@ -64,9 +64,10 @@ PAIRS = [
         "Reviews could not be loaded. Please try again later.",
         "No se pudieron cargar las reseñas. Inténtelo de nuevo más tarde.",
     ),
-    ('class="nav-cta">Enquire</a>', 'class="nav-cta">Consultar</a>'),
-    ('class="mobile-nav-cta" onclick="closeMobile()">Enquire</a>', 'class="mobile-nav-cta" onclick="closeMobile()">Consultar</a>'),
-    ('class="nav-cta nav-header-cta">Enquire</a>', 'class="nav-cta nav-header-cta">Consultar</a>'),
+    ('href="#charters-land">Charters</a>', 'href="#charters-land">Chárteres</a>'),
+    ('onclick="closeMobile()">Charters</a>', 'onclick="closeMobile()">Chárteres</a>'),
+    ('class="mobile-nav-cta" onclick="closeMobile()">Get Quote</a>', 'class="mobile-nav-cta" onclick="closeMobile()">Solicitar presupuesto</a>'),
+    ('class="nav-cta nav-header-cta">Get Quote</a>', 'class="nav-cta nav-header-cta">Solicitar presupuesto</a>'),
     ('onclick="closeMobile()">About</a>', 'onclick="closeMobile()">Sobre nosotros</a>'),
     ('onclick="closeMobile()">Gallery</a>', 'onclick="closeMobile()">Galería</a>'),
     ('onclick="closeMobile()">Amenities</a>', 'onclick="closeMobile()">Equipamiento</a>'),
@@ -112,6 +113,10 @@ PAIRS = [
     ("Cruising Speed", "Velocidad de crucero"),
     ("Home Port", "Puerto base"),
     ("On<em>board Gallery</em>", "Galería <em>a bordo</em>"),
+    (
+        "Explore life aboard Limitless — on the water, on deck, and in the cabins below. Tap any photo to view it full size.",
+        "Explore la vida a bordo de Limitless — en el agua, en cubierta y en los camarotes. Pulse cualquier foto para verla a tamaño completo.",
+    ),
     ("On-Board Equipment", "Equipamiento a bordo"),
     ("Everything<em> On Board</em>", "Todo <em>a bordo</em>"),
     ("On Deck", "En cubierta"),
@@ -595,12 +600,64 @@ PAIRS = [
         'Calas protegidas y puerto natural',
     ),
     (
-        'Still deciding where to go?',
-        '¿Aún decidiendo el destino?',
+        'Curious how a charter works in practice — or what other guests experienced?',
+        '¿Le interesa saber cómo funciona un chárter en la práctica — o qué vivieron otros huéspedes?',
     ),
     (
-        'Explore the destinations →',
-        'Explorar destinos →',
+        'Rather pin down dates first — or hear from guests who\'ve been on board?',
+        '¿Prefiere fijar fechas primero — o escuchar a huéspedes que ya estuvieron a bordo?',
+    ),
+    (
+        'Rather pick dates before you choose a route?',
+        '¿Prefiere elegir fechas antes de decidir la ruta?',
+    ),
+    (
+        'Check the calendar →',
+        'Ver el calendario →',
+    ),
+    (
+        'Ready to plan your trip?',
+        '¿Listo para planificar su viaje?',
+    ),
+    (
+        'See charter options →',
+        'Ver opciones de chárter →',
+    ),
+    (
+        'Like what\'s on board?',
+        '¿Le gusta lo que hay a bordo?',
+    ),
+    (
+        'Check availability →',
+        'Ver disponibilidad →',
+    ),
+    (
+        'Still weighing a half-day splash against a multi-day escape?',
+        '¿Aún dudando entre una mañana en el mar y una escapada de varios días?',
+    ),
+    (
+        'Convinced by the stories? Compare charter lengths or see what\'s waiting on deck.',
+        '¿Le convencen las historias? Compare duraciones de chárter o vea lo que le espera a bordo.',
+    ),
+    (
+        'Everything you need is on board — now choose how you want to use it.',
+        'Todo lo que necesita está a bordo — ahora elija cómo quiere disfrutarlo.',
+    ),
+    (
+        'Compare charter lengths — or browse what past guests had to say.',
+        'Compare duraciones de chárter — o lea lo que dijeron huéspedes anteriores.',
+    ),
+    (
+        'View Charter Options',
+        'Ver opciones de chárter',
+    ),
+    (
+        'Read Guest Reviews',
+        'Leer reseñas de huéspedes',
+    ),
+    (
+        'On-Board Amenities',
+        'Equipamiento a bordo',
     ),
     (
         'aria-label="Explore destinations"',
@@ -742,7 +799,7 @@ PAIRS = [
         'Chárter Privado',
     ),
     (
-        'Your crew handles everything — you focus on the people and the views.',
+        'Your crew handles everything — you focus on the people and&nbsp;the views.',
         'Su tripulación se encarga de todo: usted se centra en la compañía y las vistas.',
     ),
     (
@@ -931,10 +988,8 @@ PAIRS = [
     ),
     # --- missing translations (2026 gap-fill) ---
     # Trust line — must come before short ("Crew","Tripulación") pair to avoid garbling "Crewed"
-    ('Verified reviews on Click&amp;Boat · Crewed &amp; fully equipped', 'Reseñas verificadas en Click&amp;Boat · Con tripulación &amp; totalmente equipado'),
-    # Nav Enquire links (not the CTA buttons)
-    ('href="#enquire">Enquire</a>', 'href="#enquire">Consultar</a>'),
-    ('href="#enquire" onclick="closeMobile()">Enquire</a>', 'href="#enquire" onclick="closeMobile()">Consultar</a>'),
+    ('Verified reviews on Click&amp;Boat · Crewed &amp;&nbsp;fully equipped', 'Reseñas verificadas en Click&amp;Boat · Con tripulación &amp; totalmente equipado'),
+
     ('aria-label="Close menu"', 'aria-label="Cerrar menú"'),
     # Hero ghost button and itinerary CTA
     ('>Meet The Yacht</a>', '>Conoce el yate</a>'),
@@ -954,7 +1009,7 @@ PAIRS = [
     # Destination lightbox
     ('aria-label="Destination details"', 'aria-label="Detalles del destino"'),
     # Pricing section — new enquiry-card layout
-    ('class="section-label reveal">Enquire<', 'class="section-label reveal">Consultar<'),
+    ('class="section-label reveal">Charters<', 'class="section-label reveal">Chárteres<'),
     ('Charter Your<em> Way</em>', 'Tu chárter<em> a tu manera</em>'),
     ("From a sun-soaked morning to a week at anchor — every charter is built around you. Tell us your dates and we'll craft the perfect itinerary within 24 hours.", 'Desde una mañana soleada hasta una semana fondeados — cada chárter está diseñado para usted. Cuéntenos sus fechas y prepararemos el itinerario perfecto en 24 horas.'),
     ('4 – 6 Hours', '4 – 6 horas'),

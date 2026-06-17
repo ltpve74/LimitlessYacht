@@ -64,9 +64,10 @@ PAIRS = [
         "Reviews could not be loaded. Please try again later.",
         "Impossible de charger les avis. Veuillez réessayer plus tard.",
     ),
-    ('class="nav-cta">Enquire</a>', 'class="nav-cta">Demander</a>'),
-    ('class="mobile-nav-cta" onclick="closeMobile()">Enquire</a>', 'class="mobile-nav-cta" onclick="closeMobile()">Demander</a>'),
-    ('class="nav-cta nav-header-cta">Enquire</a>', 'class="nav-cta nav-header-cta">Demander</a>'),
+    ('href="#charters-land">Charters</a>', 'href="#charters-land">Charters</a>'),
+    ('onclick="closeMobile()">Charters</a>', 'onclick="closeMobile()">Charters</a>'),
+    ('class="mobile-nav-cta" onclick="closeMobile()">Get Quote</a>', 'class="mobile-nav-cta" onclick="closeMobile()">Demander un devis</a>'),
+    ('class="nav-cta nav-header-cta">Get Quote</a>', 'class="nav-cta nav-header-cta">Demander un devis</a>'),
     ('onclick="closeMobile()">About</a>', 'onclick="closeMobile()">À propos</a>'),
     ('onclick="closeMobile()">Gallery</a>', 'onclick="closeMobile()">Galerie</a>'),
     ('onclick="closeMobile()">Amenities</a>', 'onclick="closeMobile()">Équipements</a>'),
@@ -112,6 +113,10 @@ PAIRS = [
     ("Cruising Speed", "Vitesse de croisière"),
     ("Home Port", "Port d'attache"),
     ("On<em>board Gallery</em>", "Galerie <em>à bord</em>"),
+    (
+        "Explore life aboard Limitless — on the water, on deck, and in the cabins below. Tap any photo to view it full size.",
+        "Découvrez la vie à bord de Limitless — sur l'eau, sur le pont et dans les cabines. Touchez une photo pour l'afficher en plein écran.",
+    ),
     ("On-Board Equipment", "Équipement à bord"),
     ("Everything<em> On Board</em>", "Tout <em>à bord</em>"),
     ("On Deck", "Sur le pont"),
@@ -582,12 +587,64 @@ PAIRS = [
         'Criques protégées &amp; port naturel',
     ),
     (
-        'Still deciding where to go?',
-        'Vous hésitez sur la destination ?',
+        'Curious how a charter works in practice — or what other guests experienced?',
+        'Curieux de savoir comment se déroule un charter — ou ce qu\'ont vécu d\'autres invités ?',
     ),
     (
-        'Explore the destinations →',
-        'Découvrir les destinations →',
+        'Rather pin down dates first — or hear from guests who\'ve been on board?',
+        'Vous préférez fixer les dates d\'abord — ou entendre des invités déjà embarqués ?',
+    ),
+    (
+        'Rather pick dates before you choose a route?',
+        'Vous préférez choisir les dates avant l\'itinéraire ?',
+    ),
+    (
+        'Check the calendar →',
+        'Voir le calendrier →',
+    ),
+    (
+        'Ready to plan your trip?',
+        'Prêt à planifier votre voyage ?',
+    ),
+    (
+        'See charter options →',
+        'Voir les options de charter →',
+    ),
+    (
+        'Like what\'s on board?',
+        'Vous aimez ce qui est à bord ?',
+    ),
+    (
+        'Check availability →',
+        'Vérifier les disponibilités →',
+    ),
+    (
+        'Still weighing a half-day splash against a multi-day escape?',
+        'Vous hésitez entre une demi-journée en mer et une escapade de plusieurs jours ?',
+    ),
+    (
+        'Convinced by the stories? Compare charter lengths or see what\'s waiting on deck.',
+        'Convaincu par les témoignages ? Comparez les durées de charter ou découvrez ce qui vous attend à bord.',
+    ),
+    (
+        'Everything you need is on board — now choose how you want to use it.',
+        'Tout ce qu\'il vous faut est à bord — choisissez maintenant comment en profiter.',
+    ),
+    (
+        'Compare charter lengths — or browse what past guests had to say.',
+        'Comparez les durées de charter — ou parcourez les avis d\'anciens invités.',
+    ),
+    (
+        'View Charter Options',
+        'Voir les options de charter',
+    ),
+    (
+        'Read Guest Reviews',
+        'Lire les avis clients',
+    ),
+    (
+        'On-Board Amenities',
+        'Équipements à bord',
     ),
     (
         'aria-label="Explore destinations"',
@@ -727,7 +784,7 @@ PAIRS = [
         'Charter Privé',
     ),
     (
-        'Your crew handles everything — you focus on the people and the views.',
+        'Your crew handles everything — you focus on the people and&nbsp;the views.',
         "Votre équipage s'occupe de tout — vous profitez des autres et des paysages.",
     ),
     (
@@ -916,10 +973,8 @@ PAIRS = [
     ),
     # --- missing translations (2026 gap-fill) ---
     # Trust line — must come before short ("Crew","Équipage") pair to avoid garbling "Crewed"
-    ('Verified reviews on Click&amp;Boat · Crewed &amp; fully equipped', 'Avis vérifiés sur Click&amp;Boat · Avec équipage &amp; entièrement équipé'),
-    # Nav Enquire links (not the CTA buttons)
-    ('href="#enquire">Enquire</a>', 'href="#enquire">Demander</a>'),
-    ('href="#enquire" onclick="closeMobile()">Enquire</a>', 'href="#enquire" onclick="closeMobile()">Demander</a>'),
+    ('Verified reviews on Click&amp;Boat · Crewed &amp;&nbsp;fully equipped', 'Avis vérifiés sur Click&amp;Boat · Avec équipage &amp; entièrement équipé'),
+
     ('>Destinations</a>', '>Destinations</a>'),
     ('onclick="closeMobile()">Destinations</a>', 'onclick="closeMobile()">Destinations</a>'),
     ('aria-label="Close menu"', 'aria-label="Fermer le menu"'),
@@ -941,7 +996,7 @@ PAIRS = [
     # Destination lightbox
     ('aria-label="Destination details"', 'aria-label="Détails de la destination"'),
     # Pricing section — new enquiry-card layout
-    ('class="section-label reveal">Enquire<', 'class="section-label reveal">Demander<'),
+    ('class="section-label reveal">Charters<', 'class="section-label reveal">Charters<'),
     ('Charter Your<em> Way</em>', 'Votre charter<em> à votre façon</em>'),
     ("From a sun-soaked morning to a week at anchor — every charter is built around you. Tell us your dates and we'll craft the perfect itinerary within 24 hours.", "D'une matinée ensoleillée à une semaine au mouillage — chaque charter est conçu autour de vous. Indiquez-nous vos dates et nous créerons l'itinéraire parfait en 24 heures."),
     ('4 – 6 Hours', '4 – 6 heures'),

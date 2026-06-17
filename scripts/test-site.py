@@ -58,11 +58,20 @@ LEGAL_META = {
 }
 
 SECTION_IDS = [
-    'hero', 'intro', 'about', 'itinerary', 'gallery', 'pricing',
+    'hero', 'intro', 'about', 'itinerary', 'gallery', 'charters',
     'availability', 'reviews', 'amenities', 'specs',
 ]
 
 HREFLANGS = ('en', 'de', 'fr', 'es', 'x-default')
+
+
+def css_rule_index(css: str, selector: str) -> int:
+    """Start index of a CSS rule block (readable or minified). Returns -1 if missing."""
+    parts = selector.split()
+    pat = r'\s+'.join(re.escape(part) for part in parts) + r'\s*\{'
+    m = re.search(pat, css)
+    return m.start() if m else -1
+
 
 # ── Output helpers ─────────────────────────────────────────────────────────────
 
@@ -126,6 +135,100 @@ def check_html(r: Runner, rel: str, html: str) -> None:
     # Enquiry flow
     r.check('#enquire scroll anchor exists', 'id="enquire"' in html)
     r.check('enquiry CTAs link to #enquire', 'href="#enquire"' in html)
+    r.check(
+        'reviews and specs desktop keep single availability CTA',
+        'section-cta-avail--desktop' in html
+        and 'section-cta-quote--desktop' not in html
+        and html.count('href="#availability" class="btn-primary section-cta-avail--desktop"') == 2
+        and html.count('href="#avail-cal" class="btn-primary section-cta-avail--mobile"') == 2
+        and html.count('href="#enquire" class="btn-ghost section-cta-quote--mobile"') == 2,
+    )
+    r.check(
+        'charters section groups options with includes panel',
+        'class="charters-main"' in html
+    )
+    r.check(
+        'charters desktop cross-nav nudges availability and reviews',
+        re.search(
+            r'<section id="charters">[\s\S]*?href="#availability"[^>]*class="btn-ghost"'
+            r'[\s\S]*?href="#reviews-land"[^>]*class="btn-ghost"',
+            html,
+        )
+        is not None
+        and 'section-cross-cta--desktop' in html,
+    )
+    r.check(
+        'reviews desktop cross-nav nudges charters and amenities',
+        re.search(
+            r'<section id="reviews">[\s\S]*?href="#charters-land"[^>]*class="btn-ghost"'
+            r'[\s\S]*?href="#amenities-land"[^>]*class="btn-ghost"',
+            html,
+        )
+        is not None
+        and re.search(
+            r'<section id="reviews">[\s\S]*?</div>\s*<div class="section-cross-cta section-cross-cta--desktop',
+            html,
+        )
+        is not None,
+    )
+    r.check(
+        'about desktop cross-nav nudges charters and reviews',
+        re.search(
+            r'<section id="about">[\s\S]*?href="#charters-land"[^>]*class="btn-ghost"'
+            r'[\s\S]*?href="#reviews-land"[^>]*class="btn-ghost"',
+            html,
+        )
+        is not None,
+    )
+    r.check(
+        'availability desktop cross-nav nudges charters and reviews',
+        re.search(
+            r'<section id="availability">[\s\S]*?href="#charters-land"[^>]*class="btn-ghost"'
+            r'[\s\S]*?href="#reviews-land"[^>]*class="btn-ghost"',
+            html,
+        )
+        is not None,
+    )
+    r.check(
+        'amenities desktop cross-nav nudges charters and availability',
+        re.search(
+            r'<section id="amenities">[\s\S]*?href="#charters-land"[^>]*class="btn-ghost"'
+            r'[\s\S]*?href="#availability"[^>]*class="btn-ghost"',
+            html,
+        )
+        is not None,
+    )
+    r.check(
+        'specs desktop cross-nav nudges charters and reviews',
+        re.search(
+            r'<section id="specs">[\s\S]*?href="#charters-land"[^>]*class="btn-ghost"'
+            r'[\s\S]*?href="#reviews-land"[^>]*class="btn-ghost"',
+            html,
+        )
+        is not None,
+    )
+    r.check(
+        'charters mobile back-link nudges availability not destinations',
+        re.search(
+            r'<section id="charters">[\s\S]*?<p class="section-back-cta[^"]*">[\s\S]*?href="#availability"',
+            html,
+        )
+        is not None
+        and re.search(
+            r'<section id="charters">[\s\S]*?section-back-cta[\s\S]*?href="#itinerary"',
+            html,
+        )
+        is None,
+    )
+    r.check(
+        'reviews section groups summary and grid in reviews-main',
+        'class="reviews-main"' in html
+        and re.search(
+            r'<div class="reviews-main">[\s\S]*?id="reviewsGrid"',
+            html,
+        )
+        is not None,
+    )
 
     # WhatsApp — every wa.me link must carry a pre-filled ?text= message
     wa_links = re.findall(r'href="(https://wa\.me/[^"]+)"', html)
@@ -327,6 +430,95 @@ def check_html(r: Runner, rel: str, html: str) -> None:
 
     # Nav
     r.check('id="navbar" navigation exists', 'id="navbar"' in html)
+    r.check(
+        'desktop language selector uses popup menu',
+        'id="navLangWrap"' in html
+        and 'id="navLangTrigger"' in html
+        and 'id="navLangPopover"' in html
+        and 'class="nav-lang-popover"' in html
+        and 'class="nav-lang"' not in html,
+    )
+    r.check(
+        'nav scroll section highlighting script',
+        'updateNavSection' in html
+        and "classList.toggle('is-active'" in html
+        and 'navSectionLinks' in html
+        and "addEventListener('hashchange'" in html
+        and 'navMarkerTop' in html
+        and 'onNavJumpClick' in html
+        and ".querySelectorAll('.nav-cta[href^=\"#\"]')" in html
+        and 'scrollToLandAnchor' not in html
+        and 'preventDefault' not in re.search(
+            r'navSectionLinks\.forEach\(function\(a\)[\s\S]{0,400}',
+            html,
+        ).group(0),
+    )
+    r.check(
+        'desktop nav uses native landing anchors',
+        re.search(r'class="nav-links"[^>]*>[\s\S]*?href="#about"', html) is not None
+        and 'href="#itinerary-land"' in html
+        and 'href="#gallery-land"' in html
+        and 'href="#charters-land"' in html
+        and re.search(
+            r'class="nav-links"[^>]*>[\s\S]*?href="#availability"',
+            html,
+        )
+        is not None
+        and 'href="#reviews-land"' in html
+        and 'href="#amenities-land"' in html
+        and 'href="#specs-land"' in html
+        and 'id="about-land"' in html
+        and 'id="charters-land"' in html
+        and 'id="availability-land"' in html,
+    )
+    r.check(
+        'desktop nav separates charters, availability, and quote CTA',
+        'href="#charters-land"' in html
+        and 'href="#availability" class="nav-cta nav-header-cta"' in html
+        and 'href="#pricing-land"' not in html
+        and 'id="charters"' in html
+        and 'id="pricing"' not in html,
+    )
+    hero_pos = html.find('<section id="hero"')
+    pre_hero = html[:hero_pos] if hero_pos > 0 else ''
+    mobile_nav_m = re.search(
+        r'<div class="mobile-nav" id="mobileNav"[^>]*>([\s\S]*)</div>\s*(?:<!-- HERO -->\s*)?$',
+        pre_hero,
+    )
+    mobile_nav = mobile_nav_m.group(1) if mobile_nav_m else ''
+    r.check(
+        'mobile menu keeps section-top anchors',
+        mobile_nav_m is not None
+        and 'href="#about"' in mobile_nav
+        and 'href="#about-land"' not in mobile_nav
+        and 'href="#charters"' in mobile_nav
+        and 'href="#charters-land"' not in mobile_nav,
+    )
+    r.check(
+        'mobile menu splits quote form and calendar anchors',
+        mobile_nav_m is not None
+        and re.search(
+            r'href="#enquire-form"[^>]*class="mobile-nav-cta"',
+            mobile_nav,
+        )
+        is not None
+        and 'href="#avail-cal"' in mobile_nav
+        and 'href="#availability"' not in mobile_nav,
+    )
+    r.check(
+        'about and amenities offer mobile forward links',
+        'section-forward-cta' in html
+        and re.search(
+            r'<section id="about">[\s\S]*?section-forward-cta[\s\S]*?href="#charters"',
+            html,
+        )
+        is not None
+        and re.search(
+            r'<section id="amenities">[\s\S]*?section-forward-cta[\s\S]*?href="#avail-cal"',
+            html,
+        )
+        is not None,
+    )
 
     # Netlify form detection
     r.check('Netlify form attribute present', ' netlify ' in html or ' netlify>' in html)
@@ -409,6 +601,40 @@ def check_html(r: Runner, rel: str, html: str) -> None:
     r.check(
         'hero title uses heroTitleIn (visible for LCP)',
         'heroTitleIn' in html,
+    )
+    r.check(
+        'hero scroll indicator lives inside bottom CTA cluster',
+        re.search(
+            r'<div class="hero-cta-group">[\s\S]*?<div class="hero-scroll">',
+            html,
+        )
+        is not None,
+    )
+    r.check(
+        'hero eyebrow desktop links use -land anchors',
+        'href="#reviews-land" class="hero-eyebrow-link--desktop"' in html
+        and 'href="#charters-land" class="hero-eyebrow-link--desktop"' in html,
+    )
+    r.check(
+        'hero eyebrow mobile links keep section anchors',
+        'href="#reviews" class="hero-eyebrow-link--mobile"' in html
+        and 'href="#charters" class="hero-eyebrow-link--mobile"' in html,
+    )
+    r.check(
+        'hero CTA desktop links use itinerary and gallery -land anchors',
+        'href="#itinerary-land" class="btn-primary hero-cta-link--desktop"' in html
+        and 'href="#gallery-land" class="btn-ghost hero-cta-link--desktop"' in html,
+    )
+    r.check(
+        'hero CTA mobile links keep section anchors',
+        'href="#itinerary" class="btn-primary hero-cta-link--mobile"' in html
+        and 'href="#gallery" class="btn-ghost hero-cta-link--mobile"' in html,
+    )
+    r.check(
+        'critical CSS defines hero bottom cluster gaps',
+        '.hero-cta-group{' in crit_flat
+        and 'gap:var(--hero-gap)' in crit_flat
+        and '--hero-bottom:' in crit_flat,
     )
 
     # Cookie consent — must not steal LCP
@@ -622,6 +848,58 @@ def check_shared_assets(r: Runner) -> None:
             'hero entrance animations avoid translateY (CLS-safe)',
             '@keyframesheroFade' in css_flat and 'animation:heroFade' in css_flat,
         )
+        r.check(
+            'hero bottom cluster uses shared flex gaps on all viewports',
+            '.hero-cta-group{' in css_flat
+            and 'gap:var(--hero-cluster-gap)' in css_flat
+            and '--hero-bottom-inset:' in css_flat,
+        )
+        r.check(
+            'short viewports compact hero title for bottom cluster clearance',
+            re.search(
+                r'@media\s*\(\s*max-height:\s*920px\s*\)[\s\S]*?--hero-cluster-gap',
+                css,
+            )
+            is not None,
+        )
+        r.check(
+            'hero eyebrow toggles mobile vs desktop anchor targets',
+            '.hero-eyebrow-link--desktop{' in css_flat
+            and re.search(
+                r'@media\s*\(\s*min-width:\s*769px\s*\)[\s\S]*?\.hero-eyebrow-link--mobile[^{]*\{[^}]*display:\s*none',
+                css,
+            )
+            is not None,
+        )
+        r.check(
+            'hero CTA toggles mobile vs desktop anchor targets',
+            re.search(
+                r'#hero \.hero-actions \.hero-cta-link--desktop\s*\{[^}]*display:\s*none',
+                css,
+            )
+            is not None
+            and re.search(
+                r'@media\s*\(\s*min-width:\s*769px\s*\)[\s\S]*?#hero \.hero-actions \.hero-cta-link--mobile[^{]*\{[^}]*display:\s*none',
+                css,
+            )
+            is not None,
+        )
+        r.check(
+            'hero CTA hide rules beat btn-primary display',
+            css is not None
+            and css_rule_index(css, '.btn-primary')
+            < css_rule_index(css, '#hero .hero-actions .hero-cta-link--desktop'),
+        )
+        r.check(
+            'hero value line no longer uses margin-top auto on desktop',
+            '.hero-value{' in css_flat and 'margin-top:0' in css_flat,
+        )
+        r.check(
+            'hero copy uses text-wrap to avoid orphans',
+            '.hero-value{' in css_flat
+            and 'text-wrap:balance' in css_flat
+            and 'people and&nbsp;the views.' in index_html,
+        )
     r.check(
         'WhatsApp button meets contrast-safe green',
         css is not None and '#157a47' in css and '#25D366' not in css,
@@ -677,6 +955,13 @@ def check_shared_assets(r: Runner) -> None:
         'prepare-github-pages.py' in preview_yml and "path: '_site'" in preview_yml,
     )
     r.check('prepare-github-pages script exists', os.path.isfile(os.path.join(ROOT, 'scripts/prepare-github-pages.py')))
+    dev_server = read_file('scripts/dev-server.py') or ''
+    r.check(
+        'local dev server script exists',
+        os.path.isfile(os.path.join(ROOT, 'scripts/dev-server.py'))
+        and os.path.isfile(os.path.join(ROOT, 'scripts/serve.sh'))
+        and '/api/availability' in dev_server,
+    )
     publish_yml = read_file('.github/workflows/publish.yml') or ''
     r.check(
         'publish gate workflow runs on main',
@@ -696,6 +981,13 @@ def check_shared_assets(r: Runner) -> None:
         'behavior-analytics loads via LY_BASE',
         "LY_BASE || '') + '/js/behavior-analytics.js'" in index_html
         and 'src="/js/behavior-analytics.js"' not in index_html,
+    )
+    r.check(
+        'preview hosts suppress analytics before GA and Clarity load',
+        'js/analytics-env.js' in index_html
+        and 'LY_IS_PREVIEW' in (read_file('js/analytics-env.js') or '')
+        and index_html.find('js/analytics-env.js') < index_html.find('googletagmanager.com/gtag/js')
+        and 'if (window.LY_OWNER_MODE) return;' in index_html,
     )
     r.check(
         'hero phone button sizing scoped to hero only',
@@ -772,18 +1064,66 @@ def check_shared_assets(r: Runner) -> None:
         and 'function applyDestLbPrefill()' in index_html,
     )
     r.check(
-        'desktop section CTAs route to availability calendar',
-        'section-cta-desktop' in index_html
-        and index_html.count('href="#avail-cal"') >= 2
+        'desktop immersive sections use mobile-style funnel CTAs',
+        'href="#gallery-land" class="itinerary-meet-cta itinerary-meet-cta--gallery-desktop"' in index_html
+        and 'href="#gallery" class="itinerary-meet-cta itinerary-meet-cta--gallery"' in index_html
+        and 'href="#availability" class="itinerary-meet-cta itinerary-meet-cta--desktop"' in index_html
+        and css is not None
         and re.search(
-            r'section-cta-desktop[\s\S]*?href="#avail-cal"[\s\S]*?Check Availability',
-            index_html,
-        ) is not None,
+            r'@media\s*\(\s*min-width:\s*769px\s*\)[\s\S]*?\.gallery-wrap[\s\S]*?min-height:\s*calc\(100svh\s*-\s*var\(--nav-scroll-offset\)\s*-\s*14rem\)',
+            css,
+        )
+        is not None
+        and re.search(
+            r'@media\s*\(\s*min-width:\s*769px\s*\)[\s\S]*?#gallery,\s*#itinerary\s*\{[^}]*height:\s*auto',
+            css,
+        )
+        is not None
+        and re.search(
+            r'@media\s*\(\s*min-width:\s*769px\s*\)[\s\S]*?\.gallery-group\s+\.gallery-grid[\s\S]*?flex:\s*1\s*1\s*0',
+            css,
+        )
+        is not None
+        and 'immersive-chrome' not in css
+        and re.search(
+            r'@media\s*\(\s*min-width:\s*769px\s*\)[\s\S]*?\.itinerary-meet-cta\s*\{[^}]*display:\s*block',
+            css,
+        )
+        is not None
+        and re.search(
+            r'@media\s*\(\s*min-width:\s*769px\s*\)[\s\S]*?#gallery\s+\.section-cta-desktop[\s\S]*?display:\s*none',
+            css,
+        )
+        is not None
+        and re.search(
+            r'@media\s*\(\s*min-width:\s*769px\s*\)[\s\S]*?#gallery\s+\.carousel-nav[\s\S]*?display:\s*flex',
+            css,
+        )
+        is not None,
     )
     r.check(
         'gallery lightbox uses viewport-specific browse hint',
         'Use arrow keys or click sides to browse' in index_html
         and "matchMedia('(min-width: 769px)')" in index_html,
+    )
+    r.check(
+        'lightboxes share unified navigation chrome classes',
+        'class="lb-close"' in index_html
+        and 'class="lb-nav lb-nav--prev"' in index_html
+        and 'class="lb-nav lb-nav--next"' in index_html
+        and 'class="lb-counter"' in index_html
+        and 'class="lb-hint"' in index_html
+        and css is not None
+        and css_rule_index(css, '.lb-close') >= 0
+        and css_rule_index(css, '.lb-nav') >= 0
+        and css_rule_index(css, '.lb-counter') >= 0
+        and css_rule_index(css, '#dest-lb-close') < 0
+        and '#lightbox-prev' not in css,
+    )
+    r.check(
+        'destination lightbox shows same browse hint as gallery',
+        'ly_dest_hinted' in index_html
+        and 'id="dest-lb-hint"' in index_html,
     )
     r.check(
         'calendar enquire scrolls on mobile, skips scroll on desktop when paired',
@@ -794,7 +1134,23 @@ def check_shared_assets(r: Runner) -> None:
     r.check(
         'mobile gallery CTA routes to availability calendar',
         'CHECK AVAILABILITY →' in index_html
-        and 'href="#avail-cal" class="itinerary-meet-cta"' in index_html,
+        and 'href="#avail-cal" class="itinerary-meet-cta itinerary-meet-cta--mobile"' in index_html,
+    )
+    r.check(
+        'desktop funnel CTAs use nav-style landing anchors',
+        'href="#availability" class="itinerary-meet-cta itinerary-meet-cta--desktop"' in index_html
+        and 'href="#gallery-land" class="itinerary-meet-cta itinerary-meet-cta--gallery-desktop"' in index_html
+        and css is not None
+        and re.search(
+            r'@media\s*\(\s*min-width:\s*769px\s*\)[\s\S]*?\.itinerary-meet-cta--mobile[\s\S]*?display:\s*none\s*!important',
+            css,
+        )
+        is not None
+        and re.search(
+            r'@media\s*\(\s*min-width:\s*769px\s*\)[\s\S]*?\.itinerary-meet-cta--gallery[\s\S]*?display:\s*none\s*!important',
+            css,
+        )
+        is not None,
     )
     r.check(
         'mobile gallery section fills viewport like itinerary',
@@ -878,6 +1234,257 @@ def check_shared_assets(r: Runner) -> None:
         is not None
         and re.search(
             r'@media\s*\(\s*min-width:\s*769px\s*\)[\s\S]*?\.form-date-popover(?:,\s*\.form-date-popover\.cal)?\s*\{[^}]*z-index:\s*50',
+            css,
+        )
+        is not None,
+    )
+    r.check(
+        'desktop nav keeps single row on narrow viewports',
+        css is not None
+        and re.search(
+            r'@media\s*\(\s*min-width:\s*769px\s*\)\s*and\s*\(\s*max-width:\s*1100px\s*\)[\s\S]*?nav\s*\{[^}]*display:\s*flex',
+            css,
+        )
+        is not None
+        and 'grid-template-areas: "logo end" "links links"' not in css,
+    )
+    r.check(
+        'nav language popup and active link styles',
+        css is not None
+        and '.nav-lang-wrap' in css
+        and '.nav-lang-popover' in css
+        and '.nav-links a.is-active' in css
+        and re.search(
+            r'\.nav-cta:focus:not\(:focus-visible\)\s*\{[^}]*background:\s*transparent',
+            css,
+        )
+        is not None
+        and re.search(
+            r'@media\s*\(\s*hover:\s*hover\s*\)\s*and\s*\(\s*pointer:\s*fine\s*\)[\s\S]*?\.nav-cta:hover',
+            css,
+        )
+        is not None,
+    )
+    r.check(
+        'desktop nav landing keeps labels and uses nav scroll offset',
+        css is not None
+        and '--nav-scroll-offset' in css
+        and re.search(
+            r'@media\s*\(\s*min-width:\s*769px\s*\)[\s\S]*?html\s*\{[^}]*scroll-padding-top:\s*var\(--nav-scroll-offset\)',
+            css,
+        )
+        is not None
+        and re.search(
+            r'@media\s*\(\s*min-width:\s*769px\s*\)[\s\S]*?#charters-land[\s\S]*?scroll-margin-top:\s*0',
+            css,
+        )
+        is not None
+        and re.search(
+            r'@media\s*\(\s*min-width:\s*769px\s*\)[\s\S]*?#availability\s*\{[^}]*scroll-margin-top:\s*1rem',
+            css,
+        )
+        is not None
+        and re.search(
+            r'@media\s*\(\s*min-width:\s*769px\s*\)[\s\S]*?#enquire-land\s*\{[^}]*scroll-margin-top:\s*1\.5rem',
+            css,
+        )
+        is not None
+        and re.search(
+            r'@media\s*\(\s*min-width:\s*769px\s*\)[\s\S]*?#gallery\s*>\s*\.container,\s*#itinerary\s*>\s*\.container\s*\{[^}]*flex-shrink:\s*0',
+            css,
+        )
+        is not None,
+    )
+    r.check(
+        'desktop gallery and destinations show intro copy for natural scroll',
+        css is not None
+        and re.search(
+            r'@media\s*\(\s*min-width:\s*769px\s*\)[\s\S]*?#gallery\s*>\s*\.container,\s*#itinerary\s*>\s*\.container\s*\{[^}]*flex-shrink:\s*0',
+            css,
+        )
+        is not None
+        and 'itinerary-intro' in index_html
+        and 'class="section-intro reveal reveal-delay-2">Explore life aboard Limitless' in index_html
+        and 'class="section-title reveal reveal-delay-1">On<em>board Gallery</em>' in index_html
+        and css is not None
+        and re.search(
+            r'@media\s*\(\s*min-width:\s*769px\s*\)[\s\S]*?#gallery,\s*#itinerary\s*\{[^}]*padding-bottom:\s*5rem',
+            css,
+        )
+        is not None,
+    )
+    r.check(
+        'reviews and specs desktop show only availability CTA',
+        css is not None
+        and '.section-cta-avail--desktop' in css
+        and 'section-cta-quote--desktop' not in css
+        and re.search(
+            r'@media\s*\(\s*min-width:\s*769px\s*\)[\s\S]*?#reviews\s+\.section-cta-avail--mobile[\s\S]*?display:\s*none',
+            css,
+        )
+        is not None
+        and re.search(
+            r'@media\s*\(\s*min-width:\s*769px\s*\)[\s\S]*?#specs\s+\.section-cta-avail--desktop[\s\S]*?display:\s*inline-block',
+            css,
+        )
+        is not None,
+    )
+    r.check(
+        'tablet and phone share immersive destinations gallery funnel',
+        css is not None
+        and re.search(
+            r'@media\s*\(\s*max-width:\s*768px\s*\)[\s\S]*?#gallery,\s*#itinerary\s*\{[^}]*min-height:\s*100svh',
+            css,
+        )
+        is not None
+        and re.search(
+            r'@media\s*\(\s*max-width:\s*768px\s*\)[\s\S]*?\.itinerary-meet-cta\s*\{[^}]*display:\s*block',
+            css,
+        )
+        is not None,
+    )
+    r.check(
+        'mobile forward links stay hidden on desktop',
+        css is not None
+        and re.search(
+            r'\.section-forward-cta\s*\{[^}]*display:\s*none',
+            css,
+        )
+        is not None
+        and re.search(
+            r'@media\s*\(\s*max-width:\s*768px\s*\)[\s\S]*?\.section-forward-cta\s*\{[^}]*display:\s*block',
+            css,
+        )
+        is not None,
+    )
+    r.check(
+        'mobile hides desktop-only section CTAs and cross-nav',
+        css is not None
+        and re.search(
+            r'@media\s*\(\s*max-width:\s*768px\s*\)[\s\S]*?\.section-cta-avail--desktop[\s\S]*?display:\s*none\s*!important',
+            css,
+        )
+        is not None
+        and re.search(
+            r'@media\s*\(\s*max-width:\s*768px\s*\)[\s\S]*?\.section-cross-cta--desktop[\s\S]*?display:\s*none\s*!important',
+            css,
+        )
+        is not None
+        and re.search(
+            r'@media\s*\(\s*max-width:\s*768px\s*\)[\s\S]*?\.section-cta-btns\s*>\s*\.btn-primary:not\(\.section-cta-avail--desktop\)',
+            css,
+        )
+        is not None,
+    )
+    r.check(
+        'desktop availability pair compacts for viewport-height landing',
+        css is not None
+        and re.search(
+            r'@media\s*\(\s*min-width:\s*769px\s*\)[\s\S]*?\.contact-cal-pair\s+#availability,\s*\.contact-cal-pair\s+\.enquire-section\s*\{[^}]*padding-top:\s*3\.5rem',
+            css,
+        )
+        is not None
+        and re.search(
+            r'@media\s*\(\s*min-width:\s*769px\s*\)\s*and\s*\(\s*max-height:\s*920px\s*\)[\s\S]*?\.contact-cal-pair',
+            css,
+        )
+        is not None
+        and not re.search(
+            r'\.contact-cal-pair\s+#availability,\s*\.contact-cal-pair\s+\.enquire-section\s*\{[^}]*padding-top:\s*7rem',
+            css,
+        ),
+    )
+    r.check(
+        'charters hides text back-link when desktop CTA buttons show',
+        re.search(
+            r'@media\s*\(\s*min-width:\s*769px\s*\)[\s\S]*?#charters \.section-back-cta\s*\{[^}]*display:\s*none',
+            css,
+        )
+        is not None,
+    )
+    r.check(
+        'section cross-nav uses shared ghost button cluster styles',
+        '.section-cross-cta--desktop{' in css_flat
+        and re.search(
+            r'\.section-cross-cta--desktop\s*\{[^}]*border-top:',
+            css,
+        )
+        is not None,
+    )
+    r.check(
+        'section cross-nav desktop keeps ghost buttons in one row',
+        re.search(
+            r'@media\s*\(\s*min-width:\s*769px\s*\)[\s\S]*?\.section-cross-cta--desktop \.section-cta-btns\s*\{[^}]*flex-wrap:\s*nowrap',
+            css,
+        )
+        is not None,
+    )
+    cross_hide_m = (
+        re.search(r'\.section-cross-cta--desktop\s*\{[^}]*display:\s*none', css)
+        if css is not None
+        else None
+    )
+    cross_show_m = (
+        re.search(r'\.section-cross-cta--desktop\s*\{[^}]*display:\s*block', css)
+        if css is not None
+        else None
+    )
+    r.check(
+        'section cross-nav desktop show rule follows mobile hide rule',
+        cross_hide_m is not None
+        and cross_show_m is not None
+        and cross_hide_m.start() < cross_show_m.start(),
+    )
+    r.check(
+        'reviews desktop uses compact two-column grid',
+        re.search(
+            r'@media\s*\(\s*min-width:\s*769px\s*\)[\s\S]*?\.reviews-grid\s*\{[^}]*grid-template-columns:\s*repeat\(2',
+            css,
+        )
+        is not None,
+    )
+    reviews_grid_base = css_rule_index(css, '.reviews-grid') if css is not None else -1
+    reviews_grid_desktop = -1
+    if css is not None:
+        for marker in (
+            'grid-template-columns:repeat(2,minmax(0,1fr))',
+            'grid-template-columns: repeat(2, minmax(0, 1fr))',
+        ):
+            reviews_grid_desktop = max(reviews_grid_desktop, css.rfind(marker))
+    r.check(
+        'reviews desktop grid overrides come after base single-column rule',
+        reviews_grid_base >= 0
+        and reviews_grid_desktop > reviews_grid_base,
+    )
+    r.check(
+        'reviews short viewports compact section padding',
+        re.search(
+            r'@media\s*\(\s*min-width:\s*769px\s*\)\s*and\s*\(\s*max-height:\s*920px\s*\)[\s\S]*?#reviews',
+            css,
+        )
+        is not None,
+    )
+    r.check(
+        'charters section keeps includes visible on desktop viewports',
+        css is not None
+        and '.charters-main' in css
+        and re.search(
+            r'@media\s*\(\s*min-width:\s*769px\s*\)[\s\S]*?#charters\s*\{[^}]*padding-top:\s*3\.5rem',
+            css,
+        )
+        is not None
+        and re.search(
+            r'@media\s*\(\s*min-width:\s*1000px\s*\)[\s\S]*?\.charters-main[\s\S]*?grid-template-columns',
+            css,
+        )
+        is not None
+        and re.search(
+            r'@media\s*\(\s*min-width:\s*1000px\s*\)[\s\S]*?\.charters-main\s+\.charter-includes[\s\S]*?position:\s*sticky',
+            css,
+        )
+        is not None
+        and re.search(
+            r'@media\s*\(\s*min-width:\s*769px\s*\)\s*and\s*\(\s*max-height:\s*920px\s*\)[\s\S]*?#charters',
             css,
         )
         is not None,
