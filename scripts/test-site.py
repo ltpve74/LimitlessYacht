@@ -288,9 +288,12 @@ def check_html(r: Runner, rel: str, html: str) -> None:
         and 'preferred_date_end' in html
         and 'id="formDurWrap"' in html
         and 'function LY_syncFormDur' in html
-        and "durationSelect.value = 'multi-day'" in html
-        and 'durOptMultiDay' in html
+        and 'charter_duration_auto' in html
+        and "useDurAuto('multi-day')" in html
+        and 'window.LY_setCharterLen' in html
         and 'durWrap.hidden = true' in html
+        and 'durOptMultiDay' not in html
+        and 'value="multi-day">Multi-Day' not in html
         and 'id="formDurWrap" hidden' in html
         and 'selected.length === 1' in html
         and 'preferred_date_end_btn' not in html

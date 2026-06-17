@@ -1306,12 +1306,12 @@ window.LY_afterLcp(function() {
             </div>
             <div class="form-field" id="formDurWrap" hidden>
               <label for="charter_duration">Duration</label>
+              <input type="hidden" id="charter_duration_auto" value="multi-day" disabled />
               <select name="charter_duration" id="charter_duration">
                 <option value="" disabled selected>Select…</option>
                 <option value="4-hours">4 Hours</option>
                 <option value="6-hours">6 Hours</option>
                 <option value="1-day">Full Day</option>
-                <option value="multi-day" id="durOptMultiDay">Multi-Day</option>
               </select>
             </div>
             <p class="form-date-hint">See the <a href="#avail-cal" class="form-date-hint-link">calendar</a> for an overview — or select free date(s) above.</p>
@@ -1809,7 +1809,7 @@ window.LY_afterLcp(function() {
       var tier = group ? group.getAttribute('data-tier') : '';
       var destName = (card.querySelector('.destination-name') || {}).textContent || '';
       if (lbCta) {
-        lbCta._prefillDuration = tierMap[tier] || '';
+        lbCta._prefillLen = tierMap[tier] || '';
         lbCta._waMsg = destName
           ? 'Hi, I\'d like to enquire about a ' + (tierLabel[tier] || '') + ' charter to ' + destName + ' on Limitless.'
           : 'Hi, I\'d like to enquire about a charter on Limitless.';
@@ -1855,9 +1855,8 @@ window.LY_afterLcp(function() {
     if (lbNext) lbNext.addEventListener('click', function(e) { e.stopPropagation(); showDest(destIdx + 1); });
 
     function applyDestLbPrefill() {
-      if (lbCta && lbCta._prefillDuration) {
-        var sel = document.getElementById('charter_duration');
-        if (sel) sel.value = lbCta._prefillDuration;
+      if (lbCta && lbCta._prefillLen && window.LY_setCharterLen) {
+        window.LY_setCharterLen(lbCta._prefillLen);
       }
       if (lbCta && lbCta._waMsg) {
         var waBtn = document.querySelector('.form-col-wa');
@@ -2132,6 +2131,7 @@ window.LY_afterLcp(function() {
   var startInput = document.getElementById('preferred_date');
   var endInput = document.getElementById('preferred_date_end');
   var durationSelect = document.getElementById('charter_duration');
+  var durationAuto = document.getElementById('charter_duration_auto');
   if (!calRoot || !monthsEl || !prevBtn || !nextBtn) return;
 
   var MONTHS = ['January','February','March','April','May','June','July','August','September','October','November','December'];
@@ -2213,30 +2213,49 @@ window.LY_afterLcp(function() {
       viewIndex = Math.min(Math.max(endIdx - count + 1, minIndex), maxFirst);
     }
   }
+  function useDurSelect() {
+    if (!durationSelect || !durationAuto) return;
+    durationAuto.disabled = true;
+    durationAuto.removeAttribute('name');
+    durationSelect.disabled = false;
+    durationSelect.setAttribute('name', 'charter_duration');
+  }
+  function useDurAuto(val) {
+    if (!durationSelect || !durationAuto) return;
+    durationSelect.disabled = true;
+    durationSelect.removeAttribute('name');
+    durationAuto.disabled = false;
+    durationAuto.setAttribute('name', 'charter_duration');
+    durationAuto.value = val;
+  }
+  function LY_setCharterLen(val) {
+    var durWrap = document.getElementById('formDurWrap');
+    if (!durationSelect || !durWrap) return;
+    if (val === 'multi-day') {
+      durWrap.hidden = true;
+      useDurAuto('multi-day');
+      return;
+    }
+    useDurSelect();
+    if (val) durationSelect.value = val;
+    if (selected.length === 1) durWrap.hidden = false;
+    else durWrap.hidden = true;
+  }
+  window.LY_setCharterLen = LY_setCharterLen;
   function LY_syncFormDur(){
     var durWrap = document.getElementById('formDurWrap');
     if (!durationSelect || !durWrap) return;
-    var multiOpt = document.getElementById('durOptMultiDay');
     if (selected.length > 1) {
       durWrap.hidden = true;
-      durationSelect.value = 'multi-day';
+      useDurAuto('multi-day');
       return;
     }
+    useDurSelect();
     if (selected.length === 1) {
       durWrap.hidden = false;
-      if (multiOpt) {
-        multiOpt.hidden = true;
-        multiOpt.disabled = true;
-      }
-      if (durationSelect.value === 'multi-day') durationSelect.value = '';
       return;
     }
     durWrap.hidden = true;
-    if (multiOpt) {
-      multiOpt.hidden = false;
-      multiOpt.disabled = false;
-    }
-    if (durationSelect.value === 'multi-day') durationSelect.value = '';
   }
   function syncForm(){
     if (!startInput) return;
@@ -2430,7 +2449,7 @@ window.LY_afterLcp(function() {
   }
   if (durationSelect) {
     durationSelect.addEventListener('change', function(){
-      if (durationSelect.value !== 'multi-day' && selected.length > 1) {
+      if (selected.length > 1) {
         selected = [selected[0]];
         updateSelectionUi();
       }
