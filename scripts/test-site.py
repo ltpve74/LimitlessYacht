@@ -221,19 +221,26 @@ def check_html(r: Runner, rel: str, html: str) -> None:
     )
     r.check(
         'itinerary lightbox backdrop click closes',
-        'if (e.target === destLb) closeLb()' in html,
+        'if (e.target === destLb)' in html and 'closeLb()' in html,
     )
     r.check(
-        'itinerary lightbox image half-tap navigates',
-        "lbImg2.addEventListener('click'" in html
+        'itinerary lightbox whole-card half-tap navigates',
+        "destLb.addEventListener('click'" in html
+        and 'destLb.getBoundingClientRect()' in html
         and 'dlbWasSwiped' in html
         and 'showDest(destIdx - 1)' in html
         and 'showDest(destIdx + 1)' in html,
     )
     r.check(
+        'itinerary lightbox vertical scroll guard preserves body swipe',
+        'dlbWasScrolled' in html
+        and "e.target.closest('button, a, input, select, textarea')" in html,
+    )
+    r.check(
         'itinerary lightbox swipe guard uses touchmove',
         "destLb.addEventListener('touchmove'" in html
-        and 'dlbWasSwiped = true' in html,
+        and 'dlbWasSwiped = true' in html
+        and 'Math.abs(dx) > Math.abs(dy)' in html,
     )
     r.check(
         'itinerary cards open lightbox on all viewports',

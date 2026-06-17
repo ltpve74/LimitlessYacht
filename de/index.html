@@ -1746,26 +1746,34 @@ window.LY_afterLcp(function() {
       try { if (history.state && history.state.lb === 'dest') history.replaceState(null, ''); } catch(e) {}
     });
 
-    destLb.addEventListener('click', function(e) { if (e.target === destLb) closeLb(); });
-
-    // Swipe between destinations
-    var dlbSwipeX = 0, dlbWasSwiped = false;
+    // Swipe / tap navigation across the whole lightbox (body scroll stays vertical)
+    var dlbSwipeX = 0, dlbSwipeY = 0, dlbWasSwiped = false, dlbWasScrolled = false;
     destLb.addEventListener('touchstart', function(e) {
-      dlbSwipeX = e.touches[0].clientX; dlbWasSwiped = false;
+      dlbSwipeX = e.touches[0].clientX;
+      dlbSwipeY = e.touches[0].clientY;
+      dlbWasSwiped = false;
+      dlbWasScrolled = false;
     }, { passive: true });
     destLb.addEventListener('touchmove', function(e) {
-      if (Math.abs(e.touches[0].clientX - dlbSwipeX) > 8) dlbWasSwiped = true;
+      var dx = e.touches[0].clientX - dlbSwipeX;
+      var dy = e.touches[0].clientY - dlbSwipeY;
+      if (Math.abs(dx) > 8 && Math.abs(dx) > Math.abs(dy)) dlbWasSwiped = true;
+      if (Math.abs(dy) > 8 && Math.abs(dy) > Math.abs(dx)) dlbWasScrolled = true;
     }, { passive: true });
     destLb.addEventListener('touchend', function(e) {
       if (destCards.length < 2) return;
       var dx = e.changedTouches[0].clientX - dlbSwipeX;
-      if (Math.abs(dx) > 40) { dx < 0 ? showDest(destIdx + 1) : showDest(destIdx - 1); }
+      var dy = e.changedTouches[0].clientY - dlbSwipeY;
+      if (Math.abs(dx) > 40 && Math.abs(dx) > Math.abs(dy)) {
+        dx < 0 ? showDest(destIdx + 1) : showDest(destIdx - 1);
+      }
     }, { passive: true });
 
-    // Tap left/right halves of image to navigate
-    lbImg2.addEventListener('click', function(e) {
-      if (dlbWasSwiped || destCards.length < 2) return;
-      var rect = lbImg2.getBoundingClientRect();
+    destLb.addEventListener('click', function(e) {
+      if (e.target === destLb) { closeLb(); return; }
+      if (e.target.closest('button, a, input, select, textarea')) return;
+      if (dlbWasSwiped || dlbWasScrolled || destCards.length < 2) return;
+      var rect = destLb.getBoundingClientRect();
       e.clientX < rect.left + rect.width / 2 ? showDest(destIdx - 1) : showDest(destIdx + 1);
     });
 
