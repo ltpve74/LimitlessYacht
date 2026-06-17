@@ -259,6 +259,13 @@ def check_html(r: Runner, rel: str, html: str) -> None:
 
     # Availability calendar
     r.check('id="availCal" calendar widget exists', 'id="availCal"' in html)
+    r.check(
+        'calendar supports adjacent date range selection',
+        'function buildContiguousRange' in html
+        and 'id="calSelection"' in html
+        and 'id="calEnquireBtn"' in html
+        and 'preferred_date_end' in html,
+    )
 
     # Nav
     r.check('id="navbar" navigation exists', 'id="navbar"' in html)
@@ -525,6 +532,13 @@ def check_shared_assets(r: Runner) -> None:
     r.check(
         'calendar booked dates meet contrast-safe rose',
         css is not None and '#8f4a52' in css and 'rgba(176,124,130,.9)' not in css,
+    )
+    r.check(
+        'calendar selected dates are visually distinct',
+        css is not None
+        and '.cal-cell.selected' in css
+        and '.cal-selection' in css
+        and '.cal-enquire-btn.is-disabled' in css,
     )
     r.check(
         'destination cards use pointer cursor (clickable like gallery)',

@@ -1129,9 +1129,48 @@ footer {
 .cal-cell.free { cursor: pointer; transition: background .15s, color .15s; }
 .cal-cell.free:hover { background: rgba(201,168,76,.2); color: var(--gold); }
 .cal-cell.free:focus-visible { outline: 2px solid var(--gold); outline-offset: 1px; }
+.cal-cell.selected {
+  background: var(--gold); color: var(--navy); font-weight: 600;
+}
+.cal-cell.selected:hover { background: var(--gold-light); color: var(--navy); }
+.cal-cell.range-start { border-top-left-radius: 6px; border-bottom-left-radius: 6px; }
+.cal-cell.range-end { border-top-right-radius: 6px; border-bottom-right-radius: 6px; }
+.cal-hint {
+  margin-top: 1.25rem; max-width: 660px;
+  font-size: .82rem; letter-spacing: .04em; color: rgba(245,240,232,.65);
+}
+.cal-selection {
+  margin-top: 1.25rem; max-width: 660px;
+  padding: 1rem 1.15rem;
+  border: 1px solid rgba(201,168,76,.35);
+  border-radius: 8px;
+  background: rgba(201,168,76,.08);
+}
+.cal-selection-dates {
+  font-family: 'Montserrat', sans-serif;
+  font-size: 1.05rem; font-weight: 500; color: var(--gold-light);
+  letter-spacing: .02em;
+}
+.cal-selection-prompt {
+  margin: .45rem 0 0;
+  font-size: .82rem; line-height: 1.6; color: rgba(245,240,232,.72);
+}
+.cal-clear {
+  margin-top: .7rem; padding: 0;
+  background: none; border: none;
+  font-size: .68rem; letter-spacing: .12em; text-transform: uppercase;
+  color: var(--text-muted); cursor: pointer; text-decoration: underline;
+  text-underline-offset: 3px;
+}
+.cal-clear:hover { color: var(--gold); }
+.cal-enquire-btn.is-disabled,
+.cal-wa-btn.is-disabled {
+  opacity: .45; pointer-events: none; cursor: default;
+}
 .cal-legend { display: flex; gap: 1.4rem; flex-wrap: wrap; margin-top: 1.4rem; font-size: .6rem; letter-spacing: .12em; text-transform: uppercase; color: var(--text-muted); }
 .cal-legend i { display: inline-block; width: 12px; height: 12px; border-radius: 3px; margin-right: .45rem; vertical-align: middle; }
 .leg-available { border: 1px solid rgba(245,240,232,.4); }
+.leg-selected { background: var(--gold); }
 .leg-booked { background: #8f4a52; }
 .leg-tentative { background: rgba(208,164,78,.45); }
 @media (min-width: 820px) {
