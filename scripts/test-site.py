@@ -830,7 +830,7 @@ def check_shared_assets(r: Runner) -> None:
     r.check(
         'desktop immersive sections use mobile-style funnel CTAs',
         'href="#gallery" class="itinerary-meet-cta"' in index_html
-        and 'href="#avail-cal" class="itinerary-meet-cta"' in index_html
+        and 'href="#availability" class="itinerary-meet-cta itinerary-meet-cta--desktop"' in index_html
         and css is not None
         and re.search(
             r'@media \(min-width: 769px\)[\s\S]*?#gallery,\s*\n\s*#itinerary\s*\{[^}]*height:\s*calc\(100svh\s*-\s*var\(--nav-scroll-offset\)\)',
@@ -873,7 +873,17 @@ def check_shared_assets(r: Runner) -> None:
     r.check(
         'mobile gallery CTA routes to availability calendar',
         'CHECK AVAILABILITY →' in index_html
-        and 'href="#avail-cal" class="itinerary-meet-cta"' in index_html,
+        and 'href="#avail-cal" class="itinerary-meet-cta itinerary-meet-cta--mobile"' in index_html,
+    )
+    r.check(
+        'desktop gallery funnel CTA lands on availability section like nav',
+        'href="#availability" class="itinerary-meet-cta itinerary-meet-cta--desktop"' in index_html
+        and css is not None
+        and re.search(
+            r'@media \(min-width: 769px\)[\s\S]*?\.itinerary-meet-cta--mobile\s*\{\s*display:\s*none\s*!important',
+            css,
+        )
+        is not None,
     )
     r.check(
         'mobile gallery section fills viewport like itinerary',

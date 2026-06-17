@@ -1605,6 +1605,7 @@ footer {
 .section-cta-desktop { margin-top: 2.5rem; text-align: center; }
 .itinerary-bottom-bar { display: none; }
 .itinerary-meet-cta { display: none; }
+.itinerary-meet-cta--desktop { display: none; }
 .section-cta-text { color: var(--text-muted); font-family: 'Montserrat', sans-serif; font-size: .8rem; letter-spacing: .1em; text-transform: uppercase; margin-bottom: 1.25rem; }
 .section-cta-desktop .section-cta-text { color: var(--text-muted); font-family: 'Montserrat', sans-serif; font-size: .8rem; letter-spacing: .1em; text-transform: uppercase; margin-bottom: 1.25rem; }
 .section-cta-btns { display: flex; gap: 1.2rem; flex-wrap: wrap; justify-content: center; }
@@ -1862,6 +1863,7 @@ footer {
     letter-spacing: .16em; text-transform: uppercase;
     color: var(--gold); min-width: 2.5rem; text-align: center;
   }
+  .itinerary-meet-cta--desktop { display: none !important; }
   .itinerary-meet-cta {
     display: block; text-align: center;
     padding: 1rem 1.6rem;
@@ -2171,9 +2173,10 @@ footer {
     overflow: hidden;
   }
   /* Gallery CTA sits outside the active group — reserve space at wrap bottom */
-  #gallery .gallery-wrap > .itinerary-meet-cta {
+  #gallery .gallery-wrap > .itinerary-meet-cta--desktop {
     flex: 0 0 auto;
   }
+  .itinerary-meet-cta--mobile { display: none !important; }
   .gallery-group .gallery-grid,
   .dest-group .itinerary-grid {
     display: flex;
