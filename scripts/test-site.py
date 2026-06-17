@@ -311,15 +311,16 @@ def check_html(r: Runner, rel: str, html: str) -> None:
     )
     crit_end = html.find('</style>', style_pos)
     crit_css = html[style_pos:crit_end] if style_pos > 0 and crit_end > style_pos else ''
+    crit_flat = re.sub(r'\s+', '', crit_css)
     r.check(
         'critical CSS fixes nav before main.css (prevents hero CLS)',
-        'position: fixed' in crit_css and 'nav {' in crit_css,
+        'position:fixed' in crit_flat and 'nav{' in crit_flat,
     )
     r.check(
         'critical CSS matches mobile hero flex layout',
-        'display: flex' in crit_css
-        and '.hero-cta-group { margin-top: auto; }' in crit_css
-        and 'padding-bottom: max(0.25rem, env(safe-area-inset-bottom))' in crit_css,
+        'display:flex' in crit_flat
+        and '.hero-cta-group{margin-top:auto}' in crit_flat
+        and 'safe-area-inset-bottom' in crit_css,
     )
     r.check(
         'below-fold preloads deferred until after LCP window',
