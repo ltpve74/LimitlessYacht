@@ -29,6 +29,7 @@ RED = "\033[91m"
 RESET = "\033[0m"
 
 MOBILE_VIEWPORT = {"width": 390, "height": 844}
+TABLET_VIEWPORT = {"width": 768, "height": 1024}
 DESKTOP_VIEWPORT = {"width": 1280, "height": 900}
 
 # Mobile menu links must keep section-top / calendar anchors (not -land variants).
@@ -239,6 +240,39 @@ def scenario_home_desktop(page, base: str, issues: IssueCollector) -> None:
         issues.add(f"{name}: about forward CTA should be hidden on desktop")
 
 
+def scenario_home_tablet(page, base: str, issues: IssueCollector) -> None:
+    name = "home tablet"
+    issues.attach(page, name)
+    page.set_viewport_size(TABLET_VIEWPORT)
+    page.goto(base + "/", wait_until="domcontentloaded", timeout=60000)
+    page.wait_for_timeout(800)
+
+    page.locator("#itinerary").scroll_into_view_if_needed()
+    page.locator(".destination-card").first.click()
+    page.wait_for_selector("#dest-lightbox.open", timeout=10000)
+
+    layout = page.evaluate(
+        "() => {"
+        "  const lb = document.getElementById('dest-lightbox');"
+        "  if (!lb) return null;"
+        "  const style = getComputedStyle(lb);"
+        "  const img = lb.querySelector('.dest-lb-img-wrap');"
+        "  const body = lb.querySelector('.dest-lb-body');"
+        "  if (!img || !body) return null;"
+        "  const imgRect = img.getBoundingClientRect();"
+        "  const bodyRect = body.getBoundingClientRect();"
+        "  return {"
+        "    flexDirection: style.flexDirection,"
+        "    stacked: bodyRect.top >= imgRect.bottom - 2,"
+        "  };"
+        "}"
+    )
+    if not layout or layout.get("flexDirection") != "column":
+        issues.add(f"{name}: destination lightbox should use stacked layout on tablet")
+    elif not layout.get("stacked"):
+        issues.add(f"{name}: destination lightbox body should sit below image on tablet")
+
+
 def scenario_home_mobile(page, base: str, issues: IssueCollector) -> None:
     name = "home mobile"
     issues.attach(page, name)
@@ -318,6 +352,7 @@ def run_scenarios(base_url: str, quick: bool = False) -> list[str]:
     issues = IssueCollector()
     scenarios = [
         scenario_home_desktop,
+        scenario_home_tablet,
         scenario_home_mobile,
     ]
     if not quick:

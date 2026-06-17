@@ -1210,20 +1210,34 @@ def check_shared_assets(r: Runner) -> None:
         and 'dest-lb-cta-mobile' in index_html,
     )
     r.check(
-        'destination lightbox uses side-by-side layout on tablet and desktop',
+        'destination lightbox stays stacked on tablet',
         css is not None
         and re.search(
-            r'@media\s*\(\s*min-width:\s*641px\s*\)[\s\S]*?#dest-lightbox\s*\{[^}]*flex-direction:\s*row',
+            r'@media\s*\(\s*min-width:\s*641px\s*\)\s*and\s*\(\s*max-width:\s*768px\s*\)[\s\S]*?\.dest-lb-img-wrap',
             css,
         )
         is not None
         and re.search(
-            r'@media\s*\(\s*min-width:\s*641px\s*\)[\s\S]*?\.dest-lb-img-wrap\s*\{[^}]*flex:\s*1\s*1\s*0',
+            r'@media\s*\(\s*min-width:\s*641px\s*\)\s*and\s*\(\s*max-width:\s*768px\s*\)[\s\S]*?\.dest-lb-body\s*\{[^}]*max-width:',
+            css,
+        )
+        is not None,
+    )
+    r.check(
+        'destination lightbox uses side-by-side layout on desktop only',
+        css is not None
+        and re.search(
+            r'@media\s*\(\s*min-width:\s*769px\s*\)[\s\S]*?#dest-lightbox\s*\{[^}]*flex-direction:\s*row',
             css,
         )
         is not None
         and re.search(
-            r'@media\s*\(\s*min-width:\s*641px\s*\)[\s\S]*?\.dest-lb-body\s*\{[^}]*align-self:\s*center',
+            r'@media\s*\(\s*min-width:\s*769px\s*\)[\s\S]*?\.dest-lb-img-wrap\s*\{[^}]*flex:\s*1\s*1\s*58%',
+            css,
+        )
+        is not None
+        and re.search(
+            r'@media\s*\(\s*min-width:\s*769px\s*\)[\s\S]*?\.dest-lb-body\s*\{[^}]*align-self:\s*center',
             css,
         )
         is not None,
