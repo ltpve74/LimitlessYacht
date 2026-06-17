@@ -658,13 +658,16 @@ def check_shared_assets(r: Runner) -> None:
         'function ensureSelectionVisible()' in index_html,
     )
     r.check(
-        'calendar enquire skips scroll when form is beside calendar on desktop',
-        'function isCalendarFormPaired()' in index_html
-        and 'if (isCalendarFormPaired())' in index_html
-        and 'scrollIntoView' in index_html
-        and "getElementById('name')" in index_html
+        'calendar enquire focuses name field on all viewports',
+        "getElementById('name')" in index_html
         and 'nameInput.focus()' in index_html
         and 'startInput.focus' not in index_html,
+    )
+    r.check(
+        'calendar enquire skips scroll when form is beside calendar on desktop',
+        'function isCalendarFormPaired()' in index_html
+        and 'if (!isCalendarFormPaired())' in index_html
+        and 'scrollIntoView' in index_html,
     )
     r.check(
         'destination cards use pointer cursor (clickable like gallery)',
