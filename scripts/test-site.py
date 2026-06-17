@@ -126,6 +126,12 @@ def check_html(r: Runner, rel: str, html: str) -> None:
     # Enquiry flow
     r.check('#enquire scroll anchor exists', 'id="enquire"' in html)
     r.check('enquiry CTAs link to #enquire', 'href="#enquire"' in html)
+    r.check(
+        'charters section groups options with includes panel',
+        'class="charters-main"' in html
+        and 'class="charter-includes reveal"' in html
+        and 'class="charter-includes-list"' in html,
+    )
 
     # WhatsApp — every wa.me link must carry a pre-filled ?text= message
     wa_links = re.findall(r'href="(https://wa\.me/[^"]+)"', html)
@@ -1062,6 +1068,31 @@ def check_shared_assets(r: Runner) -> None:
         and css is not None
         and re.search(
             r'funnel below visible intros\)[\s\S]*?#gallery,\s*\n\s*#itinerary\s*\{[^}]*padding-bottom:\s*5rem',
+            css,
+        )
+        is not None,
+    )
+    r.check(
+        'charters section keeps includes visible on desktop viewports',
+        css is not None
+        and '.charters-main' in css
+        and re.search(
+            r'@media \(min-width: 769px\)[\s\S]*?#charters\s*\{[^}]*padding-top:\s*3\.5rem',
+            css,
+        )
+        is not None
+        and re.search(
+            r'@media \(min-width: 1000px\)[\s\S]*?\.charters-main[\s\S]*?grid-template-columns',
+            css,
+        )
+        is not None
+        and re.search(
+            r'@media \(min-width: 1000px\)[\s\S]*?\.charters-main\s+\.charter-includes[\s\S]*?position:\s*sticky',
+            css,
+        )
+        is not None
+        and re.search(
+            r'@media \(min-width: 769px\) and \(max-height: 920px\)[\s\S]*?#charters',
             css,
         )
         is not None,
