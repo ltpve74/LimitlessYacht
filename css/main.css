@@ -807,8 +807,11 @@ section { padding: 7rem 2rem; }
   background: rgba(201,168,76,.14);
   box-shadow: 0 0 0 1px rgba(201,168,76,.22);
 }
-.form-date-trigger[aria-expanded="true"]::after {
+.form-date-trigger.popover-opens-up[aria-expanded="true"]::after {
   content: '▴'; opacity: 1;
+}
+.form-date-trigger.popover-opens-down[aria-expanded="true"]::after {
+  content: '▾'; opacity: 1;
 }
 .form-date-trigger:focus-visible {
   border-color: var(--gold); outline: none;
@@ -817,7 +820,6 @@ section { padding: 7rem 2rem; }
 .form-date-popover,
 .form-date-popover.cal {
   position: absolute; z-index: 400;
-  bottom: calc(100% + .35rem); top: auto;
   left: 0; right: 0;
   width: auto; min-width: min(100%, 18.5rem);
   max-height: min(24rem, calc(100vh - 8rem));
@@ -825,11 +827,31 @@ section { padding: 7rem 2rem; }
   margin-top: 0; max-width: none;
   background: var(--deep); border: 1px solid rgba(201,168,76,.35);
   border-radius: 8px; padding: .75rem .75rem .8rem;
+}
+.form-date-popover.opens-up {
+  bottom: calc(100% + .35rem); top: auto;
   box-shadow: 0 -12px 36px rgba(0,0,0,.55);
 }
+.form-date-popover.opens-down {
+  bottom: auto; top: calc(100% + .35rem);
+  box-shadow: 0 12px 36px rgba(0,0,0,.55);
+}
 .form-date-popover[hidden] { display: none !important; }
+.form-date-popover-toolbar {
+  display: grid;
+  grid-template-columns: auto 1fr auto auto;
+  align-items: center;
+  gap: .35rem;
+  margin-bottom: .55rem;
+}
+.form-date-popover .form-date-title {
+  margin: 0;
+  text-align: center;
+  font-family: 'Montserrat', sans-serif;
+  font-size: .95rem; font-weight: 400;
+  color: var(--gold-light); letter-spacing: .02em;
+}
 .form-date-popover-dismiss {
-  position: absolute; top: .55rem; right: .55rem; z-index: 2;
   margin-top: 0;
   font-size: .82rem; line-height: 1;
 }
@@ -839,15 +861,7 @@ body.form-date-popup-open .form-row,
 body.form-date-popup-open .form-field {
   overflow: visible;
 }
-.form-date-cal-bar {
-  display: flex; align-items: flex-start; gap: .35rem;
-  padding-right: 2rem;
-}
-.form-date-cal-body { flex: 1; min-width: 0; }
-.form-date-popover .cal-title {
-  font-size: .95rem; margin: 0 0 .55rem;
-  font-weight: 400; color: var(--gold-light);
-}
+.form-date-cal-grid { min-width: 0; }
 .form-date-popover .cal-grid { gap: 3px; }
 .form-date-popover .cal-cell { font-size: .72rem; border-radius: 4px; }
 .form-date-nav { width: 30px; height: 30px; font-size: .95rem; margin-top: 0; flex-shrink: 0; }
@@ -1174,11 +1188,6 @@ footer {
     background: rgba(201,168,76,.06);
     border-radius: 4px;
   }
-  .form-date-popover,
-  .form-date-popover.cal {
-    padding: .7rem .7rem .75rem;
-    box-shadow: 0 -10px 28px rgba(0,0,0,.5);
-  }
   .contact-cal-pair #availability .section-label,
   .contact-cal-pair #availability .section-title { display: none; }
   .contact-cal-pair #availability { padding-top: 1.25rem; }
@@ -1187,6 +1196,13 @@ footer {
     font-size: .82rem; line-height: 1.65;
   }
   .contact-cal-pair #availability .cal { margin-top: 0; }
+  .form-date-popover,
+  .form-date-popover.cal {
+    padding: .7rem .7rem .75rem;
+    box-shadow: none;
+  }
+  .form-date-popover.opens-up { box-shadow: 0 -10px 28px rgba(0,0,0,.5); }
+  .form-date-popover.opens-down { box-shadow: 0 10px 28px rgba(0,0,0,.5); }
   .form-submit { padding-top: .85rem; padding-bottom: .85rem; margin-top: .25rem; }
   #specs { padding-top: 3rem; padding-bottom: 2.5rem; }
   #amenities { padding-top: 2.5rem; padding-bottom: 2.5rem; }
@@ -1223,6 +1239,11 @@ footer {
   /* Reveal animation doesn't trigger reliably inside the pair — show immediately */
   .contact-cal-pair .reveal {
     opacity: 1 !important; transform: none !important; transition: none !important;
+  }
+  .form-date-popover,
+  .form-date-popover.cal {
+    min-width: 100%;
+    max-height: min(26rem, 70vh);
   }
   .contact-cal-pair #availability {
     background: transparent;

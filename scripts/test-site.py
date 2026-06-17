@@ -719,11 +719,13 @@ def check_shared_assets(r: Runner) -> None:
         'form date popover is a field-attached popup with on-brand trigger',
         css is not None
         and '.form-date-wrap' in css
-        and re.search(r'\.form-date-popover(?:\.cal)?\s*\{[^}]*bottom:\s*calc\(100%', css) is not None
-        and re.search(r'\.form-date-popover(?:\.cal)?\s*\{[^}]*top:\s*auto', css) is not None
-        and 'form-date-popover-head' not in css
-        and 'formDatePopoverTitle' not in index_html
+        and '.form-date-popover.opens-up' in css
+        and '.form-date-popover.opens-down' in css
+        and '.form-date-popover-toolbar' in css
+        and 'class="form-date-popover cal opens-up"' in index_html
         and 'function positionFormDatePopover' in index_html
+        and 'isFormDateMobileLayout' in index_html
+        and 'opens-down' in index_html
         and '.form-date-trigger' in css
         and '.form-date-icon' in css
         and '.form-date-popover .cal-cell' in css
