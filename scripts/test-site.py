@@ -684,12 +684,18 @@ def check_shared_assets(r: Runner) -> None:
     r.check(
         'mobile gallery CTA routes to availability calendar',
         'CHECK AVAILABILITY →' in index_html
-        and 'href="#availability" class="itinerary-meet-cta"' in index_html,
+        and 'href="#avail-cal" class="itinerary-meet-cta"' in index_html,
     )
     r.check(
         'form nudges users to check availability before entering dates',
         'class="form-date-hint"' in index_html
-        and 'href="#availability">availability calendar</a>' in index_html,
+        and 'href="#avail-cal" class="form-date-hint-link">availability calendar</a>' in index_html,
+    )
+    r.check(
+        'availability calendar has app-style landing anchor',
+        'id="avail-cal"' in index_html
+        and 'class="availability-picker"' in index_html
+        and '#avail-cal' in (css or ''),
     )
     r.check(
         'mobile stacks calendar before enquiry form',
