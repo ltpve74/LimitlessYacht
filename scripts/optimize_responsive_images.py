@@ -22,26 +22,37 @@ BASE = Path(__file__).resolve().parent.parent
 MOBILE = BASE / "images" / "mobile"
 MANIFEST_PATH = MOBILE / "_srcset-widths.json"
 
+# Below-fold content tiers (mobile). Hero keeps sharper -480 via HERO_480_Q.
 TIERS = (
-    ("-480", 480, 64),
-    ("-720", 720, 62),
-    ("-960", 960, 58),
-    ("-1440", 1440, 66),
+    ("-480", 480, 52),
+    ("-720", 720, 50),
+    ("-960", 960, 48),
+    ("-1440", 1440, 50),
 )
-MOBILE_WEBP_Q = 72
-# Lighthouse image-delivery: landscape dest -480 needs extra compression.
-# Hero: sharp -480 for 1x; 960w master (desktop source) for 2x/3x — native res, no -720 upscale.
-# HERO_960_Q=35 is the highest quality that clears Lighthouse image-delivery (score 1).
-DELIVERY_TIGHT_480_Q = 30
+# Content images load lazy + after LY_afterLcp; compress aggressively for Lighthouse.
+CONTENT_MOBILE_WEBP_Q = 58
+CONTENT_DESKTOP_MAX_EDGE = 800  # gallery/about ~22–50vw
+CONTENT_DEST_MAX_EDGE = 640     # destination cards max ~500px display
+CONTENT_DESKTOP_WEBP_Q = 55
+CONTENT_DESKTOP_JPEG_Q = 76
+# Landscape dest -480 at 78vw: extra squeeze (mobile only).
+DELIVERY_TIGHT_480_Q = 36
+# Hero (LCP): do not apply CONTENT_* — tuned separately for sharpness vs delivery.
 HERO_480_Q = 72
 HERO_960_Q = 35
 HERO_SOURCE = BASE / "images" / "maiora_20s_02.webp"
+HERO_DESKTOP_WEBP = BASE / "images" / "maiora_20s_02.webp"
+DEST_SLUGS = (
+    "portals-vells", "el-toro-malgrats", "cala-llamp", "sa-dragonera",
+    "cala-pi", "es-trenc", "cabrera", "calo-des-moro",
+    "sa-calobra", "circumnavigation", "formentera", "menorca",
+)
 TIER_SUFFIXES = tuple(suffix for suffix, _, _ in TIERS)
 TIER_ORDER = {suffix: index for index, (suffix, _, _) in enumerate(TIERS)}
 
 
 def tier_quality(src_path: Path, suffix: str, tier_img: Image.Image, default_q: int) -> int:
-    if src_path.name == "maiora_20s_02.webp":
+    if is_hero_asset(src_path):
         if suffix == "-480":
             return HERO_480_Q
         return default_q
@@ -105,6 +116,92 @@ def record_dest_desktop_widths(widths: dict[str, int]) -> None:
             widths[path.relative_to(BASE).as_posix()] = img.size[0]
 
 
+def is_hero_asset(path: Path) -> bool:
+    return path.name == "maiora_20s_02.webp"
+
+
+def optimize_dest_desktop(widths: dict[str, int]) -> None:
+    """Re-encode destination card heroes (desktop + JPEG fallbacks)."""
+    dest = BASE / "images" / "dest"
+    print("\nOptimizing desktop destination card images\n")
+    total_before = total_after = 0.0
+    for slug in DEST_SLUGS:
+        base = dest / f"{slug}-1"
+        jpg, webp = base.with_suffix(".jpg"), base.with_suffix(".webp")
+        src = jpg if jpg.is_file() else webp
+        if not src.is_file():
+            continue
+        img = Image.open(src).convert("RGB")
+        img = resize_to_max(img, CONTENT_DEST_MAX_EDGE)
+        w, h = img.size
+        before = (kb(jpg) if jpg.is_file() else 0) + (kb(webp) if webp.is_file() else 0)
+        img.save(jpg, "JPEG", quality=CONTENT_DESKTOP_JPEG_Q, optimize=True)
+        img.save(webp, "WEBP", quality=CONTENT_DESKTOP_WEBP_Q, method=6)
+        after = kb(jpg) + kb(webp)
+        total_before += before
+        total_after += after
+        rel = webp.relative_to(BASE).as_posix()
+        widths[rel] = w
+        print(f"  {slug:<18} {w}x{h}   {before:6.0f}KB -> {after:6.0f}KB")
+    if total_before:
+        print(
+            f"\nDestination desktop: {total_before/1024:.2f}MB -> {total_after/1024:.2f}MB "
+            f"({100*(1-total_after/total_before):.0f}% smaller)"
+        )
+
+
+def optimize_gallery_desktop(widths: dict[str, int]) -> None:
+    """Re-encode below-fold desktop WebP masters in images/ (excludes LCP hero)."""
+    images = BASE / "images"
+    skip = {HERO_DESKTOP_WEBP.name}
+    print("\nOptimizing desktop gallery/about WebP masters\n")
+    total_before = total_after = 0.0
+    for path in sorted(images.glob("*.webp")):
+        if path.name in skip:
+            continue
+        img = Image.open(path).convert("RGB")
+        before = kb(path)
+        img = resize_to_max(img, CONTENT_DESKTOP_MAX_EDGE)
+        w, h = img.size
+        img.save(path, "WEBP", quality=CONTENT_DESKTOP_WEBP_Q, method=6)
+        after = kb(path)
+        total_before += before
+        total_after += after
+        rel = path.relative_to(BASE).as_posix()
+        widths[rel] = w
+        print(f"  {path.name:<32} {w}x{h} {before:5.0f}KB -> {after:5.0f}KB")
+    if total_before:
+        print(
+            f"\nGallery desktop: {total_before/1024:.2f}MB -> {total_after/1024:.2f}MB "
+            f"({100*(1-total_after/total_before):.0f}% smaller)"
+        )
+
+
+def patch_dest_img_dimensions(html: str, widths: dict[str, int]) -> str:
+    """Sync <img width height> on destination cards with re-encoded assets."""
+
+    def repl(match: re.Match[str]) -> str:
+        slug = match.group(1)
+        rel = f"images/dest/{slug}.webp"
+        jpg = f"images/dest/{slug}.jpg"
+        w = widths.get(rel)
+        if not w:
+            return match.group(0)
+        with Image.open(BASE / rel) as img:
+            iw, ih = img.size
+        return (
+            f'<img loading="lazy" decoding="async" src="{jpg}" alt="" '
+            f'width="{iw}" height="{ih}" />'
+        )
+
+    return re.sub(
+        r'<img loading="lazy" decoding="async" src="images/dest/([a-z0-9-]+)\.jpg" '
+        r'alt="" width="\d+" height="\d+" />',
+        repl,
+        html,
+    )
+
+
 def build_variants() -> dict[str, int]:
     """Return {relative posix path: pixel width} for every mobile tier + master."""
     widths: dict[str, int] = {}
@@ -116,7 +213,7 @@ def build_variants() -> dict[str, int]:
         w, h = img.size
         before = kb(src_path)
 
-        master_q = HERO_960_Q if src_path.name == "maiora_20s_02.webp" else MOBILE_WEBP_Q
+        master_q = HERO_960_Q if is_hero_asset(src_path) else CONTENT_MOBILE_WEBP_Q
         img.save(src_path, "WEBP", quality=master_q, method=6)
         after_main = kb(src_path)
         rel = src_path.relative_to(BASE).as_posix()
@@ -145,6 +242,8 @@ def build_variants() -> dict[str, int]:
         total_before += before
         total_after += tier_kb
 
+    optimize_dest_desktop(widths)
+    optimize_gallery_desktop(widths)
     record_dest_desktop_widths(widths)
     MANIFEST_PATH.write_text(json.dumps(widths, indent=2) + "\n", encoding="utf-8")
     print(
@@ -207,6 +306,25 @@ def patch_dest_srcsets(html: str, widths: dict[str, int]) -> str:
     )
 
 
+def patch_desktop_content_srcset(
+    html: str,
+    widths: dict[str, int],
+    rel_webp: str,
+    sizes: str,
+) -> str:
+    """Sync desktop <source srcset> width descriptors with re-encoded masters."""
+    w = widths.get(rel_webp)
+    if not w:
+        return html
+    name = Path(rel_webp).name
+    pattern = (
+        rf'<source type="image/webp" srcset="images/{re.escape(name)} \d+w" '
+        rf'sizes="{re.escape(sizes)}" />'
+    )
+    replacement = f'<source type="image/webp" srcset="images/{name} {w}w" sizes="{sizes}" />'
+    return re.sub(pattern, replacement, html, count=1)
+
+
 def patch_mobile_source(
     html: str,
     widths: dict[str, int],
@@ -236,6 +354,7 @@ def write_srcsets(widths: dict[str, int]) -> None:
     original = html
 
     html = patch_dest_srcsets(html, widths)
+    html = patch_dest_img_dimensions(html, widths)
 
     hero_mobile = hero_mobile_srcset(widths)
     html = re.sub(
@@ -255,6 +374,9 @@ def write_srcsets(widths: dict[str, int]) -> None:
     html = patch_mobile_source(
         html, widths, folder="", name="maiora_20s_04", sizes="100vw", max_suffix="-480"
     )
+    html = patch_desktop_content_srcset(
+        html, widths, "images/maiora_20s_04.webp", "(min-width: 1101px) 50vw, 100vw"
+    )
 
     gallery_names = [
         "maiora_20s_01", "maiora_20s_03", "maiora_20s_07",
@@ -266,6 +388,9 @@ def write_srcsets(widths: dict[str, int]) -> None:
     for name in gallery_names:
         html = patch_mobile_source(
             html, widths, folder="", name=name, sizes="100vw", max_suffix="-480"
+        )
+        html = patch_desktop_content_srcset(
+            html, widths, f"images/{name}.webp", "22vw"
         )
 
     if html == original:

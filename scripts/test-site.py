@@ -627,6 +627,40 @@ def check_html(r: Runner, rel: str, html: str) -> None:
         'window.LY_afterLcp' in html and 'LY_destPreloadReady' in html,
     )
     r.check(
+        'destination JS preload waits for LY_destPreloadReady',
+        'if (!force && !window.LY_destPreloadReady) return' in html
+        and re.search(
+            r'window\.LY_afterLcp\(function\(\)\s*\{[\s\S]*?LY_destPreloadReady\s*=\s*true',
+            html,
+        )
+        is not None,
+    )
+    head_end = html.find('</head>')
+    head = html[:head_end] if head_end > 0 else ''
+    r.check(
+        'only hero images are preloaded in head (content stays lazy)',
+        head.count('rel="preload" as="image"') == 2
+        and 'maiora_20s_02' in head
+        and 'images/dest/' not in head
+        and 'maiora_20s_04' not in head,
+    )
+    r.check(
+        'destination desktop srcset matches compressed card width',
+        'images/dest/portals-vells-1.webp 640w' in html,
+    )
+    opt_py = read_file('scripts/optimize_responsive_images.py') or ''
+    r.check(
+        'content image quality constants separated from hero LCP tuning',
+        'CONTENT_DESKTOP_WEBP_Q' in opt_py
+        and 'CONTENT_DEST_MAX_EDGE' in opt_py
+        and 'HERO_960_Q' in opt_py,
+    )
+    portals_webp = os.path.join(ROOT, 'images', 'dest', 'portals-vells-1.webp')
+    r.check(
+        'compressed destination hero within delivery budget',
+        os.path.isfile(portals_webp) and os.path.getsize(portals_webp) < 90 * 1024,
+    )
+    r.check(
         'hero title has no entrance animation in critical CSS (visible for LCP)',
         'heroTitleIn' not in html.split('</style>', 1)[0] and '.hero-title{' in html,
     )
