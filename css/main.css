@@ -1140,6 +1140,7 @@ footer {
 }
 .cal-cell.free:hover:not(.selected) { background: rgba(201,168,76,.2); color: var(--gold); }
 .cal-cell.free:focus-visible { outline: 2px solid var(--gold); outline-offset: 1px; }
+.cal-cell.selected,
 .cal-cell.free.selected,
 .cal-cell[data-selected="true"] {
   background: var(--gold) !important;
@@ -1149,6 +1150,7 @@ footer {
   outline: none !important;
   z-index: 1;
 }
+.cal-cell.selected:hover,
 .cal-cell.free.selected:hover,
 .cal-cell[data-selected="true"]:hover {
   background: var(--gold-light) !important;
@@ -1185,6 +1187,8 @@ footer {
 .cal-clear {
   margin: 0; padding: 0;
   background: none; border: none;
+  appearance: none; -webkit-appearance: none;
+  font: inherit; line-height: inherit;
   font-size: .58rem; letter-spacing: .12em; text-transform: uppercase;
   color: var(--text-muted); cursor: pointer;
   text-decoration: underline; text-underline-offset: 3px;
@@ -1195,8 +1199,12 @@ footer {
   opacity: .45; pointer-events: none; cursor: default;
 }
 .cal-legend { display: flex; gap: 1.4rem; flex-wrap: wrap; margin-top: 1.4rem; font-size: .6rem; letter-spacing: .12em; text-transform: uppercase; color: var(--text-muted); }
-.cal-legend i { display: inline-block; width: 12px; height: 12px; border-radius: 3px; margin-right: .45rem; vertical-align: middle; }
-.leg-available { border: 1px solid rgba(245,240,232,.4); }
+.cal-legend-swatch {
+  display: inline-block; flex-shrink: 0;
+  width: 12px; height: 12px; min-width: 12px; min-height: 12px;
+  border-radius: 3px; margin-right: .45rem; vertical-align: middle;
+}
+.leg-available { border: 1px solid rgba(245,240,232,.4); background: transparent; }
 .leg-selected { background: var(--gold); }
 .leg-booked { background: #8f4a52; }
 .leg-tentative { background: rgba(208,164,78,.45); }
@@ -1207,6 +1215,39 @@ footer {
   .cal { max-width: 1180px; }
 }
 .availability-actions { margin-top: 2.5rem; display: flex; gap: 1.2rem; flex-wrap: wrap; }
+/* Tablet / large-phone (561–768px): full-width calendar card + stacked CTAs */
+@media (max-width: 768px) {
+  .cal {
+    width: 100%;
+    max-width: none;
+    box-sizing: border-box;
+  }
+  .cal-selection {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: .35rem;
+  }
+  .cal-selection-dates {
+    font-size: .86rem;
+    line-height: 1.45;
+    word-break: break-word;
+  }
+  .availability-actions,
+  .section-cta-btns {
+    flex-direction: column;
+    align-items: stretch;
+    gap: .75rem;
+  }
+  #availability .availability-actions .btn-primary,
+  #availability .availability-actions .btn-ghost,
+  .section-cta-btns .btn-primary,
+  .section-cta-btns .btn-ghost {
+    width: 100%;
+    max-width: none;
+    box-sizing: border-box;
+    text-align: center;
+  }
+}
 .section-cta { margin-top: 2.5rem; text-align: center; }
 .section-cta-desktop { margin-top: 2.5rem; text-align: center; }
 .itinerary-bottom-bar { display: none; }

@@ -538,15 +538,45 @@ def check_shared_assets(r: Runner) -> None:
     r.check(
         'calendar selected dates are visually distinct',
         css is not None
+        and '.cal-cell.selected' in css
         and '.cal-cell.free.selected' in css
         and '.cal-cell[data-selected="true"]' in css
         and '.cal-footer' in css
         and '.cal-enquire-btn.is-disabled' in css,
     )
+    r.check(
+        'calendar legend swatches are reliable at narrow widths',
+        css is not None
+        and '.cal-legend-swatch' in css
+        and 'min-width: 12px' in css
+        and '.leg-selected' in css,
+    )
+    r.check(
+        'narrow viewport calendar and CTA layout',
+        css is not None
+        and '@media (max-width: 768px)' in css
+        and re.search(
+            r'@media \(max-width: 768px\)[^{]*\{[^}]*\.cal\s*\{[^}]*max-width:\s*none',
+            css,
+            re.DOTALL,
+        ) is not None
+        and re.search(
+            r'#availability \.availability-actions \.btn-primary[^}]*max-width:\s*none',
+            css,
+        ) is not None,
+    )
     index_html = read_file('index.html') or ''
     r.check(
         'calendar hint lives inside the calendar card',
         'class="cal-footer"' in index_html and 'id="calHint"' in index_html,
+    )
+    r.check(
+        'calendar legend uses swatch spans',
+        'class="cal-legend-swatch leg-selected"' in index_html,
+    )
+    r.check(
+        'calendar pans to keep selection visible',
+        'function ensureSelectionVisible()' in index_html,
     )
     r.check(
         'destination cards use pointer cursor (clickable like gallery)',

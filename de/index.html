@@ -1269,10 +1269,10 @@ window.LY_afterLcp(function() {
         <button type="button" class="cal-nav" id="calNext" aria-label="Nächster Monat">›</button>
       </div>
       <div class="cal-legend">
-        <span><i class="leg-available"></i>Verfügbar</span>
-        <span><i class="leg-selected"></i>Ausgewählt</span>
-        <span><i class="leg-booked"></i>Gebucht</span>
-        <span><i class="leg-tentative"></i>Vorläufig</span>
+        <span><span class="cal-legend-swatch leg-available" aria-hidden="true"></span>Verfügbar</span>
+        <span><span class="cal-legend-swatch leg-selected" aria-hidden="true"></span>Ausgewählt</span>
+        <span><span class="cal-legend-swatch leg-booked" aria-hidden="true"></span>Gebucht</span>
+        <span><span class="cal-legend-swatch leg-tentative" aria-hidden="true"></span>Vorläufig</span>
       </div>
       <div class="cal-footer">
         <p class="cal-hint" id="calHint">Tippen Sie auf freie Termine — ein Tag oder mehrere hintereinander.</p>
@@ -2119,6 +2119,23 @@ window.LY_afterLcp(function() {
     selectedLookup = {};
     selected.forEach(function(k){ selectedLookup[k] = true; });
   }
+  function monthIndexForDate(k){
+    var d = parseDate(k);
+    return d.getFullYear() * 12 + d.getMonth();
+  }
+  function ensureSelectionVisible(){
+    if (!selected.length) return;
+    var startIdx = monthIndexForDate(selected[0]);
+    var endIdx = monthIndexForDate(selected[selected.length - 1]);
+    var count = monthsToShow();
+    var maxFirst = maxIndex - (count - 1);
+    if (viewIndex > startIdx || viewIndex + count - 1 < startIdx) {
+      viewIndex = Math.min(Math.max(startIdx, minIndex), maxFirst);
+    }
+    if (endIdx > viewIndex + count - 1 && startIdx < viewIndex) {
+      viewIndex = Math.min(Math.max(endIdx - count + 1, minIndex), maxFirst);
+    }
+  }
   function syncForm(){
     if (!startInput) return;
     if (!selected.length) {
@@ -2168,6 +2185,7 @@ window.LY_afterLcp(function() {
     }
     setCtaState(true);
     syncForm();
+    ensureSelectionVisible();
     render();
   }
   function toggleDate(date){
