@@ -11,7 +11,6 @@ ROOT = Path(__file__).resolve().parent.parent
 
 GTAG_ID = 'AW-18209943491'
 CLARITY_ID = 'x1y8i19q6e'
-GTM_ID = 'GTM-NN8V25BR'
 
 
 def read(path: str) -> str:
@@ -31,8 +30,8 @@ def main() -> int:
     if 'LY_OWNER_MODE' not in env_js:
         errors.append('js/analytics-env.js must set LY_OWNER_MODE when preview/owner')
 
-    if 'js/analytics-env.js' not in index:
-        errors.append('index.html must load js/analytics-env.js before analytics snippets')
+    if 'LY_IS_PREVIEW' not in index:
+        errors.append('index.html must define LY_IS_PREVIEW (inline or via js/analytics-env.js)')
     if GTAG_ID not in index:
         errors.append(f'index.html must reference Google tag {GTAG_ID} for production')
     if CLARITY_ID not in index:
@@ -44,8 +43,10 @@ def main() -> int:
         errors.append('legal.html must load js/analytics-env.js')
     if GTAG_ID not in legal:
         errors.append(f'legal.html must reference Google tag {GTAG_ID} for production')
-    if GTM_ID not in legal:
-        errors.append(f'legal.html must reference GTM {GTM_ID} for production')
+    if 'GTM-' in index or 'gtm.js?id=' in index:
+        errors.append('index.html must not load Google Tag Manager (direct gtag only)')
+    if 'GTM-' in legal or 'gtm.js?id=' in legal:
+        errors.append('legal.html must not load Google Tag Manager (direct gtag only)')
     if 'LY_OWNER_MODE' not in legal:
         errors.append('legal.html must guard analytics with LY_OWNER_MODE')
 

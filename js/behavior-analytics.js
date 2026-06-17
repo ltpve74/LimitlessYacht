@@ -1,6 +1,6 @@
 /**
  * Temporary behaviour analytics: section visibility, scroll depth, time on page.
- * Fires dataLayer events for GTM/GA4.
+ * Fires dataLayer events for gtag / Google Ads.
  * Only runs when cookie consent (ly_consent) is granted.
  * Clarity is loaded separately via the official head tag + clarity-consent.js.
  */
