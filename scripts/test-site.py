@@ -584,6 +584,17 @@ def check_shared_assets(r: Runner) -> None:
         'prepare-github-pages.py' in preview_yml and "path: '_site'" in preview_yml,
     )
     r.check('prepare-github-pages script exists', os.path.isfile(os.path.join(ROOT, 'scripts/prepare-github-pages.py')))
+    index_html = read_file('index.html') or ''
+    r.check(
+        'font preload uses path relative to site root (GitHub Pages subpath safe)',
+        'href="fonts/montserrat-latin.woff2"' in index_html
+        and 'href="/fonts/montserrat-latin.woff2"' not in index_html,
+    )
+    r.check(
+        'behavior-analytics loads via LY_BASE',
+        "LY_BASE || '') + '/js/behavior-analytics.js'" in index_html
+        and 'src="/js/behavior-analytics.js"' not in index_html,
+    )
     r.check(
         'hero phone button sizing scoped to hero only',
         css is not None
@@ -597,7 +608,6 @@ def check_shared_assets(r: Runner) -> None:
             re.DOTALL | re.MULTILINE,
         ),
     )
-    index_html = read_file('index.html') or ''
     r.check(
         'calendar hint lives inside the calendar card',
         'class="cal-footer"' in index_html and 'id="calHint"' in index_html,
