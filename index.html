@@ -348,6 +348,29 @@ window.LY_afterLcp = function(fn) {
     }, 3000);
   });
 };
+// Below-fold JSON/API: fetch only when the target section nears the viewport
+window.LY_whenNearSection = function(id, fn) {
+  var el = document.getElementById(id);
+  if (!el) return;
+  if ('IntersectionObserver' in window) {
+    var ran = false;
+    var io = new IntersectionObserver(function(entries) {
+      if (ran) return;
+      for (var i = 0; i < entries.length; i++) {
+        if (entries[i].isIntersecting) {
+          ran = true;
+          io.disconnect();
+          fn();
+          return;
+        }
+      }
+    }, { rootMargin: '320px 0px' });
+    io.observe(el);
+    return;
+  }
+  if (window.LY_afterLcp) window.LY_afterLcp(fn);
+  else window.addEventListener('load', function() { setTimeout(fn, 3500); });
+};
 // Gallery: drip-feed at idle priority after page load
 window.LY_afterLcp(function() {
   var mob = window.innerWidth <= 640;
@@ -1729,21 +1752,23 @@ window.LY_afterLcp(function() {
     }).join('');
   }
 
-  // Load curated reviews from static JSON (self-managed, no external scraping)
-  fetch('/data/reviews.json')
-    .then(function (r) { return r.ok ? r.json() : null; })
-    .then(function (data) { if (data) render(data); })
-    .catch(function () {
-      // Fallback with one review if JSON fails to load
-      render({
-        reviews: [{
-          author: 'Tony',
-          date: 'Aug 2025',
-          rating: 5,
-          text: "Our group of six had a fantastic day on Limitless, which was spacious, comfortable, and spotless. Paul was highly responsive and organized our charter with less than a day's notice. Once on board, we found Captain Luigi to be both knowledgeable and humorous, and he seamlessly mapped out a smooth itinerary with several fun stops. Throughout the charter, the attentive stewardess made sure we were well taken care of, whether it was bringing us a (very well-stocked) basket of sunscreen and towels or keeping our drinks topped off and bringing them to us wherever we went. Highly recommend!"
-        }]
+  function loadReviews() {
+    fetch('/data/reviews.json')
+      .then(function (r) { return r.ok ? r.json() : null; })
+      .then(function (data) { if (data) render(data); })
+      .catch(function () {
+        render({
+          reviews: [{
+            author: 'Tony',
+            date: 'Aug 2025',
+            rating: 5,
+            text: "Our group of six had a fantastic day on Limitless, which was spacious, comfortable, and spotless. Paul was highly responsive and organized our charter with less than a day's notice. Once on board, we found Captain Luigi to be both knowledgeable and humorous, and he seamlessly mapped out a smooth itinerary with several fun stops. Throughout the charter, the attentive stewardess made sure we were well taken care of, whether it was bringing us a (very well-stocked) basket of sunscreen and towels or keeping our drinks topped off and bringing them to us wherever we went. Highly recommend!"
+          }]
+        });
       });
-    });
+  }
+  if (window.LY_whenNearSection) window.LY_whenNearSection('reviews', loadReviews);
+  else loadReviews();
 })();
 </script>
 
@@ -1846,15 +1871,19 @@ window.LY_afterLcp(function() {
 
   render(); // instant paint (all available) before data loads
 
-  fetch('/api/availability')
-    .then(function(r){ return r.ok ? r.json() : null; })
-    .then(function(data){
-      if (!data) return;
-      (data.booked || []).forEach(function(x){ booked.add(x); });
-      (data.tentative || []).forEach(function(x){ tentative.add(x); });
-      render();
-    })
-    .catch(function(){ /* keep all-available fallback */ });
+  function loadAvailability() {
+    fetch('/api/availability')
+      .then(function(r){ return r.ok ? r.json() : null; })
+      .then(function(data){
+        if (!data) return;
+        (data.booked || []).forEach(function(x){ booked.add(x); });
+        (data.tentative || []).forEach(function(x){ tentative.add(x); });
+        render();
+      })
+      .catch(function(){ /* keep all-available fallback */ });
+  }
+  if (window.LY_whenNearSection) window.LY_whenNearSection('availability', loadAvailability);
+  else loadAvailability();
 })();
 </script>
 

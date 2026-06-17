@@ -294,6 +294,15 @@ def check_html(r: Runner, rel: str, html: str) -> None:
     if rel != 'index.html':
         r.check('does not fetch English reviews.json', "fetch('/data/reviews.json')" not in html)
     r.check('availability API fetch', '/api/availability' in html)
+    r.check(
+        'reviews fetch deferred until section nears viewport',
+        'LY_whenNearSection' in html
+        and "LY_whenNearSection('reviews'" in html,
+    )
+    r.check(
+        'availability fetch deferred until section nears viewport',
+        "LY_whenNearSection('availability'" in html,
+    )
 
     # Structured data
     r.check('schema.org JSON-LD present', 'application/ld+json' in html)
