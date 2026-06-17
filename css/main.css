@@ -1167,9 +1167,12 @@ footer {
     border-radius: 4px;
   }
   .contact-cal-pair #availability .section-label,
-  .contact-cal-pair #availability .section-title,
-  .contact-cal-pair #availability .availability-intro { display: none; }
+  .contact-cal-pair #availability .section-title { display: none; }
   .contact-cal-pair #availability { padding-top: 1.25rem; }
+  .contact-cal-pair #availability .availability-intro {
+    margin-top: 0; margin-bottom: 1rem;
+    font-size: .82rem; line-height: 1.65;
+  }
   .contact-cal-pair #availability .cal { margin-top: 0; }
   .form-submit { padding-top: .85rem; padding-bottom: .85rem; margin-top: .25rem; }
   #specs { padding-top: 3rem; padding-bottom: 2.5rem; }
@@ -1219,8 +1222,6 @@ footer {
   }
   /* Show only 2 months — 3 don't fit in a 50% column */
   .contact-cal-pair .cal-month:nth-child(n+3) { display: none; }
-  /* Drop verbose intro text — form is right there */
-  .contact-cal-pair #availability .availability-intro { display: none; }
   /* Show action buttons stacked in the narrower paired column */
   .contact-cal-pair #availability .availability-actions {
     flex-direction: column; gap: 0.75rem; margin-top: 1.5rem;
@@ -1910,6 +1911,10 @@ footer {
    #enquire-form lands directly at the WhatsApp/form area (used by lightbox CTA). */
 #enquire-form { scroll-margin-top: 1.5rem; }
 #avail-cal { scroll-margin-top: 1.25rem; }
+@media (max-width: 640px) {
+  /* Form/calendar links land on the widget, not the hidden section title */
+  #avail-cal { scroll-margin-top: .5rem; }
+}
 .availability-picker { margin-top: 0; }
 
 /* ── HERO WHATSAPP LINK ── */

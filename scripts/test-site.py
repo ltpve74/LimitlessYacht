@@ -732,7 +732,17 @@ def check_shared_assets(r: Runner) -> None:
         'availability calendar has app-style landing anchor',
         'id="avail-cal"' in index_html
         and 'class="availability-picker"' in index_html
+        and 'availability-intro' in index_html
         and '#avail-cal' in (css or ''),
+    )
+    r.check(
+        'availability intro visible in paired mobile layout',
+        css is not None
+        and re.search(
+            r'\.contact-cal-pair\s+#availability\s+\.availability-intro\s*\{',
+            css,
+        ) is not None
+        and '.contact-cal-pair #availability .availability-intro { display: none' not in css,
     )
     pair_start = index_html.find('class="contact-cal-pair"')
     pair_end = index_html.find('id="reviews"', pair_start)
