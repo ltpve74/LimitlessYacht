@@ -532,6 +532,16 @@ def check_html(r: Runner, rel: str, html: str) -> None:
         and 'href="#charters" class="hero-eyebrow-link--mobile"' in html,
     )
     r.check(
+        'hero CTA desktop links use itinerary and gallery -land anchors',
+        'href="#itinerary-land" class="btn-primary hero-cta-link--desktop"' in html
+        and 'href="#gallery-land" class="btn-ghost hero-cta-link--desktop"' in html,
+    )
+    r.check(
+        'hero CTA mobile links keep section anchors',
+        'href="#itinerary" class="btn-primary hero-cta-link--mobile"' in html
+        and 'href="#gallery" class="btn-ghost hero-cta-link--mobile"' in html,
+    )
+    r.check(
         'critical CSS defines hero bottom cluster gaps',
         '.hero-cta-group{' in crit_flat
         and 'gap:var(--hero-gap)' in crit_flat
@@ -767,7 +777,16 @@ def check_shared_assets(r: Runner) -> None:
             'hero eyebrow toggles mobile vs desktop anchor targets',
             '.hero-eyebrow-link--desktop{' in css_flat
             and re.search(
-                r'@media \(min-width: 769px\)[\s\S]*?\.hero-eyebrow-link--mobile\s*\{[^}]*display:\s*none',
+                r'@media \(min-width: 769px\)[\s\S]*?\.hero-eyebrow-link--mobile[^{]*\{[^}]*display:\s*none',
+                css,
+            )
+            is not None,
+        )
+        r.check(
+            'hero CTA toggles mobile vs desktop anchor targets',
+            '.hero-cta-link--desktop{' in css_flat
+            and re.search(
+                r'@media \(min-width: 769px\)[\s\S]*?\.hero-cta-link--desktop\s*\{[^}]*display:\s*inline-block',
                 css,
             )
             is not None,
