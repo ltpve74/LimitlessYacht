@@ -341,16 +341,24 @@ def check_html(r: Runner, rel: str, html: str) -> None:
         and "classList.toggle('is-active'" in html
         and 'navSectionLinks' in html
         and "addEventListener('hashchange'" in html
-        and 'scrollToLandAnchor' in html
-        and 'bindDesktopNavLand' in html,
+        and 'navMarkerTop' in html
+        and 'scrollToLandAnchor' not in html
+        and 'preventDefault' not in re.search(
+            r'navSectionLinks\.forEach\(function\(a\)[\s\S]{0,400}',
+            html,
+        ).group(0),
     )
     r.check(
-        'desktop nav uses content landing anchors',
-        'href="#about-land"' in html
+        'desktop nav uses native landing anchors',
+        re.search(r'class="nav-links"[^>]*>[\s\S]*?href="#about"', html) is not None
         and 'href="#itinerary-land"' in html
         and 'href="#gallery-land"' in html
         and 'href="#charters-land"' in html
-        and 'href="#availability-land"' in html
+        and re.search(
+            r'class="nav-links"[^>]*>[\s\S]*?href="#avail-cal"',
+            html,
+        )
+        is not None
         and 'href="#reviews-land"' in html
         and 'href="#amenities-land"' in html
         and 'href="#specs-land"' in html
@@ -953,6 +961,16 @@ def check_shared_assets(r: Runner) -> None:
         and '--nav-scroll-offset' in css
         and re.search(
             r'@media \(min-width: 769px\)[\s\S]*?#charters-land[\s\S]*?scroll-margin-top:\s*var\(--nav-scroll-offset\)',
+            css,
+        )
+        is not None
+        and re.search(
+            r'@media \(min-width: 769px\)[\s\S]*?#about\s*\{[^}]*scroll-margin-top:\s*var\(--nav-scroll-offset\)',
+            css,
+        )
+        is not None
+        and re.search(
+            r'@media \(min-width: 769px\)[\s\S]*?\.contact-cal-pair\s+#avail-cal[\s\S]*?scroll-margin-top:\s*calc\(var\(--nav-scroll-offset\)\s*\+\s*9rem\)',
             css,
         )
         is not None

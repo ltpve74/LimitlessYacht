@@ -2121,22 +2121,27 @@ footer {
   /* Form/calendar links land on the widget, not the hidden section title */
   #avail-cal { scroll-margin-top: .5rem; }
 }
-/* Desktop nav: land on title anchor — label sits above and tucks under fixed nav */
+/* Desktop nav: native anchor scroll + per-target scroll-margin.
+   Default -land anchors sit between label and title — label tucks under the nav.
+   About and Availability are exceptions (see screenshots): full section headers stay visible. */
 @media (min-width: 769px) {
   html { scroll-padding-top: var(--nav-scroll-offset); }
-  #about-land,
+  #about { scroll-margin-top: var(--nav-scroll-offset); }
   #itinerary-land,
   #gallery-land,
   #charters-land,
-  #availability-land,
   #reviews-land,
   #amenities-land,
   #specs-land,
   #enquire-land {
     scroll-margin-top: var(--nav-scroll-offset);
   }
-  /* In-page CTAs still jump to the calendar widget */
+  /* In-page CTAs jump to the calendar widget */
   #avail-cal { scroll-margin-top: var(--nav-scroll-offset); }
+  /* Availability nav: land with label, title, intro and calendar in view (paired desktop) */
+  .contact-cal-pair #avail-cal {
+    scroll-margin-top: calc(var(--nav-scroll-offset) + 9rem);
+  }
 }
 .availability-picker { margin-top: 0; }
 
