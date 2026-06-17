@@ -697,12 +697,24 @@ def check_shared_assets(r: Runner) -> None:
         and 'class="availability-picker"' in index_html
         and '#avail-cal' in (css or ''),
     )
+    pair_m = re.search(
+        r'class="contact-cal-pair"[^>]*>(.*?)</div>\s*<!--\s*/\.contact-cal-pair\s*-->',
+        index_html,
+        re.DOTALL,
+    )
+    pair_html = pair_m.group(1) if pair_m else ''
     r.check(
-        'mobile stacks calendar before enquiry form',
+        'calendar precedes enquiry form in page structure',
+        pair_html.find('id="availability"') != -1
+        and pair_html.find('class="enquire-section"') != -1
+        and pair_html.find('id="availability"') < pair_html.find('class="enquire-section"'),
+    )
+    r.check(
+        'desktop paired layout keeps form left of calendar',
         css is not None
-        and re.search(r'@media\s*\(max-width:\s*640px\)', css) is not None
-        and re.search(r'\.contact-cal-pair\s+#availability\s*\{\s*order:\s*-1', css) is not None
-        and re.search(r'\.contact-cal-pair\s+\.enquire-section\s*\{\s*order:\s*0', css) is not None,
+        and re.search(r'@media\s*\(min-width:\s*769px\)', css) is not None
+        and re.search(r'\.contact-cal-pair\s+\.enquire-section\s*\{\s*order:\s*1', css) is not None
+        and re.search(r'\.contact-cal-pair\s+#availability\s*\{\s*order:\s*2', css) is not None,
     )
     r.check(
         'destination cards use pointer cursor (clickable like gallery)',

@@ -1193,8 +1193,45 @@ window.LY_afterLcp(function() {
   </div>
 </section>
 
-<!-- CONTACT + AVAILABILITY (paired on desktop) -->
+<!-- AVAILABILITY + CONTACT (calendar first in DOM for mobile; paired on desktop) -->
 <div class="contact-cal-pair">
+<!-- AVAILABILITY -->
+<section id="availability">
+  <div class="container">
+    <p class="section-label reveal">Disponibilidad</p>
+    <h2 class="section-title reveal reveal-delay-1">Consulte el<em> calendario</em></h2>
+    <p class="availability-intro reveal reveal-delay-2">Vea las fechas libres y complete el formulario a continuación — confirmaremos su charter personalmente. El calendario lo actualiza nuestra tripulación.</p>
+    <div class="availability-picker">
+    <span id="avail-cal" style="display:block;height:0;overflow:hidden" aria-hidden="true"></span>
+    <div class="cal" id="availCal" aria-label="Calendario de disponibilidad" data-i18n-day="día" data-i18n-days="días">
+      <div class="cal-bar">
+        <button type="button" class="cal-nav" id="calPrev" aria-label="Mes anterior">‹</button>
+        <div class="cal-months" id="calMonths"></div>
+        <button type="button" class="cal-nav" id="calNext" aria-label="Mes siguiente">›</button>
+      </div>
+      <div class="cal-legend">
+        <span><span class="cal-legend-swatch leg-available" aria-hidden="true"></span>Disponible</span>
+        <span><span class="cal-legend-swatch leg-selected" aria-hidden="true"></span>Seleccionado</span>
+        <span><span class="cal-legend-swatch leg-booked" aria-hidden="true"></span>Reservado</span>
+        <span><span class="cal-legend-swatch leg-tentative" aria-hidden="true"></span>En espera</span>
+      </div>
+      <div class="cal-footer">
+        <p class="cal-hint" id="calHint">Toque fechas libres — un día o varios seguidos.</p>
+        <div class="cal-selection" id="calSelection" hidden aria-live="polite">
+          <span class="cal-selection-label">Seleccionado</span>
+          <span class="cal-selection-dates" id="calSelectionText"></span>
+          <button type="button" class="cal-clear" id="calClear">Borrar selección</button>
+        </div>
+      </div>
+    </div>
+    <div class="availability-actions">
+      <a href="#enquire-form" class="btn-primary cal-enquire-btn is-disabled" id="calEnquireBtn" aria-disabled="true">Consultar estas fechas</a>
+      <a href="https://wa.me/34622581486?text=Hi%2C%20I%27d%20like%20to%20enquire%20about%20a%20charter%20on%20Limitless." target="_blank" rel="noopener" class="btn-ghost cal-wa-btn is-disabled" id="calWaBtn" aria-disabled="true">Preguntar por WhatsApp</a>
+    </div>
+    </div><!-- /.availability-picker -->
+  </div>
+</section>
+
 <!-- CONTACT -->
 <section class="enquire-section">
   <span id="enquire" style="display:block;height:0;overflow:hidden" aria-hidden="true"></span>
@@ -1280,43 +1317,6 @@ window.LY_afterLcp(function() {
         </form>
       </div>
     </div>
-  </div>
-</section>
-
-<!-- AVAILABILITY -->
-<section id="availability">
-  <div class="container">
-    <p class="section-label reveal">Disponibilidad</p>
-    <h2 class="section-title reveal reveal-delay-1">Consulte el<em> calendario</em></h2>
-    <p class="availability-intro reveal reveal-delay-2">Vea las fechas libres y complete el formulario a continuación — confirmaremos su charter personalmente. El calendario lo actualiza nuestra tripulación.</p>
-    <div class="availability-picker">
-    <span id="avail-cal" style="display:block;height:0;overflow:hidden" aria-hidden="true"></span>
-    <div class="cal" id="availCal" aria-label="Calendario de disponibilidad" data-i18n-day="día" data-i18n-days="días">
-      <div class="cal-bar">
-        <button type="button" class="cal-nav" id="calPrev" aria-label="Mes anterior">‹</button>
-        <div class="cal-months" id="calMonths"></div>
-        <button type="button" class="cal-nav" id="calNext" aria-label="Mes siguiente">›</button>
-      </div>
-      <div class="cal-legend">
-        <span><span class="cal-legend-swatch leg-available" aria-hidden="true"></span>Disponible</span>
-        <span><span class="cal-legend-swatch leg-selected" aria-hidden="true"></span>Seleccionado</span>
-        <span><span class="cal-legend-swatch leg-booked" aria-hidden="true"></span>Reservado</span>
-        <span><span class="cal-legend-swatch leg-tentative" aria-hidden="true"></span>En espera</span>
-      </div>
-      <div class="cal-footer">
-        <p class="cal-hint" id="calHint">Toque fechas libres — un día o varios seguidos.</p>
-        <div class="cal-selection" id="calSelection" hidden aria-live="polite">
-          <span class="cal-selection-label">Seleccionado</span>
-          <span class="cal-selection-dates" id="calSelectionText"></span>
-          <button type="button" class="cal-clear" id="calClear">Borrar selección</button>
-        </div>
-      </div>
-    </div>
-    <div class="availability-actions">
-      <a href="#enquire-form" class="btn-primary cal-enquire-btn is-disabled" id="calEnquireBtn" aria-disabled="true">Consultar estas fechas</a>
-      <a href="https://wa.me/34622581486?text=Hi%2C%20I%27d%20like%20to%20enquire%20about%20a%20charter%20on%20Limitless." target="_blank" rel="noopener" class="btn-ghost cal-wa-btn is-disabled" id="calWaBtn" aria-disabled="true">Preguntar por WhatsApp</a>
-    </div>
-    </div><!-- /.availability-picker -->
   </div>
 </section>
 </div><!-- /.contact-cal-pair -->

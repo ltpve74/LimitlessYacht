@@ -1067,12 +1067,6 @@ footer {
   .contact-cal-pair #availability .availability-intro { display: none; }
   .contact-cal-pair #availability { padding-top: 1.25rem; }
   .contact-cal-pair #availability .cal { margin-top: 0; }
-  .contact-cal-pair {
-    display: flex;
-    flex-direction: column; /* calendar before form on mobile funnel */
-  }
-  .contact-cal-pair #availability { order: -1; }
-  .contact-cal-pair .enquire-section { order: 0; }
   .form-submit { padding-top: .85rem; padding-bottom: .85rem; margin-top: .25rem; }
   #specs { padding-top: 3rem; padding-bottom: 2.5rem; }
   #amenities { padding-top: 2.5rem; padding-bottom: 2.5rem; }
@@ -1095,6 +1089,9 @@ footer {
     align-items: start;
     background: linear-gradient(135deg, var(--deep) 0%, var(--ocean) 100%);
   }
+  /* DOM is calendar → form for mobile; restore form-left layout on desktop */
+  .contact-cal-pair .enquire-section { order: 1; }
+  .contact-cal-pair #availability { order: 2; }
   /* Prevent either column from blowing out the grid */
   .contact-cal-pair .enquire-section,
   .contact-cal-pair #availability { min-width: 0; }
