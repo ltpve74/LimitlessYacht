@@ -872,12 +872,12 @@ def check_shared_assets(r: Runner) -> None:
         'desktop date popover stacks below fixed nav',
         css is not None
         and re.search(
-            r'@media \(min-width: 769px\)[\s\S]*?\.form-date-wrap\.is-open\s*\{[^}]*z-index:\s*50',
+            r'@media\s*\(\s*min-width:\s*769px\s*\)[\s\S]*?\.form-date-wrap\.is-open\s*\{[^}]*z-index:\s*50',
             css,
         )
         is not None
         and re.search(
-            r'@media \(min-width: 769px\)[\s\S]*?\.form-date-popover(?:\.cal)?\s*\{[^}]*z-index:\s*50',
+            r'@media\s*\(\s*min-width:\s*769px\s*\)[\s\S]*?\.form-date-popover(?:,\s*\.form-date-popover\.cal)?\s*\{[^}]*z-index:\s*50',
             css,
         )
         is not None,
