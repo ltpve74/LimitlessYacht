@@ -277,8 +277,10 @@ def check_html(r: Runner, rel: str, html: str) -> None:
         and 'id="calEnquireBtn"' in html
         and 'preferred_date_end' in html
         and 'id="formDurWrap"' in html
-        and "durationSelect.value === 'multi-day'" in html
+        and 'function LY_syncFormDur' in html
         and "durationSelect.value = 'multi-day'" in html
+        and 'durOptMultiDay' in html
+        and 'durWrap.hidden = true' in html
         and 'preferred_date_end_btn' not in html
         and 'class="form-field form-end-date"' not in html
         and 'for="preferred_date_btn"' in html
@@ -726,6 +728,8 @@ def check_shared_assets(r: Runner) -> None:
         and 'function positionFormDatePopover' in index_html
         and 'isFormDateMobileLayout' in index_html
         and 'opens-down' in index_html
+        and 'form-date-row-open' in index_html
+        and '.form-row.form-date-row-open' in css
         and '.form-date-trigger' in css
         and '.form-date-icon' in css
         and '.form-date-popover .cal-cell' in css

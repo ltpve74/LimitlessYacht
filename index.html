@@ -1306,7 +1306,7 @@ window.LY_afterLcp(function() {
                 <option value="4-hours">4 Hours</option>
                 <option value="6-hours">6 Hours</option>
                 <option value="1-day">1 Day</option>
-                <option value="multi-day">Multi-Day</option>
+                <option value="multi-day" id="durOptMultiDay">Multi-Day</option>
               </select>
             </div>
             <p class="form-date-hint">See the <a href="#avail-cal" class="form-date-hint-link">calendar</a> for an overview.</p>
@@ -2184,22 +2184,39 @@ window.LY_afterLcp(function() {
       viewIndex = Math.min(Math.max(endIdx - count + 1, minIndex), maxFirst);
     }
   }
+  function LY_syncFormDur(){
+    var durWrap = document.getElementById('formDurWrap');
+    if (!durationSelect || !durWrap) return;
+    var multiOpt = document.getElementById('durOptMultiDay');
+    if (selected.length > 1) {
+      durWrap.hidden = true;
+      durationSelect.value = 'multi-day';
+      return;
+    }
+    durWrap.hidden = false;
+    if (multiOpt) {
+      var hideMulti = selected.length === 1;
+      multiOpt.hidden = hideMulti;
+      multiOpt.disabled = hideMulti;
+    }
+    if (selected.length === 1 && durationSelect.value === 'multi-day') durationSelect.value = '';
+  }
   function syncForm(){
     if (!startInput) return;
     if (!selected.length) {
       startInput.value = '';
       if (endInput) endInput.value = '';
+      LY_syncFormDur();
       if (window.LY_updateFormDateTriggers) window.LY_updateFormDateTriggers();
       return;
     }
     startInput.value = selected[0];
     if (selected.length > 1) {
       if (endInput) endInput.value = selected[selected.length - 1];
-      if (durationSelect) durationSelect.value = 'multi-day';
     } else {
       if (endInput) endInput.value = '';
-      if (durationSelect && durationSelect.value === 'multi-day') durationSelect.value = '';
     }
+    LY_syncFormDur();
     if (window.LY_updateFormDateTriggers) window.LY_updateFormDateTriggers();
   }
   function setCtaState(on){
@@ -2405,6 +2422,7 @@ window.LY_afterLcp(function() {
 
   var formDatePopover = document.getElementById('formDatePopover');
   var formDateWrap = document.getElementById('preferredDateWrap');
+  var formDateRow = formDateWrap ? formDateWrap.closest('.form-row') : null;
   var formDateDismissBtn = document.getElementById('formDatePopoverDismiss');
   var formDateApplyBtn = document.querySelector('.form-date-apply-btn');
   var formDateClearBtn = document.querySelector('.form-date-clear-btn');
@@ -2535,7 +2553,9 @@ window.LY_afterLcp(function() {
     var popH = formDatePopover.offsetHeight || 280;
     var spaceAbove = rect.top - pad;
     var spaceBelow = vh - rect.bottom - pad;
-    var openUp = spaceAbove >= popH || spaceAbove >= spaceBelow;
+    var openUp = isFormDateMobileLayout()
+      ? (spaceAbove >= popH || spaceAbove >= spaceBelow)
+      : (spaceBelow < Math.min(popH, 260) && spaceAbove > spaceBelow);
     formDatePopover.classList.toggle('opens-up', openUp);
     formDatePopover.classList.toggle('opens-down', !openUp);
     if (formDateStartBtn) {
@@ -2571,6 +2591,7 @@ window.LY_afterLcp(function() {
     resetFormDatePopoverPosition();
     document.body.classList.remove('form-date-popup-open');
     if (formDateWrap) formDateWrap.classList.remove('is-open');
+    if (formDateRow) formDateRow.classList.remove('form-date-row-open');
     if (formDateStartBtn) {
       formDateStartBtn.setAttribute('aria-expanded', 'false');
       formDateStartBtn.classList.remove('popover-opens-up', 'popover-opens-down');
@@ -2588,6 +2609,7 @@ window.LY_afterLcp(function() {
     formDatePopover.setAttribute('aria-hidden', 'false');
     document.body.classList.add('form-date-popup-open');
     if (formDateWrap) formDateWrap.classList.add('is-open');
+    if (formDateRow) formDateRow.classList.add('form-date-row-open');
     if (formDateStartBtn) formDateStartBtn.setAttribute('aria-expanded', 'true');
     positionFormDatePopover();
     requestAnimationFrame(function() { window.scrollTo(0, scrollY); });
