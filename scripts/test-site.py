@@ -255,8 +255,8 @@ def check_html(r: Runner, rel: str, html: str) -> None:
         html.find('id="hero"') > 0 and html.find('id="hero"') < html.find('LY_afterLcp'),
     )
     r.check(
-        'hero section precedes navigation in document order',
-        html.find('id="hero"') > 0 and html.find('id="hero"') < html.find('id="navbar"'),
+        'navigation markup precedes hero in document order',
+        html.find('id="navbar"') > 0 and html.find('id="navbar"') < html.find('id="hero"'),
     )
     r.check(
         'critical CSS is slim enough for fast head parse',
@@ -414,6 +414,17 @@ def check_locale_modules(r: Runner) -> None:
             )
 
 
+def check_html_integrity(r: Runner) -> None:
+    html = read_file('index.html')
+    r.check('index.html ends with </html>', html is not None and html.rstrip().endswith('</html>'))
+    if html:
+        body_end = html.rfind('</body>')
+        r.check(
+            'navigation markup lives inside document body',
+            html.find('id="navbar"') > 0 and html.find('id="navbar"') < body_end,
+        )
+
+
 def check_shared_assets(r: Runner) -> None:
     css = read_file('css/main.css')
     r.check('css/main.css exists', css is not None)
@@ -556,6 +567,9 @@ def main() -> None:
 
     print('\n[locale modules]')
     check_locale_modules(r)
+
+    print('\n[html integrity]')
+    check_html_integrity(r)
 
     print('\n[shared assets]')
     check_shared_assets(r)
