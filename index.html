@@ -5,7 +5,7 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0" />
 <!-- Preload hero image (LCP) — must precede deferred head scripts -->
 <link rel="preload" as="image" imagesrcset="images/mobile/maiora_20s_02-480.webp 480w, images/mobile/maiora_20s_02-720.webp 720w, images/mobile/maiora_20s_02.webp 960w" imagesizes="100vw" type="image/webp" fetchpriority="high" media="(max-width: 640px)" />
-<link rel="preload" as="image" imagesrcset="images/maiora_20s_02-640.webp 640w, images/maiora_20s_02.webp 960w" imagesizes="100vw" type="image/webp" fetchpriority="high" media="(min-width: 641px)" />
+<link rel="preload" as="image" imagesrcset="images/maiora_20s_02-640.webp 640w, images/maiora_20s_02-960.webp 960w, images/maiora_20s_02.webp 1280w" imagesizes="100vw" type="image/webp" fetchpriority="high" media="(min-width: 641px)" />
 <link rel="preload" as="font" href="fonts/montserrat-latin.woff2" type="font/woff2" crossorigin />
 
 <style id="critical-css">
@@ -232,8 +232,8 @@ nav{position:fixed;top:0;left:0;right:0;z-index:100;min-height:4.25rem}
 <section id="hero">
   <picture class="hero-bg-wrap">
     <source srcset="images/mobile/maiora_20s_02-480.webp 480w, images/mobile/maiora_20s_02-720.webp 720w, images/mobile/maiora_20s_02.webp 960w" sizes="100vw" type="image/webp" media="(max-width: 640px)">
-    <source srcset="images/maiora_20s_02-640.webp 640w, images/maiora_20s_02.webp 960w" sizes="100vw" type="image/webp">
-    <img class="hero-bg" src="images/maiora_20s_02.jpg" alt="" width="960" height="639" fetchpriority="high" decoding="async">
+    <source srcset="images/maiora_20s_02-640.webp 640w, images/maiora_20s_02-960.webp 960w, images/maiora_20s_02.webp 1280w" sizes="100vw" type="image/webp">
+    <img class="hero-bg" src="images/maiora_20s_02.jpg" alt="" width="1280" height="852" fetchpriority="high" decoding="async">
   </picture>
   <div class="hero-overlay"></div>
   <div class="hero-content">
@@ -284,7 +284,7 @@ nav{position:fixed;top:0;left:0;right:0;z-index:100;min-height:4.25rem}
   <div class="container">
     <div class="about-grid">
       <div class="about-image-wrap reveal">
-        <picture><source type="image/webp" media="(max-width: 640px)" srcset="images/mobile/maiora_20s_04-480.webp 480w, images/mobile/maiora_20s_04-720.webp 720w" sizes="100vw" /><source type="image/webp" srcset="images/maiora_20s_04.webp 960w" sizes="(min-width: 1101px) 50vw, 100vw" /><img loading="lazy" decoding="async" src="images/maiora_20s_04.jpg" width="960" height="639" alt="Limitless yacht cruising the Mallorca coastline" /></picture>
+        <picture><source type="image/webp" media="(max-width: 640px)" srcset="images/mobile/maiora_20s_04-480.webp 480w, images/mobile/maiora_20s_04-720.webp 720w, images/mobile/maiora_20s_04.webp 960w" sizes="100vw" /><source type="image/webp" srcset="images/maiora_20s_04-640.webp 640w, images/maiora_20s_04-960.webp 960w" sizes="(min-width: 1101px) 50vw, 100vw" /><img loading="lazy" decoding="async" src="images/maiora_20s_04.jpg" width="960" height="639" alt="Limitless yacht cruising the Mallorca coastline" /></picture>
         <div class="about-image-accent"></div>
       </div>
       <div class="about-text reveal reveal-delay-1">
@@ -332,9 +332,9 @@ nav{position:fixed;top:0;left:0;right:0;z-index:100;min-height:4.25rem}
       <div class="itinerary-grid">
         <div class="destination-card reveal" data-dest-idx="0">
           <picture class="destination-card-bg">
-            <source type="image/webp" media="(max-width: 640px)" srcset="images/mobile/dest/portals-vells-1-480.webp 480w" sizes="78vw" />
-            <source type="image/webp" srcset="images/dest/portals-vells-1.webp 640w" sizes="(min-width: 1101px) 500px, 48vw" />
-            <img loading="lazy" decoding="async" src="images/dest/portals-vells-1.jpg" alt="" width="640" height="480" />
+            <source type="image/webp" media="(max-width: 640px)" srcset="images/mobile/dest/portals-vells-1-480.webp 480w, images/mobile/dest/portals-vells-1-720.webp 720w, images/mobile/dest/portals-vells-1.webp 800w" sizes="78vw" />
+            <source type="image/webp" srcset="images/dest/portals-vells-1-640.webp 640w, images/dest/portals-vells-1-960.webp 960w" sizes="(min-width: 1101px) 500px, 48vw" />
+            <img loading="lazy" decoding="async" src="images/dest/portals-vells-1.jpg" alt="" width="960" height="720" />
           </picture>
           <div class="destination-card-overlay"></div>
           <div class="destination-card-body">
@@ -352,9 +352,9 @@ nav{position:fixed;top:0;left:0;right:0;z-index:100;min-height:4.25rem}
         </div>
         <div class="destination-card reveal reveal-delay-1" data-dest-idx="1">
           <picture class="destination-card-bg">
-            <source type="image/webp" media="(max-width: 640px)" srcset="images/mobile/dest/el-toro-malgrats-1-480.webp 320w, images/mobile/dest/el-toro-malgrats-1-720.webp 480w" sizes="78vw" />
-            <source type="image/webp" srcset="images/dest/el-toro-malgrats-1.webp 426w" sizes="(min-width: 1101px) 500px, 48vw" />
-            <img loading="lazy" decoding="async" src="images/dest/el-toro-malgrats-1.jpg" alt="" width="426" height="640" />
+            <source type="image/webp" media="(max-width: 640px)" srcset="images/mobile/dest/el-toro-malgrats-1-480.webp 320w, images/mobile/dest/el-toro-malgrats-1-720.webp 480w, images/mobile/dest/el-toro-malgrats-1-960.webp 640w, images/mobile/dest/el-toro-malgrats-1.webp 800w" sizes="78vw" />
+            <source type="image/webp" srcset="images/dest/el-toro-malgrats-1-640.webp 427w, images/dest/el-toro-malgrats-1-960.webp 640w" sizes="(min-width: 1101px) 500px, 48vw" />
+            <img loading="lazy" decoding="async" src="images/dest/el-toro-malgrats-1.jpg" alt="" width="640" height="960" />
           </picture>
           <div class="destination-card-overlay"></div>
           <div class="destination-card-body">
@@ -372,9 +372,9 @@ nav{position:fixed;top:0;left:0;right:0;z-index:100;min-height:4.25rem}
         </div>
         <div class="destination-card reveal reveal-delay-1" data-dest-idx="2">
           <picture class="destination-card-bg">
-            <source type="image/webp" media="(max-width: 640px)" srcset="images/mobile/dest/cala-llamp-1-480.webp 480w" sizes="78vw" />
-            <source type="image/webp" srcset="images/dest/cala-llamp-1.webp 640w" sizes="(min-width: 1101px) 500px, 48vw" />
-            <img loading="lazy" decoding="async" src="images/dest/cala-llamp-1.jpg" alt="" width="640" height="480" />
+            <source type="image/webp" media="(max-width: 640px)" srcset="images/mobile/dest/cala-llamp-1-480.webp 480w, images/mobile/dest/cala-llamp-1-720.webp 720w, images/mobile/dest/cala-llamp-1.webp 800w" sizes="78vw" />
+            <source type="image/webp" srcset="images/dest/cala-llamp-1-640.webp 640w, images/dest/cala-llamp-1-960.webp 960w" sizes="(min-width: 1101px) 500px, 48vw" />
+            <img loading="lazy" decoding="async" src="images/dest/cala-llamp-1.jpg" alt="" width="960" height="720" />
           </picture>
           <div class="destination-card-overlay"></div>
           <div class="destination-card-body">
@@ -405,9 +405,9 @@ nav{position:fixed;top:0;left:0;right:0;z-index:100;min-height:4.25rem}
       <div class="itinerary-grid">
         <div class="destination-card reveal" data-dest-idx="3">
           <picture class="destination-card-bg">
-            <source type="image/webp" media="(max-width: 640px)" srcset="images/mobile/dest/sa-dragonera-1-480.webp 480w" sizes="78vw" />
-            <source type="image/webp" srcset="images/dest/sa-dragonera-1.webp 640w" sizes="(min-width: 1101px) 500px, 48vw" />
-            <img loading="lazy" decoding="async" src="images/dest/sa-dragonera-1.jpg" alt="" width="640" height="426" />
+            <source type="image/webp" media="(max-width: 640px)" srcset="images/mobile/dest/sa-dragonera-1-480.webp 480w, images/mobile/dest/sa-dragonera-1-720.webp 720w, images/mobile/dest/sa-dragonera-1.webp 800w" sizes="78vw" />
+            <source type="image/webp" srcset="images/dest/sa-dragonera-1-640.webp 640w, images/dest/sa-dragonera-1-960.webp 960w" sizes="(min-width: 1101px) 500px, 48vw" />
+            <img loading="lazy" decoding="async" src="images/dest/sa-dragonera-1.jpg" alt="" width="960" height="640" />
           </picture>
           <div class="destination-card-overlay"></div>
           <div class="destination-card-body">
@@ -578,9 +578,9 @@ window.LY_afterLcp(function() {
         </div>
         <div class="destination-card reveal reveal-delay-1" data-dest-idx="4">
           <picture class="destination-card-bg">
-            <source type="image/webp" media="(max-width: 640px)" srcset="images/mobile/dest/cala-pi-1-480.webp 480w" sizes="78vw" />
-            <source type="image/webp" srcset="images/dest/cala-pi-1.webp 640w" sizes="(min-width: 1101px) 500px, 48vw" />
-            <img loading="lazy" decoding="async" src="images/dest/cala-pi-1.jpg" alt="" width="640" height="481" />
+            <source type="image/webp" media="(max-width: 640px)" srcset="images/mobile/dest/cala-pi-1-480.webp 480w, images/mobile/dest/cala-pi-1-720.webp 720w, images/mobile/dest/cala-pi-1.webp 800w" sizes="78vw" />
+            <source type="image/webp" srcset="images/dest/cala-pi-1-640.webp 640w, images/dest/cala-pi-1-960.webp 960w" sizes="(min-width: 1101px) 500px, 48vw" />
+            <img loading="lazy" decoding="async" src="images/dest/cala-pi-1.jpg" alt="" width="960" height="721" />
           </picture>
           <div class="destination-card-overlay"></div>
           <div class="destination-card-body">
@@ -598,9 +598,9 @@ window.LY_afterLcp(function() {
         </div>
         <div class="destination-card reveal reveal-delay-1" data-dest-idx="5">
           <picture class="destination-card-bg">
-            <source type="image/webp" media="(max-width: 640px)" srcset="images/mobile/dest/es-trenc-1-480.webp 480w" sizes="78vw" />
-            <source type="image/webp" srcset="images/dest/es-trenc-1.webp 640w" sizes="(min-width: 1101px) 500px, 48vw" />
-            <img loading="lazy" decoding="async" src="images/dest/es-trenc-1.jpg" alt="" width="640" height="426" />
+            <source type="image/webp" media="(max-width: 640px)" srcset="images/mobile/dest/es-trenc-1-480.webp 480w, images/mobile/dest/es-trenc-1-720.webp 720w, images/mobile/dest/es-trenc-1.webp 800w" sizes="78vw" />
+            <source type="image/webp" srcset="images/dest/es-trenc-1-640.webp 640w, images/dest/es-trenc-1-960.webp 960w" sizes="(min-width: 1101px) 500px, 48vw" />
+            <img loading="lazy" decoding="async" src="images/dest/es-trenc-1.jpg" alt="" width="960" height="640" />
           </picture>
           <div class="destination-card-overlay"></div>
           <div class="destination-card-body">
@@ -618,9 +618,9 @@ window.LY_afterLcp(function() {
         </div>
         <div class="destination-card reveal reveal-delay-1" data-dest-idx="6">
           <picture class="destination-card-bg">
-            <source type="image/webp" media="(max-width: 640px)" srcset="images/mobile/dest/cabrera-1-480.webp 480w" sizes="78vw" />
-            <source type="image/webp" srcset="images/dest/cabrera-1.webp 640w" sizes="(min-width: 1101px) 500px, 48vw" />
-            <img loading="lazy" decoding="async" src="images/dest/cabrera-1.jpg" alt="" width="640" height="425" />
+            <source type="image/webp" media="(max-width: 640px)" srcset="images/mobile/dest/cabrera-1-480.webp 480w, images/mobile/dest/cabrera-1-720.webp 720w, images/mobile/dest/cabrera-1.webp 800w" sizes="78vw" />
+            <source type="image/webp" srcset="images/dest/cabrera-1-640.webp 640w, images/dest/cabrera-1-960.webp 960w" sizes="(min-width: 1101px) 500px, 48vw" />
+            <img loading="lazy" decoding="async" src="images/dest/cabrera-1.jpg" alt="" width="960" height="638" />
           </picture>
           <div class="destination-card-overlay"></div>
           <div class="destination-card-body">
@@ -638,9 +638,9 @@ window.LY_afterLcp(function() {
         </div>
         <div class="destination-card reveal reveal-delay-2" data-dest-idx="7">
           <picture class="destination-card-bg">
-            <source type="image/webp" media="(max-width: 640px)" srcset="images/mobile/dest/calo-des-moro-1-480.webp 480w" sizes="78vw" />
-            <source type="image/webp" srcset="images/dest/calo-des-moro-1.webp 640w" sizes="(min-width: 1101px) 500px, 48vw" />
-            <img loading="lazy" decoding="async" src="images/dest/calo-des-moro-1.jpg" alt="" width="640" height="425" />
+            <source type="image/webp" media="(max-width: 640px)" srcset="images/mobile/dest/calo-des-moro-1-480.webp 480w, images/mobile/dest/calo-des-moro-1-720.webp 720w, images/mobile/dest/calo-des-moro-1.webp 800w" sizes="78vw" />
+            <source type="image/webp" srcset="images/dest/calo-des-moro-1-640.webp 640w, images/dest/calo-des-moro-1-960.webp 960w" sizes="(min-width: 1101px) 500px, 48vw" />
+            <img loading="lazy" decoding="async" src="images/dest/calo-des-moro-1.jpg" alt="" width="960" height="638" />
           </picture>
           <div class="destination-card-overlay"></div>
           <div class="destination-card-body">
@@ -671,9 +671,9 @@ window.LY_afterLcp(function() {
       <div class="itinerary-grid">
         <div class="destination-card reveal" data-dest-idx="8">
           <picture class="destination-card-bg">
-            <source type="image/webp" media="(max-width: 640px)" srcset="images/mobile/dest/sa-calobra-1-480.webp 320w, images/mobile/dest/sa-calobra-1-720.webp 480w" sizes="78vw" />
-            <source type="image/webp" srcset="images/dest/sa-calobra-1.webp 426w" sizes="(min-width: 1101px) 500px, 48vw" />
-            <img loading="lazy" decoding="async" src="images/dest/sa-calobra-1.jpg" alt="" width="426" height="640" />
+            <source type="image/webp" media="(max-width: 640px)" srcset="images/mobile/dest/sa-calobra-1-480.webp 320w, images/mobile/dest/sa-calobra-1-720.webp 480w, images/mobile/dest/sa-calobra-1-960.webp 640w, images/mobile/dest/sa-calobra-1.webp 800w" sizes="78vw" />
+            <source type="image/webp" srcset="images/dest/sa-calobra-1-640.webp 427w, images/dest/sa-calobra-1-960.webp 640w" sizes="(min-width: 1101px) 500px, 48vw" />
+            <img loading="lazy" decoding="async" src="images/dest/sa-calobra-1.jpg" alt="" width="640" height="960" />
           </picture>
           <div class="destination-card-overlay"></div>
           <div class="destination-card-body">
@@ -691,9 +691,9 @@ window.LY_afterLcp(function() {
         </div>
         <div class="destination-card reveal reveal-delay-1" data-dest-idx="9">
           <picture class="destination-card-bg">
-            <source type="image/webp" media="(max-width: 640px)" srcset="images/mobile/dest/circumnavigation-1-480.webp 480w" sizes="78vw" />
-            <source type="image/webp" srcset="images/dest/circumnavigation-1.webp 640w" sizes="(min-width: 1101px) 500px, 48vw" />
-            <img loading="lazy" decoding="async" src="images/dest/circumnavigation-1.jpg" alt="" width="640" height="346" />
+            <source type="image/webp" media="(max-width: 640px)" srcset="images/mobile/dest/circumnavigation-1-480.webp 480w, images/mobile/dest/circumnavigation-1-720.webp 720w, images/mobile/dest/circumnavigation-1.webp 800w" sizes="78vw" />
+            <source type="image/webp" srcset="images/dest/circumnavigation-1-640.webp 640w, images/dest/circumnavigation-1-960.webp 960w" sizes="(min-width: 1101px) 500px, 48vw" />
+            <img loading="lazy" decoding="async" src="images/dest/circumnavigation-1.jpg" alt="" width="960" height="519" />
           </picture>
           <div class="destination-card-overlay"></div>
           <div class="destination-card-body">
@@ -711,9 +711,9 @@ window.LY_afterLcp(function() {
         </div>
         <div class="destination-card reveal reveal-delay-2" data-dest-idx="10">
           <picture class="destination-card-bg">
-            <source type="image/webp" media="(max-width: 640px)" srcset="images/mobile/dest/formentera-1-480.webp 480w" sizes="78vw" />
-            <source type="image/webp" srcset="images/dest/formentera-1.webp 640w" sizes="(min-width: 1101px) 500px, 48vw" />
-            <img loading="lazy" decoding="async" src="images/dest/formentera-1.jpg" alt="" width="640" height="480" />
+            <source type="image/webp" media="(max-width: 640px)" srcset="images/mobile/dest/formentera-1-480.webp 480w, images/mobile/dest/formentera-1-720.webp 720w, images/mobile/dest/formentera-1.webp 800w" sizes="78vw" />
+            <source type="image/webp" srcset="images/dest/formentera-1-640.webp 640w, images/dest/formentera-1-960.webp 960w" sizes="(min-width: 1101px) 500px, 48vw" />
+            <img loading="lazy" decoding="async" src="images/dest/formentera-1.jpg" alt="" width="960" height="720" />
           </picture>
           <div class="destination-card-overlay"></div>
           <div class="destination-card-body">
@@ -731,9 +731,9 @@ window.LY_afterLcp(function() {
         </div>
         <div class="destination-card reveal reveal-delay-3" data-dest-idx="11">
           <picture class="destination-card-bg">
-            <source type="image/webp" media="(max-width: 640px)" srcset="images/mobile/dest/menorca-1-480.webp 360w, images/mobile/dest/menorca-1-720.webp 540w" sizes="78vw" />
-            <source type="image/webp" srcset="images/dest/menorca-1.webp 480w" sizes="(min-width: 1101px) 500px, 48vw" />
-            <img loading="lazy" decoding="async" src="images/dest/menorca-1.jpg" alt="" width="480" height="640" />
+            <source type="image/webp" media="(max-width: 640px)" srcset="images/mobile/dest/menorca-1-480.webp 360w, images/mobile/dest/menorca-1-720.webp 540w, images/mobile/dest/menorca-1-960.webp 720w, images/mobile/dest/menorca-1.webp 800w" sizes="78vw" />
+            <source type="image/webp" srcset="images/dest/menorca-1-640.webp 480w, images/dest/menorca-1-960.webp 720w" sizes="(min-width: 1101px) 500px, 48vw" />
+            <img loading="lazy" decoding="async" src="images/dest/menorca-1.jpg" alt="" width="720" height="960" />
           </picture>
           <div class="destination-card-overlay"></div>
           <div class="destination-card-body">

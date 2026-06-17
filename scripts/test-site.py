@@ -570,8 +570,9 @@ def check_html(r: Runner, rel: str, html: str) -> None:
         'imagesrcset="' in html
         and 'maiora_20s_02-480.webp 480w' in html
         and 'maiora_20s_02-720.webp' in html
-        and 'maiora_20s_02.webp 960w' in html
         and 'maiora_20s_02-640.webp 640w' in html
+        and 'maiora_20s_02-960.webp 960w' in html
+        and 'maiora_20s_02.webp 1280w' in html
         and 'fetchpriority="high"' in html,
     )
     style_pos = html.find('<style')
@@ -649,15 +650,18 @@ def check_html(r: Runner, rel: str, html: str) -> None:
         and 'maiora_20s_04' not in head,
     )
     r.check(
-        'destination desktop srcset matches compressed card width',
-        'images/dest/portals-vells-1.webp 640w' in html,
+        'destination cards use multi-tier desktop srcsets',
+        'images/dest/portals-vells-1-640.webp 640w' in html
+        and 'images/dest/portals-vells-1-960.webp 960w' in html
+        and 'images/mobile/dest/portals-vells-1-720.webp' in html,
     )
     opt_py = read_file('scripts/optimize_responsive_images.py') or ''
     r.check(
         'content image quality constants separated from hero LCP tuning',
-        'CONTENT_DESKTOP_WEBP_Q' in opt_py
-        and 'CONTENT_DEST_MAX_EDGE' in opt_py
+        'DEST_DESKTOP_MAX_EDGE' in opt_py
+        and 'DESKTOP_CONTENT_TIERS' in opt_py
         and 'GALLERY_DESKTOP_WEBP_Q' in opt_py
+        and 'HERO_DESKTOP_MAX_EDGE' in opt_py
         and 'HERO_DESKTOP_WEBP_Q' in opt_py,
     )
     hero_webp = os.path.join(ROOT, 'images', 'maiora_20s_02.webp')
@@ -672,8 +676,14 @@ def check_html(r: Runner, rel: str, html: str) -> None:
     )
     portals_webp = os.path.join(ROOT, 'images', 'dest', 'portals-vells-1.webp')
     r.check(
-        'compressed destination hero within delivery budget',
-        os.path.isfile(portals_webp) and os.path.getsize(portals_webp) < 90 * 1024,
+        'destination master sharper than old single-tier compression',
+        os.path.isfile(portals_webp) and os.path.getsize(portals_webp) > 25 * 1024,
+    )
+    r.check(
+        'about section uses multi-tier desktop srcset',
+        'images/maiora_20s_04-640.webp 640w' in html
+        and 'images/maiora_20s_04-960.webp 960w' in html
+        and 'images/mobile/maiora_20s_04.webp' in html,
     )
     r.check(
         'hero title has no entrance animation in critical CSS (visible for LCP)',
@@ -1775,6 +1785,11 @@ def check_shared_assets(r: Runner) -> None:
         'images/mobile/maiora_20s_02-720.webp',
         'images/maiora_20s_02.webp',
         'images/maiora_20s_02-640.webp',
+        'images/maiora_20s_02-960.webp',
+        'images/dest/portals-vells-1-640.webp',
+        'images/dest/portals-vells-1-960.webp',
+        'images/maiora_20s_04-640.webp',
+        'images/maiora_20s_04-960.webp',
         'images/mobile/dest/el-toro-malgrats-1-480.webp',
         'images/mobile/dest/el-toro-malgrats-1-720.webp',
         'images/mobile/_srcset-widths.json',
