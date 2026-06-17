@@ -375,7 +375,7 @@ def check_html(r: Runner, rel: str, html: str) -> None:
     r.check(
         'desktop nav separates charters, availability, and quote CTA',
         'href="#charters-land"' in html
-        and 'href="#enquire-land" class="nav-cta nav-header-cta"' in html
+        and 'href="#availability" class="nav-cta nav-header-cta"' in html
         and 'href="#pricing-land"' not in html
         and 'id="charters"' in html
         and 'id="pricing"' not in html,
@@ -1047,7 +1047,7 @@ def check_shared_assets(r: Runner) -> None:
         )
         is not None
         and re.search(
-            r'@media \(min-width: 769px\)[\s\S]*?#availability\s*\{[^}]*scroll-margin-top:\s*-2rem',
+            r'@media \(min-width: 769px\)[\s\S]*?#availability\s*\{[^}]*scroll-margin-top:\s*1rem',
             css,
         )
         is not None
