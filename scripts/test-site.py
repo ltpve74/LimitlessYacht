@@ -587,8 +587,8 @@ def check_html(r: Runner, rel: str, html: str) -> None:
         html.find('id="hero"') > 0 and html.find('id="hero"') < html.find('LY_afterLcp'),
     )
     r.check(
-        'hero markup precedes navigation for early LCP discovery',
-        html.find('id="hero"') > 0 and html.find('id="hero"') < html.find('id="navbar"'),
+        'navigation precedes hero (prevents CLS before main.css)',
+        html.find('id="navbar"') > 0 and html.find('id="navbar"') < html.find('id="hero"'),
     )
     r.check(
         'hero background decodes asynchronously (does not block title paint)',

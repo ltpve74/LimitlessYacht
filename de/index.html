@@ -174,35 +174,6 @@ nav{position:fixed;top:0;left:0;right:0;z-index:100;min-height:4.25rem}
 </head>
 <body>
 
-<!-- HERO — first in body so preload + picture are discovered before nav markup -->
-<section id="hero">
-  <picture class="hero-bg-wrap">
-    <source srcset="/images/mobile/maiora_20s_02-480.webp 480w, /images/mobile/maiora_20s_02.webp 960w" sizes="100vw" type="image/webp" media="(max-width: 640px)">
-    <source srcset="/images/maiora_20s_02.webp 960w" sizes="100vw" type="image/webp">
-    <img class="hero-bg" src="/images/maiora_20s_02.jpg" alt="" width="1920" height="1080" fetchpriority="high" decoding="async">
-  </picture>
-  <div class="hero-overlay"></div>
-  <div class="hero-content">
-    <p class="hero-eyebrow"><a href="#reviews" class="hero-eyebrow-link--mobile"><span class="eyebrow-stars">★★★★★</span> 5.0</a><a href="#reviews-land" class="hero-eyebrow-link--desktop"><span class="eyebrow-stars">★★★★★</span> 5.0</a> &nbsp;·&nbsp; <a href="#charters" class="hero-eyebrow-link--mobile">Privatcharter</a><a href="#charters-land" class="hero-eyebrow-link--desktop">Privatcharter</a><br>Club de Mar · Mallorca</p>
-    <h1 class="hero-title">LIMIT<em>LESS</em></h1>
-    <p class="hero-sub">Exklusive Maiora-Yacht · 21,5 m · Bis zu 12 Gäste tagsüber · 7 über Nacht</p>
-    <div class="hero-cta-group">
-      <p class="hero-value">Ihre Crew kümmert sich um alles — Sie konzentrieren sich auf die Menschen und die Ausblicke.</p>
-      <div class="hero-actions">
-        <a href="#itinerary" class="btn-primary hero-cta-link--mobile">Reiseziele entdecken</a>
-        <a href="#itinerary-land" class="btn-primary hero-cta-link--desktop">Reiseziele entdecken</a>
-        <a href="#gallery" class="btn-ghost hero-cta-link--mobile">Die Yacht entdecken</a>
-        <a href="#gallery-land" class="btn-ghost hero-cta-link--desktop">Die Yacht entdecken</a>
-      </div>
-      <p class="hero-trust"><a href="#reviews">Verified reviews on Click&amp;Boat</a> · Crewed &amp;&nbsp;fully equipped</p>
-      <div class="hero-scroll">
-        <span>Scrollen</span>
-        <div class="scroll-line"></div>
-      </div>
-    </div>
-  </div>
-</section>
-
 <!-- NAV -->
 <nav id="navbar">
   <a href="#hero" class="nav-logo">Limitless <span>Yacht</span></a>
@@ -255,6 +226,35 @@ nav{position:fixed;top:0;left:0;right:0;z-index:100;min-height:4.25rem}
     <a href="../es/" hreflang="es" lang="es">ES</a>
   </div>
 </div>
+
+<!-- HERO -->
+<section id="hero">
+  <picture class="hero-bg-wrap">
+    <source srcset="/images/mobile/maiora_20s_02-480.webp 480w, /images/mobile/maiora_20s_02.webp 960w" sizes="100vw" type="image/webp" media="(max-width: 640px)">
+    <source srcset="/images/maiora_20s_02.webp 960w" sizes="100vw" type="image/webp">
+    <img class="hero-bg" src="/images/maiora_20s_02.jpg" alt="" width="1920" height="1080" fetchpriority="high" decoding="async">
+  </picture>
+  <div class="hero-overlay"></div>
+  <div class="hero-content">
+    <p class="hero-eyebrow"><a href="#reviews" class="hero-eyebrow-link--mobile"><span class="eyebrow-stars">★★★★★</span> 5.0</a><a href="#reviews-land" class="hero-eyebrow-link--desktop"><span class="eyebrow-stars">★★★★★</span> 5.0</a> &nbsp;·&nbsp; <a href="#charters" class="hero-eyebrow-link--mobile">Privatcharter</a><a href="#charters-land" class="hero-eyebrow-link--desktop">Privatcharter</a><br>Club de Mar · Mallorca</p>
+    <h1 class="hero-title">LIMIT<em>LESS</em></h1>
+    <p class="hero-sub">Exklusive Maiora-Yacht · 21,5 m · Bis zu 12 Gäste tagsüber · 7 über Nacht</p>
+    <div class="hero-cta-group">
+      <p class="hero-value">Ihre Crew kümmert sich um alles — Sie konzentrieren sich auf die Menschen und die Ausblicke.</p>
+      <div class="hero-actions">
+        <a href="#itinerary" class="btn-primary hero-cta-link--mobile">Reiseziele entdecken</a>
+        <a href="#itinerary-land" class="btn-primary hero-cta-link--desktop">Reiseziele entdecken</a>
+        <a href="#gallery" class="btn-ghost hero-cta-link--mobile">Die Yacht entdecken</a>
+        <a href="#gallery-land" class="btn-ghost hero-cta-link--desktop">Die Yacht entdecken</a>
+      </div>
+      <p class="hero-trust"><a href="#reviews">Verified reviews on Click&amp;Boat</a> · Crewed &amp;&nbsp;fully equipped</p>
+      <div class="hero-scroll">
+        <span>Scrollen</span>
+        <div class="scroll-line"></div>
+      </div>
+    </div>
+  </div>
+</section>
 
 <!-- INTRO STRIP -->
 <section id="intro">
