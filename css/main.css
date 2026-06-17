@@ -835,22 +835,8 @@ section { padding: 7rem 2rem; }
 }
 .form-date-popover-dismiss {
   flex: none;
-  display: flex; align-items: center; justify-content: center;
-  width: 2.25rem; height: 2.25rem; padding: 0;
-  font-size: 1.05rem; line-height: 1;
-  color: var(--cream); cursor: pointer;
-  background: rgba(8,18,34,.88);
-  border: 1px solid rgba(201,168,76,.5);
-  border-radius: 50%;
-  transition: background .2s, border-color .2s;
-}
-.form-date-popover-dismiss:hover {
-  background: rgba(26,58,92,.95);
-  border-color: var(--gold-light);
-}
-.form-date-popover-dismiss:focus-visible {
-  outline: 2px solid var(--gold-light);
-  outline-offset: 2px;
+  margin-top: 0;
+  font-size: .82rem; line-height: 1;
 }
 body.form-date-popup-open .enquire-section,
 body.form-date-popup-open .contact-form,
@@ -873,14 +859,22 @@ body.form-date-popup-open .form-row {
   color: var(--text-muted);
 }
 .form-date-step-hint.is-pending-end { color: var(--gold); font-weight: 500; }
-.form-date-close-hint {
-  margin: 0 0 .55rem; font-size: .56rem; line-height: 1.5;
-  letter-spacing: .06em; color: var(--text-muted); text-transform: none;
-}
-.form-date-close-hint strong { color: var(--gold); font-weight: 500; }
 .form-date-popover-actions {
   display: flex; align-items: center; justify-content: space-between;
-  gap: .75rem;
+  gap: .75rem; margin-top: .15rem;
+}
+.form-date-popover .form-date-clear-btn {
+  text-decoration: none;
+  padding: .55rem .95rem;
+  border: 1px solid rgba(201,168,76,.28);
+  border-radius: 4px;
+  color: var(--cream);
+  transition: border-color .2s, color .2s, background .2s;
+}
+.form-date-popover .form-date-clear-btn:hover {
+  border-color: rgba(201,168,76,.5);
+  color: var(--gold-light);
+  background: rgba(201,168,76,.08);
 }
 .form-date-apply-btn {
   background: var(--gold); color: var(--navy); border: none;
@@ -1171,6 +1165,12 @@ footer {
     background: rgba(201,168,76,.06);
     border-radius: 4px;
   }
+  .form-date-popover,
+  .form-date-popover.cal {
+    padding: .9rem .8rem .8rem;
+    box-shadow: 0 10px 32px rgba(0,0,0,.5);
+  }
+  .form-date-apply-btn { flex: 1; text-align: center; max-width: 9rem; }
   .contact-cal-pair #availability .section-label,
   .contact-cal-pair #availability .section-title { display: none; }
   .contact-cal-pair #availability { padding-top: 1.25rem; }
