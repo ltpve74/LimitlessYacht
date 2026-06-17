@@ -1788,6 +1788,7 @@ window.LY_afterLcp(function() {
       if (lbCta._prefillDuration) {
         var sel = document.getElementById('charter_duration');
         if (sel) sel.value = lbCta._prefillDuration;
+        if (window.LY_applyDurDateLayout) window.LY_applyDurDateLayout();
       }
       if (lbCta._waMsg) {
         var waBtn = document.querySelector('.form-col-wa');
@@ -1867,6 +1868,22 @@ window.LY_afterLcp(function() {
       var d = document.getElementById(id);
       if (d) d.min = min;
     });
+  })();
+
+  // End date only when duration is multi-day (4h / 6h / 1 day → start date only)
+  (function(){
+    var durationSelect = document.getElementById('charter_duration');
+    var endWrap = document.getElementById('preferredDateEndWrap');
+    var endInput = document.getElementById('preferred_date_end');
+    function applyDurDateLayout(){
+      if (!endWrap) return;
+      var isMulti = durationSelect && durationSelect.value === 'multi-day';
+      endWrap.hidden = !isMulti;
+      if (!isMulti && endInput) endInput.value = '';
+    }
+    window.LY_applyDurDateLayout = applyDurDateLayout;
+    if (durationSelect) durationSelect.addEventListener('change', applyDurDateLayout);
+    applyDurDateLayout();
   })();
 
   // Form submission via Netlify Forms
@@ -2059,7 +2076,6 @@ window.LY_afterLcp(function() {
   var endInput = document.getElementById('preferred_date_end');
   var endWrap = document.getElementById('preferredDateEndWrap');
   var durationSelect = document.getElementById('charter_duration');
-  var durationWrap = document.getElementById('formDurWrap');
   if (!calRoot || !monthsEl || !prevBtn || !nextBtn) return;
 
   var MONTHS = ['January','February','March','April','May','June','July','August','September','October','November','December'];
@@ -2145,25 +2161,17 @@ window.LY_afterLcp(function() {
     if (!startInput) return;
     if (!selected.length) {
       startInput.value = '';
-      if (endInput) endInput.value = '';
-      if (endWrap) endWrap.hidden = true;
-      if (durationWrap) durationWrap.hidden = false;
+      if (window.LY_applyDurDateLayout) window.LY_applyDurDateLayout();
       return;
     }
     startInput.value = selected[0];
-    if (endInput && endWrap) {
-      if (selected.length > 1) {
-        endInput.value = selected[selected.length - 1];
-        endWrap.hidden = false;
-        if (durationSelect) durationSelect.value = 'multi-day';
-        if (durationWrap) durationWrap.hidden = true;
-      } else {
-        endInput.value = '';
-        endWrap.hidden = true;
-        if (durationWrap) durationWrap.hidden = false;
-        if (durationSelect && durationSelect.value === 'multi-day') durationSelect.value = '';
-      }
+    if (selected.length > 1) {
+      if (endInput) endInput.value = selected[selected.length - 1];
+      if (durationSelect) durationSelect.value = 'multi-day';
+    } else {
+      if (durationSelect && durationSelect.value === 'multi-day') durationSelect.value = '';
     }
+    if (window.LY_applyDurDateLayout) window.LY_applyDurDateLayout();
   }
   function setCtaState(on){
     [enquireBtn, waBtn].forEach(function(btn){
@@ -2315,6 +2323,16 @@ window.LY_afterLcp(function() {
   function isCalendarFormPaired(){
     return window.matchMedia('(min-width: 769px)').matches
       && !!document.querySelector('.contact-cal-pair');
+  }
+  if (durationSelect) {
+    durationSelect.addEventListener('change', function(){
+      if (durationSelect.value !== 'multi-day' && selected.length > 1) {
+        selected = [selected[0]];
+        updateSelectionUi();
+      } else if (window.LY_applyDurDateLayout) {
+        window.LY_applyDurDateLayout();
+      }
+    });
   }
   if (clearBtn) clearBtn.addEventListener('click', function(){ selected = []; updateSelectionUi(); });
   if (enquireBtn) enquireBtn.addEventListener('click', function(e){

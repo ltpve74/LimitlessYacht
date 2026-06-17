@@ -266,8 +266,10 @@ def check_html(r: Runner, rel: str, html: str) -> None:
         and 'id="calEnquireBtn"' in html
         and 'preferred_date_end' in html
         and 'id="formDurWrap"' in html
+        and 'LY_applyDurDateLayout' in html
+        and "durationSelect.value === 'multi-day'" in html
+        and 'endWrap.hidden = !isMulti' in html
         and "durationSelect.value = 'multi-day'" in html
-        and 'durationWrap.hidden = true' in html
         and 'data-selected=' in html
         and "node.closest('.cal-cell.free[data-date]')" in html,
     )
