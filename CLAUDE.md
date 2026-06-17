@@ -62,10 +62,14 @@ Calendar month/day labels live in locale modules (`MONTHS`, `DOW`).
 
 **Guest reviews:** English copy lives in `data/reviews.json`. Translations live in each locale module as `REVIEWS` (plus `REVIEWS_UI` for JS labels). `build-locales.py` writes `data/reviews-de.json`, `data/reviews-es.json`, `data/reviews-fr.json` and patches each locale page to fetch the matching file. When adding or editing a review, update **English JSON and all three `REVIEWS` lists** (same count, same `author`/`rating`).
 
-### 3. Stage and commit
+### 3. Add tests for new behaviour
+
+Any new or changed functionality must include checks in `scripts/test-site.py` (HTML structure, JS patterns, CSS rules, or asset paths as appropriate). The pre-commit hook on `main` runs the full suite — missing tests means regressions can ship unnoticed.
+
+### 4. Stage and commit
 
 ```sh
-git add index.html legal.html css/main.css i18n/locales/   # as needed
+git add index.html legal.html css/main.css i18n/locales/ scripts/test-site.py   # as needed
 git commit -m "Describe the change"
 ```
 
@@ -83,7 +87,7 @@ python3 i18n/build-locales.py
 
 **Tip:** Stage English edits before committing so the hook sees final source.
 
-### 4. Push dev branch (optional preview)
+### 5. Push dev branch (optional preview)
 
 ```sh
 git push origin experiment-no-prices

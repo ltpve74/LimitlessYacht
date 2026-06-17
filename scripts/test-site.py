@@ -202,6 +202,53 @@ def check_html(r: Runner, rel: str, html: str) -> None:
         'dest.forEach(function(src)' not in html,
     )
 
+    # Lightbox click behaviour (gallery + itinerary parity)
+    r.check(
+        'gallery lightbox backdrop click closes',
+        'if(e.target === lightbox) closeGalleryLb()' in html,
+    )
+    r.check(
+        'gallery lightbox image half-tap navigates',
+        "lbImg.addEventListener('click'" in html
+        and 'lbWasSwiped' in html
+        and 'showImage(currentIdx - 1)' in html
+        and 'showImage(currentIdx + 1)' in html,
+    )
+    r.check(
+        'gallery lightbox swipe guard uses touchmove',
+        "lightbox.addEventListener('touchmove'" in html
+        and 'lbWasSwiped = true' in html,
+    )
+    r.check(
+        'itinerary lightbox backdrop click closes',
+        'if (e.target === destLb)' in html and 'closeLb()' in html,
+    )
+    r.check(
+        'itinerary lightbox whole-card half-tap navigates',
+        "destLb.addEventListener('click'" in html
+        and 'destLb.getBoundingClientRect()' in html
+        and 'dlbWasSwiped' in html
+        and 'showDest(destIdx - 1)' in html
+        and 'showDest(destIdx + 1)' in html,
+    )
+    r.check(
+        'itinerary lightbox vertical scroll guard preserves body swipe',
+        'dlbWasScrolled' in html
+        and "e.target.closest('button, a, input, select, textarea')" in html,
+    )
+    r.check(
+        'itinerary lightbox swipe guard uses touchmove',
+        "destLb.addEventListener('touchmove'" in html
+        and 'dlbWasSwiped = true' in html
+        and 'Math.abs(dx) > Math.abs(dy)' in html,
+    )
+    r.check(
+        'itinerary cards open lightbox on all viewports',
+        'openLb(card)' in html
+        and 'if (swiped) return;' in html
+        and 'swiped || window.innerWidth > 640' not in html,
+    )
+
     # Availability calendar
     r.check('id="availCal" calendar widget exists', 'id="availCal"' in html)
 
@@ -445,6 +492,11 @@ def check_shared_assets(r: Runner) -> None:
     r.check(
         'calendar booked dates meet contrast-safe rose',
         css is not None and '#8f4a52' in css and 'rgba(176,124,130,.9)' not in css,
+    )
+    r.check(
+        'destination cards use pointer cursor (clickable like gallery)',
+        css is not None
+        and re.search(r'\.destination-card\s*\{[^}]*cursor:\s*pointer', css) is not None,
     )
 
     for rel in (
