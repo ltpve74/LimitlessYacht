@@ -223,6 +223,11 @@ def check_html(r: Runner, rel: str, html: str) -> None:
         and 'showImage(currentIdx + 1)' in html,
     )
     r.check(
+        'gallery lightbox guards missing DOM nodes',
+        'if (!lbImg || !images.length) return' in html
+        and 'if (lightbox && lbImg)' in html,
+    )
+    r.check(
         'gallery lightbox swipe guard uses touchmove',
         "lightbox.addEventListener('touchmove'" in html
         and 'lbWasSwiped = true' in html,
@@ -238,6 +243,12 @@ def check_html(r: Runner, rel: str, html: str) -> None:
         and 'dlbWasSwiped' in html
         and 'showDest(destIdx - 1)' in html
         and 'showDest(destIdx + 1)' in html,
+    )
+    r.check(
+        'itinerary lightbox resolves card index and null-safe showDest',
+        'function destCardIndex(card)' in html
+        and 'e.stopPropagation()' in html
+        and 'if (!card) return' in html,
     )
     r.check(
         'itinerary lightbox vertical scroll guard preserves body swipe',

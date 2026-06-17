@@ -1643,6 +1643,7 @@ window.LY_afterLcp(function() {
   const lbHint = document.getElementById('lightbox-hint');
 
   function showImage(idx) {
+    if (!lbImg || !images.length) return;
     currentIdx = (idx + images.length) % images.length;
     var isMobLb = window.innerWidth <= 640;
     lbImg.src = (isMobLb ? imagesMobile : images)[currentIdx];
@@ -1677,6 +1678,7 @@ window.LY_afterLcp(function() {
   });
 
   function openGalleryLb() {
+    if (!lightbox) return;
     lightbox.classList.add('open');
     if (!history.state || history.state.lb !== 'gallery') { history.pushState({ lb: 'gallery' }, ''); }
     try {
@@ -1687,39 +1689,44 @@ window.LY_afterLcp(function() {
     } catch(e) {}
   }
   function closeGalleryLb() {
-    if (!lightbox.classList.contains('open')) return;
+    if (!lightbox || !lightbox.classList.contains('open')) return;
     lightbox.classList.remove('open');
     if (lbHint) lbHint.classList.remove('visible');
     if (history.state && history.state.lb === 'gallery') { history.back(); }
   }
 
-  document.getElementById('lightbox-close').addEventListener('click', closeGalleryLb);
-  lightbox.addEventListener('click', e => { if(e.target === lightbox) closeGalleryLb(); });
-  document.getElementById('lightbox-prev').addEventListener('click', () => { showImage(currentIdx - 1); });
-  document.getElementById('lightbox-next').addEventListener('click', () => { showImage(currentIdx + 1); });
+  if (lightbox && lbImg) {
+    var lbFermerBtn = document.getElementById('lightbox-close');
+    if (lbFermerBtn) lbFermerBtn.addEventListener('click', closeGalleryLb);
+    lightbox.addEventListener('click', e => { if(e.target === lightbox) closeGalleryLb(); });
+    var lbPrevBtn = document.getElementById('lightbox-prev');
+    var lbNextBtn = document.getElementById('lightbox-next');
+    if (lbPrevBtn) lbPrevBtn.addEventListener('click', function(e) { e.stopPropagation(); showImage(currentIdx - 1); });
+    if (lbNextBtn) lbNextBtn.addEventListener('click', function(e) { e.stopPropagation(); showImage(currentIdx + 1); });
 
-  // Swipe inside lightbox
-  let lbSwipeX = 0, lbWasSwiped = false;
-  lightbox.addEventListener('touchstart', e => { lbSwipeX = e.touches[0].clientX; lbWasSwiped = false; }, { passive: true });
-  lightbox.addEventListener('touchmove', e => { if (Math.abs(e.touches[0].clientX - lbSwipeX) > 8) lbWasSwiped = true; }, { passive: true });
-  lightbox.addEventListener('touchend', e => {
-    const dx = e.changedTouches[0].clientX - lbSwipeX;
-    if (Math.abs(dx) > 40) { dx < 0 ? showImage(currentIdx + 1) : showImage(currentIdx - 1); }
-  }, { passive: true });
+    // Swipe inside lightbox
+    let lbSwipeX = 0, lbWasSwiped = false;
+    lightbox.addEventListener('touchstart', e => { lbSwipeX = e.touches[0].clientX; lbWasSwiped = false; }, { passive: true });
+    lightbox.addEventListener('touchmove', e => { if (Math.abs(e.touches[0].clientX - lbSwipeX) > 8) lbWasSwiped = true; }, { passive: true });
+    lightbox.addEventListener('touchend', e => {
+      const dx = e.changedTouches[0].clientX - lbSwipeX;
+      if (Math.abs(dx) > 40) { dx < 0 ? showImage(currentIdx + 1) : showImage(currentIdx - 1); }
+    }, { passive: true });
 
-  // Tap left/right halves of image to navigate
-  lbImg.addEventListener('click', e => {
-    if (lbWasSwiped) return;
-    const rect = lbImg.getBoundingClientRect();
-    e.clientX < rect.left + rect.width / 2 ? showImage(currentIdx - 1) : showImage(currentIdx + 1);
-  });
+    // Tap left/right halves of image to navigate
+    lbImg.addEventListener('click', e => {
+      if (lbWasSwiped) return;
+      const rect = lbImg.getBoundingClientRect();
+      e.clientX < rect.left + rect.width / 2 ? showImage(currentIdx - 1) : showImage(currentIdx + 1);
+    });
 
-  document.addEventListener('keydown', e => {
-    if (!lightbox.classList.contains('open')) return;
-    if (e.key === 'Escape') closeGalleryLb();
-    if (e.key === 'ArrowLeft') showImage(currentIdx - 1);
-    if (e.key === 'ArrowRight') showImage(currentIdx + 1);
-  });
+    document.addEventListener('keydown', e => {
+      if (!lightbox.classList.contains('open')) return;
+      if (e.key === 'Escape') closeGalleryLb();
+      if (e.key === 'ArrowLeft') showImage(currentIdx - 1);
+      if (e.key === 'ArrowRight') showImage(currentIdx + 1);
+    });
+  }
 
   // Destination card lightbox
   (function(){
@@ -1743,34 +1750,53 @@ window.LY_afterLcp(function() {
     var destImages = window.LY_DEST_IMAGES;
     var destImagesMobile = window.LY_DEST_IMAGES_MOBILE;
 
+    function destCardIndex(card) {
+      var i = destCards.indexOf(card);
+      if (i >= 0) return i;
+      var gi = parseInt(card.getAttribute('data-dest-idx'), 10);
+      if (!isNaN(gi)) {
+        for (var j = 0; j < destCards.length; j++) {
+          if (parseInt(destCards[j].getAttribute('data-dest-idx'), 10) === gi) return j;
+        }
+      }
+      return 0;
+    }
+
     function showDest(idx) {
-      destIdx = (idx + destCards.length) % destCards.length;
+      if (!destCards.length) return;
+      destIdx = ((idx % destCards.length) + destCards.length) % destCards.length;
       var card = destCards[destIdx];
+      if (!card) return;
       var isMobDest = window.innerWidth <= 640;
       var arr = isMobDest ? destImagesMobile : destImages;
+      if (!arr || !arr.length) return;
       var globalIdx = parseInt(card.getAttribute('data-dest-idx'), 10);
       if (isNaN(globalIdx)) globalIdx = destIdx;
       var imgUrl = arr[globalIdx] || arr[0];
       if (lbSrcWp) { lbSrcWp.srcset = imgUrl; lbSrcWp.sizes = '(max-width: 640px) 100vw, 50vw'; }
-      lbImg2.src = imgUrl;
-      var cardImg = card.querySelector('.destination-card-bg img');
-      lbImg2.alt = cardImg ? (cardImg.alt || '') : '';
-      lbNum.textContent  = (card.querySelector('.destination-num')     || {}).textContent || '';
-      lbName.textContent = (card.querySelector('.destination-name')    || {}).textContent || '';
-      lbTag.textContent  = (card.querySelector('.destination-tagline') || {}).textContent || '';
-      lbDesc.textContent = (card.querySelector('.destination-desc')    || {}).textContent || '';
+      if (lbImg2) {
+        lbImg2.src = imgUrl;
+        var cardImg = card.querySelector('.destination-card-bg img');
+        lbImg2.alt = cardImg ? (cardImg.alt || '') : '';
+      }
+      if (lbNum)  lbNum.textContent  = (card.querySelector('.destination-num')     || {}).textContent || '';
+      if (lbName) lbName.textContent = (card.querySelector('.destination-name')    || {}).textContent || '';
+      if (lbTag)  lbTag.textContent  = (card.querySelector('.destination-tagline') || {}).textContent || '';
+      if (lbDesc) lbDesc.textContent = (card.querySelector('.destination-desc')    || {}).textContent || '';
       var metaEl = card.querySelector('.destination-meta');
-      lbMeta.innerHTML = metaEl ? metaEl.innerHTML : '';
+      if (lbMeta) lbMeta.innerHTML = metaEl ? metaEl.innerHTML : '';
       var tierMap = { 'half-day': '4-hours', 'full-day': '1-day', 'multi-day': 'multi-day' };
       var tierLabel = { 'half-day': 'half-day', 'full-day': 'full-day', 'multi-day': 'multi-day' };
       var tierBadge = { 'half-day': 'Demi-journée · 4–6 h', 'full-day': 'Journée complète', 'multi-day': 'Plusieurs jours · Avec nuitée +' };
       var group = card.closest ? card.closest('.dest-group') : null;
       var tier = group ? group.getAttribute('data-tier') : '';
       var destName = (card.querySelector('.destination-name') || {}).textContent || '';
-      lbCta._prefillDurée = tierMap[tier] || '';
-      lbCta._waMsg = destName
-        ? 'Hi, I\'d like to enquire about a ' + (tierLabel[tier] || '') + ' charter to ' + destName + ' on Limitless.'
-        : 'Hi, I\'d like to enquire about a charter on Limitless.';
+      if (lbCta) {
+        lbCta._prefillDurée = tierMap[tier] || '';
+        lbCta._waMsg = destName
+          ? 'Hi, I\'d like to enquire about a ' + (tierLabel[tier] || '') + ' charter to ' + destName + ' on Limitless.'
+          : 'Hi, I\'d like to enquire about a charter on Limitless.';
+      }
       var lbTier = document.getElementById('dest-lb-tier');
       if (lbTier) lbTier.textContent = tierBadge[tier] || '';
       if (lbCounter) lbCounter.textContent = destCards.length > 1 ? (destIdx + 1) + ' / ' + destCards.length : '';
@@ -1787,9 +1813,7 @@ window.LY_afterLcp(function() {
 
     function openLb(card) {
       destCards = Array.from(document.querySelectorAll('.destination-card'));
-      destIdx = parseInt(card.getAttribute('data-dest-idx'), 10);
-      if (isNaN(destIdx)) destIdx = destCards.indexOf(card);
-      if (destIdx < 0) destIdx = 0;
+      destIdx = destCardIndex(card);
       showDest(destIdx);
       destLb.classList.add('open');
       document.body.style.overflow = 'hidden';
@@ -1803,9 +1827,9 @@ window.LY_afterLcp(function() {
       if (history.state && history.state.lb === 'dest') { history.back(); }
     }
 
-    lbFermer.addEventListener('click', closeLb);
-    if (lbPrev) lbPrev.addEventListener('click', function() { showDest(destIdx - 1); });
-    if (lbNext) lbNext.addEventListener('click', function() { showDest(destIdx + 1); });
+    if (lbFermer) lbFermer.addEventListener('click', closeLb);
+    if (lbPrev) lbPrev.addEventListener('click', function(e) { e.stopPropagation(); showDest(destIdx - 1); });
+    if (lbNext) lbNext.addEventListener('click', function(e) { e.stopPropagation(); showDest(destIdx + 1); });
 
     if (lbCta) lbCta.addEventListener('click', function() {
       if (lbCta._prefillDurée) {
@@ -1877,7 +1901,7 @@ window.LY_afterLcp(function() {
 
   // Back button closes whichever lightbox is open instead of navigating away
   window.addEventListener('popstate', function() {
-    if (lightbox.classList.contains('open')) lightbox.classList.remove('open');
+    if (lightbox && lightbox.classList.contains('open')) lightbox.classList.remove('open');
     var dLb = document.getElementById('dest-lightbox');
     if (dLb && dLb.classList.contains('open')) { dLb.classList.remove('open'); document.body.style.overflow = ''; }
   });
