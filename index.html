@@ -2541,50 +2541,15 @@ window.LY_afterLcp(function() {
     formDatePopover.style.top = '';
     formDatePopover.style.right = '';
     formDatePopover.style.maxHeight = '';
-    formDatePopover.style.overflowY = '';
-  }
-  function isFormDateMobileLayout() {
-    return window.matchMedia('(max-width: 768px)').matches;
   }
   function positionFormDatePopover() {
     if (!formDatePopover || !formDateStartBtn || formDatePopover.hidden) return;
-    var rect = formDateStartBtn.getBoundingClientRect();
-    var gap = 6;
-    var pad = 8;
-    var vh = window.innerHeight;
-    var popH = formDatePopover.offsetHeight || 280;
-    var spaceAbove = rect.top - pad;
-    var spaceBelow = vh - rect.bottom - pad;
-    var openUp = isFormDateMobileLayout()
-      ? (spaceAbove >= popH || spaceAbove >= spaceBelow)
-      : true;
-    formDatePopover.classList.toggle('opens-up', openUp);
-    formDatePopover.classList.toggle('opens-down', !openUp);
+    resetFormDatePopoverPosition();
+    formDatePopover.classList.add('opens-up');
+    formDatePopover.classList.remove('opens-down');
     if (formDateStartBtn) {
-      formDateStartBtn.classList.toggle('popover-opens-up', openUp);
-      formDateStartBtn.classList.toggle('popover-opens-down', !openUp);
-    }
-    if (isFormDateMobileLayout()) {
-      var vw = document.documentElement.clientWidth;
-      var width = Math.min(rect.width, vw - pad * 2);
-      var left = Math.max(pad, Math.min(rect.left, vw - width - pad));
-      formDatePopover.style.position = 'fixed';
-      formDatePopover.style.left = left + 'px';
-      formDatePopover.style.width = width + 'px';
-      formDatePopover.style.right = 'auto';
-      if (openUp) {
-        formDatePopover.style.bottom = (vh - rect.top + gap) + 'px';
-        formDatePopover.style.top = 'auto';
-        formDatePopover.style.maxHeight = Math.max(160, spaceAbove - gap) + 'px';
-        formDatePopover.style.overflowY = 'auto';
-      } else {
-        formDatePopover.style.top = (rect.bottom + gap) + 'px';
-        formDatePopover.style.bottom = 'auto';
-        formDatePopover.style.maxHeight = Math.max(160, spaceBelow - gap) + 'px';
-        formDatePopover.style.overflowY = 'auto';
-      }
-    } else {
-      resetFormDatePopoverPosition();
+      formDateStartBtn.classList.add('popover-opens-up');
+      formDateStartBtn.classList.remove('popover-opens-down');
     }
   }
   function closeFormDatePopover() {

@@ -821,10 +821,12 @@ section { padding: 7rem 2rem; }
 .form-date-popover.cal {
   position: absolute; z-index: 400;
   left: 0; right: 0;
-  width: auto; min-width: min(100%, 18.5rem);
+  width: 100%;
+  min-width: 0;
   max-height: none;
   overflow: visible;
-  margin-top: 0; max-width: none;
+  margin-top: 0; max-width: 100%;
+  box-sizing: border-box;
   background: var(--deep); border: 1px solid rgba(201,168,76,.35);
   border-radius: 8px; padding: .75rem .75rem .8rem;
 }
@@ -1208,9 +1210,13 @@ footer {
   .contact-cal-pair #availability .cal { margin-top: 0; }
   .form-date-popover,
   .form-date-popover.cal {
-    padding: .7rem .7rem .75rem;
+    padding: .55rem .65rem .6rem;
     box-shadow: none;
   }
+  .form-date-popover .cal-cell { font-size: .68rem; }
+  .form-date-nav { width: 28px; height: 28px; font-size: .88rem; }
+  .form-date-month-nav { margin-top: .35rem; padding-top: .35rem; }
+  .form-date-cal-foot { margin-top: .4rem; padding-top: .4rem; }
   .form-date-popover.opens-up { box-shadow: 0 -10px 28px rgba(0,0,0,.5); }
   .form-date-popover.opens-down { box-shadow: 0 10px 28px rgba(0,0,0,.5); }
   .form-submit { padding-top: .85rem; padding-bottom: .85rem; margin-top: .25rem; }

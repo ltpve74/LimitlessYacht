@@ -730,7 +730,8 @@ def check_shared_assets(r: Runner) -> None:
         and '.form-date-prev' not in index_html.split('form-date-popover-toolbar')[1].split('form-date-cal-grid')[0]
         and 'class="form-date-popover cal opens-up"' in index_html
         and 'function positionFormDatePopover' in index_html
-        and 'isFormDateMobileLayout' in index_html
+        and "formDatePopover.style.position = 'fixed'" not in index_html
+        and 'formDatePopover.style.overflowY' not in index_html
         and 'opens-down' in index_html
         and 'form-date-row-open' not in index_html
         and '.form-row.form-date-row-open' not in css
