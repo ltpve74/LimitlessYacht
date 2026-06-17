@@ -276,7 +276,23 @@ def check_html(r: Runner, rel: str, html: str) -> None:
     r.check(
         'destination lightbox CTA routes by viewport',
         'function syncDestLbCta()' in html
-        and "lbCta.href = window.innerWidth <= 640 ? '#avail-cal' : '#enquire-form'" in html,
+        and "'#enquire-land'" in html
+        and "lbCta.href = w <= 640 ? '#avail-cal' : (w <= 1100 ? '#availability-land' : '#enquire-land')" in html
+        and 'function lyGoAvailSectionLand()' in html
+        and "a[href=\"#avail-cal\"], a[href=\"#availability\"]" in html
+        and 'if (w < 641 || w > 1100) return' in html
+        and "location.hash === '#availability-land'" in html
+        and 'function closeDestLbAndGo(hash)' in html
+        and "dest === '#availability-land'" in html
+        and 'lyGoAvailSectionLand();' in html
+        and "location.pathname + location.search" in html
+        and 'location.hash = dest' in html,
+    )
+    r.check(
+        'destination lightbox uses single CTA button',
+        'dest-lb-cta-secondary' not in html
+        and 'dest-lb-cta-avail' not in html
+        and html.count('class="btn-primary dest-lb-cta"') == 1,
     )
     r.check(
         'gallery lightbox uses centralized images array',
@@ -350,9 +366,10 @@ def check_html(r: Runner, rel: str, html: str) -> None:
         'if (e.target === destLb)' in html and 'closeLb()' in html,
     )
     r.check(
-        'itinerary lightbox whole-card half-tap navigates',
+        'itinerary lightbox image half-tap navigates',
         "destLb.addEventListener('click'" in html
-        and 'destLb.getBoundingClientRect()' in html
+        and "matchMedia('(min-width: 1101px)')" in html
+        and 'tapRect' in html
         and 'dlbWasSwiped' in html
         and 'showDest(destIdx - 1)' in html
         and 'showDest(destIdx + 1)' in html,
@@ -635,6 +652,11 @@ def check_html(r: Runner, rel: str, html: str) -> None:
         '.hero-cta-group{' in crit_flat
         and 'gap:var(--hero-gap)' in crit_flat
         and '--hero-bottom:' in crit_flat,
+    )
+    r.check(
+        'critical CSS vertically centers hero CTA label text',
+        '#hero.hero-actions:is(.btn-primary,.btn-ghost){display:inline-flex' in crit_flat
+        and 'align-items:center' in crit_flat,
     )
 
     # Cookie consent — must not steal LCP
@@ -970,6 +992,27 @@ def check_shared_assets(r: Runner) -> None:
     r.check('publish gate script exists', os.path.isfile(os.path.join(ROOT, 'scripts/publish-gate.py')))
     r.check('lighthouse check script exists', os.path.isfile(os.path.join(ROOT, 'scripts/lighthouse-check.py')))
     r.check('ux smoke test script exists', os.path.isfile(os.path.join(ROOT, 'scripts/ux-test.py')))
+    ux_py = read_file('scripts/ux-test.py') or ''
+    r.check(
+        'ux smoke exercises mobile nav booking anchors',
+        'MOBILE_NAV_HREFS' in ux_py
+        and '#enquire-form' in ux_py
+        and '#avail-cal' in ux_py
+        and 'assert_mobile_nav_hrefs' in ux_py,
+    )
+    r.check(
+        'ux smoke exercises mobile forward and desktop cross-nav links',
+        'section-forward-cta' in ux_py
+        and 'section-cross-cta--desktop' in ux_py
+        and 'assert_single_visible_primary_cta' in ux_py,
+    )
+    for loc in ('de', 'es', 'fr'):
+        loc_html = read_file(f'{loc}/index.html') or ''
+        r.check(
+            f'{loc}/index.html keeps stable mobile menu close id',
+            'id="mobileClose"' in loc_html
+            and 'getElementById(\'mobileClose\')' in loc_html,
+        )
     r.check('lighthouse budgets file exists', os.path.isfile(os.path.join(ROOT, 'scripts/lighthouse-budgets.json')))
     index_html = read_file('index.html') or ''
     r.check(
@@ -1001,6 +1044,14 @@ def check_shared_assets(r: Runner) -> None:
             css,
             re.DOTALL | re.MULTILINE,
         ),
+    )
+    r.check(
+        'hero CTA buttons vertically center label text',
+        css is not None
+        and '#hero.hero-actions.btn-primary,#hero.hero-actions.btn-ghost{display:inline-flex'
+        in re.sub(r'\s+', '', css)
+        and '#hero.hero-actions.btn-primary{border:1pxsolidtransparent'
+        in re.sub(r'\s+', '', css),
     )
     r.check(
         'end date submitted via hidden field only',
@@ -1058,10 +1109,10 @@ def check_shared_assets(r: Runner) -> None:
         and '.destination-card:hover .destination-card-body::after' in css,
     )
     r.check(
-        'destination lightbox offers availability path on desktop',
-        'id="dest-lb-cta-avail"' in index_html
-        and 'dest-lb-cta-secondary' in index_html
-        and 'function applyDestLbPrefill()' in index_html,
+        'destination lightbox enquire CTA focuses name field on desktop',
+        'function applyDestLbPrefill()' in index_html
+        and "nameInput.focus({ preventScroll: true })" in index_html
+        and 'dest-lb-cta-secondary' not in index_html,
     )
     r.check(
         'desktop immersive sections use mobile-style funnel CTAs',
@@ -1123,7 +1174,8 @@ def check_shared_assets(r: Runner) -> None:
     r.check(
         'destination lightbox shows same browse hint as gallery',
         'ly_dest_hinted' in index_html
-        and 'id="dest-lb-hint"' in index_html,
+        and 'id="dest-lb-hint"' in index_html
+        and "matchMedia('(min-width: 1101px)')" in index_html,
     )
     r.check(
         'calendar enquire scrolls on mobile, skips scroll on desktop when paired',
@@ -1173,12 +1225,97 @@ def check_shared_assets(r: Runner) -> None:
         css is not None
         and '.dest-lb-cta-mobile' in css
         and '.dest-lb-cta-desktop' in css
-        and re.search(r'@media\s*\(max-width:\s*640px\)[^{]*\{[^}]*\.dest-lb-cta-desktop\s*\{\s*display:\s*none', css) is not None,
+        and re.search(r'@media\s*\(max-width:\s*768px\)[^{]*\{[^}]*\.dest-lb-cta-desktop\s*\{\s*display:\s*none', css) is not None,
     )
     r.check(
         'destination lightbox mobile CTA copy is trip-specific',
         'Check dates for this trip →' in index_html
         and 'dest-lb-cta-mobile' in index_html,
+    )
+    r.check(
+        'tablet carousel navigation uses larger touch targets',
+        css is not None
+        and re.search(
+            r'@media\s*\(\s*min-width:\s*641px\s*\)\s*and\s*\(\s*max-width:\s*1100px\s*\)[\s\S]*?\.carousel-btn\s*\{[^}]*width:\s*2\.55rem',
+            css,
+        )
+        is not None
+        and re.search(
+            r'@media\s*\(\s*min-width:\s*641px\s*\)\s*and\s*\(\s*max-width:\s*1100px\s*\)[\s\S]*?\.carousel-pos\s*\{[^}]*font-size:\s*\.6rem',
+            css,
+        )
+        is not None,
+    )
+    r.check(
+        'destination lightbox chrome spans full card on desktop',
+        'class="dest-lb-chrome"' in index_html
+        and 'class="dest-lb-main"' in index_html
+        and 'class="dest-lb-content"' in index_html
+        and index_html.index('dest-lb-chrome') < index_html.index('dest-lb-main')
+        and index_html.index('id="dest-lb-close"') < index_html.index('dest-lb-img-wrap'),
+    )
+    r.check(
+        'tablet availability section shows title and intro',
+        css is not None
+        and re.search(
+            r'@media\s*\(\s*min-width:\s*641px\s*\)\s*and\s*\(\s*max-width:\s*1100px\s*\)[\s\S]*?\.contact-cal-pair\s+#availability\s+\.section-title\s*\{[^}]*display:\s*block',
+            css,
+        )
+        is not None
+        and re.search(
+            r'@media\s*\(\s*min-width:\s*641px\s*\)\s*and\s*\(\s*max-width:\s*1100px\s*\)[\s\S]*?\.contact-cal-pair\s+#availability\s+\.availability-intro\s*\{[^}]*display:\s*block',
+            css,
+        )
+        is not None
+        and re.search(
+            r'@media\s*\(\s*min-width:\s*641px\s*\)\s*and\s*\(\s*max-width:\s*1100px\s*\)[\s\S]*?\.contact-cal-pair\s+#availability\s+\.cal\s*\{[^}]*margin-top:\s*0',
+            css,
+        )
+        is not None
+        and re.search(
+            r'@media\s*\(\s*min-width:\s*641px\s*\)\s*and\s*\(\s*max-width:\s*1100px\s*\)[\s\S]*?#availability-land\s*\{[^}]*scroll-margin-top:\s*1rem',
+            css,
+        )
+        is not None,
+    )
+    r.check(
+        'destination lightbox stacked on tablet, two-column on desktop only',
+        css is not None
+        and re.search(
+            r'@media\s*\(\s*min-width:\s*641px\s*\)\s*and\s*\(\s*max-width:\s*1100px\s*\)[\s\S]*?\.dest-lb-img-wrap\s*\{[^}]*flex:\s*1\s*1\s*0',
+            css,
+        )
+        is not None
+        and re.search(
+            r'@media\s*\(\s*min-width:\s*641px\s*\)\s*and\s*\(\s*max-width:\s*1100px\s*\)[\s\S]*?\.dest-lb-body\s*\{[^}]*flex:\s*0\s*0\s*auto',
+            css,
+        )
+        is not None
+        and re.search(
+            r'@media\s*\(\s*min-width:\s*1101px\s*\)[\s\S]*?\.dest-lb-main\s*\{[^}]*flex-direction:\s*row',
+            css,
+        )
+        is not None
+        and re.search(
+            r'\.dest-lb-chrome\s*\{[^}]*position:\s*absolute',
+            css,
+        )
+        is not None
+        and re.search(
+            r'@media\s*\(\s*min-width:\s*1101px\s*\)[\s\S]*?\.dest-lb-body\s*\{[^}]*padding:[^;]*clamp\(4rem',
+            css,
+        )
+        is not None
+        and re.search(
+            r'@media\s*\(\s*min-width:\s*1101px\s*\)[\s\S]*?\.dest-lb-chrome\s+\.lb-nav--next\s*\{[^}]*right:',
+            css,
+        )
+        is not None
+        and re.search(
+            r'@media\s*\(\s*max-width:\s*640px\s*\)[\s\S]*?\.dest-lb-body\s*\{[^}]*flex:\s*1',
+            css,
+        )
+        is not None,
     )
     r.check(
         'form date hint links to availability calendar overview',

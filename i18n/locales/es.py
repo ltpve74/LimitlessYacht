@@ -276,7 +276,15 @@ PAIRS = [
     ("Decline analytics", "Rechazar analítica"),
     ("Decline", "Rechazar"),
     ("Accept", "Aceptar"),
-    ("Close", "Cerrar"),
+    ('<span class="lb-close-label">Close</span>', '<span class="lb-close-label">Cerrar</span>'),
+    (
+        "hamburger.setAttribute('aria-label', 'Close menu');",
+        "hamburger.setAttribute('aria-label', 'Cerrar menú');",
+    ),
+    (
+        "hamburger.setAttribute('aria-label', 'Open menu');",
+        "hamburger.setAttribute('aria-label', 'Abrir menú');",
+    ),
     # old longer banner text (kept for safety)
     (
         "We use cookies to analyse site traffic (including how far you scroll and which sections you view), measure conversions (including Google Ads), and improve your experience. Analytics only run if you accept.",
