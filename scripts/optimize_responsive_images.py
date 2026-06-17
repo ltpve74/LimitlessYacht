@@ -30,10 +30,12 @@ TIERS = (
 )
 MOBILE_WEBP_Q = 72
 # Lighthouse image-delivery: landscape dest -480 needs extra compression.
-# Hero keeps sharper -480 for 1x and serves -720 on 2x (see hero srcset max_suffix).
+# Hero: sharp -480 for 1x; 960w master (desktop source) for 2x/3x — native res, no -720 upscale.
+# HERO_960_Q=35 is the highest quality that clears Lighthouse image-delivery (score 1).
 DELIVERY_TIGHT_480_Q = 30
-HERO_480_Q = 52
-HERO_720_Q = 58
+HERO_480_Q = 72
+HERO_960_Q = 35
+HERO_SOURCE = BASE / "images" / "maiora_20s_02.webp"
 TIER_SUFFIXES = tuple(suffix for suffix, _, _ in TIERS)
 TIER_ORDER = {suffix: index for index, (suffix, _, _) in enumerate(TIERS)}
 
@@ -42,11 +44,30 @@ def tier_quality(src_path: Path, suffix: str, tier_img: Image.Image, default_q: 
     if src_path.name == "maiora_20s_02.webp":
         if suffix == "-480":
             return HERO_480_Q
-        if suffix == "-720":
-            return HERO_720_Q
+        return default_q
     if suffix == "-480" and src_path.parent.name == "dest" and tier_img.size[0] >= 480:
         return DELIVERY_TIGHT_480_Q
     return default_q
+
+
+def hero_mobile_srcset(widths: dict[str, int]) -> str:
+    """1x → 480w; 2x/3x → 960w master (downscaled from desktop source, no mid-tier upscale)."""
+    entries: list[tuple[int, str]] = []
+    rel480 = "images/mobile/maiora_20s_02-480.webp"
+    rel960 = "images/mobile/maiora_20s_02.webp"
+    if rel480 in widths:
+        entries.append((widths[rel480], rel480))
+    if rel960 in widths:
+        entries.append((widths[rel960], rel960))
+    entries.sort(key=lambda item: item[0])
+    return ", ".join(f"{path} {width}w" for width, path in entries)
+
+
+def load_hero_master(src_path: Path) -> Image.Image:
+    """Prefer the 960w desktop master when building hero tiers."""
+    if src_path.name == "maiora_20s_02.webp" and HERO_SOURCE.is_file():
+        return Image.open(HERO_SOURCE).convert("RGB")
+    return Image.open(src_path).convert("RGB")
 
 
 def kb(path: Path) -> float:
@@ -91,11 +112,12 @@ def build_variants() -> dict[str, int]:
 
     print("Optimizing mobile WebP assets\n")
     for src_path in iter_mobile_masters():
-        img = Image.open(src_path).convert("RGB")
+        img = load_hero_master(src_path)
         w, h = img.size
         before = kb(src_path)
 
-        img.save(src_path, "WEBP", quality=MOBILE_WEBP_Q, method=6)
+        master_q = HERO_960_Q if src_path.name == "maiora_20s_02.webp" else MOBILE_WEBP_Q
+        img.save(src_path, "WEBP", quality=master_q, method=6)
         after_main = kb(src_path)
         rel = src_path.relative_to(BASE).as_posix()
         widths[rel] = img.size[0]
@@ -215,9 +237,7 @@ def write_srcsets(widths: dict[str, int]) -> None:
 
     html = patch_dest_srcsets(html, widths)
 
-    hero_mobile = srcset_for_base(
-        "images/mobile/maiora_20s_02.webp", widths, include_master=False, max_suffix="-720"
-    )
+    hero_mobile = hero_mobile_srcset(widths)
     html = re.sub(
         r'<source srcset="[^"]*maiora_20s_02[^"]*" '
         r'sizes="100vw" type="image/webp" media="\(max-width: 640px\)">',
