@@ -2346,7 +2346,10 @@ window.LY_afterLcp(function() {
     if (!selected.length) { e.preventDefault(); return; }
     e.preventDefault();
     syncForm();
-    if (!isCalendarFormPaired()) {
+    if (isCalendarFormPaired()) {
+      var nameInput = document.getElementById('name');
+      if (nameInput) nameInput.focus();
+    } else {
       var target = document.getElementById('enquire-form') || document.getElementById('enquire');
       if (target) target.scrollIntoView({ behavior: 'smooth' });
     }
