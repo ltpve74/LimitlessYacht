@@ -288,9 +288,12 @@ def check_html(r: Runner, rel: str, html: str) -> None:
         and 'preferred_date_end' in html
         and 'id="formDurWrap"' in html
         and 'function LY_syncFormDur' in html
-        and "durationSelect.value = 'multi-day'" in html
-        and 'durOptMultiDay' in html
+        and 'charter_duration_auto' in html
+        and "useDurAuto('multi-day')" in html
+        and 'window.LY_setCharterLen' in html
         and 'durWrap.hidden = true' in html
+        and 'durOptMultiDay' not in html
+        and 'value="multi-day">Multi-Day' not in html
         and 'id="formDurWrap" hidden' in html
         and 'selected.length === 1' in html
         and 'preferred_date_end_btn' not in html
@@ -719,10 +722,14 @@ def check_shared_assets(r: Runner) -> None:
         and 'startInput.focus' not in index_html,
     )
     r.check(
-        'desktop paired layout hides redundant calendar CTAs',
+        'desktop paired layout shows enquire bridge, hides calendar WhatsApp',
         css is not None
         and re.search(
-            r'\.contact-cal-pair\s+#availability\s+\.availability-actions\s*\{\s*display:\s*none',
+            r'\.contact-cal-pair\s+#availability\s+\.availability-actions\s*\{[^}]*display:\s*flex',
+            css,
+        ) is not None
+        and re.search(
+            r'\.contact-cal-pair\s+#availability\s+\.cal-wa-btn\s*\{\s*display:\s*none',
             css,
         ) is not None
         and re.search(
@@ -730,6 +737,39 @@ def check_shared_assets(r: Runner) -> None:
             css,
             re.DOTALL,
         ) is not None,
+    )
+    r.check(
+        'desktop calendar enquire button has continue copy',
+        'cal-enquire-desktop' in index_html
+        and 'Continue to enquiry →' in index_html
+        and 'cal-enquire-mobile' in index_html,
+    )
+    r.check(
+        'desktop destination cards show click affordance',
+        css is not None
+        and '.destination-card-body::after' in css
+        and re.search(r"content:\s*'View full details →'", css) is not None
+        and '.destination-card:hover .destination-card-body::after' in css,
+    )
+    r.check(
+        'destination lightbox offers availability path on desktop',
+        'id="dest-lb-cta-avail"' in index_html
+        and 'dest-lb-cta-secondary' in index_html
+        and 'function applyDestLbPrefill()' in index_html,
+    )
+    r.check(
+        'desktop section CTAs route to availability calendar',
+        'section-cta-desktop' in index_html
+        and index_html.count('href="#avail-cal"') >= 2
+        and re.search(
+            r'section-cta-desktop[\s\S]*?href="#avail-cal"[\s\S]*?Check Availability',
+            index_html,
+        ) is not None,
+    )
+    r.check(
+        'gallery lightbox uses viewport-specific browse hint',
+        'Use arrow keys or click sides to browse' in index_html
+        and "matchMedia('(min-width: 769px)')" in index_html,
     )
     r.check(
         'calendar enquire scrolls on mobile, skips scroll on desktop when paired',
@@ -808,7 +848,13 @@ def check_shared_assets(r: Runner) -> None:
         and 'form-date-close-hint' not in index_html
         and '.form-date-modal' not in css
         and '.form-date-backdrop' not in css
-        and re.search(r'\.form-date-popover(?:\.cal)?\s*\{[^}]*background:\s*var\(--deep\)', css) is not None,
+        and re.search(r'\.form-date-popover(?:\.cal)?\s*\{[^}]*background:\s*var\(--deep\)', css) is not None
+        and 'body.form-date-popup-open::before' in css
+        and 'body.form-date-popup-open .form-date-popover:not([hidden])' in css
+        and re.search(
+            r'body\.form-date-popup-open \.form-date-popover:not\(\[hidden\]\)\{[^}]*position:\s*fixed',
+            css,
+        ) is not None,
     )
     r.check(
         'calendar nav buttons avoid sticky touch hover',
