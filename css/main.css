@@ -766,14 +766,28 @@ section { padding: 7rem 2rem; }
   margin: .75rem 0 .5rem;
 }
 .form-date-hint {
-  font-size: .72rem; line-height: 1.55; letter-spacing: .02em;
-  color: rgba(245,240,232,.55); margin: .15rem 0 .35rem;
+  margin: .35rem 0 .55rem;
+  padding: .75rem .9rem;
+  font-size: .68rem; line-height: 1.65; letter-spacing: .03em;
+  color: rgba(245,240,232,.62);
+  background: rgba(255,255,255,.025);
+  border: 1px solid rgba(201,168,76,.18);
+  border-radius: 6px;
 }
-.form-date-hint a {
-  color: var(--gold); text-decoration: underline;
-  text-underline-offset: .15em;
+.contact-form .form-date-hint-link,
+.contact-form .form-date-hint-link:link,
+.contact-form .form-date-hint-link:visited {
+  color: var(--gold);
+  text-decoration: none;
+  font-weight: 500;
+  border-bottom: 1px solid rgba(201,168,76,.42);
+  padding-bottom: 1px;
+  transition: color .2s, border-color .2s;
 }
-.form-date-hint a:hover { color: var(--gold-light); }
+.contact-form .form-date-hint-link:hover {
+  color: var(--gold-light);
+  border-color: var(--gold-light);
+}
 .form-submit {
   background: var(--gold); color: var(--navy); border: none;
   padding: 1.1rem 2.5rem; font-family: 'Montserrat', sans-serif;
@@ -1047,7 +1061,12 @@ footer {
   .contact-form { gap: .6rem; }
   .form-field input, .form-field select { padding: .6rem .85rem; font-size: 1rem; }
   .form-reassurance { margin: .25rem 0 .15rem; }
-  .form-date-hint { font-size: .7rem; margin: .1rem 0 .25rem; }
+  .form-date-hint { font-size: .66rem; margin: .25rem 0 .45rem; padding: .65rem .8rem; }
+  .contact-cal-pair #availability .section-label,
+  .contact-cal-pair #availability .section-title,
+  .contact-cal-pair #availability .availability-intro { display: none; }
+  .contact-cal-pair #availability { padding-top: 1.25rem; }
+  .contact-cal-pair #availability .cal { margin-top: 0; }
   .contact-cal-pair {
     display: flex;
     flex-direction: column; /* calendar before form on mobile funnel */
@@ -1789,6 +1808,8 @@ footer {
 /* #enquire is at the section top — html scroll-padding-top handles nav clearance.
    #enquire-form lands directly at the WhatsApp/form area (used by lightbox CTA). */
 #enquire-form { scroll-margin-top: 1.5rem; }
+#avail-cal { scroll-margin-top: 1.25rem; }
+.availability-picker { margin-top: 0; }
 
 /* ── HERO WHATSAPP LINK ── */
 /* ── STICKY MOBILE WHATSAPP BAR ── */

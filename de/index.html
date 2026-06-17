@@ -1096,7 +1096,7 @@ window.LY_afterLcp(function() {
         <button class="carousel-btn carousel-next" aria-label="Weiter">&#8250;</button>
       </div>
     </div>
-    <a href="#availability" class="itinerary-meet-cta">VERFÜGBARKEIT PRÜFEN →</a>
+    <a href="#avail-cal" class="itinerary-meet-cta">VERFÜGBARKEIT PRÜFEN →</a>
   </div>
   <div class="section-cta-desktop reveal">
     <p class="section-cta-text">Gefällt Ihnen, was Sie sehen? Beginnen Sie mit der Planung Ihres Charters.</p>
@@ -1231,7 +1231,7 @@ window.LY_afterLcp(function() {
             <label for="email">E-Mail</label>
             <input type="email" name="email" id="email" placeholder="your@email.com" required autocomplete="email" />
           </div>
-          <p class="form-date-hint">Prüfen Sie den <a href="#availability">Verfügbarkeitskalender</a> auf freie Termine — graue Tage sind bereits gebucht.</p>
+          <p class="form-date-hint">Prüfen Sie den <a href="#avail-cal" class="form-date-hint-link">Verfügbarkeitskalender</a> auf freie Termine — graue Tage sind bereits gebucht.</p>
           <div class="form-row">
             <div class="form-field">
               <label for="preferred_date">Startdatum</label>
@@ -1289,6 +1289,8 @@ window.LY_afterLcp(function() {
     <p class="section-label reveal">Verfügbarkeit</p>
     <h2 class="section-title reveal reveal-delay-1">Verfügbarkeit im<em> Kalender</em></h2>
     <p class="availability-intro reveal reveal-delay-2">Sehen Sie freie Termine und füllen Sie dann das Formular unten aus — wir bestätigen Ihren Charter persönlich. Der Kalender wird von unserer Crew aktuell gehalten.</p>
+    <div class="availability-picker">
+    <span id="avail-cal" style="display:block;height:0;overflow:hidden" aria-hidden="true"></span>
     <div class="cal" id="availCal" aria-label="Verfügbarkeitskalender" data-i18n-day="Tag" data-i18n-days="Tage">
       <div class="cal-bar">
         <button type="button" class="cal-nav" id="calPrev" aria-label="Vorheriger Monat">‹</button>
@@ -1314,6 +1316,7 @@ window.LY_afterLcp(function() {
       <a href="#enquire-form" class="btn-primary cal-enquire-btn is-disabled" id="calEnquireBtn" aria-disabled="true">Diese Termine anfragen</a>
       <a href="https://wa.me/34622581486?text=Hi%2C%20I%27d%20like%20to%20enquire%20about%20a%20charter%20on%20Limitless." target="_blank" rel="noopener" class="btn-ghost cal-wa-btn is-disabled" id="calWaBtn" aria-disabled="true">Per WhatsApp fragen</a>
     </div>
+    </div><!-- /.availability-picker -->
   </div>
 </section>
 </div><!-- /.contact-cal-pair -->
