@@ -29,6 +29,8 @@ RED = "\033[91m"
 RESET = "\033[0m"
 
 MOBILE_VIEWPORT = {"width": 390, "height": 844}
+LARGE_PHONE_VIEWPORT = {"width": 412, "height": 915}
+LARGE_PHONE_TALL_VIEWPORT = {"width": 430, "height": 932}
 TABLET_VIEWPORT = {"width": 768, "height": 1024}
 IPAD_AIR_VIEWPORT = {"width": 820, "height": 1180}
 IPAD_PRO_VIEWPORT = {"width": 834, "height": 1194}
@@ -36,7 +38,6 @@ DESKTOP_VIEWPORT = {"width": 1280, "height": 900}
 
 # Mobile menu links must keep section-top / calendar anchors (not -land variants).
 MOBILE_NAV_HREFS = (
-    ("a.mobile-nav-cta", "#enquire-form"),
     ('a[href="#about"]', "#about"),
     ('a[href="#itinerary"]', "#itinerary"),
     ('a[href="#gallery"]', "#gallery"),
@@ -106,8 +107,24 @@ def expect_mobile_menu_closed(page) -> None:
     )
 
 
+def expected_mobile_quote_href(page) -> str:
+    return page.evaluate(
+        "() => (window.LY_enquireQuoteHref ? window.LY_enquireQuoteHref() : '#enquire-form')"
+    )
+
+
 def assert_mobile_nav_hrefs(page, scenario: str, issues: IssueCollector) -> None:
     open_mobile_menu(page)
+    quote = page.locator("#mobileNav a.mobile-nav-cta")
+    if quote.count() == 0:
+        issues.add(f"{scenario}: missing mobile nav link a.mobile-nav-cta")
+    else:
+        expected = expected_mobile_quote_href(page)
+        actual = quote.first.get_attribute("href")
+        if actual != expected:
+            issues.add(
+                f"{scenario}: mobile nav a.mobile-nav-cta href is {actual!r}, expected {expected!r}"
+            )
     for selector, expected in MOBILE_NAV_HREFS:
         loc = page.locator(f"#mobileNav {selector}")
         if loc.count() == 0:
@@ -500,6 +517,75 @@ def scenario_home_ipad_wide(page, base: str, issues: IssueCollector) -> None:
             issues.add(f"{label}: destination prev/next should align to the image band on tablet widths")
 
 
+def assert_enquire_quote_landing(page, scenario: str, issues: IssueCollector) -> None:
+    href = page.evaluate(
+        "() => (window.LY_enquireQuoteHref ? window.LY_enquireQuoteHref() : '#enquire-form')"
+    )
+    open_mobile_menu(page)
+    quote = page.locator("#mobileNav a.mobile-nav-cta")
+    if quote.count() == 0:
+        issues.add(f"{scenario}: missing mobile Get Quote link")
+        return
+    if quote.first.get_attribute("href") != href:
+        issues.add(f"{scenario}: mobile Get Quote href out of sync with LY_enquireQuoteHref")
+        return
+    quote.first.click()
+    page.wait_for_function(
+        f"() => location.hash === {href!r}",
+        timeout=8000,
+    )
+    page.wait_for_function(
+        "() => {"
+        "  const label = document.querySelector('.enquire-section .section-label');"
+        "  const submit = document.getElementById('submitBtn');"
+        "  if (!label || !submit) return false;"
+        "  const vh = window.visualViewport ? visualViewport.height : innerHeight;"
+        "  const lr = label.getBoundingClientRect();"
+        "  const sr = submit.getBoundingClientRect();"
+        "  if (window.LY_enquireSectionFitsViewport && window.LY_enquireSectionFitsViewport()) {"
+        "    return lr.top >= 36 && sr.bottom <= vh + 2;"
+        "  }"
+        "  const title = document.querySelector('.enquire-section .section-title');"
+        "  if (!title) return false;"
+        "  const tt = title.getBoundingClientRect().top;"
+        "  return lr.top >= 36 && lr.top <= 130 && tt > lr.top;"
+        "}",
+        timeout=8000,
+    )
+    expect_mobile_menu_closed(page)
+
+
+def scenario_home_large_phone(page, base: str, issues: IssueCollector) -> None:
+    name = "home large phone"
+    issues.attach(page, name)
+    page.set_viewport_size(LARGE_PHONE_VIEWPORT)
+    page.goto(base + "/", wait_until="domcontentloaded", timeout=60000)
+    page.wait_for_timeout(800)
+
+    assert_mobile_nav_hrefs(page, name, issues)
+    assert_enquire_quote_landing(page, name, issues)
+
+
+def scenario_home_large_phone_tall(page, base: str, issues: IssueCollector) -> None:
+    name = "home iphone 14 pro max"
+    issues.attach(page, name)
+    page.set_viewport_size(LARGE_PHONE_TALL_VIEWPORT)
+    page.goto(base + "/", wait_until="domcontentloaded", timeout=60000)
+    page.wait_for_timeout(800)
+
+    fits = page.evaluate(
+        "() => !!(window.LY_enquireSectionFitsViewport && window.LY_enquireSectionFitsViewport())"
+    )
+    if not fits:
+        issues.add(f"{name}: expected enquire section to fit tall large-phone viewport")
+    href = page.evaluate(
+        "() => (window.LY_enquireQuoteHref ? window.LY_enquireQuoteHref() : '')"
+    )
+    if href != "#enquire":
+        issues.add(f"{name}: expected #enquire landing when section fits, got {href!r}")
+    assert_enquire_quote_landing(page, name, issues)
+
+
 def scenario_home_mobile(page, base: str, issues: IssueCollector) -> None:
     name = "home mobile"
     issues.attach(page, name)
@@ -581,6 +667,8 @@ def run_scenarios(base_url: str, quick: bool = False) -> list[str]:
         scenario_home_desktop,
         scenario_home_tablet,
         scenario_home_ipad_wide,
+        scenario_home_large_phone_tall,
+        scenario_home_large_phone,
         scenario_home_mobile,
     ]
     if not quick:

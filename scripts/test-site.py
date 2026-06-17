@@ -1128,7 +1128,10 @@ def check_shared_assets(r: Runner) -> None:
     r.check(
         'ux smoke exercises mobile nav booking anchors',
         'MOBILE_NAV_HREFS' in ux_py
-        and '#enquire-form' in ux_py
+        and 'expected_mobile_quote_href' in ux_py
+        and 'LARGE_PHONE_VIEWPORT' in ux_py
+        and 'LARGE_PHONE_TALL_VIEWPORT' in ux_py
+        and 'assert_enquire_quote_landing' in ux_py
         and '#avail-cal' in ux_py
         and 'assert_mobile_nav_hrefs' in ux_py,
     )
@@ -1495,6 +1498,26 @@ def check_shared_assets(r: Runner) -> None:
         and re.search(r'\.form-date-popover(?:\.cal)?\s*\{[^}]*position:\s*absolute', css) is not None,
     )
     r.check(
+        'mobile quote links pick enquire anchor from viewport height',
+        css is not None
+        and 'function lyEnquireSectionFitsViewport()' in index_html
+        and 'function lyEnquireQuoteHref()' in index_html
+        and 'function syncEnquireQuoteHrefs()' in index_html
+        and "return '#enquire';" in index_html
+        and 'window.LY_enquireSectionFitsViewport = lyEnquireSectionFitsViewport' in index_html
+        and 'visualViewport' in index_html
+        and re.search(
+            r'@media\s*\(\s*max-width:\s*768px\s*\)[\s\S]*?#enquire\s*\{[^}]*scroll-margin-top:\s*0',
+            css,
+        )
+        is not None
+        and re.search(
+            r'@media\s*\(\s*min-width:\s*401px\s*\)\s*and\s*\(\s*max-width:\s*768px\s*\)[\s\S]*?#enquire-land\s*\{[^}]*scroll-margin-top:\s*1rem',
+            css,
+        )
+        is not None,
+    )
+    r.check(
         'desktop date popover stacks below fixed nav',
         css is not None
         and re.search(
@@ -1504,6 +1527,20 @@ def check_shared_assets(r: Runner) -> None:
         is not None
         and re.search(
             r'@media\s*\(\s*min-width:\s*769px\s*\)[\s\S]*?\.form-date-popover(?:,\s*\.form-date-popover\.cal)?\s*\{[^}]*z-index:\s*50',
+            css,
+        )
+        is not None,
+    )
+    r.check(
+        'mobile date popover stacks below fixed nav',
+        css is not None
+        and re.search(
+            r'@media\s*\(\s*max-width:\s*768px\s*\)[\s\S]*?\.form-date-wrap\.is-open\s*\{[^}]*z-index:\s*50',
+            css,
+        )
+        is not None
+        and re.search(
+            r'@media\s*\(\s*max-width:\s*768px\s*\)[\s\S]*?\.form-date-popover(?:,\s*\.form-date-popover\.cal)?\s*\{[^}]*z-index:\s*50',
             css,
         )
         is not None,
