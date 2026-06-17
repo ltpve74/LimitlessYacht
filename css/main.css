@@ -1207,9 +1207,13 @@ footer {
     background: rgba(201,168,76,.06);
     border-radius: 4px;
   }
-  .contact-cal-pair #availability .section-label,
-  .contact-cal-pair #availability .section-title { display: none; }
-  .contact-cal-pair #availability { padding-top: 1.25rem; }
+  .contact-cal-pair #availability .section-label { display: none; }
+  .contact-cal-pair #availability { padding-top: 2.5rem; }
+  .contact-cal-pair #availability .section-title {
+    display: block;
+    font-size: clamp(1.45rem, 6vw, 2rem);
+    margin-bottom: 0.75rem;
+  }
   .contact-cal-pair #availability .availability-intro {
     margin-top: 0; margin-bottom: 1rem;
     font-size: .82rem; line-height: 1.65;

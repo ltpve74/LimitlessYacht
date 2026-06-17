@@ -2240,6 +2240,18 @@ window.LY_afterLcp(function() {
     LY_syncFormDur();
     if (window.LY_updateFormDateTriggers) window.LY_updateFormDateTriggers();
   }
+  var defaultWaMsg = "Hi, I'd like to enquire about a charter on Limitless.";
+  function waHrefForMsg(msg) {
+    return 'https://wa.me/34622581486?text=' + encodeURIComponent(msg || defaultWaMsg);
+  }
+  function syncWaEnquiryLinks(msg) {
+    var href = waHrefForMsg(msg);
+    if (waBtn) waBtn.href = href;
+    var formWa = document.querySelector('.form-col-wa');
+    if (formWa) formWa.href = href;
+    var infoWa = document.querySelector('.contact-info .whatsapp-btn');
+    if (infoWa) infoWa.href = href;
+  }
   function setCtaState(on){
     [enquireBtn, waBtn].forEach(function(btn){
       if (!btn) return;
@@ -2254,6 +2266,7 @@ window.LY_afterLcp(function() {
     rebuildLookup();
     if (!selected.length) {
       setCtaState(false);
+      syncWaEnquiryLinks(null);
       if (selectionText) selectionText.textContent = '';
       syncForm();
       render();
@@ -2263,12 +2276,10 @@ window.LY_afterLcp(function() {
     var label = formatSelection();
     var meta = countLabel();
     if (selectionText) selectionText.textContent = label + ' · ' + meta;
-    if (waBtn) {
-      var msg = selected.length === 1
-        ? "Hi, I'd like to enquire about a charter on Limitless on " + label + "."
-        : "Hi, I'd like to enquire about a charter on Limitless from " + label + ".";
-      waBtn.href = 'https://wa.me/34622581486?text=' + encodeURIComponent(msg);
-    }
+    var msg = selected.length === 1
+      ? "Hi, I'd like to enquire about a charter on Limitless on " + label + "."
+      : "Hi, I'd like to enquire about a charter on Limitless from " + label + ".";
+    syncWaEnquiryLinks(msg);
     setCtaState(true);
     syncForm();
     ensureSelectionVisible();

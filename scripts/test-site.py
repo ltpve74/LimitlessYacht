@@ -821,6 +821,22 @@ def check_shared_assets(r: Runner) -> None:
         ) is not None
         and '.contact-cal-pair #availability .availability-intro { display: none' not in css,
     )
+    r.check(
+        'availability section title visible on mobile paired layout',
+        css is not None
+        and re.search(
+            r'\.contact-cal-pair\s+#availability\s+\.section-title\s*\{[^}]*display:\s*block',
+            css,
+        ) is not None
+        and '.contact-cal-pair #availability .section-title { display: none' not in css,
+    )
+    r.check(
+        'calendar selection updates WhatsApp enquiry links',
+        'function syncWaEnquiryLinks(msg)' in index_html
+        and "document.querySelector('.form-col-wa')" in index_html
+        and 'syncWaEnquiryLinks(msg)' in index_html
+        and 'syncWaEnquiryLinks(null)' in index_html,
+    )
     pair_start = index_html.find('class="contact-cal-pair"')
     pair_end = index_html.find('id="reviews"', pair_start)
     pair_html = index_html[pair_start:pair_end] if pair_start != -1 and pair_end != -1 else ''
