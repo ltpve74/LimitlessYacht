@@ -1811,11 +1811,14 @@ footer {
 .section-cta-text { color: var(--text-muted); font-family: 'Montserrat', sans-serif; font-size: .8rem; letter-spacing: .1em; text-transform: uppercase; margin-bottom: 1.25rem; }
 .section-cta-desktop .section-cta-text { color: var(--text-muted); font-family: 'Montserrat', sans-serif; font-size: .8rem; letter-spacing: .1em; text-transform: uppercase; margin-bottom: 1.25rem; }
 .section-cta-btns { display: flex; gap: 1.2rem; flex-wrap: wrap; justify-content: center; }
-#reviews .reviews-cta-avail--desktop { display: none; }
+.section-cta-avail--desktop { display: none; }
 @media (min-width: 769px) {
-  #reviews .reviews-cta-avail--mobile,
-  #reviews .reviews-cta-quote--mobile { display: none !important; }
-  #reviews .reviews-cta-avail--desktop { display: inline-block; }
+  #reviews .section-cta-avail--mobile,
+  #reviews .section-cta-quote--mobile,
+  #specs .section-cta-avail--mobile,
+  #specs .section-cta-quote--mobile { display: none !important; }
+  #reviews .section-cta-avail--desktop,
+  #specs .section-cta-avail--desktop { display: inline-block; }
 }
 @media (max-width: 640px) {
   .form-submit { width: 100%; align-self: stretch; }

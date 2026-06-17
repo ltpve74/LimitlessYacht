@@ -127,12 +127,12 @@ def check_html(r: Runner, rel: str, html: str) -> None:
     r.check('#enquire scroll anchor exists', 'id="enquire"' in html)
     r.check('enquiry CTAs link to #enquire', 'href="#enquire"' in html)
     r.check(
-        'reviews desktop keeps single availability CTA matching nav landing',
-        'reviews-cta-avail--desktop' in html
-        and 'reviews-cta-quote--desktop' not in html
-        and 'href="#availability" class="btn-primary reviews-cta-avail--desktop"' in html
-        and 'href="#avail-cal" class="btn-primary reviews-cta-avail--mobile"' in html
-        and 'href="#enquire" class="btn-ghost reviews-cta-quote--mobile"' in html,
+        'reviews and specs desktop keep single availability CTA',
+        'section-cta-avail--desktop' in html
+        and 'section-cta-quote--desktop' not in html
+        and html.count('href="#availability" class="btn-primary section-cta-avail--desktop"') == 2
+        and html.count('href="#avail-cal" class="btn-primary section-cta-avail--mobile"') == 2
+        and html.count('href="#enquire" class="btn-ghost section-cta-quote--mobile"') == 2,
     )
     r.check(
         'charters section groups options with includes panel',
@@ -1105,17 +1105,17 @@ def check_shared_assets(r: Runner) -> None:
         is not None,
     )
     r.check(
-        'reviews desktop shows only availability CTA',
+        'reviews and specs desktop show only availability CTA',
         css is not None
-        and '#reviews .reviews-cta-avail--desktop' in css
-        and 'reviews-cta-quote--desktop' not in css
+        and '.section-cta-avail--desktop' in css
+        and 'section-cta-quote--desktop' not in css
         and re.search(
-            r'@media \(min-width: 769px\)[\s\S]*?#reviews\s+\.reviews-cta-avail--mobile[\s\S]*?display:\s*none',
+            r'@media \(min-width: 769px\)[\s\S]*?#reviews\s+\.section-cta-avail--mobile[\s\S]*?display:\s*none',
             css,
         )
         is not None
         and re.search(
-            r'@media \(min-width: 769px\)[\s\S]*?#reviews\s+\.reviews-cta-quote--mobile[\s\S]*?display:\s*none',
+            r'@media \(min-width: 769px\)[\s\S]*?#specs\s+\.section-cta-avail--desktop[\s\S]*?display:\s*inline-block',
             css,
         )
         is not None,
