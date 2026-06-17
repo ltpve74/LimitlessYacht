@@ -976,8 +976,8 @@ PAIRS = [
     ('or fill in the form', 'oder füllen Sie das Formular aus'),
     ('placeholder="Maria"', 'placeholder="Maria"'),
     (
-        'See the <a href="#avail-cal" class="form-date-hint-link">calendar</a> for an overview.',
-        'Siehe den <a href="#avail-cal" class="form-date-hint-link">Kalender</a> für eine Übersicht.',
+        'See the <a href="#avail-cal" class="form-date-hint-link">calendar</a> for an overview — or select free date(s) above.',
+        'Siehe den <a href="#avail-cal" class="form-date-hint-link">Kalender</a> für eine Übersicht — oder wählen Sie oben freie Datum(en).',
     ),
     ('Tap a start date.', 'Startdatum antippen.'),
     (

@@ -715,7 +715,7 @@ def check_shared_assets(r: Runner) -> None:
         'class="form-date-hint"' in index_html
         and 'class="form-date-hint-link"' in index_html
         and 'href="#avail-cal"' in index_html
-        and 'for an overview.' in index_html
+        and 'select free date(s) above.' in index_html
         and css is not None
         and '.form-date-hint-link' in css,
     )
