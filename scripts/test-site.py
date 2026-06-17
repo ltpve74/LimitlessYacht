@@ -694,9 +694,9 @@ def check_shared_assets(r: Runner) -> None:
     r.check(
         'mobile stacks calendar before enquiry form',
         css is not None
-        and '@media (max-width: 640px)' in css
-        and '.contact-cal-pair #availability { order: -1; }' in css
-        and '.contact-cal-pair .enquire-section { order: 0; }' in css,
+        and re.search(r'@media\s*\(max-width:\s*640px\)', css) is not None
+        and re.search(r'\.contact-cal-pair\s+#availability\s*\{\s*order:\s*-1', css) is not None
+        and re.search(r'\.contact-cal-pair\s+\.enquire-section\s*\{\s*order:\s*0', css) is not None,
     )
     r.check(
         'destination cards use pointer cursor (clickable like gallery)',
