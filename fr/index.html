@@ -1277,15 +1277,17 @@ window.LY_afterLcp(function() {
                   <span class="form-date-text">Sélectionner…</span>
                 </button>
                 <div class="form-date-popover cal opens-up" id="formDatePopover" role="dialog" aria-modal="false" aria-label="Choisir les dates" hidden>
-                  <div class="form-date-popover-toolbar">
-                    <button type="button" class="cal-nav form-date-nav form-date-prev" aria-label="Mois précédent">‹</button>
+                  <div class="form-date-popover-head">
                     <p class="form-date-title" id="formDatePopoverTitle"></p>
-                    <button type="button" class="cal-nav form-date-nav form-date-next" aria-label="Mois suivant">›</button>
                     <button type="button" class="cal-nav form-date-nav form-date-popover-dismiss" id="formDatePopoverDismiss" aria-label="Fermer le calendrier">✕</button>
                   </div>
                   <div class="form-date-cal-grid">
                     <div class="cal-grid cal-dow form-date-dow" aria-hidden="true"></div>
                     <div class="cal-grid cal-days form-date-days"></div>
+                  </div>
+                  <div class="form-date-month-nav">
+                    <button type="button" class="cal-nav form-date-nav form-date-prev" aria-label="Mois précédent">‹</button>
+                    <button type="button" class="cal-nav form-date-nav form-date-next" aria-label="Mois suivant">›</button>
                   </div>
                   <div class="form-date-cal-foot">
                     <span id="formDateHintTemplates" hidden>
@@ -1302,7 +1304,7 @@ window.LY_afterLcp(function() {
                 </div>
               </div>
             </div>
-            <div class="form-field" id="formDurWrap">
+            <div class="form-field" id="formDurWrap" hidden>
               <label for="charter_duration">Durée</label>
               <select name="charter_duration" id="charter_duration">
                 <option value="" disabled selected>Sélectionner…</option>
@@ -2196,13 +2198,21 @@ window.LY_afterLcp(function() {
       durationSelect.value = 'multi-day';
       return;
     }
-    durWrap.hidden = false;
-    if (multiOpt) {
-      var hideMulti = selected.length === 1;
-      multiOpt.hidden = hideMulti;
-      multiOpt.disabled = hideMulti;
+    if (selected.length === 1) {
+      durWrap.hidden = false;
+      if (multiOpt) {
+        multiOpt.hidden = true;
+        multiOpt.disabled = true;
+      }
+      if (durationSelect.value === 'multi-day') durationSelect.value = '';
+      return;
     }
-    if (selected.length === 1 && durationSelect.value === 'multi-day') durationSelect.value = '';
+    durWrap.hidden = true;
+    if (multiOpt) {
+      multiOpt.hidden = false;
+      multiOpt.disabled = false;
+    }
+    if (durationSelect.value === 'multi-day') durationSelect.value = '';
   }
   function syncForm(){
     if (!startInput) return;
