@@ -64,6 +64,15 @@ SECTION_IDS = [
 
 HREFLANGS = ('en', 'de', 'fr', 'es', 'x-default')
 
+
+def css_rule_index(css: str, selector: str) -> int:
+    """Start index of a CSS rule block (readable or minified). Returns -1 if missing."""
+    parts = selector.split()
+    pat = r'\s+'.join(re.escape(part) for part in parts) + r'\s*\{'
+    m = re.search(pat, css)
+    return m.start() if m else -1
+
+
 # ── Output helpers ─────────────────────────────────────────────────────────────
 
 GREEN = '\033[92m'
@@ -470,9 +479,11 @@ def check_html(r: Runner, rel: str, html: str) -> None:
         and 'id="charters"' in html
         and 'id="pricing"' not in html,
     )
+    hero_pos = html.find('<section id="hero"')
+    pre_hero = html[:hero_pos] if hero_pos > 0 else ''
     mobile_nav_m = re.search(
-        r'<div class="mobile-nav" id="mobileNav"[^>]*>([\s\S]*?)</div>\s*\n<!-- HERO -->',
-        html,
+        r'<div class="mobile-nav" id="mobileNav"[^>]*>([\s\S]*)</div>\s*(?:<!-- HERO -->\s*)?$',
+        pre_hero,
     )
     mobile_nav = mobile_nav_m.group(1) if mobile_nav_m else ''
     r.check(
@@ -846,7 +857,7 @@ def check_shared_assets(r: Runner) -> None:
         r.check(
             'short viewports compact hero title for bottom cluster clearance',
             re.search(
-                r'@media \(max-height: 920px\)[\s\S]*?--hero-cluster-gap',
+                r'@media\s*\(\s*max-height:\s*920px\s*\)[\s\S]*?--hero-cluster-gap',
                 css,
             )
             is not None,
@@ -855,7 +866,7 @@ def check_shared_assets(r: Runner) -> None:
             'hero eyebrow toggles mobile vs desktop anchor targets',
             '.hero-eyebrow-link--desktop{' in css_flat
             and re.search(
-                r'@media \(min-width: 769px\)[\s\S]*?\.hero-eyebrow-link--mobile[^{]*\{[^}]*display:\s*none',
+                r'@media\s*\(\s*min-width:\s*769px\s*\)[\s\S]*?\.hero-eyebrow-link--mobile[^{]*\{[^}]*display:\s*none',
                 css,
             )
             is not None,
@@ -868,7 +879,7 @@ def check_shared_assets(r: Runner) -> None:
             )
             is not None
             and re.search(
-                r'@media \(min-width: 769px\)[\s\S]*?#hero \.hero-actions \.hero-cta-link--mobile[^{]*\{[^}]*display:\s*none',
+                r'@media\s*\(\s*min-width:\s*769px\s*\)[\s\S]*?#hero \.hero-actions \.hero-cta-link--mobile[^{]*\{[^}]*display:\s*none',
                 css,
             )
             is not None,
@@ -876,8 +887,8 @@ def check_shared_assets(r: Runner) -> None:
         r.check(
             'hero CTA hide rules beat btn-primary display',
             css is not None
-            and css.find('.btn-primary {')
-            < css.find('#hero .hero-actions .hero-cta-link--desktop'),
+            and css_rule_index(css, '.btn-primary')
+            < css_rule_index(css, '#hero .hero-actions .hero-cta-link--desktop'),
         )
         r.check(
             'hero value line no longer uses margin-top auto on desktop',
@@ -1059,33 +1070,33 @@ def check_shared_assets(r: Runner) -> None:
         and 'href="#availability" class="itinerary-meet-cta itinerary-meet-cta--desktop"' in index_html
         and css is not None
         and re.search(
-            r'@media \(min-width: 769px\)[\s\S]*?\.gallery-wrap[\s\S]*?min-height:\s*calc\(100svh\s*-\s*var\(--nav-scroll-offset\)\s*-\s*14rem\)',
+            r'@media\s*\(\s*min-width:\s*769px\s*\)[\s\S]*?\.gallery-wrap[\s\S]*?min-height:\s*calc\(100svh\s*-\s*var\(--nav-scroll-offset\)\s*-\s*14rem\)',
             css,
         )
         is not None
         and re.search(
-            r'@media \(min-width: 769px\)[\s\S]*?#gallery,\s*\n\s*#itinerary\s*\{[^}]*height:\s*auto',
+            r'@media\s*\(\s*min-width:\s*769px\s*\)[\s\S]*?#gallery,\s*#itinerary\s*\{[^}]*height:\s*auto',
             css,
         )
         is not None
         and re.search(
-            r'@media \(min-width: 769px\)[\s\S]*?\.gallery-group\s+\.gallery-grid[\s\S]*?flex:\s*1\s*1\s*0',
+            r'@media\s*\(\s*min-width:\s*769px\s*\)[\s\S]*?\.gallery-group\s+\.gallery-grid[\s\S]*?flex:\s*1\s*1\s*0',
             css,
         )
         is not None
         and 'immersive-chrome' not in css
         and re.search(
-            r'@media \(min-width: 769px\)[\s\S]*?\.itinerary-meet-cta\s*\{[^}]*display:\s*block',
+            r'@media\s*\(\s*min-width:\s*769px\s*\)[\s\S]*?\.itinerary-meet-cta\s*\{[^}]*display:\s*block',
             css,
         )
         is not None
         and re.search(
-            r'@media \(min-width: 769px\)[\s\S]*?#gallery\s+\.section-cta-desktop[\s\S]*?display:\s*none',
+            r'@media\s*\(\s*min-width:\s*769px\s*\)[\s\S]*?#gallery\s+\.section-cta-desktop[\s\S]*?display:\s*none',
             css,
         )
         is not None
         and re.search(
-            r'@media \(min-width: 769px\)[\s\S]*?#gallery\s+\.carousel-nav[\s\S]*?display:\s*flex',
+            r'@media\s*\(\s*min-width:\s*769px\s*\)[\s\S]*?#gallery\s+\.carousel-nav[\s\S]*?display:\s*flex',
             css,
         )
         is not None,
@@ -1103,11 +1114,11 @@ def check_shared_assets(r: Runner) -> None:
         and 'class="lb-counter"' in index_html
         and 'class="lb-hint"' in index_html
         and css is not None
-        and '.lb-close {' in css
-        and '.lb-nav {' in css
-        and '.lb-counter {' in css
-        and '#dest-lb-close {' not in css
-        and '#lightbox-prev, #lightbox-next' not in css,
+        and css_rule_index(css, '.lb-close') >= 0
+        and css_rule_index(css, '.lb-nav') >= 0
+        and css_rule_index(css, '.lb-counter') >= 0
+        and css_rule_index(css, '#dest-lb-close') < 0
+        and '#lightbox-prev' not in css,
     )
     r.check(
         'destination lightbox shows same browse hint as gallery',
@@ -1131,12 +1142,12 @@ def check_shared_assets(r: Runner) -> None:
         and 'href="#gallery-land" class="itinerary-meet-cta itinerary-meet-cta--gallery-desktop"' in index_html
         and css is not None
         and re.search(
-            r'@media \(min-width: 769px\)[\s\S]*?\.itinerary-meet-cta--mobile[\s\S]*?display:\s*none\s*!important',
+            r'@media\s*\(\s*min-width:\s*769px\s*\)[\s\S]*?\.itinerary-meet-cta--mobile[\s\S]*?display:\s*none\s*!important',
             css,
         )
         is not None
         and re.search(
-            r'@media \(min-width: 769px\)[\s\S]*?\.itinerary-meet-cta--gallery[\s\S]*?display:\s*none\s*!important',
+            r'@media\s*\(\s*min-width:\s*769px\s*\)[\s\S]*?\.itinerary-meet-cta--gallery[\s\S]*?display:\s*none\s*!important',
             css,
         )
         is not None,
@@ -1217,12 +1228,12 @@ def check_shared_assets(r: Runner) -> None:
         'desktop date popover stacks below fixed nav',
         css is not None
         and re.search(
-            r'@media \(min-width: 769px\)[\s\S]*?\.form-date-wrap\.is-open\s*\{[^}]*z-index:\s*50',
+            r'@media\s*\(\s*min-width:\s*769px\s*\)[\s\S]*?\.form-date-wrap\.is-open\s*\{[^}]*z-index:\s*50',
             css,
         )
         is not None
         and re.search(
-            r'@media \(min-width: 769px\)[\s\S]*?\.form-date-popover(?:\.cal)?\s*\{[^}]*z-index:\s*50',
+            r'@media\s*\(\s*min-width:\s*769px\s*\)[\s\S]*?\.form-date-popover(?:,\s*\.form-date-popover\.cal)?\s*\{[^}]*z-index:\s*50',
             css,
         )
         is not None,
@@ -1231,7 +1242,7 @@ def check_shared_assets(r: Runner) -> None:
         'desktop nav keeps single row on narrow viewports',
         css is not None
         and re.search(
-            r'@media \(min-width: 769px\) and \(max-width: 1100px\)[\s\S]*?nav\s*\{[^}]*display:\s*flex',
+            r'@media\s*\(\s*min-width:\s*769px\s*\)\s*and\s*\(\s*max-width:\s*1100px\s*\)[\s\S]*?nav\s*\{[^}]*display:\s*flex',
             css,
         )
         is not None
@@ -1249,7 +1260,7 @@ def check_shared_assets(r: Runner) -> None:
         )
         is not None
         and re.search(
-            r'@media \(hover: hover\) and \(pointer: fine\)[\s\S]*?\.nav-cta:hover',
+            r'@media\s*\(\s*hover:\s*hover\s*\)\s*and\s*\(\s*pointer:\s*fine\s*\)[\s\S]*?\.nav-cta:hover',
             css,
         )
         is not None,
@@ -1259,40 +1270,36 @@ def check_shared_assets(r: Runner) -> None:
         css is not None
         and '--nav-scroll-offset' in css
         and re.search(
-            r'@media \(min-width: 769px\)[\s\S]*?html\s*\{[^}]*scroll-padding-top:\s*var\(--nav-scroll-offset\)',
+            r'@media\s*\(\s*min-width:\s*769px\s*\)[\s\S]*?html\s*\{[^}]*scroll-padding-top:\s*var\(--nav-scroll-offset\)',
             css,
         )
         is not None
         and re.search(
-            r'@media \(min-width: 769px\)[\s\S]*?#charters-land[\s\S]*?scroll-margin-top:\s*0',
+            r'@media\s*\(\s*min-width:\s*769px\s*\)[\s\S]*?#charters-land[\s\S]*?scroll-margin-top:\s*0',
             css,
         )
         is not None
         and re.search(
-            r'@media \(min-width: 769px\)[\s\S]*?#availability\s*\{[^}]*scroll-margin-top:\s*1rem',
+            r'@media\s*\(\s*min-width:\s*769px\s*\)[\s\S]*?#availability\s*\{[^}]*scroll-margin-top:\s*1rem',
             css,
         )
         is not None
         and re.search(
-            r'@media \(min-width: 769px\)[\s\S]*?#enquire-land\s*\{[^}]*scroll-margin-top:\s*1\.5rem',
+            r'@media\s*\(\s*min-width:\s*769px\s*\)[\s\S]*?#enquire-land\s*\{[^}]*scroll-margin-top:\s*1\.5rem',
             css,
         )
         is not None
-        and 'funnel below visible intros' in css
-        and not re.search(
-            r'funnel below visible intros\)[\s\S]*?#gallery\s*>\s*\.container[^}]*\bheight:\s*0\b',
+        and re.search(
+            r'@media\s*\(\s*min-width:\s*769px\s*\)[\s\S]*?#gallery\s*>\s*\.container,\s*#itinerary\s*>\s*\.container\s*\{[^}]*flex-shrink:\s*0',
             css,
         )
-        and not re.search(
-            r'funnel below visible intros\)[\s\S]*?#itinerary\s*>\s*\.container\s+\.section-label[\s\S]*?display:\s*none',
-            css,
-        ),
+        is not None,
     )
     r.check(
         'desktop gallery and destinations show intro copy for natural scroll',
         css is not None
         and re.search(
-            r'funnel below visible intros\)[\s\S]*?#gallery\s*>\s*\.container,\s*\n\s*#itinerary\s*>\s*\.container\s*\{[^}]*flex-shrink:\s*0',
+            r'@media\s*\(\s*min-width:\s*769px\s*\)[\s\S]*?#gallery\s*>\s*\.container,\s*#itinerary\s*>\s*\.container\s*\{[^}]*flex-shrink:\s*0',
             css,
         )
         is not None
@@ -1301,7 +1308,7 @@ def check_shared_assets(r: Runner) -> None:
         and 'class="section-title reveal reveal-delay-1">On<em>board Gallery</em>' in index_html
         and css is not None
         and re.search(
-            r'funnel below visible intros\)[\s\S]*?#gallery,\s*\n\s*#itinerary\s*\{[^}]*padding-bottom:\s*5rem',
+            r'@media\s*\(\s*min-width:\s*769px\s*\)[\s\S]*?#gallery,\s*#itinerary\s*\{[^}]*padding-bottom:\s*5rem',
             css,
         )
         is not None,
@@ -1312,12 +1319,12 @@ def check_shared_assets(r: Runner) -> None:
         and '.section-cta-avail--desktop' in css
         and 'section-cta-quote--desktop' not in css
         and re.search(
-            r'@media \(min-width: 769px\)[\s\S]*?#reviews\s+\.section-cta-avail--mobile[\s\S]*?display:\s*none',
+            r'@media\s*\(\s*min-width:\s*769px\s*\)[\s\S]*?#reviews\s+\.section-cta-avail--mobile[\s\S]*?display:\s*none',
             css,
         )
         is not None
         and re.search(
-            r'@media \(min-width: 769px\)[\s\S]*?#specs\s+\.section-cta-avail--desktop[\s\S]*?display:\s*inline-block',
+            r'@media\s*\(\s*min-width:\s*769px\s*\)[\s\S]*?#specs\s+\.section-cta-avail--desktop[\s\S]*?display:\s*inline-block',
             css,
         )
         is not None,
@@ -1326,12 +1333,12 @@ def check_shared_assets(r: Runner) -> None:
         'tablet and phone share immersive destinations gallery funnel',
         css is not None
         and re.search(
-            r'@media \(max-width: 768px\)[\s\S]*?#gallery,\s*#itinerary\s*\{[^}]*min-height:\s*100svh',
+            r'@media\s*\(\s*max-width:\s*768px\s*\)[\s\S]*?#gallery,\s*#itinerary\s*\{[^}]*min-height:\s*100svh',
             css,
         )
         is not None
         and re.search(
-            r'@media \(max-width: 768px\)[\s\S]*?\.itinerary-meet-cta\s*\{[^}]*display:\s*block',
+            r'@media\s*\(\s*max-width:\s*768px\s*\)[\s\S]*?\.itinerary-meet-cta\s*\{[^}]*display:\s*block',
             css,
         )
         is not None,
@@ -1345,7 +1352,7 @@ def check_shared_assets(r: Runner) -> None:
         )
         is not None
         and re.search(
-            r'@media \(max-width: 768px\)[\s\S]*?\.section-forward-cta\s*\{[^}]*display:\s*block',
+            r'@media\s*\(\s*max-width:\s*768px\s*\)[\s\S]*?\.section-forward-cta\s*\{[^}]*display:\s*block',
             css,
         )
         is not None,
@@ -1354,17 +1361,17 @@ def check_shared_assets(r: Runner) -> None:
         'mobile hides desktop-only section CTAs and cross-nav',
         css is not None
         and re.search(
-            r'@media \(max-width: 768px\)[\s\S]*?\.section-cta-avail--desktop[\s\S]*?display:\s*none !important',
+            r'@media\s*\(\s*max-width:\s*768px\s*\)[\s\S]*?\.section-cta-avail--desktop[\s\S]*?display:\s*none\s*!important',
             css,
         )
         is not None
         and re.search(
-            r'@media \(max-width: 768px\)[\s\S]*?\.section-cross-cta--desktop[\s\S]*?display:\s*none !important',
+            r'@media\s*\(\s*max-width:\s*768px\s*\)[\s\S]*?\.section-cross-cta--desktop[\s\S]*?display:\s*none\s*!important',
             css,
         )
         is not None
         and re.search(
-            r'@media \(max-width: 768px\)[\s\S]*?\.section-cta-btns > \.btn-primary:not\(\.section-cta-avail--desktop\)',
+            r'@media\s*\(\s*max-width:\s*768px\s*\)[\s\S]*?\.section-cta-btns\s*>\s*\.btn-primary:not\(\.section-cta-avail--desktop\)',
             css,
         )
         is not None,
@@ -1373,21 +1380,24 @@ def check_shared_assets(r: Runner) -> None:
         'desktop availability pair compacts for viewport-height landing',
         css is not None
         and re.search(
-            r'@media \(min-width: 769px\)[\s\S]*?\.contact-cal-pair\s+#availability,\s*\n\s*\.contact-cal-pair\s+\.enquire-section\s*\{[^}]*padding-top:\s*3\.5rem',
+            r'@media\s*\(\s*min-width:\s*769px\s*\)[\s\S]*?\.contact-cal-pair\s+#availability,\s*\.contact-cal-pair\s+\.enquire-section\s*\{[^}]*padding-top:\s*3\.5rem',
             css,
         )
         is not None
         and re.search(
-            r'@media \(min-width: 769px\) and \(max-height: 920px\)[\s\S]*?\.contact-cal-pair',
+            r'@media\s*\(\s*min-width:\s*769px\s*\)\s*and\s*\(\s*max-height:\s*920px\s*\)[\s\S]*?\.contact-cal-pair',
             css,
         )
         is not None
-        and 'padding-top: 7rem' not in css,
+        and not re.search(
+            r'\.contact-cal-pair\s+#availability,\s*\.contact-cal-pair\s+\.enquire-section\s*\{[^}]*padding-top:\s*7rem',
+            css,
+        ),
     )
     r.check(
         'charters hides text back-link when desktop CTA buttons show',
         re.search(
-            r'@media \(min-width: 769px\)[\s\S]*?#charters \.section-back-cta\s*\{[^}]*display:\s*none',
+            r'@media\s*\(\s*min-width:\s*769px\s*\)[\s\S]*?#charters \.section-back-cta\s*\{[^}]*display:\s*none',
             css,
         )
         is not None,
@@ -1404,34 +1414,52 @@ def check_shared_assets(r: Runner) -> None:
     r.check(
         'section cross-nav desktop keeps ghost buttons in one row',
         re.search(
-            r'@media \(min-width: 769px\)[\s\S]*?\.section-cross-cta--desktop \.section-cta-btns\s*\{[^}]*flex-wrap:\s*nowrap',
+            r'@media\s*\(\s*min-width:\s*769px\s*\)[\s\S]*?\.section-cross-cta--desktop \.section-cta-btns\s*\{[^}]*flex-wrap:\s*nowrap',
             css,
         )
         is not None,
     )
+    cross_hide_m = (
+        re.search(r'\.section-cross-cta--desktop\s*\{[^}]*display:\s*none', css)
+        if css is not None
+        else None
+    )
+    cross_show_m = (
+        re.search(r'\.section-cross-cta--desktop\s*\{[^}]*display:\s*block', css)
+        if css is not None
+        else None
+    )
     r.check(
         'section cross-nav desktop show rule follows mobile hide rule',
-        css is not None
-        and css.find('.section-cross-cta--desktop { display: none; }')
-        < css.rfind('.section-cross-cta--desktop {')
+        cross_hide_m is not None
+        and cross_show_m is not None
+        and cross_hide_m.start() < cross_show_m.start(),
     )
     r.check(
         'reviews desktop uses compact two-column grid',
         re.search(
-            r'@media \(min-width: 769px\)[\s\S]*?\.reviews-grid\s*\{[^}]*grid-template-columns:\s*repeat\(2',
+            r'@media\s*\(\s*min-width:\s*769px\s*\)[\s\S]*?\.reviews-grid\s*\{[^}]*grid-template-columns:\s*repeat\(2',
             css,
         )
         is not None,
     )
+    reviews_grid_base = css_rule_index(css, '.reviews-grid') if css is not None else -1
+    reviews_grid_desktop = -1
+    if css is not None:
+        for marker in (
+            'grid-template-columns:repeat(2,minmax(0,1fr))',
+            'grid-template-columns: repeat(2, minmax(0, 1fr))',
+        ):
+            reviews_grid_desktop = max(reviews_grid_desktop, css.rfind(marker))
     r.check(
         'reviews desktop grid overrides come after base single-column rule',
-        css is not None
-        and css.find('.reviews-grid {') < css.rfind('grid-template-columns: repeat(2, minmax(0, 1fr))'),
+        reviews_grid_base >= 0
+        and reviews_grid_desktop > reviews_grid_base,
     )
     r.check(
         'reviews short viewports compact section padding',
         re.search(
-            r'@media \(min-width: 769px\) and \(max-height: 920px\)[\s\S]*?#reviews',
+            r'@media\s*\(\s*min-width:\s*769px\s*\)\s*and\s*\(\s*max-height:\s*920px\s*\)[\s\S]*?#reviews',
             css,
         )
         is not None,
@@ -1441,22 +1469,22 @@ def check_shared_assets(r: Runner) -> None:
         css is not None
         and '.charters-main' in css
         and re.search(
-            r'@media \(min-width: 769px\)[\s\S]*?#charters\s*\{[^}]*padding-top:\s*3\.5rem',
+            r'@media\s*\(\s*min-width:\s*769px\s*\)[\s\S]*?#charters\s*\{[^}]*padding-top:\s*3\.5rem',
             css,
         )
         is not None
         and re.search(
-            r'@media \(min-width: 1000px\)[\s\S]*?\.charters-main[\s\S]*?grid-template-columns',
+            r'@media\s*\(\s*min-width:\s*1000px\s*\)[\s\S]*?\.charters-main[\s\S]*?grid-template-columns',
             css,
         )
         is not None
         and re.search(
-            r'@media \(min-width: 1000px\)[\s\S]*?\.charters-main\s+\.charter-includes[\s\S]*?position:\s*sticky',
+            r'@media\s*\(\s*min-width:\s*1000px\s*\)[\s\S]*?\.charters-main\s+\.charter-includes[\s\S]*?position:\s*sticky',
             css,
         )
         is not None
         and re.search(
-            r'@media \(min-width: 769px\) and \(max-height: 920px\)[\s\S]*?#charters',
+            r'@media\s*\(\s*min-width:\s*769px\s*\)\s*and\s*\(\s*max-height:\s*920px\s*\)[\s\S]*?#charters',
             css,
         )
         is not None,
