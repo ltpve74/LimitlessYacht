@@ -959,18 +959,19 @@ def check_shared_assets(r: Runner) -> None:
         'desktop nav landing keeps labels and uses nav scroll offset',
         css is not None
         and '--nav-scroll-offset' in css
+        and '--nav-avail-land-extra' in css
         and re.search(
-            r'@media \(min-width: 769px\)[\s\S]*?#charters-land[\s\S]*?scroll-margin-top:\s*var\(--nav-scroll-offset\)',
+            r'@media \(min-width: 769px\)[\s\S]*?html\s*\{[^}]*scroll-padding-top:\s*var\(--nav-scroll-offset\)',
             css,
         )
         is not None
         and re.search(
-            r'@media \(min-width: 769px\)[\s\S]*?#about\s*\{[^}]*scroll-margin-top:\s*var\(--nav-scroll-offset\)',
+            r'@media \(min-width: 769px\)[\s\S]*?#charters-land[\s\S]*?scroll-margin-top:\s*0',
             css,
         )
         is not None
         and re.search(
-            r'@media \(min-width: 769px\)[\s\S]*?\.contact-cal-pair\s+#avail-cal[\s\S]*?scroll-margin-top:\s*calc\(var\(--nav-scroll-offset\)\s*\+\s*9rem\)',
+            r'@media \(min-width: 769px\)[\s\S]*?\.contact-cal-pair\s+#avail-cal[\s\S]*?scroll-margin-top:\s*var\(--nav-avail-land-extra\)',
             css,
         )
         is not None

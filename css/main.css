@@ -26,6 +26,8 @@
   --white: #ffffff;
   --text-muted: #8a9bb5;
   --nav-scroll-offset: 4.25rem;
+  /* Extra scroll-margin beyond html scroll-padding (Availability nav landing) */
+  --nav-avail-land-extra: 8.5rem;
 }
 
 *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
@@ -2121,26 +2123,27 @@ footer {
   /* Form/calendar links land on the widget, not the hidden section title */
   #avail-cal { scroll-margin-top: .5rem; }
 }
-/* Desktop nav: native anchor scroll + per-target scroll-margin.
-   Default -land anchors sit between label and title — label tucks under the nav.
-   About and Availability are exceptions (see screenshots): full section headers stay visible. */
+/* Desktop nav: native anchor scroll.
+   html scroll-padding clears the fixed nav for every fragment jump.
+   -land anchors sit between label and title — no extra scroll-margin, so the label
+   tucks under the nav and the title lands flush below (see amenities screenshot).
+   About (#about) uses section-top + scroll-padding only (label stays visible).
+   Availability nav adds scroll-margin on #avail-cal for the paired-layout landing. */
 @media (min-width: 769px) {
   html { scroll-padding-top: var(--nav-scroll-offset); }
-  #about { scroll-margin-top: var(--nav-scroll-offset); }
   #itinerary-land,
   #gallery-land,
   #charters-land,
   #reviews-land,
   #amenities-land,
   #specs-land,
-  #enquire-land {
-    scroll-margin-top: var(--nav-scroll-offset);
+  #enquire-land,
+  #about,
+  #avail-cal {
+    scroll-margin-top: 0;
   }
-  /* In-page CTAs jump to the calendar widget */
-  #avail-cal { scroll-margin-top: var(--nav-scroll-offset); }
-  /* Availability nav: land with label, title, intro and calendar in view (paired desktop) */
   .contact-cal-pair #avail-cal {
-    scroll-margin-top: calc(var(--nav-scroll-offset) + 9rem);
+    scroll-margin-top: var(--nav-avail-land-extra);
   }
 }
 .availability-picker { margin-top: 0; }

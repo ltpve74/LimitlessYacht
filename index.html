@@ -127,8 +127,8 @@ nav {
   window.LY_BASE = (h.endsWith('.github.io') && parts[0]) ? '/' + parts[0] : '';
 })();
 </script>
-<link rel="preload" as="style" href="css/main.css?v=22" onload="this.rel='stylesheet'" />
-<noscript><link rel="stylesheet" href="css/main.css?v=22" /></noscript>
+<link rel="preload" as="style" href="css/main.css?v=23" onload="this.rel='stylesheet'" />
+<noscript><link rel="stylesheet" href="css/main.css?v=23" /></noscript>
 
 <!-- Auto-match the visitor's browser language to a localized version (only from the
      English root, and only until the visitor manually picks a language). -->
@@ -1521,10 +1521,6 @@ window.LY_afterLcp(function() {
       var label = sec && sec.querySelector('.section-label');
       return label ? label.getBoundingClientRect().top : el.getBoundingClientRect().top;
     }
-    var label = el.previousElementSibling;
-    if (label && label.classList.contains('section-label')) {
-      return label.getBoundingClientRect().top;
-    }
     return el.getBoundingClientRect().top;
   }
   function updateNavSection() {
@@ -1536,7 +1532,9 @@ window.LY_afterLcp(function() {
       var id = href.slice(1);
       var top = navMarkerTop(href);
       if (top == null) return;
-      var probe = (id === 'about' || id === 'avail-cal') ? navHeight() + 48 : navHeight() + 32;
+      var probe = (id === 'about' || id === 'avail-cal')
+        ? navHeight() + 112
+        : navHeight() + 4;
       if (top <= probe) active = a;
     });
     navSectionLinks.forEach(function(a) {
