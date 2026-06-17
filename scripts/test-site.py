@@ -498,11 +498,9 @@ def check_html(r: Runner, rel: str, html: str) -> None:
         and 'id="charters"' in html
         and 'id="pricing"' not in html,
     )
-    hero_pos = html.find('<section id="hero"')
-    pre_hero = html[:hero_pos] if hero_pos > 0 else ''
     mobile_nav_m = re.search(
-        r'<div class="mobile-nav" id="mobileNav"[^>]*>([\s\S]*)</div>\s*(?:<!-- HERO -->\s*)?$',
-        pre_hero,
+        r'<div class="mobile-nav" id="mobileNav"[^>]*>([\s\S]*?)</div>\s*</div>',
+        html,
     )
     mobile_nav = mobile_nav_m.group(1) if mobile_nav_m else ''
     r.check(
@@ -589,8 +587,16 @@ def check_html(r: Runner, rel: str, html: str) -> None:
         html.find('id="hero"') > 0 and html.find('id="hero"') < html.find('LY_afterLcp'),
     )
     r.check(
-        'navigation markup precedes hero in document order',
-        html.find('id="navbar"') > 0 and html.find('id="navbar"') < html.find('id="hero"'),
+        'hero markup precedes navigation for early LCP discovery',
+        html.find('id="hero"') > 0 and html.find('id="hero"') < html.find('id="navbar"'),
+    )
+    r.check(
+        'hero background decodes asynchronously (does not block title paint)',
+        'class="hero-bg"' in html and 'decoding="async"' in html.split('class="hero-bg"')[1][:120],
+    )
+    r.check(
+        'hero background is not aria-hidden (eligible LCP image candidate)',
+        'class="hero-bg"' in html and 'aria-hidden="true"' not in html.split('class="hero-bg"')[1][:120],
     )
     r.check(
         'critical CSS is slim enough for fast head parse',
@@ -621,8 +627,8 @@ def check_html(r: Runner, rel: str, html: str) -> None:
         'window.LY_afterLcp' in html and 'LY_destPreloadReady' in html,
     )
     r.check(
-        'hero title uses heroTitleIn (visible for LCP)',
-        'heroTitleIn' in html,
+        'hero title has no entrance animation in critical CSS (visible for LCP)',
+        'heroTitleIn' not in html.split('</style>', 1)[0] and '.hero-title{' in html,
     )
     r.check(
         'hero scroll indicator lives inside bottom CTA cluster',
@@ -730,7 +736,6 @@ def check_html(r: Runner, rel: str, html: str) -> None:
         r.check(
             f'{rel} shared assets use parent-relative paths',
             'href="../css/main.css' in html
-            and 'href="../fonts/montserrat-latin.woff2"' in html
             and "url('../fonts/montserrat-latin.woff2')" in html
             and 'href="../favicon.svg"' in html
             and 'href="/favicon.svg"' not in html,
@@ -1029,8 +1034,9 @@ def check_shared_assets(r: Runner) -> None:
     r.check('lighthouse budgets file exists', os.path.isfile(os.path.join(ROOT, 'scripts/lighthouse-budgets.json')))
     index_html = read_file('index.html') or ''
     r.check(
-        'font preload uses path relative to site root (GitHub Pages subpath safe)',
-        'href="fonts/montserrat-latin.woff2"' in index_html
+        'Montserrat uses root-relative @font-face (font preload omitted for LCP)',
+        "url('fonts/montserrat-latin.woff2')" in index_html
+        and 'font-display:optional' in index_html.replace(' ', '')
         and 'href="/fonts/montserrat-latin.woff2"' not in index_html,
     )
     r.check(
@@ -1040,9 +1046,8 @@ def check_shared_assets(r: Runner) -> None:
     )
     r.check(
         'preview hosts suppress analytics before GA and Clarity load',
-        'js/analytics-env.js' in index_html
-        and 'LY_IS_PREVIEW' in (read_file('js/analytics-env.js') or '')
-        and index_html.find('js/analytics-env.js') < index_html.find('googletagmanager.com/gtag/js')
+        'LY_IS_PREVIEW' in index_html
+        and index_html.find('LY_IS_PREVIEW') < index_html.find('googletagmanager.com/gtag/js')
         and 'if (window.LY_OWNER_MODE) return;' in index_html,
     )
     r.check(

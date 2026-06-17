@@ -30,8 +30,8 @@ def main() -> int:
     if 'LY_OWNER_MODE' not in env_js:
         errors.append('js/analytics-env.js must set LY_OWNER_MODE when preview/owner')
 
-    if 'js/analytics-env.js' not in index:
-        errors.append('index.html must load js/analytics-env.js before analytics snippets')
+    if 'LY_IS_PREVIEW' not in index:
+        errors.append('index.html must define LY_IS_PREVIEW (inline or via js/analytics-env.js)')
     if GTAG_ID not in index:
         errors.append(f'index.html must reference Google tag {GTAG_ID} for production')
     if CLARITY_ID not in index:

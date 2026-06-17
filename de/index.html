@@ -6,7 +6,7 @@
 <!-- Preload hero image (LCP) — must precede deferred head scripts -->
 <link rel="preload" as="image" imagesrcset="/images/mobile/maiora_20s_02-480.webp 480w, /images/mobile/maiora_20s_02.webp 960w" imagesizes="100vw" type="image/webp" fetchpriority="high" media="(max-width: 640px)" />
 <link rel="preload" as="image" href="/images/maiora_20s_02.webp" type="image/webp" fetchpriority="high" media="(min-width: 641px)" />
-<link rel="preload" as="font" href="../fonts/montserrat-latin.woff2" type="font/woff2" crossorigin />
+
 <style id="critical-css">
 @font-face {
   font-family: 'Montserrat';
@@ -70,8 +70,7 @@ nav{position:fixed;top:0;left:0;right:0;z-index:100;min-height:4.25rem}
 @media(min-width:769px){#hero .hero-cta-link--mobile{display:none}#hero .hero-cta-link--desktop{display:inline-flex}}
 .hero-trust{margin-top:0;font-size:.65rem;letter-spacing:.12em;text-transform:uppercase;color:var(--text-muted)}
 .hero-scroll{margin-top:0;display:flex;flex-direction:column;align-items:center;gap:.5rem}
-.hero-title{font-family:'Montserrat',sans-serif;font-size:clamp(3.5rem,9vw,8rem);font-weight:300;line-height:1;color:var(--white);letter-spacing:.06em;text-shadow:0 2px 28px rgba(0,0,0,.7),0 1px 6px rgba(0,0,0,.55)}
-@keyframes heroTitleIn{to{transform:translateY(0)}}
+.hero-title{font-family:'Montserrat',sans-serif;font-size:clamp(3.5rem,9vw,8rem);font-weight:300;line-height:1;color:var(--white);letter-spacing:.06em;text-shadow:0 2px 28px rgba(0,0,0,.7),0 1px 6px rgba(0,0,0,.55);opacity:1}
 .hero-title em{font-style:normal;color:var(--gold-light)}
 @media (max-width: 640px) {
   html { scroll-padding-top: 4.9rem; }
@@ -101,33 +100,35 @@ nav{position:fixed;top:0;left:0;right:0;z-index:100;min-height:4.25rem}
 }
 .form-field[hidden] { display: none !important; }
 </style>
-<script src="js/analytics-env.js"></script>
+<script>
+(function (global) {
+  'use strict';
+  var h = global.location.hostname;
+  var parts = global.location.pathname.split('/').filter(Boolean);
+  global.LY_BASE = (h.endsWith('.github.io') && parts[0]) ? '/' + parts[0] : '';
+  global.LY_IS_PREVIEW =
+    h.endsWith('.github.io') ||
+    h === 'localhost' ||
+    h === '127.0.0.1' ||
+    (h.endsWith('.netlify.app') && h.indexOf('limitlessyachtcharter') === -1);
+  try {
+    var p = new URLSearchParams(global.location.search);
+    if (p.get('ly_owner') === 'set') {
+      global.localStorage.setItem('ly_owner', '1');
+      global.history.replaceState(null, '', global.location.pathname + (global.location.hash || ''));
+    } else if (p.get('ly_owner') === 'unset') {
+      global.localStorage.removeItem('ly_owner');
+      global.history.replaceState(null, '', global.location.pathname + (global.location.hash || ''));
+    }
+  } catch (e) {}
+  var ownerStored = false;
+  try { ownerStored = global.localStorage.getItem('ly_owner') === '1'; } catch (e) {}
+  if (ownerStored || global.LY_IS_PREVIEW) { global.LY_OWNER_MODE = true; }
+})(window);
+</script>
 <link rel="preload" as="style" href="../css/main.css?v=83" onload="this.rel='stylesheet'" />
 <noscript><link rel="stylesheet" href="../css/main.css?v=83" /></noscript>
 
-<!-- Auto-match the visitor's browser language to a localized version (only from the
-     English root, and only until the visitor manually picks a language). -->
-<script>
-(function(){try{
-  var map={de:'/de/',es:'/es/',fr:'/fr/'};
-  // Only run auto-redirect logic when on the bare English root.
-  // Locale subpages (e.g. /es/) must not auto-redirect away based on browser lang
-  // or they can cause loops / failed loads for matching languages (e.g. Spanish phones).
-  var isRoot = (location.pathname === '/' || location.pathname === '/index.html');
-  var stored=null; try{stored=localStorage.getItem('ly_lang');}catch(e){}
-  if(stored){
-    if(map[stored] && isRoot){ location.replace(map[stored]); return; }
-    // If stored but not on root, or unknown, do nothing (stay where we are).
-  }
-  if(!isRoot) return;
-  var langs=navigator.languages||[navigator.language||''];
-  for(var i=0;i<langs.length;i++){
-    var c=(langs[i]||'').slice(0,2).toLowerCase();
-    if(c==='en') return;                 /* English preferred -> stay */
-    if(map[c]){ location.replace(map[c]); return; }
-  }
-}catch(e){}})();
-</script>
 <title>Limitless Yacht Experience – Luxus-Maiora-Charter auf Mallorca</title>
 <meta name="description" content="Chartern Sie die 21,5 m Maiora „Limitless“ ab Palma de Mallorca — Tages- und Mehrtagestörns zu Mallorcas schönsten Buchten, Cabrera und Formentera. Mit Crew, bis zu 12 Gäste." />
 <meta name="keywords" content="Yachtcharter Mallorca, Maiora Yacht, Limitless Yacht, Bootcharter Palma de Mallorca, Luxusyacht Mittelmeer, Club de Mar Charter" />
@@ -170,60 +171,37 @@ nav{position:fixed;top:0;left:0;right:0;z-index:100;min-height:4.25rem}
 
 
 
-<!-- Structured data -->
-<script type="application/ld+json">
-{
-  "@context": "https://schema.org",
-  "@graph": [
-    {
-      "@type": "LocalBusiness",
-      "@id": "https://limitlessyachtcharter.com/#business",
-      "name": "Limitless Yacht Experience",
-      "legalName": "Limitless Opportunities S.L.",
-      "description": "Private charter of the 21.5 m Maiora motor yacht \"Limitless\" from Club de Mar, Palma de Mallorca, with an experienced crew of two.",
-      "url": "https://limitlessyachtcharter.com/",
-      "image": "https://limitlessyachtcharter.com/images/maiora_20s_02.jpg",
-      "logo": "https://limitlessyachtcharter.com/favicon.svg",
-      "email": "info@limitlessyachtcharter.com",
-      "telephone": "+34622581486",
-      "priceRange": "€€€",
-      "vatID": "B21726427",
-      "address": {
-        "@type": "PostalAddress",
-        "streetAddress": "Carrer Castella 1",
-        "addressLocality": "Calvià",
-        "postalCode": "07180",
-        "addressRegion": "Balearic Islands",
-        "addressCountry": "ES"
-      },
-      "geo": {
-        "@type": "GeoCoordinates",
-        "latitude": 39.5582,
-        "longitude": 2.6196
-      },
-      "areaServed": {
-        "@type": "Place",
-        "name": "Mallorca, Balearic Islands, Spain"
-      }
-    },
-    {
-      "@type": "Product",
-      "name": "Maiora 21.5 m Yacht Charter – \"Limitless\"",
-      "description": "Charter the Maiora motor yacht \"Limitless\" in Mallorca. Up to 12 guests by day and 7 overnight, with a dedicated crew, water toys and access to Mallorca's most beautiful coves.",
-      "brand": { "@type": "Brand", "name": "Maiora" },
-      "category": "Yacht Charter",
-      "image": [
-        "https://limitlessyachtcharter.com/images/maiora_20s_02.jpg",
-        "https://limitlessyachtcharter.com/images/maiora_20s_04.jpg"
-      ]
-    }
-  ]
-}
-</script>
-
 </head>
 <body>
 
+<!-- HERO — first in body so preload + picture are discovered before nav markup -->
+<section id="hero">
+  <picture class="hero-bg-wrap">
+    <source srcset="/images/mobile/maiora_20s_02-480.webp 480w, /images/mobile/maiora_20s_02.webp 960w" sizes="100vw" type="image/webp" media="(max-width: 640px)">
+    <source srcset="/images/maiora_20s_02.webp 960w" sizes="100vw" type="image/webp">
+    <img class="hero-bg" src="/images/maiora_20s_02.jpg" alt="" width="1920" height="1080" fetchpriority="high" decoding="async">
+  </picture>
+  <div class="hero-overlay"></div>
+  <div class="hero-content">
+    <p class="hero-eyebrow"><a href="#reviews" class="hero-eyebrow-link--mobile"><span class="eyebrow-stars">★★★★★</span> 5.0</a><a href="#reviews-land" class="hero-eyebrow-link--desktop"><span class="eyebrow-stars">★★★★★</span> 5.0</a> &nbsp;·&nbsp; <a href="#charters" class="hero-eyebrow-link--mobile">Privatcharter</a><a href="#charters-land" class="hero-eyebrow-link--desktop">Privatcharter</a><br>Club de Mar · Mallorca</p>
+    <h1 class="hero-title">LIMIT<em>LESS</em></h1>
+    <p class="hero-sub">Exklusive Maiora-Yacht · 21,5 m · Bis zu 12 Gäste tagsüber · 7 über Nacht</p>
+    <div class="hero-cta-group">
+      <p class="hero-value">Ihre Crew kümmert sich um alles — Sie konzentrieren sich auf die Menschen und die Ausblicke.</p>
+      <div class="hero-actions">
+        <a href="#itinerary" class="btn-primary hero-cta-link--mobile">Reiseziele entdecken</a>
+        <a href="#itinerary-land" class="btn-primary hero-cta-link--desktop">Reiseziele entdecken</a>
+        <a href="#gallery" class="btn-ghost hero-cta-link--mobile">Die Yacht entdecken</a>
+        <a href="#gallery-land" class="btn-ghost hero-cta-link--desktop">Die Yacht entdecken</a>
+      </div>
+      <p class="hero-trust"><a href="#reviews">Verified reviews on Click&amp;Boat</a> · Crewed &amp;&nbsp;fully equipped</p>
+      <div class="hero-scroll">
+        <span>Scrollen</span>
+        <div class="scroll-line"></div>
+      </div>
+    </div>
+  </div>
+</section>
 
 <!-- NAV -->
 <nav id="navbar">
@@ -277,35 +255,6 @@ nav{position:fixed;top:0;left:0;right:0;z-index:100;min-height:4.25rem}
     <a href="../es/" hreflang="es" lang="es">ES</a>
   </div>
 </div>
-
-<!-- HERO -->
-<section id="hero">
-  <picture class="hero-bg-wrap">
-    <source srcset="/images/mobile/maiora_20s_02-480.webp 480w, /images/mobile/maiora_20s_02.webp 960w" sizes="100vw" type="image/webp" media="(max-width: 640px)">
-    <source srcset="/images/maiora_20s_02.webp 960w" sizes="100vw" type="image/webp">
-    <img class="hero-bg" src="/images/maiora_20s_02.jpg" alt="" width="1920" height="1080" fetchpriority="high" decoding="sync" aria-hidden="true">
-  </picture>
-  <div class="hero-overlay"></div>
-  <div class="hero-content">
-    <p class="hero-eyebrow"><a href="#reviews" class="hero-eyebrow-link--mobile"><span class="eyebrow-stars">★★★★★</span> 5.0</a><a href="#reviews-land" class="hero-eyebrow-link--desktop"><span class="eyebrow-stars">★★★★★</span> 5.0</a> &nbsp;·&nbsp; <a href="#charters" class="hero-eyebrow-link--mobile">Privatcharter</a><a href="#charters-land" class="hero-eyebrow-link--desktop">Privatcharter</a><br>Club de Mar · Mallorca</p>
-    <h1 class="hero-title">LIMIT<em>LESS</em></h1>
-    <p class="hero-sub">Exklusive Maiora-Yacht · 21,5 m · Bis zu 12 Gäste tagsüber · 7 über Nacht</p>
-    <div class="hero-cta-group">
-      <p class="hero-value">Ihre Crew kümmert sich um alles — Sie konzentrieren sich auf die Menschen und die Ausblicke.</p>
-      <div class="hero-actions">
-        <a href="#itinerary" class="btn-primary hero-cta-link--mobile">Reiseziele entdecken</a>
-        <a href="#itinerary-land" class="btn-primary hero-cta-link--desktop">Reiseziele entdecken</a>
-        <a href="#gallery" class="btn-ghost hero-cta-link--mobile">Die Yacht entdecken</a>
-        <a href="#gallery-land" class="btn-ghost hero-cta-link--desktop">Die Yacht entdecken</a>
-      </div>
-      <p class="hero-trust"><a href="#reviews">Verified reviews on Click&amp;Boat</a> · Crewed &amp;&nbsp;fully equipped</p>
-      <div class="hero-scroll">
-        <span>Scrollen</span>
-        <div class="scroll-line"></div>
-      </div>
-    </div>
-  </div>
-</section>
 
 <!-- INTRO STRIP -->
 <section id="intro">
@@ -3021,6 +2970,76 @@ window.LY_afterLcp(function() {
   s.src = (window.LY_BASE || '') + '/js/behavior-analytics.js';
   document.head.appendChild(s);
 })();
+</script>
+
+<!-- Structured data (end of body — keeps head small for faster hero discovery) -->
+<script type="application/ld+json">
+{
+  "@context": "https://schema.org",
+  "@graph": [
+    {
+      "@type": "LocalBusiness",
+      "@id": "https://limitlessyachtcharter.com/#business",
+      "name": "Limitless Yacht Experience",
+      "legalName": "Limitless Opportunities S.L.",
+      "description": "Private charter of the 21.5 m Maiora motor yacht \"Limitless\" from Club de Mar, Palma de Mallorca, with an experienced crew of two.",
+      "url": "https://limitlessyachtcharter.com/",
+      "image": "https://limitlessyachtcharter.com/images/maiora_20s_02.jpg",
+      "logo": "https://limitlessyachtcharter.com/favicon.svg",
+      "email": "info@limitlessyachtcharter.com",
+      "telephone": "+34622581486",
+      "priceRange": "€€€",
+      "vatID": "B21726427",
+      "address": {
+        "@type": "PostalAddress",
+        "streetAddress": "Carrer Castella 1",
+        "addressLocality": "Calvià",
+        "postalCode": "07180",
+        "addressRegion": "Balearic Islands",
+        "addressCountry": "ES"
+      },
+      "geo": {
+        "@type": "GeoCoordinates",
+        "latitude": 39.5582,
+        "longitude": 2.6196
+      },
+      "areaServed": {
+        "@type": "Place",
+        "name": "Mallorca, Balearic Islands, Spain"
+      }
+    },
+    {
+      "@type": "Product",
+      "name": "Maiora 21.5 m Yacht Charter – \"Limitless\"",
+      "description": "Charter the Maiora motor yacht \"Limitless\" in Mallorca. Up to 12 guests by day and 7 overnight, with a dedicated crew, water toys and access to Mallorca's most beautiful coves.",
+      "brand": { "@type": "Brand", "name": "Maiora" },
+      "category": "Yacht Charter",
+      "image": [
+        "https://limitlessyachtcharter.com/images/maiora_20s_02.jpg",
+        "https://limitlessyachtcharter.com/images/maiora_20s_04.jpg"
+      ]
+    }
+  ]
+}
+</script>
+
+<!-- Auto-match browser language (end of body — must not delay hero paint) -->
+<script>
+(function(){try{
+  var map={de:'/de/',es:'/es/',fr:'/fr/'};
+  var isRoot = (location.pathname === '/' || location.pathname === '/index.html');
+  var stored=null; try{stored=localStorage.getItem('ly_lang');}catch(e){}
+  if(stored){
+    if(map[stored] && isRoot){ location.replace(map[stored]); return; }
+  }
+  if(!isRoot) return;
+  var langs=navigator.languages||[navigator.language||''];
+  for(var i=0;i<langs.length;i++){
+    var c=(langs[i]||'').slice(0,2).toLowerCase();
+    if(c==='en') return;
+    if(map[c]){ location.replace(map[c]); return; }
+  }
+}catch(e){}})();
 </script>
 
 <!-- Remember the visitor's manual language choice (suppresses auto-redirect) -->
