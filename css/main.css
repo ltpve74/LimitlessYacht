@@ -838,13 +838,16 @@ section { padding: 7rem 2rem; }
 }
 .form-date-popover[hidden] { display: none !important; }
 .form-date-popover-toolbar {
-  position: relative;
+  display: flex;
+  align-items: center;
+  gap: .35rem;
   margin-bottom: .55rem;
-  padding: 0 2.35rem;
-  text-align: center;
 }
 .form-date-popover .form-date-title {
+  flex: 1;
+  min-width: 0;
   margin: 0;
+  text-align: center;
   font-family: 'Montserrat', sans-serif;
   font-size: .95rem; font-weight: 400;
   color: var(--gold-light); letter-spacing: .02em;
@@ -852,10 +855,11 @@ section { padding: 7rem 2rem; }
   overflow: hidden;
   text-overflow: ellipsis;
 }
+.form-date-popover-toolbar .form-date-popover-dismiss {
+  flex: none;
+  margin-left: .1rem;
+}
 .form-date-popover-dismiss {
-  position: absolute;
-  top: 50%; right: 0;
-  transform: translateY(-50%);
   margin-top: 0;
   font-size: .82rem; line-height: 1;
 }
