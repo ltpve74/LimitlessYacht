@@ -186,8 +186,16 @@ def check_html(r: Runner, rel: str, html: str) -> None:
         html.count('data-dest-idx="') == 12,
     )
     r.check(
-        'itinerary carousel syncs card webp with lightbox URL',
-        'window.LY_syncDestCardImages' in html,
+        'destination cards use responsive picture sources (no JS srcset overwrite)',
+        'window.LY_syncDestCardImages' not in html
+        and html.count('class="destination-card-bg"') == 12
+        and html.count('sizes="78vw"') == 12
+        and 'images/mobile/dest/el-toro-malgrats-1-480.webp 480w' in html,
+    )
+    r.check(
+        'gallery pictures split mobile/desktop sources',
+        'sizes="(max-width: 640px) 35vw, 22vw"' not in html
+        and html.count('sizes="22vw"') >= 15,
     )
     r.check(
         'itinerary carousel prefetches on scroll',
@@ -527,6 +535,8 @@ def check_shared_assets(r: Runner) -> None:
     for rel in (
         'fonts/montserrat-latin.woff2',
         'images/mobile/maiora_20s_02.webp',
+        'images/mobile/maiora_20s_02-480.webp',
+        'images/mobile/dest/el-toro-malgrats-1-480.webp',
         'data/reviews.json',
         'netlify/functions/availability.mjs',
         'netlify/functions/reviews.mjs',
