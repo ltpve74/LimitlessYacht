@@ -687,9 +687,12 @@ def check_shared_assets(r: Runner) -> None:
         and 'href="#avail-cal" class="itinerary-meet-cta"' in index_html,
     )
     r.check(
-        'form nudges users to check availability before entering dates',
+        'form date hint sits with date fields and is mobile-only in paired layout',
         'class="form-date-hint"' in index_html
-        and 'href="#avail-cal" class="form-date-hint-link">availability calendar</a>' in index_html,
+        and 'Check the calendar above for open dates.' in index_html
+        and 'form-date-hint-link' not in index_html
+        and css is not None
+        and re.search(r'\.contact-cal-pair\s+\.form-date-hint\s*\{\s*display:\s*none', css) is not None,
     )
     r.check(
         'availability calendar has app-style landing anchor',

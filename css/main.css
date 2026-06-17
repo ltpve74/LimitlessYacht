@@ -766,27 +766,12 @@ section { padding: 7rem 2rem; }
   margin: .75rem 0 .5rem;
 }
 .form-date-hint {
-  margin: .35rem 0 .55rem;
-  padding: .75rem .9rem;
-  font-size: .68rem; line-height: 1.65; letter-spacing: .03em;
-  color: rgba(245,240,232,.62);
-  background: rgba(255,255,255,.025);
-  border: 1px solid rgba(201,168,76,.18);
-  border-radius: 6px;
-}
-.contact-form .form-date-hint-link,
-.contact-form .form-date-hint-link:link,
-.contact-form .form-date-hint-link:visited {
-  color: var(--gold);
-  text-decoration: none;
-  font-weight: 500;
-  border-bottom: 1px solid rgba(201,168,76,.42);
-  padding-bottom: 1px;
-  transition: color .2s, border-color .2s;
-}
-.contact-form .form-date-hint-link:hover {
-  color: var(--gold-light);
-  border-color: var(--gold-light);
+  grid-column: 1 / -1;
+  margin: .1rem 0 0;
+  padding: 0;
+  font-size: .58rem; line-height: 1.6; letter-spacing: .12em;
+  text-transform: uppercase;
+  color: var(--text-muted);
 }
 .form-submit {
   background: var(--gold); color: var(--navy); border: none;
@@ -821,6 +806,7 @@ section { padding: 7rem 2rem; }
    hide the form-col duplicate to keep the layout clean */
 @media (min-width: 769px) {
   .form-col-wa, .form-divider { display: none; }
+  .contact-cal-pair .form-date-hint { display: none; }
 }
 /* On mobile, contact-info WhatsApp is far above the form — hide it there,
    show only the one paired with the form */
@@ -1061,7 +1047,7 @@ footer {
   .contact-form { gap: .6rem; }
   .form-field input, .form-field select { padding: .6rem .85rem; font-size: 1rem; }
   .form-reassurance { margin: .25rem 0 .15rem; }
-  .form-date-hint { font-size: .66rem; margin: .25rem 0 .45rem; padding: .65rem .8rem; }
+  .form-date-hint { font-size: .56rem; margin: .15rem 0 0; }
   .contact-cal-pair #availability .section-label,
   .contact-cal-pair #availability .section-title,
   .contact-cal-pair #availability .availability-intro { display: none; }
