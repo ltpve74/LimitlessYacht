@@ -163,6 +163,7 @@ nav.scrolled::before { opacity: 1; }
 @keyframes heroZoom { to { transform: scale(1); } }
 .hero-overlay {
   position: absolute; inset: 0;
+  pointer-events: none;
   background:
     linear-gradient(to bottom, rgba(10,22,40,.88) 0%, rgba(10,22,40,.22) 38%, rgba(10,22,40,.32) 62%, rgba(10,22,40,.92) 100%),
     linear-gradient(135deg, rgba(10,22,40,.55) 0%, rgba(10,22,40,.08) 50%, rgba(10,22,40,.55) 100%);
