@@ -270,6 +270,7 @@ def check_html(r: Runner, rel: str, html: str) -> None:
         and "durationSelect.value === 'multi-day'" in html
         and 'endWrap.hidden = !isMulti' in html
         and "durationSelect.value = 'multi-day'" in html
+        and 'preferredDateEndWrap' in html
         and 'data-selected=' in html
         and "node.closest('.cal-cell.free[data-date]')" in html,
     )
@@ -635,6 +636,12 @@ def check_shared_assets(r: Runner) -> None:
             css,
             re.DOTALL | re.MULTILINE,
         ),
+    )
+    r.check(
+        'hidden form fields stay hidden despite .form-field flex',
+        css is not None
+        and '.form-field[hidden]' in css
+        and '#preferredDateEndWrap[hidden]' in css,
     )
     r.check(
         'calendar hint lives inside the calendar card',
