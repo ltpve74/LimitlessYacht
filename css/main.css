@@ -409,6 +409,12 @@ section { padding: 7rem 2rem; }
 .dest-tab .tab-period { display: block; font-size: .5rem; letter-spacing: .06em; margin-top: .15rem; opacity: .75; }
 .dest-tab.tab--active, .gallery-tab.tab--active { background: var(--gold); color: var(--navy); }
 .dest-tab + .dest-tab, .gallery-tab + .gallery-tab { border-left: 1px solid rgba(201,168,76,.25); }
+.gallery-wrap,
+.itinerary-wrap {
+  max-width: 1400px;
+  margin: 0 auto;
+  padding: 0 2rem;
+}
 .dest-group { display: none; }
 .dest-group.tab-active { display: block; }
 .dest-group .itinerary-grid { margin-top: 1.5rem; }
@@ -2120,11 +2126,12 @@ footer {
   #itinerary {
     display: flex;
     flex-direction: column;
+    box-sizing: border-box;
     /* One viewport below fixed nav — flex children split the rest dynamically */
     height: calc(100svh - var(--nav-scroll-offset));
     min-height: calc(100svh - var(--nav-scroll-offset));
     max-height: calc(100svh - var(--nav-scroll-offset));
-    padding: 0;
+    padding: 0 0 1.25rem;
     overflow: hidden;
   }
   /* Keep -land anchors for nav; hide header copy (tabs lead like mobile) */
@@ -2151,7 +2158,7 @@ footer {
     width: 100%;
     max-width: none;
     margin: 0;
-    padding: 0 0 .75rem;
+    padding: 0;
   }
   .dest-tabs,
   .gallery-tabs {
@@ -2192,7 +2199,7 @@ footer {
     touch-action: pan-x pan-y;
     margin-top: 0;
     gap: .85rem;
-    padding: .5rem 2rem .35rem;
+    padding: .5rem 2rem .5rem;
   }
   .gallery-group .gallery-grid::-webkit-scrollbar,
   .dest-group .itinerary-grid::-webkit-scrollbar {
@@ -2229,13 +2236,14 @@ footer {
   .destination-desc {
     display: none;
   }
-  .carousel-nav {
+  #gallery .carousel-nav,
+  .dest-group .carousel-nav {
     display: flex;
     align-items: center;
     justify-content: center;
     flex: 0 0 auto;
     gap: .75rem;
-    padding: .5rem 0 .85rem;
+    padding: .65rem 0 1.15rem;
   }
   .carousel-btn {
     background: transparent;
@@ -2270,8 +2278,8 @@ footer {
   .itinerary-meet-cta {
     display: block;
     flex: 0 0 auto;
-    margin: 0;
-    padding: 1.15rem 2rem 1.25rem;
+    margin: .75rem 0 0;
+    padding: 1.15rem 2rem;
     font-size: .72rem;
     letter-spacing: .14em;
     text-transform: uppercase;

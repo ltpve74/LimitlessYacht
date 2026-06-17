@@ -854,7 +854,7 @@ def check_shared_assets(r: Runner) -> None:
         )
         is not None
         and re.search(
-            r'@media \(min-width: 769px\)[\s\S]*?\.carousel-nav\s*\{[^}]*display:\s*flex',
+            r'@media \(min-width: 769px\)[\s\S]*?#gallery\s+\.carousel-nav[\s\S]*?display:\s*flex',
             css,
         )
         is not None,
