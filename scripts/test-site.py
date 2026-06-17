@@ -307,7 +307,7 @@ def check_html(r: Runner, rel: str, html: str) -> None:
     )
     r.check(
         'critical CSS is slim enough for fast head parse',
-        style_pos > 0 and html.find('</style>', style_pos) - style_pos < 3500,
+        style_pos > 0 and html.find('</style>', style_pos) - style_pos < 4200,
     )
     crit_end = html.find('</style>', style_pos)
     crit_css = html[style_pos:crit_end] if style_pos > 0 and crit_end > style_pos else ''
@@ -319,8 +319,15 @@ def check_html(r: Runner, rel: str, html: str) -> None:
     r.check(
         'critical CSS matches mobile hero flex layout',
         'display:flex' in crit_flat
-        and '.hero-cta-group{margin-top:auto}' in crit_flat
+        and '.hero-cta-group{' in crit_flat and 'margin-top:auto' in crit_flat
+        and 'flex:1' in crit_flat and 'min-height:100%' in crit_flat
         and 'safe-area-inset-bottom' in crit_css,
+    )
+    r.check(
+        'critical CSS reserves hero child layout before main.css',
+        '.hero-eyebrow{' in crit_flat
+        and '.hero-actions{' in crit_flat
+        and '.btn-primary{' in crit_flat,
     )
     r.check(
         'below-fold preloads deferred until after LCP window',
@@ -491,6 +498,10 @@ def check_shared_assets(r: Runner) -> None:
     if css:
         r.check('main.css defines .hero-bg-wrap', '.hero-bg-wrap' in css)
         r.check('main.css defines heroTitleIn', 'heroTitleIn' in css)
+        r.check(
+            'hero entrance animations avoid translateY (CLS-safe)',
+            '@keyframes heroFade' in css and 'animation: heroFade' in css,
+        )
     r.check(
         'WhatsApp button meets contrast-safe green',
         css is not None and '#157a47' in css and '#25D366' not in css,
