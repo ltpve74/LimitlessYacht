@@ -569,9 +569,9 @@ def check_html(r: Runner, rel: str, html: str) -> None:
         'responsive hero image preloads',
         'imagesrcset="' in html
         and 'maiora_20s_02-480.webp 480w' in html
+        and 'maiora_20s_02-720.webp' in html
         and 'maiora_20s_02.webp 960w' in html
-        and 'maiora_20s_02-720.webp' not in html.split('imagesrcset=')[1][:320]
-        and 'maiora_20s_02.webp' in html
+        and 'maiora_20s_02-640.webp 640w' in html
         and 'fetchpriority="high"' in html,
     )
     style_pos = html.find('<style')
@@ -658,7 +658,12 @@ def check_html(r: Runner, rel: str, html: str) -> None:
         'CONTENT_DESKTOP_WEBP_Q' in opt_py
         and 'CONTENT_DEST_MAX_EDGE' in opt_py
         and 'GALLERY_DESKTOP_WEBP_Q' in opt_py
-        and 'HERO_960_Q' in opt_py,
+        and 'HERO_DESKTOP_WEBP_Q' in opt_py,
+    )
+    hero_webp = os.path.join(ROOT, 'images', 'maiora_20s_02.webp')
+    r.check(
+        'hero desktop master kept sharp (not destination-grade compression)',
+        os.path.isfile(hero_webp) and os.path.getsize(hero_webp) > 45 * 1024,
     )
     gallery_webp = os.path.join(ROOT, 'images', 'maiora_20s_01.webp')
     r.check(
@@ -1767,6 +1772,9 @@ def check_shared_assets(r: Runner) -> None:
         'fonts/montserrat-latin.woff2',
         'images/mobile/maiora_20s_02.webp',
         'images/mobile/maiora_20s_02-480.webp',
+        'images/mobile/maiora_20s_02-720.webp',
+        'images/maiora_20s_02.webp',
+        'images/maiora_20s_02-640.webp',
         'images/mobile/dest/el-toro-malgrats-1-480.webp',
         'images/mobile/dest/el-toro-malgrats-1-720.webp',
         'images/mobile/_srcset-widths.json',

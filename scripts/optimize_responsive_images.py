@@ -81,12 +81,21 @@ ABOUT_NAME = "maiora_20s_04"
 ABOUT_DESKTOP_MAX_EDGE = 960
 ABOUT_DESKTOP_WEBP_Q = 78
 
-# Hero (LCP): tuned separately — never apply gallery/content settings.
-HERO_MOBILE_TIERS = CONTENT_MOBILE_TIERS
-HERO_480_Q = 72
-HERO_960_Q = 35
-HERO_SOURCE = BASE / "images" / "maiora_20s_02.webp"
-HERO_DESKTOP_WEBP = BASE / "images" / "maiora_20s_02.webp"
+# Hero (LCP): sharp viewport-matched tiers; native master is 960px wide.
+HERO_STEM = "maiora_20s_02"
+HERO_JPG = IMAGES / f"{HERO_STEM}.jpg"
+HERO_DESKTOP_WEBP = IMAGES / f"{HERO_STEM}.webp"
+HERO_MOBILE_TIERS = (
+    ("-480", 480, 80),
+    ("-720", 720, 78),
+    ("-960", 960, 76),
+    ("-1440", 1440, 78),
+)
+HERO_MOBILE_WEBP_Q = 80
+DESKTOP_HERO_TIERS = (
+    ("-640", 640, 84),
+)
+HERO_DESKTOP_WEBP_Q = 84
 
 DEST_SLUGS = (
     "portals-vells", "el-toro-malgrats", "cala-llamp", "sa-dragonera",
@@ -94,9 +103,16 @@ DEST_SLUGS = (
     "sa-calobra", "circumnavigation", "formentera", "menorca",
 )
 
-TIER_SUFFIXES = tuple(
-    suffix for suffix, _, _ in CONTENT_MOBILE_TIERS + GALLERY_MOBILE_TIERS + DESKTOP_GALLERY_TIERS
-)
+TIER_SUFFIXES = tuple({
+    suffix
+    for suffix, _, _ in (
+        CONTENT_MOBILE_TIERS
+        + GALLERY_MOBILE_TIERS
+        + HERO_MOBILE_TIERS
+        + DESKTOP_GALLERY_TIERS
+        + DESKTOP_HERO_TIERS
+    )
+})
 TIER_ORDER = {suffix: index for index, (suffix, _, _) in enumerate(CONTENT_MOBILE_TIERS)}
 
 
@@ -126,7 +142,7 @@ def mobile_tiers_for(profile: str) -> tuple[tuple[str, int, int], ...]:
 
 def mobile_master_q(profile: str) -> int:
     if profile == "hero":
-        return HERO_960_Q
+        return HERO_MOBILE_WEBP_Q
     if profile == "gallery":
         return GALLERY_MOBILE_WEBP_Q
     return CONTENT_MOBILE_WEBP_Q
@@ -139,33 +155,41 @@ def tier_quality(
     default_q: int,
     profile: str,
 ) -> int:
-    if profile == "hero":
-        if suffix == "-480":
-            return HERO_480_Q
-        return default_q
     if profile == "dest" and suffix == "-480" and tier_img.size[0] >= 480:
         return DELIVERY_TIGHT_480_Q
     return default_q
 
 
 def hero_mobile_srcset(widths: dict[str, int]) -> str:
-    """1x → 480w; 2x/3x → 960w master (downscaled from desktop source, no mid-tier upscale)."""
+    return srcset_for_base(
+        f"images/mobile/{HERO_STEM}.webp",
+        widths,
+        include_master=True,
+        max_suffix="-960",
+        tiers=HERO_MOBILE_TIERS,
+    )
+
+
+def hero_desktop_srcset(widths: dict[str, int]) -> str:
     entries: list[tuple[int, str]] = []
-    rel480 = "images/mobile/maiora_20s_02-480.webp"
-    rel960 = "images/mobile/maiora_20s_02.webp"
-    if rel480 in widths:
-        entries.append((widths[rel480], rel480))
-    if rel960 in widths:
-        entries.append((widths[rel960], rel960))
+    for suffix, _, _ in DESKTOP_HERO_TIERS:
+        rel = f"images/{HERO_STEM}{suffix}.webp"
+        if rel in widths:
+            entries.append((widths[rel], rel))
+    master = f"images/{HERO_STEM}.webp"
+    if master in widths:
+        w = widths[master]
+        if not any(width == w for width, _ in entries):
+            entries.append((w, master))
     entries.sort(key=lambda item: item[0])
     return ", ".join(f"{path} {width}w" for width, path in entries)
 
 
-def load_hero_master(src_path: Path) -> Image.Image:
-    """Prefer the 960w desktop master when building hero tiers."""
-    if src_path.name == "maiora_20s_02.webp" and HERO_SOURCE.is_file():
-        return Image.open(HERO_SOURCE).convert("RGB")
-    return Image.open(src_path).convert("RGB")
+def load_hero_rgb() -> Image.Image:
+    """Always rebuild hero from the full native JPEG/WebP master on disk."""
+    if HERO_JPG.is_file():
+        return Image.open(HERO_JPG).convert("RGB")
+    return Image.open(HERO_DESKTOP_WEBP).convert("RGB")
 
 
 def load_rgb_source(webp: Path) -> Image.Image:
@@ -292,6 +316,34 @@ def optimize_gallery_desktop(widths: dict[str, int]) -> None:
         )
 
 
+def optimize_hero_desktop(widths: dict[str, int]) -> None:
+    """High-quality hero master + desktop grid tiers (native 960px cap)."""
+    if not HERO_JPG.is_file() and not HERO_DESKTOP_WEBP.is_file():
+        return
+    print("\nOptimizing hero image (high quality, viewport tiers)\n")
+    img = load_hero_rgb()
+    before = kb(HERO_DESKTOP_WEBP) if HERO_DESKTOP_WEBP.is_file() else 0.0
+    img.save(HERO_DESKTOP_WEBP, "WEBP", quality=HERO_DESKTOP_WEBP_Q, method=6)
+    master_kb = kb(HERO_DESKTOP_WEBP)
+    tier_kb = master_kb
+    rel = HERO_DESKTOP_WEBP.relative_to(BASE).as_posix()
+    widths[rel] = img.size[0]
+    parts = [f"  {HERO_STEM:<32} {img.size[0]}x{img.size[1]} {before:5.0f}KB -> {master_kb:5.0f}KB"]
+    prev_size: tuple[int, int] | None = None
+    for suffix, max_edge, quality in DESKTOP_HERO_TIERS:
+        tier_path = IMAGES / f"{HERO_STEM}{suffix}.webp"
+        tier_img = resize_to_max(img, max_edge)
+        if prev_size is not None and tier_img.size == prev_size:
+            continue
+        tier_img.save(tier_path, "WEBP", quality=quality, method=6)
+        tier_kb += kb(tier_path)
+        tier_rel = tier_path.relative_to(BASE).as_posix()
+        widths[tier_rel] = tier_img.size[0]
+        prev_size = tier_img.size
+        parts.append(f"+ {tier_path.name} ({tier_img.size[0]}x{tier_img.size[1]}) {kb(tier_path):5.0f}KB")
+    print(" ".join(parts))
+
+
 def optimize_about_desktop(widths: dict[str, int]) -> None:
     """About-section photo: sharper than dest cards, lighter than full gallery master."""
     webp = IMAGES / f"{ABOUT_NAME}.webp"
@@ -341,7 +393,7 @@ def build_variants() -> dict[str, int]:
         profile = mobile_profile(src_path)
         tiers = mobile_tiers_for(profile)
         if profile == "hero":
-            img = load_hero_master(src_path)
+            img = load_hero_rgb()
         elif src_path.parent == MOBILE:
             img = load_mobile_master(src_path)
         else:
@@ -379,6 +431,7 @@ def build_variants() -> dict[str, int]:
         total_after += tier_kb
 
     optimize_dest_desktop(widths)
+    optimize_hero_desktop(widths)
     optimize_gallery_desktop(widths)
     optimize_about_desktop(widths)
     record_dest_desktop_widths(widths)
@@ -546,10 +599,16 @@ def write_srcsets(widths: dict[str, int]) -> None:
     html = patch_dest_img_dimensions(html, widths)
 
     hero_mobile = hero_mobile_srcset(widths)
+    hero_desktop = hero_desktop_srcset(widths)
     html = re.sub(
         r'<source srcset="[^"]*maiora_20s_02[^"]*" '
         r'sizes="100vw" type="image/webp" media="\(max-width: 640px\)">',
         f'<source srcset="{hero_mobile}" sizes="100vw" type="image/webp" media="(max-width: 640px)">',
+        html,
+    )
+    html = re.sub(
+        r'<source srcset="images/maiora_20s_02[^"]*" sizes="100vw" type="image/webp">',
+        f'<source srcset="{hero_desktop}" sizes="100vw" type="image/webp">',
         html,
     )
     html = re.sub(
@@ -559,6 +618,22 @@ def write_srcsets(widths: dict[str, int]) -> None:
         f'type="image/webp" fetchpriority="high" media="(max-width: 640px)" />',
         html,
     )
+    html = re.sub(
+        r'<link rel="preload" as="image" href="images/maiora_20s_02\.webp" '
+        r'type="image/webp" fetchpriority="high" media="\(min-width: 641px\)" />',
+        f'<link rel="preload" as="image" imagesrcset="{hero_desktop}" imagesizes="100vw" '
+        f'type="image/webp" fetchpriority="high" media="(min-width: 641px)" />',
+        html,
+    )
+    if HERO_JPG.is_file():
+        with Image.open(HERO_JPG) as hero_img:
+            hw, hh = hero_img.size
+        html = re.sub(
+            r'(<img class="hero-bg" src="images/maiora_20s_02\.jpg" alt="" )width="\d+" height="\d+"',
+            rf'\1width="{hw}" height="{hh}"',
+            html,
+            count=1,
+        )
 
     html = patch_mobile_source(
         html,
