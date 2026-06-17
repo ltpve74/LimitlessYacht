@@ -1202,6 +1202,25 @@ def check_shared_assets(r: Runner) -> None:
         and 'dest-lb-cta-mobile' in index_html,
     )
     r.check(
+        'destination lightbox uses side-by-side layout on tablet and desktop',
+        css is not None
+        and re.search(
+            r'@media\s*\(\s*min-width:\s*641px\s*\)[\s\S]*?#dest-lightbox\s*\{[^}]*flex-direction:\s*row',
+            css,
+        )
+        is not None
+        and re.search(
+            r'@media\s*\(\s*min-width:\s*641px\s*\)[\s\S]*?\.dest-lb-img-wrap\s*\{[^}]*flex:\s*1\s*1\s*0',
+            css,
+        )
+        is not None
+        and re.search(
+            r'@media\s*\(\s*min-width:\s*641px\s*\)[\s\S]*?\.dest-lb-body\s*\{[^}]*align-self:\s*center',
+            css,
+        )
+        is not None,
+    )
+    r.check(
         'form date hint links to availability calendar overview',
         'class="form-date-hint"' in index_html
         and 'class="form-date-hint-link"' in index_html
