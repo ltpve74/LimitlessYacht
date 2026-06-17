@@ -1266,8 +1266,18 @@ footer {
   background: transparent; border: 1px solid rgba(201,168,76,.35); color: var(--gold);
   width: 36px; height: 36px; border-radius: 50%; cursor: pointer; font-size: 1.05rem; line-height: 1;
   transition: background .2s, color .2s, opacity .2s;
+  -webkit-tap-highlight-color: transparent;
 }
-.cal-nav:hover { background: var(--gold); color: var(--navy); }
+.cal-nav:focus { outline: none; }
+.cal-nav:focus:not(:focus-visible) { background: transparent; color: var(--gold); }
+.cal-nav:focus-visible:not(:disabled) {
+  outline: 2px solid var(--gold-light);
+  outline-offset: 2px;
+}
+@media (hover: hover) and (pointer: fine) {
+  .cal-nav:hover:not(:disabled) { background: var(--gold); color: var(--navy); }
+}
+.cal-nav:active:not(:disabled) { background: var(--gold); color: var(--navy); }
 .cal-nav:disabled { opacity: .25; cursor: default; }
 .cal-grid { display: grid; grid-template-columns: repeat(7, 1fr); gap: 5px; }
 .cal-dow { margin-bottom: .5rem; }

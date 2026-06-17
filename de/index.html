@@ -2332,8 +2332,8 @@ window.LY_afterLcp(function() {
     viewIndex = next;
     render();
   }
-  prevBtn.addEventListener('click', function(){ shift(-1); });
-  nextBtn.addEventListener('click', function(){ shift(1); });
+  prevBtn.addEventListener('click', function(e){ shift(-1); e.currentTarget.blur(); });
+  nextBtn.addEventListener('click', function(e){ shift(1); e.currentTarget.blur(); });
 
   function cellFromEvent(e) {
     var node = e.target;
@@ -2591,10 +2591,10 @@ window.LY_afterLcp(function() {
         else openFormDatePopover();
       });
     }
-    if (formDateDismissBtn) formDateDismissBtn.addEventListener('click', function(e){ e.preventDefault(); closeFormDatePopover(); });
-    if (formDateApplyBtn) formDateApplyBtn.addEventListener('click', function(e){ e.preventDefault(); closeFormDatePopover(); });
-    if (formDatePrevBtn) formDatePrevBtn.addEventListener('click', function(e){ e.preventDefault(); shiftFormDatePopover(-1); });
-    if (formDateNextBtn) formDateNextBtn.addEventListener('click', function(e){ e.preventDefault(); shiftFormDatePopover(1); });
+    if (formDateDismissBtn) formDateDismissBtn.addEventListener('click', function(e){ e.preventDefault(); closeFormDatePopover(); e.currentTarget.blur(); });
+    if (formDateApplyBtn) formDateApplyBtn.addEventListener('click', function(e){ e.preventDefault(); closeFormDatePopover(); e.currentTarget.blur(); });
+    if (formDatePrevBtn) formDatePrevBtn.addEventListener('click', function(e){ e.preventDefault(); shiftFormDatePopover(-1); e.currentTarget.blur(); });
+    if (formDateNextBtn) formDateNextBtn.addEventListener('click', function(e){ e.preventDefault(); shiftFormDatePopover(1); e.currentTarget.blur(); });
     if (formDateClearBtn) formDateClearBtn.addEventListener('click', function(e){
       e.preventDefault();
       selected = [];

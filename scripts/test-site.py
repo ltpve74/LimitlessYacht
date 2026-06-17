@@ -737,6 +737,14 @@ def check_shared_assets(r: Runner) -> None:
         and re.search(r'\.form-date-popover(?:\.cal)?\s*\{[^}]*background:\s*var\(--deep\)', css) is not None,
     )
     r.check(
+        'calendar nav buttons avoid sticky touch hover',
+        css is not None
+        and '@media (hover: hover) and (pointer: fine)' in css
+        and re.search(r'\.cal-nav:hover:not\(:disabled\)', css) is not None
+        and '.cal-nav:focus:not(:focus-visible)' in css
+        and 'e.currentTarget.blur()' in index_html,
+    )
+    r.check(
         'availability calendar has app-style landing anchor',
         'id="avail-cal"' in index_html
         and 'class="availability-picker"' in index_html
