@@ -591,6 +591,10 @@ PAIRS = [
         'Vous hésitez sur la destination ?',
     ),
     (
+        'Still deciding where to go — or want to see the yacht first?',
+        'Vous hésitez sur la destination — ou vous voulez d\'abord voir le yacht ?',
+    ),
+    (
         'Explore the destinations →',
         'Découvrir les destinations →',
     ),

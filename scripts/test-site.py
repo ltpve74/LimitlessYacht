@@ -137,8 +137,15 @@ def check_html(r: Runner, rel: str, html: str) -> None:
     r.check(
         'charters section groups options with includes panel',
         'class="charters-main"' in html
-        and 'class="charter-includes reveal"' in html
-        and 'class="charter-includes-list"' in html,
+    )
+    r.check(
+        'charters desktop CTA links to destinations and gallery -land anchors',
+        re.search(
+            r'<section id="charters">[\s\S]*?href="#itinerary-land"[^>]*class="btn-primary"'
+            r'[\s\S]*?href="#gallery-land"[^>]*class="btn-ghost"',
+            html,
+        )
+        is not None,
     )
 
     # WhatsApp — every wa.me link must carry a pre-filled ?text= message
@@ -1198,6 +1205,14 @@ def check_shared_assets(r: Runner) -> None:
         )
         is not None
         and 'padding-top: 7rem' not in css,
+    )
+    r.check(
+        'charters hides text back-link when desktop CTA buttons show',
+        re.search(
+            r'@media \(min-width: 769px\)[\s\S]*?#charters \.section-back-cta\s*\{[^}]*display:\s*none',
+            css,
+        )
+        is not None,
     )
     r.check(
         'charters section keeps includes visible on desktop viewports',

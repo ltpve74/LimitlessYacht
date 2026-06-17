@@ -609,6 +609,10 @@ PAIRS = [
         'Noch unentschlossen, wohin?',
     ),
     (
+        'Still deciding where to go — or want to see the yacht first?',
+        'Noch unentschlossen, wohin — oder möchten Sie zuerst die Yacht sehen?',
+    ),
+    (
         'Explore the destinations →',
         'Reiseziele entdecken →',
     ),

@@ -785,6 +785,8 @@ section { padding: 7rem 2rem; }
     padding-top: 3.5rem;
     padding-bottom: 4.5rem;
   }
+  #charters .section-back-cta { display: none; }
+  #charters .section-cta-desktop { margin-top: 2.25rem; }
   .charters-main {
     margin-top: 2rem;
   }

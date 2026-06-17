@@ -604,6 +604,10 @@ PAIRS = [
         '¿Aún decidiendo el destino?',
     ),
     (
+        'Still deciding where to go — or want to see the yacht first?',
+        '¿Aún decidiendo el destino — o quiere ver el yate primero?',
+    ),
+    (
         'Explore the destinations →',
         'Explorar destinos →',
     ),
