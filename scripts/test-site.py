@@ -482,6 +482,20 @@ def check_html(r: Runner, rel: str, html: str) -> None:
         'hero title uses heroTitleIn (visible for LCP)',
         'heroTitleIn' in html,
     )
+    r.check(
+        'hero scroll indicator lives inside bottom CTA cluster',
+        re.search(
+            r'<div class="hero-cta-group">[\s\S]*?<div class="hero-scroll">',
+            html,
+        )
+        is not None,
+    )
+    r.check(
+        'critical CSS defines desktop hero bottom cluster gaps',
+        '@media(min-width:769px){' in crit_flat
+        and '.hero-cta-group{display:flex' in crit_flat
+        and 'gap:1.15rem' in crit_flat,
+    )
 
     # Cookie consent — must not steal LCP
     r.check('cookie consent banner exists', 'id="cookie-consent"' in html)
@@ -693,6 +707,18 @@ def check_shared_assets(r: Runner) -> None:
         r.check(
             'hero entrance animations avoid translateY (CLS-safe)',
             '@keyframesheroFade' in css_flat and 'animation:heroFade' in css_flat,
+        )
+        r.check(
+            'desktop hero bottom cluster uses even flex gaps',
+            re.search(
+                r'@media \(min-width: 769px\)[\s\S]*?\.hero-cta-group\s*\{[^}]*gap:\s*1\.15rem',
+                css,
+            )
+            is not None,
+        )
+        r.check(
+            'hero value line no longer uses margin-top auto on desktop',
+            '.hero-value{' in css_flat and 'margin-top:0' in css_flat,
         )
     r.check(
         'WhatsApp button meets contrast-safe green',
