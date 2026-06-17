@@ -1238,16 +1238,18 @@ footer {
     align-items: stretch;
     gap: .75rem;
   }
-  #availability .availability-actions .btn-primary,
-  #availability .availability-actions .btn-ghost,
-  .section-cta-btns .btn-primary,
-  .section-cta-btns .btn-ghost {
-    width: 100%;
-    max-width: none;
-    flex: none;
+  #availability .availability-actions > .btn-primary,
+  #availability .availability-actions > .btn-ghost,
+  .section-cta-btns > .btn-primary,
+  .section-cta-btns > .btn-ghost {
+    display: block !important;
+    width: 100% !important;
+    max-width: none !important;
+    flex: none !important;
+    align-self: stretch !important;
     box-sizing: border-box;
     text-align: center;
-    white-space: normal;
+    white-space: normal !important;
     line-height: 1.35;
   }
 }

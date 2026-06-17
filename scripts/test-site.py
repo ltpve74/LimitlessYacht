@@ -374,10 +374,19 @@ def check_html(r: Runner, rel: str, html: str) -> None:
 
     # Data feeds
     reviews_json = meta['reviews_json']
-    r.check(f'reviews fetch uses {reviews_json}', f"fetch('{reviews_json}')" in html)
+    r.check(
+        f'reviews fetch uses {reviews_json}',
+        f"'{reviews_json}'" in html and 'LY_BASE' in html,
+    )
     if rel != 'index.html':
-        r.check('does not fetch English reviews.json', "fetch('/data/reviews.json')" not in html)
+        r.check('does not fetch English reviews.json', "'/data/reviews.json'" not in html)
     r.check('availability API fetch', '/api/availability' in html)
+    if rel == 'index.html':
+        r.check(
+            'availability uses production API on GitHub Pages preview',
+            'limitlessyachtcharter.com' in html and '.github.io' in html,
+        )
+        r.check('LY_BASE set for GitHub Pages subpath', 'window.LY_BASE' in html)
     r.check(
         'reviews fetch deferred until section nears viewport',
         'LY_whenNearSection' in html
@@ -561,14 +570,20 @@ def check_shared_assets(r: Runner) -> None:
             re.DOTALL,
         ) is not None
         and re.search(
-            r'#availability \.availability-actions \.btn-primary[^}]*max-width:\s*none',
+            r'#availability \.availability-actions > \.btn-primary[^}]*max-width:\s*none\s*!important',
             css,
         ) is not None
         and re.search(
-            r'#availability \.availability-actions \.btn-primary[^}]*flex:\s*none',
+            r'#availability \.availability-actions > \.btn-primary[^}]*flex:\s*none\s*!important',
             css,
         ) is not None,
     )
+    preview_yml = read_file('.github/workflows/preview.yml') or ''
+    r.check(
+        'GitHub Pages preview prepares subpath artifact',
+        'prepare-github-pages.py' in preview_yml and "path: '_site'" in preview_yml,
+    )
+    r.check('prepare-github-pages script exists', os.path.isfile(os.path.join(ROOT, 'scripts/prepare-github-pages.py')))
     r.check(
         'hero phone button sizing scoped to hero only',
         css is not None

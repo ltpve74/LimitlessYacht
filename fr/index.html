@@ -120,8 +120,14 @@ nav {
   .hero-value { display: none; }
 }
 </style>
-<link rel="preload" as="style" href="../css/main.css?v=9" onload="this.rel='stylesheet'" />
-<noscript><link rel="stylesheet" href="../css/main.css?v=9" /></noscript>
+<script>
+(function(){
+  var h = location.hostname, parts = location.pathname.split('/').filter(Boolean);
+  window.LY_BASE = (h.endsWith('.github.io') && parts[0]) ? '/' + parts[0] : '';
+})();
+</script>
+<link rel="preload" as="style" href="../css/main.css?v=10" onload="this.rel='stylesheet'" />
+<noscript><link rel="stylesheet" href="../css/main.css?v=10" /></noscript>
 
 <!-- Auto-match the visitor's browser language to a localized version (only from the
      English root, and only until the visitor manually picks a language). -->
@@ -579,7 +585,7 @@ window.addEventListener('load', function() {
 </script>
 <script>
 window.addEventListener('load', function() {
-  if(!window.LY_OWNER_MODE){var _cs=document.createElement('script');_cs.defer=true;_cs.src='/js/clarity-consent.js';document.head.appendChild(_cs);}
+  if(!window.LY_OWNER_MODE){var _cs=document.createElement('script');_cs.defer=true;_cs.src=(window.LY_BASE||'')+'/js/clarity-consent.js';document.head.appendChild(_cs);}
 });
 // Below-fold images: wait until after the LCP window before any idle preloads
 window.LY_afterLcp = function(fn) {
@@ -2020,7 +2026,7 @@ window.LY_afterLcp(function() {
   }
 
   function loadReviews() {
-    fetch('/data/reviews-fr.json')
+    fetch((window.LY_BASE || '') + '/data/reviews-fr.json')
       .then(function (r) { return r.ok ? r.json() : null; })
       .then(function (data) { if (data) render(data); })
       .catch(function () {
@@ -2321,7 +2327,7 @@ window.LY_afterLcp(function() {
   render();
 
   function loadDisponibilité() {
-    fetch('/api/availability')
+    fetch((location.hostname.endsWith('.github.io') ? 'https://limitlessyachtcharter.com' : '') + '/api/availability')
       .then(function(r){ return r.ok ? r.json() : null; })
       .then(function(data){
         if (!data) return;

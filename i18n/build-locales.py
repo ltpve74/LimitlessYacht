@@ -126,8 +126,8 @@ def write_locale_reviews(code: str, reviews: list[dict]) -> None:
 
 def patch_reviews_fetch(html: str, code: str) -> str:
     return html.replace(
-        "fetch('/data/reviews.json')",
-        f"fetch('/data/reviews-{code}.json')",
+        "fetch((window.LY_BASE || '') + '/data/reviews.json')",
+        f"fetch((window.LY_BASE || '') + '/data/reviews-{code}.json')",
     )
 
 
