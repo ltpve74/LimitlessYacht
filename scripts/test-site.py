@@ -737,7 +737,7 @@ def check_shared_assets(r: Runner) -> None:
         and 'form-date-row-open' not in index_html
         and '.form-row.form-date-row-open' not in css
         and '.form-row:has(#formDurWrap[hidden])' not in css
-        and 'max-width: 18.5rem' in css
+        and re.search(r'max-width:\s*18\.5rem', css) is not None
         and '.form-date-trigger' in css
         and '.form-date-icon' in css
         and '.form-date-popover .cal-cell' in css
@@ -753,7 +753,7 @@ def check_shared_assets(r: Runner) -> None:
     r.check(
         'calendar nav buttons avoid sticky touch hover',
         css is not None
-        and '@media (hover: hover) and (pointer: fine)' in css
+        and re.search(r'@media\s*\(\s*hover:\s*hover\s*\)\s*and\s*\(\s*pointer:\s*fine\s*\)', css) is not None
         and re.search(r'\.cal-nav:hover:not\(:disabled\)', css) is not None
         and '.cal-nav:focus:not(:focus-visible)' in css
         and 'e.currentTarget.blur()' in index_html,
