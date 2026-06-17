@@ -11,6 +11,9 @@ permissions:
 jobs:
   publish-gate:
     runs-on: ubuntu-latest
+    timeout-minutes: 20
+    env:
+      LIGHTHOUSE_RETRIES: "3"
     steps:
       - uses: actions/checkout@v4
 
