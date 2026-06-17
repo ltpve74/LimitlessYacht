@@ -1276,11 +1276,8 @@ window.LY_afterLcp(function() {
                   <span class="form-date-icon" aria-hidden="true"><svg viewBox="0 0 16 16" width="16" height="16" fill="none" stroke="currentColor" stroke-width="1.2"><rect x="2" y="3" width="12" height="11" rx="1"/><path d="M2 6h12M5 1v3M11 1v3"/></svg></span>
                   <span class="form-date-text">Seleccionar…</span>
                 </button>
-                <div class="form-date-popover cal" id="formDatePopover" role="dialog" aria-modal="false" aria-labelledby="formDatePopoverTitle" hidden>
-                  <div class="form-date-popover-head">
-                    <p class="form-date-popover-title" id="formDatePopoverTitle">Elegir fechas</p>
-                    <button type="button" class="cal-nav form-date-nav form-date-popover-dismiss" id="formDatePopoverDismiss" aria-label="Cerrar calendario">✕</button>
-                  </div>
+                <div class="form-date-popover cal" id="formDatePopover" role="dialog" aria-modal="false" aria-label="Elegir fechas" hidden>
+                  <button type="button" class="cal-nav form-date-nav form-date-popover-dismiss" id="formDatePopoverDismiss" aria-label="Cerrar calendario">✕</button>
                   <div class="form-date-cal-bar">
                     <button type="button" class="cal-nav form-date-nav form-date-prev" aria-label="Mes anterior">‹</button>
                     <div class="form-date-cal-body">
@@ -2517,18 +2514,49 @@ window.LY_afterLcp(function() {
     if (formDatePrevBtn) formDatePrevBtn.disabled = (formDateViewIndex <= minIndex);
     if (formDateNextBtn) formDateNextBtn.disabled = (formDateViewIndex >= maxIndex);
     updateFormDateStepHint();
+    if (isFormDatePopoverOpen()) positionFormDatePopover();
+  }
+  function resetFormDatePopoverPosition() {
+    if (!formDatePopover) return;
+    formDatePopover.style.position = '';
+    formDatePopover.style.left = '';
+    formDatePopover.style.width = '';
+    formDatePopover.style.bottom = '';
+    formDatePopover.style.top = '';
+    formDatePopover.style.right = '';
+    formDatePopover.style.maxHeight = '';
+  }
+  function positionFormDatePopover() {
+    if (!formDatePopover || !formDateStartBtn || formDatePopover.hidden) return;
+    var rect = formDateStartBtn.getBoundingClientRect();
+    var gap = 6;
+    var pad = 8;
+    var vw = document.documentElement.clientWidth;
+    var vh = window.innerHeight;
+    var width = Math.min(rect.width, 296);
+    var left = Math.max(pad, Math.min(rect.left, vw - width - pad));
+    var maxH = Math.min(384, Math.max(180, rect.top - gap - pad));
+    formDatePopover.style.position = 'fixed';
+    formDatePopover.style.left = left + 'px';
+    formDatePopover.style.width = width + 'px';
+    formDatePopover.style.right = 'auto';
+    formDatePopover.style.bottom = (vh - rect.top + gap) + 'px';
+    formDatePopover.style.top = 'auto';
+    formDatePopover.style.maxHeight = maxH + 'px';
   }
   function closeFormDatePopover() {
     if (formDatePickGuard || formDateJustOpened) return;
     if (!formDatePopover || formDatePopover.hidden) return;
     formDatePopover.hidden = true;
     formDatePopover.setAttribute('aria-hidden', 'true');
+    resetFormDatePopoverPosition();
     document.body.classList.remove('form-date-popup-open');
     if (formDateWrap) formDateWrap.classList.remove('is-open');
     if (formDateStartBtn) formDateStartBtn.setAttribute('aria-expanded', 'false');
   }
   function openFormDatePopover() {
     if (!formDatePopover) return;
+    var scrollY = window.scrollY;
     if (selected.length) formDateViewIndex = monthIndexForDate(selected[0]);
     else if (startInput && startInput.value) formDateViewIndex = monthIndexForDate(startInput.value);
     else formDateViewIndex = minIndex;
@@ -2539,6 +2567,8 @@ window.LY_afterLcp(function() {
     document.body.classList.add('form-date-popup-open');
     if (formDateWrap) formDateWrap.classList.add('is-open');
     if (formDateStartBtn) formDateStartBtn.setAttribute('aria-expanded', 'true');
+    positionFormDatePopover();
+    requestAnimationFrame(function() { window.scrollTo(0, scrollY); });
     formDateJustOpened = true;
     setTimeout(function(){ formDateJustOpened = false; }, 400);
   }
@@ -2603,6 +2633,12 @@ window.LY_afterLcp(function() {
     document.addEventListener('keydown', function(e) {
       if (e.key === 'Escape' && isFormDatePopoverOpen()) closeFormDatePopover();
     });
+    window.addEventListener('resize', function() {
+      if (isFormDatePopoverOpen()) positionFormDatePopover();
+    });
+    window.addEventListener('scroll', function() {
+      if (isFormDatePopoverOpen()) positionFormDatePopover();
+    }, true);
 
     updateAllFormDateTriggers();
   }

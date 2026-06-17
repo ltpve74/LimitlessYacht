@@ -295,6 +295,7 @@ def check_html(r: Runner, rel: str, html: str) -> None:
         and 'type="date" name="preferred_date"' not in html
         and 'function openFormDatePopover' in html
         and 'function closeFormDatePopover' in html
+        and 'function positionFormDatePopover' in html
         and 'window.LY_updateFormDateTriggers' in html
         and 'id="formDateStepHint"' in html
         and 'function pickFormDate' in html
@@ -718,7 +719,11 @@ def check_shared_assets(r: Runner) -> None:
         'form date popover is a field-attached popup with on-brand trigger',
         css is not None
         and '.form-date-wrap' in css
-        and re.search(r'\.form-date-popover(?:\.cal)?\s*\{[^}]*position:\s*absolute', css) is not None
+        and re.search(r'\.form-date-popover(?:\.cal)?\s*\{[^}]*bottom:\s*calc\(100%', css) is not None
+        and re.search(r'\.form-date-popover(?:\.cal)?\s*\{[^}]*top:\s*auto', css) is not None
+        and 'form-date-popover-head' not in css
+        and 'formDatePopoverTitle' not in index_html
+        and 'function positionFormDatePopover' in index_html
         and '.form-date-trigger' in css
         and '.form-date-icon' in css
         and '.form-date-popover .cal-cell' in css

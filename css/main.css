@@ -807,74 +807,83 @@ section { padding: 7rem 2rem; }
   background: rgba(201,168,76,.14);
   box-shadow: 0 0 0 1px rgba(201,168,76,.22);
 }
+.form-date-trigger[aria-expanded="true"]::after {
+  content: '▴'; opacity: 1;
+}
 .form-date-trigger:focus-visible {
   border-color: var(--gold); outline: none;
   box-shadow: 0 0 0 1px rgba(201,168,76,.22);
 }
 .form-date-popover,
 .form-date-popover.cal {
-  position: absolute; z-index: 1;
-  top: calc(100% + .35rem); left: 0; right: 0;
+  position: absolute; z-index: 400;
+  bottom: calc(100% + .35rem); top: auto;
+  left: 0; right: 0;
   width: auto; min-width: min(100%, 18.5rem);
   max-height: min(24rem, calc(100vh - 8rem));
   overflow-y: auto;
   margin-top: 0; max-width: none;
   background: var(--deep); border: 1px solid rgba(201,168,76,.35);
-  border-radius: 8px; padding: 1rem .9rem .85rem;
-  box-shadow: 0 14px 40px rgba(0,0,0,.55);
+  border-radius: 8px; padding: .75rem .75rem .8rem;
+  box-shadow: 0 -12px 36px rgba(0,0,0,.55);
 }
 .form-date-popover[hidden] { display: none !important; }
-.form-date-popover-head {
-  display: flex; align-items: center; justify-content: space-between;
-  gap: .75rem; margin-bottom: .75rem; padding-bottom: .6rem;
-  border-bottom: 1px solid rgba(201,168,76,.14);
-}
-.form-date-popover-title {
-  margin: 0; font-size: .62rem; letter-spacing: .16em; text-transform: uppercase;
-  color: var(--gold); font-weight: 500;
-}
 .form-date-popover-dismiss {
-  flex: none;
+  position: absolute; top: .55rem; right: .55rem; z-index: 2;
   margin-top: 0;
   font-size: .82rem; line-height: 1;
 }
 body.form-date-popup-open .enquire-section,
 body.form-date-popup-open .contact-form,
-body.form-date-popup-open .form-row {
+body.form-date-popup-open .form-row,
+body.form-date-popup-open .form-field {
   overflow: visible;
 }
-.form-date-cal-bar { display: flex; align-items: flex-start; gap: .35rem; }
+.form-date-cal-bar {
+  display: flex; align-items: flex-start; gap: .35rem;
+  padding-right: 2rem;
+}
 .form-date-cal-body { flex: 1; min-width: 0; }
-.form-date-popover .cal-title { font-size: 1.05rem; margin-bottom: .65rem; }
+.form-date-popover .cal-title {
+  font-size: .95rem; margin: 0 0 .55rem;
+  font-weight: 400; color: var(--gold-light);
+}
 .form-date-popover .cal-grid { gap: 3px; }
 .form-date-popover .cal-cell { font-size: .72rem; border-radius: 4px; }
 .form-date-nav { width: 30px; height: 30px; font-size: .95rem; margin-top: 0; flex-shrink: 0; }
 .form-date-cal-foot {
-  margin-top: .65rem; padding-top: .55rem;
-  border-top: 1px solid rgba(201,168,76,.14); text-align: left;
+  margin-top: .55rem; padding-top: .5rem;
+  border-top: 1px solid rgba(201,168,76,.1); text-align: left;
 }
 .form-date-step-hint {
-  margin: 0 0 .35rem;
-  font-size: .58rem; line-height: 1.55; letter-spacing: .08em;
+  margin: 0 0 .45rem;
+  font-size: .56rem; line-height: 1.5; letter-spacing: .07em;
   color: var(--text-muted);
 }
 .form-date-step-hint.is-pending-end { color: var(--gold); font-weight: 500; }
 .form-date-popover-actions {
-  display: flex; align-items: center; justify-content: space-between;
-  gap: .75rem; margin-top: .15rem;
+  display: grid; grid-template-columns: 1fr 1fr;
+  gap: .5rem; margin-top: 0;
 }
 .form-date-popover .form-date-clear-btn {
   text-decoration: none;
-  padding: .55rem .95rem;
+  width: 100%;
+  padding: .58rem .75rem;
   border: 1px solid rgba(201,168,76,.28);
   border-radius: 4px;
   color: var(--cream);
+  font-size: .56rem; letter-spacing: .12em; text-transform: uppercase;
   transition: border-color .2s, color .2s, background .2s;
 }
 .form-date-popover .form-date-clear-btn:hover {
   border-color: rgba(201,168,76,.5);
   color: var(--gold-light);
   background: rgba(201,168,76,.08);
+}
+.form-date-popover .form-date-apply-btn {
+  width: 100%;
+  padding: .58rem .75rem;
+  text-align: center;
 }
 .form-date-apply-btn {
   background: var(--gold); color: var(--navy); border: none;
@@ -1167,10 +1176,9 @@ footer {
   }
   .form-date-popover,
   .form-date-popover.cal {
-    padding: .9rem .8rem .8rem;
-    box-shadow: 0 10px 32px rgba(0,0,0,.5);
+    padding: .7rem .7rem .75rem;
+    box-shadow: 0 -10px 28px rgba(0,0,0,.5);
   }
-  .form-date-apply-btn { flex: 1; text-align: center; max-width: 9rem; }
   .contact-cal-pair #availability .section-label,
   .contact-cal-pair #availability .section-title { display: none; }
   .contact-cal-pair #availability { padding-top: 1.25rem; }
