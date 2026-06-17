@@ -491,10 +491,10 @@ def check_html(r: Runner, rel: str, html: str) -> None:
         is not None,
     )
     r.check(
-        'critical CSS defines desktop hero bottom cluster gaps',
-        '@media(min-width:769px){' in crit_flat
-        and '.hero-cta-group{display:flex' in crit_flat
-        and 'gap:1.15rem' in crit_flat,
+        'critical CSS defines hero bottom cluster gaps',
+        '.hero-cta-group{' in crit_flat
+        and 'gap:var(--hero-gap)' in crit_flat
+        and '--hero-bottom:' in crit_flat,
     )
 
     # Cookie consent — must not steal LCP
@@ -709,9 +709,15 @@ def check_shared_assets(r: Runner) -> None:
             '@keyframesheroFade' in css_flat and 'animation:heroFade' in css_flat,
         )
         r.check(
-            'desktop hero bottom cluster uses even flex gaps',
+            'hero bottom cluster uses shared flex gaps on all viewports',
+            '.hero-cta-group{' in css_flat
+            and 'gap:var(--hero-cluster-gap)' in css_flat
+            and '--hero-bottom-inset:' in css_flat,
+        )
+        r.check(
+            'short viewports compact hero title for bottom cluster clearance',
             re.search(
-                r'@media \(min-width: 769px\)[\s\S]*?\.hero-cta-group\s*\{[^}]*gap:\s*1\.15rem',
+                r'@media \(max-height: 920px\)[\s\S]*?--hero-cluster-gap',
                 css,
             )
             is not None,
