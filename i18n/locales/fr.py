@@ -97,6 +97,7 @@ PAIRS = [
     ),
     ("Enquire Now", "Demander maintenant"),
     ("Enquire About This Trip", "Demander ce voyage"),
+    ("Check dates for this trip →", "Voir les dates pour ce voyage →"),
     ("Technical Specifications", "Caractéristiques techniques"),
     ("Yacht<em> Details</em>", "Détails du <em>yacht</em>"),
     ("Manufacturer", "Constructeur"),

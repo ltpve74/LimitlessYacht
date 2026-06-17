@@ -166,6 +166,16 @@ def check_html(r: Runner, rel: str, html: str) -> None:
     # Destination lightbox
     r.check('id="dest-lb-cta" lightbox CTA exists', 'id="dest-lb-cta"' in html)
     r.check(
+        'destination lightbox CTA has viewport-specific labels',
+        'class="dest-lb-cta-desktop"' in html
+        and 'class="dest-lb-cta-mobile"' in html,
+    )
+    r.check(
+        'destination lightbox CTA routes by viewport',
+        'function syncDestLbCta()' in html
+        and "lbCta.href = window.innerWidth <= 640 ? '#avail-cal' : '#enquire-form'" in html,
+    )
+    r.check(
         'gallery lightbox uses centralized images array',
         'const images = [' in html and 'function showImage(idx)' in html,
     )
@@ -718,6 +728,18 @@ def check_shared_assets(r: Runner) -> None:
         'mobile gallery CTA routes to availability calendar',
         'CHECK AVAILABILITY →' in index_html
         and 'href="#avail-cal" class="itinerary-meet-cta"' in index_html,
+    )
+    r.check(
+        'destination lightbox CTA labels swap on mobile',
+        css is not None
+        and '.dest-lb-cta-mobile' in css
+        and '.dest-lb-cta-desktop' in css
+        and re.search(r'@media\s*\(max-width:\s*640px\)[^{]*\{[^}]*\.dest-lb-cta-desktop\s*\{\s*display:\s*none', css) is not None,
+    )
+    r.check(
+        'destination lightbox mobile CTA copy is trip-specific',
+        'Check dates for this trip →' in index_html
+        and 'dest-lb-cta-mobile' in index_html,
     )
     r.check(
         'form date hint links to availability calendar overview',

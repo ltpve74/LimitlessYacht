@@ -103,6 +103,7 @@ PAIRS = [
     ),
     ("Enquire Now", "Jetzt anfragen"),
     ("Enquire About This Trip", "Diese Reise anfragen"),
+    ("Check dates for this trip →", "Termine für diese Reise prüfen →"),
     # Specs
     ("Technical Specifications", "Technische Daten"),
     ("Yacht<em> Details</em>", "Yacht-<em>Details</em>"),

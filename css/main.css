@@ -593,6 +593,11 @@ section { padding: 7rem 2rem; }
   display: block; width: 100%; text-align: center;
   text-decoration: none; box-sizing: border-box;
 }
+.dest-lb-cta-mobile { display: none; }
+@media (max-width: 640px) {
+  .dest-lb-cta-desktop { display: none; }
+  .dest-lb-cta-mobile { display: inline; }
+}
 
 /* ── AMENITIES ── */
 #amenities { background: var(--deep); padding-top: 3.5rem; padding-bottom: 3.5rem; }
