@@ -13,6 +13,7 @@ git config core.hooksPath .githooks          # one-time per clone
 
 | Question | Answer |
 |----------|--------|
+| Local preview without GitHub Pages? | `python3 scripts/dev-server.py` → http://127.0.0.1:8765/ (analytics off on localhost) |
 | Which branch do I edit? | **`experiment-no-prices`** only |
 | Which files are source of truth? | `index.html`, `legal.html`, `css/main.css`, `data/reviews.json`, `i18n/locales/*.py` |
 | Which files are generated? | `de/`, `es/`, `fr/` HTML and `data/reviews-{de,es,fr}.json` — never hand-edit |
@@ -193,6 +194,7 @@ curl -sL https://limitlessyachtcharter.com/ | head -c 500
 | `python3 scripts/publish-gate.py` | Automatic on `main` commit; manual before merge | `main` / pre-publish |
 | `python3 scripts/verify-analytics.py` | Preview suppression + production tag IDs (part of publish gate) | `main` / pre-publish |
 | `scripts/setup-qa.sh` | One-time install of Playwright + Lighthouse for publish gate | any |
+| `python3 scripts/dev-server.py` | Local static server + `/api/availability` stub | any |
 
 ---
 

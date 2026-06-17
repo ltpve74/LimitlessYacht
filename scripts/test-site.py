@@ -749,6 +749,13 @@ def check_shared_assets(r: Runner) -> None:
         'prepare-github-pages.py' in preview_yml and "path: '_site'" in preview_yml,
     )
     r.check('prepare-github-pages script exists', os.path.isfile(os.path.join(ROOT, 'scripts/prepare-github-pages.py')))
+    dev_server = read_file('scripts/dev-server.py') or ''
+    r.check(
+        'local dev server script exists',
+        os.path.isfile(os.path.join(ROOT, 'scripts/dev-server.py'))
+        and os.path.isfile(os.path.join(ROOT, 'scripts/serve.sh'))
+        and '/api/availability' in dev_server,
+    )
     publish_yml = read_file('.github/workflows/publish.yml') or ''
     r.check(
         'publish gate workflow runs on main',
