@@ -833,12 +833,17 @@ def check_shared_assets(r: Runner) -> None:
         and 'href="#availability" class="itinerary-meet-cta itinerary-meet-cta--desktop"' in index_html
         and css is not None
         and re.search(
-            r'@media \(min-width: 769px\)[\s\S]*?#gallery,\s*\n\s*#itinerary\s*\{[^}]*height:\s*calc\(100svh\s*-\s*var\(--nav-scroll-offset\)\)',
+            r'@media \(min-width: 769px\)[\s\S]*?\.gallery-wrap[\s\S]*?min-height:\s*calc\(100svh\s*-\s*var\(--nav-scroll-offset\)\s*-\s*14rem\)',
             css,
         )
         is not None
         and re.search(
-            r'@media \(min-width: 769px\)[\s\S]*?\.gallery-group\s+\.gallery-grid[\s\S]*?flex:\s*1\s*1\s*auto',
+            r'@media \(min-width: 769px\)[\s\S]*?#gallery,\s*\n\s*#itinerary\s*\{[^}]*height:\s*auto',
+            css,
+        )
+        is not None
+        and re.search(
+            r'@media \(min-width: 769px\)[\s\S]*?\.gallery-group\s+\.gallery-grid[\s\S]*?flex:\s*1\s*1\s*0',
             css,
         )
         is not None
@@ -1007,10 +1012,26 @@ def check_shared_assets(r: Runner) -> None:
             css,
         )
         is not None
+        and 'funnel below visible intros' in css
         and not re.search(
-            r'@media \(min-width: 769px\)[\s\S]*?#itinerary\s*>\s*\.container\s*>\s*\.section-label[\s\S]*?display:\s*none',
+            r'funnel below visible intros\)[\s\S]*?#gallery\s*>\s*\.container[^}]*\bheight:\s*0\b',
+            css,
+        )
+        and not re.search(
+            r'funnel below visible intros\)[\s\S]*?#itinerary\s*>\s*\.container\s+\.section-label[\s\S]*?display:\s*none',
             css,
         ),
+    )
+    r.check(
+        'desktop gallery and destinations show intro copy for natural scroll',
+        css is not None
+        and re.search(
+            r'funnel below visible intros\)[\s\S]*?#gallery\s*>\s*\.container,\s*\n\s*#itinerary\s*>\s*\.container\s*\{[^}]*flex-shrink:\s*0',
+            css,
+        )
+        is not None
+        and 'itinerary-intro' in index_html
+        and 'class="section-title reveal reveal-delay-1">On<em>board Gallery</em>' in index_html,
     )
     r.check(
         'calendar nav buttons avoid sticky touch hover',

@@ -2120,44 +2120,38 @@ footer {
 
 /* ── PRICING TABS (mobile toggle — display:none overridden inside max-width:768px block above) ── */
 
-/* ── DESKTOP IMMERSIVE GALLERY + ITINERARY (mobile funnel parity) ── */
+/* ── DESKTOP IMMERSIVE GALLERY + ITINERARY (funnel below visible intros) ── */
 @media (min-width: 769px) {
   #gallery,
   #itinerary {
     display: flex;
     flex-direction: column;
-    box-sizing: border-box;
-    /* One viewport below fixed nav — flex children split the rest dynamically */
-    height: calc(100svh - var(--nav-scroll-offset));
-    min-height: calc(100svh - var(--nav-scroll-offset));
-    max-height: calc(100svh - var(--nav-scroll-offset));
-    padding: 0 0 2rem;
-    overflow: hidden;
+    height: auto;
+    min-height: unset;
+    max-height: none;
+    padding-top: 3.5rem;
+    overflow: visible;
   }
-  /* Keep -land anchors for nav; hide header copy (tabs lead like mobile) */
+  #gallery { padding-bottom: 4rem; }
+  #itinerary { padding-bottom: 5rem; }
+  /* Headers stay in flow for natural scrolling; -land anchors still handle nav jumps */
   #gallery > .container,
   #itinerary > .container {
-    height: 0;
-    margin: 0;
-    padding: 0;
-    overflow: hidden;
+    flex-shrink: 0;
+    padding: 0 2rem;
   }
-  #gallery > .container .section-label,
-  #gallery > .container .section-title,
-  #itinerary > .container .section-label,
-  #itinerary > .container .section-title,
-  #itinerary > .container .itinerary-intro {
-    display: none;
+  #itinerary .itinerary-intro {
+    margin-bottom: 0.25rem;
   }
   .gallery-wrap,
   .itinerary-wrap {
-    flex: 1 1 0;
+    flex: 0 0 auto;
     display: flex;
     flex-direction: column;
-    min-height: 0;
+    min-height: calc(100svh - var(--nav-scroll-offset) - 14rem);
     width: 100%;
     max-width: none;
-    margin: 0;
+    margin: 1.25rem 0 0;
     padding: 0;
   }
   .dest-tabs,
