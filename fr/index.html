@@ -121,12 +121,7 @@ nav {
 }
 .form-field[hidden] { display: none !important; }
 </style>
-<script>
-(function(){
-  var h = location.hostname, parts = location.pathname.split('/').filter(Boolean);
-  window.LY_BASE = (h.endsWith('.github.io') && parts[0]) ? '/' + parts[0] : '';
-})();
-</script>
+<script src="js/analytics-env.js"></script>
 <link rel="preload" as="style" href="../css/main.css?v=33" onload="this.rel='stylesheet'" />
 <noscript><link rel="stylesheet" href="../css/main.css?v=33" /></noscript>
 
@@ -482,24 +477,7 @@ nav {
             <div class="destination-meta">
 
 <!-- Deferred head bootstrap (after hero for LCP) -->
-<!-- Owner mode: visit ?ly_owner=set once to suppress all analytics on this device.
-     Visit ?ly_owner=unset to re-enable. Flag persists in localStorage. -->
-<script>
-(function(){try{
-  var p=new URLSearchParams(location.search);
-  if(p.get('ly_owner')==='set'){
-    localStorage.setItem('ly_owner','1');
-    history.replaceState(null,'',location.pathname+(location.hash||''));
-  } else if(p.get('ly_owner')==='unset'){
-    localStorage.removeItem('ly_owner');
-    history.replaceState(null,'',location.pathname+(location.hash||''));
-  }
-  if(localStorage.getItem('ly_owner')==='1'){
-    window.LY_OWNER_MODE=true;
-    console.log('%c[Limitless] Owner mode — GA · Clarity suppressed','color:#c9a84c;font-weight:bold');
-  }
-}catch(e){}})();
-</script>
+<!-- Preview hosts + ?ly_owner=set suppress analytics — see js/analytics-env.js -->
 <!-- Google Consent Mode v2 defaults -->
 <script>
   window.dataLayer = window.dataLayer || [];
@@ -2065,23 +2043,20 @@ window.LY_afterLcp(function() {
         this.reset();
         btn.textContent = '✓ Envoyé';
 
-        // Google Tag event for successful enquiry (use for GA4 generate_lead + Google Ads conversion)
-        window.dataLayer.push({
-          event: 'generate_lead',
-          form_name: 'booking_enquiry',
-          value: 1,
-          currency: 'EUR'
-        });
-
-        // Grant ad consent for this explicit lead conversion action
-        gtag('consent', 'update', {
-          'ad_storage': 'granted',
-          'ad_user_data': 'granted',
-          'ad_personalization': 'granted'
-        });
-
-        // Google Ads conversion tracking (dedicated lead-form-submission action)
-        gtag_report_conversion_form();
+        if (!window.LY_OWNER_MODE) {
+          window.dataLayer.push({
+            event: 'generate_lead',
+            form_name: 'booking_enquiry',
+            value: 1,
+            currency: 'EUR'
+          });
+          gtag('consent', 'update', {
+            'ad_storage': 'granted',
+            'ad_user_data': 'granted',
+            'ad_personalization': 'granted'
+          });
+          gtag_report_conversion_form();
+        }
 
         setTimeout(() => {
           btn.textContent = 'Envoyer la demande';
@@ -2109,20 +2084,17 @@ window.LY_afterLcp(function() {
   // gesture); the conversion beacon fires async in this still-open tab.
   document.querySelectorAll('a[href*="wa.me"]').forEach(function (link) {
     link.addEventListener('click', function () {
+      if (window.LY_OWNER_MODE) return;
       window.dataLayer.push({
         event: 'whatsapp_click',
         contact_method: 'whatsapp',
         location: window.location.pathname
       });
-
-      // Grant ad consent for this explicit lead conversion action (WhatsApp click)
       gtag('consent', 'update', {
         'ad_storage': 'granted',
         'ad_user_data': 'granted',
         'ad_personalization': 'granted'
       });
-
-      // Google Ads conversion tracking (same as form submit)
       gtag_report_conversion();
     });
   });
@@ -2130,6 +2102,7 @@ window.LY_afterLcp(function() {
   // Enquire / CTA clicks to contact (secondary)
   document.querySelectorAll('a[href="#enquire"], a[href="#contact"], .nav-cta').forEach(function (link) {
     link.addEventListener('click', function () {
+      if (window.LY_OWNER_MODE) return;
       window.dataLayer.push({
         event: 'enquire_click',
         cta_location: link.classList.contains('nav-cta') ? 'nav' : 'content'
@@ -2859,6 +2832,7 @@ window.LY_afterLcp(function() {
 </div>
 <script>
   (function () {
+    if (window.LY_OWNER_MODE) return;
     var KEY = 'ly_consent';
     var banner = document.getElementById('cookie-consent');
     function push(){ window.dataLayer = window.dataLayer || []; window.dataLayer.push(arguments); }
@@ -2927,6 +2901,7 @@ window.LY_afterLcp(function() {
 </script>
 <script>
 (function(){
+  if (window.LY_OWNER_MODE) return;
   var s = document.createElement('script');
   s.defer = true;
   s.src = (window.LY_BASE || '') + '/js/behavior-analytics.js';

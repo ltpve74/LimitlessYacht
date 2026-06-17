@@ -21,6 +21,53 @@ git config core.hooksPath .githooks          # one-time per clone
 | Publish QA gate? | Pre-commit on **`main`**: minify → `scripts/publish-gate.py` (site tests + UX smoke + Lighthouse). CI: `.github/workflows/publish.yml` |
 | What goes live? | Push to **`main`** → Netlify deploys `limitlessyachtcharter.com` |
 | Preview branch? | Push to `experiment-no-prices` → GitHub Pages preview (see `.github/workflows/preview.yml`) |
+| Analytics on preview? | **Off** — `js/analytics-env.js` sets `LY_OWNER_MODE` on `*.github.io`, localhost, Netlify branch deploys |
+| Analytics on production? | **On** — `limitlessyachtcharter.com` only (verified in publish gate) |
+
+---
+
+## Analytics & preview (do not pollute GA / Clarity)
+
+**Single source of truth:** `js/analytics-env.js` (load first in `<head>` on `index.html` and `legal.html`).
+
+| Host | `LY_IS_PREVIEW` | Analytics |
+|------|-----------------|-------------|
+| `*.github.io` (GitHub Pages preview) | yes | Suppressed |
+| `localhost` / `127.0.0.1` | yes | Suppressed |
+| `*.netlify.app` (not production domain) | yes | Suppressed |
+| `limitlessyachtcharter.com` | no | **Live** (GA4/Ads, Clarity, behavior-analytics) |
+
+When suppressed (`LY_OWNER_MODE`), the site skips: Google tag, Microsoft Clarity, `behavior-analytics.js`, cookie banner, and conversion `dataLayer` events.
+
+**Owner override (any host):** visit `?ly_owner=set` once to suppress on that browser; `?ly_owner=unset` to re-enable.
+
+### Daily dev / preview workflow
+
+1. Work on `experiment-no-prices`, push → GitHub Pages preview deploys.
+2. Preview automatically suppresses analytics — safe for UX iteration and agent testing.
+3. Do **not** remove analytics snippets from HTML; suppression is host-based.
+
+### Go-live workflow (re-enable analytics on production)
+
+Analytics turn back on automatically when Netlify serves `limitlessyachtcharter.com` — no manual toggle.
+
+Before pushing `main`:
+
+```sh
+python3 scripts/verify-analytics.py   # preview guard + production IDs present
+python3 scripts/publish-gate.py       # includes verify-analytics + site tests + UX + Lighthouse
+```
+
+After deploy (~60s), spot-check production:
+
+```sh
+curl -sL https://limitlessyachtcharter.com/ | grep -o 'AW-18209943491'
+curl -sL https://limitlessyachtcharter.com/ | grep -o 'analytics-env.js'
+```
+
+Expect: both match. On preview (`ltpve74.github.io/LimitlessYacht/`), `analytics-env.js` is present but Clarity/gtag must not load (check DevTools Network tab).
+
+**Publish gate** (`scripts/publish-gate.py` on `main` commit): runs `verify-analytics.py` after `test-site.py`.
 
 ---
 
@@ -144,6 +191,7 @@ curl -sL https://limitlessyachtcharter.com/ | head -c 500
 | `python3 scripts/minify_html.py` | Automatic on `main` commit; do not run on dev | `main` only |
 | `python3 scripts/test-site.py` | Part of publish gate; run after feature work | any |
 | `python3 scripts/publish-gate.py` | Automatic on `main` commit; manual before merge | `main` / pre-publish |
+| `python3 scripts/verify-analytics.py` | Preview suppression + production tag IDs (part of publish gate) | `main` / pre-publish |
 | `scripts/setup-qa.sh` | One-time install of Playwright + Lighthouse for publish gate | any |
 
 ---
@@ -185,6 +233,8 @@ netlify.toml                 ← Netlify config (production)
 | Committing on `main` without merging dev | Skips readable source of truth |
 | Forgetting locale `.py` tuples | Non-English pages keep old or English text |
 | Expecting Netlify to minify | It does not — minify happens in pre-commit on `main` |
+| Testing UX on preview with Clarity/GA open | Preview suppresses automatically; use production URL to validate tags |
+| Removing analytics snippets before preview | Wrong — use `analytics-env.js` host detection instead |
 
 ---
 

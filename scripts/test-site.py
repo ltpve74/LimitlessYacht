@@ -754,6 +754,13 @@ def check_shared_assets(r: Runner) -> None:
         and 'src="/js/behavior-analytics.js"' not in index_html,
     )
     r.check(
+        'preview hosts suppress analytics before GA and Clarity load',
+        'js/analytics-env.js' in index_html
+        and 'LY_IS_PREVIEW' in (read_file('js/analytics-env.js') or '')
+        and index_html.find('js/analytics-env.js') < index_html.find('googletagmanager.com/gtag/js')
+        and 'if (window.LY_OWNER_MODE) return;' in index_html,
+    )
+    r.check(
         'hero phone button sizing scoped to hero only',
         css is not None
         and re.search(

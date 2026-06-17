@@ -148,7 +148,7 @@
   }
 
   function start() {
-    if (started || !hasConsent() || global.LY_OWNER_MODE) return;
+    if (started || !hasConsent() || global.LY_OWNER_MODE || global.LY_IS_PREVIEW) return;
     started = true;
     startMs = Date.now();
 

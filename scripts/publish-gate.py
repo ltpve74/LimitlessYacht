@@ -38,6 +38,7 @@ def main() -> int:
 
     steps: list[tuple[str, str, list[str]]] = [
         ("Site tests", "test-site.py", []),
+        ("Analytics wiring", "verify-analytics.py", []),
     ]
     if not args.skip_ux:
         ux_args = ["--quick"] if args.quick_ux else []
