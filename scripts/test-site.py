@@ -598,24 +598,24 @@ def check_shared_assets(r: Runner) -> None:
         'calendar legend swatches are reliable at narrow widths',
         css is not None
         and '.cal-legend-swatch' in css
-        and 'min-width: 12px' in css
+        and re.search(r'min-width:\s*12px', css) is not None
         and '.leg-selected' in css,
     )
     r.check(
         'narrow viewport calendar and CTA layout',
         css is not None
-        and '@media (max-width: 768px)' in css
+        and re.search(r'@media\s*\(max-width:\s*768px\)', css) is not None
         and re.search(
-            r'@media \(max-width: 768px\)[^{]*\{[^}]*\.cal\s*\{[^}]*max-width:\s*none',
+            r'@media\s*\(max-width:\s*768px\)[^{]*\{[^}]*\.cal\s*\{[^}]*max-width:\s*none',
             css,
             re.DOTALL,
         ) is not None
         and re.search(
-            r'#availability \.availability-actions > \.btn-primary[^}]*max-width:\s*none\s*!important',
+            r'#availability\s*\.availability-actions\s*>\s*\.btn-primary[^}]*max-width:\s*none\s*!important',
             css,
         ) is not None
         and re.search(
-            r'#availability \.availability-actions > \.btn-primary[^}]*flex:\s*none\s*!important',
+            r'#availability\s*\.availability-actions\s*>\s*\.btn-primary[^}]*flex:\s*none\s*!important',
             css,
         ) is not None,
     )
