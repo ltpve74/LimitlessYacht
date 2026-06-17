@@ -2131,7 +2131,7 @@ footer {
     height: calc(100svh - var(--nav-scroll-offset));
     min-height: calc(100svh - var(--nav-scroll-offset));
     max-height: calc(100svh - var(--nav-scroll-offset));
-    padding: 0 0 1.25rem;
+    padding: 0 0 2rem;
     overflow: hidden;
   }
   /* Keep -land anchors for nav; hide header copy (tabs lead like mobile) */
@@ -2278,7 +2278,7 @@ footer {
   .itinerary-meet-cta {
     display: block;
     flex: 0 0 auto;
-    margin: .75rem 0 0;
+    margin: .75rem 0 .85rem;
     padding: 1.15rem 2rem;
     font-size: .72rem;
     letter-spacing: .14em;
