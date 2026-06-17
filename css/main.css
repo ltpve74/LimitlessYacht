@@ -739,9 +739,6 @@ section { padding: 7rem 2rem; }
 .form-row { display: grid; grid-template-columns: 1fr 1fr; gap: 1rem; }
 .form-field { display: flex; flex-direction: column; gap: .4rem; }
 .form-field[hidden] { display: none !important; }
-/* End date: hidden by default; .is-visible only when duration is multi-day */
-.form-end-date { display: none !important; }
-.form-end-date.is-visible { display: flex !important; }
 .form-field label {
   font-size: .6rem; letter-spacing: .18em; text-transform: uppercase;
   color: var(--text-muted);

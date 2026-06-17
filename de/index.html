@@ -120,8 +120,6 @@ nav {
   .hero-value { display: none; }
 }
 .form-field[hidden] { display: none !important; }
-.form-end-date { display: none !important; }
-.form-end-date.is-visible { display: flex !important; }
 </style>
 <script>
 (function(){
@@ -1270,9 +1268,10 @@ window.LY_afterLcp(function() {
           </div>
           <div class="form-row">
             <div class="form-field">
-              <label for="preferred_date_btn">Startdatum</label>
+              <label for="preferred_date_btn">Daten</label>
               <div class="form-date-wrap" id="preferredDateWrap">
                 <input type="hidden" name="preferred_date" id="preferred_date" />
+                <input type="hidden" name="preferred_date_end" id="preferred_date_end" />
                 <button type="button" class="form-date-trigger" id="preferred_date_btn" aria-haspopup="dialog" aria-expanded="false" aria-controls="formDatePopover">
                   <span class="form-date-icon" aria-hidden="true"><svg viewBox="0 0 16 16" width="16" height="16" fill="none" stroke="currentColor" stroke-width="1.2"><rect x="2" y="3" width="12" height="11" rx="1"/><path d="M2 6h12M5 1v3M11 1v3"/></svg></span>
                   <span class="form-date-text">Auswählen…</span>
@@ -1288,16 +1287,6 @@ window.LY_afterLcp(function() {
                 <option value="1-day">1 Tag</option>
                 <option value="multi-day">Mehrtägig</option>
               </select>
-            </div>
-            <div class="form-field form-end-date" id="preferredDateEndWrap">
-              <label for="preferred_date_end_btn">Enddatum</label>
-              <div class="form-date-wrap" id="preferredDateEndFieldWrap">
-                <input type="hidden" name="preferred_date_end" id="preferred_date_end" />
-                <button type="button" class="form-date-trigger" id="preferred_date_end_btn" aria-haspopup="dialog" aria-expanded="false" aria-controls="formDatePopover">
-                  <span class="form-date-icon" aria-hidden="true"><svg viewBox="0 0 16 16" width="16" height="16" fill="none" stroke="currentColor" stroke-width="1.2"><rect x="2" y="3" width="12" height="11" rx="1"/><path d="M2 6h12M5 1v3M11 1v3"/></svg></span>
-                  <span class="form-date-text">Auswählen…</span>
-                </button>
-              </div>
             </div>
             <p class="form-date-hint">Siehe den <a href="#avail-cal" class="form-date-hint-link">Kalender</a> für eine Übersicht.</p>
             <div class="form-date-modal" id="formDateModal" hidden aria-hidden="true">
@@ -1327,23 +1316,6 @@ window.LY_afterLcp(function() {
               </div>
             </div>
           </div>
-          <script>
-          (function(){
-            var sel = document.getElementById('charter_duration');
-            var wrap = document.getElementById('preferredDateEndWrap');
-            var end = document.getElementById('preferred_date_end');
-            function applyDurDateLayout(){
-              if (!wrap) return;
-              var show = sel && sel.value === 'multi-day';
-              wrap.classList.toggle('is-visible', show);
-              wrap.hidden = !show;
-              if (!show && end) end.value = '';
-            }
-            window.LY_applyDurDateLayout = applyDurDateLayout;
-            if (sel) sel.addEventListener('change', applyDurDateLayout);
-            applyDurDateLayout();
-          })();
-          </script>
           <p class="form-reassurance">Wir antworten innerhalb weniger Stunden · Ihre Daten bleiben privat</p>
           <button type="submit" class="form-submit" id="submitBtn">Anfrage senden</button>
           <div id="form-success" style="display:none;color:var(--gold);font-size:.85rem;margin-top:.8rem;padding:.8rem;border:1px solid rgba(201,168,76,.3);background:rgba(201,168,76,.05);">
@@ -1877,7 +1849,6 @@ window.LY_afterLcp(function() {
       if (lbCta._prefillDauer) {
         var sel = document.getElementById('charter_duration');
         if (sel) sel.value = lbCta._prefillDauer;
-        if (window.LY_applyDurDateLayout) window.LY_applyDurDateLayout();
       }
       if (lbCta._waMsg) {
         var waBtn = document.querySelector('.form-col-wa');
@@ -2136,7 +2107,6 @@ window.LY_afterLcp(function() {
   var hintEl = document.getElementById('calHint');
   var startInput = document.getElementById('preferred_date');
   var endInput = document.getElementById('preferred_date_end');
-  var endWrap = document.getElementById('preferredDateEndWrap');
   var durationSelect = document.getElementById('charter_duration');
   if (!calRoot || !monthsEl || !prevBtn || !nextBtn) return;
 
@@ -2224,7 +2194,6 @@ window.LY_afterLcp(function() {
     if (!selected.length) {
       startInput.value = '';
       if (endInput) endInput.value = '';
-      if (window.LY_applyDurDateLayout) window.LY_applyDurDateLayout();
       if (window.LY_updateFormDateTriggers) window.LY_updateFormDateTriggers();
       return;
     }
@@ -2236,7 +2205,6 @@ window.LY_afterLcp(function() {
       if (endInput) endInput.value = '';
       if (durationSelect && durationSelect.value === 'multi-day') durationSelect.value = '';
     }
-    if (window.LY_applyDurDateLayout) window.LY_applyDurDateLayout();
     if (window.LY_updateFormDateTriggers) window.LY_updateFormDateTriggers();
   }
   function setCtaState(on){
@@ -2397,8 +2365,6 @@ window.LY_afterLcp(function() {
       if (durationSelect.value !== 'multi-day' && selected.length > 1) {
         selected = [selected[0]];
         updateSelectionUi();
-      } else if (window.LY_applyDurDateLayout) {
-        window.LY_applyDurDateLayout();
       }
     });
   }
@@ -2454,32 +2420,19 @@ window.LY_afterLcp(function() {
   var formDateDaysEl = formDatePopover ? formDatePopover.querySelector('.form-date-days') : null;
   var formDateDowEl = formDatePopover ? formDatePopover.querySelector('.form-date-dow') : null;
   var formDateStartBtn = document.getElementById('preferred_date_btn');
-  var formDateEndBtn = document.getElementById('preferred_date_end_btn');
-  var formDateTriggers = [
-    { btn: formDateStartBtn, mode: 'start' },
-    { btn: formDateEndBtn, mode: 'end' }
-  ];
   var formDateActiveTrigger = null;
   var formDateViewIndex = minIndex;
   var formDatePlaceholder = 'Auswählen…';
 
-  function updateFormDateTrigger(entry) {
-    if (!entry || !entry.btn) return;
-    var textEl = entry.btn.querySelector('.form-date-text');
+  function updateAllFormDateTriggers() {
+    if (!formDateStartBtn) return;
+    var textEl = formDateStartBtn.querySelector('.form-date-text');
     if (!textEl) return;
     var label = '';
-    if (entry.mode === 'end') {
-      label = selected.length > 1 ? formatDateLabel(selected[selected.length - 1]) : '';
-    } else if (selected.length === 1) {
-      label = formatDateLabel(selected[0]);
-    } else if (selected.length > 1) {
-      label = formatSelection();
-    }
+    if (selected.length === 1) label = formatDateLabel(selected[0]);
+    else if (selected.length > 1) label = formatSelection();
     textEl.textContent = label || formDatePlaceholder;
-    entry.btn.classList.toggle('has-value', !!label);
-  }
-  function updateAllFormDateTriggers() {
-    formDateTriggers.forEach(updateFormDateTrigger);
+    formDateStartBtn.classList.toggle('has-value', !!label);
   }
   function renderFormDatePopover() {
     if (!formDateDaysEl || !formDateTitleEl) return;
@@ -2555,14 +2508,13 @@ window.LY_afterLcp(function() {
     if (formDateModal.parentElement !== document.body) document.body.appendChild(formDateModal);
     if (formDateDowEl) formDateDowEl.innerHTML = DOW.map(function(x){ return '<span>' + x + '</span>'; }).join('');
 
-    formDateTriggers.forEach(function(entry) {
-      if (!entry.btn) return;
-      entry.btn.addEventListener('click', function(e) {
+    if (formDateStartBtn) {
+      formDateStartBtn.addEventListener('click', function(e) {
         e.preventDefault();
         if (!formDateModal.hidden) closeFormDateModal();
-        else openFormDateModal(entry.btn);
+        else openFormDateModal(formDateStartBtn);
       });
-    });
+    }
     if (formDateBackdrop) formDateBackdrop.addEventListener('click', closeFormDateModal);
     if (formDateSchließenBtn) formDateSchließenBtn.addEventListener('click', function(e){ e.preventDefault(); closeFormDateModal(); });
     if (formDateFertigBtn) formDateFertigBtn.addEventListener('click', function(e){ e.preventDefault(); closeFormDateModal(); });

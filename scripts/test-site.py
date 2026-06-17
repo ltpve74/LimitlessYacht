@@ -277,12 +277,11 @@ def check_html(r: Runner, rel: str, html: str) -> None:
         and 'id="calEnquireBtn"' in html
         and 'preferred_date_end' in html
         and 'id="formDurWrap"' in html
-        and 'LY_applyDurDateLayout' in html
         and "durationSelect.value === 'multi-day'" in html
-        and 'class="form-field form-end-date"' in html
-        and "classList.toggle('is-visible', show)" in html
         and "durationSelect.value = 'multi-day'" in html
-        and 'preferredDateEndWrap' in html
+        and 'preferred_date_end_btn' not in html
+        and 'class="form-field form-end-date"' not in html
+        and 'for="preferred_date_btn"' in html
         and 'data-selected=' in html
         and "node.closest('.cal-cell.free[data-date]')" in html,
     )
@@ -668,11 +667,10 @@ def check_shared_assets(r: Runner) -> None:
         ),
     )
     r.check(
-        'end date field hidden until multi-day (class-based)',
-        css is not None
-        and '.form-end-date' in css
-        and '.form-end-date.is-visible' in css
-        and 'classList.toggle(\'is-visible\', show)' in index_html,
+        'end date submitted via hidden field only',
+        'type="hidden" name="preferred_date_end"' in index_html
+        and 'preferred_date_end_btn' not in index_html
+        and 'LY_applyDurDateLayout' not in index_html,
     )
     r.check(
         'calendar hint lives inside the calendar card',
