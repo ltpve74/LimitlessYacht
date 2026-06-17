@@ -258,7 +258,7 @@ nav{position:fixed;top:0;left:0;right:0;z-index:100;min-height:4.25rem}
 
 <!-- MOBILE NAV -->
 <div class="mobile-nav" id="mobileNav" role="dialog" aria-modal="true" aria-label="Menu du site" hidden>
-  <button type="button" class="mobile-nav-close" id="mobileFermer" aria-label="Fermer le menu">✕</button>
+  <button type="button" class="mobile-nav-close" id="mobileClose" aria-label="Fermer le menu">✕</button>
   <a href="#enquire-form" class="mobile-nav-cta" onclick="closeMobile()">Demander un devis</a>
   <a href="#about" onclick="closeMobile()">À propos</a>
   <a href="#itinerary" onclick="closeMobile()">Destinations</a>
@@ -1102,7 +1102,7 @@ window.LY_afterLcp(function() {
       <source id="dest-lb-src-webp" type="image/webp" srcset="" />
       <img id="dest-lb-img" src="" alt="" decoding="async" />
     </picture>
-    <button type="button" id="dest-lb-close" class="lb-close" aria-label="Fermer destination details">
+    <button type="button" id="dest-lb-close" class="lb-close" aria-label="Close destination details">
       <span class="lb-close-icon" aria-hidden="true">✕</span>
       <span class="lb-close-label">Fermer</span>
     </button>
@@ -1602,7 +1602,7 @@ window.LY_afterLcp(function() {
     mobileNav.classList.add('open');
     document.body.style.overflow = 'hidden';
     hamburger.setAttribute('aria-expanded', 'true');
-    hamburger.setAttribute('aria-label', 'Fermer menu');
+    hamburger.setAttribute('aria-label', 'Fermer le menu');
   }
   function closeMobile() {
     if (!mobileNav || !hamburger) return;
@@ -1610,7 +1610,7 @@ window.LY_afterLcp(function() {
     mobileNav.hidden = true;
     document.body.style.overflow = '';
     hamburger.setAttribute('aria-expanded', 'false');
-    hamburger.setAttribute('aria-label', 'Open menu');
+    hamburger.setAttribute('aria-label', 'Ouvrir le menu');
   }
   // Desktop language menu
   (function() {
@@ -1649,8 +1649,8 @@ window.LY_afterLcp(function() {
       if (mobileNav.classList.contains('open')) closeMobile();
       else openMobile();
     });
-    var mobileFermer = document.getElementById('mobileFermer');
-    if (mobileFermer) mobileFermer.addEventListener('click', closeMobile);
+    var mobileClose = document.getElementById('mobileClose');
+    if (mobileClose) mobileClose.addEventListener('click', closeMobile);
     document.addEventListener('keydown', (e) => {
       if (e.key === 'Escape' && mobileNav.classList.contains('open')) closeMobile();
     });
@@ -1835,8 +1835,8 @@ window.LY_afterLcp(function() {
   }
 
   if (lightbox && lbImg) {
-    var lbFermerBtn = document.getElementById('lightbox-close');
-    if (lbFermerBtn) lbFermerBtn.addEventListener('click', closeGalleryLb);
+    var lbCloseBtn = document.getElementById('lightbox-close');
+    if (lbCloseBtn) lbCloseBtn.addEventListener('click', closeGalleryLb);
     lightbox.addEventListener('click', e => { if(e.target === lightbox) closeGalleryLb(); });
     var lbPrevBtn = document.getElementById('lightbox-prev');
     var lbNextBtn = document.getElementById('lightbox-next');
@@ -1871,7 +1871,7 @@ window.LY_afterLcp(function() {
   (function(){
     var destLb   = document.getElementById('dest-lightbox');
     if (!destLb) return;
-    var lbFermer  = document.getElementById('dest-lb-close');
+    var lbClose  = document.getElementById('dest-lb-close');
     var lbPrev   = document.getElementById('dest-lb-prev');
     var lbNext   = document.getElementById('dest-lb-next');
     var lbCounter = document.getElementById('dest-lb-counter');
@@ -1987,7 +1987,7 @@ window.LY_afterLcp(function() {
       if (history.state && history.state.lb === 'dest') { history.back(); }
     }
 
-    if (lbFermer) lbFermer.addEventListener('click', closeLb);
+    if (lbClose) lbClose.addEventListener('click', closeLb);
     if (lbPrev) lbPrev.addEventListener('click', function(e) { e.stopPropagation(); showDest(destIdx - 1); });
     if (lbNext) lbNext.addEventListener('click', function(e) { e.stopPropagation(); showDest(destIdx + 1); });
 
@@ -2930,7 +2930,7 @@ window.LY_afterLcp(function() {
     var settings = document.getElementById('cookie-settings-link');
     if (settings) settings.addEventListener('click', function (e) { e.preventDefault(); show(); });
 
-    // Fermer button = quick decline (same as clicking Refuser)
+    // Close button = quick decline (same as clicking Refuser)
     var closeBtn = document.getElementById('cookie-close');
     if (closeBtn) {
       closeBtn.addEventListener('click', function () { choose('denied'); });

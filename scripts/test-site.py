@@ -970,6 +970,27 @@ def check_shared_assets(r: Runner) -> None:
     r.check('publish gate script exists', os.path.isfile(os.path.join(ROOT, 'scripts/publish-gate.py')))
     r.check('lighthouse check script exists', os.path.isfile(os.path.join(ROOT, 'scripts/lighthouse-check.py')))
     r.check('ux smoke test script exists', os.path.isfile(os.path.join(ROOT, 'scripts/ux-test.py')))
+    ux_py = read_file('scripts/ux-test.py') or ''
+    r.check(
+        'ux smoke exercises mobile nav booking anchors',
+        'MOBILE_NAV_HREFS' in ux_py
+        and '#enquire-form' in ux_py
+        and '#avail-cal' in ux_py
+        and 'assert_mobile_nav_hrefs' in ux_py,
+    )
+    r.check(
+        'ux smoke exercises mobile forward and desktop cross-nav links',
+        'section-forward-cta' in ux_py
+        and 'section-cross-cta--desktop' in ux_py
+        and 'assert_single_visible_primary_cta' in ux_py,
+    )
+    for loc in ('de', 'es', 'fr'):
+        loc_html = read_file(f'{loc}/index.html') or ''
+        r.check(
+            f'{loc}/index.html keeps stable mobile menu close id',
+            'id="mobileClose"' in loc_html
+            and 'getElementById(\'mobileClose\')' in loc_html,
+        )
     r.check('lighthouse budgets file exists', os.path.isfile(os.path.join(ROOT, 'scripts/lighthouse-budgets.json')))
     index_html = read_file('index.html') or ''
     r.check(

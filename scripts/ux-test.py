@@ -2,12 +2,13 @@
 """
 Browser UX smoke tests — catch user-facing JavaScript errors and broken flows.
 
-Exercises the enquiry form date picker, availability calendar, and locale pages
-against a local static server. Fails on unexpected page errors or console errors.
+Exercises navigation anchors, booking-funnel links, the enquiry date picker, and
+locale pages against a local static server. Fails on unexpected page errors or
+console errors.
 
 Usage:
   python3 scripts/ux-test.py
-  python3 scripts/ux-test.py --quick   # home page only
+  python3 scripts/ux-test.py --quick   # home flows only (still includes mobile)
 """
 
 from __future__ import annotations
@@ -25,8 +26,23 @@ from site_server import serve_site  # noqa: E402
 
 GREEN = "\033[92m"
 RED = "\033[91m"
-YELLOW = "\033[93m"
 RESET = "\033[0m"
+
+MOBILE_VIEWPORT = {"width": 390, "height": 844}
+DESKTOP_VIEWPORT = {"width": 1280, "height": 900}
+
+# Mobile menu links must keep section-top / calendar anchors (not -land variants).
+MOBILE_NAV_HREFS = (
+    ("a.mobile-nav-cta", "#enquire-form"),
+    ('a[href="#about"]', "#about"),
+    ('a[href="#itinerary"]', "#itinerary"),
+    ('a[href="#gallery"]', "#gallery"),
+    ('a[href="#charters"]', "#charters"),
+    ('a[href="#avail-cal"]', "#avail-cal"),
+    ('a[href="#reviews"]', "#reviews"),
+    ('a[href="#amenities"]', "#amenities"),
+    ('a[href="#specs"]', "#specs"),
+)
 
 ALLOWED_CONSOLE = [
     re.compile(r"failed to load resource", re.I),
@@ -40,6 +56,9 @@ ALLOWED_CONSOLE = [
 class IssueCollector:
     def __init__(self) -> None:
         self.issues: list[str] = []
+
+    def add(self, message: str) -> None:
+        self.issues.append(message)
 
     def attach(self, page, scenario: str) -> None:
         def on_page_error(exc: Exception) -> None:
@@ -55,6 +74,67 @@ class IssueCollector:
 
         page.on("pageerror", on_page_error)
         page.on("console", on_console)
+
+
+def wait_for_hash(page, hash_fragment: str, timeout: float = 8000) -> None:
+    page.wait_for_function(
+        "(expected) => location.hash === expected",
+        arg=hash_fragment,
+        timeout=timeout,
+    )
+
+
+def open_mobile_menu(page) -> None:
+    page.locator("#hamburger").click()
+    page.wait_for_function(
+        "() => {"
+        "  const n = document.getElementById('mobileNav');"
+        "  return n && !n.hidden && n.classList.contains('open');"
+        "}"
+    )
+
+
+def expect_mobile_menu_closed(page) -> None:
+    page.wait_for_function(
+        "() => {"
+        "  const n = document.getElementById('mobileNav');"
+        "  return n && n.hidden && !n.classList.contains('open');"
+        "}"
+    )
+
+
+def assert_mobile_nav_hrefs(page, scenario: str, issues: IssueCollector) -> None:
+    open_mobile_menu(page)
+    for selector, expected in MOBILE_NAV_HREFS:
+        loc = page.locator(f"#mobileNav {selector}")
+        if loc.count() == 0:
+            issues.add(f"{scenario}: missing mobile nav link {selector}")
+            continue
+        actual = loc.first.get_attribute("href")
+        if actual != expected:
+            issues.add(
+                f"{scenario}: mobile nav {selector} href is {actual!r}, expected {expected!r}"
+            )
+    page.locator("#mobileNav .mobile-nav-close").click()
+    expect_mobile_menu_closed(page)
+
+
+def click_mobile_nav_link(page, href: str) -> None:
+    open_mobile_menu(page)
+    page.locator(f'#mobileNav a[href="{href}"]').click()
+    wait_for_hash(page, href)
+    expect_mobile_menu_closed(page)
+
+
+def assert_single_visible_primary_cta(page, section_id: str, scenario: str, issues: IssueCollector) -> None:
+    page.locator(f"#{section_id}").scroll_into_view_if_needed()
+    count = page.locator(
+        f"#{section_id} .section-cta-btns a.btn-primary:visible"
+    ).count()
+    if count != 1:
+        issues.add(
+            f"{scenario}: expected 1 visible availability CTA in #{section_id}, found {count}"
+        )
 
 
 def require_playwright():
@@ -83,14 +163,31 @@ def click_first_free_day(page, scope: str) -> bool:
 
 
 def scenario_home_desktop(page, base: str, issues: IssueCollector) -> None:
-    name = "home / desktop / enquiry date picker"
+    name = "home desktop"
     issues.attach(page, name)
-    page.set_viewport_size({"width": 1280, "height": 900})
+    page.set_viewport_size(DESKTOP_VIEWPORT)
     page.goto(base + "/", wait_until="domcontentloaded", timeout=60000)
-    page.wait_for_timeout(1500)
+    page.wait_for_timeout(1200)
+
+    # Desktop header uses -land anchors for section labels.
+    page.locator('.nav-links a[href="#charters-land"]').click()
+    wait_for_hash(page, "#charters-land")
 
     page.locator("#availability").scroll_into_view_if_needed()
     wait_for_calendar(page)
+
+    # Cross-nav ghost buttons stay on one row and route into the booking flow.
+    page.locator("#charters").scroll_into_view_if_needed()
+    cross_avail = page.locator(
+        '#charters .section-cross-cta--desktop a[href="#availability"]'
+    )
+    if not cross_avail.is_visible():
+        issues.add(f"{name}: charters cross-nav availability link not visible on desktop")
+    else:
+        cross_avail.click()
+        wait_for_hash(page, "#availability")
+        if page.locator("#availCal").count() == 0:
+            issues.add(f"{name}: availability cross-nav did not reach calendar section")
 
     page.locator("#preferred_date_btn").scroll_into_view_if_needed()
     page.locator("#preferred_date_btn").click()
@@ -100,11 +197,10 @@ def scenario_home_desktop(page, base: str, issues: IssueCollector) -> None:
     page.locator("#formDatePopover .form-date-next").click()
     page.locator("#formDatePopover .form-date-prev").click()
     if click_first_free_day(page, "#formDatePopover"):
-        # pickFormDate sets formDatePickGuard for ~450ms before dismiss works
         page.wait_for_timeout(600)
         visible = page.locator("#formDurWrap").evaluate("el => !el.hidden")
         if not visible:
-            issues.issues.append(
+            issues.add(
                 f"{name}: duration field did not appear after single-day pick"
             )
 
@@ -114,12 +210,50 @@ def scenario_home_desktop(page, base: str, issues: IssueCollector) -> None:
         timeout=5000,
     )
 
+    # Desktop cross-nav must stay hidden on wide viewports (mobile-only cluster).
+    if page.locator("#about .section-forward-cta:visible").count():
+        issues.add(f"{name}: about forward CTA should be hidden on desktop")
+
 
 def scenario_home_mobile(page, base: str, issues: IssueCollector) -> None:
-    name = "home / mobile / date picker"
+    name = "home mobile"
     issues.attach(page, name)
-    page.set_viewport_size({"width": 390, "height": 844})
+    page.set_viewport_size(MOBILE_VIEWPORT)
     page.goto(base + "/", wait_until="domcontentloaded", timeout=60000)
+    page.wait_for_timeout(800)
+
+    assert_mobile_nav_hrefs(page, name, issues)
+
+    for href in ("#enquire-form", "#avail-cal", "#charters"):
+        click_mobile_nav_link(page, href)
+
+    # Mobile-only forward links between sections.
+    page.locator("#about").scroll_into_view_if_needed()
+    forward = page.locator('#about .section-forward-cta a[href="#charters"]')
+    if not forward.is_visible():
+        issues.add(f"{name}: about forward link to charters not visible on mobile")
+    else:
+        forward.click()
+        wait_for_hash(page, "#charters")
+
+    page.locator("#amenities").scroll_into_view_if_needed()
+    forward_avail = page.locator('#amenities .section-forward-cta a[href="#avail-cal"]')
+    if not forward_avail.is_visible():
+        issues.add(f"{name}: amenities forward link to calendar not visible on mobile")
+    else:
+        forward_avail.click()
+        wait_for_hash(page, "#avail-cal")
+
+    # Regression guard: only one availability CTA in reviews/specs on mobile.
+    assert_single_visible_primary_cta(page, "reviews", name, issues)
+    assert_single_visible_primary_cta(page, "specs", name, issues)
+
+    # Desktop-only cross-nav and duplicate desktop availability buttons stay hidden.
+    if page.locator(".section-cross-cta--desktop:visible").count():
+        issues.add(f"{name}: desktop cross-nav should be hidden on mobile")
+    if page.locator(".section-cta-avail--desktop:visible").count():
+        issues.add(f"{name}: desktop availability CTA should be hidden on mobile")
+
     page.locator("#preferred_date_btn").scroll_into_view_if_needed()
     page.locator("#preferred_date_btn").click()
     page.locator("#formDatePopover").wait_for(state="visible", timeout=5000)
@@ -133,19 +267,24 @@ def scenario_home_mobile(page, base: str, issues: IssueCollector) -> None:
 
 
 def scenario_locale_de(page, base: str, issues: IssueCollector) -> None:
-    name = "de / desktop"
+    name = "locale de"
     issues.attach(page, name)
-    page.set_viewport_size({"width": 1280, "height": 900})
+    page.set_viewport_size(DESKTOP_VIEWPORT)
     page.goto(base + "/de/", wait_until="domcontentloaded", timeout=60000)
     page.locator("#preferred_date_btn").wait_for(timeout=10000)
     page.locator("#availability").scroll_into_view_if_needed()
     wait_for_calendar(page)
 
+    page.set_viewport_size(MOBILE_VIEWPORT)
+    page.reload(wait_until="domcontentloaded", timeout=60000)
+    assert_mobile_nav_hrefs(page, f"{name} mobile", issues)
+    click_mobile_nav_link(page, "#avail-cal")
+
 
 def scenario_legal(page, base: str, issues: IssueCollector) -> None:
-    name = "legal / en"
+    name = "legal en"
     issues.attach(page, name)
-    page.set_viewport_size({"width": 1280, "height": 900})
+    page.set_viewport_size(DESKTOP_VIEWPORT)
     page.goto(base + "/legal.html", wait_until="domcontentloaded", timeout=60000)
     page.wait_for_selector("a[href]", timeout=10000)
 
@@ -165,12 +304,13 @@ def run_scenarios(base_url: str, quick: bool = False) -> list[str]:
         context = browser.new_context()
         for fn in scenarios:
             page = context.new_page()
+            label = fn.__name__.replace("scenario_", "").replace("_", " ")
             try:
                 fn(page, base_url, issues)
-                print(f"  {GREEN}✓{RESET}  {fn.__name__.replace('scenario_', '').replace('_', ' ')}")
+                print(f"  {GREEN}✓{RESET}  {label}")
             except Exception as exc:  # noqa: BLE001
-                issues.issues.append(f"{fn.__name__}: scenario failed — {exc}")
-                print(f"  {RED}✗{RESET}  {fn.__name__} — {exc}")
+                issues.add(f"{label}: scenario failed — {exc}")
+                print(f"  {RED}✗{RESET}  {label} — {exc}")
             finally:
                 page.close()
         browser.close()
@@ -182,7 +322,11 @@ def main() -> int:
     parser = argparse.ArgumentParser(description="UX / JS error smoke tests")
     parser.add_argument("--url", help="Existing site URL (skip local server)")
     parser.add_argument("--root", default=ROOT, help="Site root to serve")
-    parser.add_argument("--quick", action="store_true", help="Run only core flows")
+    parser.add_argument(
+        "--quick",
+        action="store_true",
+        help="Home desktop + mobile only (skip locale and legal)",
+    )
     args = parser.parse_args()
 
     print(f"{GREEN}UX smoke tests{RESET}")
