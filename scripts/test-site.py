@@ -324,9 +324,13 @@ def check_html(r: Runner, rel: str, html: str) -> None:
         and html.count('sizes="(min-width: 1101px) 500px, 48vw"') == 12,
     )
     r.check(
-        'gallery pictures split mobile/desktop sources',
+        'gallery pictures split mobile/desktop sources with viewport sizes',
         'sizes="(max-width: 640px) 35vw, 22vw"' not in html
-        and html.count('sizes="22vw"') >= 15,
+        and '(min-width: 1101px) 25vw, 50vw' in html
+        and '(min-width: 1101px) 50vw, 100vw' in html
+        and 'images/maiora_20s_01-640.webp 640w' in html
+        and 'images/maiora_20s_01-960.webp 960w' in html
+        and 'images/mobile/maiora_20s_01-720.webp' in html,
     )
     r.check(
         'itinerary carousel prefetches on scroll',
@@ -653,7 +657,13 @@ def check_html(r: Runner, rel: str, html: str) -> None:
         'content image quality constants separated from hero LCP tuning',
         'CONTENT_DESKTOP_WEBP_Q' in opt_py
         and 'CONTENT_DEST_MAX_EDGE' in opt_py
+        and 'GALLERY_DESKTOP_WEBP_Q' in opt_py
         and 'HERO_960_Q' in opt_py,
+    )
+    gallery_webp = os.path.join(ROOT, 'images', 'maiora_20s_01.webp')
+    r.check(
+        'gallery desktop master kept sharp (not destination-grade compression)',
+        os.path.isfile(gallery_webp) and os.path.getsize(gallery_webp) > 35 * 1024,
     )
     portals_webp = os.path.join(ROOT, 'images', 'dest', 'portals-vells-1.webp')
     r.check(
