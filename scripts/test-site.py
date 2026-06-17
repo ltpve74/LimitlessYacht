@@ -1218,7 +1218,12 @@ def check_shared_assets(r: Runner) -> None:
         )
         is not None
         and re.search(
-            r'@media\s*\(\s*min-width:\s*641px\s*\)\s*and\s*\(\s*max-width:\s*768px\s*\)[\s\S]*?\.dest-lb-body\s*\{[^}]*max-width:',
+            r'@media\s*\(\s*min-width:\s*641px\s*\)\s*and\s*\(\s*max-width:\s*768px\s*\)[\s\S]*?\.dest-lb-body\s*\{[^}]*flex:\s*0\s*0\s*auto',
+            css,
+        )
+        is not None
+        and re.search(
+            r'@media\s*\(\s*min-width:\s*641px\s*\)\s*and\s*\(\s*max-width:\s*768px\s*\)[\s\S]*?\.dest-lb-img-wrap\s*\{[^}]*flex:\s*1\s*1\s*0',
             css,
         )
         is not None,

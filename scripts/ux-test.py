@@ -272,6 +272,34 @@ def scenario_home_tablet(page, base: str, issues: IssueCollector) -> None:
     elif not layout.get("stacked"):
         issues.add(f"{name}: destination lightbox body should sit below image on tablet")
 
+    space = page.evaluate(
+        "() => {"
+        "  const img = document.querySelector('.dest-lb-img-wrap');"
+        "  const body = document.querySelector('.dest-lb-body');"
+        "  if (!img || !body) return null;"
+        "  const imgH = img.getBoundingClientRect().height;"
+        "  const bodyH = body.getBoundingClientRect().height;"
+        "  const pad = parseFloat(getComputedStyle(body).paddingTop)"
+        "    + parseFloat(getComputedStyle(body).paddingBottom);"
+        "  let contentH = 0;"
+        "  body.querySelectorAll('.dest-lb-num,.dest-lb-name,.dest-lb-tagline,.dest-lb-desc,.dest-lb-meta,.dest-lb-actions')"
+        "    .forEach((el) => { contentH += el.getBoundingClientRect().height; });"
+        "  return { imgShare: imgH / window.innerHeight, bodySlack: bodyH - contentH - pad };"
+        "}"
+    )
+    if not space:
+        issues.add(f"{name}: could not measure destination lightbox space usage")
+    elif space.get("imgShare", 0) < 0.58:
+        issues.add(
+            f"{name}: destination image should dominate tablet lightbox "
+            f"(share={space.get('imgShare', 0):.2f})"
+        )
+    elif space.get("bodySlack", 0) > 72:
+        issues.add(
+            f"{name}: destination body panel has too much empty space "
+            f"(slack={space.get('bodySlack', 0):.0f}px)"
+        )
+
     href = page.locator("#dest-lb-cta").get_attribute("href")
     if href != "#avail-cal":
         issues.add(f"{name}: destination lightbox CTA should target calendar on tablet")
