@@ -355,7 +355,7 @@ def check_html(r: Runner, rel: str, html: str) -> None:
         and 'href="#gallery-land"' in html
         and 'href="#charters-land"' in html
         and re.search(
-            r'class="nav-links"[^>]*>[\s\S]*?href="#avail-cal"',
+            r'class="nav-links"[^>]*>[\s\S]*?href="#availability"',
             html,
         )
         is not None
@@ -959,7 +959,6 @@ def check_shared_assets(r: Runner) -> None:
         'desktop nav landing keeps labels and uses nav scroll offset',
         css is not None
         and '--nav-scroll-offset' in css
-        and '--nav-avail-land-extra' in css
         and re.search(
             r'@media \(min-width: 769px\)[\s\S]*?html\s*\{[^}]*scroll-padding-top:\s*var\(--nav-scroll-offset\)',
             css,
@@ -971,7 +970,7 @@ def check_shared_assets(r: Runner) -> None:
         )
         is not None
         and re.search(
-            r'@media \(min-width: 769px\)[\s\S]*?\.contact-cal-pair\s+#avail-cal[\s\S]*?scroll-margin-top:\s*var\(--nav-avail-land-extra\)',
+            r'@media \(min-width: 769px\)[\s\S]*?#availability[\s\S]*?scroll-margin-top:\s*0',
             css,
         )
         is not None

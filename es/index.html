@@ -127,8 +127,8 @@ nav {
   window.LY_BASE = (h.endsWith('.github.io') && parts[0]) ? '/' + parts[0] : '';
 })();
 </script>
-<link rel="preload" as="style" href="../css/main.css?v=23" onload="this.rel='stylesheet'" />
-<noscript><link rel="stylesheet" href="../css/main.css?v=23" /></noscript>
+<link rel="preload" as="style" href="../css/main.css?v=24" onload="this.rel='stylesheet'" />
+<noscript><link rel="stylesheet" href="../css/main.css?v=24" /></noscript>
 
 <!-- Auto-match the visitor's browser language to a localized version (only from the
      English root, and only until the visitor manually picks a language). -->
@@ -258,7 +258,7 @@ nav {
     <li><a href="#itinerary-land">Destinos</a></li>
     <li><a href="#gallery-land">Galería</a></li>
     <li><a href="#charters-land">Chárteres</a></li>
-    <li><a href="#avail-cal">Disponibilidad</a></li>
+    <li><a href="#availability">Disponibilidad</a></li>
     <li><a href="#reviews-land">Reseñas</a></li>
     <li><a href="#amenities-land">Equipamiento</a></li>
     <li><a href="#specs-land">Detalles</a></li>
@@ -1516,11 +1516,7 @@ window.LY_afterLcp(function() {
     var el = document.getElementById(id);
     if (!el) return null;
     if (id === 'about') return el.getBoundingClientRect().top;
-    if (id === 'avail-cal') {
-      var sec = document.getElementById('availability');
-      var label = sec && sec.querySelector('.section-label');
-      return label ? label.getBoundingClientRect().top : el.getBoundingClientRect().top;
-    }
+    if (id === 'availability') return el.getBoundingClientRect().top;
     return el.getBoundingClientRect().top;
   }
   function updateNavSection() {
@@ -1532,7 +1528,7 @@ window.LY_afterLcp(function() {
       var id = href.slice(1);
       var top = navMarkerTop(href);
       if (top == null) return;
-      var probe = (id === 'about' || id === 'avail-cal')
+      var probe = (id === 'about' || id === 'availability')
         ? navHeight() + 112
         : navHeight() + 4;
       if (top <= probe) active = a;

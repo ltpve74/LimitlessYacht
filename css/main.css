@@ -26,8 +26,6 @@
   --white: #ffffff;
   --text-muted: #8a9bb5;
   --nav-scroll-offset: 4.25rem;
-  /* Extra scroll-margin beyond html scroll-padding (Availability nav landing) */
-  --nav-avail-land-extra: 8.5rem;
 }
 
 *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
@@ -2126,9 +2124,9 @@ footer {
 /* Desktop nav: native anchor scroll.
    html scroll-padding clears the fixed nav for every fragment jump.
    -land anchors sit between label and title — no extra scroll-margin, so the label
-   tucks under the nav and the title lands flush below (see amenities screenshot).
-   About (#about) uses section-top + scroll-padding only (label stays visible).
-   Availability nav adds scroll-margin on #avail-cal for the paired-layout landing. */
+   tucks under the nav and the title lands flush below.
+   About (#about) and Availability (#availability) use section-top landing so labels
+   stay visible (see availability screenshot). In-page #avail-cal CTAs keep scroll-padding only. */
 @media (min-width: 769px) {
   html { scroll-padding-top: var(--nav-scroll-offset); }
   #itinerary-land,
@@ -2139,11 +2137,9 @@ footer {
   #specs-land,
   #enquire-land,
   #about,
+  #availability,
   #avail-cal {
     scroll-margin-top: 0;
-  }
-  .contact-cal-pair #avail-cal {
-    scroll-margin-top: var(--nav-avail-land-extra);
   }
 }
 .availability-picker { margin-top: 0; }
