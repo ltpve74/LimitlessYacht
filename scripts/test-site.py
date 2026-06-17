@@ -127,12 +127,12 @@ def check_html(r: Runner, rel: str, html: str) -> None:
     r.check('#enquire scroll anchor exists', 'id="enquire"' in html)
     r.check('enquiry CTAs link to #enquire', 'href="#enquire"' in html)
     r.check(
-        'reviews section uses distinct desktop CTAs for calendar vs quote form',
+        'reviews desktop keeps single availability CTA matching nav landing',
         'reviews-cta-avail--desktop' in html
-        and 'reviews-cta-quote--desktop' in html
+        and 'reviews-cta-quote--desktop' not in html
         and 'href="#availability" class="btn-primary reviews-cta-avail--desktop"' in html
-        and 'href="#enquire-form" class="btn-ghost reviews-cta-quote--desktop"' in html
-        and 'href="#avail-cal" class="btn-primary reviews-cta-avail--mobile"' in html,
+        and 'href="#avail-cal" class="btn-primary reviews-cta-avail--mobile"' in html
+        and 'href="#enquire" class="btn-ghost reviews-cta-quote--mobile"' in html,
     )
     r.check(
         'charters section groups options with includes panel',
@@ -1105,16 +1105,17 @@ def check_shared_assets(r: Runner) -> None:
         is not None,
     )
     r.check(
-        'reviews desktop CTAs split calendar and quote form landing',
+        'reviews desktop shows only availability CTA',
         css is not None
         and '#reviews .reviews-cta-avail--desktop' in css
+        and 'reviews-cta-quote--desktop' not in css
         and re.search(
             r'@media \(min-width: 769px\)[\s\S]*?#reviews\s+\.reviews-cta-avail--mobile[\s\S]*?display:\s*none',
             css,
         )
         is not None
         and re.search(
-            r'@media \(min-width: 769px\)[\s\S]*?#reviews\s+\.reviews-cta-quote--desktop[\s\S]*?display:\s*inline-block',
+            r'@media \(min-width: 769px\)[\s\S]*?#reviews\s+\.reviews-cta-quote--mobile[\s\S]*?display:\s*none',
             css,
         )
         is not None,
