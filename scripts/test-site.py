@@ -1034,9 +1034,10 @@ def check_shared_assets(r: Runner) -> None:
     r.check('lighthouse budgets file exists', os.path.isfile(os.path.join(ROOT, 'scripts/lighthouse-budgets.json')))
     index_html = read_file('index.html') or ''
     r.check(
-        'Montserrat uses root-relative @font-face (font preload omitted for LCP)',
+        'Montserrat uses root-relative @font-face and font preload (CLS-stable)',
         "url('fonts/montserrat-latin.woff2')" in index_html
         and 'font-display:optional' in index_html.replace(' ', '')
+        and "href=\"fonts/montserrat-latin.woff2\"" in index_html
         and 'href="/fonts/montserrat-latin.woff2"' not in index_html,
     )
     r.check(
