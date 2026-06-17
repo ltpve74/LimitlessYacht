@@ -268,7 +268,8 @@ def check_html(r: Runner, rel: str, html: str) -> None:
         and 'id="formDurWrap"' in html
         and 'LY_applyDurDateLayout' in html
         and "durationSelect.value === 'multi-day'" in html
-        and 'endWrap.hidden = !isMulti' in html
+        and 'class="form-field form-end-date"' in html
+        and "classList.toggle('is-visible', show)" in html
         and "durationSelect.value = 'multi-day'" in html
         and 'preferredDateEndWrap' in html
         and 'data-selected=' in html
@@ -638,10 +639,11 @@ def check_shared_assets(r: Runner) -> None:
         ),
     )
     r.check(
-        'hidden form fields stay hidden despite .form-field flex',
+        'end date field hidden until multi-day (class-based)',
         css is not None
-        and '.form-field[hidden]' in css
-        and '#preferredDateEndWrap[hidden]' in css,
+        and '.form-end-date' in css
+        and '.form-end-date.is-visible' in css
+        and 'classList.toggle(\'is-visible\', show)' in index_html,
     )
     r.check(
         'calendar hint lives inside the calendar card',

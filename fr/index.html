@@ -119,6 +119,9 @@ nav {
 @media (max-width: 768px) and (max-height: 640px) {
   .hero-value { display: none; }
 }
+.form-field[hidden] { display: none !important; }
+.form-end-date { display: none !important; }
+.form-end-date.is-visible { display: flex !important; }
 </style>
 <script>
 (function(){
@@ -126,8 +129,8 @@ nav {
   window.LY_BASE = (h.endsWith('.github.io') && parts[0]) ? '/' + parts[0] : '';
 })();
 </script>
-<link rel="preload" as="style" href="../css/main.css?v=10" onload="this.rel='stylesheet'" />
-<noscript><link rel="stylesheet" href="../css/main.css?v=10" /></noscript>
+<link rel="preload" as="style" href="../css/main.css?v=12" onload="this.rel='stylesheet'" />
+<noscript><link rel="stylesheet" href="../css/main.css?v=12" /></noscript>
 
 <!-- Auto-match the visitor's browser language to a localized version (only from the
      English root, and only until the visitor manually picks a language). -->
@@ -1243,11 +1246,28 @@ window.LY_afterLcp(function() {
                 <option value="multi-day">Plusieurs jours</option>
               </select>
             </div>
-            <div class="form-field" id="preferredDateEndWrap" hidden>
+            <div class="form-field form-end-date" id="preferredDateEndWrap">
               <label for="preferred_date_end">Date de fin</label>
               <input type="date" name="preferred_date_end" id="preferred_date_end" min="" />
             </div>
           </div>
+          <script>
+          (function(){
+            var sel = document.getElementById('charter_duration');
+            var wrap = document.getElementById('preferredDateEndWrap');
+            var end = document.getElementById('preferred_date_end');
+            function applyDurDateLayout(){
+              if (!wrap) return;
+              var show = sel && sel.value === 'multi-day';
+              wrap.classList.toggle('is-visible', show);
+              wrap.hidden = !show;
+              if (!show && end) end.value = '';
+            }
+            window.LY_applyDurDateLayout = applyDurDateLayout;
+            if (sel) sel.addEventListener('change', applyDurDateLayout);
+            applyDurDateLayout();
+          })();
+          </script>
           <p class="form-reassurance">Nous répondons sous quelques heures · vos données restent privées</p>
           <button type="submit" class="form-submit" id="submitBtn">Envoyer ma demande</button>
           <div id="form-success" style="display:none;color:var(--gold);font-size:.85rem;margin-top:.8rem;padding:.8rem;border:1px solid rgba(201,168,76,.3);background:rgba(201,168,76,.05);">
@@ -1871,22 +1891,6 @@ window.LY_afterLcp(function() {
       var d = document.getElementById(id);
       if (d) d.min = min;
     });
-  })();
-
-  // End date only when duration is multi-day (4h / 6h / 1 day → start date only)
-  (function(){
-    var durationSelect = document.getElementById('charter_duration');
-    var endWrap = document.getElementById('preferredDateEndWrap');
-    var endInput = document.getElementById('preferred_date_end');
-    function applyDurDateLayout(){
-      if (!endWrap) return;
-      var isMulti = durationSelect && durationSelect.value === 'multi-day';
-      endWrap.hidden = !isMulti;
-      if (!isMulti && endInput) endInput.value = '';
-    }
-    window.LY_applyDurDateLayout = applyDurDateLayout;
-    if (durationSelect) durationSelect.addEventListener('change', applyDurDateLayout);
-    applyDurDateLayout();
   })();
 
   // Form submission via Netlify Forms
