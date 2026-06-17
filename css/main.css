@@ -589,14 +589,80 @@ section { padding: 7rem 2rem; }
   display: block; font-size: .72rem;
   color: var(--gold-light); font-weight: 500; letter-spacing: .04em;
 }
-.dest-lb-cta {
+.dest-lb-actions {
+  display: flex; flex-direction: column; gap: .65rem;
+}
+.dest-lb-cta,
+.dest-lb-cta-secondary {
   display: block; width: 100%; text-align: center;
   text-decoration: none; box-sizing: border-box;
 }
+.dest-lb-cta-secondary { display: none; }
 .dest-lb-cta-mobile { display: none; }
+.cal-enquire-desktop { display: none; }
+.cal-enquire-mobile { display: inline; }
+@media (min-width: 769px) {
+  .dest-lb-cta-secondary { display: block; }
+  .contact-cal-pair #availability .availability-actions {
+    display: flex;
+    flex-direction: column;
+    gap: .65rem;
+    margin-top: 1.25rem;
+  }
+  .contact-cal-pair #availability .cal-wa-btn { display: none; }
+  .contact-cal-pair .cal-enquire-desktop { display: inline; }
+  .contact-cal-pair .cal-enquire-mobile { display: none; }
+  .dest-tabs, .gallery-tabs {
+    max-width: 720px;
+    margin-left: auto;
+    margin-right: auto;
+  }
+  .dest-tab, .gallery-tab { padding: 1rem .75rem; }
+  .destination-card-body::after {
+    content: 'View full details →';
+    display: block;
+    margin-top: .75rem;
+    font-size: .48rem;
+    letter-spacing: .18em;
+    text-transform: uppercase;
+    color: rgba(201,168,76,.75);
+    opacity: 0;
+    transition: opacity .25s;
+  }
+  html[lang="de"] .destination-card-body::after { content: 'Alle Details ansehen →'; }
+  html[lang="es"] .destination-card-body::after { content: 'Ver todos los detalles →'; }
+  html[lang="fr"] .destination-card-body::after { content: 'Voir tous les détails →'; }
+  .destination-card:hover .destination-card-body::after,
+  .destination-card:focus-within .destination-card-body::after {
+    opacity: 1;
+  }
+  .gallery-item::before {
+    content: 'View →';
+    position: absolute;
+    right: .85rem; bottom: .75rem; z-index: 2;
+    font-size: .48rem; letter-spacing: .16em;
+    text-transform: uppercase; color: var(--gold-light);
+    opacity: 0; transition: opacity .25s;
+    pointer-events: none;
+  }
+  html[lang="de"] .gallery-item::before { content: 'Ansehen →'; }
+  html[lang="es"] .gallery-item::before { content: 'Ver →'; }
+  html[lang="fr"] .gallery-item::before { content: 'Voir →'; }
+  .gallery-item:hover::before { opacity: 1; }
+}
 @media (max-width: 640px) {
   .dest-lb-cta-desktop { display: none; }
   .dest-lb-cta-mobile { display: inline; }
+}
+@media (min-width: 900px) {
+  .reviews-grid {
+    max-width: 1100px;
+    grid-template-columns: repeat(2, 1fr);
+  }
+}
+@media (min-width: 641px) and (max-width: 768px) {
+  .itinerary-grid { grid-template-columns: 1fr; }
+  .destination-card { min-height: 340px; }
 }
 
 /* ── AMENITIES ── */
@@ -1284,8 +1350,7 @@ footer {
   }
   /* Show only 2 months — 3 don't fit in a 50% column */
   .contact-cal-pair .cal-month:nth-child(n+3) { display: none; }
-  /* Form + WhatsApp live in the left column — calendar selection syncs there */
-  .contact-cal-pair #availability .availability-actions { display: none; }
+  /* Enquire bridge only — WhatsApp lives in the left column */
   .contact-cal-pair .cal-footer { margin-top: .95rem; padding-top: .85rem; }
 }
 
