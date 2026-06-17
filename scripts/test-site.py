@@ -286,6 +286,17 @@ def check_html(r: Runner, rel: str, html: str) -> None:
         and 'data-selected=' in html
         and "node.closest('.cal-cell.free[data-date]')" in html,
     )
+    r.check(
+        'form uses themed date pickers instead of native date inputs',
+        'class="form-date-wrap"' in html
+        and 'class="form-date-popover cal"' in html
+        and 'type="hidden" name="preferred_date"' in html
+        and 'type="hidden" name="preferred_date_end"' in html
+        and 'type="date" name="preferred_date"' not in html
+        and 'function initFormDatePicker' in html
+        and 'window.LY_updateFormDateTriggers' in html
+        and 'function isSelectableEnd' in html,
+    )
 
     # Nav
     r.check('id="navbar" navigation exists', 'id="navbar"' in html)
@@ -693,6 +704,14 @@ def check_shared_assets(r: Runner) -> None:
         and 'form-date-hint-link' not in index_html
         and css is not None
         and re.search(r'\.contact-cal-pair\s+\.form-date-hint\s*\{\s*display:\s*none', css) is not None,
+    )
+    r.check(
+        'form date popover styled like availability calendar',
+        css is not None
+        and '.form-date-popover' in css
+        and '.form-date-trigger' in css
+        and '.form-date-popover .cal-cell' in css
+        and '.form-date-backdrop' in css,
     )
     r.check(
         'availability calendar has app-style landing anchor',
