@@ -784,12 +784,22 @@ def check_shared_assets(r: Runner) -> None:
         )
         r.check(
             'hero CTA toggles mobile vs desktop anchor targets',
-            '.hero-cta-link--desktop{' in css_flat
+            re.search(
+                r'#hero \.hero-actions \.hero-cta-link--desktop\s*\{[^}]*display:\s*none',
+                css,
+            )
+            is not None
             and re.search(
-                r'@media \(min-width: 769px\)[\s\S]*?\.hero-cta-link--desktop\s*\{[^}]*display:\s*inline-block',
+                r'@media \(min-width: 769px\)[\s\S]*?#hero \.hero-actions \.hero-cta-link--mobile[^{]*\{[^}]*display:\s*none',
                 css,
             )
             is not None,
+        )
+        r.check(
+            'hero CTA hide rules beat btn-primary display',
+            css is not None
+            and css.find('.btn-primary {')
+            < css.find('#hero .hero-actions .hero-cta-link--desktop'),
         )
         r.check(
             'hero value line no longer uses margin-top auto on desktop',
