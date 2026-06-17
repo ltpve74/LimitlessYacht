@@ -122,8 +122,8 @@ nav {
 .form-field[hidden] { display: none !important; }
 </style>
 <script src="js/analytics-env.js"></script>
-<link rel="preload" as="style" href="../css/main.css?v=33" onload="this.rel='stylesheet'" />
-<noscript><link rel="stylesheet" href="../css/main.css?v=33" /></noscript>
+<link rel="preload" as="style" href="../css/main.css?v=34" onload="this.rel='stylesheet'" />
+<noscript><link rel="stylesheet" href="../css/main.css?v=34" /></noscript>
 
 <!-- Auto-match the visitor's browser language to a localized version (only from the
      English root, and only until the visitor manually picks a language). -->
@@ -1093,15 +1093,15 @@ window.LY_afterLcp(function() {
 
 <!-- LIGHTBOX -->
 <div id="lightbox">
-  <button type="button" id="lightbox-close" aria-label="Fermer la galerie">
-    <span class="lightbox-close-icon" aria-hidden="true">✕</span>
-    <span class="lightbox-close-label">Fermer</span>
+  <button type="button" id="lightbox-close" class="lb-close" aria-label="Fermer la galerie">
+    <span class="lb-close-icon" aria-hidden="true">✕</span>
+    <span class="lb-close-label">Fermer</span>
   </button>
-  <button type="button" id="lightbox-prev" aria-label="Image précédente">‹</button>
+  <button type="button" id="lightbox-prev" class="lb-nav lb-nav--prev" aria-label="Image précédente">‹</button>
   <img id="lightbox-img" src="" alt="Limitless yacht gallery photo" />
-  <button type="button" id="lightbox-next" aria-label="Image suivante">›</button>
-  <div id="lightbox-counter" aria-live="polite"></div>
-  <div id="lightbox-hint" aria-hidden="true">Swipe to browse</div>
+  <button type="button" id="lightbox-next" class="lb-nav lb-nav--next" aria-label="Image suivante">›</button>
+  <div id="lightbox-counter" class="lb-counter" aria-live="polite"></div>
+  <div id="lightbox-hint" class="lb-hint" aria-hidden="true">Swipe to browse</div>
 </div>
 
 <div id="dest-lightbox" role="dialog" aria-modal="true" aria-label="Détails de la destination">
@@ -1110,11 +1110,15 @@ window.LY_afterLcp(function() {
       <source id="dest-lb-src-webp" type="image/webp" srcset="" />
       <img id="dest-lb-img" src="" alt="" decoding="async" />
     </picture>
-    <button type="button" id="dest-lb-close" aria-label="Fermer">✕</button>
+    <button type="button" id="dest-lb-close" class="lb-close" aria-label="Fermer destination details">
+      <span class="lb-close-icon" aria-hidden="true">✕</span>
+      <span class="lb-close-label">Fermer</span>
+    </button>
     <div id="dest-lb-tier"></div>
-    <button type="button" id="dest-lb-prev" aria-label="Destination précédente">‹</button>
-    <button type="button" id="dest-lb-next" aria-label="Destination suivante">›</button>
-    <div id="dest-lb-counter" aria-live="polite"></div>
+    <button type="button" id="dest-lb-prev" class="lb-nav lb-nav--prev" aria-label="Destination précédente">‹</button>
+    <button type="button" id="dest-lb-next" class="lb-nav lb-nav--next" aria-label="Destination suivante">›</button>
+    <div id="dest-lb-counter" class="lb-counter" aria-live="polite"></div>
+    <div id="dest-lb-hint" class="lb-hint" aria-hidden="true"></div>
   </div>
   <div class="dest-lb-body">
     <div class="dest-lb-num" id="dest-lb-num"></div>
@@ -1911,6 +1915,8 @@ window.LY_afterLcp(function() {
       lbCta.href = window.innerWidth <= 640 ? '#avail-cal' : '#enquire-form';
     }
 
+    var lbHintDest = document.getElementById('dest-lb-hint');
+
     function openLb(card) {
       destCards = Array.from(document.querySelectorAll('.destination-card'));
       destIdx = destCardIndex(card);
@@ -1918,11 +1924,24 @@ window.LY_afterLcp(function() {
       destLb.classList.add('open');
       document.body.style.overflow = 'hidden';
       if (!history.state || history.state.lb !== 'dest') { history.pushState({ lb: 'dest' }, ''); }
+      try {
+        if (!localStorage.getItem('ly_dest_hinted') && lbHintDest && destCards.length > 1) {
+          lbHintDest.textContent = window.matchMedia('(min-width: 769px)').matches
+            ? 'Use arrow keys or click sides to browse'
+            : 'Swipe to browse';
+          lbHintDest.classList.add('visible');
+          setTimeout(function() {
+            lbHintDest.classList.remove('visible');
+            localStorage.setItem('ly_dest_hinted', '1');
+          }, 2000);
+        }
+      } catch (e) {}
     }
 
     function closeLb() {
       if (!destLb.classList.contains('open')) return;
       destLb.classList.remove('open');
+      if (lbHintDest) lbHintDest.classList.remove('visible');
       document.body.style.overflow = '';
       if (history.state && history.state.lb === 'dest') { history.back(); }
     }

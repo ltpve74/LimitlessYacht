@@ -877,6 +877,25 @@ def check_shared_assets(r: Runner) -> None:
         and "matchMedia('(min-width: 769px)')" in index_html,
     )
     r.check(
+        'lightboxes share unified navigation chrome classes',
+        'class="lb-close"' in index_html
+        and 'class="lb-nav lb-nav--prev"' in index_html
+        and 'class="lb-nav lb-nav--next"' in index_html
+        and 'class="lb-counter"' in index_html
+        and 'class="lb-hint"' in index_html
+        and css is not None
+        and '.lb-close {' in css
+        and '.lb-nav {' in css
+        and '.lb-counter {' in css
+        and '#dest-lb-close {' not in css
+        and '#lightbox-prev, #lightbox-next' not in css,
+    )
+    r.check(
+        'destination lightbox shows same browse hint as gallery',
+        'ly_dest_hinted' in index_html
+        and 'id="dest-lb-hint"' in index_html,
+    )
+    r.check(
         'calendar enquire scrolls on mobile, skips scroll on desktop when paired',
         'function isCalendarFormPaired()' in index_html
         and 'if (isCalendarFormPaired())' in index_html
