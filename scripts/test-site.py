@@ -275,8 +275,15 @@ def check_html(r: Runner, rel: str, html: str) -> None:
     )
     r.check(
         'destination lightbox CTA routes by viewport',
-        'function syncDestLbCta()' in html
-        and "lbCta.href = window.innerWidth <= 640 ? '#avail-cal' : '#enquire-form'" in html,
+        'function syncDestLbCtas()' in html
+        and "'#enquire-land'" in html
+        and "lbCtaAvail.href = w >= 769 ? '#availability' : '#avail-cal'" in html
+        and 'function closeDestLbAndGo(hash)' in html,
+    )
+    r.check(
+        'destination lightbox availability CTA defaults to desktop section anchor',
+        'id="dest-lb-cta-avail"' in html
+        and 'href="#availability" class="btn-ghost dest-lb-cta-secondary"' in html,
     )
     r.check(
         'gallery lightbox uses centralized images array',

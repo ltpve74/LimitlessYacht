@@ -1119,7 +1119,7 @@ window.LY_afterLcp(function() {
     <p class="dest-lb-desc" id="dest-lb-desc"></p>
     <div class="dest-lb-meta" id="dest-lb-meta"></div>
     <div class="dest-lb-actions">
-      <a href="#avail-cal" class="btn-ghost dest-lb-cta-secondary" id="dest-lb-cta-avail">Ver disponibilidad</a>
+      <a href="#availability" class="btn-ghost dest-lb-cta-secondary" id="dest-lb-cta-avail">Ver disponibilidad</a>
       <a href="#enquire-form" class="btn-primary dest-lb-cta" id="dest-lb-cta"><span class="dest-lb-cta-desktop">Consultar este viaje</span><span class="dest-lb-cta-mobile">Ver fechas para este viaje →</span></a>
     </div>
   </div>
@@ -1935,7 +1935,7 @@ window.LY_afterLcp(function() {
         lbCta._waMsg = destName
           ? 'Hi, I\'d like to enquire about a ' + (tierLabel[tier] || '') + ' charter to ' + destName + ' on Limitless.'
           : 'Hi, I\'d like to enquire about a charter on Limitless.';
-        syncDestLbCta();
+        syncDestLbCtas();
       }
       var lbTier = document.getElementById('dest-lb-tier');
       if (lbTier) lbTier.textContent = tierBadge[tier] || '';
@@ -1951,9 +1951,14 @@ window.LY_afterLcp(function() {
       }
     }
 
-    function syncDestLbCta() {
-      if (!lbCta) return;
-      lbCta.href = window.innerWidth <= 640 ? '#avail-cal' : '#enquire-form';
+    function syncDestLbCtas() {
+      var w = window.innerWidth;
+      if (lbCta) {
+        lbCta.href = w <= 640 ? '#avail-cal' : (w >= 769 ? '#enquire-land' : '#enquire-form');
+      }
+      if (lbCtaAvail) {
+        lbCtaAvail.href = w >= 769 ? '#availability' : '#avail-cal';
+      }
     }
 
     var lbHintDest = document.getElementById('dest-lb-hint');
@@ -2002,22 +2007,31 @@ window.LY_afterLcp(function() {
         if (infoWa) infoWa.href = 'https://wa.me/34622581486?text=' + encodeURIComponent(lbCta._waMsg);
       }
     }
-    function closeDestLbNav() {
-      destLb.classList.remove('open');
-      document.body.style.overflow = '';
-      try { if (history.state && history.state.lb === 'dest') history.replaceState(null, ''); } catch(e) {}
-    }
-    if (lbCta) lbCta.addEventListener('click', function() {
-      applyDestLbPrefill();
-      closeDestLbNav();
-    });
     var lbCtaAvail = document.getElementById('dest-lb-cta-avail');
-    if (lbCtaAvail) lbCtaAvail.addEventListener('click', function() {
+    function closeDestLbAndGo(hash) {
       applyDestLbPrefill();
-      closeDestLbNav();
+      destLb.classList.remove('open');
+      if (lbHintDest) lbHintDest.classList.remove('visible');
+      document.body.style.overflow = '';
+      try {
+        if (history.state && history.state.lb === 'dest') history.replaceState(null, '', hash);
+        else history.replaceState(null, '', hash);
+      } catch (e) {
+        location.hash = hash;
+      }
+      var target = document.getElementById(hash.slice(1));
+      if (target) target.scrollIntoView({ behavior: 'auto', block: 'start' });
+    }
+    if (lbCta) lbCta.addEventListener('click', function(e) {
+      e.preventDefault();
+      closeDestLbAndGo(lbCta.getAttribute('href') || '#enquire-form');
     });
-    window.addEventListener('resize', syncDestLbCta);
-    syncDestLbCta();
+    if (lbCtaAvail) lbCtaAvail.addEventListener('click', function(e) {
+      e.preventDefault();
+      closeDestLbAndGo(lbCtaAvail.getAttribute('href') || '#availability');
+    });
+    window.addEventListener('resize', syncDestLbCtas);
+    syncDestLbCtas();
 
     // Swipe / tap navigation across the whole lightbox (body scroll stays vertical)
     var dlbSwipeX = 0, dlbSwipeY = 0, dlbWasSwiped = false, dlbWasScrolled = false;
