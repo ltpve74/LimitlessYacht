@@ -1276,6 +1276,34 @@ window.LY_afterLcp(function() {
                   <span class="form-date-icon" aria-hidden="true"><svg viewBox="0 0 16 16" width="16" height="16" fill="none" stroke="currentColor" stroke-width="1.2"><rect x="2" y="3" width="12" height="11" rx="1"/><path d="M2 6h12M5 1v3M11 1v3"/></svg></span>
                   <span class="form-date-text">Seleccionar…</span>
                 </button>
+                <div class="form-date-popover cal" id="formDatePopover" role="dialog" aria-modal="false" aria-labelledby="formDatePopoverTitle" hidden>
+                  <div class="form-date-popover-head">
+                    <p class="form-date-popover-title" id="formDatePopoverTitle">Elegir fechas</p>
+                    <button type="button" class="form-date-popover-dismiss" id="formDatePopoverDismiss" aria-label="Cerrar calendario">×</button>
+                  </div>
+                  <div class="form-date-cal-bar">
+                    <button type="button" class="cal-nav form-date-nav form-date-prev" aria-label="Mes anterior">‹</button>
+                    <div class="form-date-cal-body">
+                      <div class="cal-title form-date-title"></div>
+                      <div class="cal-grid cal-dow form-date-dow" aria-hidden="true"></div>
+                      <div class="cal-grid cal-days form-date-days"></div>
+                    </div>
+                    <button type="button" class="cal-nav form-date-nav form-date-next" aria-label="Mes siguiente">›</button>
+                  </div>
+                  <div class="form-date-cal-foot">
+                    <span id="formDateHintTemplates" hidden>
+                      <span data-hint="start">Toque una fecha de inicio.</span>
+                      <span data-hint="end">Toque la fecha de fin para varios días, o Listo para un solo día.</span>
+                      <span data-hint="ready">Pulse Listo cuando termine.</span>
+                    </span>
+                    <p class="form-date-step-hint" id="formDateStepHint">Toque una fecha de inicio.</p>
+                    <p class="form-date-close-hint">Pulse <strong>Listo</strong> o ✕ para cerrar.</p>
+                    <div class="form-date-popover-actions">
+                      <button type="button" class="cal-clear form-date-clear-btn">Clear</button>
+                      <button type="button" class="form-date-apply-btn">Listo</button>
+                    </div>
+                  </div>
+                </div>
               </div>
             </div>
             <div class="form-field" id="formDurWrap">
@@ -1289,37 +1317,6 @@ window.LY_afterLcp(function() {
               </select>
             </div>
             <p class="form-date-hint">Consulte el <a href="#avail-cal" class="form-date-hint-link">calendario</a> para una vista general.</p>
-            <div class="form-date-modal" id="formDateModal" hidden aria-hidden="true">
-              <div class="form-date-backdrop" id="formDateBackdrop" aria-hidden="true"></div>
-              <div class="form-date-popover cal" id="formDatePopover" role="dialog" aria-modal="true" aria-labelledby="formDateModalTitle">
-                <div class="form-date-modal-head">
-                  <p class="form-date-modal-title" id="formDateModalTitle">Elegir fechas</p>
-                  <button type="button" class="form-date-modal-dismiss" id="formDateModalDismiss" aria-label="Cerrar calendario">×</button>
-                </div>
-                <div class="form-date-cal-bar">
-                  <button type="button" class="cal-nav form-date-nav form-date-prev" aria-label="Mes anterior">‹</button>
-                  <div class="form-date-cal-body">
-                    <div class="cal-title form-date-title"></div>
-                    <div class="cal-grid cal-dow form-date-dow" aria-hidden="true"></div>
-                    <div class="cal-grid cal-days form-date-days"></div>
-                  </div>
-                  <button type="button" class="cal-nav form-date-nav form-date-next" aria-label="Mes siguiente">›</button>
-                </div>
-                <div class="form-date-cal-foot">
-                  <span id="formDateHintTemplates" hidden>
-                    <span data-hint="start">Toque una fecha de inicio.</span>
-                    <span data-hint="end">Toque la fecha de fin para varios días, o Listo para un solo día.</span>
-                    <span data-hint="ready">Pulse Listo cuando termine.</span>
-                  </span>
-                  <p class="form-date-step-hint" id="formDateStepHint">Toque una fecha de inicio.</p>
-                  <p class="form-date-close-hint">Pulse <strong>Listo</strong> o ✕ para cerrar.</p>
-                  <div class="form-date-modal-actions">
-                    <button type="button" class="cal-clear form-date-clear-btn">Clear</button>
-                    <button type="button" class="form-date-apply-btn">Listo</button>
-                  </div>
-                </div>
-              </div>
-            </div>
           </div>
           <p class="form-reassurance">Respondemos en pocas horas · sus datos son privados</p>
           <button type="submit" class="form-submit" id="submitBtn">Enviar mi consulta</button>
@@ -2413,10 +2410,9 @@ window.LY_afterLcp(function() {
   if (window.LY_whenNearSection) window.LY_whenNearSection('availability', loadDisponibilidad);
   else loadDisponibilidad();
 
-  var formDateModal = document.getElementById('formDateModal');
   var formDatePopover = document.getElementById('formDatePopover');
-  var formDateBackdrop = document.getElementById('formDateBackdrop');
-  var formDateDismissBtn = document.getElementById('formDateModalDismiss');
+  var formDateWrap = document.getElementById('preferredDateWrap');
+  var formDateDismissBtn = document.getElementById('formDatePopoverDismiss');
   var formDateApplyBtn = document.querySelector('.form-date-apply-btn');
   var formDateClearBtn = document.querySelector('.form-date-clear-btn');
   var formDatePrevBtn = formDatePopover ? formDatePopover.querySelector('.form-date-prev') : null;
@@ -2425,7 +2421,6 @@ window.LY_afterLcp(function() {
   var formDateDaysEl = formDatePopover ? formDatePopover.querySelector('.form-date-days') : null;
   var formDateDowEl = formDatePopover ? formDatePopover.querySelector('.form-date-dow') : null;
   var formDateStartBtn = document.getElementById('preferred_date_btn');
-  var formDateActiveTrigger = null;
   var formDateViewIndex = minIndex;
   var formDatePlaceholder = 'Seleccionar…';
   var formDatePickGuard = false;
@@ -2455,10 +2450,13 @@ window.LY_afterLcp(function() {
     formDateStepHint.classList.toggle('is-pending-end', pendingEnd);
     if (formDateApplyBtn) formDateApplyBtn.classList.toggle('is-ready', selected.length > 0);
   }
+  function isFormDatePopoverOpen() {
+    return formDatePopover && !formDatePopover.hidden;
+  }
   function scheduleFormDatePopoverRefresh() {
-    if (!formDateModal || formDateModal.hidden) return;
+    if (!isFormDatePopoverOpen()) return;
     setTimeout(function() {
-      if (!formDateModal || formDateModal.hidden) return;
+      if (!isFormDatePopoverOpen()) return;
       renderFormDatePopover();
       updateFormDateStepHint();
     }, 0);
@@ -2521,43 +2519,38 @@ window.LY_afterLcp(function() {
     if (formDateNextBtn) formDateNextBtn.disabled = (formDateViewIndex >= maxIndex);
     updateFormDateStepHint();
   }
-  function closeFormDateModal() {
+  function closeFormDatePopover() {
     if (formDatePickGuard || formDateJustOpened) return;
-    if (!formDateModal || formDateModal.hidden) return;
-    formDateModal.hidden = true;
-    formDateModal.setAttribute('aria-hidden', 'true');
-    document.body.classList.remove('form-date-open');
-    if (formDateActiveTrigger) {
-      formDateActiveTrigger.setAttribute('aria-expanded', 'false');
-      formDateActiveTrigger = null;
-    }
+    if (!formDatePopover || formDatePopover.hidden) return;
+    formDatePopover.hidden = true;
+    formDatePopover.setAttribute('aria-hidden', 'true');
+    document.body.classList.remove('form-date-popup-open');
+    if (formDateWrap) formDateWrap.classList.remove('is-open');
+    if (formDateStartBtn) formDateStartBtn.setAttribute('aria-expanded', 'false');
   }
-  function openFormDateModal(trigger) {
-    if (!formDateModal || !formDatePopover) return;
-    if (formDateActiveTrigger) formDateActiveTrigger.setAttribute('aria-expanded', 'false');
-    formDateActiveTrigger = trigger || formDateStartBtn;
-    if (formDateActiveTrigger) formDateActiveTrigger.setAttribute('aria-expanded', 'true');
+  function openFormDatePopover() {
+    if (!formDatePopover) return;
     if (selected.length) formDateViewIndex = monthIndexForDate(selected[0]);
     else if (startInput && startInput.value) formDateViewIndex = monthIndexForDate(startInput.value);
     else formDateViewIndex = minIndex;
     renderFormDatePopover();
     updateFormDateStepHint();
-    formDateModal.hidden = false;
-    formDateModal.setAttribute('aria-hidden', 'false');
-    document.body.classList.add('form-date-open');
+    formDatePopover.hidden = false;
+    formDatePopover.setAttribute('aria-hidden', 'false');
+    document.body.classList.add('form-date-popup-open');
+    if (formDateWrap) formDateWrap.classList.add('is-open');
+    if (formDateStartBtn) formDateStartBtn.setAttribute('aria-expanded', 'true');
     formDateJustOpened = true;
     setTimeout(function(){ formDateJustOpened = false; }, 400);
-    if (formDatePopover) formDatePopover.focus();
   }
-  function shiftFormDateModal(dir) {
+  function shiftFormDatePopover(dir) {
     var next = formDateViewIndex + dir;
     if (next < minIndex || next > maxIndex) return;
     formDateViewIndex = next;
     renderFormDatePopover();
   }
 
-  if (formDateModal && formDatePopover) {
-    if (formDateModal.parentElement !== document.body) document.body.appendChild(formDateModal);
+  if (formDatePopover) {
     if (formDateDowEl) formDateDowEl.innerHTML = DOW.map(function(x){ return '<span>' + x + '</span>'; }).join('');
     loadFormDateHints();
 
@@ -2565,24 +2558,14 @@ window.LY_afterLcp(function() {
       formDateStartBtn.addEventListener('click', function(e) {
         e.preventDefault();
         e.stopPropagation();
-        if (!formDateModal.hidden) closeFormDateModal();
-        else openFormDateModal(formDateStartBtn);
+        if (isFormDatePopoverOpen()) closeFormDatePopover();
+        else openFormDatePopover();
       });
     }
-    if (formDateBackdrop) {
-      formDateBackdrop.addEventListener('click', function(e) {
-        if (formDatePickGuard || e.target !== formDateBackdrop) return;
-        closeFormDateModal();
-      });
-    }
-    if (formDatePopover) {
-      formDatePopover.setAttribute('tabindex', '-1');
-      formDatePopover.addEventListener('click', function(e) { e.stopPropagation(); });
-    }
-    if (formDateDismissBtn) formDateDismissBtn.addEventListener('click', function(e){ e.preventDefault(); closeFormDateModal(); });
-    if (formDateApplyBtn) formDateApplyBtn.addEventListener('click', function(e){ e.preventDefault(); closeFormDateModal(); });
-    if (formDatePrevBtn) formDatePrevBtn.addEventListener('click', function(e){ e.preventDefault(); shiftFormDateModal(-1); });
-    if (formDateNextBtn) formDateNextBtn.addEventListener('click', function(e){ e.preventDefault(); shiftFormDateModal(1); });
+    if (formDateDismissBtn) formDateDismissBtn.addEventListener('click', function(e){ e.preventDefault(); closeFormDatePopover(); });
+    if (formDateApplyBtn) formDateApplyBtn.addEventListener('click', function(e){ e.preventDefault(); closeFormDatePopover(); });
+    if (formDatePrevBtn) formDatePrevBtn.addEventListener('click', function(e){ e.preventDefault(); shiftFormDatePopover(-1); });
+    if (formDateNextBtn) formDateNextBtn.addEventListener('click', function(e){ e.preventDefault(); shiftFormDatePopover(1); });
     if (formDateClearBtn) formDateClearBtn.addEventListener('click', function(e){
       e.preventDefault();
       selected = [];
@@ -2609,8 +2592,17 @@ window.LY_afterLcp(function() {
         pickFormDate(cell.getAttribute('data-date'));
       });
     }
+    document.addEventListener('click', function(e) {
+      if (!isFormDatePopoverOpen()) return;
+      var node = e.target;
+      if (!node) return;
+      if (node.nodeType === 3) node = node.parentElement;
+      if (!node || !node.closest) return;
+      if (node.closest('.form-date-popover') || node.closest('.form-date-trigger')) return;
+      closeFormDatePopover();
+    });
     document.addEventListener('keydown', function(e) {
-      if (e.key === 'Escape' && formDateModal && !formDateModal.hidden) closeFormDateModal();
+      if (e.key === 'Escape' && isFormDatePopoverOpen()) closeFormDatePopover();
     });
 
     updateAllFormDateTriggers();
@@ -2618,7 +2610,7 @@ window.LY_afterLcp(function() {
 
   window.LY_updateFormDateTriggers = updateAllFormDateTriggers;
   window.LY_refreshFormDatePickers = function() {
-    if (formDateModal && !formDateModal.hidden) scheduleFormDatePopoverRefresh();
+    if (isFormDatePopoverOpen()) scheduleFormDatePopoverRefresh();
     else renderFormDatePopover();
   };
 

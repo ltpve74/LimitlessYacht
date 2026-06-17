@@ -288,21 +288,22 @@ def check_html(r: Runner, rel: str, html: str) -> None:
     r.check(
         'form uses themed date pickers instead of native date inputs',
         'class="form-date-wrap"' in html
-        and 'id="formDateModal"' in html
         and 'id="formDatePopover"' in html
+        and 'id="preferredDateWrap"' in html
         and 'type="hidden" name="preferred_date"' in html
         and 'type="hidden" name="preferred_date_end"' in html
         and 'type="date" name="preferred_date"' not in html
-        and 'function openFormDateModal' in html
-        and 'function closeFormDateModal' in html
+        and 'function openFormDatePopover' in html
+        and 'function closeFormDatePopover' in html
         and 'window.LY_updateFormDateTriggers' in html
         and 'id="formDateStepHint"' in html
         and 'function pickFormDate' in html
         and 'formDatePickGuard' in html
         and 'class="form-date-icon"' in html
-        and 'document.body.appendChild(formDateModal)' in html
+        and 'form-date-popup-open' in html
         and 'class="form-date-apply-btn"' in html
-        and 'id="formDateModalDismiss"' in html
+        and 'id="formDatePopoverDismiss"' in html
+        and 'formDateModal' not in html
         and 'range-start' in html,
     )
 
@@ -714,19 +715,18 @@ def check_shared_assets(r: Runner) -> None:
         and '.form-date-hint-link' in css,
     )
     r.check(
-        'form date popover is a centered modal with on-brand trigger',
+        'form date popover is a field-attached popup with on-brand trigger',
         css is not None
-        and '.form-date-modal' in css
-        and re.search(r'\.form-date-modal\s*\{[^}]*position:\s*fixed', css) is not None
-        and '.form-date-popover' in css
+        and '.form-date-wrap' in css
+        and re.search(r'\.form-date-popover(?:\.cal)?\s*\{[^}]*position:\s*absolute', css) is not None
         and '.form-date-trigger' in css
         and '.form-date-icon' in css
         and '.form-date-popover .cal-cell' in css
         and '.form-date-apply-btn' in css
-        and '.form-date-modal-dismiss' in css
-        and '.form-date-backdrop' in css
-        and re.search(r'\.form-date-popover(?:\.cal)?\s*\{[^}]*background:\s*var\(--deep\)', css) is not None
-        and re.search(r'\.form-date-backdrop\s*\{[^}]*background:\s*var\(--navy\)', css) is not None,
+        and '.form-date-popover-dismiss' in css
+        and '.form-date-modal' not in css
+        and '.form-date-backdrop' not in css
+        and re.search(r'\.form-date-popover(?:\.cal)?\s*\{[^}]*background:\s*var\(--deep\)', css) is not None,
     )
     r.check(
         'availability calendar has app-style landing anchor',

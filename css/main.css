@@ -775,7 +775,8 @@ section { padding: 7rem 2rem; }
   transition: color .2s;
 }
 .form-date-hint-link:hover { color: var(--gold-light); }
-.form-date-wrap { position: relative; width: 100%; }
+.form-date-wrap { position: relative; width: 100%; z-index: 1; }
+.form-date-wrap.is-open { z-index: 350; }
 .form-date-trigger {
   display: flex; align-items: center; gap: .7rem;
   width: 100%; text-align: left; cursor: pointer;
@@ -810,46 +811,42 @@ section { padding: 7rem 2rem; }
   border-color: var(--gold); outline: none;
   box-shadow: 0 0 0 1px rgba(201,168,76,.22);
 }
-.form-date-modal {
-  position: fixed; inset: 0; z-index: 50000;
-  display: flex; align-items: center; justify-content: center;
-  padding: 1rem;
-}
-.form-date-modal[hidden] { display: none !important; }
-.form-date-backdrop {
-  position: absolute; inset: 0;
-  background: var(--navy);
-  cursor: pointer;
-}
 .form-date-popover,
 .form-date-popover.cal {
-  position: relative; z-index: 1;
-  width: min(20rem, calc(100vw - 2rem));
-  max-height: calc(100vh - 2rem);
+  position: absolute; z-index: 1;
+  top: calc(100% + .35rem); left: 0; right: 0;
+  width: auto; min-width: min(100%, 18.5rem);
+  max-height: min(24rem, calc(100vh - 8rem));
   overflow-y: auto;
   margin-top: 0; max-width: none;
   background: var(--deep); border: 1px solid rgba(201,168,76,.35);
   border-radius: 8px; padding: 1rem .9rem .85rem;
-  box-shadow: 0 22px 56px rgba(0,0,0,.6);
+  box-shadow: 0 14px 40px rgba(0,0,0,.55);
 }
-.form-date-modal-head {
+.form-date-popover[hidden] { display: none !important; }
+.form-date-popover-head {
   display: flex; align-items: center; justify-content: space-between;
   gap: .75rem; margin-bottom: .75rem; padding-bottom: .6rem;
   border-bottom: 1px solid rgba(201,168,76,.14);
 }
-.form-date-modal-title {
+.form-date-popover-title {
   margin: 0; font-size: .62rem; letter-spacing: .16em; text-transform: uppercase;
   color: var(--gold); font-weight: 500;
 }
-.form-date-modal-dismiss {
+.form-date-popover-dismiss {
   flex: none; background: none; border: 1px solid rgba(201,168,76,.25);
   color: var(--text-muted); border-radius: 50%;
   width: 2rem; height: 2rem; font-size: 1.2rem; line-height: 1;
   cursor: pointer; transition: color .2s, border-color .2s, background .2s;
 }
-.form-date-modal-dismiss:hover {
+.form-date-popover-dismiss:hover {
   color: var(--gold-light); border-color: rgba(201,168,76,.5);
   background: rgba(201,168,76,.08);
+}
+body.form-date-popup-open .enquire-section,
+body.form-date-popup-open .contact-form,
+body.form-date-popup-open .form-row {
+  overflow: visible;
 }
 .form-date-cal-bar { display: flex; align-items: flex-start; gap: .35rem; }
 .form-date-cal-body { flex: 1; min-width: 0; }
@@ -872,7 +869,7 @@ section { padding: 7rem 2rem; }
   letter-spacing: .06em; color: var(--text-muted); text-transform: none;
 }
 .form-date-close-hint strong { color: var(--gold); font-weight: 500; }
-.form-date-modal-actions {
+.form-date-popover-actions {
   display: flex; align-items: center; justify-content: space-between;
   gap: .75rem;
 }
@@ -884,7 +881,6 @@ section { padding: 7rem 2rem; }
 }
 .form-date-apply-btn:hover { background: var(--gold-light); transform: translateY(-1px); }
 .form-date-apply-btn.is-ready { box-shadow: 0 0 0 2px rgba(201,168,76,.35); }
-body.form-date-open { overflow: hidden; }
 .form-submit {
   background: var(--gold); color: var(--navy); border: none;
   padding: 1.1rem 2.5rem; font-family: 'Montserrat', sans-serif;
