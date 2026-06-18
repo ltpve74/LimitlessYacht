@@ -520,7 +520,7 @@ window.addEventListener('load', function() {
 window.addEventListener('load', function() {
   if(!window.LY_OWNER_MODE){var _cs=document.createElement('script');_cs.defer=true;_cs.src=(window.LY_BASE||'')+'/js/clarity-consent.js';document.head.appendChild(_cs);}
 });
-// Below-fold preloads: after meaningful paint, card tiers before lightbox masters.
+// Below-fold preloads: after meaningful paint, card tiers only (lightbox tiers on open).
 window.LY_afterMeaningfulPaint = function(fn) {
   var ran = false;
   function go() {
@@ -669,22 +669,43 @@ window.LY_cardTierFromMaster = function(master, suffix) {
   if (!master) return '';
   return master.replace(/\.webp$/i, suffix + '.webp');
 };
-window.LY_destLbUrl = function(idx) {
+window.LY_destMasterUrl = function(idx) {
   var arr = window.innerWidth <= 640 ? window.LY_DEST_IMAGES_MOBILE : window.LY_DEST_IMAGES;
+  return arr[idx];
+};
+window.LY_galleryMasterUrl = function(idx) {
+  var arr = window.innerWidth <= 640 ? window.LY_GALLERY_IMAGES_MOBILE : window.LY_GALLERY_IMAGES;
   return arr[idx];
 };
 window.LY_destCardUrl = function(idx) {
   var mob = window.innerWidth <= 640;
-  return window.LY_cardTierFromMaster(window.LY_destLbUrl(idx), mob ? '-720' : '-640');
+  return window.LY_cardTierFromMaster(window.LY_destMasterUrl(idx), mob ? '-720' : '-640');
 };
-window.LY_galleryLbUrl = function(idx) {
-  var arr = window.innerWidth <= 640 ? window.LY_GALLERY_IMAGES_MOBILE : window.LY_GALLERY_IMAGES;
-  return arr[idx];
+window.LY_destLbUrl = function(idx) {
+  return window.LY_cardTierFromMaster(window.LY_destMasterUrl(idx), '-960');
 };
 window.LY_galleryCardUrl = function(idx) {
   var mob = window.innerWidth <= 640;
   var suffix = mob ? '-720' : (window.LY_GALLERY_FEATURED[idx] ? '-960' : '-640');
-  return window.LY_cardTierFromMaster(window.LY_galleryLbUrl(idx), suffix);
+  return window.LY_cardTierFromMaster(window.LY_galleryMasterUrl(idx), suffix);
+};
+window.LY_galleryLbUrl = function(idx) {
+  return window.LY_cardTierFromMaster(window.LY_galleryMasterUrl(idx), '-960');
+};
+window.LY_pictureSrcsetForViewport = function(picture, mob) {
+  if (!picture) return '';
+  var sel = mob
+    ? 'source[type="image/webp"][media*="max-width: 640px"]'
+    : 'source[type="image/webp"]:not([media])';
+  var source = picture.querySelector(sel);
+  return source ? (source.getAttribute('srcset') || '') : '';
+};
+window.LY_srcsetWithoutMasters = function(srcset) {
+  if (!srcset) return '';
+  return srcset.split(',').map(function(part) { return part.trim(); }).filter(function(part) {
+    var url = part.split(/\s+/)[0] || '';
+    return /-(480|640|720|960|1280)\.webp$/i.test(url);
+  }).join(', ');
 };
 window.LY_destPreloadReady = false;
 window.LY_afterMeaningfulPaint(function() {
@@ -693,10 +714,6 @@ window.LY_afterMeaningfulPaint(function() {
   destOrder.forEach(function(i) { window.LY_enqueueCardPreload(window.LY_destCardUrl(i)); });
   for (var g = 0; g < window.LY_GALLERY_IMAGES.length; g++) {
     window.LY_enqueueCardPreload(window.LY_galleryCardUrl(g));
-  }
-  destOrder.forEach(function(i) { window.LY_enqueueLbPreload(window.LY_destLbUrl(i)); });
-  for (g = 0; g < window.LY_GALLERY_IMAGES.length; g++) {
-    window.LY_enqueueLbPreload(window.LY_galleryLbUrl(g));
   }
   document.querySelectorAll('.dest-group.tab-active .itinerary-grid').forEach(function(gr) {
     gr.dispatchEvent(new Event('scroll'));
@@ -1139,7 +1156,7 @@ document.addEventListener('DOMContentLoaded', function() {
     <span class="lb-close-label">Fermer</span>
   </button>
   <button type="button" id="lightbox-prev" class="lb-nav lb-nav--prev" aria-label="Image précédente">‹</button>
-  <img id="lightbox-img" src="" alt="Limitless yacht gallery photo" />
+  <img id="lightbox-img" src="" alt="Limitless yacht gallery photo" sizes="100vw" />
   <button type="button" id="lightbox-next" class="lb-nav lb-nav--next" aria-label="Image suivante">›</button>
   <div id="lightbox-counter" class="lb-counter" aria-live="polite"></div>
   <div id="lightbox-hint" class="lb-hint" aria-hidden="true">Swipe to browse</div>
@@ -1769,7 +1786,6 @@ document.addEventListener('DOMContentLoaded', function() {
 
   // Gallery lightbox (same registry as cards + preload)
   const images = window.LY_GALLERY_IMAGES;
-  const imagesMobile = window.LY_GALLERY_IMAGES_MOBILE;
   const imagePositions = [
     '95% 72%',       // 0: maiora_20s_01 — bow bottom-right
     'center center', // 1: maiora_20s_03 — full yacht aerial; shown with contain
@@ -1804,15 +1820,24 @@ document.addEventListener('DOMContentLoaded', function() {
     if (!lbImg || !images.length) return;
     currentIdx = (idx + images.length) % images.length;
     var isMobLb = window.innerWidth <= 640;
-    lbImg.src = (isMobLb ? imagesMobile : images)[currentIdx];
+    var item = document.querySelector('.gallery-item[data-index="' + currentIdx + '"]');
+    var picture = item && item.querySelector('picture');
+    var srcset = window.LY_srcsetWithoutMasters(
+      window.LY_pictureSrcsetForViewport(picture, isMobLb)
+    );
+    if (srcset) {
+      lbImg.srcset = srcset;
+      lbImg.sizes = '100vw';
+    } else {
+      lbImg.removeAttribute('srcset');
+    }
+    lbImg.src = window.LY_galleryLbUrl(currentIdx);
     lbImg.style.objectPosition = imagePositions[currentIdx] || 'center center';
     lbImg.classList.toggle('lb-contain', !!imageContain[currentIdx]);
     if (lbCounter) lbCounter.textContent = (currentIdx + 1) + ' / ' + images.length;
-    // Prefetch adjacent lightbox masters (lower priority than card tiers)
-    var arr = isMobLb ? imagesMobile : images;
     [-1, 1].forEach(function(d) {
       if (window.LY_enqueueLbPreload) {
-        window.LY_enqueueLbPreload(arr[(currentIdx + d + arr.length) % arr.length]);
+        window.LY_enqueueLbPreload(window.LY_galleryLbUrl((currentIdx + d + images.length) % images.length));
       }
     });
   }
@@ -1910,7 +1935,6 @@ document.addEventListener('DOMContentLoaded', function() {
     var destCards = [];
     var destIdx = 0;
     var destImages = window.LY_DEST_IMAGES;
-    var destImagesMobile = window.LY_DEST_IMAGES_MOBILE;
 
     function destCardIndex(card) {
       var i = destCards.indexOf(card);
@@ -1930,14 +1954,19 @@ document.addEventListener('DOMContentLoaded', function() {
       var card = destCards[destIdx];
       if (!card) return;
       var isMobDest = window.innerWidth <= 640;
-      var arr = isMobDest ? destImagesMobile : destImages;
-      if (!arr || !arr.length) return;
+      if (!destImages || !destImages.length) return;
       var globalIdx = parseInt(card.getAttribute('data-dest-idx'), 10);
       if (isNaN(globalIdx)) globalIdx = destIdx;
-      var imgUrl = arr[globalIdx] || arr[0];
-      if (lbSrcWp) { lbSrcWp.srcset = imgUrl; lbSrcWp.sizes = '(max-width: 640px) 100vw, 50vw'; }
+      var cardPicture = card.querySelector('.destination-card-bg picture');
+      var srcset = window.LY_srcsetWithoutMasters(
+        window.LY_pictureSrcsetForViewport(cardPicture, isMobDest)
+      );
+      if (lbSrcWp) {
+        lbSrcWp.srcset = srcset || window.LY_destLbUrl(globalIdx);
+        lbSrcWp.sizes = '100vw';
+      }
       if (lbImg2) {
-        lbImg2.src = imgUrl;
+        lbImg2.src = window.LY_destLbUrl(globalIdx);
         var cardImg = card.querySelector('.destination-card-bg img');
         lbImg2.alt = cardImg ? (cardImg.alt || '') : '';
       }
@@ -1968,7 +1997,6 @@ document.addEventListener('DOMContentLoaded', function() {
       if (lbNext) lbNext.style.display = hasNav ? '' : 'none';
       var content = destLb.querySelector('.dest-lb-content');
       if (content) content.scrollTop = 0;
-      // Prefetch adjacent lightbox masters (card tiers already prioritized in queue)
       if (window.LY_preloadDestLbAdjacent) {
         window.LY_preloadDestLbAdjacent(globalIdx);
       }

@@ -310,40 +310,50 @@ def check_html(r: Runner, rel: str, html: str) -> None:
         'var destImages = window.LY_DEST_IMAGES' in html,
     )
     r.check(
-        'destination preload prioritizes card tiers over lightbox masters',
+        'destination preload prioritizes card tiers; lightbox tiers on open',
         'window.LY_preloadDestAdjacent' in html
         and 'window.LY_enqueueCardPreload' in html
         and 'window.LY_enqueueLbPreload' in html
-        and 'window.LY_destCardUrl' in html,
+        and 'window.LY_destCardUrl' in html
+        and 'window.LY_destLbUrl' in html
+        and 'window.LY_destMasterUrl' in html
+        and "destOrder.forEach(function(i) { window.LY_enqueueLbPreload(window.LY_destLbUrl(i)); })" not in html,
     )
     r.check(
         'itinerary carousel cards have data-dest-idx',
         html.count('data-dest-idx="') == 12,
     )
     r.check(
-        'destination cards use responsive tier srcsets (lightbox uses masters)',
+        'destination cards use responsive tier srcsets (lightbox mirrors carousel)',
         'window.LY_syncDestCardImages' not in html
         and html.count('class="destination-card-bg"') == 12
         and html.count('sizes="78vw"') == 12
         and 'portals-vells-1-640.webp' in html
         and 'portals-vells-1-720.webp' in html
         and 'images/mobile/dest/portals-vells-1-960.webp 800w' in html
-        and 'images/mobile/dest/portals-vells-1.webp 800w' not in html,
+        and 'images/mobile/dest/portals-vells-1.webp 800w' not in html
+        and 'window.LY_pictureSrcsetForViewport' in html
+        and 'window.LY_srcsetWithoutMasters' in html
+        and "lbSrcWp.sizes = '100vw'" in html,
     )
     r.check(
-        'gallery cards use responsive tier srcsets (lightbox uses masters)',
+        'gallery cards use responsive tier srcsets (lightbox mirrors carousel)',
         'maiora_20s_01-640.webp' in html
         and 'maiora_20s_01-720.webp' in html
         and 'images/mobile/maiora_20s_03-960.webp 960w' in html
         and 'images/mobile/maiora_20s_03.webp 960w' not in html
-        and '(min-width: 1101px) 25vw, 50vw' in html,
+        and '(min-width: 1101px) 25vw, 50vw' in html
+        and 'lbImg.src = window.LY_galleryLbUrl(currentIdx)' in html
+        and 'id="lightbox-img" src="" alt="Limitless yacht gallery photo" sizes="100vw"' in html,
     )
     r.check(
         'carousel preload uses card-tier helpers after meaningful paint',
         'window.LY_afterMeaningfulPaint' in html
         and 'window.LY_galleryCardUrl' in html
+        and 'window.LY_galleryLbUrl' in html
         and 'window.LY_cardPreloadQueue' in html
-        and 'window.LY_lbPreloadQueue' in html,
+        and 'window.LY_lbPreloadQueue' in html
+        and "window.LY_enqueueLbPreload(window.LY_galleryLbUrl(g))" not in html,
     )
     r.check(
         'itinerary carousel prefetches on scroll',
