@@ -131,6 +131,7 @@ nav{position:fixed;top:0;left:0;right:0;z-index:100;min-height:4.25rem}
       global.LY_IS_PREVIEW = false;
     }
   } catch (e) {}
+  global.LY_TESTING_CLARITY = !global.LY_OWNER_MODE && !global.LY_IS_PREVIEW;
 })(window);
 </script>
 <link rel="preload" as="style" href="css/main.css?v=86" onload="this.rel='stylesheet'" />
@@ -397,12 +398,14 @@ window.LY_afterMeaningfulPaint = function(fn) {
 window.LY_afterLcp = window.LY_afterMeaningfulPaint;
 if (!window.LY_OWNER_MODE) {
   try {
-    if (localStorage.getItem('ly_consent') === 'granted') {
-      window.LY_afterMeaningfulPaint(function() {
-        if (window._ly_loadAnalytics) window._ly_loadAnalytics();
-        if (window._ly_loadClarity) window._ly_loadClarity();
-      });
-    }
+    window.LY_afterMeaningfulPaint(function() {
+      if (window.LY_TESTING_CLARITY && window._ly_loadClarity) window._ly_loadClarity();
+      try {
+        if (localStorage.getItem('ly_consent') === 'granted' && window._ly_loadAnalytics) {
+          window._ly_loadAnalytics();
+        }
+      } catch (e) {}
+    });
   } catch (e) {}
 }
 window.LY_whenNearSection = function(id, fn) {

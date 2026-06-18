@@ -53,4 +53,8 @@
       global.LY_IS_PREVIEW = false;
     }
   } catch (e) {}
+
+  // Testing phase: load Clarity on production without waiting for cookie consent.
+  // Set to false when moving to strict consent-only analytics.
+  global.LY_TESTING_CLARITY = !global.LY_OWNER_MODE && !global.LY_IS_PREVIEW;
 })(window);

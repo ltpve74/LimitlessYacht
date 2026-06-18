@@ -15,10 +15,13 @@
   }
 
   function applyFromStorage() {
+    var stored = '';
     var granted = false;
     try {
-      granted = localStorage.getItem('ly_consent') === 'granted';
+      stored = localStorage.getItem('ly_consent') || '';
+      granted = stored === 'granted';
     } catch (e) {}
+    if (!granted && stored !== 'denied' && global.LY_TESTING_CLARITY) granted = true;
     if (granted) {
       clarityConsent('granted', 'granted');
     } else {
