@@ -1199,16 +1199,26 @@ def check_shared_assets(r: Runner) -> None:
         and "'unhandledrejection'" in error_guard,
     )
     r.check(
-        'index.html loads error guard early via LY_BASE',
-        "(window.LY_BASE||'')+'/js/error-guard.js\"" in index_html
-        and 'document.write' in index_html
+        'index.html loads error guard async after hero via LY_BASE',
+        "LY_BASE" in index_html
+        and '/js/error-guard.js' in index_html
+        and 's.async = true' in index_html
+        and 'document.write' not in index_html
         and 'src="/js/error-guard.js"' not in index_html,
+    )
+    bootstrap_pos = index_html.find('<!-- Deferred head bootstrap')
+    guard_pos = index_html.find("'/js/error-guard.js'")
+    r.check(
+        'error guard is deferred until after hero (not render-blocking in head)',
+        bootstrap_pos > index_html.find('id="hero"')
+        and guard_pos > bootstrap_pos,
     )
     legal_html = read_file('legal.html') or ''
     r.check(
-        'legal.html loads error guard via LY_BASE',
-        "(window.LY_BASE||'')+'/js/error-guard.js\"" in legal_html
-        and 'document.write' in legal_html
+        'legal.html loads error guard async via LY_BASE',
+        "(window.LY_BASE||'')+'/js/error-guard.js'" in legal_html
+        and 's.async=true' in legal_html
+        and 'document.write' not in legal_html
         and 'src="/js/error-guard.js"' not in legal_html,
     )
     r.check(
@@ -1255,6 +1265,18 @@ def check_shared_assets(r: Runner) -> None:
         'LY_IS_PREVIEW' in index_html
         and index_html.find('LY_IS_PREVIEW') < index_html.find('googletagmanager.com/gtag/js')
         and 'if (window.LY_OWNER_MODE) return;' in index_html,
+    )
+    r.check(
+        'gtag.js lazy-loads on consent or conversion (not on window load)',
+        'function _ly_loadAnalytics' in index_html
+        and 'window._ly_loadAnalytics = _ly_loadAnalytics' in index_html
+        and "window.addEventListener('load', _ly_loadAnalytics)" not in index_html
+        and 'if (window._ly_loadAnalytics) window._ly_loadAnalytics();' in index_html,
+    )
+    r.check(
+        'returning consented users defer gtag until after meaningful paint',
+        "localStorage.getItem('ly_consent') === 'granted'" in index_html
+        and 'LY_afterMeaningfulPaint(window._ly_loadAnalytics)' in index_html,
     )
     legal_html = read_file('legal.html') or ''
     r.check(
