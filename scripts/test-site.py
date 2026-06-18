@@ -501,6 +501,15 @@ def check_html(r: Runner, rel: str, html: str) -> None:
         ).group(0),
     )
     r.check(
+        'scroll updates canonical section hash without jumping',
+        'updateScrollHash' in html
+        and 'SCROLL_HASH_SECTIONS' in html
+        and "'itinerary'" in html.split('SCROLL_HASH_SECTIONS')[1][:160]
+        and "'enquire-form'" in html.split('SCROLL_HASH_SECTIONS')[1][:160]
+        and 'history.replaceState(history.state' in html
+        and 'LY_hashLockUntil' in html,
+    )
+    r.check(
         'desktop nav uses native landing anchors',
         re.search(r'class="nav-links"[^>]*>[\s\S]*?href="#about"', html) is not None
         and 'href="#itinerary-land"' in html
