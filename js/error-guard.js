@@ -35,21 +35,21 @@
       col: detail.col || detail.colno || 0,
     });
 
-    if (!global.LY_OWNER_MODE) {
+    try {
+      console.warn('[Limitless]', kind, detail.message || detail.reason || detail);
+    } catch (e) {}
+
+    if (!global.LY_OWNER_MODE && !global.LY_IS_PREVIEW) {
       try {
-        console.warn('[Limitless]', kind, detail.message || detail.reason || detail);
+        global.dataLayer = global.dataLayer || [];
+        global.dataLayer.push({
+          event: 'ly_script_error',
+          ly_error_kind: kind,
+          ly_error_message: String(detail.message || detail.reason || '').slice(0, 180),
+          ly_error_source: String(detail.source || detail.filename || '').slice(0, 100),
+        });
       } catch (e) {}
     }
-
-    try {
-      global.dataLayer = global.dataLayer || [];
-      global.dataLayer.push({
-        event: 'ly_script_error',
-        ly_error_kind: kind,
-        ly_error_message: String(detail.message || detail.reason || '').slice(0, 180),
-        ly_error_source: String(detail.source || detail.filename || '').slice(0, 100),
-      });
-    } catch (e) {}
   }
 
   global.addEventListener(

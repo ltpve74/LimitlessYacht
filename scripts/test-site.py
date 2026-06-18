@@ -1171,8 +1171,23 @@ def check_shared_assets(r: Runner) -> None:
         and "'unhandledrejection'" in error_guard,
     )
     r.check(
-        'index.html loads error guard early',
-        'src="/js/error-guard.js"' in index_html,
+        'index.html loads error guard early via LY_BASE',
+        "(window.LY_BASE||'')+'/js/error-guard.js\"" in index_html
+        and 'document.write' in index_html
+        and 'src="/js/error-guard.js"' not in index_html,
+    )
+    legal_html = read_file('legal.html') or ''
+    r.check(
+        'legal.html loads error guard via LY_BASE',
+        "(window.LY_BASE||'')+'/js/error-guard.js\"" in legal_html
+        and 'document.write' in legal_html
+        and 'src="/js/error-guard.js"' not in legal_html,
+    )
+    r.check(
+        'error guard logs on preview and skips dataLayer there',
+        "console.warn('[Limitless]'" in error_guard
+        and 'LY_IS_PREVIEW' in error_guard
+        and 'ly_script_error' in error_guard,
     )
     r.check(
         'ux smoke captures JS errors across booking journeys',
