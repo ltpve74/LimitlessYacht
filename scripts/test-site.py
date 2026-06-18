@@ -725,6 +725,7 @@ def check_html(r: Runner, rel: str, html: str) -> None:
             'minify_js preserves analytics-env critical symbols',
             'LY_IS_PREVIEW' in env_out
             and 'LY_OWNER_MODE' in env_out
+            and 'LY_TESTING_CLARITY' in env_out
             and '/**' not in env_out,
         )
     except Exception as exc:
@@ -1237,6 +1238,23 @@ def check_shared_assets(r: Runner) -> None:
         and 'ly_script_error' in error_guard,
     )
     r.check(
+        'error guard ignores opaque cross-origin Script errors',
+        'isOpaqueScriptError' in error_guard
+        and 'isBenignAnalyticsResource' in error_guard,
+    )
+    r.check(
+        'Clarity loads after paint on production testing (not on raw window load)',
+        'function _ly_loadClarity' in index_html
+        and 'window._ly_loadClarity = _ly_loadClarity' in index_html
+        and 'LY_TESTING_CLARITY' in index_html
+        and 'if (window.LY_TESTING_CLARITY && window._ly_loadClarity)' in index_html,
+    )
+    r.check(
+        'clarity consent grants recording during testing when not declined',
+        'LY_TESTING_CLARITY' in (read_file('js/clarity-consent.js') or '')
+        and "stored !== 'denied'" in (read_file('js/clarity-consent.js') or ''),
+    )
+    r.check(
         'ux smoke captures JS errors across booking journeys',
         'page.on("pageerror"' in ux_py
         and 'scenario_cookie_consent_all_viewports' in ux_py
@@ -1283,9 +1301,10 @@ def check_shared_assets(r: Runner) -> None:
         and 'if (window._ly_loadAnalytics) window._ly_loadAnalytics();' in index_html,
     )
     r.check(
-        'returning consented users defer gtag until after meaningful paint',
-        "localStorage.getItem('ly_consent') === 'granted'" in index_html
-        and 'LY_afterMeaningfulPaint(window._ly_loadAnalytics)' in index_html,
+        'analytics defer until after meaningful paint',
+        'LY_afterMeaningfulPaint(function()' in index_html
+        and 'window._ly_loadAnalytics' in index_html
+        and 'window._ly_loadClarity' in index_html,
     )
     legal_html = read_file('legal.html') or ''
     r.check(
