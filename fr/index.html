@@ -360,16 +360,81 @@ function gtag_report_conversion_form(url) {
     window._ly_clarity_loaded = true;
     (function(c,l,a,r,i,t,y){
       c[a]=c[a]||function(){(c[a].q=c[a].q||[]).push(arguments)};
+      if (window.LY_flushClaritySectionQueue) window.LY_flushClaritySectionQueue();
       t=l.createElement(r);t.async=1;t.crossOrigin='anonymous';t.src="https://www.clarity.ms/tag/"+i;
       t.onload=function(){
         var cs=document.createElement('script');
         cs.defer=true;cs.src=(window.LY_BASE||'')+'/js/clarity-consent.js';
         document.head.appendChild(cs);
+        if (window.LY_flushClaritySectionQueue) window.LY_flushClaritySectionQueue();
       };
       y=l.getElementsByTagName(r)[0];y.parentNode.insertBefore(t,y);
     })(window, document, "clarity", "script", "x1y8i19q6e");
   }
   window._ly_loadClarity = _ly_loadClarity;
+</script>
+<script>
+(function () {
+  var lastSection = '';
+  window.LY_pendingSectionHashes = window.LY_pendingSectionHashes || [];
+
+  function lyNormalizeSectionHash(raw) {
+    var hash = String(raw || window.location.hash || '').replace(/^#/, '').trim();
+    if (!hash) return '';
+    if (hash.endsWith('-land')) return hash.slice(0, -5);
+    if (hash === 'avail-cal') return 'availability';
+    return hash;
+  }
+
+  function lyFireClaritySection(section) {
+    if (window.LY_OWNER_MODE || !section) return;
+    var fn = window.clarity;
+    if (typeof fn !== 'function') return;
+    try {
+      fn('set', 'ly_section', section);
+      fn('event', 'ly_section_view');
+    } catch (e) {}
+  }
+
+  function lyTrackSectionHash(rawHash) {
+    if (window.LY_OWNER_MODE) return;
+    var section = lyNormalizeSectionHash(rawHash);
+    if (!section || section === lastSection) return;
+    lastSection = section;
+    if (typeof window.clarity === 'function') {
+      lyFireClaritySection(section);
+      return;
+    }
+    var pending = window.LY_pendingSectionHashes;
+    if (pending[pending.length - 1] !== section) pending.push(section);
+  }
+
+  window.LY_flushClaritySectionQueue = function () {
+    if (typeof window.clarity !== 'function') return;
+    var pending = window.LY_pendingSectionHashes || [];
+    window.LY_pendingSectionHashes = [];
+    pending.forEach(function (section) {
+      if (!section) return;
+      lastSection = section;
+      lyFireClaritySection(section);
+    });
+  };
+
+  window.LY_trackSectionHash = lyTrackSectionHash;
+
+  window.addEventListener('hashchange', function () {
+    lyTrackSectionHash(window.location.hash);
+  });
+
+  function trackInitialHash() {
+    if (window.location.hash) lyTrackSectionHash(window.location.hash);
+  }
+  if (document.readyState === 'loading') {
+    document.addEventListener('DOMContentLoaded', trackInitialHash);
+  } else {
+    trackInitialHash();
+  }
+})();
 </script>
 <script>
 // Below-fold preloads: after meaningful paint, card tiers only (lightbox tiers on open).
@@ -1654,6 +1719,7 @@ document.addEventListener('DOMContentLoaded', function() {
     var target = '#' + activeId;
     if (location.hash === target) return;
     history.replaceState(history.state, '', location.pathname + location.search + target);
+    if (window.LY_trackSectionHash) window.LY_trackSectionHash(target);
     syncNavSectionSoon();
   }
   function updateNavSection() {
