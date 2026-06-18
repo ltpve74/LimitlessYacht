@@ -352,20 +352,25 @@ function gtag_report_conversion_form(url) {
     sectionVisibleRatio: 0.4
   };
 </script>
-<!-- Microsoft Clarity — deferred until after load -->
+<!-- Microsoft Clarity — lazy-loaded on consent (same as gtag) -->
 <script>
-window.addEventListener('load', function() {
-  if(!window.LY_OWNER_MODE){(function(c,l,a,r,i,t,y){
+  function _ly_loadClarity() {
+    if (window._ly_clarity_loaded || window.LY_OWNER_MODE) return;
+    window._ly_clarity_loaded = true;
+    (function(c,l,a,r,i,t,y){
       c[a]=c[a]||function(){(c[a].q=c[a].q||[]).push(arguments)};
       t=l.createElement(r);t.async=1;t.crossOrigin='anonymous';t.src="https://www.clarity.ms/tag/"+i;
+      t.onload=function(){
+        var cs=document.createElement('script');
+        cs.defer=true;cs.src=(window.LY_BASE||'')+'/js/clarity-consent.js';
+        document.head.appendChild(cs);
+      };
       y=l.getElementsByTagName(r)[0];y.parentNode.insertBefore(t,y);
-  })(window, document, "clarity", "script", "x1y8i19q6e");}
-});
+    })(window, document, "clarity", "script", "x1y8i19q6e");
+  }
+  window._ly_loadClarity = _ly_loadClarity;
 </script>
 <script>
-window.addEventListener('load', function() {
-  if(!window.LY_OWNER_MODE){var _cs=document.createElement('script');_cs.defer=true;_cs.src=(window.LY_BASE||'')+'/js/clarity-consent.js';document.head.appendChild(_cs);}
-});
 // Below-fold preloads: after meaningful paint, card tiers only (lightbox tiers on open).
 window.LY_afterMeaningfulPaint = function(fn) {
   var ran = false;
@@ -392,8 +397,11 @@ window.LY_afterMeaningfulPaint = function(fn) {
 window.LY_afterLcp = window.LY_afterMeaningfulPaint;
 if (!window.LY_OWNER_MODE) {
   try {
-    if (localStorage.getItem('ly_consent') === 'granted' && window._ly_loadAnalytics) {
-      window.LY_afterMeaningfulPaint(window._ly_loadAnalytics);
+    if (localStorage.getItem('ly_consent') === 'granted') {
+      window.LY_afterMeaningfulPaint(function() {
+        if (window._ly_loadAnalytics) window._ly_loadAnalytics();
+        if (window._ly_loadClarity) window._ly_loadClarity();
+      });
     }
   } catch (e) {}
 }
@@ -3131,6 +3139,7 @@ document.addEventListener('DOMContentLoaded', function() {
           document.dispatchEvent(new CustomEvent('ly-consent-granted'));
           if (window.LY_initBehaviorAnalytics) window.LY_initBehaviorAnalytics();
           if (window._ly_loadAnalytics) window._ly_loadAnalytics();
+          if (window._ly_loadClarity) window._ly_loadClarity();
         } else if (value === 'denied') {
           if (window.LY_setClarityConsent) window.LY_setClarityConsent(false);
         }

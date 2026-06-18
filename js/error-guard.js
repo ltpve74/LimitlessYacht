@@ -18,6 +18,16 @@
     ].join('\0');
   }
 
+  function isOpaqueScriptError(detail) {
+    var msg = String(detail.message || detail.reason || '').trim();
+    var src = String(detail.source || detail.filename || '').trim();
+    return !src && /^Script error\.?$/i.test(msg);
+  }
+
+  function isBenignAnalyticsResource(src) {
+    return /(?:googletagmanager\.com|clarity\.ms|google-analytics\.com)/i.test(src || '');
+  }
+
   function report(kind, detail) {
     if (count >= MAX) return;
     var key = fingerprint(kind, detail || {});
@@ -58,15 +68,19 @@
       if (!ev) return;
       var tgt = ev.target;
       if (tgt && tgt !== global && tgt.tagName === 'SCRIPT') {
-        report('resource', { message: 'Script failed: ' + (tgt.src || 'inline') });
+        var failedSrc = tgt.src || 'inline';
+        if (isBenignAnalyticsResource(failedSrc)) return;
+        report('resource', { message: 'Script failed: ' + failedSrc });
         return;
       }
-      report('error', {
+      var detail = {
         message: ev.message || 'Script error',
         source: ev.filename,
         line: ev.lineno,
         col: ev.colno,
-      });
+      };
+      if (isOpaqueScriptError(detail)) return;
+      report('error', detail);
     },
     true
   );

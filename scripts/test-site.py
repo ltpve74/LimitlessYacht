@@ -1237,6 +1237,17 @@ def check_shared_assets(r: Runner) -> None:
         and 'ly_script_error' in error_guard,
     )
     r.check(
+        'error guard ignores opaque cross-origin Script errors',
+        'isOpaqueScriptError' in error_guard
+        and 'isBenignAnalyticsResource' in error_guard,
+    )
+    r.check(
+        'Clarity lazy-loads on consent (not on window load)',
+        'function _ly_loadClarity' in index_html
+        and 'window._ly_loadClarity = _ly_loadClarity' in index_html
+        and 'addEventListener(\'load\', function() {\n  if(!window.LY_OWNER_MODE){(function(c,l,a,r,i,t,y)' not in index_html,
+    )
+    r.check(
         'ux smoke captures JS errors across booking journeys',
         'page.on("pageerror"' in ux_py
         and 'scenario_cookie_consent_all_viewports' in ux_py
@@ -1283,9 +1294,11 @@ def check_shared_assets(r: Runner) -> None:
         and 'if (window._ly_loadAnalytics) window._ly_loadAnalytics();' in index_html,
     )
     r.check(
-        'returning consented users defer gtag until after meaningful paint',
+        'returning consented users defer analytics until after meaningful paint',
         "localStorage.getItem('ly_consent') === 'granted'" in index_html
-        and 'LY_afterMeaningfulPaint(window._ly_loadAnalytics)' in index_html,
+        and 'LY_afterMeaningfulPaint(function()' in index_html
+        and 'window._ly_loadAnalytics' in index_html
+        and 'window._ly_loadClarity' in index_html,
     )
     legal_html = read_file('legal.html') or ''
     r.check(
