@@ -38,6 +38,16 @@ IPAD_AIR_VIEWPORT = {"width": 820, "height": 1180}
 IPAD_PRO_VIEWPORT = {"width": 834, "height": 1194}
 DESKTOP_VIEWPORT = {"width": 1280, "height": 900}
 
+COOKIE_TEST_VIEWPORTS = (
+    ("mobile 390", MOBILE_VIEWPORT),
+    ("large phone 412", LARGE_PHONE_VIEWPORT),
+    ("iphone 14 pro max", LARGE_PHONE_TALL_VIEWPORT),
+    ("tablet 768", TABLET_VIEWPORT),
+    ("ipad air", IPAD_AIR_VIEWPORT),
+    ("ipad pro 11", IPAD_PRO_VIEWPORT),
+    ("desktop 1280", DESKTOP_VIEWPORT),
+)
+
 # Mobile menu links must keep section-top / calendar anchors (not -land variants).
 MOBILE_NAV_HREFS = (
     ('a[href="#about"]', "#about"),
@@ -688,25 +698,134 @@ def scenario_locale_de(page, base: str, issues: IssueCollector) -> None:
     click_mobile_nav_link(page, "#avail-cal")
 
 
-def scenario_cookie_consent_scroll(page, base: str, issues: IssueCollector) -> None:
-    name = "cookie consent scroll auto-accept"
-    issues.attach(page, name)
-    page.add_init_script(CONSENT_CLEAR_INIT)
-    page.set_viewport_size(MOBILE_VIEWPORT)
-    page.goto(base + "/?ly_test_consent=1", wait_until="domcontentloaded", timeout=60000)
+def _cookie_consent_url(base: str) -> str:
+    return base + "/?ly_test_consent=1"
+
+
+def _wait_cookie_banner_visible(page, scenario: str, issues: IssueCollector) -> bool:
     page.wait_for_timeout(6200)
-    banner = page.locator("#cookie-consent")
-    if banner.evaluate("el => el.hidden"):
-        issues.add(f"{name}: banner should appear after 6s delay with no prior consent")
+    hidden = page.locator("#cookie-consent").evaluate("el => el.hidden")
+    if hidden:
+        issues.add(f"{scenario}: banner should appear after 6s delay with no prior consent")
+        return False
+    return True
+
+
+def _assert_cookie_auto_accepted(page, scenario: str, issues: IssueCollector) -> None:
+    try:
+        page.wait_for_function(
+            "() => {"
+            "  const b = document.getElementById('cookie-consent');"
+            "  return localStorage.getItem('ly_consent') === 'granted' && b && b.hidden;"
+            "}",
+            timeout=5000,
+        )
+    except Exception as exc:  # noqa: BLE001
+        state = page.evaluate(
+            "() => ({"
+            "  consent: localStorage.getItem('ly_consent'),"
+            "  hidden: document.getElementById('cookie-consent')?.hidden"
+            "})"
+        )
+        issues.add(
+            f"{scenario}: auto-accept failed (consent={state.get('consent')!r}, "
+            f"banner_hidden={state.get('hidden')!r}) — {exc}"
+        )
+
+
+def assert_cookie_scroll_auto_accept(
+    page,
+    base: str,
+    label: str,
+    viewport: dict[str, int],
+    issues: IssueCollector,
+) -> None:
+    scenario = f"cookie scroll auto-accept ({label})"
+    page.set_viewport_size(viewport)
+    page.goto(_cookie_consent_url(base), wait_until="domcontentloaded", timeout=60000)
+    if not _wait_cookie_banner_visible(page, scenario, issues):
         return
     scroll_through_page(page, steps=4, pause_ms=80)
-    page.wait_for_function(
+    _assert_cookie_auto_accepted(page, scenario, issues)
+
+
+def assert_cookie_touch_auto_accept(
+    page,
+    base: str,
+    label: str,
+    viewport: dict[str, int],
+    issues: IssueCollector,
+) -> None:
+    scenario = f"cookie touch auto-accept ({label})"
+    page.set_viewport_size(viewport)
+    page.goto(_cookie_consent_url(base), wait_until="domcontentloaded", timeout=60000)
+    if not _wait_cookie_banner_visible(page, scenario, issues):
+        return
+    page.evaluate(
         "() => {"
-        "  const b = document.getElementById('cookie-consent');"
-        "  return localStorage.getItem('ly_consent') === 'granted' && b && b.hidden;"
-        "}",
-        timeout=5000,
+        "  const t = new Touch({ identifier: 1, target: document.body,"
+        "    clientX: 24, clientY: 24, radiusX: 1, radiusY: 1, rotationAngle: 0, force: 1 });"
+        "  document.dispatchEvent(new TouchEvent('touchstart', {"
+        "    bubbles: true, cancelable: true, touches: [t], targetTouches: [t], changedTouches: [t]"
+        "  }));"
+        "}"
     )
+    _assert_cookie_auto_accepted(page, scenario, issues)
+
+
+def assert_cookie_cta_auto_accept(
+    page,
+    base: str,
+    label: str,
+    viewport: dict[str, int],
+    issues: IssueCollector,
+) -> None:
+    scenario = f"cookie CTA auto-accept ({label})"
+    page.set_viewport_size(viewport)
+    page.goto(_cookie_consent_url(base), wait_until="domcontentloaded", timeout=60000)
+    if not _wait_cookie_banner_visible(page, scenario, issues):
+        return
+    cta = None
+    for selector in (
+        ".nav-header-cta:visible",
+        "#hero .btn-primary:visible",
+        ".btn-primary:visible",
+    ):
+        loc = page.locator(selector).first
+        if loc.count() > 0 and loc.is_visible():
+            cta = loc
+            break
+    if cta is None:
+        issues.add(f"{scenario}: no visible engagement CTA (.nav-header-cta / .btn-primary)")
+        return
+    try:
+        cta.click()
+    except Exception as exc:  # noqa: BLE001
+        issues.add(f"{scenario}: CTA click failed — {exc}")
+        return
+    _assert_cookie_auto_accepted(page, scenario, issues)
+
+
+def scenario_cookie_consent_all_viewports(page, base: str, issues: IssueCollector) -> None:
+    name = "cookie consent all viewports"
+    issues.attach(page, name)
+    page.add_init_script(CONSENT_CLEAR_INIT)
+
+    for label, viewport in COOKIE_TEST_VIEWPORTS:
+        assert_cookie_scroll_auto_accept(page, base, label, viewport, issues)
+
+    for label, viewport in (
+        ("mobile 390", MOBILE_VIEWPORT),
+        ("large phone 412", LARGE_PHONE_VIEWPORT),
+        ("iphone 14 pro max", LARGE_PHONE_TALL_VIEWPORT),
+    ):
+        assert_cookie_touch_auto_accept(page, base, label, viewport, issues)
+
+    for label, viewport in (
+        ("ipad air", IPAD_AIR_VIEWPORT),
+        ("desktop 1280", DESKTOP_VIEWPORT),
+    ):
+        assert_cookie_cta_auto_accept(page, base, label, viewport, issues)
 
 
 def scenario_full_page_scroll(page, base: str, issues: IssueCollector) -> None:
@@ -842,7 +961,7 @@ def run_scenarios(base_url: str, quick: bool = False, thorough: bool = False) ->
         scenario_home_large_phone_tall,
         scenario_home_large_phone,
         scenario_home_mobile,
-        scenario_cookie_consent_scroll,
+        scenario_cookie_consent_all_viewports,
         scenario_full_page_scroll,
         scenario_gallery_lightbox,
         scenario_reviews_load,

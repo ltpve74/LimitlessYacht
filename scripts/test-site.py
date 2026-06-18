@@ -1167,7 +1167,8 @@ def check_shared_assets(r: Runner) -> None:
     r.check(
         'ux smoke captures JS errors across booking journeys',
         'page.on("pageerror"' in ux_py
-        and 'scenario_cookie_consent_scroll' in ux_py
+        and 'scenario_cookie_consent_all_viewports' in ux_py
+        and 'COOKIE_TEST_VIEWPORTS' in ux_py
         and 'scenario_full_page_scroll' in ux_py
         and 'scenario_gallery_lightbox' in ux_py
         and 'scenario_reviews_load' in ux_py
