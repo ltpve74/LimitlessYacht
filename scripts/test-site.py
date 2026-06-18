@@ -621,6 +621,17 @@ def check_html(r: Runner, rel: str, html: str) -> None:
         'analytics and preload bootstrap deferred until after hero',
         html.find('id="hero"') > 0 and html.find('id="hero"') < html.find('LY_afterLcp'),
     )
+    bootstrap_pos = html.find('<!-- Deferred head bootstrap')
+    itinerary_pos = html.find('id="itinerary"')
+    first_dest_meta = html.find('class="destination-meta"')
+    r.check(
+        'deferred bootstrap is not nested inside destination cards',
+        bootstrap_pos > html.find('id="hero"')
+        and itinerary_pos > 0
+        and first_dest_meta > 0
+        and bootstrap_pos < itinerary_pos
+        and bootstrap_pos < first_dest_meta,
+    )
     r.check(
         'navigation precedes hero (prevents CLS before main.css)',
         html.find('id="navbar"') > 0 and html.find('id="navbar"') < html.find('id="hero"'),
