@@ -299,27 +299,25 @@ nav{position:fixed;top:0;left:0;right:0;z-index:100;min-height:4.25rem}
     } catch (e) {}
   }
 </script>
-<!-- Google tag (gtag.js) — deferred until after load -->
+<!-- Google tag (gtag.js) — lazy-loaded on consent or conversion (not on initial load) -->
 <script>
   function _ly_loadAnalytics() {
-    if (window._ly_analytics_loaded) return;
+    if (window._ly_analytics_loaded || window.LY_OWNER_MODE) return;
     window._ly_analytics_loaded = true;
-    if (!window.LY_OWNER_MODE) {
-      var _gt=document.createElement('script');
-      _gt.async=true; _gt.crossOrigin='anonymous';
-      _gt.src='https://www.googletagmanager.com/gtag/js?id=AW-18209943491';
-      document.head.appendChild(_gt);
-      gtag('js', new Date());
-      gtag('config', 'AW-18209943491');
-    }
+    var _gt = document.createElement('script');
+    _gt.async=true; _gt.crossOrigin='anonymous';
+    _gt.src = 'https://www.googletagmanager.com/gtag/js?id=AW-18209943491';
+    document.head.appendChild(_gt);
+    gtag('js', new Date());
+    gtag('config', 'AW-18209943491');
   }
-  if (document.readyState === 'complete') { _ly_loadAnalytics(); }
-  else { window.addEventListener('load', _ly_loadAnalytics); }
+  window._ly_loadAnalytics = _ly_loadAnalytics;
 </script>
 <!-- Event snippet for lead conversion (form + WhatsApp)
 In your html page, add the snippet and call gtag_report_conversion when a lead is submitted (form success or WhatsApp click). -->
 <script>
 function gtag_report_conversion(url) {
+  if (window._ly_loadAnalytics) window._ly_loadAnalytics();
   var callback = function () {
     if (typeof(url) != 'undefined') {
       window.location = url;
@@ -334,6 +332,7 @@ function gtag_report_conversion(url) {
   return false;
 }
 function gtag_report_conversion_form(url) {
+  if (window._ly_loadAnalytics) window._ly_loadAnalytics();
   var callback = function () {
     if (typeof(url) != 'undefined') {
       window.location = url;
@@ -391,6 +390,13 @@ window.LY_afterMeaningfulPaint = function(fn) {
   setTimeout(go, 2000);
 };
 window.LY_afterLcp = window.LY_afterMeaningfulPaint;
+if (!window.LY_OWNER_MODE) {
+  try {
+    if (localStorage.getItem('ly_consent') === 'granted' && window._ly_loadAnalytics) {
+      window.LY_afterMeaningfulPaint(window._ly_loadAnalytics);
+    }
+  } catch (e) {}
+}
 window.LY_whenNearSection = function(id, fn) {
   var el = document.getElementById(id);
   if (!el) return;
@@ -3083,6 +3089,7 @@ document.addEventListener('DOMContentLoaded', function() {
           if (window.LY_setClarityConsent) window.LY_setClarityConsent(true);
           document.dispatchEvent(new CustomEvent('ly-consent-granted'));
           if (window.LY_initBehaviorAnalytics) window.LY_initBehaviorAnalytics();
+          if (window._ly_loadAnalytics) window._ly_loadAnalytics();
         } else if (value === 'denied') {
           if (window.LY_setClarityConsent) window.LY_setClarityConsent(false);
         }

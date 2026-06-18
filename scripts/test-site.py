@@ -1266,6 +1266,18 @@ def check_shared_assets(r: Runner) -> None:
         and index_html.find('LY_IS_PREVIEW') < index_html.find('googletagmanager.com/gtag/js')
         and 'if (window.LY_OWNER_MODE) return;' in index_html,
     )
+    r.check(
+        'gtag.js lazy-loads on consent or conversion (not on window load)',
+        'function _ly_loadAnalytics' in index_html
+        and 'window._ly_loadAnalytics = _ly_loadAnalytics' in index_html
+        and "window.addEventListener('load', _ly_loadAnalytics)" not in index_html
+        and 'if (window._ly_loadAnalytics) window._ly_loadAnalytics();' in index_html,
+    )
+    r.check(
+        'returning consented users defer gtag until after meaningful paint',
+        "localStorage.getItem('ly_consent') === 'granted'" in index_html
+        and 'LY_afterMeaningfulPaint(window._ly_loadAnalytics)' in index_html,
+    )
     legal_html = read_file('legal.html') or ''
     r.check(
         'external analytics scripts use crossOrigin anonymous for error visibility',
