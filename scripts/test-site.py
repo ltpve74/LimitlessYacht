@@ -510,6 +510,13 @@ def check_html(r: Runner, rel: str, html: str) -> None:
         and 'LY_hashLockUntil' in html,
     )
     r.check(
+        'hash changes fire Clarity section tags and events',
+        'LY_trackSectionHash' in html
+        and "fn('set', 'ly_section', section)" in html
+        and "fn('event', 'ly_section_view')" in html
+        and 'LY_flushClaritySectionQueue' in html,
+    )
+    r.check(
         'desktop nav uses native landing anchors',
         re.search(r'class="nav-links"[^>]*>[\s\S]*?href="#about"', html) is not None
         and 'href="#itinerary-land"' in html
