@@ -735,6 +735,18 @@ def check_html(r: Runner, rel: str, html: str) -> None:
         'destination master sharper than old single-tier compression',
         os.path.isfile(portals_webp) and os.path.getsize(portals_webp) > 25 * 1024,
     )
+    es_trenc_720 = os.path.join(ROOT, 'images', 'mobile', 'dest', 'es-trenc-1-720.webp')
+    r.check(
+        'destination mobile tiers rebuild from media-library masters',
+        'src_path.parent in (MOBILE, MOBILE / "dest")' in opt_py,
+    )
+    r.check(
+        'destination mobile tiers use luxury-grade encoding (es-trenc sample)',
+        '("-720", 720, 82)' in opt_py
+        and 'DEST_DESKTOP_WEBP_Q = 86' in opt_py
+        and os.path.isfile(es_trenc_720)
+        and os.path.getsize(es_trenc_720) > 15 * 1024,
+    )
     r.check(
         'about section uses multi-tier desktop srcset',
         'images/maiora_20s_04-640.webp 640w' in html

@@ -5,7 +5,8 @@ Unified model (hero, about, gallery, destinations):
   Mobile tiers: -480, -720, -960, -1440 (capped at native width).
   Desktop tiers: -640, -960, master (up to 1280px where the source allows).
 
-Quality is viewport-matched: lean encoding on card/grid tiers, higher on lightbox masters.
+Quality is viewport-matched: card tiers stay efficient; destinations and gallery use
+luxury-grade encoding so marketing photos stay crisp at each tier.
 
 Run: .venv/bin/python scripts/optimize_responsive_images.py
       .venv/bin/python scripts/optimize_responsive_images.py --write-srcset
@@ -28,18 +29,18 @@ MANIFEST_PATH = MOBILE / "_srcset-widths.json"
 
 # Destination: card tiers in carousel srcset; masters for fullscreen lightbox.
 DEST_MOBILE_TIERS = (
-    ("-480", 480, 68),
-    ("-720", 720, 72),
-    ("-960", 960, 70),
+    ("-480", 480, 80),
+    ("-720", 720, 82),
+    ("-960", 960, 80),
 )
-DEST_MOBILE_WEBP_Q = 78
+DEST_MOBILE_WEBP_Q = 84
 DEST_CARD_DESKTOP_TIERS = (
-    ("-640", 640, 76),
-    ("-960", 960, 74),
+    ("-640", 640, 82),
+    ("-960", 960, 80),
 )
 DEST_DESKTOP_MAX_EDGE = 960
-DEST_DESKTOP_WEBP_Q = 80
-DEST_DESKTOP_JPEG_Q = 84
+DEST_DESKTOP_WEBP_Q = 86
+DEST_DESKTOP_JPEG_Q = 88
 
 # Misc mobile fallbacks (non-dest / non-gallery / non-hero).
 CONTENT_MOBILE_TIERS = DEST_MOBILE_TIERS
@@ -497,7 +498,7 @@ def build_variants() -> dict[str, int]:
         tiers = mobile_tiers_for(profile)
         if profile == "hero":
             img = load_hero_rgb()
-        elif src_path.parent == MOBILE:
+        elif src_path.parent in (MOBILE, MOBILE / "dest"):
             img = load_mobile_master(src_path)
             if profile == "dest":
                 img = resize_to_max(img, DEST_MOBILE_MAX_EDGE)
