@@ -3067,7 +3067,7 @@ document.addEventListener('DOMContentLoaded', function() {
       if (cur !== 'granted' && cur !== 'denied') { choose('granted'); }
     }
     document.addEventListener('touchstart', autoAcceptOnInteraction, { once: true, passive: true });
-    document.addEventListener('scroll', autoAcceptOnInteraction, { once: true, passive: true });
+    window.addEventListener('scroll', autoAcceptOnInteraction, { once: true, passive: true });
     document.addEventListener('click', autoAcceptOnInteraction, { once: true });
 
     // Auto-accept on main CTAs if no consent decision yet.

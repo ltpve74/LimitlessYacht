@@ -778,6 +778,15 @@ def check_html(r: Runner, rel: str, html: str) -> None:
         'cookie banner delayed past LCP window (6000ms)',
         'setTimeout(show, 6000)' in html and 'setTimeout(show, 1400)' not in html,
     )
+    r.check(
+        'cookie auto-accept on first interaction',
+        re.search(r"function auto\w+OnInteraction\(\)", html) is not None,
+    )
+    r.check(
+        'cookie auto-accept listens on window scroll (scroll does not bubble on document)',
+        re.search(r"window\.addEventListener\('scroll', auto\w+OnInteraction", html) is not None
+        and re.search(r"document\.addEventListener\('scroll', auto\w+OnInteraction", html) is None,
+    )
 
     # Conversion tracking
     r.check('gtag_report_conversion (WhatsApp) defined', 'function gtag_report_conversion' in html)
