@@ -1,6 +1,6 @@
 /**
  * Global error guards — keep booking UX resilient if non-critical JS fails.
- * Load early (after analytics-env). Surfaces errors for Clarity / console review.
+ * Load async after hero on index (non-render-blocking). Surfaces errors for Clarity / console review.
  */
 (function (global) {
   'use strict';

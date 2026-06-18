@@ -133,7 +133,6 @@ nav{position:fixed;top:0;left:0;right:0;z-index:100;min-height:4.25rem}
   } catch (e) {}
 })(window);
 </script>
-<script>document.write('<script src="'+(window.LY_BASE||'')+'/js/error-guard.js"><\/script>');</script>
 <link rel="preload" as="style" href="css/main.css?v=86" onload="this.rel='stylesheet'" />
 <noscript><link rel="stylesheet" href="css/main.css?v=86" /></noscript>
 
@@ -265,6 +264,14 @@ nav{position:fixed;top:0;left:0;right:0;z-index:100;min-height:4.25rem}
 </section>
 
 <!-- Deferred head bootstrap (after hero for LCP) -->
+<script>
+(function () {
+  var s = document.createElement('script');
+  s.src = (window.LY_BASE || '') + '/js/error-guard.js';
+  s.async = true;
+  document.head.appendChild(s);
+})();
+</script>
 <!-- Preview hosts + ?ly_owner=set suppress analytics — see js/analytics-env.js -->
 <!-- Google Consent Mode v2 defaults -->
 <script>
