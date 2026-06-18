@@ -1245,6 +1245,18 @@ def check_shared_assets(r: Runner) -> None:
         and index_html.find('LY_IS_PREVIEW') < index_html.find('googletagmanager.com/gtag/js')
         and 'if (window.LY_OWNER_MODE) return;' in index_html,
     )
+    legal_html = read_file('legal.html') or ''
+    r.check(
+        'external analytics scripts use crossOrigin anonymous for error visibility',
+        "_gt.crossOrigin='anonymous'" in index_html
+        and 'clarity.ms/tag/' in index_html
+        and re.search(
+            r"createElement\(r\);t\.async=1;t\.crossOrigin='anonymous';t\.src=\"https://www\.clarity\.ms/tag/\"",
+            index_html,
+        )
+        is not None
+        and "_gt.crossOrigin='anonymous'" in legal_html,
+    )
     r.check(
         'hero phone button sizing scoped to hero only',
         css is not None
