@@ -310,40 +310,50 @@ def check_html(r: Runner, rel: str, html: str) -> None:
         'var destImages = window.LY_DEST_IMAGES' in html,
     )
     r.check(
-        'destination preload prioritizes card tiers over lightbox masters',
+        'destination preload prioritizes card tiers; lightbox tiers on open',
         'window.LY_preloadDestAdjacent' in html
         and 'window.LY_enqueueCardPreload' in html
         and 'window.LY_enqueueLbPreload' in html
-        and 'window.LY_destCardUrl' in html,
+        and 'window.LY_destCardUrl' in html
+        and 'window.LY_destLbUrl' in html
+        and 'window.LY_destMasterUrl' in html
+        and "destOrder.forEach(function(i) { window.LY_enqueueLbPreload(window.LY_destLbUrl(i)); })" not in html,
     )
     r.check(
         'itinerary carousel cards have data-dest-idx',
         html.count('data-dest-idx="') == 12,
     )
     r.check(
-        'destination cards use responsive tier srcsets (lightbox uses masters)',
+        'destination cards use responsive tier srcsets (lightbox mirrors carousel)',
         'window.LY_syncDestCardImages' not in html
         and html.count('class="destination-card-bg"') == 12
         and html.count('sizes="78vw"') == 12
         and 'portals-vells-1-640.webp' in html
         and 'portals-vells-1-720.webp' in html
         and 'images/mobile/dest/portals-vells-1-960.webp 800w' in html
-        and 'images/mobile/dest/portals-vells-1.webp 800w' not in html,
+        and 'images/mobile/dest/portals-vells-1.webp 800w' not in html
+        and 'window.LY_pictureSrcsetForViewport' in html
+        and 'window.LY_srcsetWithoutMasters' in html
+        and "lbSrcWp.sizes = '100vw'" in html,
     )
     r.check(
-        'gallery cards use responsive tier srcsets (lightbox uses masters)',
+        'gallery cards use responsive tier srcsets (lightbox mirrors carousel)',
         'maiora_20s_01-640.webp' in html
         and 'maiora_20s_01-720.webp' in html
         and 'images/mobile/maiora_20s_03-960.webp 960w' in html
         and 'images/mobile/maiora_20s_03.webp 960w' not in html
-        and '(min-width: 1101px) 25vw, 50vw' in html,
+        and '(min-width: 1101px) 25vw, 50vw' in html
+        and 'lbImg.src = window.LY_galleryLbUrl(currentIdx)' in html
+        and 'id="lightbox-img" src="" alt="Limitless yacht gallery photo" sizes="100vw"' in html,
     )
     r.check(
         'carousel preload uses card-tier helpers after meaningful paint',
         'window.LY_afterMeaningfulPaint' in html
         and 'window.LY_galleryCardUrl' in html
+        and 'window.LY_galleryLbUrl' in html
         and 'window.LY_cardPreloadQueue' in html
-        and 'window.LY_lbPreloadQueue' in html,
+        and 'window.LY_lbPreloadQueue' in html
+        and "window.LY_enqueueLbPreload(window.LY_galleryLbUrl(g))" not in html,
     )
     r.check(
         'itinerary carousel prefetches on scroll',
@@ -590,6 +600,11 @@ def check_html(r: Runner, rel: str, html: str) -> None:
         and 'maiora_20s_02.webp 1920w' in html
         and 'fetchpriority="high"' in html,
     )
+    r.check(
+        'mobile hero caps at -960 tier (no full-res mobile master)',
+        'images/mobile/maiora_20s_02-960.webp 960w' in html
+        and 'images/mobile/maiora_20s_02.webp 2000w' not in html,
+    )
     style_pos = html.find('<style')
     r.check(
         'critical hero CSS discovered before deferred head scripts',
@@ -719,6 +734,18 @@ def check_html(r: Runner, rel: str, html: str) -> None:
     r.check(
         'destination master sharper than old single-tier compression',
         os.path.isfile(portals_webp) and os.path.getsize(portals_webp) > 25 * 1024,
+    )
+    es_trenc_720 = os.path.join(ROOT, 'images', 'mobile', 'dest', 'es-trenc-1-720.webp')
+    r.check(
+        'destination mobile tiers rebuild from media-library masters',
+        'src_path.parent in (MOBILE, MOBILE / "dest")' in opt_py,
+    )
+    r.check(
+        'destination mobile tiers use luxury-grade encoding (es-trenc sample)',
+        '("-720", 720, 82)' in opt_py
+        and 'DEST_DESKTOP_WEBP_Q = 86' in opt_py
+        and os.path.isfile(es_trenc_720)
+        and os.path.getsize(es_trenc_720) > 15 * 1024,
     )
     r.check(
         'about section uses multi-tier desktop srcset',
@@ -1149,6 +1176,47 @@ def check_shared_assets(r: Runner) -> None:
         'section-forward-cta' in ux_py
         and 'section-cross-cta--desktop' in ux_py
         and 'assert_single_visible_primary_cta' in ux_py,
+    )
+    r.check('error guard script exists', os.path.isfile(os.path.join(ROOT, 'js/error-guard.js')))
+    error_guard = read_file('js/error-guard.js') or ''
+    r.check(
+        'error guard captures window errors and safe wrappers',
+        'LY_errors' in error_guard
+        and 'LY_safe' in error_guard
+        and 'addEventListener(' in error_guard
+        and "'error'" in error_guard
+        and "'unhandledrejection'" in error_guard,
+    )
+    r.check(
+        'index.html loads error guard early via LY_BASE',
+        "(window.LY_BASE||'')+'/js/error-guard.js\"" in index_html
+        and 'document.write' in index_html
+        and 'src="/js/error-guard.js"' not in index_html,
+    )
+    legal_html = read_file('legal.html') or ''
+    r.check(
+        'legal.html loads error guard via LY_BASE',
+        "(window.LY_BASE||'')+'/js/error-guard.js\"" in legal_html
+        and 'document.write' in legal_html
+        and 'src="/js/error-guard.js"' not in legal_html,
+    )
+    r.check(
+        'error guard logs on preview and skips dataLayer there',
+        "console.warn('[Limitless]'" in error_guard
+        and 'LY_IS_PREVIEW' in error_guard
+        and 'ly_script_error' in error_guard,
+    )
+    r.check(
+        'ux smoke captures JS errors across booking journeys',
+        'page.on("pageerror"' in ux_py
+        and 'scenario_cookie_consent_all_viewports' in ux_py
+        and 'COOKIE_TEST_VIEWPORTS' in ux_py
+        and 'scenario_full_page_scroll' in ux_py
+        and 'scenario_gallery_lightbox' in ux_py
+        and 'scenario_reviews_load' in ux_py
+        and 'scenario_calendar_booking' in ux_py
+        and 'scenario_booking_funnel_mobile' in ux_py
+        and 'scenario_locales_mobile' in ux_py,
     )
     for loc in ('de', 'es', 'fr'):
         loc_html = read_file(f'{loc}/index.html') or ''

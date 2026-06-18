@@ -2,13 +2,15 @@
 """
 Browser UX smoke tests — catch user-facing JavaScript errors and broken flows.
 
-Exercises navigation anchors, booking-funnel links, the enquiry date picker, and
+Exercises navigation anchors, booking-funnel links, cookie consent, gallery
+lightbox, reviews load, calendar selection, full-page scroll journeys, and
 locale pages against a local static server. Fails on unexpected page errors or
 console errors.
 
 Usage:
   python3 scripts/ux-test.py
-  python3 scripts/ux-test.py --quick   # home flows only (still includes mobile)
+  python3 scripts/ux-test.py --quick      # skip locale/legal-only scenarios
+  python3 scripts/ux-test.py --thorough   # repeat key journeys for extra coverage
 """
 
 from __future__ import annotations
@@ -36,6 +38,16 @@ IPAD_AIR_VIEWPORT = {"width": 820, "height": 1180}
 IPAD_PRO_VIEWPORT = {"width": 834, "height": 1194}
 DESKTOP_VIEWPORT = {"width": 1280, "height": 900}
 
+COOKIE_TEST_VIEWPORTS = (
+    ("mobile 390", MOBILE_VIEWPORT),
+    ("large phone 412", LARGE_PHONE_VIEWPORT),
+    ("iphone 14 pro max", LARGE_PHONE_TALL_VIEWPORT),
+    ("tablet 768", TABLET_VIEWPORT),
+    ("ipad air", IPAD_AIR_VIEWPORT),
+    ("ipad pro 11", IPAD_PRO_VIEWPORT),
+    ("desktop 1280", DESKTOP_VIEWPORT),
+)
+
 # Mobile menu links must keep section-top / calendar anchors (not -land variants).
 MOBILE_NAV_HREFS = (
     ('a[href="#about"]', "#about"),
@@ -54,7 +66,24 @@ ALLOWED_CONSOLE = [
     re.compile(r"/api/availability", re.I),
     re.compile(r"net::err_", re.I),
     re.compile(r"fetch.*availability", re.I),
+    re.compile(r"\[Limitless\]", re.I),
 ]
+
+BOOKING_SECTION_IDS = (
+    "#about",
+    "#itinerary",
+    "#gallery",
+    "#charters",
+    "#availability",
+    "#reviews",
+    "#amenities",
+    "#specs",
+    ".enquire-section",
+)
+
+CONSENT_CLEAR_INIT = (
+    "try { localStorage.removeItem('ly_consent'); } catch (e) {}"
+)
 
 
 class IssueCollector:
@@ -172,6 +201,23 @@ def require_playwright():
 
 def wait_for_calendar(page) -> None:
     page.wait_for_selector("#availCal .cal-days .cal-cell", timeout=15000)
+
+
+def scroll_through_page(page, steps: int = 14, pause_ms: int = 120) -> None:
+    page.evaluate(
+        "({ steps, pause }) => new Promise((resolve) => {"
+        "  let i = 0;"
+        "  function tick() {"
+        "    const max = Math.max(0, document.documentElement.scrollHeight - innerHeight);"
+        "    window.scrollTo({ top: Math.round(max * (i / steps)), behavior: 'instant' });"
+        "    i += 1;"
+        "    if (i > steps) { resolve(); return; }"
+        "    setTimeout(tick, pause);"
+        "  }"
+        "  tick();"
+        "})",
+        {"steps": steps, "pause": pause_ms},
+    )
 
 
 def click_first_free_day(page, scope: str) -> bool:
@@ -652,6 +698,251 @@ def scenario_locale_de(page, base: str, issues: IssueCollector) -> None:
     click_mobile_nav_link(page, "#avail-cal")
 
 
+def _cookie_consent_url(base: str) -> str:
+    return base + "/?ly_test_consent=1"
+
+
+def _wait_cookie_banner_visible(page, scenario: str, issues: IssueCollector) -> bool:
+    page.wait_for_timeout(6200)
+    hidden = page.locator("#cookie-consent").evaluate("el => el.hidden")
+    if hidden:
+        issues.add(f"{scenario}: banner should appear after 6s delay with no prior consent")
+        return False
+    return True
+
+
+def _assert_cookie_auto_accepted(page, scenario: str, issues: IssueCollector) -> None:
+    try:
+        page.wait_for_function(
+            "() => {"
+            "  const b = document.getElementById('cookie-consent');"
+            "  return localStorage.getItem('ly_consent') === 'granted' && b && b.hidden;"
+            "}",
+            timeout=5000,
+        )
+    except Exception as exc:  # noqa: BLE001
+        state = page.evaluate(
+            "() => ({"
+            "  consent: localStorage.getItem('ly_consent'),"
+            "  hidden: document.getElementById('cookie-consent')?.hidden"
+            "})"
+        )
+        issues.add(
+            f"{scenario}: auto-accept failed (consent={state.get('consent')!r}, "
+            f"banner_hidden={state.get('hidden')!r}) — {exc}"
+        )
+
+
+def assert_cookie_scroll_auto_accept(
+    page,
+    base: str,
+    label: str,
+    viewport: dict[str, int],
+    issues: IssueCollector,
+) -> None:
+    scenario = f"cookie scroll auto-accept ({label})"
+    page.set_viewport_size(viewport)
+    page.goto(_cookie_consent_url(base), wait_until="domcontentloaded", timeout=60000)
+    if not _wait_cookie_banner_visible(page, scenario, issues):
+        return
+    scroll_through_page(page, steps=4, pause_ms=80)
+    _assert_cookie_auto_accepted(page, scenario, issues)
+
+
+def assert_cookie_touch_auto_accept(
+    page,
+    base: str,
+    label: str,
+    viewport: dict[str, int],
+    issues: IssueCollector,
+) -> None:
+    scenario = f"cookie touch auto-accept ({label})"
+    page.set_viewport_size(viewport)
+    page.goto(_cookie_consent_url(base), wait_until="domcontentloaded", timeout=60000)
+    if not _wait_cookie_banner_visible(page, scenario, issues):
+        return
+    page.evaluate(
+        "() => {"
+        "  const t = new Touch({ identifier: 1, target: document.body,"
+        "    clientX: 24, clientY: 24, radiusX: 1, radiusY: 1, rotationAngle: 0, force: 1 });"
+        "  document.dispatchEvent(new TouchEvent('touchstart', {"
+        "    bubbles: true, cancelable: true, touches: [t], targetTouches: [t], changedTouches: [t]"
+        "  }));"
+        "}"
+    )
+    _assert_cookie_auto_accepted(page, scenario, issues)
+
+
+def assert_cookie_cta_auto_accept(
+    page,
+    base: str,
+    label: str,
+    viewport: dict[str, int],
+    issues: IssueCollector,
+) -> None:
+    scenario = f"cookie CTA auto-accept ({label})"
+    page.set_viewport_size(viewport)
+    page.goto(_cookie_consent_url(base), wait_until="domcontentloaded", timeout=60000)
+    if not _wait_cookie_banner_visible(page, scenario, issues):
+        return
+    cta = None
+    for selector in (
+        ".nav-header-cta:visible",
+        "#hero .btn-primary:visible",
+        ".btn-primary:visible",
+    ):
+        loc = page.locator(selector).first
+        if loc.count() > 0 and loc.is_visible():
+            cta = loc
+            break
+    if cta is None:
+        issues.add(f"{scenario}: no visible engagement CTA (.nav-header-cta / .btn-primary)")
+        return
+    try:
+        cta.click()
+    except Exception as exc:  # noqa: BLE001
+        issues.add(f"{scenario}: CTA click failed — {exc}")
+        return
+    _assert_cookie_auto_accepted(page, scenario, issues)
+
+
+def scenario_cookie_consent_all_viewports(page, base: str, issues: IssueCollector) -> None:
+    name = "cookie consent all viewports"
+    issues.attach(page, name)
+    page.add_init_script(CONSENT_CLEAR_INIT)
+
+    for label, viewport in COOKIE_TEST_VIEWPORTS:
+        assert_cookie_scroll_auto_accept(page, base, label, viewport, issues)
+
+    for label, viewport in (
+        ("mobile 390", MOBILE_VIEWPORT),
+        ("large phone 412", LARGE_PHONE_VIEWPORT),
+        ("iphone 14 pro max", LARGE_PHONE_TALL_VIEWPORT),
+    ):
+        assert_cookie_touch_auto_accept(page, base, label, viewport, issues)
+
+    for label, viewport in (
+        ("ipad air", IPAD_AIR_VIEWPORT),
+        ("desktop 1280", DESKTOP_VIEWPORT),
+    ):
+        assert_cookie_cta_auto_accept(page, base, label, viewport, issues)
+
+
+def scenario_full_page_scroll(page, base: str, issues: IssueCollector) -> None:
+    name = "full page scroll journey"
+    issues.attach(page, name)
+    page.set_viewport_size(MOBILE_VIEWPORT)
+    page.goto(base + "/", wait_until="domcontentloaded", timeout=60000)
+    page.wait_for_timeout(500)
+    scroll_through_page(page, steps=16, pause_ms=100)
+    for section_id in BOOKING_SECTION_IDS:
+        page.locator(section_id).scroll_into_view_if_needed()
+        page.wait_for_timeout(150)
+    page.evaluate("window.scrollTo({ top: 0, behavior: 'instant' });")
+
+
+def scenario_gallery_lightbox(page, base: str, issues: IssueCollector) -> None:
+    name = "gallery tabs and lightbox"
+    issues.attach(page, name)
+    page.set_viewport_size(DESKTOP_VIEWPORT)
+    page.goto(base + "/", wait_until="domcontentloaded", timeout=60000)
+    page.locator("#gallery").scroll_into_view_if_needed()
+    page.wait_for_timeout(400)
+
+    deck_tab = page.locator('.gallery-tab[data-gtab="deck"]')
+    if deck_tab.count():
+        deck_tab.click()
+        page.wait_for_timeout(300)
+
+    item = page.locator(".gallery-group.tab-active .gallery-item").first
+    if item.count() == 0:
+        issues.add(f"{name}: no gallery items found")
+        return
+    item.click()
+    page.wait_for_selector("#lightbox.open", timeout=10000)
+
+    next_btn = page.locator("#lightbox-next")
+    if next_btn.count():
+        next_btn.click()
+        page.wait_for_timeout(400)
+    close_btn = page.locator("#lightbox-close")
+    if close_btn.count():
+        close_btn.click()
+        page.wait_for_function(
+            "() => !document.getElementById('lightbox').classList.contains('open')",
+            timeout=5000,
+        )
+
+
+def scenario_reviews_load(page, base: str, issues: IssueCollector) -> None:
+    name = "reviews load"
+    issues.attach(page, name)
+    page.set_viewport_size(DESKTOP_VIEWPORT)
+    page.goto(base + "/", wait_until="domcontentloaded", timeout=60000)
+    page.locator("#reviews").scroll_into_view_if_needed()
+    page.wait_for_function(
+        "() => {"
+        "  const grid = document.getElementById('reviewsGrid');"
+        "  return grid && !grid.hidden && grid.querySelector('.review-card');"
+        "}",
+        timeout=15000,
+    )
+
+
+def scenario_calendar_booking(page, base: str, issues: IssueCollector) -> None:
+    name = "calendar booking selection"
+    issues.attach(page, name)
+    page.set_viewport_size(MOBILE_VIEWPORT)
+    page.goto(base + "/", wait_until="domcontentloaded", timeout=60000)
+    page.locator("#availability").scroll_into_view_if_needed()
+    wait_for_calendar(page)
+    if not click_first_free_day(page, "#availCal"):
+        issues.add(f"{name}: no free calendar day to select")
+        return
+    page.wait_for_timeout(500)
+    selection = page.locator("#calSelection")
+    if selection.count() and selection.evaluate("el => el.hidden"):
+        issues.add(f"{name}: calendar selection panel did not open after date pick")
+
+
+def scenario_booking_funnel_mobile(page, base: str, issues: IssueCollector) -> None:
+    name = "booking funnel mobile"
+    issues.attach(page, name)
+    page.route("**/wa.me/**", lambda route: route.abort())
+    page.set_viewport_size(MOBILE_VIEWPORT)
+    page.goto(base + "/", wait_until="domcontentloaded", timeout=60000)
+
+    hero_cta = page.locator("#hero a.btn-primary.hero-cta-link--mobile").first
+    if hero_cta.count():
+        hero_cta.click()
+        wait_for_hash(page, "#itinerary")
+    else:
+        issues.add(f"{name}: hero primary CTA missing on mobile")
+
+    page.locator(".enquire-section").scroll_into_view_if_needed()
+    page.wait_for_timeout(300)
+    # Mobile CSS hides column WhatsApp buttons — dispatch still exercises click handlers.
+    page.locator(".enquire-section .contact-info .whatsapp-btn").first.dispatch_event("click")
+    page.wait_for_timeout(400)
+
+    page.locator("#contactForm").scroll_into_view_if_needed()
+    page.locator("#name").fill("Test Guest")
+    page.locator("#email").fill("test@example.com")
+
+
+def scenario_locales_mobile(page, base: str, issues: IssueCollector) -> None:
+    for code in ("es", "fr"):
+        name = f"locale {code} mobile"
+        issues.attach(page, name)
+        page.set_viewport_size(MOBILE_VIEWPORT)
+        page.goto(base + f"/{code}/", wait_until="domcontentloaded", timeout=60000)
+        page.wait_for_timeout(600)
+        assert_mobile_nav_hrefs(page, name, issues)
+        scroll_through_page(page, steps=8, pause_ms=80)
+        page.locator("#availability").scroll_into_view_if_needed()
+        wait_for_calendar(page)
+
+
 def scenario_legal(page, base: str, issues: IssueCollector) -> None:
     name = "legal en"
     issues.attach(page, name)
@@ -660,7 +951,7 @@ def scenario_legal(page, base: str, issues: IssueCollector) -> None:
     page.wait_for_selector("a[href]", timeout=10000)
 
 
-def run_scenarios(base_url: str, quick: bool = False) -> list[str]:
+def run_scenarios(base_url: str, quick: bool = False, thorough: bool = False) -> list[str]:
     sync_playwright = require_playwright()
     issues = IssueCollector()
     scenarios = [
@@ -670,9 +961,24 @@ def run_scenarios(base_url: str, quick: bool = False) -> list[str]:
         scenario_home_large_phone_tall,
         scenario_home_large_phone,
         scenario_home_mobile,
+        scenario_cookie_consent_all_viewports,
+        scenario_full_page_scroll,
+        scenario_gallery_lightbox,
+        scenario_reviews_load,
+        scenario_calendar_booking,
+        scenario_booking_funnel_mobile,
     ]
     if not quick:
-        scenarios.extend([scenario_locale_de, scenario_legal])
+        scenarios.extend([
+            scenario_locale_de,
+            scenario_locales_mobile,
+            scenario_legal,
+        ])
+    if thorough:
+        scenarios.extend([
+            scenario_home_desktop,
+            scenario_full_page_scroll,
+        ])
 
     with sync_playwright() as p:
         browser = p.chromium.launch(headless=True)
@@ -700,16 +1006,25 @@ def main() -> int:
     parser.add_argument(
         "--quick",
         action="store_true",
-        help="Home desktop + mobile only (skip locale and legal)",
+        help="Skip locale/legal-only scenarios (core booking flows still run)",
+    )
+    parser.add_argument(
+        "--thorough",
+        action="store_true",
+        help="Repeat key desktop + scroll journeys for extra coverage",
     )
     args = parser.parse_args()
 
     print(f"{GREEN}UX smoke tests{RESET}")
     if args.url:
-        failures = run_scenarios(args.url.rstrip("/"), quick=args.quick)
+        failures = run_scenarios(
+            args.url.rstrip("/"), quick=args.quick, thorough=args.thorough
+        )
     else:
         with serve_site(args.root) as base_url:
-            failures = run_scenarios(base_url, quick=args.quick)
+            failures = run_scenarios(
+                base_url, quick=args.quick, thorough=args.thorough
+            )
 
     if failures:
         print(f"\n{RED}FAILED  {len(failures)} UX issue(s):{RESET}")

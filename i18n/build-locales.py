@@ -223,6 +223,7 @@ def build_legal(locale_mod) -> str:
     html = apply_pairs(html, locale_mod.LEGAL_PAIRS)
     html = html.replace('href="index.html"', 'href="../"')
     html = html.replace('href="css/main.css"', 'href="../css/main.css"')
+    html = html.replace('src="js/analytics-env.js"', 'src="../js/analytics-env.js"')
     return html
 
 
