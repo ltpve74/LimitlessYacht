@@ -1015,6 +1015,7 @@ document.addEventListener('DOMContentLoaded', function() {
     tab.addEventListener('click', function() {
       setDestTab(tab.dataset.tier);
       history.pushState(null, '', '#' + tab.dataset.tier);
+      window.LY_hashLockUntil = Date.now() + 1500;
     });
   });
 
@@ -1607,6 +1608,8 @@ document.addEventListener('DOMContentLoaded', function() {
   // Navbar scroll — rAF-throttled so class toggle never blocks momentum scroll
   const navbar = document.getElementById('navbar');
   var _navTick = false;
+  window.LY_hashLockUntil = 0;
+  var SCROLL_HASH_SECTIONS = ['about', 'itinerary', 'gallery', 'charters', 'availability', 'reviews', 'amenities', 'specs'];
   var navSectionLinks = Array.from(document.querySelectorAll('.nav-links a[href^="#"]'));
   function navHeight() {
     return navbar ? navbar.offsetHeight : 68;
@@ -1616,6 +1619,31 @@ document.addEventListener('DOMContentLoaded', function() {
     var el = document.getElementById(id);
     if (!el) return null;
     return el.getBoundingClientRect().top;
+  }
+  function lyHashLocked() {
+    return Date.now() < (window.LY_hashLockUntil || 0);
+  }
+  function updateScrollHash() {
+    if (lyHashLocked()) return;
+    if (history.state && history.state.lb) return;
+    if (window.scrollY < 48) {
+      if (location.hash) {
+        history.replaceState(history.state, '', location.pathname + location.search);
+        syncNavSectionSoon();
+      }
+      return;
+    }
+    var probe = navHeight() + 56;
+    var activeId = null;
+    SCROLL_HASH_SECTIONS.forEach(function(id) {
+      var top = navMarkerTop('#' + id);
+      if (top != null && top <= probe) activeId = id;
+    });
+    if (!activeId) return;
+    var target = '#' + activeId;
+    if (location.hash === target) return;
+    history.replaceState(history.state, '', location.pathname + location.search + target);
+    syncNavSectionSoon();
   }
   function updateNavSection() {
     if (window.innerWidth <= 768 || !navSectionLinks.length) return;
@@ -1644,13 +1672,22 @@ document.addEventListener('DOMContentLoaded', function() {
         requestAnimationFrame(function() {
           navbar.classList.toggle('scrolled', window.scrollY > 60);
           updateNavSection();
+          updateScrollHash();
           _navTick = false;
         });
       }
     }, { passive: true });
+    document.addEventListener('click', function(e) {
+      var link = e.target.closest && e.target.closest('a[href^="#"]');
+      if (!link) return;
+      var href = link.getAttribute('href');
+      if (!href || href === '#') return;
+      window.LY_hashLockUntil = Date.now() + 1000;
+    }, true);
     function onNavJumpClick(el) {
       if (window.innerWidth <= 768) return;
       navbar.classList.add('scrolled');
+      window.LY_hashLockUntil = Date.now() + 1000;
       syncNavSectionSoon();
       if (el && el.blur) {
         requestAnimationFrame(function() { el.blur(); });
@@ -1664,9 +1701,13 @@ document.addEventListener('DOMContentLoaded', function() {
     });
     window.addEventListener('hashchange', syncNavSectionSoon);
     if ('onscrollend' in window) {
-      window.addEventListener('scrollend', syncNavSectionSoon, { passive: true });
+      window.addEventListener('scrollend', function() {
+        syncNavSectionSoon();
+        updateScrollHash();
+      }, { passive: true });
     }
     updateNavSection();
+    updateScrollHash();
     window.addEventListener('resize', function() {
       if (window.innerWidth <= 768) {
         navSectionLinks.forEach(function(a) { a.classList.remove('is-active'); });
