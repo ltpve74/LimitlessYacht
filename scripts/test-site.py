@@ -600,6 +600,11 @@ def check_html(r: Runner, rel: str, html: str) -> None:
         and 'maiora_20s_02.webp 1920w' in html
         and 'fetchpriority="high"' in html,
     )
+    r.check(
+        'mobile hero caps at -960 tier (no full-res mobile master)',
+        'images/mobile/maiora_20s_02-960.webp 960w' in html
+        and 'images/mobile/maiora_20s_02.webp 2000w' not in html,
+    )
     style_pos = html.find('<style')
     r.check(
         'critical hero CSS discovered before deferred head scripts',
