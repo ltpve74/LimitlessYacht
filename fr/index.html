@@ -125,8 +125,15 @@ nav{position:fixed;top:0;left:0;right:0;z-index:100;min-height:4.25rem}
   var ownerStored = false;
   try { ownerStored = global.localStorage.getItem('ly_owner') === '1'; } catch (e) {}
   if (ownerStored || global.LY_IS_PREVIEW) { global.LY_OWNER_MODE = true; }
+  try {
+    if (new URLSearchParams(global.location.search).get('ly_test_consent') === '1') {
+      global.LY_OWNER_MODE = false;
+      global.LY_IS_PREVIEW = false;
+    }
+  } catch (e) {}
 })(window);
 </script>
+<script src="/js/error-guard.js"></script>
 <link rel="preload" as="style" href="../css/main.css?v=86" onload="this.rel='stylesheet'" />
 <noscript><link rel="stylesheet" href="../css/main.css?v=86" /></noscript>
 

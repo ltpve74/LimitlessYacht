@@ -46,4 +46,11 @@
       );
     }
   }
+
+  try {
+    if (new URLSearchParams(global.location.search).get('ly_test_consent') === '1') {
+      global.LY_OWNER_MODE = false;
+      global.LY_IS_PREVIEW = false;
+    }
+  } catch (e) {}
 })(window);

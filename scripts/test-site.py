@@ -1150,6 +1150,31 @@ def check_shared_assets(r: Runner) -> None:
         and 'section-cross-cta--desktop' in ux_py
         and 'assert_single_visible_primary_cta' in ux_py,
     )
+    r.check('error guard script exists', os.path.isfile(os.path.join(ROOT, 'js/error-guard.js')))
+    error_guard = read_file('js/error-guard.js') or ''
+    r.check(
+        'error guard captures window errors and safe wrappers',
+        'LY_errors' in error_guard
+        and 'LY_safe' in error_guard
+        and 'addEventListener(' in error_guard
+        and "'error'" in error_guard
+        and "'unhandledrejection'" in error_guard,
+    )
+    r.check(
+        'index.html loads error guard early',
+        'src="/js/error-guard.js"' in index_html,
+    )
+    r.check(
+        'ux smoke captures JS errors across booking journeys',
+        'page.on("pageerror"' in ux_py
+        and 'scenario_cookie_consent_scroll' in ux_py
+        and 'scenario_full_page_scroll' in ux_py
+        and 'scenario_gallery_lightbox' in ux_py
+        and 'scenario_reviews_load' in ux_py
+        and 'scenario_calendar_booking' in ux_py
+        and 'scenario_booking_funnel_mobile' in ux_py
+        and 'scenario_locales_mobile' in ux_py,
+    )
     for loc in ('de', 'es', 'fr'):
         loc_html = read_file(f'{loc}/index.html') or ''
         r.check(
