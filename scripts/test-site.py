@@ -1118,6 +1118,13 @@ def check_shared_assets(r: Runner) -> None:
         and 'rgba(245,240,232,.22)' not in css,
     )
     r.check(
+        'calendar shows past bookings with muted booked styling',
+        css is not None
+        and '.cal-cell.past.booked' in css
+        and 'calDayCellHtml' in index_html
+        and 'seasonStartIndex' in index_html,
+    )
+    r.check(
         'calendar booked dates meet contrast-safe rose',
         css is not None and '#8f4a52' in css and 'rgba(176,124,130,.9)' not in css,
     )
