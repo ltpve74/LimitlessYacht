@@ -93,9 +93,9 @@ nav{position:fixed;inset:0 0 auto;z-index:100;display:flex;align-items:center;ga
   global.LY_TESTING_CLARITY = !global.LY_OWNER_MODE && !global.LY_IS_PREVIEW;
 })(window);
 </script>
-<link rel="preload" as="style" href="../css/main.css?v=105" onload="this.rel='stylesheet';requestAnimationFrame(function(){requestAnimationFrame(function(){document.documentElement.classList.add('ly-main-ready')})})" />
+<link rel="preload" as="style" href="../css/main.css?v=106" onload="this.rel='stylesheet';requestAnimationFrame(function(){requestAnimationFrame(function(){document.documentElement.classList.add('ly-main-ready')})})" />
 <script>!function(){var d=document.documentElement;function ready(){if(!d.classList.contains('ly-main-ready'))d.classList.add('ly-main-ready')}function onSheet(){requestAnimationFrame(function(){requestAnimationFrame(ready)})}var l=document.querySelector('link[href*="main.css"]');if(l)l.addEventListener('load',onSheet)}();</script>
-<noscript><link rel="stylesheet" href="../css/main.css?v=105" /></noscript>
+<noscript><link rel="stylesheet" href="../css/main.css?v=106" /></noscript>
 
 <title>Limitless Yacht Experience – Charter de luxe Maiora à Majorque</title>
 <meta name="description" content="Louez le Maiora de 21,5 m « Limitless » depuis Palma de Majorque — croisières à la journée et sur plusieurs jours vers les criques de Majorque, Cabrera et Formentera. Avec équipage, jusqu'à 12 invités." />
@@ -1537,7 +1537,6 @@ document.addEventListener('DOMContentLoaded', function() {
     <button type="button" id="dest-lb-prev" class="lb-nav lb-nav--prev" aria-label="Destination précédente">‹</button>
     <button type="button" id="dest-lb-next" class="lb-nav lb-nav--next" aria-label="Destination suivante">›</button>
     <div id="dest-lb-counter" class="lb-counter" aria-live="polite"></div>
-    <div class="lb-loader" aria-hidden="true"></div>
     <div id="dest-lb-hint" class="lb-hint" aria-hidden="true"></div>
   </div>
   <div class="dest-lb-main">
@@ -1546,6 +1545,7 @@ document.addEventListener('DOMContentLoaded', function() {
         <source id="dest-lb-src-webp" type="image/webp" srcset="" />
         <img id="dest-lb-img" src="" alt="" decoding="async" />
       </picture>
+      <div class="lb-loader" aria-hidden="true"></div>
     </div>
     <div class="dest-lb-body">
       <div class="dest-lb-content">
@@ -2435,8 +2435,9 @@ document.addEventListener('DOMContentLoaded', function() {
     var destLbLoadGen = 0;
     var destImages = window.LY_DEST_IMAGES;
 
+    var destLbImgWrap = destLb ? destLb.querySelector('.dest-lb-img-wrap') : null;
     function setDestLbLoading(on) {
-      if (destLb) destLb.classList.toggle('lb-loading', !!on);
+      if (destLbImgWrap) destLbImgWrap.classList.toggle('lb-loading', !!on);
     }
 
     function destCardIndex(card) {

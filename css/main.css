@@ -604,9 +604,9 @@ section { padding: 7rem 2rem; }
   pointer-events: none;
 }
 #lightbox.lb-loading .lb-loader,
-#dest-lightbox.lb-loading .lb-loader { display: block; }
+.dest-lb-img-wrap.lb-loading .lb-loader { display: block; }
 #lightbox.lb-loading #lightbox-img,
-#dest-lightbox.lb-loading #dest-lb-img {
+.dest-lb-img-wrap.lb-loading #dest-lb-img {
   opacity: .42;
   transition: opacity .2s ease;
 }

@@ -471,7 +471,9 @@ def check_html(r: Runner, rel: str, html: str) -> None:
         and 'window.LY_formatLbCounter' in html
         and 'setGalleryLbLoading' in html
         and 'destLbLoadGen' in html
-        and 'class="lb-loader"' in html,
+        and 'destLbImgWrap' in html
+        and 'class="lb-loader"' in html
+        and re.search(r'dest-lb-img-wrap[\s\S]*?class="lb-loader"', html) is not None,
     )
     r.check(
         'destination preload not burst on DOMContentLoaded',
@@ -1984,6 +1986,7 @@ def check_shared_assets(r: Runner) -> None:
         and css_rule_index(css, '.lb-counter') >= 0
         and css_rule_index(css, '.lb-loader') >= 0
         and '#lightbox.lb-loading #lightbox-img' in css
+        and '.dest-lb-img-wrap.lb-loading #dest-lb-img' in css
         and css_rule_index(css, '#dest-lb-close') < 0
         and '#lightbox-prev' not in css,
     )
