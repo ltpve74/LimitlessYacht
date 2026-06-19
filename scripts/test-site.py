@@ -510,10 +510,11 @@ def check_html(r: Runner, rel: str, html: str) -> None:
         and 'LY_hashLockUntil' in html,
     )
     r.check(
-        'hash changes fire Clarity section tags and events',
+        'hash changes fire Clarity section tags and per-section events',
         'LY_trackSectionHash' in html
         and "fn('set', 'ly_section', section)" in html
-        and "fn('event', 'ly_section_view')" in html
+        and 'lyClaritySectionEventName' in html
+        and "ly_section_view_' + String(section).replace(/-/g, '_')" in html
         and 'LY_flushClaritySectionQueue' in html,
     )
     r.check(
