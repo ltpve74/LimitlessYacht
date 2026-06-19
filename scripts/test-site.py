@@ -881,6 +881,11 @@ def check_html(r: Runner, rel: str, html: str) -> None:
         'availability fetch deferred until section nears viewport',
         "LY_whenNearSection('availability'" in html,
     )
+    if rel == 'index.html':
+        r.check(
+            'availability applies feed data with explicit calendar re-render',
+            'applyAvailability' in html and 'scheduleAvailabilityLoad' in html,
+        )
 
     # Structured data
     r.check('schema.org JSON-LD present', 'application/ld+json' in html)
@@ -1173,7 +1178,9 @@ def check_shared_assets(r: Runner) -> None:
         'local dev server script exists',
         os.path.isfile(os.path.join(ROOT, 'scripts/dev-server.py'))
         and os.path.isfile(os.path.join(ROOT, 'scripts/serve.sh'))
-        and '/api/availability' in dev_server,
+        and '/api/availability' in dev_server
+        and 'AVAILABILITY_PROXY_URL' in dev_server
+        and 'limitlessyachtcharter.com/api/availability' in dev_server,
     )
     publish_yml = read_file('.github/workflows/publish.yml') or ''
     r.check(
@@ -2075,6 +2082,15 @@ def check_shared_assets(r: Runner) -> None:
         'netlify/functions/reviews.mjs',
     ):
         r.check(f'{rel} exists', os.path.isfile(os.path.join(ROOT, rel)))
+
+    availability_mjs = read_file('netlify/functions/availability.mjs') or ''
+    r.check(
+        'availability ICS parser handles dashed dates and tentative status',
+        'expandEvent' in availability_mjs
+        and 'STATUS' in availability_mjs
+        and 'RRULE' in availability_mjs
+        and r'(\d{4})-?(\d{2})-?(\d{2})' in availability_mjs,
+    )
 
     reviews_raw = read_file('data/reviews.json')
     if reviews_raw is not None:

@@ -16,6 +16,8 @@ import argparse
 import json
 import os
 import sys
+import urllib.error
+import urllib.request
 from http.server import HTTPServer, SimpleHTTPRequestHandler
 from urllib.parse import urlparse
 
@@ -29,6 +31,10 @@ AVAILABILITY_STUB = {
     "tentative": [],
     "note": "local dev server — calendar shows all dates available",
 }
+AVAILABILITY_PROXY_URL = os.environ.get(
+    "LY_AVAILABILITY_PROXY",
+    "https://limitlessyachtcharter.com/api/availability",
+)
 
 
 class DevSiteHandler(SimpleHTTPRequestHandler):
@@ -43,7 +49,14 @@ class DevSiteHandler(SimpleHTTPRequestHandler):
     def do_GET(self) -> None:  # noqa: N802
         path = urlparse(self.path).path
         if path == "/api/availability":
-            body = json.dumps(AVAILABILITY_STUB).encode("utf-8")
+            payload = AVAILABILITY_STUB
+            try:
+                with urllib.request.urlopen(AVAILABILITY_PROXY_URL, timeout=8) as res:
+                    if 200 <= res.status < 300:
+                        payload = json.loads(res.read().decode("utf-8"))
+            except (urllib.error.URLError, TimeoutError, json.JSONDecodeError, ValueError):
+                pass
+            body = json.dumps(payload).encode("utf-8")
             self.send_response(200)
             self.send_header("Content-Type", "application/json")
             self.send_header("Access-Control-Allow-Origin", "*")
