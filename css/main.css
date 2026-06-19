@@ -2529,8 +2529,6 @@ footer {
   nav::before { transition: none; }
   /* background-position animation triggers main-thread repaint every frame — kills scroll on iOS */
   #charters::before { animation: none; }
-  /* scrollBob inside overflow:hidden hero can also force compositor updates */
-  .hero-scroll { animation: none; }
 }
 @media (max-width: 400px) {
   .nav-logo { letter-spacing: .08em; }
@@ -2653,23 +2651,33 @@ footer {
     padding: 0.3rem;
   }
 }
-/* Hero: mobile grows with copy — avoids clipping on iPhone-sized viewports */
+/* Hero: full-viewport on mobile — bg/overlay locked; copy scrolls inside if needed */
 @media (max-width: 768px) {
   :root { --hero-cluster-gap: 0.85rem; }
   #hero {
-    height: auto;
+    height: 100svh;
     min-height: 100dvh;
     min-height: 100svh;
     min-height: 520px;
     display: flex;
     align-items: stretch;
     justify-content: center;
-    padding-top: 0;
-    padding-bottom: var(--hero-bottom-inset);
-    overflow-x: clip;
-    overflow-y: visible;
+    padding: 0;
+    overflow: hidden;
   }
-  .hero-bg { animation: none; transform: none; }
+  .hero-bg-wrap,
+  .hero-overlay {
+    position: absolute;
+    inset: 0;
+    width: 100%;
+    height: 100%;
+    min-height: 100%;
+  }
+  .hero-bg {
+    animation: none;
+    transform: none;
+    min-height: 100%;
+  }
   .hero-overlay {
     background:
       linear-gradient(
@@ -2681,17 +2689,34 @@ footer {
       );
   }
   .hero-content {
-    position: relative; top: auto; bottom: auto; left: auto; right: auto;
-    flex: 1 0 auto; align-self: stretch; min-height: 0;
+    position: absolute;
+    top: 0;
+    right: 0;
+    bottom: 0;
+    left: 0;
+    width: 100%;
+    max-width: none;
+    flex: none;
+    min-height: 0;
     display: flex;
     flex-direction: column;
     align-items: center;
     padding: 0 1.15rem;
-    padding-bottom: 0.5rem;
+    padding-bottom: var(--hero-bottom-inset);
     animation: none;
+    overflow-x: clip;
+    overflow-y: auto;
+    overscroll-behavior: contain;
+    -webkit-overflow-scrolling: touch;
   }
-  .hero-scroll,
   .hero-value { display: none; }
+  .hero-scroll {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 0.5rem;
+  }
+  .scroll-line { height: 32px; }
   .hero-eyebrow {
     padding-top: max(3.5rem, calc(env(safe-area-inset-top, 0px) + 2.75rem));
     margin-bottom: 0.4rem;

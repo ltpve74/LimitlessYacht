@@ -772,10 +772,12 @@ def check_html(r: Runner, rel: str, html: str) -> None:
         and '.hamburger{display:flex}' not in crit_flat,
     )
     r.check(
-        'critical CSS prevents mobile hero text clipping before main.css',
-        'height:auto' in crit_flat
-        and '.hero-scroll,.hero-value{display:none}' in crit_flat
-        and 'min-height:2.4em' not in crit_flat
+        'critical CSS locks mobile hero to full viewport before main.css',
+        'height:100svh' in crit_flat
+        and 'overflow:hidden' in crit_flat
+        and '.hero-bg-wrap,.hero-overlay{position:absolute;inset:0' in crit_flat
+        and '.hero-value{display:none}' in crit_flat
+        and '.hero-scroll,.hero-value{display:none}' not in crit_flat
         and 'padding-top:max(3.5rem' in crit_flat
         and 'background:rgba(10,22,40,.48)' in crit_flat,
     )
@@ -816,9 +818,9 @@ def check_html(r: Runner, rel: str, html: str) -> None:
         'critical CSS matches mobile hero flex layout',
         'display:flex' in crit_flat
         and '.hero-cta-group{' in crit_flat and 'margin-top:auto' in crit_flat
-        and 'flex:10auto' in crit_flat.replace(' ', '')
-        and 'height:auto' in crit_flat
-        and 'overflow-y:visible' in crit_flat
+        and '.hero-content{position:absolute;inset:0' in crit_flat
+        and 'height:100svh' in crit_flat
+        and 'overflow:hidden' in crit_flat
         and 'safe-area-inset-bottom' in crit_css,
     )
     r.check(
@@ -1347,6 +1349,20 @@ def check_shared_assets(r: Runner) -> None:
     if css:
         r.check('main.css defines .hero-bg-wrap', '.hero-bg-wrap' in css)
         r.check('main.css defines heroTitleIn', 'heroTitleIn' in css)
+        r.check(
+            'main.css locks mobile hero to full viewport with scroll cue',
+            re.search(
+                r'@media\s*\(\s*max-width:\s*768px\s*\)[\s\S]*?#hero\s*\{[^}]*height:\s*100svh[^}]*overflow:\s*hidden',
+                css,
+            )
+            is not None
+            and re.search(
+                r'@media\s*\(\s*max-width:\s*768px\s*\)[\s\S]*?\.hero-scroll\s*\{[^}]*display:\s*flex',
+                css,
+            )
+            is not None
+            and 'scrollBob' in css,
+        )
         css_flat = re.sub(r'\s+', '', css)
         r.check(
             'hero above-fold copy visible immediately (Speed Index safe)',
