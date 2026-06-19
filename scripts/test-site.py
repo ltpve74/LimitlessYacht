@@ -476,6 +476,21 @@ def check_html(r: Runner, rel: str, html: str) -> None:
         and re.search(r'dest-lb-img-wrap[\s\S]*?class="lb-loader"', html) is not None,
     )
     r.check(
+        'anchor CTAs pause drip and prioritize destination section assets',
+        'window.LY_onNavIntent' in html
+        and 'window.LY_preloadNavHold' in html
+        and 'window.LY_holdPreloadForNav' in html
+        and 'window.LY_flushPreloadQueuesForNav' in html
+        and 'window.LY_sectionNavUrls' in html
+        and 'window.LY_loadAvailCalNow' in html
+        and 'window.LY_loadReviewsNow' in html
+        and re.search(
+            r"document\.addEventListener\('click'[\s\S]*?LY_onNavIntent\(href\)",
+            html,
+        )
+        is not None,
+    )
+    r.check(
         'destination preload not burst on DOMContentLoaded',
         'dest.forEach(function(src)' not in html,
     )
@@ -1122,7 +1137,7 @@ def check_html(r: Runner, rel: str, html: str) -> None:
     if rel == 'index.html':
         r.check(
             'availability applies feed data with explicit calendar re-render',
-            'applyAvailability' in html and 'scheduleAvailabilityLoad' in html,
+            'lyApplyAvailCal' in html and 'lyScheduleAvailCalLoad' in html,
         )
 
     # Structured data

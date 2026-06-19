@@ -560,11 +560,142 @@ window.LY_pausePreloadDrip = function() {
   window.LY_cancelPreloadPumpDelay();
   window.LY_preloadPumpActive = false;
 };
+window.LY_preloadNavHold = 0;
+window.LY_preloadNavReleaseTimer = null;
+window.LY_holdPreloadForNav = function() {
+  window.LY_preloadNavHold++;
+  window.LY_pausePreloadDrip();
+  if (window.LY_preloadNavReleaseTimer) {
+    clearTimeout(window.LY_preloadNavReleaseTimer);
+    window.LY_preloadNavReleaseTimer = null;
+  }
+};
+window.LY_releasePreloadNavHold = function() {
+  if ((window.LY_preloadNavHold || 0) <= 0) return;
+  window.LY_preloadNavHold = Math.max(0, window.LY_preloadNavHold - 1);
+  if (window.LY_preloadNavHold === 0) window.LY_maybeResumePreloadDrip();
+};
 window.LY_maybeResumePreloadDrip = function() {
+  if ((window.LY_preloadNavHold || 0) > 0) return;
   if (window.LY_preloadPriorityActive > 0 || window.LY_priorityPreloadQueue.length) return;
   window.LY_preloadDripPaused = false;
   window.LY_pumpPreloads();
 };
+window.LY_normalizeNavHash = function(raw) {
+  var hash = String(raw || '').replace(/^#/, '').trim();
+  if (!hash) return '';
+  if (hash === 'half-day' || hash === 'full-day' || hash === 'multi-day') return hash;
+  if (hash.endsWith('-land')) return hash.slice(0, -5);
+  if (hash === 'avail-cal') return 'availability';
+  if (hash === 'enquire-land' || hash === 'enquire-form') return 'enquire';
+  return hash;
+};
+window.LY_sectionNavUrls = function(section) {
+  var urls = [];
+  if (section === 'gallery') {
+    [0, 1, 2, 3].forEach(function(i) {
+      if (window.LY_galleryCardUrl) urls.push(window.LY_galleryCardUrl(i));
+    });
+  } else if (section === 'itinerary' || section === 'half-day') {
+    [0, 1, 2].forEach(function(i) {
+      if (window.LY_destCardUrl) urls.push(window.LY_destCardUrl(i));
+    });
+  } else if (section === 'full-day' && window.LY_DEST_TIER_IDX) {
+    window.LY_DEST_TIER_IDX['full-day'].forEach(function(i) {
+      if (window.LY_destCardUrl) urls.push(window.LY_destCardUrl(i));
+    });
+  } else if (section === 'multi-day' && window.LY_DEST_TIER_IDX) {
+    window.LY_DEST_TIER_IDX['multi-day'].forEach(function(i) {
+      if (window.LY_destCardUrl) urls.push(window.LY_destCardUrl(i));
+    });
+  } else if (section === 'about' && window.LY_cardTierFromMaster) {
+    var mob = window.innerWidth <= 640;
+    var master = mob ? '/images/mobile/maiora_20s_04.webp' : '/images/maiora_20s_04.webp';
+    var suffix = window.LY_NET_SLOW ? (mob ? '-480' : '-640') : (mob ? '-720' : '-640');
+    urls.push(window.LY_cardTierFromMaster(master, suffix));
+  }
+  return urls.filter(Boolean);
+};
+window.LY_flushPreloadQueuesForNav = function() {
+  window.LY_cardPreloadQueue = [];
+  window.LY_lbPreloadQueue = [];
+  window.LY_priorityPreloadQueue = [];
+  window.LY_cancelPreloadPumpDelay();
+  window.LY_preloadPumpActive = false;
+};
+window.LY_finishNavIntent = function() {
+  if (window.LY_preloadNavReleaseTimer) {
+    clearTimeout(window.LY_preloadNavReleaseTimer);
+    window.LY_preloadNavReleaseTimer = null;
+  }
+  window.LY_preloadNavReleaseTimer = setTimeout(function() {
+    window.LY_preloadNavReleaseTimer = null;
+    window.LY_releasePreloadNavHold();
+  }, 350);
+};
+window.LY_waitForNavAssets = function(urls, cb, maxMs) {
+  var deadline = Date.now() + (maxMs || 10000);
+  function tick() {
+    var done = !urls.length || urls.every(function(u) { return window.LY_preloadedUrls[u]; });
+    if (done || Date.now() >= deadline) {
+      if (cb) cb();
+      return;
+    }
+    setTimeout(tick, 180);
+  }
+  tick();
+};
+window.LY_onNavIntent = function(href) {
+  if (!window.LY_preloadNeedsUserPriority || !window.LY_preloadNeedsUserPriority()) return;
+  var section = window.LY_normalizeNavHash(href);
+  if (!section) return;
+  window.LY_holdPreloadForNav();
+  window.LY_flushPreloadQueuesForNav();
+  var urls = window.LY_sectionNavUrls(section);
+  for (var u = urls.length - 1; u >= 0; u--) {
+    if (window.LY_prioritizePreloadUrgent) window.LY_prioritizePreloadUrgent(urls[u]);
+  }
+  var waits = 1;
+  var finished = false;
+  function done() {
+    if (finished) return;
+    waits--;
+    if (waits > 0) return;
+    finished = true;
+    window.LY_finishNavIntent();
+  }
+  window.LY_waitForNavAssets(urls, done, 10000);
+  window.LY_preloadNavReleaseTimer = setTimeout(function() {
+    window.LY_preloadNavReleaseTimer = null;
+    if (!finished) {
+      finished = true;
+      window.LY_releasePreloadNavHold();
+    }
+  }, 10000);
+  if (section === 'availability' || section === 'enquire') {
+    waits++;
+    if (window.LY_loadAvailCalNow) {
+      window.LY_loadAvailCalNow(done);
+    } else {
+      done();
+    }
+  }
+  if (section === 'reviews') {
+    waits++;
+    if (window.LY_loadReviewsNow) {
+      window.LY_loadReviewsNow(done);
+    } else {
+      done();
+    }
+  }
+};
+document.addEventListener('click', function(e) {
+  var link = e.target.closest && e.target.closest('a[href^="#"]');
+  if (!link) return;
+  var href = link.getAttribute('href');
+  if (!href || href === '#') return;
+  if (window.LY_onNavIntent) window.LY_onNavIntent(href);
+}, true);
 window.LY_loadPreloadImage = function(url, cb) {
   if (!url) { if (cb) cb(); return null; }
   if (window.LY_preloadedUrls[url]) { if (cb) cb(); return null; }
@@ -2940,7 +3071,19 @@ document.addEventListener('DOMContentLoaded', function() {
     }).join('');
   }
 
-  function loadReviews() {
+  var reviewsWaiters = [];
+  function drainReviewsWaiters() {
+    var w = reviewsWaiters.splice(0);
+    w.forEach(function(fn) { fn(); });
+  }
+  function loadReviews(cb) {
+    if (typeof cb === 'function') reviewsWaiters.push(cb);
+    if (loadReviews._state === 'loading') return;
+    if (loadReviews._state === 'done') {
+      drainReviewsWaiters();
+      return;
+    }
+    loadReviews._state = 'loading';
     fetch((window.LY_BASE || '') + '/data/reviews-fr.json')
       .then(function (r) { return r.ok ? r.json() : null; })
       .then(function (data) { if (data) render(data); })
@@ -2953,8 +3096,13 @@ document.addEventListener('DOMContentLoaded', function() {
             text: "Notre groupe de six a passé une journée fantastique à bord de Limitless — spacieux, confortable et impeccable. Paul a été très réactif et a organisé notre charter en moins d'un jour. Une fois à bord, le capitaine Luigi s'est révélé compétent et plein d'humour, traçant sans effort un bel itinéraire avec plusieurs escales agréables. L'hôtesse attentive veillait à notre confort — panier de crème solaire et serviettes, verres toujours pleins où que nous soyons. Fortement recommandé !"
           }]
         });
+      })
+      .finally(function () {
+        loadReviews._state = 'done';
+        drainReviewsWaiters();
       });
   }
+  window.LY_loadReviewsNow = loadReviews;
   if (window.LY_whenNearSection) window.LY_whenNearSection('reviews', loadReviews);
   else loadReviews();
 })();
@@ -3340,7 +3488,12 @@ document.addEventListener('DOMContentLoaded', function() {
   render();
 
   var availabilityFetchState = 'idle';
-  function applyDisponibilité(data) {
+  var availabilityWaiters = [];
+  function lyDrainAvailWaiters() {
+    var w = availabilityWaiters.splice(0);
+    w.forEach(function(fn) { fn(); });
+  }
+  function lyApplyAvailCal(data) {
     if (!data) return;
     (data.booked || []).forEach(function(x){ booked.add(x); });
     (data.tentative || []).forEach(function(x){ tentative.add(x); });
@@ -3357,28 +3510,38 @@ document.addEventListener('DOMContentLoaded', function() {
       if (window.LY_refreshFormDatePickers) window.LY_refreshFormDatePickers();
     }
   }
-  function loadDisponibilité() {
-    if (availabilityFetchState === 'loading' || availabilityFetchState === 'done') return;
+  function lyLoadAvailCal(cb) {
+    if (typeof cb === 'function') availabilityWaiters.push(cb);
+    if (availabilityFetchState === 'loading') return;
+    if (availabilityFetchState === 'done') {
+      lyDrainAvailWaiters();
+      return;
+    }
     availabilityFetchState = 'loading';
     fetch((location.hostname.endsWith('.github.io') ? 'https://limitlessyachtcharter.com' : '') + '/api/availability')
       .then(function(r){ return r.ok ? r.json() : null; })
       .then(function(data){
         availabilityFetchState = 'done';
-        applyDisponibilité(data);
+        lyApplyAvailCal(data);
       })
       .catch(function(){
         availabilityFetchState = 'idle';
+      })
+      .finally(function() {
+        if (availabilityFetchState === 'loading') availabilityFetchState = 'idle';
+        lyDrainAvailWaiters();
       });
   }
-  function scheduleDisponibilitéLoad() {
-    if (window.LY_whenNearSection) window.LY_whenNearSection('availability', loadDisponibilité);
-    else loadDisponibilité();
+  window.LY_loadAvailCalNow = lyLoadAvailCal;
+  function lyScheduleAvailCalLoad() {
+    if (window.LY_whenNearSection) window.LY_whenNearSection('availability', lyLoadAvailCal);
+    else lyLoadAvailCal();
     var hash = (location.hash || '').replace(/^#/, '');
     if (hash === 'availability' || hash === 'availability-land' || hash === 'avail-cal' || hash === 'enquire' || hash === 'enquire-land' || hash === 'enquire-form') {
-      loadDisponibilité();
+      lyLoadAvailCal();
     }
   }
-  scheduleDisponibilitéLoad();
+  lyScheduleAvailCalLoad();
 
   var formDatePopover = document.getElementById('formDatePopover');
   var formDateWrap = document.getElementById('preferredDateWrap');
