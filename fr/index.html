@@ -2584,9 +2584,16 @@ document.addEventListener('DOMContentLoaded', function() {
   var viewIndex = minIndex;
 
   function monthsToShow(){
-    if (window.matchMedia('(min-width: 1100px)').matches) return 3;
-    if (window.matchMedia('(min-width: 820px)').matches) return 2;
-    return 1;
+    var count;
+    if (window.matchMedia('(min-width: 1100px)').matches) count = 3;
+    else if (window.matchMedia('(min-width: 820px)').matches) count = 2;
+    else count = 1;
+    // Paired form+calendar column only shows two months (CSS hides a third).
+    // Keep render + nav step aligned with visible count so next does not skip a month.
+    if (count > 2 && calRoot.closest('.contact-cal-pair') && window.matchMedia('(min-width: 769px)').matches) {
+      count = 2;
+    }
+    return count;
   }
   function pad(n){ return (n < 10 ? '0' : '') + n; }
   function todayStr(){ var t = new Date(); return t.getFullYear() + '-' + pad(t.getMonth() + 1) + '-' + pad(t.getDate()); }

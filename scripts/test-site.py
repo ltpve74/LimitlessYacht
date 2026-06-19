@@ -1371,6 +1371,11 @@ def check_shared_assets(r: Runner) -> None:
         and 'viewIndex + dir * count' in index_html,
     )
     r.check(
+        'paired desktop calendar renders two months not three on wide viewports',
+        "closest('.contact-cal-pair')" in index_html
+        and 'count > 2 && calRoot.closest' in index_html,
+    )
+    r.check(
         'availability and form calendars fire distinct Clarity events',
         'LY_clarityEvent' in index_html
         and 'ly_cal_avail_month_next' in index_html
