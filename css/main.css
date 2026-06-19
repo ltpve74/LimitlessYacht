@@ -1944,7 +1944,15 @@ footer {
   font-size: .8rem; color: var(--cream); border-radius: 6px; position: relative;
 }
 .cal-cell.empty { background: none; }
-.cal-cell.past { color: var(--text-muted); }
+.cal-cell.past { color: var(--text-muted); cursor: default; }
+.cal-cell.past.booked {
+  background: rgba(143, 74, 82, 0.55);
+  color: rgba(255, 255, 255, 0.88);
+}
+.cal-cell.past.tentative {
+  background: rgba(208, 164, 78, 0.16);
+  color: rgba(226, 196, 122, 0.8);
+}
 .cal-cell.today:not(.selected)::after {
   content: '';
   position: absolute; bottom: 5px; left: 50%;

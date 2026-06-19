@@ -134,8 +134,8 @@ nav{position:fixed;top:0;left:0;right:0;z-index:100;min-height:4.25rem}
   global.LY_TESTING_CLARITY = !global.LY_OWNER_MODE && !global.LY_IS_PREVIEW;
 })(window);
 </script>
-<link rel="preload" as="style" href="../css/main.css?v=86" onload="this.rel='stylesheet'" />
-<noscript><link rel="stylesheet" href="../css/main.css?v=86" /></noscript>
+<link rel="preload" as="style" href="../css/main.css?v=87" onload="this.rel='stylesheet'" />
+<noscript><link rel="stylesheet" href="../css/main.css?v=87" /></noscript>
 
 <title>Limitless Yacht Experience – Charter de lujo Maiora en Mallorca</title>
 <meta name="description" content="Alquile el Maiora de 21,5 m «Limitless» desde Palma de Mallorca — chárteres de día y de varios días a las calas de Mallorca, Cabrera y Formentera. Con tripulación, hasta 12 invitados." />
@@ -2579,9 +2579,11 @@ document.addEventListener('DOMContentLoaded', function() {
   var selectedLookup = {};
 
   var now = new Date();
-  var minIndex = now.getFullYear() * 12 + now.getMonth();
-  var maxIndex = minIndex + 17;
-  var viewIndex = minIndex;
+  var curMonthIndex = now.getFullYear() * 12 + now.getMonth();
+  var seasonStartIndex = now.getFullYear() * 12 + 4; // May — earliest month to scroll back
+  var minIndex = curMonthIndex >= seasonStartIndex ? seasonStartIndex : curMonthIndex;
+  var maxIndex = curMonthIndex + 17;
+  var viewIndex = curMonthIndex;
 
   function monthsToShow(){
     var count;
@@ -2797,37 +2799,38 @@ document.addEventListener('DOMContentLoaded', function() {
     updateSelectionUi();
   }
 
+  function calDayCellHtml(k, d, m, y, selStart, selEnd) {
+    var ts = todayStr();
+    var cls = 'cal-cell';
+    var isPast = k < ts;
+    var isFree = false;
+    if (isPast) cls += ' past';
+    if (k === ts) cls += ' today';
+    if (booked.has(k)) cls += ' booked';
+    else if (tentative.has(k)) cls += ' tentative';
+    else if (!isPast) { cls += ' free'; isFree = true; }
+    var isSeleccionado = !!selectedLookup[k];
+    if (isSeleccionado) {
+      cls += ' selected';
+      if (k === selStart) cls += ' range-start';
+      if (k === selEnd) cls += ' range-end';
+    }
+    var attr = isFree
+      ? ' data-date="' + k + '" data-selected="' + (isSeleccionado ? 'true' : 'false') + '" role="button" tabindex="0" aria-pressed="' + (isSeleccionado ? 'true' : 'false') + '" aria-label="' + d + ' ' + MONTHS[m] + ' ' + y + '"'
+      : '';
+    return '<div class="' + cls + '"' + attr + '>' + d + '</div>';
+  }
   function monthHtml(index) {
     var y = Math.floor(index / 12), m = index % 12;
     var startDow = (new Date(y, m, 1).getDay() + 6) % 7;
     var daysInMonth = new Date(y, m + 1, 0).getDate();
-    var ts = todayStr();
     var selStart = selected[0] || '';
     var selEnd = selected[selected.length - 1] || '';
     var cells = '';
     for (var i = 0; i < startDow; i++) cells += '<div class="cal-cell empty"></div>';
     for (var d = 1; d <= daysInMonth; d++) {
       var k = y + '-' + pad(m + 1) + '-' + pad(d);
-      var cls = 'cal-cell';
-      var isFree = false;
-      if (k < ts) {
-        cls += ' past';
-      } else {
-        if (k === ts) cls += ' today';
-        if (booked.has(k)) cls += ' booked';
-        else if (tentative.has(k)) cls += ' tentative';
-        else { cls += ' free'; isFree = true; }
-      }
-      var isSeleccionado = !!selectedLookup[k];
-      if (isSeleccionado) {
-        cls += ' selected';
-        if (k === selStart) cls += ' range-start';
-        if (k === selEnd) cls += ' range-end';
-      }
-      var attr = isFree
-        ? ' data-date="' + k + '" data-selected="' + (isSeleccionado ? 'true' : 'false') + '" role="button" tabindex="0" aria-pressed="' + (isSeleccionado ? 'true' : 'false') + '" aria-label="' + d + ' ' + MONTHS[m] + ' ' + y + '"'
-        : '';
-      cells += '<div class="' + cls + '"' + attr + '>' + d + '</div>';
+      cells += calDayCellHtml(k, d, m, y, selStart, selEnd);
     }
     var dow = DOW.map(function(x){ return '<span>' + x + '</span>'; }).join('');
     return '<div class="cal-month">' +
@@ -2957,7 +2960,7 @@ document.addEventListener('DOMContentLoaded', function() {
   var formDateDaysEl = formDatePopover ? formDatePopover.querySelector('.form-date-days') : null;
   var formDateDowEl = formDatePopover ? formDatePopover.querySelector('.form-date-dow') : null;
   var formDateStartBtn = document.getElementById('preferred_date_btn');
-  var formDateViewIndex = minIndex;
+  var formDateViewIndex = curMonthIndex;
   var formDatePlaceholder = 'Seleccionar…';
   var formDatePickGuard = false;
   var formDateJustOpened = false;
@@ -3022,7 +3025,6 @@ document.addEventListener('DOMContentLoaded', function() {
     var y = Math.floor(formDateViewIndex / 12), m = formDateViewIndex % 12;
     var startDow = (new Date(y, m, 1).getDay() + 6) % 7;
     var daysInMonth = new Date(y, m + 1, 0).getDate();
-    var ts = todayStr();
     var selStart = selected[0] || '';
     var selEnd = selected[selected.length - 1] || '';
     formDateTitleEl.textContent = MONTHS[m] + ' ' + y;
@@ -3030,26 +3032,7 @@ document.addEventListener('DOMContentLoaded', function() {
     for (var i = 0; i < startDow; i++) cells += '<div class="cal-cell empty"></div>';
     for (var d = 1; d <= daysInMonth; d++) {
       var k = y + '-' + pad(m + 1) + '-' + pad(d);
-      var cls = 'cal-cell';
-      var isFree = false;
-      if (k < ts) {
-        cls += ' past';
-      } else {
-        if (k === ts) cls += ' today';
-        if (booked.has(k)) cls += ' booked';
-        else if (tentative.has(k)) cls += ' tentative';
-        else if (isSelectable(k)) { cls += ' free'; isFree = true; }
-      }
-      var isSeleccionado = !!selectedLookup[k];
-      if (isSeleccionado) {
-        cls += ' selected';
-        if (k === selStart) cls += ' range-start';
-        if (k === selEnd) cls += ' range-end';
-      }
-      var attr = isFree
-        ? ' data-date="' + k + '" data-selected="' + (isSeleccionado ? 'true' : 'false') + '" role="button" tabindex="0" aria-pressed="' + (isSeleccionado ? 'true' : 'false') + '" aria-label="' + d + ' ' + MONTHS[m] + ' ' + y + '"'
-        : '';
-      cells += '<div class="' + cls + '"' + attr + '>' + d + '</div>';
+      cells += calDayCellHtml(k, d, m, y, selStart, selEnd);
     }
     formDateDaysEl.innerHTML = cells;
     if (formDatePrevBtn) formDatePrevBtn.disabled = (formDateViewIndex <= minIndex);
@@ -3096,7 +3079,7 @@ document.addEventListener('DOMContentLoaded', function() {
     var scrollY = window.scrollY;
     if (selected.length) formDateViewIndex = monthIndexForDate(selected[0]);
     else if (startInput && startInput.value) formDateViewIndex = monthIndexForDate(startInput.value);
-    else formDateViewIndex = minIndex;
+    else formDateViewIndex = curMonthIndex;
     renderFormDatePopover();
     updateFormDateStepHint();
     formDatePopover.hidden = false;
