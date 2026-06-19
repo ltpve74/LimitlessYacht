@@ -728,22 +728,35 @@ def check_html(r: Runner, rel: str, html: str) -> None:
     )
     r.check(
         'critical CSS is slim enough for fast head parse',
-        style_pos > 0 and html.find('</style>', style_pos) - style_pos < 5100,
+        style_pos > 0 and html.find('</style>', style_pos) - style_pos < 6500,
     )
     crit_end = html.find('</style>', style_pos)
     crit_css = html[style_pos:crit_end] if style_pos > 0 and crit_end > style_pos else ''
     crit_flat = re.sub(r'\s+', '', crit_css)
     r.check(
-        'critical CSS fixes nav before main.css (prevents hero CLS)',
-        'position:fixed' in crit_flat
+        'critical CSS hides unstyled nav chrome until main.css loads',
+        'html:not(.css-ready)' in crit_flat
+        and ':is(.nav-links,.nav-lang-wrap,.nav-header-cta,.hamburger,.mobile-nav){display:none!important}' in crit_flat
+        and 'position:fixed' in crit_flat
         and 'nav{' in crit_flat
         and 'display:flex' in crit_flat
-        and '.nav-links,.nav-lang-wrap,.nav-header-cta{display:none}' in crit_flat
-        and '.hamburger{display:flex}' in crit_flat,
+        and '.hamburger{display:flex}' not in crit_flat,
+    )
+    r.check(
+        'main.css load adds css-ready class (reveals styled nav)',
+        html.count("classList.add('css-ready')") >= 2
+        and 'onload="this.rel=\'stylesheet\'' in html,
+    )
+    r.check(
+        'critical CSS includes hero legibility scrims before main.css',
+        '.hero-content::before' in crit_flat
+        and '.hero-content::after' in crit_flat
+        and 'text-shadow:01px2pxrgba(0,0,0,.9)' in crit_flat
+        and '#hero.hero-actions.btn-ghost{background:rgba(10,22,40,.28)' in crit_flat,
     )
     r.check(
         'critical CSS hides duplicate hero rates and eyebrow links before main.css',
-        '.hero-rates-link{display:block}' in crit_flat
+        '.hero-rates-link{display:block;text-decoration:none' in crit_flat
         and '.hero-rates-link--desktop,.hero-eyebrow-link--desktop){display:none}' in crit_flat
         and '.hero-rates-link--mobile,.hero-eyebrow-link--mobile){display:none}' in crit_flat
         and '.hero-eyebrow-link--desktop{display:inline}' in crit_flat,
