@@ -2652,6 +2652,15 @@ footer {
 }
 /* Hero trust cue */
 .eyebrow-stars { color: var(--gold); letter-spacing: .1em; }
+.hero-rates {
+  margin-top: 0.85rem; max-width: 36rem;
+  font-size: clamp(.68rem, 1.3vw, .78rem);
+  letter-spacing: .06em; line-height: 1.6;
+  color: rgba(245, 240, 232, 0.82);
+  opacity: 0; animation: heroFade 1s .85s ease both;
+  text-wrap: balance;
+}
+.hero-rates [hidden] { display: none !important; }
 .hero-value {
   margin-top: 0; max-width: 32rem;
   font-size: clamp(.72rem, 1.4vw, .84rem);
@@ -2668,6 +2677,7 @@ footer {
 }
 @supports (text-wrap: pretty) {
   .hero-sub,
+  .hero-rates,
   .hero-value,
   .hero-trust { text-wrap: pretty; }
 }

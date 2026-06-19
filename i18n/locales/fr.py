@@ -78,6 +78,14 @@ PAIRS = [
     ("Rates & Booking", "Tarifs & réservation"),
     ("Explore Gallery", "Voir la galerie"),
     ("Exclusive Maiora Yacht · 21.5 m · Up to 12 Guests Day · 7 Overnight", "Yacht Maiora exclusif · 21,5 m · Jusqu'à 12 invités de jour · 7 de nuit"),
+    (
+        "Half-day (4h) from €1,700 · full day from €3,000 · crew included",
+        "Demi-journée (4h) à partir de 1 700 € · journée complète à partir de 3 000 € · équipage inclus",
+    ),
+    (
+        "Half-day (4h) from €2,200 · full day from €4,000 · crew included",
+        "Demi-journée (4h) à partir de 2 200 € · journée complète à partir de 4 000 € · équipage inclus",
+    ),
     ("Metres Length", "mètres de longueur"),
     ("HP Total Power", "CV puissance totale"),
     ("Day / Overnight Guests", "Invités jour / nuit"),

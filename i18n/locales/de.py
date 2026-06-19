@@ -82,6 +82,14 @@ PAIRS = [
     ("Rates & Booking", "Preise & Buchung"),
     ("Explore Gallery", "Galerie entdecken"),
     ("Exclusive Maiora Yacht · 21.5 m · Up to 12 Guests Day · 7 Overnight", "Exklusive Maiora-Yacht · 21,5 m · Bis zu 12 Gäste tagsüber · 7 über Nacht"),
+    (
+        "Half-day (4h) from €1,700 · full day from €3,000 · crew included",
+        "Halbtages-Charter (4h) ab 1.700 € · Ganztag ab 3.000 € · Crew inklusive",
+    ),
+    (
+        "Half-day (4h) from €2,200 · full day from €4,000 · crew included",
+        "Halbtages-Charter (4h) ab 2.200 € · Ganztag ab 4.000 € · Crew inklusive",
+    ),
     # Intro strip
     ("Metres Length", "Meter Länge"),
     ("HP Total Power", "PS Gesamtleistung"),

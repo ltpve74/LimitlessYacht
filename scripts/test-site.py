@@ -1111,6 +1111,18 @@ def check_shared_assets(r: Runner) -> None:
             and 'text-wrap:balance' in css_flat
             and 'people and&nbsp;the views.' in index_html,
         )
+        r.check(
+            'hero shows seasonal starting rates without pricing-section link',
+            'hero-rates' in index_html
+            and 'season-rates' in index_html
+            and 'Half-day (4h) from €1,700' in index_html
+            and 'Half-day (4h) from €2,200' in index_html
+            and 'data-season-rate="low"' in index_html
+            and 'data-season-rate="high"' in index_html
+            and 'getMonth()' in index_html
+            and '.hero-rates' in (css or '')
+            and 'href="#pricing"' not in index_html,
+        )
     r.check(
         'WhatsApp button meets contrast-safe green',
         css is not None and '#157a47' in css and '#25D366' not in css,
