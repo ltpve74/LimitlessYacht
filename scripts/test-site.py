@@ -1115,8 +1115,8 @@ def check_shared_assets(r: Runner) -> None:
             'hero shows clickable seasonal starting rates linked to charters',
             'hero-rates-link' in index_html
             and 'season-rates' in index_html
-            and '6h from €2,200' in index_html
-            and '6h from €2,800' in index_html
+            and '6h from €2,400' in index_html
+            and '6h from €3,100' in index_html
             and 'href="#charters-land"' in index_html
             and 'href="#charters"' in index_html
             and 'data-season-rate="low"' in index_html
@@ -1129,7 +1129,7 @@ def check_shared_assets(r: Runner) -> None:
             'charter-rates-confirm' in index_html
             and 'charterRatesConfirm' in index_html
             and 'enquiry-price' in index_html
-            and 'From €1,700 (4h)' in index_html
+            and 'From €1,700 (4h) · €2,400 (6h)' in index_html
             and 'From €3,000' in index_html
             and 'Available year-round &nbsp;·&nbsp; We respond within 24 hours' in index_html
             and 'Rates vary by season' not in index_html

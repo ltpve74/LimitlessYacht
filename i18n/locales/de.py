@@ -83,15 +83,15 @@ PAIRS = [
     ("Explore Gallery", "Galerie entdecken"),
     ("Exclusive Maiora Yacht · 21.5 m · Up to 12 Guests Day · 7 Overnight", "Exklusive Maiora-Yacht · 21,5 m · Bis zu 12 Gäste tagsüber · 7 über Nacht"),
     (
-        "Half-day (4h) from €1,700 · 6h from €2,200 · full day from €3,000 · crew included",
-        "Halbtages-Charter (4h) ab 1.700 € · 6h ab 2.200 € · Ganztag ab 3.000 € · Crew inklusive",
+        "Half-day (4h) from €1,700 · 6h from €2,400 · full day from €3,000 · crew included",
+        "Halbtages-Charter (4h) ab 1.700 € · 6h ab 2.400 € · Ganztag ab 3.000 € · Crew inklusive",
     ),
     (
-        "Half-day (4h) from €2,200 · 6h from €2,800 · full day from €4,000 · crew included",
-        "Halbtages-Charter (4h) ab 2.200 € · 6h ab 2.800 € · Ganztag ab 4.000 € · Crew inklusive",
+        "Half-day (4h) from €2,200 · 6h from €3,100 · full day from €4,000 · crew included",
+        "Halbtages-Charter (4h) ab 2.200 € · 6h ab 3.100 € · Ganztag ab 4.000 € · Crew inklusive",
     ),
-    ("From €1,700 (4h) · €2,200 (6h)", "Ab 1.700 € (4h) · 2.200 € (6h)"),
-    ("From €2,200 (4h) · €2,800 (6h)", "Ab 2.200 € (4h) · 2.800 € (6h)"),
+    ("From €1,700 (4h) · €2,400 (6h)", "Ab 1.700 € (4h) · 2.400 € (6h)"),
+    ("From €2,200 (4h) · €3,100 (6h)", "Ab 2.200 € (4h) · 3.100 € (6h)"),
     ("From €3,000", "Ab 3.000 €"),
     ("From €4,000", "Ab 4.000 €"),
     # Intro strip
