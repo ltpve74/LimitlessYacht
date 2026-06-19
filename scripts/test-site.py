@@ -778,7 +778,8 @@ def check_html(r: Runner, rel: str, html: str) -> None:
         and '.hero-bg-wrap,.hero-overlay{position:absolute;inset:0' in crit_flat
         and '.hero-value{display:none}' in crit_flat
         and '.hero-scroll,.hero-value{display:none}' not in crit_flat
-        and 'padding:max(5.35rem,calc(env(safe-area-inset-top)+4.65rem))' in crit_flat
+        and '.hero-top{padding-top:max(5.35rem,calc(env(safe-area-inset-top)+4.65rem))' in crit_flat.replace(' ', '')
+        and '.hero-content{position:absolute;inset:0;width:100%;min-height:100%' in crit_flat.replace(' ', '')
         and '.hero-top.hero-sub' in crit_flat.replace(' ', '')
         and 'background:rgba(10,22,40,.38)' in crit_flat,
     )
@@ -830,10 +831,10 @@ def check_html(r: Runner, rel: str, html: str) -> None:
     )
     r.check(
         'hero uses top/bottom clusters for mobile yacht stage',
-        '<div class="hero-top">' in html
+        'class="hero-top" style="padding-top:max(5.35rem' in html
         and '<div class="hero-bottom">' in html
-        and html.find('<div class="hero-top">') < html.find('<div class="hero-bottom">')
-        and html.find('class="hero-title"') > html.find('<div class="hero-top">')
+        and html.find('class="hero-top"') < html.find('<div class="hero-bottom">')
+        and html.find('class="hero-title"') > html.find('class="hero-top"')
         and html.find('class="hero-rates') > html.find('<div class="hero-bottom">'),
     )
     r.check(

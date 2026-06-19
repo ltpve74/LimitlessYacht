@@ -2716,7 +2716,7 @@ footer {
     flex-direction: column;
     align-items: center;
     justify-content: space-between;
-    padding: var(--hero-top-inset) 1.2rem 0;
+    padding: 0 1.2rem 0;
     animation: none;
     overflow: hidden;
   }
@@ -2739,6 +2739,7 @@ footer {
     z-index: 1;
   }
   .hero-top {
+    padding-top: var(--hero-top-inset);
     gap: var(--hero-top-gap);
     padding-bottom: 0.4rem;
   }

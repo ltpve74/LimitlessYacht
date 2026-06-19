@@ -29,6 +29,7 @@ nav{position:fixed;inset:0 0 auto;z-index:100;display:flex;align-items:center;ga
 .hero-bg{width:100%;height:100%;object-fit:cover;object-position:center}
 .hero-overlay{position:absolute;inset:0;pointer-events:none;background:linear-gradient(180deg,rgba(10,22,40,.22),transparent 28%,transparent 72%,rgba(10,22,40,.18))}
 @media(max-width:768px){.hero-overlay{background:linear-gradient(180deg,rgba(10,22,40,.34),transparent 24%,transparent 66%,rgba(10,22,40,.3))}}
+.hero-top,.hero-bottom{display:contents}
 .hero-content{position:absolute;inset:0;max-width:52rem;margin:0 auto;text-align:center;padding:5.25rem 2rem var(--hero-bottom-inset);display:flex;flex-direction:column;align-items:center;isolation:isolate;z-index:1}
 .hero-content::before,.hero-content::after{content:'';position:absolute;left:50%;transform:translateX(-50%);width:100vw;pointer-events:none;z-index:-1}
 .hero-content::before{top:0;height:min(62%,28rem);background:linear-gradient(180deg,rgba(10,22,40,.82),rgba(10,22,40,.28) 70%,transparent)}
@@ -57,7 +58,7 @@ nav{position:fixed;inset:0 0 auto;z-index:100;display:flex;align-items:center;ga
 .hero-title{font-size:clamp(3.5rem,9vw,8rem);font-weight:300;line-height:1;color:var(--white);letter-spacing:.06em;text-shadow:0 0 1px rgba(10,22,40,.95),0 2px 4px rgba(0,0,0,.82),0 4px 28px rgba(10,22,40,.78)}
 .hero-title em{font-style:normal;color:var(--gold-light);text-shadow:0 0 1px rgba(10,22,40,.9),0 2px 4px rgba(0,0,0,.75)}
 @media(min-width:769px) and (max-height:920px){:root{--hero-cluster-gap:1.1rem;--hero-bottom-inset:max(2.25rem,calc(env(safe-area-inset-bottom,0px)+1.5rem))}.hero-title{font-size:clamp(2.85rem,7.2vh,5.75rem)}}
-@media(max-width:768px){:root{--hero-top-gap:.6rem;--hero-bottom-gap:.72rem;--hero-cluster-gap:.55rem;--hero-bottom-inset:max(.85rem,calc(env(safe-area-inset-bottom)+.6rem))}html{scroll-padding-top:4.9rem}nav{min-height:3.8rem}#hero{height:100svh;min-height:100dvh;min-height:100svh;min-height:520px;padding:0;overflow:hidden}.hero-bg-wrap,.hero-overlay{position:absolute;inset:0;width:100%;height:100%;min-height:100%}.hero-bg{min-height:100%}.hero-content{position:absolute;inset:0;width:100%;min-height:100%;display:flex;flex-direction:column;justify-content:space-between;overflow:hidden;padding:max(5.35rem,calc(env(safe-area-inset-top)+4.65rem)) 1.2rem 0}.hero-top,.hero-bottom{display:flex;flex-direction:column;align-items:center;width:100%;flex-shrink:0;position:relative;z-index:1}.hero-top{gap:var(--hero-top-gap)}.hero-bottom{gap:var(--hero-bottom-gap);margin-top:auto;max-width:22rem;padding-bottom:var(--hero-bottom-inset)}#hero .hero-cta-group{margin-top:0;gap:var(--hero-cluster-gap)}.hero-title{font-size:clamp(2rem,6.2vh,3.2rem)}.hero-eyebrow{margin-bottom:.15rem;font-size:.54rem}.hero-top .hero-sub{background:rgba(10,22,40,.38);padding:.35rem .55rem;border-radius:3px}.hero-rates{padding:.4rem .55rem;background:rgba(10,22,40,.48);border-radius:3px}.hero-trust{padding:.3rem .5rem;background:rgba(10,22,40,.34);border-radius:3px}.hero-value{display:none}.hero-scroll{display:flex;opacity:0;transform:translateY(1.1rem)}#hero .hero-actions :is(.btn-primary,.btn-ghost){padding:.82rem 1.35rem;font-size:.62rem}#hero .hero-actions .btn-ghost{background:rgba(10,22,40,.52)}}
+@media(max-width:768px){:root{--hero-top-gap:.6rem;--hero-bottom-gap:.72rem;--hero-cluster-gap:.55rem;--hero-bottom-inset:max(.85rem,calc(env(safe-area-inset-bottom)+.6rem))}html{scroll-padding-top:4.9rem}nav{min-height:3.8rem}#hero{height:100svh;min-height:100dvh;min-height:100svh;min-height:520px;padding:0;overflow:hidden}.hero-bg-wrap,.hero-overlay{position:absolute;inset:0;width:100%;height:100%;min-height:100%}.hero-bg{min-height:100%}.hero-content{position:absolute;inset:0;width:100%;min-height:100%;display:flex;flex-direction:column;justify-content:space-between;overflow:hidden;padding:0 1.2rem 0}.hero-top,.hero-bottom{display:flex;flex-direction:column;align-items:center;width:100%;flex-shrink:0}.hero-top{padding-top:max(5.35rem,calc(env(safe-area-inset-top)+4.65rem));gap:var(--hero-top-gap)}.hero-bottom{gap:var(--hero-bottom-gap);margin-top:auto;max-width:22rem;padding-bottom:var(--hero-bottom-inset)}#hero .hero-cta-group{margin-top:0;gap:var(--hero-cluster-gap)}.hero-title{font-size:clamp(2rem,6.2vh,3.2rem)}.hero-eyebrow{margin-bottom:.2rem;font-size:.54rem}.hero-top .hero-sub{background:rgba(10,22,40,.38);padding:.35rem .55rem;border-radius:3px}.hero-rates{padding:.4rem .55rem;background:rgba(10,22,40,.48);border-radius:3px}.hero-trust{padding:.3rem .5rem;background:rgba(10,22,40,.34);border-radius:3px}.hero-value{display:none}.hero-scroll{display:flex;opacity:0;transform:translateY(1.1rem)}#hero .hero-actions :is(.btn-primary,.btn-ghost){padding:.82rem 1.35rem;font-size:.62rem}#hero .hero-actions .btn-ghost{background:rgba(10,22,40,.52)}}
 </style>
 <script>
 (function (global) {
@@ -92,9 +93,9 @@ nav{position:fixed;inset:0 0 auto;z-index:100;display:flex;align-items:center;ga
   global.LY_TESTING_CLARITY = !global.LY_OWNER_MODE && !global.LY_IS_PREVIEW;
 })(window);
 </script>
-<link rel="preload" as="style" href="css/main.css?v=103" onload="this.rel='stylesheet';requestAnimationFrame(function(){requestAnimationFrame(function(){document.documentElement.classList.add('ly-main-ready')})})" />
+<link rel="preload" as="style" href="css/main.css?v=104" onload="this.rel='stylesheet';requestAnimationFrame(function(){requestAnimationFrame(function(){document.documentElement.classList.add('ly-main-ready')})})" />
 <script>!function(){var d=document.documentElement;function ready(){if(!d.classList.contains('ly-main-ready'))d.classList.add('ly-main-ready')}function onSheet(){requestAnimationFrame(function(){requestAnimationFrame(ready)})}var l=document.querySelector('link[href*="main.css"]');if(l)l.addEventListener('load',onSheet)}();</script>
-<noscript><link rel="stylesheet" href="css/main.css?v=103" /></noscript>
+<noscript><link rel="stylesheet" href="css/main.css?v=104" /></noscript>
 
 <title>Limitless Yacht Experience – Luxury Maiora Charter in Mallorca</title>
 <meta name="description" content="Charter the 21.5 m Maiora 'Limitless' from Palma de Mallorca — day and multi-day cruises to Mallorca's finest coves, Cabrera and Formentera. Crewed, up to 12 guests." />
@@ -203,7 +204,7 @@ nav{position:fixed;inset:0 0 auto;z-index:100;display:flex;align-items:center;ga
   </picture>
   <div class="hero-overlay"></div>
   <div class="hero-content">
-    <div class="hero-top">
+    <div class="hero-top" style="padding-top:max(5.35rem,calc(env(safe-area-inset-top,0px) + 4.65rem))">
       <p class="hero-eyebrow"><a href="#reviews" class="hero-eyebrow-link--mobile"><span class="eyebrow-stars">★★★★★</span> 5.0</a><a href="#reviews-land" class="hero-eyebrow-link--desktop" style="display:none"><span class="eyebrow-stars">★★★★★</span> 5.0</a> &nbsp;·&nbsp; <a href="#charters" class="hero-eyebrow-link--mobile">Private Charter</a><a href="#charters-land" class="hero-eyebrow-link--desktop" style="display:none">Private Charter</a><br>Club de Mar · Mallorca</p>
       <h1 class="hero-title">LIMIT<em>LESS</em></h1>
       <p class="hero-sub">Exclusive Maiora Yacht · 21.5 m · Up to 12 Guests Day · 7 Overnight</p>
