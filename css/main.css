@@ -285,13 +285,13 @@ nav.scrolled::before { opacity: 1; }
 }
 .hero-content::before {
   top: 0;
-  height: min(56%, 24rem);
-  background: linear-gradient(180deg, rgba(10, 22, 40, 0.74) 0%, rgba(10, 22, 40, 0.22) 72%, transparent 100%);
+  height: min(62%, 28rem);
+  background: linear-gradient(180deg, rgba(10, 22, 40, 0.82) 0%, rgba(10, 22, 40, 0.28) 70%, transparent 100%);
 }
 .hero-content::after {
   bottom: 0;
-  height: min(50%, 22rem);
-  background: linear-gradient(0deg, rgba(10, 22, 40, 0.8) 0%, rgba(10, 22, 40, 0.24) 68%, transparent 100%);
+  height: min(58%, 26rem);
+  background: linear-gradient(0deg, rgba(10, 22, 40, 0.86) 0%, rgba(10, 22, 40, 0.3) 66%, transparent 100%);
 }
 @keyframes fadeUp { from { opacity:0; transform: translateY(30px); } to { opacity:1; transform: translateY(0); } }
 @keyframes fadeIn { from { opacity: 0; } to { opacity: 1; } }
@@ -2445,11 +2445,11 @@ footer {
   html { scroll-padding-top: 4.9rem; }
   section { padding: 0 1.2rem 4rem; }
   nav { padding: 0.8rem 1rem; min-height: 3.8rem; }
-  .hero-eyebrow { font-size: .58rem; margin-bottom: 0.55rem; letter-spacing: .08em; }
-  .eyebrow-stars { letter-spacing: .05em; }
-  .hero-title { font-size: clamp(2.2rem, 11vw, 3.25rem); }
-  .hero-sub { font-size: .76rem; letter-spacing: .06em; line-height: 1.55; }
-  .hero-rates { font-size: .66rem; margin-bottom: 0.75rem; }
+  .hero-eyebrow { font-size: .52rem; margin-bottom: 0.4rem; letter-spacing: .05em; }
+  .eyebrow-stars { letter-spacing: .04em; }
+  .hero-title { font-size: clamp(1.9rem, 10vw, 2.85rem); }
+  .hero-sub { font-size: .72rem; letter-spacing: .05em; line-height: 1.5; }
+  .hero-rates { font-size: .62rem; margin-bottom: 0.8rem; }
   .hero-actions { flex-direction: column; align-items: center; gap: .8rem; }
   .btn-primary, .btn-ghost { 
     width: 100%; 
@@ -2680,29 +2680,48 @@ footer {
     display: flex;
     flex-direction: column;
     align-items: center;
-    padding: 0 1.35rem;
+    padding: 0 1.15rem;
     padding-bottom: 0.5rem;
     animation: none;
   }
   .hero-scroll,
   .hero-value { display: none; }
   .hero-eyebrow {
-    padding-top: max(3.75rem, calc(env(safe-area-inset-top, 0px) + 3rem));
-    margin-bottom: 0.45rem;
+    padding-top: max(3.5rem, calc(env(safe-area-inset-top, 0px) + 2.75rem));
+    margin-bottom: 0.4rem;
+    font-size: .54rem;
+    letter-spacing: .06em;
   }
-  .hero-title { font-size: clamp(2.35rem, 10vw, 3.5rem); line-height: 1.05; }
-  .hero-sub { margin-top: 0.45rem; font-size: clamp(.78rem, 3.4vw, .86rem); }
+  .hero-title { font-size: clamp(2rem, 9vw, 3.1rem); line-height: 1.08; }
+  .hero-sub {
+    margin-top: 0.4rem;
+    font-size: clamp(.74rem, 3.2vw, .82rem);
+    background: rgba(10, 22, 40, 0.38);
+    padding: 0.35rem 0.55rem;
+    border-radius: 3px;
+  }
   .hero-rates {
-    margin-top: 0.65rem;
-    margin-bottom: 0.7rem;
+    margin-top: 0.55rem;
+    margin-bottom: 0.75rem;
     min-height: 0;
-    font-size: clamp(.64rem, 3.1vw, .74rem);
-    line-height: 1.55;
-    padding: 0 0.15rem;
+    font-size: clamp(.6rem, 2.9vw, .7rem);
+    line-height: 1.5;
+    padding: 0.4rem 0.55rem;
+    background: rgba(10, 22, 40, 0.48);
+    border-radius: 3px;
   }
   .hero-cta-group { width: 100%; padding-bottom: 0.25rem; }
   .hero-actions { margin-top: 0; }
-  .hero-trust { font-size: .58rem; letter-spacing: .09em; line-height: 1.45; }
+  .hero-trust {
+    font-size: .58rem; letter-spacing: .09em; line-height: 1.45;
+    background: rgba(10, 22, 40, 0.34);
+    padding: 0.3rem 0.5rem;
+    border-radius: 3px;
+  }
+  #hero .hero-actions .btn-ghost {
+    background: rgba(10, 22, 40, 0.52);
+    border-color: rgba(245, 240, 232, 0.62);
+  }
 
   /* More responsive buttons on larger phones (481-768px): row layout for the bottom-anchored cluster */
   @media (min-width: 481px) {

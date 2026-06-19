@@ -13,12 +13,16 @@
 @font-face{font-family:'Montserrat Fallback';src:local('Arial');size-adjust:107%;ascent-override:90%;descent-override:22%;line-gap-override:0%}
 :root{--navy:#0a1628;--cream:#f5f0e8;--white:#fff;--gold:#c9a84c;--gold-light:#e2c47a;--text-muted:#8a9bb5;--hero-cluster-gap:1.25rem;--hero-bottom-inset:max(2.75rem,calc(env(safe-area-inset-bottom,0px)+1.75rem))}
 *,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
-html{scroll-padding-top:5rem;overflow-x:clip}
-body{background:var(--navy);color:var(--cream);font-family:'Montserrat','Montserrat Fallback',sans-serif;font-weight:300;overflow-x:clip}
-html:not(.css-ready) :is(.nav-links,.nav-lang-wrap,.nav-header-cta,.hamburger,.mobile-nav){display:none!important}
+html{scroll-padding-top:5rem;overflow-x:clip;color-scheme:dark}
+body{background:var(--navy);color:var(--cream);font-family:'Montserrat','Montserrat Fallback',sans-serif;font-weight:300;overflow-x:clip;-webkit-font-smoothing:antialiased}
+html:not(.css-ready) a,html:not(.css-ready) a:any-link{color:var(--cream)!important;text-decoration:none!important;-webkit-text-fill-color:currentColor!important}
+html:not(.css-ready) :is(.nav-links,.nav-lang-wrap,.nav-header-cta,.hamburger,.mobile-nav,.hero-cta-link--desktop,.hero-rates-link--desktop,.hero-eyebrow-link--desktop){display:none!important}
 html:not(.css-ready) body>:not(nav):not(#hero){display:none!important}
 html:not(.css-ready) [hidden]{display:none!important}
-#hero a{color:inherit;text-decoration:none}
+#hero a{color:inherit;text-decoration:none;-webkit-text-fill-color:currentColor}
+.hero-eyebrow a{color:var(--gold-light)}
+.hero-rates,.hero-rates-link{color:rgba(255,255,255,.96)}
+.hero-trust a{color:rgba(245,240,232,.88)}
 nav{position:fixed;inset:0 0 auto;z-index:100;display:flex;align-items:center;gap:.6rem;padding:.85rem 1rem;min-height:4.25rem;background:linear-gradient(to bottom,rgba(10,22,40,.95),transparent)}
 .nav-logo{flex:1 1 auto;min-width:0;text-decoration:none;color:var(--gold);font-size:.9rem;letter-spacing:.18em;text-transform:uppercase;line-height:1.2}
 .nav-logo span{color:var(--cream)}
@@ -30,8 +34,8 @@ nav{position:fixed;inset:0 0 auto;z-index:100;display:flex;align-items:center;ga
 @media(max-width:768px){.hero-overlay{background:linear-gradient(180deg,rgba(10,22,40,.34),transparent 24%,transparent 66%,rgba(10,22,40,.3))}}
 .hero-content{position:absolute;inset:0;max-width:52rem;margin:0 auto;text-align:center;padding:5.25rem 2rem var(--hero-bottom-inset);display:flex;flex-direction:column;align-items:center;isolation:isolate;z-index:1}
 .hero-content::before,.hero-content::after{content:'';position:absolute;left:50%;transform:translateX(-50%);width:100vw;pointer-events:none;z-index:-1}
-.hero-content::before{top:0;height:min(56%,24rem);background:linear-gradient(180deg,rgba(10,22,40,.74),rgba(10,22,40,.22) 72%,transparent)}
-.hero-content::after{bottom:0;height:min(50%,22rem);background:linear-gradient(0deg,rgba(10,22,40,.8),rgba(10,22,40,.24) 68%,transparent)}
+.hero-content::before{top:0;height:min(62%,28rem);background:linear-gradient(180deg,rgba(10,22,40,.82),rgba(10,22,40,.28) 70%,transparent)}
+.hero-content::after{bottom:0;height:min(58%,26rem);background:linear-gradient(0deg,rgba(10,22,40,.86),rgba(10,22,40,.3) 66%,transparent)}
 .hero-cta-group{margin-top:auto;flex-shrink:0;display:flex;flex-direction:column;align-items:center;gap:var(--hero-cluster-gap);width:100%;max-width:40rem}
 .hero-eyebrow,.hero-sub,.hero-rates,.hero-value,.hero-actions,.hero-trust,.hero-scroll,.hero-title{opacity:1}
 .hero-eyebrow{font-size:.72rem;letter-spacing:.32em;text-transform:uppercase;color:var(--gold-light);margin-bottom:.75rem;font-weight:500;text-shadow:0 1px 2px rgba(0,0,0,.85),0 2px 18px rgba(10,22,40,.8)}
@@ -57,7 +61,7 @@ nav{position:fixed;inset:0 0 auto;z-index:100;display:flex;align-items:center;ga
 .hero-title{font-size:clamp(3.5rem,9vw,8rem);font-weight:300;line-height:1;color:var(--white);letter-spacing:.06em;text-shadow:0 0 1px rgba(10,22,40,.95),0 2px 4px rgba(0,0,0,.82),0 4px 28px rgba(10,22,40,.78)}
 .hero-title em{font-style:normal;color:var(--gold-light);text-shadow:0 0 1px rgba(10,22,40,.9),0 2px 4px rgba(0,0,0,.75)}
 @media(max-height:920px){:root{--hero-cluster-gap:1.1rem;--hero-bottom-inset:max(2.25rem,calc(env(safe-area-inset-bottom,0px)+1.5rem))}.hero-title{font-size:clamp(2.85rem,7.2vh,5.75rem)}}
-@media(max-width:768px){:root{--hero-cluster-gap:.85rem}html{scroll-padding-top:4.9rem}nav{min-height:3.8rem}#hero{height:auto;min-height:100dvh;min-height:100svh;min-height:520px;padding-bottom:var(--hero-bottom-inset);overflow-x:clip;overflow-y:visible}.hero-content{position:relative;inset:auto;flex:1 0 auto;align-self:stretch;min-height:0;width:100%;padding:0 1.35rem;padding-bottom:.5rem}.hero-title{font-size:clamp(2.35rem,10vw,3.5rem);line-height:1.05}.hero-eyebrow{padding-top:max(3.75rem,calc(env(safe-area-inset-top,0px) + 3rem));margin-bottom:.45rem;font-size:.58rem;letter-spacing:.08em}.hero-sub{margin-top:.45rem;font-size:clamp(.78rem,3.4vw,.86rem)}.hero-rates{margin-top:.65rem;margin-bottom:.7rem;font-size:clamp(.64rem,3.1vw,.74rem);line-height:1.55;padding:0 .15rem}.hero-scroll,.hero-value{display:none}}
+@media(max-width:768px){:root{--hero-cluster-gap:.8rem}html{scroll-padding-top:4.9rem}nav{min-height:3.8rem}#hero{height:auto;min-height:100dvh;min-height:100svh;min-height:520px;padding-bottom:var(--hero-bottom-inset);overflow-x:clip;overflow-y:visible}.hero-content{position:relative;inset:auto;flex:1 0 auto;align-self:stretch;min-height:0;width:100%;padding:0 1.15rem;padding-bottom:.5rem}.hero-title{font-size:clamp(2rem,9vw,3.1rem);line-height:1.08}.hero-eyebrow{padding-top:max(3.5rem,calc(env(safe-area-inset-top,0px) + 2.75rem));margin-bottom:.4rem;font-size:.54rem;letter-spacing:.06em}.hero-sub{margin-top:.4rem;font-size:clamp(.74rem,3.2vw,.82rem);background:rgba(10,22,40,.38);padding:.35rem .55rem;border-radius:3px}.hero-rates{margin-top:.55rem;margin-bottom:.75rem;font-size:clamp(.6rem,2.9vw,.7rem);line-height:1.5;padding:.4rem .55rem;background:rgba(10,22,40,.48);border-radius:3px}.hero-trust{background:rgba(10,22,40,.34);padding:.3rem .5rem;border-radius:3px}.hero-scroll,.hero-value{display:none}#hero .hero-actions .btn-ghost{background:rgba(10,22,40,.52);border-color:rgba(245,240,232,.62)}}
 </style>
 <script>
 (function (global) {
@@ -92,9 +96,9 @@ nav{position:fixed;inset:0 0 auto;z-index:100;display:flex;align-items:center;ga
   global.LY_TESTING_CLARITY = !global.LY_OWNER_MODE && !global.LY_IS_PREVIEW;
 })(window);
 </script>
-<link rel="preload" as="style" href="../css/main.css?v=96" onload="this.rel='stylesheet';document.documentElement.classList.add('css-ready')" />
-<script>!function(){var l=document.querySelector('link[href*="main.css"]');function r(){document.documentElement.classList.add('css-ready')}if(l&&l.sheet)r();else if(l)l.addEventListener('load',r);setTimeout(r,4e3)}();</script>
-<noscript><link rel="stylesheet" href="../css/main.css?v=96" /></noscript>
+<link rel="preload" as="style" href="../css/main.css?v=97" onload="this.rel='stylesheet';requestAnimationFrame(function(){requestAnimationFrame(function(){document.documentElement.classList.add('css-ready')})})" />
+<script>!function(){var d=document.documentElement;function ready(){if(d.classList.contains('css-ready'))return;d.classList.add('css-ready')}function onSheet(){requestAnimationFrame(function(){requestAnimationFrame(ready)})}var l=document.querySelector('link[href*="main.css"]');if(l&&l.sheet&&l.sheet.cssRules&&l.sheet.cssRules.length)onSheet();else if(l)l.addEventListener('load',onSheet)}();</script>
+<noscript><link rel="stylesheet" href="../css/main.css?v=97" /></noscript>
 
 <title>Limitless Yacht Experience – Luxus-Maiora-Charter auf Mallorca</title>
 <meta name="description" content="Chartern Sie die 21,5 m Maiora „Limitless“ ab Palma de Mallorca — Tages- und Mehrtagestörns zu Mallorcas schönsten Buchten, Cabrera und Formentera. Mit Crew, bis zu 12 Gäste." />

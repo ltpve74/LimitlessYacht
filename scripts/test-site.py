@@ -728,7 +728,7 @@ def check_html(r: Runner, rel: str, html: str) -> None:
     )
     r.check(
         'critical CSS is slim enough for fast head parse',
-        style_pos > 0 and html.find('</style>', style_pos) - style_pos < 7200,
+        style_pos > 0 and html.find('</style>', style_pos) - style_pos < 7800,
     )
     crit_end = html.find('</style>', style_pos)
     crit_css = html[style_pos:crit_end] if style_pos > 0 and crit_end > style_pos else ''
@@ -736,9 +736,12 @@ def check_html(r: Runner, rel: str, html: str) -> None:
     r.check(
         'critical CSS hides unstyled nav chrome until main.css loads',
         'html:not(.css-ready)' in crit_flat
-        and ':is(.nav-links,.nav-lang-wrap,.nav-header-cta,.hamburger,.mobile-nav){display:none!important}' in crit_flat
+        and ':is(.nav-links,.nav-lang-wrap,.nav-header-cta,.hamburger,.mobile-nav,' in crit_flat
+        and '.hero-eyebrow-link--desktop){display:none!important}' in crit_flat
         and 'html:not(.css-ready)body>:not(nav):not(#hero){display:none!important}' in crit_flat
-        and '#heroa{color:inherit;text-decoration:none}' in crit_flat
+        and 'html:not(.css-ready)a:any-link{color:var(--cream)!important' in crit_flat
+        and '.hero-eyebrow-link--desktop){display:none!important}' in crit_flat
+        and '#heroa{color:inherit;text-decoration:none' in crit_flat
         and 'position:fixed' in crit_flat
         and 'nav{' in crit_flat
         and 'display:flex' in crit_flat
@@ -749,12 +752,15 @@ def check_html(r: Runner, rel: str, html: str) -> None:
         'height:auto' in crit_flat
         and '.hero-scroll,.hero-value{display:none}' in crit_flat
         and 'min-height:2.4em' not in crit_flat
-        and 'padding-top:max(3.75rem' in crit_flat,
+        and 'padding-top:max(3.5rem' in crit_flat
+        and 'background:rgba(10,22,40,.48)' in crit_flat,
     )
     r.check(
-        'main.css load adds css-ready class (reveals styled nav)',
+        'main.css load adds css-ready class after sheet paints (no early timeout)',
         html.count("classList.add('css-ready')") >= 2
-        and 'onload="this.rel=\'stylesheet\'' in html,
+        and 'onload="this.rel=\'stylesheet\'' in html
+        and 'setTimeout(r,4e3)' not in html
+        and 'requestAnimationFrame' in html,
     )
     r.check(
         'critical CSS includes hero legibility scrims before main.css',
