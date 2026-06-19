@@ -83,6 +83,30 @@
   g.LY_maxImgWidth = lyMaxW;
   d.documentElement.dataset.lyNet = g.LY_NET_TIER;
 
+  if (slow) {
+    var progCrit = d.createElement('style');
+    progCrit.id = 'ly-prog-critical';
+    progCrit.textContent = [
+      'html[data-ly-net="slow"] #hero{background:#0a1628}',
+      'html[data-ly-net="slow"] .ly-prog-wrap--hero{position:absolute;inset:0;overflow:hidden;background:#0a1628}',
+      'html[data-ly-net="slow"] .ly-prog-wrap--hero .hero-bg-wrap{position:absolute;inset:0;display:block;width:100%;height:100%;overflow:hidden}',
+      'html[data-ly-net="slow"] .ly-prog-wrap--hero .ly-prog-preview,',
+      'html[data-ly-net="slow"] .ly-prog-wrap--hero .hero-bg.ly-prog-sharp{',
+      'position:absolute;inset:0;width:100%;height:100%;object-fit:cover;object-position:58% 48%;display:block}',
+      'html[data-ly-net="slow"] .ly-prog-wrap--hero .ly-prog-preview{z-index:0;opacity:1;',
+      'transform:scale(1.08);filter:blur(8px) saturate(1.08) brightness(.92)}',
+      'html[data-ly-net="slow"] .ly-prog-wrap--hero .hero-bg.ly-prog-sharp{z-index:1;opacity:0;',
+      'transform:scale(1.05);filter:brightness(1.02) saturate(1.04)}',
+      'html[data-ly-net="slow"] .ly-prog-wrap--hero.ly-prog-sharp-loading .hero-bg.ly-prog-sharp{opacity:0}',
+      'html[data-ly-net="slow"] .ly-prog-wrap--hero.ly-prog-sharp-ready.ly-prog-sharp-visible .hero-bg.ly-prog-sharp{',
+      'opacity:1;transition:opacity .55s cubic-bezier(.25,.9,.35,1)}',
+      'html[data-ly-net="slow"] .ly-prog-wrap--hero.ly-prog-sharp-ready.ly-prog-sharp-visible .ly-prog-preview{',
+      'opacity:0;filter:blur(4px);transform:scale(1.03);transition:opacity .7s ease,filter .7s ease,transform .7s ease}',
+      'html[data-ly-net="slow"] .ly-prog-wrap--hero.ly-prog-skip-preview .ly-prog-preview{display:none}',
+    ].join('');
+    d.head.appendChild(progCrit);
+  }
+
   var mobMq = g.matchMedia('(max-width: 640px)');
   if (mobMq.matches) {
     if (slow) {

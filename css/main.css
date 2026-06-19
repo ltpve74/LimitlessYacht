@@ -684,13 +684,13 @@ html[data-ly-net="slow"] #hero .hero-bg-wrap,
 }
 .ly-prog-preview {
   z-index: 0;
-  transform: scale(1.05);
-  filter: blur(9px) brightness(.95) saturate(1.03);
+  transform: scale(1.08);
+  filter: blur(8px) saturate(1.08) brightness(.92);
   opacity: 1;
   transition:
-    opacity .85s cubic-bezier(.25, .9, .35, 1),
-    filter .85s cubic-bezier(.25, .9, .35, 1),
-    transform .85s cubic-bezier(.25, .9, .35, 1);
+    opacity .7s ease,
+    filter .7s ease,
+    transform .7s ease;
 }
 .ly-prog-wrap.ly-prog-skip-preview .ly-prog-preview {
   display: none;
@@ -709,8 +709,8 @@ html[data-ly-net="slow"] #hero .hero-bg-wrap,
 }
 .ly-prog-wrap.ly-prog-sharp-ready.ly-prog-sharp-visible .ly-prog-preview {
   opacity: 0;
-  filter: blur(3px) brightness(.98);
-  transform: scale(1.02);
+  filter: blur(4px);
+  transform: scale(1.03);
   pointer-events: none;
 }
 .ly-prog-wrap--hero .ly-prog-preview,

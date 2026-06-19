@@ -504,6 +504,8 @@ def check_html(r: Runner, rel: str, html: str) -> None:
         and 'data-ly-srcset=' in html
         and 'LY_loadMainCss' in net_tier_js
         and 'LY_applyPictureSrc' in net_tier_js
+        and 'ly-prog-critical' in net_tier_js
+        and '.ly-prog-wrap--hero' in net_tier_js
         and 'LY_progressiveWrapForUrl' in html
         and re.search(
             r'ly-prog-sharp-visible[\s\S]{0,280}scheduleHeroGate',
@@ -818,7 +820,8 @@ def check_html(r: Runner, rel: str, html: str) -> None:
         and 'saveData' in net_tier
         and 'ly_net' in net_tier
         and 'maiora_20s_02-480.webp' in net_tier
-        and 'lyCapHero' in net_tier,
+        and 'lyCapHero' in net_tier
+        and 'ly-prog-critical' in net_tier,
     )
     r.check(
         'slow connection caps gallery/dest card tiers in preload JS',
