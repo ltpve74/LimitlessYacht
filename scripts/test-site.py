@@ -1366,6 +1366,12 @@ def check_shared_assets(r: Runner) -> None:
         'function ensureSelectionVisible()' in index_html,
     )
     r.check(
+        'calendar next/prev advance one month at a time',
+        'function shift(dir)' in index_html
+        and 'viewIndex + dir * count' not in index_html
+        and re.search(r'var next = viewIndex \+ dir;', index_html) is not None,
+    )
+    r.check(
         'calendar enquire focuses name field on desktop only',
         "getElementById('name')" in index_html
         and 'if (isCalendarFormPaired())' in index_html

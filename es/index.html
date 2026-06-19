@@ -2842,7 +2842,7 @@ document.addEventListener('DOMContentLoaded', function() {
   function shift(dir) {
     var count = monthsToShow();
     var maxFirst = maxIndex - (count - 1);
-    var next = viewIndex + dir * count;
+    var next = viewIndex + dir;
     if (next < minIndex) next = minIndex;
     if (next > maxFirst) next = maxFirst;
     if (next === viewIndex) return;
