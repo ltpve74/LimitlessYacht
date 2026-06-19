@@ -778,8 +778,9 @@ def check_html(r: Runner, rel: str, html: str) -> None:
         and '.hero-bg-wrap,.hero-overlay{position:absolute;inset:0' in crit_flat
         and '.hero-value{display:none}' in crit_flat
         and '.hero-scroll,.hero-value{display:none}' not in crit_flat
-        and 'padding:max(3rem,calc(env(safe-area-inset-top,0px)+2.2rem))' in crit_flat
-        and 'background:rgba(10,22,40,.5)' in crit_flat,
+        and 'padding:max(3.2rem,calc(env(safe-area-inset-top)+2.5rem))' in crit_flat
+        and '.hero-top.hero-sub' in crit_flat.replace(' ', '')
+        and 'background:rgba(10,22,40,.38)' in crit_flat,
     )
     r.check(
         'main.css load adds ly-main-ready after sheet paints (no early timeout)',
@@ -820,6 +821,7 @@ def check_html(r: Runner, rel: str, html: str) -> None:
         and 'justify-content:space-between' in crit_flat
         and '.hero-top,.hero-bottom{display:flex' in crit_flat
         and '.hero-bottom{gap:var(--hero-bottom-gap)' in crit_flat
+        and '.hero-scroll{display:flex;opacity:0' in crit_flat.replace(' ', '')
         and '#hero.hero-cta-group{margin-top:0' in crit_flat
         and '.hero-content{position:absolute;inset:0' in crit_flat
         and 'height:100svh' in crit_flat
@@ -1382,8 +1384,9 @@ def check_shared_assets(r: Runner) -> None:
                 css,
             )
             is not None
-            and 'scrollPeekIn' in css
+            and 'scrollReveal' in css
             and 'scrollBob' in css
+            and 'scrollLineRise' not in css
             and re.search(
                 r'@media\s*\(\s*max-width:\s*768px\s*\)[\s\S]*?\.hero-top,\s*\.hero-bottom',
                 css,

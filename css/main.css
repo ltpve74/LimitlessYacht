@@ -296,13 +296,9 @@ nav.scrolled::before { opacity: 1; }
 @keyframes fadeUp { from { opacity:0; transform: translateY(30px); } to { opacity:1; transform: translateY(0); } }
 @keyframes fadeIn { from { opacity: 0; } to { opacity: 1; } }
 @keyframes scrollBob { 0%,100% { transform: translateY(0); } 50% { transform: translateY(-8px); } }
-@keyframes scrollPeekIn {
-  from { opacity: 0; transform: translateY(1.15rem); }
+@keyframes scrollReveal {
+  from { opacity: 0; transform: translateY(1.1rem); }
   to { opacity: 1; transform: translateY(0); }
-}
-@keyframes scrollLineRise {
-  from { opacity: 0; transform: scaleY(0); }
-  to { opacity: 1; transform: scaleY(1); }
 }
 /* keeps the horizontal centering (translateX -50%) while fading up */
 @keyframes heroScrollUp { from { opacity:0; transform: translate(-50%, 30px); } to { opacity:1; transform: translate(-50%, 0); } }
@@ -408,7 +404,9 @@ nav.scrolled::before { opacity: 1; }
 .hero-top,
 .hero-bottom { display: contents; }
 @media (prefers-reduced-motion: no-preference) {
-  .hero-scroll { animation: scrollBob 2s 2.3s infinite ease-in-out; }
+  @media (min-width: 769px) {
+    .hero-scroll { animation: scrollBob 2s 2.3s infinite ease-in-out; }
+  }
 }
 @keyframes heroFade { from { opacity: 0; } to { opacity: 1; } }
 
@@ -416,8 +414,12 @@ nav.scrolled::before { opacity: 1; }
 .scroll-line {
   width: 1px; height: 50px;
   background: linear-gradient(to bottom, var(--gold), transparent);
-  animation: scrollPulse 2s infinite;
   transform-origin: top;
+}
+@media (prefers-reduced-motion: no-preference) {
+  @media (min-width: 769px) {
+    .scroll-line { animation: scrollPulse 2s infinite; }
+  }
 }
 @keyframes scrollPulse { 0%,100%{opacity:.4; transform: scaleY(0.8)} 50%{opacity:1; transform: scaleY(1.6)} }
 
@@ -2664,10 +2666,10 @@ footer {
 /* Hero: mobile — top/bottom clusters frame a bright yacht stage in the middle */
 @media (max-width: 768px) {
   :root {
-    --hero-top-gap: clamp(0.35rem, 1.35vh, 0.6rem);
-    --hero-bottom-gap: clamp(0.5rem, 1.75vh, 0.8rem);
-    --hero-cluster-gap: var(--hero-bottom-gap);
-    --hero-bottom-inset: max(0.65rem, calc(env(safe-area-inset-bottom, 0px) + 0.45rem));
+    --hero-top-gap: clamp(0.5rem, 1.75vh, 0.75rem);
+    --hero-bottom-gap: clamp(0.55rem, 1.85vh, 0.85rem);
+    --hero-cluster-gap: clamp(0.45rem, 1.5vh, 0.68rem);
+    --hero-bottom-inset: max(0.85rem, calc(env(safe-area-inset-bottom, 0px) + 0.6rem));
   }
   #hero {
     height: 100svh;
@@ -2713,17 +2715,17 @@ footer {
     flex-direction: column;
     align-items: center;
     justify-content: space-between;
-    padding: max(3rem, calc(env(safe-area-inset-top, 0px) + 2.2rem)) 1.15rem 0;
+    padding: max(3.2rem, calc(env(safe-area-inset-top, 0px) + 2.5rem)) 1.2rem 0;
     animation: none;
     overflow: hidden;
   }
   .hero-content::before {
-    height: min(30%, 10.5rem);
-    background: linear-gradient(180deg, rgba(10, 22, 40, 0.78) 0%, rgba(10, 22, 40, 0.2) 72%, transparent 100%);
+    height: min(38%, 13rem);
+    background: linear-gradient(180deg, rgba(10, 22, 40, 0.84) 0%, rgba(10, 22, 40, 0.32) 68%, transparent 100%);
   }
   .hero-content::after {
-    height: min(42%, 15rem);
-    background: linear-gradient(0deg, rgba(10, 22, 40, 0.88) 0%, rgba(10, 22, 40, 0.34) 58%, transparent 100%);
+    height: min(44%, 16rem);
+    background: linear-gradient(0deg, rgba(10, 22, 40, 0.9) 0%, rgba(10, 22, 40, 0.36) 55%, transparent 100%);
   }
   .hero-top,
   .hero-bottom {
@@ -2737,38 +2739,40 @@ footer {
   }
   .hero-top {
     gap: var(--hero-top-gap);
-    padding-bottom: 0.15rem;
+    padding-bottom: 0.35rem;
   }
   .hero-bottom {
     gap: var(--hero-bottom-gap);
     margin-top: auto;
     padding-bottom: var(--hero-bottom-inset);
+    width: 100%;
+    max-width: 22rem;
   }
   .hero-value { display: none; }
   .hero-scroll {
     display: flex;
     flex-direction: column;
     align-items: center;
-    gap: 0.35rem;
-    margin-top: 0.1rem;
-    margin-bottom: -0.15rem;
+    gap: 0.4rem;
+    margin-top: 0.15rem;
+    margin-bottom: -0.25rem;
     opacity: 0;
-    transform: translateY(1.15rem);
+    transform: translateY(1.1rem);
     animation: none;
+    will-change: transform, opacity;
+  }
+  .hero-scroll .scroll-line {
+    height: clamp(26px, 4.5vh, 40px);
+    opacity: 1;
+    transform: none;
+    animation: none;
+    transform-origin: bottom center;
   }
   @media (prefers-reduced-motion: no-preference) {
     .hero-scroll {
       animation:
-        scrollPeekIn 0.95s 1.65s ease-out forwards,
-        scrollBob 2.1s 2.85s infinite ease-in-out;
-    }
-    .hero-scroll .scroll-line {
-      opacity: 0;
-      transform: scaleY(0);
-      transform-origin: bottom center;
-      animation:
-        scrollLineRise 0.85s 2s ease-out forwards,
-        scrollPulse 2s 3.1s infinite;
+        scrollReveal 0.9s 1.7s ease-out forwards,
+        scrollBob 2s 2.85s infinite ease-in-out;
     }
   }
   @media (prefers-reduced-motion: reduce) {
@@ -2776,39 +2780,34 @@ footer {
       opacity: 1;
       transform: none;
     }
-    .hero-scroll .scroll-line {
-      opacity: 1;
-      transform: none;
-    }
   }
-  .scroll-line { height: clamp(24px, 4.5vh, 38px); }
   .hero-eyebrow {
-    padding-top: 0;
-    margin-bottom: 0;
+    padding-top: 0.1rem;
+    margin-bottom: 0.15rem;
     font-size: .54rem;
     letter-spacing: .06em;
   }
   .hero-title {
-    font-size: clamp(2.1rem, 6.5vh, 3.35rem);
-    line-height: 1.04;
+    font-size: clamp(2rem, 6.2vh, 3.2rem);
+    line-height: 1.06;
   }
-  .hero-sub {
-    margin-top: 0;
-    font-size: clamp(.72rem, 3.1vw, .8rem);
-    line-height: 1.42;
-    background: none;
-    padding: 0;
-    max-width: 22rem;
+  .hero-top .hero-sub {
+    margin-top: 0.15rem;
+    font-size: clamp(.74rem, 3.2vw, .82rem);
+    line-height: 1.5;
+    background: rgba(10, 22, 40, 0.38);
+    padding: 0.35rem 0.55rem;
+    border-radius: 3px;
+    max-width: 100%;
   }
   .hero-rates {
     margin: 0;
     min-height: 0;
     width: 100%;
-    max-width: 22rem;
     font-size: clamp(.6rem, 2.9vw, .7rem);
-    line-height: 1.45;
-    padding: 0.38rem 0.55rem;
-    background: rgba(10, 22, 40, 0.5);
+    line-height: 1.48;
+    padding: 0.4rem 0.55rem;
+    background: rgba(10, 22, 40, 0.48);
     border-radius: 3px;
   }
   .hero-cta-group {
@@ -2820,11 +2819,14 @@ footer {
   }
   .hero-actions { margin-top: 0; }
   .hero-trust {
-    font-size: .58rem; letter-spacing: .09em; line-height: 1.45;
-    background: rgba(10, 22, 40, 0.38);
-    padding: 0.28rem 0.5rem;
+    font-size: .56rem;
+    letter-spacing: .1em;
+    line-height: 1.45;
+    text-transform: uppercase;
+    background: rgba(10, 22, 40, 0.34);
+    padding: 0.3rem 0.5rem;
     border-radius: 3px;
-    max-width: 22rem;
+    width: 100%;
   }
   #hero .hero-actions .btn-ghost {
     background: rgba(10, 22, 40, 0.52);
