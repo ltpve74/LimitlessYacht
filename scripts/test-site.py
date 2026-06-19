@@ -728,7 +728,7 @@ def check_html(r: Runner, rel: str, html: str) -> None:
     )
     r.check(
         'critical CSS is slim enough for fast head parse',
-        style_pos > 0 and html.find('</style>', style_pos) - style_pos < 6500,
+        style_pos > 0 and html.find('</style>', style_pos) - style_pos < 7200,
     )
     crit_end = html.find('</style>', style_pos)
     crit_css = html[style_pos:crit_end] if style_pos > 0 and crit_end > style_pos else ''
@@ -737,10 +737,19 @@ def check_html(r: Runner, rel: str, html: str) -> None:
         'critical CSS hides unstyled nav chrome until main.css loads',
         'html:not(.css-ready)' in crit_flat
         and ':is(.nav-links,.nav-lang-wrap,.nav-header-cta,.hamburger,.mobile-nav){display:none!important}' in crit_flat
+        and 'html:not(.css-ready)body>:not(nav):not(#hero){display:none!important}' in crit_flat
+        and '#heroa{color:inherit;text-decoration:none}' in crit_flat
         and 'position:fixed' in crit_flat
         and 'nav{' in crit_flat
         and 'display:flex' in crit_flat
         and '.hamburger{display:flex}' not in crit_flat,
+    )
+    r.check(
+        'critical CSS prevents mobile hero text clipping before main.css',
+        'height:auto' in crit_flat
+        and '.hero-scroll,.hero-value{display:none}' in crit_flat
+        and 'min-height:2.4em' not in crit_flat
+        and 'padding-top:max(3.75rem' in crit_flat,
     )
     r.check(
         'main.css load adds css-ready class (reveals styled nav)',
@@ -777,7 +786,9 @@ def check_html(r: Runner, rel: str, html: str) -> None:
         'critical CSS matches mobile hero flex layout',
         'display:flex' in crit_flat
         and '.hero-cta-group{' in crit_flat and 'margin-top:auto' in crit_flat
-        and 'flex:1' in crit_flat and 'min-height:100%' in crit_flat
+        and 'flex:10auto' in crit_flat.replace(' ', '')
+        and 'height:auto' in crit_flat
+        and 'overflow-y:visible' in crit_flat
         and 'safe-area-inset-bottom' in crit_css,
     )
     r.check(
