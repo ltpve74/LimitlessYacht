@@ -364,7 +364,9 @@ def check_html(r: Runner, rel: str, html: str) -> None:
         and 'images/mobile/maiora_20s_03-960.webp 960w' in html
         and 'images/mobile/maiora_20s_03.webp 960w' not in html
         and '(min-width: 1101px) 25vw, 50vw' in html
-        and 'lbImg.src = window.LY_galleryLbUrl(currentIdx)' in html
+        and 'window.LY_galleryLbUrl(currentIdx)' in html
+        and 'lbImg.src = lbUrl' in html
+        and 'window.LY_prioritizePreload(lbUrl)' in html
         and 'id="lightbox-img" src="" alt="Limitless yacht gallery photo" sizes="100vw"' in html,
     )
     r.check(
@@ -425,8 +427,27 @@ def check_html(r: Runner, rel: str, html: str) -> None:
             r"LY_whenNearSection\('gallery'[\s\S]*?LY_PRELOAD_AGGRESSIVE === false \? \[0, 1, 2, 3\] : \[0, 1, 2\]",
             html,
         )
+        is not None,
+    )
+    r.check(
+        'slow connections prioritize user-requested assets over drip queue',
+        'window.LY_prioritizePreload' in html
+        and 'window.LY_pausePreloadDrip' in html
+        and 'window.LY_preloadNeedsUserPriority' in html
+        and 'window.LY_priorityPreloadQueue' in html
+        and 'window.LY_preloadGalleryCard' in html
+        and re.search(
+            r'LY_enqueueLbPreload = function\(url\)[\s\S]*?LY_preloadNeedsUserPriority\(\)[\s\S]*?LY_prioritizePreload\(url\)',
+            html,
+        )
         is not None
-        and 'if (window.LY_NET_SLOW && !window.LY_PRELOAD_AGGRESSIVE) return' in html,
+        and re.search(
+            r'LY_preloadDest = function\(idx[\s\S]*?LY_preloadNeedsUserPriority\(\)[\s\S]*?LY_prioritizePreload\(url\)',
+            html,
+        )
+        is not None
+        and 'IntersectionObserver' in html
+        and '.destination-card, .gallery-item' in html,
     )
     r.check(
         'slow carousel prefetch loads current card only (not ±1)',
