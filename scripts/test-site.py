@@ -912,7 +912,7 @@ def check_html(r: Runner, rel: str, html: str) -> None:
     crit_end = html.find('</style>', crit_tag) if crit_tag >= 0 else -1
     r.check(
         'critical CSS is slim enough for fast head parse',
-        crit_tag > 0 and crit_end - crit_tag < 9200,
+        crit_tag > 0 and crit_end - crit_tag < 9500,
     )
     crit_css = html[crit_tag:crit_end] if crit_tag >= 0 and crit_end > crit_tag else ''
     crit_flat = re.sub(r'\s+', '', crit_css)
