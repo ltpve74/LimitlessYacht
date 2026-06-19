@@ -700,7 +700,7 @@ window.LY_warmUrlsForContext = function(ctx) {
     var master = mob ? '/images/mobile/maiora_20s_04.webp' : '/images/maiora_20s_04.webp';
     var suffix;
     if (window.LY_PROGRESSIVE_IMAGES && window.LY_sharpTierSuffix) {
-      suffix = window.LY_sharpTierSuffix();
+      suffix = window.LY_sharpTierSuffix('about');
     } else {
       suffix = window.LY_NET_SLOW ? (mob ? '-480' : '-640') : (mob ? '-720' : '-640');
     }
@@ -1235,7 +1235,7 @@ window.LY_destCardUrl = function(idx) {
   var mob = window.innerWidth <= 640;
   var suffix;
   if (window.LY_PROGRESSIVE_IMAGES && window.LY_sharpTierSuffix) {
-    suffix = window.LY_sharpTierSuffix();
+    suffix = window.LY_sharpTierSuffix('dest');
   } else if (window.LY_NET_SLOW) {
     suffix = mob ? '-480' : '-640';
   } else {
@@ -1247,7 +1247,7 @@ window.LY_destLbUrl = function(idx) {
   var mob = window.innerWidth <= 640;
   var suffix;
   if (window.LY_PROGRESSIVE_IMAGES && window.LY_sharpTierSuffix) {
-    suffix = window.LY_sharpTierSuffix();
+    suffix = window.LY_sharpTierSuffix('dest');
   } else if (window.LY_NET_SLOW) {
     suffix = mob ? '-480' : '-640';
   } else {
@@ -1259,7 +1259,7 @@ window.LY_galleryCardUrl = function(idx) {
   var mob = window.innerWidth <= 640;
   var suffix;
   if (window.LY_PROGRESSIVE_IMAGES && window.LY_sharpTierSuffix) {
-    suffix = window.LY_sharpTierSuffix();
+    suffix = window.LY_sharpTierSuffix('gallery');
   } else if (window.LY_NET_SLOW) {
     suffix = mob ? '-480' : '-640';
   } else {
@@ -1271,7 +1271,7 @@ window.LY_galleryLbUrl = function(idx) {
   var mob = window.innerWidth <= 640;
   var suffix;
   if (window.LY_PROGRESSIVE_IMAGES && window.LY_sharpTierSuffix) {
-    suffix = window.LY_sharpTierSuffix();
+    suffix = window.LY_sharpTierSuffix('gallery');
   } else if (window.LY_NET_SLOW) {
     suffix = mob ? '-480' : '-640';
   } else {

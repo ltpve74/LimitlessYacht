@@ -14,8 +14,11 @@
   g.LY_heroSharpReady = false;
   g.LY_onHeroSharpReady = g.LY_onHeroSharpReady || [];
 
-  g.LY_sharpTierSuffix = function () {
-    return g.innerWidth <= 640 ? '-720' : '-960';
+  g.LY_sharpTierSuffix = function (kind) {
+    var mob = g.innerWidth <= 640;
+    if (mob) return '-960';
+    if (kind === 'hero' || kind === 'gallery') return '-1280';
+    return '-960';
   };
 
   g.LY_previewUrlFromStem = function (stem) {
@@ -23,9 +26,7 @@
   };
 
   g.LY_sharpUrlFromStem = function (stem, kind) {
-    var suffix = g.LY_sharpTierSuffix();
-    if (kind === 'hero' && g.innerWidth > 640) suffix = '-1280';
-    return stem + suffix + '.webp';
+    return stem + g.LY_sharpTierSuffix(kind) + '.webp';
   };
 
   function gateOpen() {
@@ -248,8 +249,13 @@
     preview.className = 'ly-prog-preview';
     preview.alt = '';
     preview.setAttribute('aria-hidden', 'true');
-    preview.decoding = 'async';
-    if (kind === 'hero') preview.fetchPriority = 'high';
+    if (kind === 'hero') {
+      preview.decoding = 'sync';
+      preview.loading = 'eager';
+      preview.fetchPriority = 'high';
+    } else {
+      preview.decoding = 'async';
+    }
     wrap.appendChild(preview);
     wrap.appendChild(picture);
 

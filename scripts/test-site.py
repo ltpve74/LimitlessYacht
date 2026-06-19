@@ -547,6 +547,31 @@ def check_html(r: Runner, rel: str, html: str) -> None:
         'progressive=True' in (read_file('scripts/build_preview_images.py') or '')
         and '-prev.jpg' in (read_file('scripts/build_preview_images.py') or ''),
     )
+
+    def _is_progressive_jpeg(path: str) -> bool:
+        try:
+            with open(os.path.join(ROOT, path), 'rb') as fh:
+                head = fh.read(4096)
+            return b'\xff\xc2' in head
+        except OSError:
+            return False
+
+    r.check(
+        'hero preview JPEG is progressive-encoded (SOF2 scan)',
+        _is_progressive_jpeg('images/mobile/maiora_20s_02-prev.jpg')
+        and _is_progressive_jpeg('images/maiora_20s_02-prev.jpg'),
+    )
+    r.check(
+        'slow progressive sharp tiers use higher quality rungs with blur preview',
+        "'-960'" in prog_js
+        and "'-1280'" in prog_js
+        and "kind === 'hero' || kind === 'gallery'" in prog_js
+        and "return '-960'" in prog_js
+        and 'preview.decoding = \'sync\'' in prog_js
+        and "kind === 'hero'" in prog_js
+        and "LY_sharpTierSuffix('dest')" in html
+        and "LY_sharpTierSuffix('gallery')" in html,
+    )
     r.check(
         'slow carousel cards show loading spinners during image fetch',
         'window.LY_initCardLoaders' in html
