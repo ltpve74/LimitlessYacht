@@ -1119,7 +1119,7 @@ def check_shared_assets(r: Runner) -> None:
             and 'Half-day (4h) from €2,200' in index_html
             and 'data-season-rate="low"' in index_html
             and 'data-season-rate="high"' in index_html
-            and 'getMonth()' in index_html
+            and 'm >= 6 && m <= 7' in index_html
             and '.hero-rates' in (css or '')
             and 'href="#pricing"' not in index_html,
         )

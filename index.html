@@ -271,7 +271,7 @@ nav{position:fixed;top:0;left:0;right:0;z-index:100;min-height:4.25rem}
 <script>
 (function () {
   var m = new Date().getMonth();
-  var season = (m >= 5 && m <= 7) ? 'high' : 'low';
+  var season = (m >= 6 && m <= 7) ? 'high' : 'low'; // Jul–Aug
   var blocks = document.querySelectorAll('.season-rates');
   for (var b = 0; b < blocks.length; b++) {
     var spans = blocks[b].querySelectorAll('[data-season-rate]');
