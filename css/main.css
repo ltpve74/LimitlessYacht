@@ -15,6 +15,14 @@
   font-display: optional;
   src: url('../fonts/montserrat-latin.woff2') format('woff2');
 }
+@font-face {
+  font-family: 'Montserrat Fallback';
+  src: local('Arial');
+  size-adjust: 107%;
+  ascent-override: 90%;
+  descent-override: 22%;
+  line-gap-override: 0%;
+}
 
 :root {
   --navy: #0a1628;
@@ -46,7 +54,7 @@ html {
 body {
   background: var(--navy);
   color: var(--cream);
-  font-family: 'Montserrat', sans-serif;
+  font-family: 'Montserrat', 'Montserrat Fallback', sans-serif;
   font-weight: 300;
   overflow-x: clip; /* prevents horizontal overflow without creating a body scroll container */
 }
@@ -2765,11 +2773,7 @@ footer {
   text-wrap: balance;
 }
 @supports (text-wrap: pretty) {
-  .hero-sub,
-  .hero-rates,
-  .charter-rates-confirm,
-  .hero-value,
-  .hero-trust { text-wrap: pretty; }
+  .charter-rates-confirm { text-wrap: pretty; }
 }
 .scroll-line { height: 32px; }
 /* Short viewports (~900px tall): keep title + bottom cluster from colliding */
