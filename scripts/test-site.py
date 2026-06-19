@@ -1124,11 +1124,12 @@ def check_shared_assets(r: Runner) -> None:
             and 'href="#pricing"' not in index_html,
         )
         r.check(
-            'hero keeps bright photo with localized legibility panels',
-            'hero-intro' in index_html
-            and 'backdrop-filter' in (css or '')
-            and 'brightness(1.06)' in (css or '')
-            and 'transparent 36%' in index_html,
+            'hero uses letterbox scrims and bright photo (no glass panels)',
+            'hero-intro' not in index_html
+            and '.hero-intro{' not in css_flat
+            and '.hero-content::before' in (css or '')
+            and '.hero-content::after' in (css or '')
+            and 'object-position:58%48%' in css_flat,
         )
     r.check(
         'WhatsApp button meets contrast-safe green',

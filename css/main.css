@@ -236,9 +236,9 @@ nav.scrolled::before { opacity: 1; }
 }
 .hero-bg {
   width: 100%; height: 100%;
-  object-fit: cover; object-position: center;
+  object-fit: cover; object-position: 58% 48%;
   transform: scale(1.08);
-  filter: brightness(1.06) saturate(1.1) contrast(1.02);
+  filter: brightness(1.04) saturate(1.06);
   animation: heroZoom 14s ease-out forwards;
 }
 @keyframes heroZoom { to { transform: scale(1); } }
@@ -248,23 +248,11 @@ nav.scrolled::before { opacity: 1; }
   background:
     linear-gradient(
       180deg,
-      rgba(10, 22, 40, 0.5) 0%,
-      rgba(10, 22, 40, 0.05) 18%,
-      transparent 36%,
-      transparent 60%,
-      rgba(10, 22, 40, 0.1) 76%,
-      rgba(10, 22, 40, 0.62) 100%
+      rgba(10, 22, 40, 0.22) 0%,
+      transparent 28%,
+      transparent 72%,
+      rgba(10, 22, 40, 0.18) 100%
     );
-}
-.hero-intro {
-  width: min(100%, 42rem);
-  padding: 0.85rem 1.25rem 1rem;
-  border-radius: 12px;
-  background: linear-gradient(180deg, rgba(10, 22, 40, 0.36), rgba(10, 22, 40, 0.12));
-  -webkit-backdrop-filter: blur(6px);
-  backdrop-filter: blur(6px);
-  border: 1px solid rgba(245, 240, 232, 0.1);
-  box-shadow: 0 10px 36px rgba(10, 22, 40, 0.12);
 }
 .hero-content {
   position: absolute; top: 0; bottom: 0; left: 0; right: 0;
@@ -273,11 +261,30 @@ nav.scrolled::before { opacity: 1; }
   padding: 5.25rem 2rem var(--hero-bottom-inset);
   display: flex; flex-direction: column; align-items: center;
   opacity: 1;
+  isolation: isolate;
+  z-index: 1;
 }
-/* Disabled: the radial vignette was designed for a centred text block.
-   With the new top/bottom split layout the centre of hero-content is the
-   open image area, so we don't want extra darkening there. */
-.hero-content::before { display: none; }
+/* Soft letterbox scrims behind copy only — keeps the yacht bright in the middle. */
+.hero-content::before,
+.hero-content::after {
+  content: '';
+  position: absolute;
+  left: 50%;
+  transform: translateX(-50%);
+  width: 100vw;
+  pointer-events: none;
+  z-index: -1;
+}
+.hero-content::before {
+  top: 0;
+  height: min(52%, 22rem);
+  background: linear-gradient(180deg, rgba(10, 22, 40, 0.62) 0%, rgba(10, 22, 40, 0.16) 72%, transparent 100%);
+}
+.hero-content::after {
+  bottom: 0;
+  height: min(46%, 20rem);
+  background: linear-gradient(0deg, rgba(10, 22, 40, 0.68) 0%, rgba(10, 22, 40, 0.18) 68%, transparent 100%);
+}
 @keyframes fadeUp { from { opacity:0; transform: translateY(30px); } to { opacity:1; transform: translateY(0); } }
 @keyframes fadeIn { from { opacity: 0; } to { opacity: 1; } }
 @keyframes scrollBob { 0%,100% { transform: translateY(0); } 50% { transform: translateY(-8px); } }
@@ -287,7 +294,7 @@ nav.scrolled::before { opacity: 1; }
   font-size: .72rem; letter-spacing: .32em; text-transform: uppercase;
   color: var(--gold-light); margin-bottom: 0.75rem; opacity: 0;
   font-weight: 500;
-  text-shadow: 0 1px 14px rgba(0,0,0,.75);
+  text-shadow: 0 1px 2px rgba(0,0,0,.85), 0 2px 18px rgba(10,22,40,.8);
   animation: heroFade .9s .3s ease both;
 }
 .hero-eyebrow a, .hero-trust a {
@@ -302,7 +309,10 @@ nav.scrolled::before { opacity: 1; }
   font-family: 'Montserrat', sans-serif;
   font-size: clamp(3.5rem, 9vw, 8rem); font-weight: 300; line-height: 1;
   color: var(--white); letter-spacing: .06em;
-  text-shadow: 0 2px 28px rgba(0,0,0,.7), 0 1px 6px rgba(0,0,0,.55);
+  text-shadow:
+    0 0 1px rgba(10, 22, 40, 0.95),
+    0 2px 4px rgba(0, 0, 0, 0.82),
+    0 4px 28px rgba(10, 22, 40, 0.78);
   -webkit-font-smoothing: antialiased;
   opacity: 1;
   transform: none;
@@ -310,14 +320,20 @@ nav.scrolled::before { opacity: 1; }
 @keyframes heroTitleIn { to { transform: translateY(0); } }
 .hero-title em {
   font-style: normal; color: var(--gold-light);
-  text-shadow: 0 2px 24px rgba(0,0,0,.65);
+  text-shadow:
+    0 0 1px rgba(10, 22, 40, 0.9),
+    0 2px 4px rgba(0, 0, 0, 0.75),
+    0 4px 24px rgba(10, 22, 40, 0.7);
 }
 .hero-sub {
   margin-top: 1.1rem;
   font-size: clamp(.82rem, 1.6vw, .95rem);
   letter-spacing: .1em; line-height: 1.7;
   color: var(--white); font-weight: 400;
-  text-shadow: 0 1px 24px rgba(0,0,0,.95), 0 0 40px rgba(10,22,40,.9), 0 1px 4px rgba(0,0,0,.9);
+  text-shadow:
+    0 1px 2px rgba(0, 0, 0, 0.9),
+    0 2px 16px rgba(10, 22, 40, 0.85),
+    0 0 32px rgba(10, 22, 40, 0.55);
   opacity: 0; animation: heroFade 1s .8s ease both;
   text-wrap: balance;
 }
@@ -326,13 +342,6 @@ nav.scrolled::before { opacity: 1; }
   display: flex; flex-direction: column; align-items: center;
   gap: var(--hero-cluster-gap);
   width: 100%; max-width: 40rem;
-  padding: 1rem 1.2rem 0.35rem;
-  border-radius: 14px;
-  background: linear-gradient(0deg, rgba(10, 22, 40, 0.56) 0%, rgba(10, 22, 40, 0.2) 68%, rgba(10, 22, 40, 0.05) 100%);
-  -webkit-backdrop-filter: blur(5px);
-  backdrop-filter: blur(5px);
-  border: 1px solid rgba(245, 240, 232, 0.06);
-  box-shadow: 0 12px 40px rgba(10, 22, 40, 0.14);
 }
 .hero-actions {
   margin-top: 0; display: flex; gap: 1.2rem; justify-content: center; flex-wrap: wrap;
@@ -363,6 +372,14 @@ nav.scrolled::before { opacity: 1; }
   text-align: center;
 }
 #hero .hero-actions .btn-primary { border: 1px solid transparent; }
+#hero .hero-actions .btn-ghost {
+  background: rgba(10, 22, 40, 0.28);
+  border-color: rgba(245, 240, 232, 0.52);
+  box-shadow: 0 2px 18px rgba(10, 22, 40, 0.32);
+}
+#hero .hero-actions .btn-ghost:hover {
+  background: rgba(10, 22, 40, 0.42);
+}
 #hero .hero-actions .hero-cta-link--desktop { display: none; }
 @media (min-width: 769px) {
   #hero .hero-actions .hero-cta-link--mobile { display: none; }
@@ -2650,8 +2667,6 @@ footer {
     animation: heroFade 0.9s 0.6s ease both;
   }
   .hero-eyebrow { padding-top: 5rem; margin-bottom: 0.5rem; }
-  .hero-intro { padding: 0.7rem 1rem 0.85rem; }
-  .hero-cta-group { padding: 0.85rem 1rem 0.25rem; }
   .hero-sub { margin-top: 0.5rem; }
   .hero-actions { margin-top: 0; }
   @media (max-height: 640px) { .hero-value { display: none; } }
@@ -2694,8 +2709,9 @@ footer {
   margin-top: 0; max-width: 32rem;
   font-size: clamp(.72rem, 1.4vw, .84rem);
   letter-spacing: .04em; line-height: 1.65;
-  color: rgba(245,240,232,.68);
+  color: rgba(245, 240, 232, 0.82);
   font-style: italic;
+  text-shadow: 0 1px 12px rgba(10, 22, 40, 0.88);
   opacity: 0; animation: heroFade 1s .9s ease both;
   text-wrap: balance;
 }
