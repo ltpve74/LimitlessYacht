@@ -398,9 +398,49 @@ def check_html(r: Runner, rel: str, html: str) -> None:
         is not None,
     )
     r.check(
-        'hero destinations prioritized in idle preload queue',
-        'destOrder.forEach(function(i) { window.LY_enqueueCardPreload(window.LY_destCardUrl(i)); })' in html
+        'idle preload warms caches after meaningful paint',
+        'window.LY_warmPreloadCaches' in html
+        and 'destOrder.forEach(function(i) { window.LY_enqueueCardPreload(window.LY_destCardUrl(i)); })' in html
         and 'window.LY_whenNearSection(\'itinerary\'' in html,
+    )
+    net_tier_js = read_file('js/net-tier.js') or ''
+    r.check(
+        'slow connections drip preloads instead of bulk warming',
+        'LY_PRELOAD_AGGRESSIVE' in net_tier_js
+        and 'LY_PRELOAD_PUMP_MS' in net_tier_js
+        and 'LY_PRELOAD_IDLE_DELAY_MS' in net_tier_js
+        and 'LY_PRELOAD_QUEUE_MAX' in net_tier_js
+        and 'window.LY_dripDestTier' in html
+        and 'if (window.LY_PRELOAD_AGGRESSIVE === false)' in html
+        and 'window.LY_dripDestTier(\'half-day\')' in html
+        and re.search(
+            r'if \(window\.LY_PRELOAD_AGGRESSIVE === false\)\s*\{[\s\S]*?LY_dripDestTier\(\'half-day\'\);[\s\S]*?return;',
+            html,
+        )
+        is not None,
+    )
+    r.check(
+        'slow connections defer gallery bulk preload to near-section',
+        re.search(
+            r"LY_whenNearSection\('gallery'[\s\S]*?LY_PRELOAD_AGGRESSIVE === false \? \[0, 1, 2, 3\] : \[0, 1, 2\]",
+            html,
+        )
+        is not None
+        and 'if (window.LY_NET_SLOW && !window.LY_PRELOAD_AGGRESSIVE) return' in html,
+    )
+    r.check(
+        'slow carousel prefetch loads current card only (not ±1)',
+        re.search(
+            r'LY_preloadDestAdjacent = function\(idx[\s\S]*?if \(window\.LY_PRELOAD_AGGRESSIVE === false\)[\s\S]*?LY_preloadDest\(idx',
+            html,
+        )
+        is not None,
+    )
+    r.check(
+        'preload pump pauses when tab hidden on slow links',
+        'LY_PRELOAD_VISIBILITY_BOUND' in html
+        and 'document.visibilityState === \'hidden\'' in html
+        and 'visibilitychange' in html,
     )
     r.check(
         'destination preload not burst on DOMContentLoaded',

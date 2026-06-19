@@ -489,7 +489,7 @@ window.LY_afterMeaningfulPaint = function(fn) {
       po.observe({ type: 'largest-contentful-paint', buffered: true });
     } catch (e) { /* ignore */ }
   }
-  setTimeout(go, 2000);
+  setTimeout(go, window.LY_PRELOAD_IDLE_DELAY_MS || 2000);
 };
 window.LY_afterLcp = window.LY_afterMeaningfulPaint;
 if (!window.LY_OWNER_MODE) {
@@ -532,6 +532,8 @@ window.LY_lbPreloadQueue = [];
 window.LY_preloadPumpActive = false;
 window.LY_enqueueCardPreload = function(url) {
   if (!url || window.LY_preloadedUrls[url]) return;
+  var maxQ = window.LY_PRELOAD_QUEUE_MAX || 64;
+  if (window.LY_cardPreloadQueue.length + window.LY_lbPreloadQueue.length >= maxQ) return;
   if (window.LY_cardPreloadQueue.indexOf(url) < 0 && window.LY_lbPreloadQueue.indexOf(url) < 0) {
     window.LY_cardPreloadQueue.push(url);
   }
@@ -539,6 +541,9 @@ window.LY_enqueueCardPreload = function(url) {
 };
 window.LY_enqueueLbPreload = function(url) {
   if (!url || window.LY_preloadedUrls[url]) return;
+  if (window.LY_NET_SLOW && !window.LY_PRELOAD_AGGRESSIVE) return;
+  var maxQ = window.LY_PRELOAD_QUEUE_MAX || 64;
+  if (window.LY_cardPreloadQueue.length + window.LY_lbPreloadQueue.length >= maxQ) return;
   if (window.LY_cardPreloadQueue.indexOf(url) < 0 && window.LY_lbPreloadQueue.indexOf(url) < 0) {
     window.LY_lbPreloadQueue.push(url);
   }
@@ -546,14 +551,19 @@ window.LY_enqueueLbPreload = function(url) {
 };
 window.LY_pumpPreloads = function() {
   if (window.LY_preloadPumpActive) return;
+  if (window.LY_NET_SLOW && document.visibilityState === 'hidden') return;
   window.LY_preloadPumpActive = true;
   function step() {
+    if (window.LY_NET_SLOW && document.visibilityState === 'hidden') {
+      window.LY_preloadPumpActive = false;
+      return;
+    }
     var url = window.LY_cardPreloadQueue.shift() || window.LY_lbPreloadQueue.shift();
     if (!url) { window.LY_preloadPumpActive = false; return; }
     if (window.LY_preloadedUrls[url]) { step(); return; }
     window.LY_preloadedUrls[url] = 1;
     new Image().src = url;
-    var delay = window.LY_NET_SLOW ? 360 : 160;
+    var delay = window.LY_PRELOAD_PUMP_MS || (window.LY_NET_SLOW ? 900 : 160);
     (window.requestIdleCallback || function(fn){ setTimeout(fn, delay); })(step);
   }
   step();
@@ -646,7 +656,11 @@ window.LY_destCardUrl = function(idx) {
   return window.LY_cardTierFromMaster(window.LY_destMasterUrl(idx), suffix);
 };
 window.LY_destLbUrl = function(idx) {
-  return window.LY_cardTierFromMaster(window.LY_destMasterUrl(idx), '-960');
+  var mob = window.innerWidth <= 640;
+  var suffix = window.LY_NET_SLOW
+    ? (mob ? '-480' : '-640')
+    : '-960';
+  return window.LY_cardTierFromMaster(window.LY_destMasterUrl(idx), suffix);
 };
 window.LY_galleryCardUrl = function(idx) {
   var mob = window.innerWidth <= 640;
@@ -659,7 +673,11 @@ window.LY_galleryCardUrl = function(idx) {
   return window.LY_cardTierFromMaster(window.LY_galleryMasterUrl(idx), suffix);
 };
 window.LY_galleryLbUrl = function(idx) {
-  return window.LY_cardTierFromMaster(window.LY_galleryMasterUrl(idx), '-960');
+  var mob = window.innerWidth <= 640;
+  var suffix = window.LY_NET_SLOW
+    ? (mob ? '-480' : '-640')
+    : '-960';
+  return window.LY_cardTierFromMaster(window.LY_galleryMasterUrl(idx), suffix);
 };
 window.LY_pictureSrcsetForViewport = function(picture, mob) {
   if (!picture) return '';
@@ -691,26 +709,44 @@ window.LY_applySlowSrcsets = function(root) {
   });
 };
 window.LY_destPreloadReady = false;
-window.LY_afterMeaningfulPaint(function() {
-  window.LY_destPreloadReady = true;
+window.LY_warmPreloadCaches = function() {
+  if (window.LY_PRELOAD_AGGRESSIVE === false) {
+    if (window.LY_dripDestTier) window.LY_dripDestTier('half-day');
+    return;
+  }
   var destOrder = [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11];
   destOrder.forEach(function(i) { window.LY_enqueueCardPreload(window.LY_destCardUrl(i)); });
   for (var g = 0; g < window.LY_GALLERY_IMAGES.length; g++) {
     window.LY_enqueueCardPreload(window.LY_galleryCardUrl(g));
   }
+};
+window.LY_afterMeaningfulPaint(function() {
+  window.LY_destPreloadReady = true;
+  window.LY_warmPreloadCaches();
   document.querySelectorAll('.dest-group.tab-active .itinerary-grid').forEach(function(gr) {
     gr.dispatchEvent(new Event('scroll'));
   });
 });
 window.LY_whenNearSection('itinerary', function() {
   if (!window.LY_destPreloadReady) return;
+  if (window.LY_PRELOAD_AGGRESSIVE === false) {
+    if (window.LY_dripDestTier) window.LY_dripDestTier('half-day');
+    return;
+  }
   [0, 1, 2].forEach(function(i) { window.LY_enqueueCardPreload(window.LY_destCardUrl(i)); });
 });
 document.addEventListener('DOMContentLoaded', function() {
   if (window.LY_applySlowSrcsets) window.LY_applySlowSrcsets(document);
+  if (window.LY_NET_SLOW && !window.LY_PRELOAD_VISIBILITY_BOUND) {
+    window.LY_PRELOAD_VISIBILITY_BOUND = true;
+    document.addEventListener('visibilitychange', function() {
+      if (document.visibilityState === 'visible') window.LY_pumpPreloads();
+    });
+  }
   window.LY_whenNearSection('gallery', function() {
     if (!window.LY_destPreloadReady) return;
-    [0, 1, 2].forEach(function(i) { window.LY_enqueueCardPreload(window.LY_galleryCardUrl(i)); });
+    var warm = window.LY_PRELOAD_AGGRESSIVE === false ? [0, 1, 2, 3] : [0, 1, 2];
+    warm.forEach(function(i) { window.LY_enqueueCardPreload(window.LY_galleryCardUrl(i)); });
   });
 });
 </script>
@@ -1086,12 +1122,20 @@ document.addEventListener('DOMContentLoaded', function() {
     window.LY_enqueueLbPreload(window.LY_destLbUrl(idx));
   };
   window.LY_preloadDestAdjacent = function(idx, force) {
+    if (window.LY_PRELOAD_AGGRESSIVE === false) {
+      window.LY_preloadDest(idx, force);
+      return;
+    }
     var n = window.LY_DEST_IMAGES.length;
     [-1, 0, 1].forEach(function(d) {
       window.LY_preloadDest((idx + d + n) % n, force);
     });
   };
   window.LY_preloadDestLbAdjacent = function(idx) {
+    if (window.LY_PRELOAD_AGGRESSIVE === false) {
+      window.LY_preloadDestLb(idx);
+      return;
+    }
     var n = window.LY_DEST_IMAGES.length;
     [-1, 0, 1].forEach(function(d) {
       window.LY_preloadDestLb((idx + d + n) % n);

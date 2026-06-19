@@ -62,6 +62,10 @@
   var slow = lySlow();
   g.LY_NET_SLOW = slow;
   g.LY_NET_TIER = slow ? 'slow' : 'normal';
+  g.LY_PRELOAD_AGGRESSIVE = !slow;
+  g.LY_PRELOAD_PUMP_MS = slow ? 900 : 160;
+  g.LY_PRELOAD_IDLE_DELAY_MS = slow ? 4500 : 2000;
+  g.LY_PRELOAD_QUEUE_MAX = slow ? 8 : 64;
   g.LY_IMG_ROOT = imgRoot;
   g.LY_capSrcset = lyCapSrcset;
   g.LY_maxImgWidth = lyMaxW;
