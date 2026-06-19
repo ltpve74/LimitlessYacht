@@ -253,7 +253,7 @@
     wrap.appendChild(preview);
     wrap.appendChild(picture);
 
-    if (!skipPreview) {
+    if (!skipPreview && kind === 'hero') {
       preview.addEventListener('load', function () { markPreviewReady(wrap); }, { once: true });
       preview.addEventListener('error', function () { markPreviewReady(wrap); }, { once: true });
       preview.src = previewUrl;

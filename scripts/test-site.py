@@ -519,8 +519,10 @@ def check_html(r: Runner, rel: str, html: str) -> None:
         and 'LY_PROGRESSIVE_IMAGES' in html
         and "lyInjectPreload(lyImg('maiora_20s_02-prev" not in net_tier_js
         and "lyInjectPreload(lyImg('maiora_20s_02-1280.webp')" not in net_tier_js
+        and "kind === 'hero'" in prog_js
         and 'preview.src = previewUrl' in prog_js
         and 'bootProgressive' in prog_js
+        and 'ensurePreview(wrap)' in prog_js
         and "lyInjectPreload(lyImg('mobile/maiora_20s_02-720.webp')" not in net_tier_js
         and re.search(
             r'LY_destCardUrl = function\(idx\)[\s\S]*?LY_PROGRESSIVE_IMAGES',
