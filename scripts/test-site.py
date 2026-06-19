@@ -778,7 +778,7 @@ def check_html(r: Runner, rel: str, html: str) -> None:
         and '.hero-bg-wrap,.hero-overlay{position:absolute;inset:0' in crit_flat
         and '.hero-value{display:none}' in crit_flat
         and '.hero-scroll,.hero-value{display:none}' not in crit_flat
-        and 'padding-top:max(3.5rem' in crit_flat
+        and 'padding:max(3rem,calc(env(safe-area-inset-top,0px)+2.25rem))' in crit_flat
         and 'background:rgba(10,22,40,.48)' in crit_flat,
     )
     r.check(
@@ -817,7 +817,8 @@ def check_html(r: Runner, rel: str, html: str) -> None:
     r.check(
         'critical CSS matches mobile hero flex layout',
         'display:flex' in crit_flat
-        and '.hero-cta-group{' in crit_flat and 'margin-top:auto' in crit_flat
+        and 'justify-content:space-between' in crit_flat
+        and '#hero.hero-cta-group{margin-top:0' in crit_flat
         and '.hero-content{position:absolute;inset:0' in crit_flat
         and 'height:100svh' in crit_flat
         and 'overflow:hidden' in crit_flat
@@ -1357,7 +1358,17 @@ def check_shared_assets(r: Runner) -> None:
             )
             is not None
             and re.search(
+                r'@media\s*\(\s*max-width:\s*768px\s*\)[\s\S]*?\.hero-content\s*\{[^}]*justify-content:\s*space-between',
+                css,
+            )
+            is not None
+            and re.search(
                 r'@media\s*\(\s*max-width:\s*768px\s*\)[\s\S]*?\.hero-scroll\s*\{[^}]*display:\s*flex',
+                css,
+            )
+            is not None
+            and re.search(
+                r'@media\s*\(\s*min-width:\s*769px\s*\)\s*and\s*\(\s*max-height:\s*920px\s*\)',
                 css,
             )
             is not None
@@ -1381,7 +1392,7 @@ def check_shared_assets(r: Runner) -> None:
         r.check(
             'short viewports compact hero title for bottom cluster clearance',
             re.search(
-                r'@media\s*\(\s*max-height:\s*920px\s*\)[\s\S]*?--hero-cluster-gap',
+                r'@media\s*\(\s*min-width:\s*769px\s*\)\s*and\s*\(\s*max-height:\s*920px\s*\)[\s\S]*?--hero-cluster-gap',
                 css,
             )
             is not None,

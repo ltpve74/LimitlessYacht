@@ -2456,14 +2456,14 @@ footer {
   .hero-title { font-size: clamp(1.9rem, 10vw, 2.85rem); }
   .hero-sub { font-size: .72rem; letter-spacing: .05em; line-height: 1.5; }
   .hero-rates { font-size: .62rem; margin-bottom: 0.8rem; }
-  .hero-actions { flex-direction: column; align-items: center; gap: .8rem; }
+  .hero-actions { flex-direction: column; align-items: center; gap: .55rem; }
   .btn-primary, .btn-ghost { 
     width: 100%; 
-    max-width: 300px; 
+    max-width: 320px; 
     text-align: center; 
     white-space: nowrap; 
     letter-spacing: .12em; 
-    padding: 1rem 1.6rem; 
+    padding: 0.82rem 1.35rem; 
   }
   .section-title { font-size: clamp(1.8rem, 6vw, 3rem); }
   .spec-card { padding: 1.0rem 0.75rem; }
@@ -2653,7 +2653,10 @@ footer {
 }
 /* Hero: full-viewport on mobile — bg/overlay locked; copy scrolls inside if needed */
 @media (max-width: 768px) {
-  :root { --hero-cluster-gap: 0.85rem; }
+  :root {
+    --hero-cluster-gap: clamp(0.45rem, 1.6vh, 0.7rem);
+    --hero-bottom-inset: max(1.1rem, calc(env(safe-area-inset-bottom, 0px) + 0.75rem));
+  }
   #hero {
     height: 100svh;
     min-height: 100dvh;
@@ -2677,6 +2680,7 @@ footer {
     animation: none;
     transform: none;
     min-height: 100%;
+    object-position: 55% 42%;
   }
   .hero-overlay {
     background:
@@ -2697,12 +2701,13 @@ footer {
     width: 100%;
     max-width: none;
     flex: none;
-    min-height: 0;
+    min-height: 100%;
     display: flex;
     flex-direction: column;
     align-items: center;
-    padding: 0 1.15rem;
-    padding-bottom: var(--hero-bottom-inset);
+    justify-content: space-between;
+    gap: clamp(0.3rem, 1.2vh, 0.65rem);
+    padding: max(3rem, calc(env(safe-area-inset-top, 0px) + 2.25rem)) 1.15rem var(--hero-bottom-inset);
     animation: none;
     overflow-x: clip;
     overflow-y: auto;
@@ -2716,32 +2721,41 @@ footer {
     align-items: center;
     gap: 0.5rem;
   }
-  .scroll-line { height: 32px; }
+  .scroll-line { height: clamp(20px, 3.5vh, 28px); }
   .hero-eyebrow {
-    padding-top: max(3.5rem, calc(env(safe-area-inset-top, 0px) + 2.75rem));
-    margin-bottom: 0.4rem;
+    padding-top: 0;
+    margin-bottom: 0.2rem;
     font-size: .54rem;
     letter-spacing: .06em;
   }
-  .hero-title { font-size: clamp(2rem, 9vw, 3.1rem); line-height: 1.08; }
+  .hero-title {
+    font-size: clamp(2.15rem, 6.8vh, 3.4rem);
+    line-height: 1.05;
+  }
   .hero-sub {
-    margin-top: 0.4rem;
+    margin-top: 0;
     font-size: clamp(.74rem, 3.2vw, .82rem);
+    line-height: 1.45;
     background: rgba(10, 22, 40, 0.38);
-    padding: 0.35rem 0.55rem;
+    padding: 0.3rem 0.5rem;
     border-radius: 3px;
   }
   .hero-rates {
-    margin-top: 0.55rem;
-    margin-bottom: 0.75rem;
+    margin-top: 0;
+    margin-bottom: 0;
     min-height: 0;
     font-size: clamp(.6rem, 2.9vw, .7rem);
-    line-height: 1.5;
-    padding: 0.4rem 0.55rem;
+    line-height: 1.45;
+    padding: 0.32rem 0.5rem;
     background: rgba(10, 22, 40, 0.48);
     border-radius: 3px;
   }
-  .hero-cta-group { width: 100%; padding-bottom: 0.25rem; }
+  .hero-cta-group {
+    margin-top: 0;
+    width: 100%;
+    max-width: none;
+    padding-bottom: 0;
+  }
   .hero-actions { margin-top: 0; }
   .hero-trust {
     font-size: .58rem; letter-spacing: .09em; line-height: 1.45;
@@ -2752,6 +2766,23 @@ footer {
   #hero .hero-actions .btn-ghost {
     background: rgba(10, 22, 40, 0.52);
     border-color: rgba(245, 240, 232, 0.62);
+  }
+  #hero .hero-actions .btn-primary,
+  #hero .hero-actions .btn-ghost {
+    padding: 0.82rem 1.35rem;
+    font-size: .62rem;
+  }
+
+  @media (min-height: 740px) {
+    .hero-title { font-size: clamp(2.45rem, 7.2vh, 3.65rem); }
+  }
+  @media (max-height: 700px) {
+    :root { --hero-cluster-gap: 0.4rem; }
+    .hero-title { font-size: clamp(1.85rem, 9vw, 2.35rem); }
+    .hero-scroll span { font-size: .48rem; }
+    .scroll-line { height: 20px; }
+    #hero .hero-actions .btn-primary,
+    #hero .hero-actions .btn-ghost { padding: 0.72rem 1.15rem; }
   }
 
   /* More responsive buttons on larger phones (481-768px): row layout for the bottom-anchored cluster */
@@ -2847,8 +2878,8 @@ footer {
   .charter-rates-confirm { text-wrap: pretty; }
 }
 .scroll-line { height: 32px; }
-/* Short viewports (~900px tall): keep title + bottom cluster from colliding */
-@media (max-height: 920px) {
+/* Short desktop viewports (~900px tall): keep title + bottom cluster from colliding */
+@media (min-width: 769px) and (max-height: 920px) {
   :root {
     --hero-cluster-gap: 1.1rem;
     --hero-bottom-inset: max(2.25rem, calc(env(safe-area-inset-bottom, 0px) + 1.5rem));
