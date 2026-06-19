@@ -728,7 +728,7 @@ def check_html(r: Runner, rel: str, html: str) -> None:
     )
     r.check(
         'critical CSS is slim enough for fast head parse',
-        style_pos > 0 and html.find('</style>', style_pos) - style_pos < 4900,
+        style_pos > 0 and html.find('</style>', style_pos) - style_pos < 5100,
     )
     crit_end = html.find('</style>', style_pos)
     crit_css = html[style_pos:crit_end] if style_pos > 0 and crit_end > style_pos else ''
@@ -742,10 +742,18 @@ def check_html(r: Runner, rel: str, html: str) -> None:
         and '.hamburger{display:flex}' in crit_flat,
     )
     r.check(
-        'critical CSS hides duplicate hero rates link before main.css',
+        'critical CSS hides duplicate hero rates and eyebrow links before main.css',
         '.hero-rates-link{display:block}' in crit_flat
-        and '.hero-rates-link--desktop){display:none}' in crit_flat
-        and '.hero-rates-link--mobile){display:none}' in crit_flat,
+        and '.hero-rates-link--desktop,.hero-eyebrow-link--desktop){display:none}' in crit_flat
+        and '.hero-rates-link--mobile,.hero-eyebrow-link--mobile){display:none}' in crit_flat
+        and '.hero-eyebrow-link--desktop{display:inline}' in crit_flat,
+    )
+    r.check(
+        'critical CSS uses same hero spacing tokens as main.css',
+        '--hero-cluster-gap:' in crit_flat
+        and '--hero-bottom-inset:' in crit_flat
+        and 'var(--hero-bottom-inset)' in crit_flat
+        and '--hero-gap:' not in crit_flat,
     )
     r.check(
         'critical CSS locks hero text wrap before main.css (prevents reflow CLS)',
@@ -904,8 +912,8 @@ def check_html(r: Runner, rel: str, html: str) -> None:
     r.check(
         'critical CSS defines hero bottom cluster gaps',
         '.hero-cta-group{' in crit_flat
-        and 'gap:var(--hero-gap)' in crit_flat
-        and '--hero-bottom:' in crit_flat,
+        and 'gap:var(--hero-cluster-gap)' in crit_flat
+        and '--hero-bottom-inset:' in crit_flat,
     )
     r.check(
         'critical CSS vertically centers hero CTA label text',
