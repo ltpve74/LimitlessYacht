@@ -386,13 +386,17 @@ function gtag_report_conversion_form(url) {
     return hash;
   }
 
+  function lyClaritySectionEventName(section) {
+    return 'ly_section_view_' + String(section).replace(/-/g, '_');
+  }
+
   function lyFireClaritySection(section) {
     if (window.LY_OWNER_MODE || !section) return;
     var fn = window.clarity;
     if (typeof fn !== 'function') return;
     try {
       fn('set', 'ly_section', section);
-      fn('event', 'ly_section_view');
+      fn('event', lyClaritySectionEventName(section));
     } catch (e) {}
   }
 
