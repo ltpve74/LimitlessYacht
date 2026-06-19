@@ -778,7 +778,7 @@ def check_html(r: Runner, rel: str, html: str) -> None:
         and '.hero-bg-wrap,.hero-overlay{position:absolute;inset:0' in crit_flat
         and '.hero-value{display:none}' in crit_flat
         and '.hero-scroll,.hero-value{display:none}' not in crit_flat
-        and 'padding:max(3.2rem,calc(env(safe-area-inset-top)+2.5rem))' in crit_flat
+        and 'padding:max(5.35rem,calc(env(safe-area-inset-top)+4.65rem))' in crit_flat
         and '.hero-top.hero-sub' in crit_flat.replace(' ', '')
         and 'background:rgba(10,22,40,.38)' in crit_flat,
     )

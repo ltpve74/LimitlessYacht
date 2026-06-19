@@ -2666,7 +2666,8 @@ footer {
 /* Hero: mobile — top/bottom clusters frame a bright yacht stage in the middle */
 @media (max-width: 768px) {
   :root {
-    --hero-top-gap: clamp(0.5rem, 1.75vh, 0.75rem);
+    --hero-top-inset: max(5.35rem, calc(env(safe-area-inset-top, 0px) + 4.65rem));
+    --hero-top-gap: clamp(0.55rem, 1.85vh, 0.8rem);
     --hero-bottom-gap: clamp(0.55rem, 1.85vh, 0.85rem);
     --hero-cluster-gap: clamp(0.45rem, 1.5vh, 0.68rem);
     --hero-bottom-inset: max(0.85rem, calc(env(safe-area-inset-bottom, 0px) + 0.6rem));
@@ -2715,7 +2716,7 @@ footer {
     flex-direction: column;
     align-items: center;
     justify-content: space-between;
-    padding: max(3.2rem, calc(env(safe-area-inset-top, 0px) + 2.5rem)) 1.2rem 0;
+    padding: var(--hero-top-inset) 1.2rem 0;
     animation: none;
     overflow: hidden;
   }
@@ -2739,7 +2740,7 @@ footer {
   }
   .hero-top {
     gap: var(--hero-top-gap);
-    padding-bottom: 0.35rem;
+    padding-bottom: 0.4rem;
   }
   .hero-bottom {
     gap: var(--hero-bottom-gap);
@@ -2782,8 +2783,8 @@ footer {
     }
   }
   .hero-eyebrow {
-    padding-top: 0.1rem;
-    margin-bottom: 0.15rem;
+    padding-top: 0.2rem;
+    margin-bottom: 0.25rem;
     font-size: .54rem;
     letter-spacing: .06em;
   }
