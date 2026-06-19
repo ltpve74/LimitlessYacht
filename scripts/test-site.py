@@ -468,6 +468,22 @@ def check_html(r: Runner, rel: str, html: str) -> None:
         and re.search(r'dest-lb-img-wrap[\s\S]*?class="lb-loader"', html) is not None,
     )
     r.check(
+        'slow carousel cards show loading spinners during image fetch',
+        'window.LY_initCardLoaders' in html
+        and 'window.LY_setCardLoading' in html
+        and 'window.LY_showCardLoadersForIntent' in html
+        and 'window.LY_cardUrlForEl' in html
+        and 'card-loader' in html
+        and 'card-loading' in html
+        and 'markCarouselTarget' in html
+        and 'markGalleryTarget' in html
+        and re.search(
+            r'LY_beginUserIntent = function\(opts\)[\s\S]*?LY_showCardLoadersForIntent\(opts\)',
+            html,
+        )
+        is not None,
+    )
+    r.check(
         'anchor CTAs pause warming and re-anchor preload context',
         'window.LY_onNavIntent' in html
         and 'window.LY_sectionFromHash' in html
@@ -1991,8 +2007,11 @@ def check_shared_assets(r: Runner) -> None:
         and css_rule_index(css, '.lb-nav') >= 0
         and css_rule_index(css, '.lb-counter') >= 0
         and css_rule_index(css, '.lb-loader') >= 0
+        and css_rule_index(css, '.card-loader') >= 0
         and '#lightbox.lb-loading #lightbox-img' in css
         and '.dest-lb-img-wrap.lb-loading #dest-lb-img' in css
+        and '.destination-card.card-loading .card-loader' in css
+        and '.gallery-item.card-loading .card-loader' in css
         and css_rule_index(css, '#dest-lb-close') < 0
         and '#lightbox-prev' not in css,
     )

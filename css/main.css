@@ -611,6 +611,38 @@ section { padding: 7rem 2rem; }
   transition: opacity .2s ease;
 }
 @keyframes lbSpin { to { transform: rotate(360deg); } }
+
+/* carousel card loading (slow connections) */
+.card-loader {
+  display: none;
+  position: absolute;
+  z-index: 3;
+  width: 2.25rem;
+  height: 2.25rem;
+  border: 2px solid rgba(201,168,76,.22);
+  border-top-color: rgba(201,168,76,.88);
+  border-radius: 50%;
+  animation: lbSpin .85s linear infinite;
+  pointer-events: none;
+}
+.destination-card .card-loader {
+  top: 32%;
+  left: 50%;
+  margin: -1.125rem 0 0 -1.125rem;
+}
+.gallery-item .card-loader {
+  top: 50%;
+  left: 50%;
+  margin: -1.125rem 0 0 -1.125rem;
+}
+.destination-card.card-loading .card-loader,
+.gallery-item.card-loading .card-loader { display: block; }
+.destination-card.card-loading .destination-card-bg img,
+.gallery-item.card-loading img {
+  opacity: .45;
+  transition: opacity .2s ease;
+}
+
 #lightbox.open::after {
   content: ''; position: absolute; inset: 0; z-index: 1; pointer-events: none;
   background:

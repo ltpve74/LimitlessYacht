@@ -93,9 +93,9 @@ nav{position:fixed;inset:0 0 auto;z-index:100;display:flex;align-items:center;ga
   global.LY_TESTING_CLARITY = !global.LY_OWNER_MODE && !global.LY_IS_PREVIEW;
 })(window);
 </script>
-<link rel="preload" as="style" href="../css/main.css?v=106" onload="this.rel='stylesheet';requestAnimationFrame(function(){requestAnimationFrame(function(){document.documentElement.classList.add('ly-main-ready')})})" />
+<link rel="preload" as="style" href="../css/main.css?v=107" onload="this.rel='stylesheet';requestAnimationFrame(function(){requestAnimationFrame(function(){document.documentElement.classList.add('ly-main-ready')})})" />
 <script>!function(){var d=document.documentElement;function ready(){if(!d.classList.contains('ly-main-ready'))d.classList.add('ly-main-ready')}function onSheet(){requestAnimationFrame(function(){requestAnimationFrame(ready)})}var l=document.querySelector('link[href*="main.css"]');if(l)l.addEventListener('load',onSheet)}();</script>
-<noscript><link rel="stylesheet" href="../css/main.css?v=106" /></noscript>
+<noscript><link rel="stylesheet" href="../css/main.css?v=107" /></noscript>
 
 <title>Limitless Yacht Experience – Luxus-Maiora-Charter auf Mallorca</title>
 <meta name="description" content="Chartern Sie die 21,5 m Maiora „Limitless“ ab Palma de Mallorca — Tages- und Mehrtagestörns zu Mallorcas schönsten Buchten, Cabrera und Formentera. Mit Crew, bis zu 12 Gäste." />
@@ -689,6 +689,92 @@ window.LY_waitForPreloadUrls = function(urls, cb, maxMs) {
   }
   tick();
 };
+window.LY_cardUrlForEl = function(el) {
+  if (!el) return '';
+  var idx;
+  if (el.classList.contains('destination-card')) {
+    idx = parseInt(el.getAttribute('data-dest-idx'), 10);
+    if (isNaN(idx) || !window.LY_destCardUrl) return '';
+    return window.LY_destCardUrl(idx);
+  }
+  if (el.classList.contains('gallery-item')) {
+    idx = parseInt(el.getAttribute('data-index'), 10);
+    if (isNaN(idx) || !window.LY_galleryCardUrl) return '';
+    return window.LY_galleryCardUrl(idx);
+  }
+  return '';
+};
+window.LY_initCardLoaders = function() {
+  document.querySelectorAll('.destination-card, .gallery-item').forEach(function(card) {
+    if (card.querySelector('.card-loader')) return;
+    var loader = document.createElement('div');
+    loader.className = 'card-loader';
+    loader.setAttribute('aria-hidden', 'true');
+    card.appendChild(loader);
+  });
+};
+window.LY_cardIsImageReady = function(card) {
+  var img = card && card.querySelector('img');
+  return !!(img && img.complete && img.naturalWidth);
+};
+window.LY_setCardLoading = function(card, on) {
+  if (!card || !window.LY_preloadNeedsUserPriority || !window.LY_preloadNeedsUserPriority()) return;
+  if (!on) {
+    card.classList.remove('card-loading');
+    card._lyCardLoadGen = (card._lyCardLoadGen || 0) + 1;
+    return;
+  }
+  if (window.LY_cardIsImageReady(card)) return;
+  var gen = (card._lyCardLoadGen || 0) + 1;
+  card._lyCardLoadGen = gen;
+  card.classList.add('card-loading');
+  var img = card.querySelector('img');
+  function clearIfFertig() {
+    if (card._lyCardLoadGen !== gen) return;
+    if (window.LY_cardIsImageReady(card)) card.classList.remove('card-loading');
+  }
+  if (img) {
+    if (img.complete) clearIfFertig();
+    else {
+      img.addEventListener('load', clearIfFertig, { once: true });
+      img.addEventListener('error', clearIfFertig, { once: true });
+    }
+  }
+  setTimeout(clearIfFertig, 12000);
+};
+window.LY_cardsForUrls = function(urls) {
+  var cards = [];
+  var seen = {};
+  document.querySelectorAll('.destination-card, .gallery-item').forEach(function(card) {
+    var u = window.LY_cardUrlForEl(card);
+    if (u && urls.indexOf(u) >= 0 && !seen[card]) {
+      seen[card] = 1;
+      cards.push(card);
+    }
+  });
+  return cards;
+};
+window.LY_cardsForContext = function(ctx) {
+  if (!ctx) return [];
+  var card = null;
+  if (ctx.section === 'itinerary' && ctx.destIdx != null) {
+    document.querySelectorAll('.destination-card').forEach(function(el) {
+      if (parseInt(el.getAttribute('data-dest-idx'), 10) === ctx.destIdx) card = el;
+    });
+  } else if (ctx.section === 'gallery' && ctx.galleryIdx != null) {
+    document.querySelectorAll('.gallery-item').forEach(function(el) {
+      if (parseInt(el.getAttribute('data-index'), 10) === ctx.galleryIdx) card = el;
+    });
+  }
+  return card ? [card] : [];
+};
+window.LY_showCardLoadersForIntent = function(opts) {
+  if (!window.LY_preloadNeedsUserPriority || !window.LY_preloadNeedsUserPriority()) return;
+  opts = opts || {};
+  var urls = (opts.urgentUrls || []).filter(Boolean);
+  var cards = urls.length ? window.LY_cardsForUrls(urls) : window.LY_cardsForContext(opts.context);
+  cards.forEach(function(card) { window.LY_setCardLoading(card, true); });
+};
 window.LY_beginUserIntent = function(opts) {
   opts = opts || {};
   if (!window.LY_preloadNeedsUserPriority || !window.LY_preloadNeedsUserPriority()) {
@@ -703,6 +789,7 @@ window.LY_beginUserIntent = function(opts) {
   if (opts.context) {
     window.LY_preloadContext = Object.assign({}, window.LY_preloadContext, opts.context);
   }
+  if (window.LY_showCardLoadersForIntent) window.LY_showCardLoadersForIntent(opts);
   var urgent = (opts.urgentUrls || []).filter(Boolean);
   var seen = {};
   urgent = urgent.filter(function(u) {
@@ -1107,6 +1194,7 @@ window.LY_afterMeaningfulPaint(function() {
 });
 document.addEventListener('DOMContentLoaded', function() {
   if (window.LY_applySlowSrcsets) window.LY_applySlowSrcsets(document);
+  if (window.LY_initCardLoaders) window.LY_initCardLoaders();
   if (window.LY_NET_SLOW && !window.LY_PRELOAD_VISIBILITY_BOUND) {
     window.LY_PRELOAD_VISIBILITY_BOUND = true;
     document.addEventListener('visibilitychange', function() {
@@ -1660,10 +1748,17 @@ document.addEventListener('DOMContentLoaded', function() {
       }
     }
     function resetStep() { stepCache.val = 0; }
+    function markCarouselTarget(targetIdx) {
+      if (!window.LY_setCardLoading) return;
+      var card = cards[targetIdx];
+      if (card) window.LY_setCardLoading(card, true);
+    }
     if (btnPrev) btnPrev.addEventListener('click', function() {
+      markCarouselTarget(Math.max(0, idx() - 1));
       grid.scrollTo({ left: (idx() - 1) * step(), behavior: 'smooth' });
     });
     if (btnNext) btnNext.addEventListener('click', function() {
+      markCarouselTarget(Math.min(total - 1, idx() + 1));
       grid.scrollTo({ left: (idx() + 1) * step(), behavior: 'smooth' });
     });
     grid.addEventListener('scroll', update, { passive: true });
@@ -2490,8 +2585,19 @@ document.addEventListener('DOMContentLoaded', function() {
         }
       }
       function resetStep() { stepCache.val = 0; }
-      if (btnPrev) btnPrev.addEventListener('click', function() { grid.scrollTo({ left: (idx()-1)*step(), behavior:'smooth' }); });
-      if (btnNext) btnNext.addEventListener('click', function() { grid.scrollTo({ left: (idx()+1)*step(), behavior:'smooth' }); });
+      function markGalleryTarget(targetIdx) {
+        if (!window.LY_setCardLoading) return;
+        var card = cards[targetIdx];
+        if (card) window.LY_setCardLoading(card, true);
+      }
+      if (btnPrev) btnPrev.addEventListener('click', function() {
+        markGalleryTarget(Math.max(0, idx() - 1));
+        grid.scrollTo({ left: (idx()-1)*step(), behavior:'smooth' });
+      });
+      if (btnNext) btnNext.addEventListener('click', function() {
+        markGalleryTarget(Math.min(total - 1, idx() + 1));
+        grid.scrollTo({ left: (idx()+1)*step(), behavior:'smooth' });
+      });
       grid.addEventListener('scroll', update, { passive: true });
       window.addEventListener('resize', function () {
         resetStep();
