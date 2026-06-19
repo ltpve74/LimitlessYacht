@@ -687,15 +687,18 @@ def check_html(r: Runner, rel: str, html: str) -> None:
         )
         is not None,
     )
-    style_pos = html.find('<style')
+    fouc_pos = html.find('id="fouc-guard"')
+    style_pos = html.find('id="critical-css"')
     r.check(
-        'critical hero CSS discovered before deferred head scripts',
-        style_pos > 0 and style_pos < html.find('<script'),
+        'FOUC guard CSS precedes hero critical CSS and scripts',
+        fouc_pos > 0
+        and style_pos > fouc_pos
+        and style_pos < html.find('<script'),
     )
     r.check(
         'hero image preloads discovered before deferred head scripts',
         html.find('fetchpriority="high"')
-        < style_pos
+        > fouc_pos
         < html.find('LY_afterLcp')
         < html.find('window.LY_DEST_IMAGES'),
     )
@@ -726,21 +729,31 @@ def check_html(r: Runner, rel: str, html: str) -> None:
         'hero background is not aria-hidden (eligible LCP image candidate)',
         'class="hero-bg"' in html and 'aria-hidden="true"' not in html.split('class="hero-bg"')[1][:120],
     )
+    crit_tag = html.find('<style id="critical-css">', fouc_pos)
+    crit_end = html.find('</style>', crit_tag) if crit_tag >= 0 else -1
     r.check(
         'critical CSS is slim enough for fast head parse',
-        style_pos > 0 and html.find('</style>', style_pos) - style_pos < 7800,
+        crit_tag > 0 and crit_end - crit_tag < 7800,
     )
-    crit_end = html.find('</style>', style_pos)
-    crit_css = html[style_pos:crit_end] if style_pos > 0 and crit_end > style_pos else ''
+    crit_css = html[crit_tag:crit_end] if crit_tag >= 0 and crit_end > crit_tag else ''
     crit_flat = re.sub(r'\s+', '', crit_css)
+    fouc_flat = re.sub(r'\s+', '', html[html.find('<style id="fouc-guard">'):html.find('</style>', html.find('id="fouc-guard"'))])
     r.check(
-        'critical CSS hides unstyled nav chrome until main.css loads',
-        'html:not(.css-ready)' in crit_flat
-        and ':is(.nav-links,.nav-lang-wrap,.nav-header-cta,.hamburger,.mobile-nav,' in crit_flat
-        and '.hero-eyebrow-link--desktop){display:none!important}' in crit_flat
-        and 'html:not(.css-ready)body>:not(nav):not(#hero){display:none!important}' in crit_flat
-        and 'html:not(.css-ready)a:any-link{color:var(--cream)!important' in crit_flat
-        and '.hero-eyebrow-link--desktop){display:none!important}' in crit_flat
+        'FOUC guard kills blue links and hides below-fold until main.css',
+        'html:not(.ly-main-ready)body>:not(nav):not(#hero){display:none!important}' in fouc_flat
+        and 'a:any-link{color:#f5f0e8!important' in fouc_flat,
+    )
+    r.check(
+        'nav and desktop hero duplicates ship with inline display:none',
+        '<ul class="nav-links" style="display:none">' in html
+        and 'class="hamburger" id="hamburger" style="display:none"' in html
+        and 'class="hero-eyebrow-link--desktop" style="display:none"' in html
+        and 'class="hero-rates hero-rates-link season-rates hero-rates-link--desktop" style="display:none"' in html
+        and 'class="btn-primary hero-cta-link--desktop" style="display:none"' in html,
+    )
+    r.check(
+        'critical CSS locks desktop hero variants with !important',
+        '.hero-cta-link--desktop,.hero-rates-link--desktop,.hero-eyebrow-link--desktop{display:none!important}' in crit_flat
         and '#heroa{color:inherit;text-decoration:none' in crit_flat
         and 'position:fixed' in crit_flat
         and 'nav{' in crit_flat
@@ -756,10 +769,10 @@ def check_html(r: Runner, rel: str, html: str) -> None:
         and 'background:rgba(10,22,40,.48)' in crit_flat,
     )
     r.check(
-        'main.css load adds css-ready class after sheet paints (no early timeout)',
-        html.count("classList.add('css-ready')") >= 2
+        'main.css load adds ly-main-ready after sheet paints (no early timeout)',
+        html.count("classList.add('ly-main-ready')") >= 2
         and 'onload="this.rel=\'stylesheet\'' in html
-        and 'setTimeout(r,4e3)' not in html
+        and 'setTimeout' not in html.split('main.css')[1][:500]
         and 'requestAnimationFrame' in html,
     )
     r.check(
@@ -772,9 +785,9 @@ def check_html(r: Runner, rel: str, html: str) -> None:
     r.check(
         'critical CSS hides duplicate hero rates and eyebrow links before main.css',
         '.hero-rates-link{display:block;text-decoration:none' in crit_flat
-        and '.hero-rates-link--desktop,.hero-eyebrow-link--desktop){display:none}' in crit_flat
-        and '.hero-rates-link--mobile,.hero-eyebrow-link--mobile){display:none}' in crit_flat
-        and '.hero-eyebrow-link--desktop{display:inline}' in crit_flat,
+        and '.hero-cta-link--desktop,.hero-rates-link--desktop,.hero-eyebrow-link--desktop{display:none!important}' in crit_flat
+        and '.hero-rates-link--mobile,.hero-eyebrow-link--mobile){display:none!important}' in crit_flat
+        and '.hero-eyebrow-link--desktop{display:inline!important}' in crit_flat,
     )
     r.check(
         'critical CSS uses same hero spacing tokens as main.css',

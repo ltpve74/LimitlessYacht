@@ -307,10 +307,10 @@ nav.scrolled::before { opacity: 1; }
 .hero-eyebrow a, .hero-trust a {
   color: inherit; text-decoration: none;
 }
-.hero-eyebrow-link--desktop { display: none; }
+.hero-eyebrow-link--desktop { display: none !important; }
 @media (min-width: 769px) {
-  .hero-eyebrow-link--mobile { display: none; }
-  .hero-eyebrow-link--desktop { display: inline; }
+  .hero-eyebrow-link--mobile { display: none !important; }
+  .hero-eyebrow-link--desktop { display: inline !important; }
 }
 .hero-title {
   font-family: 'Montserrat', sans-serif;
@@ -387,10 +387,10 @@ nav.scrolled::before { opacity: 1; }
 #hero .hero-actions .btn-ghost:hover {
   background: rgba(10, 22, 40, 0.42);
 }
-#hero .hero-actions .hero-cta-link--desktop { display: none; }
+#hero .hero-actions .hero-cta-link--desktop { display: none !important; }
 @media (min-width: 769px) {
-  #hero .hero-actions .hero-cta-link--mobile { display: none; }
-  #hero .hero-actions .hero-cta-link--desktop { display: inline-flex; }
+  #hero .hero-actions .hero-cta-link--mobile { display: none !important; }
+  #hero .hero-actions .hero-cta-link--desktop { display: inline-flex !important; }
 }
 .hero-scroll {
   margin-top: 0; margin-bottom: 0;
@@ -2254,10 +2254,16 @@ footer {
     padding: 0.85rem 1rem;
     min-height: 3.8rem;
   }
-  .nav-links { display: none; }
-  .nav-lang-wrap { display: none; }
-  .nav-header-cta { display: none; }
-  .hamburger { display: flex; }
+  .nav-links { display: none !important; }
+  .nav-lang-wrap { display: none !important; }
+  .nav-header-cta { display: none !important; }
+  .hamburger { display: flex !important; }
+}
+@media (min-width: 769px) {
+  .nav-links { display: flex !important; }
+  .nav-lang-wrap { display: block !important; }
+  .nav-header-cta { display: inline-flex !important; }
+  .hamburger { display: none !important; }
 }
 /* Mobile + tablet immersive funnel (destinations → gallery → calendar) */
 @media (max-width: 768px) {
@@ -2770,10 +2776,10 @@ footer {
   outline-offset: 3px;
   border-radius: 4px;
 }
-.hero-rates-link--desktop { display: none; }
+.hero-rates-link--desktop { display: none !important; }
 @media (min-width: 769px) {
-  .hero-rates-link--mobile { display: none; }
-  .hero-rates-link--desktop { display: block; }
+  .hero-rates-link--mobile { display: none !important; }
+  .hero-rates-link--desktop { display: block !important; }
 }
 .hero-rates [hidden] { display: none !important; }
 .charter-rates-confirm {

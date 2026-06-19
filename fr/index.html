@@ -3,6 +3,7 @@
 <head>
 <meta charset="UTF-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<style id="fouc-guard">html{background:#0a1628;color-scheme:dark}a,a:any-link{color:#f5f0e8!important;text-decoration:none!important;-webkit-text-fill-color:currentColor!important}html:not(.ly-main-ready) body>:not(nav):not(#hero){display:none!important}</style>
 <!-- Preload hero image (LCP) — must precede deferred head scripts -->
 <link rel="preload" as="image" imagesrcset="/images/mobile/maiora_20s_02-480.webp 480w, /images/mobile/maiora_20s_02-720.webp 720w, /images/mobile/maiora_20s_02-960.webp 960w" imagesizes="100vw" type="image/webp" fetchpriority="high" media="(max-width: 640px)" />
 <link rel="preload" as="image" imagesrcset="/images/maiora_20s_02-640.webp 640w, /images/maiora_20s_02-960.webp 960w, /images/maiora_20s_02-1280.webp 1280w, /images/maiora_20s_02.webp 1920w" imagesizes="100vw" type="image/webp" fetchpriority="high" media="(min-width: 641px)" />
@@ -15,10 +16,9 @@
 *,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
 html{scroll-padding-top:5rem;overflow-x:clip;color-scheme:dark}
 body{background:var(--navy);color:var(--cream);font-family:'Montserrat','Montserrat Fallback',sans-serif;font-weight:300;overflow-x:clip;-webkit-font-smoothing:antialiased}
-html:not(.css-ready) a,html:not(.css-ready) a:any-link{color:var(--cream)!important;text-decoration:none!important;-webkit-text-fill-color:currentColor!important}
-html:not(.css-ready) :is(.nav-links,.nav-lang-wrap,.nav-header-cta,.hamburger,.mobile-nav,.hero-cta-link--desktop,.hero-rates-link--desktop,.hero-eyebrow-link--desktop){display:none!important}
-html:not(.css-ready) body>:not(nav):not(#hero){display:none!important}
-html:not(.css-ready) [hidden]{display:none!important}
+[hidden]{display:none!important}
+.hero-cta-link--desktop,.hero-rates-link--desktop,.hero-eyebrow-link--desktop{display:none!important}
+@media(min-width:769px){#hero .hero-cta-link--desktop{display:inline-flex!important}#hero .hero-rates-link--desktop{display:block!important}#hero .hero-eyebrow-link--desktop{display:inline!important}#hero :is(.hero-cta-link--mobile,.hero-rates-link--mobile,.hero-eyebrow-link--mobile){display:none!important}}
 #hero a{color:inherit;text-decoration:none;-webkit-text-fill-color:currentColor}
 .hero-eyebrow a{color:var(--gold-light)}
 .hero-rates,.hero-rates-link{color:rgba(255,255,255,.96)}
@@ -53,8 +53,7 @@ nav{position:fixed;inset:0 0 auto;z-index:100;display:flex;align-items:center;ga
 #hero .hero-actions :is(.btn-primary,.btn-ghost){display:inline-flex;align-items:center;line-height:1}
 #hero .hero-actions .btn-primary{border:1px solid transparent}
 #hero .hero-actions .btn-ghost{background:rgba(10,22,40,.28);border-color:rgba(245,240,232,.52);box-shadow:0 2px 18px rgba(10,22,40,.32)}
-#hero :is(.hero-cta-link--desktop,.hero-rates-link--desktop,.hero-eyebrow-link--desktop){display:none}
-@media(min-width:769px){#hero :is(.hero-cta-link--mobile,.hero-rates-link--mobile,.hero-eyebrow-link--mobile){display:none}#hero .hero-cta-link--desktop{display:inline-flex}#hero .hero-rates-link--desktop{display:block}#hero .hero-eyebrow-link--desktop{display:inline}}
+
 .hero-trust{margin-top:0;font-size:.65rem;letter-spacing:.12em;text-transform:uppercase;color:rgba(245,240,232,.84);text-wrap:balance;text-shadow:0 1px 10px rgba(10,22,40,.88)}
 .hero-scroll{margin-top:0;display:flex;flex-direction:column;align-items:center;gap:.5rem}
 .scroll-line{width:1px;height:32px;background:linear-gradient(to bottom,var(--gold),transparent)}
@@ -96,9 +95,9 @@ nav{position:fixed;inset:0 0 auto;z-index:100;display:flex;align-items:center;ga
   global.LY_TESTING_CLARITY = !global.LY_OWNER_MODE && !global.LY_IS_PREVIEW;
 })(window);
 </script>
-<link rel="preload" as="style" href="../css/main.css?v=97" onload="this.rel='stylesheet';requestAnimationFrame(function(){requestAnimationFrame(function(){document.documentElement.classList.add('css-ready')})})" />
-<script>!function(){var d=document.documentElement;function ready(){if(d.classList.contains('css-ready'))return;d.classList.add('css-ready')}function onSheet(){requestAnimationFrame(function(){requestAnimationFrame(ready)})}var l=document.querySelector('link[href*="main.css"]');if(l&&l.sheet&&l.sheet.cssRules&&l.sheet.cssRules.length)onSheet();else if(l)l.addEventListener('load',onSheet)}();</script>
-<noscript><link rel="stylesheet" href="../css/main.css?v=97" /></noscript>
+<link rel="preload" as="style" href="../css/main.css?v=98" onload="this.rel='stylesheet';requestAnimationFrame(function(){requestAnimationFrame(function(){document.documentElement.classList.add('ly-main-ready')})})" />
+<script>!function(){var d=document.documentElement;function ready(){if(!d.classList.contains('ly-main-ready'))d.classList.add('ly-main-ready')}function onSheet(){requestAnimationFrame(function(){requestAnimationFrame(ready)})}var l=document.querySelector('link[href*="main.css"]');if(l)l.addEventListener('load',onSheet)}();</script>
+<noscript><link rel="stylesheet" href="../css/main.css?v=98" /></noscript>
 
 <title>Limitless Yacht Experience – Charter de luxe Maiora à Majorque</title>
 <meta name="description" content="Louez le Maiora de 21,5 m « Limitless » depuis Palma de Majorque — croisières à la journée et sur plusieurs jours vers les criques de Majorque, Cabrera et Formentera. Avec équipage, jusqu'à 12 invités." />
@@ -148,7 +147,7 @@ nav{position:fixed;inset:0 0 auto;z-index:100;display:flex;align-items:center;ga
 <!-- NAV -->
 <nav id="navbar">
   <a href="#hero" class="nav-logo">Limitless <span>Yacht</span></a>
-  <ul class="nav-links">
+  <ul class="nav-links" style="display:none">
     <li><a href="#about">À propos</a></li>
     <li><a href="#itinerary-land">Destinations</a></li>
     <li><a href="#gallery-land">Galerie</a></li>
@@ -159,19 +158,20 @@ nav{position:fixed;inset:0 0 auto;z-index:100;display:flex;align-items:center;ga
     <li><a href="#specs-land">Détails</a></li>
   </ul>
   <div class="nav-end">
-        <div class="nav-lang-wrap" id="navLangWrap">
+    <div class="nav-lang-wrap" id="navLangWrap" style="display:none">
       <button type="button" class="nav-lang-trigger" id="navLangTrigger" aria-haspopup="menu" aria-expanded="false" aria-controls="navLangPopover" aria-label="Langue">
-        <span class="nav-lang-current" lang="fr">FR</span>
+        <span class="nav-lang-current" lang="en">EN</span>
         <span class="nav-lang-caret" aria-hidden="true">▾</span>
       </button>
       <div class="nav-lang-popover" id="navLangPopover" role="menu" hidden>
-        <a href="../" hreflang="en" lang="en" role="menuitem">EN</a>
-        <a href="../de/" hreflang="de" lang="de" role="menuitem">DE</a>
-        <a href="./" hreflang="fr" class="active" lang="fr" role="menuitem">FR</a>
-        <a href="../es/" hreflang="es" lang="es" role="menuitem">ES</a>
+        <a href="./" hreflang="en" class="active" lang="en" role="menuitem">EN</a>
+        <a href="de/" hreflang="de" lang="de" role="menuitem">DE</a>
+        <a href="fr/" hreflang="fr" lang="fr" role="menuitem">FR</a>
+        <a href="es/" hreflang="es" lang="es" role="menuitem">ES</a>
       </div>
-    </div><a href="#availability" class="nav-cta nav-header-cta">Demander un devis</a>
-    <button type="button" class="hamburger" id="hamburger" aria-label="Ouvrir le menu" aria-expanded="false" aria-controls="mobileNav">
+    </div>
+    <a href="#availability" class="nav-cta nav-header-cta" style="display:none">Get Quote</a>
+    <button type="button" class="hamburger" id="hamburger" style="display:none" aria-label="Ouvrir le menu" aria-expanded="false" aria-controls="mobileNav">
       <span></span><span></span><span></span>
     </button>
   </div>
@@ -206,14 +206,14 @@ nav{position:fixed;inset:0 0 auto;z-index:100;display:flex;align-items:center;ga
   </picture>
   <div class="hero-overlay"></div>
   <div class="hero-content">
-    <p class="hero-eyebrow"><a href="#reviews" class="hero-eyebrow-link--mobile"><span class="eyebrow-stars">★★★★★</span> 5.0</a><a href="#reviews-land" class="hero-eyebrow-link--desktop"><span class="eyebrow-stars">★★★★★</span> 5.0</a> &nbsp;·&nbsp; <a href="#charters" class="hero-eyebrow-link--mobile">Charter Privé</a><a href="#charters-land" class="hero-eyebrow-link--desktop">Charter Privé</a><br>Club de Mar · Mallorca</p>
+    <p class="hero-eyebrow"><a href="#reviews" class="hero-eyebrow-link--mobile"><span class="eyebrow-stars">★★★★★</span> 5.0</a><a href="#reviews-land" class="hero-eyebrow-link--desktop" style="display:none"><span class="eyebrow-stars">★★★★★</span> 5.0</a> &nbsp;·&nbsp; <a href="#charters" class="hero-eyebrow-link--mobile">Charter Privé</a><a href="#charters-land" class="hero-eyebrow-link--desktop" style="display:none">Charter Privé</a><br>Club de Mar · Mallorca</p>
     <h1 class="hero-title">LIMIT<em>LESS</em></h1>
     <p class="hero-sub">Yacht Maiora exclusif · 21,5 m · Jusqu'à 12 invités de jour · 7 de nuit</p>
     <a href="#charters" class="hero-rates hero-rates-link season-rates hero-rates-link--mobile" id="heroRates" aria-live="polite">
       <span data-season-rate="low">Demi-journée (4h) à partir de 1 700 € · 6h à partir de 2 400 € · journée complète à partir de 3 000 € · équipage inclus</span>
       <span data-season-rate="high" hidden>Demi-journée (4h) à partir de 2 200 € · 6h à partir de 3 100 € · journée complète à partir de 4 000 € · équipage inclus</span>
     </a>
-    <a href="#charters-land" class="hero-rates hero-rates-link season-rates hero-rates-link--desktop" aria-live="polite">
+    <a href="#charters-land" class="hero-rates hero-rates-link season-rates hero-rates-link--desktop" style="display:none" aria-live="polite">
       <span data-season-rate="low">Demi-journée (4h) à partir de 1 700 € · 6h à partir de 2 400 € · journée complète à partir de 3 000 € · équipage inclus</span>
       <span data-season-rate="high" hidden>Demi-journée (4h) à partir de 2 200 € · 6h à partir de 3 100 € · journée complète à partir de 4 000 € · équipage inclus</span>
     </a>
@@ -221,9 +221,9 @@ nav{position:fixed;inset:0 0 auto;z-index:100;display:flex;align-items:center;ga
       <p class="hero-value">Votre équipage s'occupe de tout — vous profitez des autres et des paysages.</p>
       <div class="hero-actions">
         <a href="#itinerary" class="btn-primary hero-cta-link--mobile">Découvrir les destinations</a>
-        <a href="#itinerary-land" class="btn-primary hero-cta-link--desktop">Découvrir les destinations</a>
+        <a href="#itinerary-land" class="btn-primary hero-cta-link--desktop" style="display:none">Découvrir les destinations</a>
         <a href="#gallery" class="btn-ghost hero-cta-link--mobile">Découvrir le yacht</a>
-        <a href="#gallery-land" class="btn-ghost hero-cta-link--desktop">Découvrir le yacht</a>
+        <a href="#gallery-land" class="btn-ghost hero-cta-link--desktop" style="display:none">Découvrir le yacht</a>
       </div>
       <p class="hero-trust"><a href="#reviews">Verified reviews on Click&amp;Boat</a> · Équipageed &amp;&nbsp;fully equipped</p>
       <div class="hero-scroll">
