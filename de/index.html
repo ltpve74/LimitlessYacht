@@ -1127,7 +1127,7 @@ document.addEventListener('DOMContentLoaded', function() {
     if (cards.length > 1) cache.val = cards[1].offsetLeft - cards[0].offsetLeft;
     else cache.val = grid.scrollWidth;
     return cache.val;
-  }
+  };
 
   /* Carousel prev/next navigation */
   document.querySelectorAll('.dest-group').forEach(function(group) {
