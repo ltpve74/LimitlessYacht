@@ -485,7 +485,15 @@ def check_html(r: Runner, rel: str, html: str) -> None:
         and 'suspendOffHeroPictures' in prog_js
         and 'readystatechange' in prog_js
         and 'whenPreviewReady' in prog_js
+        and 'contentQueue' in prog_js
+        and 'pumpContentQueue' in prog_js
         and 'scheduleHeroGate' in prog_js
+        and 'data-ly-src=' in html
+        and not re.search(
+            r'<picture\b[^>]*>.*?<img\b[^>]*\ssrc="',
+            html.split('<!-- GALLERY -->')[0],
+            flags=re.DOTALL,
+        )
         and 'DWELL_MS' not in prog_js
         and 'LY_onHeroSharpReady' in prog_js
         and re.search(
@@ -939,8 +947,9 @@ def check_html(r: Runner, rel: str, html: str) -> None:
     )
     r.check(
         'main.css load adds ly-main-ready after sheet paints (no early timeout)',
-        html.count("classList.add('ly-main-ready')") >= 2
-        and 'onload="this.rel=\'stylesheet\'' in html
+        html.count("classList.add('ly-main-ready')") >= 1
+        and "this.rel = 'stylesheet'" in html
+        and 'LY_MAIN_CSS_HREF' in html
         and 'setTimeout' not in html.split('main.css')[1][:500]
         and 'requestAnimationFrame' in html,
     )
@@ -1225,8 +1234,8 @@ def check_html(r: Runner, rel: str, html: str) -> None:
         )
         r.check(
             f'{rel} shared assets use parent-relative paths',
-            'href="../css/main.css' in html
-            and "url('../fonts/montserrat-latin.woff2')" in html
+            "LY_MAIN_CSS_HREF='../css/main.css" in html
+            and 'href="../css/main.css' in html
             and 'href="../favicon.svg"' in html
             and 'href="/favicon.svg"' not in html,
         )
@@ -1833,11 +1842,11 @@ def check_shared_assets(r: Runner) -> None:
     index_html = read_file('index.html') or ''
     r.check(
         'Montserrat uses @font-face and net-tier font preload on fast links (CLS-stable)',
-        "url('fonts/montserrat-latin.woff2')" in index_html
-        and 'font-display:optional' in index_html.replace(' ', '')
+        "url('../fonts/montserrat-latin.woff2')" in (read_file('css/main.css') or '')
+        and 'font-display:optional' in (read_file('css/main.css') or '').replace(' ', '')
         and 'montserrat-latin.woff2' in (read_file('js/net-tier.js') or '')
         and 'href="/fonts/montserrat-latin.woff2"' not in index_html
-        and 'Montserrat Fallback' in (read_file('js/net-tier.js') or ''),
+        and 'LY_MAIN_CSS_HREF' in index_html,
     )
     css_flat = re.sub(r'\s+', '', css or '')
     r.check(

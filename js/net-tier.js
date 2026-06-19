@@ -119,56 +119,39 @@
   }
 
   if (slow) {
-    function lyDeferMainCss() {
-      var cssLink = d.querySelector('link[href*="main.css"]');
-      if (!cssLink) {
-        if (d.readyState === 'loading') g.requestAnimationFrame(lyDeferMainCss);
+    g.LY_mainCssLoaded = false;
+    g.LY_loadMainCss = function (cb) {
+      if (g.LY_mainCssLoaded) {
+        if (cb) cb();
         return;
       }
-      var cssHref = cssLink.getAttribute('href');
-      cssLink.parentNode.removeChild(cssLink);
-      g.LY_mainCssLoaded = false;
-      g.LY_loadMainCss = function (cb) {
-        if (g.LY_mainCssLoaded) {
-          if (cb) cb();
-          return;
-        }
-        if (g.LY_mainCssLoading) {
-          if (cb) (g.LY_onMainCssReady = g.LY_onMainCssReady || []).push(cb);
-          return;
-        }
-        g.LY_mainCssLoading = true;
-        var l = d.createElement('link');
-        l.rel = 'stylesheet';
-        l.href = cssHref;
-        l.onload = function () {
-          g.LY_mainCssLoaded = true;
-          g.LY_mainCssLoading = false;
+      if (g.LY_mainCssLoading) {
+        if (cb) (g.LY_onMainCssReady = g.LY_onMainCssReady || []).push(cb);
+        return;
+      }
+      g.LY_mainCssLoading = true;
+      var cssHref = g.LY_MAIN_CSS_HREF || (locale ? '../css/main.css?v=111' : 'css/main.css?v=111');
+      var l = d.createElement('link');
+      l.rel = 'stylesheet';
+      l.href = cssHref;
+      l.onload = function () {
+        g.LY_mainCssLoaded = true;
+        g.LY_mainCssLoading = false;
+        if (g.LY_markMainReady) g.LY_markMainReady();
+        else {
           g.requestAnimationFrame(function () {
             g.requestAnimationFrame(function () {
               d.documentElement.classList.add('ly-main-ready');
             });
           });
-          var cbs = g.LY_onMainCssReady || [];
-          g.LY_onMainCssReady = [];
-          cbs.forEach(function (fn) { try { fn(); } catch (e) {} });
-          if (cb) cb();
-        };
-        d.head.appendChild(l);
+        }
+        var cbs = g.LY_onMainCssReady || [];
+        g.LY_onMainCssReady = [];
+        cbs.forEach(function (fn) { try { fn(); } catch (e) {} });
+        if (cb) cb();
       };
-    }
-    lyDeferMainCss();
-    function lyDeferMontserrat() {
-      var crit = d.getElementById('critical-css');
-      if (!crit || !crit.nextSibling) {
-        if (d.readyState === 'loading') g.requestAnimationFrame(lyDeferMontserrat);
-        return;
-      }
-      var st = d.createElement('style');
-      st.textContent = "body{font-family:'Montserrat Fallback',sans-serif!important}";
-      crit.parentNode.insertBefore(st, crit.nextSibling);
-    }
-    lyDeferMontserrat();
+      d.head.appendChild(l);
+    };
   }
 
   function lyCapHero() {
