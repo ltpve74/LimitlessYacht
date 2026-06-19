@@ -426,6 +426,13 @@ function gtag_report_conversion_form(url) {
 
   window.LY_trackSectionHash = lyTrackSectionHash;
 
+  window.LY_clarityEvent = function (name) {
+    if (window.LY_OWNER_MODE || !name) return;
+    var fn = window.clarity;
+    if (typeof fn !== 'function') return;
+    try { fn('event', name); } catch (e) {}
+  };
+
   window.addEventListener('hashchange', function () {
     lyTrackSectionHash(window.location.hash);
   });
@@ -2842,11 +2849,14 @@ document.addEventListener('DOMContentLoaded', function() {
   function shift(dir) {
     var count = monthsToShow();
     var maxFirst = maxIndex - (count - 1);
-    var next = viewIndex + dir;
+    var next = viewIndex + dir * count;
     if (next < minIndex) next = minIndex;
     if (next > maxFirst) next = maxFirst;
     if (next === viewIndex) return;
     viewIndex = next;
+    if (window.LY_clarityEvent) {
+      window.LY_clarityEvent(dir > 0 ? 'ly_cal_avail_month_next' : 'ly_cal_avail_month_prev');
+    }
     render();
   }
   prevBtn.addEventListener('click', function(e){ shift(-1); e.currentTarget.blur(); });
@@ -2863,6 +2873,7 @@ document.addEventListener('DOMContentLoaded', function() {
     var cell = cellFromEvent(e);
     if (!cell) return;
     e.preventDefault();
+    if (window.LY_clarityEvent) window.LY_clarityEvent('ly_cal_avail_date_select');
     toggleDate(cell.getAttribute('data-date'));
   }
   monthsEl.addEventListener('click', handleCalActivate);
@@ -2883,10 +2894,14 @@ document.addEventListener('DOMContentLoaded', function() {
       }
     });
   }
-  if (clearBtn) clearBtn.addEventListener('click', function(){ selected = []; updateSelectionUi(); });
+  if (clearBtn) clearBtn.addEventListener('click', function(){
+    if (window.LY_clarityEvent) window.LY_clarityEvent('ly_cal_avail_clear');
+    selected = []; updateSelectionUi();
+  });
   if (enquireBtn) enquireBtn.addEventListener('click', function(e){
     if (!selected.length) { e.preventDefault(); return; }
     e.preventDefault();
+    if (window.LY_clarityEvent) window.LY_clarityEvent('ly_cal_avail_enquire');
     syncForm();
     if (isCalendarFormPaired()) {
       var nameInput = document.getElementById('name');
@@ -2977,6 +2992,7 @@ document.addEventListener('DOMContentLoaded', function() {
   }
   function pickFormDate(k) {
     formDatePickGuard = true;
+    if (window.LY_clarityEvent) window.LY_clarityEvent('ly_cal_form_date_select');
     toggleDate(k);
     updateFormDateStepHint();
     scheduleFormDatePopoverRefresh();
@@ -3069,6 +3085,7 @@ document.addEventListener('DOMContentLoaded', function() {
   }
   function openFormDatePopover() {
     if (!formDatePopover) return;
+    if (window.LY_clarityEvent) window.LY_clarityEvent('ly_cal_form_open');
     var scrollY = window.scrollY;
     if (selected.length) formDateViewIndex = monthIndexForDate(selected[0]);
     else if (startInput && startInput.value) formDateViewIndex = monthIndexForDate(startInput.value);
@@ -3089,6 +3106,9 @@ document.addEventListener('DOMContentLoaded', function() {
     var next = formDateViewIndex + dir;
     if (next < minIndex || next > maxIndex) return;
     formDateViewIndex = next;
+    if (window.LY_clarityEvent) {
+      window.LY_clarityEvent(dir > 0 ? 'ly_cal_form_month_next' : 'ly_cal_form_month_prev');
+    }
     renderFormDatePopover();
   }
 
@@ -3105,11 +3125,17 @@ document.addEventListener('DOMContentLoaded', function() {
       });
     }
     if (formDateDismissBtn) formDateDismissBtn.addEventListener('click', function(e){ e.preventDefault(); closeFormDatePopover(); e.currentTarget.blur(); });
-    if (formDateApplyBtn) formDateApplyBtn.addEventListener('click', function(e){ e.preventDefault(); closeFormDatePopover(); e.currentTarget.blur(); });
+    if (formDateApplyBtn) formDateApplyBtn.addEventListener('click', function(e){
+      e.preventDefault();
+      if (window.LY_clarityEvent) window.LY_clarityEvent('ly_cal_form_apply');
+      closeFormDatePopover();
+      e.currentTarget.blur();
+    });
     if (formDatePrevBtn) formDatePrevBtn.addEventListener('click', function(e){ e.preventDefault(); shiftFormDatePopover(-1); e.currentTarget.blur(); });
     if (formDateNextBtn) formDateNextBtn.addEventListener('click', function(e){ e.preventDefault(); shiftFormDatePopover(1); e.currentTarget.blur(); });
     if (formDateClearBtn) formDateClearBtn.addEventListener('click', function(e){
       e.preventDefault();
+      if (window.LY_clarityEvent) window.LY_clarityEvent('ly_cal_form_clear');
       selected = [];
       updateSelectionUi();
       renderFormDatePopover();

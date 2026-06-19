@@ -1366,10 +1366,18 @@ def check_shared_assets(r: Runner) -> None:
         'function ensureSelectionVisible()' in index_html,
     )
     r.check(
-        'calendar next/prev advance one month at a time',
+        'calendar next/prev advance by visible month count',
         'function shift(dir)' in index_html
-        and 'viewIndex + dir * count' not in index_html
-        and re.search(r'var next = viewIndex \+ dir;', index_html) is not None,
+        and 'viewIndex + dir * count' in index_html,
+    )
+    r.check(
+        'availability and form calendars fire distinct Clarity events',
+        'LY_clarityEvent' in index_html
+        and 'ly_cal_avail_month_next' in index_html
+        and 'ly_cal_avail_date_select' in index_html
+        and 'ly_cal_form_open' in index_html
+        and 'ly_cal_form_month_next' in index_html
+        and 'ly_cal_form_date_select' in index_html,
     )
     r.check(
         'calendar enquire focuses name field on desktop only',
