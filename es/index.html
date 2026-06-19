@@ -94,9 +94,9 @@ nav{position:fixed;inset:0 0 auto;z-index:100;display:flex;align-items:center;ga
   global.LY_TESTING_CLARITY = !global.LY_OWNER_MODE && !global.LY_IS_PREVIEW;
 })(window);
 </script>
-<link rel="preload" as="style" href="../css/main.css?v=108" onload="this.rel='stylesheet';requestAnimationFrame(function(){requestAnimationFrame(function(){document.documentElement.classList.add('ly-main-ready')})})" />
+<link rel="preload" as="style" href="../css/main.css?v=109" onload="this.rel='stylesheet';requestAnimationFrame(function(){requestAnimationFrame(function(){document.documentElement.classList.add('ly-main-ready')})})" />
 <script>!function(){var d=document.documentElement;function ready(){if(!d.classList.contains('ly-main-ready'))d.classList.add('ly-main-ready')}function onSheet(){requestAnimationFrame(function(){requestAnimationFrame(ready)})}var l=document.querySelector('link[href*="main.css"]');if(l)l.addEventListener('load',onSheet)}();</script>
-<noscript><link rel="stylesheet" href="../css/main.css?v=108" /></noscript>
+<noscript><link rel="stylesheet" href="../css/main.css?v=109" /></noscript>
 
 <title>Limitless Yacht Experience – Charter de lujo Maiora en Mallorca</title>
 <meta name="description" content="Alquile el Maiora de 21,5 m «Limitless» desde Palma de Mallorca — chárteres de día y de varios días a las calas de Mallorca, Cabrera y Formentera. Con tripulación, hasta 12 invitados." />
@@ -1221,12 +1221,19 @@ window.LY_warmPreloadCaches = function() {
     window.LY_enqueueCardPreload(window.LY_galleryCardUrl(g));
   }
 };
-window.LY_afterMeaningfulPaint(function() {
+function LY_enableDestCarouselPreload() {
   window.LY_destPreloadReady = true;
-  window.LY_warmPreloadCaches();
   document.querySelectorAll('.dest-group.tab-active .itinerary-grid').forEach(function(gr) {
     gr.dispatchEvent(new Event('scroll'));
   });
+}
+window.LY_afterMeaningfulPaint(function() {
+  window.LY_warmPreloadCaches();
+  if (window.LY_PROGRESSIVE_IMAGES && !window.LY_heroSharpReady) {
+    window.LY_onHeroSharpReady.push(LY_enableDestCarouselPreload);
+  } else {
+    LY_enableDestCarouselPreload();
+  }
 });
 document.addEventListener('DOMContentLoaded', function() {
   if (!window.LY_PROGRESSIVE_IMAGES && window.LY_applySlowSrcsets) window.LY_applySlowSrcsets(document);

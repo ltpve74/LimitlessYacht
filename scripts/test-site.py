@@ -478,7 +478,11 @@ def check_html(r: Runner, rel: str, html: str) -> None:
         and 'ly-prog-wrap' in prog_js
         and 'ly-prog-preview' in prog_js
         and 'LY_sharpTierSuffix' in prog_js
+        and 'LY_heroSharpReady' in prog_js
+        and 'LY_onHeroSharpReady' in prog_js
         and 'LY_PROGRESSIVE_IMAGES' in html
+        and 'maiora_20s_02-720.webp' in net_tier_js
+        and 'maiora_20s_02-1280.webp' in net_tier_js
         and re.search(
             r'LY_destCardUrl = function\(idx\)[\s\S]*?LY_PROGRESSIVE_IMAGES',
             html,
@@ -2044,6 +2048,7 @@ def check_shared_assets(r: Runner) -> None:
         and '.gallery-item.card-loading .card-loader' in css
         and css_rule_index(css, '.ly-prog-wrap') >= 0
         and '.ly-prog-wrap.ly-prog-sharp-ready .ly-prog-sharp' in css
+        and '.ly-prog-wrap.ly-prog-sharp-loading .ly-prog-sharp' in css
         and css_rule_index(css, '#dest-lb-close') < 0
         and '#lightbox-prev' not in css,
     )
