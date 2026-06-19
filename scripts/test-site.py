@@ -471,7 +471,8 @@ def check_html(r: Runner, rel: str, html: str) -> None:
     r.check(
         'slow connections use blurred preview then sharp fade upgrade',
         'LY_PROGRESSIVE_IMAGES' in net_tier_js
-        and 'maiora_20s_02-prev.webp' in net_tier_js
+        and 'maiora_20s_02-prev.webp' not in net_tier_js
+        and '-prev.jpg' in prog_js
         and 'js/progressive-images.js' in html
         and 'LY_initProgressiveImages' in prog_js
         and 'LY_upgradeProgressiveForIntent' in prog_js
@@ -516,8 +517,10 @@ def check_html(r: Runner, rel: str, html: str) -> None:
         is not None
         and 'LY_heroGateBlocked' in html
         and 'LY_PROGRESSIVE_IMAGES' in html
-        and 'maiora_20s_02-prev.webp' in net_tier_js
+        and "lyInjectPreload(lyImg('maiora_20s_02-prev" not in net_tier_js
         and "lyInjectPreload(lyImg('maiora_20s_02-1280.webp')" not in net_tier_js
+        and 'preview.src = previewUrl' in prog_js
+        and 'bootProgressive' in prog_js
         and "lyInjectPreload(lyImg('mobile/maiora_20s_02-720.webp')" not in net_tier_js
         and re.search(
             r'LY_destCardUrl = function\(idx\)[\s\S]*?LY_PROGRESSIVE_IMAGES',
@@ -532,10 +535,15 @@ def check_html(r: Runner, rel: str, html: str) -> None:
     )
     r.check(
         'preview placeholder assets exist for hero and destinations',
-        os.path.isfile('images/maiora_20s_02-prev.webp')
-        and os.path.isfile('images/mobile/maiora_20s_02-prev.webp')
-        and os.path.isfile('images/dest/portals-vells-1-prev.webp')
-        and os.path.isfile('images/mobile/dest/portals-vells-1-prev.webp'),
+        os.path.isfile('images/maiora_20s_02-prev.jpg')
+        and os.path.isfile('images/mobile/maiora_20s_02-prev.jpg')
+        and os.path.isfile('images/dest/portals-vells-1-prev.jpg')
+        and os.path.isfile('images/mobile/dest/portals-vells-1-prev.jpg'),
+    )
+    r.check(
+        'preview placeholders are progressive JPEG for incremental paint',
+        'progressive=True' in (read_file('scripts/build_preview_images.py') or '')
+        and '-prev.jpg' in (read_file('scripts/build_preview_images.py') or ''),
     )
     r.check(
         'slow carousel cards show loading spinners during image fetch',

@@ -1,7 +1,7 @@
 """
-Generate ultra-light -prev.webp placeholders for progressive image loading.
+Generate ultra-light progressive -prev.jpg placeholders for slow connections.
 
-~160px longest edge, heavy compression — typically 2–8 KB each.
+~160px longest edge, progressive JPEG — paints incrementally during download.
 Run: .venv/bin/python scripts/build_preview_images.py
 """
 
@@ -20,7 +20,7 @@ PREVIEW_EDGE = 160
 PREVIEW_Q = 52
 
 TIER_SUFFIXES = re.compile(
-    r"-(?:480|640|720|960|1280|1440|prev)\.webp$"
+    r"-(?:480|640|720|960|1280|1440|prev)\.(?:webp|jpg)$"
 )
 
 DEST_STEMS = tuple(f"{slug}-1" for slug in (
@@ -61,7 +61,7 @@ def load_rgb(path: Path) -> Image.Image:
 def write_preview(src: Path, out: Path) -> float:
     img = resize_preview(load_rgb(src))
     out.parent.mkdir(parents=True, exist_ok=True)
-    img.save(out, "WEBP", quality=PREVIEW_Q, method=6)
+    img.save(out, "JPEG", quality=PREVIEW_Q, progressive=True, optimize=True)
     return out.stat().st_size / 1024
 
 
@@ -81,7 +81,7 @@ def build_set(folder: Path, stems: tuple[str, ...], label: str) -> float:
         if not src:
             print(f"  skip {label}/{stem} (no master)")
             continue
-        out = folder / f"{stem}-prev.webp"
+        out = folder / f"{stem}-prev.jpg"
         kb = write_preview(src, out)
         total += kb
         count += 1
@@ -90,7 +90,7 @@ def build_set(folder: Path, stems: tuple[str, ...], label: str) -> float:
 
 
 def main() -> None:
-    print("Building -prev.webp placeholders…")
+    print("Building progressive -prev.jpg placeholders…")
     total_kb = 0.0
     total_kb += build_set(IMAGES, CONTENT_STEMS + GALLERY_STEMS, "images")
     total_kb += build_set(IMAGES / "dest", DEST_STEMS, "images/dest")
