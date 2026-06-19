@@ -97,7 +97,7 @@ nav.scrolled::before { opacity: 1; }
   font-size: clamp(0.58rem, 0.45vw + 0.52rem, 0.7rem);
   letter-spacing: .16em; text-transform: uppercase; opacity: .8;
   white-space: nowrap;
-  transition: opacity .2s, color .2s;
+  transition: opacity .2s;
 }
 .nav-links a:hover { opacity: 1; color: var(--gold); }
 .nav-links a.is-active {
@@ -129,7 +129,7 @@ nav.scrolled::before { opacity: 1; }
   font-size: clamp(0.58rem, 0.4vw + 0.5rem, 0.65rem);
   letter-spacing: .16em; text-transform: uppercase;
   text-decoration: none; white-space: nowrap;
-  transition: background .2s, color .2s;
+  
 }
 .nav-cta:focus { outline: none; }
 .nav-cta:focus:not(:focus-visible) { background: transparent; color: var(--gold); }
@@ -158,7 +158,7 @@ nav.scrolled::before { opacity: 1; }
   letter-spacing: .1em;
   text-transform: uppercase;
   cursor: pointer;
-  transition: border-color .2s, color .2s;
+  
 }
 .nav-lang-trigger:hover,
 .nav-lang-wrap.is-open .nav-lang-trigger {
@@ -198,7 +198,7 @@ nav.scrolled::before { opacity: 1; }
   color: var(--cream);
   text-decoration: none;
   opacity: .65;
-  transition: opacity .2s, color .2s, background .2s;
+  transition: opacity .2s;
 }
 .nav-lang-popover a:hover,
 .nav-lang-popover a.active {
@@ -359,7 +359,7 @@ nav.scrolled::before { opacity: 1; }
   background: var(--gold); color: var(--navy);
   padding: 1rem 2.8rem; text-decoration: none;
   font-size: .68rem; letter-spacing: .2em; text-transform: uppercase; font-weight: 600;
-  transition: background .2s, transform .2s;
+  transition: transform .2s;
 }
 .btn-primary:hover { background: var(--gold-light); transform: translateY(-2px); }
 .btn-ghost {
@@ -367,7 +367,7 @@ nav.scrolled::before { opacity: 1; }
   border: 1px solid rgba(245,240,232,.4);
   padding: 1rem 2.8rem; text-decoration: none;
   font-size: .68rem; letter-spacing: .2em; text-transform: uppercase;
-  transition: border-color .2s, color .2s;
+  
 }
 .btn-ghost:hover { border-color: var(--gold); color: var(--gold); }
 #hero .hero-actions .btn-primary,
@@ -401,7 +401,6 @@ nav.scrolled::before { opacity: 1; }
   .hero-scroll { animation: scrollBob 2s 2.3s infinite ease-in-out; }
 }
 @keyframes heroFade { from { opacity: 0; } to { opacity: 1; } }
-
 
 .hero-scroll span { font-size: .55rem; letter-spacing: .25em; text-transform: uppercase; color: var(--text-muted); }
 .scroll-line {
@@ -453,8 +452,6 @@ section { padding: 7rem 2rem; }
   text-transform: uppercase; color: var(--text-muted);
 }
 
-
-
 /* ── ABOUT ── */
 #about { background: var(--navy); padding-bottom: 4rem; }
 .about-grid {
@@ -491,7 +488,7 @@ section { padding: 7rem 2rem; }
   flex: 1; padding: .85rem .5rem; background: transparent; border: none;
   color: var(--text-muted); font-family: 'Montserrat', sans-serif;
   font-size: .58rem; letter-spacing: .13em; text-transform: uppercase;
-  cursor: pointer; transition: background .2s, color .2s; line-height: 1.5;
+  cursor: pointer;  line-height: 1.5;
   text-align: center;
 }
 .dest-tab .tab-period { display: block; font-size: .5rem; letter-spacing: .06em; margin-top: .15rem; opacity: .75; }
@@ -519,7 +516,7 @@ section { padding: 7rem 2rem; }
 .spec-card {
   background: rgba(26,58,92,.3); padding: 1.6rem;
   border: 1px solid rgba(201,168,76,.1);
-  transition: background .3s, border-color .3s;
+  
 }
 .spec-card:hover { background: rgba(26,58,92,.6); border-color: rgba(201,168,76,.35); }
 .spec-icon { font-size: 1.4rem; margin-bottom: 0.5rem; }
@@ -597,7 +594,7 @@ section { padding: 7rem 2rem; }
   border: 1px solid rgba(201,168,76,.65);
   border-radius: 999px;
   box-shadow: 0 4px 28px rgba(0,0,0,.55);
-  transition: background .2s, border-color .2s, transform .2s, box-shadow .2s;
+  transition: transform .2s;
 }
 .lb-close-icon {
   font-size: 1.15rem; line-height: 1; font-weight: 400; letter-spacing: 0;
@@ -623,7 +620,7 @@ section { padding: 7rem 2rem; }
   border-radius: 50%;
   padding: 0;
   box-shadow: 0 4px 20px rgba(0,0,0,.4);
-  transition: background .2s, border-color .2s, opacity .2s;
+  transition: opacity .2s;
 }
 .lb-nav--prev { left: 1rem; }
 .lb-nav--next { right: 1rem; }
@@ -1103,7 +1100,7 @@ section { padding: 7rem 2rem; }
   border: 1px solid rgba(201,168,76,.2); border-radius: 8px;
   padding: 1.75rem 2rem;
   text-decoration: none; color: inherit;
-  transition: border-color .25s, background .25s;
+  
 }
 .enquiry-card:hover {
   border-color: rgba(201,168,76,.55); background: rgba(201,168,76,.04);
@@ -1229,7 +1226,7 @@ section { padding: 7rem 2rem; }
   color: var(--gold); font-size: 1rem; flex-shrink: 0;
 }
 .contact-item-text { font-size: .8rem; color: rgba(245,240,232,.7); line-height: 1.7; }
-.contact-item-text a { color: var(--cream); text-decoration: none; transition: color .2s; }
+.contact-item-text a { color: var(--cream); text-decoration: none;  }
 .contact-item-text a:hover { color: var(--gold); }
 .contact-form { display: flex; flex-direction: column; gap: 1rem; }
 .form-row { display: grid; grid-template-columns: 1fr 1fr; gap: 1rem; }
@@ -1243,7 +1240,7 @@ section { padding: 7rem 2rem; }
   background: rgba(255,255,255,.04); border: 1px solid rgba(201,168,76,.15);
   color: var(--cream); padding: .85rem 1rem;
   font-family: 'Montserrat', sans-serif; font-size: .8rem; font-weight: 300;
-  outline: none; transition: border-color .2s; resize: vertical;
+  outline: none;  resize: vertical;
 }
 .form-field input:focus, .form-field select:focus, .form-field textarea:focus {
   border-color: rgba(201,168,76,.5);
@@ -1268,7 +1265,7 @@ section { padding: 7rem 2rem; }
 }
 .form-date-hint-link {
   color: var(--gold); text-decoration: underline; text-underline-offset: 3px;
-  transition: color .2s;
+  
 }
 .form-date-hint-link:hover { color: var(--gold-light); }
 .form-date-wrap { position: relative; width: 100%; z-index: 1; }
@@ -1280,7 +1277,7 @@ section { padding: 7rem 2rem; }
   border: 1px solid rgba(201,168,76,.28);
   color: var(--cream); padding: .85rem 2.2rem .85rem 1rem;
   font-family: 'Montserrat', sans-serif; font-size: .8rem; font-weight: 300;
-  outline: none; transition: border-color .2s, background .2s, box-shadow .2s;
+  outline: none; 
   position: relative;
 }
 .form-date-icon {
@@ -1401,7 +1398,7 @@ body.form-date-popup-open .form-field {
   border-radius: 4px;
   color: var(--cream);
   font-size: .56rem; letter-spacing: .12em; text-transform: uppercase;
-  transition: border-color .2s, color .2s, background .2s;
+  
 }
 .form-date-popover .form-date-clear-btn:hover {
   border-color: rgba(201,168,76,.5);
@@ -1417,7 +1414,7 @@ body.form-date-popup-open .form-field {
   background: var(--gold); color: var(--navy); border: none;
   padding: .6rem 1.35rem; font-family: 'Montserrat', sans-serif;
   font-size: .58rem; letter-spacing: .14em; text-transform: uppercase;
-  font-weight: 600; cursor: pointer; transition: background .2s, transform .2s;
+  font-weight: 600; cursor: pointer; transition: transform .2s;
 }
 .form-date-apply-btn:hover { background: var(--gold-light); transform: translateY(-1px); }
 .form-date-apply-btn.is-ready { box-shadow: 0 0 0 2px rgba(201,168,76,.35); }
@@ -1425,7 +1422,7 @@ body.form-date-popup-open .form-field {
   background: var(--gold); color: var(--navy); border: none;
   padding: 1.1rem 2.5rem; font-family: 'Montserrat', sans-serif;
   font-size: .68rem; letter-spacing: .2em; text-transform: uppercase; font-weight: 600;
-  cursor: pointer; transition: background .2s, transform .2s; align-self: flex-start;
+  cursor: pointer; transition: transform .2s; align-self: flex-start;
   margin-top: .5rem;
 }
 .form-submit:hover { background: var(--gold-light); transform: translateY(-2px); }
@@ -1434,7 +1431,7 @@ body.form-date-popup-open .form-field {
   background: #157a47; color: var(--white);
   padding: .9rem 2rem; text-decoration: none;
   font-size: .68rem; letter-spacing: .15em; text-transform: uppercase; font-weight: 500;
-  margin-top: 1.5rem; transition: background .2s;
+  margin-top: 1.5rem; 
 }
 .whatsapp-btn:hover { background: #0e6840; }
 /* WhatsApp button inside the form column — always full-width, no top margin */
@@ -1479,7 +1476,7 @@ footer {
 }
 .footer-links a {
   font-size: .62rem; letter-spacing: .15em; text-transform: uppercase;
-  color: var(--text-muted); text-decoration: none; transition: color .2s;
+  color: var(--text-muted); text-decoration: none; 
 }
 .footer-links a:hover { color: var(--gold); }
 .footer-copy {
@@ -1586,7 +1583,7 @@ footer {
 .destination-card.price-linked {
   border-color: var(--gold);
   box-shadow: 0 0 0 3px rgba(201,168,76,0.18);
-  transition: box-shadow 0.4s ease, border-color 0.4s ease;
+  
 }
 
 /* Large screen tweaks for destination cards */
@@ -1974,7 +1971,7 @@ footer {
   flex: none; margin-top: 2px;
   background: transparent; border: 1px solid rgba(201,168,76,.35); color: var(--gold);
   width: 36px; height: 36px; border-radius: 50%; cursor: pointer; font-size: 1.05rem; line-height: 1;
-  transition: background .2s, color .2s, opacity .2s;
+  transition: opacity .2s;
   -webkit-tap-highlight-color: transparent;
 }
 .cal-nav:focus { outline: none; }
@@ -2017,7 +2014,7 @@ footer {
 .cal-cell.tentative { background: rgba(208,164,78,.22); color: var(--gold-light); }
 .cal-cell.free {
   cursor: pointer; user-select: none;
-  transition: background .15s, color .15s, box-shadow .15s;
+  
   touch-action: manipulation; -webkit-tap-highlight-color: transparent;
 }
 .cal-cell.free:hover:not(.selected) { background: rgba(201,168,76,.2); color: var(--gold); }
@@ -2314,7 +2311,7 @@ footer {
     letter-spacing: .13em;
     text-transform: uppercase;
     cursor: pointer;
-    transition: background .2s, color .2s;
+    
     line-height: 1.5;
     text-align: center;
   }
@@ -2437,7 +2434,7 @@ footer {
     border-radius: 0;
     margin: .5rem 0 .75rem;
     white-space: nowrap;
-    transition: background .2s, color .2s;
+    
   }
   .section-cta-desktop { display: none; }
   .destination-desc { display: none; }
@@ -2556,7 +2553,7 @@ footer {
   font-family: 'Montserrat', sans-serif;
   font-size: clamp(1rem, 4vw, 1.35rem);
   color: var(--cream); text-decoration: none;
-  letter-spacing: .06em; transition: color .2s;
+  letter-spacing: .06em; 
   text-align: center;
   padding: 0.05rem 0;
 }
@@ -2609,7 +2606,7 @@ footer {
 .cookie-btn {
   font-family: 'Montserrat', sans-serif; font-size: .62rem;
   letter-spacing: .15em; text-transform: uppercase; cursor: pointer;
-  padding: .7rem 1.6rem; border: 1px solid var(--gold); transition: all .2s;
+  padding: .7rem 1.6rem; border: 1px solid var(--gold); 
 }
 .cookie-btn-primary { background: var(--gold); color: var(--navy); font-weight: 600; }
 .cookie-btn-primary:hover { background: var(--gold-light); border-color: var(--gold-light); }
@@ -2719,7 +2716,7 @@ footer {
   text-decoration: none;
   color: inherit;
   cursor: pointer;
-  transition: color .2s ease;
+  
 }
 .hero-rates-link:hover,
 .hero-rates-link:focus-visible {
@@ -2793,7 +2790,7 @@ footer {
 }
 /* Contextual cross-link back to destinations */
 .section-back-cta { text-align: center; margin-top: 2.6rem; font-size: .85rem; color: var(--text-muted); letter-spacing: .02em; }
-.section-back-cta a { color: var(--gold); text-decoration: none; font-weight: 500; border-bottom: 1px solid rgba(201,168,76,.4); padding-bottom: 2px; transition: color .2s, border-color .2s; }
+.section-back-cta a { color: var(--gold); text-decoration: none; font-weight: 500; border-bottom: 1px solid rgba(201,168,76,.4); padding-bottom: 2px;  }
 .section-back-cta a:hover { color: var(--gold-light); border-color: var(--gold-light); }
 .section-forward-cta { display: none; }
 @media (max-width: 768px) {
@@ -2811,7 +2808,7 @@ footer {
     font-weight: 500;
     border-bottom: 1px solid rgba(201,168,76,.4);
     padding-bottom: 2px;
-    transition: color .2s, border-color .2s;
+    
   }
   .section-forward-cta a:hover { color: var(--gold-light); border-color: var(--gold-light); }
 }
@@ -2951,7 +2948,7 @@ footer {
     display: flex;
     align-items: center;
     justify-content: center;
-    transition: opacity .2s, border-color .2s;
+    transition: opacity .2s;
     flex-shrink: 0;
   }
   .carousel-btn:hover:not(:disabled) {
@@ -2984,7 +2981,7 @@ footer {
     text-decoration: none;
     text-align: center;
     border-top: 1px solid rgba(201,168,76,.22);
-    transition: background .2s, color .2s;
+    
   }
   .itinerary-meet-cta:hover {
     background: var(--gold-light);

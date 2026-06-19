@@ -1597,6 +1597,25 @@ def check_shared_assets(r: Runner) -> None:
         and '.hero-rates{text-wrap:pretty}' not in css_flat
         and '.hero-sub{text-wrap:pretty}' not in css_flat,
     )
+    if css:
+        non_composited = (
+            'color', 'background', 'border', 'box-shadow', 'outline',
+            'fill', 'stroke', 'all',
+        )
+        bad_transitions: list[str] = []
+        for m in re.finditer(r'transition\s*:\s*([^;}{]+)', css):
+            decl = m.group(1).strip().lower()
+            if decl == 'none':
+                continue
+            for prop in non_composited:
+                if re.search(rf'\b{re.escape(prop)}\b', decl):
+                    bad_transitions.append(f'{prop} in "{decl[:60]}"')
+                    break
+        r.check(
+            'main.css transitions are composited-only (opacity/transform/filter)',
+            not bad_transitions,
+            '; '.join(bad_transitions[:5]) if bad_transitions else '',
+        )
     r.check(
         'behavior-analytics loads via LY_BASE',
         "LY_BASE || '') + '/js/behavior-analytics.js'" in index_html
