@@ -94,9 +94,9 @@ nav{position:fixed;inset:0 0 auto;z-index:100;display:flex;align-items:center;ga
   global.LY_TESTING_CLARITY = !global.LY_OWNER_MODE && !global.LY_IS_PREVIEW;
 })(window);
 </script>
-<link rel="preload" as="style" href="../css/main.css?v=109" onload="this.rel='stylesheet';requestAnimationFrame(function(){requestAnimationFrame(function(){document.documentElement.classList.add('ly-main-ready')})})" />
+<link rel="preload" as="style" href="../css/main.css?v=110" onload="this.rel='stylesheet';requestAnimationFrame(function(){requestAnimationFrame(function(){document.documentElement.classList.add('ly-main-ready')})})" />
 <script>!function(){var d=document.documentElement;function ready(){if(!d.classList.contains('ly-main-ready'))d.classList.add('ly-main-ready')}function onSheet(){requestAnimationFrame(function(){requestAnimationFrame(ready)})}var l=document.querySelector('link[href*="main.css"]');if(l)l.addEventListener('load',onSheet)}();</script>
-<noscript><link rel="stylesheet" href="../css/main.css?v=109" /></noscript>
+<noscript><link rel="stylesheet" href="../css/main.css?v=110" /></noscript>
 
 <title>Limitless Yacht Experience – Luxus-Maiora-Charter auf Mallorca</title>
 <meta name="description" content="Chartern Sie die 21,5 m Maiora „Limitless“ ab Palma de Mallorca — Tages- und Mehrtagestörns zu Mallorcas schönsten Buchten, Cabrera und Formentera. Mit Crew, bis zu 12 Gäste." />
@@ -728,7 +728,7 @@ window.LY_cardIsImageReady = function(card) {
   if (!card) return false;
   if (window.LY_PROGRESSIVE_IMAGES) {
     var wrap = card.querySelector('.ly-prog-wrap');
-    if (wrap && wrap.classList.contains('ly-prog-preview-ready')) return true;
+    if (wrap && (wrap.classList.contains('ly-prog-sharp-ready') || wrap.classList.contains('ly-prog-preview-ready'))) return true;
   }
   var img = card.querySelector('.ly-prog-sharp') || card.querySelector('img');
   return !!(img && img.complete && img.naturalWidth);

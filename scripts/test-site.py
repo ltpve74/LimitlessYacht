@@ -480,7 +480,10 @@ def check_html(r: Runner, rel: str, html: str) -> None:
         and 'LY_sharpTierSuffix' in prog_js
         and 'LY_heroGateOpen' in prog_js
         and 'LY_initDeferredProgressiveImages' in prog_js
+        and 'LY_activateProgressiveWrap' in prog_js
+        and 'ly-prog-skip-preview' in prog_js
         and 'suspendOffHeroPictures' in prog_js
+        and 'DWELL_MS' not in prog_js
         and 'LY_onHeroSharpReady' in prog_js
         and 'LY_heroGateBlocked' in html
         and 'LY_PROGRESSIVE_IMAGES' in html
@@ -2051,8 +2054,8 @@ def check_shared_assets(r: Runner) -> None:
         and '.destination-card.card-loading .card-loader' in css
         and '.gallery-item.card-loading .card-loader' in css
         and css_rule_index(css, '.ly-prog-wrap') >= 0
-        and '.ly-prog-wrap.ly-prog-sharp-ready .ly-prog-sharp' in css
-        and '.ly-prog-wrap.ly-prog-sharp-loading .ly-prog-sharp' in css
+        and '.ly-prog-wrap.ly-prog-skip-preview' in css
+        and '.ly-prog-wrap.ly-prog-sharp-ready.ly-prog-sharp-visible .ly-prog-sharp' in css
         and css_rule_index(css, '#dest-lb-close') < 0
         and '#lightbox-prev' not in css,
     )

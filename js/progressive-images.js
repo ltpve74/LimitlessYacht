@@ -5,12 +5,7 @@
   g.LY_PROGRESSIVE_IMAGES = !!g.LY_NET_SLOW;
   if (!g.LY_PROGRESSIVE_IMAGES) return;
 
-  var DWELL_MS = 1400;
-  var FADE_MS = 900;
-  var dwellTimers = new WeakMap();
-  var dwellIo = null;
-  var sharpQueue = [];
-  var sharpPumpActive = false;
+  var visibleIo = null;
   var pendingAfterHero = [];
 
   g.LY_heroGateOpen = false;
@@ -43,14 +38,8 @@
     return !!(picture && (picture.classList.contains('hero-bg-wrap') || picture.closest('#hero')));
   }
 
-  function flushPendingAfterHero() {
-    var pending = pendingAfterHero.slice();
-    pendingAfterHero = [];
-    pending.forEach(function (wrap) {
-      if (!wrap.classList.contains('ly-prog-sharp-ready')) {
-        g.LY_requestSharpUpgrade(wrap, 'queue');
-      }
-    });
+  function sharpIsCached(url) {
+    return !!(url && g.LY_preloadedUrls && g.LY_preloadedUrls[url]);
   }
 
   function runHeroGateCallbacks() {
@@ -69,8 +58,15 @@
     g.LY_initDeferredProgressiveImages();
     runHeroGateCallbacks();
     flushPendingAfterHero();
-    pumpSharpQueue();
     if (g.LY_pumpPreloads) g.LY_pumpPreloads();
+  }
+
+  function flushPendingAfterHero() {
+    var pending = pendingAfterHero.slice();
+    pendingAfterHero = [];
+    pending.forEach(function (wrap) {
+      g.LY_activateProgressiveWrap(wrap);
+    });
   }
 
   function pickSource(picture) {
@@ -140,6 +136,22 @@
     });
   }
 
+  function markPreviewReady(wrap) {
+    wrap.classList.add('ly-prog-preview-ready');
+  }
+
+  function ensurePreview(wrap) {
+    if (wrap.classList.contains('ly-prog-skip-preview')) return;
+    var preview = wrap.querySelector('.ly-prog-preview');
+    if (!preview || preview.getAttribute('src')) return;
+    var url = wrap.dataset.lyPreviewUrl;
+    if (!url) return;
+    preview.addEventListener('load', function () { markPreviewReady(wrap); }, { once: true });
+    preview.addEventListener('error', function () { markPreviewReady(wrap); }, { once: true });
+    preview.src = url;
+    if (preview.complete && preview.naturalWidth) markPreviewReady(wrap);
+  }
+
   function wrapPicture(picture, kind) {
     if (!picture || picture.closest('.ly-prog-wrap')) return null;
     var stem = pictureStem(picture);
@@ -147,19 +159,21 @@
 
     var previewUrl = g.LY_previewUrlFromStem(stem);
     var sharpUrl = g.LY_sharpUrlFromStem(stem, kind);
+    var skipPreview = sharpIsCached(sharpUrl);
     stashPictureSources(picture);
 
     var wrap = g.document.createElement('div');
     wrap.className = 'ly-prog-wrap' + (kind === 'hero' ? ' ly-prog-wrap--hero' : '');
     wrap.dataset.lySharpUrl = sharpUrl;
+    wrap.dataset.lyPreviewUrl = previewUrl;
     wrap.dataset.lyProgKind = kind || 'content';
+    if (skipPreview) wrap.classList.add('ly-prog-skip-preview');
 
     var parent = picture.parentNode;
     parent.insertBefore(wrap, picture);
 
     var preview = g.document.createElement('img');
     preview.className = 'ly-prog-preview';
-    preview.src = previewUrl;
     preview.alt = '';
     preview.setAttribute('aria-hidden', 'true');
     preview.decoding = 'async';
@@ -172,37 +186,23 @@
       if (img.getAttribute('src')) img.removeAttribute('src');
     }
 
-    function previewReady() {
-      wrap.classList.add('ly-prog-preview-ready');
-    }
-    preview.addEventListener('load', previewReady, { once: true });
-    if (preview.complete && preview.naturalWidth) previewReady();
-
     return wrap;
+  }
+
+  function onWrapSharpReady(wrap) {
+    var card = wrap.closest('.destination-card, .gallery-item');
+    if (card) card.classList.remove('card-loading');
   }
 
   function commitSharpReveal(wrap, img) {
     wrap.classList.remove('ly-prog-sharp-loading');
+    wrap.classList.add('ly-prog-sharp-ready');
+    if (!wrap.classList.contains('ly-prog-skip-preview')) markPreviewReady(wrap);
+    if (isHeroWrap(wrap)) openHeroGate(wrap);
     void img.offsetWidth;
     g.requestAnimationFrame(function () {
-      g.requestAnimationFrame(function () {
-        wrap.classList.add('ly-prog-sharp-ready');
-        if (isHeroWrap(wrap)) {
-          var opened = false;
-          function finishGate() {
-            if (opened) return;
-            opened = true;
-            openHeroGate(wrap);
-          }
-          img.addEventListener('transitionend', function (e) {
-            if (e.target === img && e.propertyName === 'opacity') finishGate();
-          });
-          g.setTimeout(finishGate, FADE_MS + 100);
-          return;
-        }
-        var card = wrap.closest('.destination-card, .gallery-item');
-        if (card) card.classList.remove('card-loading');
-      });
+      wrap.classList.add('ly-prog-sharp-visible');
+      onWrapSharpReady(wrap);
     });
   }
 
@@ -212,9 +212,14 @@
       if (pendingAfterHero.indexOf(wrap) < 0) pendingAfterHero.push(wrap);
       return;
     }
+
     var url = wrap.dataset.lySharpUrl;
     var img = wrap.querySelector('.ly-prog-sharp');
     if (!url || !img) return;
+
+    if (sharpIsCached(url)) wrap.classList.add('ly-prog-skip-preview');
+
+    if (!wrap.classList.contains('ly-prog-skip-preview')) ensurePreview(wrap);
 
     var gen = (wrap._lySharpGen || 0) + 1;
     wrap._lySharpGen = gen;
@@ -244,90 +249,30 @@
     img.src = url;
   }
 
-  function pumpSharpQueue() {
-    if (sharpPumpActive || !sharpQueue.length) return;
-    if (!gateOpen()) return;
-    if (g.LY_preloadPriorityActive > 0 || (g.LY_priorityPreloadQueue && g.LY_priorityPreloadQueue.length)) {
-      g.setTimeout(pumpSharpQueue, 220);
-      return;
-    }
-    var wrap = sharpQueue.shift();
-    if (!wrap || wrap.classList.contains('ly-prog-sharp-ready')) {
-      pumpSharpQueue();
-      return;
-    }
-    var url = wrap.dataset.lySharpUrl;
-    if (!url) {
-      pumpSharpQueue();
-      return;
-    }
-    sharpPumpActive = true;
-    if (g.LY_loadPreloadImage) {
-      g.LY_loadPreloadImage(url, function () {
-        sharpPumpActive = false;
-        revealSharp(wrap);
-        pumpSharpQueue();
-      });
-    } else {
-      revealSharp(wrap);
-      sharpPumpActive = false;
-      pumpSharpQueue();
-    }
-  }
-
-  function enqueueSharp(wrap) {
-    if (!wrap || wrap.classList.contains('ly-prog-sharp-ready')) return;
-    if (!gateOpen()) {
+  g.LY_activateProgressiveWrap = function (wrap) {
+    if (!wrap || wrap.dataset.lyActivated) return;
+    if (!gateOpen() && !isHeroWrap(wrap)) {
       if (pendingAfterHero.indexOf(wrap) < 0) pendingAfterHero.push(wrap);
       return;
     }
-    if (sharpQueue.indexOf(wrap) >= 0) return;
-    sharpQueue.push(wrap);
-    pumpSharpQueue();
-  }
-
-  function startHeroSharp(wrap) {
-    if (!wrap || g.LY_heroGateOpen) return;
+    wrap.dataset.lyActivated = '1';
     revealSharp(wrap);
-  }
+  };
 
-  g.LY_requestSharpUpgrade = function (el, priority) {
+  g.LY_requestSharpUpgrade = function (el) {
     var wrap = el && el.closest ? el.closest('.ly-prog-wrap') : el;
-    if (!wrap || wrap.classList.contains('ly-prog-sharp-ready')) return;
-
-    if (isHeroWrap(wrap)) {
-      startHeroSharp(wrap);
-      return;
-    }
-
-    if (!gateOpen()) {
-      if (pendingAfterHero.indexOf(wrap) < 0) pendingAfterHero.push(wrap);
-      return;
-    }
-
-    var url = wrap.dataset.lySharpUrl;
-    if (!url) return;
-
-    if (priority === 'urgent') {
-      var qi = sharpQueue.indexOf(wrap);
-      if (qi >= 0) sharpQueue.splice(qi, 1);
-      if (g.LY_prioritizePreloadUrgent) g.LY_prioritizePreloadUrgent(url);
-      if (g.LY_preloadedUrls && g.LY_preloadedUrls[url]) {
-        revealSharp(wrap);
-        return;
-      }
-      revealSharp(wrap);
-      return;
-    }
-    enqueueSharp(wrap);
+    if (!wrap) return;
+    g.LY_activateProgressiveWrap(wrap);
   };
 
   g.LY_revealProgressiveForUrl = function (url) {
-    if (!url || !gateOpen()) return;
+    if (!url) return;
     g.document.querySelectorAll('.ly-prog-wrap').forEach(function (wrap) {
       if (wrap.dataset.lySharpUrl !== url) return;
       if (wrap.classList.contains('ly-prog-sharp-ready')) return;
-      revealSharp(wrap);
+      if (!gateOpen() && !isHeroWrap(wrap)) return;
+      wrap.classList.add('ly-prog-skip-preview');
+      g.LY_activateProgressiveWrap(wrap);
     });
   };
 
@@ -340,7 +285,7 @@
       var sharp = wrap.dataset.lySharpUrl;
       if (sharp && urls.indexOf(sharp) >= 0 && !upgraded[wrap]) {
         upgraded[wrap] = 1;
-        g.LY_requestSharpUpgrade(wrap, 'urgent');
+        g.LY_activateProgressiveWrap(wrap);
       }
     });
     if (opts.context && g.LY_cardsForContext) {
@@ -348,38 +293,34 @@
         var wrap = card.querySelector('.ly-prog-wrap');
         if (wrap && !upgraded[wrap]) {
           upgraded[wrap] = 1;
-          g.LY_requestSharpUpgrade(wrap, 'urgent');
+          g.LY_activateProgressiveWrap(wrap);
         }
       });
     }
   };
 
-  function bindDwellObserver(wraps) {
-    if (!('IntersectionObserver' in g)) return;
-    if (!dwellIo) {
-      dwellIo = new IntersectionObserver(function (entries) {
+  function bindVisibleObserver(wraps) {
+    if (!('IntersectionObserver' in g)) {
+      wraps.forEach(function (wrap) { g.LY_activateProgressiveWrap(wrap); });
+      return;
+    }
+    if (!visibleIo) {
+      visibleIo = new IntersectionObserver(function (entries) {
         entries.forEach(function (entry) {
-          var wrap = entry.target;
-          if (isHeroWrap(wrap) || !gateOpen()) return;
-          if (entry.isIntersecting && entry.intersectionRatio >= 0.42) {
-            if (dwellTimers.get(wrap)) return;
-            var timer = g.setTimeout(function () {
-              dwellTimers.delete(wrap);
-              g.LY_requestSharpUpgrade(wrap, 'queue');
-            }, DWELL_MS);
-            dwellTimers.set(wrap, timer);
-          } else {
-            var t = dwellTimers.get(wrap);
-            if (t) {
-              g.clearTimeout(t);
-              dwellTimers.delete(wrap);
-            }
-          }
+          if (!entry.isIntersecting || entry.intersectionRatio < 0.2) return;
+          g.LY_activateProgressiveWrap(entry.target);
         });
-      }, { threshold: [0, 0.42, 0.65] });
+      }, { rootMargin: '80px 0px', threshold: [0, 0.2, 0.45] });
     }
     wraps.forEach(function (wrap) {
-      if (!isHeroWrap(wrap)) dwellIo.observe(wrap);
+      if (isHeroWrap(wrap)) {
+        g.LY_activateProgressiveWrap(wrap);
+        return;
+      }
+      visibleIo.observe(wrap);
+      var rect = wrap.getBoundingClientRect();
+      var vh = g.innerHeight || g.document.documentElement.clientHeight;
+      if (rect.bottom > 0 && rect.top < vh) g.LY_activateProgressiveWrap(wrap);
     });
   }
 
@@ -399,24 +340,14 @@
       var w = wrapPicture(pic, 'gallery');
       if (w) wraps.push(w);
     });
-    bindDwellObserver(wraps);
+    bindVisibleObserver(wraps);
   };
 
   g.LY_initProgressiveImages = function () {
     suspendOffHeroPictures();
     var hero = g.document.querySelector('#hero .hero-bg-wrap');
     var heroWrap = hero ? wrapPicture(hero, 'hero') : null;
-    if (heroWrap) {
-      function kickHero() {
-        startHeroSharp(heroWrap);
-      }
-      if (heroWrap.classList.contains('ly-prog-preview-ready')) kickHero();
-      else {
-        var prev = heroWrap.querySelector('.ly-prog-preview');
-        if (prev) prev.addEventListener('load', kickHero, { once: true });
-        else kickHero();
-      }
-    }
+    if (heroWrap) g.LY_activateProgressiveWrap(heroWrap);
   };
 
   if (g.document.readyState === 'loading') {
