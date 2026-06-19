@@ -73,6 +73,27 @@ def css_rule_index(css: str, selector: str) -> int:
     return m.start() if m else -1
 
 
+def deferred_bootstrap_pos(html: str) -> int:
+    """Marker after hero for deferred scripts (readable comment or minified token)."""
+    hero = html.find('id="hero"')
+    if hero < 0:
+        return -1
+    for marker in (
+        '<!-- Deferred head bootstrap',
+        'LY_afterLcp',
+        "'/js/error-guard.js'",
+    ):
+        pos = html.find(marker)
+        if pos > hero:
+            return pos
+    return -1
+
+
+def is_minified_html(html: str) -> bool:
+    """Heuristic: production pages are single-line after minify."""
+    return len(html) > 10_000 and html.count('\n') < 15
+
+
 # ── Output helpers ─────────────────────────────────────────────────────────────
 
 GREEN = '\033[92m'
@@ -665,7 +686,7 @@ def check_html(r: Runner, rel: str, html: str) -> None:
         'analytics and preload bootstrap deferred until after hero',
         html.find('id="hero"') > 0 and html.find('id="hero"') < html.find('LY_afterLcp'),
     )
-    bootstrap_pos = html.find('<!-- Deferred head bootstrap')
+    bootstrap_pos = deferred_bootstrap_pos(html)
     itinerary_pos = html.find('id="itinerary"')
     first_dest_meta = html.find('class="destination-meta"')
     r.check(
@@ -1139,6 +1160,16 @@ def check_locale_translations(r: Runner, pages: dict[str, str]) -> None:
 
         expected_index = build_mod.build_index(mod)
         expected_legal = build_mod.build_legal(mod)
+        if is_minified_html(loc_index):
+            import importlib.util
+
+            minify_path = os.path.join(ROOT, 'scripts', 'minify_html.py')
+            spec = importlib.util.spec_from_file_location('minify_html', minify_path)
+            minify_mod = importlib.util.module_from_spec(spec)
+            assert spec.loader is not None
+            spec.loader.exec_module(minify_mod)
+            expected_index = minify_mod.minify_html(expected_index)
+            expected_legal = minify_mod.minify_html(expected_legal)
         r.check(
             f'{index_rel} matches i18n/build-locales.py output',
             loc_index == expected_index,
@@ -1447,12 +1478,10 @@ def check_shared_assets(r: Runner) -> None:
         and 'document.write' not in index_html
         and 'src="/js/error-guard.js"' not in index_html,
     )
-    bootstrap_pos = index_html.find('<!-- Deferred head bootstrap')
     guard_pos = index_html.find("'/js/error-guard.js'")
     r.check(
         'error guard is deferred until after hero (not render-blocking in head)',
-        bootstrap_pos > index_html.find('id="hero"')
-        and guard_pos > bootstrap_pos,
+        guard_pos > index_html.find('id="hero"'),
     )
     legal_html = read_file('legal.html') or ''
     r.check(
