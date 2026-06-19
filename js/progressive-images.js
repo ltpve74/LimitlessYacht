@@ -55,10 +55,20 @@
     g.LY_heroGateOpen = true;
     g.LY_heroSharpReady = true;
     if (wrap) wrap.classList.add('ly-prog-hero-done');
-    g.LY_initDeferredProgressiveImages();
-    runHeroGateCallbacks();
-    flushPendingAfterHero();
-    if (g.LY_pumpPreloads) g.LY_pumpPreloads();
+    g.requestAnimationFrame(function () {
+      g.requestAnimationFrame(function () {
+        g.LY_initDeferredProgressiveImages();
+        runHeroGateCallbacks();
+        flushPendingAfterHero();
+        if (g.LY_pumpPreloads) g.LY_pumpPreloads();
+      });
+    });
+  }
+
+  function scheduleHeroGate(wrap) {
+    g.requestAnimationFrame(function () {
+      openHeroGate(wrap);
+    });
   }
 
   function flushPendingAfterHero() {
@@ -137,6 +147,7 @@
   }
 
   function markPreviewReady(wrap) {
+    if (wrap.classList.contains('ly-prog-preview-ready')) return;
     wrap.classList.add('ly-prog-preview-ready');
   }
 
@@ -150,6 +161,21 @@
     preview.addEventListener('error', function () { markPreviewReady(wrap); }, { once: true });
     preview.src = url;
     if (preview.complete && preview.naturalWidth) markPreviewReady(wrap);
+  }
+
+  function whenPreviewReady(wrap, fn) {
+    if (wrap.classList.contains('ly-prog-skip-preview') || wrap.classList.contains('ly-prog-preview-ready')) {
+      fn();
+      return;
+    }
+    var preview = wrap.querySelector('.ly-prog-preview');
+    if (!preview) {
+      fn();
+      return;
+    }
+    preview.addEventListener('load', fn, { once: true });
+    preview.addEventListener('error', fn, { once: true });
+    if (preview.complete && preview.naturalWidth) fn();
   }
 
   function wrapPicture(picture, kind) {
@@ -198,16 +224,16 @@
     wrap.classList.remove('ly-prog-sharp-loading');
     wrap.classList.add('ly-prog-sharp-ready');
     if (!wrap.classList.contains('ly-prog-skip-preview')) markPreviewReady(wrap);
-    if (isHeroWrap(wrap)) openHeroGate(wrap);
     void img.offsetWidth;
     g.requestAnimationFrame(function () {
       wrap.classList.add('ly-prog-sharp-visible');
       onWrapSharpReady(wrap);
+      if (isHeroWrap(wrap)) scheduleHeroGate(wrap);
     });
   }
 
-  function revealSharp(wrap) {
-    if (!wrap || wrap.classList.contains('ly-prog-sharp-ready')) return;
+  function beginSharpLoad(wrap) {
+    if (!wrap || wrap.classList.contains('ly-prog-sharp-ready') || wrap.classList.contains('ly-prog-sharp-loading')) return;
     if (!gateOpen() && !isHeroWrap(wrap)) {
       if (pendingAfterHero.indexOf(wrap) < 0) pendingAfterHero.push(wrap);
       return;
@@ -218,8 +244,6 @@
     if (!url || !img) return;
 
     if (sharpIsCached(url)) wrap.classList.add('ly-prog-skip-preview');
-
-    if (!wrap.classList.contains('ly-prog-skip-preview')) ensurePreview(wrap);
 
     var gen = (wrap._lySharpGen || 0) + 1;
     wrap._lySharpGen = gen;
@@ -244,9 +268,26 @@
     img.addEventListener('load', finish, { once: true });
     img.addEventListener('error', function () {
       wrap.classList.remove('ly-prog-sharp-loading');
-      if (isHeroWrap(wrap)) openHeroGate(wrap);
+      if (isHeroWrap(wrap)) scheduleHeroGate(wrap);
     }, { once: true });
     img.src = url;
+  }
+
+  function revealSharp(wrap) {
+    if (!wrap || wrap.classList.contains('ly-prog-sharp-ready')) return;
+    if (!gateOpen() && !isHeroWrap(wrap)) {
+      if (pendingAfterHero.indexOf(wrap) < 0) pendingAfterHero.push(wrap);
+      return;
+    }
+
+    if (!wrap.classList.contains('ly-prog-skip-preview')) ensurePreview(wrap);
+
+    if (isHeroWrap(wrap) && !wrap.classList.contains('ly-prog-skip-preview')) {
+      whenPreviewReady(wrap, function () { beginSharpLoad(wrap); });
+      return;
+    }
+
+    beginSharpLoad(wrap);
   }
 
   g.LY_activateProgressiveWrap = function (wrap) {
@@ -350,9 +391,21 @@
     if (heroWrap) g.LY_activateProgressiveWrap(heroWrap);
   };
 
+  function scheduleEarlySuspend() {
+    if (g.LY_earlySuspendDone) return;
+    g.LY_earlySuspendDone = true;
+    suspendOffHeroPictures();
+  }
+
   if (g.document.readyState === 'loading') {
+    g.document.addEventListener('readystatechange', function onRs() {
+      if (g.document.readyState !== 'interactive') return;
+      g.document.removeEventListener('readystatechange', onRs);
+      scheduleEarlySuspend();
+    });
     g.document.addEventListener('DOMContentLoaded', g.LY_initProgressiveImages);
   } else {
+    scheduleEarlySuspend();
     g.LY_initProgressiveImages();
   }
 })(window);

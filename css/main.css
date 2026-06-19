@@ -54,9 +54,12 @@ html {
 body {
   background: var(--navy);
   color: var(--cream);
-  font-family: 'Montserrat', 'Montserrat Fallback', sans-serif;
+  font-family: 'Montserrat Fallback', sans-serif;
   font-weight: 300;
   overflow-x: clip; /* prevents horizontal overflow without creating a body scroll container */
+}
+html[data-ly-net="normal"] body {
+  font-family: 'Montserrat', 'Montserrat Fallback', sans-serif;
 }
 
 /* ── NAV ── */
@@ -646,6 +649,10 @@ section { padding: 7rem 2rem; }
 }
 
 /* progressive preview → sharp (slow connections) */
+html[data-ly-net="slow"] #hero .hero-bg-wrap,
+.ly-prog-wrap--hero {
+  background: var(--navy);
+}
 .ly-prog-wrap {
   position: relative;
   overflow: hidden;

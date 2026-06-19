@@ -483,8 +483,21 @@ def check_html(r: Runner, rel: str, html: str) -> None:
         and 'LY_activateProgressiveWrap' in prog_js
         and 'ly-prog-skip-preview' in prog_js
         and 'suspendOffHeroPictures' in prog_js
+        and 'readystatechange' in prog_js
+        and 'whenPreviewReady' in prog_js
+        and 'scheduleHeroGate' in prog_js
         and 'DWELL_MS' not in prog_js
         and 'LY_onHeroSharpReady' in prog_js
+        and re.search(
+            r'</picture>\s*<script>[\s\S]*?LY_PROGRESSIVE_IMAGES[\s\S]*?data-ly-defer-src',
+            html,
+        )
+        is not None
+        and re.search(
+            r'ly-prog-sharp-visible[\s\S]{0,280}scheduleHeroGate',
+            prog_js,
+        )
+        is not None
         and 'LY_heroGateBlocked' in html
         and 'LY_PROGRESSIVE_IMAGES' in html
         and 'maiora_20s_02-prev.webp' in net_tier_js
@@ -1818,7 +1831,8 @@ def check_shared_assets(r: Runner) -> None:
         "url('fonts/montserrat-latin.woff2')" in index_html
         and 'font-display:optional' in index_html.replace(' ', '')
         and 'montserrat-latin.woff2' in (read_file('js/net-tier.js') or '')
-        and 'href="/fonts/montserrat-latin.woff2"' not in index_html,
+        and 'href="/fonts/montserrat-latin.woff2"' not in index_html
+        and 'Montserrat Fallback' in (read_file('js/net-tier.js') or ''),
     )
     css_flat = re.sub(r'\s+', '', css or '')
     r.check(
@@ -2054,6 +2068,7 @@ def check_shared_assets(r: Runner) -> None:
         and '.destination-card.card-loading .card-loader' in css
         and '.gallery-item.card-loading .card-loader' in css
         and css_rule_index(css, '.ly-prog-wrap') >= 0
+        and 'html[data-ly-net="slow"] #hero .hero-bg-wrap' in css
         and '.ly-prog-wrap.ly-prog-skip-preview' in css
         and '.ly-prog-wrap.ly-prog-sharp-ready.ly-prog-sharp-visible .ly-prog-sharp' in css
         and css_rule_index(css, '#dest-lb-close') < 0

@@ -129,4 +129,18 @@
     if (d.readyState === 'loading') g.requestAnimationFrame(lyPollHero);
   }
   lyPollHero();
+
+  if (slow) {
+    function lyDeferMontserrat() {
+      var crit = d.getElementById('critical-css');
+      if (!crit || !crit.nextSibling) {
+        if (d.readyState === 'loading') g.requestAnimationFrame(lyDeferMontserrat);
+        return;
+      }
+      var st = d.createElement('style');
+      st.textContent = "body{font-family:'Montserrat Fallback',sans-serif!important}";
+      crit.parentNode.insertBefore(st, crit.nextSibling);
+    }
+    lyDeferMontserrat();
+  }
 })(window);
