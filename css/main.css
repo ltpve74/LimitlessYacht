@@ -296,6 +296,14 @@ nav.scrolled::before { opacity: 1; }
 @keyframes fadeUp { from { opacity:0; transform: translateY(30px); } to { opacity:1; transform: translateY(0); } }
 @keyframes fadeIn { from { opacity: 0; } to { opacity: 1; } }
 @keyframes scrollBob { 0%,100% { transform: translateY(0); } 50% { transform: translateY(-8px); } }
+@keyframes scrollPeekIn {
+  from { opacity: 0; transform: translateY(1.15rem); }
+  to { opacity: 1; transform: translateY(0); }
+}
+@keyframes scrollLineRise {
+  from { opacity: 0; transform: scaleY(0); }
+  to { opacity: 1; transform: scaleY(1); }
+}
 /* keeps the horizontal centering (translateX -50%) while fading up */
 @keyframes heroScrollUp { from { opacity:0; transform: translate(-50%, 30px); } to { opacity:1; transform: translate(-50%, 0); } }
 .hero-eyebrow {
@@ -397,6 +405,8 @@ nav.scrolled::before { opacity: 1; }
   display: flex; flex-direction: column; align-items: center; gap: .5rem;
   opacity: 1;
 }
+.hero-top,
+.hero-bottom { display: contents; }
 @media (prefers-reduced-motion: no-preference) {
   .hero-scroll { animation: scrollBob 2s 2.3s infinite ease-in-out; }
 }
@@ -2651,11 +2661,13 @@ footer {
     padding: 0.3rem;
   }
 }
-/* Hero: full-viewport on mobile — bg/overlay locked; copy scrolls inside if needed */
+/* Hero: mobile — top/bottom clusters frame a bright yacht stage in the middle */
 @media (max-width: 768px) {
   :root {
-    --hero-cluster-gap: clamp(0.45rem, 1.6vh, 0.7rem);
-    --hero-bottom-inset: max(1.1rem, calc(env(safe-area-inset-bottom, 0px) + 0.75rem));
+    --hero-top-gap: clamp(0.35rem, 1.35vh, 0.6rem);
+    --hero-bottom-gap: clamp(0.5rem, 1.75vh, 0.8rem);
+    --hero-cluster-gap: var(--hero-bottom-gap);
+    --hero-bottom-inset: max(0.65rem, calc(env(safe-area-inset-bottom, 0px) + 0.45rem));
   }
   #hero {
     height: 100svh;
@@ -2680,17 +2692,12 @@ footer {
     animation: none;
     transform: none;
     min-height: 100%;
-    object-position: 55% 42%;
+    object-position: 52% 40%;
   }
   .hero-overlay {
     background:
-      linear-gradient(
-        180deg,
-        rgba(10, 22, 40, 0.34) 0%,
-        transparent 24%,
-        transparent 66%,
-        rgba(10, 22, 40, 0.3) 100%
-      );
+      linear-gradient(180deg, rgba(10, 22, 40, 0.46) 0%, transparent 20%),
+      linear-gradient(0deg, rgba(10, 22, 40, 0.58) 0%, transparent 28%);
   }
   .hero-content {
     position: absolute;
@@ -2706,48 +2713,102 @@ footer {
     flex-direction: column;
     align-items: center;
     justify-content: space-between;
-    gap: clamp(0.3rem, 1.2vh, 0.65rem);
-    padding: max(3rem, calc(env(safe-area-inset-top, 0px) + 2.25rem)) 1.15rem var(--hero-bottom-inset);
+    padding: max(3rem, calc(env(safe-area-inset-top, 0px) + 2.2rem)) 1.15rem 0;
     animation: none;
-    overflow-x: clip;
-    overflow-y: auto;
-    overscroll-behavior: contain;
-    -webkit-overflow-scrolling: touch;
+    overflow: hidden;
+  }
+  .hero-content::before {
+    height: min(30%, 10.5rem);
+    background: linear-gradient(180deg, rgba(10, 22, 40, 0.78) 0%, rgba(10, 22, 40, 0.2) 72%, transparent 100%);
+  }
+  .hero-content::after {
+    height: min(42%, 15rem);
+    background: linear-gradient(0deg, rgba(10, 22, 40, 0.88) 0%, rgba(10, 22, 40, 0.34) 58%, transparent 100%);
+  }
+  .hero-top,
+  .hero-bottom {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    width: 100%;
+    flex-shrink: 0;
+    position: relative;
+    z-index: 1;
+  }
+  .hero-top {
+    gap: var(--hero-top-gap);
+    padding-bottom: 0.15rem;
+  }
+  .hero-bottom {
+    gap: var(--hero-bottom-gap);
+    margin-top: auto;
+    padding-bottom: var(--hero-bottom-inset);
   }
   .hero-value { display: none; }
   .hero-scroll {
     display: flex;
     flex-direction: column;
     align-items: center;
-    gap: 0.5rem;
+    gap: 0.35rem;
+    margin-top: 0.1rem;
+    margin-bottom: -0.15rem;
+    opacity: 0;
+    transform: translateY(1.15rem);
+    animation: none;
   }
-  .scroll-line { height: clamp(20px, 3.5vh, 28px); }
+  @media (prefers-reduced-motion: no-preference) {
+    .hero-scroll {
+      animation:
+        scrollPeekIn 0.95s 1.65s ease-out forwards,
+        scrollBob 2.1s 2.85s infinite ease-in-out;
+    }
+    .hero-scroll .scroll-line {
+      opacity: 0;
+      transform: scaleY(0);
+      transform-origin: bottom center;
+      animation:
+        scrollLineRise 0.85s 2s ease-out forwards,
+        scrollPulse 2s 3.1s infinite;
+    }
+  }
+  @media (prefers-reduced-motion: reduce) {
+    .hero-scroll {
+      opacity: 1;
+      transform: none;
+    }
+    .hero-scroll .scroll-line {
+      opacity: 1;
+      transform: none;
+    }
+  }
+  .scroll-line { height: clamp(24px, 4.5vh, 38px); }
   .hero-eyebrow {
     padding-top: 0;
-    margin-bottom: 0.2rem;
+    margin-bottom: 0;
     font-size: .54rem;
     letter-spacing: .06em;
   }
   .hero-title {
-    font-size: clamp(2.15rem, 6.8vh, 3.4rem);
-    line-height: 1.05;
+    font-size: clamp(2.1rem, 6.5vh, 3.35rem);
+    line-height: 1.04;
   }
   .hero-sub {
     margin-top: 0;
-    font-size: clamp(.74rem, 3.2vw, .82rem);
-    line-height: 1.45;
-    background: rgba(10, 22, 40, 0.38);
-    padding: 0.3rem 0.5rem;
-    border-radius: 3px;
+    font-size: clamp(.72rem, 3.1vw, .8rem);
+    line-height: 1.42;
+    background: none;
+    padding: 0;
+    max-width: 22rem;
   }
   .hero-rates {
-    margin-top: 0;
-    margin-bottom: 0;
+    margin: 0;
     min-height: 0;
+    width: 100%;
+    max-width: 22rem;
     font-size: clamp(.6rem, 2.9vw, .7rem);
     line-height: 1.45;
-    padding: 0.32rem 0.5rem;
-    background: rgba(10, 22, 40, 0.48);
+    padding: 0.38rem 0.55rem;
+    background: rgba(10, 22, 40, 0.5);
     border-radius: 3px;
   }
   .hero-cta-group {
@@ -2755,13 +2816,15 @@ footer {
     width: 100%;
     max-width: none;
     padding-bottom: 0;
+    gap: var(--hero-bottom-gap);
   }
   .hero-actions { margin-top: 0; }
   .hero-trust {
     font-size: .58rem; letter-spacing: .09em; line-height: 1.45;
-    background: rgba(10, 22, 40, 0.34);
-    padding: 0.3rem 0.5rem;
+    background: rgba(10, 22, 40, 0.38);
+    padding: 0.28rem 0.5rem;
     border-radius: 3px;
+    max-width: 22rem;
   }
   #hero .hero-actions .btn-ghost {
     background: rgba(10, 22, 40, 0.52);
@@ -2774,11 +2837,14 @@ footer {
   }
 
   @media (min-height: 740px) {
-    .hero-title { font-size: clamp(2.45rem, 7.2vh, 3.65rem); }
+    .hero-title { font-size: clamp(2.4rem, 7vh, 3.6rem); }
   }
   @media (max-height: 700px) {
-    :root { --hero-cluster-gap: 0.4rem; }
-    .hero-title { font-size: clamp(1.85rem, 9vw, 2.35rem); }
+    :root {
+      --hero-top-gap: 0.3rem;
+      --hero-bottom-gap: 0.42rem;
+    }
+    .hero-title { font-size: clamp(1.85rem, 9vw, 2.3rem); }
     .hero-scroll span { font-size: .48rem; }
     .scroll-line { height: 20px; }
     #hero .hero-actions .btn-primary,

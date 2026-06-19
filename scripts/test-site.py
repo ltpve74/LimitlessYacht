@@ -778,8 +778,8 @@ def check_html(r: Runner, rel: str, html: str) -> None:
         and '.hero-bg-wrap,.hero-overlay{position:absolute;inset:0' in crit_flat
         and '.hero-value{display:none}' in crit_flat
         and '.hero-scroll,.hero-value{display:none}' not in crit_flat
-        and 'padding:max(3rem,calc(env(safe-area-inset-top,0px)+2.25rem))' in crit_flat
-        and 'background:rgba(10,22,40,.48)' in crit_flat,
+        and 'padding:max(3rem,calc(env(safe-area-inset-top,0px)+2.2rem))' in crit_flat
+        and 'background:rgba(10,22,40,.5)' in crit_flat,
     )
     r.check(
         'main.css load adds ly-main-ready after sheet paints (no early timeout)',
@@ -818,11 +818,21 @@ def check_html(r: Runner, rel: str, html: str) -> None:
         'critical CSS matches mobile hero flex layout',
         'display:flex' in crit_flat
         and 'justify-content:space-between' in crit_flat
+        and '.hero-top,.hero-bottom{display:flex' in crit_flat
+        and '.hero-bottom{gap:var(--hero-bottom-gap)' in crit_flat
         and '#hero.hero-cta-group{margin-top:0' in crit_flat
         and '.hero-content{position:absolute;inset:0' in crit_flat
         and 'height:100svh' in crit_flat
         and 'overflow:hidden' in crit_flat
         and 'safe-area-inset-bottom' in crit_css,
+    )
+    r.check(
+        'hero uses top/bottom clusters for mobile yacht stage',
+        '<div class="hero-top">' in html
+        and '<div class="hero-bottom">' in html
+        and html.find('<div class="hero-top">') < html.find('<div class="hero-bottom">')
+        and html.find('class="hero-title"') > html.find('<div class="hero-top">')
+        and html.find('class="hero-rates') > html.find('<div class="hero-bottom">'),
     )
     r.check(
         'critical CSS reserves hero child layout before main.css',
@@ -1372,7 +1382,13 @@ def check_shared_assets(r: Runner) -> None:
                 css,
             )
             is not None
-            and 'scrollBob' in css,
+            and 'scrollPeekIn' in css
+            and 'scrollBob' in css
+            and re.search(
+                r'@media\s*\(\s*max-width:\s*768px\s*\)[\s\S]*?\.hero-top,\s*\.hero-bottom',
+                css,
+            )
+            is not None,
         )
         css_flat = re.sub(r'\s+', '', css)
         r.check(
