@@ -2704,7 +2704,47 @@ footer {
   opacity: 0; animation: heroFade 1s .85s ease both;
   text-wrap: balance;
 }
+.hero-rates-link {
+  display: block;
+  text-decoration: none;
+  color: inherit;
+  cursor: pointer;
+  transition: color .2s ease;
+}
+.hero-rates-link:hover,
+.hero-rates-link:focus-visible {
+  color: var(--gold-light);
+}
+.hero-rates-link:focus-visible {
+  outline: 2px solid var(--gold);
+  outline-offset: 3px;
+  border-radius: 4px;
+}
+.hero-rates-link--desktop { display: none; }
+@media (min-width: 769px) {
+  .hero-rates-link--mobile { display: none; }
+  .hero-rates-link--desktop { display: block; }
+}
 .hero-rates [hidden] { display: none !important; }
+.charter-rates-confirm {
+  margin: 1.35rem auto 0;
+  max-width: 42rem;
+  text-align: center;
+  font-size: clamp(.72rem, 1.4vw, .82rem);
+  letter-spacing: .06em;
+  line-height: 1.65;
+  color: rgba(245, 240, 232, 0.9);
+  text-wrap: balance;
+}
+.charter-rates-confirm [hidden] { display: none !important; }
+.enquiry-price {
+  font-size: .56rem;
+  letter-spacing: .1em;
+  text-transform: uppercase;
+  color: var(--gold-light);
+  margin-top: .2rem;
+}
+.enquiry-price [hidden] { display: none !important; }
 .hero-value {
   margin-top: 0; max-width: 32rem;
   font-size: clamp(.72rem, 1.4vw, .84rem);
@@ -2725,6 +2765,7 @@ footer {
 @supports (text-wrap: pretty) {
   .hero-sub,
   .hero-rates,
+  .charter-rates-confirm,
   .hero-value,
   .hero-trust { text-wrap: pretty; }
 }

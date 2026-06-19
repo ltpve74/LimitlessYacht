@@ -134,8 +134,8 @@ nav{position:fixed;top:0;left:0;right:0;z-index:100;min-height:4.25rem}
   global.LY_TESTING_CLARITY = !global.LY_OWNER_MODE && !global.LY_IS_PREVIEW;
 })(window);
 </script>
-<link rel="preload" as="style" href="../css/main.css?v=91" onload="this.rel='stylesheet'" />
-<noscript><link rel="stylesheet" href="../css/main.css?v=91" /></noscript>
+<link rel="preload" as="style" href="../css/main.css?v=92" onload="this.rel='stylesheet'" />
+<noscript><link rel="stylesheet" href="../css/main.css?v=92" /></noscript>
 
 <title>Limitless Yacht Experience – Luxus-Maiora-Charter auf Mallorca</title>
 <meta name="description" content="Chartern Sie die 21,5 m Maiora „Limitless“ ab Palma de Mallorca — Tages- und Mehrtagestörns zu Mallorcas schönsten Buchten, Cabrera und Formentera. Mit Crew, bis zu 12 Gäste." />
@@ -247,10 +247,14 @@ nav{position:fixed;top:0;left:0;right:0;z-index:100;min-height:4.25rem}
     <p class="hero-eyebrow"><a href="#reviews" class="hero-eyebrow-link--mobile"><span class="eyebrow-stars">★★★★★</span> 5.0</a><a href="#reviews-land" class="hero-eyebrow-link--desktop"><span class="eyebrow-stars">★★★★★</span> 5.0</a> &nbsp;·&nbsp; <a href="#charters" class="hero-eyebrow-link--mobile">Privatcharter</a><a href="#charters-land" class="hero-eyebrow-link--desktop">Privatcharter</a><br>Club de Mar · Mallorca</p>
     <h1 class="hero-title">LIMIT<em>LESS</em></h1>
     <p class="hero-sub">Exklusive Maiora-Yacht · 21,5 m · Bis zu 12 Gäste tagsüber · 7 über Nacht</p>
-    <p class="hero-rates season-rates" id="heroRates" aria-live="polite">
-      <span data-season-rate="low">Halbtages-Charter (4h) ab 1.700 € · Ganztag ab 3.000 € · Crew inklusive</span>
-      <span data-season-rate="high" hidden>Halbtages-Charter (4h) ab 2.200 € · Ganztag ab 4.000 € · Crew inklusive</span>
-    </p>
+    <a href="#charters" class="hero-rates hero-rates-link season-rates hero-rates-link--mobile" id="heroRates" aria-live="polite">
+      <span data-season-rate="low">Halbtages-Charter (4h) ab 1.700 € · 6h ab 2.200 € · Ganztag ab 3.000 € · Crew inklusive</span>
+      <span data-season-rate="high" hidden>Halbtages-Charter (4h) ab 2.200 € · 6h ab 2.800 € · Ganztag ab 4.000 € · Crew inklusive</span>
+    </a>
+    <a href="#charters-land" class="hero-rates hero-rates-link season-rates hero-rates-link--desktop" aria-live="polite">
+      <span data-season-rate="low">Halbtages-Charter (4h) ab 1.700 € · 6h ab 2.200 € · Ganztag ab 3.000 € · Crew inklusive</span>
+      <span data-season-rate="high" hidden>Halbtages-Charter (4h) ab 2.200 € · 6h ab 2.800 € · Ganztag ab 4.000 € · Crew inklusive</span>
+    </a>
     <div class="hero-cta-group">
       <p class="hero-value">Ihre Crew kümmert sich um alles — Sie konzentrieren sich auf die Menschen und die Ausblicke.</p>
       <div class="hero-actions">
@@ -279,6 +283,40 @@ nav{position:fixed;top:0;left:0;right:0;z-index:100;min-height:4.25rem}
       spans[i].hidden = spans[i].getAttribute('data-season-rate') !== season;
     }
   }
+  document.querySelectorAll('.hero-rates-link').forEach(function (link) {
+    link.addEventListener('click', function () {
+      if (window.LY_clarityEvent) window.LY_clarityEvent('ly_hero_rates_click');
+    });
+  });
+  var charterRates = document.getElementById('charterRatesConfirm');
+  if (charterRates && 'IntersectionObserver' in window) {
+    var ratesSeen = false;
+    var io = new IntersectionObserver(function (entries) {
+      if (ratesSeen) return;
+      for (var i = 0; i < entries.length; i++) {
+        if (entries[i].isIntersecting) {
+          ratesSeen = true;
+          io.disconnect();
+          if (window.LY_clarityEvent) window.LY_clarityEvent('ly_charters_rates_view');
+          return;
+        }
+      }
+    }, { threshold: 0.6 });
+    io.observe(charterRates);
+  }
+  var cardEvents = {
+    'half-day': 'ly_charter_card_half_day',
+    'full-day': 'ly_charter_card_full_day',
+    'weekend': 'ly_charter_card_weekend',
+    'extended': 'ly_charter_card_extended'
+  };
+  document.querySelectorAll('#charters .enquiry-card').forEach(function (card) {
+    card.addEventListener('click', function () {
+      if (!window.LY_clarityEvent) return;
+      var tier = card.getAttribute('data-charter-tier') || '';
+      window.LY_clarityEvent(cardEvents[tier] || 'ly_charter_card_click');
+    });
+  });
 })();
 </script>
 
@@ -1321,27 +1359,39 @@ document.addEventListener('DOMContentLoaded', function() {
     <span id="charters-land" style="display:block;height:0;overflow:hidden" aria-hidden="true"></span>
     <h2 class="section-title reveal reveal-delay-1">Ihr Charter<em> nach Wunsch</em></h2>
     <p class="enquiry-intro reveal reveal-delay-2">Von einem sonnigen Morgen bis zu einer Woche vor Anker — jeder Charter ist ganz auf Sie zugeschnitten. Teilen Sie uns Ihre Termine mit und wir planen das perfekte Programm innerhalb von 24 Stunden.</p>
+    <p class="charter-rates-confirm season-rates reveal reveal-delay-2" id="charterRatesConfirm" aria-live="polite">
+      <span data-season-rate="low">Halbtages-Charter (4h) ab 1.700 € · 6h ab 2.200 € · Ganztag ab 3.000 € · Crew inklusive</span>
+      <span data-season-rate="high" hidden>Halbtages-Charter (4h) ab 2.200 € · 6h ab 2.800 € · Ganztag ab 4.000 € · Crew inklusive</span>
+    </p>
     <div class="charters-main">
       <div class="enquiry-grid">
-        <a class="enquiry-card reveal" href="#half-day">
+        <a class="enquiry-card reveal" href="#half-day" data-charter-tier="half-day">
           <span class="enquiry-label">4 – 6 Stunden</span>
           <span class="enquiry-title">Halbtags</span>
-          <span class="enquiry-desc">Eine Morgenfahrt, ein Sonnenuntergangs-Törn oder ein Mittagsstopp zum Schwimmen. Ein perfekter Vorgeschmack aufs Mittelmeer, ohne einen ganzen Tag zu planen.</span>
+          <span class="enquiry-price season-rates">
+            <span data-season-rate="low">Ab 1.700 € (4h) · 2.200 € (6h)</span>
+            <span data-season-rate="high" hidden>Ab 2.200 € (4h) · 2.800 € (6h)</span>
+          </span>
+          <span class="enquiry-desc">Eine Morgenfahrt, ein Sonnenuntergangs-Törn oder ein 6-Stunden-Nachmittag — Schwimmstopps und Zeit an Bord, ohne einen ganzen Tag zu planen.</span>
           <span class="enquiry-link">See Destinations →</span>
         </a>
-        <a class="enquiry-card reveal reveal-delay-1" href="#full-day">
+        <a class="enquiry-card reveal reveal-delay-1" href="#full-day" data-charter-tier="full-day">
           <span class="enquiry-label">8 – 10 Stunden</span>
           <span class="enquiry-title">Ganztags</span>
+          <span class="enquiry-price season-rates">
+            <span data-season-rate="low">Ab 3.000 €</span>
+            <span data-season-rate="high" hidden>Ab 4.000 €</span>
+          </span>
           <span class="enquiry-desc">Erkunden Sie zwei oder drei Ziele, schwimmen Sie in kristallklaren Buchten und speisen Sie an Bord. Die beliebteste Art, die Küste zu erleben.</span>
           <span class="enquiry-link">See Destinations →</span>
         </a>
-        <a class="enquiry-card reveal reveal-delay-2" href="#multi-day">
+        <a class="enquiry-card reveal reveal-delay-2" href="#multi-day" data-charter-tier="weekend">
           <span class="enquiry-label">2 – 3 Tage</span>
           <span class="enquiry-title">Wochenend-Auszeit</span>
           <span class="enquiry-desc">Schlafen Sie unter dem Sternenhimmel und wachen Sie jeden Morgen in einer neuen Bucht auf. Ideal für einen Geburtstag, Jahrestag oder um wirklich abzuschalten.</span>
           <span class="enquiry-link">See Destinations →</span>
         </a>
-        <a class="enquiry-card reveal reveal-delay-3" href="#multi-day">
+        <a class="enquiry-card reveal reveal-delay-3" href="#multi-day" data-charter-tier="extended">
           <span class="enquiry-label">4 Tage +</span>
           <span class="enquiry-title">Ausgedehnte Reise</span>
           <span class="enquiry-desc">Auf eigene Faust durch die Inseln — Formentera, Ibiza, Menorca oder Mallorcas entlegenste Buchten. Ihre Route, ganz nach Wunsch.</span>
@@ -1361,7 +1411,7 @@ document.addEventListener('DOMContentLoaded', function() {
       </aside>
       <div class="enquiry-cta-wrap reveal">
         <a href="#enquire" class="btn-primary">Angebot anfordern</a>
-        <p class="enquiry-flex-note">Ganzjährig verfügbar &nbsp;·&nbsp; Preise variieren je nach Saison &nbsp;·&nbsp; Wir antworten innerhalb von 24 Stunden</p>
+        <p class="enquiry-flex-note">Ganzjährig verfügbar &nbsp;·&nbsp; Wir antworten innerhalb von 24 Stunden</p>
         <div class="section-cross-cta section-cross-cta--desktop">
           <p class="section-cta-text">Lieber zuerst Termine klären — oder von Gästen hören, die schon an Bord waren?</p>
           <div class="section-cta-btns">

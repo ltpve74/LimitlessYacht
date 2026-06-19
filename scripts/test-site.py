@@ -1112,16 +1112,34 @@ def check_shared_assets(r: Runner) -> None:
             and 'people and&nbsp;the views.' in index_html,
         )
         r.check(
-            'hero shows seasonal starting rates without pricing-section link',
-            'hero-rates' in index_html
+            'hero shows clickable seasonal starting rates linked to charters',
+            'hero-rates-link' in index_html
             and 'season-rates' in index_html
-            and 'Half-day (4h) from €1,700' in index_html
-            and 'Half-day (4h) from €2,200' in index_html
+            and '6h from €2,200' in index_html
+            and '6h from €2,800' in index_html
+            and 'href="#charters-land"' in index_html
+            and 'href="#charters"' in index_html
             and 'data-season-rate="low"' in index_html
-            and 'data-season-rate="high"' in index_html
             and 'm >= 6 && m <= 7' in index_html
-            and '.hero-rates' in (css or '')
+            and '.hero-rates-link' in (css or '')
             and 'href="#pricing"' not in index_html,
+        )
+        r.check(
+            'charters confirms seasonal rates with card pricing and Clarity events',
+            'charter-rates-confirm' in index_html
+            and 'charterRatesConfirm' in index_html
+            and 'enquiry-price' in index_html
+            and 'From €1,700 (4h)' in index_html
+            and 'From €3,000' in index_html
+            and 'Available year-round &nbsp;·&nbsp; We respond within 24 hours' in index_html
+            and 'Rates vary by season' not in index_html
+            and 'ly_hero_rates_click' in index_html
+            and 'ly_charters_rates_view' in index_html
+            and 'ly_charter_card_half_day' in index_html
+            and 'ly_charter_card_full_day' in index_html
+            and 'ly_charter_card_weekend' in index_html
+            and 'ly_charter_card_extended' in index_html
+            and '.charter-rates-confirm' in (css or ''),
         )
         r.check(
             'hero uses letterbox scrims and bright photo (no glass panels)',
@@ -1416,7 +1434,9 @@ def check_shared_assets(r: Runner) -> None:
         and 'ly_cal_avail_date_select' in index_html
         and 'ly_cal_form_open' in index_html
         and 'ly_cal_form_month_next' in index_html
-        and 'ly_cal_form_date_select' in index_html,
+        and 'ly_cal_form_date_select' in index_html
+        and 'ly_hero_rates_click' in index_html
+        and 'ly_charters_rates_view' in index_html,
     )
     r.check(
         'calendar enquire focuses name field on desktop only',

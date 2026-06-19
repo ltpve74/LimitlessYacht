@@ -134,8 +134,8 @@ nav{position:fixed;top:0;left:0;right:0;z-index:100;min-height:4.25rem}
   global.LY_TESTING_CLARITY = !global.LY_OWNER_MODE && !global.LY_IS_PREVIEW;
 })(window);
 </script>
-<link rel="preload" as="style" href="../css/main.css?v=91" onload="this.rel='stylesheet'" />
-<noscript><link rel="stylesheet" href="../css/main.css?v=91" /></noscript>
+<link rel="preload" as="style" href="../css/main.css?v=92" onload="this.rel='stylesheet'" />
+<noscript><link rel="stylesheet" href="../css/main.css?v=92" /></noscript>
 
 <title>Limitless Yacht Experience – Charter de lujo Maiora en Mallorca</title>
 <meta name="description" content="Alquile el Maiora de 21,5 m «Limitless» desde Palma de Mallorca — chárteres de día y de varios días a las calas de Mallorca, Cabrera y Formentera. Con tripulación, hasta 12 invitados." />
@@ -247,10 +247,14 @@ nav{position:fixed;top:0;left:0;right:0;z-index:100;min-height:4.25rem}
     <p class="hero-eyebrow"><a href="#reviews" class="hero-eyebrow-link--mobile"><span class="eyebrow-stars">★★★★★</span> 5.0</a><a href="#reviews-land" class="hero-eyebrow-link--desktop"><span class="eyebrow-stars">★★★★★</span> 5.0</a> &nbsp;·&nbsp; <a href="#charters" class="hero-eyebrow-link--mobile">Chárter Privado</a><a href="#charters-land" class="hero-eyebrow-link--desktop">Chárter Privado</a><br>Club de Mar · Mallorca</p>
     <h1 class="hero-title">LIMIT<em>LESS</em></h1>
     <p class="hero-sub">Yate Maiora exclusivo · 21,5 m · Hasta 12 invitados de día · 7 de noche</p>
-    <p class="hero-rates season-rates" id="heroRates" aria-live="polite">
-      <span data-season-rate="low">Medio día (4h) desde 1.700 € · día completo desde 3.000 € · tripulación incluida</span>
-      <span data-season-rate="high" hidden>Medio día (4h) desde 2.200 € · día completo desde 4.000 € · tripulación incluida</span>
-    </p>
+    <a href="#charters" class="hero-rates hero-rates-link season-rates hero-rates-link--mobile" id="heroRates" aria-live="polite">
+      <span data-season-rate="low">Medio día (4h) desde 1.700 € · 6h desde 2.200 € · día completo desde 3.000 € · tripulación incluida</span>
+      <span data-season-rate="high" hidden>Medio día (4h) desde 2.200 € · 6h desde 2.800 € · día completo desde 4.000 € · tripulación incluida</span>
+    </a>
+    <a href="#charters-land" class="hero-rates hero-rates-link season-rates hero-rates-link--desktop" aria-live="polite">
+      <span data-season-rate="low">Medio día (4h) desde 1.700 € · 6h desde 2.200 € · día completo desde 3.000 € · tripulación incluida</span>
+      <span data-season-rate="high" hidden>Medio día (4h) desde 2.200 € · 6h desde 2.800 € · día completo desde 4.000 € · tripulación incluida</span>
+    </a>
     <div class="hero-cta-group">
       <p class="hero-value">Su tripulación se encarga de todo: usted se centra en la compañía y las vistas.</p>
       <div class="hero-actions">
@@ -279,6 +283,40 @@ nav{position:fixed;top:0;left:0;right:0;z-index:100;min-height:4.25rem}
       spans[i].hidden = spans[i].getAttribute('data-season-rate') !== season;
     }
   }
+  document.querySelectorAll('.hero-rates-link').forEach(function (link) {
+    link.addEventListener('click', function () {
+      if (window.LY_clarityEvent) window.LY_clarityEvent('ly_hero_rates_click');
+    });
+  });
+  var charterRates = document.getElementById('charterRatesConfirm');
+  if (charterRates && 'IntersectionObserver' in window) {
+    var ratesSeen = false;
+    var io = new IntersectionObserver(function (entries) {
+      if (ratesSeen) return;
+      for (var i = 0; i < entries.length; i++) {
+        if (entries[i].isIntersecting) {
+          ratesSeen = true;
+          io.disconnect();
+          if (window.LY_clarityEvent) window.LY_clarityEvent('ly_charters_rates_view');
+          return;
+        }
+      }
+    }, { threshold: 0.6 });
+    io.observe(charterRates);
+  }
+  var cardEvents = {
+    'half-day': 'ly_charter_card_half_day',
+    'full-day': 'ly_charter_card_full_day',
+    'weekend': 'ly_charter_card_weekend',
+    'extended': 'ly_charter_card_extended'
+  };
+  document.querySelectorAll('#charters .enquiry-card').forEach(function (card) {
+    card.addEventListener('click', function () {
+      if (!window.LY_clarityEvent) return;
+      var tier = card.getAttribute('data-charter-tier') || '';
+      window.LY_clarityEvent(cardEvents[tier] || 'ly_charter_card_click');
+    });
+  });
 })();
 </script>
 
@@ -1321,27 +1359,39 @@ document.addEventListener('DOMContentLoaded', function() {
     <span id="charters-land" style="display:block;height:0;overflow:hidden" aria-hidden="true"></span>
     <h2 class="section-title reveal reveal-delay-1">Tu chárter<em> a tu manera</em></h2>
     <p class="enquiry-intro reveal reveal-delay-2">Desde una mañana soleada hasta una semana fondeados — cada chárter está diseñado para usted. Cuéntenos sus fechas y prepararemos el itinerario perfecto en 24 horas.</p>
+    <p class="charter-rates-confirm season-rates reveal reveal-delay-2" id="charterRatesConfirm" aria-live="polite">
+      <span data-season-rate="low">Medio día (4h) desde 1.700 € · 6h desde 2.200 € · día completo desde 3.000 € · tripulación incluida</span>
+      <span data-season-rate="high" hidden>Medio día (4h) desde 2.200 € · 6h desde 2.800 € · día completo desde 4.000 € · tripulación incluida</span>
+    </p>
     <div class="charters-main">
       <div class="enquiry-grid">
-        <a class="enquiry-card reveal" href="#half-day">
+        <a class="enquiry-card reveal" href="#half-day" data-charter-tier="half-day">
           <span class="enquiry-label">4 – 6 horas</span>
           <span class="enquiry-title">Medio día</span>
-          <span class="enquiry-desc">Un paseo matutino, una salida al atardecer o una parada de baño a mediodía. Perfecto para disfrutar del Mediterráneo sin dedicar el día entero.</span>
+          <span class="enquiry-price season-rates">
+            <span data-season-rate="low">Desde 1.700 € (4h) · 2.200 € (6h)</span>
+            <span data-season-rate="high" hidden>Desde 2.200 € (4h) · 2.800 € (6h)</span>
+          </span>
+          <span class="enquiry-desc">Un paseo matutino, una salida al atardecer o una tarde de 6 horas — paradas para nadar y tiempo a bordo sin dedicar el día entero.</span>
           <span class="enquiry-link">See Destinations →</span>
         </a>
-        <a class="enquiry-card reveal reveal-delay-1" href="#full-day">
+        <a class="enquiry-card reveal reveal-delay-1" href="#full-day" data-charter-tier="full-day">
           <span class="enquiry-label">8 – 10 horas</span>
           <span class="enquiry-title">Día completo</span>
+          <span class="enquiry-price season-rates">
+            <span data-season-rate="low">Desde 3.000 €</span>
+            <span data-season-rate="high" hidden>Desde 4.000 €</span>
+          </span>
           <span class="enquiry-desc">Explore dos o tres destinos, nade en calas de aguas cristalinas y cene a bordo. La forma más popular de disfrutar de la costa.</span>
           <span class="enquiry-link">See Destinations →</span>
         </a>
-        <a class="enquiry-card reveal reveal-delay-2" href="#multi-day">
+        <a class="enquiry-card reveal reveal-delay-2" href="#multi-day" data-charter-tier="weekend">
           <span class="enquiry-label">2 – 3 días</span>
           <span class="enquiry-title">Escapada de fin de semana</span>
           <span class="enquiry-desc">Duerma bajo las estrellas y despierte en una bahía diferente cada mañana. Ideal para un cumpleaños, aniversario o simplemente para desconectar de verdad.</span>
           <span class="enquiry-link">See Destinations →</span>
         </a>
-        <a class="enquiry-card reveal reveal-delay-3" href="#multi-day">
+        <a class="enquiry-card reveal reveal-delay-3" href="#multi-day" data-charter-tier="extended">
           <span class="enquiry-label">4 días +</span>
           <span class="enquiry-title">Viaje prolongado</span>
           <span class="enquiry-desc">Isla a isla a su propio ritmo — Formentera, Ibiza, Menorca o las calas más remotas de Mallorca. Su ruta, enteramente a medida.</span>
@@ -1361,7 +1411,7 @@ document.addEventListener('DOMContentLoaded', function() {
       </aside>
       <div class="enquiry-cta-wrap reveal">
         <a href="#enquire" class="btn-primary">Obtener su presupuesto</a>
-        <p class="enquiry-flex-note">Disponible todo el año &nbsp;·&nbsp; Los precios varían según la temporada &nbsp;·&nbsp; Respondemos en 24 horas</p>
+        <p class="enquiry-flex-note">Disponible todo el año &nbsp;·&nbsp; Respondemos en 24 horas</p>
         <div class="section-cross-cta section-cross-cta--desktop">
           <p class="section-cta-text">¿Prefiere fijar fechas primero — o escuchar a huéspedes que ya estuvieron a bordo?</p>
           <div class="section-cta-btns">

@@ -134,8 +134,8 @@ nav{position:fixed;top:0;left:0;right:0;z-index:100;min-height:4.25rem}
   global.LY_TESTING_CLARITY = !global.LY_OWNER_MODE && !global.LY_IS_PREVIEW;
 })(window);
 </script>
-<link rel="preload" as="style" href="../css/main.css?v=91" onload="this.rel='stylesheet'" />
-<noscript><link rel="stylesheet" href="../css/main.css?v=91" /></noscript>
+<link rel="preload" as="style" href="../css/main.css?v=92" onload="this.rel='stylesheet'" />
+<noscript><link rel="stylesheet" href="../css/main.css?v=92" /></noscript>
 
 <title>Limitless Yacht Experience – Charter de luxe Maiora à Majorque</title>
 <meta name="description" content="Louez le Maiora de 21,5 m « Limitless » depuis Palma de Majorque — croisières à la journée et sur plusieurs jours vers les criques de Majorque, Cabrera et Formentera. Avec équipage, jusqu'à 12 invités." />
@@ -247,10 +247,14 @@ nav{position:fixed;top:0;left:0;right:0;z-index:100;min-height:4.25rem}
     <p class="hero-eyebrow"><a href="#reviews" class="hero-eyebrow-link--mobile"><span class="eyebrow-stars">★★★★★</span> 5.0</a><a href="#reviews-land" class="hero-eyebrow-link--desktop"><span class="eyebrow-stars">★★★★★</span> 5.0</a> &nbsp;·&nbsp; <a href="#charters" class="hero-eyebrow-link--mobile">Charter Privé</a><a href="#charters-land" class="hero-eyebrow-link--desktop">Charter Privé</a><br>Club de Mar · Mallorca</p>
     <h1 class="hero-title">LIMIT<em>LESS</em></h1>
     <p class="hero-sub">Yacht Maiora exclusif · 21,5 m · Jusqu'à 12 invités de jour · 7 de nuit</p>
-    <p class="hero-rates season-rates" id="heroRates" aria-live="polite">
-      <span data-season-rate="low">Demi-journée (4h) à partir de 1 700 € · journée complète à partir de 3 000 € · équipage inclus</span>
-      <span data-season-rate="high" hidden>Demi-journée (4h) à partir de 2 200 € · journée complète à partir de 4 000 € · équipage inclus</span>
-    </p>
+    <a href="#charters" class="hero-rates hero-rates-link season-rates hero-rates-link--mobile" id="heroRates" aria-live="polite">
+      <span data-season-rate="low">Demi-journée (4h) à partir de 1 700 € · 6h à partir de 2 200 € · journée complète à partir de 3 000 € · équipage inclus</span>
+      <span data-season-rate="high" hidden>Demi-journée (4h) à partir de 2 200 € · 6h à partir de 2 800 € · journée complète à partir de 4 000 € · équipage inclus</span>
+    </a>
+    <a href="#charters-land" class="hero-rates hero-rates-link season-rates hero-rates-link--desktop" aria-live="polite">
+      <span data-season-rate="low">Demi-journée (4h) à partir de 1 700 € · 6h à partir de 2 200 € · journée complète à partir de 3 000 € · équipage inclus</span>
+      <span data-season-rate="high" hidden>Demi-journée (4h) à partir de 2 200 € · 6h à partir de 2 800 € · journée complète à partir de 4 000 € · équipage inclus</span>
+    </a>
     <div class="hero-cta-group">
       <p class="hero-value">Votre équipage s'occupe de tout — vous profitez des autres et des paysages.</p>
       <div class="hero-actions">
@@ -279,6 +283,40 @@ nav{position:fixed;top:0;left:0;right:0;z-index:100;min-height:4.25rem}
       spans[i].hidden = spans[i].getAttribute('data-season-rate') !== season;
     }
   }
+  document.querySelectorAll('.hero-rates-link').forEach(function (link) {
+    link.addEventListener('click', function () {
+      if (window.LY_clarityEvent) window.LY_clarityEvent('ly_hero_rates_click');
+    });
+  });
+  var charterRates = document.getElementById('charterRatesConfirm');
+  if (charterRates && 'IntersectionObserver' in window) {
+    var ratesSeen = false;
+    var io = new IntersectionObserver(function (entries) {
+      if (ratesSeen) return;
+      for (var i = 0; i < entries.length; i++) {
+        if (entries[i].isIntersecting) {
+          ratesSeen = true;
+          io.disconnect();
+          if (window.LY_clarityEvent) window.LY_clarityEvent('ly_charters_rates_view');
+          return;
+        }
+      }
+    }, { threshold: 0.6 });
+    io.observe(charterRates);
+  }
+  var cardEvents = {
+    'half-day': 'ly_charter_card_half_day',
+    'full-day': 'ly_charter_card_full_day',
+    'weekend': 'ly_charter_card_weekend',
+    'extended': 'ly_charter_card_extended'
+  };
+  document.querySelectorAll('#charters .enquiry-card').forEach(function (card) {
+    card.addEventListener('click', function () {
+      if (!window.LY_clarityEvent) return;
+      var tier = card.getAttribute('data-charter-tier') || '';
+      window.LY_clarityEvent(cardEvents[tier] || 'ly_charter_card_click');
+    });
+  });
 })();
 </script>
 
@@ -1321,27 +1359,39 @@ document.addEventListener('DOMContentLoaded', function() {
     <span id="charters-land" style="display:block;height:0;overflow:hidden" aria-hidden="true"></span>
     <h2 class="section-title reveal reveal-delay-1">Votre charter<em> à votre façon</em></h2>
     <p class="enquiry-intro reveal reveal-delay-2">D'une matinée ensoleillée à une semaine au mouillage — chaque charter est conçu autour de vous. Indiquez-nous vos dates et nous créerons l'itinéraire parfait en 24 heures.</p>
+    <p class="charter-rates-confirm season-rates reveal reveal-delay-2" id="charterRatesConfirm" aria-live="polite">
+      <span data-season-rate="low">Demi-journée (4h) à partir de 1 700 € · 6h à partir de 2 200 € · journée complète à partir de 3 000 € · équipage inclus</span>
+      <span data-season-rate="high" hidden>Demi-journée (4h) à partir de 2 200 € · 6h à partir de 2 800 € · journée complète à partir de 4 000 € · équipage inclus</span>
+    </p>
     <div class="charters-main">
       <div class="enquiry-grid">
-        <a class="enquiry-card reveal" href="#half-day">
+        <a class="enquiry-card reveal" href="#half-day" data-charter-tier="half-day">
           <span class="enquiry-label">4 – 6 heures</span>
           <span class="enquiry-title">Demi-journée</span>
-          <span class="enquiry-desc">Une croisière matinale, une sortie au coucher du soleil ou un arrêt baignade à midi. Parfait pour découvrir la Méditerranée sans consacrer une journée entière.</span>
+          <span class="enquiry-price season-rates">
+            <span data-season-rate="low">À partir de 1 700 € (4h) · 2 200 € (6h)</span>
+            <span data-season-rate="high" hidden>À partir de 2 200 € (4h) · 2 800 € (6h)</span>
+          </span>
+          <span class="enquiry-desc">Une croisière matinale, une sortie au coucher du soleil ou un après-midi de 6 heures — arrêts baignade et temps à bord sans consacrer une journée entière.</span>
           <span class="enquiry-link">See Destinations →</span>
         </a>
-        <a class="enquiry-card reveal reveal-delay-1" href="#full-day">
+        <a class="enquiry-card reveal reveal-delay-1" href="#full-day" data-charter-tier="full-day">
           <span class="enquiry-label">8 – 10 heures</span>
           <span class="enquiry-title">Journée complète</span>
+          <span class="enquiry-price season-rates">
+            <span data-season-rate="low">À partir de 3 000 €</span>
+            <span data-season-rate="high" hidden>À partir de 4 000 €</span>
+          </span>
           <span class="enquiry-desc">Explorez deux ou trois destinations, nagez dans des criques aux eaux limpides et déjeunez à bord. La façon la plus populaire de découvrir la côte.</span>
           <span class="enquiry-link">See Destinations →</span>
         </a>
-        <a class="enquiry-card reveal reveal-delay-2" href="#multi-day">
+        <a class="enquiry-card reveal reveal-delay-2" href="#multi-day" data-charter-tier="weekend">
           <span class="enquiry-label">2 – 3 jours</span>
           <span class="enquiry-title">Escapade du week-end</span>
           <span class="enquiry-desc">Dormez sous les étoiles et réveillez-vous dans une nouvelle baie chaque matin. Idéal pour un anniversaire ou pour vraiment décrocher.</span>
           <span class="enquiry-link">See Destinations →</span>
         </a>
-        <a class="enquiry-card reveal reveal-delay-3" href="#multi-day">
+        <a class="enquiry-card reveal reveal-delay-3" href="#multi-day" data-charter-tier="extended">
           <span class="enquiry-label">4 jours +</span>
           <span class="enquiry-title">Voyage prolongé</span>
           <span class="enquiry-desc">Sautez d'île en île à votre rythme — Formentera, Ibiza, Minorque ou les criques les plus reculées de Majorque. Votre itinéraire, entièrement sur mesure.</span>
@@ -1361,7 +1411,7 @@ document.addEventListener('DOMContentLoaded', function() {
       </aside>
       <div class="enquiry-cta-wrap reveal">
         <a href="#enquire" class="btn-primary">Obtenir votre devis</a>
-        <p class="enquiry-flex-note">Disponible toute l'année &nbsp;·&nbsp; Tarifs variables selon la saison &nbsp;·&nbsp; Nous répondons en 24 heures</p>
+        <p class="enquiry-flex-note">Disponible toute l'année &nbsp;·&nbsp; Nous répondons en 24 heures</p>
         <div class="section-cross-cta section-cross-cta--desktop">
           <p class="section-cta-text">Vous préférez fixer les dates d'abord — ou entendre des invités déjà embarqués ?</p>
           <div class="section-cta-btns">

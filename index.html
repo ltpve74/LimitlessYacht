@@ -134,8 +134,8 @@ nav{position:fixed;top:0;left:0;right:0;z-index:100;min-height:4.25rem}
   global.LY_TESTING_CLARITY = !global.LY_OWNER_MODE && !global.LY_IS_PREVIEW;
 })(window);
 </script>
-<link rel="preload" as="style" href="css/main.css?v=91" onload="this.rel='stylesheet'" />
-<noscript><link rel="stylesheet" href="css/main.css?v=91" /></noscript>
+<link rel="preload" as="style" href="css/main.css?v=92" onload="this.rel='stylesheet'" />
+<noscript><link rel="stylesheet" href="css/main.css?v=92" /></noscript>
 
 <title>Limitless Yacht Experience – Luxury Maiora Charter in Mallorca</title>
 <meta name="description" content="Charter the 21.5 m Maiora 'Limitless' from Palma de Mallorca — day and multi-day cruises to Mallorca's finest coves, Cabrera and Formentera. Crewed, up to 12 guests." />
@@ -247,10 +247,14 @@ nav{position:fixed;top:0;left:0;right:0;z-index:100;min-height:4.25rem}
     <p class="hero-eyebrow"><a href="#reviews" class="hero-eyebrow-link--mobile"><span class="eyebrow-stars">★★★★★</span> 5.0</a><a href="#reviews-land" class="hero-eyebrow-link--desktop"><span class="eyebrow-stars">★★★★★</span> 5.0</a> &nbsp;·&nbsp; <a href="#charters" class="hero-eyebrow-link--mobile">Private Charter</a><a href="#charters-land" class="hero-eyebrow-link--desktop">Private Charter</a><br>Club de Mar · Mallorca</p>
     <h1 class="hero-title">LIMIT<em>LESS</em></h1>
     <p class="hero-sub">Exclusive Maiora Yacht · 21.5 m · Up to 12 Guests Day · 7 Overnight</p>
-    <p class="hero-rates season-rates" id="heroRates" aria-live="polite">
-      <span data-season-rate="low">Half-day (4h) from €1,700 · full day from €3,000 · crew included</span>
-      <span data-season-rate="high" hidden>Half-day (4h) from €2,200 · full day from €4,000 · crew included</span>
-    </p>
+    <a href="#charters" class="hero-rates hero-rates-link season-rates hero-rates-link--mobile" id="heroRates" aria-live="polite">
+      <span data-season-rate="low">Half-day (4h) from €1,700 · 6h from €2,200 · full day from €3,000 · crew included</span>
+      <span data-season-rate="high" hidden>Half-day (4h) from €2,200 · 6h from €2,800 · full day from €4,000 · crew included</span>
+    </a>
+    <a href="#charters-land" class="hero-rates hero-rates-link season-rates hero-rates-link--desktop" aria-live="polite">
+      <span data-season-rate="low">Half-day (4h) from €1,700 · 6h from €2,200 · full day from €3,000 · crew included</span>
+      <span data-season-rate="high" hidden>Half-day (4h) from €2,200 · 6h from €2,800 · full day from €4,000 · crew included</span>
+    </a>
     <div class="hero-cta-group">
       <p class="hero-value">Your crew handles everything — you focus on the people and&nbsp;the views.</p>
       <div class="hero-actions">
@@ -279,6 +283,40 @@ nav{position:fixed;top:0;left:0;right:0;z-index:100;min-height:4.25rem}
       spans[i].hidden = spans[i].getAttribute('data-season-rate') !== season;
     }
   }
+  document.querySelectorAll('.hero-rates-link').forEach(function (link) {
+    link.addEventListener('click', function () {
+      if (window.LY_clarityEvent) window.LY_clarityEvent('ly_hero_rates_click');
+    });
+  });
+  var charterRates = document.getElementById('charterRatesConfirm');
+  if (charterRates && 'IntersectionObserver' in window) {
+    var ratesSeen = false;
+    var io = new IntersectionObserver(function (entries) {
+      if (ratesSeen) return;
+      for (var i = 0; i < entries.length; i++) {
+        if (entries[i].isIntersecting) {
+          ratesSeen = true;
+          io.disconnect();
+          if (window.LY_clarityEvent) window.LY_clarityEvent('ly_charters_rates_view');
+          return;
+        }
+      }
+    }, { threshold: 0.6 });
+    io.observe(charterRates);
+  }
+  var cardEvents = {
+    'half-day': 'ly_charter_card_half_day',
+    'full-day': 'ly_charter_card_full_day',
+    'weekend': 'ly_charter_card_weekend',
+    'extended': 'ly_charter_card_extended'
+  };
+  document.querySelectorAll('#charters .enquiry-card').forEach(function (card) {
+    card.addEventListener('click', function () {
+      if (!window.LY_clarityEvent) return;
+      var tier = card.getAttribute('data-charter-tier') || '';
+      window.LY_clarityEvent(cardEvents[tier] || 'ly_charter_card_click');
+    });
+  });
 })();
 </script>
 
@@ -1321,27 +1359,39 @@ document.addEventListener('DOMContentLoaded', function() {
     <span id="charters-land" style="display:block;height:0;overflow:hidden" aria-hidden="true"></span>
     <h2 class="section-title reveal reveal-delay-1">Charter Your<em> Way</em></h2>
     <p class="enquiry-intro reveal reveal-delay-2">From a sun-soaked morning to a week at anchor — every charter is built around you. Tell us your dates and we'll craft the perfect itinerary within 24 hours.</p>
+    <p class="charter-rates-confirm season-rates reveal reveal-delay-2" id="charterRatesConfirm" aria-live="polite">
+      <span data-season-rate="low">Half-day (4h) from €1,700 · 6h from €2,200 · full day from €3,000 · crew included</span>
+      <span data-season-rate="high" hidden>Half-day (4h) from €2,200 · 6h from €2,800 · full day from €4,000 · crew included</span>
+    </p>
     <div class="charters-main">
       <div class="enquiry-grid">
-        <a class="enquiry-card reveal" href="#half-day">
+        <a class="enquiry-card reveal" href="#half-day" data-charter-tier="half-day">
           <span class="enquiry-label">4 – 6 Hours</span>
           <span class="enquiry-title">Half-Day</span>
-          <span class="enquiry-desc">A morning cruise, a sunset sail, or a midday swim stop. Perfect for a taste of the Mediterranean without committing a full day.</span>
+          <span class="enquiry-price season-rates">
+            <span data-season-rate="low">From €1,700 (4h) · €2,200 (6h)</span>
+            <span data-season-rate="high" hidden>From €2,200 (4h) · €2,800 (6h)</span>
+          </span>
+          <span class="enquiry-desc">A morning cruise, a sunset sail, or a 6-hour afternoon — swim stops and time on board without committing a full day.</span>
           <span class="enquiry-link">See Destinations →</span>
         </a>
-        <a class="enquiry-card reveal reveal-delay-1" href="#full-day">
+        <a class="enquiry-card reveal reveal-delay-1" href="#full-day" data-charter-tier="full-day">
           <span class="enquiry-label">8 – 10 Hours</span>
           <span class="enquiry-title">Full Day</span>
+          <span class="enquiry-price season-rates">
+            <span data-season-rate="low">From €3,000</span>
+            <span data-season-rate="high" hidden>From €4,000</span>
+          </span>
           <span class="enquiry-desc">Explore two or three destinations, swim in crystal-clear coves, and dine on board. The most popular way to experience the coast.</span>
           <span class="enquiry-link">See Destinations →</span>
         </a>
-        <a class="enquiry-card reveal reveal-delay-2" href="#multi-day">
+        <a class="enquiry-card reveal reveal-delay-2" href="#multi-day" data-charter-tier="weekend">
           <span class="enquiry-label">2 – 3 Days</span>
           <span class="enquiry-title">Weekend Escape</span>
           <span class="enquiry-desc">Sleep under the stars and wake in a new bay each morning. Ideal for a birthday, anniversary, or simply switching off properly.</span>
           <span class="enquiry-link">See Destinations →</span>
         </a>
-        <a class="enquiry-card reveal reveal-delay-3" href="#multi-day">
+        <a class="enquiry-card reveal reveal-delay-3" href="#multi-day" data-charter-tier="extended">
           <span class="enquiry-label">4 Days +</span>
           <span class="enquiry-title">Extended Journey</span>
           <span class="enquiry-desc">Island-hop at your own pace — Formentera, Ibiza, Menorca or Mallorca's remotest coves. Your route, entirely bespoke.</span>
@@ -1361,7 +1411,7 @@ document.addEventListener('DOMContentLoaded', function() {
       </aside>
       <div class="enquiry-cta-wrap reveal">
         <a href="#enquire" class="btn-primary">Get Your Quote</a>
-        <p class="enquiry-flex-note">Available year-round &nbsp;·&nbsp; Rates vary by season &nbsp;·&nbsp; We respond within 24 hours</p>
+        <p class="enquiry-flex-note">Available year-round &nbsp;·&nbsp; We respond within 24 hours</p>
         <div class="section-cross-cta section-cross-cta--desktop">
           <p class="section-cta-text">Rather pin down dates first — or hear from guests who've been on board?</p>
           <div class="section-cta-btns">
