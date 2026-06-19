@@ -711,14 +711,29 @@ def check_html(r: Runner, rel: str, html: str) -> None:
     )
     r.check(
         'critical CSS is slim enough for fast head parse',
-        style_pos > 0 and html.find('</style>', style_pos) - style_pos < 4200,
+        style_pos > 0 and html.find('</style>', style_pos) - style_pos < 4900,
     )
     crit_end = html.find('</style>', style_pos)
     crit_css = html[style_pos:crit_end] if style_pos > 0 and crit_end > style_pos else ''
     crit_flat = re.sub(r'\s+', '', crit_css)
     r.check(
         'critical CSS fixes nav before main.css (prevents hero CLS)',
-        'position:fixed' in crit_flat and 'nav{' in crit_flat,
+        'position:fixed' in crit_flat
+        and 'nav{' in crit_flat
+        and 'display:flex' in crit_flat
+        and '.nav-links,.nav-lang-wrap,.nav-header-cta{display:none}' in crit_flat
+        and '.hamburger{display:flex}' in crit_flat,
+    )
+    r.check(
+        'critical CSS hides duplicate hero rates link before main.css',
+        '.hero-rates-link{display:block}' in crit_flat
+        and '.hero-rates-link--desktop){display:none}' in crit_flat
+        and '.hero-rates-link--mobile){display:none}' in crit_flat,
+    )
+    r.check(
+        'critical CSS locks hero text wrap before main.css (prevents reflow CLS)',
+        'text-wrap:balance' in crit_flat
+        and '.hero-rates[hidden]{display:none!important}' in crit_flat.replace(' ', ''),
     )
     r.check(
         'critical CSS matches mobile hero flex layout',
@@ -1541,6 +1556,21 @@ def check_shared_assets(r: Runner) -> None:
         and 'font-display:optional' in index_html.replace(' ', '')
         and "href=\"fonts/montserrat-latin.woff2\"" in index_html
         and 'href="/fonts/montserrat-latin.woff2"' not in index_html,
+    )
+    css_flat = re.sub(r'\s+', '', css or '')
+    r.check(
+        'main.css uses metric-adjusted Montserrat fallback (font CLS guard)',
+        css is not None
+        and "font-family:'MontserratFallback'" in css_flat
+        and 'size-adjust' in css_flat
+        and 'ascent-override' in css_flat,
+    )
+    r.check(
+        'hero text-wrap stays balance-only (no pretty reflow on main.css)',
+        css is not None
+        and '@supports(text-wrap:pretty)' in css_flat
+        and '.hero-rates{text-wrap:pretty}' not in css_flat
+        and '.hero-sub{text-wrap:pretty}' not in css_flat,
     )
     r.check(
         'behavior-analytics loads via LY_BASE',
