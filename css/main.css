@@ -717,6 +717,18 @@ html[data-ly-net="slow"] #hero .hero-bg-wrap,
 .ly-prog-wrap--hero .ly-prog-sharp {
   object-position: 58% 48%;
 }
+@media (max-width: 768px) {
+  .ly-prog-wrap--hero .ly-prog-preview,
+  .ly-prog-wrap--hero .ly-prog-sharp {
+    object-position: 52% 40%;
+  }
+  .ly-prog-wrap--hero .hero-bg.ly-prog-sharp,
+  .ly-prog-wrap--hero.ly-prog-sharp-ready.ly-prog-sharp-visible .hero-bg.ly-prog-sharp,
+  .ly-prog-wrap--hero.ly-prog-skip-preview.ly-prog-sharp-ready .hero-bg.ly-prog-sharp {
+    animation: none;
+    transform: none;
+  }
+}
 .ly-prog-wrap--hero .hero-bg.ly-prog-sharp {
   animation: none;
   transform: scale(1.05);
