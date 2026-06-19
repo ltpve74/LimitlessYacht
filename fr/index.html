@@ -134,8 +134,8 @@ nav{position:fixed;top:0;left:0;right:0;z-index:100;min-height:4.25rem}
   global.LY_TESTING_CLARITY = !global.LY_OWNER_MODE && !global.LY_IS_PREVIEW;
 })(window);
 </script>
-<link rel="preload" as="style" href="../css/main.css?v=87" onload="this.rel='stylesheet'" />
-<noscript><link rel="stylesheet" href="../css/main.css?v=87" /></noscript>
+<link rel="preload" as="style" href="../css/main.css?v=88" onload="this.rel='stylesheet'" />
+<noscript><link rel="stylesheet" href="../css/main.css?v=88" /></noscript>
 
 <title>Limitless Yacht Experience – Charter de luxe Maiora à Majorque</title>
 <meta name="description" content="Louez le Maiora de 21,5 m « Limitless » depuis Palma de Majorque — croisières à la journée et sur plusieurs jours vers les criques de Majorque, Cabrera et Formentera. Avec équipage, jusqu'à 12 invités." />
@@ -2929,25 +2929,46 @@ document.addEventListener('DOMContentLoaded', function() {
   setCtaState(false);
   render();
 
+  var availabilityFetchState = 'idle';
+  function applyDisponibilité(data) {
+    if (!data) return;
+    (data.booked || []).forEach(function(x){ booked.add(x); });
+    (data.tentative || []).forEach(function(x){ tentative.add(x); });
+    selected = selected.filter(function(k){ return isSelectable(k); });
+    if (selected.length > 1) {
+      var rebuilt = buildContiguousRange(selected[0], selected[selected.length - 1]);
+      selected = rebuilt || (selected.length ? [selected[0]] : []);
+    }
+    rebuildLookup();
+    if (selected.length) updateSelectionUi();
+    else {
+      syncForm();
+      render();
+      if (window.LY_refreshFormDatePickers) window.LY_refreshFormDatePickers();
+    }
+  }
   function loadDisponibilité() {
+    if (availabilityFetchState === 'loading' || availabilityFetchState === 'done') return;
+    availabilityFetchState = 'loading';
     fetch((location.hostname.endsWith('.github.io') ? 'https://limitlessyachtcharter.com' : '') + '/api/availability')
       .then(function(r){ return r.ok ? r.json() : null; })
       .then(function(data){
-        if (!data) return;
-        (data.booked || []).forEach(function(x){ booked.add(x); });
-        (data.tentative || []).forEach(function(x){ tentative.add(x); });
-        selected = selected.filter(function(k){ return isSelectable(k); });
-        if (selected.length > 1) {
-          var rebuilt = buildContiguousRange(selected[0], selected[selected.length - 1]);
-          selected = rebuilt || (selected.length ? [selected[0]] : []);
-        }
-        updateSelectionUi();
-        if (window.LY_refreshFormDatePickers) window.LY_refreshFormDatePickers();
+        availabilityFetchState = 'done';
+        applyDisponibilité(data);
       })
-      .catch(function(){ /* keep all-available fallback */ });
+      .catch(function(){
+        availabilityFetchState = 'idle';
+      });
   }
-  if (window.LY_whenNearSection) window.LY_whenNearSection('availability', loadDisponibilité);
-  else loadDisponibilité();
+  function scheduleDisponibilitéLoad() {
+    if (window.LY_whenNearSection) window.LY_whenNearSection('availability', loadDisponibilité);
+    else loadDisponibilité();
+    var hash = (location.hash || '').replace(/^#/, '');
+    if (hash === 'availability' || hash === 'availability-land' || hash === 'avail-cal' || hash === 'enquire' || hash === 'enquire-land' || hash === 'enquire-form') {
+      loadDisponibilité();
+    }
+  }
+  scheduleDisponibilitéLoad();
 
   var formDatePopover = document.getElementById('formDatePopover');
   var formDateWrap = document.getElementById('preferredDateWrap');
