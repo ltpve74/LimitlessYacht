@@ -638,9 +638,79 @@ section { padding: 7rem 2rem; }
 .destination-card.card-loading .card-loader,
 .gallery-item.card-loading .card-loader { display: block; }
 .destination-card.card-loading .destination-card-bg img,
-.gallery-item.card-loading img {
+.gallery-item.card-loading img,
+.destination-card.card-loading .ly-prog-preview,
+.gallery-item.card-loading .ly-prog-preview {
   opacity: .45;
   transition: opacity .2s ease;
+}
+
+/* progressive preview → sharp (slow connections) */
+.ly-prog-wrap {
+  position: relative;
+  overflow: hidden;
+}
+.ly-prog-wrap--hero,
+.destination-card > .ly-prog-wrap,
+.gallery-item > .ly-prog-wrap,
+.about-image-wrap > .ly-prog-wrap {
+  position: absolute;
+  inset: 0;
+}
+.ly-prog-wrap .destination-card-bg,
+.ly-prog-wrap--hero .hero-bg-wrap,
+.gallery-item > .ly-prog-wrap > picture {
+  position: absolute;
+  inset: 0;
+  display: block;
+  width: 100%;
+  height: 100%;
+}
+.ly-prog-preview,
+.ly-prog-sharp {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  display: block;
+}
+.ly-prog-preview {
+  z-index: 0;
+  transform: scale(1.1);
+  filter: blur(16px) brightness(.93) saturate(1.04);
+  opacity: 1;
+  transition: opacity .6s cubic-bezier(.33, 1, .38, 1), filter .6s cubic-bezier(.33, 1, .38, 1);
+}
+.ly-prog-sharp {
+  z-index: 1;
+  opacity: 0;
+  transition: opacity .7s cubic-bezier(.22, 1, .32, 1);
+}
+.ly-prog-wrap.ly-prog-sharp-ready .ly-prog-sharp { opacity: 1; }
+.ly-prog-wrap.ly-prog-sharp-ready .ly-prog-preview {
+  opacity: 0;
+  filter: blur(8px);
+}
+.ly-prog-wrap--hero .ly-prog-preview,
+.ly-prog-wrap--hero .ly-prog-sharp {
+  object-position: 58% 48%;
+}
+.ly-prog-wrap--hero .ly-prog-sharp {
+  transform: scale(1.08);
+  filter: brightness(1.04) saturate(1.06);
+}
+.ly-prog-wrap--hero.ly-prog-sharp-ready .ly-prog-sharp {
+  animation: heroZoom 14s ease-out forwards;
+}
+.gallery-group[data-gtab="water"] .gallery-item:first-child .ly-prog-preview,
+.gallery-group[data-gtab="water"] .gallery-item:first-child .ly-prog-sharp {
+  object-position: 90% 30%;
+}
+@media (prefers-reduced-motion: reduce) {
+  .ly-prog-preview,
+  .ly-prog-sharp { transition: none; }
+  .ly-prog-wrap--hero.ly-prog-sharp-ready .ly-prog-sharp { animation: none; transform: scale(1); }
 }
 
 #lightbox.open::after {

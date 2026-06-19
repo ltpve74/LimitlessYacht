@@ -5,6 +5,7 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0" />
 <style id="fouc-guard">html{background:#0a1628;color-scheme:dark}a,a:any-link{color:#f5f0e8!important;text-decoration:none!important;-webkit-text-fill-color:currentColor!important}html:not(.ly-main-ready) body>:not(nav):not(#hero){display:none!important}</style>
 <script src="../js/net-tier.js"></script>
+<script src="js/progressive-images.js"></script>
 
 <style id="critical-css">
 @font-face{font-family:'Montserrat';font-style:normal;font-weight:300 600;font-display:optional;src:url('../fonts/montserrat-latin.woff2') format('woff2')}
@@ -93,9 +94,9 @@ nav{position:fixed;inset:0 0 auto;z-index:100;display:flex;align-items:center;ga
   global.LY_TESTING_CLARITY = !global.LY_OWNER_MODE && !global.LY_IS_PREVIEW;
 })(window);
 </script>
-<link rel="preload" as="style" href="../css/main.css?v=107" onload="this.rel='stylesheet';requestAnimationFrame(function(){requestAnimationFrame(function(){document.documentElement.classList.add('ly-main-ready')})})" />
+<link rel="preload" as="style" href="../css/main.css?v=108" onload="this.rel='stylesheet';requestAnimationFrame(function(){requestAnimationFrame(function(){document.documentElement.classList.add('ly-main-ready')})})" />
 <script>!function(){var d=document.documentElement;function ready(){if(!d.classList.contains('ly-main-ready'))d.classList.add('ly-main-ready')}function onSheet(){requestAnimationFrame(function(){requestAnimationFrame(ready)})}var l=document.querySelector('link[href*="main.css"]');if(l)l.addEventListener('load',onSheet)}();</script>
-<noscript><link rel="stylesheet" href="../css/main.css?v=107" /></noscript>
+<noscript><link rel="stylesheet" href="../css/main.css?v=108" /></noscript>
 
 <title>Limitless Yacht Experience – Charter de luxe Maiora à Majorque</title>
 <meta name="description" content="Louez le Maiora de 21,5 m « Limitless » depuis Palma de Majorque — croisières à la journée et sur plusieurs jours vers les criques de Majorque, Cabrera et Formentera. Avec équipage, jusqu'à 12 invités." />
@@ -658,7 +659,12 @@ window.LY_warmUrlsForContext = function(ctx) {
   } else if (c.section === 'about' && window.LY_cardTierFromMaster) {
     var mob = window.innerWidth <= 640;
     var master = mob ? '/images/mobile/maiora_20s_04.webp' : '/images/maiora_20s_04.webp';
-    var suffix = window.LY_NET_SLOW ? (mob ? '-480' : '-640') : (mob ? '-720' : '-640');
+    var suffix;
+    if (window.LY_PROGRESSIVE_IMAGES && window.LY_sharpTierSuffix) {
+      suffix = window.LY_sharpTierSuffix();
+    } else {
+      suffix = window.LY_NET_SLOW ? (mob ? '-480' : '-640') : (mob ? '-720' : '-640');
+    }
     urls.push(window.LY_cardTierFromMaster(master, suffix));
   }
   var seen = {};
@@ -714,7 +720,12 @@ window.LY_initCardLoaders = function() {
   });
 };
 window.LY_cardIsImageReady = function(card) {
-  var img = card && card.querySelector('img');
+  if (!card) return false;
+  if (window.LY_PROGRESSIVE_IMAGES) {
+    var wrap = card.querySelector('.ly-prog-wrap');
+    if (wrap && wrap.classList.contains('ly-prog-preview-ready')) return true;
+  }
+  var img = card.querySelector('.ly-prog-sharp') || card.querySelector('img');
   return !!(img && img.complete && img.naturalWidth);
 };
 window.LY_setCardLoading = function(card, on) {
@@ -728,10 +739,16 @@ window.LY_setCardLoading = function(card, on) {
   var gen = (card._lyCardLoadGen || 0) + 1;
   card._lyCardLoadGen = gen;
   card.classList.add('card-loading');
-  var img = card.querySelector('img');
+  var wrap = card.querySelector('.ly-prog-wrap');
+  var prev = wrap && wrap.querySelector('.ly-prog-preview');
+  var img = card.querySelector('.ly-prog-sharp') || card.querySelector('img');
   function clearIfTerminé() {
     if (card._lyCardLoadGen !== gen) return;
     if (window.LY_cardIsImageReady(card)) card.classList.remove('card-loading');
+  }
+  if (prev) {
+    if (prev.complete && prev.naturalWidth) clearIfTerminé();
+    else prev.addEventListener('load', clearIfTerminé, { once: true });
   }
   if (img) {
     if (img.complete) clearIfTerminé();
@@ -790,6 +807,7 @@ window.LY_beginUserIntent = function(opts) {
     window.LY_preloadContext = Object.assign({}, window.LY_preloadContext, opts.context);
   }
   if (window.LY_showCardLoadersForIntent) window.LY_showCardLoadersForIntent(opts);
+  if (window.LY_upgradeProgressiveForIntent) window.LY_upgradeProgressiveForIntent(opts);
   var urgent = (opts.urgentUrls || []).filter(Boolean);
   var seen = {};
   urgent = urgent.filter(function(u) {
@@ -913,6 +931,7 @@ window.LY_loadPreloadImage = function(url, cb) {
   function finish() {
     delete window.LY_preloadInFlight[url];
     window.LY_preloadedUrls[url] = 1;
+    if (window.LY_revealProgressiveForUrl) window.LY_revealProgressiveForUrl(url);
     if (cb) cb();
   }
   img.addEventListener('load', finish, { once: true });
@@ -1103,22 +1122,34 @@ window.LY_galleryMasterUrl = function(idx) {
 };
 window.LY_destCardUrl = function(idx) {
   var mob = window.innerWidth <= 640;
-  var suffix = window.LY_NET_SLOW
-    ? (mob ? '-480' : '-640')
-    : (mob ? '-720' : '-640');
+  var suffix;
+  if (window.LY_PROGRESSIVE_IMAGES && window.LY_sharpTierSuffix) {
+    suffix = window.LY_sharpTierSuffix();
+  } else if (window.LY_NET_SLOW) {
+    suffix = mob ? '-480' : '-640';
+  } else {
+    suffix = mob ? '-720' : '-640';
+  }
   return window.LY_cardTierFromMaster(window.LY_destMasterUrl(idx), suffix);
 };
 window.LY_destLbUrl = function(idx) {
   var mob = window.innerWidth <= 640;
-  var suffix = window.LY_NET_SLOW
-    ? (mob ? '-480' : '-640')
-    : '-960';
+  var suffix;
+  if (window.LY_PROGRESSIVE_IMAGES && window.LY_sharpTierSuffix) {
+    suffix = window.LY_sharpTierSuffix();
+  } else if (window.LY_NET_SLOW) {
+    suffix = mob ? '-480' : '-640';
+  } else {
+    suffix = '-960';
+  }
   return window.LY_cardTierFromMaster(window.LY_destMasterUrl(idx), suffix);
 };
 window.LY_galleryCardUrl = function(idx) {
   var mob = window.innerWidth <= 640;
   var suffix;
-  if (window.LY_NET_SLOW) {
+  if (window.LY_PROGRESSIVE_IMAGES && window.LY_sharpTierSuffix) {
+    suffix = window.LY_sharpTierSuffix();
+  } else if (window.LY_NET_SLOW) {
     suffix = mob ? '-480' : '-640';
   } else {
     suffix = mob ? '-720' : (window.LY_GALLERY_FEATURED[idx] ? '-960' : '-640');
@@ -1127,9 +1158,14 @@ window.LY_galleryCardUrl = function(idx) {
 };
 window.LY_galleryLbUrl = function(idx) {
   var mob = window.innerWidth <= 640;
-  var suffix = window.LY_NET_SLOW
-    ? (mob ? '-480' : '-640')
-    : '-960';
+  var suffix;
+  if (window.LY_PROGRESSIVE_IMAGES && window.LY_sharpTierSuffix) {
+    suffix = window.LY_sharpTierSuffix();
+  } else if (window.LY_NET_SLOW) {
+    suffix = mob ? '-480' : '-640';
+  } else {
+    suffix = '-960';
+  }
   return window.LY_cardTierFromMaster(window.LY_galleryMasterUrl(idx), suffix);
 };
 window.LY_preloadGalleryCard = function(idx) {
@@ -1193,7 +1229,7 @@ window.LY_afterMeaningfulPaint(function() {
   });
 });
 document.addEventListener('DOMContentLoaded', function() {
-  if (window.LY_applySlowSrcsets) window.LY_applySlowSrcsets(document);
+  if (!window.LY_PROGRESSIVE_IMAGES && window.LY_applySlowSrcsets) window.LY_applySlowSrcsets(document);
   if (window.LY_initCardLoaders) window.LY_initCardLoaders();
   if (window.LY_NET_SLOW && !window.LY_PRELOAD_VISIBILITY_BOUND) {
     window.LY_PRELOAD_VISIBILITY_BOUND = true;

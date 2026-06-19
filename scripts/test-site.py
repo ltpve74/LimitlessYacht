@@ -467,6 +467,36 @@ def check_html(r: Runner, rel: str, html: str) -> None:
         and 'class="lb-loader"' in html
         and re.search(r'dest-lb-img-wrap[\s\S]*?class="lb-loader"', html) is not None,
     )
+    prog_js = read_file('js/progressive-images.js') or ''
+    r.check(
+        'slow connections use blurred preview then sharp fade upgrade',
+        'LY_PROGRESSIVE_IMAGES' in net_tier_js
+        and 'maiora_20s_02-prev.webp' in net_tier_js
+        and 'js/progressive-images.js' in html
+        and 'LY_initProgressiveImages' in prog_js
+        and 'LY_upgradeProgressiveForIntent' in prog_js
+        and 'ly-prog-wrap' in prog_js
+        and 'ly-prog-preview' in prog_js
+        and 'LY_sharpTierSuffix' in prog_js
+        and 'LY_PROGRESSIVE_IMAGES' in html
+        and re.search(
+            r'LY_destCardUrl = function\(idx\)[\s\S]*?LY_PROGRESSIVE_IMAGES',
+            html,
+        )
+        is not None
+        and re.search(
+            r'DOMContentLoaded[\s\S]*?!window\.LY_PROGRESSIVE_IMAGES && window\.LY_applySlowSrcsets',
+            html,
+        )
+        is not None,
+    )
+    r.check(
+        'preview placeholder assets exist for hero and destinations',
+        os.path.isfile('images/maiora_20s_02-prev.webp')
+        and os.path.isfile('images/mobile/maiora_20s_02-prev.webp')
+        and os.path.isfile('images/dest/portals-vells-1-prev.webp')
+        and os.path.isfile('images/mobile/dest/portals-vells-1-prev.webp'),
+    )
     r.check(
         'slow carousel cards show loading spinners during image fetch',
         'window.LY_initCardLoaders' in html
@@ -2012,6 +2042,8 @@ def check_shared_assets(r: Runner) -> None:
         and '.dest-lb-img-wrap.lb-loading #dest-lb-img' in css
         and '.destination-card.card-loading .card-loader' in css
         and '.gallery-item.card-loading .card-loader' in css
+        and css_rule_index(css, '.ly-prog-wrap') >= 0
+        and '.ly-prog-wrap.ly-prog-sharp-ready .ly-prog-sharp' in css
         and css_rule_index(css, '#dest-lb-close') < 0
         and '#lightbox-prev' not in css,
     )

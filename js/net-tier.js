@@ -61,6 +61,7 @@
 
   var slow = lySlow();
   g.LY_NET_SLOW = slow;
+  g.LY_PROGRESSIVE_IMAGES = slow;
   g.LY_NET_TIER = slow ? 'slow' : 'normal';
   g.LY_PRELOAD_AGGRESSIVE = !slow;
   g.LY_PRELOAD_PUMP_MS = slow ? 900 : 160;
@@ -74,7 +75,7 @@
   var mobMq = g.matchMedia('(max-width: 640px)');
   if (mobMq.matches) {
     if (slow) {
-      lyInjectPreload(lyImg('mobile/maiora_20s_02-480.webp'), null, null, '(max-width: 640px)');
+      lyInjectPreload(lyImg('mobile/maiora_20s_02-prev.webp'), null, null, '(max-width: 640px)');
     } else {
       lyInjectPreload(null, lyImg('mobile/maiora_20s_02-480.webp') + ' 480w, ' +
         lyImg('mobile/maiora_20s_02-720.webp') + ' 720w, ' +
@@ -82,7 +83,7 @@
     }
   } else {
     if (slow) {
-      lyInjectPreload(lyImg('maiora_20s_02-640.webp'), null, null, '(min-width: 641px)');
+      lyInjectPreload(lyImg('maiora_20s_02-prev.webp'), null, null, '(min-width: 641px)');
     } else {
       lyInjectPreload(null, lyImg('maiora_20s_02-640.webp') + ' 640w, ' +
         lyImg('maiora_20s_02-960.webp') + ' 960w, ' +
@@ -102,6 +103,7 @@
   }
 
   function lyCapHero() {
+    if (g.LY_PROGRESSIVE_IMAGES) return true;
     if (!g.LY_NET_SLOW) return true;
     var wrap = d.querySelector('#hero .hero-bg-wrap');
     if (!wrap) return false;
