@@ -73,6 +73,27 @@ def css_rule_index(css: str, selector: str) -> int:
     return m.start() if m else -1
 
 
+def deferred_bootstrap_pos(html: str) -> int:
+    """Marker after hero for deferred scripts (readable comment or minified token)."""
+    hero = html.find('id="hero"')
+    if hero < 0:
+        return -1
+    for marker in (
+        '<!-- Deferred head bootstrap',
+        'LY_afterLcp',
+        "'/js/error-guard.js'",
+    ):
+        pos = html.find(marker)
+        if pos > hero:
+            return pos
+    return -1
+
+
+def is_minified_html(html: str) -> bool:
+    """Heuristic: production pages are single-line after minify."""
+    return len(html) > 10_000 and html.count('\n') < 15
+
+
 # ── Output helpers ─────────────────────────────────────────────────────────────
 
 GREEN = '\033[92m'
@@ -622,6 +643,33 @@ def check_html(r: Runner, rel: str, html: str) -> None:
         'images/mobile/maiora_20s_02-960.webp 960w' in html
         and 'images/mobile/maiora_20s_02.webp 2000w' not in html,
     )
+    img_root = 'images' if rel == 'index.html' else '/images'
+    r.check(
+        'hero preload breakpoints align with picture sources',
+        re.search(
+            rf'rel="preload" as="image"[^>]*{re.escape(img_root)}/mobile/maiora_20s_02-480\.webp 480w[^>]*'
+            r'media="\(max-width: 640px\)"',
+            html,
+        )
+        is not None
+        and re.search(
+            rf'rel="preload" as="image"[^>]*maiora_20s_02-640\.webp 640w[^>]*'
+            r'media="\(min-width: 641px\)"',
+            html,
+        )
+        is not None
+        and re.search(
+            rf'<source[^>]*{re.escape(img_root)}/mobile/maiora_20s_02-480\.webp 480w[^>]*'
+            r'media="\(max-width: 640px\)"',
+            html,
+        )
+        is not None
+        and re.search(
+            rf'<source[^>]*srcset="{re.escape(img_root)}/maiora_20s_02-640\.webp 640w',
+            html,
+        )
+        is not None,
+    )
     style_pos = html.find('<style')
     r.check(
         'critical hero CSS discovered before deferred head scripts',
@@ -638,7 +686,7 @@ def check_html(r: Runner, rel: str, html: str) -> None:
         'analytics and preload bootstrap deferred until after hero',
         html.find('id="hero"') > 0 and html.find('id="hero"') < html.find('LY_afterLcp'),
     )
-    bootstrap_pos = html.find('<!-- Deferred head bootstrap')
+    bootstrap_pos = deferred_bootstrap_pos(html)
     itinerary_pos = html.find('id="itinerary"')
     first_dest_meta = html.find('class="destination-meta"')
     r.check(
@@ -682,8 +730,14 @@ def check_html(r: Runner, rel: str, html: str) -> None:
     r.check(
         'critical CSS reserves hero child layout before main.css',
         '.hero-eyebrow{' in crit_flat
+        and '.hero-rates{' in crit_flat
         and '.hero-actions{' in crit_flat
-        and '.btn-primary{' in crit_flat,
+        and '.btn-primary{' in crit_flat
+        and (
+            '.hero-eyebrow,.hero-sub,.hero-rates' in crit_flat.replace(' ', '')
+            or '#hero :is(.hero-eyebrow' in crit_css
+        )
+        and 'opacity:1' in crit_flat,
     )
     r.check(
         'below-fold preloads deferred until after meaningful paint',
@@ -1023,6 +1077,150 @@ def check_locale_modules(r: Runner) -> None:
             )
 
 
+# English copy added with hero/charter pricing — must not leak into locale pages.
+PRICING_EN_MARKERS = (
+    'Half-day (4h) from €1,700',
+    '6h from €2,400',
+    '6h from €3,100',
+    'From €1,700 (4h)',
+    'Available year-round &nbsp;·&nbsp; We respond within 24 hours',
+    'crew included',
+)
+
+LOCALE_PRICING_MARKERS = {
+    'de': (
+        'Halbtages-Charter (4h) ab 1.700 €',
+        '6h ab 2.400 €',
+        'Ganzjährig verfügbar &nbsp;·&nbsp; Wir antworten innerhalb von 24 Stunden',
+    ),
+    'es': (
+        'Medio día (4h) desde 1.700 €',
+        '6h desde 2.400 €',
+        'Disponible todo el año &nbsp;·&nbsp; Respondemos en 24 horas',
+    ),
+    'fr': (
+        'Demi-journée (4h) à partir de 1 700 €',
+        '6h à partir de 2 400 €',
+        "Disponible toute l'année &nbsp;·&nbsp; Nous répondons en 24 heures",
+    ),
+}
+
+
+def _load_build_locales():
+    import importlib.util
+
+    build_path = os.path.join(ROOT, 'i18n', 'build-locales.py')
+    spec = importlib.util.spec_from_file_location('build_locales', build_path)
+    if spec is None or spec.loader is None:
+        raise ImportError(f'cannot load {build_path}')
+    mod = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(mod)
+    return mod
+
+
+def _pairs_active_in_en(pairs: list[tuple[str, str]], en_html: str) -> list[tuple[str, str]]:
+    active: list[tuple[str, str]] = []
+    for src, dst in pairs:
+        if not src or src == dst:
+            continue
+        if len(src.strip()) < 8:
+            continue
+        if src not in en_html:
+            continue
+        active.append((src, dst))
+    return active
+
+
+def check_locale_translations(r: Runner, pages: dict[str, str]) -> None:
+    """Locale pages must match build output and contain no leaked English PAIRS."""
+    en_index = pages.get('index.html')
+    en_legal = read_file('legal.html')
+    if not en_index or not en_legal:
+        r.fail('locale translation gate', 'missing English source pages')
+        return
+
+    sys.path.insert(0, os.path.join(ROOT, 'i18n'))
+    try:
+        from locales import de, es, fr  # noqa: WPS433
+        build_mod = _load_build_locales()
+    except Exception as exc:  # noqa: BLE001
+        r.fail('locale build module importable', str(exc))
+        return
+
+    locale_mods = {'de': de, 'es': es, 'fr': fr}
+
+    for code, mod in locale_mods.items():
+        index_rel = f'{code}/index.html'
+        legal_rel = f'{code}/legal.html'
+        loc_index = pages.get(index_rel) or read_file(index_rel)
+        loc_legal = read_file(legal_rel)
+        if loc_index is None or loc_legal is None:
+            r.fail(f'{code} locale pages present', 'index or legal missing')
+            continue
+
+        expected_index = build_mod.build_index(mod)
+        expected_legal = build_mod.build_legal(mod)
+        if is_minified_html(loc_index):
+            import importlib.util
+
+            minify_path = os.path.join(ROOT, 'scripts', 'minify_html.py')
+            spec = importlib.util.spec_from_file_location('minify_html', minify_path)
+            minify_mod = importlib.util.module_from_spec(spec)
+            assert spec.loader is not None
+            spec.loader.exec_module(minify_mod)
+            expected_index = minify_mod.minify_html(expected_index)
+            expected_legal = minify_mod.minify_html(expected_legal)
+        r.check(
+            f'{index_rel} matches i18n/build-locales.py output',
+            loc_index == expected_index,
+            'run: python3 i18n/build-locales.py',
+        )
+        r.check(
+            f'{legal_rel} matches i18n/build-locales.py output',
+            loc_legal == expected_legal,
+            'run: python3 i18n/build-locales.py',
+        )
+
+        for marker in PRICING_EN_MARKERS:
+            r.check(
+                f'{index_rel} has no untranslated pricing copy ({marker[:40]}…)',
+                marker not in loc_index,
+            )
+
+        for marker in LOCALE_PRICING_MARKERS[code]:
+            r.check(
+                f'{index_rel} includes translated pricing copy',
+                marker in loc_index,
+            )
+
+        leaked: list[str] = []
+        for src, _dst in _pairs_active_in_en(mod.PAIRS, en_index):
+            if src in loc_index:
+                leaked.append(src[:72])
+        r.check(
+            f'{index_rel} has no leaked English PAIRS strings',
+            not leaked,
+            ', '.join(leaked[:5]) + ('…' if len(leaked) > 5 else ''),
+        )
+
+        legal_leaked: list[str] = []
+        for src, _dst in _pairs_active_in_en(mod.LEGAL_PAIRS, en_legal):
+            if src in loc_legal:
+                legal_leaked.append(src[:72])
+        r.check(
+            f'{legal_rel} has no leaked English LEGAL_PAIRS strings',
+            not legal_leaked,
+            ', '.join(legal_leaked[:5]) + ('…' if len(legal_leaked) > 5 else ''),
+        )
+
+        pairs_blob = '\n'.join(src for src, _dst in mod.PAIRS)
+        for marker in PRICING_EN_MARKERS:
+            r.check(
+                f'i18n/locales/{code}.py PAIRS defines pricing source ({marker[:36]}…)',
+                marker in pairs_blob,
+            )
+
+
 def check_html_integrity(r: Runner) -> None:
     html = read_file('index.html')
     r.check('index.html ends with </html>', html is not None and html.rstrip().endswith('</html>'))
@@ -1056,8 +1254,12 @@ def check_shared_assets(r: Runner) -> None:
         r.check('main.css defines heroTitleIn', 'heroTitleIn' in css)
         css_flat = re.sub(r'\s+', '', css)
         r.check(
-            'hero entrance animations avoid translateY (CLS-safe)',
-            '@keyframesheroFade' in css_flat and 'animation:heroFade' in css_flat,
+            'hero above-fold copy visible immediately (Speed Index safe)',
+            re.search(r'\.hero-eyebrow\{[^}]*opacity:1', css_flat) is not None
+            and re.search(r'\.hero-sub\{[^}]*opacity:1', css_flat) is not None
+            and re.search(r'\.hero-rates\{[^}]*opacity:1', css_flat) is not None
+            and re.search(r'\.hero-actions\{[^}]*opacity:1', css_flat) is not None
+            and re.search(r'\.hero-eyebrow\{[^}]*opacity:0', css_flat) is None,
         )
         r.check(
             'hero bottom cluster uses shared flex gaps on all viewports',
@@ -1276,12 +1478,10 @@ def check_shared_assets(r: Runner) -> None:
         and 'document.write' not in index_html
         and 'src="/js/error-guard.js"' not in index_html,
     )
-    bootstrap_pos = index_html.find('<!-- Deferred head bootstrap')
     guard_pos = index_html.find("'/js/error-guard.js'")
     r.check(
         'error guard is deferred until after hero (not render-blocking in head)',
-        bootstrap_pos > index_html.find('id="hero"')
-        and guard_pos > bootstrap_pos,
+        guard_pos > index_html.find('id="hero"'),
     )
     legal_html = read_file('legal.html') or ''
     r.check(
@@ -2243,6 +2443,9 @@ def main() -> None:
 
     print('\n[locale modules]')
     check_locale_modules(r)
+
+    print('\n[locale translations]')
+    check_locale_translations(r, pages)
 
     print('\n[html integrity]')
     check_html_integrity(r)

@@ -193,7 +193,7 @@ def build_index(locale_mod) -> str:
 
     nav_lang, mobile_lang = lang_switcher_nav(locale_mod.CODE)
     html = re.sub(
-        r'<div class="nav-lang-wrap" id="navLangWrap">[\s\S]*?</div>\s*\n\s*</div>',
+        r'<div class="nav-lang-wrap" id="navLangWrap">[\s\S]*?</div>\s*(?:</div>\s*)?',
         nav_lang,
         html,
         count=1,
