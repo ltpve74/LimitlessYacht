@@ -1366,6 +1366,25 @@ def check_shared_assets(r: Runner) -> None:
         'function ensureSelectionVisible()' in index_html,
     )
     r.check(
+        'calendar next/prev advance by visible month count',
+        'function shift(dir)' in index_html
+        and 'viewIndex + dir * count' in index_html,
+    )
+    r.check(
+        'paired desktop calendar renders two months not three on wide viewports',
+        "closest('.contact-cal-pair')" in index_html
+        and 'count > 2 && calRoot.closest' in index_html,
+    )
+    r.check(
+        'availability and form calendars fire distinct Clarity events',
+        'LY_clarityEvent' in index_html
+        and 'ly_cal_avail_month_next' in index_html
+        and 'ly_cal_avail_date_select' in index_html
+        and 'ly_cal_form_open' in index_html
+        and 'ly_cal_form_month_next' in index_html
+        and 'ly_cal_form_date_select' in index_html,
+    )
+    r.check(
         'calendar enquire focuses name field on desktop only',
         "getElementById('name')" in index_html
         and 'if (isCalendarFormPaired())' in index_html
