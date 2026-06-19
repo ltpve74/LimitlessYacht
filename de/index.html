@@ -4,10 +4,7 @@
 <meta charset="UTF-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1.0" />
 <style id="fouc-guard">html{background:#0a1628;color-scheme:dark}a,a:any-link{color:#f5f0e8!important;text-decoration:none!important;-webkit-text-fill-color:currentColor!important}html:not(.ly-main-ready) body>:not(nav):not(#hero){display:none!important}</style>
-<!-- Preload hero image (LCP) — must precede deferred head scripts -->
-<link rel="preload" as="image" imagesrcset="/images/mobile/maiora_20s_02-480.webp 480w, /images/mobile/maiora_20s_02-720.webp 720w, /images/mobile/maiora_20s_02-960.webp 960w" imagesizes="100vw" type="image/webp" fetchpriority="high" media="(max-width: 640px)" />
-<link rel="preload" as="image" imagesrcset="/images/maiora_20s_02-640.webp 640w, /images/maiora_20s_02-960.webp 960w, /images/maiora_20s_02-1280.webp 1280w, /images/maiora_20s_02.webp 1920w" imagesizes="100vw" type="image/webp" fetchpriority="high" media="(min-width: 641px)" />
-<link rel="preload" as="font" href="../fonts/montserrat-latin.woff2" type="font/woff2" crossorigin />
+<script src="../js/net-tier.js"></script>
 
 <style id="critical-css">
 @font-face{font-family:'Montserrat';font-style:normal;font-weight:300 600;font-display:optional;src:url('../fonts/montserrat-latin.woff2') format('woff2')}
@@ -551,7 +548,8 @@ window.LY_pumpPreloads = function() {
     if (window.LY_preloadedUrls[url]) { step(); return; }
     window.LY_preloadedUrls[url] = 1;
     new Image().src = url;
-    (window.requestIdleCallback || function(fn){ setTimeout(fn, 160); })(step);
+    var delay = window.LY_NET_SLOW ? 360 : 160;
+    (window.requestIdleCallback || function(fn){ setTimeout(fn, delay); })(step);
   }
   step();
 };
@@ -637,14 +635,22 @@ window.LY_galleryMasterUrl = function(idx) {
 };
 window.LY_destCardUrl = function(idx) {
   var mob = window.innerWidth <= 640;
-  return window.LY_cardTierFromMaster(window.LY_destMasterUrl(idx), mob ? '-720' : '-640');
+  var suffix = window.LY_NET_SLOW
+    ? (mob ? '-480' : '-640')
+    : (mob ? '-720' : '-640');
+  return window.LY_cardTierFromMaster(window.LY_destMasterUrl(idx), suffix);
 };
 window.LY_destLbUrl = function(idx) {
   return window.LY_cardTierFromMaster(window.LY_destMasterUrl(idx), '-960');
 };
 window.LY_galleryCardUrl = function(idx) {
   var mob = window.innerWidth <= 640;
-  var suffix = mob ? '-720' : (window.LY_GALLERY_FEATURED[idx] ? '-960' : '-640');
+  var suffix;
+  if (window.LY_NET_SLOW) {
+    suffix = mob ? '-480' : '-640';
+  } else {
+    suffix = mob ? '-720' : (window.LY_GALLERY_FEATURED[idx] ? '-960' : '-640');
+  }
   return window.LY_cardTierFromMaster(window.LY_galleryMasterUrl(idx), suffix);
 };
 window.LY_galleryLbUrl = function(idx) {
@@ -660,10 +666,24 @@ window.LY_pictureSrcsetForViewport = function(picture, mob) {
 };
 window.LY_srcsetWithoutMasters = function(srcset) {
   if (!srcset) return '';
-  return srcset.split(',').map(function(part) { return part.trim(); }).filter(function(part) {
+  var cap = window.LY_maxImgWidth ? window.LY_maxImgWidth() : 9999;
+  var trimmed = window.LY_capSrcset
+    ? window.LY_capSrcset(srcset, cap)
+    : srcset;
+  return trimmed.split(',').map(function(part) { return part.trim(); }).filter(function(part) {
     var url = part.split(/\s+/)[0] || '';
     return /-(480|640|720|960|1280)\.webp$/i.test(url);
   }).join(', ');
+};
+window.LY_applySlowSrcsets = function(root) {
+  if (!window.LY_NET_SLOW || !window.LY_capSrcset) return;
+  var max = window.LY_maxImgWidth();
+  (root || document).querySelectorAll('picture source[srcset], picture img[srcset]').forEach(function(el) {
+    var ss = el.getAttribute('srcset');
+    if (!ss) return;
+    var next = window.LY_capSrcset(ss, max);
+    if (next) el.setAttribute('srcset', next);
+  });
 };
 window.LY_destPreloadReady = false;
 window.LY_afterMeaningfulPaint(function() {
@@ -682,6 +702,7 @@ window.LY_whenNearSection('itinerary', function() {
   [0, 1, 2].forEach(function(i) { window.LY_enqueueCardPreload(window.LY_destCardUrl(i)); });
 });
 document.addEventListener('DOMContentLoaded', function() {
+  if (window.LY_applySlowSrcsets) window.LY_applySlowSrcsets(document);
   window.LY_whenNearSection('gallery', function() {
     if (!window.LY_destPreloadReady) return;
     [0, 1, 2].forEach(function(i) { window.LY_enqueueCardPreload(window.LY_galleryCardUrl(i)); });

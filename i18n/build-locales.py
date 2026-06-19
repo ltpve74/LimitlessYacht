@@ -89,6 +89,8 @@ def patch_subfolder_assets(html: str) -> str:
     html = html.replace("url('fonts/", "url('../fonts/")
     # root_paths() runs before this and may already have promoted favicon to /favicon.svg
     html = html.replace('href="/favicon.svg"', 'href="../favicon.svg"')
+    html = html.replace('src="js/net-tier.js"', 'src="../js/net-tier.js"')
+    html = html.replace('src="js/analytics-env.js"', 'src="../js/analytics-env.js"')
     return html
 
 

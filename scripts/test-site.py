@@ -645,14 +645,34 @@ def check_html(r: Runner, rel: str, html: str) -> None:
         'class="hero-bg"' in html and 'fetchpriority="high"' in html,
     )
     r.check(
-        'responsive hero image preloads',
-        'imagesrcset="' in html
-        and 'maiora_20s_02-480.webp 480w' in html
+        'connection-tier script sniffs network before hero fetch',
+        html.find('id="fouc-guard"') < html.find('net-tier.js')
+        and html.find('net-tier.js') < html.find('id="critical-css"'),
+    )
+    net_tier = read_file('js/net-tier.js') or ''
+    r.check(
+        'net-tier.js detects slow connections and caps hero preload',
+        'LY_NET_SLOW' in net_tier
+        and 'effectiveType' in net_tier
+        and 'saveData' in net_tier
+        and 'ly_net' in net_tier
+        and 'maiora_20s_02-480.webp' in net_tier
+        and 'lyCapHero' in net_tier,
+    )
+    r.check(
+        'slow connection caps gallery/dest card tiers in preload JS',
+        'LY_NET_SLOW' in html
+        and 'LY_applySlowSrcsets' in html
+        and re.search(r"LY_NET_SLOW\s*\?\s*\(mob\s*\?\s*'-480'\s*:\s*'-640'\)", html)
+        is not None,
+    )
+    r.check(
+        'hero picture keeps responsive srcset (runtime cap on slow 3G)',
+        'maiora_20s_02-480.webp 480w' in html
         and 'maiora_20s_02-720.webp' in html
         and 'maiora_20s_02-640.webp 640w' in html
         and 'maiora_20s_02-960.webp 960w' in html
-        and 'maiora_20s_02-1280.webp 1280w' in html
-        and 'maiora_20s_02.webp 1920w' in html
+        and 'class="hero-bg"' in html
         and 'fetchpriority="high"' in html,
     )
     r.check(
@@ -663,18 +683,8 @@ def check_html(r: Runner, rel: str, html: str) -> None:
     img_root = 'images' if rel == 'index.html' else '/images'
     r.check(
         'hero preload breakpoints align with picture sources',
-        re.search(
-            rf'rel="preload" as="image"[^>]*{re.escape(img_root)}/mobile/maiora_20s_02-480\.webp 480w[^>]*'
-            r'media="\(max-width: 640px\)"',
-            html,
-        )
-        is not None
-        and re.search(
-            rf'rel="preload" as="image"[^>]*maiora_20s_02-640\.webp 640w[^>]*'
-            r'media="\(min-width: 641px\)"',
-            html,
-        )
-        is not None
+        'LY_applySlowSrcsets' in html
+        and 'LY_capSrcset' in (read_file('js/net-tier.js') or '')
         and re.search(
             rf'<source[^>]*{re.escape(img_root)}/mobile/maiora_20s_02-480\.webp 480w[^>]*'
             r'media="\(max-width: 640px\)"',
@@ -689,11 +699,12 @@ def check_html(r: Runner, rel: str, html: str) -> None:
     )
     fouc_pos = html.find('id="fouc-guard"')
     style_pos = html.find('id="critical-css"')
+    net_tier_pos = html.find('net-tier.js')
     r.check(
-        'FOUC guard CSS precedes hero critical CSS and scripts',
+        'FOUC guard CSS precedes connection-tier script and hero critical CSS',
         fouc_pos > 0
-        and style_pos > fouc_pos
-        and style_pos < html.find('<script'),
+        and net_tier_pos > fouc_pos
+        and style_pos > net_tier_pos,
     )
     r.check(
         'hero image preloads discovered before deferred head scripts',
@@ -838,9 +849,10 @@ def check_html(r: Runner, rel: str, html: str) -> None:
     head_end = html.find('</head>')
     head = html[:head_end] if head_end > 0 else ''
     r.check(
-        'only hero images are preloaded in head (content stays lazy)',
-        head.count('rel="preload" as="image"') == 2
-        and 'maiora_20s_02' in head
+        'hero image preloads injected by net-tier (no static dest preloads in head)',
+        head.count('rel="preload" as="image"') == 0
+        and 'lyInjectPreload' in net_tier
+        and 'maiora_20s_02' in net_tier
         and 'images/dest/' not in head
         and 'maiora_20s_04' not in head,
     )
@@ -1619,10 +1631,10 @@ def check_shared_assets(r: Runner) -> None:
     r.check('lighthouse budgets file exists', os.path.isfile(os.path.join(ROOT, 'scripts/lighthouse-budgets.json')))
     index_html = read_file('index.html') or ''
     r.check(
-        'Montserrat uses root-relative @font-face and font preload (CLS-stable)',
+        'Montserrat uses @font-face and net-tier font preload on fast links (CLS-stable)',
         "url('fonts/montserrat-latin.woff2')" in index_html
         and 'font-display:optional' in index_html.replace(' ', '')
-        and "href=\"fonts/montserrat-latin.woff2\"" in index_html
+        and 'montserrat-latin.woff2' in (read_file('js/net-tier.js') or '')
         and 'href="/fonts/montserrat-latin.woff2"' not in index_html,
     )
     css_flat = re.sub(r'\s+', '', css or '')
