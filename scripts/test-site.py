@@ -405,51 +405,43 @@ def check_html(r: Runner, rel: str, html: str) -> None:
         'idle preload warms caches after meaningful paint',
         'window.LY_warmPreloadCaches' in html
         and 'destOrder.forEach(function(i) { window.LY_enqueueCardPreload(window.LY_destCardUrl(i)); })' in html
-        and 'window.LY_whenNearSection(\'itinerary\'' in html,
     )
     net_tier_js = read_file('js/net-tier.js') or ''
     r.check(
-        'slow connections drip preloads instead of bulk warming',
+        'slow connections use context-aware warming instead of bulk preload',
         'LY_PRELOAD_AGGRESSIVE' in net_tier_js
         and 'LY_PRELOAD_PUMP_MS' in net_tier_js
         and 'LY_PRELOAD_IDLE_DELAY_MS' in net_tier_js
         and 'LY_PRELOAD_QUEUE_MAX' in net_tier_js
-        and 'window.LY_dripDestTier' in html
-        and 'if (window.LY_PRELOAD_AGGRESSIVE === false)' in html
-        and 'window.LY_dripDestTier(\'half-day\')' in html
+        and 'window.LY_preloadContext' in html
+        and 'window.LY_beginUserIntent' in html
+        and 'window.LY_startContextWarm' in html
+        and 'window.LY_warmUrlsForContext' in html
         and re.search(
-            r'if \(window\.LY_PRELOAD_AGGRESSIVE === false\)\s*\{[\s\S]*?LY_dripDestTier\(\'half-day\'\);[\s\S]*?return;',
+            r'LY_warmPreloadCaches = function\(\)[\s\S]*?LY_PRELOAD_AGGRESSIVE === false[\s\S]*?section: \'hero\'',
             html,
         )
         is not None,
     )
     r.check(
-        'slow connections defer gallery bulk preload to near-section',
-        re.search(
-            r"LY_whenNearSection\('gallery'[\s\S]*?LY_PRELOAD_AGGRESSIVE === false \? \[0, 1, 2, 3\] : \[0, 1, 2\]",
-            html,
-        )
-        is not None,
-    )
-    r.check(
-        'slow connections prioritize user-requested assets over drip queue',
-        'window.LY_prioritizePreload' in html
-        and 'window.LY_pausePreloadDrip' in html
+        'slow connections route user actions through intent orchestrator',
+        'window.LY_prioritizePreloadUrgent' in html
+        and 'window.LY_abortWarmQueues' in html
         and 'window.LY_preloadNeedsUserPriority' in html
-        and 'window.LY_priorityPreloadQueue' in html
         and 'window.LY_preloadGalleryCard' in html
         and re.search(
-            r'LY_enqueueLbPreload = function\(url\)[\s\S]*?LY_preloadNeedsUserPriority\(\)[\s\S]*?LY_prioritizePreload\(url\)',
+            r'LY_preloadDest = function\(idx[\s\S]*?LY_beginUserIntent\(',
             html,
         )
         is not None
         and re.search(
-            r'LY_preloadDest = function\(idx[\s\S]*?LY_preloadNeedsUserPriority\(\)[\s\S]*?LY_prioritizePreload\(url\)',
+            r'LY_dripDestTier = function\(tier\)[\s\S]*?LY_beginUserIntent\(',
             html,
         )
         is not None
         and 'IntersectionObserver' in html
-        and '.destination-card, .gallery-item' in html,
+        and '.destination-card, .gallery-item' in html
+        and 'LY_contextFromViewport' in html,
     )
     r.check(
         'slow carousel prefetch loads current card only (not ±1)',
@@ -476,12 +468,11 @@ def check_html(r: Runner, rel: str, html: str) -> None:
         and re.search(r'dest-lb-img-wrap[\s\S]*?class="lb-loader"', html) is not None,
     )
     r.check(
-        'anchor CTAs pause drip and prioritize destination section assets',
+        'anchor CTAs pause warming and re-anchor preload context',
         'window.LY_onNavIntent' in html
-        and 'window.LY_preloadNavHold' in html
-        and 'window.LY_holdPreloadForNav' in html
-        and 'window.LY_flushPreloadQueuesForNav' in html
-        and 'window.LY_sectionNavUrls' in html
+        and 'window.LY_sectionFromHash' in html
+        and 'window.LY_urgentUrlsForNav' in html
+        and 'window.LY_GALLERY_TAB_IDX' in html
         and 'window.LY_loadAvailCalNow' in html
         and 'window.LY_loadReviewsNow' in html
         and re.search(
