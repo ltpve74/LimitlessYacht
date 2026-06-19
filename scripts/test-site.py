@@ -381,6 +381,23 @@ def check_html(r: Runner, rel: str, html: str) -> None:
         'window.LY_preloadDestAdjacent(gi)' in html,
     )
     r.check(
+        'carousel step avoids offsetLeft on mobile (forced reflow guard)',
+        'window.lyCarouselStep' in html
+        and 'window.innerWidth * 0.78 + 12' in html
+        and 'grid.classList.contains(\'gallery-grid\')' in html
+        and 'requestAnimationFrame(update)' in html,
+    )
+    r.check(
+        'nav height cached and initial section sync deferred to rAF',
+        'refreshNavHeight' in html
+        and '_navHeight' in html
+        and re.search(
+            r'requestAnimationFrame\(function\s*\(\)\s*\{[\s\S]*?refreshNavHeight\(\);[\s\S]*?updateNavSection\(\);',
+            html,
+        )
+        is not None,
+    )
+    r.check(
         'hero destinations prioritized in idle preload queue',
         'destOrder.forEach(function(i) { window.LY_enqueueCardPreload(window.LY_destCardUrl(i)); })' in html
         and 'window.LY_whenNearSection(\'itinerary\'' in html,
@@ -1964,6 +1981,9 @@ def check_shared_assets(r: Runner) -> None:
         and 'function lyEnquireSectionFitsViewport()' in index_html
         and 'function lyEnquireQuoteHref()' in index_html
         and 'function syncEnquireQuoteHrefs()' in index_html
+        and "matchMedia('(max-width: 768px)')" in index_html
+        and 'getComputedStyle(document.documentElement).scrollPaddingTop' not in index_html
+        and 'requestAnimationFrame(function () {' in index_html.split('syncEnquireQuoteHrefs')[1][:500]
         and "return '#enquire';" in index_html
         and 'window.LY_enquireSectionFitsViewport = lyEnquireSectionFitsViewport' in index_html
         and 'visualViewport' in index_html
