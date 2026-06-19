@@ -57,6 +57,7 @@ PAIRS = [
         "annonce de charter au Club de Mar, Palma.",
     ),
     ("Loading guest reviews…", "Chargement des avis…"),
+    ("window.LY_LB_LOADING = 'Loading\\u2026';", "window.LY_LB_LOADING = 'Chargement\\u2026';"),
     ("1 verified review", "1 avis vérifié"),
     (" verified reviews", " avis vérifiés"),
     ("No reviews to display yet.", "Aucun avis à afficher pour le moment."),

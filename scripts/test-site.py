@@ -364,9 +364,11 @@ def check_html(r: Runner, rel: str, html: str) -> None:
         and 'images/mobile/maiora_20s_03-960.webp 960w' in html
         and 'images/mobile/maiora_20s_03.webp 960w' not in html
         and '(min-width: 1101px) 25vw, 50vw' in html
-        and 'window.LY_galleryLbUrl(currentIdx)' in html
-        and 'lbImg.src = lbUrl' in html
-        and 'window.LY_prioritizePreload(lbUrl)' in html
+        and 'window.LY_galleryLbUrl(targetIdx)' in html
+        and 'applyGalleryLbFrame(targetIdx, lbUrl)' in html
+        and 'window.LY_prioritizePreloadUrgent(lbUrl)' in html
+        and 'lbLoadGen' in html
+        and 'class="lb-loader"' in html
         and 'id="lightbox-img" src="" alt="Limitless yacht gallery photo" sizes="100vw"' in html,
     )
     r.check(
@@ -462,6 +464,14 @@ def check_html(r: Runner, rel: str, html: str) -> None:
         'LY_PRELOAD_VISIBILITY_BOUND' in html
         and 'document.visibilityState === \'hidden\'' in html
         and 'visibilitychange' in html,
+    )
+    r.check(
+        'lightbox navigation coalesces rapid clicks and shows loading state',
+        'window.LY_prioritizePreloadUrgent' in html
+        and 'window.LY_formatLbCounter' in html
+        and 'setGalleryLbLoading' in html
+        and 'destLbLoadGen' in html
+        and 'class="lb-loader"' in html,
     )
     r.check(
         'destination preload not burst on DOMContentLoaded',
@@ -1972,6 +1982,8 @@ def check_shared_assets(r: Runner) -> None:
         and css_rule_index(css, '.lb-close') >= 0
         and css_rule_index(css, '.lb-nav') >= 0
         and css_rule_index(css, '.lb-counter') >= 0
+        and css_rule_index(css, '.lb-loader') >= 0
+        and '#lightbox.lb-loading #lightbox-img' in css
         and css_rule_index(css, '#dest-lb-close') < 0
         and '#lightbox-prev' not in css,
     )

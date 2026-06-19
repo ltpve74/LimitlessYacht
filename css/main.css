@@ -588,6 +588,29 @@ section { padding: 7rem 2rem; }
   /* object-position and lb-contain class set per-image by JS */
 }
 #lightbox-img.lb-contain { object-fit: contain; }
+.lb-loader {
+  display: none;
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  z-index: 2;
+  width: 2.5rem;
+  height: 2.5rem;
+  margin: -1.25rem 0 0 -1.25rem;
+  border: 2px solid rgba(201,168,76,.22);
+  border-top-color: rgba(201,168,76,.88);
+  border-radius: 50%;
+  animation: lbSpin .85s linear infinite;
+  pointer-events: none;
+}
+#lightbox.lb-loading .lb-loader,
+#dest-lightbox.lb-loading .lb-loader { display: block; }
+#lightbox.lb-loading #lightbox-img,
+#dest-lightbox.lb-loading #dest-lb-img {
+  opacity: .42;
+  transition: opacity .2s ease;
+}
+@keyframes lbSpin { to { transform: rotate(360deg); } }
 #lightbox.open::after {
   content: ''; position: absolute; inset: 0; z-index: 1; pointer-events: none;
   background:

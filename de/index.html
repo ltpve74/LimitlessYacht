@@ -93,9 +93,9 @@ nav{position:fixed;inset:0 0 auto;z-index:100;display:flex;align-items:center;ga
   global.LY_TESTING_CLARITY = !global.LY_OWNER_MODE && !global.LY_IS_PREVIEW;
 })(window);
 </script>
-<link rel="preload" as="style" href="../css/main.css?v=104" onload="this.rel='stylesheet';requestAnimationFrame(function(){requestAnimationFrame(function(){document.documentElement.classList.add('ly-main-ready')})})" />
+<link rel="preload" as="style" href="../css/main.css?v=105" onload="this.rel='stylesheet';requestAnimationFrame(function(){requestAnimationFrame(function(){document.documentElement.classList.add('ly-main-ready')})})" />
 <script>!function(){var d=document.documentElement;function ready(){if(!d.classList.contains('ly-main-ready'))d.classList.add('ly-main-ready')}function onSheet(){requestAnimationFrame(function(){requestAnimationFrame(ready)})}var l=document.querySelector('link[href*="main.css"]');if(l)l.addEventListener('load',onSheet)}();</script>
-<noscript><link rel="stylesheet" href="../css/main.css?v=104" /></noscript>
+<noscript><link rel="stylesheet" href="../css/main.css?v=105" /></noscript>
 
 <title>Limitless Yacht Experience – Luxus-Maiora-Charter auf Mallorca</title>
 <meta name="description" content="Chartern Sie die 21,5 m Maiora „Limitless“ ab Palma de Mallorca — Tages- und Mehrtagestörns zu Mallorcas schönsten Buchten, Cabrera und Formentera. Mit Crew, bis zu 12 Gäste." />
@@ -599,6 +599,20 @@ window.LY_prioritizePreload = function(url) {
   }
   window.LY_pausePreloadDrip();
   window.LY_pumpPreloads();
+};
+window.LY_prioritizePreloadUrgent = function(url) {
+  if (!url || window.LY_preloadedUrls[url]) return;
+  window.LY_removeFromPreloadQueues(url);
+  var pi = window.LY_priorityPreloadQueue.indexOf(url);
+  if (pi >= 0) window.LY_priorityPreloadQueue.splice(pi, 1);
+  window.LY_priorityPreloadQueue.unshift(url);
+  window.LY_pausePreloadDrip();
+  window.LY_pumpPreloads();
+};
+window.LY_LB_LOADING = 'Wird geladen\u2026';
+window.LY_formatLbCounter = function(idx, total, loading) {
+  var base = (idx + 1) + ' / ' + total;
+  return loading ? base + ' \u00b7 ' + (window.LY_LB_LOADING || 'Loading\u2026') : base;
 };
 window.LY_enqueueCardPreload = function(url) {
   if (!url || window.LY_preloadIsReady(url)) return;
@@ -1507,6 +1521,7 @@ document.addEventListener('DOMContentLoaded', function() {
   </button>
   <button type="button" id="lightbox-prev" class="lb-nav lb-nav--prev" aria-label="Vorheriges Bild">‹</button>
   <img id="lightbox-img" src="" alt="Limitless yacht gallery photo" sizes="100vw" />
+  <div class="lb-loader" aria-hidden="true"></div>
   <button type="button" id="lightbox-next" class="lb-nav lb-nav--next" aria-label="Nächstes Bild">›</button>
   <div id="lightbox-counter" class="lb-counter" aria-live="polite"></div>
   <div id="lightbox-hint" class="lb-hint" aria-hidden="true">Swipe to browse</div>
@@ -1522,6 +1537,7 @@ document.addEventListener('DOMContentLoaded', function() {
     <button type="button" id="dest-lb-prev" class="lb-nav lb-nav--prev" aria-label="Vorheriges Ziel">‹</button>
     <button type="button" id="dest-lb-next" class="lb-nav lb-nav--next" aria-label="Nächstes Ziel">›</button>
     <div id="dest-lb-counter" class="lb-counter" aria-live="polite"></div>
+    <div class="lb-loader" aria-hidden="true"></div>
     <div id="dest-lb-hint" class="lb-hint" aria-hidden="true"></div>
   </div>
   <div class="dest-lb-main">
@@ -2246,16 +2262,19 @@ document.addEventListener('DOMContentLoaded', function() {
     false, false, false, false, false, false, false,
   ];
   let currentIdx = 0;
+  let lbLoadGen = 0;
   const lightbox = document.getElementById('lightbox');
   const lbImg = document.getElementById('lightbox-img');
   const lbCounter = document.getElementById('lightbox-counter');
   const lbHint = document.getElementById('lightbox-hint');
 
-  function showImage(idx) {
-    if (!lbImg || !images.length) return;
-    currentIdx = (idx + images.length) % images.length;
+  function setGalleryLbLoading(on) {
+    if (lightbox) lightbox.classList.toggle('lb-loading', !!on);
+  }
+
+  function applyGalleryLbFrame(targetIdx, lbUrl) {
     var isMobLb = window.innerWidth <= 640;
-    var item = document.querySelector('.gallery-item[data-index="' + currentIdx + '"]');
+    var item = document.querySelector('.gallery-item[data-index="' + targetIdx + '"]');
     var picture = item && item.querySelector('picture');
     var srcset = window.LY_srcsetWithoutMasters(
       window.LY_pictureSrcsetForViewport(picture, isMobLb)
@@ -2266,17 +2285,57 @@ document.addEventListener('DOMContentLoaded', function() {
     } else {
       lbImg.removeAttribute('srcset');
     }
-    var lbUrl = window.LY_galleryLbUrl(currentIdx);
-    if (window.LY_prioritizePreload) window.LY_prioritizePreload(lbUrl);
     lbImg.src = lbUrl;
-    lbImg.style.objectPosition = imagePositions[currentIdx] || 'center center';
-    lbImg.classList.toggle('lb-contain', !!imageContain[currentIdx]);
-    if (lbCounter) lbCounter.textContent = (currentIdx + 1) + ' / ' + images.length;
-    [-1, 1].forEach(function(d) {
-      if (window.LY_enqueueLbPreload) {
-        window.LY_enqueueLbPreload(window.LY_galleryLbUrl((currentIdx + d + images.length) % images.length));
+    lbImg.style.objectPosition = imagePositions[targetIdx] || 'center center';
+    lbImg.classList.toggle('lb-contain', !!imageContain[targetIdx]);
+  }
+
+  function showImage(idx) {
+    if (!lbImg || !images.length) return;
+    var targetIdx = (idx + images.length) % images.length;
+    currentIdx = targetIdx;
+    var lbUrl = window.LY_galleryLbUrl(targetIdx);
+    var gen = ++lbLoadGen;
+
+    lbImg.style.objectPosition = imagePositions[targetIdx] || 'center center';
+    lbImg.classList.toggle('lb-contain', !!imageContain[targetIdx]);
+
+    function reveal() {
+      if (gen !== lbLoadGen) return;
+      applyGalleryLbFrame(targetIdx, lbUrl);
+      setGalleryLbLoading(false);
+      if (lbCounter) {
+        lbCounter.textContent = window.LY_formatLbCounter
+          ? window.LY_formatLbCounter(targetIdx, images.length, false)
+          : (targetIdx + 1) + ' / ' + images.length;
       }
-    });
+      [-1, 1].forEach(function(d) {
+        if (window.LY_enqueueLbPreload) {
+          window.LY_enqueueLbPreload(window.LY_galleryLbUrl((targetIdx + d + images.length) % images.length));
+        }
+      });
+    }
+
+    if (window.LY_preloadedUrls[lbUrl]) {
+      reveal();
+      return;
+    }
+
+    setGalleryLbLoading(true);
+    if (lbCounter) {
+      lbCounter.textContent = window.LY_formatLbCounter
+        ? window.LY_formatLbCounter(targetIdx, images.length, true)
+        : (targetIdx + 1) + ' / ' + images.length + ' \u00b7 Loading\u2026';
+    }
+    if (window.LY_prioritizePreloadUrgent) window.LY_prioritizePreloadUrgent(lbUrl);
+    if (window.LY_loadPreloadImage) {
+      window.LY_loadPreloadImage(lbUrl, function() {
+        if (gen !== lbLoadGen) return;
+        reveal();
+      });
+    } else {
+      reveal();
+    }
   }
 
   document.querySelectorAll('.gallery-item').forEach(item => {
@@ -2314,6 +2373,8 @@ document.addEventListener('DOMContentLoaded', function() {
   }
   function closeGalleryLb() {
     if (!lightbox || !lightbox.classList.contains('open')) return;
+    lbLoadGen++;
+    setGalleryLbLoading(false);
     lightbox.classList.remove('open');
     if (lbHint) lbHint.classList.remove('visible');
     if (history.state && history.state.lb === 'gallery') { history.back(); }
@@ -2371,7 +2432,12 @@ document.addEventListener('DOMContentLoaded', function() {
 
     var destCards = [];
     var destIdx = 0;
+    var destLbLoadGen = 0;
     var destImages = window.LY_DEST_IMAGES;
+
+    function setDestLbLoading(on) {
+      if (destLb) destLb.classList.toggle('lb-loading', !!on);
+    }
 
     function destCardIndex(card) {
       var i = destCards.indexOf(card);
@@ -2398,17 +2464,8 @@ document.addEventListener('DOMContentLoaded', function() {
       var srcset = window.LY_srcsetWithoutMasters(
         window.LY_pictureSrcsetForViewport(cardPicture, isMobDest)
       );
-      if (lbSrcWp) {
-        lbSrcWp.srcset = srcset || window.LY_destLbUrl(globalIdx);
-        lbSrcWp.sizes = '100vw';
-      }
-      if (lbImg2) {
-        var destLbUrl = window.LY_destLbUrl(globalIdx);
-        if (window.LY_prioritizePreload) window.LY_prioritizePreload(destLbUrl);
-        lbImg2.src = destLbUrl;
-        var cardImg = card.querySelector('.destination-card-bg img');
-        lbImg2.alt = cardImg ? (cardImg.alt || '') : '';
-      }
+      var destLbUrl = window.LY_destLbUrl(globalIdx);
+      var gen = ++destLbLoadGen;
       if (lbNum)  lbNum.textContent  = (card.querySelector('.destination-num')     || {}).textContent || '';
       if (lbName) lbName.textContent = (card.querySelector('.destination-name')    || {}).textContent || '';
       if (lbTag)  lbTag.textContent  = (card.querySelector('.destination-tagline') || {}).textContent || '';
@@ -2430,14 +2487,60 @@ document.addEventListener('DOMContentLoaded', function() {
       }
       var lbTier = document.getElementById('dest-lb-tier');
       if (lbTier) lbTier.textContent = tierBadge[tier] || '';
-      if (lbCounter) lbCounter.textContent = destCards.length > 1 ? (destIdx + 1) + ' / ' + destCards.length : '';
       var hasNav = destCards.length > 1;
       if (lbPrev) lbPrev.style.display = hasNav ? '' : 'none';
       if (lbNext) lbNext.style.display = hasNav ? '' : 'none';
       var content = destLb.querySelector('.dest-lb-content');
       if (content) content.scrollTop = 0;
-      if (window.LY_preloadDestLbAdjacent) {
-        window.LY_preloadDestLbAdjacent(globalIdx);
+
+      function revealDestImg() {
+        if (gen !== destLbLoadGen) return;
+        if (lbSrcWp) {
+          lbSrcWp.srcset = srcset || destLbUrl;
+          lbSrcWp.sizes = '100vw';
+        }
+        if (lbImg2) {
+          lbImg2.src = destLbUrl;
+          var cardImg = card.querySelector('.destination-card-bg img');
+          lbImg2.alt = cardImg ? (cardImg.alt || '') : '';
+        }
+        setDestLbLoading(false);
+        if (lbCounter) {
+          lbCounter.textContent = destCards.length > 1
+            ? (window.LY_formatLbCounter
+              ? window.LY_formatLbCounter(destIdx, destCards.length, false)
+              : (destIdx + 1) + ' / ' + destCards.length)
+            : '';
+        }
+        if (window.LY_preloadDestLbAdjacent) {
+          window.LY_preloadDestLbAdjacent(globalIdx);
+        }
+      }
+
+      if (window.LY_preloadedUrls[destLbUrl]) {
+        if (lbCounter && destCards.length > 1) {
+          lbCounter.textContent = window.LY_formatLbCounter
+            ? window.LY_formatLbCounter(destIdx, destCards.length, false)
+            : (destIdx + 1) + ' / ' + destCards.length;
+        }
+        revealDestImg();
+        return;
+      }
+
+      setDestLbLoading(true);
+      if (lbCounter && destCards.length > 1) {
+        lbCounter.textContent = window.LY_formatLbCounter
+          ? window.LY_formatLbCounter(destIdx, destCards.length, true)
+          : (destIdx + 1) + ' / ' + destCards.length + ' \u00b7 Loading\u2026';
+      }
+      if (window.LY_prioritizePreloadUrgent) window.LY_prioritizePreloadUrgent(destLbUrl);
+      if (window.LY_loadPreloadImage) {
+        window.LY_loadPreloadImage(destLbUrl, function() {
+          if (gen !== destLbLoadGen) return;
+          revealDestImg();
+        });
+      } else {
+        revealDestImg();
       }
     }
 
@@ -2499,6 +2602,8 @@ document.addEventListener('DOMContentLoaded', function() {
 
     function closeLb() {
       if (!destLb.classList.contains('open')) return;
+      destLbLoadGen++;
+      setDestLbLoading(false);
       destLb.classList.remove('open');
       if (lbHintDest) lbHintDest.classList.remove('visible');
       document.body.style.overflow = '';

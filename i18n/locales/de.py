@@ -60,6 +60,7 @@ PAIRS = [
         "Charter-Inserat im Club de Mar, Palma.",
     ),
     ("Loading guest reviews…", "Gästebewertungen werden geladen…"),
+    ("window.LY_LB_LOADING = 'Loading\\u2026';", "window.LY_LB_LOADING = 'Wird geladen\\u2026';"),
     ("1 verified review", "1 verifizierte Bewertung"),
     (" verified reviews", " verifizierte Bewertungen"),
     ("No reviews to display yet.", "Noch keine Bewertungen vorhanden."),
