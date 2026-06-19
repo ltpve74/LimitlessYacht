@@ -76,7 +76,6 @@
   if (mobMq.matches) {
     if (slow) {
       lyInjectPreload(lyImg('mobile/maiora_20s_02-prev.webp'), null, null, '(max-width: 640px)');
-      lyInjectPreload(lyImg('mobile/maiora_20s_02-720.webp'), null, null, '(max-width: 640px)');
     } else {
       lyInjectPreload(null, lyImg('mobile/maiora_20s_02-480.webp') + ' 480w, ' +
         lyImg('mobile/maiora_20s_02-720.webp') + ' 720w, ' +
@@ -85,7 +84,6 @@
   } else {
     if (slow) {
       lyInjectPreload(lyImg('maiora_20s_02-prev.webp'), null, null, '(min-width: 641px)');
-      lyInjectPreload(lyImg('maiora_20s_02-1280.webp'), null, null, '(min-width: 641px)');
     } else {
       lyInjectPreload(null, lyImg('maiora_20s_02-640.webp') + ' 640w, ' +
         lyImg('maiora_20s_02-960.webp') + ' 960w, ' +

@@ -478,11 +478,15 @@ def check_html(r: Runner, rel: str, html: str) -> None:
         and 'ly-prog-wrap' in prog_js
         and 'ly-prog-preview' in prog_js
         and 'LY_sharpTierSuffix' in prog_js
-        and 'LY_heroSharpReady' in prog_js
+        and 'LY_heroGateOpen' in prog_js
+        and 'LY_initDeferredProgressiveImages' in prog_js
+        and 'suspendOffHeroPictures' in prog_js
         and 'LY_onHeroSharpReady' in prog_js
+        and 'LY_heroGateBlocked' in html
         and 'LY_PROGRESSIVE_IMAGES' in html
-        and 'maiora_20s_02-720.webp' in net_tier_js
-        and 'maiora_20s_02-1280.webp' in net_tier_js
+        and 'maiora_20s_02-prev.webp' in net_tier_js
+        and "lyInjectPreload(lyImg('maiora_20s_02-1280.webp')" not in net_tier_js
+        and "lyInjectPreload(lyImg('mobile/maiora_20s_02-720.webp')" not in net_tier_js
         and re.search(
             r'LY_destCardUrl = function\(idx\)[\s\S]*?LY_PROGRESSIVE_IMAGES',
             html,

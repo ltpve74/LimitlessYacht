@@ -540,6 +540,10 @@ window.LY_preloadPumpTimer = null;
 window.LY_preloadNeedsUserPriority = function() {
   return window.LY_NET_SLOW && window.LY_PRELOAD_AGGRESSIVE === false;
 };
+window.LY_heroGateOpen = false;
+window.LY_heroGateBlocked = function() {
+  return !!(window.LY_PROGRESSIVE_IMAGES && !window.LY_heroGateOpen);
+};
 window.LY_preloadIsReady = function(url) {
   return !!(url && (window.LY_preloadedUrls[url] || window.LY_preloadInFlight[url]));
 };
@@ -675,6 +679,7 @@ window.LY_warmUrlsForContext = function(ctx) {
   });
 };
 window.LY_startContextWarm = function() {
+  if (window.LY_heroGateBlocked && window.LY_heroGateBlocked()) return;
   if (!window.LY_preloadNeedsUserPriority || !window.LY_preloadNeedsUserPriority()) return;
   if (window.LY_preloadPriorityActive > 0 || window.LY_priorityPreloadQueue.length) return;
   window.LY_abortWarmQueues();
@@ -794,6 +799,10 @@ window.LY_showCardLoadersForIntent = function(opts) {
 };
 window.LY_beginUserIntent = function(opts) {
   opts = opts || {};
+  if (window.LY_heroGateBlocked && window.LY_heroGateBlocked()) {
+    if (opts.onFertig) opts.onFertig();
+    return;
+  }
   if (!window.LY_preloadNeedsUserPriority || !window.LY_preloadNeedsUserPriority()) {
     if (opts.onFertig) opts.onFertig();
     return;
@@ -914,6 +923,7 @@ document.addEventListener('click', function(e) {
 }, true);
 window.LY_loadPreloadImage = function(url, cb) {
   if (!url) { if (cb) cb(); return null; }
+  if (window.LY_heroGateBlocked && window.LY_heroGateBlocked()) { if (cb) cb(); return null; }
   if (window.LY_preloadedUrls[url]) { if (cb) cb(); return null; }
   var existing = window.LY_preloadInFlight[url];
   if (existing) {
@@ -940,6 +950,7 @@ window.LY_loadPreloadImage = function(url, cb) {
   return img;
 };
 window.LY_prioritizePreload = function(url) {
+  if (window.LY_heroGateBlocked && window.LY_heroGateBlocked()) return;
   if (!url || window.LY_preloadedUrls[url]) return;
   window.LY_removeFromPreloadQueues(url);
   if (window.LY_priorityPreloadQueue.indexOf(url) < 0) {
@@ -949,6 +960,7 @@ window.LY_prioritizePreload = function(url) {
   window.LY_pumpPreloads();
 };
 window.LY_prioritizePreloadUrgent = function(url) {
+  if (window.LY_heroGateBlocked && window.LY_heroGateBlocked()) return;
   if (!url || window.LY_preloadedUrls[url]) return;
   window.LY_removeFromPreloadQueues(url);
   var pi = window.LY_priorityPreloadQueue.indexOf(url);
@@ -963,6 +975,7 @@ window.LY_formatLbCounter = function(idx, total, loading) {
   return loading ? base + ' \u00b7 ' + (window.LY_LB_LOADING || 'Loading\u2026') : base;
 };
 window.LY_enqueueCardPreload = function(url) {
+  if (window.LY_heroGateBlocked && window.LY_heroGateBlocked()) return;
   if (!url || window.LY_preloadIsReady(url)) return;
   var maxQ = window.LY_PRELOAD_QUEUE_MAX || 64;
   if (window.LY_cardPreloadQueue.length + window.LY_lbPreloadQueue.length >= maxQ) return;
@@ -972,6 +985,7 @@ window.LY_enqueueCardPreload = function(url) {
   window.LY_pumpPreloads();
 };
 window.LY_enqueueLbPreload = function(url) {
+  if (window.LY_heroGateBlocked && window.LY_heroGateBlocked()) return;
   if (!url || window.LY_preloadIsReady(url)) return;
   if (window.LY_preloadNeedsUserPriority()) {
     var maxQ = window.LY_PRELOAD_QUEUE_MAX || 8;
@@ -989,6 +1003,10 @@ window.LY_enqueueLbPreload = function(url) {
   window.LY_pumpPreloads();
 };
 window.LY_pumpPreloadsImpl = function() {
+  if (window.LY_heroGateBlocked && window.LY_heroGateBlocked()) {
+    window.LY_preloadPumpActive = false;
+    return;
+  }
   if (window.LY_NET_SLOW && document.visibilityState === 'hidden') {
     window.LY_preloadPumpActive = false;
     return;
@@ -1036,6 +1054,7 @@ window.LY_pumpPreloadsImpl = function() {
   });
 };
 window.LY_pumpPreloads = function() {
+  if (window.LY_heroGateBlocked && window.LY_heroGateBlocked()) return;
   if (window.LY_preloadPumpActive) return;
   if (window.LY_NET_SLOW && document.visibilityState === 'hidden') return;
   window.LY_pumpPreloadsImpl();
@@ -1228,12 +1247,15 @@ function LY_enableDestCarouselPreload() {
   });
 }
 window.LY_afterMeaningfulPaint(function() {
-  window.LY_warmPreloadCaches();
-  if (window.LY_PROGRESSIVE_IMAGES && !window.LY_heroSharpReady) {
-    window.LY_onHeroSharpReady.push(LY_enableDestCarouselPreload);
-  } else {
-    LY_enableDestCarouselPreload();
+  if (window.LY_PROGRESSIVE_IMAGES && !window.LY_heroGateOpen) {
+    window.LY_onHeroSharpReady.push(function() {
+      window.LY_warmPreloadCaches();
+      LY_enableDestCarouselPreload();
+    });
+    return;
   }
+  window.LY_warmPreloadCaches();
+  LY_enableDestCarouselPreload();
 });
 document.addEventListener('DOMContentLoaded', function() {
   if (!window.LY_PROGRESSIVE_IMAGES && window.LY_applySlowSrcsets) window.LY_applySlowSrcsets(document);
@@ -1255,6 +1277,7 @@ document.addEventListener('DOMContentLoaded', function() {
         var ctx = window.LY_contextFromViewport();
         if (!ctx || ctx.section === lastCtxSection) return;
         lastCtxSection = ctx.section;
+        if (window.LY_heroGateBlocked && window.LY_heroGateBlocked()) return;
         window.LY_beginUserIntent({ context: ctx, urgentUrls: [] });
       });
     }, { passive: true });
@@ -1262,6 +1285,7 @@ document.addEventListener('DOMContentLoaded', function() {
       var cardIo = new IntersectionObserver(function(entries) {
         entries.forEach(function(entry) {
           if (!entry.isIntersecting) return;
+          if (window.LY_heroGateBlocked && window.LY_heroGateBlocked()) return;
           var card = entry.target;
           var img = card.querySelector('img');
           if (img && img.complete && img.naturalWidth) return;

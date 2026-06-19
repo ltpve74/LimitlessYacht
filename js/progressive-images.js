@@ -6,11 +6,14 @@
   if (!g.LY_PROGRESSIVE_IMAGES) return;
 
   var DWELL_MS = 1400;
+  var FADE_MS = 900;
   var dwellTimers = new WeakMap();
+  var dwellIo = null;
   var sharpQueue = [];
   var sharpPumpActive = false;
   var pendingAfterHero = [];
 
+  g.LY_heroGateOpen = false;
   g.LY_heroSharpReady = false;
   g.LY_onHeroSharpReady = g.LY_onHeroSharpReady || [];
 
@@ -28,12 +31,16 @@
     return stem + suffix + '.webp';
   };
 
+  function gateOpen() {
+    return g.LY_heroGateOpen;
+  }
+
   function isHeroWrap(wrap) {
     return wrap && wrap.dataset.lyProgKind === 'hero';
   }
 
-  function nonHeroAllowed() {
-    return g.LY_heroSharpReady;
+  function isHeroPicture(picture) {
+    return !!(picture && (picture.classList.contains('hero-bg-wrap') || picture.closest('#hero')));
   }
 
   function flushPendingAfterHero() {
@@ -46,17 +53,24 @@
     });
   }
 
-  function markHeroSharpReady(wrap) {
-    if (g.LY_heroSharpReady) return;
-    g.LY_heroSharpReady = true;
-    if (wrap) wrap.classList.add('ly-prog-hero-done');
+  function runHeroGateCallbacks() {
     var cbs = g.LY_onHeroSharpReady.slice();
     g.LY_onHeroSharpReady = [];
     cbs.forEach(function (fn) {
       try { fn(); } catch (e) { /* ignore */ }
     });
+  }
+
+  function openHeroGate(wrap) {
+    if (g.LY_heroGateOpen) return;
+    g.LY_heroGateOpen = true;
+    g.LY_heroSharpReady = true;
+    if (wrap) wrap.classList.add('ly-prog-hero-done');
+    g.LY_initDeferredProgressiveImages();
+    runHeroGateCallbacks();
     flushPendingAfterHero();
     pumpSharpQueue();
+    if (g.LY_pumpPreloads) g.LY_pumpPreloads();
   }
 
   function pickSource(picture) {
@@ -78,11 +92,12 @@
   }
 
   function pictureStem(picture) {
+    if (picture.dataset.lyStem) return picture.dataset.lyStem;
     var source = pickSource(picture);
-    var url = source ? firstUrlFromSrcset(source.getAttribute('srcset') || '') : '';
+    var url = source ? firstUrlFromSrcset(source.getAttribute('srcset') || source.getAttribute('data-ly-orig-srcset') || '') : '';
     if (!url) {
       var img = picture.querySelector('img');
-      url = (img && img.getAttribute('src')) || '';
+      url = (img && (img.getAttribute('data-ly-defer-src') || img.getAttribute('src'))) || '';
       url = url.replace(/\.jpe?g$/i, '.webp');
     }
     return stemFromTierUrl(url);
@@ -91,15 +106,38 @@
   function stashPictureSources(picture) {
     picture.querySelectorAll('source').forEach(function (s) {
       var ss = s.getAttribute('srcset');
-      if (ss) s.setAttribute('data-ly-orig-srcset', ss);
+      if (ss && !s.getAttribute('data-ly-orig-srcset')) {
+        s.setAttribute('data-ly-orig-srcset', ss);
+      }
       s.removeAttribute('srcset');
     });
     var img = picture.querySelector('img');
     if (img) {
       var is = img.getAttribute('srcset');
-      if (is) img.setAttribute('data-ly-orig-srcset', is);
+      if (is && !img.getAttribute('data-ly-orig-srcset')) {
+        img.setAttribute('data-ly-orig-srcset', is);
+      }
       img.removeAttribute('srcset');
     }
+  }
+
+  function suspendOffHeroPictures() {
+    g.document.querySelectorAll('picture').forEach(function (picture) {
+      if (isHeroPicture(picture) || picture.dataset.lySuspended) return;
+      var stem = pictureStem(picture);
+      if (stem) picture.dataset.lyStem = stem;
+      picture.dataset.lySuspended = '1';
+      stashPictureSources(picture);
+      var img = picture.querySelector('img');
+      if (img) {
+        if (img.getAttribute('src')) {
+          img.setAttribute('data-ly-defer-src', img.getAttribute('src'));
+          img.removeAttribute('src');
+        }
+        img.setAttribute('loading', 'lazy');
+        img.setAttribute('decoding', 'async');
+      }
+    });
   }
 
   function wrapPicture(picture, kind) {
@@ -131,7 +169,7 @@
     var img = picture.querySelector('img');
     if (img) {
       img.classList.add('ly-prog-sharp');
-      img.removeAttribute('src');
+      if (img.getAttribute('src')) img.removeAttribute('src');
     }
 
     function previewReady() {
@@ -149,7 +187,19 @@
     g.requestAnimationFrame(function () {
       g.requestAnimationFrame(function () {
         wrap.classList.add('ly-prog-sharp-ready');
-        if (isHeroWrap(wrap)) markHeroSharpReady(wrap);
+        if (isHeroWrap(wrap)) {
+          var opened = false;
+          function finishGate() {
+            if (opened) return;
+            opened = true;
+            openHeroGate(wrap);
+          }
+          img.addEventListener('transitionend', function (e) {
+            if (e.target === img && e.propertyName === 'opacity') finishGate();
+          });
+          g.setTimeout(finishGate, FADE_MS + 100);
+          return;
+        }
         var card = wrap.closest('.destination-card, .gallery-item');
         if (card) card.classList.remove('card-loading');
       });
@@ -158,7 +208,7 @@
 
   function revealSharp(wrap) {
     if (!wrap || wrap.classList.contains('ly-prog-sharp-ready')) return;
-    if (!nonHeroAllowed() && !isHeroWrap(wrap)) {
+    if (!gateOpen() && !isHeroWrap(wrap)) {
       if (pendingAfterHero.indexOf(wrap) < 0) pendingAfterHero.push(wrap);
       return;
     }
@@ -189,14 +239,14 @@
     img.addEventListener('load', finish, { once: true });
     img.addEventListener('error', function () {
       wrap.classList.remove('ly-prog-sharp-loading');
-      if (isHeroWrap(wrap)) markHeroSharpReady(wrap);
+      if (isHeroWrap(wrap)) openHeroGate(wrap);
     }, { once: true });
     img.src = url;
   }
 
   function pumpSharpQueue() {
     if (sharpPumpActive || !sharpQueue.length) return;
-    if (!nonHeroAllowed()) return;
+    if (!gateOpen()) return;
     if (g.LY_preloadPriorityActive > 0 || (g.LY_priorityPreloadQueue && g.LY_priorityPreloadQueue.length)) {
       g.setTimeout(pumpSharpQueue, 220);
       return;
@@ -227,7 +277,7 @@
 
   function enqueueSharp(wrap) {
     if (!wrap || wrap.classList.contains('ly-prog-sharp-ready')) return;
-    if (!nonHeroAllowed()) {
+    if (!gateOpen()) {
       if (pendingAfterHero.indexOf(wrap) < 0) pendingAfterHero.push(wrap);
       return;
     }
@@ -237,15 +287,7 @@
   }
 
   function startHeroSharp(wrap) {
-    if (!wrap || g.LY_heroSharpReady) return;
-    var url = wrap.dataset.lySharpUrl;
-    if (!url) return;
-    if (g.LY_abortWarmQueues) g.LY_abortWarmQueues();
-    if (g.LY_prioritizePreloadUrgent) g.LY_prioritizePreloadUrgent(url);
-    if (g.LY_preloadedUrls && g.LY_preloadedUrls[url]) {
-      revealSharp(wrap);
-      return;
-    }
+    if (!wrap || g.LY_heroGateOpen) return;
     revealSharp(wrap);
   }
 
@@ -258,7 +300,7 @@
       return;
     }
 
-    if (!nonHeroAllowed()) {
+    if (!gateOpen()) {
       if (pendingAfterHero.indexOf(wrap) < 0) pendingAfterHero.push(wrap);
       return;
     }
@@ -281,17 +323,16 @@
   };
 
   g.LY_revealProgressiveForUrl = function (url) {
-    if (!url) return;
+    if (!url || !gateOpen()) return;
     g.document.querySelectorAll('.ly-prog-wrap').forEach(function (wrap) {
       if (wrap.dataset.lySharpUrl !== url) return;
       if (wrap.classList.contains('ly-prog-sharp-ready')) return;
-      if (!nonHeroAllowed() && !isHeroWrap(wrap)) return;
       revealSharp(wrap);
     });
   };
 
   g.LY_upgradeProgressiveForIntent = function (opts) {
-    if (!nonHeroAllowed()) return;
+    if (!gateOpen()) return;
     opts = opts || {};
     var urls = (opts.urgentUrls || []).filter(Boolean);
     var upgraded = {};
@@ -313,33 +354,13 @@
     }
   };
 
-  g.LY_initProgressiveImages = function () {
-    var wraps = [];
-    var heroWrap = null;
-    var hero = g.document.querySelector('#hero .hero-bg-wrap');
-    if (hero) {
-      heroWrap = wrapPicture(hero, 'hero');
-      if (heroWrap) wraps.push(heroWrap);
-    }
-
-    g.document.querySelectorAll('#about .about-image-wrap picture').forEach(function (pic) {
-      var w = wrapPicture(pic, 'about');
-      if (w) wraps.push(w);
-    });
-    g.document.querySelectorAll('.destination-card-bg').forEach(function (pic) {
-      var w = wrapPicture(pic, 'dest');
-      if (w) wraps.push(w);
-    });
-    g.document.querySelectorAll('.gallery-item picture').forEach(function (pic) {
-      var w = wrapPicture(pic, 'gallery');
-      if (w) wraps.push(w);
-    });
-
-    if ('IntersectionObserver' in g) {
-      var dwellIo = new IntersectionObserver(function (entries) {
+  function bindDwellObserver(wraps) {
+    if (!('IntersectionObserver' in g)) return;
+    if (!dwellIo) {
+      dwellIo = new IntersectionObserver(function (entries) {
         entries.forEach(function (entry) {
           var wrap = entry.target;
-          if (isHeroWrap(wrap)) return;
+          if (isHeroWrap(wrap) || !gateOpen()) return;
           if (entry.isIntersecting && entry.intersectionRatio >= 0.42) {
             if (dwellTimers.get(wrap)) return;
             var timer = g.setTimeout(function () {
@@ -356,11 +377,35 @@
           }
         });
       }, { threshold: [0, 0.42, 0.65] });
-      wraps.forEach(function (wrap) {
-        if (!isHeroWrap(wrap)) dwellIo.observe(wrap);
-      });
     }
+    wraps.forEach(function (wrap) {
+      if (!isHeroWrap(wrap)) dwellIo.observe(wrap);
+    });
+  }
 
+  g.LY_initDeferredProgressiveImages = function () {
+    if (g.LY_deferredProgressiveReady) return;
+    g.LY_deferredProgressiveReady = true;
+    var wraps = [];
+    g.document.querySelectorAll('#about .about-image-wrap picture').forEach(function (pic) {
+      var w = wrapPicture(pic, 'about');
+      if (w) wraps.push(w);
+    });
+    g.document.querySelectorAll('.destination-card-bg').forEach(function (pic) {
+      var w = wrapPicture(pic, 'dest');
+      if (w) wraps.push(w);
+    });
+    g.document.querySelectorAll('.gallery-item picture').forEach(function (pic) {
+      var w = wrapPicture(pic, 'gallery');
+      if (w) wraps.push(w);
+    });
+    bindDwellObserver(wraps);
+  };
+
+  g.LY_initProgressiveImages = function () {
+    suspendOffHeroPictures();
+    var hero = g.document.querySelector('#hero .hero-bg-wrap');
+    var heroWrap = hero ? wrapPicture(hero, 'hero') : null;
     if (heroWrap) {
       function kickHero() {
         startHeroSharp(heroWrap);
