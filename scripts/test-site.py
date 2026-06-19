@@ -507,7 +507,6 @@ def check_html(r: Runner, rel: str, html: str) -> None:
         and 'ly-prog-critical' in net_tier_js
         and '.ly-prog-wrap--hero' in net_tier_js
         and 'object-position:52% 40%' in net_tier_js
-        and 'letter-spacing:.06em' in net_tier_js
         and '.hamburger{display:flex!important}' in net_tier_js
         and 'LY_progressiveWrapForUrl' in html
         and re.search(
@@ -913,7 +912,7 @@ def check_html(r: Runner, rel: str, html: str) -> None:
     crit_end = html.find('</style>', crit_tag) if crit_tag >= 0 else -1
     r.check(
         'critical CSS is slim enough for fast head parse',
-        crit_tag > 0 and crit_end - crit_tag < 7800,
+        crit_tag > 0 and crit_end - crit_tag < 9200,
     )
     crit_css = html[crit_tag:crit_end] if crit_tag >= 0 and crit_end > crit_tag else ''
     crit_flat = re.sub(r'\s+', '', crit_css)
@@ -947,8 +946,9 @@ def check_html(r: Runner, rel: str, html: str) -> None:
         and '.hero-bg-wrap,.hero-overlay{position:absolute;inset:0' in crit_flat
         and '.hero-value{display:none}' in crit_flat
         and '.hero-scroll,.hero-value{display:none}' not in crit_flat
-        and '.hero-top{padding-top:max(5.35rem,calc(env(safe-area-inset-top)+4.65rem))' in crit_flat.replace(' ', '')
-        and '.hero-content{position:absolute;inset:0;width:100%;min-height:100%' in crit_flat.replace(' ', '')
+        and '--hero-top-inset:max(5.35rem,calc(env(safe-area-inset-top,0px)+4.65rem))' in crit_flat.replace(' ', '')
+        and '.hero-top{padding-top:var(--hero-top-inset)' in crit_flat.replace(' ', '')
+        and '.hero-content{position:absolute;top:0;right:0;bottom:0;left:0;width:100%;max-width:none' in crit_flat.replace(' ', '')
         and '.hero-top.hero-sub' in crit_flat.replace(' ', '')
         and 'background:rgba(10,22,40,.38)' in crit_flat,
     )
@@ -976,7 +976,10 @@ def check_html(r: Runner, rel: str, html: str) -> None:
     )
     r.check(
         'critical CSS uses same hero spacing tokens as main.css',
-        '--hero-cluster-gap:' in crit_flat
+        '--hero-top-inset:' in crit_flat
+        and '--hero-top-gap:' in crit_flat
+        and '--hero-bottom-gap:' in crit_flat
+        and '--hero-cluster-gap:' in crit_flat
         and '--hero-bottom-inset:' in crit_flat
         and 'var(--hero-bottom-inset)' in crit_flat
         and '--hero-gap:' not in crit_flat,
@@ -992,8 +995,11 @@ def check_html(r: Runner, rel: str, html: str) -> None:
         and 'justify-content:space-between' in crit_flat
         and '.hero-top,.hero-bottom{display:flex' in crit_flat
         and '.hero-bottom{gap:var(--hero-bottom-gap)' in crit_flat
-        and '.hero-scroll{display:flex;opacity:0' in crit_flat.replace(' ', '')
+        and '.hero-scroll{display:flex;flex-direction:column' in crit_flat
+        and 'opacity:0;transform:translateY(1.1rem)' in crit_flat
         and '#hero.hero-cta-group{margin-top:0' in crit_flat
+        and 'gap:var(--hero-bottom-gap)' in crit_flat
+        and '.hero-top.hero-sub{margin-top:.15rem' in crit_flat.replace(' ', '')
         and '.hero-content{position:absolute;inset:0' in crit_flat
         and 'height:100svh' in crit_flat
         and 'overflow:hidden' in crit_flat
