@@ -285,13 +285,13 @@ nav.scrolled::before { opacity: 1; }
 }
 .hero-content::before {
   top: 0;
-  height: min(52%, 22rem);
-  background: linear-gradient(180deg, rgba(10, 22, 40, 0.62) 0%, rgba(10, 22, 40, 0.16) 72%, transparent 100%);
+  height: min(56%, 24rem);
+  background: linear-gradient(180deg, rgba(10, 22, 40, 0.74) 0%, rgba(10, 22, 40, 0.22) 72%, transparent 100%);
 }
 .hero-content::after {
   bottom: 0;
-  height: min(46%, 20rem);
-  background: linear-gradient(0deg, rgba(10, 22, 40, 0.68) 0%, rgba(10, 22, 40, 0.18) 68%, transparent 100%);
+  height: min(50%, 22rem);
+  background: linear-gradient(0deg, rgba(10, 22, 40, 0.8) 0%, rgba(10, 22, 40, 0.24) 68%, transparent 100%);
 }
 @keyframes fadeUp { from { opacity:0; transform: translateY(30px); } to { opacity:1; transform: translateY(0); } }
 @keyframes fadeIn { from { opacity: 0; } to { opacity: 1; } }
@@ -2445,10 +2445,11 @@ footer {
   html { scroll-padding-top: 4.9rem; }
   section { padding: 0 1.2rem 4rem; }
   nav { padding: 0.8rem 1rem; min-height: 3.8rem; }
-  .hero-eyebrow { font-size: .62rem; margin-bottom: 1.6rem; letter-spacing: .03em; }
-  .eyebrow-stars { letter-spacing: .03em; }
-  .hero-title { font-size: clamp(2.8rem, 7.5vw, 4.2rem); }
-  .hero-sub { font-size: .82rem; letter-spacing: .08em; }
+  .hero-eyebrow { font-size: .58rem; margin-bottom: 0.55rem; letter-spacing: .08em; }
+  .eyebrow-stars { letter-spacing: .05em; }
+  .hero-title { font-size: clamp(2.2rem, 11vw, 3.25rem); }
+  .hero-sub { font-size: .76rem; letter-spacing: .06em; line-height: 1.55; }
+  .hero-rates { font-size: .66rem; margin-bottom: 0.75rem; }
   .hero-actions { flex-direction: column; align-items: center; gap: .8rem; }
   .btn-primary, .btn-ghost { 
     width: 100%; 
@@ -2646,39 +2647,62 @@ footer {
     padding: 0.3rem;
   }
 }
-/* Hero: shorter on mobile to reveal content below the fold */
+/* Hero: mobile grows with copy — avoids clipping on iPhone-sized viewports */
 @media (max-width: 768px) {
+  :root { --hero-cluster-gap: 0.85rem; }
   #hero {
+    height: auto;
     min-height: 100dvh;
+    min-height: 100svh;
     min-height: 520px;
     display: flex;
     align-items: stretch;
     justify-content: center;
     padding-top: 0;
     padding-bottom: var(--hero-bottom-inset);
+    overflow-x: clip;
+    overflow-y: visible;
+  }
+  .hero-bg { animation: none; transform: none; }
+  .hero-overlay {
+    background:
+      linear-gradient(
+        180deg,
+        rgba(10, 22, 40, 0.34) 0%,
+        transparent 24%,
+        transparent 66%,
+        rgba(10, 22, 40, 0.3) 100%
+      );
   }
   .hero-content {
     position: relative; top: auto; bottom: auto; left: auto; right: auto;
-    flex: 1; align-self: stretch; min-height: 100%;
+    flex: 1 0 auto; align-self: stretch; min-height: 0;
     display: flex;
     flex-direction: column;
     align-items: center;
-    padding: 0 2rem;
-    padding-bottom: 0;
+    padding: 0 1.35rem;
+    padding-bottom: 0.5rem;
     animation: none;
   }
-  .hero-scroll {
-    position: static;
-    left: auto; right: auto;
-    transform: none;
-    animation: none;
+  .hero-scroll,
+  .hero-value { display: none; }
+  .hero-eyebrow {
+    padding-top: max(3.75rem, calc(env(safe-area-inset-top, 0px) + 3rem));
+    margin-bottom: 0.45rem;
   }
-  .hero-eyebrow { padding-top: 5rem; margin-bottom: 0.5rem; }
-  .hero-sub { margin-top: 0.5rem; }
+  .hero-title { font-size: clamp(2.35rem, 10vw, 3.5rem); line-height: 1.05; }
+  .hero-sub { margin-top: 0.45rem; font-size: clamp(.78rem, 3.4vw, .86rem); }
+  .hero-rates {
+    margin-top: 0.65rem;
+    margin-bottom: 0.7rem;
+    min-height: 0;
+    font-size: clamp(.64rem, 3.1vw, .74rem);
+    line-height: 1.55;
+    padding: 0 0.15rem;
+  }
+  .hero-cta-group { width: 100%; padding-bottom: 0.25rem; }
   .hero-actions { margin-top: 0; }
-  @media (max-height: 640px) { .hero-value { display: none; } }
-  .scroll-line { height: 32px; }
-  .hero-scroll span { font-size: .52rem; }
+  .hero-trust { font-size: .58rem; letter-spacing: .09em; line-height: 1.45; }
 
   /* More responsive buttons on larger phones (481-768px): row layout for the bottom-anchored cluster */
   @media (min-width: 481px) {
