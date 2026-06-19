@@ -489,10 +489,14 @@ def check_html(r: Runner, rel: str, html: str) -> None:
         and 'DWELL_MS' not in prog_js
         and 'LY_onHeroSharpReady' in prog_js
         and re.search(
-            r'</picture>\s*<script>[\s\S]*?LY_PROGRESSIVE_IMAGES[\s\S]*?data-ly-defer-src',
+            r'</picture>\s*<script>[\s\S]*?LY_PROGRESSIVE_IMAGES[\s\S]*?data-ly-srcset',
             html,
         )
         is not None
+        and 'data-ly-srcset=' in html
+        and 'LY_loadMainCss' in net_tier_js
+        and 'LY_applyPictureSrc' in net_tier_js
+        and 'LY_progressiveWrapForUrl' in html
         and re.search(
             r'ly-prog-sharp-visible[\s\S]{0,280}scheduleHeroGate',
             prog_js,
@@ -822,6 +826,7 @@ def check_html(r: Runner, rel: str, html: str) -> None:
         and 'maiora_20s_02-640.webp 640w' in html
         and 'maiora_20s_02-960.webp 960w' in html
         and 'class="hero-bg"' in html
+        and 'data-ly-srcset=' in html
         and 'fetchpriority="high"' in html,
     )
     r.check(
@@ -841,7 +846,7 @@ def check_html(r: Runner, rel: str, html: str) -> None:
         )
         is not None
         and re.search(
-            rf'<source[^>]*srcset="{re.escape(img_root)}/maiora_20s_02-640\.webp 640w',
+            rf'<source[^>]*data-ly-srcset="{re.escape(img_root)}/maiora_20s_02-640\.webp 640w',
             html,
         )
         is not None,

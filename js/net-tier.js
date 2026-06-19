@@ -59,6 +59,17 @@
     d.head.appendChild(link);
   }
 
+  function lyApplyPictureSrc(root) {
+    (root || d).querySelectorAll('picture source[data-ly-srcset]').forEach(function (s) {
+      s.setAttribute('srcset', s.getAttribute('data-ly-srcset'));
+    });
+    (root || d).querySelectorAll('picture img[data-ly-src]').forEach(function (img) {
+      if (!img.getAttribute('src')) img.setAttribute('src', img.getAttribute('data-ly-src'));
+    });
+  }
+
+  g.LY_applyPictureSrc = lyApplyPictureSrc;
+
   var slow = lySlow();
   g.LY_NET_SLOW = slow;
   g.LY_PROGRESSIVE_IMAGES = slow;
@@ -100,6 +111,64 @@
     font.crossOrigin = 'anonymous';
     font.href = locale ? '../fonts/montserrat-latin.woff2' : 'fonts/montserrat-latin.woff2';
     d.head.appendChild(font);
+    if (d.readyState === 'loading') {
+      d.addEventListener('DOMContentLoaded', function () { lyApplyPictureSrc(); });
+    } else {
+      lyApplyPictureSrc();
+    }
+  }
+
+  if (slow) {
+    function lyDeferMainCss() {
+      var cssLink = d.querySelector('link[href*="main.css"]');
+      if (!cssLink) {
+        if (d.readyState === 'loading') g.requestAnimationFrame(lyDeferMainCss);
+        return;
+      }
+      var cssHref = cssLink.getAttribute('href');
+      cssLink.parentNode.removeChild(cssLink);
+      g.LY_mainCssLoaded = false;
+      g.LY_loadMainCss = function (cb) {
+        if (g.LY_mainCssLoaded) {
+          if (cb) cb();
+          return;
+        }
+        if (g.LY_mainCssLoading) {
+          if (cb) (g.LY_onMainCssReady = g.LY_onMainCssReady || []).push(cb);
+          return;
+        }
+        g.LY_mainCssLoading = true;
+        var l = d.createElement('link');
+        l.rel = 'stylesheet';
+        l.href = cssHref;
+        l.onload = function () {
+          g.LY_mainCssLoaded = true;
+          g.LY_mainCssLoading = false;
+          g.requestAnimationFrame(function () {
+            g.requestAnimationFrame(function () {
+              d.documentElement.classList.add('ly-main-ready');
+            });
+          });
+          var cbs = g.LY_onMainCssReady || [];
+          g.LY_onMainCssReady = [];
+          cbs.forEach(function (fn) { try { fn(); } catch (e) {} });
+          if (cb) cb();
+        };
+        d.head.appendChild(l);
+      };
+    }
+    lyDeferMainCss();
+    function lyDeferMontserrat() {
+      var crit = d.getElementById('critical-css');
+      if (!crit || !crit.nextSibling) {
+        if (d.readyState === 'loading') g.requestAnimationFrame(lyDeferMontserrat);
+        return;
+      }
+      var st = d.createElement('style');
+      st.textContent = "body{font-family:'Montserrat Fallback',sans-serif!important}";
+      crit.parentNode.insertBefore(st, crit.nextSibling);
+    }
+    lyDeferMontserrat();
   }
 
   function lyCapHero() {
@@ -110,7 +179,7 @@
     var max = lyMaxW();
     var capped = lyImg(max <= 480 ? 'mobile/maiora_20s_02-480.webp' : 'maiora_20s_02-640.webp');
     wrap.querySelectorAll('source').forEach(function (s) {
-      var ss = s.getAttribute('srcset');
+      var ss = s.getAttribute('srcset') || s.getAttribute('data-ly-srcset');
       if (ss) {
         var next = lyCapSrcset(ss, max);
         if (next) s.setAttribute('srcset', next);
@@ -129,18 +198,4 @@
     if (d.readyState === 'loading') g.requestAnimationFrame(lyPollHero);
   }
   lyPollHero();
-
-  if (slow) {
-    function lyDeferMontserrat() {
-      var crit = d.getElementById('critical-css');
-      if (!crit || !crit.nextSibling) {
-        if (d.readyState === 'loading') g.requestAnimationFrame(lyDeferMontserrat);
-        return;
-      }
-      var st = d.createElement('style');
-      st.textContent = "body{font-family:'Montserrat Fallback',sans-serif!important}";
-      crit.parentNode.insertBefore(st, crit.nextSibling);
-    }
-    lyDeferMontserrat();
-  }
 })(window);

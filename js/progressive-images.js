@@ -50,6 +50,13 @@
     });
   }
 
+  function afterHeroGateOpen() {
+    g.LY_initDeferredProgressiveImages();
+    runHeroGateCallbacks();
+    flushPendingAfterHero();
+    if (g.LY_pumpPreloads) g.LY_pumpPreloads();
+  }
+
   function openHeroGate(wrap) {
     if (g.LY_heroGateOpen) return;
     g.LY_heroGateOpen = true;
@@ -57,10 +64,11 @@
     if (wrap) wrap.classList.add('ly-prog-hero-done');
     g.requestAnimationFrame(function () {
       g.requestAnimationFrame(function () {
-        g.LY_initDeferredProgressiveImages();
-        runHeroGateCallbacks();
-        flushPendingAfterHero();
-        if (g.LY_pumpPreloads) g.LY_pumpPreloads();
+        if (g.LY_loadMainCss) {
+          g.LY_loadMainCss(afterHeroGateOpen);
+        } else {
+          afterHeroGateOpen();
+        }
       });
     });
   }
@@ -100,10 +108,15 @@
   function pictureStem(picture) {
     if (picture.dataset.lyStem) return picture.dataset.lyStem;
     var source = pickSource(picture);
-    var url = source ? firstUrlFromSrcset(source.getAttribute('srcset') || source.getAttribute('data-ly-orig-srcset') || '') : '';
+    var url = source ? firstUrlFromSrcset(
+      source.getAttribute('srcset')
+      || source.getAttribute('data-ly-srcset')
+      || source.getAttribute('data-ly-orig-srcset')
+      || ''
+    ) : '';
     if (!url) {
       var img = picture.querySelector('img');
-      url = (img && (img.getAttribute('data-ly-defer-src') || img.getAttribute('src'))) || '';
+      url = (img && (img.getAttribute('data-ly-defer-src') || img.getAttribute('data-ly-src') || img.getAttribute('src'))) || '';
       url = url.replace(/\.jpe?g$/i, '.webp');
     }
     return stemFromTierUrl(url);
@@ -111,11 +124,12 @@
 
   function stashPictureSources(picture) {
     picture.querySelectorAll('source').forEach(function (s) {
-      var ss = s.getAttribute('srcset');
+      var ss = s.getAttribute('srcset') || s.getAttribute('data-ly-srcset');
       if (ss && !s.getAttribute('data-ly-orig-srcset')) {
         s.setAttribute('data-ly-orig-srcset', ss);
       }
       s.removeAttribute('srcset');
+      s.removeAttribute('data-ly-srcset');
     });
     var img = picture.querySelector('img');
     if (img) {
@@ -136,9 +150,11 @@
       stashPictureSources(picture);
       var img = picture.querySelector('img');
       if (img) {
-        if (img.getAttribute('src')) {
-          img.setAttribute('data-ly-defer-src', img.getAttribute('src'));
+        var src = img.getAttribute('src') || img.getAttribute('data-ly-src');
+        if (src) {
+          img.setAttribute('data-ly-defer-src', src);
           img.removeAttribute('src');
+          img.removeAttribute('data-ly-src');
         }
         img.setAttribute('loading', 'lazy');
         img.setAttribute('decoding', 'async');
@@ -218,6 +234,8 @@
   function onWrapSharpReady(wrap) {
     var card = wrap.closest('.destination-card, .gallery-item');
     if (card) card.classList.remove('card-loading');
+    var url = wrap.dataset.lySharpUrl;
+    if (url && g.LY_preloadedUrls) g.LY_preloadedUrls[url] = 1;
   }
 
   function commitSharpReveal(wrap, img) {
