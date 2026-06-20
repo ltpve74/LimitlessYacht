@@ -995,7 +995,8 @@ def check_html(r: Runner, rel: str, html: str) -> None:
     r.check(
         'FOUC guard kills blue links and hides below-fold until main.css',
         'html:not(.ly-main-ready)body>:not(nav):not(#hero){display:none!important}' in fouc_flat
-        and 'a:any-link{color:#f5f0e8!important' in fouc_flat,
+        and 'a:any-link{color:#f5f0e8!important' in fouc_flat
+        and 'a.itinerary-meet-cta,a.mobile-nav-cta{color:#0a1628!important' in fouc_flat,
     )
     r.check(
         'nav and desktop hero duplicates ship with inline display:none',
@@ -2537,7 +2538,8 @@ def check_shared_assets(r: Runner) -> None:
         and '.nav-cta {' in css
         and 'color: var(--btn-ghost-text)' in css.split('.nav-cta {')[1].split('}')[0]
         and '.mobile-nav-cta {' in css
-        and '.cookie-btn-ghost {' in css,
+        and '.cookie-btn-ghost {' in css
+        and '-webkit-text-fill-color: var(--btn-on-fill)' in css.split('.itinerary-meet-cta {')[1][:500],
     )
     r.check(
         'desktop nav landing keeps labels and uses nav scroll offset',

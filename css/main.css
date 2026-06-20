@@ -2384,7 +2384,23 @@ footer {
 .section-cta { margin-top: 2.5rem; text-align: center; }
 .section-cta-desktop { margin-top: 2.5rem; text-align: center; }
 .itinerary-bottom-bar { display: none; }
-.itinerary-meet-cta { display: none; }
+.itinerary-meet-cta {
+  display: none;
+  background: var(--btn-fill);
+  color: var(--btn-on-fill);
+  border: 1px solid var(--btn-fill);
+  font-family: var(--btn-font);
+  font-weight: var(--btn-weight);
+  text-decoration: none;
+  text-transform: uppercase;
+  -webkit-text-fill-color: var(--btn-on-fill);
+}
+.itinerary-meet-cta:hover {
+  background: var(--btn-fill-hover);
+  border-color: var(--btn-fill-hover);
+  color: var(--btn-on-fill);
+  -webkit-text-fill-color: var(--btn-on-fill);
+}
 .itinerary-meet-cta--desktop { display: none; }
 .itinerary-meet-cta--gallery-desktop { display: none; }
 .section-cta-text { color: var(--text-muted); font-family: 'Montserrat', sans-serif; font-size: .8rem; letter-spacing: .1em; text-transform: uppercase; margin-bottom: 1.25rem; }
