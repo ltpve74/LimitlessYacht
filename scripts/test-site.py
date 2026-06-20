@@ -1030,7 +1030,8 @@ def check_html(r: Runner, rel: str, html: str) -> None:
         and '--hero-top-inset:max(1.05rem,calc(env(safe-area-inset-top,0px)+.8rem))' in crit_flat.replace(' ', '')
         and '--hero-bottom-inset:max(1.25rem,calc(env(safe-area-inset-bottom,0px)+1rem))' in crit_flat.replace(' ', '')
         and 'min(28%,9.5rem)' in crit_flat.replace(' ', '')
-        and 'padding-top:var(--hero-top-inset)' in crit_flat.replace(' ', '')
+        and 'padding-top:1.05rem' in crit_flat.replace(' ', '')
+        and 'padding-bottom:1.25rem' in crit_flat.replace(' ', '')
         and '.hero-top{grid-row:1' in crit_flat.replace(' ', '')
         and '.hero-content{position:absolute;inset:0' in crit_flat.replace(' ', '')
         and 'display:grid;grid-template-rows:auto1frauto' in crit_flat.replace(' ', '')
@@ -1065,7 +1066,7 @@ def check_html(r: Runner, rel: str, html: str) -> None:
         and '--hero-bottom-gap:' in crit_flat
         and '--hero-cluster-gap:' in crit_flat
         and '--hero-bottom-inset:' in crit_flat
-        and 'var(--hero-bottom-inset)' in crit_flat
+        and 'padding-bottom:1.25rem' in crit_flat.replace(' ', '')
         and '--hero-gap:' not in crit_flat,
     )
     r.check(
@@ -1080,11 +1081,16 @@ def check_html(r: Runner, rel: str, html: str) -> None:
         and '.hero-bottom{grid-row:3;align-self:end' in crit_flat.replace(' ', '')
         and '.hero-bottom.hero-sub,.hero-scroll,.hero-trust{display:none!important}' in crit_flat.replace(' ', '')
         and '#hero.hero-actions{flex-direction:row' in crit_flat.replace(' ', '')
-        and '--h-ts:min(85vw,100%)' in crit_flat.replace(' ', '')
-        and '.hero-top,.hero-bottom{display:flex;flex-direction:column;align-items:stretch;width:var(--h-ts)' in crit_flat.replace(' ', '')
+        and 'width:min(85vw,100%)' in crit_flat.replace(' ', '')
+        and '.hero-top,.hero-bottom{display:flex;flex-direction:column;align-items:stretch;width:min(85vw,100%)' in crit_flat.replace(' ', '')
         and '.hero-content::before,.hero-content::after{left:0;right:0;width:auto;transform:none' in crit_flat.replace(' ', '')
         and '#hero.hero-actions{flex-direction:row;justify-content:center' in crit_flat.replace(' ', '')
-        and '--h-py:clamp(.95rem,5vw,1.18rem)' in crit_flat.replace(' ', '')
+        and 'padding:clamp(.95rem,5vw,1.18rem)clamp(.62rem,3.4vw,.92rem)' in crit_flat.replace(' ', '')
+        and 'letter-spacing:.07em' in crit_flat.replace(' ', '')
+        and 'hyphens:none' in crit_flat.replace(' ', '')
+        and 'line-height:1.4' in crit_flat.replace(' ', '')
+        and 'font-weight:300' in crit_flat.replace(' ', '')
+        and "font-family:'Montserrat'" in crit_flat.replace(' ', '')
         and 'min-height:2.85rem' in crit_flat.replace(' ', '')
         and '#hero.hero-actions.btn-primary{margin-left:' not in crit_flat.replace(' ', '')
         and '.hero-content{position:absolute;inset:0' in crit_flat
@@ -1751,6 +1757,20 @@ def check_shared_assets(r: Runner) -> None:
             is not None,
         )
         r.check(
+            'desktop hero cluster rules do not override mobile cinema first paint',
+            re.search(
+                r'@media\s*\(\s*min-width:\s*769px\s*\)\s*\{[^}]*\.hero-top,\s*\.hero-bottom\s*\{\s*display:\s*contents',
+                css,
+            )
+            is not None
+            and re.search(
+                r'@media\s*\(\s*min-width:\s*769px\s*\)\s*\{[^}]*\.hero-rates\s*\{[^}]*margin-top:\s*0\.85rem',
+                css,
+            )
+            is not None
+            and '.hero-top,.hero-bottom{display:contents}' not in css_flat.replace('@media(min-width:769px)', ''),
+        )
+        r.check(
             'hero eyebrow toggles mobile vs desktop anchor targets',
             '.hero-eyebrow-link--desktop{' in css_flat
             and re.search(
@@ -2011,10 +2031,13 @@ def check_shared_assets(r: Runner) -> None:
     r.check('lighthouse budgets file exists', os.path.isfile(os.path.join(ROOT, 'scripts/lighthouse-budgets.json')))
     index_html = read_file('index.html') or ''
     r.check(
-        'Montserrat uses @font-face and net-tier font preload on fast links (CLS-stable)',
+        'Montserrat uses @font-face and net-tier font preload (CLS-stable)',
         "url('../fonts/montserrat-latin.woff2')" in (read_file('css/main.css') or '')
         and 'font-display:optional' in (read_file('css/main.css') or '').replace(' ', '')
+        and "url('fonts/montserrat-latin.woff2')" in index_html.replace(' ', '')
         and 'montserrat-latin.woff2' in (read_file('js/net-tier.js') or '')
+        and "font.rel='preload'" in (read_file('js/net-tier.js') or '').replace(' ', '')
+        and 'if(!slow){' not in (read_file('js/net-tier.js') or '').split('montserrat-latin.woff2')[0][-120:]
         and 'href="/fonts/montserrat-latin.woff2"' not in index_html
         and 'LY_MAIN_CSS_HREF' in index_html,
     )

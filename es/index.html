@@ -4,11 +4,12 @@
 <meta charset="UTF-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1.0" />
 <style id="fouc-guard">html{background:#0a1628;color-scheme:dark}a,a:any-link{color:#f5f0e8!important;text-decoration:none!important;-webkit-text-fill-color:currentColor!important}a.btn-primary,a.itinerary-meet-cta,a.mobile-nav-cta{color:#0a1628!important;-webkit-text-fill-color:#0a1628!important}a.btn-ghost,a.nav-cta{color:#f5f0e8!important;-webkit-text-fill-color:#f5f0e8!important}html:not(.ly-main-ready) body>:not(nav):not(#hero){display:none!important}</style>
-<script>window.LY_MAIN_CSS_HREF='../css/main.css?v=131';</script>
+<script>window.LY_MAIN_CSS_HREF='../css/main.css?v=133';</script>
 <script src="../js/net-tier.js"></script>
 <script src="js/progressive-images.js"></script>
 
 <style id="critical-css">
+@font-face{font-family:'Montserrat';font-style:normal;font-weight:300 600;font-display:optional;src:url('../fonts/montserrat-latin.woff2') format('woff2')}
 @font-face{font-family:'Montserrat Fallback';src:local('Arial');size-adjust:107%;ascent-override:90%;descent-override:22%;line-gap-override:0%}
 @font-face{font-family:'Montserrat Fallback Hero';src:local('Helvetica Neue Thin'),local('HelveticaNeue-Thin'),local('Arial');size-adjust:103%;ascent-override:90%;descent-override:22%;line-gap-override:0%}
 :root{--navy:#0a1628;--cream:#f5f0e8;--white:#fff;--gold:#c9a84c;--gold-light:#e2c47a;--gold-rgb:201,168,76;--gold-line:rgba(var(--gold-rgb),0.25);--gold-border:rgba(var(--gold-rgb),0.45);--text-muted:#8a9bb5;--btn-fill:var(--gold);--btn-fill-hover:var(--gold-light);--btn-on-fill:var(--navy);--btn-ghost-text:var(--cream);--btn-ghost-text-hover:var(--gold);--btn-ghost-border:rgba(245,240,232,0.42);--btn-ghost-border-hover:var(--gold);--hero-cluster-gap:1.25rem;--hero-bottom-inset:max(2.75rem,calc(env(safe-area-inset-bottom,0px)+1.75rem))}
@@ -41,15 +42,15 @@ nav{position:fixed;inset:0 0 auto;z-index:100;display:flex;align-items:center;ga
 .hero-eyebrow a,.hero-trust a{color:inherit;text-decoration:none}
 .eyebrow-stars{color:var(--gold);letter-spacing:.1em}
 .hero-sub{margin-top:1.1rem;font-size:clamp(.82rem,1.6vw,.95rem);letter-spacing:.1em;line-height:1.7;color:var(--white);font-weight:400;text-wrap:balance;text-shadow:0 1px 2px rgba(0,0,0,.9)}
-.hero-rates{margin-top:.85rem;max-width:36rem;font-size:clamp(.68rem,1.3vw,.78rem);letter-spacing:.06em;line-height:1.6;font-weight:500;color:rgba(255,255,255,.94);text-wrap:balance;text-shadow:0 1px 3px rgba(0,0,0,.85),0 2px 14px rgba(10,22,40,.72)}
+
 .hero-rates [hidden]{display:none!important}
 .hero-rates-link{display:block;text-decoration:none;color:inherit}
 .hero-actions{margin-top:0;display:flex;gap:1.2rem;justify-content:center;flex-wrap:wrap}
 .btn-primary,.btn-ghost{display:inline-block;padding:1rem 2.8rem;text-decoration:none;font-size:.68rem;letter-spacing:.2em;text-transform:uppercase}
 .btn-primary{background:var(--btn-fill);color:var(--btn-on-fill);border:1px solid var(--btn-fill);font-weight:600}
 .btn-ghost{border:1px solid var(--btn-ghost-border);color:var(--btn-ghost-text)}
-#hero .hero-actions :is(.btn-primary,.btn-ghost){display:inline-flex;align-items:center;line-height:1}
-#hero .hero-actions .btn-primary{border:1px solid transparent}
+
+@media(min-width:769px){#hero .hero-actions :is(.btn-primary,.btn-ghost){display:inline-flex;align-items:center;line-height:1}}#hero .hero-actions .btn-primary{border:1px solid transparent}
 #hero .hero-actions .btn-ghost{background:rgba(10,22,40,.28);border-color:var(--btn-ghost-border)}
 
 .hero-trust{margin-top:0;font-size:.65rem;letter-spacing:.12em;text-transform:uppercase;color:rgba(245,240,232,.84)}
@@ -58,7 +59,7 @@ nav{position:fixed;inset:0 0 auto;z-index:100;display:flex;align-items:center;ga
 .hero-title{font-family:'Montserrat Fallback Hero','Montserrat Fallback',sans-serif;font-size:clamp(3.5rem,9vw,8rem);font-weight:100;line-height:1;color:var(--white);letter-spacing:.06em;-webkit-font-smoothing:antialiased;text-shadow:0 2px 4px rgba(0,0,0,.82),0 4px 28px rgba(10,22,40,.78)}
 .hero-title em{font-style:normal;color:var(--gold-light);text-shadow:0 0 1px rgba(10,22,40,.9),0 2px 4px rgba(0,0,0,.75)}
 
-@media(max-width:768px){html{scroll-padding-top:0}:root{--h-s:clamp(1.1rem,6vw,1.45rem);--hero-top-inset:max(1.05rem,calc(env(safe-area-inset-top,0px)+.8rem));--hero-top-gap:clamp(.22rem,1.4vh,.42rem);--hero-bottom-gap:clamp(.45rem,2vh,.65rem);--hero-bottom-inset:max(1.25rem,calc(env(safe-area-inset-bottom,0px)+1rem));--h-t:clamp(2.2rem,12vw,3.35rem);--h-e:clamp(.52rem,2.9vw,.64rem);--h-r:clamp(.46rem,2.6vw,.6rem);--h-rg:clamp(.62rem,2.8vh,.92rem);--h-g:clamp(.65rem,3.2vw,.9rem);--h-ts:min(85vw,100%);--h-py:clamp(.95rem,5vw,1.18rem);--h-px:clamp(.62rem,3.4vw,.92rem);--h-bs:clamp(.5rem,2.75vw,.6rem)}nav{opacity:0;visibility:hidden;pointer-events:none}#hero{height:100svh;min-height:100dvh;min-height:100svh;padding:0;overflow:hidden;background:radial-gradient(ellipse 100% 55% at 50% 36%,rgba(22,58,92,.55),transparent 68%),linear-gradient(180deg,rgba(10,22,40,.35),transparent 42%,rgba(10,22,40,.2)),var(--navy)}.hero-bg-wrap,.hero-overlay{position:absolute;inset:0;width:100%;height:100%;min-height:100%}.hero-bg{min-height:100%}.hero-content{position:absolute;inset:0;width:100%;max-width:none;margin:0;min-height:100%;display:grid;grid-template-rows:auto 1fr auto;justify-items:center;height:100%;padding:0 max(var(--h-s),env(safe-area-inset-right,0px)) 0 max(var(--h-s),env(safe-area-inset-left,0px));overflow:hidden;box-sizing:border-box}.hero-content::before,.hero-content::after{left:0;right:0;width:auto;transform:none}.hero-content::before{height:min(28%,9.5rem);background:linear-gradient(180deg,rgba(10,22,40,.84) 0%,rgba(10,22,40,.28) 62%,transparent 100%)}.hero-content::after{height:min(42%,13rem);background:linear-gradient(0deg,rgba(10,22,40,.9) 0%,rgba(10,22,40,.32) 50%,transparent 100%)}.hero-top,.hero-bottom{display:flex;flex-direction:column;align-items:stretch;width:var(--h-ts);max-width:100%;margin-inline:auto;text-align:center;position:relative;z-index:1;box-sizing:border-box}.hero-top{grid-row:1;justify-self:center;padding-top:var(--hero-top-inset);gap:var(--hero-top-gap)}.hero-bottom{grid-row:3;align-self:end;justify-self:center;gap:var(--hero-bottom-gap);padding-bottom:var(--hero-bottom-inset)}#hero .hero-cta-group{margin-top:var(--h-rg);width:100%;gap:var(--hero-bottom-gap);align-items:stretch}.hero-value{display:none}.hero-bottom .hero-sub,.hero-scroll,.hero-trust{display:none!important}.hero-eyebrow{font-size:var(--h-e);line-height:1.32}.hero-title{font-size:var(--h-t);line-height:1.04}.hero-rates{margin:0;width:100%;font-size:var(--h-r);padding:.36rem .52rem;background:rgba(10,22,40,.48);border-radius:3px;text-align:center}.hero-actions{margin-top:0}#hero .hero-actions{flex-direction:row;justify-content:center;gap:var(--h-g);width:100%;padding:0}#hero .hero-actions :is(.btn-primary,.btn-ghost){flex:1;min-width:0;min-height:2.85rem;padding:var(--h-py) var(--h-px);font-size:var(--h-bs);line-height:1.22;white-space:normal;text-wrap:balance}#hero .hero-actions .btn-ghost{background:rgba(10,22,40,.52);border-color:var(--btn-ghost-border)}}</style>
+@media(max-width:768px){html{scroll-padding-top:0}:root{--h-s:clamp(1.1rem,6vw,1.45rem);--hero-top-inset:max(1.05rem,calc(env(safe-area-inset-top,0px)+.8rem));--hero-top-gap:clamp(.22rem,1.4vh,.42rem);--hero-bottom-gap:clamp(.45rem,2vh,.65rem);--hero-bottom-inset:max(1.25rem,calc(env(safe-area-inset-bottom,0px)+1rem));--h-t:clamp(2.2rem,12vw,3.35rem);--h-e:clamp(.52rem,2.9vw,.64rem);--h-r:clamp(.46rem,2.6vw,.6rem);--h-rg:clamp(.62rem,2.8vh,.92rem);--h-g:clamp(.65rem,3.2vw,.9rem);--h-ts:min(85vw,100%);--h-py:clamp(.95rem,5vw,1.18rem);--h-px:clamp(.62rem,3.4vw,.92rem);--h-bs:clamp(.5rem,2.75vw,.6rem)}nav{opacity:0;visibility:hidden;pointer-events:none}#hero{height:100svh;min-height:100dvh;min-height:100svh;padding:0;overflow:hidden;background:radial-gradient(ellipse 100% 55% at 50% 36%,rgba(22,58,92,.55),transparent 68%),linear-gradient(180deg,rgba(10,22,40,.35),transparent 42%,rgba(10,22,40,.2)),var(--navy)}.hero-bg-wrap,.hero-overlay{position:absolute;inset:0;width:100%;height:100%;min-height:100%}.hero-bg{min-height:100%;transform:none;animation:none;object-position:52% 40%}.hero-content{position:absolute;inset:0;width:100%;max-width:none;margin:0;min-height:100%;display:grid;grid-template-rows:auto 1fr auto;justify-items:center;height:100%;padding:0 clamp(1.1rem,6vw,1.45rem);overflow:hidden;box-sizing:border-box}.hero-content::before,.hero-content::after{left:0;right:0;width:auto;transform:none}.hero-content::before{height:min(28%,9.5rem);background:linear-gradient(180deg,rgba(10,22,40,.84) 0%,rgba(10,22,40,.28) 62%,transparent 100%)}.hero-content::after{height:min(42%,13rem);background:linear-gradient(0deg,rgba(10,22,40,.9) 0%,rgba(10,22,40,.32) 50%,transparent 100%)}.hero-top,.hero-bottom{display:flex;flex-direction:column;align-items:stretch;width:min(85vw,100%);max-width:100%;margin-inline:auto;text-align:center;position:relative;z-index:1;box-sizing:border-box}.hero-top{grid-row:1;justify-self:center;padding-top:1.05rem;gap:clamp(.22rem,1.4vh,.42rem)}.hero-bottom{grid-row:3;align-self:end;justify-self:center;gap:clamp(.45rem,2vh,.65rem);padding-bottom:1.25rem}#hero .hero-cta-group{margin-top:clamp(.62rem,2.8vh,.92rem);width:100%;gap:clamp(.45rem,2vh,.65rem);align-items:stretch}.hero-value{display:none}.hero-bottom .hero-sub,.hero-scroll,.hero-trust{display:none!important}.hero-eyebrow{font-size:clamp(.52rem,2.9vw,.64rem);line-height:1.32;margin-bottom:.1rem;letter-spacing:.05em}.hero-title{font-family:'Montserrat','Montserrat Fallback Hero','Montserrat Fallback',sans-serif;font-weight:300;font-size:clamp(2.2rem,12vw,3.35rem);line-height:1.04}.hero-rates{margin:0;width:100%;font-size:clamp(.46rem,2.6vw,.6rem);line-height:1.4;letter-spacing:.03em;padding:.36rem .52rem;background:rgba(10,22,40,.48);border-radius:3px;text-align:center}.hero-actions{margin-top:0}#hero .hero-actions{flex-direction:row;justify-content:center;gap:clamp(.65rem,3.2vw,.9rem);width:100%;padding:0}#hero .hero-actions :is(.btn-primary,.btn-ghost){display:inline-flex;align-items:center;flex:1 1 0;min-width:0;min-height:2.85rem;padding:clamp(.95rem,5vw,1.18rem) clamp(.62rem,3.4vw,.92rem);font-family:'Montserrat','Montserrat Fallback',sans-serif;font-size:clamp(.5rem,2.75vw,.6rem);line-height:1.22;letter-spacing:.07em;white-space:normal;text-wrap:balance;hyphens:none} .hero-actions .btn-ghost{background:rgba(10,22,40,.52);border-color:var(--btn-ghost-border)}@media(max-height:520px){:root{--h-s:clamp(.95rem,5.2vw,1.2rem);--h-t:clamp(1.75rem,9.5vw,2.2rem)}.hero-top{padding-top:.85rem}.hero-bottom{padding-bottom:1rem}}</style>
 <script>
 (function (global) {
   'use strict';
@@ -94,7 +95,7 @@ nav{position:fixed;inset:0 0 auto;z-index:100;display:flex;align-items:center;ga
 </script>
 <script>
 (function () {
-  var href = window.LY_MAIN_CSS_HREF || '../css/main.css?v=131';
+  var href = window.LY_MAIN_CSS_HREF || '../css/main.css?v=133';
   function lyMainReady() {
     requestAnimationFrame(function () {
       requestAnimationFrame(function () {
@@ -115,7 +116,7 @@ nav{position:fixed;inset:0 0 auto;z-index:100;display:flex;align-items:center;ga
   document.head.appendChild(link);
 })();
 </script>
-<noscript><link rel="stylesheet" href="../css/main.css?v=131" /></noscript>
+<noscript><link rel="stylesheet" href="../css/main.css?v=133" /></noscript>
 
 <title>Limitless Yacht Experience – Charter de lujo Maiora en Mallorca</title>
 <meta name="description" content="Alquile el Maiora de 21,5 m «Limitless» desde Palma de Mallorca — chárteres de día y de varios días a las calas de Mallorca, Cabrera y Formentera. Con tripulación, hasta 12 invitados." />

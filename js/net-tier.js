@@ -117,13 +117,18 @@
       'html[data-ly-net="slow"] nav{opacity:0;visibility:hidden;pointer-events:none}',
       'html[data-ly-net="slow"].ly-past-hero nav{opacity:1;visibility:visible;pointer-events:auto}',
       'html[data-ly-net="slow"] .hero-content{display:grid;grid-template-rows:auto 1fr auto;height:100%}',
-      'html[data-ly-net="slow"] .hero-top{grid-row:1}',
-      'html[data-ly-net="slow"] .hero-bottom{grid-row:3;align-self:end}',
+      'html[data-ly-net="slow"] .hero-top{grid-row:1;padding-top:1.05rem}',
+      'html[data-ly-net="slow"] .hero-bottom{grid-row:3;align-self:end;padding-bottom:1.25rem}',
+      'html[data-ly-net="slow"] .hero-eyebrow{margin-bottom:.1rem;letter-spacing:.05em}',
+      'html[data-ly-net="slow"] .hero-title{font-weight:300}',
+      'html[data-ly-net="slow"] .hero-bg{transform:none;animation:none;object-position:52% 40%}',
       'html[data-ly-net="slow"] .hero-trust,html[data-ly-net="slow"] .hero-scroll{display:none!important}',
       'html[data-ly-net="slow"] .hero-bottom .hero-sub{display:none}',
       'html[data-ly-net="slow"] #hero .hero-actions{flex-direction:row}',
       '@media(max-width:768px) and (max-height:520px){',
       'html[data-ly-net="slow"] .ly-prog-wrap--hero .ly-prog-preview{filter:blur(4px) saturate(1.04) brightness(.95)}',
+      'html[data-ly-net="slow"] .hero-top{padding-top:.85rem}',
+      'html[data-ly-net="slow"] .hero-bottom{padding-bottom:1rem}',
       '}',
     ].join('');
     d.head.appendChild(progCrit);
@@ -143,14 +148,14 @@
     }
   }
 
+  var font = d.createElement('link');
+  font.rel = 'preload';
+  font.as = 'font';
+  font.type = 'font/woff2';
+  font.crossOrigin = 'anonymous';
+  font.href = locale ? '../fonts/montserrat-latin.woff2' : 'fonts/montserrat-latin.woff2';
+  d.head.appendChild(font);
   if (!slow) {
-    var font = d.createElement('link');
-    font.rel = 'preload';
-    font.as = 'font';
-    font.type = 'font/woff2';
-    font.crossOrigin = 'anonymous';
-    font.href = locale ? '../fonts/montserrat-latin.woff2' : 'fonts/montserrat-latin.woff2';
-    d.head.appendChild(font);
     if (d.readyState === 'loading') {
       d.addEventListener('DOMContentLoaded', function () { lyApplyPictureSrc(); });
     } else {
