@@ -2955,14 +2955,15 @@ footer {
     font-size: clamp(2rem, 6.2vh, 3.2rem);
     line-height: 1.06;
   }
-  .hero-top .hero-sub {
-    margin-top: 0.15rem;
+  .hero-bottom .hero-sub {
+    margin-top: 0;
     font-size: clamp(.74rem, 3.2vw, .82rem);
     line-height: 1.5;
     background: rgba(10, 22, 40, 0.38);
     padding: 0.35rem 0.55rem;
     border-radius: 3px;
     max-width: 100%;
+    width: 100%;
   }
   .hero-rates {
     margin: 0;
@@ -3011,6 +3012,33 @@ footer {
   @media (min-height: 740px) {
     .hero-title { font-size: clamp(2.4rem, 7vh, 3.6rem); }
   }
+  /* Short effective height (Safari chrome): lighten stack, pair CTAs, hide chrome */
+  @media (max-height: 820px) {
+    :root {
+      --hero-top-gap: clamp(0.35rem, 1.2vh, 0.55rem);
+      --hero-bottom-gap: clamp(0.4rem, 1.2vh, 0.58rem);
+      --hero-cluster-gap: clamp(0.38rem, 1.1vh, 0.55rem);
+    }
+    .hero-content::before { height: min(26%, 9rem); }
+    .hero-content::after { height: min(32%, 11.5rem); }
+    .hero-title { font-size: clamp(2rem, 5.8vh, 2.85rem); }
+    .hero-scroll,
+    .hero-trust { display: none !important; }
+    #hero .hero-actions {
+      flex-direction: row;
+      flex-wrap: wrap;
+      gap: 0.45rem;
+    }
+    #hero .hero-actions .btn-primary,
+    #hero .hero-actions .btn-ghost {
+      flex: 1 1 calc(50% - 0.25rem);
+      min-width: 0;
+      max-width: none;
+      width: auto;
+      padding: 0.72rem 0.65rem;
+      font-size: .56rem;
+    }
+  }
   @media (max-height: 700px) {
     :root {
       --hero-top-gap: 0.3rem;
@@ -3020,7 +3048,7 @@ footer {
     .hero-scroll span { font-size: .48rem; }
     .scroll-line { height: 20px; }
     #hero .hero-actions .btn-primary,
-    #hero .hero-actions .btn-ghost { padding: 0.72rem 1.15rem; }
+    #hero .hero-actions .btn-ghost { padding: 0.68rem 0.55rem; }
   }
 
   /* More responsive buttons on larger phones (481-768px): row layout for the bottom-anchored cluster */

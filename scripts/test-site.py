@@ -987,7 +987,7 @@ def check_html(r: Runner, rel: str, html: str) -> None:
         and 'min-height:800px' in crit_flat
         and '.hero-top{padding-top:var(--hero-top-inset)' in crit_flat.replace(' ', '')
         and '.hero-content{position:absolute;top:0;right:0;bottom:0;left:0;width:100%;max-width:none' in crit_flat.replace(' ', '')
-        and '.hero-top.hero-sub' in crit_flat.replace(' ', '')
+        and '.hero-bottom.hero-sub' in crit_flat.replace(' ', '')
         and 'background:rgba(10,22,40,.38)' in crit_flat,
     )
     r.check(
@@ -1037,7 +1037,7 @@ def check_html(r: Runner, rel: str, html: str) -> None:
         and 'opacity:0;transform:translateY(1.1rem)' in crit_flat
         and '#hero.hero-cta-group{margin-top:0' in crit_flat
         and 'gap:var(--hero-bottom-gap)' in crit_flat
-        and '.hero-top.hero-sub{margin-top:.15rem' in crit_flat.replace(' ', '')
+        and '.hero-bottom.hero-sub{margin-top:0' in crit_flat.replace(' ', '')
         and '.hero-content{position:absolute;inset:0' in crit_flat
         and 'height:100svh' in crit_flat
         and 'overflow:hidden' in crit_flat
@@ -1050,7 +1050,10 @@ def check_html(r: Runner, rel: str, html: str) -> None:
         and '<div class="hero-bottom">' in html
         and html.find('class="hero-top"') < html.find('<div class="hero-bottom">')
         and html.find('class="hero-title"') > html.find('class="hero-top"')
-        and html.find('class="hero-rates') > html.find('<div class="hero-bottom">'),
+        and html.find('class="hero-sub"') > html.find('<div class="hero-bottom">')
+        and html.find('class="hero-sub"') < html.find('class="hero-rates')
+        and 'class="hero-top">' in html.split('<div class="hero-bottom">')[0]
+        and 'class="hero-sub"' not in html.split('<div class="hero-bottom">')[0],
     )
     r.check(
         'critical CSS reserves hero child layout before main.css',
@@ -1628,6 +1631,24 @@ def check_shared_assets(r: Runner) -> None:
             'short viewports compact hero title for bottom cluster clearance',
             re.search(
                 r'@media\s*\(\s*min-width:\s*769px\s*\)\s*and\s*\(\s*max-height:\s*920px\s*\)[\s\S]*?--hero-cluster-gap',
+                css,
+            )
+            is not None,
+        )
+        r.check(
+            'mobile short height compacts hero stack (sub in bottom, hide chrome)',
+            re.search(
+                r'@media\s*\(\s*max-width:\s*768px\s*\)\s*\{[\s\S]*?\.hero-bottom\s+\.hero-sub',
+                css,
+            )
+            is not None
+            and re.search(
+                r'@media\s*\(\s*max-width:\s*768px\s*\)[\s\S]*?@media\s*\(\s*max-height:\s*820px\s*\)[\s\S]*?\.hero-scroll,\s*\.hero-trust\s*\{\s*display:\s*none',
+                css,
+            )
+            is not None
+            and re.search(
+                r'@media\s*\(\s*max-width:\s*768px\s*\)[\s\S]*?@media\s*\(\s*max-height:\s*820px\s*\)[\s\S]*?flex-direction:\s*row',
                 css,
             )
             is not None,
