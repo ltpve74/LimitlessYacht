@@ -2840,7 +2840,7 @@ footer {
     --hero-cinema-rates: clamp(0.46rem, 2.6vw, 0.6rem);
     --hero-cinema-rates-gap: clamp(0.62rem, 2.8vh, 0.92rem);
     --hero-cinema-btn-gap: clamp(0.6rem, 3vw, 0.82rem);
-    --hero-cinema-top-span: 85%;
+    --hero-cinema-top-span: min(85vw, 100%);
     --hero-cinema-btn-pad-y: clamp(0.78rem, 4vw, 1.02rem);
     --hero-cinema-btn-pad-x: clamp(0.72rem, 4.2vw, 1.05rem);
     --hero-cinema-btn-size: clamp(0.48rem, 2.9vw, 0.64rem);
@@ -2912,16 +2912,29 @@ footer {
     left: 0;
     width: 100%;
     max-width: none;
+    margin: 0;
     flex: none;
     min-height: 100%;
     display: grid;
     grid-template-rows: auto 1fr auto;
     align-items: start;
-    justify-items: stretch;
+    justify-items: center;
     height: 100%;
-    padding: 0 var(--hero-cinema-side);
+    padding:
+      0
+      max(var(--hero-cinema-side), env(safe-area-inset-right, 0px))
+      0
+      max(var(--hero-cinema-side), env(safe-area-inset-left, 0px));
     animation: none;
     overflow: hidden;
+    box-sizing: border-box;
+  }
+  .hero-content::before,
+  .hero-content::after {
+    left: 0;
+    right: 0;
+    width: auto;
+    transform: none;
   }
   .hero-content::before {
     height: min(28%, 9.5rem);
@@ -2935,33 +2948,30 @@ footer {
   .hero-bottom {
     display: flex;
     flex-direction: column;
-    align-items: center;
-    width: 100%;
+    align-items: stretch;
+    width: var(--hero-cinema-top-span);
+    max-width: 100%;
     flex-shrink: 0;
     position: relative;
     z-index: 1;
+    margin-inline: auto;
+    text-align: center;
+    box-sizing: border-box;
   }
   .hero-top {
     grid-row: 1;
     justify-self: center;
-    width: var(--hero-cinema-top-span);
-    max-width: 100%;
     padding-top: var(--hero-top-inset);
     gap: var(--hero-top-gap);
     padding-bottom: 0;
-    text-align: center;
   }
   .hero-bottom {
     grid-row: 3;
     align-self: end;
     justify-self: center;
-    align-items: center;
-    text-align: center;
     gap: var(--hero-bottom-gap);
     margin-top: 0;
     padding-bottom: var(--hero-bottom-inset);
-    width: 100%;
-    max-width: none;
   }
   .hero-value { display: none; }
   .hero-bottom .hero-sub,
@@ -2996,7 +3006,7 @@ footer {
     max-width: none;
     padding-bottom: 0;
     gap: var(--hero-bottom-gap);
-    align-items: center;
+    align-items: stretch;
   }
   #hero .hero-actions {
     margin-top: 0;
@@ -3006,7 +3016,7 @@ footer {
     align-items: stretch;
     gap: var(--hero-cinema-btn-gap);
     width: 100%;
-    padding: 0 var(--hero-cinema-actions-inset);
+    padding: 0;
     box-sizing: border-box;
   }
   #hero .hero-actions .btn-ghost {

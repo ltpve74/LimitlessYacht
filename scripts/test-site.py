@@ -1048,8 +1048,9 @@ def check_html(r: Runner, rel: str, html: str) -> None:
         and '.hero-bottom{grid-row:3;align-self:end' in crit_flat.replace(' ', '')
         and '.hero-bottom.hero-sub,.hero-scroll,.hero-trust{display:none!important}' in crit_flat.replace(' ', '')
         and '#hero.hero-actions{flex-direction:row' in crit_flat.replace(' ', '')
-        and '--h-ts:85%' in crit_flat.replace(' ', '')
-        and '.hero-top{grid-row:1;justify-self:center;width:var(--h-ts)' in crit_flat.replace(' ', '')
+        and '--h-ts:min(85vw,100%)' in crit_flat.replace(' ', '')
+        and '.hero-top,.hero-bottom{display:flex;flex-direction:column;align-items:stretch;width:var(--h-ts)' in crit_flat.replace(' ', '')
+        and '.hero-content::before,.hero-content::after{left:0;right:0;width:auto;transform:none' in crit_flat.replace(' ', '')
         and '#hero.hero-actions{flex-direction:row;justify-content:center' in crit_flat.replace(' ', '')
         and '--h-py:clamp(.78rem,4vw,1.02rem)' in crit_flat.replace(' ', '')
         and '#hero.hero-actions.btn-primary{margin-left:' not in crit_flat.replace(' ', '')
@@ -1670,8 +1671,10 @@ def check_shared_assets(r: Runner) -> None:
             )
             is not None
             and '--hero-cinema-rates-gap' in css_flat
-            and '--hero-cinema-top-span:85%' in css_flat
-            and '.hero-top{grid-row:1;justify-self:center;width:var(--hero-cinema-top-span)' in css_flat
+            and '--hero-cinema-top-span:min(85vw,100%)' in css_flat
+            and 'justify-items:center' in css_flat
+            and '.hero-content::before,.hero-content::after{left:0;right:0;width:auto;transform:none' in css_flat
+            and '.hero-top,.hero-bottom{display:flex;flex-direction:column;align-items:stretch;width:var(--hero-cinema-top-span)' in css_flat
             and '#hero.hero-actions.btn-primary{margin-left:' not in css_flat,
         )
         r.check(
