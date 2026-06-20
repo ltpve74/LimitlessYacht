@@ -229,6 +229,18 @@ def check_html(r: Runner, rel: str, html: str) -> None:
         is not None,
     )
     r.check(
+        'charter enquiry cards land on funnel anchor with tier tab switch',
+        re.search(
+            r'<section id="charters">[\s\S]*?class="enquiry-card[^"]*"[^>]*href="#itinerary-funnel"[^>]*data-charter-tier="half-day"',
+            html,
+        )
+        is not None
+        and html.count('href="#itinerary-funnel"') >= 5
+        and 'href="#half-day"' not in html.split('<section id="charters">')[1].split('</section>')[0]
+        and "tier === 'weekend' || tier === 'extended' ? 'multi-day' : tier" in html
+        and 'window._setDestTab(tabTier)' in html,
+    )
+    r.check(
         'charters mobile back-link nudges availability not destinations',
         re.search(
             r'<section id="charters">[\s\S]*?<p class="section-back-cta[^"]*">[\s\S]*?href="#availability"',
@@ -1682,6 +1694,7 @@ def check_shared_assets(r: Runner) -> None:
                 css,
             )
             is not None
+
             and re.search(
                 r'html\.ly-past-hero\s*\{[^}]*scroll-padding-top:\s*var\(--mobile-funnel-land-offset',
                 css,

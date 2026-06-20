@@ -310,8 +310,10 @@ nav{position:fixed;inset:0 0 auto;z-index:100;display:flex;align-items:center;ga
   };
   document.querySelectorAll('#charters .enquiry-card').forEach(function (card) {
     card.addEventListener('click', function () {
-      if (!window.LY_clarityEvent) return;
       var tier = card.getAttribute('data-charter-tier') || '';
+      var tabTier = tier === 'weekend' || tier === 'extended' ? 'multi-day' : tier;
+      if (window._setDestTab && tabTier) window._setDestTab(tabTier);
+      if (!window.LY_clarityEvent) return;
       window.LY_clarityEvent(cardEvents[tier] || 'ly_charter_card_click');
     });
   });
@@ -2100,7 +2102,7 @@ document.addEventListener('DOMContentLoaded', function() {
     </p>
     <div class="charters-main">
       <div class="enquiry-grid">
-        <a class="enquiry-card reveal" href="#half-day" data-charter-tier="half-day">
+        <a class="enquiry-card reveal" href="#itinerary-funnel" data-charter-tier="half-day">
           <span class="enquiry-label">4 – 6 Hours</span>
           <span class="enquiry-title">Half-Day</span>
           <span class="enquiry-price season-rates">
@@ -2110,7 +2112,7 @@ document.addEventListener('DOMContentLoaded', function() {
           <span class="enquiry-desc">A morning cruise, a sunset sail, or a 6-hour afternoon — swim stops and time on board without committing a full day.</span>
           <span class="enquiry-link">See Destinations →</span>
         </a>
-        <a class="enquiry-card reveal reveal-delay-1" href="#full-day" data-charter-tier="full-day">
+        <a class="enquiry-card reveal reveal-delay-1" href="#itinerary-funnel" data-charter-tier="full-day">
           <span class="enquiry-label">8 – 10 Hours</span>
           <span class="enquiry-title">Full Day</span>
           <span class="enquiry-price season-rates">
@@ -2120,13 +2122,13 @@ document.addEventListener('DOMContentLoaded', function() {
           <span class="enquiry-desc">Explore two or three destinations, swim in crystal-clear coves, and dine on board. The most popular way to experience the coast.</span>
           <span class="enquiry-link">See Destinations →</span>
         </a>
-        <a class="enquiry-card reveal reveal-delay-2" href="#multi-day" data-charter-tier="weekend">
+        <a class="enquiry-card reveal reveal-delay-2" href="#itinerary-funnel" data-charter-tier="weekend">
           <span class="enquiry-label">2 – 3 Days</span>
           <span class="enquiry-title">Weekend Escape</span>
           <span class="enquiry-desc">Sleep under the stars and wake in a new bay each morning. Ideal for a birthday, anniversary, or simply switching off properly.</span>
           <span class="enquiry-link">See Destinations →</span>
         </a>
-        <a class="enquiry-card reveal reveal-delay-3" href="#multi-day" data-charter-tier="extended">
+        <a class="enquiry-card reveal reveal-delay-3" href="#itinerary-funnel" data-charter-tier="extended">
           <span class="enquiry-label">4 Days +</span>
           <span class="enquiry-title">Extended Journey</span>
           <span class="enquiry-desc">Island-hop at your own pace — Formentera, Ibiza, Menorca or Mallorca's remotest coves. Your route, entirely bespoke.</span>

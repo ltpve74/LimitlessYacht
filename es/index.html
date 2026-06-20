@@ -310,8 +310,10 @@ nav{position:fixed;inset:0 0 auto;z-index:100;display:flex;align-items:center;ga
   };
   document.querySelectorAll('#charters .enquiry-card').forEach(function (card) {
     card.addEventListener('click', function () {
-      if (!window.LY_clarityEvent) return;
       var tier = card.getAttribute('data-charter-tier') || '';
+      var tabTier = tier === 'weekend' || tier === 'extended' ? 'multi-day' : tier;
+      if (window._setDestTab && tabTier) window._setDestTab(tabTier);
+      if (!window.LY_clarityEvent) return;
       window.LY_clarityEvent(cardEvents[tier] || 'ly_charter_card_click');
     });
   });
@@ -2100,7 +2102,7 @@ document.addEventListener('DOMContentLoaded', function() {
     </p>
     <div class="charters-main">
       <div class="enquiry-grid">
-        <a class="enquiry-card reveal" href="#half-day" data-charter-tier="half-day">
+        <a class="enquiry-card reveal" href="#itinerary-funnel" data-charter-tier="half-day">
           <span class="enquiry-label">4 – 6 horas</span>
           <span class="enquiry-title">Medio día</span>
           <span class="enquiry-price season-rates">
@@ -2110,7 +2112,7 @@ document.addEventListener('DOMContentLoaded', function() {
           <span class="enquiry-desc">Un paseo matutino, una salida al atardecer o una tarde de 6 horas — paradas para nadar y tiempo a bordo sin dedicar el día entero.</span>
           <span class="enquiry-link">See Destinations →</span>
         </a>
-        <a class="enquiry-card reveal reveal-delay-1" href="#full-day" data-charter-tier="full-day">
+        <a class="enquiry-card reveal reveal-delay-1" href="#itinerary-funnel" data-charter-tier="full-day">
           <span class="enquiry-label">8 – 10 horas</span>
           <span class="enquiry-title">Día completo</span>
           <span class="enquiry-price season-rates">
@@ -2120,13 +2122,13 @@ document.addEventListener('DOMContentLoaded', function() {
           <span class="enquiry-desc">Explore dos o tres destinos, nade en calas de aguas cristalinas y cene a bordo. La forma más popular de disfrutar de la costa.</span>
           <span class="enquiry-link">See Destinations →</span>
         </a>
-        <a class="enquiry-card reveal reveal-delay-2" href="#multi-day" data-charter-tier="weekend">
+        <a class="enquiry-card reveal reveal-delay-2" href="#itinerary-funnel" data-charter-tier="weekend">
           <span class="enquiry-label">2 – 3 días</span>
           <span class="enquiry-title">Escapada de fin de semana</span>
           <span class="enquiry-desc">Duerma bajo las estrellas y despierte en una bahía diferente cada mañana. Ideal para un cumpleaños, aniversario o simplemente para desconectar de verdad.</span>
           <span class="enquiry-link">See Destinations →</span>
         </a>
-        <a class="enquiry-card reveal reveal-delay-3" href="#multi-day" data-charter-tier="extended">
+        <a class="enquiry-card reveal reveal-delay-3" href="#itinerary-funnel" data-charter-tier="extended">
           <span class="enquiry-label">4 días +</span>
           <span class="enquiry-title">Viaje prolongado</span>
           <span class="enquiry-desc">Isla a isla a su propio ritmo — Formentera, Ibiza, Menorca o las calas más remotas de Mallorca. Su ruta, enteramente a medida.</span>

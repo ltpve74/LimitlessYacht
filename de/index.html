@@ -310,8 +310,10 @@ nav{position:fixed;inset:0 0 auto;z-index:100;display:flex;align-items:center;ga
   };
   document.querySelectorAll('#charters .enquiry-card').forEach(function (card) {
     card.addEventListener('click', function () {
-      if (!window.LY_clarityEvent) return;
       var tier = card.getAttribute('data-charter-tier') || '';
+      var tabTier = tier === 'weekend' || tier === 'extended' ? 'multi-day' : tier;
+      if (window._setDestTab && tabTier) window._setDestTab(tabTier);
+      if (!window.LY_clarityEvent) return;
       window.LY_clarityEvent(cardEvents[tier] || 'ly_charter_card_click');
     });
   });
@@ -2100,7 +2102,7 @@ document.addEventListener('DOMContentLoaded', function() {
     </p>
     <div class="charters-main">
       <div class="enquiry-grid">
-        <a class="enquiry-card reveal" href="#half-day" data-charter-tier="half-day">
+        <a class="enquiry-card reveal" href="#itinerary-funnel" data-charter-tier="half-day">
           <span class="enquiry-label">4 – 6 Stunden</span>
           <span class="enquiry-title">Halbtags</span>
           <span class="enquiry-price season-rates">
@@ -2110,7 +2112,7 @@ document.addEventListener('DOMContentLoaded', function() {
           <span class="enquiry-desc">Eine Morgenfahrt, ein Sonnenuntergangs-Törn oder ein 6-Stunden-Nachmittag — Schwimmstopps und Zeit an Bord, ohne einen ganzen Tag zu planen.</span>
           <span class="enquiry-link">See Destinations →</span>
         </a>
-        <a class="enquiry-card reveal reveal-delay-1" href="#full-day" data-charter-tier="full-day">
+        <a class="enquiry-card reveal reveal-delay-1" href="#itinerary-funnel" data-charter-tier="full-day">
           <span class="enquiry-label">8 – 10 Stunden</span>
           <span class="enquiry-title">Ganztags</span>
           <span class="enquiry-price season-rates">
@@ -2120,13 +2122,13 @@ document.addEventListener('DOMContentLoaded', function() {
           <span class="enquiry-desc">Erkunden Sie zwei oder drei Ziele, schwimmen Sie in kristallklaren Buchten und speisen Sie an Bord. Die beliebteste Art, die Küste zu erleben.</span>
           <span class="enquiry-link">See Destinations →</span>
         </a>
-        <a class="enquiry-card reveal reveal-delay-2" href="#multi-day" data-charter-tier="weekend">
+        <a class="enquiry-card reveal reveal-delay-2" href="#itinerary-funnel" data-charter-tier="weekend">
           <span class="enquiry-label">2 – 3 Tage</span>
           <span class="enquiry-title">Wochenend-Auszeit</span>
           <span class="enquiry-desc">Schlafen Sie unter dem Sternenhimmel und wachen Sie jeden Morgen in einer neuen Bucht auf. Ideal für einen Geburtstag, Jahrestag oder um wirklich abzuschalten.</span>
           <span class="enquiry-link">See Destinations →</span>
         </a>
-        <a class="enquiry-card reveal reveal-delay-3" href="#multi-day" data-charter-tier="extended">
+        <a class="enquiry-card reveal reveal-delay-3" href="#itinerary-funnel" data-charter-tier="extended">
           <span class="enquiry-label">4 Tage +</span>
           <span class="enquiry-title">Ausgedehnte Reise</span>
           <span class="enquiry-desc">Auf eigene Faust durch die Inseln — Formentera, Ibiza, Menorca oder Mallorcas entlegenste Buchten. Ihre Route, ganz nach Wunsch.</span>
