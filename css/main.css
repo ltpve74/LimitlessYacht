@@ -2840,10 +2840,11 @@ footer {
     --hero-cinema-rates: clamp(0.46rem, 2.6vw, 0.6rem);
     --hero-cinema-rates-gap: clamp(0.62rem, 2.8vh, 0.92rem);
     --hero-cinema-btn-gap: clamp(0.6rem, 3vw, 0.82rem);
-    --hero-cinema-btn-pad-y: clamp(0.7rem, 3.5vw, 0.9rem);
-    --hero-cinema-btn-pad-x: clamp(0.58rem, 3.6vw, 0.82rem);
+    --hero-cinema-top-span: 85%;
+    --hero-cinema-btn-pad-y: clamp(0.78rem, 4vw, 1.02rem);
+    --hero-cinema-btn-pad-x: clamp(0.72rem, 4.2vw, 1.05rem);
     --hero-cinema-btn-size: clamp(0.48rem, 2.9vw, 0.64rem);
-    --hero-cinema-actions-inset: clamp(0.34rem, 2vw, 0.65rem);
+    --hero-cinema-actions-inset: clamp(0.42rem, 2.4vw, 0.75rem);
   }
   html { scroll-padding-top: 0; }
   html.ly-past-hero { scroll-padding-top: 4.9rem; }
@@ -2942,13 +2943,20 @@ footer {
   }
   .hero-top {
     grid-row: 1;
+    justify-self: center;
+    width: var(--hero-cinema-top-span);
+    max-width: 100%;
     padding-top: var(--hero-top-inset);
     gap: var(--hero-top-gap);
     padding-bottom: 0;
+    text-align: center;
   }
   .hero-bottom {
     grid-row: 3;
     align-self: end;
+    justify-self: center;
+    align-items: center;
+    text-align: center;
     gap: var(--hero-bottom-gap);
     margin-top: 0;
     padding-bottom: var(--hero-bottom-inset);
@@ -2976,10 +2984,11 @@ footer {
     width: 100%;
     font-size: var(--hero-cinema-rates);
     line-height: 1.4;
-    padding: 0.32rem 0.46rem;
+    padding: 0.36rem 0.52rem;
     background: rgba(10, 22, 40, 0.48);
     border-radius: 3px;
     letter-spacing: 0.03em;
+    text-align: center;
   }
   .hero-cta-group {
     margin-top: var(--hero-cinema-rates-gap);
@@ -2987,13 +2996,18 @@ footer {
     max-width: none;
     padding-bottom: 0;
     gap: var(--hero-bottom-gap);
+    align-items: center;
   }
   #hero .hero-actions {
     margin-top: 0;
     flex-direction: row;
     flex-wrap: nowrap;
+    justify-content: center;
+    align-items: stretch;
     gap: var(--hero-cinema-btn-gap);
+    width: 100%;
     padding: 0 var(--hero-cinema-actions-inset);
+    box-sizing: border-box;
   }
   #hero .hero-actions .btn-ghost {
     background: rgba(10, 22, 40, 0.52);
@@ -3009,10 +3023,6 @@ footer {
     font-size: var(--hero-cinema-btn-size);
     letter-spacing: 0.1em;
   }
-  #hero .hero-actions .btn-primary {
-    margin-left: clamp(0.14rem, 1vw, 0.32rem);
-  }
-
   /* Micro height: tighten tokens without changing layout model */
   @media (max-height: 520px) {
     :root {

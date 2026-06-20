@@ -1048,7 +1048,11 @@ def check_html(r: Runner, rel: str, html: str) -> None:
         and '.hero-bottom{grid-row:3;align-self:end' in crit_flat.replace(' ', '')
         and '.hero-bottom.hero-sub,.hero-scroll,.hero-trust{display:none!important}' in crit_flat.replace(' ', '')
         and '#hero.hero-actions{flex-direction:row' in crit_flat.replace(' ', '')
-        and '#hero.hero-actions.btn-primary{margin-left:clamp(.14rem' in crit_flat.replace(' ', '')
+        and '--h-ts:85%' in crit_flat.replace(' ', '')
+        and '.hero-top{grid-row:1;justify-self:center;width:var(--h-ts)' in crit_flat.replace(' ', '')
+        and '#hero.hero-actions{flex-direction:row;justify-content:center' in crit_flat.replace(' ', '')
+        and '--h-py:clamp(.78rem,4vw,1.02rem)' in crit_flat.replace(' ', '')
+        and '#hero.hero-actions.btn-primary{margin-left:' not in crit_flat.replace(' ', '')
         and '.hero-content{position:absolute;inset:0' in crit_flat
         and 'height:100svh' in crit_flat
         and 'overflow:hidden' in crit_flat
@@ -1605,7 +1609,7 @@ def check_shared_assets(r: Runner) -> None:
             )
             is not None
             and re.search(
-                r'@media\s*\(\s*max-width:\s*768px\s*\)[\s\S]*?nav\s*\{[^}]*display:\s*none\s*!important',
+                r'@media\s*\(\s*max-width:\s*768px\s*\)[\s\S]*?nav\s*\{[^}]*opacity:\s*0[^}]*visibility:\s*hidden',
                 css,
             )
             is not None
@@ -1665,7 +1669,10 @@ def check_shared_assets(r: Runner) -> None:
                 css,
             )
             is not None
-            and '--hero-cinema-rates-gap' in css_flat,
+            and '--hero-cinema-rates-gap' in css_flat
+            and '--hero-cinema-top-span:85%' in css_flat
+            and '.hero-top{grid-row:1;justify-self:center;width:var(--hero-cinema-top-span)' in css_flat
+            and '#hero.hero-actions.btn-primary{margin-left:' not in css_flat,
         )
         r.check(
             'micro mobile hero tightens cinema tokens without overflow',
