@@ -244,6 +244,8 @@ def check_html(r: Runner, rel: str, html: str) -> None:
         and 'extended: 9' in html
         and "hash === 'itinerary-funnel'" in html.split('function checkHash')[1][:400]
         and "e.target.closest('#charters .enquiry-card')" in html
+        and "href === '#itinerary-funnel'" in html.split("e.target.closest('#charters .enquiry-card')")[1][:1200]
+        and 'funnel.scrollIntoView({ block: \'start\' })' in html
         and re.search(
             r'data-charter-tier="extended"[^>]*href="#itinerary-funnel"|href="#itinerary-funnel"[^>]*data-charter-tier="extended"',
             html.split('<section id="charters">')[1].split('</section>')[0],
@@ -756,7 +758,9 @@ def check_html(r: Runner, rel: str, html: str) -> None:
         and "matchMedia('(max-width: 768px)')" in html
         and 'window.scrollY > 56' in html
         and 'window.scrollY <= 56' in html
-        and "classList.add('ly-past-hero')" in html,
+        and "classList.add('ly-past-hero')" in html
+        and 'lyHashLocked() && root.classList.contains' in html
+        and "destId === 'itinerary-funnel' || destId === 'gallery-funnel'" in html,
     )
     r.check(
         'nav scroll section highlighting script',
