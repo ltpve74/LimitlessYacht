@@ -1214,8 +1214,10 @@ def check_html(r: Runner, rel: str, html: str) -> None:
     )
     r.check(
         'hero CTA mobile links keep section anchors',
-        'href="#itinerary" class="btn-primary hero-cta-link--mobile"' in html
-        and 'href="#gallery" class="btn-ghost hero-cta-link--mobile"' in html,
+        'href="#itinerary-funnel" class="btn-primary hero-cta-link--mobile"' in html
+        and 'href="#gallery-funnel" class="btn-ghost hero-cta-link--mobile"' in html
+        and 'id="itinerary-funnel"' in html
+        and 'id="gallery-funnel"' in html,
     )
     r.check(
         'critical CSS defines hero bottom cluster gaps',
@@ -1674,8 +1676,14 @@ def check_shared_assets(r: Runner) -> None:
             )
             is not None
             and '--hero-cinema-rates-gap' in css_flat
+            and '--mobile-funnel-land-offset:5.45rem' in css_flat
             and re.search(
-                r'html\.ly-hero-cinema:not\(\.ly-past-hero\)\s*#itinerary[\s\S]*?scroll-margin-top:\s*4\.9rem',
+                r'html\.ly-hero-cinema:not\(\.ly-past-hero\)\s*#itinerary-funnel[\s\S]*?scroll-margin-top:\s*var\(--mobile-funnel-land-offset\)',
+                css,
+            )
+            is not None
+            and re.search(
+                r'html\.ly-past-hero\s*\{[^}]*scroll-padding-top:\s*var\(--mobile-funnel-land-offset',
                 css,
             )
             is not None

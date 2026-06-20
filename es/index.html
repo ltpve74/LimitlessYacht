@@ -4,7 +4,7 @@
 <meta charset="UTF-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1.0" />
 <style id="fouc-guard">html{background:#0a1628;color-scheme:dark}a,a:any-link{color:#f5f0e8!important;text-decoration:none!important;-webkit-text-fill-color:currentColor!important}html:not(.ly-main-ready) body>:not(nav):not(#hero){display:none!important}</style>
-<script>window.LY_MAIN_CSS_HREF='../css/main.css?v=127';</script>
+<script>window.LY_MAIN_CSS_HREF='../css/main.css?v=128';</script>
 <script src="../js/net-tier.js"></script>
 <script src="js/progressive-images.js"></script>
 
@@ -94,7 +94,7 @@ nav{position:fixed;inset:0 0 auto;z-index:100;display:flex;align-items:center;ga
 </script>
 <script>
 (function () {
-  var href = window.LY_MAIN_CSS_HREF || '../css/main.css?v=127';
+  var href = window.LY_MAIN_CSS_HREF || '../css/main.css?v=128';
   function lyMainReady() {
     requestAnimationFrame(function () {
       requestAnimationFrame(function () {
@@ -115,7 +115,7 @@ nav{position:fixed;inset:0 0 auto;z-index:100;display:flex;align-items:center;ga
   document.head.appendChild(link);
 })();
 </script>
-<noscript><link rel="stylesheet" href="../css/main.css?v=127" /></noscript>
+<noscript><link rel="stylesheet" href="../css/main.css?v=128" /></noscript>
 
 <title>Limitless Yacht Experience – Charter de lujo Maiora en Mallorca</title>
 <meta name="description" content="Alquile el Maiora de 21,5 m «Limitless» desde Palma de Mallorca — chárteres de día y de varios días a las calas de Mallorca, Cabrera y Formentera. Con tripulación, hasta 12 invitados." />
@@ -200,8 +200,8 @@ nav{position:fixed;inset:0 0 auto;z-index:100;display:flex;align-items:center;ga
   <button type="button" class="mobile-nav-close" id="mobileClose" aria-label="Cerrar menú">✕</button>
   <a href="#enquire-form" class="mobile-nav-cta" onclick="closeMobile()">Solicitar presupuesto</a>
   <a href="#about" onclick="closeMobile()">Sobre nosotros</a>
-  <a href="#itinerary" onclick="closeMobile()">Destinos</a>
-  <a href="#gallery" onclick="closeMobile()">Galería</a>
+  <a href="#itinerary-funnel" onclick="closeMobile()">Destinos</a>
+  <a href="#gallery-funnel" onclick="closeMobile()">Galería</a>
   <a href="#charters" onclick="closeMobile()">Chárteres</a>
   <a href="#avail-cal" onclick="closeMobile()">Disponibilidad</a>
   <a href="#reviews" onclick="closeMobile()">Reseñas</a>
@@ -255,9 +255,9 @@ nav{position:fixed;inset:0 0 auto;z-index:100;display:flex;align-items:center;ga
     <div class="hero-cta-group">
       <p class="hero-value">Su tripulación se encarga de todo: usted se centra en la compañía y las vistas.</p>
       <div class="hero-actions">
-        <a href="#itinerary" class="btn-primary hero-cta-link--mobile">Explorar destinos</a>
+        <a href="#itinerary-funnel" class="btn-primary hero-cta-link--mobile">Explorar destinos</a>
         <a href="#itinerary-land" class="btn-primary hero-cta-link--desktop" style="display:none">Explorar destinos</a>
-        <a href="#gallery" class="btn-ghost hero-cta-link--mobile">Conoce el yate</a>
+        <a href="#gallery-funnel" class="btn-ghost hero-cta-link--mobile">Conoce el yate</a>
         <a href="#gallery-land" class="btn-ghost hero-cta-link--desktop" style="display:none">Conoce el yate</a>
       </div>
       <p class="hero-trust"><a href="#reviews">Verified reviews on Click&amp;Boat</a> · Tripulacióned &amp;&nbsp;fully equipped</p>
@@ -1459,6 +1459,7 @@ document.addEventListener('DOMContentLoaded', function() {
     <p class="itinerary-intro reveal reveal-delay-2">Cada ruta se adapta a su grupo: las sugerencias siguientes son solo un punto de partida. Su tripulación se encarga del resto.</p>
   </div>
   <div class="itinerary-wrap">
+    <span id="itinerary-funnel" style="display:block;height:0;overflow:hidden" aria-hidden="true"></span>
     <div class="dest-tabs reveal reveal-delay-2" role="tablist" aria-label="Duración del charter">
       <button class="dest-tab" role="tab" data-tier="half-day" id="half-day" aria-selected="true">
         Medio día<span class="tab-period">4 – 6 horas</span>
@@ -1941,6 +1942,7 @@ document.addEventListener('DOMContentLoaded', function() {
     <p class="section-intro reveal reveal-delay-2">Explore la vida a bordo de Limitless — en el agua, en cubierta y en los camarotes. Pulse cualquier foto para verla a tamaño completo.</p>
   </div>
   <div class="gallery-wrap">
+    <span id="gallery-funnel" style="display:block;height:0;overflow:hidden" aria-hidden="true"></span>
     <div class="gallery-tabs" role="tablist" aria-label="Categoría de galería">
       <button class="gallery-tab tab--active" role="tab" data-gtab="water">En el agua</button>
       <button class="gallery-tab" role="tab" data-gtab="deck">Vida en cubierta</button>

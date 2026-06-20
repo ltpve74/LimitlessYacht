@@ -4,7 +4,7 @@
 <meta charset="UTF-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1.0" />
 <style id="fouc-guard">html{background:#0a1628;color-scheme:dark}a,a:any-link{color:#f5f0e8!important;text-decoration:none!important;-webkit-text-fill-color:currentColor!important}html:not(.ly-main-ready) body>:not(nav):not(#hero){display:none!important}</style>
-<script>window.LY_MAIN_CSS_HREF='css/main.css?v=127';</script>
+<script>window.LY_MAIN_CSS_HREF='css/main.css?v=128';</script>
 <script src="js/net-tier.js"></script>
 <script src="js/progressive-images.js"></script>
 
@@ -94,7 +94,7 @@ nav{position:fixed;inset:0 0 auto;z-index:100;display:flex;align-items:center;ga
 </script>
 <script>
 (function () {
-  var href = window.LY_MAIN_CSS_HREF || 'css/main.css?v=127';
+  var href = window.LY_MAIN_CSS_HREF || 'css/main.css?v=128';
   function lyMainReady() {
     requestAnimationFrame(function () {
       requestAnimationFrame(function () {
@@ -115,7 +115,7 @@ nav{position:fixed;inset:0 0 auto;z-index:100;display:flex;align-items:center;ga
   document.head.appendChild(link);
 })();
 </script>
-<noscript><link rel="stylesheet" href="css/main.css?v=127" /></noscript>
+<noscript><link rel="stylesheet" href="css/main.css?v=128" /></noscript>
 
 <title>Limitless Yacht Experience – Luxury Maiora Charter in Mallorca</title>
 <meta name="description" content="Charter the 21.5 m Maiora 'Limitless' from Palma de Mallorca — day and multi-day cruises to Mallorca's finest coves, Cabrera and Formentera. Crewed, up to 12 guests." />
@@ -200,8 +200,8 @@ nav{position:fixed;inset:0 0 auto;z-index:100;display:flex;align-items:center;ga
   <button type="button" class="mobile-nav-close" id="mobileClose" aria-label="Close menu">✕</button>
   <a href="#enquire-form" class="mobile-nav-cta" onclick="closeMobile()">Get Quote</a>
   <a href="#about" onclick="closeMobile()">About</a>
-  <a href="#itinerary" onclick="closeMobile()">Destinations</a>
-  <a href="#gallery" onclick="closeMobile()">Gallery</a>
+  <a href="#itinerary-funnel" onclick="closeMobile()">Destinations</a>
+  <a href="#gallery-funnel" onclick="closeMobile()">Gallery</a>
   <a href="#charters" onclick="closeMobile()">Charters</a>
   <a href="#avail-cal" onclick="closeMobile()">Availability</a>
   <a href="#reviews" onclick="closeMobile()">Reviews</a>
@@ -255,9 +255,9 @@ nav{position:fixed;inset:0 0 auto;z-index:100;display:flex;align-items:center;ga
     <div class="hero-cta-group">
       <p class="hero-value">Your crew handles everything — you focus on the people and&nbsp;the views.</p>
       <div class="hero-actions">
-        <a href="#itinerary" class="btn-primary hero-cta-link--mobile">Explore Destinations</a>
+        <a href="#itinerary-funnel" class="btn-primary hero-cta-link--mobile">Explore Destinations</a>
         <a href="#itinerary-land" class="btn-primary hero-cta-link--desktop" style="display:none">Explore Destinations</a>
-        <a href="#gallery" class="btn-ghost hero-cta-link--mobile">Meet The Yacht</a>
+        <a href="#gallery-funnel" class="btn-ghost hero-cta-link--mobile">Meet The Yacht</a>
         <a href="#gallery-land" class="btn-ghost hero-cta-link--desktop" style="display:none">Meet The Yacht</a>
       </div>
       <p class="hero-trust"><a href="#reviews">Verified reviews on Click&amp;Boat</a> · Crewed &amp;&nbsp;fully equipped</p>
@@ -1459,6 +1459,7 @@ document.addEventListener('DOMContentLoaded', function() {
     <p class="itinerary-intro reveal reveal-delay-2">Every route is shaped around your group — the suggestions below are a starting point. Your crew handles the rest.</p>
   </div>
   <div class="itinerary-wrap">
+    <span id="itinerary-funnel" style="display:block;height:0;overflow:hidden" aria-hidden="true"></span>
     <div class="dest-tabs reveal reveal-delay-2" role="tablist" aria-label="Charter duration">
       <button class="dest-tab" role="tab" data-tier="half-day" id="half-day" aria-selected="true">
         Half-Day<span class="tab-period">4 – 6 hours</span>
@@ -1941,6 +1942,7 @@ document.addEventListener('DOMContentLoaded', function() {
     <p class="section-intro reveal reveal-delay-2">Explore life aboard Limitless — on the water, on deck, and in the cabins below. Tap any photo to view it full size.</p>
   </div>
   <div class="gallery-wrap">
+    <span id="gallery-funnel" style="display:block;height:0;overflow:hidden" aria-hidden="true"></span>
     <div class="gallery-tabs" role="tablist" aria-label="Gallery category">
       <button class="gallery-tab tab--active" role="tab" data-gtab="water">On the Water</button>
       <button class="gallery-tab" role="tab" data-gtab="deck">Deck Life</button>

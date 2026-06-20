@@ -2441,10 +2441,15 @@ footer {
 }
 /* Mobile + tablet immersive funnel (destinations → gallery → calendar) */
 @media (max-width: 768px) {
-  /* Hero CTAs jump while cinema scroll-padding is 0 — clear nav until ly-past-hero applies */
+  :root {
+    --mobile-funnel-land-offset: 5.45rem;
+  }
+  /* Funnel entry anchors sit at the tab row — extra clearance shows full carousel nav */
+  html.ly-hero-cinema:not(.ly-past-hero) #itinerary-funnel,
+  html.ly-hero-cinema:not(.ly-past-hero) #gallery-funnel,
   html.ly-hero-cinema:not(.ly-past-hero) #itinerary,
   html.ly-hero-cinema:not(.ly-past-hero) #gallery {
-    scroll-margin-top: 4.9rem;
+    scroll-margin-top: var(--mobile-funnel-land-offset);
   }
   #gallery, #itinerary {
     padding-top: 0;
@@ -2852,7 +2857,7 @@ footer {
     --hero-cinema-actions-inset: clamp(0.42rem, 2.4vw, 0.75rem);
   }
   html { scroll-padding-top: 0; }
-  html.ly-past-hero { scroll-padding-top: 4.9rem; }
+  html.ly-past-hero { scroll-padding-top: var(--mobile-funnel-land-offset, 5.45rem); }
   nav {
     display: flex !important;
     opacity: 0;
@@ -3053,10 +3058,13 @@ footer {
       --hero-cinema-title: clamp(1.75rem, 9.5vw, 2.2rem);
       --hero-cinema-actions-inset: clamp(0.22rem, 1.4vw, 0.45rem);
     }
-    html.ly-past-hero { scroll-padding-top: 3.3rem; }
+    :root { --mobile-funnel-land-offset: 3.85rem; }
+    html.ly-past-hero { scroll-padding-top: var(--mobile-funnel-land-offset); }
+    html.ly-hero-cinema:not(.ly-past-hero) #itinerary-funnel,
+    html.ly-hero-cinema:not(.ly-past-hero) #gallery-funnel,
     html.ly-hero-cinema:not(.ly-past-hero) #itinerary,
     html.ly-hero-cinema:not(.ly-past-hero) #gallery {
-      scroll-margin-top: 3.3rem;
+      scroll-margin-top: var(--mobile-funnel-land-offset);
     }
     html.ly-past-hero nav {
       min-height: 2.7rem;
