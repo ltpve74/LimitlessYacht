@@ -507,6 +507,7 @@ def check_html(r: Runner, rel: str, html: str) -> None:
         and 'LY_applyPictureSrc' in net_tier_js
         and 'ly-prog-critical' in net_tier_js
         and '.ly-prog-wrap--hero' in net_tier_js
+        and 'ly-prog-wrap--hero{position:absolute;inset:0;overflow:hidden;background:transparent}' in net_tier_js.replace(' ', '')
         and 'object-position:52% 40%' in net_tier_js
         and '.hamburger{display:flex!important}' in net_tier_js
         and 'max-height:520px' in net_tier_js
@@ -977,7 +978,7 @@ def check_html(r: Runner, rel: str, html: str) -> None:
         and 'display:flex' in crit_flat
         and 'max-height:520px' in crit_flat
         and '.hamburger{display:flex!important}' in crit_flat
-        and '.hero-top{position:relative' in crit_flat,
+        and '.hero-top{grid-row:1' in crit_flat.replace(' ', ''),
     )
     r.check(
         'critical CSS locks mobile hero to full viewport before main.css',
@@ -1648,12 +1649,12 @@ def check_shared_assets(r: Runner) -> None:
             )
             is not None
             and re.search(
-                r'@media\s*\(\s*max-width:\s*768px\s*\)[\s\S]*?@media\s*\(\s*max-height:\s*820px\s*\)[\s\S]*?\.hero-scroll,\s*\.hero-trust\s*\{\s*display:\s*none',
+                r'@media\s*\(\s*max-width:\s*768px\s*\)[\s\S]*?@media\s*\(\s*min-height:\s*521px\s*\)\s*and\s*\(\s*max-height:\s*820px\s*\)[\s\S]*?\.hero-scroll,\s*\.hero-trust\s*\{\s*display:\s*none',
                 css,
             )
             is not None
             and re.search(
-                r'@media\s*\(\s*max-width:\s*768px\s*\)[\s\S]*?@media\s*\(\s*max-height:\s*820px\s*\)[\s\S]*?flex-direction:\s*row',
+                r'@media\s*\(\s*max-width:\s*768px\s*\)[\s\S]*?@media\s*\(\s*min-height:\s*521px\s*\)\s*and\s*\(\s*max-height:\s*820px\s*\)[\s\S]*?flex-direction:\s*row',
                 css,
             )
             is not None,
@@ -1682,7 +1683,7 @@ def check_shared_assets(r: Runner) -> None:
             )
             is not None
             and re.search(
-                r'@media\s*\(\s*max-width:\s*768px\s*\)[\s\S]*?@media\s*\(\s*max-height:\s*520px\s*\)[\s\S]*?\.hero-top\s*\{[^}]*position:\s*relative',
+                r'@media\s*\(\s*max-width:\s*768px\s*\)[\s\S]*?@media\s*\(\s*max-height:\s*520px\s*\)[\s\S]*?\.hero-top\s*\{[^}]*grid-row:\s*1',
                 css,
             )
             is not None
