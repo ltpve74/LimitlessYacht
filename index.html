@@ -4,7 +4,7 @@
 <meta charset="UTF-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1.0" />
 <style id="fouc-guard">html{background:#0a1628;color-scheme:dark}a,a:any-link{color:#f5f0e8!important;text-decoration:none!important;-webkit-text-fill-color:currentColor!important}html:not(.ly-main-ready) body>:not(nav):not(#hero){display:none!important}</style>
-<script>window.LY_MAIN_CSS_HREF='css/main.css?v=126';</script>
+<script>window.LY_MAIN_CSS_HREF='css/main.css?v=127';</script>
 <script src="js/net-tier.js"></script>
 <script src="js/progressive-images.js"></script>
 
@@ -94,7 +94,7 @@ nav{position:fixed;inset:0 0 auto;z-index:100;display:flex;align-items:center;ga
 </script>
 <script>
 (function () {
-  var href = window.LY_MAIN_CSS_HREF || 'css/main.css?v=126';
+  var href = window.LY_MAIN_CSS_HREF || 'css/main.css?v=127';
   function lyMainReady() {
     requestAnimationFrame(function () {
       requestAnimationFrame(function () {
@@ -115,7 +115,7 @@ nav{position:fixed;inset:0 0 auto;z-index:100;display:flex;align-items:center;ga
   document.head.appendChild(link);
 })();
 </script>
-<noscript><link rel="stylesheet" href="css/main.css?v=126" /></noscript>
+<noscript><link rel="stylesheet" href="css/main.css?v=127" /></noscript>
 
 <title>Limitless Yacht Experience – Luxury Maiora Charter in Mallorca</title>
 <meta name="description" content="Charter the 21.5 m Maiora 'Limitless' from Palma de Mallorca — day and multi-day cruises to Mallorca's finest coves, Cabrera and Formentera. Crewed, up to 12 guests." />
@@ -2587,6 +2587,10 @@ document.addEventListener('DOMContentLoaded', function() {
       var href = link.getAttribute('href');
       if (!href || href === '#') return;
       window.LY_hashLockUntil = Date.now() + 1000;
+      /* Cinema hero keeps scroll-padding at 0 — enable nav clearance before native jump */
+      if (_cinemaMq.matches && window.scrollY <= 56) {
+        document.documentElement.classList.add('ly-past-hero');
+      }
     }, true);
     function onNavJumpClick(el) {
       if (window.innerWidth <= 768) return;

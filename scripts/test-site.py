@@ -732,7 +732,9 @@ def check_html(r: Runner, rel: str, html: str) -> None:
         and 'ly-past-hero' in html
         and 'ly-hero-cinema' in html
         and "matchMedia('(max-width: 768px)')" in html
-        and 'window.scrollY > 56' in html,
+        and 'window.scrollY > 56' in html
+        and 'window.scrollY <= 56' in html
+        and "classList.add('ly-past-hero')" in html,
     )
     r.check(
         'nav scroll section highlighting script',
@@ -1672,6 +1674,11 @@ def check_shared_assets(r: Runner) -> None:
             )
             is not None
             and '--hero-cinema-rates-gap' in css_flat
+            and re.search(
+                r'html\.ly-hero-cinema:not\(\.ly-past-hero\)\s*#itinerary[\s\S]*?scroll-margin-top:\s*4\.9rem',
+                css,
+            )
+            is not None
             and '--hero-cinema-top-span:min(85vw,100%)' in css_flat
             and 'justify-items:center' in css_flat
             and '.hero-content::before,.hero-content::after{left:0;right:0;width:auto;transform:none' in css_flat

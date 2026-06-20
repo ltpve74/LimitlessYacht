@@ -2441,6 +2441,11 @@ footer {
 }
 /* Mobile + tablet immersive funnel (destinations → gallery → calendar) */
 @media (max-width: 768px) {
+  /* Hero CTAs jump while cinema scroll-padding is 0 — clear nav until ly-past-hero applies */
+  html.ly-hero-cinema:not(.ly-past-hero) #itinerary,
+  html.ly-hero-cinema:not(.ly-past-hero) #gallery {
+    scroll-margin-top: 4.9rem;
+  }
   #gallery, #itinerary {
     padding-top: 0;
     padding-bottom: 0;
@@ -3049,6 +3054,10 @@ footer {
       --hero-cinema-actions-inset: clamp(0.22rem, 1.4vw, 0.45rem);
     }
     html.ly-past-hero { scroll-padding-top: 3.3rem; }
+    html.ly-hero-cinema:not(.ly-past-hero) #itinerary,
+    html.ly-hero-cinema:not(.ly-past-hero) #gallery {
+      scroll-margin-top: 3.3rem;
+    }
     html.ly-past-hero nav {
       min-height: 2.7rem;
       padding: 0.48rem 0.68rem;
