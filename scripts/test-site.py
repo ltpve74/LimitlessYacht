@@ -1052,7 +1052,8 @@ def check_html(r: Runner, rel: str, html: str) -> None:
         and '.hero-top,.hero-bottom{display:flex;flex-direction:column;align-items:stretch;width:var(--h-ts)' in crit_flat.replace(' ', '')
         and '.hero-content::before,.hero-content::after{left:0;right:0;width:auto;transform:none' in crit_flat.replace(' ', '')
         and '#hero.hero-actions{flex-direction:row;justify-content:center' in crit_flat.replace(' ', '')
-        and '--h-py:clamp(.78rem,4vw,1.02rem)' in crit_flat.replace(' ', '')
+        and '--h-py:clamp(.95rem,5vw,1.18rem)' in crit_flat.replace(' ', '')
+        and 'min-height:2.85rem' in crit_flat.replace(' ', '')
         and '#hero.hero-actions.btn-primary{margin-left:' not in crit_flat.replace(' ', '')
         and '.hero-content{position:absolute;inset:0' in crit_flat
         and 'height:100svh' in crit_flat
@@ -2042,16 +2043,17 @@ def check_shared_assets(r: Runner) -> None:
         and "_gt.crossOrigin='anonymous'" in legal_html,
     )
     r.check(
-        'hero phone button sizing scoped to hero only',
+        'hero cinema CTA buttons use generous scoped padding on mobile',
         css is not None
+        and '--hero-cinema-btn-pad-y:clamp(0.95rem,5vw,1.18rem)' in re.sub(r'\s+', '', css)
         and re.search(
-            r'#hero \.hero-actions \.btn-primary[^}]*max-width:\s*170px',
+            r'@media\s*\(\s*max-width:\s*768px\s*\)[\s\S]*?#hero\s+\.hero-actions\s+\.btn-primary[^}]*min-height:\s*2\.85rem',
             css,
-        ) is not None
+        )
+        is not None
         and not re.search(
-            r'@media \(min-width: 481px\)[^{]*\{[^}]*^\s*\.btn-primary\s*,',
+            r'#hero\s+\.hero-actions\s+\.btn-primary[^}]*max-width:\s*170px',
             css,
-            re.DOTALL | re.MULTILINE,
         ),
     )
     r.check(

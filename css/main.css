@@ -2839,11 +2839,11 @@ footer {
     --hero-cinema-eyebrow: clamp(0.52rem, 2.9vw, 0.64rem);
     --hero-cinema-rates: clamp(0.46rem, 2.6vw, 0.6rem);
     --hero-cinema-rates-gap: clamp(0.62rem, 2.8vh, 0.92rem);
-    --hero-cinema-btn-gap: clamp(0.6rem, 3vw, 0.82rem);
+    --hero-cinema-btn-gap: clamp(0.65rem, 3.2vw, 0.9rem);
     --hero-cinema-top-span: min(85vw, 100%);
-    --hero-cinema-btn-pad-y: clamp(0.78rem, 4vw, 1.02rem);
-    --hero-cinema-btn-pad-x: clamp(0.72rem, 4.2vw, 1.05rem);
-    --hero-cinema-btn-size: clamp(0.48rem, 2.9vw, 0.64rem);
+    --hero-cinema-btn-pad-y: clamp(0.95rem, 5vw, 1.18rem);
+    --hero-cinema-btn-pad-x: clamp(0.62rem, 3.4vw, 0.92rem);
+    --hero-cinema-btn-size: clamp(0.5rem, 2.75vw, 0.6rem);
     --hero-cinema-actions-inset: clamp(0.42rem, 2.4vw, 0.75rem);
   }
   html { scroll-padding-top: 0; }
@@ -3019,19 +3019,25 @@ footer {
     padding: 0;
     box-sizing: border-box;
   }
-  #hero .hero-actions .btn-ghost {
-    background: rgba(10, 22, 40, 0.52);
-    border-color: rgba(245, 240, 232, 0.62);
-  }
   #hero .hero-actions .btn-primary,
   #hero .hero-actions .btn-ghost {
     flex: 1 1 0;
     min-width: 0;
     max-width: none;
     width: auto;
+    min-height: 2.85rem;
     padding: var(--hero-cinema-btn-pad-y) var(--hero-cinema-btn-pad-x);
     font-size: var(--hero-cinema-btn-size);
-    letter-spacing: 0.1em;
+    letter-spacing: 0.07em;
+    line-height: 1.22;
+    white-space: normal;
+    text-wrap: balance;
+    hyphens: none;
+  }
+  #hero .hero-actions .btn-ghost {
+    color: var(--cream);
+    background: rgba(10, 22, 40, 0.52);
+    border-color: rgba(245, 240, 232, 0.62);
   }
   /* Micro height: tighten tokens without changing layout model */
   @media (max-height: 520px) {
@@ -3051,24 +3057,6 @@ footer {
     .hero-content::after { height: min(44%, 12rem); }
   }
 
-  /* More responsive buttons on larger phones (481-768px): row layout for the bottom-anchored cluster */
-  @media (min-width: 481px) {
-    #hero .hero-actions {
-      flex-direction: row;
-      flex-wrap: wrap;
-      align-items: center;
-      justify-content: center;
-      gap: 0.5rem;
-    }
-    #hero .hero-actions .btn-primary,
-    #hero .hero-actions .btn-ghost {
-      width: auto;
-      max-width: 170px;
-      font-size: .58rem;
-      padding: 0.7rem 1rem;
-      flex: 1 1 140px;
-    }
-  }
 }
 /* Hero trust cue */
 .eyebrow-stars { color: var(--gold); letter-spacing: .1em; }
