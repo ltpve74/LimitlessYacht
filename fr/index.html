@@ -308,15 +308,20 @@ nav{position:fixed;inset:0 0 auto;z-index:100;display:flex;align-items:center;ga
     'weekend': 'ly_charter_card_weekend',
     'extended': 'ly_charter_card_extended'
   };
-  document.querySelectorAll('#charters .enquiry-card').forEach(function (card) {
-    card.addEventListener('click', function () {
-      var tier = card.getAttribute('data-charter-tier') || '';
-      var tabTier = tier === 'weekend' || tier === 'extended' ? 'multi-day' : tier;
-      if (window._setDestTab && tabTier) window._setDestTab(tabTier);
-      if (!window.LY_clarityEvent) return;
+  document.addEventListener('click', function (e) {
+    var card = e.target.closest && e.target.closest('#charters .enquiry-card');
+    if (!card) return;
+    var tier = card.getAttribute('data-charter-tier') || '';
+    var tabTier = tier === 'weekend' || tier === 'extended' ? 'multi-day' : tier;
+    if (tabTier) {
+      try { sessionStorage.setItem('ly_funnel_tier', tabTier); } catch (err) {}
+      if (window._setDestTab) window._setDestTab(tabTier);
+      else window.LY_pendingDestTier = tabTier;
+    }
+    if (window.LY_clarityEvent) {
       window.LY_clarityEvent(cardEvents[tier] || 'ly_charter_card_click');
-    });
-  });
+    }
+  }, true);
 })();
 </script>
 
@@ -1846,12 +1851,25 @@ document.addEventListener('DOMContentLoaded', function() {
   setDestTab('half-day');
   window._setDestTab = setDestTab;
 
+  function applyFunnelTierFromStorage() {
+    var tabTier = window.LY_pendingDestTier;
+    if (!tabTier) {
+      try { tabTier = sessionStorage.getItem('ly_funnel_tier'); } catch (e) {}
+    }
+    if (!tabTier) return;
+    setDestTab(tabTier);
+    window.LY_pendingDestTier = null;
+    try { sessionStorage.removeItem('ly_funnel_tier'); } catch (e) {}
+  }
   function checkHash() {
     var hash = (window.location.hash || '').replace('#', '');
     if (hash === 'half-day' || hash === 'full-day' || hash === 'multi-day') {
       setDestTab(hash);
+      return;
     }
+    if (hash === 'itinerary-funnel') applyFunnelTierFromStorage();
   }
+  if (window.LY_pendingDestTier) applyFunnelTierFromStorage();
   checkHash();
   window.addEventListener('hashchange', checkHash);
 
