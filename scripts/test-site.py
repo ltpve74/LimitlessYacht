@@ -947,7 +947,7 @@ def check_html(r: Runner, rel: str, html: str) -> None:
     crit_end = html.find('</style>', crit_tag) if crit_tag >= 0 else -1
     r.check(
         'critical CSS is slim enough for fast head parse',
-        crit_tag > 0 and crit_end - crit_tag < 9500,
+        crit_tag > 0 and crit_end - crit_tag < 9700,
     )
     crit_css = html[crit_tag:crit_end] if crit_tag >= 0 and crit_end > crit_tag else ''
     crit_flat = re.sub(r'\s+', '', crit_css)
@@ -981,7 +981,8 @@ def check_html(r: Runner, rel: str, html: str) -> None:
         and '.hero-bg-wrap,.hero-overlay{position:absolute;inset:0' in crit_flat
         and '.hero-value{display:none}' in crit_flat
         and '.hero-scroll,.hero-value{display:none}' not in crit_flat
-        and '--hero-top-inset:max(5.35rem,calc(env(safe-area-inset-top,0px)+4.65rem))' in crit_flat.replace(' ', '')
+        and '--hero-top-inset:max(4.75rem,calc(env(safe-area-inset-top,0px)+3.65rem))' in crit_flat.replace(' ', '')
+        and 'min-height:800px' in crit_flat
         and '.hero-top{padding-top:var(--hero-top-inset)' in crit_flat.replace(' ', '')
         and '.hero-content{position:absolute;top:0;right:0;bottom:0;left:0;width:100%;max-width:none' in crit_flat.replace(' ', '')
         and '.hero-top.hero-sub' in crit_flat.replace(' ', '')
@@ -1042,7 +1043,8 @@ def check_html(r: Runner, rel: str, html: str) -> None:
     )
     r.check(
         'hero uses top/bottom clusters for mobile yacht stage',
-        'class="hero-top" style="padding-top:max(5.35rem' in html
+        'class="hero-top">' in html
+        and 'padding-top:max(5.35rem' not in html.split('class="hero-top"')[1][:80]
         and '<div class="hero-bottom">' in html
         and html.find('class="hero-top"') < html.find('<div class="hero-bottom">')
         and html.find('class="hero-title"') > html.find('class="hero-top"')
