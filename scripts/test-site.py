@@ -2525,6 +2525,21 @@ def check_shared_assets(r: Runner) -> None:
         is not None,
     )
     r.check(
+        'buttons share unified fill and ghost colour tokens',
+        css is not None
+        and '--btn-fill: var(--gold)' in css
+        and '--btn-ghost-border:' in css
+        and '--btn-ghost-text: var(--cream)' in css
+        and '.btn-primary {' in css
+        and 'background: var(--btn-fill)' in css
+        and '.btn-ghost {' in css
+        and 'border: 1px solid var(--btn-ghost-border)' in css
+        and '.nav-cta {' in css
+        and 'color: var(--btn-ghost-text)' in css.split('.nav-cta {')[1].split('}')[0]
+        and '.mobile-nav-cta {' in css
+        and '.cookie-btn-ghost {' in css,
+    )
+    r.check(
         'desktop nav landing keeps labels and uses nav scroll offset',
         css is not None
         and '--nav-scroll-offset' in css
