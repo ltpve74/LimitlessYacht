@@ -3049,7 +3049,7 @@ footer {
     #hero .hero-actions .btn-primary,
     #hero .hero-actions .btn-ghost { padding: 0.68rem 0.55rem; }
   }
-  /* Micro viewports (iPhone 4 / 320×480): pin clusters, keep a fixed yacht stage */
+  /* Micro viewports (iPhone 4 / 320×480): compact flex clusters, no absolute pin */
   @media (max-height: 520px) {
     :root {
       --hero-top-inset: max(2.55rem, calc(env(safe-area-inset-top, 0px) + 1.9rem));
@@ -3075,8 +3075,8 @@ footer {
         var(--navy);
     }
     .hero-content {
-      display: block;
-      padding: 0;
+      justify-content: space-between;
+      padding: 0 0.7rem;
       min-height: 100%;
     }
     .hero-content::before {
@@ -3088,20 +3088,15 @@ footer {
       background: linear-gradient(0deg, rgba(10, 22, 40, 0.94) 0%, rgba(10, 22, 40, 0.42) 55%, transparent 100%);
     }
     .hero-top {
-      position: absolute;
-      top: var(--hero-top-inset);
-      left: 0.7rem;
-      right: 0.7rem;
-      width: auto;
-      padding-top: 0;
+      position: relative;
+      padding-top: var(--hero-top-inset);
+      width: 100%;
     }
     .hero-bottom {
-      position: absolute;
-      bottom: var(--hero-bottom-inset);
-      left: 0.7rem;
-      right: 0.7rem;
-      margin-top: 0;
-      width: auto;
+      position: relative;
+      margin-top: auto;
+      padding-bottom: var(--hero-bottom-inset);
+      width: 100%;
       max-width: none;
     }
     .hero-eyebrow {

@@ -511,7 +511,6 @@ def check_html(r: Runner, rel: str, html: str) -> None:
         and '.hamburger{display:flex!important}' in net_tier_js
         and 'max-height:520px' in net_tier_js
         and 'blur(4px)' in net_tier_js
-        and '.hero-top{position:absolute' in net_tier_js
         and '.nav-logo span{display:none}' in net_tier_js
         and 'LY_progressiveWrapForUrl' in html
         and re.search(
@@ -978,7 +977,7 @@ def check_html(r: Runner, rel: str, html: str) -> None:
         and 'display:flex' in crit_flat
         and 'max-height:520px' in crit_flat
         and '.hamburger{display:flex!important}' in crit_flat
-        and '.hero-top{position:absolute' in crit_flat,
+        and '.hero-top{position:relative' in crit_flat,
     )
     r.check(
         'critical CSS locks mobile hero to full viewport before main.css',
@@ -1683,7 +1682,7 @@ def check_shared_assets(r: Runner) -> None:
             )
             is not None
             and re.search(
-                r'@media\s*\(\s*max-width:\s*768px\s*\)[\s\S]*?@media\s*\(\s*max-height:\s*520px\s*\)[\s\S]*?\.hero-top\s*\{[^}]*position:\s*absolute',
+                r'@media\s*\(\s*max-width:\s*768px\s*\)[\s\S]*?@media\s*\(\s*max-height:\s*520px\s*\)[\s\S]*?\.hero-top\s*\{[^}]*position:\s*relative',
                 css,
             )
             is not None
