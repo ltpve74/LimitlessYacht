@@ -510,7 +510,7 @@ def check_html(r: Runner, rel: str, html: str) -> None:
         and 'ly-prog-wrap--hero{position:absolute;inset:0;overflow:hidden;background:transparent}' in net_tier_js.replace(' ', '')
         and 'object-position:52% 40%' in net_tier_js
         and 'max-height:520px' in net_tier_js
-        and 'nav{display:none!important}' in net_tier_js.replace(' ', '')
+        and 'nav{opacity:0;visibility:hidden;pointer-events:none}' in net_tier_js.replace(' ', '')
         and 'blur(4px)' in net_tier_js
         and 'LY_progressiveWrapForUrl' in html
         and re.search(
@@ -983,8 +983,9 @@ def check_html(r: Runner, rel: str, html: str) -> None:
         and 'position:fixed' in crit_flat
         and 'nav{' in crit_flat
         and 'display:flex' in crit_flat
-        and 'nav{display:none!important}' in crit_flat
-        and '--h-t:clamp(2rem' in crit_flat.replace(' ', '')
+        and 'nav{opacity:0;visibility:hidden;pointer-events:none}' in crit_flat
+        and '--h-t:clamp(2.2rem' in crit_flat.replace(' ', '')
+        and '--h-rg:clamp(.62rem' in crit_flat.replace(' ', '')
         and '.hero-top{grid-row:1' in crit_flat.replace(' ', ''),
     )
     r.check(
@@ -1655,10 +1656,16 @@ def check_shared_assets(r: Runner) -> None:
             )
             is not None
             and re.search(
-                r'@media\s*\(\s*max-width:\s*768px\s*\)[\s\S]*?html\.ly-past-hero\s+nav\s*\{[^}]*display:\s*flex',
+                r'@media\s*\(\s*max-width:\s*768px\s*\)[\s\S]*?nav\s*\{[^}]*opacity:\s*0[^}]*visibility:\s*hidden',
                 css,
             )
-            is not None,
+            is not None
+            and re.search(
+                r'@media\s*\(\s*max-width:\s*768px\s*\)[\s\S]*?html\.ly-past-hero\s+nav\s*\{[^}]*opacity:\s*1',
+                css,
+            )
+            is not None
+            and '--hero-cinema-rates-gap' in css_flat,
         )
         r.check(
             'micro mobile hero tightens cinema tokens without overflow',
@@ -1679,7 +1686,12 @@ def check_shared_assets(r: Runner) -> None:
             )
             is not None
             and '--hero-cinema-side' in css_flat
-            and '--hero-cinema-actions-inset' in css_flat,
+            and '--hero-cinema-actions-inset' in css_flat
+            and re.search(
+                r'@media\s*\(\s*max-width:\s*768px\s*\)[\s\S]*?html\.ly-past-hero\s+nav\s*\{[^}]*transition:[^}]*opacity',
+                css,
+            )
+            is not None,
         )
         r.check(
             'hero eyebrow toggles mobile vs desktop anchor targets',

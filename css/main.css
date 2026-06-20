@@ -2835,22 +2835,40 @@ footer {
     --hero-bottom-gap: clamp(0.45rem, 2vh, 0.65rem);
     --hero-cluster-gap: clamp(0.45rem, 2vh, 0.65rem);
     --hero-bottom-inset: max(1.25rem, calc(env(safe-area-inset-bottom, 0px) + 1rem));
-    --hero-cinema-title: clamp(2rem, 11vw, 3rem);
-    --hero-cinema-eyebrow: clamp(0.48rem, 2.6vw, 0.58rem);
-    --hero-cinema-rates: clamp(0.44rem, 2.5vw, 0.58rem);
-    --hero-cinema-btn-gap: clamp(0.55rem, 2.8vw, 0.75rem);
-    --hero-cinema-btn-pad-y: clamp(0.62rem, 3vw, 0.78rem);
-    --hero-cinema-btn-pad-x: clamp(0.5rem, 3.2vw, 0.72rem);
-    --hero-cinema-btn-size: clamp(0.44rem, 2.5vw, 0.58rem);
-    --hero-cinema-actions-inset: clamp(0.3rem, 1.8vw, 0.6rem);
+    --hero-cinema-title: clamp(2.2rem, 12vw, 3.35rem);
+    --hero-cinema-eyebrow: clamp(0.52rem, 2.9vw, 0.64rem);
+    --hero-cinema-rates: clamp(0.46rem, 2.6vw, 0.6rem);
+    --hero-cinema-rates-gap: clamp(0.62rem, 2.8vh, 0.92rem);
+    --hero-cinema-btn-gap: clamp(0.6rem, 3vw, 0.82rem);
+    --hero-cinema-btn-pad-y: clamp(0.7rem, 3.5vw, 0.9rem);
+    --hero-cinema-btn-pad-x: clamp(0.58rem, 3.6vw, 0.82rem);
+    --hero-cinema-btn-size: clamp(0.48rem, 2.9vw, 0.64rem);
+    --hero-cinema-actions-inset: clamp(0.34rem, 2vw, 0.65rem);
   }
   html { scroll-padding-top: 0; }
   html.ly-past-hero { scroll-padding-top: 4.9rem; }
-  nav { display: none !important; }
-  html.ly-past-hero nav {
+  nav {
     display: flex !important;
+    opacity: 0;
+    visibility: hidden;
+    pointer-events: none;
+    transform: translateY(-0.65rem);
+    transition:
+      opacity 0.45s ease,
+      transform 0.45s cubic-bezier(0.22, 0.9, 0.3, 1),
+      visibility 0s linear 0.45s;
+  }
+  html.ly-past-hero nav {
+    opacity: 1;
+    visibility: visible;
+    pointer-events: auto;
+    transform: translateY(0);
     min-height: 3.8rem;
     padding: 0.85rem 1rem;
+    transition:
+      opacity 0.45s ease,
+      transform 0.45s cubic-bezier(0.22, 0.9, 0.3, 1),
+      visibility 0s;
   }
   #hero {
     height: 100svh;
@@ -2964,7 +2982,7 @@ footer {
     letter-spacing: 0.03em;
   }
   .hero-cta-group {
-    margin-top: 0;
+    margin-top: var(--hero-cinema-rates-gap);
     width: 100%;
     max-width: none;
     padding-bottom: 0;
