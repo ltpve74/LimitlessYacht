@@ -727,11 +727,12 @@ def check_html(r: Runner, rel: str, html: str) -> None:
         and 'class="nav-lang"' not in html,
     )
     r.check(
-        'cinema hero restores nav after scroll on micro viewports',
+        'cinema hero restores nav after scroll on mobile viewports',
         'updateHeroCinema' in html
         and 'ly-past-hero' in html
         and 'ly-hero-cinema' in html
-        and 'max-height: 520px' in html,
+        and "matchMedia('(max-width: 768px)')" in html
+        and 'window.scrollY > 56' in html,
     )
     r.check(
         'nav scroll section highlighting script',
@@ -982,9 +983,8 @@ def check_html(r: Runner, rel: str, html: str) -> None:
         and 'position:fixed' in crit_flat
         and 'nav{' in crit_flat
         and 'display:flex' in crit_flat
-        and 'max-height:520px' in crit_flat
         and 'nav{display:none!important}' in crit_flat
-        and '--h-t:clamp(1.65rem' in crit_flat.replace(' ', '')
+        and '--h-t:clamp(2rem' in crit_flat.replace(' ', '')
         and '.hero-top{grid-row:1' in crit_flat.replace(' ', ''),
     )
     r.check(
@@ -994,12 +994,13 @@ def check_html(r: Runner, rel: str, html: str) -> None:
         and '.hero-bg-wrap,.hero-overlay{position:absolute;inset:0' in crit_flat
         and '.hero-value{display:none}' in crit_flat
         and '.hero-scroll,.hero-value{display:none}' not in crit_flat
-        and '--hero-top-inset:max(4.25rem,calc(env(safe-area-inset-top,0px)+3.15rem))' in crit_flat.replace(' ', '')
-        and '--hero-bottom-inset:max(1.5rem,calc(env(safe-area-inset-bottom,0px)+1.15rem))' in crit_flat.replace(' ', '')
-        and 'min(30%,10.5rem)' in crit_flat.replace(' ', '')
-        and 'max-height:520px' in crit_flat
-        and '.hero-top{padding-top:var(--hero-top-inset)' in crit_flat.replace(' ', '')
-        and '.hero-content{position:absolute;top:0;right:0;bottom:0;left:0;width:100%;max-width:none' in crit_flat.replace(' ', '')
+        and '--hero-top-inset:max(1.05rem,calc(env(safe-area-inset-top,0px)+.8rem))' in crit_flat.replace(' ', '')
+        and '--hero-bottom-inset:max(1.25rem,calc(env(safe-area-inset-bottom,0px)+1rem))' in crit_flat.replace(' ', '')
+        and 'min(28%,9.5rem)' in crit_flat.replace(' ', '')
+        and 'padding-top:var(--hero-top-inset)' in crit_flat.replace(' ', '')
+        and '.hero-top{grid-row:1' in crit_flat.replace(' ', '')
+        and '.hero-content{position:absolute;inset:0' in crit_flat.replace(' ', '')
+        and 'display:grid;grid-template-rows:auto1frauto' in crit_flat.replace(' ', '')
         and '.hero-bottom.hero-sub' in crit_flat.replace(' ', ''),
     )
     r.check(
@@ -1040,15 +1041,13 @@ def check_html(r: Runner, rel: str, html: str) -> None:
         and '.hero-rates[hidden]{display:none!important}' in crit_flat.replace(' ', ''),
     )
     r.check(
-        'critical CSS matches mobile hero flex layout',
-        'display:flex' in crit_flat
-        and 'justify-content:space-between' in crit_flat
+        'critical CSS matches mobile cinema hero grid layout',
+        'display:grid;grid-template-rows:auto1frauto' in crit_flat.replace(' ', '')
         and '.hero-top,.hero-bottom{display:flex' in crit_flat
-        and '.hero-bottom{gap:var(--hero-bottom-gap)' in crit_flat
-        and '.hero-scroll{display:flex;opacity:0' in crit_flat.replace(' ', '')
-        and '#hero.hero-cta-group{margin-top:0' in crit_flat
-        and 'gap:var(--hero-bottom-gap)' in crit_flat
-        and '.hero-bottom.hero-sub{margin-top:0' in crit_flat.replace(' ', '')
+        and '.hero-bottom{grid-row:3;align-self:end' in crit_flat.replace(' ', '')
+        and '.hero-bottom.hero-sub,.hero-scroll,.hero-trust{display:none!important}' in crit_flat.replace(' ', '')
+        and '#hero.hero-actions{flex-direction:row' in crit_flat.replace(' ', '')
+        and '#hero.hero-actions.btn-primary{margin-left:clamp(.14rem' in crit_flat.replace(' ', '')
         and '.hero-content{position:absolute;inset:0' in crit_flat
         and 'height:100svh' in crit_flat
         and 'overflow:hidden' in crit_flat
@@ -1593,19 +1592,19 @@ def check_shared_assets(r: Runner) -> None:
         r.check('main.css defines .hero-bg-wrap', '.hero-bg-wrap' in css)
         r.check('main.css defines heroTitleIn', 'heroTitleIn' in css)
         r.check(
-            'main.css locks mobile hero to full viewport with scroll cue',
+            'main.css locks mobile cinema hero to full viewport grid',
             re.search(
                 r'@media\s*\(\s*max-width:\s*768px\s*\)[\s\S]*?#hero\s*\{[^}]*height:\s*100svh[^}]*overflow:\s*hidden',
                 css,
             )
             is not None
             and re.search(
-                r'@media\s*\(\s*max-width:\s*768px\s*\)[\s\S]*?\.hero-content\s*\{[^}]*justify-content:\s*space-between',
+                r'@media\s*\(\s*max-width:\s*768px\s*\)[\s\S]*?\.hero-content\s*\{[^}]*display:\s*grid[^}]*grid-template-rows:\s*auto\s+1fr\s+auto',
                 css,
             )
             is not None
             and re.search(
-                r'@media\s*\(\s*max-width:\s*768px\s*\)[\s\S]*?\.hero-scroll\s*\{[^}]*display:\s*flex',
+                r'@media\s*\(\s*max-width:\s*768px\s*\)[\s\S]*?nav\s*\{[^}]*display:\s*none\s*!important',
                 css,
             )
             is not None
@@ -1614,9 +1613,6 @@ def check_shared_assets(r: Runner) -> None:
                 css,
             )
             is not None
-            and 'scrollReveal' in css
-            and 'scrollBob' in css
-            and 'scrollLineRise' not in css
             and re.search(
                 r'@media\s*\(\s*max-width:\s*768px\s*\)[\s\S]*?\.hero-top,\s*\.hero-bottom',
                 css,
@@ -1647,25 +1643,25 @@ def check_shared_assets(r: Runner) -> None:
             is not None,
         )
         r.check(
-            'mobile short height compacts hero stack (sub in bottom, hide chrome)',
+            'mobile cinema hero hides chrome and pairs CTAs',
             re.search(
-                r'@media\s*\(\s*max-width:\s*768px\s*\)\s*\{[\s\S]*?\.hero-bottom\s+\.hero-sub',
+                r'@media\s*\(\s*max-width:\s*768px\s*\)[\s\S]*?\.hero-bottom\s+\.hero-sub,\s*\.hero-scroll,\s*\.hero-trust\s*\{\s*display:\s*none',
                 css,
             )
             is not None
             and re.search(
-                r'@media\s*\(\s*max-width:\s*768px\s*\)[\s\S]*?@media\s*\(\s*min-height:\s*521px\s*\)\s*and\s*\(\s*max-height:\s*820px\s*\)[\s\S]*?\.hero-scroll,\s*\.hero-trust\s*\{\s*display:\s*none',
+                r'@media\s*\(\s*max-width:\s*768px\s*\)[\s\S]*?#hero\s+\.hero-actions\s*\{[^}]*flex-direction:\s*row',
                 css,
             )
             is not None
             and re.search(
-                r'@media\s*\(\s*max-width:\s*768px\s*\)[\s\S]*?@media\s*\(\s*min-height:\s*521px\s*\)\s*and\s*\(\s*max-height:\s*820px\s*\)[\s\S]*?flex-direction:\s*row',
+                r'@media\s*\(\s*max-width:\s*768px\s*\)[\s\S]*?html\.ly-past-hero\s+nav\s*\{[^}]*display:\s*flex',
                 css,
             )
             is not None,
         )
         r.check(
-            'micro mobile hero fits iPhone 4 height without overflow',
+            'micro mobile hero tightens cinema tokens without overflow',
             'min-height: 520px' not in re.sub(
                 r'/\*[\s\S]*?\*/',
                 '',
@@ -1678,26 +1674,12 @@ def check_shared_assets(r: Runner) -> None:
                 ) else '',
             )
             and re.search(
-                r'@media\s*\(\s*max-width:\s*768px\s*\)[\s\S]*?@media\s*\(\s*max-height:\s*520px\s*\)[\s\S]*?\.hero-bottom\s+\.hero-sub\s*\{\s*display:\s*none',
+                r'@media\s*\(\s*max-width:\s*768px\s*\)[\s\S]*?@media\s*\(\s*max-height:\s*520px\s*\)[\s\S]*?--hero-cinema-title:',
                 css,
             )
             is not None
-            and re.search(
-                r'@media\s*\(\s*max-width:\s*768px\s*\)[\s\S]*?@media\s*\(\s*max-height:\s*520px\s*\)[\s\S]*?\.hero-scroll,\s*\.hero-trust\s*\{\s*display:\s*none',
-                css,
-            )
-            is not None
-            and re.search(
-                r'@media\s*\(\s*max-width:\s*768px\s*\)[\s\S]*?@media\s*\(\s*max-height:\s*520px\s*\)[\s\S]*?\.hero-top\s*\{[^}]*grid-row:\s*1',
-                css,
-            )
-            is not None
-            and re.search(
-                r'@media\s*\(\s*max-width:\s*768px\s*\)[\s\S]*?@media\s*\(\s*max-height:\s*520px\s*\)[\s\S]*?nav\s*\{[^}]*display:\s*none',
-                css,
-            )
-            is not None
-            and '--hero-cinema-side' in css_flat,
+            and '--hero-cinema-side' in css_flat
+            and '--hero-cinema-actions-inset' in css_flat,
         )
         r.check(
             'hero eyebrow toggles mobile vs desktop anchor targets',

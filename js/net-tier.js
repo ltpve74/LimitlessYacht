@@ -114,8 +114,6 @@
       'html[data-ly-net="slow"] .ly-prog-wrap--hero.ly-prog-sharp-ready.ly-prog-sharp-visible .hero-bg.ly-prog-sharp{',
       'transform:none;animation:none;filter:brightness(1.04) saturate(1.06)}',
       '}',
-      '@media(max-width:768px) and (max-height:520px){',
-      'html[data-ly-net="slow"] .ly-prog-wrap--hero .ly-prog-preview{filter:blur(4px) saturate(1.04) brightness(.95)}',
       'html[data-ly-net="slow"] nav{display:none!important}',
       'html[data-ly-net="slow"].ly-past-hero nav{display:flex!important}',
       'html[data-ly-net="slow"] .hero-content{display:grid;grid-template-rows:auto 1fr auto;height:100%}',
@@ -124,6 +122,8 @@
       'html[data-ly-net="slow"] .hero-trust,html[data-ly-net="slow"] .hero-scroll{display:none!important}',
       'html[data-ly-net="slow"] .hero-bottom .hero-sub{display:none}',
       'html[data-ly-net="slow"] #hero .hero-actions{flex-direction:row}',
+      '@media(max-width:768px) and (max-height:520px){',
+      'html[data-ly-net="slow"] .ly-prog-wrap--hero .ly-prog-preview{filter:blur(4px) saturate(1.04) brightness(.95)}',
       '}',
     ].join('');
     d.head.appendChild(progCrit);
