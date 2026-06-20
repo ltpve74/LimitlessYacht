@@ -509,10 +509,9 @@ def check_html(r: Runner, rel: str, html: str) -> None:
         and '.ly-prog-wrap--hero' in net_tier_js
         and 'ly-prog-wrap--hero{position:absolute;inset:0;overflow:hidden;background:transparent}' in net_tier_js.replace(' ', '')
         and 'object-position:52% 40%' in net_tier_js
-        and '.hamburger{display:flex!important}' in net_tier_js
         and 'max-height:520px' in net_tier_js
+        and 'nav{display:none!important}' in net_tier_js.replace(' ', '')
         and 'blur(4px)' in net_tier_js
-        and '.nav-logo span{display:none}' in net_tier_js
         and 'LY_progressiveWrapForUrl' in html
         and re.search(
             r'ly-prog-sharp-visible[\s\S]{0,280}scheduleHeroGate',
@@ -726,6 +725,13 @@ def check_html(r: Runner, rel: str, html: str) -> None:
         and 'id="navLangPopover"' in html
         and 'class="nav-lang-popover"' in html
         and 'class="nav-lang"' not in html,
+    )
+    r.check(
+        'cinema hero restores nav after scroll on micro viewports',
+        'updateHeroCinema' in html
+        and 'ly-past-hero' in html
+        and 'ly-hero-cinema' in html
+        and 'max-height: 520px' in html,
     )
     r.check(
         'nav scroll section highlighting script',
@@ -977,7 +983,8 @@ def check_html(r: Runner, rel: str, html: str) -> None:
         and 'nav{' in crit_flat
         and 'display:flex' in crit_flat
         and 'max-height:520px' in crit_flat
-        and '.hamburger{display:flex!important}' in crit_flat
+        and 'nav{display:none!important}' in crit_flat
+        and '--h-t:clamp(1.65rem' in crit_flat.replace(' ', '')
         and '.hero-top{grid-row:1' in crit_flat.replace(' ', ''),
     )
     r.check(
@@ -993,8 +1000,7 @@ def check_html(r: Runner, rel: str, html: str) -> None:
         and 'max-height:520px' in crit_flat
         and '.hero-top{padding-top:var(--hero-top-inset)' in crit_flat.replace(' ', '')
         and '.hero-content{position:absolute;top:0;right:0;bottom:0;left:0;width:100%;max-width:none' in crit_flat.replace(' ', '')
-        and '.hero-bottom.hero-sub' in crit_flat.replace(' ', '')
-        and 'background:rgba(10,22,40,.38)' in crit_flat,
+        and '.hero-bottom.hero-sub' in crit_flat.replace(' ', ''),
     )
     r.check(
         'main.css load adds ly-main-ready after sheet paints (no early timeout)',
@@ -1039,8 +1045,7 @@ def check_html(r: Runner, rel: str, html: str) -> None:
         and 'justify-content:space-between' in crit_flat
         and '.hero-top,.hero-bottom{display:flex' in crit_flat
         and '.hero-bottom{gap:var(--hero-bottom-gap)' in crit_flat
-        and '.hero-scroll{display:flex;flex-direction:column' in crit_flat
-        and 'opacity:0;transform:translateY(1.1rem)' in crit_flat
+        and '.hero-scroll{display:flex;opacity:0' in crit_flat.replace(' ', '')
         and '#hero.hero-cta-group{margin-top:0' in crit_flat
         and 'gap:var(--hero-bottom-gap)' in crit_flat
         and '.hero-bottom.hero-sub{margin-top:0' in crit_flat.replace(' ', '')
@@ -1688,10 +1693,11 @@ def check_shared_assets(r: Runner) -> None:
             )
             is not None
             and re.search(
-                r'@media\s*\(\s*max-width:\s*768px\s*\)[\s\S]*?@media\s*\(\s*max-height:\s*520px\s*\)[\s\S]*?\.nav-logo\s+span\s*\{\s*display:\s*none',
+                r'@media\s*\(\s*max-width:\s*768px\s*\)[\s\S]*?@media\s*\(\s*max-height:\s*520px\s*\)[\s\S]*?nav\s*\{[^}]*display:\s*none',
                 css,
             )
-            is not None,
+            is not None
+            and '--hero-cinema-side' in css_flat,
         )
         r.check(
             'hero eyebrow toggles mobile vs desktop anchor targets',
