@@ -87,7 +87,7 @@
     var progCrit = d.createElement('style');
     progCrit.id = 'ly-prog-critical';
     progCrit.textContent = [
-      'html[data-ly-net="slow"] #hero{background:#0a1628}',
+      'html[data-ly-net="slow"] #hero{background:radial-gradient(ellipse 92% 48% at 50% 38%,rgba(18,52,88,.42),transparent 72%),#0a1628}',
       'html[data-ly-net="slow"] .ly-prog-wrap--hero{position:absolute;inset:0;overflow:hidden;background:#0a1628}',
       'html[data-ly-net="slow"] .ly-prog-wrap--hero .hero-bg-wrap{position:absolute;inset:0;display:block;width:100%;height:100%;overflow:hidden}',
       'html[data-ly-net="slow"] .ly-prog-wrap--hero .ly-prog-preview,',
@@ -116,12 +116,17 @@
       '}',
       '@media(max-width:768px) and (max-height:520px){',
       'html[data-ly-net="slow"] .ly-prog-wrap--hero .ly-prog-preview{filter:blur(4px) saturate(1.04) brightness(.95)}',
-      'html[data-ly-net="slow"] nav{min-height:3rem;padding:.55rem .75rem}',
-      'html[data-ly-net="slow"] .nav-logo{font-size:.68rem;letter-spacing:.1em}',
+      'html[data-ly-net="slow"] nav{min-height:2.75rem;padding:.5rem .7rem}',
+      'html[data-ly-net="slow"] .nav-logo{font-size:.66rem;letter-spacing:.1em}',
+      'html[data-ly-net="slow"] .nav-logo span{display:none}',
+      'html[data-ly-net="slow"] .hamburger{display:flex!important}',
+      'html[data-ly-net="slow"] .hero-content{display:block}',
+      'html[data-ly-net="slow"] .hero-top{position:absolute;top:var(--hero-top-inset);left:.7rem;right:.7rem;width:auto;padding-top:0}',
+      'html[data-ly-net="slow"] .hero-bottom{position:absolute;bottom:var(--hero-bottom-inset);left:.7rem;right:.7rem;margin-top:0;width:auto;max-width:none}',
       'html[data-ly-net="slow"] .hero-trust,html[data-ly-net="slow"] .hero-scroll{display:none!important}',
       'html[data-ly-net="slow"] .hero-bottom .hero-sub{display:none}',
-      'html[data-ly-net="slow"] #hero .hero-actions{flex-direction:row;gap:.35rem}',
-      'html[data-ly-net="slow"] #hero .hero-actions :is(.btn-primary,.btn-ghost){flex:1;min-width:0;padding:.58rem .35rem;font-size:.46rem}',
+      'html[data-ly-net="slow"] #hero .hero-actions{flex-direction:row;gap:.32rem}',
+      'html[data-ly-net="slow"] #hero .hero-actions :is(.btn-primary,.btn-ghost){flex:1;min-width:0;padding:.54rem .3rem;font-size:.44rem}',
       '}',
     ].join('');
     d.head.appendChild(progCrit);
