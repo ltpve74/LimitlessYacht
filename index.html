@@ -2642,8 +2642,12 @@ document.addEventListener('DOMContentLoaded', function() {
         return;
       }
       root.classList.add('ly-hero-cinema');
+      if (window.scrollY <= 56) {
+        root.classList.remove('ly-past-hero');
+        return;
+      }
       if (lyHashLocked() && root.classList.contains('ly-past-hero')) return;
-      root.classList.toggle('ly-past-hero', window.scrollY > 56);
+      root.classList.add('ly-past-hero');
     }
     window.addEventListener('scroll', function() {
       if (!_navTick) {
@@ -2666,7 +2670,9 @@ document.addEventListener('DOMContentLoaded', function() {
       /* Cinema hero: enable nav clearance before funnel jumps and from hero */
       if (_cinemaMq.matches) {
         var destId = href.slice(1);
-        if (window.scrollY <= 56 || destId === 'itinerary-funnel' || destId === 'gallery-funnel') {
+        if (destId === 'hero') {
+          document.documentElement.classList.remove('ly-past-hero');
+        } else if (window.scrollY <= 56 || destId === 'itinerary-funnel' || destId === 'gallery-funnel') {
           document.documentElement.classList.add('ly-past-hero');
         }
       }

@@ -757,10 +757,12 @@ def check_html(r: Runner, rel: str, html: str) -> None:
         and 'ly-past-hero' in html
         and 'ly-hero-cinema' in html
         and "matchMedia('(max-width: 768px)')" in html
-        and 'window.scrollY > 56' in html
         and 'window.scrollY <= 56' in html
         and "classList.add('ly-past-hero')" in html
+        and "classList.remove('ly-past-hero')" in html
         and 'lyHashLocked() && root.classList.contains' in html
+        and "destId === 'hero'" in html
+        and "document.documentElement.classList.remove('ly-past-hero')" in html
         and "destId === 'itinerary-funnel' || destId === 'gallery-funnel'" in html,
     )
     r.check(
