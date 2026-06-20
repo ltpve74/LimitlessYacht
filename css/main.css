@@ -2828,11 +2828,11 @@ footer {
 /* Hero: mobile — top/bottom clusters frame a bright yacht stage in the middle */
 @media (max-width: 768px) {
   :root {
-    --hero-top-inset: max(4.75rem, calc(env(safe-area-inset-top, 0px) + 3.65rem));
+    --hero-top-inset: max(4.25rem, calc(env(safe-area-inset-top, 0px) + 3.15rem));
     --hero-top-gap: clamp(0.55rem, 1.85vh, 0.8rem);
     --hero-bottom-gap: clamp(0.55rem, 1.85vh, 0.85rem);
     --hero-cluster-gap: clamp(0.45rem, 1.5vh, 0.68rem);
-    --hero-bottom-inset: max(1.25rem, calc(env(safe-area-inset-bottom, 0px) + 1rem));
+    --hero-bottom-inset: max(1.5rem, calc(env(safe-area-inset-bottom, 0px) + 1.15rem));
   }
   #hero {
     height: 100svh;
@@ -2861,8 +2861,8 @@ footer {
   }
   .hero-overlay {
     background:
-      linear-gradient(180deg, rgba(10, 22, 40, 0.46) 0%, transparent 20%),
-      linear-gradient(0deg, rgba(10, 22, 40, 0.58) 0%, transparent 28%);
+      linear-gradient(180deg, rgba(10, 22, 40, 0.42) 0%, transparent 15%),
+      linear-gradient(0deg, rgba(10, 22, 40, 0.52) 0%, transparent 34%);
   }
   .hero-content {
     position: absolute;
@@ -2883,12 +2883,12 @@ footer {
     overflow: hidden;
   }
   .hero-content::before {
-    height: min(38%, 13rem);
-    background: linear-gradient(180deg, rgba(10, 22, 40, 0.84) 0%, rgba(10, 22, 40, 0.32) 68%, transparent 100%);
+    height: min(30%, 10.5rem);
+    background: linear-gradient(180deg, rgba(10, 22, 40, 0.84) 0%, rgba(10, 22, 40, 0.28) 62%, transparent 100%);
   }
   .hero-content::after {
-    height: min(44%, 16rem);
-    background: linear-gradient(0deg, rgba(10, 22, 40, 0.9) 0%, rgba(10, 22, 40, 0.36) 55%, transparent 100%);
+    height: min(36%, 13.5rem);
+    background: linear-gradient(0deg, rgba(10, 22, 40, 0.9) 0%, rgba(10, 22, 40, 0.32) 50%, transparent 100%);
   }
   .hero-top,
   .hero-bottom {
@@ -2903,7 +2903,7 @@ footer {
   .hero-top {
     padding-top: var(--hero-top-inset);
     gap: var(--hero-top-gap);
-    padding-bottom: 0.15rem;
+    padding-bottom: 0;
   }
   .hero-bottom {
     gap: var(--hero-bottom-gap);
@@ -3004,8 +3004,8 @@ footer {
 
   @media (min-height: 800px) {
     :root {
-      --hero-top-inset: max(4.45rem, calc(env(safe-area-inset-top, 0px) + 3.35rem));
-      --hero-bottom-inset: max(1.75rem, calc(env(safe-area-inset-bottom, 0px) + 1.4rem));
+      --hero-top-inset: max(3.75rem, calc(env(safe-area-inset-top, 0px) + 2.65rem));
+      --hero-bottom-inset: max(2.45rem, calc(env(safe-area-inset-bottom, 0px) + 2rem));
     }
   }
   @media (min-height: 740px) {

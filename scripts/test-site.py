@@ -981,7 +981,9 @@ def check_html(r: Runner, rel: str, html: str) -> None:
         and '.hero-bg-wrap,.hero-overlay{position:absolute;inset:0' in crit_flat
         and '.hero-value{display:none}' in crit_flat
         and '.hero-scroll,.hero-value{display:none}' not in crit_flat
-        and '--hero-top-inset:max(4.75rem,calc(env(safe-area-inset-top,0px)+3.65rem))' in crit_flat.replace(' ', '')
+        and '--hero-top-inset:max(4.25rem,calc(env(safe-area-inset-top,0px)+3.15rem))' in crit_flat.replace(' ', '')
+        and '--hero-bottom-inset:max(1.5rem,calc(env(safe-area-inset-bottom,0px)+1.15rem))' in crit_flat.replace(' ', '')
+        and 'min(30%,10.5rem)' in crit_flat.replace(' ', '')
         and 'min-height:800px' in crit_flat
         and '.hero-top{padding-top:var(--hero-top-inset)' in crit_flat.replace(' ', '')
         and '.hero-content{position:absolute;top:0;right:0;bottom:0;left:0;width:100%;max-width:none' in crit_flat.replace(' ', '')
