@@ -329,32 +329,11 @@ nav{position:fixed;inset:0 0 auto;z-index:100;display:flex;align-items:center;ga
         window.LY_pendingCharterTier = tier;
       }
     }
-    if (href === '#itinerary-funnel') {
+    /* Native #itinerary-funnel jump handles scroll; JS only when hash unchanged */
+    if (href === '#itinerary-funnel' && location.hash === '#itinerary-funnel') {
       e.preventDefault();
-      var cinemaMq = window.matchMedia && window.matchMedia('(max-width: 768px)');
-      if (cinemaMq && cinemaMq.matches) {
-        document.documentElement.classList.add('ly-past-hero');
-      }
-      window.LY_hashLockUntil = Date.now() + 1200;
-      if (location.hash !== '#itinerary-funnel') {
-        history.pushState(null, '', '#itinerary-funnel');
-        if (window.LY_trackSectionHash) window.LY_trackSectionHash('#itinerary-funnel');
-        try {
-          window.dispatchEvent(new HashChangeEvent('hashchange'));
-        } catch (hashErr) {
-          window.dispatchEvent(new Event('hashchange'));
-        }
-      }
-      var charterTier = tier;
-      requestAnimationFrame(function () {
-        requestAnimationFrame(function () {
-          var funnel = document.getElementById('itinerary-funnel');
-          if (funnel) funnel.scrollIntoView({ block: 'start' });
-          if ((charterTier === 'weekend' || charterTier === 'extended') && window._applyCharterFunnelExtras) {
-            window._applyCharterFunnelExtras(charterTier);
-          }
-        });
-      });
+      var funnel = document.getElementById('itinerary-funnel');
+      if (funnel) funnel.scrollIntoView({ block: 'start' });
     }
     if (window.LY_clarityEvent) {
       window.LY_clarityEvent(cardEvents[tier] || 'ly_charter_card_click');
@@ -2683,7 +2662,7 @@ document.addEventListener('DOMContentLoaded', function() {
       if (!link) return;
       var href = link.getAttribute('href');
       if (!href || href === '#') return;
-      window.LY_hashLockUntil = Date.now() + 1000;
+      window.LY_hashLockUntil = Date.now() + 1200;
       /* Cinema hero: enable nav clearance before funnel jumps and from hero */
       if (_cinemaMq.matches) {
         var destId = href.slice(1);

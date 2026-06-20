@@ -244,8 +244,9 @@ def check_html(r: Runner, rel: str, html: str) -> None:
         and 'extended: 9' in html
         and "hash === 'itinerary-funnel'" in html.split('function checkHash')[1][:400]
         and "e.target.closest('#charters .enquiry-card')" in html
-        and "href === '#itinerary-funnel'" in html.split("e.target.closest('#charters .enquiry-card')")[1][:1200]
-        and 'funnel.scrollIntoView({ block: \'start\' })' in html
+        and "location.hash === '#itinerary-funnel'" in html
+        and 'Native #itinerary-funnel jump handles scroll' in html
+        and "history.pushState(null, '', '#itinerary-funnel')" not in html.split('cardEvents = {')[1].split('})();')[0]
         and re.search(
             r'data-charter-tier="extended"[^>]*href="#itinerary-funnel"|href="#itinerary-funnel"[^>]*data-charter-tier="extended"',
             html.split('<section id="charters">')[1].split('</section>')[0],
