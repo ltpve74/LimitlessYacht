@@ -2838,7 +2838,6 @@ footer {
     height: 100svh;
     min-height: 100dvh;
     min-height: 100svh;
-    min-height: 520px;
     display: flex;
     align-items: stretch;
     justify-content: center;
@@ -3049,6 +3048,68 @@ footer {
     .scroll-line { height: 20px; }
     #hero .hero-actions .btn-primary,
     #hero .hero-actions .btn-ghost { padding: 0.68rem 0.55rem; }
+  }
+  /* Micro viewports (iPhone 4 / 320×480): never exceed visible height, drop chrome */
+  @media (max-height: 520px) {
+    :root {
+      --hero-top-inset: max(2.85rem, calc(env(safe-area-inset-top, 0px) + 2.1rem));
+      --hero-top-gap: 0.22rem;
+      --hero-bottom-gap: 0.28rem;
+      --hero-cluster-gap: 0.28rem;
+      --hero-bottom-inset: max(0.65rem, calc(env(safe-area-inset-bottom, 0px) + 0.45rem));
+    }
+    html { scroll-padding-top: 3.6rem; }
+    nav {
+      min-height: 3rem;
+      padding: 0.55rem 0.75rem;
+    }
+    .nav-logo {
+      font-size: 0.68rem;
+      letter-spacing: 0.1em;
+    }
+    .hero-content {
+      padding: 0 0.75rem 0;
+      min-height: 100%;
+    }
+    .hero-content::before { height: min(24%, 7rem); }
+    .hero-content::after { height: min(30%, 9rem); }
+    .hero-eyebrow {
+      font-size: 0.44rem;
+      margin-bottom: 0.1rem;
+      padding-top: 0;
+    }
+    .hero-title {
+      font-size: clamp(1.45rem, 7.5vw, 1.75rem);
+      line-height: 1.04;
+    }
+    .hero-bottom {
+      max-width: none;
+      width: 100%;
+    }
+    .hero-bottom .hero-sub { display: none; }
+    .hero-rates {
+      font-size: 0.5rem;
+      line-height: 1.38;
+      padding: 0.32rem 0.42rem;
+      letter-spacing: 0.04em;
+    }
+    .hero-scroll,
+    .hero-trust { display: none !important; }
+    #hero .hero-actions {
+      flex-direction: row;
+      flex-wrap: nowrap;
+      gap: 0.35rem;
+    }
+    #hero .hero-actions .btn-primary,
+    #hero .hero-actions .btn-ghost {
+      flex: 1 1 0;
+      min-width: 0;
+      max-width: none;
+      width: auto;
+      padding: 0.58rem 0.35rem;
+      font-size: 0.46rem;
+      letter-spacing: 0.14em;
+    }
   }
 
   /* More responsive buttons on larger phones (481-768px): row layout for the bottom-anchored cluster */
