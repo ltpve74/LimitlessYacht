@@ -1074,6 +1074,17 @@ REVIEWS_UI = {
 
 REVIEWS = [
     {
+        "author": "Andrew",
+        "date": "Juin 2026",
+        "rating": 5,
+        "text": (
+            "Magnifique bateau avec beaucoup d'espace pour nous huit. Luigi (skipper) et "
+            "Rebecca ont été d'un accueil exemplaire — ils ont fait toute la différence "
+            "pour la qualité et le plaisir de notre journée. Professionnels et attentionnés, "
+            "tout en restant détendus et conviviaux. Merci !"
+        ),
+    },
+    {
         "author": "Tony",
         "date": "Août 2025",
         "rating": 5,
@@ -1085,39 +1096,6 @@ REVIEWS = [
             "avec plusieurs escales agréables. L'hôtesse attentive veillait à notre "
             "confort — panier de crème solaire et serviettes, verres toujours pleins "
             "où que nous soyons. Fortement recommandé !"
-        ),
-    },
-    {
-        "author": "Elena & Family",
-        "date": "Juil. 2025",
-        "rating": 5,
-        "text": (
-            "Charter d'une journée inoubliable. Le yacht est magnifiquement entretenu et "
-            "l'équipage (Luigi et son équipe) a été professionnel, chaleureux et au-delà "
-            "de nos attentes. Les escales choisies étaient parfaites pour les enfants et "
-            "les jouets nautiques ont ravi tout le monde. Navigation tout en douceur. "
-            "Nous reviendrons sans hésiter."
-        ),
-    },
-    {
-        "author": "Marcus R.",
-        "date": "Juin 2025",
-        "rating": 5,
-        "text": (
-            "Première location à Majorque et Limitless a dépassé toutes nos attentes. "
-            "Bateau impeccable, attention aux détails remarquable de l'équipage et "
-            "itinéraire parfaitement adapté à nos envies. L'escale au coucher du soleil "
-            "a été le clou du séjour. Réservation simple, communication excellente. 10/10."
-        ),
-    },
-    {
-        "author": "Sophie & Friends",
-        "date": "Sep. 2024",
-        "rating": 5,
-        "text": (
-            "Bel après-midi sur l'eau. Le bateau est très confortable et l'équipage nous "
-            "a fait sentir les bienvenus. Excellent choix d'escales et boissons/collations "
-            "de grande qualité. À recommander pour une journée détendue entre amis."
         ),
     },
 ]
