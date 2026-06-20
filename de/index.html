@@ -314,9 +314,26 @@ nav{position:fixed;inset:0 0 auto;z-index:100;display:flex;align-items:center;ga
     var tier = card.getAttribute('data-charter-tier') || '';
     var tabTier = tier === 'weekend' || tier === 'extended' ? 'multi-day' : tier;
     if (tabTier) {
-      try { sessionStorage.setItem('ly_funnel_tier', tabTier); } catch (err) {}
+      try {
+        sessionStorage.setItem('ly_funnel_tier', tabTier);
+        if (tier === 'weekend' || tier === 'extended') {
+          sessionStorage.setItem('ly_funnel_charter_tier', tier);
+        } else {
+          sessionStorage.removeItem('ly_funnel_charter_tier');
+        }
+      } catch (err) {}
       if (window._setDestTab) window._setDestTab(tabTier);
       else window.LY_pendingDestTier = tabTier;
+      if (tier === 'weekend' || tier === 'extended') {
+        if (window._applyCharterFunnelExtras) window._applyCharterFunnelExtras(tier);
+        else window.LY_pendingCharterTier = tier;
+      }
+    }
+    var href = card.getAttribute('href');
+    if (href === '#itinerary-funnel' && (location.hash || '').replace(/^#/, '') === 'itinerary-funnel') {
+      e.preventDefault();
+      var funnel = document.getElementById('itinerary-funnel');
+      if (funnel) funnel.scrollIntoView({ block: 'start' });
     }
     if (window.LY_clarityEvent) {
       window.LY_clarityEvent(cardEvents[tier] || 'ly_charter_card_click');
@@ -1851,15 +1868,51 @@ document.addEventListener('DOMContentLoaded', function() {
   setDestTab('half-day');
   window._setDestTab = setDestTab;
 
+  function scrollMultiDayCarouselForCharter(charterTier) {
+    var destByCharter = { weekend: 8, extended: 9 };
+    var destIdx = destByCharter[charterTier];
+    if (destIdx == null) return;
+    var group = document.querySelector('.dest-group[data-tier="multi-day"]');
+    if (!group || !group.classList.contains('tab-active')) return;
+    var grid = group.querySelector('.itinerary-grid');
+    if (!grid) return;
+    var cards = Array.from(grid.querySelectorAll('.destination-card'));
+    var carouselIdx = 0;
+    for (var i = 0; i < cards.length; i++) {
+      if (parseInt(cards[i].getAttribute('data-dest-idx'), 10) === destIdx) {
+        carouselIdx = i;
+        break;
+      }
+    }
+    var stepCache = { val: 0 };
+    var s = window.lyCarouselStep(grid, cards, stepCache);
+    grid.scrollLeft = carouselIdx * s;
+    setTimeout(function () { grid.dispatchEvent(new Event('scroll')); }, 0);
+  }
+  window._applyCharterFunnelExtras = scrollMultiDayCarouselForCharter;
+
   function applyFunnelTierFromStorage() {
     var tabTier = window.LY_pendingDestTier;
     if (!tabTier) {
       try { tabTier = sessionStorage.getItem('ly_funnel_tier'); } catch (e) {}
     }
     if (!tabTier) return;
+    var charterTier = window.LY_pendingCharterTier;
+    if (!charterTier) {
+      try { charterTier = sessionStorage.getItem('ly_funnel_charter_tier'); } catch (e) {}
+    }
     setDestTab(tabTier);
     window.LY_pendingDestTier = null;
-    try { sessionStorage.removeItem('ly_funnel_tier'); } catch (e) {}
+    window.LY_pendingCharterTier = null;
+    try {
+      sessionStorage.removeItem('ly_funnel_tier');
+      sessionStorage.removeItem('ly_funnel_charter_tier');
+    } catch (e) {}
+    if (charterTier) {
+      requestAnimationFrame(function () {
+        requestAnimationFrame(function () { scrollMultiDayCarouselForCharter(charterTier); });
+      });
+    }
   }
   function checkHash() {
     var hash = (window.location.hash || '').replace('#', '');
@@ -1869,7 +1922,7 @@ document.addEventListener('DOMContentLoaded', function() {
     }
     if (hash === 'itinerary-funnel') applyFunnelTierFromStorage();
   }
-  if (window.LY_pendingDestTier) applyFunnelTierFromStorage();
+  if (window.LY_pendingDestTier || window.LY_pendingCharterTier) applyFunnelTierFromStorage();
   checkHash();
   window.addEventListener('hashchange', checkHash);
 

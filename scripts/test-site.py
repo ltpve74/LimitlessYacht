@@ -239,9 +239,16 @@ def check_html(r: Runner, rel: str, html: str) -> None:
         and 'href="#half-day"' not in html.split('<section id="charters">')[1].split('</section>')[0]
         and "tier === 'weekend' || tier === 'extended' ? 'multi-day' : tier" in html
         and "sessionStorage.setItem('ly_funnel_tier', tabTier)" in html
+        and "sessionStorage.setItem('ly_funnel_charter_tier', tier)" in html
         and 'function applyFunnelTierFromStorage()' in html
+        and 'extended: 9' in html
         and "hash === 'itinerary-funnel'" in html.split('function checkHash')[1][:400]
-        and "e.target.closest('#charters .enquiry-card')" in html,
+        and "e.target.closest('#charters .enquiry-card')" in html
+        and re.search(
+            r'data-charter-tier="extended"[^>]*href="#itinerary-funnel"|href="#itinerary-funnel"[^>]*data-charter-tier="extended"',
+            html.split('<section id="charters">')[1].split('</section>')[0],
+        )
+        is not None,
     )
     r.check(
         'charters mobile back-link nudges availability not destinations',
