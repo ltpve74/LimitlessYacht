@@ -2319,6 +2319,16 @@ def check_shared_assets(r: Runner) -> None:
             r'@media\s*\(\s*min-width:\s*769px\s*\)[\s\S]*?#itinerary\s+\.itinerary-wrap\s*>\s*\.itinerary-bottom-bar',
             css,
         )
+        is not None
+        and re.search(
+            r'@media\s*\(\s*max-width:\s*768px\s*\)[\s\S]*?#itinerary\s+\.itinerary-bottom-bar[\s\S]*?margin-top:\s*auto',
+            css,
+        )
+        is not None
+        and re.search(
+            r'@media\s*\(\s*max-width:\s*768px\s*\)[\s\S]*?#itinerary\s+\.itinerary-bottom-actions[\s\S]*?padding:\s*0',
+            css,
+        )
         is not None,
     )
     r.check(

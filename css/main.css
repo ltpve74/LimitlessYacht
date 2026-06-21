@@ -2753,18 +2753,33 @@ footer {
     white-space: nowrap;
   }
   .section-cta-desktop { display: none; }
-  .itinerary-bottom-bar {
-    display: block;
-    padding: 0 var(--hero-cinema-side, 1.2rem) .85rem;
-    flex-shrink: 0;
+  #itinerary .itinerary-wrap {
+    display: flex;
+    flex-direction: column;
+    min-height: 100svh;
+    box-sizing: border-box;
   }
-  .itinerary-bottom-actions {
+  #itinerary .dest-group.tab-active {
+    display: flex;
+    flex-direction: column;
+    flex: 1 1 auto;
+    min-height: 0;
+  }
+  #itinerary .itinerary-bottom-bar {
+    display: block;
+    flex-shrink: 0;
+    margin-top: auto;
+    padding: .5rem var(--hero-cinema-side) max(.75rem, env(safe-area-inset-bottom, 0px));
+  }
+  #itinerary .itinerary-bottom-actions {
     gap: var(--hero-cinema-btn-gap);
     max-width: none;
-    padding: 0 var(--hero-cinema-actions-inset, 0);
+    width: 100%;
+    padding: 0;
+    margin: 0;
   }
-  .itinerary-bottom-actions .btn-primary,
-  .itinerary-bottom-actions .btn-ghost {
+  #itinerary .itinerary-bottom-actions .btn-primary,
+  #itinerary .itinerary-bottom-actions .btn-ghost {
     min-height: 2.85rem;
     padding: var(--hero-cinema-btn-pad-y) var(--hero-cinema-btn-pad-x);
     font-size: var(--hero-cinema-btn-size);
@@ -3424,9 +3439,9 @@ footer {
   #itinerary .itinerary-wrap > .itinerary-bottom-bar {
     flex: 0 0 auto;
   }
-  .itinerary-bottom-bar {
+  #itinerary .itinerary-bottom-bar {
     display: block;
-    width: 100%;
+    margin-top: .75rem;
     padding: 0 2rem .85rem;
   }
   .itinerary-bottom-actions .itinerary-bottom-link--yacht-mobile,
