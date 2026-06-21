@@ -4,7 +4,7 @@
 <meta charset="UTF-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1.0" />
 <style id="fouc-guard">html{background:#0a1628;color-scheme:dark}a,a:any-link{color:#f5f0e8!important;text-decoration:none!important;-webkit-text-fill-color:currentColor!important}a.btn-primary,a.itinerary-meet-cta,a.mobile-nav-cta{color:#0a1628!important;-webkit-text-fill-color:#0a1628!important}a.btn-ghost,a.nav-cta{color:#f5f0e8!important;-webkit-text-fill-color:#f5f0e8!important}html:not(.ly-main-ready) body>:not(nav):not(#hero){display:none!important}</style>
-<script>window.LY_MAIN_CSS_HREF='../css/main.css?v=139';</script>
+<script>window.LY_MAIN_CSS_HREF='../css/main.css?v=140';</script>
 <script src="../js/net-tier.js"></script>
 <script src="js/progressive-images.js"></script>
 
@@ -95,7 +95,7 @@ nav{position:fixed;inset:0 0 auto;z-index:100;display:flex;align-items:center;ga
 </script>
 <script>
 (function () {
-  var href = window.LY_MAIN_CSS_HREF || '../css/main.css?v=139';
+  var href = window.LY_MAIN_CSS_HREF || '../css/main.css?v=140';
   function lyMainReady() {
     requestAnimationFrame(function () {
       requestAnimationFrame(function () {
@@ -116,7 +116,7 @@ nav{position:fixed;inset:0 0 auto;z-index:100;display:flex;align-items:center;ga
   document.head.appendChild(link);
 })();
 </script>
-<noscript><link rel="stylesheet" href="../css/main.css?v=139" /></noscript>
+<noscript><link rel="stylesheet" href="../css/main.css?v=140" /></noscript>
 
 <title>Limitless Yacht Experience – Charter de luxe Maiora à Majorque</title>
 <meta name="description" content="Louez le Maiora de 21,5 m « Limitless » depuis Palma de Majorque — croisières à la journée et sur plusieurs jours vers les criques de Majorque, Cabrera et Formentera. Avec équipage, jusqu'à 12 invités." />
@@ -2632,18 +2632,7 @@ document.addEventListener('DOMContentLoaded', function() {
   if (navbar) {
     var _cinemaMq = window.matchMedia('(max-width: 768px)');
     function syncMobileFunnelChrome() {
-      var root = document.documentElement;
-      if (!_cinemaMq.matches) {
-        root.style.removeProperty('--ly-vv-bottom-offset');
-        return;
-      }
-      var vv = window.visualViewport;
-      if (!vv) {
-        root.style.removeProperty('--ly-vv-bottom-offset');
-        return;
-      }
-      var offset = Math.max(0, Math.round(window.innerHeight - vv.height - vv.offsetTop));
-      root.style.setProperty('--ly-vv-bottom-offset', offset + 'px');
+      window.LY_syncMobileFunnelChrome && window.LY_syncMobileFunnelChrome();
     }
     function updateHeroCinema() {
       var root = document.documentElement;
@@ -3558,6 +3547,53 @@ document.addEventListener('DOMContentLoaded', function() {
         syncEnquireQuoteHrefs();
       }
     });
+  }
+})();
+</script>
+
+<script>
+(function () {
+  var _funnelMq = window.matchMedia('(max-width: 768px)');
+  function syncMobileFunnelChrome() {
+    var root = document.documentElement;
+    if (!_funnelMq.matches) {
+      root.style.removeProperty('--ly-vv-height');
+      root.style.removeProperty('--ly-vv-bottom-offset');
+      root.style.removeProperty('--ly-funnel-chrome-pad');
+      return;
+    }
+    var vv = window.visualViewport;
+    var ih = window.innerHeight || document.documentElement.clientHeight;
+    var vvH = vv ? Math.round(vv.height) : ih;
+    var overlay = vv ? Math.max(0, Math.round(ih - vv.height - vv.offsetTop)) : 0;
+    var chromePad = Math.max(overlay, 56);
+    root.style.setProperty('--ly-vv-height', vvH + 'px');
+    root.style.setProperty('--ly-vv-bottom-offset', overlay + 'px');
+    root.style.setProperty('--ly-funnel-chrome-pad', chromePad + 'px');
+  }
+  window.LY_syncMobileFunnelChrome = syncMobileFunnelChrome;
+  var _funnelChromeTimer;
+  function scheduleFunnelChromeSync() {
+    clearTimeout(_funnelChromeTimer);
+    _funnelChromeTimer = setTimeout(syncMobileFunnelChrome, 50);
+  }
+  window.addEventListener('resize', scheduleFunnelChromeSync, { passive: true });
+  window.addEventListener('orientationchange', scheduleFunnelChromeSync, { passive: true });
+  window.addEventListener('hashchange', scheduleFunnelChromeSync);
+  window.addEventListener('pageshow', scheduleFunnelChromeSync);
+  if (window.visualViewport) {
+    window.visualViewport.addEventListener('resize', scheduleFunnelChromeSync);
+    window.visualViewport.addEventListener('scroll', scheduleFunnelChromeSync);
+  }
+  if (_funnelMq.addEventListener) {
+    _funnelMq.addEventListener('change', syncMobileFunnelChrome);
+  } else if (_funnelMq.addListener) {
+    _funnelMq.addListener(syncMobileFunnelChrome);
+  }
+  if (document.readyState === 'loading') {
+    document.addEventListener('DOMContentLoaded', syncMobileFunnelChrome);
+  } else {
+    syncMobileFunnelChrome();
   }
 })();
 </script>

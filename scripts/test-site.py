@@ -2321,7 +2321,7 @@ def check_shared_assets(r: Runner) -> None:
         )
         is not None
         and re.search(
-            r'@media\s*\(\s*max-width:\s*768px\s*\)[\s\S]*?#itinerary\s+\.itinerary-bottom-bar[\s\S]*?margin-top:\s*auto',
+            r'@media\s*\(\s*max-width:\s*768px\s*\)[\s\S]*?#itinerary\s+\.itinerary-bottom-bar[\s\S]*?position:\s*fixed',
             css,
         )
         is not None
@@ -2331,17 +2331,17 @@ def check_shared_assets(r: Runner) -> None:
         )
         is not None
         and re.search(
-            r'@media\s*\(\s*max-width:\s*768px\s*\)[\s\S]*?#itinerary\s+\.itinerary-wrap[\s\S]*?min-height:\s*100dvh',
+            r'@media\s*\(\s*max-width:\s*768px\s*\)[\s\S]*?#itinerary\s+\.itinerary-wrap[\s\S]*?var\(--ly-vv-height',
             css,
         )
         is not None
         and re.search(
-            r'#itinerary\s+\.itinerary-bottom-bar[\s\S]*?var\(--ly-vv-bottom-offset',
+            r'#itinerary\s+\.itinerary-bottom-bar[\s\S]*?var\(--ly-funnel-chrome-pad',
             css,
         )
         is not None
-        and 'syncMobileFunnelChrome' in index_html
-        and '--ly-vv-bottom-offset' in index_html,
+        and 'LY_syncMobileFunnelChrome' in index_html
+        and '--ly-funnel-chrome-pad' in index_html,
     )
     r.check(
         'desktop funnel CTAs use nav-style landing anchors',
