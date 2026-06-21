@@ -66,10 +66,11 @@ def minify_html(html):
     # Strip HTML comments (preserve IE conditionals <!--[if ...)
     html = re.sub(r'<!--(?!\[).*?-->', '', html, flags=re.DOTALL)
 
-    # Minify inline <style> blocks
+    # Minify inline <style> blocks (preserve id/type attrs — fouc-guard, critical-css)
     def _style(m):
-        return '<style>' + minify_css(m.group(1)) + '</style>'
-    html = re.sub(r'<style[^>]*>(.*?)</style>', _style, html, flags=re.DOTALL)
+        attrs, body = m.group(1), m.group(2)
+        return '<style' + attrs + '>' + minify_css(body) + '</style>'
+    html = re.sub(r'<style([^>]*)>(.*?)</style>', _style, html, flags=re.DOTALL)
 
     # Minify inline <script> blocks (skip non-JS types: json, ld+json, template …)
     def _script(m):

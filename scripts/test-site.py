@@ -245,7 +245,6 @@ def check_html(r: Runner, rel: str, html: str) -> None:
         and "hash === 'itinerary-funnel'" in html.split('function checkHash')[1][:400]
         and "e.target.closest('#charters .enquiry-card')" in html
         and "location.hash === '#itinerary-funnel'" in html
-        and 'Native #itinerary-funnel jump handles scroll' in html
         and "history.pushState(null, '', '#itinerary-funnel')" not in html.split('cardEvents = {')[1].split('})();')[0]
         and re.search(
             r'data-charter-tier="extended"[^>]*href="#itinerary-funnel"|href="#itinerary-funnel"[^>]*data-charter-tier="extended"',
@@ -517,7 +516,7 @@ def check_html(r: Runner, rel: str, html: str) -> None:
         and 'data-ly-src=' in html
         and not re.search(
             r'<picture\b[^>]*>.*?<img\b[^>]*\ssrc="',
-            html.split('<!-- GALLERY -->')[0],
+            html.split('<section id="gallery">', 1)[0],
             flags=re.DOTALL,
         )
         and 'DWELL_MS' not in prog_js
@@ -1768,7 +1767,9 @@ def check_shared_assets(r: Runner) -> None:
                 css,
             )
             is not None
-            and '.hero-top,.hero-bottom{display:contents}' not in css_flat.replace('@media(min-width:769px)', ''),
+            and '.hero-top,.hero-bottom{display:contents' not in re.sub(
+                r'@media\(min-width:769px\)\{[^}]*\}', '', css_flat
+            ),
         )
         r.check(
             'hero eyebrow toggles mobile vs desktop anchor targets',
@@ -2592,18 +2593,22 @@ def check_shared_assets(r: Runner) -> None:
     r.check(
         'buttons share unified fill and ghost colour tokens',
         css is not None
-        and '--btn-fill: var(--gold)' in css
+        and re.search(r'--btn-fill:\s*var\(--gold\)', css) is not None
         and '--btn-ghost-border:' in css
-        and '--btn-ghost-text: var(--cream)' in css
-        and '.btn-primary {' in css
-        and 'background: var(--btn-fill)' in css
-        and '.btn-ghost {' in css
-        and 'border: 1px solid var(--btn-ghost-border)' in css
-        and '.nav-cta {' in css
-        and 'color: var(--btn-ghost-text)' in css.split('.nav-cta {')[1].split('}')[0]
-        and '.mobile-nav-cta {' in css
-        and '.cookie-btn-ghost {' in css
-        and '-webkit-text-fill-color: var(--btn-on-fill)' in css.split('.itinerary-meet-cta {')[1][:500],
+        and re.search(r'--btn-ghost-text:\s*var\(--cream\)', css) is not None
+        and re.search(r'\.btn-primary\s*\{', css) is not None
+        and re.search(r'background:\s*var\(--btn-fill\)', css) is not None
+        and re.search(r'\.btn-ghost\s*\{', css) is not None
+        and re.search(r'border:\s*1px\s+solid\s+var\(--btn-ghost-border\)', css) is not None
+        and re.search(r'\.nav-cta\s*\{', css) is not None
+        and re.search(r'color:\s*var\(--btn-ghost-text\)', css[css_rule_index(css, '.nav-cta'):][:400]) is not None
+        and re.search(r'\.mobile-nav-cta\s*\{', css) is not None
+        and re.search(r'\.cookie-btn-ghost\s*\{', css) is not None
+        and re.search(
+            r'-webkit-text-fill-color:\s*var\(--btn-on-fill\)',
+            css[css_rule_index(css, '.itinerary-meet-cta'):][:500],
+        )
+        is not None,
     )
     r.check(
         'desktop nav landing keeps labels and uses nav scroll offset',

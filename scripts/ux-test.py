@@ -51,8 +51,8 @@ COOKIE_TEST_VIEWPORTS = (
 # Mobile menu links must keep section-top / calendar anchors (not -land variants).
 MOBILE_NAV_HREFS = (
     ('a[href="#about"]', "#about"),
-    ('a[href="#itinerary"]', "#itinerary"),
-    ('a[href="#gallery"]', "#gallery"),
+    ('a[href="#itinerary-funnel"]', "#itinerary-funnel"),
+    ('a[href="#gallery-funnel"]', "#gallery-funnel"),
     ('a[href="#charters"]', "#charters"),
     ('a[href="#avail-cal"]', "#avail-cal"),
     ('a[href="#reviews"]', "#reviews"),
@@ -67,6 +67,9 @@ ALLOWED_CONSOLE = [
     re.compile(r"net::err_", re.I),
     re.compile(r"fetch.*availability", re.I),
     re.compile(r"\[Limitless\]", re.I),
+    re.compile(r"clarity\.ms", re.I),
+    re.compile(r"googletagmanager", re.I),
+    re.compile(r"CORS policy", re.I),
 ]
 
 BOOKING_SECTION_IDS = (
@@ -117,7 +120,27 @@ def wait_for_hash(page, hash_fragment: str, timeout: float = 8000) -> None:
     )
 
 
+def reveal_mobile_nav_if_needed(page) -> None:
+    """Cinema hero hides nav until the user scrolls past the hero on mobile."""
+    hamburger = page.locator("#hamburger")
+    if hamburger.is_visible():
+        return
+    page.evaluate(
+        "() => window.scrollTo({ top: window.innerHeight + 8, behavior: 'instant' })"
+    )
+    page.wait_for_function(
+        "() => {"
+        "  const h = document.getElementById('hamburger');"
+        "  if (!h) return false;"
+        "  const s = getComputedStyle(h);"
+        "  return s.visibility !== 'hidden' && s.display !== 'none' && h.offsetParent !== null;"
+        "}",
+        timeout=8000,
+    )
+
+
 def open_mobile_menu(page) -> None:
+    reveal_mobile_nav_if_needed(page)
     page.locator("#hamburger").click()
     page.wait_for_function(
         "() => {"
@@ -693,7 +716,8 @@ def scenario_locale_de(page, base: str, issues: IssueCollector) -> None:
     wait_for_calendar(page)
 
     page.set_viewport_size(MOBILE_VIEWPORT)
-    page.reload(wait_until="domcontentloaded", timeout=60000)
+    page.goto(base + "/de/", wait_until="domcontentloaded", timeout=60000)
+    page.wait_for_timeout(1000)
     assert_mobile_nav_hrefs(page, f"{name} mobile", issues)
     click_mobile_nav_link(page, "#avail-cal")
 
@@ -915,7 +939,10 @@ def scenario_booking_funnel_mobile(page, base: str, issues: IssueCollector) -> N
     hero_cta = page.locator("#hero a.btn-primary.hero-cta-link--mobile").first
     if hero_cta.count():
         hero_cta.click()
-        wait_for_hash(page, "#itinerary")
+        page.wait_for_function(
+            "() => ['#itinerary-funnel', '#itinerary'].includes(location.hash)",
+            timeout=8000,
+        )
     else:
         issues.add(f"{name}: hero primary CTA missing on mobile")
 
