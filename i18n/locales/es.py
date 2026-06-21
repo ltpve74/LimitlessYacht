@@ -57,6 +57,7 @@ PAIRS = [
         "anuncio de charter en el Club de Mar, Palma.",
     ),
     ("Loading guest reviews…", "Cargando reseñas…"),
+    ("window.LY_LB_LOADING = 'Loading\\u2026';", "window.LY_LB_LOADING = 'Cargando\\u2026';"),
     ("1 verified review", "1 reseña verificada"),
     (" verified reviews", " reseñas verificadas"),
     ("No reviews to display yet.", "Aún no hay reseñas para mostrar."),
@@ -1014,6 +1015,9 @@ PAIRS = [
     # Hero ghost button and itinerary CTA
     ('>Meet The Yacht</a>', '>Conoce el yate</a>'),
     ('Meet The Yacht →', 'Conoce el yate →'),
+    ('>The yacht</a>', '>El yate</a>'),
+    ('>availability</a>', '>Disponibilidad</a>'),
+    ('>destinations</a>', '>Destinos</a>'),
     # Itinerary section
     ('aria-label="Charter duration"', 'aria-label="Duración del charter"'),
     ('aria-label="Previous destination"', 'aria-label="Destino anterior"'),
@@ -1086,6 +1090,17 @@ REVIEWS_UI = {
 
 REVIEWS = [
     {
+        "author": "Andrew",
+        "date": "Jun 2026",
+        "rating": 5,
+        "text": (
+            "Barco precioso con mucho espacio para los ocho. Luigi (patrón) y Rebecca no "
+            "podían haber sido más acogedores: marcaron la diferencia en la calidad y el "
+            "disfrute del día. Profesionales y atentos, pero también relajados y "
+            "divertidos. ¡Gracias!"
+        ),
+    },
+    {
         "author": "Tony",
         "date": "Ago 2025",
         "rating": 5,
@@ -1097,39 +1112,6 @@ REVIEWS = [
             "varias paradas muy agradables. La azafata atenta nos cuidó en todo momento, "
             "ya fuera con una cesta (muy bien surtida) de protector solar y toallas o "
             "reponiendo nuestras bebidas donde estuviéramos. ¡Muy recomendable!"
-        ),
-    },
-    {
-        "author": "Elena & Family",
-        "date": "Jul 2025",
-        "rating": 5,
-        "text": (
-            "Tuvimos un charter de día completo inolvidable. El yate está magníficamente "
-            "mantenido y la tripulación (Luigi y equipo) fue profesional, amable y superó "
-            "todas las expectativas. Las paradas elegidas fueron perfectas para los niños y "
-            "los juguetes acuáticos mantuvieron a todos entretenidos. Navegación suave en "
-            "todo momento. Sin duda volveremos."
-        ),
-    },
-    {
-        "author": "Marcus R.",
-        "date": "Jun 2025",
-        "rating": 5,
-        "text": (
-            "Primera vez que alquilamos en Mallorca y Limitless superó todas las "
-            "expectativas. Barco impecable, atención al detalle increíble por parte de la "
-            "tripulación e itinerario adaptado exactamente a lo que queríamos. La parada "
-            "al atardecer fue lo más destacado. Reserva fácil y comunicación excelente. 10/10."
-        ),
-    },
-    {
-        "author": "Sophie & Friends",
-        "date": "Sep 2024",
-        "rating": 5,
-        "text": (
-            "Preciosa tarde en el mar. El barco es muy cómodo y la tripulación nos hizo "
-            "sentir como en casa. Gran selección de paradas y las bebidas y aperitivos "
-            "servidos fueron excelentes. Recomendable para un día relajado con amigos."
         ),
     },
 ]

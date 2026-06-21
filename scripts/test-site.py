@@ -229,6 +229,31 @@ def check_html(r: Runner, rel: str, html: str) -> None:
         is not None,
     )
     r.check(
+        'charter enquiry cards land on funnel anchor with tier tab switch',
+        re.search(
+            r'<section id="charters">[\s\S]*?class="enquiry-card[^"]*"[^>]*href="#itinerary-funnel"[^>]*data-charter-tier="half-day"',
+            html,
+        )
+        is not None
+        and html.count('href="#itinerary-funnel"') >= 5
+        and 'href="#half-day"' not in html.split('<section id="charters">')[1].split('</section>')[0]
+        and "tier === 'weekend' || tier === 'extended' ? 'multi-day' : tier" in html
+        and "sessionStorage.setItem('ly_funnel_tier', tabTier)" in html
+        and "sessionStorage.setItem('ly_funnel_charter_tier', tier)" in html
+        and 'function applyFunnelTierFromStorage()' in html
+        and 'extended: 9' in html
+        and "hash === 'itinerary-funnel'" in html.split('function checkHash')[1][:400]
+        and "e.target.closest('#charters .enquiry-card')" in html
+        and "location.hash === '#itinerary-funnel'" in html
+        and 'Native #itinerary-funnel jump handles scroll' in html
+        and "history.pushState(null, '', '#itinerary-funnel')" not in html.split('cardEvents = {')[1].split('})();')[0]
+        and re.search(
+            r'data-charter-tier="extended"[^>]*href="#itinerary-funnel"|href="#itinerary-funnel"[^>]*data-charter-tier="extended"',
+            html.split('<section id="charters">')[1].split('</section>')[0],
+        )
+        is not None,
+    )
+    r.check(
         'charters mobile back-link nudges availability not destinations',
         re.search(
             r'<section id="charters">[\s\S]*?<p class="section-back-cta[^"]*">[\s\S]*?href="#availability"',
@@ -364,7 +389,11 @@ def check_html(r: Runner, rel: str, html: str) -> None:
         and 'images/mobile/maiora_20s_03-960.webp 960w' in html
         and 'images/mobile/maiora_20s_03.webp 960w' not in html
         and '(min-width: 1101px) 25vw, 50vw' in html
-        and 'lbImg.src = window.LY_galleryLbUrl(currentIdx)' in html
+        and 'window.LY_galleryLbUrl(targetIdx)' in html
+        and 'applyGalleryLbFrame(targetIdx, lbUrl)' in html
+        and 'window.LY_prioritizePreloadUrgent(lbUrl)' in html
+        and 'lbLoadGen' in html
+        and 'class="lb-loader"' in html
         and 'id="lightbox-img" src="" alt="Limitless yacht gallery photo" sizes="100vw"' in html,
     )
     r.check(
@@ -398,9 +427,208 @@ def check_html(r: Runner, rel: str, html: str) -> None:
         is not None,
     )
     r.check(
-        'hero destinations prioritized in idle preload queue',
-        'destOrder.forEach(function(i) { window.LY_enqueueCardPreload(window.LY_destCardUrl(i)); })' in html
-        and 'window.LY_whenNearSection(\'itinerary\'' in html,
+        'idle preload warms caches after meaningful paint',
+        'window.LY_warmPreloadCaches' in html
+        and 'destOrder.forEach(function(i) { window.LY_enqueueCardPreload(window.LY_destCardUrl(i)); })' in html
+    )
+    net_tier_js = read_file('js/net-tier.js') or ''
+    r.check(
+        'slow connections use context-aware warming instead of bulk preload',
+        'LY_PRELOAD_AGGRESSIVE' in net_tier_js
+        and 'LY_PRELOAD_PUMP_MS' in net_tier_js
+        and 'LY_PRELOAD_IDLE_DELAY_MS' in net_tier_js
+        and 'LY_PRELOAD_QUEUE_MAX' in net_tier_js
+        and 'window.LY_preloadContext' in html
+        and 'window.LY_beginUserIntent' in html
+        and 'window.LY_startContextWarm' in html
+        and 'window.LY_warmUrlsForContext' in html
+        and re.search(
+            r'LY_warmPreloadCaches = function\(\)[\s\S]*?LY_PRELOAD_AGGRESSIVE === false[\s\S]*?section: \'hero\'',
+            html,
+        )
+        is not None,
+    )
+    r.check(
+        'slow connections route user actions through intent orchestrator',
+        'window.LY_prioritizePreloadUrgent' in html
+        and 'window.LY_abortWarmQueues' in html
+        and 'window.LY_preloadNeedsUserPriority' in html
+        and 'window.LY_preloadGalleryCard' in html
+        and re.search(
+            r'LY_preloadDest = function\(idx[\s\S]*?LY_beginUserIntent\(',
+            html,
+        )
+        is not None
+        and re.search(
+            r'LY_dripDestTier = function\(tier\)[\s\S]*?LY_beginUserIntent\(',
+            html,
+        )
+        is not None
+        and 'IntersectionObserver' in html
+        and '.destination-card, .gallery-item' in html
+        and 'LY_contextFromViewport' in html,
+    )
+    r.check(
+        'slow carousel prefetch loads current card only (not ±1)',
+        re.search(
+            r'LY_preloadDestAdjacent = function\(idx[\s\S]*?if \(window\.LY_PRELOAD_AGGRESSIVE === false\)[\s\S]*?LY_preloadDest\(idx',
+            html,
+        )
+        is not None,
+    )
+    r.check(
+        'preload pump pauses when tab hidden on slow links',
+        'LY_PRELOAD_VISIBILITY_BOUND' in html
+        and 'document.visibilityState === \'hidden\'' in html
+        and 'visibilitychange' in html,
+    )
+    r.check(
+        'lightbox navigation coalesces rapid clicks and shows loading state',
+        'window.LY_prioritizePreloadUrgent' in html
+        and 'window.LY_formatLbCounter' in html
+        and 'setGalleryLbLoading' in html
+        and 'destLbLoadGen' in html
+        and 'destLbImgWrap' in html
+        and 'class="lb-loader"' in html
+        and re.search(r'dest-lb-img-wrap[\s\S]*?class="lb-loader"', html) is not None,
+    )
+    prog_js = read_file('js/progressive-images.js') or ''
+    r.check(
+        'slow connections use blurred preview then sharp fade upgrade',
+        'LY_PROGRESSIVE_IMAGES' in net_tier_js
+        and 'maiora_20s_02-prev.webp' not in net_tier_js
+        and '-prev.jpg' in prog_js
+        and 'js/progressive-images.js' in html
+        and 'LY_initProgressiveImages' in prog_js
+        and 'LY_upgradeProgressiveForIntent' in prog_js
+        and 'ly-prog-wrap' in prog_js
+        and 'ly-prog-preview' in prog_js
+        and 'LY_sharpTierSuffix' in prog_js
+        and 'LY_heroGateOpen' in prog_js
+        and 'LY_initDeferredProgressiveImages' in prog_js
+        and 'LY_activateProgressiveWrap' in prog_js
+        and 'ly-prog-skip-preview' in prog_js
+        and 'suspendOffHeroPictures' in prog_js
+        and 'readystatechange' in prog_js
+        and 'whenPreviewReady' in prog_js
+        and 'contentQueue' in prog_js
+        and 'pumpContentQueue' in prog_js
+        and 'scheduleHeroGate' in prog_js
+        and 'data-ly-src=' in html
+        and not re.search(
+            r'<picture\b[^>]*>.*?<img\b[^>]*\ssrc="',
+            html.split('<!-- GALLERY -->')[0],
+            flags=re.DOTALL,
+        )
+        and 'DWELL_MS' not in prog_js
+        and 'LY_onHeroSharpReady' in prog_js
+        and re.search(
+            r'</picture>\s*<script>[\s\S]*?LY_PROGRESSIVE_IMAGES[\s\S]*?data-ly-srcset',
+            html,
+        )
+        is not None
+        and 'data-ly-srcset=' in html
+        and 'LY_loadMainCss' in net_tier_js
+        and 'LY_applyPictureSrc' in net_tier_js
+        and 'ly-prog-critical' in net_tier_js
+        and '.ly-prog-wrap--hero' in net_tier_js
+        and 'ly-prog-wrap--hero{position:absolute;inset:0;overflow:hidden;background:transparent}' in net_tier_js.replace(' ', '')
+        and 'object-position:52% 40%' in net_tier_js
+        and 'max-height:520px' in net_tier_js
+        and 'nav{opacity:0;visibility:hidden;pointer-events:none}' in net_tier_js.replace(' ', '')
+        and 'blur(4px)' in net_tier_js
+        and 'LY_progressiveWrapForUrl' in html
+        and re.search(
+            r'ly-prog-sharp-visible[\s\S]{0,280}scheduleHeroGate',
+            prog_js,
+        )
+        is not None
+        and 'LY_heroGateBlocked' in html
+        and 'LY_PROGRESSIVE_IMAGES' in html
+        and "lyInjectPreload(lyImg('maiora_20s_02-prev" not in net_tier_js
+        and "lyInjectPreload(lyImg('maiora_20s_02-1280.webp')" not in net_tier_js
+        and "kind === 'hero'" in prog_js
+        and 'preview.src = previewUrl' in prog_js
+        and 'bootProgressive' in prog_js
+        and 'ensurePreview(wrap)' in prog_js
+        and "lyInjectPreload(lyImg('mobile/maiora_20s_02-720.webp')" not in net_tier_js
+        and re.search(
+            r'LY_destCardUrl = function\(idx\)[\s\S]*?LY_PROGRESSIVE_IMAGES',
+            html,
+        )
+        is not None
+        and re.search(
+            r'DOMContentLoaded[\s\S]*?!window\.LY_PROGRESSIVE_IMAGES && window\.LY_applySlowSrcsets',
+            html,
+        )
+        is not None,
+    )
+    r.check(
+        'preview placeholder assets exist for hero and destinations',
+        os.path.isfile('images/maiora_20s_02-prev.jpg')
+        and os.path.isfile('images/mobile/maiora_20s_02-prev.jpg')
+        and os.path.isfile('images/dest/portals-vells-1-prev.jpg')
+        and os.path.isfile('images/mobile/dest/portals-vells-1-prev.jpg'),
+    )
+    r.check(
+        'preview placeholders are progressive JPEG for incremental paint',
+        'progressive=True' in (read_file('scripts/build_preview_images.py') or '')
+        and '-prev.jpg' in (read_file('scripts/build_preview_images.py') or ''),
+    )
+
+    def _is_progressive_jpeg(path: str) -> bool:
+        try:
+            with open(os.path.join(ROOT, path), 'rb') as fh:
+                head = fh.read(4096)
+            return b'\xff\xc2' in head
+        except OSError:
+            return False
+
+    r.check(
+        'hero preview JPEG is progressive-encoded (SOF2 scan)',
+        _is_progressive_jpeg('images/mobile/maiora_20s_02-prev.jpg')
+        and _is_progressive_jpeg('images/maiora_20s_02-prev.jpg'),
+    )
+    r.check(
+        'slow progressive sharp tiers use higher quality rungs with blur preview',
+        "'-960'" in prog_js
+        and "'-1280'" in prog_js
+        and "kind === 'hero' || kind === 'gallery'" in prog_js
+        and "return '-960'" in prog_js
+        and 'preview.decoding = \'sync\'' in prog_js
+        and "kind === 'hero'" in prog_js
+        and "LY_sharpTierSuffix('dest')" in html
+        and "LY_sharpTierSuffix('gallery')" in html,
+    )
+    r.check(
+        'slow carousel cards show loading spinners during image fetch',
+        'window.LY_initCardLoaders' in html
+        and 'window.LY_setCardLoading' in html
+        and 'window.LY_showCardLoadersForIntent' in html
+        and 'window.LY_cardUrlForEl' in html
+        and 'card-loader' in html
+        and 'card-loading' in html
+        and 'markCarouselTarget' in html
+        and 'markGalleryTarget' in html
+        and re.search(
+            r'LY_beginUserIntent = function\(opts\)[\s\S]*?LY_showCardLoadersForIntent\(opts\)',
+            html,
+        )
+        is not None,
+    )
+    r.check(
+        'anchor CTAs pause warming and re-anchor preload context',
+        'window.LY_onNavIntent' in html
+        and 'window.LY_sectionFromHash' in html
+        and 'window.LY_urgentUrlsForNav' in html
+        and 'window.LY_GALLERY_TAB_IDX' in html
+        and 'window.LY_loadAvailCalNow' in html
+        and 'window.LY_loadReviewsNow' in html
+        and re.search(
+            r"document\.addEventListener\('click'[\s\S]*?LY_onNavIntent\(href\)",
+            html,
+        )
+        is not None,
     )
     r.check(
         'destination preload not burst on DOMContentLoaded',
@@ -524,6 +752,20 @@ def check_html(r: Runner, rel: str, html: str) -> None:
         and 'class="nav-lang"' not in html,
     )
     r.check(
+        'cinema hero restores nav after scroll on mobile viewports',
+        'updateHeroCinema' in html
+        and 'ly-past-hero' in html
+        and 'ly-hero-cinema' in html
+        and "matchMedia('(max-width: 768px)')" in html
+        and 'window.scrollY <= 56' in html
+        and "classList.add('ly-past-hero')" in html
+        and "classList.remove('ly-past-hero')" in html
+        and 'lyHashLocked() && root.classList.contains' in html
+        and "destId === 'hero'" in html
+        and "document.documentElement.classList.remove('ly-past-hero')" in html
+        and "destId === 'itinerary-funnel' || destId === 'gallery-funnel'" in html,
+    )
+    r.check(
         'nav scroll section highlighting script',
         'updateNavSection' in html
         and "classList.toggle('is-active'" in html
@@ -645,14 +887,37 @@ def check_html(r: Runner, rel: str, html: str) -> None:
         'class="hero-bg"' in html and 'fetchpriority="high"' in html,
     )
     r.check(
-        'responsive hero image preloads',
-        'imagesrcset="' in html
-        and 'maiora_20s_02-480.webp 480w' in html
+        'connection-tier script sniffs network before hero fetch',
+        html.find('id="fouc-guard"') < html.find('net-tier.js')
+        and html.find('net-tier.js') < html.find('id="critical-css"'),
+    )
+    net_tier = read_file('js/net-tier.js') or ''
+    r.check(
+        'net-tier.js detects slow connections and caps hero preload',
+        'LY_NET_SLOW' in net_tier
+        and 'effectiveType' in net_tier
+        and 'saveData' in net_tier
+        and 'ly_net' in net_tier
+        and 'maiora_20s_02-480.webp' in net_tier
+        and 'lyCapHero' in net_tier
+        and 'ly-prog-critical' in net_tier
+        and 'object-position:52% 40%' in net_tier,
+    )
+    r.check(
+        'slow connection caps gallery/dest card tiers in preload JS',
+        'LY_NET_SLOW' in html
+        and 'LY_applySlowSrcsets' in html
+        and re.search(r"LY_NET_SLOW\s*\?\s*\(mob\s*\?\s*'-480'\s*:\s*'-640'\)", html)
+        is not None,
+    )
+    r.check(
+        'hero picture keeps responsive srcset (runtime cap on slow 3G)',
+        'maiora_20s_02-480.webp 480w' in html
         and 'maiora_20s_02-720.webp' in html
         and 'maiora_20s_02-640.webp 640w' in html
         and 'maiora_20s_02-960.webp 960w' in html
-        and 'maiora_20s_02-1280.webp 1280w' in html
-        and 'maiora_20s_02.webp 1920w' in html
+        and 'class="hero-bg"' in html
+        and 'data-ly-srcset=' in html
         and 'fetchpriority="high"' in html,
     )
     r.check(
@@ -663,18 +928,8 @@ def check_html(r: Runner, rel: str, html: str) -> None:
     img_root = 'images' if rel == 'index.html' else '/images'
     r.check(
         'hero preload breakpoints align with picture sources',
-        re.search(
-            rf'rel="preload" as="image"[^>]*{re.escape(img_root)}/mobile/maiora_20s_02-480\.webp 480w[^>]*'
-            r'media="\(max-width: 640px\)"',
-            html,
-        )
-        is not None
-        and re.search(
-            rf'rel="preload" as="image"[^>]*maiora_20s_02-640\.webp 640w[^>]*'
-            r'media="\(min-width: 641px\)"',
-            html,
-        )
-        is not None
+        'LY_applySlowSrcsets' in html
+        and 'LY_capSrcset' in (read_file('js/net-tier.js') or '')
         and re.search(
             rf'<source[^>]*{re.escape(img_root)}/mobile/maiora_20s_02-480\.webp 480w[^>]*'
             r'media="\(max-width: 640px\)"',
@@ -682,20 +937,24 @@ def check_html(r: Runner, rel: str, html: str) -> None:
         )
         is not None
         and re.search(
-            rf'<source[^>]*srcset="{re.escape(img_root)}/maiora_20s_02-640\.webp 640w',
+            rf'<source[^>]*data-ly-srcset="{re.escape(img_root)}/maiora_20s_02-640\.webp 640w',
             html,
         )
         is not None,
     )
-    style_pos = html.find('<style')
+    fouc_pos = html.find('id="fouc-guard"')
+    style_pos = html.find('id="critical-css"')
+    net_tier_pos = html.find('net-tier.js')
     r.check(
-        'critical hero CSS discovered before deferred head scripts',
-        style_pos > 0 and style_pos < html.find('<script'),
+        'FOUC guard CSS precedes connection-tier script and hero critical CSS',
+        fouc_pos > 0
+        and net_tier_pos > fouc_pos
+        and style_pos > net_tier_pos,
     )
     r.check(
         'hero image preloads discovered before deferred head scripts',
         html.find('fetchpriority="high"')
-        < style_pos
+        > fouc_pos
         < html.find('LY_afterLcp')
         < html.find('window.LY_DEST_IMAGES'),
     )
@@ -726,35 +985,65 @@ def check_html(r: Runner, rel: str, html: str) -> None:
         'hero background is not aria-hidden (eligible LCP image candidate)',
         'class="hero-bg"' in html and 'aria-hidden="true"' not in html.split('class="hero-bg"')[1][:120],
     )
+    crit_tag = html.find('<style id="critical-css">', fouc_pos)
+    crit_end = html.find('</style>', crit_tag) if crit_tag >= 0 else -1
     r.check(
         'critical CSS is slim enough for fast head parse',
-        style_pos > 0 and html.find('</style>', style_pos) - style_pos < 7200,
+        crit_tag > 0 and crit_end - crit_tag < 9700,
     )
-    crit_end = html.find('</style>', style_pos)
-    crit_css = html[style_pos:crit_end] if style_pos > 0 and crit_end > style_pos else ''
+    crit_css = html[crit_tag:crit_end] if crit_tag >= 0 and crit_end > crit_tag else ''
     crit_flat = re.sub(r'\s+', '', crit_css)
+    fouc_flat = re.sub(r'\s+', '', html[html.find('<style id="fouc-guard">'):html.find('</style>', html.find('id="fouc-guard"'))])
     r.check(
-        'critical CSS hides unstyled nav chrome until main.css loads',
-        'html:not(.css-ready)' in crit_flat
-        and ':is(.nav-links,.nav-lang-wrap,.nav-header-cta,.hamburger,.mobile-nav){display:none!important}' in crit_flat
-        and 'html:not(.css-ready)body>:not(nav):not(#hero){display:none!important}' in crit_flat
-        and '#heroa{color:inherit;text-decoration:none}' in crit_flat
+        'FOUC guard kills blue links and hides below-fold until main.css',
+        'html:not(.ly-main-ready)body>:not(nav):not(#hero){display:none!important}' in fouc_flat
+        and 'a:any-link{color:#f5f0e8!important' in fouc_flat
+        and 'a.itinerary-meet-cta,a.mobile-nav-cta{color:#0a1628!important' in fouc_flat,
+    )
+    r.check(
+        'nav and desktop hero duplicates ship with inline display:none',
+        '<ul class="nav-links" style="display:none">' in html
+        and 'class="hamburger" id="hamburger" style="display:none"' in html
+        and 'class="hero-eyebrow-link--desktop" style="display:none"' in html
+        and 'class="hero-rates hero-rates-link season-rates hero-rates-link--desktop" style="display:none"' in html
+        and 'class="btn-primary hero-cta-link--desktop" style="display:none"' in html,
+    )
+    r.check(
+        'critical CSS locks desktop hero variants with !important',
+        '.hero-cta-link--desktop,.hero-rates-link--desktop,.hero-eyebrow-link--desktop{display:none!important}' in crit_flat
+        and '#heroa{color:inherit;text-decoration:none' in crit_flat
         and 'position:fixed' in crit_flat
         and 'nav{' in crit_flat
         and 'display:flex' in crit_flat
-        and '.hamburger{display:flex}' not in crit_flat,
+        and 'nav{opacity:0;visibility:hidden;pointer-events:none}' in crit_flat
+        and '--h-t:clamp(2.2rem' in crit_flat.replace(' ', '')
+        and '--h-rg:clamp(.62rem' in crit_flat.replace(' ', '')
+        and '.hero-top{grid-row:1' in crit_flat.replace(' ', ''),
     )
     r.check(
-        'critical CSS prevents mobile hero text clipping before main.css',
-        'height:auto' in crit_flat
-        and '.hero-scroll,.hero-value{display:none}' in crit_flat
-        and 'min-height:2.4em' not in crit_flat
-        and 'padding-top:max(3.75rem' in crit_flat,
+        'critical CSS locks mobile hero to full viewport before main.css',
+        'height:100svh' in crit_flat
+        and 'overflow:hidden' in crit_flat
+        and '.hero-bg-wrap,.hero-overlay{position:absolute;inset:0' in crit_flat
+        and '.hero-value{display:none}' in crit_flat
+        and '.hero-scroll,.hero-value{display:none}' not in crit_flat
+        and '--hero-top-inset:max(1.05rem,calc(env(safe-area-inset-top,0px)+.8rem))' in crit_flat.replace(' ', '')
+        and '--hero-bottom-inset:max(1.25rem,calc(env(safe-area-inset-bottom,0px)+1rem))' in crit_flat.replace(' ', '')
+        and 'min(28%,9.5rem)' in crit_flat.replace(' ', '')
+        and 'padding-top:1.05rem' in crit_flat.replace(' ', '')
+        and 'padding-bottom:1.25rem' in crit_flat.replace(' ', '')
+        and '.hero-top{grid-row:1' in crit_flat.replace(' ', '')
+        and '.hero-content{position:absolute;inset:0' in crit_flat.replace(' ', '')
+        and 'display:grid;grid-template-rows:auto1frauto' in crit_flat.replace(' ', '')
+        and '.hero-bottom.hero-sub' in crit_flat.replace(' ', ''),
     )
     r.check(
-        'main.css load adds css-ready class (reveals styled nav)',
-        html.count("classList.add('css-ready')") >= 2
-        and 'onload="this.rel=\'stylesheet\'' in html,
+        'main.css load adds ly-main-ready after sheet paints (no early timeout)',
+        html.count("classList.add('ly-main-ready')") >= 1
+        and "this.rel = 'stylesheet'" in html
+        and 'LY_MAIN_CSS_HREF' in html
+        and 'setTimeout' not in html.split('main.css')[1][:500]
+        and 'requestAnimationFrame' in html,
     )
     r.check(
         'critical CSS includes hero legibility scrims before main.css',
@@ -766,15 +1055,18 @@ def check_html(r: Runner, rel: str, html: str) -> None:
     r.check(
         'critical CSS hides duplicate hero rates and eyebrow links before main.css',
         '.hero-rates-link{display:block;text-decoration:none' in crit_flat
-        and '.hero-rates-link--desktop,.hero-eyebrow-link--desktop){display:none}' in crit_flat
-        and '.hero-rates-link--mobile,.hero-eyebrow-link--mobile){display:none}' in crit_flat
-        and '.hero-eyebrow-link--desktop{display:inline}' in crit_flat,
+        and '.hero-cta-link--desktop,.hero-rates-link--desktop,.hero-eyebrow-link--desktop{display:none!important}' in crit_flat
+        and '.hero-rates-link--mobile,.hero-eyebrow-link--mobile){display:none!important}' in crit_flat
+        and '.hero-eyebrow-link--desktop{display:inline!important}' in crit_flat,
     )
     r.check(
         'critical CSS uses same hero spacing tokens as main.css',
-        '--hero-cluster-gap:' in crit_flat
+        '--hero-top-inset:' in crit_flat
+        and '--hero-top-gap:' in crit_flat
+        and '--hero-bottom-gap:' in crit_flat
+        and '--hero-cluster-gap:' in crit_flat
         and '--hero-bottom-inset:' in crit_flat
-        and 'var(--hero-bottom-inset)' in crit_flat
+        and 'padding-bottom:1.25rem' in crit_flat.replace(' ', '')
         and '--hero-gap:' not in crit_flat,
     )
     r.check(
@@ -783,13 +1075,40 @@ def check_html(r: Runner, rel: str, html: str) -> None:
         and '.hero-rates[hidden]{display:none!important}' in crit_flat.replace(' ', ''),
     )
     r.check(
-        'critical CSS matches mobile hero flex layout',
-        'display:flex' in crit_flat
-        and '.hero-cta-group{' in crit_flat and 'margin-top:auto' in crit_flat
-        and 'flex:10auto' in crit_flat.replace(' ', '')
-        and 'height:auto' in crit_flat
-        and 'overflow-y:visible' in crit_flat
+        'critical CSS matches mobile cinema hero grid layout',
+        'display:grid;grid-template-rows:auto1frauto' in crit_flat.replace(' ', '')
+        and '.hero-top,.hero-bottom{display:flex' in crit_flat
+        and '.hero-bottom{grid-row:3;align-self:end' in crit_flat.replace(' ', '')
+        and '.hero-bottom.hero-sub,.hero-scroll,.hero-trust{display:none!important}' in crit_flat.replace(' ', '')
+        and '#hero.hero-actions{flex-direction:row' in crit_flat.replace(' ', '')
+        and 'width:min(85vw,100%)' in crit_flat.replace(' ', '')
+        and '.hero-top,.hero-bottom{display:flex;flex-direction:column;align-items:stretch;width:min(85vw,100%)' in crit_flat.replace(' ', '')
+        and '.hero-content::before,.hero-content::after{left:0;right:0;width:auto;transform:none' in crit_flat.replace(' ', '')
+        and '#hero.hero-actions{flex-direction:row;justify-content:center' in crit_flat.replace(' ', '')
+        and 'padding:clamp(.95rem,5vw,1.18rem)clamp(.62rem,3.4vw,.92rem)' in crit_flat.replace(' ', '')
+        and 'letter-spacing:.07em' in crit_flat.replace(' ', '')
+        and 'hyphens:none' in crit_flat.replace(' ', '')
+        and 'line-height:1.4' in crit_flat.replace(' ', '')
+        and 'font-weight:300' in crit_flat.replace(' ', '')
+        and "font-family:'Montserrat'" in crit_flat.replace(' ', '')
+        and 'min-height:2.85rem' in crit_flat.replace(' ', '')
+        and '#hero.hero-actions.btn-primary{margin-left:' not in crit_flat.replace(' ', '')
+        and '.hero-content{position:absolute;inset:0' in crit_flat
+        and 'height:100svh' in crit_flat
+        and 'overflow:hidden' in crit_flat
         and 'safe-area-inset-bottom' in crit_css,
+    )
+    r.check(
+        'hero uses top/bottom clusters for mobile yacht stage',
+        'class="hero-top">' in html
+        and 'padding-top:max(5.35rem' not in html.split('class="hero-top"')[1][:80]
+        and '<div class="hero-bottom">' in html
+        and html.find('class="hero-top"') < html.find('<div class="hero-bottom">')
+        and html.find('class="hero-title"') > html.find('class="hero-top"')
+        and html.find('class="hero-sub"') > html.find('<div class="hero-bottom">')
+        and html.find('class="hero-sub"') < html.find('class="hero-rates')
+        and 'class="hero-top">' in html.split('<div class="hero-bottom">')[0]
+        and 'class="hero-sub"' not in html.split('<div class="hero-bottom">')[0],
     )
     r.check(
         'critical CSS reserves hero child layout before main.css',
@@ -819,9 +1138,10 @@ def check_html(r: Runner, rel: str, html: str) -> None:
     head_end = html.find('</head>')
     head = html[:head_end] if head_end > 0 else ''
     r.check(
-        'only hero images are preloaded in head (content stays lazy)',
-        head.count('rel="preload" as="image"') == 2
-        and 'maiora_20s_02' in head
+        'hero image preloads injected by net-tier (no static dest preloads in head)',
+        head.count('rel="preload" as="image"') == 0
+        and 'lyInjectPreload' in net_tier
+        and 'maiora_20s_02' in net_tier
         and 'images/dest/' not in head
         and 'maiora_20s_04' not in head,
     )
@@ -930,8 +1250,10 @@ def check_html(r: Runner, rel: str, html: str) -> None:
     )
     r.check(
         'hero CTA mobile links keep section anchors',
-        'href="#itinerary" class="btn-primary hero-cta-link--mobile"' in html
-        and 'href="#gallery" class="btn-ghost hero-cta-link--mobile"' in html,
+        'href="#itinerary-funnel" class="btn-primary hero-cta-link--mobile"' in html
+        and 'href="#gallery-funnel" class="btn-ghost hero-cta-link--mobile"' in html
+        and 'id="itinerary-funnel"' in html
+        and 'id="gallery-funnel"' in html,
     )
     r.check(
         'critical CSS defines hero bottom cluster gaps',
@@ -1002,7 +1324,7 @@ def check_html(r: Runner, rel: str, html: str) -> None:
     if rel == 'index.html':
         r.check(
             'availability applies feed data with explicit calendar re-render',
-            'applyAvailability' in html and 'scheduleAvailabilityLoad' in html,
+            'lyApplyAvailCal' in html and 'lyScheduleAvailCalLoad' in html,
         )
 
     # Structured data
@@ -1024,8 +1346,8 @@ def check_html(r: Runner, rel: str, html: str) -> None:
         )
         r.check(
             f'{rel} shared assets use parent-relative paths',
-            'href="../css/main.css' in html
-            and "url('../fonts/montserrat-latin.woff2')" in html
+            "LY_MAIN_CSS_HREF='../css/main.css" in html
+            and 'href="../css/main.css' in html
             and 'href="../favicon.svg"' in html
             and 'href="/favicon.svg"' not in html,
         )
@@ -1316,6 +1638,34 @@ def check_shared_assets(r: Runner) -> None:
     if css:
         r.check('main.css defines .hero-bg-wrap', '.hero-bg-wrap' in css)
         r.check('main.css defines heroTitleIn', 'heroTitleIn' in css)
+        r.check(
+            'main.css locks mobile cinema hero to full viewport grid',
+            re.search(
+                r'@media\s*\(\s*max-width:\s*768px\s*\)[\s\S]*?#hero\s*\{[^}]*height:\s*100svh[^}]*overflow:\s*hidden',
+                css,
+            )
+            is not None
+            and re.search(
+                r'@media\s*\(\s*max-width:\s*768px\s*\)[\s\S]*?\.hero-content\s*\{[^}]*display:\s*grid[^}]*grid-template-rows:\s*auto\s+1fr\s+auto',
+                css,
+            )
+            is not None
+            and re.search(
+                r'@media\s*\(\s*max-width:\s*768px\s*\)[\s\S]*?nav\s*\{[^}]*opacity:\s*0[^}]*visibility:\s*hidden',
+                css,
+            )
+            is not None
+            and re.search(
+                r'@media\s*\(\s*min-width:\s*769px\s*\)\s*and\s*\(\s*max-height:\s*920px\s*\)',
+                css,
+            )
+            is not None
+            and re.search(
+                r'@media\s*\(\s*max-width:\s*768px\s*\)[\s\S]*?\.hero-top,\s*\.hero-bottom',
+                css,
+            )
+            is not None,
+        )
         css_flat = re.sub(r'\s+', '', css)
         r.check(
             'hero above-fold copy visible immediately (Speed Index safe)',
@@ -1334,10 +1684,91 @@ def check_shared_assets(r: Runner) -> None:
         r.check(
             'short viewports compact hero title for bottom cluster clearance',
             re.search(
-                r'@media\s*\(\s*max-height:\s*920px\s*\)[\s\S]*?--hero-cluster-gap',
+                r'@media\s*\(\s*min-width:\s*769px\s*\)\s*and\s*\(\s*max-height:\s*920px\s*\)[\s\S]*?--hero-cluster-gap',
                 css,
             )
             is not None,
+        )
+        r.check(
+            'mobile cinema hero hides chrome and pairs CTAs',
+            re.search(
+                r'@media\s*\(\s*max-width:\s*768px\s*\)[\s\S]*?\.hero-bottom\s+\.hero-sub,\s*\.hero-scroll,\s*\.hero-trust\s*\{\s*display:\s*none',
+                css,
+            )
+            is not None
+            and re.search(
+                r'@media\s*\(\s*max-width:\s*768px\s*\)[\s\S]*?#hero\s+\.hero-actions\s*\{[^}]*flex-direction:\s*row',
+                css,
+            )
+            is not None
+            and re.search(
+                r'@media\s*\(\s*max-width:\s*768px\s*\)[\s\S]*?nav\s*\{[^}]*opacity:\s*0[^}]*visibility:\s*hidden',
+                css,
+            )
+            is not None
+            and re.search(
+                r'@media\s*\(\s*max-width:\s*768px\s*\)[\s\S]*?html\.ly-past-hero\s+nav\s*\{[^}]*opacity:\s*1',
+                css,
+            )
+            is not None
+            and '--hero-cinema-rates-gap' in css_flat
+            and '--mobile-funnel-land-offset:5.45rem' in css_flat
+            and re.search(
+                r'html\.ly-hero-cinema:not\(\.ly-past-hero\)\s*#itinerary-funnel[\s\S]*?scroll-margin-top:\s*var\(--mobile-funnel-land-offset\)',
+                css,
+            )
+            is not None
+
+            and re.search(
+                r'html\.ly-past-hero\s*\{[^}]*scroll-padding-top:\s*var\(--mobile-funnel-land-offset',
+                css,
+            )
+            is not None
+            and '--hero-cinema-top-span:min(85vw,100%)' in css_flat
+            and 'justify-items:center' in css_flat
+            and '.hero-content::before,.hero-content::after{left:0;right:0;width:auto;transform:none' in css_flat
+            and '.hero-top,.hero-bottom{display:flex;flex-direction:column;align-items:stretch;width:var(--hero-cinema-top-span)' in css_flat
+            and '#hero.hero-actions.btn-primary{margin-left:' not in css_flat,
+        )
+        r.check(
+            'micro mobile hero tightens cinema tokens without overflow',
+            'min-height: 520px' not in re.sub(
+                r'/\*[\s\S]*?\*/',
+                '',
+                re.search(
+                    r'@media\s*\(\s*max-width:\s*768px\s*\)\s*\{[^}]*#hero\s*\{[^}]*\}',
+                    css,
+                ).group(0) if re.search(
+                    r'@media\s*\(\s*max-width:\s*768px\s*\)\s*\{[^}]*#hero\s*\{[^}]*\}',
+                    css,
+                ) else '',
+            )
+            and re.search(
+                r'@media\s*\(\s*max-width:\s*768px\s*\)[\s\S]*?@media\s*\(\s*max-height:\s*520px\s*\)[\s\S]*?--hero-cinema-title:',
+                css,
+            )
+            is not None
+            and '--hero-cinema-side' in css_flat
+            and '--hero-cinema-actions-inset' in css_flat
+            and re.search(
+                r'@media\s*\(\s*max-width:\s*768px\s*\)[\s\S]*?html\.ly-past-hero\s+nav\s*\{[^}]*transition:[^}]*opacity',
+                css,
+            )
+            is not None,
+        )
+        r.check(
+            'desktop hero cluster rules do not override mobile cinema first paint',
+            re.search(
+                r'@media\s*\(\s*min-width:\s*769px\s*\)\s*\{[^}]*\.hero-top,\s*\.hero-bottom\s*\{\s*display:\s*contents',
+                css,
+            )
+            is not None
+            and re.search(
+                r'@media\s*\(\s*min-width:\s*769px\s*\)\s*\{[^}]*\.hero-rates\s*\{[^}]*margin-top:\s*0\.85rem',
+                css,
+            )
+            is not None
+            and '.hero-top,.hero-bottom{display:contents}' not in css_flat.replace('@media(min-width:769px)', ''),
         )
         r.check(
             'hero eyebrow toggles mobile vs desktop anchor targets',
@@ -1600,11 +2031,15 @@ def check_shared_assets(r: Runner) -> None:
     r.check('lighthouse budgets file exists', os.path.isfile(os.path.join(ROOT, 'scripts/lighthouse-budgets.json')))
     index_html = read_file('index.html') or ''
     r.check(
-        'Montserrat uses root-relative @font-face and font preload (CLS-stable)',
-        "url('fonts/montserrat-latin.woff2')" in index_html
-        and 'font-display:optional' in index_html.replace(' ', '')
-        and "href=\"fonts/montserrat-latin.woff2\"" in index_html
-        and 'href="/fonts/montserrat-latin.woff2"' not in index_html,
+        'Montserrat uses @font-face and net-tier font preload (CLS-stable)',
+        "url('../fonts/montserrat-latin.woff2')" in (read_file('css/main.css') or '')
+        and 'font-display:optional' in (read_file('css/main.css') or '').replace(' ', '')
+        and "url('fonts/montserrat-latin.woff2')" in index_html.replace(' ', '')
+        and 'montserrat-latin.woff2' in (read_file('js/net-tier.js') or '')
+        and "font.rel='preload'" in (read_file('js/net-tier.js') or '').replace(' ', '')
+        and 'if(!slow){' not in (read_file('js/net-tier.js') or '').split('montserrat-latin.woff2')[0][-120:]
+        and 'href="/fonts/montserrat-latin.woff2"' not in index_html
+        and 'LY_MAIN_CSS_HREF' in index_html,
     )
     css_flat = re.sub(r'\s+', '', css or '')
     r.check(
@@ -1677,16 +2112,17 @@ def check_shared_assets(r: Runner) -> None:
         and "_gt.crossOrigin='anonymous'" in legal_html,
     )
     r.check(
-        'hero phone button sizing scoped to hero only',
+        'hero cinema CTA buttons use generous scoped padding on mobile',
         css is not None
+        and '--hero-cinema-btn-pad-y:clamp(0.95rem,5vw,1.18rem)' in re.sub(r'\s+', '', css)
         and re.search(
-            r'#hero \.hero-actions \.btn-primary[^}]*max-width:\s*170px',
+            r'@media\s*\(\s*max-width:\s*768px\s*\)[\s\S]*?#hero\s+\.hero-actions\s+\.btn-primary[^}]*min-height:\s*2\.85rem',
             css,
-        ) is not None
+        )
+        is not None
         and not re.search(
-            r'@media \(min-width: 481px\)[^{]*\{[^}]*^\s*\.btn-primary\s*,',
+            r'#hero\s+\.hero-actions\s+\.btn-primary[^}]*max-width:\s*170px',
             css,
-            re.DOTALL | re.MULTILINE,
         ),
     )
     r.check(
@@ -1781,9 +2217,11 @@ def check_shared_assets(r: Runner) -> None:
     )
     r.check(
         'desktop immersive sections use mobile-style funnel CTAs',
-        'href="#gallery-land" class="itinerary-meet-cta itinerary-meet-cta--gallery-desktop"' in index_html
-        and 'href="#gallery" class="itinerary-meet-cta itinerary-meet-cta--gallery"' in index_html
-        and 'href="#availability" class="itinerary-meet-cta itinerary-meet-cta--desktop"' in index_html
+        index_html.count('class="itinerary-bottom-actions"') >= 2
+        and 'href="#gallery-land" class="btn-ghost itinerary-bottom-link--desktop">The yacht</a>' in index_html
+        and 'href="#gallery" class="btn-ghost itinerary-bottom-link--mobile">The yacht</a>' in index_html
+        and 'href="#itinerary-land" class="btn-ghost itinerary-bottom-link--desktop">destinations</a>' in index_html
+        and 'href="#itinerary-funnel" class="btn-ghost itinerary-bottom-link--mobile">destinations</a>' in index_html
         and css is not None
         and re.search(
             r'@media\s*\(\s*min-width:\s*769px\s*\)[\s\S]*?\.gallery-wrap[\s\S]*?min-height:\s*calc\(100svh\s*-\s*var\(--nav-scroll-offset\)\s*-\s*14rem\)',
@@ -1802,7 +2240,7 @@ def check_shared_assets(r: Runner) -> None:
         is not None
         and 'immersive-chrome' not in css
         and re.search(
-            r'@media\s*\(\s*min-width:\s*769px\s*\)[\s\S]*?\.itinerary-meet-cta\s*\{[^}]*display:\s*block',
+            r'@media\s*\(\s*min-width:\s*769px\s*\)[\s\S]*?#gallery\s+\.gallery-wrap\s*>\s*\.itinerary-bottom-bar',
             css,
         )
         is not None
@@ -1833,6 +2271,16 @@ def check_shared_assets(r: Runner) -> None:
         and css_rule_index(css, '.lb-close') >= 0
         and css_rule_index(css, '.lb-nav') >= 0
         and css_rule_index(css, '.lb-counter') >= 0
+        and css_rule_index(css, '.lb-loader') >= 0
+        and css_rule_index(css, '.card-loader') >= 0
+        and '#lightbox.lb-loading #lightbox-img' in css
+        and '.dest-lb-img-wrap.lb-loading #dest-lb-img' in css
+        and '.destination-card.card-loading .card-loader' in css
+        and '.gallery-item.card-loading .card-loader' in css
+        and css_rule_index(css, '.ly-prog-wrap') >= 0
+        and 'html[data-ly-net="slow"] #hero .hero-bg-wrap' in css
+        and '.ly-prog-wrap.ly-prog-skip-preview' in css
+        and '.ly-prog-wrap.ly-prog-sharp-ready.ly-prog-sharp-visible .ly-prog-sharp' in css
         and css_rule_index(css, '#dest-lb-close') < 0
         and '#lightbox-prev' not in css,
     )
@@ -1849,22 +2297,59 @@ def check_shared_assets(r: Runner) -> None:
         and 'scrollIntoView' in index_html,
     )
     r.check(
-        'mobile gallery CTA routes to availability calendar',
-        'CHECK AVAILABILITY →' in index_html
-        and 'href="#avail-cal" class="itinerary-meet-cta itinerary-meet-cta--mobile"' in index_html,
+        'mobile funnel CTAs route to availability calendar',
+        index_html.count('href="#avail-cal" class="btn-primary itinerary-bottom-link--mobile">availability</a>') == 2,
     )
     r.check(
-        'desktop funnel CTAs use nav-style landing anchors',
-        'href="#availability" class="itinerary-meet-cta itinerary-meet-cta--desktop"' in index_html
-        and 'href="#gallery-land" class="itinerary-meet-cta itinerary-meet-cta--gallery-desktop"' in index_html
+        'gallery bottom bar pairs destinations with availability hero-style',
+        index_html.count('class="btn-ghost itinerary-bottom-link--mobile">destinations</a>') == 1
+        and index_html.count('class="btn-ghost itinerary-bottom-link--desktop">destinations</a>') == 1
+        and 'CHECK AVAILABILITY →' not in index_html,
+    )
+    r.check(
+        'destinations bottom bar pairs yacht with availability hero-style',
+        index_html.count('class="btn-primary itinerary-bottom-link--mobile">availability</a>') == 2
+        and index_html.count('class="btn-primary itinerary-bottom-link--desktop">availability</a>') == 2
+        and index_html.count('class="btn-ghost itinerary-bottom-link--mobile">The yacht</a>') == 1
+        and 'Seen somewhere you\'d love to go?' not in index_html.split('id="itinerary"')[1].split('id="gallery"')[0]
         and css is not None
+        and '.itinerary-bottom-actions' in css
         and re.search(
-            r'@media\s*\(\s*min-width:\s*769px\s*\)[\s\S]*?\.itinerary-meet-cta--mobile[\s\S]*?display:\s*none\s*!important',
+            r'\.itinerary-bottom-actions\s+\.btn-primary[\s\S]*?flex:\s*1\s*1\s*0',
             css,
         )
         is not None
         and re.search(
-            r'@media\s*\(\s*min-width:\s*769px\s*\)[\s\S]*?\.itinerary-meet-cta--gallery[\s\S]*?display:\s*none\s*!important',
+            r'@media\s*\(\s*min-width:\s*769px\s*\)[\s\S]*?#gallery\s+\.gallery-wrap\s*>\s*\.itinerary-bottom-bar',
+            css,
+        )
+        is not None
+        and re.search(
+            r'@media\s*\(\s*max-width:\s*768px\s*\)[\s\S]*?#(?:gallery|itinerary)\s+\.itinerary-bottom-bar[\s\S]*?margin:\s*\.5rem\s+0\s+\.75rem',
+            css,
+        )
+        is not None
+        and re.search(
+            r'@media\s*\(\s*min-width:\s*769px\s*\)[\s\S]*?#(?:gallery|itinerary)\s+\.itinerary-bottom-bar[\s\S]*?margin:\s*\.75rem\s+0\s+\.85rem',
+            css,
+        )
+        is not None
+        and 'LY_syncMobileFunnelChrome' not in index_html
+        and 'position: fixed' not in css.split('#itinerary .itinerary-bottom-bar')[1].split('@media')[0],
+    )
+    r.check(
+        'desktop funnel CTAs use nav-style landing anchors',
+        index_html.count('href="#availability" class="btn-primary itinerary-bottom-link--desktop">availability</a>') == 2
+        and 'href="#gallery-land" class="btn-ghost itinerary-bottom-link--desktop">The yacht</a>' in index_html
+        and 'href="#itinerary-land" class="btn-ghost itinerary-bottom-link--desktop">destinations</a>' in index_html
+        and css is not None
+        and re.search(
+            r'\.itinerary-bottom-actions\s+\.itinerary-bottom-link--desktop[\s\S]*?display:\s*none\s*!important',
+            css,
+        )
+        is not None
+        and re.search(
+            r'@media\s*\(\s*min-width:\s*769px\s*\)[\s\S]*?\.itinerary-bottom-actions\s+\.itinerary-bottom-link--mobile[\s\S]*?display:\s*none\s*!important',
             css,
         )
         is not None,
@@ -2105,6 +2590,22 @@ def check_shared_assets(r: Runner) -> None:
         is not None,
     )
     r.check(
+        'buttons share unified fill and ghost colour tokens',
+        css is not None
+        and '--btn-fill: var(--gold)' in css
+        and '--btn-ghost-border:' in css
+        and '--btn-ghost-text: var(--cream)' in css
+        and '.btn-primary {' in css
+        and 'background: var(--btn-fill)' in css
+        and '.btn-ghost {' in css
+        and 'border: 1px solid var(--btn-ghost-border)' in css
+        and '.nav-cta {' in css
+        and 'color: var(--btn-ghost-text)' in css.split('.nav-cta {')[1].split('}')[0]
+        and '.mobile-nav-cta {' in css
+        and '.cookie-btn-ghost {' in css
+        and '-webkit-text-fill-color: var(--btn-on-fill)' in css.split('.itinerary-meet-cta {')[1][:500],
+    )
+    r.check(
         'desktop nav landing keeps labels and uses nav scroll offset',
         css is not None
         and '--nav-scroll-offset' in css
@@ -2177,7 +2678,7 @@ def check_shared_assets(r: Runner) -> None:
         )
         is not None
         and re.search(
-            r'@media\s*\(\s*max-width:\s*768px\s*\)[\s\S]*?\.itinerary-meet-cta\s*\{[^}]*display:\s*block',
+            r'@media\s*\(\s*max-width:\s*768px\s*\)[\s\S]*?#gallery\s+\.itinerary-bottom-bar[\s\S]*?display:\s*block',
             css,
         )
         is not None,
