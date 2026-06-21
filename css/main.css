@@ -2386,6 +2386,7 @@ footer {
 .section-cta { margin-top: 2.5rem; text-align: center; }
 .section-cta-desktop { margin-top: 2.5rem; text-align: center; }
 .itinerary-bottom-bar { display: none; }
+.itinerary-bottom-meet--desktop { display: none; }
 .itinerary-meet-cta {
   display: none;
   background: var(--btn-fill);
@@ -2717,6 +2718,26 @@ footer {
     white-space: nowrap;
   }
   .section-cta-desktop { display: none; }
+  .itinerary-bottom-bar {
+    display: flex;
+    flex-direction: column;
+    gap: .55rem;
+    padding: 0 1.2rem .85rem;
+    flex-shrink: 0;
+  }
+  .itinerary-bottom-bar .btn-ghost {
+    width: 100%;
+    max-width: none;
+    text-align: center;
+    margin: 0;
+    padding: .95rem 1.6rem;
+    font-size: var(--btn-size);
+    letter-spacing: .12em;
+    white-space: nowrap;
+  }
+  .itinerary-bottom-bar .itinerary-meet-cta {
+    margin: 0;
+  }
   .destination-desc { display: none; }
   .destination-meta span:not(:first-child) { display: none; }
   .contact-grid { grid-template-columns: 1fr; gap: 2.5rem; }
@@ -3364,10 +3385,35 @@ footer {
     min-height: 0;
     overflow: hidden;
   }
-  /* Gallery CTA sits outside the active group — reserve space at wrap bottom */
-  #gallery .gallery-wrap > .itinerary-meet-cta--desktop {
+  /* Funnel CTAs sit outside the active group — reserve space at wrap bottom */
+  #gallery .gallery-wrap > .itinerary-meet-cta--desktop,
+  #itinerary .itinerary-wrap > .itinerary-bottom-bar {
     flex: 0 0 auto;
   }
+  .itinerary-bottom-bar {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: .65rem;
+    width: 100%;
+    padding: 0 2rem .85rem;
+  }
+  .itinerary-bottom-bar .btn-ghost {
+    width: 100%;
+    max-width: 22rem;
+    text-align: center;
+    margin: 0;
+    padding: 1rem 2rem;
+    font-size: .72rem;
+    letter-spacing: .14em;
+  }
+  .itinerary-bottom-bar .itinerary-meet-cta {
+    width: 100%;
+    max-width: 22rem;
+    margin: 0;
+  }
+  .itinerary-bottom-meet--mobile { display: none !important; }
+  .itinerary-bottom-meet--desktop { display: inline-block; }
   .itinerary-meet-cta--mobile,
   .itinerary-meet-cta--gallery { display: none !important; }
   .gallery-group .gallery-grid,
