@@ -453,7 +453,7 @@ def scenario_home_tablet(page, base: str, issues: IssueCollector) -> None:
         )
 
     page.locator("#itinerary").scroll_into_view_if_needed()
-    page.locator('a[href="#avail-cal"].itinerary-meet-cta').click()
+    page.locator('#itinerary a[href="#avail-cal"]').click()
     page.wait_for_timeout(800)
     page.wait_for_function("() => location.hash === '#availability-land'", timeout=8000)
     meet_land = page.evaluate(
@@ -518,7 +518,7 @@ def scenario_home_ipad_wide(page, base: str, issues: IssueCollector) -> None:
         page.wait_for_timeout(800)
 
         page.locator("#itinerary").scroll_into_view_if_needed()
-        page.locator(".itinerary-meet-cta--desktop").click()
+        page.locator('#itinerary a[href="#availability"]').click()
         page.wait_for_timeout(800)
         page.wait_for_function("() => location.hash === '#availability-land'", timeout=8000)
         _assert_availability_landing(page, label, issues)

@@ -1013,6 +1013,8 @@ PAIRS = [
     # Hero ghost button and itinerary CTA
     ('>Meet The Yacht</a>', '>Die Yacht entdecken</a>'),
     ('Meet The Yacht →', 'Die Yacht entdecken →'),
+    ('>The yacht</a>', '>Die Yacht</a>'),
+    ('>availability</a>', '>Verfügbarkeit</a>'),
     # Itinerary section
     ('aria-label="Charter duration"', 'aria-label="Charter-Dauer"'),
     ('aria-label="Previous destination"', 'aria-label="Vorheriges Ziel"'),

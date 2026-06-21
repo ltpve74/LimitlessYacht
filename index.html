@@ -4,7 +4,7 @@
 <meta charset="UTF-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1.0" />
 <style id="fouc-guard">html{background:#0a1628;color-scheme:dark}a,a:any-link{color:#f5f0e8!important;text-decoration:none!important;-webkit-text-fill-color:currentColor!important}a.btn-primary,a.itinerary-meet-cta,a.mobile-nav-cta{color:#0a1628!important;-webkit-text-fill-color:#0a1628!important}a.btn-ghost,a.nav-cta{color:#f5f0e8!important;-webkit-text-fill-color:#f5f0e8!important}html:not(.ly-main-ready) body>:not(nav):not(#hero){display:none!important}</style>
-<script>window.LY_MAIN_CSS_HREF='css/main.css?v=135';</script>
+<script>window.LY_MAIN_CSS_HREF='css/main.css?v=136';</script>
 <script src="js/net-tier.js"></script>
 <script src="js/progressive-images.js"></script>
 
@@ -95,7 +95,7 @@ nav{position:fixed;inset:0 0 auto;z-index:100;display:flex;align-items:center;ga
 </script>
 <script>
 (function () {
-  var href = window.LY_MAIN_CSS_HREF || 'css/main.css?v=135';
+  var href = window.LY_MAIN_CSS_HREF || 'css/main.css?v=136';
   function lyMainReady() {
     requestAnimationFrame(function () {
       requestAnimationFrame(function () {
@@ -116,7 +116,7 @@ nav{position:fixed;inset:0 0 auto;z-index:100;display:flex;align-items:center;ga
   document.head.appendChild(link);
 })();
 </script>
-<noscript><link rel="stylesheet" href="css/main.css?v=135" /></noscript>
+<noscript><link rel="stylesheet" href="css/main.css?v=136" /></noscript>
 
 <title>Limitless Yacht Experience – Luxury Maiora Charter in Mallorca</title>
 <meta name="description" content="Charter the 21.5 m Maiora 'Limitless' from Palma de Mallorca — day and multi-day cruises to Mallorca's finest coves, Cabrera and Formentera. Crewed, up to 12 guests." />
@@ -1770,10 +1770,12 @@ document.addEventListener('DOMContentLoaded', function() {
       </div>
     </div>
     <div class="itinerary-bottom-bar reveal">
-      <a href="#gallery" class="btn-ghost itinerary-bottom-meet--mobile">Meet The Yacht →</a>
-      <a href="#gallery-land" class="btn-ghost itinerary-bottom-meet--desktop">Meet The Yacht →</a>
-      <a href="#avail-cal" class="itinerary-meet-cta itinerary-meet-cta--mobile">CHECK AVAILABILITY →</a>
-      <a href="#availability" class="itinerary-meet-cta itinerary-meet-cta--desktop">CHECK AVAILABILITY →</a>
+      <div class="itinerary-bottom-actions">
+        <a href="#gallery" class="btn-ghost itinerary-bottom-link--yacht-mobile">The yacht</a>
+        <a href="#gallery-land" class="btn-ghost itinerary-bottom-link--yacht-desktop">The yacht</a>
+        <a href="#avail-cal" class="btn-primary itinerary-bottom-link--avail-mobile">availability</a>
+        <a href="#availability" class="btn-primary itinerary-bottom-link--avail-desktop">availability</a>
+      </div>
     </div>
     <div class="section-cta-desktop reveal">
       <p class="section-cta-text">Seen somewhere you'd love to go? Now meet the yacht that takes you there.</p>

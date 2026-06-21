@@ -2217,10 +2217,10 @@ def check_shared_assets(r: Runner) -> None:
     )
     r.check(
         'desktop immersive sections use mobile-style funnel CTAs',
-        'class="itinerary-bottom-bar reveal"' in index_html
-        and 'href="#gallery-land" class="btn-ghost itinerary-bottom-meet--desktop"' in index_html
-        and 'href="#gallery" class="btn-ghost itinerary-bottom-meet--mobile"' in index_html
-        and index_html.count('href="#availability" class="itinerary-meet-cta itinerary-meet-cta--desktop"') >= 2
+        'class="itinerary-bottom-actions"' in index_html
+        and 'href="#gallery-land" class="btn-ghost itinerary-bottom-link--yacht-desktop">The yacht</a>' in index_html
+        and 'href="#gallery" class="btn-ghost itinerary-bottom-link--yacht-mobile">The yacht</a>' in index_html
+        and index_html.count('href="#availability" class="itinerary-meet-cta itinerary-meet-cta--desktop"') >= 1
         and css is not None
         and re.search(
             r'@media\s*\(\s*min-width:\s*769px\s*\)[\s\S]*?\.gallery-wrap[\s\S]*?min-height:\s*calc\(100svh\s*-\s*var\(--nav-scroll-offset\)\s*-\s*14rem\)',
@@ -2298,15 +2298,21 @@ def check_shared_assets(r: Runner) -> None:
     r.check(
         'mobile funnel CTAs route to availability calendar',
         'CHECK AVAILABILITY →' in index_html
-        and index_html.count('href="#avail-cal" class="itinerary-meet-cta itinerary-meet-cta--mobile"') >= 2,
+        and 'href="#avail-cal" class="itinerary-meet-cta itinerary-meet-cta--mobile"' in index_html
+        and 'href="#avail-cal" class="btn-primary itinerary-bottom-link--avail-mobile">availability</a>' in index_html,
     )
     r.check(
-        'destinations bottom bar pairs meet-yacht with availability',
-        'class="itinerary-bottom-bar reveal"' in index_html
-        and 'href="#avail-cal" class="itinerary-meet-cta itinerary-meet-cta--mobile">CHECK AVAILABILITY →</a>' in index_html
-        and 'href="#availability" class="itinerary-meet-cta itinerary-meet-cta--desktop">CHECK AVAILABILITY →</a>' in index_html
+        'destinations bottom bar pairs yacht with availability hero-style',
+        'class="itinerary-bottom-actions"' in index_html
+        and 'href="#avail-cal" class="btn-primary itinerary-bottom-link--avail-mobile">availability</a>' in index_html
+        and 'href="#availability" class="btn-primary itinerary-bottom-link--avail-desktop">availability</a>' in index_html
         and css is not None
-        and '.itinerary-bottom-bar' in css
+        and '.itinerary-bottom-actions' in css
+        and re.search(
+            r'\.itinerary-bottom-actions\s+\.btn-primary[\s\S]*?flex:\s*1\s*1\s*0',
+            css,
+        )
+        is not None
         and re.search(
             r'@media\s*\(\s*min-width:\s*769px\s*\)[\s\S]*?#itinerary\s+\.itinerary-wrap\s*>\s*\.itinerary-bottom-bar',
             css,
@@ -2315,16 +2321,16 @@ def check_shared_assets(r: Runner) -> None:
     )
     r.check(
         'desktop funnel CTAs use nav-style landing anchors',
-        index_html.count('href="#availability" class="itinerary-meet-cta itinerary-meet-cta--desktop"') >= 2
-        and 'href="#gallery-land" class="btn-ghost itinerary-bottom-meet--desktop"' in index_html
+        'href="#availability" class="btn-primary itinerary-bottom-link--avail-desktop">availability</a>' in index_html
+        and 'href="#gallery-land" class="btn-ghost itinerary-bottom-link--yacht-desktop">The yacht</a>' in index_html
         and css is not None
         and re.search(
-            r'@media\s*\(\s*min-width:\s*769px\s*\)[\s\S]*?\.itinerary-meet-cta--mobile[\s\S]*?display:\s*none\s*!important',
+            r'@media\s*\(\s*min-width:\s*769px\s*\)[\s\S]*?\.itinerary-bottom-link--avail-mobile[\s\S]*?display:\s*none\s*!important',
             css,
         )
         is not None
         and re.search(
-            r'@media\s*\(\s*min-width:\s*769px\s*\)[\s\S]*?\.itinerary-bottom-meet--mobile[\s\S]*?display:\s*none\s*!important',
+            r'@media\s*\(\s*min-width:\s*769px\s*\)[\s\S]*?\.itinerary-bottom-link--yacht-mobile[\s\S]*?display:\s*none\s*!important',
             css,
         )
         is not None,

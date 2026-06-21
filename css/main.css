@@ -2386,7 +2386,42 @@ footer {
 .section-cta { margin-top: 2.5rem; text-align: center; }
 .section-cta-desktop { margin-top: 2.5rem; text-align: center; }
 .itinerary-bottom-bar { display: none; }
-.itinerary-bottom-meet--desktop { display: none; }
+.itinerary-bottom-actions {
+  display: flex;
+  flex-direction: row;
+  flex-wrap: nowrap;
+  justify-content: center;
+  align-items: stretch;
+  gap: 1.2rem;
+  width: 100%;
+  max-width: 40rem;
+  margin: 0 auto;
+}
+.itinerary-bottom-actions .btn-primary,
+.itinerary-bottom-actions .btn-ghost {
+  flex: 1 1 0;
+  min-width: 0;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  line-height: 1.22;
+  text-align: center;
+  white-space: normal;
+  text-wrap: balance;
+}
+.itinerary-bottom-actions .btn-primary { border: 1px solid transparent; }
+.itinerary-bottom-actions .btn-ghost {
+  background: rgba(10, 22, 40, 0.28);
+  border-color: var(--btn-ghost-border);
+  box-shadow: 0 2px 18px rgba(10, 22, 40, 0.32);
+}
+.itinerary-bottom-actions .btn-ghost:hover {
+  background: rgba(10, 22, 40, 0.42);
+  border-color: var(--btn-ghost-border-hover);
+  color: var(--btn-ghost-text-hover);
+}
+.itinerary-bottom-link--yacht-desktop,
+.itinerary-bottom-link--avail-desktop { display: none; }
 .itinerary-meet-cta {
   display: none;
   background: var(--btn-fill);
@@ -2719,24 +2754,23 @@ footer {
   }
   .section-cta-desktop { display: none; }
   .itinerary-bottom-bar {
-    display: flex;
-    flex-direction: column;
-    gap: .55rem;
-    padding: 0 1.2rem .85rem;
+    display: block;
+    padding: 0 var(--hero-cinema-side, 1.2rem) .85rem;
     flex-shrink: 0;
   }
-  .itinerary-bottom-bar .btn-ghost {
-    width: 100%;
+  .itinerary-bottom-actions {
+    gap: var(--hero-cinema-btn-gap);
     max-width: none;
-    text-align: center;
-    margin: 0;
-    padding: .95rem 1.6rem;
-    font-size: var(--btn-size);
-    letter-spacing: .12em;
-    white-space: nowrap;
+    padding: 0 var(--hero-cinema-actions-inset, 0);
   }
-  .itinerary-bottom-bar .itinerary-meet-cta {
-    margin: 0;
+  .itinerary-bottom-actions .btn-primary,
+  .itinerary-bottom-actions .btn-ghost {
+    min-height: 2.85rem;
+    padding: var(--hero-cinema-btn-pad-y) var(--hero-cinema-btn-pad-x);
+    font-size: var(--hero-cinema-btn-size);
+    letter-spacing: 0.07em;
+    max-width: none;
+    width: auto;
   }
   .destination-desc { display: none; }
   .destination-meta span:not(:first-child) { display: none; }
@@ -3391,29 +3425,14 @@ footer {
     flex: 0 0 auto;
   }
   .itinerary-bottom-bar {
-    display: flex;
-    flex-direction: column;
-    align-items: center;
-    gap: .65rem;
+    display: block;
     width: 100%;
     padding: 0 2rem .85rem;
   }
-  .itinerary-bottom-bar .btn-ghost {
-    width: 100%;
-    max-width: 22rem;
-    text-align: center;
-    margin: 0;
-    padding: 1rem 2rem;
-    font-size: .72rem;
-    letter-spacing: .14em;
-  }
-  .itinerary-bottom-bar .itinerary-meet-cta {
-    width: 100%;
-    max-width: 22rem;
-    margin: 0;
-  }
-  .itinerary-bottom-meet--mobile { display: none !important; }
-  .itinerary-bottom-meet--desktop { display: inline-block; }
+  .itinerary-bottom-link--yacht-mobile,
+  .itinerary-bottom-link--avail-mobile { display: none !important; }
+  .itinerary-bottom-link--yacht-desktop,
+  .itinerary-bottom-link--avail-desktop { display: inline-flex !important; }
   .itinerary-meet-cta--mobile,
   .itinerary-meet-cta--gallery { display: none !important; }
   .gallery-group .gallery-grid,
