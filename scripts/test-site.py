@@ -2329,7 +2329,19 @@ def check_shared_assets(r: Runner) -> None:
             r'@media\s*\(\s*max-width:\s*768px\s*\)[\s\S]*?#itinerary\s+\.itinerary-bottom-actions[\s\S]*?padding:\s*0',
             css,
         )
-        is not None,
+        is not None
+        and re.search(
+            r'@media\s*\(\s*max-width:\s*768px\s*\)[\s\S]*?#itinerary\s+\.itinerary-wrap[\s\S]*?min-height:\s*100dvh',
+            css,
+        )
+        is not None
+        and re.search(
+            r'#itinerary\s+\.itinerary-bottom-bar[\s\S]*?var\(--ly-vv-bottom-offset',
+            css,
+        )
+        is not None
+        and 'syncMobileFunnelChrome' in index_html
+        and '--ly-vv-bottom-offset' in index_html,
     )
     r.check(
         'desktop funnel CTAs use nav-style landing anchors',

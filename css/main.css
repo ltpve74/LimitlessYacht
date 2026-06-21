@@ -2757,6 +2757,7 @@ footer {
     display: flex;
     flex-direction: column;
     min-height: 100svh;
+    min-height: 100dvh;
     box-sizing: border-box;
   }
   #itinerary .dest-group.tab-active {
@@ -2769,7 +2770,7 @@ footer {
     display: block;
     flex-shrink: 0;
     margin-top: auto;
-    padding: .5rem var(--hero-cinema-side) max(.75rem, env(safe-area-inset-bottom, 0px));
+    padding: .5rem var(--hero-cinema-side) calc(var(--hero-bottom-inset) + var(--ly-vv-bottom-offset, 0px));
   }
   #itinerary .itinerary-bottom-actions {
     gap: var(--hero-cinema-btn-gap);
