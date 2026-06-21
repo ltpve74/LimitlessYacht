@@ -2304,8 +2304,10 @@ def check_shared_assets(r: Runner) -> None:
     r.check(
         'destinations bottom bar pairs yacht with availability hero-style',
         'class="itinerary-bottom-actions"' in index_html
-        and 'href="#avail-cal" class="btn-primary itinerary-bottom-link--avail-mobile">availability</a>' in index_html
-        and 'href="#availability" class="btn-primary itinerary-bottom-link--avail-desktop">availability</a>' in index_html
+        and index_html.count('class="btn-primary itinerary-bottom-link--avail-mobile">availability</a>') == 1
+        and index_html.count('class="btn-primary itinerary-bottom-link--avail-desktop">availability</a>') == 1
+        and index_html.count('class="btn-ghost itinerary-bottom-link--yacht-mobile">The yacht</a>') == 1
+        and 'Seen somewhere you\'d love to go?' not in index_html.split('id="itinerary"')[1].split('id="gallery"')[0]
         and css is not None
         and '.itinerary-bottom-actions' in css
         and re.search(
@@ -2325,12 +2327,12 @@ def check_shared_assets(r: Runner) -> None:
         and 'href="#gallery-land" class="btn-ghost itinerary-bottom-link--yacht-desktop">The yacht</a>' in index_html
         and css is not None
         and re.search(
-            r'@media\s*\(\s*min-width:\s*769px\s*\)[\s\S]*?\.itinerary-bottom-link--avail-mobile[\s\S]*?display:\s*none\s*!important',
+            r'\.itinerary-bottom-actions\s+\.itinerary-bottom-link--(?:yacht|avail)-desktop[\s\S]*?display:\s*none\s*!important',
             css,
         )
         is not None
         and re.search(
-            r'@media\s*\(\s*min-width:\s*769px\s*\)[\s\S]*?\.itinerary-bottom-link--yacht-mobile[\s\S]*?display:\s*none\s*!important',
+            r'@media\s*\(\s*min-width:\s*769px\s*\)[\s\S]*?\.itinerary-bottom-actions\s+\.itinerary-bottom-link--(?:yacht|avail)-mobile[\s\S]*?display:\s*none\s*!important',
             css,
         )
         is not None,

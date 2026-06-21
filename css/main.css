@@ -2420,8 +2420,8 @@ footer {
   border-color: var(--btn-ghost-border-hover);
   color: var(--btn-ghost-text-hover);
 }
-.itinerary-bottom-link--yacht-desktop,
-.itinerary-bottom-link--avail-desktop { display: none; }
+.itinerary-bottom-actions .itinerary-bottom-link--yacht-desktop,
+.itinerary-bottom-actions .itinerary-bottom-link--avail-desktop { display: none !important; }
 .itinerary-meet-cta {
   display: none;
   background: var(--btn-fill);
@@ -3429,10 +3429,10 @@ footer {
     width: 100%;
     padding: 0 2rem .85rem;
   }
-  .itinerary-bottom-link--yacht-mobile,
-  .itinerary-bottom-link--avail-mobile { display: none !important; }
-  .itinerary-bottom-link--yacht-desktop,
-  .itinerary-bottom-link--avail-desktop { display: inline-flex !important; }
+  .itinerary-bottom-actions .itinerary-bottom-link--yacht-mobile,
+  .itinerary-bottom-actions .itinerary-bottom-link--avail-mobile { display: none !important; }
+  .itinerary-bottom-actions .itinerary-bottom-link--yacht-desktop,
+  .itinerary-bottom-actions .itinerary-bottom-link--avail-desktop { display: inline-flex !important; }
   .itinerary-meet-cta--mobile,
   .itinerary-meet-cta--gallery { display: none !important; }
   .gallery-group .gallery-grid,
