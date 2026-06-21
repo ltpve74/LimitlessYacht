@@ -2420,8 +2420,7 @@ footer {
   border-color: var(--btn-ghost-border-hover);
   color: var(--btn-ghost-text-hover);
 }
-.itinerary-bottom-actions .itinerary-bottom-link--yacht-desktop,
-.itinerary-bottom-actions .itinerary-bottom-link--avail-desktop { display: none !important; }
+.itinerary-bottom-actions .itinerary-bottom-link--desktop { display: none !important; }
 .itinerary-meet-cta {
   display: none;
   background: var(--btn-fill);
@@ -2753,11 +2752,13 @@ footer {
     white-space: nowrap;
   }
   .section-cta-desktop { display: none; }
+  #gallery .itinerary-bottom-bar,
   #itinerary .itinerary-bottom-bar {
     display: block;
     margin: .5rem 0 .75rem;
     padding: 0;
   }
+  #gallery .itinerary-bottom-actions,
   #itinerary .itinerary-bottom-actions {
     gap: var(--hero-cinema-btn-gap);
     max-width: none;
@@ -2765,6 +2766,8 @@ footer {
     padding: 0 var(--hero-cinema-side);
     margin: 0;
   }
+  #gallery .itinerary-bottom-actions .btn-primary,
+  #gallery .itinerary-bottom-actions .btn-ghost,
   #itinerary .itinerary-bottom-actions .btn-primary,
   #itinerary .itinerary-bottom-actions .btn-ghost {
     min-height: 2.85rem;
@@ -3422,21 +3425,18 @@ footer {
     overflow: hidden;
   }
   /* Funnel CTAs sit outside the active group — reserve space at wrap bottom */
-  #gallery .gallery-wrap > .itinerary-meet-cta--desktop,
+  #gallery .gallery-wrap > .itinerary-bottom-bar,
   #itinerary .itinerary-wrap > .itinerary-bottom-bar {
     flex: 0 0 auto;
   }
+  #gallery .itinerary-bottom-bar,
   #itinerary .itinerary-bottom-bar {
     display: block;
     margin: .75rem 0 .85rem;
     padding: 0 2rem;
   }
-  .itinerary-bottom-actions .itinerary-bottom-link--yacht-mobile,
-  .itinerary-bottom-actions .itinerary-bottom-link--avail-mobile { display: none !important; }
-  .itinerary-bottom-actions .itinerary-bottom-link--yacht-desktop,
-  .itinerary-bottom-actions .itinerary-bottom-link--avail-desktop { display: inline-flex !important; }
-  .itinerary-meet-cta--mobile,
-  .itinerary-meet-cta--gallery { display: none !important; }
+  .itinerary-bottom-actions .itinerary-bottom-link--mobile { display: none !important; }
+  .itinerary-bottom-actions .itinerary-bottom-link--desktop { display: inline-flex !important; }
   .gallery-group .gallery-grid,
   .dest-group .itinerary-grid {
     display: flex;

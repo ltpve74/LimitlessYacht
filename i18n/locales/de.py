@@ -1015,6 +1015,7 @@ PAIRS = [
     ('Meet The Yacht →', 'Die Yacht entdecken →'),
     ('>The yacht</a>', '>Die Yacht</a>'),
     ('>availability</a>', '>Verfügbarkeit</a>'),
+    ('>destinations</a>', '>Reiseziele</a>'),
     # Itinerary section
     ('aria-label="Charter duration"', 'aria-label="Charter-Dauer"'),
     ('aria-label="Previous destination"', 'aria-label="Vorheriges Ziel"'),

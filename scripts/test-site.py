@@ -2217,10 +2217,11 @@ def check_shared_assets(r: Runner) -> None:
     )
     r.check(
         'desktop immersive sections use mobile-style funnel CTAs',
-        'class="itinerary-bottom-actions"' in index_html
-        and 'href="#gallery-land" class="btn-ghost itinerary-bottom-link--yacht-desktop">The yacht</a>' in index_html
-        and 'href="#gallery" class="btn-ghost itinerary-bottom-link--yacht-mobile">The yacht</a>' in index_html
-        and index_html.count('href="#availability" class="itinerary-meet-cta itinerary-meet-cta--desktop"') >= 1
+        index_html.count('class="itinerary-bottom-actions"') >= 2
+        and 'href="#gallery-land" class="btn-ghost itinerary-bottom-link--desktop">The yacht</a>' in index_html
+        and 'href="#gallery" class="btn-ghost itinerary-bottom-link--mobile">The yacht</a>' in index_html
+        and 'href="#itinerary-land" class="btn-ghost itinerary-bottom-link--desktop">destinations</a>' in index_html
+        and 'href="#itinerary-funnel" class="btn-ghost itinerary-bottom-link--mobile">destinations</a>' in index_html
         and css is not None
         and re.search(
             r'@media\s*\(\s*min-width:\s*769px\s*\)[\s\S]*?\.gallery-wrap[\s\S]*?min-height:\s*calc\(100svh\s*-\s*var\(--nav-scroll-offset\)\s*-\s*14rem\)',
@@ -2239,7 +2240,7 @@ def check_shared_assets(r: Runner) -> None:
         is not None
         and 'immersive-chrome' not in css
         and re.search(
-            r'@media\s*\(\s*min-width:\s*769px\s*\)[\s\S]*?\.itinerary-meet-cta\s*\{[^}]*display:\s*block',
+            r'@media\s*\(\s*min-width:\s*769px\s*\)[\s\S]*?#gallery\s+\.gallery-wrap\s*>\s*\.itinerary-bottom-bar',
             css,
         )
         is not None
@@ -2297,16 +2298,19 @@ def check_shared_assets(r: Runner) -> None:
     )
     r.check(
         'mobile funnel CTAs route to availability calendar',
-        'CHECK AVAILABILITY →' in index_html
-        and 'href="#avail-cal" class="itinerary-meet-cta itinerary-meet-cta--mobile"' in index_html
-        and 'href="#avail-cal" class="btn-primary itinerary-bottom-link--avail-mobile">availability</a>' in index_html,
+        index_html.count('href="#avail-cal" class="btn-primary itinerary-bottom-link--mobile">availability</a>') == 2,
+    )
+    r.check(
+        'gallery bottom bar pairs destinations with availability hero-style',
+        index_html.count('class="btn-ghost itinerary-bottom-link--mobile">destinations</a>') == 1
+        and index_html.count('class="btn-ghost itinerary-bottom-link--desktop">destinations</a>') == 1
+        and 'CHECK AVAILABILITY →' not in index_html,
     )
     r.check(
         'destinations bottom bar pairs yacht with availability hero-style',
-        'class="itinerary-bottom-actions"' in index_html
-        and index_html.count('class="btn-primary itinerary-bottom-link--avail-mobile">availability</a>') == 1
-        and index_html.count('class="btn-primary itinerary-bottom-link--avail-desktop">availability</a>') == 1
-        and index_html.count('class="btn-ghost itinerary-bottom-link--yacht-mobile">The yacht</a>') == 1
+        index_html.count('class="btn-primary itinerary-bottom-link--mobile">availability</a>') == 2
+        and index_html.count('class="btn-primary itinerary-bottom-link--desktop">availability</a>') == 2
+        and index_html.count('class="btn-ghost itinerary-bottom-link--mobile">The yacht</a>') == 1
         and 'Seen somewhere you\'d love to go?' not in index_html.split('id="itinerary"')[1].split('id="gallery"')[0]
         and css is not None
         and '.itinerary-bottom-actions' in css
@@ -2316,17 +2320,17 @@ def check_shared_assets(r: Runner) -> None:
         )
         is not None
         and re.search(
-            r'@media\s*\(\s*min-width:\s*769px\s*\)[\s\S]*?#itinerary\s+\.itinerary-wrap\s*>\s*\.itinerary-bottom-bar',
+            r'@media\s*\(\s*min-width:\s*769px\s*\)[\s\S]*?#gallery\s+\.gallery-wrap\s*>\s*\.itinerary-bottom-bar',
             css,
         )
         is not None
         and re.search(
-            r'@media\s*\(\s*max-width:\s*768px\s*\)[\s\S]*?#itinerary\s+\.itinerary-bottom-bar[\s\S]*?margin:\s*\.5rem\s+0\s+\.75rem',
+            r'@media\s*\(\s*max-width:\s*768px\s*\)[\s\S]*?#(?:gallery|itinerary)\s+\.itinerary-bottom-bar[\s\S]*?margin:\s*\.5rem\s+0\s+\.75rem',
             css,
         )
         is not None
         and re.search(
-            r'@media\s*\(\s*min-width:\s*769px\s*\)[\s\S]*?#itinerary\s+\.itinerary-bottom-bar[\s\S]*?margin:\s*\.75rem\s+0\s+\.85rem',
+            r'@media\s*\(\s*min-width:\s*769px\s*\)[\s\S]*?#(?:gallery|itinerary)\s+\.itinerary-bottom-bar[\s\S]*?margin:\s*\.75rem\s+0\s+\.85rem',
             css,
         )
         is not None
@@ -2335,16 +2339,17 @@ def check_shared_assets(r: Runner) -> None:
     )
     r.check(
         'desktop funnel CTAs use nav-style landing anchors',
-        'href="#availability" class="btn-primary itinerary-bottom-link--avail-desktop">availability</a>' in index_html
-        and 'href="#gallery-land" class="btn-ghost itinerary-bottom-link--yacht-desktop">The yacht</a>' in index_html
+        index_html.count('href="#availability" class="btn-primary itinerary-bottom-link--desktop">availability</a>') == 2
+        and 'href="#gallery-land" class="btn-ghost itinerary-bottom-link--desktop">The yacht</a>' in index_html
+        and 'href="#itinerary-land" class="btn-ghost itinerary-bottom-link--desktop">destinations</a>' in index_html
         and css is not None
         and re.search(
-            r'\.itinerary-bottom-actions\s+\.itinerary-bottom-link--(?:yacht|avail)-desktop[\s\S]*?display:\s*none\s*!important',
+            r'\.itinerary-bottom-actions\s+\.itinerary-bottom-link--desktop[\s\S]*?display:\s*none\s*!important',
             css,
         )
         is not None
         and re.search(
-            r'@media\s*\(\s*min-width:\s*769px\s*\)[\s\S]*?\.itinerary-bottom-actions\s+\.itinerary-bottom-link--(?:yacht|avail)-mobile[\s\S]*?display:\s*none\s*!important',
+            r'@media\s*\(\s*min-width:\s*769px\s*\)[\s\S]*?\.itinerary-bottom-actions\s+\.itinerary-bottom-link--mobile[\s\S]*?display:\s*none\s*!important',
             css,
         )
         is not None,
@@ -2673,7 +2678,7 @@ def check_shared_assets(r: Runner) -> None:
         )
         is not None
         and re.search(
-            r'@media\s*\(\s*max-width:\s*768px\s*\)[\s\S]*?\.itinerary-meet-cta\s*\{[^}]*display:\s*block',
+            r'@media\s*\(\s*max-width:\s*768px\s*\)[\s\S]*?#gallery\s+\.itinerary-bottom-bar[\s\S]*?display:\s*block',
             css,
         )
         is not None,
