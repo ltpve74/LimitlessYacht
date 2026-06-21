@@ -2583,12 +2583,7 @@ footer {
     padding-left: 0;
     padding-right: 0;
     min-height: 100svh;
-    min-height: 100dvh;
     overflow: hidden;
-  }
-  #itinerary {
-    overflow-x: hidden;
-    overflow-y: visible;
   }
   #gallery > .container,
   #itinerary > .container {
@@ -2758,40 +2753,17 @@ footer {
     white-space: nowrap;
   }
   .section-cta-desktop { display: none; }
-  #itinerary .itinerary-wrap {
-    display: flex;
-    flex-direction: column;
-    min-height: var(--ly-vv-height, 100dvh);
-    box-sizing: border-box;
-    /* Reserve space for fixed bottom CTAs (button row + browser chrome) */
-    padding-bottom: calc(5.75rem + env(safe-area-inset-bottom, 0px) + var(--ly-vv-bottom-offset, 0px));
-  }
-  #itinerary .dest-group.tab-active {
-    display: flex;
-    flex-direction: column;
-    flex: 1 1 auto;
-    min-height: 0;
-  }
   #itinerary .itinerary-bottom-bar {
-    position: fixed;
-    left: 0;
-    right: 0;
-    bottom: 0;
-    z-index: 24;
     display: block;
-    margin-top: 0;
-    padding: .5rem var(--hero-cinema-side) calc(env(safe-area-inset-bottom, 0px) + var(--ly-funnel-chrome-pad, 3.5rem));
-    background: linear-gradient(180deg, rgba(10, 22, 40, 0) 0%, rgba(10, 22, 40, 0.92) 28%, var(--navy) 52%);
-    box-sizing: border-box;
-    pointer-events: none;
+    margin: .5rem 0 .75rem;
+    padding: 0;
   }
   #itinerary .itinerary-bottom-actions {
     gap: var(--hero-cinema-btn-gap);
     max-width: none;
     width: 100%;
-    padding: 0;
+    padding: 0 var(--hero-cinema-side);
     margin: 0;
-    pointer-events: auto;
   }
   #itinerary .itinerary-bottom-actions .btn-primary,
   #itinerary .itinerary-bottom-actions .btn-ghost {
@@ -3456,8 +3428,8 @@ footer {
   }
   #itinerary .itinerary-bottom-bar {
     display: block;
-    margin-top: .75rem;
-    padding: 0 2rem .85rem;
+    margin: .75rem 0 .85rem;
+    padding: 0 2rem;
   }
   .itinerary-bottom-actions .itinerary-bottom-link--yacht-mobile,
   .itinerary-bottom-actions .itinerary-bottom-link--avail-mobile { display: none !important; }
