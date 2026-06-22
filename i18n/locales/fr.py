@@ -1077,6 +1077,21 @@ REVIEWS_UI = {
 
 REVIEWS = [
     {
+        "author": "Maurice",
+        "date": "Juil. 2026",
+        "rating": 5,
+        "text": (
+            "Luigi, je voulais te remercier chaleureusement. Le service que toi et Laura avez "
+            "fourni était absolument remarquable. Nous avons passé un moment fantastique et "
+            "nous nous sommes sentis incroyablement bien pris en charge tout au long de la "
+            "journée. Tout était parfait — le bateau, l'ambiance, l'hospitalité, et surtout "
+            "la façon dont vous avez tous les deux pris soin de nous. Vous êtes des "
+            "personnes formidables et vous avez rendu cette expérience vraiment spéciale. "
+            "Merci encore pour tout. C'était une journée inoubliable et sans doute l'un des "
+            "moments forts de notre séjour à Majorque."
+        ),
+    },
+    {
         "author": "Andrew",
         "date": "Juin 2026",
         "rating": 5,

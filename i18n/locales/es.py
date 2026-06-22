@@ -1090,6 +1090,20 @@ REVIEWS_UI = {
 
 REVIEWS = [
     {
+        "author": "Maurice",
+        "date": "Jul 2026",
+        "rating": 5,
+        "text": (
+            "Luigi, solo quería darte las gracias de corazón. El servicio que tú y Laura "
+            "prestasteis fue absolutamente increíble. Lo pasamos genial y nos sentimos muy "
+            "bien atendidos durante todo el viaje. Todo fue perfecto: el barco, el ambiente, "
+            "la hospitalidad y, sobre todo, la forma en que nos cuidasteis. Sois personas "
+            "maravillosas y hicisteis que esta experiencia fuera realmente especial. Gracias "
+            "de nuevo por todo. Fue un día inolvidable y sin duda uno de los momentos "
+            "destacados de nuestra estancia en Mallorca."
+        ),
+    },
+    {
         "author": "Andrew",
         "date": "Jun 2026",
         "rating": 5,
