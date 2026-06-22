@@ -1091,7 +1091,7 @@ REVIEWS_UI = {
 REVIEWS = [
     {
         "author": "Maurice",
-        "date": "Jul 2026",
+        "date": "Jun 2026",
         "rating": 5,
         "text": (
             "Luigi, solo quería darte las gracias de corazón. El servicio que tú y Laura "
