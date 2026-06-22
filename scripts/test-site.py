@@ -2363,7 +2363,7 @@ def check_shared_assets(r: Runner) -> None:
             css,
         ) is not None
         and re.search(
-            r'\.gallery-group\s+\.gallery-item\s*\{[^}]*height:\s*calc\(100svh\s*-\s*15rem\)',
+            r'#gallery\s+\.gallery-group\s+\.gallery-item\s*\{[^}]*height:\s*calc\(100svh\s*-\s*15\.75rem\)',
             css,
         ) is not None
         and re.search(

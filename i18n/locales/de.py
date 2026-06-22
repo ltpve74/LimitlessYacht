@@ -1088,6 +1088,21 @@ REVIEWS_UI = {
 
 REVIEWS = [
     {
+        "author": "Maurice",
+        "date": "Juni 2026",
+        "rating": 5,
+        "text": (
+            "Luigi, ich möchte dir von Herzen danken. Der Service, den du und Laura geleistet "
+            "habt, war absolut großartig. Wir hatten eine fantastische Zeit und fühlten uns "
+            "während der gesamten Tour unglaublich gut betreut. Alles war perfekt – das Boot, "
+            "die Atmosphäre, die Gastfreundschaft und vor allem die Art, wie ihr beide uns "
+            "umsorgt habt. Ihr seid wunderbare Menschen und habt dieses Erlebnis für uns "
+            "wirklich besonders gemacht. Nochmals vielen Dank für alles. Es war ein "
+            "unvergesslicher Tag und definitiv eines der Highlights unseres Aufenthalts auf "
+            "Mallorca."
+        ),
+    },
+    {
         "author": "Andrew",
         "date": "Juni 2026",
         "rating": 5,
