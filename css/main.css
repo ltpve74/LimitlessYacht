@@ -642,6 +642,25 @@ section { padding: 7rem 2rem; }
   /* object-position and lb-contain class set per-image by JS */
 }
 #lightbox-img.lb-contain { object-fit: contain; }
+#lightbox .ly-prog-wrap--lb {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+}
+.dest-lb-img-wrap > .ly-prog-wrap--lb {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+}
+.dest-lb-img-wrap > .ly-prog-wrap--lb picture {
+  position: absolute;
+  inset: 0;
+  display: block;
+  width: 100%;
+  height: 100%;
+}
 .lb-loader {
   display: none;
   position: absolute;
@@ -660,7 +679,11 @@ section { padding: 7rem 2rem; }
 #lightbox.lb-loading .lb-loader,
 .dest-lb-img-wrap.lb-loading .lb-loader { display: block; }
 #lightbox.lb-loading #lightbox-img,
-.dest-lb-img-wrap.lb-loading #dest-lb-img {
+#lightbox.lb-loading .ly-prog-preview,
+#lightbox.lb-loading .ly-prog-sharp,
+.dest-lb-img-wrap.lb-loading #dest-lb-img,
+.dest-lb-img-wrap.lb-loading .ly-prog-preview,
+.dest-lb-img-wrap.lb-loading .ly-prog-sharp {
   opacity: .42;
   transition: opacity .2s ease;
 }
@@ -699,7 +722,7 @@ section { padding: 7rem 2rem; }
   transition: opacity .2s ease;
 }
 
-/* progressive preview → sharp (slow connections) */
+/* progressive preview → sharp (all connections) */
 html[data-ly-net="slow"] #hero .hero-bg-wrap,
 .ly-prog-wrap--hero {
   background: transparent;

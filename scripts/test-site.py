@@ -390,7 +390,7 @@ def check_html(r: Runner, rel: str, html: str) -> None:
         and 'images/mobile/maiora_20s_03.webp 960w' not in html
         and '(min-width: 1101px) 25vw, 50vw' in html
         and 'window.LY_galleryLbUrl(targetIdx)' in html
-        and 'applyGalleryLbFrame(targetIdx, lbUrl)' in html
+        and 'applyGalleryLbFrame(targetIdx, lbUrl' in html
         and 'window.LY_prioritizePreloadUrgent(lbUrl)' in html
         and 'lbLoadGen' in html
         and 'class="lb-loader"' in html
@@ -494,9 +494,11 @@ def check_html(r: Runner, rel: str, html: str) -> None:
     )
     prog_js = read_file('js/progressive-images.js') or ''
     r.check(
-        'slow connections use blurred preview then sharp fade upgrade',
+        'all connections use blurred preview then sharp fade upgrade',
         'LY_PROGRESSIVE_IMAGES' in net_tier_js
+        and 'LY_PROGRESSIVE_IMAGES=true' in net_tier_js.replace(' ', '')
         and 'maiora_20s_02-prev.webp' not in net_tier_js
+        and 'maiora_20s_02-prev.jpg' in net_tier_js
         and '-prev.jpg' in prog_js
         and 'js/progressive-images.js' in html
         and 'LY_initProgressiveImages' in prog_js
@@ -545,13 +547,17 @@ def check_html(r: Runner, rel: str, html: str) -> None:
         is not None
         and 'LY_heroGateBlocked' in html
         and 'LY_PROGRESSIVE_IMAGES' in html
-        and "lyInjectPreload(lyImg('maiora_20s_02-prev" not in net_tier_js
         and "lyInjectPreload(lyImg('maiora_20s_02-1280.webp')" not in net_tier_js
         and "kind === 'hero'" in prog_js
         and 'preview.src = previewUrl' in prog_js
         and 'bootProgressive' in prog_js
         and 'ensurePreview(wrap)' in prog_js
+        and 'LY_loadLbProgressive' in prog_js
+        and 'LY_ensureLbWrap' in prog_js
+        and 'LY_stemFromMasterUrl' in html
+        and 'if (window.LY_PROGRESSIVE_IMAGES) return;' in html
         and "lyInjectPreload(lyImg('mobile/maiora_20s_02-720.webp')" not in net_tier_js
+        and "lyInjectPreload(lyImg('maiora_20s_02-640.webp')" not in net_tier_js
         and re.search(
             r'LY_destCardUrl = function\(idx\)[\s\S]*?LY_PROGRESSIVE_IMAGES',
             html,
@@ -590,7 +596,7 @@ def check_html(r: Runner, rel: str, html: str) -> None:
         and _is_progressive_jpeg('images/maiora_20s_02-prev.jpg'),
     )
     r.check(
-        'slow progressive sharp tiers use higher quality rungs with blur preview',
+        'progressive sharp tiers use higher quality rungs with blur preview',
         "'-960'" in prog_js
         and "'-1280'" in prog_js
         and "kind === 'hero' || kind === 'gallery'" in prog_js

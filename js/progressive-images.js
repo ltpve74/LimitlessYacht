@@ -1,14 +1,14 @@
-/* Progressive preview → sharp fade (slow connections; extend to mobile later). */
+/* Progressive preview → sharp fade (all connections). */
 (function (g) {
   'use strict';
 
-  g.LY_PROGRESSIVE_IMAGES = !!g.LY_NET_SLOW;
   if (!g.LY_PROGRESSIVE_IMAGES) return;
 
   var visibleIo = null;
   var pendingAfterHero = [];
   var contentQueue = [];
-  var contentBusy = false;
+  var contentBusy = 0;
+  var contentMax = g.LY_NET_SLOW ? 1 : 2;
 
   g.LY_heroGateOpen = false;
   g.LY_heroSharpReady = false;
@@ -35,6 +35,10 @@
 
   function isHeroWrap(wrap) {
     return wrap && wrap.dataset.lyProgKind === 'hero';
+  }
+
+  function isLbWrap(wrap) {
+    return !!(wrap && (wrap.dataset.lyProgKind === 'lb' || wrap.classList.contains('ly-prog-wrap--lb')));
   }
 
   function isHeroPicture(picture) {
@@ -82,27 +86,29 @@
   }
 
   function releaseContentSlot(wrap) {
-    if (contentQueue.length && contentQueue[0] === wrap) contentQueue.shift();
-    contentBusy = false;
+    var i = contentQueue.indexOf(wrap);
+    if (i >= 0) contentQueue.splice(i, 1);
+    contentBusy = Math.max(0, contentBusy - 1);
     pumpContentQueue();
   }
 
   function pumpContentQueue() {
-    if (contentBusy || !contentQueue.length) return;
-    var wrap = contentQueue[0];
-    if (wrap.classList.contains('ly-prog-sharp-ready')) {
-      contentQueue.shift();
-      pumpContentQueue();
-      return;
+    while (contentBusy < contentMax && contentQueue.length) {
+      var wrap = contentQueue[0];
+      if (wrap.classList.contains('ly-prog-sharp-ready')) {
+        contentQueue.shift();
+        continue;
+      }
+      contentBusy++;
+      if (!wrap.dataset.lyActivated) wrap.dataset.lyActivated = '1';
+      wrap._lyQueueDone = function () { releaseContentSlot(wrap); };
+      revealSharp(wrap);
+      break;
     }
-    contentBusy = true;
-    if (!wrap.dataset.lyActivated) wrap.dataset.lyActivated = '1';
-    wrap._lyQueueDone = function () { releaseContentSlot(wrap); };
-    revealSharp(wrap);
   }
 
   function enqueueContentWrap(wrap, front) {
-    if (!wrap || isHeroWrap(wrap)) return;
+    if (!wrap || isHeroWrap(wrap) || isLbWrap(wrap)) return;
     var i = contentQueue.indexOf(wrap);
     if (i >= 0) contentQueue.splice(i, 1);
     if (front) contentQueue.unshift(wrap);
@@ -175,6 +181,7 @@
   function suspendOffHeroPictures() {
     g.document.querySelectorAll('picture').forEach(function (picture) {
       if (isHeroPicture(picture) || picture.dataset.lySuspended) return;
+      if (picture.closest('#dest-lightbox')) return;
       var stem = pictureStem(picture);
       if (stem) picture.dataset.lyStem = stem;
       picture.dataset.lySuspended = '1';
@@ -280,6 +287,11 @@
     if (card) card.classList.remove('card-loading');
     var url = wrap.dataset.lySharpUrl;
     if (url && g.LY_preloadedUrls) g.LY_preloadedUrls[url] = 1;
+    if (wrap._lyOnSharpReady) {
+      var cb = wrap._lyOnSharpReady;
+      wrap._lyOnSharpReady = null;
+      try { cb(); } catch (e) { /* ignore */ }
+    }
   }
 
   function finishQueueSlot(wrap) {
@@ -306,7 +318,7 @@
   function beginSharpLoad(wrap) {
     if (!wrap || wrap.classList.contains('ly-prog-sharp-ready')) return;
     if (wrap.classList.contains('ly-prog-sharp-loading')) return;
-    if (!gateOpen() && !isHeroWrap(wrap)) {
+    if (!gateOpen() && !isHeroWrap(wrap) && !isLbWrap(wrap)) {
       if (pendingAfterHero.indexOf(wrap) < 0) pendingAfterHero.push(wrap);
       finishQueueSlot(wrap);
       return;
@@ -345,6 +357,11 @@
     img.addEventListener('error', function () {
       wrap.classList.remove('ly-prog-sharp-loading');
       if (isHeroWrap(wrap)) scheduleHeroGate(wrap);
+      if (wrap._lyOnSharpReady) {
+        var cb = wrap._lyOnSharpReady;
+        wrap._lyOnSharpReady = null;
+        try { cb(); } catch (e) { /* ignore */ }
+      }
       finishQueueSlot(wrap);
     }, { once: true });
     img.src = url;
@@ -355,7 +372,7 @@
       finishQueueSlot(wrap);
       return;
     }
-    if (!gateOpen() && !isHeroWrap(wrap)) {
+    if (!gateOpen() && !isHeroWrap(wrap) && !isLbWrap(wrap)) {
       if (pendingAfterHero.indexOf(wrap) < 0) pendingAfterHero.push(wrap);
       finishQueueSlot(wrap);
       return;
@@ -371,9 +388,68 @@
     beginSharpLoad(wrap);
   }
 
+  function resetWrapForLoad(wrap) {
+    wrap.classList.remove(
+      'ly-prog-sharp-ready',
+      'ly-prog-sharp-visible',
+      'ly-prog-sharp-loading',
+      'ly-prog-preview-ready',
+      'ly-prog-skip-preview'
+    );
+    wrap._lySharpGen = (wrap._lySharpGen || 0) + 1;
+    var preview = wrap.querySelector('.ly-prog-preview');
+    var img = wrap.querySelector('.ly-prog-sharp');
+    if (preview) preview.removeAttribute('src');
+    if (img) img.removeAttribute('src');
+  }
+
+  g.LY_ensureLbWrap = function (host, el, kind) {
+    if (!host || !el) return null;
+    var block = el.closest && el.closest('picture') ? el.closest('picture') : el;
+    var wrap = block.closest('.ly-prog-wrap');
+    if (wrap) return wrap;
+    var sharpEl = block.querySelector ? (block.querySelector('img') || block) : block;
+    wrap = g.document.createElement('div');
+    wrap.className = 'ly-prog-wrap ly-prog-wrap--lb';
+    wrap.dataset.lyProgKind = 'lb';
+    var preview = g.document.createElement('img');
+    preview.className = 'ly-prog-preview';
+    preview.alt = '';
+    preview.setAttribute('aria-hidden', 'true');
+    preview.decoding = 'async';
+    host.insertBefore(wrap, block);
+    wrap.appendChild(preview);
+    if (block.parentNode !== wrap) wrap.appendChild(block);
+    sharpEl.classList.add('ly-prog-sharp');
+    if (kind) wrap.dataset.lyLbKind = kind;
+    return wrap;
+  };
+
+  g.LY_loadLbProgressive = function (opts) {
+    opts = opts || {};
+    var wrap = opts.wrap;
+    var stem = opts.stem;
+    var sharpUrl = opts.sharpUrl;
+    var onReady = opts.onReady;
+    if (!wrap || !stem || !sharpUrl) {
+      if (onReady) onReady();
+      return;
+    }
+    resetWrapForLoad(wrap);
+    wrap.dataset.lyPreviewUrl = g.LY_previewUrlFromStem(stem);
+    wrap.dataset.lySharpUrl = sharpUrl;
+    if (onReady) wrap._lyOnSharpReady = onReady;
+    if (sharpIsCached(sharpUrl)) wrap.classList.add('ly-prog-skip-preview');
+    revealSharp(wrap);
+  };
+
   g.LY_activateProgressiveWrap = function (wrap, opts) {
     opts = opts || {};
     if (!wrap) return;
+    if (isLbWrap(wrap)) {
+      revealSharp(wrap);
+      return;
+    }
     if (!gateOpen() && !isHeroWrap(wrap)) {
       if (pendingAfterHero.indexOf(wrap) < 0) pendingAfterHero.push(wrap);
       return;
@@ -399,7 +475,7 @@
     g.document.querySelectorAll('.ly-prog-wrap').forEach(function (wrap) {
       if (wrap.dataset.lySharpUrl !== url) return;
       if (wrap.classList.contains('ly-prog-sharp-ready')) return;
-      if (!gateOpen() && !isHeroWrap(wrap)) return;
+      if (!gateOpen() && !isHeroWrap(wrap) && !isLbWrap(wrap)) return;
       wrap.classList.add('ly-prog-skip-preview');
       g.LY_activateProgressiveWrap(wrap, { front: true });
     });

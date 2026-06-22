@@ -47,7 +47,7 @@
     var link = d.createElement('link');
     link.rel = 'preload';
     link.as = 'image';
-    link.type = 'image/webp';
+    link.type = (href && /\.jpe?g$/i.test(href)) ? 'image/jpeg' : 'image/webp';
     link.fetchPriority = 'high';
     if (media) link.media = media;
     if (srcset) {
@@ -72,7 +72,7 @@
 
   var slow = lySlow();
   g.LY_NET_SLOW = slow;
-  g.LY_PROGRESSIVE_IMAGES = slow;
+  g.LY_PROGRESSIVE_IMAGES = true;
   g.LY_NET_TIER = slow ? 'slow' : 'normal';
   g.LY_PRELOAD_AGGRESSIVE = !slow;
   g.LY_PRELOAD_PUMP_MS = slow ? 900 : 160;
@@ -135,18 +135,12 @@
   }
 
   var mobMq = g.matchMedia('(max-width: 640px)');
-  if (!slow) {
-    if (mobMq.matches) {
-      lyInjectPreload(null, lyImg('mobile/maiora_20s_02-480.webp') + ' 480w, ' +
-        lyImg('mobile/maiora_20s_02-720.webp') + ' 720w, ' +
-        lyImg('mobile/maiora_20s_02-960.webp') + ' 960w', '100vw', '(max-width: 640px)');
-    } else {
-      lyInjectPreload(null, lyImg('maiora_20s_02-640.webp') + ' 640w, ' +
-        lyImg('maiora_20s_02-960.webp') + ' 960w, ' +
-        lyImg('maiora_20s_02-1280.webp') + ' 1280w, ' +
-        lyImg('maiora_20s_02.webp') + ' 1920w', '100vw', '(min-width: 641px)');
-    }
-  }
+  lyInjectPreload(
+    lyImg(mobMq.matches ? 'mobile/maiora_20s_02-prev.jpg' : 'maiora_20s_02-prev.jpg'),
+    null,
+    null,
+    mobMq.matches ? '(max-width: 640px)' : '(min-width: 641px)'
+  );
 
   var font = d.createElement('link');
   font.rel = 'preload';
@@ -155,14 +149,6 @@
   font.crossOrigin = 'anonymous';
   font.href = locale ? '../fonts/montserrat-latin.woff2' : 'fonts/montserrat-latin.woff2';
   d.head.appendChild(font);
-  if (!slow) {
-    if (d.readyState === 'loading') {
-      d.addEventListener('DOMContentLoaded', function () { lyApplyPictureSrc(); });
-    } else {
-      lyApplyPictureSrc();
-    }
-  }
-
   if (slow) {
     g.LY_mainCssLoaded = false;
     g.LY_loadMainCss = function (cb) {
