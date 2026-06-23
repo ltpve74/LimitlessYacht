@@ -1,23 +1,30 @@
 """
-Generate ultra-light progressive -prev.jpg placeholders for slow connections.
+Generate progressive -prev.jpg placeholders for slow connections.
 
-~160px longest edge, progressive JPEG — paints incrementally during download.
+Blur on the source master, then downscale — avoids resize-then-blur banding.
+Pre-blurred in pixels (no CSS filter). One tuned profile site-wide.
 Run: .venv/bin/python scripts/build_preview_images.py
 """
 
 from __future__ import annotations
 
-import os
 import re
 from pathlib import Path
 
-from PIL import Image
+from PIL import Image, ImageEnhance, ImageFilter
 
 BASE = Path(__file__).resolve().parent.parent
 IMAGES = BASE / "images"
 MOBILE = BASE / "images" / "mobile"
-PREVIEW_EDGE = 160
-PREVIEW_Q = 52
+PREVIEW_EDGE = 360
+PREVIEW_Q = 72
+BLUR_WORK_EDGE = 1920
+BLUR_PASSES = 1
+BLUR_PASS_RATIO = 0.92
+# Blur in final preview-pixel space — light enough that progressive scans read on Slow 3G.
+PREVIEW_BLUR = 0.85
+PREVIEW_SATURATE = 1.03
+PREVIEW_BRIGHTNESS = 0.97
 
 TIER_SUFFIXES = re.compile(
     r"-(?:480|640|720|960|1280|1440|prev)\.(?:webp|jpg)$"
@@ -40,15 +47,51 @@ GALLERY_STEMS = (
 CONTENT_STEMS = ("maiora_20s_02", "maiora_20s_04")
 
 
-def resize_preview(img: Image.Image) -> Image.Image:
+def resize_preview(img: Image.Image, edge: int = PREVIEW_EDGE, smooth: bool = True) -> Image.Image:
     w, h = img.size
-    if max(w, h) <= PREVIEW_EDGE:
+    longest = max(w, h)
+    if longest <= edge:
         return img
+    if smooth and longest > edge * 2:
+        mid = edge * 2
+        scale = mid / longest
+        w, h = max(1, round(w * scale)), max(1, round(h * scale))
+        img = img.resize((w, h), Image.LANCZOS)
+        longest = max(w, h)
     if w >= h:
-        nw, nh = PREVIEW_EDGE, round(h * PREVIEW_EDGE / w)
+        nw, nh = edge, round(h * edge / w)
     else:
-        nh, nw = PREVIEW_EDGE, round(w * PREVIEW_EDGE / h)
+        nh, nw = edge, round(w * edge / h)
     return img.resize((max(1, nw), max(1, nh)), Image.LANCZOS)
+
+
+def work_image_for_blur(img: Image.Image) -> Image.Image:
+    w, h = img.size
+    longest = max(w, h)
+    if longest <= BLUR_WORK_EDGE:
+        return img
+    scale = BLUR_WORK_EDGE / longest
+    return img.resize((max(1, round(w * scale)), max(1, round(h * scale))), Image.LANCZOS)
+
+
+def blur_radius_for_preview(img: Image.Image) -> float:
+    return PREVIEW_BLUR * max(img.size) / PREVIEW_EDGE
+
+
+def apply_gaussian_blur(img: Image.Image, radius: float) -> Image.Image:
+    if radius <= 0.05:
+        return img
+    pass_radius = radius * BLUR_PASS_RATIO
+    for _ in range(BLUR_PASSES):
+        img = img.filter(ImageFilter.GaussianBlur(radius=pass_radius))
+    return img
+
+
+def soften_preview(img: Image.Image) -> Image.Image:
+    img = apply_gaussian_blur(img, blur_radius_for_preview(img))
+    img = ImageEnhance.Color(img).enhance(PREVIEW_SATURATE)
+    img = ImageEnhance.Brightness(img).enhance(PREVIEW_BRIGHTNESS)
+    return img
 
 
 def load_rgb(path: Path) -> Image.Image:
@@ -58,10 +101,24 @@ def load_rgb(path: Path) -> Image.Image:
     return Image.open(path).convert("RGB")
 
 
-def write_preview(src: Path, out: Path) -> float:
-    img = resize_preview(load_rgb(src))
+def build_preview_image(src: Path, stem: str = "") -> Image.Image:
+    img = load_rgb(src)
+    img = work_image_for_blur(img)
+    img = soften_preview(img)
+    return resize_preview(img)
+
+
+def write_preview(src: Path, out: Path, stem: str = "") -> float:
+    img = build_preview_image(src, stem)
     out.parent.mkdir(parents=True, exist_ok=True)
-    img.save(out, "JPEG", quality=PREVIEW_Q, progressive=True, optimize=True)
+    img.save(
+        out,
+        "JPEG",
+        quality=PREVIEW_Q,
+        progressive=True,
+        optimize=True,
+        subsampling=0,
+    )
     return out.stat().st_size / 1024
 
 
@@ -82,7 +139,7 @@ def build_set(folder: Path, stems: tuple[str, ...], label: str) -> float:
             print(f"  skip {label}/{stem} (no master)")
             continue
         out = folder / f"{stem}-prev.jpg"
-        kb = write_preview(src, out)
+        kb = write_preview(src, out, stem)
         total += kb
         count += 1
         print(f"  {out.relative_to(BASE).as_posix():<52} {kb:5.1f} KB")

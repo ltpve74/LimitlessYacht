@@ -27,6 +27,33 @@ git config core.hooksPath .githooks          # one-time per clone
 
 ---
 
+## Visual feedback: the `screenshots/` folder
+
+The repo owner uses a **local, untracked `screenshots/` folder** (repo root) to give visual
+feedback to whoever is working on the site — Claude Code or another agent.
+
+| Fact | Detail |
+|------|--------|
+| Location | `screenshots/` at the repo root |
+| In git? | **No** — it is deliberately *not* committed (local-only scratch). It may be absent in a fresh clone or remote/CI checkout. |
+| Purpose | The owner drops in screenshots showing a bug, a current state, and/or the desired state |
+| How to read | **Check it at the start of a visual/UX task.** If present and non-empty, open the images before changing layout/CSS/scroll behaviour |
+
+**Reading conventions**
+
+- When two images are provided for one issue, the owner's message says which is which.
+  The common pattern is: **first = current/buggy behaviour, second = desired behaviour.**
+- Images often include the browser/device chrome (e.g. iPhone SE 375×667, DPR/Save-Data
+  toggles) — use that to reproduce at the same viewport.
+- The folder may not exist or may be empty in a remote/cloud session (it is not pushed).
+  If you cannot find it, say so and ask the owner to paste the images into the chat instead.
+
+**For agents:** treat `screenshots/` as read-only feedback input. Do **not** commit it, add it
+to git, or delete its contents. Reproduce the reported state with Playwright at the matching
+viewport before and after your fix to confirm you've addressed what the screenshot shows.
+
+---
+
 ## Analytics & preview (do not pollute GA / Clarity)
 
 **Single source of truth:** `js/analytics-env.js` (load first in `<head>` on `index.html` and `legal.html`).

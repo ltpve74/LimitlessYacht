@@ -3,17 +3,16 @@
 <head>
 <meta charset="UTF-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-<style id="fouc-guard">html{background:#0a1628;color-scheme:dark}a,a:any-link{color:#f5f0e8!important;text-decoration:none!important;-webkit-text-fill-color:currentColor!important}a.btn-primary,a.itinerary-meet-cta,a.mobile-nav-cta{color:#0a1628!important;-webkit-text-fill-color:#0a1628!important}a.btn-ghost,a.nav-cta{color:#f5f0e8!important;-webkit-text-fill-color:#f5f0e8!important}html:not(.ly-main-ready) body>:not(nav):not(#hero){display:none!important}</style>
-<script>window.LY_MAIN_CSS_HREF='../css/main.css?v=149';</script>
-<script src="../js/net-tier.js"></script>
-<script src="js/progressive-images.js"></script>
+<style id="fouc-guard">html{background:#0a1628;color-scheme:dark}a,a:any-link{color:#f5f0e8!important;text-decoration:none!important;-webkit-text-fill-color:currentColor!important}a.btn-primary,a.itinerary-meet-cta,a.mobile-nav-cta{color:#0a1628!important;-webkit-text-fill-color:#0a1628!important}a.btn-ghost{color:#f5f0e8!important;-webkit-text-fill-color:#f5f0e8!important}a.nav-cta{color:#c9a84c!important;-webkit-text-fill-color:#c9a84c!important}html:not(.ly-main-ready) body>:not(nav):not(#hero){display:none!important}#hero .hero-bg:not(.ly-prog-sharp){opacity:0!important;visibility:hidden!important}</style>
+<script>window.LY_LAYOUT_CSS_HREF='../css/layout.css?v=24';window.LY_MAIN_CSS_HREF='../css/main.css?v=169';</script>
+<script src="../js/net-tier.js?v=2"></script>
 
 <style id="critical-css">
-@font-face{font-family:'Montserrat';font-style:normal;font-weight:300 600;font-display:optional;src:url('../fonts/montserrat-latin.woff2') format('woff2')}
-@font-face{font-family:'Montserrat Fallback';src:local('Arial');size-adjust:107%;ascent-override:90%;descent-override:22%;line-gap-override:0%}
-@font-face{font-family:'Montserrat Fallback Hero';src:local('Helvetica Neue Thin'),local('HelveticaNeue-Thin'),local('Arial');size-adjust:103%;ascent-override:90%;descent-override:22%;line-gap-override:0%}
-:root{--navy:#0a1628;--cream:#f5f0e8;--white:#fff;--gold:#c9a84c;--gold-light:#e2c47a;--gold-rgb:201,168,76;--gold-line:rgba(var(--gold-rgb),0.25);--gold-border:rgba(var(--gold-rgb),0.45);--text-muted:#8a9bb5;--btn-fill:var(--gold);--btn-fill-hover:var(--gold-light);--btn-on-fill:var(--navy);--btn-ghost-text:var(--cream);--btn-ghost-text-hover:var(--gold);--btn-ghost-border:rgba(245,240,232,0.42);--btn-ghost-border-hover:var(--gold);--hero-cluster-gap:1.25rem;--hero-bottom-inset:max(2.75rem,calc(env(safe-area-inset-bottom,0px)+1.75rem))}
-*,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
+@layer reset, layout, site;
+@font-face{font-family:'Montserrat Fallback';src:local('HelveticaNeue-Thin'),local('Segoe UI Light');size-adjust:114%;ascent-override:97%;descent-override:25%;line-gap-override:0}
+@font-face{font-family:'Montserrat Fallback Hero';src:local('HelveticaNeue-Thin'),local('Segoe UI Light');size-adjust:115%;ascent-override:97%;descent-override:25%;line-gap-override:0}
+:root{--navy:#0a1628;--cream:#f5f0e8;--white:#fff;--gold:#c9a84c;--gold-light:#e2c47a;--gold-rgb:201,168,76;--gold-line:rgba(var(--gold-rgb),0.25);--gold-border:rgba(var(--gold-rgb),0.45);--text-muted:#8a9bb5;--btn-font:'Montserrat Fallback',sans-serif;--btn-size:.68rem;--btn-track:.2em;--btn-weight:600;--btn-fill:var(--gold);--btn-fill-hover:var(--gold-light);--btn-on-fill:var(--navy);--btn-ghost-text:var(--cream);--btn-ghost-text-hover:var(--gold);--btn-ghost-border:rgba(245,240,232,0.42);--btn-ghost-border-hover:var(--gold);--hero-cluster-gap:1.25rem;--hero-bottom-inset:max(2.75rem,calc(env(safe-area-inset-bottom,0px)+1.75rem));--hero-cinema-btn-gap:clamp(.65rem,3.2vw,.9rem);--hero-cinema-btn-pad-y:clamp(.95rem,5vw,1.18rem);--hero-cinema-btn-pad-x:clamp(.62rem,3.4vw,.92rem);--hero-cinema-btn-size:clamp(.5rem,2.75vw,.6rem)}
+@layer reset{*,*::before,*::after{box-sizing:border-box;margin:0;padding:0}}
 html{scroll-padding-top:5rem;overflow-x:clip;color-scheme:dark}
 body{background:var(--navy);color:var(--cream);font-family:'Montserrat Fallback',sans-serif;font-weight:300;overflow-x:clip;-webkit-font-smoothing:antialiased}
 [hidden]{display:none!important}
@@ -24,7 +23,7 @@ body{background:var(--navy);color:var(--cream);font-family:'Montserrat Fallback'
 .hero-rates,.hero-rates-link{color:rgba(255,255,255,.96)}
 .hero-trust a{color:rgba(245,240,232,.88)}
 nav{position:fixed;inset:0 0 auto;z-index:100;display:flex;align-items:center;gap:.6rem;padding:.85rem 1rem;min-height:4.25rem;background:linear-gradient(to bottom,rgba(10,22,40,.95),transparent)}
-.nav-logo{flex:1 1 auto;min-width:0;text-decoration:none;color:var(--gold);font-size:.9rem;letter-spacing:.18em;text-transform:uppercase;line-height:1.2}
+.nav-logo{flex:0 1 auto;min-width:0;font-family:'Montserrat','Montserrat Fallback',sans-serif;font-size:clamp(.82rem,.9vw + .7rem,1.1rem);font-weight:300;text-decoration:none;color:var(--gold)!important;letter-spacing:.18em;text-transform:uppercase;line-height:1.2}
 .nav-logo span{color:var(--cream)}
 .nav-end{margin-left:auto;display:flex;align-items:center;gap:.5rem;flex-shrink:0}
 #hero{position:relative;height:100vh;height:100svh;overflow:hidden;display:flex;align-items:stretch;justify-content:center}
@@ -45,21 +44,34 @@ nav{position:fixed;inset:0 0 auto;z-index:100;display:flex;align-items:center;ga
 
 .hero-rates [hidden]{display:none!important}
 .hero-rates-link{display:block;text-decoration:none;color:inherit}
-.hero-actions{margin-top:0;display:flex;gap:1.2rem;justify-content:center;flex-wrap:wrap}
-.btn-primary,.btn-ghost{display:inline-block;padding:1rem 2.8rem;text-decoration:none;font-size:.68rem;letter-spacing:.2em;text-transform:uppercase}
-.btn-primary{background:var(--btn-fill);color:var(--btn-on-fill);border:1px solid var(--btn-fill);font-weight:600}
-.btn-ghost{border:1px solid var(--btn-ghost-border);color:var(--btn-ghost-text)}
-
-@media(min-width:769px){#hero .hero-actions :is(.btn-primary,.btn-ghost){display:inline-flex;align-items:center;line-height:1}}#hero .hero-actions .btn-primary{border:1px solid transparent}
-#hero .hero-actions .btn-ghost{background:rgba(10,22,40,.28);border-color:var(--btn-ghost-border)}
+.hero-actions{margin-top:0;display:flex;gap:1.2rem;justify-content:center;flex-wrap:wrap;width:100%}
+#hero .hero-actions .btn-primary,#hero .hero-actions .btn-ghost{display:inline-flex;align-items:center;justify-content:center;text-align:center;padding:1rem 2.8rem;text-decoration:none;text-transform:uppercase;font-family:var(--btn-font);font-size:var(--btn-size);letter-spacing:var(--btn-track);font-weight:var(--btn-weight);line-height:1;transition:transform .2s;-webkit-tap-highlight-color:transparent}
+#hero .hero-actions .btn-primary{background:var(--btn-fill);color:var(--btn-on-fill);border:1px solid transparent}
+#hero .hero-actions .btn-ghost{color:var(--btn-ghost-text);background:rgba(10,22,40,.28);border:1px solid var(--btn-ghost-border);box-shadow:0 2px 18px rgba(10,22,40,.32)}
 
 .hero-trust{margin-top:0;font-size:.65rem;letter-spacing:.12em;text-transform:uppercase;color:rgba(245,240,232,.84)}
 .hero-scroll{display:flex;flex-direction:column;align-items:center;gap:.5rem}
 .scroll-line{width:1px;height:28px;background:linear-gradient(to bottom,var(--gold),transparent)}
-.hero-title{font-family:'Montserrat Fallback Hero','Montserrat Fallback',sans-serif;font-size:clamp(3.5rem,9vw,8rem);font-weight:100;line-height:1;color:var(--white);letter-spacing:.06em;-webkit-font-smoothing:antialiased;text-shadow:0 2px 4px rgba(0,0,0,.82),0 4px 28px rgba(10,22,40,.78)}
+.hero-title{font-family:'Montserrat','Montserrat Fallback Hero','Montserrat Fallback',sans-serif;font-size:clamp(3.5rem,9vw,8rem);font-weight:300;line-height:1;color:var(--white);letter-spacing:.06em;font-synthesis:none;-webkit-font-smoothing:antialiased;text-shadow:0 2px 4px rgba(0,0,0,.82),0 4px 28px rgba(10,22,40,.78)}
 .hero-title em{font-style:normal;color:var(--gold-light);text-shadow:0 0 1px rgba(10,22,40,.9),0 2px 4px rgba(0,0,0,.75)}
 
-@media(max-width:768px){html{scroll-padding-top:0}:root{--h-s:clamp(1.1rem,6vw,1.45rem);--hero-top-inset:max(1.05rem,calc(env(safe-area-inset-top,0px)+.8rem));--hero-top-gap:clamp(.22rem,1.4vh,.42rem);--hero-bottom-gap:clamp(.45rem,2vh,.65rem);--hero-bottom-inset:max(1.25rem,calc(env(safe-area-inset-bottom,0px)+1rem));--h-t:clamp(2.2rem,12vw,3.35rem);--h-e:clamp(.52rem,2.9vw,.64rem);--h-r:clamp(.46rem,2.6vw,.6rem);--h-rg:clamp(.62rem,2.8vh,.92rem);--h-g:clamp(.65rem,3.2vw,.9rem);--h-ts:min(85vw,100%);--h-py:clamp(.95rem,5vw,1.18rem);--h-px:clamp(.62rem,3.4vw,.92rem);--h-bs:clamp(.5rem,2.75vw,.6rem)}nav{opacity:0;visibility:hidden;pointer-events:none}#hero{height:100svh;min-height:100dvh;min-height:100svh;padding:0;overflow:hidden;background:radial-gradient(ellipse 100% 55% at 50% 36%,rgba(22,58,92,.55),transparent 68%),linear-gradient(180deg,rgba(10,22,40,.35),transparent 42%,rgba(10,22,40,.2)),var(--navy)}.hero-bg-wrap,.hero-overlay{position:absolute;inset:0;width:100%;height:100%;min-height:100%}.hero-bg{min-height:100%;transform:none;animation:none;object-position:52% 40%}.hero-content{position:absolute;inset:0;width:100%;max-width:none;margin:0;min-height:100%;display:grid;grid-template-rows:auto 1fr auto;justify-items:center;height:100%;padding:0 clamp(1.1rem,6vw,1.45rem);overflow:hidden;box-sizing:border-box}.hero-content::before,.hero-content::after{left:0;right:0;width:auto;transform:none}.hero-content::before{height:min(28%,9.5rem);background:linear-gradient(180deg,rgba(10,22,40,.84) 0%,rgba(10,22,40,.28) 62%,transparent 100%)}.hero-content::after{height:min(42%,13rem);background:linear-gradient(0deg,rgba(10,22,40,.9) 0%,rgba(10,22,40,.32) 50%,transparent 100%)}.hero-top,.hero-bottom{display:flex;flex-direction:column;align-items:stretch;width:min(85vw,100%);max-width:100%;margin-inline:auto;text-align:center;position:relative;z-index:1;box-sizing:border-box}.hero-top{grid-row:1;justify-self:center;padding-top:1.05rem;gap:clamp(.22rem,1.4vh,.42rem)}.hero-bottom{grid-row:3;align-self:end;justify-self:center;gap:clamp(.45rem,2vh,.65rem);padding-bottom:1.25rem}#hero .hero-cta-group{margin-top:clamp(.62rem,2.8vh,.92rem);width:100%;gap:clamp(.45rem,2vh,.65rem);align-items:stretch}.hero-value{display:none}.hero-bottom .hero-sub,.hero-scroll,.hero-trust{display:none!important}.hero-eyebrow{font-size:clamp(.52rem,2.9vw,.64rem);line-height:1.32;margin-bottom:.1rem;letter-spacing:.05em}.hero-title{font-family:'Montserrat','Montserrat Fallback Hero','Montserrat Fallback',sans-serif;font-weight:300;font-size:clamp(2.2rem,12vw,3.35rem);line-height:1.04}.hero-rates{margin:0;width:100%;font-size:clamp(.46rem,2.6vw,.6rem);line-height:1.4;letter-spacing:.03em;padding:.36rem .52rem;background:rgba(10,22,40,.48);border-radius:3px;text-align:center}.hero-actions{margin-top:0}#hero .hero-actions{flex-direction:row;justify-content:center;gap:clamp(.65rem,3.2vw,.9rem);width:100%;padding:0}#hero .hero-actions :is(.btn-primary,.btn-ghost){display:inline-flex;align-items:center;flex:1 1 0;min-width:0;min-height:2.85rem;padding:clamp(.95rem,5vw,1.18rem) clamp(.62rem,3.4vw,.92rem);font-family:'Montserrat','Montserrat Fallback',sans-serif;font-size:clamp(.5rem,2.75vw,.6rem);line-height:1.22;letter-spacing:.07em;white-space:normal;text-wrap:balance;hyphens:none} .hero-actions .btn-ghost{background:rgba(10,22,40,.52);border-color:var(--btn-ghost-border)}@media(max-height:520px){:root{--h-s:clamp(.95rem,5.2vw,1.2rem);--h-t:clamp(1.75rem,9.5vw,2.2rem)}.hero-top{padding-top:.85rem}.hero-bottom{padding-bottom:1rem}}</style>
+@media(max-width:768px){html{scroll-padding-top:0}html.ly-past-hero{scroll-padding-top:var(--mobile-funnel-land-offset,5.45rem)}:root{--h-s:clamp(1.1rem,6vw,1.45rem);--hero-top-inset:max(1.05rem,calc(env(safe-area-inset-top,0px)+.8rem));--hero-top-gap:clamp(.22rem,1.4vh,.42rem);--hero-bottom-gap:clamp(.45rem,2vh,.65rem);--hero-bottom-inset:max(1.25rem,calc(env(safe-area-inset-bottom,0px)+1rem));--h-t:clamp(2.2rem,12vw,3.35rem);--h-e:clamp(.52rem,2.9vw,.64rem);--h-r:clamp(.46rem,2.6vw,.6rem);--h-rg:clamp(.62rem,2.8vh,.92rem);--h-g:clamp(.65rem,3.2vw,.9rem);--h-ts:min(85vw,100%);--h-py:clamp(.95rem,5vw,1.18rem);--h-px:clamp(.62rem,3.4vw,.92rem);--h-bs:clamp(.5rem,2.75vw,.6rem)}nav{opacity:0;visibility:hidden;pointer-events:none}#hero{height:100svh;min-height:100dvh;min-height:100svh;padding:0;overflow:hidden;background:radial-gradient(ellipse 100% 55% at 50% 36%,rgba(22,58,92,.55),transparent 68%),linear-gradient(180deg,rgba(10,22,40,.35),transparent 42%,rgba(10,22,40,.2)),var(--navy)}.hero-bg-wrap,.hero-overlay{position:absolute;inset:0;width:100%;height:100%;min-height:100%}.hero-bg{min-height:100%;transform:none;animation:none;object-position:52% 40%}.hero-content{position:absolute;inset:0;width:100%;max-width:none;margin:0;min-height:100%;display:grid;grid-template-rows:auto 1fr auto;justify-items:center;height:100%;padding:0 clamp(1.1rem,6vw,1.45rem);overflow:hidden;box-sizing:border-box}.hero-content::before,.hero-content::after{left:0;right:0;width:auto;transform:none}.hero-content::before{height:min(28%,9.5rem);background:linear-gradient(180deg,rgba(10,22,40,.84) 0%,rgba(10,22,40,.28) 62%,transparent 100%)}.hero-content::after{height:min(42%,13rem);background:linear-gradient(0deg,rgba(10,22,40,.9) 0%,rgba(10,22,40,.32) 50%,transparent 100%)}.hero-top,.hero-bottom{display:flex;flex-direction:column;align-items:stretch;width:min(85vw,100%);max-width:100%;margin-inline:auto;text-align:center;position:relative;z-index:1;box-sizing:border-box}.hero-top{grid-row:1;justify-self:center;padding-top:1.05rem;gap:clamp(.22rem,1.4vh,.42rem)}.hero-bottom{grid-row:3;align-self:end;justify-self:center;gap:clamp(.45rem,2vh,.65rem);padding-bottom:1.25rem}#hero .hero-cta-group{margin-top:clamp(.62rem,2.8vh,.92rem);width:100%;gap:clamp(.45rem,2vh,.65rem);align-items:stretch}.hero-value{display:none}.hero-bottom .hero-sub,.hero-scroll,.hero-trust{display:none!important}.hero-eyebrow{font-size:clamp(.52rem,2.9vw,.64rem);line-height:1.32;margin-bottom:.1rem;letter-spacing:.05em}.hero-title{font-family:'Montserrat','Montserrat Fallback Hero','Montserrat Fallback',sans-serif;font-weight:300;font-size:clamp(2.2rem,12vw,3.35rem);line-height:1.04}.hero-rates{margin:0;width:100%;font-size:clamp(.46rem,2.6vw,.6rem);line-height:1.4;letter-spacing:.03em;padding:.36rem .52rem;background:rgba(10,22,40,.48);border-radius:3px;text-align:center}.hero-actions{margin-top:0}#hero .hero-actions{flex-direction:row;flex-wrap:nowrap;justify-content:center;align-items:stretch;gap:var(--hero-cinema-btn-gap);width:100%;padding:0}#hero .hero-actions .btn-primary,#hero .hero-actions .btn-ghost{flex:1 1 0;min-width:0;max-width:none;width:auto;min-height:2.85rem;padding:var(--hero-cinema-btn-pad-y) var(--hero-cinema-btn-pad-x);font-size:var(--hero-cinema-btn-size);line-height:1.22;letter-spacing:.07em;white-space:normal;text-wrap:balance;hyphens:none}#hero .hero-actions .btn-ghost{background:rgba(10,22,40,.52);border:1px solid var(--btn-ghost-border);box-shadow:0 2px 18px rgba(10,22,40,.32)}@media(max-height:520px){:root{--h-s:clamp(.95rem,5.2vw,1.2rem);--h-t:clamp(1.75rem,9.5vw,2.2rem)}.hero-top{padding-top:.85rem}.hero-bottom{padding-bottom:1rem}}}
+@keyframes heroZoom{to{transform:scale(1)}}
+.ly-prog-wrap--hero{position:absolute;inset:0;overflow:hidden;background:transparent}
+.ly-prog-wrap--hero .hero-bg-wrap{position:absolute;inset:0;display:block;width:100%;height:100%;overflow:hidden;background:transparent}
+.ly-prog-wrap--hero .ly-prog-preview,.ly-prog-wrap--hero .hero-bg.ly-prog-sharp{position:absolute;inset:0;width:100%;height:100%;object-fit:cover;object-position:58% 48%;display:block}
+.ly-prog-wrap--hero .ly-prog-preview{z-index:0;opacity:1;transform:scale(1.06)}
+.ly-prog-wrap--hero .hero-bg.ly-prog-sharp{z-index:1;opacity:0;transform:scale(1.05);filter:brightness(1.02) saturate(1.04);animation:none}
+.ly-prog-wrap--hero.ly-prog-sharp-loading .hero-bg.ly-prog-sharp{opacity:0}
+.ly-prog-wrap--hero.ly-prog-sharp-ready.ly-prog-sharp-visible .hero-bg.ly-prog-sharp{opacity:1;transition:opacity .55s cubic-bezier(.25,.9,.35,1);filter:brightness(1.04) saturate(1.06);animation:heroZoom 14s ease-out forwards}
+.ly-prog-wrap--hero.ly-prog-sharp-ready.ly-prog-sharp-visible .ly-prog-preview{opacity:0;transform:scale(1.03);transition:opacity .7s ease,transform .7s ease}
+.ly-prog-wrap--hero.ly-prog-skip-preview .ly-prog-preview{display:none}
+.ly-prog-wrap--hero.ly-prog-skip-preview.ly-prog-sharp-ready .hero-bg.ly-prog-sharp{opacity:1;animation:heroZoom 14s ease-out forwards}
+@media(max-width:768px){.ly-prog-wrap--hero .ly-prog-preview,.ly-prog-wrap--hero .hero-bg.ly-prog-sharp{object-position:52% 40%}.ly-prog-wrap--hero.ly-prog-sharp-ready.ly-prog-sharp-visible .hero-bg.ly-prog-sharp,.ly-prog-wrap--hero.ly-prog-skip-preview.ly-prog-sharp-ready .hero-bg.ly-prog-sharp{transform:none;animation:none;filter:brightness(1.04) saturate(1.06)}}
+
+html.ly-past-hero nav{opacity:1;visibility:visible;pointer-events:auto}
+@layer layout{@media(min-width:769px){nav{opacity:0;visibility:hidden}}}
+</style>
 <script>
 (function (global) {
   'use strict';
@@ -95,28 +107,33 @@ nav{position:fixed;inset:0 0 auto;z-index:100;display:flex;align-items:center;ga
 </script>
 <script>
 (function () {
-  var href = window.LY_MAIN_CSS_HREF || '../css/main.css?v=149';
-  function lyMainReady() {
+  window.LY_fixupHashLanding = function () {
+    var hash = (location.hash || '').replace(/^#/, '').trim();
+    if (!hash) return;
+    var funnel = hash === 'itinerary-funnel' || hash === 'gallery-funnel'
+      || hash === 'half-day' || hash === 'full-day' || hash === 'multi-day';
+    if (window.innerWidth <= 768 && funnel) {
+      document.documentElement.classList.add('ly-past-hero');
+    }
+    var el = document.getElementById(hash);
+    if (!el) return;
+    requestAnimationFrame(function () {
+      requestAnimationFrame(function () {
+        el.scrollIntoView({ block: 'start' });
+      });
+    });
+  };
+  window.LY_markMainReady = function () {
     requestAnimationFrame(function () {
       requestAnimationFrame(function () {
         document.documentElement.classList.add('ly-main-ready');
+        if (window.LY_fixupHashLanding) window.LY_fixupHashLanding();
       });
     });
-  }
-  window.LY_markMainReady = lyMainReady;
-  if (window.LY_NET_SLOW) return;
-  var link = document.createElement('link');
-  link.rel = 'preload';
-  link.as = 'style';
-  link.href = href;
-  link.onload = function () {
-    this.rel = 'stylesheet';
-    lyMainReady();
   };
-  document.head.appendChild(link);
 })();
 </script>
-<noscript><link rel="stylesheet" href="../css/main.css?v=149" /></noscript>
+<noscript><link rel="stylesheet" href="../css/layout.css?v=24" /><link rel="stylesheet" href="../css/main.css?v=169" /></noscript>
 
 <title>Limitless Yacht Experience – Charter de luxe Maiora à Majorque</title>
 <meta name="description" content="Louez le Maiora de 21,5 m « Limitless » depuis Palma de Majorque — croisières à la journée et sur plusieurs jours vers les criques de Majorque, Cabrera et Formentera. Avec équipage, jusqu'à 12 invités." />
@@ -218,25 +235,10 @@ nav{position:fixed;inset:0 0 auto;z-index:100;display:flex;align-items:center;ga
 
 <!-- HERO -->
 <section id="hero">
-  <picture class="hero-bg-wrap">
-    <source data-ly-srcset="/images/mobile/maiora_20s_02-480.webp 480w, /images/mobile/maiora_20s_02-720.webp 720w, /images/mobile/maiora_20s_02-960.webp 960w" sizes="100vw" type="image/webp" media="(max-width: 640px)">
-    <source data-ly-srcset="/images/maiora_20s_02-640.webp 640w, /images/maiora_20s_02-960.webp 960w, /images/maiora_20s_02-1280.webp 1280w, /images/maiora_20s_02.webp 1920w" sizes="100vw" type="image/webp">
-    <img class="hero-bg" data-ly-src="/images/maiora_20s_02.jpg" alt="" width="1920" height="1279" fetchpriority="high" decoding="async">
-  </picture>
-  <script>
-  (function () {
-    if (window.LY_PROGRESSIVE_IMAGES) return;
-    var pic = document.currentScript.previousElementSibling;
-    if (!pic || !pic.classList.contains('hero-bg-wrap')) return;
-    pic.querySelectorAll('[data-ly-srcset]').forEach(function (s) {
-      s.setAttribute('srcset', s.getAttribute('data-ly-srcset'));
-    });
-    var img = pic.querySelector('img');
-    if (img && img.getAttribute('data-ly-src') && !img.getAttribute('src')) {
-      img.setAttribute('src', img.getAttribute('data-ly-src'));
-    }
-  })();
-  </script>
+  <div class="ly-prog-wrap ly-prog-wrap--hero">
+    <img class="ly-prog-preview" src="/images/maiora_20s_02-prev.jpg" srcset="/images/mobile/maiora_20s_02-prev.jpg 640w, /images/maiora_20s_02-prev.jpg 1920w" sizes="100vw" alt="" aria-hidden="true" width="360" height="240" fetchpriority="high" decoding="async" loading="eager" onload="this.parentNode.classList.add('ly-prog-preview-ready');window.LY_loadLayoutCss&&LY_loadLayoutCss();">
+    <picture class="hero-bg-wrap"><source srcset="/images/mobile/maiora_20s_02-480.webp 480w, /images/mobile/maiora_20s_02-720.webp 720w, /images/mobile/maiora_20s_02-960.webp 960w" sizes="100vw" type="image/webp" media="(max-width: 640px)"><source srcset="/images/maiora_20s_02-640.webp 640w, /images/maiora_20s_02-960.webp 960w, /images/maiora_20s_02-1280.webp 1280w, /images/maiora_20s_02.webp 1920w" sizes="100vw" type="image/webp"><img class="hero-bg ly-prog-sharp" src="/images/maiora_20s_02.jpg" alt="" width="1920" height="1279" fetchpriority="high" decoding="async" onload="this.closest('.ly-prog-wrap').classList.add('ly-prog-sharp-ready','ly-prog-sharp-visible')"></picture>
+  </div>
   <div class="hero-overlay"></div>
   <div class="hero-content">
     <div class="hero-top">
@@ -527,7 +529,7 @@ function gtag_report_conversion_form(url) {
 })();
 </script>
 <script>
-// Below-fold preloads: after meaningful paint, card tiers only (lightbox tiers on open).
+// Idle deferral for analytics only — images use prev → sharp, no preload queues.
 window.LY_afterMeaningfulPaint = function(fn) {
   var ran = false;
   function go() {
@@ -548,7 +550,7 @@ window.LY_afterMeaningfulPaint = function(fn) {
       po.observe({ type: 'largest-contentful-paint', buffered: true });
     } catch (e) { /* ignore */ }
   }
-  setTimeout(go, window.LY_PRELOAD_IDLE_DELAY_MS || 2000);
+  setTimeout(go, 2000);
 };
 window.LY_afterLcp = window.LY_afterMeaningfulPaint;
 if (!window.LY_OWNER_MODE) {
@@ -585,67 +587,72 @@ window.LY_whenNearSection = function(id, fn) {
   if (window.LY_afterMeaningfulPaint) window.LY_afterMeaningfulPaint(fn);
   else window.addEventListener('load', function() { setTimeout(fn, 2500); });
 };
-window.LY_preloadedUrls = {};
-window.LY_preloadInFlight = {};
-window.LY_cardPreloadQueue = [];
-window.LY_lbPreloadQueue = [];
-window.LY_priorityPreloadQueue = [];
-window.LY_preloadPumpActive = false;
-window.LY_preloadDripPaused = false;
-window.LY_preloadPriorityActive = 0;
-window.LY_preloadPumpToken = 0;
-window.LY_preloadPumpTimer = null;
-window.LY_preloadNeedsUserPriority = function() {
-  return window.LY_NET_SLOW && window.LY_PRELOAD_AGGRESSIVE === false;
-};
-window.LY_heroGateOpen = false;
-window.LY_heroGateBlocked = function() {
-  return !!(window.LY_PROGRESSIVE_IMAGES && !window.LY_heroGateOpen);
-};
-window.LY_preloadIsReady = function(url) {
-  return !!(url && (window.LY_preloadedUrls[url] || window.LY_preloadInFlight[url]));
-};
-window.LY_removeFromPreloadQueues = function(url) {
-  var i = window.LY_cardPreloadQueue.indexOf(url);
-  if (i >= 0) window.LY_cardPreloadQueue.splice(i, 1);
-  i = window.LY_lbPreloadQueue.indexOf(url);
-  if (i >= 0) window.LY_lbPreloadQueue.splice(i, 1);
-};
-window.LY_cancelPreloadPumpDelay = function() {
-  window.LY_preloadPumpToken++;
-  if (window.LY_preloadPumpTimer) {
-    clearTimeout(window.LY_preloadPumpTimer);
-    window.LY_preloadPumpTimer = null;
+// Progressive image loading. Previews (-prev.jpg) carry real src and load first
+// so the site is functional fast; the high-res "sharp" tier ships deferred in
+// data-ly-src / data-ly-srcset and is promoted to real src/srcset per card only
+// after its preview has loaded AND the card nears the viewport. This keeps
+// previews from racing the high-res images for bandwidth.
+window.LY_promoteSharp = function(wrap) {
+  if (!wrap || wrap.dataset.lyPromoted) return;
+  wrap.dataset.lyPromoted = '1';
+  var sources = wrap.querySelectorAll('picture source[data-ly-srcset]');
+  for (var i = 0; i < sources.length; i++) {
+    var ss = sources[i].getAttribute('data-ly-srcset');
+    sources[i].removeAttribute('data-ly-srcset');
+    if (ss) sources[i].setAttribute('srcset', ss);
+  }
+  var sharp = wrap.querySelector('.ly-prog-sharp[data-ly-src]');
+  if (sharp) {
+    var src = sharp.getAttribute('data-ly-src');
+    sharp.removeAttribute('data-ly-src');
+    if (src) sharp.setAttribute('src', src); // kicks off the high-res fetch
   }
 };
-window.LY_pausePreloadDrip = function() {
-  window.LY_preloadDripPaused = true;
-  window.LY_cancelPreloadPumpDelay();
-  window.LY_preloadPumpActive = false;
-};
-window.LY_preloadContext = {
-  section: 'hero',
-  tier: 'half-day',
-  galleryTab: 'water',
-  destIdx: 0,
-  galleryIdx: 0,
-};
-window.LY_preloadIntentGen = 0;
+(function () {
+  function armWrap(wrap) {
+    var preview = wrap.querySelector('.ly-prog-preview');
+    if (!preview || wrap.classList.contains('ly-prog-preview-ready') ||
+        (preview.complete && preview.naturalWidth)) {
+      window.LY_promoteSharp(wrap);
+      return;
+    }
+    // Preview still loading — wait so the blurred image always paints first.
+    preview.addEventListener('load',  function () { window.LY_promoteSharp(wrap); }, { once: true });
+    preview.addEventListener('error', function () { window.LY_promoteSharp(wrap); }, { once: true });
+  }
+  // Exposed so gallery/itinerary tab switches can arm newly-visible wraps directly.
+  // Safari's IntersectionObserver does not re-fire after a display:none→block transition,
+  // so we must arm explicitly instead of relying on the IO callback.
+  window.LY_armWrap = armWrap;
+  function initSharpPromotion() {
+    var wraps = document.querySelectorAll('.ly-prog-wrap:not(.ly-prog-wrap--hero)');
+    if (!('IntersectionObserver' in window)) {
+      for (var i = 0; i < wraps.length; i++) armWrap(wraps[i]);
+      return;
+    }
+    var io = new IntersectionObserver(function (entries) {
+      // Arm the most-visible card first so the in-view carousel card's sharp
+      // image is requested ahead of its neighbours'. Vertical-only rootMargin
+      // (400px top/bottom, 0 left/right) preloads as you scroll DOWN to the
+      // section but stops off-screen cards to the RIGHT of a horizontal
+      // carousel from all arming at once and beating the visible card.
+      entries
+        .filter(function (e) { return e.isIntersecting; })
+        .sort(function (a, b) { return b.intersectionRatio - a.intersectionRatio; })
+        .forEach(function (e) { io.unobserve(e.target); armWrap(e.target); });
+    }, { rootMargin: '400px 0px', threshold: [0, 0.25, 0.5, 0.75] });
+    for (var j = 0; j < wraps.length; j++) io.observe(wraps[j]);
+  }
+  // Hold the sharp phase until after meaningful paint so previews + critical
+  // content load first; then promote per-card as each nears the viewport.
+  if (window.LY_afterMeaningfulPaint) window.LY_afterMeaningfulPaint(initSharpPromotion);
+  else if (document.readyState !== 'loading') initSharpPromotion();
+  else document.addEventListener('DOMContentLoaded', initSharpPromotion);
+})();
 window.LY_GALLERY_TAB_IDX = {
   water: [0, 1, 2],
   deck: [3, 4, 5, 6],
   interior: [7, 8, 9, 10, 11, 12, 13, 14],
-};
-window.LY_abortWarmQueues = function() {
-  window.LY_cardPreloadQueue = [];
-  window.LY_lbPreloadQueue = [];
-  window.LY_cancelPreloadPumpDelay();
-  window.LY_preloadDripPaused = true;
-  window.LY_preloadPumpActive = false;
-};
-window.LY_maybeResumePreloadDrip = function() {
-  if (window.LY_preloadPriorityActive > 0 || window.LY_priorityPreloadQueue.length) return;
-  window.LY_startContextWarm();
 };
 window.LY_normalizeNavHash = function(raw) {
   var hash = String(raw || '').replace(/^#/, '').trim();
@@ -656,32 +663,6 @@ window.LY_normalizeNavHash = function(raw) {
   if (hash === 'enquire-land' || hash === 'enquire-form') return 'enquire';
   return hash;
 };
-window.LY_sectionNavUrls = function(section) {
-  var urls = [];
-  if (section === 'gallery') {
-    [0, 1, 2, 3].forEach(function(i) {
-      if (window.LY_galleryCardUrl) urls.push(window.LY_galleryCardUrl(i));
-    });
-  } else if (section === 'itinerary' || section === 'half-day') {
-    [0, 1, 2].forEach(function(i) {
-      if (window.LY_destCardUrl) urls.push(window.LY_destCardUrl(i));
-    });
-  } else if (section === 'full-day' && window.LY_DEST_TIER_IDX) {
-    window.LY_DEST_TIER_IDX['full-day'].forEach(function(i) {
-      if (window.LY_destCardUrl) urls.push(window.LY_destCardUrl(i));
-    });
-  } else if (section === 'multi-day' && window.LY_DEST_TIER_IDX) {
-    window.LY_DEST_TIER_IDX['multi-day'].forEach(function(i) {
-      if (window.LY_destCardUrl) urls.push(window.LY_destCardUrl(i));
-    });
-  } else if (section === 'about' && window.LY_cardTierFromMaster) {
-    var mob = window.innerWidth <= 640;
-    var master = mob ? '/images/mobile/maiora_20s_04.webp' : '/images/maiora_20s_04.webp';
-    var suffix = window.LY_NET_SLOW ? (mob ? '-480' : '-640') : (mob ? '-720' : '-640');
-    urls.push(window.LY_cardTierFromMaster(master, suffix));
-  }
-  return urls.filter(Boolean);
-};
 window.LY_activeDestTier = function() {
   var active = document.querySelector('.dest-group.tab-active');
   return active ? (active.getAttribute('data-tier') || 'half-day') : 'half-day';
@@ -690,236 +671,16 @@ window.LY_activeGalleryTab = function() {
   var active = document.querySelector('.gallery-group.tab-active');
   return active ? (active.getAttribute('data-gtab') || 'water') : 'water';
 };
-window.LY_orderIndicesFrom = function(center, indices) {
-  if (!indices || !indices.length) return [];
-  var pos = indices.indexOf(center);
-  if (pos < 0) pos = 0;
-  var ordered = [indices[pos]];
-  for (var d = 1; d < indices.length; d++) {
-    if (pos - d >= 0) ordered.push(indices[pos - d]);
-    if (pos + d < indices.length) ordered.push(indices[pos + d]);
-  }
-  return ordered;
-};
-window.LY_warmUrlsForContext = function(ctx) {
-  var urls = [];
-  var c = ctx || window.LY_preloadContext;
-  if (c.section === 'itinerary') {
-    var tier = c.tier || 'half-day';
-    var indices = window.LY_DEST_TIER_IDX[tier] || [];
-    var center = c.destIdx != null ? c.destIdx : indices[0];
-    window.LY_orderIndicesFrom(center, indices).forEach(function(i) {
-      if (window.LY_destCardUrl) urls.push(window.LY_destCardUrl(i));
-    });
-  } else if (c.section === 'gallery') {
-    var tab = c.galleryTab || 'water';
-    var tabIdx = window.LY_GALLERY_TAB_IDX[tab] || [0, 1, 2];
-    var gCenter = c.galleryIdx != null ? c.galleryIdx : tabIdx[0];
-    window.LY_orderIndicesFrom(gCenter, tabIdx).forEach(function(i) {
-      if (window.LY_galleryCardUrl) urls.push(window.LY_galleryCardUrl(i));
-    });
-  } else if (c.section === 'about' && window.LY_cardTierFromMaster) {
-    var mob = window.innerWidth <= 640;
-    var master = mob ? '/images/mobile/maiora_20s_04.webp' : '/images/maiora_20s_04.webp';
-    var suffix;
-    if (window.LY_PROGRESSIVE_IMAGES && window.LY_sharpTierSuffix) {
-      suffix = window.LY_sharpTierSuffix('about');
-    } else {
-      suffix = window.LY_NET_SLOW ? (mob ? '-480' : '-640') : (mob ? '-720' : '-640');
-    }
-    urls.push(window.LY_cardTierFromMaster(master, suffix));
-  }
-  var seen = {};
-  return urls.filter(function(u) {
-    if (!u || seen[u] || window.LY_preloadedUrls[u]) return false;
-    seen[u] = 1;
-    return true;
-  });
-};
-window.LY_startContextWarm = function() {
-  if (window.LY_PROGRESSIVE_IMAGES) return;
-  if (window.LY_heroGateBlocked && window.LY_heroGateBlocked()) return;
-  if (!window.LY_preloadNeedsUserPriority || !window.LY_preloadNeedsUserPriority()) return;
-  if (window.LY_preloadPriorityActive > 0 || window.LY_priorityPreloadQueue.length) return;
-  window.LY_abortWarmQueues();
-  var urls = window.LY_warmUrlsForContext();
-  urls.forEach(function(u) { window.LY_enqueueCardPreload(u); });
-  window.LY_preloadDripPaused = false;
-  window.LY_pumpPreloads();
-};
-window.LY_waitForPreloadUrls = function(urls, cb, maxMs) {
-  var deadline = Date.now() + (maxMs || 12000);
-  function urlReady(u) {
-    if (!u || window.LY_preloadedUrls[u]) return true;
-    if (window.LY_PROGRESSIVE_IMAGES && window.LY_progressiveWrapForUrl) {
-      var wrap = window.LY_progressiveWrapForUrl(u);
-      if (wrap && wrap.classList.contains('ly-prog-sharp-ready')) return true;
-    }
-    return false;
-  }
-  function tick() {
-    var pending = urls.filter(function(u) { return u && !urlReady(u); });
-    if (!pending.length || Date.now() >= deadline) {
-      if (cb) cb();
-      return;
-    }
-    setTimeout(tick, 160);
-  }
-  tick();
-};
-window.LY_cardUrlForEl = function(el) {
-  if (!el) return '';
-  var idx;
-  if (el.classList.contains('destination-card')) {
-    idx = parseInt(el.getAttribute('data-dest-idx'), 10);
-    if (isNaN(idx) || !window.LY_destCardUrl) return '';
-    return window.LY_destCardUrl(idx);
-  }
-  if (el.classList.contains('gallery-item')) {
-    idx = parseInt(el.getAttribute('data-index'), 10);
-    if (isNaN(idx) || !window.LY_galleryCardUrl) return '';
-    return window.LY_galleryCardUrl(idx);
-  }
-  return '';
-};
-window.LY_initCardLoaders = function() {
-  document.querySelectorAll('.destination-card, .gallery-item').forEach(function(card) {
-    if (card.querySelector('.card-loader')) return;
-    var loader = document.createElement('div');
-    loader.className = 'card-loader';
-    loader.setAttribute('aria-hidden', 'true');
-    card.appendChild(loader);
-  });
-};
-window.LY_cardIsImageReady = function(card) {
-  if (!card) return false;
-  if (window.LY_PROGRESSIVE_IMAGES) {
-    var wrap = card.querySelector('.ly-prog-wrap');
-    if (wrap && (wrap.classList.contains('ly-prog-sharp-ready') || wrap.classList.contains('ly-prog-preview-ready'))) return true;
-  }
-  var img = card.querySelector('.ly-prog-sharp') || card.querySelector('img');
-  return !!(img && img.complete && img.naturalWidth);
-};
-window.LY_setCardLoading = function(card, on) {
-  if (!card || !window.LY_preloadNeedsUserPriority || !window.LY_preloadNeedsUserPriority()) return;
-  if (!on) {
-    card.classList.remove('card-loading');
-    card._lyCardLoadGen = (card._lyCardLoadGen || 0) + 1;
-    return;
-  }
-  if (window.LY_cardIsImageReady(card)) return;
-  var gen = (card._lyCardLoadGen || 0) + 1;
-  card._lyCardLoadGen = gen;
-  card.classList.add('card-loading');
-  var wrap = card.querySelector('.ly-prog-wrap');
-  var prev = wrap && wrap.querySelector('.ly-prog-preview');
-  var img = card.querySelector('.ly-prog-sharp') || card.querySelector('img');
-  function clearIfTerminé() {
-    if (card._lyCardLoadGen !== gen) return;
-    if (window.LY_cardIsImageReady(card)) card.classList.remove('card-loading');
-  }
-  if (prev) {
-    if (prev.complete && prev.naturalWidth) clearIfTerminé();
-    else prev.addEventListener('load', clearIfTerminé, { once: true });
-  }
-  if (img) {
-    if (img.complete) clearIfTerminé();
-    else {
-      img.addEventListener('load', clearIfTerminé, { once: true });
-      img.addEventListener('error', clearIfTerminé, { once: true });
-    }
-  }
-  setTimeout(clearIfTerminé, 12000);
-};
-window.LY_cardsForUrls = function(urls) {
-  var cards = [];
-  var seen = {};
-  document.querySelectorAll('.destination-card, .gallery-item').forEach(function(card) {
-    var u = window.LY_cardUrlForEl(card);
-    if (u && urls.indexOf(u) >= 0 && !seen[card]) {
-      seen[card] = 1;
-      cards.push(card);
-    }
-  });
-  return cards;
-};
-window.LY_cardsForContext = function(ctx) {
-  if (!ctx) return [];
-  var card = null;
-  if (ctx.section === 'itinerary' && ctx.destIdx != null) {
-    document.querySelectorAll('.destination-card').forEach(function(el) {
-      if (parseInt(el.getAttribute('data-dest-idx'), 10) === ctx.destIdx) card = el;
-    });
-  } else if (ctx.section === 'gallery' && ctx.galleryIdx != null) {
-    document.querySelectorAll('.gallery-item').forEach(function(el) {
-      if (parseInt(el.getAttribute('data-index'), 10) === ctx.galleryIdx) card = el;
-    });
-  }
-  return card ? [card] : [];
-};
-window.LY_showCardLoadersForIntent = function(opts) {
-  if (!window.LY_preloadNeedsUserPriority || !window.LY_preloadNeedsUserPriority()) return;
-  opts = opts || {};
-  var urls = (opts.urgentUrls || []).filter(Boolean);
-  var cards = urls.length ? window.LY_cardsForUrls(urls) : window.LY_cardsForContext(opts.context);
-  cards.forEach(function(card) { window.LY_setCardLoading(card, true); });
-};
 window.LY_beginUserIntent = function(opts) {
   opts = opts || {};
-  if (window.LY_heroGateBlocked && window.LY_heroGateBlocked()) {
-    if (opts.onTerminé) opts.onTerminé();
-    return;
-  }
-  if (!window.LY_preloadNeedsUserPriority || !window.LY_preloadNeedsUserPriority()) {
-    if (opts.onTerminé) opts.onTerminé();
-    return;
-  }
-  var gen = ++window.LY_preloadIntentGen;
-  window.LY_abortWarmQueues();
-  window.LY_priorityPreloadQueue = [];
-  window.LY_cancelPreloadPumpDelay();
-  window.LY_preloadPumpActive = false;
-  if (opts.context) {
-    window.LY_preloadContext = Object.assign({}, window.LY_preloadContext, opts.context);
-  }
-  if (window.LY_showCardLoadersForIntent) window.LY_showCardLoadersForIntent(opts);
-  if (window.LY_upgradeProgressiveForIntent) window.LY_upgradeProgressiveForIntent(opts);
-  var urgent = (opts.urgentUrls || []).filter(Boolean);
-  var seen = {};
-  urgent = urgent.filter(function(u) {
-    if (!u || seen[u] || window.LY_preloadedUrls[u]) return false;
-    seen[u] = 1;
-    return true;
-  });
-  if (!window.LY_PROGRESSIVE_IMAGES) {
-    for (var u = urgent.length - 1; u >= 0; u--) {
-      window.LY_prioritizePreloadUrgent(urgent[u]);
-    }
-  }
-  var finished = false;
-  function complete() {
-    if (finished || gen !== window.LY_preloadIntentGen) return;
-    finished = true;
-    window.LY_startContextWarm();
-    if (opts.onTerminé) opts.onTerminé();
-  }
-  var tasks = (urgent.length ? 1 : 0) + (opts.fetchAvail ? 1 : 0) + (opts.fetchReviews ? 1 : 0);
-  function oneTerminé() {
-    tasks--;
-    if (tasks <= 0) complete();
-  }
-  if (!tasks) {
-    complete();
-    return;
-  }
-  if (urgent.length) window.LY_waitForPreloadUrls(urgent, oneTerminé, opts.timeout || 12000);
-  if (opts.fetchAvail && window.LY_loadAvailCalNow) window.LY_loadAvailCalNow(oneTerminé);
-  else if (opts.fetchAvail) oneTerminé();
-  if (opts.fetchReviews && window.LY_loadReviewsNow) window.LY_loadReviewsNow(oneTerminé);
-  else if (opts.fetchReviews) oneTerminé();
-  setTimeout(function() {
-    if (!finished && gen === window.LY_preloadIntentGen) complete();
-  }, opts.timeout || 12000);
+  var tasks = (opts.fetchAvail ? 1 : 0) + (opts.fetchReviews ? 1 : 0);
+  if (!tasks) { if (opts.onTerminé) opts.onTerminé(); return; }
+  var done = 0;
+  function one() { done++; if (done >= tasks && opts.onTerminé) opts.onTerminé(); }
+  if (opts.fetchAvail && window.LY_loadAvailCalNow) window.LY_loadAvailCalNow(one);
+  else if (opts.fetchAvail) one();
+  if (opts.fetchReviews && window.LY_loadReviewsNow) window.LY_loadReviewsNow(one);
+  else if (opts.fetchReviews) one();
 };
 window.LY_sectionFromHash = function(href) {
   var section = window.LY_normalizeNavHash(href);
@@ -937,51 +698,13 @@ window.LY_sectionFromHash = function(href) {
   }
   return { section: section };
 };
-window.LY_urgentUrlsForNav = function(ctx) {
-  if (!ctx) return [];
-  if (ctx.section === 'itinerary' && window.LY_destCardUrl) {
-    var tier = ctx.tier || 'half-day';
-    var idx = ctx.destIdx != null ? ctx.destIdx : (window.LY_DEST_TIER_IDX[tier] || [0])[0];
-    return [window.LY_destCardUrl(idx)];
-  }
-  if (ctx.section === 'gallery' && window.LY_galleryCardUrl) {
-    var gTab = ctx.galleryTab || 'water';
-    var gIdx = ctx.galleryIdx != null ? ctx.galleryIdx : (window.LY_GALLERY_TAB_IDX[gTab] || [0])[0];
-    return [window.LY_galleryCardUrl(gIdx)];
-  }
-  return window.LY_sectionNavUrls(ctx.section);
-};
 window.LY_onNavIntent = function(href) {
   var ctx = window.LY_sectionFromHash(href);
   if (!ctx) return;
   window.LY_beginUserIntent({
-    context: ctx,
-    urgentUrls: window.LY_urgentUrlsForNav(ctx),
     fetchAvail: ctx.section === 'availability' || ctx.section === 'enquire',
     fetchReviews: ctx.section === 'reviews',
   });
-};
-window.LY_contextFromViewport = function() {
-  if (window.scrollY < 72) return { section: 'hero' };
-  var probe = (window.innerWidth <= 768 ? 96 : 128);
-  var ids = ['intro', 'about', 'itinerary', 'gallery', 'charters', 'availability', 'reviews', 'amenities', 'specs', 'enquire-form'];
-  var found = 'hero';
-  ids.forEach(function(id) {
-    var el = document.getElementById(id);
-    if (!el) return;
-    if (el.getBoundingClientRect().top <= probe) found = id;
-  });
-  if (found === 'intro') return { section: 'hero' };
-  if (found === 'itinerary') {
-    return { section: 'itinerary', tier: window.LY_activeDestTier(), destIdx: 0 };
-  }
-  if (found === 'gallery') {
-    var tab = window.LY_activeGalleryTab();
-    var tabIdx = window.LY_GALLERY_TAB_IDX[tab] || [0];
-    return { section: 'gallery', galleryTab: tab, galleryIdx: tabIdx[0] };
-  }
-  if (found === 'availability' || found === 'enquire-form') return { section: 'availability' };
-  return { section: found };
 };
 document.addEventListener('click', function(e) {
   var link = e.target.closest && e.target.closest('a[href^="#"]');
@@ -990,189 +713,10 @@ document.addEventListener('click', function(e) {
   if (!href || href === '#') return;
   if (window.LY_onNavIntent) window.LY_onNavIntent(href);
 }, true);
-window.LY_progressiveWrapForUrl = function(url) {
-  if (!url || !window.LY_PROGRESSIVE_IMAGES) return null;
-  var found = null;
-  document.querySelectorAll('.ly-prog-wrap').forEach(function(wrap) {
-    if (wrap.dataset.lySharpUrl === url) found = wrap;
-  });
-  return found;
-};
-window.LY_loadPreloadImage = function(url, cb) {
-  if (!url) { if (cb) cb(); return null; }
-  if (window.LY_heroGateBlocked && window.LY_heroGateBlocked()) { if (cb) cb(); return null; }
-  if (window.LY_PROGRESSIVE_IMAGES) {
-    var wrap = window.LY_progressiveWrapForUrl(url);
-    if (wrap) {
-      if (wrap.classList.contains('ly-prog-sharp-ready')) {
-        window.LY_preloadedUrls[url] = 1;
-        if (cb) cb();
-        return null;
-      }
-      if (cb) {
-        var img = wrap.querySelector('.ly-prog-sharp');
-        var done = function() {
-          window.LY_preloadedUrls[url] = 1;
-          cb();
-        };
-        if (img) {
-          img.addEventListener('load', done, { once: true });
-          img.addEventListener('error', done, { once: true });
-        } else {
-          done();
-        }
-      }
-      if (window.LY_activateProgressiveWrap) window.LY_activateProgressiveWrap(wrap);
-      return null;
-    }
-  }
-  if (window.LY_preloadedUrls[url]) { if (cb) cb(); return null; }
-  var existing = window.LY_preloadInFlight[url];
-  if (existing) {
-    if (cb) {
-      if (existing.complete) cb();
-      else {
-        existing.addEventListener('load', cb, { once: true });
-        existing.addEventListener('error', cb, { once: true });
-      }
-    }
-    return existing;
-  }
-  var img = new Image();
-  window.LY_preloadInFlight[url] = img;
-  function finish() {
-    delete window.LY_preloadInFlight[url];
-    window.LY_preloadedUrls[url] = 1;
-    if (window.LY_revealProgressiveForUrl) window.LY_revealProgressiveForUrl(url);
-    if (cb) cb();
-  }
-  img.addEventListener('load', finish, { once: true });
-  img.addEventListener('error', finish, { once: true });
-  img.src = url;
-  return img;
-};
-window.LY_prioritizePreload = function(url) {
-  if (window.LY_heroGateBlocked && window.LY_heroGateBlocked()) return;
-  if (!url || window.LY_preloadedUrls[url]) return;
-  if (window.LY_PROGRESSIVE_IMAGES && window.LY_progressiveWrapForUrl(url)) {
-    window.LY_enqueueCardPreload(url);
-    return;
-  }
-  window.LY_removeFromPreloadQueues(url);
-  if (window.LY_priorityPreloadQueue.indexOf(url) < 0) {
-    window.LY_priorityPreloadQueue.push(url);
-  }
-  window.LY_pausePreloadDrip();
-  window.LY_pumpPreloads();
-};
-window.LY_prioritizePreloadUrgent = function(url) {
-  if (window.LY_heroGateBlocked && window.LY_heroGateBlocked()) return;
-  if (!url || window.LY_preloadedUrls[url]) return;
-  if (window.LY_PROGRESSIVE_IMAGES && window.LY_progressiveWrapForUrl(url)) {
-    window.LY_enqueueCardPreload(url);
-    return;
-  }
-  window.LY_removeFromPreloadQueues(url);
-  var pi = window.LY_priorityPreloadQueue.indexOf(url);
-  if (pi >= 0) window.LY_priorityPreloadQueue.splice(pi, 1);
-  window.LY_priorityPreloadQueue.unshift(url);
-  window.LY_pausePreloadDrip();
-  window.LY_pumpPreloads();
-};
 window.LY_LB_LOADING = 'Chargement\u2026';
 window.LY_formatLbCounter = function(idx, total, loading) {
   var base = (idx + 1) + ' / ' + total;
   return loading ? base + ' \u00b7 ' + (window.LY_LB_LOADING || 'Loading\u2026') : base;
-};
-window.LY_enqueueCardPreload = function(url) {
-  if (window.LY_heroGateBlocked && window.LY_heroGateBlocked()) return;
-  if (!url || window.LY_preloadIsReady(url)) return;
-  if (window.LY_PROGRESSIVE_IMAGES && window.LY_progressiveWrapForUrl(url)) {
-    if (window.LY_activateProgressiveWrap) window.LY_activateProgressiveWrap(window.LY_progressiveWrapForUrl(url));
-    return;
-  }
-  var maxQ = window.LY_PRELOAD_QUEUE_MAX || 64;
-  if (window.LY_cardPreloadQueue.length + window.LY_lbPreloadQueue.length >= maxQ) return;
-  if (window.LY_cardPreloadQueue.indexOf(url) < 0 && window.LY_lbPreloadQueue.indexOf(url) < 0) {
-    window.LY_cardPreloadQueue.push(url);
-  }
-  window.LY_pumpPreloads();
-};
-window.LY_enqueueLbPreload = function(url) {
-  if (window.LY_heroGateBlocked && window.LY_heroGateBlocked()) return;
-  if (!url || window.LY_preloadIsReady(url)) return;
-  if (window.LY_preloadNeedsUserPriority()) {
-    var maxQ = window.LY_PRELOAD_QUEUE_MAX || 8;
-    if (window.LY_cardPreloadQueue.length < maxQ && window.LY_cardPreloadQueue.indexOf(url) < 0) {
-      window.LY_cardPreloadQueue.push(url);
-    }
-    if (!window.LY_preloadDripPaused) window.LY_pumpPreloads();
-    return;
-  }
-  var maxQ = window.LY_PRELOAD_QUEUE_MAX || 64;
-  if (window.LY_cardPreloadQueue.length + window.LY_lbPreloadQueue.length >= maxQ) return;
-  if (window.LY_cardPreloadQueue.indexOf(url) < 0 && window.LY_lbPreloadQueue.indexOf(url) < 0) {
-    window.LY_lbPreloadQueue.push(url);
-  }
-  window.LY_pumpPreloads();
-};
-window.LY_pumpPreloadsImpl = function() {
-  if (window.LY_heroGateBlocked && window.LY_heroGateBlocked()) {
-    window.LY_preloadPumpActive = false;
-    return;
-  }
-  if (window.LY_NET_SLOW && document.visibilityState === 'hidden') {
-    window.LY_preloadPumpActive = false;
-    return;
-  }
-  var url = window.LY_priorityPreloadQueue.shift();
-  var priority = !!url;
-  if (!url) {
-    if (window.LY_preloadDripPaused) {
-      window.LY_preloadPumpActive = false;
-      return;
-    }
-    url = window.LY_cardPreloadQueue.shift() || window.LY_lbPreloadQueue.shift();
-  }
-  if (!url) {
-    window.LY_preloadPumpActive = false;
-    return;
-  }
-  if (window.LY_preloadedUrls[url]) {
-    window.LY_pumpPreloadsImpl();
-    return;
-  }
-  window.LY_preloadPumpActive = true;
-  if (priority) window.LY_preloadPriorityActive++;
-  window.LY_loadPreloadImage(url, function() {
-    if (priority) {
-      window.LY_preloadPriorityActive = Math.max(0, window.LY_preloadPriorityActive - 1);
-      if (window.LY_preloadPriorityActive === 0 && !window.LY_priorityPreloadQueue.length) {
-        window.LY_maybeResumePreloadDrip();
-      }
-      window.LY_pumpPreloadsImpl();
-      return;
-    }
-    if (window.LY_preloadDripPaused || window.LY_priorityPreloadQueue.length) {
-      window.LY_preloadPumpActive = false;
-      if (window.LY_priorityPreloadQueue.length) window.LY_pumpPreloads();
-      return;
-    }
-    var delay = window.LY_PRELOAD_PUMP_MS || (window.LY_NET_SLOW ? 900 : 160);
-    var token = window.LY_preloadPumpToken;
-    window.LY_preloadPumpTimer = setTimeout(function() {
-      if (token !== window.LY_preloadPumpToken) return;
-      window.LY_preloadPumpTimer = null;
-      window.LY_pumpPreloadsImpl();
-    }, delay);
-  });
-};
-window.LY_pumpPreloads = function() {
-  if (window.LY_PROGRESSIVE_IMAGES) return;
-  if (window.LY_heroGateBlocked && window.LY_heroGateBlocked()) return;
-  if (window.LY_preloadPumpActive) return;
-  if (window.LY_NET_SLOW && document.visibilityState === 'hidden') return;
-  window.LY_pumpPreloadsImpl();
 };
 window.LY_GALLERY_IMAGES = [
   '/images/maiora_20s_01.webp',
@@ -1242,10 +786,6 @@ window.LY_DEST_TIER_IDX = {
   'full-day': [3, 4, 5, 6, 7],
   'multi-day': [8, 9, 10, 11],
 };
-window.LY_cardTierFromMaster = function(master, suffix) {
-  if (!master) return '';
-  return master.replace(/\.webp$/i, suffix + '.webp');
-};
 window.LY_destMasterUrl = function(idx) {
   var arr = window.innerWidth <= 640 ? window.LY_DEST_IMAGES_MOBILE : window.LY_DEST_IMAGES;
   return arr[idx];
@@ -1257,176 +797,39 @@ window.LY_galleryMasterUrl = function(idx) {
 window.LY_stemFromMasterUrl = function(masterUrl) {
   return masterUrl ? masterUrl.replace(/\.webp$/i, '') : '';
 };
-window.LY_destCardUrl = function(idx) {
-  var mob = window.innerWidth <= 640;
-  var suffix;
-  if (window.LY_PROGRESSIVE_IMAGES && window.LY_sharpTierSuffix) {
-    suffix = window.LY_sharpTierSuffix('dest');
-  } else if (window.LY_NET_SLOW) {
-    suffix = mob ? '-480' : '-640';
-  } else {
-    suffix = mob ? '-720' : '-640';
-  }
-  return window.LY_cardTierFromMaster(window.LY_destMasterUrl(idx), suffix);
+// Returns the URL the card's sharp <img> already downloaded (served from cache).
+// Returns '' if the card hasn't loaded yet — do NOT fall back to getAttribute('src'),
+// which is a .jpg fallback that triggers a full download.
+window.LY_cardLoadedSrc = function(card) {
+  if (!card) return '';
+  var sharp = card.querySelector('.ly-prog-sharp');
+  return (sharp && sharp.currentSrc) ? sharp.currentSrc : '';
 };
-window.LY_destLbUrl = function(idx) {
-  var mob = window.innerWidth <= 640;
-  var suffix;
-  if (window.LY_PROGRESSIVE_IMAGES && window.LY_sharpTierSuffix) {
-    suffix = window.LY_sharpTierSuffix('dest');
-  } else if (window.LY_NET_SLOW) {
-    suffix = mob ? '-480' : '-640';
-  } else {
-    suffix = '-960';
-  }
-  return window.LY_cardTierFromMaster(window.LY_destMasterUrl(idx), suffix);
-};
-window.LY_galleryCardUrl = function(idx) {
-  var mob = window.innerWidth <= 640;
-  var suffix;
-  if (window.LY_PROGRESSIVE_IMAGES && window.LY_sharpTierSuffix) {
-    suffix = window.LY_sharpTierSuffix('gallery');
-  } else if (window.LY_NET_SLOW) {
-    suffix = mob ? '-480' : '-640';
-  } else {
-    suffix = mob ? '-720' : (window.LY_GALLERY_FEATURED[idx] ? '-960' : '-640');
-  }
-  return window.LY_cardTierFromMaster(window.LY_galleryMasterUrl(idx), suffix);
-};
-window.LY_galleryLbUrl = function(idx) {
-  var mob = window.innerWidth <= 640;
-  var suffix;
-  if (window.LY_PROGRESSIVE_IMAGES && window.LY_sharpTierSuffix) {
-    suffix = window.LY_sharpTierSuffix('gallery');
-  } else if (window.LY_NET_SLOW) {
-    suffix = mob ? '-480' : '-640';
-  } else {
-    suffix = '-960';
-  }
-  return window.LY_cardTierFromMaster(window.LY_galleryMasterUrl(idx), suffix);
-};
-window.LY_preloadGalleryCard = function(idx) {
-  if (idx == null || idx < 0) return;
-  if (window.LY_PROGRESSIVE_IMAGES) return;
-  var url = window.LY_galleryCardUrl(idx);
-  if (window.LY_preloadNeedsUserPriority()) {
-    window.LY_beginUserIntent({
-      context: { section: 'gallery', galleryTab: window.LY_activeGalleryTab(), galleryIdx: idx },
-      urgentUrls: [url],
-    });
-  } else {
-    window.LY_enqueueCardPreload(url);
-  }
-};
-window.LY_pictureSrcsetForViewport = function(picture, mob) {
-  if (!picture) return '';
-  var sel = mob
+// For cards not yet loaded: read the card's <picture><source> srcset filtered to
+// only the responsive tiers (480/640/720/960w), so the lightbox browser picks the
+// same WebP size it would have picked for the carousel card — never a .jpg or master.
+window.LY_cardSrcset = function(card, isMobile) {
+  if (!card) return null;
+  var picture = card.querySelector('picture');
+  if (!picture) return null;
+  var sel = isMobile
     ? 'source[type="image/webp"][media*="max-width: 640px"]'
     : 'source[type="image/webp"]:not([media])';
   var source = picture.querySelector(sel);
-  return source ? (source.getAttribute('srcset') || source.getAttribute('data-ly-srcset') || '') : '';
-};
-window.LY_srcsetWithoutMasters = function(srcset) {
-  if (!srcset) return '';
-  var cap = window.LY_maxImgWidth ? window.LY_maxImgWidth() : 9999;
-  var trimmed = window.LY_capSrcset
-    ? window.LY_capSrcset(srcset, cap)
-    : srcset;
-  return trimmed.split(',').map(function(part) { return part.trim(); }).filter(function(part) {
-    var url = part.split(/\s+/)[0] || '';
-    return /-(480|640|720|960|1280)\.webp$/i.test(url);
+  if (!source) return null;
+  // srcset once promoted, data-ly-srcset while the card is still deferred.
+  var full = source.getAttribute('srcset') || source.getAttribute('data-ly-srcset') || '';
+  // Strip master entries (no numeric suffix like -480, -640, -720, -960, -1280).
+  // The master webp has no dash-number before .webp and can be very large.
+  var tiersOnly = full.split(',').map(function(p) { return p.trim(); }).filter(function(p) {
+    return /-(480|640|720|960|1280)\.webp\b/i.test(p.split(/\s+/)[0] || '');
   }).join(', ');
+  return tiersOnly ? { srcset: tiersOnly, sizes: '100vw' } : null;
 };
-window.LY_applySlowSrcsets = function(root) {
-  if (!window.LY_NET_SLOW || !window.LY_capSrcset || window.LY_PROGRESSIVE_IMAGES) return;
-  var max = window.LY_maxImgWidth();
-  (root || document).querySelectorAll('picture source[data-ly-srcset]').forEach(function(el) {
-    var ss = el.getAttribute('data-ly-srcset');
-    if (!ss) return;
-    var next = window.LY_capSrcset(ss, max);
-    if (next) el.setAttribute('data-ly-srcset', next);
-  });
-  if (window.LY_applyPictureSrc) window.LY_applyPictureSrc(root);
-};
-window.LY_destPreloadReady = false;
-window.LY_warmPreloadCaches = function() {
-  if (window.LY_PROGRESSIVE_IMAGES) return;
-  if (window.LY_PRELOAD_AGGRESSIVE === false) {
-    window.LY_preloadContext = { section: 'hero', tier: 'half-day', galleryTab: 'water', destIdx: 0, galleryIdx: 0 };
-    return;
-  }
-  var destOrder = [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11];
-  destOrder.forEach(function(i) { window.LY_enqueueCardPreload(window.LY_destCardUrl(i)); });
-  for (var g = 0; g < window.LY_GALLERY_IMAGES.length; g++) {
-    window.LY_enqueueCardPreload(window.LY_galleryCardUrl(g));
-  }
-};
-function LY_enableDestCarouselPreload() {
-  window.LY_destPreloadReady = true;
+window.LY_afterMeaningfulPaint(function() {
   document.querySelectorAll('.dest-group.tab-active .itinerary-grid').forEach(function(gr) {
     gr.dispatchEvent(new Event('scroll'));
   });
-}
-window.LY_afterMeaningfulPaint(function() {
-  if (window.LY_PROGRESSIVE_IMAGES && !window.LY_heroGateOpen) {
-    window.LY_onHeroSharpReady.push(function() {
-      LY_enableDestCarouselPreload();
-    });
-    return;
-  }
-  window.LY_warmPreloadCaches();
-  LY_enableDestCarouselPreload();
-});
-document.addEventListener('DOMContentLoaded', function() {
-  if (!window.LY_PROGRESSIVE_IMAGES && window.LY_applySlowSrcsets) window.LY_applySlowSrcsets(document);
-  if (window.LY_initCardLoaders) window.LY_initCardLoaders();
-  if (window.LY_NET_SLOW && !window.LY_PRELOAD_VISIBILITY_BOUND) {
-    window.LY_PRELOAD_VISIBILITY_BOUND = true;
-    document.addEventListener('visibilitychange', function() {
-      if (document.visibilityState === 'visible') window.LY_pumpPreloads();
-    });
-  }
-  if (window.LY_preloadNeedsUserPriority && window.LY_preloadNeedsUserPriority()) {
-    var ctxScrollTick = false;
-    var lastCtxSection = 'hero';
-    window.addEventListener('scroll', function() {
-      if (ctxScrollTick) return;
-      ctxScrollTick = true;
-      requestAnimationFrame(function() {
-        ctxScrollTick = false;
-        var ctx = window.LY_contextFromViewport();
-        if (!ctx || ctx.section === lastCtxSection) return;
-        lastCtxSection = ctx.section;
-        if (window.LY_heroGateBlocked && window.LY_heroGateBlocked()) return;
-        window.LY_beginUserIntent({ context: ctx, urgentUrls: [] });
-      });
-    }, { passive: true });
-    if ('IntersectionObserver' in window) {
-      var cardIo = new IntersectionObserver(function(entries) {
-        entries.forEach(function(entry) {
-          if (!entry.isIntersecting) return;
-          if (window.LY_heroGateBlocked && window.LY_heroGateBlocked()) return;
-          var card = entry.target;
-          var img = card.querySelector('img');
-          if (img && img.complete && img.naturalWidth) return;
-          var idx = parseInt(card.getAttribute('data-dest-idx') || card.getAttribute('data-index'), 10);
-          if (isNaN(idx)) return;
-          if (card.classList.contains('destination-card') && window.LY_destCardUrl) {
-            window.LY_beginUserIntent({
-              context: { section: 'itinerary', tier: window.LY_activeDestTier(), destIdx: idx },
-              urgentUrls: [window.LY_destCardUrl(idx)],
-            });
-          } else if (card.classList.contains('gallery-item') && window.LY_galleryCardUrl) {
-            window.LY_beginUserIntent({
-              context: { section: 'gallery', galleryTab: window.LY_activeGalleryTab(), galleryIdx: idx },
-              urgentUrls: [window.LY_galleryCardUrl(idx)],
-            });
-          }
-        });
-      }, { rootMargin: '80px 0px', threshold: 0.01 });
-      document.querySelectorAll('.destination-card, .gallery-item').forEach(function(el) { cardIo.observe(el); });
-    }
-  }
 });
 </script>
 
@@ -1457,7 +860,7 @@ document.addEventListener('DOMContentLoaded', function() {
   <div class="container">
     <div class="about-grid">
       <div class="about-image-wrap reveal">
-        <picture><source type="image/webp" media="(max-width: 640px)" data-ly-srcset="/images/mobile/maiora_20s_04-480.webp 480w, /images/mobile/maiora_20s_04-720.webp 720w, /images/mobile/maiora_20s_04-960.webp 960w" sizes="100vw" /><source type="image/webp" data-ly-srcset="/images/maiora_20s_04-640.webp 640w, /images/maiora_20s_04-960.webp 960w" sizes="(min-width: 1101px) 50vw, 100vw" /><img loading="lazy" decoding="async" data-ly-src="/images/maiora_20s_04.jpg" width="960" height="639" alt="Limitless yacht cruising the Mallorca coastline" /></picture>
+        <div class="ly-prog-wrap"><img class="ly-prog-preview" src="/images/maiora_20s_04-prev.jpg" alt="" aria-hidden="true" loading="lazy" decoding="async" onload="this.parentNode.classList.add('ly-prog-preview-ready')"><picture><source type="image/webp" media="(max-width: 640px)" data-ly-srcset="/images/mobile/maiora_20s_04-480.webp 480w, /images/mobile/maiora_20s_04-720.webp 720w, /images/mobile/maiora_20s_04-960.webp 960w" sizes="100vw" /><source type="image/webp" data-ly-srcset="/images/maiora_20s_04-640.webp 640w, /images/maiora_20s_04-960.webp 960w" sizes="(min-width: 1101px) 50vw, 100vw" /><img class="ly-prog-sharp" data-ly-src="/images/maiora_20s_04.jpg" alt="Limitless yacht cruising the Mallorca coastline" width="960" height="639" loading="lazy" decoding="async" onload="this.closest('.ly-prog-wrap').classList.add('ly-prog-sharp-ready','ly-prog-sharp-visible')"></picture></div>
         <div class="about-image-accent"></div>
       </div>
       <div class="about-text reveal reveal-delay-1">
@@ -1505,11 +908,7 @@ document.addEventListener('DOMContentLoaded', function() {
     <div class="dest-group tab-active" data-tier="half-day">
       <div class="itinerary-grid">
         <div class="destination-card reveal" data-dest-idx="0">
-          <picture class="destination-card-bg">
-            <source type="image/webp" media="(max-width: 640px)" data-ly-srcset="/images/mobile/dest/portals-vells-1-480.webp 480w, /images/mobile/dest/portals-vells-1-720.webp 720w, /images/mobile/dest/portals-vells-1-960.webp 800w" sizes="78vw" />
-            <source type="image/webp" data-ly-srcset="/images/dest/portals-vells-1-640.webp 640w, /images/dest/portals-vells-1-960.webp 960w" sizes="(min-width: 1101px) 500px, 48vw" />
-            <img loading="lazy" decoding="async" data-ly-src="/images/dest/portals-vells-1.jpg" alt="" width="960" height="720" />
-          </picture>
+          <div class="ly-prog-wrap"><img class="ly-prog-preview" src="/images/dest/portals-vells-1-prev.jpg" alt="" aria-hidden="true" loading="lazy" decoding="async" onload="this.parentNode.classList.add('ly-prog-preview-ready')"><picture class="destination-card-bg"><source type="image/webp" media="(max-width: 640px)" data-ly-srcset="/images/mobile/dest/portals-vells-1-480.webp 320w, /images/mobile/dest/portals-vells-1-720.webp 480w, /images/mobile/dest/portals-vells-1-960.webp 640w, /images/mobile/dest/portals-vells-1.webp 960w" sizes="78vw" /><source type="image/webp" data-ly-srcset="/images/dest/portals-vells-1-640.webp 640w, /images/dest/portals-vells-1-960.webp 960w" sizes="(min-width: 1101px) 500px, 48vw" /><img class="ly-prog-sharp" data-ly-src="/images/dest/portals-vells-1.jpg" alt="" width="960" height="720" loading="lazy" decoding="async" onload="this.closest('.ly-prog-wrap').classList.add('ly-prog-sharp-ready','ly-prog-sharp-visible')"></picture></div>
           <div class="destination-card-overlay"></div>
           <div class="destination-card-body">
             <div class="destination-num">01 · Côte sud-ouest</div>
@@ -1525,11 +924,7 @@ document.addEventListener('DOMContentLoaded', function() {
           </div>
         </div>
         <div class="destination-card reveal reveal-delay-1" data-dest-idx="1">
-          <picture class="destination-card-bg">
-            <source type="image/webp" media="(max-width: 640px)" data-ly-srcset="/images/mobile/dest/el-toro-malgrats-1-480.webp 320w, /images/mobile/dest/el-toro-malgrats-1-720.webp 480w, /images/mobile/dest/el-toro-malgrats-1-960.webp 640w, /images/mobile/dest/el-toro-malgrats-1.webp 800w" sizes="78vw" />
-            <source type="image/webp" data-ly-srcset="/images/dest/el-toro-malgrats-1-640.webp 427w, /images/dest/el-toro-malgrats-1-960.webp 640w" sizes="(min-width: 1101px) 500px, 48vw" />
-            <img loading="lazy" decoding="async" data-ly-src="/images/dest/el-toro-malgrats-1.jpg" alt="" width="640" height="960" />
-          </picture>
+          <div class="ly-prog-wrap"><img class="ly-prog-preview" src="/images/dest/el-toro-malgrats-1-prev.jpg" alt="" aria-hidden="true" loading="lazy" decoding="async" onload="this.parentNode.classList.add('ly-prog-preview-ready')"><picture class="destination-card-bg"><source type="image/webp" media="(max-width: 640px)" data-ly-srcset="/images/mobile/dest/el-toro-malgrats-1-480.webp 320w, /images/mobile/dest/el-toro-malgrats-1-720.webp 480w, /images/mobile/dest/el-toro-malgrats-1-960.webp 640w, /images/mobile/dest/el-toro-malgrats-1.webp 800w" sizes="78vw" /><source type="image/webp" data-ly-srcset="/images/dest/el-toro-malgrats-1-640.webp 427w, /images/dest/el-toro-malgrats-1-960.webp 640w" sizes="(min-width: 1101px) 500px, 48vw" /><img class="ly-prog-sharp" data-ly-src="/images/dest/el-toro-malgrats-1.jpg" alt="" width="640" height="960" loading="lazy" decoding="async" onload="this.closest('.ly-prog-wrap').classList.add('ly-prog-sharp-ready','ly-prog-sharp-visible')"></picture></div>
           <div class="destination-card-overlay"></div>
           <div class="destination-card-body">
             <div class="destination-num">02 · Côte sud-ouest</div>
@@ -1545,11 +940,7 @@ document.addEventListener('DOMContentLoaded', function() {
           </div>
         </div>
         <div class="destination-card reveal reveal-delay-1" data-dest-idx="2">
-          <picture class="destination-card-bg">
-            <source type="image/webp" media="(max-width: 640px)" data-ly-srcset="/images/mobile/dest/cala-llamp-1-480.webp 480w, /images/mobile/dest/cala-llamp-1-720.webp 720w, /images/mobile/dest/cala-llamp-1-960.webp 800w" sizes="78vw" />
-            <source type="image/webp" data-ly-srcset="/images/dest/cala-llamp-1-640.webp 640w, /images/dest/cala-llamp-1-960.webp 960w" sizes="(min-width: 1101px) 500px, 48vw" />
-            <img loading="lazy" decoding="async" data-ly-src="/images/dest/cala-llamp-1.jpg" alt="" width="960" height="720" />
-          </picture>
+          <div class="ly-prog-wrap"><img class="ly-prog-preview" src="/images/dest/cala-llamp-1-prev.jpg" alt="" aria-hidden="true" loading="lazy" decoding="async" onload="this.parentNode.classList.add('ly-prog-preview-ready')"><picture class="destination-card-bg"><source type="image/webp" media="(max-width: 640px)" data-ly-srcset="/images/mobile/dest/cala-llamp-1-480.webp 320w, /images/mobile/dest/cala-llamp-1-720.webp 480w, /images/mobile/dest/cala-llamp-1-960.webp 640w, /images/mobile/dest/cala-llamp-1.webp 960w" sizes="78vw" /><source type="image/webp" data-ly-srcset="/images/dest/cala-llamp-1-640.webp 640w, /images/dest/cala-llamp-1-960.webp 960w" sizes="(min-width: 1101px) 500px, 48vw" /><img class="ly-prog-sharp" data-ly-src="/images/dest/cala-llamp-1.jpg" alt="" width="960" height="720" loading="lazy" decoding="async" onload="this.closest('.ly-prog-wrap').classList.add('ly-prog-sharp-ready','ly-prog-sharp-visible')"></picture></div>
           <div class="destination-card-overlay"></div>
           <div class="destination-card-body">
             <div class="destination-num">03 · Côte sud-ouest</div>
@@ -1576,11 +967,7 @@ document.addEventListener('DOMContentLoaded', function() {
     <div class="dest-group" data-tier="full-day">
       <div class="itinerary-grid">
         <div class="destination-card reveal" data-dest-idx="3">
-          <picture class="destination-card-bg">
-            <source type="image/webp" media="(max-width: 640px)" data-ly-srcset="/images/mobile/dest/sa-dragonera-1-480.webp 480w, /images/mobile/dest/sa-dragonera-1-720.webp 720w, /images/mobile/dest/sa-dragonera-1-960.webp 800w" sizes="78vw" />
-            <source type="image/webp" data-ly-srcset="/images/dest/sa-dragonera-1-640.webp 640w, /images/dest/sa-dragonera-1-960.webp 960w" sizes="(min-width: 1101px) 500px, 48vw" />
-            <img loading="lazy" decoding="async" data-ly-src="/images/dest/sa-dragonera-1.jpg" alt="" width="960" height="640" />
-          </picture>
+          <div class="ly-prog-wrap"><img class="ly-prog-preview" src="/images/dest/sa-dragonera-1-prev.jpg" alt="" aria-hidden="true" loading="lazy" decoding="async" onload="this.parentNode.classList.add('ly-prog-preview-ready')"><picture class="destination-card-bg"><source type="image/webp" media="(max-width: 640px)" data-ly-srcset="/images/mobile/dest/sa-dragonera-1-480.webp 320w, /images/mobile/dest/sa-dragonera-1-720.webp 480w, /images/mobile/dest/sa-dragonera-1-960.webp 640w, /images/mobile/dest/sa-dragonera-1.webp 960w" sizes="78vw" /><source type="image/webp" data-ly-srcset="/images/dest/sa-dragonera-1-640.webp 640w, /images/dest/sa-dragonera-1-960.webp 960w" sizes="(min-width: 1101px) 500px, 48vw" /><img class="ly-prog-sharp" data-ly-src="/images/dest/sa-dragonera-1.jpg" alt="" width="960" height="640" loading="lazy" decoding="async" onload="this.closest('.ly-prog-wrap').classList.add('ly-prog-sharp-ready','ly-prog-sharp-visible')"></picture></div>
           <div class="destination-card-overlay"></div>
           <div class="destination-card-body">
             <div class="destination-num">04 · Côte ouest</div>
@@ -1596,11 +983,7 @@ document.addEventListener('DOMContentLoaded', function() {
           </div>
         </div>
         <div class="destination-card reveal reveal-delay-1" data-dest-idx="4">
-          <picture class="destination-card-bg">
-            <source type="image/webp" media="(max-width: 640px)" data-ly-srcset="/images/mobile/dest/cala-pi-1-480.webp 480w, /images/mobile/dest/cala-pi-1-720.webp 720w, /images/mobile/dest/cala-pi-1-960.webp 800w" sizes="78vw" />
-            <source type="image/webp" data-ly-srcset="/images/dest/cala-pi-1-640.webp 640w, /images/dest/cala-pi-1-960.webp 960w" sizes="(min-width: 1101px) 500px, 48vw" />
-            <img loading="lazy" decoding="async" data-ly-src="/images/dest/cala-pi-1.jpg" alt="" width="960" height="721" />
-          </picture>
+          <div class="ly-prog-wrap"><img class="ly-prog-preview" src="/images/dest/cala-pi-1-prev.jpg" alt="" aria-hidden="true" loading="lazy" decoding="async" onload="this.parentNode.classList.add('ly-prog-preview-ready')"><picture class="destination-card-bg"><source type="image/webp" media="(max-width: 640px)" data-ly-srcset="/images/mobile/dest/cala-pi-1-480.webp 320w, /images/mobile/dest/cala-pi-1-720.webp 480w, /images/mobile/dest/cala-pi-1-960.webp 640w, /images/mobile/dest/cala-pi-1.webp 960w" sizes="78vw" /><source type="image/webp" data-ly-srcset="/images/dest/cala-pi-1-640.webp 640w, /images/dest/cala-pi-1-960.webp 960w" sizes="(min-width: 1101px) 500px, 48vw" /><img class="ly-prog-sharp" data-ly-src="/images/dest/cala-pi-1.jpg" alt="" width="960" height="721" loading="lazy" decoding="async" onload="this.closest('.ly-prog-wrap').classList.add('ly-prog-sharp-ready','ly-prog-sharp-visible')"></picture></div>
           <div class="destination-card-overlay"></div>
           <div class="destination-card-body">
             <div class="destination-num">05 · Côte sud</div>
@@ -1616,11 +999,7 @@ document.addEventListener('DOMContentLoaded', function() {
           </div>
         </div>
         <div class="destination-card reveal reveal-delay-1" data-dest-idx="5">
-          <picture class="destination-card-bg">
-            <source type="image/webp" media="(max-width: 640px)" data-ly-srcset="/images/mobile/dest/es-trenc-1-480.webp 480w, /images/mobile/dest/es-trenc-1-720.webp 720w, /images/mobile/dest/es-trenc-1-960.webp 800w" sizes="78vw" />
-            <source type="image/webp" data-ly-srcset="/images/dest/es-trenc-1-640.webp 640w, /images/dest/es-trenc-1-960.webp 960w" sizes="(min-width: 1101px) 500px, 48vw" />
-            <img loading="lazy" decoding="async" data-ly-src="/images/dest/es-trenc-1.jpg" alt="" width="960" height="640" />
-          </picture>
+          <div class="ly-prog-wrap"><img class="ly-prog-preview" src="/images/dest/es-trenc-1-prev.jpg" alt="" aria-hidden="true" loading="lazy" decoding="async" onload="this.parentNode.classList.add('ly-prog-preview-ready')"><picture class="destination-card-bg"><source type="image/webp" media="(max-width: 640px)" data-ly-srcset="/images/mobile/dest/es-trenc-1-480.webp 320w, /images/mobile/dest/es-trenc-1-720.webp 480w, /images/mobile/dest/es-trenc-1-960.webp 640w, /images/mobile/dest/es-trenc-1.webp 960w" sizes="78vw" /><source type="image/webp" data-ly-srcset="/images/dest/es-trenc-1-640.webp 640w, /images/dest/es-trenc-1-960.webp 960w" sizes="(min-width: 1101px) 500px, 48vw" /><img class="ly-prog-sharp" data-ly-src="/images/dest/es-trenc-1.jpg" alt="" width="960" height="640" loading="lazy" decoding="async" onload="this.closest('.ly-prog-wrap').classList.add('ly-prog-sharp-ready','ly-prog-sharp-visible')"></picture></div>
           <div class="destination-card-overlay"></div>
           <div class="destination-card-body">
             <div class="destination-num">06 · Côte sud</div>
@@ -1636,11 +1015,7 @@ document.addEventListener('DOMContentLoaded', function() {
           </div>
         </div>
         <div class="destination-card reveal reveal-delay-1" data-dest-idx="6">
-          <picture class="destination-card-bg">
-            <source type="image/webp" media="(max-width: 640px)" data-ly-srcset="/images/mobile/dest/cabrera-1-480.webp 480w, /images/mobile/dest/cabrera-1-720.webp 720w, /images/mobile/dest/cabrera-1-960.webp 800w" sizes="78vw" />
-            <source type="image/webp" data-ly-srcset="/images/dest/cabrera-1-640.webp 640w, /images/dest/cabrera-1-960.webp 960w" sizes="(min-width: 1101px) 500px, 48vw" />
-            <img loading="lazy" decoding="async" data-ly-src="/images/dest/cabrera-1.jpg" alt="" width="960" height="638" />
-          </picture>
+          <div class="ly-prog-wrap"><img class="ly-prog-preview" src="/images/dest/cabrera-1-prev.jpg" alt="" aria-hidden="true" loading="lazy" decoding="async" onload="this.parentNode.classList.add('ly-prog-preview-ready')"><picture class="destination-card-bg"><source type="image/webp" media="(max-width: 640px)" data-ly-srcset="/images/mobile/dest/cabrera-1-480.webp 320w, /images/mobile/dest/cabrera-1-720.webp 480w, /images/mobile/dest/cabrera-1-960.webp 640w, /images/mobile/dest/cabrera-1.webp 960w" sizes="78vw" /><source type="image/webp" data-ly-srcset="/images/dest/cabrera-1-640.webp 640w, /images/dest/cabrera-1-960.webp 960w" sizes="(min-width: 1101px) 500px, 48vw" /><img class="ly-prog-sharp" data-ly-src="/images/dest/cabrera-1.jpg" alt="" width="960" height="638" loading="lazy" decoding="async" onload="this.closest('.ly-prog-wrap').classList.add('ly-prog-sharp-ready','ly-prog-sharp-visible')"></picture></div>
           <div class="destination-card-overlay"></div>
           <div class="destination-card-body">
             <div class="destination-num">07 · Archipel sud</div>
@@ -1656,11 +1031,7 @@ document.addEventListener('DOMContentLoaded', function() {
           </div>
         </div>
         <div class="destination-card reveal reveal-delay-2" data-dest-idx="7">
-          <picture class="destination-card-bg">
-            <source type="image/webp" media="(max-width: 640px)" data-ly-srcset="/images/mobile/dest/calo-des-moro-1-480.webp 480w, /images/mobile/dest/calo-des-moro-1-720.webp 720w, /images/mobile/dest/calo-des-moro-1-960.webp 800w" sizes="78vw" />
-            <source type="image/webp" data-ly-srcset="/images/dest/calo-des-moro-1-640.webp 640w, /images/dest/calo-des-moro-1-960.webp 960w" sizes="(min-width: 1101px) 500px, 48vw" />
-            <img loading="lazy" decoding="async" data-ly-src="/images/dest/calo-des-moro-1.jpg" alt="" width="960" height="638" />
-          </picture>
+          <div class="ly-prog-wrap"><img class="ly-prog-preview" src="/images/dest/calo-des-moro-1-prev.jpg" alt="" aria-hidden="true" loading="lazy" decoding="async" onload="this.parentNode.classList.add('ly-prog-preview-ready')"><picture class="destination-card-bg"><source type="image/webp" media="(max-width: 640px)" data-ly-srcset="/images/mobile/dest/calo-des-moro-1-480.webp 320w, /images/mobile/dest/calo-des-moro-1-720.webp 480w, /images/mobile/dest/calo-des-moro-1-960.webp 640w, /images/mobile/dest/calo-des-moro-1.webp 960w" sizes="78vw" /><source type="image/webp" data-ly-srcset="/images/dest/calo-des-moro-1-640.webp 640w, /images/dest/calo-des-moro-1-960.webp 960w" sizes="(min-width: 1101px) 500px, 48vw" /><img class="ly-prog-sharp" data-ly-src="/images/dest/calo-des-moro-1.jpg" alt="" width="960" height="638" loading="lazy" decoding="async" onload="this.closest('.ly-prog-wrap').classList.add('ly-prog-sharp-ready','ly-prog-sharp-visible')"></picture></div>
           <div class="destination-card-overlay"></div>
           <div class="destination-card-body">
             <div class="destination-num">08 · Côte sud-est</div>
@@ -1687,11 +1058,7 @@ document.addEventListener('DOMContentLoaded', function() {
     <div class="dest-group" data-tier="multi-day">
       <div class="itinerary-grid">
         <div class="destination-card reveal" data-dest-idx="8">
-          <picture class="destination-card-bg">
-            <source type="image/webp" media="(max-width: 640px)" data-ly-srcset="/images/mobile/dest/sa-calobra-1-480.webp 320w, /images/mobile/dest/sa-calobra-1-720.webp 480w, /images/mobile/dest/sa-calobra-1-960.webp 640w, /images/mobile/dest/sa-calobra-1.webp 800w" sizes="78vw" />
-            <source type="image/webp" data-ly-srcset="/images/dest/sa-calobra-1-640.webp 427w, /images/dest/sa-calobra-1-960.webp 640w" sizes="(min-width: 1101px) 500px, 48vw" />
-            <img loading="lazy" decoding="async" data-ly-src="/images/dest/sa-calobra-1.jpg" alt="" width="640" height="960" />
-          </picture>
+          <div class="ly-prog-wrap"><img class="ly-prog-preview" src="/images/dest/sa-calobra-1-prev.jpg" alt="" aria-hidden="true" loading="lazy" decoding="async" onload="this.parentNode.classList.add('ly-prog-preview-ready')"><picture class="destination-card-bg"><source type="image/webp" media="(max-width: 640px)" data-ly-srcset="/images/mobile/dest/sa-calobra-1-480.webp 320w, /images/mobile/dest/sa-calobra-1-720.webp 480w, /images/mobile/dest/sa-calobra-1-960.webp 640w, /images/mobile/dest/sa-calobra-1.webp 800w" sizes="78vw" /><source type="image/webp" data-ly-srcset="/images/dest/sa-calobra-1-640.webp 427w, /images/dest/sa-calobra-1-960.webp 640w" sizes="(min-width: 1101px) 500px, 48vw" /><img class="ly-prog-sharp" data-ly-src="/images/dest/sa-calobra-1.jpg" alt="" width="640" height="960" loading="lazy" decoding="async" onload="this.closest('.ly-prog-wrap').classList.add('ly-prog-sharp-ready','ly-prog-sharp-visible')"></picture></div>
           <div class="destination-card-overlay"></div>
           <div class="destination-card-body">
             <div class="destination-num">09 · Côte nord-ouest</div>
@@ -1707,11 +1074,7 @@ document.addEventListener('DOMContentLoaded', function() {
           </div>
         </div>
         <div class="destination-card reveal reveal-delay-1" data-dest-idx="9">
-          <picture class="destination-card-bg">
-            <source type="image/webp" media="(max-width: 640px)" data-ly-srcset="/images/mobile/dest/circumnavigation-1-480.webp 480w, /images/mobile/dest/circumnavigation-1-720.webp 720w, /images/mobile/dest/circumnavigation-1-960.webp 800w" sizes="78vw" />
-            <source type="image/webp" data-ly-srcset="/images/dest/circumnavigation-1-640.webp 640w, /images/dest/circumnavigation-1-960.webp 960w" sizes="(min-width: 1101px) 500px, 48vw" />
-            <img loading="lazy" decoding="async" data-ly-src="/images/dest/circumnavigation-1.jpg" alt="" width="960" height="519" />
-          </picture>
+          <div class="ly-prog-wrap"><img class="ly-prog-preview" src="/images/dest/circumnavigation-1-prev.jpg" alt="" aria-hidden="true" loading="lazy" decoding="async" onload="this.parentNode.classList.add('ly-prog-preview-ready')"><picture class="destination-card-bg"><source type="image/webp" media="(max-width: 640px)" data-ly-srcset="/images/mobile/dest/circumnavigation-1-480.webp 320w, /images/mobile/dest/circumnavigation-1-720.webp 480w, /images/mobile/dest/circumnavigation-1-960.webp 640w, /images/mobile/dest/circumnavigation-1.webp 960w" sizes="78vw" /><source type="image/webp" data-ly-srcset="/images/dest/circumnavigation-1-640.webp 640w, /images/dest/circumnavigation-1-960.webp 960w" sizes="(min-width: 1101px) 500px, 48vw" /><img class="ly-prog-sharp" data-ly-src="/images/dest/circumnavigation-1.jpg" alt="" width="960" height="519" loading="lazy" decoding="async" onload="this.closest('.ly-prog-wrap').classList.add('ly-prog-sharp-ready','ly-prog-sharp-visible')"></picture></div>
           <div class="destination-card-overlay"></div>
           <div class="destination-card-body">
             <div class="destination-num">10 · Île entière</div>
@@ -1727,11 +1090,7 @@ document.addEventListener('DOMContentLoaded', function() {
           </div>
         </div>
         <div class="destination-card reveal reveal-delay-2" data-dest-idx="10">
-          <picture class="destination-card-bg">
-            <source type="image/webp" media="(max-width: 640px)" data-ly-srcset="/images/mobile/dest/formentera-1-480.webp 480w, /images/mobile/dest/formentera-1-720.webp 720w, /images/mobile/dest/formentera-1-960.webp 800w" sizes="78vw" />
-            <source type="image/webp" data-ly-srcset="/images/dest/formentera-1-640.webp 640w, /images/dest/formentera-1-960.webp 960w" sizes="(min-width: 1101px) 500px, 48vw" />
-            <img loading="lazy" decoding="async" data-ly-src="/images/dest/formentera-1.jpg" alt="" width="960" height="720" />
-          </picture>
+          <div class="ly-prog-wrap"><img class="ly-prog-preview" src="/images/dest/formentera-1-prev.jpg" alt="" aria-hidden="true" loading="lazy" decoding="async" onload="this.parentNode.classList.add('ly-prog-preview-ready')"><picture class="destination-card-bg"><source type="image/webp" media="(max-width: 640px)" data-ly-srcset="/images/mobile/dest/formentera-1-480.webp 320w, /images/mobile/dest/formentera-1-720.webp 480w, /images/mobile/dest/formentera-1-960.webp 640w, /images/mobile/dest/formentera-1.webp 960w" sizes="78vw" /><source type="image/webp" data-ly-srcset="/images/dest/formentera-1-640.webp 640w, /images/dest/formentera-1-960.webp 960w" sizes="(min-width: 1101px) 500px, 48vw" /><img class="ly-prog-sharp" data-ly-src="/images/dest/formentera-1.jpg" alt="" width="960" height="720" loading="lazy" decoding="async" onload="this.closest('.ly-prog-wrap').classList.add('ly-prog-sharp-ready','ly-prog-sharp-visible')"></picture></div>
           <div class="destination-card-overlay"></div>
           <div class="destination-card-body">
             <div class="destination-num">11 · Traversée des Baléares</div>
@@ -1747,11 +1106,7 @@ document.addEventListener('DOMContentLoaded', function() {
           </div>
         </div>
         <div class="destination-card reveal reveal-delay-3" data-dest-idx="11">
-          <picture class="destination-card-bg">
-            <source type="image/webp" media="(max-width: 640px)" data-ly-srcset="/images/mobile/dest/menorca-1-480.webp 360w, /images/mobile/dest/menorca-1-720.webp 540w, /images/mobile/dest/menorca-1-960.webp 720w, /images/mobile/dest/menorca-1.webp 800w" sizes="78vw" />
-            <source type="image/webp" data-ly-srcset="/images/dest/menorca-1-640.webp 480w, /images/dest/menorca-1-960.webp 720w" sizes="(min-width: 1101px) 500px, 48vw" />
-            <img loading="lazy" decoding="async" data-ly-src="/images/dest/menorca-1.jpg" alt="" width="720" height="960" />
-          </picture>
+          <div class="ly-prog-wrap"><img class="ly-prog-preview" src="/images/dest/menorca-1-prev.jpg" alt="" aria-hidden="true" loading="lazy" decoding="async" onload="this.parentNode.classList.add('ly-prog-preview-ready')"><picture class="destination-card-bg"><source type="image/webp" media="(max-width: 640px)" data-ly-srcset="/images/mobile/dest/menorca-1-480.webp 360w, /images/mobile/dest/menorca-1-720.webp 540w, /images/mobile/dest/menorca-1-960.webp 720w, /images/mobile/dest/menorca-1.webp 800w" sizes="78vw" /><source type="image/webp" data-ly-srcset="/images/dest/menorca-1-640.webp 480w, /images/dest/menorca-1-960.webp 720w" sizes="(min-width: 1101px) 500px, 48vw" /><img class="ly-prog-sharp" data-ly-src="/images/dest/menorca-1.jpg" alt="" width="720" height="960" loading="lazy" decoding="async" onload="this.closest('.ly-prog-wrap').classList.add('ly-prog-sharp-ready','ly-prog-sharp-visible')"></picture></div>
           <div class="destination-card-overlay"></div>
           <div class="destination-card-body">
             <div class="destination-num">12 · Traversée des Baléares</div>
@@ -1775,7 +1130,7 @@ document.addEventListener('DOMContentLoaded', function() {
     </div>
     <div class="itinerary-bottom-bar reveal">
       <div class="itinerary-bottom-actions">
-        <a href="#gallery" class="btn-ghost itinerary-bottom-link--mobile">Le yacht</a>
+        <a href="#gallery-funnel" class="btn-ghost itinerary-bottom-link--mobile">Le yacht</a>
         <a href="#gallery-land" class="btn-ghost itinerary-bottom-link--desktop">Le yacht</a>
         <a href="#avail-cal" class="btn-primary itinerary-bottom-link--mobile">Disponibilité</a>
         <a href="#availability" class="btn-primary itinerary-bottom-link--desktop">Disponibilité</a>
@@ -1786,76 +1141,6 @@ document.addEventListener('DOMContentLoaded', function() {
 
 <script>
 (function(){
-  window.LY_destUrl = window.LY_destLbUrl;
-  window.LY_preloadDest = function(idx, force) {
-    if (!force && !window.LY_destPreloadReady) return;
-    if (idx == null || idx < 0 || idx >= window.LY_DEST_IMAGES.length) return;
-    var url = window.LY_destCardUrl(idx);
-    if (window.LY_preloadNeedsUserPriority()) {
-      window.LY_beginUserIntent({
-        context: { section: 'itinerary', tier: window.LY_activeDestTier(), destIdx: idx },
-        urgentUrls: [url],
-      });
-    } else {
-      window.LY_enqueueCardPreload(url);
-    }
-  };
-  window.LY_preloadDestLb = function(idx) {
-    if (idx == null || idx < 0 || idx >= window.LY_DEST_IMAGES.length) return;
-    window.LY_enqueueLbPreload(window.LY_destLbUrl(idx));
-  };
-  window.LY_preloadDestAdjacent = function(idx, force) {
-    if (window.LY_PROGRESSIVE_IMAGES) {
-      var n = window.LY_DEST_IMAGES.length;
-      [-1, 0, 1].forEach(function(d) {
-        var gi = (idx + d + n) % n;
-        var url = window.LY_destCardUrl(gi);
-        var wrap = window.LY_progressiveWrapForUrl && window.LY_progressiveWrapForUrl(url);
-        if (wrap && window.LY_activateProgressiveWrap) {
-          window.LY_activateProgressiveWrap(wrap, { front: d === 0 });
-        }
-      });
-      return;
-    }
-    if (window.LY_PRELOAD_AGGRESSIVE === false) {
-      window.LY_preloadDest(idx, force);
-      return;
-    }
-    var n = window.LY_DEST_IMAGES.length;
-    [-1, 0, 1].forEach(function(d) {
-      window.LY_preloadDest((idx + d + n) % n, force);
-    });
-  };
-  window.LY_preloadDestLbAdjacent = function(idx) {
-    if (window.LY_PROGRESSIVE_IMAGES) return;
-    if (window.LY_PRELOAD_AGGRESSIVE === false) {
-      window.LY_preloadDestLb(idx);
-      return;
-    }
-    var n = window.LY_DEST_IMAGES.length;
-    [-1, 0, 1].forEach(function(d) {
-      window.LY_preloadDestLb((idx + d + n) % n);
-    });
-  };
-  window.LY_dripDestIndices = function(indices) {
-    if (window.LY_PROGRESSIVE_IMAGES) return;
-    indices.forEach(function(i) { window.LY_enqueueCardPreload(window.LY_destCardUrl(i)); });
-  };
-  window.LY_dripDestTier = function(tier) {
-    if (window.LY_PROGRESSIVE_IMAGES) return;
-    if (!window.LY_destPreloadReady) return;
-    var indices = window.LY_DEST_TIER_IDX[tier];
-    if (!indices || !indices.length) return;
-    if (window.LY_preloadNeedsUserPriority()) {
-      window.LY_beginUserIntent({
-        context: { section: 'itinerary', tier: tier, destIdx: indices[0] },
-        urgentUrls: [window.LY_destCardUrl(indices[0])],
-      });
-    } else {
-      window.LY_dripDestIndices(indices);
-    }
-  };
-
   var tabs = document.querySelectorAll('.dest-tab');
   var groups = document.querySelectorAll('.dest-group');
 
@@ -1870,11 +1155,15 @@ document.addEventListener('DOMContentLoaded', function() {
       var switching = on && !g.classList.contains('tab-active');
       g.classList.toggle('tab-active', on);
       if (on) {
-        if (switching && window.LY_dripDestTier) window.LY_dripDestTier(tier);
         var gr = g.querySelector('.itinerary-grid');
         if (gr) {
           if (switching) gr.scrollLeft = 0;
           setTimeout(function(){ gr.dispatchEvent(new Event('scroll')); }, 0);
+        }
+        // Safari: IO doesn't re-fire after display:none→flex. Arm wraps directly.
+        if (switching && window.LY_armWrap) {
+          var dws = g.querySelectorAll('.ly-prog-wrap');
+          for (var dwi = 0; dwi < dws.length; dwi++) window.LY_armWrap(dws[dwi]);
         }
       }
     });
@@ -1951,17 +1240,18 @@ document.addEventListener('DOMContentLoaded', function() {
 
   window.lyCarouselStep = function lyCarouselStep(grid, cards, cache) {
     if (cache.val > 0) return cache.val;
-    if (window.innerWidth > 768) {
-      cache.val = 1;
-      return cache.val;
-    }
-    if (grid.classList.contains('gallery-grid')) {
-      cache.val = window.innerWidth;
-      return cache.val;
-    }
-    if (grid.classList.contains('itinerary-grid')) {
-      cache.val = Math.round(window.innerWidth * 0.78 + 12);
-      return cache.val;
+    // On mobile only: use viewport-fraction shortcuts. On desktop (>768px) the
+    // cards have CSS-computed widths (clamp values) so we measure the actual
+    // card-to-card distance instead of guessing from viewport width.
+    if (window.innerWidth <= 768) {
+      if (grid.classList.contains('gallery-grid')) {
+        cache.val = window.innerWidth;
+        return cache.val;
+      }
+      if (grid.classList.contains('itinerary-grid')) {
+        cache.val = Math.round(window.innerWidth * 0.78 + 12);
+        return cache.val;
+      }
     }
     if (cards.length > 1) cache.val = cards[1].offsetLeft - cards[0].offsetLeft;
     else cache.val = grid.scrollWidth;
@@ -1988,24 +1278,12 @@ document.addEventListener('DOMContentLoaded', function() {
       if (btnPrev) btnPrev.disabled = i <= 0;
       if (btnNext) btnNext.disabled = i >= total - 1;
       if (posEl)   posEl.textContent = (i + 1) + ' / ' + total;
-      var card = cards[i];
-      if (window.LY_destPreloadReady && group.classList.contains('tab-active') && card && window.LY_preloadDestAdjacent) {
-        var gi = parseInt(card.getAttribute('data-dest-idx'), 10);
-        if (!isNaN(gi)) window.LY_preloadDestAdjacent(gi);
-      }
     }
     function resetStep() { stepCache.val = 0; }
-    function markCarouselTarget(targetIdx) {
-      if (!window.LY_setCardLoading) return;
-      var card = cards[targetIdx];
-      if (card) window.LY_setCardLoading(card, true);
-    }
     if (btnPrev) btnPrev.addEventListener('click', function() {
-      markCarouselTarget(Math.max(0, idx() - 1));
       grid.scrollTo({ left: (idx() - 1) * step(), behavior: 'smooth' });
     });
     if (btnNext) btnNext.addEventListener('click', function() {
-      markCarouselTarget(Math.min(total - 1, idx() + 1));
       grid.scrollTo({ left: (idx() + 1) * step(), behavior: 'smooth' });
     });
     grid.addEventListener('scroll', update, { passive: true });
@@ -2041,13 +1319,13 @@ document.addEventListener('DOMContentLoaded', function() {
     <div class="gallery-group tab-active" data-gtab="water">
       <div class="gallery-grid">
         <div class="gallery-item reveal" data-index="0">
-          <picture><source type="image/webp" media="(max-width: 640px)" data-ly-srcset="/images/mobile/maiora_20s_01-480.webp 480w, /images/mobile/maiora_20s_01-720.webp 720w, /images/mobile/maiora_20s_01-960.webp 960w" sizes="100vw" /><source type="image/webp" data-ly-srcset="/images/maiora_20s_01-640.webp 640w, /images/maiora_20s_01-960.webp 960w" sizes="(min-width: 1101px) 50vw, 100vw" /><img loading="lazy" decoding="async" data-ly-src="/images/maiora_20s_01.jpg" width="960" height="640" alt="Maiora 20S yacht Limitless cruising off the Mallorca coast" /></picture>
+          <div class="ly-prog-wrap"><img class="ly-prog-preview" src="/images/maiora_20s_01-prev.jpg" alt="" aria-hidden="true" loading="lazy" decoding="async" onload="this.parentNode.classList.add('ly-prog-preview-ready')"><picture><source type="image/webp" media="(max-width: 640px)" data-ly-srcset="/images/mobile/maiora_20s_01-480.webp 480w, /images/mobile/maiora_20s_01-720.webp 720w, /images/mobile/maiora_20s_01-960.webp 960w" sizes="100vw" /><source type="image/webp" data-ly-srcset="/images/maiora_20s_01-640.webp 640w, /images/maiora_20s_01-960.webp 960w" sizes="(min-width: 1101px) 50vw, 100vw" /><img class="ly-prog-sharp" data-ly-src="/images/maiora_20s_01.jpg" alt="Maiora 20S yacht Limitless cruising off the Mallorca coast" width="960" height="640" loading="lazy" decoding="async" onload="this.closest('.ly-prog-wrap').classList.add('ly-prog-sharp-ready','ly-prog-sharp-visible')"></picture></div>
         </div>
         <div class="gallery-item reveal reveal-delay-1" data-index="1">
-          <picture><source type="image/webp" media="(max-width: 640px)" data-ly-srcset="/images/mobile/maiora_20s_03-480.webp 480w, /images/mobile/maiora_20s_03-720.webp 720w, /images/mobile/maiora_20s_03-960.webp 960w" sizes="100vw" /><source type="image/webp" data-ly-srcset="/images/maiora_20s_03-640.webp 640w, /images/maiora_20s_03-960.webp 960w" sizes="(min-width: 1101px) 25vw, 50vw" /><img loading="lazy" decoding="async" data-ly-src="/images/maiora_20s_03.jpg" width="960" height="640" alt="Aerial side profile of the Limitless yacht underway at sea" /></picture>
+          <div class="ly-prog-wrap"><img class="ly-prog-preview" src="/images/maiora_20s_03-prev.jpg" alt="" aria-hidden="true" loading="lazy" decoding="async" onload="this.parentNode.classList.add('ly-prog-preview-ready')"><picture><source type="image/webp" media="(max-width: 640px)" data-ly-srcset="/images/mobile/maiora_20s_03-480.webp 480w, /images/mobile/maiora_20s_03-720.webp 720w, /images/mobile/maiora_20s_03-960.webp 960w" sizes="100vw" /><source type="image/webp" data-ly-srcset="/images/maiora_20s_03-640.webp 640w, /images/maiora_20s_03-960.webp 960w" sizes="(min-width: 1101px) 25vw, 50vw" /><img class="ly-prog-sharp" data-ly-src="/images/maiora_20s_03.jpg" alt="Aerial side profile of the Limitless yacht underway at sea" width="960" height="640" loading="lazy" decoding="async" onload="this.closest('.ly-prog-wrap').classList.add('ly-prog-sharp-ready','ly-prog-sharp-visible')"></picture></div>
         </div>
         <div class="gallery-item reveal reveal-delay-2" data-index="2">
-          <picture><source type="image/webp" media="(max-width: 640px)" data-ly-srcset="/images/mobile/maiora_20s_07-480.webp 480w, /images/mobile/maiora_20s_07-720.webp 720w, /images/mobile/maiora_20s_07-960.webp 960w" sizes="100vw" /><source type="image/webp" data-ly-srcset="/images/maiora_20s_07-640.webp 640w, /images/maiora_20s_07-960.webp 960w" sizes="(min-width: 1101px) 25vw, 50vw" /><img loading="lazy" decoding="async" data-ly-src="/images/maiora_20s_07.jpg" width="960" height="640" alt="Limitless yacht head-on at full speed" /></picture>
+          <div class="ly-prog-wrap"><img class="ly-prog-preview" src="/images/maiora_20s_07-prev.jpg" alt="" aria-hidden="true" loading="lazy" decoding="async" onload="this.parentNode.classList.add('ly-prog-preview-ready')"><picture><source type="image/webp" media="(max-width: 640px)" data-ly-srcset="/images/mobile/maiora_20s_07-480.webp 480w, /images/mobile/maiora_20s_07-720.webp 720w, /images/mobile/maiora_20s_07-960.webp 960w" sizes="100vw" /><source type="image/webp" data-ly-srcset="/images/maiora_20s_07-640.webp 640w, /images/maiora_20s_07-960.webp 960w" sizes="(min-width: 1101px) 25vw, 50vw" /><img class="ly-prog-sharp" data-ly-src="/images/maiora_20s_07.jpg" alt="Limitless yacht head-on at full speed" width="960" height="640" loading="lazy" decoding="async" onload="this.closest('.ly-prog-wrap').classList.add('ly-prog-sharp-ready','ly-prog-sharp-visible')"></picture></div>
         </div>
       </div>
       <div class="carousel-nav">
@@ -2061,16 +1339,16 @@ document.addEventListener('DOMContentLoaded', function() {
     <div class="gallery-group" data-gtab="deck">
       <div class="gallery-grid">
         <div class="gallery-item reveal" data-index="3">
-          <picture><source type="image/webp" media="(max-width: 640px)" data-ly-srcset="/images/mobile/limitless_aft_dining-480.webp 480w, /images/mobile/limitless_aft_dining-720.webp 720w, /images/mobile/limitless_aft_dining-960.webp 960w, /images/mobile/limitless_aft_dining.webp 1280w" sizes="100vw" /><source type="image/webp" data-ly-srcset="/images/limitless_aft_dining-640.webp 640w, /images/limitless_aft_dining-960.webp 960w, /images/limitless_aft_dining.webp 1280w" sizes="(min-width: 1101px) 50vw, 100vw" /><img loading="lazy" decoding="async" data-ly-src="/images/limitless_aft_dining.jpg" width="1280" height="960" alt="Al fresco dining on the aft deck of the Limitless yacht" /></picture>
+          <div class="ly-prog-wrap"><img class="ly-prog-preview" src="/images/limitless_aft_dining-prev.jpg" alt="" aria-hidden="true" loading="lazy" decoding="async" onload="this.parentNode.classList.add('ly-prog-preview-ready')"><picture><source type="image/webp" media="(max-width: 640px)" data-ly-srcset="/images/mobile/limitless_aft_dining-480.webp 480w, /images/mobile/limitless_aft_dining-720.webp 720w, /images/mobile/limitless_aft_dining-960.webp 960w, /images/mobile/limitless_aft_dining.webp 1280w" sizes="100vw" /><source type="image/webp" data-ly-srcset="/images/limitless_aft_dining-640.webp 640w, /images/limitless_aft_dining-960.webp 960w, /images/limitless_aft_dining.webp 1280w" sizes="(min-width: 1101px) 50vw, 100vw" /><img class="ly-prog-sharp" data-ly-src="/images/limitless_aft_dining.jpg" alt="Al fresco dining on the aft deck of the Limitless yacht" width="1280" height="960" loading="lazy" decoding="async" onload="this.closest('.ly-prog-wrap').classList.add('ly-prog-sharp-ready','ly-prog-sharp-visible')"></picture></div>
         </div>
         <div class="gallery-item reveal reveal-delay-1" data-index="4">
-          <picture><source type="image/webp" media="(max-width: 640px)" data-ly-srcset="/images/mobile/limitless_flybridge-480.webp 480w, /images/mobile/limitless_flybridge-720.webp 720w, /images/mobile/limitless_flybridge-960.webp 960w, /images/mobile/limitless_flybridge.webp 1280w" sizes="100vw" /><source type="image/webp" data-ly-srcset="/images/limitless_flybridge-640.webp 640w, /images/limitless_flybridge-960.webp 960w, /images/limitless_flybridge.webp 1280w" sizes="(min-width: 1101px) 25vw, 50vw" /><img loading="lazy" decoding="async" data-ly-src="/images/limitless_flybridge.jpg" width="1280" height="960" alt="Flybridge lounge and dining on the Limitless yacht" /></picture>
+          <div class="ly-prog-wrap"><img class="ly-prog-preview" src="/images/limitless_flybridge-prev.jpg" alt="" aria-hidden="true" loading="lazy" decoding="async" onload="this.parentNode.classList.add('ly-prog-preview-ready')"><picture><source type="image/webp" media="(max-width: 640px)" data-ly-srcset="/images/mobile/limitless_flybridge-480.webp 480w, /images/mobile/limitless_flybridge-720.webp 720w, /images/mobile/limitless_flybridge-960.webp 960w, /images/mobile/limitless_flybridge.webp 1280w" sizes="100vw" /><source type="image/webp" data-ly-srcset="/images/limitless_flybridge-640.webp 640w, /images/limitless_flybridge-960.webp 960w, /images/limitless_flybridge.webp 1280w" sizes="(min-width: 1101px) 25vw, 50vw" /><img class="ly-prog-sharp" data-ly-src="/images/limitless_flybridge.jpg" alt="Flybridge lounge and dining on the Limitless yacht" width="1280" height="960" loading="lazy" decoding="async" onload="this.closest('.ly-prog-wrap').classList.add('ly-prog-sharp-ready','ly-prog-sharp-visible')"></picture></div>
         </div>
         <div class="gallery-item reveal reveal-delay-2" data-index="5">
-          <picture><source type="image/webp" media="(max-width: 640px)" data-ly-srcset="/images/mobile/limitless_sundeck-480.webp 480w, /images/mobile/limitless_sundeck-720.webp 720w, /images/mobile/limitless_sundeck-960.webp 960w, /images/mobile/limitless_sundeck.webp 1280w" sizes="100vw" /><source type="image/webp" data-ly-srcset="/images/limitless_sundeck-640.webp 640w, /images/limitless_sundeck-960.webp 960w, /images/limitless_sundeck.webp 1280w" sizes="(min-width: 1101px) 25vw, 50vw" /><img loading="lazy" decoding="async" data-ly-src="/images/limitless_sundeck.jpg" width="1280" height="960" alt="Flybridge sun deck and sunpads on the Limitless yacht" /></picture>
+          <div class="ly-prog-wrap"><img class="ly-prog-preview" src="/images/limitless_sundeck-prev.jpg" alt="" aria-hidden="true" loading="lazy" decoding="async" onload="this.parentNode.classList.add('ly-prog-preview-ready')"><picture><source type="image/webp" media="(max-width: 640px)" data-ly-srcset="/images/mobile/limitless_sundeck-480.webp 480w, /images/mobile/limitless_sundeck-720.webp 720w, /images/mobile/limitless_sundeck-960.webp 960w, /images/mobile/limitless_sundeck.webp 1280w" sizes="100vw" /><source type="image/webp" data-ly-srcset="/images/limitless_sundeck-640.webp 640w, /images/limitless_sundeck-960.webp 960w, /images/limitless_sundeck.webp 1280w" sizes="(min-width: 1101px) 25vw, 50vw" /><img class="ly-prog-sharp" data-ly-src="/images/limitless_sundeck.jpg" alt="Flybridge sun deck and sunpads on the Limitless yacht" width="1280" height="960" loading="lazy" decoding="async" onload="this.closest('.ly-prog-wrap').classList.add('ly-prog-sharp-ready','ly-prog-sharp-visible')"></picture></div>
         </div>
         <div class="gallery-item reveal reveal-delay-3" data-index="6">
-          <picture><source type="image/webp" media="(max-width: 640px)" data-ly-srcset="/images/mobile/limitless_aft_deck-480.webp 480w, /images/mobile/limitless_aft_deck-720.webp 720w, /images/mobile/limitless_aft_deck-960.webp 960w, /images/mobile/limitless_aft_deck.webp 1280w" sizes="100vw" /><source type="image/webp" data-ly-srcset="/images/limitless_aft_deck-640.webp 640w, /images/limitless_aft_deck-960.webp 960w, /images/limitless_aft_deck.webp 1280w" sizes="(min-width: 1101px) 25vw, 50vw" /><img loading="lazy" decoding="async" data-ly-src="/images/limitless_aft_deck.jpg" width="1280" height="960" alt="Aft deck lounge of the Limitless yacht" /></picture>
+          <div class="ly-prog-wrap"><img class="ly-prog-preview" src="/images/limitless_aft_deck-prev.jpg" alt="" aria-hidden="true" loading="lazy" decoding="async" onload="this.parentNode.classList.add('ly-prog-preview-ready')"><picture><source type="image/webp" media="(max-width: 640px)" data-ly-srcset="/images/mobile/limitless_aft_deck-480.webp 480w, /images/mobile/limitless_aft_deck-720.webp 720w, /images/mobile/limitless_aft_deck-960.webp 960w, /images/mobile/limitless_aft_deck.webp 1280w" sizes="100vw" /><source type="image/webp" data-ly-srcset="/images/limitless_aft_deck-640.webp 640w, /images/limitless_aft_deck-960.webp 960w, /images/limitless_aft_deck.webp 1280w" sizes="(min-width: 1101px) 25vw, 50vw" /><img class="ly-prog-sharp" data-ly-src="/images/limitless_aft_deck.jpg" alt="Aft deck lounge of the Limitless yacht" width="1280" height="960" loading="lazy" decoding="async" onload="this.closest('.ly-prog-wrap').classList.add('ly-prog-sharp-ready','ly-prog-sharp-visible')"></picture></div>
         </div>
       </div>
       <div class="carousel-nav">
@@ -2084,28 +1362,28 @@ document.addEventListener('DOMContentLoaded', function() {
     <div class="gallery-group" data-gtab="interior">
       <div class="gallery-grid">
         <div class="gallery-item reveal" data-index="7">
-          <picture><source type="image/webp" media="(max-width: 640px)" data-ly-srcset="/images/mobile/int_saloon_artwork-480.webp 480w, /images/mobile/int_saloon_artwork-720.webp 720w, /images/mobile/int_saloon_artwork-960.webp 960w, /images/mobile/int_saloon_artwork.webp 1280w" sizes="100vw" /><source type="image/webp" data-ly-srcset="/images/int_saloon_artwork-640.webp 640w, /images/int_saloon_artwork-960.webp 960w, /images/int_saloon_artwork.webp 1280w" sizes="(min-width: 1101px) 50vw, 100vw" /><img loading="lazy" decoding="async" data-ly-src="/images/int_saloon_artwork.jpg" width="1280" height="960" alt="Salon of the Limitless yacht with designer sofa and artwork" /></picture>
+          <div class="ly-prog-wrap"><img class="ly-prog-preview" src="/images/int_saloon_artwork-prev.jpg" alt="" aria-hidden="true" loading="lazy" decoding="async" onload="this.parentNode.classList.add('ly-prog-preview-ready')"><picture><source type="image/webp" media="(max-width: 640px)" data-ly-srcset="/images/mobile/int_saloon_artwork-480.webp 480w, /images/mobile/int_saloon_artwork-720.webp 720w, /images/mobile/int_saloon_artwork-960.webp 960w, /images/mobile/int_saloon_artwork.webp 1280w" sizes="100vw" /><source type="image/webp" data-ly-srcset="/images/int_saloon_artwork-640.webp 640w, /images/int_saloon_artwork-960.webp 960w, /images/int_saloon_artwork.webp 1280w" sizes="(min-width: 1101px) 50vw, 100vw" /><img class="ly-prog-sharp" data-ly-src="/images/int_saloon_artwork.jpg" alt="Salon of the Limitless yacht with designer sofa and artwork" width="1280" height="960" loading="lazy" decoding="async" onload="this.closest('.ly-prog-wrap').classList.add('ly-prog-sharp-ready','ly-prog-sharp-visible')"></picture></div>
         </div>
         <div class="gallery-item reveal reveal-delay-1" data-index="8">
-          <picture><source type="image/webp" media="(max-width: 640px)" data-ly-srcset="/images/mobile/int_saloon_marina_view-480.webp 480w, /images/mobile/int_saloon_marina_view-720.webp 720w, /images/mobile/int_saloon_marina_view-960.webp 960w, /images/mobile/int_saloon_marina_view.webp 1280w" sizes="100vw" /><source type="image/webp" data-ly-srcset="/images/int_saloon_marina_view-640.webp 640w, /images/int_saloon_marina_view-960.webp 960w, /images/int_saloon_marina_view.webp 1280w" sizes="(min-width: 1101px) 25vw, 50vw" /><img loading="lazy" decoding="async" data-ly-src="/images/int_saloon_marina_view.jpg" width="1280" height="960" alt="Salon lounge of the Limitless yacht with marina views" /></picture>
+          <div class="ly-prog-wrap"><img class="ly-prog-preview" src="/images/int_saloon_marina_view-prev.jpg" alt="" aria-hidden="true" loading="lazy" decoding="async" onload="this.parentNode.classList.add('ly-prog-preview-ready')"><picture><source type="image/webp" media="(max-width: 640px)" data-ly-srcset="/images/mobile/int_saloon_marina_view-480.webp 480w, /images/mobile/int_saloon_marina_view-720.webp 720w, /images/mobile/int_saloon_marina_view-960.webp 960w, /images/mobile/int_saloon_marina_view.webp 1280w" sizes="100vw" /><source type="image/webp" data-ly-srcset="/images/int_saloon_marina_view-640.webp 640w, /images/int_saloon_marina_view-960.webp 960w, /images/int_saloon_marina_view.webp 1280w" sizes="(min-width: 1101px) 25vw, 50vw" /><img class="ly-prog-sharp" data-ly-src="/images/int_saloon_marina_view.jpg" alt="Salon lounge of the Limitless yacht with marina views" width="1280" height="960" loading="lazy" decoding="async" onload="this.closest('.ly-prog-wrap').classList.add('ly-prog-sharp-ready','ly-prog-sharp-visible')"></picture></div>
         </div>
         <div class="gallery-item reveal reveal-delay-2" data-index="9">
-          <picture><source type="image/webp" media="(max-width: 640px)" data-ly-srcset="/images/mobile/int_saloon_reverse-480.webp 480w, /images/mobile/int_saloon_reverse-720.webp 720w, /images/mobile/int_saloon_reverse-960.webp 960w, /images/mobile/int_saloon_reverse.webp 1280w" sizes="100vw" /><source type="image/webp" data-ly-srcset="/images/int_saloon_reverse-640.webp 640w, /images/int_saloon_reverse-960.webp 960w, /images/int_saloon_reverse.webp 1280w" sizes="(min-width: 1101px) 25vw, 50vw" /><img loading="lazy" decoding="async" data-ly-src="/images/int_saloon_reverse.jpg" width="1280" height="960" alt="Salon seating area aboard the Limitless yacht" /></picture>
+          <div class="ly-prog-wrap"><img class="ly-prog-preview" src="/images/int_saloon_reverse-prev.jpg" alt="" aria-hidden="true" loading="lazy" decoding="async" onload="this.parentNode.classList.add('ly-prog-preview-ready')"><picture><source type="image/webp" media="(max-width: 640px)" data-ly-srcset="/images/mobile/int_saloon_reverse-480.webp 480w, /images/mobile/int_saloon_reverse-720.webp 720w, /images/mobile/int_saloon_reverse-960.webp 960w, /images/mobile/int_saloon_reverse.webp 1280w" sizes="100vw" /><source type="image/webp" data-ly-srcset="/images/int_saloon_reverse-640.webp 640w, /images/int_saloon_reverse-960.webp 960w, /images/int_saloon_reverse.webp 1280w" sizes="(min-width: 1101px) 25vw, 50vw" /><img class="ly-prog-sharp" data-ly-src="/images/int_saloon_reverse.jpg" alt="Salon seating area aboard the Limitless yacht" width="1280" height="960" loading="lazy" decoding="async" onload="this.closest('.ly-prog-wrap').classList.add('ly-prog-sharp-ready','ly-prog-sharp-visible')"></picture></div>
         </div>
         <div class="gallery-item reveal reveal-delay-3" data-index="10">
-          <picture><source type="image/webp" media="(max-width: 640px)" data-ly-srcset="/images/mobile/int_master_headboard-480.webp 480w, /images/mobile/int_master_headboard-720.webp 720w, /images/mobile/int_master_headboard-960.webp 960w, /images/mobile/int_master_headboard.webp 1280w" sizes="100vw" /><source type="image/webp" data-ly-srcset="/images/int_master_headboard-640.webp 640w, /images/int_master_headboard-960.webp 960w, /images/int_master_headboard.webp 1280w" sizes="(min-width: 1101px) 25vw, 50vw" /><img loading="lazy" decoding="async" data-ly-src="/images/int_master_headboard.jpg" width="1280" height="960" alt="Master cabin aboard the Limitless yacht" /></picture>
+          <div class="ly-prog-wrap"><img class="ly-prog-preview" src="/images/int_master_headboard-prev.jpg" alt="" aria-hidden="true" loading="lazy" decoding="async" onload="this.parentNode.classList.add('ly-prog-preview-ready')"><picture><source type="image/webp" media="(max-width: 640px)" data-ly-srcset="/images/mobile/int_master_headboard-480.webp 480w, /images/mobile/int_master_headboard-720.webp 720w, /images/mobile/int_master_headboard-960.webp 960w, /images/mobile/int_master_headboard.webp 1280w" sizes="100vw" /><source type="image/webp" data-ly-srcset="/images/int_master_headboard-640.webp 640w, /images/int_master_headboard-960.webp 960w, /images/int_master_headboard.webp 1280w" sizes="(min-width: 1101px) 25vw, 50vw" /><img class="ly-prog-sharp" data-ly-src="/images/int_master_headboard.jpg" alt="Master cabin aboard the Limitless yacht" width="1280" height="960" loading="lazy" decoding="async" onload="this.closest('.ly-prog-wrap').classList.add('ly-prog-sharp-ready','ly-prog-sharp-visible')"></picture></div>
         </div>
         <div class="gallery-item reveal reveal-delay-1" data-index="11">
-          <picture><source type="image/webp" media="(max-width: 640px)" data-ly-srcset="/images/mobile/int_master_amber_glow-480.webp 480w, /images/mobile/int_master_amber_glow-720.webp 720w, /images/mobile/int_master_amber_glow-960.webp 960w, /images/mobile/int_master_amber_glow.webp 1280w" sizes="100vw" /><source type="image/webp" data-ly-srcset="/images/int_master_amber_glow-640.webp 640w, /images/int_master_amber_glow-960.webp 960w, /images/int_master_amber_glow.webp 1280w" sizes="(min-width: 1101px) 25vw, 50vw" /><img loading="lazy" decoding="async" data-ly-src="/images/int_master_amber_glow.jpg" width="1280" height="960" alt="Master cabin with ambient lighting on the Limitless yacht" /></picture>
+          <div class="ly-prog-wrap"><img class="ly-prog-preview" src="/images/int_master_amber_glow-prev.jpg" alt="" aria-hidden="true" loading="lazy" decoding="async" onload="this.parentNode.classList.add('ly-prog-preview-ready')"><picture><source type="image/webp" media="(max-width: 640px)" data-ly-srcset="/images/mobile/int_master_amber_glow-480.webp 480w, /images/mobile/int_master_amber_glow-720.webp 720w, /images/mobile/int_master_amber_glow-960.webp 960w, /images/mobile/int_master_amber_glow.webp 1280w" sizes="100vw" /><source type="image/webp" data-ly-srcset="/images/int_master_amber_glow-640.webp 640w, /images/int_master_amber_glow-960.webp 960w, /images/int_master_amber_glow.webp 1280w" sizes="(min-width: 1101px) 25vw, 50vw" /><img class="ly-prog-sharp" data-ly-src="/images/int_master_amber_glow.jpg" alt="Master cabin with ambient lighting on the Limitless yacht" width="1280" height="960" loading="lazy" decoding="async" onload="this.closest('.ly-prog-wrap').classList.add('ly-prog-sharp-ready','ly-prog-sharp-visible')"></picture></div>
         </div>
         <div class="gallery-item reveal reveal-delay-2" data-index="12">
-          <picture><source type="image/webp" media="(max-width: 640px)" data-ly-srcset="/images/mobile/int_master_wide-480.webp 480w, /images/mobile/int_master_wide-720.webp 720w, /images/mobile/int_master_wide-960.webp 960w, /images/mobile/int_master_wide.webp 1280w" sizes="100vw" /><source type="image/webp" data-ly-srcset="/images/int_master_wide-640.webp 640w, /images/int_master_wide-960.webp 960w, /images/int_master_wide.webp 1280w" sizes="(min-width: 1101px) 25vw, 50vw" /><img loading="lazy" decoding="async" data-ly-src="/images/int_master_wide.jpg" width="1280" height="960" alt="Spacious master cabin aboard the Limitless yacht" /></picture>
+          <div class="ly-prog-wrap"><img class="ly-prog-preview" src="/images/int_master_wide-prev.jpg" alt="" aria-hidden="true" loading="lazy" decoding="async" onload="this.parentNode.classList.add('ly-prog-preview-ready')"><picture><source type="image/webp" media="(max-width: 640px)" data-ly-srcset="/images/mobile/int_master_wide-480.webp 480w, /images/mobile/int_master_wide-720.webp 720w, /images/mobile/int_master_wide-960.webp 960w, /images/mobile/int_master_wide.webp 1280w" sizes="100vw" /><source type="image/webp" data-ly-srcset="/images/int_master_wide-640.webp 640w, /images/int_master_wide-960.webp 960w, /images/int_master_wide.webp 1280w" sizes="(min-width: 1101px) 25vw, 50vw" /><img class="ly-prog-sharp" data-ly-src="/images/int_master_wide.jpg" alt="Spacious master cabin aboard the Limitless yacht" width="1280" height="960" loading="lazy" decoding="async" onload="this.closest('.ly-prog-wrap').classList.add('ly-prog-sharp-ready','ly-prog-sharp-visible')"></picture></div>
         </div>
         <div class="gallery-item reveal reveal-delay-3" data-index="13">
-          <picture><source type="image/webp" media="(max-width: 640px)" data-ly-srcset="/images/mobile/int_vip_cabin-480.webp 480w, /images/mobile/int_vip_cabin-720.webp 720w, /images/mobile/int_vip_cabin-960.webp 960w, /images/mobile/int_vip_cabin.webp 1280w" sizes="100vw" /><source type="image/webp" data-ly-srcset="/images/int_vip_cabin-640.webp 640w, /images/int_vip_cabin-960.webp 960w, /images/int_vip_cabin.webp 1280w" sizes="(min-width: 1101px) 25vw, 50vw" /><img loading="lazy" decoding="async" data-ly-src="/images/int_vip_cabin.jpg" width="1280" height="960" alt="VIP guest cabin aboard the Limitless yacht" /></picture>
+          <div class="ly-prog-wrap"><img class="ly-prog-preview" src="/images/int_vip_cabin-prev.jpg" alt="" aria-hidden="true" loading="lazy" decoding="async" onload="this.parentNode.classList.add('ly-prog-preview-ready')"><picture><source type="image/webp" media="(max-width: 640px)" data-ly-srcset="/images/mobile/int_vip_cabin-480.webp 480w, /images/mobile/int_vip_cabin-720.webp 720w, /images/mobile/int_vip_cabin-960.webp 960w, /images/mobile/int_vip_cabin.webp 1280w" sizes="100vw" /><source type="image/webp" data-ly-srcset="/images/int_vip_cabin-640.webp 640w, /images/int_vip_cabin-960.webp 960w, /images/int_vip_cabin.webp 1280w" sizes="(min-width: 1101px) 25vw, 50vw" /><img class="ly-prog-sharp" data-ly-src="/images/int_vip_cabin.jpg" alt="VIP guest cabin aboard the Limitless yacht" width="1280" height="960" loading="lazy" decoding="async" onload="this.closest('.ly-prog-wrap').classList.add('ly-prog-sharp-ready','ly-prog-sharp-visible')"></picture></div>
         </div>
         <div class="gallery-item reveal reveal-delay-1" data-index="14">
-          <picture><source type="image/webp" media="(max-width: 640px)" data-ly-srcset="/images/mobile/int_twin_cabin-480.webp 360w, /images/mobile/int_twin_cabin-720.webp 540w, /images/mobile/int_twin_cabin-960.webp 720w, /images/mobile/int_twin_cabin.webp 960w" sizes="100vw" /><source type="image/webp" data-ly-srcset="/images/int_twin_cabin-640.webp 480w, /images/int_twin_cabin-960.webp 720w, /images/int_twin_cabin.webp 960w" sizes="(min-width: 1101px) 25vw, 50vw" /><img loading="lazy" decoding="async" data-ly-src="/images/int_twin_cabin.jpg" width="960" height="1280" alt="Twin guest cabin aboard the Limitless yacht" /></picture>
+          <div class="ly-prog-wrap"><img class="ly-prog-preview" src="/images/int_twin_cabin-prev.jpg" alt="" aria-hidden="true" loading="lazy" decoding="async" onload="this.parentNode.classList.add('ly-prog-preview-ready')"><picture><source type="image/webp" media="(max-width: 640px)" data-ly-srcset="/images/mobile/int_twin_cabin-480.webp 360w, /images/mobile/int_twin_cabin-720.webp 540w, /images/mobile/int_twin_cabin-960.webp 720w, /images/mobile/int_twin_cabin.webp 960w" sizes="100vw" /><source type="image/webp" data-ly-srcset="/images/int_twin_cabin-640.webp 480w, /images/int_twin_cabin-960.webp 720w, /images/int_twin_cabin.webp 960w" sizes="(min-width: 1101px) 25vw, 50vw" /><img class="ly-prog-sharp" data-ly-src="/images/int_twin_cabin.jpg" alt="Twin guest cabin aboard the Limitless yacht" width="960" height="1280" loading="lazy" decoding="async" onload="this.closest('.ly-prog-wrap').classList.add('ly-prog-sharp-ready','ly-prog-sharp-visible')"></picture></div>
         </div>
       </div>
       <div class="carousel-nav">
@@ -2710,6 +1988,7 @@ document.addEventListener('DOMContentLoaded', function() {
       }, { passive: true });
     }
     requestAnimationFrame(function () {
+      navbar.classList.toggle('scrolled', window.scrollY > 60);
       refreshNavHeight();
       updateNavSection();
       updateScrollHash();
@@ -2820,15 +2099,13 @@ document.addEventListener('DOMContentLoaded', function() {
       groups.forEach(function(g) {
         g.classList.toggle('tab-active', g.dataset.gtab === tab);
         if (g.dataset.gtab === tab) {
-          if (window.LY_preloadNeedsUserPriority && window.LY_preloadNeedsUserPriority() && window.LY_beginUserIntent) {
-            var tabIdx = window.LY_GALLERY_TAB_IDX[tab] || [0];
-            window.LY_beginUserIntent({
-              context: { section: 'gallery', galleryTab: tab, galleryIdx: tabIdx[0] },
-              urgentUrls: window.LY_galleryCardUrl ? [window.LY_galleryCardUrl(tabIdx[0])] : [],
-            });
-          }
           var gr = g.querySelector('.gallery-grid');
           if (gr) { gr.scrollLeft = 0; setTimeout(function(){ gr.dispatchEvent(new Event('scroll')); }, 0); }
+          // Safari: IO doesn't re-fire after display:none→flex. Arm wraps directly.
+          if (window.LY_armWrap) {
+            var ws = g.querySelectorAll('.ly-prog-wrap');
+            for (var wi = 0; wi < ws.length; wi++) window.LY_armWrap(ws[wi]);
+          }
         }
       });
     }
@@ -2853,24 +2130,12 @@ document.addEventListener('DOMContentLoaded', function() {
         if (btnPrev) btnPrev.disabled = i <= 0;
         if (btnNext) btnNext.disabled = i >= total - 1;
         if (posEl)   posEl.textContent = (i + 1) + ' / ' + total;
-        var item = cards[i];
-        if (item && group.classList.contains('tab-active') && window.LY_preloadGalleryCard) {
-          var gi = parseInt(item.getAttribute('data-index'), 10);
-          if (!isNaN(gi)) window.LY_preloadGalleryCard(gi);
-        }
       }
       function resetStep() { stepCache.val = 0; }
-      function markGalleryTarget(targetIdx) {
-        if (!window.LY_setCardLoading) return;
-        var card = cards[targetIdx];
-        if (card) window.LY_setCardLoading(card, true);
-      }
       if (btnPrev) btnPrev.addEventListener('click', function() {
-        markGalleryTarget(Math.max(0, idx() - 1));
         grid.scrollTo({ left: (idx()-1)*step(), behavior:'smooth' });
       });
       if (btnNext) btnNext.addEventListener('click', function() {
-        markGalleryTarget(Math.min(total - 1, idx() + 1));
         grid.scrollTo({ left: (idx()+1)*step(), behavior:'smooth' });
       });
       grid.addEventListener('scroll', update, { passive: true });
@@ -2885,7 +2150,7 @@ document.addEventListener('DOMContentLoaded', function() {
     });
   })();
 
-  // Gallery lightbox (same registry as cards + preload)
+  // Gallery lightbox (progressive prev → sharp)
   const images = window.LY_GALLERY_IMAGES;
   const imagePositions = [
     '95% 72%',       // 0: maiora_20s_01 — bow bottom-right
@@ -2923,19 +2188,27 @@ document.addEventListener('DOMContentLoaded', function() {
   }
 
   function applyGalleryLbFrame(targetIdx, lbUrl, skipSrc) {
-    var isMobLb = window.innerWidth <= 640;
     var item = document.querySelector('.gallery-item[data-index="' + targetIdx + '"]');
-    var picture = item && item.querySelector('picture');
-    var srcset = window.LY_srcsetWithoutMasters(
-      window.LY_pictureSrcsetForViewport(picture, isMobLb)
-    );
-    if (srcset) {
-      lbImg.srcset = srcset;
-      lbImg.sizes = '100vw';
-    } else {
+    var loadedSrc = window.LY_cardLoadedSrc(item);
+    if (loadedSrc) {
+      // Card already downloaded — show straight from cache, no bytes spent.
       lbImg.removeAttribute('srcset');
+      lbImg.removeAttribute('sizes');
+      if (!skipSrc) lbImg.src = loadedSrc;
+    } else {
+      // Card not yet seen in carousel — apply its responsive WebP srcset so the
+      // browser picks the same tier the card would have loaded, never the .jpg src.
+      var cs = window.LY_cardSrcset(item, window.innerWidth <= 640);
+      if (cs) {
+        lbImg.srcset = cs.srcset;
+        lbImg.sizes = cs.sizes;
+        if (!skipSrc) lbImg.removeAttribute('src');
+      } else {
+        lbImg.removeAttribute('srcset');
+        lbImg.removeAttribute('sizes');
+        if (!skipSrc) lbImg.src = lbUrl;
+      }
     }
-    if (!skipSrc) lbImg.src = lbUrl;
     lbImg.style.objectPosition = imagePositions[targetIdx] || 'center center';
     lbImg.classList.toggle('lb-contain', !!imageContain[targetIdx]);
   }
@@ -2944,78 +2217,11 @@ document.addEventListener('DOMContentLoaded', function() {
     if (!lbImg || !images.length) return;
     var targetIdx = (idx + images.length) % images.length;
     currentIdx = targetIdx;
-    var lbUrl = window.LY_galleryLbUrl(targetIdx);
-    var stem = window.LY_stemFromMasterUrl(window.LY_galleryMasterUrl(targetIdx));
-    var gen = ++lbLoadGen;
-
-    lbImg.style.objectPosition = imagePositions[targetIdx] || 'center center';
-    lbImg.classList.toggle('lb-contain', !!imageContain[targetIdx]);
-
-    function reveal() {
-      if (gen !== lbLoadGen) return;
-      applyGalleryLbFrame(targetIdx, lbUrl, !!window.LY_PROGRESSIVE_IMAGES);
-      setGalleryLbLoading(false);
-      if (lbCounter) {
-        lbCounter.textContent = window.LY_formatLbCounter
-          ? window.LY_formatLbCounter(targetIdx, images.length, false)
-          : (targetIdx + 1) + ' / ' + images.length;
-      }
-      if (!window.LY_PROGRESSIVE_IMAGES) {
-        [-1, 1].forEach(function(d) {
-          if (window.LY_enqueueLbPreload) {
-            window.LY_enqueueLbPreload(window.LY_galleryLbUrl((targetIdx + d + images.length) % images.length));
-          }
-        });
-      }
-    }
-
-    if (window.LY_PROGRESSIVE_IMAGES && window.LY_loadLbProgressive && lightbox) {
-      setGalleryLbLoading(true);
-      if (lbCounter) {
-        lbCounter.textContent = window.LY_formatLbCounter
-          ? window.LY_formatLbCounter(targetIdx, images.length, true)
-          : (targetIdx + 1) + ' / ' + images.length + ' \u00b7 Loading\u2026';
-      }
-      var lbWrap = window.LY_ensureLbWrap(lightbox, lbImg, 'gallery');
-      window.LY_loadLbProgressive({
-        wrap: lbWrap,
-        stem: stem,
-        sharpUrl: lbUrl,
-        onReady: reveal
-      });
-      return;
-    }
-
-    if (window.LY_preloadedUrls[lbUrl]) {
-      reveal();
-      return;
-    }
-
-    setGalleryLbLoading(true);
+    applyGalleryLbFrame(targetIdx, window.LY_galleryMasterUrl(targetIdx), false);
     if (lbCounter) {
       lbCounter.textContent = window.LY_formatLbCounter
-        ? window.LY_formatLbCounter(targetIdx, images.length, true)
-        : (targetIdx + 1) + ' / ' + images.length + ' \u00b7 Loading\u2026';
-    }
-    if (window.LY_preloadNeedsUserPriority() && window.LY_beginUserIntent) {
-      window.LY_beginUserIntent({
-        context: { section: 'gallery', galleryTab: window.LY_activeGalleryTab(), galleryIdx: targetIdx },
-        urgentUrls: [lbUrl],
-        onTerminé: function() {
-          if (gen !== lbLoadGen) return;
-          reveal();
-        },
-      });
-      return;
-    }
-    if (window.LY_prioritizePreloadUrgent) window.LY_prioritizePreloadUrgent(lbUrl);
-    if (window.LY_loadPreloadImage) {
-      window.LY_loadPreloadImage(lbUrl, function() {
-        if (gen !== lbLoadGen) return;
-        reveal();
-      });
-    } else {
-      reveal();
+        ? window.LY_formatLbCounter(targetIdx, images.length, false)
+        : (targetIdx + 1) + ' / ' + images.length;
     }
   }
 
@@ -3138,16 +2344,9 @@ document.addEventListener('DOMContentLoaded', function() {
       destIdx = ((idx % destCards.length) + destCards.length) % destCards.length;
       var card = destCards[destIdx];
       if (!card) return;
-      var isMobDest = window.innerWidth <= 640;
       if (!destImages || !destImages.length) return;
       var globalIdx = parseInt(card.getAttribute('data-dest-idx'), 10);
       if (isNaN(globalIdx)) globalIdx = destIdx;
-      var cardPicture = card.querySelector('.destination-card-bg picture');
-      var srcset = window.LY_srcsetWithoutMasters(
-        window.LY_pictureSrcsetForViewport(cardPicture, isMobDest)
-      );
-      var destLbUrl = window.LY_destLbUrl(globalIdx);
-      var gen = ++destLbLoadGen;
       if (lbNum)  lbNum.textContent  = (card.querySelector('.destination-num')     || {}).textContent || '';
       if (lbName) lbName.textContent = (card.querySelector('.destination-name')    || {}).textContent || '';
       if (lbTag)  lbTag.textContent  = (card.querySelector('.destination-tagline') || {}).textContent || '';
@@ -3174,85 +2373,34 @@ document.addEventListener('DOMContentLoaded', function() {
       if (lbNext) lbNext.style.display = hasNav ? '' : 'none';
       var content = destLb.querySelector('.dest-lb-content');
       if (content) content.scrollTop = 0;
-
-      var destStem = window.LY_stemFromMasterUrl(window.LY_destMasterUrl(globalIdx));
-
-      function revealDestImg() {
-        if (gen !== destLbLoadGen) return;
-        if (lbSrcWp && !window.LY_PROGRESSIVE_IMAGES) {
-          lbSrcWp.srcset = srcset || destLbUrl;
-          lbSrcWp.sizes = '100vw';
-        }
-        if (lbImg2) {
-          if (!window.LY_PROGRESSIVE_IMAGES) lbImg2.src = destLbUrl;
-          var cardImg = card.querySelector('.destination-card-bg img');
-          lbImg2.alt = cardImg ? (cardImg.alt || '') : '';
-        }
-        setDestLbLoading(false);
-        if (lbCounter) {
-          lbCounter.textContent = destCards.length > 1
-            ? (window.LY_formatLbCounter
-              ? window.LY_formatLbCounter(destIdx, destCards.length, false)
-              : (destIdx + 1) + ' / ' + destCards.length)
-            : '';
-        }
-        if (window.LY_preloadDestLbAdjacent) {
-          window.LY_preloadDestLbAdjacent(globalIdx);
+      if (lbImg2) {
+        var cardImg = card.querySelector('.destination-card-bg img');
+        lbImg2.alt = cardImg ? (cardImg.alt || '') : '';
+        var loadedSrc = window.LY_cardLoadedSrc(card);
+        if (loadedSrc) {
+          // Card was visible in carousel — reuse straight from cache.
+          if (lbSrcWp) lbSrcWp.removeAttribute('srcset');
+          lbImg2.src = loadedSrc;
+        } else {
+          // Card not yet scrolled to — apply its WebP srcset so browser picks
+          // the carousel tier, never the .jpg fallback or full-res master.
+          var cs = window.LY_cardSrcset(card, window.innerWidth <= 640);
+          if (cs && lbSrcWp) {
+            lbSrcWp.srcset = cs.srcset;
+            lbSrcWp.sizes = cs.sizes;
+            lbImg2.removeAttribute('src');
+          } else {
+            if (lbSrcWp) lbSrcWp.removeAttribute('srcset');
+            lbImg2.src = window.LY_destMasterUrl(globalIdx) || '';
+          }
         }
       }
-
-      if (window.LY_PROGRESSIVE_IMAGES && window.LY_loadLbProgressive && destLbImgWrap && lbImg2) {
-        setDestLbLoading(true);
-        if (lbCounter && destCards.length > 1) {
-          lbCounter.textContent = window.LY_formatLbCounter
-            ? window.LY_formatLbCounter(destIdx, destCards.length, true)
-            : (destIdx + 1) + ' / ' + destCards.length + ' \u00b7 Loading\u2026';
-        }
-        var destLbWrap = window.LY_ensureLbWrap(destLbImgWrap, lbImg2, 'dest');
-        window.LY_loadLbProgressive({
-          wrap: destLbWrap,
-          stem: destStem,
-          sharpUrl: destLbUrl,
-          onReady: revealDestImg
-        });
-        return;
-      }
-
-      if (window.LY_preloadedUrls[destLbUrl]) {
-        if (lbCounter && destCards.length > 1) {
-          lbCounter.textContent = window.LY_formatLbCounter
+      if (lbCounter) {
+        lbCounter.textContent = destCards.length > 1
+          ? (window.LY_formatLbCounter
             ? window.LY_formatLbCounter(destIdx, destCards.length, false)
-            : (destIdx + 1) + ' / ' + destCards.length;
-        }
-        revealDestImg();
-        return;
-      }
-
-      setDestLbLoading(true);
-      if (lbCounter && destCards.length > 1) {
-        lbCounter.textContent = window.LY_formatLbCounter
-          ? window.LY_formatLbCounter(destIdx, destCards.length, true)
-          : (destIdx + 1) + ' / ' + destCards.length + ' \u00b7 Loading\u2026';
-      }
-      if (window.LY_preloadNeedsUserPriority() && window.LY_beginUserIntent) {
-        window.LY_beginUserIntent({
-          context: { section: 'itinerary', tier: tier, destIdx: globalIdx },
-          urgentUrls: [destLbUrl],
-          onTerminé: function() {
-            if (gen !== destLbLoadGen) return;
-            revealDestImg();
-          },
-        });
-        return;
-      }
-      if (window.LY_prioritizePreloadUrgent) window.LY_prioritizePreloadUrgent(destLbUrl);
-      if (window.LY_loadPreloadImage) {
-        window.LY_loadPreloadImage(destLbUrl, function() {
-          if (gen !== destLbLoadGen) return;
-          revealDestImg();
-        });
-      } else {
-        revealDestImg();
+            : (destIdx + 1) + ' / ' + destCards.length)
+          : '';
       }
     }
 
