@@ -160,7 +160,6 @@ def read_site_css() -> str | None:
 # ── HTML checks ────────────────────────────────────────────────────────────────
 
 def check_html(r: Runner, rel: str, html: str) -> None:
-    prog_js = read_file('js/progressive-images.js') or ''
     meta = LOCALE_META[rel]
 
     # Enquiry flow
@@ -442,7 +441,6 @@ def check_html(r: Runner, rel: str, html: str) -> None:
     r.check(
         'nav intent upgrades progressive wraps (no preload orchestration)',
         'window.LY_beginUserIntent' in html
-        and 'LY_upgradeProgressiveForIntent' in prog_js
         and 'window.LY_warmPreloadCaches' not in html
         and 'window.LY_preloadNeedsUserPriority' not in html
         and 'LY_PRELOAD_AGGRESSIVE' not in net_tier_js,
@@ -466,45 +464,11 @@ def check_html(r: Runner, rel: str, html: str) -> None:
         'LY_PROGRESSIVE_IMAGES' in net_tier_js
         and 'LY_PROGRESSIVE_IMAGES=true' in net_tier_js.replace(' ', '')
         and 'maiora_20s_02-prev.webp' not in net_tier_js
-        and '-prev.jpg' in prog_js
-        and 'LY_initProgressiveImages' in prog_js
-        and 'LY_upgradeProgressiveForIntent' in prog_js
-        and 'ly-prog-wrap' in prog_js
-        and 'ly-prog-preview' in prog_js
-        and 'LY_sharpTierSuffix' in prog_js
-        and 'LY_heroGateOpen' in prog_js
-        and 'LY_initDeferredProgressiveImages' in prog_js
-        and 'collectContentWraps' in prog_js
-        and 'LY_activateProgressiveWrap' in prog_js
-        and 'ly-prog-skip-preview' in prog_js
-        and 'suspendOffHeroPictures' in prog_js
-        and 'readystatechange' in prog_js
-        and 'whenPreviewReady' in prog_js
-        and 'contentQueue' in prog_js
-        and 'pumpContentQueue' in prog_js
-        and 'previewMax' in prog_js
-        and 'pumpPreviewQueue' in prog_js
-        and 'wrapKindRank' in prog_js
-        and 'wrapInActiveTab' in prog_js
-        and 'scheduleHeroGate' in prog_js
-        and 'startLayoutCssEarly' in prog_js
-        and 'if (isHeroWrap(wrap)) startLayoutCssEarly()' in prog_js
-        and 'LY_kickProgressiveAfterReveal' in prog_js
-        and 'function flushPendingAfterHero()' in prog_js
-        and re.search(
-            r'function flushPendingAfterHero\(\)[\s\S]{0,360}wrapVisibleEnough\(wrap\)',
-            prog_js,
-        ) is not None
-        and re.search(
-            r'LY_kickProgressiveAfterReveal\s*=\s*function[\s\S]{0,900}wrapVisibleEnough\(wrap\)',
-            prog_js,
-        )
-        is not None
-        and 'LY_scheduleMainCss' in prog_js
+        # Progressive markup lives inline in index.html; the sharp tier ships in
+        # data-ly-src / data-ly-srcset and is promoted by LY_promoteSharp.
         and 'data-ly-src=' in html
-        and 'DWELL_MS' not in prog_js
-        and 'LY_onHeroSharpReady' in prog_js
         and 'data-ly-srcset=' in html
+        and 'window.LY_promoteSharp' in html
         and 'LY_loadLayoutCss' in net_tier_js
         and 'LY_loadMainCss' in net_tier_js
         and 'LY_applyPictureSrc' not in net_tier_js
@@ -529,19 +493,7 @@ def check_html(r: Runner, rel: str, html: str) -> None:
             r'def build_preview_image[\s\S]*?soften_preview[\s\S]*?resize_preview',
             read_file('scripts/build_preview_images.py') or '',
         ) is not None
-        and re.search(
-            r'ly-prog-sharp-visible[\s\S]{0,280}scheduleHeroGate',
-            prog_js,
-        )
-        is not None
         and "lyInjectPreload(lyImg('maiora_20s_02-1280.webp')" not in net_tier_js
-        and "kind === 'hero'" in prog_js
-        and 'preview.src = previewUrl' in prog_js
-        and 'bootProgressive' in prog_js
-        and 'LY_bootHeroEarly' in prog_js
-        and 'finalizeHeroWrap' in prog_js
-        and 'injectHeroPreviewPreload' not in prog_js
-        and 'LY_heroWrapEarly' in prog_js
         and 'class="ly-prog-preview"' in html
         and 'maiora_20s_02-prev.jpg' in html
         and re.search(
@@ -553,11 +505,7 @@ def check_html(r: Runner, rel: str, html: str) -> None:
         )
         and 'filter:blur(8px)' not in (read_file('css/layout.css') or '')
         and 'GaussianBlur' in (read_file('scripts/build_preview_images.py') or '')
-        and 'ensurePreview(wrap)' in prog_js
-        and 'LY_loadLbProgressive' in prog_js
-        and 'LY_ensureLbWrap' in prog_js
         and 'LY_stemFromMasterUrl' in html
-        and 'activateVisibleProgressiveWraps' in prog_js
         and 'LY_NET_SLOW' not in html
         and "lyInjectPreload(lyImg('mobile/maiora_20s_02-720.webp')" not in net_tier_js
         and "lyInjectPreload(lyImg('maiora_20s_02-640.webp')" not in net_tier_js
@@ -608,15 +556,6 @@ def check_html(r: Runner, rel: str, html: str) -> None:
         and 'apply_gaussian_blur' in build_py
         and 'subsampling=0' in build_py
         and 0.7 <= preview_blur <= 1.0,
-    )
-    r.check(
-        'progressive sharp tiers use higher quality rungs with blur preview',
-        "'-960'" in prog_js
-        and "'-1280'" in prog_js
-        and "kind === 'hero' || kind === 'gallery'" in prog_js
-        and "return '-960'" in prog_js
-        and 'preview.decoding = \'async\'' in prog_js
-        and "kind === 'hero'" in prog_js,
     )
     r.check(
         'card images use blurred preview as loading state (no spinners)',
@@ -1090,8 +1029,6 @@ def check_html(r: Runner, rel: str, html: str) -> None:
         and 'LY_kickProgressiveAfterReveal' in net_tier
         and 'LY_loadMainCss' in net_tier
         and 'LY_scheduleMainCss' in net_tier
-        and 'LY_loadMainCssEarly' in net_tier
-        and 'LY_scheduleMainCss' in (read_file('js/progressive-images.js') or '')
         and '.ly-css-probe' in (read_file('css/layout.css') or '')
         and '--ly-css-tail' in (read_file('css/layout.css') or '')
         and re.search(
@@ -2213,7 +2150,6 @@ def check_shared_assets(r: Runner) -> None:
         and 'font-display:optional' in (read_file('css/main.css') or '').replace(' ', '')
         and "url('fonts/montserrat-latin.woff2')" not in crit_block.replace(' ', '')
         and 'LY_loadFont' in net_tier_src
-        and 'LY_loadFont' in (read_file('js/progressive-images.js') or '')
         and "font.rel='preload'" not in net_tier_src.replace(' ', '')
         and 'href="/fonts/montserrat-latin.woff2"' not in index_html
         and 'LY_LAYOUT_CSS_HREF' in index_html

@@ -99,7 +99,6 @@ def patch_subfolder_assets(html: str) -> str:
     # root_paths() runs before this and may already have promoted favicon to /favicon.svg
     html = html.replace('href="/favicon.svg"', 'href="../favicon.svg"')
     html = re.sub(r'src="js/net-tier\.js([^"]*)"', r'src="../js/net-tier.js\1"', html)
-    html = re.sub(r'src="js/progressive-images\.js([^"]*)"', r'src="../js/progressive-images.js\1"', html)
     html = html.replace('src="js/analytics-env.js"', 'src="../js/analytics-env.js"')
     return html
 

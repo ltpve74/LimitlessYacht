@@ -145,9 +145,6 @@
     d.head.appendChild(style);
   };
 
-  /* Back-compat: progressive-images still calls LY_loadMainCss at hero preview */
-  g.LY_loadMainCssEarly = g.LY_loadLayoutCss;
-
   setTimeout(function () {
     if (!g.LY_layoutCssLoaded) g.LY_loadLayoutCss();
   }, 4000);
