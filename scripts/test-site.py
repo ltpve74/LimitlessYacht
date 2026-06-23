@@ -376,7 +376,7 @@ def check_html(r: Runner, rel: str, html: str) -> None:
         html.count('data-dest-idx="') == 12,
     )
     r.check(
-        'destination cards use responsive tier srcsets (lightbox mirrors carousel)',
+        'destination cards use responsive tier srcsets (lightbox reuses loaded tier)',
         'window.LY_syncDestCardImages' not in html
         and html.count('class="destination-card-bg"') == 12
         and html.count('sizes="78vw"') == 12
@@ -384,20 +384,31 @@ def check_html(r: Runner, rel: str, html: str) -> None:
         and 'portals-vells-1-720.webp' in html
         and 'images/mobile/dest/portals-vells-1-960.webp 800w' in html
         and 'images/mobile/dest/portals-vells-1.webp 800w' not in html
-        and 'window.LY_pictureSrcsetForViewport' in html
-        and 'window.LY_srcsetWithoutMasters' in html,
+        # Lightbox shows the exact image the card already downloaded (cache hit,
+        # no extra data) instead of rebuilding a 100vw srcset / fetching a master.
+        and 'window.LY_cardLoadedSrc' in html
+        and 'lbImg2.src = window.LY_cardLoadedSrc(card)' in html
+        and 'window.LY_pictureSrcsetForViewport' not in html
+        and 'window.LY_srcsetWithoutMasters' not in html,
     )
     r.check(
-        'gallery cards use responsive tier srcsets (lightbox mirrors carousel)',
+        'gallery cards use responsive tier srcsets (lightbox reuses loaded tier)',
         'maiora_20s_01-640.webp' in html
         and 'maiora_20s_01-720.webp' in html
         and 'images/mobile/maiora_20s_03-960.webp 960w' in html
         and 'images/mobile/maiora_20s_03.webp 960w' not in html
         and '(min-width: 1101px) 25vw, 50vw' in html
         and 'applyGalleryLbFrame(targetIdx, window.LY_galleryMasterUrl' in html
+        and 'window.LY_cardLoadedSrc(item)' in html
         and 'lbLoadGen' in html
         and 'class="lb-loader"' in html
         and 'id="lightbox-img" src="" alt="Limitless yacht gallery photo" sizes="100vw"' in html,
+    )
+    r.check(
+        'lightboxes never build a fullscreen 100vw srcset (no extra image data)',
+        'lbImg.srcset = srcset' not in html
+        and 'lbSrcWp.srcset = srcset' not in html
+        and "lbImg.sizes = '100vw'" not in html,
     )
     r.check(
         'carousel helpers use sharp-tier URLs after meaningful paint',
