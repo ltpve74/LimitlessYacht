@@ -2350,7 +2350,10 @@ footer {
     flex: 0 0 auto;
     display: flex;
     flex-direction: column;
-    min-height: calc(100svh - var(--nav-scroll-offset) - 14rem);
+    /* height (not min-height) gives the flex chain a definite size so that nested
+       height:100% on destination-card and gallery-item resolves correctly. */
+    height: calc(100svh - var(--nav-scroll-offset) - 14rem);
+    min-height: 400px;
     width: 100%;
     max-width: none;
     margin: 1.25rem 0 0;

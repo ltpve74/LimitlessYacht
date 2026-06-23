@@ -1159,6 +1159,11 @@ window.LY_afterMeaningfulPaint(function() {
           if (switching) gr.scrollLeft = 0;
           setTimeout(function(){ gr.dispatchEvent(new Event('scroll')); }, 0);
         }
+        // Safari: IO doesn't re-fire after display:none→flex. Arm wraps directly.
+        if (switching && window.LY_armWrap) {
+          var dws = g.querySelectorAll('.ly-prog-wrap');
+          for (var dwi = 0; dwi < dws.length; dwi++) window.LY_armWrap(dws[dwi]);
+        }
       }
     });
   }
@@ -1234,17 +1239,18 @@ window.LY_afterMeaningfulPaint(function() {
 
   window.lyCarouselStep = function lyCarouselStep(grid, cards, cache) {
     if (cache.val > 0) return cache.val;
-    if (window.innerWidth > 768) {
-      cache.val = 1;
-      return cache.val;
-    }
-    if (grid.classList.contains('gallery-grid')) {
-      cache.val = window.innerWidth;
-      return cache.val;
-    }
-    if (grid.classList.contains('itinerary-grid')) {
-      cache.val = Math.round(window.innerWidth * 0.78 + 12);
-      return cache.val;
+    // On mobile only: use viewport-fraction shortcuts. On desktop (>768px) the
+    // cards have CSS-computed widths (clamp values) so we measure the actual
+    // card-to-card distance instead of guessing from viewport width.
+    if (window.innerWidth <= 768) {
+      if (grid.classList.contains('gallery-grid')) {
+        cache.val = window.innerWidth;
+        return cache.val;
+      }
+      if (grid.classList.contains('itinerary-grid')) {
+        cache.val = Math.round(window.innerWidth * 0.78 + 12);
+        return cache.val;
+      }
     }
     if (cards.length > 1) cache.val = cards[1].offsetLeft - cards[0].offsetLeft;
     else cache.val = grid.scrollWidth;
