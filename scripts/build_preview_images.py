@@ -17,22 +17,24 @@ BASE = Path(__file__).resolve().parent.parent
 IMAGES = BASE / "images"
 MOBILE = BASE / "images" / "mobile"
 PREVIEW_EDGE = 160
-HERO_PREVIEW_EDGE = 200
+HERO_PREVIEW_EDGE = 360
 PREVIEW_Q = 54
-HERO_PREVIEW_Q = 65
-HERO_GRAIN_BLEND = 0.028
+HERO_PREVIEW_Q = 72
+HERO_GRAIN_BLEND = 0.0
 BLUR_WORK_EDGE = 1280
 HERO_BLUR_WORK_EDGE = 1920
 BLUR_PASSES = 2
 BLUR_PASS_RATIO = 0.72
+HERO_BLUR_PASSES = 1
+HERO_BLUR_PASS_RATIO = 0.92
 HERO_STEMS = frozenset({"maiora_20s_02"})
-# Blur strength in final preview-pixel space (maps ~CSS blur(6px) on hero).
-HERO_PREVIEW_BLUR = 1.2
+# Blur in final preview-pixel space — light enough that progressive scans read on Slow 3G.
+HERO_PREVIEW_BLUR = 0.85
 PREVIEW_BLUR = 2.2
 PREVIEW_SATURATE = 1.06
 PREVIEW_BRIGHTNESS = 0.93
-HERO_SATURATE = 1.04
-HERO_BRIGHTNESS = 0.96
+HERO_SATURATE = 1.03
+HERO_BRIGHTNESS = 0.97
 
 TIER_SUFFIXES = re.compile(
     r"-(?:480|640|720|960|1280|1440|prev)\.(?:webp|jpg)$"
@@ -110,18 +112,20 @@ def blur_radius_for_preview(img: Image.Image, stem: str) -> float:
     return preview_blur * max(img.size) / preview_edge(stem)
 
 
-def apply_gaussian_blur(img: Image.Image, radius: float) -> Image.Image:
+def apply_gaussian_blur(img: Image.Image, radius: float, stem: str) -> Image.Image:
     if radius <= 0.05:
         return img
-    pass_radius = radius * BLUR_PASS_RATIO
-    for _ in range(BLUR_PASSES):
+    passes = HERO_BLUR_PASSES if is_hero(stem) else BLUR_PASSES
+    ratio = HERO_BLUR_PASS_RATIO if is_hero(stem) else BLUR_PASS_RATIO
+    pass_radius = radius * ratio
+    for _ in range(passes):
         img = img.filter(ImageFilter.GaussianBlur(radius=pass_radius))
     return img
 
 
 def soften_preview(img: Image.Image, stem: str) -> Image.Image:
     hero = is_hero(stem)
-    img = apply_gaussian_blur(img, blur_radius_for_preview(img, stem))
+    img = apply_gaussian_blur(img, blur_radius_for_preview(img, stem), stem)
     img = ImageEnhance.Color(img).enhance(HERO_SATURATE if hero else PREVIEW_SATURATE)
     img = ImageEnhance.Brightness(img).enhance(HERO_BRIGHTNESS if hero else PREVIEW_BRIGHTNESS)
     return img
