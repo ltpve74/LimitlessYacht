@@ -1772,7 +1772,8 @@ footer {
   }
   #availability .availability-actions > .btn-primary,
   #availability .availability-actions > .btn-ghost,
-  .section-cta-btns > .btn-primary:not(.section-cta-avail--desktop) {
+  .section-cta-btns > .btn-primary:not(.section-cta-avail--desktop),
+  .section-cta-btns > .btn-ghost {
     display: block !important;
     width: 100% !important;
     max-width: none !important;
@@ -2303,6 +2304,19 @@ footer {
     
   }
   .section-forward-cta a:hover { color: var(--gold-light); border-color: var(--gold-light); }
+  /* Destination carousel nav: match gallery carousel nav breathing room */
+  .dest-group .carousel-nav {
+    padding: .75rem 0 .35rem;
+  }
+}
+/* About image: aspect-ratio + fixed height makes it 481px on a 376px container —
+   break out to full-bleed at the same 1.2rem section padding used at ≤640px */
+@media (max-width: 640px) {
+  .about-image-wrap {
+    width: calc(100% + 2.4rem);
+    margin-left: -1.2rem;
+    aspect-ratio: unset;
+  }
 }
 
 /* ── PRICING TABS (mobile toggle — display:none overridden inside max-width:768px block above) ── */
