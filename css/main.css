@@ -1215,16 +1215,14 @@ body.form-date-popup-open .form-field {
 .form-divider::before, .form-divider::after {
   content: ''; flex: 1; height: 1px; background: rgba(201,168,76,.15);
 }
-/* On desktop inside the pair, the contact-info column already shows WhatsApp above;
-   hide the form-col duplicate to keep the layout clean */
+/* On desktop: calendar column owns WhatsApp; hide form-col duplicate, divider,
+   and the "Prefer email?" fallback (email form is fully visible in left column) */
 @media (min-width: 769px) {
-  .form-col-wa, .form-divider { display: none; }
+  .form-col-wa, .form-divider, .cal-form-fallback { display: none; }
 }
-/* On mobile, contact-info WhatsApp is far above the form — hide it there,
-   show only the one paired with the form */
-@media (max-width: 768px) {
-  .contact-info .whatsapp-btn { display: none; }
-}
+/* contact-info WhatsApp is redundant everywhere: calendar column has it on desktop,
+   form-col-wa has it on mobile — always hidden */
+.contact-info .whatsapp-btn { display: none; }
 
 /* ── FOOTER ── */
 footer {

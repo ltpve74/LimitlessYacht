@@ -1007,8 +1007,8 @@ PAIRS = [
         'Respondemos en pocas horas · sus datos son privados',
     ),
     (
-        'Send My Enquiry',
-        'Enviar mi consulta',
+        'Email me a quote',
+        'Quiero presupuesto',
     ),
     (
         'Chat on WhatsApp',

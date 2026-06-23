@@ -2339,7 +2339,8 @@ def check_shared_assets(r: Runner) -> None:
         and 'cal-form-fallback' in index_html
         and 'id="calEnquireBtn"' in index_html
         and 'Prefer email?' in index_html
-        and re.search(r'@media\s*\(min-width:\s*769px\)[^{]*\{[^}]*\.form-col-wa[^}]*display:\s*none', css, re.DOTALL) is not None,
+        and re.search(r'@media\s*\(min-width:\s*769px\)[^{]*\{[^}]*\.form-col-wa[^}]*display:\s*none', css, re.DOTALL) is not None
+        and re.search(r'@media\s*\(min-width:\s*769px\)[^{]*\{[^}]*\.cal-form-fallback[^}]*display:\s*none', css, re.DOTALL) is not None,
     )
     r.check(
         'calendar WhatsApp tracks new Clarity events and keeps historical event',
