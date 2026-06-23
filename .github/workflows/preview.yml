@@ -2,7 +2,7 @@ name: Deploy experiment preview to GitHub Pages
 
 on:
   push:
-    branches: [develop, experiment-lead-gen, experiment-slow-3g]
+    branches: [develop]
 
 permissions:
   contents: read
