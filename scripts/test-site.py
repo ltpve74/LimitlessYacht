@@ -1803,6 +1803,24 @@ def check_shared_assets(r: Runner) -> None:
         )
         css_flat = re.sub(r'\s+', '', css)
         r.check(
+            'main.css collapses amenities + specs grids on mobile (wins load-order vs layout.css)',
+            re.search(
+                r'@media\(max-width:768px\)\{[^@]*?\.amenities-grid\{[^}]*grid-template-columns:1fr',
+                css_flat,
+            )
+            is not None
+            and re.search(
+                r'@media\(max-width:768px\)\{[^@]*?\.specs-grid\{[^}]*grid-template-columns:repeat\(2,minmax\(0,1fr\)\)',
+                css_flat,
+            )
+            is not None
+            and re.search(
+                r'@media\(max-width:768px\)\{[^@]*?\.spec-home\{[^}]*grid-column:span2',
+                css_flat,
+            )
+            is not None,
+        )
+        r.check(
             'hero above-fold copy visible immediately (Speed Index safe)',
             re.search(r'\.hero-eyebrow\{[^}]*opacity:1', css_flat) is not None
             and re.search(r'\.hero-sub\{[^}]*opacity:1', css_flat) is not None
