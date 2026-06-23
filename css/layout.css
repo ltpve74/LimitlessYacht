@@ -778,7 +778,9 @@ section { padding: 7rem 2rem; }
   .dest-group .itinerary-grid::-webkit-scrollbar { display: none; }
   .destination-card {
     flex: 0 0 78vw;
-    height: calc(100svh - 15rem);
+    /* Taller 2-line tabs than the gallery, so trim the card a touch more than
+       the gallery item (-15.75rem) to keep the bottom CTA bar in view on landing */
+    height: calc(100svh - 16.25rem);
     min-height: unset;
     border-radius: 8px;
     touch-action: pan-x pan-y;

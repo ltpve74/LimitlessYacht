@@ -1348,6 +1348,12 @@ def check_html(r: Runner, rel: str, html: str) -> None:
         and 'id="gallery-funnel"' in html,
     )
     r.check(
+        'carousel bottom-bar mobile links land on funnel anchors (tabs in view, not section title)',
+        'href="#gallery-funnel" class="btn-ghost itinerary-bottom-link--mobile"' in html
+        and 'href="#itinerary-funnel" class="btn-ghost itinerary-bottom-link--mobile"' in html
+        and 'href="#gallery" class="btn-ghost itinerary-bottom-link--mobile"' not in html,
+    )
+    r.check(
         'critical CSS defines hero bottom cluster gaps',
         '.hero-cta-group{' in crit_flat
         and 'gap:var(--hero-cluster-gap)' in crit_flat
@@ -2389,7 +2395,7 @@ def check_shared_assets(r: Runner) -> None:
         'desktop immersive sections use mobile-style funnel CTAs',
         index_html.count('class="itinerary-bottom-actions"') >= 2
         and 'href="#gallery-land" class="btn-ghost itinerary-bottom-link--desktop">The yacht</a>' in index_html
-        and 'href="#gallery" class="btn-ghost itinerary-bottom-link--mobile">The yacht</a>' in index_html
+        and 'href="#gallery-funnel" class="btn-ghost itinerary-bottom-link--mobile">The yacht</a>' in index_html
         and 'href="#itinerary-land" class="btn-ghost itinerary-bottom-link--desktop">destinations</a>' in index_html
         and 'href="#itinerary-funnel" class="btn-ghost itinerary-bottom-link--mobile">destinations</a>' in index_html
         and css is not None
@@ -2534,7 +2540,9 @@ def check_shared_assets(r: Runner) -> None:
             css,
         ) is not None
         and re.search(
-            r'\.destination-card\s*\{[^}]*height:\s*calc\(100svh\s*-\s*15rem\)',
+            # Destination card trimmed more than the gallery item (taller 2-line
+            # tabs) so the bottom CTA bar stays in view on funnel landing.
+            r'\.destination-card\s*\{[^}]*height:\s*calc\(100svh\s*-\s*16\.25rem\)',
             css,
         ) is not None,
     )
