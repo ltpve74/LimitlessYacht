@@ -688,19 +688,17 @@ section { padding: 7rem 2rem; }
   }
   #gallery > .container,
   #itinerary > .container {
-    display: none !important;
-    height: 0 !important;
-    overflow: hidden !important;
-    margin: 0 !important;
-    padding: 0 !important;
+    padding: var(--mobile-funnel-land-offset, 5.45rem) 1.2rem .65rem;
   }
-  #gallery .section-label,
-  #gallery .section-title,
-  #gallery .section-intro,
-  #itinerary .section-label,
-  #itinerary .section-title,
-  #itinerary .itinerary-intro {
-    display: none !important;
+  #gallery .section-title, #itinerary .section-title {
+    font-size: clamp(1.1rem, 5vw, 1.45rem);
+    line-height: 1.15;
+    margin-bottom: .25rem;
+  }
+  #gallery .section-intro, #itinerary .itinerary-intro {
+    margin-top: .35rem;
+    font-size: .8rem;
+    line-height: 1.6;
   }
   #gallery, #itinerary { padding-left: 0 !important; padding-right: 0 !important; }
   .gallery-wrap { margin: 0 !important; padding: 0.05rem 0 0 !important; }
