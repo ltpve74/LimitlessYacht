@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-<style id="fouc-guard">html{background:#0a1628;color-scheme:dark}a,a:any-link{color:#f5f0e8!important;text-decoration:none!important;-webkit-text-fill-color:currentColor!important}a.btn-primary,a.itinerary-meet-cta,a.mobile-nav-cta{color:#0a1628!important;-webkit-text-fill-color:#0a1628!important}a.btn-ghost,a.nav-cta{color:#f5f0e8!important;-webkit-text-fill-color:#f5f0e8!important}html:not(.ly-main-ready) body>:not(nav):not(#hero){display:none!important}</style>
+<style id="fouc-guard">html{background:#0a1628;color-scheme:dark}a,a:any-link{color:#f5f0e8!important;text-decoration:none!important;-webkit-text-fill-color:currentColor!important}a.btn-primary,a.itinerary-meet-cta,a.mobile-nav-cta{color:#0a1628!important;-webkit-text-fill-color:#0a1628!important}a.btn-ghost,a.nav-cta{color:#f5f0e8!important;-webkit-text-fill-color:#f5f0e8!important}html:not(.ly-main-ready) body>:not(nav):not(#hero){display:none!important}#hero .hero-bg:not(.ly-prog-sharp){opacity:0!important;visibility:hidden!important}</style>
 <script>window.LY_LAYOUT_CSS_HREF='css/layout.css?v=15';window.LY_MAIN_CSS_HREF='css/main.css?v=160';</script>
 <script src="js/net-tier.js"></script>
 <script src="js/progressive-images.js"></script>
@@ -241,9 +241,12 @@ html.ly-past-hero nav{opacity:1;visibility:visible;pointer-events:auto}
   </picture>
   <script>
   (function () {
-    if (window.LY_PROGRESSIVE_IMAGES) return;
     var pic = document.currentScript.previousElementSibling;
     if (!pic || !pic.classList.contains('hero-bg-wrap')) return;
+    if (window.LY_PROGRESSIVE_IMAGES) {
+      if (window.LY_bootHeroEarly) window.LY_bootHeroEarly();
+      return;
+    }
     pic.querySelectorAll('[data-ly-srcset]').forEach(function (s) {
       s.setAttribute('srcset', s.getAttribute('data-ly-srcset'));
     });

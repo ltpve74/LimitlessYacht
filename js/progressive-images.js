@@ -687,8 +687,11 @@
     g.LY_deferredProgressiveReady = true;
     suspendOffHeroPictures();
     var wraps = collectContentWraps();
-    var hero = g.document.querySelector('#hero .hero-bg-wrap');
-    var heroWrap = hero ? wrapPicture(hero, 'hero') : null;
+    var heroWrap = g.LY_heroWrapEarly || null;
+    if (!heroWrap) {
+      var hero = g.document.querySelector('#hero .hero-bg-wrap');
+      heroWrap = hero ? wrapPicture(hero, 'hero') : null;
+    }
     if (heroWrap) wraps.unshift(heroWrap);
     bindVisibleObserver(wraps);
   };
@@ -699,10 +702,39 @@
     suspendOffHeroPictures();
   }
 
+  var heroWrapEarly = null;
+
+  g.LY_bootHeroEarly = function () {
+    if (!g.LY_PROGRESSIVE_IMAGES || heroWrapEarly) return heroWrapEarly;
+    var hero = g.document.querySelector('#hero .hero-bg-wrap');
+    if (!hero || hero.closest('.ly-prog-wrap')) return null;
+    scheduleEarlySuspend();
+    heroWrapEarly = wrapPicture(hero, 'hero');
+    if (heroWrapEarly) {
+      g.LY_heroWrapEarly = heroWrapEarly;
+      g.LY_activateProgressiveWrap(heroWrapEarly);
+    }
+    return heroWrapEarly;
+  };
+
+  function injectHeroPreviewPreload() {
+    var root = g.LY_IMG_ROOT || 'images/';
+    if (root.charAt(root.length - 1) !== '/') root += '/';
+    var href = root + (g.innerWidth <= 640 ? 'mobile/' : '') + 'maiora_20s_02-prev.jpg';
+    var link = g.document.createElement('link');
+    link.rel = 'preload';
+    link.as = 'image';
+    link.href = href;
+    link.fetchPriority = 'high';
+    g.document.head.appendChild(link);
+  }
+
   function bootProgressive() {
     scheduleEarlySuspend();
     g.LY_initProgressiveImages();
   }
+
+  injectHeroPreviewPreload();
 
   if (g.document.readyState === 'loading') {
     g.document.addEventListener('readystatechange', function onRs() {

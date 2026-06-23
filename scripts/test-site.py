@@ -515,7 +515,7 @@ def check_html(r: Runner, rel: str, html: str) -> None:
         and 'DWELL_MS' not in prog_js
         and 'LY_onHeroSharpReady' in prog_js
         and re.search(
-            r'</picture>\s*<script>[\s\S]*?LY_PROGRESSIVE_IMAGES[\s\S]*?data-ly-srcset',
+            r'</picture>\s*<script>[\s\S]*?LY_PROGRESSIVE_IMAGES[\s\S]*?LY_bootHeroEarly',
             html,
         )
         is not None
@@ -530,6 +530,9 @@ def check_html(r: Runner, rel: str, html: str) -> None:
         and '.ly-prog-wrap--hero' in html
         and 'ly-prog-wrap--hero{position:absolute;inset:0;overflow:hidden;background:transparent}' in re.sub(
             r'\s+', '', html[html.find('id="critical-css"'):html.find('</style>', html.find('id="critical-css"'))]
+        )
+        and '#hero.hero-bg:not(.ly-prog-sharp){opacity:0!important;visibility:hidden!important}' in re.sub(
+            r'\s+', '', html[html.find('<style id="fouc-guard">'):html.find('</style>', html.find('id="fouc-guard"'))]
         )
         and 'object-position:52% 40%' in html
         and 'max-height:520px' in html
@@ -549,6 +552,10 @@ def check_html(r: Runner, rel: str, html: str) -> None:
         and "kind === 'hero'" in prog_js
         and 'preview.src = previewUrl' in prog_js
         and 'bootProgressive' in prog_js
+        and 'LY_bootHeroEarly' in prog_js
+        and 'injectHeroPreviewPreload' in prog_js
+        and 'maiora_20s_02-prev.jpg' in prog_js
+        and 'LY_heroWrapEarly' in prog_js
         and 'ensurePreview(wrap)' in prog_js
         and 'LY_loadLbProgressive' in prog_js
         and 'LY_ensureLbWrap' in prog_js
