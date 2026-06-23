@@ -3052,6 +3052,25 @@ def check_shared_assets(r: Runner) -> None:
         css is not None
         and re.search(r'\.destination-card\s*\{[^}]*cursor:\s*pointer', css) is not None,
     )
+    if main_css:
+        r.check(
+            'mobile grids single-column: contact-grid, enquiry-grid, form-row override in @layer site',
+            # contact-grid must go 1-col on phones (layout.css @layer layout can't beat @layer site)
+            re.search(
+                r'@media\s*\(\s*max-width:\s*768px\s*\)[^{]*\{[^}]*\.contact-grid\s*\{[^}]*grid-template-columns:\s*1fr',
+                main_css,
+            ) is not None
+            # enquiry-grid (charter cards) must go 1-col on phone
+            and re.search(
+                r'@media\s*\(\s*max-width:\s*640px\s*\)[^{]*\{[^}]*\.enquiry-grid\s*\{[^}]*grid-template-columns:\s*1fr',
+                main_css,
+            ) is not None
+            # form field rows must go 1-col on phone
+            and re.search(
+                r'@media\s*\(\s*max-width:\s*640px\s*\)[^{]*\{[^}]*\.form-row\s*\{[^}]*grid-template-columns:\s*1fr',
+                main_css,
+            ) is not None,
+        )
 
     for rel in (
         'fonts/montserrat-latin.woff2',
