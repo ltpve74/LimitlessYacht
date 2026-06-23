@@ -1030,6 +1030,11 @@ def check_html(r: Runner, rel: str, html: str) -> None:
     )
     crit_css = html[crit_tag:crit_end] if crit_tag >= 0 and crit_end > crit_tag else ''
     crit_flat = re.sub(r'\s+', '', crit_css)
+    r.check(
+        'critical CSS is brace-balanced (parses cleanly; hero progressive rules not dropped)',
+        crit_css.count('{') == crit_css.count('}')
+        and '.ly-prog-wrap--hero.ly-prog-sharp-ready.ly-prog-sharp-visible' in crit_flat,
+    )
     fouc_flat = re.sub(r'\s+', '', html[html.find('<style id="fouc-guard">'):html.find('</style>', html.find('id="fouc-guard"'))])
     r.check(
         'FOUC guard kills blue links and hides below-fold until main.css',
