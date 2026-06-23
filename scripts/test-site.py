@@ -1085,6 +1085,15 @@ def check_html(r: Runner, rel: str, html: str) -> None:
         and 'scrollIntoView' in html.split('LY_fixupHashLanding')[1][:600],
     )
     r.check(
+        'critical CSS applies funnel scroll-padding when past hero (unlayered, beats deferred layers)',
+        # The base mobile rule zeroes scroll-padding so the hero anchor lands flush.
+        # When ly-past-hero is set, the funnel/tab anchors must clear the fixed nav.
+        # Because layout.css/main.css wrap their rules in @layer, this override must
+        # live unlayered in the critical CSS or it loses the cascade and the carousel
+        # tabs land hidden behind the nav.
+        'html{scroll-padding-top:0}html.ly-past-hero{scroll-padding-top:var(--mobile-funnel-land-offset,5.45rem)}' in crit_flat,
+    )
+    r.check(
         'critical CSS includes hero legibility scrims before main.css',
         '.hero-content::before' in crit_flat
         and '.hero-content::after' in crit_flat
