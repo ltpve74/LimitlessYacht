@@ -1142,18 +1142,10 @@ html[data-ly-net="slow"] #hero .hero-bg-wrap,
   text-decoration: none; box-sizing: border-box;
 }
 .dest-lb-cta-mobile { display: none; }
-.cal-enquire-desktop { display: none; }
-.cal-enquire-mobile { display: inline; }
 @media (min-width: 769px) {
   .contact-cal-pair #availability .availability-actions {
-    display: flex;
-    flex-direction: column;
-    gap: .65rem;
     margin-top: 1.25rem;
   }
-  .contact-cal-pair #availability .cal-wa-btn { display: none; }
-  .contact-cal-pair .cal-enquire-desktop { display: inline; }
-  .contact-cal-pair .cal-enquire-mobile { display: none; }
   .dest-tabs, .gallery-tabs {
     max-width: 720px;
     margin-left: auto;
@@ -2344,8 +2336,8 @@ footer {
   text-decoration: underline; text-underline-offset: 3px;
 }
 .cal-clear:hover { color: var(--gold-light); }
-.cal-enquire-btn.is-disabled,
-.cal-wa-btn.is-disabled {
+.cal-wa-btn.is-disabled,
+.cal-enquire-link.is-disabled {
   opacity: .45; pointer-events: none; cursor: default;
 }
 .cal-legend { display: flex; gap: 1.4rem; flex-wrap: wrap; margin-top: 1.4rem; font-size: .6rem; letter-spacing: .12em; text-transform: uppercase; color: var(--text-muted); }
@@ -2364,7 +2356,16 @@ footer {
 @media (min-width: 1100px) {
   .cal { max-width: 1180px; }
 }
-.availability-actions { margin-top: 2.5rem; display: flex; gap: 1.2rem; flex-wrap: wrap; }
+.availability-actions { margin-top: 2.5rem; }
+.cal-contact-actions { display: flex; gap: 1.2rem; flex-wrap: wrap; }
+.cal-wa-btn { display: inline-flex !important; align-items: center; gap: .65rem; }
+.cal-call-btn { display: inline-flex !important; align-items: center; }
+.cal-form-fallback { margin-top: 1rem; }
+.cal-enquire-link {
+  font-size: .65rem; letter-spacing: .1em; text-transform: uppercase;
+  color: var(--text-muted); text-decoration: underline; text-underline-offset: 3px;
+}
+.cal-enquire-link:hover { color: var(--gold-light); }
 /* Tablet / large-phone (561–768px): full-width calendar card + stacked CTAs */
 @media (max-width: 768px) {
   .cal {
@@ -2392,8 +2393,8 @@ footer {
     align-items: stretch;
     gap: .75rem;
   }
-  #availability .availability-actions > .btn-primary,
-  #availability .availability-actions > .btn-ghost,
+  #availability .cal-contact-actions > .btn-primary,
+  #availability .cal-contact-actions > .btn-ghost,
   .section-cta-btns > .btn-primary:not(.section-cta-avail--desktop) {
     display: block !important;
     width: 100% !important;
@@ -2477,8 +2478,8 @@ footer {
 }
 @media (max-width: 640px) {
   .form-submit { width: 100%; align-self: stretch; }
-  .availability-actions { flex-direction: column; }
-  .availability-actions .btn-primary, .availability-actions .btn-ghost { width: 100%; text-align: center; }
+  .cal-contact-actions { flex-direction: column; }
+  .cal-contact-actions .btn-primary, .cal-contact-actions .btn-ghost { width: 100%; text-align: center; justify-content: center; }
   .section-cta { padding: 0 1.2rem 1.5rem; }
   .section-cta-btns { flex-direction: column; }
   .section-cta-btns .btn-primary, .section-cta-btns .btn-ghost { width: 100%; text-align: center; }

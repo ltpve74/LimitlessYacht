@@ -1881,7 +1881,7 @@ def check_shared_assets(r: Runner) -> None:
         and '.cal-cell.free.selected' in css
         and '.cal-cell[data-selected="true"]' in css
         and '.cal-footer' in css
-        and '.cal-enquire-btn.is-disabled' in css,
+        and '.cal-enquire-link.is-disabled' in css,
     )
     r.check(
         'calendar legend swatches are reliable at narrow widths',
@@ -1900,11 +1900,11 @@ def check_shared_assets(r: Runner) -> None:
             re.DOTALL,
         ) is not None
         and re.search(
-            r'#availability\s*\.availability-actions\s*>\s*\.btn-primary[^}]*max-width:\s*none\s*!important',
+            r'#availability\s*\.cal-contact-actions\s*>\s*\.btn-primary[^}]*max-width:\s*none\s*!important',
             css,
         ) is not None
         and re.search(
-            r'#availability\s*\.availability-actions\s*>\s*\.btn-primary[^}]*flex:\s*none\s*!important',
+            r'#availability\s*\.cal-contact-actions\s*>\s*\.btn-primary[^}]*flex:\s*none\s*!important',
             css,
         ) is not None,
     )
@@ -2172,6 +2172,8 @@ def check_shared_assets(r: Runner) -> None:
         'LY_clarityEvent' in index_html
         and 'ly_cal_avail_month_next' in index_html
         and 'ly_cal_avail_date_select' in index_html
+        and 'ly_cal_avail_whatsapp' in index_html
+        and 'ly_cal_avail_call' in index_html
         and 'ly_cal_form_open' in index_html
         and 'ly_cal_form_month_next' in index_html
         and 'ly_cal_form_date_select' in index_html
@@ -2186,27 +2188,23 @@ def check_shared_assets(r: Runner) -> None:
         and 'startInput.focus' not in index_html,
     )
     r.check(
-        'desktop paired layout shows enquire bridge, hides calendar WhatsApp',
-        css is not None
-        and re.search(
-            r'\.contact-cal-pair\s+#availability\s+\.availability-actions\s*\{[^}]*display:\s*flex',
-            css,
-        ) is not None
-        and re.search(
-            r'\.contact-cal-pair\s+#availability\s+\.cal-wa-btn\s*\{\s*display:\s*none',
-            css,
-        ) is not None
-        and re.search(
-            r'@media\s*\(min-width:\s*769px\)[^{]*\{[^}]*\.form-col-wa[^}]*display:\s*none',
-            css,
-            re.DOTALL,
-        ) is not None,
+        'calendar WhatsApp CTA is primary with tel fallback',
+        'id="calWaBtn"' in index_html
+        and 'cal-wa-btn' in index_html
+        and 'id="calCallBtn"' in index_html
+        and 'tel:+34622581486' in index_html
+        and 'cal-wa-label' in index_html
+        and 'cal-form-fallback' in index_html
+        and 'id="calEnquireBtn"' in index_html
+        and 'Prefer email?' in index_html
+        and re.search(r'@media\s*\(min-width:\s*769px\)[^{]*\{[^}]*\.form-col-wa[^}]*display:\s*none', css, re.DOTALL) is not None,
     )
     r.check(
-        'desktop calendar enquire button has continue copy',
-        'cal-enquire-desktop' in index_html
-        and 'Continue to enquiry →' in index_html
-        and 'cal-enquire-mobile' in index_html,
+        'calendar WhatsApp tracks new Clarity events and keeps historical event',
+        'ly_cal_avail_whatsapp' in index_html
+        and 'ly_cal_avail_call' in index_html
+        and 'buildWaMsg' in index_html
+        and 'Intl.DateTimeFormat' in index_html,
     )
     r.check(
         'desktop destination cards show click affordance',
