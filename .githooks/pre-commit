@@ -28,10 +28,20 @@ if printf '%s\n' "$CHANGED" | grep -qE '^(index\.html|legal\.html|data/reviews\.
   LOCALE_REBUILD=1
 fi
 
+if printf '%s\n' "$CHANGED" | grep -qE '^css/layout\.css$'; then
+  echo "[pre-commit] css/layout.css changed — bumping layout cache version..."
+  if ! "$PY" scripts/bump-css-cache.py --layout; then
+    echo "[pre-commit] ERROR: layout.css cache bump failed — aborting commit." >&2
+    exit 1
+  fi
+  git add index.html
+  LOCALE_REBUILD=1
+fi
+
 if printf '%s\n' "$CHANGED" | grep -qE '^css/main\.css$'; then
-  echo "[pre-commit] css/main.css changed — bumping cache-bust version..."
-  if ! "$PY" scripts/bump-css-cache.py; then
-    echo "[pre-commit] ERROR: CSS cache bump failed — aborting commit." >&2
+  echo "[pre-commit] css/main.css changed — bumping main cache version..."
+  if ! "$PY" scripts/bump-css-cache.py --main; then
+    echo "[pre-commit] ERROR: main.css cache bump failed — aborting commit." >&2
     exit 1
   fi
   git add index.html
@@ -70,7 +80,7 @@ if ! "$PY" scripts/publish-gate.py; then
   exit 1
 fi
 
-git add index.html legal.html css/main.css js/*.js \
+git add index.html legal.html css/layout.css css/main.css js/*.js \
         de/index.html de/legal.html es/index.html es/legal.html fr/index.html fr/legal.html \
         data/reviews-de.json data/reviews-es.json data/reviews-fr.json
 echo "[pre-commit] Minified + staged for main."

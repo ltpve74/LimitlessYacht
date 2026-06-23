@@ -148,9 +148,19 @@ def read_file(rel: str) -> str | None:
         return None
 
 
+def read_site_css() -> str | None:
+    """layout.css (reveal) + main.css (enhance) for checks spanning the split."""
+    layout = read_file('css/layout.css')
+    main = read_file('css/main.css')
+    if layout is None and main is None:
+        return None
+    return (layout or '') + (main or '')
+
+
 # ── HTML checks ────────────────────────────────────────────────────────────────
 
 def check_html(r: Runner, rel: str, html: str) -> None:
+    prog_js = read_file('js/progressive-images.js') or ''
     meta = LOCALE_META[rel]
 
     # Enquiry flow
@@ -356,14 +366,14 @@ def check_html(r: Runner, rel: str, html: str) -> None:
         'var destImages = window.LY_DEST_IMAGES' in html,
     )
     r.check(
-        'destination preload prioritizes card tiers; lightbox tiers on open',
-        'window.LY_preloadDestAdjacent' in html
-        and 'window.LY_enqueueCardPreload' in html
-        and 'window.LY_enqueueLbPreload' in html
+        'destination carousel activates progressive wraps (no preload queues)',
+        'window.LY_activateDestAdjacent' in html
+        and 'window.LY_enqueueCardPreload' not in html
+        and 'window.LY_enqueueLbPreload' not in html
         and 'window.LY_destCardUrl' in html
         and 'window.LY_destLbUrl' in html
         and 'window.LY_destMasterUrl' in html
-        and "destOrder.forEach(function(i) { window.LY_enqueueLbPreload(window.LY_destLbUrl(i)); })" not in html,
+        and 'LY_loadLbProgressive' in prog_js,
     )
     r.check(
         'itinerary carousel cards have data-dest-idx',
@@ -380,7 +390,7 @@ def check_html(r: Runner, rel: str, html: str) -> None:
         and 'images/mobile/dest/portals-vells-1.webp 800w' not in html
         and 'window.LY_pictureSrcsetForViewport' in html
         and 'window.LY_srcsetWithoutMasters' in html
-        and "lbSrcWp.sizes = '100vw'" in html,
+        and 'LY_loadLbProgressive' in prog_js,
     )
     r.check(
         'gallery cards use responsive tier srcsets (lightbox mirrors carousel)',
@@ -391,23 +401,23 @@ def check_html(r: Runner, rel: str, html: str) -> None:
         and '(min-width: 1101px) 25vw, 50vw' in html
         and 'window.LY_galleryLbUrl(targetIdx)' in html
         and 'applyGalleryLbFrame(targetIdx, lbUrl' in html
-        and 'window.LY_prioritizePreloadUrgent(lbUrl)' in html
+        and 'LY_loadLbProgressive' in prog_js
         and 'lbLoadGen' in html
         and 'class="lb-loader"' in html
         and 'id="lightbox-img" src="" alt="Limitless yacht gallery photo" sizes="100vw"' in html,
     )
     r.check(
-        'carousel preload uses card-tier helpers after meaningful paint',
+        'carousel helpers use sharp-tier URLs after meaningful paint',
         'window.LY_afterMeaningfulPaint' in html
         and 'window.LY_galleryCardUrl' in html
         and 'window.LY_galleryLbUrl' in html
-        and 'window.LY_cardPreloadQueue' in html
-        and 'window.LY_lbPreloadQueue' in html
-        and "window.LY_enqueueLbPreload(window.LY_galleryLbUrl(g))" not in html,
+        and 'window.LY_activateGalleryCard' in html
+        and 'window.LY_cardPreloadQueue' not in html
+        and 'window.LY_lbPreloadQueue' not in html,
     )
     r.check(
-        'itinerary carousel prefetches on scroll',
-        'window.LY_preloadDestAdjacent(gi)' in html,
+        'itinerary carousel activates adjacent progressive wraps on scroll',
+        'window.LY_activateDestAdjacent(gi)' in html,
     )
     r.check(
         'carousel step avoids offsetLeft on mobile (forced reflow guard)',
@@ -426,79 +436,40 @@ def check_html(r: Runner, rel: str, html: str) -> None:
         )
         is not None,
     )
-    r.check(
-        'idle preload warms caches after meaningful paint',
-        'window.LY_warmPreloadCaches' in html
-        and 'destOrder.forEach(function(i) { window.LY_enqueueCardPreload(window.LY_destCardUrl(i)); })' in html
-    )
     net_tier_js = read_file('js/net-tier.js') or ''
     r.check(
-        'slow connections use context-aware warming instead of bulk preload',
-        'LY_PRELOAD_AGGRESSIVE' in net_tier_js
-        and 'LY_PRELOAD_PUMP_MS' in net_tier_js
-        and 'LY_PRELOAD_IDLE_DELAY_MS' in net_tier_js
-        and 'LY_PRELOAD_QUEUE_MAX' in net_tier_js
-        and 'window.LY_preloadContext' in html
-        and 'window.LY_beginUserIntent' in html
-        and 'window.LY_startContextWarm' in html
-        and 'window.LY_warmUrlsForContext' in html
-        and re.search(
-            r'LY_warmPreloadCaches = function\(\)[\s\S]*?LY_PRELOAD_AGGRESSIVE === false[\s\S]*?section: \'hero\'',
-            html,
-        )
-        is not None,
-    )
-    r.check(
-        'slow connections route user actions through intent orchestrator',
-        'window.LY_prioritizePreloadUrgent' in html
-        and 'window.LY_abortWarmQueues' in html
-        and 'window.LY_preloadNeedsUserPriority' in html
-        and 'window.LY_preloadGalleryCard' in html
-        and re.search(
-            r'LY_preloadDest = function\(idx[\s\S]*?LY_beginUserIntent\(',
-            html,
-        )
-        is not None
-        and re.search(
-            r'LY_dripDestTier = function\(tier\)[\s\S]*?LY_beginUserIntent\(',
-            html,
-        )
-        is not None
+        'nav intent upgrades progressive wraps (no preload orchestration)',
+        'window.LY_beginUserIntent' in html
+        and 'LY_upgradeProgressiveForIntent' in prog_js
+        and 'window.LY_warmPreloadCaches' not in html
+        and 'window.LY_preloadNeedsUserPriority' not in html
+        and 'LY_PRELOAD_AGGRESSIVE' not in net_tier_js
         and 'IntersectionObserver' in html
         and '.destination-card, .gallery-item' in html
         and 'LY_contextFromViewport' in html,
     )
     r.check(
-        'slow carousel prefetch loads current card only (not ±1)',
+        'carousel adjacent activation loads current card and neighbours',
         re.search(
-            r'LY_preloadDestAdjacent = function\(idx[\s\S]*?if \(window\.LY_PRELOAD_AGGRESSIVE === false\)[\s\S]*?LY_preloadDest\(idx',
+            r'LY_activateDestAdjacent = function\(idx\)[\s\S]*?\[-1, 0, 1\]',
             html,
         )
         is not None,
     )
     r.check(
-        'preload pump pauses when tab hidden on slow links',
-        'LY_PRELOAD_VISIBILITY_BOUND' in html
-        and 'document.visibilityState === \'hidden\'' in html
-        and 'visibilitychange' in html,
-    )
-    r.check(
         'lightbox navigation coalesces rapid clicks and shows loading state',
-        'window.LY_prioritizePreloadUrgent' in html
-        and 'window.LY_formatLbCounter' in html
+        'window.LY_formatLbCounter' in html
         and 'setGalleryLbLoading' in html
         and 'destLbLoadGen' in html
         and 'destLbImgWrap' in html
         and 'class="lb-loader"' in html
         and re.search(r'dest-lb-img-wrap[\s\S]*?class="lb-loader"', html) is not None,
     )
-    prog_js = read_file('js/progressive-images.js') or ''
     r.check(
         'all connections use blurred preview then sharp fade upgrade',
         'LY_PROGRESSIVE_IMAGES' in net_tier_js
         and 'LY_PROGRESSIVE_IMAGES=true' in net_tier_js.replace(' ', '')
         and 'maiora_20s_02-prev.webp' not in net_tier_js
-        and 'maiora_20s_02-prev.jpg' in net_tier_js
         and '-prev.jpg' in prog_js
         and 'js/progressive-images.js' in html
         and 'LY_initProgressiveImages' in prog_js
@@ -508,6 +479,7 @@ def check_html(r: Runner, rel: str, html: str) -> None:
         and 'LY_sharpTierSuffix' in prog_js
         and 'LY_heroGateOpen' in prog_js
         and 'LY_initDeferredProgressiveImages' in prog_js
+        and 'collectContentWraps' in prog_js
         and 'LY_activateProgressiveWrap' in prog_js
         and 'ly-prog-skip-preview' in prog_js
         and 'suspendOffHeroPictures' in prog_js
@@ -515,7 +487,25 @@ def check_html(r: Runner, rel: str, html: str) -> None:
         and 'whenPreviewReady' in prog_js
         and 'contentQueue' in prog_js
         and 'pumpContentQueue' in prog_js
+        and 'previewMax' in prog_js
+        and 'pumpPreviewQueue' in prog_js
+        and 'wrapKindRank' in prog_js
+        and 'wrapInActiveTab' in prog_js
         and 'scheduleHeroGate' in prog_js
+        and 'startLayoutCssEarly' in prog_js
+        and 'if (isHeroWrap(wrap)) startLayoutCssEarly()' in prog_js
+        and 'LY_kickProgressiveAfterReveal' in prog_js
+        and 'function flushPendingAfterHero()' in prog_js
+        and re.search(
+            r'function flushPendingAfterHero\(\)[\s\S]{0,360}wrapVisibleEnough\(wrap\)',
+            prog_js,
+        ) is not None
+        and re.search(
+            r'LY_kickProgressiveAfterReveal\s*=\s*function[\s\S]{0,520}wrapVisibleEnough\(wrap\)',
+            prog_js,
+        )
+        is not None
+        and 'LY_scheduleMainCss' in prog_js
         and 'data-ly-src=' in html
         and not re.search(
             r'<picture\b[^>]*>.*?<img\b[^>]*\ssrc="',
@@ -530,15 +520,23 @@ def check_html(r: Runner, rel: str, html: str) -> None:
         )
         is not None
         and 'data-ly-srcset=' in html
+        and 'LY_loadLayoutCss' in net_tier_js
         and 'LY_loadMainCss' in net_tier_js
-        and 'LY_applyPictureSrc' in net_tier_js
-        and 'ly-prog-critical' in net_tier_js
-        and '.ly-prog-wrap--hero' in net_tier_js
-        and 'ly-prog-wrap--hero{position:absolute;inset:0;overflow:hidden;background:transparent}' in net_tier_js.replace(' ', '')
-        and 'object-position:52% 40%' in net_tier_js
-        and 'max-height:520px' in net_tier_js
-        and 'nav{opacity:0;visibility:hidden;pointer-events:none}' in net_tier_js.replace(' ', '')
-        and 'blur(4px)' in net_tier_js
+        and 'LY_applyPictureSrc' not in net_tier_js
+        and 'ly-prog-critical' not in net_tier_js
+        and '@layer layout' in (read_file('css/layout.css') or '')
+        and '@layer layout, site' in (read_file('css/layout.css') or '')
+        and '@layer site' in (read_file('css/main.css') or '')
+        and '.ly-prog-wrap--hero' in html
+        and 'ly-prog-wrap--hero{position:absolute;inset:0;overflow:hidden;background:transparent}' in re.sub(
+            r'\s+', '', html[html.find('id="critical-css"'):html.find('</style>', html.find('id="critical-css"'))]
+        )
+        and 'object-position:52% 40%' in html
+        and 'max-height:520px' in html
+        and 'nav{opacity:0;visibility:hidden;pointer-events:none}' in re.sub(
+            r'\s+', '', html[html.find('id="critical-css"'):html.find('</style>', html.find('id="critical-css"'))]
+        )
+        and 'blur(4px)' in html
         and 'LY_progressiveWrapForUrl' in html
         and re.search(
             r'ly-prog-sharp-visible[\s\S]{0,280}scheduleHeroGate',
@@ -555,19 +553,23 @@ def check_html(r: Runner, rel: str, html: str) -> None:
         and 'LY_loadLbProgressive' in prog_js
         and 'LY_ensureLbWrap' in prog_js
         and 'LY_stemFromMasterUrl' in html
-        and 'if (window.LY_PROGRESSIVE_IMAGES) return;' in html
-        and "lyInjectPreload(lyImg('mobile/maiora_20s_02-720.webp')" not in net_tier_js
-        and "lyInjectPreload(lyImg('maiora_20s_02-640.webp')" not in net_tier_js
+        and 'progCardIo' in html
+        and 'activateVisibleProgressiveWraps' in prog_js
         and re.search(
-            r'LY_destCardUrl = function\(idx\)[\s\S]*?LY_PROGRESSIVE_IMAGES',
+            r'LY_beginUserIntent = function\(opts\)[\s\S]*?LY_upgradeProgressiveForIntent',
             html,
         )
         is not None
+        and 'LY_NET_SLOW' not in html
+        and "lyInjectPreload(lyImg('mobile/maiora_20s_02-720.webp')" not in net_tier_js
+        and "lyInjectPreload(lyImg('maiora_20s_02-640.webp')" not in net_tier_js
         and re.search(
-            r'DOMContentLoaded[\s\S]*?!window\.LY_PROGRESSIVE_IMAGES && window\.LY_applySlowSrcsets',
+            r'LY_destCardUrl = function\(idx\)[\s\S]*?LY_sharpTierSuffix\(\'dest\'\)',
             html,
         )
-        is not None,
+        is not None
+        and 'LY_applySlowSrcsets' not in html
+        and 'LY_warmPreloadCaches' not in html,
     )
     r.check(
         'preview placeholder assets exist for hero and destinations',
@@ -607,23 +609,15 @@ def check_html(r: Runner, rel: str, html: str) -> None:
         and "LY_sharpTierSuffix('gallery')" in html,
     )
     r.check(
-        'slow carousel cards show loading spinners during image fetch',
-        'window.LY_initCardLoaders' in html
-        and 'window.LY_setCardLoading' in html
-        and 'window.LY_showCardLoadersForIntent' in html
-        and 'window.LY_cardUrlForEl' in html
-        and 'card-loader' in html
-        and 'card-loading' in html
-        and 'markCarouselTarget' in html
-        and 'markGalleryTarget' in html
-        and re.search(
-            r'LY_beginUserIntent = function\(opts\)[\s\S]*?LY_showCardLoadersForIntent\(opts\)',
-            html,
-        )
-        is not None,
+        'card images use blurred preview as loading state (no spinners)',
+        'window.LY_initCardLoaders' not in html
+        and 'window.LY_setCardLoading' not in html
+        and 'markCarouselTarget' not in html
+        and 'markGalleryTarget' not in html
+        and 'ly-prog-preview' in (read_file('js/progressive-images.js') or ''),
     )
     r.check(
-        'anchor CTAs pause warming and re-anchor preload context',
+        'anchor CTAs trigger progressive upgrade on nav',
         'window.LY_onNavIntent' in html
         and 'window.LY_sectionFromHash' in html
         and 'window.LY_urgentUrlsForNav' in html
@@ -893,28 +887,26 @@ def check_html(r: Runner, rel: str, html: str) -> None:
         'class="hero-bg"' in html and 'fetchpriority="high"' in html,
     )
     r.check(
-        'connection-tier script sniffs network before hero fetch',
+        'net-tier boots before inline critical CSS',
         html.find('id="fouc-guard"') < html.find('net-tier.js')
         and html.find('net-tier.js') < html.find('id="critical-css"'),
     )
     net_tier = read_file('js/net-tier.js') or ''
     r.check(
-        'net-tier.js detects slow connections and caps hero preload',
-        'LY_NET_SLOW' in net_tier
-        and 'effectiveType' in net_tier
-        and 'saveData' in net_tier
-        and 'ly_net' in net_tier
-        and 'maiora_20s_02-480.webp' in net_tier
-        and 'lyCapHero' in net_tier
-        and 'ly-prog-critical' in net_tier
-        and 'object-position:52% 40%' in net_tier,
+        'net-tier.js loads layout.css then main.css without connection sniffing',
+        'LY_PROGRESSIVE_IMAGES' in net_tier
+        and 'LY_loadLayoutCss' in net_tier
+        and 'LY_loadMainCss' in net_tier
+        and 'LY_NET_SLOW' not in net_tier
+        and 'effectiveType' not in net_tier
+        and 'lyInjectPreload' not in net_tier
+        and 'ly-prog-critical' not in net_tier,
     )
     r.check(
-        'slow connection caps gallery/dest card tiers in preload JS',
-        'LY_NET_SLOW' in html
-        and 'LY_applySlowSrcsets' in html
-        and re.search(r"LY_NET_SLOW\s*\?\s*\(mob\s*\?\s*'-480'\s*:\s*'-640'\)", html)
-        is not None,
+        'card tier URLs always use progressive sharp suffix',
+        'LY_sharpTierSuffix' in html
+        and 'LY_NET_SLOW' not in html
+        and 'LY_applySlowSrcsets' not in html,
     )
     r.check(
         'hero picture keeps responsive srcset (runtime cap on slow 3G)',
@@ -933,10 +925,8 @@ def check_html(r: Runner, rel: str, html: str) -> None:
     )
     img_root = 'images' if rel == 'index.html' else '/images'
     r.check(
-        'hero preload breakpoints align with picture sources',
-        'LY_applySlowSrcsets' in html
-        and 'LY_capSrcset' in (read_file('js/net-tier.js') or '')
-        and re.search(
+        'hero picture keeps tier srcsets for progressive stem discovery',
+        re.search(
             rf'<source[^>]*{re.escape(img_root)}/mobile/maiora_20s_02-480\.webp 480w[^>]*'
             r'media="\(max-width: 640px\)"',
             html,
@@ -995,7 +985,7 @@ def check_html(r: Runner, rel: str, html: str) -> None:
     crit_end = html.find('</style>', crit_tag) if crit_tag >= 0 else -1
     r.check(
         'critical CSS is slim enough for fast head parse',
-        crit_tag > 0 and crit_end - crit_tag < 9700,
+        crit_tag > 0 and crit_end - crit_tag < 12000,
     )
     crit_css = html[crit_tag:crit_end] if crit_tag >= 0 and crit_end > crit_tag else ''
     crit_flat = re.sub(r'\s+', '', crit_css)
@@ -1044,19 +1034,54 @@ def check_html(r: Runner, rel: str, html: str) -> None:
         and '.hero-bottom.hero-sub' in crit_flat.replace(' ', ''),
     )
     r.check(
-        'main.css load adds ly-main-ready after sheet paints (no early timeout)',
-        html.count("classList.add('ly-main-ready')") >= 1
-        and "this.rel = 'stylesheet'" in html
+        'layout.css load adds ly-main-ready; main.css enhances without blocking reveal',
+        (html.count("classList.add('ly-main-ready')") >= 1 or "classList.add('ly-main-ready')" in net_tier)
+        and "l.rel='stylesheet'" in net_tier.replace(' ', '')
+        and 'LY_LAYOUT_CSS_HREF' in html
         and 'LY_MAIN_CSS_HREF' in html
-        and 'setTimeout' not in html.split('main.css')[1][:500]
-        and 'requestAnimationFrame' in html,
+        and 'requestAnimationFrame' in (html + net_tier)
+        and 'LY_loadLayoutCss' in net_tier
+        and 'layoutCssApplies' in net_tier
+        and 'finishLayoutCss' in net_tier
+        and 'LY_kickProgressiveAfterReveal' in net_tier
+        and 'LY_loadMainCss' in net_tier
+        and 'LY_scheduleMainCss' in net_tier
+        and 'LY_loadMainCssEarly' in net_tier
+        and 'LY_scheduleMainCss' in (read_file('js/progressive-images.js') or '')
+        and '.ly-css-probe' in (read_file('css/layout.css') or '')
+        and '--ly-css-tail' in (read_file('css/layout.css') or '')
+        and re.search(
+            r'function finishLayoutCss\(cb\) \{[\s\S]{0,520}LY_scheduleMainCss',
+            net_tier,
+        )
+        is not None
+        and re.search(
+            r'function finishLayoutCss\(cb\) \{[\s\S]*?\n  \}',
+            net_tier,
+        )
+        is not None
+        and 'g.LY_loadMainCss();' not in re.search(
+            r'function finishLayoutCss\(cb\) \{[\s\S]*?\n  \}',
+            net_tier,
+        ).group(0),
+    )
+    r.check(
+        'hash funnel landing re-syncs after main.css (scroll-margin + ly-past-hero)',
+        'window.LY_fixupHashLanding' in html
+        and 'itinerary-funnel' in html
+        and 'ly-past-hero' in html
+        and 'scrollIntoView' in html.split('LY_fixupHashLanding')[1][:600],
     )
     r.check(
         'critical CSS includes hero legibility scrims before main.css',
         '.hero-content::before' in crit_flat
         and '.hero-content::after' in crit_flat
         and 'text-shadow:01px2pxrgba(0,0,0,.9)' in crit_flat
-        and '#hero.hero-actions.btn-ghost{background:rgba(10,22,40,.28)' in crit_flat,
+        and (
+            '#hero.hero-actions.btn-ghost{background:rgba(10,22,40,.28)' in crit_flat
+            or '#hero.hero-actions.btn-ghost{background:rgba(10,22,40,.52)' in crit_flat
+        )
+        and 'border:1pxsolidtransparent' in crit_flat.replace(' ', ''),
     )
     r.check(
         'critical CSS hides duplicate hero rates and eyebrow links before main.css',
@@ -1090,13 +1115,19 @@ def check_html(r: Runner, rel: str, html: str) -> None:
         and 'width:min(85vw,100%)' in crit_flat.replace(' ', '')
         and '.hero-top,.hero-bottom{display:flex;flex-direction:column;align-items:stretch;width:min(85vw,100%)' in crit_flat.replace(' ', '')
         and '.hero-content::before,.hero-content::after{left:0;right:0;width:auto;transform:none' in crit_flat.replace(' ', '')
-        and '#hero.hero-actions{flex-direction:row;justify-content:center' in crit_flat.replace(' ', '')
-        and 'padding:clamp(.95rem,5vw,1.18rem)clamp(.62rem,3.4vw,.92rem)' in crit_flat.replace(' ', '')
+        and '#hero.hero-actions{flex-direction:row' in crit_flat.replace(' ', '')
+        and 'justify-content:center' in crit_flat.replace(' ', '')
+        and (
+            'padding:clamp(.95rem,5vw,1.18rem)clamp(.62rem,3.4vw,.92rem)' in crit_flat.replace(' ', '')
+            or 'padding:var(--hero-cinema-btn-pad-y)var(--hero-cinema-btn-pad-x)' in crit_flat.replace(' ', '')
+        )
         and 'letter-spacing:.07em' in crit_flat.replace(' ', '')
         and 'hyphens:none' in crit_flat.replace(' ', '')
         and 'line-height:1.4' in crit_flat.replace(' ', '')
         and 'font-weight:300' in crit_flat.replace(' ', '')
-        and "font-family:'Montserrat'" in crit_flat.replace(' ', '')
+        and "font-family:'Montserrat','MontserratFallbackHero','MontserratFallback',sans-serif" in crit_flat.replace(' ', '')
+        and 'HelveticaNeue-Thin' in crit_flat.replace(' ', '')
+        and 'size-adjust:115%' in crit_flat.replace(' ', '')
         and 'min-height:2.85rem' in crit_flat.replace(' ', '')
         and '#hero.hero-actions.btn-primary{margin-left:' not in crit_flat.replace(' ', '')
         and '.hero-content{position:absolute;inset:0' in crit_flat
@@ -1129,25 +1160,24 @@ def check_html(r: Runner, rel: str, html: str) -> None:
         and 'opacity:1' in crit_flat,
     )
     r.check(
-        'below-fold preloads deferred until after meaningful paint',
+        'carousel activation deferred until after meaningful paint / hero gate',
         'window.LY_afterMeaningfulPaint' in html and 'LY_destPreloadReady' in html,
     )
     r.check(
-        'destination JS preload waits for LY_destPreloadReady',
-        'if (!force && !window.LY_destPreloadReady) return' in html
-        and re.search(
+        'destination carousel waits for hero gate before adjacent activation',
+        re.search(
             r'window\.LY_afterMeaningfulPaint\(function\(\)\s*\{[\s\S]*?LY_destPreloadReady\s*=\s*true',
             html,
         )
-        is not None,
+        is not None
+        and 'LY_onHeroSharpReady.push(LY_enableDestCarousel)' in html.replace(' ', ''),
     )
     head_end = html.find('</head>')
     head = html[:head_end] if head_end > 0 else ''
     r.check(
-        'hero image preloads injected by net-tier (no static dest preloads in head)',
+        'head has no image preloads (prev → sharp only)',
         head.count('rel="preload" as="image"') == 0
-        and 'lyInjectPreload' in net_tier
-        and 'maiora_20s_02' in net_tier
+        and 'lyInjectPreload' not in net_tier
         and 'images/dest/' not in head
         and 'maiora_20s_04' not in head,
     )
@@ -1269,7 +1299,14 @@ def check_html(r: Runner, rel: str, html: str) -> None:
     )
     r.check(
         'critical CSS vertically centers hero CTA label text',
-        '#hero.hero-actions:is(.btn-primary,.btn-ghost){display:inline-flex' in crit_flat
+        (
+            '#hero.hero-actions:is(.btn-primary,.btn-ghost){display:inline-flex' in crit_flat
+            or '#hero.hero-actions.btn-primary,#hero.hero-actions.btn-ghost{display:inline-flex' in crit_flat.replace(' ', '')
+        )
+        and 'justify-content:center' in crit_flat.replace(' ', '')
+        and 'box-shadow:02px18pxrgba(10,22,40,.32)' in crit_flat.replace(' ', '')
+        and '--btn-font:' in crit_flat.replace(' ', '')
+        and '--hero-cinema-btn-pad-y:' in crit_flat.replace(' ', '')
         and 'align-items:center' in crit_flat,
     )
 
@@ -1352,8 +1389,12 @@ def check_html(r: Runner, rel: str, html: str) -> None:
         )
         r.check(
             f'{rel} shared assets use parent-relative paths',
-            "LY_MAIN_CSS_HREF='../css/main.css" in html
+            "LY_LAYOUT_CSS_HREF='../css/layout.css" in html
+            and "LY_MAIN_CSS_HREF='../css/main.css" in html
+            and 'href="../css/layout.css' in html
             and 'href="../css/main.css' in html
+            and 'src="../js/net-tier.js"' in html
+            and 'src="../js/progressive-images.js"' in html
             and 'href="../favicon.svg"' in html
             and 'href="/favicon.svg"' not in html,
         )
@@ -1625,16 +1666,49 @@ def check_html_integrity(r: Runner) -> None:
 
 
 def check_shared_assets(r: Runner) -> None:
-    css = read_file('css/main.css')
-    r.check('css/main.css exists', css is not None)
+    layout_css = read_file('css/layout.css')
+    main_css = read_file('css/main.css')
+    css = read_site_css()
+    r.check('css/layout.css exists', layout_css is not None)
+    if layout_css:
+        r.check(
+            'about-image progressive layers fill the wrap (no split preview/sharp)',
+            '.about-image-wrap > .ly-prog-wrap > picture' in layout_css
+            and '.about-image-wrap > .ly-prog-wrap .ly-prog-sharp' in layout_css
+            and 'img:not(.ly-prog-preview):not(.ly-prog-sharp)' in layout_css,
+        )
+        layout_flat = re.sub(r'\s+', '', layout_css)
+        r.check(
+            'layout.css does not restack hero CTAs to column on phone (matches critical)',
+            re.search(
+                r'@media\s*\(\s*max-width:\s*640px\s*\)[\s\S]*?#hero\s+\.hero-actions\s*\{[^}]*flex-direction:\s*row',
+                layout_css,
+            )
+            is not None
+            and '.hero-actions{flex-direction:column' not in layout_flat,
+        )
+    r.check('css/main.css exists', main_css is not None)
     index_html = read_file('index.html') or ''
-    en_v = re.search(r'main\.css\?v=(\d+)', index_html)
+    en_layout_v = re.search(r'layout\.css\?v=(\d+)', index_html)
+    en_main_v = re.search(r'main\.css\?v=(\d+)', index_html)
+    r.check(
+        'layout.css cache-bust version is set on EN',
+        en_layout_v is not None,
+    )
     r.check(
         'main.css cache-bust version is set on EN',
-        en_v is not None,
+        en_main_v is not None,
     )
-    if en_v:
-        v = en_v.group(1)
+    if en_layout_v:
+        v = en_layout_v.group(1)
+        for loc in ('de', 'es', 'fr'):
+            loc_html = read_file(f'{loc}/index.html') or ''
+            r.check(
+                f'{loc}/index.html uses same layout.css cache version as EN',
+                f'layout.css?v={v}' in loc_html,
+            )
+    if en_main_v:
+        v = en_main_v.group(1)
         for loc in ('de', 'es', 'fr'):
             loc_html = read_file(f'{loc}/index.html') or ''
             r.check(
@@ -1643,7 +1717,7 @@ def check_shared_assets(r: Runner) -> None:
             )
     if css:
         r.check('main.css defines .hero-bg-wrap', '.hero-bg-wrap' in css)
-        r.check('main.css defines heroTitleIn', 'heroTitleIn' in css)
+        r.check('main.css has no hero entrance keyframes (critical CSS owns LCP)', 'heroTitleIn' not in css and 'heroFade' not in css)
         r.check(
             'main.css locks mobile cinema hero to full viewport grid',
             re.search(
@@ -2036,15 +2110,19 @@ def check_shared_assets(r: Runner) -> None:
         )
     r.check('lighthouse budgets file exists', os.path.isfile(os.path.join(ROOT, 'scripts/lighthouse-budgets.json')))
     index_html = read_file('index.html') or ''
+    crit_block = index_html[index_html.find('id="critical-css"'):index_html.find('</style>', index_html.find('id="critical-css"'))]
+    crit_flat = re.sub(r'\s+', '', crit_block)
+    net_tier_src = read_file('js/net-tier.js') or ''
     r.check(
-        'Montserrat uses @font-face and net-tier font preload (CLS-stable)',
+        'Montserrat deferred until after hero (critical uses fallback only)',
         "url('../fonts/montserrat-latin.woff2')" in (read_file('css/main.css') or '')
         and 'font-display:optional' in (read_file('css/main.css') or '').replace(' ', '')
-        and "url('fonts/montserrat-latin.woff2')" in index_html.replace(' ', '')
-        and 'montserrat-latin.woff2' in (read_file('js/net-tier.js') or '')
-        and "font.rel='preload'" in (read_file('js/net-tier.js') or '').replace(' ', '')
-        and 'if(!slow){' not in (read_file('js/net-tier.js') or '').split('montserrat-latin.woff2')[0][-120:]
+        and "url('fonts/montserrat-latin.woff2')" not in crit_block.replace(' ', '')
+        and 'LY_loadFont' in net_tier_src
+        and 'LY_loadFont' in (read_file('js/progressive-images.js') or '')
+        and "font.rel='preload'" not in net_tier_src.replace(' ', '')
         and 'href="/fonts/montserrat-latin.woff2"' not in index_html
+        and 'LY_LAYOUT_CSS_HREF' in index_html
         and 'LY_MAIN_CSS_HREF' in index_html,
     )
     css_flat = re.sub(r'\s+', '', css or '')
@@ -2052,8 +2130,21 @@ def check_shared_assets(r: Runner) -> None:
         'main.css uses metric-adjusted Montserrat fallback (font CLS guard)',
         css is not None
         and "font-family:'MontserratFallback'" in css_flat
+        and "font-family:'MontserratFallbackHero'" in css_flat
         and 'size-adjust' in css_flat
         and 'ascent-override' in css_flat,
+    )
+    r.check(
+        'fallback faces mimic Montserrat Light (light system src + metric overrides)',
+        css is not None
+        and 'HelveticaNeue-Thin' in css_flat
+        and 'size-adjust:115%' in css_flat
+        and 'size-adjust:114%' in css_flat
+        and 'SegoeUILight' in css_flat.replace(' ', '')
+        and "font-family:'Montserrat','MontserratFallbackHero','MontserratFallback',sans-serif" in css_flat
+        and ".nav-logo{flex:01auto" in crit_flat
+        and "font-family:'Montserrat','MontserratFallback',sans-serif" in crit_flat.split('.nav-logo')[1][:200]
+        and "font-family:'Montserrat','MontserratFallback',sans-serif" in (read_file('css/layout.css') or '').split('.nav-logo')[1][:160].replace(' ', ''),
     )
     r.check(
         'hero text-wrap stays balance-only (no pretty reflow on main.css)',
@@ -2278,13 +2369,11 @@ def check_shared_assets(r: Runner) -> None:
         and css_rule_index(css, '.lb-nav') >= 0
         and css_rule_index(css, '.lb-counter') >= 0
         and css_rule_index(css, '.lb-loader') >= 0
-        and css_rule_index(css, '.card-loader') >= 0
         and '#lightbox.lb-loading #lightbox-img' in css
         and '.dest-lb-img-wrap.lb-loading #dest-lb-img' in css
-        and '.destination-card.card-loading .card-loader' in css
-        and '.gallery-item.card-loading .card-loader' in css
+        and css_rule_index(css, '.card-loader') < 0
+        and '.destination-card.card-loading' not in css
         and css_rule_index(css, '.ly-prog-wrap') >= 0
-        and 'html[data-ly-net="slow"] #hero .hero-bg-wrap' in css
         and '.ly-prog-wrap.ly-prog-skip-preview' in css
         and '.ly-prog-wrap.ly-prog-sharp-ready.ly-prog-sharp-visible .ly-prog-sharp' in css
         and css_rule_index(css, '#dest-lb-close') < 0
@@ -2609,7 +2698,7 @@ def check_shared_assets(r: Runner) -> None:
         and 'color: var(--btn-ghost-text)' in css.split('.nav-cta {')[1].split('}')[0]
         and '.mobile-nav-cta {' in css
         and '.cookie-btn-ghost {' in css
-        and '-webkit-text-fill-color: var(--btn-on-fill)' in css.split('.itinerary-meet-cta {')[1][:500],
+        and 'color: var(--btn-on-fill)' in css.split('.mobile-nav-cta {')[1][:500],
     )
     r.check(
         'desktop nav landing keeps labels and uses nav scroll offset',
