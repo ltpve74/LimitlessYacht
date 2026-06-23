@@ -1823,20 +1823,57 @@ footer {
       transform 0.45s cubic-bezier(0.22, 0.9, 0.3, 1),
       visibility 0s;
   }
-  /* Hero: center text+CTA cluster vertically. With nav hidden at hero top,
-     the large top padding is unnecessary — let flex centering handle it. */
+
+  /* ── Desktop hero redesign ──
+     Nav is hidden at the hero top so its own gradient is gone — the bright
+     hero image is fully exposed from y=0. Compensate with a much stronger
+     top scrim and give the content cluster clear breathing room. */
+
+  /* Top scrim: extend coverage and push opacity up to replace the lost nav
+     gradient. From ~95% dark at the very top, fading gracefully. */
+  .hero-content::before {
+    height: min(75%, 36rem);
+    background: linear-gradient(
+      180deg,
+      rgba(10, 22, 40, 0.95) 0%,
+      rgba(10, 22, 40, 0.62) 45%,
+      rgba(10, 22, 40, 0.18) 78%,
+      transparent 100%
+    );
+  }
+
+  /* Content: top-aligned with generous breathing room.
+     flex-start keeps stars/title in the upper visual zone; the yacht fills
+     the lower half. CTAs follow directly below — no auto-push to bottom. */
   .hero-content {
-    justify-content: center;
-    padding-top: 2rem;
+    justify-content: flex-start;
+    padding-top: clamp(4.5rem, 9vh, 7rem);
   }
   .hero-cta-group {
-    margin-top: 2.5rem;
+    margin-top: 2rem;
+  }
+
+  /* Eyebrow: more air between it and the title, stronger contrast */
+  .hero-eyebrow {
+    margin-bottom: 1.25rem;
+    text-shadow:
+      0 1px 4px rgba(0, 0, 0, 0.98),
+      0 2px 28px rgba(10, 22, 40, 0.98);
+  }
+
+  /* Subtitle: bump size slightly, much stronger shadow against bright water */
+  .hero-sub {
+    font-size: clamp(.9rem, 1.75vw, 1.05rem);
+    margin-top: 1.35rem;
+    text-shadow:
+      0 1px 3px rgba(0, 0, 0, 0.98),
+      0 2px 22px rgba(10, 22, 40, 0.98),
+      0 0 40px rgba(10, 22, 40, 0.7);
   }
 }
 /* Tablet / narrow desktop: keep single-row nav, tighten spacing */
 @media (min-width: 769px) and (max-width: 1100px) {
   :root { --nav-scroll-offset: 4rem; }
-  .hero-content { padding-top: 2rem; }
   nav {
     display: flex;
     flex-wrap: nowrap;
