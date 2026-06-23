@@ -382,8 +382,8 @@ def check_html(r: Runner, rel: str, html: str) -> None:
         and html.count('sizes="78vw"') == 12
         and 'portals-vells-1-640.webp' in html
         and 'portals-vells-1-720.webp' in html
-        and 'images/mobile/dest/portals-vells-1-960.webp 800w' in html
-        and 'images/mobile/dest/portals-vells-1.webp 800w' not in html
+        and 'images/mobile/dest/portals-vells-1-960.webp 640w' in html
+        and 'images/mobile/dest/portals-vells-1.webp 960w' in html
         # Lightbox: cache hit if card was visible; card srcset (WebP tiers only,
         # never .jpg fallback or master) if not yet loaded.
         and 'window.LY_cardLoadedSrc' in html
