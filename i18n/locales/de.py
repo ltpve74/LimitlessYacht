@@ -1061,6 +1061,7 @@ PAIRS = [
     ('Catering &amp; beach clubs on request', 'Catering &amp; Beach Clubs auf Anfrage'),
     ('Provisioning &amp; mooring extra on multi-day', 'Verpflegung &amp; Liegeplatz extra bei mehrtägigen Törns'),
     # Contact section — new layout
+    ('Quick Enquiry', 'Schnellanfrage'),
     ('>Get a Quote<', '>Angebot einholen<'),
     ('Request<em> Your Quote</em>', 'Ihr<em> Angebot anfordern</em>'),
     ("Drop your email and pick your preferred dates — we'll reply with availability and a personalised quote within 24 hours. No commitment required.", 'Hinterlassen Sie Ihre E-Mail und wählen Sie Ihre Wunschtermine — wir antworten mit Verfügbarkeit und einem persönlichen Angebot innerhalb von 24 Stunden. Unverbindlich.'),

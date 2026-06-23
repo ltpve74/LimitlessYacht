@@ -2181,10 +2181,9 @@ def check_shared_assets(r: Runner) -> None:
         and 'ly_charters_rates_view' in index_html,
     )
     r.check(
-        'calendar enquire opens inline form with email focus',
-        "getElementById('calEmailForm')" in index_html
+        'calendar enquire opens email sheet with autofocus',
+        'window.LY_openEmailSheet' in index_html
         and "getElementById('cal_inline_email')" in index_html
-        and 'formPanel.hidden = false' in index_html
         and 'emailInput.focus()' in index_html
         and 'ly_form_view' in index_html,
     )
@@ -2303,11 +2302,11 @@ def check_shared_assets(r: Runner) -> None:
         and "matchMedia('(min-width: 1101px)')" in index_html,
     )
     r.check(
-        'calendar enquire opens inline form (no navigation to separate section)',
+        'calendar enquire opens email sheet (no navigation to separate section)',
         'function isCalendarFormPaired()' in index_html
-        and 'formPanel.hidden = false' in index_html
-        and 'calEmailForm' in index_html
-        and 'scrollIntoView' in index_html,
+        and 'window.LY_openEmailSheet' in index_html
+        and 'id="emailSheet"' in index_html
+        and 'id="emailSheetBackdrop"' in index_html,
     )
     r.check(
         'mobile funnel CTAs route to availability calendar',
@@ -2481,12 +2480,12 @@ def check_shared_assets(r: Runner) -> None:
         is not None,
     )
     r.check(
-        'inline email form has date pre-fill from calendar and simple text input',
-        'id="calEmailForm"' in index_html
-        and 'id="calInlineDatesField"' in index_html
-        and 'id="cal_inline_dates"' in index_html
+        'email sheet has date pre-fill from calendar shown as read-only text',
+        'id="emailSheet"' in index_html
+        and 'id="emailSheetDate"' in index_html
         and 'id="cal_inline_date"' in index_html
-        and 'type="text" name="preferred_dates"' in index_html
+        and 'id="cal_inline_date_end"' in index_html
+        and 'LY_openEmailSheet' in index_html
         and 'href="#avail-cal"' in index_html,
     )
     r.check(

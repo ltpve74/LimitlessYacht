@@ -4,7 +4,7 @@
 <meta charset="UTF-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1.0" />
 <style id="fouc-guard">html{background:#0a1628;color-scheme:dark}a,a:any-link{color:#f5f0e8!important;text-decoration:none!important;-webkit-text-fill-color:currentColor!important}a.btn-primary,a.itinerary-meet-cta,a.mobile-nav-cta{color:#0a1628!important;-webkit-text-fill-color:#0a1628!important}a.btn-ghost,a.nav-cta{color:#f5f0e8!important;-webkit-text-fill-color:#f5f0e8!important}html:not(.ly-main-ready) body>:not(nav):not(#hero){display:none!important}</style>
-<script>window.LY_MAIN_CSS_HREF='css/main.css?v=147';</script>
+<script>window.LY_MAIN_CSS_HREF='css/main.css?v=148';</script>
 <script src="js/net-tier.js"></script>
 <script src="js/progressive-images.js"></script>
 
@@ -95,7 +95,7 @@ nav{position:fixed;inset:0 0 auto;z-index:100;display:flex;align-items:center;ga
 </script>
 <script>
 (function () {
-  var href = window.LY_MAIN_CSS_HREF || 'css/main.css?v=147';
+  var href = window.LY_MAIN_CSS_HREF || 'css/main.css?v=148';
   function lyMainReady() {
     requestAnimationFrame(function () {
       requestAnimationFrame(function () {
@@ -116,7 +116,7 @@ nav{position:fixed;inset:0 0 auto;z-index:100;display:flex;align-items:center;ga
   document.head.appendChild(link);
 })();
 </script>
-<noscript><link rel="stylesheet" href="css/main.css?v=147" /></noscript>
+<noscript><link rel="stylesheet" href="css/main.css?v=148" /></noscript>
 
 <title>Limitless Yacht Experience – Luxury Maiora Charter in Mallorca</title>
 <meta name="description" content="Charter the 21.5 m Maiora 'Limitless' from Palma de Mallorca — day and multi-day cruises to Mallorca's finest coves, Cabrera and Formentera. Crewed, up to 12 guests." />
@@ -2296,28 +2296,6 @@ document.addEventListener('DOMContentLoaded', function() {
       </div>
       <p class="cal-form-fallback"><a href="#enquire-form" class="cal-enquire-link is-disabled" id="calEnquireBtn" aria-disabled="true">Prefer email? Fill in the enquiry form →</a></p>
     </div>
-    <div class="cal-email-form" id="calEmailForm" hidden>
-      <form class="cal-inline-form" id="calInlineForm" name="contact-en" netlify>
-        <input type="hidden" name="form-name" value="contact-en" />
-        <input type="hidden" name="locale" value="en" />
-        <input type="hidden" name="preferred_date" id="cal_inline_date" />
-        <input type="hidden" name="preferred_date_end" id="cal_inline_date_end" />
-        <input type="hidden" name="message" id="cal_form_message" />
-        <input type="text" name="company" id="cal_ly_hp" tabindex="-1" autocomplete="off" style="position:absolute;left:-9999px;height:0;width:0;opacity:0" aria-hidden="true">
-        <div class="form-field">
-          <label for="cal_inline_email">Email</label>
-          <input type="email" name="email" id="cal_inline_email" inputmode="email" autocomplete="email" placeholder="your@email.com" required>
-        </div>
-        <div class="form-field" id="calInlineDatesField" hidden>
-          <label for="cal_inline_dates">Dates</label>
-          <input type="text" name="preferred_dates" id="cal_inline_dates" readonly>
-        </div>
-        <button type="submit" class="form-submit cal-inline-submit" id="calInlineSubmitBtn" data-default-text="Send">Send</button>
-        <p class="cal-inline-consent">By sending, you agree to be contacted about your enquiry. See our <a href="legal.html">Privacy Policy</a>.</p>
-        <div class="cal-inline-success" id="calInlineSuccess" hidden></div>
-        <div class="cal-inline-error" id="calInlineError" hidden>Something went wrong — please try WhatsApp instead.</div>
-      </form>
-    </div>
     <div class="section-cross-cta section-cross-cta--desktop reveal">
       <p class="section-cta-text">Still weighing a half-day splash against a multi-day escape?</p>
       <div class="section-cta-btns">
@@ -3529,14 +3507,19 @@ document.addEventListener('DOMContentLoaded', function() {
     await lySubmitForm(this, document.getElementById('submitBtn'), document.getElementById('form-success'), document.getElementById('form-error'));
   });
 
-  // Inline calendar email form
+  // Inline calendar email form (in #emailSheet)
   var _ilf = document.getElementById('calInlineForm');
   if (_ilf) _ilf.addEventListener('submit', async function(e) {
     e.preventDefault();
     if (document.getElementById('cal_ly_hp') && document.getElementById('cal_ly_hp').value) return;
     var mf = document.getElementById('cal_form_message');
     if (mf) mf.value = buildDateMsg('cal_inline_date', 'cal_inline_date_end');
-    await lySubmitForm(this, document.getElementById('calInlineSubmitBtn'), document.getElementById('calInlineSuccess'), document.getElementById('calInlineError'), 'block');
+    var _suc = document.getElementById('calInlineSuccess');
+    await lySubmitForm(this, document.getElementById('calInlineSubmitBtn'), _suc, document.getElementById('calInlineError'), 'block');
+    if (_suc && _suc.style.display === 'block') {
+      var _sheet = document.getElementById('emailSheet');
+      if (_sheet) _sheet.classList.add('email-sheet--success');
+    }
   });
 
   // Fire ly_form_view once when the main enquire-section form scrolls into view
@@ -4136,23 +4119,20 @@ document.addEventListener('DOMContentLoaded', function() {
     if (!selected.length) { e.preventDefault(); return; }
     e.preventDefault();
     if (window.LY_clarityEvent) window.LY_clarityEvent('ly_cal_avail_enquire');
-    var inlineDatesInput = document.getElementById('cal_inline_dates');
-    var inlineDatesField = document.getElementById('calInlineDatesField');
     var inlineDateHidden = document.getElementById('cal_inline_date');
     var inlineDateEndHidden = document.getElementById('cal_inline_date_end');
-    if (inlineDatesInput && selected.length) {
-      inlineDatesInput.value = formatSelection();
-      if (inlineDatesField) inlineDatesField.hidden = false;
-    }
     if (inlineDateHidden) inlineDateHidden.value = selected[0] || '';
     if (inlineDateEndHidden) inlineDateEndHidden.value = selected.length > 1 ? selected[selected.length - 1] : '';
-    var formPanel = document.getElementById('calEmailForm');
-    if (formPanel && formPanel.hidden) {
-      formPanel.hidden = false;
-      if (window.LY_clarityEvent) window.LY_clarityEvent('ly_form_view');
+    var displayDate = '';
+    if (selected.length) {
+      var lang = (document.documentElement.lang || 'en').split('-')[0];
+      var localeMap = { en: 'en-GB', es: 'es-ES', de: 'de-DE', fr: 'fr-FR' };
+      var dfmt = new Intl.DateTimeFormat(localeMap[lang] || 'en-GB', {day: 'numeric', month: 'long', year: 'numeric'});
+      var dd0 = dfmt.format(parseDate(selected[0]));
+      var dd1 = selected.length > 1 ? dfmt.format(parseDate(selected[selected.length - 1])) : '';
+      displayDate = dd1 ? dd0 + ' – ' + dd1 : dd0;
     }
-    var emailInput = document.getElementById('cal_inline_email');
-    if (emailInput) { emailInput.focus(); emailInput.scrollIntoView({ behavior: 'smooth', block: 'nearest' }); }
+    if (window.LY_openEmailSheet) window.LY_openEmailSheet(displayDate);
   });
   if (waBtn) waBtn.addEventListener('click', function(e) {
     if (!selected.length) { e.preventDefault(); return; }
@@ -4641,6 +4621,110 @@ document.addEventListener('DOMContentLoaded', function() {
   var ls=document.querySelectorAll('.nav-lang-popover a[hreflang], .mobile-lang a[hreflang]');
   for(var i=0;i<ls.length;i++){(function(a){a.addEventListener('click',function(){try{localStorage.setItem('ly_lang',a.getAttribute('hreflang'));}catch(e){}});})(ls[i]);}
 }catch(e){}})();
+</script>
+<!-- Email enquiry sheet -->
+<div class="email-sheet-backdrop" id="emailSheetBackdrop" hidden></div>
+<div class="email-sheet" id="emailSheet" role="dialog" aria-modal="true" aria-label="Email enquiry" hidden>
+  <div class="email-sheet-handle" aria-hidden="true"></div>
+  <button type="button" class="email-sheet-close" id="emailSheetClose" aria-label="Close">✕</button>
+  <p class="email-sheet-title">Quick Enquiry</p>
+  <p class="email-sheet-date" id="emailSheetDate" hidden></p>
+  <form class="cal-inline-form" id="calInlineForm" name="contact-en" netlify>
+    <input type="hidden" name="form-name" value="contact-en" />
+    <input type="hidden" name="locale" value="en" />
+    <input type="hidden" name="preferred_date" id="cal_inline_date" />
+    <input type="hidden" name="preferred_date_end" id="cal_inline_date_end" />
+    <input type="hidden" name="message" id="cal_form_message" />
+    <input type="text" name="company" id="cal_ly_hp" tabindex="-1" autocomplete="off" style="position:absolute;left:-9999px;height:0;width:0;opacity:0" aria-hidden="true">
+    <div class="form-field">
+      <label for="cal_inline_email">Email</label>
+      <input type="email" name="email" id="cal_inline_email" inputmode="email" autocomplete="email" placeholder="your@email.com" required>
+    </div>
+    <button type="submit" class="form-submit cal-inline-submit" id="calInlineSubmitBtn" data-default-text="Send">Send</button>
+    <p class="cal-inline-consent">By sending, you agree to be contacted about your enquiry. See our <a href="legal.html">Privacy Policy</a>.</p>
+    <div class="cal-inline-success" id="calInlineSuccess" hidden></div>
+    <div class="cal-inline-error" id="calInlineError" hidden>Something went wrong — please try WhatsApp instead.</div>
+  </form>
+</div>
+<script>
+(function() {
+  var sheet = document.getElementById('emailSheet');
+  var backdrop = document.getElementById('emailSheetBackdrop');
+  if (!sheet || !backdrop) return;
+  var closeBtn = document.getElementById('emailSheetClose');
+  var dateEl = document.getElementById('emailSheetDate');
+  var emailInput = document.getElementById('cal_inline_email');
+  var isOpen = false;
+  var touchStartY = 0;
+  var enquiringLabels = { en: 'Enquiring about: ', es: 'Consulta sobre: ', de: 'Anfrage für: ', fr: 'Demande pour : ' };
+
+  function resetSheet() {
+    sheet.classList.remove('email-sheet--success');
+    var suc = document.getElementById('calInlineSuccess');
+    if (suc) suc.style.display = '';
+    var err = document.getElementById('calInlineError');
+    if (err) err.style.display = '';
+    var sub = document.getElementById('calInlineSubmitBtn');
+    if (sub) { sub.textContent = sub.getAttribute('data-default-text') || 'Send'; sub.disabled = false; sub.style.opacity = '1'; }
+    var frm = document.getElementById('calInlineForm');
+    if (frm) frm.reset();
+  }
+
+  function openSheet(displayDate) {
+    if (isOpen) return;
+    isOpen = true;
+    resetSheet();
+    if (dateEl) {
+      if (displayDate) {
+        var lang = (document.documentElement.lang || 'en').split('-')[0];
+        dateEl.textContent = (enquiringLabels[lang] || enquiringLabels.en) + displayDate;
+        dateEl.hidden = false;
+      } else {
+        dateEl.hidden = true;
+      }
+    }
+    backdrop.hidden = false;
+    sheet.hidden = false;
+    document.body.style.overflow = 'hidden';
+    requestAnimationFrame(function() {
+      requestAnimationFrame(function() {
+        sheet.classList.add('is-open');
+        backdrop.classList.add('is-open');
+        if (emailInput) emailInput.focus();
+      });
+    });
+    if (window.LY_clarityEvent) window.LY_clarityEvent('ly_form_view');
+  }
+
+  function closeSheet() {
+    if (!isOpen) return;
+    isOpen = false;
+    sheet.classList.remove('is-open');
+    backdrop.classList.remove('is-open');
+    document.body.style.overflow = '';
+    setTimeout(function() { if (!isOpen) { sheet.hidden = true; backdrop.hidden = true; } }, 300);
+  }
+
+  window.LY_openEmailSheet = openSheet;
+
+  if (closeBtn) closeBtn.addEventListener('click', closeSheet);
+  backdrop.addEventListener('click', closeSheet);
+
+  sheet.addEventListener('touchstart', function(e) { touchStartY = e.touches[0].clientY; }, {passive: true});
+  sheet.addEventListener('touchend', function(e) { if (e.changedTouches[0].clientY - touchStartY > 60) closeSheet(); }, {passive: true});
+
+  sheet.addEventListener('keydown', function(e) {
+    if (e.key === 'Escape') { closeSheet(); return; }
+    if (e.key !== 'Tab') return;
+    var focusable = Array.from(sheet.querySelectorAll(
+      'button:not([disabled]):not([tabindex="-1"]), input:not([disabled]):not([tabindex="-1"]), a[href]:not([tabindex="-1"])'
+    ));
+    if (focusable.length < 2) return;
+    var first = focusable[0], last = focusable[focusable.length - 1];
+    if (e.shiftKey && document.activeElement === first) { e.preventDefault(); last.focus(); }
+    else if (!e.shiftKey && document.activeElement === last) { e.preventDefault(); first.focus(); }
+  });
+})();
 </script>
 </body>
 </html>

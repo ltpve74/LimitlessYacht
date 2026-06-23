@@ -1063,6 +1063,7 @@ PAIRS = [
     ('Catering &amp; beach clubs on request', 'Catering &amp; beach clubs bajo petición'),
     ('Provisioning &amp; mooring extra on multi-day', 'Aprovisionamiento &amp; amarre extra en travesías de varios días'),
     # Contact section — new layout
+    ('Quick Enquiry', 'Consulta rápida'),
     ('>Get a Quote<', '>Solicitar presupuesto<'),
     ('Request<em> Your Quote</em>', 'Solicite<em> su presupuesto</em>'),
     ("Drop your email and pick your preferred dates — we'll reply with availability and a personalised quote within 24 hours. No commitment required.", 'Deje su email y elija sus fechas preferidas — le responderemos con disponibilidad y un presupuesto personalizado en 24 horas. Sin compromiso.'),
