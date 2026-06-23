@@ -587,6 +587,7 @@ window.LY_whenNearSection = function(id, fn) {
 };
 window.LY_preloadedUrls = {};
 window.LY_heroGateOpen = true; /* no hero gate: images load natively */
+window.LY_onHeroSharpReady = window.LY_onHeroSharpReady || [];
 window.LY_heroGateBlocked = function() {
   return false; /* no hero gate */
 };
@@ -837,18 +838,14 @@ window.LY_galleryMasterUrl = function(idx) {
 window.LY_stemFromMasterUrl = function(masterUrl) {
   return masterUrl ? masterUrl.replace(/\.webp$/i, '') : '';
 };
-window.LY_destCardUrl = function(idx) {
-  return window.LY_cardTierFromMaster(window.LY_destMasterUrl(idx), window.LY_sharpTierSuffix('dest'));
-};
-window.LY_destLbUrl = function(idx) {
-  return window.LY_cardTierFromMaster(window.LY_destMasterUrl(idx), window.LY_sharpTierSuffix('dest'));
-};
-window.LY_galleryCardUrl = function(idx) {
-  return window.LY_cardTierFromMaster(window.LY_galleryMasterUrl(idx), window.LY_sharpTierSuffix('gallery'));
-};
-window.LY_galleryLbUrl = function(idx) {
-  return window.LY_cardTierFromMaster(window.LY_galleryMasterUrl(idx), window.LY_sharpTierSuffix('gallery'));
-};
+/* Vestigial image-URL builders from the old JS preloader. Native <img> loading
+   replaced manual card preloading; the wrap-by-URL lookup no longer matches
+   (static wraps carry no data-ly-sharp-url), so these just return '' and every
+   caller no-ops. (Full removal of the dead preload subsystem to follow.) */
+window.LY_destCardUrl = function() { return ''; };
+window.LY_destLbUrl = function() { return ''; };
+window.LY_galleryCardUrl = function() { return ''; };
+window.LY_galleryLbUrl = function() { return ''; };
 window.LY_activateGalleryCard = function(idx, front) {
   if (idx == null || idx < 0) return;
   var url = window.LY_galleryCardUrl(idx);
