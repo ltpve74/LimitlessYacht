@@ -1824,51 +1824,39 @@ footer {
       visibility 0s;
   }
 
-  /* ── Desktop hero redesign ──
-     Nav is hidden at the hero top so its own gradient is gone — the bright
-     hero image is fully exposed from y=0. Compensate with a much stronger
-     top scrim and give the content cluster clear breathing room. */
+  /* ── Desktop hero: flat overlay + centered content ──
+     Uniform dark veil over the full image — no directional fade.
+     Centering the cluster moves the eyebrow to the natural mid-frame
+     rather than pinned close to the browser chrome. */
 
-  /* Top scrim: extend coverage and push opacity up to replace the lost nav
-     gradient. From ~95% dark at the very top, fading gracefully. */
-  .hero-content::before {
-    height: min(75%, 36rem);
-    background: linear-gradient(
-      180deg,
-      rgba(10, 22, 40, 0.95) 0%,
-      rgba(10, 22, 40, 0.62) 45%,
-      rgba(10, 22, 40, 0.18) 78%,
-      transparent 100%
-    );
+  /* Flat overlay replaces the edge-only gradient. */
+  .hero-overlay {
+    background: rgba(10, 22, 40, 0.40);
   }
 
-  /* Content: top-aligned with generous breathing room.
-     flex-start keeps stars/title in the upper visual zone; the yacht fills
-     the lower half. CTAs follow directly below — no auto-push to bottom. */
+  /* Disable the ::before top-gradient scrim — overlay handles contrast. */
+  .hero-content::before {
+    height: 0;
+  }
+
+  /* Center the cluster vertically; reset the default top padding. */
   .hero-content {
-    justify-content: flex-start;
-    padding-top: clamp(4.5rem, 9vh, 7rem);
+    justify-content: center;
+    padding-top: 2rem;
   }
   .hero-cta-group {
-    margin-top: 2rem;
+    margin-top: 2.5rem;
   }
 
-  /* Eyebrow: more air between it and the title, stronger contrast */
+  /* Eyebrow: extra gap under it before the title */
   .hero-eyebrow {
     margin-bottom: 1.25rem;
-    text-shadow:
-      0 1px 4px rgba(0, 0, 0, 0.98),
-      0 2px 28px rgba(10, 22, 40, 0.98);
   }
 
-  /* Subtitle: bump size slightly, much stronger shadow against bright water */
+  /* Subtitle: bump size slightly */
   .hero-sub {
     font-size: clamp(.9rem, 1.75vw, 1.05rem);
     margin-top: 1.35rem;
-    text-shadow:
-      0 1px 3px rgba(0, 0, 0, 0.98),
-      0 2px 22px rgba(10, 22, 40, 0.98),
-      0 0 40px rgba(10, 22, 40, 0.7);
   }
 }
 /* Tablet / narrow desktop: keep single-row nav, tighten spacing */
