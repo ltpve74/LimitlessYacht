@@ -4119,6 +4119,14 @@ document.addEventListener('DOMContentLoaded', function() {
     if (!selected.length) { e.preventDefault(); return; }
     e.preventDefault();
     if (window.LY_clarityEvent) window.LY_clarityEvent('ly_cal_avail_enquire');
+    if (window.matchMedia('(min-width: 641px)').matches) {
+      // Desktop: focus the main form email field directly
+      if (window.LY_clarityEvent) window.LY_clarityEvent('ly_form_view');
+      var emailEl = document.getElementById('email');
+      if (emailEl) emailEl.focus();
+      return;
+    }
+    // Mobile: populate hidden date inputs and open sheet
     var inlineDateHidden = document.getElementById('cal_inline_date');
     var inlineDateEndHidden = document.getElementById('cal_inline_date_end');
     if (inlineDateHidden) inlineDateHidden.value = selected[0] || '';

@@ -2181,10 +2181,12 @@ def check_shared_assets(r: Runner) -> None:
         and 'ly_charters_rates_view' in index_html,
     )
     r.check(
-        'calendar enquire opens email sheet with autofocus',
+        'calendar enquire: sheet on mobile, focus main email field on desktop',
         'window.LY_openEmailSheet' in index_html
         and "getElementById('cal_inline_email')" in index_html
         and 'emailInput.focus()' in index_html
+        and "matchMedia('(min-width: 641px)')" in index_html
+        and "getElementById('email')" in index_html
         and 'ly_form_view' in index_html,
     )
     r.check(

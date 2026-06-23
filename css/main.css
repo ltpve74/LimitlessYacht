@@ -2410,18 +2410,7 @@ footer {
 #emailSheet.email-sheet--success .cal-inline-consent,
 #emailSheet.email-sheet--success .email-sheet-date { display: none; }
 @media (min-width: 641px) {
-  .email-sheet {
-    left: 50%; right: auto; bottom: auto; top: 50%;
-    width: min(28rem, calc(100vw - 2rem));
-    border-radius: .75rem;
-    border: 1px solid rgba(201,168,76,.2);
-    transform: translate(-50%, -46%);
-    transition: transform .25s ease, opacity .25s ease;
-    opacity: 0;
-    max-height: calc(100dvh - 4rem);
-  }
-  .email-sheet.is-open { transform: translate(-50%, -50%); opacity: 1; }
-  .email-sheet-handle { display: none; }
+  .email-sheet, .email-sheet-backdrop { display: none !important; }
 }
 .cal-inline-form { display: flex; flex-direction: column; gap: .75rem; }
 .cal-inline-submit { margin-top: .25rem; }
