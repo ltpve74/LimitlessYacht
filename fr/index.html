@@ -1405,7 +1405,7 @@ window.LY_afterMeaningfulPaint(function() {
     <p class="section-cta-text">Vous aimez ce que vous voyez ? Commencez à planifier votre charter.</p>
     <div class="section-cta-btns">
       <a href="#avail-cal" class="btn-primary">Vérifier les disponibilités</a>
-      <a href="#avail-cal" class="btn-ghost">Obtenir votre devis</a>
+      <a href="#avail-cal" class="btn-ghost">View Dates</a>
     </div>
   </div>
 </section>
@@ -1517,7 +1517,7 @@ window.LY_afterMeaningfulPaint(function() {
         </ul>
       </aside>
       <div class="enquiry-cta-wrap reveal">
-        <a href="#avail-cal" class="btn-primary">Obtenir votre devis</a>
+        <a href="#avail-cal" class="btn-primary">Vérifier les disponibilités</a>
         <p class="enquiry-flex-note">Disponible toute l'année &nbsp;·&nbsp; Nous répondons en 24 heures</p>
         <div class="section-cross-cta section-cross-cta--desktop">
           <p class="section-cta-text">Vous préférez fixer les dates d'abord — ou entendre des invités déjà embarqués ?</p>
@@ -1697,7 +1697,7 @@ window.LY_afterMeaningfulPaint(function() {
       <div class="section-cta-btns">
         <a href="#avail-cal" class="btn-primary section-cta-avail--mobile">Vérifier les disponibilités</a>
         <a href="#availability" class="btn-primary section-cta-avail--desktop">Vérifier les disponibilités</a>
-        <a href="#avail-cal" class="btn-ghost section-cta-quote--mobile">Obtenir votre devis</a>
+        <a href="#avail-cal" class="btn-ghost section-cta-quote--mobile">View Dates</a>
       </div>
     </div>
     <div class="section-cross-cta section-cross-cta--desktop reveal">
@@ -1828,7 +1828,7 @@ window.LY_afterMeaningfulPaint(function() {
       <div class="section-cta-btns">
         <a href="#avail-cal" class="btn-primary section-cta-avail--mobile">Vérifier les disponibilités</a>
         <a href="#availability" class="btn-primary section-cta-avail--desktop">Vérifier les disponibilités</a>
-        <a href="#avail-cal" class="btn-ghost section-cta-quote--mobile">Obtenir votre devis</a>
+        <a href="#avail-cal" class="btn-ghost section-cta-quote--mobile">View Dates</a>
       </div>
     </div>
     <div class="section-cross-cta section-cross-cta--desktop reveal reveal-delay-2">
@@ -3288,7 +3288,7 @@ window.LY_afterMeaningfulPaint(function() {
       var dd1 = selected.length > 1 ? dfmt.format(parseDate(selected[selected.length - 1])) : '';
       displayDate = dd1 ? dd0 + ' – ' + dd1 : dd0;
     }
-    if (window.LY_openE-mailSheet) window.LY_openE-mailSheet(displayDate);
+    if (window.LY_openEnqSheet) window.LY_openEnqSheet(displayDate);
   });
   if (waBtn) waBtn.addEventListener('click', function(e) {
     if (!selected.length) { e.preventDefault(); return; }
@@ -3861,7 +3861,7 @@ window.LY_afterMeaningfulPaint(function() {
     setTimeout(function() { if (!isOpen) { sheet.hidden = true; backdrop.hidden = true; } }, 300);
   }
 
-  window.LY_openE-mailSheet = openSheet;
+  window.LY_openEnqSheet = openSheet;
 
   if (closeBtn) closeBtn.addEventListener('click', closeSheet);
   backdrop.addEventListener('click', closeSheet);

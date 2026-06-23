@@ -171,7 +171,7 @@ def check_html(r: Runner, rel: str, html: str) -> None:
         and 'section-cta-quote--desktop' not in html
         and html.count('href="#availability" class="btn-primary section-cta-avail--desktop"') == 2
         and html.count('href="#avail-cal" class="btn-primary section-cta-avail--mobile"') == 2
-        and html.count('href="#enquire" class="btn-ghost section-cta-quote--mobile"') == 2,
+        and html.count('href="#avail-cal" class="btn-ghost section-cta-quote--mobile"') == 2,
     )
     r.check(
         'charters section groups options with includes panel',
@@ -2014,12 +2014,14 @@ def check_shared_assets(r: Runner) -> None:
             re.DOTALL,
         ) is not None
         and re.search(
-            r'#availability\s*\.cal-contact-actions\s*>\s*\.btn-primary[^}]*max-width:\s*none\s*!important',
+            r'#availability\s*\.availability-actions\s*>\s*\.btn-primary[^}]*max-width:\s*none\s*!important',
             css,
+            re.DOTALL,
         ) is not None
         and re.search(
-            r'#availability\s*\.cal-contact-actions\s*>\s*\.btn-primary[^}]*flex:\s*none\s*!important',
+            r'#availability\s*\.availability-actions\s*>\s*\.btn-primary[^}]*flex:\s*1\s*1\s*0\s*!important',
             css,
+            re.DOTALL,
         ) is not None,
     )
     preview_yml = read_file('.github/workflows/preview.yml') or ''
@@ -2313,7 +2315,7 @@ def check_shared_assets(r: Runner) -> None:
     )
     r.check(
         'calendar enquire: sheet on mobile, focus main email field on desktop',
-        'window.LY_openEmailSheet' in index_html
+        'window.LY_openEnqSheet' in index_html
         and "getElementById('cal_inline_email')" in index_html
         and 'emailInput.focus()' in index_html
         and "matchMedia('(min-width: 641px)')" in index_html
@@ -2435,7 +2437,7 @@ def check_shared_assets(r: Runner) -> None:
     r.check(
         'calendar enquire opens email sheet (no navigation to separate section)',
         'function isCalendarFormPaired()' in index_html
-        and 'window.LY_openEmailSheet' in index_html
+        and 'window.LY_openEnqSheet' in index_html
         and 'id="emailSheet"' in index_html
         and 'id="emailSheetBackdrop"' in index_html,
     )
@@ -2618,7 +2620,7 @@ def check_shared_assets(r: Runner) -> None:
         and 'id="emailSheetDate"' in index_html
         and 'id="cal_inline_date"' in index_html
         and 'id="cal_inline_date_end"' in index_html
-        and 'LY_openEmailSheet' in index_html
+        and 'LY_openEnqSheet' in index_html
         and 'href="#avail-cal"' in index_html,
     )
     r.check(

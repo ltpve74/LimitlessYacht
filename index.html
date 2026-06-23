@@ -1405,7 +1405,7 @@ window.LY_afterMeaningfulPaint(function() {
     <p class="section-cta-text">Liked what you see? Start planning your charter.</p>
     <div class="section-cta-btns">
       <a href="#avail-cal" class="btn-primary">Check Availability</a>
-      <a href="#avail-cal" class="btn-ghost">Get Your Quote</a>
+      <a href="#avail-cal" class="btn-ghost">View Dates</a>
     </div>
   </div>
 </section>
@@ -1517,7 +1517,7 @@ window.LY_afterMeaningfulPaint(function() {
         </ul>
       </aside>
       <div class="enquiry-cta-wrap reveal">
-        <a href="#avail-cal" class="btn-primary">Get Your Quote</a>
+        <a href="#avail-cal" class="btn-primary">Check Availability</a>
         <p class="enquiry-flex-note">Available year-round &nbsp;·&nbsp; We respond within 24 hours</p>
         <div class="section-cross-cta section-cross-cta--desktop">
           <p class="section-cta-text">Rather pin down dates first — or hear from guests who've been on board?</p>
@@ -1697,7 +1697,7 @@ window.LY_afterMeaningfulPaint(function() {
       <div class="section-cta-btns">
         <a href="#avail-cal" class="btn-primary section-cta-avail--mobile">Check Availability</a>
         <a href="#availability" class="btn-primary section-cta-avail--desktop">Check Availability</a>
-        <a href="#avail-cal" class="btn-ghost section-cta-quote--mobile">Get Your Quote</a>
+        <a href="#avail-cal" class="btn-ghost section-cta-quote--mobile">View Dates</a>
       </div>
     </div>
     <div class="section-cross-cta section-cross-cta--desktop reveal">
@@ -1828,7 +1828,7 @@ window.LY_afterMeaningfulPaint(function() {
       <div class="section-cta-btns">
         <a href="#avail-cal" class="btn-primary section-cta-avail--mobile">Check Availability</a>
         <a href="#availability" class="btn-primary section-cta-avail--desktop">Check Availability</a>
-        <a href="#avail-cal" class="btn-ghost section-cta-quote--mobile">Get Your Quote</a>
+        <a href="#avail-cal" class="btn-ghost section-cta-quote--mobile">View Dates</a>
       </div>
     </div>
     <div class="section-cross-cta section-cross-cta--desktop reveal reveal-delay-2">
@@ -3288,7 +3288,7 @@ window.LY_afterMeaningfulPaint(function() {
       var dd1 = selected.length > 1 ? dfmt.format(parseDate(selected[selected.length - 1])) : '';
       displayDate = dd1 ? dd0 + ' – ' + dd1 : dd0;
     }
-    if (window.LY_openEmailSheet) window.LY_openEmailSheet(displayDate);
+    if (window.LY_openEnqSheet) window.LY_openEnqSheet(displayDate);
   });
   if (waBtn) waBtn.addEventListener('click', function(e) {
     if (!selected.length) { e.preventDefault(); return; }
@@ -3861,7 +3861,7 @@ window.LY_afterMeaningfulPaint(function() {
     setTimeout(function() { if (!isOpen) { sheet.hidden = true; backdrop.hidden = true; } }, 300);
   }
 
-  window.LY_openEmailSheet = openSheet;
+  window.LY_openEnqSheet = openSheet;
 
   if (closeBtn) closeBtn.addEventListener('click', closeSheet);
   backdrop.addEventListener('click', closeSheet);
