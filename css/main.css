@@ -1834,10 +1834,13 @@ footer {
   #availability .availability-actions > .btn-ghost,
   .section-cta-btns > .btn-primary:not(.section-cta-avail--desktop),
   .section-cta-btns > .btn-ghost {
-    display: block !important;
-    width: 100% !important;
+    display: flex !important;
+    align-items: center;
+    justify-content: center;
+    flex: 1 1 0 !important;
+    min-width: 0;
+    width: auto !important;
     max-width: none !important;
-    flex: none !important;
     align-self: stretch !important;
     box-sizing: border-box;
     text-align: center;
@@ -1856,11 +1859,11 @@ footer {
 }
 @media (max-width: 640px) {
   .form-submit { width: 100%; align-self: stretch; }
-  .cal-contact-actions { flex-direction: column; }
-  .cal-contact-actions .btn-primary, .cal-contact-actions .btn-ghost { width: 100%; text-align: center; justify-content: center; }
+  .cal-contact-actions { flex-direction: row; flex-wrap: nowrap; }
+  .cal-contact-actions .btn-primary, .cal-contact-actions .btn-ghost { flex: 1 1 0; min-width: 0; width: auto; text-align: center; justify-content: center; white-space: normal; }
   .section-cta { padding: 0 1.2rem 1.5rem; }
-  .section-cta-btns { flex-direction: column; }
-  .section-cta-btns .btn-primary, .section-cta-btns .btn-ghost { width: 100%; text-align: center; }
+  .section-cta-btns { flex-direction: row !important; flex-wrap: nowrap; }
+  .section-cta-btns .btn-primary, .section-cta-btns .btn-ghost { text-align: center; }
 }
 
 
