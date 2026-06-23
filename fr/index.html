@@ -626,10 +626,16 @@ window.LY_promoteSharp = function(wrap) {
       return;
     }
     var io = new IntersectionObserver(function (entries) {
-      entries.forEach(function (e) {
-        if (e.isIntersecting) { io.unobserve(e.target); armWrap(e.target); }
-      });
-    }, { rootMargin: '400px' });
+      // Arm the most-visible card first so the in-view carousel card's sharp
+      // image is requested ahead of its neighbours'. Vertical-only rootMargin
+      // (400px top/bottom, 0 left/right) preloads as you scroll DOWN to the
+      // section but stops off-screen cards to the RIGHT of a horizontal
+      // carousel from all arming at once and beating the visible card.
+      entries
+        .filter(function (e) { return e.isIntersecting; })
+        .sort(function (a, b) { return b.intersectionRatio - a.intersectionRatio; })
+        .forEach(function (e) { io.unobserve(e.target); armWrap(e.target); });
+    }, { rootMargin: '400px 0px', threshold: [0, 0.25, 0.5, 0.75] });
     for (var j = 0; j < wraps.length; j++) io.observe(wraps[j]);
   }
   // Hold the sharp phase until after meaningful paint so previews + critical

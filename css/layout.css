@@ -435,6 +435,11 @@ section { padding: 7rem 2rem; }
   display: block;
   width: 100%;
   height: 100%;
+  /* Transparent so the blurred .ly-prog-preview underneath shows through.
+     .destination-card-bg otherwise has an opaque background:var(--deep)
+     that would paint over the preview (it is a later DOM sibling at the
+     same z-index level), hiding the blur-to-sharp transition entirely. */
+  background: transparent;
 }
 .about-image-wrap > .ly-prog-wrap .ly-prog-preview,
 .about-image-wrap > .ly-prog-wrap .ly-prog-sharp {

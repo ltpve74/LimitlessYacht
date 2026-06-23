@@ -646,7 +646,11 @@ def check_html(r: Runner, rel: str, html: str) -> None:
         and "wrap.classList.contains('ly-prog-preview-ready')" in html
         and 'function initSharpPromotion' in html
         and 'new IntersectionObserver' in html.split('function initSharpPromotion')[1][:600]
-        and "rootMargin: '400px'" in html
+        # vertical-only rootMargin: preload on scroll-down but don't arm every
+        # off-screen carousel card to the right at once (visible card must win)
+        and "rootMargin: '400px 0px'" in html
+        # most-visible card armed first so its sharp is requested ahead of peers
+        and 'b.intersectionRatio - a.intersectionRatio' in html
         # hero excluded (it loads eagerly), and the whole phase waits for paint
         and ".ly-prog-wrap:not(.ly-prog-wrap--hero)" in html
         and 'LY_afterMeaningfulPaint(initSharpPromotion)' in html,
@@ -1739,6 +1743,17 @@ def check_shared_assets(r: Runner) -> None:
             and 'img:not(.ly-prog-preview):not(.ly-prog-sharp)' in layout_css,
         )
         layout_flat = re.sub(r'\s+', '', layout_css)
+        r.check(
+            'progressive picture is transparent so dest-card blur preview shows through',
+            # .destination-card-bg has background:var(--deep); the progressive
+            # rule must override it to transparent or the opaque picture paints
+            # over the .ly-prog-preview blur (later DOM sibling, same z-level).
+            re.search(
+                r'\.ly-prog-wrap\s+\.destination-card-bg,[\s\S]*?\{[^}]*background:\s*transparent',
+                layout_css,
+            )
+            is not None,
+        )
         r.check(
             'layout.css does not restack hero CTAs to column on phone (matches critical)',
             re.search(
