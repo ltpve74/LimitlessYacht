@@ -1,17 +1,16 @@
 """
 Generate ultra-light progressive -prev.jpg placeholders for slow connections.
 
-~160px longest edge, progressive JPEG — paints incrementally during download.
+~160px longest edge, progressive JPEG, pre-blurred in pixels (no CSS filter).
 Run: .venv/bin/python scripts/build_preview_images.py
 """
 
 from __future__ import annotations
 
-import os
 import re
 from pathlib import Path
 
-from PIL import Image
+from PIL import Image, ImageEnhance, ImageFilter
 
 BASE = Path(__file__).resolve().parent.parent
 IMAGES = BASE / "images"
@@ -19,8 +18,12 @@ MOBILE = BASE / "images" / "mobile"
 PREVIEW_EDGE = 160
 PREVIEW_Q = 52
 HERO_STEMS = frozenset({"maiora_20s_02"})
-HERO_PREVIEW_EDGE = 320
-HERO_PREVIEW_Q = 56
+PREVIEW_BLUR = 2.8
+HERO_PREVIEW_BLUR = 2.2
+PREVIEW_SATURATE = 1.08
+PREVIEW_BRIGHTNESS = 0.92
+HERO_SATURATE = 1.06
+HERO_BRIGHTNESS = 0.94
 
 TIER_SUFFIXES = re.compile(
     r"-(?:480|640|720|960|1280|1440|prev)\.(?:webp|jpg)$"
@@ -54,6 +57,15 @@ def resize_preview(img: Image.Image, edge: int = PREVIEW_EDGE) -> Image.Image:
     return img.resize((max(1, nw), max(1, nh)), Image.LANCZOS)
 
 
+def soften_preview(img: Image.Image, stem: str) -> Image.Image:
+    hero = stem in HERO_STEMS
+    radius = HERO_PREVIEW_BLUR if hero else PREVIEW_BLUR
+    img = img.filter(ImageFilter.GaussianBlur(radius=radius))
+    img = ImageEnhance.Color(img).enhance(HERO_SATURATE if hero else PREVIEW_SATURATE)
+    img = ImageEnhance.Brightness(img).enhance(HERO_BRIGHTNESS if hero else PREVIEW_BRIGHTNESS)
+    return img
+
+
 def load_rgb(path: Path) -> Image.Image:
     jpg = path.with_suffix(".jpg")
     if jpg.is_file():
@@ -62,11 +74,9 @@ def load_rgb(path: Path) -> Image.Image:
 
 
 def write_preview(src: Path, out: Path, stem: str = "") -> float:
-    edge = HERO_PREVIEW_EDGE if stem in HERO_STEMS else PREVIEW_EDGE
-    quality = HERO_PREVIEW_Q if stem in HERO_STEMS else PREVIEW_Q
-    img = resize_preview(load_rgb(src), edge)
+    img = soften_preview(resize_preview(load_rgb(src)), stem)
     out.parent.mkdir(parents=True, exist_ok=True)
-    img.save(out, "JPEG", quality=quality, progressive=True, optimize=True)
+    img.save(out, "JPEG", quality=PREVIEW_Q, progressive=True, optimize=True)
     return out.stat().st_size / 1024
 
 

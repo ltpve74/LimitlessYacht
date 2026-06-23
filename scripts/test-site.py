@@ -539,7 +539,7 @@ def check_html(r: Runner, rel: str, html: str) -> None:
         and 'nav{opacity:0;visibility:hidden;pointer-events:none}' in re.sub(
             r'\s+', '', html[html.find('id="critical-css"'):html.find('</style>', html.find('id="critical-css"'))]
         )
-        and 'blur(4px)' in html
+        and 'soften_preview' in (read_file('scripts/build_preview_images.py') or '')
         and 'LY_progressiveWrapForUrl' in html
         and re.search(
             r'ly-prog-sharp-visible[\s\S]{0,280}scheduleHeroGate',
@@ -562,9 +562,11 @@ def check_html(r: Runner, rel: str, html: str) -> None:
             r'class="ly-prog-preview"[^>]*decoding="async"[^>]*loading="eager"',
             html,
         ) is not None
-        and '.ly-prog-wrap--hero.ly-prog-preview{z-index:0;opacity:1;transform:scale(1.06);filter:saturate(1.06)brightness(.94)}' in re.sub(
+        and '.ly-prog-wrap--hero.ly-prog-preview{z-index:0;opacity:1;transform:scale(1.06)}' in re.sub(
             r'\s+', '', html[html.find('id="critical-css"'):html.find('</style>', html.find('id="critical-css"'))]
         )
+        and 'filter:blur(8px)' not in (read_file('css/layout.css') or '')
+        and 'GaussianBlur' in (read_file('scripts/build_preview_images.py') or '')
         and 'ensurePreview(wrap)' in prog_js
         and 'LY_loadLbProgressive' in prog_js
         and 'LY_ensureLbWrap' in prog_js
@@ -615,9 +617,10 @@ def check_html(r: Runner, rel: str, html: str) -> None:
     )
     hero_prev_kb = os.path.getsize(os.path.join(ROOT, 'images/mobile/maiora_20s_02-prev.jpg')) / 1024
     r.check(
-        'hero preview is large enough for visible progressive paint on slow 3G',
-        hero_prev_kb >= 7.0
-        and 'HERO_PREVIEW_EDGE' in (read_file('scripts/build_preview_images.py') or ''),
+        'hero preview stays lightweight with blur baked into pixels',
+        hero_prev_kb <= 5.0
+        and 'HERO_PREVIEW_BLUR' in (read_file('scripts/build_preview_images.py') or '')
+        and 'HERO_PREVIEW_EDGE' not in (read_file('scripts/build_preview_images.py') or ''),
     )
     r.check(
         'progressive sharp tiers use higher quality rungs with blur preview',
