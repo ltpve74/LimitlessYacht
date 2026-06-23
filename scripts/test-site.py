@@ -553,9 +553,18 @@ def check_html(r: Runner, rel: str, html: str) -> None:
         and 'preview.src = previewUrl' in prog_js
         and 'bootProgressive' in prog_js
         and 'LY_bootHeroEarly' in prog_js
-        and 'injectHeroPreviewPreload' in prog_js
-        and 'maiora_20s_02-prev.jpg' in prog_js
+        and 'finalizeHeroWrap' in prog_js
+        and 'injectHeroPreviewPreload' not in prog_js
         and 'LY_heroWrapEarly' in prog_js
+        and 'class="ly-prog-preview"' in html
+        and 'maiora_20s_02-prev.jpg' in html
+        and re.search(
+            r'class="ly-prog-preview"[^>]*decoding="async"[^>]*loading="eager"',
+            html,
+        ) is not None
+        and '.ly-prog-wrap--hero.ly-prog-preview{z-index:0;opacity:1;transform:scale(1.06);filter:saturate(1.06)brightness(.94)}' in re.sub(
+            r'\s+', '', html[html.find('id="critical-css"'):html.find('</style>', html.find('id="critical-css"'))]
+        )
         and 'ensurePreview(wrap)' in prog_js
         and 'LY_loadLbProgressive' in prog_js
         and 'LY_ensureLbWrap' in prog_js
@@ -604,13 +613,19 @@ def check_html(r: Runner, rel: str, html: str) -> None:
         _is_progressive_jpeg('images/mobile/maiora_20s_02-prev.jpg')
         and _is_progressive_jpeg('images/maiora_20s_02-prev.jpg'),
     )
+    hero_prev_kb = os.path.getsize(os.path.join(ROOT, 'images/mobile/maiora_20s_02-prev.jpg')) / 1024
+    r.check(
+        'hero preview is large enough for visible progressive paint on slow 3G',
+        hero_prev_kb >= 7.0
+        and 'HERO_PREVIEW_EDGE' in (read_file('scripts/build_preview_images.py') or ''),
+    )
     r.check(
         'progressive sharp tiers use higher quality rungs with blur preview',
         "'-960'" in prog_js
         and "'-1280'" in prog_js
         and "kind === 'hero' || kind === 'gallery'" in prog_js
         and "return '-960'" in prog_js
-        and 'preview.decoding = \'sync\'' in prog_js
+        and 'preview.decoding = \'async\'' in prog_js
         and "kind === 'hero'" in prog_js
         and "LY_sharpTierSuffix('dest')" in html
         and "LY_sharpTierSuffix('gallery')" in html,

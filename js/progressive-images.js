@@ -308,8 +308,60 @@
     if (preview.complete && preview.naturalWidth) fn();
   }
 
+  function wireHeroPreview(wrap, preview, previewUrl, skipPreview) {
+    if (!preview) return;
+    if (skipPreview) {
+      startLayoutCssEarly();
+      return;
+    }
+    preview.addEventListener('load', function () { markPreviewReady(wrap); }, { once: true });
+    preview.addEventListener('error', function () { markPreviewReady(wrap); }, { once: true });
+    if (!preview.getAttribute('src')) preview.src = previewUrl;
+    if (preview.complete && preview.naturalWidth) markPreviewReady(wrap);
+  }
+
+  function finalizeHeroWrap(wrap, picture) {
+    if (!wrap || !picture) return null;
+    var stem = pictureStem(picture);
+    if (!stem) return null;
+
+    var previewUrl = g.LY_previewUrlFromStem(stem);
+    var sharpUrl = g.LY_sharpUrlFromStem(stem, 'hero');
+    var skipPreview = sharpIsCached(sharpUrl);
+    stashPictureSources(picture);
+
+    wrap.dataset.lySharpUrl = sharpUrl;
+    wrap.dataset.lyPreviewUrl = previewUrl;
+    wrap.dataset.lyProgKind = 'hero';
+    wrap.classList.toggle('ly-prog-skip-preview', skipPreview);
+
+    var preview = wrap.querySelector('.ly-prog-preview');
+    if (preview) {
+      preview.setAttribute('aria-hidden', 'true');
+      if (!preview.getAttribute('alt')) preview.alt = '';
+      preview.decoding = 'async';
+      preview.loading = 'eager';
+      preview.fetchPriority = 'high';
+    }
+    wireHeroPreview(wrap, preview, previewUrl, skipPreview);
+
+    var img = picture.querySelector('img');
+    if (img) {
+      img.classList.add('ly-prog-sharp');
+      if (img.getAttribute('src')) img.removeAttribute('src');
+    }
+
+    return wrap;
+  }
+
   function wrapPicture(picture, kind) {
-    if (!picture || picture.closest('.ly-prog-wrap')) return null;
+    if (!picture) return null;
+    var existingWrap = picture.closest('.ly-prog-wrap');
+    if (existingWrap) {
+      return kind === 'hero' && existingWrap.classList.contains('ly-prog-wrap--hero')
+        ? finalizeHeroWrap(existingWrap, picture)
+        : null;
+    }
     var stem = pictureStem(picture);
     if (!stem) return null;
 
@@ -333,7 +385,7 @@
     preview.alt = '';
     preview.setAttribute('aria-hidden', 'true');
     if (kind === 'hero') {
-      preview.decoding = 'sync';
+      preview.decoding = 'async';
       preview.loading = 'eager';
       preview.fetchPriority = 'high';
     } else {
@@ -342,15 +394,7 @@
     wrap.appendChild(preview);
     wrap.appendChild(picture);
 
-    if (kind === 'hero') {
-      if (skipPreview) startLayoutCssEarly();
-      else {
-        preview.addEventListener('load', function () { markPreviewReady(wrap); }, { once: true });
-        preview.addEventListener('error', function () { markPreviewReady(wrap); }, { once: true });
-        preview.src = previewUrl;
-        if (preview.complete && preview.naturalWidth) markPreviewReady(wrap);
-      }
-    }
+    if (kind === 'hero') wireHeroPreview(wrap, preview, previewUrl, skipPreview);
 
     var img = picture.querySelector('img');
     if (img) {
@@ -707,7 +751,7 @@
   g.LY_bootHeroEarly = function () {
     if (!g.LY_PROGRESSIVE_IMAGES || heroWrapEarly) return heroWrapEarly;
     var hero = g.document.querySelector('#hero .hero-bg-wrap');
-    if (!hero || hero.closest('.ly-prog-wrap')) return null;
+    if (!hero) return null;
     scheduleEarlySuspend();
     heroWrapEarly = wrapPicture(hero, 'hero');
     if (heroWrapEarly) {
@@ -717,24 +761,10 @@
     return heroWrapEarly;
   };
 
-  function injectHeroPreviewPreload() {
-    var root = g.LY_IMG_ROOT || 'images/';
-    if (root.charAt(root.length - 1) !== '/') root += '/';
-    var href = root + (g.innerWidth <= 640 ? 'mobile/' : '') + 'maiora_20s_02-prev.jpg';
-    var link = g.document.createElement('link');
-    link.rel = 'preload';
-    link.as = 'image';
-    link.href = href;
-    link.fetchPriority = 'high';
-    g.document.head.appendChild(link);
-  }
-
   function bootProgressive() {
     scheduleEarlySuspend();
     g.LY_initProgressiveImages();
   }
-
-  injectHeroPreviewPreload();
 
   if (g.document.readyState === 'loading') {
     g.document.addEventListener('readystatechange', function onRs() {

@@ -18,6 +18,9 @@ IMAGES = BASE / "images"
 MOBILE = BASE / "images" / "mobile"
 PREVIEW_EDGE = 160
 PREVIEW_Q = 52
+HERO_STEMS = frozenset({"maiora_20s_02"})
+HERO_PREVIEW_EDGE = 320
+HERO_PREVIEW_Q = 56
 
 TIER_SUFFIXES = re.compile(
     r"-(?:480|640|720|960|1280|1440|prev)\.(?:webp|jpg)$"
@@ -40,14 +43,14 @@ GALLERY_STEMS = (
 CONTENT_STEMS = ("maiora_20s_02", "maiora_20s_04")
 
 
-def resize_preview(img: Image.Image) -> Image.Image:
+def resize_preview(img: Image.Image, edge: int = PREVIEW_EDGE) -> Image.Image:
     w, h = img.size
-    if max(w, h) <= PREVIEW_EDGE:
+    if max(w, h) <= edge:
         return img
     if w >= h:
-        nw, nh = PREVIEW_EDGE, round(h * PREVIEW_EDGE / w)
+        nw, nh = edge, round(h * edge / w)
     else:
-        nh, nw = PREVIEW_EDGE, round(w * PREVIEW_EDGE / h)
+        nh, nw = edge, round(w * edge / h)
     return img.resize((max(1, nw), max(1, nh)), Image.LANCZOS)
 
 
@@ -58,10 +61,12 @@ def load_rgb(path: Path) -> Image.Image:
     return Image.open(path).convert("RGB")
 
 
-def write_preview(src: Path, out: Path) -> float:
-    img = resize_preview(load_rgb(src))
+def write_preview(src: Path, out: Path, stem: str = "") -> float:
+    edge = HERO_PREVIEW_EDGE if stem in HERO_STEMS else PREVIEW_EDGE
+    quality = HERO_PREVIEW_Q if stem in HERO_STEMS else PREVIEW_Q
+    img = resize_preview(load_rgb(src), edge)
     out.parent.mkdir(parents=True, exist_ok=True)
-    img.save(out, "JPEG", quality=PREVIEW_Q, progressive=True, optimize=True)
+    img.save(out, "JPEG", quality=quality, progressive=True, optimize=True)
     return out.stat().st_size / 1024
 
 
@@ -82,7 +87,7 @@ def build_set(folder: Path, stems: tuple[str, ...], label: str) -> float:
             print(f"  skip {label}/{stem} (no master)")
             continue
         out = folder / f"{stem}-prev.jpg"
-        kb = write_preview(src, out)
+        kb = write_preview(src, out, stem)
         total += kb
         count += 1
         print(f"  {out.relative_to(BASE).as_posix():<52} {kb:5.1f} KB")
