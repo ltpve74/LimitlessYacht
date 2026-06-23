@@ -670,6 +670,15 @@ section { padding: 7rem 2rem; }
   .nav-lang-wrap { display: block !important; }
   .nav-header-cta { display: inline-flex !important; }
   .hamburger { display: none !important; }
+  /* Slide-in animation state — opacity/visibility hidden state lives in
+     @layer layout inside critical-css so it fires before this stylesheet loads */
+  nav {
+    transform: translateY(-0.65rem);
+    transition:
+      opacity 0.45s ease,
+      transform 0.45s cubic-bezier(0.22, 0.9, 0.3, 1),
+      visibility 0s linear 0.45s;
+  }
 }
 /* Mobile + tablet immersive funnel (destinations → gallery → calendar) */
 @media (max-width: 768px) {
