@@ -627,6 +627,31 @@ def check_html(r: Runner, rel: str, html: str) -> None:
         and 'ly-prog-preview' in html,
     )
     r.check(
+        'previews load first; sharps deferred via data-ly-src (no bandwidth race)',
+        # Previews keep a real src so they load immediately when near viewport.
+        'class="ly-prog-preview" src="' in html
+        # Every non-hero sharp ships deferred — no eager src/srcset to race the preview.
+        and html.count('class="ly-prog-sharp" data-ly-src="') == 28
+        and 'class="ly-prog-sharp" src=' not in html
+        and html.count('data-ly-srcset="') >= 56
+        # Hero stays eager (it is the LCP): its sharp keeps a real src.
+        and 'class="hero-bg ly-prog-sharp" src="' in html,
+    )
+    r.check(
+        'sharp promotion gated on preview-ready + viewport, held until meaningful paint',
+        'window.LY_promoteSharp' in html
+        and "wrap.querySelector('.ly-prog-sharp[data-ly-src]')" in html
+        and "sharp.setAttribute('src', src)" in html
+        # promote only after the preview has loaded so the blur always paints first
+        and "wrap.classList.contains('ly-prog-preview-ready')" in html
+        and 'function initSharpPromotion' in html
+        and 'new IntersectionObserver' in html.split('function initSharpPromotion')[1][:600]
+        and "rootMargin: '400px'" in html
+        # hero excluded (it loads eagerly), and the whole phase waits for paint
+        and ".ly-prog-wrap:not(.ly-prog-wrap--hero)" in html
+        and 'LY_afterMeaningfulPaint(initSharpPromotion)' in html,
+    )
+    r.check(
         'anchor CTAs trigger progressive upgrade on nav',
         'window.LY_onNavIntent' in html
         and 'window.LY_sectionFromHash' in html
