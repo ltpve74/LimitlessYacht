@@ -3,8 +3,8 @@
 <head>
 <meta charset="UTF-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-<style id="fouc-guard">html{background:#0a1628;color-scheme:dark}a,a:any-link{color:#f5f0e8!important;text-decoration:none!important;-webkit-text-fill-color:currentColor!important}a.btn-primary,a.itinerary-meet-cta,a.mobile-nav-cta{color:#0a1628!important;-webkit-text-fill-color:#0a1628!important}a.btn-ghost,a.nav-cta{color:#f5f0e8!important;-webkit-text-fill-color:#f5f0e8!important}html:not(.ly-main-ready) body>:not(nav):not(#hero){display:none!important}#hero .hero-bg:not(.ly-prog-sharp){opacity:0!important;visibility:hidden!important}</style>
-<script>window.LY_LAYOUT_CSS_HREF='../css/layout.css?v=22';window.LY_MAIN_CSS_HREF='../css/main.css?v=163';</script>
+<style id="fouc-guard">html{background:#0a1628;color-scheme:dark}a,a:any-link{color:#f5f0e8!important;text-decoration:none!important;-webkit-text-fill-color:currentColor!important}a.btn-primary,a.itinerary-meet-cta,a.mobile-nav-cta{color:#0a1628!important;-webkit-text-fill-color:#0a1628!important}a.btn-ghost{color:#f5f0e8!important;-webkit-text-fill-color:#f5f0e8!important}a.nav-cta{color:#c9a84c!important;-webkit-text-fill-color:#c9a84c!important}html:not(.ly-main-ready) body>:not(nav):not(#hero){display:none!important}#hero .hero-bg:not(.ly-prog-sharp){opacity:0!important;visibility:hidden!important}</style>
+<script>window.LY_LAYOUT_CSS_HREF='../css/layout.css?v=22';window.LY_MAIN_CSS_HREF='../css/main.css?v=164';</script>
 <script src="../js/net-tier.js?v=2"></script>
 
 <style id="critical-css">
@@ -23,7 +23,7 @@ body{background:var(--navy);color:var(--cream);font-family:'Montserrat Fallback'
 .hero-rates,.hero-rates-link{color:rgba(255,255,255,.96)}
 .hero-trust a{color:rgba(245,240,232,.88)}
 nav{position:fixed;inset:0 0 auto;z-index:100;display:flex;align-items:center;gap:.6rem;padding:.85rem 1rem;min-height:4.25rem;background:linear-gradient(to bottom,rgba(10,22,40,.95),transparent)}
-.nav-logo{flex:0 1 auto;min-width:0;font-family:'Montserrat','Montserrat Fallback',sans-serif;font-size:clamp(.82rem,.9vw + .7rem,1.1rem);font-weight:300;text-decoration:none;color:var(--gold);letter-spacing:.18em;text-transform:uppercase;line-height:1.2}
+.nav-logo{flex:0 1 auto;min-width:0;font-family:'Montserrat','Montserrat Fallback',sans-serif;font-size:clamp(.82rem,.9vw + .7rem,1.1rem);font-weight:300;text-decoration:none;color:var(--gold)!important;letter-spacing:.18em;text-transform:uppercase;line-height:1.2}
 .nav-logo span{color:var(--cream)}
 .nav-end{margin-left:auto;display:flex;align-items:center;gap:.5rem;flex-shrink:0}
 #hero{position:relative;height:100vh;height:100svh;overflow:hidden;display:flex;align-items:stretch;justify-content:center}
@@ -132,7 +132,7 @@ html.ly-past-hero nav{opacity:1;visibility:visible;pointer-events:auto}
   };
 })();
 </script>
-<noscript><link rel="stylesheet" href="../css/layout.css?v=22" /><link rel="stylesheet" href="../css/main.css?v=163" /></noscript>
+<noscript><link rel="stylesheet" href="../css/layout.css?v=22" /><link rel="stylesheet" href="../css/main.css?v=164" /></noscript>
 
 <title>Limitless Yacht Experience – Luxus-Maiora-Charter auf Mallorca</title>
 <meta name="description" content="Chartern Sie die 21,5 m Maiora „Limitless“ ab Palma de Mallorca — Tages- und Mehrtagestörns zu Mallorcas schönsten Buchten, Cabrera und Formentera. Mit Crew, bis zu 12 Gäste." />
@@ -1999,6 +1999,7 @@ window.LY_afterMeaningfulPaint(function() {
       }, { passive: true });
     }
     requestAnimationFrame(function () {
+      navbar.classList.toggle('scrolled', window.scrollY > 60);
       refreshNavHeight();
       updateNavSection();
       updateScrollHash();

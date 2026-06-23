@@ -2737,7 +2737,7 @@ def check_shared_assets(r: Runner) -> None:
         and '.btn-ghost {' in css
         and 'border: 1px solid var(--btn-ghost-border)' in css
         and '.nav-cta {' in css
-        and 'color: var(--btn-ghost-text)' in css.split('.nav-cta {')[1].split('}')[0]
+        and 'color: var(--gold)' in css.split('.nav-cta {')[1].split('}')[0]
         and '.mobile-nav-cta {' in css
         and '.cookie-btn-ghost {' in css
         and 'color: var(--btn-on-fill)' in css.split('.mobile-nav-cta {')[1][:500],
