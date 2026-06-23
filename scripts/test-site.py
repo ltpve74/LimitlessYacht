@@ -501,7 +501,7 @@ def check_html(r: Runner, rel: str, html: str) -> None:
             prog_js,
         ) is not None
         and re.search(
-            r'LY_kickProgressiveAfterReveal\s*=\s*function[\s\S]{0,520}wrapVisibleEnough\(wrap\)',
+            r'LY_kickProgressiveAfterReveal\s*=\s*function[\s\S]{0,900}wrapVisibleEnough\(wrap\)',
             prog_js,
         )
         is not None
@@ -1447,8 +1447,8 @@ def check_html(r: Runner, rel: str, html: str) -> None:
             and "LY_MAIN_CSS_HREF='../css/main.css" in html
             and 'href="../css/layout.css' in html
             and 'href="../css/main.css' in html
-            and 'src="../js/net-tier.js"' in html
-            and 'src="../js/progressive-images.js"' in html
+            and 'src="../js/net-tier.js' in html
+            and 'src="../js/progressive-images.js' in html
             and 'href="../favicon.svg"' in html
             and 'href="/favicon.svg"' not in html,
         )

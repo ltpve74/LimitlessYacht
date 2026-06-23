@@ -17,6 +17,15 @@
   g.LY_heroSharpReady = false;
   g.LY_onHeroSharpReady = g.LY_onHeroSharpReady || [];
 
+  /* Next animation frame, with a setTimeout fallback so the step still runs
+     when rAF is paused (hidden/backgrounded tab). Mirrors net-tier.js. */
+  function softFrame(fn) {
+    var ran = false;
+    function go() { if (ran) return; ran = true; fn(); }
+    if (g.requestAnimationFrame) g.requestAnimationFrame(go);
+    g.setTimeout(go, 50);
+  }
+
   g.LY_sharpTierSuffix = function (kind) {
     var mob = g.innerWidth <= 640;
     if (mob) return '-960';
@@ -79,13 +88,11 @@
     g.LY_heroGateOpen = true;
     g.LY_heroSharpReady = true;
     if (wrap) wrap.classList.add('ly-prog-hero-done');
-    g.requestAnimationFrame(function () {
-      g.requestAnimationFrame(afterHeroGateOpen);
-    });
+    softFrame(afterHeroGateOpen);
   }
 
   function scheduleHeroGate(wrap) {
-    g.requestAnimationFrame(function () {
+    softFrame(function () {
       openHeroGate(wrap);
     });
   }
@@ -162,6 +169,13 @@
   }
 
   g.LY_kickProgressiveAfterReveal = function () {
+    /* Safety net: don't let content images wait forever on the hero gate.
+       If the hero sharp is slow (3G) or its reveal stalls, open the gate on
+       a timer so previews/sharps still load instead of staying blank. */
+    if (!g.LY_heroGateGuard) {
+      g.LY_heroGateGuard = true;
+      g.setTimeout(function () { if (!g.LY_heroGateOpen) openHeroGate(null); }, 2000);
+    }
     var wraps = [];
     g.document.querySelectorAll('.ly-prog-wrap').forEach(function (wrap) {
       if (isHeroWrap(wrap)) return;
@@ -430,7 +444,7 @@
     wrap.classList.add('ly-prog-sharp-ready');
     if (!wrap.classList.contains('ly-prog-skip-preview')) markPreviewReady(wrap);
     void img.offsetWidth;
-    g.requestAnimationFrame(function () {
+    softFrame(function () {
       wrap.classList.add('ly-prog-sharp-visible');
       onWrapSharpReady(wrap);
       if (isHeroWrap(wrap)) scheduleHeroGate(wrap);
