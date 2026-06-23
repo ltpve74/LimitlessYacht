@@ -4,14 +4,15 @@
 <meta charset="UTF-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1.0" />
 <style id="fouc-guard">html{background:#0a1628;color-scheme:dark}a,a:any-link{color:#f5f0e8!important;text-decoration:none!important;-webkit-text-fill-color:currentColor!important}a.btn-primary,a.itinerary-meet-cta,a.mobile-nav-cta{color:#0a1628!important;-webkit-text-fill-color:#0a1628!important}a.btn-ghost,a.nav-cta{color:#f5f0e8!important;-webkit-text-fill-color:#f5f0e8!important}html:not(.ly-main-ready) body>:not(nav):not(#hero){display:none!important}#hero .hero-bg:not(.ly-prog-sharp){opacity:0!important;visibility:hidden!important}</style>
-<script>window.LY_LAYOUT_CSS_HREF='../css/layout.css?v=17';window.LY_MAIN_CSS_HREF='../css/main.css?v=160';</script>
+<script>window.LY_LAYOUT_CSS_HREF='../css/layout.css?v=18';window.LY_MAIN_CSS_HREF='../css/main.css?v=160';</script>
 <script src="../js/net-tier.js?v=2"></script>
 
 <style id="critical-css">
+@layer reset, layout, site;
 @font-face{font-family:'Montserrat Fallback';src:local('HelveticaNeue-Thin'),local('Segoe UI Light');size-adjust:114%;ascent-override:97%;descent-override:25%;line-gap-override:0}
 @font-face{font-family:'Montserrat Fallback Hero';src:local('HelveticaNeue-Thin'),local('Segoe UI Light');size-adjust:115%;ascent-override:97%;descent-override:25%;line-gap-override:0}
 :root{--navy:#0a1628;--cream:#f5f0e8;--white:#fff;--gold:#c9a84c;--gold-light:#e2c47a;--gold-rgb:201,168,76;--gold-line:rgba(var(--gold-rgb),0.25);--gold-border:rgba(var(--gold-rgb),0.45);--text-muted:#8a9bb5;--btn-font:'Montserrat Fallback',sans-serif;--btn-size:.68rem;--btn-track:.2em;--btn-weight:600;--btn-fill:var(--gold);--btn-fill-hover:var(--gold-light);--btn-on-fill:var(--navy);--btn-ghost-text:var(--cream);--btn-ghost-text-hover:var(--gold);--btn-ghost-border:rgba(245,240,232,0.42);--btn-ghost-border-hover:var(--gold);--hero-cluster-gap:1.25rem;--hero-bottom-inset:max(2.75rem,calc(env(safe-area-inset-bottom,0px)+1.75rem));--hero-cinema-btn-gap:clamp(.65rem,3.2vw,.9rem);--hero-cinema-btn-pad-y:clamp(.95rem,5vw,1.18rem);--hero-cinema-btn-pad-x:clamp(.62rem,3.4vw,.92rem);--hero-cinema-btn-size:clamp(.5rem,2.75vw,.6rem)}
-*,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
+@layer reset{*,*::before,*::after{box-sizing:border-box;margin:0;padding:0}}
 html{scroll-padding-top:5rem;overflow-x:clip;color-scheme:dark}
 body{background:var(--navy);color:var(--cream);font-family:'Montserrat Fallback',sans-serif;font-weight:300;overflow-x:clip;-webkit-font-smoothing:antialiased}
 [hidden]{display:none!important}
@@ -131,7 +132,7 @@ html.ly-past-hero nav{opacity:1;visibility:visible;pointer-events:auto}
   };
 })();
 </script>
-<noscript><link rel="stylesheet" href="../css/layout.css?v=17" /><link rel="stylesheet" href="../css/main.css?v=160" /></noscript>
+<noscript><link rel="stylesheet" href="../css/layout.css?v=18" /><link rel="stylesheet" href="../css/main.css?v=160" /></noscript>
 
 <title>Limitless Yacht Experience – Luxus-Maiora-Charter auf Mallorca</title>
 <meta name="description" content="Chartern Sie die 21,5 m Maiora „Limitless“ ab Palma de Mallorca — Tages- und Mehrtagestörns zu Mallorcas schönsten Buchten, Cabrera und Formentera. Mit Crew, bis zu 12 Gäste." />
@@ -585,12 +586,6 @@ window.LY_whenNearSection = function(id, fn) {
   if (window.LY_afterMeaningfulPaint) window.LY_afterMeaningfulPaint(fn);
   else window.addEventListener('load', function() { setTimeout(fn, 2500); });
 };
-window.LY_preloadedUrls = {};
-window.LY_heroGateOpen = true; /* no hero gate: images load natively */
-window.LY_onHeroSharpReady = window.LY_onHeroSharpReady || [];
-window.LY_heroGateBlocked = function() {
-  return false; /* no hero gate */
-};
 window.LY_GALLERY_TAB_IDX = {
   water: [0, 1, 2],
   deck: [3, 4, 5, 6],
@@ -613,59 +608,16 @@ window.LY_activeGalleryTab = function() {
   var active = document.querySelector('.gallery-group.tab-active');
   return active ? (active.getAttribute('data-gtab') || 'water') : 'water';
 };
-window.LY_cardUrlForEl = function(el) {
-  if (!el) return '';
-  var idx;
-  if (el.classList.contains('destination-card')) {
-    idx = parseInt(el.getAttribute('data-dest-idx'), 10);
-    if (isNaN(idx) || !window.LY_destCardUrl) return '';
-    return window.LY_destCardUrl(idx);
-  }
-  if (el.classList.contains('gallery-item')) {
-    idx = parseInt(el.getAttribute('data-index'), 10);
-    if (isNaN(idx) || !window.LY_galleryCardUrl) return '';
-    return window.LY_galleryCardUrl(idx);
-  }
-  return '';
-};
-window.LY_cardsForContext = function(ctx) {
-  if (!ctx) return [];
-  var card = null;
-  if (ctx.section === 'itinerary' && ctx.destIdx != null) {
-    document.querySelectorAll('.destination-card').forEach(function(el) {
-      if (parseInt(el.getAttribute('data-dest-idx'), 10) === ctx.destIdx) card = el;
-    });
-  } else if (ctx.section === 'gallery' && ctx.galleryIdx != null) {
-    document.querySelectorAll('.gallery-item').forEach(function(el) {
-      if (parseInt(el.getAttribute('data-index'), 10) === ctx.galleryIdx) card = el;
-    });
-  }
-  return card ? [card] : [];
-};
 window.LY_beginUserIntent = function(opts) {
   opts = opts || {};
-  function run() {
-    if (window.LY_upgradeProgressiveForIntent) window.LY_upgradeProgressiveForIntent(opts);
-    var tasks = (opts.fetchAvail ? 1 : 0) + (opts.fetchReviews ? 1 : 0);
-    if (!tasks) {
-      if (opts.onFertig) opts.onFertig();
-      return;
-    }
-    var done = 0;
-    function one() {
-      done++;
-      if (done >= tasks && opts.onFertig) opts.onFertig();
-    }
-    if (opts.fetchAvail && window.LY_loadAvailCalNow) window.LY_loadAvailCalNow(one);
-    else if (opts.fetchAvail) one();
-    if (opts.fetchReviews && window.LY_loadReviewsNow) window.LY_loadReviewsNow(one);
-    else if (opts.fetchReviews) one();
-  }
-  if (window.LY_heroGateBlocked && window.LY_heroGateBlocked()) {
-    window.LY_onHeroSharpReady.push(run);
-    return;
-  }
-  run();
+  var tasks = (opts.fetchAvail ? 1 : 0) + (opts.fetchReviews ? 1 : 0);
+  if (!tasks) { if (opts.onFertig) opts.onFertig(); return; }
+  var done = 0;
+  function one() { done++; if (done >= tasks && opts.onFertig) opts.onFertig(); }
+  if (opts.fetchAvail && window.LY_loadAvailCalNow) window.LY_loadAvailCalNow(one);
+  else if (opts.fetchAvail) one();
+  if (opts.fetchReviews && window.LY_loadReviewsNow) window.LY_loadReviewsNow(one);
+  else if (opts.fetchReviews) one();
 };
 window.LY_sectionFromHash = function(href) {
   var section = window.LY_normalizeNavHash(href);
@@ -683,51 +635,13 @@ window.LY_sectionFromHash = function(href) {
   }
   return { section: section };
 };
-window.LY_urgentUrlsForNav = function(ctx) {
-  if (!ctx) return [];
-  if (ctx.section === 'itinerary' && window.LY_destCardUrl) {
-    var tier = ctx.tier || 'half-day';
-    var idx = ctx.destIdx != null ? ctx.destIdx : (window.LY_DEST_TIER_IDX[tier] || [0])[0];
-    return [window.LY_destCardUrl(idx)];
-  }
-  if (ctx.section === 'gallery' && window.LY_galleryCardUrl) {
-    var gTab = ctx.galleryTab || 'water';
-    var gIdx = ctx.galleryIdx != null ? ctx.galleryIdx : (window.LY_GALLERY_TAB_IDX[gTab] || [0])[0];
-    return [window.LY_galleryCardUrl(gIdx)];
-  }
-  return [];
-};
 window.LY_onNavIntent = function(href) {
   var ctx = window.LY_sectionFromHash(href);
   if (!ctx) return;
   window.LY_beginUserIntent({
-    context: ctx,
-    urgentUrls: window.LY_urgentUrlsForNav(ctx),
     fetchAvail: ctx.section === 'availability' || ctx.section === 'enquire',
     fetchReviews: ctx.section === 'reviews',
   });
-};
-window.LY_contextFromViewport = function() {
-  if (window.scrollY < 72) return { section: 'hero' };
-  var probe = (window.innerWidth <= 768 ? 96 : 128);
-  var ids = ['intro', 'about', 'itinerary', 'gallery', 'charters', 'availability', 'reviews', 'amenities', 'specs', 'enquire-form'];
-  var found = 'hero';
-  ids.forEach(function(id) {
-    var el = document.getElementById(id);
-    if (!el) return;
-    if (el.getBoundingClientRect().top <= probe) found = id;
-  });
-  if (found === 'intro') return { section: 'hero' };
-  if (found === 'itinerary') {
-    return { section: 'itinerary', tier: window.LY_activeDestTier(), destIdx: 0 };
-  }
-  if (found === 'gallery') {
-    var tab = window.LY_activeGalleryTab();
-    var tabIdx = window.LY_GALLERY_TAB_IDX[tab] || [0];
-    return { section: 'gallery', galleryTab: tab, galleryIdx: tabIdx[0] };
-  }
-  if (found === 'availability' || found === 'enquire-form') return { section: 'availability' };
-  return { section: found };
 };
 document.addEventListener('click', function(e) {
   var link = e.target.closest && e.target.closest('a[href^="#"]');
@@ -736,20 +650,6 @@ document.addEventListener('click', function(e) {
   if (!href || href === '#') return;
   if (window.LY_onNavIntent) window.LY_onNavIntent(href);
 }, true);
-window.LY_progressiveWrapForUrl = function(url) {
-  if (!url) return null;
-  var found = null;
-  document.querySelectorAll('.ly-prog-wrap').forEach(function(wrap) {
-    if (wrap.dataset.lySharpUrl === url) found = wrap;
-  });
-  return found;
-};
-window.LY_activateUrl = function(url, front) {
-  var wrap = window.LY_progressiveWrapForUrl(url);
-  if (wrap && window.LY_activateProgressiveWrap) {
-    window.LY_activateProgressiveWrap(wrap, { front: !!front });
-  }
-};
 window.LY_LB_LOADING = 'Wird geladen\u2026';
 window.LY_formatLbCounter = function(idx, total, loading) {
   var base = (idx + 1) + ' / ' + total;
@@ -823,10 +723,6 @@ window.LY_DEST_TIER_IDX = {
   'full-day': [3, 4, 5, 6, 7],
   'multi-day': [8, 9, 10, 11],
 };
-window.LY_cardTierFromMaster = function(master, suffix) {
-  if (!master) return '';
-  return master.replace(/\.webp$/i, suffix + '.webp');
-};
 window.LY_destMasterUrl = function(idx) {
   var arr = window.innerWidth <= 640 ? window.LY_DEST_IMAGES_MOBILE : window.LY_DEST_IMAGES;
   return arr[idx];
@@ -837,22 +733,6 @@ window.LY_galleryMasterUrl = function(idx) {
 };
 window.LY_stemFromMasterUrl = function(masterUrl) {
   return masterUrl ? masterUrl.replace(/\.webp$/i, '') : '';
-};
-/* Vestigial image-URL builders from the old JS preloader. Native <img> loading
-   replaced manual card preloading; the wrap-by-URL lookup no longer matches
-   (static wraps carry no data-ly-sharp-url), so these just return '' and every
-   caller no-ops. (Full removal of the dead preload subsystem to follow.) */
-window.LY_destCardUrl = function() { return ''; };
-window.LY_destLbUrl = function() { return ''; };
-window.LY_galleryCardUrl = function() { return ''; };
-window.LY_galleryLbUrl = function() { return ''; };
-window.LY_activateGalleryCard = function(idx, front) {
-  if (idx == null || idx < 0) return;
-  var url = window.LY_galleryCardUrl(idx);
-  var wrap = window.LY_progressiveWrapForUrl(url);
-  if (wrap && window.LY_activateProgressiveWrap) {
-    window.LY_activateProgressiveWrap(wrap, { front: front !== false });
-  }
 };
 window.LY_pictureSrcsetForViewport = function(picture, mob) {
   if (!picture) return '';
@@ -869,34 +749,10 @@ window.LY_srcsetWithoutMasters = function(srcset) {
     return /-(480|640|720|960|1280)\.webp$/i.test(url);
   }).join(', ');
 };
-window.LY_destPreloadReady = false;
-function LY_enableDestCarousel() {
-  window.LY_destPreloadReady = true;
+window.LY_afterMeaningfulPaint(function() {
   document.querySelectorAll('.dest-group.tab-active .itinerary-grid').forEach(function(gr) {
     gr.dispatchEvent(new Event('scroll'));
   });
-}
-window.LY_afterMeaningfulPaint(function() {
-  if (!window.LY_heroGateOpen) {
-    window.LY_onHeroSharpReady.push(LY_enableDestCarousel);
-    return;
-  }
-  LY_enableDestCarousel();
-});
-document.addEventListener('DOMContentLoaded', function() {
-  if ('IntersectionObserver' in window) {
-    var progCardIo = new IntersectionObserver(function(entries) {
-      entries.forEach(function(entry) {
-        if (!entry.isIntersecting) return;
-        if (window.LY_heroGateBlocked && window.LY_heroGateBlocked()) return;
-        var wrap = entry.target.querySelector('.ly-prog-wrap');
-        if (wrap && window.LY_activateProgressiveWrap) window.LY_activateProgressiveWrap(wrap);
-      });
-    }, { rootMargin: '120px 0px', threshold: 0.01 });
-    document.querySelectorAll('.destination-card, .gallery-item').forEach(function(el) {
-      progCardIo.observe(el);
-    });
-  }
 });
 </script>
 
@@ -1208,25 +1064,6 @@ document.addEventListener('DOMContentLoaded', function() {
 
 <script>
 (function(){
-  window.LY_destUrl = window.LY_destLbUrl;
-  window.LY_activateDestAdjacent = function(idx) {
-    if (idx == null || idx < 0) return;
-    var n = window.LY_DEST_IMAGES.length;
-    [-1, 0, 1].forEach(function(d) {
-      var gi = (idx + d + n) % n;
-      var url = window.LY_destCardUrl(gi);
-      var wrap = window.LY_progressiveWrapForUrl(url);
-      if (wrap && window.LY_activateProgressiveWrap) {
-        window.LY_activateProgressiveWrap(wrap, { front: d === 0 });
-      }
-    });
-  };
-  window.LY_activateDestTier = function(tier) {
-    var indices = window.LY_DEST_TIER_IDX[tier];
-    if (!indices || !indices.length) return;
-    window.LY_activateDestAdjacent(indices[0]);
-  };
-
   var tabs = document.querySelectorAll('.dest-tab');
   var groups = document.querySelectorAll('.dest-group');
 
@@ -1241,7 +1078,6 @@ document.addEventListener('DOMContentLoaded', function() {
       var switching = on && !g.classList.contains('tab-active');
       g.classList.toggle('tab-active', on);
       if (on) {
-        if (switching && window.LY_activateDestTier) window.LY_activateDestTier(tier);
         var gr = g.querySelector('.itinerary-grid');
         if (gr) {
           if (switching) gr.scrollLeft = 0;
@@ -1359,11 +1195,6 @@ document.addEventListener('DOMContentLoaded', function() {
       if (btnPrev) btnPrev.disabled = i <= 0;
       if (btnNext) btnNext.disabled = i >= total - 1;
       if (posEl)   posEl.textContent = (i + 1) + ' / ' + total;
-      var card = cards[i];
-      if (window.LY_destPreloadReady && group.classList.contains('tab-active') && card && window.LY_activateDestAdjacent) {
-        var gi = parseInt(card.getAttribute('data-dest-idx'), 10);
-        if (!isNaN(gi)) window.LY_activateDestAdjacent(gi);
-      }
     }
     function resetStep() { stepCache.val = 0; }
     if (btnPrev) btnPrev.addEventListener('click', function() {
@@ -2196,13 +2027,6 @@ document.addEventListener('DOMContentLoaded', function() {
       groups.forEach(function(g) {
         g.classList.toggle('tab-active', g.dataset.gtab === tab);
         if (g.dataset.gtab === tab) {
-          if (window.LY_beginUserIntent) {
-            var tabIdx = window.LY_GALLERY_TAB_IDX[tab] || [0];
-            window.LY_beginUserIntent({
-              context: { section: 'gallery', galleryTab: tab, galleryIdx: tabIdx[0] },
-              urgentUrls: window.LY_galleryCardUrl ? [window.LY_galleryCardUrl(tabIdx[0])] : [],
-            });
-          }
           var gr = g.querySelector('.gallery-grid');
           if (gr) { gr.scrollLeft = 0; setTimeout(function(){ gr.dispatchEvent(new Event('scroll')); }, 0); }
         }
@@ -2229,11 +2053,6 @@ document.addEventListener('DOMContentLoaded', function() {
         if (btnPrev) btnPrev.disabled = i <= 0;
         if (btnNext) btnNext.disabled = i >= total - 1;
         if (posEl)   posEl.textContent = (i + 1) + ' / ' + total;
-        var item = cards[i];
-        if (item && group.classList.contains('tab-active') && window.LY_activateGalleryCard) {
-          var gi = parseInt(item.getAttribute('data-index'), 10);
-          if (!isNaN(gi)) window.LY_activateGalleryCard(gi);
-        }
       }
       function resetStep() { stepCache.val = 0; }
       if (btnPrev) btnPrev.addEventListener('click', function() {
@@ -2313,42 +2132,12 @@ document.addEventListener('DOMContentLoaded', function() {
     if (!lbImg || !images.length) return;
     var targetIdx = (idx + images.length) % images.length;
     currentIdx = targetIdx;
-    var lbUrl = window.LY_galleryLbUrl(targetIdx);
-    var stem = window.LY_stemFromMasterUrl(window.LY_galleryMasterUrl(targetIdx));
-    var gen = ++lbLoadGen;
-
-    lbImg.style.objectPosition = imagePositions[targetIdx] || 'center center';
-    lbImg.classList.toggle('lb-contain', !!imageContain[targetIdx]);
-
-    function reveal() {
-      if (gen !== lbLoadGen) return;
-      applyGalleryLbFrame(targetIdx, lbUrl, true);
-      setGalleryLbLoading(false);
-      if (lbCounter) {
-        lbCounter.textContent = window.LY_formatLbCounter
-          ? window.LY_formatLbCounter(targetIdx, images.length, false)
-          : (targetIdx + 1) + ' / ' + images.length;
-      }
-    }
-
-    if (!window.LY_loadLbProgressive || !lightbox) {
-      reveal();
-      return;
-    }
-
-    setGalleryLbLoading(true);
+    applyGalleryLbFrame(targetIdx, window.LY_galleryMasterUrl(targetIdx), false);
     if (lbCounter) {
       lbCounter.textContent = window.LY_formatLbCounter
-        ? window.LY_formatLbCounter(targetIdx, images.length, true)
-        : (targetIdx + 1) + ' / ' + images.length + ' \u00b7 Loading\u2026';
+        ? window.LY_formatLbCounter(targetIdx, images.length, false)
+        : (targetIdx + 1) + ' / ' + images.length;
     }
-    var lbWrap = window.LY_ensureLbWrap(lightbox, lbImg, 'gallery');
-    window.LY_loadLbProgressive({
-      wrap: lbWrap,
-      stem: stem,
-      sharpUrl: lbUrl,
-      onReady: reveal
-    });
   }
 
   document.querySelectorAll('.gallery-item').forEach(item => {
@@ -2478,8 +2267,6 @@ document.addEventListener('DOMContentLoaded', function() {
       var srcset = window.LY_srcsetWithoutMasters(
         window.LY_pictureSrcsetForViewport(cardPicture, isMobDest)
       );
-      var destLbUrl = window.LY_destLbUrl(globalIdx);
-      var gen = ++destLbLoadGen;
       if (lbNum)  lbNum.textContent  = (card.querySelector('.destination-num')     || {}).textContent || '';
       if (lbName) lbName.textContent = (card.querySelector('.destination-name')    || {}).textContent || '';
       if (lbTag)  lbTag.textContent  = (card.querySelector('.destination-tagline') || {}).textContent || '';
@@ -2506,41 +2293,22 @@ document.addEventListener('DOMContentLoaded', function() {
       if (lbNext) lbNext.style.display = hasNav ? '' : 'none';
       var content = destLb.querySelector('.dest-lb-content');
       if (content) content.scrollTop = 0;
-
-      var destStem = window.LY_stemFromMasterUrl(window.LY_destMasterUrl(globalIdx));
-
-      function revealDestImg() {
-        if (gen !== destLbLoadGen) return;
+      if (lbSrcWp) {
+        if (srcset) { lbSrcWp.srcset = srcset; lbSrcWp.sizes = '100vw'; }
+        else lbSrcWp.removeAttribute('srcset');
+      }
+      if (lbImg2) {
         var cardImg = card.querySelector('.destination-card-bg img');
-        if (lbImg2) lbImg2.alt = cardImg ? (cardImg.alt || '') : '';
-        setDestLbLoading(false);
-        if (lbCounter) {
-          lbCounter.textContent = destCards.length > 1
-            ? (window.LY_formatLbCounter
-              ? window.LY_formatLbCounter(destIdx, destCards.length, false)
-              : (destIdx + 1) + ' / ' + destCards.length)
-            : '';
-        }
+        lbImg2.alt = cardImg ? (cardImg.alt || '') : '';
+        lbImg2.src = window.LY_destMasterUrl(globalIdx) || '';
       }
-
-      if (!window.LY_loadLbProgressive || !destLbImgWrap || !lbImg2) {
-        revealDestImg();
-        return;
+      if (lbCounter) {
+        lbCounter.textContent = destCards.length > 1
+          ? (window.LY_formatLbCounter
+            ? window.LY_formatLbCounter(destIdx, destCards.length, false)
+            : (destIdx + 1) + ' / ' + destCards.length)
+          : '';
       }
-
-      setDestLbLoading(true);
-      if (lbCounter && destCards.length > 1) {
-        lbCounter.textContent = window.LY_formatLbCounter
-          ? window.LY_formatLbCounter(destIdx, destCards.length, true)
-          : (destIdx + 1) + ' / ' + destCards.length + ' \u00b7 Loading\u2026';
-      }
-      var destLbWrap = window.LY_ensureLbWrap(destLbImgWrap, lbImg2, 'dest');
-      window.LY_loadLbProgressive({
-        wrap: destLbWrap,
-        stem: destStem,
-        sharpUrl: destLbUrl,
-        onReady: revealDestImg
-      });
     }
 
     function syncDestLbCta() {

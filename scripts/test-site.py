@@ -882,7 +882,7 @@ def check_html(r: Runner, rel: str, html: str) -> None:
     r.check('hero <picture class="hero-bg-wrap">', 'class="hero-bg-wrap"' in html)
     r.check(
         'hero <img> has fetchpriority="high"',
-        'class="hero-bg"' in html and 'fetchpriority="high"' in html,
+        'class="hero-bg ly-prog-sharp"' in html and 'fetchpriority="high"' in html,
     )
     r.check(
         'net-tier boots before inline critical CSS',
@@ -912,7 +912,7 @@ def check_html(r: Runner, rel: str, html: str) -> None:
         and 'maiora_20s_02-720.webp' in html
         and 'maiora_20s_02-640.webp 640w' in html
         and 'maiora_20s_02-960.webp 960w' in html
-        and 'class="hero-bg"' in html
+        and 'class="hero-bg ly-prog-sharp"' in html
         and 'fetchpriority="high"' in html,
     )
     r.check(
@@ -972,11 +972,13 @@ def check_html(r: Runner, rel: str, html: str) -> None:
     )
     r.check(
         'hero background decodes asynchronously (does not block title paint)',
-        'class="hero-bg"' in html and 'decoding="async"' in html.split('class="hero-bg"')[1][:120],
+        'class="hero-bg ly-prog-sharp"' in html
+        and 'decoding="async"' in html.split('class="hero-bg ly-prog-sharp"')[1][:120],
     )
     r.check(
         'hero background is not aria-hidden (eligible LCP image candidate)',
-        'class="hero-bg"' in html and 'aria-hidden="true"' not in html.split('class="hero-bg"')[1][:120],
+        'class="hero-bg ly-prog-sharp"' in html
+        and 'aria-hidden="true"' not in html.split('class="hero-bg ly-prog-sharp"')[1][:120],
     )
     crit_tag = html.find('<style id="critical-css">', fouc_pos)
     crit_end = html.find('</style>', crit_tag) if crit_tag >= 0 else -1

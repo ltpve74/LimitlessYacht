@@ -331,6 +331,10 @@ section { padding: 7rem 2rem; }
 .about-image-wrap {
   position: relative;
   overflow: hidden;
+  /* Progressive preview/sharp images are absolutely positioned, so the wrap
+     needs its own intrinsic height. Match the source image (960×639) on
+     desktop/tablet; the ≤640px media query overrides with a fixed height. */
+  aspect-ratio: 960 / 639;
 }
 .about-image-wrap img:not(.ly-prog-preview):not(.ly-prog-sharp) {
   width: 100%;
