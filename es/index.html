@@ -2302,6 +2302,7 @@ document.addEventListener('DOMContentLoaded', function() {
         <input type="hidden" name="locale" value="es" />
         <input type="hidden" name="preferred_date" id="cal_inline_date" />
         <input type="hidden" name="preferred_date_end" id="cal_inline_date_end" />
+        <input type="hidden" name="message" id="cal_form_message" />
         <input type="text" name="company" id="cal_ly_hp" tabindex="-1" autocomplete="off" style="position:absolute;left:-9999px;height:0;width:0;opacity:0" aria-hidden="true">
         <div class="form-field">
           <label for="cal_inline_email">Correo electrónico</label>
@@ -2357,6 +2358,7 @@ document.addEventListener('DOMContentLoaded', function() {
           <input type="hidden" name="locale" value="es" />
           <input type="hidden" name="preferred_date" id="preferred_date" />
           <input type="hidden" name="preferred_date_end" id="preferred_date_end" />
+          <input type="hidden" name="message" id="form_message" />
           <input type="text" name="company" id="ly_hp" tabindex="-1" autocomplete="off" style="position:absolute;left:-9999px;height:0;width:0;opacity:0" aria-hidden="true">
           <div class="form-field">
             <label for="email">Correo electrónico</label>
@@ -3509,9 +3511,21 @@ document.addEventListener('DOMContentLoaded', function() {
   }
 
   // Form submission via Netlify Forms
+  function buildDateMsg(startId, endId) {
+    var s = (document.getElementById(startId) || {}).value || '';
+    var t = (document.getElementById(endId) || {}).value || '';
+    if (!s) return '';
+    var fmt = new Intl.DateTimeFormat('en-GB', {day: 'numeric', month: 'long', year: 'numeric'});
+    var d0 = fmt.format(new Date(s + 'T12:00:00'));
+    var d1 = (t && t !== s) ? fmt.format(new Date(t + 'T12:00:00')) : '';
+    return d1 ? 'Charter enquiry from ' + d0 + ' to ' + d1 + '.' : 'Charter enquiry on ' + d0 + '.';
+  }
+
   var _cf = document.getElementById('contactForm');
   if (_cf) _cf.addEventListener('submit', async function(e) {
     e.preventDefault();
+    var mf = document.getElementById('form_message');
+    if (mf) mf.value = buildDateMsg('preferred_date', 'preferred_date_end');
     await lySubmitForm(this, document.getElementById('submitBtn'), document.getElementById('form-success'), document.getElementById('form-error'));
   });
 
@@ -3520,6 +3534,8 @@ document.addEventListener('DOMContentLoaded', function() {
   if (_ilf) _ilf.addEventListener('submit', async function(e) {
     e.preventDefault();
     if (document.getElementById('cal_ly_hp') && document.getElementById('cal_ly_hp').value) return;
+    var mf = document.getElementById('cal_form_message');
+    if (mf) mf.value = buildDateMsg('cal_inline_date', 'cal_inline_date_end');
     await lySubmitForm(this, document.getElementById('calInlineSubmitBtn'), document.getElementById('calInlineSuccess'), document.getElementById('calInlineError'), 'block');
   });
 
