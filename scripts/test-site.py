@@ -729,8 +729,10 @@ def check_html(r: Runner, rel: str, html: str) -> None:
         and "node.closest('.cal-cell.free[data-date]')" in html,
     )
     r.check(
-        'form uses simple date text input (date picker removed)',
-        'type="text" name="preferred_dates"' in html
+        'date picker popup restored on main enquiry form',
+        'class="form-date-icon"' in html
+        and 'class="form-date-apply-btn"' in html
+        and 'id="formDatePopoverDismiss"' in html
         and 'type="hidden" name="preferred_date"' in html
         and 'type="hidden" name="preferred_date_end"' in html
         and 'type="date" name="preferred_date"' not in html
@@ -2492,6 +2494,9 @@ def check_shared_assets(r: Runner) -> None:
         'function openFormDatePopover' in index_html
         and 'function closeFormDatePopover' in index_html
         and 'function positionFormDatePopover' in index_html
+        and 'form-date-month-nav' in index_html
+        and '.form-date-prev' not in index_html.split('form-date-popover-toolbar')[1].split('form-date-cal-grid')[0]
+        and 'class="form-date-popover cal opens-up"' in index_html
         and "formDatePopover.style.position = 'fixed'" not in index_html
         and 'formDatePopover.style.overflowY' not in index_html
         and 'opens-down' in index_html
@@ -2503,6 +2508,7 @@ def check_shared_assets(r: Runner) -> None:
         and '.form-date-icon' in css
         and '.form-date-popover .cal-cell' in css
         and '.form-date-apply-btn' in css
+        and 'class="cal-nav form-date-nav form-date-popover-dismiss"' in index_html
         and '.form-date-popover-dismiss' in css
         and '.form-date-popover .form-date-clear-btn' in css
         and 'form-date-close-hint' not in index_html
