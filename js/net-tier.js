@@ -23,6 +23,23 @@
     return !!(card && g.getComputedStyle(card).position === 'relative');
   }
 
+  /* Run fn on the next animation frame, but fall back to a timer so the
+     step still runs when rAF is paused (e.g. a backgrounded/hidden tab).
+     The whole page below the hero is gated on .ly-main-ready, and every
+     step that adds it used to depend on rAF alone -- so a tab that loaded
+     while hidden never revealed. setTimeout keeps firing when hidden. */
+  function softFrame(fn) {
+    var ran = false;
+    function go() { if (ran) return; ran = true; fn(); }
+    if (g.requestAnimationFrame) g.requestAnimationFrame(go);
+    g.setTimeout(go, 50);
+  }
+
+  function revealMain() {
+    d.documentElement.classList.add('ly-main-ready');
+    if (g.LY_fixupHashLanding) g.LY_fixupHashLanding();
+  }
+
   function finishLayoutCss(cb) {
     if (g.LY_layoutCssLoaded) {
       if (cb) cb();
@@ -31,17 +48,16 @@
     g.LY_layoutCssLoaded = true;
     g.LY_layoutCssLoading = false;
     if (g.LY_kickProgressiveAfterReveal) g.LY_kickProgressiveAfterReveal();
-    if (g.LY_markMainReady) g.LY_markMainReady();
-    else {
-      g.requestAnimationFrame(function () {
-        g.requestAnimationFrame(function () {
-          d.documentElement.classList.add('ly-main-ready');
-        });
-      });
-    }
+    /* Reveal the content below the hero. rAF-independent so it can never
+       stall -- this is the fix for the page staying blank in hidden tabs. */
+    softFrame(revealMain);
+    /* Pull in the full stylesheet shortly after reveal so core sections
+       (#specs, #about, #reviews, lightbox ...) aren't left unstyled. The hero
+       gate also schedules it once the sharp LCP image is in, whichever comes
+       first; this short fallback replaces the old 10s wait. */
     g.setTimeout(function () {
       if (g.LY_scheduleMainCss) g.LY_scheduleMainCss();
-    }, 10000);
+    }, 1500);
     if (cb) cb();
   }
 
@@ -53,26 +69,15 @@
   };
 
   function afterLayoutSheetEvent(link, cb) {
-    function done() {
-      g.requestAnimationFrame(function () {
-        g.requestAnimationFrame(function () {
-          finishLayoutCss(cb);
-        });
-      });
-    }
-    if (layoutCssApplies()) {
-      done();
-      return;
-    }
     var tries = 0;
-    function tick() {
-      if (layoutCssApplies() || tries++ > 120) {
-        done();
+    function attempt() {
+      if (layoutCssApplies() || tries++ > 60) {
+        finishLayoutCss(cb);
         return;
       }
-      g.requestAnimationFrame(tick);
+      softFrame(attempt);
     }
-    tick();
+    attempt();
   }
 
   g.LY_loadLayoutCss = function (cb) {
@@ -99,6 +104,8 @@
     l.onerror = begin;
     d.head.appendChild(l);
     if (l.sheet) begin();
+    /* Safety net: reveal even if the load/error events never fire. */
+    g.setTimeout(begin, 3000);
   };
 
   g.LY_loadMainCss = function (cb) {
@@ -143,5 +150,5 @@
 
   setTimeout(function () {
     if (!g.LY_layoutCssLoaded) g.LY_loadLayoutCss();
-  }, 12000);
+  }, 4000);
 })(window);

@@ -1092,7 +1092,7 @@ def check_html(r: Runner, rel: str, html: str) -> None:
         and '.ly-css-probe' in (read_file('css/layout.css') or '')
         and '--ly-css-tail' in (read_file('css/layout.css') or '')
         and re.search(
-            r'function finishLayoutCss\(cb\) \{[\s\S]{0,520}LY_scheduleMainCss',
+            r'function finishLayoutCss\(cb\) \{[\s\S]{0,900}LY_scheduleMainCss',
             net_tier,
         )
         is not None
@@ -1105,6 +1105,14 @@ def check_html(r: Runner, rel: str, html: str) -> None:
             r'function finishLayoutCss\(cb\) \{[\s\S]*?\n  \}',
             net_tier,
         ).group(0),
+    )
+    r.check(
+        'reveal is rAF-independent (hidden-tab safe): softFrame falls back to setTimeout',
+        'function softFrame(fn)' in net_tier
+        and re.search(r'function softFrame\(fn\)[\s\S]{0,220}?setTimeout\(go', net_tier)
+        is not None
+        and 'softFrame(revealMain)' in net_tier
+        and "classList.add('ly-main-ready')" in net_tier,
     )
     r.check(
         'hash funnel landing re-syncs after main.css (scroll-margin + ly-past-hero)',
