@@ -592,7 +592,17 @@ def check_html(r: Runner, rel: str, html: str) -> None:
         and 'b.intersectionRatio - a.intersectionRatio' in html
         # hero excluded (it loads eagerly), and the whole phase waits for paint
         and ".ly-prog-wrap:not(.ly-prog-wrap--hero)" in html
-        and 'LY_afterMeaningfulPaint(initSharpPromotion)' in html,
+        and 'LY_afterMeaningfulPaint(initSharpPromotion)' in html
+        # armWrap exposed globally so gallery tab switches can re-arm without the IO
+        and 'window.LY_armWrap = armWrap' in html,
+    )
+    r.check(
+        'gallery tab switch arms wraps for Safari IO display:none bug',
+        # setGalleryTab must explicitly arm wraps in the newly-active group so that
+        # Safari's IO (which doesn't re-fire after display:none→block) still loads images
+        'window.LY_armWrap' in html
+        and "g.querySelectorAll('.ly-prog-wrap')" in html
+        and 'window.LY_armWrap(ws[wi])' in html,
     )
     r.check(
         'anchor CTAs trigger progressive upgrade on nav',

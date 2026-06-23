@@ -619,6 +619,10 @@ window.LY_promoteSharp = function(wrap) {
     preview.addEventListener('load',  function () { window.LY_promoteSharp(wrap); }, { once: true });
     preview.addEventListener('error', function () { window.LY_promoteSharp(wrap); }, { once: true });
   }
+  // Exposed so gallery/itinerary tab switches can arm newly-visible wraps directly.
+  // Safari's IntersectionObserver does not re-fire after a display:none→block transition,
+  // so we must arm explicitly instead of relying on the IO callback.
+  window.LY_armWrap = armWrap;
   function initSharpPromotion() {
     var wraps = document.querySelectorAll('.ly-prog-wrap:not(.ly-prog-wrap--hero)');
     if (!('IntersectionObserver' in window)) {
@@ -2101,6 +2105,11 @@ window.LY_afterMeaningfulPaint(function() {
         if (g.dataset.gtab === tab) {
           var gr = g.querySelector('.gallery-grid');
           if (gr) { gr.scrollLeft = 0; setTimeout(function(){ gr.dispatchEvent(new Event('scroll')); }, 0); }
+          // Safari: IO doesn't re-fire after display:none→flex. Arm wraps directly.
+          if (window.LY_armWrap) {
+            var ws = g.querySelectorAll('.ly-prog-wrap');
+            for (var wi = 0; wi < ws.length; wi++) window.LY_armWrap(ws[wi]);
+          }
         }
       });
     }
