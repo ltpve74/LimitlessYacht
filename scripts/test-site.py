@@ -539,7 +539,11 @@ def check_html(r: Runner, rel: str, html: str) -> None:
         and 'nav{opacity:0;visibility:hidden;pointer-events:none}' in re.sub(
             r'\s+', '', html[html.find('id="critical-css"'):html.find('</style>', html.find('id="critical-css"'))]
         )
-        and 'soften_preview' in (read_file('scripts/build_preview_images.py') or '')
+        and 'build_preview_image' in (read_file('scripts/build_preview_images.py') or '')
+        and re.search(
+            r'def build_preview_image[\s\S]*?soften_preview[\s\S]*?resize_preview',
+            read_file('scripts/build_preview_images.py') or '',
+        ) is not None
         and 'LY_progressiveWrapForUrl' in html
         and re.search(
             r'ly-prog-sharp-visible[\s\S]{0,280}scheduleHeroGate',
@@ -620,6 +624,8 @@ def check_html(r: Runner, rel: str, html: str) -> None:
         'hero preview stays lightweight with blur baked into pixels',
         hero_prev_kb <= 5.0
         and 'HERO_PREVIEW_BLUR' in (read_file('scripts/build_preview_images.py') or '')
+        and 'BLUR_WORK_EDGE' in (read_file('scripts/build_preview_images.py') or '')
+        and 'subsampling=0' in (read_file('scripts/build_preview_images.py') or '')
         and 'HERO_PREVIEW_EDGE' not in (read_file('scripts/build_preview_images.py') or ''),
     )
     r.check(
