@@ -71,7 +71,7 @@ fi
 
 echo "[pre-commit] Running publish gate (site tests + UX + Lighthouse)..."
 export PUBLISH_GATE_PYTHON="$PY"
-if ! "$PY" scripts/publish-gate.py; then
+if ! "$PY" scripts/publish-gate.py ${PUBLISH_GATE_EXTRA_ARGS:-}; then
   echo "[pre-commit] ERROR: publish gate failed — fix the issues above and try again." >&2
   echo "[pre-commit] One-time setup: scripts/setup-qa.sh" >&2
   exit 1
