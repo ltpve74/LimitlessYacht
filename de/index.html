@@ -2296,6 +2296,27 @@ document.addEventListener('DOMContentLoaded', function() {
       </div>
       <p class="cal-form-fallback"><a href="#enquire-form" class="cal-enquire-link is-disabled" id="calEnquireBtn" aria-disabled="true">Lieber per E-Mail? Anfrage ausfüllen →</a></p>
     </div>
+    <div class="cal-email-form" id="calE-MailForm" hidden>
+      <form class="cal-inline-form" id="calInlineForm" name="contact-de" netlify>
+        <input type="hidden" name="form-name" value="contact-de" />
+        <input type="hidden" name="locale" value="de" />
+        <input type="hidden" name="preferred_date" id="cal_inline_date" />
+        <input type="hidden" name="preferred_date_end" id="cal_inline_date_end" />
+        <input type="text" name="company" id="cal_ly_hp" tabindex="-1" autocomplete="off" style="position:absolute;left:-9999px;height:0;width:0;opacity:0" aria-hidden="true">
+        <div class="form-field">
+          <label for="cal_inline_email">E-Mail</label>
+          <input type="email" name="email" id="cal_inline_email" inputmode="email" autocomplete="email" placeholder="your@email.com" required>
+        </div>
+        <div class="form-field" id="calInlineDatenField" hidden>
+          <label for="cal_inline_dates">Daten</label>
+          <input type="text" name="preferred_dates" id="cal_inline_dates" readonly>
+        </div>
+        <button type="submit" class="form-submit cal-inline-submit" id="calInlineSubmitBtn" data-default-text="Senden">Senden</button>
+        <p class="cal-inline-consent">Mit dem Absenden stimmen Sie zu, für Ihre Anfrage kontaktiert zu werden. Siehe unsere <a href="/de/legal.html">Datenschutzerklärung</a>.</p>
+        <div class="cal-inline-success" id="calInlineSuccess" hidden></div>
+        <div class="cal-inline-error" id="calInlineError" hidden>Etwas ist schiefgelaufen — bitte versuchen Sie es über WhatsApp.</div>
+      </form>
+    </div>
     <div class="section-cross-cta section-cross-cta--desktop reveal">
       <p class="section-cta-text">Noch zwischen einem Halbtages-Ausflug und einer mehrtägigen Flucht abwägen?</p>
       <div class="section-cta-btns">
@@ -2331,76 +2352,25 @@ document.addEventListener('DOMContentLoaded', function() {
           Per WhatsApp anfragen
         </a>
         <div class="form-divider"><span>oder füllen Sie das Formular aus</span></div>
-        <form class="contact-form" id="contactForm" name="contact-de" netlify netlify-honeypot="bot-field">
+        <form class="contact-form" id="contactForm" name="contact-de" netlify>
           <input type="hidden" name="form-name" value="contact-de" />
           <input type="hidden" name="locale" value="de" />
-          <p style="display:none;"><input name="bot-field" /></p>
-
-          <div class="form-field">
-            <label for="name">Name</label>
-            <input type="text" name="name" id="name" placeholder="Maria" required autocomplete="name" />
-          </div>
+          <input type="hidden" name="preferred_date" id="preferred_date" />
+          <input type="hidden" name="preferred_date_end" id="preferred_date_end" />
+          <input type="text" name="company" id="ly_hp" tabindex="-1" autocomplete="off" style="position:absolute;left:-9999px;height:0;width:0;opacity:0" aria-hidden="true">
           <div class="form-field">
             <label for="email">E-Mail</label>
-            <input type="email" name="email" id="email" placeholder="your@email.com" required autocomplete="email" />
+            <input type="email" name="email" id="email" inputmode="email" placeholder="your@email.com" required autocomplete="email" />
           </div>
-          <div class="form-row">
-            <div class="form-field">
-              <label for="preferred_date_btn">Daten</label>
-              <div class="form-date-wrap" id="preferredDateWrap">
-                <input type="hidden" name="preferred_date" id="preferred_date" />
-                <input type="hidden" name="preferred_date_end" id="preferred_date_end" />
-                <button type="button" class="form-date-trigger" id="preferred_date_btn" aria-haspopup="dialog" aria-expanded="false" aria-controls="formDatePopover">
-                  <span class="form-date-icon" aria-hidden="true"><svg viewBox="0 0 16 16" width="16" height="16" fill="none" stroke="currentColor" stroke-width="1.2"><rect x="2" y="3" width="12" height="11" rx="1"/><path d="M2 6h12M5 1v3M11 1v3"/></svg></span>
-                  <span class="form-date-text">Auswählen…</span>
-                </button>
-                <div class="form-date-popover cal opens-up" id="formDatePopover" role="dialog" aria-modal="false" aria-label="Daten wählen" hidden>
-                  <div class="form-date-popover-toolbar">
-                    <p class="form-date-title" id="formDatePopoverTitle"></p>
-                    <button type="button" class="cal-nav form-date-nav form-date-popover-dismiss" id="formDatePopoverDismiss" aria-label="Kalender schließen">✕</button>
-                  </div>
-                  <div class="form-date-cal-grid">
-                    <div class="cal-grid cal-dow form-date-dow" aria-hidden="true"></div>
-                    <div class="cal-grid cal-days form-date-days"></div>
-                  </div>
-                  <div class="form-date-month-nav">
-                    <button type="button" class="cal-nav form-date-nav form-date-prev" aria-label="Vorheriger Monat">‹</button>
-                    <button type="button" class="cal-nav form-date-nav form-date-next" aria-label="Nächster Monat">›</button>
-                  </div>
-                  <div class="form-date-cal-foot">
-                    <span id="formDateHintTemplates" hidden>
-                      <span data-hint="start">Startdatum antippen.</span>
-                      <span data-hint="end">Enddatum für Mehrtägig antippen oder Fertig für einen Tag.</span>
-                      <span data-hint="ready">Fertig antippen, wenn Sie bereit sind.</span>
-                    </span>
-                    <p class="form-date-step-hint" id="formDateStepHint">Startdatum antippen.</p>
-                    <div class="form-date-popover-actions">
-                      <button type="button" class="cal-clear form-date-clear-btn">Clear</button>
-                      <button type="button" class="form-date-apply-btn">Fertig</button>
-                    </div>
-                  </div>
-                </div>
-              </div>
-            </div>
-            <div class="form-field" id="formDurWrap" hidden>
-              <label for="charter_duration">Dauer</label>
-              <input type="hidden" id="charter_duration_auto" value="multi-day" disabled />
-              <select name="charter_duration" id="charter_duration">
-                <option value="" disabled selected>Auswählen…</option>
-                <option value="4-hours">4 Stunden</option>
-                <option value="6-hours">6 Stunden</option>
-                <option value="1-day">Ganztags</option>
-              </select>
-            </div>
-            <p class="form-date-hint">Siehe den <a href="#avail-cal" class="form-date-hint-link">Kalender</a> für eine Übersicht — oder wählen Sie oben freie Datum(en).</p>
+          <div class="form-field">
+            <label for="form_dates">Daten</label>
+            <input type="text" name="preferred_dates" id="form_dates" placeholder="z. B. 15. Juli 2026" autocomplete="off" />
           </div>
-          <p class="form-reassurance">Wir antworten innerhalb weniger Stunden · Ihre Daten bleiben privat</p>
-          <button type="submit" class="form-submit" id="submitBtn">Anfrage senden</button>
-          <div id="form-success" style="display:none;color:var(--gold);font-size:.85rem;margin-top:.8rem;padding:.8rem;border:1px solid rgba(201,168,76,.3);background:rgba(201,168,76,.05);">
-            ✓ Vielen Dank! Ihre Anfrage wurde gesendet. Wir melden uns in Kürze.
-          </div>
+          <button type="submit" class="form-submit" id="submitBtn" data-default-text="Anfrage senden">Anfrage senden</button>
+          <p class="cal-inline-consent">Mit dem Absenden stimmen Sie zu, für Ihre Anfrage kontaktiert zu werden. Siehe unsere <a href="/de/legal.html">Datenschutzerklärung</a>.</p>
+          <div id="form-success" style="display:none;font-size:.85rem;margin-top:.8rem;padding:.8rem;border:1px solid rgba(201,168,76,.3);background:rgba(201,168,76,.05);"></div>
           <div id="form-error" style="display:none;color:#e55;font-size:.82rem;margin-top:.8rem;">
-            ✗ Etwas ist schiefgelaufen. Bitte versuchen Sie es erneut oder schreiben Sie uns an info@limitlessyachtcharter.com
+            ✗ Something went wrong. Please try WhatsApp instead.
           </div>
         </form>
       </div>
@@ -3451,60 +3421,92 @@ document.addEventListener('DOMContentLoaded', function() {
     if (dLb && dLb.classList.contains('open')) { dLb.classList.remove('open'); document.body.style.overflow = ''; }
   });
 
-  // Form submission via Netlify Forms
-  var _cf = document.getElementById('contactForm');
-  if (_cf) _cf.addEventListener('submit', async function(e) {
-    e.preventDefault();
-    const btn = document.getElementById('submitBtn');
-    const successEl = document.getElementById('form-success');
-    const errorEl = document.getElementById('form-error');
+  function buildInlineSuccessHtml(email) {
+    var lang = (document.documentElement.lang || 'en').split('-')[0];
+    var waUrl = 'https://wa.me/34622581486?text=' + encodeURIComponent(
+      lang === 'es' ? 'Hola, le escribo sobre mi consulta de charter.' :
+      lang === 'de' ? 'Hallo, ich schreibe zu meiner Charter-Anfrage.' :
+      lang === 'fr' ? 'Bonjour, je vous contacte au sujet de ma demande de location.' :
+      'Hello, I am writing about my charter enquiry.'
+    );
+    var p1 = { en: "Thanks — we'll reply to ", de: 'Danke — wir antworten bald an ', es: 'Gracias — le responderemos a ', fr: 'Merci — nous répondrons à ' }[lang] || "Thanks — we'll reply to ";
+    var p2 = { en: ' shortly.', de: '.', es: ' pronto.', fr: ' bientôt.' }[lang] || ' shortly.';
+    var cta = { en: 'Prefer a faster reply? Message us on WhatsApp →', de: 'Lieber schneller? Schreiben Sie uns auf WhatsApp →', es: '¿Prefiere una respuesta rápida? Escríbanos por WhatsApp →', fr: 'Réponse plus rapide ? Écrivez-nous sur WhatsApp →' }[lang] || 'Prefer a faster reply? Message us on WhatsApp →';
+    var safe = (email || '').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+    return '<p style="color:var(--gold);margin-bottom:.55rem">✓ ' + p1 + '<strong>' + safe + '</strong>' + p2 + '</p>'
+      + '<a href="' + waUrl + '" target="_blank" rel="noopener" style="font-size:.68rem;letter-spacing:.1em;text-transform:uppercase;color:var(--gold-light);text-decoration:underline">' + cta + '</a>';
+  }
+
+  async function lySubmitForm(formEl, btnEl, successEl, errorEl, successDisplay) {
+    if (document.getElementById('ly_hp') && document.getElementById('ly_hp').value) return;
+    if (document.getElementById('cal_ly_hp') && document.getElementById('cal_ly_hp').value) return;
+    var emailVal = formEl.querySelector('[name="email"]');
+    emailVal = emailVal ? emailVal.value : '';
     successEl.style.display = 'none';
     errorEl.style.display = 'none';
-    btn.textContent = 'Wird gesendet…';
-    btn.disabled = true;
-    btn.style.opacity = '0.7';
+    btnEl.textContent = 'Wird gesendet…';
+    btnEl.disabled = true;
+    btnEl.style.opacity = '0.7';
     try {
-      const formData = new FormData(this);
+      const formData = new FormData(formEl);
       const response = await fetch('/', {
         method: 'POST',
         headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
         body: new URLSearchParams(formData).toString()
       });
       if (response.ok) {
-        successEl.style.display = 'block';
-        this.reset();
-        btn.textContent = '✓ Gesendet';
-
+        successEl.innerHTML = buildInlineSuccessHtml(emailVal);
+        successEl.style.display = successDisplay || 'block';
+        formEl.reset();
+        btnEl.textContent = '✓ Gesendet';
         if (!window.LY_OWNER_MODE) {
-          window.dataLayer.push({
-            event: 'generate_lead',
-            form_name: 'booking_enquiry',
-            value: 1,
-            currency: 'EUR'
-          });
-          gtag('consent', 'update', {
-            'ad_storage': 'granted',
-            'ad_user_data': 'granted',
-            'ad_personalization': 'granted'
-          });
+          window.dataLayer.push({ event: 'generate_lead', form_name: 'booking_enquiry', value: 1, currency: 'EUR' });
+          gtag('consent', 'update', { 'ad_storage': 'granted', 'ad_user_data': 'granted', 'ad_personalization': 'granted' });
           gtag_report_conversion_form();
         }
-
-        setTimeout(() => {
-          btn.textContent = 'Anfrage senden';
-          btn.disabled = false;
-          btn.style.opacity = '1';
-        }, 4000);
+        setTimeout(function() { btnEl.textContent = btnEl.getAttribute('data-default-text') || 'Senden'; btnEl.disabled = false; btnEl.style.opacity = '1'; }, 4000);
       } else {
-        throw new Error('Submission failed');
+        throw new Error('failed');
       }
-    } catch (err) {
+    } catch(err) {
       errorEl.style.display = 'block';
-      btn.textContent = 'Anfrage senden';
-      btn.disabled = false;
-      btn.style.opacity = '1';
+      btnEl.textContent = btnEl.getAttribute('data-default-text') || 'Senden';
+      btnEl.disabled = false;
+      btnEl.style.opacity = '1';
     }
+  }
+
+  // Form submission via Netlify Forms
+  var _cf = document.getElementById('contactForm');
+  if (_cf) _cf.addEventListener('submit', async function(e) {
+    e.preventDefault();
+    await lySubmitForm(this, document.getElementById('submitBtn'), document.getElementById('form-success'), document.getElementById('form-error'));
   });
+
+  // Inline calendar email form
+  var _ilf = document.getElementById('calInlineForm');
+  if (_ilf) _ilf.addEventListener('submit', async function(e) {
+    e.preventDefault();
+    if (document.getElementById('cal_ly_hp') && document.getElementById('cal_ly_hp').value) return;
+    await lySubmitForm(this, document.getElementById('calInlineSubmitBtn'), document.getElementById('calInlineSuccess'), document.getElementById('calInlineError'), 'block');
+  });
+
+  // Fire ly_form_view once when the main enquire-section form scrolls into view
+  (function() {
+    var formSection = document.getElementById('enquire-form');
+    if (!formSection || !window.IntersectionObserver) return;
+    var fired = false;
+    var io = new IntersectionObserver(function(entries) {
+      entries.forEach(function(entry) {
+        if (!fired && entry.isIntersecting) {
+          fired = true;
+          if (window.LY_clarityEvent) window.LY_clarityEvent('ly_form_view');
+          io.disconnect();
+        }
+      });
+    }, { threshold: 0.1 });
+    io.observe(formSection);
+  })();
 
 
   // Google Tag / dataLayer events for conversions (GA4 + Google Ads)
@@ -4086,15 +4088,23 @@ document.addEventListener('DOMContentLoaded', function() {
     if (!selected.length) { e.preventDefault(); return; }
     e.preventDefault();
     if (window.LY_clarityEvent) window.LY_clarityEvent('ly_cal_avail_enquire');
-    syncForm();
-    if (isCalendarFormPaired()) {
-      var nameInput = document.getElementById('name');
-      if (nameInput) nameInput.focus();
-    } else {
-      var href = window.LY_enquireQuoteHref ? window.LY_enquireQuoteHref() : '#enquire-form';
-      var target = document.getElementById(href.slice(1));
-      if (target) target.scrollIntoView({ behavior: 'smooth' });
+    var inlineDatenInput = document.getElementById('cal_inline_dates');
+    var inlineDatenField = document.getElementById('calInlineDatenField');
+    var inlineDateHidden = document.getElementById('cal_inline_date');
+    var inlineDateEndHidden = document.getElementById('cal_inline_date_end');
+    if (inlineDatenInput && selected.length) {
+      inlineDatenInput.value = formatSelection();
+      if (inlineDatenField) inlineDatenField.hidden = false;
     }
+    if (inlineDateHidden) inlineDateHidden.value = selected[0] || '';
+    if (inlineDateEndHidden) inlineDateEndHidden.value = selected.length > 1 ? selected[selected.length - 1] : '';
+    var formPanel = document.getElementById('calE-MailForm');
+    if (formPanel && formPanel.hidden) {
+      formPanel.hidden = false;
+      if (window.LY_clarityEvent) window.LY_clarityEvent('ly_form_view');
+    }
+    var emailInput = document.getElementById('cal_inline_email');
+    if (emailInput) { emailInput.focus(); emailInput.scrollIntoView({ behavior: 'smooth', block: 'nearest' }); }
   });
   if (waBtn) waBtn.addEventListener('click', function(e) {
     if (!selected.length) { e.preventDefault(); return; }

@@ -234,6 +234,13 @@ PAIRS = [
     ('data-i18n-days="days"', 'data-i18n-days="días"'),
     ("Call Us", "Llámenos"),
     ("Prefer email? Fill in the enquiry form →", "¿Prefiere email? Rellene el formulario →"),
+    ("Send", "Enviar"),
+    (
+        'By sending, you agree to be contacted about your enquiry. See our <a href="legal.html">Privacy Policy</a>.',
+        'Al enviar, acepta ser contactado sobre su consulta. Consulte nuestra <a href="legal.html">Política de privacidad</a>.',
+    ),
+    ("Something went wrong — please try WhatsApp instead.", "Algo salió mal — intente por WhatsApp."),
+    ("e.g. 15 July 2026", "p. ej. 15 julio 2026"),
     ("Check availability", "Ver disponibilidad"),
     ("Check Availability", "Ver disponibilidad"),
     ("Enquire on WhatsApp", "Consultar por WhatsApp"),

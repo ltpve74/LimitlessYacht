@@ -246,6 +246,13 @@ PAIRS = [
     ('data-i18n-days="days"', 'data-i18n-days="Tage"'),
     ("Call Us", "Anrufen"),
     ("Prefer email? Fill in the enquiry form →", "Lieber per E-Mail? Anfrage ausfüllen →"),
+    ("Send", "Senden"),
+    (
+        'By sending, you agree to be contacted about your enquiry. See our <a href="legal.html">Privacy Policy</a>.',
+        'Mit dem Absenden stimmen Sie zu, für Ihre Anfrage kontaktiert zu werden. Siehe unsere <a href="legal.html">Datenschutzerklärung</a>.',
+    ),
+    ("Something went wrong — please try WhatsApp instead.", "Etwas ist schiefgelaufen — bitte versuchen Sie es über WhatsApp."),
+    ("e.g. 15 July 2026", "z. B. 15. Juli 2026"),
     ("Check availability", "Verfügbarkeit prüfen"),
     ("Check Availability", "Verfügbarkeit prüfen"),
     ("Enquire on WhatsApp", "Per WhatsApp anfragen"),
