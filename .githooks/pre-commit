@@ -1,7 +1,8 @@
 #!/bin/sh
 # Branch-aware pre-commit hook.
 #
-# experiment-no-prices (dev): rebuild locales when EN source changes — keep HTML/CSS readable.
+# develop (integration): rebuild locales when EN source changes — keep HTML/CSS readable.
+# feature branches: same as develop — rebuild locales, no minify.
 # main (production): minify → test only (locales already built on dev branch before merge).
 #
 # Enable once per clone with:
@@ -48,21 +49,17 @@ if printf '%s\n' "$CHANGED" | grep -qE '^css/main\.css$'; then
   LOCALE_REBUILD=1
 fi
 
-if [ "$BRANCH" = "experiment-no-prices" ]; then
+if [ "$BRANCH" != "main" ]; then
   if [ "$LOCALE_REBUILD" -eq 1 ]; then
-    echo "[pre-commit] EN source / locale data changed — rebuilding locales (readable dev branch)..."
+    echo "[pre-commit] EN source / locale data changed — rebuilding locales..."
     if ! "$PY" i18n/build-locales.py; then
       echo "[pre-commit] ERROR: locale build failed — aborting commit." >&2
       exit 1
     fi
     git add de/index.html de/legal.html es/index.html es/legal.html fr/index.html fr/legal.html \
             data/reviews-de.json data/reviews-es.json data/reviews-fr.json
-    echo "[pre-commit] Locales + review JSON rebuilt and staged (no minification on dev branch)."
+    echo "[pre-commit] Locales + review JSON rebuilt and staged (no minification on non-main branch)."
   fi
-  exit 0
-fi
-
-if [ "$BRANCH" != "main" ]; then
   exit 0
 fi
 
@@ -82,9 +79,9 @@ if ! "$PY" scripts/minify_html.py; then
   exit 1
 fi
 
-echo "[pre-commit] Running publish gate (site tests only — UX + Lighthouse run in CI)..."
+echo "[pre-commit] Running publish gate (site tests + UX + Lighthouse)..."
 export PUBLISH_GATE_PYTHON="$PY"
-if ! "$PY" scripts/publish-gate.py --skip-ux --skip-lighthouse; then
+if ! "$PY" scripts/publish-gate.py ${PUBLISH_GATE_EXTRA_ARGS:-}; then
   echo "[pre-commit] ERROR: publish gate failed — fix the issues above and try again." >&2
   echo "[pre-commit] One-time setup: scripts/setup-qa.sh" >&2
   exit 1

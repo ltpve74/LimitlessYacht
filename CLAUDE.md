@@ -1,27 +1,28 @@
 # Limitless Yacht — Agent Guidelines
 
-Read this before editing the site. The repo uses a **two-branch workflow**: readable dev source on `experiment-no-prices`, minified production on `main`.
+Read this before editing the site. The repo uses a **three-tier workflow**: feature branches for individual work, `develop` as the integration branch (readable source, always matches what's live), and `main` for minified production.
 
 ---
 
 ## Quick start (agents)
 
 ```sh
-git checkout experiment-no-prices          # always start here
+git checkout develop                         # integration branch — always start here
 git config core.hooksPath .githooks          # one-time per clone
 ```
 
 | Question | Answer |
 |----------|--------|
 | Local preview without GitHub Pages? | `python3 scripts/dev-server.py` → http://127.0.0.1:8765/ (analytics off on localhost) |
-| Which branch do I edit? | **`experiment-no-prices`** only |
+| Which branch is the source of truth? | **`develop`** — always reflects what's on the live site |
+| Feature work? | Branch from `develop`, work there, merge back into `develop` when done |
 | Which files are source of truth? | `index.html`, `legal.html`, `css/main.css`, `data/reviews.json`, `i18n/locales/*.py` |
 | Which files are generated? | `de/`, `es/`, `fr/` HTML and `data/reviews-{de,es,fr}.json` — never hand-edit |
-| When do locales rebuild? | On commit to `experiment-no-prices` (if EN source changed) |
+| When do locales rebuild? | On commit to `develop` (if EN source changed) |
 | When does minification happen? | On commit to **`main`** only (publish step) |
 | Publish QA gate? | Pre-commit on **`main`**: minify → `scripts/publish-gate.py` (site tests + UX smoke + Lighthouse). CI: `.github/workflows/publish.yml` |
 | What goes live? | Push to **`main`** → Netlify deploys `limitlessyachtcharter.com` |
-| Preview branch? | Push to `experiment-no-prices` → GitHub Pages preview (see `.github/workflows/preview.yml`) |
+| Preview branch? | **`develop` only** → GitHub Pages preview. Feature branches must be merged into `develop` first. |
 | Analytics on preview? | **Off** — `js/analytics-env.js` sets `LY_OWNER_MODE` on `*.github.io`, localhost, Netlify branch deploys |
 | Analytics on production? | **On** — `limitlessyachtcharter.com` only (verified in publish gate) |
 
@@ -71,7 +72,7 @@ When suppressed (`LY_OWNER_MODE`), the site skips: Google tag, Microsoft Clarity
 
 ### Daily dev / preview workflow
 
-1. Work on `experiment-no-prices`, push → GitHub Pages preview deploys.
+1. Work on `develop`, push → GitHub Pages preview deploys.
 2. Preview automatically suppresses analytics — safe for UX iteration and agent testing.
 3. Do **not** remove analytics snippets from HTML; suppression is host-based.
 
@@ -103,12 +104,15 @@ Expect: both match. On preview (`ltpve74.github.io/LimitlessYacht/`), `analytics
 
 | Branch | Purpose | HTML/CSS format | Pre-commit on commit |
 |--------|---------|-----------------|----------------------|
-| `experiment-no-prices` | Daily development | Readable (multi-line) | Rebuild locales when EN source changes. **No minify.** |
+| `develop` | Integration — always matches what's live | Readable (multi-line) | Rebuild locales when EN source changes. **No minify.** |
+| feature branches | Individual work (lead-gen, 3g-opt, etc.) | Readable | Same as develop. Merge into `develop` when ready. |
 | `main` | Production (Netlify) | Minified (single-line) | **Minify → publish gate** (site tests, UX smoke, Lighthouse). Locales already built on dev. |
 
 **Rules**
-- Never minify on `experiment-no-prices`.
-- Never edit English source directly on `main` — always merge from dev.
+- `develop` is the single source of truth — it always reflects what's on the live site.
+- Feature branches fork from `develop`, get merged back into `develop` when complete.
+- Never minify on `develop` or feature branches.
+- Never edit English source directly on `main` — always merge from `develop`.
 - Never hand-edit `de/`, `es/`, `fr/` HTML — use `i18n/build-locales.py`.
 - Locales are built **once** on dev; publish only minifies (no double locale rebuild).
 
@@ -116,7 +120,7 @@ Expect: both match. On preview (`ltpve74.github.io/LimitlessYacht/`), `analytics
 
 ## Development workflow
 
-### 1. Make changes (on `experiment-no-prices`)
+### 1. Make changes (on `develop`)
 
 Edit source files:
 
@@ -149,7 +153,7 @@ git add index.html legal.html css/main.css i18n/locales/ scripts/test-site.py   
 git commit -m "Describe the change"
 ```
 
-**Pre-commit on `experiment-no-prices`** (if staged files include `index.html`, `legal.html`, or `i18n/locales/*.py`):
+**Pre-commit on `develop`** (if staged files include `index.html`, `legal.html`, or `i18n/locales/*.py`):
 
 1. Runs `python3 i18n/build-locales.py`
 2. Stages regenerated `de/`, `es/`, `fr/` pages
@@ -166,7 +170,7 @@ python3 i18n/build-locales.py
 ### 5. Push dev branch (optional preview)
 
 ```sh
-git push origin experiment-no-prices
+git push origin develop
 ```
 
 ---
@@ -177,13 +181,13 @@ Use this when the user asks to **go live** or **publish**.
 
 ```sh
 # 1. Ensure dev branch is committed and pushed
-git checkout experiment-no-prices
+git checkout develop
 git status   # clean working tree
 
 # 2. Merge into main (prefer dev version on conflicts)
 git checkout main
 git pull origin main
-git merge experiment-no-prices
+git merge develop
 # If conflicts: git checkout --theirs <file>   # dev wins
 git add -A
 
@@ -215,7 +219,7 @@ curl -sL https://limitlessyachtcharter.com/ | head -c 500
 
 | Script | When to run | Branch |
 |--------|-------------|--------|
-| `python3 i18n/build-locales.py` | After EN HTML or locale `.py` changes | `experiment-no-prices` |
+| `python3 i18n/build-locales.py` | After EN HTML or locale `.py` changes | `develop` |
 | `python3 scripts/minify_html.py` | Automatic on `main` commit; do not run on dev | `main` only |
 | `python3 scripts/test-site.py` | Part of publish gate; run after feature work | any |
 | `python3 scripts/publish-gate.py` | Automatic on `main` commit; manual before merge | `main` / pre-publish |

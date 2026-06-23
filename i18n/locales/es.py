@@ -215,8 +215,8 @@ PAIRS = [
     ("Availability", "Disponibilidad"),
     ("Check the<em> Calendar</em>", "Consulte el<em> calendario</em>"),
     (
-        "See which dates are open, then complete the enquiry form — we'll confirm your charter personally. The calendar is kept up to date by our crew.",
-        "Vea las fechas libres y complete el formulario de consulta — confirmaremos su charter personalmente. El calendario lo actualiza nuestra tripulación.",
+        "See which dates are open — tap a date, then WhatsApp us for a fast reply. The calendar is kept up to date by our crew.",
+        "Vea las fechas libres — toque una fecha y escríbanos por WhatsApp para una respuesta rápida. El calendario lo actualiza nuestra tripulación.",
     ),
     ('aria-label="Availability calendar"', 'aria-label="Calendario de disponibilidad"'),
     ('aria-label="Previous month"', 'aria-label="Mes anterior"'),
@@ -232,8 +232,15 @@ PAIRS = [
     ("Clear selection", "Borrar selección"),
     ('data-i18n-day="day"', 'data-i18n-day="día"'),
     ('data-i18n-days="days"', 'data-i18n-days="días"'),
-    ("Enquire About These Dates", "Consultar estas fechas"),
-    ("Continue to enquiry →", "Continuar con la consulta →"),
+    ("Call Us", "Llámenos"),
+    ("Prefer email? Fill in the enquiry form →", "¿Prefiere email? Rellene el formulario →"),
+    ("Send", "Enviar"),
+    (
+        'By sending, you agree to be contacted about your enquiry. See our <a href="legal.html">Privacy Policy</a>.',
+        'Al enviar, acepta ser contactado sobre su consulta. Consulte nuestra <a href="legal.html">Política de privacidad</a>.',
+    ),
+    ("Something went wrong — please try WhatsApp instead.", "Algo salió mal — intente por WhatsApp."),
+    ("e.g. 15 July 2026", "p. ej. 15 julio 2026"),
     ("Check availability", "Ver disponibilidad"),
     ("Check Availability", "Ver disponibilidad"),
     ("Enquire on WhatsApp", "Consultar por WhatsApp"),
@@ -1000,8 +1007,8 @@ PAIRS = [
         'Respondemos en pocas horas · sus datos son privados',
     ),
     (
-        'Send My Enquiry',
-        'Enviar mi consulta',
+        'Email me a quote',
+        'Quiero presupuesto',
     ),
     (
         'Chat on WhatsApp',
@@ -1056,9 +1063,10 @@ PAIRS = [
     ('Catering &amp; beach clubs on request', 'Catering &amp; beach clubs bajo petición'),
     ('Provisioning &amp; mooring extra on multi-day', 'Aprovisionamiento &amp; amarre extra en travesías de varios días'),
     # Contact section — new layout
+    ('Quick Enquiry', 'Consulta rápida'),
     ('>Get a Quote<', '>Solicitar presupuesto<'),
     ('Request<em> Your Quote</em>', 'Solicite<em> su presupuesto</em>'),
-    ("Tell us about your group, preferred dates, and the experience you're after. We'll get back to you with a personalised quote within 24 hours — no commitment required.", 'Cuéntenos sobre su grupo, las fechas preferidas y la experiencia que busca. Le responderemos con un presupuesto personalizado en 24 horas — sin compromiso.'),
+    ("Drop your email and pick your preferred dates — we'll reply with availability and a personalised quote within 24 hours. No commitment required.", 'Deje su email y elija sus fechas preferidas — le responderemos con disponibilidad y un presupuesto personalizado en 24 horas. Sin compromiso.'),
     ('or fill in the form', 'o rellene el formulario'),
     ('placeholder="Maria"', 'placeholder="María"'),
     (
