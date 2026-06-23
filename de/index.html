@@ -6,7 +6,6 @@
 <style id="fouc-guard">html{background:#0a1628;color-scheme:dark}a,a:any-link{color:#f5f0e8!important;text-decoration:none!important;-webkit-text-fill-color:currentColor!important}a.btn-primary,a.itinerary-meet-cta,a.mobile-nav-cta{color:#0a1628!important;-webkit-text-fill-color:#0a1628!important}a.btn-ghost,a.nav-cta{color:#f5f0e8!important;-webkit-text-fill-color:#f5f0e8!important}html:not(.ly-main-ready) body>:not(nav):not(#hero){display:none!important}#hero .hero-bg:not(.ly-prog-sharp){opacity:0!important;visibility:hidden!important}</style>
 <script>window.LY_LAYOUT_CSS_HREF='../css/layout.css?v=17';window.LY_MAIN_CSS_HREF='../css/main.css?v=160';</script>
 <script src="../js/net-tier.js?v=2"></script>
-<script src="../js/progressive-images.js?v=2"></script>
 
 <style id="critical-css">
 @font-face{font-family:'Montserrat Fallback';src:local('HelveticaNeue-Thin'),local('Segoe UI Light');size-adjust:114%;ascent-override:97%;descent-override:25%;line-gap-override:0}
@@ -235,29 +234,8 @@ html.ly-past-hero nav{opacity:1;visibility:visible;pointer-events:auto}
 <!-- HERO -->
 <section id="hero">
   <div class="ly-prog-wrap ly-prog-wrap--hero">
-    <img class="ly-prog-preview" src="/images/maiora_20s_02-prev.jpg" srcset="/images/mobile/maiora_20s_02-prev.jpg 640w, /images/maiora_20s_02-prev.jpg 1920w" sizes="100vw" alt="" aria-hidden="true" width="360" height="240" fetchpriority="high" decoding="async" loading="eager">
-    <picture class="hero-bg-wrap">
-      <source data-ly-srcset="/images/mobile/maiora_20s_02-480.webp 480w, /images/mobile/maiora_20s_02-720.webp 720w, /images/mobile/maiora_20s_02-960.webp 960w" sizes="100vw" type="image/webp" media="(max-width: 640px)">
-      <source data-ly-srcset="/images/maiora_20s_02-640.webp 640w, /images/maiora_20s_02-960.webp 960w, /images/maiora_20s_02-1280.webp 1280w, /images/maiora_20s_02.webp 1920w" sizes="100vw" type="image/webp">
-      <img class="hero-bg" data-ly-src="/images/maiora_20s_02.jpg" alt="" width="1920" height="1279" fetchpriority="high" decoding="async">
-    </picture>
-    <script>
-    (function () {
-      var pic = document.currentScript.previousElementSibling;
-      if (!pic || !pic.classList.contains('hero-bg-wrap')) return;
-      if (window.LY_PROGRESSIVE_IMAGES) {
-        if (window.LY_bootHeroEarly) window.LY_bootHeroEarly();
-        return;
-      }
-      pic.querySelectorAll('[data-ly-srcset]').forEach(function (s) {
-        s.setAttribute('srcset', s.getAttribute('data-ly-srcset'));
-      });
-      var img = pic.querySelector('img');
-      if (img && img.getAttribute('data-ly-src') && !img.getAttribute('src')) {
-        img.setAttribute('src', img.getAttribute('data-ly-src'));
-      }
-    })();
-    </script>
+    <img class="ly-prog-preview" src="/images/maiora_20s_02-prev.jpg" srcset="/images/mobile/maiora_20s_02-prev.jpg 640w, /images/maiora_20s_02-prev.jpg 1920w" sizes="100vw" alt="" aria-hidden="true" width="360" height="240" fetchpriority="high" decoding="async" loading="eager" onload="this.parentNode.classList.add('ly-prog-preview-ready');window.LY_loadLayoutCss&&LY_loadLayoutCss();">
+    <picture class="hero-bg-wrap"><source srcset="/images/mobile/maiora_20s_02-480.webp 480w, /images/mobile/maiora_20s_02-720.webp 720w, /images/mobile/maiora_20s_02-960.webp 960w" sizes="100vw" type="image/webp" media="(max-width: 640px)"><source srcset="/images/maiora_20s_02-640.webp 640w, /images/maiora_20s_02-960.webp 960w, /images/maiora_20s_02-1280.webp 1280w, /images/maiora_20s_02.webp 1920w" sizes="100vw" type="image/webp"><img class="hero-bg ly-prog-sharp" src="/images/maiora_20s_02.jpg" alt="" width="1920" height="1279" fetchpriority="high" decoding="async" onload="this.closest('.ly-prog-wrap').classList.add('ly-prog-sharp-ready','ly-prog-sharp-visible')"></picture>
   </div>
   <div class="hero-overlay"></div>
   <div class="hero-content">
@@ -608,9 +586,9 @@ window.LY_whenNearSection = function(id, fn) {
   else window.addEventListener('load', function() { setTimeout(fn, 2500); });
 };
 window.LY_preloadedUrls = {};
-window.LY_heroGateOpen = false;
+window.LY_heroGateOpen = true; /* no hero gate: images load natively */
 window.LY_heroGateBlocked = function() {
-  return !!(window.LY_PROGRESSIVE_IMAGES && !window.LY_heroGateOpen);
+  return false; /* no hero gate */
 };
 window.LY_GALLERY_TAB_IDX = {
   water: [0, 1, 2],
@@ -952,7 +930,7 @@ document.addEventListener('DOMContentLoaded', function() {
   <div class="container">
     <div class="about-grid">
       <div class="about-image-wrap reveal">
-        <picture><source type="image/webp" media="(max-width: 640px)" data-ly-srcset="/images/mobile/maiora_20s_04-480.webp 480w, /images/mobile/maiora_20s_04-720.webp 720w, /images/mobile/maiora_20s_04-960.webp 960w" sizes="100vw" /><source type="image/webp" data-ly-srcset="/images/maiora_20s_04-640.webp 640w, /images/maiora_20s_04-960.webp 960w" sizes="(min-width: 1101px) 50vw, 100vw" /><img loading="lazy" decoding="async" data-ly-src="/images/maiora_20s_04.jpg" width="960" height="639" alt="Limitless yacht cruising the Mallorca coastline" /></picture>
+        <div class="ly-prog-wrap"><img class="ly-prog-preview" src="/images/maiora_20s_04-prev.jpg" alt="" aria-hidden="true" loading="lazy" decoding="async" onload="this.parentNode.classList.add('ly-prog-preview-ready')"><picture><source type="image/webp" media="(max-width: 640px)" srcset="/images/mobile/maiora_20s_04-480.webp 480w, /images/mobile/maiora_20s_04-720.webp 720w, /images/mobile/maiora_20s_04-960.webp 960w" sizes="100vw" /><source type="image/webp" srcset="/images/maiora_20s_04-640.webp 640w, /images/maiora_20s_04-960.webp 960w" sizes="(min-width: 1101px) 50vw, 100vw" /><img class="ly-prog-sharp" src="/images/maiora_20s_04.jpg" alt="Limitless yacht cruising the Mallorca coastline" width="960" height="639" loading="lazy" decoding="async" onload="this.closest('.ly-prog-wrap').classList.add('ly-prog-sharp-ready','ly-prog-sharp-visible')"></picture></div>
         <div class="about-image-accent"></div>
       </div>
       <div class="about-text reveal reveal-delay-1">
@@ -1000,11 +978,7 @@ document.addEventListener('DOMContentLoaded', function() {
     <div class="dest-group tab-active" data-tier="half-day">
       <div class="itinerary-grid">
         <div class="destination-card reveal" data-dest-idx="0">
-          <picture class="destination-card-bg">
-            <source type="image/webp" media="(max-width: 640px)" data-ly-srcset="/images/mobile/dest/portals-vells-1-480.webp 480w, /images/mobile/dest/portals-vells-1-720.webp 720w, /images/mobile/dest/portals-vells-1-960.webp 800w" sizes="78vw" />
-            <source type="image/webp" data-ly-srcset="/images/dest/portals-vells-1-640.webp 640w, /images/dest/portals-vells-1-960.webp 960w" sizes="(min-width: 1101px) 500px, 48vw" />
-            <img loading="lazy" decoding="async" data-ly-src="/images/dest/portals-vells-1.jpg" alt="" width="960" height="720" />
-          </picture>
+          <div class="ly-prog-wrap"><img class="ly-prog-preview" src="/images/dest/portals-vells-1-prev.jpg" alt="" aria-hidden="true" loading="lazy" decoding="async" onload="this.parentNode.classList.add('ly-prog-preview-ready')"><picture class="destination-card-bg"><source type="image/webp" media="(max-width: 640px)" srcset="/images/mobile/dest/portals-vells-1-480.webp 480w, /images/mobile/dest/portals-vells-1-720.webp 720w, /images/mobile/dest/portals-vells-1-960.webp 800w" sizes="78vw" /><source type="image/webp" srcset="/images/dest/portals-vells-1-640.webp 640w, /images/dest/portals-vells-1-960.webp 960w" sizes="(min-width: 1101px) 500px, 48vw" /><img class="ly-prog-sharp" src="/images/dest/portals-vells-1.jpg" alt="" width="960" height="720" loading="lazy" decoding="async" onload="this.closest('.ly-prog-wrap').classList.add('ly-prog-sharp-ready','ly-prog-sharp-visible')"></picture></div>
           <div class="destination-card-overlay"></div>
           <div class="destination-card-body">
             <div class="destination-num">01 · Südwestküste</div>
@@ -1020,11 +994,7 @@ document.addEventListener('DOMContentLoaded', function() {
           </div>
         </div>
         <div class="destination-card reveal reveal-delay-1" data-dest-idx="1">
-          <picture class="destination-card-bg">
-            <source type="image/webp" media="(max-width: 640px)" data-ly-srcset="/images/mobile/dest/el-toro-malgrats-1-480.webp 320w, /images/mobile/dest/el-toro-malgrats-1-720.webp 480w, /images/mobile/dest/el-toro-malgrats-1-960.webp 640w, /images/mobile/dest/el-toro-malgrats-1.webp 800w" sizes="78vw" />
-            <source type="image/webp" data-ly-srcset="/images/dest/el-toro-malgrats-1-640.webp 427w, /images/dest/el-toro-malgrats-1-960.webp 640w" sizes="(min-width: 1101px) 500px, 48vw" />
-            <img loading="lazy" decoding="async" data-ly-src="/images/dest/el-toro-malgrats-1.jpg" alt="" width="640" height="960" />
-          </picture>
+          <div class="ly-prog-wrap"><img class="ly-prog-preview" src="/images/dest/el-toro-malgrats-1-prev.jpg" alt="" aria-hidden="true" loading="lazy" decoding="async" onload="this.parentNode.classList.add('ly-prog-preview-ready')"><picture class="destination-card-bg"><source type="image/webp" media="(max-width: 640px)" srcset="/images/mobile/dest/el-toro-malgrats-1-480.webp 320w, /images/mobile/dest/el-toro-malgrats-1-720.webp 480w, /images/mobile/dest/el-toro-malgrats-1-960.webp 640w, /images/mobile/dest/el-toro-malgrats-1.webp 800w" sizes="78vw" /><source type="image/webp" srcset="/images/dest/el-toro-malgrats-1-640.webp 427w, /images/dest/el-toro-malgrats-1-960.webp 640w" sizes="(min-width: 1101px) 500px, 48vw" /><img class="ly-prog-sharp" src="/images/dest/el-toro-malgrats-1.jpg" alt="" width="640" height="960" loading="lazy" decoding="async" onload="this.closest('.ly-prog-wrap').classList.add('ly-prog-sharp-ready','ly-prog-sharp-visible')"></picture></div>
           <div class="destination-card-overlay"></div>
           <div class="destination-card-body">
             <div class="destination-num">02 · Südwestküste</div>
@@ -1040,11 +1010,7 @@ document.addEventListener('DOMContentLoaded', function() {
           </div>
         </div>
         <div class="destination-card reveal reveal-delay-1" data-dest-idx="2">
-          <picture class="destination-card-bg">
-            <source type="image/webp" media="(max-width: 640px)" data-ly-srcset="/images/mobile/dest/cala-llamp-1-480.webp 480w, /images/mobile/dest/cala-llamp-1-720.webp 720w, /images/mobile/dest/cala-llamp-1-960.webp 800w" sizes="78vw" />
-            <source type="image/webp" data-ly-srcset="/images/dest/cala-llamp-1-640.webp 640w, /images/dest/cala-llamp-1-960.webp 960w" sizes="(min-width: 1101px) 500px, 48vw" />
-            <img loading="lazy" decoding="async" data-ly-src="/images/dest/cala-llamp-1.jpg" alt="" width="960" height="720" />
-          </picture>
+          <div class="ly-prog-wrap"><img class="ly-prog-preview" src="/images/dest/cala-llamp-1-prev.jpg" alt="" aria-hidden="true" loading="lazy" decoding="async" onload="this.parentNode.classList.add('ly-prog-preview-ready')"><picture class="destination-card-bg"><source type="image/webp" media="(max-width: 640px)" srcset="/images/mobile/dest/cala-llamp-1-480.webp 480w, /images/mobile/dest/cala-llamp-1-720.webp 720w, /images/mobile/dest/cala-llamp-1-960.webp 800w" sizes="78vw" /><source type="image/webp" srcset="/images/dest/cala-llamp-1-640.webp 640w, /images/dest/cala-llamp-1-960.webp 960w" sizes="(min-width: 1101px) 500px, 48vw" /><img class="ly-prog-sharp" src="/images/dest/cala-llamp-1.jpg" alt="" width="960" height="720" loading="lazy" decoding="async" onload="this.closest('.ly-prog-wrap').classList.add('ly-prog-sharp-ready','ly-prog-sharp-visible')"></picture></div>
           <div class="destination-card-overlay"></div>
           <div class="destination-card-body">
             <div class="destination-num">03 · Südwestküste</div>
@@ -1071,11 +1037,7 @@ document.addEventListener('DOMContentLoaded', function() {
     <div class="dest-group" data-tier="full-day">
       <div class="itinerary-grid">
         <div class="destination-card reveal" data-dest-idx="3">
-          <picture class="destination-card-bg">
-            <source type="image/webp" media="(max-width: 640px)" data-ly-srcset="/images/mobile/dest/sa-dragonera-1-480.webp 480w, /images/mobile/dest/sa-dragonera-1-720.webp 720w, /images/mobile/dest/sa-dragonera-1-960.webp 800w" sizes="78vw" />
-            <source type="image/webp" data-ly-srcset="/images/dest/sa-dragonera-1-640.webp 640w, /images/dest/sa-dragonera-1-960.webp 960w" sizes="(min-width: 1101px) 500px, 48vw" />
-            <img loading="lazy" decoding="async" data-ly-src="/images/dest/sa-dragonera-1.jpg" alt="" width="960" height="640" />
-          </picture>
+          <div class="ly-prog-wrap"><img class="ly-prog-preview" src="/images/dest/sa-dragonera-1-prev.jpg" alt="" aria-hidden="true" loading="lazy" decoding="async" onload="this.parentNode.classList.add('ly-prog-preview-ready')"><picture class="destination-card-bg"><source type="image/webp" media="(max-width: 640px)" srcset="/images/mobile/dest/sa-dragonera-1-480.webp 480w, /images/mobile/dest/sa-dragonera-1-720.webp 720w, /images/mobile/dest/sa-dragonera-1-960.webp 800w" sizes="78vw" /><source type="image/webp" srcset="/images/dest/sa-dragonera-1-640.webp 640w, /images/dest/sa-dragonera-1-960.webp 960w" sizes="(min-width: 1101px) 500px, 48vw" /><img class="ly-prog-sharp" src="/images/dest/sa-dragonera-1.jpg" alt="" width="960" height="640" loading="lazy" decoding="async" onload="this.closest('.ly-prog-wrap').classList.add('ly-prog-sharp-ready','ly-prog-sharp-visible')"></picture></div>
           <div class="destination-card-overlay"></div>
           <div class="destination-card-body">
             <div class="destination-num">04 · Westküste</div>
@@ -1091,11 +1053,7 @@ document.addEventListener('DOMContentLoaded', function() {
           </div>
         </div>
         <div class="destination-card reveal reveal-delay-1" data-dest-idx="4">
-          <picture class="destination-card-bg">
-            <source type="image/webp" media="(max-width: 640px)" data-ly-srcset="/images/mobile/dest/cala-pi-1-480.webp 480w, /images/mobile/dest/cala-pi-1-720.webp 720w, /images/mobile/dest/cala-pi-1-960.webp 800w" sizes="78vw" />
-            <source type="image/webp" data-ly-srcset="/images/dest/cala-pi-1-640.webp 640w, /images/dest/cala-pi-1-960.webp 960w" sizes="(min-width: 1101px) 500px, 48vw" />
-            <img loading="lazy" decoding="async" data-ly-src="/images/dest/cala-pi-1.jpg" alt="" width="960" height="721" />
-          </picture>
+          <div class="ly-prog-wrap"><img class="ly-prog-preview" src="/images/dest/cala-pi-1-prev.jpg" alt="" aria-hidden="true" loading="lazy" decoding="async" onload="this.parentNode.classList.add('ly-prog-preview-ready')"><picture class="destination-card-bg"><source type="image/webp" media="(max-width: 640px)" srcset="/images/mobile/dest/cala-pi-1-480.webp 480w, /images/mobile/dest/cala-pi-1-720.webp 720w, /images/mobile/dest/cala-pi-1-960.webp 800w" sizes="78vw" /><source type="image/webp" srcset="/images/dest/cala-pi-1-640.webp 640w, /images/dest/cala-pi-1-960.webp 960w" sizes="(min-width: 1101px) 500px, 48vw" /><img class="ly-prog-sharp" src="/images/dest/cala-pi-1.jpg" alt="" width="960" height="721" loading="lazy" decoding="async" onload="this.closest('.ly-prog-wrap').classList.add('ly-prog-sharp-ready','ly-prog-sharp-visible')"></picture></div>
           <div class="destination-card-overlay"></div>
           <div class="destination-card-body">
             <div class="destination-num">05 · Südküste</div>
@@ -1111,11 +1069,7 @@ document.addEventListener('DOMContentLoaded', function() {
           </div>
         </div>
         <div class="destination-card reveal reveal-delay-1" data-dest-idx="5">
-          <picture class="destination-card-bg">
-            <source type="image/webp" media="(max-width: 640px)" data-ly-srcset="/images/mobile/dest/es-trenc-1-480.webp 480w, /images/mobile/dest/es-trenc-1-720.webp 720w, /images/mobile/dest/es-trenc-1-960.webp 800w" sizes="78vw" />
-            <source type="image/webp" data-ly-srcset="/images/dest/es-trenc-1-640.webp 640w, /images/dest/es-trenc-1-960.webp 960w" sizes="(min-width: 1101px) 500px, 48vw" />
-            <img loading="lazy" decoding="async" data-ly-src="/images/dest/es-trenc-1.jpg" alt="" width="960" height="640" />
-          </picture>
+          <div class="ly-prog-wrap"><img class="ly-prog-preview" src="/images/dest/es-trenc-1-prev.jpg" alt="" aria-hidden="true" loading="lazy" decoding="async" onload="this.parentNode.classList.add('ly-prog-preview-ready')"><picture class="destination-card-bg"><source type="image/webp" media="(max-width: 640px)" srcset="/images/mobile/dest/es-trenc-1-480.webp 480w, /images/mobile/dest/es-trenc-1-720.webp 720w, /images/mobile/dest/es-trenc-1-960.webp 800w" sizes="78vw" /><source type="image/webp" srcset="/images/dest/es-trenc-1-640.webp 640w, /images/dest/es-trenc-1-960.webp 960w" sizes="(min-width: 1101px) 500px, 48vw" /><img class="ly-prog-sharp" src="/images/dest/es-trenc-1.jpg" alt="" width="960" height="640" loading="lazy" decoding="async" onload="this.closest('.ly-prog-wrap').classList.add('ly-prog-sharp-ready','ly-prog-sharp-visible')"></picture></div>
           <div class="destination-card-overlay"></div>
           <div class="destination-card-body">
             <div class="destination-num">06 · Südküste</div>
@@ -1131,11 +1085,7 @@ document.addEventListener('DOMContentLoaded', function() {
           </div>
         </div>
         <div class="destination-card reveal reveal-delay-1" data-dest-idx="6">
-          <picture class="destination-card-bg">
-            <source type="image/webp" media="(max-width: 640px)" data-ly-srcset="/images/mobile/dest/cabrera-1-480.webp 480w, /images/mobile/dest/cabrera-1-720.webp 720w, /images/mobile/dest/cabrera-1-960.webp 800w" sizes="78vw" />
-            <source type="image/webp" data-ly-srcset="/images/dest/cabrera-1-640.webp 640w, /images/dest/cabrera-1-960.webp 960w" sizes="(min-width: 1101px) 500px, 48vw" />
-            <img loading="lazy" decoding="async" data-ly-src="/images/dest/cabrera-1.jpg" alt="" width="960" height="638" />
-          </picture>
+          <div class="ly-prog-wrap"><img class="ly-prog-preview" src="/images/dest/cabrera-1-prev.jpg" alt="" aria-hidden="true" loading="lazy" decoding="async" onload="this.parentNode.classList.add('ly-prog-preview-ready')"><picture class="destination-card-bg"><source type="image/webp" media="(max-width: 640px)" srcset="/images/mobile/dest/cabrera-1-480.webp 480w, /images/mobile/dest/cabrera-1-720.webp 720w, /images/mobile/dest/cabrera-1-960.webp 800w" sizes="78vw" /><source type="image/webp" srcset="/images/dest/cabrera-1-640.webp 640w, /images/dest/cabrera-1-960.webp 960w" sizes="(min-width: 1101px) 500px, 48vw" /><img class="ly-prog-sharp" src="/images/dest/cabrera-1.jpg" alt="" width="960" height="638" loading="lazy" decoding="async" onload="this.closest('.ly-prog-wrap').classList.add('ly-prog-sharp-ready','ly-prog-sharp-visible')"></picture></div>
           <div class="destination-card-overlay"></div>
           <div class="destination-card-body">
             <div class="destination-num">07 · Südliches Archipel</div>
@@ -1151,11 +1101,7 @@ document.addEventListener('DOMContentLoaded', function() {
           </div>
         </div>
         <div class="destination-card reveal reveal-delay-2" data-dest-idx="7">
-          <picture class="destination-card-bg">
-            <source type="image/webp" media="(max-width: 640px)" data-ly-srcset="/images/mobile/dest/calo-des-moro-1-480.webp 480w, /images/mobile/dest/calo-des-moro-1-720.webp 720w, /images/mobile/dest/calo-des-moro-1-960.webp 800w" sizes="78vw" />
-            <source type="image/webp" data-ly-srcset="/images/dest/calo-des-moro-1-640.webp 640w, /images/dest/calo-des-moro-1-960.webp 960w" sizes="(min-width: 1101px) 500px, 48vw" />
-            <img loading="lazy" decoding="async" data-ly-src="/images/dest/calo-des-moro-1.jpg" alt="" width="960" height="638" />
-          </picture>
+          <div class="ly-prog-wrap"><img class="ly-prog-preview" src="/images/dest/calo-des-moro-1-prev.jpg" alt="" aria-hidden="true" loading="lazy" decoding="async" onload="this.parentNode.classList.add('ly-prog-preview-ready')"><picture class="destination-card-bg"><source type="image/webp" media="(max-width: 640px)" srcset="/images/mobile/dest/calo-des-moro-1-480.webp 480w, /images/mobile/dest/calo-des-moro-1-720.webp 720w, /images/mobile/dest/calo-des-moro-1-960.webp 800w" sizes="78vw" /><source type="image/webp" srcset="/images/dest/calo-des-moro-1-640.webp 640w, /images/dest/calo-des-moro-1-960.webp 960w" sizes="(min-width: 1101px) 500px, 48vw" /><img class="ly-prog-sharp" src="/images/dest/calo-des-moro-1.jpg" alt="" width="960" height="638" loading="lazy" decoding="async" onload="this.closest('.ly-prog-wrap').classList.add('ly-prog-sharp-ready','ly-prog-sharp-visible')"></picture></div>
           <div class="destination-card-overlay"></div>
           <div class="destination-card-body">
             <div class="destination-num">08 · Südostküste</div>
@@ -1182,11 +1128,7 @@ document.addEventListener('DOMContentLoaded', function() {
     <div class="dest-group" data-tier="multi-day">
       <div class="itinerary-grid">
         <div class="destination-card reveal" data-dest-idx="8">
-          <picture class="destination-card-bg">
-            <source type="image/webp" media="(max-width: 640px)" data-ly-srcset="/images/mobile/dest/sa-calobra-1-480.webp 320w, /images/mobile/dest/sa-calobra-1-720.webp 480w, /images/mobile/dest/sa-calobra-1-960.webp 640w, /images/mobile/dest/sa-calobra-1.webp 800w" sizes="78vw" />
-            <source type="image/webp" data-ly-srcset="/images/dest/sa-calobra-1-640.webp 427w, /images/dest/sa-calobra-1-960.webp 640w" sizes="(min-width: 1101px) 500px, 48vw" />
-            <img loading="lazy" decoding="async" data-ly-src="/images/dest/sa-calobra-1.jpg" alt="" width="640" height="960" />
-          </picture>
+          <div class="ly-prog-wrap"><img class="ly-prog-preview" src="/images/dest/sa-calobra-1-prev.jpg" alt="" aria-hidden="true" loading="lazy" decoding="async" onload="this.parentNode.classList.add('ly-prog-preview-ready')"><picture class="destination-card-bg"><source type="image/webp" media="(max-width: 640px)" srcset="/images/mobile/dest/sa-calobra-1-480.webp 320w, /images/mobile/dest/sa-calobra-1-720.webp 480w, /images/mobile/dest/sa-calobra-1-960.webp 640w, /images/mobile/dest/sa-calobra-1.webp 800w" sizes="78vw" /><source type="image/webp" srcset="/images/dest/sa-calobra-1-640.webp 427w, /images/dest/sa-calobra-1-960.webp 640w" sizes="(min-width: 1101px) 500px, 48vw" /><img class="ly-prog-sharp" src="/images/dest/sa-calobra-1.jpg" alt="" width="640" height="960" loading="lazy" decoding="async" onload="this.closest('.ly-prog-wrap').classList.add('ly-prog-sharp-ready','ly-prog-sharp-visible')"></picture></div>
           <div class="destination-card-overlay"></div>
           <div class="destination-card-body">
             <div class="destination-num">09 · Nordwestküste</div>
@@ -1202,11 +1144,7 @@ document.addEventListener('DOMContentLoaded', function() {
           </div>
         </div>
         <div class="destination-card reveal reveal-delay-1" data-dest-idx="9">
-          <picture class="destination-card-bg">
-            <source type="image/webp" media="(max-width: 640px)" data-ly-srcset="/images/mobile/dest/circumnavigation-1-480.webp 480w, /images/mobile/dest/circumnavigation-1-720.webp 720w, /images/mobile/dest/circumnavigation-1-960.webp 800w" sizes="78vw" />
-            <source type="image/webp" data-ly-srcset="/images/dest/circumnavigation-1-640.webp 640w, /images/dest/circumnavigation-1-960.webp 960w" sizes="(min-width: 1101px) 500px, 48vw" />
-            <img loading="lazy" decoding="async" data-ly-src="/images/dest/circumnavigation-1.jpg" alt="" width="960" height="519" />
-          </picture>
+          <div class="ly-prog-wrap"><img class="ly-prog-preview" src="/images/dest/circumnavigation-1-prev.jpg" alt="" aria-hidden="true" loading="lazy" decoding="async" onload="this.parentNode.classList.add('ly-prog-preview-ready')"><picture class="destination-card-bg"><source type="image/webp" media="(max-width: 640px)" srcset="/images/mobile/dest/circumnavigation-1-480.webp 480w, /images/mobile/dest/circumnavigation-1-720.webp 720w, /images/mobile/dest/circumnavigation-1-960.webp 800w" sizes="78vw" /><source type="image/webp" srcset="/images/dest/circumnavigation-1-640.webp 640w, /images/dest/circumnavigation-1-960.webp 960w" sizes="(min-width: 1101px) 500px, 48vw" /><img class="ly-prog-sharp" src="/images/dest/circumnavigation-1.jpg" alt="" width="960" height="519" loading="lazy" decoding="async" onload="this.closest('.ly-prog-wrap').classList.add('ly-prog-sharp-ready','ly-prog-sharp-visible')"></picture></div>
           <div class="destination-card-overlay"></div>
           <div class="destination-card-body">
             <div class="destination-num">10 · Ganze Insel</div>
@@ -1222,11 +1160,7 @@ document.addEventListener('DOMContentLoaded', function() {
           </div>
         </div>
         <div class="destination-card reveal reveal-delay-2" data-dest-idx="10">
-          <picture class="destination-card-bg">
-            <source type="image/webp" media="(max-width: 640px)" data-ly-srcset="/images/mobile/dest/formentera-1-480.webp 480w, /images/mobile/dest/formentera-1-720.webp 720w, /images/mobile/dest/formentera-1-960.webp 800w" sizes="78vw" />
-            <source type="image/webp" data-ly-srcset="/images/dest/formentera-1-640.webp 640w, /images/dest/formentera-1-960.webp 960w" sizes="(min-width: 1101px) 500px, 48vw" />
-            <img loading="lazy" decoding="async" data-ly-src="/images/dest/formentera-1.jpg" alt="" width="960" height="720" />
-          </picture>
+          <div class="ly-prog-wrap"><img class="ly-prog-preview" src="/images/dest/formentera-1-prev.jpg" alt="" aria-hidden="true" loading="lazy" decoding="async" onload="this.parentNode.classList.add('ly-prog-preview-ready')"><picture class="destination-card-bg"><source type="image/webp" media="(max-width: 640px)" srcset="/images/mobile/dest/formentera-1-480.webp 480w, /images/mobile/dest/formentera-1-720.webp 720w, /images/mobile/dest/formentera-1-960.webp 800w" sizes="78vw" /><source type="image/webp" srcset="/images/dest/formentera-1-640.webp 640w, /images/dest/formentera-1-960.webp 960w" sizes="(min-width: 1101px) 500px, 48vw" /><img class="ly-prog-sharp" src="/images/dest/formentera-1.jpg" alt="" width="960" height="720" loading="lazy" decoding="async" onload="this.closest('.ly-prog-wrap').classList.add('ly-prog-sharp-ready','ly-prog-sharp-visible')"></picture></div>
           <div class="destination-card-overlay"></div>
           <div class="destination-card-body">
             <div class="destination-num">11 · Balearen-Überfahrt</div>
@@ -1242,11 +1176,7 @@ document.addEventListener('DOMContentLoaded', function() {
           </div>
         </div>
         <div class="destination-card reveal reveal-delay-3" data-dest-idx="11">
-          <picture class="destination-card-bg">
-            <source type="image/webp" media="(max-width: 640px)" data-ly-srcset="/images/mobile/dest/menorca-1-480.webp 360w, /images/mobile/dest/menorca-1-720.webp 540w, /images/mobile/dest/menorca-1-960.webp 720w, /images/mobile/dest/menorca-1.webp 800w" sizes="78vw" />
-            <source type="image/webp" data-ly-srcset="/images/dest/menorca-1-640.webp 480w, /images/dest/menorca-1-960.webp 720w" sizes="(min-width: 1101px) 500px, 48vw" />
-            <img loading="lazy" decoding="async" data-ly-src="/images/dest/menorca-1.jpg" alt="" width="720" height="960" />
-          </picture>
+          <div class="ly-prog-wrap"><img class="ly-prog-preview" src="/images/dest/menorca-1-prev.jpg" alt="" aria-hidden="true" loading="lazy" decoding="async" onload="this.parentNode.classList.add('ly-prog-preview-ready')"><picture class="destination-card-bg"><source type="image/webp" media="(max-width: 640px)" srcset="/images/mobile/dest/menorca-1-480.webp 360w, /images/mobile/dest/menorca-1-720.webp 540w, /images/mobile/dest/menorca-1-960.webp 720w, /images/mobile/dest/menorca-1.webp 800w" sizes="78vw" /><source type="image/webp" srcset="/images/dest/menorca-1-640.webp 480w, /images/dest/menorca-1-960.webp 720w" sizes="(min-width: 1101px) 500px, 48vw" /><img class="ly-prog-sharp" src="/images/dest/menorca-1.jpg" alt="" width="720" height="960" loading="lazy" decoding="async" onload="this.closest('.ly-prog-wrap').classList.add('ly-prog-sharp-ready','ly-prog-sharp-visible')"></picture></div>
           <div class="destination-card-overlay"></div>
           <div class="destination-card-body">
             <div class="destination-num">12 · Balearen-Überfahrt</div>
@@ -1478,13 +1408,13 @@ document.addEventListener('DOMContentLoaded', function() {
     <div class="gallery-group tab-active" data-gtab="water">
       <div class="gallery-grid">
         <div class="gallery-item reveal" data-index="0">
-          <picture><source type="image/webp" media="(max-width: 640px)" data-ly-srcset="/images/mobile/maiora_20s_01-480.webp 480w, /images/mobile/maiora_20s_01-720.webp 720w, /images/mobile/maiora_20s_01-960.webp 960w" sizes="100vw" /><source type="image/webp" data-ly-srcset="/images/maiora_20s_01-640.webp 640w, /images/maiora_20s_01-960.webp 960w" sizes="(min-width: 1101px) 50vw, 100vw" /><img loading="lazy" decoding="async" data-ly-src="/images/maiora_20s_01.jpg" width="960" height="640" alt="Maiora 20S yacht Limitless cruising off the Mallorca coast" /></picture>
+          <div class="ly-prog-wrap"><img class="ly-prog-preview" src="/images/maiora_20s_01-prev.jpg" alt="" aria-hidden="true" loading="lazy" decoding="async" onload="this.parentNode.classList.add('ly-prog-preview-ready')"><picture><source type="image/webp" media="(max-width: 640px)" srcset="/images/mobile/maiora_20s_01-480.webp 480w, /images/mobile/maiora_20s_01-720.webp 720w, /images/mobile/maiora_20s_01-960.webp 960w" sizes="100vw" /><source type="image/webp" srcset="/images/maiora_20s_01-640.webp 640w, /images/maiora_20s_01-960.webp 960w" sizes="(min-width: 1101px) 50vw, 100vw" /><img class="ly-prog-sharp" src="/images/maiora_20s_01.jpg" alt="Maiora 20S yacht Limitless cruising off the Mallorca coast" width="960" height="640" loading="lazy" decoding="async" onload="this.closest('.ly-prog-wrap').classList.add('ly-prog-sharp-ready','ly-prog-sharp-visible')"></picture></div>
         </div>
         <div class="gallery-item reveal reveal-delay-1" data-index="1">
-          <picture><source type="image/webp" media="(max-width: 640px)" data-ly-srcset="/images/mobile/maiora_20s_03-480.webp 480w, /images/mobile/maiora_20s_03-720.webp 720w, /images/mobile/maiora_20s_03-960.webp 960w" sizes="100vw" /><source type="image/webp" data-ly-srcset="/images/maiora_20s_03-640.webp 640w, /images/maiora_20s_03-960.webp 960w" sizes="(min-width: 1101px) 25vw, 50vw" /><img loading="lazy" decoding="async" data-ly-src="/images/maiora_20s_03.jpg" width="960" height="640" alt="Aerial side profile of the Limitless yacht underway at sea" /></picture>
+          <div class="ly-prog-wrap"><img class="ly-prog-preview" src="/images/maiora_20s_03-prev.jpg" alt="" aria-hidden="true" loading="lazy" decoding="async" onload="this.parentNode.classList.add('ly-prog-preview-ready')"><picture><source type="image/webp" media="(max-width: 640px)" srcset="/images/mobile/maiora_20s_03-480.webp 480w, /images/mobile/maiora_20s_03-720.webp 720w, /images/mobile/maiora_20s_03-960.webp 960w" sizes="100vw" /><source type="image/webp" srcset="/images/maiora_20s_03-640.webp 640w, /images/maiora_20s_03-960.webp 960w" sizes="(min-width: 1101px) 25vw, 50vw" /><img class="ly-prog-sharp" src="/images/maiora_20s_03.jpg" alt="Aerial side profile of the Limitless yacht underway at sea" width="960" height="640" loading="lazy" decoding="async" onload="this.closest('.ly-prog-wrap').classList.add('ly-prog-sharp-ready','ly-prog-sharp-visible')"></picture></div>
         </div>
         <div class="gallery-item reveal reveal-delay-2" data-index="2">
-          <picture><source type="image/webp" media="(max-width: 640px)" data-ly-srcset="/images/mobile/maiora_20s_07-480.webp 480w, /images/mobile/maiora_20s_07-720.webp 720w, /images/mobile/maiora_20s_07-960.webp 960w" sizes="100vw" /><source type="image/webp" data-ly-srcset="/images/maiora_20s_07-640.webp 640w, /images/maiora_20s_07-960.webp 960w" sizes="(min-width: 1101px) 25vw, 50vw" /><img loading="lazy" decoding="async" data-ly-src="/images/maiora_20s_07.jpg" width="960" height="640" alt="Limitless yacht head-on at full speed" /></picture>
+          <div class="ly-prog-wrap"><img class="ly-prog-preview" src="/images/maiora_20s_07-prev.jpg" alt="" aria-hidden="true" loading="lazy" decoding="async" onload="this.parentNode.classList.add('ly-prog-preview-ready')"><picture><source type="image/webp" media="(max-width: 640px)" srcset="/images/mobile/maiora_20s_07-480.webp 480w, /images/mobile/maiora_20s_07-720.webp 720w, /images/mobile/maiora_20s_07-960.webp 960w" sizes="100vw" /><source type="image/webp" srcset="/images/maiora_20s_07-640.webp 640w, /images/maiora_20s_07-960.webp 960w" sizes="(min-width: 1101px) 25vw, 50vw" /><img class="ly-prog-sharp" src="/images/maiora_20s_07.jpg" alt="Limitless yacht head-on at full speed" width="960" height="640" loading="lazy" decoding="async" onload="this.closest('.ly-prog-wrap').classList.add('ly-prog-sharp-ready','ly-prog-sharp-visible')"></picture></div>
         </div>
       </div>
       <div class="carousel-nav">
@@ -1498,16 +1428,16 @@ document.addEventListener('DOMContentLoaded', function() {
     <div class="gallery-group" data-gtab="deck">
       <div class="gallery-grid">
         <div class="gallery-item reveal" data-index="3">
-          <picture><source type="image/webp" media="(max-width: 640px)" data-ly-srcset="/images/mobile/limitless_aft_dining-480.webp 480w, /images/mobile/limitless_aft_dining-720.webp 720w, /images/mobile/limitless_aft_dining-960.webp 960w, /images/mobile/limitless_aft_dining.webp 1280w" sizes="100vw" /><source type="image/webp" data-ly-srcset="/images/limitless_aft_dining-640.webp 640w, /images/limitless_aft_dining-960.webp 960w, /images/limitless_aft_dining.webp 1280w" sizes="(min-width: 1101px) 50vw, 100vw" /><img loading="lazy" decoding="async" data-ly-src="/images/limitless_aft_dining.jpg" width="1280" height="960" alt="Al fresco dining on the aft deck of the Limitless yacht" /></picture>
+          <div class="ly-prog-wrap"><img class="ly-prog-preview" src="/images/limitless_aft_dining-prev.jpg" alt="" aria-hidden="true" loading="lazy" decoding="async" onload="this.parentNode.classList.add('ly-prog-preview-ready')"><picture><source type="image/webp" media="(max-width: 640px)" srcset="/images/mobile/limitless_aft_dining-480.webp 480w, /images/mobile/limitless_aft_dining-720.webp 720w, /images/mobile/limitless_aft_dining-960.webp 960w, /images/mobile/limitless_aft_dining.webp 1280w" sizes="100vw" /><source type="image/webp" srcset="/images/limitless_aft_dining-640.webp 640w, /images/limitless_aft_dining-960.webp 960w, /images/limitless_aft_dining.webp 1280w" sizes="(min-width: 1101px) 50vw, 100vw" /><img class="ly-prog-sharp" src="/images/limitless_aft_dining.jpg" alt="Al fresco dining on the aft deck of the Limitless yacht" width="1280" height="960" loading="lazy" decoding="async" onload="this.closest('.ly-prog-wrap').classList.add('ly-prog-sharp-ready','ly-prog-sharp-visible')"></picture></div>
         </div>
         <div class="gallery-item reveal reveal-delay-1" data-index="4">
-          <picture><source type="image/webp" media="(max-width: 640px)" data-ly-srcset="/images/mobile/limitless_flybridge-480.webp 480w, /images/mobile/limitless_flybridge-720.webp 720w, /images/mobile/limitless_flybridge-960.webp 960w, /images/mobile/limitless_flybridge.webp 1280w" sizes="100vw" /><source type="image/webp" data-ly-srcset="/images/limitless_flybridge-640.webp 640w, /images/limitless_flybridge-960.webp 960w, /images/limitless_flybridge.webp 1280w" sizes="(min-width: 1101px) 25vw, 50vw" /><img loading="lazy" decoding="async" data-ly-src="/images/limitless_flybridge.jpg" width="1280" height="960" alt="Flybridge lounge and dining on the Limitless yacht" /></picture>
+          <div class="ly-prog-wrap"><img class="ly-prog-preview" src="/images/limitless_flybridge-prev.jpg" alt="" aria-hidden="true" loading="lazy" decoding="async" onload="this.parentNode.classList.add('ly-prog-preview-ready')"><picture><source type="image/webp" media="(max-width: 640px)" srcset="/images/mobile/limitless_flybridge-480.webp 480w, /images/mobile/limitless_flybridge-720.webp 720w, /images/mobile/limitless_flybridge-960.webp 960w, /images/mobile/limitless_flybridge.webp 1280w" sizes="100vw" /><source type="image/webp" srcset="/images/limitless_flybridge-640.webp 640w, /images/limitless_flybridge-960.webp 960w, /images/limitless_flybridge.webp 1280w" sizes="(min-width: 1101px) 25vw, 50vw" /><img class="ly-prog-sharp" src="/images/limitless_flybridge.jpg" alt="Flybridge lounge and dining on the Limitless yacht" width="1280" height="960" loading="lazy" decoding="async" onload="this.closest('.ly-prog-wrap').classList.add('ly-prog-sharp-ready','ly-prog-sharp-visible')"></picture></div>
         </div>
         <div class="gallery-item reveal reveal-delay-2" data-index="5">
-          <picture><source type="image/webp" media="(max-width: 640px)" data-ly-srcset="/images/mobile/limitless_sundeck-480.webp 480w, /images/mobile/limitless_sundeck-720.webp 720w, /images/mobile/limitless_sundeck-960.webp 960w, /images/mobile/limitless_sundeck.webp 1280w" sizes="100vw" /><source type="image/webp" data-ly-srcset="/images/limitless_sundeck-640.webp 640w, /images/limitless_sundeck-960.webp 960w, /images/limitless_sundeck.webp 1280w" sizes="(min-width: 1101px) 25vw, 50vw" /><img loading="lazy" decoding="async" data-ly-src="/images/limitless_sundeck.jpg" width="1280" height="960" alt="Flybridge sun deck and sunpads on the Limitless yacht" /></picture>
+          <div class="ly-prog-wrap"><img class="ly-prog-preview" src="/images/limitless_sundeck-prev.jpg" alt="" aria-hidden="true" loading="lazy" decoding="async" onload="this.parentNode.classList.add('ly-prog-preview-ready')"><picture><source type="image/webp" media="(max-width: 640px)" srcset="/images/mobile/limitless_sundeck-480.webp 480w, /images/mobile/limitless_sundeck-720.webp 720w, /images/mobile/limitless_sundeck-960.webp 960w, /images/mobile/limitless_sundeck.webp 1280w" sizes="100vw" /><source type="image/webp" srcset="/images/limitless_sundeck-640.webp 640w, /images/limitless_sundeck-960.webp 960w, /images/limitless_sundeck.webp 1280w" sizes="(min-width: 1101px) 25vw, 50vw" /><img class="ly-prog-sharp" src="/images/limitless_sundeck.jpg" alt="Flybridge sun deck and sunpads on the Limitless yacht" width="1280" height="960" loading="lazy" decoding="async" onload="this.closest('.ly-prog-wrap').classList.add('ly-prog-sharp-ready','ly-prog-sharp-visible')"></picture></div>
         </div>
         <div class="gallery-item reveal reveal-delay-3" data-index="6">
-          <picture><source type="image/webp" media="(max-width: 640px)" data-ly-srcset="/images/mobile/limitless_aft_deck-480.webp 480w, /images/mobile/limitless_aft_deck-720.webp 720w, /images/mobile/limitless_aft_deck-960.webp 960w, /images/mobile/limitless_aft_deck.webp 1280w" sizes="100vw" /><source type="image/webp" data-ly-srcset="/images/limitless_aft_deck-640.webp 640w, /images/limitless_aft_deck-960.webp 960w, /images/limitless_aft_deck.webp 1280w" sizes="(min-width: 1101px) 25vw, 50vw" /><img loading="lazy" decoding="async" data-ly-src="/images/limitless_aft_deck.jpg" width="1280" height="960" alt="Aft deck lounge of the Limitless yacht" /></picture>
+          <div class="ly-prog-wrap"><img class="ly-prog-preview" src="/images/limitless_aft_deck-prev.jpg" alt="" aria-hidden="true" loading="lazy" decoding="async" onload="this.parentNode.classList.add('ly-prog-preview-ready')"><picture><source type="image/webp" media="(max-width: 640px)" srcset="/images/mobile/limitless_aft_deck-480.webp 480w, /images/mobile/limitless_aft_deck-720.webp 720w, /images/mobile/limitless_aft_deck-960.webp 960w, /images/mobile/limitless_aft_deck.webp 1280w" sizes="100vw" /><source type="image/webp" srcset="/images/limitless_aft_deck-640.webp 640w, /images/limitless_aft_deck-960.webp 960w, /images/limitless_aft_deck.webp 1280w" sizes="(min-width: 1101px) 25vw, 50vw" /><img class="ly-prog-sharp" src="/images/limitless_aft_deck.jpg" alt="Aft deck lounge of the Limitless yacht" width="1280" height="960" loading="lazy" decoding="async" onload="this.closest('.ly-prog-wrap').classList.add('ly-prog-sharp-ready','ly-prog-sharp-visible')"></picture></div>
         </div>
       </div>
       <div class="carousel-nav">
@@ -1521,28 +1451,28 @@ document.addEventListener('DOMContentLoaded', function() {
     <div class="gallery-group" data-gtab="interior">
       <div class="gallery-grid">
         <div class="gallery-item reveal" data-index="7">
-          <picture><source type="image/webp" media="(max-width: 640px)" data-ly-srcset="/images/mobile/int_saloon_artwork-480.webp 480w, /images/mobile/int_saloon_artwork-720.webp 720w, /images/mobile/int_saloon_artwork-960.webp 960w, /images/mobile/int_saloon_artwork.webp 1280w" sizes="100vw" /><source type="image/webp" data-ly-srcset="/images/int_saloon_artwork-640.webp 640w, /images/int_saloon_artwork-960.webp 960w, /images/int_saloon_artwork.webp 1280w" sizes="(min-width: 1101px) 50vw, 100vw" /><img loading="lazy" decoding="async" data-ly-src="/images/int_saloon_artwork.jpg" width="1280" height="960" alt="Salon of the Limitless yacht with designer sofa and artwork" /></picture>
+          <div class="ly-prog-wrap"><img class="ly-prog-preview" src="/images/int_saloon_artwork-prev.jpg" alt="" aria-hidden="true" loading="lazy" decoding="async" onload="this.parentNode.classList.add('ly-prog-preview-ready')"><picture><source type="image/webp" media="(max-width: 640px)" srcset="/images/mobile/int_saloon_artwork-480.webp 480w, /images/mobile/int_saloon_artwork-720.webp 720w, /images/mobile/int_saloon_artwork-960.webp 960w, /images/mobile/int_saloon_artwork.webp 1280w" sizes="100vw" /><source type="image/webp" srcset="/images/int_saloon_artwork-640.webp 640w, /images/int_saloon_artwork-960.webp 960w, /images/int_saloon_artwork.webp 1280w" sizes="(min-width: 1101px) 50vw, 100vw" /><img class="ly-prog-sharp" src="/images/int_saloon_artwork.jpg" alt="Salon of the Limitless yacht with designer sofa and artwork" width="1280" height="960" loading="lazy" decoding="async" onload="this.closest('.ly-prog-wrap').classList.add('ly-prog-sharp-ready','ly-prog-sharp-visible')"></picture></div>
         </div>
         <div class="gallery-item reveal reveal-delay-1" data-index="8">
-          <picture><source type="image/webp" media="(max-width: 640px)" data-ly-srcset="/images/mobile/int_saloon_marina_view-480.webp 480w, /images/mobile/int_saloon_marina_view-720.webp 720w, /images/mobile/int_saloon_marina_view-960.webp 960w, /images/mobile/int_saloon_marina_view.webp 1280w" sizes="100vw" /><source type="image/webp" data-ly-srcset="/images/int_saloon_marina_view-640.webp 640w, /images/int_saloon_marina_view-960.webp 960w, /images/int_saloon_marina_view.webp 1280w" sizes="(min-width: 1101px) 25vw, 50vw" /><img loading="lazy" decoding="async" data-ly-src="/images/int_saloon_marina_view.jpg" width="1280" height="960" alt="Salon lounge of the Limitless yacht with marina views" /></picture>
+          <div class="ly-prog-wrap"><img class="ly-prog-preview" src="/images/int_saloon_marina_view-prev.jpg" alt="" aria-hidden="true" loading="lazy" decoding="async" onload="this.parentNode.classList.add('ly-prog-preview-ready')"><picture><source type="image/webp" media="(max-width: 640px)" srcset="/images/mobile/int_saloon_marina_view-480.webp 480w, /images/mobile/int_saloon_marina_view-720.webp 720w, /images/mobile/int_saloon_marina_view-960.webp 960w, /images/mobile/int_saloon_marina_view.webp 1280w" sizes="100vw" /><source type="image/webp" srcset="/images/int_saloon_marina_view-640.webp 640w, /images/int_saloon_marina_view-960.webp 960w, /images/int_saloon_marina_view.webp 1280w" sizes="(min-width: 1101px) 25vw, 50vw" /><img class="ly-prog-sharp" src="/images/int_saloon_marina_view.jpg" alt="Salon lounge of the Limitless yacht with marina views" width="1280" height="960" loading="lazy" decoding="async" onload="this.closest('.ly-prog-wrap').classList.add('ly-prog-sharp-ready','ly-prog-sharp-visible')"></picture></div>
         </div>
         <div class="gallery-item reveal reveal-delay-2" data-index="9">
-          <picture><source type="image/webp" media="(max-width: 640px)" data-ly-srcset="/images/mobile/int_saloon_reverse-480.webp 480w, /images/mobile/int_saloon_reverse-720.webp 720w, /images/mobile/int_saloon_reverse-960.webp 960w, /images/mobile/int_saloon_reverse.webp 1280w" sizes="100vw" /><source type="image/webp" data-ly-srcset="/images/int_saloon_reverse-640.webp 640w, /images/int_saloon_reverse-960.webp 960w, /images/int_saloon_reverse.webp 1280w" sizes="(min-width: 1101px) 25vw, 50vw" /><img loading="lazy" decoding="async" data-ly-src="/images/int_saloon_reverse.jpg" width="1280" height="960" alt="Salon seating area aboard the Limitless yacht" /></picture>
+          <div class="ly-prog-wrap"><img class="ly-prog-preview" src="/images/int_saloon_reverse-prev.jpg" alt="" aria-hidden="true" loading="lazy" decoding="async" onload="this.parentNode.classList.add('ly-prog-preview-ready')"><picture><source type="image/webp" media="(max-width: 640px)" srcset="/images/mobile/int_saloon_reverse-480.webp 480w, /images/mobile/int_saloon_reverse-720.webp 720w, /images/mobile/int_saloon_reverse-960.webp 960w, /images/mobile/int_saloon_reverse.webp 1280w" sizes="100vw" /><source type="image/webp" srcset="/images/int_saloon_reverse-640.webp 640w, /images/int_saloon_reverse-960.webp 960w, /images/int_saloon_reverse.webp 1280w" sizes="(min-width: 1101px) 25vw, 50vw" /><img class="ly-prog-sharp" src="/images/int_saloon_reverse.jpg" alt="Salon seating area aboard the Limitless yacht" width="1280" height="960" loading="lazy" decoding="async" onload="this.closest('.ly-prog-wrap').classList.add('ly-prog-sharp-ready','ly-prog-sharp-visible')"></picture></div>
         </div>
         <div class="gallery-item reveal reveal-delay-3" data-index="10">
-          <picture><source type="image/webp" media="(max-width: 640px)" data-ly-srcset="/images/mobile/int_master_headboard-480.webp 480w, /images/mobile/int_master_headboard-720.webp 720w, /images/mobile/int_master_headboard-960.webp 960w, /images/mobile/int_master_headboard.webp 1280w" sizes="100vw" /><source type="image/webp" data-ly-srcset="/images/int_master_headboard-640.webp 640w, /images/int_master_headboard-960.webp 960w, /images/int_master_headboard.webp 1280w" sizes="(min-width: 1101px) 25vw, 50vw" /><img loading="lazy" decoding="async" data-ly-src="/images/int_master_headboard.jpg" width="1280" height="960" alt="Master cabin aboard the Limitless yacht" /></picture>
+          <div class="ly-prog-wrap"><img class="ly-prog-preview" src="/images/int_master_headboard-prev.jpg" alt="" aria-hidden="true" loading="lazy" decoding="async" onload="this.parentNode.classList.add('ly-prog-preview-ready')"><picture><source type="image/webp" media="(max-width: 640px)" srcset="/images/mobile/int_master_headboard-480.webp 480w, /images/mobile/int_master_headboard-720.webp 720w, /images/mobile/int_master_headboard-960.webp 960w, /images/mobile/int_master_headboard.webp 1280w" sizes="100vw" /><source type="image/webp" srcset="/images/int_master_headboard-640.webp 640w, /images/int_master_headboard-960.webp 960w, /images/int_master_headboard.webp 1280w" sizes="(min-width: 1101px) 25vw, 50vw" /><img class="ly-prog-sharp" src="/images/int_master_headboard.jpg" alt="Master cabin aboard the Limitless yacht" width="1280" height="960" loading="lazy" decoding="async" onload="this.closest('.ly-prog-wrap').classList.add('ly-prog-sharp-ready','ly-prog-sharp-visible')"></picture></div>
         </div>
         <div class="gallery-item reveal reveal-delay-1" data-index="11">
-          <picture><source type="image/webp" media="(max-width: 640px)" data-ly-srcset="/images/mobile/int_master_amber_glow-480.webp 480w, /images/mobile/int_master_amber_glow-720.webp 720w, /images/mobile/int_master_amber_glow-960.webp 960w, /images/mobile/int_master_amber_glow.webp 1280w" sizes="100vw" /><source type="image/webp" data-ly-srcset="/images/int_master_amber_glow-640.webp 640w, /images/int_master_amber_glow-960.webp 960w, /images/int_master_amber_glow.webp 1280w" sizes="(min-width: 1101px) 25vw, 50vw" /><img loading="lazy" decoding="async" data-ly-src="/images/int_master_amber_glow.jpg" width="1280" height="960" alt="Master cabin with ambient lighting on the Limitless yacht" /></picture>
+          <div class="ly-prog-wrap"><img class="ly-prog-preview" src="/images/int_master_amber_glow-prev.jpg" alt="" aria-hidden="true" loading="lazy" decoding="async" onload="this.parentNode.classList.add('ly-prog-preview-ready')"><picture><source type="image/webp" media="(max-width: 640px)" srcset="/images/mobile/int_master_amber_glow-480.webp 480w, /images/mobile/int_master_amber_glow-720.webp 720w, /images/mobile/int_master_amber_glow-960.webp 960w, /images/mobile/int_master_amber_glow.webp 1280w" sizes="100vw" /><source type="image/webp" srcset="/images/int_master_amber_glow-640.webp 640w, /images/int_master_amber_glow-960.webp 960w, /images/int_master_amber_glow.webp 1280w" sizes="(min-width: 1101px) 25vw, 50vw" /><img class="ly-prog-sharp" src="/images/int_master_amber_glow.jpg" alt="Master cabin with ambient lighting on the Limitless yacht" width="1280" height="960" loading="lazy" decoding="async" onload="this.closest('.ly-prog-wrap').classList.add('ly-prog-sharp-ready','ly-prog-sharp-visible')"></picture></div>
         </div>
         <div class="gallery-item reveal reveal-delay-2" data-index="12">
-          <picture><source type="image/webp" media="(max-width: 640px)" data-ly-srcset="/images/mobile/int_master_wide-480.webp 480w, /images/mobile/int_master_wide-720.webp 720w, /images/mobile/int_master_wide-960.webp 960w, /images/mobile/int_master_wide.webp 1280w" sizes="100vw" /><source type="image/webp" data-ly-srcset="/images/int_master_wide-640.webp 640w, /images/int_master_wide-960.webp 960w, /images/int_master_wide.webp 1280w" sizes="(min-width: 1101px) 25vw, 50vw" /><img loading="lazy" decoding="async" data-ly-src="/images/int_master_wide.jpg" width="1280" height="960" alt="Spacious master cabin aboard the Limitless yacht" /></picture>
+          <div class="ly-prog-wrap"><img class="ly-prog-preview" src="/images/int_master_wide-prev.jpg" alt="" aria-hidden="true" loading="lazy" decoding="async" onload="this.parentNode.classList.add('ly-prog-preview-ready')"><picture><source type="image/webp" media="(max-width: 640px)" srcset="/images/mobile/int_master_wide-480.webp 480w, /images/mobile/int_master_wide-720.webp 720w, /images/mobile/int_master_wide-960.webp 960w, /images/mobile/int_master_wide.webp 1280w" sizes="100vw" /><source type="image/webp" srcset="/images/int_master_wide-640.webp 640w, /images/int_master_wide-960.webp 960w, /images/int_master_wide.webp 1280w" sizes="(min-width: 1101px) 25vw, 50vw" /><img class="ly-prog-sharp" src="/images/int_master_wide.jpg" alt="Spacious master cabin aboard the Limitless yacht" width="1280" height="960" loading="lazy" decoding="async" onload="this.closest('.ly-prog-wrap').classList.add('ly-prog-sharp-ready','ly-prog-sharp-visible')"></picture></div>
         </div>
         <div class="gallery-item reveal reveal-delay-3" data-index="13">
-          <picture><source type="image/webp" media="(max-width: 640px)" data-ly-srcset="/images/mobile/int_vip_cabin-480.webp 480w, /images/mobile/int_vip_cabin-720.webp 720w, /images/mobile/int_vip_cabin-960.webp 960w, /images/mobile/int_vip_cabin.webp 1280w" sizes="100vw" /><source type="image/webp" data-ly-srcset="/images/int_vip_cabin-640.webp 640w, /images/int_vip_cabin-960.webp 960w, /images/int_vip_cabin.webp 1280w" sizes="(min-width: 1101px) 25vw, 50vw" /><img loading="lazy" decoding="async" data-ly-src="/images/int_vip_cabin.jpg" width="1280" height="960" alt="VIP guest cabin aboard the Limitless yacht" /></picture>
+          <div class="ly-prog-wrap"><img class="ly-prog-preview" src="/images/int_vip_cabin-prev.jpg" alt="" aria-hidden="true" loading="lazy" decoding="async" onload="this.parentNode.classList.add('ly-prog-preview-ready')"><picture><source type="image/webp" media="(max-width: 640px)" srcset="/images/mobile/int_vip_cabin-480.webp 480w, /images/mobile/int_vip_cabin-720.webp 720w, /images/mobile/int_vip_cabin-960.webp 960w, /images/mobile/int_vip_cabin.webp 1280w" sizes="100vw" /><source type="image/webp" srcset="/images/int_vip_cabin-640.webp 640w, /images/int_vip_cabin-960.webp 960w, /images/int_vip_cabin.webp 1280w" sizes="(min-width: 1101px) 25vw, 50vw" /><img class="ly-prog-sharp" src="/images/int_vip_cabin.jpg" alt="VIP guest cabin aboard the Limitless yacht" width="1280" height="960" loading="lazy" decoding="async" onload="this.closest('.ly-prog-wrap').classList.add('ly-prog-sharp-ready','ly-prog-sharp-visible')"></picture></div>
         </div>
         <div class="gallery-item reveal reveal-delay-1" data-index="14">
-          <picture><source type="image/webp" media="(max-width: 640px)" data-ly-srcset="/images/mobile/int_twin_cabin-480.webp 360w, /images/mobile/int_twin_cabin-720.webp 540w, /images/mobile/int_twin_cabin-960.webp 720w, /images/mobile/int_twin_cabin.webp 960w" sizes="100vw" /><source type="image/webp" data-ly-srcset="/images/int_twin_cabin-640.webp 480w, /images/int_twin_cabin-960.webp 720w, /images/int_twin_cabin.webp 960w" sizes="(min-width: 1101px) 25vw, 50vw" /><img loading="lazy" decoding="async" data-ly-src="/images/int_twin_cabin.jpg" width="960" height="1280" alt="Twin guest cabin aboard the Limitless yacht" /></picture>
+          <div class="ly-prog-wrap"><img class="ly-prog-preview" src="/images/int_twin_cabin-prev.jpg" alt="" aria-hidden="true" loading="lazy" decoding="async" onload="this.parentNode.classList.add('ly-prog-preview-ready')"><picture><source type="image/webp" media="(max-width: 640px)" srcset="/images/mobile/int_twin_cabin-480.webp 360w, /images/mobile/int_twin_cabin-720.webp 540w, /images/mobile/int_twin_cabin-960.webp 720w, /images/mobile/int_twin_cabin.webp 960w" sizes="100vw" /><source type="image/webp" srcset="/images/int_twin_cabin-640.webp 480w, /images/int_twin_cabin-960.webp 720w, /images/int_twin_cabin.webp 960w" sizes="(min-width: 1101px) 25vw, 50vw" /><img class="ly-prog-sharp" src="/images/int_twin_cabin.jpg" alt="Twin guest cabin aboard the Limitless yacht" width="960" height="1280" loading="lazy" decoding="async" onload="this.closest('.ly-prog-wrap').classList.add('ly-prog-sharp-ready','ly-prog-sharp-visible')"></picture></div>
         </div>
       </div>
       <div class="carousel-nav">
