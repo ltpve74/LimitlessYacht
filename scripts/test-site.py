@@ -620,13 +620,17 @@ def check_html(r: Runner, rel: str, html: str) -> None:
         and _is_progressive_jpeg('images/maiora_20s_02-prev.jpg'),
     )
     hero_prev_kb = os.path.getsize(os.path.join(ROOT, 'images/mobile/maiora_20s_02-prev.jpg')) / 1024
+    build_py = read_file('scripts/build_preview_images.py') or ''
     r.check(
         'hero preview stays lightweight with blur baked into pixels',
         hero_prev_kb <= 5.0
-        and 'HERO_PREVIEW_BLUR' in (read_file('scripts/build_preview_images.py') or '')
-        and 'BLUR_WORK_EDGE' in (read_file('scripts/build_preview_images.py') or '')
-        and 'subsampling=0' in (read_file('scripts/build_preview_images.py') or '')
-        and 'HERO_PREVIEW_EDGE' not in (read_file('scripts/build_preview_images.py') or ''),
+        and 'HERO_PREVIEW_BLUR' in build_py
+        and 'HERO_PREVIEW_EDGE' in build_py
+        and 'HERO_BLUR_WORK_EDGE' in build_py
+        and 'BLUR_PASSES' in build_py
+        and 'apply_gaussian_blur' in build_py
+        and 'subsampling=0' in build_py
+        and float(re.search(r'HERO_PREVIEW_BLUR\s*=\s*([0-9.]+)', build_py).group(1)) <= 1.6,
     )
     r.check(
         'progressive sharp tiers use higher quality rungs with blur preview',

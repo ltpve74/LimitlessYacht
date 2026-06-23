@@ -2,7 +2,7 @@
 Generate ultra-light progressive -prev.jpg placeholders for slow connections.
 
 Blur on the source master, then downscale — avoids resize-then-blur banding.
-~160px longest edge, progressive JPEG, pre-blurred in pixels (no CSS filter).
+Pre-blurred in pixels (no CSS filter). Hero uses a slightly larger edge.
 Run: .venv/bin/python scripts/build_preview_images.py
 """
 
@@ -17,17 +17,22 @@ BASE = Path(__file__).resolve().parent.parent
 IMAGES = BASE / "images"
 MOBILE = BASE / "images" / "mobile"
 PREVIEW_EDGE = 160
+HERO_PREVIEW_EDGE = 200
 PREVIEW_Q = 54
-HERO_PREVIEW_Q = 58
+HERO_PREVIEW_Q = 65
+HERO_GRAIN_BLEND = 0.028
 BLUR_WORK_EDGE = 1280
+HERO_BLUR_WORK_EDGE = 1920
+BLUR_PASSES = 2
+BLUR_PASS_RATIO = 0.72
 HERO_STEMS = frozenset({"maiora_20s_02"})
-# Target blur strength in final 160px preview space (scaled up on source).
-PREVIEW_BLUR = 2.8
-HERO_PREVIEW_BLUR = 2.2
-PREVIEW_SATURATE = 1.08
-PREVIEW_BRIGHTNESS = 0.92
-HERO_SATURATE = 1.06
-HERO_BRIGHTNESS = 0.94
+# Blur strength in final preview-pixel space (maps ~CSS blur(6px) on hero).
+HERO_PREVIEW_BLUR = 1.2
+PREVIEW_BLUR = 2.2
+PREVIEW_SATURATE = 1.06
+PREVIEW_BRIGHTNESS = 0.93
+HERO_SATURATE = 1.04
+HERO_BRIGHTNESS = 0.96
 
 TIER_SUFFIXES = re.compile(
     r"-(?:480|640|720|960|1280|1440|prev)\.(?:webp|jpg)$"
@@ -50,10 +55,29 @@ GALLERY_STEMS = (
 CONTENT_STEMS = ("maiora_20s_02", "maiora_20s_04")
 
 
-def resize_preview(img: Image.Image, edge: int = PREVIEW_EDGE) -> Image.Image:
+def is_hero(stem: str) -> bool:
+    return stem in HERO_STEMS
+
+
+def preview_edge(stem: str) -> int:
+    return HERO_PREVIEW_EDGE if is_hero(stem) else PREVIEW_EDGE
+
+
+def blur_work_edge(stem: str) -> int:
+    return HERO_BLUR_WORK_EDGE if is_hero(stem) else BLUR_WORK_EDGE
+
+
+def resize_preview(img: Image.Image, edge: int, smooth: bool = False) -> Image.Image:
     w, h = img.size
-    if max(w, h) <= edge:
+    longest = max(w, h)
+    if longest <= edge:
         return img
+    if smooth and longest > edge * 2:
+        mid = edge * 2
+        scale = mid / longest
+        w, h = max(1, round(w * scale)), max(1, round(h * scale))
+        img = img.resize((w, h), Image.LANCZOS)
+        longest = max(w, h)
     if w >= h:
         nw, nh = edge, round(h * edge / w)
     else:
@@ -61,24 +85,43 @@ def resize_preview(img: Image.Image, edge: int = PREVIEW_EDGE) -> Image.Image:
     return img.resize((max(1, nw), max(1, nh)), Image.LANCZOS)
 
 
-def work_image_for_blur(img: Image.Image) -> Image.Image:
+def add_film_grain(img: Image.Image, amount: float) -> Image.Image:
+    if amount <= 0:
+        return img
+    try:
+        noise = Image.effect_noise(img.size, 5.0).convert("RGB")
+    except AttributeError:
+        return img
+    return Image.blend(img, noise, amount)
+
+
+def work_image_for_blur(img: Image.Image, stem: str) -> Image.Image:
+    cap = blur_work_edge(stem)
     w, h = img.size
     longest = max(w, h)
-    if longest <= BLUR_WORK_EDGE:
+    if longest <= cap:
         return img
-    scale = BLUR_WORK_EDGE / longest
+    scale = cap / longest
     return img.resize((max(1, round(w * scale)), max(1, round(h * scale))), Image.LANCZOS)
 
 
 def blur_radius_for_preview(img: Image.Image, stem: str) -> float:
-    preview_blur = HERO_PREVIEW_BLUR if stem in HERO_STEMS else PREVIEW_BLUR
-    return preview_blur * max(img.size) / PREVIEW_EDGE
+    preview_blur = HERO_PREVIEW_BLUR if is_hero(stem) else PREVIEW_BLUR
+    return preview_blur * max(img.size) / preview_edge(stem)
+
+
+def apply_gaussian_blur(img: Image.Image, radius: float) -> Image.Image:
+    if radius <= 0.05:
+        return img
+    pass_radius = radius * BLUR_PASS_RATIO
+    for _ in range(BLUR_PASSES):
+        img = img.filter(ImageFilter.GaussianBlur(radius=pass_radius))
+    return img
 
 
 def soften_preview(img: Image.Image, stem: str) -> Image.Image:
-    hero = stem in HERO_STEMS
-    radius = blur_radius_for_preview(img, stem)
-    img = img.filter(ImageFilter.GaussianBlur(radius=radius))
+    hero = is_hero(stem)
+    img = apply_gaussian_blur(img, blur_radius_for_preview(img, stem))
     img = ImageEnhance.Color(img).enhance(HERO_SATURATE if hero else PREVIEW_SATURATE)
     img = ImageEnhance.Brightness(img).enhance(HERO_BRIGHTNESS if hero else PREVIEW_BRIGHTNESS)
     return img
@@ -93,15 +136,19 @@ def load_rgb(path: Path) -> Image.Image:
 
 def build_preview_image(src: Path, stem: str) -> Image.Image:
     img = load_rgb(src)
-    img = work_image_for_blur(img)
+    img = work_image_for_blur(img, stem)
     img = soften_preview(img, stem)
-    return resize_preview(img)
+    edge = preview_edge(stem)
+    img = resize_preview(img, edge, smooth=is_hero(stem))
+    if is_hero(stem):
+        img = add_film_grain(img, HERO_GRAIN_BLEND)
+    return img
 
 
 def write_preview(src: Path, out: Path, stem: str = "") -> float:
     img = build_preview_image(src, stem)
     out.parent.mkdir(parents=True, exist_ok=True)
-    quality = HERO_PREVIEW_Q if stem in HERO_STEMS else PREVIEW_Q
+    quality = HERO_PREVIEW_Q if is_hero(stem) else PREVIEW_Q
     img.save(
         out,
         "JPEG",
