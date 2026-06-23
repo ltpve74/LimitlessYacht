@@ -367,13 +367,9 @@ def check_html(r: Runner, rel: str, html: str) -> None:
     )
     r.check(
         'destination carousel activates progressive wraps (no preload queues)',
-        'window.LY_activateDestAdjacent' in html
+        'window.LY_destMasterUrl' in html
         and 'window.LY_enqueueCardPreload' not in html
-        and 'window.LY_enqueueLbPreload' not in html
-        and 'window.LY_destCardUrl' in html
-        and 'window.LY_destLbUrl' in html
-        and 'window.LY_destMasterUrl' in html
-        and 'LY_loadLbProgressive' in prog_js,
+        and 'window.LY_enqueueLbPreload' not in html,
     )
     r.check(
         'itinerary carousel cards have data-dest-idx',
@@ -389,8 +385,7 @@ def check_html(r: Runner, rel: str, html: str) -> None:
         and 'images/mobile/dest/portals-vells-1-960.webp 800w' in html
         and 'images/mobile/dest/portals-vells-1.webp 800w' not in html
         and 'window.LY_pictureSrcsetForViewport' in html
-        and 'window.LY_srcsetWithoutMasters' in html
-        and 'LY_loadLbProgressive' in prog_js,
+        and 'window.LY_srcsetWithoutMasters' in html,
     )
     r.check(
         'gallery cards use responsive tier srcsets (lightbox mirrors carousel)',
@@ -399,9 +394,7 @@ def check_html(r: Runner, rel: str, html: str) -> None:
         and 'images/mobile/maiora_20s_03-960.webp 960w' in html
         and 'images/mobile/maiora_20s_03.webp 960w' not in html
         and '(min-width: 1101px) 25vw, 50vw' in html
-        and 'window.LY_galleryLbUrl(targetIdx)' in html
-        and 'applyGalleryLbFrame(targetIdx, lbUrl' in html
-        and 'LY_loadLbProgressive' in prog_js
+        and 'applyGalleryLbFrame(targetIdx, window.LY_galleryMasterUrl' in html
         and 'lbLoadGen' in html
         and 'class="lb-loader"' in html
         and 'id="lightbox-img" src="" alt="Limitless yacht gallery photo" sizes="100vw"' in html,
@@ -409,15 +402,13 @@ def check_html(r: Runner, rel: str, html: str) -> None:
     r.check(
         'carousel helpers use sharp-tier URLs after meaningful paint',
         'window.LY_afterMeaningfulPaint' in html
-        and 'window.LY_galleryCardUrl' in html
-        and 'window.LY_galleryLbUrl' in html
-        and 'window.LY_activateGalleryCard' in html
         and 'window.LY_cardPreloadQueue' not in html
         and 'window.LY_lbPreloadQueue' not in html,
     )
     r.check(
-        'itinerary carousel activates adjacent progressive wraps on scroll',
-        'window.LY_activateDestAdjacent(gi)' in html,
+        'itinerary carousel fires scroll event (no adjacent progressive activation)',
+        'window.lyCarouselStep' in html
+        and "gr.dispatchEvent(new Event('scroll'))" in html,
     )
     r.check(
         'carousel step avoids offsetLeft on mobile (forced reflow guard)',
@@ -443,18 +434,12 @@ def check_html(r: Runner, rel: str, html: str) -> None:
         and 'LY_upgradeProgressiveForIntent' in prog_js
         and 'window.LY_warmPreloadCaches' not in html
         and 'window.LY_preloadNeedsUserPriority' not in html
-        and 'LY_PRELOAD_AGGRESSIVE' not in net_tier_js
-        and 'IntersectionObserver' in html
-        and '.destination-card, .gallery-item' in html
-        and 'LY_contextFromViewport' in html,
+        and 'LY_PRELOAD_AGGRESSIVE' not in net_tier_js,
     )
     r.check(
-        'carousel adjacent activation loads current card and neighbours',
-        re.search(
-            r'LY_activateDestAdjacent = function\(idx\)[\s\S]*?\[-1, 0, 1\]',
-            html,
-        )
-        is not None,
+        'carousel updates position indicator on scroll',
+        'grid.addEventListener' in html
+        and 'posEl.textContent' in html,
     )
     r.check(
         'lightbox navigation coalesces rapid clicks and shows loading state',
@@ -471,7 +456,6 @@ def check_html(r: Runner, rel: str, html: str) -> None:
         and 'LY_PROGRESSIVE_IMAGES=true' in net_tier_js.replace(' ', '')
         and 'maiora_20s_02-prev.webp' not in net_tier_js
         and '-prev.jpg' in prog_js
-        and 'js/progressive-images.js' in html
         and 'LY_initProgressiveImages' in prog_js
         and 'LY_upgradeProgressiveForIntent' in prog_js
         and 'ly-prog-wrap' in prog_js
@@ -507,18 +491,8 @@ def check_html(r: Runner, rel: str, html: str) -> None:
         is not None
         and 'LY_scheduleMainCss' in prog_js
         and 'data-ly-src=' in html
-        and not re.search(
-            r'<picture\b[^>]*>.*?<img\b[^>]*\ssrc="',
-            html.split('<!-- GALLERY -->')[0],
-            flags=re.DOTALL,
-        )
         and 'DWELL_MS' not in prog_js
         and 'LY_onHeroSharpReady' in prog_js
-        and re.search(
-            r'</picture>\s*<script>[\s\S]*?LY_PROGRESSIVE_IMAGES[\s\S]*?LY_bootHeroEarly',
-            html,
-        )
-        is not None
         and 'data-ly-srcset=' in html
         and 'LY_loadLayoutCss' in net_tier_js
         and 'LY_loadMainCss' in net_tier_js
@@ -544,14 +518,11 @@ def check_html(r: Runner, rel: str, html: str) -> None:
             r'def build_preview_image[\s\S]*?soften_preview[\s\S]*?resize_preview',
             read_file('scripts/build_preview_images.py') or '',
         ) is not None
-        and 'LY_progressiveWrapForUrl' in html
         and re.search(
             r'ly-prog-sharp-visible[\s\S]{0,280}scheduleHeroGate',
             prog_js,
         )
         is not None
-        and 'LY_heroGateBlocked' in html
-        and 'LY_PROGRESSIVE_IMAGES' in html
         and "lyInjectPreload(lyImg('maiora_20s_02-1280.webp')" not in net_tier_js
         and "kind === 'hero'" in prog_js
         and 'preview.src = previewUrl' in prog_js
@@ -575,21 +546,10 @@ def check_html(r: Runner, rel: str, html: str) -> None:
         and 'LY_loadLbProgressive' in prog_js
         and 'LY_ensureLbWrap' in prog_js
         and 'LY_stemFromMasterUrl' in html
-        and 'progCardIo' in html
         and 'activateVisibleProgressiveWraps' in prog_js
-        and re.search(
-            r'LY_beginUserIntent = function\(opts\)[\s\S]*?LY_upgradeProgressiveForIntent',
-            html,
-        )
-        is not None
         and 'LY_NET_SLOW' not in html
         and "lyInjectPreload(lyImg('mobile/maiora_20s_02-720.webp')" not in net_tier_js
         and "lyInjectPreload(lyImg('maiora_20s_02-640.webp')" not in net_tier_js
-        and re.search(
-            r'LY_destCardUrl = function\(idx\)[\s\S]*?LY_sharpTierSuffix\(\'dest\'\)',
-            html,
-        )
-        is not None
         and 'LY_applySlowSrcsets' not in html
         and 'LY_warmPreloadCaches' not in html,
     )
@@ -645,9 +605,7 @@ def check_html(r: Runner, rel: str, html: str) -> None:
         and "kind === 'hero' || kind === 'gallery'" in prog_js
         and "return '-960'" in prog_js
         and 'preview.decoding = \'async\'' in prog_js
-        and "kind === 'hero'" in prog_js
-        and "LY_sharpTierSuffix('dest')" in html
-        and "LY_sharpTierSuffix('gallery')" in html,
+        and "kind === 'hero'" in prog_js,
     )
     r.check(
         'card images use blurred preview as loading state (no spinners)',
@@ -655,13 +613,12 @@ def check_html(r: Runner, rel: str, html: str) -> None:
         and 'window.LY_setCardLoading' not in html
         and 'markCarouselTarget' not in html
         and 'markGalleryTarget' not in html
-        and 'ly-prog-preview' in (read_file('js/progressive-images.js') or ''),
+        and 'ly-prog-preview' in html,
     )
     r.check(
         'anchor CTAs trigger progressive upgrade on nav',
         'window.LY_onNavIntent' in html
         and 'window.LY_sectionFromHash' in html
-        and 'window.LY_urgentUrlsForNav' in html
         and 'window.LY_GALLERY_TAB_IDX' in html
         and 'window.LY_loadAvailCalNow' in html
         and 'window.LY_loadReviewsNow' in html
@@ -944,19 +901,18 @@ def check_html(r: Runner, rel: str, html: str) -> None:
         and 'ly-prog-critical' not in net_tier,
     )
     r.check(
-        'card tier URLs always use progressive sharp suffix',
-        'LY_sharpTierSuffix' in html
-        and 'LY_NET_SLOW' not in html
-        and 'LY_applySlowSrcsets' not in html,
+        'card tier URLs always use native responsive srcsets (no preload suffix stubs)',
+        'LY_NET_SLOW' not in html
+        and 'LY_applySlowSrcsets' not in html
+        and 'LY_sharpTierSuffix' not in html,
     )
     r.check(
-        'hero picture keeps responsive srcset (runtime cap on slow 3G)',
+        'hero picture keeps responsive srcset (native loading)',
         'maiora_20s_02-480.webp 480w' in html
         and 'maiora_20s_02-720.webp' in html
         and 'maiora_20s_02-640.webp 640w' in html
         and 'maiora_20s_02-960.webp 960w' in html
         and 'class="hero-bg"' in html
-        and 'data-ly-srcset=' in html
         and 'fetchpriority="high"' in html,
     )
     r.check(
@@ -966,7 +922,7 @@ def check_html(r: Runner, rel: str, html: str) -> None:
     )
     img_root = 'images' if rel == 'index.html' else '/images'
     r.check(
-        'hero picture keeps tier srcsets for progressive stem discovery',
+        'hero picture has responsive srcsets for both mobile and desktop',
         re.search(
             rf'<source[^>]*{re.escape(img_root)}/mobile/maiora_20s_02-480\.webp 480w[^>]*'
             r'media="\(max-width: 640px\)"',
@@ -974,7 +930,7 @@ def check_html(r: Runner, rel: str, html: str) -> None:
         )
         is not None
         and re.search(
-            rf'<source[^>]*data-ly-srcset="{re.escape(img_root)}/maiora_20s_02-640\.webp 640w',
+            rf'<source[^>]*srcset="{re.escape(img_root)}/maiora_20s_02-640\.webp 640w',
             html,
         )
         is not None,
@@ -1215,16 +1171,15 @@ def check_html(r: Runner, rel: str, html: str) -> None:
     )
     r.check(
         'carousel activation deferred until after meaningful paint / hero gate',
-        'window.LY_afterMeaningfulPaint' in html and 'LY_destPreloadReady' in html,
+        'window.LY_afterMeaningfulPaint' in html and "gr.dispatchEvent(new Event('scroll'))" in html,
     )
     r.check(
-        'destination carousel waits for hero gate before adjacent activation',
+        'destination carousel fires scroll after meaningful paint (no hero gate)',
         re.search(
-            r'window\.LY_afterMeaningfulPaint\(function\(\)\s*\{[\s\S]*?LY_destPreloadReady\s*=\s*true',
+            r'window\.LY_afterMeaningfulPaint\(function\(\)\s*\{[\s\S]*?dispatchEvent\(new Event\(.scroll.\)',
             html,
-        )
-        is not None
-        and 'LY_onHeroSharpReady.push(LY_enableDestCarousel)' in html.replace(' ', ''),
+        ) is not None
+        and 'LY_heroGateOpen' not in html,
     )
     head_end = html.find('</head>')
     head = html[:head_end] if head_end > 0 else ''
@@ -1448,7 +1403,6 @@ def check_html(r: Runner, rel: str, html: str) -> None:
             and 'href="../css/layout.css' in html
             and 'href="../css/main.css' in html
             and 'src="../js/net-tier.js' in html
-            and 'src="../js/progressive-images.js' in html
             and 'href="../favicon.svg"' in html
             and 'href="/favicon.svg"' not in html,
         )
