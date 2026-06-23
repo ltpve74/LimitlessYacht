@@ -384,12 +384,11 @@ def check_html(r: Runner, rel: str, html: str) -> None:
         and 'portals-vells-1-720.webp' in html
         and 'images/mobile/dest/portals-vells-1-960.webp 800w' in html
         and 'images/mobile/dest/portals-vells-1.webp 800w' not in html
-        # Lightbox shows the exact image the card already downloaded (cache hit,
-        # no extra data) instead of rebuilding a 100vw srcset / fetching a master.
+        # Lightbox: cache hit if card was visible; card srcset (WebP tiers only,
+        # never .jpg fallback or master) if not yet loaded.
         and 'window.LY_cardLoadedSrc' in html
-        and 'lbImg2.src = window.LY_cardLoadedSrc(card)' in html
-        and 'window.LY_pictureSrcsetForViewport' not in html
-        and 'window.LY_srcsetWithoutMasters' not in html,
+        and 'window.LY_cardSrcset' in html
+        and 'lbImg2.src = loadedSrc' in html,
     )
     r.check(
         'gallery cards use responsive tier srcsets (lightbox reuses loaded tier)',
@@ -405,10 +404,11 @@ def check_html(r: Runner, rel: str, html: str) -> None:
         and 'id="lightbox-img" src="" alt="Limitless yacht gallery photo" sizes="100vw"' in html,
     )
     r.check(
-        'lightboxes never build a fullscreen 100vw srcset (no extra image data)',
-        'lbImg.srcset = srcset' not in html
-        and 'lbSrcWp.srcset = srcset' not in html
-        and "lbImg.sizes = '100vw'" not in html,
+        'lightbox never loads .jpg fallback for unvisited cards',
+        # LY_cardLoadedSrc must only return currentSrc, not getAttribute("src")
+        # which is the .jpg fallback. Unloaded cards must go through LY_cardSrcset.
+        "sharp.getAttribute('src')" not in html.split('LY_cardLoadedSrc')[1][:500]
+        and 'window.LY_cardSrcset' in html,
     )
     r.check(
         'carousel helpers use sharp-tier URLs after meaningful paint',
