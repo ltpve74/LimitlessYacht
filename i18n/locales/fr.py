@@ -86,12 +86,12 @@ PAIRS = [
     ("Explore Gallery", "Voir la galerie"),
     ("Exclusive Maiora Yacht · 21.5 m · Up to 12 Guests Day · 7 Overnight", "Yacht Maiora exclusif · 21,5 m · Jusqu'à 12 invités de jour · 7 de nuit"),
     (
-        "Half-day (4h) from €1,700 · 6h from €2,400 · full day from €3,000 · crew included",
-        "Demi-journée (4h) à partir de 1 700 € · 6h à partir de 2 400 € · journée complète à partir de 3 000 € · équipage inclus",
+        'Half-day (4h) from €1,700 · 6h from €2,400 · full day from €3,000<br><span class="hero-rates-note">crew &amp; VAT included</span>',
+        'Demi-journée (4h) à partir de 1 700 € · 6h à partir de 2 400 € · journée complète à partir de 3 000 €<br><span class="hero-rates-note">équipage et TVA inclus</span>',
     ),
     (
-        "Half-day (4h) from €2,200 · 6h from €3,100 · full day from €4,000 · crew included",
-        "Demi-journée (4h) à partir de 2 200 € · 6h à partir de 3 100 € · journée complète à partir de 4 000 € · équipage inclus",
+        'Half-day (4h) from €2,200 · 6h from €3,100 · full day from €4,000<br><span class="hero-rates-note">crew &amp; VAT included</span>',
+        'Demi-journée (4h) à partir de 2 200 € · 6h à partir de 3 100 € · journée complète à partir de 4 000 €<br><span class="hero-rates-note">équipage et TVA inclus</span>',
     ),
     ("From €1,700 (4h) · €2,400 (6h)", "À partir de 1 700 € (4h) · 2 400 € (6h)"),
     ("From €2,200 (4h) · €3,100 (6h)", "À partir de 2 200 € (4h) · 3 100 € (6h)"),
@@ -642,14 +642,10 @@ PAIRS = [
         'Voir le calendrier →',
     ),
     (
-        'Ready to plan your trip?',
-        'Prêt à planifier votre voyage ?',
+        '<p class="section-forward-cta reveal">Want to see more? <a href="#itinerary-land">Explore the destinations</a> or <a href="#gallery-land">take a closer look at the yacht</a>.</p>',
+        '<p class="section-forward-cta reveal">Envie d\'en savoir plus ? <a href="#itinerary-land">Découvrez les destinations</a> ou <a href="#gallery-land">jetez un œil au yacht</a>.</p>'
     ),
-    (
-        'See charter options →',
-        'Voir les options de charter →',
-    ),
-    (
+        (
         'Like what\'s on board?',
         'Vous aimez ce qui est à bord ?',
     ),

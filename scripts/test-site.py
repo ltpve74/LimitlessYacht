@@ -1525,7 +1525,7 @@ PRICING_EN_MARKERS = (
     '6h from €3,100',
     'From €1,700 (4h)',
     'Available year-round &nbsp;·&nbsp; We respond within 24 hours',
-    'crew included',
+    'VAT included',
 )
 
 LOCALE_PRICING_MARKERS = {

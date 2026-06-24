@@ -86,12 +86,12 @@ PAIRS = [
     ("Explore Gallery", "Ver la galería"),
     ("Exclusive Maiora Yacht · 21.5 m · Up to 12 Guests Day · 7 Overnight", "Yate Maiora exclusivo · 21,5 m · Hasta 12 invitados de día · 7 de noche"),
     (
-        "Half-day (4h) from €1,700 · 6h from €2,400 · full day from €3,000 · crew included",
-        "Medio día (4h) desde 1.700 € · 6h desde 2.400 € · día completo desde 3.000 € · tripulación incluida",
+        'Half-day (4h) from €1,700 · 6h from €2,400 · full day from €3,000<br><span class="hero-rates-note">crew &amp; VAT included</span>',
+        'Medio día (4h) desde 1.700 € · 6h desde 2.400 € · día completo desde 3.000 €<br><span class="hero-rates-note">tripulación e IVA incluidos</span>',
     ),
     (
-        "Half-day (4h) from €2,200 · 6h from €3,100 · full day from €4,000 · crew included",
-        "Medio día (4h) desde 2.200 € · 6h desde 3.100 € · día completo desde 4.000 € · tripulación incluida",
+        'Half-day (4h) from €2,200 · 6h from €3,100 · full day from €4,000<br><span class="hero-rates-note">crew &amp; VAT included</span>',
+        'Medio día (4h) desde 2.200 € · 6h desde 3.100 € · día completo desde 4.000 €<br><span class="hero-rates-note">tripulación e IVA incluidos</span>',
     ),
     ("From €1,700 (4h) · €2,400 (6h)", "Desde 1.700 € (4h) · 2.400 € (6h)"),
     ("From €2,200 (4h) · €3,100 (6h)", "Desde 2.200 € (4h) · 3.100 € (6h)"),
@@ -655,14 +655,10 @@ PAIRS = [
         'Ver el calendario →',
     ),
     (
-        'Ready to plan your trip?',
-        '¿Listo para planificar su viaje?',
+        '<p class="section-forward-cta reveal">Want to see more? <a href="#itinerary-land">Explore the destinations</a> or <a href="#gallery-land">take a closer look at the yacht</a>.</p>',
+        '<p class="section-forward-cta reveal">¿Quiere ver más? <a href="#itinerary-land">Explore los destinos</a> o <a href="#gallery-land">eche un vistazo al yate</a>.</p>'
     ),
-    (
-        'See charter options →',
-        'Ver opciones de chárter →',
-    ),
-    (
+        (
         'Like what\'s on board?',
         '¿Le gusta lo que hay a bordo?',
     ),
