@@ -163,8 +163,8 @@ PAIRS = [
     # Gallery
     ("On<em>board Gallery</em>", "Galerie <em>an Bord</em>"),
     (
-        "Explore life aboard Limitless — on the water, on deck, and in the cabins below. Tap any photo to view it full size.",
-        "Entdecken Sie das Leben an Bord der Limitless — auf dem Wasser, an Deck und in den Kabinen. Tippen Sie auf ein Foto für die Vollansicht.",
+        "Explore life aboard Limitless — on the water, on deck, and in the cabins below.",
+        "Entdecken Sie das Leben an Bord der Limitless — auf dem Wasser, an Deck und in den Kabinen.",
     ),
     # Amenities
     ("On-Board Equipment", "Ausstattung an Bord"),

@@ -150,8 +150,8 @@ PAIRS = [
     ("Home Port", "Port d'attache"),
     ("On<em>board Gallery</em>", "Galerie <em>à bord</em>"),
     (
-        "Explore life aboard Limitless — on the water, on deck, and in the cabins below. Tap any photo to view it full size.",
-        "Découvrez la vie à bord de Limitless — sur l'eau, sur le pont et dans les cabines. Touchez une photo pour l'afficher en plein écran.",
+        "Explore life aboard Limitless — on the water, on deck, and in the cabins below.",
+        "Découvrez la vie à bord de Limitless — sur l'eau, sur le pont et dans les cabines.",
     ),
     ("On-Board Equipment", "Équipement à bord"),
     ("Everything<em> On Board</em>", "Tout <em>à bord</em>"),

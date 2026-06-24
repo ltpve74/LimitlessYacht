@@ -360,13 +360,6 @@ def check_html(r: Runner, rel: str, html: str) -> None:
         and html.count('class="btn-primary dest-lb-cta"') == 1,
     )
     r.check(
-        'gallery lightbox uses centralized images array',
-        'window.LY_GALLERY_IMAGES = [' in html
-        and 'window.LY_GALLERY_IMAGES_MOBILE = [' in html
-        and 'const images = window.LY_GALLERY_IMAGES' in html
-        and 'function showImage(idx)' in html,
-    )
-    r.check(
         'shared destination image registry (LY_DEST_IMAGES)',
         'window.LY_DEST_IMAGES = [' in html and 'window.LY_DEST_IMAGES_MOBILE = [' in html,
     )
@@ -400,17 +393,12 @@ def check_html(r: Runner, rel: str, html: str) -> None:
         and 'lbImg2.src = loadedSrc' in html,
     )
     r.check(
-        'gallery cards use responsive tier srcsets (lightbox reuses loaded tier)',
+        'gallery cards use responsive tier srcsets',
         'maiora_20s_01-640.webp' in html
         and 'maiora_20s_01-720.webp' in html
         and 'images/mobile/maiora_20s_03-960.webp 960w' in html
         and 'images/mobile/maiora_20s_03.webp 960w' not in html
-        and '(min-width: 1101px) 25vw, 50vw' in html
-        and 'applyGalleryLbFrame(targetIdx, window.LY_galleryMasterUrl' in html
-        and 'window.LY_cardLoadedSrc(item)' in html
-        and 'lbLoadGen' in html
-        and 'class="lb-loader"' in html
-        and 'id="lightbox-img" src="" alt="Limitless yacht gallery photo" sizes="100vw"' in html,
+        and '(min-width: 1101px) 25vw, 50vw' in html,
     )
     r.check(
         'lightbox never loads .jpg fallback for unvisited cards',
@@ -435,7 +423,7 @@ def check_html(r: Runner, rel: str, html: str) -> None:
         'window.lyCarouselStep' in html
         and 'window.innerWidth * 0.78 + 12' in html
         and 'grid.classList.contains(\'gallery-grid\')' in html
-        and 'requestAnimationFrame(update)' in html,
+        and 'requestAnimationFrame(updateNav)' in html,
     )
     r.check(
         'nav height cached and initial section sync deferred to rAF',
@@ -461,9 +449,54 @@ def check_html(r: Runner, rel: str, html: str) -> None:
         and 'posEl.textContent' in html,
     )
     r.check(
+        'gallery is one continuous swipe carousel (single track tagged by category)',
+        html.count('class="gallery-group') == 1
+        and html.count('class="gallery-grid"') == 1
+        and html.count('class="gallery-item') == 15
+        and html.count('data-cat="water"') == 3
+        and html.count('data-cat="deck"') == 4
+        and html.count('data-cat="interior"') == 8,
+    )
+    r.check(
+        'destinations is one continuous swipe carousel (single track tagged by tier)',
+        html.count('class="dest-group') == 1
+        and html.count('class="itinerary-grid"') == 1
+        and html.count('data-dest-idx="') == 12
+        and 'data-tier="half-day"' in html
+        and 'data-tier="full-day"' in html
+        and 'data-tier="multi-day"' in html,
+    )
+    r.check(
+        'each immersive section has exactly one carousel nav',
+        html.count('class="carousel-nav"') == 2,
+    )
+    r.check(
+        'gallery images no longer open a lightbox',
+        'id="lightbox"' not in html
+        and 'openGalleryLb' not in html
+        and 'function showImage(idx)' not in html
+        and 'applyGalleryLbFrame' not in html,
+    )
+    r.check(
+        'swipe-settle fires debounced, in-view-gated category view events',
+        'ly_gallery_view_on_water' in html
+        and 'ly_gallery_view_deck' in html
+        and 'ly_gallery_view_interiors' in html
+        and 'function tierEvent(t)' in html
+        and 'function settle(cat)' in html
+        and 'function inView()' in html,
+    )
+    r.check(
+        'carousel tabs stay clickable and track active panel via aria-selected',
+        'window.LY_wireCarousel = function' in html
+        and "setAttribute('aria-selected'" in html
+        and 'function goToCat(cat' in html
+        and 'function setActive(cat)' in html
+        and 'window._setDestTab = setDestTab' in html,
+    )
+    r.check(
         'lightbox navigation coalesces rapid clicks and shows loading state',
         'window.LY_formatLbCounter' in html
-        and 'setGalleryLbLoading' in html
         and 'destLbLoadGen' in html
         and 'destLbImgWrap' in html
         and 'class="lb-loader"' in html
@@ -607,11 +640,11 @@ def check_html(r: Runner, rel: str, html: str) -> None:
         and 'window.LY_armWrap = armWrap' in html,
     )
     r.check(
-        'gallery tab switch arms wraps for Safari IO display:none bug',
-        # setGalleryTab must explicitly arm wraps in the newly-active group so that
-        # Safari's IO (which doesn't re-fire after display:none→block) still loads images
+        'carousel arms progressive wraps for Safari IO display:none bug',
+        # LY_wireCarousel must explicitly arm wraps in the group so that Safari's IO
+        # (which doesn't re-fire after display:none -> block) still loads images
         'window.LY_armWrap' in html
-        and "g.querySelectorAll('.ly-prog-wrap')" in html
+        and "group.querySelectorAll('.ly-prog-wrap')" in html
         and 'window.LY_armWrap(ws[wi])' in html,
     )
     r.check(
@@ -633,27 +666,6 @@ def check_html(r: Runner, rel: str, html: str) -> None:
     )
 
     # Lightbox click behaviour (gallery + itinerary parity)
-    r.check(
-        'gallery lightbox backdrop click closes',
-        'if(e.target === lightbox) closeGalleryLb()' in html,
-    )
-    r.check(
-        'gallery lightbox image half-tap navigates',
-        "lbImg.addEventListener('click'" in html
-        and 'lbWasSwiped' in html
-        and 'showImage(currentIdx - 1)' in html
-        and 'showImage(currentIdx + 1)' in html,
-    )
-    r.check(
-        'gallery lightbox guards missing DOM nodes',
-        'if (!lbImg || !images.length) return' in html
-        and 'if (lightbox && lbImg)' in html,
-    )
-    r.check(
-        'gallery lightbox swipe guard uses touchmove',
-        "lightbox.addEventListener('touchmove'" in html
-        and 'lbWasSwiped = true' in html,
-    )
     r.check(
         'itinerary lightbox backdrop click closes',
         'if (e.target === destLb)' in html and 'closeLb()' in html,
@@ -2134,7 +2146,7 @@ def check_shared_assets(r: Runner) -> None:
         and 'scenario_cookie_consent_all_viewports' in ux_py
         and 'COOKIE_TEST_VIEWPORTS' in ux_py
         and 'scenario_full_page_scroll' in ux_py
-        and 'scenario_gallery_lightbox' in ux_py
+        and 'scenario_gallery_carousel' in ux_py
         and 'scenario_reviews_load' in ux_py
         and 'scenario_calendar_booking' in ux_py
         and 'scenario_booking_funnel_mobile' in ux_py
@@ -2395,11 +2407,6 @@ def check_shared_assets(r: Runner) -> None:
         is not None,
     )
     r.check(
-        'gallery lightbox uses viewport-specific browse hint',
-        'Use arrow keys or click sides to browse' in index_html
-        and "matchMedia('(min-width: 769px)')" in index_html,
-    )
-    r.check(
         'lightboxes share unified navigation chrome classes',
         'class="lb-close"' in index_html
         and 'class="lb-nav lb-nav--prev"' in index_html
@@ -2411,7 +2418,6 @@ def check_shared_assets(r: Runner) -> None:
         and css_rule_index(css, '.lb-nav') >= 0
         and css_rule_index(css, '.lb-counter') >= 0
         and css_rule_index(css, '.lb-loader') >= 0
-        and '#lightbox.lb-loading #lightbox-img' in css
         and '.dest-lb-img-wrap.lb-loading #dest-lb-img' in css
         and css_rule_index(css, '.card-loader') < 0
         and '.destination-card.card-loading' not in css
@@ -2426,6 +2432,35 @@ def check_shared_assets(r: Runner) -> None:
         'ly_dest_hinted' in index_html
         and 'id="dest-lb-hint"' in index_html
         and "matchMedia('(min-width: 1101px)')" in index_html,
+    )
+    r.check(
+        'gallery lightbox fully removed from markup, JS and CSS',
+        'id="lightbox"' not in index_html
+        and 'id="lightbox-img"' not in index_html
+        and 'openGalleryLb' not in index_html
+        and (css is None or '#lightbox' not in css),
+    )
+    r.check(
+        'destination lightbox retained with shared chrome',
+        'id="dest-lightbox"' in index_html
+        and css is not None
+        and css_rule_index(css, '.lb-close') >= 0
+        and css_rule_index(css, '.lb-loader') >= 0
+        and '.dest-lb-img-wrap.lb-loading .lb-loader{display:block}' in css,
+    )
+    r.check(
+        'destination cards show a prominent tap affordance hint',
+        css is not None
+        and re.search(r"\.destination-card-body::after\{content:'Tap for full details[^}]*background:var\(--btn-fill\)", css) is not None
+        and 'Details antippen' in css
+        and 'Pulsa para' in css
+        and 'Appuyer pour' in css,
+    )
+    r.check(
+        'gallery and destinations share one carousel implementation',
+        'window.LY_wireCarousel = function' in index_html
+        and index_html.count('window.LY_wireCarousel({') == 2
+        and 'window.lyCarouselStep = function' in index_html,
     )
     r.check(
         'calendar enquire opens email sheet (no navigation to separate section)',
