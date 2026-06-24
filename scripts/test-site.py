@@ -171,7 +171,8 @@ def check_html(r: Runner, rel: str, html: str) -> None:
         and 'section-cta-quote--desktop' not in html
         and html.count('href="#availability" class="btn-primary section-cta-avail--desktop"') == 2
         and html.count('href="#avail-cal" class="btn-primary section-cta-avail--mobile"') == 3
-        and html.count('href="#avail-cal" class="btn-ghost section-cta-quote--mobile"') == 2,
+        and html.count('href="#avail-cal" class="btn-ghost section-cta-quote--mobile"') == 1
+        and html.count('href="#itinerary-funnel" class="btn-ghost section-cta-quote--mobile"') == 1,
     )
     r.check(
         'charters section groups options with includes panel',
