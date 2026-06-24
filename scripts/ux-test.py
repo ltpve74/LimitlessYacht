@@ -3,7 +3,7 @@
 Browser UX smoke tests — catch user-facing JavaScript errors and broken flows.
 
 Exercises navigation anchors, booking-funnel links, cookie consent, gallery
-lightbox, reviews load, calendar selection, full-page scroll journeys, and
+carousel, reviews load, calendar selection, full-page scroll journeys, and
 locale pages against a local static server. Fails on unexpected page errors or
 console errors.
 
@@ -865,35 +865,57 @@ def scenario_full_page_scroll(page, base: str, issues: IssueCollector) -> None:
     page.evaluate("window.scrollTo({ top: 0, behavior: 'instant' });")
 
 
-def scenario_gallery_lightbox(page, base: str, issues: IssueCollector) -> None:
-    name = "gallery tabs and lightbox"
+def scenario_gallery_carousel(page, base: str, issues: IssueCollector) -> None:
+    name = "gallery carousel (no lightbox) and destinations lightbox"
     issues.attach(page, name)
     page.set_viewport_size(DESKTOP_VIEWPORT)
     page.goto(base + "/", wait_until="domcontentloaded", timeout=60000)
     page.locator("#gallery").scroll_into_view_if_needed()
     page.wait_for_timeout(400)
 
+    # Gallery is one continuous track; the standalone lightbox is gone.
+    if page.evaluate("() => !!document.getElementById('lightbox')"):
+        issues.add(f"{name}: gallery #lightbox element should be removed")
+
+    # Tabs still work as clickable shortcuts and reflect the active category.
     deck_tab = page.locator('.gallery-tab[data-gtab="deck"]')
     if deck_tab.count():
         deck_tab.click()
-        page.wait_for_timeout(300)
+        page.wait_for_timeout(400)
+        active = page.evaluate(
+            "() => { var a = document.querySelector('.gallery-tab.tab--active');"
+            " return a ? a.getAttribute('data-gtab') : null; }"
+        )
+        if active != "deck":
+            issues.add(f"{name}: gallery tab click did not highlight deck (got {active})")
 
-    item = page.locator(".gallery-group.tab-active .gallery-item").first
+    # Clicking a gallery image must NOT open any lightbox anymore.
+    item = page.locator(".gallery-group .gallery-item").first
     if item.count() == 0:
         issues.add(f"{name}: no gallery items found")
         return
     item.click()
-    page.wait_for_selector("#lightbox.open", timeout=10000)
+    page.wait_for_timeout(400)
+    if page.evaluate(
+        "() => { var lb = document.getElementById('lightbox');"
+        " return !!(lb && lb.classList.contains('open')); }"
+    ):
+        issues.add(f"{name}: gallery item should not open a lightbox")
 
-    next_btn = page.locator("#lightbox-next")
-    if next_btn.count():
-        next_btn.click()
-        page.wait_for_timeout(400)
-    close_btn = page.locator("#lightbox-close")
+    # Destinations lightbox is retained and still opens on card tap.
+    page.locator("#itinerary").scroll_into_view_if_needed()
+    page.wait_for_timeout(300)
+    card = page.locator(".dest-group .destination-card").first
+    if card.count() == 0:
+        issues.add(f"{name}: no destination cards found")
+        return
+    card.click()
+    page.wait_for_selector("#dest-lightbox.open", timeout=10000)
+    close_btn = page.locator("#dest-lb-close")
     if close_btn.count():
         close_btn.click()
         page.wait_for_function(
-            "() => !document.getElementById('lightbox').classList.contains('open')",
+            "() => !document.getElementById('dest-lightbox').classList.contains('open')",
             timeout=5000,
         )
 
@@ -990,7 +1012,7 @@ def run_scenarios(base_url: str, quick: bool = False, thorough: bool = False) ->
         scenario_home_mobile,
         scenario_cookie_consent_all_viewports,
         scenario_full_page_scroll,
-        scenario_gallery_lightbox,
+        scenario_gallery_carousel,
         scenario_reviews_load,
         scenario_calendar_booking,
         scenario_booking_funnel_mobile,

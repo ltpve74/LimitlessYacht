@@ -45,6 +45,10 @@ PAIRS = [
     (">Reviews</a>", ">Bewertungen</a>"),
     ('onclick="closeMobile()">Reviews</a>', 'onclick="closeMobile()">Bewertungen</a>'),
     ("Guest Reviews", "Gästebewertungen"),
+    (
+        'Check available dates or explore what’s on board.',
+        'Verfügbare Termine prüfen oder erkunden, was an Bord wartet.',
+    ),
     ("What Our<em> Guests Say</em>", "Was unsere<em> Gäste sagen</em>"),
     (
         "Verified reviews from guests who chartered <strong>Limitless</strong> via Click&amp;Boat — updated automatically from our listing.",
@@ -61,6 +65,8 @@ PAIRS = [
     ),
     ("Loading guest reviews…", "Gästebewertungen werden geladen…"),
     ("window.LY_LB_LOADING = 'Loading\\u2026';", "window.LY_LB_LOADING = 'Wird geladen\\u2026';"),
+
+    ("window.LY_REVIEWS_MORE='\u2026more';window.LY_REVIEWS_LESS='less';", "window.LY_REVIEWS_MORE='\u2026mehr';window.LY_REVIEWS_LESS='weniger';"),
     ("1 verified review", "1 verifizierte Bewertung"),
     (" verified reviews", " verifizierte Bewertungen"),
     ("No reviews to display yet.", "Noch keine Bewertungen vorhanden."),
@@ -79,17 +85,22 @@ PAIRS = [
     ('onclick="closeMobile()">Availability</a>', 'onclick="closeMobile()">Verfügbarkeit</a>'),
     ('onclick="closeMobile()">Contact</a>', 'onclick="closeMobile()">Kontakt</a>'),
     # Hero
+
+    (
+        '"Professional, thoughtful — and genuinely fun."<span class="hero-pull-attr"> — Andrew, group of 8, Jun\xa02026</span>',
+        '„Gekonnt, aufmerksam — und dabei wirklich entspannt und witzig.“<span class="hero-pull-attr"> — Andrew, Gruppe 8\xa0Pers., Juni\xa02026</span>',
+    ),
     (">Scroll</span>", ">Scrollen</span>"),
     ("Rates & Booking", "Preise & Buchung"),
     ("Explore Gallery", "Galerie entdecken"),
     ("Exclusive Maiora Yacht · 21.5 m · Up to 12 Guests Day · 7 Overnight", "Exklusive Maiora-Yacht · 21,5 m · Bis zu 12 Gäste tagsüber · 7 über Nacht"),
     (
-        "Half-day (4h) from €1,700 · 6h from €2,400 · full day from €3,000 · crew included",
-        "Halbtages-Charter (4h) ab 1.700 € · 6h ab 2.400 € · Ganztag ab 3.000 € · Crew inklusive",
+        'Half-day (4h) from €1,700 · 6h from €2,400 · full day from €3,000<br><span class="hero-rates-note">crew &amp; VAT included</span>',
+        'Halbtages-Charter (4h) ab 1.700 € · 6h ab 2.400 € · Ganztag ab 3.000 €<br><span class="hero-rates-note">Crew &amp; MwSt. inklusive</span>',
     ),
     (
-        "Half-day (4h) from €2,200 · 6h from €3,100 · full day from €4,000 · crew included",
-        "Halbtages-Charter (4h) ab 2.200 € · 6h ab 3.100 € · Ganztag ab 4.000 € · Crew inklusive",
+        'Half-day (4h) from €2,200 · 6h from €3,100 · full day from €4,000<br><span class="hero-rates-note">crew &amp; VAT included</span>',
+        'Halbtages-Charter (4h) ab 2.200 € · 6h ab 3.100 € · Ganztag ab 4.000 €<br><span class="hero-rates-note">Crew &amp; MwSt. inklusive</span>',
     ),
     ("From €1,700 (4h) · €2,400 (6h)", "Ab 1.700 € (4h) · 2.400 € (6h)"),
     ("From €2,200 (4h) · €3,100 (6h)", "Ab 2.200 € (4h) · 3.100 € (6h)"),
@@ -101,6 +112,23 @@ PAIRS = [
     ("Day / Overnight Guests", "Gäste Tag / Nacht"),
     ("Knots Cruising", "Knoten Reisegeschw."),
     # About
+
+    (
+        "<strong>Limitless</strong> is a Maiora flybridge built for Mallorca’s finest coves — warm, spacious, maintained to charter standard.",
+        '<strong>Limitless</strong> ist eine Maiora-Flybridge für Mallorcas schönste Buchten — warm, geräumig und auf Charter-Standard gewartet.',
+    ),
+    (
+        'Her <strong>dedicated crew</strong> handle everything: catering, beach club reservations, all the details — attentive, experienced, genuinely passionate about the sea.',
+        'Ihre <strong>engagierte Crew</strong> kümmert sich um alles: Verpflegung, Beach-Club-Reservierungen, alle Details — aufmerksam, erfahren und mit echter Leidenschaft fürs Meer.',
+    ),
+    (
+        "You focus entirely on the people you're with.",
+        'Sie konzentrieren sich ganz auf die Menschen, die Ihnen wichtig sind.',
+    ),
+    (
+        '<p class="section-forward-cta reveal">Like what you see? <a href="#avail-cal">Check available dates</a> or <a href="https://wa.me/34622581486?text=Hi%2C%20I%27d%20like%20to%20enquire%20about%20a%20charter%20on%20Limitless.">chat with us</a> — we reply within the hour.</p>',
+        '<p class="section-forward-cta reveal">Gefällt Ihnen, was Sie sehen? <a href="#avail-cal">Verfügbare Termine prüfen</a> oder <a href="https://wa.me/34622581486?text=Hi%2C%20I%27d%20like%20to%20enquire%20about%20a%20charter%20on%20Limitless.">schreiben Sie uns</a> — wir antworten in der Regel innerhalb einer Stunde.</p>',
+    ),
     ("The Yacht", "Die Yacht"),
     ("Your Home on the<br><em>Mediterranean</em>", "Ihr Zuhause auf dem<br><em>Mittelmeer</em>"),
     (
@@ -135,8 +163,8 @@ PAIRS = [
     # Gallery
     ("On<em>board Gallery</em>", "Galerie <em>an Bord</em>"),
     (
-        "Explore life aboard Limitless — on the water, on deck, and in the cabins below. Tap any photo to view it full size.",
-        "Entdecken Sie das Leben an Bord der Limitless — auf dem Wasser, an Deck und in den Kabinen. Tippen Sie auf ein Foto für die Vollansicht.",
+        "Explore life aboard Limitless — on the water, on deck, and in the cabins below.",
+        "Entdecken Sie das Leben an Bord der Limitless — auf dem Wasser, an Deck und in den Kabinen.",
     ),
     # Amenities
     ("On-Board Equipment", "Ausstattung an Bord"),
@@ -649,14 +677,10 @@ PAIRS = [
         'Kalender prüfen →',
     ),
     (
-        'Ready to plan your trip?',
-        'Bereit, Ihre Reise zu planen?',
+        '<p class="section-forward-cta reveal">Want to see more? <a href="#itinerary-land">Explore the destinations</a> or <a href="#gallery-land">take a closer look at the yacht</a>.</p>',
+        '<p class="section-forward-cta reveal">Möchten Sie mehr sehen? <a href="#itinerary-land">Entdecken Sie die Ziele</a> oder <a href="#gallery-land">werfen Sie einen Blick auf die Yacht</a>.</p>'
     ),
-    (
-        'See charter options →',
-        'Charter-Optionen ansehen →',
-    ),
-    (
+        (
         'Like what\'s on board?',
         'Gefällt Ihnen, was an Bord ist?',
     ),
@@ -1100,14 +1124,8 @@ REVIEWS = [
         "date": "Juni 2026",
         "rating": 5,
         "text": (
-            "Luigi, ich möchte dir von Herzen danken. Der Service, den du und Laura geleistet "
-            "habt, war absolut großartig. Wir hatten eine fantastische Zeit und fühlten uns "
-            "während der gesamten Tour unglaublich gut betreut. Alles war perfekt – das Boot, "
-            "die Atmosphäre, die Gastfreundschaft und vor allem die Art, wie ihr beide uns "
-            "umsorgt habt. Ihr seid wunderbare Menschen und habt dieses Erlebnis für uns "
-            "wirklich besonders gemacht. Nochmals vielen Dank für alles. Es war ein "
-            "unvergesslicher Tag und definitiv eines der Highlights unseres Aufenthalts auf "
-            "Mallorca."
+            "Ein unvergesslicher Tag — definitiv eines der Highlights unseres Aufenthalts auf Mallorca. Luigi und Lauras Service war absolut großartig — wir fühlten uns während der gesamten Tour unglaublich gut betreut. Alles war perfekt: das Boot, die Atmosphäre, die Gastfreundschaft und vor allem die Art, wie sie uns umsorgt haben. Wunderbare Menschen, die dieses Erlebnis für uns wirklich besonders gemacht haben. Nochmals vielen Dank für alles."
+        
         ),
     },
     {

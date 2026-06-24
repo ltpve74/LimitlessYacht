@@ -70,6 +70,29 @@ When suppressed (`LY_OWNER_MODE`), the site skips: Google tag, Microsoft Clarity
 
 **Owner override (any host):** visit `?ly_owner=set` once to suppress on that browser; `?ly_owner=unset` to re-enable.
 
+### Clarity events fired by the site
+
+All custom events go through `window.LY_clarityEvent(name)` (defined in `index.html`), which no-ops in `LY_OWNER_MODE` and otherwise calls `clarity('event', name)`. They auto-register under **Clarity → Settings → Smart events** after the first consented visitor fires each one — **production only**, so you won't see them on preview/localhost.
+
+| Event | When |
+|-------|------|
+| `ly_section_view_<id>` | A page section is reached (hash/scroll). `<id>` is the section id with `-` → `_` (e.g. `ly_section_view_gallery`). |
+| `ly_gallery_view_on_water` / `_deck` / `_interiors` | The **gallery** carousel settles (~1s) on a panel in that category. |
+| `ly_section_view_half_day` / `_full_day` / `_multi_day` | The **destinations** carousel settles (~1s) on a panel in that tier. |
+| `ly_charter_card_*`, `ly_cal_*`, `ly_hero_rates_click`, `ly_whatsapp_click`, `ly_review_expand`, `ly_form_view`, … | Various funnel / CTA interactions (grep `LY_clarityEvent(` in `index.html` for the full list). |
+
+The carousel category events (`ly_gallery_view_*`, `ly_section_view_{half,full,multi}_day`) fire on **swipe-settle**, not on tab click — debounced ~1s and gated to when the section is on screen, so a fast flick-through doesn't spam events and the counts reflect deliberate views. This is the source of truth for "which destinations/gallery categories do mobile users actually look at."
+
+### Immersive carousels (gallery + destinations)
+
+Both `#gallery` and `#itinerary` are **single continuous swipe carousels**, driven by one shared helper `window.LY_wireCarousel(cfg)` in `index.html`:
+
+- **One track each**: a single `.gallery-group > .gallery-grid` (15 `.gallery-item`, each tagged `data-cat="water|deck|interior"`) and a single `.dest-group > .itinerary-grid` (12 `.destination-card`, each tagged `data-tier="half-day|full-day|multi-day"`). Do **not** re-split these into per-category groups — swiping must reach every category, and several tests assert the single-track counts.
+- **Tabs are clickable shortcuts AND live position indicators**: clicking a tab scrolls to that category's first panel; swiping updates `.tab--active` + `aria-selected` on the matching tab. Tabs are never the only way to reach a category.
+- **Step math** lives in `window.lyCarouselStep` (mobile only does the horizontal carousel; desktop shows the grid).
+- **Destinations funnel** still flows through `window._setDestTab`, the pending-tier drain (`applyFunnelTierFromStorage`), and hash deep-links `#half-day`/`#full-day`/`#multi-day`. Deep-link tiers are captured **synchronously** at parse time into `_initTier` because the nav's `updateScrollHash` strips the hash at scrollY≈0, then re-applied once layout settles.
+- **Gallery has no lightbox** (removed — was unused + a null-`classList` crash surface). The **destinations lightbox is retained** (`#dest-lightbox`); its tier badge reads the card's own `data-tier`. The two lightboxes share `.lb-*` CSS classes, so don't delete those when touching one.
+
 ### Daily dev / preview workflow
 
 1. Work on `develop`, push → GitHub Pages preview deploys.
@@ -268,6 +291,8 @@ netlify.toml                 ← Netlify config (production)
 | Expecting Netlify to minify | It does not — minify happens in pre-commit on `main` |
 | Testing UX on preview with Clarity/GA open | Preview suppresses automatically; use production URL to validate tags |
 | Removing analytics snippets before preview | Wrong — use `analytics-env.js` host detection instead |
+| Re-splitting gallery/destinations into per-category groups | They are intentionally **one continuous swipe carousel** each (see "Immersive carousels"); swiping must reach every category and tests assert single-track counts |
+| Deleting `.lb-*` CSS or adding a gallery lightbox back | Gallery has no lightbox by design; `.lb-*` classes are shared with the retained `#dest-lightbox` |
 
 ---
 
