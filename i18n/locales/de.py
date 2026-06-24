@@ -114,8 +114,20 @@ PAIRS = [
     # About
 
     (
-        "<strong>Limitless</strong> is a Maiora flybridge built for Mallorca’s finest coves — warm, spacious and maintained to charter standard. What truly sets her apart is the <strong>dedicated crew</strong>: attentive, experienced and genuinely passionate about the sea, they handle everything — from catering to beach club reservations — so you can focus entirely on the people you're with.",
-        '<strong>Limitless</strong> ist eine Maiora-Flybridge-Yacht für Mallorcas schönste Buchten — warm, geräumig und auf Charter-Standard gewartet. Was sie wirklich auszeichnet, ist die <strong>engagierte Crew</strong>: aufmerksam, erfahren und mit echter Leidenschaft fürs Meer — sie kümmern sich um alles, von der Verpflegung bis zur Beach-Club-Reservierung, damit Sie sich ganz auf die Menschen konzentrieren können, die Ihnen wichtig sind.',
+        "<strong>Limitless</strong> is a Maiora flybridge built for Mallorca’s finest coves — warm, spacious, maintained to charter standard.",
+        '<strong>Limitless</strong> ist eine Maiora-Flybridge für Mallorcas schönste Buchten — warm, geräumig und auf Charter-Standard gewartet.',
+    ),
+    (
+        'Her <strong>dedicated crew</strong> handle everything: catering, beach club reservations, all the details — attentive, experienced, genuinely passionate about the sea.',
+        'Ihre <strong>engagierte Crew</strong> kümmert sich um alles: Verpflegung, Beach-Club-Reservierungen, alle Details — aufmerksam, erfahren und mit echter Leidenschaft fürs Meer.',
+    ),
+    (
+        "You focus entirely on the people you're with.",
+        'Sie konzentrieren sich ganz auf die Menschen, die Ihnen wichtig sind.',
+    ),
+    (
+        '<p class="section-forward-cta reveal">Like what you see? <a href="#avail-cal">Check available dates</a> or <a href="https://wa.me/34622581486?text=Hi%2C%20I%27d%20like%20to%20enquire%20about%20a%20charter%20on%20Limitless.">chat with us</a> — we reply within the hour.</p>',
+        '<p class="section-forward-cta reveal">Gefällt Ihnen, was Sie sehen? <a href="#avail-cal">Verfügbare Termine prüfen</a> oder <a href="https://wa.me/34622581486?text=Hi%2C%20I%27d%20like%20to%20enquire%20about%20a%20charter%20on%20Limitless.">schreiben Sie uns</a> — wir antworten in der Regel innerhalb einer Stunde.</p>',
     ),
     ("The Yacht", "Die Yacht"),
     ("Your Home on the<br><em>Mediterranean</em>", "Ihr Zuhause auf dem<br><em>Mittelmeer</em>"),
