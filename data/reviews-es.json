@@ -1,0 +1,22 @@
+{
+  "reviews": [
+    {
+      "author": "Maurice",
+      "date": "Jun 2026",
+      "rating": 5,
+      "text": "Luigi, solo quería darte las gracias de corazón. El servicio que tú y Laura prestasteis fue absolutamente increíble. Lo pasamos genial y nos sentimos muy bien atendidos durante todo el viaje. Todo fue perfecto: el barco, el ambiente, la hospitalidad y, sobre todo, la forma en que nos cuidasteis. Sois personas maravillosas y hicisteis que esta experiencia fuera realmente especial. Gracias de nuevo por todo. Fue un día inolvidable y sin duda uno de los momentos destacados de nuestra estancia en Mallorca."
+    },
+    {
+      "author": "Andrew",
+      "date": "Jun 2026",
+      "rating": 5,
+      "text": "Barco precioso con mucho espacio para los ocho. Luigi (patrón) y Rebecca no podían haber sido más acogedores: marcaron la diferencia en la calidad y el disfrute del día. Profesionales y atentos, pero también relajados y divertidos. ¡Gracias!"
+    },
+    {
+      "author": "Tony",
+      "date": "Ago 2025",
+      "rating": 5,
+      "text": "Nuestro grupo de seis disfrutó de un día fantástico a bordo de Limitless: espaciosa, cómoda e impecable. Paul respondió con gran rapidez y organizó el charter con menos de un día de antelación. A bordo, el capitán Luigi resultó experto y con buen humor, trazando sin esfuerzo un itinerario fluido con varias paradas muy agradables. La azafata atenta nos cuidó en todo momento, ya fuera con una cesta (muy bien surtida) de protector solar y toallas o reponiendo nuestras bebidas donde estuviéramos. ¡Muy recomendable!"
+    }
+  ]
+}

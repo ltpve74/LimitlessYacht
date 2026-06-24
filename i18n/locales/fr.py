@@ -57,6 +57,7 @@ PAIRS = [
         "annonce de charter au Club de Mar, Palma.",
     ),
     ("Loading guest reviews…", "Chargement des avis…"),
+    ("window.LY_LB_LOADING = 'Loading\\u2026';", "window.LY_LB_LOADING = 'Chargement\\u2026';"),
     ("1 verified review", "1 avis vérifié"),
     (" verified reviews", " avis vérifiés"),
     ("No reviews to display yet.", "Aucun avis à afficher pour le moment."),
@@ -64,9 +65,10 @@ PAIRS = [
         "Reviews could not be loaded. Please try again later.",
         "Impossible de charger les avis. Veuillez réessayer plus tard.",
     ),
-    ('class="nav-cta">Enquire</a>', 'class="nav-cta">Demander</a>'),
-    ('class="mobile-nav-cta" onclick="closeMobile()">Enquire</a>', 'class="mobile-nav-cta" onclick="closeMobile()">Demander</a>'),
-    ('class="nav-cta nav-header-cta">Enquire</a>', 'class="nav-cta nav-header-cta">Demander</a>'),
+    ('href="#charters-land">Charters</a>', 'href="#charters-land">Charters</a>'),
+    ('onclick="closeMobile()">Charters</a>', 'onclick="closeMobile()">Charters</a>'),
+    ('class="mobile-nav-cta" onclick="closeMobile()">Get Quote</a>', 'class="mobile-nav-cta" onclick="closeMobile()">Demander un devis</a>'),
+    ('class="nav-cta nav-header-cta">Get Quote</a>', 'class="nav-cta nav-header-cta">Demander un devis</a>'),
     ('onclick="closeMobile()">About</a>', 'onclick="closeMobile()">À propos</a>'),
     ('onclick="closeMobile()">Gallery</a>', 'onclick="closeMobile()">Galerie</a>'),
     ('onclick="closeMobile()">Amenities</a>', 'onclick="closeMobile()">Équipements</a>'),
@@ -77,6 +79,18 @@ PAIRS = [
     ("Rates & Booking", "Tarifs & réservation"),
     ("Explore Gallery", "Voir la galerie"),
     ("Exclusive Maiora Yacht · 21.5 m · Up to 12 Guests Day · 7 Overnight", "Yacht Maiora exclusif · 21,5 m · Jusqu'à 12 invités de jour · 7 de nuit"),
+    (
+        "Half-day (4h) from €1,700 · 6h from €2,400 · full day from €3,000 · crew included",
+        "Demi-journée (4h) à partir de 1 700 € · 6h à partir de 2 400 € · journée complète à partir de 3 000 € · équipage inclus",
+    ),
+    (
+        "Half-day (4h) from €2,200 · 6h from €3,100 · full day from €4,000 · crew included",
+        "Demi-journée (4h) à partir de 2 200 € · 6h à partir de 3 100 € · journée complète à partir de 4 000 € · équipage inclus",
+    ),
+    ("From €1,700 (4h) · €2,400 (6h)", "À partir de 1 700 € (4h) · 2 400 € (6h)"),
+    ("From €2,200 (4h) · €3,100 (6h)", "À partir de 2 200 € (4h) · 3 100 € (6h)"),
+    ("From €3,000", "À partir de 3 000 €"),
+    ("From €4,000", "À partir de 4 000 €"),
     ("Metres Length", "mètres de longueur"),
     ("HP Total Power", "CV puissance totale"),
     ("Day / Overnight Guests", "Invités jour / nuit"),
@@ -97,6 +111,7 @@ PAIRS = [
     ),
     ("Enquire Now", "Demander maintenant"),
     ("Enquire About This Trip", "Demander ce voyage"),
+    ("Check dates for this trip →", "Voir les dates pour ce voyage →"),
     ("Technical Specifications", "Caractéristiques techniques"),
     ("Yacht<em> Details</em>", "Détails du <em>yacht</em>"),
     ("Manufacturer", "Constructeur"),
@@ -111,6 +126,10 @@ PAIRS = [
     ("Cruising Speed", "Vitesse de croisière"),
     ("Home Port", "Port d'attache"),
     ("On<em>board Gallery</em>", "Galerie <em>à bord</em>"),
+    (
+        "Explore life aboard Limitless — on the water, on deck, and in the cabins below. Tap any photo to view it full size.",
+        "Découvrez la vie à bord de Limitless — sur l'eau, sur le pont et dans les cabines. Touchez une photo pour l'afficher en plein écran.",
+    ),
     ("On-Board Equipment", "Équipement à bord"),
     ("Everything<em> On Board</em>", "Tout <em>à bord</em>"),
     ("On Deck", "Sur le pont"),
@@ -181,7 +200,7 @@ PAIRS = [
     ("September – May", "septembre – mai"),
     ("4 Hours", "4 heures"),
     ("6 Hours", "6 heures"),
-    ("1 Day", "1 jour"),
+    ("Full Day", "Journée complète"),
     ("1 Week", "1 semaine"),
     ("Peak Season", "Haute saison"),
     ("June – August", "juin – août"),
@@ -196,17 +215,36 @@ PAIRS = [
     ("Availability", "Disponibilité"),
     ("Check the<em> Calendar</em>", "Consultez le<em> calendrier</em>"),
     (
-        "See which dates are open below, then send us an enquiry — we'll confirm your charter personally. The calendar is kept up to date by our crew.",
-        "Voyez les dates libres ci-dessous, puis envoyez-nous une demande — nous confirmerons votre charter personnellement. Le calendrier est tenu à jour par notre équipage.",
+        "See which dates are open — tap a date, then WhatsApp us for a fast reply. The calendar is kept up to date by our crew.",
+        "Voyez les dates libres — appuyez sur une date, puis écrivez-nous sur WhatsApp pour une réponse rapide. Le calendrier est tenu à jour par notre équipage.",
     ),
     ('aria-label="Availability calendar"', 'aria-label="Calendrier de disponibilité"'),
     ('aria-label="Previous month"', 'aria-label="Mois précédent"'),
     ('aria-label="Next month"', 'aria-label="Mois suivant"'),
     ("Available", "Disponible"),
+    ("Selected", "Sélectionné"),
     ("Booked", "Réservé"),
     ("On hold", "En attente"),
-    ("Enquire About These Dates", "Demander ces dates"),
-    ("Ask on WhatsApp", "Demander sur WhatsApp"),
+    (
+        "Tap available dates — one day or a run of adjacent dates.",
+        "Appuyez sur des dates libres — un jour ou plusieurs d'affilée.",
+    ),
+    ("Clear selection", "Effacer la sélection"),
+    ('data-i18n-day="day"', 'data-i18n-day="jour"'),
+    ('data-i18n-days="days"', 'data-i18n-days="jours"'),
+    ("Call Us", "Nous appeler"),
+    ("Prefer email? Fill in the enquiry form →", "Préférez l'e-mail ? Remplissez le formulaire →"),
+    ("Send", "Envoyer"),
+    (
+        'By sending, you agree to be contacted about your enquiry. See our <a href="legal.html">Privacy Policy</a>.',
+        "En envoyant, vous acceptez d'être contacté au sujet de votre demande. Voir notre <a href=\"legal.html\">Politique de confidentialité</a>.",
+    ),
+    ("Something went wrong — please try WhatsApp instead.", "Une erreur s'est produite — essayez via WhatsApp."),
+    ("e.g. 15 July 2026", "p. ex. 15 juillet 2026"),
+    ("Check availability", "Vérifier les disponibilités"),
+    ("Check Availability", "Vérifier les disponibilités"),
+    ("Enquire on WhatsApp", "Demander sur WhatsApp"),
+    ("WhatsApp these dates", "Envoyer ces dates sur WhatsApp"),
     ("Get in<em> Touch</em>", "Nous <em>contacter</em>"),
     (
         "For bookings, availability enquiries or special requests, we are always at your disposal.",
@@ -220,6 +258,7 @@ PAIRS = [
     ("Last Name", "Nom"),
     ("Phone", "Téléphone"),
     ("Preferred Date", "Date souhaitée"),
+    ("Dates", "Dates"),
     ("Charter Duration", "Durée du charter"),
     ("2–3 Days", "2–3 jours"),
     ("Longer", "Plus long"),
@@ -256,7 +295,15 @@ PAIRS = [
     ("Decline analytics", "Refuser l'analyse"),
     ("Decline", "Refuser"),
     ("Accept", "Accepter"),
-    ("Close", "Fermer"),
+    ('<span class="lb-close-label">Close</span>', '<span class="lb-close-label">Fermer</span>'),
+    (
+        "hamburger.setAttribute('aria-label', 'Close menu');",
+        "hamburger.setAttribute('aria-label', 'Fermer le menu');",
+    ),
+    (
+        "hamburger.setAttribute('aria-label', 'Open menu');",
+        "hamburger.setAttribute('aria-label', 'Ouvrir le menu');",
+    ),
     # old longer banner text (kept for safety)
     (
         "We use cookies to analyse site traffic (including how far you scroll and which sections you view), measure conversions (including Google Ads), and improve your experience. Analytics only run if you accept.",
@@ -568,12 +615,64 @@ PAIRS = [
         'Criques protégées &amp; port naturel',
     ),
     (
-        'Still deciding where to go?',
-        'Vous hésitez sur la destination ?',
+        'Curious how a charter works in practice — or what other guests experienced?',
+        'Curieux de savoir comment se déroule un charter — ou ce qu\'ont vécu d\'autres invités ?',
     ),
     (
-        'Explore the destinations →',
-        'Découvrir les destinations →',
+        'Rather pin down dates first — or hear from guests who\'ve been on board?',
+        'Vous préférez fixer les dates d\'abord — ou entendre des invités déjà embarqués ?',
+    ),
+    (
+        'Rather pick dates before you choose a route?',
+        'Vous préférez choisir les dates avant l\'itinéraire ?',
+    ),
+    (
+        'Check the calendar →',
+        'Voir le calendrier →',
+    ),
+    (
+        'Ready to plan your trip?',
+        'Prêt à planifier votre voyage ?',
+    ),
+    (
+        'See charter options →',
+        'Voir les options de charter →',
+    ),
+    (
+        'Like what\'s on board?',
+        'Vous aimez ce qui est à bord ?',
+    ),
+    (
+        'Check availability →',
+        'Vérifier les disponibilités →',
+    ),
+    (
+        'Still weighing a half-day splash against a multi-day escape?',
+        'Vous hésitez entre une demi-journée en mer et une escapade de plusieurs jours ?',
+    ),
+    (
+        'Convinced by the stories? Compare charter lengths or see what\'s waiting on deck.',
+        'Convaincu par les témoignages ? Comparez les durées de charter ou découvrez ce qui vous attend à bord.',
+    ),
+    (
+        'Everything you need is on board — now choose how you want to use it.',
+        'Tout ce qu\'il vous faut est à bord — choisissez maintenant comment en profiter.',
+    ),
+    (
+        'Compare charter lengths — or browse what past guests had to say.',
+        'Comparez les durées de charter — ou parcourez les avis d\'anciens invités.',
+    ),
+    (
+        'View Charter Options',
+        'Voir les options de charter',
+    ),
+    (
+        'Read Guest Reviews',
+        'Lire les avis clients',
+    ),
+    (
+        'On-Board Amenities',
+        'Équipements à bord',
     ),
     (
         'aria-label="Explore destinations"',
@@ -640,8 +739,8 @@ PAIRS = [
         'Nous aimons avoir des nouvelles de nos clients. Envoyez votre avis ci-dessous — il sera vérifié et publié sous peu.',
     ),
     (
-        '>Your Name<',
-        '>Votre nom<',
+        '>Name<',
+        '>Nom<',
     ),
     (
         'Email (private)',
@@ -713,7 +812,7 @@ PAIRS = [
         'Charter Privé',
     ),
     (
-        'Your crew handles everything — you focus on the people and the views.',
+        'Your crew handles everything — you focus on the people and&nbsp;the views.',
         "Votre équipage s'occupe de tout — vous profitez des autres et des paysages.",
     ),
     (
@@ -893,8 +992,8 @@ PAIRS = [
         'Nous répondons sous quelques heures · vos données restent privées',
     ),
     (
-        'Send My Enquiry',
-        'Envoyer ma demande',
+        'Email me a quote',
+        'Recevoir un devis',
     ),
     (
         'Chat on WhatsApp',
@@ -902,16 +1001,17 @@ PAIRS = [
     ),
     # --- missing translations (2026 gap-fill) ---
     # Trust line — must come before short ("Crew","Équipage") pair to avoid garbling "Crewed"
-    ('Verified reviews on Click&amp;Boat · Crewed &amp; fully equipped', 'Avis vérifiés sur Click&amp;Boat · Avec équipage &amp; entièrement équipé'),
-    # Nav Enquire links (not the CTA buttons)
-    ('href="#contact">Enquire</a>', 'href="#contact">Demander</a>'),
-    ('href="#enquire" onclick="closeMobile()">Enquire</a>', 'href="#enquire" onclick="closeMobile()">Demander</a>'),
+    ('Verified reviews on Click&amp;Boat · Crewed &amp;&nbsp;fully equipped', 'Avis vérifiés sur Click&amp;Boat · Avec équipage &amp; entièrement équipé'),
+
     ('>Destinations</a>', '>Destinations</a>'),
     ('onclick="closeMobile()">Destinations</a>', 'onclick="closeMobile()">Destinations</a>'),
     ('aria-label="Close menu"', 'aria-label="Fermer le menu"'),
     # Hero ghost button and itinerary CTA
     ('>Meet The Yacht</a>', '>Découvrir le yacht</a>'),
     ('Meet The Yacht →', 'Découvrir le yacht →'),
+    ('>The yacht</a>', '>Le yacht</a>'),
+    ('>availability</a>', '>Disponibilité</a>'),
+    ('>destinations</a>', '>Destinations</a>'),
     # Itinerary section
     ('aria-label="Charter duration"', 'aria-label="Durée du charter"'),
     ('aria-label="Previous destination"', 'aria-label="Destination précédente"'),
@@ -921,11 +1021,13 @@ PAIRS = [
     ('aria-label="Gallery category"', 'aria-label="Catégorie de galerie"'),
     ('aria-label="Previous"', 'aria-label="Précédent"'),
     ('aria-label="Next"', 'aria-label="Suivant"'),
-    ('ENQUIRE NOW →', 'DEMANDER MAINTENANT →'),
+    ('CHECK AVAILABILITY →', 'VÉRIFIER LES DISPONIBILITÉS →'),
+    ("Liked what you see? Start planning your charter.", "Vous aimez ce que vous voyez ? Commencez à planifier votre charter."),
+    ("Ready to create your own story on the water?", "Prêt à écrire votre propre histoire sur l'eau ?"),
     # Destination lightbox
     ('aria-label="Destination details"', 'aria-label="Détails de la destination"'),
     # Pricing section — new enquiry-card layout
-    ('class="section-label reveal">Enquire<', 'class="section-label reveal">Demander<'),
+    ('class="section-label reveal">Charters<', 'class="section-label reveal">Charters<'),
     ('Charter Your<em> Way</em>', 'Votre charter<em> à votre façon</em>'),
     ("From a sun-soaked morning to a week at anchor — every charter is built around you. Tell us your dates and we'll craft the perfect itinerary within 24 hours.", "D'une matinée ensoleillée à une semaine au mouillage — chaque charter est conçu autour de vous. Indiquez-nous vos dates et nous créerons l'itinéraire parfait en 24 heures."),
     ('4 – 6 Hours', '4 – 6 heures'),
@@ -934,13 +1036,13 @@ PAIRS = [
     ('4 Days +', '4 jours +'),
     ('Weekend Escape', 'Escapade du week-end'),
     ('Extended Journey', 'Voyage prolongé'),
-    ('A morning cruise, a sunset sail, or a midday swim stop. Perfect for a taste of the Mediterranean without committing a full day.', "Une croisière matinale, une sortie au coucher du soleil ou un arrêt baignade à midi. Parfait pour découvrir la Méditerranée sans consacrer une journée entière."),
+    ('A morning cruise, a sunset sail, or a 6-hour afternoon — swim stops and time on board without committing a full day.', "Une croisière matinale, une sortie au coucher du soleil ou un après-midi de 6 heures — arrêts baignade et temps à bord sans consacrer une journée entière."),
     ('Explore two or three destinations, swim in crystal-clear coves, and dine on board. The most popular way to experience the coast.', "Explorez deux ou trois destinations, nagez dans des criques aux eaux limpides et déjeunez à bord. La façon la plus populaire de découvrir la côte."),
     ('Sleep under the stars and wake in a new bay each morning. Ideal for a birthday, anniversary, or simply switching off properly.', "Dormez sous les étoiles et réveillez-vous dans une nouvelle baie chaque matin. Idéal pour un anniversaire ou pour vraiment décrocher."),
     ("Island-hop at your own pace — Formentera, Ibiza, Menorca or Mallorca's remotest coves. Your route, entirely bespoke.", "Sautez d'île en île à votre rythme — Formentera, Ibiza, Minorque ou les criques les plus reculées de Majorque. Votre itinéraire, entièrement sur mesure."),
     ('>Enquire →</span>', '>Demander →</span>'),
-    ('Get Your Free Quote', 'Obtenir votre devis gratuit'),
-    ("Available year-round &nbsp;·&nbsp; Rates vary by season &nbsp;·&nbsp; We respond within 24 hours", "Disponible toute l'année &nbsp;·&nbsp; Tarifs variables selon la saison &nbsp;·&nbsp; Nous répondons en 24 heures"),
+    ('Get Your Quote', 'Obtenir votre devis'),
+    ("Available year-round &nbsp;·&nbsp; We respond within 24 hours", "Disponible toute l'année &nbsp;·&nbsp; Nous répondons en 24 heures"),
     ('All charters include', 'Tous les charters comprennent'),
     ('VAT included', 'TVA incluse'),
     ('Crew &amp; cleaning', 'Équipage &amp; nettoyage'),
@@ -948,14 +1050,80 @@ PAIRS = [
     ('Catering &amp; beach clubs on request', 'Traiteur &amp; beach clubs sur demande'),
     ('Provisioning &amp; mooring extra on multi-day', 'Avitaillement &amp; amarrage en sus sur plusieurs jours'),
     # Contact section — new layout
+    ('Quick Enquiry', 'Demande rapide'),
     ('>Get a Quote<', '>Obtenir un devis<'),
     ('Request<em> Your Quote</em>', 'Demandez<em> votre devis</em>'),
-    ("Tell us about your group, preferred dates, and the experience you're after. We'll get back to you with a personalised quote within 24 hours — no commitment required.", "Parlez-nous de votre groupe, de vos dates préférées et de l'expérience recherchée. Nous vous répondrons avec un devis personnalisé en 24 heures — sans engagement."),
+    ("Drop your email and pick your preferred dates — we'll reply with availability and a personalised quote within 24 hours. No commitment required.", "Laissez votre email et choisissez vos dates préférées — nous vous répondrons avec les disponibilités et un devis personnalisé en 24 heures. Sans engagement."),
     ('or fill in the form', 'ou remplissez le formulaire'),
-    ('placeholder="First and last name"', 'placeholder="Prénom et nom"'),
+    ('placeholder="Maria"', 'placeholder="Marie"'),
+    (
+        'See the <a href="#avail-cal" class="form-date-hint-link">calendar</a> for an overview — or select free date(s) above.',
+        'Consultez le <a href="#avail-cal" class="form-date-hint-link">calendrier</a> pour un aperçu — ou sélectionnez une ou plusieurs dates libres ci-dessus.',
+    ),
+    ('Tap a start date.', 'Touchez une date de début.'),
+    (
+        'Tap your end date for multi-day, or Done for one day.',
+        'Touchez la date de fin pour plusieurs jours, ou Terminé pour un seul jour.',
+    ),
+    ('Tap Done when ready.', 'Touchez Terminé quand vous avez fini.'),
+    ('Select dates', 'Choisir les dates'),
+    ('Done', 'Terminé'),
+    ('Close calendar', 'Fermer le calendrier'),
+    (
+        'Tap <strong>Done</strong> or ✕ to close.',
+        'Touchez <strong>Terminé</strong> ou ✕ pour fermer.',
+    ),
     # Specs section CTA
     ("Ready to plan your charter? We'll have a quote back within 24 hours.", 'Prêt à planifier votre charter ? Nous vous enverrons un devis en 24 heures.'),
 
+]
+
+REVIEWS_UI = {
+    "guest": "Client",
+    "stars_suffix": " sur 5 étoiles",
+}
+
+REVIEWS = [
+    {
+        "author": "Maurice",
+        "date": "Juin 2026",
+        "rating": 5,
+        "text": (
+            "Luigi, je voulais te remercier chaleureusement. Le service que toi et Laura avez "
+            "fourni était absolument remarquable. Nous avons passé un moment fantastique et "
+            "nous nous sommes sentis incroyablement bien pris en charge tout au long de la "
+            "journée. Tout était parfait — le bateau, l'ambiance, l'hospitalité, et surtout "
+            "la façon dont vous avez tous les deux pris soin de nous. Vous êtes des "
+            "personnes formidables et vous avez rendu cette expérience vraiment spéciale. "
+            "Merci encore pour tout. C'était une journée inoubliable et sans doute l'un des "
+            "moments forts de notre séjour à Majorque."
+        ),
+    },
+    {
+        "author": "Andrew",
+        "date": "Juin 2026",
+        "rating": 5,
+        "text": (
+            "Magnifique bateau avec beaucoup d'espace pour nous huit. Luigi (skipper) et "
+            "Rebecca ont été d'un accueil exemplaire — ils ont fait toute la différence "
+            "pour la qualité et le plaisir de notre journée. Professionnels et attentionnés, "
+            "tout en restant détendus et conviviaux. Merci !"
+        ),
+    },
+    {
+        "author": "Tony",
+        "date": "Août 2025",
+        "rating": 5,
+        "text": (
+            "Notre groupe de six a passé une journée fantastique à bord de Limitless — "
+            "spacieux, confortable et impeccable. Paul a été très réactif et a organisé "
+            "notre charter en moins d'un jour. Une fois à bord, le capitaine Luigi s'est "
+            "révélé compétent et plein d'humour, traçant sans effort un bel itinéraire "
+            "avec plusieurs escales agréables. L'hôtesse attentive veillait à notre "
+            "confort — panier de crème solaire et serviettes, verres toujours pleins "
+            "où que nous soyons. Fortement recommandé !"
+        ),
+    },
 ]
 
 LEGAL_PAIRS = [
@@ -1021,14 +1189,14 @@ LEGAL_PAIRS = [
         "This website loads typefaces from <strong>Google Fonts</strong>. When a page loads, your browser may connect to Google's servers, which can involve the transfer of your IP address. This is used only to display the fonts correctly. If you prefer, you can block external font loading in your browser settings.",
         "Ce site charge des polices depuis <strong>Google Fonts</strong>. Votre navigateur peut alors contacter les serveurs Google et transmettre votre adresse IP, uniquement pour l'affichage. Vous pouvez bloquer ce chargement dans les paramètres du navigateur.",
     ),
-    ("Analytics and Advertising (Google Tag Manager, Google Analytics &amp; Google Ads)", "Analyse et publicité (Google Tag Manager, Google Analytics &amp; Google Ads)"),
+    ("Analytics and Advertising (Google tag, Microsoft Clarity &amp; Google Ads)", "Analyse et publicité (balise Google, Microsoft Clarity &amp; Google Ads)"),
     (
-        "This website uses <strong>Google Tag Manager</strong> to manage tags, which in turn may load <strong>Google Analytics</strong>. We also load the Google tag (gtag.js) directly for <strong>Google Ads</strong> (ID AW-18209943491) to enable conversion tracking and remarketing. These tools help us understand how visitors use the site and measure the performance of our advertising. For this purpose they may set cookies and process data such as your IP address (typically truncated/anonymised), device and browser information, and pages visited.",
-        "Ce site utilise <strong>Google Tag Manager</strong>, pouvant charger <strong>Google Analytics</strong>. Nous chargeons aussi la balise Google pour <strong>Google Ads</strong> (ID AW-18209943491) pour le suivi des conversions et le remarketing. Des cookies peuvent être déposés et des données (IP souvent tronquée/anonymisée, appareil, navigateur, pages) traitées.",
+        "This website loads the <strong>Google tag</strong> (gtag.js) directly — we do not use Google Tag Manager — for <strong>Google Ads</strong> conversion tracking and remarketing (ID AW-18209943491). With your consent, we also use <strong>Microsoft Clarity</strong> for session recordings and heatmaps. These tools help us understand how visitors use the site and measure advertising performance. They may set cookies and process data such as your IP address (typically truncated/anonymised), device and browser information, and pages visited.",
+        "Ce site charge la <strong>balise Google</strong> (gtag.js) directement — sans Google Tag Manager — pour le suivi des conversions et le remarketing <strong>Google Ads</strong> (ID AW-18209943491). Avec votre accord, nous utilisons aussi <strong>Microsoft Clarity</strong> pour les enregistrements de session et heatmaps. Ces outils nous aident à comprendre l'usage du site et à mesurer la performance publicitaire. Des cookies peuvent être déposés et des données (IP souvent tronquée/anonymisée, appareil, navigateur, pages) traitées.",
     ),
     (
-        "With your consent, we may also record <strong>how far you scroll</strong> and <strong>which page sections you view</strong> (for example Gallery, Reviews, or Pricing), so we can improve the layout of the site. This uses our own scripts and sends events via Google Tag Manager; it does not identify you by name. We may temporarily use <strong>Microsoft Clarity</strong> (session recordings and heatmaps) for the same purpose; if enabled, Clarity is provided by Microsoft and subject to Microsoft's privacy terms.",
-        "Avec votre accord, nous pouvons enregistrer <strong>jusqu'où vous faites défiler</strong> et <strong>quelles sections vous consultez</strong> (ex. galerie, avis, tarifs) pour améliorer le site, via nos scripts et Google Tag Manager, sans vous identifier par nom. <strong>Microsoft Clarity</strong> (enregistrements de session, heatmaps) peut être utilisé temporairement — alors les conditions Microsoft s'appliquent.",
+        "With your consent, we may also record <strong>how far you scroll</strong> and <strong>which page sections you view</strong> (for example Gallery, Reviews, or Pricing), so we can improve the layout of the site. This uses our own scripts and sends events to the Google tag data layer; it does not identify you by name. Clarity is provided by Microsoft and subject to Microsoft's privacy terms.",
+        "Avec votre accord, nous pouvons enregistrer <strong>jusqu'où vous faites défiler</strong> et <strong>quelles sections vous consultez</strong> (ex. galerie, avis, tarifs) pour améliorer le site, via nos scripts qui envoient des événements à la couche de données Google, sans vous identifier par nom. Clarity est fourni par Microsoft — ses conditions de confidentialité s'appliquent.",
     ),
     (
         "This processing is carried out on the basis of your consent (Art. 6(1)(a) GDPR) where required. Advertising-related storage (ad_storage, ad_user_data, ad_personalization) is denied by default. You can prevent analytics by declining cookies in the banner, using your browser's privacy settings, or installing Google's opt-out browser add-on. Data may be transferred to Google or Microsoft servers; those providers apply appropriate safeguards for international transfers.",
@@ -1067,8 +1235,8 @@ LEGAL_PAIRS = [
     ),
     ("Cookies", "Cookies"),
     (
-        "Besides the technical data strictly necessary to deliver the site (as described under Hosting), this website uses analytics cookies set via Google Tag Manager / Google Analytics (only when you accept via the banner). We also load the Google tag for Google Ads (AW-18209943491). Advertising-related cookies and data processing are denied by default (non-personalized mode) and are only enabled if consent is explicitly granted in the future. You can manage or block cookies at any time through your browser settings.",
-        "Outre les données techniques nécessaires (voir Hébergement), des cookies d'analyse via Google Tag Manager / Google Analytics ne sont déposés qu'avec votre accord dans la bannière. La balise Google Ads (AW-18209943491) est chargée. Les cookies publicitaires sont refusés par défaut. Vous pouvez les gérer ou bloquer dans les paramètres du navigateur.",
+        "Besides the technical data strictly necessary to deliver the site (as described under Hosting), this website uses analytics cookies for Microsoft Clarity (only when you accept via the banner). We load the Google tag for Google Ads (AW-18209943491) with advertising storage denied by default until you consent. You can manage or block cookies at any time through your browser settings.",
+        "Outre les données techniques nécessaires (voir Hébergement), des cookies d'analyse pour Microsoft Clarity ne sont déposés qu'avec votre accord dans la bannière. La balise Google Ads (AW-18209943491) est chargée avec stockage publicitaire refusé par défaut jusqu'à votre consentement. Vous pouvez les gérer ou bloquer dans les paramètres du navigateur.",
     ),
     ("Changes to This Policy", "Modifications de cette politique"),
     (

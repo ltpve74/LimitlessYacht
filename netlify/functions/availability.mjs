@@ -49,9 +49,10 @@ function parseIcs(ics) {
     if (line === "BEGIN:VEVENT") { cur = {}; continue; }
     if (line === "END:VEVENT") {
       if (cur && cur.start && cur.status !== "CANCELLED") {
-        const isTentative = /\b(hold|tentative|option|pencil|enquiry|inquiry|provisional)\b/i.test(cur.summary || "");
+        const isTentative = cur.status === "TENTATIVE"
+          || /\b(hold|tentative|option|pencil|enquiry|inquiry|provisional)\b/i.test(cur.summary || "");
         const target = isTentative ? tentative : booked;
-        for (const day of expand(cur)) target.add(day);
+        for (const day of expandEvent(cur)) target.add(day);
       }
       cur = null; continue;
     }
@@ -66,12 +67,18 @@ function parseIcs(ics) {
     if (name === "DTSTART") {
       cur.start = toDate(val);
       cur.allDay = /VALUE=DATE(?!-TIME)/i.test(rawKey) || /^\d{8}$/.test(val);
+      cur.hasTime = /T\d{6}/.test(val);
     } else if (name === "DTEND") {
       cur.end = toDate(val);
     } else if (name === "STATUS") {
       cur.status = val.toUpperCase();
     } else if (name === "SUMMARY") {
       cur.summary = val;
+    } else if (name === "RRULE") {
+      cur.rrule = val;
+    } else if (name === "RDATE") {
+      cur.rdates = cur.rdates || [];
+      cur.rdates.push(toDate(val));
     }
   }
 
@@ -79,22 +86,90 @@ function parseIcs(ics) {
 }
 
 function toDate(val) {
-  const m = val.match(/(\d{4})(\d{2})(\d{2})/);
+  if (!val) return null;
+  const m = val.match(/(\d{4})-?(\d{2})-?(\d{2})/);
   return m ? (m[1] + "-" + m[2] + "-" + m[3]) : null;
 }
 
-function expand(ev) {
+function parseDateKey(key) {
+  const [y, m, d] = key.split("-").map(Number);
+  return new Date(Date.UTC(y, m - 1, d));
+}
+
+function formatDateKey(d) {
+  const y = d.getUTCFullYear();
+  const m = String(d.getUTCMonth() + 1).padStart(2, "0");
+  const day = String(d.getUTCDate()).padStart(2, "0");
+  return y + "-" + m + "-" + day;
+}
+
+function addUtcDays(d, n) {
+  const out = new Date(d.getTime());
+  out.setUTCDate(out.getUTCDate() + n);
+  return out;
+}
+
+function expandRange(startKey, endKey, allDay) {
   const out = [];
-  const start = new Date(ev.start + "T00:00:00Z");
-  let end = new Date((ev.end || ev.start) + "T00:00:00Z");
-  // For all-day events, DTEND is exclusive (the checkout day) — step back one day.
-  if (ev.allDay && ev.end) end.setUTCDate(end.getUTCDate() - 1);
+  const start = parseDateKey(startKey);
+  let end = parseDateKey(endKey || startKey);
+  if (allDay && endKey) end = addUtcDays(end, -1);
   if (end < start) end = new Date(start);
-  let d = new Date(start), guard = 0;
+  let d = new Date(start);
+  let guard = 0;
   while (d <= end && guard < 500) {
-    out.push(d.toISOString().slice(0, 10));
-    d.setUTCDate(d.getUTCDate() + 1);
+    out.push(formatDateKey(d));
+    d = addUtcDays(d, 1);
     guard++;
   }
   return out;
+}
+
+function instanceEndKey(ev, startKey) {
+  if (!ev.end || ev.end === ev.start) return startKey;
+  const spanDays = Math.round((parseDateKey(ev.end) - parseDateKey(ev.start)) / 86400000);
+  if (spanDays <= 0) return startKey;
+  return formatDateKey(addUtcDays(parseDateKey(startKey), spanDays));
+}
+
+function addEventInstance(days, ev, startKey) {
+  if (!startKey) return;
+  for (const day of expandRange(startKey, instanceEndKey(ev, startKey), ev.allDay)) days.add(day);
+}
+
+function expandEvent(ev) {
+  const days = new Set();
+  addEventInstance(days, ev, ev.start);
+  for (const rdate of ev.rdates || []) addEventInstance(days, ev, rdate);
+
+  if (ev.rrule) {
+    const rule = {};
+    ev.rrule.split(";").forEach((part) => {
+      const i = part.indexOf("=");
+      if (i > 0) rule[part.slice(0, i).toUpperCase()] = part.slice(i + 1);
+    });
+    const freq = rule.FREQ;
+    if (freq) {
+      const interval = Math.max(1, parseInt(rule.INTERVAL || "1", 10) || 1);
+      const count = rule.COUNT ? parseInt(rule.COUNT, 10) : null;
+      const until = rule.UNTIL ? toDate(rule.UNTIL) : null;
+      let cursor = parseDateKey(ev.start);
+      const horizon = addUtcDays(parseDateKey(ev.start), 560);
+      let n = 0;
+      while (n < 400) {
+        n++;
+        if (count && n > count) break;
+        const key = formatDateKey(cursor);
+        if (until && key > until) break;
+        if (cursor > horizon) break;
+        if (n > 1) addEventInstance(days, ev, key);
+        if (freq === "DAILY") cursor = addUtcDays(cursor, interval);
+        else if (freq === "WEEKLY") cursor = addUtcDays(cursor, 7 * interval);
+        else if (freq === "MONTHLY") cursor = new Date(Date.UTC(cursor.getUTCFullYear(), cursor.getUTCMonth() + interval, cursor.getUTCDate()));
+        else break;
+      }
+    }
+  }
+
+  return [...days];
 }

@@ -91,14 +91,16 @@ function parseProductJsonLd(html) {
 function parseReviewItems(html) {
   const reviews = [];
   const blockRe = /aria-label="Review #(\d+)"[\s\S]*?<\/li>/g;
-  const textRe = />([^<]{100,}?Highly recommend!)\s*</;
+  const textRe = /line-clamp-4[^>]*>\s*([\s\S]*?)\s*<\/div>/;
   let m;
   while ((m = blockRe.exec(html))) {
     const block = m[0];
     const authorMatch = block.match(/font-medium text-neutral-800">\s*([^<]+?)\s*<\/div>/);
     const dateMatch = block.match(/Date of the review\s*([^<]+)/);
     const textMatch = block.match(textRe);
-    const text = textMatch ? decodeHtml(textMatch[1].trim()) : "";
+    const text = textMatch
+      ? decodeHtml(textMatch[1].replace(/<[^>]+>/g, "").replace(/\s+/g, " ").trim())
+      : "";
     if (!text || text.length < 80) continue;
     reviews.push({
       author: authorMatch ? authorMatch[1].trim() : "Guest",

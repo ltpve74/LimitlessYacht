@@ -1,28 +1,22 @@
 {
   "reviews": [
     {
+      "author": "Maurice",
+      "date": "Jun 2026",
+      "rating": 5,
+      "text": "Luigi, I just wanted to say a huge thank you. The service you and Laura provided was absolutely amazing. We had such a fantastic time and felt incredibly well looked after throughout the entire trip. Everything was perfect – the boat, the atmosphere, the hospitality, and especially the way you both took care of us. You and Laura are simply wonderful people and made this experience truly special for us. Thank you again for everything. It was an unforgettable day and definitely one of the highlights of our stay in Mallorca."
+    },
+    {
+      "author": "Andrew",
+      "date": "Jun 2026",
+      "rating": 5,
+      "text": "Lovely boat with lots of room for the 8 of us. Luigi (skipper) and Rebecca could not have been more welcoming and they made the difference to the quality and enjoyment of our day. Professional, thoughtful but also relaxed and fun. Thanks"
+    },
+    {
       "author": "Tony",
       "date": "Aug 2025",
       "rating": 5,
       "text": "Our group of six had a fantastic day on Limitless, which was spacious, comfortable, and spotless. Paul was highly responsive and organized our charter with less than a day's notice. Once on board, we found Captain Luigi to be both knowledgeable and humorous, and he seamlessly mapped out a smooth itinerary with several fun stops. Throughout the charter, the attentive stewardess made sure we were well taken care of, whether it was bringing us a (very well-stocked) basket of sunscreen and towels or keeping our drinks topped off and bringing them to us wherever we went. Highly recommend!"
-    },
-    {
-      "author": "Elena & Family",
-      "date": "Jul 2025",
-      "rating": 5,
-      "text": "We had an unforgettable full-day charter. The yacht is beautifully maintained and the crew (Luigi and team) were professional, friendly and went above and beyond. The stops they chose were perfect for our kids and the water toys kept everyone entertained. Smooth sailing the whole time. We will definitely be back."
-    },
-    {
-      "author": "Marcus R.",
-      "date": "Jun 2025",
-      "rating": 5,
-      "text": "First time chartering in Mallorca and Limitless exceeded all expectations. Immaculate boat, incredible attention to detail from the crew, and the itinerary was tailored exactly to what we wanted. The sunset stop was the highlight. Booking was easy and communication excellent. 10/10."
-    },
-    {
-      "author": "Sophie & Friends",
-      "date": "Sep 2024",
-      "rating": 5,
-      "text": "Lovely afternoon on the water. The boat is very comfortable and the crew made us feel welcome. Great selection of stops and the drinks/snacks provided were excellent. Would recommend for a relaxed day with friends."
     }
   ]
 }

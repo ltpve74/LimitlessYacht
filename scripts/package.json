@@ -1,0 +1,8 @@
+{
+  "name": "limitless-site-checks",
+  "private": true,
+  "description": "Publish-gate tooling (Lighthouse) for limitlessyachtcharter.com",
+  "devDependencies": {
+    "lighthouse": "^12.6.1"
+  }
+}

@@ -1,7 +1,8 @@
 #!/usr/bin/env python3
 """
-Minify HTML for production.
-Strips HTML/CSS/JS comments, collapses whitespace, shrinks inline style and script blocks.
+Minify HTML and site JS for production.
+Strips HTML/CSS/JS comments, collapses whitespace, shrinks inline style/script blocks,
+and minifies readable sources under js/.
 Run from repo root:  python3 scripts/minify_html.py
 """
 
@@ -17,11 +18,13 @@ TARGETS = [
     'es/index.html', 'es/legal.html',
 ]
 
+JS_DIR = 'js'
+
 
 def minify_css(css):
     css = re.sub(r'/\*.*?\*/', '', css, flags=re.DOTALL)
     css = re.sub(r'\s+', ' ', css)
-    css = re.sub(r'\s*([{}:;,>~+])\s*', r'\1', css)
+    css = re.sub(r'\s*([{}:;,>~])\s*', r'\1', css)  # preserve spaces around + (required in CSS math functions like calc/max/min)
     css = re.sub(r';\s*}', '}', css)
     css = re.sub(r'\s*!\s*important', '!important', css)
     return css.strip()
@@ -63,10 +66,11 @@ def minify_html(html):
     # Strip HTML comments (preserve IE conditionals <!--[if ...)
     html = re.sub(r'<!--(?!\[).*?-->', '', html, flags=re.DOTALL)
 
-    # Minify inline <style> blocks
+    # Minify inline <style> blocks (preserve id/type attrs — fouc-guard, critical-css)
     def _style(m):
-        return '<style>' + minify_css(m.group(1)) + '</style>'
-    html = re.sub(r'<style[^>]*>(.*?)</style>', _style, html, flags=re.DOTALL)
+        attrs, body = m.group(1), m.group(2)
+        return '<style' + attrs + '>' + minify_css(body) + '</style>'
+    html = re.sub(r'<style([^>]*)>(.*?)</style>', _style, html, flags=re.DOTALL)
 
     # Minify inline <script> blocks (skip non-JS types: json, ld+json, template …)
     def _script(m):
@@ -87,8 +91,38 @@ def minify_html(html):
     return html
 
 
+def js_targets():
+    """All first-party scripts served from js/ (readable source on dev branch)."""
+    js_path = os.path.join(ROOT, JS_DIR)
+    if not os.path.isdir(js_path):
+        return []
+    return sorted(
+        os.path.join(JS_DIR, name)
+        for name in os.listdir(js_path)
+        if name.endswith('.js')
+    )
+
+
 def main():
     total_before = total_after = 0
+
+    # Minify shared external CSS (for prod on main branch)
+    for css_rel in ('css/layout.css', 'css/main.css'):
+        css_path = os.path.join(ROOT, css_rel)
+        if not os.path.exists(css_path):
+            continue
+        with open(css_path, encoding='utf-8') as f:
+            src = f.read()
+        out = minify_css(src)
+        with open(css_path, 'w', encoding='utf-8') as f:
+            f.write(out)
+        before = len(src.encode())
+        after = len(out.encode())
+        total_before += before
+        total_after += after
+        pct = (before - after) / before * 100
+        print(f'  {css_rel}: {before:,} → {after:,} B  ({pct:.0f}% saved)')
+
     for rel in TARGETS:
         path = os.path.join(ROOT, rel)
         if not os.path.exists(path):
@@ -105,6 +139,21 @@ def main():
         total_after  += after
         pct = (before - after) / before * 100
         print(f'  {rel}: {before:,} → {after:,} B  ({pct:.0f}% saved)')
+
+    for rel in js_targets():
+        path = os.path.join(ROOT, rel)
+        with open(path, encoding='utf-8') as f:
+            src = f.read()
+        out = minify_js(src)
+        with open(path, 'w', encoding='utf-8') as f:
+            f.write(out)
+        before = len(src.encode())
+        after = len(out.encode())
+        total_before += before
+        total_after += after
+        pct = (before - after) / before * 100 if before else 0
+        print(f'  {rel}: {before:,} → {after:,} B  ({pct:.0f}% saved)')
+
     saved = total_before - total_after
     print(f'\nTotal: {total_before:,} → {total_after:,} B  ({saved:,} B saved)')
 

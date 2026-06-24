@@ -1,0 +1,33 @@
+#!/usr/bin/env bash
+#
+# Git pre-commit hook that automatically minifies HTML when committing to `main`.
+#
+# This ensures that the version on the `main` branch (what gets deployed)
+# has all comments stripped and is whitespace-compressed.
+#
+# To enable (run once after cloning):
+#   git config core.hooksPath githooks
+#   chmod +x githooks/pre-commit
+#
+
+set -e
+
+# Only act on the main branch
+current_branch=$(git rev-parse --abbrev-ref HEAD 2>/dev/null || echo "")
+
+if [ "$current_branch" != "main" ]; then
+  exit 0
+fi
+
+echo "📦 On 'main' branch — stripping comments and compressing HTML before commit..."
+
+# Run the minifier (it will modify the files in place)
+python3 scripts/minify_html.py
+
+# Re-stage the minified HTML files so they are included in this commit
+git add index.html legal.html \
+        de/index.html de/legal.html \
+        es/index.html es/legal.html \
+        fr/index.html fr/legal.html
+
+echo "✅ HTML has been minified and re-staged for the main branch commit."

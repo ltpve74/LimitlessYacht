@@ -1,42 +1,95 @@
 #!/bin/sh
-# Auto-rebuild the localized pages (de/es/fr) whenever the English sources or the
-# locale translation data are part of a commit, so the localized pages never
-# silently drift out of sync with index.html / legal.html again.
+# Branch-aware pre-commit hook.
+#
+# develop (integration): rebuild locales when EN source changes — keep HTML/CSS readable.
+# feature branches: same as develop — rebuild locales, no minify.
+# main (production): minify → test only (locales already built on dev branch before merge).
 #
 # Enable once per clone with:
 #   git config core.hooksPath .githooks
 #
-# Note: build-locales.py reads the working-tree index.html, so commit a clean
-# tree (stage your HTML edits before committing) for the rebuild to match.
+# Note: build-locales.py reads the working-tree index.html, so stage HTML
+# edits before committing so the rebuild matches the committed content.
 
 set -e
 
-# Skip locale rebuilds on non-main branches (UX work doesn't need them).
 BRANCH=$(git symbolic-ref --short HEAD 2>/dev/null)
-if [ "$BRANCH" != "main" ]; then
-  exit 0
+
+# Prefer the project venv; fall back to python3.
+if [ -x ".venv/bin/python" ]; then
+  PY=".venv/bin/python"
+else
+  PY="python3"
 fi
 
 CHANGED=$(git diff --cached --name-only)
 
-if printf '%s\n' "$CHANGED" | grep -qE '^(index\.html|legal\.html|i18n/locales/[^/]+\.py|i18n/build-locales\.py)$'; then
-  echo "[pre-commit] EN source / locale data changed — rebuilding locales…"
+LOCALE_REBUILD=0
+if printf '%s\n' "$CHANGED" | grep -qE '^(index\.html|legal\.html|data/reviews\.json|i18n/locales/[^/]+\.py|i18n/build-locales\.py)$'; then
+  LOCALE_REBUILD=1
+fi
 
-  # Prefer the project venv; fall back to python3 (build-locales.py is stdlib-only).
-  if [ -x ".venv/bin/python" ]; then
-    PY=".venv/bin/python"
-  else
-    PY="python3"
+if printf '%s\n' "$CHANGED" | grep -qE '^css/layout\.css$'; then
+  echo "[pre-commit] css/layout.css changed — bumping layout cache version..."
+  if ! "$PY" scripts/bump-css-cache.py --layout; then
+    echo "[pre-commit] ERROR: layout.css cache bump failed — aborting commit." >&2
+    exit 1
   fi
+  git add index.html
+  LOCALE_REBUILD=1
+fi
 
+if printf '%s\n' "$CHANGED" | grep -qE '^css/main\.css$'; then
+  echo "[pre-commit] css/main.css changed — bumping main cache version..."
+  if ! "$PY" scripts/bump-css-cache.py --main; then
+    echo "[pre-commit] ERROR: main.css cache bump failed — aborting commit." >&2
+    exit 1
+  fi
+  git add index.html
+  LOCALE_REBUILD=1
+fi
+
+if [ "$BRANCH" != "main" ]; then
+  if [ "$LOCALE_REBUILD" -eq 1 ]; then
+    echo "[pre-commit] EN source / locale data changed — rebuilding locales..."
+    if ! "$PY" i18n/build-locales.py; then
+      echo "[pre-commit] ERROR: locale build failed — aborting commit." >&2
+      exit 1
+    fi
+    git add de/index.html de/legal.html es/index.html es/legal.html fr/index.html fr/legal.html \
+            data/reviews-de.json data/reviews-es.json data/reviews-fr.json
+    echo "[pre-commit] Locales + review JSON rebuilt and staged (no minification on non-main branch)."
+  fi
+  exit 0
+fi
+
+if [ "$LOCALE_REBUILD" -eq 1 ]; then
+  echo "[pre-commit] CSS version bumped — rebuilding locales before minify..."
   if ! "$PY" i18n/build-locales.py; then
     echo "[pre-commit] ERROR: locale build failed — aborting commit." >&2
     exit 1
   fi
-
-  # Re-stage any regenerated locale files so they're part of this commit.
-  git add de/index.html de/legal.html es/index.html es/legal.html fr/index.html fr/legal.html
-  echo "[pre-commit] Locales rebuilt and staged."
+  git add de/index.html de/legal.html es/index.html es/legal.html fr/index.html fr/legal.html \
+          data/reviews-de.json data/reviews-es.json data/reviews-fr.json
 fi
+
+echo "[pre-commit] Minifying CSS + HTML + js/ for production..."
+if ! "$PY" scripts/minify_html.py; then
+  echo "[pre-commit] ERROR: minify failed — aborting commit." >&2
+  exit 1
+fi
+
+echo "[pre-commit] Running publish gate (site tests + UX + Lighthouse)..."
+export PUBLISH_GATE_PYTHON="$PY"
+if ! "$PY" scripts/publish-gate.py ${PUBLISH_GATE_EXTRA_ARGS:-}; then
+  echo "[pre-commit] ERROR: publish gate failed — fix the issues above and try again." >&2
+  echo "[pre-commit] One-time setup: scripts/setup-qa.sh" >&2
+  exit 1
+fi
+
+git add index.html legal.html css/layout.css css/main.css js/*.js \
+        de/index.html de/legal.html es/index.html es/legal.html fr/index.html fr/legal.html \
+        data/reviews-de.json data/reviews-es.json data/reviews-fr.json
+echo "[pre-commit] Minified + staged for main."
 
 exit 0
