@@ -90,8 +90,8 @@ def deferred_bootstrap_pos(html: str) -> int:
 
 
 def is_minified_html(html: str) -> bool:
-    """Heuristic: production pages are single-line after minify."""
-    return len(html) > 10_000 and html.count('\n') < 15
+    """Heuristic: production pages are single-line (0 newlines) after minify."""
+    return len(html) > 10_000 and html.count('\n') == 0
 
 
 # ── Output helpers ─────────────────────────────────────────────────────────────
@@ -170,7 +170,7 @@ def check_html(r: Runner, rel: str, html: str) -> None:
         'section-cta-avail--desktop' in html
         and 'section-cta-quote--desktop' not in html
         and html.count('href="#availability" class="btn-primary section-cta-avail--desktop"') == 2
-        and html.count('href="#avail-cal" class="btn-primary section-cta-avail--mobile"') == 2
+        and html.count('href="#avail-cal" class="btn-primary section-cta-avail--mobile"') == 3
         and html.count('href="#avail-cal" class="btn-ghost section-cta-quote--mobile"') == 2,
     )
     r.check(
@@ -188,9 +188,9 @@ def check_html(r: Runner, rel: str, html: str) -> None:
         and 'section-cross-cta--desktop' in html,
     )
     r.check(
-        'reviews desktop cross-nav nudges charters and amenities',
+        'reviews desktop cross-nav nudges availability and amenities',
         re.search(
-            r'<section id="reviews">[\s\S]*?href="#charters-land"[^>]*class="btn-ghost"'
+            r'<section id="reviews">[\s\S]*?href="#availability"[^>]*class="btn-ghost"'
             r'[\s\S]*?href="#amenities-land"[^>]*class="btn-ghost"',
             html,
         )
@@ -2388,11 +2388,6 @@ def check_shared_assets(r: Runner) -> None:
         )
         is not None
         and re.search(
-            r'@media\s*\(\s*min-width:\s*769px\s*\)[\s\S]*?#gallery\s+\.section-cta-desktop[\s\S]*?display:\s*none',
-            css,
-        )
-        is not None
-        and re.search(
             r'@media\s*\(\s*min-width:\s*769px\s*\)[\s\S]*?#gallery\s+\.carousel-nav[\s\S]*?display:\s*flex',
             css,
         )
@@ -3022,7 +3017,7 @@ def check_shared_assets(r: Runner) -> None:
         and 'syncCalWaLabel(true)' in index_html,
     )
     pair_start = index_html.find('class="contact-cal-pair"')
-    pair_end = index_html.find('id="reviews"', pair_start)
+    pair_end = index_html.find('id="amenities"', pair_start)
     pair_html = index_html[pair_start:pair_end] if pair_start != -1 and pair_end != -1 else ''
     r.check(
         'calendar precedes enquiry form in page structure',

@@ -45,6 +45,10 @@ PAIRS = [
     (">Reviews</a>", ">Bewertungen</a>"),
     ('onclick="closeMobile()">Reviews</a>', 'onclick="closeMobile()">Bewertungen</a>'),
     ("Guest Reviews", "Gästebewertungen"),
+    (
+        'Check available dates or explore what’s on board.',
+        'Verfügbare Termine prüfen oder erkunden, was an Bord wartet.',
+    ),
     ("What Our<em> Guests Say</em>", "Was unsere<em> Gäste sagen</em>"),
     (
         "Verified reviews from guests who chartered <strong>Limitless</strong> via Click&amp;Boat — updated automatically from our listing.",
@@ -61,6 +65,8 @@ PAIRS = [
     ),
     ("Loading guest reviews…", "Gästebewertungen werden geladen…"),
     ("window.LY_LB_LOADING = 'Loading\\u2026';", "window.LY_LB_LOADING = 'Wird geladen\\u2026';"),
+
+    ("window.LY_REVIEWS_MORE='\u2026more';window.LY_REVIEWS_LESS='less';", "window.LY_REVIEWS_MORE='\u2026mehr';window.LY_REVIEWS_LESS='weniger';"),
     ("1 verified review", "1 verifizierte Bewertung"),
     (" verified reviews", " verifizierte Bewertungen"),
     ("No reviews to display yet.", "Noch keine Bewertungen vorhanden."),
@@ -79,6 +85,11 @@ PAIRS = [
     ('onclick="closeMobile()">Availability</a>', 'onclick="closeMobile()">Verfügbarkeit</a>'),
     ('onclick="closeMobile()">Contact</a>', 'onclick="closeMobile()">Kontakt</a>'),
     # Hero
+
+    (
+        '"Professional, thoughtful — and genuinely fun."<span class="hero-pull-attr"> — Andrew, group of 8, Jun\xa02026</span>',
+        '„Gekonnt, aufmerksam — und dabei wirklich entspannt und witzig.“<span class="hero-pull-attr"> — Andrew, Gruppe 8\xa0Pers., Juni\xa02026</span>',
+    ),
     (">Scroll</span>", ">Scrollen</span>"),
     ("Rates & Booking", "Preise & Buchung"),
     ("Explore Gallery", "Galerie entdecken"),
@@ -101,6 +112,11 @@ PAIRS = [
     ("Day / Overnight Guests", "Gäste Tag / Nacht"),
     ("Knots Cruising", "Knoten Reisegeschw."),
     # About
+
+    (
+        "<strong>Limitless</strong> is a Maiora flybridge built for Mallorca’s finest coves — warm, spacious and maintained to charter standard. What truly sets her apart is the <strong>dedicated crew</strong>: attentive, experienced and genuinely passionate about the sea, they handle everything — from catering to beach club reservations — so you can focus entirely on the people you're with.",
+        '<strong>Limitless</strong> ist eine Maiora-Flybridge-Yacht für Mallorcas schönste Buchten — warm, geräumig und auf Charter-Standard gewartet. Was sie wirklich auszeichnet, ist die <strong>engagierte Crew</strong>: aufmerksam, erfahren und mit echter Leidenschaft fürs Meer — sie kümmern sich um alles, von der Verpflegung bis zur Beach-Club-Reservierung, damit Sie sich ganz auf die Menschen konzentrieren können, die Ihnen wichtig sind.',
+    ),
     ("The Yacht", "Die Yacht"),
     ("Your Home on the<br><em>Mediterranean</em>", "Ihr Zuhause auf dem<br><em>Mittelmeer</em>"),
     (
@@ -1100,14 +1116,8 @@ REVIEWS = [
         "date": "Juni 2026",
         "rating": 5,
         "text": (
-            "Luigi, ich möchte dir von Herzen danken. Der Service, den du und Laura geleistet "
-            "habt, war absolut großartig. Wir hatten eine fantastische Zeit und fühlten uns "
-            "während der gesamten Tour unglaublich gut betreut. Alles war perfekt – das Boot, "
-            "die Atmosphäre, die Gastfreundschaft und vor allem die Art, wie ihr beide uns "
-            "umsorgt habt. Ihr seid wunderbare Menschen und habt dieses Erlebnis für uns "
-            "wirklich besonders gemacht. Nochmals vielen Dank für alles. Es war ein "
-            "unvergesslicher Tag und definitiv eines der Highlights unseres Aufenthalts auf "
-            "Mallorca."
+            "Ein unvergesslicher Tag — definitiv eines der Highlights unseres Aufenthalts auf Mallorca. Luigi und Lauras Service war absolut großartig — wir fühlten uns während der gesamten Tour unglaublich gut betreut. Alles war perfekt: das Boot, die Atmosphäre, die Gastfreundschaft und vor allem die Art, wie sie uns umsorgt haben. Wunderbare Menschen, die dieses Erlebnis für uns wirklich besonders gemacht haben. Nochmals vielen Dank für alles."
+        
         ),
     },
     {

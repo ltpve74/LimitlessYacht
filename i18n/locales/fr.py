@@ -42,6 +42,10 @@ PAIRS = [
     (">Reviews</a>", ">Avis</a>"),
     ('onclick="closeMobile()">Reviews</a>', 'onclick="closeMobile()">Avis</a>'),
     ("Guest Reviews", "Avis clients"),
+    (
+        'Check available dates or explore what’s on board.',
+        'Convaincus\xa0? Vérifiez les dates disponibles ou découvrez ce qui vous attend à bord.',
+    ),
     ("What Our<em> Guests Say</em>", "Ce que disent<em> nos clients</em>"),
     (
         "Verified reviews from guests who chartered <strong>Limitless</strong> via Click&amp;Boat — updated automatically from our listing.",
@@ -58,6 +62,8 @@ PAIRS = [
     ),
     ("Loading guest reviews…", "Chargement des avis…"),
     ("window.LY_LB_LOADING = 'Loading\\u2026';", "window.LY_LB_LOADING = 'Chargement\\u2026';"),
+
+    ("window.LY_REVIEWS_MORE='\u2026more';window.LY_REVIEWS_LESS='less';", "window.LY_REVIEWS_MORE='\u2026plus';window.LY_REVIEWS_LESS='moins';"),
     ("1 verified review", "1 avis vérifié"),
     (" verified reviews", " avis vérifiés"),
     ("No reviews to display yet.", "Aucun avis à afficher pour le moment."),
@@ -96,6 +102,11 @@ PAIRS = [
     ("Day / Overnight Guests", "Invités jour / nuit"),
     ("Knots Cruising", "nœuds de croisière"),
     ("The Yacht", "Le yacht"),
+
+    (
+        "<strong>Limitless</strong> is a Maiora flybridge built for Mallorca’s finest coves — warm, spacious and maintained to charter standard. What truly sets her apart is the <strong>dedicated crew</strong>: attentive, experienced and genuinely passionate about the sea, they handle everything — from catering to beach club reservations — so you can focus entirely on the people you're with.",
+        '<strong>Limitless</strong> est un Maiora flybridge conçu pour les plus belles criques de Majorque — chaleureux, spacieux et entretenu aux normes du charter. Ce qui le distingue vraiment, c’est son <strong>équipage dédié</strong>\xa0: attentionné, expérimenté et véritablement passionné par la mer, il gère tout — du catering aux réservations de beach club — pour que vous puissiez vous concentrer entièrement sur ceux qui vous accompagnent.',
+    ),
     ("Your Home on the<br><em>Mediterranean</em>", "Votre maison sur la<br><em>Méditerranée</em>"),
     (
         'The Maiora <strong>"Limitless"</strong> is a well-loved 21-metre motor yacht built for comfortable, relaxed days on the water. Roomy sun decks, generous living spaces and a warm, welcoming atmosphere make her feel like home from the moment you step aboard.',
@@ -1007,6 +1018,11 @@ PAIRS = [
     ('onclick="closeMobile()">Destinations</a>', 'onclick="closeMobile()">Destinations</a>'),
     ('aria-label="Close menu"', 'aria-label="Fermer le menu"'),
     # Hero ghost button and itinerary CTA
+
+    (
+        '"Professional, thoughtful — and genuinely fun."<span class="hero-pull-attr"> — Andrew, group of 8, Jun\xa02026</span>',
+        '«\xa0Professionnel, attentionné — et vraiment détendu et convivial.\xa0»<span class="hero-pull-attr"> — Andrew, groupe de 8, juin\xa02026</span>',
+    ),
     ('>Meet The Yacht</a>', '>Découvrir le yacht</a>'),
     ('Meet The Yacht →', 'Découvrir le yacht →'),
     ('>The yacht</a>', '>Le yacht</a>'),
@@ -1089,14 +1105,8 @@ REVIEWS = [
         "date": "Juin 2026",
         "rating": 5,
         "text": (
-            "Luigi, je voulais te remercier chaleureusement. Le service que toi et Laura avez "
-            "fourni était absolument remarquable. Nous avons passé un moment fantastique et "
-            "nous nous sommes sentis incroyablement bien pris en charge tout au long de la "
-            "journée. Tout était parfait — le bateau, l'ambiance, l'hospitalité, et surtout "
-            "la façon dont vous avez tous les deux pris soin de nous. Vous êtes des "
-            "personnes formidables et vous avez rendu cette expérience vraiment spéciale. "
-            "Merci encore pour tout. C'était une journée inoubliable et sans doute l'un des "
-            "moments forts de notre séjour à Majorque."
+            "Une journée inoubliable — l’un des temps forts de notre séjour à Majorque. Le service de Luigi et Laura était absolument remarquable — nous nous sommes sentis incroyablement bien pris en charge tout au long de la journée. Tout était parfait : le bateau, l’ambiance, l’hospitalité et surtout la façon dont ils ont pris soin de nous. Des personnes formidables qui ont rendu cette expérience vraiment spéciale. Merci encore pour tout."
+        
         ),
     },
     {

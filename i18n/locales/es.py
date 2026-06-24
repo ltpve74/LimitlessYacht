@@ -42,6 +42,10 @@ PAIRS = [
     (">Reviews</a>", ">Reseñas</a>"),
     ('onclick="closeMobile()">Reviews</a>', 'onclick="closeMobile()">Reseñas</a>'),
     ("Guest Reviews", "Reseñas de huéspedes"),
+    (
+        'Check available dates or explore what’s on board.',
+        'Compruebe fechas disponibles o descubra lo que le espera a bordo.',
+    ),
     ("What Our<em> Guests Say</em>", "Lo que dicen<em> nuestros huéspedes</em>"),
     (
         "Verified reviews from guests who chartered <strong>Limitless</strong> via Click&amp;Boat — updated automatically from our listing.",
@@ -58,6 +62,8 @@ PAIRS = [
     ),
     ("Loading guest reviews…", "Cargando reseñas…"),
     ("window.LY_LB_LOADING = 'Loading\\u2026';", "window.LY_LB_LOADING = 'Cargando\\u2026';"),
+
+    ("window.LY_REVIEWS_MORE='\u2026more';window.LY_REVIEWS_LESS='less';", "window.LY_REVIEWS_MORE='\u2026más';window.LY_REVIEWS_LESS='menos';"),
     ("1 verified review", "1 reseña verificada"),
     (" verified reviews", " reseñas verificadas"),
     ("No reviews to display yet.", "Aún no hay reseñas para mostrar."),
@@ -96,6 +102,11 @@ PAIRS = [
     ("Day / Overnight Guests", "Invitados día / noche"),
     ("Knots Cruising", "nudos de crucero"),
     ("The Yacht", "El yate"),
+
+    (
+        "<strong>Limitless</strong> is a Maiora flybridge built for Mallorca’s finest coves — warm, spacious and maintained to charter standard. What truly sets her apart is the <strong>dedicated crew</strong>: attentive, experienced and genuinely passionate about the sea, they handle everything — from catering to beach club reservations — so you can focus entirely on the people you're with.",
+        '<strong>Limitless</strong> es una Maiora flybridge pensada para las mejores calas de Mallorca — cálida, espaciosa y mantenida a estándar de charter. Lo que realmente la distingue es su <strong>tripulación dedicada</strong>: atenta, experimentada y con genuina pasión por el mar, se encargan de todo — desde el catering hasta las reservas de beach club — para que pueda centrarse por completo en las personas que le acompañan.',
+    ),
     ("Your Home on the<br><em>Mediterranean</em>", "Su hogar en el<br><em>Mediterráneo</em>"),
     (
         'The Maiora <strong>"Limitless"</strong> is a well-loved 21-metre motor yacht built for comfortable, relaxed days on the water. Roomy sun decks, generous living spaces and a warm, welcoming atmosphere make her feel like home from the moment you step aboard.',
@@ -1020,6 +1031,11 @@ PAIRS = [
 
     ('aria-label="Close menu"', 'aria-label="Cerrar menú"'),
     # Hero ghost button and itinerary CTA
+
+    (
+        '"Professional, thoughtful — and genuinely fun."<span class="hero-pull-attr"> — Andrew, group of 8, Jun\xa02026</span>',
+        '«Profesional, atento — y también relajado y divertido.»<span class="hero-pull-attr"> — Andrew, grupo de 8, jun.\xa02026</span>',
+    ),
     ('>Meet The Yacht</a>', '>Conoce el yate</a>'),
     ('Meet The Yacht →', 'Conoce el yate →'),
     ('>The yacht</a>', '>El yate</a>'),
@@ -1102,13 +1118,8 @@ REVIEWS = [
         "date": "Jun 2026",
         "rating": 5,
         "text": (
-            "Luigi, solo quería darte las gracias de corazón. El servicio que tú y Laura "
-            "prestasteis fue absolutamente increíble. Lo pasamos genial y nos sentimos muy "
-            "bien atendidos durante todo el viaje. Todo fue perfecto: el barco, el ambiente, "
-            "la hospitalidad y, sobre todo, la forma en que nos cuidasteis. Sois personas "
-            "maravillosas y hicisteis que esta experiencia fuera realmente especial. Gracias "
-            "de nuevo por todo. Fue un día inolvidable y sin duda uno de los momentos "
-            "destacados de nuestra estancia en Mallorca."
+            "Un día inolvidable y sin duda uno de los momentos destacados de nuestra estancia en Mallorca. El servicio de Luigi y Laura fue absolutamente increíble — nos sentimos muy bien atendidos durante todo el viaje. Todo fue perfecto: el barco, el ambiente, la hospitalidad y, sobre todo, la forma en que cuidaron de nosotros. Personas maravillosas que hicieron que esta experiencia fuera realmente especial. Gracias de nuevo por todo."
+        
         ),
     },
     {
