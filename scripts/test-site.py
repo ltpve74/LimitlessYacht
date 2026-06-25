@@ -2535,13 +2535,17 @@ def check_shared_assets(r: Runner) -> None:
             css,
         ) is not None
         and re.search(
-            r'#gallery\s+\.gallery-group\s+\.gallery-item\s*\{[^}]*height:\s*calc\(100svh\s*-\s*15\.75rem\)',
+            # Wraps use flex layout with a definite svh-based height so
+            # items can use height:100% to fill the remaining space.
+            r'\.gallery-wrap\s*\{[^}]*height:\s*calc\(100svh\s*-\s*3\.8rem\)',
             css,
         ) is not None
         and re.search(
-            # Destination card trimmed more than the gallery item (taller 2-line
-            # tabs) so the bottom CTA bar stays in view on funnel landing.
-            r'\.destination-card\s*\{[^}]*height:\s*calc\(100svh\s*-\s*16\.25rem\)',
+            r'\.gallery-group\s+\.gallery-item\s*\{[^}]*height:\s*100%',
+            css,
+        ) is not None
+        and re.search(
+            r'\.destination-card\s*\{[^}]*height:\s*100%',
             css,
         ) is not None,
     )
