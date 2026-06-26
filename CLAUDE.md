@@ -79,7 +79,11 @@ All custom events go through `window.LY_clarityEvent(name)` (defined in `index.h
 | `ly_section_view_<id>` | A page section is reached (hash/scroll). `<id>` is the section id with `-` → `_` (e.g. `ly_section_view_gallery`). |
 | `ly_gallery_view_on_water` / `_deck` / `_interiors` | The **gallery** carousel settles (~1s) on a panel in that category. |
 | `ly_section_view_half_day` / `_full_day` / `_multi_day` | The **destinations** carousel settles (~1s) on a panel in that tier. |
-| `ly_charter_card_*`, `ly_cal_*`, `ly_hero_rates_click`, `ly_whatsapp_click`, `ly_review_expand`, `ly_form_view`, … | Various funnel / CTA interactions (grep `LY_clarityEvent(` in `index.html` for the full list). |
+| `ly_review_view_<author>` | A specific guest review card has been ≥50% in view for ~1.5s (a genuine reading/dwell signal). Fires **once per review per page-load**. `<author>` is the slugified review author (e.g. `ly_review_view_maurice`). This is the source of truth for "which reviews do users actually read." |
+| `ly_review_expand` (generic) + `ly_review_expand_<author>` | The reader clicks the **…more** link to expand a review. The generic event aggregates all expands; the per-author variant tells you *which* review was expanded. |
+| `ly_charter_card_*`, `ly_cal_*`, `ly_hero_rates_click`, `ly_whatsapp_click`, `ly_form_view`, … | Various funnel / CTA interactions (grep `LY_clarityEvent(` in `index.html` for the full list). |
+
+**Reviews engagement (added for analyzing the reviews section):** each review card carries a `data-rv-slug` (author slug, via `lyRvSlug()`). A per-card `IntersectionObserver` fires `ly_review_view_<author>` after a 1.5s dwell at ≥50% visibility (once per card, tracked in `grid._rvSeen`); the `.review-expand` click handler fires both `ly_review_expand` and `ly_review_expand_<author>`. Combined with `ly_section_view_reviews` (section reached) you can tell: did they reach the section → did they read individual reviews → which ones → did they expand any. All suppressed on preview/localhost (production-only).
 
 The carousel category events (`ly_gallery_view_*`, `ly_section_view_{half,full,multi}_day`) fire on **swipe-settle**, not on tab click — debounced ~1s and gated to when the section is on screen, so a fast flick-through doesn't spam events and the counts reflect deliberate views. This is the source of truth for "which destinations/gallery categories do mobile users actually look at."
 

@@ -179,6 +179,15 @@ def check_html(r: Runner, rel: str, html: str) -> None:
         'class="charters-main"' in html
     )
     r.check(
+        'reviews fire per-review Clarity engagement events',
+        # Each card is tagged with an author slug, dwell-views fire
+        # ly_review_view_<slug>, and expands fire ly_review_expand_<slug>
+        'function lyRvSlug(' in html
+        and 'data-rv-slug="' in html
+        and "ly_review_view_'+s" in html
+        and "ly_review_expand_'+(_ec.getAttribute('data-rv-slug')" in html,
+    )
+    r.check(
         'charters desktop cross-nav nudges availability and reviews',
         re.search(
             r'<section id="charters">[\s\S]*?href="#availability"[^>]*class="btn-ghost"'
@@ -2535,13 +2544,17 @@ def check_shared_assets(r: Runner) -> None:
             css,
         ) is not None
         and re.search(
-            r'#gallery\s+\.gallery-group\s+\.gallery-item\s*\{[^}]*height:\s*calc\(100svh\s*-\s*15\.75rem\)',
+            # Wraps use flex layout with a definite svh-based height so
+            # items can use height:100% to fill the remaining space.
+            r'\.gallery-wrap\s*\{[^}]*height:\s*calc\(100svh\s*-\s*3\.8rem\)',
             css,
         ) is not None
         and re.search(
-            # Destination card trimmed more than the gallery item (taller 2-line
-            # tabs) so the bottom CTA bar stays in view on funnel landing.
-            r'\.destination-card\s*\{[^}]*height:\s*calc\(100svh\s*-\s*16\.25rem\)',
+            r'\.gallery-group\s+\.gallery-item\s*\{[^}]*height:\s*100%',
+            css,
+        ) is not None
+        and re.search(
+            r'\.destination-card\s*\{[^}]*height:\s*100%',
             css,
         ) is not None,
     )
