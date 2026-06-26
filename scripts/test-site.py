@@ -179,6 +179,15 @@ def check_html(r: Runner, rel: str, html: str) -> None:
         'class="charters-main"' in html
     )
     r.check(
+        'reviews fire per-review Clarity engagement events',
+        # Each card is tagged with an author slug, dwell-views fire
+        # ly_review_view_<slug>, and expands fire ly_review_expand_<slug>
+        'function lyRvSlug(' in html
+        and 'data-rv-slug="' in html
+        and "ly_review_view_'+s" in html
+        and "ly_review_expand_'+(_ec.getAttribute('data-rv-slug')" in html,
+    )
+    r.check(
         'charters desktop cross-nav nudges availability and reviews',
         re.search(
             r'<section id="charters">[\s\S]*?href="#availability"[^>]*class="btn-ghost"'
