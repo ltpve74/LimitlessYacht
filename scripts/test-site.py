@@ -1003,12 +1003,12 @@ def check_html(r: Runner, rel: str, html: str) -> None:
     crit_flat = re.sub(r'\s+', '', crit_css)
     r.check(
         'critical CSS prevents hero first-paint duplicates + styles the promo/rates inline',
-        # Mobile variants hidden on desktop via a DESCENDANT selector
-        # (#hero :is(...) — the compound #hero:is(...) matched nothing,
-        # so duplicates showed until main.css loaded). Use raw crit_css
-        # here: crit_flat strips the space and can't tell them apart.
-        '#hero :is(.hero-cta-link--mobile,.hero-rates-link--mobile,.hero-eyebrow-link--mobile)' in crit_css
-        and '#hero:is(.hero-cta-link--mobile' not in crit_css
+        # Mobile variants hidden on desktop with a plain class list (NOT a
+        # descendant `#hero :is(...)` — the minifier strips that space,
+        # collapsing it to the compound `#hero:is(...)` which matches
+        # nothing and brings the duplicates back). Minifier-safe form:
+        '.hero-cta-link--mobile,.hero-rates-link--mobile,.hero-eyebrow-link--mobile{display:none!important}' in crit_flat
+        and '#hero:is(.hero-cta-link--mobile' not in crit_flat
         # Hero promo pill + season labels + rates panel inlined for first paint
         and '.hero-promo.promo-msg{' in crit_flat
         and '.season-rate-label{' in crit_flat
@@ -1128,7 +1128,9 @@ def check_html(r: Runner, rel: str, html: str) -> None:
         'critical CSS hides duplicate hero rates and eyebrow links before main.css',
         '.hero-rates-link{display:block;text-decoration:none' in crit_flat
         and '.hero-cta-link--desktop,.hero-rates-link--desktop,.hero-eyebrow-link--desktop{display:none!important}' in crit_flat
-        and '.hero-rates-link--mobile,.hero-eyebrow-link--mobile){display:none!important}' in crit_flat
+        # Plain class list (minifier-safe) — NOT the old `:is(...)` form whose
+        # leading space the minifier stripped, reintroducing the duplicates.
+        and '.hero-rates-link--mobile,.hero-eyebrow-link--mobile{display:none!important}' in crit_flat
         and '.hero-eyebrow-link--desktop{display:inline!important}' in crit_flat,
     )
     r.check(
