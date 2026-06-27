@@ -994,10 +994,26 @@ def check_html(r: Runner, rel: str, html: str) -> None:
     crit_end = html.find('</style>', crit_tag) if crit_tag >= 0 else -1
     r.check(
         'critical CSS is slim enough for fast head parse',
-        crit_tag > 0 and crit_end - crit_tag < 12000,
+        # Budget covers the hero first-paint rules inlined to prevent the
+        # mobile/desktop variant duplication + unstyled-pill flash before
+        # main.css loads (promo pill, season labels, rates panels).
+        crit_tag > 0 and crit_end - crit_tag < 13500,
     )
     crit_css = html[crit_tag:crit_end] if crit_tag >= 0 and crit_end > crit_tag else ''
     crit_flat = re.sub(r'\s+', '', crit_css)
+    r.check(
+        'critical CSS prevents hero first-paint duplicates + styles the promo/rates inline',
+        # Mobile variants hidden on desktop with a plain class list (NOT a
+        # descendant `#hero :is(...)` — the minifier strips that space,
+        # collapsing it to the compound `#hero:is(...)` which matches
+        # nothing and brings the duplicates back). Minifier-safe form:
+        '.hero-cta-link--mobile,.hero-rates-link--mobile,.hero-eyebrow-link--mobile{display:none!important}' in crit_flat
+        and '#hero:is(.hero-cta-link--mobile' not in crit_flat
+        # Hero promo pill + season labels + rates panel inlined for first paint
+        and '.hero-promo.promo-msg{' in crit_flat
+        and '.season-rate-label{' in crit_flat
+        and 'background:rgba(10,22,40,.72)' in crit_flat,
+    )
     r.check(
         'critical CSS is brace-balanced (parses cleanly; hero progressive rules not dropped)',
         crit_css.count('{') == crit_css.count('}')
@@ -1112,7 +1128,9 @@ def check_html(r: Runner, rel: str, html: str) -> None:
         'critical CSS hides duplicate hero rates and eyebrow links before main.css',
         '.hero-rates-link{display:block;text-decoration:none' in crit_flat
         and '.hero-cta-link--desktop,.hero-rates-link--desktop,.hero-eyebrow-link--desktop{display:none!important}' in crit_flat
-        and '.hero-rates-link--mobile,.hero-eyebrow-link--mobile){display:none!important}' in crit_flat
+        # Plain class list (minifier-safe) — NOT the old `:is(...)` form whose
+        # leading space the minifier stripped, reintroducing the duplicates.
+        and '.hero-rates-link--mobile,.hero-eyebrow-link--mobile{display:none!important}' in crit_flat
         and '.hero-eyebrow-link--desktop{display:inline!important}' in crit_flat,
     )
     r.check(
@@ -1967,13 +1985,19 @@ def check_shared_assets(r: Runner) -> None:
             and 'data-promo-phase="standard"' in index_html
             and 'data-promo-phase="urgent"' in index_html
             and 'data-promo-phase="last"' in index_html
-            and 'Reserve now to hold current terms' in index_html
-            and 'Final days before charter rates rise' in index_html
-            and 'current charter rates end today' in index_html
+            and 'Early birds keep our previous €3,500 summer rate' in index_html
+            and 'Final days for our previous €3,500 summer rate' in index_html
+            and 'before it rises to €4,000' in index_html
             # Date logic: urgent → last → hide after Jul 2
             and 'var phase = nowD >= promoEnd' in index_html
             and 'new Date(2026, 6, 2)' in index_html
-            and '.hero-promo' in (css or ''),
+            and '.hero-promo' in (css or '')
+            # Pill is clickable to the same place as the price (charters),
+            # viewport-matched (#charters mobile / #charters-land desktop)
+            and '<a class="promo-msg" href="#charters"' in index_html
+            and "promoMq.matches ? '#charters-land' : '#charters'" in index_html
+            and 'ly_promo_click' in index_html
+            and '.hero-promo .promo-msg:hover' in (css or ''),
         )
         r.check(
             'both low and high season rates shown with labels (no hide-by-season)',

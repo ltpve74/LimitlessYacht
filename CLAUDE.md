@@ -105,7 +105,7 @@ Charter prices appear in 5 `.season-rates` blocks (hero rate link ×2, `#charter
 - The `crew & VAT included` note renders **once** per block (a sibling after the two lines), not inside each season span — so edit it in one place.
 - That rates IIFE (season highlight + `ly_hero_rates_click` + `ly_charters_rates_view` IO + charter-card funnel clicks) is wired **inside `lyInitRates()` gated on `DOMContentLoaded`**. It sits mid-document, *above* `#charters`; running it eagerly (as it used to) meant `querySelectorAll('.season-rates …')` and `getElementById('charterRatesConfirm')` missed everything below the script. Keep it deferred.
 - Label text + the price lines + the note are translated via PAIRS in each `i18n/locales/*.py` (`Low season`/`High season (Jul–Aug)`, the `Half-day … from €…` lines, and `crew &amp; VAT included`). High season is **Jul–Aug** (owner-confirmed); low season is the rest of the year (the site is "available year-round"). Only the high label carries the month window.
-- **Campaign promo banner** (`.hero-promo`, in the hero above the rates): a subtle pill with **three date-driven message tiers** as `.promo-msg[data-promo-phase]` spans — `standard`, `urgent`, `last`. `lyInitRates()` picks the phase from the current date (hardcoded 2026 boundaries: `urgentStart` Jun 28 → `lastStart` Jul 1 → `promoEnd` Jul 2). Before Jun 28 → standard; final days of June → urgent ("Final days…"); Jul 1 only → last chance ("…end today"); Jul 2+ → whole banner `hidden`. So the copy escalates then self-removes with no stale messaging. Each phase has its own PAIR in all three `i18n/locales/*.py` — update the copy, the date boundaries, **and** the PAIRS together when the campaign changes.
+- **Campaign promo banner** (`.hero-promo`, in the hero above the rates): a subtle **clickable** pill (each `.promo-msg` is an `<a>` linking to the same place as the price — `#charters` mobile / `#charters-land` desktop, set in `lyInitRates()` via `matchMedia`; fires `ly_promo_click`). It has **three date-driven message tiers** as `.promo-msg[data-promo-phase]` spans — `standard`, `urgent`, `last`. `lyInitRates()` picks the phase from the current date (hardcoded 2026 boundaries: `urgentStart` Jun 28 → `lastStart` Jul 1 → `promoEnd` Jul 2). Before Jun 28 → standard; final days of June → urgent; Jul 1 only → last chance; Jul 2+ → whole banner `hidden`. So the copy escalates then self-removes with no stale messaging. **Current campaign = early-bird offer**: book by 1 July to keep the previous high-season day rate of €3,500 (the rate table shows the new €4,000 high-season price; the €500 gap is the early-bird saving). Each phase has its own PAIR in all three `i18n/locales/*.py` — update the copy, the date boundaries, **and** the PAIRS together when the campaign changes.
 
 ### Daily dev / preview workflow
 
@@ -334,6 +334,13 @@ Never intercept anchor clicks just to recompute a scroll offset that CSS already
 - Tablet breakpoint: `max-width: 768px` / `min-width: 769px`
 - `scroll-padding-top`: 5rem default, 4.9rem at ≤640px, 6.25rem at 769–1100px
 - Viewport-conditional landing (e.g. `#enquire`): use `scroll-margin-top` inside `@media (min-height: …)` queries — no JS
+
+### Hero first paint = inline critical CSS (`<style id="critical-css">` in `index.html` head)
+
+`css/main.css` and `css/layout.css` load **async**, so anything the hero needs on first paint must be duplicated into the inline critical-css block, or it flashes/duplicates until the sheets arrive. **When you change hero CSS, mirror it in critical CSS too** (promo pill `.hero-promo .promo-msg`, `.season-rate-*`, `.hero-rates` panels all live there as well as in `main.css`). Two gotchas:
+
+- **Use `var()`-free literals in critical CSS** — CSS custom properties (`--gold` etc.) are defined in `layout.css`, which hasn't loaded yet, so write `#c9a84c`, not `var(--gold)`.
+- **Mobile/desktop variant hide must be a descendant selector**: `#hero :is(.hero-cta-link--mobile,…)` (note the space). The compound `#hero:is(…)` matches an element that *is* `#hero` and has those classes — i.e. nothing — so the mobile variants weren't hidden on desktop until `main.css` loaded, showing duplicate CTAs/rates/eyebrow. There's a budget (~13.5KB) + a `test-site.py` check guarding both the descendant selector and the inlined hero rules.
 
 ---
 
