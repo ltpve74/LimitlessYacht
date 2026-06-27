@@ -94,7 +94,7 @@ PAIRS = [
         'Medio día (4h) desde 2.200 € · 6h desde 3.100 € · día completo desde 4.000 €',
     ),
     ('Low season', 'Temporada baja'),
-    ('High season', 'Temporada alta'),
+    ('High season (Jul–Aug)', 'Temporada alta (jul–ago)'),
     ('crew &amp; VAT included', 'Tripulación e IVA incluidos'),
     ("From €1,700 (4h) · €2,400 (6h)", "Desde 1.700 € (4h) · 2.400 € (6h)"),
     ("From €2,200 (4h) · €3,100 (6h)", "Desde 2.200 € (4h) · 3.100 € (6h)"),
@@ -985,8 +985,8 @@ PAIRS = [
         'Transparente &amp;<em> justo</em>',
     ),
     (
-        'Peak season (Jun–Aug) books fast — <strong>limited summer dates remaining</strong>',
-        'La temporada alta (jun–ago) se llena rápido — <strong>quedan pocas fechas de verano</strong>',
+        'Peak season (Jul–Aug) books fast — <strong>limited summer dates remaining</strong>',
+        'La temporada alta (jul–ago) se llena rápido — <strong>quedan pocas fechas de verano</strong>',
     ),
     (
         'Sep – May',

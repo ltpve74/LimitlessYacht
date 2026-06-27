@@ -103,7 +103,7 @@ PAIRS = [
         'Halbtages-Charter (4h) ab 2.200 € · 6h ab 3.100 € · Ganztag ab 4.000 €',
     ),
     ('Low season', 'Nebensaison'),
-    ('High season', 'Hauptsaison'),
+    ('High season (Jul–Aug)', 'Hauptsaison (Jul–Aug)'),
     ('crew &amp; VAT included', 'Crew &amp; MwSt. inklusive'),
     ("From €1,700 (4h) · €2,400 (6h)", "Ab 1.700 € (4h) · 2.400 € (6h)"),
     ("From €2,200 (4h) · €3,100 (6h)", "Ab 2.200 € (4h) · 3.100 € (6h)"),
@@ -994,8 +994,8 @@ PAIRS = [
         'Buchten &amp; Naturhafen',
     ),
     (
-        'Peak season (Jun–Aug) books fast — <strong>limited summer dates remaining</strong>',
-        'Die Hauptsaison (Jun–Aug) ist schnell ausgebucht — <strong>nur noch wenige Sommertermine verfügbar</strong>',
+        'Peak season (Jul–Aug) books fast — <strong>limited summer dates remaining</strong>',
+        'Die Hauptsaison (Jul–Aug) ist schnell ausgebucht — <strong>nur noch wenige Sommertermine verfügbar</strong>',
     ),
     (
         'Sep – May',
