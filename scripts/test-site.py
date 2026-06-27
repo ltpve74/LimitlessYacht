@@ -1960,6 +1960,18 @@ def check_shared_assets(r: Runner) -> None:
             and 'href="#pricing"' not in index_html,
         )
         r.check(
+            'both low and high season rates shown with labels (no hide-by-season)',
+            # High-season spans are no longer hidden by default — both seasons render
+            'data-season-rate="high" hidden' not in index_html
+            and index_html.count('class="season-rate-label">Low season') >= 3
+            and index_html.count('class="season-rate-label">High season') >= 3
+            # Script highlights current season instead of hiding the other
+            and "classList.add('season-rate--current')" in index_html
+            and 'spans[i].getAttribute(\'data-season-rate\') !== season' not in index_html
+            and '.season-rate-label' in (css or '')
+            and '.season-rate--current' in (css or ''),
+        )
+        r.check(
             'charters confirms seasonal rates with card pricing and Clarity events',
             'charter-rates-confirm' in index_html
             and 'charterRatesConfirm' in index_html
