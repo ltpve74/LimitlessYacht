@@ -97,6 +97,15 @@ Both `#gallery` and `#itinerary` are **single continuous swipe carousels**, driv
 - **Destinations funnel** still flows through `window._setDestTab`, the pending-tier drain (`applyFunnelTierFromStorage`), and hash deep-links `#half-day`/`#full-day`/`#multi-day`. Deep-link tiers are captured **synchronously** at parse time into `_initTier` because the nav's `updateScrollHash` strips the hash at scrollY≈0, then re-applied once layout settles.
 - **Gallery has no lightbox** (removed — was unused + a null-`classList` crash surface). The **destinations lightbox is retained** (`#dest-lightbox`); its tier badge reads the card's own `data-tier`. The two lightboxes share `.lb-*` CSS classes, so don't delete those when touching one.
 
+### Seasonal pricing (low + high shown together)
+
+Charter prices appear in 5 `.season-rates` blocks (hero rate link ×2, `#charterRatesConfirm`, and the Half-Day / Full-Day enquiry cards). Each block holds a `<span data-season-rate="low">` and a `<span data-season-rate="high">`, each prefixed with a `<span class="season-rate-label">Low/High season</span>`.
+
+- **Both seasons are always displayed** (the high span is no longer `hidden`). The date script (`high` = month index 6–7, i.e. Jul–Aug; `low` otherwise) only **highlights** the current season by adding `.season-rate--current` (gold label) — it does not hide the other.
+- The `crew & VAT included` note renders **once** per block (a sibling after the two lines), not inside each season span — so edit it in one place.
+- That rates IIFE (season highlight + `ly_hero_rates_click` + `ly_charters_rates_view` IO + charter-card funnel clicks) is wired **inside `lyInitRates()` gated on `DOMContentLoaded`**. It sits mid-document, *above* `#charters`; running it eagerly (as it used to) meant `querySelectorAll('.season-rates …')` and `getElementById('charterRatesConfirm')` missed everything below the script. Keep it deferred.
+- Label text + the price lines + the note are translated via PAIRS in each `i18n/locales/*.py` (`Low season`/`High season`, the `Half-day … from €…` lines, and `crew &amp; VAT included`). Marketing copy elsewhere calls peak season "Jun–Aug" while the toggle uses Jul–Aug — the price labels are intentionally generic ("Low/High season", no months) to avoid that mismatch.
+
 ### Daily dev / preview workflow
 
 1. Work on `develop`, push → GitHub Pages preview deploys.
