@@ -100,6 +100,14 @@ PAIRS = [
         'Charter rates adjust from 1 July. <strong>Reserve now to hold current terms.</strong>',
         'Les tarifs de charter évoluent à partir du 1er juillet. <strong>Réservez dès maintenant pour conserver les conditions actuelles.</strong>',
     ),
+    (
+        'Final days before charter rates rise on 1 July. <strong>Reserve now to lock current terms.</strong>',
+        'Derniers jours avant la hausse des tarifs de charter le 1er juillet. <strong>Réservez maintenant pour bloquer les conditions actuelles.</strong>',
+    ),
+    (
+        'Last chance — current charter rates end today. <strong>Reserve now to hold them.</strong>',
+        'Dernière chance — les tarifs actuels prennent fin aujourd\'hui. <strong>Réservez maintenant pour les conserver.</strong>',
+    ),
     ("From €1,700 (4h) · €2,400 (6h)", "À partir de 1 700 € (4h) · 2 400 € (6h)"),
     ("From €2,200 (4h) · €3,100 (6h)", "À partir de 2 200 € (4h) · 3 100 € (6h)"),
     ("From €3,000", "À partir de 3 000 €"),

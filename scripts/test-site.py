@@ -1960,13 +1960,19 @@ def check_shared_assets(r: Runner) -> None:
             and 'href="#pricing"' not in index_html,
         )
         r.check(
-            'campaign rate-change banner present and date-gated to auto-hide',
+            'campaign rate-change banner escalates by date then auto-hides',
             'class="hero-promo"' in index_html
-            and 'data-promo-until="2026-07-01"' in index_html
+            # Three date-driven message tiers
+            and index_html.count('class="promo-msg"') == 3
+            and 'data-promo-phase="standard"' in index_html
+            and 'data-promo-phase="urgent"' in index_html
+            and 'data-promo-phase="last"' in index_html
             and 'Reserve now to hold current terms' in index_html
-            # Script hides the banner once its data-promo-until date passes
-            and ".hero-promo[data-promo-until]" in index_html
-            and 'promos[p].hidden = true' in index_html
+            and 'Final days before charter rates rise' in index_html
+            and 'current charter rates end today' in index_html
+            # Date logic: urgent → last → hide after Jul 2
+            and 'var phase = nowD >= promoEnd' in index_html
+            and 'new Date(2026, 6, 2)' in index_html
             and '.hero-promo' in (css or ''),
         )
         r.check(
