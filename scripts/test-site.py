@@ -1973,7 +1973,13 @@ def check_shared_assets(r: Runner) -> None:
             # Date logic: urgent → last → hide after Jul 2
             and 'var phase = nowD >= promoEnd' in index_html
             and 'new Date(2026, 6, 2)' in index_html
-            and '.hero-promo' in (css or ''),
+            and '.hero-promo' in (css or '')
+            # Pill is clickable to the same place as the price (charters),
+            # viewport-matched (#charters mobile / #charters-land desktop)
+            and '<a class="promo-msg" href="#charters"' in index_html
+            and "promoMq.matches ? '#charters-land' : '#charters'" in index_html
+            and 'ly_promo_click' in index_html
+            and '.hero-promo .promo-msg:hover' in (css or ''),
         )
         r.check(
             'both low and high season rates shown with labels (no hide-by-season)',
