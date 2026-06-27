@@ -335,6 +335,13 @@ Never intercept anchor clicks just to recompute a scroll offset that CSS already
 - `scroll-padding-top`: 5rem default, 4.9rem at ≤640px, 6.25rem at 769–1100px
 - Viewport-conditional landing (e.g. `#enquire`): use `scroll-margin-top` inside `@media (min-height: …)` queries — no JS
 
+### Hero first paint = inline critical CSS (`<style id="critical-css">` in `index.html` head)
+
+`css/main.css` and `css/layout.css` load **async**, so anything the hero needs on first paint must be duplicated into the inline critical-css block, or it flashes/duplicates until the sheets arrive. **When you change hero CSS, mirror it in critical CSS too** (promo pill `.hero-promo .promo-msg`, `.season-rate-*`, `.hero-rates` panels all live there as well as in `main.css`). Two gotchas:
+
+- **Use `var()`-free literals in critical CSS** — CSS custom properties (`--gold` etc.) are defined in `layout.css`, which hasn't loaded yet, so write `#c9a84c`, not `var(--gold)`.
+- **Mobile/desktop variant hide must be a descendant selector**: `#hero :is(.hero-cta-link--mobile,…)` (note the space). The compound `#hero:is(…)` matches an element that *is* `#hero` and has those classes — i.e. nothing — so the mobile variants weren't hidden on desktop until `main.css` loaded, showing duplicate CTAs/rates/eyebrow. There's a budget (~13.5KB) + a `test-site.py` check guarding both the descendant selector and the inlined hero rules.
+
 ---
 
 ## Anchor position pattern
