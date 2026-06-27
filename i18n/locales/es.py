@@ -97,16 +97,16 @@ PAIRS = [
     ('High season (Jul–Aug)', 'Temporada alta (jul–ago)'),
     ('crew &amp; VAT included', 'Tripulación e IVA incluidos'),
     (
-        'Charter rates adjust from 1 July. <strong>Reserve now to hold current terms.</strong>',
-        'Las tarifas de chárter se ajustan a partir del 1 de julio. <strong>Reserve ahora para mantener las condiciones actuales.</strong>',
+        'Early birds keep our previous €3,500 summer rate — €500 below the new price. <strong>Reserve by 1 July.</strong>',
+        'Quienes reservan pronto mantienen nuestra tarifa de verano anterior de 3.500 € — 500 € menos que el nuevo precio. <strong>Reserve antes del 1 de julio.</strong>',
     ),
     (
-        'Final days before charter rates rise on 1 July. <strong>Reserve now to lock current terms.</strong>',
-        'Últimos días antes de que las tarifas de chárter suban el 1 de julio. <strong>Reserve ahora para fijar las condiciones actuales.</strong>',
+        'Final days for our previous €3,500 summer rate — €500 less. <strong>Reserve by 1 July.</strong>',
+        'Últimos días para nuestra tarifa de verano anterior de 3.500 € — 500 € menos. <strong>Reserve antes del 1 de julio.</strong>',
     ),
     (
-        'Last chance — current charter rates end today. <strong>Reserve now to hold them.</strong>',
-        'Última oportunidad: las tarifas actuales terminan hoy. <strong>Reserve ahora para conservarlas.</strong>',
+        'Last day to lock the previous €3,500 rate before it rises to €4,000. <strong>Reserve now.</strong>',
+        'Último día para fijar la tarifa anterior de 3.500 € antes de que suba a 4.000 €. <strong>Reserve ahora.</strong>',
     ),
     ("From €1,700 (4h) · €2,400 (6h)", "Desde 1.700 € (4h) · 2.400 € (6h)"),
     ("From €2,200 (4h) · €3,100 (6h)", "Desde 2.200 € (4h) · 3.100 € (6h)"),

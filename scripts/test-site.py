@@ -1967,9 +1967,9 @@ def check_shared_assets(r: Runner) -> None:
             and 'data-promo-phase="standard"' in index_html
             and 'data-promo-phase="urgent"' in index_html
             and 'data-promo-phase="last"' in index_html
-            and 'Reserve now to hold current terms' in index_html
-            and 'Final days before charter rates rise' in index_html
-            and 'current charter rates end today' in index_html
+            and 'Early birds keep our previous €3,500 summer rate' in index_html
+            and 'Final days for our previous €3,500 summer rate' in index_html
+            and 'before it rises to €4,000' in index_html
             # Date logic: urgent → last → hide after Jul 2
             and 'var phase = nowD >= promoEnd' in index_html
             and 'new Date(2026, 6, 2)' in index_html
