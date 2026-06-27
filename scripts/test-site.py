@@ -1960,6 +1960,16 @@ def check_shared_assets(r: Runner) -> None:
             and 'href="#pricing"' not in index_html,
         )
         r.check(
+            'campaign rate-change banner present and date-gated to auto-hide',
+            'class="hero-promo"' in index_html
+            and 'data-promo-until="2026-07-01"' in index_html
+            and 'Reserve now to hold current terms' in index_html
+            # Script hides the banner once its data-promo-until date passes
+            and ".hero-promo[data-promo-until]" in index_html
+            and 'promos[p].hidden = true' in index_html
+            and '.hero-promo' in (css or ''),
+        )
+        r.check(
             'both low and high season rates shown with labels (no hide-by-season)',
             # High-season spans are no longer hidden by default — both seasons render
             'data-season-rate="high" hidden' not in index_html

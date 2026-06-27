@@ -96,6 +96,10 @@ PAIRS = [
     ('Low season', 'Temporada baja'),
     ('High season (Jul–Aug)', 'Temporada alta (jul–ago)'),
     ('crew &amp; VAT included', 'Tripulación e IVA incluidos'),
+    (
+        'Charter rates adjust from 1 July. <strong>Reserve now to hold current terms.</strong>',
+        'Las tarifas de chárter se ajustan a partir del 1 de julio. <strong>Reserve ahora para mantener las condiciones actuales.</strong>',
+    ),
     ("From €1,700 (4h) · €2,400 (6h)", "Desde 1.700 € (4h) · 2.400 € (6h)"),
     ("From €2,200 (4h) · €3,100 (6h)", "Desde 2.200 € (4h) · 3.100 € (6h)"),
     ("From €3,000", "Desde 3.000 €"),
