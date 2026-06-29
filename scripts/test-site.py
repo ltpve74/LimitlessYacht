@@ -896,10 +896,15 @@ def check_html(r: Runner, rel: str, html: str) -> None:
     )
     r.check(
         'net-tier boots before inline critical CSS',
-        html.find('id="fouc-guard"') < html.find('net-tier.js')
-        and html.find('net-tier.js') < html.find('id="critical-css"'),
+        html.find('id="fouc-guard"') < html.find('id="ly-net-tier"')
+        and html.find('id="ly-net-tier"') < html.find('id="critical-css"'),
     )
     net_tier = read_file('js/net-tier.js') or ''
+    r.check(
+        'inline net-tier matches the canonical js/net-tier.js source (no drift)',
+        net_tier != ''
+        and re.sub(r'\s+', '', net_tier) in re.sub(r'\s+', '', html),
+    )
     r.check(
         'net-tier.js loads layout.css then main.css without connection sniffing',
         'LY_PROGRESSIVE_IMAGES' in net_tier
@@ -947,7 +952,7 @@ def check_html(r: Runner, rel: str, html: str) -> None:
     )
     fouc_pos = html.find('id="fouc-guard"')
     style_pos = html.find('id="critical-css"')
-    net_tier_pos = html.find('net-tier.js')
+    net_tier_pos = html.find('id="ly-net-tier"')
     r.check(
         'FOUC guard CSS precedes connection-tier script and hero critical CSS',
         fouc_pos > 0
@@ -1102,7 +1107,7 @@ def check_html(r: Runner, rel: str, html: str) -> None:
         'window.LY_fixupHashLanding' in html
         and 'itinerary-funnel' in html
         and 'ly-past-hero' in html
-        and 'scrollIntoView' in html.split('LY_fixupHashLanding')[1][:600],
+        and 'scrollIntoView' in html.split('LY_fixupHashLanding = function')[1][:600],
     )
     r.check(
         'critical CSS applies funnel scroll-padding when past hero (unlayered, beats deferred layers)',
@@ -1441,7 +1446,7 @@ def check_html(r: Runner, rel: str, html: str) -> None:
             and "LY_MAIN_CSS_HREF='../css/main.css" in html
             and 'href="../css/layout.css' in html
             and 'href="../css/main.css' in html
-            and 'src="../js/net-tier.js' in html
+            and 'id="ly-net-tier"' in html
             and 'href="../favicon.svg"' in html
             and 'href="/favicon.svg"' not in html,
         )

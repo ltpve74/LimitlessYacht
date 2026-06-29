@@ -196,8 +196,18 @@ def patch_calendar(html: str, months: list[str], dow: list[str]) -> str:
     return html
 
 
+NETTIER_PLACEHOLDER = "__LY_NETTIER_INLINE__"
+
+
 def build_index(locale_mod) -> str:
     html = (ROOT / "index.html").read_text(encoding="utf-8")
+    # Protect the inline net-tier boot script from path/string rewrites — it
+    # resolves locale-relative asset paths at runtime, so it must stay
+    # byte-identical to js/net-tier.js in every locale (see drift-guard test).
+    nettier = re.search(r'<script id="ly-net-tier">.*?</script>', html, re.DOTALL)
+    nettier_block = nettier.group(0) if nettier else ""
+    if nettier_block:
+        html = html.replace(nettier_block, NETTIER_PLACEHOLDER, 1)
     html = root_paths(html)
     html = patch_html_lang(html, locale_mod.LANG)
     html = patch_subfolder_assets(html)
@@ -223,6 +233,8 @@ def build_index(locale_mod) -> str:
     html = patch_reviews_fetch(html, locale_mod.CODE)
     html = patch_reviews_ui(html, locale_mod.REVIEWS_UI)
     html = patch_reviews_fallback(html, locale_mod.REVIEWS[0])
+    if nettier_block:
+        html = html.replace(NETTIER_PLACEHOLDER, nettier_block, 1)
     return html
 
 
