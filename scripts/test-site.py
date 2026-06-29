@@ -896,10 +896,15 @@ def check_html(r: Runner, rel: str, html: str) -> None:
     )
     r.check(
         'net-tier boots before inline critical CSS',
-        html.find('id="fouc-guard"') < html.find('net-tier.js')
-        and html.find('net-tier.js') < html.find('id="critical-css"'),
+        html.find('id="fouc-guard"') < html.find('id="ly-net-tier"')
+        and html.find('id="ly-net-tier"') < html.find('id="critical-css"'),
     )
     net_tier = read_file('js/net-tier.js') or ''
+    r.check(
+        'inline net-tier matches the canonical js/net-tier.js source (no drift)',
+        net_tier != ''
+        and re.sub(r'\s+', '', net_tier) in re.sub(r'\s+', '', html),
+    )
     r.check(
         'net-tier.js loads layout.css then main.css without connection sniffing',
         'LY_PROGRESSIVE_IMAGES' in net_tier
@@ -947,7 +952,7 @@ def check_html(r: Runner, rel: str, html: str) -> None:
     )
     fouc_pos = html.find('id="fouc-guard"')
     style_pos = html.find('id="critical-css"')
-    net_tier_pos = html.find('net-tier.js')
+    net_tier_pos = html.find('id="ly-net-tier"')
     r.check(
         'FOUC guard CSS precedes connection-tier script and hero critical CSS',
         fouc_pos > 0
@@ -1102,7 +1107,7 @@ def check_html(r: Runner, rel: str, html: str) -> None:
         'window.LY_fixupHashLanding' in html
         and 'itinerary-funnel' in html
         and 'ly-past-hero' in html
-        and 'scrollIntoView' in html.split('LY_fixupHashLanding')[1][:600],
+        and 'scrollIntoView' in html.split('LY_fixupHashLanding = function')[1][:600],
     )
     r.check(
         'critical CSS applies funnel scroll-padding when past hero (unlayered, beats deferred layers)',
@@ -1441,7 +1446,7 @@ def check_html(r: Runner, rel: str, html: str) -> None:
             and "LY_MAIN_CSS_HREF='../css/main.css" in html
             and 'href="../css/layout.css' in html
             and 'href="../css/main.css' in html
-            and 'src="../js/net-tier.js' in html
+            and 'id="ly-net-tier"' in html
             and 'href="../favicon.svg"' in html
             and 'href="/favicon.svg"' not in html,
         )
@@ -2226,11 +2231,17 @@ def check_shared_assets(r: Runner) -> None:
     crit_flat = re.sub(r'\s+', '', crit_block)
     net_tier_src = read_file('js/net-tier.js') or ''
     r.check(
-        'Montserrat deferred until after hero (critical uses fallback only)',
-        "url('../fonts/montserrat-latin.woff2')" in (read_file('css/main.css') or '')
-        and 'font-display:optional' in (read_file('css/main.css') or '').replace(' ', '')
-        and "url('fonts/montserrat-latin.woff2')" not in crit_block.replace(' ', '')
+        'Montserrat loaded on idle, off the critical path (CSS uses fallback only)',
+        # The real font is no longer fetched by any CSS @font-face — not in
+        # main.css and not in the critical block. It's injected by LY_loadFont
+        # and triggered on idle via LY_afterMeaningfulPaint, so it drops off
+        # the critical request chain entirely.
+        'montserrat-latin.woff2' not in (read_file('css/main.css') or '')
+        and 'montserrat-latin.woff2' not in crit_block
         and 'LY_loadFont' in net_tier_src
+        and 'font-display:optional' in net_tier_src.replace(' ', '')
+        and 'fonts/montserrat-latin.woff2' in net_tier_src
+        and "addEventListener('load',lyFontIdle)" in index_html.replace(' ', '')
         and "font.rel='preload'" not in net_tier_src.replace(' ', '')
         and 'href="/fonts/montserrat-latin.woff2"' not in index_html
         and 'LY_LAYOUT_CSS_HREF' in index_html
