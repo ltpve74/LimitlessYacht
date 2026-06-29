@@ -2241,7 +2241,7 @@ def check_shared_assets(r: Runner) -> None:
         and 'LY_loadFont' in net_tier_src
         and 'font-display:optional' in net_tier_src.replace(' ', '')
         and 'fonts/montserrat-latin.woff2' in net_tier_src
-        and 'LY_afterMeaningfulPaint(function(){window.LY_loadFont();})' in index_html.replace(' ', '')
+        and "addEventListener('load',lyFontIdle)" in index_html.replace(' ', '')
         and "font.rel='preload'" not in net_tier_src.replace(' ', '')
         and 'href="/fonts/montserrat-latin.woff2"' not in index_html
         and 'LY_LAYOUT_CSS_HREF' in index_html
