@@ -3033,6 +3033,25 @@ def check_shared_assets(r: Runner) -> None:
         and reviews_grid_desktop > reviews_grid_base,
     )
     r.check(
+        'review snippet clamps to 4 lines with reserved height (Part 2 + CLS)',
+        css is not None
+        # 4-line snippet (was 2) with a reserved clamp height so cards are uniform
+        and '-webkit-line-clamp:4' in css
+        and re.search(r'\.review-text--clamped\{[^}]*min-height:4lh', css) is not None,
+    )
+    r.check(
+        'reviews grid + loading reserve height so lazy-load does not shift (CLS)',
+        css is not None
+        # Placeholder and grid reserve the loaded height (mobile 49rem / desktop 24rem)
+        and re.search(r'\.reviews-loading\{[^}]*min-height:49rem', css) is not None
+        and re.search(r'\.reviews-grid\{[^}]*min-height:49rem', css) is not None
+        and 'min-height:24rem' in css,
+    )
+    r.check(
+        'mobile carousel-nav reserves height so position indicator does not shift (CLS)',
+        re.search(r'\.carousel-nav\{[^}]*min-height:3\.2rem', read_file('css/layout.css') or '') is not None,
+    )
+    r.check(
         'reviews short viewports compact section padding',
         re.search(
             r'@media\s*\(\s*min-width:\s*769px\s*\)\s*and\s*\(\s*max-height:\s*920px\s*\)[\s\S]*?#reviews',
