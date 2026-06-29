@@ -344,6 +344,12 @@ Never intercept anchor clicks just to recompute a scroll offset that CSS already
 - **Use `var()`-free literals in critical CSS** — CSS custom properties (`--gold` etc.) are defined in `layout.css`, which hasn't loaded yet, so write `#c9a84c`, not `var(--gold)`.
 - **Mobile/desktop variant hide must be a descendant selector**: `#hero :is(.hero-cta-link--mobile,…)` (note the space). The compound `#hero:is(…)` matches an element that *is* `#hero` and has those classes — i.e. nothing — so the mobile variants weren't hidden on desktop until `main.css` loaded, showing duplicate CTAs/rates/eyebrow. There's a budget (~13.5KB) + a `test-site.py` check guarding both the descendant selector and the inlined hero rules.
 
+### CSS / boot loading (critical request chain)
+
+The page boots from inline pieces so nothing renders behind a network round-trip: the **net-tier loader is inlined** (`<script id="ly-net-tier">`, kept byte-identical to `js/net-tier.js` by a build-locales protect/restore + a drift-guard test) and it loads `layout.css` then `main.css` (~300ms apart — small gap that protects the hero LCP, do not parallelize). **Do not turn net-tier back into an external `<script src>`** — that re-adds a render-blocking fetch ahead of all the CSS.
+
+**Montserrat is loaded on idle, off the critical path.** There is **no `@font-face` with the `.woff2` in `main.css` or the critical block** — only the metric-matched `Montserrat Fallback` faces (local fonts, `size-adjust`/`ascent-override`) render first paint. The real font is injected by `LY_loadFont` and triggered via `LY_afterMeaningfulPaint` (post-load idle), with `font-display:optional` so it never swaps/shifts the current page (shows on the next cached load). **Don't re-add a Montserrat `@font-face` to CSS or a `<link rel=preload>` for the font** — that puts the 35KB back on the critical chain for a font that isn't used on first paint anyway.
+
 ---
 
 ## Anchor position pattern

@@ -2231,11 +2231,17 @@ def check_shared_assets(r: Runner) -> None:
     crit_flat = re.sub(r'\s+', '', crit_block)
     net_tier_src = read_file('js/net-tier.js') or ''
     r.check(
-        'Montserrat deferred until after hero (critical uses fallback only)',
-        "url('../fonts/montserrat-latin.woff2')" in (read_file('css/main.css') or '')
-        and 'font-display:optional' in (read_file('css/main.css') or '').replace(' ', '')
-        and "url('fonts/montserrat-latin.woff2')" not in crit_block.replace(' ', '')
+        'Montserrat loaded on idle, off the critical path (CSS uses fallback only)',
+        # The real font is no longer fetched by any CSS @font-face — not in
+        # main.css and not in the critical block. It's injected by LY_loadFont
+        # and triggered on idle via LY_afterMeaningfulPaint, so it drops off
+        # the critical request chain entirely.
+        'montserrat-latin.woff2' not in (read_file('css/main.css') or '')
+        and 'montserrat-latin.woff2' not in crit_block
         and 'LY_loadFont' in net_tier_src
+        and 'font-display:optional' in net_tier_src.replace(' ', '')
+        and 'fonts/montserrat-latin.woff2' in net_tier_src
+        and 'LY_afterMeaningfulPaint(function(){window.LY_loadFont();})' in index_html.replace(' ', '')
         and "font.rel='preload'" not in net_tier_src.replace(' ', '')
         and 'href="/fonts/montserrat-latin.woff2"' not in index_html
         and 'LY_LAYOUT_CSS_HREF' in index_html
