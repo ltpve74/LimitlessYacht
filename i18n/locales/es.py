@@ -264,8 +264,12 @@ PAIRS = [
     ("Booked", "Reservado"),
     ("On hold", "En espera"),
     (
-        "Tap available dates — one day or a run of adjacent dates.",
-        "Toque fechas libres — un día o varios seguidos.",
+        "Tap available or on-hold dates — one day or a run of adjacent dates.",
+        "Toque fechas libres o en espera — un día o varios seguidos.",
+    ),
+    (
+        "On hold dates are in talks with another guest — you can still enquire, and we'll let you know if they free up.",
+        "Las fechas en espera están en conversaciones con otro huésped — puede consultar igualmente y le avisaremos si quedan libres.",
     ),
     ("Clear selection", "Borrar selección"),
     ('data-i18n-day="day"', 'data-i18n-day="día"'),

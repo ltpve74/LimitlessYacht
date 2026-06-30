@@ -729,7 +729,18 @@ def check_html(r: Runner, rel: str, html: str) -> None:
         and 'preferred_date_end_btn' not in html
         and 'class="form-field form-end-date"' not in html
         and 'data-selected=' in html
-        and "node.closest('.cal-cell.free[data-date]')" in html,
+        and "node.closest('.cal-cell[data-date]')" in html,
+    )
+    r.check(
+        'on-hold dates are selectable for enquiry (booked still blocked)',
+        # isSelectable blocks past + booked only — tentative (on-hold) is allowed
+        'if (booked.has(k) || tentative.has(k)) return false' not in html
+        and 'if (booked.has(k)) return false; return true;' in html
+        # on-hold cells get data-date so they are interactive
+        and 'var onHold = tentative.has(k) && !isPast' in html
+        # explanatory note + interactive on-hold cell styling
+        and 'class="cal-hold-note"' in html
+        and re.search(r'\.cal-cell\.tentative\{[^}]*cursor:pointer', read_file('css/main.css') or '') is not None,
     )
     r.check(
         'date picker popup restored on main enquiry form',
