@@ -10,6 +10,20 @@ Do **not** "fix" them without checking here first. Each entry lists what *not* t
 > something here, say so and confirm before proceeding. Add a new entry when you make a
 > non‑obvious decision.
 
+### How this is enforced (so it isn't just a doc nobody reads)
+
+1. **SessionStart hook** (`.claude/settings.json` → `scripts/session-brief.sh`): prints the
+   "DO NOT undo" list into context at the start of every session, so it's in front of the agent
+   before any work begins.
+2. **`# DECISION`‑tagged tests** in `scripts/test-site.py` encode these invariants (e.g. "Montserrat
+   …off the critical path", the CLS reserves, the minifier‑safe selector). The point: you do **not**
+   edit one to make a diff pass.
+3. **Lock + pre‑commit** (`scripts/check-decision-guards.py` + `scripts/decision-guards.lock`): the
+   pre‑commit hook re‑hashes every `# DECISION` test on **every commit, all branches**. If one was
+   weakened, retitled, un‑tagged, or removed without the lock being updated, the commit is **blocked**.
+   Changing a guard on purpose requires re‑reading this file and running
+   `python3 scripts/check-decision-guards.py --accept` (a conscious override that shows up in the diff).
+
 ---
 
 ## Performance / loading

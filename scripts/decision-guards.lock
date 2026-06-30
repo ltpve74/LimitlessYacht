@@ -1,0 +1,10 @@
+{
+  "Montserrat loaded on idle, off the critical path (CSS uses fallback only)": "7362a7049487bb1176504fee30d38defc74e8acd",
+  "critical CSS prevents hero first-paint duplicates + styles the promo/rates inline": "b3ee3db88d18291483e3fd7880c6198f4fd19453",
+  "inline net-tier matches the canonical js/net-tier.js source (no drift)": "21857a6e71db685035f74a8967891bd130530ebc",
+  "mobile carousel-nav reserves height so position indicator does not shift (CLS)": "b040c459a25bae1b7e1d4fad46eb101ff5ccf892",
+  "mobile gallery section fills viewport like itinerary": "38ebd45346ab82ca26a1759f1a8a4a8a6713c8f4",
+  "on-hold dates are selectable for enquiry (booked still blocked)": "c0a75d244ba256aee9f1a5ef6a4d7be8f1fa3c95",
+  "review snippet clamps to 4 lines with reserved height (Part 2 + CLS)": "9cfcfbb4a0380a96287fa8b1990bf69cbb259f21",
+  "reviews grid + loading reserve height so lazy-load does not shift (CLS)": "73ca5fb6e4da4e6e94277a88528c4fa0100396b4"
+}

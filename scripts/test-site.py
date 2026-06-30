@@ -732,7 +732,7 @@ def check_html(r: Runner, rel: str, html: str) -> None:
         and "node.closest('.cal-cell[data-date]')" in html,
     )
     r.check(
-        'on-hold dates are selectable for enquiry (booked still blocked)',
+        'on-hold dates are selectable for enquiry (booked still blocked)',  # DECISION (see DECISIONS.md — do not weaken to pass)
         # isSelectable blocks past + booked only — tentative (on-hold) is allowed
         'if (booked.has(k) || tentative.has(k)) return false' not in html
         and 'if (booked.has(k)) return false; return true;' in html
@@ -912,7 +912,7 @@ def check_html(r: Runner, rel: str, html: str) -> None:
     )
     net_tier = read_file('js/net-tier.js') or ''
     r.check(
-        'inline net-tier matches the canonical js/net-tier.js source (no drift)',
+        'inline net-tier matches the canonical js/net-tier.js source (no drift)',  # DECISION (see DECISIONS.md — do not weaken to pass)
         net_tier != ''
         and re.sub(r'\s+', '', net_tier) in re.sub(r'\s+', '', html),
     )
@@ -1018,7 +1018,7 @@ def check_html(r: Runner, rel: str, html: str) -> None:
     crit_css = html[crit_tag:crit_end] if crit_tag >= 0 and crit_end > crit_tag else ''
     crit_flat = re.sub(r'\s+', '', crit_css)
     r.check(
-        'critical CSS prevents hero first-paint duplicates + styles the promo/rates inline',
+        'critical CSS prevents hero first-paint duplicates + styles the promo/rates inline',  # DECISION (see DECISIONS.md — do not weaken to pass)
         # Mobile variants hidden on desktop with a plain class list (NOT a
         # descendant `#hero :is(...)` — the minifier strips that space,
         # collapsing it to the compound `#hero:is(...)` which matches
@@ -2242,7 +2242,7 @@ def check_shared_assets(r: Runner) -> None:
     crit_flat = re.sub(r'\s+', '', crit_block)
     net_tier_src = read_file('js/net-tier.js') or ''
     r.check(
-        'Montserrat loaded on idle, off the critical path (CSS uses fallback only)',
+        'Montserrat loaded on idle, off the critical path (CSS uses fallback only)',  # DECISION (see DECISIONS.md — do not weaken to pass)
         # The real font is no longer fetched by any CSS @font-face — not in
         # main.css and not in the critical block. It's injected by LY_loadFont
         # and triggered on idle via LY_afterMeaningfulPaint, so it drops off
@@ -2611,7 +2611,7 @@ def check_shared_assets(r: Runner) -> None:
         is not None,
     )
     r.check(
-        'mobile gallery section fills viewport like itinerary',
+        'mobile gallery section fills viewport like itinerary',  # DECISION (see DECISIONS.md — do not weaken to pass)
         css is not None
         and re.search(
             r'#gallery,\s*#itinerary\s*\{[^}]*min-height:\s*100svh',
@@ -3055,14 +3055,14 @@ def check_shared_assets(r: Runner) -> None:
         and reviews_grid_desktop > reviews_grid_base,
     )
     r.check(
-        'review snippet clamps to 4 lines with reserved height (Part 2 + CLS)',
+        'review snippet clamps to 4 lines with reserved height (Part 2 + CLS)',  # DECISION (see DECISIONS.md — do not weaken to pass)
         css is not None
         # 4-line snippet (was 2) with a reserved clamp height so cards are uniform
         and '-webkit-line-clamp:4' in css
         and re.search(r'\.review-text--clamped\{[^}]*min-height:4lh', css) is not None,
     )
     r.check(
-        'reviews grid + loading reserve height so lazy-load does not shift (CLS)',
+        'reviews grid + loading reserve height so lazy-load does not shift (CLS)',  # DECISION (see DECISIONS.md — do not weaken to pass)
         css is not None
         # Placeholder and grid reserve the loaded height (mobile 49rem / desktop 24rem)
         and re.search(r'\.reviews-loading\{[^}]*min-height:49rem', css) is not None
@@ -3070,7 +3070,7 @@ def check_shared_assets(r: Runner) -> None:
         and 'min-height:24rem' in css,
     )
     r.check(
-        'mobile carousel-nav reserves height so position indicator does not shift (CLS)',
+        'mobile carousel-nav reserves height so position indicator does not shift (CLS)',  # DECISION (see DECISIONS.md — do not weaken to pass)
         re.search(r'\.carousel-nav\{[^}]*min-height:3\.2rem', read_file('css/layout.css') or '') is not None,
     )
     r.check(

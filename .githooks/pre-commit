@@ -22,6 +22,14 @@ else
   PY="python3"
 fi
 
+# Decision guards: block silently weakening a DECISION-tagged test (see DECISIONS.md).
+# These tests encode load-bearing choices; changing one to make a diff pass undoes a decision.
+if ! "$PY" scripts/check-decision-guards.py; then
+  echo "[pre-commit] ERROR: a DECISION-guarded test changed without acknowledgement (see above)." >&2
+  echo "[pre-commit] If intentional: update DECISIONS.md, then run 'python3 scripts/check-decision-guards.py --accept' and stage the lock." >&2
+  exit 1
+fi
+
 CHANGED=$(git diff --cached --name-only)
 
 LOCALE_REBUILD=0
