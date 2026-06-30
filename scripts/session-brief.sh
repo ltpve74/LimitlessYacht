@@ -4,6 +4,7 @@
 # agent so a good change isn't reversed on a hunch. Full rationale: DECISIONS.md.
 cat <<'EOF'
 ========== LOAD-BEARING DECISIONS — read DECISIONS.md before changing things ==========
+NEW TO THIS REPO? Read HANDOVER.md first (current state, open items, gotchas), then DECISIONS.md.
 Before touching PERFORMANCE, FONTS, CSS/JS LOADING, CLS, or the BUILD, open DECISIONS.md.
 Several choices below look like bugs or easy wins but are DELIBERATE and measured.
 If a request would undo one, say so and confirm with the owner first — do not reverse it on a hunch.
