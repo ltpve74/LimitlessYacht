@@ -22,3 +22,7 @@ __pycache__/
 scripts/google-ads/google-ads.yaml
 scripts/google-ads/client_secrets.json
 scripts/google-ads/.venv/
+
+# Generated marketing deliverable — not website source, and Netlify serves the repo
+# root, so committing this would publish it publicly. Regenerate on demand instead.
+Limitless-Charter-Presentation.pdf
