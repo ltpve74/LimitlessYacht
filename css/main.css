@@ -419,6 +419,33 @@
     outline:2px solid var(--gold-light);
     outline-offset:3px
   }
+  /* Shared chevron for round nav buttons (carousel, lightbox, calendar).
+     Drawn with borders instead of the ‹ › font glyphs — the metric-adjusted
+     fallback faces rendered those off-centre, and each family centred them
+     differently. A drawn chevron is dead-centred by construction: the flex
+     box centres the square, the translateX centres the rotated ink
+     (apex-to-ends bbox) on the circle. Size follows the button font-size. */
+  .ly-chev{
+    display:flex;
+    align-items:center;
+    justify-content:center;
+    padding:0
+  }
+  .ly-chev::before{
+    content:'';
+    display:block;
+    flex:none;
+    width:.5em;
+    height:.5em;
+    border-top:2px solid currentColor;
+    border-right:2px solid currentColor
+  }
+  .ly-chev--prev::before{
+    transform:translateX(17.7%) rotate(-135deg)
+  }
+  .ly-chev--next::before{
+    transform:translateX(-17.7%) rotate(45deg)
+  }
   .lb-nav{
     position:absolute;
     top:50%;

@@ -1996,6 +1996,18 @@ def check_shared_assets(r: Runner) -> None:
             and 'href="#pricing"' not in index_html,
         )
         r.check(
+            'round nav buttons share the drawn ly-chev chevron (no font glyphs)',
+            # One component for carousel, lightbox and calendar chevrons; the
+            # ‹ › glyphs sat off-centre with the metric-adjusted fallback
+            # faces (owner screenshots, 2 Jul 2026).
+            index_html.count('ly-chev--prev') == 5
+            and index_html.count('ly-chev--next') == 5
+            and '.ly-chev::before{' in re.sub(r'\s+', '', css or '')
+            and '&#8249;</button>' not in index_html
+            and '‹</button>' not in index_html
+            and '›</button>' not in index_html,
+        )
+        r.check(
             'every destination diesel figure is marked as an estimate',
             # Owner request 2 Jul 2026: ~ alone was not clear enough. The dest
             # lightbox clones .destination-meta, so card spans cover both.
@@ -2494,8 +2506,8 @@ def check_shared_assets(r: Runner) -> None:
     r.check(
         'lightboxes share unified navigation chrome classes',
         'class="lb-close"' in index_html
-        and 'class="lb-nav lb-nav--prev"' in index_html
-        and 'class="lb-nav lb-nav--next"' in index_html
+        and 'class="lb-nav lb-nav--prev ly-chev ly-chev--prev"' in index_html
+        and 'class="lb-nav lb-nav--next ly-chev ly-chev--next"' in index_html
         and 'class="lb-counter"' in index_html
         and 'class="lb-hint"' in index_html
         and css is not None
