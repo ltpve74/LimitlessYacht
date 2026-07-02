@@ -19,6 +19,9 @@ DO NOT (without re-reading DECISIONS.md + owner sign-off):
   • Remove the reviews / hero-pull-quote / carousel-nav CLS reserves.
   • Weaken a test tagged "# DECISION" to make a change pass — the test is right, your change is
     undoing a decision. (The pre-commit hook blocks this; running --accept is a conscious override.)
+  • Edit index.html/legal.html/css on a source branch WITHOUT first checking they are readable
+    (multi-line). Single-line source = a main→develop back-merge polluted the branch (happened
+    Jun 2026). Un-minify with a byte-exact round-trip proof BEFORE editing — DECISIONS.md "Build/git".
 
 Why each exists, and the "symptom that looks like a regression but isn't": DECISIONS.md
 =======================================================================================

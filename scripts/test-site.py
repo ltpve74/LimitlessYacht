@@ -1011,8 +1011,8 @@ def check_html(r: Runner, rel: str, html: str) -> None:
     r.check(
         'critical CSS is slim enough for fast head parse',
         # Budget covers the hero first-paint rules inlined to prevent the
-        # mobile/desktop variant duplication + unstyled-pill flash before
-        # main.css loads (promo pill, season labels, rates panels).
+        # mobile/desktop variant duplication + unstyled flash before
+        # main.css loads (season labels, pill-styled rates panels).
         crit_tag > 0 and crit_end - crit_tag < 13500,
     )
     crit_css = html[crit_tag:crit_end] if crit_tag >= 0 and crit_end > crit_tag else ''
@@ -1025,10 +1025,12 @@ def check_html(r: Runner, rel: str, html: str) -> None:
         # nothing and brings the duplicates back). Minifier-safe form:
         '.hero-cta-link--mobile,.hero-rates-link--mobile,.hero-eyebrow-link--mobile{display:none!important}' in crit_flat
         and '#hero:is(.hero-cta-link--mobile' not in crit_flat
-        # Hero promo pill + season labels + rates panel inlined for first paint
-        and '.hero-promo.promo-msg{' in crit_flat
+        # Season labels + pill-styled rates panel inlined for first paint
+        # (promo pill removed 2 Jul 2026 — see DECISIONS.md Product decisions)
+        and 'promo' not in crit_flat
         and '.season-rate-label{' in crit_flat
-        and 'background:rgba(10,22,40,.72)' in crit_flat,
+        and 'border-radius:999px' in crit_flat
+        and 'background:rgba(10,22,40,.82)' in crit_flat,
     )
     r.check(
         'critical CSS is brace-balanced (parses cleanly; hero progressive rules not dropped)',
@@ -1994,26 +1996,38 @@ def check_shared_assets(r: Runner) -> None:
             and 'href="#pricing"' not in index_html,
         )
         r.check(
-            'campaign rate-change banner escalates by date then auto-hides',
-            'class="hero-promo"' in index_html
-            # Three date-driven message tiers
-            and index_html.count('class="promo-msg"') == 3
-            and 'data-promo-phase="standard"' in index_html
-            and 'data-promo-phase="urgent"' in index_html
-            and 'data-promo-phase="last"' in index_html
-            and 'Early birds keep our previous €3,500 summer rate' in index_html
-            and 'Final days for our previous €3,500 summer rate' in index_html
-            and 'before it rises to €4,000' in index_html
-            # Date logic: urgent → last → hide after Jul 2
-            and 'var phase = nowD >= promoEnd' in index_html
-            and 'new Date(2026, 6, 2)' in index_html
-            and '.hero-promo' in (css or '')
-            # Pill is clickable to the same place as the price (charters),
-            # viewport-matched (#charters mobile / #charters-land desktop)
-            and '<a class="promo-msg" href="#charters"' in index_html
-            and "promoMq.matches ? '#charters-land' : '#charters'" in index_html
-            and 'ly_promo_click' in index_html
-            and '.hero-promo .promo-msg:hover' in (css or ''),
+            'round nav buttons share the drawn ly-chev chevron (no font glyphs)',
+            # One component for carousel, lightbox and calendar chevrons; the
+            # ‹ › glyphs sat off-centre with the metric-adjusted fallback
+            # faces (owner screenshots, 2 Jul 2026).
+            index_html.count('ly-chev--prev') == 5
+            and index_html.count('ly-chev--next') == 5
+            and '.ly-chev::before{' in re.sub(r'\s+', '', css or '')
+            and '&#8249;</button>' not in index_html
+            and '‹</button>' not in index_html
+            and '›</button>' not in index_html,
+        )
+        r.check(
+            'every destination diesel figure is marked as an estimate',
+            # Owner request 2 Jul 2026: ~ alone was not clear enough. The dest
+            # lightbox clones .destination-meta, so card spans cover both.
+            index_html.count('Diesel est. <strong>') == 12
+            and 'Diesel <strong>' not in index_html,
+        )
+        r.check(
+            'hero promo pill fully removed (campaign ended 1 Jul 2026); rates carry the pill design',
+            # Removal must be total — a leftover phase span or JS block would
+            # flash at page load, which is why the pill was removed.
+            'hero-promo' not in index_html
+            and 'promo-msg' not in index_html
+            and 'data-promo-phase' not in index_html
+            and 'ly_promo_click' not in index_html
+            and 'promoEnd' not in index_html
+            and 'hero-promo' not in (css or '')
+            # The pill visual language now lives on the hero rates panel
+            # (mirrored in critical CSS; keep both in sync).
+            and 'border-radius:999px' in (css or '')
+            and (css or '').count('rgba(201,168,76,.5)') >= 2,
         )
         r.check(
             'both low and high season rates shown with labels (no hide-by-season)',
@@ -2492,8 +2506,8 @@ def check_shared_assets(r: Runner) -> None:
     r.check(
         'lightboxes share unified navigation chrome classes',
         'class="lb-close"' in index_html
-        and 'class="lb-nav lb-nav--prev"' in index_html
-        and 'class="lb-nav lb-nav--next"' in index_html
+        and 'class="lb-nav lb-nav--prev ly-chev ly-chev--prev"' in index_html
+        and 'class="lb-nav lb-nav--next ly-chev ly-chev--next"' in index_html
         and 'class="lb-counter"' in index_html
         and 'class="lb-hint"' in index_html
         and css is not None
@@ -2529,12 +2543,12 @@ def check_shared_assets(r: Runner) -> None:
         and css is not None
         and css_rule_index(css, '.lb-close') >= 0
         and css_rule_index(css, '.lb-loader') >= 0
-        and '.dest-lb-img-wrap.lb-loading .lb-loader{display:block}' in css,
+        and re.search(r'\.dest-lb-img-wrap\.lb-loading \.lb-loader\{\s*display:\s*block\s*;?\s*\}', css) is not None,
     )
     r.check(
         'destination cards show a prominent tap affordance hint',
         css is not None
-        and re.search(r"\.destination-card-body::after\{content:'Tap for full details[^}]*background:var\(--btn-fill\)", css) is not None
+        and re.search(r"\.destination-card-body::after\{\s*content:'Tap for full details[^}]*background:var\(--btn-fill\)", css) is not None
         and 'Details antippen' in css
         and 'Pulsa para' in css
         and 'Appuyer pour' in css,

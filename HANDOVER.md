@@ -41,6 +41,12 @@ with the owner before doing it. Measure first** (e.g. CLS) rather than assuming 
   Netlify-deployed to `limitlessyachtcharter.com`). GitHub Pages preview deploys from `develop`.
   GitHub showing "develop is N commits behind main" is **normal** (publish commits live only on
   `main`); never back-merge `main → develop`.
+- **Readable-source check (do this before editing):** `wc -l index.html css/main.css` — if either
+  is ~0/1 lines on a source branch, a back-merge polluted it. Un-minify with a byte-exact
+  round-trip proof before editing (see DECISIONS.md "Build / git"; happened Jun 17–Jul 2 2026,
+  repaired). The pre-commit hook now blocks committing minified source off `main`. Inline
+  `<script>`/`<style>` bodies and `js/*.js` are still one-line from that incident (safe,
+  byte-identical to what production runs) — a future careful pass can expand them.
 - **Live on production (`main`):** the full performance overhaul + reviews + promo + pricing
   (see "What's been done"). All metrics green.
 - **On `develop`, NOT yet published:** the **calendar on-hold feature** — dates marked "on hold"
