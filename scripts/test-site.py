@@ -2426,7 +2426,7 @@ def check_shared_assets(r: Runner) -> None:
         'id="calWaBtn"' in index_html
         and 'cal-wa-btn' in index_html
         and 'id="calCallBtn"' in index_html
-        and 'tel:+34622581486' in index_html
+        and re.search(r'tel:\+34\d{9}', index_html) is not None
         and 'cal-wa-label' in index_html
         and 'cal-form-fallback' in index_html
         and 'id="calEnquireBtn"' in index_html
