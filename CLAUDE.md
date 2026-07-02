@@ -1,5 +1,12 @@
 # Limitless Yacht — Agent Guidelines
 
+> ⚠️ **Before making any change, read [`DECISIONS.md`](DECISIONS.md).** It records *why* several
+> counterintuitive choices were made (font off the critical path, inlined net‑tier loader, the
+> 300 ms main.css gap, CLS reserves, …). Some look like bugs or easy wins but are deliberate. If a
+> request would undo something there, flag it and confirm before proceeding — don't reverse a
+> positive change on a hunch. In particular: **a reported "font shift" is not a reason to re‑add the
+> Montserrat `@font-face` to CSS — measure CLS first; the live site does not shift.**
+
 Read this before editing the site. The repo uses a **three-tier workflow**: feature branches for individual work, `develop` as the integration branch (readable source, always matches what's live), and `main` for minified production.
 
 ---
