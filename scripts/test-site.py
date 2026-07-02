@@ -2006,7 +2006,7 @@ def check_shared_assets(r: Runner) -> None:
             "setProperty('--mobile-funnel-land-offset', (_navHeight + 2) + 'px')" in index_html
             and layout_css is not None
             and layout_css.count('height:calc(100svh - var(--mobile-funnel-land-offset,5.45rem) - max(.6rem,env(safe-area-inset-bottom,0px)))') == 2
-            and re.search(r'@media \(max-width:640px\)\{\s*/\*[^*]*\*/\s*\.dest-lb-img-wrap\{\s*flex:1 1 auto;\s*min-height:34vh', re.sub(r'  +', ' ', css or '')) is not None,
+            and re.search(r'@media \(max-width:640px\)\{\s*(?:/\*[^*]*\*/\s*)?\.dest-lb-img-wrap\{\s*flex:1 1 auto;\s*min-height:34vh', re.sub(r'  +', ' ', css or '')) is not None,
         )
         r.check(
             'round nav buttons share the drawn ly-chev chevron (no font glyphs)',
