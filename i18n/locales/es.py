@@ -96,18 +96,6 @@ PAIRS = [
     ('Low season', 'Temporada baja'),
     ('High season (Jul–Aug)', 'Temporada alta (jul–ago)'),
     ('crew &amp; VAT included', 'Tripulación e IVA incluidos'),
-    (
-        'Early birds keep our previous €3,500 summer rate — €500 below the new price. <strong>Reserve by 1 July.</strong>',
-        'Quienes reservan pronto mantienen nuestra tarifa de verano anterior de 3.500 € — 500 € menos que el nuevo precio. <strong>Reserve antes del 1 de julio.</strong>',
-    ),
-    (
-        'Final days for our previous €3,500 summer rate — €500 less. <strong>Reserve by 1 July.</strong>',
-        'Últimos días para nuestra tarifa de verano anterior de 3.500 € — 500 € menos. <strong>Reserve antes del 1 de julio.</strong>',
-    ),
-    (
-        'Last day to lock the previous €3,500 rate before it rises to €4,000. <strong>Reserve now.</strong>',
-        'Último día para fijar la tarifa anterior de 3.500 € antes de que suba a 4.000 €. <strong>Reserve ahora.</strong>',
-    ),
     ("From €1,700 (4h) · €2,400 (6h)", "Desde 1.700 € (4h) · 2.400 € (6h)"),
     ("From €2,200 (4h) · €3,100 (6h)", "Desde 2.200 € (4h) · 3.100 € (6h)"),
     ("From €3,000", "Desde 3.000 €"),

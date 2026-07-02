@@ -121,9 +121,14 @@ Do **not** "fix" them without checking here first. Each entry lists what *not* t
 ## Product decisions
 
 - **Both seasonal prices shown** (low + high), high season labelled **Jul–Aug** (owner‑confirmed).
-- **Early‑bird promo** (`.hero-promo`): date‑driven tiers (standard → urgent → last → hidden), keeps
-  the previous €3,500 high‑season day rate for bookings by **1 July**. Update copy + date boundaries
-  + locale PAIRS together when the campaign changes.
+- **Hero promo pill REMOVED (2 Jul 2026, owner request).** The early‑bird campaign (previous €3,500
+  high‑season rate for bookings by 1 July) ended; past its end date the pill rendered then hid via
+  JS — a flash at page load. Removed entirely: HTML block, `lyInitRates()` phase JS, `.hero-promo`
+  CSS (main.css + critical), the 3 PAIRS per locale, and `ly_promo_click`. **Its pill styling now
+  lives on the hero rates panel** (`.hero-rates`: radius 999px, gold border .5, navy .82, blur,
+  shadow — mirrored in critical CSS; keep both in sync). A guard test asserts no promo remnants.
+  For a future campaign, resurrect from git history (`git log --grep=promo`, e.g. ac15354) rather
+  than rebuilding from scratch.
 - **Reviews Clarity events** (`ly_review_view_<author>`, `ly_review_expand[_<author>]`) — don't touch;
   used to measure reading vs expanding.
 - **Calendar on‑hold dates are selectable for enquiry** (booked/past stay blocked). On‑hold cells are

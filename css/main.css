@@ -3103,15 +3103,16 @@
       width:100%;
       font-size:var(--hero-cinema-rates);
       line-height:1.4;
-      padding:0.46rem 0.6rem;
-      background:rgba(10,22,40,0.72);
-      border:1px solid rgba(201,168,76,.18);
-      border-radius:5px;
+      padding:0.5rem 1.1rem;
+      background:rgba(10,22,40,0.82);
+      border:1px solid rgba(201,168,76,.5);
+      border-radius:999px;
       letter-spacing:0.03em;
       text-align:center;
       text-shadow:0 1px 2px rgba(0,0,0,.55);
-      -webkit-backdrop-filter:blur(2px);
-      backdrop-filter:blur(2px)
+      -webkit-backdrop-filter:blur(3px);
+      backdrop-filter:blur(3px);
+      box-shadow:0 2px 12px rgba(0,0,0,.35)
     }
     .hero-cta-group{
       margin-top:var(--hero-cinema-rates-gap);
@@ -3192,15 +3193,16 @@
       margin-left:auto;
       margin-right:auto;
       max-width:36rem;
-      padding:0.55rem 1.1rem;
+      padding:0.6rem 1.6rem;
       font-size:clamp(.68rem,1.3vw,.78rem);
       letter-spacing:.06em;
       line-height:1.6;
       font-weight:500;
       color:rgba(255,255,255,0.94);
-      background:rgba(10,22,40,0.6);
-      border:1px solid rgba(201,168,76,.18);
-      border-radius:6px;
+      background:rgba(10,22,40,0.82);
+      border:1px solid rgba(201,168,76,.5);
+      border-radius:999px;
+      box-shadow:0 2px 12px rgba(0,0,0,.35);
       text-shadow:0 1px 3px rgba(0,0,0,0.85),0 2px 14px rgba(10,22,40,0.72);
       -webkit-backdrop-filter:blur(2px);
       backdrop-filter:blur(2px);
@@ -3216,7 +3218,9 @@
     cursor:pointer
   }
   .hero-rates-link:hover,.hero-rates-link:focus-visible{
-    color:var(--gold-light)
+    color:var(--gold-light);
+    border-color:rgba(201,168,76,.8);
+    box-shadow:0 3px 16px rgba(0,0,0,.45)
   }
   .hero-rates-link:focus-visible{
     outline:2px solid var(--gold);
@@ -3680,40 +3684,5 @@
 .season-rates .hero-rates-note{
   display:block;
   margin-top:.12rem
-}
-.hero-promo{
-  margin:.1rem 0 .6rem
-}
-.hero-promo .promo-msg{
-  display:inline-block;
-  padding:.4rem .85rem;
-  font-size:.56rem;
-  letter-spacing:.08em;
-  text-transform:uppercase;
-  line-height:1.5;
-  color:#f0dca0;
-  background:rgba(10,22,40,.82);
-  border:1px solid rgba(201,168,76,.5);
-  border-radius:999px;
-  text-shadow:0 1px 2px rgba(0,0,0,.6);
-  -webkit-backdrop-filter:blur(3px);
-  backdrop-filter:blur(3px);
-  box-shadow:0 2px 12px rgba(0,0,0,.35);
-  text-decoration:none;
-  cursor:pointer
-}
-.hero-promo .promo-msg:hover{
-  background:rgba(15,30,52,.9);
-  border-color:rgba(201,168,76,.8);
-  box-shadow:0 3px 16px rgba(0,0,0,.45)
-}
-.hero-promo .promo-msg:focus-visible{
-  outline:2px solid var(--gold);
-  outline-offset:3px
-}
-.hero-promo strong{
-  color:#fff;
-  font-weight:700;
-  text-shadow:0 1px 2px rgba(0,0,0,.55)
 }
 
