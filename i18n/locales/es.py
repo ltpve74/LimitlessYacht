@@ -630,10 +630,6 @@ PAIRS = [
         'Diésel aprox. <strong>',
     ),
     (
-        'Diesel <strong>',
-        'Diésel <strong>',
-    ),
-    (
         'Parc Natural — buoys only',
         'Parc Natural — solo boyas',
     ),

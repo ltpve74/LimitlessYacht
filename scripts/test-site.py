@@ -1996,6 +1996,13 @@ def check_shared_assets(r: Runner) -> None:
             and 'href="#pricing"' not in index_html,
         )
         r.check(
+            'every destination diesel figure is marked as an estimate',
+            # Owner request 2 Jul 2026: ~ alone was not clear enough. The dest
+            # lightbox clones .destination-meta, so card spans cover both.
+            index_html.count('Diesel est. <strong>') == 12
+            and 'Diesel <strong>' not in index_html,
+        )
+        r.check(
             'hero promo pill fully removed (campaign ended 1 Jul 2026); rates carry the pill design',
             # Removal must be total — a leftover phase span or JS block would
             # flash at page load, which is why the pill was removed.
