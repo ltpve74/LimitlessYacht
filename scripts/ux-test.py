@@ -1030,7 +1030,10 @@ def run_scenarios(base_url: str, quick: bool = False, thorough: bool = False) ->
         ])
 
     with sync_playwright() as p:
-        browser = p.chromium.launch(headless=True)
+        browser = p.chromium.launch(
+            headless=True,
+            executable_path=os.environ.get("LY_CHROMIUM") or None,
+        )
         context = browser.new_context()
         for fn in scenarios:
             page = context.new_page()
