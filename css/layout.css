@@ -992,7 +992,7 @@
     .gallery-wrap{
       margin:0!important;
       padding:0!important;
-      height:calc(100svh - 3.8rem);
+      height:calc(100svh - var(--mobile-funnel-land-offset,5.45rem) - max(.6rem,env(safe-area-inset-bottom,0px)));
       display:flex;
       flex-direction:column;
       overflow:hidden
@@ -1000,7 +1000,7 @@
     .itinerary-wrap{
       margin:0!important;
       padding:0!important;
-      height:calc(100svh - 3.8rem);
+      height:calc(100svh - var(--mobile-funnel-land-offset,5.45rem) - max(.6rem,env(safe-area-inset-bottom,0px)));
       display:flex;
       flex-direction:column;
       overflow:hidden

@@ -102,6 +102,10 @@ Both `#gallery` and `#itinerary` are **single continuous swipe carousels**, driv
 
 - **One track each**: a single `.gallery-group > .gallery-grid` (15 `.gallery-item`, each tagged `data-cat="water|deck|interior"`) and a single `.dest-group > .itinerary-grid` (12 `.destination-card`, each tagged `data-tier="half-day|full-day|multi-day"`). Do **not** re-split these into per-category groups — swiping must reach every category, and several tests assert the single-track counts.
 - **Tabs are clickable shortcuts AND live position indicators**: clicking a tab scrolls to that category's first panel; swiping updates `.tab--active` + `aria-selected` on the matching tab. Tabs are never the only way to reach a category.
+- **Viewport-fit on mobile:** the wraps are `100svh − --mobile-funnel-land-offset − safe-area`;
+  the offset is set by JS to the measured nav height (+2px), so tabs land skirting the nav and the
+  bottom CTAs always keep breathing room. The card flexes to absorb device-height differences.
+  Decision-guarded — see DECISIONS.md "Mobile funnel layout".
 - **Step math** lives in `window.lyCarouselStep` (mobile only does the horizontal carousel; desktop shows the grid).
 - **Destinations funnel** still flows through `window._setDestTab`, the pending-tier drain (`applyFunnelTierFromStorage`), and hash deep-links `#half-day`/`#full-day`/`#multi-day`. Deep-link tiers are captured **synchronously** at parse time into `_initTier` because the nav's `updateScrollHash` strips the hash at scrollY≈0, then re-applied once layout settles.
 - **Gallery has no lightbox** (removed — was unused + a null-`classList` crash surface). The **destinations lightbox is retained** (`#dest-lightbox`); its tier badge reads the card's own `data-tier`. The two lightboxes share `.lb-*` CSS classes, so don't delete those when touching one.

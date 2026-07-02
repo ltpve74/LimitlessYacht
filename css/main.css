@@ -447,6 +447,7 @@
     transform:translateX(-17.7%) rotate(45deg)
   }
   .lb-nav{
+    -webkit-tap-highlight-color:transparent;
     position:absolute;
     top:50%;
     transform:translateY(-50%);
@@ -472,6 +473,13 @@
   }
   .lb-nav--next{
     right:1rem
+  }
+  .lb-nav:focus:not(:focus-visible){
+    outline:none
+  }
+  .lb-nav:focus-visible{
+    outline:2px solid var(--gold);
+    outline-offset:3px
   }
   .lb-nav:hover{
     opacity:1;
@@ -652,8 +660,14 @@
     -webkit-overflow-scrolling:touch
   }
   @media (max-width:640px){
+    /* Image-first: the photo absorbs spare height, the body hugs its content
+       (was: fixed 42vh image + flex:1 body = dead navy space under the CTA). */
+    .dest-lb-img-wrap{
+      flex:1 1 auto;
+      min-height:34vh
+    }
     .dest-lb-body{
-      flex:1
+      flex:0 1 auto
     }
     .dest-lb-chrome .lb-nav--prev{
       left:.5rem
