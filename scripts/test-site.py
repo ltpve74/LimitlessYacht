@@ -2529,12 +2529,12 @@ def check_shared_assets(r: Runner) -> None:
         and css is not None
         and css_rule_index(css, '.lb-close') >= 0
         and css_rule_index(css, '.lb-loader') >= 0
-        and '.dest-lb-img-wrap.lb-loading .lb-loader{display:block}' in css,
+        and re.search(r'\.dest-lb-img-wrap\.lb-loading \.lb-loader\{\s*display:\s*block\s*;?\s*\}', css) is not None,
     )
     r.check(
         'destination cards show a prominent tap affordance hint',
         css is not None
-        and re.search(r"\.destination-card-body::after\{content:'Tap for full details[^}]*background:var\(--btn-fill\)", css) is not None
+        and re.search(r"\.destination-card-body::after\{\s*content:'Tap for full details[^}]*background:var\(--btn-fill\)", css) is not None
         and 'Details antippen' in css
         and 'Pulsa para' in css
         and 'Appuyer pour' in css,

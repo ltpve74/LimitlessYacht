@@ -102,6 +102,17 @@ Do **not** "fix" them without checking here first. Each entry lists what *not* t
   publish is a `main`‑only commit, so GitHub shows "develop is N commits behind main." **That is
   normal** — `develop` has all the source; `main` just carries the minified snapshots. **Never**
   back‑merge `main → develop` (it would pull minified files into the readable branch).
+- **Check the source is readable BEFORE editing it.** This actually happened: a `main` "Publish:"
+  commit (`b158b1c`, Jun 17 2026) got merged into the integration lineage and `index.html` /
+  `legal.html` / `css/*.css` sat **minified on develop for weeks**, with real work committed on top.
+  Un‑minified on 2 Jul 2026 with a byte‑exact round‑trip proof (`minify(unminified) == committed
+  bytes`, EN + all locale pages) so production didn't change. The pre‑commit hook now **blocks**
+  committing a <50‑line index.html/legal.html/main.css/layout.css on any non‑main branch. If you
+  ever see single‑line source on develop: stop, don't edit it — un‑minify first with the same
+  round‑trip proof, or you entrench the damage. Gotcha from the repair: locale PAIR strings
+  containing `><` must keep their exact bytes or `build-locales.py` silently stops translating them.
+  (Inline `<script>`/`<style>` bodies and `js/*.js` are still one‑line from that incident —
+  un‑minifying those needs a string‑aware tokenizer; do it with the same proof or not at all.)
 - Locale pages (`de/ es/ fr/`) are generated from `index.html` by `i18n/build-locales.py`. Never
   hand‑edit them. New visible English strings need PAIRS in all three `i18n/locales/*.py`.
 

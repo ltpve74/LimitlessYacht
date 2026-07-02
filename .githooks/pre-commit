@@ -32,6 +32,24 @@ fi
 
 CHANGED=$(git diff --cached --name-only)
 
+# Readable-source guard (non-main branches): a minified index.html/main.css on the
+# integration branch means a main->develop back-merge happened (Jun 2026 incident:
+# a "Publish:" commit merged into the lineage left develop minified for weeks).
+# Minified = almost no newlines. Block the commit before the damage spreads.
+if [ "$BRANCH" != "main" ]; then
+  for f in index.html legal.html css/main.css css/layout.css; do
+    if printf '%s\n' "$CHANGED" | grep -qx "$f"; then
+      LINES=$(git show ":$f" 2>/dev/null | wc -l)
+      if [ "$LINES" -lt 50 ]; then
+        echo "[pre-commit] ERROR: $f is being committed with only $LINES lines on branch '$BRANCH'." >&2
+        echo "[pre-commit] That looks MINIFIED. Source branches must stay readable (see DECISIONS.md 'Build / git')." >&2
+        echo "[pre-commit] Did a main->develop merge sneak in, or did scripts/minify_html.py run here?" >&2
+        exit 1
+      fi
+    fi
+  done
+fi
+
 LOCALE_REBUILD=0
 if printf '%s\n' "$CHANGED" | grep -qE '^(index\.html|legal\.html|data/reviews\.json|i18n/locales/[^/]+\.py|i18n/build-locales\.py)$'; then
   LOCALE_REBUILD=1
