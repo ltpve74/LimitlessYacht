@@ -623,6 +623,10 @@
     flex:0 0 42vh;
     min-height:0
   }
+  .dest-lb-img-wrap.lb-loading picture{
+    opacity:.25;
+    transition:opacity .15s
+  }
   .dest-lb-img-wrap picture{
     display:block;
     width:100%;
@@ -663,11 +667,33 @@
     /* Image-first: the photo absorbs spare height, the body hugs its content
        (was: fixed 42vh image + flex:1 body = dead navy space under the CTA). */
     .dest-lb-img-wrap{
-      flex:1 1 auto;
+      flex:1 1 0%;
       min-height:34vh
     }
     .dest-lb-body{
-      flex:0 1 auto
+      flex:0 0 auto
+    }
+    /* Fixed text reserves so every card's body is the SAME height — flicking
+       between destinations must not shift the layout (and the photo keeps a
+       constant size). Same pattern as the 4-line review clamp. */
+    .dest-lb-name{
+      min-height:2lh
+    }
+    .dest-lb-desc{
+      display:-webkit-box;
+      -webkit-box-orient:vertical;
+      -webkit-line-clamp:4;
+      overflow:hidden;
+      min-height:4lh
+    }
+    .dest-lb-tagline{
+      min-height:1lh;
+      white-space:nowrap;
+      overflow:hidden;
+      text-overflow:ellipsis
+    }
+    .dest-lb-meta{
+      min-height:5.5rem
     }
     .dest-lb-chrome .lb-nav--prev{
       left:.5rem

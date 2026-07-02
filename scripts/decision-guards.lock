@@ -3,7 +3,7 @@
   "critical CSS prevents hero first-paint duplicates + styles the promo/rates inline": "654d45a0198757cfb3c5999898d3a432cfba8a15",
   "inline net-tier matches the canonical js/net-tier.js source (no drift)": "21857a6e71db685035f74a8967891bd130530ebc",
   "mobile carousel-nav reserves height so position indicator does not shift (CLS)": "b040c459a25bae1b7e1d4fad46eb101ff5ccf892",
-  "mobile funnel sections are viewport-fit (adaptive wrap + nav-measured landing)": "3f723338eb938ed9c8d889832fd7dfaf2d67775e",
+  "mobile funnel sections are viewport-fit (adaptive wrap + nav-measured landing)": "1478ff597851f1183a82740df9c25e8b27766a24",
   "mobile gallery section fills viewport like itinerary": "9414f29b02528cea127ef91e48a5896970c9fce5",
   "on-hold dates are selectable for enquiry (booked still blocked)": "c0a75d244ba256aee9f1a5ef6a4d7be8f1fa3c95",
   "review snippet clamps to 4 lines with reserved height (Part 2 + CLS)": "9cfcfbb4a0380a96287fa8b1990bf69cbb259f21",
