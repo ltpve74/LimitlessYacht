@@ -96,6 +96,25 @@ Do **not** "fix" them without checking here first. Each entry lists what *not* t
 
 ---
 
+## Mobile funnel layout (destinations + gallery) — viewport-fit, nav-measured
+
+- **Decision (2 Jul 2026, owner request after repeated regressions):** on mobile, the funnel
+  sections are sized so that **tabs + card + chevron nav + bottom CTAs always fit the screen**:
+  - JS (`refreshNavHeight()` in `index.html`) sets `--mobile-funnel-land-offset` to the **measured
+    nav height + 2px** (re-measured on resize, on anchor clicks and when `ly-past-hero` flips), so
+    the tabs' top edge lands skirting the nav bottom edge on any device — no hardcoded rem offsets.
+  - `.gallery-wrap`/`.itinerary-wrap` = `calc(100svh − offset − max(.6rem, safe-area-inset-bottom))`,
+    flex column; the card is `height:100%` of the flexible grid, so **the card (image) absorbs the
+    size difference between devices** and the bottom buttons keep breathing room — never cut.
+  - **Destination lightbox (≤640px) is image-first:** `.dest-lb-img-wrap{flex:1 1 auto;min-height:34vh}`,
+    `.dest-lb-body{flex:0 1 auto}` — spare height goes to the photo, not dead navy space.
+- **DO NOT:** reintroduce fixed wrap heights (`calc(100svh - 3.8rem)`), hardcode the landing offset,
+  or give the lightbox body `flex:1` back. Guarded by a `# DECISION` test
+  ("mobile funnel sections are viewport-fit…"). Verified at 414×896, 390×844, 375×667:
+  nav gap 2px, bottom breathing ~22px, deep-link tier drain intact.
+- **Looks like a bug but isn't:** the card height varies per device (SE ~409px vs XR ~638px) —
+  that's the adaptive design prioritising fit; don't "fix" it with a fixed aspect ratio.
+
 ## Build / git
 
 - **Three‑tier flow:** work on `develop` (readable) → publish merges into `main` (minified). Each

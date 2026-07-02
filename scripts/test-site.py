@@ -1996,6 +1996,19 @@ def check_shared_assets(r: Runner) -> None:
             and 'href="#pricing"' not in index_html,
         )
         r.check(
+            'mobile funnel sections are viewport-fit (adaptive wrap + nav-measured landing)',  # DECISION (see DECISIONS.md — do not weaken to pass)
+            # The carousels repeatedly regressed to overflowing the screen.
+            # Scheme: JS sets --mobile-funnel-land-offset to the measured nav
+            # height (+2px) so tabs skirt the nav edge on every device; the
+            # wraps are 100svh minus that offset minus safe-area breathing, so
+            # tabs + card + chevrons + bottom CTAs always fit and the bottom
+            # buttons are never cut. Lightbox gives spare height to the IMAGE.
+            "setProperty('--mobile-funnel-land-offset', (_navHeight + 2) + 'px')" in index_html
+            and layout_css is not None
+            and layout_css.count('height:calc(100svh - var(--mobile-funnel-land-offset,5.45rem) - max(.6rem,env(safe-area-inset-bottom,0px)))') == 2
+            and re.search(r'@media \(max-width:640px\)\{\s*/\*[^*]*\*/\s*\.dest-lb-img-wrap\{\s*flex:1 1 auto;\s*min-height:34vh', re.sub(r'  +', ' ', css or '')) is not None,
+        )
+        r.check(
             'round nav buttons share the drawn ly-chev chevron (no font glyphs)',
             # One component for carousel, lightbox and calendar chevrons; the
             # ‹ › glyphs sat off-centre with the metric-adjusted fallback
@@ -2634,7 +2647,7 @@ def check_shared_assets(r: Runner) -> None:
         and re.search(
             # Wraps use flex layout with a definite svh-based height so
             # items can use height:100% to fill the remaining space.
-            r'\.gallery-wrap\s*\{[^}]*height:\s*calc\(100svh\s*-\s*3\.8rem\)',
+            r'\.gallery-wrap\s*\{[^}]*height:\s*calc\(100svh\s*-\s*var\(--mobile-funnel-land-offset',
             css,
         ) is not None
         and re.search(
@@ -2738,7 +2751,9 @@ def check_shared_assets(r: Runner) -> None:
         )
         is not None
         and re.search(
-            r'@media\s*\(\s*max-width:\s*640px\s*\)[\s\S]*?\.dest-lb-body\s*\{[^}]*flex:\s*1',
+            # Mobile body hugs its content; spare height goes to the image
+            # (see DECISIONS.md 'Mobile funnel layout').
+            r'@media\s*\(\s*max-width:\s*640px\s*\)[\s\S]*?\.dest-lb-body\s*\{[^}]*flex:\s*0\s*1\s*auto',
             css,
         )
         is not None,
