@@ -622,7 +622,8 @@ def check_html(r: Runner, rel: str, html: str) -> None:
         # Previews keep a real src so they load immediately when near viewport.
         'class="ly-prog-preview" src="' in html
         # Every non-hero sharp ships deferred — no eager src/srcset to race the preview.
-        and html.count('class="ly-prog-sharp" data-ly-src="') == 28
+        # 28 card/gallery/about sharps + the dest-lightbox sharp (added 3 Jul 2026)
+        and html.count('class="ly-prog-sharp" data-ly-src="') == 29
         and 'class="ly-prog-sharp" src=' not in html
         and html.count('data-ly-srcset="') >= 56
         # Hero stays eager (it is the LCP): its sharp keeps a real src.
@@ -2009,6 +2010,21 @@ def check_shared_assets(r: Runner) -> None:
             and re.search(r'@media \(max-width:640px\)\{\s*(?:/\*[^*]*\*/\s*)?\.dest-lb-img-wrap\{\s*flex:1 1 0%;\s*min-height:34vh', re.sub(r'  +', ' ', css or '')) is not None,
         )
         r.check(
+            'blur preview -> sharp fade is universal, incl. the dest lightbox',  # DECISION (see DECISIONS.md — do not weaken to pass)
+            # Owner directive (3 Jul 2026): the prev->sharp process must be in
+            # place for EVERY image, ALL the time. The lightbox flick path once
+            # bypassed it (HAR showed tier fetches with no -prev.jpg first).
+            'id="dest-lb-prog"' in index_html
+            and 'class="ly-prog-wrap" id="dest-lb-prog"' in index_html
+            and 'class="ly-prog-preview" id="dest-lb-preview"' in index_html
+            and 'id="dest-lb-img" class="ly-prog-sharp"' in index_html
+            and "lbProg.classList.add('ly-prog-preview-ready')" in index_html
+            and "lbProg.classList.add('ly-prog-sharp-ready', 'ly-prog-sharp-visible')" in index_html
+            # counter/hint/arrows are anchored to the image, never over text
+            and index_html.index('id="dest-lb-counter"') > index_html.index('class="dest-lb-img-wrap"')
+            and index_html.index('id="dest-lb-counter"') < index_html.index('class="dest-lb-body"'),
+        )
+        r.check(
             'round nav buttons share the drawn ly-chev chevron (no font glyphs)',
             # One component for carousel, lightbox and calendar chevrons; the
             # ‹ › glyphs sat off-centre with the metric-adjusted fallback
@@ -2746,7 +2762,7 @@ def check_shared_assets(r: Runner) -> None:
         )
         is not None
         and re.search(
-            r'@media\s*\(\s*min-width:\s*1101px\s*\)[\s\S]*?\.dest-lb-chrome\s+\.lb-nav--next\s*\{[^}]*right:',
+            r'@media\s*\(\s*min-width:\s*1101px\s*\)[\s\S]*?\.dest-lb-img-wrap\s+\.lb-nav--next\s*\{[^}]*right:',
             css,
         )
         is not None

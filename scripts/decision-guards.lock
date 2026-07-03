@@ -1,5 +1,6 @@
 {
   "Montserrat loaded on idle, off the critical path (CSS uses fallback only)": "7362a7049487bb1176504fee30d38defc74e8acd",
+  "blur preview -> sharp fade is universal, incl. the dest lightbox": "15659ba65a3deb585b61e96fbcac06187af1ddc6",
   "critical CSS prevents hero first-paint duplicates + styles the promo/rates inline": "654d45a0198757cfb3c5999898d3a432cfba8a15",
   "inline net-tier matches the canonical js/net-tier.js source (no drift)": "21857a6e71db685035f74a8967891bd130530ebc",
   "mobile carousel-nav reserves height so position indicator does not shift (CLS)": "b040c459a25bae1b7e1d4fad46eb101ff5ccf892",
