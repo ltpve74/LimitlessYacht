@@ -106,8 +106,21 @@ Do **not** "fix" them without checking here first. Each entry lists what *not* t
   - `.gallery-wrap`/`.itinerary-wrap` = `calc(100svh − offset − max(.6rem, safe-area-inset-bottom))`,
     flex column; the card is `height:100%` of the flexible grid, so **the card (image) absorbs the
     size difference between devices** and the bottom buttons keep breathing room — never cut.
-  - **Destination lightbox (≤640px) is image-first:** `.dest-lb-img-wrap{flex:1 1 auto;min-height:34vh}`,
-    `.dest-lb-body{flex:0 1 auto}` — spare height goes to the photo, not dead navy space.
+  - **Destination lightbox (≤640px) is image-first AND flick-stable:** `.dest-lb-img-wrap{flex:1 1 0%;
+    min-height:34vh}` + `.dest-lb-body{flex:0 0 auto}` — zero flex-basis so the photo's intrinsic
+    size can't reshuffle the layout per card; the body is constant via text reserves
+    (`.dest-lb-name{min-height:2lh}`, desc clamp 4 + `4lh`, tagline 1 line, meta `5.5rem`).
+    The image swap always sets a concrete `src` (master fallback under `srcset`), with the
+    `.lb-loading` veil + generation guard so a stale photo can never linger when flicking.
+  - **Blur preview → sharp fade is UNIVERSAL (owner directive, 3 Jul 2026):** every image —
+    including the destination lightbox on every flick — loads its tiny `-prev.jpg` first via the
+    standard `ly-prog` wrap, then fades the sharp in. The lightbox once bypassed this (HAR showed
+    tier fetches with no preview); do not bypass it again. `# DECISION`-guarded.
+  - **Lightbox counter / swipe hint / arrows live INSIDE `.dest-lb-img-wrap`** (anchored to the
+    photo), not in the full-screen chrome with computed band offsets — so they can never overlap
+    the text content regardless of body height. The **counter sits top-right of the blue body
+    panel, baseline-aligned with the num/region line** (`.dest-lb-head-row`, owner request).
+    Chrome keeps only the close button + tier badge.
 - **DO NOT:** reintroduce fixed wrap heights (`calc(100svh - 3.8rem)`), hardcode the landing offset,
   or give the lightbox body `flex:1` back. Guarded by a `# DECISION` test
   ("mobile funnel sections are viewport-fit…"). Verified at 414×896, 390×844, 375×667:

@@ -622,7 +622,8 @@ def check_html(r: Runner, rel: str, html: str) -> None:
         # Previews keep a real src so they load immediately when near viewport.
         'class="ly-prog-preview" src="' in html
         # Every non-hero sharp ships deferred — no eager src/srcset to race the preview.
-        and html.count('class="ly-prog-sharp" data-ly-src="') == 28
+        # 28 card/gallery/about sharps + the dest-lightbox sharp (added 3 Jul 2026)
+        and html.count('class="ly-prog-sharp" data-ly-src="') == 29
         and 'class="ly-prog-sharp" src=' not in html
         and html.count('data-ly-srcset="') >= 56
         # Hero stays eager (it is the LCP): its sharp keeps a real src.
@@ -2006,7 +2007,25 @@ def check_shared_assets(r: Runner) -> None:
             "setProperty('--mobile-funnel-land-offset', (_navHeight + 2) + 'px')" in index_html
             and layout_css is not None
             and layout_css.count('height:calc(100svh - var(--mobile-funnel-land-offset,5.45rem) - max(.6rem,env(safe-area-inset-bottom,0px)))') == 2
-            and re.search(r'@media \(max-width:640px\)\{\s*(?:/\*[^*]*\*/\s*)?\.dest-lb-img-wrap\{\s*flex:1 1 auto;\s*min-height:34vh', re.sub(r'  +', ' ', css or '')) is not None,
+            and re.search(r'@media \(max-width:640px\)\{\s*(?:/\*[^*]*\*/\s*)?\.dest-lb-img-wrap\{\s*flex:1 1 0%;\s*min-height:34vh', re.sub(r'  +', ' ', css or '')) is not None,
+        )
+        r.check(
+            'blur preview -> sharp fade is universal, incl. the dest lightbox',  # DECISION (see DECISIONS.md — do not weaken to pass)
+            # Owner directive (3 Jul 2026): the prev->sharp process must be in
+            # place for EVERY image, ALL the time. The lightbox flick path once
+            # bypassed it (HAR showed tier fetches with no -prev.jpg first).
+            'id="dest-lb-prog"' in index_html
+            and 'class="ly-prog-wrap" id="dest-lb-prog"' in index_html
+            and 'class="ly-prog-preview" id="dest-lb-preview"' in index_html
+            and 'id="dest-lb-img" class="ly-prog-sharp"' in index_html
+            and "lbProg.classList.add('ly-prog-preview-ready')" in index_html
+            and "lbProg.classList.add('ly-prog-sharp-ready', 'ly-prog-sharp-visible')" in index_html
+            # hint/arrows anchored to the image; counter top-right of the
+            # blue body, on the num/duration line (owner request)
+            and 'class="dest-lb-head-row"' in index_html
+            and index_html.index('id="dest-lb-counter"') > index_html.index('class="dest-lb-body"')
+            and index_html.index('id="dest-lb-counter"') > index_html.index('id="dest-lb-num"')
+            and index_html.index('id="dest-lb-counter"') < index_html.index('id="dest-lb-name"'),
         )
         r.check(
             'round nav buttons share the drawn ly-chev chevron (no font glyphs)',
@@ -2521,7 +2540,7 @@ def check_shared_assets(r: Runner) -> None:
         'class="lb-close"' in index_html
         and 'class="lb-nav lb-nav--prev ly-chev ly-chev--prev"' in index_html
         and 'class="lb-nav lb-nav--next ly-chev ly-chev--next"' in index_html
-        and 'class="lb-counter"' in index_html
+        and 'class="lb-counter lb-counter--inline"' in index_html
         and 'class="lb-hint"' in index_html
         and css is not None
         and css_rule_index(css, '.lb-close') >= 0
@@ -2746,14 +2765,14 @@ def check_shared_assets(r: Runner) -> None:
         )
         is not None
         and re.search(
-            r'@media\s*\(\s*min-width:\s*1101px\s*\)[\s\S]*?\.dest-lb-chrome\s+\.lb-nav--next\s*\{[^}]*right:',
+            r'@media\s*\(\s*min-width:\s*1101px\s*\)[\s\S]*?\.dest-lb-img-wrap\s+\.lb-nav--next\s*\{[^}]*right:',
             css,
         )
         is not None
         and re.search(
             # Mobile body hugs its content; spare height goes to the image
             # (see DECISIONS.md 'Mobile funnel layout').
-            r'@media\s*\(\s*max-width:\s*640px\s*\)[\s\S]*?\.dest-lb-body\s*\{[^}]*flex:\s*0\s*1\s*auto',
+            r'@media\s*\(\s*max-width:\s*640px\s*\)[\s\S]*?\.dest-lb-body\s*\{[^}]*flex:\s*0\s*0\s*auto',
             css,
         )
         is not None,
