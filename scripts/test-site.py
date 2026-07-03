@@ -2020,9 +2020,12 @@ def check_shared_assets(r: Runner) -> None:
             and 'id="dest-lb-img" class="ly-prog-sharp"' in index_html
             and "lbProg.classList.add('ly-prog-preview-ready')" in index_html
             and "lbProg.classList.add('ly-prog-sharp-ready', 'ly-prog-sharp-visible')" in index_html
-            # counter/hint/arrows are anchored to the image, never over text
-            and index_html.index('id="dest-lb-counter"') > index_html.index('class="dest-lb-img-wrap"')
-            and index_html.index('id="dest-lb-counter"') < index_html.index('class="dest-lb-body"'),
+            # hint/arrows anchored to the image; counter top-right of the
+            # blue body, on the num/duration line (owner request)
+            and 'class="dest-lb-head-row"' in index_html
+            and index_html.index('id="dest-lb-counter"') > index_html.index('class="dest-lb-body"')
+            and index_html.index('id="dest-lb-counter"') > index_html.index('id="dest-lb-num"')
+            and index_html.index('id="dest-lb-counter"') < index_html.index('id="dest-lb-name"'),
         )
         r.check(
             'round nav buttons share the drawn ly-chev chevron (no font glyphs)',
@@ -2537,7 +2540,7 @@ def check_shared_assets(r: Runner) -> None:
         'class="lb-close"' in index_html
         and 'class="lb-nav lb-nav--prev ly-chev ly-chev--prev"' in index_html
         and 'class="lb-nav lb-nav--next ly-chev ly-chev--next"' in index_html
-        and 'class="lb-counter"' in index_html
+        and 'class="lb-counter lb-counter--inline"' in index_html
         and 'class="lb-hint"' in index_html
         and css is not None
         and css_rule_index(css, '.lb-close') >= 0

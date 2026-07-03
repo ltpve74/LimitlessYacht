@@ -601,12 +601,17 @@
   .dest-lb-img-wrap .lb-nav--next{
     right:1rem
   }
-  .dest-lb-img-wrap .lb-counter{
-    position:absolute;
-    bottom:.9rem;
-    left:50%;
-    transform:translateX(-50%);
-    z-index:4
+  .dest-lb-head-row{
+    display:flex;
+    align-items:baseline;
+    justify-content:space-between;
+    gap:1rem
+  }
+  .dest-lb-head-row .lb-counter--inline{
+    position:static;
+    transform:none;
+    z-index:auto;
+    pointer-events:none
   }
   .dest-lb-img-wrap .lb-hint{
     position:absolute;

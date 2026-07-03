@@ -118,7 +118,9 @@ Do **not** "fix" them without checking here first. Each entry lists what *not* t
     tier fetches with no preview); do not bypass it again. `# DECISION`-guarded.
   - **Lightbox counter / swipe hint / arrows live INSIDE `.dest-lb-img-wrap`** (anchored to the
     photo), not in the full-screen chrome with computed band offsets — so they can never overlap
-    the text content regardless of body height. Chrome keeps only the close button + tier badge.
+    the text content regardless of body height. The **counter sits top-right of the blue body
+    panel, baseline-aligned with the num/region line** (`.dest-lb-head-row`, owner request).
+    Chrome keeps only the close button + tier badge.
 - **DO NOT:** reintroduce fixed wrap heights (`calc(100svh - 3.8rem)`), hardcode the landing offset,
   or give the lightbox body `flex:1` back. Guarded by a `# DECISION` test
   ("mobile funnel sections are viewport-fit…"). Verified at 414×896, 390×844, 375×667:
