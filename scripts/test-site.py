@@ -535,7 +535,7 @@ def check_html(r: Runner, rel: str, html: str) -> None:
         and '#hero.hero-bg:not(.ly-prog-sharp){opacity:0!important;visibility:hidden!important}' in re.sub(
             r'\s+', '', html[html.find('<style id="fouc-guard">'):html.find('</style>', html.find('id="fouc-guard"'))]
         )
-        and 'object-position:35% 40%' in html
+        and 'object-position:50% 50%' in html
         and 'max-height:520px' in html
         and 'nav{opacity:0;visibility:hidden;pointer-events:none}' in re.sub(
             r'\s+', '', html[html.find('id="critical-css"'):html.find('</style>', html.find('id="critical-css"'))]
@@ -547,7 +547,7 @@ def check_html(r: Runner, rel: str, html: str) -> None:
         ) is not None
         and "lyInjectPreload(lyImg('maiora_20s_02-1280.webp')" not in net_tier_js
         and 'class="ly-prog-preview"' in html
-        and 'maiora_20s_02-prev.jpg' in html
+        and 'maiora_20s_18-prev.jpg' in html
         and re.search(
             r'class="ly-prog-preview"[^>]*decoding="async"[^>]*loading="eager"',
             html,
@@ -936,30 +936,30 @@ def check_html(r: Runner, rel: str, html: str) -> None:
     )
     r.check(
         'hero picture keeps responsive srcset (native loading)',
-        # Mobile hero is a portrait shot (maiora_20s_07); desktop stays 02.
-        'maiora_20s_07-480.webp 480w' in html
-        and 'maiora_20s_07-720.webp' in html
-        and 'maiora_20s_02-640.webp 640w' in html
-        and 'maiora_20s_02-960.webp 960w' in html
+        # Mobile hero = rotated top-down portrait (18p); desktop = top-down (18).
+        'maiora_20s_18p-480.webp 480w' in html
+        and 'maiora_20s_18p-720.webp' in html
+        and 'maiora_20s_18-640.webp 640w' in html
+        and 'maiora_20s_18-960.webp 960w' in html
         and 'class="hero-bg ly-prog-sharp"' in html
         and 'fetchpriority="high"' in html,
     )
     r.check(
         'mobile hero caps at -960 tier (no full-res mobile master)',
-        'images/mobile/maiora_20s_07-960.webp 960w' in html
-        and 'images/mobile/maiora_20s_07.webp 2000w' not in html,
+        'images/mobile/maiora_20s_18p-960.webp 960w' in html
+        and 'images/mobile/maiora_20s_18p.webp 2000w' not in html,
     )
     img_root = 'images' if rel == 'index.html' else '/images'
     r.check(
         'hero picture has responsive srcsets for both mobile and desktop',
         re.search(
-            rf'<source[^>]*{re.escape(img_root)}/mobile/maiora_20s_07-480\.webp 480w[^>]*'
+            rf'<source[^>]*{re.escape(img_root)}/mobile/maiora_20s_18p-480\.webp 480w[^>]*'
             r'media="\(orientation: portrait\)"',
             html,
         )
         is not None
         and re.search(
-            rf'<source[^>]*srcset="{re.escape(img_root)}/maiora_20s_02-640\.webp 640w',
+            rf'<source[^>]*srcset="{re.escape(img_root)}/maiora_20s_18-640\.webp 640w',
             html,
         )
         is not None,
@@ -2098,7 +2098,7 @@ def check_shared_assets(r: Runner) -> None:
             and '.hero-intro{' not in css_flat
             and '.hero-content::before' in (css or '')
             and '.hero-content::after' in (css or '')
-            and 'object-position:58%48%' in css_flat,
+            and 'object-position:50%50%' in css_flat,
         )
     r.check(
         'WhatsApp button meets contrast-safe green',

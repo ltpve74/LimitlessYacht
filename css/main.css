@@ -35,14 +35,14 @@
     width:100%;
     height:100%;
     object-fit:cover;
-    object-position:58% 48%;
+    object-position:50% 50%;
     transform:scale(1.08);
     filter:brightness(1.04) saturate(1.06);
     animation:heroZoom 14s ease-out forwards
   }
   @media (orientation:portrait){
     .ly-prog-wrap--hero .ly-prog-preview,.ly-prog-wrap--hero .hero-bg.ly-prog-sharp{
-      object-position:35% 40%
+      object-position:50% 50%
     }
   }
   @keyframes heroZoom{
@@ -3074,7 +3074,7 @@
       animation:none;
       transform:none;
       min-height:100%;
-      object-position:35% 40%
+      object-position:50% 50%
     }
     .hero-overlay{
       background:linear-gradient(180deg,rgba(10,22,40,0.42) 0%,transparent 15%),linear-gradient(0deg,rgba(10,22,40,0.52) 0%,transparent 34%)

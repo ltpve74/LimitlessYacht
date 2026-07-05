@@ -152,6 +152,15 @@ Do **not** "fix" them without checking here first. Each entry lists what *not* t
 
 ## Hero uses a DIFFERENT image on mobile vs desktop (portrait vs landscape)
 
+> **Updated 6 Jul 2026 — the hero is now the TOP-DOWN aerial.** Desktop = `maiora_20s_18`
+> (bird's-eye, landscape); mobile/portrait = `maiora_20s_18p` (the SAME top-down rotated 90° so the
+> boat runs vertically down the screen). Both centred (`object-position:50% 50%`). The
+> orientation-switch mechanism below is unchanged — only the image files + framing values differ
+> (18/18p and centred, not 07/02 and bow-in). The 07 bow-in / recrop notes below are historical
+> (07 is no longer the hero). `18p` is a `process_media` output of the rotated 18 master; the pill
+> clears the boat on modern phones + iPad, and only grazes the bow tip on the smallest old phones
+> (360×≤740) — a top-down boat spans the frame, so perfect clearance there isn't achievable.
+
 - **Decision (3 Jul 2026, owner request):** the hero serves a **portrait** shot on mobile
   (`maiora_20s_07`, bow-quarter at speed) and a **landscape** shot on desktop (`maiora_20s_02`,
   full profile). A landscape hero centre-cropped into a tall phone viewport loses the bow and
