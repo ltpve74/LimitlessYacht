@@ -461,8 +461,8 @@ def check_html(r: Runner, rel: str, html: str) -> None:
         'gallery is one continuous swipe carousel (single track tagged by category)',
         html.count('class="gallery-group') == 1
         and html.count('class="gallery-grid"') == 1
-        and html.count('class="gallery-item') == 17
-        and html.count('data-cat="water"') == 5
+        and html.count('class="gallery-item') == 16
+        and html.count('data-cat="water"') == 4
         and html.count('data-cat="deck"') == 4
         and html.count('data-cat="interior"') == 8,
     )
@@ -622,9 +622,9 @@ def check_html(r: Runner, rel: str, html: str) -> None:
         # Previews keep a real src so they load immediately when near viewport.
         'class="ly-prog-preview" src="' in html
         # Every non-hero sharp ships deferred — no eager src/srcset to race the preview.
-        # 30 card/gallery/about sharps + the dest-lightbox sharp (2 exterior
-        # gallery cards added with the real-boat media batch)
-        and html.count('class="ly-prog-sharp" data-ly-src="') == 31
+        # 29 card/gallery/about sharps + the dest-lightbox sharp (net: one
+        # exterior gallery card added; 07 moved to the mobile hero, not gallery)
+        and html.count('class="ly-prog-sharp" data-ly-src="') == 30
         and 'class="ly-prog-sharp" src=' not in html
         and html.count('data-ly-srcset="') >= 56
         # Hero stays eager (it is the LCP): its sharp keeps a real src.
@@ -936,8 +936,9 @@ def check_html(r: Runner, rel: str, html: str) -> None:
     )
     r.check(
         'hero picture keeps responsive srcset (native loading)',
-        'maiora_20s_02-480.webp 480w' in html
-        and 'maiora_20s_02-720.webp' in html
+        # Mobile hero is a portrait shot (maiora_20s_07); desktop stays 02.
+        'maiora_20s_07-480.webp 480w' in html
+        and 'maiora_20s_07-720.webp' in html
         and 'maiora_20s_02-640.webp 640w' in html
         and 'maiora_20s_02-960.webp 960w' in html
         and 'class="hero-bg ly-prog-sharp"' in html
@@ -945,14 +946,14 @@ def check_html(r: Runner, rel: str, html: str) -> None:
     )
     r.check(
         'mobile hero caps at -960 tier (no full-res mobile master)',
-        'images/mobile/maiora_20s_02-960.webp 960w' in html
-        and 'images/mobile/maiora_20s_02.webp 2000w' not in html,
+        'images/mobile/maiora_20s_07-960.webp 960w' in html
+        and 'images/mobile/maiora_20s_07.webp 2000w' not in html,
     )
     img_root = 'images' if rel == 'index.html' else '/images'
     r.check(
         'hero picture has responsive srcsets for both mobile and desktop',
         re.search(
-            rf'<source[^>]*{re.escape(img_root)}/mobile/maiora_20s_02-480\.webp 480w[^>]*'
+            rf'<source[^>]*{re.escape(img_root)}/mobile/maiora_20s_07-480\.webp 480w[^>]*'
             r'media="\(max-width: 640px\)"',
             html,
         )

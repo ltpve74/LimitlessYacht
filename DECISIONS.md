@@ -150,6 +150,22 @@ Do **not** "fix" them without checking here first. Each entry lists what *not* t
 
 ---
 
+## Hero uses a DIFFERENT image on mobile vs desktop (portrait vs landscape)
+
+- **Decision (3 Jul 2026, owner request):** the hero serves a **portrait** shot on mobile
+  (`maiora_20s_07`, bow-quarter at speed) and a **landscape** shot on desktop (`maiora_20s_02`,
+  full profile). A landscape hero centre-cropped into a tall phone viewport loses the bow and
+  stern — only the mid-hull shows. The split is wired in the existing hero `<picture>`: the
+  `media="(max-width: 640px)"` `<source>` (and a matching `<source>` on the preview `<picture>`)
+  point at the mobile 07 tiers; the default source + fallback `<img>` stay 02.
+- **Both are the real Limitless** (replaced the stock Maiora, same batch).
+- **DO NOT** "unify" the hero back to a single image to simplify the markup — mobile needs the
+  portrait framing. The hero srcset tests assert mobile=maiora_20s_07 / desktop=maiora_20s_02.
+- **Note:** `maiora_20s_07` is the mobile-hero image only — it is deliberately **not** in the
+  gallery (owner: no duplication). The preview `<img>` onload uses `this.closest('.ly-prog-wrap')`
+  (not `parentNode`) because it now sits inside a `<picture>`; keep it as `closest` or the CSS
+  boot (`LY_loadLayoutCss`, `ly-prog-preview-ready`) breaks.
+
 ## Product decisions
 
 - **Both seasonal prices shown** (low + high), high season labelled **Jul–Aug** (owner‑confirmed).
