@@ -37,7 +37,7 @@ from __future__ import annotations
 import sys
 from pathlib import Path
 
-from PIL import Image, ImageEnhance, ImageFilter
+from PIL import Image, ImageEnhance, ImageFilter, ImageOps
 
 BASE = Path(__file__).resolve().parent.parent
 IMAGES = BASE / "images"
@@ -128,7 +128,9 @@ def write_preview(master: Image.Image, out: Path) -> None:
 
 def emit(source: Path, category: str, basename: str) -> list[Path]:
     spec = SPEC[category]
-    src = Image.open(source).convert("RGB")
+    # Honour EXIF orientation — DJI/phone frames often store rotation as a flag
+    # rather than baking it into the pixels; without this, those come out sideways.
+    src = ImageOps.exif_transpose(Image.open(source)).convert("RGB")
 
     d_dir = IMAGES / spec["subdir"] if spec["subdir"] else IMAGES
     m_dir = IMAGES / "mobile" / spec["subdir"] if spec["subdir"] else IMAGES / "mobile"
