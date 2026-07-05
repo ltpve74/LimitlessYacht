@@ -38,13 +38,49 @@ Chosen because it is a wide landscape underway shot: full starboard profile, whi
 | DJI_20260626180347_0342_D.JPG | Similar rear-quarter speed shot to 0341/0346 |
 | DJI_20260626180847_0366_D.JPG | Near-duplicate of hero pick 0365 |
 
-## Videos (not processed)
+## Video frame batch (2026-07-06)
 
-Drone originals are stills only. Under `media-library/incoming/` there are also large `.mp4` files (`CD TEAM BUILDING DAY*.mp4`, `Videos/1–10.mp4`) — video wiring is out of scope for this batch; list for a separate decision.
+Extracted from 11 clips (`CD TEAM BUILDING DAY NO LOGO.mp4` + `Videos/1–10.mp4`; **excluded** `CD TEAM BUILDING DAY.mp4` with logo overlay). Sharpness-scored at 2 fps; top 3 per clip saved to `media-library/incoming/video-frames/`. Six best frames processed below.
+
+### Hero update (video replaces drone still)
+
+**`9.mp4 @ 2.5s` → `maiora_20s_02` (hero, replaces drone-still version from photo batch)**
+
+Three-quarter profile on turquoise water with coastal town and hills behind — clean, bright, real Limitless hull. Stronger hero candidate than the photo-batch pick; site agent should confirm framing after wire.
+
+### Gallery — borrowed slot replacement
+
+| source | category | basename | replaces existing? | what it shows |
+|--------|----------|----------|--------------------|---------------|
+| 10.mp4 @ 8.0s | gallery | maiora_20s_04 | yes (borrowed stock) | Side profile underway with wake — fits about-strip "cruising Mallorca coastline" slot |
+
+### New exterior slots from video (need wiring)
+
+| source | category | basename | replaces existing? | what it shows / suggested use |
+|--------|----------|----------|--------------------|-------------------------------|
+| 1.mp4 @ 13.5s | gallery | maiora_20s_18 | new | Overhead drone — yacht on vivid turquoise water |
+| 1.mp4 @ 11.5s | gallery | maiora_20s_19 | new | Overhead variant, slightly different angle |
+| 2.mp4 @ 8.0s | gallery | maiora_20s_20 | new | Stern view — "Limitless" on transom, rocky Mallorca coast |
+| 6.mp4 @ 0.5s | gallery | maiora_20s_21 | new | Stern wake shot with sailboat in mid-ground — cinematic open water |
+
+### Video frames extracted but not processed
+
+| source | reason |
+|--------|--------|
+| team_building_no_logo @ 10–29s | Cocktail/tender boats (Espurna, Cocktail Boat) — not Limitless exterior |
+| 3.mp4, 4.mp4, 5.mp4 | Floating platform + swimmers / busy guest activity — consent & clutter |
+| 7.mp4 | Shirtless guests prominent on deck |
+| 8.mp4 | Low sharpness; wide seascape with distant sailboats |
+| 9.mp4 ranks 2–3, 10.mp4 rank 2 | Near-duplicates of processed picks or MAIORA hull text too dominant |
+| Remaining rank-2/3 frames per clip | Redundant with processed #1 picks from same clip |
+
+Raw `.mp4` files remain local under `media-library/incoming/` — video *playback* wiring is still a separate decision.
 
 ## Notes for site agent
 
-- `maiora_20s_16` and `maiora_20s_17` are **new basenames** — gallery markup/srcset wiring required if you want them live.
+- `maiora_20s_16`, `maiora_20s_17`, `maiora_20s_18`–`_21` are **new basenames** — gallery markup/srcset wiring required if you want them live.
+- `maiora_20s_04` now has real-boat video still — about-strip updates in place with no code change.
+- **Hero** on this branch is the video frame (`9.mp4 @ 2.5s`), overriding the earlier drone-photo hero — review both and pick one before publish.
 - `maiora_20s_07` alt text says "head-on at full speed"; best available frame is elevated speed shot (0358), not a true bow-on. Consider alt-text tweak on wire.
 - Hero replaces stock Maiora with the real Limitless hull — worth a quick LCP/CLS check after deploy.
 - All derivatives include desktop + mobile masters, WebP tiers, and `-prev.jpg` blur placeholders.
