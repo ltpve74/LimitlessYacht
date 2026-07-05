@@ -159,6 +159,11 @@ Do **not** "fix" them without checking here first. Each entry lists what *not* t
   `media="(max-width: 640px)"` `<source>` (and a matching `<source>` on the preview `<picture>`)
   point at the mobile 07 tiers; the default source + fallback `<img>` stay 02.
 - **Both are the real Limitless** (replaced the stock Maiora, same batch).
+- **The mobile hero image is deliberately cropped with the boat in the upper ~half** so the
+  bottom-anchored rates pill sits over clean water and never overlaps the hull. On phones the
+  viewport is always narrower than the photo, so the browser shows the full image height and
+  `object-position` can't move the boat — the clearance has to be baked into the crop. Verified
+  360×640 → 430×932. If you swap the mobile hero shot, re-crop so the boat clears the lower ~44%.
 - **DO NOT** "unify" the hero back to a single image to simplify the markup — mobile needs the
   portrait framing. The hero srcset tests assert mobile=maiora_20s_07 / desktop=maiora_20s_02.
 - **Note:** `maiora_20s_07` is the mobile-hero image only — it is deliberately **not** in the
