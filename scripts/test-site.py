@@ -954,7 +954,7 @@ def check_html(r: Runner, rel: str, html: str) -> None:
         'hero picture has responsive srcsets for both mobile and desktop',
         re.search(
             rf'<source[^>]*{re.escape(img_root)}/mobile/maiora_20s_07-480\.webp 480w[^>]*'
-            r'media="\(max-width: 640px\)"',
+            r'media="\(orientation: portrait\)"',
             html,
         )
         is not None

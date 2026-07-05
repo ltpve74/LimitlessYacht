@@ -40,6 +40,11 @@
     filter:brightness(1.04) saturate(1.06);
     animation:heroZoom 14s ease-out forwards
   }
+  @media (orientation:portrait){
+    .ly-prog-wrap--hero .ly-prog-preview,.ly-prog-wrap--hero .hero-bg.ly-prog-sharp{
+      object-position:35% 40%
+    }
+  }
   @keyframes heroZoom{
     to{
       transform:scale(1)
