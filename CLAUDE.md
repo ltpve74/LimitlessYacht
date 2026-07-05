@@ -62,6 +62,25 @@ viewport before and after your fix to confirm you've addressed what the screensh
 
 ---
 
+## Media library (owner's originals — NOT in the repo)
+
+The owner's photo/video **media library lives on the owner's computer only**. It is never
+committed. The repo carries **only processed, site-ready assets** that are part of the live site
+(`images/` masters + `-480/-640/-960/-1280` tiers + `-prev.jpg` blur previews, `images/mobile/`
+variants).
+
+| Fact | Detail |
+|------|--------|
+| Originals location | Owner's machine (like `screenshots/` — local, untracked, may be absent in remote/CI checkouts) |
+| What gets committed | Only processed derivatives actually referenced by the site |
+| New-media workflow | Owner shares/drops files → agent triages (contact sheet, best-shot selection) → generate tiers + previews (`scripts/build_preview_images.py`, `scripts/optimize_responsive_images.py`) → commit only those outputs |
+| Never | Commit originals/raw video, or reference paths outside the repo from the site |
+
+Every processed image must enter the **prev→sharp progressive pipeline** (decision-guarded:
+blur preview first, everywhere, always).
+
+---
+
 ## Analytics & preview (do not pollute GA / Clarity)
 
 **Single source of truth:** `js/analytics-env.js` (load first in `<head>` on `index.html` and `legal.html`).
