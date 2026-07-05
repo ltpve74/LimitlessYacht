@@ -164,6 +164,11 @@ Do **not** "fix" them without checking here first. Each entry lists what *not* t
   viewport is always narrower than the photo, so the browser shows the full image height and
   `object-position` can't move the boat — the clearance has to be baked into the crop. Verified
   360×640 → 430×932. If you swap the mobile hero shot, re-crop so the boat clears the lower ~44%.
+- **Mobile hero `object-position` is `35% 40%`** (not centred) so the boat's BOW stays in frame — it
+  is a bow-quarter shot and a centred crop cut the bow off the left. Desktop stays `58% 48%`.
+- **Gallery card 1 (`maiora_20s_01` aerial) uses `object-position:25% 60%`** so the tall portrait
+  card lands on the boat (stern/flybridge/guests + cove), not the open water to its right. The old
+  `90% 30%` was tuned for the previous stock photo; re-tune per image if card 1 is swapped.
 - **DO NOT** "unify" the hero back to a single image to simplify the markup — mobile needs the
   portrait framing. The hero srcset tests assert mobile=maiora_20s_07 / desktop=maiora_20s_02.
 - **Note:** `maiora_20s_07` is the mobile-hero image only — it is deliberately **not** in the
