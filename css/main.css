@@ -3069,7 +3069,7 @@
       animation:none;
       transform:none;
       min-height:100%;
-      object-position:52% 40%
+      object-position:35% 40%
     }
     .hero-overlay{
       background:linear-gradient(180deg,rgba(10,22,40,0.42) 0%,transparent 15%),linear-gradient(0deg,rgba(10,22,40,0.52) 0%,transparent 34%)

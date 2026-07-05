@@ -552,7 +552,7 @@
     transition:transform .6s ease,filter .4s
   }
   .gallery-item[data-index="0"] img{
-    object-position:90% 30%
+    object-position:25% 60%
   }
   .gallery-item:hover img{
     transform:scale(1.06);
@@ -624,7 +624,7 @@
     pointer-events:none
   }
   .gallery-item[data-index="0"] .ly-prog-preview,.gallery-item[data-index="0"] .ly-prog-sharp{
-    object-position:90% 30%
+    object-position:25% 60%
   }
   @media (prefers-reduced-motion:reduce){
     .ly-prog-preview,.ly-prog-sharp{

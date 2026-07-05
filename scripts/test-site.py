@@ -535,7 +535,7 @@ def check_html(r: Runner, rel: str, html: str) -> None:
         and '#hero.hero-bg:not(.ly-prog-sharp){opacity:0!important;visibility:hidden!important}' in re.sub(
             r'\s+', '', html[html.find('<style id="fouc-guard">'):html.find('</style>', html.find('id="fouc-guard"'))]
         )
-        and 'object-position:52% 40%' in html
+        and 'object-position:35% 40%' in html
         and 'max-height:520px' in html
         and 'nav{opacity:0;visibility:hidden;pointer-events:none}' in re.sub(
             r'\s+', '', html[html.find('id="critical-css"'):html.find('</style>', html.find('id="critical-css"'))]
