@@ -2178,6 +2178,18 @@ def check_shared_assets(r: Runner) -> None:
         'publish-gate.py' in publish_yml and 'branches: [main]' in publish_yml,
     )
     r.check('publish gate script exists', os.path.isfile(os.path.join(ROOT, 'scripts/publish-gate.py')))
+    publish_gate = read_file('scripts/publish-gate.py') or ''
+    r.check(
+        'publish gate blocks screenshots/ on main',
+        'check_no_screenshots' in publish_gate and 'git", "ls-files", "screenshots"' in publish_gate,
+    )
+    netlify_ignore = read_file('.netlifyignore') or ''
+    r.check('.netlifyignore excludes screenshots/', 'screenshots/' in netlify_ignore)
+    pre_commit = read_file('.githooks/pre-commit') or ''
+    r.check(
+        'main pre-commit strips screenshots/ before publish',
+        'Stripping screenshots/' in pre_commit and 'git rm -rf --cached screenshots/' in pre_commit,
+    )
     r.check('lighthouse check script exists', os.path.isfile(os.path.join(ROOT, 'scripts/lighthouse-check.py')))
     lh_py = read_file('scripts/lighthouse-check.py') or ''
     r.check(

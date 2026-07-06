@@ -89,6 +89,13 @@ if [ "$BRANCH" != "main" ]; then
   exit 0
 fi
 
+# screenshots/ is tracked on develop for agent feedback but must never ship on main.
+if [ -d screenshots ] || git ls-files --error-unmatch screenshots >/dev/null 2>&1; then
+  echo "[pre-commit] Stripping screenshots/ from main (develop-only — not deployed to production)..."
+  git rm -rf --cached screenshots/ 2>/dev/null || true
+  rm -rf screenshots/ 2>/dev/null || true
+fi
+
 if [ "$LOCALE_REBUILD" -eq 1 ]; then
   echo "[pre-commit] CSS version bumped — rebuilding locales before minify..."
   if ! "$PY" i18n/build-locales.py; then
