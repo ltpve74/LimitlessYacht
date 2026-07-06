@@ -461,9 +461,9 @@ def check_html(r: Runner, rel: str, html: str) -> None:
         'gallery is one continuous swipe carousel (single track tagged by category)',
         html.count('class="gallery-group') == 1
         and html.count('class="gallery-grid"') == 1
-        and html.count('class="gallery-item') == 15
-        and html.count('data-cat="water"') == 3
-        and html.count('data-cat="deck"') == 4
+        and html.count('class="gallery-item') == 21
+        and html.count('data-cat="water"') == 7
+        and html.count('data-cat="deck"') == 6
         and html.count('data-cat="interior"') == 8,
     )
     r.check(
@@ -535,7 +535,9 @@ def check_html(r: Runner, rel: str, html: str) -> None:
         and '#hero.hero-bg:not(.ly-prog-sharp){opacity:0!important;visibility:hidden!important}' in re.sub(
             r'\s+', '', html[html.find('<style id="fouc-guard">'):html.find('</style>', html.find('id="fouc-guard"'))]
         )
-        and 'object-position:52% 40%' in html
+        and 'object-position:50%46%' in re.sub(
+            r'\s+', '', html[html.find('id="critical-css"'):html.find('</style>', html.find('id="critical-css"'))]
+        )
         and 'max-height:520px' in html
         and 'nav{opacity:0;visibility:hidden;pointer-events:none}' in re.sub(
             r'\s+', '', html[html.find('id="critical-css"'):html.find('</style>', html.find('id="critical-css"'))]
@@ -547,7 +549,7 @@ def check_html(r: Runner, rel: str, html: str) -> None:
         ) is not None
         and "lyInjectPreload(lyImg('maiora_20s_02-1280.webp')" not in net_tier_js
         and 'class="ly-prog-preview"' in html
-        and 'maiora_20s_02-prev.jpg' in html
+        and 'maiora_20s_18-prev.jpg' in html
         and re.search(
             r'class="ly-prog-preview"[^>]*decoding="async"[^>]*loading="eager"',
             html,
@@ -622,8 +624,8 @@ def check_html(r: Runner, rel: str, html: str) -> None:
         # Previews keep a real src so they load immediately when near viewport.
         'class="ly-prog-preview" src="' in html
         # Every non-hero sharp ships deferred — no eager src/srcset to race the preview.
-        # 28 card/gallery/about sharps + the dest-lightbox sharp (added 3 Jul 2026)
-        and html.count('class="ly-prog-sharp" data-ly-src="') == 29
+        # +5 life-aboard gallery cards (3 water, 2 deck) added 6 Jul 2026
+        and html.count('class="ly-prog-sharp" data-ly-src="') == 35
         and 'class="ly-prog-sharp" src=' not in html
         and html.count('data-ly-srcset="') >= 56
         # Hero stays eager (it is the LCP): its sharp keeps a real src.
@@ -935,29 +937,44 @@ def check_html(r: Runner, rel: str, html: str) -> None:
     )
     r.check(
         'hero picture keeps responsive srcset (native loading)',
-        'maiora_20s_02-480.webp 480w' in html
-        and 'maiora_20s_02-720.webp' in html
-        and 'maiora_20s_02-640.webp 640w' in html
-        and 'maiora_20s_02-960.webp 960w' in html
+        # Tall phone ≥740px = 18pv vertical; short phone = 18ph horizontal; tablet = 18p.
+        'maiora_20s_18p-480.webp 480w' in html
+        and 'maiora_20s_18p-720.webp' in html
+        and 'images/mobile/maiora_20s_18pv-480.webp 480w' in html
+        and 'images/mobile/maiora_20s_18ph-480.webp 480w' in html
+        and 'maiora_20s_18-640.webp 640w' in html
+        and 'maiora_20s_18-960.webp 960w' in html
         and 'class="hero-bg ly-prog-sharp"' in html
         and 'fetchpriority="high"' in html,
     )
     r.check(
         'mobile hero caps at -960 tier (no full-res mobile master)',
-        'images/mobile/maiora_20s_02-960.webp 960w' in html
-        and 'images/mobile/maiora_20s_02.webp 2000w' not in html,
+        'images/mobile/maiora_20s_18p-960.webp 960w' in html
+        and 'images/mobile/maiora_20s_18p.webp 2000w' not in html,
     )
     img_root = 'images' if rel == 'index.html' else '/images'
     r.check(
         'hero picture has responsive srcsets for both mobile and desktop',
         re.search(
-            rf'<source[^>]*{re.escape(img_root)}/mobile/maiora_20s_02-480\.webp 480w[^>]*'
-            r'media="\(max-width: 640px\)"',
+            rf'<source[^>]*{re.escape(img_root)}/mobile/maiora_20s_18p-480\.webp 480w[^>]*'
+            r'media="\(orientation: portrait\) and \(min-width: 768px\)"',
             html,
         )
         is not None
         and re.search(
-            rf'<source[^>]*srcset="{re.escape(img_root)}/maiora_20s_02-640\.webp 640w',
+            rf'<source[^>]*{re.escape(img_root)}/mobile/maiora_20s_18pv-480\.webp 480w[^>]*'
+            r'media="\(max-width: 768px\) and \(min-height: 740px\)"',
+            html,
+        )
+        is not None
+        and re.search(
+            rf'<source[^>]*{re.escape(img_root)}/mobile/maiora_20s_18ph-480\.webp 480w[^>]*'
+            r'media="\(max-width: 768px\) and \(max-height: 739px\)"',
+            html,
+        )
+        is not None
+        and re.search(
+            rf'<source[^>]*srcset="{re.escape(img_root)}/maiora_20s_18-640\.webp 640w',
             html,
         )
         is not None,
@@ -2096,7 +2113,9 @@ def check_shared_assets(r: Runner) -> None:
             and '.hero-intro{' not in css_flat
             and '.hero-content::before' in (css or '')
             and '.hero-content::after' in (css or '')
-            and 'object-position:58%48%' in css_flat,
+            and 'object-fit:cover' in re.sub(r'\s+', '', css or '')
+            and '--hero-object-position-portrait' in (css or '')
+            and 'min-width:769px' in re.sub(r'\s+', '', css or ''),
         )
     r.check(
         'WhatsApp button meets contrast-safe green',
@@ -2158,6 +2177,11 @@ def check_shared_assets(r: Runner) -> None:
     )
     preview_yml = read_file('.github/workflows/preview.yml') or ''
     r.check(
+        'GitHub Pages preview deploys develop and feature branches',
+        "branches: [develop]" in preview_yml or 'develop' in preview_yml
+        and 'feature/**' in preview_yml,
+    )
+    r.check(
         'GitHub Pages preview prepares subpath artifact',
         'prepare-github-pages.py' in preview_yml and "path: '_site'" in preview_yml,
     )
@@ -2177,6 +2201,18 @@ def check_shared_assets(r: Runner) -> None:
         'publish-gate.py' in publish_yml and 'branches: [main]' in publish_yml,
     )
     r.check('publish gate script exists', os.path.isfile(os.path.join(ROOT, 'scripts/publish-gate.py')))
+    publish_gate = read_file('scripts/publish-gate.py') or ''
+    r.check(
+        'publish gate blocks screenshots/ on main',
+        'check_no_screenshots' in publish_gate and 'git", "ls-files", "screenshots"' in publish_gate,
+    )
+    netlify_ignore = read_file('.netlifyignore') or ''
+    r.check('.netlifyignore excludes screenshots/', 'screenshots/' in netlify_ignore)
+    pre_commit = read_file('.githooks/pre-commit') or ''
+    r.check(
+        'main pre-commit strips screenshots/ before publish',
+        'Stripping screenshots/' in pre_commit and 'git rm -rf --cached screenshots/' in pre_commit,
+    )
     r.check('lighthouse check script exists', os.path.isfile(os.path.join(ROOT, 'scripts/lighthouse-check.py')))
     lh_py = read_file('scripts/lighthouse-check.py') or ''
     r.check(
@@ -3252,6 +3288,11 @@ def check_shared_assets(r: Runner) -> None:
         'images/mobile/maiora_20s_02.webp',
         'images/mobile/maiora_20s_02-480.webp',
         'images/mobile/maiora_20s_02-720.webp',
+        'images/mobile/maiora_20s_18pv-480.webp',
+        'images/mobile/maiora_20s_18pv-720.webp',
+        'images/mobile/maiora_20s_18pv-960.webp',
+        'images/mobile/maiora_20s_18ph-480.webp',
+        'scripts/preview_hero_framing.py',
         'images/maiora_20s_02.webp',
         'images/maiora_20s_02-640.webp',
         'images/maiora_20s_02-960.webp',

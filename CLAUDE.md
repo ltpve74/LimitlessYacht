@@ -29,7 +29,7 @@ git config core.hooksPath .githooks          # one-time per clone
 | When does minification happen? | On commit to **`main`** only (publish step) |
 | Publish QA gate? | Pre-commit on **`main`**: minify → `scripts/publish-gate.py` (site tests + UX smoke + Lighthouse). CI: `.github/workflows/publish.yml` |
 | What goes live? | Push to **`main`** → Netlify deploys `limitlessyachtcharter.com` |
-| Preview branch? | **`develop` only** → GitHub Pages preview. Feature branches must be merged into `develop` first. |
+| Preview branch? | **`develop`** + **`feature/**`** → GitHub Pages preview (last push wins). Push `develop` to restore integration preview. |
 | Analytics on preview? | **Off** — `js/analytics-env.js` sets `LY_OWNER_MODE` on `*.github.io`, localhost, Netlify branch deploys |
 | Analytics on production? | **On** — `limitlessyachtcharter.com` only (verified in publish gate) |
 
@@ -37,13 +37,13 @@ git config core.hooksPath .githooks          # one-time per clone
 
 ## Visual feedback: the `screenshots/` folder
 
-The repo owner uses a **local, untracked `screenshots/` folder** (repo root) to give visual
-feedback to whoever is working on the site — Claude Code or another agent.
+The repo owner uses a **`screenshots/` folder** (repo root) to give visual feedback to whoever is
+working on the site — Claude Code or another agent.
 
 | Fact | Detail |
 |------|--------|
 | Location | `screenshots/` at the repo root |
-| In git? | **No** — it is deliberately *not* committed (local-only scratch). It may be absent in a fresh clone or remote/CI checkout. |
+| In git? | **Yes on `develop`** — so cloud agents can read them. **Never on `main`** — stripped automatically on publish commits; also excluded from Netlify (`.netlifyignore`) and GitHub Pages (`prepare-github-pages.py`). |
 | Purpose | The owner drops in screenshots showing a bug, a current state, and/or the desired state |
 | How to read | **Check it at the start of a visual/UX task.** If present and non-empty, open the images before changing layout/CSS/scroll behaviour |
 
@@ -53,12 +53,29 @@ feedback to whoever is working on the site — Claude Code or another agent.
   The common pattern is: **first = current/buggy behaviour, second = desired behaviour.**
 - Images often include the browser/device chrome (e.g. iPhone SE 375×667, DPR/Save-Data
   toggles) — use that to reproduce at the same viewport.
-- The folder may not exist or may be empty in a remote/cloud session (it is not pushed).
-  If you cannot find it, say so and ask the owner to paste the images into the chat instead.
 
-**For agents:** treat `screenshots/` as read-only feedback input. Do **not** commit it, add it
-to git, or delete its contents. Reproduce the reported state with Playwright at the matching
-viewport before and after your fix to confirm you've addressed what the screenshot shows.
+**For agents:** treat `screenshots/` as read-only feedback input. Do **not** delete its contents.
+Reproduce the reported state with Playwright at the matching viewport before and after your fix to
+confirm you've addressed what the screenshot shows.
+
+---
+
+## Media library (owner's originals — NOT in the repo)
+
+The owner's photo/video **media library lives on the owner's computer only**. It is never
+committed. The repo carries **only processed, site-ready assets** that are part of the live site
+(`images/` masters + `-480/-640/-960/-1280` tiers + `-prev.jpg` blur previews, `images/mobile/`
+variants).
+
+| Fact | Detail |
+|------|--------|
+| Originals location | Owner's machine (like `screenshots/` — local, untracked, may be absent in remote/CI checkouts) |
+| What gets committed | Only processed derivatives actually referenced by the site |
+| New-media workflow | Owner shares/drops files → agent triages (contact sheet, best-shot selection) → generate tiers + previews (`scripts/build_preview_images.py`, `scripts/optimize_responsive_images.py`) → commit only those outputs |
+| Never | Commit originals/raw video, or reference paths outside the repo from the site |
+
+Every processed image must enter the **prev→sharp progressive pipeline** (decision-guarded:
+blur preview first, everywhere, always).
 
 ---
 

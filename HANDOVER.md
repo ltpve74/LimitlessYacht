@@ -98,6 +98,9 @@ with the owner before doing it. Measure first** (e.g. CLS) rather than assuming 
 - **Verify by running the app**, not by re-running tests. The app shows real behaviour; tests are
   the author's claim. Measure CLS/timing with a PerformanceObserver; screenshot at the actual
   viewport before/after a fix.
+- **Media library:** the owner's photo/video originals live on the owner's computer, NOT in the
+  repo — only processed site assets (tiers + `-prev.jpg`) get committed. See CLAUDE.md "Media
+  library".
 - **i18n:** locale pages (`de/ es/ fr/`) are generated from `index.html` by `i18n/build-locales.py`.
   Never hand-edit them. New visible English strings need PAIRS in all three `i18n/locales/*.py`.
 

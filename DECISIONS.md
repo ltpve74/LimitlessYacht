@@ -150,6 +150,51 @@ Do **not** "fix" them without checking here first. Each entry lists what *not* t
 
 ---
 
+## Hero uses a DIFFERENT image on mobile vs desktop (portrait vs landscape)
+
+> **Updated 6 Jul 2026 — the hero is now the TOP-DOWN aerial.** Desktop = `maiora_20s_18`
+> (bird's-eye, landscape); mobile/portrait = `maiora_20s_18p` (the SAME top-down rotated 90° so the
+> boat runs vertically down the screen). Both centred (`object-position:50% 50%`). The
+> orientation-switch mechanism below is unchanged — only the image files + framing values differ
+> (18/18p and centred, not 07/02 and bow-in). The 07 bow-in / recrop notes below are historical
+> (07 is no longer the hero). `18p` is a `process_media` output of the rotated 18 master; the pill
+> clears the boat on modern phones + iPad, and only grazes the bow tip on the smallest old phones
+> (360×≤740) — a top-down boat spans the frame, so perfect clearance there isn't achievable.
+> **Updated again 6 Jul (pm): 18/18p now use candidate B — a more zoomed-out frame (boat smaller,
+> more water margin) at 1920×1080**, so the pill clears the boat far better on small phones and it's
+> sharper on desktop/iPad. Desktop source carries the `-1280` tier + 1920w master.
+
+- **Decision (3 Jul 2026, owner request):** the hero serves a **portrait** shot on mobile
+  (`maiora_20s_07`, bow-quarter at speed) and a **landscape** shot on desktop (`maiora_20s_02`,
+  full profile). A landscape hero centre-cropped into a tall phone viewport loses the bow and
+  stern — only the mid-hull shows. The split is wired in the existing hero `<picture>`: the
+  `media="(max-width: 640px)"` `<source>` (and a matching `<source>` on the preview `<picture>`)
+  point at the mobile 07 tiers; the default source + fallback `<img>` stay 02.
+- **Both are the real Limitless** (replaced the stock Maiora, same batch).
+- **The mobile hero image is deliberately cropped with the boat in the upper ~half** so the
+  bottom-anchored rates pill sits over clean water and never overlaps the hull. On phones the
+  viewport is always narrower than the photo, so the browser shows the full image height and
+  `object-position` can't move the boat — the clearance has to be baked into the crop. Verified
+  360×640 → 430×932. If you swap the mobile hero shot, re-crop so the boat clears the lower ~44%.
+- **The portrait vs landscape hero switch is by `@media (orientation: portrait)`, NOT a width
+  breakpoint** — so tablets in portrait (iPad, etc.) get the portrait shot too, and any landscape
+  viewport (desktop, tablet landscape) gets the landscape shot, regardless of pixel width. Both the
+  `<picture>` `<source media>` and the object-position rule use `orientation: portrait`.
+- **Mobile hero `object-position` is `35% 40%`** (not centred) so the boat's BOW stays in frame — it
+  is a bow-quarter shot and a centred crop cut the bow off the left. Desktop stays `58% 48%`.
+- **Resolution note:** the portrait 07 tiles top out ~850px (processed from the co-work batch), so on
+  large Retina tablets the portrait hero is slightly soft. If crispness matters there, reprocess 07
+  from the full-res drone original at hero resolution (`process_media.py <src> hero maiora_20s_07`).
+- **Gallery card 1 (`maiora_20s_01` aerial) uses `object-position:25% 60%`** so the tall portrait
+  card lands on the boat (stern/flybridge/guests + cove), not the open water to its right. The old
+  `90% 30%` was tuned for the previous stock photo; re-tune per image if card 1 is swapped.
+- **DO NOT** "unify" the hero back to a single image to simplify the markup — mobile needs the
+  portrait framing. The hero srcset tests assert mobile=maiora_20s_07 / desktop=maiora_20s_02.
+- **Note:** `maiora_20s_07` is the mobile-hero image only — it is deliberately **not** in the
+  gallery (owner: no duplication). The preview `<img>` onload uses `this.closest('.ly-prog-wrap')`
+  (not `parentNode`) because it now sits inside a `<picture>`; keep it as `closest` or the CSS
+  boot (`LY_loadLayoutCss`, `ly-prog-preview-ready`) breaks.
+
 ## Product decisions
 
 - **Both seasonal prices shown** (low + high), high season labelled **Jul–Aug** (owner‑confirmed).

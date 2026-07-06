@@ -112,11 +112,33 @@ class IssueCollector:
         page.on("console", on_console)
 
 
+def wait_for_main_ready(page, timeout: float = 25000) -> None:
+    page.wait_for_function(
+        "() => document.documentElement.classList.contains('ly-main-ready')",
+        timeout=timeout,
+    )
+
+
 def wait_for_hash(page, hash_fragment: str, timeout: float = 8000) -> None:
     page.wait_for_function(
         "(expected) => location.hash === expected",
         arg=hash_fragment,
         timeout=timeout,
+    )
+
+
+def reveal_desktop_nav_if_needed(page) -> None:
+    """Desktop nav stays hidden at the hero until the page scrolls."""
+    if page.viewport_size["width"] <= 768:
+        return
+    if page.evaluate(
+        "() => getComputedStyle(document.querySelector('nav')).visibility === 'visible'"
+    ):
+        return
+    page.evaluate("() => window.scrollTo({ top: 120, behavior: 'instant' })")
+    page.wait_for_function(
+        "() => getComputedStyle(document.querySelector('nav')).visibility === 'visible'",
+        timeout=8000,
     )
 
 
@@ -256,9 +278,11 @@ def scenario_home_desktop(page, base: str, issues: IssueCollector) -> None:
     issues.attach(page, name)
     page.set_viewport_size(DESKTOP_VIEWPORT)
     page.goto(base + "/", wait_until="domcontentloaded", timeout=60000)
-    page.wait_for_timeout(1200)
+    wait_for_main_ready(page)
+    reveal_desktop_nav_if_needed(page)
 
     # Desktop header uses -land anchors for section labels.
+    page.locator('.nav-links a[href="#charters-land"]').scroll_into_view_if_needed()
     page.locator('.nav-links a[href="#charters-land"]').click()
     wait_for_hash(page, "#charters-land")
 
@@ -316,14 +340,17 @@ def scenario_home_desktop(page, base: str, issues: IssueCollector) -> None:
         "}",
         timeout=8000,
     )
-    form_top = page.locator("#contactForm").evaluate(
-        "el => el.getBoundingClientRect().top"
+    form_top = page.evaluate(
+        "() => {"
+        "  const el = document.getElementById('contactForm');"
+        "  return el ? el.getBoundingClientRect().top : -1;"
+        "}"
     )
     if form_top < 0 or form_top > 420:
         issues.add(f"{name}: enquire CTA landed with form top at {form_top:.0f}px")
     focused = page.evaluate("document.activeElement && document.activeElement.id")
-    if focused != "name":
-        issues.add(f"{name}: enquire CTA should focus the name field on desktop")
+    if focused != "email":
+        issues.add(f"{name}: enquire CTA should focus the email field on desktop")
 
     page.locator("#availability").scroll_into_view_if_needed()
     wait_for_calendar(page)
@@ -372,7 +399,7 @@ def scenario_home_tablet(page, base: str, issues: IssueCollector) -> None:
     issues.attach(page, name)
     page.set_viewport_size(TABLET_VIEWPORT)
     page.goto(base + "/", wait_until="domcontentloaded", timeout=60000)
-    page.wait_for_timeout(800)
+    wait_for_main_ready(page)
 
     page.locator("#availability").scroll_into_view_if_needed()
     title_visible = page.locator("#availability .section-title").evaluate(
@@ -476,7 +503,7 @@ def scenario_home_tablet(page, base: str, issues: IssueCollector) -> None:
         )
 
     page.locator("#itinerary").scroll_into_view_if_needed()
-    page.locator('#itinerary a[href="#avail-cal"]').click()
+    page.locator('#itinerary a.itinerary-bottom-link--mobile[href="#avail-cal"]').click()
     page.wait_for_timeout(800)
     page.wait_for_function("() => location.hash === '#availability-land'", timeout=8000)
     meet_land = page.evaluate(
@@ -538,10 +565,11 @@ def scenario_home_ipad_wide(page, base: str, issues: IssueCollector) -> None:
         issues.attach(page, label)
         page.set_viewport_size(viewport)
         page.goto(base + "/", wait_until="domcontentloaded", timeout=60000)
-        page.wait_for_timeout(800)
+        wait_for_main_ready(page)
+        reveal_desktop_nav_if_needed(page)
 
-        page.locator("#itinerary").scroll_into_view_if_needed()
-        page.locator('#itinerary a[href="#availability"]').click()
+        page.locator("#reviews").scroll_into_view_if_needed()
+        page.locator("#reviews .section-cta-avail--desktop").click()
         page.wait_for_timeout(800)
         page.wait_for_function("() => location.hash === '#availability-land'", timeout=8000)
         _assert_availability_landing(page, label, issues)
@@ -660,11 +688,12 @@ def scenario_home_mobile(page, base: str, issues: IssueCollector) -> None:
     issues.attach(page, name)
     page.set_viewport_size(MOBILE_VIEWPORT)
     page.goto(base + "/", wait_until="domcontentloaded", timeout=60000)
-    page.wait_for_timeout(800)
+    wait_for_main_ready(page)
 
     assert_mobile_nav_hrefs(page, name, issues)
 
-    for href in ("#enquire-form", "#avail-cal", "#charters"):
+    click_mobile_nav_link(page, expected_mobile_quote_href(page))
+    for href in ("#avail-cal", "#charters"):
         click_mobile_nav_link(page, href)
 
     # Mobile-only forward links between sections.
@@ -957,6 +986,7 @@ def scenario_booking_funnel_mobile(page, base: str, issues: IssueCollector) -> N
     page.route("**/wa.me/**", lambda route: route.abort())
     page.set_viewport_size(MOBILE_VIEWPORT)
     page.goto(base + "/", wait_until="domcontentloaded", timeout=60000)
+    wait_for_main_ready(page)
 
     hero_cta = page.locator("#hero a.btn-primary.hero-cta-link--mobile").first
     if hero_cta.count():
@@ -975,7 +1005,6 @@ def scenario_booking_funnel_mobile(page, base: str, issues: IssueCollector) -> N
     page.wait_for_timeout(400)
 
     page.locator("#contactForm").scroll_into_view_if_needed()
-    page.locator("#name").fill("Test Guest")
     page.locator("#email").fill("test@example.com")
 
 
