@@ -6,7 +6,6 @@ media-library/
 .venv/
 scripts/node_modules/
 _site/
-screenshots/
 
 # Internal project notes and AI memory (not part of the website)
 memory/
