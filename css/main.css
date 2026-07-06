@@ -43,7 +43,7 @@
   .ly-prog-wrap--hero .ly-prog-preview{
     object-position:var(--hero-object-position,50% 50%)
   }
-  @media (orientation:portrait){
+  @media (orientation:portrait) and (min-width:769px){
     .ly-prog-wrap--hero .ly-prog-preview,.ly-prog-wrap--hero .hero-bg.ly-prog-sharp{
       object-position:var(--hero-object-position-portrait,50% 46%)
     }
@@ -3019,6 +3019,7 @@
   }
   @media (max-width:768px){
     :root{
+      --hero-object-position-phone:50% 50%;
       --hero-object-position-portrait:50% 46%;
       --hero-cinema:1;
       --hero-cinema-side:clamp(1.1rem,6vw,1.45rem);
@@ -3083,17 +3084,24 @@
       animation:none;
       transform:none;
       min-height:100%;
-      object-position:var(--hero-object-position-portrait,50% 46%)
+      object-fit:cover;
+      object-position:center center
     }
     .ly-prog-wrap--hero .ly-prog-preview{
-      object-position:var(--hero-object-position-portrait,50% 46%)
+      object-fit:cover;
+      object-position:center center
     }
-    @media (orientation:portrait) and (min-height:800px){
+    @media (orientation:portrait) and (min-width:769px){
+      .hero-bg,.ly-prog-wrap--hero .ly-prog-preview{
+        object-position:var(--hero-object-position-portrait,50% 46%)
+      }
+    }
+    @media (orientation:portrait) and (min-width:769px) and (min-height:800px){
       :root{
         --hero-object-position-portrait:50% 40%
       }
     }
-    @media (orientation:portrait) and (max-height:680px){
+    @media (orientation:portrait) and (min-width:769px) and (max-height:680px){
       :root{
         --hero-object-position-portrait:50% 50%
       }

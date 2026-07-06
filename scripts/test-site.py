@@ -937,9 +937,11 @@ def check_html(r: Runner, rel: str, html: str) -> None:
     )
     r.check(
         'hero picture keeps responsive srcset (native loading)',
-        # Mobile hero = rotated top-down portrait (18p); desktop = top-down (18).
+        # Tall phone ≥740px = 18pv vertical; short phone = 18ph horizontal; tablet = 18p.
         'maiora_20s_18p-480.webp 480w' in html
         and 'maiora_20s_18p-720.webp' in html
+        and 'images/mobile/maiora_20s_18pv-480.webp 480w' in html
+        and 'images/mobile/maiora_20s_18ph-480.webp 480w' in html
         and 'maiora_20s_18-640.webp 640w' in html
         and 'maiora_20s_18-960.webp 960w' in html
         and 'class="hero-bg ly-prog-sharp"' in html
@@ -955,7 +957,19 @@ def check_html(r: Runner, rel: str, html: str) -> None:
         'hero picture has responsive srcsets for both mobile and desktop',
         re.search(
             rf'<source[^>]*{re.escape(img_root)}/mobile/maiora_20s_18p-480\.webp 480w[^>]*'
-            r'media="\(orientation: portrait\)"',
+            r'media="\(orientation: portrait\) and \(min-width: 768px\)"',
+            html,
+        )
+        is not None
+        and re.search(
+            rf'<source[^>]*{re.escape(img_root)}/mobile/maiora_20s_18pv-480\.webp 480w[^>]*'
+            r'media="\(max-width: 768px\) and \(min-height: 740px\)"',
+            html,
+        )
+        is not None
+        and re.search(
+            rf'<source[^>]*{re.escape(img_root)}/mobile/maiora_20s_18ph-480\.webp 480w[^>]*'
+            r'media="\(max-width: 768px\) and \(max-height: 739px\)"',
             html,
         )
         is not None
@@ -2099,8 +2113,9 @@ def check_shared_assets(r: Runner) -> None:
             and '.hero-intro{' not in css_flat
             and '.hero-content::before' in (css or '')
             and '.hero-content::after' in (css or '')
+            and 'object-fit:cover' in re.sub(r'\s+', '', css or '')
             and '--hero-object-position-portrait' in (css or '')
-            and 'object-position:var(--hero-object-position-portrait' in (css or ''),
+            and 'min-width:769px' in re.sub(r'\s+', '', css or ''),
         )
     r.check(
         'WhatsApp button meets contrast-safe green',
@@ -3273,6 +3288,11 @@ def check_shared_assets(r: Runner) -> None:
         'images/mobile/maiora_20s_02.webp',
         'images/mobile/maiora_20s_02-480.webp',
         'images/mobile/maiora_20s_02-720.webp',
+        'images/mobile/maiora_20s_18pv-480.webp',
+        'images/mobile/maiora_20s_18pv-720.webp',
+        'images/mobile/maiora_20s_18pv-960.webp',
+        'images/mobile/maiora_20s_18ph-480.webp',
+        'scripts/preview_hero_framing.py',
         'images/maiora_20s_02.webp',
         'images/maiora_20s_02-640.webp',
         'images/maiora_20s_02-960.webp',
