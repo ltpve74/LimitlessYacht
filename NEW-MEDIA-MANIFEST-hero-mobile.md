@@ -24,6 +24,17 @@ Swap portrait `<source>` + preview `<source>` to `images/mobile/hero_topdown_Xp-
 
 Each basename includes: desktop `.jpg` + `.webp` + `-640/-960/-1280.webp`, mobile `.webp` + `-480/-720/-960.webp`, `-prev.jpg` (desktop + mobile).
 
+## Production slot refresh (1.mp4 top-down pair)
+
+Reprocessed from `video-frames/1/` (assumed typo: user asked for `best_01_t013.5s` twice — used **best_02_t011.5s** as the second):
+
+| source | landscape | portrait (mobile hero) | category |
+|--------|-----------|------------------------|----------|
+| `best_01_t013.5s.jpg` | `maiora_20s_18` | `maiora_20s_18p` | hero |
+| `best_02_t011.5s.jpg` | `maiora_20s_19` | `maiora_20s_19p` (**new**) | gallery + hero portrait |
+
+`maiora_20s_19p` is a new basename — swap portrait hero `<source>` to test vs `18p`.
+
 ## Not processed here
 
-`maiora_20s_19` gallery stills and lifestyle overhead shots (`life_seabob`, etc.) — different pipeline / aspect. This batch is **hero-tier only** for the three top-down exterior frames.
+Lifestyle overhead shots (`life_seabob`, etc.) — different pipeline / aspect.
