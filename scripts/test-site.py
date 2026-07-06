@@ -461,9 +461,9 @@ def check_html(r: Runner, rel: str, html: str) -> None:
         'gallery is one continuous swipe carousel (single track tagged by category)',
         html.count('class="gallery-group') == 1
         and html.count('class="gallery-grid"') == 1
-        and html.count('class="gallery-item') == 16
-        and html.count('data-cat="water"') == 4
-        and html.count('data-cat="deck"') == 4
+        and html.count('class="gallery-item') == 21
+        and html.count('data-cat="water"') == 7
+        and html.count('data-cat="deck"') == 6
         and html.count('data-cat="interior"') == 8,
     )
     r.check(
@@ -622,9 +622,8 @@ def check_html(r: Runner, rel: str, html: str) -> None:
         # Previews keep a real src so they load immediately when near viewport.
         'class="ly-prog-preview" src="' in html
         # Every non-hero sharp ships deferred — no eager src/srcset to race the preview.
-        # 29 card/gallery/about sharps + the dest-lightbox sharp (net: one
-        # exterior gallery card added; 07 moved to the mobile hero, not gallery)
-        and html.count('class="ly-prog-sharp" data-ly-src="') == 30
+        # +5 life-aboard gallery cards (3 water, 2 deck) added 6 Jul 2026
+        and html.count('class="ly-prog-sharp" data-ly-src="') == 35
         and 'class="ly-prog-sharp" src=' not in html
         and html.count('data-ly-srcset="') >= 56
         # Hero stays eager (it is the LCP): its sharp keeps a real src.
