@@ -35,6 +35,16 @@ Reprocessed from `video-frames/1/` (assumed typo: user asked for `best_01_t013.5
 
 `maiora_20s_19p` is a new basename — swap portrait hero `<source>` to test vs `18p`.
 
+## Last frame — widest end-of-clip FOV (1.mp4 @ 13.93s)
+
+| source | landscape | portrait (mobile hero) | full-res (reframe) | category |
+|--------|-----------|------------------------|--------------------|----------|
+| `best_last_frame.jpg` | `maiora_20s_20` | `maiora_20s_20p` | `maiora_20s_20-source.jpg` (3840×2160), `mobile/maiora_20s_20p-source.jpg` (2160×3840, rotated −90°) | hero |
+
+True last frame of `1.mp4` (frame 835). End-of-clip overhead — widest FOV in the clip tail; two guests visible on stern. **Full-res `-source` masters are included** so the site agent can crop/nudge `object-position` and re-run tiers without returning to the media library.
+
+Standard hero derivatives per basename: desktop `.jpg` + `.webp` + `-640/-960/-1280.webp`, mobile `.webp` + `-480/-720/-960.webp`, `-prev.jpg` (desktop + mobile).
+
 ## Not processed here
 
 Lifestyle overhead shots (`life_seabob`, etc.) — different pipeline / aspect.
