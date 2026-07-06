@@ -31,7 +31,7 @@ Reprocessed from `video-frames/1/` (assumed typo: user asked for `best_01_t013.5
 | source | landscape | portrait (mobile hero) | category |
 |--------|-----------|------------------------|----------|
 | `best_01_t013.5s.jpg` | `maiora_20s_18` | `maiora_20s_18p` | hero |
-| `best_02_t011.5s.jpg` | `maiora_20s_19` | `maiora_20s_19p` (**new**) | gallery + hero portrait |
+| `best_02_t011.5s.jpg` | `maiora_20s_19` | `maiora_20s_19p` | hero + hero portrait (full hero tier, incl. `-1280`) |
 
 `maiora_20s_19p` is a new basename — swap portrait hero `<source>` to test vs `18p`.
 
