@@ -160,6 +160,9 @@ Do **not** "fix" them without checking here first. Each entry lists what *not* t
 > (07 is no longer the hero). `18p` is a `process_media` output of the rotated 18 master; the pill
 > clears the boat on modern phones + iPad, and only grazes the bow tip on the smallest old phones
 > (360×≤740) — a top-down boat spans the frame, so perfect clearance there isn't achievable.
+> **Updated again 6 Jul (pm): 18/18p now use candidate B — a more zoomed-out frame (boat smaller,
+> more water margin) at 1920×1080**, so the pill clears the boat far better on small phones and it's
+> sharper on desktop/iPad. Desktop source carries the `-1280` tier + 1920w master.
 
 - **Decision (3 Jul 2026, owner request):** the hero serves a **portrait** shot on mobile
   (`maiora_20s_07`, bow-quarter at speed) and a **landscape** shot on desktop (`maiora_20s_02`,
