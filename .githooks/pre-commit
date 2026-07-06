@@ -96,6 +96,15 @@ if [ -d screenshots ] || git ls-files --error-unmatch screenshots >/dev/null 2>&
   rm -rf screenshots/ 2>/dev/null || true
 fi
 
+# Agent-only files (instructions, memory, briefs, scratch) live on develop/feature branches for the
+# agents but must NEVER ship on main/production. Remove them from the main commit (working copies
+# are kept locally and restored when you switch back to develop). See .agent/README.md.
+for p in .agent .claude memory CLAUDE.md AGENTS.md DECISIONS.md HANDOVER.md; do
+  if git rm -r --cached "$p" >/dev/null 2>&1; then
+    echo "[pre-commit] Stripping $p from main (develop-only agent file — not deployed to production)."
+  fi
+done
+
 if [ "$LOCALE_REBUILD" -eq 1 ]; then
   echo "[pre-commit] CSS version bumped — rebuilding locales before minify..."
   if ! "$PY" i18n/build-locales.py; then

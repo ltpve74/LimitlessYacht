@@ -1,0 +1,9 @@
+- [Interior photo enhancement](interior-photo-enhancement.md) — chosen-interior shots + postprocess_interior.py pipeline
+- [Project folders purpose](project-folders-purpose.md) — what screenshots/ and scripts/google-ads/ are for
+- [No auto-push](no-auto-push.md) — commit locally, push only when the user agrees
+- [Charter business model](charter-business-model.md) — day-charter boat, multi-day new in 2026, not weekly/APA
+- [Be proactive with suggestions](be-proactive-with-suggestions.md) — surface obvious wins without being asked
+- [Screenshots off main](screenshots-off-main.md) — screenshots/ stays off main; don't restore/commit its deletions
+- [Publishing process](publishing-process.md) — develop→main flow; develop is meant to be behind main; publish is slow (QA gate), not broken; disregard other agents' branches
+- [Agent files off main](agent-files-off-main.md) — all agent files stay off main; working files/memory live in .agent/ (stripped on publish); 4 instruction files stay at root
+- [Google Ads project](project_google_ads.md) — campaign state/setup (folded in from the other agent's local memory/)

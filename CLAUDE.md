@@ -1,5 +1,13 @@
 # Limitless Yacht — Agent Guidelines
 
+> 🧭 **Non-Claude agents:** start with [`AGENTS.md`](AGENTS.md) — the vendor-neutral index of the
+> must-know rules (branch flow, publish gate, screenshots-off-main, load-bearing decisions). This
+> file (`CLAUDE.md`) is the full canonical version it points back to.
+>
+> 📁 **Agent working files, memory, and briefs live in [`.agent/`](.agent/)** — shared across agents,
+> **stripped from `main`** (nothing agent-related ships to production). Put new scratch/notes/memory
+> there, not at the repo root. Shared memory: `.agent/memory/`.
+
 > ⚠️ **Before making any change, read [`DECISIONS.md`](DECISIONS.md).** It records *why* several
 > counterintuitive choices were made (font off the critical path, inlined net‑tier loader, the
 > 300 ms main.css gap, CLS reserves, …). Some look like bugs or easy wins but are deliberate. If a

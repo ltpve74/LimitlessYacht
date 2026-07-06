@@ -25,3 +25,10 @@ scripts/google-ads/.venv/
 # Generated marketing deliverable — not website source, and Netlify serves the repo
 # root, so committing this would publish it publicly. Regenerate on demand instead.
 Limitless-Charter-Presentation.pdf
+
+# Shared agent workspace (.agent/) — ALWAYS tracked so agents share it, even though the
+# broader rules above ignore memory/ and google-ads-*.md. It never ships to main (stripped
+# by the main pre-commit hook + .netlifyignore).
+!.agent/
+!.agent/memory/
+!.agent/**
