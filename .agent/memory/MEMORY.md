@@ -1,3 +1,4 @@
+- [Gallery mobile framing](gallery-mobile-framing.md) — On the Water *-gm reframes, no life_* in water tier, full hull on phones
 - [Interior photo enhancement](interior-photo-enhancement.md) — chosen-interior shots + postprocess_interior.py pipeline
 - [Project folders purpose](project-folders-purpose.md) — what screenshots/ and scripts/google-ads/ are for
 - [No auto-push](no-auto-push.md) — commit locally, push only when the user agrees
