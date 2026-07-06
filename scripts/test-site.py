@@ -404,8 +404,8 @@ def check_html(r: Runner, rel: str, html: str) -> None:
     r.check(
         'gallery cards use responsive tier srcsets',
         'maiora_20s_01-640.webp' in html
-        and 'maiora_20s_01-720.webp' in html
-        and 'images/mobile/maiora_20s_03-960.webp 960w' in html
+        and 'maiora_20s_01gm-720.webp' in html
+        and 'images/mobile/maiora_20s_03gm-960.webp 960w' in html
         and 'images/mobile/maiora_20s_03.webp 960w' not in html
         and '(min-width: 1101px) 25vw, 50vw' in html,
     )
@@ -466,6 +466,36 @@ def check_html(r: Runner, rel: str, html: str) -> None:
         and html.count('data-cat="deck"') == 6
         and html.count('data-cat="interior"') == 8,
     )
+    water_block = html.split('data-cat="water"')[1:8]
+    r.check(
+        'water gallery uses owned Limitless drone/video frames (no borrowed life_* slots)',
+        all('life_' not in chunk[:1200] for chunk in water_block)
+        and 'maiora_20s_19' in water_block[4]
+        and 'maiora_20s_20' in water_block[5]
+        and 'maiora_20s_04' in water_block[6],
+    )
+    r.check(
+        'landscape water gallery panels ship mobile gm reframes',
+        html.count('maiora_20s_01gm-480.webp') >= 1
+        and html.count('maiora_20s_03gm-480.webp') >= 1
+        and html.count('maiora_20s_17gm-480.webp') >= 1
+        and html.count('maiora_20s_19gm-480.webp') >= 1
+        and html.count('maiora_20s_20gm-480.webp') >= 1
+        and html.count('maiora_20s_04gm-480.webp') >= 1
+        and (
+            'media="(max-width: 768px)" data-ly-srcset="images/mobile/maiora_20s_01gm-480.webp' in html
+            or 'media="(max-width: 768px)" data-ly-srcset="/images/mobile/maiora_20s_01gm-480.webp' in html
+        ),
+    )
+    for gm in (
+        'maiora_20s_01gm', 'maiora_20s_03gm', 'maiora_20s_17gm',
+        'maiora_20s_19gm', 'maiora_20s_20gm', 'maiora_20s_04gm',
+    ):
+        r.check(
+            f'gallery mobile reframe assets exist ({gm})',
+            os.path.isfile(os.path.join(ROOT, 'images', 'mobile', f'{gm}-480.webp'))
+            and os.path.isfile(os.path.join(ROOT, 'images', 'mobile', f'{gm}-960.webp')),
+        )
     r.check(
         'destinations is one continuous swipe carousel (single track tagged by tier)',
         html.count('class="dest-group') == 1
