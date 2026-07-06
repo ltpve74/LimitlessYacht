@@ -29,7 +29,7 @@ git config core.hooksPath .githooks          # one-time per clone
 | When does minification happen? | On commit to **`main`** only (publish step) |
 | Publish QA gate? | Pre-commit on **`main`**: minify → `scripts/publish-gate.py` (site tests + UX smoke + Lighthouse). CI: `.github/workflows/publish.yml` |
 | What goes live? | Push to **`main`** → Netlify deploys `limitlessyachtcharter.com` |
-| Preview branch? | **`develop` only** → GitHub Pages preview. Feature branches must be merged into `develop` first. |
+| Preview branch? | **`develop`** + **`feature/**`** → GitHub Pages preview (last push wins). Push `develop` to restore integration preview. |
 | Analytics on preview? | **Off** — `js/analytics-env.js` sets `LY_OWNER_MODE` on `*.github.io`, localhost, Netlify branch deploys |
 | Analytics on production? | **On** — `limitlessyachtcharter.com` only (verified in publish gate) |
 

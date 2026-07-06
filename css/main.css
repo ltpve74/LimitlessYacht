@@ -35,14 +35,22 @@
     width:100%;
     height:100%;
     object-fit:cover;
-    object-position:50% 50%;
+    object-position:var(--hero-object-position,50% 50%);
     transform:scale(1.08);
     filter:brightness(1.04) saturate(1.06);
     animation:heroZoom 14s ease-out forwards
   }
+  .ly-prog-wrap--hero .ly-prog-preview{
+    object-position:var(--hero-object-position,50% 50%)
+  }
   @media (orientation:portrait){
     .ly-prog-wrap--hero .ly-prog-preview,.ly-prog-wrap--hero .hero-bg.ly-prog-sharp{
-      object-position:50% 50%
+      object-position:var(--hero-object-position-portrait,50% 46%)
+    }
+  }
+  @media (orientation:landscape) and (max-height:900px) and (min-width:769px){
+    .ly-prog-wrap--hero .ly-prog-preview,.ly-prog-wrap--hero .hero-bg.ly-prog-sharp{
+      object-position:var(--hero-object-position-landscape-short,50% 56%)
     }
   }
   @keyframes heroZoom{
@@ -3011,6 +3019,7 @@
   }
   @media (max-width:768px){
     :root{
+      --hero-object-position-portrait:50% 46%;
       --hero-cinema:1;
       --hero-cinema-side:clamp(1.1rem,6vw,1.45rem);
       --hero-top-inset:max(1.05rem,calc(env(safe-area-inset-top,0px) + 0.8rem));
@@ -3074,7 +3083,20 @@
       animation:none;
       transform:none;
       min-height:100%;
-      object-position:50% 50%
+      object-position:var(--hero-object-position-portrait,50% 46%)
+    }
+    .ly-prog-wrap--hero .ly-prog-preview{
+      object-position:var(--hero-object-position-portrait,50% 46%)
+    }
+    @media (orientation:portrait) and (min-height:800px){
+      :root{
+        --hero-object-position-portrait:50% 40%
+      }
+    }
+    @media (orientation:portrait) and (max-height:680px){
+      :root{
+        --hero-object-position-portrait:50% 50%
+      }
     }
     .hero-overlay{
       background:linear-gradient(180deg,rgba(10,22,40,0.42) 0%,transparent 15%),linear-gradient(0deg,rgba(10,22,40,0.52) 0%,transparent 34%)

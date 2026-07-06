@@ -2,7 +2,10 @@ name: Deploy experiment preview to GitHub Pages
 
 on:
   push:
-    branches: [develop]
+    branches:
+      - develop
+      - 'feature/**'
+  workflow_dispatch:
 
 permissions:
   contents: read

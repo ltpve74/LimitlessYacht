@@ -535,7 +535,9 @@ def check_html(r: Runner, rel: str, html: str) -> None:
         and '#hero.hero-bg:not(.ly-prog-sharp){opacity:0!important;visibility:hidden!important}' in re.sub(
             r'\s+', '', html[html.find('<style id="fouc-guard">'):html.find('</style>', html.find('id="fouc-guard"'))]
         )
-        and 'object-position:50% 50%' in html
+        and 'object-position:50%46%' in re.sub(
+            r'\s+', '', html[html.find('id="critical-css"'):html.find('</style>', html.find('id="critical-css"'))]
+        )
         and 'max-height:520px' in html
         and 'nav{opacity:0;visibility:hidden;pointer-events:none}' in re.sub(
             r'\s+', '', html[html.find('id="critical-css"'):html.find('</style>', html.find('id="critical-css"'))]
@@ -2097,7 +2099,8 @@ def check_shared_assets(r: Runner) -> None:
             and '.hero-intro{' not in css_flat
             and '.hero-content::before' in (css or '')
             and '.hero-content::after' in (css or '')
-            and 'object-position:50%50%' in css_flat,
+            and '--hero-object-position-portrait' in (css or '')
+            and 'object-position:var(--hero-object-position-portrait' in (css or ''),
         )
     r.check(
         'WhatsApp button meets contrast-safe green',
@@ -2158,6 +2161,11 @@ def check_shared_assets(r: Runner) -> None:
         ) is not None,
     )
     preview_yml = read_file('.github/workflows/preview.yml') or ''
+    r.check(
+        'GitHub Pages preview deploys develop and feature branches',
+        "branches: [develop]" in preview_yml or 'develop' in preview_yml
+        and 'feature/**' in preview_yml,
+    )
     r.check(
         'GitHub Pages preview prepares subpath artifact',
         'prepare-github-pages.py' in preview_yml and "path: '_site'" in preview_yml,
