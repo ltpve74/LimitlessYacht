@@ -1,2 +1,11 @@
 # Develop-only visual feedback — never deploy to limitlessyachtcharter.com
 screenshots/
+
+# Agent-only files — instructions, memory, briefs, scratch. develop/feature only, never production.
+.agent/
+.claude/
+memory/
+CLAUDE.md
+AGENTS.md
+DECISIONS.md
+HANDOVER.md

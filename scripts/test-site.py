@@ -392,9 +392,9 @@ def check_html(r: Runner, rel: str, html: str) -> None:
         and html.count('class="destination-card-bg"') == 12
         and html.count('sizes="78vw"') == 12
         and 'portals-vells-1-640.webp' in html
-        and 'portals-vells-1-720.webp' in html
-        and 'images/mobile/dest/portals-vells-1-960.webp 640w' in html
-        and 'images/mobile/dest/portals-vells-1.webp 960w' in html
+        and 'portals-vells-1gm-720.webp' in html
+        and 'images/mobile/dest/portals-vells-1gm.webp 842w' in html
+        and 'images/mobile/dest/portals-vells-1gm-480.webp 480w' in html
         # Lightbox: cache hit if card was visible; card srcset (WebP tiers only,
         # never .jpg fallback or master) if not yet loaded.
         and 'window.LY_cardLoadedSrc' in html
@@ -404,8 +404,8 @@ def check_html(r: Runner, rel: str, html: str) -> None:
     r.check(
         'gallery cards use responsive tier srcsets',
         'maiora_20s_01-640.webp' in html
-        and 'maiora_20s_01-720.webp' in html
-        and 'images/mobile/maiora_20s_03-960.webp 960w' in html
+        and 'maiora_20s_01gm-720.webp' in html
+        and 'images/mobile/maiora_20s_03gm-960.webp 960w' in html
         and 'images/mobile/maiora_20s_03.webp 960w' not in html
         and '(min-width: 1101px) 25vw, 50vw' in html,
     )
@@ -465,6 +465,102 @@ def check_html(r: Runner, rel: str, html: str) -> None:
         and html.count('data-cat="water"') == 7
         and html.count('data-cat="deck"') == 6
         and html.count('data-cat="interior"') == 8,
+    )
+    water_block = html.split('data-cat="water"')[1:8]
+    r.check(
+        'water gallery uses owned Limitless drone/video frames (no borrowed life_* slots)',
+        all('life_' not in chunk[:1200] for chunk in water_block)
+        and 'maiora_20s_19' in water_block[4]
+        and 'maiora_20s_20' in water_block[5]
+        and 'maiora_20s_04' in water_block[6],
+    )
+    r.check(
+        'landscape water gallery panels ship mobile gm reframes',
+        html.count('maiora_20s_01gm-480.webp') >= 1
+        and html.count('maiora_20s_03gm-480.webp') >= 1
+        and html.count('maiora_20s_17gm-480.webp') >= 1
+        and html.count('maiora_20s_19gm-480.webp') >= 1
+        and html.count('maiora_20s_20gm-480.webp') >= 1
+        and html.count('maiora_20s_04gm-480.webp') >= 1
+        and html.count('maiora_20s_16gm-480.webp') >= 1
+        and (
+            'media="(max-width: 768px)" data-ly-srcset="images/mobile/maiora_20s_01gm-480.webp' in html
+            or 'media="(max-width: 768px)" data-ly-srcset="/images/mobile/maiora_20s_01gm-480.webp' in html
+        ),
+    )
+    for gm in (
+        'maiora_20s_01gm', 'maiora_20s_03gm', 'maiora_20s_16gm', 'maiora_20s_17gm',
+        'maiora_20s_19gm', 'maiora_20s_20gm', 'maiora_20s_04gm', 'life_flybridgegm',
+    ):
+        r.check(
+            f'gallery mobile reframe assets exist ({gm})',
+            os.path.isfile(os.path.join(ROOT, 'images', 'mobile', f'{gm}-480.webp'))
+            and os.path.isfile(os.path.join(ROOT, 'images', 'mobile', f'{gm}-960.webp')),
+        )
+    r.check(
+        'deck life_flybridge panel ships mobile gm reframe (hull not cropped)',
+        'life_flybridgegm-480.webp' in html
+        and (
+            'media="(max-width: 768px)" data-ly-srcset="images/mobile/life_flybridgegm-480.webp' in html
+            or 'media="(max-width: 768px)" data-ly-srcset="/images/mobile/life_flybridgegm-480.webp' in html
+        ),
+    )
+    r.check(
+        'gm gallery panels use matching gm-prev blur on mobile (smooth crossfade)',
+        html.count('maiora_20s_01gm-prev.jpg') >= 1
+        and html.count('life_flybridgegm-prev.jpg') >= 1
+        and (
+            'srcset="images/mobile/maiora_20s_01gm-prev.jpg" media="(max-width: 768px)"' in html
+            or 'srcset="/images/mobile/maiora_20s_01gm-prev.jpg" media="(max-width: 768px)"' in html
+        ),
+    )
+    r.check(
+        'portals vells panorama ships mobile gm portrait crop (no letterbox)',
+        'portals-vells-1gm-480.webp' in html
+        and (
+            'media="(max-width: 768px)" data-ly-srcset="images/mobile/dest/portals-vells-1gm-480.webp' in html
+            or 'media="(max-width: 768px)" data-ly-srcset="/images/mobile/dest/portals-vells-1gm-480.webp' in html
+        ),
+    )
+    reframe_dest_py = read_file('scripts/reframe_dest.py') or ''
+    gm_jpg = os.path.join(ROOT, 'images', 'dest', 'portals-vells-1gm.jpg')
+    r.check(
+        'portals vells gm is portrait crop from panorama (compose_panorama_portrait)',
+        'compose_panorama_portrait' in reframe_dest_py
+        and 'compose_letterbox' not in reframe_dest_py
+        and 'PANORAMA_FOCUS' in reframe_dest_py
+        and os.path.isfile(gm_jpg)
+        and os.path.getsize(gm_jpg) > 90 * 1024,
+    )
+    r.check(
+        'portals vells gm uses matching gm-prev blur on mobile (smooth crossfade)',
+        'portals-vells-1gm-prev.jpg' in html
+        and (
+            'srcset="images/mobile/dest/portals-vells-1gm-prev.jpg" media="(max-width: 768px)"' in html
+            or 'srcset="/images/mobile/dest/portals-vells-1gm-prev.jpg" media="(max-width: 768px)"' in html
+        ),
+    )
+    r.check(
+        'portals vells mobile gm reframe assets exist',
+        os.path.isfile(os.path.join(ROOT, 'images', 'mobile', 'dest', 'portals-vells-1gm-480.webp'))
+        and os.path.isfile(os.path.join(ROOT, 'images', 'mobile', 'dest', 'portals-vells-1gm.webp'))
+        and os.path.isfile(os.path.join(ROOT, 'images', 'mobile', 'dest', 'portals-vells-1gm-prev.jpg')),
+    )
+    gm_480 = os.path.join(ROOT, 'images', 'mobile', 'dest', 'portals-vells-1gm-480.webp')
+    gm_master = os.path.join(ROOT, 'images', 'mobile', 'dest', 'portals-vells-1gm.webp')
+    r.check(
+        'portals vells gm mobile tiers stay sharp (dest_gm width tiers + full master)',
+        'dest_gm' in (read_file('scripts/process_media.py') or '')
+        and 'resize_width' in (read_file('scripts/process_media.py') or '')
+        and os.path.getsize(gm_480) > 30 * 1024
+        and os.path.getsize(gm_master) > 120 * 1024,
+    )
+    pv_card = html.split('data-dest-idx="0"')[1].split('data-dest-idx="1"')[0]
+    r.check(
+        'portals vells sharp img reserves portrait aspect (gm mobile, not landscape 960×540)',
+        'portals-vells-1gm.webp 842w' in pv_card
+        and 'width="842" height="1578"' in pv_card
+        and 'width="960" height="540"' not in pv_card,
     )
     r.check(
         'destinations is one continuous swipe carousel (single track tagged by tier)',
@@ -634,8 +730,11 @@ def check_html(r: Runner, rel: str, html: str) -> None:
     r.check(
         'sharp promotion gated on preview-ready + viewport, held until meaningful paint',
         'window.LY_promoteSharp' in html
+        and 'window.LY_onProgSharpLoad' in html
         and "wrap.querySelector('.ly-prog-sharp[data-ly-src]')" in html
-        and "sharp.setAttribute('src', src)" in html
+        and "sharp.setAttribute('src', picked)" in html
+        and 'urls[urls.length - 1]' in html
+        and 'requestAnimationFrame(show)' in html
         # promote only after the preview has loaded so the blur always paints first
         and "wrap.classList.contains('ly-prog-preview-ready')" in html
         and 'function initSharpPromotion' in html
@@ -1263,7 +1362,7 @@ def check_html(r: Runner, rel: str, html: str) -> None:
         'destination cards use multi-tier desktop srcsets',
         'portals-vells-1-640.webp' in html
         and 'portals-vells-1-960.webp' in html
-        and 'portals-vells-1-720.webp' in html,
+        and 'portals-vells-1gm-720.webp' in html,
     )
     minify_py = read_file('scripts/minify_html.py') or ''
     r.check(
@@ -1330,10 +1429,11 @@ def check_html(r: Runner, rel: str, html: str) -> None:
     )
     r.check(
         'about section uses multi-tier desktop srcset',
-        'images/maiora_20s_04-640.webp 640w' in html
-        and 'images/maiora_20s_04-960.webp 960w' in html
-        and 'images/mobile/maiora_20s_04-960.webp 960w' in html
-        and 'images/mobile/maiora_20s_04.webp 960w' not in html,
+        'images/maiora_20s_21-640.webp 640w' in html
+        and 'images/maiora_20s_21-960.webp 960w' in html
+        and 'images/mobile/maiora_20s_21-960.webp 960w' in html
+        and 'images/mobile/maiora_20s_21.webp 960w' not in html
+        and 'maiora_20s_21.jpg' in html.split('<section id="about">')[1].split('<section id="itinerary"')[0],
     )
     r.check(
         'hero title has no entrance animation in critical CSS (visible for LCP)',
@@ -2589,6 +2689,11 @@ def check_shared_assets(r: Runner) -> None:
         and css_rule_index(css, '.ly-prog-wrap') >= 0
         and '.ly-prog-wrap.ly-prog-skip-preview' in css
         and '.ly-prog-wrap.ly-prog-sharp-ready.ly-prog-sharp-visible .ly-prog-sharp' in css
+        and '.gallery-item>.ly-prog-wrap .ly-prog-preview' in css
+        and re.search(
+            r'\.gallery-item>\.ly-prog-wrap \.ly-prog-preview[^{]*\{[^}]*transform:\s*none',
+            re.sub(r'\s+', ' ', css),
+        )
         and css_rule_index(css, '#dest-lb-close') < 0
         and '#lightbox-prev' not in css,
     )
@@ -3299,8 +3404,32 @@ def check_shared_assets(r: Runner) -> None:
         'images/maiora_20s_02-1280.webp',
         'images/dest/portals-vells-1.webp',
         'images/mobile/dest/portals-vells-1.webp',
+        'images/dest/portals-vells-1gm.webp',
+        'images/mobile/dest/portals-vells-1gm-480.webp',
+        'images/mobile/dest/portals-vells-1gm-720.webp',
+        'images/mobile/dest/portals-vells-1gm-prev.jpg',
+        'images/dest/portals-vells-2.jpg',
+        'images/dest/portals-vells-2.webp',
+        'images/mobile/dest/portals-vells-2-960.webp',
+        'images/dest/portals-vells-3.jpg',
+        'images/dest/portals-vells-3.webp',
+        'images/mobile/dest/portals-vells-3-960.webp',
+        'images/dest/portals-vells-4.jpg',
+        'images/dest/portals-vells-4.webp',
+        'images/mobile/dest/portals-vells-4-960.webp',
+        'images/dest/portals-vells-5.jpg',
+        'images/dest/portals-vells-5.webp',
+        'images/mobile/dest/portals-vells-5-960.webp',
+        'images/dest/portals-vells-6.jpg',
+        'images/dest/portals-vells-6.webp',
+        'images/mobile/dest/portals-vells-6-960.webp',
         'images/maiora_20s_04-640.webp',
         'images/maiora_20s_04-960.webp',
+        'images/maiora_20s_21.jpg',
+        'images/maiora_20s_21-640.webp',
+        'images/maiora_20s_21-960.webp',
+        'images/mobile/maiora_20s_21-960.webp',
+        'images/maiora_20s_21-prev.jpg',
         'images/mobile/dest/el-toro-malgrats-1-480.webp',
         'images/mobile/dest/el-toro-malgrats-1-720.webp',
         'images/mobile/_srcset-widths.json',

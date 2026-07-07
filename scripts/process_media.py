@@ -17,7 +17,7 @@ Usage:
     .venv/bin/python scripts/process_media.py <source> <category> <basename>
 
     <source>    path to the chosen master (jpg/jpeg/png/webp, full-res)
-    <category>  gallery | dest | content | hero   (controls widths + quality)
+    <category>  gallery | dest | dest_gm | content | hero   (controls widths + quality)
     <basename>  slot name WITHOUT extension, e.g. maiora_20s_09 (gallery/
                 content/hero) or cala-llamp-1 (dest — note the -1 suffix).
                 Reuse an existing basename to REPLACE that slot in place
@@ -60,6 +60,14 @@ SPEC = {
         m_tiers=[("-480", 480, 80), ("-720", 720, 82), ("-960", 960, 80)],
         subdir="dest",
     ),
+    # Portrait panorama crops (reframe_dest.py) — width-based tiers, full-res master.
+    "dest_gm": dict(
+        d_max=1280, jpg_q=94, d_webp_q=90,
+        d_tiers=[("-640", 640, 88), ("-960", 960, 86)],
+        m_max=1578, m_webp_q=90,
+        m_tiers=[("-480", 480, 90), ("-720", 720, 90)],
+        subdir="dest",
+    ),
     "content": dict(  # about strip / lifestyle / non-gallery content
         d_max=960, jpg_q=88, d_webp_q=82,
         d_tiers=[("-640", 640, 78), ("-960", 960, 76)],
@@ -94,6 +102,14 @@ def resize_max(img: Image.Image, edge: int) -> Image.Image:
         return img
     s = edge / longest
     return img.resize((max(1, round(w * s)), max(1, round(h * s))), Image.LANCZOS)
+
+
+def resize_width(img: Image.Image, width: int) -> Image.Image:
+    w, h = img.size
+    if w <= width:
+        return img
+    nh = max(1, round(h * width / w))
+    return img.resize((width, nh), Image.LANCZOS)
 
 
 def _resize_preview(img: Image.Image, edge: int = PREVIEW_EDGE) -> Image.Image:
@@ -153,15 +169,18 @@ def emit(source: Path, category: str, basename: str) -> list[Path]:
     m_master = resize_max(src, spec["m_max"])
     mwebp = m_dir / f"{basename}.webp"
     m_master.save(mwebp, "WEBP", quality=spec["m_webp_q"], method=6); written.append(mwebp)
+    tier_resize = resize_width if category == "dest_gm" else resize_max
     for suffix, width, q in spec["m_tiers"]:
-        t = resize_max(m_master, width)
+        t = tier_resize(m_master, width)
         p = m_dir / f"{basename}{suffix}.webp"
         t.save(p, "WEBP", quality=q, method=6); written.append(p)
 
-    # blur previews — desktop + mobile
-    for folder in (d_dir, m_dir):
-        p = folder / f"{basename}-prev.jpg"
-        write_preview(d_master, p); written.append(p)
+    # blur previews — desktop + mobile (dest_gm mobile must match m_master framing)
+    write_preview(d_master, d_dir / f"{basename}-prev.jpg")
+    written.append(d_dir / f"{basename}-prev.jpg")
+    mobile_prev_src = m_master if category == "dest_gm" else d_master
+    write_preview(mobile_prev_src, m_dir / f"{basename}-prev.jpg")
+    written.append(m_dir / f"{basename}-prev.jpg")
 
     return written
 
