@@ -1080,8 +1080,8 @@ PAIRS = [
     ('Extended Journey', 'Ausgedehnte Reise'),
     ('A morning cruise, a sunset sail, or a 6-hour afternoon — swim stops and time on board without committing a full day.', 'Eine Morgenfahrt, ein Sonnenuntergangs-Törn oder ein 6-Stunden-Nachmittag — Schwimmstopps und Zeit an Bord, ohne einen ganzen Tag zu planen.'),
     ('Explore two or three destinations, swim in crystal-clear coves, and dine on board. The most popular way to experience the coast.', 'Erkunden Sie zwei oder drei Ziele, schwimmen Sie in kristallklaren Buchten und speisen Sie an Bord. Die beliebteste Art, die Küste zu erleben.'),
-    ('Sleep under the stars and wake in a new bay each morning. Ideal for a birthday, anniversary, or simply switching off properly.', 'Schlafen Sie unter dem Sternenhimmel und wachen Sie jeden Morgen in einer neuen Bucht auf. Ideal für einen Geburtstag, Jahrestag oder um wirklich abzuschalten.'),
-    ("Island-hop at your own pace — Formentera, Ibiza, Menorca or Mallorca's remotest coves. Your route, entirely bespoke.", 'Auf eigene Faust durch die Inseln — Formentera, Ibiza, Menorca oder Mallorcas entlegenste Buchten. Ihre Route, ganz nach Wunsch.'),
+    ('Sleep under the stars and wake in a new bay each morning. Ideal for a birthday, anniversary, or simply switching off properly. Once you\'re in touch, we\'ll map anchorages, mileage and running costs for your dates.', 'Schlafen Sie unter dem Sternenhimmel und wachen Sie jeden Morgen in einer neuen Bucht auf. Ideal für einen Geburtstag, Jahrestag oder um wirklich abzuschalten. Sobald Sie sich melden, planen wir Ankerplätze, Strecken und laufende Kosten für Ihre Termine.'),
+    ("Island-hop at your own pace — Formentera, Ibiza, Menorca or Mallorca's remotest coves. Your route, entirely bespoke — we'll sketch distances, fuel and mooring realistically from the first conversation.", 'Auf eigene Faust durch die Inseln — Formentera, Ibiza, Menorca oder Mallorcas entlegenste Buchten. Ihre Route, ganz nach Wunsch — Distanzen, Kraftstoff und Liegeplatz skizzieren wir realistisch vom ersten Gespräch an.'),
     ('>Enquire →</span>', '>Anfragen →</span>'),
     ('Get Your Quote', 'Angebot anfordern'),
     ('Available year-round &nbsp;·&nbsp; Tailored planning from the first reply', 'Ganzjährig verfügbar &nbsp;·&nbsp; Individuelle Planung ab der ersten Antwort'),
@@ -1117,6 +1117,12 @@ PAIRS = [
     ),
     # Specs section CTA
     ("Unsure what fits your time or budget? Get in touch — we'll map options and costs within 24 hours.", 'Unsicher, was zu Ihrem Zeitraum oder Budget passt? Schreiben Sie uns — wir skizzieren Optionen und Kosten innerhalb von 24 Stunden.'),
+    ('Multi-day essentials', 'Das Wichtigste bei mehrtägigen Törns'),
+    ('What is APA?', 'Was ist APA?'),
+    (
+        'On multi-day charters, APA (Advance Provisioning Allowance) is typically <strong>10% of the charter fee</strong>. It covers provisions, extra fuel, mooring and other variable costs. Your captain keeps a transparent running tally throughout the trip. Any balance left at the end is returned to you; if it runs low during the charter, the lead guest is notified and the APA is topped up — so your time on board is never interrupted.',
+        'Bei mehrtägigen Chartern beträgt die APA (Advance Provisioning Allowance) in der Regel <strong>10&nbsp;% des Charterpreises</strong>. Sie deckt Verpflegung, zusätzlichen Kraftstoff, Liegeplätze und andere variable Kosten. Ihr Kapitän führt während des Törns eine transparente laufende Abrechnung. Ein Restbetrag am Ende wird erstattet; läuft die APA während des Charters zur Neige, wird der Hauptgast informiert und die APA aufgestockt — damit Ihre Zeit an Bord nicht unterbrochen wird.',
+    ),
 
 ]
 

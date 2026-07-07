@@ -3348,7 +3348,27 @@ def check_shared_assets(r: Runner) -> None:
         'function syncWaEnquiryLinks(msg)' in index_html
         and "document.querySelector('.form-col-wa')" in index_html
         and 'syncWaEnquiryLinks(msg)' in index_html
-        and 'syncWaEnquiryLinks(null)' in index_html,
+        and 'syncWaEnquiryLinks(null)' in index_html
+        and 'function getDefaultWaMsg()' in index_html
+        and '.footer-links a[href*="wa.me"]' in index_html,
+    )
+    r.check(
+        'WhatsApp prefill prompts dates guests and charter type',
+        'Charter: (half-day / full-day / multi-day)' in index_html
+        and 'help us plan routes and costs' in index_html,
+    )
+    r.check(
+        'multi-day cards mention planning once in touch',
+        "we'll map anchorages, mileage and running costs for your dates" in index_html
+        and "we'll sketch distances, fuel and mooring realistically from the first conversation" in index_html,
+    )
+    r.check(
+        'specs section explains APA for multi-day charters',
+        'class="charter-faq ' in index_html
+        and 'What is APA?' in index_html
+        and '<strong>10% of the charter fee</strong>' in index_html
+        and 'running tally' in index_html
+        and '.charter-faq{' in (css or ''),
     )
     r.check(
         'WhatsApp CTA copy uses enquire voice',
