@@ -1714,7 +1714,7 @@ PRICING_EN_MARKERS = (
     '6h from €2,400',
     '6h from €3,100',
     'From €1,700 (4h)',
-    'Available year-round &nbsp;·&nbsp; We respond within 24 hours',
+    'Available year-round &nbsp;·&nbsp; Tailored planning from the first reply',
     'VAT included',
 )
 
@@ -1722,17 +1722,17 @@ LOCALE_PRICING_MARKERS = {
     'de': (
         'Halbtages-Charter (4h) ab 1.700 €',
         '6h ab 2.400 €',
-        'Ganzjährig verfügbar &nbsp;·&nbsp; Wir antworten innerhalb von 24 Stunden',
+        'Ganzjährig verfügbar &nbsp;·&nbsp; Individuelle Planung ab der ersten Antwort',
     ),
     'es': (
         'Medio día (4h) desde 1.700 €',
         '6h desde 2.400 €',
-        'Disponible todo el año &nbsp;·&nbsp; Respondemos en 24 horas',
+        'Disponible todo el año &nbsp;·&nbsp; Planificación a medida desde la primera respuesta',
     ),
     'fr': (
         'Demi-journée (4h) à partir de 1 700 €',
         '6h à partir de 2 400 €',
-        "Disponible toute l'année &nbsp;·&nbsp; Nous répondons en 24 heures",
+        "Disponible toute l'année &nbsp;·&nbsp; Planification sur mesure dès la première réponse",
     ),
 }
 
@@ -2212,7 +2212,7 @@ def check_shared_assets(r: Runner) -> None:
             and 'enquiry-price' in index_html
             and 'From €1,700 (4h) · €2,400 (6h)' in index_html
             and 'From €3,000' in index_html
-            and 'Available year-round &nbsp;·&nbsp; We respond within 24 hours' in index_html
+            and 'Available year-round &nbsp;·&nbsp; Tailored planning from the first reply' in index_html
             and 'Rates vary by season' not in index_html
             and 'ly_hero_rates_click' in index_html
             and 'ly_charters_rates_view' in index_html

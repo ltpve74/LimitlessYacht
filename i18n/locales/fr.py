@@ -119,8 +119,8 @@ PAIRS = [
         'Vous vous consacrez entièrement aux personnes qui vous accompagnent.',
     ),
     (
-        '<p class="section-forward-cta reveal">Like what you see? <a href="#avail-cal">Check available dates</a> or <a href="https://wa.me/34622581486?text=Hi%2C%20I%27d%20like%20to%20enquire%20about%20a%20charter%20on%20Limitless.">chat with us</a> — we reply within the hour.</p>',
-        '<p class="section-forward-cta reveal">Ce que vous voyez vous plaît\xa0? <a href="#avail-cal">Voir les dates disponibles</a> ou <a href="https://wa.me/34622581486?text=Hi%2C%20I%27d%20like%20to%20enquire%20about%20a%20charter%20on%20Limitless.">écrivez-nous</a> — nous répondons généralement en moins d\'une heure.</p>',
+        '<p class="section-forward-cta reveal">Like what you see? <a href="#avail-cal">Check available dates</a> or <a href="https://wa.me/34643678072?text=Hi%2C%20I%27d%20like%20to%20enquire%20about%20a%20charter%20on%20Limitless.">chat with us</a> — we\'ll help shape the trip, usually within the hour.</p>',
+        '<p class="section-forward-cta reveal">Ce que vous voyez vous plaît\xa0? <a href="#avail-cal">Voir les dates disponibles</a> ou <a href="https://wa.me/34643678072?text=Hi%2C%20I%27d%20like%20to%20enquire%20about%20a%20charter%20on%20Limitless.">écrivez-nous</a> — nous vous aidons à façonner le voyage, en général en moins d\'une heure.</p>',
     ),
     ("Your Home on the<br><em>Mediterranean</em>", "Votre maison sur la<br><em>Méditerranée</em>"),
     (
@@ -241,8 +241,8 @@ PAIRS = [
     ("Availability", "Disponibilité"),
     ("Check the<em> Calendar</em>", "Consultez le<em> calendrier</em>"),
     (
-        "See which dates are open — tap a date, then WhatsApp us for a fast reply. The calendar is kept up to date by our crew.",
-        "Voyez les dates libres — appuyez sur une date, puis écrivez-nous sur WhatsApp pour une réponse rapide. Le calendrier est tenu à jour par notre équipage.",
+        "See which dates are open — select a day or range, then message us. We'll confirm availability and can start sketching routes and costs from there. The calendar is kept up to date by our crew.",
+        "Voyez les dates libres — sélectionnez un jour ou une période, puis écrivez-nous. Nous confirmerons les disponibilités et pourrons commencer à esquisser itinéraires et coûts. Le calendrier est tenu à jour par notre équipage.",
     ),
     ('aria-label="Availability calendar"', 'aria-label="Calendrier de disponibilité"'),
     ('aria-label="Previous month"', 'aria-label="Mois précédent"'),
@@ -1060,7 +1060,7 @@ PAIRS = [
     # Pricing section — new enquiry-card layout
     ('class="section-label reveal">Charters<', 'class="section-label reveal">Charters<'),
     ('Charter Your<em> Way</em>', 'Votre charter<em> à votre façon</em>'),
-    ("From a sun-soaked morning to a week at anchor — every charter is built around you. Tell us your dates and we'll craft the perfect itinerary within 24 hours.", "D'une matinée ensoleillée à une semaine au mouillage — chaque charter est conçu autour de vous. Indiquez-nous vos dates et nous créerons l'itinéraire parfait en 24 heures."),
+    ("The figures above are a guide — what really helps is a conversation. Tell us your dates, group size and what you're aiming for; we'll put together route options, realistic fuel and mooring estimates, and spell out what's included vs APA on multi-day — a clear, honest plan tailored to you, not a generic price list.", "Les tarifs ci-dessus sont indicatifs — l'essentiel, c'est la conversation. Indiquez vos dates, la taille du groupe et vos envies ; nous proposerons des itinéraires, des estimations réalistes de carburant et d'amarrage, et préciserons ce qui est inclus ou en APA sur plusieurs jours — un plan clair et honnête, pas un prix générique."),
     ('4 – 6 Hours', '4 – 6 heures'),
     ('8 – 10 Hours', '8 – 10 heures'),
     ('2 – 3 Days', '2 – 3 jours'),
@@ -1073,7 +1073,7 @@ PAIRS = [
     ("Island-hop at your own pace — Formentera, Ibiza, Menorca or Mallorca's remotest coves. Your route, entirely bespoke.", "Sautez d'île en île à votre rythme — Formentera, Ibiza, Minorque ou les criques les plus reculées de Majorque. Votre itinéraire, entièrement sur mesure."),
     ('>Enquire →</span>', '>Demander →</span>'),
     ('Get Your Quote', 'Obtenir votre devis'),
-    ("Available year-round &nbsp;·&nbsp; We respond within 24 hours", "Disponible toute l'année &nbsp;·&nbsp; Nous répondons en 24 heures"),
+    ("Available year-round &nbsp;·&nbsp; Tailored planning from the first reply", "Disponible toute l'année &nbsp;·&nbsp; Planification sur mesure dès la première réponse"),
     ('All charters include', 'Tous les charters comprennent'),
     ('VAT included', 'TVA incluse'),
     ('Crew &amp; cleaning', 'Équipage &amp; nettoyage'),
@@ -1084,7 +1084,7 @@ PAIRS = [
     ('Quick Enquiry', 'Demande rapide'),
     ('>Get a Quote<', '>Obtenir un devis<'),
     ('Request<em> Your Quote</em>', 'Demandez<em> votre devis</em>'),
-    ("Drop your email and pick your preferred dates — we'll reply with availability and a personalised quote within 24 hours. No commitment required.", "Laissez votre email et choisissez vos dates préférées — nous vous répondrons avec les disponibilités et un devis personnalisé en 24 heures. Sans engagement."),
+    ("A few details are all we need. We'll confirm availability and come back with route ideas, a transparent breakdown (fuel, mooring, provisions on multi-day) and anything still to pin down — usually within 24 hours, no commitment.", "Quelques informations suffisent. Nous confirmerons les disponibilités et reviendrons vers vous avec des idées d'itinéraire, un détail transparent (carburant, amarrage, avitaillement sur plusieurs jours) et les points encore à préciser — en général sous 24 heures, sans engagement."),
     ('or fill in the form', 'ou remplissez le formulaire'),
     ('placeholder="Maria"', 'placeholder="Marie"'),
     (
@@ -1105,7 +1105,7 @@ PAIRS = [
         'Touchez <strong>Terminé</strong> ou ✕ pour fermer.',
     ),
     # Specs section CTA
-    ("Ready to plan your charter? We'll have a quote back within 24 hours.", 'Prêt à planifier votre charter ? Nous vous enverrons un devis en 24 heures.'),
+    ("Unsure what fits your time or budget? Get in touch — we'll map options and costs within 24 hours.", 'Vous ne savez pas ce qui convient à votre temps ou budget ? Écrivez-nous — nous esquisserons options et coûts sous 24 heures.'),
 
 ]
 
