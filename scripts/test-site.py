@@ -1714,7 +1714,7 @@ PRICING_EN_MARKERS = (
     '6h from €2,400',
     '6h from €3,100',
     'From €1,700 (4h)',
-    'Available year-round &nbsp;·&nbsp; Tailored planning from the first reply',
+    'Available year-round &nbsp;·&nbsp; Personal reply from captain &amp; crew',
     'VAT included',
 )
 
@@ -1722,17 +1722,17 @@ LOCALE_PRICING_MARKERS = {
     'de': (
         'Halbtages-Charter (4h) ab 1.700 €',
         '6h ab 2.400 €',
-        'Ganzjährig verfügbar &nbsp;·&nbsp; Individuelle Planung ab der ersten Antwort',
+        'Ganzjährig verfügbar &nbsp;·&nbsp; Persönliche Antwort von Kapitän &amp; Crew',
     ),
     'es': (
         'Medio día (4h) desde 1.700 €',
         '6h desde 2.400 €',
-        'Disponible todo el año &nbsp;·&nbsp; Planificación a medida desde la primera respuesta',
+        'Disponible todo el año &nbsp;·&nbsp; Respuesta personal del capitán y la tripulación',
     ),
     'fr': (
         'Demi-journée (4h) à partir de 1 700 €',
         '6h à partir de 2 400 €',
-        "Disponible toute l'année &nbsp;·&nbsp; Planification sur mesure dès la première réponse",
+        "Disponible toute l'année &nbsp;·&nbsp; Réponse personnelle du capitaine et de l'équipage",
     ),
 }
 
@@ -2212,7 +2212,7 @@ def check_shared_assets(r: Runner) -> None:
             and 'enquiry-price' in index_html
             and 'From €1,700 (4h) · €2,400 (6h)' in index_html
             and 'From €3,000' in index_html
-            and 'Available year-round &nbsp;·&nbsp; Tailored planning from the first reply' in index_html
+            and 'Available year-round &nbsp;·&nbsp; Personal reply from captain &amp; crew' in index_html
             and 'Rates vary by season' not in index_html
             and 'ly_hero_rates_click' in index_html
             and 'ly_charters_rates_view' in index_html
@@ -2340,7 +2340,21 @@ def check_shared_assets(r: Runner) -> None:
     )
     r.check(
         'publish gate workflow caps job duration',
-        'timeout-minutes:' in publish_yml and 'LIGHTHOUSE_RETRIES' in publish_yml,
+        'timeout-minutes:' in publish_yml,
+    )
+    r.check(
+        'publish gate skips UX and Lighthouse by default',
+        'test-site.py' in publish_gate
+        and 'verify-analytics.py' in publish_gate
+        and '--with-ux' in publish_gate
+        and '--with-lighthouse' in publish_gate
+        and 'if args.with_ux:' in publish_gate
+        and 'if args.with_lighthouse:' in publish_gate,
+    )
+    r.check(
+        'publish CI workflow is site-tests only (no Playwright/Lighthouse install)',
+        'playwright install' not in publish_yml
+        and 'npm install --prefix scripts' not in publish_yml,
     )
     r.check('ux smoke test script exists', os.path.isfile(os.path.join(ROOT, 'scripts/ux-test.py')))
     ux_py = read_file('scripts/ux-test.py') or ''
@@ -3355,12 +3369,13 @@ def check_shared_assets(r: Runner) -> None:
     r.check(
         'WhatsApp prefill prompts dates guests and charter type',
         'Charter: (half-day / full-day / multi-day)' in index_html
-        and 'help us plan routes and costs' in index_html,
+        and 'captain and crew confirm availability' in index_html,
     )
     r.check(
         'multi-day cards mention planning once in touch',
         "we'll map anchorages, mileage and running costs for your dates" in index_html
-        and "we'll sketch distances, fuel and mooring realistically from the first conversation" in index_html,
+        and 'the captain and crew will sketch distances, fuel and mooring realistically in a personal reply' in index_html
+        and 'a short message to the captain and crew is what really helps' in index_html,
     )
     r.check(
         'specs section explains APA and optional crew gratuity',

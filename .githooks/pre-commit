@@ -121,7 +121,7 @@ if ! "$PY" scripts/minify_html.py; then
   exit 1
 fi
 
-echo "[pre-commit] Running publish gate (site tests + UX + Lighthouse)..."
+echo "[pre-commit] Running publish gate (site tests + analytics)..."
 export PUBLISH_GATE_PYTHON="$PY"
 if ! "$PY" scripts/publish-gate.py ${PUBLISH_GATE_EXTRA_ARGS:-}; then
   echo "[pre-commit] ERROR: publish gate failed — fix the issues above and try again." >&2

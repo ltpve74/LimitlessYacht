@@ -1,5 +1,5 @@
 #!/bin/sh
-# One-time setup for the publish gate (main branch commits).
+# Optional setup for manual UX / Lighthouse checks (not run on publish).
 set -e
 cd "$(dirname "$0")/.."
 
@@ -22,4 +22,7 @@ else
   exit 1
 fi
 
-echo "QA tooling ready. Publish gate: $PY scripts/publish-gate.py"
+echo "Optional QA tooling ready."
+echo "  Publish gate:        $PY scripts/publish-gate.py"
+echo "  + UX smoke:          $PY scripts/publish-gate.py --with-ux"
+echo "  + Lighthouse:        $PY scripts/publish-gate.py --with-lighthouse"

@@ -2,14 +2,14 @@
 """
 Publish gate — runs after minification on main.
 
-1. scripts/test-site.py   (structure, assets, inline JS syntax)
-2. scripts/ux-test.py     (browser flows + JS error capture)
-3. scripts/lighthouse-check.py (performance regression guard)
+Default (publish pipeline):
+  1. scripts/test-site.py        (structure, assets, inline JS syntax)
+  2. scripts/verify-analytics.py (preview guard + production tag IDs)
 
-Usage:
-  python3 scripts/publish-gate.py
-  python3 scripts/publish-gate.py --skip-lighthouse   # faster local run
-  python3 scripts/publish-gate.py --skip-ux
+Optional manual checks (not run on publish):
+  python3 scripts/publish-gate.py --with-ux
+  python3 scripts/publish-gate.py --with-lighthouse
+  python3 scripts/publish-gate.py --with-ux --with-lighthouse
 """
 
 from __future__ import annotations
@@ -51,9 +51,17 @@ def run(label: str, script: str, extra: list[str] | None = None) -> int:
 
 def main() -> int:
     parser = argparse.ArgumentParser(description="Limitless publish gate")
-    parser.add_argument("--skip-lighthouse", action="store_true")
-    parser.add_argument("--skip-ux", action="store_true")
-    parser.add_argument("--quick-ux", action="store_true", help="Shorter UX suite")
+    parser.add_argument(
+        "--with-ux",
+        action="store_true",
+        help="Also run scripts/ux-test.py (manual — not part of publish)",
+    )
+    parser.add_argument(
+        "--with-lighthouse",
+        action="store_true",
+        help="Also run scripts/lighthouse-check.py (manual — not part of publish)",
+    )
+    parser.add_argument("--quick-ux", action="store_true", help="Shorter UX suite (with --with-ux)")
     args = parser.parse_args()
 
     if check_no_screenshots() != 0:
@@ -63,10 +71,10 @@ def main() -> int:
         ("Site tests", "test-site.py", []),
         ("Analytics wiring", "verify-analytics.py", []),
     ]
-    if not args.skip_ux:
+    if args.with_ux:
         ux_args = ["--quick"] if args.quick_ux else []
         steps.append(("UX smoke tests", "ux-test.py", ux_args))
-    if not args.skip_lighthouse:
+    if args.with_lighthouse:
         steps.append(("Lighthouse gate", "lighthouse-check.py", []))
 
     for label, script, extra in steps:
