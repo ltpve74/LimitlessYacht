@@ -125,6 +125,10 @@ PAIRS = [
         'Ihre <strong>engagierte Crew</strong> kümmert sich um alles: Verpflegung, Beach-Club-Reservierungen, alle Details — aufmerksam, erfahren und mit echter Leidenschaft fürs Meer.',
     ),
     (
+        '<p class="about-crew-note">A small team who share equally in whatever recognition guests choose to give — gratuity is never expected. <a href="#charter-faq-gratuity">Good to know →</a></p>',
+        '<p class="about-crew-note">Ein kleines Team, das jede Wertschätzung der Gäste gleichmäßig teilt — Trinkgeld ist nie erwartet. <a href="#charter-faq-gratuity">Gut zu wissen →</a></p>',
+    ),
+    (
         "You focus entirely on the people you're with.",
         'Sie konzentrieren sich ganz auf die Menschen, die Ihnen wichtig sind.',
     ),
@@ -1091,11 +1095,14 @@ PAIRS = [
 
     ('Catering &amp; beach clubs on request', 'Catering &amp; Beach Clubs auf Anfrage'),
     ('Provisioning, mooring &amp; final cleaning fee extra on multi-day', 'Verpflegung, Liegeplatz &amp; Endreinigungsgebühr extra bei mehrtägigen Törns'),
+    ('Crew gratuity not included (optional, cash)', 'Crew-Trinkgeld nicht inbegriffen (optional, bar)'),
+    ('crew &amp; VAT included &nbsp;·&nbsp; gratuity optional', 'Crew &amp; MwSt. inklusive &nbsp;·&nbsp; Trinkgeld optional'),
+    ('gratuity never required', 'Trinkgeld nie verpflichtend'),
     # Contact section — new layout
     ('Quick Enquiry', 'Schnellanfrage'),
     ('>Get a Quote<', '>Angebot einholen<'),
     ('Request<em> Your Quote</em>', 'Ihr<em> Angebot anfordern</em>'),
-    ("A few details are all we need. We'll confirm availability and come back with route ideas, a transparent breakdown (fuel, mooring, provisions on multi-day) and anything still to pin down — usually within 24 hours, no commitment.", 'Ein paar Angaben genügen. Wir bestätigen die Verfügbarkeit und melden uns mit Routenideen, einer transparenten Kostenaufstellung (Kraftstoff, Liegeplatz, Verpflegung bei mehrtägigen Törns) und offenen Punkten — in der Regel innerhalb von 24 Stunden, unverbindlich.'),
+    ("A few details are all we need. We'll confirm availability and come back with route ideas, a transparent breakdown (fuel, mooring, provisions on multi-day) and what's optional — like gratuity — usually within 24 hours, no commitment.", 'Ein paar Angaben genügen. Wir bestätigen die Verfügbarkeit und melden uns mit Routenideen, einer transparenten Kostenaufstellung (Kraftstoff, Liegeplatz, Verpflegung bei mehrtägigen Törns) und was optional ist — wie Trinkgeld — in der Regel innerhalb von 24 Stunden, unverbindlich.'),
     ('or fill in the form', 'oder füllen Sie das Formular aus'),
     ('placeholder="Maria"', 'placeholder="Maria"'),
     (

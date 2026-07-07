@@ -3365,6 +3365,7 @@ def check_shared_assets(r: Runner) -> None:
     r.check(
         'specs section explains APA and optional crew gratuity',
         'class="charter-faq ' in index_html
+        and 'id="charter-faq-gratuity"' in index_html
         and 'Good to know' in index_html
         and 'What is APA?' in index_html
         and '<strong>10% of the charter fee</strong>' in index_html
@@ -3374,6 +3375,15 @@ def check_shared_assets(r: Runner) -> None:
         and 'shared equally across the whole crew' in index_html
         and 'charter-faq-item+.charter-faq-item' in (css or '')
         and '.charter-faq{' in (css or ''),
+    )
+    r.check(
+        'gratuity sprinkled lightly without hard sell',
+        'about-crew-note' in index_html
+        and 'Crew gratuity not included (optional, cash)' in index_html
+        and 'gratuity optional' in index_html
+        and 'gratuity never required' in index_html
+        and 'charter-faq-gratuity' in index_html
+        and '.about-crew-note{' in (css or ''),
     )
     r.check(
         'WhatsApp CTA copy uses enquire voice',
