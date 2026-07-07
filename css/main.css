@@ -3570,7 +3570,7 @@
 
   }
   @media (min-width:769px){
-    #gallery,#itinerary{
+    #itinerary{
       display:flex;
       flex-direction:column;
       box-sizing:border-box;
@@ -3581,15 +3581,50 @@
       padding-bottom:0;
       overflow:hidden
     }
-    #gallery>.container,#itinerary>.container{
+    #gallery{
+      padding-top:0;
+      padding-bottom:0;
+      padding-left:0;
+      padding-right:0;
+      min-height:100svh;
+      overflow:hidden
+    }
+    #gallery>.container{
+      padding:var(--nav-scroll-offset) 1.2rem .65rem
+    }
+    #itinerary>.container{
       flex:0 0 auto;
       flex-shrink:0;
       padding:0 2rem
     }
-    #gallery .section-intro,#itinerary .itinerary-intro{
+    #gallery .section-label{
+      display:none
+    }
+    #gallery .section-title{
+      font-size:clamp(1.1rem,2.5vw,1.45rem);
+      line-height:1.15;
+      margin-bottom:.25rem
+    }
+    #gallery .section-intro{
+      margin-top:.35rem;
+      font-size:.8rem;
+      line-height:1.6;
+      margin-bottom:0
+    }
+    #itinerary .itinerary-intro{
       margin-bottom:0.15rem
     }
-    .gallery-wrap,.itinerary-wrap{
+    #gallery .gallery-wrap{
+      margin:0;
+      padding:0;
+      height:calc(100svh - var(--nav-scroll-offset) - max(.6rem,env(safe-area-inset-bottom,0px)));
+      display:flex;
+      flex-direction:column;
+      overflow:hidden;
+      width:100%;
+      max-width:none
+    }
+    .itinerary-wrap{
       flex:1 1 0;
       display:flex;
       flex-direction:column;
@@ -3610,6 +3645,20 @@
       border-left:none;
       border-right:none
     }
+    #gallery .gallery-tabs{
+      display:flex;
+      border:1px solid rgba(201,168,76,.25);
+      background:var(--navy);
+      overflow:hidden
+    }
+    #gallery .gallery-tab{
+      flex:1;
+      padding:1rem .5rem;
+      font-size:.58rem;
+      letter-spacing:.13em;
+      line-height:1.5;
+      text-align:center
+    }
     .dest-group.tab-active,.gallery-group.tab-active{
       display:flex;
       flex-direction:column;
@@ -3621,10 +3670,31 @@
     #gallery .gallery-wrap>.itinerary-bottom-bar,#itinerary .itinerary-wrap>.itinerary-bottom-bar{
       flex:0 0 auto
     }
-    #gallery .itinerary-bottom-bar,#itinerary .itinerary-bottom-bar{
+    #gallery .itinerary-bottom-bar{
+      display:block;
+      margin:.5rem 0 .75rem;
+      padding:0;
+      flex-shrink:0
+    }
+    #itinerary .itinerary-bottom-bar{
       display:block;
       margin:.4rem 0 .45rem;
       padding:0 2rem
+    }
+    #gallery .itinerary-bottom-actions{
+      gap:var(--hero-cinema-btn-gap);
+      max-width:none;
+      width:100%;
+      padding:0 var(--hero-cinema-side);
+      margin:0
+    }
+    #gallery .itinerary-bottom-actions .btn-primary,#gallery .itinerary-bottom-actions .btn-ghost{
+      min-height:2.85rem;
+      padding:var(--hero-cinema-btn-pad-y) var(--hero-cinema-btn-pad-x);
+      font-size:var(--hero-cinema-btn-size);
+      letter-spacing:.07em;
+      max-width:none;
+      flex:1 1 0
     }
     .itinerary-bottom-actions .itinerary-bottom-link--mobile{
       display:none!important
@@ -3702,7 +3772,19 @@
     .destination-desc{
       display:none
     }
-    #gallery .carousel-nav,.dest-group .carousel-nav{
+    #gallery .carousel-nav{
+      display:flex;
+      align-items:center;
+      justify-content:center;
+      position:static;
+      gap:.6rem;
+      margin:0;
+      padding:0 0 .15rem;
+      min-height:3.2rem;
+      box-sizing:border-box;
+      flex-shrink:0
+    }
+    .dest-group .carousel-nav{
       display:flex;
       align-items:center;
       justify-content:center;
@@ -3719,13 +3801,22 @@
       pointer-events:none;
       background:linear-gradient(to top,rgba(10,22,40,.78) 0%,rgba(10,22,40,.28) 55%,transparent 100%)
     }
-    #gallery .carousel-nav .carousel-btn,#gallery .carousel-nav .carousel-pos,.dest-group .carousel-nav .carousel-btn,.dest-group .carousel-nav .carousel-pos{
+    .dest-group .carousel-nav .carousel-btn,.dest-group .carousel-nav .carousel-pos{
       pointer-events:auto
     }
     #gallery .gallery-group .gallery-grid{
       flex:1 1 0;
       min-height:0;
       padding-bottom:0
+    }
+    #gallery .carousel-btn{
+      width:2.1rem;
+      height:2.1rem;
+      font-size:1.25rem
+    }
+    #gallery .carousel-pos{
+      font-size:.52rem;
+      min-width:2.5rem
     }
     .carousel-btn{
       background:transparent;
@@ -3776,7 +3867,7 @@
 
   }
   @media (min-width:641px) and (max-width:1100px){
-    #gallery .carousel-nav,.dest-group .carousel-nav{
+    .dest-group .carousel-nav{
       gap:.85rem;
       padding:.75rem 0 1rem
     }
