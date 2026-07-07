@@ -391,6 +391,8 @@ def check_html(r: Runner, rel: str, html: str) -> None:
         'window.LY_syncDestCardImages' not in html
         and html.count('class="destination-card-bg"') == 12
         and html.count('sizes="78vw"') == 12
+        and html.count('media="(min-width: 769px)"') == 34
+        and html.count('media="(min-width: 769px)" data-ly-srcset=') == 34
         and 'portals-vells-1-640.webp' in html
         and 'portals-vells-1gm-720.webp' in html
         and 'images/mobile/dest/portals-vells-1gm.webp 842w' in html
@@ -431,6 +433,7 @@ def check_html(r: Runner, rel: str, html: str) -> None:
         'carousel step avoids offsetLeft on mobile (forced reflow guard)',
         'window.lyCarouselStep' in html
         and 'window.innerWidth * 0.78 + 12' in html
+        and 'window.innerWidth > 768' in html
         and 'grid.classList.contains(\'gallery-grid\')' in html
         and 'requestAnimationFrame(updateNav)' in html,
     )
@@ -2682,7 +2685,7 @@ def check_shared_assets(r: Runner) -> None:
         )
         is not None
         and re.search(
-            r'@media\s*\(\s*min-width:\s*769px\s*\)[\s\S]*?#gallery,\s*#itinerary\s*\{[^}]*min-height:\s*calc\(100svh\s*-\s*var\(--nav-scroll-offset\)\)',
+            r'@media\s*\(\s*min-width:\s*769px\s*\)[\s\S]*?#gallery,\s*#itinerary\s*\{[^}]*height:\s*calc\(100svh\s*-\s*var\(--nav-scroll-offset\)\)',
             css,
         )
         is not None
@@ -2702,7 +2705,7 @@ def check_shared_assets(r: Runner) -> None:
         )
         is not None
         and re.search(
-            r'@media\s*\(\s*min-width:\s*769px\s*\)[\s\S]*?\.destination-card\s*\{[^}]*flex:\s*0\s*0\s*78vw',
+            r'@media\s*\(\s*min-width:\s*769px\s*\)[\s\S]*?\.destination-card\s*\{[^}]*flex:\s*0\s*0\s*100vw',
             css,
         )
         is not None
@@ -3162,7 +3165,7 @@ def check_shared_assets(r: Runner) -> None:
         and 'class="section-title reveal reveal-delay-1">On<em>board Gallery</em>' in index_html
         and css is not None
         and re.search(
-            r'@media\s*\(\s*min-width:\s*769px\s*\)[\s\S]*?#gallery,\s*#itinerary\s*\{[^}]*padding-bottom:\s*5rem',
+            r'@media\s*\(\s*min-width:\s*769px\s*\)[\s\S]*?#gallery,\s*#itinerary\s*\{[^}]*padding-bottom:\s*0',
             css,
         )
         is not None,

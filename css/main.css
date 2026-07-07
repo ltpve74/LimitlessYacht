@@ -3573,14 +3573,13 @@
     #gallery,#itinerary{
       display:flex;
       flex-direction:column;
-      height:auto;
+      box-sizing:border-box;
+      height:calc(100svh - var(--nav-scroll-offset));
       min-height:calc(100svh - var(--nav-scroll-offset));
       max-height:none;
-      padding-top:3.5rem;
-      overflow:visible
-    }
-    #gallery,#itinerary{
-      padding-bottom:5rem
+      padding-top:2rem;
+      padding-bottom:0;
+      overflow:hidden
     }
     #gallery>.container,#itinerary>.container{
       flex:0 0 auto;
@@ -3654,8 +3653,8 @@
     .dest-group .itinerary-grid{
       flex:1 1 0;
       min-height:0;
-      gap:.75rem;
-      padding:.2rem 1rem 0;
+      gap:0;
+      padding:0;
       padding-bottom:0
     }
     .gallery-group .gallery-grid::-webkit-scrollbar,.dest-group .itinerary-grid::-webkit-scrollbar{
@@ -3685,13 +3684,17 @@
       display:block
     }
     .destination-card{
-      flex:0 0 78vw;
+      flex:0 0 100vw;
       min-height:0;
       height:100%;
-      border-radius:8px;
+      border-radius:0;
       scroll-snap-align:start;
       touch-action:pan-x pan-y;
       cursor:pointer
+    }
+    .destination-card>.ly-prog-wrap{
+      position:absolute;
+      inset:0
     }
     .destination-card-body{
       padding:1.35rem 1.5rem 1.15rem
@@ -3755,9 +3758,7 @@
       text-align:center
     }
     #gallery .gallery-wrap>.section-cta-desktop,#itinerary .itinerary-wrap>.section-cta-desktop{
-      flex:0 0 auto;
-      padding:.45rem 2rem 0;
-      text-align:center
+      display:none
     }
     #gallery .section-cta-desktop .section-cta-text,#itinerary .section-cta-desktop .section-cta-text{
       display:block;
