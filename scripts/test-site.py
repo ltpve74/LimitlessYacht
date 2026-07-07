@@ -555,6 +555,13 @@ def check_html(r: Runner, rel: str, html: str) -> None:
         and os.path.getsize(gm_480) > 30 * 1024
         and os.path.getsize(gm_master) > 120 * 1024,
     )
+    pv_card = html.split('data-dest-idx="0"')[1].split('data-dest-idx="1"')[0]
+    r.check(
+        'portals vells sharp img reserves portrait aspect (gm mobile, not landscape 960×540)',
+        'portals-vells-1gm.webp 842w' in pv_card
+        and 'width="842" height="1578"' in pv_card
+        and 'width="960" height="540"' not in pv_card,
+    )
     r.check(
         'destinations is one continuous swipe carousel (single track tagged by tier)',
         html.count('class="dest-group') == 1

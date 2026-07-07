@@ -175,10 +175,12 @@ def emit(source: Path, category: str, basename: str) -> list[Path]:
         p = m_dir / f"{basename}{suffix}.webp"
         t.save(p, "WEBP", quality=q, method=6); written.append(p)
 
-    # blur previews — desktop + mobile
-    for folder in (d_dir, m_dir):
-        p = folder / f"{basename}-prev.jpg"
-        write_preview(d_master, p); written.append(p)
+    # blur previews — desktop + mobile (dest_gm mobile must match m_master framing)
+    write_preview(d_master, d_dir / f"{basename}-prev.jpg")
+    written.append(d_dir / f"{basename}-prev.jpg")
+    mobile_prev_src = m_master if category == "dest_gm" else d_master
+    write_preview(mobile_prev_src, m_dir / f"{basename}-prev.jpg")
+    written.append(m_dir / f"{basename}-prev.jpg")
 
     return written
 
