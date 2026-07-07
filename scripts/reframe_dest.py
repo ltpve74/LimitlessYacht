@@ -95,8 +95,8 @@ def process_slot(basename: str, *, source: Path | None = None) -> bool:
 
     with tempfile.TemporaryDirectory() as tmp:
         tmp_path = Path(tmp) / f"{out_name}.jpg"
-        framed.save(tmp_path, "JPEG", quality=95, optimize=True)
-        subprocess.run([str(PY), str(PROC), str(tmp_path), "dest", out_name], check=True)
+        framed.save(tmp_path, "JPEG", quality=98, subsampling=0, optimize=True)
+        subprocess.run([str(PY), str(PROC), str(tmp_path), "dest_gm", out_name], check=True)
     return True
 
 

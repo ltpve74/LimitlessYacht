@@ -393,7 +393,7 @@ def check_html(r: Runner, rel: str, html: str) -> None:
         and html.count('sizes="78vw"') == 12
         and 'portals-vells-1-640.webp' in html
         and 'portals-vells-1gm-720.webp' in html
-        and 'images/mobile/dest/portals-vells-1gm-960.webp 960w' in html
+        and 'images/mobile/dest/portals-vells-1gm.webp 842w' in html
         and 'images/mobile/dest/portals-vells-1gm-480.webp 480w' in html
         # Lightbox: cache hit if card was visible; card srcset (WebP tiers only,
         # never .jpg fallback or master) if not yet loaded.
@@ -543,8 +543,17 @@ def check_html(r: Runner, rel: str, html: str) -> None:
     r.check(
         'portals vells mobile gm reframe assets exist',
         os.path.isfile(os.path.join(ROOT, 'images', 'mobile', 'dest', 'portals-vells-1gm-480.webp'))
-        and os.path.isfile(os.path.join(ROOT, 'images', 'mobile', 'dest', 'portals-vells-1gm-960.webp'))
+        and os.path.isfile(os.path.join(ROOT, 'images', 'mobile', 'dest', 'portals-vells-1gm.webp'))
         and os.path.isfile(os.path.join(ROOT, 'images', 'mobile', 'dest', 'portals-vells-1gm-prev.jpg')),
+    )
+    gm_480 = os.path.join(ROOT, 'images', 'mobile', 'dest', 'portals-vells-1gm-480.webp')
+    gm_master = os.path.join(ROOT, 'images', 'mobile', 'dest', 'portals-vells-1gm.webp')
+    r.check(
+        'portals vells gm mobile tiers stay sharp (dest_gm width tiers + full master)',
+        'dest_gm' in (read_file('scripts/process_media.py') or '')
+        and 'resize_width' in (read_file('scripts/process_media.py') or '')
+        and os.path.getsize(gm_480) > 30 * 1024
+        and os.path.getsize(gm_master) > 120 * 1024,
     )
     r.check(
         'destinations is one continuous swipe carousel (single track tagged by tier)',
@@ -3390,7 +3399,7 @@ def check_shared_assets(r: Runner) -> None:
         'images/mobile/dest/portals-vells-1.webp',
         'images/dest/portals-vells-1gm.webp',
         'images/mobile/dest/portals-vells-1gm-480.webp',
-        'images/mobile/dest/portals-vells-1gm-960.webp',
+        'images/mobile/dest/portals-vells-1gm-720.webp',
         'images/mobile/dest/portals-vells-1gm-prev.jpg',
         'images/dest/portals-vells-2.jpg',
         'images/dest/portals-vells-2.webp',
