@@ -1381,10 +1381,11 @@ def check_html(r: Runner, rel: str, html: str) -> None:
     )
     r.check(
         'about section uses multi-tier desktop srcset',
-        'images/maiora_20s_04-640.webp 640w' in html
-        and 'images/maiora_20s_04-960.webp 960w' in html
-        and 'images/mobile/maiora_20s_04-960.webp 960w' in html
-        and 'images/mobile/maiora_20s_04.webp 960w' not in html,
+        'images/maiora_20s_21-640.webp 640w' in html
+        and 'images/maiora_20s_21-960.webp 960w' in html
+        and 'images/mobile/maiora_20s_21-960.webp 960w' in html
+        and 'images/mobile/maiora_20s_21.webp 960w' not in html
+        and 'maiora_20s_21.jpg' in html.split('<section id="about">')[1].split('<section id="itinerary"')[0],
     )
     r.check(
         'hero title has no entrance animation in critical CSS (visible for LCP)',
@@ -3357,6 +3358,11 @@ def check_shared_assets(r: Runner) -> None:
         'images/mobile/dest/portals-vells-1.webp',
         'images/maiora_20s_04-640.webp',
         'images/maiora_20s_04-960.webp',
+        'images/maiora_20s_21.jpg',
+        'images/maiora_20s_21-640.webp',
+        'images/maiora_20s_21-960.webp',
+        'images/mobile/maiora_20s_21-960.webp',
+        'images/maiora_20s_21-prev.jpg',
         'images/mobile/dest/el-toro-malgrats-1-480.webp',
         'images/mobile/dest/el-toro-malgrats-1-720.webp',
         'images/mobile/_srcset-widths.json',
