@@ -3574,7 +3574,7 @@
       display:flex;
       flex-direction:column;
       height:auto;
-      min-height:unset;
+      min-height:calc(100svh - var(--nav-scroll-offset));
       max-height:none;
       padding-top:3.5rem;
       overflow:visible
@@ -3583,21 +3583,22 @@
       padding-bottom:5rem
     }
     #gallery>.container,#itinerary>.container{
+      flex:0 0 auto;
       flex-shrink:0;
       padding:0 2rem
     }
     #gallery .section-intro,#itinerary .itinerary-intro{
-      margin-bottom:0.25rem
+      margin-bottom:0.15rem
     }
     .gallery-wrap,.itinerary-wrap{
-      flex:0 0 auto;
+      flex:1 1 0;
       display:flex;
       flex-direction:column;
-      height:calc(100svh - var(--nav-scroll-offset) - 14rem);
-      min-height:400px;
+      min-height:0;
+      height:auto;
       width:100%;
       max-width:none;
-      margin:1.25rem 0 0;
+      margin:.65rem 0 0;
       padding:0
     }
     .dest-tabs,.gallery-tabs{
@@ -3615,14 +3616,15 @@
       flex-direction:column;
       flex:1 1 0;
       min-height:0;
-      overflow:hidden
+      overflow:hidden;
+      position:relative
     }
     #gallery .gallery-wrap>.itinerary-bottom-bar,#itinerary .itinerary-wrap>.itinerary-bottom-bar{
       flex:0 0 auto
     }
     #gallery .itinerary-bottom-bar,#itinerary .itinerary-bottom-bar{
       display:block;
-      margin:.75rem 0 .85rem;
+      margin:.4rem 0 .45rem;
       padding:0 2rem
     }
     .itinerary-bottom-actions .itinerary-bottom-link--mobile{
@@ -3650,8 +3652,11 @@
       padding:0
     }
     .dest-group .itinerary-grid{
+      flex:1 1 0;
+      min-height:0;
       gap:.75rem;
-      padding:.35rem 1rem 0
+      padding:.2rem 1rem 0;
+      padding-bottom:0
     }
     .gallery-group .gallery-grid::-webkit-scrollbar,.dest-group .itinerary-grid::-webkit-scrollbar{
       display:none
@@ -3698,17 +3703,26 @@
       display:flex;
       align-items:center;
       justify-content:center;
-      flex:0 0 auto;
+      position:absolute;
+      bottom:0;
+      left:0;
+      right:0;
+      z-index:3;
       gap:.75rem;
-      padding:.65rem 0 1.15rem;
-      min-height:3.2rem;
-      box-sizing:border-box
+      margin:0;
+      padding:.85rem 0 1rem;
+      min-height:0;
+      box-sizing:border-box;
+      pointer-events:none;
+      background:linear-gradient(to top,rgba(10,22,40,.78) 0%,rgba(10,22,40,.28) 55%,transparent 100%)
+    }
+    #gallery .carousel-nav .carousel-btn,#gallery .carousel-nav .carousel-pos,.dest-group .carousel-nav .carousel-btn,.dest-group .carousel-nav .carousel-pos{
+      pointer-events:auto
     }
     #gallery .gallery-group .gallery-grid{
-      padding-bottom:1rem
-    }
-    #gallery .carousel-nav{
-      padding:1rem 0 1.15rem
+      flex:1 1 0;
+      min-height:0;
+      padding-bottom:0
     }
     .carousel-btn{
       background:transparent;
@@ -3742,15 +3756,15 @@
     }
     #gallery .gallery-wrap>.section-cta-desktop,#itinerary .itinerary-wrap>.section-cta-desktop{
       flex:0 0 auto;
-      padding:1rem 2rem 0;
+      padding:.45rem 2rem 0;
       text-align:center
     }
     #gallery .section-cta-desktop .section-cta-text,#itinerary .section-cta-desktop .section-cta-text{
       display:block;
-      font-size:.72rem;
+      font-size:.68rem;
       letter-spacing:.08em;
       color:var(--text-muted);
-      margin-bottom:1rem
+      margin-bottom:.65rem
     }
     #gallery .section-cta-desktop .section-cta-btns,#itinerary .section-cta-desktop .section-cta-btns{
       display:flex;
