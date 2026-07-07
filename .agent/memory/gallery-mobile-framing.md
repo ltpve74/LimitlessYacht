@@ -26,7 +26,8 @@ owned Limitless drone/video frames.
 2. **HTML `<picture>`** — first source `media="(max-width: 768px)"` points at
    `images/mobile/<basename>gm-{480,720,960}.webp`; desktop keeps the landscape master.
 3. **Water tier slots (7 panels, `data-cat="water"`):**
-   - `01`, `03`, `17` — existing DJI slots + `01gm` / `03gm` / `17gm` on mobile
+   - `01` — `video-frames/chosen/best_02_t005.0s.jpg` (aerial + jet skis; replaced cove anchor DJI)
+   - `03`, `17` — DJI slots + `03gm` / `17gm` on mobile
    - `16` — portrait master (853×1280); no gm needed
    - `19` — top-down drone (`video-frames/1/best_02_t011.5s.jpg`) replaces `life_seabob`
    - `20` — stern/cove shot replaces `life_jetski`

@@ -553,7 +553,7 @@
   }
   @media (min-width:769px){
     .gallery-item[data-index="0"] img{
-      object-position:25% 60%
+      object-position:50% 42%
     }
 
   }
@@ -628,7 +628,7 @@
   }
   @media (min-width:769px){
     .gallery-item[data-index="0"] .ly-prog-preview,.gallery-item[data-index="0"] .ly-prog-sharp{
-      object-position:25% 60%
+      object-position:50% 42%
     }
 
   }
