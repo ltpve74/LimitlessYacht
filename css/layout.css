@@ -14,6 +14,7 @@
     --white:#ffffff;
     --text-muted:#8a9bb5;
     --nav-scroll-offset:4.25rem;
+    --funnel-carousel-headroom:2.75rem;
     --hero-cluster-gap:1.25rem;
     --hero-bottom-inset:max(2.75rem,calc(env(safe-area-inset-bottom,0px) + 1.75rem));
     --btn-font:'Montserrat',sans-serif;
@@ -1005,7 +1006,7 @@
     .gallery-wrap{
       margin:0!important;
       padding:0!important;
-      height:calc(100svh - var(--mobile-funnel-land-offset,5.45rem) - max(.6rem,env(safe-area-inset-bottom,0px)));
+      height:calc(100svh - var(--mobile-funnel-land-offset,5.45rem) - var(--funnel-carousel-headroom,2.75rem) - max(.6rem,env(safe-area-inset-bottom,0px)));
       display:flex;
       flex-direction:column;
       overflow:hidden
@@ -1013,7 +1014,7 @@
     .itinerary-wrap{
       margin:0!important;
       padding:0!important;
-      height:calc(100svh - var(--mobile-funnel-land-offset,5.45rem) - max(.6rem,env(safe-area-inset-bottom,0px)));
+      height:calc(100svh - var(--mobile-funnel-land-offset,5.45rem) - var(--funnel-carousel-headroom,2.75rem) - max(.6rem,env(safe-area-inset-bottom,0px)));
       display:flex;
       flex-direction:column;
       overflow:hidden

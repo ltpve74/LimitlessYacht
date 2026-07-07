@@ -103,9 +103,15 @@ Do **not** "fix" them without checking here first. Each entry lists what *not* t
   - JS (`refreshNavHeight()` in `index.html`) sets `--mobile-funnel-land-offset` to the **measured
     nav height + 2px** (re-measured on resize, on anchor clicks and when `ly-past-hero` flips), so
     the tabs' top edge lands skirting the nav bottom edge on any device — no hardcoded rem offsets.
-  - `.gallery-wrap`/`.itinerary-wrap` = `calc(100svh − offset − max(.6rem, safe-area-inset-bottom))`,
+  - `.gallery-wrap`/`.itinerary-wrap` = `calc(100svh − offset − var(--funnel-carousel-headroom,2.75rem) − max(.6rem, safe-area-inset-bottom))`,
     flex column; the card is `height:100%` of the flexible grid, so **the card (image) absorbs the
     size difference between devices** and the bottom buttons keep breathing room — never cut.
+  - **`--funnel-carousel-headroom` (8 Jul 2026):** subtracts ~2.75rem from funnel wrap heights on
+    mobile **and** desktop so Gallery/Destinations land with visible space below the fixed nav (owner
+    request). Desktop `#itinerary` uses the same headroom in its `100svh` cap.
+  - **Hash-locked nav (8 Jul 2026):** while `LY_hashLockUntil` is active, `updateHeroCinema` must
+    not strip `ly-past-hero` at `scrollY ≤ 56` — otherwise jumping to Gallery from the hero hides
+    the cinema nav mid-scroll.
   - **Destination lightbox (≤640px) is image-first AND flick-stable:** `.dest-lb-img-wrap{flex:1 1 0%;
     min-height:34vh}` + `.dest-lb-body{flex:0 0 auto}` — zero flex-basis so the photo's intrinsic
     size can't reshuffle the layout per card; the body is constant via text reserves

@@ -902,6 +902,9 @@ def check_html(r: Runner, rel: str, html: str) -> None:
         and "classList.add('ly-past-hero')" in html
         and "classList.remove('ly-past-hero')" in html
         and 'lyHashLocked() && root.classList.contains' in html
+        and 'if (!lyHashLocked()) root.classList.remove' in html
+        and "hash === 'gallery-land'" in html
+        and "hash === 'itinerary-land'" in html
         and "destId === 'hero'" in html
         and "document.documentElement.classList.remove('ly-past-hero')" in html
         and "destId === 'itinerary-funnel' || destId === 'gallery-funnel'" in html,
@@ -2158,7 +2161,8 @@ def check_shared_assets(r: Runner) -> None:
             # buttons are never cut. Lightbox gives spare height to the IMAGE.
             "setProperty('--mobile-funnel-land-offset', (_navHeight + 2) + 'px')" in index_html
             and layout_css is not None
-            and layout_css.count('height:calc(100svh - var(--mobile-funnel-land-offset,5.45rem) - max(.6rem,env(safe-area-inset-bottom,0px)))') == 2
+            and layout_css.count('height:calc(100svh - var(--mobile-funnel-land-offset,5.45rem) - var(--funnel-carousel-headroom,2.75rem) - max(.6rem,env(safe-area-inset-bottom,0px)))') == 2
+            and '--funnel-carousel-headroom:2.75rem' in layout_css
             and re.search(r'@media \(max-width:640px\)\{\s*(?:/\*[^*]*\*/\s*)?\.dest-lb-img-wrap\{\s*flex:1 1 0%;\s*min-height:34vh', re.sub(r'  +', ' ', css or '')) is not None,
         )
         r.check(
@@ -2694,12 +2698,12 @@ def check_shared_assets(r: Runner) -> None:
         and 'href="#itinerary-funnel" class="btn-ghost itinerary-bottom-link--mobile">destinations</a>' in index_html
         and css is not None
         and re.search(
-            r'@media\s*\(\s*min-width:\s*769px\s*\)[\s\S]*?#gallery\s+\.gallery-wrap[\s\S]*?height:\s*calc\(100svh\s*-\s*var\(--nav-scroll-offset\)',
+            r'@media\s*\(\s*min-width:\s*769px\s*\)[\s\S]*?#gallery\s+\.gallery-wrap[\s\S]*?height:\s*calc\(100svh\s*-\s*var\(--nav-scroll-offset\)\s*-\s*var\(--funnel-carousel-headroom',
             css,
         )
         is not None
         and re.search(
-            r'@media\s*\(\s*min-width:\s*769px\s*\)[\s\S]*?#itinerary\s*\{[^}]*height:\s*calc\(100svh\s*-\s*var\(--nav-scroll-offset\)\)',
+            r'@media\s*\(\s*min-width:\s*769px\s*\)[\s\S]*?#itinerary\s*\{[^}]*height:\s*calc\(100svh\s*-\s*var\(--nav-scroll-offset\)\s*-\s*var\(--funnel-carousel-headroom',
             css,
         )
         is not None
