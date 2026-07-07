@@ -16,7 +16,7 @@ import sys
 import tempfile
 from pathlib import Path
 
-from PIL import Image
+from PIL import Image, ImageOps
 
 ROOT = Path(__file__).resolve().parent.parent
 PY = ROOT / ".venv/bin/python3"
@@ -48,6 +48,9 @@ WATER_LANDSCAPE = (
     "maiora_20s_20",
 )
 
+# Top-down masters: mobile uses a -90° portrait (bow down), not landscape compose.
+VERTICAL_TOPDOWN = frozenset({"maiora_20s_01"})
+
 
 def reframe_gallery_mobile(src: Image.Image) -> Image.Image:
     return compose_framed(
@@ -63,19 +66,38 @@ def reframe_gallery_mobile(src: Image.Image) -> Image.Image:
     )
 
 
-def process_slot(basename: str) -> bool:
-    src_path = IMAGES / f"{basename}.jpg"
+def reframe_gallery_mobile_vertical(src: Image.Image, *, rotate: int = -90) -> Image.Image:
+    """Top-down landscape → portrait mobile (boat runs bow-down like hero 18pv)."""
+    upright = ImageOps.exif_transpose(src).convert("RGB").rotate(
+        rotate, expand=True, resample=Image.Resampling.LANCZOS
+    )
+    return compose_framed(
+        upright,
+        OUT_W,
+        OUT_H,
+        top_ui=0.05,
+        bottom_ui=0.05,
+        boat_center_y_frac=0.48,
+        viewports=GALLERY_MOBILE_VPS,
+        side_margin=0.07,
+        tight_crop=True,
+    )
+
+
+def process_slot(basename: str, *, vertical: bool = False, source: Path | None = None) -> bool:
+    src_path = source or (IMAGES / f"{basename}.jpg")
     if not src_path.is_file():
         print(f"  skip {basename}: no {src_path.name}")
         return False
     src = Image.open(src_path)
     w, h = src.size
-    if h > w * 1.05:
+    use_vertical = vertical or basename in VERTICAL_TOPDOWN
+    if not use_vertical and h > w * 1.05:
         print(f"  skip {basename}: already portrait ({w}×{h})")
         return True
 
     out_name = f"{basename}gm"
-    framed = reframe_gallery_mobile(src)
+    framed = reframe_gallery_mobile_vertical(src) if use_vertical else reframe_gallery_mobile(src)
     x0, y0, x1, y1 = boat_bbox(framed)
     print(f"  {out_name}: {framed.size[0]}×{framed.size[1]}  boat {x0},{y0}–{x1},{y1}")
 
@@ -88,14 +110,29 @@ def process_slot(basename: str) -> bool:
 
 def main() -> int:
     args = sys.argv[1:]
-    if not args or args == ["--all-water"]:
+    vertical = False
+    source: Path | None = None
+    cleaned: list[str] = []
+    for a in args:
+        if a == "--all-water":
+            cleaned.append(a)
+        elif a == "--vertical":
+            vertical = True
+        elif a.startswith("--source="):
+            source = Path(a.split("=", 1)[1])
+            if not source.is_absolute():
+                source = ROOT / source
+        else:
+            cleaned.append(a)
+
+    if not cleaned or cleaned == ["--all-water"]:
         slots = list(WATER_LANDSCAPE)
     else:
-        slots = [a.removesuffix(".jpg").removesuffix("gm") for a in args]
+        slots = [a.removesuffix(".jpg").removesuffix("gm") for a in cleaned if a != "--all-water"]
 
     ok = True
     for slot in slots:
-        if not process_slot(slot):
+        if not process_slot(slot, vertical=vertical, source=source):
             ok = False
     return 0 if ok else 1
 
