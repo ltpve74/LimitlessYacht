@@ -1,7 +1,8 @@
 - [Gallery mobile framing](gallery-mobile-framing.md) — On the Water *-gm reframes, no life_* in water tier, full hull on phones
 - [Interior photo enhancement](interior-photo-enhancement.md) — chosen-interior shots + postprocess_interior.py pipeline
 - [Project folders purpose](project-folders-purpose.md) — what screenshots/ and scripts/google-ads/ are for
-- [No auto-push](no-auto-push.md) — commit locally, push only when the user agrees
+- [Auto-push preview](auto-push-preview.md) — always push `develop` to GitHub Pages after work; no need to ask
+- [No auto-push production](no-auto-push.md) — `main`/Netlify only when the user asks to go live
 - [Charter business model](charter-business-model.md) — day-charter boat, multi-day new in 2026, not weekly/APA
 - [Be proactive with suggestions](be-proactive-with-suggestions.md) — surface obvious wins without being asked
 - [Screenshots off main](screenshots-off-main.md) — screenshots/ stays off main; don't restore/commit its deletions

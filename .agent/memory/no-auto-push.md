@@ -7,8 +7,8 @@ metadata:
   originSessionId: 1b62144d-44dd-4710-a58e-6732204ec60f
 ---
 
-Do not `git push` after every change. Committing locally is fine, but pushing to the remote happens only when the user explicitly agrees / asks.
+**Preview (`develop`):** always push — see [auto-push-preview.md](auto-push-preview.md). The user wants GitHub Pages preview updated without having to ask.
 
-**Why:** the user wants to review and batch changes before they go to the remote (and trigger Netlify deploys), rather than every edit auto-deploying.
+**Production (`main`):** do not push unless the user explicitly asks to go live / publish. Merging to `main` triggers the Netlify deploy and publish gate (~1 min+).
 
-**How to apply:** make commits as work progresses, but pause before pushing and wait for the user's go-ahead. When work is at a natural stopping point, offer to push rather than doing it automatically.
+**How to apply:** commit as work progresses; when a change set is done and tests pass, `git push origin develop` automatically. Only offer or run the `develop` → `main` publish flow when the user requests production.
