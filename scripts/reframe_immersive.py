@@ -103,54 +103,55 @@ GALLERY_WATER: dict[str, tuple[Path, Focus]] = {
     ),
 }
 
+# Hero sources per media-library/destinations/CREDITS.md ("existing" / primary scenic).
 DEST_SLOTS: dict[str, tuple[Path, Focus]] = {
     "portals-vells-1": (
-        ROOT / "media-library/destinations/portals-vells/02_portals_pano.jpg",
-        Focus(0.36, 0.57, 1.35),
+        ROOT / "media-library/destinations/portals-vells/01_portals_vells_existing.jpg",
+        Focus(0.52, 0.48, 1.0),
     ),
     "el-toro-malgrats-1": (
-        ROOT / "media-library/destinations/el-toro-malgrats/02_el_toro_waterfront_pexels.jpg",
-        Focus(0.5, 0.5, 1.2),
+        ROOT / "media-library/destinations/el-toro-malgrats/01_el_toro_rocky_pexels.jpg",
+        Focus(0.52, 0.58, 1.05),
     ),
     "cala-llamp-1": (
-        ROOT / "media-library/destinations/cala-llamp/02_cala_llamp_cliff_pexels.jpg",
-        Focus(0.5, 0.45, 1.25),
+        ROOT / "media-library/destinations/cala-llamp/01_cala_llamp_existing.jpg",
+        Focus(0.34, 0.58, 1.25),
     ),
     "sa-dragonera-1": (
         ROOT / "media-library/destinations/sa-dragonera/01_dragonera.jpg",
-        Focus(0.5, 0.5, 1.15),
+        Focus(0.48, 0.52, 1.0),
     ),
     "cala-pi-1": (
-        ROOT / "media-library/destinations/cala-pi/03_cala_pi_panorama.jpg",
-        Focus(0.5, 0.5, 1.2),
+        ROOT / "media-library/destinations/cala-pi/01_cala_pi_beach.jpg",
+        Focus(0.55, 0.48, 1.05),
     ),
     "es-trenc-1": (
         ROOT / "media-library/destinations/es-trenc/03_es_trenc_aerial_pexels.jpg",
-        Focus(0.5, 0.45, 1.2),
+        Focus(0.5, 0.45, 1.0),
     ),
     "cabrera-1": (
         ROOT / "media-library/destinations/cabrera/01_cabrera_view.jpg",
-        Focus(0.5, 0.5, 1.15),
+        Focus(0.5, 0.5, 1.0),
     ),
     "calo-des-moro-1": (
         ROOT / "media-library/destinations/calo-des-moro/02_calo_aerial_pexels.jpg",
-        Focus(0.5, 0.42, 1.25),
+        Focus(0.5, 0.48, 1.0),
     ),
     "sa-calobra-1": (
         ROOT / "media-library/destinations/sa-calobra/01_sa_calobra_cala.jpg",
-        Focus(0.5, 0.5, 1.2),
+        Focus(0.5, 0.52, 1.05),
     ),
     "circumnavigation-1": (
         ROOT / "media-library/destinations/circumnavigation/west_mallorca_coastline.jpeg",
-        Focus(0.5, 0.5, 1.1),
+        Focus(0.5, 0.5, 1.0),
     ),
     "formentera-1": (
         ROOT / "media-library/destinations/formentera/01_ses_illetes.jpg",
-        Focus(0.5, 0.45, 1.2),
+        Focus(0.5, 0.45, 1.0),
     ),
     "menorca-1": (
         ROOT / "media-library/destinations/menorca/cala_macarella.jpg",
-        Focus(0.5, 0.45, 1.2),
+        Focus(0.5, 0.48, 1.0),
     ),
 }
 
