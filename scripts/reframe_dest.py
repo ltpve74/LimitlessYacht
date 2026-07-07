@@ -25,6 +25,11 @@ PY = ROOT / ".venv/bin/python3"
 PROC = ROOT / "scripts/process_media.py"
 IMAGES = ROOT / "images" / "dest"
 
+# Original video-frame sources (media-library is local-only; never committed).
+ORIGINAL_SOURCES: dict[str, Path] = {
+    "portals-vells-1": ROOT / "media-library/incoming/video-frames/portals_vells_t28.jpg",
+}
+
 # Gallery mobile frame is 1080×1578 (100vw). Dest cards are 78vw — same height.
 OUT_W, OUT_H = round(1080 * 0.78), 1578
 
@@ -34,7 +39,9 @@ def reframe_dest_mobile(src: Image.Image) -> Image.Image:
 
 
 def process_slot(basename: str, *, source: Path | None = None) -> bool:
-    src_path = source or (IMAGES / f"{basename}.jpg")
+    src_path = source or ORIGINAL_SOURCES.get(basename) or (IMAGES / f"{basename}.jpg")
+    if not src_path.is_file() and basename in ORIGINAL_SOURCES:
+        src_path = IMAGES / f"{basename}.jpg"
     if not src_path.is_file():
         print(f"  skip {basename}: no {src_path.name}")
         return False
