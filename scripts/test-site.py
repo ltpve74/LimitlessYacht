@@ -396,6 +396,8 @@ def check_html(r: Runner, rel: str, html: str) -> None:
         and 'media="(min-width: 769px)" data-ly-srcset="images/mobile/' not in html
         and 'reframe_immersive.py' in (read_file('scripts/reframe_immersive.py') or '')
         and 'DJI_20260626132137_0266_D.JPG' in (read_file('scripts/reframe_immersive.py') or '')
+        and 'Focus(0.56, 0.50, 1.35)' in (read_file('scripts/reframe_immersive.py') or '')
+        and ', 2.' not in (read_file('scripts/reframe_immersive.py') or '').split('GALLERY_WATER')[1].split('DEST_SLOTS')[0]
         and 'portals-vells-1-640.webp' in html
         and 'portals-vells-1gm-720.webp' in html
         and 'images/mobile/dest/portals-vells-1gm.webp 842w' in html
@@ -2947,12 +2949,12 @@ def check_shared_assets(r: Runner) -> None:
         )
         is not None
         and re.search(
-            r'@media\s*\(\s*min-width:\s*769px\s*\)[\s\S]*?\.gallery-group\s+\.gallery-item\s+\.ly-prog-sharp[\s\S]*?object-position:\s*50%\s*40%',
+            r'@media\s*\(\s*min-width:\s*769px\s*\)[\s\S]*?\.gallery-group\s+\.gallery-item\s+\.ly-prog-sharp[\s\S]*?object-position:\s*50%\s*46%',
             css,
         )
         is not None
         and re.search(
-            r'@media\s*\(\s*max-width:\s*768px\s*\)[\s\S]*?\.gallery-group\s+\.gallery-item\s+\.ly-prog-sharp[\s\S]*?object-position:\s*50%\s*40%',
+            r'@media\s*\(\s*max-width:\s*768px\s*\)[\s\S]*?\.gallery-group\s+\.gallery-item\s+\.ly-prog-sharp[\s\S]*?object-position:\s*50%\s*46%',
             read_file('css/layout.css') or '',
         )
         is not None,

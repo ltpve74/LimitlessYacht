@@ -74,39 +74,39 @@ def compose_cover_crop(
 GALLERY_WATER: dict[str, tuple[Path, Focus]] = {
     "maiora_20s_01": (
         ROOT / "media-library/incoming/video-frames/chosen/best_01_t005.5s.jpg",
-        Focus(0.56, 0.50, 2.65),
+        Focus(0.56, 0.50, 1.35),
     ),
     "maiora_20s_03": (
         ROOT / "media-library/incoming/Photos/DJI_20260626180827_0362_D.JPG",
-        Focus(0.52, 0.64, 2.2),
+        Focus(0.52, 0.55, 1.25),
     ),
     "maiora_20s_16": (
         ROOT / "media-library/incoming/Photos/DJI_20260626180430_0346_D.JPG",
-        Focus(0.5, 0.72, 2.4),
+        Focus(0.5, 0.58, 1.35),
     ),
     "maiora_20s_17": (
         ROOT / "media-library/incoming/Photos/DJI_20260626180918_0368_D.JPG",
-        Focus(0.5, 0.62, 2.0),
+        Focus(0.5, 0.52, 1.2),
     ),
     "maiora_20s_19": (
         ROOT / "media-library/incoming/video-frames/1/best_02_t011.5s.jpg",
-        Focus(0.5, 0.50, 2.75),
+        Focus(0.5, 0.50, 1.4),
     ),
     # Cove anchor stern — must match mobile gm (not the top-down video frame).
     "maiora_20s_20": (
         ROOT / "media-library/incoming/Photos/DJI_20260626132137_0266_D.JPG",
-        Focus(0.46, 0.70, 2.1),
+        Focus(0.46, 0.58, 1.3),
     ),
     "maiora_20s_04": (
         ROOT / "media-library/incoming/Photos/DJI_20260626180844_0365_D.JPG",
-        Focus(0.54, 0.64, 2.3),
+        Focus(0.54, 0.55, 1.25),
     ),
 }
 
 DEST_SLOTS: dict[str, tuple[Path, Focus]] = {
     "portals-vells-1": (
         ROOT / "media-library/destinations/portals-vells/02_portals_pano.jpg",
-        Focus(0.36, 0.57, 1.85),
+        Focus(0.36, 0.57, 1.35),
     ),
     "el-toro-malgrats-1": (
         ROOT / "media-library/destinations/el-toro-malgrats/02_el_toro_waterfront_pexels.jpg",

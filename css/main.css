@@ -3747,7 +3747,7 @@
       width:100%;
       height:100%;
       object-fit:cover;
-      object-position:50% 40%;
+      object-position:50% 46%;
       display:block
     }
     .destination-card{
@@ -3789,7 +3789,7 @@
       min-height:0
     }
     .destination-card .destination-card-bg .ly-prog-preview,.destination-card .destination-card-bg .ly-prog-sharp,.destination-card .destination-card-bg img{
-      object-position:50% 40%
+      object-position:50% 46%
     }
     .carousel-btn{
       background:transparent;
