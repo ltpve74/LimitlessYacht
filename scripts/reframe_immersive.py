@@ -33,11 +33,12 @@ Image.MAX_IMAGE_PIXELS = 200_000_000
 
 @dataclass(frozen=True)
 class Focus:
-    """Normalized crop centre (0–1) and zoom (>1 = tighter on subject)."""
+    """Normalized crop centre (0–1), zoom (>1 = tighter), optional rotate (degrees)."""
 
     fx: float
     fy: float
     zoom: float = 1.0
+    rotate: int = 0
 
 
 def compose_cover_crop(
@@ -48,6 +49,8 @@ def compose_cover_crop(
     focus: Focus,
 ) -> Image.Image:
     src = ImageOps.exif_transpose(src).convert("RGB")
+    if focus.rotate:
+        src = src.rotate(focus.rotate, expand=True, resample=Image.Resampling.LANCZOS)
     sw, sh = src.size
     target_aspect = out_w / out_h
 
@@ -71,38 +74,39 @@ def compose_cover_crop(
 GALLERY_WATER: dict[str, tuple[Path, Focus]] = {
     "maiora_20s_01": (
         ROOT / "media-library/incoming/video-frames/chosen/best_01_t005.5s.jpg",
-        Focus(0.58, 0.48, 1.75),
+        Focus(0.56, 0.50, 2.65),
     ),
     "maiora_20s_03": (
         ROOT / "media-library/incoming/Photos/DJI_20260626180827_0362_D.JPG",
-        Focus(0.5, 0.52, 1.35),
+        Focus(0.52, 0.64, 2.2),
     ),
     "maiora_20s_16": (
         ROOT / "media-library/incoming/Photos/DJI_20260626180430_0346_D.JPG",
-        Focus(0.5, 0.58, 1.45),
+        Focus(0.5, 0.72, 2.4),
     ),
     "maiora_20s_17": (
         ROOT / "media-library/incoming/Photos/DJI_20260626180918_0368_D.JPG",
-        Focus(0.5, 0.5, 1.25),
+        Focus(0.5, 0.62, 2.0),
     ),
     "maiora_20s_19": (
         ROOT / "media-library/incoming/video-frames/1/best_02_t011.5s.jpg",
-        Focus(0.5, 0.5, 1.85),
+        Focus(0.5, 0.50, 2.75),
     ),
+    # Cove anchor stern — must match mobile gm (not the top-down video frame).
     "maiora_20s_20": (
-        ROOT / "media-library/incoming/video-frames/_hero_rotated/maiora_20s_20p.jpg",
-        Focus(0.5, 0.55, 1.4),
+        ROOT / "media-library/incoming/Photos/DJI_20260626132137_0266_D.JPG",
+        Focus(0.46, 0.70, 2.1),
     ),
     "maiora_20s_04": (
-        ROOT / "media-library/incoming/Photos/DJI_20260626180807_0358_D.JPG",
-        Focus(0.5, 0.5, 1.35),
+        ROOT / "media-library/incoming/Photos/DJI_20260626180844_0365_D.JPG",
+        Focus(0.54, 0.64, 2.3),
     ),
 }
 
 DEST_SLOTS: dict[str, tuple[Path, Focus]] = {
     "portals-vells-1": (
         ROOT / "media-library/destinations/portals-vells/02_portals_pano.jpg",
-        Focus(0.36, 0.57, 1.55),
+        Focus(0.36, 0.57, 1.85),
     ),
     "el-toro-malgrats-1": (
         ROOT / "media-library/destinations/el-toro-malgrats/02_el_toro_waterfront_pexels.jpg",

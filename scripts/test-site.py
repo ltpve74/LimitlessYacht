@@ -395,6 +395,7 @@ def check_html(r: Runner, rel: str, html: str) -> None:
         and html.count('media="(min-width: 769px)" data-ly-srcset=') == 34
         and 'media="(min-width: 769px)" data-ly-srcset="images/mobile/' not in html
         and 'reframe_immersive.py' in (read_file('scripts/reframe_immersive.py') or '')
+        and 'DJI_20260626132137_0266_D.JPG' in (read_file('scripts/reframe_immersive.py') or '')
         and 'portals-vells-1-640.webp' in html
         and 'portals-vells-1gm-720.webp' in html
         and 'images/mobile/dest/portals-vells-1gm.webp 842w' in html
