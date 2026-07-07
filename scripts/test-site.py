@@ -2688,6 +2688,16 @@ def check_shared_assets(r: Runner) -> None:
             css,
         )
         is not None
+        and re.search(
+            r'@media\s*\(\s*min-width:\s*769px\s*\)[\s\S]*?\.gallery-group\s+\.gallery-item\s*\{[^}]*flex:\s*0\s*0\s*100vw',
+            css,
+        )
+        is not None
+        and re.search(
+            r'@media\s*\(\s*min-width:\s*769px\s*\)[\s\S]*?\.destination-card\s*\{[^}]*flex:\s*0\s*0\s*78vw',
+            css,
+        )
+        is not None
         and 'immersive-chrome' not in css
         and re.search(
             r'@media\s*\(\s*min-width:\s*769px\s*\)[\s\S]*?#gallery\s+\.gallery-wrap\s*>\s*\.itinerary-bottom-bar',
@@ -2760,6 +2770,13 @@ def check_shared_assets(r: Runner) -> None:
         'window.LY_wireCarousel = function' in index_html
         and index_html.count('window.LY_wireCarousel({') == 2
         and 'window.lyCarouselStep = function' in index_html,
+    )
+    wire = index_html.split('window.LY_wireCarousel = function', 1)[1].split('}; (function(){ var group=document.querySelector(\'.dest-group\')', 1)[0]
+    r.check(
+        'carousel uses horizontal scroll on all viewports (no desktop scrollIntoView)',
+        'grid.scrollTo({left:i*step()' in wire
+        and 'scrollIntoView' not in wire
+        and 'function isMobile()' not in wire,
     )
     r.check(
         'calendar enquire opens email sheet (no navigation to separate section)',

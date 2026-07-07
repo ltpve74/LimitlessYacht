@@ -3613,19 +3613,30 @@
       scroll-snap-type:x mandatory;
       scrollbar-width:none;
       touch-action:pan-x pan-y;
-      margin-top:0;
-      gap:.85rem;
-      padding:.5rem 2rem .5rem
+      margin-top:0
+    }
+    .gallery-group .gallery-grid{
+      gap:0;
+      padding:0
+    }
+    .dest-group .itinerary-grid{
+      gap:.75rem;
+      padding:.35rem 1rem 0
     }
     .gallery-group .gallery-grid::-webkit-scrollbar,.dest-group .itinerary-grid::-webkit-scrollbar{
       display:none
     }
     .gallery-group .gallery-item{
-      flex:0 0 clamp(420px,62vw,920px);
+      flex:0 0 100vw;
       height:100%;
       min-height:0;
-      border-radius:6px;
-      scroll-snap-align:start
+      border-radius:0;
+      scroll-snap-align:start;
+      touch-action:pan-x pan-y
+    }
+    .gallery-group .gallery-item:hover img{
+      transform:none;
+      filter:none
     }
     .gallery-group .gallery-item picture{
       display:block;
@@ -3639,11 +3650,13 @@
       display:block
     }
     .destination-card{
-      flex:0 0 clamp(360px,48vw,560px);
+      flex:0 0 78vw;
       min-height:0;
       height:100%;
       border-radius:8px;
-      scroll-snap-align:start
+      scroll-snap-align:start;
+      touch-action:pan-x pan-y;
+      cursor:pointer
     }
     .destination-card-body{
       padding:1.35rem 1.5rem 1.15rem
@@ -3657,7 +3670,9 @@
       justify-content:center;
       flex:0 0 auto;
       gap:.75rem;
-      padding:.65rem 0 1.15rem
+      padding:.65rem 0 1.15rem;
+      min-height:3.2rem;
+      box-sizing:border-box
     }
     #gallery .gallery-group .gallery-grid{
       padding-bottom:1rem
