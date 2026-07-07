@@ -1554,8 +1554,23 @@ def check_html(r: Runner, rel: str, html: str) -> None:
             'lyApplyAvailCal' in html and 'lyScheduleAvailCalLoad' in html,
         )
 
-    # Structured data
+    # Structured data + social share (OG / WhatsApp / Twitter use same hero as #hero)
     r.check('schema.org JSON-LD present', 'application/ld+json' in html)
+    if rel == 'index.html':
+        r.check(
+            'social share image matches live hero (maiora_20s_18)',
+            'property="og:image" content="https://limitlessyachtcharter.com/images/maiora_20s_18.jpg"' in html
+            and 'name="twitter:image" content="https://limitlessyachtcharter.com/images/maiora_20s_18.jpg"' in html
+            and 'property="og:image:width" content="1920"' in html
+            and 'property="og:image:height" content="1080"' in html
+            and 'images/maiora_20s_18.jpg' in html.split('id="hero"')[1][:2500]
+            and 'maiora_20s_02.jpg' not in html.split('<meta property="og:image"')[0]
+            and html.count('maiora_20s_02.jpg') == 0,
+        )
+        r.check(
+            'JSON-LD business image matches hero',
+            '"image": "https://limitlessyachtcharter.com/images/maiora_20s_18.jpg"' in html,
+        )
 
     # Locale subfolders — shared assets step up; images stay root-relative for Netlify
     if rel != 'index.html':
