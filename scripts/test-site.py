@@ -490,13 +490,21 @@ def check_html(r: Runner, rel: str, html: str) -> None:
     )
     for gm in (
         'maiora_20s_01gm', 'maiora_20s_03gm', 'maiora_20s_16gm', 'maiora_20s_17gm',
-        'maiora_20s_19gm', 'maiora_20s_20gm', 'maiora_20s_04gm',
+        'maiora_20s_19gm', 'maiora_20s_20gm', 'maiora_20s_04gm', 'life_flybridgegm',
     ):
         r.check(
             f'gallery mobile reframe assets exist ({gm})',
             os.path.isfile(os.path.join(ROOT, 'images', 'mobile', f'{gm}-480.webp'))
             and os.path.isfile(os.path.join(ROOT, 'images', 'mobile', f'{gm}-960.webp')),
         )
+    r.check(
+        'deck life_flybridge panel ships mobile gm reframe (hull not cropped)',
+        'life_flybridgegm-480.webp' in html
+        and (
+            'media="(max-width: 768px)" data-ly-srcset="images/mobile/life_flybridgegm-480.webp' in html
+            or 'media="(max-width: 768px)" data-ly-srcset="/images/mobile/life_flybridgegm-480.webp' in html
+        ),
+    )
     r.check(
         'destinations is one continuous swipe carousel (single track tagged by tier)',
         html.count('class="dest-group') == 1
