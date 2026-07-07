@@ -20,17 +20,19 @@ owned Limitless drone/video frames.
 
 ## Fix (implemented 7 Jul 2026, commit `34b0f37`)
 
-1. **`scripts/reframe_gallery.py`** — composes portrait `*-gm` masters (1080×1578, ≈ gallery AR)
-   using the same boat-bbox logic as `reframe_hero.py`. Run:
+1. **`scripts/reframe_gallery.py`** — composes `*-gm` masters (1080×1578): sharp photo
+   **centre-fitted** (contain) with Gaussian-blurred, colour-matched margins so `object-fit:cover`
+   on the carousel never crops the hull. Top-down slots (`01`, `19`) rotate -90° first. Run:
    `.venv/bin/python scripts/reframe_gallery.py --all-water`
-2. **HTML `<picture>`** — first source `media="(max-width: 768px)"` points at
-   `images/mobile/<basename>gm-{480,720,960}.webp`; desktop keeps the landscape master.
+2. **HTML `<picture>`** — every water panel: first source `media="(max-width: 768px)"` →
+   `images/mobile/<basename>gm-{480,720,960}.webp`; desktop keeps the landscape/portrait master.
 3. **Water tier slots (7 panels, `data-cat="water"`):**
    - `01` — `video-frames/chosen/best_01_t005.5s.jpg` (top-down aerial); mobile `01gm` is **-90°
      portrait** (bow down) via `reframe_gallery.py --vertical` / `VERTICAL_TOPDOWN` set
    - `03`, `17` — DJI slots + `03gm` / `17gm` on mobile
-   - `16` — portrait master (853×1280); no gm needed
-   - `19` — top-down drone (`video-frames/1/best_02_t011.5s.jpg`) replaces `life_seabob`
+   - `16` — portrait stern aerial + `16gm` letterbox on mobile
+   - `19` — top-down drone (`video-frames/1/best_02_t011.5s.jpg`) replaces `life_seabob`;
+     mobile `19gm` rotates -90° then letterbox (same as `01`)
    - `20` — stern/cove shot replaces `life_jetski`
    - `04` — underway wake shot replaces `life_swim_jump`
 4. **CSS** — `object-position: 25% 60%` on `data-index="0"` is **desktop grid only**
@@ -42,8 +44,7 @@ owned Limitless drone/video frames.
 
 - **Water tier = owned `maiora_*` only** — no `life_*` (lifestyle belongs in deck/content, not
   borrowed into exterior water).
-- Any new **landscape** water slot needs a `*-gm` mobile reframe before wiring; portrait sources may
-  skip gm if Playwright/screenshots show full hull at 414×896.
+- Every water slot needs a `*-gm` letterbox master before wiring (including portrait sources like `16`).
 - Pick sources from `media-library/incoming/` (DJI `Photos/` or `video-frames/chosen/`); process via
   `scripts/process_media.py gallery <basename>`, then reframe if landscape.
 - `scripts/test-site.py` guards: no `life_*` in water blocks, `*gm-480.webp` wired, assets on disk.
