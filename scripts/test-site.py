@@ -2340,7 +2340,21 @@ def check_shared_assets(r: Runner) -> None:
     )
     r.check(
         'publish gate workflow caps job duration',
-        'timeout-minutes:' in publish_yml and 'LIGHTHOUSE_RETRIES' in publish_yml,
+        'timeout-minutes:' in publish_yml,
+    )
+    r.check(
+        'publish gate skips UX and Lighthouse by default',
+        'test-site.py' in publish_gate
+        and 'verify-analytics.py' in publish_gate
+        and '--with-ux' in publish_gate
+        and '--with-lighthouse' in publish_gate
+        and 'if args.with_ux:' in publish_gate
+        and 'if args.with_lighthouse:' in publish_gate,
+    )
+    r.check(
+        'publish CI workflow is site-tests only (no Playwright/Lighthouse install)',
+        'playwright install' not in publish_yml
+        and 'npm install --prefix scripts' not in publish_yml,
     )
     r.check('ux smoke test script exists', os.path.isfile(os.path.join(ROOT, 'scripts/ux-test.py')))
     ux_py = read_file('scripts/ux-test.py') or ''

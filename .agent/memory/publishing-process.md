@@ -11,13 +11,13 @@ metadata:
 
 - **`main` is the process branch / production.** Work lands on `develop` (readable), then publishes to
   `main` (minified). `main` has its own **process**: the pre-commit hook on `main` runs
-  minify → `publish-gate.py` (site tests + UX smoke + Lighthouse budgets). Netlify deploys `main`.
+  minify → `publish-gate.py` (site tests + analytics only). UX/Lighthouse are opt-in via
+  `--with-ux` / `--with-lighthouse` for manual runs. Netlify deploys `main`.
 - **`develop` will always be "behind" `main`** in commit count — that's NORMAL and expected, not a
   problem to fix. Each publish is a `main`-only commit (the minified snapshot). **Never back-merge
   `main` → `develop`** (pulls minified files into the readable branch). See DECISIONS.md "Build/git".
-- **Publishing takes a while ON PURPOSE** — the `main` hook runs the full QA gate (Lighthouse alone
-  is slow). If a publish "takes a long time," that's the gate running, not a hang. Don't panic or
-  re-analyze; let it finish.
+- **Publishing is faster now** — the `main` hook runs site tests + verify-analytics only (~seconds).
+  Optional UX/Lighthouse: `scripts/setup-qa.sh` then `publish-gate.py --with-ux --with-lighthouse`.
 - **Do NOT over-analyze branch divergence before publishing.** Trust the documented flow: publish =
   merge `develop` → `main`, resolve any conflicts with **dev wins** (`git checkout --theirs`), commit
   `"Publish: …"` → the hook minifies + gates → push `origin main`. (CLAUDE.md "Publishing workflow".)
