@@ -2939,6 +2939,25 @@ def check_shared_assets(r: Runner) -> None:
         is not None,
     )
     r.check(
+        'immersive carousel images leave bottom breathing room (pad + object-position)',
+        css is not None
+        and re.search(
+            r'@media\s*\(\s*min-width:\s*769px\s*\)[\s\S]*?\.gallery-group\s+\.gallery-grid,\s*\.dest-group\s+\.itinerary-grid[\s\S]*?padding-bottom:\s*clamp\(',
+            css,
+        )
+        is not None
+        and re.search(
+            r'@media\s*\(\s*min-width:\s*769px\s*\)[\s\S]*?\.gallery-group\s+\.gallery-item\s+\.ly-prog-sharp[\s\S]*?object-position:\s*50%\s*40%',
+            css,
+        )
+        is not None
+        and re.search(
+            r'@media\s*\(\s*max-width:\s*768px\s*\)[\s\S]*?\.gallery-group\s+\.gallery-item\s+\.ly-prog-sharp[\s\S]*?object-position:\s*50%\s*40%',
+            read_file('css/layout.css') or '',
+        )
+        is not None,
+    )
+    r.check(
         'destination lightbox chrome spans full card on desktop',
         'class="dest-lb-chrome"' in index_html
         and 'class="dest-lb-main"' in index_html

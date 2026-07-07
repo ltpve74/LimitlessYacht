@@ -3721,8 +3721,7 @@
       flex:1 1 0;
       min-height:0;
       gap:0;
-      padding:0;
-      padding-bottom:0
+      padding:0
     }
     .gallery-group .gallery-grid::-webkit-scrollbar,.dest-group .itinerary-grid::-webkit-scrollbar{
       display:none
@@ -3744,10 +3743,11 @@
       width:100%;
       height:100%
     }
-    .gallery-group .gallery-item img{
+    .gallery-group .gallery-item img,.gallery-group .gallery-item .ly-prog-preview,.gallery-group .gallery-item .ly-prog-sharp{
       width:100%;
       height:100%;
       object-fit:cover;
+      object-position:50% 40%;
       display:block
     }
     .destination-card{
@@ -3776,15 +3776,20 @@
       position:static;
       gap:.6rem;
       margin:0;
-      padding:.5rem 0 .35rem;
+      padding:.65rem 0 .5rem;
       min-height:3.2rem;
       box-sizing:border-box;
       flex-shrink:0
     }
+    .gallery-group .gallery-grid,.dest-group .itinerary-grid{
+      padding-bottom:clamp(.85rem,2.2vh,1.35rem)
+    }
     #gallery .gallery-group .gallery-grid{
       flex:1 1 0;
-      min-height:0;
-      padding-bottom:0
+      min-height:0
+    }
+    .destination-card .destination-card-bg .ly-prog-preview,.destination-card .destination-card-bg .ly-prog-sharp,.destination-card .destination-card-bg img{
+      object-position:50% 40%
     }
     .carousel-btn{
       background:transparent;
