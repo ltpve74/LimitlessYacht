@@ -393,6 +393,8 @@ def check_html(r: Runner, rel: str, html: str) -> None:
         and html.count('sizes="78vw"') == 12
         and html.count('media="(min-width: 769px)"') == 34
         and html.count('media="(min-width: 769px)" data-ly-srcset=') == 34
+        and 'media="(min-width: 769px)" data-ly-srcset="images/mobile/' not in html
+        and 'reframe_immersive.py' in (read_file('scripts/reframe_immersive.py') or '')
         and 'portals-vells-1-640.webp' in html
         and 'portals-vells-1gm-720.webp' in html
         and 'images/mobile/dest/portals-vells-1gm.webp 842w' in html
@@ -407,9 +409,18 @@ def check_html(r: Runner, rel: str, html: str) -> None:
         'gallery cards use responsive tier srcsets',
         'maiora_20s_01-640.webp' in html
         and 'maiora_20s_01gm-720.webp' in html
-        and 'images/mobile/maiora_20s_03gm-960.webp 960w' in html
+        and (
+            'images/mobile/maiora_20s_03gm-960.webp 960w' in html
+            or '/images/mobile/maiora_20s_03gm-960.webp 960w' in html
+        )
         and 'images/mobile/maiora_20s_03.webp 960w' not in html
-        and '(min-width: 1101px) 25vw, 50vw' in html,
+        and '/images/mobile/maiora_20s_03.webp 960w' not in html
+        and (
+            'media="(min-width: 769px)" data-ly-srcset="images/maiora_20s_03-640.webp' in html
+            or 'media="(min-width: 769px)" data-ly-srcset="/images/maiora_20s_03-640.webp' in html
+        )
+        and 'media="(min-width: 769px)" data-ly-srcset="images/mobile/maiora_20s_03gm' not in html
+        and 'media="(min-width: 769px)" data-ly-srcset="/images/mobile/maiora_20s_03gm' not in html,
     )
     r.check(
         'lightbox never loads .jpg fallback for unvisited cards',
@@ -560,10 +571,10 @@ def check_html(r: Runner, rel: str, html: str) -> None:
     )
     pv_card = html.split('data-dest-idx="0"')[1].split('data-dest-idx="1"')[0]
     r.check(
-        'portals vells sharp img reserves portrait aspect (gm mobile, not landscape 960×540)',
+        'portals vells sharp img reserves landscape 16:9 (desktop reframe, gm mobile srcset)',
         'portals-vells-1gm.webp 842w' in pv_card
-        and 'width="842" height="1578"' in pv_card
-        and 'width="960" height="540"' not in pv_card,
+        and 'width="960" height="540"' in pv_card
+        and 'width="842" height="1578"' not in pv_card,
     )
     r.check(
         'destinations is one continuous swipe carousel (single track tagged by tier)',
