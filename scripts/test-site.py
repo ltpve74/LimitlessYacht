@@ -684,7 +684,8 @@ def check_html(r: Runner, rel: str, html: str) -> None:
         'window.LY_promoteSharp' in html
         and 'window.LY_onProgSharpLoad' in html
         and "wrap.querySelector('.ly-prog-sharp[data-ly-src]')" in html
-        and "sharp.setAttribute('src', src)" in html
+        and "sharp.setAttribute('src', picked)" in html
+        and 'urls[urls.length - 1]' in html
         and 'requestAnimationFrame(show)' in html
         # promote only after the preview has loaded so the blur always paints first
         and "wrap.classList.contains('ly-prog-preview-ready')" in html
@@ -2639,6 +2640,11 @@ def check_shared_assets(r: Runner) -> None:
         and css_rule_index(css, '.ly-prog-wrap') >= 0
         and '.ly-prog-wrap.ly-prog-skip-preview' in css
         and '.ly-prog-wrap.ly-prog-sharp-ready.ly-prog-sharp-visible .ly-prog-sharp' in css
+        and '.gallery-item>.ly-prog-wrap .ly-prog-preview' in css
+        and re.search(
+            r'\.gallery-item>\.ly-prog-wrap \.ly-prog-preview[^{]*\{[^}]*transform:\s*none',
+            re.sub(r'\s+', ' ', css),
+        )
         and css_rule_index(css, '#dest-lb-close') < 0
         and '#lightbox-prev' not in css,
     )
