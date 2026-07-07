@@ -115,6 +115,10 @@ PAIRS = [
         'Son <strong>équipage dédié</strong>\xa0gère tout\xa0: restauration, réservations de beach club, chaque détail — attentionné, expérimenté et véritablement passionné par la mer.',
     ),
     (
+        '<p class="about-crew-note">A small team who share equally in whatever recognition guests choose to give — gratuity is never expected. <a href="#charter-faq-gratuity">Good to know →</a></p>',
+        '<p class="about-crew-note">Une petite équipe qui partage équitablement toute reconnaissance que les invités souhaitent offrir — les pourboires ne sont jamais attendus. <a href="#charter-faq-gratuity">Bon à savoir →</a></p>',
+    ),
+    (
         "You focus entirely on the people you're with.",
         'Vous vous consacrez entièrement aux personnes qui vous accompagnent.',
     ),
@@ -1080,11 +1084,14 @@ PAIRS = [
 
     ('Catering &amp; beach clubs on request', 'Traiteur &amp; beach clubs sur demande'),
     ('Provisioning, mooring &amp; final cleaning fee extra on multi-day', 'Avitaillement, amarrage &amp; frais de nettoyage final en sus sur plusieurs jours'),
+    ('Crew gratuity not included (optional, cash)', 'Pourboires équipage non inclus (facultatif, espèces)'),
+    ('crew &amp; VAT included &nbsp;·&nbsp; gratuity optional', 'Équipage &amp; TVA inclus &nbsp;·&nbsp; pourboires facultatifs'),
+    ('gratuity never required', 'pourboires jamais obligatoires'),
     # Contact section — new layout
     ('Quick Enquiry', 'Demande rapide'),
     ('>Get a Quote<', '>Obtenir un devis<'),
     ('Request<em> Your Quote</em>', 'Demandez<em> votre devis</em>'),
-    ("A few details are all we need. We'll confirm availability and come back with route ideas, a transparent breakdown (fuel, mooring, provisions on multi-day) and anything still to pin down — usually within 24 hours, no commitment.", "Quelques informations suffisent. Nous confirmerons les disponibilités et reviendrons vers vous avec des idées d'itinéraire, un détail transparent (carburant, amarrage, avitaillement sur plusieurs jours) et les points encore à préciser — en général sous 24 heures, sans engagement."),
+    ("A few details are all we need. We'll confirm availability and come back with route ideas, a transparent breakdown (fuel, mooring, provisions on multi-day) and what's optional — like gratuity — usually within 24 hours, no commitment.", "Quelques informations suffisent. Nous confirmerons les disponibilités et reviendrons vers vous avec des idées d'itinéraire, un détail transparent (carburant, amarrage, avitaillement sur plusieurs jours) et ce qui est facultatif — comme les pourboires — en général sous 24 heures, sans engagement."),
     ('or fill in the form', 'ou remplissez le formulaire'),
     ('placeholder="Maria"', 'placeholder="Marie"'),
     (
@@ -1106,8 +1113,13 @@ PAIRS = [
     ),
     # Specs section CTA
     ("Unsure what fits your time or budget? Get in touch — we'll map options and costs within 24 hours.", 'Vous ne savez pas ce qui convient à votre temps ou budget ? Écrivez-nous — nous esquisserons options et coûts sous 24 heures.'),
-    ('Multi-day essentials', 'L\'essentiel sur plusieurs jours'),
+    ('Good to know', 'Bon à savoir'),
     ('What is APA?', "Qu'est-ce que l'APA ?"),
+    ('Is crew gratuity included?', "Les pourboires de l'équipage sont-ils inclus ?"),
+    (
+        "Crew gratuity is <strong>not included</strong> in your charter price and is <strong>never required</strong>. If you would like to recognise the crew's service, <strong>10% of the charter fee</strong> (or more) is customary in Mallorca — <strong>cash only</strong>, typically handed to the captain when you disembark and shared equally across the whole crew. Everyone who looked after you receives the same fair share. Entirely at your discretion.",
+        "Les pourboires de l'équipage ne sont <strong>pas inclus</strong> dans le prix du charter et ne sont <strong>jamais obligatoires</strong>. Si vous souhaitez reconnaître le service de l'équipage, <strong>10&nbsp;% du prix du charter</strong> (ou plus) est d'usage à Majorque — <strong>uniquement en espèces</strong>, en général remis au capitaine au débarquement et <strong>partagés équitablement entre tout l'équipage</strong>. Chaque personne qui s'est occupée de vous reçoit la même part équitable. Entièrement à votre discrétion.",
+    ),
     (
         'On multi-day charters, APA (Advance Provisioning Allowance) is typically <strong>10% of the charter fee</strong>. It covers provisions, extra fuel, mooring and other variable costs. Your captain keeps a transparent running tally throughout the trip. Any balance left at the end is returned to you; if it runs low during the charter, the lead guest is notified and the APA is topped up — so your time on board is never interrupted.',
         "Sur les charters de plusieurs jours, l'APA (Advance Provisioning Allowance) représente en général <strong>10&nbsp;% du prix du charter</strong>. Elle couvre l'avitaillement, le carburant supplémentaire, l'amarrage et autres frais variables. Le capitaine tient un compte transparent tout au long du séjour. Le solde non dépensé vous est restitué ; si l'APA s'épuise en cours de charter, l'invité principal est prévenu et l'APA est rechargée — pour que votre temps à bord ne soit jamais interrompu.",

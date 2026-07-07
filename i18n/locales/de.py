@@ -125,6 +125,10 @@ PAIRS = [
         'Ihre <strong>engagierte Crew</strong> kümmert sich um alles: Verpflegung, Beach-Club-Reservierungen, alle Details — aufmerksam, erfahren und mit echter Leidenschaft fürs Meer.',
     ),
     (
+        '<p class="about-crew-note">A small team who share equally in whatever recognition guests choose to give — gratuity is never expected. <a href="#charter-faq-gratuity">Good to know →</a></p>',
+        '<p class="about-crew-note">Ein kleines Team, das jede Wertschätzung der Gäste gleichmäßig teilt — Trinkgeld ist nie erwartet. <a href="#charter-faq-gratuity">Gut zu wissen →</a></p>',
+    ),
+    (
         "You focus entirely on the people you're with.",
         'Sie konzentrieren sich ganz auf die Menschen, die Ihnen wichtig sind.',
     ),
@@ -1091,11 +1095,14 @@ PAIRS = [
 
     ('Catering &amp; beach clubs on request', 'Catering &amp; Beach Clubs auf Anfrage'),
     ('Provisioning, mooring &amp; final cleaning fee extra on multi-day', 'Verpflegung, Liegeplatz &amp; Endreinigungsgebühr extra bei mehrtägigen Törns'),
+    ('Crew gratuity not included (optional, cash)', 'Crew-Trinkgeld nicht inbegriffen (optional, bar)'),
+    ('crew &amp; VAT included &nbsp;·&nbsp; gratuity optional', 'Crew &amp; MwSt. inklusive &nbsp;·&nbsp; Trinkgeld optional'),
+    ('gratuity never required', 'Trinkgeld nie verpflichtend'),
     # Contact section — new layout
     ('Quick Enquiry', 'Schnellanfrage'),
     ('>Get a Quote<', '>Angebot einholen<'),
     ('Request<em> Your Quote</em>', 'Ihr<em> Angebot anfordern</em>'),
-    ("A few details are all we need. We'll confirm availability and come back with route ideas, a transparent breakdown (fuel, mooring, provisions on multi-day) and anything still to pin down — usually within 24 hours, no commitment.", 'Ein paar Angaben genügen. Wir bestätigen die Verfügbarkeit und melden uns mit Routenideen, einer transparenten Kostenaufstellung (Kraftstoff, Liegeplatz, Verpflegung bei mehrtägigen Törns) und offenen Punkten — in der Regel innerhalb von 24 Stunden, unverbindlich.'),
+    ("A few details are all we need. We'll confirm availability and come back with route ideas, a transparent breakdown (fuel, mooring, provisions on multi-day) and what's optional — like gratuity — usually within 24 hours, no commitment.", 'Ein paar Angaben genügen. Wir bestätigen die Verfügbarkeit und melden uns mit Routenideen, einer transparenten Kostenaufstellung (Kraftstoff, Liegeplatz, Verpflegung bei mehrtägigen Törns) und was optional ist — wie Trinkgeld — in der Regel innerhalb von 24 Stunden, unverbindlich.'),
     ('or fill in the form', 'oder füllen Sie das Formular aus'),
     ('placeholder="Maria"', 'placeholder="Maria"'),
     (
@@ -1117,8 +1124,13 @@ PAIRS = [
     ),
     # Specs section CTA
     ("Unsure what fits your time or budget? Get in touch — we'll map options and costs within 24 hours.", 'Unsicher, was zu Ihrem Zeitraum oder Budget passt? Schreiben Sie uns — wir skizzieren Optionen und Kosten innerhalb von 24 Stunden.'),
-    ('Multi-day essentials', 'Das Wichtigste bei mehrtägigen Törns'),
+    ('Good to know', 'Gut zu wissen'),
     ('What is APA?', 'Was ist APA?'),
+    ('Is crew gratuity included?', 'Ist Crew-Trinkgeld inbegriffen?'),
+    (
+        "Crew gratuity is <strong>not included</strong> in your charter price and is <strong>never required</strong>. If you would like to recognise the crew's service, <strong>10% of the charter fee</strong> (or more) is customary in Mallorca — <strong>cash only</strong>, typically handed to the captain when you disembark and shared equally across the whole crew. Everyone who looked after you receives the same fair share. Entirely at your discretion.",
+        'Crew-Trinkgeld ist im Charterpreis <strong>nicht enthalten</strong> und <strong>niemals verpflichtend</strong>. Wenn Sie die Leistung der Crew würdigen möchten, sind <strong>10&nbsp;% des Charterpreises</strong> (oder mehr) auf Mallorca üblich — <strong>nur bar</strong>, in der Regel beim Verlassen des Bootes an den Kapitän übergeben und <strong>gleichmäßig an die gesamte Crew verteilt</strong>. Jeder, der sich um Sie gekümmert hat, erhält den gleichen fairen Anteil. Ganz nach Ihrem Ermessen.',
+    ),
     (
         'On multi-day charters, APA (Advance Provisioning Allowance) is typically <strong>10% of the charter fee</strong>. It covers provisions, extra fuel, mooring and other variable costs. Your captain keeps a transparent running tally throughout the trip. Any balance left at the end is returned to you; if it runs low during the charter, the lead guest is notified and the APA is topped up — so your time on board is never interrupted.',
         'Bei mehrtägigen Chartern beträgt die APA (Advance Provisioning Allowance) in der Regel <strong>10&nbsp;% des Charterpreises</strong>. Sie deckt Verpflegung, zusätzlichen Kraftstoff, Liegeplätze und andere variable Kosten. Ihr Kapitän führt während des Törns eine transparente laufende Abrechnung. Ein Restbetrag am Ende wird erstattet; läuft die APA während des Charters zur Neige, wird der Hauptgast informiert und die APA aufgestockt — damit Ihre Zeit an Bord nicht unterbrochen wird.',
