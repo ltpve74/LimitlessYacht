@@ -1086,7 +1086,7 @@ PAIRS = [
     ('All charters include', 'Todos los chárteres incluyen'),
     ('VAT included', 'IVA incluido'),
     ('Crew &amp; cleaning', 'Tripulación &amp; limpieza'),
-    ('Fuel for half-day charters', 'Combustible para chárteres de medio día'),
+
     ('Catering &amp; beach clubs on request', 'Catering &amp; beach clubs bajo petición'),
     ('Provisioning &amp; mooring extra on multi-day', 'Aprovisionamiento &amp; amarre extra en travesías de varios días'),
     # Contact section — new layout

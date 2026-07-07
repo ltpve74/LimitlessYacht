@@ -1088,7 +1088,7 @@ PAIRS = [
     ('All charters include', 'Alle Charter beinhalten'),
     ('VAT included', 'MwSt. inklusive'),
     ('Crew &amp; cleaning', 'Crew &amp; Reinigung'),
-    ('Fuel for half-day charters', 'Kraftstoff für Halbtages-Charter'),
+
     ('Catering &amp; beach clubs on request', 'Catering &amp; Beach Clubs auf Anfrage'),
     ('Provisioning &amp; mooring extra on multi-day', 'Verpflegung &amp; Liegeplatz extra bei mehrtägigen Törns'),
     # Contact section — new layout
