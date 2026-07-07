@@ -576,11 +576,14 @@ def check_html(r: Runner, rel: str, html: str) -> None:
         html.count('class="carousel-nav"') == 2,
     )
     r.check(
-        'gallery images no longer open a lightbox',
-        'id="lightbox"' not in html
-        and 'openGalleryLb' not in html
-        and 'function showImage(idx)' not in html
-        and 'applyGalleryLbFrame' not in html,
+        'gallery images open a fullscreen lightbox',
+        'id="lightbox"' in html
+        and 'id="lightbox-img"' in html
+        and 'openGalleryLb' in html
+        and 'applyGalleryLbFrame' in html
+        and 'function showImage(idx)' in html
+        and html.count('class="gallery-item') == 21
+        and html.split('window.LY_GALLERY_IMAGES = [', 1)[1].split('];', 1)[0].count('.webp') == 21,
     )
     r.check(
         'swipe-settle fires debounced, in-view-gated category view events',
@@ -2164,8 +2167,8 @@ def check_shared_assets(r: Runner) -> None:
             # One component for carousel, lightbox and calendar chevrons; the
             # ‹ › glyphs sat off-centre with the metric-adjusted fallback
             # faces (owner screenshots, 2 Jul 2026).
-            index_html.count('ly-chev--prev') == 5
-            and index_html.count('ly-chev--next') == 5
+            index_html.count('ly-chev--prev') == 6
+            and index_html.count('ly-chev--next') == 6
             and '.ly-chev::before{' in re.sub(r'\s+', '', css or '')
             and '&#8249;</button>' not in index_html
             and '‹</button>' not in index_html
@@ -2734,20 +2737,27 @@ def check_shared_assets(r: Runner) -> None:
             re.sub(r'\s+', ' ', css),
         )
         and css_rule_index(css, '#dest-lb-close') < 0
-        and '#lightbox-prev' not in css,
+        and css_rule_index(css, '#lightbox') >= 0
+        and '#lightbox.lb-loading #lightbox-img' in css,
     )
     r.check(
         'destination lightbox shows same browse hint as gallery',
         'ly_dest_hinted' in index_html
+        and 'ly_gallery_hinted' in index_html
         and 'id="dest-lb-hint"' in index_html
-        and "matchMedia('(min-width: 1101px)')" in index_html,
+        and 'id="lightbox-hint"' in index_html
+        and "matchMedia('(min-width: 1101px)')" in index_html
+        and "matchMedia('(min-width: 769px)')" in index_html,
     )
     r.check(
-        'gallery lightbox fully removed from markup, JS and CSS',
-        'id="lightbox"' not in index_html
-        and 'id="lightbox-img"' not in index_html
-        and 'openGalleryLb' not in index_html
-        and (css is None or '#lightbox' not in css),
+        'gallery lightbox restored with shared chrome',
+        'id="lightbox"' in index_html
+        and 'id="lightbox-img"' in index_html
+        and 'openGalleryLb' in index_html
+        and 'class="lb-nav lb-nav--prev ly-chev ly-chev--prev"' in index_html
+        and css is not None
+        and css_rule_index(css, '#lightbox') >= 0
+        and '#lightbox.open::after' in css,
     )
     r.check(
         'destination lightbox retained with shared chrome',
