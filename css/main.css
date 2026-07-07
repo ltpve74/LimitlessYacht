@@ -3556,9 +3556,6 @@
       color:var(--gold-light);
       border-color:var(--gold-light)
     }
-    .dest-group .carousel-nav{
-      padding:.75rem 0 .35rem
-    }
 
   }
   @media (max-width:640px){
@@ -3772,80 +3769,52 @@
     .destination-desc{
       display:none
     }
-    #gallery .carousel-nav{
+    .gallery-group .carousel-nav,.dest-group .carousel-nav{
       display:flex;
       align-items:center;
       justify-content:center;
       position:static;
       gap:.6rem;
       margin:0;
-      padding:0 0 .15rem;
+      padding:.5rem 0 .35rem;
       min-height:3.2rem;
       box-sizing:border-box;
       flex-shrink:0
-    }
-    .dest-group .carousel-nav{
-      display:flex;
-      align-items:center;
-      justify-content:center;
-      position:absolute;
-      bottom:0;
-      left:0;
-      right:0;
-      z-index:3;
-      gap:.75rem;
-      margin:0;
-      padding:.85rem 0 1rem;
-      min-height:0;
-      box-sizing:border-box;
-      pointer-events:none;
-      background:linear-gradient(to top,rgba(10,22,40,.78) 0%,rgba(10,22,40,.28) 55%,transparent 100%)
-    }
-    .dest-group .carousel-nav .carousel-btn,.dest-group .carousel-nav .carousel-pos{
-      pointer-events:auto
     }
     #gallery .gallery-group .gallery-grid{
       flex:1 1 0;
       min-height:0;
       padding-bottom:0
     }
-    #gallery .carousel-btn{
-      width:2.1rem;
-      height:2.1rem;
-      font-size:1.25rem
-    }
-    #gallery .carousel-pos{
-      font-size:.52rem;
-      min-width:2.5rem
-    }
     .carousel-btn{
       background:transparent;
       border:1px solid var(--gold-border);
       color:var(--gold);
-      width:2.35rem;
-      height:2.35rem;
+      width:2.1rem;
+      height:2.1rem;
       border-radius:50%;
-      font-size:1.3rem;
+      font-size:1.25rem;
       cursor:pointer;
       display:flex;
       align-items:center;
       justify-content:center;
       transition:opacity .2s;
-      flex-shrink:0
+      flex-shrink:0;
+      -webkit-tap-highlight-color:transparent
     }
     .carousel-btn:hover:not(:disabled){
       border-color:var(--gold-light)
     }
     .carousel-btn:disabled{
-      opacity:.25
+      opacity:.2
     }
     .carousel-pos{
       font-family:'Montserrat',sans-serif;
-      font-size:.56rem;
+      font-size:.52rem;
       letter-spacing:.16em;
       text-transform:uppercase;
       color:var(--gold);
-      min-width:3rem;
+      min-width:2.5rem;
       text-align:center
     }
     #gallery .gallery-wrap>.section-cta-desktop,#itinerary .itinerary-wrap>.section-cta-desktop{
@@ -3866,22 +3835,7 @@
     }
 
   }
-  @media (min-width:641px) and (max-width:1100px){
-    .dest-group .carousel-nav{
-      gap:.85rem;
-      padding:.75rem 0 1rem
-    }
-    .carousel-btn{
-      width:2.55rem;
-      height:2.55rem;
-      font-size:1.45rem
-    }
-    .carousel-pos{
-      font-size:.6rem;
-      min-width:3.25rem
-    }
 
-  }
   #enquire-form{
     scroll-margin-top:1.5rem
   }

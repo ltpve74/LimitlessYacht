@@ -2690,15 +2690,11 @@ def check_shared_assets(r: Runner) -> None:
         )
         is not None
         and re.search(
-            r'@media\s*\(\s*min-width:\s*769px\s*\)[\s\S]*?#gallery\s+\.carousel-nav[\s\S]*?position:\s*static',
+            r'@media\s*\(\s*min-width:\s*769px\s*\)[\s\S]*?\.gallery-group\s+\.carousel-nav,\s*\.dest-group\s+\.carousel-nav[\s\S]*?position:\s*static',
             css,
         )
         is not None
-        and re.search(
-            r'@media\s*\(\s*min-width:\s*769px\s*\)[\s\S]*?\.dest-group\s+\.carousel-nav[\s\S]*?position:\s*absolute',
-            css,
-        )
-        is not None
+        and 'linear-gradient(to top,rgba(10,22,40,.78)' not in css.split('@media (min-width:769px)', 1)[-1].split('.carousel-btn', 1)[0]
         and re.search(
             r'@media\s*\(\s*min-width:\s*769px\s*\)[\s\S]*?\.gallery-group\s+\.gallery-grid[\s\S]*?flex:\s*1\s*1\s*0',
             css,
@@ -2721,7 +2717,7 @@ def check_shared_assets(r: Runner) -> None:
         )
         is not None
         and re.search(
-            r'@media\s*\(\s*min-width:\s*769px\s*\)[\s\S]*?#gallery\s+\.carousel-nav[\s\S]*?display:\s*flex',
+            r'@media\s*\(\s*min-width:\s*769px\s*\)[\s\S]*?\.gallery-group\s+\.carousel-nav,\s*\.dest-group\s+\.carousel-nav[\s\S]*?display:\s*flex',
             css,
         )
         is not None
@@ -2912,15 +2908,20 @@ def check_shared_assets(r: Runner) -> None:
         and 'dest-lb-cta-mobile' in index_html,
     )
     r.check(
-        'tablet carousel navigation uses larger touch targets',
+        'immersive carousels share one nav chrome (below images, not overlaid)',
         css is not None
         and re.search(
-            r'@media\s*\(\s*min-width:\s*641px\s*\)\s*and\s*\(\s*max-width:\s*1100px\s*\)[\s\S]*?\.carousel-btn\s*\{[^}]*width:\s*2\.55rem',
+            r'@media\s*\(\s*min-width:\s*769px\s*\)[\s\S]*?\.gallery-group\s+\.carousel-nav,\s*\.dest-group\s+\.carousel-nav[\s\S]*?min-height:\s*3\.2rem',
             css,
         )
         is not None
         and re.search(
-            r'@media\s*\(\s*min-width:\s*641px\s*\)\s*and\s*\(\s*max-width:\s*1100px\s*\)[\s\S]*?\.carousel-pos\s*\{[^}]*font-size:\s*\.6rem',
+            r'@media\s*\(\s*min-width:\s*769px\s*\)[\s\S]*?\.carousel-btn\s*\{[^}]*width:\s*2\.1rem',
+            css,
+        )
+        is not None
+        and re.search(
+            r'@media\s*\(\s*max-width:\s*768px\s*\)[\s\S]*?\.carousel-nav\s*\{[^}]*min-height:\s*3\.2rem',
             css,
         )
         is not None,

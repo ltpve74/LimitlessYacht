@@ -1110,9 +1110,6 @@
     .gallery-item[data-index="14"] img{
       object-position:center 15%
     }
-    #gallery .carousel-nav{
-      padding:.75rem 0 .35rem
-    }
     .dest-group .itinerary-grid{
       display:flex;
       flex-direction:row;
@@ -1190,9 +1187,10 @@
       align-items:center;
       justify-content:center;
       gap:.6rem;
-      padding:0 0 0.15rem;
+      padding:.5rem 0 .35rem;
       min-height:3.2rem;
-      box-sizing:border-box
+      box-sizing:border-box;
+      flex-shrink:0
     }
     .carousel-btn{
       background:transparent;
