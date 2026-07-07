@@ -2677,7 +2677,7 @@ def check_shared_assets(r: Runner) -> None:
         and 'href="#itinerary-funnel" class="btn-ghost itinerary-bottom-link--mobile">destinations</a>' in index_html
         and css is not None
         and re.search(
-            r'@media\s*\(\s*min-width:\s*769px\s*\)[\s\S]*?\.gallery-wrap[\s\S]*?height:\s*calc\(100svh\s*-\s*var\(--nav-scroll-offset\)\s*-\s*8rem\)',
+            r'@media\s*\(\s*min-width:\s*769px\s*\)[\s\S]*?\.gallery-wrap[\s\S]*?height:\s*calc\(100svh\s*-\s*var\(--nav-scroll-offset\)\s*-\s*14rem\)',
             css,
         )
         is not None
@@ -2703,7 +2703,7 @@ def check_shared_assets(r: Runner) -> None:
         is not None
         and 'immersive-chrome' not in css
         and re.search(
-            r'@media\s*\(\s*min-width:\s*769px\s*\)[\s\S]*?#gallery\s+\.itinerary-bottom-bar[\s\S]*?display:\s*none',
+            r'@media\s*\(\s*min-width:\s*769px\s*\)[\s\S]*?#gallery\s+\.gallery-wrap\s*>\s*\.itinerary-bottom-bar',
             css,
         )
         is not None
@@ -2713,7 +2713,7 @@ def check_shared_assets(r: Runner) -> None:
         )
         is not None
         and re.search(
-            r'@media\s*\(\s*min-width:\s*769px\s*\)[\s\S]*?\.gallery-group\s+\.gallery-item\s+\.ly-prog-sharp[\s\S]*?object-fit:\s*contain',
+            r'@media\s*\(\s*min-width:\s*769px\s*\)[\s\S]*?\.gallery-group\s+\.gallery-item\s+img[\s\S]*?object-fit:\s*cover',
             css,
         )
         is not None,
@@ -2762,8 +2762,8 @@ def check_shared_assets(r: Runner) -> None:
         and 'class="lb-nav lb-nav--prev ly-chev ly-chev--prev"' in index_html
         and css is not None
         and css_rule_index(css, '#lightbox') >= 0
-        and '#lightbox-img' in css
-        and re.search(r'#lightbox-img[^{]*\{[^}]*object-fit:\s*contain', re.sub(r'\s+', ' ', css)) is not None,
+        and '#lightbox.open::after' in css
+        and re.search(r'#lightbox-img[^{]*\{[^}]*object-fit:\s*cover', re.sub(r'\s+', ' ', css)) is not None,
     )
     r.check(
         'destination lightbox retained with shared chrome',
