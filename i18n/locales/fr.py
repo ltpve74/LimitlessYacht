@@ -1077,9 +1077,9 @@ PAIRS = [
     ('All charters include', 'Tous les charters comprennent'),
     ('VAT included', 'TVA incluse'),
     ('Crew &amp; cleaning', 'Équipage &amp; nettoyage'),
-    ('Fuel for half-day charters', 'Carburant inclus pour les demi-journées'),
+
     ('Catering &amp; beach clubs on request', 'Traiteur &amp; beach clubs sur demande'),
-    ('Provisioning &amp; mooring extra on multi-day', 'Avitaillement &amp; amarrage en sus sur plusieurs jours'),
+    ('Provisioning, mooring &amp; final cleaning fee extra on multi-day', 'Avitaillement, amarrage &amp; frais de nettoyage final en sus sur plusieurs jours'),
     # Contact section — new layout
     ('Quick Enquiry', 'Demande rapide'),
     ('>Get a Quote<', '>Obtenir un devis<'),
