@@ -515,12 +515,22 @@ def check_html(r: Runner, rel: str, html: str) -> None:
         ),
     )
     r.check(
-        'portals vells landscape dest ships mobile gm reframe (full aerial on phones)',
+        'portals vells panorama ships mobile gm portrait crop (no letterbox)',
         'portals-vells-1gm-480.webp' in html
         and (
             'media="(max-width: 768px)" data-ly-srcset="images/mobile/dest/portals-vells-1gm-480.webp' in html
             or 'media="(max-width: 768px)" data-ly-srcset="/images/mobile/dest/portals-vells-1gm-480.webp' in html
         ),
+    )
+    reframe_dest_py = read_file('scripts/reframe_dest.py') or ''
+    gm_jpg = os.path.join(ROOT, 'images', 'dest', 'portals-vells-1gm.jpg')
+    r.check(
+        'portals vells gm is portrait crop from panorama (compose_panorama_portrait)',
+        'compose_panorama_portrait' in reframe_dest_py
+        and 'compose_letterbox' not in reframe_dest_py
+        and 'PANORAMA_FOCUS' in reframe_dest_py
+        and os.path.isfile(gm_jpg)
+        and os.path.getsize(gm_jpg) > 90 * 1024,
     )
     r.check(
         'portals vells gm uses matching gm-prev blur on mobile (smooth crossfade)',
