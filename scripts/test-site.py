@@ -506,6 +506,15 @@ def check_html(r: Runner, rel: str, html: str) -> None:
         ),
     )
     r.check(
+        'gm gallery panels use matching gm-prev blur on mobile (smooth crossfade)',
+        html.count('maiora_20s_01gm-prev.jpg') >= 1
+        and html.count('life_flybridgegm-prev.jpg') >= 1
+        and (
+            'srcset="images/mobile/maiora_20s_01gm-prev.jpg" media="(max-width: 768px)"' in html
+            or 'srcset="/images/mobile/maiora_20s_01gm-prev.jpg" media="(max-width: 768px)"' in html
+        ),
+    )
+    r.check(
         'destinations is one continuous swipe carousel (single track tagged by tier)',
         html.count('class="dest-group') == 1
         and html.count('class="itinerary-grid"') == 1
@@ -673,8 +682,10 @@ def check_html(r: Runner, rel: str, html: str) -> None:
     r.check(
         'sharp promotion gated on preview-ready + viewport, held until meaningful paint',
         'window.LY_promoteSharp' in html
+        and 'window.LY_onProgSharpLoad' in html
         and "wrap.querySelector('.ly-prog-sharp[data-ly-src]')" in html
         and "sharp.setAttribute('src', src)" in html
+        and 'requestAnimationFrame(show)' in html
         # promote only after the preview has loaded so the blur always paints first
         and "wrap.classList.contains('ly-prog-preview-ready')" in html
         and 'function initSharpPromotion' in html
