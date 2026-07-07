@@ -421,30 +421,29 @@
     position:fixed;
     inset:0;
     z-index:300;
-    background:rgba(5,12,25,.97);
+    background:var(--navy);
     align-items:center;
-    justify-content:center
+    justify-content:center;
+    padding:max(3.75rem,env(safe-area-inset-top)) max(3.25rem,env(safe-area-inset-right)) max(4.75rem,env(safe-area-inset-bottom)) max(3.25rem,env(safe-area-inset-left));
+    box-sizing:border-box
   }
   #lightbox.open{
     display:flex
   }
   #lightbox-img{
-    position:absolute;
-    inset:0;
-    width:100%;
-    height:100%;
-    object-fit:cover
+    position:relative;
+    z-index:2;
+    display:block;
+    flex:0 1 auto;
+    width:auto;
+    height:auto;
+    max-width:100%;
+    max-height:100%;
+    object-fit:contain;
+    object-position:center center
   }
-  #lightbox-img.lb-contain{
-    object-fit:contain
-  }
-  #lightbox.open::after{
-    content:'';
-    position:absolute;
-    inset:0;
-    z-index:1;
-    pointer-events:none;
-    background:linear-gradient(to bottom,rgba(5,12,25,.55) 0%,transparent 22%),linear-gradient(to top,rgba(5,12,25,.65) 0%,transparent 28%)
+  #lightbox .lb-close,#lightbox .lb-nav,#lightbox .lb-counter,#lightbox .lb-hint,#lightbox .lb-loader{
+    z-index:3
   }
   .dest-lb-img-wrap>.ly-prog-wrap--lb{
     position:absolute;
@@ -3595,8 +3594,8 @@
       flex:0 0 auto;
       display:flex;
       flex-direction:column;
-      height:calc(100svh - var(--nav-scroll-offset) - 14rem);
-      min-height:400px;
+      height:calc(100svh - var(--nav-scroll-offset) - 8rem);
+      min-height:440px;
       width:100%;
       max-width:none;
       margin:1.25rem 0 0;
@@ -3622,7 +3621,10 @@
     #gallery .gallery-wrap>.itinerary-bottom-bar,#itinerary .itinerary-wrap>.itinerary-bottom-bar{
       flex:0 0 auto
     }
-    #gallery .itinerary-bottom-bar,#itinerary .itinerary-bottom-bar{
+    #gallery .itinerary-bottom-bar{
+      display:none
+    }
+    #itinerary .itinerary-bottom-bar{
       display:block;
       margin:.75rem 0 .85rem;
       padding:0 2rem
@@ -3664,21 +3666,26 @@
       min-height:0;
       border-radius:0;
       scroll-snap-align:start;
-      touch-action:pan-x pan-y
+      touch-action:pan-x pan-y;
+      background:var(--deep)
     }
     .gallery-group .gallery-item:hover img{
       transform:none;
       filter:none
+    }
+    .gallery-group .gallery-item>.ly-prog-wrap{
+      background:var(--deep)
     }
     .gallery-group .gallery-item picture{
       display:block;
       width:100%;
       height:100%
     }
-    .gallery-group .gallery-item img{
+    .gallery-group .gallery-item img,.gallery-group .gallery-item .ly-prog-preview,.gallery-group .gallery-item .ly-prog-sharp{
       width:100%;
       height:100%;
-      object-fit:cover;
+      object-fit:contain;
+      object-position:center center;
       display:block
     }
     .destination-card{
@@ -3707,10 +3714,12 @@
       box-sizing:border-box
     }
     #gallery .gallery-group .gallery-grid{
-      padding-bottom:1rem
+      flex:1 1 0;
+      min-height:min(72vh,calc(100svh - var(--nav-scroll-offset) - 11rem));
+      padding-bottom:0
     }
     #gallery .carousel-nav{
-      padding:1rem 0 1.15rem
+      padding:.55rem 0 .65rem
     }
     .carousel-btn{
       background:transparent;
@@ -3746,6 +3755,9 @@
       flex:0 0 auto;
       padding:1rem 2rem 0;
       text-align:center
+    }
+    #gallery .gallery-wrap>.section-cta-desktop{
+      padding:.45rem 2rem 0
     }
     #gallery .section-cta-desktop .section-cta-text,#itinerary .section-cta-desktop .section-cta-text{
       display:block;
