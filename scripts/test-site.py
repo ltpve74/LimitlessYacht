@@ -392,9 +392,9 @@ def check_html(r: Runner, rel: str, html: str) -> None:
         and html.count('class="destination-card-bg"') == 12
         and html.count('sizes="78vw"') == 12
         and 'portals-vells-1-640.webp' in html
-        and 'portals-vells-1-720.webp' in html
-        and 'images/mobile/dest/portals-vells-1-960.webp 640w' in html
-        and 'images/mobile/dest/portals-vells-1.webp 960w' in html
+        and 'portals-vells-1gm-720.webp' in html
+        and 'images/mobile/dest/portals-vells-1gm-960.webp 960w' in html
+        and 'images/mobile/dest/portals-vells-1gm-480.webp 480w' in html
         # Lightbox: cache hit if card was visible; card srcset (WebP tiers only,
         # never .jpg fallback or master) if not yet loaded.
         and 'window.LY_cardLoadedSrc' in html
@@ -513,6 +513,28 @@ def check_html(r: Runner, rel: str, html: str) -> None:
             'srcset="images/mobile/maiora_20s_01gm-prev.jpg" media="(max-width: 768px)"' in html
             or 'srcset="/images/mobile/maiora_20s_01gm-prev.jpg" media="(max-width: 768px)"' in html
         ),
+    )
+    r.check(
+        'portals vells landscape dest ships mobile gm reframe (full aerial on phones)',
+        'portals-vells-1gm-480.webp' in html
+        and (
+            'media="(max-width: 768px)" data-ly-srcset="images/mobile/dest/portals-vells-1gm-480.webp' in html
+            or 'media="(max-width: 768px)" data-ly-srcset="/images/mobile/dest/portals-vells-1gm-480.webp' in html
+        ),
+    )
+    r.check(
+        'portals vells gm uses matching gm-prev blur on mobile (smooth crossfade)',
+        'portals-vells-1gm-prev.jpg' in html
+        and (
+            'srcset="images/mobile/dest/portals-vells-1gm-prev.jpg" media="(max-width: 768px)"' in html
+            or 'srcset="/images/mobile/dest/portals-vells-1gm-prev.jpg" media="(max-width: 768px)"' in html
+        ),
+    )
+    r.check(
+        'portals vells mobile gm reframe assets exist',
+        os.path.isfile(os.path.join(ROOT, 'images', 'mobile', 'dest', 'portals-vells-1gm-480.webp'))
+        and os.path.isfile(os.path.join(ROOT, 'images', 'mobile', 'dest', 'portals-vells-1gm-960.webp'))
+        and os.path.isfile(os.path.join(ROOT, 'images', 'mobile', 'dest', 'portals-vells-1gm-prev.jpg')),
     )
     r.check(
         'destinations is one continuous swipe carousel (single track tagged by tier)',
@@ -1314,7 +1336,7 @@ def check_html(r: Runner, rel: str, html: str) -> None:
         'destination cards use multi-tier desktop srcsets',
         'portals-vells-1-640.webp' in html
         and 'portals-vells-1-960.webp' in html
-        and 'portals-vells-1-720.webp' in html,
+        and 'portals-vells-1gm-720.webp' in html,
     )
     minify_py = read_file('scripts/minify_html.py') or ''
     r.check(
@@ -3356,6 +3378,10 @@ def check_shared_assets(r: Runner) -> None:
         'images/maiora_20s_02-1280.webp',
         'images/dest/portals-vells-1.webp',
         'images/mobile/dest/portals-vells-1.webp',
+        'images/dest/portals-vells-1gm.webp',
+        'images/mobile/dest/portals-vells-1gm-480.webp',
+        'images/mobile/dest/portals-vells-1gm-960.webp',
+        'images/mobile/dest/portals-vells-1gm-prev.jpg',
         'images/dest/portals-vells-2.jpg',
         'images/dest/portals-vells-2.webp',
         'images/mobile/dest/portals-vells-2-960.webp',
