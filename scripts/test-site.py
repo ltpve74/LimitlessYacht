@@ -3363,11 +3363,16 @@ def check_shared_assets(r: Runner) -> None:
         and "we'll sketch distances, fuel and mooring realistically from the first conversation" in index_html,
     )
     r.check(
-        'specs section explains APA for multi-day charters',
+        'specs section explains APA and optional crew gratuity',
         'class="charter-faq ' in index_html
+        and 'Good to know' in index_html
         and 'What is APA?' in index_html
         and '<strong>10% of the charter fee</strong>' in index_html
         and 'running tally' in index_html
+        and 'Is crew gratuity included?' in index_html
+        and 'never required' in index_html
+        and 'shared equally across the whole crew' in index_html
+        and 'charter-faq-item+.charter-faq-item' in (css or '')
         and '.charter-faq{' in (css or ''),
     )
     r.check(

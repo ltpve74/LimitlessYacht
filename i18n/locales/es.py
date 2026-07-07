@@ -1115,8 +1115,13 @@ PAIRS = [
     ),
     # Specs section CTA
     ("Unsure what fits your time or budget? Get in touch — we'll map options and costs within 24 hours.", '¿No está seguro de qué encaja con su tiempo o presupuesto? Escríbanos — le esbozaremos opciones y costes en 24 horas.'),
-    ('Multi-day essentials', 'Lo esencial en travesías de varios días'),
+    ('Good to know', 'Bueno saber'),
     ('What is APA?', '¿Qué es el APA?'),
+    ('Is crew gratuity included?', '¿Las propinas para la tripulación están incluidas?'),
+    (
+        "Crew gratuity is <strong>not included</strong> in your charter price and is <strong>never required</strong>. If you would like to recognise the crew's service, <strong>10% of the charter fee</strong> (or more) is customary in Mallorca — <strong>cash only</strong>, typically handed to the captain when you disembark and shared equally across the whole crew. Everyone who looked after you receives the same fair share. Entirely at your discretion.",
+        'Las propinas para la tripulación <strong>no están incluidas</strong> en el precio del chárter y <strong>nunca son obligatorias</strong>. Si desea reconocer el servicio de la tripulación, el <strong>10&nbsp;% del precio del chárter</strong> (o más) es habitual en Mallorca — <strong>solo en efectivo</strong>, normalmente entregado al capitán al desembarcar y <strong>repartido por igual entre toda la tripulación</strong>. Cada persona que le atendió recibe la misma parte justa. Completamente a su discreción.',
+    ),
     (
         'On multi-day charters, APA (Advance Provisioning Allowance) is typically <strong>10% of the charter fee</strong>. It covers provisions, extra fuel, mooring and other variable costs. Your captain keeps a transparent running tally throughout the trip. Any balance left at the end is returned to you; if it runs low during the charter, the lead guest is notified and the APA is topped up — so your time on board is never interrupted.',
         'En chárteres de varios días, el APA (Advance Provisioning Allowance) suele ser el <strong>10&nbsp;% del precio del chárter</strong>. Cubre aprovisionamiento, combustible adicional, amarre y otros costes variables. El capitán lleva un registro transparente durante el viaje. El saldo no gastado se devuelve al final; si se agota durante el chárter, se avisa al huésped principal y se repone el APA — para que su tiempo a bordo no se interrumpa.',

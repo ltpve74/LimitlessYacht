@@ -331,6 +331,11 @@
     margin-bottom:.85rem;
     font-weight:600
   }
+  .charter-faq-item+.charter-faq-item{
+    margin-top:1.35rem;
+    padding-top:1.35rem;
+    border-top:1px solid rgba(201,168,76,.1)
+  }
   .charter-faq-q{
     font-size:.92rem;
     font-weight:600;
