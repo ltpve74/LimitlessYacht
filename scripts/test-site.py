@@ -391,6 +391,17 @@ def check_html(r: Runner, rel: str, html: str) -> None:
         'window.LY_syncDestCardImages' not in html
         and html.count('class="destination-card-bg"') == 12
         and html.count('sizes="78vw"') == 12
+        and html.count('media="(min-width: 769px)"') == 34
+        and html.count('media="(min-width: 769px)" data-ly-srcset=') == 34
+        and 'media="(min-width: 769px)" data-ly-srcset="images/mobile/' not in html
+        and 'reframe_immersive.py' in (read_file('scripts/reframe_immersive.py') or '')
+        and 'DJI_20260626132137_0266_D.JPG' in (read_file('scripts/reframe_immersive.py') or '')
+        and 'Focus(0.56, 0.50, 1.35)' in (read_file('scripts/reframe_immersive.py') or '')
+        and '01_portals_vells_existing.jpg' in (read_file('scripts/reframe_immersive.py') or '')
+        and '01_el_toro_rocky_pexels.jpg' in (read_file('scripts/reframe_immersive.py') or '')
+        and '02_portals_pano.jpg' not in (read_file('scripts/reframe_immersive.py') or '')
+        and '02_el_toro_waterfront_pexels.jpg' not in (read_file('scripts/reframe_immersive.py') or '')
+        and ', 2.' not in (read_file('scripts/reframe_immersive.py') or '').split('GALLERY_WATER')[1].split('DEST_SLOTS')[0]
         and 'portals-vells-1-640.webp' in html
         and 'portals-vells-1gm-720.webp' in html
         and 'images/mobile/dest/portals-vells-1gm.webp 842w' in html
@@ -405,9 +416,18 @@ def check_html(r: Runner, rel: str, html: str) -> None:
         'gallery cards use responsive tier srcsets',
         'maiora_20s_01-640.webp' in html
         and 'maiora_20s_01gm-720.webp' in html
-        and 'images/mobile/maiora_20s_03gm-960.webp 960w' in html
+        and (
+            'images/mobile/maiora_20s_03gm-960.webp 960w' in html
+            or '/images/mobile/maiora_20s_03gm-960.webp 960w' in html
+        )
         and 'images/mobile/maiora_20s_03.webp 960w' not in html
-        and '(min-width: 1101px) 25vw, 50vw' in html,
+        and '/images/mobile/maiora_20s_03.webp 960w' not in html
+        and (
+            'media="(min-width: 769px)" data-ly-srcset="images/maiora_20s_03-640.webp' in html
+            or 'media="(min-width: 769px)" data-ly-srcset="/images/maiora_20s_03-640.webp' in html
+        )
+        and 'media="(min-width: 769px)" data-ly-srcset="images/mobile/maiora_20s_03gm' not in html
+        and 'media="(min-width: 769px)" data-ly-srcset="/images/mobile/maiora_20s_03gm' not in html,
     )
     r.check(
         'lightbox never loads .jpg fallback for unvisited cards',
@@ -431,6 +451,7 @@ def check_html(r: Runner, rel: str, html: str) -> None:
         'carousel step avoids offsetLeft on mobile (forced reflow guard)',
         'window.lyCarouselStep' in html
         and 'window.innerWidth * 0.78 + 12' in html
+        and 'window.innerWidth > 768' in html
         and 'grid.classList.contains(\'gallery-grid\')' in html
         and 'requestAnimationFrame(updateNav)' in html,
     )
@@ -557,10 +578,10 @@ def check_html(r: Runner, rel: str, html: str) -> None:
     )
     pv_card = html.split('data-dest-idx="0"')[1].split('data-dest-idx="1"')[0]
     r.check(
-        'portals vells sharp img reserves portrait aspect (gm mobile, not landscape 960×540)',
+        'portals vells sharp img reserves landscape 16:9 (desktop reframe, gm mobile srcset)',
         'portals-vells-1gm.webp 842w' in pv_card
-        and 'width="842" height="1578"' in pv_card
-        and 'width="960" height="540"' not in pv_card,
+        and 'width="960" height="540"' in pv_card
+        and 'width="842" height="1578"' not in pv_card,
     )
     r.check(
         'destinations is one continuous swipe carousel (single track tagged by tier)',
@@ -576,11 +597,14 @@ def check_html(r: Runner, rel: str, html: str) -> None:
         html.count('class="carousel-nav"') == 2,
     )
     r.check(
-        'gallery images no longer open a lightbox',
-        'id="lightbox"' not in html
-        and 'openGalleryLb' not in html
-        and 'function showImage(idx)' not in html
-        and 'applyGalleryLbFrame' not in html,
+        'gallery images open a fullscreen lightbox',
+        'id="lightbox"' in html
+        and 'id="lightbox-img"' in html
+        and 'openGalleryLb' in html
+        and 'applyGalleryLbFrame' in html
+        and 'function showImage(idx)' in html
+        and html.count('class="gallery-item') == 21
+        and html.split('window.LY_GALLERY_IMAGES = [', 1)[1].split('];', 1)[0].count('.webp') == 21,
     )
     r.check(
         'swipe-settle fires debounced, in-view-gated category view events',
@@ -882,6 +906,9 @@ def check_html(r: Runner, rel: str, html: str) -> None:
         and "classList.add('ly-past-hero')" in html
         and "classList.remove('ly-past-hero')" in html
         and 'lyHashLocked() && root.classList.contains' in html
+        and 'if (!lyHashLocked()) root.classList.remove' in html
+        and "hash === 'gallery-land'" in html
+        and "hash === 'itinerary-land'" in html
         and "destId === 'hero'" in html
         and "document.documentElement.classList.remove('ly-past-hero')" in html
         and "destId === 'itinerary-funnel' || destId === 'gallery-funnel'" in html,
@@ -1235,9 +1262,21 @@ def check_html(r: Runner, rel: str, html: str) -> None:
     r.check(
         'hash funnel landing re-syncs after main.css (scroll-margin + ly-past-hero)',
         'window.LY_fixupHashLanding' in html
+        and 'window.LY_initHash' in html
+        and 'window.LY_hashScrollTarget' in html
         and 'itinerary-funnel' in html
         and 'ly-past-hero' in html
-        and 'scrollIntoView' in html.split('LY_fixupHashLanding = function')[1][:600],
+        and 'window.scrollTo({ top: Math.max(0, top), behavior: ' in html.split('LY_fixupHashLanding = function')[1][:1200],
+    )
+    r.check(
+        'scroll hash sync does not strip intentional deep-link landings at hero',
+        'LY_initHash' in html
+        and '!window.LY_initHash' in html
+        and re.search(
+            r'if\s*\(\s*window\.scrollY\s*<\s*48\s*\)\s*\{[^}]*LY_initHash',
+            html,
+        )
+        is not None,
     )
     r.check(
         'critical CSS applies funnel scroll-padding when past hero (unlayered, beats deferred layers)',
@@ -2138,7 +2177,8 @@ def check_shared_assets(r: Runner) -> None:
             # buttons are never cut. Lightbox gives spare height to the IMAGE.
             "setProperty('--mobile-funnel-land-offset', (_navHeight + 2) + 'px')" in index_html
             and layout_css is not None
-            and layout_css.count('height:calc(100svh - var(--mobile-funnel-land-offset,5.45rem) - max(.6rem,env(safe-area-inset-bottom,0px)))') == 2
+            and layout_css.count('height:calc(100svh - var(--mobile-funnel-land-offset,5.45rem) - var(--funnel-carousel-headroom,2.75rem) - max(.6rem,env(safe-area-inset-bottom,0px)))') == 2
+            and '--funnel-carousel-headroom:2.75rem' in layout_css
             and re.search(r'@media \(max-width:640px\)\{\s*(?:/\*[^*]*\*/\s*)?\.dest-lb-img-wrap\{\s*flex:1 1 0%;\s*min-height:34vh', re.sub(r'  +', ' ', css or '')) is not None,
         )
         r.check(
@@ -2164,8 +2204,8 @@ def check_shared_assets(r: Runner) -> None:
             # One component for carousel, lightbox and calendar chevrons; the
             # ‹ › glyphs sat off-centre with the metric-adjusted fallback
             # faces (owner screenshots, 2 Jul 2026).
-            index_html.count('ly-chev--prev') == 5
-            and index_html.count('ly-chev--next') == 5
+            index_html.count('ly-chev--prev') == 6
+            and index_html.count('ly-chev--next') == 6
             and '.ly-chev::before{' in re.sub(r'\s+', '', css or '')
             and '&#8249;</button>' not in index_html
             and '‹</button>' not in index_html
@@ -2674,17 +2714,33 @@ def check_shared_assets(r: Runner) -> None:
         and 'href="#itinerary-funnel" class="btn-ghost itinerary-bottom-link--mobile">destinations</a>' in index_html
         and css is not None
         and re.search(
-            r'@media\s*\(\s*min-width:\s*769px\s*\)[\s\S]*?\.gallery-wrap[\s\S]*?height:\s*calc\(100svh\s*-\s*var\(--nav-scroll-offset\)\s*-\s*14rem\)',
+            r'@media\s*\(\s*min-width:\s*769px\s*\)[\s\S]*?#gallery\s+\.gallery-wrap[\s\S]*?height:\s*calc\(100svh\s*-\s*var\(--nav-scroll-offset\)\s*-\s*var\(--funnel-carousel-headroom',
             css,
         )
         is not None
         and re.search(
-            r'@media\s*\(\s*min-width:\s*769px\s*\)[\s\S]*?#gallery,\s*#itinerary\s*\{[^}]*height:\s*auto',
+            r'@media\s*\(\s*min-width:\s*769px\s*\)[\s\S]*?#itinerary\s*\{[^}]*height:\s*calc\(100svh\s*-\s*var\(--nav-scroll-offset\)\s*-\s*var\(--funnel-carousel-headroom',
             css,
         )
         is not None
+        and re.search(
+            r'@media\s*\(\s*min-width:\s*769px\s*\)[\s\S]*?\.gallery-group\s+\.carousel-nav,\s*\.dest-group\s+\.carousel-nav[\s\S]*?position:\s*static',
+            css,
+        )
+        is not None
+        and 'linear-gradient(to top,rgba(10,22,40,.78)' not in css.split('@media (min-width:769px)', 1)[-1].split('.carousel-btn', 1)[0]
         and re.search(
             r'@media\s*\(\s*min-width:\s*769px\s*\)[\s\S]*?\.gallery-group\s+\.gallery-grid[\s\S]*?flex:\s*1\s*1\s*0',
+            css,
+        )
+        is not None
+        and re.search(
+            r'@media\s*\(\s*min-width:\s*769px\s*\)[\s\S]*?\.gallery-group\s+\.gallery-item\s*\{[^}]*flex:\s*0\s*0\s*100vw',
+            css,
+        )
+        is not None
+        and re.search(
+            r'@media\s*\(\s*min-width:\s*769px\s*\)[\s\S]*?\.destination-card\s*\{[^}]*flex:\s*0\s*0\s*100vw',
             css,
         )
         is not None
@@ -2695,7 +2751,12 @@ def check_shared_assets(r: Runner) -> None:
         )
         is not None
         and re.search(
-            r'@media\s*\(\s*min-width:\s*769px\s*\)[\s\S]*?#gallery\s+\.carousel-nav[\s\S]*?display:\s*flex',
+            r'@media\s*\(\s*min-width:\s*769px\s*\)[\s\S]*?\.gallery-group\s+\.carousel-nav,\s*\.dest-group\s+\.carousel-nav[\s\S]*?display:\s*flex',
+            css,
+        )
+        is not None
+        and re.search(
+            r'@media\s*\(\s*min-width:\s*769px\s*\)[\s\S]*?\.gallery-group\s+\.gallery-item\s+img[\s\S]*?object-fit:\s*cover',
             css,
         )
         is not None,
@@ -2724,20 +2785,28 @@ def check_shared_assets(r: Runner) -> None:
             re.sub(r'\s+', ' ', css),
         )
         and css_rule_index(css, '#dest-lb-close') < 0
-        and '#lightbox-prev' not in css,
+        and css_rule_index(css, '#lightbox') >= 0
+        and '#lightbox.lb-loading #lightbox-img' in css,
     )
     r.check(
         'destination lightbox shows same browse hint as gallery',
         'ly_dest_hinted' in index_html
+        and 'ly_gallery_hinted' in index_html
         and 'id="dest-lb-hint"' in index_html
-        and "matchMedia('(min-width: 1101px)')" in index_html,
+        and 'id="lightbox-hint"' in index_html
+        and "matchMedia('(min-width: 1101px)')" in index_html
+        and "matchMedia('(min-width: 769px)')" in index_html,
     )
     r.check(
-        'gallery lightbox fully removed from markup, JS and CSS',
-        'id="lightbox"' not in index_html
-        and 'id="lightbox-img"' not in index_html
-        and 'openGalleryLb' not in index_html
-        and (css is None or '#lightbox' not in css),
+        'gallery lightbox restored with shared chrome',
+        'id="lightbox"' in index_html
+        and 'id="lightbox-img"' in index_html
+        and 'openGalleryLb' in index_html
+        and 'class="lb-nav lb-nav--prev ly-chev ly-chev--prev"' in index_html
+        and css is not None
+        and css_rule_index(css, '#lightbox') >= 0
+        and '#lightbox.open::after' in css
+        and re.search(r'#lightbox-img[^{]*\{[^}]*object-fit:\s*cover', re.sub(r'\s+', ' ', css)) is not None,
     )
     r.check(
         'destination lightbox retained with shared chrome',
@@ -2760,6 +2829,13 @@ def check_shared_assets(r: Runner) -> None:
         'window.LY_wireCarousel = function' in index_html
         and index_html.count('window.LY_wireCarousel({') == 2
         and 'window.lyCarouselStep = function' in index_html,
+    )
+    wire = index_html.split('window.LY_wireCarousel = function', 1)[1].split('}; (function(){ var group=document.querySelector(\'.dest-group\')', 1)[0]
+    r.check(
+        'carousel uses horizontal scroll on all viewports (no desktop scrollIntoView)',
+        'grid.scrollTo({left:i*step()' in wire
+        and 'scrollIntoView' not in wire
+        and 'function isMobile()' not in wire,
     )
     r.check(
         'calendar enquire opens email sheet (no navigation to separate section)',
@@ -2802,7 +2878,12 @@ def check_shared_assets(r: Runner) -> None:
         )
         is not None
         and re.search(
-            r'@media\s*\(\s*min-width:\s*769px\s*\)[\s\S]*?#(?:gallery|itinerary)\s+\.itinerary-bottom-bar[\s\S]*?margin:\s*\.75rem\s+0\s+\.85rem',
+            r'@media\s*\(\s*min-width:\s*769px\s*\)[\s\S]*?#itinerary\s+\.itinerary-bottom-bar[\s\S]*?margin:\s*\.4rem\s+0\s+\.45rem',
+            css,
+        )
+        is not None
+        and re.search(
+            r'@media\s*\(\s*min-width:\s*769px\s*\)[\s\S]*?#gallery\s+\.itinerary-bottom-bar[\s\S]*?margin:\s*\.5rem\s+0\s+\.75rem',
             css,
         )
         is not None
@@ -2861,16 +2942,40 @@ def check_shared_assets(r: Runner) -> None:
         and 'dest-lb-cta-mobile' in index_html,
     )
     r.check(
-        'tablet carousel navigation uses larger touch targets',
+        'immersive carousels share one nav chrome (below images, not overlaid)',
         css is not None
         and re.search(
-            r'@media\s*\(\s*min-width:\s*641px\s*\)\s*and\s*\(\s*max-width:\s*1100px\s*\)[\s\S]*?\.carousel-btn\s*\{[^}]*width:\s*2\.55rem',
+            r'@media\s*\(\s*min-width:\s*769px\s*\)[\s\S]*?\.gallery-group\s+\.carousel-nav,\s*\.dest-group\s+\.carousel-nav[\s\S]*?min-height:\s*3\.2rem',
             css,
         )
         is not None
         and re.search(
-            r'@media\s*\(\s*min-width:\s*641px\s*\)\s*and\s*\(\s*max-width:\s*1100px\s*\)[\s\S]*?\.carousel-pos\s*\{[^}]*font-size:\s*\.6rem',
+            r'@media\s*\(\s*min-width:\s*769px\s*\)[\s\S]*?\.carousel-btn\s*\{[^}]*width:\s*2\.1rem',
             css,
+        )
+        is not None
+        and re.search(
+            r'@media\s*\(\s*max-width:\s*768px\s*\)[\s\S]*?\.carousel-nav\s*\{[^}]*min-height:\s*3\.2rem',
+            css,
+        )
+        is not None,
+    )
+    r.check(
+        'immersive carousel images leave bottom breathing room (pad + object-position)',
+        css is not None
+        and re.search(
+            r'@media\s*\(\s*min-width:\s*769px\s*\)[\s\S]*?\.gallery-group\s+\.gallery-grid,\s*\.dest-group\s+\.itinerary-grid[\s\S]*?padding-bottom:\s*clamp\(',
+            css,
+        )
+        is not None
+        and re.search(
+            r'@media\s*\(\s*min-width:\s*769px\s*\)[\s\S]*?\.gallery-group\s+\.gallery-item\s+\.ly-prog-sharp[\s\S]*?object-position:\s*50%\s*46%',
+            css,
+        )
+        is not None
+        and re.search(
+            r'@media\s*\(\s*max-width:\s*768px\s*\)[\s\S]*?\.gallery-group\s+\.gallery-item\s+\.ly-prog-sharp[\s\S]*?object-position:\s*50%\s*46%',
+            read_file('css/layout.css') or '',
         )
         is not None,
     )
@@ -3124,7 +3229,17 @@ def check_shared_assets(r: Runner) -> None:
         and 'class="section-title reveal reveal-delay-1">On<em>board Gallery</em>' in index_html
         and css is not None
         and re.search(
-            r'@media\s*\(\s*min-width:\s*769px\s*\)[\s\S]*?#gallery,\s*#itinerary\s*\{[^}]*padding-bottom:\s*5rem',
+            r'@media\s*\(\s*min-width:\s*769px\s*\)[\s\S]*?#gallery\s*\{[^}]*padding-bottom:\s*0',
+            css,
+        )
+        is not None
+        and re.search(
+            r'@media\s*\(\s*min-width:\s*769px\s*\)[\s\S]*?#itinerary\s*\{[^}]*padding-bottom:\s*0',
+            css,
+        )
+        is not None
+        and re.search(
+            r'@media\s*\(\s*min-width:\s*769px\s*\)[\s\S]*?#gallery\s+\.section-title[\s\S]*?font-size:\s*clamp\(1\.1rem',
             css,
         )
         is not None,

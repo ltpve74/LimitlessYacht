@@ -895,16 +895,15 @@ def scenario_full_page_scroll(page, base: str, issues: IssueCollector) -> None:
 
 
 def scenario_gallery_carousel(page, base: str, issues: IssueCollector) -> None:
-    name = "gallery carousel (no lightbox) and destinations lightbox"
+    name = "gallery carousel lightbox and destinations lightbox"
     issues.attach(page, name)
     page.set_viewport_size(DESKTOP_VIEWPORT)
     page.goto(base + "/", wait_until="domcontentloaded", timeout=60000)
     page.locator("#gallery").scroll_into_view_if_needed()
     page.wait_for_timeout(400)
 
-    # Gallery is one continuous track; the standalone lightbox is gone.
-    if page.evaluate("() => !!document.getElementById('lightbox')"):
-        issues.add(f"{name}: gallery #lightbox element should be removed")
+    if not page.evaluate("() => !!document.getElementById('lightbox')"):
+        issues.add(f"{name}: gallery #lightbox element should be present")
 
     # Tabs still work as clickable shortcuts and reflect the active category.
     deck_tab = page.locator('.gallery-tab[data-gtab="deck"]')
@@ -918,18 +917,19 @@ def scenario_gallery_carousel(page, base: str, issues: IssueCollector) -> None:
         if active != "deck":
             issues.add(f"{name}: gallery tab click did not highlight deck (got {active})")
 
-    # Clicking a gallery image must NOT open any lightbox anymore.
     item = page.locator(".gallery-group .gallery-item").first
     if item.count() == 0:
         issues.add(f"{name}: no gallery items found")
         return
     item.click()
-    page.wait_for_timeout(400)
-    if page.evaluate(
-        "() => { var lb = document.getElementById('lightbox');"
-        " return !!(lb && lb.classList.contains('open')); }"
-    ):
-        issues.add(f"{name}: gallery item should not open a lightbox")
+    page.wait_for_selector("#lightbox.open", timeout=10000)
+    close_btn = page.locator("#lightbox-close")
+    if close_btn.count():
+        close_btn.click()
+        page.wait_for_function(
+            "() => !document.getElementById('lightbox').classList.contains('open')",
+            timeout=5000,
+        )
 
     # Destinations lightbox is retained and still opens on card tap.
     page.locator("#itinerary").scroll_into_view_if_needed()
