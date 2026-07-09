@@ -170,7 +170,7 @@ PAIRS = [
     ("Elegant outdoor seating", "Assises élégantes sur le pont"),
     ("Water Sports", "Sports nautiques"),
     ("330 Jet tender", "Annexe 330 Jet"),
-    ("2 × Seabobs", "2 × Seabobs"),
+    ("1 × Seabob", "1 × Seabob"),
     ("Stand-up paddleboard", "Paddle"),
     ("Snorkel set", "Kit de plongée"),
     ("Lily pad", "Tapis de flottaison"),
