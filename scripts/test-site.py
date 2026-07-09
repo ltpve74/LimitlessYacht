@@ -1262,9 +1262,21 @@ def check_html(r: Runner, rel: str, html: str) -> None:
     r.check(
         'hash funnel landing re-syncs after main.css (scroll-margin + ly-past-hero)',
         'window.LY_fixupHashLanding' in html
+        and 'window.LY_initHash' in html
+        and 'window.LY_hashScrollTarget' in html
         and 'itinerary-funnel' in html
         and 'ly-past-hero' in html
-        and 'scrollIntoView' in html.split('LY_fixupHashLanding = function')[1][:600],
+        and 'window.scrollTo({ top: Math.max(0, top), behavior: ' in html.split('LY_fixupHashLanding = function')[1][:1200],
+    )
+    r.check(
+        'scroll hash sync does not strip intentional deep-link landings at hero',
+        'LY_initHash' in html
+        and '!window.LY_initHash' in html
+        and re.search(
+            r'if\s*\(\s*window\.scrollY\s*<\s*48\s*\)\s*\{[^}]*LY_initHash',
+            html,
+        )
+        is not None,
     )
     r.check(
         'critical CSS applies funnel scroll-padding when past hero (unlayered, beats deferred layers)',
