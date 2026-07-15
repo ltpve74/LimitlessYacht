@@ -1152,6 +1152,16 @@ REVIEWS = [
         ),
     },
     {
+        "author": "Leon",
+        "date": "Juil. 2026",
+        "rating": 5,
+        "text": (
+            "Super expérience ! Un très beau bateau, bien dimensionné, avec des jouets "
+            "sympas. Équipage très sympathique qui a fait du très bon travail à tous les "
+            "niveaux. Je recommande sans hésiter — je referai l'expérience !"
+        ),
+    },
+    {
         "author": "Maurice",
         "date": "Juin 2026",
         "rating": 5,

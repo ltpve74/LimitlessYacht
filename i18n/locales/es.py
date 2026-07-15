@@ -1160,6 +1160,16 @@ REVIEWS = [
         ),
     },
     {
+        "author": "Leon",
+        "date": "Jul 2026",
+        "rating": 5,
+        "text": (
+            "¡Gran experiencia! Un barco muy bonito, con buen tamaño y juguetes geniales. "
+            "Tripulación muy amable que hizo un trabajo excelente en todo. Sin duda lo "
+            "recomiendo; lo repetiré."
+        ),
+    },
+    {
         "author": "Maurice",
         "date": "Jun 2026",
         "rating": 5,

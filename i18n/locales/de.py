@@ -1164,6 +1164,16 @@ REVIEWS = [
         ),
     },
     {
+        "author": "Leon",
+        "date": "Juli 2026",
+        "rating": 5,
+        "text": (
+            "Tolles Erlebnis! Ein sehr schönes Boot mit großzügigem Platz und coolen "
+            "Spielzeugen. Sehr freundliche Crew, die in jeder Hinsicht großartige Arbeit "
+            "geleistet hat. Definitiv eine Empfehlung — ich werde es wieder machen!"
+        ),
+    },
+    {
         "author": "Maurice",
         "date": "Juni 2026",
         "rating": 5,
