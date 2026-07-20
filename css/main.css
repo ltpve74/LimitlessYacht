@@ -1927,7 +1927,7 @@
     gap:1.5rem;
     margin-top:1.5rem;
     max-width:820px;
-    min-height:82rem
+    min-height:98rem
   }
   .review-card{
     border:1px solid rgba(201,168,76,.18);
@@ -2014,7 +2014,7 @@
     font-size:.82rem;
     color:var(--text-muted);
     letter-spacing:.08em;
-    min-height:82rem;
+    min-height:98rem;
     display:flex;
     align-items:center;
     justify-content:center
