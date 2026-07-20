@@ -74,8 +74,14 @@
   .item .notes{color:var(--muted);font-size:12.5px;margin-top:8px;font-style:italic}
   .chev{position:absolute;right:12px;bottom:11px;color:#c3ccd3;font-size:15px}
   .invtags{display:flex;flex-wrap:wrap;gap:7px;margin-top:10px}
-  .invtag{background:#f5f7f9;border:1px solid var(--line);border-radius:10px;padding:6px 9px;font-size:12px;display:flex;align-items:center;gap:6px}
+  .invtag{background:#f5f7f9;border:1px solid var(--line);border-radius:10px;padding:6px 9px;font-size:12px;display:flex;align-items:center;gap:6px;flex-wrap:wrap}
   .invtag b{font-weight:700}
+  .invtag .req{margin-left:2px;background:var(--brand);color:#fff;border-radius:8px;padding:4px 9px;font-size:11.5px;font-weight:700}
+  .invtag .req:active{opacity:.85}
+  .invtag.need{border-color:#f0d48a;background:#fffbf0}
+  .invtag.done{border-color:#b8e6c9;background:#f4fcf7}
+  .sheet .sect{font-size:12px;font-weight:700;color:var(--muted);text-transform:uppercase;letter-spacing:.04em;margin:14px 0 10px;padding-top:4px;border-top:1px solid var(--line)}
+  .sheet .sect:first-of-type{border-top:none;margin-top:6px}
   .pill{display:inline-block;padding:3px 10px;border-radius:20px;font-size:11.5px;font-weight:700;white-space:nowrap}
   .p-grey{background:var(--grey);color:var(--greyInk)} .p-amber{background:var(--amber);color:var(--amberInk)}
   .p-blue{background:var(--blue);color:var(--blueInk)} .p-green{background:var(--green);color:var(--greenInk)}
@@ -196,9 +202,9 @@
     <section id="tab-leads" class="hidden">
       <div class="summary">
         <div class="sumcard"><div class="l">Deals value</div><div class="v money" id="ldTot">€0</div></div>
-        <div class="sumcard"><div class="l">Invoices to raise</div><div class="v" id="ldPending">0</div></div>
+        <div class="sumcard"><div class="l">Invoices requested</div><div class="v" id="ldPending">0</div></div>
       </div>
-      <div class="legend">Website leads you've closed. Pick the duration (4/6/8 hours or multi-day), add the price/rate + dates, and choose whether VAT is included in that figure or added on top. Total, deposit (50% by default) and APA are worked out from the client total. Set each invoice to “Requested” for the manager to issue. APA usually applies to overnight charters only. APA = Advance Provisioning Allowance.</div>
+      <div class="legend">Closed website leads. Quote price + VAT, then use <b>Request invoice</b> on deposit / final / APA so the manager knows what to issue. Manager marks each as Issued (and adds invoice #) or Paid. APA is usually overnight only.</div>
       <div class="list" id="ldList"></div>
     </section>
 
@@ -360,6 +366,15 @@ function leadMeta(r){
   return '🕐 '+esc(durLabel(r.dur))+(r.start?' · '+esc(fmtDate(r.start)):(r.cdate?' · '+esc(fmtDate(r.cdate)):''));
 }
 function vatModeLabel(m){ return m==="add"?"+ VAT":(m==="include"?"inc. VAT":""); }
+function leadInvTag(label, amount, pct, status, invNo, id, which){
+  var st=status||"Not requested";
+  var cls=st==="Requested"?" need":(st==="Issued"||st==="Paid"?" done":"");
+  var canReq=st==="Not requested"||st===""||!st;
+  var btn=canReq?'<button type="button" class="req" data-req-lead="'+esc(id)+'" data-req-which="'+esc(which)+'">Request invoice</button>':'';
+  var inv=invNo?' <span>#'+esc(invNo)+'</span>':'';
+  var pctS=(pct!==""&&pct!=null)?' ('+pct+'%)':'';
+  return '<span class="invtag'+cls+'"><b>'+esc(label)+'</b> '+money0(amount)+pctS+' '+pill(st)+inv+btn+'</span>';
+}
 function renderLeads(){
   var wrap=el("ldList"), tot=0, pend=0, html="";
   state.leads.forEach(function(r){
@@ -370,17 +385,38 @@ function renderLeads(){
     if(vatNote&&(Number(r.vatPct)||0)>0) vatNote+=" "+r.vatPct+"%";
     html+='<div class="item" data-edit-ld="'+esc(r.id)+'">'+
       '<div class="top"><div class="title">'+esc(r.name||"—")+'</div><div class="amt money">'+money0(r.total)+'</div></div>'+
-      '<div class="meta"><span>'+leadMeta(r)+'</span>'+(vatNote?'<span>'+esc(vatNote)+'</span>':'')+'</div>'+
+      '<div class="meta"><span>'+leadMeta(r)+'</span>'+(vatNote?'<span>'+esc(vatNote)+'</span>':'')+
+        (pendForLead(r)?'<span class="pill p-amber">'+pendForLead(r)+' invoice'+(pendForLead(r)>1?'s':'')+' requested</span>':'')+'</div>'+
       '<div class="invtags">'+
-        '<span class="invtag"><b>Deposit</b> '+money0(r.dep)+(r.depPct!==""&&r.depPct!=null?' ('+r.depPct+'%)':'')+' '+pill(r.deps)+'</span>'+
-        '<span class="invtag"><b>Final</b> '+money0(r.fin)+' '+pill(r.fins)+'</span>'+
-        (showApa?'<span class="invtag"><b>APA</b> '+money0(r.apa)+(r.apaPct!==""&&r.apaPct!=null?' ('+r.apaPct+'%)':'')+' '+pill(r.apas)+'</span>':'')+
+        leadInvTag("Deposit",r.dep,r.depPct,r.deps,r.depInv,r.id,"deps")+
+        leadInvTag("Final",r.fin,"",r.fins,r.finInv,r.id,"fins")+
+        (showApa?leadInvTag("APA",r.apa,r.apaPct,r.apas,r.apaInv,r.id,"apas"):"")+
       '</div>'+
       (r.notes?'<div class="notes">'+esc(r.notes)+'</div>':'')+'<span class="chev">✎</span></div>';
   });
   wrap.innerHTML=html||emptyBox("🌐","No leads logged yet","Tap + when you close a website lead.");
   el("ldTot").textContent=money(tot); el("ldPending").textContent=pend;
   bindEdit(wrap,"data-edit-ld","lead");
+  Array.prototype.forEach.call(wrap.querySelectorAll("[data-req-lead]"),function(btn){
+    btn.addEventListener("click",function(ev){
+      ev.preventDefault(); ev.stopPropagation();
+      requestLeadInvoice(btn.getAttribute("data-req-lead"), btn.getAttribute("data-req-which"));
+    });
+  });
+}
+function pendForLead(r){
+  var n=0; [r.deps,r.fins,r.apas].forEach(function(s){ if(s==="Requested")n++; }); return n;
+}
+function requestLeadInvoice(id, which){
+  var rec=state.leads.filter(function(r){return r.id===id;})[0];
+  if(!rec||!which) return;
+  if(rec[which]==="Requested"||rec[which]==="Issued"||rec[which]==="Paid") return;
+  rec[which]="Requested";
+  if(!rec.reqAt) rec.reqAt={};
+  rec.reqAt[which]=new Date().toISOString();
+  rec.reqBy=session.who;
+  renderLeads();
+  save("leads");
 }
 function emptyBox(ic,t,s){ return '<div class="empty"><div class="big">'+ic+'</div><div>'+t+'</div><div style="font-size:12.5px;margin-top:4px">'+s+'</div></div>'; }
 function bindEdit(wrap,attr,type){
@@ -393,6 +429,13 @@ function bindEdit(wrap,attr,type){
 function fieldHTML(label,inner){ return '<div class="field"><label>'+label+'</label>'+inner+'</div>'; }
 function moneyField(id,val){ return '<div class="moneywrap"><input class="ctl" id="'+id+'" type="number" inputmode="decimal" min="0" step="0.01" value="'+(val!=null?val:"")+'" placeholder="0"></div>'; }
 function selField(id,val){ return '<select class="ctl" id="'+id+'">'+LEAD_STATUSES.map(function(s){return '<option'+(s===val?' selected':'')+'>'+s+'</option>';}).join("")+'</select>'; }
+function leadInvBlock(title, pctId, pctVal, stId, stVal, invId, invVal, showPct){
+  var h='<div class="sect">'+esc(title)+' invoice</div>';
+  if(showPct) h+='<div class="row2">'+fieldHTML(title+" %",pctField(pctId,pctVal))+fieldHTML("Status",selField(stId,stVal||"Not requested"))+'</div>';
+  else h+=fieldHTML("Status",selField(stId,stVal||"Not requested"));
+  h+=fieldHTML("Invoice # (manager)",'<input class="ctl" id="'+invId+'" value="'+esc(invVal||"")+'" placeholder="fill when issued">');
+  return h;
+}
 function selPayField(val){ var o=["Paid","Pending"]; return '<select class="ctl" id="f_pay">'+o.map(function(s){return '<option'+(s===val?' selected':'')+'>'+s+'</option>';}).join("")+'</select>'; }
 function selInvField(val){ var o=["Not issued","Issued"]; return '<select class="ctl" id="f_invStatus">'+o.map(function(s){return '<option'+(s===val?' selected':'')+'>'+s+'</option>';}).join("")+'</select>'; }
 function pctField(id,val){ return '<div class="pctwrap"><input class="ctl" id="'+id+'" type="number" inputmode="decimal" min="0" max="100" step="1" value="'+(val!=null&&val!==""?val:"")+'" placeholder="0"></div>'; }
@@ -464,7 +507,7 @@ function openSheet(type,id){
     h+=fieldHTML("Invoice # (manager)",'<input class="ctl" id="f_inv" value="'+esc(r.inv)+'" placeholder="fill when issued">');
     h+=fieldHTML("Notes",'<textarea class="ctl" id="f_notes" placeholder="optional">'+esc(r.notes)+'</textarea>');
   } else {
-    r=rec||{closed:"",name:"",dur:"8h",start:"",end:"",rate:"",price:"",vatMode:"include",vatPct:"21",deps:"Not requested",fins:"Not requested",apas:"Not requested",depPct:"50",apaPct:"",notes:""};
+    r=rec||{closed:"",name:"",dur:"8h",start:"",end:"",rate:"",price:"",vatMode:"include",vatPct:"21",deps:"Not requested",fins:"Not requested",apas:"Not requested",depPct:"50",apaPct:"",depInv:"",finInv:"",apaInv:"",notes:""};
     var ldur=r.dur||"8h";
     var vMode=r.vatMode||(rec?"none":"include");
     var vPct=(r.vatPct!=null&&r.vatPct!=="")?r.vatPct:(vMode==="none"?"":"21");
@@ -475,9 +518,11 @@ function openSheet(type,id){
     h+='<div id="f_durfields">'+durFieldsHTML(ldur,r)+'</div>';
     h+='<div class="row2">'+fieldHTML("VAT on price",vatModeField(vMode))+fieldHTML("VAT %",pctField("f_vatPct",vPct))+'</div>';
     h+='<div class="calcbox" id="f_calc"></div>';
-    h+='<div class="row2">'+fieldHTML("Deposit %",pctField("f_dep",r.depPct))+fieldHTML("Deposit status",selField("f_deps",r.deps))+'</div>';
-    h+=fieldHTML("Final status (balance)",selField("f_fins",r.fins));
-    h+='<div class="row2">'+fieldHTML("APA % (overnight only)",pctField("f_apa",r.apaPct))+fieldHTML("APA status",selField("f_apas",r.apas))+'</div>';
+    h+='<div class="sect">Invoices for manager</div>';
+    h+='<p style="margin:-4px 0 12px;font-size:12.5px;color:var(--muted);line-height:1.45">Set status to <b>Requested</b> when you want the manager to raise that invoice. Manager sets <b>Issued</b> + invoice #, then <b>Paid</b>.</p>';
+    h+=leadInvBlock("Deposit","f_dep",r.depPct,"f_deps",r.deps,"f_depInv",r.depInv,true);
+    h+=leadInvBlock("Final balance","","","f_fins",r.fins,"f_finInv",r.finInv,false);
+    h+=leadInvBlock("APA (overnight)","f_apa",r.apaPct,"f_apas",r.apas,"f_apaInv",r.apaInv,true);
     h+=fieldHTML("Notes",'<textarea class="ctl" id="f_notes" placeholder="optional">'+esc(r.notes)+'</textarea>');
   }
   h+='<div class="sheetbtns"><button class="btn" id="sheetSave">'+(rec?"Save":"Add")+'</button></div>';
@@ -534,12 +579,18 @@ function saveSheet(type,rec){
     var depPct=el("f_dep").value===""?"":(Number(el("f_dep").value)||0);
     var apaPct=el("f_apa").value===""?"":(Number(el("f_apa").value)||0);
     var dep=m.total*(Number(depPct)||0)/100, apa=m.total*(Number(apaPct)||0)/100, fin=m.total-dep;
+    var deps=el("f_deps").value, fins=el("f_fins").value, apas=el("f_apas").value;
+    var reqAt=(rec&&rec.reqAt)?Object.assign({},rec.reqAt):{};
+    [["deps",deps],["fins",fins],["apas",apas]].forEach(function(p){
+      if(p[1]==="Requested"&&(!reqAt[p[0]]||(rec&&rec[p[0]]!=="Requested"))) reqAt[p[0]]=new Date().toISOString();
+    });
     var o2={ id:rec?rec.id:uid(), closed:el("f_closed").value, name:el("f_name").value.trim(),
       dur:dur, start:start, end:end, rate:rate, price:price, days:days,
       base:m.base, net:m.net, vat:m.vat, total:m.total, vatMode:m.vatMode, vatPct:m.vatMode==="none"?"":m.vatPct,
-      depPct:depPct, dep:dep, deps:el("f_deps").value,
-      fin:fin, fins:el("f_fins").value,
-      apaPct:apaPct, apa:apa, apas:el("f_apas").value,
+      depPct:depPct, dep:dep, deps:deps, depInv:el("f_depInv").value.trim(),
+      fin:fin, fins:fins, finInv:el("f_finInv").value.trim(),
+      apaPct:apaPct, apa:apa, apas:apas, apaInv:el("f_apaInv").value.trim(),
+      reqAt:reqAt, reqBy:session.who,
       notes:el("f_notes").value.trim(), by:session.who };
     if(!o2.name){ el("f_name").focus(); return; }
     upsert("leads",o2,rec); renderLeads(); save("leads");
@@ -611,9 +662,9 @@ function seedDemo(){
     {id:uid(),date:"2026-07-12",client:"Delgado family",amount:2800,vatMode:"include",vatPct:21,net:2314.05,vat:485.95,payStatus:"Paid",invStatus:"Issued",status:"Invoiced",inv:"INV-1043",notes:"Half day",by:"Captain"}
   ];
   state.leads=[
-    {id:uid(),closed:"2026-07-15",name:"Acme Corp (website form)",dur:"multi",start:"2026-08-10",end:"2026-08-12",rate:5000,price:"",days:3,base:15000,net:12396.69,vat:2603.31,total:15000,vatMode:"include",vatPct:21,depPct:50,dep:7500,deps:"Requested",fin:7500,fins:"Not requested",apaPct:30,apa:4500,apas:"Not requested",notes:"Overnight charter — APA applies; price includes VAT",by:"Captain"},
-    {id:uid(),closed:"2026-07-17",name:"Rossi family (website)",dur:"6h",start:"2026-07-25",end:"",rate:3500,price:3500,days:1,base:3500,net:3500,vat:735,total:4235,vatMode:"add",vatPct:21,depPct:50,dep:2117.5,deps:"Issued",fin:2117.5,fins:"Not requested",apaPct:"",apa:0,apas:"Not requested",notes:"6-hour day charter, VAT added on top",by:"Captain"},
-    {id:uid(),closed:"2026-07-18",name:"Becker (website)",dur:"4h",start:"2026-07-28",end:"",rate:2200,price:2200,days:1,base:2200,net:2200,vat:0,total:2200,vatMode:"none",vatPct:"",depPct:50,dep:1100,deps:"Requested",fin:1100,fins:"Not requested",apaPct:"",apa:0,apas:"Not requested",notes:"4-hour sunset charter",by:"Captain"}
+    {id:uid(),closed:"2026-07-15",name:"Acme Corp (website form)",dur:"multi",start:"2026-08-10",end:"2026-08-12",rate:5000,price:"",days:3,base:15000,net:12396.69,vat:2603.31,total:15000,vatMode:"include",vatPct:21,depPct:50,dep:7500,deps:"Requested",depInv:"",fin:7500,fins:"Not requested",finInv:"",apaPct:30,apa:4500,apas:"Not requested",apaInv:"",reqAt:{deps:"2026-07-15T10:00:00Z"},notes:"Overnight charter — APA applies; price includes VAT",by:"Captain"},
+    {id:uid(),closed:"2026-07-17",name:"Rossi family (website)",dur:"6h",start:"2026-07-25",end:"",rate:3500,price:3500,days:1,base:3500,net:3500,vat:735,total:4235,vatMode:"add",vatPct:21,depPct:50,dep:2117.5,deps:"Issued",depInv:"INV-2101",fin:2117.5,fins:"Not requested",finInv:"",apaPct:"",apa:0,apas:"Not requested",apaInv:"",notes:"6-hour day charter, VAT added on top",by:"Captain"},
+    {id:uid(),closed:"2026-07-18",name:"Becker (website)",dur:"4h",start:"2026-07-28",end:"",rate:2200,price:2200,days:1,base:2200,net:2200,vat:0,total:2200,vatMode:"none",vatPct:"",depPct:50,dep:1100,deps:"Requested",depInv:"",fin:1100,fins:"Not requested",finInv:"",apaPct:"",apa:0,apas:"Not requested",apaInv:"",reqAt:{deps:"2026-07-18T12:00:00Z"},notes:"4-hour sunset charter",by:"Captain"}
   ];
   state.devices=[
     {id:"cpt-luigi-01",who:"Captain",browser:"Safari · iPhone",ip:"88.16.x.x",country:"ES",firstSeen:"2026-07-10T09:12:00Z",lastSeen:"2026-07-20T08:40:00Z",trusted:true},
