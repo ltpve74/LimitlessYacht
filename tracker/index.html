@@ -529,7 +529,7 @@ function openSheet(type,id){
   if(rec){ h+='<div class="sheetbtns"><button class="btn danger" id="sheetDel">Delete</button></div>'; }
   inner.innerHTML=h;
   el("sheetSave").addEventListener("click",function(){ saveSheet(type,rec); });
-  if(rec){ el("sheetDel").addEventListener("click",function(){ delRec(type,rec.id); }); }
+  if(rec){ el("sheetDel").addEventListener("click",function(){ confirmDel(type,rec); }); }
   if(el("f_dur")){ el("f_dur").addEventListener("change",function(){
     var draft=collectLeadDraft(), dur=el("f_dur").value;
     el("f_durfields").innerHTML=durFieldsHTML(dur,draft);
@@ -598,6 +598,13 @@ function saveSheet(type,rec){
   showSheet(false);
 }
 function upsert(coll,obj,rec){ if(rec){ state[coll]=state[coll].map(function(r){return r.id===obj.id?obj:r;}); } else { state[coll].unshift(obj); } }
+function confirmDel(type,rec){
+  var label=type==="charter"?(rec.client||"this charge"):(rec.name||"this lead");
+  var kind=type==="charter"?"charter charge":"lead";
+  var msg="Delete this "+kind+"?\n\n"+label+"\n\nThis cannot be undone.";
+  if(!window.confirm(msg)) return;
+  delRec(type,rec.id);
+}
 function delRec(type,id){ var coll=type==="charter"?"charters":"leads"; state[coll]=state[coll].filter(function(r){return r.id!==id;}); if(coll==="charters")renderCharters();else renderLeads(); save(coll); showSheet(false); }
 
 function showSheet(on){ el("scrim").classList.toggle("show",on); el("sheet").classList.toggle("show",on); if(!on){ setTimeout(function(){ el("sheetInner").innerHTML=""; },220); } }
