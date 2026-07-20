@@ -185,10 +185,10 @@
     <!-- CHARGES -->
     <section id="tab-charters">
       <div class="summary">
-        <div class="sumcard"><div class="l">Total charged</div><div class="v money" id="chTot">€0</div></div>
-        <div class="sumcard"><div class="l">Awaiting invoice</div><div class="v" id="chPending">0</div></div>
+        <div class="sumcard"><div class="l">Total charged <span style="font-weight:500;text-transform:none;letter-spacing:0">(inc. VAT)</span></div><div class="v money" id="chTot">€0</div></div>
+        <div class="sumcard"><div class="l">Invoices to issue</div><div class="v" id="chPending">0</div></div>
       </div>
-      <div class="legend">Charter card charges — add one after you take payment. The manager invoices from this and updates the status.</div>
+      <div class="legend">Card charges taken on board — payment is usually already paid. Amounts are VAT included. What matters next is the manager issuing the invoice (status + invoice #).</div>
       <div class="list" id="chList"></div>
     </section>
 
@@ -304,16 +304,43 @@ function switchTab(t){
 }
 
 /* -------- render -------- */
-function pill(v){ var c="p-grey"; if(v==="Pending"||v==="Requested")c="p-amber"; else if(v==="Invoiced"||v==="Issued")c="p-blue"; else if(v==="Paid")c="p-green"; return '<span class="pill '+c+'">'+esc(v)+'</span>'; }
+function pill(v){ var c="p-grey"; if(v==="Pending"||v==="Requested"||v==="Not issued")c="p-amber"; else if(v==="Invoiced"||v==="Issued")c="p-blue"; else if(v==="Paid")c="p-green"; return '<span class="pill '+c+'">'+esc(v)+'</span>'; }
 function renderAll(){ renderCharters(); renderLeads(); renderSecurity(); }
 
+/** Charges: payment defaults Paid; invStatus is what the manager tracks. */
+function chargePay(r){
+  if(r.payStatus) return r.payStatus;
+  if(r.status==="Pending") return "Paid";
+  if(r.status==="Invoiced"||r.status==="Paid") return "Paid";
+  return r.status||"Paid";
+}
+function chargeInv(r){
+  if(r.invStatus) return r.invStatus;
+  if(r.status==="Invoiced") return "Issued";
+  if(r.status==="Paid"&&r.inv) return "Issued";
+  if(r.status==="Pending") return "Not issued";
+  return r.inv?"Issued":"Not issued";
+}
+function chargeVat(r){
+  var gross=Number(r.amount)||0;
+  var pct=(r.vatPct!=null&&r.vatPct!=="")?Number(r.vatPct):21;
+  if(r.vat!=null&&r.net!=null) return { net:Number(r.net)||0, vat:Number(r.vat)||0, pct:pct, gross:gross };
+  var net=pct>0?gross/(1+pct/100):gross;
+  return { net:net, vat:gross-net, pct:pct, gross:gross };
+}
 function renderCharters(){
   var wrap=el("chList"), tot=0, pend=0, html="";
   state.charters.forEach(function(r){
-    tot+=Number(r.amount)||0; if(r.status!=="Paid")pend++;
+    tot+=Number(r.amount)||0;
+    var invSt=chargeInv(r);
+    if(invSt!=="Issued") pend++;
+    var pay=chargePay(r), v=chargeVat(r);
     html+='<div class="item" data-edit-ch="'+esc(r.id)+'">'+
       '<div class="top"><div class="title">'+esc(r.client||"—")+'</div><div class="amt money">'+money0(r.amount)+'</div></div>'+
-      '<div class="meta">'+(r.date?'<span>📅 '+esc(fmtDate(r.date))+'</span>':'')+pill(r.status)+(r.inv?'<span>#'+esc(r.inv)+'</span>':'')+'</div>'+
+      '<div class="meta">'+(r.date?'<span>📅 '+esc(fmtDate(r.date))+'</span>':'')+
+        '<span>inc. VAT'+(v.pct?' '+v.pct+'%':'')+'</span>'+
+        pill(pay)+pill(invSt==="Issued"?"Invoice issued":"Invoice pending")+
+        (r.inv?'<span>#'+esc(r.inv)+'</span>':'')+'</div>'+
       (r.notes?'<div class="notes">'+esc(r.notes)+'</div>':'')+'<span class="chev">✎</span></div>';
   });
   wrap.innerHTML=html||emptyBox("🧾","No charter charges yet","Tap + to add the first one.");
@@ -366,7 +393,8 @@ function bindEdit(wrap,attr,type){
 function fieldHTML(label,inner){ return '<div class="field"><label>'+label+'</label>'+inner+'</div>'; }
 function moneyField(id,val){ return '<div class="moneywrap"><input class="ctl" id="'+id+'" type="number" inputmode="decimal" min="0" step="0.01" value="'+(val!=null?val:"")+'" placeholder="0"></div>'; }
 function selField(id,val){ return '<select class="ctl" id="'+id+'">'+LEAD_STATUSES.map(function(s){return '<option'+(s===val?' selected':'')+'>'+s+'</option>';}).join("")+'</select>'; }
-function selChargeField(val){ var o=["Pending","Invoiced","Paid"]; return '<select class="ctl" id="f_status">'+o.map(function(s){return '<option'+(s===val?' selected':'')+'>'+s+'</option>';}).join("")+'</select>'; }
+function selPayField(val){ var o=["Paid","Pending"]; return '<select class="ctl" id="f_pay">'+o.map(function(s){return '<option'+(s===val?' selected':'')+'>'+s+'</option>';}).join("")+'</select>'; }
+function selInvField(val){ var o=["Not issued","Issued"]; return '<select class="ctl" id="f_invStatus">'+o.map(function(s){return '<option'+(s===val?' selected':'')+'>'+s+'</option>';}).join("")+'</select>'; }
 function pctField(id,val){ return '<div class="pctwrap"><input class="ctl" id="'+id+'" type="number" inputmode="decimal" min="0" max="100" step="1" value="'+(val!=null&&val!==""?val:"")+'" placeholder="0"></div>'; }
 function daysBetween(s,e){ if(!s) return 1; if(!e||e===s) return 1; var d1=new Date(s),d2=new Date(e); if(isNaN(d1)||isNaN(d2)) return 1; var diff=Math.round((d2-d1)/86400000); return diff>=0?diff+1:1; }
 function durLabel(d){ return {"4h":"4 hours","6h":"6 hours","8h":"8 hours","multi":"Multi-day"}[d]||d||"Day charter"; }
@@ -425,12 +453,15 @@ function openSheet(type,id){
   if(id){ rec=(type==="charter"?state.charters:state.leads).filter(function(r){return r.id===id;})[0]; }
   var inner=el("sheetInner"), h="", r;
   if(type==="charter"){
-    r=rec||{date:"",client:"",amount:"",status:"Pending",inv:"",notes:""};
+    r=rec||{date:"",client:"",amount:"",payStatus:"Paid",invStatus:"Not issued",vatMode:"include",vatPct:21,inv:"",notes:""};
+    var pay=rec?chargePay(r):"Paid", invSt=rec?chargeInv(r):"Not issued";
+    var v=chargeVat(r);
     h+='<h2>'+(rec?"Edit charge":"New charter charge")+'</h2>';
     h+=fieldHTML("Client name",'<input class="ctl" id="f_client" value="'+esc(r.client)+'" placeholder="e.g. Smith family">');
-    h+='<div class="row2">'+fieldHTML("Charter date",'<input class="ctl" id="f_date" type="date" value="'+esc(r.date)+'">')+fieldHTML("Amount charged",moneyField("f_amount",r.amount))+'</div>';
-    h+=fieldHTML("Invoice status",selChargeField(r.status));
-    h+=fieldHTML("Invoice # (manager)",'<input class="ctl" id="f_inv" value="'+esc(r.inv)+'" placeholder="optional">');
+    h+='<div class="row2">'+fieldHTML("Charter date",'<input class="ctl" id="f_date" type="date" value="'+esc(r.date)+'">')+fieldHTML("Amount charged (VAT included)",moneyField("f_amount",r.amount))+'</div>';
+    h+='<div class="calcbox" id="f_ch_calc"></div>';
+    h+='<div class="row2">'+fieldHTML("Payment",selPayField(pay))+fieldHTML("Invoice (manager)",selInvField(invSt))+'</div>';
+    h+=fieldHTML("Invoice # (manager)",'<input class="ctl" id="f_inv" value="'+esc(r.inv)+'" placeholder="fill when issued">');
     h+=fieldHTML("Notes",'<textarea class="ctl" id="f_notes" placeholder="optional">'+esc(r.notes)+'</textarea>');
   } else {
     r=rec||{closed:"",name:"",dur:"8h",start:"",end:"",rate:"",price:"",vatMode:"include",vatPct:"21",deps:"Not requested",fins:"Not requested",apas:"Not requested",depPct:"50",apaPct:"",notes:""};
@@ -464,14 +495,29 @@ function openSheet(type,id){
     if(el("f_vatMode").value!=="none" && (!el("f_vatPct").value||el("f_vatPct").disabled)) el("f_vatPct").value="21";
     recalcLead();
   }); }
-  recalcLead();
+  if(type==="charter") recalcCharge();
+  else recalcLead();
   showSheet(true);
+}
+function recalcCharge(){
+  var box=el("f_ch_calc"); if(!box) return;
+  var gross=Number(el("f_amount")?el("f_amount").value:0)||0;
+  var pct=21, net=gross/(1+pct/100), vat=gross-net;
+  box.innerHTML='<div class="cl"><span>Amount (VAT included)</span><b>'+money(gross)+'</b></div>'+
+    '<div class="cl"><span>Net (ex VAT)</span><b>'+money(net)+'</b></div>'+
+    '<div class="cl"><span>VAT '+pct+'% included</span><b>'+money(vat)+'</b></div>';
 }
 
 function saveSheet(type,rec){
   if(type==="charter"){
+    var gross=Number(el("f_amount").value)||0, vatPct=21;
+    var net=gross/(1+vatPct/100), vat=gross-net;
+    var payStatus=el("f_pay").value, invStatus=el("f_invStatus").value;
     var obj={ id:rec?rec.id:uid(), date:el("f_date").value, client:el("f_client").value.trim(),
-      amount:Number(el("f_amount").value)||0, status:el("f_status").value, inv:el("f_inv").value.trim(),
+      amount:gross, vatMode:"include", vatPct:vatPct, net:net, vat:vat,
+      payStatus:payStatus, invStatus:invStatus,
+      status:invStatus==="Issued"?"Invoiced":payStatus,
+      inv:el("f_inv").value.trim(),
       notes:el("f_notes").value.trim(), by:session.who };
     if(!obj.client && !obj.amount){ el("f_client").focus(); return; }
     upsert("charters",obj,rec); renderCharters(); save("charters");
@@ -506,8 +552,8 @@ function delRec(type,id){ var coll=type==="charter"?"charters":"leads"; state[co
 function showSheet(on){ el("scrim").classList.toggle("show",on); el("sheet").classList.toggle("show",on); if(!on){ setTimeout(function(){ el("sheetInner").innerHTML=""; },220); } }
 el("scrim").addEventListener("click",function(){ showSheet(false); });
 el("fab").addEventListener("click",function(){ openSheet(curTab==="leads"?"lead":"charter",null); });
-el("sheetInner").addEventListener("input",function(){ recalcLead(); });
-el("sheetInner").addEventListener("change",function(){ recalcLead(); });
+el("sheetInner").addEventListener("input",function(){ recalcLead(); recalcCharge(); });
+el("sheetInner").addEventListener("change",function(){ recalcLead(); recalcCharge(); });
 
 /* -------- save -------- */
 function save(coll){
@@ -561,8 +607,8 @@ function applyData(d){ if(!d)return; state.charters=d.charters||[]; state.leads=
 /* -------- demo seed -------- */
 function seedDemo(){
   state.charters=[
-    {id:uid(),date:"2026-07-18",client:"John & Mary Smith",amount:3500,status:"Pending",inv:"",notes:"Full-day charter, card on terminal",by:"Captain"},
-    {id:uid(),date:"2026-07-12",client:"Delgado family",amount:2800,status:"Paid",inv:"INV-1043",notes:"Half day",by:"Captain"}
+    {id:uid(),date:"2026-07-18",client:"John & Mary Smith",amount:3500,vatMode:"include",vatPct:21,net:2892.56,vat:607.44,payStatus:"Paid",invStatus:"Not issued",status:"Paid",inv:"",notes:"Full-day charter, card on terminal",by:"Captain"},
+    {id:uid(),date:"2026-07-12",client:"Delgado family",amount:2800,vatMode:"include",vatPct:21,net:2314.05,vat:485.95,payStatus:"Paid",invStatus:"Issued",status:"Invoiced",inv:"INV-1043",notes:"Half day",by:"Captain"}
   ];
   state.leads=[
     {id:uid(),closed:"2026-07-15",name:"Acme Corp (website form)",dur:"multi",start:"2026-08-10",end:"2026-08-12",rate:5000,price:"",days:3,base:15000,net:12396.69,vat:2603.31,total:15000,vatMode:"include",vatPct:21,depPct:50,dep:7500,deps:"Requested",fin:7500,fins:"Not requested",apaPct:30,apa:4500,apas:"Not requested",notes:"Overnight charter — APA applies; price includes VAT",by:"Captain"},
