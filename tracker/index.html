@@ -375,7 +375,21 @@ function leadInvTag(label, amount, pct, status, invNo, id, which){
   var pctS=(pct!==""&&pct!=null)?' ('+pct+'%)':'';
   return '<span class="invtag'+cls+'"><b>'+esc(label)+'</b> '+money0(amount)+pctS+' '+pill(st)+inv+btn+'</span>';
 }
+function leadDateKey(r){
+  /* ISO YYYY-MM-DD sorts lexicographically; latest first via reverse compare */
+  return (r&& (r.closed||r.start||r.cdate||"")) || "";
+}
+function sortLeads(){
+  state.leads.sort(function(a,b){
+    var da=leadDateKey(a), db=leadDateKey(b);
+    if(da&&db&&da!==db) return db<da?-1:1;
+    if(db&&!da) return 1;
+    if(da&&!db) return -1;
+    return 0;
+  });
+}
 function renderLeads(){
+  sortLeads();
   var wrap=el("ldList"), tot=0, pend=0, html="";
   state.leads.forEach(function(r){
     tot+=Number(r.total)||0;
@@ -660,7 +674,7 @@ function setTrust(id,val){ (state.devices||[]).forEach(function(d){ if(d.id===id
 /* -------- polling / data -------- */
 var pollTimer=null;
 function startPolling(){ if(pollTimer)return; pollTimer=setInterval(function(){ api("load").then(applyData).catch(function(){}); },20000); }
-function applyData(d){ if(!d)return; state.charters=d.charters||[]; state.leads=d.leads||[]; state.devices=d.devices||[]; state.log=d.log||[]; renderAll(); }
+function applyData(d){ if(!d)return; state.charters=d.charters||[]; state.leads=d.leads||[]; state.devices=d.devices||[]; state.log=d.log||[]; sortLeads(); renderAll(); }
 
 /* -------- demo seed -------- */
 function seedDemo(){
