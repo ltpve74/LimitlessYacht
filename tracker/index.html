@@ -48,7 +48,7 @@
   .appbar .who{margin-left:auto;font-size:12px;opacity:.9;text-align:right;line-height:1.2}
   .appbar .lock{background:rgba(255,255,255,.16);color:#fff;border-radius:9px;padding:8px 11px;font-size:13px;font-weight:600}
 
-  main{flex:1;padding:14px 14px calc(150px + var(--safe-b));max-width:760px;width:100%;margin:0 auto}
+  main{flex:1;padding:14px 14px calc(160px + var(--safe-b));max-width:760px;width:100%;margin:0 auto}
   .demo{background:#e9edff;border:1px solid #c7d0ff;color:#2f3a7a;border-radius:12px;padding:10px 13px;font-size:12.5px;margin-bottom:12px}
   .banner{border-radius:12px;padding:11px 14px;font-size:13.5px;margin-bottom:12px;display:none}
   .banner.show{display:block}
@@ -107,15 +107,26 @@
   .logline .when{color:var(--muted);font-size:12px;white-space:nowrap}
 
   /* FAB */
-  .fab{position:fixed;right:16px;bottom:calc(74px + var(--safe-b));width:58px;height:58px;border-radius:29px;background:var(--brand);color:#fff;font-size:30px;line-height:56px;text-align:center;box-shadow:0 6px 18px rgba(31,78,95,.45);z-index:20}
+  .fab{position:fixed;right:16px;bottom:calc(86px + var(--safe-b));width:58px;height:58px;border-radius:29px;background:var(--brand);color:#fff;font-size:30px;line-height:56px;text-align:center;box-shadow:0 6px 18px rgba(31,78,95,.45);z-index:20}
   .fab:active{transform:scale(.94)}
 
-  /* bottom nav */
-  .bnav{position:fixed;left:0;right:0;bottom:0;background:#fff;border-top:1px solid var(--line);display:flex;padding-bottom:var(--safe-b);z-index:25}
-  .bnav button{flex:1;padding:9px 4px 8px;display:flex;flex-direction:column;align-items:center;gap:3px;color:var(--muted);font-size:11px;font-weight:600;position:relative}
-  .bnav button .ic{font-size:20px;line-height:1}
-  .bnav button.active{color:var(--brand)}
-  .bnav .badge{position:absolute;top:4px;left:calc(50% + 8px);min-width:16px;height:16px;line-height:16px;font-size:10px;font-weight:700;background:var(--danger);color:#fff;border-radius:8px;padding:0 4px}
+  /* bottom nav — active tab must read at a glance */
+  .bnav{position:fixed;left:0;right:0;bottom:0;background:#fff;border-top:1px solid var(--line);
+        display:flex;gap:6px;padding:8px 8px calc(8px + var(--safe-b));z-index:25;
+        box-shadow:0 -6px 20px rgba(23,36,43,.08)}
+  .bnav button{flex:1;padding:10px 6px 9px;display:flex;flex-direction:column;align-items:center;gap:3px;
+               color:#8a969e;font-size:11.5px;font-weight:600;position:relative;border-radius:14px;
+               background:transparent;transition:background .15s,color .15s,box-shadow .15s}
+  .bnav button .ic{font-size:22px;line-height:1;opacity:.72}
+  .bnav button.active{color:#fff;background:var(--brand);font-weight:800;font-size:12.5px;
+                      box-shadow:0 4px 14px rgba(31,78,95,.35)}
+  .bnav button.active .ic{opacity:1;font-size:24px}
+  .bnav button.active::before{content:"";position:absolute;top:5px;left:50%;transform:translateX(-50%);
+                              width:22px;height:3px;border-radius:2px;background:rgba(255,255,255,.55)}
+  .bnav .badge{position:absolute;top:6px;right:calc(50% - 28px);min-width:17px;height:17px;line-height:17px;
+               font-size:10px;font-weight:800;background:var(--danger);color:#fff;border-radius:9px;padding:0 5px;
+               box-shadow:0 0 0 2px #fff}
+  .bnav button.active .badge{box-shadow:0 0 0 2px var(--brand)}
 
   /* modal sheet */
   .scrim{position:fixed;inset:0;background:rgba(15,25,30,.45);z-index:40;display:none;opacity:0;transition:opacity .2s}
