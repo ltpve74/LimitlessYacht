@@ -1039,8 +1039,8 @@ PAIRS = [
     # Hero ghost button and itinerary CTA
 
     (
-        '"Professional, thoughtful — and genuinely fun."<span class="hero-pull-attr"> — Andrew, group of 8, Jun\xa02026</span>',
-        '«\xa0Professionnel, attentionné — et vraiment détendu et convivial.\xa0»<span class="hero-pull-attr"> — Andrew, groupe de 8, juin\xa02026</span>',
+        '"So impressed we chartered again the following week."<span class="hero-pull-attr"> — Sebastien, group of 11, Jul\xa02026</span>',
+        '«\xa0Tellement impressionnés que nous avons recharter la semaine suivante.\xa0»<span class="hero-pull-attr"> — Sebastien, groupe de 11, juil.\xa02026</span>',
     ),
     ('>Meet The Yacht</a>', '>Découvrir le yacht</a>'),
     ('Meet The Yacht →', 'Découvrir le yacht →'),

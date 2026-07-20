@@ -32,3 +32,11 @@ Limitless-Charter-Presentation.pdf
 !.agent/
 !.agent/memory/
 !.agent/**
+
+# Node deps for Netlify Functions (installed at build)
+node_modules/
+.netlify/
+
+# Local spreadsheet companion for the invoice tracker — never deploy
+tracker/*.xlsx
+tracker/*.xls
