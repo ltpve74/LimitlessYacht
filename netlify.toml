@@ -11,6 +11,19 @@
   to = "/.netlify/functions/availability"
   status = 200
 
+# Clean URL for the private invoice tracker API
+[[redirects]]
+  from = "/api/tracker"
+  to = "/.netlify/functions/tracker"
+  status = 200
+
+# Tracker is private ops tooling — never cache HTML
+[[headers]]
+  for = "/tracker/*"
+  [headers.values]
+    Cache-Control = "no-store"
+    X-Robots-Tag = "noindex, nofollow"
+
 # Long-cache static media (filenames are stable; rename to bust cache)
 [[headers]]
   for = "/images/*"
