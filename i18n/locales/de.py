@@ -87,8 +87,8 @@ PAIRS = [
     # Hero
 
     (
-        '"Professional, thoughtful — and genuinely fun."<span class="hero-pull-attr"> — Andrew, group of 8, Jun\xa02026</span>',
-        '„Gekonnt, aufmerksam — und dabei wirklich entspannt und witzig.“<span class="hero-pull-attr"> — Andrew, Gruppe 8\xa0Pers., Juni\xa02026</span>',
+        '"So impressed we chartered again the following week."<span class="hero-pull-attr"> — Sebastien, group of 11, Jul\xa02026</span>',
+        '„So begeistert, dass wir in der Folgewoche erneut gechartert haben.“<span class="hero-pull-attr"> — Sebastien, Gruppe 11\xa0Pers., Juli\xa02026</span>',
     ),
     (">Scroll</span>", ">Scrollen</span>"),
     ("Rates & Booking", "Preise & Buchung"),
