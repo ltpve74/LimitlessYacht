@@ -198,7 +198,7 @@
         <div class="sumcard"><div class="l">Deals value</div><div class="v money" id="ldTot">€0</div></div>
         <div class="sumcard"><div class="l">Invoices to raise</div><div class="v" id="ldPending">0</div></div>
       </div>
-      <div class="legend">Website leads you've closed. Pick the duration (4/6/8 hours or multi-day), add the price/rate + dates — total, deposit (50% by default) and APA are worked out. Set each invoice to “Requested” for the manager to issue. APA usually applies to overnight charters only. APA = Advance Provisioning Allowance.</div>
+      <div class="legend">Website leads you've closed. Pick the duration (4/6/8 hours or multi-day), add the price/rate + dates, and choose whether VAT is included in that figure or added on top. Total, deposit (50% by default) and APA are worked out from the client total. Set each invoice to “Requested” for the manager to issue. APA usually applies to overnight charters only. APA = Advance Provisioning Allowance.</div>
       <div class="list" id="ldList"></div>
     </section>
 
@@ -332,16 +332,18 @@ function leadMeta(r){
   if(isMulti){ var rng=rangeStr(r), rt=(Number(r.rate)||0)?money0(r.rate)+'/day':''; return '⛵ '+esc(rng)+(rt?' · '+rt:''); }
   return '🕐 '+esc(durLabel(r.dur))+(r.start?' · '+esc(fmtDate(r.start)):(r.cdate?' · '+esc(fmtDate(r.cdate)):''));
 }
+function vatModeLabel(m){ return m==="add"?"+ VAT":(m==="include"?"inc. VAT":""); }
 function renderLeads(){
   var wrap=el("ldList"), tot=0, pend=0, html="";
   state.leads.forEach(function(r){
     tot+=Number(r.total)||0;
     [r.deps,r.fins,r.apas].forEach(function(s){ if(s==="Requested")pend++; });
-    var rng=rangeStr(r);
     var showApa=(Number(r.apaPct)||0)>0||(Number(r.apa)||0)>0;
+    var vatNote=vatModeLabel(r.vatMode);
+    if(vatNote&&(Number(r.vatPct)||0)>0) vatNote+=" "+r.vatPct+"%";
     html+='<div class="item" data-edit-ld="'+esc(r.id)+'">'+
       '<div class="top"><div class="title">'+esc(r.name||"—")+'</div><div class="amt money">'+money0(r.total)+'</div></div>'+
-      '<div class="meta"><span>'+leadMeta(r)+'</span></div>'+
+      '<div class="meta"><span>'+leadMeta(r)+'</span>'+(vatNote?'<span>'+esc(vatNote)+'</span>':'')+'</div>'+
       '<div class="invtags">'+
         '<span class="invtag"><b>Deposit</b> '+money0(r.dep)+(r.depPct!==""&&r.depPct!=null?' ('+r.depPct+'%)':'')+' '+pill(r.deps)+'</span>'+
         '<span class="invtag"><b>Final</b> '+money0(r.fin)+' '+pill(r.fins)+'</span>'+
@@ -371,24 +373,51 @@ function durLabel(d){ return {"4h":"4 hours","6h":"6 hours","8h":"8 hours","mult
 function durField(val){ var o=[["4h","4 hours"],["6h","6 hours"],["8h","8 hours"],["multi","Multi-day (overnight)"]]; return '<select class="ctl" id="f_dur">'+o.map(function(p){return '<option value="'+p[0]+'"'+(p[0]===val?' selected':'')+'>'+p[1]+'</option>';}).join("")+'</select>'; }
 function durFieldsHTML(dur,r){
   if(dur==="multi"){
-    return '<div class="row2">'+fieldHTML("Start date",'<input class="ctl" id="f_start" type="date" value="'+esc(r.start||"")+'">')+fieldHTML("End date",'<input class="ctl" id="f_end" type="date" value="'+esc(r.end||"")+'">')+'</div>'+fieldHTML("Daily rate",moneyField("f_rate",r.rate));
+    return '<div class="row2">'+fieldHTML("Start date",'<input class="ctl" id="f_start" type="date" value="'+esc(r.start||"")+'">')+fieldHTML("End date",'<input class="ctl" id="f_end" type="date" value="'+esc(r.end||"")+'">')+'</div>'+fieldHTML("Daily rate (as quoted)",moneyField("f_rate",r.rate));
   }
-  return fieldHTML("Charter date",'<input class="ctl" id="f_start" type="date" value="'+esc(r.start||"")+'">')+fieldHTML("Charter price",moneyField("f_price",(r.price!=null&&r.price!=="")?r.price:(r.rate||"")));
+  return fieldHTML("Charter date",'<input class="ctl" id="f_start" type="date" value="'+esc(r.start||"")+'">')+fieldHTML("Charter price (as quoted)",moneyField("f_price",(r.price!=null&&r.price!=="")?r.price:(r.rate||"")));
 }
 function collectLeadDraft(){ return { start:el("f_start")?el("f_start").value:"", end:el("f_end")?el("f_end").value:"", rate:el("f_rate")?el("f_rate").value:"", price:el("f_price")?el("f_price").value:"" }; }
+function vatModeField(val){
+  var o=[["include","VAT included in price"],["add","Add VAT on top"],["none","No VAT"]];
+  return '<select class="ctl" id="f_vatMode">'+o.map(function(p){return '<option value="'+p[0]+'"'+(p[0]===(val||"include")?' selected':'')+'>'+p[1]+'</option>';}).join("")+'</select>';
+}
+/** base = price/rate×days as typed; returns {base, net, vat, total, vatPct, vatMode} */
+function leadMoney(base, vatMode, vatPctRaw){
+  var mode=vatMode||"include";
+  var pct=mode==="none"?0:(vatPctRaw===""||vatPctRaw==null?21:(Number(vatPctRaw)||0));
+  base=Number(base)||0;
+  var net, vat, total;
+  if(mode==="none"||pct<=0){ net=base; vat=0; total=base; pct=0; mode=mode==="none"?"none":mode; }
+  else if(mode==="add"){ net=base; vat=base*pct/100; total=net+vat; }
+  else { total=base; net=base/(1+pct/100); vat=total-net; mode="include"; }
+  return { base:base, net:net, vat:vat, total:total, vatPct:pct, vatMode:mode };
+}
 function recalcLead(){
   if(!el("f_dur")) return;
-  var dur=el("f_dur").value, rate, days, total;
-  if(dur==="multi"){ rate=Number(el("f_rate")?el("f_rate").value:0)||0; days=daysBetween(el("f_start")?el("f_start").value:"", el("f_end")?el("f_end").value:""); total=rate*days; }
-  else { total=Number(el("f_price")?el("f_price").value:0)||0; rate=total; days=1; }
+  var dur=el("f_dur").value, rate, days, base;
+  if(dur==="multi"){ rate=Number(el("f_rate")?el("f_rate").value:0)||0; days=daysBetween(el("f_start")?el("f_start").value:"", el("f_end")?el("f_end").value:""); base=rate*days; }
+  else { base=Number(el("f_price")?el("f_price").value:0)||0; rate=base; days=1; }
+  var mode=el("f_vatMode")?el("f_vatMode").value:"include";
+  var pctRaw=el("f_vatPct")?el("f_vatPct").value:"";
+  if(el("f_vatPct")) el("f_vatPct").disabled=(mode==="none");
+  var m=leadMoney(base, mode, pctRaw);
   var depPct=Number(el("f_dep").value)||0, apaPct=Number(el("f_apa").value)||0;
-  var dep=total*depPct/100, apa=total*apaPct/100, fin=total-dep, box=el("f_calc");
+  var dep=m.total*depPct/100, apa=m.total*apaPct/100, fin=m.total-dep, box=el("f_calc");
   if(!box) return;
   var head=dur==="multi"?(days+' day'+(days>1?'s':'')+' &times; '+money0(rate)):durLabel(dur);
-  box.innerHTML='<div class="cl"><span>'+head+'</span><b>'+money(total)+'</b></div>'+
-    '<div class="cl"><span>Deposit '+(depPct||0)+'%</span><b>'+money(dep)+'</b></div>'+
+  var html='<div class="cl"><span>'+head+'</span><b>'+money(m.base)+'</b></div>';
+  if(m.vatMode!=="none"&&m.vatPct>0){
+    html+='<div class="cl"><span>Net (ex VAT)</span><b>'+money(m.net)+'</b></div>'+
+      '<div class="cl"><span>VAT '+m.vatPct+'% '+(m.vatMode==="add"?"added":"included")+'</span><b>'+money(m.vat)+'</b></div>'+
+      '<div class="cl"><span>Client total</span><b>'+money(m.total)+'</b></div>';
+  } else {
+    html+='<div class="cl"><span>Client total</span><b>'+money(m.total)+'</b></div>';
+  }
+  html+='<div class="cl"><span>Deposit '+(depPct||0)+'%</span><b>'+money(dep)+'</b></div>'+
     '<div class="cl"><span>Final balance</span><b>'+money(fin)+'</b></div>'+
     (apaPct>0?'<div class="cl"><span>APA '+apaPct+'%</span><b>'+money(apa)+'</b></div>':'');
+  box.innerHTML=html;
 }
 
 function openSheet(type,id){
@@ -404,13 +433,16 @@ function openSheet(type,id){
     h+=fieldHTML("Invoice # (manager)",'<input class="ctl" id="f_inv" value="'+esc(r.inv)+'" placeholder="optional">');
     h+=fieldHTML("Notes",'<textarea class="ctl" id="f_notes" placeholder="optional">'+esc(r.notes)+'</textarea>');
   } else {
-    r=rec||{closed:"",name:"",dur:"8h",start:"",end:"",rate:"",price:"",deps:"Not requested",fins:"Not requested",apas:"Not requested",depPct:"50",apaPct:"",notes:""};
+    r=rec||{closed:"",name:"",dur:"8h",start:"",end:"",rate:"",price:"",vatMode:"include",vatPct:"21",deps:"Not requested",fins:"Not requested",apas:"Not requested",depPct:"50",apaPct:"",notes:""};
     var ldur=r.dur||"8h";
+    var vMode=r.vatMode||(rec?"none":"include");
+    var vPct=(r.vatPct!=null&&r.vatPct!=="")?r.vatPct:(vMode==="none"?"":"21");
     h+='<h2>'+(rec?"Edit lead":"New lead")+'</h2>';
     h+=fieldHTML("Lead name",'<input class="ctl" id="f_name" value="'+esc(r.name)+'" placeholder="e.g. Acme Corp (website)">');
     h+=fieldHTML("Date closed",'<input class="ctl" id="f_closed" type="date" value="'+esc(r.closed)+'">');
     h+=fieldHTML("Duration",durField(ldur));
     h+='<div id="f_durfields">'+durFieldsHTML(ldur,r)+'</div>';
+    h+='<div class="row2">'+fieldHTML("VAT on price",vatModeField(vMode))+fieldHTML("VAT %",pctField("f_vatPct",vPct))+'</div>';
     h+='<div class="calcbox" id="f_calc"></div>';
     h+='<div class="row2">'+fieldHTML("Deposit %",pctField("f_dep",r.depPct))+fieldHTML("Deposit status",selField("f_deps",r.deps))+'</div>';
     h+=fieldHTML("Final status (balance)",selField("f_fins",r.fins));
@@ -428,6 +460,10 @@ function openSheet(type,id){
     if(dur!=="multi" && el("f_dep").value==="") el("f_dep").value="50";
     recalcLead();
   }); }
+  if(el("f_vatMode")){ el("f_vatMode").addEventListener("change",function(){
+    if(el("f_vatMode").value!=="none" && (!el("f_vatPct").value||el("f_vatPct").disabled)) el("f_vatPct").value="21";
+    recalcLead();
+  }); }
   recalcLead();
   showSheet(true);
 }
@@ -443,14 +479,18 @@ function saveSheet(type,rec){
     var dur=el("f_dur").value;
     var start=el("f_start")?el("f_start").value:"";
     var end=(dur==="multi"&&el("f_end"))?el("f_end").value:"";
-    var rate, days, total, price="";
-    if(dur==="multi"){ rate=Number(el("f_rate").value)||0; days=daysBetween(start,end); total=rate*days; }
-    else { price=Number(el("f_price").value)||0; total=price; rate=price; days=1; }
+    var rate, days, base, price="";
+    if(dur==="multi"){ rate=Number(el("f_rate").value)||0; days=daysBetween(start,end); base=rate*days; }
+    else { price=Number(el("f_price").value)||0; base=price; rate=price; days=1; }
+    var vatMode=el("f_vatMode")?el("f_vatMode").value:"include";
+    var vatPctIn=el("f_vatPct")?el("f_vatPct").value:"";
+    var m=leadMoney(base, vatMode, vatPctIn);
     var depPct=el("f_dep").value===""?"":(Number(el("f_dep").value)||0);
     var apaPct=el("f_apa").value===""?"":(Number(el("f_apa").value)||0);
-    var dep=total*(Number(depPct)||0)/100, apa=total*(Number(apaPct)||0)/100, fin=total-dep;
+    var dep=m.total*(Number(depPct)||0)/100, apa=m.total*(Number(apaPct)||0)/100, fin=m.total-dep;
     var o2={ id:rec?rec.id:uid(), closed:el("f_closed").value, name:el("f_name").value.trim(),
-      dur:dur, start:start, end:end, rate:rate, price:price, days:days, total:total,
+      dur:dur, start:start, end:end, rate:rate, price:price, days:days,
+      base:m.base, net:m.net, vat:m.vat, total:m.total, vatMode:m.vatMode, vatPct:m.vatMode==="none"?"":m.vatPct,
       depPct:depPct, dep:dep, deps:el("f_deps").value,
       fin:fin, fins:el("f_fins").value,
       apaPct:apaPct, apa:apa, apas:el("f_apas").value,
@@ -467,6 +507,7 @@ function showSheet(on){ el("scrim").classList.toggle("show",on); el("sheet").cla
 el("scrim").addEventListener("click",function(){ showSheet(false); });
 el("fab").addEventListener("click",function(){ openSheet(curTab==="leads"?"lead":"charter",null); });
 el("sheetInner").addEventListener("input",function(){ recalcLead(); });
+el("sheetInner").addEventListener("change",function(){ recalcLead(); });
 
 /* -------- save -------- */
 function save(coll){
@@ -524,9 +565,9 @@ function seedDemo(){
     {id:uid(),date:"2026-07-12",client:"Delgado family",amount:2800,status:"Paid",inv:"INV-1043",notes:"Half day",by:"Captain"}
   ];
   state.leads=[
-    {id:uid(),closed:"2026-07-15",name:"Acme Corp (website form)",dur:"multi",start:"2026-08-10",end:"2026-08-12",rate:5000,price:"",days:3,total:15000,depPct:50,dep:7500,deps:"Requested",fin:7500,fins:"Not requested",apaPct:30,apa:4500,apas:"Not requested",notes:"Overnight charter — APA applies",by:"Captain"},
-    {id:uid(),closed:"2026-07-17",name:"Rossi family (website)",dur:"6h",start:"2026-07-25",end:"",rate:3500,price:3500,days:1,total:3500,depPct:50,dep:1750,deps:"Issued",fin:1750,fins:"Not requested",apaPct:"",apa:0,apas:"Not requested",notes:"6-hour day charter, no APA",by:"Captain"},
-    {id:uid(),closed:"2026-07-18",name:"Becker (website)",dur:"4h",start:"2026-07-28",end:"",rate:2200,price:2200,days:1,total:2200,depPct:50,dep:1100,deps:"Requested",fin:1100,fins:"Not requested",apaPct:"",apa:0,apas:"Not requested",notes:"4-hour sunset charter",by:"Captain"}
+    {id:uid(),closed:"2026-07-15",name:"Acme Corp (website form)",dur:"multi",start:"2026-08-10",end:"2026-08-12",rate:5000,price:"",days:3,base:15000,net:12396.69,vat:2603.31,total:15000,vatMode:"include",vatPct:21,depPct:50,dep:7500,deps:"Requested",fin:7500,fins:"Not requested",apaPct:30,apa:4500,apas:"Not requested",notes:"Overnight charter — APA applies; price includes VAT",by:"Captain"},
+    {id:uid(),closed:"2026-07-17",name:"Rossi family (website)",dur:"6h",start:"2026-07-25",end:"",rate:3500,price:3500,days:1,base:3500,net:3500,vat:735,total:4235,vatMode:"add",vatPct:21,depPct:50,dep:2117.5,deps:"Issued",fin:2117.5,fins:"Not requested",apaPct:"",apa:0,apas:"Not requested",notes:"6-hour day charter, VAT added on top",by:"Captain"},
+    {id:uid(),closed:"2026-07-18",name:"Becker (website)",dur:"4h",start:"2026-07-28",end:"",rate:2200,price:2200,days:1,base:2200,net:2200,vat:0,total:2200,vatMode:"none",vatPct:"",depPct:50,dep:1100,deps:"Requested",fin:1100,fins:"Not requested",apaPct:"",apa:0,apas:"Not requested",notes:"4-hour sunset charter",by:"Captain"}
   ];
   state.devices=[
     {id:"cpt-luigi-01",who:"Captain",browser:"Safari · iPhone",ip:"88.16.x.x",country:"ES",firstSeen:"2026-07-10T09:12:00Z",lastSeen:"2026-07-20T08:40:00Z",trusted:true},
