@@ -31,7 +31,7 @@ DEFAULT_LISTINGS = [
 UA = "LimitlessYacht/1.0 (+https://limitlessyachtcharter.com)"
 
 # Guest reviews added/edited on-site — never dropped on sync.
-MANUAL_AUTHORS = frozenset({"Sebastien", "Maurice"})
+MANUAL_AUTHORS = frozenset({"Joel", "Sebastien", "Maurice"})
 
 MONTHS = (
     "Jan", "Feb", "Mar", "Apr", "May", "Jun",

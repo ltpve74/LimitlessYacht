@@ -1135,6 +1135,25 @@ REVIEWS_UI = {
 
 REVIEWS = [
     {
+        "author": "Joel",
+        "date": "Juil. 2026",
+        "rating": 5,
+        "text": (
+            "Nous avons passé trois jours incroyables à bord de Limitless à Majorque, et "
+            "l'expérience a dépassé toutes les attentes. Le capitaine Luigi a été "
+            "exceptionnel : professionnel, compétent, et il nous a toujours fait sentir en "
+            "sécurité tout en nous emmenant dans des endroits à couper le souffle autour de "
+            "l'île. Toni, notre hôtesse, a été tout aussi fantastique — attentive, "
+            "sympathique, et a veillé à ce que tout se déroule sans accroc. Le service du "
+            "début à la fin a été exceptionnel, et la connaissance locale de l'équipage a "
+            "rendu l'expérience encore plus spéciale. Nous avons visité des lieux "
+            "merveilleux, savouré chaque moment à bord, et n'aurions pas pu rêver de "
+            "meilleurs jours. Si vous envisagez un charter à Majorque, je recommande le "
+            "capitaine Luigi et Toni sans hésitation. Merci à vous deux pour un voyage "
+            "inoubliable !"
+        ),
+    },
+    {
         "author": "Sebastien",
         "date": "Juil. 2026",
         "rating": 5,

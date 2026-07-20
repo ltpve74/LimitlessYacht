@@ -1,6 +1,12 @@
 {
   "reviews": [
     {
+      "author": "Joel",
+      "date": "Jul 2026",
+      "rating": 5,
+      "text": "Pasamos tres días increíbles a bordo de Limitless en Mallorca, y la experiencia superó todas las expectativas. El capitán Luigi fue excepcional: profesional, con gran conocimiento y siempre nos hizo sentir seguros mientras nos llevaba a lugares verdaderamente impresionantes alrededor de la isla. Toni, nuestra azafata, fue igualmente fantástica: atenta, amable y se aseguró de que todo funcionara a la perfección durante el viaje. El servicio de principio a fin fue excepcional, y el conocimiento local de la tripulación hizo la experiencia aún más especial. Visitamos lugares increíbles, disfrutamos cada momento a bordo y no podríamos haber pedido unos días mejores. Si está considerando un charter en Mallorca, recomiendo al capitán Luigi y a Toni sin dudarlo. ¡Gracias a los dos por un viaje inolvidable!"
+    },
+    {
       "author": "Sebastien",
       "date": "Jul 2026",
       "rating": 5,

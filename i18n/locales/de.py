@@ -1146,6 +1146,24 @@ REVIEWS_UI = {
 
 REVIEWS = [
     {
+        "author": "Joel",
+        "date": "Juli 2026",
+        "rating": 5,
+        "text": (
+            "Wir haben drei unglaubliche Tage auf der Limitless auf Mallorca verbracht — das "
+            "Erlebnis hat alle Erwartungen übertroffen. Kapitän Luigi war herausragend: "
+            "professionell, kenntnisreich und hat uns stets ein sicheres Gefühl gegeben, "
+            "während er uns zu atemberaubenden Orten rund um die Insel gebracht hat. Toni, "
+            "unsere Stewardess, war ebenso fantastisch — aufmerksam, freundlich und hat "
+            "dafür gesorgt, dass alles reibungslos lief. Der Service von Anfang bis Ende war "
+            "außergewöhnlich, und das lokale Wissen der Crew hat das Erlebnis noch "
+            "besonderer gemacht. Wir haben wunderbare Orte besucht, jeden Moment an Bord "
+            "genossen und hätten uns keine besseren Tage wünschen können. Wenn Sie einen "
+            "Yachtcharter auf Mallorca in Erwägung ziehen, kann ich Kapitän Luigi und Toni "
+            "nur wärmstens empfehlen. Vielen Dank euch beiden für eine unvergessliche Reise!"
+        ),
+    },
+    {
         "author": "Sebastien",
         "date": "Juli 2026",
         "rating": 5,

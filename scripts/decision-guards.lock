@@ -8,5 +8,5 @@
   "mobile gallery section fills viewport like itinerary": "9414f29b02528cea127ef91e48a5896970c9fce5",
   "on-hold dates are selectable for enquiry (booked still blocked)": "c0a75d244ba256aee9f1a5ef6a4d7be8f1fa3c95",
   "review snippet clamps to 4 lines with reserved height (Part 2 + CLS)": "9cfcfbb4a0380a96287fa8b1990bf69cbb259f21",
-  "reviews grid + loading reserve height so lazy-load does not shift (CLS)": "fa9a9faeca4b78ba6a686c918dda39cb1796e0bb"
+  "reviews grid + loading reserve height so lazy-load does not shift (CLS)": "6a20829117d379a544aaaacf6623f845169f0183"
 }
