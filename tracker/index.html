@@ -855,18 +855,29 @@ function copyLeadInvoiceText(id, btn){
   });
 }
 
-/* -------- Lead → PDF invoice (YSG template layout) -------- */
+/* -------- Lead → PDF invoice (Limitless Opportunities template) -------- */
 function suggestInvoiceNo(){
-  var yy=String(new Date().getFullYear()).slice(-2);
-  var prefix="YSG"+yy+"-";
+  /* Format from sample: 2026-025 */
+  var yyyy=String(new Date().getFullYear());
   var max=0;
   (state.leads||[]).forEach(function(l){
     [l.depInv,l.finInv,l.apaInv].forEach(function(n){
-      var m=String(n||"").match(/YSG\d{2}-(\d+)/i);
-      if(m) max=Math.max(max, parseInt(m[1],10)||0);
+      var m=String(n||"").match(/(?:^|\b)(20\d{2})-(\d{1,4})\b/);
+      if(m && m[1]===yyyy) max=Math.max(max, parseInt(m[2],10)||0);
+      /* also accept legacy YSG26-061 style for sequencing within year */
+      var m2=String(n||"").match(/YSG(\d{2})-(\d+)/i);
+      if(m2 && ("20"+m2[1])===yyyy) max=Math.max(max, parseInt(m2[2],10)||0);
     });
   });
-  return prefix+String(max+1).padStart(3,"0");
+  return yyyy+"-"+String(max+1).padStart(3,"0");
+}
+function leadInvoicePeriod(r){
+  if(!r) return "";
+  var isMulti=(r.dur==="multi")||(!r.dur&&(r.end||(Number(r.days)||0)>1));
+  var s=r.start||r.cdate||"", e=r.end||"";
+  if(isMulti&&s&&e&&e!==s) return fmtDate(s)+" – "+fmtDate(e);
+  if(s) return fmtDate(s);
+  return "";
 }
 function leadCharterDesc(r){
   if(!r) return "Charter Limitless";
@@ -907,7 +918,7 @@ function openLeadInvoiceSheet(id){
   var showApa=(Number(r.apaPct)||0)>0||(Number(r.apa)||0)>0;
   var split=leadHasSplit(r);
   var h='<div class="sheethead"><h2>Make invoice</h2><button type="button" class="sheetx" id="sheetClose" aria-label="Close">×</button></div>';
-  h+='<p style="margin:0 0 12px;font-size:13px;color:var(--muted);line-height:1.45">Builds a <b>Yacht Support Group</b> PDF (same layout as your sample). Choose the number, then <b>share straight to WhatsApp</b> or download.</p>';
+  h+='<p style="margin:0 0 12px;font-size:13px;color:var(--muted);line-height:1.45">Builds a <b>Limitless Opportunities</b> invoice PDF (layout from your sample). Set the number, then share to WhatsApp or download.</p>';
   h+='<div class="field"><label>Invoice for</label><select class="ctl" id="f_inv_kind">';
   h+='<option value="dep">Deposit — '+money(r.dep)+'</option>';
   h+='<option value="fin">'+(split?"Final (white)":"Final")+' — '+money(r.fin)+'</option>';
@@ -917,12 +928,16 @@ function openLeadInvoiceSheet(id){
   h+='<option value="custom">Custom amount…</option>';
   h+='</select></div>';
   h+='<div class="row2">'+
-    fieldHTML("Invoice #",'<input class="ctl" id="f_inv_no" value="'+esc(suggestInvoiceNo())+'" placeholder="e.g. YSG26-061" autocomplete="off">')+
+    fieldHTML("Invoice #",'<input class="ctl" id="f_inv_no" value="'+esc(suggestInvoiceNo())+'" placeholder="e.g. 2026-025" autocomplete="off">')+
     fieldHTML("Date",'<input class="ctl" id="f_inv_date" type="date" value="'+esc(new Date().toISOString().slice(0,10))+'">')+
   '</div>';
   h+=fieldHTML("Bill To (name)",'<input class="ctl" id="f_inv_name" value="'+esc(r.name||"")+'">');
-  h+=fieldHTML("Bill To (address lines)",'<textarea class="ctl" id="f_inv_addr" placeholder="optional — city, country…">'+(r.billToAddr?esc(r.billToAddr):"")+'</textarea>');
+  h+=fieldHTML("Bill To (address / tax ID)",'<textarea class="ctl" id="f_inv_addr" placeholder="Street, city, country, VAT ID…">'+(r.billToAddr?esc(r.billToAddr):"")+'</textarea>');
   h+=fieldHTML("Description",'<input class="ctl" id="f_inv_desc" value="'+esc(leadCharterDesc(r))+'">');
+  h+='<div class="row2">'+
+    fieldHTML("Period",'<input class="ctl" id="f_inv_period" value="'+esc(leadInvoicePeriod(r))+'" placeholder="optional">')+
+    fieldHTML("Rate",'<input class="ctl" id="f_inv_rate" value="" placeholder="optional">')+
+  '</div>';
   h+=fieldHTML("Total (VAT included)",moneyField("f_inv_gross", r.dep));
   h+='<div class="calcbox" id="f_inv_calc"></div>';
   h+='<label class="checkrow"><input type="checkbox" id="f_inv_save" checked>'+
@@ -992,6 +1007,8 @@ function openLeadInvoiceSheet(id){
       billName:(el("f_inv_name").value||"").trim()||(r.name||""),
       billAddr:(el("f_inv_addr").value||"").trim(),
       desc:(el("f_inv_desc").value||"").trim()||leadCharterDesc(r),
+      period:(el("f_inv_period")?el("f_inv_period").value:"").trim(),
+      rate:(el("f_inv_rate")?el("f_inv_rate").value:"").trim(),
       net:sp.net, vat:sp.vat, gross:sp.gross, pct:sp.pct,
       kind:kind, leadId:r.id
     };
@@ -1059,26 +1076,25 @@ function sharePdfBlob(blob, p){
   downloadBlob(blob, name);
   return Promise.resolve("download");
 }
-/** A4 PDF matching the YSG sample invoice layout. */
+/** A4 PDF matching Limitless Opportunities sample (Invoice 2026-025). */
 function buildYsgInvoicePdf(p){
   return loadPdfLib().then(function(PDFLib){
     var PDFDocument=PDFLib.PDFDocument, rgb=PDFLib.rgb, StandardFonts=PDFLib.StandardFonts;
     return PDFDocument.create().then(function(doc){
       return Promise.all([
-        doc.embedFont(StandardFonts.TimesRoman),
-        doc.embedFont(StandardFonts.TimesRomanBold),
-        fetch("/tracker/icons/ysg-logo.png").then(function(r){ return r.ok?r.arrayBuffer():null; }).catch(function(){ return null; })
+        doc.embedFont(StandardFonts.Helvetica),
+        doc.embedFont(StandardFonts.HelveticaBold),
+        doc.embedFont(StandardFonts.HelveticaOblique)
       ]).then(function(res){
-        var font=res[0], fontBold=res[1], logoBytes=res[2];
+        var font=res[0], fontBold=res[1], fontItalic=res[2];
         var page=doc.addPage([595.28, 841.89]);
         var W=595.28, H=841.89;
         var margin=48;
-        var y=H-42;
         var black=rgb(0.08,0.08,0.08);
         var grey=rgb(0.35,0.35,0.35);
         var light=rgb(0.91,0.91,0.91);
-        function drawText(t, x, yy, size, bold, color, maxW){
-          var f=bold?fontBold:font;
+        function drawText(t, x, yy, size, bold, color, maxW, italic){
+          var f=italic?fontItalic:(bold?fontBold:font);
           var str=String(t==null?"":t);
           if(maxW){
             while(str.length>3 && f.widthOfTextAtSize(str, size)>maxW) str=str.slice(0,-2);
@@ -1093,121 +1109,107 @@ function buildYsgInvoicePdf(p){
           var w=f.widthOfTextAtSize(str, size);
           page.drawText(str, {x:rightX-w, y:yy, size:size, font:f, color:color||black});
         }
-        // Logo
-        var logoH=0;
-        if(logoBytes){
-          return doc.embedPng(logoBytes).then(function(logo){
-            var lw=210;
-            var lh=logo.height*lw/logo.width;
-            page.drawImage(logo, {x:(W-lw)/2, y:H-36-lh, width:lw, height:lh});
-            logoH=lh+28;
-            return finish(logoH);
-          }).catch(function(){ return finish(0); });
+        function drawCenter(t, yy, size, bold, color, italic){
+          var f=italic?fontItalic:(bold?fontBold:font);
+          var str=String(t==null?"":t);
+          var w=f.widthOfTextAtSize(str, size);
+          page.drawText(str, {x:(W-w)/2, y:yy, size:size, font:f, color:color||black});
         }
-        return finish(0);
 
-        function finish(logoH){
-          y=H-42-logoH;
-          if(logoH<=0){
-            drawText("YACHT SUPPORT Group", margin, y, 14, true, black);
-            y-=28;
-          }
-          drawText("Invoice", margin, y, 26, true, black);
-          y-=36;
+        /* Header: M/Y Limitless */
+        drawCenter("M/Y Limitless", H-40, 11, true, black);
+        var y=H-72;
+        drawText("Invoice", margin, y, 26, true, black);
+        y-=40;
 
-          var col1=margin, col2=margin+230, col3=margin+380;
-          drawText("Bill To", col1, y, 11, true, black);
-          drawText("#", col2, y, 11, true, black);
-          drawText("Date", col3, y, 11, true, black);
-          y-=16;
+        /* Bill To | Invoice # | Date */
+        var col1=margin, col2=margin+250, col3=margin+400;
+        drawText("Bill To", col1, y, 11, true, black);
+        drawText("Invoice #", col2, y, 11, true, black);
+        drawText("Date", col3, y, 11, true, black);
+        y-=16;
 
-          var billY=y;
-          drawText(p.billName||"—", col1, billY, 12, false, black, 210);
-          billY-=15;
-          var addrLines=String(p.billAddr||"").split(/\n/).map(function(s){return s.trim();}).filter(Boolean);
-          addrLines.forEach(function(line){
-            drawText(line, col1, billY, 11, false, grey, 210);
-            billY-=14;
-          });
-          drawText(p.invNo||"", col2, y, 12, false, black, 130);
-          drawText(fmtInvDate(p.date), col3, y, 12, false, black, 100);
-          y=Math.min(billY, y-48);
+        var billY=y;
+        drawText(p.billName||"—", col1, billY, 11, false, black, 230);
+        billY-=14;
+        var addrLines=String(p.billAddr||"").split(/\n/).map(function(s){return s.trim();}).filter(Boolean);
+        addrLines.forEach(function(line){
+          drawText(line, col1, billY, 10.5, false, grey, 230);
+          billY-=13;
+        });
+        drawText(p.invNo||"", col2, y, 11, false, black, 130);
+        drawText(fmtInvDate(p.date), col3, y, 11, false, black, 90);
+        y=Math.min(billY, y-52);
 
-          // Table header
-          page.drawRectangle({x:margin, y:y-6, width:W-margin*2, height:22, color:light});
-          drawText("Description", margin+10, y, 11, true, black);
-          drawRight("Amount", W-margin-10, y, 11, true, black);
-          y-=28;
-          drawText(p.desc||"Charter Limitless", margin+10, y, 12, false, black, 340);
-          drawRight(fmtInvMoney(p.net), W-margin-10, y, 12, false, black);
-          y-=20;
-          page.drawLine({start:{x:margin, y:y}, end:{x:W-margin, y:y}, thickness:0.6, color:rgb(0.85,0.85,0.85)});
-          y-=28;
+        /* Table: Description | Period | Rate | Amount */
+        var tableW=W-margin*2;
+        var xDesc=margin+8;
+        var xPeriod=margin+230;
+        var xRate=margin+340;
+        var xAmt=W-margin-8;
+        page.drawRectangle({x:margin, y:y-6, width:tableW, height:22, color:light});
+        drawText("Description", xDesc, y, 10, true, black);
+        drawText("Period", xPeriod, y, 10, true, black);
+        drawText("Rate", xRate, y, 10, true, black);
+        drawRight("Amount", xAmt, y, 10, true, black);
+        y-=28;
+        drawText(p.desc||"Charter Limitless", xDesc, y, 11, false, black, 210);
+        drawText(p.period||"", xPeriod, y, 10.5, false, black, 100);
+        drawText(p.rate||"", xRate, y, 10.5, false, black, 80);
+        drawRight(fmtInvMoney(p.net), xAmt, y, 11, false, black);
+        y-=18;
+        page.drawLine({start:{x:margin, y:y}, end:{x:W-margin, y:y}, thickness:0.6, color:rgb(0.85,0.85,0.85)});
+        y-=30;
 
-          // Totals box
-          var boxW=200, boxX=W-margin-boxW, rowH=20;
-          var rows=[{l:"Sub TOTAL", v:fmtInvMoney(p.net), b:false}];
-          if(p.pct>0) rows.push({l:"IVA "+p.pct+"%", v:fmtInvMoney(p.vat), b:false});
-          rows.push({l:"TOTAL", v:fmtInvMoney(p.gross), b:true});
-          var boxH=rows.length*rowH+8;
-          page.drawRectangle({x:boxX, y:y-boxH+14, width:boxW, height:boxH, borderColor:rgb(0.7,0.7,0.7), borderWidth:1});
-          var ty=y;
-          rows.forEach(function(row){
-            drawText(row.l, boxX+10, ty, row.b?12:11, row.b, black);
-            drawRight(row.v, boxX+boxW-10, ty, row.b?12:11, row.b, black);
-            ty-=rowH;
-          });
-          y-=boxH+36;
+        /* Totals box */
+        var boxW=200, boxX=W-margin-boxW, rowH=20;
+        var rows=[{l:"Sub TOTAL", v:fmtInvMoney(p.net), b:false}];
+        if(p.pct>0) rows.push({l:"IVA "+p.pct+"%", v:fmtInvMoney(p.vat), b:false});
+        rows.push({l:"TOTAL", v:fmtInvMoney(p.gross), b:true});
+        var boxH=rows.length*rowH+10;
+        page.drawRectangle({x:boxX, y:y-boxH+14, width:boxW, height:boxH, borderColor:rgb(0.7,0.7,0.7), borderWidth:1});
+        var ty=y;
+        rows.forEach(function(row){
+          drawText(row.l, boxX+10, ty, row.b?12:11, row.b, black);
+          drawRight(row.v, boxX+boxW-10, ty, row.b?12:11, row.b, black);
+          ty-=rowH;
+        });
+        y-=boxH+40;
 
-          drawText("Thank you for your business!", (W-font.widthOfTextAtSize("Thank you for your business!", 12))/2, y, 12, false, black);
+        drawCenter("Thank you for your business!", y, 12, false, black, true);
 
-          /* Fixed bottom zone so company/bank never collide with legal/tag */
-          var tagY=26;
-          var legalY=42;
-          var footSize=9;
-          var lineH=11.5;
-          var left=[
-            "Yacht Support Group SL",
-            "C. del Falutx 2",
-            "07609 Bahia Grande",
-            "España",
-            "CIF: B25880394",
-            "IBAN: ES87 2100 7334 1502 0014 9782"
-          ];
-          var right=[
-            "info@yachtsupportgroup.com",
-            "www.yachtsupportgroup.com",
-            "Europe +34 677 814 789"
-          ];
-          /* Last company line sits well above the legal line */
-          var companyBottom=legalY+28;
-          var companyTop=companyBottom+(left.length-1)*lineH;
-          left.forEach(function(line,i){
-            drawText(line, margin, companyTop-i*lineH, footSize, false, grey, 280);
-          });
-          right.forEach(function(line,i){
-            drawRight(line, W-margin, companyTop-i*lineH, footSize, false, grey);
-          });
+        /* Company + bank — fixed above legal line */
+        var legalY=42;
+        var footSize=9.5;
+        var lineH=12;
+        var left=[
+          "Limitless Opportunities S.L.",
+          "Carrer Castella 1",
+          "07180 Calvia",
+          "España",
+          "NIF: B21726427",
+          "IBAN: ES47 2100 3793 6222 0060 5899"
+        ];
+        var companyBottom=legalY+30;
+        var companyTop=companyBottom+(left.length-1)*lineH;
+        left.forEach(function(line,i){
+          drawText(line, margin, companyTop-i*lineH, footSize, false, grey, 320);
+        });
 
-          var legal="Payments are due within 14 days of the invoice date. Bank charges are for the account of the client.";
-          var legalW=font.widthOfTextAtSize(legal, 8);
-          if(legalW>W-margin*2){
-            /* two-line legal if needed */
-            var mid="Payments are due within 14 days of the invoice date.";
-            var mid2="Bank charges are for the account of the client.";
-            drawText(mid, (W-font.widthOfTextAtSize(mid, 8))/2, legalY+9, 8, false, grey);
-            drawText(mid2, (W-font.widthOfTextAtSize(mid2, 8))/2, legalY-2, 8, false, grey);
-          } else {
-            drawText(legal, (W-legalW)/2, legalY, 8, false, grey);
-          }
-          var tag="YACHT MANAGEMENT  ·  PROJECT MANAGEMENT  ·  TECHNICAL SUPPORT";
-          var tagW=font.widthOfTextAtSize(tag, 7.5);
-          drawText(tag, (W-tagW)/2, tagY, 7.5, false, rgb(0.55,0.55,0.55));
-
-          return doc.save().then(function(bytes){
-            return new Blob([bytes], {type:"application/pdf"});
-          });
+        var legal="Payments are due within 14 days of the invoice date. Bank charges are for the account of the client.";
+        var legalW=font.widthOfTextAtSize(legal, 8);
+        if(legalW>W-margin*2){
+          var mid="Payments are due within 14 days of the invoice date.";
+          var mid2="Bank charges are for the account of the client.";
+          drawCenter(mid, legalY+9, 8, false, grey);
+          drawCenter(mid2, legalY-2, 8, false, grey);
+        } else {
+          drawCenter(legal, legalY, 8, false, grey);
         }
+
+        return doc.save().then(function(bytes){
+          return new Blob([bytes], {type:"application/pdf"});
+        });
       });
     });
   });
