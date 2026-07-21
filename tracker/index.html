@@ -82,7 +82,6 @@
   .install-prompt .ip-x{position:absolute;top:10px;right:10px;width:36px;height:36px;border-radius:18px;
     background:#eef1f4;color:var(--ink);font-size:22px;line-height:34px;text-align:center;padding:0}
   .install-prompt .ip-x:active{background:#e0e5ea}
-  .install-prompt{/* position already fixed above */}
 
   .summary{display:flex;gap:10px;margin-bottom:14px}
   .sumcard{flex:1;background:var(--card);border-radius:14px;padding:13px 15px;box-shadow:0 1px 3px rgba(0,0,0,.07)}
@@ -219,7 +218,7 @@
   .pill.p-white{background:#e8f0f4;color:var(--brand)}
   .pill.p-card{background:#e8eef8;color:#1a3a6b}
   .pill.p-cash{background:#e8f5e9;color:#1b5e20}
-  /* APA (captain-only) */
+  /* APA (captain + manager) */
   .apa-sub{display:flex;gap:6px;overflow-x:auto;-webkit-overflow-scrolling:touch;margin:0 0 12px;padding-bottom:2px}
   .apa-sub button{flex:0 0 auto;padding:8px 12px;border-radius:999px;border:1.5px solid var(--line);background:#fff;color:var(--muted);font-size:12.5px;font-weight:700}
   .apa-sub button.on{background:var(--brand);color:#fff;border-color:var(--brand)}
@@ -338,14 +337,14 @@
       <div class="list" id="ldList"></div>
     </section>
 
-    <!-- APA (captain only) -->
+    <!-- APA (captain + manager) -->
     <section id="tab-apa" class="hidden">
       <div id="apaListWrap">
         <div class="summary">
           <div class="sumcard"><div class="l">APA pots</div><div class="v money" id="apaSumPot">€0</div></div>
           <div class="sumcard"><div class="l">Balance left</div><div class="v money" id="apaSumBal">€0</div></div>
         </div>
-        <div class="legend">Captain-only. Log spend even with <b>€0 prepaid APA</b> — expenses / diesel create a <b>Charges</b> invoice request for the full amount. Prepaid pot only reduces what is still owed. Mark charge <b>Paid</b> to restore balance. Vessel fuel balance lives on the <b>Diesel</b> tab.</div>
+        <div class="legend">Captain &amp; manager. Log spend even with <b>€0 prepaid APA</b> — expenses / diesel create a <b>Charges</b> invoice request for the full amount. Prepaid pot only reduces what is still owed. Mark charge <b>Paid</b> to restore balance. Vessel fuel balance lives on the <b>Diesel</b> tab.</div>
         <div class="list" id="apaList"></div>
       </div>
       <div id="apaDetailWrap" class="hidden">
@@ -362,7 +361,7 @@
       </div>
     </section>
 
-    <!-- DIESEL (captain only — vessel fuel) -->
+    <!-- DIESEL (captain + manager — vessel fuel) -->
     <section id="tab-diesel" class="hidden">
       <div id="dieselBody"></div>
     </section>
@@ -440,6 +439,9 @@ var state={ charters:[], leads:[], apa:[], diesel:[], devices:[], log:[] };
 var pushMeta={ server:false, vapidPublicKey:"", endpoint:"" };
 var DIESEL_DEFAULT_BUY=1.75, DIESEL_DEFAULT_SELL=2.20;
 function isCaptain(){ return /^captain\b/i.test(String(session.who||"").trim()); }
+function isManager(){ return /^manager\b/i.test(String(session.who||"").trim()); }
+/** Full ops access: APA, Diesel, cash-deal sync — captain and manager. */
+function canOps(){ return isCaptain()||isManager(); }
 
 function deviceId(){
   var id=safeGet("limitless_device");
@@ -478,7 +480,7 @@ function enterApp(){
   el("gate").classList.add("hidden"); el("app").classList.remove("hidden");
   el("meLabel").textContent=session.who+(DEMO?" · demo":"");
   el("demoNote").classList.toggle("hidden",!DEMO);
-  var cap=isCaptain();
+  var cap=canOps();
   el("navApa").classList.toggle("hidden",!cap);
   el("navDiesel").classList.toggle("hidden",!cap);
   if(!cap&&(curTab==="apa"||curTab==="diesel")) curTab="charters";
@@ -494,7 +496,7 @@ Array.prototype.forEach.call(document.querySelectorAll(".bnav button"),function(
   b.addEventListener("click",function(){ switchTab(b.getAttribute("data-tab")); });
 });
 function switchTab(t){
-  if((t==="apa"||t==="diesel")&&!isCaptain()) return;
+  if((t==="apa"||t==="diesel")&&!canOps()) return;
   curTab=t;
   if(t==="apa") apaView="list";
   Array.prototype.forEach.call(document.querySelectorAll(".bnav button"),function(x){ x.classList.toggle("active",x.getAttribute("data-tab")===t); });
@@ -520,7 +522,7 @@ function updateFab(){
 
 /* -------- render -------- */
 function pill(v){ var c="p-grey"; if(v==="Pending"||v==="Requested"||v==="Not issued")c="p-amber"; else if(v==="Invoiced"||v==="Issued")c="p-blue"; else if(v==="Paid")c="p-green"; return '<span class="pill '+c+'">'+esc(v)+'</span>'; }
-function renderAll(){ renderCharters(); renderLeads(); renderSecurity(); if(isCaptain()){ renderApa(); renderDiesel(); } }
+function renderAll(){ renderCharters(); renderLeads(); renderSecurity(); if(canOps()){ renderApa(); renderDiesel(); } }
 
 /** Charges: payment defaults Paid; invStatus is what the manager tracks. */
 function chargePay(r){
@@ -687,7 +689,7 @@ function bindEdit(wrap,attr,type){
   });
 }
 
-/* -------- APA (captain-only ledger) -------- */
+/* -------- APA (captain + manager ledger) -------- */
 function emptyApaTrip(){
   return { id:uid(), vessel:"M/Y Limitless", guest:"", captain:"Luigi", dates:"",
     clientKey:"", chargeId:"", linkKey:"", linkSource:"", linkSourceId:"", linkInvKind:"", linkInvNo:"", linkInvLabel:"", linkInvAmount:0,
@@ -799,7 +801,7 @@ function syncLeadApaInvoiceRequest(t, billable){
  * Returns true if APA/charters changed.
  */
 function ensureLeadCashApa(lead){
-  if(!isCaptain()||!lead||!lead.id) return false;
+  if(!canOps()||!lead||!lead.id) return false;
   var cash=Math.round((Number(lead.cashAmt)||0)*100)/100;
   var key="lead:"+lead.id;
   if(!state.apa) state.apa=[];
@@ -892,9 +894,9 @@ function repairLeadWhiteInvoices(){
   });
   return dirty;
 }
-/** Captain load: ensure black-split leads have cash APA trips in sync. */
+/** Ops load: ensure black-split leads have cash APA trips in sync. */
 function ensureAllLeadCashApa(){
-  if(!isCaptain()) return;
+  if(!canOps()) return;
   var dirty=false;
   (state.leads||[]).forEach(function(l){
     if(!l||!leadHasSplit(l)||!(Number(l.cashAmt)>0)) return;
@@ -1036,7 +1038,7 @@ function syncApaToCharge(t){
 }
 /** After Charges payment status changes, recompute APA balance + invoice request. */
 function refreshApaFromCharges(){
-  if(!isCaptain()||!state.apa||!state.apa.length) return;
+  if(!canOps()||!state.apa||!state.apa.length) return;
   var leadDirty=false;
   state.apa.forEach(function(t){
     t.updatedAt=new Date().toISOString();
@@ -1053,7 +1055,7 @@ function refreshApaFromCharges(){
   renderApa();
 }
 function deleteApaTrip(id){
-  if(!isCaptain()||!id) return;
+  if(!canOps()||!id) return;
   var t=(state.apa||[]).filter(function(x){return x.id===id;})[0];
   if(!t) return;
   if(!window.confirm("Delete APA trip for "+(t.guest||"this charter")+"?\n\nAll expenses, provisions, diesel loads and consumption are removed. Any linked shortfall charges are removed too.")) return;
@@ -1246,7 +1248,7 @@ function apaTotals(t){
   return { expSum:expSum, prov:prov, dLit:dLit, dCost:dCost, cats:cats, spent:spent, basePot:basePot, paidCovered:paidCovered, available:available, bal:bal, pct:pct };
 }
 function saveApa(trip){
-  if(!isCaptain()) return;
+  if(!canOps()) return;
   var t=trip||apaTrip();
   var leadDirty=false;
   if(t){
@@ -1272,7 +1274,7 @@ function openApaDetail(id){
   renderApa();
 }
 function renderApa(){
-  if(!isCaptain()) return;
+  if(!canOps()) return;
   if(!state.apa) state.apa=[];
   var listWrap=el("apaListWrap"), detWrap=el("apaDetailWrap");
   if(!listWrap||!detWrap) return;
@@ -1857,7 +1859,7 @@ function openApaLine(kind,id){
   });
 })();
 
-/* -------- Vessel diesel (captain) -------- */
+/* -------- Vessel diesel (captain + manager) -------- */
 function dieselEnsure(){
   if(!Array.isArray(state.diesel)) state.diesel=[];
   var s=null;
@@ -1982,13 +1984,13 @@ function dieselLedger(){
   };
 }
 function saveDiesel(){
-  if(!isCaptain()) return;
+  if(!canOps()) return;
   dieselEnsure();
   save("diesel");
   renderDiesel();
 }
 function renderDiesel(){
-  if(!isCaptain()) return;
+  if(!canOps()) return;
   var wrap=el("dieselBody");
   if(!wrap) return;
   /* Always keep body fresh so switching tab shows current APA-linked figures */
@@ -2452,10 +2454,10 @@ function saveSheet(type,rec){
     }
     if(!obj.client && !obj.amount){ el("f_client").focus(); return; }
     upsert("charters",obj,rec); renderCharters(); save("charters");
-    if(isCaptain()&&(obj.kind==="apa"||obj.apaTripId||(rec&&(rec.kind==="apa"||rec.apaTripId)))){
+    if(canOps()&&(obj.kind==="apa"||obj.apaTripId||(rec&&(rec.kind==="apa"||rec.apaTripId)))){
       refreshApaFromCharges();
       save("charters");
-    } else if(isCaptain()){
+    } else if(canOps()){
       /* Non-APA charge may still be linked by name; also re-sync any cash deals */
       refreshApaFromCharges();
       save("charters");
@@ -2496,8 +2498,8 @@ function saveSheet(type,rec){
     if(!o2.name){ el("f_name").focus(); return; }
     if(sp.split&&!(Number(sp.invoiceNet)>0)){ el("f_invoiceNet").focus(); return; }
     upsert("leads",o2,rec); renderLeads(); save("leads");
-    /* Captain: cash (black) → APA pot = −cash so charter spend settles on Charges */
-    if(isCaptain()) ensureLeadCashApa(o2);
+    /* Cash (black) → APA pot = −cash so charter spend settles on Charges */
+    if(canOps()) ensureLeadCashApa(o2);
   }
   showSheet(false);
 }
@@ -2519,7 +2521,7 @@ function delRec(type,id){
   state[coll]=state[coll].filter(function(r){return r.id!==id;});
   if(coll==="charters"){
     renderCharters();
-    if(wasApa&&isCaptain()){ refreshApaFromCharges(); save("charters"); }
+    if(wasApa&&canOps()){ refreshApaFromCharges(); save("charters"); }
   } else renderLeads();
   save(coll); showSheet(false);
 }
@@ -2649,7 +2651,7 @@ function showSheet(on){
 el("scrim").addEventListener("click",function(){ showSheet(false); });
 el("fab").addEventListener("click",function(){
   if(curTab==="apa"){
-    if(!isCaptain()) return;
+    if(!canOps()) return;
     if(apaView==="list"){ openApaTrip(null); return; }
     if(!apaTrip()) return;
     if(apaSub==="provisions") openApaLine("provision",null);
@@ -2658,7 +2660,7 @@ el("fab").addEventListener("click",function(){
     return;
   }
   if(curTab==="diesel"){
-    if(!isCaptain()) return;
+    if(!canOps()) return;
     openDieselPicker();
     return;
   }
@@ -2948,16 +2950,16 @@ function startPolling(){ if(pollTimer)return; pollTimer=setInterval(function(){ 
 function applyData(d){
   if(!d)return;
   state.charters=d.charters||[]; state.leads=d.leads||[]; state.devices=d.devices||[]; state.log=d.log||[];
-  if(isCaptain() && Array.isArray(d.apa)) state.apa=d.apa;
-  else if(!isCaptain()) state.apa=[];
-  if(isCaptain() && Array.isArray(d.diesel)) state.diesel=d.diesel;
-  else if(!isCaptain()) state.diesel=[];
+  if(canOps() && Array.isArray(d.apa)) state.apa=d.apa;
+  else if(!canOps()) state.apa=[];
+  if(canOps() && Array.isArray(d.diesel)) state.diesel=d.diesel;
+  else if(!canOps()) state.diesel=[];
   if(typeof d.pushEnabled==="boolean") pushMeta.server=d.pushEnabled;
   if(d.vapidPublicKey) pushMeta.vapidPublicKey=d.vapidPublicKey;
   sortCharters();
   sortLeads();
   if(repairLeadWhiteInvoices()){ if(!DEMO) save("leads"); }
-  if(isCaptain()) ensureAllLeadCashApa();
+  if(canOps()) ensureAllLeadCashApa();
   renderAll();
   if(!DEMO) refreshPushStatus();
 }

@@ -53,6 +53,13 @@ function setupVapid() {
 function isCaptain(who) {
   return /^captain\b/i.test(String(who || "").trim());
 }
+function isManager(who) {
+  return /^manager\b/i.test(String(who || "").trim());
+}
+/** Full ops: APA + vessel diesel — captain and manager. */
+function canOps(who) {
+  return isCaptain(who) || isManager(who);
+}
 
 /** Stable IDs — real first APA entry from tracker/Limitless_APA_Tracker.xlsx */
 const SHEET_LEAD_ID = "lead-joel-freeland-2026-07";
@@ -619,8 +626,8 @@ export default async (req, context) => {
       pushEnabled: vapidConfigured(),
       vapidPublicKey: process.env.TRACKER_VAPID_PUBLIC_KEY || "",
     };
-    /* APA + vessel diesel are captain-only — never sent to manager / other roles */
-    if (isCaptain(who)) {
+    /* APA + vessel diesel: captain and manager; not for Other / guests */
+    if (canOps(who)) {
       out.apa = Array.isArray(data.apa) ? data.apa : [];
       out.diesel = Array.isArray(data.diesel) ? data.diesel : [];
     } else {
@@ -635,8 +642,8 @@ export default async (req, context) => {
     if (coll !== "charters" && coll !== "leads" && coll !== "apa" && coll !== "diesel") {
       return json({ error: "bad collection" }, 400);
     }
-    if ((coll === "apa" || coll === "diesel") && !isCaptain(who)) {
-      return json({ error: coll === "diesel" ? "Diesel is captain-only" : "APA is captain-only" }, 403);
+    if ((coll === "apa" || coll === "diesel") && !canOps(who)) {
+      return json({ error: coll === "diesel" ? "Diesel is captain/manager only" : "APA is captain/manager only" }, 403);
     }
     const prev = Array.isArray(data[coll]) ? data[coll] : [];
     const next = Array.isArray(body.rows) ? body.rows.slice(0, 5000) : [];
