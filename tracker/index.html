@@ -388,7 +388,7 @@
         <div class="stat"><div class="n" id="sPeople">0</div><div class="l">Names used</div></div>
         <div class="stat"><div class="n" id="sLogins">0</div><div class="l">Logins (30d)</div></div>
       </div>
-      <div class="legend">Mark your device and the manager's as trusted once. After that, any new device that appears means the passcode has been shared — change it in Netlify if so.</div>
+      <div class="legend">Mark your phone as <b>trusted</b> once — then you stay signed in (no passcode each open). New devices still need the passcode until trusted. Untrust or tap <b>Lock</b> to require it again.</div>
       <div id="devList"></div>
       <div class="sectitle" style="margin-top:18px">Recent activity</div>
       <div id="logList"></div>
@@ -435,12 +435,14 @@ var APA_DASH_CATS = [
 var memStore = {};
 function safeGet(k){ try{ return localStorage.getItem(k); }catch(e){ return memStore[k]||null; } }
 function safeSet(k,v){ try{ localStorage.setItem(k,v); }catch(e){ memStore[k]=v; } }
+function safeDel(k){ try{ localStorage.removeItem(k); }catch(e){} try{ delete memStore[k]; }catch(e2){} }
 
 var DEMO=false, curTab="charters", apaSub="overview", activeApaId=null, apaView="list";
 var session={ who:null, pass:null, deviceId:null };
 var state={ charters:[], leads:[], apa:[], diesel:[], devices:[], log:[] };
 var pushMeta={ server:false, vapidPublicKey:"", endpoint:"" };
 var DIESEL_DEFAULT_BUY=1.75, DIESEL_DEFAULT_SELL=2.20;
+var SESSION_KEY="limitless_tracker_session";
 function isCaptain(){ return /^captain\b/i.test(String(session.who||"").trim()); }
 function isManager(){ return /^manager\b/i.test(String(session.who||"").trim()); }
 /** Full ops access: APA, Diesel, cash-deal sync — captain and manager. */
@@ -459,6 +461,44 @@ function fmtDate(s){ if(!s) return ""; var p=String(s).split("-"); return p.leng
 function fmtWhen(ts){ if(!ts) return ""; var d=new Date(ts); if(isNaN(d)) return ts; return d.toLocaleString("en-GB",{day:"2-digit",month:"short",hour:"2-digit",minute:"2-digit"}); }
 function el(id){ return document.getElementById(id); }
 
+/* -------- remembered session (trusted devices only) -------- */
+function loadSavedSession(){
+  var raw=safeGet(SESSION_KEY);
+  if(!raw) return null;
+  try{
+    var o=JSON.parse(raw);
+    if(!o||!o.pass||!o.who) return null;
+    return o;
+  }catch(e){ return null; }
+}
+function saveSession(){
+  if(DEMO||!session.pass||!session.who) return;
+  safeSet(SESSION_KEY, JSON.stringify({
+    who:session.who,
+    pass:session.pass,
+    deviceId:session.deviceId||deviceId(),
+    at:Date.now()
+  }));
+}
+function clearSession(){ safeDel(SESSION_KEY); }
+function isCurrentDeviceTrusted(){
+  var id=session.deviceId||deviceId();
+  var d=(state.devices||[]).filter(function(x){ return x&&String(x.id)===String(id); })[0];
+  return !!(d&&d.trusted);
+}
+/** Persist credentials only while this phone/browser is marked trusted. */
+function maybePersistSession(){
+  if(DEMO){ clearSession(); return; }
+  if(isCurrentDeviceTrusted()) saveSession();
+  else clearSession();
+}
+function prefillGateWho(who){
+  if(!who||!whoSel) return;
+  var w=String(who);
+  if(w==="Captain"||w==="Manager"){ whoSel.value=w; el("otherWrap").classList.add("hidden"); }
+  else { whoSel.value="Other"; el("otherWrap").classList.remove("hidden"); el("otherName").value=w; }
+}
+
 /* -------- api -------- */
 function api(action,payload){
   return fetch(API,{method:"POST",headers:{"Content-Type":"application/json","x-tracker-pass":session.pass||""},
@@ -476,8 +516,14 @@ el("gateForm").addEventListener("submit",function(ev){
   var pass=el("passInput").value;
   if(!pass){ e.textContent="Enter the passcode."; return; }
   session.who=who; session.pass=pass; session.deviceId=deviceId();
-  api("load").then(function(d){ applyData(d); enterApp(); })
-    .catch(function(err){ if(err&&err.code===401){ e.textContent="Wrong passcode."; return; } DEMO=true; seedDemo(); enterApp(); });
+  api("load").then(function(d){
+    applyData(d);
+    enterApp();
+    maybePersistSession(); /* stay logged in only if this device is already trusted */
+  }).catch(function(err){
+    if(err&&err.code===401){ e.textContent="Wrong passcode."; clearSession(); return; }
+    DEMO=true; seedDemo(); enterApp();
+  });
 });
 function enterApp(){
   el("gate").classList.add("hidden"); el("app").classList.remove("hidden");
@@ -492,7 +538,50 @@ function enterApp(){
   /* Prompt once logged in if not already running as home-screen app */
   setTimeout(function(){ maybeShowInstallPrompt(); }, 600);
 }
-el("logoutBtn").addEventListener("click",function(){ location.reload(); });
+function lockApp(){
+  clearSession();
+  session.who=null; session.pass=null;
+  if(pollTimer){ clearInterval(pollTimer); pollTimer=null; }
+  DEMO=false;
+  el("app").classList.add("hidden");
+  el("gate").classList.remove("hidden");
+  if(el("passInput")) el("passInput").value="";
+  if(el("gateErr")) el("gateErr").textContent="";
+  hideInstallPrompt();
+}
+el("logoutBtn").addEventListener("click",function(){ lockApp(); });
+
+/** Open app automatically when this device is trusted and session was saved. */
+function tryAutoLogin(){
+  var s=loadSavedSession();
+  if(!s||!s.pass||!s.who) return;
+  session.who=s.who;
+  session.pass=s.pass;
+  session.deviceId=deviceId();
+  prefillGateWho(s.who);
+  if(el("gateErr")) el("gateErr").textContent="Opening…";
+  api("load",{silent:true}).then(function(d){
+    applyData(d);
+    if(isCurrentDeviceTrusted()){
+      if(el("gateErr")) el("gateErr").textContent="";
+      enterApp();
+      saveSession(); /* refresh timestamp */
+    } else {
+      /* Device no longer trusted — require passcode again */
+      clearSession();
+      session.pass=null;
+      if(el("gateErr")) el("gateErr").textContent="This device is not trusted — enter the passcode. Mark trusted under Security to stay signed in.";
+    }
+  }).catch(function(err){
+    clearSession();
+    session.pass=null;
+    if(err&&err.code===401){
+      if(el("gateErr")) el("gateErr").textContent="Saved passcode no longer works — enter the new one.";
+    } else if(el("gateErr")){
+      el("gateErr").textContent="";
+    }
+  });
+}
 
 /* -------- tabs / nav -------- */
 Array.prototype.forEach.call(document.querySelectorAll(".bnav button"),function(b){
@@ -3034,11 +3123,27 @@ function renderSecurity(){
     return '<div class="logline"><span class="when">'+esc(fmtWhen(l.ts))+'</span><span><b>'+esc(l.who)+'</b> · '+esc(l.action)+'<br><span style="color:#8a97a0;font-size:12px">'+esc([l.country,l.ip].filter(Boolean).join(" · "))+'</span></span></div>';
   }).join(""):'<div class="empty">No activity yet.</div>';
 }
-function setTrust(id,val){ (state.devices||[]).forEach(function(d){ if(d.id===id)d.trusted=val; }); renderSecurity(); if(!DEMO)api("trust",{deviceId:id,trusted:val}).catch(function(){}); }
+function setTrust(id,val){
+  (state.devices||[]).forEach(function(d){ if(d.id===id)d.trusted=val; });
+  renderSecurity();
+  if(!DEMO) api("trust",{deviceId:id,trusted:val}).catch(function(){});
+  /* This phone: trusted → stay signed in; untrusted → forget saved session */
+  if(String(id)===String(session.deviceId||deviceId())){
+    if(val) saveSession();
+    else clearSession();
+  }
+}
 
 /* -------- polling / data -------- */
 var pollTimer=null;
-function startPolling(){ if(pollTimer)return; pollTimer=setInterval(function(){ api("load").then(applyData).catch(function(){}); },20000); }
+function startPolling(){
+  if(pollTimer) return;
+  pollTimer=setInterval(function(){
+    api("load",{silent:true}).then(applyData).catch(function(err){
+      if(err&&err.code===401){ clearSession(); lockApp(); if(el("gateErr")) el("gateErr").textContent="Session expired — enter passcode."; }
+    });
+  },20000);
+}
 function applyData(d){
   if(!d)return;
   state.charters=d.charters||[]; state.leads=d.leads||[]; state.devices=d.devices||[]; state.log=d.log||[];
@@ -3115,6 +3220,9 @@ function seedDemo(){
   activeApaId=null;
   apaView="list";
 }
+
+/* Trusted device: reopen without passcode */
+tryAutoLogin();
 </script>
 </body>
 </html>
