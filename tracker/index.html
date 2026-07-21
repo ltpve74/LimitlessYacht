@@ -338,7 +338,7 @@
         <div class="sumcard"><div class="l">Deals value</div><div class="v money" id="ldTot">€0</div></div>
         <div class="sumcard"><div class="l">Invoices requested</div><div class="v" id="ldPending">0</div></div>
       </div>
-      <div class="legend">Closed website leads. Quotes are usually <b>VAT included</b>. Optional <b>invoice + cash (black)</b>: deposit &amp; final = white invoice only; cash opens an APA pot at −cash for charter spend. <b>Make invoice</b> opens a Yacht Support Group PDF-style invoice (you choose the number). <b>Copy name</b> copies client + dates only.</div>
+      <div class="legend">Closed website leads. Quotes are usually <b>VAT included</b>. Optional <b>invoice + cash (black)</b>: deposit &amp; final = white invoice only; cash opens an APA pot at −cash for charter spend. <b>Make invoice</b> creates a PDF you can <b>share to WhatsApp</b>. <b>Copy name</b> copies client + dates only.</div>
       <div class="list" id="ldList"></div>
     </section>
 
@@ -907,7 +907,7 @@ function openLeadInvoiceSheet(id){
   var showApa=(Number(r.apaPct)||0)>0||(Number(r.apa)||0)>0;
   var split=leadHasSplit(r);
   var h='<div class="sheethead"><h2>Make invoice</h2><button type="button" class="sheetx" id="sheetClose" aria-label="Close">×</button></div>';
-  h+='<p style="margin:0 0 12px;font-size:13px;color:var(--muted);line-height:1.45">Builds a <b>Yacht Support Group</b> invoice (same layout as your PDF). Enter the invoice number, then open / print to PDF.</p>';
+  h+='<p style="margin:0 0 12px;font-size:13px;color:var(--muted);line-height:1.45">Builds a <b>Yacht Support Group</b> PDF (same layout as your sample). Choose the number, then <b>share straight to WhatsApp</b> or download.</p>';
   h+='<div class="field"><label>Invoice for</label><select class="ctl" id="f_inv_kind">';
   h+='<option value="dep">Deposit — '+money(r.dep)+'</option>';
   h+='<option value="fin">'+(split?"Final (white)":"Final")+' — '+money(r.fin)+'</option>';
@@ -930,7 +930,7 @@ function openLeadInvoiceSheet(id){
     '<div class="ch">Writes the number into Deposit / Final / APA invoice field for the type you chose.</div></span></label>';
   h+='<div class="sheetfoot">'+
     '<button type="button" class="btn ghost" id="sheetCancel">Cancel</button>'+
-    '<button type="button" class="btn" id="sheetInvGo">Open invoice</button></div>';
+    '<button type="button" class="btn" id="sheetInvGo">Create PDF</button></div>';
   el("sheetInner").innerHTML=h;
 
   function grossForKind(kind){
@@ -1005,85 +1005,254 @@ function openLeadInvoiceSheet(id){
       save("leads");
       renderLeads();
     }
-    showSheet(false);
-    openYsgInvoiceWindow(payload);
+    createAndOfferInvoicePdf(payload);
   });
   el("sheetCancel").addEventListener("click",function(){ showSheet(false); });
   el("sheetClose").addEventListener("click",function(){ showSheet(false); });
   showSheet(true);
 }
-function openYsgInvoiceWindow(p){
-  var addrLines=(p.billAddr||"").split(/\n/).map(function(s){return s.trim();}).filter(Boolean);
-  var billHtml='<div class="bill-name">'+esc(p.billName)+'</div>';
-  addrLines.forEach(function(line){ billHtml+='<div>'+esc(line)+'</div>'; });
-  var logoUrl=location.origin+"/tracker/icons/ysg-logo.png";
-  var html='<!DOCTYPE html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">'+
-    '<title>Invoice '+esc(p.invNo)+'</title><style>'+
-    '@page{size:A4;margin:0}'+
-    'html,body{margin:0;padding:0;background:#e8eaed}'+
-    'body{font-family:Georgia,"Times New Roman",Times,serif;color:#111}'+
-    '.toolbar{position:sticky;top:0;z-index:10;display:flex;gap:10px;flex-wrap:wrap;align-items:center;'+
-      'justify-content:center;padding:12px 14px;background:#1F4E5F;color:#fff;font-family:-apple-system,BlinkMacSystemFont,sans-serif}'+
-    '.toolbar button{border:none;border-radius:10px;padding:12px 18px;font-weight:700;font-size:15px;cursor:pointer}'+
-    '.toolbar .p{background:#fff;color:#1F4E5F}.toolbar .c{background:transparent;color:#fff;border:1.5px solid rgba(255,255,255,.5)}'+
-    '.page{width:210mm;min-height:297mm;margin:16px auto;background:#fff;box-shadow:0 4px 24px rgba(0,0,0,.12);'+
-      'padding:14mm 16mm 12mm;box-sizing:border-box;position:relative;overflow:hidden}'+
-    '.logo{display:block;width:min(280px,70%);height:auto;margin:0 auto 8mm}'+
-    'h1{font-size:28px;font-weight:700;margin:6mm 0 8mm;letter-spacing:.01em}'+
-    '.meta{display:grid;grid-template-columns:1.4fr .9fr .7fr;gap:8px 16px;margin-bottom:8mm;font-size:13.5px;line-height:1.45}'+
-    '.meta .lbl{font-weight:700;margin-bottom:4px}'+
-    '.bill-name{font-weight:600}'+
-    'table.lines{width:100%;border-collapse:collapse;font-size:14px;margin:0 0 4mm}'+
-    'table.lines th{text-align:left;background:#e9e9e9;padding:9px 12px;font-weight:700;font-size:13px}'+
-    'table.lines th.amt,table.lines td.amt{text-align:right}'+
-    'table.lines td{padding:14px 12px;border-bottom:1px solid #eee;vertical-align:top}'+
-    '.totals{width:42%;margin-left:auto;border:1px solid #ccc;font-size:13.5px}'+
-    '.totals .row{display:flex;justify-content:space-between;padding:7px 12px;border-bottom:1px solid #e5e5e5}'+
-    '.totals .row:last-child{border-bottom:none;font-weight:700;font-size:15px}'+
-    '.thanks{text-align:center;margin:14mm 0 10mm;font-size:14px}'+
-    '.foot{display:grid;grid-template-columns:1fr 1fr;gap:12px;font-size:11.5px;line-height:1.55;color:#222;margin-top:auto}'+
-    '.legal{text-align:center;font-size:10.5px;color:#444;margin-top:8mm;line-height:1.45}'+
-    '.tag{text-align:center;font-size:10px;color:#888;margin-top:4mm;letter-spacing:.04em;text-transform:uppercase}'+
-    '@media print{'+
-      'body{background:#fff}.toolbar{display:none!important}'+
-      '.page{margin:0;box-shadow:none;width:auto;min-height:auto;padding:12mm 14mm}'+
-    '}'+
-    '</style></head><body>'+
-    '<div class="toolbar">'+
-      '<button type="button" class="p" onclick="window.print()">Print / Save as PDF</button>'+
-      '<button type="button" class="c" onclick="window.close()">Close</button>'+
-    '</div>'+
-    '<div class="page">'+
-      '<img class="logo" src="'+logoUrl+'" alt="Yacht Support Group">'+
-      '<h1>Invoice</h1>'+
-      '<div class="meta">'+
-        '<div><div class="lbl">Bill To</div>'+billHtml+'</div>'+
-        '<div><div class="lbl">#</div><div>'+esc(p.invNo)+'</div></div>'+
-        '<div><div class="lbl">Date</div><div>'+esc(fmtInvDate(p.date))+'</div></div>'+
-      '</div>'+
-      '<table class="lines"><thead><tr><th>Description</th><th class="amt">Amount</th></tr></thead>'+
-      '<tbody><tr><td>'+esc(p.desc)+'</td><td class="amt">'+esc(fmtInvMoney(p.net))+'</td></tr></tbody></table>'+
-      '<div class="totals">'+
-        '<div class="row"><span>Sub TOTAL</span><span>'+esc(fmtInvMoney(p.net))+'</span></div>'+
-        (p.pct>0?'<div class="row"><span>IVA '+p.pct+'%</span><span>'+esc(fmtInvMoney(p.vat))+'</span></div>':'')+
-        '<div class="row"><span>TOTAL</span><span>'+esc(fmtInvMoney(p.gross))+'</span></div>'+
-      '</div>'+
-      '<div class="thanks">Thank you for your business!</div>'+
-      '<div class="foot">'+
-        '<div>Yacht Support Group SL<br>C. del Falutx 2<br>07609 Bahia Grande<br>España<br>CIF: B25880394<br>IBAN: ES87 2100 7334 1502 0014 9782</div>'+
-        '<div style="text-align:right">info@yachtsupportgroup.com<br>www.yachtsupportgroup.com<br>Europe +34 677 814 789</div>'+
-      '</div>'+
-      '<div class="legal">Payments are due within 14 days of the invoice date. Bank charges are for the account of the client.</div>'+
-      '<div class="tag">Yacht Management — Project Management — Technical Support</div>'+
-    '</div></body></html>';
-  var w=window.open("","_blank");
-  if(!w){
-    window.alert("Allow pop-ups to open the invoice, or try again.");
-    return;
+
+function invoicePdfFileName(p){
+  var no=String(p.invNo||"invoice").replace(/[^\w.\-]+/g,"_");
+  return "Invoice_"+no+".pdf";
+}
+function loadPdfLib(){
+  if(window.PDFLib) return Promise.resolve(window.PDFLib);
+  return new Promise(function(resolve,reject){
+    var s=document.createElement("script");
+    s.src="/tracker/lib/pdf-lib.min.js";
+    s.async=true;
+    s.onload=function(){
+      if(window.PDFLib) resolve(window.PDFLib);
+      else reject(new Error("PDF library missing"));
+    };
+    s.onerror=function(){ reject(new Error("Could not load PDF library")); };
+    document.head.appendChild(s);
+  });
+}
+function downloadBlob(blob, name){
+  var url=URL.createObjectURL(blob);
+  var a=document.createElement("a");
+  a.href=url; a.download=name; a.rel="noopener";
+  document.body.appendChild(a);
+  a.click();
+  setTimeout(function(){ try{ document.body.removeChild(a); }catch(e){} URL.revokeObjectURL(url); }, 1500);
+}
+function canSharePdfFile(file){
+  try{
+    if(!navigator.share) return false;
+    if(navigator.canShare) return navigator.canShare({files:[file]});
+    return true;
+  }catch(e){ return false; }
+}
+function sharePdfBlob(blob, p){
+  var name=invoicePdfFileName(p);
+  var file=new File([blob], name, {type:"application/pdf"});
+  var text="Invoice "+(p.invNo||"")+(p.billName?" — "+p.billName:"");
+  if(canSharePdfFile(file)){
+    return navigator.share({
+      files:[file],
+      title:"Invoice "+(p.invNo||""),
+      text:text
+    }).then(function(){ return "shared"; });
   }
-  w.document.open();
-  w.document.write(html);
-  w.document.close();
+  downloadBlob(blob, name);
+  return Promise.resolve("download");
+}
+/** A4 PDF matching the YSG sample invoice layout. */
+function buildYsgInvoicePdf(p){
+  return loadPdfLib().then(function(PDFLib){
+    var PDFDocument=PDFLib.PDFDocument, rgb=PDFLib.rgb, StandardFonts=PDFLib.StandardFonts;
+    return PDFDocument.create().then(function(doc){
+      return Promise.all([
+        doc.embedFont(StandardFonts.TimesRoman),
+        doc.embedFont(StandardFonts.TimesRomanBold),
+        fetch("/tracker/icons/ysg-logo.png").then(function(r){ return r.ok?r.arrayBuffer():null; }).catch(function(){ return null; })
+      ]).then(function(res){
+        var font=res[0], fontBold=res[1], logoBytes=res[2];
+        var page=doc.addPage([595.28, 841.89]);
+        var W=595.28, H=841.89;
+        var margin=48;
+        var y=H-42;
+        var black=rgb(0.08,0.08,0.08);
+        var grey=rgb(0.35,0.35,0.35);
+        var light=rgb(0.91,0.91,0.91);
+        function drawText(t, x, yy, size, bold, color, maxW){
+          var f=bold?fontBold:font;
+          var str=String(t==null?"":t);
+          if(maxW){
+            while(str.length>3 && f.widthOfTextAtSize(str, size)>maxW) str=str.slice(0,-2);
+            if(str!==String(t||"") && str.length) str=str.slice(0,-1)+"…";
+          }
+          page.drawText(str, {x:x, y:yy, size:size, font:f, color:color||black});
+          return f.widthOfTextAtSize(str, size);
+        }
+        function drawRight(t, rightX, yy, size, bold, color){
+          var f=bold?fontBold:font;
+          var str=String(t==null?"":t);
+          var w=f.widthOfTextAtSize(str, size);
+          page.drawText(str, {x:rightX-w, y:yy, size:size, font:f, color:color||black});
+        }
+        // Logo
+        var logoH=0;
+        if(logoBytes){
+          return doc.embedPng(logoBytes).then(function(logo){
+            var lw=210;
+            var lh=logo.height*lw/logo.width;
+            page.drawImage(logo, {x:(W-lw)/2, y:H-36-lh, width:lw, height:lh});
+            logoH=lh+28;
+            return finish(logoH);
+          }).catch(function(){ return finish(0); });
+        }
+        return finish(0);
+
+        function finish(logoH){
+          y=H-42-logoH;
+          if(logoH<=0){
+            drawText("YACHT SUPPORT Group", margin, y, 14, true, black);
+            y-=28;
+          }
+          drawText("Invoice", margin, y, 26, true, black);
+          y-=36;
+
+          var col1=margin, col2=margin+230, col3=margin+380;
+          drawText("Bill To", col1, y, 11, true, black);
+          drawText("#", col2, y, 11, true, black);
+          drawText("Date", col3, y, 11, true, black);
+          y-=16;
+
+          var billY=y;
+          drawText(p.billName||"—", col1, billY, 12, false, black, 210);
+          billY-=15;
+          var addrLines=String(p.billAddr||"").split(/\n/).map(function(s){return s.trim();}).filter(Boolean);
+          addrLines.forEach(function(line){
+            drawText(line, col1, billY, 11, false, grey, 210);
+            billY-=14;
+          });
+          drawText(p.invNo||"", col2, y, 12, false, black, 130);
+          drawText(fmtInvDate(p.date), col3, y, 12, false, black, 100);
+          y=Math.min(billY, y-48);
+
+          // Table header
+          page.drawRectangle({x:margin, y:y-6, width:W-margin*2, height:22, color:light});
+          drawText("Description", margin+10, y, 11, true, black);
+          drawRight("Amount", W-margin-10, y, 11, true, black);
+          y-=28;
+          drawText(p.desc||"Charter Limitless", margin+10, y, 12, false, black, 340);
+          drawRight(fmtInvMoney(p.net), W-margin-10, y, 12, false, black);
+          y-=20;
+          page.drawLine({start:{x:margin, y:y}, end:{x:W-margin, y:y}, thickness:0.6, color:rgb(0.85,0.85,0.85)});
+          y-=28;
+
+          // Totals box
+          var boxW=200, boxX=W-margin-boxW, rowH=20;
+          var rows=[{l:"Sub TOTAL", v:fmtInvMoney(p.net), b:false}];
+          if(p.pct>0) rows.push({l:"IVA "+p.pct+"%", v:fmtInvMoney(p.vat), b:false});
+          rows.push({l:"TOTAL", v:fmtInvMoney(p.gross), b:true});
+          var boxH=rows.length*rowH+8;
+          page.drawRectangle({x:boxX, y:y-boxH+14, width:boxW, height:boxH, borderColor:rgb(0.7,0.7,0.7), borderWidth:1});
+          var ty=y;
+          rows.forEach(function(row){
+            drawText(row.l, boxX+10, ty, row.b?12:11, row.b, black);
+            drawRight(row.v, boxX+boxW-10, ty, row.b?12:11, row.b, black);
+            ty-=rowH;
+          });
+          y-=boxH+36;
+
+          drawText("Thank you for your business!", (W-font.widthOfTextAtSize("Thank you for your business!", 12))/2, y, 12, false, black);
+          y-=48;
+
+          var footSize=9.5;
+          var left=[
+            "Yacht Support Group SL",
+            "C. del Falutx 2",
+            "07609 Bahia Grande",
+            "España",
+            "CIF: B25880394",
+            "IBAN: ES87 2100 7334 1502 0014 9782"
+          ];
+          var right=[
+            "info@yachtsupportgroup.com",
+            "www.yachtsupportgroup.com",
+            "Europe +34 677 814 789"
+          ];
+          var fy=Math.min(y, 120);
+          left.forEach(function(line,i){ drawText(line, margin, fy-i*13, footSize, false, grey); });
+          right.forEach(function(line,i){
+            drawRight(line, W-margin, fy-i*13, footSize, false, grey);
+          });
+
+          var legal="Payments are due within 14 days of the invoice date. Bank charges are for the account of the client.";
+          var legalW=font.widthOfTextAtSize(legal, 8.5);
+          drawText(legal, (W-legalW)/2, 52, 8.5, false, grey);
+          var tag="YACHT MANAGEMENT  ·  PROJECT MANAGEMENT  ·  TECHNICAL SUPPORT";
+          var tagW=font.widthOfTextAtSize(tag, 8);
+          drawText(tag, (W-tagW)/2, 36, 8, false, rgb(0.55,0.55,0.55));
+
+          return doc.save().then(function(bytes){
+            return new Blob([bytes], {type:"application/pdf"});
+          });
+        }
+      });
+    });
+  });
+}
+function showInvoiceShareSheet(blob, p){
+  var name=invoicePdfFileName(p);
+  var file=new File([blob], name, {type:"application/pdf"});
+  var shareOk=canSharePdfFile(file);
+  var url=URL.createObjectURL(blob);
+  var h='<div class="sheethead"><h2>Invoice ready</h2><button type="button" class="sheetx" id="sheetClose" aria-label="Close">×</button></div>';
+  h+='<p style="margin:0 0 6px;font-size:15px;font-weight:700">'+esc(p.invNo)+'</p>';
+  h+='<p style="margin:0 0 14px;font-size:13px;color:var(--muted);line-height:1.45">'+esc(p.billName||"")+' · '+esc(fmtInvMoney(p.gross))+'</p>';
+  if(shareOk){
+    h+='<button type="button" class="btn" id="invShare" style="margin-bottom:10px">Share to WhatsApp…</button>';
+    h+='<p style="margin:0 0 14px;font-size:12.5px;color:var(--muted);line-height:1.4;text-align:center">Opens the share sheet — pick <b>WhatsApp</b> (or Mail, Files…).</p>';
+  } else {
+    h+='<p style="margin:0 0 12px;font-size:13px;color:var(--muted);line-height:1.45">Download the PDF, then attach it in WhatsApp (paperclip / +).</p>';
+  }
+  h+='<button type="button" class="btn ghost" id="invDl" style="margin-bottom:10px">Download PDF</button>';
+  h+='<a class="btn ghost" id="invOpen" href="'+url+'" target="_blank" rel="noopener" style="display:flex;margin-bottom:10px;text-decoration:none">Preview PDF</a>';
+  h+='<div class="sheetfoot"><button type="button" class="btn ghost" id="sheetCancel">Done</button></div>';
+  el("sheetInner").innerHTML=h;
+  showSheet(true);
+  function cleanup(){ try{ URL.revokeObjectURL(url); }catch(e){} }
+  if(el("invShare")){
+    el("invShare").addEventListener("click",function(){
+      var btn=el("invShare");
+      btn.disabled=true; btn.textContent="Opening share…";
+      sharePdfBlob(blob, p).then(function(){
+        btn.disabled=false; btn.textContent="Share to WhatsApp…";
+      }).catch(function(err){
+        btn.disabled=false; btn.textContent="Share to WhatsApp…";
+        if(err&&err.name==="AbortError") return;
+        downloadBlob(blob, name);
+        window.alert("Share cancelled or not available — PDF downloaded instead. Attach it in WhatsApp.");
+      });
+    });
+  }
+  el("invDl").addEventListener("click",function(){ downloadBlob(blob, name); });
+  el("sheetCancel").addEventListener("click",function(){ cleanup(); showSheet(false); });
+  el("sheetClose").addEventListener("click",function(){ cleanup(); showSheet(false); });
+  /* Auto-open share when the device supports file share (best for WhatsApp on phone) */
+  if(shareOk){
+    setTimeout(function(){
+      if(!el("invShare")) return;
+      sharePdfBlob(blob, p).catch(function(err){
+        if(err&&err.name==="AbortError") return;
+      });
+    }, 350);
+  }
+}
+function createAndOfferInvoicePdf(p){
+  var go=el("sheetInvGo");
+  if(go){ go.disabled=true; go.textContent="Creating PDF…"; }
+  buildYsgInvoicePdf(p).then(function(blob){
+    showInvoiceShareSheet(blob, p);
+  }).catch(function(err){
+    if(go){ go.disabled=false; go.textContent="Create PDF"; }
+    window.alert("Could not create PDF: "+(err&&err.message?err.message:"try again"));
+  });
 }
 function requestLeadInvoice(id, which){
   var rec=state.leads.filter(function(r){return r.id===id;})[0];
