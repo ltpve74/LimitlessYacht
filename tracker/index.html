@@ -614,18 +614,22 @@ function leadInvTag(label, amount, pct, status, invNo, id, which){
   var pctS=(pct!==""&&pct!=null)?' ('+pct+'%)':'';
   return '<span class="invtag'+cls+'"><b>'+esc(label)+'</b> '+money0(amount)+pctS+' '+pill(st)+inv+btn+'</span>';
 }
-function leadDateKey(r){
-  /* Charter date first (start), then closed — latest first via reverse compare */
-  return (r&& (r.start||r.cdate||r.closed||r.end||"")) || "";
+/** When the lead was entered into the tracker (not charter date). */
+function leadInputKey(r){
+  if(!r) return "";
+  if(r.createdAt) return String(r.createdAt);
+  /* Older rows: use closed date as best stand-in for “input day” */
+  if(r.closed) return String(r.closed)+"T23:59:59.999Z";
+  return "";
 }
 function sortLeads(){
   if(!state.leads||!state.leads.length) return;
   state.leads.sort(function(a,b){
-    var da=leadDateKey(a), db=leadDateKey(b);
-    if(da&&db&&da!==db) return db<da?-1:1; /* latest first */
+    var da=leadInputKey(a), db=leadInputKey(b);
+    if(da&&db&&da!==db) return db<da?-1:1; /* newest inputted first */
     if(db&&!da) return 1;
     if(da&&!db) return -1;
-    return 0;
+    return String(b.id||"").localeCompare(String(a.id||""));
   });
 }
 function renderLeads(){
@@ -2494,7 +2498,9 @@ function saveSheet(type,rec){
       fin:parts.fin, fins:fins, finInv:el("f_finInv").value.trim(),
       apaPct:apaPct, apa:parts.apa, apas:apas, apaInv:el("f_apaInv").value.trim(),
       reqAt:reqAt, reqBy:session.who,
-      notes:el("f_notes").value.trim(), by:session.who };
+      notes:el("f_notes").value.trim(), by:session.who,
+      createdAt:(rec&&rec.createdAt)?rec.createdAt:new Date().toISOString(),
+      updatedAt:new Date().toISOString() };
     if(!o2.name){ el("f_name").focus(); return; }
     if(sp.split&&!(Number(sp.invoiceNet)>0)){ el("f_invoiceNet").focus(); return; }
     upsert("leads",o2,rec); renderLeads(); save("leads");
