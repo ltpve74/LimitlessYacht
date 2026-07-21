@@ -143,10 +143,12 @@
          width:100%;max-width:100%;
          max-height:min(90vh, calc(var(--vvh, 100vh) * 0.9));
          overflow-x:hidden;overflow-y:auto;-webkit-overflow-scrolling:touch;overscroll-behavior:contain;
-         transform:translate3d(0,100%,0);transition:transform .26s cubic-bezier(.22,1,.36,1);
+         transform:translate3d(0,100%,0);transition:transform .2s cubic-bezier(.22,1,.36,1), max-height .15s ease;
          padding:0 18px calc(16px + var(--safe-b));
          visibility:hidden;pointer-events:none;box-sizing:border-box}
   .sheet.show{transform:translate3d(0,0,0);visibility:visible;pointer-events:auto}
+  .sheet.kb-open{border-radius:12px 12px 0 0;padding-bottom:10px}
+  .sheet.kb-open .sheetfoot{padding-bottom:10px}
   .grip{width:100%;padding:12px 0 4px;margin:0;display:flex;justify-content:center;cursor:pointer;touch-action:none}
   .grip:after{content:"";width:44px;height:5px;border-radius:3px;background:#c5ced4;display:block}
   #sheetInner{padding:0;min-height:0}
@@ -1051,10 +1053,23 @@ function apaDieselPrice(t){
   return DIESEL_DEFAULT_SELL;
 }
 function apaGenBurn(t){ var g=Number(t&&t.genBurn); return g>0?g:6; }
+/** Parse money/qty strings: accepts "1,75", "1.75", "1.234,56", "1,234.56", "€1 75". */
 function apaNum(v){
   if(v==null||v==="") return 0;
   if(typeof v==="number") return isFinite(v)?v:0;
-  var s=String(v).trim().replace(/\s/g,"").replace(",",".");
+  var s=String(v).trim().replace(/[€\s\u00a0]/g,"");
+  if(!s) return 0;
+  var lastC=s.lastIndexOf(","), lastD=s.lastIndexOf(".");
+  if(lastC>-1&&lastD>-1){
+    if(lastC>lastD) s=s.replace(/\./g,"").replace(",","."); /* 1.234,56 */
+    else s=s.replace(/,/g,""); /* 1,234.56 */
+  } else if(lastC>-1){
+    var after=s.length-lastC-1;
+    if(after<=2) s=s.replace(",","."); /* 1,75 */
+    else s=s.replace(/,/g,""); /* 1,750 litres */
+  } else if((s.match(/\./g)||[]).length>1){
+    s=s.replace(/\./g,""); /* 1.750.000 */
+  }
   var n=parseFloat(s);
   return isFinite(n)?n:0;
 }
@@ -1575,7 +1590,7 @@ function openApaTrip(id){
       linkInvKind:inv?inv.invKind:"", linkInvNo:inv?inv.invNo:"", linkInvLabel:inv?inv.label:"",
       linkInvAmount:inv?inv.amount:0,
       captain:el("f_captain").value.trim()||"Luigi", dates:el("f_dates").value.trim(),
-      apaSent:Number(el("f_apaSent").value)||0, topUps:Number(el("f_topUps").value)||0,
+      apaSent:apaNum(el("f_apaSent").value), topUps:apaNum(el("f_topUps").value),
       dieselPrice:apaNum(el("f_dPrice").value)||1.75, genBurn:apaNum(el("f_genBurn").value)||6,
       expenses:r.expenses||[], provisions:r.provisions||[], diesel:r.diesel||[], dieselLoads:r.dieselLoads||[],
       notes:el("f_notes").value.trim(), by:session.who, updatedAt:new Date().toISOString()
@@ -1620,8 +1635,8 @@ function openApaLine(kind,id){
   } else {
     /* Plain number fields (not € moneywrap) — litres / hours */
     h+='<div class="row2">'+
-      fieldHTML("Engine litres",'<input class="ctl" id="f_engine" type="number" inputmode="decimal" min="0" step="0.1" value="'+esc(r.engineL!=null&&r.engineL!==""?r.engineL:"")+'" placeholder="e.g. 120">')+
-      fieldHTML("Generator hours",'<input class="ctl" id="f_genhrs" type="number" inputmode="decimal" min="0" step="0.1" value="'+esc(r.genHrs!=null&&r.genHrs!==""?r.genHrs:"")+'" placeholder="e.g. 4">')+
+      fieldHTML("Engine litres",decField("f_engine", r.engineL!=null&&r.engineL!==""?r.engineL:"", "e.g. 120"))+
+      fieldHTML("Generator hours",decField("f_genhrs", r.genHrs!=null&&r.genHrs!==""?r.genHrs:"", "e.g. 4"))+
     '</div>';
     h+=fieldHTML("Manual cost (€) — optional",moneyField("f_dsl_cost", r.cost||""));
     h+='<p style="margin:-8px 0 12px;font-size:12px;color:var(--muted);line-height:1.4">Leave manual cost empty to use litres × sell rate €'+esc(String(apaDieselPrice(t)))+'/L (gen hours × '+esc(String(apaGenBurn(t)))+' L/hr). Bunker loads &amp; tank levels: vessel <b>Diesel</b> tab. Trip rate: Trip setup.</p>';
@@ -1978,17 +1993,17 @@ function openDieselEntry(kind,id){
   }
   h+=fieldHTML("Date",'<input class="ctl" id="f_date" type="date" value="'+esc(r.date||"")+'">');
   if(kind==="level"){
-    h+=fieldHTML("On board (litres)",'<input class="ctl" id="f_onboard" type="number" inputmode="decimal" min="0" step="0.1" value="'+esc(r.onboard!=null&&r.onboard!==""?r.onboard:"")+'" placeholder="e.g. 1800">');
+    h+=fieldHTML("On board (litres)",decField("f_onboard", r.onboard!=null&&r.onboard!==""?r.onboard:"", "e.g. 1800"));
   } else if(kind==="buy"){
-    h+=fieldHTML("Litres bought",'<input class="ctl" id="f_litres" type="number" inputmode="decimal" min="0" step="0.1" value="'+esc(r.litres!=null&&r.litres!==""?r.litres:"")+'" placeholder="e.g. 800">');
-    h+=fieldHTML("On board before (optional)",'<input class="ctl" id="f_onboard" type="number" inputmode="decimal" min="0" step="0.1" value="'+esc(r.onboard!=null&&r.onboard!==""?r.onboard:"")+'" placeholder="sounding before fill">');
+    h+=fieldHTML("Litres bought",decField("f_litres", r.litres!=null&&r.litres!==""?r.litres:"", "e.g. 800"));
     h+=fieldHTML("Price €/L (optional)",moneyField("f_price", r.price!==""&&r.price!=null?r.price:""));
-    h+='<p style="margin:-8px 0 12px;font-size:12px;color:var(--muted)">Empty price uses vessel buy rate (€'+esc(String(st.buyPrice))+'/L).</p>';
+    h+='<p style="margin:-8px 0 12px;font-size:12px;color:var(--muted)">Use comma or dot (1,75). Empty = vessel buy rate €'+esc(String(st.buyPrice))+'/L.</p>';
+    h+=fieldHTML("On board before (optional)",decField("f_onboard", r.onboard!=null&&r.onboard!==""?r.onboard:"", "sounding before fill"));
   } else {
-    h+=fieldHTML("Litres sold",'<input class="ctl" id="f_litres" type="number" inputmode="decimal" min="0" step="0.1" value="'+esc(r.litres!=null&&r.litres!==""?r.litres:"")+'" placeholder="e.g. 50">');
-    h+=fieldHTML("Guest / note",'<input class="ctl" id="f_guest" value="'+esc(r.guest||"")+'" placeholder="optional">');
+    h+=fieldHTML("Litres sold",decField("f_litres", r.litres!=null&&r.litres!==""?r.litres:"", "e.g. 50"));
     h+=fieldHTML("Price €/L (optional)",moneyField("f_price", r.price!==""&&r.price!=null?r.price:""));
-    h+='<p style="margin:-8px 0 12px;font-size:12px;color:var(--muted)">Empty price uses vessel sell rate (€'+esc(String(st.sellPrice))+'/L).</p>';
+    h+='<p style="margin:-8px 0 12px;font-size:12px;color:var(--muted)">Use comma or dot (1,75). Empty = vessel sell rate €'+esc(String(st.sellPrice))+'/L.</p>';
+    h+=fieldHTML("Guest / note",'<input class="ctl" id="f_guest" value="'+esc(r.guest||"")+'" placeholder="optional" enterkeyhint="next">');
   }
   h+='<div class="calcbox" id="f_dsl_v_calc"></div>';
   h+=fieldHTML("Notes",'<textarea class="ctl" id="f_notes" placeholder="optional">'+esc(r.notes||"")+'</textarea>');
@@ -2067,7 +2082,15 @@ function deleteDieselEntry(id){
 
 /* -------- add / edit sheet -------- */
 function fieldHTML(label,inner){ return '<div class="field"><label>'+label+'</label>'+inner+'</div>'; }
-function moneyField(id,val){ return '<div class="moneywrap"><input class="ctl" id="'+id+'" type="number" inputmode="decimal" min="0" step="0.01" value="'+(val!=null?val:"")+'" placeholder="0"></div>'; }
+/* type=text so EU keyboards can type comma (type=number blocks ",") */
+function moneyField(id,val){
+  var v=val!=null&&val!==""?String(val):"";
+  return '<div class="moneywrap"><input class="ctl" id="'+id+'" type="text" inputmode="decimal" enterkeyhint="done" autocomplete="off" autocapitalize="off" spellcheck="false" value="'+esc(v)+'" placeholder="0"></div>';
+}
+function decField(id,val,ph){
+  var v=val!=null&&val!==""?String(val):"";
+  return '<input class="ctl" id="'+id+'" type="text" inputmode="decimal" enterkeyhint="next" autocomplete="off" autocapitalize="off" spellcheck="false" value="'+esc(v)+'" placeholder="'+esc(ph||"")+'">';
+}
 function selField(id,val){ return '<select class="ctl" id="'+id+'">'+LEAD_STATUSES.map(function(s){return '<option'+(s===val?' selected':'')+'>'+s+'</option>';}).join("")+'</select>'; }
 function leadInvBlock(title, pctId, pctVal, stId, stVal, invId, invVal, showPct){
   var h='<div class="sect">'+esc(title)+' invoice</div>';
@@ -2078,7 +2101,10 @@ function leadInvBlock(title, pctId, pctVal, stId, stVal, invId, invVal, showPct)
 }
 function selPayField(val){ var o=["Paid","Pending"]; return '<select class="ctl" id="f_pay">'+o.map(function(s){return '<option'+(s===val?' selected':'')+'>'+s+'</option>';}).join("")+'</select>'; }
 function selInvField(val){ var o=["Not issued","Issued"]; return '<select class="ctl" id="f_invStatus">'+o.map(function(s){return '<option'+(s===val?' selected':'')+'>'+s+'</option>';}).join("")+'</select>'; }
-function pctField(id,val){ return '<div class="pctwrap"><input class="ctl" id="'+id+'" type="number" inputmode="decimal" min="0" max="100" step="1" value="'+(val!=null&&val!==""?val:"")+'" placeholder="0"></div>'; }
+function pctField(id,val){
+  var v=val!=null&&val!==""?String(val):"";
+  return '<div class="pctwrap"><input class="ctl" id="'+id+'" type="text" inputmode="decimal" enterkeyhint="next" autocomplete="off" value="'+esc(v)+'" placeholder="0"></div>';
+}
 function daysBetween(s,e){ if(!s) return 1; if(!e||e===s) return 1; var d1=new Date(s),d2=new Date(e); if(isNaN(d1)||isNaN(d2)) return 1; var diff=Math.round((d2-d1)/86400000); return diff>=0?diff+1:1; }
 function durLabel(d){ return {"4h":"4 hours","6h":"6 hours","8h":"8 hours","multi":"Multi-day"}[d]||d||"Day charter"; }
 function durField(val){ var o=[["4h","4 hours"],["6h","6 hours"],["8h","8 hours"],["multi","Multi-day (overnight)"]]; return '<select class="ctl" id="f_dur">'+o.map(function(p){return '<option value="'+p[0]+'"'+(p[0]===val?' selected':'')+'>'+p[1]+'</option>';}).join("")+'</select>'; }
@@ -2157,8 +2183,8 @@ function leadParts(sp, depPctRaw, apaPctRaw){
 function recalcLead(){
   if(!el("f_dur")) return;
   var dur=el("f_dur").value, rate, days, base;
-  if(dur==="multi"){ rate=Number(el("f_rate")?el("f_rate").value:0)||0; days=daysBetween(el("f_start")?el("f_start").value:"", el("f_end")?el("f_end").value:""); base=rate*days; }
-  else { base=Number(el("f_price")?el("f_price").value:0)||0; rate=base; days=1; }
+  if(dur==="multi"){ rate=apaNum(el("f_rate")?el("f_rate").value:0); days=daysBetween(el("f_start")?el("f_start").value:"", el("f_end")?el("f_end").value:""); base=rate*days; }
+  else { base=apaNum(el("f_price")?el("f_price").value:0); rate=base; days=1; }
   var mode=el("f_vatMode")?el("f_vatMode").value:"include";
   var pctRaw=el("f_vatPct")?el("f_vatPct").value:"";
   if(el("f_vatPct")) el("f_vatPct").disabled=(mode==="none");
@@ -2166,7 +2192,7 @@ function recalcLead(){
   if(el("f_splitwrap")) el("f_splitwrap").classList.toggle("hidden",!splitOn);
   var invNetRaw=el("f_invoiceNet")?el("f_invoiceNet").value:"";
   var sp=leadSplit(base, mode, pctRaw, splitOn, invNetRaw);
-  var depPct=Number(el("f_dep").value)||0, apaPct=Number(el("f_apa").value)||0;
+  var depPct=apaNum(el("f_dep").value), apaPct=apaNum(el("f_apa").value);
   var p=leadParts(sp, depPct, apaPct);
   var box=el("f_calc");
   if(!box) return;
@@ -2266,7 +2292,7 @@ function openSheet(type,id){
 }
 function recalcCharge(){
   var box=el("f_ch_calc"); if(!box) return;
-  var gross=Number(el("f_amount")?el("f_amount").value:0)||0;
+  var gross=apaNum(el("f_amount")?el("f_amount").value:0);
   var pct=21, net=gross/(1+pct/100), vat=gross-net;
   box.innerHTML='<div class="cl"><span>Amount (VAT included)</span><b>'+money(gross)+'</b></div>'+
     '<div class="cl"><span>Net (ex VAT)</span><b>'+money(net)+'</b></div>'+
@@ -2275,7 +2301,7 @@ function recalcCharge(){
 
 function saveSheet(type,rec){
   if(type==="charter"){
-    var gross=Number(el("f_amount").value)||0, vatPct=21;
+    var gross=apaNum(el("f_amount").value), vatPct=21;
     var net=gross/(1+vatPct/100), vat=gross-net;
     var payStatus=el("f_pay").value, invStatus=el("f_invStatus").value;
     var obj={ id:rec?rec.id:uid(), date:el("f_date").value, client:el("f_client").value.trim(),
@@ -2300,16 +2326,16 @@ function saveSheet(type,rec){
     var start=el("f_start")?el("f_start").value:"";
     var end=(dur==="multi"&&el("f_end"))?el("f_end").value:"";
     var rate, days, base, price="";
-    if(dur==="multi"){ rate=Number(el("f_rate").value)||0; days=daysBetween(start,end); base=rate*days; }
-    else { price=Number(el("f_price").value)||0; base=price; rate=price; days=1; }
+    if(dur==="multi"){ rate=apaNum(el("f_rate").value); days=daysBetween(start,end); base=rate*days; }
+    else { price=apaNum(el("f_price").value); base=price; rate=price; days=1; }
     var vatMode=el("f_vatMode")?el("f_vatMode").value:"add";
     var vatPctIn=el("f_vatPct")?el("f_vatPct").value:"";
     var splitOn=el("f_split")?el("f_split").checked:false;
     var invNetIn=el("f_invoiceNet")?el("f_invoiceNet").value:"";
     var sp=leadSplit(base, vatMode, vatPctIn, splitOn, invNetIn);
     var m=sp.full;
-    var depPct=el("f_dep").value===""?"":(Number(el("f_dep").value)||0);
-    var apaPct=el("f_apa").value===""?"":(Number(el("f_apa").value)||0);
+    var depPct=el("f_dep").value===""?"":apaNum(el("f_dep").value);
+    var apaPct=el("f_apa").value===""?"":apaNum(el("f_apa").value);
     var parts=leadParts(sp, depPct, apaPct);
     var deps=el("f_deps").value, fins=el("f_fins").value, apas=el("f_apas").value;
     var reqAt=(rec&&rec.reqAt)?Object.assign({},rec.reqAt):{};
@@ -2360,36 +2386,77 @@ function delRec(type,id){
 }
 
 var sheetGen=0;
-/** Keep --vvh + sheet bottom edge aligned with the *visual* viewport (iOS Safari/PWA). */
+function clearSheetPin(sh){
+  if(!sh) return;
+  sh.style.left=""; sh.style.right=""; sh.style.width=""; sh.style.bottom="";
+  sh.style.top=""; sh.style.maxHeight=""; sh.style.height="";
+  sh.classList.remove("kb-open");
+}
+/** Keep sheet inside the *visual* viewport (above keyboard + Chrome UI). */
 function syncSheetViewport(){
   var vv=window.visualViewport;
   var h=vv&&vv.height?vv.height:window.innerHeight;
   var top=vv&&typeof vv.offsetTop==="number"?vv.offsetTop:0;
+  var layoutH=window.innerHeight||h;
   document.documentElement.style.setProperty("--vvh", Math.round(h)+"px");
   var sh=el("sheet");
   if(!sh) return;
   var wide=window.matchMedia&&window.matchMedia("(min-width:620px)").matches;
   if(!sh.classList.contains("show")){
-    sh.style.left=""; sh.style.right=""; sh.style.width=""; sh.style.bottom="";
-    sh.style.top=""; sh.style.maxHeight="";
+    clearSheetPin(sh);
     return;
   }
+  /* Keyboard / browser chrome: visual viewport much shorter than layout */
+  var kb=h<layoutH*0.82;
+  sh.classList.toggle("kb-open", !wide&&kb);
   if(wide){
     sh.style.left="50%";
     sh.style.right="auto";
     sh.style.width="";
     sh.style.bottom="auto";
-    sh.style.top=Math.max(12, Math.round(top+h*0.03))+"px";
-    sh.style.maxHeight=Math.round(Math.min(720, h-24))+"px";
+    sh.style.height="";
+    sh.style.top=Math.max(8, Math.round(top+8))+"px";
+    sh.style.maxHeight=Math.round(Math.min(720, h-16))+"px";
+  } else if(kb){
+    /* Fill remaining space above keyboard so fields stay reachable */
+    sh.style.left="0";
+    sh.style.right="0";
+    sh.style.width="100%";
+    sh.style.bottom="auto";
+    sh.style.top=Math.round(top+2)+"px";
+    sh.style.height=Math.round(h-4)+"px";
+    sh.style.maxHeight=Math.round(h-4)+"px";
   } else {
-    /* Pin bottom of sheet to bottom of visual viewport (not layout viewport) */
-    var gap=Math.max(0, Math.round(window.innerHeight-(top+h)));
+    var gap=Math.max(0, Math.round(layoutH-(top+h)));
     sh.style.left="0";
     sh.style.right="0";
     sh.style.width="100%";
     sh.style.top="auto";
+    sh.style.height="";
     sh.style.bottom=gap+"px";
     sh.style.maxHeight=Math.round(h*0.9)+"px";
+  }
+}
+/** Scroll focused control into the visible sheet area (above keyboard). */
+function ensureSheetFieldVisible(node){
+  if(!node||!el("sheet").classList.contains("show")) return;
+  syncSheetViewport();
+  var sh=el("sheet");
+  try{
+    var fr=node.getBoundingClientRect();
+    var sr=sh.getBoundingClientRect();
+    var pad=24;
+    if(fr.top<sr.top+pad){
+      sh.scrollTop-= (sr.top+pad)-fr.top;
+    } else if(fr.bottom>sr.bottom-pad){
+      sh.scrollTop+= fr.bottom-(sr.bottom-pad);
+    }
+    /* Fallback for stubborn mobile browsers */
+    if(typeof node.scrollIntoView==="function"){
+      node.scrollIntoView({block:"center", inline:"nearest", behavior:"smooth"});
+    }
+  }catch(e){
+    try{ node.scrollIntoView(true); }catch(e2){}
   }
 }
 function showSheet(on){
@@ -2398,13 +2465,11 @@ function showSheet(on){
   el("scrim").classList.toggle("show",on);
   sh.classList.toggle("show",on);
   document.body.classList.toggle("sheet-open",on);
-  /* Clear drag overrides; re-pin to visual viewport */
   sh.style.transform="";
   sh.style.transition="";
   syncSheetViewport();
   if(!on){
-    sh.style.left=""; sh.style.right=""; sh.style.width=""; sh.style.bottom="";
-    sh.style.top=""; sh.style.maxHeight="";
+    clearSheetPin(sh);
     setTimeout(function(){
       if(gen!==sheetGen) return;
       if(!sh.classList.contains("show")) el("sheetInner").innerHTML="";
@@ -2420,13 +2485,26 @@ function showSheet(on){
   }
 }
 (function(){
-  function onVV(){ if(document.body.classList.contains("sheet-open")) syncSheetViewport(); }
+  function onVV(){
+    if(!document.body.classList.contains("sheet-open")) return;
+    syncSheetViewport();
+    var ae=document.activeElement;
+    if(ae&&el("sheet").contains(ae)&&/INPUT|TEXTAREA|SELECT/.test(ae.tagName)){
+      ensureSheetFieldVisible(ae);
+    }
+  }
   window.addEventListener("resize",onVV);
   window.addEventListener("orientationchange",onVV);
   if(window.visualViewport){
     window.visualViewport.addEventListener("resize",onVV);
     window.visualViewport.addEventListener("scroll",onVV);
   }
+  el("sheet").addEventListener("focusin",function(e){
+    var t=e.target;
+    if(!t||!/INPUT|TEXTAREA|SELECT/.test(t.tagName)) return;
+    setTimeout(function(){ ensureSheetFieldVisible(t); },50);
+    setTimeout(function(){ ensureSheetFieldVisible(t); },300);
+  });
   syncSheetViewport();
 })();
 el("scrim").addEventListener("click",function(){ showSheet(false); });
