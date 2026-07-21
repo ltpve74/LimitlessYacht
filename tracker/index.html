@@ -108,6 +108,9 @@
   .invtag .req:active{opacity:.85}
   .invtag.need{border-color:#f0d48a;background:#fffbf0}
   .invtag.done{border-color:#b8e6c9;background:#f4fcf7}
+  .lead-actions{display:flex;flex-wrap:wrap;gap:8px;margin-top:11px;padding-right:28px}
+  .lead-actions .btn{width:auto;flex:0 0 auto;padding:9px 12px;font-size:12.5px;font-weight:700}
+  .lead-actions .btn.copied{background:var(--green);color:var(--greenInk);border-color:transparent}
   .sheet .sect{font-size:12px;font-weight:700;color:var(--muted);text-transform:uppercase;letter-spacing:.04em;margin:14px 0 10px;padding-top:4px;border-top:1px solid var(--line)}
   .sheet .sect:first-of-type{border-top:none;margin-top:6px}
   .pill{display:inline-block;padding:3px 10px;border-radius:20px;font-size:11.5px;font-weight:700;white-space:nowrap}
@@ -333,7 +336,7 @@
         <div class="sumcard"><div class="l">Deals value</div><div class="v money" id="ldTot">€0</div></div>
         <div class="sumcard"><div class="l">Invoices requested</div><div class="v" id="ldPending">0</div></div>
       </div>
-      <div class="legend">Closed website leads. Quotes are usually <b>VAT included</b>. Optional <b>invoice + cash (black)</b>: deposit &amp; final = white invoice only; cash opens an APA pot at −cash for charter spend. Use <b>Request invoice</b> for the manager.</div>
+      <div class="legend">Closed website leads. Quotes are usually <b>VAT included</b>. Optional <b>invoice + cash (black)</b>: deposit &amp; final = white invoice only; cash opens an APA pot at −cash for charter spend. Tap <b>Copy for invoice</b> for paste-ready details, or <b>Request invoice</b> for the manager queue.</div>
       <div class="list" id="ldList"></div>
     </section>
 
@@ -660,7 +663,11 @@ function renderLeads(){
         leadInvTag(finLabel,r.fin,"",r.fins,r.finInv,r.id,"fins")+
         (showApa?leadInvTag("APA",r.apa,r.apaPct,r.apas,r.apaInv,r.id,"apas"):"")+
       '</div>'+
-      (r.notes?'<div class="notes">'+esc(r.notes)+'</div>':'')+'<span class="chev">✎</span></div>';
+      (r.notes?'<div class="notes">'+esc(r.notes)+'</div>':'')+
+      '<div class="lead-actions">'+
+        '<button type="button" class="btn ghost" data-copy-lead="'+esc(r.id)+'">Copy for invoice</button>'+
+      '</div>'+
+      '<span class="chev">✎</span></div>';
   });
   wrap.innerHTML=html||emptyBox("🌐","No leads logged yet","Tap + when you close a website lead.");
   el("ldTot").textContent=money(tot); el("ldPending").textContent=pend;
@@ -671,9 +678,116 @@ function renderLeads(){
       requestLeadInvoice(btn.getAttribute("data-req-lead"), btn.getAttribute("data-req-which"));
     });
   });
+  Array.prototype.forEach.call(wrap.querySelectorAll("[data-copy-lead]"),function(btn){
+    btn.addEventListener("click",function(ev){
+      ev.preventDefault(); ev.stopPropagation();
+      copyLeadInvoiceText(btn.getAttribute("data-copy-lead"), btn);
+    });
+  });
 }
 function pendForLead(r){
   var n=0; [r.deps,r.fins,r.apas].forEach(function(s){ if(s==="Requested")n++; }); return n;
+}
+/** Plain-text brief for the manager to paste into an invoice draft. */
+function leadInvoiceText(r){
+  if(!r) return "";
+  var lines=[], L=function(s){ lines.push(s); };
+  var isMulti=(r.dur==="multi")||(!r.dur&&(r.end||(Number(r.days)||0)>1));
+  var showApa=(Number(r.apaPct)||0)>0||(Number(r.apa)||0)>0;
+  var split=leadHasSplit(r);
+  L("LIMITLESS YACHT CHARTER — Invoice details");
+  L("========================================");
+  L("Client: "+(r.name||"—"));
+  if(r.closed) L("Lead closed: "+fmtDate(r.closed));
+  if(isMulti){
+    var s=r.start||r.cdate||"", e=r.end||"";
+    var days=Number(r.days)||(s&&e?daysBetween(s,e):0);
+    L("Charter: multi-day"+(s?" "+fmtDate(s):"")+(e&&e!==s?" – "+fmtDate(e):"")+(days?(" ("+days+" day"+(days>1?"s":"")+")"):""));
+    if(Number(r.rate)>0) L("Daily rate (as quoted): "+money(r.rate));
+  } else {
+    L("Charter: "+durLabel(r.dur||"")+(r.start||r.cdate?(" on "+fmtDate(r.start||r.cdate)): ""));
+    if(Number(r.price)>0||Number(r.rate)>0) L("Charter price (as quoted): "+money(Number(r.price)||Number(r.rate)||0));
+  }
+  if(Number(r.base)>0) L("Charter base: "+money(r.base));
+  var vatNote=vatModeLabel(r.vatMode);
+  if(vatNote){
+    var vp=(Number(r.vatPct)||0)>0?(" "+r.vatPct+"%"):"";
+    L("VAT: "+vatNote+vp+(Number(r.vat)>0?(" → "+money(r.vat)): ""));
+  }
+  if(Number(r.net)>0) L("Net (ex VAT, full quote): "+money(r.net));
+  L("Client total: "+money(r.total));
+  L("");
+  if(split){
+    var invN=Number(r.invoiceNet)||0;
+    var invV=Number(r.invoiceVat)||0;
+    var invT=Number(r.invoiceTotal)!=null&&r.invoiceTotal!==""?Number(r.invoiceTotal):(invN+invV);
+    var cashN=Number(r.cashAmt)||0;
+    L("--- White invoice (formal) ---");
+    L("Invoice net (ex VAT): "+money(invN));
+    if(invV>0) L("VAT on invoice: "+money(invV));
+    L("White invoice total: "+money(invT));
+    L("Cash (black, not on invoice): "+money(cashN));
+    L("");
+    L("--- Split for manager invoices ---");
+    L("Deposit"+(r.depPct!=""&&r.depPct!=null?" ("+r.depPct+"% of white)":"")+": "+money(r.dep)+"  ["+(r.deps||"Not requested")+"]"+(r.depInv?"  #"+r.depInv:""));
+    L("Final (white invoice): "+money(r.fin)+"  ["+(r.fins||"Not requested")+"]"+(r.finInv?"  #"+r.finInv:""));
+  } else {
+    L("--- Invoices ---");
+    L("Deposit"+(r.depPct!=""&&r.depPct!=null?" ("+r.depPct+"%)":"")+": "+money(r.dep)+"  ["+(r.deps||"Not requested")+"]"+(r.depInv?"  #"+r.depInv:""));
+    L("Final balance: "+money(r.fin)+"  ["+(r.fins||"Not requested")+"]"+(r.finInv?"  #"+r.finInv:""));
+  }
+  if(showApa){
+    L("APA"+(r.apaPct!=""&&r.apaPct!=null?" ("+r.apaPct+"%)":"")+": "+money(r.apa)+"  ["+(r.apas||"Not requested")+"]"+(r.apaInv?"  #"+r.apaInv:""));
+  }
+  if(r.notes&&String(r.notes).trim()){
+    L("");
+    L("Notes: "+String(r.notes).trim());
+  }
+  L("");
+  L("Vessel: M/Y Limitless");
+  return lines.join("\n");
+}
+function copyTextToClipboard(text){
+  if(navigator.clipboard&&navigator.clipboard.writeText){
+    return navigator.clipboard.writeText(text);
+  }
+  return new Promise(function(resolve,reject){
+    try{
+      var ta=document.createElement("textarea");
+      ta.value=text;
+      ta.setAttribute("readonly","");
+      ta.style.position="fixed";
+      ta.style.left="-9999px";
+      ta.style.top="0";
+      document.body.appendChild(ta);
+      ta.select();
+      ta.setSelectionRange(0, text.length);
+      var ok=document.execCommand("copy");
+      document.body.removeChild(ta);
+      if(ok) resolve(); else reject(new Error("copy failed"));
+    }catch(e){ reject(e); }
+  });
+}
+function flashCopyBtn(btn){
+  if(!btn) return;
+  var prev=btn.textContent;
+  btn.textContent="Copied ✓";
+  btn.classList.add("copied");
+  setTimeout(function(){
+    btn.textContent=prev;
+    btn.classList.remove("copied");
+  },1600);
+}
+function copyLeadInvoiceText(id, btn){
+  var rec=(state.leads||[]).filter(function(r){return String(r.id)===String(id);})[0];
+  if(!rec) return;
+  var text=leadInvoiceText(rec);
+  copyTextToClipboard(text).then(function(){
+    flashCopyBtn(btn);
+  }).catch(function(){
+    /* Last resort: select in a prompt so user can copy manually */
+    window.prompt("Copy invoice details:", text);
+  });
 }
 function requestLeadInvoice(id, which){
   var rec=state.leads.filter(function(r){return r.id===id;})[0];
@@ -2405,13 +2519,20 @@ function openSheet(type,id){
     h+=leadInvBlock("APA (overnight)","f_apa",r.apaPct,"f_apas",r.apas,"f_apaInv",r.apaInv,true);
     h+=fieldHTML("Notes",'<textarea class="ctl" id="f_notes" placeholder="optional">'+esc(r.notes)+'</textarea>');
   }
-  if(rec){ h+='<div class="sheetbtns"><button type="button" class="btn danger" id="sheetDel">Delete</button></div>'; }
+  if(rec){
+    h+='<div class="sheetbtns">';
+    if(type==="lead") h+='<button type="button" class="btn ghost" id="sheetCopyInv">Copy for invoice</button>';
+    h+='<button type="button" class="btn danger" id="sheetDel">Delete</button></div>';
+  }
   h+='<div class="sheetfoot"><button type="button" class="btn ghost" id="sheetCancel">Cancel</button><button type="button" class="btn" id="sheetSave">'+(rec?"Save":"Add")+'</button></div>';
   inner.innerHTML=h;
   el("sheetSave").addEventListener("click",function(){ saveSheet(type,rec); });
   el("sheetCancel").addEventListener("click",function(){ showSheet(false); });
   el("sheetClose").addEventListener("click",function(){ showSheet(false); });
   if(rec){ el("sheetDel").addEventListener("click",function(){ confirmDel(type,rec); }); }
+  if(el("sheetCopyInv")&&rec){
+    el("sheetCopyInv").addEventListener("click",function(){ copyLeadInvoiceText(rec.id, el("sheetCopyInv")); });
+  }
   if(el("f_dur")){ el("f_dur").addEventListener("change",function(){
     var draft=collectLeadDraft(), dur=el("f_dur").value;
     el("f_durfields").innerHTML=durFieldsHTML(dur,draft);
