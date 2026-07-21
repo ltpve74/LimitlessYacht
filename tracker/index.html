@@ -213,6 +213,11 @@
   .apa-detail-head{margin:0 0 12px}
   .apa-detail-head .title{font-size:18px;font-weight:800;margin:0 0 4px}
   .pill.p-apa{background:#e8f4f0;color:#1a5c48}
+  .pill.p-over{background:#fde8e8;color:#9b1c1c}
+  .item.apa-row{position:relative;padding-right:52px}
+  .apa-x{position:absolute;right:10px;top:50%;transform:translateY(-50%);width:36px;height:36px;border-radius:10px;border:1.5px solid var(--line);background:#fff;color:var(--danger);font-size:18px;font-weight:700;line-height:1;display:flex;align-items:center;justify-content:center;z-index:2}
+  .apa-x:active{background:#fde8e8}
+  .item .chev{pointer-events:none}
   @media(min-width:620px){
     .sheet{max-width:520px;margin:0 auto;border-radius:20px;bottom:auto;top:50%;left:50%;right:auto;
            max-height:min(88vh,720px);transform:translate(-50%,-46%) scale(.98);opacity:0;transition:opacity .2s, transform .2s}
@@ -288,7 +293,7 @@
           <div class="sumcard"><div class="l">APA pots</div><div class="v money" id="apaSumPot">€0</div></div>
           <div class="sumcard"><div class="l">Balance left</div><div class="v money" id="apaSumBal">€0</div></div>
         </div>
-        <div class="legend">Captain-only. Each row is a charter APA ledger. Due APA is linked to a <b>Charges</b> entry (created or updated when you save). Tap a row to log expenses / provisions / diesel.</div>
+        <div class="legend">Captain-only. Each row is a charter APA ledger. A <b>Charges</b> row appears only when the balance goes <b>negative</b> (overspend) — amount = shortfall. Tap a row to log spend; use × to delete.</div>
         <div class="list" id="apaList"></div>
       </div>
       <div id="apaDetailWrap" class="hidden">
@@ -593,7 +598,13 @@ function emptyApaTrip(){
 }
 function normName(s){ return String(s||"").trim().toLowerCase().replace(/\s+/g," "); }
 function apaDueAmount(t){ return (Number(t&&t.apaSent)||0)+(Number(t&&t.topUps)||0); }
-/** Find Charges row for this APA trip (by id, clientKey, kind=apa + name). */
+/** Shortfall when balance is negative (spent − pot). 0 when still in pot. */
+function apaOverageAmount(t){
+  if(!t) return 0;
+  var x=apaTotals(t);
+  return x.bal<0?Math.round((-x.bal)*100)/100:0;
+}
+/** Find Charges row for this APA trip (by id, apaTripId, kind=apa + name). */
 function findApaChargeForTrip(t){
   if(!t) return null;
   if(!state.charters) state.charters=[];
@@ -617,17 +628,29 @@ function findApaChargeForTrip(t){
     return normName(c.client)===name && /apa/i.test(String(c.notes||"")) && c.kind!=="card";
   })[0]||null;
 }
+function removeApaLinkedCharge(t){
+  if(!t||!state.charters) return;
+  var ch=findApaChargeForTrip(t);
+  if(ch&&(ch.kind==="apa"||ch.apaTripId===t.id||/synced from APA/i.test(String(ch.notes||"")))){
+    state.charters=state.charters.filter(function(c){return c.id!==ch.id;});
+  }
+  t.chargeId="";
+}
 /**
- * Keep Charges in sync with due APA (sent + top-ups).
- * Links existing charge if found; otherwise creates one. Updates amount while on charter.
+ * Charges appear only when APA balance is negative (overspend).
+ * Amount = shortfall. Removed again if balance recovers. Updated while on charter.
  */
 function syncApaToCharge(t){
   if(!t||!String(t.guest||"").trim()) return null;
   if(!state.charters) state.charters=[];
-  var due=apaDueAmount(t);
+  var over=apaOverageAmount(t);
   var ch=findApaChargeForTrip(t);
+  if(over<=0){
+    if(ch) removeApaLinkedCharge(t);
+    return null;
+  }
   var pct=21;
-  var gross=due;
+  var gross=over;
   var net=pct>0?gross/(1+pct/100):gross;
   var vat=gross-net;
   var date="";
@@ -640,11 +663,10 @@ function syncApaToCharge(t){
     if(sorted[0]&&sorted[0].date) date=sorted[0].date;
   }
   if(!date) date=new Date().toISOString().slice(0,10);
-  var invNo=t.linkInvNo||(ch&&ch.inv)||"";
-  var invStatus=(ch&&chargeInv(ch)==="Issued")?"Issued":((t.linkKey||invNo)?"Issued":"Not issued");
-  if(ch&&ch.invStatus==="Issued") invStatus="Issued";
-  var note="APA pot (sent + top-ups) — synced from APA ledger";
+  var note="APA shortfall (balance negative) — synced from APA ledger";
   if(t.dates) note="APA · "+t.dates+". "+note;
+  var x=apaTotals(t);
+  note+=" · pot "+money0(x.available)+" · spent "+money0(x.spent);
   if(ch){
     ch.client=t.guest;
     ch.amount=gross;
@@ -652,24 +674,44 @@ function syncApaToCharge(t){
     ch.kind="apa";
     ch.apaTripId=t.id;
     if(!ch.date) ch.date=date;
-    if(invNo) ch.inv=invNo;
-    ch.invStatus=invStatus;
-    ch.payStatus=ch.payStatus||"Paid";
-    ch.status=invStatus==="Issued"?"Invoiced":(ch.payStatus||"Paid");
-    if(!ch.notes||/^APA/i.test(ch.notes)||/synced from APA/i.test(ch.notes)) ch.notes=note;
+    /* Keep manager invoice # if already set; payment stays Pending until they mark Paid */
+    if(ch.payStatus!=="Paid") ch.payStatus="Pending";
+    if(chargeInv(ch)!=="Issued"){ ch.invStatus="Not issued"; ch.status=ch.payStatus; }
+    else ch.status="Invoiced";
+    if(!ch.notes||/^APA/i.test(ch.notes)||/synced from APA/i.test(ch.notes)||/shortfall/i.test(ch.notes)||/pot \(sent/i.test(ch.notes)) ch.notes=note;
     ch.by=session.who||ch.by;
   } else {
     ch={
       id:uid(), kind:"apa", apaTripId:t.id, date:date, client:t.guest,
       amount:gross, net:net, vat:vat, vatPct:pct, vatMode:"include",
-      payStatus:"Paid", invStatus:invStatus,
-      status:invStatus==="Issued"?"Invoiced":"Paid",
-      inv:invNo, notes:note, by:session.who||"Captain"
+      payStatus:"Pending", invStatus:"Not issued", status:"Pending",
+      inv:"", notes:note, by:session.who||"Captain"
     };
     state.charters.unshift(ch);
   }
   t.chargeId=ch.id;
   return ch;
+}
+function deleteApaTrip(id){
+  if(!isCaptain()||!id) return;
+  var t=(state.apa||[]).filter(function(x){return x.id===id;})[0];
+  if(!t) return;
+  if(!window.confirm("Delete APA trip for "+(t.guest||"this charter")+"?\n\nAll expenses, provisions and diesel rows are removed. Any linked shortfall charge is removed too.")) return;
+  removeApaLinkedCharge(t);
+  state.apa=state.apa.filter(function(x){return x.id!==id;});
+  if(activeApaId===id){ activeApaId=null; apaView="list"; }
+  save("apa"); save("charters");
+  renderCharters(); renderApa();
+}
+function deleteApaLine(kind,lineId){
+  var t=apaTrip(); if(!t||!lineId) return;
+  apaEnsureArrays(t);
+  var label=kind==="expense"?"expense":(kind==="provision"?"provision":"diesel");
+  if(!window.confirm("Delete this "+label+" entry?")) return;
+  if(kind==="expense") t.expenses=t.expenses.filter(function(x){return x.id!==lineId;});
+  else if(kind==="provision") t.provisions=t.provisions.filter(function(x){return x.id!==lineId;});
+  else t.diesel=t.diesel.filter(function(x){return x.id!==lineId;});
+  saveApa();
 }
 /** Clients from leads + charges (for APA guest picker). */
 function listApaClients(){
@@ -826,19 +868,20 @@ function renderApaList(){
     pot+=x.available; bal+=x.bal;
     var ch=findApaChargeForTrip(t);
     var over=x.bal<0;
-    html+='<div class="item" data-apa-open="'+esc(t.id)+'">'+
-      '<div class="top"><div class="title">'+esc(t.guest||"Untitled")+'</div><div class="amt money">'+(over?'':'')+money(x.bal)+'</div></div>'+
+    html+='<div class="item apa-row" data-apa-open="'+esc(t.id)+'">'+
+      '<div class="top"><div class="title">'+esc(t.guest||"Untitled")+'</div><div class="amt money"'+(over?' style="color:var(--danger)"':'')+'>'+money(x.bal)+'</div></div>'+
       '<div class="meta">'+
         (t.dates?'<span>'+esc(t.dates)+'</span>':'')+
         '<span>Pot '+money0(x.available)+'</span>'+
         '<span>Spent '+money0(x.spent)+'</span>'+
-        (ch?'<span class="pill p-apa">Charge '+money0(ch.amount)+(ch.inv?" #"+esc(ch.inv):"")+'</span>':
-          '<span class="pill p-amber">No charge yet</span>')+
-        (t.linkInvNo?'<span class="pill p-blue">Inv #'+esc(t.linkInvNo)+'</span>':'')+
+        (over&&ch?'<span class="pill p-over">Owe '+money0(ch.amount)+'</span>':
+          over?'<span class="pill p-over">Owe '+money0(-x.bal)+'</span>':
+          '<span class="pill p-grey">In pot</span>')+
+        (t.linkInvNo?'<span class="pill p-blue">APA inv #'+esc(t.linkInvNo)+'</span>':'')+
       '</div>'+
       '<div class="apa-bar'+(over?' over':'')+'" style="margin-top:10px"><i style="width:'+Math.min(100,Math.round((x.pct||0)*1000)/10)+'%"></i></div>'+
       (t.notes?'<div class="notes">'+esc(t.notes)+'</div>':'')+
-      '<span class="chev">›</span></div>';
+      '<button type="button" class="apa-x" data-apa-del-trip="'+esc(t.id)+'" aria-label="Delete trip">×</button></div>';
   });
   /* Leads with APA issued/paid but no ledger yet */
   var pending=[];
@@ -862,7 +905,16 @@ function renderApaList(){
   if(el("apaSumPot")) el("apaSumPot").textContent=money(pot);
   if(el("apaSumBal")) el("apaSumBal").textContent=money(bal);
   Array.prototype.forEach.call(wrap.querySelectorAll("[data-apa-open]"),function(x){
-    x.addEventListener("click",function(){ openApaDetail(x.getAttribute("data-apa-open")); });
+    x.addEventListener("click",function(ev){
+      if(ev.target.closest&&ev.target.closest("[data-apa-del-trip]")) return;
+      openApaDetail(x.getAttribute("data-apa-open"));
+    });
+  });
+  Array.prototype.forEach.call(wrap.querySelectorAll("[data-apa-del-trip]"),function(x){
+    x.addEventListener("click",function(ev){
+      ev.preventDefault(); ev.stopPropagation();
+      deleteApaTrip(x.getAttribute("data-apa-del-trip"));
+    });
   });
   Array.prototype.forEach.call(wrap.querySelectorAll("[data-apa-from-lead]"),function(x){
     x.addEventListener("click",function(){ startApaFromLead(x.getAttribute("data-apa-from-lead")); });
@@ -932,23 +984,26 @@ function apaOverviewHTML(t){
       (t.linkInvAmount?'<span class="money">'+money(t.linkInvAmount)+'</span>':'')+
     '</div>';
   }
-  if(ch){
+  if(over&&ch){
     linkBits+='<div class="meta" style="margin-top:6px">'+
-      '<span class="pill p-apa">Charges · '+money(ch.amount)+'</span>'+
+      '<span class="pill p-over">Charges · shortfall '+money(ch.amount)+'</span>'+
       (ch.inv?'<span>#'+esc(ch.inv)+'</span>':'')+
+      pill(chargePay(ch))+
       pill(chargeInv(ch)==="Issued"?"Invoice issued":"Invoice pending")+
     '</div>';
+  } else if(over){
+    linkBits+='<div class="meta" style="margin-top:6px"><span class="pill p-over">Shortfall '+money(-x.bal)+' — charge on save</span></div>';
   } else {
-    linkBits+='<div class="meta" style="margin-top:6px"><span class="pill p-amber">Charge will be created on save</span></div>';
+    linkBits+='<div class="meta" style="margin-top:6px"><span class="pill p-grey">In pot — no charge until overspent</span></div>';
   }
   return '<div class="apa-grid">'+
     '<div class="apa-card"><div class="k">APA received</div><div class="n money">'+money(Number(t.apaSent)||0)+'</div></div>'+
     '<div class="apa-card"><div class="k">Top-ups</div><div class="n money">'+money(Number(t.topUps)||0)+'</div></div>'+
-    '<div class="apa-card"><div class="k">Due on Charges</div><div class="n money">'+money(x.available)+'</div></div>'+
+    '<div class="apa-card"><div class="k">Shortfall charge</div><div class="n money"'+(over?' style="color:var(--danger)"':'')+'>'+money(over?-x.bal:0)+'</div></div>'+
     '<div class="apa-card"><div class="k">Spent</div><div class="n money">'+money(x.spent)+'</div></div>'+
     '<div class="apa-card bal'+(over?' warn':'')+' wide"><div class="k">Balance remaining</div><div class="n money">'+money(x.bal)+'</div>'+
       '<div class="apa-bar'+(over?' over':'')+'"><i style="width:'+Math.min(100,pctShow)+'%"></i></div>'+
-      '<div style="font-size:12px;color:var(--muted);margin-top:6px">'+pctShow+'% of APA spent · charge amount = sent + top-ups</div></div>'+
+      '<div style="font-size:12px;color:var(--muted);margin-top:6px">'+pctShow+'% of APA spent · Charges only when balance is negative</div></div>'+
   '</div>'+
   '<div class="apa-card" style="margin-bottom:12px">'+
     '<div class="k" style="margin-bottom:8px">Trip</div>'+
@@ -975,12 +1030,13 @@ function apaExpensesHTML(t){
   var html='<div class="list">';
   rows.forEach(function(e){
     run-=Number(e.amount)||0;
-    html+='<div class="item" data-apa-exp="'+esc(e.id)+'">'+
+    html+='<div class="item apa-row" data-apa-exp="'+esc(e.id)+'">'+
       '<div class="top"><div class="title">'+esc(e.vendor||e.category||"—")+'</div><div class="amt money">'+money(e.amount)+'</div></div>'+
       '<div class="meta"><span>'+esc(fmtDate(e.date))+'</span><span>'+esc(e.category||"")+'</span>'+
         (e.paidBy?'<span>'+esc(e.paidBy)+'</span>':'')+
         '<span style="color:var(--muted)">bal '+money(run)+'</span></div>'+
-      (e.notes?'<div class="notes">'+esc(e.notes)+'</div>':'')+'<span class="chev">✎</span></div>';
+      (e.notes?'<div class="notes">'+esc(e.notes)+'</div>':'')+
+      '<button type="button" class="apa-x" data-apa-del-line="expense" data-id="'+esc(e.id)+'" aria-label="Delete">×</button></div>';
   });
   return html+'</div>';
 }
@@ -990,10 +1046,11 @@ function apaProvisionsHTML(t){
   if(!rows.length) return emptyBox("🛒","No provisions yet","Tap + for supermarket / chandler receipts.");
   var html='<div class="sumcard" style="margin-bottom:12px"><div class="l">Provisions total</div><div class="v money">'+money(tot)+'</div></div><div class="list">';
   rows.forEach(function(p){
-    html+='<div class="item" data-apa-prov="'+esc(p.id)+'">'+
+    html+='<div class="item apa-row" data-apa-prov="'+esc(p.id)+'">'+
       '<div class="top"><div class="title">'+esc(p.supplier||"—")+'</div><div class="amt money">'+money(p.amount)+'</div></div>'+
       '<div class="meta"><span>'+esc(fmtDate(p.date))+'</span><span>'+esc(p.items||"provisions")+'</span></div>'+
-      (p.notes?'<div class="notes">'+esc(p.notes)+'</div>':'')+'<span class="chev">✎</span></div>';
+      (p.notes?'<div class="notes">'+esc(p.notes)+'</div>':'')+
+      '<button type="button" class="apa-x" data-apa-del-line="provision" data-id="'+esc(p.id)+'" aria-label="Delete">×</button></div>';
   });
   return html+'</div>';
 }
@@ -1010,19 +1067,22 @@ function apaDieselHTML(t){
   var html=head+'<div class="list">';
   rows.forEach(function(r){
     var c=apaDieselCalc(t,r);
-    html+='<div class="item" data-apa-dsl="'+esc(r.id)+'">'+
+    html+='<div class="item apa-row" data-apa-dsl="'+esc(r.id)+'">'+
       '<div class="top"><div class="title">'+esc(fmtDate(r.date)||"Diesel")+'</div><div class="amt money">'+money(c.cost)+'</div></div>'+
       '<div class="meta"><span>Engine '+esc(String(Number(r.engineL)||0))+' L</span><span>Gen '+esc(String(Number(r.genHrs)||0))+' h → '+esc(String(Math.round(c.genL*10)/10))+' L</span><span>'+esc(String(Math.round(c.lit*10)/10))+' L total</span></div>'+
-      (r.notes?'<div class="notes">'+esc(r.notes)+'</div>':'')+'<span class="chev">✎</span></div>';
+      (r.notes?'<div class="notes">'+esc(r.notes)+'</div>':'')+
+      '<button type="button" class="apa-x" data-apa-del-line="diesel" data-id="'+esc(r.id)+'" aria-label="Delete">×</button></div>';
   });
   return html+'</div>';
 }
 function apaSetupHTML(t){
   var ch=findApaChargeForTrip(t);
+  var over=apaOverageAmount(t);
   return '<div class="apa-card" style="margin-bottom:12px">'+
-    '<p style="margin:0 0 10px;font-size:13.5px;line-height:1.45;color:var(--muted)">Edit pot amounts while on charter — the linked <b>Charges</b> row updates automatically (create if missing).</p>'+
-    (ch?'<p style="margin:0 0 12px;font-size:13px">Linked charge: <b>'+esc(ch.client)+'</b> · '+money(ch.amount)+(ch.inv?' · #'+esc(ch.inv):'')+'</p>':
-      '<p style="margin:0 0 12px;font-size:13px;color:var(--amberInk)">No charge linked yet — save trip details to create one.</p>')+
+    '<p style="margin:0 0 10px;font-size:13.5px;line-height:1.45;color:var(--muted)">Edit pot while on charter. A <b>Charges</b> shortfall row is created/updated only when balance is <b>negative</b>; it is removed if you come back into pot.</p>'+
+    (over&&ch?'<p style="margin:0 0 12px;font-size:13px">Shortfall charge: <b>'+esc(ch.client)+'</b> · '+money(ch.amount)+(ch.inv?' · #'+esc(ch.inv):'')+'</p>':
+      over?'<p style="margin:0 0 12px;font-size:13px;color:var(--danger)">Shortfall '+money(over)+' — will create charge on save.</p>':
+      '<p style="margin:0 0 12px;font-size:13px;color:var(--muted)">Still in pot — no charge on Charges.</p>')+
     '<button type="button" class="btn" id="apaEditTrip">Edit trip / APA pot</button>'+
     '<button type="button" class="btn ghost" id="apaSyncCharge" style="margin-top:10px">Sync charge now</button>'+
     '<button type="button" class="btn danger" id="apaDelTrip" style="margin-top:10px">Delete this trip</button>'+
@@ -1030,22 +1090,32 @@ function apaSetupHTML(t){
 }
 function apaBindBody(t){
   Array.prototype.forEach.call(document.querySelectorAll("[data-apa-exp]"),function(x){
-    x.addEventListener("click",function(){ openApaLine("expense",x.getAttribute("data-apa-exp")); });
+    x.addEventListener("click",function(ev){
+      if(ev.target.closest&&ev.target.closest("[data-apa-del-line]")) return;
+      openApaLine("expense",x.getAttribute("data-apa-exp"));
+    });
   });
   Array.prototype.forEach.call(document.querySelectorAll("[data-apa-prov]"),function(x){
-    x.addEventListener("click",function(){ openApaLine("provision",x.getAttribute("data-apa-prov")); });
+    x.addEventListener("click",function(ev){
+      if(ev.target.closest&&ev.target.closest("[data-apa-del-line]")) return;
+      openApaLine("provision",x.getAttribute("data-apa-prov"));
+    });
   });
   Array.prototype.forEach.call(document.querySelectorAll("[data-apa-dsl]"),function(x){
-    x.addEventListener("click",function(){ openApaLine("diesel",x.getAttribute("data-apa-dsl")); });
+    x.addEventListener("click",function(ev){
+      if(ev.target.closest&&ev.target.closest("[data-apa-del-line]")) return;
+      openApaLine("diesel",x.getAttribute("data-apa-dsl"));
+    });
+  });
+  Array.prototype.forEach.call(document.querySelectorAll("[data-apa-del-line]"),function(x){
+    x.addEventListener("click",function(ev){
+      ev.preventDefault(); ev.stopPropagation();
+      deleteApaLine(x.getAttribute("data-apa-del-line"), x.getAttribute("data-id"));
+    });
   });
   if(el("apaEditTrip")) el("apaEditTrip").addEventListener("click",function(){ openApaTrip(t.id); });
   if(el("apaSyncCharge")) el("apaSyncCharge").addEventListener("click",function(){ saveApa(t); });
-  if(el("apaDelTrip")) el("apaDelTrip").addEventListener("click",function(){
-    if(!window.confirm("Delete APA trip for "+(t.guest||"this charter")+"?\n\nLedger rows are removed. The Charges entry is kept (you can delete it on Charges).")) return;
-    state.apa=state.apa.filter(function(x){return x.id!==t.id;});
-    activeApaId=null; apaView="list";
-    save("apa"); renderApa();
-  });
+  if(el("apaDelTrip")) el("apaDelTrip").addEventListener("click",function(){ deleteApaTrip(t.id); });
 }
 function openApaTrip(id){
   var rec=id?state.apa.filter(function(t){return t.id===id;})[0]:null;
@@ -1084,6 +1154,7 @@ function openApaTrip(id){
   h+='<div class="row2">'+fieldHTML("APA sent to us",moneyField("f_apaSent",r.apaSent))+fieldHTML("Additional top-ups",moneyField("f_topUps",r.topUps))+'</div>';
   h+='<div class="row2">'+fieldHTML("Diesel € / litre",moneyField("f_dPrice",r.dieselPrice))+fieldHTML("Generator L/hr",moneyField("f_genBurn",r.genBurn))+'</div>';
   h+=fieldHTML("Notes",'<textarea class="ctl" id="f_notes" placeholder="optional">'+esc(r.notes||"")+'</textarea>');
+  if(rec) h+='<div class="sheetbtns"><button type="button" class="btn danger" id="sheetDel">Delete trip</button></div>';
   h+='<div class="sheetfoot"><button type="button" class="btn ghost" id="sheetCancel">Cancel</button><button type="button" class="btn" id="sheetSave">Save</button></div>';
   el("sheetInner").innerHTML=h;
 
@@ -1205,6 +1276,10 @@ function openApaTrip(id){
   });
   el("sheetCancel").addEventListener("click",function(){ showSheet(false); });
   el("sheetClose").addEventListener("click",function(){ showSheet(false); });
+  if(el("sheetDel")) el("sheetDel").addEventListener("click",function(){
+    showSheet(false);
+    deleteApaTrip(r.id);
+  });
   showSheet(true);
 }
 function openApaLine(kind,id){
@@ -1732,21 +1807,13 @@ function applyData(d){
 /* Fixed IDs match server seed (real spreadsheet trip is first live APA entry) */
 var SHEET_LEAD_ID="lead-joel-freeland-2026-07";
 var SHEET_TRIP_ID="apa-joel-freeland-2026-07";
-var SHEET_CHARGE_ID="charge-apa-joel-freeland-2026-07";
 function sheetJoelLead(){
   return {id:SHEET_LEAD_ID,closed:"2026-07-16",name:"Joel Freeland",dur:"multi",start:"2026-07-17",end:"2026-07-19",rate:4000,price:"",days:3,base:12000,net:9917.36,vat:2082.64,total:12000,vatMode:"include",vatPct:21,depPct:50,dep:6000,deps:"Paid",depInv:"DEP-JF-01",fin:6000,fins:"Paid",finInv:"FIN-JF-01",apaPct:20,apa:2400,apas:"Issued",apaInv:"APA-JF-2400",reqAt:{apas:"2026-07-16T09:00:00Z"},notes:"APA ledger trip 17–19/07 — from Limitless APA Tracker spreadsheet",by:"Captain"};
-}
-function sheetJoelApaCharge(){
-  var gross=2400, pct=21, net=gross/(1+pct/100);
-  return {id:SHEET_CHARGE_ID,kind:"apa",apaTripId:SHEET_TRIP_ID,date:"2026-07-17",client:"Joel Freeland",
-    amount:gross,net:net,vat:gross-net,vatPct:pct,vatMode:"include",
-    payStatus:"Paid",invStatus:"Issued",status:"Invoiced",inv:"APA-JF-2400",
-    notes:"APA · 17-19/07. APA pot (sent + top-ups) — synced from APA ledger",by:"Captain"};
 }
 function sheetJoelApaTrip(){
   var ck="lead:"+SHEET_LEAD_ID;
   return {id:SHEET_TRIP_ID,vessel:"M/Y Limitless",guest:"Joel Freeland",captain:"Luigi",dates:"17-19/07",
-    clientKey:ck,chargeId:SHEET_CHARGE_ID,linkKey:ck+":apas",linkSource:"lead",linkSourceId:SHEET_LEAD_ID,
+    clientKey:ck,chargeId:"",linkKey:ck+":apas",linkSource:"lead",linkSourceId:SHEET_LEAD_ID,
     linkInvKind:"apas",linkInvNo:"APA-JF-2400",linkInvLabel:"APA",linkInvAmount:2400,
     apaSent:2400,topUps:0,dieselPrice:1.75,genBurn:6,
     expenses:[
@@ -1769,7 +1836,6 @@ function sheetJoelApaTrip(){
 /* Offline demo: same real spreadsheet trip first, plus a few fake charges/leads for UI */
 function seedDemo(){
   state.charters=[
-    sheetJoelApaCharge(),
     {id:uid(),date:"2026-07-18",client:"John & Mary Smith",amount:3500,vatMode:"include",vatPct:21,net:2892.56,vat:607.44,payStatus:"Paid",invStatus:"Not issued",status:"Paid",inv:"",notes:"Full-day charter, card on terminal",by:"Captain"},
     {id:uid(),date:"2026-07-12",client:"Delgado family",amount:2800,vatMode:"include",vatPct:21,net:2314.05,vat:485.95,payStatus:"Paid",invStatus:"Issued",status:"Invoiced",inv:"INV-1043",notes:"Half day",by:"Captain"}
   ];
@@ -1784,6 +1850,8 @@ function seedDemo(){
   ];
   state.log=[{ts:"2026-07-20T08:40:00Z",who:"Captain",action:"login",deviceId:"cpt-luigi-01",ip:"88.16.x.x",country:"ES"}];
   state.apa=[sheetJoelApaTrip()];
+  /* Demo diesel example puts Joel over pot → shortfall charge */
+  state.apa.forEach(function(t){ syncApaToCharge(t); });
   activeApaId=null;
   apaView="list";
 }

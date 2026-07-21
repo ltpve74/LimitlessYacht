@@ -93,30 +93,6 @@ function sheetJoelLead() {
   };
 }
 
-function sheetJoelApaCharge() {
-  const gross = 2400;
-  const pct = 21;
-  const net = gross / (1 + pct / 100);
-  return {
-    id: SHEET_CHARGE_ID,
-    kind: "apa",
-    apaTripId: SHEET_TRIP_ID,
-    date: "2026-07-17",
-    client: "Joel Freeland",
-    amount: gross,
-    net,
-    vat: gross - net,
-    vatPct: pct,
-    vatMode: "include",
-    payStatus: "Paid",
-    invStatus: "Issued",
-    status: "Invoiced",
-    inv: "APA-JF-2400",
-    notes: "APA · 17-19/07. APA pot (sent + top-ups) — synced from APA ledger",
-    by: "Captain",
-  };
-}
-
 function sheetJoelApaTrip() {
   const clientKey = "lead:" + SHEET_LEAD_ID;
   return {
@@ -126,7 +102,7 @@ function sheetJoelApaTrip() {
     captain: "Luigi",
     dates: "17-19/07",
     clientKey,
-    chargeId: SHEET_CHARGE_ID,
+    chargeId: "",
     linkKey: clientKey + ":apas",
     linkSource: "lead",
     linkSourceId: SHEET_LEAD_ID,
@@ -184,8 +160,9 @@ function sheetJoelApaTrip() {
 }
 
 /**
- * One-time install of the real spreadsheet APA trip (+ matching lead + charge)
+ * One-time install of the real spreadsheet APA trip (+ matching lead)
  * as the first live records. Does not overwrite if the trip already exists.
+ * Charges for APA only appear when balance is negative (see ensureApaChargesLinked).
  */
 function ensureSheetApaSeed(data) {
   if (!data.meta || typeof data.meta !== "object") data.meta = {};
@@ -204,21 +181,35 @@ function ensureSheetApaSeed(data) {
     dirty = true;
   } else {
     const trip = data.apa.find((t) => t && t.id === SHEET_TRIP_ID);
-    if (trip && !trip.chargeId) trip.chargeId = SHEET_CHARGE_ID;
     data.apa = [trip].concat(data.apa.filter((t) => t && t.id !== SHEET_TRIP_ID));
-    dirty = true;
-  }
-  if (!data.charters.some((c) => c && (c.id === SHEET_CHARGE_ID || c.apaTripId === SHEET_TRIP_ID))) {
-    data.charters.unshift(sheetJoelApaCharge());
     dirty = true;
   }
   data.meta.sheetApaInstalled = true;
   return true;
 }
 
+/** Spent − pot, or 0 if still in pot. Mirrors client apaOverageAmount. */
+function tripApaOverage(t) {
+  if (!t) return 0;
+  const expSum = (t.expenses || []).reduce((s, e) => s + (Number(e.amount) || 0), 0);
+  const prov = (t.provisions || []).reduce((s, p) => s + (Number(p.amount) || 0), 0);
+  const price = Number(t.dieselPrice) || 0;
+  const genBurn = Number(t.genBurn) || 0;
+  let dCost = 0;
+  for (const r of t.diesel || []) {
+    const eng = Number(r.engineL) || 0;
+    const genL = (Number(r.genHrs) || 0) * genBurn;
+    dCost += (eng + genL) * price;
+  }
+  const spent = expSum + prov + dCost;
+  const available = (Number(t.apaSent) || 0) + (Number(t.topUps) || 0);
+  const bal = available - spent;
+  return bal < 0 ? Math.round(-bal * 100) / 100 : 0;
+}
+
 /**
- * Ensure every APA trip has a linked Charges row (create if missing).
- * Does not rewrite amounts — captain client updates those on save while on charter.
+ * Charges for APA only when balance is negative (shortfall).
+ * Create/update amount; remove linked APA charge when back in pot.
  */
 function ensureApaChargesLinked(data) {
   if (!Array.isArray(data.apa) || !data.apa.length) return false;
@@ -226,38 +217,69 @@ function ensureApaChargesLinked(data) {
   let dirty = false;
   const norm = (s) => String(s || "").trim().toLowerCase().replace(/\s+/g, " ");
 
+  function findCh(t) {
+    if (t.chargeId) {
+      const byId = data.charters.find((c) => c && c.id === t.chargeId);
+      if (byId) return byId;
+    }
+    let ch = data.charters.find((c) => c && c.apaTripId === t.id);
+    if (ch) return ch;
+    const name = norm(t.guest);
+    if (!name) return null;
+    return (
+      data.charters.find((c) => c && c.kind === "apa" && norm(c.client) === name) ||
+      data.charters.find(
+        (c) => c && norm(c.client) === name && /apa/i.test(String(c.notes || "")) && c.kind !== "card"
+      ) ||
+      null
+    );
+  }
+
   for (const t of data.apa) {
     if (!t || !String(t.guest || "").trim()) continue;
-    let ch = null;
-    if (t.chargeId) ch = data.charters.find((c) => c && c.id === t.chargeId) || null;
-    if (!ch) ch = data.charters.find((c) => c && c.apaTripId === t.id) || null;
-    if (!ch) {
-      const name = norm(t.guest);
-      ch =
-        data.charters.find((c) => c && c.kind === "apa" && norm(c.client) === name) ||
-        data.charters.find(
-          (c) => c && norm(c.client) === name && /apa/i.test(String(c.notes || "")) && c.kind !== "card"
-        ) ||
-        null;
+    const over = tripApaOverage(t);
+    let ch = findCh(t);
+    if (over <= 0) {
+      if (ch && (ch.kind === "apa" || ch.apaTripId === t.id || /synced from APA|shortfall|pot \(sent/i.test(String(ch.notes || "")))) {
+        data.charters = data.charters.filter((c) => c && c.id !== ch.id);
+        t.chargeId = "";
+        dirty = true;
+      }
+      continue;
     }
+    const pct = 21;
+    const gross = over;
+    const net = pct > 0 ? gross / (1 + pct / 100) : gross;
+    const vat = gross - net;
+    const note =
+      (t.dates ? "APA · " + t.dates + ". " : "") +
+      "APA shortfall (balance negative) — synced from APA ledger";
     if (ch) {
       if (t.chargeId !== ch.id) {
         t.chargeId = ch.id;
         dirty = true;
       }
-      if (ch.apaTripId !== t.id || ch.kind !== "apa") {
-        ch.apaTripId = t.id;
+      if (Math.abs((Number(ch.amount) || 0) - gross) > 0.005 || ch.kind !== "apa" || ch.apaTripId !== t.id) {
+        ch.client = t.guest;
+        ch.amount = gross;
+        ch.net = net;
+        ch.vat = vat;
+        ch.vatPct = pct;
+        ch.vatMode = "include";
         ch.kind = "apa";
+        ch.apaTripId = t.id;
+        if (ch.payStatus !== "Paid") ch.payStatus = "Pending";
+        if (ch.invStatus !== "Issued") {
+          ch.invStatus = "Not issued";
+          ch.status = ch.payStatus || "Pending";
+        }
+        if (!ch.notes || /^APA/i.test(ch.notes) || /synced from APA|shortfall|pot \(sent/i.test(ch.notes)) {
+          ch.notes = note;
+        }
         dirty = true;
       }
       continue;
     }
-    const due = (Number(t.apaSent) || 0) + (Number(t.topUps) || 0);
-    const pct = 21;
-    const gross = due;
-    const net = pct > 0 ? gross / (1 + pct / 100) : gross;
-    const vat = gross - net;
-    const invNo = t.linkInvNo || "";
     const id = t.id === SHEET_TRIP_ID ? SHEET_CHARGE_ID : "charge-apa-" + t.id;
     ch = {
       id,
@@ -270,13 +292,11 @@ function ensureApaChargesLinked(data) {
       vat,
       vatPct: pct,
       vatMode: "include",
-      payStatus: "Paid",
-      invStatus: invNo ? "Issued" : "Not issued",
-      status: invNo ? "Invoiced" : "Paid",
-      inv: invNo,
-      notes:
-        (t.dates ? "APA · " + t.dates + ". " : "") +
-        "APA pot (sent + top-ups) — synced from APA ledger",
+      payStatus: "Pending",
+      invStatus: "Not issued",
+      status: "Pending",
+      inv: "",
+      notes: note,
       by: t.by || "Captain",
     };
     data.charters.unshift(ch);
