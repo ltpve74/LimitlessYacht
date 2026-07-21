@@ -153,6 +153,7 @@ function sheetJoelApaTrip() {
         notes: "EXAMPLE ROW — overwrite or delete",
       },
     ],
+    dieselLoads: [],
     notes: "Imported from Limitless_APA_Tracker.xlsx — first live APA ledger",
     by: "Captain",
     updatedAt: "2026-07-20T10:00:00Z",
@@ -346,7 +347,7 @@ function ensureApaChargesLinked(data) {
 
 async function loadData(store) {
   const d = await store.get(BLOB_KEY, { type: "json", consistency: "strong" });
-  return d || { charters: [], leads: [], apa: [], devices: [], log: [], pushSubs: [], meta: {} };
+  return d || { charters: [], leads: [], apa: [], diesel: [], devices: [], log: [], pushSubs: [], meta: {} };
 }
 async function saveData(store, data) {
   await store.setJSON(BLOB_KEY, data);
@@ -553,23 +554,28 @@ export default async (req, context) => {
       pushEnabled: vapidConfigured(),
       vapidPublicKey: process.env.TRACKER_VAPID_PUBLIC_KEY || "",
     };
-    /* APA ledger is captain-only — never sent to manager / other roles */
-    if (isCaptain(who)) out.apa = Array.isArray(data.apa) ? data.apa : [];
-    else out.apa = null;
+    /* APA + vessel diesel are captain-only — never sent to manager / other roles */
+    if (isCaptain(who)) {
+      out.apa = Array.isArray(data.apa) ? data.apa : [];
+      out.diesel = Array.isArray(data.diesel) ? data.diesel : [];
+    } else {
+      out.apa = null;
+      out.diesel = null;
+    }
     return json(out);
   }
 
   if (action === "save") {
     const coll = body.collection;
-    if (coll !== "charters" && coll !== "leads" && coll !== "apa") {
+    if (coll !== "charters" && coll !== "leads" && coll !== "apa" && coll !== "diesel") {
       return json({ error: "bad collection" }, 400);
     }
-    if (coll === "apa" && !isCaptain(who)) {
-      return json({ error: "APA is captain-only" }, 403);
+    if ((coll === "apa" || coll === "diesel") && !isCaptain(who)) {
+      return json({ error: coll === "diesel" ? "Diesel is captain-only" : "APA is captain-only" }, 403);
     }
     const prev = Array.isArray(data[coll]) ? data[coll] : [];
     const next = Array.isArray(body.rows) ? body.rows.slice(0, 5000) : [];
-    const notices = coll === "apa" ? [] : buildNotices(coll, prev, next, who);
+    const notices = coll === "apa" || coll === "diesel" ? [] : buildNotices(coll, prev, next, who);
     data[coll] = next;
     touchDevice();
     addLog("save " + coll + (notices.length ? " (+notify " + notices.length + ")" : ""));
