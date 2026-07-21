@@ -336,7 +336,7 @@
         <div class="sumcard"><div class="l">Deals value</div><div class="v money" id="ldTot">€0</div></div>
         <div class="sumcard"><div class="l">Invoices requested</div><div class="v" id="ldPending">0</div></div>
       </div>
-      <div class="legend">Closed website leads. Quotes are usually <b>VAT included</b>. Optional <b>invoice + cash (black)</b>: deposit &amp; final = white invoice only; cash opens an APA pot at −cash for charter spend. Tap <b>Copy for invoice</b> for paste-ready details, or <b>Request invoice</b> for the manager queue.</div>
+      <div class="legend">Closed website leads. Quotes are usually <b>VAT included</b>. Optional <b>invoice + cash (black)</b>: deposit &amp; final = white invoice only; cash opens an APA pot at −cash for charter spend. <b>Copy for invoice</b> copies the client name &amp; charter dates only. Use <b>Request invoice</b> for the manager queue.</div>
       <div class="list" id="ldList"></div>
     </section>
 
@@ -688,63 +688,28 @@ function renderLeads(){
 function pendForLead(r){
   var n=0; [r.deps,r.fins,r.apas].forEach(function(s){ if(s==="Requested")n++; }); return n;
 }
-/** Plain-text brief for the manager to paste into an invoice draft. */
+/** Client name + charter identity only — manager fills amounts on the invoice. */
 function leadInvoiceText(r){
   if(!r) return "";
-  var lines=[], L=function(s){ lines.push(s); };
+  var lines=[], L=function(s){ if(s) lines.push(s); };
   var isMulti=(r.dur==="multi")||(!r.dur&&(r.end||(Number(r.days)||0)>1));
-  var showApa=(Number(r.apaPct)||0)>0||(Number(r.apa)||0)>0;
-  var split=leadHasSplit(r);
-  L("LIMITLESS YACHT CHARTER — Invoice details");
-  L("========================================");
-  L("Client: "+(r.name||"—"));
-  if(r.closed) L("Lead closed: "+fmtDate(r.closed));
+  L((r.name||"").trim());
   if(isMulti){
     var s=r.start||r.cdate||"", e=r.end||"";
     var days=Number(r.days)||(s&&e?daysBetween(s,e):0);
-    L("Charter: multi-day"+(s?" "+fmtDate(s):"")+(e&&e!==s?" – "+fmtDate(e):"")+(days?(" ("+days+" day"+(days>1?"s":"")+")"):""));
-    if(Number(r.rate)>0) L("Daily rate (as quoted): "+money(r.rate));
+    var range="";
+    if(s&&e&&e!==s) range=fmtDate(s)+" – "+fmtDate(e);
+    else if(s) range=fmtDate(s);
+    if(range) L(range+(days?(" ("+days+" day"+(days>1?"s":"")+")"):""));
+    else if(days) L(days+" day"+(days>1?"s":"")+" charter");
   } else {
-    L("Charter: "+durLabel(r.dur||"")+(r.start||r.cdate?(" on "+fmtDate(r.start||r.cdate)): ""));
-    if(Number(r.price)>0||Number(r.rate)>0) L("Charter price (as quoted): "+money(Number(r.price)||Number(r.rate)||0));
+    var d=r.start||r.cdate||"";
+    var dur=durLabel(r.dur||"");
+    if(d&&dur) L(dur+" · "+fmtDate(d));
+    else if(d) L(fmtDate(d));
+    else if(dur) L(dur);
   }
-  if(Number(r.base)>0) L("Charter base: "+money(r.base));
-  var vatNote=vatModeLabel(r.vatMode);
-  if(vatNote){
-    var vp=(Number(r.vatPct)||0)>0?(" "+r.vatPct+"%"):"";
-    L("VAT: "+vatNote+vp+(Number(r.vat)>0?(" → "+money(r.vat)): ""));
-  }
-  if(Number(r.net)>0) L("Net (ex VAT, full quote): "+money(r.net));
-  L("Client total: "+money(r.total));
-  L("");
-  if(split){
-    var invN=Number(r.invoiceNet)||0;
-    var invV=Number(r.invoiceVat)||0;
-    var invT=Number(r.invoiceTotal)!=null&&r.invoiceTotal!==""?Number(r.invoiceTotal):(invN+invV);
-    var cashN=Number(r.cashAmt)||0;
-    L("--- White invoice (formal) ---");
-    L("Invoice net (ex VAT): "+money(invN));
-    if(invV>0) L("VAT on invoice: "+money(invV));
-    L("White invoice total: "+money(invT));
-    L("Cash (black, not on invoice): "+money(cashN));
-    L("");
-    L("--- Split for manager invoices ---");
-    L("Deposit"+(r.depPct!=""&&r.depPct!=null?" ("+r.depPct+"% of white)":"")+": "+money(r.dep)+"  ["+(r.deps||"Not requested")+"]"+(r.depInv?"  #"+r.depInv:""));
-    L("Final (white invoice): "+money(r.fin)+"  ["+(r.fins||"Not requested")+"]"+(r.finInv?"  #"+r.finInv:""));
-  } else {
-    L("--- Invoices ---");
-    L("Deposit"+(r.depPct!=""&&r.depPct!=null?" ("+r.depPct+"%)":"")+": "+money(r.dep)+"  ["+(r.deps||"Not requested")+"]"+(r.depInv?"  #"+r.depInv:""));
-    L("Final balance: "+money(r.fin)+"  ["+(r.fins||"Not requested")+"]"+(r.finInv?"  #"+r.finInv:""));
-  }
-  if(showApa){
-    L("APA"+(r.apaPct!=""&&r.apaPct!=null?" ("+r.apaPct+"%)":"")+": "+money(r.apa)+"  ["+(r.apas||"Not requested")+"]"+(r.apaInv?"  #"+r.apaInv:""));
-  }
-  if(r.notes&&String(r.notes).trim()){
-    L("");
-    L("Notes: "+String(r.notes).trim());
-  }
-  L("");
-  L("Vessel: M/Y Limitless");
+  L("M/Y Limitless");
   return lines.join("\n");
 }
 function copyTextToClipboard(text){
