@@ -1160,9 +1160,12 @@ function buildYsgInvoicePdf(p){
           y-=boxH+36;
 
           drawText("Thank you for your business!", (W-font.widthOfTextAtSize("Thank you for your business!", 12))/2, y, 12, false, black);
-          y-=48;
 
-          var footSize=9.5;
+          /* Fixed bottom zone so company/bank never collide with legal/tag */
+          var tagY=26;
+          var legalY=42;
+          var footSize=9;
+          var lineH=11.5;
           var left=[
             "Yacht Support Group SL",
             "C. del Falutx 2",
@@ -1176,18 +1179,30 @@ function buildYsgInvoicePdf(p){
             "www.yachtsupportgroup.com",
             "Europe +34 677 814 789"
           ];
-          var fy=Math.min(y, 120);
-          left.forEach(function(line,i){ drawText(line, margin, fy-i*13, footSize, false, grey); });
+          /* Last company line sits well above the legal line */
+          var companyBottom=legalY+28;
+          var companyTop=companyBottom+(left.length-1)*lineH;
+          left.forEach(function(line,i){
+            drawText(line, margin, companyTop-i*lineH, footSize, false, grey, 280);
+          });
           right.forEach(function(line,i){
-            drawRight(line, W-margin, fy-i*13, footSize, false, grey);
+            drawRight(line, W-margin, companyTop-i*lineH, footSize, false, grey);
           });
 
           var legal="Payments are due within 14 days of the invoice date. Bank charges are for the account of the client.";
-          var legalW=font.widthOfTextAtSize(legal, 8.5);
-          drawText(legal, (W-legalW)/2, 52, 8.5, false, grey);
+          var legalW=font.widthOfTextAtSize(legal, 8);
+          if(legalW>W-margin*2){
+            /* two-line legal if needed */
+            var mid="Payments are due within 14 days of the invoice date.";
+            var mid2="Bank charges are for the account of the client.";
+            drawText(mid, (W-font.widthOfTextAtSize(mid, 8))/2, legalY+9, 8, false, grey);
+            drawText(mid2, (W-font.widthOfTextAtSize(mid2, 8))/2, legalY-2, 8, false, grey);
+          } else {
+            drawText(legal, (W-legalW)/2, legalY, 8, false, grey);
+          }
           var tag="YACHT MANAGEMENT  ·  PROJECT MANAGEMENT  ·  TECHNICAL SUPPORT";
-          var tagW=font.widthOfTextAtSize(tag, 8);
-          drawText(tag, (W-tagW)/2, 36, 8, false, rgb(0.55,0.55,0.55));
+          var tagW=font.widthOfTextAtSize(tag, 7.5);
+          drawText(tag, (W-tagW)/2, tagY, 7.5, false, rgb(0.55,0.55,0.55));
 
           return doc.save().then(function(bytes){
             return new Blob([bytes], {type:"application/pdf"});
