@@ -278,7 +278,7 @@
 
     <!-- APA (captain only) -->
     <section id="tab-apa" class="hidden">
-      <div class="legend">Captain-only APA ledger (same model as the Excel tracker). Enter trip APA, log expenses / provisions / diesel — balance updates live. Manager cannot open this tab.</div>
+      <div class="legend">Captain-only APA ledger (same model as the Excel tracker). Choose a <b>client</b> and link an <b>issued invoice</b>, then log expenses / provisions / diesel. Manager cannot open this tab.</div>
       <div class="apa-tripbar">
         <select class="ctl" id="apaTripSel" aria-label="Trip"></select>
         <button type="button" class="btn ghost" id="apaNewTrip">+ Trip</button>
@@ -568,8 +568,78 @@ function bindEdit(wrap,attr,type){
 /* -------- APA (captain-only ledger) -------- */
 function emptyApaTrip(){
   return { id:uid(), vessel:"M/Y Limitless", guest:"", captain:"Luigi", dates:"",
+    clientKey:"", linkKey:"", linkSource:"", linkSourceId:"", linkInvKind:"", linkInvNo:"", linkInvLabel:"", linkInvAmount:0,
     apaSent:0, topUps:0, dieselPrice:1.75, genBurn:6,
     expenses:[], provisions:[], diesel:[], notes:"", by:session.who||"Captain", updatedAt:new Date().toISOString() };
+}
+/** Clients from leads + charges (for APA guest picker). */
+function listApaClients(){
+  var out=[], seen={};
+  (state.leads||[]).forEach(function(l){
+    if(!l||!l.name) return;
+    var k="lead:"+l.id;
+    if(seen[k]) return; seen[k]=1;
+    out.push({ key:k, name:l.name, source:"lead", sourceId:l.id, lead:l });
+  });
+  (state.charters||[]).forEach(function(c){
+    if(!c||!c.client) return;
+    var k="charter:"+c.id;
+    if(seen[k]) return; seen[k]=1;
+    out.push({ key:k, name:c.client, source:"charter", sourceId:c.id, charter:c });
+  });
+  out.sort(function(a,b){ return a.name.localeCompare(b.name); });
+  return out;
+}
+/** Invoices already Issued/Paid on leads + Issued charges — linkable to an APA ledger. */
+function listIssuedInvoices(){
+  var out=[];
+  (state.leads||[]).forEach(function(lead){
+    [
+      {kind:"deps",label:"Deposit",inv:"depInv",amt:"dep",st:"deps"},
+      {kind:"fins",label:"Final",inv:"finInv",amt:"fin",st:"fins"},
+      {kind:"apas",label:"APA",inv:"apaInv",amt:"apa",st:"apas"}
+    ].forEach(function(p){
+      var st=lead[p.st];
+      if(st!=="Issued"&&st!=="Paid") return;
+      out.push({
+        key:"lead:"+lead.id+":"+p.kind, source:"lead", sourceId:lead.id, invKind:p.kind,
+        label:p.label, client:lead.name||"", invNo:String(lead[p.inv]||"").trim(),
+        amount:Number(lead[p.amt])||0,
+        dates:rangeStr(lead)||(lead.start?fmtDate(lead.start):""),
+        clientKey:"lead:"+lead.id
+      });
+    });
+  });
+  (state.charters||[]).forEach(function(ch){
+    if(chargeInv(ch)!=="Issued") return;
+    out.push({
+      key:"charter:"+ch.id, source:"charter", sourceId:ch.id, invKind:"charge",
+      label:"Charge", client:ch.client||"", invNo:String(ch.inv||"").trim(),
+      amount:Number(ch.amount)||0, dates:ch.date?fmtDate(ch.date):"",
+      clientKey:"charter:"+ch.id
+    });
+  });
+  out.sort(function(a,b){
+    if(a.invKind==="apas"&&b.invKind!=="apas") return -1;
+    if(b.invKind==="apas"&&a.invKind!=="apas") return 1;
+    return (a.client||"").localeCompare(b.client||"");
+  });
+  return out;
+}
+function findIssuedInvoice(key){
+  if(!key) return null;
+  var list=listIssuedInvoices();
+  for(var i=0;i<list.length;i++) if(list[i].key===key) return list[i];
+  return null;
+}
+function apaClientDates(lead){
+  if(!lead) return "";
+  if(lead.dur==="multi"||lead.end){
+    var s=lead.start?fmtDate(lead.start):"", e=lead.end?fmtDate(lead.end):"";
+    if(s&&e&&e!==s) return s+"–"+e;
+    return s||e||"";
+  }
+  return lead.start?fmtDate(lead.start):(lead.cdate?fmtDate(lead.cdate):"");
 }
 function apaTrip(){
   if(!state.apa) state.apa=[];
@@ -659,6 +729,14 @@ function apaOverviewHTML(t){
     else v=x.cats[c.label]||0;
     return '<tr><td>'+esc(c.label)+'</td><td class="money" style="text-align:right;font-weight:700">'+money(v)+'</td></tr>';
   }).join("");
+  var linkBits="";
+  if(t.linkKey||t.linkInvNo||t.linkInvLabel){
+    linkBits='<div class="meta" style="margin-top:8px">'+
+      '<span class="pill p-blue">Linked '+(t.linkInvLabel?esc(t.linkInvLabel):"invoice")+'</span>'+
+      (t.linkInvNo?'<span>#'+esc(t.linkInvNo)+'</span>':'')+
+      (t.linkInvAmount?'<span class="money">'+money(t.linkInvAmount)+'</span>':'')+
+    '</div>';
+  }
   return '<div class="apa-grid">'+
     '<div class="apa-card"><div class="k">APA received</div><div class="n money">'+money(Number(t.apaSent)||0)+'</div></div>'+
     '<div class="apa-card"><div class="k">Top-ups</div><div class="n money">'+money(Number(t.topUps)||0)+'</div></div>'+
@@ -672,6 +750,7 @@ function apaOverviewHTML(t){
     '<div class="k" style="margin-bottom:8px">Trip</div>'+
     '<div style="font-weight:700">'+esc(t.guest||"—")+'</div>'+
     '<div class="meta" style="margin-top:4px"><span>'+esc(t.vessel||"")+'</span><span>'+esc(t.dates||"")+'</span><span>'+esc(t.captain||"")+'</span></div>'+
+    linkBits+
   '</div>'+
   '<div class="apa-card" style="margin-bottom:12px">'+
     '<div class="k" style="margin-bottom:6px">Spend by category</div>'+
@@ -762,8 +841,34 @@ function apaBindBody(t){
 function openApaTrip(id){
   var rec=id?state.apa.filter(function(t){return t.id===id;})[0]:null;
   var r=rec||emptyApaTrip();
+  var clients=listApaClients();
+  var invs=listIssuedInvoices();
+  var curClient=r.clientKey||"";
+  var curLink=r.linkKey||"";
+  /* If old trip only has guest text, try match by name */
+  if(!curClient&&r.guest){
+    for(var i=0;i<clients.length;i++){ if(clients[i].name===r.guest){ curClient=clients[i].key; break; } }
+  }
+  if(!curClient&&r.guest) curClient="__manual__";
   var h='<div class="sheethead"><h2>'+(rec?"Edit trip":"New APA trip")+'</h2><button type="button" class="sheetx" id="sheetClose" aria-label="Close">×</button></div>';
-  h+=fieldHTML("Charter / Guest",'<input class="ctl" id="f_guest" value="'+esc(r.guest)+'" placeholder="e.g. Joel Freeland">');
+  h+='<p style="margin:0 0 12px;font-size:12.5px;color:var(--muted);line-height:1.45">Pick a client from Leads / Charges, then link an <b>already issued</b> invoice (APA preferred). Guest name and APA amount fill in when you link an APA invoice.</p>';
+  var cOpts='<option value="">— Choose client —</option>';
+  clients.forEach(function(c){
+    cOpts+='<option value="'+esc(c.key)+'"'+(c.key===curClient?" selected":"")+'>'+esc(c.name)+(c.source==="lead"?" · lead":" · charge")+'</option>';
+  });
+  cOpts+='<option value="__manual__"'+(curClient==="__manual__"?" selected":"")+'>Other (type name)…</option>';
+  h+=fieldHTML("Client",'<select class="ctl" id="f_clientKey">'+cOpts+'</select>');
+  h+='<div id="f_guestWrap"'+(curClient==="__manual__"||(!curClient&&r.guest)?"":" class=\"hidden\"")+'>'+
+    fieldHTML("Guest name",'<input class="ctl" id="f_guest" value="'+esc(r.guest)+'" placeholder="Type guest / charter name">')+'</div>';
+  h+='<div id="f_guestRo" class="field'+(curClient&&curClient!=="__manual__"?"":" hidden")+'"><label>Guest</label><div class="ctl" style="background:#f5f8f9" id="f_guestLabel">'+esc(r.guest||"—")+'</div></div>';
+  var iOpts='<option value="">— No invoice link —</option>';
+  invs.forEach(function(inv){
+    var lab=inv.client+" · "+inv.label+(inv.invNo?" #"+inv.invNo:"")+" · "+money0(inv.amount);
+    iOpts+='<option value="'+esc(inv.key)+'"'+(inv.key===curLink?" selected":"")+'>'+esc(lab)+'</option>';
+  });
+  if(!invs.length) iOpts='<option value="">No issued invoices yet — issue one on Leads/Charges first</option>';
+  h+=fieldHTML("Link issued invoice",'<select class="ctl" id="f_linkKey">'+iOpts+'</select>');
+  h+='<p id="f_linkHint" style="margin:-8px 0 14px;font-size:12px;color:var(--muted);line-height:1.4"></p>';
   h+=fieldHTML("Vessel",'<input class="ctl" id="f_vessel" value="'+esc(r.vessel||"M/Y Limitless")+'">');
   h+='<div class="row2">'+fieldHTML("Captain",'<input class="ctl" id="f_captain" value="'+esc(r.captain||"Luigi")+'">')+
     fieldHTML("Trip dates",'<input class="ctl" id="f_dates" value="'+esc(r.dates||"")+'" placeholder="17-19/07">')+'</div>';
@@ -772,16 +877,115 @@ function openApaTrip(id){
   h+=fieldHTML("Notes",'<textarea class="ctl" id="f_notes" placeholder="optional">'+esc(r.notes||"")+'</textarea>');
   h+='<div class="sheetfoot"><button type="button" class="btn ghost" id="sheetCancel">Cancel</button><button type="button" class="btn" id="sheetSave">Save</button></div>';
   el("sheetInner").innerHTML=h;
+
+  function setGuestUI(){
+    var ck=el("f_clientKey").value;
+    var manual=ck==="__manual__"||ck==="";
+    if(ck===""){ /* still choosing */ manual=true; }
+    if(ck==="__manual__"){
+      el("f_guestWrap").classList.remove("hidden");
+      el("f_guestRo").classList.add("hidden");
+    } else if(ck){
+      el("f_guestWrap").classList.add("hidden");
+      el("f_guestRo").classList.remove("hidden");
+      var cl=clients.filter(function(c){return c.key===ck;})[0];
+      var name=cl?cl.name:"";
+      el("f_guestLabel").textContent=name||"—";
+      if(cl&&cl.lead){
+        if(!el("f_dates").value) el("f_dates").value=apaClientDates(cl.lead);
+      }
+    } else {
+      el("f_guestWrap").classList.remove("hidden");
+      el("f_guestRo").classList.add("hidden");
+    }
+    filterInvoices();
+  }
+  function filterInvoices(){
+    var ck=el("f_clientKey").value;
+    var sel=el("f_linkKey");
+    var keep=sel.value;
+    var opts='<option value="">— No invoice link —</option>';
+    var n=0;
+    invs.forEach(function(inv){
+      if(ck&&ck!=="__manual__"&&inv.clientKey!==ck) return;
+      if(ck==="__manual__"){
+        var g=(el("f_guest")&&el("f_guest").value||"").trim().toLowerCase();
+        if(g&&inv.client.toLowerCase().indexOf(g)===-1&&g.indexOf(inv.client.toLowerCase())===-1) return;
+      }
+      n++;
+      opts+='<option value="'+esc(inv.key)+'"'+(inv.key===keep?" selected":"")+'>'+esc(inv.client+" · "+inv.label+(inv.invNo?" #"+inv.invNo:"")+" · "+money0(inv.amount))+'</option>';
+    });
+    if(!n&&invs.length) opts='<option value="">No issued invoices for this client</option>';
+    if(!invs.length) opts='<option value="">No issued invoices yet — issue one on Leads/Charges first</option>';
+    sel.innerHTML=opts;
+    if(keep&&[].some.call(sel.options,function(o){return o.value===keep;})) sel.value=keep;
+    updateLinkHint();
+  }
+  function updateLinkHint(){
+    var inv=findIssuedInvoice(el("f_linkKey").value);
+    var hint=el("f_linkHint");
+    if(!inv){ hint.textContent="Optional. Link once the manager has marked an invoice Issued (or Paid)."; return; }
+    hint.textContent="Linked: "+inv.label+(inv.invNo?" #"+inv.invNo:"")+" · "+money(inv.amount)+(inv.dates?" · "+inv.dates:"");
+  }
+  function applyInvoice(){
+    var inv=findIssuedInvoice(el("f_linkKey").value);
+    if(!inv){ updateLinkHint(); return; }
+    /* Select matching client */
+    if(inv.clientKey&&[].some.call(el("f_clientKey").options,function(o){return o.value===inv.clientKey;})){
+      el("f_clientKey").value=inv.clientKey;
+    } else {
+      el("f_clientKey").value="__manual__";
+      if(el("f_guest")) el("f_guest").value=inv.client;
+    }
+    setGuestUI();
+    if(el("f_guestLabel")) el("f_guestLabel").textContent=inv.client;
+    if(el("f_guest")&&el("f_clientKey").value==="__manual__") el("f_guest").value=inv.client;
+    /* APA invoice → pot amount */
+    if(inv.invKind==="apas"&&inv.amount>0) el("f_apaSent").value=inv.amount;
+    if(inv.dates&&!el("f_dates").value) el("f_dates").value=inv.dates;
+    /* re-select invoice after filter rebuild */
+    el("f_linkKey").value=inv.key;
+    updateLinkHint();
+  }
+
+  el("f_clientKey").addEventListener("change",function(){
+    setGuestUI();
+    /* clear invoice if it no longer matches */
+    var inv=findIssuedInvoice(el("f_linkKey").value);
+    if(inv&&el("f_clientKey").value&&el("f_clientKey").value!=="__manual__"&&inv.clientKey!==el("f_clientKey").value){
+      el("f_linkKey").value="";
+      updateLinkHint();
+    }
+  });
+  if(el("f_guest")) el("f_guest").addEventListener("input",filterInvoices);
+  el("f_linkKey").addEventListener("change",applyInvoice);
+  setGuestUI();
+  updateLinkHint();
+
   el("sheetSave").addEventListener("click",function(){
+    var ck=el("f_clientKey").value;
+    var guest="";
+    if(ck==="__manual__"||!ck){
+      guest=(el("f_guest")?el("f_guest").value:"").trim();
+      if(!ck) ck="__manual__";
+    } else {
+      var cl=clients.filter(function(c){return c.key===ck;})[0];
+      guest=cl?cl.name:"";
+    }
+    if(!guest){ if(el("f_guest")&&!el("f_guestWrap").classList.contains("hidden")) el("f_guest").focus(); else el("f_clientKey").focus(); return; }
+    var inv=findIssuedInvoice(el("f_linkKey").value);
     var obj={
-      id:r.id, vessel:el("f_vessel").value.trim()||"M/Y Limitless", guest:el("f_guest").value.trim(),
+      id:r.id, vessel:el("f_vessel").value.trim()||"M/Y Limitless", guest:guest,
+      clientKey:ck||"",
+      linkKey:inv?inv.key:"", linkSource:inv?inv.source:"", linkSourceId:inv?inv.sourceId:"",
+      linkInvKind:inv?inv.invKind:"", linkInvNo:inv?inv.invNo:"", linkInvLabel:inv?inv.label:"",
+      linkInvAmount:inv?inv.amount:0,
       captain:el("f_captain").value.trim()||"Luigi", dates:el("f_dates").value.trim(),
       apaSent:Number(el("f_apaSent").value)||0, topUps:Number(el("f_topUps").value)||0,
       dieselPrice:Number(el("f_dPrice").value)||0, genBurn:Number(el("f_genBurn").value)||0,
       expenses:r.expenses||[], provisions:r.provisions||[], diesel:r.diesel||[],
       notes:el("f_notes").value.trim(), by:session.who, updatedAt:new Date().toISOString()
     };
-    if(!obj.guest){ el("f_guest").focus(); return; }
     if(rec){ state.apa=state.apa.map(function(x){return x.id===obj.id?obj:x;}); }
     else { state.apa.unshift(obj); }
     activeApaId=obj.id; apaSub="overview";
@@ -1312,13 +1516,18 @@ function applyData(d){
   if(!DEMO) refreshPushStatus();
 }
 
-/* -------- demo seed -------- */
+/* -------- demo seed (APA numbers match tracker/Limitless_APA_Tracker.xlsx) -------- */
 function seedDemo(){
+  var joelId=uid(), apaTripId=uid();
+  var joelClientKey="lead:"+joelId;
+  var joelApaKey="lead:"+joelId+":apas";
   state.charters=[
     {id:uid(),date:"2026-07-18",client:"John & Mary Smith",amount:3500,vatMode:"include",vatPct:21,net:2892.56,vat:607.44,payStatus:"Paid",invStatus:"Not issued",status:"Paid",inv:"",notes:"Full-day charter, card on terminal",by:"Captain"},
     {id:uid(),date:"2026-07-12",client:"Delgado family",amount:2800,vatMode:"include",vatPct:21,net:2314.05,vat:485.95,payStatus:"Paid",invStatus:"Issued",status:"Invoiced",inv:"INV-1043",notes:"Half day",by:"Captain"}
   ];
   state.leads=[
+    /* Spreadsheet guest — APA invoice already issued so the ledger can link to it */
+    {id:joelId,closed:"2026-07-16",name:"Joel Freeland",dur:"multi",start:"2026-07-17",end:"2026-07-19",rate:4000,price:"",days:3,base:12000,net:9917.36,vat:2082.64,total:12000,vatMode:"include",vatPct:21,depPct:50,dep:6000,deps:"Paid",depInv:"DEP-JF-01",fin:6000,fins:"Paid",finInv:"FIN-JF-01",apaPct:20,apa:2400,apas:"Issued",apaInv:"APA-JF-2400",reqAt:{apas:"2026-07-16T09:00:00Z"},notes:"Demo from Limitless_APA_Tracker.xlsx — APA €2,400 issued",by:"Captain"},
     {id:uid(),closed:"2026-07-15",name:"Acme Corp (website form)",dur:"multi",start:"2026-08-10",end:"2026-08-12",rate:5000,price:"",days:3,base:15000,net:12396.69,vat:2603.31,total:15000,vatMode:"include",vatPct:21,depPct:50,dep:7500,deps:"Requested",depInv:"",fin:7500,fins:"Not requested",finInv:"",apaPct:30,apa:4500,apas:"Not requested",apaInv:"",reqAt:{deps:"2026-07-15T10:00:00Z"},notes:"Overnight charter — APA applies; price includes VAT",by:"Captain"},
     {id:uid(),closed:"2026-07-17",name:"Rossi family (website)",dur:"6h",start:"2026-07-25",end:"",rate:3500,price:3500,days:1,base:3500,net:3500,vat:735,total:4235,vatMode:"add",vatPct:21,depPct:50,dep:2117.5,deps:"Issued",depInv:"INV-2101",fin:2117.5,fins:"Not requested",finInv:"",apaPct:"",apa:0,apas:"Not requested",apaInv:"",notes:"6-hour day charter, VAT added on top",by:"Captain"},
     {id:uid(),closed:"2026-07-18",name:"Becker (website)",dur:"4h",start:"2026-07-28",end:"",rate:2200,price:2200,days:1,base:2200,net:2200,vat:0,total:2200,vatMode:"none",vatPct:"",depPct:50,dep:1100,deps:"Requested",depInv:"",fin:1100,fins:"Not requested",finInv:"",apaPct:"",apa:0,apas:"Not requested",apaInv:"",reqAt:{deps:"2026-07-18T12:00:00Z"},notes:"4-hour sunset charter",by:"Captain"}
@@ -1333,8 +1542,11 @@ function seedDemo(){
     {ts:"2026-07-19T23:14:00Z",who:"Manager",action:"login",deviceId:"unknown-9f3",ip:"197.210.x.x",country:"NG"},
     {ts:"2026-07-19T18:20:00Z",who:"Manager",action:"save charters",deviceId:"mgr-mac-02",ip:"81.44.x.x",country:"ES"}
   ];
+  /* Exact sample rows from Limitless_APA_Tracker.xlsx */
   state.apa=[{
-    id:uid(), vessel:"M/Y Limitless", guest:"Joel Freeland", captain:"Luigi", dates:"17-19/07",
+    id:apaTripId, vessel:"M/Y Limitless", guest:"Joel Freeland", captain:"Luigi", dates:"17-19/07",
+    clientKey:joelClientKey, linkKey:joelApaKey, linkSource:"lead", linkSourceId:joelId,
+    linkInvKind:"apas", linkInvNo:"APA-JF-2400", linkInvLabel:"APA", linkInvAmount:2400,
     apaSent:2400, topUps:0, dieselPrice:1.75, genBurn:6,
     expenses:[
       {id:uid(),date:"2026-07-17",category:"Dockage / Marina",amount:579.07,vendor:"Marina Tramontana - Soller",paidBy:"Ship card",receipt:"",notes:""},
@@ -1342,16 +1554,17 @@ function seedDemo(){
     ],
     provisions:[
       {id:uid(),date:"2026-07-16",supplier:"Makro",items:"provisions",amount:210.35,receipt:"",notes:""},
-      {id:uid(),date:"2026-07-17",supplier:"Carrefour",items:"provisions",amount:225.28,receipt:"",notes:""},
-      {id:uid(),date:"2026-07-17",supplier:"Carrefour",items:"provisions",amount:13.11,receipt:"",notes:""},
-      {id:uid(),date:"2026-07-18",supplier:"Supermercado Frau",items:"provisions",amount:27.33,receipt:"",notes:""},
-      {id:uid(),date:"2026-07-18",supplier:"Sa Botiga",items:"provisions",amount:20.55,receipt:"",notes:""},
-      {id:uid(),date:"2026-07-19",supplier:"Eroski",items:"provisions",amount:83.1,receipt:"",notes:""}
+      {id:uid(),date:"2026-07-17",supplier:"carrefour",items:"provisions",amount:225.28,receipt:"",notes:""},
+      {id:uid(),date:"2026-07-17",supplier:"carrefour",items:"provisions",amount:13.11,receipt:"",notes:""},
+      {id:uid(),date:"2026-07-18",supplier:"supermercado frau",items:"provisions",amount:27.33,receipt:"",notes:""},
+      {id:uid(),date:"2026-07-18",supplier:"sa botiga",items:"provisions",amount:20.55,receipt:"",notes:""},
+      {id:uid(),date:"2026-07-19",supplier:"eroski",items:"provisions",amount:83.1,receipt:"",notes:""}
     ],
-    diesel:[{id:uid(),date:"2026-07-20",engineL:1986,genHrs:24,notes:"Example row — edit or delete"}],
-    notes:"Demo trip from APA spreadsheet sample", by:"Captain", updatedAt:"2026-07-20T10:00:00Z"
+    diesel:[{id:uid(),date:"2026-07-20",engineL:1986,genHrs:24,notes:"EXAMPLE ROW — overwrite or delete"}],
+    notes:"Demo ledger from Limitless_APA_Tracker.xlsx (Dashboard / Expenses / Provisions / Diesel)",
+    by:"Captain", updatedAt:"2026-07-20T10:00:00Z"
   }];
-  activeApaId=state.apa[0].id;
+  activeApaId=apaTripId;
 }
 </script>
 </body>
