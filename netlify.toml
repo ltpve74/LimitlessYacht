@@ -24,6 +24,21 @@
     Cache-Control = "no-store"
     X-Robots-Tag = "noindex, nofollow"
 
+# Service worker must revalidate so push updates ship
+[[headers]]
+  for = "/tracker/sw.js"
+  [headers.values]
+    Cache-Control = "no-cache"
+    Service-Worker-Allowed = "/tracker/"
+    X-Robots-Tag = "noindex, nofollow"
+
+[[headers]]
+  for = "/tracker/manifest.webmanifest"
+  [headers.values]
+    Cache-Control = "no-cache"
+    Content-Type = "application/manifest+json"
+    X-Robots-Tag = "noindex, nofollow"
+
 # Long-cache static media (filenames are stable; rename to bust cache)
 [[headers]]
   for = "/images/*"

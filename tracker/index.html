@@ -5,6 +5,12 @@
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover, maximum-scale=1">
 <meta name="robots" content="noindex, nofollow">
 <meta name="theme-color" content="#1F4E5F">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="Tracker">
+<meta name="mobile-web-app-capable" content="yes">
+<link rel="manifest" href="/tracker/manifest.webmanifest">
+<link rel="apple-touch-icon" href="/tracker/icons/icon-180.png">
 <title>Limitless — Charter &amp; Invoice Tracker</title>
 <style>
   :root{
@@ -166,6 +172,13 @@
              background:linear-gradient(to top, #fff 70%, rgba(255,255,255,.92));
              border-top:1px solid var(--line)}
   .sheetfoot .btn{flex:1}
+  .pushcard{background:var(--card);border-radius:14px;box-shadow:0 1px 3px rgba(0,0,0,.07);padding:14px;margin-bottom:14px;border:1px solid var(--line)}
+  .pushcard h3{margin:0 0 6px;font-size:15px}
+  .pushcard p{margin:0 0 12px;font-size:13px;color:var(--muted);line-height:1.45}
+  .pushcard .st{font-size:12.5px;font-weight:700;margin-bottom:10px}
+  .pushcard .st.on{color:var(--greenInk)} .pushcard .st.off{color:var(--amberInk)} .pushcard .st.na{color:var(--muted)}
+  .pushcard .row{display:flex;gap:8px;flex-wrap:wrap}
+  .pushcard .row .btn{flex:1;min-width:120px;padding:12px}
   @media(min-width:620px){
     .sheet{max-width:520px;margin:0 auto;border-radius:20px;bottom:auto;top:50%;left:50%;right:auto;
            max-height:min(88vh,720px);transform:translate(-50%,-46%) scale(.98);opacity:0;transition:opacity .2s, transform .2s}
@@ -237,6 +250,15 @@
     <!-- SECURITY -->
     <section id="tab-security" class="hidden">
       <div class="banner" id="secBanner"></div>
+      <div class="pushcard" id="pushCard">
+        <h3>Notifications</h3>
+        <p>Get an alert when an invoice is requested or issued — works best from the home-screen app (iPhone: Share → Add to Home Screen, then open Tracker from there).</p>
+        <div class="st na" id="pushStatus">Checking…</div>
+        <div class="row">
+          <button type="button" class="btn" id="pushEnable">Enable alerts</button>
+          <button type="button" class="btn ghost" id="pushTest">Send test</button>
+        </div>
+      </div>
       <div class="sectitle">Who's using this passcode</div>
       <div class="statrow">
         <div class="stat"><div class="n" id="sDevices">0</div><div class="l">Devices seen</div></div>
@@ -280,6 +302,7 @@ function safeSet(k,v){ try{ localStorage.setItem(k,v); }catch(e){ memStore[k]=v;
 var DEMO=false, curTab="charters";
 var session={ who:null, pass:null, deviceId:null };
 var state={ charters:[], leads:[], devices:[], log:[] };
+var pushMeta={ server:false, vapidPublicKey:"", endpoint:"" };
 
 function deviceId(){
   var id=safeGet("limitless_device");
@@ -318,7 +341,8 @@ function enterApp(){
   el("gate").classList.add("hidden"); el("app").classList.remove("hidden");
   el("meLabel").textContent=session.who+(DEMO?" · demo":"");
   el("demoNote").classList.toggle("hidden",!DEMO);
-  renderAll(); if(!DEMO) startPolling();
+  renderAll(); if(!DEMO){ startPolling(); initPushUI(); }
+  else { setPushStatus("na","Demo mode — notifications need the live app"); }
 }
 el("logoutBtn").addEventListener("click",function(){ location.reload(); });
 
@@ -694,8 +718,87 @@ function save(coll){
   var hint=el("saveHint");
   if(DEMO){ hint.textContent="Saved (demo — not stored)"; hint.className="savehint saved"; return; }
   hint.textContent="Saving…"; hint.className="savehint saving";
-  api("save",{collection:coll,rows:state[coll]}).then(function(){ hint.textContent="All changes saved ✓"; hint.className="savehint saved"; })
+  api("save",{collection:coll,rows:state[coll],pushEndpoint:pushMeta.endpoint||""}).then(function(){ hint.textContent="All changes saved ✓"; hint.className="savehint saved"; })
     .catch(function(e){ hint.textContent=(e&&e.code===401)?"Session expired — reload":"Couldn't save — check connection"; hint.className="savehint error"; });
+}
+
+/* -------- push notifications (homescreen PWA) -------- */
+function setPushStatus(kind,text){
+  var s=el("pushStatus"); if(!s) return;
+  s.className="st "+kind; s.textContent=text;
+}
+function urlBase64ToUint8Array(base64String){
+  var padding="=".repeat((4-base64String.length%4)%4);
+  var base64=(base64String+padding).replace(/-/g,"+").replace(/_/g,"/");
+  var raw=atob(base64), out=new Uint8Array(raw.length);
+  for(var i=0;i<raw.length;i++) out[i]=raw.charCodeAt(i);
+  return out;
+}
+function pushSupported(){
+  return !!(self.Notification && navigator.serviceWorker && self.PushManager);
+}
+function isStandalone(){
+  return (window.matchMedia&&window.matchMedia("(display-mode: standalone)").matches) || window.navigator.standalone===true;
+}
+function initPushUI(){
+  var en=el("pushEnable"), te=el("pushTest");
+  if(en) en.addEventListener("click",function(){ enablePush(); });
+  if(te) te.addEventListener("click",function(){ testPush(); });
+  refreshPushStatus();
+  if(!DEMO && pushSupported()){
+    navigator.serviceWorker.register("/tracker/sw.js",{scope:"/tracker/"}).catch(function(){});
+  }
+}
+function refreshPushStatus(){
+  if(DEMO){ setPushStatus("na","Demo mode — open the live tracker for alerts"); return; }
+  if(!pushMeta.server){ setPushStatus("na","Server push not configured yet (VAPID keys in Netlify)"); return; }
+  if(!pushSupported()){ setPushStatus("na","This browser does not support web push"); return; }
+  if(!isStandalone() && /iPhone|iPad|iPod/.test(navigator.userAgent)){
+    setPushStatus("off","On iPhone: open from the Home Screen app, then tap Enable alerts");
+  }
+  navigator.serviceWorker.ready.then(function(reg){
+    return reg.pushManager.getSubscription();
+  }).then(function(sub){
+    if(sub){ pushMeta.endpoint=sub.endpoint; setPushStatus("on","Alerts on — this device will be notified"); }
+    else if(Notification.permission==="denied"){ setPushStatus("off","Blocked in system settings — allow notifications for Tracker"); }
+    else if(Notification.permission==="granted"){ setPushStatus("off","Permission granted — tap Enable alerts to finish"); }
+    else { setPushStatus("off","Alerts off — tap Enable alerts"); }
+  }).catch(function(){ setPushStatus("na","Could not check notification status"); });
+}
+function enablePush(){
+  if(DEMO){ setPushStatus("na","Demo mode only"); return; }
+  if(!pushMeta.server||!pushMeta.vapidPublicKey){ setPushStatus("na","Push not configured on server"); return; }
+  if(!pushSupported()){ setPushStatus("na","Notifications not supported here"); return; }
+  setPushStatus("na","Requesting permission…");
+  navigator.serviceWorker.register("/tracker/sw.js",{scope:"/tracker/"})
+    .then(function(){ return navigator.serviceWorker.ready; })
+    .then(function(reg){
+      return Notification.requestPermission().then(function(perm){
+        if(perm!=="granted"){ setPushStatus("off","Permission not granted"); return null; }
+        return reg.pushManager.subscribe({
+          userVisibleOnly:true,
+          applicationServerKey:urlBase64ToUint8Array(pushMeta.vapidPublicKey)
+        });
+      });
+    })
+    .then(function(sub){
+      if(!sub) return;
+      pushMeta.endpoint=sub.endpoint;
+      return api("push-subscribe",{subscription:sub.toJSON()}).then(function(){
+        setPushStatus("on","Alerts on — this device will be notified");
+      });
+    })
+    .catch(function(err){
+      setPushStatus("off","Could not enable: "+(err&&err.message?err.message:"try again from the home-screen app"));
+    });
+}
+function testPush(){
+  if(DEMO){ setPushStatus("na","Demo mode only"); return; }
+  if(!pushMeta.server){ setPushStatus("na","Push not configured on server"); return; }
+  setPushStatus("na","Sending test…");
+  api("push-test").then(function(){
+    setPushStatus("on","Test sent — check notification centre (may take a few seconds)");
+  }).catch(function(){ setPushStatus("off","Test failed — enable alerts first"); });
 }
 
 /* -------- security -------- */
@@ -736,7 +839,14 @@ function setTrust(id,val){ (state.devices||[]).forEach(function(d){ if(d.id===id
 /* -------- polling / data -------- */
 var pollTimer=null;
 function startPolling(){ if(pollTimer)return; pollTimer=setInterval(function(){ api("load").then(applyData).catch(function(){}); },20000); }
-function applyData(d){ if(!d)return; state.charters=d.charters||[]; state.leads=d.leads||[]; state.devices=d.devices||[]; state.log=d.log||[]; sortLeads(); renderAll(); }
+function applyData(d){
+  if(!d)return;
+  state.charters=d.charters||[]; state.leads=d.leads||[]; state.devices=d.devices||[]; state.log=d.log||[];
+  if(typeof d.pushEnabled==="boolean") pushMeta.server=d.pushEnabled;
+  if(d.vapidPublicKey) pushMeta.vapidPublicKey=d.vapidPublicKey;
+  sortLeads(); renderAll();
+  if(!DEMO) refreshPushStatus();
+}
 
 /* -------- demo seed -------- */
 function seedDemo(){
