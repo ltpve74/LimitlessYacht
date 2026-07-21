@@ -293,7 +293,7 @@
           <div class="sumcard"><div class="l">APA pots</div><div class="v money" id="apaSumPot">€0</div></div>
           <div class="sumcard"><div class="l">Balance left</div><div class="v money" id="apaSumBal">€0</div></div>
         </div>
-        <div class="legend">Captain-only. Each row is a charter APA ledger. Overspend creates a <b>Charges</b> shortfall; when that charge is marked <b>Paid</b>, the APA balance recovers. Tap a row to log spend; use × to delete.</div>
+        <div class="legend">Captain-only. Log spend even with <b>€0 prepaid APA</b> — expenses / diesel create a <b>Charges</b> invoice request for the full amount. Prepaid pot only reduces what is still owed. Mark charge <b>Paid</b> to restore balance.</div>
         <div class="list" id="apaList"></div>
       </div>
       <div id="apaDetailWrap" class="hidden">
@@ -483,8 +483,9 @@ function renderCharters(){
     if(invSt!=="Issued") pend++;
     var pay=chargePay(r), v=chargeVat(r);
     var isApa=r.kind==="apa"||!!r.apaTripId;
+    var apaReq=isApa&&pay!=="Paid"&&invSt!=="Issued";
     html+='<div class="item" data-edit-ch="'+esc(r.id)+'">'+
-      '<div class="top"><div class="title">'+esc(r.client||"—")+(isApa?' <span class="pill p-apa">APA</span>':'')+'</div><div class="amt money">'+money0(r.amount)+'</div></div>'+
+      '<div class="top"><div class="title">'+esc(r.client||"—")+(isApa?' <span class="pill p-apa">APA</span>':'')+(apaReq?' <span class="pill p-amber">Invoice request</span>':'')+'</div><div class="amt money">'+money0(r.amount)+'</div></div>'+
       '<div class="meta">'+(r.date?'<span>📅 '+esc(fmtDate(r.date))+'</span>':'')+
         '<span>inc. VAT'+(v.pct?' '+v.pct+'%':'')+'</span>'+
         pill(pay)+pill(invSt==="Issued"?"Invoice issued":"Invoice pending")+
@@ -617,11 +618,47 @@ function apaPaidCovered(t){
   });
   return Math.round(s*100)/100;
 }
-/** Unpaid shortfall still needed (after pot + paid charges). */
+/**
+ * Amount still to invoice on Charges: spent − prepaid pot − paid charges.
+ * Works with €0 prepaid APA (full spend becomes the invoice request).
+ */
 function apaOverageAmount(t){
   if(!t) return 0;
   var x=apaTotals(t);
   return x.bal<0?Math.round((-x.bal)*100)/100:0;
+}
+function apaHasPrepaid(t){
+  return ((Number(t&&t.apaSent)||0)+(Number(t&&t.topUps)||0))>0;
+}
+/** Linked lead, if any. */
+function apaLinkedLead(t){
+  if(!t||!t.clientKey||t.clientKey.indexOf("lead:")!==0) return null;
+  var id=t.clientKey.slice(5);
+  return (state.leads||[]).filter(function(l){return l.id===id;})[0]||null;
+}
+/**
+ * When there was no prepaid APA, flag the lead APA invoice as Requested
+ * (same manager flow as requesting APA on Leads) and keep the amount in sync.
+ */
+function syncLeadApaInvoiceRequest(t, billable){
+  var lead=apaLinkedLead(t);
+  if(!lead||!(billable>0)) return false;
+  /* Prepaid APA already issued/paid on the lead — only Charges shortfall applies */
+  if(lead.apas==="Issued"||lead.apas==="Paid") return false;
+  if(apaHasPrepaid(t)) return false;
+  var dirty=false;
+  if(Math.abs((Number(lead.apa)||0)-billable)>0.005){
+    lead.apa=billable;
+    dirty=true;
+  }
+  if(lead.apas!=="Requested"){
+    lead.apas="Requested";
+    if(!lead.reqAt) lead.reqAt={};
+    lead.reqAt.apas=new Date().toISOString();
+    lead.reqBy=session.who||lead.reqBy;
+    dirty=true;
+  }
+  return dirty;
 }
 /** Pending (unpaid) shortfall charge for this trip, if any. */
 function findApaPendingCharge(t){
@@ -658,8 +695,9 @@ function removeApaLinkedCharges(t, onlyUnpaid){
   t.chargeId=keep?keep.id:"";
 }
 /**
- * Pending shortfall charge when balance is still negative after pot + paid charges.
- * Paid charges are kept and raise the APA balance; unpaid pending rows update/create.
+ * Create/update Charges invoice request for amount still owed
+ * (full spend when pot is €0, or overspend when prepaid APA exists).
+ * Paid charges are kept and raise the APA balance.
  */
 function syncApaToCharge(t){
   if(!t||!String(t.guest||"").trim()) return null;
@@ -677,34 +715,36 @@ function syncApaToCharge(t){
   var net=pct>0?gross/(1+pct/100):gross;
   var vat=gross-net;
   var date="";
-  if(t.clientKey&&t.clientKey.indexOf("lead:")===0){
-    var lead=state.leads.filter(function(l){return l.id===t.clientKey.slice(5);})[0];
-    if(lead&&lead.start) date=lead.start;
-  }
+  var lead=apaLinkedLead(t);
+  if(lead&&lead.start) date=lead.start;
   if(!date&&t.expenses&&t.expenses.length){
     var sorted=t.expenses.slice().sort(function(a,b){return String(a.date||"").localeCompare(String(b.date||""));});
     if(sorted[0]&&sorted[0].date) date=sorted[0].date;
   }
   if(!date) date=new Date().toISOString().slice(0,10);
-  var note="APA shortfall (balance negative) — synced from APA ledger";
-  if(t.dates) note="APA · "+t.dates+". "+note;
   var x=apaTotals(t);
-  note+=" · pot "+money0(x.basePot)+" · paid charges "+money0(x.paidCovered)+" · spent "+money0(x.spent);
+  var zeroPot=!apaHasPrepaid(t);
+  var note=zeroPot
+    ?"APA spend invoice request (no prepaid pot) — synced from APA ledger"
+    :"APA shortfall (overspend) — synced from APA ledger";
+  if(t.dates) note="APA · "+t.dates+". "+note;
+  note+=" · pot "+money0(x.basePot)+" · paid "+money0(x.paidCovered)+" · spent "+money0(x.spent);
   if(ch){
     ch.client=t.guest;
     ch.amount=gross;
     ch.net=net; ch.vat=vat; ch.vatPct=pct; ch.vatMode="include";
     ch.kind="apa";
     ch.apaTripId=t.id;
+    ch.apaZeroPot=zeroPot;
     if(!ch.date) ch.date=date;
     if(ch.payStatus!=="Paid") ch.payStatus="Pending";
     if(chargeInv(ch)!=="Issued"){ ch.invStatus="Not issued"; ch.status=ch.payStatus; }
     else ch.status="Invoiced";
-    if(!ch.notes||/^APA/i.test(ch.notes)||/synced from APA/i.test(ch.notes)||/shortfall/i.test(ch.notes)||/pot \(sent/i.test(ch.notes)) ch.notes=note;
+    if(!ch.notes||/^APA/i.test(ch.notes)||/synced from APA/i.test(ch.notes)||/shortfall/i.test(ch.notes)||/invoice request/i.test(ch.notes)||/pot \(sent/i.test(ch.notes)) ch.notes=note;
     ch.by=session.who||ch.by;
   } else {
     ch={
-      id:uid(), kind:"apa", apaTripId:t.id, date:date, client:t.guest,
+      id:uid(), kind:"apa", apaTripId:t.id, apaZeroPot:zeroPot, date:date, client:t.guest,
       amount:gross, net:net, vat:vat, vatPct:pct, vatMode:"include",
       payStatus:"Pending", invStatus:"Not issued", status:"Pending",
       inv:"", notes:note, by:session.who||"Captain"
@@ -712,16 +752,26 @@ function syncApaToCharge(t){
     state.charters.unshift(ch);
   }
   t.chargeId=ch.id;
+  /* No prepaid APA → also raise lead APA invoice request for the manager */
+  if(syncLeadApaInvoiceRequest(t, gross)){
+    /* leads saved by caller via saveApa */
+  }
   return ch;
 }
-/** After Charges payment status changes, recompute APA balance + pending shortfall. */
+/** After Charges payment status changes, recompute APA balance + invoice request. */
 function refreshApaFromCharges(){
   if(!isCaptain()||!state.apa||!state.apa.length) return;
+  var leadDirty=false;
   state.apa.forEach(function(t){
     t.updatedAt=new Date().toISOString();
+    var lead=apaLinkedLead(t);
+    var snap=lead?{ apas:lead.apas, apa:Number(lead.apa)||0 }:null;
     syncApaToCharge(t);
+    lead=apaLinkedLead(t);
+    if(lead&&snap&&(lead.apas!==snap.apas||Math.abs((Number(lead.apa)||0)-snap.apa)>0.005)) leadDirty=true;
   });
   save("apa");
+  if(leadDirty){ save("leads"); renderLeads(); }
   renderApa();
 }
 function deleteApaTrip(id){
@@ -897,12 +947,18 @@ function apaTotals(t){
 function saveApa(trip){
   if(!isCaptain()) return;
   var t=trip||apaTrip();
+  var leadDirty=false;
   if(t){
     t.updatedAt=new Date().toISOString();
+    var lead=apaLinkedLead(t);
+    var snap=lead?{ apas:lead.apas, apa:Number(lead.apa)||0 }:null;
     syncApaToCharge(t);
+    lead=apaLinkedLead(t);
+    if(lead&&snap&&(lead.apas!==snap.apas||Math.abs((Number(lead.apa)||0)-snap.apa)>0.005)) leadDirty=true;
   }
   save("apa");
   save("charters");
+  if(leadDirty){ save("leads"); renderLeads(); }
   renderCharters();
   renderApa();
 }
@@ -943,34 +999,36 @@ function renderApaList(){
         (t.dates?'<span>'+esc(t.dates)+'</span>':'')+
         '<span>Pot '+money0(x.available)+'</span>'+
         '<span>Spent '+money0(x.spent)+'</span>'+
-        (over&&ch&&chargePay(ch)!=="Paid"?'<span class="pill p-over">Owe '+money0(ch.amount)+'</span>':
-          over?'<span class="pill p-over">Owe '+money0(-x.bal)+'</span>':
-          (x.paidCovered>0?'<span class="pill p-apa">Paid '+money0(x.paidCovered)+'</span>':'<span class="pill p-grey">In pot</span>'))+
+        (over&&ch&&chargePay(ch)!=="Paid"?'<span class="pill p-over">'+(apaHasPrepaid(t)?"Owe ":"Invoice ")+money0(ch.amount)+'</span>':
+          over?'<span class="pill p-over">'+(apaHasPrepaid(t)?"Owe ":"Invoice ")+money0(-x.bal)+'</span>':
+          (x.paidCovered>0?'<span class="pill p-apa">Paid '+money0(x.paidCovered)+'</span>':
+            (x.spent>0?'<span class="pill p-grey">Settled</span>':'<span class="pill p-grey">'+(apaHasPrepaid(t)?"In pot":"No spend yet")+'</span>')))+
         (t.linkInvNo?'<span class="pill p-blue">APA inv #'+esc(t.linkInvNo)+'</span>':'')+
       '</div>'+
       '<div class="apa-bar'+(over?' over':'')+'" style="margin-top:10px"><i style="width:'+Math.min(100,Math.round((x.pct||0)*1000)/10)+'%"></i></div>'+
       (t.notes?'<div class="notes">'+esc(t.notes)+'</div>':'')+
       '<button type="button" class="apa-x" data-apa-del-trip="'+esc(t.id)+'" aria-label="Delete trip">×</button></div>';
   });
-  /* Leads with APA issued/paid but no ledger yet */
+  /* Leads without an APA ledger yet (with or without prepaid APA) */
   var pending=[];
   (state.leads||[]).forEach(function(l){
-    if(l.apas!=="Issued"&&l.apas!=="Paid") return;
-    if(!(Number(l.apa)>0)) return;
+    if(!l||!l.name) return;
     var has=state.apa.some(function(t){
       return t.linkSourceId===l.id||t.clientKey==="lead:"+l.id||normName(t.guest)===normName(l.name);
     });
     if(!has) pending.push(l);
   });
   pending.forEach(function(l){
+    var pot=Number(l.apa)||0;
+    var hasPrepaid=pot>0&&(l.apas==="Issued"||l.apas==="Paid");
     html+='<div class="item" data-apa-from-lead="'+esc(l.id)+'" style="border-style:dashed">'+
-      '<div class="top"><div class="title">'+esc(l.name||"—")+'</div><div class="amt money">'+money0(l.apa)+'</div></div>'+
-      '<div class="meta"><span class="pill p-amber">APA due — start ledger</span>'+
+      '<div class="top"><div class="title">'+esc(l.name||"—")+'</div><div class="amt money">'+(pot?money0(pot):"€0")+'</div></div>'+
+      '<div class="meta"><span class="pill p-amber">'+(hasPrepaid?"APA due — start ledger":"Start ledger (no prepaid APA)")+'</span>'+
         (l.apaInv?'<span>#'+esc(l.apaInv)+'</span>':'')+
         (rangeStr(l)?'<span>'+esc(rangeStr(l))+'</span>':'')+'</div>'+
       '<span class="chev">+</span></div>';
   });
-  wrap.innerHTML=html||emptyBox("⛽","No APA ledgers yet","Tap + to add a trip, or start from a lead with APA issued.");
+  wrap.innerHTML=html||emptyBox("⛽","No APA ledgers yet","Tap + to add a trip (APA received can be €0). Log spend → invoice request on Charges.");
   if(el("apaSumPot")) el("apaSumPot").textContent=money(pot);
   if(el("apaSumBal")) el("apaSumBal").textContent=money(bal);
   Array.prototype.forEach.call(wrap.querySelectorAll("[data-apa-open]"),function(x){
@@ -1055,27 +1113,29 @@ function apaOverviewHTML(t){
   }
   if(over&&ch&&chargePay(ch)!=="Paid"){
     linkBits+='<div class="meta" style="margin-top:6px">'+
-      '<span class="pill p-over">Charges · still owe '+money(ch.amount)+'</span>'+
+      '<span class="pill p-over">Charges · '+(apaHasPrepaid(t)?"still owe ":"invoice request ")+money(ch.amount)+'</span>'+
       (ch.inv?'<span>#'+esc(ch.inv)+'</span>':'')+
       pill(chargePay(ch))+
       pill(chargeInv(ch)==="Issued"?"Invoice issued":"Invoice pending")+
     '</div>';
   } else if(over){
-    linkBits+='<div class="meta" style="margin-top:6px"><span class="pill p-over">Shortfall '+money(-x.bal)+' — charge on save</span></div>';
+    linkBits+='<div class="meta" style="margin-top:6px"><span class="pill p-over">'+(apaHasPrepaid(t)?"Shortfall ":"To invoice ")+money(-x.bal)+' — charge on save</span></div>';
   } else if(x.paidCovered>0){
-    linkBits+='<div class="meta" style="margin-top:6px"><span class="pill p-apa">Shortfall paid '+money(x.paidCovered)+' · balance restored</span></div>';
+    linkBits+='<div class="meta" style="margin-top:6px"><span class="pill p-apa">Invoiced spend paid '+money(x.paidCovered)+' · balance restored</span></div>';
+  } else if(!apaHasPrepaid(t)){
+    linkBits+='<div class="meta" style="margin-top:6px"><span class="pill p-grey">No prepaid APA — log spend to create an invoice request</span></div>';
   } else {
-    linkBits+='<div class="meta" style="margin-top:6px"><span class="pill p-grey">In pot — no charge until overspent</span></div>';
+    linkBits+='<div class="meta" style="margin-top:6px"><span class="pill p-grey">In pot — charge only if you overspend</span></div>';
   }
   return '<div class="apa-grid">'+
     '<div class="apa-card"><div class="k">APA received</div><div class="n money">'+money(Number(t.apaSent)||0)+'</div></div>'+
     '<div class="apa-card"><div class="k">Top-ups</div><div class="n money">'+money(Number(t.topUps)||0)+'</div></div>'+
     '<div class="apa-card"><div class="k">Paid on Charges</div><div class="n money">'+money(x.paidCovered)+'</div></div>'+
-    '<div class="apa-card"><div class="k">Still to charge</div><div class="n money"'+(over?' style="color:var(--danger)"':'')+'>'+money(over? -x.bal:0)+'</div></div>'+
+    '<div class="apa-card"><div class="k">To invoice</div><div class="n money"'+(over?' style="color:var(--danger)"':'')+'>'+money(over? -x.bal:0)+'</div></div>'+
     '<div class="apa-card"><div class="k">Spent</div><div class="n money">'+money(x.spent)+'</div></div>'+
     '<div class="apa-card bal'+(over?' warn':'')+' wide"><div class="k">Balance remaining</div><div class="n money">'+money(x.bal)+'</div>'+
       '<div class="apa-bar'+(over?' over':'')+'"><i style="width:'+Math.min(100,pctShow)+'%"></i></div>'+
-      '<div style="font-size:12px;color:var(--muted);margin-top:6px">'+pctShow+'% of funds spent · pot + top-ups + paid shortfall charges − spend</div></div>'+
+      '<div style="font-size:12px;color:var(--muted);margin-top:6px">'+(apaHasPrepaid(t)?pctShow+"% of funds spent · ":"No prepaid pot · ")+'pot + top-ups + paid charges − spend. €0 pot is fine.</div></div>'+
   '</div>'+
   '<div class="apa-card" style="margin-bottom:12px">'+
     '<div class="k" style="margin-bottom:8px">Trip</div>'+
@@ -1152,11 +1212,11 @@ function apaSetupHTML(t){
   var ch=findApaChargeForTrip(t);
   var over=apaOverageAmount(t);
   return '<div class="apa-card" style="margin-bottom:12px">'+
-    '<p style="margin:0 0 10px;font-size:13.5px;line-height:1.45;color:var(--muted)">Edit pot while on charter. A <b>Charges</b> shortfall appears when balance is negative. Marking that charge <b>Paid</b> restores the APA balance (counts like a top-up).</p>'+
-    (over&&ch&&chargePay(ch)!=="Paid"?'<p style="margin:0 0 12px;font-size:13px">Unpaid shortfall: <b>'+esc(ch.client)+'</b> · '+money(ch.amount)+(ch.inv?' · #'+esc(ch.inv):'')+'</p>':
-      over?'<p style="margin:0 0 12px;font-size:13px;color:var(--danger)">Shortfall '+money(over)+' — will create charge on save.</p>':
-      (apaPaidCovered(t)>0?'<p style="margin:0 0 12px;font-size:13px;color:var(--greenInk)">Paid shortfall '+money(apaPaidCovered(t))+' is included in balance.</p>':
-        '<p style="margin:0 0 12px;font-size:13px;color:var(--muted)">Still in pot — no charge on Charges.</p>'))+
+    '<p style="margin:0 0 10px;font-size:13.5px;line-height:1.45;color:var(--muted)"><b>APA received can be €0.</b> Any spend (expenses, provisions, diesel) creates a <b>Charges</b> invoice request for the amount still owed. If linked to a lead with no prepaid APA, the lead APA is set to <b>Requested</b> for the manager. Mark charge <b>Paid</b> to restore balance.</p>'+
+    (over&&ch&&chargePay(ch)!=="Paid"?'<p style="margin:0 0 12px;font-size:13px">Invoice request: <b>'+esc(ch.client)+'</b> · '+money(ch.amount)+(ch.inv?' · #'+esc(ch.inv):'')+'</p>':
+      over?'<p style="margin:0 0 12px;font-size:13px;color:var(--danger)">To invoice '+money(over)+' — will create charge on save.</p>':
+      (apaPaidCovered(t)>0?'<p style="margin:0 0 12px;font-size:13px;color:var(--greenInk)">Paid on Charges '+money(apaPaidCovered(t))+' is included in balance.</p>':
+        '<p style="margin:0 0 12px;font-size:13px;color:var(--muted)">'+(apaHasPrepaid(t)?"Still in pot — no extra charge yet.":"No spend yet — add expenses or diesel to create an invoice request.")+'</p>'))+
     '<button type="button" class="btn" id="apaEditTrip">Edit trip / APA pot</button>'+
     '<button type="button" class="btn ghost" id="apaSyncCharge" style="margin-top:10px">Sync charge now</button>'+
     '<button type="button" class="btn danger" id="apaDelTrip" style="margin-top:10px">Delete this trip</button>'+
@@ -1204,7 +1264,7 @@ function openApaTrip(id){
   }
   if(!curClient&&r.guest) curClient="__manual__";
   var h='<div class="sheethead"><h2>'+(rec?"Edit trip":"New APA trip")+'</h2><button type="button" class="sheetx" id="sheetClose" aria-label="Close">×</button></div>';
-  h+='<p style="margin:0 0 12px;font-size:12.5px;color:var(--muted);line-height:1.45">Pick a client from Leads / Charges, then link an <b>already issued</b> invoice (APA preferred). Guest name and APA amount fill in when you link an APA invoice.</p>';
+  h+='<p style="margin:0 0 12px;font-size:12.5px;color:var(--muted);line-height:1.45">Pick a client (optional invoice link). <b>APA sent can be €0</b> — log diesel/expenses and a Charges invoice request is created for the spend. If you already received APA, enter it here so only the overspend is charged.</p>';
   var cOpts='<option value="">— Choose client —</option>';
   clients.forEach(function(c){
     cOpts+='<option value="'+esc(c.key)+'"'+(c.key===curClient?" selected":"")+'>'+esc(c.name)+(c.source==="lead"?" · lead":" · charge")+'</option>';
@@ -1225,7 +1285,7 @@ function openApaTrip(id){
   h+=fieldHTML("Vessel",'<input class="ctl" id="f_vessel" value="'+esc(r.vessel||"M/Y Limitless")+'">');
   h+='<div class="row2">'+fieldHTML("Captain",'<input class="ctl" id="f_captain" value="'+esc(r.captain||"Luigi")+'">')+
     fieldHTML("Trip dates",'<input class="ctl" id="f_dates" value="'+esc(r.dates||"")+'" placeholder="17-19/07">')+'</div>';
-  h+='<div class="row2">'+fieldHTML("APA sent to us",moneyField("f_apaSent",r.apaSent))+fieldHTML("Additional top-ups",moneyField("f_topUps",r.topUps))+'</div>';
+  h+='<div class="row2">'+fieldHTML("APA sent to us (0 ok)",moneyField("f_apaSent",r.apaSent!=null?r.apaSent:0))+fieldHTML("Additional top-ups",moneyField("f_topUps",r.topUps!=null?r.topUps:0))+'</div>';
   h+='<div class="row2">'+fieldHTML("Diesel € / litre",moneyField("f_dPrice",r.dieselPrice))+fieldHTML("Generator L/hr",moneyField("f_genBurn",r.genBurn))+'</div>';
   h+=fieldHTML("Notes",'<textarea class="ctl" id="f_notes" placeholder="optional">'+esc(r.notes||"")+'</textarea>');
   if(rec) h+='<div class="sheetbtns"><button type="button" class="btn danger" id="sheetDel">Delete trip</button></div>';
