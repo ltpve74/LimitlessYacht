@@ -129,14 +129,23 @@
   .bnav button.active .badge{box-shadow:0 0 0 2px var(--brand)}
 
   /* modal sheet */
-  .scrim{position:fixed;inset:0;background:rgba(15,25,30,.45);z-index:40;display:none;opacity:0;transition:opacity .2s}
+  .scrim{position:fixed;inset:0;background:rgba(15,25,30,.5);z-index:40;display:none;opacity:0;transition:opacity .2s}
   .scrim.show{display:block;opacity:1}
+  body.sheet-open{overflow:hidden}
   .sheet{position:fixed;left:0;right:0;bottom:0;z-index:50;background:var(--card);border-radius:20px 20px 0 0;
-         max-height:92vh;overflow-y:auto;transform:translateY(100%);transition:transform .26s cubic-bezier(.22,1,.36,1);
-         padding:8px 18px calc(24px + var(--safe-b))}
+         max-height:88vh;overflow-y:auto;-webkit-overflow-scrolling:touch;
+         transform:translateY(100%);transition:transform .26s cubic-bezier(.22,1,.36,1);
+         padding:0 18px calc(12px + var(--safe-b));overscroll-behavior:contain}
   .sheet.show{transform:translateY(0)}
-  .grip{width:40px;height:5px;border-radius:3px;background:#d6dde2;margin:8px auto 10px}
-  .sheet h2{font-size:18px;margin:2px 0 16px}
+  .grip{width:100%;padding:12px 0 4px;margin:0;display:flex;justify-content:center;cursor:pointer;touch-action:none}
+  .grip:after{content:"";width:44px;height:5px;border-radius:3px;background:#c5ced4;display:block}
+  .sheethead{display:flex;align-items:center;gap:10px;position:sticky;top:0;z-index:3;
+             background:var(--card);padding:6px 0 12px;margin:0 -2px 4px;
+             border-bottom:1px solid var(--line)}
+  .sheethead h2{font-size:18px;margin:0;flex:1;min-width:0;line-height:1.25}
+  .sheetx{flex-shrink:0;width:44px;height:44px;border-radius:22px;background:#eef1f4;color:var(--ink);
+          font-size:28px;line-height:42px;font-weight:400;text-align:center;padding:0}
+  .sheetx:active{background:#e0e5ea}
   .sheet .row2{display:flex;gap:12px}
   .sheet .row2 .field{flex:1}
   .moneywrap{position:relative}
@@ -152,8 +161,14 @@
   textarea.ctl{min-height:64px;resize:vertical}
   .sheetbtns{display:flex;gap:10px;margin-top:8px}
   .sheetbtns .btn{flex:1}
+  .sheetfoot{position:sticky;bottom:0;z-index:3;display:flex;gap:10px;margin:16px -2px 0;
+             padding:14px 0 calc(6px + var(--safe-b));
+             background:linear-gradient(to top, #fff 70%, rgba(255,255,255,.92));
+             border-top:1px solid var(--line)}
+  .sheetfoot .btn{flex:1}
   @media(min-width:620px){
-    .sheet{max-width:520px;margin:0 auto;border-radius:20px;bottom:auto;top:50%;left:50%;right:auto;transform:translate(-50%,-46%) scale(.98);opacity:0;transition:opacity .2s, transform .2s}
+    .sheet{max-width:520px;margin:0 auto;border-radius:20px;bottom:auto;top:50%;left:50%;right:auto;
+           max-height:min(88vh,720px);transform:translate(-50%,-46%) scale(.98);opacity:0;transition:opacity .2s, transform .2s}
     .sheet.show{transform:translate(-50%,-50%) scale(1);opacity:1}
     .grip{display:none}
   }
@@ -523,8 +538,7 @@ function openSheet(type,id){
   if(type==="charter"){
     r=rec||{date:"",client:"",amount:"",payStatus:"Paid",invStatus:"Not issued",vatMode:"include",vatPct:21,inv:"",notes:""};
     var pay=rec?chargePay(r):"Paid", invSt=rec?chargeInv(r):"Not issued";
-    var v=chargeVat(r);
-    h+='<h2>'+(rec?"Edit charge":"New charter charge")+'</h2>';
+    h+='<div class="sheethead"><h2>'+(rec?"Edit charge":"New charter charge")+'</h2><button type="button" class="sheetx" id="sheetClose" aria-label="Close">×</button></div>';
     h+=fieldHTML("Client name",'<input class="ctl" id="f_client" value="'+esc(r.client)+'" placeholder="e.g. Smith family">');
     h+='<div class="row2">'+fieldHTML("Charter date",'<input class="ctl" id="f_date" type="date" value="'+esc(r.date)+'">')+fieldHTML("Amount charged (VAT included)",moneyField("f_amount",r.amount))+'</div>';
     h+='<div class="calcbox" id="f_ch_calc"></div>';
@@ -536,7 +550,7 @@ function openSheet(type,id){
     var ldur=r.dur||"8h";
     var vMode=r.vatMode||(rec?"none":"include");
     var vPct=(r.vatPct!=null&&r.vatPct!=="")?r.vatPct:(vMode==="none"?"":"21");
-    h+='<h2>'+(rec?"Edit lead":"New lead")+'</h2>';
+    h+='<div class="sheethead"><h2>'+(rec?"Edit lead":"New lead")+'</h2><button type="button" class="sheetx" id="sheetClose" aria-label="Close">×</button></div>';
     h+=fieldHTML("Lead name",'<input class="ctl" id="f_name" value="'+esc(r.name)+'" placeholder="e.g. Acme Corp (website)">');
     h+=fieldHTML("Date closed",'<input class="ctl" id="f_closed" type="date" value="'+esc(r.closed)+'">');
     h+=fieldHTML("Duration",durField(ldur));
@@ -550,10 +564,12 @@ function openSheet(type,id){
     h+=leadInvBlock("APA (overnight)","f_apa",r.apaPct,"f_apas",r.apas,"f_apaInv",r.apaInv,true);
     h+=fieldHTML("Notes",'<textarea class="ctl" id="f_notes" placeholder="optional">'+esc(r.notes)+'</textarea>');
   }
-  h+='<div class="sheetbtns"><button class="btn" id="sheetSave">'+(rec?"Save":"Add")+'</button></div>';
-  if(rec){ h+='<div class="sheetbtns"><button class="btn danger" id="sheetDel">Delete</button></div>'; }
+  if(rec){ h+='<div class="sheetbtns"><button type="button" class="btn danger" id="sheetDel">Delete</button></div>'; }
+  h+='<div class="sheetfoot"><button type="button" class="btn ghost" id="sheetCancel">Cancel</button><button type="button" class="btn" id="sheetSave">'+(rec?"Save":"Add")+'</button></div>';
   inner.innerHTML=h;
   el("sheetSave").addEventListener("click",function(){ saveSheet(type,rec); });
+  el("sheetCancel").addEventListener("click",function(){ showSheet(false); });
+  el("sheetClose").addEventListener("click",function(){ showSheet(false); });
   if(rec){ el("sheetDel").addEventListener("click",function(){ confirmDel(type,rec); }); }
   if(el("f_dur")){ el("f_dur").addEventListener("change",function(){
     var draft=collectLeadDraft(), dur=el("f_dur").value;
@@ -632,9 +648,44 @@ function confirmDel(type,rec){
 }
 function delRec(type,id){ var coll=type==="charter"?"charters":"leads"; state[coll]=state[coll].filter(function(r){return r.id!==id;}); if(coll==="charters")renderCharters();else renderLeads(); save(coll); showSheet(false); }
 
-function showSheet(on){ el("scrim").classList.toggle("show",on); el("sheet").classList.toggle("show",on); if(!on){ setTimeout(function(){ el("sheetInner").innerHTML=""; },220); } }
+function showSheet(on){
+  el("scrim").classList.toggle("show",on);
+  el("sheet").classList.toggle("show",on);
+  document.body.classList.toggle("sheet-open",on);
+  if(!on){
+    el("sheet").style.transform="";
+    setTimeout(function(){ el("sheetInner").innerHTML=""; },220);
+  } else {
+    el("sheet").scrollTop=0;
+  }
+}
 el("scrim").addEventListener("click",function(){ showSheet(false); });
 el("fab").addEventListener("click",function(){ openSheet(curTab==="leads"?"lead":"charter",null); });
+document.addEventListener("keydown",function(ev){ if(ev.key==="Escape"&&el("sheet").classList.contains("show")) showSheet(false); });
+/* swipe-down on grip / header to dismiss (mobile) */
+(function(){
+  var sh=el("sheet"), startY=0, dragging=false;
+  function inDragZone(t){ return t&&(t.closest&&(t.closest(".grip")||t.closest(".sheethead")||t.closest(".sheetx"))); }
+  sh.addEventListener("touchstart",function(e){
+    if(!sh.classList.contains("show")||!inDragZone(e.target)){ dragging=false; return; }
+    if(sh.scrollTop>2){ dragging=false; return; }
+    startY=e.touches[0].clientY; dragging=true;
+  },{passive:true});
+  sh.addEventListener("touchmove",function(e){
+    if(!dragging) return;
+    var dy=e.touches[0].clientY-startY;
+    if(dy>0){ sh.style.transition="none"; sh.style.transform="translateY("+Math.min(dy,280)+"px)"; }
+  },{passive:true});
+  sh.addEventListener("touchend",function(e){
+    if(!dragging) return;
+    dragging=false;
+    var dy=(e.changedTouches[0]?e.changedTouches[0].clientY:0)-startY;
+    sh.style.transition="";
+    if(dy>90){ sh.style.transform=""; showSheet(false); }
+    else { sh.style.transform=""; }
+  });
+})();
+el("sheet").querySelector(".grip").addEventListener("click",function(){ showSheet(false); });
 el("sheetInner").addEventListener("input",function(){ recalcLead(); recalcCharge(); });
 el("sheetInner").addEventListener("change",function(){ recalcLead(); recalcCharge(); });
 
