@@ -222,10 +222,19 @@ function tripApaOverage(data, t) {
   if (!t) return 0;
   const expSum = (t.expenses || []).reduce((s, e) => s + (Number(e.amount) || 0), 0);
   const prov = (t.provisions || []).reduce((s, p) => s + (Number(p.amount) || 0), 0);
-  const price = Number(t.dieselPrice) || 0;
-  const genBurn = Number(t.genBurn) || 0;
+  const price = Number(t.dieselPrice) > 0 ? Number(t.dieselPrice) : 1.75;
+  const genBurn = Number(t.genBurn) > 0 ? Number(t.genBurn) : 6;
   let dCost = 0;
   for (const r of t.diesel || []) {
+    const manual = Number(r.cost) || 0;
+    if (manual > 0) {
+      dCost += manual;
+      continue;
+    }
+    if (Number(r.amount) > 0 && !(Number(r.engineL) || Number(r.genHrs))) {
+      dCost += Number(r.amount);
+      continue;
+    }
     const eng = Number(r.engineL) || 0;
     const genL = (Number(r.genHrs) || 0) * genBurn;
     dCost += (eng + genL) * price;
