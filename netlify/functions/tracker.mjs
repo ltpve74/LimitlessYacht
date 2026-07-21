@@ -613,7 +613,8 @@ export default async (req, context) => {
   if (action === "load") {
     if (securityWiped) addLog("security log reset (start from scratch)");
     touchDevice();
-    addLog("login");
+    /* Polling / auto-open uses silent — don't spam the security log as "login" */
+    if (!body.silent) addLog("login");
     /* Install real spreadsheet APA as first live records (once); link missing APA charges */
     if (ensureSheetApaSeed(data)) addLog("seed sheet APA (Joel Freeland)");
     if (ensureApaChargesLinked(data)) addLog("link APA charges");
