@@ -251,7 +251,7 @@
         <div class="sumcard"><div class="l">Deals value</div><div class="v money" id="ldTot">€0</div></div>
         <div class="sumcard"><div class="l">Invoices requested</div><div class="v" id="ldPending">0</div></div>
       </div>
-      <div class="legend">Closed website leads. Quote the full charter, optional VAT, and optional <b>invoice + cash (black)</b> split (e.g. invoice €1k + VAT, rest cash). Use <b>Request invoice</b> so the manager knows what to raise. APA is usually overnight only.</div>
+      <div class="legend">Closed website leads. Quotes are usually <b>VAT included</b>. Optional <b>invoice + cash (black)</b>: client pays quote without full VAT + only the small formal invoice VAT. Use <b>Request invoice</b> for the manager. APA is usually overnight only.</div>
       <div class="list" id="ldList"></div>
     </section>
 
@@ -545,9 +545,15 @@ function leadMoney(base, vatMode, vatPctRaw){
   return { base:base, net:net, vat:vat, total:total, vatPct:pct, vatMode:mode };
 }
 /**
- * Full charter quote (base) + optional black split:
- * invoiceNet (ex VAT) is formal; cash = base − invoiceNet; VAT only on the invoice part.
- * e.g. base 4000, invoice 1000 → invoice 1000+VAT, cash 3000.
+ * Black split (cash deal): quoted prices are normally VAT-inclusive.
+ * Client pays charter net (quote without full VAT) + only the small invoice VAT
+ * (you “swallow” full VAT; keep a small formal invoice if checked).
+ *
+ * e.g. quote €4,000 incl. 21% VAT, formal invoice €1,000 ex VAT:
+ *   charter net = 4000/1.21 ≈ 3305.79
+ *   invoice VAT = 210 → invoice total 1210
+ *   cash (black) = 3305.79 − 1000 ≈ 2305.79
+ *   client total = 3305.79 + 210 ≈ 3515.79  (= 4k − full VAT + small VAT)
  */
 function leadSplit(base, vatMode, vatPctRaw, splitOn, invoiceNetRaw){
   var full=leadMoney(base, vatMode, vatPctRaw);
@@ -557,15 +563,12 @@ function leadSplit(base, vatMode, vatPctRaw, splitOn, invoiceNetRaw){
   }
   var invNet=Number(invoiceNetRaw);
   if(isNaN(invNet)||invNet<0) invNet=0;
-  if(invNet>base) invNet=base;
-  var cash=Math.max(0, base-invNet);
-  /* VAT only on the invoiced (white) slice — cash has no VAT */
-  var whiteMode=vatMode==="include"?"add":(vatMode||"add");
-  if(vatMode==="none") whiteMode="none";
-  /* If full quote was "VAT included", treat base as net charter price for split math */
-  if(vatMode==="include") whiteMode="add";
+  /* Cap invoice at charter net (ex full VAT), not at gross quote */
+  if(invNet>full.net) invNet=full.net;
+  var whiteMode=(full.vatMode==="none"||full.vatPct<=0)?"none":"add";
   var white=leadMoney(invNet, whiteMode, vatPctRaw);
-  var clientTotal=cash+white.total;
+  var cash=Math.max(0, full.net-invNet);
+  var clientTotal=full.net+white.vat;
   return { split:true, full:full, invoiceNet:invNet, cash:cash, white:white,
     clientTotal:clientTotal, invoiceTotal:white.total, cashAmt:cash };
 }
@@ -589,6 +592,10 @@ function recalcLead(){
   var head=dur==="multi"?(days+' day'+(days>1?'s':'')+' &times; '+money0(rate)):durLabel(dur);
   var html='<div class="cl"><span>'+head+' (charter)</span><b>'+money(base)+'</b></div>';
   if(sp.split){
+    if(sp.full.vatMode!=="none"&&sp.full.vatPct>0){
+      html+='<div class="cl"><span>Charter net (quote − full VAT)</span><b>'+money(sp.full.net)+'</b></div>'+
+        '<div class="cl"><span>Full VAT not charged</span><b>−'+money(sp.full.vat)+'</b></div>';
+    }
     html+='<div class="cl split"><span>Invoice (white) ex VAT</span><b>'+money(sp.invoiceNet)+'</b></div>'+
       '<div class="cl"><span>VAT on invoice'+(sp.white.vatPct?' '+sp.white.vatPct+'%':'')+'</span><b>'+money(sp.white.vat)+'</b></div>'+
       '<div class="cl"><span>Invoice total (to raise)</span><b>'+money(sp.invoiceTotal)+'</b></div>'+
@@ -622,9 +629,9 @@ function openSheet(type,id){
     h+=fieldHTML("Invoice # (manager)",'<input class="ctl" id="f_inv" value="'+esc(r.inv)+'" placeholder="fill when issued">');
     h+=fieldHTML("Notes",'<textarea class="ctl" id="f_notes" placeholder="optional">'+esc(r.notes)+'</textarea>');
   } else {
-    r=rec||{closed:"",name:"",dur:"8h",start:"",end:"",rate:"",price:"",vatMode:"add",vatPct:"21",split:false,invoiceNet:"",deps:"Not requested",fins:"Not requested",apas:"Not requested",depPct:"50",apaPct:"",depInv:"",finInv:"",apaInv:"",notes:""};
+    r=rec||{closed:"",name:"",dur:"8h",start:"",end:"",rate:"",price:"",vatMode:"include",vatPct:"21",split:false,invoiceNet:"",deps:"Not requested",fins:"Not requested",apas:"Not requested",depPct:"50",apaPct:"",depInv:"",finInv:"",apaInv:"",notes:""};
     var ldur=r.dur||"8h";
-    var vMode=r.vatMode||(rec?"none":"add");
+    var vMode=r.vatMode||(rec?"none":"include");
     var vPct=(r.vatPct!=null&&r.vatPct!=="")?r.vatPct:(vMode==="none"?"":"21");
     var splitOn=!!(r.split||r.splitCash);
     var invNetDef=(r.invoiceNet!=null&&r.invoiceNet!=="")?r.invoiceNet:"";
@@ -636,13 +643,13 @@ function openSheet(type,id){
     h+='<div class="row2">'+fieldHTML("VAT on price",vatModeField(vMode))+fieldHTML("VAT %",pctField("f_vatPct",vPct))+'</div>';
     h+='<label class="checkrow"><input type="checkbox" id="f_split"'+(splitOn?" checked":"")+'>'+
       '<span><div class="ck">Split: invoice + cash (black)</div>'+
-      '<div class="ch">e.g. charter €4,000 — invoice €1,000 + VAT, rest €3,000 cash. VAT applies only to the invoice part.</div></span></label>';
+      '<div class="ch">Cash deal: client pays the quote without full VAT, plus only the small invoice VAT you raise (e.g. €4,000 incl. VAT → net + €1,000 invoice VAT).</div></span></label>';
     h+='<div id="f_splitwrap"'+(splitOn?"":" class=\"hidden\"")+'>'+
       fieldHTML("Invoice amount (ex VAT)",moneyField("f_invoiceNet",invNetDef))+
-      '<p style="margin:-6px 0 14px;font-size:12.5px;color:var(--muted);line-height:1.4">Enter the net amount to put on the formal invoice (e.g. 1000). Cash (black) = full charter − this amount.</p></div>';
+      '<p style="margin:-6px 0 14px;font-size:12.5px;color:var(--muted);line-height:1.4">Net on the formal invoice (e.g. 1000). Cash = charter net − this. Client total = charter net + VAT on this invoice only. Use <b>VAT included</b> on the quote above.</p></div>';
     h+='<div class="calcbox" id="f_calc"></div>';
     h+='<div class="sect">Invoices for manager</div>';
-    h+='<p style="margin:-4px 0 12px;font-size:12.5px;color:var(--muted);line-height:1.45">Deposit / final / APA track the <b>client total</b>. With a split, the formal invoice to raise is the <b>invoice total</b> (white + VAT) shown above. Set status to <b>Requested</b> for the manager.</p>';
+    h+='<p style="margin:-4px 0 12px;font-size:12.5px;color:var(--muted);line-height:1.45">Deposit / final / APA track the <b>client total</b>. Formal invoice to raise is the <b>invoice total</b> (white + small VAT). Set status to <b>Requested</b> for the manager.</p>';
     h+=leadInvBlock("Deposit","f_dep",r.depPct,"f_deps",r.deps,"f_depInv",r.depInv,true);
     h+=leadInvBlock("Final balance","","","f_fins",r.fins,"f_finInv",r.finInv,false);
     h+=leadInvBlock("APA (overnight)","f_apa",r.apaPct,"f_apas",r.apas,"f_apaInv",r.apaInv,true);
@@ -716,7 +723,7 @@ function saveSheet(type,rec){
     });
     var o2={ id:rec?rec.id:uid(), closed:el("f_closed").value, name:el("f_name").value.trim(),
       dur:dur, start:start, end:end, rate:rate, price:price, days:days,
-      base:base, net:sp.split?base:m.net, vat:sp.split?sp.white.vat:m.vat, total:client,
+      base:base, net:m.net, vat:sp.split?sp.white.vat:m.vat, total:client,
       vatMode:m.vatMode, vatPct:m.vatMode==="none"?"":m.vatPct,
       split:sp.split, splitCash:sp.split,
       invoiceNet:sp.split?sp.invoiceNet:0, invoiceVat:sp.split?sp.white.vat:0, invoiceTotal:sp.split?sp.invoiceTotal:client,
