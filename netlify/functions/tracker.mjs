@@ -54,9 +54,142 @@ function isCaptain(who) {
   return /^captain\b/i.test(String(who || "").trim());
 }
 
+/** Stable IDs — real first APA entry from tracker/Limitless_APA_Tracker.xlsx */
+const SHEET_LEAD_ID = "lead-joel-freeland-2026-07";
+const SHEET_TRIP_ID = "apa-joel-freeland-2026-07";
+
+function sheetJoelLead() {
+  return {
+    id: SHEET_LEAD_ID,
+    closed: "2026-07-16",
+    name: "Joel Freeland",
+    dur: "multi",
+    start: "2026-07-17",
+    end: "2026-07-19",
+    rate: 4000,
+    price: "",
+    days: 3,
+    base: 12000,
+    net: 9917.36,
+    vat: 2082.64,
+    total: 12000,
+    vatMode: "include",
+    vatPct: 21,
+    depPct: 50,
+    dep: 6000,
+    deps: "Paid",
+    depInv: "DEP-JF-01",
+    fin: 6000,
+    fins: "Paid",
+    finInv: "FIN-JF-01",
+    apaPct: 20,
+    apa: 2400,
+    apas: "Issued",
+    apaInv: "APA-JF-2400",
+    reqAt: { apas: "2026-07-16T09:00:00Z" },
+    notes: "APA ledger trip 17–19/07 — from Limitless APA Tracker spreadsheet",
+    by: "Captain",
+  };
+}
+
+function sheetJoelApaTrip() {
+  const clientKey = "lead:" + SHEET_LEAD_ID;
+  return {
+    id: SHEET_TRIP_ID,
+    vessel: "M/Y Limitless",
+    guest: "Joel Freeland",
+    captain: "Luigi",
+    dates: "17-19/07",
+    clientKey,
+    linkKey: clientKey + ":apas",
+    linkSource: "lead",
+    linkSourceId: SHEET_LEAD_ID,
+    linkInvKind: "apas",
+    linkInvNo: "APA-JF-2400",
+    linkInvLabel: "APA",
+    linkInvAmount: 2400,
+    apaSent: 2400,
+    topUps: 0,
+    dieselPrice: 1.75,
+    genBurn: 6,
+    expenses: [
+      {
+        id: "exp-jf-marina-soller",
+        date: "2026-07-17",
+        category: "Dockage / Marina",
+        amount: 579.07,
+        vendor: "Marina Tramontana - Soller",
+        paidBy: "Ship card",
+        receipt: "",
+        notes: "",
+      },
+      {
+        id: "exp-jf-marina-andratx",
+        date: "2026-07-18",
+        category: "Dockage / Marina",
+        amount: 450.64,
+        vendor: "Marina Port Andratx - Andratx",
+        paidBy: "Ship card",
+        receipt: "",
+        notes: "",
+      },
+    ],
+    provisions: [
+      { id: "prov-jf-makro", date: "2026-07-16", supplier: "Makro", items: "provisions", amount: 210.35, receipt: "", notes: "" },
+      { id: "prov-jf-carrefour-1", date: "2026-07-17", supplier: "carrefour", items: "provisions", amount: 225.28, receipt: "", notes: "" },
+      { id: "prov-jf-carrefour-2", date: "2026-07-17", supplier: "carrefour", items: "provisions", amount: 13.11, receipt: "", notes: "" },
+      { id: "prov-jf-frau", date: "2026-07-18", supplier: "supermercado frau", items: "provisions", amount: 27.33, receipt: "", notes: "" },
+      { id: "prov-jf-botiga", date: "2026-07-18", supplier: "sa botiga", items: "provisions", amount: 20.55, receipt: "", notes: "" },
+      { id: "prov-jf-eroski", date: "2026-07-19", supplier: "eroski", items: "provisions", amount: 83.1, receipt: "", notes: "" },
+    ],
+    diesel: [
+      {
+        id: "dsl-jf-example",
+        date: "2026-07-20",
+        engineL: 1986,
+        genHrs: 24,
+        notes: "EXAMPLE ROW — overwrite or delete",
+      },
+    ],
+    notes: "Imported from Limitless_APA_Tracker.xlsx — first live APA ledger",
+    by: "Captain",
+    updatedAt: "2026-07-20T10:00:00Z",
+  };
+}
+
+/**
+ * One-time install of the real spreadsheet APA trip (+ matching lead) as the
+ * first live records. Does not overwrite if the trip already exists (edits keep).
+ * If missing after install flag, re-inserts so the real data is never lost by accident
+ * before the captain has taken ownership — only runs when flag is unset.
+ */
+function ensureSheetApaSeed(data) {
+  if (!data.meta || typeof data.meta !== "object") data.meta = {};
+  if (!Array.isArray(data.apa)) data.apa = [];
+  if (!Array.isArray(data.leads)) data.leads = [];
+  if (data.meta.sheetApaInstalled) return false;
+
+  let dirty = false;
+  if (!data.leads.some((l) => l && (l.id === SHEET_LEAD_ID || /^joel freeland$/i.test(String(l.name || "").trim())))) {
+    data.leads.unshift(sheetJoelLead());
+    dirty = true;
+  }
+  if (!data.apa.some((t) => t && t.id === SHEET_TRIP_ID)) {
+    data.apa.unshift(sheetJoelApaTrip());
+    dirty = true;
+  } else {
+    /* Keep sheet trip first among trips */
+    const trip = data.apa.find((t) => t && t.id === SHEET_TRIP_ID);
+    data.apa = [trip].concat(data.apa.filter((t) => t && t.id !== SHEET_TRIP_ID));
+    dirty = true;
+  }
+  data.meta.sheetApaInstalled = true;
+  return true;
+}
+
 async function loadData(store) {
   const d = await store.get(BLOB_KEY, { type: "json", consistency: "strong" });
-  return d || { charters: [], leads: [], apa: [], devices: [], log: [], pushSubs: [] };
+  return d || { charters: [], leads: [], apa: [], devices: [], log: [], pushSubs: [], meta: {} };
 }
 async function saveData(store, data) {
   await store.setJSON(BLOB_KEY, data);
@@ -238,6 +371,8 @@ export default async (req, context) => {
   if (action === "load") {
     touchDevice();
     addLog("login");
+    /* Install real spreadsheet APA as first live records (once) */
+    if (ensureSheetApaSeed(data)) addLog("seed sheet APA (Joel Freeland)");
     await saveData(store, data);
     const out = {
       charters: data.charters,

@@ -1516,55 +1516,53 @@ function applyData(d){
   if(!DEMO) refreshPushStatus();
 }
 
-/* -------- demo seed (APA numbers match tracker/Limitless_APA_Tracker.xlsx) -------- */
+/* Fixed IDs match server seed (real spreadsheet trip is first live APA entry) */
+var SHEET_LEAD_ID="lead-joel-freeland-2026-07";
+var SHEET_TRIP_ID="apa-joel-freeland-2026-07";
+function sheetJoelLead(){
+  return {id:SHEET_LEAD_ID,closed:"2026-07-16",name:"Joel Freeland",dur:"multi",start:"2026-07-17",end:"2026-07-19",rate:4000,price:"",days:3,base:12000,net:9917.36,vat:2082.64,total:12000,vatMode:"include",vatPct:21,depPct:50,dep:6000,deps:"Paid",depInv:"DEP-JF-01",fin:6000,fins:"Paid",finInv:"FIN-JF-01",apaPct:20,apa:2400,apas:"Issued",apaInv:"APA-JF-2400",reqAt:{apas:"2026-07-16T09:00:00Z"},notes:"APA ledger trip 17–19/07 — from Limitless APA Tracker spreadsheet",by:"Captain"};
+}
+function sheetJoelApaTrip(){
+  var ck="lead:"+SHEET_LEAD_ID;
+  return {id:SHEET_TRIP_ID,vessel:"M/Y Limitless",guest:"Joel Freeland",captain:"Luigi",dates:"17-19/07",
+    clientKey:ck,linkKey:ck+":apas",linkSource:"lead",linkSourceId:SHEET_LEAD_ID,
+    linkInvKind:"apas",linkInvNo:"APA-JF-2400",linkInvLabel:"APA",linkInvAmount:2400,
+    apaSent:2400,topUps:0,dieselPrice:1.75,genBurn:6,
+    expenses:[
+      {id:"exp-jf-marina-soller",date:"2026-07-17",category:"Dockage / Marina",amount:579.07,vendor:"Marina Tramontana - Soller",paidBy:"Ship card",receipt:"",notes:""},
+      {id:"exp-jf-marina-andratx",date:"2026-07-18",category:"Dockage / Marina",amount:450.64,vendor:"Marina Port Andratx - Andratx",paidBy:"Ship card",receipt:"",notes:""}
+    ],
+    provisions:[
+      {id:"prov-jf-makro",date:"2026-07-16",supplier:"Makro",items:"provisions",amount:210.35,receipt:"",notes:""},
+      {id:"prov-jf-carrefour-1",date:"2026-07-17",supplier:"carrefour",items:"provisions",amount:225.28,receipt:"",notes:""},
+      {id:"prov-jf-carrefour-2",date:"2026-07-17",supplier:"carrefour",items:"provisions",amount:13.11,receipt:"",notes:""},
+      {id:"prov-jf-frau",date:"2026-07-18",supplier:"supermercado frau",items:"provisions",amount:27.33,receipt:"",notes:""},
+      {id:"prov-jf-botiga",date:"2026-07-18",supplier:"sa botiga",items:"provisions",amount:20.55,receipt:"",notes:""},
+      {id:"prov-jf-eroski",date:"2026-07-19",supplier:"eroski",items:"provisions",amount:83.1,receipt:"",notes:""}
+    ],
+    diesel:[{id:"dsl-jf-example",date:"2026-07-20",engineL:1986,genHrs:24,notes:"EXAMPLE ROW — overwrite or delete"}],
+    notes:"Imported from Limitless_APA_Tracker.xlsx — first live APA ledger",
+    by:"Captain",updatedAt:"2026-07-20T10:00:00Z"};
+}
+
+/* Offline demo: same real spreadsheet trip first, plus a few fake charges/leads for UI */
 function seedDemo(){
-  var joelId=uid(), apaTripId=uid();
-  var joelClientKey="lead:"+joelId;
-  var joelApaKey="lead:"+joelId+":apas";
   state.charters=[
     {id:uid(),date:"2026-07-18",client:"John & Mary Smith",amount:3500,vatMode:"include",vatPct:21,net:2892.56,vat:607.44,payStatus:"Paid",invStatus:"Not issued",status:"Paid",inv:"",notes:"Full-day charter, card on terminal",by:"Captain"},
     {id:uid(),date:"2026-07-12",client:"Delgado family",amount:2800,vatMode:"include",vatPct:21,net:2314.05,vat:485.95,payStatus:"Paid",invStatus:"Issued",status:"Invoiced",inv:"INV-1043",notes:"Half day",by:"Captain"}
   ];
   state.leads=[
-    /* Spreadsheet guest — APA invoice already issued so the ledger can link to it */
-    {id:joelId,closed:"2026-07-16",name:"Joel Freeland",dur:"multi",start:"2026-07-17",end:"2026-07-19",rate:4000,price:"",days:3,base:12000,net:9917.36,vat:2082.64,total:12000,vatMode:"include",vatPct:21,depPct:50,dep:6000,deps:"Paid",depInv:"DEP-JF-01",fin:6000,fins:"Paid",finInv:"FIN-JF-01",apaPct:20,apa:2400,apas:"Issued",apaInv:"APA-JF-2400",reqAt:{apas:"2026-07-16T09:00:00Z"},notes:"Demo from Limitless_APA_Tracker.xlsx — APA €2,400 issued",by:"Captain"},
+    sheetJoelLead(),
     {id:uid(),closed:"2026-07-15",name:"Acme Corp (website form)",dur:"multi",start:"2026-08-10",end:"2026-08-12",rate:5000,price:"",days:3,base:15000,net:12396.69,vat:2603.31,total:15000,vatMode:"include",vatPct:21,depPct:50,dep:7500,deps:"Requested",depInv:"",fin:7500,fins:"Not requested",finInv:"",apaPct:30,apa:4500,apas:"Not requested",apaInv:"",reqAt:{deps:"2026-07-15T10:00:00Z"},notes:"Overnight charter — APA applies; price includes VAT",by:"Captain"},
-    {id:uid(),closed:"2026-07-17",name:"Rossi family (website)",dur:"6h",start:"2026-07-25",end:"",rate:3500,price:3500,days:1,base:3500,net:3500,vat:735,total:4235,vatMode:"add",vatPct:21,depPct:50,dep:2117.5,deps:"Issued",depInv:"INV-2101",fin:2117.5,fins:"Not requested",finInv:"",apaPct:"",apa:0,apas:"Not requested",apaInv:"",notes:"6-hour day charter, VAT added on top",by:"Captain"},
-    {id:uid(),closed:"2026-07-18",name:"Becker (website)",dur:"4h",start:"2026-07-28",end:"",rate:2200,price:2200,days:1,base:2200,net:2200,vat:0,total:2200,vatMode:"none",vatPct:"",depPct:50,dep:1100,deps:"Requested",depInv:"",fin:1100,fins:"Not requested",finInv:"",apaPct:"",apa:0,apas:"Not requested",apaInv:"",reqAt:{deps:"2026-07-18T12:00:00Z"},notes:"4-hour sunset charter",by:"Captain"}
+    {id:uid(),closed:"2026-07-17",name:"Rossi family (website)",dur:"6h",start:"2026-07-25",end:"",rate:3500,price:3500,days:1,base:3500,net:3500,vat:735,total:4235,vatMode:"add",vatPct:21,depPct:50,dep:2117.5,deps:"Issued",depInv:"INV-2101",fin:2117.5,fins:"Not requested",finInv:"",apaPct:"",apa:0,apas:"Not requested",apaInv:"",notes:"6-hour day charter, VAT added on top",by:"Captain"}
   ];
   state.devices=[
     {id:"cpt-luigi-01",who:"Captain",browser:"Safari · iPhone",ip:"88.16.x.x",country:"ES",firstSeen:"2026-07-10T09:12:00Z",lastSeen:"2026-07-20T08:40:00Z",trusted:true},
-    {id:"mgr-mac-02",who:"Manager",browser:"Chrome · Mac",ip:"81.44.x.x",country:"ES",firstSeen:"2026-07-11T15:03:00Z",lastSeen:"2026-07-19T18:20:00Z",trusted:true},
-    {id:"unknown-9f3",who:"Manager",browser:"Chrome · Android",ip:"197.210.x.x",country:"NG",firstSeen:"2026-07-19T23:14:00Z",lastSeen:"2026-07-19T23:15:00Z",trusted:false}
+    {id:"mgr-mac-02",who:"Manager",browser:"Chrome · Mac",ip:"81.44.x.x",country:"ES",firstSeen:"2026-07-11T15:03:00Z",lastSeen:"2026-07-19T18:20:00Z",trusted:true}
   ];
-  state.log=[
-    {ts:"2026-07-20T08:40:00Z",who:"Captain",action:"login",deviceId:"cpt-luigi-01",ip:"88.16.x.x",country:"ES"},
-    {ts:"2026-07-19T23:14:00Z",who:"Manager",action:"login",deviceId:"unknown-9f3",ip:"197.210.x.x",country:"NG"},
-    {ts:"2026-07-19T18:20:00Z",who:"Manager",action:"save charters",deviceId:"mgr-mac-02",ip:"81.44.x.x",country:"ES"}
-  ];
-  /* Exact sample rows from Limitless_APA_Tracker.xlsx */
-  state.apa=[{
-    id:apaTripId, vessel:"M/Y Limitless", guest:"Joel Freeland", captain:"Luigi", dates:"17-19/07",
-    clientKey:joelClientKey, linkKey:joelApaKey, linkSource:"lead", linkSourceId:joelId,
-    linkInvKind:"apas", linkInvNo:"APA-JF-2400", linkInvLabel:"APA", linkInvAmount:2400,
-    apaSent:2400, topUps:0, dieselPrice:1.75, genBurn:6,
-    expenses:[
-      {id:uid(),date:"2026-07-17",category:"Dockage / Marina",amount:579.07,vendor:"Marina Tramontana - Soller",paidBy:"Ship card",receipt:"",notes:""},
-      {id:uid(),date:"2026-07-18",category:"Dockage / Marina",amount:450.64,vendor:"Marina Port Andratx - Andratx",paidBy:"Ship card",receipt:"",notes:""}
-    ],
-    provisions:[
-      {id:uid(),date:"2026-07-16",supplier:"Makro",items:"provisions",amount:210.35,receipt:"",notes:""},
-      {id:uid(),date:"2026-07-17",supplier:"carrefour",items:"provisions",amount:225.28,receipt:"",notes:""},
-      {id:uid(),date:"2026-07-17",supplier:"carrefour",items:"provisions",amount:13.11,receipt:"",notes:""},
-      {id:uid(),date:"2026-07-18",supplier:"supermercado frau",items:"provisions",amount:27.33,receipt:"",notes:""},
-      {id:uid(),date:"2026-07-18",supplier:"sa botiga",items:"provisions",amount:20.55,receipt:"",notes:""},
-      {id:uid(),date:"2026-07-19",supplier:"eroski",items:"provisions",amount:83.1,receipt:"",notes:""}
-    ],
-    diesel:[{id:uid(),date:"2026-07-20",engineL:1986,genHrs:24,notes:"EXAMPLE ROW — overwrite or delete"}],
-    notes:"Demo ledger from Limitless_APA_Tracker.xlsx (Dashboard / Expenses / Provisions / Diesel)",
-    by:"Captain", updatedAt:"2026-07-20T10:00:00Z"
-  }];
-  activeApaId=apaTripId;
+  state.log=[{ts:"2026-07-20T08:40:00Z",who:"Captain",action:"login",deviceId:"cpt-luigi-01",ip:"88.16.x.x",country:"ES"}];
+  state.apa=[sheetJoelApaTrip()];
+  activeApaId=SHEET_TRIP_ID;
 }
 </script>
 </body>
