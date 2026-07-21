@@ -10,6 +10,7 @@
 <meta name="apple-mobile-web-app-title" content="Tracker">
 <meta name="mobile-web-app-capable" content="yes">
 <link rel="manifest" href="/tracker/manifest.webmanifest">
+<link rel="icon" type="image/png" sizes="192x192" href="/tracker/icons/icon-192.png">
 <link rel="apple-touch-icon" href="/tracker/icons/icon-180.png">
 <title>Limitless — Charter &amp; Invoice Tracker</title>
 <style>
@@ -34,6 +35,7 @@
   #gate{min-height:100%;display:flex;align-items:center;justify-content:center;padding:22px}
   .gatebox{background:var(--card);border-radius:18px;box-shadow:0 8px 30px rgba(0,0,0,.14);padding:28px 22px;width:100%;max-width:400px}
   .brandmark{font-size:26px;text-align:center;margin-bottom:6px}
+  .brandmark img{width:64px;height:64px;border-radius:16px;display:block;margin:0 auto 8px;box-shadow:0 4px 14px rgba(31,78,95,.35)}
   .gatebox h1{font-size:20px;margin:0 0 4px;text-align:center}
   .gatebox .sub{color:var(--muted);font-size:13.5px;margin:0 0 22px;text-align:center}
   .field{margin-bottom:15px}
@@ -285,7 +287,7 @@
 <!-- ============ LOGIN ============ -->
 <div id="gate">
   <form class="gatebox" id="gateForm" autocomplete="off">
-    <div class="brandmark">⚓</div>
+    <div class="brandmark"><img src="/tracker/icons/icon-192.png" width="64" height="64" alt=""></div>
     <h1>Limitless Tracker</h1>
     <p class="sub">Private access — captain &amp; manager only</p>
     <div class="field">
