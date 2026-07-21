@@ -134,17 +134,22 @@
                box-shadow:0 0 0 2px #fff}
   .bnav button.active .badge{box-shadow:0 0 0 2px var(--brand)}
 
-  /* modal sheet */
-  .scrim{position:fixed;inset:0;background:rgba(15,25,30,.5);z-index:40;display:none;opacity:0;transition:opacity .2s}
+  /* modal sheet — anchored to visual viewport (iOS/PWA-safe); scrolls as one unit */
+  .scrim{position:fixed;inset:0;background:rgba(15,25,30,.5);z-index:200;display:none;opacity:0;transition:opacity .2s}
   .scrim.show{display:block;opacity:1}
-  body.sheet-open{overflow:hidden}
-  .sheet{position:fixed;left:0;right:0;bottom:0;z-index:50;background:var(--card);border-radius:20px 20px 0 0;
-         max-height:88vh;overflow-y:auto;-webkit-overflow-scrolling:touch;
-         transform:translateY(100%);transition:transform .26s cubic-bezier(.22,1,.36,1);
-         padding:0 18px calc(12px + var(--safe-b));overscroll-behavior:contain}
-  .sheet.show{transform:translateY(0)}
+  body.sheet-open{overflow:hidden;overscroll-behavior:none}
+  .sheet{position:fixed;left:0;right:0;bottom:0;z-index:210;background:var(--card);
+         border-radius:20px 20px 0 0;box-shadow:0 -12px 40px rgba(15,25,30,.22);
+         width:100%;max-width:100%;
+         max-height:min(90vh, calc(var(--vvh, 100vh) * 0.9));
+         overflow-x:hidden;overflow-y:auto;-webkit-overflow-scrolling:touch;overscroll-behavior:contain;
+         transform:translate3d(0,100%,0);transition:transform .26s cubic-bezier(.22,1,.36,1);
+         padding:0 18px calc(16px + var(--safe-b));
+         visibility:hidden;pointer-events:none;box-sizing:border-box}
+  .sheet.show{transform:translate3d(0,0,0);visibility:visible;pointer-events:auto}
   .grip{width:100%;padding:12px 0 4px;margin:0;display:flex;justify-content:center;cursor:pointer;touch-action:none}
   .grip:after{content:"";width:44px;height:5px;border-radius:3px;background:#c5ced4;display:block}
+  #sheetInner{padding:0;min-height:0}
   .sheethead{display:flex;align-items:center;gap:10px;position:sticky;top:0;z-index:3;
              background:var(--card);padding:6px 0 12px;margin:0 -2px 4px;
              border-bottom:1px solid var(--line)}
@@ -168,8 +173,8 @@
   .sheetbtns{display:flex;gap:10px;margin-top:8px}
   .sheetbtns .btn{flex:1}
   .sheetfoot{position:sticky;bottom:0;z-index:3;display:flex;gap:10px;margin:16px -2px 0;
-             padding:14px 0 calc(6px + var(--safe-b));
-             background:linear-gradient(to top, #fff 70%, rgba(255,255,255,.92));
+             padding:14px 0 calc(8px + var(--safe-b));
+             background:linear-gradient(to top, #fff 75%, rgba(255,255,255,.94));
              border-top:1px solid var(--line)}
   .sheetfoot .btn{flex:1}
   .pushcard{background:var(--card);border-radius:14px;box-shadow:0 1px 3px rgba(0,0,0,.07);padding:14px;margin-bottom:14px;border:1px solid var(--line)}
@@ -233,9 +238,15 @@
   .bnav button.active{font-size:11px}
   .bnav button.active .ic{font-size:22px}
   @media(min-width:620px){
-    .sheet{max-width:520px;margin:0 auto;border-radius:20px;bottom:auto;top:50%;left:50%;right:auto;
-           max-height:min(88vh,720px);transform:translate(-50%,-46%) scale(.98);opacity:0;transition:opacity .2s, transform .2s}
-    .sheet.show{transform:translate(-50%,-50%) scale(1);opacity:1}
+    /* Top-anchored (not vertical-center) so tall diesel/lead forms never hang below the fold */
+    .sheet{left:50%;right:auto;bottom:auto;top:max(12px, 3vh);
+           width:min(520px, calc(100% - 32px));max-width:520px;
+           max-height:min(720px, calc(var(--vvh, 100vh) - 24px));
+           border-radius:20px;box-shadow:0 16px 48px rgba(15,25,30,.28);
+           transform:translate3d(-50%,0,0) scale(.98);opacity:0;
+           transition:opacity .2s, transform .2s;visibility:hidden;pointer-events:none;
+           padding:12px 20px 18px}
+    .sheet.show{transform:translate3d(-50%,0,0) scale(1);opacity:1;visibility:visible;pointer-events:auto}
     .grip{display:none}
   }
 </style>
@@ -1921,10 +1932,10 @@ function openDieselPicker(){
   '</div>';
   h+='<div class="sheetfoot"><button type="button" class="btn ghost" id="sheetCancel">Cancel</button></div>';
   el("sheetInner").innerHTML=h;
-  function go(kind){ showSheet(false); setTimeout(function(){ openDieselEntry(kind,null); },80); }
-  el("dPickBuy").addEventListener("click",function(){ go("buy"); });
-  el("dPickLevel").addEventListener("click",function(){ go("level"); });
-  el("dPickSell").addEventListener("click",function(){ go("sell"); });
+  /* Swap content in place — do not close/reopen (race cleared the form) */
+  el("dPickBuy").addEventListener("click",function(){ openDieselEntry("buy",null); });
+  el("dPickLevel").addEventListener("click",function(){ openDieselEntry("level",null); });
+  el("dPickSell").addEventListener("click",function(){ openDieselEntry("sell",null); });
   el("sheetCancel").addEventListener("click",function(){ showSheet(false); });
   el("sheetClose").addEventListener("click",function(){ showSheet(false); });
   showSheet(true);
@@ -2348,17 +2359,76 @@ function delRec(type,id){
   save(coll); showSheet(false);
 }
 
-function showSheet(on){
-  el("scrim").classList.toggle("show",on);
-  el("sheet").classList.toggle("show",on);
-  document.body.classList.toggle("sheet-open",on);
-  if(!on){
-    el("sheet").style.transform="";
-    setTimeout(function(){ el("sheetInner").innerHTML=""; },220);
+var sheetGen=0;
+/** Keep --vvh + sheet bottom edge aligned with the *visual* viewport (iOS Safari/PWA). */
+function syncSheetViewport(){
+  var vv=window.visualViewport;
+  var h=vv&&vv.height?vv.height:window.innerHeight;
+  var top=vv&&typeof vv.offsetTop==="number"?vv.offsetTop:0;
+  document.documentElement.style.setProperty("--vvh", Math.round(h)+"px");
+  var sh=el("sheet");
+  if(!sh) return;
+  var wide=window.matchMedia&&window.matchMedia("(min-width:620px)").matches;
+  if(!sh.classList.contains("show")){
+    sh.style.left=""; sh.style.right=""; sh.style.width=""; sh.style.bottom="";
+    sh.style.top=""; sh.style.maxHeight="";
+    return;
+  }
+  if(wide){
+    sh.style.left="50%";
+    sh.style.right="auto";
+    sh.style.width="";
+    sh.style.bottom="auto";
+    sh.style.top=Math.max(12, Math.round(top+h*0.03))+"px";
+    sh.style.maxHeight=Math.round(Math.min(720, h-24))+"px";
   } else {
-    el("sheet").scrollTop=0;
+    /* Pin bottom of sheet to bottom of visual viewport (not layout viewport) */
+    var gap=Math.max(0, Math.round(window.innerHeight-(top+h)));
+    sh.style.left="0";
+    sh.style.right="0";
+    sh.style.width="100%";
+    sh.style.top="auto";
+    sh.style.bottom=gap+"px";
+    sh.style.maxHeight=Math.round(h*0.9)+"px";
   }
 }
+function showSheet(on){
+  var gen=++sheetGen;
+  var sh=el("sheet");
+  el("scrim").classList.toggle("show",on);
+  sh.classList.toggle("show",on);
+  document.body.classList.toggle("sheet-open",on);
+  /* Clear drag overrides; re-pin to visual viewport */
+  sh.style.transform="";
+  sh.style.transition="";
+  syncSheetViewport();
+  if(!on){
+    sh.style.left=""; sh.style.right=""; sh.style.width=""; sh.style.bottom="";
+    sh.style.top=""; sh.style.maxHeight="";
+    setTimeout(function(){
+      if(gen!==sheetGen) return;
+      if(!sh.classList.contains("show")) el("sheetInner").innerHTML="";
+    },260);
+  } else {
+    sh.scrollTop=0;
+    requestAnimationFrame(function(){
+      if(gen!==sheetGen) return;
+      sh.style.transform="";
+      syncSheetViewport();
+      sh.scrollTop=0;
+    });
+  }
+}
+(function(){
+  function onVV(){ if(document.body.classList.contains("sheet-open")) syncSheetViewport(); }
+  window.addEventListener("resize",onVV);
+  window.addEventListener("orientationchange",onVV);
+  if(window.visualViewport){
+    window.visualViewport.addEventListener("resize",onVV);
+    window.visualViewport.addEventListener("scroll",onVV);
+  }
+  syncSheetViewport();
+})();
 el("scrim").addEventListener("click",function(){ showSheet(false); });
 el("fab").addEventListener("click",function(){
   if(curTab==="apa"){
@@ -2380,25 +2450,31 @@ el("fab").addEventListener("click",function(){
 document.addEventListener("keydown",function(ev){ if(ev.key==="Escape"&&el("sheet").classList.contains("show")) showSheet(false); });
 /* swipe-down on grip / header to dismiss (mobile) */
 (function(){
-  var sh=el("sheet"), startY=0, dragging=false;
+  var sh=el("sheet"), startY=0, dragging=false, wide=false;
   function inDragZone(t){ return t&&(t.closest&&(t.closest(".grip")||t.closest(".sheethead")||t.closest(".sheetx"))); }
+  function dismissTransform(dy){
+    if(wide) return "translate3d(-50%,"+Math.min(dy,280)+"px,0)";
+    return "translate3d(0,"+Math.min(dy,280)+"px,0)";
+  }
   sh.addEventListener("touchstart",function(e){
     if(!sh.classList.contains("show")||!inDragZone(e.target)){ dragging=false; return; }
     if(sh.scrollTop>2){ dragging=false; return; }
+    wide=window.matchMedia&&window.matchMedia("(min-width:620px)").matches;
     startY=e.touches[0].clientY; dragging=true;
   },{passive:true});
   sh.addEventListener("touchmove",function(e){
     if(!dragging) return;
     var dy=e.touches[0].clientY-startY;
-    if(dy>0){ sh.style.transition="none"; sh.style.transform="translateY("+Math.min(dy,280)+"px)"; }
+    if(dy>0){ sh.style.transition="none"; sh.style.transform=dismissTransform(dy); }
   },{passive:true});
   sh.addEventListener("touchend",function(e){
     if(!dragging) return;
     dragging=false;
     var dy=(e.changedTouches[0]?e.changedTouches[0].clientY:0)-startY;
     sh.style.transition="";
-    if(dy>90){ sh.style.transform=""; showSheet(false); }
-    else { sh.style.transform=""; }
+    sh.style.transform="";
+    if(dy>90) showSheet(false);
+    else syncSheetViewport();
   });
 })();
 el("sheet").querySelector(".grip").addEventListener("click",function(){ showSheet(false); });
