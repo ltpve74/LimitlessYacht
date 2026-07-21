@@ -411,9 +411,10 @@ function buildNotices(coll, prevRows, nextRows, who) {
       const old = byId.get(ch.id);
       const client = ch.client || "Charge";
       const inv = chargeInv(ch);
+      const isApa = ch.kind === "apa" || !!ch.apaTripId;
       if (!old) {
         notices.push({
-          title: "New card charge",
+          title: isApa ? "APA invoice request" : "New card charge",
           body: `${client} · €${Number(ch.amount) || 0} (by ${who})`,
           tag: `ch-new-${ch.id}`,
           url: "/tracker/",
@@ -423,9 +424,21 @@ function buildNotices(coll, prevRows, nextRows, who) {
       const oldInv = chargeInv(old);
       if (inv === "Issued" && oldInv !== "Issued") {
         notices.push({
-          title: "Charge invoice issued",
+          title: isApa ? "APA invoice issued" : "Charge invoice issued",
           body: `${client}${ch.inv ? " #" + ch.inv : ""}`,
           tag: `ch-iss-${ch.id}`,
+          url: "/tracker/",
+        });
+      }
+      if (
+        isApa &&
+        Number(ch.amount) > 0 &&
+        Math.abs((Number(old.amount) || 0) - (Number(ch.amount) || 0)) > 0.005
+      ) {
+        notices.push({
+          title: "APA amount updated",
+          body: `${client} · €${Number(ch.amount) || 0}`,
+          tag: `ch-apa-amt-${ch.id}`,
           url: "/tracker/",
         });
       }
