@@ -215,7 +215,42 @@ function tripApaPaidCovered(data, t) {
   for (const c of tripLinkedCharges(data, t)) {
     if (chargeIsPaid(c)) s += Number(c.amount) || 0;
   }
+  /* Cash deal settled: cash booked as received — don't double-count vs pot */
+  if (t && t.cashSettled) {
+    const cash = Number(t.cashReceived) || Number(t.cashAmt) || 0;
+    if (cash > 0) s = Math.max(0, s - cash);
+  }
   return Math.round(s * 100) / 100;
+}
+
+/** Cash (black) deal: Paid charge → book cash as received (mirrors client). */
+function syncCashReceivedFromCharges(data, t) {
+  if (!t || !(t.cashFromLead || Number(t.cashAmt) > 0)) return false;
+  const cash = Math.round((Number(t.cashAmt) || 0) * 100) / 100;
+  const anyPaid = tripLinkedCharges(data, t).some((c) => chargeIsPaid(c));
+  if (anyPaid && cash > 0) {
+    if (
+      !t.cashSettled ||
+      Math.abs((Number(t.cashReceived) || 0) - cash) > 0.02 ||
+      (Number(t.apaSent) || 0) !== 0
+    ) {
+      t.cashSettled = true;
+      t.cashReceived = cash;
+      t.apaSent = 0;
+      return true;
+    }
+  } else if (
+    !anyPaid &&
+    (t.cashSettled ||
+      Number(t.cashReceived) > 0 ||
+      ((Number(t.apaSent) || 0) >= 0 && t.cashFromLead && cash > 0))
+  ) {
+    t.cashSettled = false;
+    t.cashReceived = 0;
+    t.apaSent = Math.round(-cash * 100) / 100;
+    return true;
+  }
+  return false;
 }
 
 /** Unpaid shortfall after pot + paid charges. Mirrors client apaOverageAmount. */
@@ -258,10 +293,12 @@ function ensureApaChargesLinked(data) {
 
   for (const t of data.apa) {
     if (!t || !String(t.guest || "").trim()) continue;
+    if (syncCashReceivedFromCharges(data, t)) dirty = true;
     const over = tripApaOverage(data, t);
     const linked = tripLinkedCharges(data, t);
     const pending = linked.filter((c) => !chargeIsPaid(c));
     const paid = linked.filter((c) => chargeIsPaid(c));
+    const cashPot = Number(t.apaSent) < 0 || t.cashFromLead;
 
     if (over <= 0) {
       if (pending.length) {
@@ -284,7 +321,9 @@ function ensureApaChargesLinked(data) {
     const vat = gross - net;
     const note =
       (t.dates ? "APA · " + t.dates + ". " : "") +
-      "APA shortfall (balance negative) — synced from APA ledger";
+      (cashPot
+        ? "Cash (black) + charter spend — synced from APA ledger"
+        : "APA shortfall (balance negative) — synced from APA ledger");
 
     if (ch) {
       if (t.chargeId !== ch.id) {
@@ -304,12 +343,15 @@ function ensureApaChargesLinked(data) {
         ch.vatMode = "include";
         ch.kind = "apa";
         ch.apaTripId = t.id;
+        ch.cashDeal = !!cashPot;
+        if (cashPot && t.cashAmt) ch.cashAmt = Number(t.cashAmt) || 0;
+        if (!ch.payMethod) ch.payMethod = cashPot ? "Cash" : "Card";
         if (ch.payStatus !== "Paid") ch.payStatus = "Pending";
         if (ch.invStatus !== "Issued") {
           ch.invStatus = "Not issued";
           ch.status = ch.payStatus || "Pending";
         }
-        if (!ch.notes || /^APA/i.test(ch.notes) || /synced from APA|shortfall|pot \(sent/i.test(ch.notes)) {
+        if (!ch.notes || /^APA/i.test(ch.notes) || /synced from APA|shortfall|pot \(sent|Cash \(black\)/i.test(ch.notes)) {
           ch.notes = note;
         }
         dirty = true;
@@ -324,6 +366,8 @@ function ensureApaChargesLinked(data) {
       id: idFree ? id : "charge-apa-" + t.id + "-" + Date.now().toString(36),
       kind: "apa",
       apaTripId: t.id,
+      cashDeal: !!cashPot,
+      cashAmt: cashPot ? Number(t.cashAmt) || 0 : 0,
       date: t.id === SHEET_TRIP_ID ? "2026-07-17" : new Date().toISOString().slice(0, 10),
       client: t.guest,
       amount: gross,
@@ -332,6 +376,7 @@ function ensureApaChargesLinked(data) {
       vatPct: pct,
       vatMode: "include",
       payStatus: "Pending",
+      payMethod: cashPot ? "Cash" : "Card",
       invStatus: "Not issued",
       status: "Pending",
       inv: "",
@@ -577,6 +622,10 @@ export default async (req, context) => {
     const next = Array.isArray(body.rows) ? body.rows.slice(0, 5000) : [];
     const notices = coll === "apa" || coll === "diesel" ? [] : buildNotices(coll, prev, next, who);
     data[coll] = next;
+    /* Charters Paid/Pending → re-link APA shortfall + book cash (black) as received */
+    if (coll === "charters" || coll === "apa") {
+      if (ensureApaChargesLinked(data)) addLog("sync APA after " + coll);
+    }
     touchDevice();
     addLog("save " + coll + (notices.length ? " (+notify " + notices.length + ")" : ""));
     await sendPushes(data, notices, body.pushEndpoint || "");
