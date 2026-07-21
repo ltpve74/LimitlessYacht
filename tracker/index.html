@@ -61,6 +61,29 @@
   .banner.warn{background:#fff8e1;border:1px solid #ffe08a;color:#7a5c00}
   .banner.alarm{background:var(--dangerBg);border:1px solid #f3b4ae;color:var(--danger)}
 
+  /* home-screen install prompt (browser only — hidden when already a PWA) */
+  .install-prompt{position:fixed;left:12px;right:12px;bottom:calc(78px + var(--safe-b));z-index:35;
+    max-width:480px;margin:0 auto;background:var(--card);border-radius:18px;
+    box-shadow:0 12px 40px rgba(15,25,30,.22);border:1px solid var(--line);padding:16px 16px 14px;
+    animation:installIn .28s cubic-bezier(.22,1,.36,1)}
+  @keyframes installIn{from{opacity:0;transform:translateY(16px)}to{opacity:1;transform:translateY(0)}}
+  .install-prompt .ip-top{display:flex;align-items:flex-start;gap:12px;margin-bottom:10px}
+  .install-prompt .ip-ic{width:44px;height:44px;border-radius:12px;background:var(--brand);color:#fff;
+    display:flex;align-items:center;justify-content:center;font-size:22px;flex-shrink:0}
+  .install-prompt h3{margin:0 0 3px;font-size:16px;line-height:1.25}
+  .install-prompt .ip-sub{margin:0;font-size:13px;color:var(--muted);line-height:1.4}
+  .install-prompt .ip-steps{margin:0 0 12px;padding:10px 12px;background:#f5f8f9;border-radius:12px;
+    font-size:13px;line-height:1.5;color:var(--ink)}
+  .install-prompt .ip-steps ol{margin:6px 0 0;padding-left:1.2em}
+  .install-prompt .ip-steps li{margin:3px 0}
+  .install-prompt .ip-steps b{color:var(--brand)}
+  .install-prompt .ip-row{display:flex;gap:8px;flex-wrap:wrap}
+  .install-prompt .ip-row .btn{flex:1;min-width:110px;padding:12px 14px;font-size:14px}
+  .install-prompt .ip-x{position:absolute;top:10px;right:10px;width:36px;height:36px;border-radius:18px;
+    background:#eef1f4;color:var(--ink);font-size:22px;line-height:34px;text-align:center;padding:0}
+  .install-prompt .ip-x:active{background:#e0e5ea}
+  .install-prompt{/* position already fixed above */}
+
   .summary{display:flex;gap:10px;margin-bottom:14px}
   .sumcard{flex:1;background:var(--card);border-radius:14px;padding:13px 15px;box-shadow:0 1px 3px rgba(0,0,0,.07)}
   .sumcard .l{font-size:11.5px;color:var(--muted);text-transform:uppercase;letter-spacing:.03em}
@@ -383,6 +406,9 @@
   </nav>
 </div>
 
+<!-- Home-screen install (browser only; not shown when already a PWA) -->
+<div id="installPrompt" class="install-prompt hidden" role="dialog" aria-labelledby="installTitle" aria-modal="false"></div>
+
 <!-- ============ ADD / EDIT SHEET ============ -->
 <div class="scrim" id="scrim"></div>
 <div class="sheet" id="sheet"><div class="grip"></div><div id="sheetInner"></div></div>
@@ -458,6 +484,8 @@ function enterApp(){
   if(!cap&&(curTab==="apa"||curTab==="diesel")) curTab="charters";
   renderAll(); if(!DEMO){ startPolling(); initPushUI(); }
   else { setPushStatus("na","Demo mode — notifications need the live app"); }
+  /* Prompt once logged in if not already running as home-screen app */
+  setTimeout(function(){ maybeShowInstallPrompt(); }, 600);
 }
 el("logoutBtn").addEventListener("click",function(){ location.reload(); });
 
@@ -2695,7 +2723,128 @@ function pushSupported(){
   return !!(self.Notification && navigator.serviceWorker && self.PushManager);
 }
 function isStandalone(){
-  return (window.matchMedia&&window.matchMedia("(display-mode: standalone)").matches) || window.navigator.standalone===true;
+  return (window.matchMedia&&window.matchMedia("(display-mode: standalone)").matches)
+    || (window.matchMedia&&window.matchMedia("(display-mode: fullscreen)").matches)
+    || window.navigator.standalone===true
+    || document.referrer.indexOf("android-app://")===0;
+}
+function isIosDevice(){
+  return /iPhone|iPad|iPod/i.test(navigator.userAgent)
+    || (navigator.platform==="MacIntel"&&navigator.maxTouchPoints>1);
+}
+function isAndroidDevice(){ return /Android/i.test(navigator.userAgent); }
+
+/* -------- install as home-screen app -------- */
+var deferredInstallEvt=null;
+var INSTALL_LS_KEY="tracker-install-prompt";
+var INSTALL_SNOOZE_MS=7*864e5; /* re-prompt after 7 days if “Not now” */
+window.addEventListener("beforeinstallprompt",function(e){
+  e.preventDefault();
+  deferredInstallEvt=e;
+  /* If user is already in the app, refresh the banner so Install is one-tap */
+  if(el("app")&&!el("app").classList.contains("hidden")) maybeShowInstallPrompt(true);
+});
+window.addEventListener("appinstalled",function(){
+  deferredInstallEvt=null;
+  try{ localStorage.setItem(INSTALL_LS_KEY,"installed"); }catch(err){}
+  hideInstallPrompt();
+});
+function installPromptStorageGet(){
+  try{ return localStorage.getItem(INSTALL_LS_KEY)||""; }catch(e){ return ""; }
+}
+function installPromptStorageSet(v){
+  try{ localStorage.setItem(INSTALL_LS_KEY,v); }catch(e){}
+}
+function shouldShowInstallPrompt(){
+  if(isStandalone()) return false;
+  if(DEMO) return false;
+  var v=installPromptStorageGet();
+  if(v==="installed"||v==="never") return false;
+  if(v&&v!==""){
+    var t=parseInt(v,10);
+    if(t&&!isNaN(t)&& (Date.now()-t)<INSTALL_SNOOZE_MS) return false;
+  }
+  return true;
+}
+function hideInstallPrompt(){
+  var box=el("installPrompt");
+  if(box) box.classList.add("hidden");
+}
+function dismissInstallPrompt(mode){
+  /* mode: "later" | "never" */
+  if(mode==="never") installPromptStorageSet("never");
+  else installPromptStorageSet(String(Date.now()));
+  hideInstallPrompt();
+}
+function runNativeInstall(){
+  if(!deferredInstallEvt) return;
+  var ev=deferredInstallEvt;
+  deferredInstallEvt=null;
+  ev.prompt();
+  Promise.resolve(ev.userChoice).then(function(choice){
+    if(choice&&choice.outcome==="accepted"){
+      installPromptStorageSet("installed");
+      hideInstallPrompt();
+    } else {
+      dismissInstallPrompt("later");
+    }
+  }).catch(function(){ dismissInstallPrompt("later"); });
+}
+function buildInstallPromptHTML(){
+  var ios=isIosDevice();
+  var canNative=!!deferredInstallEvt;
+  var steps;
+  if(ios){
+    steps='<div class="ip-steps"><b>On iPhone / iPad (Safari)</b><ol>'+
+      '<li>Tap the <b>Share</b> button <span aria-hidden="true">⬆️</span> at the bottom of Safari</li>'+
+      '<li>Scroll and tap <b>Add to Home Screen</b></li>'+
+      '<li>Tap <b>Add</b>, then open <b>Tracker</b> from your home screen</li>'+
+      '</ol></div>';
+  } else if(canNative){
+    steps='<div class="ip-steps">Install Limitless Tracker on this device for a full-screen app, faster access, and reliable notifications.</div>';
+  } else if(isAndroidDevice()){
+    steps='<div class="ip-steps"><b>On Android (Chrome)</b><ol>'+
+      '<li>Tap the <b>⋮</b> menu in Chrome</li>'+
+      '<li>Tap <b>Install app</b> or <b>Add to Home screen</b></li>'+
+      '<li>Open <b>Tracker</b> from your home screen next time</li>'+
+      '</ol></div>';
+  } else {
+    steps='<div class="ip-steps"><b>Install from the browser</b><ol>'+
+      '<li>Open the browser menu (⋮ or ⋯)</li>'+
+      '<li>Choose <b>Install app</b> / <b>Add to Home screen</b> / <b>Install Limitless Tracker</b></li>'+
+      '<li>Open the app from your home screen or dock</li>'+
+      '</ol></div>';
+  }
+  var primary=canNative
+    ?'<button type="button" class="btn" id="installDo">Install app</button>'
+    :'<button type="button" class="btn" id="installGotIt">Got it</button>';
+  return '<button type="button" class="ip-x" id="installClose" aria-label="Dismiss">×</button>'+
+    '<div class="ip-top"><div class="ip-ic" aria-hidden="true">⚓</div>'+
+    '<div><h3 id="installTitle">Add to Home Screen</h3>'+
+    '<p class="ip-sub">Use Tracker like a real app — full screen, one tap, better alerts.</p></div></div>'+
+    steps+
+    '<div class="ip-row">'+primary+
+    '<button type="button" class="btn ghost" id="installLater">Not now</button></div>'+
+    '<button type="button" class="btn ghost" id="installNever" style="margin-top:8px;width:100%;padding:10px;font-size:13px;font-weight:600">Don\'t show again</button>';
+}
+function bindInstallPromptActions(){
+  var box=el("installPrompt"); if(!box) return;
+  var later=el("installLater"), never=el("installNever"), close=el("installClose");
+  var got=el("installGotIt"), doit=el("installDo");
+  if(later) later.addEventListener("click",function(){ dismissInstallPrompt("later"); });
+  if(never) never.addEventListener("click",function(){ dismissInstallPrompt("never"); });
+  if(close) close.addEventListener("click",function(){ dismissInstallPrompt("later"); });
+  if(got) got.addEventListener("click",function(){ dismissInstallPrompt("later"); });
+  if(doit) doit.addEventListener("click",function(){ runNativeInstall(); });
+}
+function maybeShowInstallPrompt(forceRefresh){
+  var box=el("installPrompt"); if(!box) return;
+  if(isStandalone()){ hideInstallPrompt(); return; }
+  if(!shouldShowInstallPrompt()&&!forceRefresh){ hideInstallPrompt(); return; }
+  if(!shouldShowInstallPrompt()&&forceRefresh&&box.classList.contains("hidden")) return;
+  box.innerHTML=buildInstallPromptHTML();
+  bindInstallPromptActions();
+  box.classList.remove("hidden");
 }
 function initPushUI(){
   var en=el("pushEnable"), te=el("pushTest");
