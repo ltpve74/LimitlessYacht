@@ -217,7 +217,21 @@
   .item.apa-row{position:relative;padding-right:52px}
   .apa-x{position:absolute;right:10px;top:50%;transform:translateY(-50%);width:36px;height:36px;border-radius:10px;border:1.5px solid var(--line);background:#fff;color:var(--danger);font-size:18px;font-weight:700;line-height:1;display:flex;align-items:center;justify-content:center;z-index:2}
   .apa-x:active{background:#fde8e8}
+  .apa-sect-h{display:flex;align-items:center;justify-content:space-between;gap:10px;margin:16px 0 10px}
+  .apa-sect-h h3{margin:0;font-size:14px;font-weight:800}
+  .apa-sect-h .btn{width:auto;padding:10px 14px;font-size:13px;flex:0 0 auto}
+  .apa-fuel-note{font-size:12.5px;color:var(--muted);line-height:1.45;margin:-2px 2px 12px}
+  .diesel-pick{display:flex;flex-direction:column;gap:10px;margin:4px 0 8px}
+  .diesel-pick .btn{text-align:left;padding:14px 16px}
+  .diesel-pick .btn small{display:block;font-weight:500;opacity:.75;margin-top:3px;font-size:12px}
+  .pill.p-buy{background:#e8f0f8;color:#1a4a6b}
+  .pill.p-level{background:#f3efe6;color:#6b5a1a}
+  .pill.p-sell{background:#efe8f4;color:#5a1a6b}
   .item .chev{pointer-events:none}
+  .bnav button{font-size:10.5px;padding:9px 3px 8px}
+  .bnav button .ic{font-size:20px}
+  .bnav button.active{font-size:11px}
+  .bnav button.active .ic{font-size:22px}
   @media(min-width:620px){
     .sheet{max-width:520px;margin:0 auto;border-radius:20px;bottom:auto;top:50%;left:50%;right:auto;
            max-height:min(88vh,720px);transform:translate(-50%,-46%) scale(.98);opacity:0;transition:opacity .2s, transform .2s}
@@ -282,7 +296,7 @@
         <div class="sumcard"><div class="l">Deals value</div><div class="v money" id="ldTot">€0</div></div>
         <div class="sumcard"><div class="l">Invoices requested</div><div class="v" id="ldPending">0</div></div>
       </div>
-      <div class="legend">Closed website leads. Quotes are usually <b>VAT included</b>. Optional <b>invoice + cash (black)</b>: client pays quote without full VAT + only the small formal invoice VAT. Use <b>Request invoice</b> for the manager. APA is usually overnight only.</div>
+      <div class="legend">Closed website leads. Quotes are usually <b>VAT included</b>. Optional <b>invoice + cash (black)</b>: deposit &amp; final = white invoice only; cash opens an APA pot at −cash for charter spend. Use <b>Request invoice</b> for the manager.</div>
       <div class="list" id="ldList"></div>
     </section>
 
@@ -293,7 +307,7 @@
           <div class="sumcard"><div class="l">APA pots</div><div class="v money" id="apaSumPot">€0</div></div>
           <div class="sumcard"><div class="l">Balance left</div><div class="v money" id="apaSumBal">€0</div></div>
         </div>
-        <div class="legend">Captain-only. Log spend even with <b>€0 prepaid APA</b> — expenses / diesel create a <b>Charges</b> invoice request for the full amount. Prepaid pot only reduces what is still owed. Mark charge <b>Paid</b> to restore balance.</div>
+        <div class="legend">Captain-only. Log spend even with <b>€0 prepaid APA</b> — expenses / diesel create a <b>Charges</b> invoice request for the full amount. Prepaid pot only reduces what is still owed. Mark charge <b>Paid</b> to restore balance. Vessel fuel balance lives on the <b>Diesel</b> tab.</div>
         <div class="list" id="apaList"></div>
       </div>
       <div id="apaDetailWrap" class="hidden">
@@ -303,11 +317,16 @@
           <button type="button" data-apasub="overview" class="on">Overview</button>
           <button type="button" data-apasub="expenses">Expenses</button>
           <button type="button" data-apasub="provisions">Provisions</button>
-          <button type="button" data-apasub="diesel">Diesel</button>
+          <button type="button" data-apasub="diesel">Trip fuel</button>
           <button type="button" data-apasub="setup">Trip setup</button>
         </div>
         <div id="apaBody"></div>
       </div>
+    </section>
+
+    <!-- DIESEL (captain only — vessel fuel) -->
+    <section id="tab-diesel" class="hidden">
+      <div id="dieselBody"></div>
     </section>
 
     <!-- SECURITY -->
@@ -343,7 +362,8 @@
   <nav class="bnav">
     <button data-tab="charters" class="active"><span class="ic">🧾</span>Charges</button>
     <button data-tab="leads"><span class="ic">🌐</span>Leads</button>
-    <button data-tab="apa" id="navApa" class="hidden"><span class="ic">⛽</span>APA</button>
+    <button data-tab="apa" id="navApa" class="hidden"><span class="ic">📒</span>APA</button>
+    <button data-tab="diesel" id="navDiesel" class="hidden"><span class="ic">⛽</span>Diesel</button>
     <button data-tab="security"><span class="ic">🔒</span>Security<span class="badge hidden" id="secBadge">0</span></button>
   </nav>
 </div>
@@ -375,8 +395,9 @@ function safeSet(k,v){ try{ localStorage.setItem(k,v); }catch(e){ memStore[k]=v;
 
 var DEMO=false, curTab="charters", apaSub="overview", activeApaId=null, apaView="list";
 var session={ who:null, pass:null, deviceId:null };
-var state={ charters:[], leads:[], apa:[], devices:[], log:[] };
+var state={ charters:[], leads:[], apa:[], diesel:[], devices:[], log:[] };
 var pushMeta={ server:false, vapidPublicKey:"", endpoint:"" };
+var DIESEL_DEFAULT_BUY=1.75, DIESEL_DEFAULT_SELL=2.20;
 function isCaptain(){ return /^captain\b/i.test(String(session.who||"").trim()); }
 
 function deviceId(){
@@ -418,7 +439,8 @@ function enterApp(){
   el("demoNote").classList.toggle("hidden",!DEMO);
   var cap=isCaptain();
   el("navApa").classList.toggle("hidden",!cap);
-  if(!cap&&curTab==="apa") curTab="charters";
+  el("navDiesel").classList.toggle("hidden",!cap);
+  if(!cap&&(curTab==="apa"||curTab==="diesel")) curTab="charters";
   renderAll(); if(!DEMO){ startPolling(); initPushUI(); }
   else { setPushStatus("na","Demo mode — notifications need the live app"); }
 }
@@ -429,16 +451,18 @@ Array.prototype.forEach.call(document.querySelectorAll(".bnav button"),function(
   b.addEventListener("click",function(){ switchTab(b.getAttribute("data-tab")); });
 });
 function switchTab(t){
-  if(t==="apa"&&!isCaptain()) return;
+  if((t==="apa"||t==="diesel")&&!isCaptain()) return;
   curTab=t;
   if(t==="apa") apaView="list";
   Array.prototype.forEach.call(document.querySelectorAll(".bnav button"),function(x){ x.classList.toggle("active",x.getAttribute("data-tab")===t); });
   el("tab-charters").classList.toggle("hidden",t!=="charters");
   el("tab-leads").classList.toggle("hidden",t!=="leads");
   el("tab-apa").classList.toggle("hidden",t!=="apa");
+  el("tab-diesel").classList.toggle("hidden",t!=="diesel");
   el("tab-security").classList.toggle("hidden",t!=="security");
   updateFab();
   if(t==="apa") renderApa();
+  if(t==="diesel") renderDiesel();
 }
 function updateFab(){
   var hide=false;
@@ -447,12 +471,13 @@ function updateFab(){
     if(apaView==="list") hide=false; /* + new trip */
     else hide=(apaSub==="overview"||apaSub==="setup"||!activeApaId);
   }
+  /* diesel: FAB always opens add picker */
   el("fab").classList.toggle("hidden",hide);
 }
 
 /* -------- render -------- */
 function pill(v){ var c="p-grey"; if(v==="Pending"||v==="Requested"||v==="Not issued")c="p-amber"; else if(v==="Invoiced"||v==="Issued")c="p-blue"; else if(v==="Paid")c="p-green"; return '<span class="pill '+c+'">'+esc(v)+'</span>'; }
-function renderAll(){ renderCharters(); renderLeads(); renderSecurity(); if(isCaptain()) renderApa(); }
+function renderAll(){ renderCharters(); renderLeads(); renderSecurity(); if(isCaptain()){ renderApa(); renderDiesel(); } }
 
 /** Charges: payment defaults Paid; invStatus is what the manager tracks. */
 function chargePay(r){
@@ -541,12 +566,14 @@ function renderLeads(){
     var vatNote=vatModeLabel(r.vatMode);
     if(vatNote&&(Number(r.vatPct)||0)>0) vatNote+=" "+r.vatPct+"%";
     var splitBits="";
+    var finLabel="Final";
     if(leadHasSplit(r)){
       var invN=Number(r.invoiceNet)||0, cashN=Number(r.cashAmt)||0;
       var invT=Number(r.invoiceTotal)!=null&&r.invoiceTotal!==""?Number(r.invoiceTotal):(invN+(Number(r.invoiceVat)||0));
-      splitBits='<span class="pill p-white">Invoice '+money0(invN)+(Number(r.invoiceVat)>0?' + VAT':'')+'</span>'+
+      splitBits='<span class="pill p-white">White '+money0(invT||invN)+'</span>'+
         '<span class="pill p-black">Cash '+money0(cashN)+'</span>';
-      if(invT&&invT!==invN) splitBits+='<span class="meta" style="display:contents"><span>inv. total '+money0(invT)+'</span></span>';
+      if(invN&&invT&&Math.abs(invT-invN)>0.5) splitBits+='<span class="meta" style="display:contents"><span>ex VAT '+money0(invN)+'</span></span>';
+      finLabel="Final (white)";
     }
     html+='<div class="item" data-edit-ld="'+esc(r.id)+'">'+
       '<div class="top"><div class="title">'+esc(r.name||"—")+'</div><div class="amt money">'+money0(r.total)+'</div></div>'+
@@ -554,7 +581,7 @@ function renderLeads(){
         (pendForLead(r)?'<span class="pill p-amber">'+pendForLead(r)+' invoice'+(pendForLead(r)>1?'s':'')+' requested</span>':'')+'</div>'+
       '<div class="invtags">'+
         leadInvTag("Deposit",r.dep,r.depPct,r.deps,r.depInv,r.id,"deps")+
-        leadInvTag("Final",r.fin,"",r.fins,r.finInv,r.id,"fins")+
+        leadInvTag(finLabel,r.fin,"",r.fins,r.finInv,r.id,"fins")+
         (showApa?leadInvTag("APA",r.apa,r.apaPct,r.apas,r.apaInv,r.id,"apas"):"")+
       '</div>'+
       (r.notes?'<div class="notes">'+esc(r.notes)+'</div>':'')+'<span class="chev">✎</span></div>';
@@ -595,7 +622,7 @@ function emptyApaTrip(){
   return { id:uid(), vessel:"M/Y Limitless", guest:"", captain:"Luigi", dates:"",
     clientKey:"", chargeId:"", linkKey:"", linkSource:"", linkSourceId:"", linkInvKind:"", linkInvNo:"", linkInvLabel:"", linkInvAmount:0,
     apaSent:0, topUps:0, dieselPrice:1.75, genBurn:6,
-    expenses:[], provisions:[], diesel:[], notes:"", by:session.who||"Captain", updatedAt:new Date().toISOString() };
+    expenses:[], provisions:[], diesel:[], dieselLoads:[], notes:"", by:session.who||"Captain", updatedAt:new Date().toISOString() };
 }
 function normName(s){ return String(s||"").trim().toLowerCase().replace(/\s+/g," "); }
 function apaDueAmount(t){ return (Number(t&&t.apaSent)||0)+(Number(t&&t.topUps)||0); }
@@ -643,6 +670,8 @@ function apaLinkedLead(t){
 function syncLeadApaInvoiceRequest(t, billable){
   var lead=apaLinkedLead(t);
   if(!lead||!(billable>0)) return false;
+  /* Cash-from-black trips settle on Charges only — don't overwrite overnight APA invoice */
+  if(t.cashFromLead||Number(t.apaSent)<0) return false;
   /* Prepaid APA already issued/paid on the lead — only Charges shortfall applies */
   if(lead.apas==="Issued"||lead.apas==="Paid") return false;
   if(apaHasPrepaid(t)) return false;
@@ -659,6 +688,119 @@ function syncLeadApaInvoiceRequest(t, billable){
     dirty=true;
   }
   return dirty;
+}
+/**
+ * Black-split cash: APA pot = −cash so balance starts short by cash owed.
+ * On charter, diesel/expenses increase the Charges request; mark Paid to settle.
+ * Returns true if APA/charters changed.
+ */
+function ensureLeadCashApa(lead){
+  if(!isCaptain()||!lead||!lead.id) return false;
+  var cash=Math.round((Number(lead.cashAmt)||0)*100)/100;
+  var key="lead:"+lead.id;
+  if(!state.apa) state.apa=[];
+  var trip=null, i;
+  for(i=0;i<state.apa.length;i++){
+    var t=state.apa[i];
+    if(!t) continue;
+    if(t.cashFromLead&&t.clientKey===key){ trip=t; break; }
+    if(t.clientKey===key&&(t.cashFromLead||Number(t.apaSent)<0)){ trip=t; break; }
+  }
+  if(!(cash>0)||!leadHasSplit(lead)){
+    /* Split off / cash cleared: drop empty cash trip, or zero the pot if spend exists */
+    if(trip&&trip.cashFromLead){
+      var x0=apaTotals(trip);
+      var emptySpend=x0.spent<=0&&!(trip.expenses&&trip.expenses.length)&&!(trip.provisions&&trip.provisions.length)&&!(trip.diesel&&trip.diesel.length);
+      if(emptySpend){
+        removeApaLinkedCharges(trip, false);
+        state.apa=state.apa.filter(function(t){return t.id!==trip.id;});
+      } else {
+        trip.apaSent=0; trip.cashFromLead=false; trip.cashAmt=0;
+        syncApaToCharge(trip);
+      }
+      save("apa"); save("charters"); renderApa(); renderCharters();
+      return true;
+    }
+    return false;
+  }
+  var neg=Math.round((-cash)*100)/100;
+  var dates=apaClientDates(lead)||"";
+  var guest=lead.name||"";
+  if(trip
+    && trip.cashFromLead
+    && Math.abs((Number(trip.apaSent)||0)-neg)<0.005
+    && Math.abs((Number(trip.cashAmt)||0)-cash)<0.005
+    && trip.guest===guest
+    && trip.clientKey===key){
+    return false; /* already in sync */
+  }
+  if(!trip){
+    trip=emptyApaTrip();
+    trip.cashFromLead=true;
+    state.apa.unshift(trip);
+  }
+  trip.cashFromLead=true;
+  trip.cashAmt=cash;
+  trip.guest=guest||trip.guest||"";
+  trip.clientKey=key;
+  trip.linkSource="lead";
+  trip.linkSourceId=lead.id;
+  if(dates) trip.dates=dates;
+  trip.apaSent=neg;
+  if(!trip.notes||/^Cash \(black\)/i.test(trip.notes)||!String(trip.notes).trim()){
+    trip.notes="Cash (black) "+money0(cash)+" from lead — pot starts at −cash. Log diesel/expenses on charter; settle on Charges.";
+  }
+  trip.updatedAt=new Date().toISOString();
+  trip.by=session.who||trip.by||"Captain";
+  syncApaToCharge(trip);
+  save("apa"); save("charters");
+  renderApa(); renderCharters();
+  return true;
+}
+/** Recompute deposit/final for black-split leads (white invoice only). */
+function repairLeadWhiteInvoices(){
+  var dirty=false;
+  (state.leads||[]).forEach(function(l){
+    if(!l||!leadHasSplit(l)) return;
+    var base=Number(l.base)!=null&&l.base!==""?Number(l.base):(Number(l.total)||0);
+    if(!(base>0)&&l.price) base=Number(l.price)||0;
+    if(!(base>0)&&l.rate&&l.days) base=(Number(l.rate)||0)*(Number(l.days)||1);
+    var sp=leadSplit(base, l.vatMode||"include", l.vatPct, true, l.invoiceNet);
+    var p=leadParts(sp, l.depPct, l.apaPct);
+    var ch=false;
+    if(Math.abs((Number(l.fin)||0)-p.fin)>0.02){ l.fin=p.fin; ch=true; }
+    if(Math.abs((Number(l.dep)||0)-p.dep)>0.02){ l.dep=p.dep; ch=true; }
+    if(Math.abs((Number(l.invoiceTotal)||0)-sp.invoiceTotal)>0.02){ l.invoiceTotal=sp.invoiceTotal; ch=true; }
+    if(Math.abs((Number(l.cashAmt)||0)-sp.cashAmt)>0.02){ l.cashAmt=sp.cashAmt; ch=true; }
+    if(Math.abs((Number(l.total)||0)-p.client)>0.02){ l.total=p.client; ch=true; }
+    if(ch) dirty=true;
+  });
+  return dirty;
+}
+/** Captain load: ensure black-split leads have cash APA trips in sync. */
+function ensureAllLeadCashApa(){
+  if(!isCaptain()) return;
+  var dirty=false;
+  (state.leads||[]).forEach(function(l){
+    if(!l||!leadHasSplit(l)||!(Number(l.cashAmt)>0)) return;
+    var key="lead:"+l.id;
+    var has=(state.apa||[]).some(function(t){
+      return t&&t.clientKey===key&&(t.cashFromLead||Math.abs((Number(t.apaSent)||0)+ (Number(l.cashAmt)||0))<0.02);
+    });
+    if(!has){ if(ensureLeadCashApa(l)) dirty=true; }
+    else {
+      /* Keep pot in sync with lead cash if still a cash trip and pot is pure −cash (no manual top-ups) */
+      var trip=(state.apa||[]).filter(function(t){return t&&t.clientKey===key&&t.cashFromLead;})[0];
+      if(trip){
+        var want=Math.round((-(Number(l.cashAmt)||0))*100)/100;
+        if(Math.abs((Number(trip.apaSent)||0)-want)>0.005 && !(Number(trip.topUps)>0)){
+          trip.apaSent=want; trip.cashAmt=Number(l.cashAmt)||0;
+          syncApaToCharge(trip); dirty=true;
+        }
+      }
+    }
+  });
+  if(dirty){ save("apa"); save("charters"); renderApa(); renderCharters(); }
 }
 /** Pending (unpaid) shortfall charge for this trip, if any. */
 function findApaPendingCharge(t){
@@ -724,10 +866,14 @@ function syncApaToCharge(t){
   if(!date) date=new Date().toISOString().slice(0,10);
   var x=apaTotals(t);
   var zeroPot=!apaHasPrepaid(t);
-  var note=zeroPot
-    ?"APA spend invoice request (no prepaid pot) — synced from APA ledger"
-    :"APA shortfall (overspend) — synced from APA ledger";
+  var cashPot=Number(t.apaSent)<0||t.cashFromLead;
+  var note=cashPot
+    ?"Cash (black) + charter spend — synced from APA ledger"
+    :(zeroPot
+      ?"APA spend invoice request (no prepaid pot) — synced from APA ledger"
+      :"APA shortfall (overspend) — synced from APA ledger");
   if(t.dates) note="APA · "+t.dates+". "+note;
+  if(cashPot&&t.cashAmt) note+=" · cash "+money0(t.cashAmt);
   note+=" · pot "+money0(x.basePot)+" · paid "+money0(x.paidCovered)+" · spent "+money0(x.spent);
   if(ch){
     ch.client=t.guest;
@@ -778,7 +924,7 @@ function deleteApaTrip(id){
   if(!isCaptain()||!id) return;
   var t=(state.apa||[]).filter(function(x){return x.id===id;})[0];
   if(!t) return;
-  if(!window.confirm("Delete APA trip for "+(t.guest||"this charter")+"?\n\nAll expenses, provisions and diesel rows are removed. Any linked shortfall charges are removed too.")) return;
+  if(!window.confirm("Delete APA trip for "+(t.guest||"this charter")+"?\n\nAll expenses, provisions, diesel loads and consumption are removed. Any linked shortfall charges are removed too.")) return;
   removeApaLinkedCharges(t, false);
   state.apa=state.apa.filter(function(x){return x.id!==id;});
   if(activeApaId===id){ activeApaId=null; apaView="list"; }
@@ -787,11 +933,12 @@ function deleteApaTrip(id){
 }
 function deleteApaLine(kind,lineId){
   var t=apaTrip(); if(!t||!lineId) return;
-  var label=kind==="expense"?"expense":(kind==="provision"?"provision":"diesel");
+  var label=kind==="expense"?"expense":(kind==="provision"?"provision":(kind==="dieselLoad"?"diesel load":"diesel consumption"));
   if(!window.confirm("Delete this "+label+" entry?")) return;
   var saved=apaMutateTrip(t.id,function(trip){
     if(kind==="expense") trip.expenses=trip.expenses.filter(function(x){return String(x.id)!==String(lineId);});
     else if(kind==="provision") trip.provisions=trip.provisions.filter(function(x){return String(x.id)!==String(lineId);});
+    else if(kind==="dieselLoad") trip.dieselLoads=trip.dieselLoads.filter(function(x){return String(x.id)!==String(lineId);});
     else trip.diesel=trip.diesel.filter(function(x){return String(x.id)!==String(lineId);});
   });
   if(saved) saveApa(saved);
@@ -875,15 +1022,23 @@ function apaEnsureArrays(t){
   if(!t.expenses) t.expenses=[];
   if(!t.provisions) t.provisions=[];
   if(!t.diesel) t.diesel=[];
+  if(!t.dieselLoads) t.dieselLoads=[];
   /* Recover missing ids so rows stay editable after older saves */
   t.expenses.forEach(function(e){ if(e&&!e.id) e.id=uid(); });
   t.provisions.forEach(function(p){ if(p&&!p.id) p.id=uid(); });
   t.diesel.forEach(function(d){ if(d&&!d.id) d.id=uid(); });
+  t.dieselLoads.forEach(function(d){ if(d&&!d.id) d.id=uid(); });
   if(!(Number(t.dieselPrice)>0)) t.dieselPrice=1.75;
   if(!(Number(t.genBurn)>0)) t.genBurn=6;
   return t;
 }
-function apaDieselPrice(t){ var p=Number(t&&t.dieselPrice); return p>0?p:1.75; }
+function apaDieselPrice(t){
+  var p=Number(t&&t.dieselPrice);
+  if(p>0) return p;
+  /* Fall back to vessel sell price (guest rate) from Diesel tab */
+  try{ var sp=dieselSettings().sellPrice; if(sp>0) return sp; }catch(e){}
+  return DIESEL_DEFAULT_SELL;
+}
 function apaGenBurn(t){ var g=Number(t&&t.genBurn); return g>0?g:6; }
 function apaNum(v){
   if(v==null||v==="") return 0;
@@ -892,6 +1047,7 @@ function apaNum(v){
   var n=parseFloat(s);
   return isFinite(n)?n:0;
 }
+function apaLit(n){ return Math.round((Number(n)||0)*10)/10; }
 function apaDieselCalc(t,r){
   var eng=apaNum(r&&r.engineL), hrs=apaNum(r&&r.genHrs);
   var price=apaDieselPrice(t), burn=apaGenBurn(t);
@@ -961,6 +1117,7 @@ function saveApa(trip){
   if(leadDirty){ save("leads"); renderLeads(); }
   renderCharters();
   renderApa();
+  if(curTab==="diesel") renderDiesel();
 }
 function openApaDetail(id){
   activeApaId=id;
@@ -999,10 +1156,11 @@ function renderApaList(){
         (t.dates?'<span>'+esc(t.dates)+'</span>':'')+
         '<span>Pot '+money0(x.available)+'</span>'+
         '<span>Spent '+money0(x.spent)+'</span>'+
+        (t.cashFromLead||Number(t.apaSent)<0?'<span class="pill p-black">Cash</span>':'')+
         (over&&ch&&chargePay(ch)!=="Paid"?'<span class="pill p-over">'+(apaHasPrepaid(t)?"Owe ":"Invoice ")+money0(ch.amount)+'</span>':
           over?'<span class="pill p-over">'+(apaHasPrepaid(t)?"Owe ":"Invoice ")+money0(-x.bal)+'</span>':
           (x.paidCovered>0?'<span class="pill p-apa">Paid '+money0(x.paidCovered)+'</span>':
-            (x.spent>0?'<span class="pill p-grey">Settled</span>':'<span class="pill p-grey">'+(apaHasPrepaid(t)?"In pot":"No spend yet")+'</span>')))+
+            (x.spent>0?'<span class="pill p-grey">Settled</span>':'<span class="pill p-grey">'+(apaHasPrepaid(t)?"In pot":(t.cashFromLead?"Cash pot":"No spend yet"))+'</span>')))+
         (t.linkInvNo?'<span class="pill p-blue">APA inv #'+esc(t.linkInvNo)+'</span>':'')+
       '</div>'+
       '<div class="apa-bar'+(over?' over':'')+'" style="margin-top:10px"><i style="width:'+Math.min(100,Math.round((x.pct||0)*1000)/10)+'%"></i></div>'+
@@ -1151,8 +1309,8 @@ function apaOverviewHTML(t){
     '</tbody></table></div>'+
   '<div class="apa-card">'+
     '<div class="k" style="margin-bottom:6px">Diesel summary</div>'+
-    '<div class="meta"><span>€'+esc(String(Number(t.dieselPrice)||0))+'/L</span><span>'+esc(String(Math.round(x.dLit*10)/10))+' L</span><span class="money">'+money(x.dCost)+'</span></div>'+
-    '<div style="font-size:12px;color:var(--muted);margin-top:6px">Genset burn '+esc(String(Number(t.genBurn)||0))+' L/hr</div>'+
+    '<div class="meta"><span>Sell €'+esc(String(apaDieselPrice(t)))+'/L</span><span>Used '+esc(String(Math.round(x.dLit*10)/10))+' L</span><span class="money">'+money(x.dCost)+'</span></div>'+
+    '<div style="font-size:12px;color:var(--muted);margin-top:6px">Genset burn '+esc(String(Number(t.genBurn)||0))+' L/hr · vessel balance on Diesel tab</div>'+
   '</div>';
 }
 function apaExpensesHTML(t){
@@ -1189,24 +1347,35 @@ function apaProvisionsHTML(t){
 function apaDieselHTML(t){
   var x=apaTotals(t);
   var price=apaDieselPrice(t), burn=apaGenBurn(t);
-  var rows=(t.diesel||[]).slice().sort(function(a,b){return String(b.date||"").localeCompare(String(a.date||""));});
-  var head='<div class="apa-grid" style="margin-bottom:12px">'+
-    '<div class="apa-card"><div class="k">€ / litre</div><div class="n">'+esc(String(price))+'</div></div>'+
+  var used=apaLit(x.dLit);
+  var html='<div class="apa-card" style="margin-bottom:12px">'+
+    '<p style="margin:0;font-size:13px;line-height:1.45;color:var(--muted)">Trip consumption charged to this APA pot at the <b>sell</b> rate (€'+esc(String(price))+'/L). Buy/sell prices, bunker loads, and tank levels are on the vessel <b>Diesel</b> tab — that ledger uses these use rows to estimate fuel remaining.</p>'+
+  '</div>'+
+  '<div class="apa-grid" style="margin-bottom:12px">'+
+    '<div class="apa-card"><div class="k">Used (trip)</div><div class="n">'+esc(String(used))+' L</div></div>'+
+    '<div class="apa-card"><div class="k">APA cost</div><div class="n money">'+money(x.dCost)+'</div></div>'+
+    '<div class="apa-card"><div class="k">Sell € / L</div><div class="n">'+esc(String(price))+'</div></div>'+
     '<div class="apa-card"><div class="k">Gen L/hr</div><div class="n">'+esc(String(burn))+'</div></div>'+
-    '<div class="apa-card"><div class="k">Total litres</div><div class="n">'+esc(String(Math.round(x.dLit*10)/10))+'</div></div>'+
-    '<div class="apa-card"><div class="k">Diesel cost</div><div class="n money">'+money(x.dCost)+'</div></div></div>'+
-    '<p style="font-size:12.5px;color:var(--muted);margin:-4px 2px 12px;line-height:1.4">Enter engine litres and/or generator hours (cost = litres × €'+esc(String(price))+'/L). Or set a manual cost in €. Rates: Trip setup.</p>';
-  if(!rows.length) return head+emptyBox("⛽","No diesel rows yet","Tap + to log fuel / genset consumption.");
-  var html=head+'<div class="list">';
-  rows.forEach(function(r){
-    var c=apaDieselCalc(t,r);
-    html+='<div class="item apa-row" data-apa-dsl="'+esc(r.id)+'" role="button" tabindex="0">'+
-      '<div class="top"><div class="title">'+esc(fmtDate(r.date)||"Diesel")+'</div><div class="amt money">'+money(c.cost)+'</div></div>'+
-      '<div class="meta"><span>Engine '+esc(String(apaNum(r.engineL)))+' L</span><span>Gen '+esc(String(apaNum(r.genHrs)))+' h → '+esc(String(Math.round(c.genL*10)/10))+' L</span><span>'+esc(String(Math.round(c.lit*10)/10))+' L total</span></div>'+
-      (r.notes?'<div class="notes">'+esc(r.notes)+'</div>':'')+
-      '<button type="button" class="apa-x" data-apa-del-line="diesel" data-id="'+esc(r.id)+'" aria-label="Delete">×</button></div>';
-  });
-  return html+'</div>';
+  '</div>'+
+  '<p class="apa-fuel-note">Tap + for engine litres and/or generator hours. Optional manual € cost. Trip rate in Trip setup (defaults to vessel sell price).</p>';
+
+  var rows=(t.diesel||[]).slice().sort(function(a,b){return String(b.date||"").localeCompare(String(a.date||""));});
+  html+='<div class="apa-sect-h"><h3>Consumption</h3><span style="font-size:12px;color:var(--muted);font-weight:600">Tap + to add</span></div>';
+  if(!rows.length){
+    html+=emptyBox("⛽","No consumption yet","Tap + for engine litres and/or generator hours.");
+  } else {
+    html+='<div class="list">';
+    rows.forEach(function(r){
+      var c=apaDieselCalc(t,r);
+      html+='<div class="item apa-row" data-apa-dsl="'+esc(r.id)+'" role="button" tabindex="0">'+
+        '<div class="top"><div class="title">'+esc(fmtDate(r.date)||"Use")+'</div><div class="amt money">'+money(c.cost)+'</div></div>'+
+        '<div class="meta"><span>Engine '+esc(String(apaNum(r.engineL)))+' L</span><span>Gen '+esc(String(apaNum(r.genHrs)))+' h → '+esc(String(apaLit(c.genL)))+' L</span><span>'+esc(String(apaLit(c.lit)))+' L used</span></div>'+
+        (r.notes?'<div class="notes">'+esc(r.notes)+'</div>':'')+
+        '<button type="button" class="apa-x" data-apa-del-line="diesel" data-id="'+esc(r.id)+'" aria-label="Delete">×</button></div>';
+    });
+    html+='</div>';
+  }
+  return html;
 }
 function apaSetupHTML(t){
   var ch=findApaChargeForTrip(t);
@@ -1397,12 +1566,12 @@ function openApaTrip(id){
       captain:el("f_captain").value.trim()||"Luigi", dates:el("f_dates").value.trim(),
       apaSent:Number(el("f_apaSent").value)||0, topUps:Number(el("f_topUps").value)||0,
       dieselPrice:apaNum(el("f_dPrice").value)||1.75, genBurn:apaNum(el("f_genBurn").value)||6,
-      expenses:r.expenses||[], provisions:r.provisions||[], diesel:r.diesel||[],
+      expenses:r.expenses||[], provisions:r.provisions||[], diesel:r.diesel||[], dieselLoads:r.dieselLoads||[],
       notes:el("f_notes").value.trim(), by:session.who, updatedAt:new Date().toISOString()
     };
     if(rec){
       obj.chargeId=r.chargeId||"";
-      obj.expenses=r.expenses||[]; obj.provisions=r.provisions||[]; obj.diesel=r.diesel||[];
+      obj.expenses=r.expenses||[]; obj.provisions=r.provisions||[]; obj.diesel=r.diesel||[]; obj.dieselLoads=r.dieselLoads||[];
       state.apa=state.apa.map(function(x){return x.id===obj.id?obj:x;});
     } else { state.apa.unshift(obj); }
     activeApaId=obj.id; apaView="detail"; apaSub="overview";
@@ -1423,7 +1592,7 @@ function openApaLine(kind,id){
   var list=kind==="expense"?t.expenses:(kind==="provision"?t.provisions:t.diesel);
   var rec=id?list.filter(function(x){return String(x.id)===String(id);})[0]:null;
   var r=rec||{id:uid(),date:new Date().toISOString().slice(0,10),amount:"",vendor:"",category:"Dockage / Marina",paidBy:"Ship card",supplier:"",items:"provisions",engineL:"",genHrs:"",cost:"",receipt:"",notes:""};
-  var title=kind==="expense"?(rec?"Edit expense":"New expense"):(kind==="provision"?(rec?"Edit provision":"New provision"):(rec?"Edit diesel":"New diesel"));
+  var title=kind==="expense"?(rec?"Edit expense":"New expense"):(kind==="provision"?(rec?"Edit provision":"New provision"):(rec?"Edit consumption":"Log consumption"));
   var h='<div class="sheethead"><h2>'+title+'</h2><button type="button" class="sheetx" id="sheetClose" aria-label="Close">×</button></div>';
   h+=fieldHTML("Date",'<input class="ctl" id="f_date" type="date" value="'+esc(r.date||"")+'">');
   if(kind==="expense"){
@@ -1444,7 +1613,7 @@ function openApaLine(kind,id){
       fieldHTML("Generator hours",'<input class="ctl" id="f_genhrs" type="number" inputmode="decimal" min="0" step="0.1" value="'+esc(r.genHrs!=null&&r.genHrs!==""?r.genHrs:"")+'" placeholder="e.g. 4">')+
     '</div>';
     h+=fieldHTML("Manual cost (€) — optional",moneyField("f_dsl_cost", r.cost||""));
-    h+='<p style="margin:-8px 0 12px;font-size:12px;color:var(--muted);line-height:1.4">Leave manual cost empty to use litres × €'+esc(String(apaDieselPrice(t)))+'/L (gen hours × '+esc(String(apaGenBurn(t)))+' L/hr). Set rates in Trip setup.</p>';
+    h+='<p style="margin:-8px 0 12px;font-size:12px;color:var(--muted);line-height:1.4">Leave manual cost empty to use litres × sell rate €'+esc(String(apaDieselPrice(t)))+'/L (gen hours × '+esc(String(apaGenBurn(t)))+' L/hr). Bunker loads &amp; tank levels: vessel <b>Diesel</b> tab. Trip rate: Trip setup.</p>';
     h+='<div class="calcbox" id="f_dsl_calc"></div>';
   }
   h+=fieldHTML("Notes",'<textarea class="ctl" id="f_notes">'+esc(r.notes||"")+'</textarea>');
@@ -1534,6 +1703,357 @@ function openApaLine(kind,id){
   });
 })();
 
+/* -------- Vessel diesel (captain) -------- */
+function dieselEnsure(){
+  if(!Array.isArray(state.diesel)) state.diesel=[];
+  var s=null;
+  for(var i=0;i<state.diesel.length;i++){
+    if(state.diesel[i]&&state.diesel[i].kind==="settings"){ s=state.diesel[i]; break; }
+  }
+  if(!s){
+    s={id:"diesel-settings",kind:"settings",buyPrice:DIESEL_DEFAULT_BUY,sellPrice:DIESEL_DEFAULT_SELL};
+    state.diesel.unshift(s);
+  }
+  if(!(Number(s.buyPrice)>0)) s.buyPrice=DIESEL_DEFAULT_BUY;
+  if(!(Number(s.sellPrice)>0)) s.sellPrice=DIESEL_DEFAULT_SELL;
+  return s;
+}
+function dieselSettings(){
+  var s=dieselEnsure();
+  return { buyPrice:apaNum(s.buyPrice)||DIESEL_DEFAULT_BUY, sellPrice:apaNum(s.sellPrice)||DIESEL_DEFAULT_SELL, row:s };
+}
+function dieselLogEntries(){
+  dieselEnsure();
+  return state.diesel.filter(function(r){ return r&&r.kind&&r.kind!=="settings"; });
+}
+/** APA trip consumption rows as virtual ledger events (read-only). */
+function dieselApaEvents(){
+  var out=[];
+  (state.apa||[]).forEach(function(t){
+    if(!t) return;
+    apaEnsureArrays(t);
+    (t.diesel||[]).forEach(function(r){
+      var c=apaDieselCalc(t,r);
+      if(c.lit<=0) return;
+      out.push({
+        id:"apa:"+t.id+":"+(r.id||""),
+        date:r.date||"",
+        kind:"apa",
+        litres:c.lit,
+        guest:t.guest||"",
+        tripId:t.id,
+        notes:r.notes||"",
+        source:"apa"
+      });
+    });
+  });
+  return out;
+}
+function dieselKindOrder(k){
+  if(k==="level") return 0;
+  if(k==="buy") return 1;
+  if(k==="sell") return 2;
+  if(k==="apa") return 3;
+  return 9;
+}
+/**
+ * Walk buys / levels / sells + APA use to estimate tank.
+ * level = set onboard; buy = +litres (optional onboard before); sell/apa = −litres.
+ */
+function dieselLedger(){
+  var st=dieselSettings();
+  var events=[];
+  dieselLogEntries().forEach(function(e){
+    events.push({
+      id:e.id, date:e.date||"", kind:e.kind,
+      litres:apaNum(e.litres), onboard:e.onboard, hasOnboard:e.onboard!=null&&e.onboard!=="",
+      price:e.price!=null&&e.price!==""?apaNum(e.price):null,
+      notes:e.notes||"", guest:e.guest||"", source:"log", raw:e
+    });
+  });
+  dieselApaEvents().forEach(function(e){ events.push(e); });
+  events.sort(function(a,b){
+    var c=String(a.date||"").localeCompare(String(b.date||""));
+    if(c) return c;
+    return dieselKindOrder(a.kind)-dieselKindOrder(b.kind);
+  });
+  var tank=null, bought=0, sold=0, apaUsed=0, buyCost=0, sellVal=0, apaSellVal=0;
+  var timeline=[];
+  events.forEach(function(ev){
+    if(ev.kind==="level"){
+      tank=apaNum(ev.onboard);
+    } else if(ev.kind==="buy"){
+      var lit=apaNum(ev.litres);
+      if(ev.hasOnboard) tank=apaNum(ev.onboard)+lit;
+      else if(tank!=null) tank=tank+lit;
+      else tank=lit;
+      bought+=lit;
+      var bp=ev.price!=null?ev.price:st.buyPrice;
+      buyCost+=lit*bp;
+      ev._unitPrice=bp;
+    } else if(ev.kind==="sell"){
+      var litS=apaNum(ev.litres);
+      if(tank!=null) tank-=litS;
+      sold+=litS;
+      var sp=ev.price!=null?ev.price:st.sellPrice;
+      sellVal+=litS*sp;
+      ev._unitPrice=sp;
+    } else if(ev.kind==="apa"){
+      var litA=apaNum(ev.litres);
+      if(tank!=null) tank-=litA;
+      apaUsed+=litA;
+      apaSellVal+=litA*st.sellPrice;
+      ev._unitPrice=st.sellPrice;
+    }
+    timeline.push({
+      id:ev.id, date:ev.date, kind:ev.kind, litres:apaLit(apaNum(ev.litres)),
+      onboard:ev.hasOnboard||ev.kind==="level"?apaLit(apaNum(ev.onboard)):null,
+      tankAfter:tank==null?null:apaLit(tank),
+      notes:ev.notes||"", guest:ev.guest||"", tripId:ev.tripId||"",
+      source:ev.source||"log", unitPrice:ev._unitPrice, raw:ev.raw
+    });
+  });
+  var outL=sold+apaUsed;
+  return {
+    buyPrice:st.buyPrice, sellPrice:st.sellPrice,
+    tank:tank==null?null:apaLit(tank),
+    bought:apaLit(bought), sold:apaLit(sold), apaUsed:apaLit(apaUsed),
+    out:apaLit(outL),
+    buyCost:Math.round(buyCost*100)/100,
+    sellVal:Math.round(sellVal*100)/100,
+    apaSellVal:Math.round(apaSellVal*100)/100,
+    outVal:Math.round((sellVal+apaSellVal)*100)/100,
+    margin:Math.round(((sellVal+apaSellVal)-buyCost)*100)/100,
+    timeline:timeline, events:events
+  };
+}
+function saveDiesel(){
+  if(!isCaptain()) return;
+  dieselEnsure();
+  save("diesel");
+  renderDiesel();
+}
+function renderDiesel(){
+  if(!isCaptain()) return;
+  var wrap=el("dieselBody");
+  if(!wrap) return;
+  /* Always keep body fresh so switching tab shows current APA-linked figures */
+  var L=dieselLedger();
+  var tankKnown=L.tank!=null;
+  var warn=tankKnown&&L.tank<0;
+  var html='<div class="summary">'+
+    '<div class="sumcard"><div class="l">Est. on board</div><div class="v"'+(warn?' style="color:var(--danger)"':'')+'>'+(tankKnown?esc(String(L.tank))+" L":"—")+'</div></div>'+
+    '<div class="sumcard"><div class="l">Used (APA)</div><div class="v">'+esc(String(L.apaUsed))+' L</div></div>'+
+  '</div>'+
+  '<div class="legend">Vessel fuel. <b>Buy</b> = bunker (cost at buy €/L). <b>Level</b> = how much is on board on a date. <b>Sell</b> = diesel sold/charged outside APA. APA trip consumption is pulled in automatically at the <b>sell</b> rate.</div>'+
+  '<div class="apa-grid" style="margin-bottom:12px">'+
+    '<div class="apa-card"><div class="k">Buy € / L</div><div class="n">'+esc(String(L.buyPrice))+'</div></div>'+
+    '<div class="apa-card"><div class="k">Sell € / L</div><div class="n">'+esc(String(L.sellPrice))+'</div></div>'+
+    '<div class="apa-card"><div class="k">Bought</div><div class="n">'+esc(String(L.bought))+' L</div></div>'+
+    '<div class="apa-card"><div class="k">Out (sell + APA)</div><div class="n">'+esc(String(L.out))+' L</div></div>'+
+    '<div class="apa-card"><div class="k">Buy cost</div><div class="n money">'+money(L.buyCost)+'</div></div>'+
+    '<div class="apa-card"><div class="k">Sell value</div><div class="n money">'+money(L.outVal)+'</div></div>'+
+    '<div class="apa-card wide bal'+(L.margin<0?' warn':'')+'"><div class="k">Margin (sell value − buy cost)</div><div class="n money">'+money(L.margin)+'</div>'+
+      '<div style="font-size:12px;color:var(--muted);margin-top:6px">APA use '+esc(String(L.apaUsed))+' L @ sell · manual sell '+esc(String(L.sold))+' L</div></div>'+
+  '</div>'+
+  '<div class="apa-sect-h"><h3>Prices</h3><button type="button" class="btn ghost" id="dieselEditPrices">Edit prices</button></div>'+
+  '<div class="apa-sect-h" style="margin-top:4px"><h3>Log</h3><button type="button" class="btn" id="dieselAdd">Add…</button></div>';
+
+  if(!L.timeline.length){
+    html+=emptyBox("⛽","No diesel log yet","Tap + or Add to log a buy, set a tank level, or record a sale. APA consumption appears here once you log trip fuel.");
+  } else {
+    html+='<div class="list">';
+    L.timeline.slice().reverse().forEach(function(row){
+      var title, amt, meta="", pillC="p-grey", pillT=row.kind;
+      if(row.kind==="buy"){
+        title="Bought diesel"; amt="+"+esc(String(row.litres))+" L"; pillC="p-buy"; pillT="Buy";
+        meta='<span class="pill '+pillC+'">'+pillT+'</span><span>'+esc(fmtDate(row.date))+'</span>';
+        if(row.onboard!=null) meta+='<span>Before '+esc(String(row.onboard))+' L</span>';
+        if(row.tankAfter!=null) meta+='<span>→ '+esc(String(row.tankAfter))+' L</span>';
+        if(row.unitPrice!=null) meta+='<span class="money">@ €'+esc(String(row.unitPrice))+'/L</span>';
+      } else if(row.kind==="level"){
+        title="On board"; amt=esc(String(row.onboard!=null?row.onboard:row.litres))+" L"; pillC="p-level"; pillT="Level";
+        meta='<span class="pill '+pillC+'">'+pillT+'</span><span>'+esc(fmtDate(row.date))+'</span>';
+        if(row.tankAfter!=null) meta+='<span>Set to '+esc(String(row.tankAfter))+' L</span>';
+      } else if(row.kind==="sell"){
+        title="Sold diesel"; amt="−"+esc(String(row.litres))+" L"; pillC="p-sell"; pillT="Sell";
+        meta='<span class="pill '+pillC+'">'+pillT+'</span><span>'+esc(fmtDate(row.date))+'</span>';
+        if(row.tankAfter!=null) meta+='<span>→ '+esc(String(row.tankAfter))+' L</span>';
+        if(row.unitPrice!=null) meta+='<span class="money">@ €'+esc(String(row.unitPrice))+'/L</span>';
+      } else {
+        title="APA · "+(row.guest||"trip"); amt="−"+esc(String(row.litres))+" L"; pillC="p-apa"; pillT="APA";
+        meta='<span class="pill '+pillC+'">'+pillT+'</span><span>'+esc(fmtDate(row.date))+'</span>';
+        if(row.tankAfter!=null) meta+='<span>→ '+esc(String(row.tankAfter))+' L</span>';
+        meta+='<span class="money">@ sell €'+esc(String(L.sellPrice))+'/L</span>';
+      }
+      var editable=row.source==="log";
+      html+='<div class="item'+(editable?' apa-row':'')+'"'+(editable?' data-diesel-edit="'+esc(row.id)+'" role="button" tabindex="0"':'')+'>'+
+        '<div class="top"><div class="title">'+esc(title)+'</div><div class="amt">'+amt+'</div></div>'+
+        '<div class="meta">'+meta+'</div>'+
+        (row.notes?'<div class="notes">'+esc(row.notes)+'</div>':'')+
+        (editable?'<button type="button" class="apa-x" data-diesel-del="'+esc(row.id)+'" aria-label="Delete">×</button>':'')+
+      '</div>';
+    });
+    html+='</div>';
+  }
+  wrap.innerHTML=html;
+  if(el("dieselEditPrices")) el("dieselEditPrices").addEventListener("click",function(){ openDieselPrices(); });
+  if(el("dieselAdd")) el("dieselAdd").addEventListener("click",function(){ openDieselPicker(); });
+  Array.prototype.forEach.call(wrap.querySelectorAll("[data-diesel-edit]"),function(x){
+    x.addEventListener("click",function(ev){
+      if(ev.target.closest&&ev.target.closest("[data-diesel-del]")) return;
+      openDieselEntry(null, x.getAttribute("data-diesel-edit"));
+    });
+  });
+  Array.prototype.forEach.call(wrap.querySelectorAll("[data-diesel-del]"),function(x){
+    x.addEventListener("click",function(ev){
+      ev.preventDefault(); ev.stopPropagation();
+      deleteDieselEntry(x.getAttribute("data-diesel-del"));
+    });
+  });
+}
+function openDieselPicker(){
+  var h='<div class="sheethead"><h2>Add diesel</h2><button type="button" class="sheetx" id="sheetClose" aria-label="Close">×</button></div>';
+  h+='<div class="diesel-pick">'+
+    '<button type="button" class="btn" id="dPickBuy">Buy / bunker<small>Litres loaded · optional on board before</small></button>'+
+    '<button type="button" class="btn" id="dPickLevel">Tank level<small>How much diesel is on board on a date</small></button>'+
+    '<button type="button" class="btn" id="dPickSell">Sell<small>Diesel sold or charged (not via APA)</small></button>'+
+  '</div>';
+  h+='<div class="sheetfoot"><button type="button" class="btn ghost" id="sheetCancel">Cancel</button></div>';
+  el("sheetInner").innerHTML=h;
+  function go(kind){ showSheet(false); setTimeout(function(){ openDieselEntry(kind,null); },80); }
+  el("dPickBuy").addEventListener("click",function(){ go("buy"); });
+  el("dPickLevel").addEventListener("click",function(){ go("level"); });
+  el("dPickSell").addEventListener("click",function(){ go("sell"); });
+  el("sheetCancel").addEventListener("click",function(){ showSheet(false); });
+  el("sheetClose").addEventListener("click",function(){ showSheet(false); });
+  showSheet(true);
+}
+function openDieselPrices(){
+  var st=dieselSettings();
+  var h='<div class="sheethead"><h2>Diesel prices</h2><button type="button" class="sheetx" id="sheetClose" aria-label="Close">×</button></div>';
+  h+='<p style="margin:0 0 12px;font-size:12.5px;color:var(--muted);line-height:1.45"><b>Buy</b> = what you pay at the pump. <b>Sell</b> = what guests are charged (APA consumption uses this by default).</p>';
+  h+='<div class="row2">'+
+    fieldHTML("Buy € / litre",moneyField("f_buy_price",st.buyPrice))+
+    fieldHTML("Sell € / litre",moneyField("f_sell_price",st.sellPrice))+
+  '</div>';
+  h+='<div class="sheetfoot"><button type="button" class="btn ghost" id="sheetCancel">Cancel</button><button type="button" class="btn" id="sheetSave">Save</button></div>';
+  el("sheetInner").innerHTML=h;
+  el("sheetSave").addEventListener("click",function(){
+    var s=dieselEnsure();
+    s.buyPrice=apaNum(el("f_buy_price").value)||DIESEL_DEFAULT_BUY;
+    s.sellPrice=apaNum(el("f_sell_price").value)||DIESEL_DEFAULT_SELL;
+    showSheet(false); saveDiesel();
+  });
+  el("sheetCancel").addEventListener("click",function(){ showSheet(false); });
+  el("sheetClose").addEventListener("click",function(){ showSheet(false); });
+  showSheet(true);
+}
+function openDieselEntry(kind,id){
+  dieselEnsure();
+  var rec=id?dieselLogEntries().filter(function(x){return String(x.id)===String(id);})[0]:null;
+  if(rec) kind=rec.kind;
+  if(kind!=="buy"&&kind!=="level"&&kind!=="sell") kind="buy";
+  var st=dieselSettings();
+  var r=rec||{id:uid(),kind:kind,date:new Date().toISOString().slice(0,10),litres:"",onboard:"",price:"",notes:"",guest:""};
+  var titles={buy:rec?"Edit buy":"Buy / bunker",level:rec?"Edit level":"Tank level",sell:rec?"Edit sell":"Sell diesel"};
+  var h='<div class="sheethead"><h2>'+titles[kind]+'</h2><button type="button" class="sheetx" id="sheetClose" aria-label="Close">×</button></div>';
+  if(kind==="buy"){
+    h+='<p style="margin:0 0 12px;font-size:12.5px;color:var(--muted);line-height:1.45">Litres you paid for. Optional <b>on board before</b> anchors the tank (sounding before the hose).</p>';
+  } else if(kind==="level"){
+    h+='<p style="margin:0 0 12px;font-size:12.5px;color:var(--muted);line-height:1.45">Snapshot of how much diesel is on board on this date. Later buys/APA use are applied from here.</p>';
+  } else {
+    h+='<p style="margin:0 0 12px;font-size:12.5px;color:var(--muted);line-height:1.45">Diesel sold or charged outside an APA trip. APA trip fuel is logged under APA → Trip fuel.</p>';
+  }
+  h+=fieldHTML("Date",'<input class="ctl" id="f_date" type="date" value="'+esc(r.date||"")+'">');
+  if(kind==="level"){
+    h+=fieldHTML("On board (litres)",'<input class="ctl" id="f_onboard" type="number" inputmode="decimal" min="0" step="0.1" value="'+esc(r.onboard!=null&&r.onboard!==""?r.onboard:"")+'" placeholder="e.g. 1800">');
+  } else if(kind==="buy"){
+    h+=fieldHTML("Litres bought",'<input class="ctl" id="f_litres" type="number" inputmode="decimal" min="0" step="0.1" value="'+esc(r.litres!=null&&r.litres!==""?r.litres:"")+'" placeholder="e.g. 800">');
+    h+=fieldHTML("On board before (optional)",'<input class="ctl" id="f_onboard" type="number" inputmode="decimal" min="0" step="0.1" value="'+esc(r.onboard!=null&&r.onboard!==""?r.onboard:"")+'" placeholder="sounding before fill">');
+    h+=fieldHTML("Price €/L (optional)",moneyField("f_price", r.price!==""&&r.price!=null?r.price:""));
+    h+='<p style="margin:-8px 0 12px;font-size:12px;color:var(--muted)">Empty price uses vessel buy rate (€'+esc(String(st.buyPrice))+'/L).</p>';
+  } else {
+    h+=fieldHTML("Litres sold",'<input class="ctl" id="f_litres" type="number" inputmode="decimal" min="0" step="0.1" value="'+esc(r.litres!=null&&r.litres!==""?r.litres:"")+'" placeholder="e.g. 50">');
+    h+=fieldHTML("Guest / note",'<input class="ctl" id="f_guest" value="'+esc(r.guest||"")+'" placeholder="optional">');
+    h+=fieldHTML("Price €/L (optional)",moneyField("f_price", r.price!==""&&r.price!=null?r.price:""));
+    h+='<p style="margin:-8px 0 12px;font-size:12px;color:var(--muted)">Empty price uses vessel sell rate (€'+esc(String(st.sellPrice))+'/L).</p>';
+  }
+  h+='<div class="calcbox" id="f_dsl_v_calc"></div>';
+  h+=fieldHTML("Notes",'<textarea class="ctl" id="f_notes" placeholder="optional">'+esc(r.notes||"")+'</textarea>');
+  if(rec) h+='<div class="sheetbtns"><button type="button" class="btn danger" id="sheetDel">Delete</button></div>';
+  h+='<div class="sheetfoot"><button type="button" class="btn ghost" id="sheetCancel">Cancel</button><button type="button" class="btn" id="sheetSave">Save</button></div>';
+  el("sheetInner").innerHTML=h;
+  function vRecalc(){
+    var box=el("f_dsl_v_calc"); if(!box) return;
+    if(kind==="level"){
+      var onb=apaNum(el("f_onboard").value);
+      box.innerHTML='<div class="cl hi"><span>Tank set to</span><b>'+esc(String(apaLit(onb)))+' L</b></div>';
+      return;
+    }
+    var lit=apaNum(el("f_litres").value);
+    var px=el("f_price")&&el("f_price").value!==""?apaNum(el("f_price").value):(kind==="buy"?st.buyPrice:st.sellPrice);
+    var onbB=el("f_onboard")?el("f_onboard").value:"";
+    var lines='<div class="cl"><span>Litres</span><b>'+(kind==="buy"?"+":"−")+esc(String(apaLit(lit)))+' L</b></div>'+
+      '<div class="cl"><span>@ €'+esc(String(px))+'/L</span><b>'+money(lit*px)+'</b></div>';
+    if(kind==="buy"&&onbB!==""){
+      lines+='<div class="cl hi"><span>After fill (est.)</span><b>'+esc(String(apaLit(apaNum(onbB)+lit)))+' L</b></div>';
+    }
+    box.innerHTML=lines;
+  }
+  vRecalc();
+  ["f_litres","f_onboard","f_price"].forEach(function(id){
+    if(el(id)) el(id).addEventListener("input",vRecalc);
+  });
+  el("sheetSave").addEventListener("click",function(){
+    var obj={
+      id:r.id||uid(), kind:kind,
+      date:el("f_date").value||new Date().toISOString().slice(0,10),
+      notes:el("f_notes").value.trim()
+    };
+    if(kind==="level"){
+      if(el("f_onboard").value===""){ el("f_onboard").focus(); return; }
+      obj.onboard=apaNum(el("f_onboard").value);
+      obj.litres="";
+      obj.price="";
+    } else {
+      var lit=apaNum(el("f_litres").value);
+      if(lit<=0){ el("f_litres").focus(); return; }
+      obj.litres=lit;
+      if(kind==="buy"){
+        obj.onboard=el("f_onboard").value===""?"":apaNum(el("f_onboard").value);
+      } else {
+        obj.guest=(el("f_guest")?el("f_guest").value:"").trim();
+      }
+      obj.price=el("f_price")&&el("f_price").value!==""?apaNum(el("f_price").value):"";
+    }
+    if(rec){
+      state.diesel=state.diesel.map(function(x){ return String(x.id)===String(obj.id)?obj:x; });
+    } else {
+      state.diesel=state.diesel.filter(function(x){ return x&&x.kind==="settings"; }).concat(
+        [obj].concat(state.diesel.filter(function(x){ return x&&x.kind&&x.kind!=="settings"; }))
+      );
+    }
+    showSheet(false); saveDiesel();
+  });
+  el("sheetCancel").addEventListener("click",function(){ showSheet(false); });
+  el("sheetClose").addEventListener("click",function(){ showSheet(false); });
+  if(el("sheetDel")) el("sheetDel").addEventListener("click",function(){
+    if(!window.confirm("Delete this diesel entry?")) return;
+    state.diesel=(state.diesel||[]).filter(function(x){ return String(x.id)!==String(r.id); });
+    dieselEnsure();
+    showSheet(false); saveDiesel();
+  });
+  showSheet(true);
+}
+function deleteDieselEntry(id){
+  if(!id) return;
+  if(!window.confirm("Delete this diesel entry?")) return;
+  state.diesel=(state.diesel||[]).filter(function(x){ return String(x.id)!==String(id); });
+  dieselEnsure();
+  saveDiesel();
+}
+
 /* -------- add / edit sheet -------- */
 function fieldHTML(label,inner){ return '<div class="field"><label>'+label+'</label>'+inner+'</div>'; }
 function moneyField(id,val){ return '<div class="moneywrap"><input class="ctl" id="'+id+'" type="number" inputmode="decimal" min="0" step="0.01" value="'+(val!=null?val:"")+'" placeholder="0"></div>'; }
@@ -1602,6 +2122,27 @@ function leadSplit(base, vatMode, vatPctRaw, splitOn, invoiceNetRaw){
     clientTotal:clientTotal, invoiceTotal:white.total, cashAmt:cash };
 }
 function leadHasSplit(r){ return !!(r&&(r.split||r.splitCash)&&(Number(r.invoiceNet)>0||Number(r.cashAmt)>0||r.split||r.splitCash)); }
+/**
+ * Deposit / final / overnight APA amounts for a lead.
+ * With black split: deposit + final = white invoice total only (cash is not invoiced formally).
+ * Cash is tracked on a captain APA ledger (negative pot = cash owed).
+ */
+function leadParts(sp, depPctRaw, apaPctRaw){
+  var depPct=Number(depPctRaw)||0, apaPct=Number(apaPctRaw)||0;
+  var client=sp.clientTotal;
+  var apa=client*apaPct/100;
+  if(sp.split){
+    var white=sp.invoiceTotal;
+    var dep=white*depPct/100;
+    var fin=Math.round((white-dep)*100)/100;
+    dep=Math.round(dep*100)/100;
+    apa=Math.round(apa*100)/100;
+    return { dep:dep, fin:fin, apa:apa, white:white, client:client, cash:sp.cashAmt, split:true };
+  }
+  var dep2=Math.round(client*depPct/100*100)/100;
+  var fin2=Math.round((client-dep2)*100)/100;
+  return { dep:dep2, fin:fin2, apa:Math.round(apa*100)/100, white:client, client:client, cash:0, split:false };
+}
 function recalcLead(){
   if(!el("f_dur")) return;
   var dur=el("f_dur").value, rate, days, base;
@@ -1615,8 +2156,8 @@ function recalcLead(){
   var invNetRaw=el("f_invoiceNet")?el("f_invoiceNet").value:"";
   var sp=leadSplit(base, mode, pctRaw, splitOn, invNetRaw);
   var depPct=Number(el("f_dep").value)||0, apaPct=Number(el("f_apa").value)||0;
-  var client=sp.clientTotal;
-  var dep=client*depPct/100, apa=client*apaPct/100, fin=client-dep, box=el("f_calc");
+  var p=leadParts(sp, depPct, apaPct);
+  var box=el("f_calc");
   if(!box) return;
   var head=dur==="multi"?(days+' day'+(days>1?'s':'')+' &times; '+money0(rate)):durLabel(dur);
   var html='<div class="cl"><span>'+head+' (charter)</span><b>'+money(base)+'</b></div>';
@@ -1627,19 +2168,25 @@ function recalcLead(){
     }
     html+='<div class="cl split"><span>Invoice (white) ex VAT</span><b>'+money(sp.invoiceNet)+'</b></div>'+
       '<div class="cl"><span>VAT on invoice'+(sp.white.vatPct?' '+sp.white.vatPct+'%':'')+'</span><b>'+money(sp.white.vat)+'</b></div>'+
-      '<div class="cl"><span>Invoice total (to raise)</span><b>'+money(sp.invoiceTotal)+'</b></div>'+
+      '<div class="cl"><span>White invoice total</span><b>'+money(sp.invoiceTotal)+'</b></div>'+
       '<div class="cl"><span>Cash (black)</span><b>'+money(sp.cashAmt)+'</b></div>'+
-      '<div class="cl hi"><span>Client total</span><b>'+money(client)+'</b></div>';
+      '<div class="cl hi"><span>Client total</span><b>'+money(p.client)+'</b></div>';
   } else if(sp.full.vatMode!=="none"&&sp.full.vatPct>0){
     html+='<div class="cl"><span>Net (ex VAT)</span><b>'+money(sp.full.net)+'</b></div>'+
       '<div class="cl"><span>VAT '+sp.full.vatPct+'% '+(sp.full.vatMode==="add"?"added":"included")+'</span><b>'+money(sp.full.vat)+'</b></div>'+
-      '<div class="cl hi"><span>Client total</span><b>'+money(client)+'</b></div>';
+      '<div class="cl hi"><span>Client total</span><b>'+money(p.client)+'</b></div>';
   } else {
-    html+='<div class="cl hi"><span>Client total</span><b>'+money(client)+'</b></div>';
+    html+='<div class="cl hi"><span>Client total</span><b>'+money(p.client)+'</b></div>';
   }
-  html+='<div class="cl"><span>Deposit '+(depPct||0)+'%</span><b>'+money(dep)+'</b></div>'+
-    '<div class="cl"><span>Final balance</span><b>'+money(fin)+'</b></div>'+
-    (apaPct>0?'<div class="cl"><span>APA '+apaPct+'%</span><b>'+money(apa)+'</b></div>':'');
+  if(sp.split){
+    html+='<div class="cl split"><span>Deposit '+(depPct||0)+'% of white</span><b>'+money(p.dep)+'</b></div>'+
+      '<div class="cl"><span>Final (white invoice)</span><b>'+money(p.fin)+'</b></div>'+
+      '<div class="cl"><span>Cash → APA pot (negative)</span><b>−'+money(p.cash)+'</b></div>';
+  } else {
+    html+='<div class="cl"><span>Deposit '+(depPct||0)+'%</span><b>'+money(p.dep)+'</b></div>'+
+      '<div class="cl"><span>Final balance</span><b>'+money(p.fin)+'</b></div>';
+  }
+  if(apaPct>0) html+='<div class="cl"><span>APA overnight '+apaPct+'%</span><b>'+money(p.apa)+'</b></div>';
   box.innerHTML=html;
 }
 
@@ -1678,9 +2225,9 @@ function openSheet(type,id){
       '<p style="margin:-6px 0 14px;font-size:12.5px;color:var(--muted);line-height:1.4">Net on the formal invoice (e.g. 1000). Cash = charter net − this. Client total = charter net + VAT on this invoice only. Use <b>VAT included</b> on the quote above.</p></div>';
     h+='<div class="calcbox" id="f_calc"></div>';
     h+='<div class="sect">Invoices for manager</div>';
-    h+='<p style="margin:-4px 0 12px;font-size:12.5px;color:var(--muted);line-height:1.45">Deposit / final / APA track the <b>client total</b>. Formal invoice to raise is the <b>invoice total</b> (white + small VAT). Set status to <b>Requested</b> for the manager.</p>';
+    h+='<p style="margin:-4px 0 12px;font-size:12.5px;color:var(--muted);line-height:1.45">With <b>invoice + cash</b>: deposit and final are only the <b>white invoice</b> (not cash). Cash opens an APA ledger at <b>−cash</b> so on charter you log diesel/expenses and settle via Charges. Overnight APA % is separate. Set status to <b>Requested</b> for the manager.</p>';
     h+=leadInvBlock("Deposit","f_dep",r.depPct,"f_deps",r.deps,"f_depInv",r.depInv,true);
-    h+=leadInvBlock("Final balance","","","f_fins",r.fins,"f_finInv",r.finInv,false);
+    h+=leadInvBlock("Final (white invoice)","","","f_fins",r.fins,"f_finInv",r.finInv,false);
     h+=leadInvBlock("APA (overnight)","f_apa",r.apaPct,"f_apas",r.apas,"f_apaInv",r.apaInv,true);
     h+=fieldHTML("Notes",'<textarea class="ctl" id="f_notes" placeholder="optional">'+esc(r.notes)+'</textarea>');
   }
@@ -1750,10 +2297,9 @@ function saveSheet(type,rec){
     var invNetIn=el("f_invoiceNet")?el("f_invoiceNet").value:"";
     var sp=leadSplit(base, vatMode, vatPctIn, splitOn, invNetIn);
     var m=sp.full;
-    var client=sp.clientTotal;
     var depPct=el("f_dep").value===""?"":(Number(el("f_dep").value)||0);
     var apaPct=el("f_apa").value===""?"":(Number(el("f_apa").value)||0);
-    var dep=client*(Number(depPct)||0)/100, apa=client*(Number(apaPct)||0)/100, fin=client-dep;
+    var parts=leadParts(sp, depPct, apaPct);
     var deps=el("f_deps").value, fins=el("f_fins").value, apas=el("f_apas").value;
     var reqAt=(rec&&rec.reqAt)?Object.assign({},rec.reqAt):{};
     [["deps",deps],["fins",fins],["apas",apas]].forEach(function(p){
@@ -1761,19 +2307,21 @@ function saveSheet(type,rec){
     });
     var o2={ id:rec?rec.id:uid(), closed:el("f_closed").value, name:el("f_name").value.trim(),
       dur:dur, start:start, end:end, rate:rate, price:price, days:days,
-      base:base, net:m.net, vat:sp.split?sp.white.vat:m.vat, total:client,
+      base:base, net:m.net, vat:sp.split?sp.white.vat:m.vat, total:parts.client,
       vatMode:m.vatMode, vatPct:m.vatMode==="none"?"":m.vatPct,
       split:sp.split, splitCash:sp.split,
-      invoiceNet:sp.split?sp.invoiceNet:0, invoiceVat:sp.split?sp.white.vat:0, invoiceTotal:sp.split?sp.invoiceTotal:client,
+      invoiceNet:sp.split?sp.invoiceNet:0, invoiceVat:sp.split?sp.white.vat:0, invoiceTotal:sp.split?sp.invoiceTotal:parts.client,
       cashAmt:sp.split?sp.cashAmt:0,
-      depPct:depPct, dep:dep, deps:deps, depInv:el("f_depInv").value.trim(),
-      fin:fin, fins:fins, finInv:el("f_finInv").value.trim(),
-      apaPct:apaPct, apa:apa, apas:apas, apaInv:el("f_apaInv").value.trim(),
+      depPct:depPct, dep:parts.dep, deps:deps, depInv:el("f_depInv").value.trim(),
+      fin:parts.fin, fins:fins, finInv:el("f_finInv").value.trim(),
+      apaPct:apaPct, apa:parts.apa, apas:apas, apaInv:el("f_apaInv").value.trim(),
       reqAt:reqAt, reqBy:session.who,
       notes:el("f_notes").value.trim(), by:session.who };
     if(!o2.name){ el("f_name").focus(); return; }
     if(sp.split&&!(Number(sp.invoiceNet)>0)){ el("f_invoiceNet").focus(); return; }
     upsert("leads",o2,rec); renderLeads(); save("leads");
+    /* Captain: cash (black) → APA pot = −cash so charter spend settles on Charges */
+    if(isCaptain()) ensureLeadCashApa(o2);
   }
   showSheet(false);
 }
@@ -1820,6 +2368,11 @@ el("fab").addEventListener("click",function(){
     if(apaSub==="provisions") openApaLine("provision",null);
     else if(apaSub==="diesel") openApaLine("diesel",null);
     else openApaLine("expense",null);
+    return;
+  }
+  if(curTab==="diesel"){
+    if(!isCaptain()) return;
+    openDieselPicker();
     return;
   }
   openSheet(curTab==="leads"?"lead":"charter",null);
@@ -1983,9 +2536,14 @@ function applyData(d){
   state.charters=d.charters||[]; state.leads=d.leads||[]; state.devices=d.devices||[]; state.log=d.log||[];
   if(isCaptain() && Array.isArray(d.apa)) state.apa=d.apa;
   else if(!isCaptain()) state.apa=[];
+  if(isCaptain() && Array.isArray(d.diesel)) state.diesel=d.diesel;
+  else if(!isCaptain()) state.diesel=[];
   if(typeof d.pushEnabled==="boolean") pushMeta.server=d.pushEnabled;
   if(d.vapidPublicKey) pushMeta.vapidPublicKey=d.vapidPublicKey;
-  sortLeads(); renderAll();
+  sortLeads();
+  if(repairLeadWhiteInvoices()){ if(!DEMO) save("leads"); }
+  if(isCaptain()) ensureAllLeadCashApa();
+  renderAll();
   if(!DEMO) refreshPushStatus();
 }
 
@@ -2014,8 +2572,15 @@ function sheetJoelApaTrip(){
       {id:"prov-jf-eroski",date:"2026-07-19",supplier:"eroski",items:"provisions",amount:83.1,receipt:"",notes:""}
     ],
     diesel:[{id:"dsl-jf-example",date:"2026-07-20",engineL:1986,genHrs:24,notes:"EXAMPLE ROW — overwrite or delete"}],
+    dieselLoads:[],
     notes:"Imported from Limitless_APA_Tracker.xlsx — first live APA ledger",
     by:"Captain",updatedAt:"2026-07-20T10:00:00Z"};
+}
+function sheetDieselSeed(){
+  return [
+    {id:"diesel-settings",kind:"settings",buyPrice:1.75,sellPrice:2.20},
+    {id:"dsl-buy-jf-example",kind:"buy",date:"2026-07-16",litres:2200,onboard:400,price:"",notes:"EXAMPLE bunker — overwrite or delete"}
+  ];
 }
 
 /* Offline demo: same real spreadsheet trip first, plus a few fake charges/leads for UI */
@@ -2035,6 +2600,7 @@ function seedDemo(){
   ];
   state.log=[{ts:"2026-07-20T08:40:00Z",who:"Captain",action:"login",deviceId:"cpt-luigi-01",ip:"88.16.x.x",country:"ES"}];
   state.apa=[sheetJoelApaTrip()];
+  state.diesel=sheetDieselSeed();
   /* Demo diesel example puts Joel over pot → shortfall charge */
   state.apa.forEach(function(t){ syncApaToCharge(t); });
   activeApaId=null;
