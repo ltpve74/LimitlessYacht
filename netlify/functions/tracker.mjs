@@ -50,9 +50,13 @@ function setupVapid() {
   return true;
 }
 
+function isCaptain(who) {
+  return /^captain\b/i.test(String(who || "").trim());
+}
+
 async function loadData(store) {
   const d = await store.get(BLOB_KEY, { type: "json", consistency: "strong" });
-  return d || { charters: [], leads: [], devices: [], log: [], pushSubs: [] };
+  return d || { charters: [], leads: [], apa: [], devices: [], log: [], pushSubs: [] };
 }
 async function saveData(store, data) {
   await store.setJSON(BLOB_KEY, data);
@@ -235,22 +239,31 @@ export default async (req, context) => {
     touchDevice();
     addLog("login");
     await saveData(store, data);
-    return json({
+    const out = {
       charters: data.charters,
       leads: data.leads,
       devices: data.devices,
       log: data.log,
       pushEnabled: vapidConfigured(),
       vapidPublicKey: process.env.TRACKER_VAPID_PUBLIC_KEY || "",
-    });
+    };
+    /* APA ledger is captain-only — never sent to manager / other roles */
+    if (isCaptain(who)) out.apa = Array.isArray(data.apa) ? data.apa : [];
+    else out.apa = null;
+    return json(out);
   }
 
   if (action === "save") {
     const coll = body.collection;
-    if (coll !== "charters" && coll !== "leads") return json({ error: "bad collection" }, 400);
+    if (coll !== "charters" && coll !== "leads" && coll !== "apa") {
+      return json({ error: "bad collection" }, 400);
+    }
+    if (coll === "apa" && !isCaptain(who)) {
+      return json({ error: "APA is captain-only" }, 403);
+    }
     const prev = Array.isArray(data[coll]) ? data[coll] : [];
     const next = Array.isArray(body.rows) ? body.rows.slice(0, 5000) : [];
-    const notices = buildNotices(coll, prev, next, who);
+    const notices = coll === "apa" ? [] : buildNotices(coll, prev, next, who);
     data[coll] = next;
     touchDevice();
     addLog("save " + coll + (notices.length ? " (+notify " + notices.length + ")" : ""));

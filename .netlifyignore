@@ -1,6 +1,10 @@
 # Develop-only visual feedback — never deploy to limitlessyachtcharter.com
 screenshots/
 
+# Local APA spreadsheet template (app lives in tracker/index.html)
+tracker/*.xlsx
+tracker/*.xls
+
 # Agent-only files — instructions, memory, briefs, scratch. develop/feature only, never production.
 .agent/
 .claude/
