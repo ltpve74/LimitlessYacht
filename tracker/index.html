@@ -706,21 +706,23 @@ function leadInvTag(label, amount, pct, status, invNo, id, which){
   var pctS=(pct!==""&&pct!=null)?' ('+pct+'%)':'';
   return '<span class="invtag'+cls+'"><b>'+esc(label)+'</b> '+money0(amount)+pctS+' '+pill(st)+inv+btn+'</span>';
 }
-/** When the lead was entered into the tracker (not charter date). */
-function leadInputKey(r){
+/** Close date for list order (YYYY-MM-DD); empty sorts last. */
+function leadCloseKey(r){
   if(!r) return "";
-  if(r.createdAt) return String(r.createdAt);
-  /* Older rows: use closed date as best stand-in for “input day” */
-  if(r.closed) return String(r.closed)+"T23:59:59.999Z";
-  return "";
+  return String(r.closed||"").trim();
 }
 function sortLeads(){
   if(!state.leads||!state.leads.length) return;
   state.leads.sort(function(a,b){
-    var da=leadInputKey(a), db=leadInputKey(b);
-    if(da&&db&&da!==db) return db<da?-1:1; /* newest inputted first */
+    var da=leadCloseKey(a), db=leadCloseKey(b);
+    if(da&&db&&da!==db) return db<da?-1:1; /* newest close date first */
     if(db&&!da) return 1;
     if(da&&!db) return -1;
+    /* Same close day: newest createdAt first */
+    var ca=String(a.createdAt||""), cb=String(b.createdAt||"");
+    if(ca&&cb&&ca!==cb) return cb<ca?-1:1;
+    if(cb&&!ca) return 1;
+    if(ca&&!cb) return -1;
     return String(b.id||"").localeCompare(String(a.id||""));
   });
 }
