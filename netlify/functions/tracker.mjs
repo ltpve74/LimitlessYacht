@@ -398,6 +398,21 @@ async function saveData(store, data) {
   await store.setJSON(BLOB_KEY, data);
 }
 
+/**
+ * One-shot wipe of security log + device list (charters/leads/APA/push untouched).
+ * Bump SECURITY_RESET_ID to force another wipe after deploy.
+ */
+const SECURITY_RESET_ID = "2026-07-21-scratch";
+function ensureSecurityScratch(data) {
+  if (!data.meta || typeof data.meta !== "object") data.meta = {};
+  if (data.meta.securityResetId === SECURITY_RESET_ID) return false;
+  data.log = [];
+  data.devices = [];
+  data.meta.securityResetId = SECURITY_RESET_ID;
+  data.meta.securityResetAt = new Date().toISOString();
+  return true;
+}
+
 function chargeInv(r) {
   if (r.invStatus) return r.invStatus;
   if (r.status === "Invoiced") return "Issued";
@@ -563,6 +578,10 @@ export default async (req, context) => {
   if (!Array.isArray(data.devices)) data.devices = [];
   if (!Array.isArray(data.log)) data.log = [];
   if (!Array.isArray(data.pushSubs)) data.pushSubs = [];
+  if (!data.meta || typeof data.meta !== "object") data.meta = {};
+
+  /* Wipe security log + devices once (after publish) so monitoring starts clean */
+  const securityWiped = ensureSecurityScratch(data);
 
   function touchDevice() {
     if (!deviceId) return;
@@ -585,6 +604,7 @@ export default async (req, context) => {
   }
 
   if (action === "load") {
+    if (securityWiped) addLog("security log reset (start from scratch)");
     touchDevice();
     addLog("login");
     /* Install real spreadsheet APA as first live records (once); link missing APA charges */
