@@ -194,6 +194,8 @@
   .calcbox .cl.split{color:var(--ink);padding-top:6px;margin-top:4px;border-top:1px dashed var(--line)}
   .pill.p-black{background:#2a2a2a;color:#f0f0f0}
   .pill.p-white{background:#e8f0f4;color:var(--brand)}
+  .pill.p-card{background:#e8eef8;color:#1a3a6b}
+  .pill.p-cash{background:#e8f5e9;color:#1b5e20}
   /* APA (captain-only) */
   .apa-sub{display:flex;gap:6px;overflow-x:auto;-webkit-overflow-scrolling:touch;margin:0 0 12px;padding-bottom:2px}
   .apa-sub button{flex:0 0 auto;padding:8px 12px;border-radius:999px;border:1.5px solid var(--line);background:#fff;color:var(--muted);font-size:12.5px;font-weight:700}
@@ -299,7 +301,7 @@
         <div class="sumcard"><div class="l">Total charged <span style="font-weight:500;text-transform:none;letter-spacing:0">(inc. VAT)</span></div><div class="v money" id="chTot">€0</div></div>
         <div class="sumcard"><div class="l">Invoices to issue</div><div class="v" id="chPending">0</div></div>
       </div>
-      <div class="legend">Card charges taken on board — payment is usually already paid. Amounts are VAT included. What matters next is the manager issuing the invoice (status + invoice #).</div>
+      <div class="legend">Charges taken on board (card or cash). Amounts are VAT included. Mark <b>Paid</b> and choose <b>Card</b> or <b>Cash</b>. On cash (black) deals, marking Paid books the cash as APA received. Manager still tracks invoice status + #.</div>
       <div class="list" id="chList"></div>
     </section>
 
@@ -506,6 +508,18 @@ function chargeInv(r){
   if(r.status==="Pending") return "Not issued";
   return r.inv?"Issued":"Not issued";
 }
+/** How the guest paid the charge: Card (default) or Cash. */
+function chargePayMethod(r){
+  var m=r&&r.payMethod?String(r.payMethod):"";
+  if(m==="Cash"||m==="Card") return m;
+  /* Infer from notes for older rows */
+  if(r&&/cash/i.test(String(r.notes||""))&&!/card/i.test(String(r.notes||""))) return "Cash";
+  return "Card";
+}
+function payMethodPill(m){
+  m=m==="Cash"?"Cash":"Card";
+  return '<span class="pill '+(m==="Cash"?"p-cash":"p-card")+'">'+m+'</span>';
+}
 function chargeVat(r){
   var gross=Number(r.amount)||0;
   var pct=(r.vatPct!=null&&r.vatPct!=="")?Number(r.vatPct):21;
@@ -522,11 +536,12 @@ function renderCharters(){
     var pay=chargePay(r), v=chargeVat(r);
     var isApa=r.kind==="apa"||!!r.apaTripId;
     var apaReq=isApa&&pay!=="Paid"&&invSt!=="Issued";
+    var pm=chargePayMethod(r);
     html+='<div class="item" data-edit-ch="'+esc(r.id)+'">'+
       '<div class="top"><div class="title">'+esc(r.client||"—")+(isApa?' <span class="pill p-apa">APA</span>':'')+(apaReq?' <span class="pill p-amber">Invoice request</span>':'')+'</div><div class="amt money">'+money0(r.amount)+'</div></div>'+
       '<div class="meta">'+(r.date?'<span>📅 '+esc(fmtDate(r.date))+'</span>':'')+
         '<span>inc. VAT'+(v.pct?' '+v.pct+'%':'')+'</span>'+
-        pill(pay)+pill(invSt==="Issued"?"Invoice issued":"Invoice pending")+
+        pill(pay)+payMethodPill(pm)+pill(invSt==="Issued"?"Invoice issued":"Invoice pending")+
         (r.inv?'<span>#'+esc(r.inv)+'</span>':'')+'</div>'+
       (r.notes?'<div class="notes">'+esc(r.notes)+'</div>':'')+'<span class="chev">✎</span></div>';
   });
@@ -650,13 +665,47 @@ function apaLinkedCharges(t){
   if(!t||!state.charters) return [];
   return state.charters.filter(function(c){ return apaIsLinkedCharge(t,c); });
 }
-/** Paid shortfall charges count as recovered APA funds (same as top-ups). */
+/**
+ * Paid shortfall charges count as recovered APA funds (same as top-ups).
+ * On cash (black) deals, once cash is booked as received (apaSent zeroed / cashSettled),
+ * that cash portion is already outside the pot — only count charge amount minus cash once.
+ */
 function apaPaidCovered(t){
   var s=0;
   apaLinkedCharges(t).forEach(function(c){
     if(chargePay(c)==="Paid") s+=Number(c.amount)||0;
   });
+  if(t&&t.cashSettled){
+    var cash=Number(t.cashReceived)||Number(t.cashAmt)||0;
+    if(cash>0) s=Math.max(0, s-cash);
+  }
   return Math.round(s*100)/100;
+}
+/**
+ * Cash deal: when any linked charge is Paid, book cash as received (apaSent was −cash).
+ * If unpaid again, restore the negative pot. Returns true if trip changed.
+ */
+function syncCashReceivedFromCharges(t){
+  if(!t||!(t.cashFromLead||Number(t.cashAmt)>0)) return false;
+  var cash=Math.round((Number(t.cashAmt)||0)*100)/100;
+  if(!(cash>0)&&!t.cashFromLead) return false;
+  var anyPaid=apaLinkedCharges(t).some(function(c){ return chargePay(c)==="Paid"; });
+  var dirty=false;
+  if(anyPaid&&cash>0){
+    /* Book cash as received (display); zero the −cash pot so paid charges aren't double-counted */
+    if(!t.cashSettled||Math.abs((Number(t.cashReceived)||0)-cash)>0.02||(Number(t.apaSent)||0)!==0){
+      t.cashSettled=true;
+      t.cashReceived=cash;
+      t.apaSent=0;
+      dirty=true;
+    }
+  } else if(!anyPaid&&(t.cashSettled||Number(t.cashReceived)>0||((Number(t.apaSent)||0)>=0&&t.cashFromLead&&cash>0))){
+    t.cashSettled=false;
+    t.cashReceived=0;
+    t.apaSent=Math.round((-cash)*100)/100;
+    dirty=true;
+  }
+  return dirty;
 }
 /**
  * Amount still to invoice on Charges: spent − prepaid pot − paid charges.
@@ -741,10 +790,12 @@ function ensureLeadCashApa(lead){
   var guest=lead.name||"";
   if(trip
     && trip.cashFromLead
-    && Math.abs((Number(trip.apaSent)||0)-neg)<0.005
     && Math.abs((Number(trip.cashAmt)||0)-cash)<0.005
     && trip.guest===guest
-    && trip.clientKey===key){
+    && trip.clientKey===key
+    && (trip.cashSettled
+      ? ((Number(trip.apaSent)||0)===0 && Math.abs((Number(trip.cashReceived)||0)-cash)<0.005)
+      : Math.abs((Number(trip.apaSent)||0)-neg)<0.005)){
     return false; /* already in sync */
   }
   if(!trip){
@@ -759,12 +810,21 @@ function ensureLeadCashApa(lead){
   trip.linkSource="lead";
   trip.linkSourceId=lead.id;
   if(dates) trip.dates=dates;
-  trip.apaSent=neg;
+  /* Don't clobber pot if cash already booked as received from a Paid charge */
+  if(trip.cashSettled&&(Number(trip.cashReceived)||0)>0){
+    trip.apaSent=0;
+    trip.cashReceived=cash;
+  } else {
+    trip.apaSent=neg;
+    trip.cashSettled=false;
+    trip.cashReceived=0;
+  }
   if(!trip.notes||/^Cash \(black\)/i.test(trip.notes)||!String(trip.notes).trim()){
-    trip.notes="Cash (black) "+money0(cash)+" from lead — pot starts at −cash. Log diesel/expenses on charter; settle on Charges.";
+    trip.notes="Cash (black) "+money0(cash)+" from lead — pot starts at −cash. Mark Charges Paid to book cash as received; log diesel/expenses on charter.";
   }
   trip.updatedAt=new Date().toISOString();
   trip.by=session.who||trip.by||"Captain";
+  syncCashReceivedFromCharges(trip);
   syncApaToCharge(trip);
   save("apa"); save("charters");
   renderApa(); renderCharters();
@@ -805,11 +865,20 @@ function ensureAllLeadCashApa(){
       /* Keep pot in sync with lead cash if still a cash trip and pot is pure −cash (no manual top-ups) */
       var trip=(state.apa||[]).filter(function(t){return t&&t.clientKey===key&&t.cashFromLead;})[0];
       if(trip){
-        var want=Math.round((-(Number(l.cashAmt)||0))*100)/100;
-        if(Math.abs((Number(trip.apaSent)||0)-want)>0.005 && !(Number(trip.topUps)>0)){
-          trip.apaSent=want; trip.cashAmt=Number(l.cashAmt)||0;
-          syncApaToCharge(trip); dirty=true;
+        trip.cashAmt=Number(l.cashAmt)||0;
+        if(trip.cashSettled){
+          var got=Number(l.cashAmt)||0;
+          if((Number(trip.apaSent)||0)!==0||Math.abs((Number(trip.cashReceived)||0)-got)>0.02){
+            trip.apaSent=0; trip.cashReceived=got; dirty=true;
+          }
+        } else {
+          var want=Math.round((-(Number(l.cashAmt)||0))*100)/100;
+          if(Math.abs((Number(trip.apaSent)||0)-want)>0.005 && !(Number(trip.topUps)>0)){
+            trip.apaSent=want; dirty=true;
+          }
         }
+        if(syncCashReceivedFromCharges(trip)) dirty=true;
+        syncApaToCharge(trip);
       }
     }
   });
@@ -886,7 +955,7 @@ function syncApaToCharge(t){
       ?"APA spend invoice request (no prepaid pot) — synced from APA ledger"
       :"APA shortfall (overspend) — synced from APA ledger");
   if(t.dates) note="APA · "+t.dates+". "+note;
-  if(cashPot&&t.cashAmt) note+=" · cash "+money0(t.cashAmt);
+  if(cashPot&&t.cashAmt) note+=" · cash "+money0(t.cashAmt)+(t.cashSettled?" received":" due");
   note+=" · pot "+money0(x.basePot)+" · paid "+money0(x.paidCovered)+" · spent "+money0(x.spent);
   if(ch){
     ch.client=t.guest;
@@ -895,17 +964,23 @@ function syncApaToCharge(t){
     ch.kind="apa";
     ch.apaTripId=t.id;
     ch.apaZeroPot=zeroPot;
+    ch.cashDeal=!!cashPot;
+    if(cashPot&&t.cashAmt) ch.cashAmt=Number(t.cashAmt)||0;
     if(!ch.date) ch.date=date;
     if(ch.payStatus!=="Paid") ch.payStatus="Pending";
     if(chargeInv(ch)!=="Issued"){ ch.invStatus="Not issued"; ch.status=ch.payStatus; }
     else ch.status="Invoiced";
-    if(!ch.notes||/^APA/i.test(ch.notes)||/synced from APA/i.test(ch.notes)||/shortfall/i.test(ch.notes)||/invoice request/i.test(ch.notes)||/pot \(sent/i.test(ch.notes)) ch.notes=note;
+    if(!ch.payMethod) ch.payMethod=cashPot?"Cash":"Card";
+    if(!ch.notes||/^APA/i.test(ch.notes)||/synced from APA/i.test(ch.notes)||/shortfall/i.test(ch.notes)||/invoice request/i.test(ch.notes)||/pot \(sent/i.test(ch.notes)||/^Cash \(black\)/i.test(ch.notes)) ch.notes=note;
     ch.by=session.who||ch.by;
   } else {
     ch={
-      id:uid(), kind:"apa", apaTripId:t.id, apaZeroPot:zeroPot, date:date, client:t.guest,
+      id:uid(), kind:"apa", apaTripId:t.id, apaZeroPot:zeroPot, cashDeal:!!cashPot,
+      cashAmt:cashPot?(Number(t.cashAmt)||0):0,
+      date:date, client:t.guest,
       amount:gross, net:net, vat:vat, vatPct:pct, vatMode:"include",
-      payStatus:"Pending", invStatus:"Not issued", status:"Pending",
+      payStatus:"Pending", payMethod:cashPot?"Cash":"Card",
+      invStatus:"Not issued", status:"Pending",
       inv:"", notes:note, by:session.who||"Captain"
     };
     state.charters.unshift(ch);
@@ -925,6 +1000,8 @@ function refreshApaFromCharges(){
     t.updatedAt=new Date().toISOString();
     var lead=apaLinkedLead(t);
     var snap=lead?{ apas:lead.apas, apa:Number(lead.apa)||0 }:null;
+    /* Cash deal: Paid charge → book cash as APA received */
+    syncCashReceivedFromCharges(t);
     syncApaToCharge(t);
     lead=apaLinkedLead(t);
     if(lead&&snap&&(lead.apas!==snap.apas||Math.abs((Number(lead.apa)||0)-snap.apa)>0.005)) leadDirty=true;
@@ -1134,6 +1211,7 @@ function saveApa(trip){
     t.updatedAt=new Date().toISOString();
     var lead=apaLinkedLead(t);
     var snap=lead?{ apas:lead.apas, apa:Number(lead.apa)||0 }:null;
+    syncCashReceivedFromCharges(t);
     syncApaToCharge(t);
     lead=apaLinkedLead(t);
     if(lead&&snap&&(lead.apas!==snap.apas||Math.abs((Number(lead.apa)||0)-snap.apa)>0.005)) leadDirty=true;
@@ -1311,15 +1389,23 @@ function apaOverviewHTML(t){
   } else {
     linkBits+='<div class="meta" style="margin-top:6px"><span class="pill p-grey">In pot — charge only if you overspend</span></div>';
   }
+  var recvLabel=t.cashFromLead?(t.cashSettled?"Cash received":"Cash (black) due"):"APA received";
+  var recvVal=t.cashFromLead
+    ?(t.cashSettled?(Number(t.cashReceived)||Number(t.cashAmt)||0):(Number(t.apaSent)||0))
+    :(Number(t.apaSent)||0);
+  /* Settled cash is stored on cashReceived; pot (apaSent) is 0 so balance math stays clean */
   return '<div class="apa-grid">'+
-    '<div class="apa-card"><div class="k">APA received</div><div class="n money">'+money(Number(t.apaSent)||0)+'</div></div>'+
+    '<div class="apa-card"><div class="k">'+esc(recvLabel)+'</div><div class="n money"'+(t.cashFromLead&&!t.cashSettled&&recvVal<0?' style="color:var(--danger)"':'')+'>'+money(recvVal)+'</div>'+
+      (t.cashFromLead&&!t.cashSettled?'<div style="font-size:11.5px;color:var(--muted);margin-top:4px">Mark Charges Paid to book as received</div>':'')+
+      (t.cashFromLead&&t.cashSettled?'<div style="font-size:11.5px;color:var(--muted);margin-top:4px">Booked when charge marked Paid</div>':'')+
+    '</div>'+
     '<div class="apa-card"><div class="k">Top-ups</div><div class="n money">'+money(Number(t.topUps)||0)+'</div></div>'+
     '<div class="apa-card"><div class="k">Paid on Charges</div><div class="n money">'+money(x.paidCovered)+'</div></div>'+
     '<div class="apa-card"><div class="k">To invoice</div><div class="n money"'+(over?' style="color:var(--danger)"':'')+'>'+money(over? -x.bal:0)+'</div></div>'+
     '<div class="apa-card"><div class="k">Spent</div><div class="n money">'+money(x.spent)+'</div></div>'+
     '<div class="apa-card bal'+(over?' warn':'')+' wide"><div class="k">Balance remaining</div><div class="n money">'+money(x.bal)+'</div>'+
       '<div class="apa-bar'+(over?' over':'')+'"><i style="width:'+Math.min(100,pctShow)+'%"></i></div>'+
-      '<div style="font-size:12px;color:var(--muted);margin-top:6px">'+(apaHasPrepaid(t)?pctShow+"% of funds spent · ":"No prepaid pot · ")+'pot + top-ups + paid charges − spend. €0 pot is fine.</div></div>'+
+      '<div style="font-size:12px;color:var(--muted);margin-top:6px">'+(t.cashFromLead?(t.cashSettled?"Cash booked as received · ":"Cash due (−pot) · "):(apaHasPrepaid(t)?pctShow+"% of funds spent · ":"No prepaid pot · "))+'pot + top-ups + paid charges − spend.</div></div>'+
   '</div>'+
   '<div class="apa-card" style="margin-bottom:12px">'+
     '<div class="k" style="margin-bottom:8px">Trip</div>'+
@@ -2100,6 +2186,7 @@ function leadInvBlock(title, pctId, pctVal, stId, stVal, invId, invVal, showPct)
   return h;
 }
 function selPayField(val){ var o=["Paid","Pending"]; return '<select class="ctl" id="f_pay">'+o.map(function(s){return '<option'+(s===val?' selected':'')+'>'+s+'</option>';}).join("")+'</select>'; }
+function selPayMethodField(val){ var o=["Card","Cash"]; var v=val==="Cash"?"Cash":"Card"; return '<select class="ctl" id="f_payMethod">'+o.map(function(s){return '<option'+(s===v?' selected':'')+'>'+s+'</option>';}).join("")+'</select>'; }
 function selInvField(val){ var o=["Not issued","Issued"]; return '<select class="ctl" id="f_invStatus">'+o.map(function(s){return '<option'+(s===val?' selected':'')+'>'+s+'</option>';}).join("")+'</select>'; }
 function pctField(id,val){
   var v=val!=null&&val!==""?String(val):"";
@@ -2232,14 +2319,16 @@ function openSheet(type,id){
   if(id){ rec=(type==="charter"?state.charters:state.leads).filter(function(r){return r.id===id;})[0]; }
   var inner=el("sheetInner"), h="", r;
   if(type==="charter"){
-    r=rec||{date:"",client:"",amount:"",payStatus:"Paid",invStatus:"Not issued",vatMode:"include",vatPct:21,inv:"",notes:""};
+    r=rec||{date:"",client:"",amount:"",payStatus:"Paid",payMethod:"Card",invStatus:"Not issued",vatMode:"include",vatPct:21,inv:"",notes:""};
     var pay=rec?chargePay(r):"Paid", invSt=rec?chargeInv(r):"Not issued";
+    var pm=rec?chargePayMethod(r):(r.cashDeal||r.kind==="apa"&&Number(r.cashAmt)>0?"Cash":"Card");
     h+='<div class="sheethead"><h2>'+(rec?"Edit charge":"New charter charge")+'</h2><button type="button" class="sheetx" id="sheetClose" aria-label="Close">×</button></div>';
     h+=fieldHTML("Client name",'<input class="ctl" id="f_client" value="'+esc(r.client)+'" placeholder="e.g. Smith family">');
     h+='<div class="row2">'+fieldHTML("Charter date",'<input class="ctl" id="f_date" type="date" value="'+esc(r.date)+'">')+fieldHTML("Amount charged (VAT included)",moneyField("f_amount",r.amount))+'</div>';
     h+='<div class="calcbox" id="f_ch_calc"></div>';
-    h+='<div class="row2">'+fieldHTML("Payment",selPayField(pay))+fieldHTML("Invoice (manager)",selInvField(invSt))+'</div>';
-    h+=fieldHTML("Invoice # (manager)",'<input class="ctl" id="f_inv" value="'+esc(r.inv)+'" placeholder="fill when issued">');
+    h+='<div class="row2">'+fieldHTML("Payment",selPayField(pay))+fieldHTML("Paid by",selPayMethodField(pm))+'</div>';
+    h+='<p style="margin:-6px 0 12px;font-size:12px;color:var(--muted);line-height:1.4">Card = terminal / transfer. Cash = physical cash. On a <b>cash (black) deal</b>, marking Paid books the cash as APA received.</p>';
+    h+='<div class="row2">'+fieldHTML("Invoice (manager)",selInvField(invSt))+fieldHTML("Invoice # (manager)",'<input class="ctl" id="f_inv" value="'+esc(r.inv)+'" placeholder="fill when issued">')+'</div>';
     h+=fieldHTML("Notes",'<textarea class="ctl" id="f_notes" placeholder="optional">'+esc(r.notes)+'</textarea>');
   } else {
     r=rec||{closed:"",name:"",dur:"8h",start:"",end:"",rate:"",price:"",vatMode:"include",vatPct:"21",split:false,invoiceNet:"",deps:"Not requested",fins:"Not requested",apas:"Not requested",depPct:"50",apaPct:"",depInv:"",finInv:"",apaInv:"",notes:""};
@@ -2304,9 +2393,10 @@ function saveSheet(type,rec){
     var gross=apaNum(el("f_amount").value), vatPct=21;
     var net=gross/(1+vatPct/100), vat=gross-net;
     var payStatus=el("f_pay").value, invStatus=el("f_invStatus").value;
+    var payMethod=(el("f_payMethod")&&el("f_payMethod").value==="Cash")?"Cash":"Card";
     var obj={ id:rec?rec.id:uid(), date:el("f_date").value, client:el("f_client").value.trim(),
       amount:gross, vatMode:"include", vatPct:vatPct, net:net, vat:vat,
-      payStatus:payStatus, invStatus:invStatus,
+      payStatus:payStatus, payMethod:payMethod, invStatus:invStatus,
       status:invStatus==="Issued"?"Invoiced":payStatus,
       inv:el("f_inv").value.trim(),
       notes:el("f_notes").value.trim(), by:session.who };
@@ -2314,10 +2404,17 @@ function saveSheet(type,rec){
     if(rec){
       if(rec.kind) obj.kind=rec.kind;
       if(rec.apaTripId) obj.apaTripId=rec.apaTripId;
+      if(rec.cashDeal) obj.cashDeal=rec.cashDeal;
+      if(rec.cashAmt!=null) obj.cashAmt=rec.cashAmt;
+      if(rec.apaZeroPot!=null) obj.apaZeroPot=rec.apaZeroPot;
     }
     if(!obj.client && !obj.amount){ el("f_client").focus(); return; }
     upsert("charters",obj,rec); renderCharters(); save("charters");
     if(isCaptain()&&(obj.kind==="apa"||obj.apaTripId||(rec&&(rec.kind==="apa"||rec.apaTripId)))){
+      refreshApaFromCharges();
+      save("charters");
+    } else if(isCaptain()){
+      /* Non-APA charge may still be linked by name; also re-sync any cash deals */
       refreshApaFromCharges();
       save("charters");
     }
