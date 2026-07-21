@@ -737,13 +737,14 @@ function deleteApaTrip(id){
 }
 function deleteApaLine(kind,lineId){
   var t=apaTrip(); if(!t||!lineId) return;
-  apaEnsureArrays(t);
   var label=kind==="expense"?"expense":(kind==="provision"?"provision":"diesel");
   if(!window.confirm("Delete this "+label+" entry?")) return;
-  if(kind==="expense") t.expenses=t.expenses.filter(function(x){return x.id!==lineId;});
-  else if(kind==="provision") t.provisions=t.provisions.filter(function(x){return x.id!==lineId;});
-  else t.diesel=t.diesel.filter(function(x){return x.id!==lineId;});
-  saveApa();
+  var saved=apaMutateTrip(t.id,function(trip){
+    if(kind==="expense") trip.expenses=trip.expenses.filter(function(x){return String(x.id)!==String(lineId);});
+    else if(kind==="provision") trip.provisions=trip.provisions.filter(function(x){return String(x.id)!==String(lineId);});
+    else trip.diesel=trip.diesel.filter(function(x){return String(x.id)!==String(lineId);});
+  });
+  if(saved) saveApa(saved);
 }
 /** Clients from leads + charges (for APA guest picker). */
 function listApaClients(){
@@ -824,14 +825,47 @@ function apaEnsureArrays(t){
   if(!t.expenses) t.expenses=[];
   if(!t.provisions) t.provisions=[];
   if(!t.diesel) t.diesel=[];
+  /* Recover missing ids so rows stay editable after older saves */
+  t.expenses.forEach(function(e){ if(e&&!e.id) e.id=uid(); });
+  t.provisions.forEach(function(p){ if(p&&!p.id) p.id=uid(); });
+  t.diesel.forEach(function(d){ if(d&&!d.id) d.id=uid(); });
+  if(!(Number(t.dieselPrice)>0)) t.dieselPrice=1.75;
+  if(!(Number(t.genBurn)>0)) t.genBurn=6;
   return t;
 }
+function apaDieselPrice(t){ var p=Number(t&&t.dieselPrice); return p>0?p:1.75; }
+function apaGenBurn(t){ var g=Number(t&&t.genBurn); return g>0?g:6; }
+function apaNum(v){
+  if(v==null||v==="") return 0;
+  if(typeof v==="number") return isFinite(v)?v:0;
+  var s=String(v).trim().replace(/\s/g,"").replace(",",".");
+  var n=parseFloat(s);
+  return isFinite(n)?n:0;
+}
 function apaDieselCalc(t,r){
-  var eng=Number(r.engineL)||0, hrs=Number(r.genHrs)||0;
-  var genL=hrs*(Number(t.genBurn)||0);
+  var eng=apaNum(r&&r.engineL), hrs=apaNum(r&&r.genHrs);
+  var price=apaDieselPrice(t), burn=apaGenBurn(t);
+  var genL=hrs*burn;
   var lit=eng+genL;
-  var cost=lit*(Number(t.dieselPrice)||0);
-  return { genL:genL, lit:lit, cost:cost };
+  /* Manual € cost > litres×price > stored amount */
+  var manual=apaNum(r&&r.cost);
+  var cost=0;
+  if(manual>0) cost=manual;
+  else if(lit>0) cost=lit*price;
+  else cost=apaNum(r&&r.amount);
+  return { genL:genL, lit:lit, cost:cost, price:price, burn:burn };
+}
+/** Always write ledger lines onto the trip in state.apa (not a stale copy). */
+function apaMutateTrip(tripId, mutator){
+  if(!state.apa) state.apa=[];
+  var idx=-1, i;
+  for(i=0;i<state.apa.length;i++){ if(state.apa[i]&&state.apa[i].id===tripId){ idx=i; break; } }
+  if(idx<0) return null;
+  var t=apaEnsureArrays(state.apa[idx]);
+  mutator(t);
+  t.updatedAt=new Date().toISOString();
+  state.apa[idx]=t;
+  return t;
 }
 function apaTotals(t){
   t=apaEnsureArrays(t);
@@ -1094,20 +1128,21 @@ function apaProvisionsHTML(t){
 }
 function apaDieselHTML(t){
   var x=apaTotals(t);
+  var price=apaDieselPrice(t), burn=apaGenBurn(t);
   var rows=(t.diesel||[]).slice().sort(function(a,b){return String(b.date||"").localeCompare(String(a.date||""));});
   var head='<div class="apa-grid" style="margin-bottom:12px">'+
-    '<div class="apa-card"><div class="k">€ / litre</div><div class="n">'+esc(String(Number(t.dieselPrice)||0))+'</div></div>'+
-    '<div class="apa-card"><div class="k">Gen L/hr</div><div class="n">'+esc(String(Number(t.genBurn)||0))+'</div></div>'+
+    '<div class="apa-card"><div class="k">€ / litre</div><div class="n">'+esc(String(price))+'</div></div>'+
+    '<div class="apa-card"><div class="k">Gen L/hr</div><div class="n">'+esc(String(burn))+'</div></div>'+
     '<div class="apa-card"><div class="k">Total litres</div><div class="n">'+esc(String(Math.round(x.dLit*10)/10))+'</div></div>'+
     '<div class="apa-card"><div class="k">Diesel cost</div><div class="n money">'+money(x.dCost)+'</div></div></div>'+
-    '<p style="font-size:12.5px;color:var(--muted);margin:-4px 2px 12px;line-height:1.4">Engine litres entered directly. Generator hours × burn rate → litres. Cost = total litres × price. Edit rates in Trip setup.</p>';
-  if(!rows.length) return head+emptyBox("⛽","No diesel rows yet","Tap + after a passage or genset run.");
+    '<p style="font-size:12.5px;color:var(--muted);margin:-4px 2px 12px;line-height:1.4">Enter engine litres and/or generator hours (cost = litres × €'+esc(String(price))+'/L). Or set a manual cost in €. Rates: Trip setup.</p>';
+  if(!rows.length) return head+emptyBox("⛽","No diesel rows yet","Tap + to log fuel / genset consumption.");
   var html=head+'<div class="list">';
   rows.forEach(function(r){
     var c=apaDieselCalc(t,r);
-    html+='<div class="item apa-row" data-apa-dsl="'+esc(r.id)+'">'+
+    html+='<div class="item apa-row" data-apa-dsl="'+esc(r.id)+'" role="button" tabindex="0">'+
       '<div class="top"><div class="title">'+esc(fmtDate(r.date)||"Diesel")+'</div><div class="amt money">'+money(c.cost)+'</div></div>'+
-      '<div class="meta"><span>Engine '+esc(String(Number(r.engineL)||0))+' L</span><span>Gen '+esc(String(Number(r.genHrs)||0))+' h → '+esc(String(Math.round(c.genL*10)/10))+' L</span><span>'+esc(String(Math.round(c.lit*10)/10))+' L total</span></div>'+
+      '<div class="meta"><span>Engine '+esc(String(apaNum(r.engineL)))+' L</span><span>Gen '+esc(String(apaNum(r.genHrs)))+' h → '+esc(String(Math.round(c.genL*10)/10))+' L</span><span>'+esc(String(Math.round(c.lit*10)/10))+' L total</span></div>'+
       (r.notes?'<div class="notes">'+esc(r.notes)+'</div>':'')+
       '<button type="button" class="apa-x" data-apa-del-line="diesel" data-id="'+esc(r.id)+'" aria-label="Delete">×</button></div>';
   });
@@ -1301,7 +1336,7 @@ function openApaTrip(id){
       linkInvAmount:inv?inv.amount:0,
       captain:el("f_captain").value.trim()||"Luigi", dates:el("f_dates").value.trim(),
       apaSent:Number(el("f_apaSent").value)||0, topUps:Number(el("f_topUps").value)||0,
-      dieselPrice:Number(el("f_dPrice").value)||0, genBurn:Number(el("f_genBurn").value)||0,
+      dieselPrice:apaNum(el("f_dPrice").value)||1.75, genBurn:apaNum(el("f_genBurn").value)||6,
       expenses:r.expenses||[], provisions:r.provisions||[], diesel:r.diesel||[],
       notes:el("f_notes").value.trim(), by:session.who, updatedAt:new Date().toISOString()
     };
@@ -1324,9 +1359,10 @@ function openApaTrip(id){
 function openApaLine(kind,id){
   var t=apaTrip(); if(!t) return;
   apaEnsureArrays(t);
+  var tripId=t.id;
   var list=kind==="expense"?t.expenses:(kind==="provision"?t.provisions:t.diesel);
-  var rec=id?list.filter(function(x){return x.id===id;})[0]:null;
-  var r=rec||{id:uid(),date:"",amount:"",vendor:"",category:"Dockage / Marina",paidBy:"Ship card",supplier:"",items:"provisions",engineL:"",genHrs:"",receipt:"",notes:""};
+  var rec=id?list.filter(function(x){return String(x.id)===String(id);})[0]:null;
+  var r=rec||{id:uid(),date:new Date().toISOString().slice(0,10),amount:"",vendor:"",category:"Dockage / Marina",paidBy:"Ship card",supplier:"",items:"provisions",engineL:"",genHrs:"",cost:"",receipt:"",notes:""};
   var title=kind==="expense"?(rec?"Edit expense":"New expense"):(kind==="provision"?(rec?"Edit provision":"New provision"):(rec?"Edit diesel":"New diesel"));
   var h='<div class="sheethead"><h2>'+title+'</h2><button type="button" class="sheetx" id="sheetClose" aria-label="Close">×</button></div>';
   h+=fieldHTML("Date",'<input class="ctl" id="f_date" type="date" value="'+esc(r.date||"")+'">');
@@ -1342,7 +1378,13 @@ function openApaLine(kind,id){
     h+=fieldHTML("Amount (€)",moneyField("f_amount",r.amount));
     h+=fieldHTML("Receipt #",'<input class="ctl" id="f_receipt" value="'+esc(r.receipt||"")+'">');
   } else {
-    h+='<div class="row2">'+fieldHTML("Engine litres",moneyField("f_engine",r.engineL))+fieldHTML("Generator hours",moneyField("f_genhrs",r.genHrs))+'</div>';
+    /* Plain number fields (not € moneywrap) — litres / hours */
+    h+='<div class="row2">'+
+      fieldHTML("Engine litres",'<input class="ctl" id="f_engine" type="number" inputmode="decimal" min="0" step="0.1" value="'+esc(r.engineL!=null&&r.engineL!==""?r.engineL:"")+'" placeholder="e.g. 120">')+
+      fieldHTML("Generator hours",'<input class="ctl" id="f_genhrs" type="number" inputmode="decimal" min="0" step="0.1" value="'+esc(r.genHrs!=null&&r.genHrs!==""?r.genHrs:"")+'" placeholder="e.g. 4">')+
+    '</div>';
+    h+=fieldHTML("Manual cost (€) — optional",moneyField("f_dsl_cost", r.cost||""));
+    h+='<p style="margin:-8px 0 12px;font-size:12px;color:var(--muted);line-height:1.4">Leave manual cost empty to use litres × €'+esc(String(apaDieselPrice(t)))+'/L (gen hours × '+esc(String(apaGenBurn(t)))+' L/hr). Set rates in Trip setup.</p>';
     h+='<div class="calcbox" id="f_dsl_calc"></div>';
   }
   h+=fieldHTML("Notes",'<textarea class="ctl" id="f_notes">'+esc(r.notes||"")+'</textarea>');
@@ -1351,51 +1393,73 @@ function openApaLine(kind,id){
   el("sheetInner").innerHTML=h;
   function dslRecalc(){
     var box=el("f_dsl_calc"); if(!box) return;
-    var tmp={engineL:el("f_engine").value, genHrs:el("f_genhrs").value};
+    var tmp={engineL:el("f_engine").value, genHrs:el("f_genhrs").value, cost:el("f_dsl_cost")?el("f_dsl_cost").value:""};
     var c=apaDieselCalc(t,tmp);
-    box.innerHTML='<div class="cl"><span>Gen litres ('+esc(String(t.genBurn))+' L/hr)</span><b>'+esc(String(Math.round(c.genL*10)/10))+' L</b></div>'+
+    var manual=apaNum(tmp.cost)>0;
+    box.innerHTML='<div class="cl"><span>Gen litres ('+esc(String(c.burn))+' L/hr)</span><b>'+esc(String(Math.round(c.genL*10)/10))+' L</b></div>'+
       '<div class="cl"><span>Total litres</span><b>'+esc(String(Math.round(c.lit*10)/10))+' L</b></div>'+
-      '<div class="cl hi"><span>Cost @ €'+esc(String(t.dieselPrice))+'/L</span><b>'+money(c.cost)+'</b></div>';
+      '<div class="cl hi"><span>'+(manual?"Manual cost":"Cost @ €"+esc(String(c.price))+"/L")+'</span><b>'+money(c.cost)+'</b></div>'+
+      (c.cost<=0?'<div class="cl" style="color:var(--danger)"><span>Enter litres, hours, or a manual € cost</span><b></b></div>':'');
   }
   if(kind==="diesel"){
     dslRecalc();
     if(el("f_engine")) el("f_engine").addEventListener("input",dslRecalc);
     if(el("f_genhrs")) el("f_genhrs").addEventListener("input",dslRecalc);
+    if(el("f_dsl_cost")) el("f_dsl_cost").addEventListener("input",dslRecalc);
   }
   el("sheetSave").addEventListener("click",function(){
-    var obj={ id:r.id, date:el("f_date").value, notes:el("f_notes").value.trim() };
+    var obj={ id:r.id||uid(), date:el("f_date").value||new Date().toISOString().slice(0,10), notes:el("f_notes").value.trim() };
     if(kind==="expense"){
-      obj.category=el("f_cat").value; obj.amount=Number(el("f_amount").value)||0;
+      obj.category=el("f_cat").value; obj.amount=apaNum(el("f_amount").value);
       obj.vendor=el("f_vendor").value.trim(); obj.paidBy=el("f_paid").value;
       obj.receipt=el("f_receipt").value.trim();
       if(!obj.amount){ el("f_amount").focus(); return; }
     } else if(kind==="provision"){
       obj.supplier=el("f_supplier").value.trim(); obj.items=el("f_items").value.trim()||"provisions";
-      obj.amount=Number(el("f_amount").value)||0; obj.receipt=el("f_receipt").value.trim();
+      obj.amount=apaNum(el("f_amount").value); obj.receipt=el("f_receipt").value.trim();
       if(!obj.amount){ el("f_amount").focus(); return; }
     } else {
-      obj.engineL=Number(el("f_engine").value)||0; obj.genHrs=Number(el("f_genhrs").value)||0;
-      if(!obj.engineL&&!obj.genHrs){ el("f_engine").focus(); return; }
+      obj.engineL=apaNum(el("f_engine").value);
+      obj.genHrs=apaNum(el("f_genhrs").value);
+      obj.cost=apaNum(el("f_dsl_cost")?el("f_dsl_cost").value:0);
+      if(!obj.cost) obj.cost="";
+      var preview=apaDieselCalc(t,obj);
+      if(preview.cost<=0&&!obj.engineL&&!obj.genHrs){
+        el("f_engine").focus();
+        return;
+      }
+      /* Persist computed cost so spend is correct even if rates change later */
+      if(!obj.cost) obj.amount=Math.round(preview.cost*100)/100;
+      else obj.amount=obj.cost;
     }
-    if(rec){
-      if(kind==="expense") t.expenses=t.expenses.map(function(x){return x.id===obj.id?obj:x;});
-      else if(kind==="provision") t.provisions=t.provisions.map(function(x){return x.id===obj.id?obj:x;});
-      else t.diesel=t.diesel.map(function(x){return x.id===obj.id?obj:x;});
-    } else {
-      if(kind==="expense") t.expenses.unshift(obj);
-      else if(kind==="provision") t.provisions.unshift(obj);
-      else t.diesel.unshift(obj);
-    }
-    showSheet(false); saveApa();
+    var saved=apaMutateTrip(tripId,function(trip){
+      var key=kind==="expense"?"expenses":(kind==="provision"?"provisions":"diesel");
+      var arr=trip[key]||[];
+      if(rec){
+        var found=false;
+        var next=arr.map(function(x){
+          if(String(x.id)===String(obj.id)){ found=true; return obj; }
+          return x;
+        });
+        if(!found) next.unshift(obj);
+        trip[key]=next;
+      } else {
+        trip[key]=[obj].concat(arr);
+      }
+    });
+    if(!saved){ window.alert("Could not save — trip not found. Go back and open the trip again."); return; }
+    showSheet(false); saveApa(saved);
   });
   el("sheetCancel").addEventListener("click",function(){ showSheet(false); });
   el("sheetClose").addEventListener("click",function(){ showSheet(false); });
   if(el("sheetDel")) el("sheetDel").addEventListener("click",function(){
     if(!window.confirm("Delete this "+kind+" entry?")) return;
-    if(kind==="expense") t.expenses=t.expenses.filter(function(x){return x.id!==r.id;});
-    else if(kind==="provision") t.provisions=t.provisions.filter(function(x){return x.id!==r.id;});
-    else t.diesel=t.diesel.filter(function(x){return x.id!==r.id;});
-    showSheet(false); saveApa();
+    var saved=apaMutateTrip(tripId,function(trip){
+      if(kind==="expense") trip.expenses=trip.expenses.filter(function(x){return String(x.id)!==String(r.id);});
+      else if(kind==="provision") trip.provisions=trip.provisions.filter(function(x){return String(x.id)!==String(r.id);});
+      else trip.diesel=trip.diesel.filter(function(x){return String(x.id)!==String(r.id);});
+    });
+    showSheet(false); if(saved) saveApa(saved);
   });
   showSheet(true);
 }
