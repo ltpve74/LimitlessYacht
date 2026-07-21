@@ -527,7 +527,20 @@ function chargeVat(r){
   var net=pct>0?gross/(1+pct/100):gross;
   return { net:net, vat:gross-net, pct:pct, gross:gross };
 }
+/** ISO YYYY-MM-DD; empty dates sort last when listing latest-first. */
+function chargeDateKey(r){ return (r&&r.date)||""; }
+function sortCharters(){
+  if(!state.charters||!state.charters.length) return;
+  state.charters.sort(function(a,b){
+    var da=chargeDateKey(a), db=chargeDateKey(b);
+    if(da&&db&&da!==db) return db<da?-1:1; /* latest first */
+    if(db&&!da) return 1;
+    if(da&&!db) return -1;
+    return 0;
+  });
+}
 function renderCharters(){
+  sortCharters();
   var wrap=el("chList"), tot=0, pend=0, html="";
   state.charters.forEach(function(r){
     tot+=Number(r.amount)||0;
@@ -572,13 +585,14 @@ function leadInvTag(label, amount, pct, status, invNo, id, which){
   return '<span class="invtag'+cls+'"><b>'+esc(label)+'</b> '+money0(amount)+pctS+' '+pill(st)+inv+btn+'</span>';
 }
 function leadDateKey(r){
-  /* ISO YYYY-MM-DD sorts lexicographically; latest first via reverse compare */
-  return (r&& (r.closed||r.start||r.cdate||"")) || "";
+  /* Charter date first (start), then closed — latest first via reverse compare */
+  return (r&& (r.start||r.cdate||r.closed||r.end||"")) || "";
 }
 function sortLeads(){
+  if(!state.leads||!state.leads.length) return;
   state.leads.sort(function(a,b){
     var da=leadDateKey(a), db=leadDateKey(b);
-    if(da&&db&&da!==db) return db<da?-1:1;
+    if(da&&db&&da!==db) return db<da?-1:1; /* latest first */
     if(db&&!da) return 1;
     if(da&&!db) return -1;
     return 0;
@@ -2791,6 +2805,7 @@ function applyData(d){
   else if(!isCaptain()) state.diesel=[];
   if(typeof d.pushEnabled==="boolean") pushMeta.server=d.pushEnabled;
   if(d.vapidPublicKey) pushMeta.vapidPublicKey=d.vapidPublicKey;
+  sortCharters();
   sortLeads();
   if(repairLeadWhiteInvoices()){ if(!DEMO) save("leads"); }
   if(isCaptain()) ensureAllLeadCashApa();
