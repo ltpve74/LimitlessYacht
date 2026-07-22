@@ -328,7 +328,7 @@
         <div class="sumcard"><div class="l">Total charged <span style="font-weight:500;text-transform:none;letter-spacing:0">(inc. VAT)</span></div><div class="v money" id="chTot">€0</div></div>
         <div class="sumcard"><div class="l">Invoices to issue</div><div class="v" id="chPending">0</div></div>
       </div>
-      <div class="legend">Charges taken on board (card or cash). Amounts are VAT included. Mark <b>Paid</b> and choose <b>Card</b> or <b>Cash</b>. On cash (black) deals, marking Paid books the cash as APA received. Manager still tracks invoice status + #.</div>
+      <div class="legend">Charges taken on board (card or cash). Amounts are VAT included. Mark <b>Paid</b> and <b>Card/Cash</b>. <b>Make invoice</b> creates a PDF for the manager/accountant (stable number on regenerate). Cash deals: Paid books cash as APA received.</div>
       <div class="list" id="chList"></div>
     </section>
 
@@ -680,11 +680,21 @@ function renderCharters(){
         '<span>inc. VAT'+(v.pct?' '+v.pct+'%':'')+'</span>'+
         pill(pay)+payMethodPill(pm)+pill(invSt==="Issued"?"Invoice issued":"Invoice pending")+
         (r.inv?'<span>#'+esc(r.inv)+'</span>':'')+'</div>'+
-      (r.notes?'<div class="notes">'+esc(r.notes)+'</div>':'')+'<span class="chev">✎</span></div>';
+      (r.notes?'<div class="notes">'+esc(r.notes)+'</div>':'')+
+      '<div class="lead-actions">'+
+        '<button type="button" class="btn" data-inv-ch="'+esc(r.id)+'">Make invoice</button>'+
+      '</div>'+
+      '<span class="chev">✎</span></div>';
   });
   wrap.innerHTML=html||emptyBox("🧾","No charter charges yet","Tap + to add the first one.");
   el("chTot").textContent=money(tot); el("chPending").textContent=pend;
   bindEdit(wrap,"data-edit-ch","charter");
+  Array.prototype.forEach.call(wrap.querySelectorAll("[data-inv-ch]"),function(btn){
+    btn.addEventListener("click",function(ev){
+      ev.preventDefault(); ev.stopPropagation();
+      openChargeInvoiceSheet(btn.getAttribute("data-inv-ch"));
+    });
+  });
 }
 function rangeStr(r){
   var s=r.start||r.cdate||"", e=r.end||"", out="";
@@ -855,21 +865,70 @@ function copyLeadInvoiceText(id, btn){
   });
 }
 
-/* -------- Lead → PDF invoice (Limitless Opportunities template) -------- */
-function suggestInvoiceNo(){
-  /* Format from sample: 2026-025 */
-  var yyyy=String(new Date().getFullYear());
-  var max=0;
+/* -------- PDF invoices (Limitless Opportunities) — leads + charges -------- */
+/** Parse YYYY-NNN (and legacy YSG26-NNN) → {year, n} or null. */
+function parseInvoiceNo(str){
+  var s=String(str||"").trim();
+  var m=s.match(/^(20\d{2})-(\d{1,4})$/);
+  if(m) return {year:m[1], n:parseInt(m[2],10)||0};
+  var m2=s.match(/^YSG(\d{2})-(\d+)$/i);
+  if(m2) return {year:"20"+m2[1], n:parseInt(m2[2],10)||0};
+  return null;
+}
+/** Every invoice number already issued on leads or charges. */
+function allIssuedInvoiceNos(){
+  var nos=[];
   (state.leads||[]).forEach(function(l){
-    [l.depInv,l.finInv,l.apaInv].forEach(function(n){
-      var m=String(n||"").match(/(?:^|\b)(20\d{2})-(\d{1,4})\b/);
-      if(m && m[1]===yyyy) max=Math.max(max, parseInt(m[2],10)||0);
-      /* also accept legacy YSG26-061 style for sequencing within year */
-      var m2=String(n||"").match(/YSG(\d{2})-(\d+)/i);
-      if(m2 && ("20"+m2[1])===yyyy) max=Math.max(max, parseInt(m2[2],10)||0);
-    });
+    if(!l) return;
+    [l.depInv,l.finInv,l.apaInv].forEach(function(n){ if(n) nos.push(String(n)); });
+    if(l.issuedInvoices){
+      Object.keys(l.issuedInvoices).forEach(function(k){
+        if(l.issuedInvoices[k]) nos.push(String(l.issuedInvoices[k]));
+      });
+    }
   });
-  return yyyy+"-"+String(max+1).padStart(3,"0");
+  (state.charters||[]).forEach(function(c){
+    if(c&&c.inv) nos.push(String(c.inv));
+  });
+  return nos;
+}
+function maxInvoiceSeq(year){
+  var y=String(year||new Date().getFullYear());
+  var max=0;
+  allIssuedInvoiceNos().forEach(function(n){
+    var p=parseInvoiceNo(n);
+    if(p&&p.year===y&&p.n>max) max=p.n;
+  });
+  return max;
+}
+/** Next free number for this year (never reuses). */
+function nextInvoiceNo(){
+  var yyyy=String(new Date().getFullYear());
+  return yyyy+"-"+String(maxInvoiceSeq(yyyy)+1).padStart(3,"0");
+}
+/**
+ * Keep existing number when regenerating the same invoice slot.
+ * Only allocate a new sequence number when none is stored yet.
+ */
+function invoiceNoForExisting(existing){
+  var ex=String(existing||"").trim();
+  if(ex) return ex;
+  return nextInvoiceNo();
+}
+function getLeadIssuedNo(r, kind){
+  if(!r) return "";
+  if(r.issuedInvoices&&r.issuedInvoices[kind]) return String(r.issuedInvoices[kind]);
+  if(kind==="dep") return r.depInv||"";
+  if(kind==="fin") return r.finInv||"";
+  if(kind==="apa") return r.apaInv||"";
+  return "";
+}
+function setLeadIssuedNo(r, kind, no){
+  if(!r.issuedInvoices) r.issuedInvoices={};
+  r.issuedInvoices[kind]=no;
+  if(kind==="dep"){ r.depInv=no; if(r.deps==="Not requested"||!r.deps) r.deps="Issued"; }
+  else if(kind==="fin"){ r.finInv=no; if(r.fins==="Not requested"||!r.fins) r.fins="Issued"; }
+  else if(kind==="apa"){ r.apaInv=no; if(r.apas==="Not requested"||!r.apas) r.apas="Issued"; }
 }
 function leadInvoicePeriod(r){
   if(!r) return "";
@@ -880,7 +939,7 @@ function leadInvoicePeriod(r){
   return "";
 }
 function leadCharterDesc(r){
-  if(!r) return "Charter Limitless";
+  if(!r) return "Charter M/Y Limitless";
   var isMulti=(r.dur==="multi")||(!r.dur&&(r.end||(Number(r.days)||0)>1));
   var bit="";
   if(isMulti){
@@ -891,7 +950,46 @@ function leadCharterDesc(r){
     var d=r.start||r.cdate||"";
     bit=d?fmtDate(d):durLabel(r.dur||"");
   }
-  return ("Charter Limitless"+(bit?" "+bit:"")).trim();
+  return ("Charter M/Y Limitless"+(bit?" "+bit:"")).trim();
+}
+/** Human label for PDF description: Deposit 50%, Final, APA, etc. */
+function leadInvoiceTypeLabel(r, kind){
+  var split=leadHasSplit(r);
+  if(kind==="dep"){
+    var pct=r.depPct!=""&&r.depPct!=null?String(r.depPct):"";
+    return "Deposit"+(pct?" "+pct+"%":"");
+  }
+  if(kind==="fin") return split?"Final payment (white invoice)":"Final payment";
+  if(kind==="apa"){
+    var ap=r.apaPct!=""&&r.apaPct!=null?String(r.apaPct):"";
+    return "APA"+(ap?" "+ap+"%":"");
+  }
+  if(kind==="white") return "Formal charter invoice (white)";
+  if(kind==="total") return "Charter total";
+  if(kind==="custom") return "Custom invoice";
+  return "Invoice";
+}
+function leadInvoiceDesc(r, kind){
+  return leadCharterDesc(r)+" — "+leadInvoiceTypeLabel(r, kind);
+}
+function chargeInvoiceTypeLabel(c){
+  if(c&&(c.kind==="apa"||c.apaTripId||c.cashDeal)){
+    if(c.cashDeal||c.cashAmt) return "Cash deal / APA settlement";
+    return "APA shortfall / charter expenses";
+  }
+  return "Charter charge";
+}
+function chargeInvoiceDesc(c){
+  var type=chargeInvoiceTypeLabel(c);
+  var client=(c&&c.client)?String(c.client).trim():"";
+  var date=c&&c.date?fmtDate(c.date):"";
+  var bits=["M/Y Limitless", type];
+  if(client) bits.push(client);
+  if(date) bits.push(date);
+  return bits.join(" — ");
+}
+function chargeInvoicePeriod(c){
+  return c&&c.date?fmtDate(c.date):"";
 }
 /** gross = VAT-inclusive total; returns {net, vat, gross, pct} */
 function invoiceSplitGross(gross, pct){
@@ -917,23 +1015,25 @@ function openLeadInvoiceSheet(id){
   if(!r) return;
   var showApa=(Number(r.apaPct)||0)>0||(Number(r.apa)||0)>0;
   var split=leadHasSplit(r);
+  var initialKind="dep";
   var h='<div class="sheethead"><h2>Make invoice</h2><button type="button" class="sheetx" id="sheetClose" aria-label="Close">×</button></div>';
-  h+='<p style="margin:0 0 12px;font-size:13px;color:var(--muted);line-height:1.45">Builds a <b>Limitless Opportunities</b> invoice PDF (layout from your sample). Set the number, then share to WhatsApp or download.</p>';
-  h+='<div class="field"><label>Invoice for</label><select class="ctl" id="f_inv_kind">';
-  h+='<option value="dep">Deposit — '+money(r.dep)+'</option>';
+  h+='<p style="margin:0 0 12px;font-size:13px;color:var(--muted);line-height:1.45">Limitless Opportunities PDF for the accountant. Numbers stay the same when you regenerate; a <b>new</b> type gets the next free number.</p>';
+  h+='<div class="field"><label>Invoice type</label><select class="ctl" id="f_inv_kind">';
+  h+='<option value="dep">Deposit'+(r.depPct!=""&&r.depPct!=null?" "+r.depPct+"%":"")+' — '+money(r.dep)+'</option>';
   h+='<option value="fin">'+(split?"Final (white)":"Final")+' — '+money(r.fin)+'</option>';
-  if(showApa) h+='<option value="apa">APA — '+money(r.apa)+'</option>';
+  if(showApa) h+='<option value="apa">APA'+(r.apaPct!=""&&r.apaPct!=null?" "+r.apaPct+"%":"")+' — '+money(r.apa)+'</option>';
   if(split&&Number(r.invoiceTotal)>0) h+='<option value="white">Full white invoice — '+money(r.invoiceTotal)+'</option>';
   h+='<option value="total">Client total — '+money(r.total)+'</option>';
   h+='<option value="custom">Custom amount…</option>';
   h+='</select></div>';
   h+='<div class="row2">'+
-    fieldHTML("Invoice #",'<input class="ctl" id="f_inv_no" value="'+esc(suggestInvoiceNo())+'" placeholder="e.g. 2026-025" autocomplete="off">')+
+    fieldHTML("Invoice #",'<input class="ctl" id="f_inv_no" value="'+esc(invoiceNoForExisting(getLeadIssuedNo(r,initialKind)))+'" placeholder="e.g. 2026-025" autocomplete="off">')+
     fieldHTML("Date",'<input class="ctl" id="f_inv_date" type="date" value="'+esc(new Date().toISOString().slice(0,10))+'">')+
   '</div>';
+  h+='<p id="f_inv_no_hint" style="margin:-8px 0 12px;font-size:12px;color:var(--muted)"></p>';
   h+=fieldHTML("Bill To (name)",'<input class="ctl" id="f_inv_name" value="'+esc(r.name||"")+'">');
   h+=fieldHTML("Bill To (address / tax ID)",'<textarea class="ctl" id="f_inv_addr" placeholder="Street, city, country, VAT ID…">'+(r.billToAddr?esc(r.billToAddr):"")+'</textarea>');
-  h+=fieldHTML("Description",'<input class="ctl" id="f_inv_desc" value="'+esc(leadCharterDesc(r))+'">');
+  h+=fieldHTML("Description (on PDF)",'<input class="ctl" id="f_inv_desc" value="'+esc(leadInvoiceDesc(r,initialKind))+'">');
   h+='<div class="row2">'+
     fieldHTML("Period",'<input class="ctl" id="f_inv_period" value="'+esc(leadInvoicePeriod(r))+'" placeholder="optional">')+
     fieldHTML("Rate",'<input class="ctl" id="f_inv_rate" value="" placeholder="optional">')+
@@ -942,7 +1042,7 @@ function openLeadInvoiceSheet(id){
   h+='<div class="calcbox" id="f_inv_calc"></div>';
   h+='<label class="checkrow"><input type="checkbox" id="f_inv_save" checked>'+
     '<span><div class="ck">Save invoice # on this lead</div>'+
-    '<div class="ch">Writes the number into Deposit / Final / APA invoice field for the type you chose.</div></span></label>';
+    '<div class="ch">Keeps the number for this type so regenerate stays consistent.</div></span></label>';
   h+='<div class="sheetfoot">'+
     '<button type="button" class="btn ghost" id="sheetCancel">Cancel</button>'+
     '<button type="button" class="btn" id="sheetInvGo">Create PDF</button></div>';
@@ -960,7 +1060,6 @@ function openLeadInvoiceSheet(id){
     if(r.vatMode==="none") return 0;
     return (r.vatPct!=null&&r.vatPct!=="")?Number(r.vatPct):21;
   }
-  /** Prefer stored white invoice net/VAT when available. */
   function moneyParts(kind){
     if(kind==="white"&&Number(r.invoiceNet)>0){
       var net=Number(r.invoiceNet)||0;
@@ -973,27 +1072,39 @@ function openLeadInvoiceSheet(id){
     var gross=kind==="custom"?apaNum(el("f_inv_gross").value):grossForKind(kind);
     return invoiceSplitGross(gross, pctForKind());
   }
-  function syncGrossField(){
+  function updateNoHint(kind){
+    var ex=getLeadIssuedNo(r, kind);
+    var hint=el("f_inv_no_hint");
+    if(!hint) return;
+    if(ex) hint.innerHTML="Reusing <b>"+esc(ex)+"</b> for this type (regenerate).";
+    else hint.textContent="New number will be reserved when you create the PDF.";
+  }
+  function syncKindFields(){
     var kind=el("f_inv_kind").value;
     var custom=kind==="custom";
     if(el("f_inv_gross")){
       el("f_inv_gross").disabled=!custom;
       if(!custom) el("f_inv_gross").value=String(Math.round(grossForKind(kind)*100)/100);
     }
+    if(el("f_inv_desc")) el("f_inv_desc").value=leadInvoiceDesc(r, kind);
+    if(el("f_inv_no")) el("f_inv_no").value=invoiceNoForExisting(getLeadIssuedNo(r, kind));
+    updateNoHint(kind);
     recalc();
   }
   function recalc(){
     var sp=moneyParts(el("f_inv_kind").value);
     var box=el("f_inv_calc");
     if(!box) return;
+    var typeLab=leadInvoiceTypeLabel(r, el("f_inv_kind").value);
     box.innerHTML=
+      '<div class="cl"><span>Type on PDF</span><b>'+esc(typeLab)+'</b></div>'+
       '<div class="cl"><span>Net (ex IVA)</span><b>'+money(sp.net)+'</b></div>'+
       '<div class="cl"><span>IVA '+sp.pct+'%</span><b>'+money(sp.vat)+'</b></div>'+
       '<div class="cl hi"><span>TOTAL</span><b>'+money(sp.gross)+'</b></div>';
   }
-  el("f_inv_kind").addEventListener("change",syncGrossField);
+  el("f_inv_kind").addEventListener("change",syncKindFields);
   if(el("f_inv_gross")) el("f_inv_gross").addEventListener("input",recalc);
-  syncGrossField();
+  syncKindFields();
 
   el("sheetInvGo").addEventListener("click",function(){
     var kind=el("f_inv_kind").value;
@@ -1001,26 +1112,108 @@ function openLeadInvoiceSheet(id){
     if(!invNo){ el("f_inv_no").focus(); return; }
     var sp=moneyParts(kind);
     if(!(sp.gross>0)){ el("f_inv_gross").focus(); return; }
+    var typeLab=leadInvoiceTypeLabel(r, kind);
     var payload={
       invNo:invNo,
       date:el("f_inv_date").value||new Date().toISOString().slice(0,10),
       billName:(el("f_inv_name").value||"").trim()||(r.name||""),
       billAddr:(el("f_inv_addr").value||"").trim(),
-      desc:(el("f_inv_desc").value||"").trim()||leadCharterDesc(r),
+      desc:(el("f_inv_desc").value||"").trim()||leadInvoiceDesc(r, kind),
+      invType:typeLab,
       period:(el("f_inv_period")?el("f_inv_period").value:"").trim(),
       rate:(el("f_inv_rate")?el("f_inv_rate").value:"").trim(),
       net:sp.net, vat:sp.vat, gross:sp.gross, pct:sp.pct,
-      kind:kind, leadId:r.id
+      kind:kind, source:"lead", leadId:r.id
     };
     if(el("f_inv_save")&&el("f_inv_save").checked){
-      if(kind==="dep"){ r.depInv=invNo; if(r.deps==="Not requested"||!r.deps) r.deps="Issued"; }
-      else if(kind==="fin"){ r.finInv=invNo; if(r.fins==="Not requested"||!r.fins) r.fins="Issued"; }
-      else if(kind==="apa"){ r.apaInv=invNo; if(r.apas==="Not requested"||!r.apas) r.apas="Issued"; }
+      setLeadIssuedNo(r, kind, invNo);
       r.billToAddr=payload.billAddr;
       r.updatedAt=new Date().toISOString();
       state.leads=(state.leads||[]).map(function(x){ return String(x.id)===String(r.id)?r:x; });
       save("leads");
       renderLeads();
+    }
+    createAndOfferInvoicePdf(payload);
+  });
+  el("sheetCancel").addEventListener("click",function(){ showSheet(false); });
+  el("sheetClose").addEventListener("click",function(){ showSheet(false); });
+  showSheet(true);
+}
+
+function openChargeInvoiceSheet(id){
+  var c=(state.charters||[]).filter(function(x){return String(x.id)===String(id);})[0];
+  if(!c) return;
+  var typeLab=chargeInvoiceTypeLabel(c);
+  var existing=String(c.inv||"").trim();
+  var h='<div class="sheethead"><h2>Make invoice</h2><button type="button" class="sheetx" id="sheetClose" aria-label="Close">×</button></div>';
+  h+='<p style="margin:0 0 12px;font-size:13px;color:var(--muted);line-height:1.45">PDF for the manager / accountant. Same number if you regenerate this charge.</p>';
+  h+='<div class="apa-card" style="margin-bottom:12px"><div class="k">Type on PDF</div><div style="font-weight:700;margin-top:4px">'+esc(typeLab)+'</div></div>';
+  h+='<div class="row2">'+
+    fieldHTML("Invoice #",'<input class="ctl" id="f_inv_no" value="'+esc(invoiceNoForExisting(existing))+'" placeholder="e.g. 2026-025" autocomplete="off">')+
+    fieldHTML("Date",'<input class="ctl" id="f_inv_date" type="date" value="'+esc(c.date||new Date().toISOString().slice(0,10))+'">')+
+  '</div>';
+  h+='<p style="margin:-8px 0 12px;font-size:12px;color:var(--muted)">'+(existing?"Reusing <b>"+esc(existing)+"</b> for this charge.":"New number — next free in sequence.")+'</p>';
+  h+=fieldHTML("Bill To (name)",'<input class="ctl" id="f_inv_name" value="'+esc(c.client||"")+'">');
+  h+=fieldHTML("Bill To (address / tax ID)",'<textarea class="ctl" id="f_inv_addr" placeholder="optional">'+(c.billToAddr?esc(c.billToAddr):"")+'</textarea>');
+  h+=fieldHTML("Description (on PDF)",'<input class="ctl" id="f_inv_desc" value="'+esc(chargeInvoiceDesc(c))+'">');
+  h+='<div class="row2">'+
+    fieldHTML("Period",'<input class="ctl" id="f_inv_period" value="'+esc(chargeInvoicePeriod(c))+'" placeholder="optional">')+
+    fieldHTML("Rate",'<input class="ctl" id="f_inv_rate" value="" placeholder="optional">')+
+  '</div>';
+  h+=fieldHTML("Total (VAT included)",moneyField("f_inv_gross", c.amount));
+  h+='<div class="calcbox" id="f_inv_calc"></div>';
+  h+='<label class="checkrow"><input type="checkbox" id="f_inv_save" checked>'+
+    '<span><div class="ck">Save invoice # on this charge</div>'+
+    '<div class="ch">Marks invoice as Issued and keeps the number for regenerate.</div></span></label>';
+  h+='<div class="sheetfoot">'+
+    '<button type="button" class="btn ghost" id="sheetCancel">Cancel</button>'+
+    '<button type="button" class="btn" id="sheetInvGo">Create PDF</button></div>';
+  el("sheetInner").innerHTML=h;
+
+  function recalc(){
+    var gross=apaNum(el("f_inv_gross").value);
+    var pct=(c.vatPct!=null&&c.vatPct!=="")?Number(c.vatPct):21;
+    if(c.vatMode==="none") pct=0;
+    var sp=invoiceSplitGross(gross, pct);
+    var box=el("f_inv_calc");
+    if(!box) return;
+    box.innerHTML=
+      '<div class="cl"><span>Type on PDF</span><b>'+esc(typeLab)+'</b></div>'+
+      '<div class="cl"><span>Net (ex IVA)</span><b>'+money(sp.net)+'</b></div>'+
+      '<div class="cl"><span>IVA '+sp.pct+'%</span><b>'+money(sp.vat)+'</b></div>'+
+      '<div class="cl hi"><span>TOTAL</span><b>'+money(sp.gross)+'</b></div>';
+  }
+  if(el("f_inv_gross")) el("f_inv_gross").addEventListener("input",recalc);
+  recalc();
+
+  el("sheetInvGo").addEventListener("click",function(){
+    var invNo=(el("f_inv_no").value||"").trim();
+    if(!invNo){ el("f_inv_no").focus(); return; }
+    var gross=apaNum(el("f_inv_gross").value);
+    if(!(gross>0)){ el("f_inv_gross").focus(); return; }
+    var pct=(c.vatPct!=null&&c.vatPct!=="")?Number(c.vatPct):21;
+    if(c.vatMode==="none") pct=0;
+    var sp=invoiceSplitGross(gross, pct);
+    var payload={
+      invNo:invNo,
+      date:el("f_inv_date").value||c.date||new Date().toISOString().slice(0,10),
+      billName:(el("f_inv_name").value||"").trim()||(c.client||""),
+      billAddr:(el("f_inv_addr").value||"").trim(),
+      desc:(el("f_inv_desc").value||"").trim()||chargeInvoiceDesc(c),
+      invType:typeLab,
+      period:(el("f_inv_period")?el("f_inv_period").value:"").trim(),
+      rate:(el("f_inv_rate")?el("f_inv_rate").value:"").trim(),
+      net:sp.net, vat:sp.vat, gross:sp.gross, pct:sp.pct,
+      kind:"charge", source:"charge", chargeId:c.id
+    };
+    if(el("f_inv_save")&&el("f_inv_save").checked){
+      c.inv=invNo;
+      c.invStatus="Issued";
+      c.status="Invoiced";
+      c.billToAddr=payload.billAddr;
+      state.charters=(state.charters||[]).map(function(x){ return String(x.id)===String(c.id)?c:x; });
+      save("charters");
+      renderCharters();
     }
     createAndOfferInvoicePdf(payload);
   });
@@ -1153,11 +1346,15 @@ function buildYsgInvoicePdf(p){
         drawText("Rate", xRate, y, 10, true, black);
         drawRight("Amount", xAmt, y, 10, true, black);
         y-=28;
-        drawText(p.desc||"Charter Limitless", xDesc, y, 11, false, black, 210);
+        drawText(p.desc||"Charter M/Y Limitless", xDesc, y, 11, false, black, 210);
         drawText(p.period||"", xPeriod, y, 10.5, false, black, 100);
         drawText(p.rate||"", xRate, y, 10.5, false, black, 80);
         drawRight(fmtInvMoney(p.net), xAmt, y, 11, false, black);
-        y-=18;
+        y-=16;
+        if(p.invType){
+          drawText("Type: "+p.invType, xDesc, y, 9.5, true, grey, tableW-20);
+          y-=14;
+        }
         page.drawLine({start:{x:margin, y:y}, end:{x:W-margin, y:y}, thickness:0.6, color:rgb(0.85,0.85,0.85)});
         y-=30;
 
@@ -3007,6 +3204,9 @@ function openSheet(type,id){
       h+='<button type="button" class="btn" id="sheetMakeInv">Make invoice</button>';
       h+='<button type="button" class="btn ghost" id="sheetCopyInv">Copy name</button>';
     }
+    if(type==="charter"){
+      h+='<button type="button" class="btn" id="sheetMakeInv">Make invoice</button>';
+    }
     h+='<button type="button" class="btn danger" id="sheetDel">Delete</button></div>';
   }
   h+='<div class="sheetfoot"><button type="button" class="btn ghost" id="sheetCancel">Cancel</button><button type="button" class="btn" id="sheetSave">'+(rec?"Save":"Add")+'</button></div>';
@@ -3019,7 +3219,13 @@ function openSheet(type,id){
     el("sheetCopyInv").addEventListener("click",function(){ copyLeadInvoiceText(rec.id, el("sheetCopyInv")); });
   }
   if(el("sheetMakeInv")&&rec){
-    el("sheetMakeInv").addEventListener("click",function(){ showSheet(false); setTimeout(function(){ openLeadInvoiceSheet(rec.id); },80); });
+    el("sheetMakeInv").addEventListener("click",function(){
+      showSheet(false);
+      setTimeout(function(){
+        if(type==="lead") openLeadInvoiceSheet(rec.id);
+        else openChargeInvoiceSheet(rec.id);
+      },80);
+    });
   }
   if(el("f_dur")){ el("f_dur").addEventListener("change",function(){
     var draft=collectLeadDraft(), dur=el("f_dur").value;
