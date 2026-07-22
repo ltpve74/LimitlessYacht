@@ -274,11 +274,13 @@ function tripApaOverage(data, t) {
       dCost += manual;
       continue;
     }
-    if (Number(r.amount) > 0 && !(Number(r.engineL) || Number(r.genHrs))) {
+    const port = Number(r.enginePortL) || 0;
+    const stbd = Number(r.engineStbdL) || 0;
+    const eng = port > 0 || stbd > 0 ? port + stbd : Number(r.engineL) || 0;
+    if (Number(r.amount) > 0 && !(eng || Number(r.genHrs))) {
       dCost += Number(r.amount);
       continue;
     }
-    const eng = Number(r.engineL) || 0;
     const genL = (Number(r.genHrs) || 0) * genBurn;
     dCost += (eng + genL) * price;
   }

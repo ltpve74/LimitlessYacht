@@ -2177,8 +2177,16 @@ function apaNum(v){
   return isFinite(n)?n:0;
 }
 function apaLit(n){ return Math.round((Number(n)||0)*10)/10; }
+/** Engine litres: port + starboard, with legacy single engineL as fallback. */
+function apaEngineLitres(r){
+  if(!r) return 0;
+  var port=apaNum(r.enginePortL), stbd=apaNum(r.engineStbdL);
+  if(port>0||stbd>0) return port+stbd;
+  return apaNum(r.engineL);
+}
 function apaDieselCalc(t,r){
-  var eng=apaNum(r&&r.engineL), hrs=apaNum(r&&r.genHrs);
+  var port=apaNum(r&&r.enginePortL), stbd=apaNum(r&&r.engineStbdL);
+  var eng=apaEngineLitres(r), hrs=apaNum(r&&r.genHrs);
   var price=apaDieselPrice(t), burn=apaGenBurn(t);
   var genL=hrs*burn;
   var lit=eng+genL;
@@ -2188,7 +2196,7 @@ function apaDieselCalc(t,r){
   if(manual>0) cost=manual;
   else if(lit>0) cost=lit*price;
   else cost=apaNum(r&&r.amount);
-  return { genL:genL, lit:lit, cost:cost, price:price, burn:burn };
+  return { genL:genL, lit:lit, cost:cost, price:price, burn:burn, eng:eng, port:port, stbd:stbd };
 }
 /** Always write ledger lines onto the trip in state.apa (not a stale copy). */
 function apaMutateTrip(tripId, mutator){
@@ -2495,7 +2503,7 @@ function apaDieselHTML(t){
     '<div class="apa-card"><div class="k">Sell € / L</div><div class="n">'+esc(String(price))+'</div></div>'+
     '<div class="apa-card"><div class="k">Gen L/hr</div><div class="n">'+esc(String(burn))+'</div></div>'+
   '</div>'+
-  '<p class="apa-fuel-note">Tap + for engine litres and/or generator hours. Optional manual € cost. Trip rate in Trip setup (defaults to vessel sell price).</p>';
+  '<p class="apa-fuel-note">Tap + for port &amp; starboard engine litres and/or generator hours. Optional manual € cost. Trip rate in Trip setup (defaults to vessel sell price).</p>';
 
   var rows=(t.diesel||[]).slice().sort(function(a,b){return String(b.date||"").localeCompare(String(a.date||""));});
   html+='<div class="apa-sect-h"><h3>Consumption</h3><span style="font-size:12px;color:var(--muted);font-weight:600">Tap + to add</span></div>';
@@ -2505,9 +2513,12 @@ function apaDieselHTML(t){
     html+='<div class="list">';
     rows.forEach(function(r){
       var c=apaDieselCalc(t,r);
+      var engMeta=(c.port>0||c.stbd>0)
+        ?('<span>P '+esc(String(apaLit(c.port)))+' L</span><span>S '+esc(String(apaLit(c.stbd)))+' L</span><span>Eng '+esc(String(apaLit(c.eng)))+' L</span>')
+        :('<span>Engine '+esc(String(apaLit(c.eng)))+' L</span>');
       html+='<div class="item apa-row" data-apa-dsl="'+esc(r.id)+'" role="button" tabindex="0">'+
         '<div class="top"><div class="title">'+esc(fmtDate(r.date)||"Use")+'</div><div class="amt money">'+money(c.cost)+'</div></div>'+
-        '<div class="meta"><span>Engine '+esc(String(apaNum(r.engineL)))+' L</span><span>Gen '+esc(String(apaNum(r.genHrs)))+' h → '+esc(String(apaLit(c.genL)))+' L</span><span>'+esc(String(apaLit(c.lit)))+' L used</span></div>'+
+        '<div class="meta">'+engMeta+'<span>Gen '+esc(String(apaNum(r.genHrs)))+' h → '+esc(String(apaLit(c.genL)))+' L</span><span>'+esc(String(apaLit(c.lit)))+' L used</span></div>'+
         (r.notes?'<div class="notes">'+esc(r.notes)+'</div>':'')+
         '<button type="button" class="apa-x" data-apa-del-line="diesel" data-id="'+esc(r.id)+'" aria-label="Delete">×</button></div>';
     });
@@ -2729,7 +2740,11 @@ function openApaLine(kind,id){
   var tripId=t.id;
   var list=kind==="expense"?t.expenses:(kind==="provision"?t.provisions:t.diesel);
   var rec=id?list.filter(function(x){return String(x.id)===String(id);})[0]:null;
-  var r=rec||{id:uid(),date:new Date().toISOString().slice(0,10),amount:"",vendor:"",category:"Dockage / Marina",paidBy:"Ship card",supplier:"",items:"provisions",engineL:"",genHrs:"",cost:"",receipt:"",notes:""};
+  var r=rec||{id:uid(),date:new Date().toISOString().slice(0,10),amount:"",vendor:"",category:"Dockage / Marina",paidBy:"Ship card",supplier:"",items:"provisions",engineL:"",enginePortL:"",engineStbdL:"",genHrs:"",cost:"",receipt:"",notes:""};
+  /* Migrate old single engineL into port for display if P/S empty */
+  if(rec&&!(apaNum(r.enginePortL)>0||apaNum(r.engineStbdL)>0)&&apaNum(r.engineL)>0){
+    r.enginePortL=r.engineL;
+  }
   var title=kind==="expense"?(rec?"Edit expense":"New expense"):(kind==="provision"?(rec?"Edit provision":"New provision"):(rec?"Edit consumption":"Log consumption"));
   var h='<div class="sheethead"><h2>'+title+'</h2><button type="button" class="sheetx" id="sheetClose" aria-label="Close">×</button></div>';
   h+=fieldHTML("Date",'<input class="ctl" id="f_date" type="date" value="'+esc(r.date||"")+'">');
@@ -2745,13 +2760,14 @@ function openApaLine(kind,id){
     h+=fieldHTML("Amount (€)",moneyField("f_amount",r.amount));
     h+=fieldHTML("Receipt #",'<input class="ctl" id="f_receipt" value="'+esc(r.receipt||"")+'">');
   } else {
-    /* Plain number fields (not € moneywrap) — litres / hours */
+    /* Port + starboard engines, then generator hours */
     h+='<div class="row2">'+
-      fieldHTML("Engine litres",decField("f_engine", r.engineL!=null&&r.engineL!==""?r.engineL:"", "e.g. 120"))+
-      fieldHTML("Generator hours",decField("f_genhrs", r.genHrs!=null&&r.genHrs!==""?r.genHrs:"", "e.g. 4"))+
+      fieldHTML("Port engine (L)",decField("f_engine_port", r.enginePortL!=null&&r.enginePortL!==""?r.enginePortL:"", "e.g. 60"))+
+      fieldHTML("Starboard engine (L)",decField("f_engine_stbd", r.engineStbdL!=null&&r.engineStbdL!==""?r.engineStbdL:"", "e.g. 60"))+
     '</div>';
+    h+=fieldHTML("Generator hours",decField("f_genhrs", r.genHrs!=null&&r.genHrs!==""?r.genHrs:"", "e.g. 4"));
     h+=fieldHTML("Manual cost (€) — optional",moneyField("f_dsl_cost", r.cost||""));
-    h+='<p style="margin:-8px 0 12px;font-size:12px;color:var(--muted);line-height:1.4">Leave manual cost empty to use litres × sell rate €'+esc(String(apaDieselPrice(t)))+'/L (gen hours × '+esc(String(apaGenBurn(t)))+' L/hr). Bunker loads &amp; tank levels: vessel <b>Diesel</b> tab. Trip rate: Trip setup.</p>';
+    h+='<p style="margin:-8px 0 12px;font-size:12px;color:var(--muted);line-height:1.4">Enter each engine’s litres — they are added for you. Cost = total litres × sell €'+esc(String(apaDieselPrice(t)))+'/L (gen: × '+esc(String(apaGenBurn(t)))+' L/hr). Optional manual € overrides. Vessel bunker: <b>Diesel</b> tab.</p>';
     h+='<div class="calcbox" id="f_dsl_calc"></div>';
   }
   h+=fieldHTML("Notes",'<textarea class="ctl" id="f_notes">'+esc(r.notes||"")+'</textarea>');
@@ -2760,19 +2776,26 @@ function openApaLine(kind,id){
   el("sheetInner").innerHTML=h;
   function dslRecalc(){
     var box=el("f_dsl_calc"); if(!box) return;
-    var tmp={engineL:el("f_engine").value, genHrs:el("f_genhrs").value, cost:el("f_dsl_cost")?el("f_dsl_cost").value:""};
+    var tmp={
+      enginePortL:el("f_engine_port")?el("f_engine_port").value:"",
+      engineStbdL:el("f_engine_stbd")?el("f_engine_stbd").value:"",
+      genHrs:el("f_genhrs")?el("f_genhrs").value:"",
+      cost:el("f_dsl_cost")?el("f_dsl_cost").value:""
+    };
     var c=apaDieselCalc(t,tmp);
     var manual=apaNum(tmp.cost)>0;
-    box.innerHTML='<div class="cl"><span>Gen litres ('+esc(String(c.burn))+' L/hr)</span><b>'+esc(String(Math.round(c.genL*10)/10))+' L</b></div>'+
+    box.innerHTML=
+      '<div class="cl"><span>Port + starboard</span><b>'+esc(String(apaLit(c.port)))+' + '+esc(String(apaLit(c.stbd)))+' = '+esc(String(apaLit(c.eng)))+' L</b></div>'+
+      '<div class="cl"><span>Gen litres ('+esc(String(c.burn))+' L/hr)</span><b>'+esc(String(Math.round(c.genL*10)/10))+' L</b></div>'+
       '<div class="cl"><span>Total litres</span><b>'+esc(String(Math.round(c.lit*10)/10))+' L</b></div>'+
       '<div class="cl hi"><span>'+(manual?"Manual cost":"Cost @ €"+esc(String(c.price))+"/L")+'</span><b>'+money(c.cost)+'</b></div>'+
-      (c.cost<=0?'<div class="cl" style="color:var(--danger)"><span>Enter litres, hours, or a manual € cost</span><b></b></div>':'');
+      (c.cost<=0?'<div class="cl" style="color:var(--danger)"><span>Enter port, starboard, gen hours, or a manual € cost</span><b></b></div>':'');
   }
   if(kind==="diesel"){
     dslRecalc();
-    if(el("f_engine")) el("f_engine").addEventListener("input",dslRecalc);
-    if(el("f_genhrs")) el("f_genhrs").addEventListener("input",dslRecalc);
-    if(el("f_dsl_cost")) el("f_dsl_cost").addEventListener("input",dslRecalc);
+    ["f_engine_port","f_engine_stbd","f_genhrs","f_dsl_cost"].forEach(function(id){
+      if(el(id)) el(id).addEventListener("input",dslRecalc);
+    });
   }
   el("sheetSave").addEventListener("click",function(){
     var obj={ id:r.id||uid(), date:el("f_date").value||new Date().toISOString().slice(0,10), notes:el("f_notes").value.trim() };
@@ -2786,13 +2809,18 @@ function openApaLine(kind,id){
       obj.amount=apaNum(el("f_amount").value); obj.receipt=el("f_receipt").value.trim();
       if(!obj.amount){ el("f_amount").focus(); return; }
     } else {
-      obj.engineL=apaNum(el("f_engine").value);
+      obj.enginePortL=el("f_engine_port")&&el("f_engine_port").value!==""?apaNum(el("f_engine_port").value):"";
+      obj.engineStbdL=el("f_engine_stbd")&&el("f_engine_stbd").value!==""?apaNum(el("f_engine_stbd").value):"";
+      /* Keep engineL = sum for older code / vessel diesel ledger */
+      obj.engineL=apaEngineLitres(obj);
+      if(!(obj.engineL>0)) obj.engineL="";
       obj.genHrs=apaNum(el("f_genhrs").value);
+      if(!(obj.genHrs>0)) obj.genHrs="";
       obj.cost=apaNum(el("f_dsl_cost")?el("f_dsl_cost").value:0);
       if(!obj.cost) obj.cost="";
       var preview=apaDieselCalc(t,obj);
-      if(preview.cost<=0&&!obj.engineL&&!obj.genHrs){
-        el("f_engine").focus();
+      if(preview.cost<=0&&!preview.eng&&!obj.genHrs){
+        if(el("f_engine_port")) el("f_engine_port").focus();
         return;
       }
       /* Persist computed cost so spend is correct even if rates change later */
