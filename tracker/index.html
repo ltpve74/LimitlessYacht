@@ -991,6 +991,67 @@ function chargeInvoiceDesc(c){
 function chargeInvoicePeriod(c){
   return c&&c.date?fmtDate(c.date):"";
 }
+/** APA trip linked to a charge (for itemised invoices). */
+function apaTripForCharge(c){
+  if(!c||!state.apa) return null;
+  if(c.apaTripId){
+    var byId=(state.apa||[]).filter(function(t){ return t&&String(t.id)===String(c.apaTripId); })[0];
+    if(byId) return byId;
+  }
+  var name=normName(c.client);
+  if(!name) return null;
+  return (state.apa||[]).filter(function(t){ return t&&normName(t.guest)===name; })[0]||null;
+}
+/**
+ * Line items from APA ledger for an itemised charge invoice.
+ * Diesel: € cost only (no litres / hours on the PDF).
+ * Amounts treated as VAT-inclusive (same as charge).
+ */
+function buildApaInvoiceLines(trip){
+  if(!trip) return [];
+  trip=apaEnsureArrays(trip);
+  var lines=[];
+  (trip.expenses||[]).forEach(function(e){
+    var amt=Number(e.amount)||0;
+    if(!(amt>0)) return;
+    var desc=e.category||e.vendor||"Expense";
+    if(e.category&&e.vendor) desc=e.category+" — "+e.vendor;
+    else if(e.vendor) desc=e.vendor;
+    else if(e.category) desc=e.category;
+    lines.push({desc:desc, period:e.date?fmtDate(e.date):"", rate:"", gross:amt});
+  });
+  (trip.provisions||[]).forEach(function(p){
+    var amt=Number(p.amount)||0;
+    if(!(amt>0)) return;
+    var desc=p.supplier||p.items||"Provisions";
+    if(p.supplier&&p.items) desc=p.supplier+" — "+p.items;
+    lines.push({desc:desc, period:p.date?fmtDate(p.date):"", rate:"", gross:amt});
+  });
+  /* One diesel line per consumption row — value only, never litres */
+  (trip.diesel||[]).forEach(function(r){
+    var calc=apaDieselCalc(trip, r);
+    if(!(calc.cost>0)) return;
+    lines.push({
+      desc:"Diesel / fuel",
+      period:r.date?fmtDate(r.date):"",
+      rate:"",
+      gross:calc.cost
+    });
+  });
+  return lines;
+}
+function apaInvoiceLinesNet(lines, vatPct){
+  return (lines||[]).map(function(ln){
+    var sp=invoiceSplitGross(ln.gross, vatPct);
+    return {
+      desc:ln.desc,
+      period:ln.period||"",
+      rate:ln.rate||"",
+      net:sp.net,
+      gross:sp.gross
+    };
+  });
+}
 /** gross = VAT-inclusive total; returns {net, vat, gross, pct} */
 function invoiceSplitGross(gross, pct){
   pct=pct==null||pct===""?21:Number(pct)||0;
@@ -1145,9 +1206,18 @@ function openChargeInvoiceSheet(id){
   if(!c) return;
   var typeLab=chargeInvoiceTypeLabel(c);
   var existing=String(c.inv||"").trim();
+  var trip=apaTripForCharge(c);
+  var apaLines=trip?buildApaInvoiceLines(trip):[];
+  var canItemise=apaLines.length>0;
   var h='<div class="sheethead"><h2>Make invoice</h2><button type="button" class="sheetx" id="sheetClose" aria-label="Close">×</button></div>';
   h+='<p style="margin:0 0 12px;font-size:13px;color:var(--muted);line-height:1.45">PDF for the manager / accountant. Same number if you regenerate this charge.</p>';
   h+='<div class="apa-card" style="margin-bottom:12px"><div class="k">Type on PDF</div><div style="font-weight:700;margin-top:4px">'+esc(typeLab)+'</div></div>';
+  if(canItemise){
+    h+='<label class="checkrow"><input type="checkbox" id="f_inv_itemise" checked>'+
+      '<span><div class="ck">Itemise APA entries</div>'+
+      '<div class="ch">Lists expenses, provisions, and diesel as separate lines. Diesel shows € only (no litres).</div></span></label>';
+    h+='<div id="f_inv_item_preview" class="calcbox" style="max-height:160px;overflow:auto;font-size:12.5px"></div>';
+  }
   h+='<div class="row2">'+
     fieldHTML("Invoice #",'<input class="ctl" id="f_inv_no" value="'+esc(invoiceNoForExisting(existing))+'" placeholder="e.g. 2026-025" autocomplete="off">')+
     fieldHTML("Date",'<input class="ctl" id="f_inv_date" type="date" value="'+esc(c.date||new Date().toISOString().slice(0,10))+'">')+
@@ -1155,11 +1225,13 @@ function openChargeInvoiceSheet(id){
   h+='<p style="margin:-8px 0 12px;font-size:12px;color:var(--muted)">'+(existing?"Reusing <b>"+esc(existing)+"</b> for this charge.":"New number — next free in sequence.")+'</p>';
   h+=fieldHTML("Bill To (name)",'<input class="ctl" id="f_inv_name" value="'+esc(c.client||"")+'">');
   h+=fieldHTML("Bill To (address / tax ID)",'<textarea class="ctl" id="f_inv_addr" placeholder="optional">'+(c.billToAddr?esc(c.billToAddr):"")+'</textarea>');
+  h+='<div id="f_inv_single_fields">';
   h+=fieldHTML("Description (on PDF)",'<input class="ctl" id="f_inv_desc" value="'+esc(chargeInvoiceDesc(c))+'">');
   h+='<div class="row2">'+
     fieldHTML("Period",'<input class="ctl" id="f_inv_period" value="'+esc(chargeInvoicePeriod(c))+'" placeholder="optional">')+
     fieldHTML("Rate",'<input class="ctl" id="f_inv_rate" value="" placeholder="optional">')+
   '</div>';
+  h+='</div>';
   h+=fieldHTML("Total (VAT included)",moneyField("f_inv_gross", c.amount));
   h+='<div class="calcbox" id="f_inv_calc"></div>';
   h+='<label class="checkrow"><input type="checkbox" id="f_inv_save" checked>'+
@@ -1170,40 +1242,96 @@ function openChargeInvoiceSheet(id){
     '<button type="button" class="btn" id="sheetInvGo">Create PDF</button></div>';
   el("sheetInner").innerHTML=h;
 
+  function itemiseOn(){ return !!(canItemise&&el("f_inv_itemise")&&el("f_inv_itemise").checked); }
+  function pct(){
+    var p=(c.vatPct!=null&&c.vatPct!=="")?Number(c.vatPct):21;
+    if(c.vatMode==="none") p=0;
+    return p;
+  }
+  function updateItemPreview(){
+    var box=el("f_inv_item_preview");
+    if(!box) return;
+    if(!itemiseOn()){ box.classList.add("hidden"); return; }
+    box.classList.remove("hidden");
+    var html="";
+    apaLines.forEach(function(ln){
+      html+='<div class="cl"><span>'+esc(ln.desc)+(ln.period?" · "+esc(ln.period):"")+'</span><b>'+money(ln.gross)+'</b></div>';
+    });
+    var sum=apaLines.reduce(function(s,ln){return s+(Number(ln.gross)||0);},0);
+    html+='<div class="cl hi"><span>Lines total</span><b>'+money(sum)+'</b></div>';
+    if(Math.abs(sum-(Number(c.amount)||0))>0.05){
+      html+='<div style="font-size:11.5px;color:var(--amberInk);margin-top:6px">Lines sum differs from charge amount — invoice total uses the amount field below.</div>';
+    }
+    box.innerHTML=html;
+  }
+  function syncItemiseUi(){
+    var on=itemiseOn();
+    var single=el("f_inv_single_fields");
+    if(single) single.classList.toggle("hidden", on);
+    if(el("f_inv_gross")) el("f_inv_gross").disabled=on;
+    if(on){
+      var sum=apaLines.reduce(function(s,ln){return s+(Number(ln.gross)||0);},0);
+      /* Prefer charge amount (shortfall) when it matches pot logic; else lines sum */
+      var chAmt=Number(c.amount)||0;
+      if(el("f_inv_gross")) el("f_inv_gross").value=String(Math.round((chAmt>0?chAmt:sum)*100)/100);
+    } else if(el("f_inv_gross")&&!el("f_inv_gross").dataset.touched){
+      el("f_inv_gross").value=String(Math.round((Number(c.amount)||0)*100)/100);
+    }
+    updateItemPreview();
+    recalc();
+  }
   function recalc(){
     var gross=apaNum(el("f_inv_gross").value);
-    var pct=(c.vatPct!=null&&c.vatPct!=="")?Number(c.vatPct):21;
-    if(c.vatMode==="none") pct=0;
-    var sp=invoiceSplitGross(gross, pct);
+    var sp=invoiceSplitGross(gross, pct());
     var box=el("f_inv_calc");
     if(!box) return;
+    var nLines=itemiseOn()?apaLines.length:1;
     box.innerHTML=
       '<div class="cl"><span>Type on PDF</span><b>'+esc(typeLab)+'</b></div>'+
+      (itemiseOn()?'<div class="cl"><span>Itemised lines</span><b>'+nLines+'</b></div>':'')+
       '<div class="cl"><span>Net (ex IVA)</span><b>'+money(sp.net)+'</b></div>'+
       '<div class="cl"><span>IVA '+sp.pct+'%</span><b>'+money(sp.vat)+'</b></div>'+
       '<div class="cl hi"><span>TOTAL</span><b>'+money(sp.gross)+'</b></div>';
   }
-  if(el("f_inv_gross")) el("f_inv_gross").addEventListener("input",recalc);
-  recalc();
+  if(el("f_inv_itemise")) el("f_inv_itemise").addEventListener("change",syncItemiseUi);
+  if(el("f_inv_gross")){
+    el("f_inv_gross").addEventListener("input",function(){
+      el("f_inv_gross").dataset.touched="1";
+      recalc();
+    });
+  }
+  syncItemiseUi();
 
   el("sheetInvGo").addEventListener("click",function(){
     var invNo=(el("f_inv_no").value||"").trim();
     if(!invNo){ el("f_inv_no").focus(); return; }
     var gross=apaNum(el("f_inv_gross").value);
     if(!(gross>0)){ el("f_inv_gross").focus(); return; }
-    var pct=(c.vatPct!=null&&c.vatPct!=="")?Number(c.vatPct):21;
-    if(c.vatMode==="none") pct=0;
-    var sp=invoiceSplitGross(gross, pct);
+    var vatPct=pct();
+    var sp=invoiceSplitGross(gross, vatPct);
+    var lines=null;
+    if(itemiseOn()){
+      lines=apaInvoiceLinesNet(apaLines, vatPct);
+      /* Scale line nets to match invoice total if shortfall ≠ full spend */
+      var sumNet=lines.reduce(function(s,ln){return s+(Number(ln.net)||0);},0);
+      if(sumNet>0&&Math.abs(sumNet-sp.net)>0.02){
+        var scale=sp.net/sumNet;
+        lines=lines.map(function(ln){
+          return {desc:ln.desc, period:ln.period, rate:ln.rate, net:Math.round(ln.net*scale*100)/100, gross:Math.round(ln.gross*scale*100)/100};
+        });
+      }
+    }
     var payload={
       invNo:invNo,
       date:el("f_inv_date").value||c.date||new Date().toISOString().slice(0,10),
       billName:(el("f_inv_name").value||"").trim()||(c.client||""),
       billAddr:(el("f_inv_addr").value||"").trim(),
-      desc:(el("f_inv_desc").value||"").trim()||chargeInvoiceDesc(c),
-      invType:typeLab,
+      desc:(el("f_inv_desc")?el("f_inv_desc").value:"").trim()||chargeInvoiceDesc(c),
+      invType:typeLab+(itemiseOn()?" (itemised)":""),
       period:(el("f_inv_period")?el("f_inv_period").value:"").trim(),
       rate:(el("f_inv_rate")?el("f_inv_rate").value:"").trim(),
       net:sp.net, vat:sp.vat, gross:sp.gross, pct:sp.pct,
+      lines:lines,
       kind:"charge", source:"charge", chargeId:c.id
     };
     if(el("f_inv_save")&&el("f_inv_save").checked){
@@ -1211,6 +1339,7 @@ function openChargeInvoiceSheet(id){
       c.invStatus="Issued";
       c.status="Invoiced";
       c.billToAddr=payload.billAddr;
+      c.invoiceItemised=itemiseOn();
       state.charters=(state.charters||[]).map(function(x){ return String(x.id)===String(c.id)?c:x; });
       save("charters");
       renderCharters();
@@ -1345,18 +1474,33 @@ function buildYsgInvoicePdf(p){
         drawText("Period", xPeriod, y, 10, true, black);
         drawText("Rate", xRate, y, 10, true, black);
         drawRight("Amount", xAmt, y, 10, true, black);
-        y-=28;
-        drawText(p.desc||"Charter M/Y Limitless", xDesc, y, 11, false, black, 210);
-        drawText(p.period||"", xPeriod, y, 10.5, false, black, 100);
-        drawText(p.rate||"", xRate, y, 10.5, false, black, 80);
-        drawRight(fmtInvMoney(p.net), xAmt, y, 11, false, black);
-        y-=16;
+        y-=26;
+
+        /* One or many line items (itemised APA expenses / diesel € only) */
+        var lineItems=(p.lines&&p.lines.length)?p.lines:[{
+          desc:p.desc||"Charter M/Y Limitless",
+          period:p.period||"",
+          rate:p.rate||"",
+          net:p.net
+        }];
+        var companyTopFloor=42+30+5*12+50; /* leave room for company block + totals */
+        lineItems.forEach(function(ln, idx){
+          if(y<companyTopFloor+80) return; /* avoid running into footer */
+          drawText(ln.desc||"—", xDesc, y, 10.5, false, black, 210);
+          drawText(ln.period||"", xPeriod, y, 10, false, black, 100);
+          drawText(ln.rate||"", xRate, y, 10, false, black, 80);
+          drawRight(fmtInvMoney(ln.net), xAmt, y, 10.5, false, black);
+          y-=16;
+          if(idx===lineItems.length-1||y>=companyTopFloor+80){
+            /* thin separator only after last drawn line handled below */
+          }
+        });
         if(p.invType){
           drawText("Type: "+p.invType, xDesc, y, 9.5, true, grey, tableW-20);
           y-=14;
         }
         page.drawLine({start:{x:margin, y:y}, end:{x:W-margin, y:y}, thickness:0.6, color:rgb(0.85,0.85,0.85)});
-        y-=30;
+        y-=28;
 
         /* Totals box */
         var boxW=200, boxX=W-margin-boxW, rowH=20;
