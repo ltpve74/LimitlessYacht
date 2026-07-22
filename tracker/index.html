@@ -1004,39 +1004,57 @@ function apaTripForCharge(c){
 }
 /**
  * Line items from APA ledger for an itemised charge invoice.
- * Diesel: € cost only (no litres / hours on the PDF).
+ * Bunch by category — no vendors/supermarkets (e.g. one Dockage, one Provisions).
+ * Diesel: single € total only (no litres).
  * Amounts treated as VAT-inclusive (same as charge).
  */
 function buildApaInvoiceLines(trip){
   if(!trip) return [];
   trip=apaEnsureArrays(trip);
-  var lines=[];
+  var buckets={}; /* label → gross */
+  function add(label, amt){
+    amt=Number(amt)||0;
+    if(!(amt>0)||!label) return;
+    buckets[label]=(buckets[label]||0)+amt;
+  }
+  function expenseLabel(cat){
+    cat=String(cat||"").trim();
+    if(!cat) return "Miscellaneous";
+    if(/dockage|marina/i.test(cat)) return "Dockage / marina";
+    if(/food|provision/i.test(cat)) return "Provisions";
+    if(/fuel|diesel/i.test(cat)) return "Diesel / fuel";
+    if(/drink|bar/i.test(cat)) return "Drinks & bar";
+    if(/crew|tip/i.test(cat)) return "Crew tips";
+    if(/misc/i.test(cat)) return "Miscellaneous";
+    return cat; /* keep known category name, still no vendor */
+  }
   (trip.expenses||[]).forEach(function(e){
-    var amt=Number(e.amount)||0;
-    if(!(amt>0)) return;
-    var desc=e.category||e.vendor||"Expense";
-    if(e.category&&e.vendor) desc=e.category+" — "+e.vendor;
-    else if(e.vendor) desc=e.vendor;
-    else if(e.category) desc=e.category;
-    lines.push({desc:desc, period:e.date?fmtDate(e.date):"", rate:"", gross:amt});
+    add(expenseLabel(e.category), e.amount);
   });
+  /* All provision receipts → one "Provisions" line */
   (trip.provisions||[]).forEach(function(p){
-    var amt=Number(p.amount)||0;
-    if(!(amt>0)) return;
-    var desc=p.supplier||p.items||"Provisions";
-    if(p.supplier&&p.items) desc=p.supplier+" — "+p.items;
-    lines.push({desc:desc, period:p.date?fmtDate(p.date):"", rate:"", gross:amt});
+    add("Provisions", p.amount);
   });
-  /* One diesel line per consumption row — value only, never litres */
+  /* All trip diesel consumption → one "Diesel / fuel" line (€ only) */
+  var dTot=0;
   (trip.diesel||[]).forEach(function(r){
     var calc=apaDieselCalc(trip, r);
-    if(!(calc.cost>0)) return;
-    lines.push({
-      desc:"Diesel / fuel",
-      period:r.date?fmtDate(r.date):"",
-      rate:"",
-      gross:calc.cost
-    });
+    if(calc.cost>0) dTot+=calc.cost;
+  });
+  add("Diesel / fuel", dTot);
+
+  /* Stable invoice order */
+  var order=["Diesel / fuel","Dockage / marina","Provisions","Drinks & bar","Crew tips","Miscellaneous"];
+  var lines=[], seen={};
+  order.forEach(function(lab){
+    if(buckets[lab]>0){
+      lines.push({desc:lab, period:"", rate:"", gross:buckets[lab]});
+      seen[lab]=1;
+    }
+  });
+  Object.keys(buckets).forEach(function(lab){
+    if(seen[lab]||!(buckets[lab]>0)) return;
+    lines.push({desc:lab, period:"", rate:"", gross:buckets[lab]});
   });
   return lines;
 }
@@ -1215,7 +1233,7 @@ function openChargeInvoiceSheet(id){
   if(canItemise){
     h+='<label class="checkrow"><input type="checkbox" id="f_inv_itemise" checked>'+
       '<span><div class="ck">Itemise APA entries</div>'+
-      '<div class="ch">Lists expenses, provisions, and diesel as separate lines. Diesel shows € only (no litres).</div></span></label>';
+      '<div class="ch">Groups by type: dockage, provisions, diesel (€ only), etc. — no shop names.</div></span></label>';
     h+='<div id="f_inv_item_preview" class="calcbox" style="max-height:160px;overflow:auto;font-size:12.5px"></div>';
   }
   h+='<div class="row2">'+
