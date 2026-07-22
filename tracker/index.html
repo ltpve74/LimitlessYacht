@@ -2276,13 +2276,51 @@ function renderApa(){
   if(apaView==="list"){ renderApaList(); return; }
   renderApaDetail();
 }
+/** Charter date key (YYYY-MM-DD) for APA list sort — newest first. */
+function apaTripCharterKey(t){
+  if(!t) return "";
+  try{
+    var lead=apaLinkedLead(t);
+    if(lead){
+      var lk=lead.start||lead.cdate||lead.closed||"";
+      if(lk) return String(lk).slice(0,10);
+    }
+  }catch(e){}
+  var d=String(t.dates||"");
+  var iso=d.match(/(20\d{2})-(\d{2})-(\d{2})/);
+  if(iso) return iso[1]+"-"+iso[2]+"-"+iso[3];
+  var dmy=d.match(/(\d{1,2})[\/\-.](\d{1,2})(?:[\/\-.](20\d{2}|\d{2}))?/);
+  if(dmy){
+    var day=("0"+dmy[1]).slice(-2), mon=("0"+dmy[2]).slice(-2);
+    var y=dmy[3]||"";
+    if(y.length===2) y="20"+y;
+    if(!y) y=String(new Date().getFullYear());
+    return y+"-"+mon+"-"+day;
+  }
+  var earliest="";
+  [(t.expenses||[]),(t.diesel||[]),(t.provisions||[])].forEach(function(arr){
+    (arr||[]).forEach(function(row){
+      if(row&&row.date&&(!earliest||String(row.date)<earliest)) earliest=String(row.date).slice(0,10);
+    });
+  });
+  if(earliest) return earliest;
+  if(t.updatedAt) return String(t.updatedAt).slice(0,10);
+  return "";
+}
+function sortApaTrips(trips){
+  return (trips||[]).slice().sort(function(a,b){
+    var da=apaTripCharterKey(a), db=apaTripCharterKey(b);
+    if(da&&db&&da!==db) return db<da?-1:1; /* newest charter first */
+    if(db&&!da) return 1;
+    if(da&&!db) return -1;
+    return String(b.updatedAt||"").localeCompare(String(a.updatedAt||""));
+  });
+}
 function renderApaList(){
   var wrap=el("apaList");
   if(!wrap) return;
   var pot=0, bal=0, html="";
-  var trips=state.apa.slice().sort(function(a,b){
-    return String(b.updatedAt||b.dates||"").localeCompare(String(a.updatedAt||a.dates||""));
-  });
+  var trips=sortApaTrips(state.apa);
   trips.forEach(function(t){
     var x=apaTotals(t);
     pot+=x.available; bal+=x.bal;
@@ -2313,6 +2351,13 @@ function renderApaList(){
       return t.linkSourceId===l.id||t.clientKey==="lead:"+l.id||normName(t.guest)===normName(l.name);
     });
     if(!has) pending.push(l);
+  });
+  pending.sort(function(a,b){
+    var da=a.start||a.cdate||a.closed||"", db=b.start||b.cdate||b.closed||"";
+    if(da&&db&&da!==db) return db<da?-1:1;
+    if(db&&!da) return 1;
+    if(da&&!db) return -1;
+    return 0;
   });
   pending.forEach(function(l){
     var pot=Number(l.apa)||0;
