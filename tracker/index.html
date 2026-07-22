@@ -1252,15 +1252,21 @@ function openChargeInvoiceSheet(id){
   h+='</div>';
   h+=fieldHTML("Total (VAT included)",moneyField("f_inv_gross", c.amount));
   h+='<div class="calcbox" id="f_inv_calc"></div>';
+  /* Norm: card at end of charter — default paid by card unless charge already marked Cash */
+  var defaultCard=chargePayMethod(c)!=="Cash";
+  h+='<label class="checkrow"><input type="checkbox" id="f_inv_paid_card"'+(defaultCard?" checked":"")+'>'+
+    '<span><div class="ck">Paid by card</div>'+
+    '<div class="ch">Usual case: card at end of charter. Shows on the PDF for the accountant.</div></span></label>';
   h+='<label class="checkrow"><input type="checkbox" id="f_inv_save" checked>'+
     '<span><div class="ck">Save invoice # on this charge</div>'+
-    '<div class="ch">Marks invoice as Issued and keeps the number for regenerate.</div></span></label>';
+    '<div class="ch">Marks invoice as Issued and keeps the number for regenerate. Also saves paid-by-card if ticked.</div></span></label>';
   h+='<div class="sheetfoot">'+
     '<button type="button" class="btn ghost" id="sheetCancel">Cancel</button>'+
     '<button type="button" class="btn" id="sheetInvGo">Create PDF</button></div>';
   el("sheetInner").innerHTML=h;
 
   function itemiseOn(){ return !!(canItemise&&el("f_inv_itemise")&&el("f_inv_itemise").checked); }
+  function paidByCardOn(){ return !!(el("f_inv_paid_card")&&el("f_inv_paid_card").checked); }
   function pct(){
     var p=(c.vatPct!=null&&c.vatPct!=="")?Number(c.vatPct):21;
     if(c.vatMode==="none") p=0;
@@ -1307,11 +1313,13 @@ function openChargeInvoiceSheet(id){
     box.innerHTML=
       '<div class="cl"><span>Type on PDF</span><b>'+esc(typeLab)+'</b></div>'+
       (itemiseOn()?'<div class="cl"><span>Itemised lines</span><b>'+nLines+'</b></div>':'')+
+      '<div class="cl"><span>Payment</span><b>'+(paidByCardOn()?"Paid by card":"Not marked card")+'</b></div>'+
       '<div class="cl"><span>Net (ex IVA)</span><b>'+money(sp.net)+'</b></div>'+
       '<div class="cl"><span>IVA '+sp.pct+'%</span><b>'+money(sp.vat)+'</b></div>'+
       '<div class="cl hi"><span>TOTAL</span><b>'+money(sp.gross)+'</b></div>';
   }
   if(el("f_inv_itemise")) el("f_inv_itemise").addEventListener("change",syncItemiseUi);
+  if(el("f_inv_paid_card")) el("f_inv_paid_card").addEventListener("change",recalc);
   if(el("f_inv_gross")){
     el("f_inv_gross").addEventListener("input",function(){
       el("f_inv_gross").dataset.touched="1";
@@ -1339,6 +1347,7 @@ function openChargeInvoiceSheet(id){
         });
       }
     }
+    var byCard=paidByCardOn();
     var payload={
       invNo:invNo,
       date:el("f_inv_date").value||c.date||new Date().toISOString().slice(0,10),
@@ -1350,6 +1359,8 @@ function openChargeInvoiceSheet(id){
       rate:(el("f_inv_rate")?el("f_inv_rate").value:"").trim(),
       net:sp.net, vat:sp.vat, gross:sp.gross, pct:sp.pct,
       lines:lines,
+      paidByCard:byCard,
+      paymentNote:byCard?"Paid by card at end of charter":"",
       kind:"charge", source:"charge", chargeId:c.id
     };
     if(el("f_inv_save")&&el("f_inv_save").checked){
@@ -1358,6 +1369,12 @@ function openChargeInvoiceSheet(id){
       c.status="Invoiced";
       c.billToAddr=payload.billAddr;
       c.invoiceItemised=itemiseOn();
+      if(byCard){
+        c.payMethod="Card";
+        c.payStatus="Paid";
+        /* Issued invoice that was paid by card */
+        c.status="Invoiced";
+      }
       state.charters=(state.charters||[]).map(function(x){ return String(x.id)===String(c.id)?c:x; });
       save("charters");
       renderCharters();
@@ -1533,7 +1550,13 @@ function buildYsgInvoicePdf(p){
           drawRight(row.v, boxX+boxW-10, ty, row.b?12:11, row.b, black);
           ty-=rowH;
         });
-        y-=boxH+40;
+        y-=boxH+24;
+
+        if(p.paidByCard||p.paymentNote){
+          var payTxt=p.paymentNote||"Paid by card at end of charter";
+          drawCenter(payTxt, y, 11, true, black);
+          y-=22;
+        }
 
         drawCenter("Thank you for your business!", y, 12, false, black, true);
 
