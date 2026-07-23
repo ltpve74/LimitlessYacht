@@ -3033,39 +3033,29 @@ function apaBindBody(t){
 function openApaTrip(id){
   var rec=id?state.apa.filter(function(t){return t.id===id;})[0]:null;
   var r=rec||emptyApaTrip();
-  var clients=listApaClients();
-  var invs=listIssuedInvoices();
-  var curClient=r.clientKey||"";
-  var curLink=r.linkKey||"";
-  /* If old trip only has guest text, try match by name */
-  if(!curClient&&r.guest){
-    for(var i=0;i<clients.length;i++){ if(clients[i].name===r.guest){ curClient=clients[i].key; break; } }
-  }
-  if(!curClient&&r.guest) curClient="__manual__";
+  var isNew=!rec;
+  var fromLead=!!(rec&&(rec.linkSource==="lead"||rec.cashFromLead||/^lead:/.test(String(rec.clientKey||""))||rec.linkSourceId));
   var h='<div class="sheethead"><h2>'+(rec?"Edit trip":"New APA trip")+'</h2><button type="button" class="sheetx" id="sheetClose" aria-label="Close">×</button></div>';
-  h+='<p style="margin:0 0 12px;font-size:12.5px;color:var(--muted);line-height:1.45">Pick a client (optional invoice link). <b>APA sent can be €0</b> — log diesel/expenses and a Charges invoice request is created for the spend. If you already received APA, enter it here so only the overspend is charged.</p>';
-  var cOpts='<option value="">— Choose client —</option>';
-  clients.forEach(function(c){
-    cOpts+='<option value="'+esc(c.key)+'"'+(c.key===curClient?" selected":"")+'>'+esc(c.name)+(c.source==="lead"?" · lead":" · charge")+'</option>';
-  });
-  cOpts+='<option value="__manual__"'+(curClient==="__manual__"?" selected":"")+'>Other (type name)…</option>';
-  h+=fieldHTML("Client",'<select class="ctl" id="f_clientKey">'+cOpts+'</select>');
-  h+='<div id="f_guestWrap"'+(curClient==="__manual__"||(!curClient&&r.guest)?"":" class=\"hidden\"")+'>'+
-    fieldHTML("Guest name",'<input class="ctl" id="f_guest" value="'+esc(r.guest)+'" placeholder="Type guest / charter name">')+'</div>';
-  h+='<div id="f_guestRo" class="field'+(curClient&&curClient!=="__manual__"?"":" hidden")+'"><label>Guest</label><div class="ctl" style="background:#f5f8f9" id="f_guestLabel">'+esc(r.guest||"—")+'</div></div>';
-  var iOpts='<option value="">— No invoice link —</option>';
-  invs.forEach(function(inv){
-    var lab=inv.client+" · "+inv.label+(inv.invNo?" #"+inv.invNo:"")+" · "+money0(inv.amount);
-    iOpts+='<option value="'+esc(inv.key)+'"'+(inv.key===curLink?" selected":"")+'>'+esc(lab)+'</option>';
-  });
-  if(!invs.length) iOpts='<option value="">No issued invoices yet — issue one on Leads/Charges first</option>';
-  h+=fieldHTML("Link issued invoice",'<select class="ctl" id="f_linkKey">'+iOpts+'</select>');
-  h+='<p id="f_linkHint" style="margin:-8px 0 14px;font-size:12px;color:var(--muted);line-height:1.4"></p>';
+  if(isNew){
+    h+='<p style="margin:0 0 12px;font-size:12.5px;color:var(--muted);line-height:1.45">'+
+      'For a <b>walk-in / external charter</b> (not a website lead). '+
+      'Website leads already have a <b>Start APA</b> card on the APA list — use that instead. '+
+      '<b>APA sent can be €0</b>; spend creates a Charges invoice from this pot (not the other way around).'+
+    '</p>';
+  } else if(fromLead){
+    h+='<div class="banner warn show" style="display:block">Linked to a website lead. Guest name can still be corrected; lead link is kept.</div>';
+  } else {
+    h+='<p style="margin:0 0 12px;font-size:12.5px;color:var(--muted);line-height:1.45">'+
+      'External charter pot. <b>APA sent can be €0</b> — log spend and a Charges invoice is created for what is still owed.'+
+    '</p>';
+  }
+  h+=fieldHTML("Guest / charter name",'<input class="ctl" id="f_guest" value="'+esc(r.guest||"")+'" placeholder="e.g. private charter name" autocomplete="name">');
   h+=fieldHTML("Vessel",'<input class="ctl" id="f_vessel" value="'+esc(r.vessel||"M/Y Limitless")+'">');
   h+=fieldHTML("Captain",'<input class="ctl" id="f_captain" value="'+esc(r.captain||"Luigi")+'">');
-  /* Native date pickers (calendar on phone/desktop) — free-text dates had no widget */
+  /* Native date pickers (calendar on phone/desktop) */
   var parsedDates=apaParseTripDates(r.dates||"");
-  var defStart=parsedDates.start||(!rec?localYmdOffset(1):"");
+  if(!parsedDates.start&&r.start) parsedDates={start:String(r.start).slice(0,10), end:String(r.end||r.start).slice(0,10)};
+  var defStart=parsedDates.start||(isNew?localYmdOffset(1):"");
   var defEnd=parsedDates.end||defStart;
   h+='<div class="row2">'+
     fieldHTML("Charter start",'<input class="ctl" id="f_date_start" type="date" value="'+esc(defStart)+'">')+
@@ -3079,143 +3069,63 @@ function openApaTrip(id){
   h+='<div class="sheetfoot"><button type="button" class="btn ghost" id="sheetCancel">Cancel</button><button type="button" class="btn" id="sheetSave">Save</button></div>';
   el("sheetInner").innerHTML=h;
 
-  function setGuestUI(){
-    var ck=el("f_clientKey").value;
-    var manual=ck==="__manual__"||ck==="";
-    if(ck===""){ /* still choosing */ manual=true; }
-    if(ck==="__manual__"){
-      el("f_guestWrap").classList.remove("hidden");
-      el("f_guestRo").classList.add("hidden");
-    } else if(ck){
-      el("f_guestWrap").classList.add("hidden");
-      el("f_guestRo").classList.remove("hidden");
-      var cl=clients.filter(function(c){return c.key===ck;})[0];
-      var name=cl?cl.name:"";
-      el("f_guestLabel").textContent=name||"—";
-      if(cl&&cl.lead){
-        var hasStart=el("f_date_start")&&el("f_date_start").value;
-        if(!hasStart){
-          var fromLead=apaParseTripDates(apaClientDates(cl.lead));
-          if(!fromLead.start&&cl.lead.start) fromLead={start:String(cl.lead.start).slice(0,10), end:String(cl.lead.end||cl.lead.start).slice(0,10)};
-          if(fromLead.start&&el("f_date_start")) el("f_date_start").value=fromLead.start;
-          if(el("f_date_end")) el("f_date_end").value=fromLead.end||fromLead.start||"";
-        }
-      }
-    } else {
-      el("f_guestWrap").classList.remove("hidden");
-      el("f_guestRo").classList.add("hidden");
-    }
-    filterInvoices();
-  }
-  function filterInvoices(){
-    var ck=el("f_clientKey").value;
-    var sel=el("f_linkKey");
-    var keep=sel.value;
-    var opts='<option value="">— No invoice link —</option>';
-    var n=0;
-    invs.forEach(function(inv){
-      if(ck&&ck!=="__manual__"&&inv.clientKey!==ck) return;
-      if(ck==="__manual__"){
-        var g=(el("f_guest")&&el("f_guest").value||"").trim().toLowerCase();
-        if(g&&inv.client.toLowerCase().indexOf(g)===-1&&g.indexOf(inv.client.toLowerCase())===-1) return;
-      }
-      n++;
-      opts+='<option value="'+esc(inv.key)+'"'+(inv.key===keep?" selected":"")+'>'+esc(inv.client+" · "+inv.label+(inv.invNo?" #"+inv.invNo:"")+" · "+money0(inv.amount))+'</option>';
-    });
-    if(!n&&invs.length) opts='<option value="">No issued invoices for this client</option>';
-    if(!invs.length) opts='<option value="">No issued invoices yet — issue one on Leads/Charges first</option>';
-    sel.innerHTML=opts;
-    if(keep&&[].some.call(sel.options,function(o){return o.value===keep;})) sel.value=keep;
-    updateLinkHint();
-  }
-  function updateLinkHint(){
-    var inv=findIssuedInvoice(el("f_linkKey").value);
-    var hint=el("f_linkHint");
-    if(!inv){ hint.textContent="Optional. Link once the manager has marked an invoice Issued (or Paid)."; return; }
-    hint.textContent="Linked: "+inv.label+(inv.invNo?" #"+inv.invNo:"")+" · "+money(inv.amount)+(inv.dates?" · "+inv.dates:"");
-  }
-  function applyInvoice(){
-    var inv=findIssuedInvoice(el("f_linkKey").value);
-    if(!inv){ updateLinkHint(); return; }
-    /* Select matching client */
-    if(inv.clientKey&&[].some.call(el("f_clientKey").options,function(o){return o.value===inv.clientKey;})){
-      el("f_clientKey").value=inv.clientKey;
-    } else {
-      el("f_clientKey").value="__manual__";
-      if(el("f_guest")) el("f_guest").value=inv.client;
-    }
-    setGuestUI();
-    if(el("f_guestLabel")) el("f_guestLabel").textContent=inv.client;
-    if(el("f_guest")&&el("f_clientKey").value==="__manual__") el("f_guest").value=inv.client;
-    /* APA invoice → pot amount */
-    if(inv.invKind==="apas"&&inv.amount>0) el("f_apaSent").value=inv.amount;
-    if(inv.dates&&el("f_date_start")&&!el("f_date_start").value){
-      var fromInv=apaParseTripDates(inv.dates);
-      if(fromInv.start){
-        el("f_date_start").value=fromInv.start;
-        if(el("f_date_end")) el("f_date_end").value=fromInv.end||fromInv.start;
-      }
-    }
-    /* re-select invoice after filter rebuild */
-    el("f_linkKey").value=inv.key;
-    updateLinkHint();
-  }
   if(el("f_date_start")) el("f_date_start").addEventListener("change",function(){
     var s=el("f_date_start").value, e=el("f_date_end")&&el("f_date_end").value;
     if(s&&(!e||e<s)&&el("f_date_end")) el("f_date_end").value=s;
   });
-
-  el("f_clientKey").addEventListener("change",function(){
-    setGuestUI();
-    /* clear invoice if it no longer matches */
-    var inv=findIssuedInvoice(el("f_linkKey").value);
-    if(inv&&el("f_clientKey").value&&el("f_clientKey").value!=="__manual__"&&inv.clientKey!==el("f_clientKey").value){
-      el("f_linkKey").value="";
-      updateLinkHint();
-    }
-  });
-  if(el("f_guest")) el("f_guest").addEventListener("input",filterInvoices);
-  el("f_linkKey").addEventListener("change",applyInvoice);
-  setGuestUI();
-  updateLinkHint();
+  if(el("f_guest")) setTimeout(function(){ try{ el("f_guest").focus(); }catch(e){} }, 50);
 
   el("sheetSave").addEventListener("click",function(){
-    var ck=el("f_clientKey").value;
-    var guest="";
-    if(ck==="__manual__"||!ck){
-      guest=(el("f_guest")?el("f_guest").value:"").trim();
-      if(!ck) ck="__manual__";
-    } else {
-      var cl=clients.filter(function(c){return c.key===ck;})[0];
-      guest=cl?cl.name:"";
-    }
-    if(!guest){ if(el("f_guest")&&!el("f_guestWrap").classList.contains("hidden")) el("f_guest").focus(); else el("f_clientKey").focus(); return; }
-    var inv=findIssuedInvoice(el("f_linkKey").value);
+    var guest=(el("f_guest")&&el("f_guest").value||"").trim();
+    if(!guest){ if(el("f_guest")) el("f_guest").focus(); return; }
     var startIso=(el("f_date_start")&&el("f_date_start").value)||"";
     var endIso=(el("f_date_end")&&el("f_date_end").value)||"";
     if(startIso&&endIso&&endIso<startIso){ var tmp=startIso; startIso=endIso; endIso=tmp; }
     if(!endIso) endIso=startIso;
     var datesStr=apaFormatTripDates(startIso, endIso);
+    /* New = unlinked walk-in. Edit keeps any existing lead/invoice links. */
     var obj={
-      id:r.id, vessel:el("f_vessel").value.trim()||"M/Y Limitless", guest:guest,
-      clientKey:ck||"",
-      linkKey:inv?inv.key:"", linkSource:inv?inv.source:"", linkSourceId:inv?inv.sourceId:"",
-      linkInvKind:inv?inv.invKind:"", linkInvNo:inv?inv.invNo:"", linkInvLabel:inv?inv.label:"",
-      linkInvAmount:inv?inv.amount:0,
+      id:r.id,
+      vessel:el("f_vessel").value.trim()||"M/Y Limitless",
+      guest:guest,
+      clientKey:rec?(r.clientKey||""):"",
+      linkKey:rec?(r.linkKey||""):"",
+      linkSource:rec?(r.linkSource||""):"",
+      linkSourceId:rec?(r.linkSourceId||""):"",
+      linkInvKind:rec?(r.linkInvKind||""):"",
+      linkInvNo:rec?(r.linkInvNo||""):"",
+      linkInvLabel:rec?(r.linkInvLabel||""):"",
+      linkInvAmount:rec?(Number(r.linkInvAmount)||0):0,
       captain:el("f_captain").value.trim()||"Luigi",
       dates:datesStr,
       start:startIso||"",
       end:endIso||"",
-      apaSent:apaNum(el("f_apaSent").value), topUps:apaNum(el("f_topUps").value),
-      dieselPrice:apaNum(el("f_dPrice").value)||1.75, genBurn:apaNum(el("f_genBurn").value)||6,
-      expenses:r.expenses||[], provisions:r.provisions||[], diesel:r.diesel||[], dieselLoads:r.dieselLoads||[],
-      notes:el("f_notes").value.trim(), by:session.who, updatedAt:new Date().toISOString()
+      apaSent:apaNum(el("f_apaSent").value),
+      topUps:apaNum(el("f_topUps").value),
+      dieselPrice:apaNum(el("f_dPrice").value)||1.75,
+      genBurn:apaNum(el("f_genBurn").value)||6,
+      expenses:r.expenses||[],
+      provisions:r.provisions||[],
+      diesel:r.diesel||[],
+      dieselLoads:r.dieselLoads||[],
+      notes:el("f_notes").value.trim(),
+      by:session.who,
+      updatedAt:new Date().toISOString()
     };
     if(rec){
       obj.chargeId=r.chargeId||"";
-      obj.expenses=r.expenses||[]; obj.provisions=r.provisions||[]; obj.diesel=r.diesel||[]; obj.dieselLoads=r.dieselLoads||[];
+      obj.cashFromLead=!!r.cashFromLead;
+      obj.cashAmt=r.cashAmt;
+      obj.cashSettled=r.cashSettled;
+      obj.cashReceived=r.cashReceived;
+      obj.expenses=r.expenses||[];
+      obj.provisions=r.provisions||[];
+      obj.diesel=r.diesel||[];
+      obj.dieselLoads=r.dieselLoads||[];
       state.apa=state.apa.map(function(x){return x.id===obj.id?obj:x;});
-    } else { state.apa.unshift(obj); }
+    } else {
+      state.apa.unshift(obj);
+    }
     activeApaId=obj.id; apaView="detail"; apaSub="overview";
     showSheet(false); saveApa(obj);
   });
