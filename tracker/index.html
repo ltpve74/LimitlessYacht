@@ -164,7 +164,8 @@
   /* modal sheet — anchored to visual viewport (iOS/PWA-safe); scrolls as one unit */
   .scrim{position:fixed;inset:0;background:rgba(15,25,30,.5);z-index:200;display:none;opacity:0;transition:opacity .2s}
   .scrim.show{display:block;opacity:1}
-  body.sheet-open{overflow:hidden;overscroll-behavior:none}
+  /* Fixed body lock keeps list scroll position while the sheet is open */
+  body.sheet-open{overflow:hidden;overscroll-behavior:none;position:fixed;width:100%;left:0;right:0}
   .sheet{position:fixed;left:0;right:0;bottom:0;z-index:210;background:var(--card);
          border-radius:20px 20px 0 0;box-shadow:0 -12px 40px rgba(15,25,30,.22);
          width:100%;max-width:100%;
@@ -636,7 +637,7 @@ function updateFab(){
 
 /* -------- render -------- */
 function pill(v){ var c="p-grey"; if(v==="Pending"||v==="Requested"||v==="Not issued")c="p-amber"; else if(v==="Invoiced"||v==="Issued")c="p-blue"; else if(v==="Paid")c="p-green"; return '<span class="pill '+c+'">'+esc(v)+'</span>'; }
-function renderAll(){ renderCharters(); renderLeads(); renderSecurity(); if(canOps()){ renderApa(); renderDiesel(); } if(isCaptain()) renderStews(); }
+function renderAll(){ renderCharters(); renderLeads(); renderSecurity(); if(canOps()){ renderApa(); renderDiesel(); } if(isCaptain()) renderStews({soft:true}); }
 
 /** Charges: payment defaults Paid; invStatus is what the manager tracks. */
 function chargePay(r){
@@ -3582,13 +3583,35 @@ function stewEventYears(events){
   Object.keys(y).sort().reverse().forEach(function(k){ out.push(k); });
   return out;
 }
-function renderStews(){
+function stewPageScrollY(){
+  return window.scrollY||window.pageYOffset||document.documentElement.scrollTop||document.body.scrollTop||0;
+}
+function stewRestorePageScroll(y){
+  y=Math.max(0, Number(y)||0);
+  var apply=function(){ try{ window.scrollTo(0, y); }catch(e){} };
+  apply();
+  requestAnimationFrame(function(){ apply(); requestAnimationFrame(apply); });
+}
+/** Repaint charter list without rebuilding shell / reloading feed (keeps scroll). */
+function paintStewChartersKeepScroll(){
+  var y=stewPageScrollY();
+  if(document.body.classList.contains("sheet-open")&&bodyScrollLockY!=null) y=bodyScrollLockY;
+  paintStewCharters();
+  stewRestorePageScroll(y);
+}
+function renderStews(opts){
   if(!isCaptain()) return;
+  opts=opts||{};
   Array.prototype.forEach.call(document.querySelectorAll("#stewSubNav button"),function(b){
     b.classList.toggle("on", b.getAttribute("data-stewsub")===stewSub);
   });
   var body=el("stewsBody"); if(!body) return;
   if(stewSub==="team"){ renderStewTeam(body); return; }
+  /* Soft refresh: keep list shell + scroll (after edit / background poll) */
+  if(opts.soft&&el("stewCalList")&&el("stewRefreshCal")){
+    paintStewChartersKeepScroll();
+    return;
+  }
   body.innerHTML='<div class="legend">Full season list: <b>export seed</b> (past + booked) plus live calendar. Live feed wins when the same event appears in both. Use this for stew pay accounting and to judge a permanent stew next year.</div>'+
     '<div class="apa-sect-h" style="margin-top:0"><h3>All charters</h3>'+
     '<button type="button" class="btn ghost" id="stewRefreshCal">Refresh calendar</button></div>'+
@@ -3596,9 +3619,9 @@ function renderStews(){
     '<div id="stewCalList"><div class="empty"><div class="big">⏳</div><div>Loading calendar…</div></div></div>';
   if(el("stewRefreshCal")) el("stewRefreshCal").addEventListener("click",function(){
     el("stewCalList").innerHTML='<div class="empty"><div class="big">⏳</div><div>Refreshing from calendar…</div></div>';
-    loadStewCalendar(true).then(function(){ paintStewCharters(); });
+    loadStewCalendar(true).then(function(){ paintStewChartersKeepScroll(); });
   });
-  loadStewCalendar(false).then(function(){ paintStewCharters(); });
+  loadStewCalendar(false).then(function(){ paintStewChartersKeepScroll(); });
 }
 function paintStewCharters(){
   var wrap=el("stewCalList"); if(!wrap) return;
@@ -3617,7 +3640,7 @@ function paintStewCharters(){
     Array.prototype.forEach.call(yf.querySelectorAll("[data-stew-year]"),function(btn){
       btn.addEventListener("click",function(){
         stewYearFilter=btn.getAttribute("data-stew-year")||"all";
-        paintStewCharters();
+        paintStewChartersKeepScroll();
       });
     });
   }
@@ -3999,7 +4022,10 @@ function openStewAssign(eventKey){
       return a;
     });
     if(!found) state.stewAssign.unshift(obj);
-    showSheet(false); saveStewAssign(); renderStews();
+    showSheet(false); saveStewAssign();
+    /* In-place list refresh — do not rebuild tab (that jumped scroll to top) */
+    if(stewSub==="charters"&&el("stewCalList")) paintStewChartersKeepScroll();
+    else renderStews({soft:true});
   });
   el("sheetCancel").addEventListener("click",function(){ showSheet(false); });
   el("sheetClose").addEventListener("click",function(){ showSheet(false); });
@@ -4573,22 +4599,19 @@ function ensureSheetFieldVisible(node){
     try{ node.scrollIntoView(true); }catch(e2){}
   }
 }
+var bodyScrollLockY=null;
 function showSheet(on){
   var gen=++sheetGen;
   var sh=el("sheet");
   el("scrim").classList.toggle("show",on);
   sh.classList.toggle("show",on);
-  document.body.classList.toggle("sheet-open",on);
   sh.style.transform="";
   sh.style.transition="";
-  syncSheetViewport();
-  if(!on){
-    clearSheetPin(sh);
-    setTimeout(function(){
-      if(gen!==sheetGen) return;
-      if(!sh.classList.contains("show")) el("sheetInner").innerHTML="";
-    },260);
-  } else {
+  if(on){
+    /* Lock page under sheet without jumping the list to the top */
+    if(bodyScrollLockY==null) bodyScrollLockY=stewPageScrollY();
+    document.body.classList.add("sheet-open");
+    document.body.style.top=(-bodyScrollLockY)+"px";
     sh.scrollTop=0;
     requestAnimationFrame(function(){
       if(gen!==sheetGen) return;
@@ -4596,7 +4619,19 @@ function showSheet(on){
       syncSheetViewport();
       sh.scrollTop=0;
     });
+  } else {
+    document.body.classList.remove("sheet-open");
+    document.body.style.top="";
+    var y=bodyScrollLockY!=null?bodyScrollLockY:stewPageScrollY();
+    bodyScrollLockY=null;
+    clearSheetPin(sh);
+    stewRestorePageScroll(y);
+    setTimeout(function(){
+      if(gen!==sheetGen) return;
+      if(!sh.classList.contains("show")) el("sheetInner").innerHTML="";
+    },260);
   }
+  syncSheetViewport();
 }
 (function(){
   function onVV(){
