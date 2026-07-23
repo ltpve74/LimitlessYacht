@@ -504,6 +504,8 @@ var state={ charters:[], leads:[], apa:[], diesel:[], stews:[], stewAssign:[], e
 /** Categories aligned with monthly expenses spreadsheet (+ common boat ones). */
 var EXP_CATS=["Crew Salaries","Miscellaneous","Fuel Cars","Dockage / Marina","Provisions","Maintenance","Insurance","Other"];
 var EXP_METHODS=["Cash","Credit Card"];
+/** Where petty cash top-ups come from (own money, charter income, etc.). */
+var EXP_CASH_IN_SOURCES=["Own money","Charter income","Bank / ATM","Owner float","Other"];
 var pushMeta={ server:false, vapidPublicKey:"", endpoint:"" };
 var DIESEL_DEFAULT_BUY=1.75, DIESEL_DEFAULT_SELL=2.20;
 var SESSION_KEY="limitless_tracker_session";
@@ -3297,10 +3299,31 @@ function expPettyFor(month){
 function expEnsurePetty(month){
   if(!state.expPetty) state.expPetty=[];
   var p=expPettyFor(month);
-  if(p) return p;
+  if(p){
+    if(!Array.isArray(p.cashIns)) p.cashIns=[];
+    /* One-time: old single "pettyIn" total → a cash-in line so history is not lost */
+    if((!p.cashIns.length)&&apaNum(p.pettyIn)>0){
+      p.cashIns.push({
+        id:uid(), date:(month||expDefaultMonth())+"-01",
+        source:"Cash in (migrated)", amount:apaNum(p.pettyIn), notes:""
+      });
+      p.pettyIn=0;
+    }
+    return p;
+  }
   p={month:month, pettyStart:0, pettyIn:0, cashIns:[], updatedAt:new Date().toISOString()};
   state.expPetty.push(p);
   return p;
+}
+function expCashInLines(petty){
+  if(!petty) return [];
+  expEnsurePetty(petty.month||expMonth);
+  return Array.isArray(petty.cashIns)?petty.cashIns.slice():[];
+}
+function expCashInSum(petty){
+  var s=0;
+  expCashInLines(petty).forEach(function(r){ s+=apaNum(r&&r.amount); });
+  return s;
 }
 function expLinesForMonth(month){
   return (state.expenses||[]).filter(function(e){return e&&expMonthKey(e.date)===month;});
@@ -3602,20 +3625,22 @@ function paintExpensesBody(){
     if(e.source==="stew"&&e.stewPayKind==="dayPay") crewPaid+=a;
     else otherCash+=a;
   });
-  var petty=expPettyFor(expMonth)||{pettyStart:0, pettyIn:0};
-  var pettyStart=apaNum(petty.pettyStart), pettyIn=apaNum(petty.pettyIn);
-  var cashInHand=pettyStart+pettyIn;
-  var pettyEntered=pettyStart>0||pettyIn>0;
+  var petty=expEnsurePetty(expMonth);
+  var pettyStart=apaNum(petty.pettyStart);
+  var cashIns=expCashInLines(petty);
+  var cashInTotal=expCashInSum(petty);
+  var cashInHand=pettyStart+cashInTotal;
+  var pettyEntered=pettyStart>0||cashInTotal>0;
   var pettyOnboard=cashInHand-cashOut;
   /*
-   * Cash short = cash out − (start + cash in), only when petty figures are entered.
-   * If start/in are both 0, short would equal cash out and look falsely huge (~€1.5k).
+   * Cash short = cash out − (start + sum of cash-in lines).
+   * Cash-in lines have a source (own money, charter income, …).
    */
   var cashShort=0;
   if(pettyEntered&&pettyOnboard<0) cashShort=Math.round((-pettyOnboard)*100)/100;
   var owed=expStewDayPayOwed(expMonth);
   var oweCrew=crewUnpaid>0?crewUnpaid:(owed.owe||0);
-  var h='<div class="legend">Captain-only monthly vessel ledger. <b>Cash out</b> = posted Cash lines only (Paid crew + other cash). <b>Unpaid</b> crew is listed but not in cash out. <b>Cash short</b> needs petty start + cash in filled in.</div>';
+  var h='<div class="legend">Captain-only monthly vessel ledger. Add <b>cash in</b> with a source (e.g. own money when you pay a stew from your pocket). <b>Cash short</b> uses start + all cash-in lines.</div>';
   h+='<div class="exp-month"><label class="meta" style="font-weight:700">Month</label>'+
     '<select class="ctl" id="expMonthSel">'+monthList.map(function(m){
       return '<option value="'+esc(m)+'"'+(m===expMonth?" selected":"")+'>'+esc(m)+'</option>';
@@ -3625,24 +3650,24 @@ function paintExpensesBody(){
   /* Formula strip — so the numbers are auditable */
   h+='<div class="apa-card" style="margin-bottom:12px;font-size:13.5px;line-height:1.5">'+
     '<div style="font-weight:800;margin-bottom:6px">How the numbers work</div>'+
-    '<div class="meta" style="display:block">Cash out = crew day pay marked Paid on Stews + other Cash expenses (not card, not unpaid crew, not tips).</div>'+
+    '<div class="meta" style="display:block">Cash out = Paid crew day pay + other Cash expenses (not card, not unpaid crew, not tips).</div>'+
     '<div style="margin-top:6px"><b class="money">'+money0(cashOut)+'</b> cash out = <b class="money">'+money0(crewPaid)+'</b> crew paid + <b class="money">'+money0(otherCash)+'</b> other cash</div>'+
-    '<div style="margin-top:4px">Available = start <b class="money">'+money0(pettyStart)+'</b> + cash in <b class="money">'+money0(pettyIn)+'</b> → <b class="money">'+money0(cashInHand)+'</b></div>'+
+    '<div style="margin-top:4px">Available = start <b class="money">'+money0(pettyStart)+'</b> + cash in <b class="money">'+money0(cashInTotal)+'</b> → <b class="money">'+money0(cashInHand)+'</b></div>'+
     '<div style="margin-top:4px">Onboard = available − cash out → <b class="money">'+money0(pettyOnboard)+'</b>'+
-      (pettyEntered?(cashShort>0?' · <b style="color:var(--danger)">short '+money0(cashShort)+'</b>':' · OK'):' · <em>enter start/cash in below to compute short</em>')+
+      (pettyEntered?(cashShort>0?' · <b style="color:var(--danger)">short '+money0(cashShort)+'</b>':' · OK'):' · <em>set start and/or add cash in below</em>')+
     '</div>'+
-    (oweCrew>0?'<div style="margin-top:4px;color:#7a5c00">Owe crew (unpaid day pay on list, not in cash out) → <b class="money">'+money0(oweCrew)+'</b></div>':'')+
+    (oweCrew>0?'<div style="margin-top:4px;color:#7a5c00">Owe crew (unpaid day pay on list) → <b class="money">'+money0(oweCrew)+'</b></div>':'')+
   '</div>';
   /* Big attention banners */
   if(!pettyEntered&&cashOut>0){
-    h+='<div class="exp-alert owe">Petty cash start / cash in not set yet. Cash out this month is <b class="money">'+money0(cashOut)+'</b> (crew paid '+money0(crewPaid)+' + other '+money0(otherCash)+'). Fill start &amp; cash in to see true cash short.</div>';
+    h+='<div class="exp-alert owe">Petty start / cash in not set. Cash out is <b class="money">'+money0(cashOut)+'</b>. Add start float and cash-in lines (e.g. own money €200) to see true short.</div>';
   } else if(cashShort>0){
     h+='<div class="exp-alert short">Cash short <span class="money" style="font-size:20px;font-weight:800">'+money0(cashShort)+'</span>'+
       '<div style="font-weight:500;margin-top:4px;font-size:13px">Cash out '+money0(cashOut)+' − available '+money0(cashInHand)+' = short '+money0(cashShort)+'.</div></div>';
   }
   if(oweCrew>0){
     h+='<div class="exp-alert owe">Owe crew (day pay) <span class="money" style="font-size:20px;font-weight:800">'+money0(oweCrew)+'</span>'+
-      '<div style="font-weight:500;margin-top:4px;font-size:13px">Unpaid lines on the list below — not counted in cash out until you mark Paid on Stews.</div></div>';
+      '<div style="font-weight:500;margin-top:4px;font-size:13px">Unpaid lines on the list below — not in cash out until Paid on Stews.</div></div>';
   }
   if(pettyEntered&&cashShort<=0&&oweCrew<=0){
     h+='<div class="exp-alert ok">Cash and crew day pay look settled for this month'+(pettyOnboard>0?' · '+money0(pettyOnboard)+' cash still onboard':'')+'.</div>';
@@ -3652,18 +3677,35 @@ function paintExpensesBody(){
     '<div class="sumcard'+(oweCrew>0?' sum-warn':'')+'"><div class="l">Owe crew</div><div class="v money">'+(oweCrew>0?money0(oweCrew):'€0')+'</div></div>'+
     '<div class="sumcard'+(pettyEntered&&pettyOnboard<0?' sum-danger':(pettyEntered&&pettyOnboard>0?' sum-ok':''))+'"><div class="l">Petty onboard</div><div class="v money">'+(pettyEntered?money0(pettyOnboard):'—')+'</div></div>'+
     '<div class="sumcard"><div class="l">Cash out</div><div class="v money">'+money0(cashOut)+'</div></div>'+
+    '<div class="sumcard"><div class="l">Cash in</div><div class="v money">'+money0(cashInTotal)+'</div></div>'+
     '<div class="sumcard"><div class="l">Crew paid</div><div class="v money">'+money0(crewPaid)+'</div></div>'+
-    '<div class="sumcard"><div class="l">Other cash</div><div class="v money">'+money0(otherCash)+'</div></div>'+
     '<div class="sumcard"><div class="l">Card out</div><div class="v money">'+money0(cardOut)+'</div></div>'+
   '</div>';
+  /* Petty start + itemised cash in */
   h+='<div class="apa-card" style="margin-bottom:12px">'+
-    '<div class="meta" style="margin-bottom:8px">Petty cash ('+esc(expMonth)+') — required for cash short</div>'+
-    '<div class="row2">'+
-      fieldHTML("Start amount (€)",moneyField("exp_petty_start", pettyStart||""))+
-      fieldHTML("Cash in (€)",moneyField("exp_petty_in", pettyIn||""))+
-    '</div>'+
-    '<div class="meta" style="margin-top:8px">Available <b class="money">'+money0(cashInHand)+'</b> · cash out <b class="money">'+money0(cashOut)+'</b> (crew '+money0(crewPaid)+' + other '+money0(otherCash)+') · onboard <b class="money">'+money0(pettyOnboard)+'</b></div>'+
-    '<button type="button" class="btn ghost" id="expPettySave" style="width:auto;margin-top:10px;padding:10px 14px">Save petty cash</button>'+
+    '<div class="meta" style="margin-bottom:8px">Petty cash ('+esc(expMonth)+')</div>'+
+    fieldHTML("Start amount on board (€)",moneyField("exp_petty_start", pettyStart||""))+
+    '<button type="button" class="btn ghost" id="expPettySave" style="width:auto;margin-top:4px;padding:10px 14px">Save start</button>'+
+    '<div class="apa-sect-h" style="margin:14px 0 8px"><h3 style="font-size:13px">Cash in</h3>'+
+      '<button type="button" class="btn" id="expCashInAdd" style="width:auto;padding:8px 12px;font-size:13px">Add cash in</button></div>'+
+    '<p style="margin:0 0 8px;font-size:12.5px;color:var(--muted)">e.g. own money when you pay a stew from your pocket, charter cash income, bank withdraw…</p>';
+  if(!cashIns.length){
+    h+='<div class="meta" style="margin-bottom:8px">No cash-in lines yet.</div>';
+  } else {
+    h+='<div class="list" style="margin-bottom:8px">';
+    cashIns.slice().sort(function(a,b){ return String(b.date||"").localeCompare(String(a.date||"")); }).forEach(function(r){
+      h+='<div class="item apa-row" data-cashin-id="'+esc(r.id)+'" role="button" tabindex="0" style="padding:12px">'+
+        '<div class="top"><div class="title" style="font-size:14.5px">'+esc(r.source||"Cash in")+'</div>'+
+          '<div class="amt money" style="font-size:15px">+'+money0(r.amount)+'</div></div>'+
+        '<div class="meta"><span>📅 '+esc(fmtDate(r.date)||r.date||"")+'</span>'+
+          (r.notes?'<span>'+esc(r.notes)+'</span>':'')+
+        '</div>'+
+        '<button type="button" class="apa-x" data-cashin-del="'+esc(r.id)+'" aria-label="Delete">×</button>'+
+        '<span class="chev">✎</span></div>';
+    });
+    h+='</div>';
+  }
+  h+='<div class="meta">Cash in total <b class="money">'+money0(cashInTotal)+'</b> · available <b class="money">'+money0(cashInHand)+'</b> · cash out <b class="money">'+money0(cashOut)+'</b> · onboard <b class="money">'+money0(pettyOnboard)+'</b></div>'+
   '</div>';
   h+='<div class="apa-sect-h" style="margin-top:4px"><h3>Expenses</h3><button type="button" class="btn" id="expAdd">Add expense</button></div>';
   if(!lines.length){
@@ -3698,13 +3740,32 @@ function paintExpensesBody(){
   });
   if(el("expExport")) el("expExport").addEventListener("click",function(){ expExportMonthCsv(expMonth); });
   if(el("expAdd")) el("expAdd").addEventListener("click",function(){ openExpense(null); });
+  if(el("expCashInAdd")) el("expCashInAdd").addEventListener("click",function(){ openCashIn(null); });
   if(el("expPettySave")) el("expPettySave").addEventListener("click",function(){
     var p=expEnsurePetty(expMonth);
     p.pettyStart=apaNum(el("exp_petty_start")&&el("exp_petty_start").value);
-    p.pettyIn=apaNum(el("exp_petty_in")&&el("exp_petty_in").value);
+    p.pettyIn=0; /* total now derived from cashIns */
     p.updatedAt=new Date().toISOString();
     saveExpPetty();
     renderExpenses();
+  });
+  Array.prototype.forEach.call(body.querySelectorAll("[data-cashin-id]"),function(x){
+    x.addEventListener("click",function(ev){
+      if(ev.target.closest&&ev.target.closest("[data-cashin-del]")) return;
+      openCashIn(x.getAttribute("data-cashin-id"));
+    });
+  });
+  Array.prototype.forEach.call(body.querySelectorAll("[data-cashin-del]"),function(x){
+    x.addEventListener("click",function(ev){
+      ev.preventDefault(); ev.stopPropagation();
+      var id=x.getAttribute("data-cashin-del");
+      if(!window.confirm("Delete this cash-in line?")) return;
+      var p=expEnsurePetty(expMonth);
+      p.cashIns=(p.cashIns||[]).filter(function(r){return !r||r.id!==id;});
+      p.updatedAt=new Date().toISOString();
+      saveExpPetty();
+      renderExpenses();
+    });
   });
   Array.prototype.forEach.call(body.querySelectorAll("[data-exp-id]"),function(x){
     x.addEventListener("click",function(ev){
@@ -3723,6 +3784,55 @@ function paintExpensesBody(){
       saveExpenses(); renderExpenses();
     });
   });
+}
+function openCashIn(id){
+  if(!isCaptain()) return;
+  var p=expEnsurePetty(expMonth||expDefaultMonth());
+  var rec=id?(p.cashIns||[]).filter(function(r){return r&&r.id===id;})[0]:null;
+  var r=rec||{id:uid(), date:new Date().toISOString().slice(0,10), source:"Own money", amount:"", notes:""};
+  var src=r.source||"Own money";
+  var known=EXP_CASH_IN_SOURCES.indexOf(src)>=0;
+  var h='<div class="sheethead"><h2>'+(rec?"Edit cash in":"Add cash in")+'</h2><button type="button" class="sheetx" id="sheetClose" aria-label="Close">×</button></div>';
+  h+='<p style="margin:0 0 12px;font-size:13px;color:var(--muted)">Money added to the float this month. Use <b>Own money</b> when you pay a stew from your pocket so petty cash is not falsely short.</p>';
+  h+=fieldHTML("Date",'<input class="ctl" id="f_cin_date" type="date" value="'+esc(r.date||"")+'">');
+  h+=fieldHTML("Source",'<select class="ctl" id="f_cin_source">'+
+    EXP_CASH_IN_SOURCES.map(function(s){return '<option'+(s===src||(!known&&s==="Other")?" selected":"")+'>'+esc(s)+'</option>';}).join("")+
+  '</select>');
+  h+=fieldHTML("Source detail (optional)",'<input class="ctl" id="f_cin_detail" value="'+esc(known?"":src)+'" placeholder="e.g. paid Toni day rate from personal">');
+  h+=fieldHTML("Amount (€)",moneyField("f_cin_amount", r.amount!=null&&r.amount!==""?r.amount:""));
+  h+=fieldHTML("Notes",'<input class="ctl" id="f_cin_notes" value="'+esc(r.notes||"")+'" placeholder="optional">');
+  if(rec) h+='<div class="sheetbtns"><button type="button" class="btn danger" id="sheetDel">Delete</button></div>';
+  h+='<div class="sheetfoot"><button type="button" class="btn ghost" id="sheetCancel">Cancel</button><button type="button" class="btn" id="sheetSave">Save</button></div>';
+  el("sheetInner").innerHTML=h;
+  el("sheetSave").addEventListener("click",function(){
+    var date=(el("f_cin_date")&&el("f_cin_date").value)||"";
+    var amount=apaNum(el("f_cin_amount")&&el("f_cin_amount").value);
+    if(!date){ if(el("f_cin_date")) el("f_cin_date").focus(); return; }
+    if(!(amount>0)){ if(el("f_cin_amount")) el("f_cin_amount").focus(); return; }
+    var source=(el("f_cin_source")&&el("f_cin_source").value)||"Other";
+    var detail=(el("f_cin_detail")&&el("f_cin_detail").value||"").trim();
+    if(source==="Other"&&detail) source=detail;
+    else if(detail&&source!==detail) source=source+(detail?" — "+detail:"");
+    var obj={
+      id:r.id, date:date, source:source, amount:amount,
+      notes:(el("f_cin_notes")&&el("f_cin_notes").value||"").trim()
+    };
+    if(!p.cashIns) p.cashIns=[];
+    if(rec) p.cashIns=p.cashIns.map(function(x){return x&&x.id===obj.id?obj:x;});
+    else p.cashIns.unshift(obj);
+    p.pettyIn=0;
+    p.updatedAt=new Date().toISOString();
+    showSheet(false); saveExpPetty(); renderExpenses();
+  });
+  el("sheetCancel").addEventListener("click",function(){ showSheet(false); });
+  el("sheetClose").addEventListener("click",function(){ showSheet(false); });
+  if(el("sheetDel")) el("sheetDel").addEventListener("click",function(){
+    if(!window.confirm("Delete this cash-in line?")) return;
+    p.cashIns=(p.cashIns||[]).filter(function(x){return !x||x.id!==r.id;});
+    p.updatedAt=new Date().toISOString();
+    showSheet(false); saveExpPetty(); renderExpenses();
+  });
+  showSheet(true);
 }
 function openExpense(id){
   if(!isCaptain()) return;
