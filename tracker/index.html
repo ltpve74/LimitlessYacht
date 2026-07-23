@@ -1951,8 +1951,136 @@ function syncLeadApaInvoiceRequest(t, billable){
   return dirty;
 }
 /**
+ * Prefer a single APA pot per lead/guest. Score favors the real ledger
+ * (sheet seed, prepaid pot, spend) over empty cash shells.
+ */
+function apaTripCanonicalScore(t){
+  if(!t) return -1e9;
+  var x=apaTotals(t);
+  var s=0;
+  if(typeof SHEET_TRIP_ID!=="undefined"&&t.id===SHEET_TRIP_ID) s+=10000;
+  if(Number(t.apaSent)>0) s+=800;
+  if(t.linkInvNo) s+=300;
+  if(t.linkSourceId||t.clientKey) s+=100;
+  s+=x.spent*2;
+  s+=(t.expenses||[]).length*8+(t.provisions||[]).length*8+(t.diesel||[]).length*8;
+  if(t.cashFromLead&&x.spent<=0.009) s-=500;
+  if(Number(t.apaSent)<0&&x.spent<=0.009) s-=200;
+  return s;
+}
+function findApaTripsForLead(lead){
+  if(!lead||!state.apa) return [];
+  var key="lead:"+lead.id;
+  var name=normName(lead.name);
+  return state.apa.filter(function(t){
+    if(!t) return false;
+    if(t.clientKey===key||String(t.linkSourceId||"")===String(lead.id)) return true;
+    if(name&&normName(t.guest)===name) return true;
+    return false;
+  });
+}
+function findApaTripForLead(lead){
+  var list=findApaTripsForLead(lead);
+  if(!list.length) return null;
+  return list.slice().sort(function(a,b){ return apaTripCanonicalScore(b)-apaTripCanonicalScore(a); })[0];
+}
+function apaTripGroupKey(t){
+  if(!t) return "";
+  /* Same guest name = same charter pot for merge (cash shell + prepaid ledger).
+     Prefer guest over clientKey so "Joel Freeland" always collapses even if keys differ. */
+  var g=normName(t.guest);
+  if(g) return "guest:"+g;
+  if(t.clientKey) return "ck:"+t.clientKey;
+  if(t.linkSourceId) return "ls:"+t.linkSourceId;
+  return "id:"+t.id;
+}
+/** Move line arrays from loser into winner; re-point monthly expenses + charges; drop loser. */
+function mergeApaTripInto(winner, loser){
+  if(!winner||!loser||winner.id===loser.id) return false;
+  apaEnsureArrays(winner);
+  apaEnsureArrays(loser);
+  function absorb(key){
+    var seen={};
+    (winner[key]||[]).forEach(function(r){ if(r&&r.id) seen[String(r.id)]=1; });
+    (loser[key]||[]).forEach(function(r){
+      if(!r) return;
+      var id=r.id?String(r.id):uid();
+      if(seen[id]) id=uid();
+      r.id=id;
+      seen[id]=1;
+      winner[key].push(r);
+    });
+  }
+  absorb("expenses");
+  absorb("provisions");
+  absorb("diesel");
+  absorb("dieselLoads");
+  if(!winner.clientKey&&loser.clientKey) winner.clientKey=loser.clientKey;
+  if(!winner.linkSourceId&&loser.linkSourceId){
+    winner.linkSource=loser.linkSource||winner.linkSource;
+    winner.linkSourceId=loser.linkSourceId;
+    winner.linkKey=loser.linkKey||winner.linkKey;
+  }
+  if(!winner.linkInvNo&&loser.linkInvNo){
+    winner.linkInvNo=loser.linkInvNo;
+    winner.linkInvLabel=loser.linkInvLabel||winner.linkInvLabel;
+    winner.linkInvAmount=loser.linkInvAmount||winner.linkInvAmount;
+  }
+  if(!(Number(winner.apaSent)>0)&&Number(loser.apaSent)>0&&!winner.cashFromLead){
+    winner.apaSent=loser.apaSent;
+  }
+  if(!winner.dates&&loser.dates) winner.dates=loser.dates;
+  if(!winner.guest&&loser.guest) winner.guest=loser.guest;
+  if(state.expenses){
+    state.expenses.forEach(function(e){
+      if(e&&String(e.apaTripId||"")===String(loser.id)) e.apaTripId=winner.id;
+    });
+  }
+  (state.charters||[]).forEach(function(c){
+    if(!c) return;
+    if(String(c.apaTripId||"")===String(loser.id)) c.apaTripId=winner.id;
+    if(String(c.id||"")===String(loser.chargeId)&&loser.chargeId) winner.chargeId=winner.chargeId||c.id;
+  });
+  removeApaLinkedCharges(loser, false);
+  state.apa=(state.apa||[]).filter(function(t){ return !t||t.id!==loser.id; });
+  winner.updatedAt=new Date().toISOString();
+  return true;
+}
+/**
+ * Collapse duplicate APA pots for the same lead/guest (e.g. cash auto-pot + real prepaid ledger).
+ */
+function mergeDuplicateApaTrips(){
+  if(!canOps()||!state.apa||state.apa.length<2) return false;
+  var groups={}, dirty=false;
+  state.apa.forEach(function(t){
+    if(!t||!t.id) return;
+    var gk=apaTripGroupKey(t);
+    if(!groups[gk]) groups[gk]=[];
+    groups[gk].push(t);
+  });
+  Object.keys(groups).forEach(function(gk){
+    var list=groups[gk];
+    if(list.length<2) return;
+    if(/^id:/.test(gk)) return;
+    list=list.slice().sort(function(a,b){ return apaTripCanonicalScore(b)-apaTripCanonicalScore(a); });
+    var winner=list[0];
+    list.slice(1).forEach(function(loser){
+      if(mergeApaTripInto(winner, loser)) dirty=true;
+    });
+  });
+  if(dirty){
+    if(isCaptain()) saveExpenses();
+    save("apa");
+    save("charters");
+    renderApa();
+    renderCharters();
+    if(curTab==="expenses") renderExpenses();
+  }
+  return dirty;
+}
+/**
  * Black-split cash: APA pot = −cash so balance starts short by cash owed.
- * On charter, diesel/expenses increase the Charges request; mark Paid to settle.
+ * Never creates a second pot when the lead already has an APA ledger.
  * Returns true if APA/charters changed.
  */
 function ensureLeadCashApa(lead){
@@ -1960,15 +2088,9 @@ function ensureLeadCashApa(lead){
   var cash=Math.round((Number(lead.cashAmt)||0)*100)/100;
   var key="lead:"+lead.id;
   if(!state.apa) state.apa=[];
-  var trip=null, i;
-  for(i=0;i<state.apa.length;i++){
-    var t=state.apa[i];
-    if(!t) continue;
-    if(t.cashFromLead&&t.clientKey===key){ trip=t; break; }
-    if(t.clientKey===key&&(t.cashFromLead||Number(t.apaSent)<0)){ trip=t; break; }
-  }
+  var trip=findApaTripForLead(lead);
+  var isCashShell=!!(trip&&trip.cashFromLead);
   if(!(cash>0)||!leadHasSplit(lead)){
-    /* Split off / cash cleared: drop empty cash trip, or zero the pot if spend exists */
     if(trip&&trip.cashFromLead){
       var x0=apaTotals(trip);
       var emptySpend=x0.spent<=0&&!(trip.expenses&&trip.expenses.length)&&!(trip.provisions&&trip.provisions.length)&&!(trip.diesel&&trip.diesel.length);
@@ -1976,12 +2098,20 @@ function ensureLeadCashApa(lead){
         removeApaLinkedCharges(trip, false);
         state.apa=state.apa.filter(function(t){return t.id!==trip.id;});
       } else {
-        trip.apaSent=0; trip.cashFromLead=false; trip.cashAmt=0;
+        trip.cashFromLead=false; trip.cashAmt=0;
+        if(Number(trip.apaSent)<0) trip.apaSent=0;
         syncApaToCharge(trip);
       }
       save("apa"); save("charters"); renderApa(); renderCharters();
       return true;
     }
+    return false;
+  }
+  /* Existing prepaid / real ledger — do not create a second cash APA */
+  if(trip&&!isCashShell&&(Number(trip.apaSent)>0||apaTotals(trip).spent>0.009||(trip.expenses&&trip.expenses.length)||(trip.provisions&&trip.provisions.length))){
+    trip.clientKey=trip.clientKey||key;
+    trip.linkSource=trip.linkSource||"lead";
+    trip.linkSourceId=trip.linkSourceId||lead.id;
     return false;
   }
   var neg=Math.round((-cash)*100)/100;
@@ -1991,36 +2121,39 @@ function ensureLeadCashApa(lead){
     && trip.cashFromLead
     && Math.abs((Number(trip.cashAmt)||0)-cash)<0.005
     && trip.guest===guest
-    && trip.clientKey===key
+    && (trip.clientKey===key||!trip.clientKey)
     && (trip.cashSettled
       ? ((Number(trip.apaSent)||0)===0 && Math.abs((Number(trip.cashReceived)||0)-cash)<0.005)
       : Math.abs((Number(trip.apaSent)||0)-neg)<0.005)){
-    return false; /* already in sync */
+    return false;
   }
   if(!trip){
     trip=emptyApaTrip();
     trip.cashFromLead=true;
     state.apa.unshift(trip);
   }
-  trip.cashFromLead=true;
-  trip.cashAmt=cash;
+  if(!(Number(trip.apaSent)>0)){
+    trip.cashFromLead=true;
+    trip.cashAmt=cash;
+    if(trip.cashSettled&&(Number(trip.cashReceived)||0)>0){
+      trip.apaSent=0;
+      trip.cashReceived=cash;
+    } else {
+      trip.apaSent=neg;
+      trip.cashSettled=false;
+      trip.cashReceived=0;
+    }
+    if(!trip.notes||/^Cash \(black\)/i.test(trip.notes)||!String(trip.notes).trim()){
+      trip.notes="Cash (black) "+money0(cash)+" from lead — pot starts at −cash. Mark Charges Paid to book cash as received; log diesel/expenses on charter.";
+    }
+  } else {
+    trip.cashAmt=cash;
+  }
   trip.guest=guest||trip.guest||"";
   trip.clientKey=key;
   trip.linkSource="lead";
   trip.linkSourceId=lead.id;
   if(dates) trip.dates=dates;
-  /* Don't clobber pot if cash already booked as received from a Paid charge */
-  if(trip.cashSettled&&(Number(trip.cashReceived)||0)>0){
-    trip.apaSent=0;
-    trip.cashReceived=cash;
-  } else {
-    trip.apaSent=neg;
-    trip.cashSettled=false;
-    trip.cashReceived=0;
-  }
-  if(!trip.notes||/^Cash \(black\)/i.test(trip.notes)||!String(trip.notes).trim()){
-    trip.notes="Cash (black) "+money0(cash)+" from lead — pot starts at −cash. Mark Charges Paid to book cash as received; log diesel/expenses on charter.";
-  }
   trip.updatedAt=new Date().toISOString();
   trip.by=session.who||trip.by||"Captain";
   syncCashReceivedFromCharges(trip);
@@ -2056,14 +2189,12 @@ function ensureAllLeadCashApa(){
   (state.leads||[]).forEach(function(l){
     if(!l||!leadHasSplit(l)||!(Number(l.cashAmt)>0)) return;
     var key="lead:"+l.id;
-    var has=(state.apa||[]).some(function(t){
-      return t&&t.clientKey===key&&(t.cashFromLead||Math.abs((Number(t.apaSent)||0)+ (Number(l.cashAmt)||0))<0.02);
-    });
+    /* Any pot for this lead/guest counts — do not spawn a second cash APA */
+    var has=!!findApaTripForLead(l);
     if(!has){ if(ensureLeadCashApa(l)) dirty=true; }
     else {
-      /* Keep pot in sync with lead cash if still a cash trip and pot is pure −cash (no manual top-ups) */
-      var trip=(state.apa||[]).filter(function(t){return t&&t.clientKey===key&&t.cashFromLead;})[0];
-      if(trip){
+      var trip=findApaTripForLead(l);
+      if(trip&&trip.cashFromLead){
         trip.cashAmt=Number(l.cashAmt)||0;
         if(trip.cashSettled){
           var got=Number(l.cashAmt)||0;
@@ -2072,12 +2203,16 @@ function ensureAllLeadCashApa(){
           }
         } else {
           var want=Math.round((-(Number(l.cashAmt)||0))*100)/100;
-          if(Math.abs((Number(trip.apaSent)||0)-want)>0.005 && !(Number(trip.topUps)>0)){
+          if(Math.abs((Number(trip.apaSent)||0)-want)>0.005 && !(Number(trip.topUps)>0)&&!(Number(trip.apaSent)>0)){
             trip.apaSent=want; dirty=true;
           }
         }
         if(syncCashReceivedFromCharges(trip)) dirty=true;
         syncApaToCharge(trip);
+      } else if(trip){
+        /* Prepaid / real ledger already exists — link keys only, never fork */
+        if(!trip.clientKey){ trip.clientKey=key; dirty=true; }
+        if(!trip.linkSourceId){ trip.linkSource="lead"; trip.linkSourceId=l.id; dirty=true; }
       }
     }
   });
@@ -2602,6 +2737,12 @@ function renderApaList(){
 function startApaFromLead(leadId){
   var l=(state.leads||[]).filter(function(x){return x.id===leadId;})[0];
   if(!l) return;
+  /* Never open a second pot for the same lead/guest */
+  var existing=findApaTripForLead(l);
+  if(existing){
+    openApaDetail(existing.id);
+    return;
+  }
   var t=emptyApaTrip();
   t.guest=l.name||"";
   t.clientKey="lead:"+l.id;
@@ -3392,12 +3533,26 @@ function expApaNotesFromMonthly(e){
 function expApaTripLabel(tripId){
   var t=(state.apa||[]).filter(function(x){return x&&String(x.id)===String(tripId);})[0];
   if(!t) return "APA";
-  return (t.guest||"APA")+(t.dates?" · "+String(t.dates).slice(0,24):"");
+  var x=apaTotals(t);
+  var bits=[t.guest||"APA"];
+  if(t.dates) bits.push(String(t.dates).slice(0,24));
+  bits.push("pot "+money0(x.available));
+  if(x.spent>0) bits.push("spent "+money0(x.spent));
+  return bits.join(" · ");
 }
 function expListApaPickerOptions(){
-  return sortApaTrips(state.apa||[]).map(function(t){
-    return {id:t.id, label:expApaTripLabel(t.id)};
+  /* One option per guest/lead — prefer the canonical pot so expense tags don't fork */
+  var seen={}, out=[];
+  sortApaTrips(state.apa||[]).slice().sort(function(a,b){
+    return apaTripCanonicalScore(b)-apaTripCanonicalScore(a);
+  }).forEach(function(t){
+    if(!t||!t.id) return;
+    var gk=apaTripGroupKey(t);
+    if(seen[gk]) return;
+    seen[gk]=1;
+    out.push({id:t.id, label:expApaTripLabel(t.id)});
   });
+  return out;
 }
 function expStripMirrorFromArr(arr, expenseId, mid){
   if(!Array.isArray(arr)) return {arr:[], changed:false};
@@ -6431,7 +6586,11 @@ function applyData(d){
   sortCharters();
   sortLeads();
   if(repairLeadWhiteInvoices()){ if(!DEMO) save("leads"); }
-  if(canOps()) ensureAllLeadCashApa();
+  if(canOps()){
+    /* Collapse cash-shell + real prepaid duplicates (e.g. two Joel Freeland pots) */
+    mergeDuplicateApaTrips();
+    ensureAllLeadCashApa();
+  }
   if(isCaptain()){
     ensureStewAssignPaidBeforeCut();
     /* Current-month Cash expenses from Paid stew day pay (not tips, not other months) */
