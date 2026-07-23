@@ -33,6 +33,7 @@ SKIP_DIRS = {
     '.githooks',
     'node_modules',
     '__pycache__',
+    'examples',  # also skip nested tracker/examples via walk
 }
 
 SKIP_FILES_SUFFIX = {'.md', '.pyc'}

@@ -96,6 +96,13 @@ if [ -d screenshots ] || git ls-files --error-unmatch screenshots >/dev/null 2>&
   rm -rf screenshots/ 2>/dev/null || true
 fi
 
+# Private captain example packs (monthly expenses xlsx, sample invoices) — never on main/production.
+if [ -d tracker/examples ] || git ls-files --error-unmatch 'tracker/examples' >/dev/null 2>&1; then
+  echo "[pre-commit] Stripping tracker/examples/ from main (private examples — not deployed)..."
+  git rm -rf --cached tracker/examples/ 2>/dev/null || true
+  rm -rf tracker/examples/ 2>/dev/null || true
+fi
+
 # Agent-only files (instructions, memory, briefs, scratch) live on develop/feature branches for the
 # agents but must NEVER ship on main/production. Remove them from the main commit (working copies
 # are kept locally and restored when you switch back to develop). See .agent/README.md.

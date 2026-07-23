@@ -5,6 +5,9 @@ screenshots/
 tracker/*.xlsx
 tracker/*.xls
 
+# Private captain examples / samples — never publish to the public site
+tracker/examples/
+
 # Agent-only files — instructions, memory, briefs, scratch. develop/feature only, never production.
 .agent/
 .claude/
