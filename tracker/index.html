@@ -2474,6 +2474,65 @@ function apaClientDates(lead){
   }
   return lead.start?fmtDate(lead.start):(lead.cdate?fmtDate(lead.cdate):"");
 }
+/** Local YYYY-MM-DD offset by days from today (0 = today, 1 = tomorrow). */
+function localYmdOffset(days){
+  var n=new Date();
+  n.setDate(n.getDate()+(Number(days)||0));
+  return n.getFullYear()+"-"+String(n.getMonth()+1).padStart(2,"0")+"-"+String(n.getDate()).padStart(2,"0");
+}
+/** Format ISO start/end for APA display (same style as lead dates). */
+function apaFormatTripDates(startIso, endIso){
+  startIso=String(startIso||"").slice(0,10);
+  endIso=String(endIso||"").slice(0,10);
+  if(!startIso&&!endIso) return "";
+  if(!endIso||endIso===startIso) return startIso?fmtDate(startIso):fmtDate(endIso);
+  if(!startIso) return fmtDate(endIso);
+  return fmtDate(startIso)+"–"+fmtDate(endIso);
+}
+/**
+ * Parse stored trip dates (free text or DD/MM/YYYY range) → {start,end} ISO.
+ * Supports: 2026-07-17, 17/07/2026–19/07/2026, 17-19/07, 17/07.
+ */
+function apaParseTripDates(str){
+  str=String(str||"").trim();
+  var out={start:"",end:""};
+  if(!str) return out;
+  var iso=str.match(/(20\d{2}-\d{2}-\d{2})(?:\s*[–\-to]+\s*(20\d{2}-\d{2}-\d{2}))?/i);
+  if(iso){
+    out.start=iso[1];
+    out.end=iso[2]||iso[1];
+    return out;
+  }
+  var dmyAll=str.match(/(\d{1,2})[\/\-.](\d{1,2})[\/\-.](20\d{2}|\d{2})/g);
+  if(dmyAll&&dmyAll.length){
+    function partToIso(part){
+      var m=String(part).match(/(\d{1,2})[\/\-.](\d{1,2})[\/\-.](20\d{2}|\d{2})/);
+      if(!m) return "";
+      var y=m[3].length===2?"20"+m[3]:m[3];
+      return y+"-"+("0"+m[2]).slice(-2)+"-"+("0"+m[1]).slice(-2);
+    }
+    out.start=partToIso(dmyAll[0]);
+    out.end=dmyAll.length>1?partToIso(dmyAll[1]):out.start;
+    return out;
+  }
+  var range=str.match(/(\d{1,2})\s*[–\-]\s*(\d{1,2})\s*[\/\-.](\d{1,2})(?:[\/\-.](20\d{2}|\d{2}))?/);
+  if(range){
+    var y=range[4]||String(new Date().getFullYear());
+    if(y.length===2) y="20"+y;
+    var mon=("0"+range[3]).slice(-2);
+    out.start=y+"-"+mon+"-"+("0"+range[1]).slice(-2);
+    out.end=y+"-"+mon+"-"+("0"+range[2]).slice(-2);
+    return out;
+  }
+  var one=str.match(/(\d{1,2})[\/\-.](\d{1,2})(?:[\/\-.](20\d{2}|\d{2}))?/);
+  if(one){
+    var y2=one[3]||String(new Date().getFullYear());
+    if(y2.length===2) y2="20"+y2;
+    out.start=y2+"-"+("0"+one[2]).slice(-2)+"-"+("0"+one[1]).slice(-2);
+    out.end=out.start;
+  }
+  return out;
+}
 function apaTrip(){
   if(!state.apa) state.apa=[];
   if(!state.apa.length) return null;
@@ -2625,6 +2684,7 @@ function renderApa(){
 /** Charter date key (YYYY-MM-DD) for APA list sort — newest first. */
 function apaTripCharterKey(t){
   if(!t) return "";
+  if(t.start&&String(t.start).length>=10) return String(t.start).slice(0,10);
   try{
     var lead=apaLinkedLead(t);
     if(lead){
@@ -2632,6 +2692,8 @@ function apaTripCharterKey(t){
       if(lk) return String(lk).slice(0,10);
     }
   }catch(e){}
+  var parsed=apaParseTripDates(t.dates||"");
+  if(parsed.start) return parsed.start;
   var d=String(t.dates||"");
   var iso=d.match(/(20\d{2})-(\d{2})-(\d{2})/);
   if(iso) return iso[1]+"-"+iso[2]+"-"+iso[3];
@@ -3000,8 +3062,16 @@ function openApaTrip(id){
   h+=fieldHTML("Link issued invoice",'<select class="ctl" id="f_linkKey">'+iOpts+'</select>');
   h+='<p id="f_linkHint" style="margin:-8px 0 14px;font-size:12px;color:var(--muted);line-height:1.4"></p>';
   h+=fieldHTML("Vessel",'<input class="ctl" id="f_vessel" value="'+esc(r.vessel||"M/Y Limitless")+'">');
-  h+='<div class="row2">'+fieldHTML("Captain",'<input class="ctl" id="f_captain" value="'+esc(r.captain||"Luigi")+'">')+
-    fieldHTML("Trip dates",'<input class="ctl" id="f_dates" value="'+esc(r.dates||"")+'" placeholder="17-19/07">')+'</div>';
+  h+=fieldHTML("Captain",'<input class="ctl" id="f_captain" value="'+esc(r.captain||"Luigi")+'">');
+  /* Native date pickers (calendar on phone/desktop) — free-text dates had no widget */
+  var parsedDates=apaParseTripDates(r.dates||"");
+  var defStart=parsedDates.start||(!rec?localYmdOffset(1):"");
+  var defEnd=parsedDates.end||defStart;
+  h+='<div class="row2">'+
+    fieldHTML("Charter start",'<input class="ctl" id="f_date_start" type="date" value="'+esc(defStart)+'">')+
+    fieldHTML("Charter end",'<input class="ctl" id="f_date_end" type="date" value="'+esc(defEnd)+'">')+
+  '</div>';
+  h+='<p style="margin:-6px 0 12px;font-size:12px;color:var(--muted);line-height:1.4">Tap a date field for the calendar. Same day for a day charter; set end for multi-day.</p>';
   h+='<div class="row2">'+fieldHTML("APA sent to us (0 ok)",moneyField("f_apaSent",r.apaSent!=null?r.apaSent:0))+fieldHTML("Additional top-ups",moneyField("f_topUps",r.topUps!=null?r.topUps:0))+'</div>';
   h+='<div class="row2">'+fieldHTML("Diesel € / litre",moneyField("f_dPrice",r.dieselPrice))+fieldHTML("Generator L/hr",moneyField("f_genBurn",r.genBurn))+'</div>';
   h+=fieldHTML("Notes",'<textarea class="ctl" id="f_notes" placeholder="optional">'+esc(r.notes||"")+'</textarea>');
@@ -3023,7 +3093,13 @@ function openApaTrip(id){
       var name=cl?cl.name:"";
       el("f_guestLabel").textContent=name||"—";
       if(cl&&cl.lead){
-        if(!el("f_dates").value) el("f_dates").value=apaClientDates(cl.lead);
+        var hasStart=el("f_date_start")&&el("f_date_start").value;
+        if(!hasStart){
+          var fromLead=apaParseTripDates(apaClientDates(cl.lead));
+          if(!fromLead.start&&cl.lead.start) fromLead={start:String(cl.lead.start).slice(0,10), end:String(cl.lead.end||cl.lead.start).slice(0,10)};
+          if(fromLead.start&&el("f_date_start")) el("f_date_start").value=fromLead.start;
+          if(el("f_date_end")) el("f_date_end").value=fromLead.end||fromLead.start||"";
+        }
       }
     } else {
       el("f_guestWrap").classList.remove("hidden");
@@ -3073,11 +3149,21 @@ function openApaTrip(id){
     if(el("f_guest")&&el("f_clientKey").value==="__manual__") el("f_guest").value=inv.client;
     /* APA invoice → pot amount */
     if(inv.invKind==="apas"&&inv.amount>0) el("f_apaSent").value=inv.amount;
-    if(inv.dates&&!el("f_dates").value) el("f_dates").value=inv.dates;
+    if(inv.dates&&el("f_date_start")&&!el("f_date_start").value){
+      var fromInv=apaParseTripDates(inv.dates);
+      if(fromInv.start){
+        el("f_date_start").value=fromInv.start;
+        if(el("f_date_end")) el("f_date_end").value=fromInv.end||fromInv.start;
+      }
+    }
     /* re-select invoice after filter rebuild */
     el("f_linkKey").value=inv.key;
     updateLinkHint();
   }
+  if(el("f_date_start")) el("f_date_start").addEventListener("change",function(){
+    var s=el("f_date_start").value, e=el("f_date_end")&&el("f_date_end").value;
+    if(s&&(!e||e<s)&&el("f_date_end")) el("f_date_end").value=s;
+  });
 
   el("f_clientKey").addEventListener("change",function(){
     setGuestUI();
@@ -3105,13 +3191,21 @@ function openApaTrip(id){
     }
     if(!guest){ if(el("f_guest")&&!el("f_guestWrap").classList.contains("hidden")) el("f_guest").focus(); else el("f_clientKey").focus(); return; }
     var inv=findIssuedInvoice(el("f_linkKey").value);
+    var startIso=(el("f_date_start")&&el("f_date_start").value)||"";
+    var endIso=(el("f_date_end")&&el("f_date_end").value)||"";
+    if(startIso&&endIso&&endIso<startIso){ var tmp=startIso; startIso=endIso; endIso=tmp; }
+    if(!endIso) endIso=startIso;
+    var datesStr=apaFormatTripDates(startIso, endIso);
     var obj={
       id:r.id, vessel:el("f_vessel").value.trim()||"M/Y Limitless", guest:guest,
       clientKey:ck||"",
       linkKey:inv?inv.key:"", linkSource:inv?inv.source:"", linkSourceId:inv?inv.sourceId:"",
       linkInvKind:inv?inv.invKind:"", linkInvNo:inv?inv.invNo:"", linkInvLabel:inv?inv.label:"",
       linkInvAmount:inv?inv.amount:0,
-      captain:el("f_captain").value.trim()||"Luigi", dates:el("f_dates").value.trim(),
+      captain:el("f_captain").value.trim()||"Luigi",
+      dates:datesStr,
+      start:startIso||"",
+      end:endIso||"",
       apaSent:apaNum(el("f_apaSent").value), topUps:apaNum(el("f_topUps").value),
       dieselPrice:apaNum(el("f_dPrice").value)||1.75, genBurn:apaNum(el("f_genBurn").value)||6,
       expenses:r.expenses||[], provisions:r.provisions||[], diesel:r.diesel||[], dieselLoads:r.dieselLoads||[],
