@@ -3812,17 +3812,18 @@ function stewIsPaidBeforeCut(asg, ev){
 }
 /**
  * Pre-17/07 default only: if an assignment has stews but no payStatus yet → Paid.
- * Never overwrites Unpaid or a captain manual choice (payStatusManual).
+ * Never overwrites Paid or Unpaid once set (your choices stay).
  */
 function ensureStewAssignPaidBeforeCut(){
   if(!isCaptain()) return false;
   var changed=false;
   (state.stewAssign||[]).forEach(function(a){
-    if(!a||a.payStatusManual) return;
+    if(!a) return;
+    if(a.payStatus==="Paid"||a.payStatus==="Unpaid") return;
     var ev=stewMergedEvents().filter(function(e){return e&&e.key===a.eventKey;})[0]||null;
+    if(ev&&stewIsOffEvent(ev)) return;
     if(!stewIsPaidBeforeCut(a, ev)) return;
     if(!(a.stewIds&&a.stewIds.length)) return;
-    if(a.payStatus==="Paid"||a.payStatus==="Unpaid") return;
     a.payStatus="Paid";
     changed=true;
   });
@@ -3893,11 +3894,20 @@ function stewFindInRoster(token){
   }
   return null;
 }
+/** Calendar "off" days — not charters; never show or assign on Stews. */
+function stewIsOffEvent(ev){
+  var s=String((ev&&ev.summary)||"").trim();
+  if(!s) return false;
+  if(/^\s*off\s*$/i.test(s)) return true;
+  if(/^\s*off\s*[-–—:].+/i.test(s)) return true;
+  return false;
+}
 /**
  * Auto-assign from calendar titles for:
  *  - all charters before 17/07 (historical), and
  *  - the current month (so July crew days are complete).
- * Unknown names are not added to Team (listed as ignored) but still count for Expenses seed.
+ * Skips "off" days. Never overwrites an existing Paid/Unpaid choice.
+ * Unknown names are not added to Team (listed as ignored).
  */
 function ensureStewAssignFromCalendar(){
   if(!isCaptain()) return false;
@@ -3905,7 +3915,7 @@ function ensureStewAssignFromCalendar(){
   var month=expDefaultMonth();
   var today=localTodayYmd();
   var events=stewMergedEvents().filter(function(ev){
-    if(!ev||!ev.start) return false;
+    if(!ev||!ev.start||stewIsOffEvent(ev)) return false;
     if(String(ev.start)<STEW_PAID_BEFORE) return true;
     if(expMonthKey(ev.start)===month) return true;
     return false;
@@ -3942,16 +3952,25 @@ function ensureStewAssignFromCalendar(){
     var asg=assignForEvent(ev.key);
     var idsKey=ids.slice().map(String).sort().join(",");
     var prevKey=asg&&asg.stewIds?asg.stewIds.map(String).sort().join(","):"";
-    /* Default Paid for past days; keep captain manual choice */
-    var defaultPay=String(ev.start)<=today?"Paid":"Unpaid";
-    if(String(ev.start)<STEW_PAID_BEFORE) defaultPay="Paid";
-    var keepPay=asg&&asg.payStatusManual&&(asg.payStatus==="Paid"||asg.payStatus==="Unpaid")
-      ?asg.payStatus
-      :(asg&&(asg.payStatus==="Paid"||asg.payStatus==="Unpaid")?asg.payStatus:defaultPay);
+    /*
+     * Paid/Unpaid: never change once set (manual or previous auto).
+     * Only brand-new rows get a default (past → Paid, future → Unpaid; pre-17/07 → Paid).
+     */
+    var keepPay;
+    if(asg&&(asg.payStatus==="Paid"||asg.payStatus==="Unpaid")){
+      keepPay=asg.payStatus;
+    } else {
+      keepPay=String(ev.start)<=today?"Paid":"Unpaid";
+      if(String(ev.start)<STEW_PAID_BEFORE) keepPay="Paid";
+    }
     var keepManual=!!(asg&&asg.payStatusManual);
-    var keepRate=asg&&asg.payStatusManual&&asg.dayRate!=null&&asg.dayRate!==""?apaNum(asg.dayRate):rate;
-    var keepUnits=asg&&asg.payStatusManual&&asg.payUnits!=null&&asg.payUnits!==""?Math.max(1, Math.round(apaNum(asg.payUnits)||1)):units;
-    if(asg&&prevKey===idsKey&&asg.autoFromCal&&asg.payStatus===keepPay
+    var keepRate=asg&&asg.dayRate!=null&&asg.dayRate!==""&&apaNum(asg.dayRate)>0?apaNum(asg.dayRate):rate;
+    var keepUnits=asg&&asg.payUnits!=null&&asg.payUnits!==""&&apaNum(asg.payUnits)>0
+      ?Math.max(1, Math.round(apaNum(asg.payUnits))):units;
+    var keepTips=asg&&asg.tipTotal!=null?asg.tipTotal:"";
+    var keepTipPay=asg&&asg.tipPayStatus==="Paid"?"Paid":(asg&&asg.tipPayStatus==="Unpaid"?"Unpaid":"Unpaid");
+    var keepNotes=(asg&&asg.notes)||"";
+    if(asg&&prevKey===idsKey&&asg.payStatus===keepPay
       &&apaNum(asg.dayRate)===keepRate&&apaNum(asg.payUnits||1)===keepUnits) return;
     var obj={
       id:(asg&&asg.id)||uid(),
@@ -3970,12 +3989,12 @@ function ensureStewAssignFromCalendar(){
       rateBand:band.kind,
       payStatus:keepPay,
       payStatusManual:keepManual,
-      tipTotal:asg&&asg.tipTotal!=null?asg.tipTotal:"",
-      tipPayStatus:asg&&asg.tipPayStatus==="Paid"?"Paid":(asg&&asg.tipPayStatus==="Unpaid"?"Unpaid":"Unpaid"),
-      notes:(asg&&asg.notes)||"",
+      tipTotal:keepTips,
+      tipPayStatus:keepTipPay,
+      notes:keepNotes,
       autoFromCal:true,
       updatedAt:new Date().toISOString(),
-      by:session.who||"Captain"
+      by:(asg&&asg.by)||session.who||"Captain"
     };
     var found=false;
     state.stewAssign=state.stewAssign.map(function(a){
@@ -4305,9 +4324,17 @@ function renderStews(opts){
 function paintStewCharters(){
   var wrap=el("stewCalList"); if(!wrap) return;
   var today=new Date().toISOString().slice(0,10);
-  var all=stewMergedEvents();
+  var all=stewMergedEvents().filter(function(ev){ return ev&&!stewIsOffEvent(ev); });
   ensureStewAssignFromCalendar();
   ensureStewAssignPaidBeforeCut();
+  /* Drop any accidental assigns on "off" days (do not touch pay flags on real charters) */
+  var offKeys={};
+  stewMergedEvents().forEach(function(ev){ if(ev&&stewIsOffEvent(ev)&&ev.key) offKeys[ev.key]=1; });
+  if(Object.keys(offKeys).length&&state.stewAssign&&state.stewAssign.length){
+    var n0=state.stewAssign.length;
+    state.stewAssign=state.stewAssign.filter(function(a){ return !(a&&offKeys[a.eventKey]); });
+    if(state.stewAssign.length!==n0&&!DEMO) saveStewAssign();
+  }
   var years=stewEventYears(all);
   var yf=el("stewYearFilters");
   if(yf){
@@ -4324,7 +4351,7 @@ function paintStewCharters(){
     });
   }
   var events=all.filter(function(ev){
-    if(!ev||!ev.start) return false;
+    if(!ev||!ev.start||stewIsOffEvent(ev)) return false;
     if(stewYearFilter!=="all"&&String(ev.start).slice(0,4)!==stewYearFilter) return false;
     return true;
   });
