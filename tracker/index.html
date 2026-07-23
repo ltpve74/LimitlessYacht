@@ -118,6 +118,7 @@
   .exp-alert.short{background:#fdeeee;border:1.5px solid #f0b4b0;color:var(--danger)}
   .exp-alert.owe{background:#fff8e8;border:1.5px solid #f0d48a;color:#7a5c00}
   .exp-alert.ok{background:#eef8f1;border:1.5px solid #b8e0c4;color:#1a5c48}
+  .item.exp-unpaid{border:1.5px solid #f0d48a;background:#fffdf6}
   .chev{position:absolute;right:12px;bottom:11px;color:#c3ccd3;font-size:15px}
   .invtags{display:flex;flex-wrap:wrap;gap:7px;margin-top:10px}
   .invtag{background:#f5f7f9;border:1px solid var(--line);border-radius:10px;padding:6px 9px;font-size:12px;display:flex;align-items:center;gap:6px;flex-wrap:wrap}
@@ -3304,10 +3305,35 @@ function expEnsurePetty(month){
 function expLinesForMonth(month){
   return (state.expenses||[]).filter(function(e){return e&&expMonthKey(e.date)===month;});
 }
+/** Crew day-pay line not yet paid out (still owing) — does not hit cash out. */
+function expIsCrewUnpaid(e){
+  return !!(e&&e.source==="stew"&&e.stewPayKind==="dayPay"&&e.crewPayStatus==="Unpaid");
+}
+/** Counts toward cash out / card out / petty. */
+function expIsPosted(e){
+  if(!e) return false;
+  if(expIsCrewUnpaid(e)) return false;
+  return true;
+}
 /** Unpaid stew day pay still due for a month (through today). Tips excluded. */
 function expStewDayPayOwed(month){
   var today=localTodayYmd();
-  var owe=0, nTrips=0;
+  var owe=0, nTrips=0, nLines=0;
+  /* Prefer ledger unpaid rows if present (full picture) */
+  (state.expenses||[]).forEach(function(e){
+    if(!e||expMonthKey(e.date)!==month||!expIsCrewUnpaid(e)) return;
+    if(String(e.date||"")>today) return;
+    var a=apaNum(e.amount);
+    if(a>0){ owe+=a; nLines++; }
+  });
+  if(nLines){
+    var keys={};
+    (state.expenses||[]).forEach(function(e){
+      if(e&&expIsCrewUnpaid(e)&&expMonthKey(e.date)===month) keys[e.stewEventKey||e.linkId]=1;
+    });
+    nTrips=Object.keys(keys).length;
+    return {owe:owe, trips:nTrips, lines:nLines};
+  }
   (state.stewAssign||[]).forEach(function(asg){
     if(!asg||expMonthKey(asg.start)!==month) return;
     if(asg.payStatus==="Paid") return;
@@ -3319,7 +3345,7 @@ function expStewDayPayOwed(month){
     owe+=each*ids.length;
     nTrips++;
   });
-  return {owe:owe, trips:nTrips};
+  return {owe:owe, trips:nTrips, lines:0};
 }
 function stewAssignDayPayAmount(asg){
   if(!asg) return 0;
@@ -3363,9 +3389,11 @@ function syncStewDayPayExpenses(asg, opts){
   state.expenses=state.expenses.filter(function(e){
     return !(e&&e.source==="stew"&&e.stewPayKind==="dayPay"&&String(e.stewEventKey)===eventKey);
   });
-  if(!isPaid||!(each>0)||!ids.length||!date){
+  if(!(each>0)||!ids.length||!date){
     return before!=="[]";
   }
+  /* Paid → cash out; Unpaid → still listed so all charters are visible */
+  var crewPayStatus=isPaid?"Paid":"Unpaid";
   var summary=asg.summary||"Charter";
   ids.forEach(function(sid){
     var name=(stewById(sid)&&stewById(sid).name)||"Stew";
@@ -3377,6 +3405,7 @@ function syncStewDayPayExpenses(asg, opts){
       stewEventKey:eventKey,
       stewId:String(sid),
       stewPayKind:"dayPay",
+      crewPayStatus:crewPayStatus,
       date:date,
       vendor:name,
       description:"Stewardess / day work — "+summary,
@@ -3390,7 +3419,7 @@ function syncStewDayPayExpenses(asg, opts){
   });
   var after=JSON.stringify((state.expenses||[]).filter(function(e){
     return e&&e.source==="stew"&&e.stewPayKind==="dayPay"&&String(e.stewEventKey)===eventKey;
-  }).map(function(e){ return [e.stewId,e.amount,e.date,e.vendor]; }));
+  }).map(function(e){ return [e.stewId,e.amount,e.date,e.vendor,e.crewPayStatus]; }));
   return before!==after;
 }
 function localTodayYmd(){
@@ -3404,9 +3433,8 @@ function stewDisplayName(tok, rec){
   return t.charAt(0).toUpperCase()+t.slice(1);
 }
 /**
- * Seed this month’s Cash · Crew Salaries from Stews charter data only
- * (state.stewAssign — rate, days, who, Paid). Calendar is used only to
- * fill Stews first; Expenses never re-parses titles. Tips never included.
+ * Seed this month’s crew lines from Stews charters (Paid and Unpaid).
+ * Unpaid = visible for accountability, not cash out. Tips never included.
  */
 function seedCurrentMonthStewCashExpenses(){
   if(!isCaptain()) return false;
@@ -3421,14 +3449,13 @@ function seedCurrentMonthStewCashExpenses(){
   (state.stewAssign||[]).forEach(function(asg){
     if(!asg||!asg.eventKey||expMonthKey(asg.start)!==month) return;
     if(String(asg.start||"")>today) return;
-    /* Only Paid day pay (manual Unpaid stays off the ledger) */
-    if(asg.payStatus!=="Paid") return;
     var each=stewAssignDayPayAmount(asg);
     if(!(each>0)) return;
     var ids=(asg.stewIds||[]).filter(Boolean);
     if(!ids.length) return;
     var date=String(asg.start).slice(0,10);
     var summary=asg.summary||"Charter";
+    var crewPayStatus=asg.payStatus==="Paid"?"Paid":"Unpaid";
     ids.forEach(function(sid){
       var rec=stewById(sid);
       var linkId="stew-day:"+asg.eventKey+":"+sid;
@@ -3440,6 +3467,7 @@ function seedCurrentMonthStewCashExpenses(){
         stewEventKey:asg.eventKey,
         stewId:String(sid),
         stewPayKind:"dayPay",
+        crewPayStatus:crewPayStatus,
         date:date,
         vendor:(rec&&rec.name)||"Stew",
         description:"Stewardess / day work — "+summary,
@@ -3454,7 +3482,7 @@ function seedCurrentMonthStewCashExpenses(){
   });
   var beforeSig=JSON.stringify((state.expenses||[]).filter(function(e){
     return e&&e.source==="stew"&&e.stewPayKind==="dayPay"&&expMonthKey(e.date)===month;
-  }).map(function(e){return [e.linkId,e.amount,e.vendor,e.date];}).sort());
+  }).map(function(e){return [e.linkId,e.amount,e.vendor,e.date,e.crewPayStatus||"Paid"];}).sort());
   var rest=(state.expenses||[]).filter(function(e){
     if(!e) return false;
     if(e.source==="stew"&&e.stewPayKind==="dayPay"&&expMonthKey(e.date)===month) return false;
@@ -3462,7 +3490,7 @@ function seedCurrentMonthStewCashExpenses(){
   });
   var seeded=Object.keys(wanted).map(function(k){ return wanted[k]; });
   state.expenses=seeded.concat(rest);
-  var afterSig=JSON.stringify(seeded.map(function(e){return [e.linkId,e.amount,e.vendor,e.date];}).sort());
+  var afterSig=JSON.stringify(seeded.map(function(e){return [e.linkId,e.amount,e.vendor,e.date,e.crewPayStatus||"Paid"];}).sort());
   var changed=beforeSig!==afterSig;
   if(changed){
     expMonth=month;
@@ -3518,7 +3546,8 @@ function expExportMonthCsv(month){
     return s;
   }
   rows.forEach(function(e){
-    lines.push([csvCell(e.date),csvCell(e.vendor),csvCell(e.description),csvCell(e.category),csvCell(e.payMethod==="Credit Card"?"Credit Card":"Cash"),csvCell(e.amount)].join(","));
+    var typ=expIsCrewUnpaid(e)?"Unpaid":(e.payMethod==="Credit Card"?"Credit Card":"Cash");
+    lines.push([csvCell(e.date),csvCell(e.vendor),csvCell(e.description),csvCell(e.category),csvCell(typ),csvCell(e.amount)].join(","));
   });
   var blob=new Blob([lines.join("\n")],{type:"text/csv;charset=utf-8"});
   var a=document.createElement("a");
@@ -3531,7 +3560,7 @@ function renderExpenses(){
   if(!isCaptain()) return;
   var body=el("expBody"); if(!body) return;
   if(!expMonth) expMonth=expDefaultMonth();
-  /* Calendar → Stews assigns (nicknames) → Expenses from those Paid day pays only */
+  /* Calendar → Stews assigns → Expenses (Paid + Unpaid crew lines) */
   loadStewCalendar(false).then(function(){
     var a=ensureStewAssignFromCalendar();
     var b=ensureStewAssignPaidBeforeCut();
@@ -3551,16 +3580,20 @@ function paintExpensesBody(){
   months[expDefaultMonth()]=1;
   var monthList=Object.keys(months).sort().reverse();
   var lines=expLinesForMonth(expMonth).slice().sort(function(a,b){
+    /* Unpaid crew first (accountability), then newest date */
+    var ua=expIsCrewUnpaid(a)?0:1, ub=expIsCrewUnpaid(b)?0:1;
+    if(ua!==ub) return ua-ub;
     var c=String(b.date).localeCompare(String(a.date));
     if(c) return c;
     return String(b.updatedAt||"").localeCompare(String(a.updatedAt||""));
   });
-  var cashOut=0, cardOut=0, crewCash=0;
+  var cashOut=0, cardOut=0, crewPaid=0, crewUnpaid=0;
   lines.forEach(function(e){
     var a=apaNum(e.amount);
+    if(expIsCrewUnpaid(e)){ crewUnpaid+=a; return; }
     if(e.payMethod==="Credit Card") cardOut+=a;
     else cashOut+=a;
-    if(e.category==="Crew Salaries") crewCash+=a;
+    if(e.category==="Crew Salaries") crewPaid+=a;
   });
   var petty=expPettyFor(expMonth)||{pettyStart:0, pettyIn:0};
   var pettyStart=apaNum(petty.pettyStart), pettyIn=apaNum(petty.pettyIn);
@@ -3569,8 +3602,8 @@ function paintExpensesBody(){
   /* Short = cash spends above start + cash in */
   var cashShort=pettyOnboard<0?Math.round((-pettyOnboard)*100)/100:0;
   var owed=expStewDayPayOwed(expMonth);
-  var oweCrew=owed.owe;
-  var h='<div class="legend">Captain-only monthly vessel ledger. Cash crew lines come from <b>Stews → Charters</b> (Paid day pay). <b>Cash short</b> = spent more cash than start + cash in. <b>Owe crew</b> = unpaid day pay this month (not tips).</div>';
+  var oweCrew=owed.owe>0?owed.owe:crewUnpaid;
+  var h='<div class="legend">Captain-only monthly vessel ledger. Every Stews charter (through today) appears below: <b>Paid</b> counts as cash out; <b>Unpaid</b> stays visible so nothing is missing. Tips never here.</div>';
   h+='<div class="exp-month"><label class="meta" style="font-weight:700">Month</label>'+
     '<select class="ctl" id="expMonthSel">'+monthList.map(function(m){
       return '<option value="'+esc(m)+'"'+(m===expMonth?" selected":"")+'>'+esc(m)+'</option>';
@@ -3584,7 +3617,7 @@ function paintExpensesBody(){
   }
   if(oweCrew>0){
     h+='<div class="exp-alert owe">Owe crew (day pay) <span class="money" style="font-size:20px;font-weight:800">'+money0(oweCrew)+'</span>'+
-      '<div style="font-weight:500;margin-top:4px;font-size:13px">'+owed.trips+' charter'+(owed.trips===1?"":"s")+' with unpaid day pay on Stews (through today). Tips are separate.</div></div>';
+      '<div style="font-weight:500;margin-top:4px;font-size:13px">Unpaid charter lines on this list'+(owed.trips?' · '+owed.trips+' charter'+(owed.trips===1?"":"s"):'')+'. Mark Paid on Stews when settled.</div></div>';
   }
   if(cashShort<=0&&oweCrew<=0){
     h+='<div class="exp-alert ok">Cash and crew day pay look settled for this month'+(pettyOnboard>0?' · '+money0(pettyOnboard)+' cash still onboard':'')+'.</div>';
@@ -3595,7 +3628,7 @@ function paintExpensesBody(){
     '<div class="sumcard'+(pettyOnboard<0?' sum-danger':(pettyOnboard>0?' sum-ok':''))+'"><div class="l">Petty onboard</div><div class="v money">'+money0(pettyOnboard)+'</div></div>'+
     '<div class="sumcard"><div class="l">Cash out</div><div class="v money">'+money0(cashOut)+'</div></div>'+
     '<div class="sumcard"><div class="l">Card out</div><div class="v money">'+money0(cardOut)+'</div></div>'+
-    '<div class="sumcard"><div class="l">Crew on ledger</div><div class="v money">'+money0(crewCash)+'</div></div>'+
+    '<div class="sumcard"><div class="l">Crew paid</div><div class="v money">'+money0(crewPaid)+'</div></div>'+
   '</div>';
   h+='<div class="apa-card" style="margin-bottom:12px">'+
     '<div class="meta" style="margin-bottom:8px">Petty cash ('+esc(expMonth)+')</div>'+
@@ -3606,21 +3639,23 @@ function paintExpensesBody(){
     '<div class="meta" style="margin-top:8px">Available <b class="money">'+money0(cashInHand)+'</b> (start + in) · cash out <b class="money">'+money0(cashOut)+'</b> · onboard <b class="money">'+money0(pettyOnboard)+'</b>'+
       (cashShort>0?' · <b style="color:var(--danger)">short '+money0(cashShort)+'</b>':'')+
     '</div>'+
-    (oweCrew>0?'<div class="meta" style="margin-top:6px;color:#7a5c00">Still to pay stews (day pay, not on ledger until Paid): <b class="money">'+money0(oweCrew)+'</b></div>':'')+
+    (oweCrew>0?'<div class="meta" style="margin-top:6px;color:#7a5c00">Unpaid crew on list (not in cash out yet): <b class="money">'+money0(oweCrew)+'</b></div>':'')+
     '<button type="button" class="btn ghost" id="expPettySave" style="width:auto;margin-top:10px;padding:10px 14px">Save petty cash</button>'+
   '</div>';
   h+='<div class="apa-sect-h" style="margin-top:4px"><h3>Expenses</h3><button type="button" class="btn" id="expAdd">Add expense</button></div>';
   if(!lines.length){
-    h+=emptyBox("💶","No expenses this month","Tap + or Add expense. Mark stew day pay Paid to auto-add crew salaries.");
+    h+=emptyBox("💶","No expenses this month","Tap + or Add expense. Stews charters (Paid and Unpaid) appear after calendar sync.");
   } else {
     h+='<div class="list">';
     lines.forEach(function(e){
-      h+='<div class="item'+(e.source==="stew"?"":" apa-row")+'" data-exp-id="'+esc(e.id)+'" role="button" tabindex="0">'+
+      var unpaid=expIsCrewUnpaid(e);
+      h+='<div class="item'+(e.source==="stew"?"":" apa-row")+(unpaid?' exp-unpaid':'')+'" data-exp-id="'+esc(e.id)+'" role="button" tabindex="0">'+
         '<div class="top">'+
           (e.receipt?'<img class="exp-rcpt" src="'+e.receipt+'" alt="">':'')+
-          '<div style="flex:1;min-width:0"><div class="title">'+esc(e.vendor||"—")+'</div>'+
+          '<div style="flex:1;min-width:0"><div class="title">'+esc(e.vendor||"—")+(unpaid?' <span class="pill p-amber">Unpaid</span>':'')+'</div>'+
             '<div class="meta" style="margin-top:4px"><span>📅 '+esc(fmtDate(e.date)||e.date||"")+'</span>'+
-              '<span class="pill '+(e.payMethod==="Credit Card"?"p-card":"p-cash")+'">'+esc(e.payMethod==="Credit Card"?"Card":"Cash")+'</span>'+
+              (unpaid?'<span class="pill p-amber">Owe · not cash out</span>':
+                '<span class="pill '+(e.payMethod==="Credit Card"?"p-card":"p-cash")+'">'+esc(e.payMethod==="Credit Card"?"Card":"Cash")+'</span>')+
               '<span class="pill p-grey">'+esc(e.category||"")+'</span>'+
               (e.source==="stew"?'<span class="pill p-blue">From Stews</span>':'')+
             '</div>'+
@@ -3676,7 +3711,8 @@ function openExpense(id){
   };
   var h='<div class="sheethead"><h2>'+(rec?(fromStew?"Crew salary (from Stews)":"Edit expense"):"New expense")+'</h2><button type="button" class="sheetx" id="sheetClose" aria-label="Close">×</button></div>';
   if(fromStew){
-    h+='<div class="banner warn show">Auto from Stews day pay · Cash · Crew Salaries. Change day pay there to update amount. Tips are not on this ledger.</div>';
+    var unp=expIsCrewUnpaid(r);
+    h+='<div class="banner warn show">'+(unp?'<b>Unpaid</b> crew day pay — listed so the charter is accounted for; not in cash out yet. Mark <b>Paid</b> on Stews when settled.':'Auto from Stews day pay · Cash · posted to cash out.')+' Tips stay on Stews only.</div>';
   }
   h+=fieldHTML("Date",'<input class="ctl" id="f_exp_date" type="date" value="'+esc(r.date||"")+'"'+(fromStew?" disabled":"")+'>');
   h+=fieldHTML("Company / Store",'<input class="ctl" id="f_exp_vendor" value="'+esc(r.vendor||"")+'" placeholder="e.g. Eroski, Laura"'+(fromStew?" disabled":"")+'>');
