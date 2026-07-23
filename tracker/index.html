@@ -1002,6 +1002,16 @@ function apaTripForCharge(c){
   if(!name) return null;
   return (state.apa||[]).filter(function(t){ return t&&normName(t.guest)===name; })[0]||null;
 }
+/** Parse a line amount — apaNum so "20,5" / "€20" still count (Number() alone drops them). */
+function apaLineGross(row){
+  if(!row) return 0;
+  var a=apaNum(row.amount);
+  if(a>0) return a;
+  a=apaNum(row.cost);
+  if(a>0) return a;
+  a=apaNum(row.total);
+  return a>0?a:0;
+}
 /**
  * Line items from APA ledger for an itemised charge invoice.
  * Bunch by category — no vendors/supermarkets (e.g. one Dockage, one Provisions).
@@ -1011,11 +1021,11 @@ function apaTripForCharge(c){
 function buildApaInvoiceLines(trip){
   if(!trip) return [];
   trip=apaEnsureArrays(trip);
-  var buckets={}; /* label → gross */
+  var buckets={}; /* label → gross (always a number) */
   function add(label, amt){
-    amt=Number(amt)||0;
-    if(!(amt>0)||!label) return;
-    buckets[label]=(buckets[label]||0)+amt;
+    var n=apaNum(amt);
+    if(!(n>0)||!label) return;
+    buckets[label]=apaNum(buckets[label])+n;
   }
   function expenseLabel(cat){
     cat=String(cat||"").trim();
@@ -1029,15 +1039,18 @@ function buildApaInvoiceLines(trip){
     return cat; /* keep known category name, still no vendor */
   }
   (trip.expenses||[]).forEach(function(e){
-    add(expenseLabel(e.category), e.amount);
+    if(!e) return;
+    add(expenseLabel(e.category), apaLineGross(e));
   });
-  /* All provision receipts → one "Provisions" line */
+  /* All provision receipts → one "Provisions" line (sum every entry) */
   (trip.provisions||[]).forEach(function(p){
-    add("Provisions", p.amount);
+    if(!p) return;
+    add("Provisions", apaLineGross(p));
   });
   /* All trip diesel consumption → one "Diesel / fuel" line (€ only) */
   var dTot=0;
   (trip.diesel||[]).forEach(function(r){
+    if(!r) return;
     var calc=apaDieselCalc(trip, r);
     if(calc.cost>0) dTot+=calc.cost;
   });
@@ -1047,14 +1060,17 @@ function buildApaInvoiceLines(trip){
   var order=["Diesel / fuel","Dockage / marina","Provisions","Drinks & bar","Crew tips","Miscellaneous"];
   var lines=[], seen={};
   order.forEach(function(lab){
-    if(buckets[lab]>0){
-      lines.push({desc:lab, period:"", rate:"", gross:buckets[lab]});
+    var g=apaNum(buckets[lab]);
+    if(g>0){
+      lines.push({desc:lab, period:"", rate:"", gross:Math.round(g*100)/100});
       seen[lab]=1;
     }
   });
   Object.keys(buckets).forEach(function(lab){
-    if(seen[lab]||!(buckets[lab]>0)) return;
-    lines.push({desc:lab, period:"", rate:"", gross:buckets[lab]});
+    if(seen[lab]) return;
+    var g=apaNum(buckets[lab]);
+    if(!(g>0)) return;
+    lines.push({desc:lab, period:"", rate:"", gross:Math.round(g*100)/100});
   });
   return lines;
 }
@@ -1277,16 +1293,22 @@ function openChargeInvoiceSheet(id){
     if(!box) return;
     if(!itemiseOn()){ box.classList.add("hidden"); return; }
     box.classList.remove("hidden");
+    /* Live rebuild so preview matches the PDF */
+    var live=apaTripForCharge(c);
+    var rows=live?buildApaInvoiceLines(live):apaLines;
     var html="";
-    apaLines.forEach(function(ln){
-      html+='<div class="cl"><span>'+esc(ln.desc)+(ln.period?" · "+esc(ln.period):"")+'</span><b>'+money(ln.gross)+'</b></div>';
+    var vatP=pct();
+    rows.forEach(function(ln){
+      var sp=invoiceSplitGross(ln.gross, vatP);
+      html+='<div class="cl"><span>'+esc(ln.desc)+'</span><b>'+money(ln.gross)+'</b></div>'+
+        '<div style="font-size:11px;color:var(--muted);margin:-2px 0 6px 0">on PDF amount column (ex IVA): '+money(sp.net)+'</div>';
     });
-    var sum=apaLines.reduce(function(s,ln){return s+(Number(ln.gross)||0);},0);
-    html+='<div class="cl hi"><span>Lines total</span><b>'+money(sum)+'</b></div>';
+    var sum=rows.reduce(function(s,ln){return s+apaNum(ln.gross);},0);
+    html+='<div class="cl hi"><span>Lines total (incl. IVA)</span><b>'+money(sum)+'</b></div>';
     if(Math.abs(sum-(Number(c.amount)||0))>0.05){
-      html+='<div style="font-size:11.5px;color:var(--amberInk);margin-top:6px">Lines sum differs from charge amount — invoice total uses the amount field below.</div>';
+      html+='<div style="font-size:11.5px;color:var(--amberInk);margin-top:6px">Lines sum differs from charge amount — check APA entries or the total field below.</div>';
     }
-    box.innerHTML=html;
+    box.innerHTML=html||'<div class="cl"><span>No APA lines found</span><b></b></div>';
   }
   function syncItemiseUi(){
     var on=itemiseOn();
@@ -1337,14 +1359,26 @@ function openChargeInvoiceSheet(id){
     var sp=invoiceSplitGross(gross, vatPct);
     var lines=null;
     if(itemiseOn()){
-      lines=apaInvoiceLinesNet(apaLines, vatPct);
-      /* Scale line nets to match invoice total if shortfall ≠ full spend */
-      var sumNet=lines.reduce(function(s,ln){return s+(Number(ln.net)||0);},0);
-      if(sumNet>0&&Math.abs(sumNet-sp.net)>0.02){
+      /* Rebuild from live APA trip so every provision/expense is included */
+      var liveTrip=apaTripForCharge(c);
+      var liveLines=liveTrip?buildApaInvoiceLines(liveTrip):apaLines;
+      lines=apaInvoiceLinesNet(liveLines, vatPct);
+      var sumGross=liveLines.reduce(function(s,ln){return s+apaNum(ln.gross);},0);
+      var sumNet=lines.reduce(function(s,ln){return s+apaNum(ln.net);},0);
+      /*
+       * Only scale when charge is a true shortfall (less than full spend).
+       * Never scale when lines already match the invoice total — that was
+       * hiding a missed provision sum (e.g. 90+20 → only 90 shown).
+       */
+      if(sumNet>0&&sumGross>0&&sp.gross+0.02<sumGross&&Math.abs(sumNet-sp.net)>0.02){
         var scale=sp.net/sumNet;
         lines=lines.map(function(ln){
           return {desc:ln.desc, period:ln.period, rate:ln.rate, net:Math.round(ln.net*scale*100)/100, gross:Math.round(ln.gross*scale*100)/100};
         });
+      } else if(sumGross>0&&Math.abs(sumGross-sp.gross)>0.05&&sp.gross+0.02>=sumGross){
+        /* Itemisation total is the real spend — prefer it when charge ≥ lines (or equal) */
+        sp=invoiceSplitGross(sumGross, vatPct);
+        if(el("f_inv_gross")) el("f_inv_gross").value=String(Math.round(sumGross*100)/100);
       }
     }
     var byCard=paidByCardOn();
