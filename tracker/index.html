@@ -3186,6 +3186,30 @@ function stewNames(ids){
 function assignForEvent(eventKey){
   return (state.stewAssign||[]).filter(function(a){return a&&a.eventKey===eventKey;})[0]||null;
 }
+/** Stews only: assignments for charters starting before this date are Paid (exclusive). */
+var STEW_PAID_BEFORE="2026-07-17";
+function stewAssignStartDate(asg, ev){
+  if(ev&&ev.start) return String(ev.start).slice(0,10);
+  if(asg&&asg.start) return String(asg.start).slice(0,10);
+  return "";
+}
+function stewIsPaidBeforeCut(asg, ev){
+  var d=stewAssignStartDate(asg, ev);
+  return !!(d&&d<STEW_PAID_BEFORE);
+}
+/** Persist Unpaid → Paid for all stew assignments before STEW_PAID_BEFORE. */
+function ensureStewAssignPaidBeforeCut(){
+  if(!isCaptain()) return false;
+  var changed=false;
+  (state.stewAssign||[]).forEach(function(a){
+    if(!a) return;
+    var ev=calEvents.filter(function(e){return e&&e.key===a.eventKey;})[0]||null;
+    if(!stewIsPaidBeforeCut(a, ev)) return;
+    if(a.payStatus!=="Paid"){ a.payStatus="Paid"; changed=true; }
+  });
+  if(changed&&!DEMO) saveStewAssign();
+  return changed;
+}
 function fmtCalEventWhen(ev){
   if(!ev) return "";
   var s=fmtDate(ev.start)||ev.start||"";
@@ -3270,7 +3294,7 @@ function stewPayBreakdown(ev, asg){
   var units=stewPayUnits(ev, asg&&asg.payUnits);
   var each=stewPayEach(rate, units);
   var nStews=asg&&asg.stewIds?asg.stewIds.filter(Boolean).length:0;
-  var paid=asg&&asg.payStatus==="Paid";
+  var paid=(asg&&asg.payStatus==="Paid")||stewIsPaidBeforeCut(asg, ev);
   return {
     rate:rate, units:units, each:each,
     totalAll:each*Math.max(1, nStews||0),
@@ -3341,6 +3365,7 @@ function paintStewCharters(){
     wrap.innerHTML=emptyBox("📅","No charters from calendar","Check AVAILABILITY_ICS_URL in Netlify, or add events to the shared calendar.");
     return;
   }
+  ensureStewAssignPaidBeforeCut();
   var html='';
   if(calEventsGeneratedAt){
     try{
@@ -3543,7 +3568,7 @@ function openStewAssign(eventKey){
   var selected={};
   (asg.stewIds||[]).forEach(function(id){ selected[id]=1; });
   var team=(state.stews||[]).filter(function(s){ return s&&s.active!==false; });
-  var pay=asg.payStatus==="Paid"?"Paid":"Unpaid";
+  var pay=(asg.payStatus==="Paid"||stewIsPaidBeforeCut(asg, ev))?"Paid":"Unpaid";
   var h='<div class="sheethead"><h2>Assign stews</h2><button type="button" class="sheetx" id="sheetClose" aria-label="Close">×</button></div>';
   h+='<div class="apa-card" style="margin-bottom:12px">'+
     '<div style="font-weight:800;font-size:16px">'+esc(ev.summary||"Charter")+'</div>'+
@@ -4618,6 +4643,7 @@ function applyData(d){
   sortLeads();
   if(repairLeadWhiteInvoices()){ if(!DEMO) save("leads"); }
   if(canOps()) ensureAllLeadCashApa();
+  if(isCaptain()) ensureStewAssignPaidBeforeCut();
   renderAll();
   if(!DEMO) refreshPushStatus();
 }
