@@ -3946,15 +3946,16 @@ function expCaptainOwed(month, petty){
   return {putIn:putIn, paidOut:paidOut, reimbursed:reimbursed, owed:owed>0?owed:0, overpaid:owed<0?-owed:0};
 }
 /**
- * Single source of truth for Expenses settlement figures (cents-safe via apaNum + round).
+ * Single source of truth for Expenses settlement figures (cents-safe).
  *
- * cashShort  = max(0, cashOut − (start + cashIn))   // envelope books only
- * boatOwes   = captain owed (own money)
- * oweCrew    = unpaid stew day pay on the list
- * totalSettle = cashShort + boatOwes + oweCrew     // full cash still needed to settle
+ * cashShort   = max(0, cashOut − (start + cashIn))  // envelope books gap only
+ * boatOwes    = captain owed (own-money cash-in + pocket expenses − reimbursed)
+ * oweCrew     = unpaid stew day pay (list; not yet a float cash-out)
+ * peopleOwed  = boatOwes + oweCrew                  // who the boat still owes
+ * cashToClear = cashShort + peopleOwed              // only if you pay people FROM the float
  *
- * Own-money spends are NOT inside cashShort (they never left the float books).
- * They ARE inside boatOwes / totalSettle.
+ * These are NOT the same concept — never treat cashShort as “money owed to crew/captain”.
+ * Own-money spends are never inside cashShort.
  */
 function expSettlementFigures(month){
   month=month||expDefaultMonth();
@@ -3987,7 +3988,8 @@ function expSettlementFigures(month){
   var oweCrew=Math.round((crewUnpaid>0?crewUnpaid:(owed.owe||0))*100)/100;
   var cap=expCaptainOwed(month, petty);
   var boatOwes=cap.owed||0;
-  var totalSettle=Math.round((cashShort+boatOwes+oweCrew)*100)/100;
+  var peopleOwed=Math.round((boatOwes+oweCrew)*100)/100;
+  var cashToClear=Math.round((cashShort+peopleOwed)*100)/100;
   return {
     cashOut:Math.round(cashOut*100)/100,
     cardOut:Math.round(cardOut*100)/100,
@@ -4003,7 +4005,10 @@ function expSettlementFigures(month){
     oweCrew:oweCrew,
     cap:cap,
     boatOwes:boatOwes,
-    totalSettle:totalSettle,
+    peopleOwed:peopleOwed,
+    cashToClear:cashToClear,
+    /* alias kept so older UI bits don't break */
+    totalSettle:cashToClear,
     petty:petty
   };
 }
@@ -4415,65 +4420,89 @@ function paintExpensesBody(){
   var cashOut=S.cashOut, cardOut=S.cardOut, crewPaid=S.crewPaid, otherCash=S.otherCash, ownMoneyExp=S.ownMoneyExp;
   var petty=S.petty, pettyStart=S.pettyStart, cashInTotal=S.cashInTotal, cashInHand=S.cashInHand;
   var pettyEntered=S.pettyEntered, pettyOnboard=S.pettyOnboard;
-  var cashShort=S.cashShort, oweCrew=S.oweCrew, cap=S.cap, boatOwes=S.boatOwes, totalSettle=S.totalSettle;
+  var cashShort=S.cashShort, oweCrew=S.oweCrew, cap=S.cap, boatOwes=S.boatOwes;
+  var peopleOwed=S.peopleOwed, cashToClear=S.cashToClear;
   var cashIns=expCashInLines(petty);
-  var h='<div class="legend">Captain-only monthly ledger. Settlement = <b>float short + captain owed + unpaid crew</b> (three separate pots of cash still needed). Tips stay on Stews only.</div>';
+  var h='<div class="legend">Captain-only monthly ledger. <b>People owed</b> (crew + you) is separate from <b>float short</b> (envelope books). Tips stay on Stews only.</div>';
   h+='<div class="exp-month"><label class="meta" style="font-weight:700">Month</label>'+
     '<select class="ctl" id="expMonthSel">'+monthList.map(function(m){
       return '<option value="'+esc(m)+'"'+(m===expMonth?" selected":"")+'>'+esc(m)+'</option>';
     }).join("")+'</select>'+
     '<button type="button" class="btn ghost" id="expExport" style="width:auto;padding:10px 14px">Export CSV</button>'+
   '</div>';
-  /* Auditable settlement — always show the three lines + sum (cents with money()) */
+  /*
+   * Two clear blocks — never mix “who we owe” with “envelope short” without labeling.
+   * People owed = captain + crew (what you compare to payroll / reimburse).
+   * Float short = start+cashIn − cashOut when negative (books only).
+   * cashToClear = only if you will pay people FROM the float (then you need both).
+   */
   h+='<div class="apa-card exp-howto">'+
-    '<div style="font-weight:800;margin-bottom:8px">Cash still to settle (audit)</div>'+
+    '<div style="font-weight:800;margin-bottom:8px">A · People the boat still owes</div>'+
     '<div style="font-size:0.9rem;line-height:1.55">'+
-      '<div style="display:flex;justify-content:space-between;gap:12px"><span>1. Cash short <b>(float / envelope)</b></span><b class="money">'+(pettyEntered?money(cashShort):'—')+'</b></div>'+
-      '<div class="meta" style="display:block;margin:2px 0 8px">'+
-        (pettyEntered
-          ?('start '+money(pettyStart)+' + cash in '+money(cashInTotal)+' = available '+money(cashInHand)+
-            ' − from float '+money(cashOut)+' = onboard '+money(pettyOnboard)+
-            (cashShort>0?' → short '+money(cashShort):' → OK'))
-          :'Set start + cash in below to measure float short')+
-      '</div>'+
-      '<div style="display:flex;justify-content:space-between;gap:12px"><span>2. Captain owed <b>(your pocket)</b></span><b class="money">'+money(boatOwes)+'</b></div>'+
+      '<div style="display:flex;justify-content:space-between;gap:12px"><span>Captain (your pocket)</span><b class="money">'+money(boatOwes)+'</b></div>'+
       '<div class="meta" style="display:block;margin:2px 0 8px">'+
         'own-money cash-in '+money(cap.putIn)+' + pocket expenses '+money(cap.paidOut)+
-        ' − reimbursed '+money(cap.reimbursed)+' = '+money(boatOwes)+
+        ' − reimbursed '+money(cap.reimbursed)+
       '</div>'+
-      '<div style="display:flex;justify-content:space-between;gap:12px"><span>3. Owe crew <b>(unpaid day pay)</b></span><b class="money">'+money(oweCrew)+'</b></div>'+
-      '<div class="meta" style="display:block;margin:2px 0 10px">Unpaid stew lines on this list (not yet taken from float)</div>'+
+      '<div style="display:flex;justify-content:space-between;gap:12px"><span>Crew (unpaid day pay)</span><b class="money">'+money(oweCrew)+'</b></div>'+
+      '<div class="meta" style="display:block;margin:2px 0 10px">Unpaid stew lines — not taken from the float yet</div>'+
       '<div style="display:flex;justify-content:space-between;gap:12px;padding-top:8px;border-top:1.5px solid var(--line);font-size:1.05rem">'+
-        '<span><b>Total still to settle</b></span>'+
-        '<b class="money" style="color:'+(totalSettle>0.009?'var(--danger)':'inherit')+'">'+money(totalSettle)+'</b>'+
+        '<span><b>People owed</b></span>'+
+        '<b class="money" style="color:'+(peopleOwed>0.009?'#9a6b00':'inherit')+'">'+money(peopleOwed)+'</b>'+
       '</div>'+
-      '<div class="meta" style="display:block;margin-top:6px">'+
-        money(cashShort)+' + '+money(boatOwes)+' + '+money(oweCrew)+' = '+money(totalSettle)+
-        ' · Own-money spends are <b>not</b> inside float short (only in line 2).'+
+      '<div class="meta" style="display:block;margin-top:4px">'+money(boatOwes)+' + '+money(oweCrew)+' = '+money(peopleOwed)+'</div>'+
+    '</div>'+
+    '<div style="font-weight:800;margin:16px 0 8px">B · Envelope (float books)</div>'+
+    '<div style="font-size:0.9rem;line-height:1.55">'+
+      (pettyEntered
+        ?('<div class="meta" style="display:block;margin-bottom:6px">'+
+            'start '+money(pettyStart)+' + cash in '+money(cashInTotal)+' = available '+money(cashInHand)+
+            '<br>− cash out from float '+money(cashOut)+' = book onboard '+money(pettyOnboard)+
+          '</div>'+
+          '<div style="display:flex;justify-content:space-between;gap:12px"><span><b>Float short</b> (books only)</span>'+
+            '<b class="money" style="color:'+(cashShort>0.009?'var(--danger)':'inherit')+'">'+money(cashShort)+'</b></div>'+
+          '<div class="meta" style="display:block;margin-top:4px">'+
+            (cashShort>0.009
+              ?'Cash out already exceeds start + cash in by this amount. Not the same as people owed.'
+              :'Float books are not short (onboard ≥ 0).')+
+          '</div>')
+        :'<div class="meta">Set <b>start</b> and <b>cash in</b> below to measure float short.</div>')+
+      '<div class="meta" style="display:block;margin-top:8px">Float out breakdown: crew paid '+money(crewPaid)+' + other '+money(otherCash)+
+        (ownMoneyExp>0?' · pocket expenses (not in float) '+money(ownMoneyExp):'')+
+        (cardOut>0?' · card '+money(cardOut):'')+
       '</div>'+
     '</div>'+
-    '<div style="margin-top:12px;padding-top:10px;border-top:1px solid var(--line)" class="meta">'+
-      'Float out '+money(cashOut)+' = crew paid '+money(crewPaid)+' + other '+money(otherCash)+
-      (ownMoneyExp>0?' · pocket expenses this month '+money(ownMoneyExp):'')+
-      (cardOut>0?' · card '+money(cardOut):'')+
-    '</div>'+
+    (pettyEntered
+      ?('<div style="font-weight:800;margin:16px 0 8px">C · If you pay people from the float</div>'+
+        '<div style="font-size:0.9rem;line-height:1.55">'+
+          '<div class="meta" style="display:block;margin-bottom:6px">You need enough cash for the existing float gap <b>and</b> to pay crew + captain from the envelope:</div>'+
+          '<div style="display:flex;justify-content:space-between;gap:12px"><span>Float short + people owed</span>'+
+            '<b class="money">'+money(cashShort)+' + '+money(peopleOwed)+'</b></div>'+
+          '<div style="display:flex;justify-content:space-between;gap:12px;padding-top:8px;border-top:1.5px solid var(--line);font-size:1.05rem">'+
+            '<span><b>Cash to clear via float</b></span>'+
+            '<b class="money" style="color:'+(cashToClear>0.009?'var(--danger)':'inherit')+'">'+money(cashToClear)+'</b>'+
+          '</div>'+
+          '<div class="meta" style="display:block;margin-top:6px">This is <b>not</b> “people owed” alone. Paying crew/captain from outside the float means you only care about block A (+ maybe B if the envelope is short).</div>'+
+        '</div>')
+      :'')+
   '</div>';
   /* Attention banners */
   if(!pettyEntered&&cashOut>0){
-    h+='<div class="exp-alert owe">Petty start / cash in not set. Cash from float is <b class="money">'+money(cashOut)+'</b>. Add start float and cash-in lines to measure line 1 (float short).</div>';
+    h+='<div class="exp-alert owe">Petty start / cash in not set. Cash from float is <b class="money">'+money(cashOut)+'</b>. Add start + cash in to measure float short (block B).</div>';
   }
-  if(totalSettle>0.009){
-    h+='<div class="exp-alert short">'+
-      '<div style="font-weight:800">Total still to settle</div>'+
-      '<div class="money" style="font-size:22px;font-weight:800;margin-top:2px">'+money(totalSettle)+'</div>'+
+  if(peopleOwed>0.009){
+    h+='<div class="exp-alert owe">'+
+      '<div style="font-weight:800">People owed</div>'+
+      '<div class="money" style="font-size:22px;font-weight:800;margin-top:2px">'+money(peopleOwed)+'</div>'+
       '<div style="font-weight:500;margin-top:8px;font-size:13px;line-height:1.55">'+
-        '<div>Float short '+money(cashShort)+' + captain '+money(boatOwes)+' + crew '+money(oweCrew)+'</div>'+
+        'Captain '+money(boatOwes)+' + crew '+money(oweCrew)+
+        (pettyEntered&&cashShort>0.009?' · Float short (separate) '+money(cashShort):'')+
       '</div></div>';
   }
   /* Always show captain balance (own money in / pocket out / repaid) */
   h+='<div class="exp-alert '+(boatOwes>0?'owe':(cap.putIn>0||cap.paidOut>0||cap.reimbursed>0?'ok':'owe'))+'" id="expBoatOwesCard" style="'+(boatOwes>0?'':'border-style:dashed')+'">'+
     '<div style="display:flex;align-items:baseline;justify-content:space-between;gap:10px;flex-wrap:wrap">'+
-      '<div style="font-weight:800">Captain owed <span class="meta" style="font-weight:500;text-transform:none">(line 2)</span></div>'+
+      '<div style="font-weight:800">Captain owed</div>'+
       '<div class="money" style="font-size:22px;font-weight:800">'+money(boatOwes)+'</div>'+
     '</div>'+
     '<div style="font-weight:500;margin-top:8px;font-size:13px;line-height:1.5">'+
@@ -4495,10 +4524,11 @@ function paintExpensesBody(){
   }
   /* 2-col grid on phone */
   h+='<div class="exp-summary">'+
-    '<div class="sumcard'+(cashShort>0?' sum-danger':'')+'"><div class="l">1 · Float short</div><div class="v money">'+(pettyEntered?money(cashShort):'—')+'</div></div>'+
-    '<div class="sumcard'+(boatOwes>0?' sum-warn':'')+'"><div class="l">2 · Captain owed</div><div class="v money">'+money(boatOwes)+'</div></div>'+
-    '<div class="sumcard'+(oweCrew>0?' sum-warn':'')+'"><div class="l">3 · Owe crew</div><div class="v money">'+money(oweCrew)+'</div></div>'+
-    '<div class="sumcard'+(totalSettle>0?' sum-danger':'')+'"><div class="l">Total to settle</div><div class="v money">'+money(totalSettle)+'</div></div>'+
+    '<div class="sumcard'+(peopleOwed>0?' sum-warn':'')+'"><div class="l">People owed</div><div class="v money">'+money(peopleOwed)+'</div></div>'+
+    '<div class="sumcard'+(boatOwes>0?' sum-warn':'')+'"><div class="l">Captain owed</div><div class="v money">'+money(boatOwes)+'</div></div>'+
+    '<div class="sumcard'+(oweCrew>0?' sum-warn':'')+'"><div class="l">Owe crew</div><div class="v money">'+money(oweCrew)+'</div></div>'+
+    '<div class="sumcard'+(cashShort>0?' sum-danger':'')+'"><div class="l">Float short</div><div class="v money">'+(pettyEntered?money(cashShort):'—')+'</div></div>'+
+    '<div class="sumcard'+(pettyEntered&&cashToClear>0?' sum-danger':'')+'"><div class="l">Cash if via float</div><div class="v money">'+(pettyEntered?money(cashToClear):'—')+'</div></div>'+
     '<div class="sumcard'+(pettyEntered&&pettyOnboard<0?' sum-danger':(pettyEntered&&pettyOnboard>0?' sum-ok':''))+'"><div class="l">Petty onboard</div><div class="v money">'+(pettyEntered?money(pettyOnboard):'—')+'</div></div>'+
     '<div class="sumcard"><div class="l">From float</div><div class="v money">'+money(cashOut)+'</div></div>'+
     '<div class="sumcard"><div class="l">My pocket</div><div class="v money">'+money(ownMoneyExp)+'</div></div>'+
