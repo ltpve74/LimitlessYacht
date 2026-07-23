@@ -3587,59 +3587,82 @@ function paintExpensesBody(){
     if(c) return c;
     return String(b.updatedAt||"").localeCompare(String(a.updatedAt||""));
   });
-  var cashOut=0, cardOut=0, crewPaid=0, crewUnpaid=0;
+  /* Posted cash only (unpaid crew listed but not in cash out). Dedupe stew linkIds. */
+  var cashOut=0, cardOut=0, crewPaid=0, crewUnpaid=0, otherCash=0, seenStewLink={};
   lines.forEach(function(e){
     var a=apaNum(e.amount);
     if(expIsCrewUnpaid(e)){ crewUnpaid+=a; return; }
-    if(e.payMethod==="Credit Card") cardOut+=a;
-    else cashOut+=a;
-    if(e.category==="Crew Salaries") crewPaid+=a;
+    if(e.source==="stew"&&e.stewPayKind==="dayPay"){
+      var lk=e.linkId||(e.stewEventKey+":"+e.stewId);
+      if(seenStewLink[lk]) return; /* skip duplicate seed rows */
+      seenStewLink[lk]=1;
+    }
+    if(e.payMethod==="Credit Card"){ cardOut+=a; return; }
+    cashOut+=a;
+    if(e.source==="stew"&&e.stewPayKind==="dayPay") crewPaid+=a;
+    else otherCash+=a;
   });
   var petty=expPettyFor(expMonth)||{pettyStart:0, pettyIn:0};
   var pettyStart=apaNum(petty.pettyStart), pettyIn=apaNum(petty.pettyIn);
   var cashInHand=pettyStart+pettyIn;
+  var pettyEntered=pettyStart>0||pettyIn>0;
   var pettyOnboard=cashInHand-cashOut;
-  /* Short = cash spends above start + cash in */
-  var cashShort=pettyOnboard<0?Math.round((-pettyOnboard)*100)/100:0;
+  /*
+   * Cash short = cash out − (start + cash in), only when petty figures are entered.
+   * If start/in are both 0, short would equal cash out and look falsely huge (~€1.5k).
+   */
+  var cashShort=0;
+  if(pettyEntered&&pettyOnboard<0) cashShort=Math.round((-pettyOnboard)*100)/100;
   var owed=expStewDayPayOwed(expMonth);
-  var oweCrew=owed.owe>0?owed.owe:crewUnpaid;
-  var h='<div class="legend">Captain-only monthly vessel ledger. Every Stews charter (through today) appears below: <b>Paid</b> counts as cash out; <b>Unpaid</b> stays visible so nothing is missing. Tips never here.</div>';
+  var oweCrew=crewUnpaid>0?crewUnpaid:(owed.owe||0);
+  var h='<div class="legend">Captain-only monthly vessel ledger. <b>Cash out</b> = posted Cash lines only (Paid crew + other cash). <b>Unpaid</b> crew is listed but not in cash out. <b>Cash short</b> needs petty start + cash in filled in.</div>';
   h+='<div class="exp-month"><label class="meta" style="font-weight:700">Month</label>'+
     '<select class="ctl" id="expMonthSel">'+monthList.map(function(m){
       return '<option value="'+esc(m)+'"'+(m===expMonth?" selected":"")+'>'+esc(m)+'</option>';
     }).join("")+'</select>'+
     '<button type="button" class="btn ghost" id="expExport" style="width:auto;padding:10px 14px">Export CSV</button>'+
   '</div>';
+  /* Formula strip — so the numbers are auditable */
+  h+='<div class="apa-card" style="margin-bottom:12px;font-size:13.5px;line-height:1.5">'+
+    '<div style="font-weight:800;margin-bottom:6px">How the numbers work</div>'+
+    '<div class="meta" style="display:block">Cash out = crew day pay marked Paid on Stews + other Cash expenses (not card, not unpaid crew, not tips).</div>'+
+    '<div style="margin-top:6px"><b class="money">'+money0(cashOut)+'</b> cash out = <b class="money">'+money0(crewPaid)+'</b> crew paid + <b class="money">'+money0(otherCash)+'</b> other cash</div>'+
+    '<div style="margin-top:4px">Available = start <b class="money">'+money0(pettyStart)+'</b> + cash in <b class="money">'+money0(pettyIn)+'</b> → <b class="money">'+money0(cashInHand)+'</b></div>'+
+    '<div style="margin-top:4px">Onboard = available − cash out → <b class="money">'+money0(pettyOnboard)+'</b>'+
+      (pettyEntered?(cashShort>0?' · <b style="color:var(--danger)">short '+money0(cashShort)+'</b>':' · OK'):' · <em>enter start/cash in below to compute short</em>')+
+    '</div>'+
+    (oweCrew>0?'<div style="margin-top:4px;color:#7a5c00">Owe crew (unpaid day pay on list, not in cash out) → <b class="money">'+money0(oweCrew)+'</b></div>':'')+
+  '</div>';
   /* Big attention banners */
-  if(cashShort>0){
+  if(!pettyEntered&&cashOut>0){
+    h+='<div class="exp-alert owe">Petty cash start / cash in not set yet. Cash out this month is <b class="money">'+money0(cashOut)+'</b> (crew paid '+money0(crewPaid)+' + other '+money0(otherCash)+'). Fill start &amp; cash in to see true cash short.</div>';
+  } else if(cashShort>0){
     h+='<div class="exp-alert short">Cash short <span class="money" style="font-size:20px;font-weight:800">'+money0(cashShort)+'</span>'+
-      '<div style="font-weight:500;margin-top:4px;font-size:13px">Cash out '+money0(cashOut)+' exceeds start + cash in '+money0(cashInHand)+'. Top up petty cash or log cash in.</div></div>';
+      '<div style="font-weight:500;margin-top:4px;font-size:13px">Cash out '+money0(cashOut)+' − available '+money0(cashInHand)+' = short '+money0(cashShort)+'.</div></div>';
   }
   if(oweCrew>0){
     h+='<div class="exp-alert owe">Owe crew (day pay) <span class="money" style="font-size:20px;font-weight:800">'+money0(oweCrew)+'</span>'+
-      '<div style="font-weight:500;margin-top:4px;font-size:13px">Unpaid charter lines on this list'+(owed.trips?' · '+owed.trips+' charter'+(owed.trips===1?"":"s"):'')+'. Mark Paid on Stews when settled.</div></div>';
+      '<div style="font-weight:500;margin-top:4px;font-size:13px">Unpaid lines on the list below — not counted in cash out until you mark Paid on Stews.</div></div>';
   }
-  if(cashShort<=0&&oweCrew<=0){
+  if(pettyEntered&&cashShort<=0&&oweCrew<=0){
     h+='<div class="exp-alert ok">Cash and crew day pay look settled for this month'+(pettyOnboard>0?' · '+money0(pettyOnboard)+' cash still onboard':'')+'.</div>';
   }
   h+='<div class="summary">'+
-    '<div class="sumcard'+(cashShort>0?' sum-danger':'')+'"><div class="l">Cash short</div><div class="v money">'+(cashShort>0?money0(cashShort):'€0')+'</div></div>'+
+    '<div class="sumcard'+(cashShort>0?' sum-danger':'')+'"><div class="l">Cash short</div><div class="v money">'+(pettyEntered?(cashShort>0?money0(cashShort):'€0'):'—')+'</div></div>'+
     '<div class="sumcard'+(oweCrew>0?' sum-warn':'')+'"><div class="l">Owe crew</div><div class="v money">'+(oweCrew>0?money0(oweCrew):'€0')+'</div></div>'+
-    '<div class="sumcard'+(pettyOnboard<0?' sum-danger':(pettyOnboard>0?' sum-ok':''))+'"><div class="l">Petty onboard</div><div class="v money">'+money0(pettyOnboard)+'</div></div>'+
+    '<div class="sumcard'+(pettyEntered&&pettyOnboard<0?' sum-danger':(pettyEntered&&pettyOnboard>0?' sum-ok':''))+'"><div class="l">Petty onboard</div><div class="v money">'+(pettyEntered?money0(pettyOnboard):'—')+'</div></div>'+
     '<div class="sumcard"><div class="l">Cash out</div><div class="v money">'+money0(cashOut)+'</div></div>'+
-    '<div class="sumcard"><div class="l">Card out</div><div class="v money">'+money0(cardOut)+'</div></div>'+
     '<div class="sumcard"><div class="l">Crew paid</div><div class="v money">'+money0(crewPaid)+'</div></div>'+
+    '<div class="sumcard"><div class="l">Other cash</div><div class="v money">'+money0(otherCash)+'</div></div>'+
+    '<div class="sumcard"><div class="l">Card out</div><div class="v money">'+money0(cardOut)+'</div></div>'+
   '</div>';
   h+='<div class="apa-card" style="margin-bottom:12px">'+
-    '<div class="meta" style="margin-bottom:8px">Petty cash ('+esc(expMonth)+')</div>'+
+    '<div class="meta" style="margin-bottom:8px">Petty cash ('+esc(expMonth)+') — required for cash short</div>'+
     '<div class="row2">'+
       fieldHTML("Start amount (€)",moneyField("exp_petty_start", pettyStart||""))+
       fieldHTML("Cash in (€)",moneyField("exp_petty_in", pettyIn||""))+
     '</div>'+
-    '<div class="meta" style="margin-top:8px">Available <b class="money">'+money0(cashInHand)+'</b> (start + in) · cash out <b class="money">'+money0(cashOut)+'</b> · onboard <b class="money">'+money0(pettyOnboard)+'</b>'+
-      (cashShort>0?' · <b style="color:var(--danger)">short '+money0(cashShort)+'</b>':'')+
-    '</div>'+
-    (oweCrew>0?'<div class="meta" style="margin-top:6px;color:#7a5c00">Unpaid crew on list (not in cash out yet): <b class="money">'+money0(oweCrew)+'</b></div>':'')+
+    '<div class="meta" style="margin-top:8px">Available <b class="money">'+money0(cashInHand)+'</b> · cash out <b class="money">'+money0(cashOut)+'</b> (crew '+money0(crewPaid)+' + other '+money0(otherCash)+') · onboard <b class="money">'+money0(pettyOnboard)+'</b></div>'+
     '<button type="button" class="btn ghost" id="expPettySave" style="width:auto;margin-top:10px;padding:10px 14px">Save petty cash</button>'+
   '</div>';
   h+='<div class="apa-sect-h" style="margin-top:4px"><h3>Expenses</h3><button type="button" class="btn" id="expAdd">Add expense</button></div>';
