@@ -184,10 +184,15 @@ function ensureSheetApaSeed(data) {
     data.leads.unshift(sheetJoelLead());
     dirty = true;
   }
-  if (!data.apa.some((t) => t && t.id === SHEET_TRIP_ID)) {
+  const hasSheetTrip = data.apa.some((t) => t && t.id === SHEET_TRIP_ID);
+  const hasJoelGuest = data.apa.some(
+    (t) => t && /^joel freeland$/i.test(String(t.guest || "").trim())
+  );
+  /* Do not seed a second Joel pot if one already exists under another id */
+  if (!hasSheetTrip && !hasJoelGuest) {
     data.apa.unshift(sheetJoelApaTrip());
     dirty = true;
-  } else {
+  } else if (hasSheetTrip) {
     const trip = data.apa.find((t) => t && t.id === SHEET_TRIP_ID);
     data.apa = [trip].concat(data.apa.filter((t) => t && t.id !== SHEET_TRIP_ID));
     dirty = true;
