@@ -9,11 +9,17 @@
 
 const ICS_URL = process.env.AVAILABILITY_ICS_URL || "";
 
-export async function handler() {
+export async function handler(event) {
+  // ?fresh=1 → no CDN/browser cache (tracker "Refresh calendar"). Default is short
+  // public cache so the marketing calendar stays snappy without hammering the ICS host.
+  const qs = (event && event.queryStringParameters) || {};
+  const fresh = qs.fresh === "1" || qs.fresh === "true";
   const headers = {
     "Content-Type": "application/json",
     "Access-Control-Allow-Origin": "*",
-    "Cache-Control": "public, max-age=1800", // 30 min CDN cache
+    "Cache-Control": fresh
+      ? "private, no-store, max-age=0, must-revalidate"
+      : "public, max-age=300", // 5 min (was 30 — times looked stuck after calendar edits)
   };
 
   if (!ICS_URL) {
@@ -27,7 +33,11 @@ export async function handler() {
   try {
     const url = ICS_URL.replace(/^webcal:\/\//i, "https://");
     const res = await fetch(url, {
-      headers: { "User-Agent": "LimitlessYacht/1.0 (+https://limitlessyachtcharter.com)" },
+      headers: {
+        "User-Agent": "LimitlessYacht/1.0 (+https://limitlessyachtcharter.com)",
+        // Ask the ICS host not to serve a stale copy when the captain forces a refresh.
+        ...(fresh ? { "Cache-Control": "no-cache", Pragma: "no-cache" } : {}),
+      },
     });
     if (!res.ok) throw new Error("ICS fetch failed: " + res.status);
     const text = await res.text();
@@ -40,6 +50,7 @@ export async function handler() {
         tentative: parsed.tentative,
         events: parsed.events,
         generatedAt: new Date().toISOString(),
+        fresh: !!fresh,
       }),
     };
   } catch (err) {

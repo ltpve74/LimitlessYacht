@@ -451,7 +451,7 @@ function safeDel(k){ try{ localStorage.removeItem(k); }catch(e){} try{ delete me
 
 var DEMO=false, curTab="charters", apaSub="overview", activeApaId=null, apaView="list";
 var stewSub="charters"; /* charters | team */
-var calEvents=[], calEventsAt=0, calEventsLoading=false;
+var calEvents=[], calEventsAt=0, calEventsLoading=false, calEventsGeneratedAt="", calEventsPromise=null;
 var session={ who:null, pass:null, deviceId:null };
 var state={ charters:[], leads:[], apa:[], diesel:[], stews:[], stewAssign:[], devices:[], log:[] };
 var pushMeta={ server:false, vapidPublicKey:"", endpoint:"" };
@@ -3229,14 +3229,22 @@ function stewDefaultRate(ev, existingRate){
 function loadCalEvents(force){
   if(!isCaptain()) return Promise.resolve([]);
   var now=Date.now();
-  if(!force&&calEvents.length&&(now-calEventsAt)<5*60*1000) return Promise.resolve(calEvents);
-  if(calEventsLoading) return Promise.resolve(calEvents);
+  /* In-memory cache only when not forcing — never block a real refresh */
+  if(!force&&calEvents.length&&(now-calEventsAt)<60*1000) return Promise.resolve(calEvents);
+  if(!force&&calEventsLoading&&calEventsPromise) return calEventsPromise;
+  /* force=true always hits the network (bypasses browser + CDN cache via ?fresh=1) */
   calEventsLoading=true;
-  return fetch("/.netlify/functions/availability",{credentials:"omit"})
+  var url="/.netlify/functions/availability"+(force?("?fresh=1&_="+now):"");
+  calEventsPromise=fetch(url,{
+    credentials:"omit",
+    cache:force?"no-store":"default",
+    headers:force?{"Cache-Control":"no-cache","Pragma":"no-cache"}:{}
+  })
     .then(function(r){ return r.json(); })
     .then(function(d){
       calEvents=Array.isArray(d.events)?d.events:[];
       calEventsAt=Date.now();
+      calEventsGeneratedAt=d.generatedAt||"";
       calEventsLoading=false;
       return calEvents;
     })
@@ -3244,6 +3252,7 @@ function loadCalEvents(force){
       calEventsLoading=false;
       return calEvents;
     });
+  return calEventsPromise;
 }
 function renderStews(){
   if(!isCaptain()) return;
@@ -3252,12 +3261,12 @@ function renderStews(){
   });
   var body=el("stewsBody"); if(!body) return;
   if(stewSub==="team"){ renderStewTeam(body); return; }
-  body.innerHTML='<div class="legend">Charters from the shared calendar. Assign stews so you never double-book. Refresh pulls the latest feed.</div>'+
+  body.innerHTML='<div class="legend">Charters from the shared calendar. Assign stews so you never double-book. <b>Refresh calendar</b> pulls a fresh feed (bypasses cache). iCloud/Google can lag a few minutes after you edit an event.</div>'+
     '<div class="apa-sect-h" style="margin-top:0"><h3>Upcoming &amp; recent</h3>'+
     '<button type="button" class="btn ghost" id="stewRefreshCal">Refresh calendar</button></div>'+
     '<div id="stewCalList"><div class="empty"><div class="big">⏳</div><div>Loading calendar…</div></div></div>';
   if(el("stewRefreshCal")) el("stewRefreshCal").addEventListener("click",function(){
-    el("stewCalList").innerHTML='<div class="empty"><div class="big">⏳</div><div>Loading…</div></div>';
+    el("stewCalList").innerHTML='<div class="empty"><div class="big">⏳</div><div>Refreshing from calendar…</div></div>';
     loadCalEvents(true).then(function(){ paintStewCharters(); });
   });
   loadCalEvents(false).then(function(){ paintStewCharters(); });
@@ -3280,7 +3289,16 @@ function paintStewCharters(){
     wrap.innerHTML=emptyBox("📅","No charters from calendar","Check AVAILABILITY_ICS_URL in Netlify, or add events to the shared calendar.");
     return;
   }
-  var html='<div class="list">';
+  var html='';
+  if(calEventsGeneratedAt){
+    try{
+      var gen=new Date(calEventsGeneratedAt);
+      if(!isNaN(gen.getTime())){
+        html+='<div class="meta" style="margin:0 0 10px;font-size:12px">Feed updated '+esc(gen.toLocaleString())+' · times come from the shared calendar</div>';
+      }
+    }catch(e){}
+  }
+  html+='<div class="list">';
   events.forEach(function(ev){
     var asg=assignForEvent(ev.key);
     var names=asg?stewNames(asg.stewIds):[];
