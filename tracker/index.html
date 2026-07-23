@@ -3196,15 +3196,37 @@ function fmtCalEventWhen(ev){
   if(ev.endTime&&ev.endTime!==ev.startTime) t+=(t?"–":"")+ev.endTime;
   return range+(t?" · "+t:"");
 }
-/** Stew day rates: €150 = 4h, €200 = 6h+, €250 = overnight. */
+/** Stew day rates: €150 = 4h, €200 = 6h+, €250 = overnight (per day). Multi-day = rate × days. */
 var STEW_RATE_4H=150, STEW_RATE_6H=200, STEW_RATE_ON=250;
+function stewDayDiff(a,b){
+  /* Whole calendar days between YYYY-MM-DD keys (UTC-safe). */
+  if(!a||!b) return 0;
+  var pa=String(a).split("-").map(Number), pb=String(b).split("-").map(Number);
+  if(pa.length<3||pb.length<3) return 0;
+  var da=Date.UTC(pa[0],pa[1]-1,pa[2]), db=Date.UTC(pb[0],pb[1]-1,pb[2]);
+  return Math.round((db-da)/86400000);
+}
+function stewCalendarDays(ev){
+  if(!ev||!ev.start) return 1;
+  if(Array.isArray(ev.days)&&ev.days.length) return Math.max(1, ev.days.length);
+  var start=String(ev.start), end=String(ev.end||ev.start);
+  if(!end||end<start) end=start;
+  if(ev.allDay||(!ev.startTime&&!ev.endTime)){
+    /* ICS all-day DTEND is exclusive → Jul 20–23 = 3 days */
+    if(end>start) return Math.max(1, stewDayDiff(start, end));
+    return 1;
+  }
+  /* Timed multi-day: inclusive of start and end calendar days */
+  if(end>start) return Math.max(1, stewDayDiff(start, end)+1);
+  return 1;
+}
 function stewRateBand(ev){
   if(!ev) return {rate:STEW_RATE_6H, kind:"6h+", label:"Day charter"};
   var sum=String(ev.summary||"");
-  var days=Array.isArray(ev.days)?ev.days.length:0;
+  var days=stewCalendarDays(ev);
   var multi=days>1||(ev.start&&ev.end&&String(ev.end)>String(ev.start));
-  if(multi||/\b(overnight|overnights?|multi[-\s]?day|nights?)\b/i.test(sum)){
-    return {rate:STEW_RATE_ON, kind:"overnight", label:"Overnight"};
+  if(multi||/\b(overnight|overnights?|multi[-\s]?day|nights?)\b/i.test(sum)||/\b\d+\s*[- ]?days?\b/i.test(sum)){
+    return {rate:STEW_RATE_ON, kind:"overnight", label:days>1?(days+"-day charter"):"Overnight"};
   }
   var hours=null;
   if(ev.startTime&&ev.endTime){
@@ -3219,12 +3241,42 @@ function stewRateBand(ev){
   else if(/\b8\s*h(our)?s?\b/i.test(sum)||/\bfull[-\s]?day\b/i.test(sum)) hours=8;
   if(hours!=null&&hours<=4.5) return {rate:STEW_RATE_4H, kind:"4h", label:"4 hours"};
   if(hours!=null&&hours>4.5) return {rate:STEW_RATE_6H, kind:"6h+", label:"6 hours+"};
-  /* Single-day / all-day without clear duration → day charter rate */
   return {rate:STEW_RATE_6H, kind:"6h+", label:"Day charter"};
 }
 function stewDefaultRate(ev, existingRate){
   if(existingRate!=null&&existingRate!==""&&apaNum(existingRate)>0) return apaNum(existingRate);
   return stewRateBand(ev).rate;
+}
+/** Billable day-units for pay: day charters = 1; multi/overnight = calendar days (or title "3 days"). */
+function stewPayUnits(ev, override){
+  if(override!=null&&override!==""&&apaNum(override)>0) return Math.max(1, Math.round(apaNum(override)));
+  var sum=String((ev&&ev.summary)||"");
+  var m=sum.match(/\b(\d+)\s*[- ]?days?\b/i);
+  if(m){
+    var fromTitle=parseInt(m[1],10);
+    if(fromTitle>0) return fromTitle;
+  }
+  var band=stewRateBand(ev);
+  if(band.kind==="4h"||band.kind==="6h+") return 1;
+  return Math.max(1, stewCalendarDays(ev));
+}
+function stewPayEach(rate, units){
+  var r=apaNum(rate), u=Math.max(1, Math.round(apaNum(units)||1));
+  if(!(r>0)) return 0;
+  return r*u;
+}
+function stewPayBreakdown(ev, asg){
+  var rate=asg&&asg.dayRate!=null&&asg.dayRate!==""?apaNum(asg.dayRate):stewDefaultRate(ev, null);
+  var units=stewPayUnits(ev, asg&&asg.payUnits);
+  var each=stewPayEach(rate, units);
+  var nStews=asg&&asg.stewIds?asg.stewIds.filter(Boolean).length:0;
+  var paid=asg&&asg.payStatus==="Paid";
+  return {
+    rate:rate, units:units, each:each,
+    totalAll:each*Math.max(1, nStews||0),
+    nStews:nStews, paid:!!paid,
+    unitLabel:units===1?"day":"days"
+  };
 }
 function loadCalEvents(force){
   if(!isCaptain()) return Promise.resolve([]);
@@ -3298,27 +3350,66 @@ function paintStewCharters(){
       }
     }catch(e){}
   }
+  /* Running unpaid total across visible charters (per stew × days × rate) */
+  var unpaidSum=0, paidSum=0;
+  events.forEach(function(ev){
+    var asg0=assignForEvent(ev.key);
+    if(!asg0||!(asg0.stewIds||[]).length) return;
+    var pay0=stewPayBreakdown(ev, asg0);
+    if(pay0.each<=0) return;
+    if(pay0.paid) paidSum+=pay0.each*pay0.nStews;
+    else unpaidSum+=pay0.each*pay0.nStews;
+  });
+  if(unpaidSum>0||paidSum>0){
+    html+='<div class="apa-card" style="margin-bottom:12px">'+
+      '<div style="display:flex;flex-wrap:wrap;gap:10px 16px;align-items:baseline">'+
+        (unpaidSum>0?'<div><span class="meta">Still to pay stews</span><div class="money" style="font-size:22px;font-weight:800;color:var(--amber,#c9a84c)">'+money0(unpaidSum)+'</div></div>':'')+
+        (paidSum>0?'<div><span class="meta">Marked paid</span><div class="money" style="font-size:18px;font-weight:700">'+money0(paidSum)+'</div></div>':'')+
+      '</div></div>';
+  }
   html+='<div class="list">';
   events.forEach(function(ev){
     var asg=assignForEvent(ev.key);
     var names=asg?stewNames(asg.stewIds):[];
     var unassigned=!names.length;
     var past=ev.end?String(ev.end)<today:String(ev.start)<today;
-    var rate=asg&&asg.dayRate!=null&&asg.dayRate!==""?apaNum(asg.dayRate):0;
-    var paid=asg&&asg.payStatus==="Paid";
+    var pay=stewPayBreakdown(ev, asg||{});
+    var rate=pay.rate;
+    var each=pay.each;
+    var paid=pay.paid;
+    var units=pay.units;
+    /* Right-side amount: what we owe per stew (or total if multiple) */
+    var amtLabel="";
+    if(each>0&&names.length){
+      amtLabel=names.length>1?(money0(each)+" each"):money0(each);
+    } else if(each>0){
+      amtLabel=money0(each);
+    }
     html+='<div class="item'+(unassigned&&!past?' apa-row':'')+'" data-stew-ev="'+esc(ev.key)+'" role="button" tabindex="0">'+
       '<div class="top"><div class="title">'+esc(ev.summary||"Charter")+'</div>'+
-        (unassigned&&!past?'<span class="pill p-amber">No stew</span>':
-          (names.length?'<span class="pill p-green">'+esc(names.join(", "))+'</span>':'<span class="pill p-grey">—</span>'))+
+        (amtLabel?'<div class="amt money">'+esc(amtLabel)+'</div>':'')+
       '</div>'+
       '<div class="meta"><span>📅 '+esc(fmtCalEventWhen(ev))+'</span>'+
-        (rate>0?'<span class="money">'+money0(rate)+'/day</span>':'')+
-        (asg?(paid?'<span class="pill p-green">Paid</span>':'<span class="pill p-amber">Unpaid</span>'):'')+
+        (units>1?'<span class="pill p-blue">'+units+' days</span>':'')+
+        (rate>0?'<span class="money">'+money0(rate)+' × '+units+'</span>':'')+
         (ev.status==="tentative"?'<span class="pill p-amber">Tentative</span>':'')+
         (past?'<span class="pill p-grey">Past</span>':'')+
-      '</div>'+
-      (asg&&asg.notes?'<div class="notes">'+esc(asg.notes)+'</div>':'')+
-      '<span class="chev">✎</span></div>';
+      '</div>';
+    if(names.length){
+      names.forEach(function(nm){
+        html+='<div class="meta" style="margin-top:4px">'+
+          '<span style="font-weight:700">'+esc(nm)+'</span>'+
+          (each>0?'<span class="money" style="font-weight:800">'+money0(each)+'</span>':'')+
+          (paid?'<span class="pill p-green">Paid</span>':'<span class="pill p-amber">Unpaid — we owe</span>')+
+        '</div>';
+      });
+    } else {
+      html+='<div class="meta" style="margin-top:4px"><span class="pill p-amber">No stew assigned</span>'+
+        (each>0?'<span class="meta">Would be '+money0(each)+' ('+money0(rate)+' × '+units+')</span>':'')+
+      '</div>';
+    }
+    if(asg&&asg.notes) html+='<div class="notes">'+esc(asg.notes)+'</div>';
+    html+='<span class="chev">✎</span></div>';
   });
   html+='</div>';
   wrap.innerHTML=html;
@@ -3333,6 +3424,20 @@ function renderStewTeam(body){
   paintStewTeam();
   if(el("stewAddPerson")) el("stewAddPerson").addEventListener("click",function(){ openStewPerson(null); });
 }
+function stewPersonBalances(stewId){
+  var unpaid=0, paid=0, nUnpaid=0, nPaid=0;
+  (state.stewAssign||[]).forEach(function(a){
+    if(!a||!(a.stewIds||[]).some(function(id){return String(id)===String(stewId);})) return;
+    var ev=calEvents.filter(function(e){return e&&e.key===a.eventKey;})[0]||{
+      start:a.start, end:a.end, startTime:a.startTime, endTime:a.endTime, allDay:a.allDay, summary:a.summary, days:null
+    };
+    var pay=stewPayBreakdown(ev, a);
+    if(pay.each<=0) return;
+    if(pay.paid){ paid+=pay.each; nPaid++; }
+    else { unpaid+=pay.each; nUnpaid++; }
+  });
+  return {unpaid:unpaid, paid:paid, nUnpaid:nUnpaid, nPaid:nPaid};
+}
 function paintStewTeam(){
   var wrap=el("stewTeamList"); if(!wrap) return;
   var list=(state.stews||[]).slice().sort(function(a,b){ return String(a.name||"").localeCompare(String(b.name||"")); });
@@ -3342,10 +3447,17 @@ function paintStewTeam(){
   }
   var html='<div class="list">';
   list.forEach(function(s){
+    var bal=stewPersonBalances(s.id);
     html+='<div class="item apa-row" data-stew-person="'+esc(s.id)+'" role="button" tabindex="0">'+
-      '<div class="top"><div class="title">'+esc(s.name||"—")+'</div></div>'+
+      '<div class="top"><div class="title">'+esc(s.name||"—")+'</div>'+
+        (bal.unpaid>0?'<div class="amt money" style="color:var(--amber,#c9a84c)">'+money0(bal.unpaid)+'</div>':
+          (bal.paid>0?'<div class="amt money">'+money0(bal.paid)+'</div>':''))+
+      '</div>'+
       '<div class="meta">'+(s.phone?'<span>📞 '+esc(s.phone)+'</span>':'')+
         (s.active===false?'<span class="pill p-grey">Inactive</span>':'<span class="pill p-green">Active</span>')+
+        (bal.unpaid>0?'<span class="pill p-amber">Unpaid '+money0(bal.unpaid)+(bal.nUnpaid>1?' · '+bal.nUnpaid+' trips':'')+'</span>':'')+
+        (bal.paid>0&&!bal.unpaid?'<span class="pill p-green">Paid up</span>':'')+
+        (bal.paid>0&&bal.unpaid>0?'<span class="pill p-green">Paid '+money0(bal.paid)+'</span>':'')+
       '</div>'+
       (s.notes?'<div class="notes">'+esc(s.notes)+'</div>':'')+
       '<button type="button" class="apa-x" data-stew-del="'+esc(s.id)+'" aria-label="Delete">×</button>'+
@@ -3422,10 +3534,12 @@ function openStewAssign(eventKey){
       startTime:existingAsg.startTime||"", endTime:existingAsg.endTime||"", allDay:!!existingAsg.allDay, status:existingAsg.status||"booked"};
   }
   var asg=assignForEvent(eventKey)||{
-    id:uid(), eventKey:eventKey, stewIds:[], notes:"", dayRate:"", payStatus:"Unpaid"
+    id:uid(), eventKey:eventKey, stewIds:[], notes:"", dayRate:"", payUnits:"", payStatus:"Unpaid"
   };
   var band=stewRateBand(ev);
   var ratePrefill=stewDefaultRate(ev, asg.dayRate);
+  var unitsPrefill=asg.payUnits!=null&&asg.payUnits!==""&&apaNum(asg.payUnits)>0
+    ?Math.round(apaNum(asg.payUnits)):stewPayUnits(ev, null);
   var selected={};
   (asg.stewIds||[]).forEach(function(id){ selected[id]=1; });
   var team=(state.stews||[]).filter(function(s){ return s&&s.active!==false; });
@@ -3435,6 +3549,7 @@ function openStewAssign(eventKey){
     '<div style="font-weight:800;font-size:16px">'+esc(ev.summary||"Charter")+'</div>'+
     '<div class="meta" style="margin-top:6px"><span>📅 '+esc(fmtCalEventWhen(ev))+'</span>'+
       '<span class="pill p-blue">'+esc(band.label)+'</span>'+
+      (unitsPrefill>1?'<span class="pill p-blue">'+unitsPrefill+' days</span>':'')+
       (ev.status==="tentative"?'<span class="pill p-amber">Tentative</span>':'')+
     '</div></div>';
   if(!team.length){
@@ -3452,22 +3567,62 @@ function openStewAssign(eventKey){
   }
   h+='<div class="row2">'+
     fieldHTML("Day rate (€)",moneyField("f_stew_rate", ratePrefill))+
-    fieldHTML("Stew pay",'<select class="ctl" id="f_stew_pay"><option value="Unpaid"'+(pay==="Unpaid"?" selected":"")+'>Unpaid</option><option value="Paid"'+(pay==="Paid"?" selected":"")+'>Paid</option></select>')+
+    fieldHTML("Days (billable)",'<input class="ctl" id="f_stew_units" type="number" min="1" step="1" inputmode="numeric" value="'+esc(String(unitsPrefill))+'">')+
   '</div>';
   h+='<div style="display:flex;gap:8px;flex-wrap:wrap;margin:-4px 0 12px">'+
     '<button type="button" class="btn ghost" data-stew-rate="'+STEW_RATE_4H+'" style="width:auto;padding:8px 12px;font-size:12.5px">4h €'+STEW_RATE_4H+'</button>'+
     '<button type="button" class="btn ghost" data-stew-rate="'+STEW_RATE_6H+'" style="width:auto;padding:8px 12px;font-size:12.5px">6h+ €'+STEW_RATE_6H+'</button>'+
     '<button type="button" class="btn ghost" data-stew-rate="'+STEW_RATE_ON+'" style="width:auto;padding:8px 12px;font-size:12.5px">Overnight €'+STEW_RATE_ON+'</button>'+
   '</div>';
-  h+='<p style="margin:-6px 0 12px;font-size:12px;color:var(--muted)">Suggested from calendar: <b>'+esc(band.label)+' → €'+band.rate+'</b>. Change if needed. Mark Paid when the stew has been paid.</p>';
+  h+='<div class="apa-card" id="stewPayLive" style="margin-bottom:12px;background:rgba(201,168,76,.12)"></div>';
+  h+=fieldHTML("Stew pay status",'<select class="ctl" id="f_stew_pay"><option value="Unpaid"'+(pay==="Unpaid"?" selected":"")+'>Unpaid — we still owe</option><option value="Paid"'+(pay==="Paid"?" selected":"")+'>Paid</option></select>');
+  h+='<p style="margin:0 0 12px;font-size:12px;color:var(--muted)">Total = day rate × days for <b>each</b> stew. Example: 3-day charter at €250 → <b>€750</b> per stew. Suggested rate from calendar: <b>'+esc(band.label)+' · €'+band.rate+'/day</b>.</p>';
   h+=fieldHTML("Notes",'<textarea class="ctl" id="f_stew_asg_notes" placeholder="e.g. pick-up time, uniform…">'+esc(asg.notes||"")+'</textarea>');
   h+='<div class="sheetfoot"><button type="button" class="btn ghost" id="sheetCancel">Cancel</button><button type="button" class="btn" id="sheetSave">Save assignment</button></div>';
   el("sheetInner").innerHTML=h;
+  function refreshStewPayLive(){
+    var box=el("stewPayLive"); if(!box) return;
+    var rate=el("f_stew_rate")?apaNum(el("f_stew_rate").value):0;
+    var units=el("f_stew_units")?Math.max(1, Math.round(apaNum(el("f_stew_units").value)||1)):1;
+    var each=stewPayEach(rate, units);
+    var ids=[];
+    Array.prototype.forEach.call(document.querySelectorAll("[data-stew-pick]"),function(inp){
+      if(inp.checked) ids.push(inp.getAttribute("data-stew-pick"));
+    });
+    var paySel=el("f_stew_pay")&&el("f_stew_pay").value==="Paid"?"Paid":"Unpaid";
+    var names=stewNames(ids);
+    var line="";
+    if(each>0&&names.length){
+      line=names.map(function(n){
+        return '<div style="display:flex;justify-content:space-between;gap:12px;margin-top:4px">'+
+          '<span style="font-weight:700">'+esc(n)+'</span>'+
+          '<span class="money" style="font-weight:800">'+money0(each)+' · '+(paySel==="Paid"?"Paid":"Unpaid — we owe")+'</span></div>';
+      }).join("");
+      if(names.length>1){
+        line+='<div class="meta" style="margin-top:8px">All stews total: <b class="money">'+money0(each*names.length)+'</b></div>';
+      }
+    } else if(each>0){
+      line='<div class="meta">Per stew if assigned: <b class="money">'+money0(each)+'</b> ('+money0(rate)+' × '+units+' '+(units===1?"day":"days")+')</div>';
+    } else {
+      line='<div class="meta">Set day rate and days to see what you owe.</div>';
+    }
+    box.innerHTML='<div class="meta">Pay calculation</div>'+
+      '<div style="font-size:20px;font-weight:800;margin-top:4px" class="money">'+money0(each)+' <span style="font-size:13px;font-weight:600;color:var(--muted)">each ('+money0(rate)+' × '+units+')</span></div>'+
+      line;
+  }
   Array.prototype.forEach.call(document.querySelectorAll("[data-stew-rate]"),function(btn){
     btn.addEventListener("click",function(){
       if(el("f_stew_rate")) el("f_stew_rate").value=btn.getAttribute("data-stew-rate");
+      refreshStewPayLive();
     });
   });
+  Array.prototype.forEach.call(document.querySelectorAll("[data-stew-pick]"),function(inp){
+    inp.addEventListener("change", refreshStewPayLive);
+  });
+  if(el("f_stew_rate")) el("f_stew_rate").addEventListener("input", refreshStewPayLive);
+  if(el("f_stew_units")) el("f_stew_units").addEventListener("input", refreshStewPayLive);
+  if(el("f_stew_pay")) el("f_stew_pay").addEventListener("change", refreshStewPayLive);
+  refreshStewPayLive();
   el("sheetSave").addEventListener("click",function(){
     var ids=[];
     Array.prototype.forEach.call(document.querySelectorAll("[data-stew-pick]"),function(inp){
@@ -3475,6 +3630,8 @@ function openStewAssign(eventKey){
     });
     var rateRaw=el("f_stew_rate")?el("f_stew_rate").value:"";
     var rate=rateRaw===""?"":apaNum(rateRaw);
+    var units=el("f_stew_units")?Math.max(1, Math.round(apaNum(el("f_stew_units").value)||1)):1;
+    var each=stewPayEach(rate, units);
     var obj={
       id:asg.id||uid(),
       eventKey:ev.key,
@@ -3487,6 +3644,8 @@ function openStewAssign(eventKey){
       status:ev.status||"booked",
       stewIds:ids,
       dayRate:rate,
+      payUnits:units,
+      payEach:each,
       rateBand:band.kind,
       payStatus:(el("f_stew_pay")&&el("f_stew_pay").value==="Paid")?"Paid":"Unpaid",
       notes:(el("f_stew_asg_notes").value||"").trim(),
