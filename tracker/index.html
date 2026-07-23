@@ -644,28 +644,58 @@ function tryAutoLogin(){
   if(!s||!s.pass||!s.who) return;
   session.who=s.who;
   session.pass=s.pass;
-  session.deviceId=deviceId();
+  /* Prefer remembered device id so “trusted” still matches after refresh */
+  if(s.deviceId){
+    try{ safeSet("limitless_device", String(s.deviceId)); }catch(err0){}
+    session.deviceId=String(s.deviceId);
+  } else {
+    session.deviceId=deviceId();
+  }
   prefillGateWho(s.who);
+  if(el("passInput")) el("passInput").value=""; /* never leave pass in the field */
   if(el("gateErr")) el("gateErr").textContent="Opening…";
+  var settled=false;
+  function failOpen(msg){
+    if(settled) return;
+    settled=true;
+    session.pass=null;
+    if(el("gateErr")) el("gateErr").textContent=msg||"Could not open — enter the passcode.";
+  }
+  var hangTimer=setTimeout(function(){
+    failOpen("Still opening… check connection, then enter the passcode.");
+  },18000);
   api("load",{silent:true}).then(function(d){
-    applyData(d);
+    clearTimeout(hangTimer);
+    if(settled) return;
+    try{
+      applyData(d);
+    }catch(errApply){
+      settled=true;
+      if(el("gateErr")) el("gateErr").textContent="Load error — enter the passcode to retry.";
+      console&&console.error&&console.error(errApply);
+      return;
+    }
+    settled=true;
     if(isCurrentDeviceTrusted()){
       if(el("gateErr")) el("gateErr").textContent="";
       enterApp();
       saveSession(); /* refresh timestamp */
     } else {
-      /* Device no longer trusted — require passcode again */
+      /* Device no longer trusted — require passcode again (keep who prefilled) */
       clearSession();
       session.pass=null;
       if(el("gateErr")) el("gateErr").textContent="This device is not trusted — enter the passcode. Mark trusted under Security to stay signed in.";
     }
   }).catch(function(err){
+    clearTimeout(hangTimer);
+    if(settled) return;
+    settled=true;
     clearSession();
     session.pass=null;
     if(err&&err.code===401){
       if(el("gateErr")) el("gateErr").textContent="Saved passcode no longer works — enter the new one.";
-    } else if(el("gateErr")){
-      el("gateErr").textContent="";
+    } else {
+      if(el("gateErr")) el("gateErr").textContent="Could not reach the server — enter the passcode when online.";
     }
   });
 }
@@ -4212,20 +4242,23 @@ function syncStewDayPayExpenses(asg, opts){
     return before!=="[]";
   }
   /*
-   * floatPay = cash left the envelope. Set true only when this sync is from an
-   * explicit Paid mark (payStatusManual) with Petty cash — never invent from history.
-   * Preserve prior floatPay on the line if still Paid.
+   * floatPay = cash left the envelope (Paid via Petty cash).
+   * Set when captain explicitly marks Paid (_floatPayMark), or keep if already set.
+   * Status “Paid” alone (history) does not invent floatPay.
    */
   var crewPayStatus=isPaid?"Paid":"Unpaid";
   var summary=asg.summary||"Charter";
+  var markFloat=!!asg._floatPayMark;
   ids.forEach(function(sid){
     var name=(stewById(sid)&&stewById(sid).name)||"Stew";
     var linkId="stew-day:"+eventKey+":"+sid;
     var old=prevBySid[String(sid)]||prevBySid[linkId];
     var paidFrom=(old&&old.paidFrom==="Own money")?"Own money":"Petty cash";
+    if(markFloat&&asg._floatPayFrom==="Own money") paidFrom="Own money";
+    else if(markFloat&&asg._floatPayFrom==="Petty cash") paidFrom="Petty cash";
     var floatPay=false;
     if(crewPayStatus==="Paid"&&paidFrom!=="Own money"){
-      if(asg.payStatusManual&&asg._floatPayMark) floatPay=true;
+      if(markFloat) floatPay=true;
       else if(old&&old.floatPay===true) floatPay=true;
     }
     state.expenses.unshift({
@@ -4287,33 +4320,34 @@ function expSetStewDayPayStatus(eventKey, payStatus, opts){
   }
   asg.payStatus=status;
   asg.payStatusManual=true;
-  /* This mark should move (or release) actual petty cash */
-  asg._floatPayMark=status==="Paid"&&opts.paidFrom!=="Own money";
-  if(status!=="Paid") asg._floatPayMark=false;
-  if(status==="Paid"&&opts.paidFrom==="Own money") asg._floatPayMark=false;
-  if(status==="Paid"&&(!opts.paidFrom||opts.paidFrom==="Petty cash")) asg._floatPayMark=true;
+  /* Explicit mark Paid via Petty cash → money leaves the envelope (always, not only Unpaid→Paid) */
+  var pfMark=opts.paidFrom==="Own money"?"Own money":"Petty cash";
+  asg._floatPayMark=status==="Paid"&&pfMark!=="Own money";
+  asg._floatPayFrom=status==="Paid"?pfMark:"";
+  if(status!=="Paid"){ asg._floatPayMark=false; asg._floatPayFrom=""; }
   asg.updatedAt=new Date().toISOString();
   asg.by=session.who||asg.by||"Captain";
-  if(status==="Paid"&&opts.paidFrom){
-    var pf=opts.paidFrom==="Own money"?"Own money":"Petty cash";
+  if(status==="Paid"){
     (state.expenses||[]).forEach(function(e){
       if(e&&e.source==="stew"&&e.stewPayKind==="dayPay"&&String(e.stewEventKey)===String(eventKey)){
-        e.paidFrom=pf;
-        e.floatPay=pf!=="Own money";
+        e.paidFrom=pfMark;
+        e.floatPay=pfMark!=="Own money";
         e.payStatusManual=true;
+        e.updatedAt=new Date().toISOString();
       }
     });
-  }
-  if(status!=="Paid"){
+  } else {
     (state.expenses||[]).forEach(function(e){
       if(e&&e.source==="stew"&&e.stewPayKind==="dayPay"&&String(e.stewEventKey)===String(eventKey)){
         e.floatPay=false;
         e.payStatusManual=true;
+        e.updatedAt=new Date().toISOString();
       }
     });
   }
   syncStewDayPayExpenses(asg);
   delete asg._floatPayMark;
+  delete asg._floatPayFrom;
   return true;
 }
 function localTodayYmd(){
@@ -6184,6 +6218,8 @@ function openStewAssign(eventKey){
     var tipShare=stewTipShare({tipTotal:tipTotal, stewIds:ids});
     var nowPaid=(el("f_stew_pay")&&el("f_stew_pay").value==="Paid");
     var wasPaid=asg.payStatus==="Paid";
+    /* Any intentional Save as Paid from this form = pay from petty (Stews has no Own-money toggle) */
+    var payFromPetty=nowPaid;
     var obj={
       id:asg.id||uid(),
       eventKey:ev.key,
@@ -6201,8 +6237,9 @@ function openStewAssign(eventKey){
       rateBand:band.kind,
       payStatus:nowPaid?"Paid":"Unpaid",
       payStatusManual:true,
-      /* Cash leaves petty only on Unpaid → Paid (not when re-saving an already-Paid prior row) */
-      _floatPayMark:nowPaid&&!wasPaid,
+      /* Cash leaves petty when you save as Paid (including re-mark after testing) */
+      _floatPayMark:payFromPetty,
+      _floatPayFrom:payFromPetty?"Petty cash":"",
       tipTotal:tipTotal,
       tipStewShare:tipShare.stewSide,
       tipPayStatus:tipPayStatus,
@@ -6218,9 +6255,11 @@ function openStewAssign(eventKey){
     });
     if(!found) state.stewAssign.unshift(obj);
     showSheet(false); saveStewAssign();
-    /* Day pay → Expenses ledger (Cash · Crew Salaries). Tips never leave Stews. */
-    if(syncStewDayPayExpenses(obj)) saveExpenses();
+    /* Day pay → Expenses ledger; always persist so floatPay hits the server */
+    syncStewDayPayExpenses(obj);
+    saveExpenses();
     delete obj._floatPayMark;
+    delete obj._floatPayFrom;
     /* In-place list refresh — do not rebuild tab (that jumped scroll to top) */
     if(stewSub==="charters"&&el("stewCalList")) paintStewChartersKeepScroll();
     else renderStews({soft:true});
