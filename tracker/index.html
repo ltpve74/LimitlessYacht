@@ -149,13 +149,13 @@
   .fab{position:fixed;right:16px;bottom:calc(86px + var(--safe-b));width:58px;height:58px;border-radius:29px;background:var(--brand);color:#fff;font-size:30px;line-height:56px;text-align:center;box-shadow:0 6px 18px rgba(31,78,95,.45);z-index:20}
   .fab:active{transform:scale(.94)}
 
-  /* bottom nav — active tab must read at a glance */
+  /* bottom nav — keep to ~4 primary slots (ops tools live under Ops hub) */
   .bnav{position:fixed;left:0;right:0;bottom:0;background:#fff;border-top:1px solid var(--line);
-        display:flex;gap:6px;padding:8px 8px calc(8px + var(--safe-b));z-index:25;
-        box-shadow:0 -6px 20px rgba(23,36,43,.08)}
+        display:flex;gap:8px;padding:8px 10px calc(8px + var(--safe-b));z-index:25;
+        box-shadow:0 -6px 20px rgba(23,36,43,.08);max-width:760px;margin:0 auto}
   .bnav button{flex:1;padding:10px 6px 9px;display:flex;flex-direction:column;align-items:center;gap:3px;
-               color:#8a969e;font-size:11.5px;font-weight:600;position:relative;border-radius:14px;
-               background:transparent;transition:background .15s,color .15s,box-shadow .15s}
+               color:#8a969e;font-size:12px;font-weight:600;position:relative;border-radius:14px;
+               background:transparent;transition:background .15s,color .15s,box-shadow .15s;min-width:0}
   .bnav button .ic{font-size:22px;line-height:1;opacity:.72}
   .bnav button.active{color:#fff;background:var(--brand);font-weight:800;font-size:12.5px;
                       box-shadow:0 4px 14px rgba(31,78,95,.35)}
@@ -166,6 +166,18 @@
                font-size:10px;font-weight:800;background:var(--danger);color:#fff;border-radius:9px;padding:0 5px;
                box-shadow:0 0 0 2px #fff}
   .bnav button.active .badge{box-shadow:0 0 0 2px var(--brand)}
+  /* Ops hub — tiles for APA / Diesel / Stews / Expenses */
+  .ops-grid{display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-top:8px}
+  .ops-tile{background:var(--card);border:1.5px solid var(--line);border-radius:16px;padding:18px 14px 16px;
+            text-align:left;box-shadow:0 1px 3px rgba(0,0,0,.06);display:flex;flex-direction:column;gap:6px;
+            min-height:7.2rem;width:100%}
+  .ops-tile:active{border-color:var(--brand2);background:#f7fafb}
+  .ops-tile .ops-ic{font-size:28px;line-height:1}
+  .ops-tile .ops-t{font-size:16px;font-weight:800;color:var(--ink)}
+  .ops-tile .ops-d{font-size:12.5px;color:var(--muted);line-height:1.35;font-weight:500}
+  .ops-back{display:inline-flex;align-items:center;gap:6px;font-weight:700;font-size:13.5px;color:var(--brand);
+            padding:8px 0 12px;background:none;border:none;cursor:pointer}
+  .ops-back:active{opacity:.75}
 
   /* modal sheet — anchored to visual viewport (iOS/PWA-safe); scrolls as one unit */
   .scrim{position:fixed;inset:0;background:rgba(15,25,30,.5);z-index:200;display:none;opacity:0;transition:opacity .2s}
@@ -271,10 +283,12 @@
   .pill.p-level{background:#f3efe6;color:#6b5a1a}
   .pill.p-sell{background:#efe8f4;color:#5a1a6b}
   .item .chev{pointer-events:none}
-  .bnav button{font-size:10.5px;padding:9px 3px 8px}
-  .bnav button .ic{font-size:20px}
-  .bnav button.active{font-size:11px}
-  .bnav button.active .ic{font-size:22px}
+  @media(max-width:380px){
+    .bnav button{font-size:11px;padding:9px 4px 8px}
+    .bnav button .ic{font-size:20px}
+    .bnav button.active{font-size:11.5px}
+    .bnav button.active .ic{font-size:22px}
+  }
   @media(min-width:620px){
     /* Top-anchored (not vertical-center) so tall diesel/lead forms never hang below the fold */
     .sheet{left:50%;right:auto;bottom:auto;top:max(12px, 3vh);
@@ -351,6 +365,7 @@
 
     <!-- APA (captain + manager) -->
     <section id="tab-apa" class="hidden">
+      <button type="button" class="ops-back" data-ops-back>← Ops</button>
       <div id="apaListWrap">
         <div class="summary">
           <div class="sumcard"><div class="l">APA pots</div><div class="v money" id="apaSumPot">€0</div></div>
@@ -375,11 +390,13 @@
 
     <!-- DIESEL (captain + manager — vessel fuel) -->
     <section id="tab-diesel" class="hidden">
+      <button type="button" class="ops-back" data-ops-back>← Ops</button>
       <div id="dieselBody"></div>
     </section>
 
     <!-- STEWS (captain only — roster + charter assignment from calendar) -->
     <section id="tab-stews" class="hidden">
+      <button type="button" class="ops-back" data-ops-back>← Ops</button>
       <div class="apa-sub" id="stewSubNav">
         <button type="button" data-stewsub="charters" class="on">Charters</button>
         <button type="button" data-stewsub="team">Team</button>
@@ -389,7 +406,14 @@
 
     <!-- EXPENSES (captain only — monthly vessel ledger; tips stay in Stews only) -->
     <section id="tab-expenses" class="hidden">
+      <button type="button" class="ops-back" data-ops-back>← Ops</button>
       <div id="expBody"></div>
+    </section>
+
+    <!-- OPS HUB (captain/manager tools — keeps bottom nav to 4 slots) -->
+    <section id="tab-ops" class="hidden">
+      <div class="legend">Boat ops tools. Pick a section — day-to-day charges and leads stay on the main tabs.</div>
+      <div class="ops-grid" id="opsGrid"></div>
     </section>
 
     <!-- SECURITY -->
@@ -422,14 +446,11 @@
 
   <button class="fab" id="fab" aria-label="Add">+</button>
 
-  <nav class="bnav">
-    <button data-tab="charters" class="active"><span class="ic">🧾</span>Charges</button>
-    <button data-tab="leads"><span class="ic">🌐</span>Leads</button>
-    <button data-tab="apa" id="navApa" class="hidden"><span class="ic">📒</span>APA</button>
-    <button data-tab="diesel" id="navDiesel" class="hidden"><span class="ic">⛽</span>Diesel</button>
-    <button data-tab="stews" id="navStews" class="hidden"><span class="ic">👩‍✈️</span>Stews</button>
-    <button data-tab="expenses" id="navExpenses" class="hidden"><span class="ic">💶</span>Expenses</button>
-    <button data-tab="security"><span class="ic">🔒</span>Security<span class="badge hidden" id="secBadge">0</span></button>
+  <nav class="bnav" aria-label="Main">
+    <button type="button" data-nav="charters" class="active"><span class="ic">🧾</span>Charges</button>
+    <button type="button" data-nav="leads"><span class="ic">🌐</span>Leads</button>
+    <button type="button" data-nav="ops" id="navOps" class="hidden"><span class="ic">⚓</span>Ops</button>
+    <button type="button" data-nav="security"><span class="ic">🔒</span>Security<span class="badge hidden" id="secBadge">0</span></button>
   </nav>
 </div>
 
@@ -562,12 +583,11 @@ function enterApp(){
   el("meLabel").textContent=session.who+(DEMO?" · demo":"");
   el("demoNote").classList.toggle("hidden",!DEMO);
   var cap=canOps();
-  el("navApa").classList.toggle("hidden",!cap);
-  el("navDiesel").classList.toggle("hidden",!cap);
-  el("navStews").classList.toggle("hidden",!isCaptain());
-  if(el("navExpenses")) el("navExpenses").classList.toggle("hidden",!isCaptain());
-  if(!cap&&(curTab==="apa"||curTab==="diesel")) curTab="charters";
-  if(!isCaptain()&&(curTab==="stews"||curTab==="expenses")) curTab="charters";
+  /* Ops hub: manager (APA+Diesel) and captain (+Stews+Expenses). Hidden for Other. */
+  if(el("navOps")) el("navOps").classList.toggle("hidden",!canOps()&&!isCaptain());
+  if(!canOps()&&!isCaptain()&&isOpsTab(curTab)) curTab="charters";
+  else if(!canOps()&&(curTab==="apa"||curTab==="diesel")) curTab="charters";
+  else if(!isCaptain()&&(curTab==="stews"||curTab==="expenses")) curTab=canOps()?"ops":"charters";
   renderAll(); if(!DEMO){ startPolling(); initPushUI(); }
   else { setPushStatus("na","Demo mode — notifications need the live app"); }
   /* Prompt once logged in if not already running as home-screen app */
@@ -619,23 +639,70 @@ function tryAutoLogin(){
 }
 
 /* -------- tabs / nav -------- */
+/** Bottom nav only: charges | leads | ops | security. Ops children live under Ops hub. */
+var OPS_CHILD={apa:1,diesel:1,stews:1,expenses:1};
+function isOpsTab(t){ return t==="ops"||!!OPS_CHILD[t]; }
+function navSlotForTab(t){
+  if(isOpsTab(t)) return "ops";
+  if(t==="leads") return "leads";
+  if(t==="security") return "security";
+  return "charters";
+}
 Array.prototype.forEach.call(document.querySelectorAll(".bnav button"),function(b){
-  b.addEventListener("click",function(){ switchTab(b.getAttribute("data-tab")); });
+  b.addEventListener("click",function(){
+    var nav=b.getAttribute("data-nav");
+    if(nav==="ops"){ switchTab("ops"); return; }
+    switchTab(nav);
+  });
 });
+document.addEventListener("click",function(ev){
+  var back=ev.target.closest&&ev.target.closest("[data-ops-back]");
+  if(back){ ev.preventDefault(); switchTab("ops"); return; }
+  var tile=ev.target.closest&&ev.target.closest("[data-ops-go]");
+  if(tile){ ev.preventDefault(); switchTab(tile.getAttribute("data-ops-go")); }
+});
+function renderOpsHub(){
+  var grid=el("opsGrid"); if(!grid) return;
+  var tiles=[];
+  if(canOps()){
+    tiles.push({id:"apa",ic:"📒",t:"APA",d:"Guest pot, spend ledger, shortfall charges"});
+    tiles.push({id:"diesel",ic:"⛽",t:"Diesel",d:"Bunker, tank levels, sell price"});
+  }
+  if(isCaptain()){
+    tiles.push({id:"stews",ic:"👩‍✈️",t:"Stews",d:"Roster, day pay, tips (private)"});
+    tiles.push({id:"expenses",ic:"💶",t:"Expenses",d:"Monthly boat ledger + export for manager"});
+  }
+  if(!tiles.length){
+    grid.innerHTML='<div class="empty"><div class="big">⚓</div><div>No ops tools for this role.</div></div>';
+    return;
+  }
+  grid.innerHTML=tiles.map(function(x){
+    return '<button type="button" class="ops-tile" data-ops-go="'+esc(x.id)+'">'+
+      '<span class="ops-ic" aria-hidden="true">'+x.ic+'</span>'+
+      '<span class="ops-t">'+esc(x.t)+'</span>'+
+      '<span class="ops-d">'+esc(x.d)+'</span></button>';
+  }).join("");
+}
 function switchTab(t){
   if((t==="apa"||t==="diesel")&&!canOps()) return;
   if((t==="stews"||t==="expenses")&&!isCaptain()) return;
+  if(t==="ops"&&!(canOps()||isCaptain())) return;
   curTab=t;
   if(t==="apa") apaView="list";
-  Array.prototype.forEach.call(document.querySelectorAll(".bnav button"),function(x){ x.classList.toggle("active",x.getAttribute("data-tab")===t); });
+  var slot=navSlotForTab(t);
+  Array.prototype.forEach.call(document.querySelectorAll(".bnav button"),function(x){
+    x.classList.toggle("active", x.getAttribute("data-nav")===slot);
+  });
   el("tab-charters").classList.toggle("hidden",t!=="charters");
   el("tab-leads").classList.toggle("hidden",t!=="leads");
   el("tab-apa").classList.toggle("hidden",t!=="apa");
   el("tab-diesel").classList.toggle("hidden",t!=="diesel");
   el("tab-stews").classList.toggle("hidden",t!=="stews");
   if(el("tab-expenses")) el("tab-expenses").classList.toggle("hidden",t!=="expenses");
+  if(el("tab-ops")) el("tab-ops").classList.toggle("hidden",t!=="ops");
   el("tab-security").classList.toggle("hidden",t!=="security");
   updateFab();
+  if(t==="ops") renderOpsHub();
   if(t==="apa") renderApa();
   if(t==="diesel") renderDiesel();
   if(t==="stews") renderStews();
@@ -643,7 +710,7 @@ function switchTab(t){
 }
 function updateFab(){
   var hide=false;
-  if(curTab==="security") hide=true;
+  if(curTab==="security"||curTab==="ops") hide=true;
   else if(curTab==="apa"){
     if(apaView==="list") hide=false; /* + new trip */
     else hide=(apaSub==="overview"||apaSub==="setup"||!activeApaId);
