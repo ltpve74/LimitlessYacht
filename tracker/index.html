@@ -375,7 +375,7 @@
         <div class="sumcard"><div class="l">Total charged <span style="font-weight:500;text-transform:none;letter-spacing:0">(inc. VAT)</span></div><div class="v money" id="chTot">€0</div></div>
         <div class="sumcard"><div class="l">Invoices to issue</div><div class="v" id="chPending">0</div></div>
       </div>
-      <div class="legend">Charges taken on board (card or cash). Amounts are VAT included. Mark <b>Paid</b> and <b>Card/Cash</b>. <b>Make invoice</b> creates a PDF for the manager/accountant (stable number on regenerate). Cash deals: Paid books cash as APA received.</div>
+      <div class="legend">Charges taken on board (card or cash). Amounts are VAT included. Mark <b>Paid</b> and <b>Card / Cash / Split</b>. Cash (full or part) goes into the <b>monthly boat float</b> (Expenses → cash in). <b>Make invoice</b> for the manager. Cash-deal APA: Paid also books APA received.</div>
       <div class="list" id="chList"></div>
     </section>
 
@@ -771,17 +771,34 @@ function chargeInv(r){
   if(r.status==="Pending") return "Not issued";
   return r.inv?"Issued":"Not issued";
 }
-/** How the guest paid the charge: Card (default) or Cash. */
+/** How the guest paid the charge: Card (default), Cash, or Split (part cash). */
 function chargePayMethod(r){
   var m=r&&r.payMethod?String(r.payMethod):"";
-  if(m==="Cash"||m==="Card") return m;
+  if(m==="Cash"||m==="Card"||m==="Split") return m;
+  if(r&&apaNum(r.cashPaid)>0&&apaNum(r.cashPaid)<apaNum(r.amount)-0.009) return "Split";
   /* Infer from notes for older rows */
   if(r&&/cash/i.test(String(r.notes||""))&&!/card/i.test(String(r.notes||""))) return "Cash";
   return "Card";
 }
+/**
+ * Cash that entered the boat pot from this charge (when Paid).
+ * Full Cash → full amount; Split → cashPaid; Card → 0.
+ */
+function chargeCashToBoat(r){
+  if(!r||chargePay(r)!=="Paid") return 0;
+  var total=apaNum(r.amount);
+  var explicit=apaNum(r.cashPaid);
+  var m=chargePayMethod(r);
+  if(m==="Card") return explicit>0?Math.min(explicit,total):0;
+  if(m==="Split") return explicit>0?Math.min(explicit,total):0;
+  /* Cash */
+  if(explicit>0) return Math.min(explicit,total);
+  return total;
+}
 function payMethodPill(m){
-  m=m==="Cash"?"Cash":"Card";
-  return '<span class="pill '+(m==="Cash"?"p-cash":"p-card")+'">'+m+'</span>';
+  if(m==="Cash") return '<span class="pill p-cash">Cash</span>';
+  if(m==="Split") return '<span class="pill p-amber">Split</span>';
+  return '<span class="pill p-card">Card</span>';
 }
 function chargeVat(r){
   var gross=Number(r.amount)||0;
@@ -813,11 +830,13 @@ function renderCharters(){
     var isApa=r.kind==="apa"||!!r.apaTripId;
     var apaReq=isApa&&pay!=="Paid"&&invSt!=="Issued";
     var pm=chargePayMethod(r);
+    var cashBoat=chargeCashToBoat(r);
     html+='<div class="item" data-edit-ch="'+esc(r.id)+'">'+
       '<div class="top"><div class="title">'+esc(r.client||"—")+(isApa?' <span class="pill p-apa">APA</span>':'')+(apaReq?' <span class="pill p-amber">Invoice request</span>':'')+'</div><div class="amt money">'+money0(r.amount)+'</div></div>'+
       '<div class="meta">'+(r.date?'<span>📅 '+esc(fmtDate(r.date))+'</span>':'')+
         '<span>inc. VAT'+(v.pct?' '+v.pct+'%':'')+'</span>'+
         pill(pay)+payMethodPill(pm)+pill(invSt==="Issued"?"Invoice issued":"Invoice pending")+
+        (cashBoat>0?'<span class="pill p-cash">→ pot '+money0(cashBoat)+'</span>':'')+
         (r.inv?'<span>#'+esc(r.inv)+'</span>':'')+'</div>'+
       (r.notes?'<div class="notes">'+esc(r.notes)+'</div>':'')+
       '<div class="lead-actions">'+
@@ -6005,7 +6024,103 @@ function leadInvBlock(title, pctId, pctVal, stId, stVal, invId, invVal, showPct)
   return h;
 }
 function selPayField(val){ var o=["Paid","Pending"]; return '<select class="ctl" id="f_pay">'+o.map(function(s){return '<option'+(s===val?' selected':'')+'>'+s+'</option>';}).join("")+'</select>'; }
-function selPayMethodField(val){ var o=["Card","Cash"]; var v=val==="Cash"?"Cash":"Card"; return '<select class="ctl" id="f_payMethod">'+o.map(function(s){return '<option'+(s===v?' selected':'')+'>'+s+'</option>';}).join("")+'</select>'; }
+function selPayMethodField(val){
+  var o=["Card","Cash","Split"];
+  var v=val==="Cash"||val==="Split"?val:"Card";
+  return '<select class="ctl" id="f_payMethod">'+o.map(function(s){return '<option'+(s===v?' selected':'')+'>'+s+'</option>';}).join("")+'</select>';
+}
+/**
+ * When a charge is Paid with cash (full or part), post that cash into monthly
+ * petty cash-in (Charter income). Stable id so re-saves update the same line.
+ * Captain-only (expPetty is captain-only on the API).
+ */
+function chargeCashInId(chargeId){ return "charge-cash:"+String(chargeId||""); }
+function expRemoveChargeCashIn(chargeId, skipSave){
+  if(!chargeId||!state.expPetty) return false;
+  var cid=chargeCashInId(chargeId);
+  var dirty=false;
+  state.expPetty.forEach(function(p){
+    if(!p||!Array.isArray(p.cashIns)) return;
+    var n=p.cashIns.length;
+    p.cashIns=p.cashIns.filter(function(r){
+      if(!r) return false;
+      if(String(r.id)===cid||String(r.fromChargeId||"")===String(chargeId)) return false;
+      return true;
+    });
+    if(p.cashIns.length!==n){
+      dirty=true;
+      p.pettyIn=expCashInSum(p);
+      p.updatedAt=new Date().toISOString();
+    }
+  });
+  if(dirty&&!skipSave&&isCaptain()) saveExpPetty();
+  return dirty;
+}
+/**
+ * Upsert or remove boat-float cash-in for one charge.
+ * Returns true if expPetty changed.
+ */
+function syncChargeCashToPetty(charge){
+  if(!isCaptain()||!charge||!charge.id) return false;
+  var cash=chargeCashToBoat(charge);
+  if(!(cash>0.009)){
+    return expRemoveChargeCashIn(charge.id, true);
+  }
+  var date=String(charge.date||"").slice(0,10)||localTodayYmd();
+  var month=expMonthKey(date)||expDefaultMonth();
+  var p=expEnsurePetty(month);
+  if(!Array.isArray(p.cashIns)) p.cashIns=[];
+  var cid=chargeCashInId(charge.id);
+  var client=(charge.client||"Guest").trim();
+  var row={
+    id:cid,
+    fromChargeId:String(charge.id),
+    date:date,
+    source:"Charter income — "+client+(chargePayMethod(charge)==="Split"?" (part cash)":" (cash)"),
+    amount:Math.round(cash*100)/100,
+    notes:"From Charges · "+money0(charge.amount)+" · "+chargePayMethod(charge),
+    updatedAt:new Date().toISOString()
+  };
+  var found=false;
+  p.cashIns=p.cashIns.map(function(r){
+    if(r&&(String(r.id)===cid||String(r.fromChargeId||"")===String(charge.id))){
+      found=true;
+      return row;
+    }
+    return r;
+  });
+  if(!found) p.cashIns.unshift(row);
+  p.pettyIn=expCashInSum(p);
+  p.updatedAt=new Date().toISOString();
+  return true;
+}
+/** Re-sync all charges → petty cash-ins (captain). */
+function syncAllChargeCashToPetty(){
+  if(!isCaptain()) return false;
+  var dirty=false;
+  var seen={};
+  (state.charters||[]).forEach(function(c){
+    if(!c||!c.id) return;
+    seen[c.id]=1;
+    if(syncChargeCashToPetty(c)) dirty=true;
+  });
+  /* Drop orphan cash-ins if charge deleted */
+  (state.expPetty||[]).forEach(function(p){
+    if(!p||!Array.isArray(p.cashIns)) return;
+    var n=p.cashIns.length;
+    p.cashIns=p.cashIns.filter(function(r){
+      if(!r||!r.fromChargeId) return true;
+      return !!seen[r.fromChargeId];
+    });
+    if(p.cashIns.length!==n){
+      dirty=true;
+      p.pettyIn=expCashInSum(p);
+      p.updatedAt=new Date().toISOString();
+    }
+  });
+  if(dirty) saveExpPetty();
+  return dirty;
+}
 function selInvField(val){ var o=["Not issued","Issued"]; return '<select class="ctl" id="f_invStatus">'+o.map(function(s){return '<option'+(s===val?' selected':'')+'>'+s+'</option>';}).join("")+'</select>'; }
 function pctField(id,val){
   var v=val!=null&&val!==""?String(val):"";
@@ -6146,7 +6261,15 @@ function openSheet(type,id){
     h+='<div class="row2">'+fieldHTML("Charter date",'<input class="ctl" id="f_date" type="date" value="'+esc(r.date)+'">')+fieldHTML("Amount charged (VAT included)",moneyField("f_amount",r.amount))+'</div>';
     h+='<div class="calcbox" id="f_ch_calc"></div>';
     h+='<div class="row2">'+fieldHTML("Payment",selPayField(pay))+fieldHTML("Paid by",selPayMethodField(pm))+'</div>';
-    h+='<p style="margin:-6px 0 12px;font-size:12px;color:var(--muted);line-height:1.4">Card = terminal / transfer. Cash = physical cash. On a <b>cash (black) deal</b>, marking Paid books the cash as APA received.</p>';
+    var cashDef=apaNum(r.cashPaid)>0?r.cashPaid:(pm==="Cash"?r.amount:"");
+    h+='<div id="f_cashPaid_wrap" style="'+(pm==="Card"?"display:none":"")+'">'+
+      fieldHTML("Cash into boat pot (€)",moneyField("f_cashPaid", cashDef))+
+      '<p style="margin:-6px 0 12px;font-size:12px;color:var(--muted);line-height:1.4">'+
+        '<b>Cash</b> = full amount goes to the monthly float (cash in · Charter income). '+
+        '<b>Split</b> = enter only the cash part; the rest is card/transfer. '+
+        'When Payment is <b>Paid</b>, this updates Expenses → cash in.'+
+      '</p></div>';
+    h+='<p style="margin:-6px 0 12px;font-size:12px;color:var(--muted);line-height:1.4">Card = terminal / transfer only. On a <b>cash (black) deal APA</b>, Paid still books cash as APA received on that pot.</p>';
     h+='<div class="row2">'+fieldHTML("Invoice (manager)",selInvField(invSt))+fieldHTML("Invoice # (manager)",'<input class="ctl" id="f_inv" value="'+esc(r.inv)+'" placeholder="fill when issued">')+'</div>';
     h+=fieldHTML("Notes",'<textarea class="ctl" id="f_notes" placeholder="optional">'+esc(r.notes)+'</textarea>');
   } else {
@@ -6216,17 +6339,40 @@ function openSheet(type,id){
     recalcLead();
   }); }
   if(el("f_split")){ el("f_split").addEventListener("change",function(){ recalcLead(); }); }
-  if(type==="charter") recalcCharge();
-  else recalcLead();
+  if(type==="charter"){
+    function syncCashPaidVis(){
+      var method=(el("f_payMethod")&&el("f_payMethod").value)||"Card";
+      var wrap=el("f_cashPaid_wrap");
+      if(wrap) wrap.style.display=method==="Card"?"none":"";
+      if(method==="Cash"&&el("f_cashPaid")&&!el("f_cashPaid").value){
+        var a=el("f_amount")?el("f_amount").value:"";
+        if(a) el("f_cashPaid").value=a;
+      }
+    }
+    if(el("f_payMethod")) el("f_payMethod").addEventListener("change",syncCashPaidVis);
+    if(el("f_amount")) el("f_amount").addEventListener("input",function(){
+      var method=(el("f_payMethod")&&el("f_payMethod").value)||"Card";
+      if(method==="Cash"&&el("f_cashPaid")) el("f_cashPaid").value=el("f_amount").value;
+      recalcCharge();
+    });
+    syncCashPaidVis();
+    recalcCharge();
+  } else recalcLead();
   showSheet(true);
 }
 function recalcCharge(){
   var box=el("f_ch_calc"); if(!box) return;
   var gross=apaNum(el("f_amount")?el("f_amount").value:0);
   var pct=21, net=gross/(1+pct/100), vat=gross-net;
+  var method=(el("f_payMethod")&&el("f_payMethod").value)||"Card";
+  var cash=apaNum(el("f_cashPaid")?el("f_cashPaid").value:0);
+  if(method==="Cash"&&!(cash>0)) cash=gross;
+  if(method==="Card") cash=0;
+  if(cash>gross) cash=gross;
   box.innerHTML='<div class="cl"><span>Amount (VAT included)</span><b>'+money(gross)+'</b></div>'+
     '<div class="cl"><span>Net (ex VAT)</span><b>'+money(net)+'</b></div>'+
-    '<div class="cl"><span>VAT '+pct+'% included</span><b>'+money(vat)+'</b></div>';
+    '<div class="cl"><span>VAT '+pct+'% included</span><b>'+money(vat)+'</b></div>'+
+    (method!=="Card"?'<div class="cl hi"><span>→ Boat cash pot</span><b>'+money(cash)+'</b></div>':'');
 }
 
 function saveSheet(type,rec){
@@ -6234,10 +6380,20 @@ function saveSheet(type,rec){
     var gross=apaNum(el("f_amount").value), vatPct=21;
     var net=gross/(1+vatPct/100), vat=gross-net;
     var payStatus=el("f_pay").value, invStatus=el("f_invStatus").value;
-    var payMethod=(el("f_payMethod")&&el("f_payMethod").value==="Cash")?"Cash":"Card";
+    var pmRaw=(el("f_payMethod")&&el("f_payMethod").value)||"Card";
+    var payMethod=pmRaw==="Cash"||pmRaw==="Split"?pmRaw:"Card";
+    var cashPaid=apaNum(el("f_cashPaid")?el("f_cashPaid").value:0);
+    if(payMethod==="Cash"&&!(cashPaid>0)) cashPaid=gross;
+    if(payMethod==="Card") cashPaid=0;
+    if(payMethod==="Split"){
+      if(!(cashPaid>0)){ window.alert("Split: enter how much cash went into the boat pot."); if(el("f_cashPaid")) el("f_cashPaid").focus(); return; }
+      if(cashPaid>gross+0.009){ window.alert("Cash amount cannot exceed the charge total."); if(el("f_cashPaid")) el("f_cashPaid").focus(); return; }
+    }
+    if(cashPaid>gross) cashPaid=gross;
     var obj={ id:rec?rec.id:uid(), date:el("f_date").value, client:el("f_client").value.trim(),
       amount:gross, vatMode:"include", vatPct:vatPct, net:net, vat:vat,
-      payStatus:payStatus, payMethod:payMethod, invStatus:invStatus,
+      payStatus:payStatus, payMethod:payMethod, cashPaid:cashPaid>0?Math.round(cashPaid*100)/100:0,
+      invStatus:invStatus,
       status:invStatus==="Issued"?"Invoiced":payStatus,
       inv:el("f_inv").value.trim(),
       notes:el("f_notes").value.trim(), by:session.who };
@@ -6255,9 +6411,14 @@ function saveSheet(type,rec){
       refreshApaFromCharges();
       save("charters");
     } else if(canOps()){
-      /* Non-APA charge may still be linked by name; also re-sync any cash deals */
       refreshApaFromCharges();
       save("charters");
+    }
+    /* Boat float: cash portion of Paid charges → monthly cash in */
+    if(isCaptain()){
+      syncChargeCashToPetty(obj);
+      saveExpPetty();
+      if(curTab==="expenses") renderExpenses();
     }
   } else {
     var dur=el("f_dur").value;
@@ -6316,6 +6477,10 @@ function delRec(type,id){
   if(coll==="charters"){
     var gone=(state.charters||[]).filter(function(r){return r.id===id;})[0];
     wasApa=!!(gone&&(gone.kind==="apa"||gone.apaTripId));
+    if(isCaptain()&&id){
+      expRemoveChargeCashIn(id, true);
+      saveExpPetty();
+    }
   }
   state[coll]=state[coll].filter(function(r){return r.id!==id;});
   if(coll==="charters"){
@@ -6812,6 +6977,8 @@ function applyData(d){
     ensureStewAssignPaidBeforeCut();
     /* Current-month Cash expenses from Paid stew day pay (not tips, not other months) */
     seedCurrentMonthStewCashExpenses();
+    /* Paid cash charges → boat float cash-in lines */
+    syncAllChargeCashToPetty();
   }
   renderAll();
   if(!DEMO) refreshPushStatus();
