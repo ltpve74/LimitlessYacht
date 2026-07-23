@@ -3945,38 +3945,51 @@ function expCaptainOwed(month, petty){
   var owed=Math.round((putIn+paidOut-reimbursed)*100)/100;
   return {putIn:putIn, paidOut:paidOut, reimbursed:reimbursed, owed:owed>0?owed:0, overpaid:owed<0?-owed:0};
 }
+/** Stable key for stew day-pay lines (avoids double-counting seed/sync dupes). */
+function expStewDayDedupeKey(e){
+  if(!e) return "";
+  if(e.linkId) return String(e.linkId);
+  if(e.stewEventKey&&e.stewId) return "stew-day:"+e.stewEventKey+":"+e.stewId;
+  return "id:"+e.id;
+}
 /**
  * Single source of truth for Expenses settlement figures (cents-safe).
  *
- * peopleOwed  = captain owed + unpaid crew
- *   → THIS is the cash the owner must put in (deposit / charge cash) to pay people,
- *     then pay them from the float; books then balance for those pays.
+ * Float: start + cashIn − cashOut(from petty) = book onboard
+ * peopleOwed = captain owed + unpaid crew
+ * freeFloat  = max(0, book onboard)  // cash already in the pot
+ * ownerCashIn = max(0, peopleOwed − freeFloat)
+ *   → Owner only tops up what free float cannot already cover.
+ *     Example: 3k in, 1.35k crew paid, 248 captain left → free ≈ 1.65k → owner needs €0.
  *
- * cashShort   = max(0, cashOut − (start + cashIn))
- *   → envelope *books* check only (already-recorded cash out vs start+ins).
- *     NOT extra money on top of peopleOwed. Do not add short + people.
- *
- * Own-money spends never enter cashOut / cashShort (only captain owed).
+ * Book float short = max(0, −onboard) is a books diagnostic, never added to ownerCashIn.
  */
 function expSettlementFigures(month){
   month=month||expDefaultMonth();
   var lines=expLinesForMonth(month);
-  var cashOut=0, cardOut=0, crewPaid=0, crewUnpaid=0, otherCash=0, ownMoneyExp=0, seenStewLink={};
+  var cashOut=0, cardOut=0, crewPaid=0, crewUnpaid=0, otherCash=0, ownMoneyExp=0, reimburseCap=0;
+  var seenStewLink={}, nCashOutLines=0, nCrewPaidLines=0, nSkippedDup=0;
   lines.forEach(function(e){
     var a=apaNum(e.amount);
     if(expIsCrewUnpaid(e)){ crewUnpaid+=a; return; }
     if(e.source==="stew"&&e.stewPayKind==="dayPay"){
-      var lk=e.linkId||(e.stewEventKey+":"+e.stewId);
-      if(seenStewLink[lk]) return;
+      var lk=expStewDayDedupeKey(e);
+      if(seenStewLink[lk]){ nSkippedDup++; return; }
       seenStewLink[lk]=1;
     }
     if(e.payMethod==="Credit Card"){ cardOut+=a; return; }
     if(expPaidFromOwnMoney(e)){ ownMoneyExp+=a; return; }
     if(!expCountsAsPettyOut(e)) return;
     cashOut+=a;
-    if(e.source==="stew"&&e.stewPayKind==="dayPay") crewPaid+=a;
+    nCashOutLines++;
+    if(e.source==="stew"&&e.stewPayKind==="dayPay"){ crewPaid+=a; nCrewPaidLines++; }
+    else if(expIsCaptainReimburse(e)) reimburseCap+=a;
     else otherCash+=a;
   });
+  cashOut=Math.round(cashOut*100)/100;
+  crewPaid=Math.round(crewPaid*100)/100;
+  otherCash=Math.round(otherCash*100)/100;
+  reimburseCap=Math.round(reimburseCap*100)/100;
   var petty=expEnsurePetty(month);
   var pettyStart=apaNum(petty.pettyStart);
   var cashInTotal=expCashInSum(petty);
@@ -3985,31 +3998,37 @@ function expSettlementFigures(month){
   var pettyOnboard=Math.round((cashInHand-cashOut)*100)/100;
   var cashShort=0;
   if(pettyEntered&&pettyOnboard<0) cashShort=Math.round((-pettyOnboard)*100)/100;
+  var freeFloat=pettyEntered&&pettyOnboard>0?pettyOnboard:0;
   var owed=expStewDayPayOwed(month);
   var oweCrew=Math.round((crewUnpaid>0?crewUnpaid:(owed.owe||0))*100)/100;
   var cap=expCaptainOwed(month, petty);
   var boatOwes=cap.owed||0;
   var peopleOwed=Math.round((boatOwes+oweCrew)*100)/100;
-  /* Owner inject to pay people (deposit / cash charges) — NOT people + float short */
-  var ownerCashIn=peopleOwed;
+  /* Free cash already in the pot covers people first — owner only tops up the gap */
+  var ownerCashIn=Math.round(Math.max(0, peopleOwed-freeFloat)*100)/100;
   return {
-    cashOut:Math.round(cashOut*100)/100,
+    cashOut:cashOut,
     cardOut:Math.round(cardOut*100)/100,
-    crewPaid:Math.round(crewPaid*100)/100,
-    otherCash:Math.round(otherCash*100)/100,
+    crewPaid:crewPaid,
+    otherCash:otherCash,
+    reimburseCap:reimburseCap,
     ownMoneyExp:Math.round(ownMoneyExp*100)/100,
     pettyStart:pettyStart,
     cashInTotal:cashInTotal,
     cashInHand:cashInHand,
     pettyEntered:pettyEntered,
     pettyOnboard:pettyOnboard,
+    freeFloat:freeFloat,
     cashShort:cashShort,
     oweCrew:oweCrew,
     cap:cap,
     boatOwes:boatOwes,
     peopleOwed:peopleOwed,
     ownerCashIn:ownerCashIn,
-    totalSettle:peopleOwed,
+    totalSettle:ownerCashIn,
+    nCashOutLines:nCashOutLines,
+    nCrewPaidLines:nCrewPaidLines,
+    nSkippedDup:nSkippedDup,
     petty:petty
   };
 }
@@ -4225,7 +4244,10 @@ function seedCurrentMonthStewCashExpenses(){
   }).map(function(e){return [e.linkId,e.amount,e.vendor,e.date,e.crewPayStatus||"Paid",e.paidFrom||"Petty cash"];}).sort());
   var rest=(state.expenses||[]).filter(function(e){
     if(!e) return false;
-    if(e.source==="stew"&&e.stewPayKind==="dayPay"&&expMonthKey(e.date)===month) return false;
+    /* Drop all current-month stew day-pay (with or without stewPayKind) to avoid ghost dupes */
+    if(e.source==="stew"&&expMonthKey(e.date)===month){
+      if(e.stewPayKind==="dayPay"||e.stewEventKey||(e.linkId&&String(e.linkId).indexOf("stew-day:")===0)) return false;
+    }
     return true;
   });
   var seeded=Object.keys(wanted).map(function(k){ return wanted[k]; });
@@ -4461,22 +4483,32 @@ function paintExpensesBody(){
   var petty=S.petty, pettyStart=S.pettyStart, cashInTotal=S.cashInTotal, cashInHand=S.cashInHand;
   var pettyEntered=S.pettyEntered, pettyOnboard=S.pettyOnboard;
   var cashShort=S.cashShort, oweCrew=S.oweCrew, cap=S.cap, boatOwes=S.boatOwes;
-  var peopleOwed=S.peopleOwed, ownerCashIn=S.ownerCashIn;
+  var peopleOwed=S.peopleOwed, ownerCashIn=S.ownerCashIn, freeFloat=S.freeFloat||0, reimburseCap=S.reimburseCap||0;
   var cashIns=expCashInLines(petty);
-  var h='<div class="legend">Captain-only monthly ledger. <b>Owner cash in needed</b> = people still owed (crew + captain). Top up the float by that amount (owner deposit / cash charges), pay them from petty. Tips stay on Stews only.</div>';
+  var h='<div class="legend">Captain-only monthly ledger. <b>Owner cash in needed</b> = unpaid people minus free cash already in the float. Tips stay on Stews only.</div>';
   h+='<div class="exp-month"><label class="meta" style="font-weight:700">Month</label>'+
     '<select class="ctl" id="expMonthSel">'+monthList.map(function(m){
       return '<option value="'+esc(m)+'"'+(m===expMonth?" selected":"")+'>'+esc(m)+'</option>';
     }).join("")+'</select>'+
     '<button type="button" class="btn ghost" id="expExport" style="width:auto;padding:10px 14px">Export CSV</button>'+
   '</div>';
-  /*
-   * Operational model (owner):
-   *   cash in = peopleOwed → pay crew + captain from float → debts clear for that cycle.
-   * Float short is books-only (already recorded outs vs start+ins) — never add it to peopleOwed.
-   */
   h+='<div class="apa-card exp-howto">'+
-    '<div style="font-weight:800;margin-bottom:8px">Pay people (what the owner funds)</div>'+
+    '<div style="font-weight:800;margin-bottom:8px">Float cash (must match the envelope)</div>'+
+    '<div style="font-size:0.9rem;line-height:1.55">'+
+      (pettyEntered
+        ?('<div class="meta" style="display:block;margin-bottom:8px">'+
+            '<b>In:</b> start '+money(pettyStart)+' + cash in '+money(cashInTotal)+' = <b>'+money(cashInHand)+'</b><br>'+
+            '<b>Out:</b> from float '+money(cashOut)+
+            ' = crew paid '+money(crewPaid)+' ('+(S.nCrewPaidLines||0)+' lines)'+
+            ' + other '+money(otherCash)+
+            (reimburseCap>0?' + captain reimburse '+money(reimburseCap):'')+
+            (S.nSkippedDup>0?' <span style="color:var(--danger)">· skipped '+S.nSkippedDup+' duplicate crew lines</span>':'')+
+            '<br><b>Book onboard</b> = in − out = <b class="money">'+money(pettyOnboard)+'</b>'+
+            (cashShort>0.009?' · books short '+money(cashShort):' · free for pays '+money(freeFloat))+
+          '</div>')
+        :'<div class="meta" style="margin-bottom:8px">Set start + cash in below so onboard can be calculated.</div>')+
+    '</div>'+
+    '<div style="font-weight:800;margin:12px 0 8px">People still unpaid</div>'+
     '<div style="font-size:0.9rem;line-height:1.55">'+
       '<div style="display:flex;justify-content:space-between;gap:12px"><span>Captain (your pocket)</span><b class="money">'+money(boatOwes)+'</b></div>'+
       '<div class="meta" style="display:block;margin:2px 0 8px">'+
@@ -4484,48 +4516,46 @@ function paintExpensesBody(){
         ' − reimbursed '+money(cap.reimbursed)+
       '</div>'+
       '<div style="display:flex;justify-content:space-between;gap:12px"><span>Crew (unpaid day pay)</span><b class="money">'+money(oweCrew)+'</b></div>'+
-      '<div class="meta" style="display:block;margin:2px 0 10px">Unpaid stew lines — pay from float after the top-up</div>'+
-      '<div style="display:flex;justify-content:space-between;gap:12px;padding-top:8px;border-top:1.5px solid var(--line);font-size:1.05rem">'+
+      '<div style="display:flex;justify-content:space-between;gap:12px;padding-top:8px;border-top:1px solid var(--line)">'+
+        '<span><b>People owed</b></span><b class="money">'+money(peopleOwed)+'</b></div>'+
+      '<div class="meta" style="display:block;margin-top:4px">'+money(boatOwes)+' + '+money(oweCrew)+'</div>'+
+    '</div>'+
+    '<div style="font-weight:800;margin:12px 0 8px">Owner cash in still needed</div>'+
+    '<div style="font-size:0.9rem;line-height:1.55">'+
+      '<div class="meta" style="display:block;margin-bottom:6px">'+
+        'People unpaid '+money(peopleOwed)+' − free in float '+money(freeFloat)+' = <b>owner still needs</b>'+
+      '</div>'+
+      '<div style="display:flex;justify-content:space-between;gap:12px;font-size:1.05rem">'+
         '<span><b>Owner cash in needed</b></span>'+
-        '<b class="money" style="color:'+(ownerCashIn>0.009?'#9a6b00':'inherit')+'">'+money(ownerCashIn)+'</b>'+
+        '<b class="money" style="color:'+(ownerCashIn>0.009?'#9a6b00':'var(--greenInk,#1a5c48)')+'">'+money(ownerCashIn)+'</b>'+
       '</div>'+
       '<div class="meta" style="display:block;margin-top:6px">'+
-        money(boatOwes)+' + '+money(oweCrew)+' = '+money(peopleOwed)+
-        '. Put that in (owner float / cash charges), then pay crew + reimburse captain from petty — people paid, pot not short for that pay cycle.'+
-      '</div>'+
-    '</div>'+
-    '<div style="font-weight:800;margin:16px 0 8px">Float books (check only — not extra to fund)</div>'+
-    '<div style="font-size:0.9rem;line-height:1.55">'+
-      (pettyEntered
-        ?('<div class="meta" style="display:block;margin-bottom:6px">'+
-            'start '+money(pettyStart)+' + cash in '+money(cashInTotal)+' = available '+money(cashInHand)+
-            '<br>− already out of float '+money(cashOut)+' = book onboard '+money(pettyOnboard)+
-          '</div>'+
-          '<div style="display:flex;justify-content:space-between;gap:12px"><span>Book float short</span>'+
-            '<b class="money">'+(cashShort>0.009?money(cashShort):money(0))+'</b></div>'+
-          '<div class="meta" style="display:block;margin-top:4px">'+
-            (cashShort>0.009
-              ?'Already-recorded cash outs exceed start + cash in. Fix missing cash-in or wrong outs — <b>do not add this on top of owner cash in needed</b>.'
-              :'Float books OK (onboard ≥ 0).')+
-          '</div>')
-        :'<div class="meta">Set <b>start</b> and <b>cash in</b> below for the books check.</div>')+
-      '<div class="meta" style="display:block;margin-top:8px">Already out of float: crew paid '+money(crewPaid)+' + other '+money(otherCash)+
-        (ownMoneyExp>0?' · pocket (not float) '+money(ownMoneyExp):'')+
-        (cardOut>0?' · card '+money(cardOut):'')+
+        (ownerCashIn>0.009
+          ?'Top up by this amount (owner float / cash charges), then pay crew + reimburse captain from petty.'
+          :(peopleOwed>0.009
+            ?'Float already has enough free cash to pay remaining people — no extra owner deposit.'
+            :'No unpaid crew or captain balance.'))+
       '</div>'+
     '</div>'+
   '</div>';
   /* Attention banners */
   if(!pettyEntered&&cashOut>0){
-    h+='<div class="exp-alert owe">Petty start / cash in not set. Recorded float cash out is <b class="money">'+money(cashOut)+'</b>. Set start + cash in for the books check.</div>';
+    h+='<div class="exp-alert owe">Petty start / cash in not set. Recorded float cash out is <b class="money">'+money(cashOut)+'</b>. Set start + cash in so free float can reduce owner cash needed.</div>';
   }
-  if(peopleOwed>0.009){
+  if(ownerCashIn>0.009){
     h+='<div class="exp-alert owe">'+
       '<div style="font-weight:800">Owner cash in needed</div>'+
       '<div class="money" style="font-size:22px;font-weight:800;margin-top:2px">'+money(ownerCashIn)+'</div>'+
       '<div style="font-weight:500;margin-top:8px;font-size:13px;line-height:1.55">'+
-        'Captain '+money(boatOwes)+' + crew '+money(oweCrew)+
-        ' · Deposit or cash charges into the float, then pay people from petty.'+
+        'People still unpaid '+money(peopleOwed)+' − free in float '+money(freeFloat)+
+        ' · Captain '+money(boatOwes)+' · crew '+money(oweCrew)+
+      '</div></div>';
+  } else if(peopleOwed>0.009){
+    h+='<div class="exp-alert ok">'+
+      '<div style="font-weight:800">No extra owner cash needed</div>'+
+      '<div style="font-weight:500;margin-top:6px;font-size:13px;line-height:1.45">'+
+        'Still unpaid: captain '+money(boatOwes)+' + crew '+money(oweCrew)+
+        ' = '+money(peopleOwed)+', covered by free float '+money(freeFloat)+'. Pay them from petty.'+
       '</div></div>';
   }
   /* Always show captain balance (own money in / pocket out / repaid) */
@@ -4554,16 +4584,16 @@ function paintExpensesBody(){
   /* 2-col grid on phone */
   h+='<div class="exp-summary">'+
     '<div class="sumcard'+(ownerCashIn>0?' sum-warn':'')+'"><div class="l">Owner cash in needed</div><div class="v money">'+money(ownerCashIn)+'</div></div>'+
+    '<div class="sumcard'+(freeFloat>0?' sum-ok':'')+'"><div class="l">Free in float</div><div class="v money">'+(pettyEntered?money(freeFloat):'—')+'</div></div>'+
     '<div class="sumcard'+(boatOwes>0?' sum-warn':'')+'"><div class="l">Captain owed</div><div class="v money">'+money(boatOwes)+'</div></div>'+
     '<div class="sumcard'+(oweCrew>0?' sum-warn':'')+'"><div class="l">Owe crew</div><div class="v money">'+money(oweCrew)+'</div></div>'+
     '<div class="sumcard'+(peopleOwed>0?' sum-warn':'')+'"><div class="l">People owed</div><div class="v money">'+money(peopleOwed)+'</div></div>'+
-    '<div class="sumcard'+(cashShort>0?' sum-danger':'')+'"><div class="l">Book float short</div><div class="v money">'+(pettyEntered?money(cashShort):'—')+'</div></div>'+
     '<div class="sumcard'+(pettyEntered&&pettyOnboard<0?' sum-danger':(pettyEntered&&pettyOnboard>0?' sum-ok':''))+'"><div class="l">Petty onboard</div><div class="v money">'+(pettyEntered?money(pettyOnboard):'—')+'</div></div>'+
-    '<div class="sumcard"><div class="l">From float</div><div class="v money">'+money(cashOut)+'</div></div>'+
-    '<div class="sumcard"><div class="l">My pocket</div><div class="v money">'+money(ownMoneyExp)+'</div></div>'+
-    '<div class="sumcard"><div class="l">Cash in</div><div class="v money">'+money(cashInTotal)+'</div></div>'+
+    '<div class="sumcard"><div class="l">Cash in (total)</div><div class="v money">'+money(cashInTotal)+'</div></div>'+
+    '<div class="sumcard"><div class="l">From float (out)</div><div class="v money">'+money(cashOut)+'</div></div>'+
     '<div class="sumcard"><div class="l">Crew paid (float)</div><div class="v money">'+money(crewPaid)+'</div></div>'+
-    '<div class="sumcard"><div class="l">Card out</div><div class="v money">'+money(cardOut)+'</div></div>'+
+    '<div class="sumcard"><div class="l">Other float out</div><div class="v money">'+money(otherCash+(reimburseCap||0))+'</div></div>'+
+    '<div class="sumcard"><div class="l">My pocket</div><div class="v money">'+money(ownMoneyExp)+'</div></div>'+
   '</div>';
   /* Petty start + itemised cash in */
   h+='<div class="apa-card" style="margin-bottom:12px">'+
