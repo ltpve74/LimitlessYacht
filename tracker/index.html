@@ -102,6 +102,8 @@
   .item .amt{font-weight:800;font-size:16px;white-space:nowrap}
   .item .meta{color:var(--muted);font-size:13px;margin-top:5px;display:flex;flex-wrap:wrap;gap:4px 10px;align-items:center}
   .item .notes{color:var(--muted);font-size:12.5px;margin-top:8px;font-style:italic}
+  .item .stew-name{font-size:16.5px;font-weight:800;color:var(--brand);letter-spacing:.01em;line-height:1.25}
+  .item .stew-row{margin-top:8px;display:flex;flex-wrap:wrap;gap:6px 12px;align-items:center}
   .chev{position:absolute;right:12px;bottom:11px;color:#c3ccd3;font-size:15px}
   .invtags{display:flex;flex-wrap:wrap;gap:7px;margin-top:10px}
   .invtag{background:#f5f7f9;border:1px solid var(--line);border-radius:10px;padding:6px 9px;font-size:12px;display:flex;align-items:center;gap:6px;flex-wrap:wrap}
@@ -3199,15 +3201,21 @@ function stewIsPaidBeforeCut(asg, ev){
   var d=stewAssignStartDate(asg, ev);
   return !!(d&&d<STEW_PAID_BEFORE);
 }
-/** Persist Unpaid → Paid for all stew assignments before STEW_PAID_BEFORE. */
+/**
+ * Pre-17/07 default only: if an assignment has stews but no payStatus yet → Paid.
+ * Never overwrites Unpaid or a captain manual choice (payStatusManual).
+ */
 function ensureStewAssignPaidBeforeCut(){
   if(!isCaptain()) return false;
   var changed=false;
   (state.stewAssign||[]).forEach(function(a){
-    if(!a) return;
+    if(!a||a.payStatusManual) return;
     var ev=stewMergedEvents().filter(function(e){return e&&e.key===a.eventKey;})[0]||null;
     if(!stewIsPaidBeforeCut(a, ev)) return;
-    if(a.payStatus!=="Paid"){ a.payStatus="Paid"; changed=true; }
+    if(!(a.stewIds&&a.stewIds.length)) return;
+    if(a.payStatus==="Paid"||a.payStatus==="Unpaid") return;
+    a.payStatus="Paid";
+    changed=true;
   });
   if(changed&&!DEMO) saveStewAssign();
   return changed;
@@ -3311,8 +3319,13 @@ function ensureStewAssignFromCalendar(){
     var asg=assignForEvent(ev.key);
     var idsKey=ids.slice().map(String).sort().join(",");
     var prevKey=asg&&asg.stewIds?asg.stewIds.map(String).sort().join(","):"";
-    if(asg&&prevKey===idsKey&&asg.payStatus==="Paid"&&asg.autoFromCal
-      &&apaNum(asg.dayRate)===rate&&apaNum(asg.payUnits||1)===units) return;
+    /* Keep captain payStatus (incl. Unpaid); only default Paid on first auto-create */
+    var keepPay=asg&&(asg.payStatus==="Paid"||asg.payStatus==="Unpaid")?asg.payStatus:"Paid";
+    var keepManual=!!(asg&&asg.payStatusManual);
+    var keepRate=asg&&asg.payStatusManual&&asg.dayRate!=null&&asg.dayRate!==""?apaNum(asg.dayRate):rate;
+    var keepUnits=asg&&asg.payStatusManual&&asg.payUnits!=null&&asg.payUnits!==""?Math.max(1, Math.round(apaNum(asg.payUnits)||1)):units;
+    if(asg&&prevKey===idsKey&&asg.autoFromCal&&asg.payStatus===keepPay
+      &&apaNum(asg.dayRate)===keepRate&&apaNum(asg.payUnits||1)===keepUnits) return;
     var obj={
       id:(asg&&asg.id)||uid(),
       eventKey:ev.key,
@@ -3324,11 +3337,12 @@ function ensureStewAssignFromCalendar(){
       allDay:!!ev.allDay,
       status:ev.status||"booked",
       stewIds:ids,
-      dayRate:rate,
-      payUnits:units,
-      payEach:stewPayEach(rate, units),
+      dayRate:keepRate,
+      payUnits:keepUnits,
+      payEach:stewPayEach(keepRate, keepUnits),
       rateBand:band.kind,
-      payStatus:"Paid",
+      payStatus:keepPay,
+      payStatusManual:keepManual,
       notes:(asg&&asg.notes)||"",
       autoFromCal:true,
       updatedAt:new Date().toISOString(),
@@ -3469,7 +3483,8 @@ function stewPayBreakdown(ev, asg){
   var units=stewPayUnits(ev, asg&&asg.payUnits);
   var each=stewPayEach(rate, units);
   var nStews=asg&&asg.stewIds?asg.stewIds.filter(Boolean).length:0;
-  var paid=(asg&&asg.payStatus==="Paid")||stewIsPaidBeforeCut(asg, ev);
+  /* Respect saved payStatus only — never force Paid for pre-17/07 */
+  var paid=asg&&asg.payStatus==="Paid";
   var due=stewCharterDayReached(ev, asg);
   /* Future trips: not unpaid yet. From charter day: unpaid until you mark Paid. */
   var unpaid=!!(!paid&&due);
@@ -3753,9 +3768,9 @@ function paintStewCharters(){
       '</div>';
     if(names.length){
       names.forEach(function(nm){
-        html+='<div class="meta" style="margin-top:4px">'+
-          '<span style="font-weight:700">'+esc(nm)+'</span>'+
-          (each>0?'<span class="money" style="font-weight:800">'+money0(each)+'</span>':'')+
+        html+='<div class="stew-row">'+
+          '<span class="stew-name">'+esc(nm)+'</span>'+
+          (each>0?'<span class="money" style="font-weight:800;font-size:15px">'+money0(each)+'</span>':'')+
           stewPayStatusPill(pay)+
         '</div>';
       });
@@ -3901,7 +3916,7 @@ function openStewAssign(eventKey){
   var selected={};
   (asg.stewIds||[]).forEach(function(id){ selected[id]=1; });
   var team=(state.stews||[]).filter(function(s){ return s&&s.active!==false; });
-  var pay=(asg.payStatus==="Paid"||stewIsPaidBeforeCut(asg, ev))?"Paid":"Unpaid";
+  var pay=asg.payStatus==="Paid"?"Paid":"Unpaid";
   var h='<div class="sheethead"><h2>Assign stews</h2><button type="button" class="sheetx" id="sheetClose" aria-label="Close">×</button></div>';
   h+='<div class="apa-card" style="margin-bottom:12px">'+
     '<div style="font-weight:800;font-size:16px">'+esc(ev.summary||"Charter")+'</div>'+
@@ -3934,7 +3949,7 @@ function openStewAssign(eventKey){
   '</div>';
   h+='<div class="apa-card" id="stewPayLive" style="margin-bottom:12px;background:rgba(201,168,76,.12)"></div>';
   h+=fieldHTML("Stew pay status",'<select class="ctl" id="f_stew_pay"><option value="Unpaid"'+(pay==="Unpaid"?" selected":"")+'>Unpaid (mark Paid when settled)</option><option value="Paid"'+(pay==="Paid"?" selected":"")+'>Paid</option></select>');
-  h+='<p style="margin:0 0 12px;font-size:12px;color:var(--muted)">Total = day rate × days for <b>each</b> stew. <b>Unpaid</b> only shows from the charter day — future trips say “Not due yet”. Mark <b>Paid</b> yourself when they get paid. Suggested: <b>'+esc(band.label)+' · €'+band.rate+'/day</b>.</p>';
+  h+='<p style="margin:0 0 12px;font-size:12px;color:var(--muted)">Total = day rate × days for <b>each</b> stew. Your Paid/Unpaid choice is kept (including before 17/07). Future trips still show “Not due yet” until the charter day. Suggested: <b>'+esc(band.label)+' · €'+band.rate+'/day</b>.</p>';
   h+=fieldHTML("Notes",'<textarea class="ctl" id="f_stew_asg_notes" placeholder="e.g. pick-up time, uniform…">'+esc(asg.notes||"")+'</textarea>');
   h+='<div class="sheetfoot"><button type="button" class="btn ghost" id="sheetCancel">Cancel</button><button type="button" class="btn" id="sheetSave">Save assignment</button></div>';
   el("sheetInner").innerHTML=h;
@@ -3954,8 +3969,8 @@ function openStewAssign(eventKey){
     var line="";
     if(each>0&&names.length){
       line=names.map(function(n){
-        return '<div style="display:flex;justify-content:space-between;gap:12px;margin-top:4px">'+
-          '<span style="font-weight:700">'+esc(n)+'</span>'+
+        return '<div style="display:flex;justify-content:space-between;gap:12px;margin-top:6px;align-items:center">'+
+          '<span class="stew-name" style="font-size:17px">'+esc(n)+'</span>'+
           '<span class="money" style="font-weight:800">'+money0(each)+' · '+statusLabel+'</span></div>';
       }).join("");
       if(names.length>1){
@@ -4011,6 +4026,7 @@ function openStewAssign(eventKey){
       payEach:each,
       rateBand:band.kind,
       payStatus:(el("f_stew_pay")&&el("f_stew_pay").value==="Paid")?"Paid":"Unpaid",
+      payStatusManual:true,
       notes:(el("f_stew_asg_notes").value||"").trim(),
       updatedAt:new Date().toISOString(),
       by:session.who||"Captain"
