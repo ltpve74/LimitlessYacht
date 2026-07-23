@@ -3241,9 +3241,10 @@ function paintStewCharters(){
     var cut=new Date(); cut.setDate(cut.getDate()-30);
     return String(ev.start)>=cut.toISOString().slice(0,10);
   }).sort(function(a,b){
-    var c=String(a.start).localeCompare(String(b.start));
+    /* Newest charter first */
+    var c=String(b.start).localeCompare(String(a.start));
     if(c) return c;
-    return String(a.startTime||"").localeCompare(String(b.startTime||""));
+    return String(b.startTime||"").localeCompare(String(a.startTime||""));
   });
   if(!events.length){
     wrap.innerHTML=emptyBox("📅","No charters from calendar","Check AVAILABILITY_ICS_URL in Netlify, or add events to the shared calendar.");
