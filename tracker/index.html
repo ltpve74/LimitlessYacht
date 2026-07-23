@@ -452,6 +452,7 @@ function safeDel(k){ try{ localStorage.removeItem(k); }catch(e){} try{ delete me
 var DEMO=false, curTab="charters", apaSub="overview", activeApaId=null, apaView="list";
 var stewSub="charters"; /* charters | team */
 var calEvents=[], calEventsAt=0, calEventsLoading=false, calEventsGeneratedAt="", calEventsPromise=null;
+var stewSeedEvents=[], stewSeedLoaded=false, stewSeedPromise=null, stewYearFilter="all";
 var session={ who:null, pass:null, deviceId:null };
 var state={ charters:[], leads:[], apa:[], diesel:[], stews:[], stewAssign:[], devices:[], log:[] };
 var pushMeta={ server:false, vapidPublicKey:"", endpoint:"" };
@@ -3302,6 +3303,24 @@ function stewPayBreakdown(ev, asg){
     unitLabel:units===1?"day":"days"
   };
 }
+function loadStewSeed(){
+  if(!isCaptain()) return Promise.resolve([]);
+  if(stewSeedLoaded) return Promise.resolve(stewSeedEvents);
+  if(stewSeedPromise) return stewSeedPromise;
+  stewSeedPromise=fetch("/tracker/stew-calendar-seed.json",{credentials:"omit",cache:"default"})
+    .then(function(r){ if(!r.ok) throw new Error("seed "+r.status); return r.json(); })
+    .then(function(d){
+      stewSeedEvents=Array.isArray(d.events)?d.events:[];
+      stewSeedLoaded=true;
+      return stewSeedEvents;
+    })
+    .catch(function(){
+      stewSeedEvents=[];
+      stewSeedLoaded=true;
+      return stewSeedEvents;
+    });
+  return stewSeedPromise;
+}
 function loadCalEvents(force){
   if(!isCaptain()) return Promise.resolve([]);
   var now=Date.now();
@@ -3330,6 +3349,55 @@ function loadCalEvents(force){
     });
   return calEventsPromise;
 }
+function loadStewCalendar(force){
+  return Promise.all([loadStewSeed(), loadCalEvents(!!force)]).then(function(){ return stewMergedEvents(); });
+}
+/** Merge season seed + live ICS + saved assignments (live wins on same UID). Full history for accounting. */
+function stewEventId(ev){
+  if(!ev) return "";
+  if(ev.uid) return "uid:"+String(ev.uid);
+  return String(ev.key||"");
+}
+function stewMergedEvents(){
+  var map={};
+  function put(ev, prefer){
+    if(!ev||!ev.start) return;
+    var id=stewEventId(ev);
+    if(!id) return;
+    if(map[id]&&!prefer) return;
+    map[id]=ev;
+  }
+  (stewSeedEvents||[]).forEach(function(ev){ put(ev, false); });
+  (calEvents||[]).forEach(function(ev){ put(Object.assign({},ev,{source:ev.source||"live"}), true); });
+  (state.stewAssign||[]).forEach(function(a){
+    if(!a||!a.eventKey||!a.start) return;
+    var already=false;
+    Object.keys(map).forEach(function(k){
+      if(map[k]&&map[k].key===a.eventKey) already=true;
+    });
+    if(already) return;
+    put({
+      key:a.eventKey, uid:"", summary:a.summary||"Charter",
+      start:a.start, end:a.end||a.start||"",
+      startTime:a.startTime||"", endTime:a.endTime||"",
+      allDay:!!a.allDay, status:a.status||"booked", days:null, source:"assign"
+    }, false);
+  });
+  return Object.keys(map).map(function(k){ return map[k]; }).sort(function(a,b){
+    var c=String(b.start).localeCompare(String(a.start));
+    if(c) return c;
+    return String(b.startTime||"").localeCompare(String(a.startTime||""));
+  });
+}
+function stewEventYears(events){
+  var y={}, out=[];
+  (events||[]).forEach(function(ev){
+    var yr=String(ev.start||"").slice(0,4);
+    if(/^\d{4}$/.test(yr)) y[yr]=1;
+  });
+  Object.keys(y).sort().reverse().forEach(function(k){ out.push(k); });
+  return out;
+}
 function renderStews(){
   if(!isCaptain()) return;
   Array.prototype.forEach.call(document.querySelectorAll("#stewSubNav button"),function(b){
@@ -3337,61 +3405,99 @@ function renderStews(){
   });
   var body=el("stewsBody"); if(!body) return;
   if(stewSub==="team"){ renderStewTeam(body); return; }
-  body.innerHTML='<div class="legend">Charters from the shared calendar. Assign stews so you never double-book. <b>Refresh calendar</b> pulls a fresh feed (bypasses cache). iCloud/Google can lag a few minutes after you edit an event.</div>'+
-    '<div class="apa-sect-h" style="margin-top:0"><h3>Upcoming &amp; recent</h3>'+
+  body.innerHTML='<div class="legend">Full season list: <b>export seed</b> (past + booked) plus live calendar. Live feed wins when the same event appears in both. Use this for stew pay accounting and to judge a permanent stew next year.</div>'+
+    '<div class="apa-sect-h" style="margin-top:0"><h3>All charters</h3>'+
     '<button type="button" class="btn ghost" id="stewRefreshCal">Refresh calendar</button></div>'+
+    '<div id="stewYearFilters" style="display:flex;flex-wrap:wrap;gap:6px;margin:0 0 10px"></div>'+
     '<div id="stewCalList"><div class="empty"><div class="big">⏳</div><div>Loading calendar…</div></div></div>';
   if(el("stewRefreshCal")) el("stewRefreshCal").addEventListener("click",function(){
     el("stewCalList").innerHTML='<div class="empty"><div class="big">⏳</div><div>Refreshing from calendar…</div></div>';
-    loadCalEvents(true).then(function(){ paintStewCharters(); });
+    loadStewCalendar(true).then(function(){ paintStewCharters(); });
   });
-  loadCalEvents(false).then(function(){ paintStewCharters(); });
+  loadStewCalendar(false).then(function(){ paintStewCharters(); });
 }
 function paintStewCharters(){
   var wrap=el("stewCalList"); if(!wrap) return;
   var today=new Date().toISOString().slice(0,10);
-  var events=calEvents.slice().filter(function(ev){
-    /* show from 30 days ago onward */
+  var all=stewMergedEvents();
+  ensureStewAssignPaidBeforeCut();
+  var years=stewEventYears(all);
+  var yf=el("stewYearFilters");
+  if(yf){
+    var fh='<button type="button" class="btn ghost" data-stew-year="all" style="width:auto;padding:6px 12px;font-size:12px'+(stewYearFilter==="all"?";border-color:var(--brand);font-weight:800":"")+'">All</button>';
+    years.forEach(function(y){
+      fh+='<button type="button" class="btn ghost" data-stew-year="'+esc(y)+'" style="width:auto;padding:6px 12px;font-size:12px'+(stewYearFilter===y?";border-color:var(--brand);font-weight:800":"")+'">'+esc(y)+'</button>';
+    });
+    yf.innerHTML=fh;
+    Array.prototype.forEach.call(yf.querySelectorAll("[data-stew-year]"),function(btn){
+      btn.addEventListener("click",function(){
+        stewYearFilter=btn.getAttribute("data-stew-year")||"all";
+        paintStewCharters();
+      });
+    });
+  }
+  var events=all.filter(function(ev){
     if(!ev||!ev.start) return false;
-    var cut=new Date(); cut.setDate(cut.getDate()-30);
-    return String(ev.start)>=cut.toISOString().slice(0,10);
-  }).sort(function(a,b){
-    /* Newest charter first */
-    var c=String(b.start).localeCompare(String(a.start));
-    if(c) return c;
-    return String(b.startTime||"").localeCompare(String(a.startTime||""));
+    if(stewYearFilter!=="all"&&String(ev.start).slice(0,4)!==stewYearFilter) return false;
+    return true;
   });
   if(!events.length){
-    wrap.innerHTML=emptyBox("📅","No charters from calendar","Check AVAILABILITY_ICS_URL in Netlify, or add events to the shared calendar.");
+    wrap.innerHTML=emptyBox("📅","No charters in this view","Refresh the live feed, or check the seed file tracker/stew-calendar-seed.json.");
     return;
   }
-  ensureStewAssignPaidBeforeCut();
   var html='';
-  if(calEventsGeneratedAt){
-    try{
-      var gen=new Date(calEventsGeneratedAt);
-      if(!isNaN(gen.getTime())){
-        html+='<div class="meta" style="margin:0 0 10px;font-size:12px">Feed updated '+esc(gen.toLocaleString())+' · times come from the shared calendar</div>';
-      }
-    }catch(e){}
-  }
-  /* Running unpaid total across visible charters (per stew × days × rate) */
-  var unpaidSum=0, paidSum=0;
+  var seedN=events.filter(function(e){return e.source==="seed";}).length;
+  var liveN=events.filter(function(e){return e.source==="live";}).length;
+  html+='<div class="meta" style="margin:0 0 10px;font-size:12px">'+
+    events.length+' charter'+(events.length===1?"":"s")+
+    (seedN?' · '+seedN+' from export seed':'')+
+    (liveN?' · '+liveN+' live':'')+
+    (calEventsGeneratedAt?(' · live feed '+esc((function(){try{return new Date(calEventsGeneratedAt).toLocaleString();}catch(e){return "";}})())):'')+
+  '</div>';
+  /* Accounting roll-up for permanent-stew decision */
+  var unpaidSum=0, paidSum=0, tripWithStew=0, tripDays=0, byStew={};
   events.forEach(function(ev){
     var asg0=assignForEvent(ev.key);
+    var pay0=stewPayBreakdown(ev, asg0||{});
+    tripDays+=pay0.units||0;
     if(!asg0||!(asg0.stewIds||[]).length) return;
-    var pay0=stewPayBreakdown(ev, asg0);
+    tripWithStew++;
     if(pay0.each<=0) return;
-    if(pay0.paid) paidSum+=pay0.each*pay0.nStews;
-    else unpaidSum+=pay0.each*pay0.nStews;
+    var names=stewNames(asg0.stewIds);
+    names.forEach(function(nm){
+      if(!byStew[nm]) byStew[nm]={paid:0,unpaid:0,trips:0};
+      byStew[nm].trips++;
+      if(pay0.paid){ byStew[nm].paid+=pay0.each; paidSum+=pay0.each; }
+      else { byStew[nm].unpaid+=pay0.each; unpaidSum+=pay0.each; }
+    });
   });
-  if(unpaidSum>0||paidSum>0){
-    html+='<div class="apa-card" style="margin-bottom:12px">'+
-      '<div style="display:flex;flex-wrap:wrap;gap:10px 16px;align-items:baseline">'+
-        (unpaidSum>0?'<div><span class="meta">Still to pay stews</span><div class="money" style="font-size:22px;font-weight:800;color:var(--amber,#c9a84c)">'+money0(unpaidSum)+'</div></div>':'')+
-        (paidSum>0?'<div><span class="meta">Marked paid</span><div class="money" style="font-size:18px;font-weight:700">'+money0(paidSum)+'</div></div>':'')+
-      '</div></div>';
+  html+='<div class="apa-card" style="margin-bottom:12px">'+
+    '<div class="meta" style="margin-bottom:6px">Season accounting'+(stewYearFilter!=="all"?" · "+esc(stewYearFilter):"")+'</div>'+
+    '<div style="display:flex;flex-wrap:wrap;gap:10px 16px;align-items:baseline">'+
+      '<div><span class="meta">Trips listed</span><div style="font-size:20px;font-weight:800">'+events.length+'</div></div>'+
+      '<div><span class="meta">With stew assigned</span><div style="font-size:20px;font-weight:800">'+tripWithStew+'</div></div>'+
+      '<div><span class="meta">Billable days (all)</span><div style="font-size:20px;font-weight:800">'+tripDays+'</div></div>'+
+      (unpaidSum>0?'<div><span class="meta">Still to pay</span><div class="money" style="font-size:20px;font-weight:800;color:var(--amber,#c9a84c)">'+money0(unpaidSum)+'</div></div>':'')+
+      (paidSum>0?'<div><span class="meta">Paid to stews</span><div class="money" style="font-size:20px;font-weight:800">'+money0(paidSum)+'</div></div>':'')+
+      ((paidSum+unpaidSum)>0?'<div><span class="meta">Total stew cost</span><div class="money" style="font-size:20px;font-weight:800">'+money0(paidSum+unpaidSum)+'</div></div>':'')+
+    '</div>';
+  var stewKeys=Object.keys(byStew).sort();
+  if(stewKeys.length){
+    html+='<div style="margin-top:10px;border-top:1px solid var(--line);padding-top:8px">';
+    stewKeys.forEach(function(nm){
+      var b=byStew[nm], tot=b.paid+b.unpaid;
+      html+='<div class="meta" style="margin-top:4px"><span style="font-weight:700">'+esc(nm)+'</span>'+
+        '<span>'+b.trips+' trip'+(b.trips===1?"":"s")+'</span>'+
+        (tot>0?'<span class="money" style="font-weight:800">'+money0(tot)+'</span>':'')+
+        (b.unpaid>0?'<span class="pill p-amber">Unpaid '+money0(b.unpaid)+'</span>':'')+
+        (b.paid>0?'<span class="pill p-green">Paid '+money0(b.paid)+'</span>':'')+
+      '</div>';
+    });
+    html+='</div>';
+  } else {
+    html+='<p style="margin:10px 0 0;font-size:12px;color:var(--muted)">Assign stews + rates on past trips to build the cost picture for a permanent stew next year.</p>';
   }
+  html+='</div>';
   html+='<div class="list">';
   events.forEach(function(ev){
     var asg=assignForEvent(ev.key);
@@ -3403,7 +3509,6 @@ function paintStewCharters(){
     var each=pay.each;
     var paid=pay.paid;
     var units=pay.units;
-    /* Right-side amount: what we owe per stew (or total if multiple) */
     var amtLabel="";
     if(each>0&&names.length){
       amtLabel=names.length>1?(money0(each)+" each"):money0(each);
@@ -3417,6 +3522,7 @@ function paintStewCharters(){
       '<div class="meta"><span>📅 '+esc(fmtCalEventWhen(ev))+'</span>'+
         (units>1?'<span class="pill p-blue">'+units+' days</span>':'')+
         (rate>0?'<span class="money">'+money0(rate)+' × '+units+'</span>':'')+
+        (ev.source==="seed"?'<span class="pill p-grey">Seed</span>':'')+
         (ev.status==="tentative"?'<span class="pill p-amber">Tentative</span>':'')+
         (past?'<span class="pill p-grey">Past</span>':'')+
       '</div>';
@@ -3550,9 +3656,9 @@ function deleteStewPerson(id){
 }
 function openStewAssign(eventKey){
   if(!isCaptain()||!eventKey) return;
-  var ev=calEvents.filter(function(e){return e&&e.key===eventKey;})[0];
+  var ev=stewMergedEvents().filter(function(e){return e&&e.key===eventKey;})[0];
   if(!ev){
-    /* assignment may exist without live cal event */
+    /* assignment may exist without live/seed cal event */
     var existingAsg=assignForEvent(eventKey);
     if(!existingAsg){ window.alert("Calendar event not found — refresh the calendar."); return; }
     ev={key:eventKey, summary:existingAsg.summary||"Charter", start:existingAsg.start, end:existingAsg.end,
