@@ -3806,8 +3806,10 @@ function saveExpPetty(){
   if(hint){ hint.textContent="Saving…"; hint.className="savehint saving"; }
   /* Deep clone so nested cashIns always serialize */
   var rows=JSON.parse(JSON.stringify(state.expPetty||[]));
+  touchLocalSave("expPetty");
   return api("save",{collection:"expPetty",rows:rows,pushEndpoint:pushMeta.endpoint||""})
     .then(function(){
+      touchLocalSave("expPetty");
       if(hint){ hint.textContent="All changes saved ✓"; hint.className="savehint saved"; }
     })
     .catch(function(e){
@@ -3859,7 +3861,12 @@ function expCashInSum(petty){
   petty.cashIns.forEach(function(r){ s+=apaNum(r&&r.amount); });
   return Math.round(s*100)/100;
 }
-/** Prefer the side with more cash-in lines per month (avoids poll wipe after add). */
+/**
+ * Merge monthly petty float (start + cash-ins).
+ * Prefer newer updatedAt — never “more cash-in lines wins” (that undid deletes
+ * and start clears on the next poll ~20s later).
+ * On equal timestamp, local wins (second pass).
+ */
 function mergeExpPetty(local, remote){
   var by={}, out=[];
   function take(p){
@@ -3867,19 +3874,43 @@ function mergeExpPetty(local, remote){
     if(!Array.isArray(p.cashIns)) p.cashIns=[];
     var cur=by[p.month];
     if(!cur){ by[p.month]=p; return; }
-    var ln=cur.cashIns.length, rn=p.cashIns.length;
-    if(rn>ln) by[p.month]=p;
-    else if(rn===ln){
-      /* Same count: prefer newer updatedAt */
-      if(String(p.updatedAt||"")>String(cur.updatedAt||"")) by[p.month]=p;
-    } else {
-      /* local has more lines — keep local, refresh start if remote newer start only? keep local */
-    }
+    var ct=String(cur.updatedAt||"");
+    var pt=String(p.updatedAt||"");
+    if(pt>ct) by[p.month]=p;
+    else if(pt===ct) by[p.month]=p; /* later pass (local) wins ties */
   }
   (remote||[]).forEach(take);
   (local||[]).forEach(take);
   Object.keys(by).sort().forEach(function(m){ out.push(by[m]); });
   return out;
+}
+/** Merge expense rows by id; newer updatedAt wins; local wins ties. */
+function mergeExpensesById(local, remote){
+  var by={};
+  function take(e){
+    if(!e||!e.id) return;
+    var cur=by[e.id];
+    if(!cur){ by[e.id]=e; return; }
+    var ct=String(cur.updatedAt||"");
+    var pt=String(e.updatedAt||"");
+    if(pt>ct) by[e.id]=e;
+    else if(pt===ct) by[e.id]=e;
+  }
+  (remote||[]).forEach(take);
+  (local||[]).forEach(take);
+  var out=[];
+  Object.keys(by).forEach(function(k){ out.push(by[k]); });
+  return out;
+}
+/** After a local save, ignore poll overwrites for a short window. */
+var lastLocalSaveAt={expenses:0, expPetty:0, stewAssign:0};
+function touchLocalSave(coll){
+  if(coll) lastLocalSaveAt[coll]=Date.now();
+}
+function localSaveIsFresh(coll, ms){
+  ms=ms||12000;
+  var t=lastLocalSaveAt[coll]||0;
+  return t>0&&(Date.now()-t)<ms;
 }
 function expLinesForMonth(month){
   return (state.expenses||[]).filter(function(e){return e&&expMonthKey(e.date)===month;});
@@ -7036,7 +7067,11 @@ function save(coll){
   var hint=el("saveHint");
   if(DEMO){ hint.textContent="Saved (demo — not stored)"; hint.className="savehint saved"; return; }
   hint.textContent="Saving…"; hint.className="savehint saving";
-  api("save",{collection:coll,rows:state[coll],pushEndpoint:pushMeta.endpoint||""}).then(function(){ hint.textContent="All changes saved ✓"; hint.className="savehint saved"; })
+  if(coll==="expenses"||coll==="expPetty"||coll==="stewAssign") touchLocalSave(coll);
+  api("save",{collection:coll,rows:state[coll],pushEndpoint:pushMeta.endpoint||""}).then(function(){
+    if(coll==="expenses"||coll==="expPetty"||coll==="stewAssign") touchLocalSave(coll);
+    hint.textContent="All changes saved ✓"; hint.className="savehint saved";
+  })
     .catch(function(e){ hint.textContent=(e&&e.code===401)?"Session expired — reload":"Couldn't save — check connection"; hint.className="savehint error"; });
 }
 
@@ -7289,12 +7324,18 @@ var pollTimer=null;
 function startPolling(){
   if(pollTimer) return;
   pollTimer=setInterval(function(){
-    api("load",{silent:true}).then(applyData).catch(function(err){
+    api("load",{silent:true}).then(function(d){ applyData(d,{fromPoll:true}); }).catch(function(err){
       if(err&&err.code===401){ clearSession(); lockApp(); if(el("gateErr")) el("gateErr").textContent="Session expired — enter passcode."; }
     });
   },20000);
 }
-function applyData(d){
+/**
+ * Apply server data. opts.fromPoll = background refresh — do not re-seed or
+ * rewrite float (that was snapping Expenses back ~20s after edits).
+ */
+function applyData(d, opts){
+  opts=opts||{};
+  var fromPoll=!!opts.fromPoll;
   if(!d)return;
   state.charters=d.charters||[]; state.leads=d.leads||[]; state.devices=d.devices||[]; state.log=d.log||[];
   if(canOps() && Array.isArray(d.apa)) state.apa=d.apa;
@@ -7303,13 +7344,31 @@ function applyData(d){
   else if(!canOps()) state.diesel=[];
   if(isCaptain() && Array.isArray(d.stews)) state.stews=d.stews;
   else if(!isCaptain()) state.stews=[];
-  if(isCaptain() && Array.isArray(d.stewAssign)) state.stewAssign=d.stewAssign;
-  else if(!isCaptain()) state.stewAssign=[];
-  if(isCaptain() && Array.isArray(d.expenses)) state.expenses=d.expenses;
-  else if(!isCaptain()) state.expenses=[];
+  if(isCaptain() && Array.isArray(d.stewAssign)){
+    if(fromPoll&&localSaveIsFresh("stewAssign")){
+      /* keep local stew pay marks while save is in flight */
+    } else if(fromPoll){
+      state.stewAssign=mergeExpensesById(state.stewAssign, d.stewAssign);
+    } else {
+      state.stewAssign=d.stewAssign;
+    }
+  } else if(!isCaptain()) state.stewAssign=[];
+  if(isCaptain() && Array.isArray(d.expenses)){
+    if(fromPoll&&localSaveIsFresh("expenses")){
+      /* keep local expenses (floatPay / edits) for a few seconds after save */
+    } else if(fromPoll){
+      state.expenses=mergeExpensesById(state.expenses, d.expenses);
+    } else {
+      state.expenses=d.expenses;
+    }
+  } else if(!isCaptain()) state.expenses=[];
   if(isCaptain() && Array.isArray(d.expPetty)){
-    /* Merge by month so a slow poll cannot wipe a cash-in that just saved locally */
-    state.expPetty=mergeExpPetty(state.expPetty, d.expPetty);
+    if(fromPoll&&localSaveIsFresh("expPetty")){
+      /* keep local start/cash-in while save settles on server */
+      state.expPetty=mergeExpPetty(state.expPetty, d.expPetty);
+    } else {
+      state.expPetty=mergeExpPetty(state.expPetty||[], d.expPetty);
+    }
   } else if(!isCaptain()) state.expPetty=[];
   if(typeof d.pushEnabled==="boolean") pushMeta.server=d.pushEnabled;
   if(d.vapidPublicKey) pushMeta.vapidPublicKey=d.vapidPublicKey;
@@ -7321,7 +7380,7 @@ function applyData(d){
     mergeDuplicateApaTrips();
     ensureAllLeadCashApa();
   }
-  if(isCaptain()){
+  if(isCaptain()&&!fromPoll){
     ensureStewAssignPaidBeforeCut();
     expResetInventedCrewFloatPay();
     /* Current-month Cash expenses from Paid stew day pay (not tips, not other months) */
