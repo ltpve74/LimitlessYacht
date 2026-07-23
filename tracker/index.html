@@ -3204,10 +3204,151 @@ function ensureStewAssignPaidBeforeCut(){
   var changed=false;
   (state.stewAssign||[]).forEach(function(a){
     if(!a) return;
-    var ev=calEvents.filter(function(e){return e&&e.key===a.eventKey;})[0]||null;
+    var ev=stewMergedEvents().filter(function(e){return e&&e.key===a.eventKey;})[0]||null;
     if(!stewIsPaidBeforeCut(a, ev)) return;
     if(a.payStatus!=="Paid"){ a.payStatus="Paid"; changed=true; }
   });
+  if(changed&&!DEMO) saveStewAssign();
+  return changed;
+}
+/** Last auto-assign report (ignored calendar stew names not on roster). */
+var stewAutoAssignIgnored=[];
+function stewNormName(s){
+  return String(s||"").toLowerCase()
+    .normalize("NFD").replace(/[\u0300-\u036f]/g,"")
+    .replace(/['’]/g,"")
+    .replace(/[^a-z0-9]+/g,"");
+}
+/** Pull stew first names from calendar titles: "stew Toni", "stewardess Laura", "stewrdess Laura". */
+function stewNamesFromSummary(summary){
+  var s=String(summary||"");
+  var out=[], seen={};
+  var re=/\b(?:stew(?:ardess|rdess)?|stewardess)\s*[:\-]?\s*([A-Za-zÀ-ÿ][A-Za-zÀ-ÿ'’\-]*)/gi;
+  var m;
+  while((m=re.exec(s))){
+    var tok=(m[1]||"").trim();
+    if(!tok) continue;
+    var n=stewNormName(tok);
+    /* Not a person — guest notes / junk after "stew" */
+    if(!n||n.length<2) continue;
+    if(/^(some|guy|guys|person|someone|the|and|or|by|for|paid|off|charter|day|days|hours?|h|a|an)$/.test(n)) continue;
+    if(seen[n]) continue;
+    seen[n]=1;
+    out.push(tok);
+  }
+  return out;
+}
+function stewFindInRoster(token){
+  var t=stewNormName(token);
+  if(!t||t.length<2) return null;
+  /* Common calendar nicknames → same person */
+  var aliasGroups=[
+    ["toni","tony"],
+    ["laura"],
+    ["becks","becky","rebecca","rebeca","rebecka"],
+    ["vicky","vicki","victoria"],
+    ["rebecca","becks","becky"]
+  ];
+  function samePerson(a,b){
+    if(a===b) return true;
+    if(a.length>=3&&b.length>=3&&(a.indexOf(b)===0||b.indexOf(a)===0)) return true;
+    for(var g=0;g<aliasGroups.length;g++){
+      var G=aliasGroups[g];
+      if(G.indexOf(a)>=0&&G.indexOf(b)>=0) return true;
+    }
+    return false;
+  }
+  var list=state.stews||[];
+  for(var i=0;i<list.length;i++){
+    var s=list[i];
+    if(!s||!s.name) continue;
+    var full=stewNormName(s.name);
+    var first=stewNormName(String(s.name).split(/\s+/)[0]);
+    if(samePerson(full,t)||samePerson(first,t)) return s;
+  }
+  return null;
+}
+/**
+ * Before 17/07: assign stews from calendar title text. Unknown names are ignored
+ * (not added to roster) and listed for the captain.
+ */
+function ensureStewAssignFromCalendar(){
+  if(!isCaptain()) return false;
+  stewAutoAssignIgnored=[];
+  var events=stewMergedEvents().filter(function(ev){
+    return ev&&ev.start&&String(ev.start)<STEW_PAID_BEFORE;
+  });
+  if(!events.length) return false;
+  if(!state.stewAssign) state.stewAssign=[];
+  var changed=false;
+  var ignoredMap={}; /* nameNorm -> {token, dates:[]} */
+  events.forEach(function(ev){
+    var tokens=stewNamesFromSummary(ev.summary);
+    if(!tokens.length) return;
+    var ids=[], order=[];
+    tokens.forEach(function(tok){
+      var rec=stewFindInRoster(tok);
+      if(rec){
+        if(order.indexOf(String(rec.id))<0){
+          order.push(String(rec.id));
+          ids.push(rec.id);
+        }
+      } else {
+        var k=stewNormName(tok);
+        if(!ignoredMap[k]) ignoredMap[k]={token:tok, dates:[]};
+        ignoredMap[k].dates.push({
+          start:ev.start,
+          summary:ev.summary||"",
+          key:ev.key
+        });
+      }
+    });
+    if(!ids.length) return;
+    var band=stewRateBand(ev);
+    var rate=stewDefaultRate(ev, null);
+    var units=stewPayUnits(ev, null);
+    var asg=assignForEvent(ev.key);
+    var idsKey=ids.slice().map(String).sort().join(",");
+    var prevKey=asg&&asg.stewIds?asg.stewIds.map(String).sort().join(","):"";
+    if(asg&&prevKey===idsKey&&asg.payStatus==="Paid"&&asg.autoFromCal
+      &&apaNum(asg.dayRate)===rate&&apaNum(asg.payUnits||1)===units) return;
+    var obj={
+      id:(asg&&asg.id)||uid(),
+      eventKey:ev.key,
+      summary:ev.summary||"",
+      start:ev.start||"",
+      end:ev.end||ev.start||"",
+      startTime:ev.startTime||"",
+      endTime:ev.endTime||"",
+      allDay:!!ev.allDay,
+      status:ev.status||"booked",
+      stewIds:ids,
+      dayRate:rate,
+      payUnits:units,
+      payEach:stewPayEach(rate, units),
+      rateBand:band.kind,
+      payStatus:"Paid",
+      notes:(asg&&asg.notes)||"",
+      autoFromCal:true,
+      updatedAt:new Date().toISOString(),
+      by:session.who||"Captain"
+    };
+    var found=false;
+    state.stewAssign=state.stewAssign.map(function(a){
+      if(a&&a.eventKey===obj.eventKey){ found=true; return obj; }
+      return a;
+    });
+    if(!found) state.stewAssign.unshift(obj);
+    changed=true;
+  });
+  stewAutoAssignIgnored=Object.keys(ignoredMap).map(function(k){
+    var row=ignoredMap[k];
+    return {
+      name:row.token,
+      count:row.dates.length,
+      dates:row.dates
+    };
+  }).sort(function(a,b){ return String(a.name).localeCompare(String(b.name)); });
   if(changed&&!DEMO) saveStewAssign();
   return changed;
 }
@@ -3463,6 +3604,7 @@ function paintStewCharters(){
   var wrap=el("stewCalList"); if(!wrap) return;
   var today=new Date().toISOString().slice(0,10);
   var all=stewMergedEvents();
+  ensureStewAssignFromCalendar();
   ensureStewAssignPaidBeforeCut();
   var years=stewEventYears(all);
   var yf=el("stewYearFilters");
@@ -3497,6 +3639,20 @@ function paintStewCharters(){
     (liveN?' · '+liveN+' live':'')+
     (calEventsGeneratedAt?(' · live feed '+esc((function(){try{return new Date(calEventsGeneratedAt).toLocaleString();}catch(e){return "";}})())):'')+
   '</div>';
+  if(stewAutoAssignIgnored.length){
+    html+='<div class="banner warn show" style="margin-bottom:12px">'+
+      '<b>Calendar stew names not on the Team roster (ignored — not assigned):</b><ul style="margin:8px 0 0;padding-left:1.2em">';
+    stewAutoAssignIgnored.forEach(function(row){
+      var sample=row.dates.slice(0,4).map(function(d){
+        return (fmtDate(d.start)||d.start)+' “'+d.summary+'”';
+      }).join('; ');
+      if(row.dates.length>4) sample+=' … +'+(row.dates.length-4)+' more';
+      html+='<li><b>'+esc(row.name)+'</b> × '+row.count+
+        (sample?' <span class="meta">— '+esc(sample)+'</span>':'')+
+        '</li>';
+    });
+    html+='</ul><div class="meta" style="margin-top:8px">Add them under <b>Team</b> if you want them auto-assigned, then refresh. Only charters before 17/07 are auto-filled from the calendar title.</div></div>';
+  }
   /* Accounting: "still to pay" only for charter day+ (not future). Mark Paid yourself when settled. */
   var unpaidSum=0, paidSum=0, upcomingSum=0, tripWithStew=0, tripDays=0, byStew={};
   events.forEach(function(ev){
