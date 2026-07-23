@@ -3290,18 +3290,37 @@ function stewPayEach(rate, units){
   if(!(r>0)) return 0;
   return r*u;
 }
+/** Unpaid / "we owe" only from charter start day (local) onward — not for future dates. */
+function stewCharterDayReached(ev, asg){
+  var d=stewAssignStartDate(asg, ev);
+  if(!d) return false;
+  var today=new Date();
+  var y=today.getFullYear(), m=String(today.getMonth()+1).padStart(2,"0"), day=String(today.getDate()).padStart(2,"0");
+  return d<=(y+"-"+m+"-"+day);
+}
 function stewPayBreakdown(ev, asg){
   var rate=asg&&asg.dayRate!=null&&asg.dayRate!==""?apaNum(asg.dayRate):stewDefaultRate(ev, null);
   var units=stewPayUnits(ev, asg&&asg.payUnits);
   var each=stewPayEach(rate, units);
   var nStews=asg&&asg.stewIds?asg.stewIds.filter(Boolean).length:0;
   var paid=(asg&&asg.payStatus==="Paid")||stewIsPaidBeforeCut(asg, ev);
+  var due=stewCharterDayReached(ev, asg);
+  /* Future trips: not unpaid yet. From charter day: unpaid until you mark Paid. */
+  var unpaid=!!(!paid&&due);
+  var upcoming=!!(!paid&&!due);
   return {
     rate:rate, units:units, each:each,
     totalAll:each*Math.max(1, nStews||0),
-    nStews:nStews, paid:!!paid,
+    nStews:nStews, paid:!!paid, due:!!due, unpaid:unpaid, upcoming:upcoming,
     unitLabel:units===1?"day":"days"
   };
+}
+function stewPayStatusPill(pay){
+  if(!pay) return "";
+  if(pay.paid) return '<span class="pill p-green">Paid</span>';
+  if(pay.upcoming) return '<span class="pill p-grey">Not due yet</span>';
+  if(pay.unpaid) return '<span class="pill p-amber">Unpaid — we owe</span>';
+  return "";
 }
 function loadStewSeed(){
   if(!isCaptain()) return Promise.resolve([]);
@@ -3454,8 +3473,8 @@ function paintStewCharters(){
     (liveN?' · '+liveN+' live':'')+
     (calEventsGeneratedAt?(' · live feed '+esc((function(){try{return new Date(calEventsGeneratedAt).toLocaleString();}catch(e){return "";}})())):'')+
   '</div>';
-  /* Accounting roll-up for permanent-stew decision */
-  var unpaidSum=0, paidSum=0, tripWithStew=0, tripDays=0, byStew={};
+  /* Accounting: "still to pay" only for charter day+ (not future). Mark Paid yourself when settled. */
+  var unpaidSum=0, paidSum=0, upcomingSum=0, tripWithStew=0, tripDays=0, byStew={};
   events.forEach(function(ev){
     var asg0=assignForEvent(ev.key);
     var pay0=stewPayBreakdown(ev, asg0||{});
@@ -3465,21 +3484,23 @@ function paintStewCharters(){
     if(pay0.each<=0) return;
     var names=stewNames(asg0.stewIds);
     names.forEach(function(nm){
-      if(!byStew[nm]) byStew[nm]={paid:0,unpaid:0,trips:0};
+      if(!byStew[nm]) byStew[nm]={paid:0,unpaid:0,upcoming:0,trips:0};
       byStew[nm].trips++;
       if(pay0.paid){ byStew[nm].paid+=pay0.each; paidSum+=pay0.each; }
-      else { byStew[nm].unpaid+=pay0.each; unpaidSum+=pay0.each; }
+      else if(pay0.unpaid){ byStew[nm].unpaid+=pay0.each; unpaidSum+=pay0.each; }
+      else if(pay0.upcoming){ byStew[nm].upcoming+=pay0.each; upcomingSum+=pay0.each; }
     });
   });
   html+='<div class="apa-card" style="margin-bottom:12px">'+
-    '<div class="meta" style="margin-bottom:6px">Season accounting'+(stewYearFilter!=="all"?" · "+esc(stewYearFilter):"")+'</div>'+
+    '<div class="meta" style="margin-bottom:6px">Season accounting'+(stewYearFilter!=="all"?" · "+esc(stewYearFilter):"")+' · unpaid only from charter day</div>'+
     '<div style="display:flex;flex-wrap:wrap;gap:10px 16px;align-items:baseline">'+
       '<div><span class="meta">Trips listed</span><div style="font-size:20px;font-weight:800">'+events.length+'</div></div>'+
       '<div><span class="meta">With stew assigned</span><div style="font-size:20px;font-weight:800">'+tripWithStew+'</div></div>'+
       '<div><span class="meta">Billable days (all)</span><div style="font-size:20px;font-weight:800">'+tripDays+'</div></div>'+
       (unpaidSum>0?'<div><span class="meta">Still to pay</span><div class="money" style="font-size:20px;font-weight:800;color:var(--amber,#c9a84c)">'+money0(unpaidSum)+'</div></div>':'')+
       (paidSum>0?'<div><span class="meta">Paid to stews</span><div class="money" style="font-size:20px;font-weight:800">'+money0(paidSum)+'</div></div>':'')+
-      ((paidSum+unpaidSum)>0?'<div><span class="meta">Total stew cost</span><div class="money" style="font-size:20px;font-weight:800">'+money0(paidSum+unpaidSum)+'</div></div>':'')+
+      (upcomingSum>0?'<div><span class="meta">Booked (not due yet)</span><div class="money" style="font-size:18px;font-weight:700">'+money0(upcomingSum)+'</div></div>':'')+
+      ((paidSum+unpaidSum)>0?'<div><span class="meta">Due / paid total</span><div class="money" style="font-size:20px;font-weight:800">'+money0(paidSum+unpaidSum)+'</div></div>':'')+
     '</div>';
   var stewKeys=Object.keys(byStew).sort();
   if(stewKeys.length){
@@ -3491,6 +3512,7 @@ function paintStewCharters(){
         (tot>0?'<span class="money" style="font-weight:800">'+money0(tot)+'</span>':'')+
         (b.unpaid>0?'<span class="pill p-amber">Unpaid '+money0(b.unpaid)+'</span>':'')+
         (b.paid>0?'<span class="pill p-green">Paid '+money0(b.paid)+'</span>':'')+
+        (b.upcoming>0?'<span class="pill p-grey">Later '+money0(b.upcoming)+'</span>':'')+
       '</div>';
     });
     html+='</div>';
@@ -3531,12 +3553,13 @@ function paintStewCharters(){
         html+='<div class="meta" style="margin-top:4px">'+
           '<span style="font-weight:700">'+esc(nm)+'</span>'+
           (each>0?'<span class="money" style="font-weight:800">'+money0(each)+'</span>':'')+
-          (paid?'<span class="pill p-green">Paid</span>':'<span class="pill p-amber">Unpaid — we owe</span>')+
+          stewPayStatusPill(pay)+
         '</div>';
       });
     } else {
       html+='<div class="meta" style="margin-top:4px"><span class="pill p-amber">No stew assigned</span>'+
         (each>0?'<span class="meta">Would be '+money0(each)+' ('+money0(rate)+' × '+units+')</span>':'')+
+        (pay.upcoming?'<span class="pill p-grey">Not due yet</span>':'')+
       '</div>';
     }
     if(asg&&asg.notes) html+='<div class="notes">'+esc(asg.notes)+'</div>';
@@ -3559,13 +3582,14 @@ function stewPersonBalances(stewId){
   var unpaid=0, paid=0, nUnpaid=0, nPaid=0;
   (state.stewAssign||[]).forEach(function(a){
     if(!a||!(a.stewIds||[]).some(function(id){return String(id)===String(stewId);})) return;
-    var ev=calEvents.filter(function(e){return e&&e.key===a.eventKey;})[0]||{
+    var ev=stewMergedEvents().filter(function(e){return e&&e.key===a.eventKey;})[0]||{
       start:a.start, end:a.end, startTime:a.startTime, endTime:a.endTime, allDay:a.allDay, summary:a.summary, days:null
     };
     var pay=stewPayBreakdown(ev, a);
     if(pay.each<=0) return;
     if(pay.paid){ paid+=pay.each; nPaid++; }
-    else { unpaid+=pay.each; nUnpaid++; }
+    else if(pay.unpaid){ unpaid+=pay.each; nUnpaid++; }
+    /* upcoming future trips: not counted as unpaid */
   });
   return {unpaid:unpaid, paid:paid, nUnpaid:nUnpaid, nPaid:nPaid};
 }
@@ -3706,11 +3730,12 @@ function openStewAssign(eventKey){
     '<button type="button" class="btn ghost" data-stew-rate="'+STEW_RATE_ON+'" style="width:auto;padding:8px 12px;font-size:12.5px">Overnight €'+STEW_RATE_ON+'</button>'+
   '</div>';
   h+='<div class="apa-card" id="stewPayLive" style="margin-bottom:12px;background:rgba(201,168,76,.12)"></div>';
-  h+=fieldHTML("Stew pay status",'<select class="ctl" id="f_stew_pay"><option value="Unpaid"'+(pay==="Unpaid"?" selected":"")+'>Unpaid — we still owe</option><option value="Paid"'+(pay==="Paid"?" selected":"")+'>Paid</option></select>');
-  h+='<p style="margin:0 0 12px;font-size:12px;color:var(--muted)">Total = day rate × days for <b>each</b> stew. Example: 3-day charter at €250 → <b>€750</b> per stew. Suggested rate from calendar: <b>'+esc(band.label)+' · €'+band.rate+'/day</b>.</p>';
+  h+=fieldHTML("Stew pay status",'<select class="ctl" id="f_stew_pay"><option value="Unpaid"'+(pay==="Unpaid"?" selected":"")+'>Unpaid (mark Paid when settled)</option><option value="Paid"'+(pay==="Paid"?" selected":"")+'>Paid</option></select>');
+  h+='<p style="margin:0 0 12px;font-size:12px;color:var(--muted)">Total = day rate × days for <b>each</b> stew. <b>Unpaid</b> only shows from the charter day — future trips say “Not due yet”. Mark <b>Paid</b> yourself when they get paid. Suggested: <b>'+esc(band.label)+' · €'+band.rate+'/day</b>.</p>';
   h+=fieldHTML("Notes",'<textarea class="ctl" id="f_stew_asg_notes" placeholder="e.g. pick-up time, uniform…">'+esc(asg.notes||"")+'</textarea>');
   h+='<div class="sheetfoot"><button type="button" class="btn ghost" id="sheetCancel">Cancel</button><button type="button" class="btn" id="sheetSave">Save assignment</button></div>';
   el("sheetInner").innerHTML=h;
+  var charterDue=stewCharterDayReached(ev, asg);
   function refreshStewPayLive(){
     var box=el("stewPayLive"); if(!box) return;
     var rate=el("f_stew_rate")?apaNum(el("f_stew_rate").value):0;
@@ -3721,13 +3746,14 @@ function openStewAssign(eventKey){
       if(inp.checked) ids.push(inp.getAttribute("data-stew-pick"));
     });
     var paySel=el("f_stew_pay")&&el("f_stew_pay").value==="Paid"?"Paid":"Unpaid";
+    var statusLabel=paySel==="Paid"?"Paid":(charterDue?"Unpaid — we owe":"Not due yet");
     var names=stewNames(ids);
     var line="";
     if(each>0&&names.length){
       line=names.map(function(n){
         return '<div style="display:flex;justify-content:space-between;gap:12px;margin-top:4px">'+
           '<span style="font-weight:700">'+esc(n)+'</span>'+
-          '<span class="money" style="font-weight:800">'+money0(each)+' · '+(paySel==="Paid"?"Paid":"Unpaid — we owe")+'</span></div>';
+          '<span class="money" style="font-weight:800">'+money0(each)+' · '+statusLabel+'</span></div>';
       }).join("");
       if(names.length>1){
         line+='<div class="meta" style="margin-top:8px">All stews total: <b class="money">'+money0(each*names.length)+'</b></div>';
@@ -3735,7 +3761,10 @@ function openStewAssign(eventKey){
     } else if(each>0){
       line='<div class="meta">Per stew if assigned: <b class="money">'+money0(each)+'</b> ('+money0(rate)+' × '+units+' '+(units===1?"day":"days")+')</div>';
     } else {
-      line='<div class="meta">Set day rate and days to see what you owe.</div>';
+      line='<div class="meta">Set day rate and days to see the amount.</div>';
+    }
+    if(!charterDue&&paySel!=="Paid"){
+      line+='<div class="meta" style="margin-top:8px">Future charter — not counted as unpaid until <b>'+esc(fmtDate(ev.start)||ev.start||"the day")+'</b>.</div>';
     }
     box.innerHTML='<div class="meta">Pay calculation</div>'+
       '<div style="font-size:20px;font-weight:800;margin-top:4px" class="money">'+money0(each)+' <span style="font-size:13px;font-weight:600;color:var(--muted)">each ('+money0(rate)+' × '+units+')</span></div>'+
