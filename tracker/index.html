@@ -3245,12 +3245,33 @@ function stewCalendarDays(ev){
   if(end>start) return Math.max(1, stewDayDiff(start, end)+1);
   return 1;
 }
+function stewIsAllDay(ev){
+  if(!ev) return false;
+  if(ev.allDay) return true;
+  return !ev.startTime&&!ev.endTime;
+}
 function stewRateBand(ev){
   if(!ev) return {rate:STEW_RATE_6H, kind:"6h+", label:"Day charter"};
   var sum=String(ev.summary||"");
   var days=stewCalendarDays(ev);
-  var multi=days>1||(ev.start&&ev.end&&String(ev.end)>String(ev.start));
-  if(multi||/\b(overnight|overnights?|multi[-\s]?day|nights?)\b/i.test(sum)||/\b\d+\s*[- ]?days?\b/i.test(sum)){
+  var allDay=stewIsAllDay(ev);
+  /* Explicit overnight / multi-day wording always wins */
+  if(/\b(overnight|overnights?|multi[-\s]?day|nights?)\b/i.test(sum)){
+    return {rate:STEW_RATE_ON, kind:"overnight", label:days>1?(days+"-day charter"):"Overnight"};
+  }
+  if(/\b\d+\s*[- ]?days?\b/i.test(sum)&&days>1){
+    return {rate:STEW_RATE_ON, kind:"overnight", label:days+"-day charter"};
+  }
+  /*
+   * Calendar "all-day" is a day charter (8h / €200), not overnight.
+   * (ICS all-day DTEND is exclusive next day — do not treat that as multi-night.)
+   * Multi-day all-day blocks still use the day rate × days, not overnight.
+   */
+  if(allDay){
+    return {rate:STEW_RATE_6H, kind:"6h+", label:days>1?(days+" × 8h (all day)"):"8 hours (all day)"};
+  }
+  /* Timed multi-day (real overnight span with times on different dates) */
+  if(days>1||(ev.start&&ev.end&&String(ev.end)>String(ev.start))){
     return {rate:STEW_RATE_ON, kind:"overnight", label:days>1?(days+"-day charter"):"Overnight"};
   }
   var hours=null;
@@ -3272,7 +3293,7 @@ function stewDefaultRate(ev, existingRate){
   if(existingRate!=null&&existingRate!==""&&apaNum(existingRate)>0) return apaNum(existingRate);
   return stewRateBand(ev).rate;
 }
-/** Billable day-units for pay: day charters = 1; multi/overnight = calendar days (or title "3 days"). */
+/** Billable units: single day charter = 1; multi-day / all-day span / overnight = calendar days. */
 function stewPayUnits(ev, override){
   if(override!=null&&override!==""&&apaNum(override)>0) return Math.max(1, Math.round(apaNum(override)));
   var sum=String((ev&&ev.summary)||"");
@@ -3281,9 +3302,12 @@ function stewPayUnits(ev, override){
     var fromTitle=parseInt(m[1],10);
     if(fromTitle>0) return fromTitle;
   }
+  var days=stewCalendarDays(ev);
+  /* All-day multi-day block: one 8h day-rate unit per calendar day */
+  if(stewIsAllDay(ev)&&days>1) return days;
   var band=stewRateBand(ev);
-  if(band.kind==="4h"||band.kind==="6h+") return 1;
-  return Math.max(1, stewCalendarDays(ev));
+  if(band.kind==="overnight") return Math.max(1, days);
+  return 1;
 }
 function stewPayEach(rate, units){
   var r=apaNum(rate), u=Math.max(1, Math.round(apaNum(units)||1));
