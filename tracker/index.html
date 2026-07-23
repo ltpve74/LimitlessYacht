@@ -3255,6 +3255,9 @@ function stewRateBand(ev){
   var sum=String(ev.summary||"");
   var days=stewCalendarDays(ev);
   var allDay=stewIsAllDay(ev);
+  var start=String((ev&&ev.start)||"").slice(0,10);
+  /* Legacy seed: all-day before 17/07 only → 8h day rate (not overnight). From 17/07 use times for overnight. */
+  var legacyAllDay=allDay&&start&&start<STEW_PAID_BEFORE;
   /* Explicit overnight / multi-day wording always wins */
   if(/\b(overnight|overnights?|multi[-\s]?day|nights?)\b/i.test(sum)){
     return {rate:STEW_RATE_ON, kind:"overnight", label:days>1?(days+"-day charter"):"Overnight"};
@@ -3262,17 +3265,12 @@ function stewRateBand(ev){
   if(/\b\d+\s*[- ]?days?\b/i.test(sum)&&days>1){
     return {rate:STEW_RATE_ON, kind:"overnight", label:days+"-day charter"};
   }
-  /*
-   * Calendar "all-day" is a day charter (8h / €200), not overnight.
-   * (ICS all-day DTEND is exclusive next day — do not treat that as multi-night.)
-   * Multi-day all-day blocks still use the day rate × days, not overnight.
-   */
-  if(allDay){
+  if(legacyAllDay){
     return {rate:STEW_RATE_6H, kind:"6h+", label:days>1?(days+" × 8h (all day)"):"8 hours (all day)"};
   }
-  /* Timed multi-day (real overnight span with times on different dates) */
-  if(days>1||(ev.start&&ev.end&&String(ev.end)>String(ev.start))){
-    return {rate:STEW_RATE_ON, kind:"overnight", label:days>1?(days+"-day charter"):"Overnight"};
+  /* From 17/07: overnight only when times span calendar days (or days>1). All-day exclusive DTEND alone is not overnight. */
+  if(days>1){
+    return {rate:STEW_RATE_ON, kind:"overnight", label:days+"-day charter"};
   }
   var hours=null;
   if(ev.startTime&&ev.endTime){
@@ -3287,13 +3285,14 @@ function stewRateBand(ev){
   else if(/\b8\s*h(our)?s?\b/i.test(sum)||/\bfull[-\s]?day\b/i.test(sum)) hours=8;
   if(hours!=null&&hours<=4.5) return {rate:STEW_RATE_4H, kind:"4h", label:"4 hours"};
   if(hours!=null&&hours>4.5) return {rate:STEW_RATE_6H, kind:"6h+", label:"6 hours+"};
+  /* Timed overnight: same calendar day with end before start (spans midnight) already hours+=24 above */
   return {rate:STEW_RATE_6H, kind:"6h+", label:"Day charter"};
 }
 function stewDefaultRate(ev, existingRate){
   if(existingRate!=null&&existingRate!==""&&apaNum(existingRate)>0) return apaNum(existingRate);
   return stewRateBand(ev).rate;
 }
-/** Billable units: single day charter = 1; multi-day / all-day span / overnight = calendar days. */
+/** Billable units: day charter = 1; multi-day/overnight = calendar days; legacy pre-17/07 all-day multi = days × 8h. */
 function stewPayUnits(ev, override){
   if(override!=null&&override!==""&&apaNum(override)>0) return Math.max(1, Math.round(apaNum(override)));
   var sum=String((ev&&ev.summary)||"");
@@ -3303,8 +3302,9 @@ function stewPayUnits(ev, override){
     if(fromTitle>0) return fromTitle;
   }
   var days=stewCalendarDays(ev);
-  /* All-day multi-day block: one 8h day-rate unit per calendar day */
-  if(stewIsAllDay(ev)&&days>1) return days;
+  var start=String((ev&&ev.start)||"").slice(0,10);
+  var legacyAllDay=stewIsAllDay(ev)&&start&&start<STEW_PAID_BEFORE;
+  if(legacyAllDay&&days>1) return days;
   var band=stewRateBand(ev);
   if(band.kind==="overnight") return Math.max(1, days);
   return 1;
