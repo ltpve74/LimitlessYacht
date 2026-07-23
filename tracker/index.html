@@ -523,6 +523,8 @@ var EXP_METHODS=["Cash","Credit Card"];
 var EXP_CASH_IN_SOURCES=["Own money","Charter income","Bank / ATM","Owner float","Other"];
 /** Cash expense funded from boat float or captain’s pocket. */
 var EXP_PAID_FROM=["Petty cash","Own money"];
+/** Monthly expense charge target: boat running vs a charter APA pot. */
+var EXP_CHARGE_TO=["boat","apa"];
 var pushMeta={ server:false, vapidPublicKey:"", endpoint:"" };
 var DIESEL_DEFAULT_BUY=1.75, DIESEL_DEFAULT_SELL=2.20;
 var SESSION_KEY="limitless_tracker_session";
@@ -2215,13 +2217,48 @@ function deleteApaTrip(id){
   removeApaLinkedCharges(t, false);
   state.apa=state.apa.filter(function(x){return x.id!==id;});
   if(activeApaId===id){ activeApaId=null; apaView="list"; }
+  /* Monthly expenses tagged to this pot become boat-running again */
+  if(isCaptain()&&state.expenses){
+    var expDirty=false;
+    state.expenses.forEach(function(e){
+      if(e&&String(e.apaTripId||"")===String(id)){
+        e.apaTripId="";
+        e.chargeTo="boat";
+        e.updatedAt=new Date().toISOString();
+        expDirty=true;
+      }
+    });
+    if(expDirty) saveExpenses();
+  }
   save("apa"); save("charters");
   renderCharters(); renderApa();
+  if(curTab==="expenses") renderExpenses();
 }
 function deleteApaLine(kind,lineId){
   var t=apaTrip(); if(!t||!lineId) return;
   var label=kind==="expense"?"expense":(kind==="provision"?"provision":(kind==="dieselLoad"?"diesel load":"diesel consumption"));
-  if(!window.confirm("Delete this "+label+" entry?")) return;
+  var line=null;
+  if(kind==="expense"){
+    line=(t.expenses||[]).filter(function(x){return x&&String(x.id)===String(lineId);})[0]||null;
+  }
+  if(line&&line.fromExpenseId){
+    if(isCaptain()){
+      if(!window.confirm("This line is linked from monthly Expenses.\n\nDelete it from this APA pot and from monthly Expenses?")) return;
+      state.expenses=(state.expenses||[]).filter(function(e){return !e||String(e.id)!==String(line.fromExpenseId);});
+      expRemoveApaMirror(line.fromExpenseId, true);
+      saveExpenses();
+      var savedLink=apaMutateTrip(t.id,function(trip){
+        trip.expenses=(trip.expenses||[]).filter(function(x){return !x||String(x.id)!==String(lineId);});
+      });
+      if(savedLink) saveApa(savedLink);
+      else { save("apa"); renderApa(); }
+      if(curTab==="expenses") renderExpenses();
+      return;
+    }
+    if(!window.confirm("This line was synced from the captain’s monthly Expenses.\n\nRemove it from this APA pot only? (The monthly expense stays until the captain re-saves or deletes it.)")) return;
+  } else {
+    if(!window.confirm("Delete this "+label+" entry?")) return;
+  }
   var saved=apaMutateTrip(t.id,function(trip){
     if(kind==="expense") trip.expenses=trip.expenses.filter(function(x){return String(x.id)!==String(lineId);});
     else if(kind==="provision") trip.provisions=trip.provisions.filter(function(x){return String(x.id)!==String(lineId);});
@@ -2677,13 +2714,14 @@ function apaOverviewHTML(t){
 }
 function apaExpensesHTML(t){
   var rows=(t.expenses||[]).slice().sort(function(a,b){return String(b.date||"").localeCompare(String(a.date||""));});
-  if(!rows.length) return emptyBox("🧾","No expenses yet","Tap + to log a purchase against APA.");
+  if(!rows.length) return emptyBox("🧾","No expenses yet","Tap + to log a purchase against APA. Lines tagged to this APA from monthly Expenses appear here too.");
   var x=apaTotals(t), run=x.available;
   var html='<div class="list">';
   rows.forEach(function(e){
     run-=Number(e.amount)||0;
-    html+='<div class="item apa-row" data-apa-exp="'+esc(e.id)+'">'+
-      '<div class="top"><div class="title">'+esc(e.vendor||e.category||"—")+'</div><div class="amt money">'+money(e.amount)+'</div></div>'+
+    var fromExp=!!e.fromExpenseId;
+    html+='<div class="item apa-row'+(fromExp?' exp-own':'')+'" data-apa-exp="'+esc(e.id)+'">'+
+      '<div class="top"><div class="title">'+esc(e.vendor||e.category||"—")+(fromExp?' <span class="pill p-blue">From Expenses</span>':'')+'</div><div class="amt money">'+money(e.amount)+'</div></div>'+
       '<div class="meta"><span>'+esc(fmtDate(e.date))+'</span><span>'+esc(e.category||"")+'</span>'+
         (e.paidBy?'<span>'+esc(e.paidBy)+'</span>':'')+
         '<span style="color:var(--muted)">bal '+money(run)+'</span></div>'+
@@ -2956,20 +2994,32 @@ function openApaLine(kind,id){
   var tripId=t.id;
   var list=kind==="expense"?t.expenses:(kind==="provision"?t.provisions:t.diesel);
   var rec=id?list.filter(function(x){return String(x.id)===String(id);})[0]:null;
+  /* Linked monthly expense → edit there (source of truth); manager sees read-only note */
+  if(kind==="expense"&&rec&&rec.fromExpenseId){
+    if(isCaptain()){
+      showSheet(false);
+      openExpense(rec.fromExpenseId);
+      return;
+    }
+  }
   var r=rec||{id:uid(),date:new Date().toISOString().slice(0,10),amount:"",vendor:"",category:"Dockage / Marina",paidBy:"Ship card",supplier:"",items:"provisions",engineL:"",enginePortL:"",engineStbdL:"",genHrs:"",cost:"",receipt:"",notes:""};
   /* Migrate old single engineL into port for display if P/S empty */
   if(rec&&!(apaNum(r.enginePortL)>0||apaNum(r.engineStbdL)>0)&&apaNum(r.engineL)>0){
     r.enginePortL=r.engineL;
   }
   var title=kind==="expense"?(rec?"Edit expense":"New expense"):(kind==="provision"?(rec?"Edit provision":"New provision"):(rec?"Edit consumption":"Log consumption"));
+  var linkedFromExp=kind==="expense"&&rec&&rec.fromExpenseId;
   var h='<div class="sheethead"><h2>'+title+'</h2><button type="button" class="sheetx" id="sheetClose" aria-label="Close">×</button></div>';
-  h+=fieldHTML("Date",'<input class="ctl" id="f_date" type="date" value="'+esc(r.date||"")+'">');
+  if(linkedFromExp){
+    h+='<div class="banner warn show">Synced from the captain’s <b>monthly Expenses</b>. Edit there to change amount/date (or ask the captain). You can still remove it from this pot with Delete.</div>';
+  }
+  h+=fieldHTML("Date",'<input class="ctl" id="f_date" type="date" value="'+esc(r.date||"")+'"'+(linkedFromExp?" disabled":"")+'>');
   if(kind==="expense"){
-    h+=fieldHTML("Category",'<select class="ctl" id="f_cat">'+APA_EXP_CATS.map(function(c){return '<option'+(c===(r.category||"")?' selected':'')+'>'+esc(c)+'</option>';}).join("")+'</select>');
+    h+=fieldHTML("Category",'<select class="ctl" id="f_cat"'+(linkedFromExp?" disabled":"")+'>'+APA_EXP_CATS.map(function(c){return '<option'+(c===(r.category||"")?' selected':'')+'>'+esc(c)+'</option>';}).join("")+'</select>');
     h+=fieldHTML("Amount (€)",moneyField("f_amount",r.amount));
-    h+=fieldHTML("Vendor / Description",'<input class="ctl" id="f_vendor" value="'+esc(r.vendor||"")+'">');
-    h+=fieldHTML("Paid by",'<select class="ctl" id="f_paid">'+APA_PAID_BY.map(function(c){return '<option'+(c===(r.paidBy||"")?' selected':'')+'>'+esc(c)+'</option>';}).join("")+'</select>');
-    h+=fieldHTML("Receipt #",'<input class="ctl" id="f_receipt" value="'+esc(r.receipt||"")+'">');
+    h+=fieldHTML("Vendor / Description",'<input class="ctl" id="f_vendor" value="'+esc(r.vendor||"")+'"'+(linkedFromExp?" disabled":"")+'>');
+    h+=fieldHTML("Paid by",'<select class="ctl" id="f_paid"'+(linkedFromExp?" disabled":"")+'>'+APA_PAID_BY.map(function(c){return '<option'+(c===(r.paidBy||"")?' selected':'')+'>'+esc(c)+'</option>';}).join("")+'</select>');
+    h+=fieldHTML("Receipt #",'<input class="ctl" id="f_receipt" value="'+esc(r.receipt||"")+'"'+(linkedFromExp?" disabled":"")+'>');
   } else if(kind==="provision"){
     h+=fieldHTML("Supplier / Vendor",'<input class="ctl" id="f_supplier" value="'+esc(r.supplier||"")+'">');
     h+=fieldHTML("Items / Description",'<input class="ctl" id="f_items" value="'+esc(r.items||"provisions")+'">');
@@ -2990,6 +3040,11 @@ function openApaLine(kind,id){
   if(rec) h+='<div class="sheetbtns"><button type="button" class="btn danger" id="sheetDel">Delete</button></div>';
   h+='<div class="sheetfoot"><button type="button" class="btn ghost" id="sheetCancel">Cancel</button><button type="button" class="btn" id="sheetSave">Save</button></div>';
   el("sheetInner").innerHTML=h;
+  if(linkedFromExp){
+    ["f_date","f_cat","f_amount","f_vendor","f_paid","f_receipt","f_notes","sheetSave"].forEach(function(fid){
+      if(el(fid)) el(fid).disabled=true;
+    });
+  }
   function dslRecalc(){
     var box=el("f_dsl_calc"); if(!box) return;
     var tmp={
@@ -3298,6 +3353,124 @@ function renderDiesel(){
 function saveStews(){ if(!isCaptain()) return; save("stews"); }
 function saveStewAssign(){ if(!isCaptain()) return; save("stewAssign"); }
 function saveExpenses(){ if(!isCaptain()) return; save("expenses"); }
+/** Stable APA expense id for a monthly expense mirror line. */
+function expApaMirrorId(expenseId){ return "from-exp:"+String(expenseId||""); }
+/** Map monthly expense category → APA pot category. */
+function expMapCategoryToApa(cat){
+  cat=String(cat||"");
+  if(cat==="Dockage / Marina") return "Dockage / Marina";
+  if(cat==="Provisions") return "Food & Provisions";
+  if(cat==="Fuel Cars") return "Fuel / Diesel";
+  if(/drink/i.test(cat)) return "Drinks & Bar";
+  if(/tip/i.test(cat)) return "Crew Tips";
+  return "Miscellaneous";
+}
+function expMapPaidByToApa(e){
+  if(e&&e.payMethod==="Credit Card") return "Ship card";
+  return "APA cash";
+}
+function expApaTripLabel(tripId){
+  var t=(state.apa||[]).filter(function(x){return x&&String(x.id)===String(tripId);})[0];
+  if(!t) return "APA";
+  return (t.guest||"APA")+(t.dates?" · "+String(t.dates).slice(0,24):"");
+}
+function expListApaPickerOptions(){
+  return sortApaTrips(state.apa||[]).map(function(t){
+    return {id:t.id, label:expApaTripLabel(t.id)};
+  });
+}
+/** Remove mirror lines for this monthly expense from every APA pot. */
+function expRemoveApaMirror(expenseId, skipSave){
+  if(!expenseId||!state.apa) return false;
+  var mid=expApaMirrorId(expenseId);
+  var dirty=false;
+  state.apa.forEach(function(trip){
+    if(!trip) return;
+    if(!Array.isArray(trip.expenses)) trip.expenses=[];
+    var n=trip.expenses.length;
+    trip.expenses=trip.expenses.filter(function(x){
+      if(!x) return false;
+      if(String(x.id)===mid) return false;
+      if(String(x.fromExpenseId||"")===String(expenseId)) return false;
+      return true;
+    });
+    if(trip.expenses.length!==n){
+      dirty=true;
+      trip.updatedAt=new Date().toISOString();
+    }
+  });
+  if(dirty&&!skipSave&&canOps()){
+    save("apa");
+    if(curTab==="apa") renderApa();
+  }
+  return dirty;
+}
+/**
+ * Push a monthly expense onto its APA pot (or strip mirrors if boat / unpaid).
+ * Returns true if APA state changed.
+ */
+function expSyncExpenseToApa(e){
+  if(!e||!e.id) return false;
+  var dirty=expRemoveApaMirror(e.id, true);
+  var chargeTo=e.chargeTo==="apa"?"apa":"boat";
+  if(chargeTo!=="apa"||!e.apaTripId) return dirty;
+  if(expIsCrewUnpaid(e)) return dirty;
+  if(String(e.category||"")==="Captain reimbursement") return dirty;
+  if(!canOps()&&!isCaptain()) return dirty;
+  var trip=(state.apa||[]).filter(function(t){return t&&String(t.id)===String(e.apaTripId);})[0];
+  if(!trip) return dirty;
+  apaEnsureArrays(trip);
+  var mid=expApaMirrorId(e.id);
+  var desc=(e.description||"").trim();
+  var notes=desc;
+  if(e.payMethod==="Credit Card") notes=(notes?notes+" · ":"")+"Card";
+  else if(expPaidFromOwnMoney(e)) notes=(notes?notes+" · ":"")+"Own money";
+  else notes=(notes?notes+" · ":"")+"Petty cash";
+  notes=(notes?notes+" · ":"")+"from monthly Expenses";
+  var mirror={
+    id:mid,
+    fromExpenseId:String(e.id),
+    date:String(e.date||"").slice(0,10),
+    vendor:e.vendor||"",
+    category:expMapCategoryToApa(e.category),
+    amount:apaNum(e.amount),
+    paidBy:expMapPaidByToApa(e),
+    receipt:"",
+    notes:notes,
+    updatedAt:new Date().toISOString()
+  };
+  var found=false;
+  trip.expenses=trip.expenses.map(function(x){
+    if(x&&(String(x.id)===mid||String(x.fromExpenseId||"")===String(e.id))){
+      found=true;
+      return mirror;
+    }
+    return x;
+  });
+  if(!found) trip.expenses.unshift(mirror);
+  trip.updatedAt=new Date().toISOString();
+  return true;
+}
+function expSyncExpenseToApaAndSave(e){
+  if(!expSyncExpenseToApa(e)) return;
+  if(canOps()){
+    save("apa");
+    if(curTab==="apa") renderApa();
+  }
+}
+/** After load / bulk changes: re-push all APA-tagged monthly lines. */
+function expResyncAllApaMirrors(){
+  if(!isCaptain()||!state.expenses) return false;
+  var dirty=false;
+  state.expenses.forEach(function(e){
+    if(expSyncExpenseToApa(e)) dirty=true;
+  });
+  if(dirty&&canOps()){
+    save("apa");
+    if(curTab==="apa") renderApa();
+  }
+  return dirty;
+}
 /** Persist petty float; returns a Promise so UI can re-render after the server ack. */
 function saveExpPetty(){
   if(!isCaptain()) return Promise.resolve();
@@ -3688,11 +3861,13 @@ function expExportMonthCsv(month){
     if(/[",\n]/.test(s)) return '"'+s.replace(/"/g,'""')+'"';
     return s;
   }
-  lines=["Date,Company/Store,Description,Category,Type,Paid from,Amount"];
+  lines=["Date,Company/Store,Description,Category,Type,Paid from,Charge to,APA,Amount"];
   rows.forEach(function(e){
     var typ=expIsCrewUnpaid(e)?"Unpaid":(e.payMethod==="Credit Card"?"Credit Card":"Cash");
     var from=expIsCrewUnpaid(e)?"":(e.payMethod==="Credit Card"?"Card":(expPaidFromOwnMoney(e)?"Own money":"Petty cash"));
-    lines.push([csvCell(e.date),csvCell(e.vendor),csvCell(e.description),csvCell(e.category),csvCell(typ),csvCell(from),csvCell(e.amount)].join(","));
+    var charge=e.chargeTo==="apa"?"APA":"Boat";
+    var apaName=e.chargeTo==="apa"&&e.apaTripId?expApaTripLabel(e.apaTripId):"";
+    lines.push([csvCell(e.date),csvCell(e.vendor),csvCell(e.description),csvCell(e.category),csvCell(typ),csvCell(from),csvCell(charge),csvCell(apaName),csvCell(e.amount)].join(","));
   });
   var blob=new Blob([lines.join("\n")],{type:"text/csv;charset=utf-8"});
   var a=document.createElement("a");
@@ -3765,7 +3940,8 @@ function paintExpensesBody(){
   var cap=expCaptainOwed(expMonth, petty);
   var boatOwes=cap.owed||0;
   var h='<div class="legend">Captain-only monthly ledger. <b>Petty cash</b> = boat envelope. '+
-    'Pay from <b>Own money</b> when you use your pocket — the boat owes you that back (not a cash short). Tips stay on Stews only.</div>';
+    'Pay from <b>Own money</b> when you use your pocket — the boat owes you that back (not a cash short). '+
+    'Tag each line <b>Boat</b> or an <b>APA</b> (guest pot) — APA tags also appear on that APA’s Expenses. Tips stay on Stews only.</div>';
   h+='<div class="exp-month"><label class="meta" style="font-weight:700">Month</label>'+
     '<select class="ctl" id="expMonthSel">'+monthList.map(function(m){
       return '<option value="'+esc(m)+'"'+(m===expMonth?" selected":"")+'>'+esc(m)+'</option>';
@@ -3880,6 +4056,9 @@ function paintExpensesBody(){
                     ?'<span class="pill p-own">Own money</span>'
                     :'<span class="pill p-cash">Petty cash</span>')))+
               '<span class="pill p-grey">'+esc(e.category||"")+'</span>'+
+              (e.chargeTo==="apa"&&e.apaTripId
+                ?'<span class="pill p-blue">APA · '+esc((function(){ var t=(state.apa||[]).filter(function(x){return x&&String(x.id)===String(e.apaTripId);})[0]; return t&&t.guest?t.guest:"APA"; })())+'</span>'
+                :(!expIsCrewUnpaid(e)&&e.source!=="stew"?'<span class="pill p-grey">Boat</span>':''))+
               (isReimb?'<span class="pill p-green">Repaid me</span>':'')+
               (e.source==="stew"?'<span class="pill p-blue">From Stews</span>':'')+
             '</div>'+
@@ -3942,8 +4121,11 @@ function paintExpensesBody(){
       var rec=(state.expenses||[]).filter(function(e){return e&&e.id===id;})[0];
       if(rec&&rec.source==="stew"){ window.alert("This line comes from Stews day pay. Mark that charter Unpaid (or edit stews) to remove it."); return; }
       if(!window.confirm("Delete this expense?")) return;
+      if(rec) expRemoveApaMirror(rec.id, true);
       state.expenses=(state.expenses||[]).filter(function(e){return !e||e.id!==id;});
-      saveExpenses(); renderExpenses();
+      saveExpenses();
+      if(canOps()){ save("apa"); if(curTab==="apa") renderApa(); }
+      renderExpenses();
     });
   });
 }
@@ -4033,20 +4215,25 @@ function openExpense(id, opts){
     category:reimburse?"Captain reimbursement":"Miscellaneous",
     payMethod:"Cash",
     paidFrom:"Petty cash",
+    chargeTo:"boat",
+    apaTripId:"",
     amount:reimburse&&opts.amount>0?opts.amount:"",
     receipt:"", source:"manual"
   };
   if(r.paidFrom==null||r.paidFrom==="") r.paidFrom=expPaidFromOwnMoney(r)?"Own money":"Petty cash";
+  if(r.chargeTo!=="apa") r.chargeTo="boat";
   var paidFromSel=r.paidFrom==="Own money"?"Own money":"Petty cash";
+  var chargeToSel=r.chargeTo==="apa"?"apa":"boat";
+  var apaOpts=expListApaPickerOptions();
   var h='<div class="sheethead"><h2>'+(rec?(fromStew?"Crew salary (from Stews)":"Edit expense"):(reimburse?"Log reimbursement":"New expense"))+'</h2><button type="button" class="sheetx" id="sheetClose" aria-label="Close">×</button></div>';
   if(fromStew){
     var unp=expIsCrewUnpaid(r);
     h+='<div class="banner warn show">'+(unp
       ?'<b>Unpaid</b> crew day pay — listed so the charter is accounted for; not in cash out yet. Mark <b>Paid</b> on Stews when settled.'
       :'Auto from Stews day pay. If you paid this stew from <b>your pocket</b>, set Paid from → Own money (boat owes you). Otherwise Petty cash leaves the float.')+
-      ' Tips stay on Stews only.</div>';
+      ' Tips stay on Stews only. Charge to is always <b>Boat</b> for crew day pay.</div>';
   } else if(reimburse){
-    h+='<div class="banner warn show">This takes cash <b>from the float</b> to pay you back. Category is Captain reimbursement · Paid from Petty cash.</div>';
+    h+='<div class="banner warn show">This takes cash <b>from the float</b> to pay you back. Category is Captain reimbursement · Paid from Petty cash · Charge to Boat.</div>';
   }
   h+=fieldHTML("Date",'<input class="ctl" id="f_exp_date" type="date" value="'+esc(r.date||"")+'"'+(fromStew?" disabled":"")+'>');
   h+=fieldHTML("Company / Store",'<input class="ctl" id="f_exp_vendor" value="'+esc(r.vendor||"")+'" placeholder="e.g. Eroski, Laura"'+(fromStew?" disabled":"")+'>');
@@ -4061,6 +4248,25 @@ function openExpense(id, opts){
     '</select>')+
     '<p style="margin:-6px 0 12px;font-size:12px;color:var(--muted)"><b>Petty cash</b> = left the boat envelope. <b>Own money</b> = your pocket; boat owes you (not a cash short).</p>'+
   '</div>';
+  /* Charge to boat vs APA pot */
+  if(!fromStew&&!reimburse){
+    h+='<div id="f_exp_charge_wrap">'+
+      fieldHTML("Charge to",'<select class="ctl" id="f_exp_chargeTo">'+
+        '<option value="boat"'+(chargeToSel==="boat"?" selected":"")+'>Boat (running costs)</option>'+
+        '<option value="apa"'+(chargeToSel==="apa"?" selected":"")+'>APA / charter client</option>'+
+      '</select>')+
+      '<div id="f_exp_apa_wrap" style="'+(chargeToSel==="apa"?"":"display:none")+'">'+
+        (apaOpts.length
+          ?fieldHTML("APA trip",'<select class="ctl" id="f_exp_apaTrip">'+
+              apaOpts.map(function(o){
+                return '<option value="'+esc(o.id)+'"'+(String(r.apaTripId)===String(o.id)?" selected":"")+'>'+esc(o.label)+'</option>';
+              }).join("")+
+            '</select>')
+          :'<p style="margin:0 0 12px;font-size:13px;color:var(--danger)">No APA trips yet — create one under Ops → APA first.</p>')+
+      '</div>'+
+      '<p style="margin:-6px 0 12px;font-size:12px;color:var(--muted)">Tag to an APA to debit that guest pot. The same line appears under that APA’s Expenses.</p>'+
+    '</div>';
+  }
   h+=fieldHTML("Amount (€)",moneyField("f_exp_amount", r.amount!=null&&r.amount!==""?r.amount:""));
   h+='<div class="field"><label>Receipt photo</label>'+
     '<input class="ctl" id="f_exp_photo" type="file" accept="image/*" capture="environment">'+
@@ -4070,14 +4276,13 @@ function openExpense(id, opts){
   h+='<p style="margin:0 0 12px;font-size:12px;color:var(--muted)">Photos are compressed on this phone before save. Export CSV at month end for the manager (no tips, no receipt images in CSV).</p>';
   if(rec&&!fromStew) h+='<div class="sheetbtns"><button type="button" class="btn danger" id="sheetDel">Delete</button></div>';
   h+='<div class="sheetfoot"><button type="button" class="btn ghost" id="sheetCancel">Cancel</button>'+
-    (fromStew?'<button type="button" class="btn" id="sheetSave">Save</button>':'<button type="button" class="btn" id="sheetSave">Save</button>')+
+    '<button type="button" class="btn" id="sheetSave">Save</button>'+
   '</div>';
   el("sheetInner").innerHTML=h;
   if(fromStew){
     ["f_exp_date","f_exp_vendor","f_exp_desc","f_exp_cat","f_exp_method","f_exp_amount"].forEach(function(fid){
       if(el(fid)) el(fid).disabled=true;
     });
-    /* Unpaid crew: paidFrom irrelevant until Paid; keep editable only when Paid */
     if(expIsCrewUnpaid(r)&&el("f_exp_paidFrom")) el("f_exp_paidFrom").disabled=true;
   }
   function syncPaidFromVis(){
@@ -4085,8 +4290,15 @@ function openExpense(id, opts){
     var wrap=el("f_exp_paidFrom_wrap");
     if(wrap) wrap.style.display=method==="Credit Card"?"none":"";
   }
+  function syncChargeVis(){
+    var ct=(el("f_exp_chargeTo")&&el("f_exp_chargeTo").value)||"boat";
+    var wrap=el("f_exp_apa_wrap");
+    if(wrap) wrap.style.display=ct==="apa"?"":"none";
+  }
   if(el("f_exp_method")) el("f_exp_method").addEventListener("change",syncPaidFromVis);
+  if(el("f_exp_chargeTo")) el("f_exp_chargeTo").addEventListener("change",syncChargeVis);
   syncPaidFromVis();
+  syncChargeVis();
   var receiptData=r.receipt||"";
   if(el("f_exp_photo")) el("f_exp_photo").addEventListener("change",function(){
     var f=el("f_exp_photo").files&&el("f_exp_photo").files[0];
@@ -4104,17 +4316,23 @@ function openExpense(id, opts){
   });
   el("sheetSave").addEventListener("click",function(){
     if(fromStew){
-      /* Receipt + paidFrom (when paid from pocket vs float) */
       var pf=(el("f_exp_paidFrom")&&el("f_exp_paidFrom").value)==="Own money"?"Own money":"Petty cash";
+      var stewRow=null;
       state.expenses=(state.expenses||[]).map(function(e){
         if(e&&e.id===r.id){
           e.receipt=receiptData;
           if(!expIsCrewUnpaid(e)) e.paidFrom=pf;
+          e.chargeTo="boat";
+          e.apaTripId="";
           e.updatedAt=new Date().toISOString();
+          stewRow=e;
         }
         return e;
       });
-      showSheet(false); saveExpenses(); renderExpenses();
+      showSheet(false);
+      saveExpenses();
+      if(stewRow) expSyncExpenseToApaAndSave(stewRow);
+      renderExpenses();
       return;
     }
     var date=(el("f_exp_date")&&el("f_exp_date").value)||"";
@@ -4125,12 +4343,26 @@ function openExpense(id, opts){
     if(!(amount>0)){ if(el("f_exp_amount")) el("f_exp_amount").focus(); return; }
     var method=(el("f_exp_method")&&el("f_exp_method").value)==="Credit Card"?"Credit Card":"Cash";
     var paidFrom=method==="Credit Card"?"":((el("f_exp_paidFrom")&&el("f_exp_paidFrom").value)==="Own money"?"Own money":"Petty cash");
+    var chargeTo=reimburse?"boat":((el("f_exp_chargeTo")&&el("f_exp_chargeTo").value)==="apa"?"apa":"boat");
+    var apaTripId="";
+    if(chargeTo==="apa"){
+      apaTripId=(el("f_exp_apaTrip")&&el("f_exp_apaTrip").value)||"";
+      if(!apaTripId){
+        window.alert("Pick an APA trip, or set Charge to → Boat.");
+        if(el("f_exp_chargeTo")) el("f_exp_chargeTo").focus();
+        return;
+      }
+    }
+    var cat=(el("f_exp_cat")&&el("f_exp_cat").value)||"Miscellaneous";
+    if(cat==="Captain reimbursement"){ chargeTo="boat"; apaTripId=""; }
     var obj={
       id:r.id, date:date, vendor:vendor,
       description:(el("f_exp_desc")&&el("f_exp_desc").value||"").trim(),
-      category:(el("f_exp_cat")&&el("f_exp_cat").value)||"Miscellaneous",
+      category:cat,
       payMethod:method,
       paidFrom:paidFrom,
+      chargeTo:chargeTo,
+      apaTripId:apaTripId,
       amount:amount, receipt:receiptData, source:"manual",
       by:session.who||"Captain", updatedAt:new Date().toISOString()
     };
@@ -4138,14 +4370,21 @@ function openExpense(id, opts){
     if(rec) state.expenses=state.expenses.map(function(e){return e&&e.id===obj.id?obj:e;});
     else state.expenses.unshift(obj);
     expMonth=expMonthKey(date)||expMonth;
-    showSheet(false); saveExpenses(); renderExpenses();
+    showSheet(false);
+    saveExpenses();
+    expSyncExpenseToApaAndSave(obj);
+    renderExpenses();
   });
   el("sheetCancel").addEventListener("click",function(){ showSheet(false); });
   el("sheetClose").addEventListener("click",function(){ showSheet(false); });
   if(el("sheetDel")) el("sheetDel").addEventListener("click",function(){
-    if(!window.confirm("Delete this expense?")) return;
+    if(!window.confirm("Delete this expense?"+(r.chargeTo==="apa"?"\n\nIt will also be removed from the linked APA pot.":""))) return;
+    expRemoveApaMirror(r.id, true);
     state.expenses=(state.expenses||[]).filter(function(e){return !e||e.id!==r.id;});
-    showSheet(false); saveExpenses(); renderExpenses();
+    showSheet(false);
+    saveExpenses();
+    if(canOps()){ save("apa"); if(curTab==="apa") renderApa(); }
+    renderExpenses();
   });
   showSheet(true);
 }
