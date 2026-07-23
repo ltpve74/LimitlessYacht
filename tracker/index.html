@@ -108,6 +108,16 @@
   .exp-rcpt-lg{max-width:100%;max-height:220px;border-radius:12px;border:1px solid var(--line);display:block;margin:8px 0}
   .exp-month{display:flex;gap:8px;flex-wrap:wrap;align-items:center;margin:0 0 12px}
   .exp-month select.ctl{width:auto;min-width:9.5rem;padding:10px 12px}
+  .sumcard.sum-warn{background:#fff8e8;border:1.5px solid #f0d48a}
+  .sumcard.sum-warn .v{color:#9a6b00}
+  .sumcard.sum-danger{background:#fdeeee;border:1.5px solid #f0b4b0}
+  .sumcard.sum-danger .v{color:var(--danger)}
+  .sumcard.sum-ok{background:#eef8f1;border:1.5px solid #b8e0c4}
+  .sumcard.sum-ok .v{color:var(--greenInk,#1a5c48)}
+  .exp-alert{border-radius:14px;padding:12px 14px;margin:0 0 12px;font-size:14px;font-weight:600;line-height:1.4}
+  .exp-alert.short{background:#fdeeee;border:1.5px solid #f0b4b0;color:var(--danger)}
+  .exp-alert.owe{background:#fff8e8;border:1.5px solid #f0d48a;color:#7a5c00}
+  .exp-alert.ok{background:#eef8f1;border:1.5px solid #b8e0c4;color:#1a5c48}
   .chev{position:absolute;right:12px;bottom:11px;color:#c3ccd3;font-size:15px}
   .invtags{display:flex;flex-wrap:wrap;gap:7px;margin-top:10px}
   .invtag{background:#f5f7f9;border:1px solid var(--line);border-radius:10px;padding:6px 9px;font-size:12px;display:flex;align-items:center;gap:6px;flex-wrap:wrap}
@@ -3294,6 +3304,23 @@ function expEnsurePetty(month){
 function expLinesForMonth(month){
   return (state.expenses||[]).filter(function(e){return e&&expMonthKey(e.date)===month;});
 }
+/** Unpaid stew day pay still due for a month (through today). Tips excluded. */
+function expStewDayPayOwed(month){
+  var today=localTodayYmd();
+  var owe=0, nTrips=0;
+  (state.stewAssign||[]).forEach(function(asg){
+    if(!asg||expMonthKey(asg.start)!==month) return;
+    if(asg.payStatus==="Paid") return;
+    if(String(asg.start||"")>today) return;
+    var ids=(asg.stewIds||[]).filter(Boolean);
+    if(!ids.length) return;
+    var each=stewAssignDayPayAmount(asg);
+    if(!(each>0)) return;
+    owe+=each*ids.length;
+    nTrips++;
+  });
+  return {owe:owe, trips:nTrips};
+}
 function stewAssignDayPayAmount(asg){
   if(!asg) return 0;
   var each=apaNum(asg.payEach);
@@ -3537,19 +3564,38 @@ function paintExpensesBody(){
   });
   var petty=expPettyFor(expMonth)||{pettyStart:0, pettyIn:0};
   var pettyStart=apaNum(petty.pettyStart), pettyIn=apaNum(petty.pettyIn);
-  var pettyOnboard=pettyStart+pettyIn-cashOut;
-  var h='<div class="legend">Captain-only monthly vessel ledger. Cash crew lines come from <b>Stews → Charters</b> (Paid day pay for this month through today) — same rates and people you set there. Calendar only fills Stews (e.g. Rebecca → Becks). <b>Tips stay in Stews only</b>.</div>';
+  var cashInHand=pettyStart+pettyIn;
+  var pettyOnboard=cashInHand-cashOut;
+  /* Short = cash spends above start + cash in */
+  var cashShort=pettyOnboard<0?Math.round((-pettyOnboard)*100)/100:0;
+  var owed=expStewDayPayOwed(expMonth);
+  var oweCrew=owed.owe;
+  var h='<div class="legend">Captain-only monthly vessel ledger. Cash crew lines come from <b>Stews → Charters</b> (Paid day pay). <b>Cash short</b> = spent more cash than start + cash in. <b>Owe crew</b> = unpaid day pay this month (not tips).</div>';
   h+='<div class="exp-month"><label class="meta" style="font-weight:700">Month</label>'+
     '<select class="ctl" id="expMonthSel">'+monthList.map(function(m){
       return '<option value="'+esc(m)+'"'+(m===expMonth?" selected":"")+'>'+esc(m)+'</option>';
     }).join("")+'</select>'+
     '<button type="button" class="btn ghost" id="expExport" style="width:auto;padding:10px 14px">Export CSV</button>'+
   '</div>';
+  /* Big attention banners */
+  if(cashShort>0){
+    h+='<div class="exp-alert short">Cash short <span class="money" style="font-size:20px;font-weight:800">'+money0(cashShort)+'</span>'+
+      '<div style="font-weight:500;margin-top:4px;font-size:13px">Cash out '+money0(cashOut)+' exceeds start + cash in '+money0(cashInHand)+'. Top up petty cash or log cash in.</div></div>';
+  }
+  if(oweCrew>0){
+    h+='<div class="exp-alert owe">Owe crew (day pay) <span class="money" style="font-size:20px;font-weight:800">'+money0(oweCrew)+'</span>'+
+      '<div style="font-weight:500;margin-top:4px;font-size:13px">'+owed.trips+' charter'+(owed.trips===1?"":"s")+' with unpaid day pay on Stews (through today). Tips are separate.</div></div>';
+  }
+  if(cashShort<=0&&oweCrew<=0){
+    h+='<div class="exp-alert ok">Cash and crew day pay look settled for this month'+(pettyOnboard>0?' · '+money0(pettyOnboard)+' cash still onboard':'')+'.</div>';
+  }
   h+='<div class="summary">'+
+    '<div class="sumcard'+(cashShort>0?' sum-danger':'')+'"><div class="l">Cash short</div><div class="v money">'+(cashShort>0?money0(cashShort):'€0')+'</div></div>'+
+    '<div class="sumcard'+(oweCrew>0?' sum-warn':'')+'"><div class="l">Owe crew</div><div class="v money">'+(oweCrew>0?money0(oweCrew):'€0')+'</div></div>'+
+    '<div class="sumcard'+(pettyOnboard<0?' sum-danger':(pettyOnboard>0?' sum-ok':''))+'"><div class="l">Petty onboard</div><div class="v money">'+money0(pettyOnboard)+'</div></div>'+
     '<div class="sumcard"><div class="l">Cash out</div><div class="v money">'+money0(cashOut)+'</div></div>'+
     '<div class="sumcard"><div class="l">Card out</div><div class="v money">'+money0(cardOut)+'</div></div>'+
-    '<div class="sumcard"><div class="l">Crew salaries</div><div class="v money">'+money0(crewCash)+'</div></div>'+
-    '<div class="sumcard"><div class="l">Petty onboard</div><div class="v money">'+money0(pettyOnboard)+'</div></div>'+
+    '<div class="sumcard"><div class="l">Crew on ledger</div><div class="v money">'+money0(crewCash)+'</div></div>'+
   '</div>';
   h+='<div class="apa-card" style="margin-bottom:12px">'+
     '<div class="meta" style="margin-bottom:8px">Petty cash ('+esc(expMonth)+')</div>'+
@@ -3557,7 +3603,10 @@ function paintExpensesBody(){
       fieldHTML("Start amount (€)",moneyField("exp_petty_start", pettyStart||""))+
       fieldHTML("Cash in (€)",moneyField("exp_petty_in", pettyIn||""))+
     '</div>'+
-    '<div class="meta">Total out cash <b class="money">'+money0(cashOut)+'</b> · onboard <b class="money">'+money0(pettyOnboard)+'</b> (start + in − cash spends)</div>'+
+    '<div class="meta" style="margin-top:8px">Available <b class="money">'+money0(cashInHand)+'</b> (start + in) · cash out <b class="money">'+money0(cashOut)+'</b> · onboard <b class="money">'+money0(pettyOnboard)+'</b>'+
+      (cashShort>0?' · <b style="color:var(--danger)">short '+money0(cashShort)+'</b>':'')+
+    '</div>'+
+    (oweCrew>0?'<div class="meta" style="margin-top:6px;color:#7a5c00">Still to pay stews (day pay, not on ledger until Paid): <b class="money">'+money0(oweCrew)+'</b></div>':'')+
     '<button type="button" class="btn ghost" id="expPettySave" style="width:auto;margin-top:10px;padding:10px 14px">Save petty cash</button>'+
   '</div>';
   h+='<div class="apa-sect-h" style="margin-top:4px"><h3>Expenses</h3><button type="button" class="btn" id="expAdd">Add expense</button></div>';
