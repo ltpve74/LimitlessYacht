@@ -1,0 +1,593 @@
+{
+  "source": "charters report/Limitless Availability.ics",
+  "generatedNote": "Seed of season charters for Stews accounting. Live ICS merges on top (same UID wins).",
+  "eventCount": 38,
+  "events": [
+    {
+      "key": "uid:CAB64B27-C114-4843-BBE4-146C767A5397",
+      "uid": "CAB64B27-C114-4843-BBE4-146C767A5397",
+      "summary": "charter",
+      "start": "2026-05-15",
+      "end": "2026-05-16",
+      "startTime": "",
+      "endTime": "",
+      "allDay": true,
+      "status": "booked",
+      "days": [
+        "2026-05-15"
+      ],
+      "source": "seed"
+    },
+    {
+      "key": "uid:26607E07-8ADA-492F-AB56-710A3939170B",
+      "uid": "26607E07-8ADA-492F-AB56-710A3939170B",
+      "summary": "charter",
+      "start": "2026-05-17",
+      "end": "2026-05-18",
+      "startTime": "",
+      "endTime": "",
+      "allDay": true,
+      "status": "booked",
+      "days": [
+        "2026-05-17"
+      ],
+      "source": "seed"
+    },
+    {
+      "key": "uid:FF1F8C15-2144-485D-BD03-9C5B7EF48BF8",
+      "uid": "FF1F8C15-2144-485D-BD03-9C5B7EF48BF8",
+      "summary": "Charter",
+      "start": "2026-05-24",
+      "end": "2026-05-25",
+      "startTime": "",
+      "endTime": "",
+      "allDay": true,
+      "status": "booked",
+      "days": [
+        "2026-05-24"
+      ],
+      "source": "seed"
+    },
+    {
+      "key": "uid:8B638148-D54F-4762-BC61-9660E043102B",
+      "uid": "8B638148-D54F-4762-BC61-9660E043102B",
+      "summary": "charter",
+      "start": "2026-05-26",
+      "end": "2026-05-27",
+      "startTime": "",
+      "endTime": "",
+      "allDay": true,
+      "status": "booked",
+      "days": [
+        "2026-05-26"
+      ],
+      "source": "seed"
+    },
+    {
+      "key": "uid:D011DF23-7443-4828-B667-7C98E91FE679",
+      "uid": "D011DF23-7443-4828-B667-7C98E91FE679",
+      "summary": "Charter",
+      "start": "2026-05-29",
+      "end": "2026-05-30",
+      "startTime": "",
+      "endTime": "",
+      "allDay": true,
+      "status": "booked",
+      "days": [
+        "2026-05-29"
+      ],
+      "source": "seed"
+    },
+    {
+      "key": "uid:7B5C7827-7AF6-47D3-A53A-0EECD22A15C8",
+      "uid": "7B5C7827-7AF6-47D3-A53A-0EECD22A15C8",
+      "summary": "Charter Luisa",
+      "start": "2026-05-30",
+      "end": "2026-05-31",
+      "startTime": "",
+      "endTime": "",
+      "allDay": true,
+      "status": "booked",
+      "days": [
+        "2026-05-30"
+      ],
+      "source": "seed"
+    },
+    {
+      "key": "uid:AA1319A6-0158-406F-A2D8-29FAD61F1A0C",
+      "uid": "AA1319A6-0158-406F-A2D8-29FAD61F1A0C",
+      "summary": "henry",
+      "start": "2026-05-31",
+      "end": "2026-06-01",
+      "startTime": "",
+      "endTime": "",
+      "allDay": true,
+      "status": "booked",
+      "days": [
+        "2026-05-31"
+      ],
+      "source": "seed"
+    },
+    {
+      "key": "uid:A06CD164-3B27-4422-8CB5-83918B4D8D8E",
+      "uid": "A06CD164-3B27-4422-8CB5-83918B4D8D8E",
+      "summary": "off",
+      "start": "2026-06-08",
+      "end": "2026-06-09",
+      "startTime": "",
+      "endTime": "",
+      "allDay": true,
+      "status": "booked",
+      "days": [
+        "2026-06-08"
+      ],
+      "source": "seed"
+    },
+    {
+      "key": "uid:98ACE95A-A3F6-4566-A413-9057631CA83A",
+      "uid": "98ACE95A-A3F6-4566-A413-9057631CA83A",
+      "summary": "Click and boat stew some guy",
+      "start": "2026-06-10",
+      "end": "2026-06-10",
+      "startTime": "14:30",
+      "endTime": "18:30",
+      "allDay": false,
+      "status": "booked",
+      "days": [
+        "2026-06-10"
+      ],
+      "source": "seed"
+    },
+    {
+      "key": "uid:DCD1072B-8258-479F-ABE4-C3A25CD2E61B",
+      "uid": "DCD1072B-8258-479F-ABE4-C3A25CD2E61B",
+      "summary": "Henry - stewardess Laura",
+      "start": "2026-06-12",
+      "end": "2026-06-12",
+      "startTime": "11:00",
+      "endTime": "16:00",
+      "allDay": false,
+      "status": "booked",
+      "days": [
+        "2026-06-12"
+      ],
+      "source": "seed"
+    },
+    {
+      "key": "uid:2A71C878-CDF6-408F-AFAB-628104B765C0",
+      "uid": "2A71C878-CDF6-408F-AFAB-628104B765C0",
+      "summary": "Andrew - stewardess Becks",
+      "start": "2026-06-18",
+      "end": "2026-06-18",
+      "startTime": "15:00",
+      "endTime": "19:00",
+      "allDay": false,
+      "status": "booked",
+      "days": [
+        "2026-06-18"
+      ],
+      "source": "seed"
+    },
+    {
+      "key": "uid:799D43AF-E1D2-4622-BE12-1AD3B2B67DB9",
+      "uid": "799D43AF-E1D2-4622-BE12-1AD3B2B67DB9",
+      "summary": "Maurice - stewardess Laura",
+      "start": "2026-06-20",
+      "end": "2026-06-20",
+      "startTime": "12:00",
+      "endTime": "17:00",
+      "allDay": false,
+      "status": "booked",
+      "days": [
+        "2026-06-20"
+      ],
+      "source": "seed"
+    },
+    {
+      "key": "uid:9FC86C32-AFAD-4BE8-A7B4-1387632EE8A0",
+      "uid": "9FC86C32-AFAD-4BE8-A7B4-1387632EE8A0",
+      "summary": "henry - stewardess Becks",
+      "start": "2026-06-21",
+      "end": "2026-06-21",
+      "startTime": "11:00",
+      "endTime": "19:00",
+      "allDay": false,
+      "status": "booked",
+      "days": [
+        "2026-06-21"
+      ],
+      "source": "seed"
+    },
+    {
+      "key": "uid:A4A37F25-FBAF-490D-8897-31C6AA844407",
+      "uid": "A4A37F25-FBAF-490D-8897-31C6AA844407",
+      "summary": "Sebastián stew Laura",
+      "start": "2026-06-26",
+      "end": "2026-06-26",
+      "startTime": "12:00",
+      "endTime": "18:00",
+      "allDay": false,
+      "status": "booked",
+      "days": [
+        "2026-06-26"
+      ],
+      "source": "seed"
+    },
+    {
+      "key": "uid:E8EE7C99-8E58-4E8E-B892-AE471DF94E23",
+      "uid": "E8EE7C99-8E58-4E8E-B892-AE471DF94E23",
+      "summary": "philip - stewrdess Laura",
+      "start": "2026-06-28",
+      "end": "2026-06-28",
+      "startTime": "10:00",
+      "endTime": "14:00",
+      "allDay": false,
+      "status": "booked",
+      "days": [
+        "2026-06-28"
+      ],
+      "source": "seed"
+    },
+    {
+      "key": "uid:65F37A45-E4CF-42E4-9A9F-46596CF97FE7",
+      "uid": "65F37A45-E4CF-42E4-9A9F-46596CF97FE7",
+      "summary": "Henry’s daughter stew Rebecca -paid by daughter",
+      "start": "2026-07-03",
+      "end": "2026-07-03",
+      "startTime": "15:00",
+      "endTime": "20:00",
+      "allDay": false,
+      "status": "booked",
+      "days": [
+        "2026-07-03"
+      ],
+      "source": "seed"
+    },
+    {
+      "key": "uid:FC629017-F5FB-42C8-B10E-F15DB694A1B2",
+      "uid": "FC629017-F5FB-42C8-B10E-F15DB694A1B2",
+      "summary": "Danilo Caffaro - stew Toni",
+      "start": "2026-07-04",
+      "end": "2026-07-06",
+      "startTime": "",
+      "endTime": "",
+      "allDay": true,
+      "status": "booked",
+      "days": [
+        "2026-07-04",
+        "2026-07-05"
+      ],
+      "source": "seed"
+    },
+    {
+      "key": "uid:576A277F-D4B7-456D-9FFC-7395BCB9DC84",
+      "uid": "576A277F-D4B7-456D-9FFC-7395BCB9DC84",
+      "summary": "Sebastien stew Laura",
+      "start": "2026-07-08",
+      "end": "2026-07-08",
+      "startTime": "11:30",
+      "endTime": "17:30",
+      "allDay": false,
+      "status": "booked",
+      "days": [
+        "2026-07-08"
+      ],
+      "source": "seed"
+    },
+    {
+      "key": "uid:5CD76E16-6038-472F-AFFF-B82FDAF1F5A6",
+      "uid": "5CD76E16-6038-472F-AFFF-B82FDAF1F5A6",
+      "summary": "Leon stew Laura",
+      "start": "2026-07-10",
+      "end": "2026-07-10",
+      "startTime": "14:00",
+      "endTime": "18:00",
+      "allDay": false,
+      "status": "booked",
+      "days": [
+        "2026-07-10"
+      ],
+      "source": "seed"
+    },
+    {
+      "key": "uid:62AFC493-BBED-4B29-9321-4AA8EC9B9C31",
+      "uid": "62AFC493-BBED-4B29-9321-4AA8EC9B9C31",
+      "summary": "Jörg stew Laura",
+      "start": "2026-07-11",
+      "end": "2026-07-11",
+      "startTime": "11:00",
+      "endTime": "19:00",
+      "allDay": false,
+      "status": "booked",
+      "days": [
+        "2026-07-11"
+      ],
+      "source": "seed"
+    },
+    {
+      "key": "uid:44FD4862-2717-406F-8A6F-E8BCE2F97CC3",
+      "uid": "44FD4862-2717-406F-8A6F-E8BCE2F97CC3",
+      "summary": "click and boat - stew Toni",
+      "start": "2026-07-12",
+      "end": "2026-07-14",
+      "startTime": "",
+      "endTime": "",
+      "allDay": true,
+      "status": "booked",
+      "days": [
+        "2026-07-12",
+        "2026-07-13"
+      ],
+      "source": "seed"
+    },
+    {
+      "key": "uid:1A5391F6-D1F5-454F-B04B-D11324C57D66",
+      "uid": "1A5391F6-D1F5-454F-B04B-D11324C57D66",
+      "summary": "Sebastien stew Vicky",
+      "start": "2026-07-16",
+      "end": "2026-07-16",
+      "startTime": "14:00",
+      "endTime": "20:00",
+      "allDay": false,
+      "status": "booked",
+      "days": [
+        "2026-07-16"
+      ],
+      "source": "seed"
+    },
+    {
+      "key": "uid:5A56E0A1-264A-42AF-9A09-151CD90C47BF",
+      "uid": "5A56E0A1-264A-42AF-9A09-151CD90C47BF",
+      "summary": "joel -website lead - stew Toni",
+      "start": "2026-07-17",
+      "end": "2026-07-20",
+      "startTime": "",
+      "endTime": "",
+      "allDay": true,
+      "status": "booked",
+      "days": [
+        "2026-07-17",
+        "2026-07-18",
+        "2026-07-19"
+      ],
+      "source": "seed"
+    },
+    {
+      "key": "uid:7FE1531F-2820-4677-8E26-FADBDDD4FD24",
+      "uid": "7FE1531F-2820-4677-8E26-FADBDDD4FD24",
+      "summary": "Arthur",
+      "start": "2026-07-20",
+      "end": "2026-07-20",
+      "startTime": "14:30",
+      "endTime": "18:30",
+      "allDay": false,
+      "status": "booked",
+      "days": [
+        "2026-07-20"
+      ],
+      "source": "seed"
+    },
+    {
+      "key": "uid:5E7B0A1E-F171-4394-9748-742038B069C1",
+      "uid": "5E7B0A1E-F171-4394-9748-742038B069C1",
+      "summary": "Mohammed - stew Vicky",
+      "start": "2026-07-22",
+      "end": "2026-07-22",
+      "startTime": "10:00",
+      "endTime": "18:00",
+      "allDay": false,
+      "status": "booked",
+      "days": [
+        "2026-07-22"
+      ],
+      "source": "seed"
+    },
+    {
+      "key": "uid:2D83973B-AC74-4473-B80E-0DF75434796A",
+      "uid": "2D83973B-AC74-4473-B80E-0DF75434796A",
+      "summary": "oliver - stew toni - pickup/dropoff in Calanova - toys rental in",
+      "start": "2026-07-24",
+      "end": "2026-07-24",
+      "startTime": "10:30",
+      "endTime": "16:30",
+      "allDay": false,
+      "status": "booked",
+      "days": [
+        "2026-07-24"
+      ],
+      "source": "seed"
+    },
+    {
+      "key": "uid:18F1A26F-62B1-44A9-909A-E558A27C6B74",
+      "uid": "18F1A26F-62B1-44A9-909A-E558A27C6B74",
+      "summary": "Laura booking",
+      "start": "2026-07-26",
+      "end": "2026-07-27",
+      "startTime": "",
+      "endTime": "",
+      "allDay": true,
+      "status": "booked",
+      "days": [
+        "2026-07-26"
+      ],
+      "source": "seed"
+    },
+    {
+      "key": "uid:5E3498E9-754E-4F88-97AA-0C0654F8FF28",
+      "uid": "5E3498E9-754E-4F88-97AA-0C0654F8FF28",
+      "summary": "Stephan",
+      "start": "2026-07-28",
+      "end": "2026-07-28",
+      "startTime": "14:00",
+      "endTime": "20:00",
+      "allDay": false,
+      "status": "booked",
+      "days": [
+        "2026-07-28"
+      ],
+      "source": "seed"
+    },
+    {
+      "key": "uid:8EEC4022-9115-4DDD-8797-FAFEDDAD5C18",
+      "uid": "8EEC4022-9115-4DDD-8797-FAFEDDAD5C18",
+      "summary": "Danny - stew laura",
+      "start": "2026-08-01",
+      "end": "2026-08-01",
+      "startTime": "12:00",
+      "endTime": "20:00",
+      "allDay": false,
+      "status": "booked",
+      "days": [
+        "2026-08-01"
+      ],
+      "source": "seed"
+    },
+    {
+      "key": "uid:BB47B36A-3826-4D69-9440-3D96861F3B2D",
+      "uid": "BB47B36A-3826-4D69-9440-3D96861F3B2D",
+      "summary": "Dominik",
+      "start": "2026-08-03",
+      "end": "2026-08-03",
+      "startTime": "10:00",
+      "endTime": "18:00",
+      "allDay": false,
+      "status": "booked",
+      "days": [
+        "2026-08-03"
+      ],
+      "source": "seed"
+    },
+    {
+      "key": "uid:E3DCAC8F-75AE-4168-B781-762EC7483489",
+      "uid": "E3DCAC8F-75AE-4168-B781-762EC7483489",
+      "summary": "Simon",
+      "start": "2026-08-04",
+      "end": "2026-08-04",
+      "startTime": "10:00",
+      "endTime": "14:00",
+      "allDay": false,
+      "status": "booked",
+      "days": [
+        "2026-08-04"
+      ],
+      "source": "seed"
+    },
+    {
+      "key": "uid:92CD3A48-6798-4091-BD1B-83E61F30E0F0",
+      "uid": "92CD3A48-6798-4091-BD1B-83E61F30E0F0",
+      "summary": "Meera - stew Laura",
+      "start": "2026-08-05",
+      "end": "2026-08-05",
+      "startTime": "10:00",
+      "endTime": "14:00",
+      "allDay": false,
+      "status": "booked",
+      "days": [
+        "2026-08-05"
+      ],
+      "source": "seed"
+    },
+    {
+      "key": "uid:82D99344-7BDF-4235-8B2D-608F32C10616",
+      "uid": "82D99344-7BDF-4235-8B2D-608F32C10616",
+      "summary": "Nancy - stew Vicky",
+      "start": "2026-08-12",
+      "end": "2026-08-12",
+      "startTime": "12:00",
+      "endTime": "22:00",
+      "allDay": false,
+      "status": "booked",
+      "days": [
+        "2026-08-12"
+      ],
+      "source": "seed"
+    },
+    {
+      "key": "uid:635BAD32-4F7F-4961-A780-1AE2574192F9",
+      "uid": "635BAD32-4F7F-4961-A780-1AE2574192F9",
+      "summary": "Guido - Henry - stew Vicky",
+      "start": "2026-08-13",
+      "end": "2026-08-14",
+      "startTime": "",
+      "endTime": "",
+      "allDay": true,
+      "status": "booked",
+      "days": [
+        "2026-08-13"
+      ],
+      "source": "seed"
+    },
+    {
+      "key": "uid:A2B1E01C-EAA0-47EE-81DA-7660B74927EA",
+      "uid": "A2B1E01C-EAA0-47EE-81DA-7660B74927EA",
+      "summary": "henry - stew Vicky",
+      "start": "2026-08-14",
+      "end": "2026-08-15",
+      "startTime": "",
+      "endTime": "",
+      "allDay": true,
+      "status": "booked",
+      "days": [
+        "2026-08-14"
+      ],
+      "source": "seed"
+    },
+    {
+      "key": "uid:692CC10F-1F24-4632-BC12-ED653C4C36A7",
+      "uid": "692CC10F-1F24-4632-BC12-ED653C4C36A7",
+      "summary": "Henry - stewardess Laura",
+      "start": "2026-08-24",
+      "end": "2026-08-31",
+      "startTime": "",
+      "endTime": "",
+      "allDay": true,
+      "status": "booked",
+      "days": [
+        "2026-08-24",
+        "2026-08-25",
+        "2026-08-26",
+        "2026-08-27",
+        "2026-08-28",
+        "2026-08-29",
+        "2026-08-30"
+      ],
+      "source": "seed"
+    },
+    {
+      "key": "uid:D08D78B6-9C35-4BDC-8522-114E4036562D",
+      "uid": "D08D78B6-9C35-4BDC-8522-114E4036562D",
+      "summary": "Michael - stew laura",
+      "start": "2026-09-01",
+      "end": "2026-09-05",
+      "startTime": "",
+      "endTime": "",
+      "allDay": true,
+      "status": "booked",
+      "days": [
+        "2026-09-01",
+        "2026-09-02",
+        "2026-09-03",
+        "2026-09-04"
+      ],
+      "source": "seed"
+    },
+    {
+      "key": "uid:4B717B9F-FAEC-49AB-8539-2A4A672569AB",
+      "uid": "4B717B9F-FAEC-49AB-8539-2A4A672569AB",
+      "summary": "sebastian - stew Laura",
+      "start": "2026-09-07",
+      "end": "2026-09-11",
+      "startTime": "",
+      "endTime": "",
+      "allDay": true,
+      "status": "booked",
+      "days": [
+        "2026-09-07",
+        "2026-09-08",
+        "2026-09-09",
+        "2026-09-10"
+      ],
+      "source": "seed"
+    }
+  ]
+}

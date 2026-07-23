@@ -126,7 +126,8 @@ function parseIcs(ics) {
     } else if (name === "SUMMARY") {
       cur.summary = val;
     } else if (name === "UID") {
-      cur.uid = val;
+      // Keep first UID (event); ignore nested VALARM UIDs
+      if (!cur.uid) cur.uid = val;
     } else if (name === "RRULE") {
       cur.rrule = val;
     } else if (name === "RDATE") {
