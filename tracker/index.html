@@ -3377,9 +3377,9 @@ function stewDisplayName(tok, rec){
   return t.charAt(0).toUpperCase()+t.slice(1);
 }
 /**
- * Seed this month’s Cash · Crew Salaries from the calendar (every day with a stew in the title
- * up to today), plus any Paid stew assignments. Does not require the name to be on Team.
- * Tips never included. Other months untouched.
+ * Seed this month’s Cash · Crew Salaries from Stews charter data only
+ * (state.stewAssign — rate, days, who, Paid). Calendar is used only to
+ * fill Stews first; Expenses never re-parses titles. Tips never included.
  */
 function seedCurrentMonthStewCashExpenses(){
   if(!isCaptain()) return false;
@@ -3391,57 +3391,11 @@ function seedCurrentMonthStewCashExpenses(){
     if(e&&e.linkId) prevByLink[e.linkId]=e;
   });
   var wanted={};
-  function addWanted(linkId, row){
-    var old=prevByLink[linkId];
-    row.id=(old&&old.id)||uid();
-    row.receipt=(old&&old.receipt)||row.receipt||"";
-    row.linkId=linkId;
-    wanted[linkId]=row;
-  }
-  /* 1) Every calendar charter this month (through today) with stew name(s) in the title */
-  stewMergedEvents().forEach(function(ev){
-    if(!ev||!ev.start||expMonthKey(ev.start)!==month) return;
-    if(String(ev.start)>today) return;
-    var tokens=stewNamesFromSummary(ev.summary);
-    if(!tokens.length) return;
-    var asg=assignForEvent(ev.key);
-    if(asg&&asg.payStatusManual&&asg.payStatus==="Unpaid") return;
-    var rate=stewDefaultRate(ev, asg&&asg.dayRate);
-    var units=stewPayUnits(ev, asg&&asg.payUnits);
-    if(asg&&asg.payStatusManual){
-      if(asg.dayRate!=null&&asg.dayRate!=="") rate=apaNum(asg.dayRate);
-      if(asg.payUnits!=null&&asg.payUnits!=="") units=Math.max(1, Math.round(apaNum(asg.payUnits)||1));
-    }
-    var each=stewPayEach(rate, units);
-    if(!(each>0)) return;
-    var summary=ev.summary||"Charter";
-    var date=String(ev.start).slice(0,10);
-    tokens.forEach(function(tok){
-      var rec=stewFindInRoster(tok);
-      var sid=rec?String(rec.id):("cal:"+stewNormName(tok));
-      var linkId="stew-day:"+ev.key+":"+sid;
-      addWanted(linkId,{
-        source:"stew",
-        stewEventKey:ev.key,
-        stewId:sid,
-        stewPayKind:"dayPay",
-        date:date,
-        vendor:stewDisplayName(tok, rec),
-        description:"Stewardess / day work — "+summary,
-        category:"Crew Salaries",
-        payMethod:"Cash",
-        amount:each,
-        receipt:"",
-        by:session.who||"Captain",
-        updatedAt:new Date().toISOString()
-      });
-    });
-  });
-  /* 2) Paid assignments this month (manual stews without name in title still count) */
   (state.stewAssign||[]).forEach(function(asg){
     if(!asg||!asg.eventKey||expMonthKey(asg.start)!==month) return;
-    if(asg.payStatus!=="Paid") return;
     if(String(asg.start||"")>today) return;
+    /* Only Paid day pay (manual Unpaid stays off the ledger) */
+    if(asg.payStatus!=="Paid") return;
     var each=stewAssignDayPayAmount(asg);
     if(!(each>0)) return;
     var ids=(asg.stewIds||[]).filter(Boolean);
@@ -3451,7 +3405,10 @@ function seedCurrentMonthStewCashExpenses(){
     ids.forEach(function(sid){
       var rec=stewById(sid);
       var linkId="stew-day:"+asg.eventKey+":"+sid;
-      addWanted(linkId,{
+      var old=prevByLink[linkId];
+      wanted[linkId]={
+        id:(old&&old.id)||uid(),
+        linkId:linkId,
         source:"stew",
         stewEventKey:asg.eventKey,
         stewId:String(sid),
@@ -3462,23 +3419,21 @@ function seedCurrentMonthStewCashExpenses(){
         category:"Crew Salaries",
         payMethod:"Cash",
         amount:each,
-        receipt:"",
+        receipt:(old&&old.receipt)||"",
         by:session.who||"Captain",
         updatedAt:new Date().toISOString()
-      });
+      };
     });
   });
-  var keepMonth=Object.keys(wanted);
   var beforeSig=JSON.stringify((state.expenses||[]).filter(function(e){
     return e&&e.source==="stew"&&e.stewPayKind==="dayPay"&&expMonthKey(e.date)===month;
   }).map(function(e){return [e.linkId,e.amount,e.vendor,e.date];}).sort());
-  /* Drop this month’s auto stew lines, re-add from calendar */
   var rest=(state.expenses||[]).filter(function(e){
     if(!e) return false;
     if(e.source==="stew"&&e.stewPayKind==="dayPay"&&expMonthKey(e.date)===month) return false;
     return true;
   });
-  var seeded=keepMonth.map(function(k){ return wanted[k]; });
+  var seeded=Object.keys(wanted).map(function(k){ return wanted[k]; });
   state.expenses=seeded.concat(rest);
   var afterSig=JSON.stringify(seeded.map(function(e){return [e.linkId,e.amount,e.vendor,e.date];}).sort());
   var changed=beforeSig!==afterSig;
@@ -3549,10 +3504,11 @@ function renderExpenses(){
   if(!isCaptain()) return;
   var body=el("expBody"); if(!body) return;
   if(!expMonth) expMonth=expDefaultMonth();
-  /* Pull calendar → stew assigns, then seed this month’s Paid day-pay as Cash expenses */
+  /* Calendar → Stews assigns (nicknames) → Expenses from those Paid day pays only */
   loadStewCalendar(false).then(function(){
     var a=ensureStewAssignFromCalendar();
     var b=ensureStewAssignPaidBeforeCut();
+    if(a&&!DEMO) saveStewAssign();
     var c=seedCurrentMonthStewCashExpenses();
     if((a||b||c)&&curTab==="expenses") paintExpensesBody();
   });
@@ -3582,7 +3538,7 @@ function paintExpensesBody(){
   var petty=expPettyFor(expMonth)||{pettyStart:0, pettyIn:0};
   var pettyStart=apaNum(petty.pettyStart), pettyIn=apaNum(petty.pettyIn);
   var pettyOnboard=pettyStart+pettyIn-cashOut;
-  var h='<div class="legend">Captain-only monthly vessel ledger. <b>This month</b>: every calendar day (through today) with a stew in the title is seeded as <b>Cash · Crew Salaries</b> — even if the name is not on Team yet. Mark Unpaid on Stews to exclude a line. <b>Tips stay in Stews only</b>.</div>';
+  var h='<div class="legend">Captain-only monthly vessel ledger. Cash crew lines come from <b>Stews → Charters</b> (Paid day pay for this month through today) — same rates and people you set there. Calendar only fills Stews (e.g. Rebecca → Becks). <b>Tips stay in Stews only</b>.</div>';
   h+='<div class="exp-month"><label class="meta" style="font-weight:700">Month</label>'+
     '<select class="ctl" id="expMonthSel">'+monthList.map(function(m){
       return '<option value="'+esc(m)+'"'+(m===expMonth?" selected":"")+'>'+esc(m)+'</option>';
@@ -3815,24 +3771,31 @@ function stewNamesFromSummary(summary){
   }
   return out;
 }
+/** Calendar nicknames → same person (Rebecca = Becks, etc.). */
+var STEW_NAME_ALIASES=[
+  ["toni","tony"],
+  ["laura","laur"],
+  ["becks","beckky","becca","rebecca","rebeca","rebecka"],
+  ["vicky","vicki","victoria","vic"]
+];
+function stewAliasSet(norm){
+  var set={}; set[norm]=1;
+  STEW_NAME_ALIASES.forEach(function(G){
+    if(G.indexOf(norm)>=0) G.forEach(function(x){ set[x]=1; });
+  });
+  return set;
+}
 function stewFindInRoster(token){
   var t=stewNormName(token);
   if(!t||t.length<2) return null;
-  /* Common calendar nicknames → same person */
-  var aliasGroups=[
-    ["toni","tony"],
-    ["laura"],
-    ["becks","becky","rebecca","rebeca","rebecka"],
-    ["vicky","vicki","victoria"],
-    ["rebecca","becks","becky"]
-  ];
-  function samePerson(a,b){
-    if(a===b) return true;
-    if(a.length>=3&&b.length>=3&&(a.indexOf(b)===0||b.indexOf(a)===0)) return true;
-    for(var g=0;g<aliasGroups.length;g++){
-      var G=aliasGroups[g];
-      if(G.indexOf(a)>=0&&G.indexOf(b)>=0) return true;
-    }
+  var want=stewAliasSet(t);
+  function hits(nameNorm){
+    if(!nameNorm) return false;
+    if(want[nameNorm]) return true;
+    /* roster "Becks" vs token "Rebecca" already covered by alias set on both sides */
+    var rosterAliases=stewAliasSet(nameNorm);
+    for(var k in want){ if(want[k]&&rosterAliases[k]) return true; }
+    if(nameNorm.length>=3&&t.length>=3&&(nameNorm.indexOf(t)===0||t.indexOf(nameNorm)===0)) return true;
     return false;
   }
   var list=state.stews||[];
@@ -3841,7 +3804,7 @@ function stewFindInRoster(token){
     if(!s||!s.name) continue;
     var full=stewNormName(s.name);
     var first=stewNormName(String(s.name).split(/\s+/)[0]);
-    if(samePerson(full,t)||samePerson(first,t)) return s;
+    if(hits(full)||hits(first)) return s;
   }
   return null;
 }
