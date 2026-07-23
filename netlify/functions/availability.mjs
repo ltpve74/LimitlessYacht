@@ -1,5 +1,6 @@
 // Reads a shared calendar's public iCal (.ics) feed and returns booked/tentative
-// dates as JSON for the on-site availability calendar.
+// dates as JSON for the on-site availability calendar, plus full events (with times)
+// for the tracker stew roster.
 //
 // Configure the feed URL via the Netlify environment variable AVAILABILITY_ICS_URL
 // (Site settings → Environment variables). Works with any iCal feed — iCloud
@@ -12,26 +13,41 @@ export async function handler() {
   const headers = {
     "Content-Type": "application/json",
     "Access-Control-Allow-Origin": "*",
-    "Cache-Control": "public, max-age=1800" // 30 min CDN cache
+    "Cache-Control": "public, max-age=1800", // 30 min CDN cache
   };
 
   if (!ICS_URL) {
-    return { statusCode: 200, headers, body: JSON.stringify({ booked: [], tentative: [], note: "ICS feed not configured" }) };
+    return {
+      statusCode: 200,
+      headers,
+      body: JSON.stringify({ booked: [], tentative: [], events: [], note: "ICS feed not configured" }),
+    };
   }
 
   try {
     const url = ICS_URL.replace(/^webcal:\/\//i, "https://");
-    const res = await fetch(url, { headers: { "User-Agent": "LimitlessYacht/1.0 (+https://limitlessyachtcharter.com)" } });
+    const res = await fetch(url, {
+      headers: { "User-Agent": "LimitlessYacht/1.0 (+https://limitlessyachtcharter.com)" },
+    });
     if (!res.ok) throw new Error("ICS fetch failed: " + res.status);
     const text = await res.text();
-    const { booked, tentative } = parseIcs(text);
-    return { statusCode: 200, headers, body: JSON.stringify({ booked, tentative, generatedAt: new Date().toISOString() }) };
+    const parsed = parseIcs(text);
+    return {
+      statusCode: 200,
+      headers,
+      body: JSON.stringify({
+        booked: parsed.booked,
+        tentative: parsed.tentative,
+        events: parsed.events,
+        generatedAt: new Date().toISOString(),
+      }),
+    };
   } catch (err) {
     // Fail soft: the front-end falls back to an all-available calendar.
     return {
       statusCode: 200,
       headers: { ...headers, "Cache-Control": "public, max-age=60" },
-      body: JSON.stringify({ booked: [], tentative: [], error: String(err) })
+      body: JSON.stringify({ booked: [], tentative: [], events: [], error: String(err) }),
     };
   }
 }
@@ -43,18 +59,38 @@ function parseIcs(ics) {
 
   const booked = new Set();
   const tentative = new Set();
+  const events = [];
   let cur = null;
 
   for (const line of lines) {
-    if (line === "BEGIN:VEVENT") { cur = {}; continue; }
+    if (line === "BEGIN:VEVENT") {
+      cur = {};
+      continue;
+    }
     if (line === "END:VEVENT") {
       if (cur && cur.start && cur.status !== "CANCELLED") {
-        const isTentative = cur.status === "TENTATIVE"
-          || /\b(hold|tentative|option|pencil|enquiry|inquiry|provisional)\b/i.test(cur.summary || "");
+        const isTentative =
+          cur.status === "TENTATIVE" ||
+          /\b(hold|tentative|option|pencil|enquiry|inquiry|provisional)\b/i.test(cur.summary || "");
         const target = isTentative ? tentative : booked;
         for (const day of expandEvent(cur)) target.add(day);
+
+        const days = expandEvent(cur);
+        events.push({
+          key: eventKey(cur),
+          uid: cur.uid || "",
+          summary: decodeIcsText(cur.summary || "Charter"),
+          start: cur.start,
+          end: cur.end || cur.start,
+          startTime: cur.startTime || "",
+          endTime: cur.endTime || "",
+          allDay: !!cur.allDay,
+          status: isTentative ? "tentative" : "booked",
+          days,
+        });
       }
-      cur = null; continue;
+      cur = null;
+      continue;
     }
     if (!cur) continue;
 
@@ -65,15 +101,21 @@ function parseIcs(ics) {
     const name = rawKey.split(";")[0].toUpperCase();
 
     if (name === "DTSTART") {
-      cur.start = toDate(val);
-      cur.allDay = /VALUE=DATE(?!-TIME)/i.test(rawKey) || /^\d{8}$/.test(val);
-      cur.hasTime = /T\d{6}/.test(val);
+      const dt = parseIcsDateTime(val, rawKey);
+      cur.start = dt.date;
+      cur.startTime = dt.time;
+      cur.allDay = dt.allDay;
+      cur.hasTime = !!dt.time;
     } else if (name === "DTEND") {
-      cur.end = toDate(val);
+      const dt = parseIcsDateTime(val, rawKey);
+      cur.end = dt.date;
+      cur.endTime = dt.time;
     } else if (name === "STATUS") {
       cur.status = val.toUpperCase();
     } else if (name === "SUMMARY") {
       cur.summary = val;
+    } else if (name === "UID") {
+      cur.uid = val;
     } else if (name === "RRULE") {
       cur.rrule = val;
     } else if (name === "RDATE") {
@@ -82,13 +124,47 @@ function parseIcs(ics) {
     }
   }
 
-  return { booked: [...booked].sort(), tentative: [...tentative].sort() };
+  events.sort((a, b) => {
+    const c = String(a.start).localeCompare(String(b.start));
+    if (c) return c;
+    return String(a.startTime || "").localeCompare(String(b.startTime || ""));
+  });
+
+  return {
+    booked: [...booked].sort(),
+    tentative: [...tentative].sort(),
+    events,
+  };
+}
+
+function decodeIcsText(s) {
+  return String(s || "")
+    .replace(/\\n/g, " ")
+    .replace(/\\,/g, ",")
+    .replace(/\\;/g, ";")
+    .replace(/\\\\/g, "\\")
+    .trim();
+}
+
+function eventKey(cur) {
+  if (cur.uid) return "uid:" + cur.uid;
+  return "ev:" + (cur.start || "") + "|" + (cur.end || "") + "|" + (cur.startTime || "") + "|" + (cur.summary || "");
 }
 
 function toDate(val) {
   if (!val) return null;
   const m = val.match(/(\d{4})-?(\d{2})-?(\d{2})/);
-  return m ? (m[1] + "-" + m[2] + "-" + m[3]) : null;
+  return m ? m[1] + "-" + m[2] + "-" + m[3] : null;
+}
+
+/** Parse ICS date or date-time → { date: YYYY-MM-DD, time: HH:MM or "", allDay } */
+function parseIcsDateTime(val, rawKey) {
+  const allDay = /VALUE=DATE(?!-TIME)/i.test(rawKey || "") || /^\d{8}$/.test(val);
+  const m = String(val || "").match(/(\d{4})(\d{2})(\d{2})(?:T(\d{2})(\d{2})(\d{2}))?/);
+  if (!m) return { date: toDate(val), time: "", allDay: true };
+  const date = m[1] + "-" + m[2] + "-" + m[3];
+  if (allDay || !m[4]) return { date, time: "", allDay: true };
+  return { date, time: m[4] + ":" + m[5], allDay: false };
 }
 
 function parseDateKey(key) {
@@ -165,7 +241,8 @@ function expandEvent(ev) {
         if (n > 1) addEventInstance(days, ev, key);
         if (freq === "DAILY") cursor = addUtcDays(cursor, interval);
         else if (freq === "WEEKLY") cursor = addUtcDays(cursor, 7 * interval);
-        else if (freq === "MONTHLY") cursor = new Date(Date.UTC(cursor.getUTCFullYear(), cursor.getUTCMonth() + interval, cursor.getUTCDate()));
+        else if (freq === "MONTHLY")
+          cursor = new Date(Date.UTC(cursor.getUTCFullYear(), cursor.getUTCMonth() + interval, cursor.getUTCDate()));
         else break;
       }
     }
