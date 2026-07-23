@@ -114,11 +114,24 @@
   .sumcard.sum-danger .v{color:var(--danger)}
   .sumcard.sum-ok{background:#eef8f1;border:1.5px solid #b8e0c4}
   .sumcard.sum-ok .v{color:var(--greenInk,#1a5c48)}
-  .exp-alert{border-radius:14px;padding:12px 14px;margin:0 0 12px;font-size:14px;font-weight:600;line-height:1.4}
+  .exp-alert{border-radius:14px;padding:12px 14px;margin:0 0 12px;font-size:14px;font-weight:600;line-height:1.45;
+             max-width:100%;box-sizing:border-box;overflow-wrap:anywhere;word-break:break-word}
+  .exp-alert .money{font-size:inherit;white-space:normal}
   .exp-alert.short{background:#fdeeee;border:1.5px solid #f0b4b0;color:var(--danger)}
   .exp-alert.owe{background:#fff8e8;border:1.5px solid #f0d48a;color:#7a5c00}
   .exp-alert.ok{background:#eef8f1;border:1.5px solid #b8e0c4;color:#1a5c48}
+  /* Expenses stats: wrap in a 2-col grid (global .summary is single-row flex and overflows) */
+  .exp-summary{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:14px;width:100%;max-width:100%;box-sizing:border-box}
+  .exp-summary .sumcard{min-width:0;flex:none;padding:12px 12px;box-sizing:border-box}
+  .exp-summary .sumcard .l{font-size:11px;line-height:1.25}
+  .exp-summary .sumcard .v{font-size:18px;overflow-wrap:anywhere}
+  @media(min-width:620px){
+    .exp-summary{grid-template-columns:repeat(3,1fr)}
+    .exp-summary .sumcard .v{font-size:20px}
+  }
   .item.exp-unpaid{border:1.5px solid #f0d48a;background:#fffdf6}
+  .exp-howto{margin-bottom:12px;font-size:13px;line-height:1.5;max-width:100%;box-sizing:border-box;overflow-wrap:anywhere}
+  .exp-howto .row{margin-top:6px}
   .chev{position:absolute;right:12px;bottom:11px;color:#c3ccd3;font-size:15px}
   .invtags{display:flex;flex-wrap:wrap;gap:7px;margin-top:10px}
   .invtag{background:#f5f7f9;border:1px solid var(--line);border-radius:10px;padding:6px 9px;font-size:12px;display:flex;align-items:center;gap:6px;flex-wrap:wrap}
@@ -3647,32 +3660,33 @@ function paintExpensesBody(){
     }).join("")+'</select>'+
     '<button type="button" class="btn ghost" id="expExport" style="width:auto;padding:10px 14px">Export CSV</button>'+
   '</div>';
-  /* Formula strip — so the numbers are auditable */
-  h+='<div class="apa-card" style="margin-bottom:12px;font-size:13.5px;line-height:1.5">'+
+  /* Formula strip — auditable, wraps on narrow phones */
+  h+='<div class="apa-card exp-howto">'+
     '<div style="font-weight:800;margin-bottom:6px">How the numbers work</div>'+
-    '<div class="meta" style="display:block">Cash out = Paid crew day pay + other Cash expenses (not card, not unpaid crew, not tips).</div>'+
-    '<div style="margin-top:6px"><b class="money">'+money0(cashOut)+'</b> cash out = <b class="money">'+money0(crewPaid)+'</b> crew paid + <b class="money">'+money0(otherCash)+'</b> other cash</div>'+
-    '<div style="margin-top:4px">Available = start <b class="money">'+money0(pettyStart)+'</b> + cash in <b class="money">'+money0(cashInTotal)+'</b> → <b class="money">'+money0(cashInHand)+'</b></div>'+
-    '<div style="margin-top:4px">Onboard = available − cash out → <b class="money">'+money0(pettyOnboard)+'</b>'+
-      (pettyEntered?(cashShort>0?' · <b style="color:var(--danger)">short '+money0(cashShort)+'</b>':' · OK'):' · <em>set start and/or add cash in below</em>')+
+    '<div class="meta" style="display:block">Cash out = Paid crew day pay + other Cash (not card, not unpaid crew, not tips).</div>'+
+    '<div class="row"><b class="money">'+money0(cashOut)+'</b> cash out = <b class="money">'+money0(crewPaid)+'</b> crew paid + <b class="money">'+money0(otherCash)+'</b> other cash</div>'+
+    '<div class="row">Available = start <b class="money">'+money0(pettyStart)+'</b> + cash in <b class="money">'+money0(cashInTotal)+'</b> → <b class="money">'+money0(cashInHand)+'</b></div>'+
+    '<div class="row">Onboard = available − cash out → <b class="money">'+money0(pettyOnboard)+'</b>'+
+      (pettyEntered?(cashShort>0?' · <b style="color:var(--danger)">short '+money0(cashShort)+'</b>':' · OK'):' · <em>set start / cash in below</em>')+
     '</div>'+
-    (oweCrew>0?'<div style="margin-top:4px;color:#7a5c00">Owe crew (unpaid day pay on list) → <b class="money">'+money0(oweCrew)+'</b></div>':'')+
+    (oweCrew>0?'<div class="row" style="color:#7a5c00">Owe crew (unpaid on list) → <b class="money">'+money0(oweCrew)+'</b></div>':'')+
   '</div>';
-  /* Big attention banners */
+  /* Attention banners */
   if(!pettyEntered&&cashOut>0){
     h+='<div class="exp-alert owe">Petty start / cash in not set. Cash out is <b class="money">'+money0(cashOut)+'</b>. Add start float and cash-in lines (e.g. own money €200) to see true short.</div>';
   } else if(cashShort>0){
-    h+='<div class="exp-alert short">Cash short <span class="money" style="font-size:20px;font-weight:800">'+money0(cashShort)+'</span>'+
-      '<div style="font-weight:500;margin-top:4px;font-size:13px">Cash out '+money0(cashOut)+' − available '+money0(cashInHand)+' = short '+money0(cashShort)+'.</div></div>';
+    h+='<div class="exp-alert short"><div>Cash short</div><div class="money" style="font-size:22px;font-weight:800;margin-top:2px">'+money0(cashShort)+'</div>'+
+      '<div style="font-weight:500;margin-top:6px;font-size:13px">Cash out '+money0(cashOut)+' − available '+money0(cashInHand)+' = short '+money0(cashShort)+'.</div></div>';
   }
   if(oweCrew>0){
-    h+='<div class="exp-alert owe">Owe crew (day pay) <span class="money" style="font-size:20px;font-weight:800">'+money0(oweCrew)+'</span>'+
-      '<div style="font-weight:500;margin-top:4px;font-size:13px">Unpaid lines on the list below — not in cash out until Paid on Stews.</div></div>';
+    h+='<div class="exp-alert owe"><div>Owe crew (day pay)</div><div class="money" style="font-size:22px;font-weight:800;margin-top:2px">'+money0(oweCrew)+'</div>'+
+      '<div style="font-weight:500;margin-top:6px;font-size:13px">Unpaid lines below — not in cash out until Paid on Stews.</div></div>';
   }
   if(pettyEntered&&cashShort<=0&&oweCrew<=0){
     h+='<div class="exp-alert ok">Cash and crew day pay look settled for this month'+(pettyOnboard>0?' · '+money0(pettyOnboard)+' cash still onboard':'')+'.</div>';
   }
-  h+='<div class="summary">'+
+  /* 2-col grid on phone (not single-row flex) */
+  h+='<div class="exp-summary">'+
     '<div class="sumcard'+(cashShort>0?' sum-danger':'')+'"><div class="l">Cash short</div><div class="v money">'+(pettyEntered?(cashShort>0?money0(cashShort):'€0'):'—')+'</div></div>'+
     '<div class="sumcard'+(oweCrew>0?' sum-warn':'')+'"><div class="l">Owe crew</div><div class="v money">'+(oweCrew>0?money0(oweCrew):'€0')+'</div></div>'+
     '<div class="sumcard'+(pettyEntered&&pettyOnboard<0?' sum-danger':(pettyEntered&&pettyOnboard>0?' sum-ok':''))+'"><div class="l">Petty onboard</div><div class="v money">'+(pettyEntered?money0(pettyOnboard):'—')+'</div></div>'+
