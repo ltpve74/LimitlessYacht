@@ -4122,6 +4122,45 @@ function syncStewDayPayExpenses(asg, opts){
   }).map(function(e){ return [e.stewId,e.amount,e.date,e.vendor,e.crewPayStatus,e.paidFrom||"Petty cash"]; }));
   return before!==after;
 }
+/**
+ * Mark charter day-pay Paid/Unpaid from Expenses (or Stews).
+ * Updates stewAssign + all crew expense lines for that event. Two-way sync.
+ * opts.paidFrom applies to all day-pay lines on that charter when Paid.
+ */
+function expSetStewDayPayStatus(eventKey, payStatus, opts){
+  if(!isCaptain()||!eventKey) return false;
+  opts=opts||{};
+  var status=payStatus==="Paid"?"Paid":"Unpaid";
+  var asg=(state.stewAssign||[]).filter(function(a){return a&&String(a.eventKey)===String(eventKey);})[0]||null;
+  if(!asg){
+    /* Assignment missing — still flip expense lines if present */
+    var any=false;
+    (state.expenses||[]).forEach(function(e){
+      if(e&&e.source==="stew"&&e.stewPayKind==="dayPay"&&String(e.stewEventKey)===String(eventKey)){
+        e.crewPayStatus=status;
+        if(status==="Paid"&&opts.paidFrom) e.paidFrom=opts.paidFrom==="Own money"?"Own money":"Petty cash";
+        e.updatedAt=new Date().toISOString();
+        any=true;
+      }
+    });
+    return any;
+  }
+  asg.payStatus=status;
+  asg.payStatusManual=true;
+  asg.updatedAt=new Date().toISOString();
+  asg.by=session.who||asg.by||"Captain";
+  /* Preserve paidFrom on re-seed after status flip */
+  if(status==="Paid"&&opts.paidFrom){
+    var pf=opts.paidFrom==="Own money"?"Own money":"Petty cash";
+    (state.expenses||[]).forEach(function(e){
+      if(e&&e.source==="stew"&&e.stewPayKind==="dayPay"&&String(e.stewEventKey)===String(eventKey)){
+        e.paidFrom=pf;
+      }
+    });
+  }
+  syncStewDayPayExpenses(asg);
+  return true;
+}
 function localTodayYmd(){
   var n=new Date();
   return n.getFullYear()+"-"+String(n.getMonth()+1).padStart(2,"0")+"-"+String(n.getDate()).padStart(2,"0");
@@ -4759,9 +4798,9 @@ function openExpense(id, opts){
   if(fromStew){
     var unp=expIsCrewUnpaid(r);
     h+='<div class="banner warn show">'+(unp
-      ?'<b>Unpaid</b> crew day pay — listed so the charter is accounted for; not in cash out yet. Mark <b>Paid</b> on Stews when settled.'
-      :'Auto from Stews day pay. If you paid this stew from <b>your pocket</b>, set Paid from → Own money (boat owes you). Otherwise Petty cash leaves the float.')+
-      ' Tips stay on Stews only. Charge to is always <b>Boat</b> for crew day pay.</div>';
+      ?'<b>Unpaid</b> crew day pay — not in cash out yet. Mark <b>Paid</b> here when you pay them (syncs to Stews), or on Stews (syncs here).'
+      :'Paid crew day pay — counts as cash out. Change status below if needed; Stews stays in sync.')+
+      ' Tips stay on Stews only.</div>';
   } else if(reimburse){
     h+='<div class="banner warn show">This takes cash <b>from the float</b> to pay you back. Category is Captain reimbursement · Paid from Petty cash · Charge to Boat.</div>';
   }
@@ -4772,11 +4811,19 @@ function openExpense(id, opts){
     fieldHTML("Category",'<select class="ctl" id="f_exp_cat"'+(fromStew?" disabled":"")+'>'+EXP_CATS.map(function(c){return '<option'+(c===(r.category||"")?" selected":"")+'>'+esc(c)+'</option>';}).join("")+'</select>')+
     fieldHTML("Type",'<select class="ctl" id="f_exp_method"'+(fromStew?" disabled":"")+'>'+EXP_METHODS.map(function(c){return '<option'+(c===(r.payMethod||"")?" selected":"")+'>'+esc(c)+'</option>';}).join("")+'</select>')+
   '</div>';
+  if(fromStew){
+    var paySel=expIsCrewUnpaid(r)?"Unpaid":"Paid";
+    h+=fieldHTML("Day pay status",'<select class="ctl" id="f_exp_crew_pay">'+
+      '<option value="Unpaid"'+(paySel==="Unpaid"?" selected":"")+'>Unpaid (owe crew)</option>'+
+      '<option value="Paid"'+(paySel==="Paid"?" selected":"")+'>Paid (cash out from float / pocket)</option>'+
+    '</select>');
+    h+='<p style="margin:-6px 0 12px;font-size:12px;color:var(--muted)">Applies to <b>all stews on this charter</b> (same as Stews). Tips stay on Stews only.</p>';
+  }
   h+='<div id="f_exp_paidFrom_wrap">'+
     fieldHTML("Paid from (cash only)",'<select class="ctl" id="f_exp_paidFrom">'+
       EXP_PAID_FROM.map(function(c){return '<option'+(c===paidFromSel?" selected":"")+'>'+esc(c)+'</option>';}).join("")+
     '</select>')+
-    '<p style="margin:-6px 0 12px;font-size:12px;color:var(--muted)"><b>Petty cash</b> = left the boat envelope. <b>Own money</b> = your pocket; boat owes you (not a cash short).</p>'+
+    '<p style="margin:-6px 0 12px;font-size:12px;color:var(--muted)"><b>Petty cash</b> = left the boat envelope. <b>Own money</b> = your pocket; boat owes you.</p>'+
   '</div>';
   /* Charge to boat vs APA pot */
   if(!fromStew&&!reimburse){
@@ -4814,12 +4861,19 @@ function openExpense(id, opts){
     ["f_exp_date","f_exp_vendor","f_exp_desc","f_exp_cat","f_exp_method","f_exp_amount"].forEach(function(fid){
       if(el(fid)) el(fid).disabled=true;
     });
-    if(expIsCrewUnpaid(r)&&el("f_exp_paidFrom")) el("f_exp_paidFrom").disabled=true;
   }
   function syncPaidFromVis(){
     var method=(el("f_exp_method")&&el("f_exp_method").value)||"Cash";
     var wrap=el("f_exp_paidFrom_wrap");
-    if(wrap) wrap.style.display=method==="Credit Card"?"none":"";
+    var crewPay=el("f_exp_crew_pay")?el("f_exp_crew_pay").value:"Paid";
+    if(wrap){
+      if(fromStew){
+        /* Paid from only matters once day pay is Paid */
+        wrap.style.display=crewPay==="Paid"?"":"none";
+      } else {
+        wrap.style.display=method==="Credit Card"?"none":"";
+      }
+    }
   }
   function syncChargeVis(){
     var ct=(el("f_exp_chargeTo")&&el("f_exp_chargeTo").value)||"boat";
@@ -4827,6 +4881,7 @@ function openExpense(id, opts){
     if(wrap) wrap.style.display=ct==="apa"?"":"none";
   }
   if(el("f_exp_method")) el("f_exp_method").addEventListener("change",syncPaidFromVis);
+  if(el("f_exp_crew_pay")) el("f_exp_crew_pay").addEventListener("change",syncPaidFromVis);
   if(el("f_exp_chargeTo")) el("f_exp_chargeTo").addEventListener("change",syncChargeVis);
   syncPaidFromVis();
   syncChargeVis();
@@ -4848,22 +4903,38 @@ function openExpense(id, opts){
   el("sheetSave").addEventListener("click",function(){
     if(fromStew){
       var pf=(el("f_exp_paidFrom")&&el("f_exp_paidFrom").value)==="Own money"?"Own money":"Petty cash";
-      var stewRow=null;
-      state.expenses=(state.expenses||[]).map(function(e){
-        if(e&&e.id===r.id){
-          e.receipt=receiptData;
-          if(!expIsCrewUnpaid(e)) e.paidFrom=pf;
-          e.chargeTo="boat";
-          e.apaTripId="";
-          e.updatedAt=new Date().toISOString();
-          stewRow=e;
-        }
-        return e;
-      });
+      var crewPay=(el("f_exp_crew_pay")&&el("f_exp_crew_pay").value)==="Paid"?"Paid":"Unpaid";
+      var eventKey=r.stewEventKey||"";
+      if(eventKey){
+        expSetStewDayPayStatus(eventKey, crewPay, {paidFrom:crewPay==="Paid"?pf:""});
+        /* Re-apply receipt on this stew’s line (sync may keep id) */
+        state.expenses=(state.expenses||[]).map(function(e){
+          if(e&&e.id===r.id){
+            e.receipt=receiptData;
+            if(crewPay==="Paid") e.paidFrom=pf;
+            e.updatedAt=new Date().toISOString();
+          } else if(e&&e.source==="stew"&&e.stewPayKind==="dayPay"&&String(e.stewEventKey)===String(eventKey)&&String(e.stewId)===String(r.stewId)){
+            e.receipt=receiptData||e.receipt;
+            if(crewPay==="Paid") e.paidFrom=pf;
+          }
+          return e;
+        });
+      } else {
+        state.expenses=(state.expenses||[]).map(function(e){
+          if(e&&e.id===r.id){
+            e.receipt=receiptData;
+            e.crewPayStatus=crewPay;
+            if(crewPay==="Paid") e.paidFrom=pf;
+            e.updatedAt=new Date().toISOString();
+          }
+          return e;
+        });
+      }
       showSheet(false);
+      saveStewAssign();
       saveExpenses();
-      if(stewRow) expSyncExpenseToApaAndSave(stewRow);
       renderExpenses();
+      if(typeof renderStews==="function"&&curTab==="stews") renderStews({soft:true});
       return;
     }
     var date=(el("f_exp_date")&&el("f_exp_date").value)||"";
