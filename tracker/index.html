@@ -3294,7 +3294,33 @@ function renderDiesel(){
 function saveStews(){ if(!isCaptain()) return; save("stews"); }
 function saveStewAssign(){ if(!isCaptain()) return; save("stewAssign"); }
 function saveExpenses(){ if(!isCaptain()) return; save("expenses"); }
-function saveExpPetty(){ if(!isCaptain()) return; save("expPetty"); }
+/** Persist petty float; returns a Promise so UI can re-render after the server ack. */
+function saveExpPetty(){
+  if(!isCaptain()) return Promise.resolve();
+  /* Keep pettyIn in sync as a sum backup (older builds only read that field) */
+  (state.expPetty||[]).forEach(function(p){
+    if(!p) return;
+    if(!Array.isArray(p.cashIns)) p.cashIns=[];
+    p.pettyIn=expCashInSum(p);
+  });
+  if(DEMO){
+    var hint=el("saveHint");
+    if(hint){ hint.textContent="Saved (demo — not stored)"; hint.className="savehint saved"; }
+    return Promise.resolve();
+  }
+  var hint=el("saveHint");
+  if(hint){ hint.textContent="Saving…"; hint.className="savehint saving"; }
+  /* Deep clone so nested cashIns always serialize */
+  var rows=JSON.parse(JSON.stringify(state.expPetty||[]));
+  return api("save",{collection:"expPetty",rows:rows,pushEndpoint:pushMeta.endpoint||""})
+    .then(function(){
+      if(hint){ hint.textContent="All changes saved ✓"; hint.className="savehint saved"; }
+    })
+    .catch(function(e){
+      if(hint){ hint.textContent=(e&&e.code===401)?"Session expired — reload":"Couldn't save cash in — check connection"; hint.className="savehint error"; }
+      throw e;
+    });
+}
 
 /* -------- Expenses (captain only) — monthly vessel ledger (no tips) -------- */
 function expMonthKey(d){
@@ -3330,13 +3356,36 @@ function expEnsurePetty(month){
 }
 function expCashInLines(petty){
   if(!petty) return [];
-  expEnsurePetty(petty.month||expMonth);
-  return Array.isArray(petty.cashIns)?petty.cashIns.slice():[];
+  if(!Array.isArray(petty.cashIns)) petty.cashIns=[];
+  return petty.cashIns.slice();
 }
 function expCashInSum(petty){
   var s=0;
-  expCashInLines(petty).forEach(function(r){ s+=apaNum(r&&r.amount); });
-  return s;
+  if(!petty||!Array.isArray(petty.cashIns)) return 0;
+  petty.cashIns.forEach(function(r){ s+=apaNum(r&&r.amount); });
+  return Math.round(s*100)/100;
+}
+/** Prefer the side with more cash-in lines per month (avoids poll wipe after add). */
+function mergeExpPetty(local, remote){
+  var by={}, out=[];
+  function take(p){
+    if(!p||!p.month) return;
+    if(!Array.isArray(p.cashIns)) p.cashIns=[];
+    var cur=by[p.month];
+    if(!cur){ by[p.month]=p; return; }
+    var ln=cur.cashIns.length, rn=p.cashIns.length;
+    if(rn>ln) by[p.month]=p;
+    else if(rn===ln){
+      /* Same count: prefer newer updatedAt */
+      if(String(p.updatedAt||"")>String(cur.updatedAt||"")) by[p.month]=p;
+    } else {
+      /* local has more lines — keep local, refresh start if remote newer start only? keep local */
+    }
+  }
+  (remote||[]).forEach(take);
+  (local||[]).forEach(take);
+  Object.keys(by).sort().forEach(function(m){ out.push(by[m]); });
+  return out;
 }
 function expLinesForMonth(month){
   return (state.expenses||[]).filter(function(e){return e&&expMonthKey(e.date)===month;});
@@ -3801,18 +3850,24 @@ function paintExpensesBody(){
 }
 function openCashIn(id){
   if(!isCaptain()) return;
-  var p=expEnsurePetty(expMonth||expDefaultMonth());
-  var rec=id?(p.cashIns||[]).filter(function(r){return r&&r.id===id;})[0]:null;
-  var r=rec||{id:uid(), date:new Date().toISOString().slice(0,10), source:"Own money", amount:"", notes:""};
+  var monthKey=expMonth||expDefaultMonth();
+  if(!expMonth) expMonth=monthKey;
+  var p0=expEnsurePetty(monthKey);
+  var rec=id?(p0.cashIns||[]).filter(function(r){return r&&String(r.id)===String(id);})[0]:null;
+  var rowId=rec?rec.id:uid();
+  var r=rec||{id:rowId, date:new Date().toISOString().slice(0,10), source:"Own money", amount:"", notes:""};
   var src=r.source||"Own money";
-  var known=EXP_CASH_IN_SOURCES.indexOf(src)>=0;
+  /* Match known source even when detail was appended: "Own money — Toni" */
+  var baseSrc=EXP_CASH_IN_SOURCES.filter(function(s){ return src===s||src.indexOf(s+" —")===0||src.indexOf(s+" -")===0; })[0]||"";
+  var known=!!baseSrc;
+  var detailDefault=known&&src!==baseSrc?src.replace(baseSrc,"").replace(/^\s*[—\-]\s*/,""):(!known?src:"");
   var h='<div class="sheethead"><h2>'+(rec?"Edit cash in":"Add cash in")+'</h2><button type="button" class="sheetx" id="sheetClose" aria-label="Close">×</button></div>';
   h+='<p style="margin:0 0 12px;font-size:13px;color:var(--muted)">Money added to the float this month. Use <b>Own money</b> when you pay a stew from your pocket so petty cash is not falsely short.</p>';
   h+=fieldHTML("Date",'<input class="ctl" id="f_cin_date" type="date" value="'+esc(r.date||"")+'">');
   h+=fieldHTML("Source",'<select class="ctl" id="f_cin_source">'+
-    EXP_CASH_IN_SOURCES.map(function(s){return '<option'+(s===src||(!known&&s==="Other")?" selected":"")+'>'+esc(s)+'</option>';}).join("")+
+    EXP_CASH_IN_SOURCES.map(function(s){return '<option'+(s===(baseSrc||(known?src:"Other"))||(!known&&s==="Other"&&!baseSrc)?" selected":"")+'>'+esc(s)+'</option>';}).join("")+
   '</select>');
-  h+=fieldHTML("Source detail (optional)",'<input class="ctl" id="f_cin_detail" value="'+esc(known?"":src)+'" placeholder="e.g. paid Toni day rate from personal">');
+  h+=fieldHTML("Source detail (optional)",'<input class="ctl" id="f_cin_detail" value="'+esc(detailDefault)+'" placeholder="e.g. paid Toni day rate from personal">');
   h+=fieldHTML("Amount (€)",moneyField("f_cin_amount", r.amount!=null&&r.amount!==""?r.amount:""));
   h+=fieldHTML("Notes",'<input class="ctl" id="f_cin_notes" value="'+esc(r.notes||"")+'" placeholder="optional">');
   if(rec) h+='<div class="sheetbtns"><button type="button" class="btn danger" id="sheetDel">Delete</button></div>';
@@ -3820,31 +3875,46 @@ function openCashIn(id){
   el("sheetInner").innerHTML=h;
   el("sheetSave").addEventListener("click",function(){
     var date=(el("f_cin_date")&&el("f_cin_date").value)||"";
-    var amount=apaNum(el("f_cin_amount")&&el("f_cin_amount").value);
+    var amountEl=el("f_cin_amount");
+    var amount=apaNum(amountEl?amountEl.value:"");
     if(!date){ if(el("f_cin_date")) el("f_cin_date").focus(); return; }
-    if(!(amount>0)){ if(el("f_cin_amount")) el("f_cin_amount").focus(); return; }
+    if(!(amount>0)){
+      window.alert("Enter an amount greater than zero.");
+      if(amountEl) amountEl.focus();
+      return;
+    }
     var source=(el("f_cin_source")&&el("f_cin_source").value)||"Other";
     var detail=(el("f_cin_detail")&&el("f_cin_detail").value||"").trim();
     if(source==="Other"&&detail) source=detail;
-    else if(detail&&source!==detail) source=source+(detail?" — "+detail:"");
+    else if(detail) source=source+" — "+detail;
     var obj={
-      id:r.id, date:date, source:source, amount:amount,
+      id:rowId, date:date, source:source, amount:amount,
       notes:(el("f_cin_notes")&&el("f_cin_notes").value||"").trim()
     };
-    if(!p.cashIns) p.cashIns=[];
-    if(rec) p.cashIns=p.cashIns.map(function(x){return x&&x.id===obj.id?obj:x;});
-    else p.cashIns.unshift(obj);
-    p.pettyIn=0;
+    /* Always re-resolve the month record (do not close over a stale p) */
+    var p=expEnsurePetty(monthKey);
+    if(!Array.isArray(p.cashIns)) p.cashIns=[];
+    var found=false;
+    p.cashIns=p.cashIns.map(function(x){
+      if(x&&String(x.id)===String(obj.id)){ found=true; return obj; }
+      return x;
+    });
+    if(!found) p.cashIns.unshift(obj);
+    p.pettyIn=expCashInSum(p);
     p.updatedAt=new Date().toISOString();
-    showSheet(false); saveExpPetty(); renderExpenses();
+    showSheet(false);
+    saveExpPetty().then(function(){ paintExpensesBody(); }).catch(function(){ paintExpensesBody(); });
   });
   el("sheetCancel").addEventListener("click",function(){ showSheet(false); });
   el("sheetClose").addEventListener("click",function(){ showSheet(false); });
   if(el("sheetDel")) el("sheetDel").addEventListener("click",function(){
     if(!window.confirm("Delete this cash-in line?")) return;
-    p.cashIns=(p.cashIns||[]).filter(function(x){return !x||x.id!==r.id;});
+    var p=expEnsurePetty(monthKey);
+    p.cashIns=(p.cashIns||[]).filter(function(x){return !x||String(x.id)!==String(rowId);});
+    p.pettyIn=expCashInSum(p);
     p.updatedAt=new Date().toISOString();
-    showSheet(false); saveExpPetty(); renderExpenses();
+    showSheet(false);
+    saveExpPetty().then(function(){ paintExpensesBody(); }).catch(function(){ paintExpensesBody(); });
   });
   showSheet(true);
 }
@@ -5896,8 +5966,10 @@ function applyData(d){
   else if(!isCaptain()) state.stewAssign=[];
   if(isCaptain() && Array.isArray(d.expenses)) state.expenses=d.expenses;
   else if(!isCaptain()) state.expenses=[];
-  if(isCaptain() && Array.isArray(d.expPetty)) state.expPetty=d.expPetty;
-  else if(!isCaptain()) state.expPetty=[];
+  if(isCaptain() && Array.isArray(d.expPetty)){
+    /* Merge by month so a slow poll cannot wipe a cash-in that just saved locally */
+    state.expPetty=mergeExpPetty(state.expPetty, d.expPetty);
+  } else if(!isCaptain()) state.expPetty=[];
   if(typeof d.pushEnabled==="boolean") pushMeta.server=d.pushEnabled;
   if(d.vapidPublicKey) pushMeta.vapidPublicKey=d.vapidPublicKey;
   sortCharters();
