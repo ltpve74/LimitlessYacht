@@ -3725,10 +3725,8 @@ function paintExpensesBody(){
   months[expDefaultMonth()]=1;
   var monthList=Object.keys(months).sort().reverse();
   var lines=expLinesForMonth(expMonth).slice().sort(function(a,b){
-    /* Unpaid crew first (accountability), then newest date */
-    var ua=expIsCrewUnpaid(a)?0:1, ub=expIsCrewUnpaid(b)?0:1;
-    if(ua!==ub) return ua-ub;
-    var c=String(b.date).localeCompare(String(a.date));
+    /* Newest date first; then most recently updated */
+    var c=String(b.date||"").localeCompare(String(a.date||""));
     if(c) return c;
     return String(b.updatedAt||"").localeCompare(String(a.updatedAt||""));
   });
