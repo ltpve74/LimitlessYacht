@@ -3256,12 +3256,16 @@ function paintStewCharters(){
     var names=asg?stewNames(asg.stewIds):[];
     var unassigned=!names.length;
     var past=ev.end?String(ev.end)<today:String(ev.start)<today;
+    var rate=asg&&asg.dayRate!=null&&asg.dayRate!==""?apaNum(asg.dayRate):0;
+    var paid=asg&&asg.payStatus==="Paid";
     html+='<div class="item'+(unassigned&&!past?' apa-row':'')+'" data-stew-ev="'+esc(ev.key)+'" role="button" tabindex="0">'+
       '<div class="top"><div class="title">'+esc(ev.summary||"Charter")+'</div>'+
         (unassigned&&!past?'<span class="pill p-amber">No stew</span>':
           (names.length?'<span class="pill p-green">'+esc(names.join(", "))+'</span>':'<span class="pill p-grey">—</span>'))+
       '</div>'+
       '<div class="meta"><span>📅 '+esc(fmtCalEventWhen(ev))+'</span>'+
+        (rate>0?'<span class="money">'+money0(rate)+'/day</span>':'')+
+        (asg?(paid?'<span class="pill p-green">Paid</span>':'<span class="pill p-amber">Unpaid</span>'):'')+
         (ev.status==="tentative"?'<span class="pill p-amber">Tentative</span>':'')+
         (past?'<span class="pill p-grey">Past</span>':'')+
       '</div>'+
@@ -3370,11 +3374,12 @@ function openStewAssign(eventKey){
       startTime:existingAsg.startTime||"", endTime:existingAsg.endTime||"", allDay:!!existingAsg.allDay, status:existingAsg.status||"booked"};
   }
   var asg=assignForEvent(eventKey)||{
-    id:uid(), eventKey:eventKey, stewIds:[], notes:""
+    id:uid(), eventKey:eventKey, stewIds:[], notes:"", dayRate:"", payStatus:"Unpaid"
   };
   var selected={};
   (asg.stewIds||[]).forEach(function(id){ selected[id]=1; });
   var team=(state.stews||[]).filter(function(s){ return s&&s.active!==false; });
+  var pay=asg.payStatus==="Paid"?"Paid":"Unpaid";
   var h='<div class="sheethead"><h2>Assign stews</h2><button type="button" class="sheetx" id="sheetClose" aria-label="Close">×</button></div>';
   h+='<div class="apa-card" style="margin-bottom:12px">'+
     '<div style="font-weight:800;font-size:16px">'+esc(ev.summary||"Charter")+'</div>'+
@@ -3394,6 +3399,11 @@ function openStewAssign(eventKey){
     });
     h+='</div>';
   }
+  h+='<div class="row2">'+
+    fieldHTML("Day rate (€)",moneyField("f_stew_rate", asg.dayRate!=null&&asg.dayRate!==""?asg.dayRate:""))+
+    fieldHTML("Stew pay",'<select class="ctl" id="f_stew_pay"><option value="Unpaid"'+(pay==="Unpaid"?" selected":"")+'>Unpaid</option><option value="Paid"'+(pay==="Paid"?" selected":"")+'>Paid</option></select>')+
+  '</div>';
+  h+='<p style="margin:-6px 0 12px;font-size:12px;color:var(--muted)">Day rate for this charter (per day). Mark Paid when the stew has been paid.</p>';
   h+=fieldHTML("Notes",'<textarea class="ctl" id="f_stew_asg_notes" placeholder="e.g. pick-up time, uniform…">'+esc(asg.notes||"")+'</textarea>');
   h+='<div class="sheetfoot"><button type="button" class="btn ghost" id="sheetCancel">Cancel</button><button type="button" class="btn" id="sheetSave">Save assignment</button></div>';
   el("sheetInner").innerHTML=h;
@@ -3402,6 +3412,8 @@ function openStewAssign(eventKey){
     Array.prototype.forEach.call(document.querySelectorAll("[data-stew-pick]"),function(inp){
       if(inp.checked) ids.push(inp.getAttribute("data-stew-pick"));
     });
+    var rateRaw=el("f_stew_rate")?el("f_stew_rate").value:"";
+    var rate=rateRaw===""?"":apaNum(rateRaw);
     var obj={
       id:asg.id||uid(),
       eventKey:ev.key,
@@ -3413,6 +3425,8 @@ function openStewAssign(eventKey){
       allDay:!!ev.allDay,
       status:ev.status||"booked",
       stewIds:ids,
+      dayRate:rate,
+      payStatus:(el("f_stew_pay")&&el("f_stew_pay").value==="Paid")?"Paid":"Unpaid",
       notes:(el("f_stew_asg_notes").value||"").trim(),
       updatedAt:new Date().toISOString(),
       by:session.who||"Captain"
