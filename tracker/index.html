@@ -3196,6 +3196,36 @@ function fmtCalEventWhen(ev){
   if(ev.endTime&&ev.endTime!==ev.startTime) t+=(t?"–":"")+ev.endTime;
   return range+(t?" · "+t:"");
 }
+/** Stew day rates: €150 = 4h, €200 = 6h+, €250 = overnight. */
+var STEW_RATE_4H=150, STEW_RATE_6H=200, STEW_RATE_ON=250;
+function stewRateBand(ev){
+  if(!ev) return {rate:STEW_RATE_6H, kind:"6h+", label:"Day charter"};
+  var sum=String(ev.summary||"");
+  var days=Array.isArray(ev.days)?ev.days.length:0;
+  var multi=days>1||(ev.start&&ev.end&&String(ev.end)>String(ev.start));
+  if(multi||/\b(overnight|overnights?|multi[-\s]?day|nights?)\b/i.test(sum)){
+    return {rate:STEW_RATE_ON, kind:"overnight", label:"Overnight"};
+  }
+  var hours=null;
+  if(ev.startTime&&ev.endTime){
+    var sh=String(ev.startTime).split(":"), eh=String(ev.endTime).split(":");
+    var sm=parseInt(sh[0],10)*60+(parseInt(sh[1],10)||0);
+    var em=parseInt(eh[0],10)*60+(parseInt(eh[1],10)||0);
+    hours=(em-sm)/60;
+    if(hours<0) hours+=24;
+  }
+  if(/\b4\s*h(our)?s?\b/i.test(sum)||/\bhalf[-\s]?day\b/i.test(sum)) hours=4;
+  else if(/\b6\s*h(our)?s?\b/i.test(sum)) hours=6;
+  else if(/\b8\s*h(our)?s?\b/i.test(sum)||/\bfull[-\s]?day\b/i.test(sum)) hours=8;
+  if(hours!=null&&hours<=4.5) return {rate:STEW_RATE_4H, kind:"4h", label:"4 hours"};
+  if(hours!=null&&hours>4.5) return {rate:STEW_RATE_6H, kind:"6h+", label:"6 hours+"};
+  /* Single-day / all-day without clear duration → day charter rate */
+  return {rate:STEW_RATE_6H, kind:"6h+", label:"Day charter"};
+}
+function stewDefaultRate(ev, existingRate){
+  if(existingRate!=null&&existingRate!==""&&apaNum(existingRate)>0) return apaNum(existingRate);
+  return stewRateBand(ev).rate;
+}
 function loadCalEvents(force){
   if(!isCaptain()) return Promise.resolve([]);
   var now=Date.now();
@@ -3376,6 +3406,8 @@ function openStewAssign(eventKey){
   var asg=assignForEvent(eventKey)||{
     id:uid(), eventKey:eventKey, stewIds:[], notes:"", dayRate:"", payStatus:"Unpaid"
   };
+  var band=stewRateBand(ev);
+  var ratePrefill=stewDefaultRate(ev, asg.dayRate);
   var selected={};
   (asg.stewIds||[]).forEach(function(id){ selected[id]=1; });
   var team=(state.stews||[]).filter(function(s){ return s&&s.active!==false; });
@@ -3384,6 +3416,7 @@ function openStewAssign(eventKey){
   h+='<div class="apa-card" style="margin-bottom:12px">'+
     '<div style="font-weight:800;font-size:16px">'+esc(ev.summary||"Charter")+'</div>'+
     '<div class="meta" style="margin-top:6px"><span>📅 '+esc(fmtCalEventWhen(ev))+'</span>'+
+      '<span class="pill p-blue">'+esc(band.label)+'</span>'+
       (ev.status==="tentative"?'<span class="pill p-amber">Tentative</span>':'')+
     '</div></div>';
   if(!team.length){
@@ -3400,13 +3433,23 @@ function openStewAssign(eventKey){
     h+='</div>';
   }
   h+='<div class="row2">'+
-    fieldHTML("Day rate (€)",moneyField("f_stew_rate", asg.dayRate!=null&&asg.dayRate!==""?asg.dayRate:""))+
+    fieldHTML("Day rate (€)",moneyField("f_stew_rate", ratePrefill))+
     fieldHTML("Stew pay",'<select class="ctl" id="f_stew_pay"><option value="Unpaid"'+(pay==="Unpaid"?" selected":"")+'>Unpaid</option><option value="Paid"'+(pay==="Paid"?" selected":"")+'>Paid</option></select>')+
   '</div>';
-  h+='<p style="margin:-6px 0 12px;font-size:12px;color:var(--muted)">Day rate for this charter (per day). Mark Paid when the stew has been paid.</p>';
+  h+='<div style="display:flex;gap:8px;flex-wrap:wrap;margin:-4px 0 12px">'+
+    '<button type="button" class="btn ghost" data-stew-rate="'+STEW_RATE_4H+'" style="width:auto;padding:8px 12px;font-size:12.5px">4h €'+STEW_RATE_4H+'</button>'+
+    '<button type="button" class="btn ghost" data-stew-rate="'+STEW_RATE_6H+'" style="width:auto;padding:8px 12px;font-size:12.5px">6h+ €'+STEW_RATE_6H+'</button>'+
+    '<button type="button" class="btn ghost" data-stew-rate="'+STEW_RATE_ON+'" style="width:auto;padding:8px 12px;font-size:12.5px">Overnight €'+STEW_RATE_ON+'</button>'+
+  '</div>';
+  h+='<p style="margin:-6px 0 12px;font-size:12px;color:var(--muted)">Suggested from calendar: <b>'+esc(band.label)+' → €'+band.rate+'</b>. Change if needed. Mark Paid when the stew has been paid.</p>';
   h+=fieldHTML("Notes",'<textarea class="ctl" id="f_stew_asg_notes" placeholder="e.g. pick-up time, uniform…">'+esc(asg.notes||"")+'</textarea>');
   h+='<div class="sheetfoot"><button type="button" class="btn ghost" id="sheetCancel">Cancel</button><button type="button" class="btn" id="sheetSave">Save assignment</button></div>';
   el("sheetInner").innerHTML=h;
+  Array.prototype.forEach.call(document.querySelectorAll("[data-stew-rate]"),function(btn){
+    btn.addEventListener("click",function(){
+      if(el("f_stew_rate")) el("f_stew_rate").value=btn.getAttribute("data-stew-rate");
+    });
+  });
   el("sheetSave").addEventListener("click",function(){
     var ids=[];
     Array.prototype.forEach.call(document.querySelectorAll("[data-stew-pick]"),function(inp){
@@ -3426,6 +3469,7 @@ function openStewAssign(eventKey){
       status:ev.status||"booked",
       stewIds:ids,
       dayRate:rate,
+      rateBand:band.kind,
       payStatus:(el("f_stew_pay")&&el("f_stew_pay").value==="Paid")?"Paid":"Unpaid",
       notes:(el("f_stew_asg_notes").value||"").trim(),
       updatedAt:new Date().toISOString(),
