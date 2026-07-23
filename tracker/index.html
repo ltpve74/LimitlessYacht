@@ -3294,35 +3294,58 @@ function expEnsurePetty(month){
 function expLinesForMonth(month){
   return (state.expenses||[]).filter(function(e){return e&&expMonthKey(e.date)===month;});
 }
+function stewAssignDayPayAmount(asg){
+  if(!asg) return 0;
+  var each=apaNum(asg.payEach);
+  if(each>0) return each;
+  if(asg.dayRate!=null&&asg.dayRate!==""){
+    return stewPayEach(asg.dayRate, asg.payUnits!=null&&asg.payUnits!==""?asg.payUnits:1);
+  }
+  var ev=null;
+  try{ ev=stewMergedEvents().filter(function(e){return e&&e.key===asg.eventKey;})[0]; }catch(err){}
+  if(!ev){
+    ev={start:asg.start, end:asg.end, startTime:asg.startTime, endTime:asg.endTime, allDay:asg.allDay, summary:asg.summary, days:null};
+  }
+  return stewPayEach(stewDefaultRate(ev, null), stewPayUnits(ev, null));
+}
 /**
  * When stew day pay is Paid → Crew Salaries / Cash lines (one per stew).
  * Tips are NEVER written here (captain-only in Stews).
+ * opts.onlyMonth = "YYYY-MM" → only touch charters in that month (used for seed).
  */
-function syncStewDayPayExpenses(asg){
+function syncStewDayPayExpenses(asg, opts){
   if(!isCaptain()||!asg||!asg.eventKey) return false;
+  opts=opts||{};
   if(!state.expenses) state.expenses=[];
   var eventKey=String(asg.eventKey);
+  var date=String(asg.start||"").slice(0,10)||"";
+  var month=expMonthKey(date);
+  if(opts.onlyMonth&&month&&month!==opts.onlyMonth) return false;
   var isPaid=asg.payStatus==="Paid";
-  var each=apaNum(asg.payEach||asg.dayRate);
-  if(asg.payUnits!=null&&asg.payUnits!==""&&apaNum(asg.payUnits)>0&&asg.dayRate!=null){
-    each=stewPayEach(asg.dayRate, asg.payUnits);
-  }
+  var each=stewAssignDayPayAmount(asg);
   var ids=(asg.stewIds||[]).filter(Boolean);
-  var before=state.expenses.length;
-  /* Drop previous auto lines for this charter */
+  var prevReceipts={};
+  (state.expenses||[]).forEach(function(e){
+    if(e&&e.source==="stew"&&e.stewPayKind==="dayPay"&&String(e.stewEventKey)===eventKey&&e.receipt){
+      prevReceipts[String(e.stewId||e.linkId||"")]=e.receipt;
+    }
+  });
+  var before=JSON.stringify((state.expenses||[]).filter(function(e){
+    return e&&e.source==="stew"&&e.stewPayKind==="dayPay"&&String(e.stewEventKey)===eventKey;
+  }).map(function(e){ return [e.stewId,e.amount,e.date,e.vendor]; }));
   state.expenses=state.expenses.filter(function(e){
     return !(e&&e.source==="stew"&&e.stewPayKind==="dayPay"&&String(e.stewEventKey)===eventKey);
   });
-  if(!isPaid||!(each>0)||!ids.length){
-    return state.expenses.length!==before;
+  if(!isPaid||!(each>0)||!ids.length||!date){
+    return before!=="[]";
   }
-  var date=String(asg.start||"").slice(0,10)||new Date().toISOString().slice(0,10);
   var summary=asg.summary||"Charter";
   ids.forEach(function(sid){
     var name=(stewById(sid)&&stewById(sid).name)||"Stew";
+    var linkId="stew-day:"+eventKey+":"+sid;
     state.expenses.unshift({
       id:uid(),
-      linkId:"stew-day:"+eventKey+":"+sid,
+      linkId:linkId,
       source:"stew",
       stewEventKey:eventKey,
       stewId:String(sid),
@@ -3333,20 +3356,38 @@ function syncStewDayPayExpenses(asg){
       category:"Crew Salaries",
       payMethod:"Cash",
       amount:each,
-      receipt:"",
+      receipt:prevReceipts[String(sid)]||prevReceipts[linkId]||"",
       by:session.who||"Captain",
       updatedAt:new Date().toISOString()
     });
   });
-  return true;
+  var after=JSON.stringify((state.expenses||[]).filter(function(e){
+    return e&&e.source==="stew"&&e.stewPayKind==="dayPay"&&String(e.stewEventKey)===eventKey;
+  }).map(function(e){ return [e.stewId,e.amount,e.date,e.vendor]; }));
+  return before!==after;
+}
+/** Seed / refresh Cash · Crew Salaries from Paid stew day pay for one month (default: this month). */
+function seedCurrentMonthStewCashExpenses(){
+  if(!isCaptain()) return false;
+  var month=expDefaultMonth();
+  var changed=false;
+  (state.stewAssign||[]).forEach(function(a){
+    if(syncStewDayPayExpenses(a,{onlyMonth:month})) changed=true;
+  });
+  if(changed){
+    expMonth=month;
+    if(!DEMO) saveExpenses();
+  }
+  return changed;
 }
 function syncAllStewDayPayExpenses(){
-  if(!isCaptain()) return;
+  if(!isCaptain()) return false;
   var changed=false;
   (state.stewAssign||[]).forEach(function(a){
     if(syncStewDayPayExpenses(a)) changed=true;
   });
   if(changed) saveExpenses();
+  return changed;
 }
 /** Compress phone photo for storage (JPEG, max edge ~1280, ~q0.72). */
 function expCompressReceipt(file){
@@ -3400,6 +3441,19 @@ function renderExpenses(){
   if(!isCaptain()) return;
   var body=el("expBody"); if(!body) return;
   if(!expMonth) expMonth=expDefaultMonth();
+  /* Pull calendar → stew assigns, then seed this month’s Paid day-pay as Cash expenses */
+  loadStewCalendar(false).then(function(){
+    var a=ensureStewAssignFromCalendar();
+    var b=ensureStewAssignPaidBeforeCut();
+    var c=seedCurrentMonthStewCashExpenses();
+    if((a||b||c)&&curTab==="expenses") paintExpensesBody();
+  });
+  paintExpensesBody();
+}
+function paintExpensesBody(){
+  if(!isCaptain()) return;
+  var body=el("expBody"); if(!body) return;
+  if(!expMonth) expMonth=expDefaultMonth();
   var months={};
   (state.expenses||[]).forEach(function(e){ var m=expMonthKey(e.date); if(m) months[m]=1; });
   months[expMonth]=1;
@@ -3420,7 +3474,7 @@ function renderExpenses(){
   var petty=expPettyFor(expMonth)||{pettyStart:0, pettyIn:0};
   var pettyStart=apaNum(petty.pettyStart), pettyIn=apaNum(petty.pettyIn);
   var pettyOnboard=pettyStart+pettyIn-cashOut;
-  var h='<div class="legend">Captain-only monthly vessel ledger (matches your spreadsheet). Day-work from <b>Stews</b> is added automatically when day pay is marked <b>Paid</b> (Cash · Crew Salaries). <b>Tips stay in Stews only</b> — never on this export.</div>';
+  var h='<div class="legend">Captain-only monthly vessel ledger. <b>This month’s</b> Paid stew day pay is seeded as <b>Cash · Crew Salaries</b> (and stays in sync when you mark Paid/Unpaid). Other months only get a line when you mark that charter Paid. <b>Tips stay in Stews only</b> — never here or on the CSV.</div>';
   h+='<div class="exp-month"><label class="meta" style="font-weight:700">Month</label>'+
     '<select class="ctl" id="expMonthSel">'+monthList.map(function(m){
       return '<option value="'+esc(m)+'"'+(m===expMonth?" selected":"")+'>'+esc(m)+'</option>';
@@ -5509,7 +5563,11 @@ function applyData(d){
   sortLeads();
   if(repairLeadWhiteInvoices()){ if(!DEMO) save("leads"); }
   if(canOps()) ensureAllLeadCashApa();
-  if(isCaptain()) ensureStewAssignPaidBeforeCut();
+  if(isCaptain()){
+    ensureStewAssignPaidBeforeCut();
+    /* Current-month Cash expenses from Paid stew day pay (not tips, not other months) */
+    seedCurrentMonthStewCashExpenses();
+  }
   renderAll();
   if(!DEMO) refreshPushStatus();
 }
