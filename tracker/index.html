@@ -3343,6 +3343,8 @@ function ensureStewAssignFromCalendar(){
       rateBand:band.kind,
       payStatus:keepPay,
       payStatusManual:keepManual,
+      tipTotal:asg&&asg.tipTotal!=null?asg.tipTotal:"",
+      tipPayStatus:asg&&asg.tipPayStatus==="Paid"?"Paid":(asg&&asg.tipPayStatus==="Unpaid"?"Unpaid":"Unpaid"),
       notes:(asg&&asg.notes)||"",
       autoFromCal:true,
       updatedAt:new Date().toISOString(),
@@ -3470,6 +3472,25 @@ function stewPayEach(rate, units){
   if(!(r>0)) return 0;
   return r*u;
 }
+/** Guest tip: captain & stew share equally → stew side is 50% of total. */
+var STEW_TIP_SHARE=0.5;
+function stewTipTotal(asg){
+  if(!asg||asg.tipTotal==null||asg.tipTotal==="") return 0;
+  var n=apaNum(asg.tipTotal);
+  return n>0?n:0;
+}
+/** Stew share of tip (50%). If several stews, split that 50% equally. */
+function stewTipShare(asg){
+  var tot=stewTipTotal(asg);
+  if(!(tot>0)) return {total:0, stewSide:0, each:0, nStews:0};
+  var n=asg&&asg.stewIds?asg.stewIds.filter(Boolean).length:0;
+  var stewSide=Math.round(tot*STEW_TIP_SHARE*100)/100;
+  var each=n>0?Math.round((stewSide/n)*100)/100:stewSide;
+  return {total:tot, stewSide:stewSide, each:each, nStews:n};
+}
+function stewTipPaid(asg){
+  return !!(asg&&asg.tipPayStatus==="Paid");
+}
 /** Unpaid / "we owe" only from charter start day (local) onward — not for future dates. */
 function stewCharterDayReached(ev, asg){
   var d=stewAssignStartDate(asg, ev);
@@ -3489,19 +3510,32 @@ function stewPayBreakdown(ev, asg){
   /* Future trips: not unpaid yet. From charter day: unpaid until you mark Paid. */
   var unpaid=!!(!paid&&due);
   var upcoming=!!(!paid&&!due);
+  var tip=stewTipShare(asg);
+  var tipPaid=stewTipPaid(asg);
+  var tipUnpaid=!!(tip.stewSide>0&&!tipPaid&&due);
+  var tipUpcoming=!!(tip.stewSide>0&&!tipPaid&&!due);
   return {
     rate:rate, units:units, each:each,
     totalAll:each*Math.max(1, nStews||0),
     nStews:nStews, paid:!!paid, due:!!due, unpaid:unpaid, upcoming:upcoming,
+    tipTotal:tip.total, tipStewSide:tip.stewSide, tipEach:tip.each,
+    tipPaid:!!tipPaid, tipUnpaid:tipUnpaid, tipUpcoming:tipUpcoming,
     unitLabel:units===1?"day":"days"
   };
 }
 function stewPayStatusPill(pay){
   if(!pay) return "";
-  if(pay.paid) return '<span class="pill p-green">Paid</span>';
-  if(pay.upcoming) return '<span class="pill p-grey">Not due yet</span>';
-  if(pay.unpaid) return '<span class="pill p-amber">Unpaid — we owe</span>';
+  if(pay.paid) return '<span class="pill p-green">Pay paid</span>';
+  if(pay.upcoming) return '<span class="pill p-grey">Pay not due</span>';
+  if(pay.unpaid) return '<span class="pill p-amber">Pay unpaid</span>';
   return "";
+}
+function stewTipStatusPill(pay){
+  if(!pay||!(pay.tipStewSide>0)) return "";
+  if(pay.tipPaid) return '<span class="pill p-green">Tip paid</span>';
+  if(pay.tipUpcoming) return '<span class="pill p-grey">Tip not due</span>';
+  if(pay.tipUnpaid) return '<span class="pill p-amber">Tip unpaid</span>';
+  return '<span class="pill p-grey">Tip</span>';
 }
 function loadStewSeed(){
   if(!isCaptain()) return Promise.resolve([]);
@@ -3691,51 +3725,65 @@ function paintStewCharters(){
     });
     html+='</ul><div class="meta" style="margin-top:8px">Add them under <b>Team</b> if you want them auto-assigned, then refresh. Only charters before 17/07 are auto-filled from the calendar title.</div></div>';
   }
-  /* Accounting: "still to pay" only for charter day+ (not future). Mark Paid yourself when settled. */
+  /* Accounting: day pay + tips (stew 50%). Unpaid only from charter day+. */
   var unpaidSum=0, paidSum=0, upcomingSum=0, tripWithStew=0, tripDays=0, byStew={};
+  var tipUnpaidSum=0, tipPaidSum=0, tipGuestSum=0;
   events.forEach(function(ev){
     var asg0=assignForEvent(ev.key);
     var pay0=stewPayBreakdown(ev, asg0||{});
     tripDays+=pay0.units||0;
+    if(pay0.tipTotal>0) tipGuestSum+=pay0.tipTotal;
+    if(pay0.tipPaid) tipPaidSum+=pay0.tipStewSide;
+    else if(pay0.tipUnpaid) tipUnpaidSum+=pay0.tipStewSide;
     if(!asg0||!(asg0.stewIds||[]).length) return;
     tripWithStew++;
-    if(pay0.each<=0) return;
     var names=stewNames(asg0.stewIds);
     names.forEach(function(nm){
-      if(!byStew[nm]) byStew[nm]={paid:0,unpaid:0,upcoming:0,trips:0};
+      if(!byStew[nm]) byStew[nm]={paid:0,unpaid:0,upcoming:0,tipPaid:0,tipUnpaid:0,trips:0};
       byStew[nm].trips++;
-      if(pay0.paid){ byStew[nm].paid+=pay0.each; paidSum+=pay0.each; }
-      else if(pay0.unpaid){ byStew[nm].unpaid+=pay0.each; unpaidSum+=pay0.each; }
-      else if(pay0.upcoming){ byStew[nm].upcoming+=pay0.each; upcomingSum+=pay0.each; }
+      if(pay0.each>0){
+        if(pay0.paid){ byStew[nm].paid+=pay0.each; paidSum+=pay0.each; }
+        else if(pay0.unpaid){ byStew[nm].unpaid+=pay0.each; unpaidSum+=pay0.each; }
+        else if(pay0.upcoming){ byStew[nm].upcoming+=pay0.each; upcomingSum+=pay0.each; }
+      }
+      if(pay0.tipEach>0){
+        if(pay0.tipPaid) byStew[nm].tipPaid+=pay0.tipEach;
+        else if(pay0.tipUnpaid) byStew[nm].tipUnpaid+=pay0.tipEach;
+      }
     });
   });
   html+='<div class="apa-card" style="margin-bottom:12px">'+
-    '<div class="meta" style="margin-bottom:6px">Season accounting'+(stewYearFilter!=="all"?" · "+esc(stewYearFilter):"")+' · unpaid only from charter day</div>'+
+    '<div class="meta" style="margin-bottom:6px">Season accounting'+(stewYearFilter!=="all"?" · "+esc(stewYearFilter):"")+' · day pay + tips (stew 50%)</div>'+
     '<div style="display:flex;flex-wrap:wrap;gap:10px 16px;align-items:baseline">'+
       '<div><span class="meta">Trips listed</span><div style="font-size:20px;font-weight:800">'+events.length+'</div></div>'+
       '<div><span class="meta">With stew assigned</span><div style="font-size:20px;font-weight:800">'+tripWithStew+'</div></div>'+
-      '<div><span class="meta">Billable days (all)</span><div style="font-size:20px;font-weight:800">'+tripDays+'</div></div>'+
-      (unpaidSum>0?'<div><span class="meta">Still to pay</span><div class="money" style="font-size:20px;font-weight:800;color:var(--amber,#c9a84c)">'+money0(unpaidSum)+'</div></div>':'')+
-      (paidSum>0?'<div><span class="meta">Paid to stews</span><div class="money" style="font-size:20px;font-weight:800">'+money0(paidSum)+'</div></div>':'')+
-      (upcomingSum>0?'<div><span class="meta">Booked (not due yet)</span><div class="money" style="font-size:18px;font-weight:700">'+money0(upcomingSum)+'</div></div>':'')+
-      ((paidSum+unpaidSum)>0?'<div><span class="meta">Due / paid total</span><div class="money" style="font-size:20px;font-weight:800">'+money0(paidSum+unpaidSum)+'</div></div>':'')+
+      '<div><span class="meta">Billable days</span><div style="font-size:20px;font-weight:800">'+tripDays+'</div></div>'+
+      (unpaidSum>0?'<div><span class="meta">Day pay unpaid</span><div class="money" style="font-size:20px;font-weight:800;color:var(--amber,#c9a84c)">'+money0(unpaidSum)+'</div></div>':'')+
+      (paidSum>0?'<div><span class="meta">Day pay paid</span><div class="money" style="font-size:20px;font-weight:800">'+money0(paidSum)+'</div></div>':'')+
+      (tipUnpaidSum>0?'<div><span class="meta">Tips unpaid (stew 50%)</span><div class="money" style="font-size:20px;font-weight:800;color:var(--amber,#c9a84c)">'+money0(tipUnpaidSum)+'</div></div>':'')+
+      (tipPaidSum>0?'<div><span class="meta">Tips paid (stew 50%)</span><div class="money" style="font-size:20px;font-weight:800">'+money0(tipPaidSum)+'</div></div>':'')+
+      (tipGuestSum>0?'<div><span class="meta">Tips guests total</span><div class="money" style="font-size:18px;font-weight:700">'+money0(tipGuestSum)+'</div></div>':'')+
+      (upcomingSum>0?'<div><span class="meta">Day pay later</span><div class="money" style="font-size:18px;font-weight:700">'+money0(upcomingSum)+'</div></div>':'')+
+      ((unpaidSum+tipUnpaidSum)>0?'<div><span class="meta">Still to pay (pay+tip)</span><div class="money" style="font-size:20px;font-weight:800;color:var(--amber,#c9a84c)">'+money0(unpaidSum+tipUnpaidSum)+'</div></div>':'')+
     '</div>';
   var stewKeys=Object.keys(byStew).sort();
   if(stewKeys.length){
     html+='<div style="margin-top:10px;border-top:1px solid var(--line);padding-top:8px">';
     stewKeys.forEach(function(nm){
-      var b=byStew[nm], tot=b.paid+b.unpaid;
+      var b=byStew[nm], tot=b.paid+b.unpaid+b.tipPaid+b.tipUnpaid;
       html+='<div class="meta" style="margin-top:4px"><span style="font-weight:700">'+esc(nm)+'</span>'+
         '<span>'+b.trips+' trip'+(b.trips===1?"":"s")+'</span>'+
         (tot>0?'<span class="money" style="font-weight:800">'+money0(tot)+'</span>':'')+
-        (b.unpaid>0?'<span class="pill p-amber">Unpaid '+money0(b.unpaid)+'</span>':'')+
-        (b.paid>0?'<span class="pill p-green">Paid '+money0(b.paid)+'</span>':'')+
+        (b.unpaid>0?'<span class="pill p-amber">Pay '+money0(b.unpaid)+'</span>':'')+
+        (b.paid>0?'<span class="pill p-green">Pay '+money0(b.paid)+'</span>':'')+
+        (b.tipUnpaid>0?'<span class="pill p-amber">Tip '+money0(b.tipUnpaid)+'</span>':'')+
+        (b.tipPaid>0?'<span class="pill p-green">Tip '+money0(b.tipPaid)+'</span>':'')+
         (b.upcoming>0?'<span class="pill p-grey">Later '+money0(b.upcoming)+'</span>':'')+
       '</div>';
     });
     html+='</div>';
   } else {
-    html+='<p style="margin:10px 0 0;font-size:12px;color:var(--muted)">Assign stews + rates on past trips to build the cost picture for a permanent stew next year.</p>';
+    html+='<p style="margin:10px 0 0;font-size:12px;color:var(--muted)">Assign stews, rates and tips to build the season cost picture.</p>';
   }
   html+='</div>';
   html+='<div class="list">';
@@ -3747,21 +3795,19 @@ function paintStewCharters(){
     var pay=stewPayBreakdown(ev, asg||{});
     var rate=pay.rate;
     var each=pay.each;
-    var paid=pay.paid;
     var units=pay.units;
-    var amtLabel="";
-    if(each>0&&names.length){
-      amtLabel=names.length>1?(money0(each)+" each"):money0(each);
-    } else if(each>0){
-      amtLabel=money0(each);
-    }
+    var rightBits=[];
+    if(each>0) rightBits.push(names.length>1?(money0(each)+" pay"):money0(each)+" pay");
+    if(pay.tipStewSide>0) rightBits.push(money0(pay.tipStewSide)+" tip");
+    var amtLabel=rightBits.join(" · ");
     html+='<div class="item'+(unassigned&&!past?' apa-row':'')+'" data-stew-ev="'+esc(ev.key)+'" role="button" tabindex="0">'+
       '<div class="top"><div class="title">'+esc(ev.summary||"Charter")+'</div>'+
-        (amtLabel?'<div class="amt money">'+esc(amtLabel)+'</div>':'')+
+        (amtLabel?'<div class="amt money" style="font-size:14px;text-align:right">'+esc(amtLabel)+'</div>':'')+
       '</div>'+
       '<div class="meta"><span>📅 '+esc(fmtCalEventWhen(ev))+'</span>'+
         (units>1?'<span class="pill p-blue">'+units+' days</span>':'')+
         (rate>0?'<span class="money">'+money0(rate)+' × '+units+'</span>':'')+
+        (pay.tipTotal>0?'<span class="money">Tip '+money0(pay.tipTotal)+' → stew '+money0(pay.tipStewSide)+'</span>':'')+
         (ev.source==="seed"?'<span class="pill p-grey">Seed</span>':'')+
         (ev.status==="tentative"?'<span class="pill p-amber">Tentative</span>':'')+
         (past?'<span class="pill p-grey">Past</span>':'')+
@@ -3770,8 +3816,10 @@ function paintStewCharters(){
       names.forEach(function(nm){
         html+='<div class="stew-row">'+
           '<span class="stew-name">'+esc(nm)+'</span>'+
-          (each>0?'<span class="money" style="font-weight:800;font-size:15px">'+money0(each)+'</span>':'')+
+          (each>0?'<span class="money" style="font-weight:800;font-size:15px">Pay '+money0(each)+'</span>':'')+
           stewPayStatusPill(pay)+
+          (pay.tipEach>0?'<span class="money" style="font-weight:800;font-size:15px">Tip '+money0(pay.tipEach)+'</span>':'')+
+          stewTipStatusPill(pay)+
         '</div>';
       });
     } else {
@@ -3797,19 +3845,24 @@ function renderStewTeam(body){
   if(el("stewAddPerson")) el("stewAddPerson").addEventListener("click",function(){ openStewPerson(null); });
 }
 function stewPersonBalances(stewId){
-  var unpaid=0, paid=0, nUnpaid=0, nPaid=0;
+  var unpaid=0, paid=0, nUnpaid=0, nPaid=0, tipUnpaid=0, tipPaid=0;
   (state.stewAssign||[]).forEach(function(a){
     if(!a||!(a.stewIds||[]).some(function(id){return String(id)===String(stewId);})) return;
     var ev=stewMergedEvents().filter(function(e){return e&&e.key===a.eventKey;})[0]||{
       start:a.start, end:a.end, startTime:a.startTime, endTime:a.endTime, allDay:a.allDay, summary:a.summary, days:null
     };
     var pay=stewPayBreakdown(ev, a);
-    if(pay.each<=0) return;
-    if(pay.paid){ paid+=pay.each; nPaid++; }
-    else if(pay.unpaid){ unpaid+=pay.each; nUnpaid++; }
-    /* upcoming future trips: not counted as unpaid */
+    if(pay.each>0){
+      if(pay.paid){ paid+=pay.each; nPaid++; }
+      else if(pay.unpaid){ unpaid+=pay.each; nUnpaid++; }
+    }
+    if(pay.tipEach>0){
+      if(pay.tipPaid) tipPaid+=pay.tipEach;
+      else if(pay.tipUnpaid) tipUnpaid+=pay.tipEach;
+    }
   });
-  return {unpaid:unpaid, paid:paid, nUnpaid:nUnpaid, nPaid:nPaid};
+  return {unpaid:unpaid, paid:paid, nUnpaid:nUnpaid, nPaid:nPaid, tipUnpaid:tipUnpaid, tipPaid:tipPaid,
+    dueTotal:unpaid+tipUnpaid, allPaid:paid+tipPaid};
 }
 function paintStewTeam(){
   var wrap=el("stewTeamList"); if(!wrap) return;
@@ -3823,14 +3876,16 @@ function paintStewTeam(){
     var bal=stewPersonBalances(s.id);
     html+='<div class="item apa-row" data-stew-person="'+esc(s.id)+'" role="button" tabindex="0">'+
       '<div class="top"><div class="title">'+esc(s.name||"—")+'</div>'+
-        (bal.unpaid>0?'<div class="amt money" style="color:var(--amber,#c9a84c)">'+money0(bal.unpaid)+'</div>':
-          (bal.paid>0?'<div class="amt money">'+money0(bal.paid)+'</div>':''))+
+        (bal.dueTotal>0?'<div class="amt money" style="color:var(--amber,#c9a84c)">'+money0(bal.dueTotal)+'</div>':
+          (bal.allPaid>0?'<div class="amt money">'+money0(bal.allPaid)+'</div>':''))+
       '</div>'+
       '<div class="meta">'+(s.phone?'<span>📞 '+esc(s.phone)+'</span>':'')+
         (s.active===false?'<span class="pill p-grey">Inactive</span>':'<span class="pill p-green">Active</span>')+
-        (bal.unpaid>0?'<span class="pill p-amber">Unpaid '+money0(bal.unpaid)+(bal.nUnpaid>1?' · '+bal.nUnpaid+' trips':'')+'</span>':'')+
-        (bal.paid>0&&!bal.unpaid?'<span class="pill p-green">Paid up</span>':'')+
-        (bal.paid>0&&bal.unpaid>0?'<span class="pill p-green">Paid '+money0(bal.paid)+'</span>':'')+
+        (bal.unpaid>0?'<span class="pill p-amber">Pay '+money0(bal.unpaid)+'</span>':'')+
+        (bal.tipUnpaid>0?'<span class="pill p-amber">Tip '+money0(bal.tipUnpaid)+'</span>':'')+
+        (bal.paid>0?'<span class="pill p-green">Pay '+money0(bal.paid)+'</span>':'')+
+        (bal.tipPaid>0?'<span class="pill p-green">Tip '+money0(bal.tipPaid)+'</span>':'')+
+        (bal.dueTotal<=0&&bal.allPaid>0?'<span class="pill p-green">Settled</span>':'')+
       '</div>'+
       (s.notes?'<div class="notes">'+esc(s.notes)+'</div>':'')+
       '<button type="button" class="apa-x" data-stew-del="'+esc(s.id)+'" aria-label="Delete">×</button>'+
@@ -3907,16 +3962,19 @@ function openStewAssign(eventKey){
       startTime:existingAsg.startTime||"", endTime:existingAsg.endTime||"", allDay:!!existingAsg.allDay, status:existingAsg.status||"booked"};
   }
   var asg=assignForEvent(eventKey)||{
-    id:uid(), eventKey:eventKey, stewIds:[], notes:"", dayRate:"", payUnits:"", payStatus:"Unpaid"
+    id:uid(), eventKey:eventKey, stewIds:[], notes:"", dayRate:"", payUnits:"", payStatus:"Unpaid",
+    tipTotal:"", tipPayStatus:"Unpaid"
   };
   var band=stewRateBand(ev);
   var ratePrefill=stewDefaultRate(ev, asg.dayRate);
   var unitsPrefill=asg.payUnits!=null&&asg.payUnits!==""&&apaNum(asg.payUnits)>0
     ?Math.round(apaNum(asg.payUnits)):stewPayUnits(ev, null);
+  var tipPrefill=asg.tipTotal!=null&&asg.tipTotal!==""&&apaNum(asg.tipTotal)>0?apaNum(asg.tipTotal):"";
   var selected={};
   (asg.stewIds||[]).forEach(function(id){ selected[id]=1; });
   var team=(state.stews||[]).filter(function(s){ return s&&s.active!==false; });
   var pay=asg.payStatus==="Paid"?"Paid":"Unpaid";
+  var tipPay=asg.tipPayStatus==="Paid"?"Paid":"Unpaid";
   var h='<div class="sheethead"><h2>Assign stews</h2><button type="button" class="sheetx" id="sheetClose" aria-label="Close">×</button></div>';
   h+='<div class="apa-card" style="margin-bottom:12px">'+
     '<div style="font-weight:800;font-size:16px">'+esc(ev.summary||"Charter")+'</div>'+
@@ -3938,6 +3996,7 @@ function openStewAssign(eventKey){
     });
     h+='</div>';
   }
+  h+='<div class="sectitle" style="margin:12px 0 8px">Day pay</div>';
   h+='<div class="row2">'+
     fieldHTML("Day rate (€)",moneyField("f_stew_rate", ratePrefill))+
     fieldHTML("Days (billable)",'<input class="ctl" id="f_stew_units" type="number" min="1" step="1" inputmode="numeric" value="'+esc(String(unitsPrefill))+'">')+
@@ -3947,9 +4006,15 @@ function openStewAssign(eventKey){
     '<button type="button" class="btn ghost" data-stew-rate="'+STEW_RATE_6H+'" style="width:auto;padding:8px 12px;font-size:12.5px">6h+ €'+STEW_RATE_6H+'</button>'+
     '<button type="button" class="btn ghost" data-stew-rate="'+STEW_RATE_ON+'" style="width:auto;padding:8px 12px;font-size:12.5px">Overnight €'+STEW_RATE_ON+'</button>'+
   '</div>';
+  h+=fieldHTML("Day pay status",'<select class="ctl" id="f_stew_pay"><option value="Unpaid"'+(pay==="Unpaid"?" selected":"")+'>Unpaid</option><option value="Paid"'+(pay==="Paid"?" selected":"")+'>Paid</option></select>');
+  h+='<div class="sectitle" style="margin:16px 0 8px">Tip (guest gratuity)</div>';
+  h+='<div class="row2">'+
+    fieldHTML("Total tip received (€)",moneyField("f_stew_tip", tipPrefill))+
+    fieldHTML("Tip pay status",'<select class="ctl" id="f_stew_tip_pay"><option value="Unpaid"'+(tipPay==="Unpaid"?" selected":"")+'>Unpaid</option><option value="Paid"'+(tipPay==="Paid"?" selected":"")+'>Paid</option></select>')+
+  '</div>';
+  h+='<p style="margin:-4px 0 12px;font-size:12px;color:var(--muted)">You share equally with the stew: <b>stew gets 50%</b> of the total tip. With two stews, that 50% is split between them.</p>';
   h+='<div class="apa-card" id="stewPayLive" style="margin-bottom:12px;background:rgba(201,168,76,.12)"></div>';
-  h+=fieldHTML("Stew pay status",'<select class="ctl" id="f_stew_pay"><option value="Unpaid"'+(pay==="Unpaid"?" selected":"")+'>Unpaid (mark Paid when settled)</option><option value="Paid"'+(pay==="Paid"?" selected":"")+'>Paid</option></select>');
-  h+='<p style="margin:0 0 12px;font-size:12px;color:var(--muted)">Total = day rate × days for <b>each</b> stew. Your Paid/Unpaid choice is kept (including before 17/07). Future trips still show “Not due yet” until the charter day. Suggested: <b>'+esc(band.label)+' · €'+band.rate+'/day</b>.</p>';
+  h+='<p style="margin:0 0 12px;font-size:12px;color:var(--muted)">Day pay = rate × days per stew. Suggested rate: <b>'+esc(band.label)+' · €'+band.rate+'/day</b>.</p>';
   h+=fieldHTML("Notes",'<textarea class="ctl" id="f_stew_asg_notes" placeholder="e.g. pick-up time, uniform…">'+esc(asg.notes||"")+'</textarea>');
   h+='<div class="sheetfoot"><button type="button" class="btn ghost" id="sheetCancel">Cancel</button><button type="button" class="btn" id="sheetSave">Save assignment</button></div>';
   el("sheetInner").innerHTML=h;
@@ -3959,33 +4024,39 @@ function openStewAssign(eventKey){
     var rate=el("f_stew_rate")?apaNum(el("f_stew_rate").value):0;
     var units=el("f_stew_units")?Math.max(1, Math.round(apaNum(el("f_stew_units").value)||1)):1;
     var each=stewPayEach(rate, units);
+    var tipTot=el("f_stew_tip")?apaNum(el("f_stew_tip").value):0;
     var ids=[];
     Array.prototype.forEach.call(document.querySelectorAll("[data-stew-pick]"),function(inp){
       if(inp.checked) ids.push(inp.getAttribute("data-stew-pick"));
     });
     var paySel=el("f_stew_pay")&&el("f_stew_pay").value==="Paid"?"Paid":"Unpaid";
-    var statusLabel=paySel==="Paid"?"Paid":(charterDue?"Unpaid — we owe":"Not due yet");
+    var tipSel=el("f_stew_tip_pay")&&el("f_stew_tip_pay").value==="Paid"?"Paid":"Unpaid";
+    var tipMock={tipTotal:tipTot>0?tipTot:"", stewIds:ids, tipPayStatus:tipSel};
+    var tip=stewTipShare(tipMock);
+    var payLabel=paySel==="Paid"?"Paid":(charterDue?"Unpaid":"Not due yet");
+    var tipLabel=tipSel==="Paid"?"Paid":(charterDue?"Unpaid":"Not due yet");
     var names=stewNames(ids);
     var line="";
-    if(each>0&&names.length){
+    if(names.length){
       line=names.map(function(n){
-        return '<div style="display:flex;justify-content:space-between;gap:12px;margin-top:6px;align-items:center">'+
+        var bits=[];
+        if(each>0) bits.push("Pay "+money0(each)+" · "+payLabel);
+        if(tip.each>0) bits.push("Tip "+money0(tip.each)+" · "+tipLabel);
+        return '<div style="display:flex;justify-content:space-between;gap:12px;margin-top:6px;align-items:center;flex-wrap:wrap">'+
           '<span class="stew-name" style="font-size:17px">'+esc(n)+'</span>'+
-          '<span class="money" style="font-weight:800">'+money0(each)+' · '+statusLabel+'</span></div>';
+          '<span class="money" style="font-weight:800;font-size:13.5px">'+esc(bits.join(" · ")||"—")+'</span></div>';
       }).join("");
-      if(names.length>1){
-        line+='<div class="meta" style="margin-top:8px">All stews total: <b class="money">'+money0(each*names.length)+'</b></div>';
-      }
-    } else if(each>0){
-      line='<div class="meta">Per stew if assigned: <b class="money">'+money0(each)+'</b> ('+money0(rate)+' × '+units+' '+(units===1?"day":"days")+')</div>';
     } else {
-      line='<div class="meta">Set day rate and days to see the amount.</div>';
+      line='<div class="meta">Assign a stew to see their pay + tip share.</div>';
     }
-    if(!charterDue&&paySel!=="Paid"){
-      line+='<div class="meta" style="margin-top:8px">Future charter — not counted as unpaid until <b>'+esc(fmtDate(ev.start)||ev.start||"the day")+'</b>.</div>';
+    if(tip.total>0){
+      line+='<div class="meta" style="margin-top:10px">Guest tip <b class="money">'+money0(tip.total)+'</b> → stew side 50% <b class="money">'+money0(tip.stewSide)+'</b>'+
+        (tip.nStews>1?' → '+money0(tip.each)+' each':'')+
+        ' · you keep <b class="money">'+money0(tip.total-tip.stewSide)+'</b></div>';
     }
-    box.innerHTML='<div class="meta">Pay calculation</div>'+
-      '<div style="font-size:20px;font-weight:800;margin-top:4px" class="money">'+money0(each)+' <span style="font-size:13px;font-weight:600;color:var(--muted)">each ('+money0(rate)+' × '+units+')</span></div>'+
+    box.innerHTML='<div class="meta">What the stew gets</div>'+
+      (each>0?'<div style="font-size:18px;font-weight:800;margin-top:4px" class="money">Day pay '+money0(each)+' <span style="font-size:12px;font-weight:600;color:var(--muted)">('+money0(rate)+' × '+units+')</span></div>':'')+
+      (tip.stewSide>0?'<div style="font-size:18px;font-weight:800;margin-top:4px" class="money">Tip share '+money0(tip.each||tip.stewSide)+'</div>':'')+
       line;
   }
   Array.prototype.forEach.call(document.querySelectorAll("[data-stew-rate]"),function(btn){
@@ -4000,6 +4071,8 @@ function openStewAssign(eventKey){
   if(el("f_stew_rate")) el("f_stew_rate").addEventListener("input", refreshStewPayLive);
   if(el("f_stew_units")) el("f_stew_units").addEventListener("input", refreshStewPayLive);
   if(el("f_stew_pay")) el("f_stew_pay").addEventListener("change", refreshStewPayLive);
+  if(el("f_stew_tip")) el("f_stew_tip").addEventListener("input", refreshStewPayLive);
+  if(el("f_stew_tip_pay")) el("f_stew_tip_pay").addEventListener("change", refreshStewPayLive);
   refreshStewPayLive();
   el("sheetSave").addEventListener("click",function(){
     var ids=[];
@@ -4010,6 +4083,11 @@ function openStewAssign(eventKey){
     var rate=rateRaw===""?"":apaNum(rateRaw);
     var units=el("f_stew_units")?Math.max(1, Math.round(apaNum(el("f_stew_units").value)||1)):1;
     var each=stewPayEach(rate, units);
+    var tipRaw=el("f_stew_tip")?el("f_stew_tip").value:"";
+    var tipTotal=tipRaw===""?"":apaNum(tipRaw);
+    if(tipTotal!==""&&!(tipTotal>0)) tipTotal="";
+    var tipPayStatus=(el("f_stew_tip_pay")&&el("f_stew_tip_pay").value==="Paid")?"Paid":"Unpaid";
+    var tipShare=stewTipShare({tipTotal:tipTotal, stewIds:ids});
     var obj={
       id:asg.id||uid(),
       eventKey:ev.key,
@@ -4027,6 +4105,9 @@ function openStewAssign(eventKey){
       rateBand:band.kind,
       payStatus:(el("f_stew_pay")&&el("f_stew_pay").value==="Paid")?"Paid":"Unpaid",
       payStatusManual:true,
+      tipTotal:tipTotal,
+      tipStewShare:tipShare.stewSide,
+      tipPayStatus:tipPayStatus,
       notes:(el("f_stew_asg_notes").value||"").trim(),
       updatedAt:new Date().toISOString(),
       by:session.who||"Captain"
