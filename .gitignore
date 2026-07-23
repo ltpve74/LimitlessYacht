@@ -40,3 +40,5 @@ node_modules/
 # Local spreadsheet companion for the invoice tracker — never deploy
 tracker/*.xlsx
 tracker/*.xls
+# tracker/examples/ is develop-only reference (monthly expenses sample etc.) —
+# tracked on develop for agents, stripped on main + .netlifyignore (never public).

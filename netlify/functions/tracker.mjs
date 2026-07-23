@@ -409,6 +409,8 @@ async function loadData(store) {
       diesel: [],
       stews: [],
       stewAssign: [],
+      expenses: [],
+      expPetty: [],
       devices: [],
       log: [],
       pushSubs: [],
@@ -650,13 +652,17 @@ export default async (req, context) => {
       out.apa = null;
       out.diesel = null;
     }
-    /* Stew roster + assignments: captain only */
+    /* Stew roster + assignments + vessel expenses: captain only (not manager) */
     if (isCaptain(who)) {
       out.stews = Array.isArray(data.stews) ? data.stews : [];
       out.stewAssign = Array.isArray(data.stewAssign) ? data.stewAssign : [];
+      out.expenses = Array.isArray(data.expenses) ? data.expenses : [];
+      out.expPetty = Array.isArray(data.expPetty) ? data.expPetty : [];
     } else {
       out.stews = null;
       out.stewAssign = null;
+      out.expenses = null;
+      out.expPetty = null;
     }
     return json(out);
   }
@@ -669,15 +675,17 @@ export default async (req, context) => {
       coll !== "apa" &&
       coll !== "diesel" &&
       coll !== "stews" &&
-      coll !== "stewAssign"
+      coll !== "stewAssign" &&
+      coll !== "expenses" &&
+      coll !== "expPetty"
     ) {
       return json({ error: "bad collection" }, 400);
     }
     if ((coll === "apa" || coll === "diesel") && !canOps(who)) {
       return json({ error: coll === "diesel" ? "Diesel is captain/manager only" : "APA is captain/manager only" }, 403);
     }
-    if ((coll === "stews" || coll === "stewAssign") && !isCaptain(who)) {
-      return json({ error: "Stew roster is captain-only" }, 403);
+    if ((coll === "stews" || coll === "stewAssign" || coll === "expenses" || coll === "expPetty") && !isCaptain(who)) {
+      return json({ error: "Stews / expenses are captain-only" }, 403);
     }
     const prev = Array.isArray(data[coll]) ? data[coll] : [];
     const next = Array.isArray(body.rows) ? body.rows.slice(0, 5000) : [];

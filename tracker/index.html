@@ -104,6 +104,10 @@
   .item .notes{color:var(--muted);font-size:12.5px;margin-top:8px;font-style:italic}
   .item .stew-name{font-size:16.5px;font-weight:800;color:var(--brand);letter-spacing:.01em;line-height:1.25}
   .item .stew-row{margin-top:8px;display:flex;flex-wrap:wrap;gap:6px 12px;align-items:center}
+  .exp-rcpt{width:56px;height:56px;border-radius:10px;object-fit:cover;border:1px solid var(--line);background:#f0f3f5;flex-shrink:0}
+  .exp-rcpt-lg{max-width:100%;max-height:220px;border-radius:12px;border:1px solid var(--line);display:block;margin:8px 0}
+  .exp-month{display:flex;gap:8px;flex-wrap:wrap;align-items:center;margin:0 0 12px}
+  .exp-month select.ctl{width:auto;min-width:9.5rem;padding:10px 12px}
   .chev{position:absolute;right:12px;bottom:11px;color:#c3ccd3;font-size:15px}
   .invtags{display:flex;flex-wrap:wrap;gap:7px;margin-top:10px}
   .invtag{background:#f5f7f9;border:1px solid var(--line);border-radius:10px;padding:6px 9px;font-size:12px;display:flex;align-items:center;gap:6px;flex-wrap:wrap}
@@ -383,6 +387,11 @@
       <div id="stewsBody"></div>
     </section>
 
+    <!-- EXPENSES (captain only — monthly vessel ledger; tips stay in Stews only) -->
+    <section id="tab-expenses" class="hidden">
+      <div id="expBody"></div>
+    </section>
+
     <!-- SECURITY -->
     <section id="tab-security" class="hidden">
       <div class="banner" id="secBanner"></div>
@@ -419,6 +428,7 @@
     <button data-tab="apa" id="navApa" class="hidden"><span class="ic">📒</span>APA</button>
     <button data-tab="diesel" id="navDiesel" class="hidden"><span class="ic">⛽</span>Diesel</button>
     <button data-tab="stews" id="navStews" class="hidden"><span class="ic">👩‍✈️</span>Stews</button>
+    <button data-tab="expenses" id="navExpenses" class="hidden"><span class="ic">💶</span>Expenses</button>
     <button data-tab="security"><span class="ic">🔒</span>Security<span class="badge hidden" id="secBadge">0</span></button>
   </nav>
 </div>
@@ -454,10 +464,14 @@ function safeDel(k){ try{ localStorage.removeItem(k); }catch(e){} try{ delete me
 
 var DEMO=false, curTab="charters", apaSub="overview", activeApaId=null, apaView="list";
 var stewSub="charters"; /* charters | team */
+var expMonth=""; /* YYYY-MM — empty until first render */
 var calEvents=[], calEventsAt=0, calEventsLoading=false, calEventsGeneratedAt="", calEventsPromise=null;
 var stewSeedEvents=[], stewSeedLoaded=false, stewSeedPromise=null, stewYearFilter="all";
 var session={ who:null, pass:null, deviceId:null };
-var state={ charters:[], leads:[], apa:[], diesel:[], stews:[], stewAssign:[], devices:[], log:[] };
+var state={ charters:[], leads:[], apa:[], diesel:[], stews:[], stewAssign:[], expenses:[], expPetty:[], devices:[], log:[] };
+/** Categories aligned with monthly expenses spreadsheet (+ common boat ones). */
+var EXP_CATS=["Crew Salaries","Miscellaneous","Fuel Cars","Dockage / Marina","Provisions","Maintenance","Insurance","Other"];
+var EXP_METHODS=["Cash","Credit Card"];
 var pushMeta={ server:false, vapidPublicKey:"", endpoint:"" };
 var DIESEL_DEFAULT_BUY=1.75, DIESEL_DEFAULT_SELL=2.20;
 var SESSION_KEY="limitless_tracker_session";
@@ -551,8 +565,9 @@ function enterApp(){
   el("navApa").classList.toggle("hidden",!cap);
   el("navDiesel").classList.toggle("hidden",!cap);
   el("navStews").classList.toggle("hidden",!isCaptain());
+  if(el("navExpenses")) el("navExpenses").classList.toggle("hidden",!isCaptain());
   if(!cap&&(curTab==="apa"||curTab==="diesel")) curTab="charters";
-  if(!isCaptain()&&curTab==="stews") curTab="charters";
+  if(!isCaptain()&&(curTab==="stews"||curTab==="expenses")) curTab="charters";
   renderAll(); if(!DEMO){ startPolling(); initPushUI(); }
   else { setPushStatus("na","Demo mode — notifications need the live app"); }
   /* Prompt once logged in if not already running as home-screen app */
@@ -609,7 +624,7 @@ Array.prototype.forEach.call(document.querySelectorAll(".bnav button"),function(
 });
 function switchTab(t){
   if((t==="apa"||t==="diesel")&&!canOps()) return;
-  if(t==="stews"&&!isCaptain()) return;
+  if((t==="stews"||t==="expenses")&&!isCaptain()) return;
   curTab=t;
   if(t==="apa") apaView="list";
   Array.prototype.forEach.call(document.querySelectorAll(".bnav button"),function(x){ x.classList.toggle("active",x.getAttribute("data-tab")===t); });
@@ -618,11 +633,13 @@ function switchTab(t){
   el("tab-apa").classList.toggle("hidden",t!=="apa");
   el("tab-diesel").classList.toggle("hidden",t!=="diesel");
   el("tab-stews").classList.toggle("hidden",t!=="stews");
+  if(el("tab-expenses")) el("tab-expenses").classList.toggle("hidden",t!=="expenses");
   el("tab-security").classList.toggle("hidden",t!=="security");
   updateFab();
   if(t==="apa") renderApa();
   if(t==="diesel") renderDiesel();
   if(t==="stews") renderStews();
+  if(t==="expenses") renderExpenses();
 }
 function updateFab(){
   var hide=false;
@@ -633,13 +650,13 @@ function updateFab(){
   } else if(curTab==="stews"){
     hide=stewSub!=="team"; /* + add stew on Team only */
   }
-  /* diesel: FAB always opens add picker */
+  /* expenses + diesel: FAB always opens add */
   el("fab").classList.toggle("hidden",hide);
 }
 
 /* -------- render -------- */
 function pill(v){ var c="p-grey"; if(v==="Pending"||v==="Requested"||v==="Not issued")c="p-amber"; else if(v==="Invoiced"||v==="Issued")c="p-blue"; else if(v==="Paid")c="p-green"; return '<span class="pill '+c+'">'+esc(v)+'</span>'; }
-function renderAll(){ renderCharters(); renderLeads(); renderSecurity(); if(canOps()){ renderApa(); renderDiesel(); } if(isCaptain()) renderStews({soft:true}); }
+function renderAll(){ renderCharters(); renderLeads(); renderSecurity(); if(canOps()){ renderApa(); renderDiesel(); } if(isCaptain()){ renderStews({soft:true}); if(curTab==="expenses") renderExpenses(); } }
 
 /** Charges: payment defaults Paid; invStatus is what the manager tracks. */
 function chargePay(r){
@@ -3183,6 +3200,328 @@ function renderDiesel(){
 /* -------- Stews (captain only) — calendar + roster -------- */
 function saveStews(){ if(!isCaptain()) return; save("stews"); }
 function saveStewAssign(){ if(!isCaptain()) return; save("stewAssign"); }
+function saveExpenses(){ if(!isCaptain()) return; save("expenses"); }
+function saveExpPetty(){ if(!isCaptain()) return; save("expPetty"); }
+
+/* -------- Expenses (captain only) — monthly vessel ledger (no tips) -------- */
+function expMonthKey(d){
+  var s=String(d||"").slice(0,10);
+  return s.length>=7?s.slice(0,7):"";
+}
+function expDefaultMonth(){
+  var n=new Date();
+  return n.getFullYear()+"-"+String(n.getMonth()+1).padStart(2,"0");
+}
+function expPettyFor(month){
+  month=month||expMonth;
+  return (state.expPetty||[]).filter(function(p){return p&&p.month===month;})[0]||null;
+}
+function expEnsurePetty(month){
+  if(!state.expPetty) state.expPetty=[];
+  var p=expPettyFor(month);
+  if(p) return p;
+  p={month:month, pettyStart:0, pettyIn:0, cashIns:[], updatedAt:new Date().toISOString()};
+  state.expPetty.push(p);
+  return p;
+}
+function expLinesForMonth(month){
+  return (state.expenses||[]).filter(function(e){return e&&expMonthKey(e.date)===month;});
+}
+/**
+ * When stew day pay is Paid → Crew Salaries / Cash lines (one per stew).
+ * Tips are NEVER written here (captain-only in Stews).
+ */
+function syncStewDayPayExpenses(asg){
+  if(!isCaptain()||!asg||!asg.eventKey) return false;
+  if(!state.expenses) state.expenses=[];
+  var eventKey=String(asg.eventKey);
+  var isPaid=asg.payStatus==="Paid";
+  var each=apaNum(asg.payEach||asg.dayRate);
+  if(asg.payUnits!=null&&asg.payUnits!==""&&apaNum(asg.payUnits)>0&&asg.dayRate!=null){
+    each=stewPayEach(asg.dayRate, asg.payUnits);
+  }
+  var ids=(asg.stewIds||[]).filter(Boolean);
+  var before=state.expenses.length;
+  /* Drop previous auto lines for this charter */
+  state.expenses=state.expenses.filter(function(e){
+    return !(e&&e.source==="stew"&&e.stewPayKind==="dayPay"&&String(e.stewEventKey)===eventKey);
+  });
+  if(!isPaid||!(each>0)||!ids.length){
+    return state.expenses.length!==before;
+  }
+  var date=String(asg.start||"").slice(0,10)||new Date().toISOString().slice(0,10);
+  var summary=asg.summary||"Charter";
+  ids.forEach(function(sid){
+    var name=(stewById(sid)&&stewById(sid).name)||"Stew";
+    state.expenses.unshift({
+      id:uid(),
+      linkId:"stew-day:"+eventKey+":"+sid,
+      source:"stew",
+      stewEventKey:eventKey,
+      stewId:String(sid),
+      stewPayKind:"dayPay",
+      date:date,
+      vendor:name,
+      description:"Stewardess / day work — "+summary,
+      category:"Crew Salaries",
+      payMethod:"Cash",
+      amount:each,
+      receipt:"",
+      by:session.who||"Captain",
+      updatedAt:new Date().toISOString()
+    });
+  });
+  return true;
+}
+function syncAllStewDayPayExpenses(){
+  if(!isCaptain()) return;
+  var changed=false;
+  (state.stewAssign||[]).forEach(function(a){
+    if(syncStewDayPayExpenses(a)) changed=true;
+  });
+  if(changed) saveExpenses();
+}
+/** Compress phone photo for storage (JPEG, max edge ~1280, ~q0.72). */
+function expCompressReceipt(file){
+  return new Promise(function(resolve, reject){
+    if(!file||!file.type||file.type.indexOf("image/")!==0){ reject(new Error("Not an image")); return; }
+    var url=URL.createObjectURL(file);
+    var img=new Image();
+    img.onload=function(){
+      try{
+        var max=1280, w=img.naturalWidth||img.width, h=img.naturalHeight||img.height;
+        var scale=Math.min(1, max/Math.max(w,h));
+        var cw=Math.max(1, Math.round(w*scale)), ch=Math.max(1, Math.round(h*scale));
+        var canvas=document.createElement("canvas");
+        canvas.width=cw; canvas.height=ch;
+        var ctx=canvas.getContext("2d");
+        ctx.drawImage(img,0,0,cw,ch);
+        var data=canvas.toDataURL("image/jpeg",0.72);
+        URL.revokeObjectURL(url);
+        if(data.length>220000){
+          data=canvas.toDataURL("image/jpeg",0.55);
+        }
+        if(data.length>280000){ reject(new Error("Photo still too large — try a closer crop")); return; }
+        resolve(data);
+      }catch(err){ URL.revokeObjectURL(url); reject(err); }
+    };
+    img.onerror=function(){ URL.revokeObjectURL(url); reject(new Error("Could not read photo")); };
+    img.src=url;
+  });
+}
+function expExportMonthCsv(month){
+  var rows=expLinesForMonth(month).slice().sort(function(a,b){
+    return String(a.date).localeCompare(String(b.date));
+  });
+  var lines=["Date,Company/Store,Description,Category,Type,Amount"];
+  function csvCell(v){
+    var s=String(v==null?"":v);
+    if(/[",\n]/.test(s)) return '"'+s.replace(/"/g,'""')+'"';
+    return s;
+  }
+  rows.forEach(function(e){
+    lines.push([csvCell(e.date),csvCell(e.vendor),csvCell(e.description),csvCell(e.category),csvCell(e.payMethod==="Credit Card"?"Credit Card":"Cash"),csvCell(e.amount)].join(","));
+  });
+  var blob=new Blob([lines.join("\n")],{type:"text/csv;charset=utf-8"});
+  var a=document.createElement("a");
+  a.href=URL.createObjectURL(blob);
+  a.download="Limitless-expenses-"+month+".csv";
+  document.body.appendChild(a); a.click();
+  setTimeout(function(){ try{ document.body.removeChild(a); URL.revokeObjectURL(a.href); }catch(e){} }, 800);
+}
+function renderExpenses(){
+  if(!isCaptain()) return;
+  var body=el("expBody"); if(!body) return;
+  if(!expMonth) expMonth=expDefaultMonth();
+  var months={};
+  (state.expenses||[]).forEach(function(e){ var m=expMonthKey(e.date); if(m) months[m]=1; });
+  months[expMonth]=1;
+  months[expDefaultMonth()]=1;
+  var monthList=Object.keys(months).sort().reverse();
+  var lines=expLinesForMonth(expMonth).slice().sort(function(a,b){
+    var c=String(b.date).localeCompare(String(a.date));
+    if(c) return c;
+    return String(b.updatedAt||"").localeCompare(String(a.updatedAt||""));
+  });
+  var cashOut=0, cardOut=0, crewCash=0;
+  lines.forEach(function(e){
+    var a=apaNum(e.amount);
+    if(e.payMethod==="Credit Card") cardOut+=a;
+    else cashOut+=a;
+    if(e.category==="Crew Salaries") crewCash+=a;
+  });
+  var petty=expPettyFor(expMonth)||{pettyStart:0, pettyIn:0};
+  var pettyStart=apaNum(petty.pettyStart), pettyIn=apaNum(petty.pettyIn);
+  var pettyOnboard=pettyStart+pettyIn-cashOut;
+  var h='<div class="legend">Captain-only monthly vessel ledger (matches your spreadsheet). Day-work from <b>Stews</b> is added automatically when day pay is marked <b>Paid</b> (Cash · Crew Salaries). <b>Tips stay in Stews only</b> — never on this export.</div>';
+  h+='<div class="exp-month"><label class="meta" style="font-weight:700">Month</label>'+
+    '<select class="ctl" id="expMonthSel">'+monthList.map(function(m){
+      return '<option value="'+esc(m)+'"'+(m===expMonth?" selected":"")+'>'+esc(m)+'</option>';
+    }).join("")+'</select>'+
+    '<button type="button" class="btn ghost" id="expExport" style="width:auto;padding:10px 14px">Export CSV</button>'+
+  '</div>';
+  h+='<div class="summary">'+
+    '<div class="sumcard"><div class="l">Cash out</div><div class="v money">'+money0(cashOut)+'</div></div>'+
+    '<div class="sumcard"><div class="l">Card out</div><div class="v money">'+money0(cardOut)+'</div></div>'+
+    '<div class="sumcard"><div class="l">Crew salaries</div><div class="v money">'+money0(crewCash)+'</div></div>'+
+    '<div class="sumcard"><div class="l">Petty onboard</div><div class="v money">'+money0(pettyOnboard)+'</div></div>'+
+  '</div>';
+  h+='<div class="apa-card" style="margin-bottom:12px">'+
+    '<div class="meta" style="margin-bottom:8px">Petty cash ('+esc(expMonth)+')</div>'+
+    '<div class="row2">'+
+      fieldHTML("Start amount (€)",moneyField("exp_petty_start", pettyStart||""))+
+      fieldHTML("Cash in (€)",moneyField("exp_petty_in", pettyIn||""))+
+    '</div>'+
+    '<div class="meta">Total out cash <b class="money">'+money0(cashOut)+'</b> · onboard <b class="money">'+money0(pettyOnboard)+'</b> (start + in − cash spends)</div>'+
+    '<button type="button" class="btn ghost" id="expPettySave" style="width:auto;margin-top:10px;padding:10px 14px">Save petty cash</button>'+
+  '</div>';
+  h+='<div class="apa-sect-h" style="margin-top:4px"><h3>Expenses</h3><button type="button" class="btn" id="expAdd">Add expense</button></div>';
+  if(!lines.length){
+    h+=emptyBox("💶","No expenses this month","Tap + or Add expense. Mark stew day pay Paid to auto-add crew salaries.");
+  } else {
+    h+='<div class="list">';
+    lines.forEach(function(e){
+      h+='<div class="item'+(e.source==="stew"?"":" apa-row")+'" data-exp-id="'+esc(e.id)+'" role="button" tabindex="0">'+
+        '<div class="top">'+
+          (e.receipt?'<img class="exp-rcpt" src="'+e.receipt+'" alt="">':'')+
+          '<div style="flex:1;min-width:0"><div class="title">'+esc(e.vendor||"—")+'</div>'+
+            '<div class="meta" style="margin-top:4px"><span>📅 '+esc(fmtDate(e.date)||e.date||"")+'</span>'+
+              '<span class="pill '+(e.payMethod==="Credit Card"?"p-card":"p-cash")+'">'+esc(e.payMethod==="Credit Card"?"Card":"Cash")+'</span>'+
+              '<span class="pill p-grey">'+esc(e.category||"")+'</span>'+
+              (e.source==="stew"?'<span class="pill p-blue">From Stews</span>':'')+
+            '</div>'+
+            (e.description?'<div class="notes" style="font-style:normal">'+esc(e.description)+'</div>':'')+
+          '</div>'+
+          '<div class="amt money">'+money0(e.amount)+'</div>'+
+        '</div>'+
+        (e.source!=="stew"?'<button type="button" class="apa-x" data-exp-del="'+esc(e.id)+'" aria-label="Delete">×</button>':'')+
+        '<span class="chev">✎</span></div>';
+    });
+    h+='</div>';
+  }
+  body.innerHTML=h;
+  if(el("expMonthSel")) el("expMonthSel").addEventListener("change",function(){
+    expMonth=el("expMonthSel").value||expDefaultMonth();
+    renderExpenses();
+  });
+  if(el("expExport")) el("expExport").addEventListener("click",function(){ expExportMonthCsv(expMonth); });
+  if(el("expAdd")) el("expAdd").addEventListener("click",function(){ openExpense(null); });
+  if(el("expPettySave")) el("expPettySave").addEventListener("click",function(){
+    var p=expEnsurePetty(expMonth);
+    p.pettyStart=apaNum(el("exp_petty_start")&&el("exp_petty_start").value);
+    p.pettyIn=apaNum(el("exp_petty_in")&&el("exp_petty_in").value);
+    p.updatedAt=new Date().toISOString();
+    saveExpPetty();
+    renderExpenses();
+  });
+  Array.prototype.forEach.call(body.querySelectorAll("[data-exp-id]"),function(x){
+    x.addEventListener("click",function(ev){
+      if(ev.target.closest&&ev.target.closest("[data-exp-del]")) return;
+      openExpense(x.getAttribute("data-exp-id"));
+    });
+  });
+  Array.prototype.forEach.call(body.querySelectorAll("[data-exp-del]"),function(x){
+    x.addEventListener("click",function(ev){
+      ev.preventDefault(); ev.stopPropagation();
+      var id=x.getAttribute("data-exp-del");
+      var rec=(state.expenses||[]).filter(function(e){return e&&e.id===id;})[0];
+      if(rec&&rec.source==="stew"){ window.alert("This line comes from Stews day pay. Mark that charter Unpaid (or edit stews) to remove it."); return; }
+      if(!window.confirm("Delete this expense?")) return;
+      state.expenses=(state.expenses||[]).filter(function(e){return !e||e.id!==id;});
+      saveExpenses(); renderExpenses();
+    });
+  });
+}
+function openExpense(id){
+  if(!isCaptain()) return;
+  var rec=id?(state.expenses||[]).filter(function(e){return e&&e.id===id;})[0]:null;
+  var fromStew=!!(rec&&rec.source==="stew");
+  var r=rec||{
+    id:uid(), date:new Date().toISOString().slice(0,10), vendor:"", description:"",
+    category:"Miscellaneous", payMethod:"Cash", amount:"", receipt:"", source:"manual"
+  };
+  var h='<div class="sheethead"><h2>'+(rec?(fromStew?"Crew salary (from Stews)":"Edit expense"):"New expense")+'</h2><button type="button" class="sheetx" id="sheetClose" aria-label="Close">×</button></div>';
+  if(fromStew){
+    h+='<div class="banner warn show">Auto from Stews day pay · Cash · Crew Salaries. Change day pay there to update amount. Tips are not on this ledger.</div>';
+  }
+  h+=fieldHTML("Date",'<input class="ctl" id="f_exp_date" type="date" value="'+esc(r.date||"")+'"'+(fromStew?" disabled":"")+'>');
+  h+=fieldHTML("Company / Store",'<input class="ctl" id="f_exp_vendor" value="'+esc(r.vendor||"")+'" placeholder="e.g. Eroski, Laura"'+(fromStew?" disabled":"")+'>');
+  h+=fieldHTML("Description",'<input class="ctl" id="f_exp_desc" value="'+esc(r.description||"")+'" placeholder="e.g. Galley supplies, Stewardess"'+(fromStew?" disabled":"")+'>');
+  h+='<div class="row2">'+
+    fieldHTML("Category",'<select class="ctl" id="f_exp_cat"'+(fromStew?" disabled":"")+'>'+EXP_CATS.map(function(c){return '<option'+(c===(r.category||"")?" selected":"")+'>'+esc(c)+'</option>';}).join("")+'</select>')+
+    fieldHTML("Type",'<select class="ctl" id="f_exp_method"'+(fromStew?" disabled":"")+'>'+EXP_METHODS.map(function(c){return '<option'+(c===(r.payMethod||"")?" selected":"")+'>'+esc(c)+'</option>';}).join("")+'</select>')+
+  '</div>';
+  h+=fieldHTML("Amount (€)",moneyField("f_exp_amount", r.amount!=null&&r.amount!==""?r.amount:""));
+  h+='<div class="field"><label>Receipt photo</label>'+
+    '<input class="ctl" id="f_exp_photo" type="file" accept="image/*" capture="environment">'+
+    '<div id="f_exp_photo_prev" style="margin-top:8px">'+(r.receipt?'<img class="exp-rcpt-lg" src="'+r.receipt+'" alt="Receipt">':'')+'</div>'+
+    (r.receipt?'<button type="button" class="btn ghost" id="f_exp_photo_clear" style="width:auto;margin-top:8px;padding:8px 12px">Remove photo</button>':'')+
+  '</div>';
+  h+='<p style="margin:0 0 12px;font-size:12px;color:var(--muted)">Photos are compressed on this phone before save. Export CSV at month end for the manager (no tips, no receipt images in CSV).</p>';
+  if(rec&&!fromStew) h+='<div class="sheetbtns"><button type="button" class="btn danger" id="sheetDel">Delete</button></div>';
+  h+='<div class="sheetfoot"><button type="button" class="btn ghost" id="sheetCancel">Cancel</button>'+
+    (fromStew?'<button type="button" class="btn" id="sheetSave">Save photo</button>':'<button type="button" class="btn" id="sheetSave">Save</button>')+
+  '</div>';
+  el("sheetInner").innerHTML=h;
+  if(fromStew){
+    ["f_exp_date","f_exp_vendor","f_exp_desc","f_exp_cat","f_exp_method","f_exp_amount"].forEach(function(id){
+      if(el(id)) el(id).disabled=true;
+    });
+  }
+  var receiptData=r.receipt||"";
+  if(el("f_exp_photo")) el("f_exp_photo").addEventListener("change",function(){
+    var f=el("f_exp_photo").files&&el("f_exp_photo").files[0];
+    if(!f) return;
+    expCompressReceipt(f).then(function(data){
+      receiptData=data;
+      var prev=el("f_exp_photo_prev");
+      if(prev) prev.innerHTML='<img class="exp-rcpt-lg" src="'+data+'" alt="Receipt">';
+    }).catch(function(err){ window.alert(err&&err.message?err.message:"Could not use photo"); });
+  });
+  if(el("f_exp_photo_clear")) el("f_exp_photo_clear").addEventListener("click",function(){
+    receiptData="";
+    if(el("f_exp_photo_prev")) el("f_exp_photo_prev").innerHTML="";
+    if(el("f_exp_photo")) el("f_exp_photo").value="";
+  });
+  el("sheetSave").addEventListener("click",function(){
+    if(fromStew){
+      /* Only receipt can change on auto lines */
+      state.expenses=(state.expenses||[]).map(function(e){
+        if(e&&e.id===r.id){ e.receipt=receiptData; e.updatedAt=new Date().toISOString(); }
+        return e;
+      });
+      showSheet(false); saveExpenses(); renderExpenses();
+      return;
+    }
+    var date=(el("f_exp_date")&&el("f_exp_date").value)||"";
+    var vendor=(el("f_exp_vendor")&&el("f_exp_vendor").value||"").trim();
+    var amount=apaNum(el("f_exp_amount")&&el("f_exp_amount").value);
+    if(!date){ if(el("f_exp_date")) el("f_exp_date").focus(); return; }
+    if(!vendor){ if(el("f_exp_vendor")) el("f_exp_vendor").focus(); return; }
+    if(!(amount>0)){ if(el("f_exp_amount")) el("f_exp_amount").focus(); return; }
+    var obj={
+      id:r.id, date:date, vendor:vendor,
+      description:(el("f_exp_desc")&&el("f_exp_desc").value||"").trim(),
+      category:(el("f_exp_cat")&&el("f_exp_cat").value)||"Miscellaneous",
+      payMethod:(el("f_exp_method")&&el("f_exp_method").value)==="Credit Card"?"Credit Card":"Cash",
+      amount:amount, receipt:receiptData, source:"manual",
+      by:session.who||"Captain", updatedAt:new Date().toISOString()
+    };
+    if(!state.expenses) state.expenses=[];
+    if(rec) state.expenses=state.expenses.map(function(e){return e&&e.id===obj.id?obj:e;});
+    else state.expenses.unshift(obj);
+    expMonth=expMonthKey(date)||expMonth;
+    showSheet(false); saveExpenses(); renderExpenses();
+  });
+  el("sheetCancel").addEventListener("click",function(){ showSheet(false); });
+  el("sheetClose").addEventListener("click",function(){ showSheet(false); });
+  if(el("sheetDel")) el("sheetDel").addEventListener("click",function(){
+    if(!window.confirm("Delete this expense?")) return;
+    state.expenses=(state.expenses||[]).filter(function(e){return !e||e.id!==r.id;});
+    showSheet(false); saveExpenses(); renderExpenses();
+  });
+  showSheet(true);
+}
 function stewById(id){ return (state.stews||[]).filter(function(s){return s&&String(s.id)===String(id);})[0]||null; }
 function stewNames(ids){
   return (ids||[]).map(function(id){ var s=stewById(id); return s?s.name:""; }).filter(Boolean);
@@ -4122,6 +4461,8 @@ function openStewAssign(eventKey){
     });
     if(!found) state.stewAssign.unshift(obj);
     showSheet(false); saveStewAssign();
+    /* Day pay → Expenses ledger (Cash · Crew Salaries). Tips never leave Stews. */
+    if(syncStewDayPayExpenses(obj)) saveExpenses();
     /* In-place list refresh — do not rebuild tab (that jumped scroll to top) */
     if(stewSub==="charters"&&el("stewCalList")) paintStewChartersKeepScroll();
     else renderStews({soft:true});
@@ -4776,6 +5117,11 @@ el("fab").addEventListener("click",function(){
     if(stewSub==="team") openStewPerson(null);
     return;
   }
+  if(curTab==="expenses"){
+    if(!isCaptain()) return;
+    openExpense(null);
+    return;
+  }
   openSheet(curTab==="leads"?"lead":"charter",null);
 });
 document.addEventListener("keydown",function(ev){ if(ev.key==="Escape"&&el("sheet").classList.contains("show")) showSheet(false); });
@@ -5086,6 +5432,10 @@ function applyData(d){
   else if(!isCaptain()) state.stews=[];
   if(isCaptain() && Array.isArray(d.stewAssign)) state.stewAssign=d.stewAssign;
   else if(!isCaptain()) state.stewAssign=[];
+  if(isCaptain() && Array.isArray(d.expenses)) state.expenses=d.expenses;
+  else if(!isCaptain()) state.expenses=[];
+  if(isCaptain() && Array.isArray(d.expPetty)) state.expPetty=d.expPetty;
+  else if(!isCaptain()) state.expPetty=[];
   if(typeof d.pushEnabled==="boolean") pushMeta.server=d.pushEnabled;
   if(d.vapidPublicKey) pushMeta.vapidPublicKey=d.vapidPublicKey;
   sortCharters();
