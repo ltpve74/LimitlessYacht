@@ -371,6 +371,15 @@
       <div id="dieselBody"></div>
     </section>
 
+    <!-- STEWS (captain only — roster + charter assignment from calendar) -->
+    <section id="tab-stews" class="hidden">
+      <div class="apa-sub" id="stewSubNav">
+        <button type="button" data-stewsub="charters" class="on">Charters</button>
+        <button type="button" data-stewsub="team">Team</button>
+      </div>
+      <div id="stewsBody"></div>
+    </section>
+
     <!-- SECURITY -->
     <section id="tab-security" class="hidden">
       <div class="banner" id="secBanner"></div>
@@ -406,6 +415,7 @@
     <button data-tab="leads"><span class="ic">🌐</span>Leads</button>
     <button data-tab="apa" id="navApa" class="hidden"><span class="ic">📒</span>APA</button>
     <button data-tab="diesel" id="navDiesel" class="hidden"><span class="ic">⛽</span>Diesel</button>
+    <button data-tab="stews" id="navStews" class="hidden"><span class="ic">👩‍✈️</span>Stews</button>
     <button data-tab="security"><span class="ic">🔒</span>Security<span class="badge hidden" id="secBadge">0</span></button>
   </nav>
 </div>
@@ -440,8 +450,10 @@ function safeSet(k,v){ try{ localStorage.setItem(k,v); }catch(e){ memStore[k]=v;
 function safeDel(k){ try{ localStorage.removeItem(k); }catch(e){} try{ delete memStore[k]; }catch(e2){} }
 
 var DEMO=false, curTab="charters", apaSub="overview", activeApaId=null, apaView="list";
+var stewSub="charters"; /* charters | team */
+var calEvents=[], calEventsAt=0, calEventsLoading=false;
 var session={ who:null, pass:null, deviceId:null };
-var state={ charters:[], leads:[], apa:[], diesel:[], devices:[], log:[] };
+var state={ charters:[], leads:[], apa:[], diesel:[], stews:[], stewAssign:[], devices:[], log:[] };
 var pushMeta={ server:false, vapidPublicKey:"", endpoint:"" };
 var DIESEL_DEFAULT_BUY=1.75, DIESEL_DEFAULT_SELL=2.20;
 var SESSION_KEY="limitless_tracker_session";
@@ -534,7 +546,9 @@ function enterApp(){
   var cap=canOps();
   el("navApa").classList.toggle("hidden",!cap);
   el("navDiesel").classList.toggle("hidden",!cap);
+  el("navStews").classList.toggle("hidden",!isCaptain());
   if(!cap&&(curTab==="apa"||curTab==="diesel")) curTab="charters";
+  if(!isCaptain()&&curTab==="stews") curTab="charters";
   renderAll(); if(!DEMO){ startPolling(); initPushUI(); }
   else { setPushStatus("na","Demo mode — notifications need the live app"); }
   /* Prompt once logged in if not already running as home-screen app */
@@ -591,6 +605,7 @@ Array.prototype.forEach.call(document.querySelectorAll(".bnav button"),function(
 });
 function switchTab(t){
   if((t==="apa"||t==="diesel")&&!canOps()) return;
+  if(t==="stews"&&!isCaptain()) return;
   curTab=t;
   if(t==="apa") apaView="list";
   Array.prototype.forEach.call(document.querySelectorAll(".bnav button"),function(x){ x.classList.toggle("active",x.getAttribute("data-tab")===t); });
@@ -598,10 +613,12 @@ function switchTab(t){
   el("tab-leads").classList.toggle("hidden",t!=="leads");
   el("tab-apa").classList.toggle("hidden",t!=="apa");
   el("tab-diesel").classList.toggle("hidden",t!=="diesel");
+  el("tab-stews").classList.toggle("hidden",t!=="stews");
   el("tab-security").classList.toggle("hidden",t!=="security");
   updateFab();
   if(t==="apa") renderApa();
   if(t==="diesel") renderDiesel();
+  if(t==="stews") renderStews();
 }
 function updateFab(){
   var hide=false;
@@ -609,6 +626,8 @@ function updateFab(){
   else if(curTab==="apa"){
     if(apaView==="list") hide=false; /* + new trip */
     else hide=(apaSub==="overview"||apaSub==="setup"||!activeApaId);
+  } else if(curTab==="stews"){
+    hide=stewSub!=="team"; /* + add stew on Team only */
   }
   /* diesel: FAB always opens add picker */
   el("fab").classList.toggle("hidden",hide);
@@ -616,7 +635,7 @@ function updateFab(){
 
 /* -------- render -------- */
 function pill(v){ var c="p-grey"; if(v==="Pending"||v==="Requested"||v==="Not issued")c="p-amber"; else if(v==="Invoiced"||v==="Issued")c="p-blue"; else if(v==="Paid")c="p-green"; return '<span class="pill '+c+'">'+esc(v)+'</span>'; }
-function renderAll(){ renderCharters(); renderLeads(); renderSecurity(); if(canOps()){ renderApa(); renderDiesel(); } }
+function renderAll(){ renderCharters(); renderLeads(); renderSecurity(); if(canOps()){ renderApa(); renderDiesel(); } if(isCaptain()) renderStews(); }
 
 /** Charges: payment defaults Paid; invStatus is what the manager tracks. */
 function chargePay(r){
@@ -3157,6 +3176,271 @@ function renderDiesel(){
     });
   });
 }
+/* -------- Stews (captain only) — calendar + roster -------- */
+function saveStews(){ if(!isCaptain()) return; save("stews"); }
+function saveStewAssign(){ if(!isCaptain()) return; save("stewAssign"); }
+function stewById(id){ return (state.stews||[]).filter(function(s){return s&&String(s.id)===String(id);})[0]||null; }
+function stewNames(ids){
+  return (ids||[]).map(function(id){ var s=stewById(id); return s?s.name:""; }).filter(Boolean);
+}
+function assignForEvent(eventKey){
+  return (state.stewAssign||[]).filter(function(a){return a&&a.eventKey===eventKey;})[0]||null;
+}
+function fmtCalEventWhen(ev){
+  if(!ev) return "";
+  var s=fmtDate(ev.start)||ev.start||"";
+  var e=ev.end&&ev.end!==ev.start?(fmtDate(ev.end)||ev.end):"";
+  var range=e?s+" – "+e:s;
+  if(ev.allDay||(!ev.startTime&&!ev.endTime)) return range+(e?"":" · all day");
+  var t=ev.startTime||"";
+  if(ev.endTime&&ev.endTime!==ev.startTime) t+=(t?"–":"")+ev.endTime;
+  return range+(t?" · "+t:"");
+}
+function loadCalEvents(force){
+  if(!isCaptain()) return Promise.resolve([]);
+  var now=Date.now();
+  if(!force&&calEvents.length&&(now-calEventsAt)<5*60*1000) return Promise.resolve(calEvents);
+  if(calEventsLoading) return Promise.resolve(calEvents);
+  calEventsLoading=true;
+  return fetch("/.netlify/functions/availability",{credentials:"omit"})
+    .then(function(r){ return r.json(); })
+    .then(function(d){
+      calEvents=Array.isArray(d.events)?d.events:[];
+      calEventsAt=Date.now();
+      calEventsLoading=false;
+      return calEvents;
+    })
+    .catch(function(){
+      calEventsLoading=false;
+      return calEvents;
+    });
+}
+function renderStews(){
+  if(!isCaptain()) return;
+  Array.prototype.forEach.call(document.querySelectorAll("#stewSubNav button"),function(b){
+    b.classList.toggle("on", b.getAttribute("data-stewsub")===stewSub);
+  });
+  var body=el("stewsBody"); if(!body) return;
+  if(stewSub==="team"){ renderStewTeam(body); return; }
+  body.innerHTML='<div class="legend">Charters from the shared calendar. Assign stews so you never double-book. Refresh pulls the latest feed.</div>'+
+    '<div class="apa-sect-h" style="margin-top:0"><h3>Upcoming &amp; recent</h3>'+
+    '<button type="button" class="btn ghost" id="stewRefreshCal">Refresh calendar</button></div>'+
+    '<div id="stewCalList"><div class="empty"><div class="big">⏳</div><div>Loading calendar…</div></div></div>';
+  if(el("stewRefreshCal")) el("stewRefreshCal").addEventListener("click",function(){
+    el("stewCalList").innerHTML='<div class="empty"><div class="big">⏳</div><div>Loading…</div></div>';
+    loadCalEvents(true).then(function(){ paintStewCharters(); });
+  });
+  loadCalEvents(false).then(function(){ paintStewCharters(); });
+}
+function paintStewCharters(){
+  var wrap=el("stewCalList"); if(!wrap) return;
+  var today=new Date().toISOString().slice(0,10);
+  var events=calEvents.slice().filter(function(ev){
+    /* show from 30 days ago onward */
+    if(!ev||!ev.start) return false;
+    var cut=new Date(); cut.setDate(cut.getDate()-30);
+    return String(ev.start)>=cut.toISOString().slice(0,10);
+  }).sort(function(a,b){
+    var c=String(a.start).localeCompare(String(b.start));
+    if(c) return c;
+    return String(a.startTime||"").localeCompare(String(b.startTime||""));
+  });
+  if(!events.length){
+    wrap.innerHTML=emptyBox("📅","No charters from calendar","Check AVAILABILITY_ICS_URL in Netlify, or add events to the shared calendar.");
+    return;
+  }
+  var html='<div class="list">';
+  events.forEach(function(ev){
+    var asg=assignForEvent(ev.key);
+    var names=asg?stewNames(asg.stewIds):[];
+    var unassigned=!names.length;
+    var past=ev.end?String(ev.end)<today:String(ev.start)<today;
+    html+='<div class="item'+(unassigned&&!past?' apa-row':'')+'" data-stew-ev="'+esc(ev.key)+'" role="button" tabindex="0">'+
+      '<div class="top"><div class="title">'+esc(ev.summary||"Charter")+'</div>'+
+        (unassigned&&!past?'<span class="pill p-amber">No stew</span>':
+          (names.length?'<span class="pill p-green">'+esc(names.join(", "))+'</span>':'<span class="pill p-grey">—</span>'))+
+      '</div>'+
+      '<div class="meta"><span>📅 '+esc(fmtCalEventWhen(ev))+'</span>'+
+        (ev.status==="tentative"?'<span class="pill p-amber">Tentative</span>':'')+
+        (past?'<span class="pill p-grey">Past</span>':'')+
+      '</div>'+
+      (asg&&asg.notes?'<div class="notes">'+esc(asg.notes)+'</div>':'')+
+      '<span class="chev">✎</span></div>';
+  });
+  html+='</div>';
+  wrap.innerHTML=html;
+  Array.prototype.forEach.call(wrap.querySelectorAll("[data-stew-ev]"),function(x){
+    x.addEventListener("click",function(){ openStewAssign(x.getAttribute("data-stew-ev")); });
+  });
+}
+function renderStewTeam(body){
+  body.innerHTML='<div class="legend">Stew roster. Add names here, then assign them on the <b>Charters</b> tab.</div>'+
+    '<div class="apa-sect-h" style="margin-top:0"><h3>Team</h3><button type="button" class="btn" id="stewAddPerson">Add stew</button></div>'+
+    '<div id="stewTeamList"></div>';
+  paintStewTeam();
+  if(el("stewAddPerson")) el("stewAddPerson").addEventListener("click",function(){ openStewPerson(null); });
+}
+function paintStewTeam(){
+  var wrap=el("stewTeamList"); if(!wrap) return;
+  var list=(state.stews||[]).slice().sort(function(a,b){ return String(a.name||"").localeCompare(String(b.name||"")); });
+  if(!list.length){
+    wrap.innerHTML=emptyBox("👩‍✈️","No stews yet","Tap Add stew or + to build your roster.");
+    return;
+  }
+  var html='<div class="list">';
+  list.forEach(function(s){
+    html+='<div class="item apa-row" data-stew-person="'+esc(s.id)+'" role="button" tabindex="0">'+
+      '<div class="top"><div class="title">'+esc(s.name||"—")+'</div></div>'+
+      '<div class="meta">'+(s.phone?'<span>📞 '+esc(s.phone)+'</span>':'')+
+        (s.active===false?'<span class="pill p-grey">Inactive</span>':'<span class="pill p-green">Active</span>')+
+      '</div>'+
+      (s.notes?'<div class="notes">'+esc(s.notes)+'</div>':'')+
+      '<button type="button" class="apa-x" data-stew-del="'+esc(s.id)+'" aria-label="Delete">×</button>'+
+      '<span class="chev">✎</span></div>';
+  });
+  html+='</div>';
+  wrap.innerHTML=html;
+  Array.prototype.forEach.call(wrap.querySelectorAll("[data-stew-person]"),function(x){
+    x.addEventListener("click",function(ev){
+      if(ev.target.closest&&ev.target.closest("[data-stew-del]")) return;
+      openStewPerson(x.getAttribute("data-stew-person"));
+    });
+  });
+  Array.prototype.forEach.call(wrap.querySelectorAll("[data-stew-del]"),function(x){
+    x.addEventListener("click",function(ev){
+      ev.preventDefault(); ev.stopPropagation();
+      deleteStewPerson(x.getAttribute("data-stew-del"));
+    });
+  });
+}
+function openStewPerson(id){
+  if(!isCaptain()) return;
+  var rec=id?stewById(id):null;
+  var r=rec||{id:uid(),name:"",phone:"",notes:"",active:true};
+  var h='<div class="sheethead"><h2>'+(rec?"Edit stew":"New stew")+'</h2><button type="button" class="sheetx" id="sheetClose" aria-label="Close">×</button></div>';
+  h+=fieldHTML("Name",'<input class="ctl" id="f_stew_name" value="'+esc(r.name||"")+'" placeholder="e.g. Maria">');
+  h+=fieldHTML("Phone (optional)",'<input class="ctl" id="f_stew_phone" value="'+esc(r.phone||"")+'" placeholder="+34 …" inputmode="tel">');
+  h+=fieldHTML("Notes",'<textarea class="ctl" id="f_stew_notes" placeholder="optional">'+esc(r.notes||"")+'</textarea>');
+  h+='<label class="checkrow"><input type="checkbox" id="f_stew_active"'+(r.active===false?"":" checked")+'>'+
+    '<span><div class="ck">Active</div><div class="ch">Inactive stews stay in history but hide from new assignments by default.</div></span></label>';
+  if(rec) h+='<div class="sheetbtns"><button type="button" class="btn danger" id="sheetDel">Delete</button></div>';
+  h+='<div class="sheetfoot"><button type="button" class="btn ghost" id="sheetCancel">Cancel</button><button type="button" class="btn" id="sheetSave">Save</button></div>';
+  el("sheetInner").innerHTML=h;
+  el("sheetSave").addEventListener("click",function(){
+    var name=(el("f_stew_name").value||"").trim();
+    if(!name){ el("f_stew_name").focus(); return; }
+    var obj={
+      id:r.id, name:name,
+      phone:(el("f_stew_phone").value||"").trim(),
+      notes:(el("f_stew_notes").value||"").trim(),
+      active:!!(el("f_stew_active")&&el("f_stew_active").checked)
+    };
+    if(rec) state.stews=(state.stews||[]).map(function(s){return String(s.id)===String(obj.id)?obj:s;});
+    else { if(!state.stews) state.stews=[]; state.stews.unshift(obj); }
+    showSheet(false); saveStews(); renderStews();
+  });
+  el("sheetCancel").addEventListener("click",function(){ showSheet(false); });
+  el("sheetClose").addEventListener("click",function(){ showSheet(false); });
+  if(el("sheetDel")) el("sheetDel").addEventListener("click",function(){
+    if(!window.confirm("Remove "+(r.name||"this stew")+" from the roster?")) return;
+    deleteStewPerson(r.id);
+    showSheet(false);
+  });
+  showSheet(true);
+}
+function deleteStewPerson(id){
+  if(!id||!isCaptain()) return;
+  state.stews=(state.stews||[]).filter(function(s){return String(s.id)!==String(id);});
+  /* Drop from assignments */
+  (state.stewAssign||[]).forEach(function(a){
+    if(!a||!a.stewIds) return;
+    a.stewIds=a.stewIds.filter(function(x){return String(x)!==String(id);});
+  });
+  saveStews(); saveStewAssign(); renderStews();
+}
+function openStewAssign(eventKey){
+  if(!isCaptain()||!eventKey) return;
+  var ev=calEvents.filter(function(e){return e&&e.key===eventKey;})[0];
+  if(!ev){
+    /* assignment may exist without live cal event */
+    var existingAsg=assignForEvent(eventKey);
+    if(!existingAsg){ window.alert("Calendar event not found — refresh the calendar."); return; }
+    ev={key:eventKey, summary:existingAsg.summary||"Charter", start:existingAsg.start, end:existingAsg.end,
+      startTime:existingAsg.startTime||"", endTime:existingAsg.endTime||"", allDay:!!existingAsg.allDay, status:existingAsg.status||"booked"};
+  }
+  var asg=assignForEvent(eventKey)||{
+    id:uid(), eventKey:eventKey, stewIds:[], notes:""
+  };
+  var selected={};
+  (asg.stewIds||[]).forEach(function(id){ selected[id]=1; });
+  var team=(state.stews||[]).filter(function(s){ return s&&s.active!==false; });
+  var h='<div class="sheethead"><h2>Assign stews</h2><button type="button" class="sheetx" id="sheetClose" aria-label="Close">×</button></div>';
+  h+='<div class="apa-card" style="margin-bottom:12px">'+
+    '<div style="font-weight:800;font-size:16px">'+esc(ev.summary||"Charter")+'</div>'+
+    '<div class="meta" style="margin-top:6px"><span>📅 '+esc(fmtCalEventWhen(ev))+'</span>'+
+      (ev.status==="tentative"?'<span class="pill p-amber">Tentative</span>':'')+
+    '</div></div>';
+  if(!team.length){
+    h+='<div class="banner warn show">No active stews in the roster. Add people on the <b>Team</b> tab first.</div>';
+  } else {
+    h+='<div class="sectitle" style="margin:0 0 8px">Who is on this charter?</div>';
+    h+='<div id="stewPickList">';
+    team.forEach(function(s){
+      h+='<label class="checkrow"><input type="checkbox" data-stew-pick="'+esc(s.id)+'"'+(selected[s.id]?" checked":"")+'>'+
+        '<span><div class="ck">'+esc(s.name)+'</div>'+
+        (s.phone?'<div class="ch">'+esc(s.phone)+'</div>':'')+
+        '</span></label>';
+    });
+    h+='</div>';
+  }
+  h+=fieldHTML("Notes",'<textarea class="ctl" id="f_stew_asg_notes" placeholder="e.g. pick-up time, uniform…">'+esc(asg.notes||"")+'</textarea>');
+  h+='<div class="sheetfoot"><button type="button" class="btn ghost" id="sheetCancel">Cancel</button><button type="button" class="btn" id="sheetSave">Save assignment</button></div>';
+  el("sheetInner").innerHTML=h;
+  el("sheetSave").addEventListener("click",function(){
+    var ids=[];
+    Array.prototype.forEach.call(document.querySelectorAll("[data-stew-pick]"),function(inp){
+      if(inp.checked) ids.push(inp.getAttribute("data-stew-pick"));
+    });
+    var obj={
+      id:asg.id||uid(),
+      eventKey:ev.key,
+      summary:ev.summary||"",
+      start:ev.start||"",
+      end:ev.end||ev.start||"",
+      startTime:ev.startTime||"",
+      endTime:ev.endTime||"",
+      allDay:!!ev.allDay,
+      status:ev.status||"booked",
+      stewIds:ids,
+      notes:(el("f_stew_asg_notes").value||"").trim(),
+      updatedAt:new Date().toISOString(),
+      by:session.who||"Captain"
+    };
+    if(!state.stewAssign) state.stewAssign=[];
+    var found=false;
+    state.stewAssign=state.stewAssign.map(function(a){
+      if(a&&a.eventKey===obj.eventKey){ found=true; return obj; }
+      return a;
+    });
+    if(!found) state.stewAssign.unshift(obj);
+    showSheet(false); saveStewAssign(); renderStews();
+  });
+  el("sheetCancel").addEventListener("click",function(){ showSheet(false); });
+  el("sheetClose").addEventListener("click",function(){ showSheet(false); });
+  showSheet(true);
+}
+/* stew sub-nav */
+(function(){
+  var nav=el("stewSubNav"); if(!nav) return;
+  Array.prototype.forEach.call(nav.querySelectorAll("[data-stewsub]"),function(b){
+    b.addEventListener("click",function(){
+      stewSub=b.getAttribute("data-stewsub")||"charters";
+      updateFab();
+      renderStews();
+    });
+  });
+})();
+
 function openDieselPicker(){
   var h='<div class="sheethead"><h2>Add diesel</h2><button type="button" class="sheetx" id="sheetClose" aria-label="Close">×</button></div>';
   h+='<div class="diesel-pick">'+
@@ -3777,6 +4061,11 @@ el("fab").addEventListener("click",function(){
     openDieselPicker();
     return;
   }
+  if(curTab==="stews"){
+    if(!isCaptain()) return;
+    if(stewSub==="team") openStewPerson(null);
+    return;
+  }
   openSheet(curTab==="leads"?"lead":"charter",null);
 });
 document.addEventListener("keydown",function(ev){ if(ev.key==="Escape"&&el("sheet").classList.contains("show")) showSheet(false); });
@@ -4083,6 +4372,10 @@ function applyData(d){
   else if(!canOps()) state.apa=[];
   if(canOps() && Array.isArray(d.diesel)) state.diesel=d.diesel;
   else if(!canOps()) state.diesel=[];
+  if(isCaptain() && Array.isArray(d.stews)) state.stews=d.stews;
+  else if(!isCaptain()) state.stews=[];
+  if(isCaptain() && Array.isArray(d.stewAssign)) state.stewAssign=d.stewAssign;
+  else if(!isCaptain()) state.stewAssign=[];
   if(typeof d.pushEnabled==="boolean") pushMeta.server=d.pushEnabled;
   if(d.vapidPublicKey) pushMeta.vapidPublicKey=d.vapidPublicKey;
   sortCharters();

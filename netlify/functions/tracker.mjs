@@ -401,7 +401,20 @@ function ensureApaChargesLinked(data) {
 
 async function loadData(store) {
   const d = await store.get(BLOB_KEY, { type: "json", consistency: "strong" });
-  return d || { charters: [], leads: [], apa: [], diesel: [], devices: [], log: [], pushSubs: [], meta: {} };
+  return (
+    d || {
+      charters: [],
+      leads: [],
+      apa: [],
+      diesel: [],
+      stews: [],
+      stewAssign: [],
+      devices: [],
+      log: [],
+      pushSubs: [],
+      meta: {},
+    }
+  );
 }
 async function saveData(store, data) {
   await store.setJSON(BLOB_KEY, data);
@@ -637,16 +650,34 @@ export default async (req, context) => {
       out.apa = null;
       out.diesel = null;
     }
+    /* Stew roster + assignments: captain only */
+    if (isCaptain(who)) {
+      out.stews = Array.isArray(data.stews) ? data.stews : [];
+      out.stewAssign = Array.isArray(data.stewAssign) ? data.stewAssign : [];
+    } else {
+      out.stews = null;
+      out.stewAssign = null;
+    }
     return json(out);
   }
 
   if (action === "save") {
     const coll = body.collection;
-    if (coll !== "charters" && coll !== "leads" && coll !== "apa" && coll !== "diesel") {
+    if (
+      coll !== "charters" &&
+      coll !== "leads" &&
+      coll !== "apa" &&
+      coll !== "diesel" &&
+      coll !== "stews" &&
+      coll !== "stewAssign"
+    ) {
       return json({ error: "bad collection" }, 400);
     }
     if ((coll === "apa" || coll === "diesel") && !canOps(who)) {
       return json({ error: coll === "diesel" ? "Diesel is captain/manager only" : "APA is captain/manager only" }, 403);
+    }
+    if ((coll === "stews" || coll === "stewAssign") && !isCaptain(who)) {
+      return json({ error: "Stew roster is captain-only" }, 403);
     }
     const prev = Array.isArray(data[coll]) ? data[coll] : [];
     const next = Array.isArray(body.rows) ? body.rows.slice(0, 5000) : [];
