@@ -385,7 +385,7 @@
         <div class="sumcard"><div class="l">Deals value</div><div class="v money" id="ldTot">€0</div></div>
         <div class="sumcard"><div class="l">Invoices requested</div><div class="v" id="ldPending">0</div></div>
       </div>
-      <div class="legend">Closed website leads. Quotes are usually <b>VAT included</b>. <b>Split deal</b>: enter <b>white invoice (VAT included)</b> and <b>cash black (no VAT)</b> separately — deposit/final are white only; cash opens an APA pot at −cash. <b>Make invoice</b> → PDF / WhatsApp. <b>Copy name</b> = client + dates only.</div>
+      <div class="legend">Closed website leads. <b>Split deal</b>: set the <b>deal net (no VAT)</b> you want (e.g. €4,000), a smaller <b>white invoice (VAT included)</b>, then cash black fills the gap. Choose to <b>add</b> the small white VAT on top or <b>swallow</b> it. Deposit/final = white only; cash → APA pot. <b>Make invoice</b> → PDF.</div>
       <div class="list" id="ldList"></div>
     </section>
 
@@ -942,8 +942,11 @@ function renderLeads(){
     if(leadHasSplit(r)){
       var invN=Number(r.invoiceNet)||0, cashN=Number(r.cashAmt)||0;
       var invT=Number(r.invoiceTotal)!=null&&r.invoiceTotal!==""?Number(r.invoiceTotal):(invN+(Number(r.invoiceVat)||0));
-      splitBits='<span class="pill p-white">White '+money0(invT||invN)+'</span>'+
-        '<span class="pill p-black">Cash '+money0(cashN)+'</span>';
+      var dealN=Number(r.dealNet)||0;
+      splitBits=(dealN>0?'<span class="pill p-grey">Deal net '+money0(dealN)+'</span>':'')+
+        '<span class="pill p-white">White '+money0(invT||invN)+'</span>'+
+        '<span class="pill p-black">Cash '+money0(cashN)+'</span>'+
+        (r.splitVatOnTop===false?'<span class="pill p-amber">VAT swallowed</span>':'<span class="pill p-blue">VAT on top</span>');
       if(invN&&invT&&Math.abs(invT-invN)>0.5) splitBits+='<span class="meta" style="display:contents"><span>ex VAT '+money0(invN)+'</span></span>';
       finLabel="Final (white)";
     }
@@ -2221,7 +2224,7 @@ function repairLeadWhiteInvoices(){
     var base=Number(l.base)!=null&&l.base!==""?Number(l.base):(Number(l.total)||0);
     if(!(base>0)&&l.price) base=Number(l.price)||0;
     if(!(base>0)&&l.rate&&l.days) base=(Number(l.rate)||0)*(Number(l.days)||1);
-    var sp=leadSplit(base, l.vatMode||"include", l.vatPct, true, l.invoiceTotal, l.cashAmt, l.invoiceNet);
+    var sp=leadSplit(base, l.vatMode||"include", l.vatPct, true, l.invoiceTotal, l.cashAmt, l.invoiceNet, l.dealNet, l.splitVatOnTop!==false);
     var p=leadParts(sp, l.depPct, l.apaPct);
     var ch=false;
     if(Math.abs((Number(l.fin)||0)-p.fin)>0.02){ l.fin=p.fin; ch=true; }
@@ -6877,35 +6880,47 @@ function leadMoney(base, vatMode, vatPctRaw){
   return { base:base, net:net, vat:vat, total:total, vatPct:pct, vatMode:mode };
 }
 /**
- * Split deal (invoice white + cash black):
- *   Enter white total (VAT included) and cash black (no VAT) as two clear amounts.
- *   e.g. white €2,000 incl. VAT + cash €1,800 → client pays €3,800.
- *   Deposit/final = % of white only. Cash opens APA pot at −cash.
+ * Split deal (white invoice + cash black):
  *
- * Legacy: if only invoiceNet (ex VAT) was stored, we rebuild white total from that.
+ * 1) Deal net (no VAT) — commercial target, e.g. €4,000 without VAT.
+ * 2) Smaller white invoice (VAT included) — formal PDF; smaller ⇒ less VAT.
+ * 3) Cash black = deal net − white net (fills to the target at “no VAT” level).
+ * 4) White VAT: either added on top for the client, or swallowed by the boat.
+ *
+ *    Add on top:  client pays = white total + cash = deal net + white VAT
+ *    Swallow:     client pays = deal net only (= white net + cash)
+ *
+ * Deposit/final = % of white only. Cash → APA pot at −cash.
  */
-function leadSplit(base, vatMode, vatPctRaw, splitOn, whiteGrossRaw, cashBlackRaw, legacyInvoiceNetRaw){
+function leadSplit(base, vatMode, vatPctRaw, splitOn, whiteGrossRaw, cashBlackRaw, legacyInvoiceNetRaw, targetNetRaw, vatOnTop){
   var full=leadMoney(base, vatMode, vatPctRaw);
   if(!splitOn){
     return { split:false, full:full, invoiceNet:full.net, cash:0, white:full,
-      clientTotal:full.total, invoiceTotal:full.total, cashAmt:0 };
+      clientTotal:full.total, invoiceTotal:full.total, cashAmt:0, dealNet:full.net, vatOnTop:false };
   }
   var pct=vatMode==="none"?0:(vatPctRaw===""||vatPctRaw==null?21:(Number(vatPctRaw)||0));
+  var whiteMode=(vatMode==="none"||pct<=0)?"none":"include";
   var whiteGross=Number(whiteGrossRaw);
   if(isNaN(whiteGross)||whiteGross<0) whiteGross=0;
-  var cash=Number(cashBlackRaw);
-  if(isNaN(cash)||cash<0) cash=0;
-  /* Legacy path: only had invoice net ex VAT */
   var legNet=Number(legacyInvoiceNetRaw);
   if(!(whiteGross>0)&&!isNaN(legNet)&&legNet>0){
-    var legWhite=leadMoney(legNet, (pct<=0?"none":"add"), vatPctRaw);
-    whiteGross=legWhite.total;
-    if(!(cash>0)&&full.net>0) cash=Math.max(0, full.net-legNet);
+    whiteGross=leadMoney(legNet, (pct<=0?"none":"add"), vatPctRaw).total;
   }
-  /* White PDF breakdown: amount is VAT-included */
-  var whiteMode=(vatMode==="none"||pct<=0)?"none":"include";
   var white=leadMoney(whiteGross, whiteMode, vatPctRaw);
-  var clientTotal=Math.round((white.total+cash)*100)/100;
+  var dealNet=Number(targetNetRaw);
+  if(isNaN(dealNet)||dealNet<=0){
+    /* Legacy: rebuild target from white net + stored cash */
+    var legCash=Number(cashBlackRaw);
+    if(!isNaN(legCash)&&legCash>0) dealNet=Math.round((white.net+legCash)*100)/100;
+    else if(full.net>0) dealNet=full.net;
+    else dealNet=white.net;
+  }
+  var cash=Math.round(Math.max(0, dealNet-white.net)*100)/100;
+  /* Checkbox true / omitted → add white VAT on top; false / "swallow" → boat absorbs VAT */
+  var onTop=!(vatOnTop===false||vatOnTop==="swallow"||vatOnTop===0||vatOnTop==="0");
+  var clientTotal=onTop
+    ?Math.round((white.total+cash)*100)/100
+    :Math.round(dealNet*100)/100;
   var deal=leadMoney(clientTotal, "include", vatPctRaw);
   return {
     split:true,
@@ -6915,10 +6930,12 @@ function leadSplit(base, vatMode, vatPctRaw, splitOn, whiteGrossRaw, cashBlackRa
     white:white,
     clientTotal:clientTotal,
     invoiceTotal:white.total,
-    cashAmt:cash
+    cashAmt:cash,
+    dealNet:Math.round(dealNet*100)/100,
+    vatOnTop:onTop
   };
 }
-function leadHasSplit(r){ return !!(r&&(r.split||r.splitCash)&&(Number(r.invoiceNet)>0||Number(r.invoiceTotal)>0||Number(r.cashAmt)>0||r.split||r.splitCash)); }
+function leadHasSplit(r){ return !!(r&&(r.split||r.splitCash)&&(Number(r.invoiceNet)>0||Number(r.invoiceTotal)>0||Number(r.cashAmt)>0||Number(r.dealNet)>0||r.split||r.splitCash)); }
 /**
  * Deposit / final / overnight APA amounts for a lead.
  * With black split: deposit + final = white invoice total only (cash is not invoiced formally).
@@ -6950,11 +6967,14 @@ function recalcLead(){
   if(el("f_vatPct")) el("f_vatPct").disabled=(mode==="none");
   var splitOn=el("f_split")?el("f_split").checked:false;
   if(el("f_splitwrap")) el("f_splitwrap").classList.toggle("hidden",!splitOn);
-  /* When split: price fields optional — deal total = white + cash */
+  var targetRaw=el("f_splitTarget")?el("f_splitTarget").value:"";
   var whiteRaw=el("f_whiteTotal")?el("f_whiteTotal").value:"";
   var cashRaw=el("f_cashBlack")?el("f_cashBlack").value:"";
   var legNet=el("f_invoiceNet")?el("f_invoiceNet").value:"";
-  var sp=leadSplit(base, mode, pctRaw, splitOn, whiteRaw, cashRaw, legNet);
+  var vatOnTop=el("f_splitVatTop")?el("f_splitVatTop").checked:true;
+  var sp=leadSplit(base, mode, pctRaw, splitOn, whiteRaw, cashRaw, legNet, targetRaw, vatOnTop);
+  /* Live cash black (read-only display field) */
+  if(splitOn&&el("f_cashBlackShow")) el("f_cashBlackShow").textContent=money(sp.cashAmt);
   if(splitOn&&sp.clientTotal>0) base=sp.clientTotal;
   var depPct=apaNum(el("f_dep").value), apaPct=apaNum(el("f_apa").value);
   var p=leadParts(sp, depPct, apaPct);
@@ -6964,13 +6984,22 @@ function recalcLead(){
   var html="";
   if(sp.split){
     html+='<div class="cl"><span>'+head+'</span><b class="meta">split deal</b></div>';
-    html+='<div class="cl split"><span>White invoice (VAT included)</span><b>'+money(sp.invoiceTotal)+'</b></div>';
+    html+='<div class="cl split"><span>Deal net (no VAT) — target</span><b>'+money(sp.dealNet)+'</b></div>';
+    html+='<div class="cl"><span>White invoice (VAT included)</span><b>'+money(sp.invoiceTotal)+'</b></div>';
     if(sp.white.vatMode!=="none"&&sp.white.vatPct>0){
-      html+='<div class="cl"><span> of which net (ex VAT)</span><b>'+money(sp.invoiceNet)+'</b></div>'+
-        '<div class="cl"><span> VAT '+sp.white.vatPct+'% (on invoice PDF)</span><b>'+money(sp.white.vat)+'</b></div>';
+      html+='<div class="cl"><span> white net (ex VAT)</span><b>'+money(sp.invoiceNet)+'</b></div>'+
+        '<div class="cl"><span> white VAT '+sp.white.vatPct+'%</span><b>'+money(sp.white.vat)+'</b></div>';
     }
-    html+='<div class="cl"><span>Cash black (no VAT)</span><b>'+money(sp.cashAmt)+'</b></div>'+
-      '<div class="cl hi"><span>Client pays total</span><b>'+money(p.client)+'</b></div>';
+    html+='<div class="cl"><span>Cash black = deal net − white net</span><b>'+money(sp.cashAmt)+'</b></div>';
+    if(sp.vatOnTop){
+      html+='<div class="cl"><span>White VAT added on top</span><b>+'+money(sp.white.vat)+'</b></div>'+
+        '<div class="cl hi"><span>Client pays</span><b>'+money(p.client)+'</b></div>'+
+        '<div class="meta" style="margin-top:4px">= deal net + white VAT (you keep full deal net; client pays the small VAT extra)</div>';
+    } else {
+      html+='<div class="cl"><span>White VAT swallowed</span><b>−'+money(sp.white.vat)+' (boat)</b></div>'+
+        '<div class="cl hi"><span>Client pays</span><b>'+money(p.client)+'</b></div>'+
+        '<div class="meta" style="margin-top:4px">= deal net only (white net + cash); boat absorbs white VAT</div>';
+    }
     html+='<div class="cl split"><span>Deposit '+(depPct||0)+'% of <b>white</b></span><b>'+money(p.dep)+'</b></div>'+
       '<div class="cl"><span>Final (rest of white)</span><b>'+money(p.fin)+'</b></div>'+
       '<div class="cl"><span>Cash → APA pot (starts negative)</span><b>−'+money(p.cash)+'</b></div>';
@@ -7015,18 +7044,21 @@ function openSheet(type,id){
     h+='<div class="row2">'+fieldHTML("Invoice (manager)",selInvField(invSt))+fieldHTML("Invoice # (manager)",'<input class="ctl" id="f_inv" value="'+esc(r.inv)+'" placeholder="fill when issued">')+'</div>';
     h+=fieldHTML("Notes",'<textarea class="ctl" id="f_notes" placeholder="optional">'+esc(r.notes)+'</textarea>');
   } else {
-    r=rec||{closed:"",name:"",dur:"8h",start:"",end:"",rate:"",price:"",vatMode:"include",vatPct:"21",split:false,invoiceNet:"",invoiceTotal:"",cashAmt:"",deps:"Not requested",fins:"Not requested",apas:"Not requested",depPct:"50",apaPct:"",depInv:"",finInv:"",apaInv:"",notes:""};
+    r=rec||{closed:"",name:"",dur:"8h",start:"",end:"",rate:"",price:"",vatMode:"include",vatPct:"21",split:false,dealNet:"",invoiceNet:"",invoiceTotal:"",cashAmt:"",splitVatOnTop:true,deps:"Not requested",fins:"Not requested",apas:"Not requested",depPct:"50",apaPct:"",depInv:"",finInv:"",apaInv:"",notes:""};
     var ldur=r.dur||"8h";
     var vMode=r.vatMode||(rec?"none":"include");
     var vPct=(r.vatPct!=null&&r.vatPct!=="")?r.vatPct:(vMode==="none"?"":"21");
     var splitOn=!!(r.split||r.splitCash);
-    /* Prefill white = VAT-included invoice total; cash = black amount */
     var whiteDef="";
     if(r.invoiceTotal!=null&&r.invoiceTotal!==""&&Number(r.invoiceTotal)>0) whiteDef=r.invoiceTotal;
     else if(r.invoiceNet!=null&&r.invoiceNet!==""&&Number(r.invoiceNet)>0){
       whiteDef=leadMoney(Number(r.invoiceNet), (vMode==="none"||!vPct)?"none":"add", vPct).total;
     }
-    var cashDef=(r.cashAmt!=null&&r.cashAmt!==""&&Number(r.cashAmt)>0)?r.cashAmt:"";
+    var dealDef="";
+    if(r.dealNet!=null&&r.dealNet!==""&&Number(r.dealNet)>0) dealDef=r.dealNet;
+    else if(Number(r.invoiceNet)>0&&Number(r.cashAmt)>0) dealDef=Math.round((Number(r.invoiceNet)+Number(r.cashAmt))*100)/100;
+    else if(Number(r.base)>0&&splitOn) dealDef=leadMoney(Number(r.base), vMode||"include", vPct).net;
+    var vatTopDef=r.splitVatOnTop!==false&&r.splitVatSwallow!==true;
     h+='<div class="sheethead"><h2>'+(rec?"Edit lead":"New lead")+'</h2><button type="button" class="sheetx" id="sheetClose" aria-label="Close">×</button></div>';
     h+=fieldHTML("Lead name",'<input class="ctl" id="f_name" value="'+esc(r.name)+'" placeholder="e.g. Acme Corp (website)">');
     h+=fieldHTML("Date closed",'<input class="ctl" id="f_closed" type="date" value="'+esc(r.closed)+'">');
@@ -7034,14 +7066,23 @@ function openSheet(type,id){
     h+='<div id="f_durfields">'+durFieldsHTML(ldur,r)+'</div>';
     h+='<div class="row2">'+fieldHTML("VAT on white invoice",vatModeField(vMode))+fieldHTML("VAT %",pctField("f_vatPct",vPct))+'</div>';
     h+='<label class="checkrow"><input type="checkbox" id="f_split"'+(splitOn?" checked":"")+'>'+
-      '<span><div class="ck">Split deal: white invoice + cash (black)</div>'+
-      '<div class="ch">Example: white €2,000 (VAT included) + cash €1,800 → client pays €3,800. Deposit/final only on white. Cash opens an APA pot.</div></span></label>';
+      '<span><div class="ck">Split deal: smaller white invoice + cash (black)</div>'+
+      '<div class="ch">Aim for a <b>deal net without VAT</b> (e.g. €4,000). Issue a smaller white invoice so VAT is lower; cash black fills the gap. Choose whether the small white VAT is added on top or swallowed.</div></span></label>';
     h+='<div id="f_splitwrap"'+(splitOn?"":" class=\"hidden\"")+'>'+
+      fieldHTML("Deal net — target without VAT (€)",moneyField("f_splitTarget", dealDef))+
+      '<p style="margin:-6px 0 10px;font-size:12.5px;color:var(--muted);line-height:1.4">Commercial target, e.g. <b>€4,000</b> as if no full charter VAT applied. Cash black will equal this minus white net.</p>'+
       fieldHTML("White invoice total (VAT included)",moneyField("f_whiteTotal", whiteDef))+
-      '<p style="margin:-6px 0 10px;font-size:12.5px;color:var(--muted);line-height:1.4">Formal invoice PDF (e.g. <b>€2,000</b>). Net + VAT are calculated from this total and VAT % above.</p>'+
-      fieldHTML("Cash black (no VAT)",moneyField("f_cashBlack", cashDef))+
-      '<p style="margin:-6px 0 14px;font-size:12.5px;color:var(--muted);line-height:1.4">Cash-only part (e.g. <b>€1,800</b>). No VAT. Stored as APA pot starting at <b>−cash</b> for charter spend.</p>'+
+      '<p style="margin:-6px 0 10px;font-size:12.5px;color:var(--muted);line-height:1.4">Smaller formal invoice (e.g. <b>€2,000</b> incl. VAT). PDF shows net + VAT for this amount only.</p>'+
+      '<label class="checkrow"><input type="checkbox" id="f_splitVatTop"'+(vatTopDef?" checked":"")+'>'+
+        '<span><div class="ck">Add white VAT on top for the client</div>'+
+        '<div class="ch"><b>On:</b> client pays deal net + white VAT. <b>Off (swallow):</b> client pays deal net only; boat absorbs white VAT.</div></span></label>'+
+      '<div class="apa-card" style="margin:0 0 12px;padding:10px 12px">'+
+        '<div class="meta">Cash black (calculated, no VAT)</div>'+
+        '<div class="money" style="font-size:20px;font-weight:800" id="f_cashBlackShow">'+money(0)+'</div>'+
+        '<div class="meta" style="margin-top:4px">= deal net − white net → APA pot starts at −cash</div>'+
+      '</div>'+
       '<input type="hidden" id="f_invoiceNet" value="'+esc(r.invoiceNet!=null&&r.invoiceNet!==""?r.invoiceNet:"")+'">'+
+      '<input type="hidden" id="f_cashBlack" value="'+esc(r.cashAmt!=null&&r.cashAmt!==""?r.cashAmt:"")+'">'+
     '</div>';
     h+='<div class="calcbox" id="f_calc"></div>';
     h+='<div class="sect">Invoices for manager</div>';
@@ -7091,8 +7132,9 @@ function openSheet(type,id){
     recalcLead();
   }); }
   if(el("f_split")){ el("f_split").addEventListener("change",function(){ recalcLead(); }); }
+  if(el("f_splitTarget")) el("f_splitTarget").addEventListener("input",recalcLead);
   if(el("f_whiteTotal")) el("f_whiteTotal").addEventListener("input",recalcLead);
-  if(el("f_cashBlack")) el("f_cashBlack").addEventListener("input",recalcLead);
+  if(el("f_splitVatTop")) el("f_splitVatTop").addEventListener("change",recalcLead);
   if(type==="charter"){
     function syncCashPaidVis(){
       var method=(el("f_payMethod")&&el("f_payMethod").value)||"Card";
@@ -7184,10 +7226,12 @@ function saveSheet(type,rec){
     var vatMode=el("f_vatMode")?el("f_vatMode").value:"include";
     var vatPctIn=el("f_vatPct")?el("f_vatPct").value:"";
     var splitOn=el("f_split")?el("f_split").checked:false;
+    var targetIn=el("f_splitTarget")?el("f_splitTarget").value:"";
     var whiteIn=el("f_whiteTotal")?el("f_whiteTotal").value:"";
     var cashIn=el("f_cashBlack")?el("f_cashBlack").value:"";
     var legNetIn=el("f_invoiceNet")?el("f_invoiceNet").value:"";
-    var sp=leadSplit(base, vatMode, vatPctIn, splitOn, whiteIn, cashIn, legNetIn);
+    var vatOnTop=el("f_splitVatTop")?el("f_splitVatTop").checked:true;
+    var sp=leadSplit(base, vatMode, vatPctIn, splitOn, whiteIn, cashIn, legNetIn, targetIn, vatOnTop);
     if(sp.split&&sp.clientTotal>0){
       base=sp.clientTotal;
       if(dur!=="multi"){ price=base; rate=base; }
@@ -7203,10 +7247,12 @@ function saveSheet(type,rec){
     });
     var o2={ id:rec?rec.id:uid(), closed:el("f_closed").value, name:el("f_name").value.trim(),
       dur:dur, start:start, end:end, rate:rate, price:price, days:days,
-      base:base, net:sp.split?sp.invoiceNet:m.net, vat:sp.split?sp.white.vat:m.vat, total:parts.client,
+      base:base, net:sp.split?sp.dealNet:m.net, vat:sp.split?sp.white.vat:m.vat, total:parts.client,
       vatMode:sp.split?(sp.white.vatMode||"include"):m.vatMode,
       vatPct:(sp.split?sp.white.vatMode:m.vatMode)==="none"?"":(sp.split?sp.white.vatPct:m.vatPct),
       split:sp.split, splitCash:sp.split,
+      dealNet:sp.split?sp.dealNet:0,
+      splitVatOnTop:sp.split?!!sp.vatOnTop:false,
       invoiceNet:sp.split?sp.invoiceNet:0, invoiceVat:sp.split?sp.white.vat:0, invoiceTotal:sp.split?sp.invoiceTotal:parts.client,
       cashAmt:sp.split?sp.cashAmt:0,
       depPct:depPct, dep:parts.dep, deps:deps, depInv:el("f_depInv").value.trim(),
@@ -7218,8 +7264,13 @@ function saveSheet(type,rec){
       updatedAt:new Date().toISOString() };
     if(!o2.name){ el("f_name").focus(); return; }
     if(sp.split){
+      if(!(Number(sp.dealNet)>0)){ if(el("f_splitTarget")) el("f_splitTarget").focus(); return; }
       if(!(Number(sp.invoiceTotal)>0)){ if(el("f_whiteTotal")) el("f_whiteTotal").focus(); return; }
-      if(!(Number(sp.cashAmt)>0)){ if(el("f_cashBlack")) el("f_cashBlack").focus(); return; }
+      if(!(Number(sp.cashAmt)>0)){
+        window.alert("Cash black is €0 — white net is ≥ deal net. Lower the white invoice or raise the deal net.");
+        if(el("f_whiteTotal")) el("f_whiteTotal").focus();
+        return;
+      }
     }
     upsert("leads",o2,rec); renderLeads(); save("leads");
     /* Cash (black) → APA pot = −cash so charter spend settles on Charges */
