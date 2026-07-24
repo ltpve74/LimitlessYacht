@@ -3226,7 +3226,7 @@ function openApaLine(kind,id){
   if(linkedFromExp){
     h+='<div class="banner warn show">Synced from the captain’s <b>monthly Expenses</b>. Edit there to change amount/date (or ask the captain). You can still remove it from this pot with Delete.</div>';
   } else if(needsReceipt&&isCaptain()){
-    h+='<p style="margin:0 0 12px;font-size:12.5px;color:var(--muted);line-height:1.45">Also posts to <b>monthly Expenses</b> (tagged to this APA). Attach a photo or PDF receipt (e.g. Makro).</p>';
+    h+='<p style="margin:0 0 12px;font-size:12.5px;color:var(--muted);line-height:1.45">Also posts to <b>monthly Expenses</b> (tagged to this APA). Attach a photo or PDF — PDFs are converted to a compressed image on your phone (e.g. Makro).</p>';
   } else if(needsReceipt&&!isCaptain()){
     h+='<p style="margin:0 0 12px;font-size:12.5px;color:var(--muted);line-height:1.45">Saved on this APA pot. Monthly Expenses sync is captain-only.</p>';
   }
@@ -4489,9 +4489,123 @@ function expReceiptPreviewHTML(data, opts){
   }
   return "";
 }
+/** Compress a canvas to a JPEG data URL (same budget as photo receipts). */
+function expCanvasToJpegDataUrl(canvas){
+  if(!canvas) throw new Error("No image");
+  var maxEdge=1280;
+  var w=canvas.width, h=canvas.height;
+  var scale=Math.min(1, maxEdge/Math.max(w,h,1));
+  var out=canvas;
+  if(scale<1){
+    out=document.createElement("canvas");
+    out.width=Math.max(1, Math.round(w*scale));
+    out.height=Math.max(1, Math.round(h*scale));
+    out.getContext("2d").drawImage(canvas,0,0,out.width,out.height);
+  }
+  var data=out.toDataURL("image/jpeg",0.72);
+  if(data.length>220000) data=out.toDataURL("image/jpeg",0.55);
+  if(data.length>280000){
+    var c2=document.createElement("canvas");
+    c2.width=Math.max(1, Math.round(out.width*0.7));
+    c2.height=Math.max(1, Math.round(out.height*0.7));
+    c2.getContext("2d").drawImage(out,0,0,c2.width,c2.height);
+    data=c2.toDataURL("image/jpeg",0.5);
+  }
+  if(data.length>320000) throw new Error("Image still too large — try a closer crop or single-page PDF");
+  return data;
+}
+/** Lazy-load pdf.js once (CDN) to rasterise PDFs on the phone. */
+var _expPdfJsReady=null;
+function expLoadPdfJs(){
+  if(window.pdfjsLib) return Promise.resolve(window.pdfjsLib);
+  if(_expPdfJsReady) return _expPdfJsReady;
+  _expPdfJsReady=new Promise(function(resolve,reject){
+    var s=document.createElement("script");
+    s.src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js";
+    s.async=true;
+    s.onload=function(){
+      if(!window.pdfjsLib){ reject(new Error("PDF engine missing")); return; }
+      try{
+        window.pdfjsLib.GlobalWorkerOptions.workerSrc=
+          "https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js";
+      }catch(errW){}
+      resolve(window.pdfjsLib);
+    };
+    s.onerror=function(){
+      _expPdfJsReady=null;
+      reject(new Error("Could not load PDF converter — need a network connection once, or use a photo"));
+    };
+    document.head.appendChild(s);
+  });
+  return _expPdfJsReady;
+}
 /**
- * Read receipt file for storage: compress images; accept PDF as data URL.
- * Resolves to a data: URL string.
+ * Render PDF → JPEG on device (page 1, or pages 1–2 stacked for short multi-page receipts).
+ * Avoids storing large base64 PDFs in the tracker blob.
+ */
+function expPdfFileToJpegDataUrl(file){
+  var maxIn=12*1024*1024; /* 12 MB raw PDF OK — we only keep the JPEG */
+  if(file.size>maxIn){
+    return Promise.reject(new Error("PDF over 12 MB — export a smaller PDF or photograph the receipt"));
+  }
+  return expLoadPdfJs().then(function(pdfjsLib){
+    var bufP=file.arrayBuffer?file.arrayBuffer():new Promise(function(res,rej){
+      var fr=new FileReader();
+      fr.onload=function(){ res(fr.result); };
+      fr.onerror=function(){ rej(new Error("Could not read PDF")); };
+      fr.readAsArrayBuffer(file);
+    });
+    return bufP.then(function(buf){
+      return pdfjsLib.getDocument({data:new Uint8Array(buf)}).promise;
+    }).then(function(pdf){
+      var n=Math.min(pdf.numPages||1, 2);
+      var pageCanvases=[];
+      var chain=Promise.resolve();
+      for(var i=1;i<=n;i++){
+        (function(pageNum){
+          chain=chain.then(function(){
+            return pdf.getPage(pageNum).then(function(page){
+              /* ~1.6× CSS px — sharp enough for receipts, not huge */
+              var vp=page.getViewport({scale:1.6});
+              var canvas=document.createElement("canvas");
+              canvas.width=Math.max(1, Math.floor(vp.width));
+              canvas.height=Math.max(1, Math.floor(vp.height));
+              var ctx=canvas.getContext("2d");
+              ctx.fillStyle="#fff";
+              ctx.fillRect(0,0,canvas.width,canvas.height);
+              return page.render({canvasContext:ctx, viewport:vp}).promise.then(function(){
+                pageCanvases.push(canvas);
+              });
+            });
+          });
+        })(i);
+      }
+      return chain.then(function(){
+        if(!pageCanvases.length) throw new Error("Empty PDF");
+        var merged=pageCanvases[0];
+        if(pageCanvases.length>1){
+          var w=0, h=0, gap=8;
+          pageCanvases.forEach(function(c){ w=Math.max(w,c.width); h+=c.height+gap; });
+          h-=gap;
+          merged=document.createElement("canvas");
+          merged.width=w; merged.height=h;
+          var mctx=merged.getContext("2d");
+          mctx.fillStyle="#fff";
+          mctx.fillRect(0,0,w,h);
+          var y=0;
+          pageCanvases.forEach(function(c){
+            mctx.drawImage(c,0,y);
+            y+=c.height+gap;
+          });
+        }
+        return expCanvasToJpegDataUrl(merged);
+      });
+    });
+  });
+}
+/**
+ * Read receipt for storage: photos compressed; PDFs rasterised to JPEG on the phone.
+ * Resolves to a data: URL string (almost always image/jpeg).
  */
 function expCompressReceipt(file){
   return new Promise(function(resolve, reject){
@@ -4501,19 +4615,24 @@ function expCompressReceipt(file){
     var isPdf=type==="application/pdf"||/\.pdf$/i.test(name);
     var isImg=type.indexOf("image/")===0||/\.(jpe?g|png|gif|webp|heic)$/i.test(name);
     if(isPdf){
-      if(file.size>420000){ reject(new Error("PDF too large (max ~400 KB) — compress or send a photo of the receipt")); return; }
-      var reader=new FileReader();
-      reader.onload=function(){
-        var data=String(reader.result||"");
-        if(data.length>560000){ reject(new Error("PDF still too large after read")); return; }
-        if(data.indexOf("data:application/pdf")!==0&&data.indexOf("data:")===0){
-          /* some browsers use application/octet-stream */
-          data="data:application/pdf;base64,"+data.split(",")[1];
+      expPdfFileToJpegDataUrl(file).then(resolve).catch(function(errPdf){
+        /* Tiny PDF + offline: store as PDF data URL (legacy path) */
+        if(file.size<=420000){
+          var reader=new FileReader();
+          reader.onload=function(){
+            var data=String(reader.result||"");
+            if(data.length>560000){ reject(errPdf||new Error("PDF too large")); return; }
+            if(data.indexOf("data:application/pdf")!==0&&data.indexOf("data:")===0){
+              data="data:application/pdf;base64,"+(data.split(",")[1]||"");
+            }
+            resolve(data);
+          };
+          reader.onerror=function(){ reject(errPdf||new Error("Could not read PDF")); };
+          reader.readAsDataURL(file);
+          return;
         }
-        resolve(data);
-      };
-      reader.onerror=function(){ reject(new Error("Could not read PDF")); };
-      reader.readAsDataURL(file);
+        reject(errPdf||new Error("Could not convert PDF"));
+      });
       return;
     }
     if(!isImg){ reject(new Error("Use a photo or PDF receipt")); return; }
@@ -4523,18 +4642,12 @@ function expCompressReceipt(file){
       try{
         var max=1280, w=img.naturalWidth||img.width, h=img.naturalHeight||img.height;
         var scale=Math.min(1, max/Math.max(w,h));
-        var cw=Math.max(1, Math.round(w*scale)), ch=Math.max(1, Math.round(h*scale));
         var canvas=document.createElement("canvas");
-        canvas.width=cw; canvas.height=ch;
-        var ctx=canvas.getContext("2d");
-        ctx.drawImage(img,0,0,cw,ch);
-        var data=canvas.toDataURL("image/jpeg",0.72);
+        canvas.width=Math.max(1, Math.round(w*scale));
+        canvas.height=Math.max(1, Math.round(h*scale));
+        canvas.getContext("2d").drawImage(img,0,0,canvas.width,canvas.height);
         URL.revokeObjectURL(url);
-        if(data.length>220000){
-          data=canvas.toDataURL("image/jpeg",0.55);
-        }
-        if(data.length>280000){ reject(new Error("Photo still too large — try a closer crop")); return; }
-        resolve(data);
+        resolve(expCanvasToJpegDataUrl(canvas));
       }catch(err){ URL.revokeObjectURL(url); reject(err); }
     };
     img.onerror=function(){ URL.revokeObjectURL(url); reject(new Error("Could not read photo")); };
@@ -5115,7 +5228,7 @@ function openExpense(id, opts){
     '<div id="f_exp_photo_prev" style="margin-top:8px">'+expReceiptPreviewHTML(r.receipt||"")+'</div>'+
     (r.receipt?'<button type="button" class="btn ghost" id="f_exp_photo_clear" style="width:auto;margin-top:8px;padding:8px 12px">Remove receipt</button>':'')+
   '</div>';
-  h+='<p style="margin:0 0 12px;font-size:12px;color:var(--muted)">Photo or PDF (Files / Drive). Photos are compressed; PDFs max ~400 KB. Export CSV has no receipt files.</p>';
+  h+='<p style="margin:0 0 12px;font-size:12px;color:var(--muted)">Photo or PDF (Files / Drive). Photos are compressed; PDFs are turned into a compressed image on your phone (first 1–2 pages). Export CSV has no receipt files.</p>';
   if(rec&&!fromStew) h+='<div class="sheetbtns"><button type="button" class="btn danger" id="sheetDel">Delete</button></div>';
   h+='<div class="sheetfoot"><button type="button" class="btn ghost" id="sheetCancel">Cancel</button>'+
     '<button type="button" class="btn" id="sheetSave">Save</button>'+
