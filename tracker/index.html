@@ -389,11 +389,11 @@
         <div class="sumcard"><div class="l">Deals value</div><div class="v money" id="ldTot">€0</div></div>
         <div class="sumcard"><div class="l">Invoices requested</div><div class="v" id="ldPending">0</div></div>
       </div>
-      <div class="legend">Leads. <b>Split cash deal:</b> charter quote (VAT included) → base without full VAT (÷1.21). Enter <b>white invoice</b> (choose if VAT included) and <b>cash black</b> freely (e.g. €2,000 + €1,800). Optionally add white VAT on top of the cash-deal base, or swallow it. Deposit/final = white only.</div>
+      <div class="legend">Leads. Mark each as <b>Captain</b> (your deal → 15% commission in Ops) or <b>Other</b>. <b>Split cash deal:</b> white invoice + cash black freely. Deposit/final = white only.</div>
       <div class="list" id="ldList"></div>
     </section>
 
-    <!-- APA (captain + manager) -->
+    <!-- APA (captain only — under Ops) -->
     <section id="tab-apa" class="hidden">
       <button type="button" class="ops-back" data-ops-back>← Ops</button>
       <div id="apaListWrap">
@@ -401,7 +401,7 @@
           <div class="sumcard"><div class="l">APA pots</div><div class="v money" id="apaSumPot">€0</div></div>
           <div class="sumcard"><div class="l">Balance left</div><div class="v money" id="apaSumBal">€0</div></div>
         </div>
-        <div class="legend">Captain &amp; manager. Log spend even with <b>€0 prepaid APA</b> — expenses / diesel create a <b>Charges</b> invoice request for the full amount. Prepaid pot only reduces what is still owed. Mark charge <b>Paid</b> to restore balance. Vessel fuel balance lives on the <b>Diesel</b> tab.</div>
+        <div class="legend">Captain only. Log spend even with <b>€0 prepaid APA</b> — expenses / diesel create a <b>Charges</b> invoice request for the full amount. Prepaid pot only reduces what is still owed. Vessel fuel balance lives on the <b>Diesel</b> tab.</div>
         <div class="list" id="apaList"></div>
       </div>
       <div id="apaDetailWrap" class="hidden">
@@ -418,7 +418,7 @@
       </div>
     </section>
 
-    <!-- DIESEL (captain + manager — vessel fuel) -->
+    <!-- DIESEL (captain only — vessel fuel) -->
     <section id="tab-diesel" class="hidden">
       <button type="button" class="ops-back" data-ops-back>← Ops</button>
       <div id="dieselBody"></div>
@@ -440,9 +440,21 @@
       <div id="expBody"></div>
     </section>
 
-    <!-- OPS HUB (captain/manager tools — keeps bottom nav to 4 slots) -->
+    <!-- COMMISSIONS (captain only — 15% of charter before VAT on captain-gained leads) -->
+    <section id="tab-commissions" class="hidden">
+      <button type="button" class="ops-back" data-ops-back>← Ops</button>
+      <div class="summary">
+        <div class="sumcard"><div class="l">Captain leads</div><div class="v" id="cmCount">0</div></div>
+        <div class="sumcard"><div class="l">Base (ex VAT)</div><div class="v money" id="cmBase">€0</div></div>
+        <div class="sumcard"><div class="l">Commission 15%</div><div class="v money" id="cmTot">€0</div></div>
+      </div>
+      <div class="legend">Only leads marked <b>Captain</b> (not Other). Commission = <b>15%</b> of the charter amount <b>before VAT</b> (split deals: white net + cash black).</div>
+      <div class="list" id="cmList"></div>
+    </section>
+
+    <!-- OPS HUB (captain only — keeps bottom nav to 4 slots) -->
     <section id="tab-ops" class="hidden">
-      <div class="legend">Boat ops tools. Pick a section — day-to-day charges and leads stay on the main tabs.</div>
+      <div class="legend">Captain ops tools. Manager uses Charges and Leads only. Pick a section below.</div>
       <div class="ops-grid" id="opsGrid"></div>
     </section>
 
@@ -536,8 +548,10 @@ var DIESEL_DEFAULT_BUY=1.75, DIESEL_DEFAULT_SELL=2.20;
 var SESSION_KEY="limitless_tracker_session";
 function isCaptain(){ return /^captain\b/i.test(String(session.who||"").trim()); }
 function isManager(){ return /^manager\b/i.test(String(session.who||"").trim()); }
-/** Full ops access: APA, Diesel, cash-deal sync — captain and manager. */
-function canOps(){ return isCaptain()||isManager(); }
+/** Ops (APA, Diesel, Stews, Expenses, commissions) — captain only. */
+function canOps(){ return isCaptain(); }
+/** Captain commission rate on leads he gained (of charter amount before VAT). */
+var CAPTAIN_COMMISSION_PCT=15;
 
 function deviceId(){
   var id=safeGet("limitless_device");
@@ -620,12 +634,9 @@ function enterApp(){
   el("gate").classList.add("hidden"); el("app").classList.remove("hidden");
   el("meLabel").textContent=session.who+(DEMO?" · demo":"");
   el("demoNote").classList.toggle("hidden",!DEMO);
-  var cap=canOps();
-  /* Ops hub: manager (APA+Diesel) and captain (+Stews+Expenses). Hidden for Other. */
-  if(el("navOps")) el("navOps").classList.toggle("hidden",!canOps()&&!isCaptain());
-  if(!canOps()&&!isCaptain()&&isOpsTab(curTab)) curTab="charters";
-  else if(!canOps()&&(curTab==="apa"||curTab==="diesel")) curTab="charters";
-  else if(!isCaptain()&&(curTab==="stews"||curTab==="expenses")) curTab=canOps()?"ops":"charters";
+  /* Ops hub is captain-only (APA, Diesel, Stews, Expenses, commissions). Manager uses Charges + Leads. */
+  if(el("navOps")) el("navOps").classList.toggle("hidden",!isCaptain());
+  if(!isCaptain()&&isOpsTab(curTab)) curTab="charters";
   renderAll(); if(!DEMO){ startPolling(); initPushUI(); }
   else { setPushStatus("na","Demo mode — notifications need the live app"); }
   /* Prompt once logged in if not already running as home-screen app */
@@ -708,7 +719,7 @@ function tryAutoLogin(){
 
 /* -------- tabs / nav -------- */
 /** Bottom nav only: charges | leads | ops | security. Ops children live under Ops hub. */
-var OPS_CHILD={apa:1,diesel:1,stews:1,expenses:1};
+var OPS_CHILD={apa:1,diesel:1,stews:1,expenses:1,commissions:1};
 function isOpsTab(t){ return t==="ops"||!!OPS_CHILD[t]; }
 function navSlotForTab(t){
   if(isOpsTab(t)) return "ops";
@@ -731,19 +742,17 @@ document.addEventListener("click",function(ev){
 });
 function renderOpsHub(){
   var grid=el("opsGrid"); if(!grid) return;
-  var tiles=[];
-  if(canOps()){
-    tiles.push({id:"apa",ic:"📒",t:"APA",d:"Guest pot, spend ledger, shortfall charges"});
-    tiles.push({id:"diesel",ic:"⛽",t:"Diesel",d:"Bunker, tank levels, sell price"});
-  }
-  if(isCaptain()){
-    tiles.push({id:"stews",ic:"👩‍✈️",t:"Stews",d:"Roster, day pay, tips (private)"});
-    tiles.push({id:"expenses",ic:"💶",t:"Expenses",d:"Monthly boat ledger + export for manager"});
-  }
-  if(!tiles.length){
-    grid.innerHTML='<div class="empty"><div class="big">⚓</div><div>No ops tools for this role.</div></div>';
+  if(!isCaptain()){
+    grid.innerHTML='<div class="empty"><div class="big">⚓</div><div>Ops is captain-only.</div></div>';
     return;
   }
+  var tiles=[
+    {id:"apa",ic:"📒",t:"APA",d:"Guest pot, spend ledger, shortfall charges"},
+    {id:"diesel",ic:"⛽",t:"Diesel",d:"Bunker, tank levels, sell price"},
+    {id:"stews",ic:"👩‍✈️",t:"Stews",d:"Roster, day pay, tips (private)"},
+    {id:"expenses",ic:"💶",t:"Expenses",d:"Monthly boat ledger + export for manager"},
+    {id:"commissions",ic:"💸",t:"Commissions",d:CAPTAIN_COMMISSION_PCT+"% of charter before VAT — captain leads only"}
+  ];
   grid.innerHTML=tiles.map(function(x){
     return '<button type="button" class="ops-tile" data-ops-go="'+esc(x.id)+'">'+
       '<span class="ops-ic" aria-hidden="true">'+x.ic+'</span>'+
@@ -752,9 +761,8 @@ function renderOpsHub(){
   }).join("");
 }
 function switchTab(t){
-  if((t==="apa"||t==="diesel")&&!canOps()) return;
-  if((t==="stews"||t==="expenses")&&!isCaptain()) return;
-  if(t==="ops"&&!(canOps()||isCaptain())) return;
+  if(isOpsTab(t)&&t!=="ops"&&!isCaptain()) return;
+  if(t==="ops"&&!isCaptain()) return;
   curTab=t;
   if(t==="apa") apaView="list";
   var slot=navSlotForTab(t);
@@ -767,6 +775,7 @@ function switchTab(t){
   el("tab-diesel").classList.toggle("hidden",t!=="diesel");
   el("tab-stews").classList.toggle("hidden",t!=="stews");
   if(el("tab-expenses")) el("tab-expenses").classList.toggle("hidden",t!=="expenses");
+  if(el("tab-commissions")) el("tab-commissions").classList.toggle("hidden",t!=="commissions");
   if(el("tab-ops")) el("tab-ops").classList.toggle("hidden",t!=="ops");
   el("tab-security").classList.toggle("hidden",t!=="security");
   updateFab();
@@ -775,10 +784,11 @@ function switchTab(t){
   if(t==="diesel") renderDiesel();
   if(t==="stews") renderStews();
   if(t==="expenses") renderExpenses();
+  if(t==="commissions") renderCommissions();
 }
 function updateFab(){
   var hide=false;
-  if(curTab==="security"||curTab==="ops") hide=true;
+  if(curTab==="security"||curTab==="ops"||curTab==="commissions") hide=true;
   else if(curTab==="apa"){
     if(apaView==="list") hide=false; /* + new trip */
     else hide=(apaSub==="overview"||apaSub==="setup"||!activeApaId);
@@ -791,7 +801,14 @@ function updateFab(){
 
 /* -------- render -------- */
 function pill(v){ var c="p-grey"; if(v==="Pending"||v==="Requested"||v==="Not issued")c="p-amber"; else if(v==="Invoiced"||v==="Issued")c="p-blue"; else if(v==="Paid")c="p-green"; return '<span class="pill '+c+'">'+esc(v)+'</span>'; }
-function renderAll(){ renderCharters(); renderLeads(); renderSecurity(); if(canOps()){ renderApa(); renderDiesel(); } if(isCaptain()){ renderStews({soft:true}); if(curTab==="expenses") renderExpenses(); } }
+function renderAll(){
+  renderCharters(); renderLeads(); renderSecurity();
+  if(isCaptain()){
+    renderApa(); renderDiesel(); renderStews({soft:true});
+    if(curTab==="expenses") renderExpenses();
+    if(curTab==="commissions") renderCommissions();
+  }
+}
 
 /** Charges: payment defaults Paid; invStatus is what the manager tracks. */
 function chargePay(r){
@@ -1029,9 +1046,14 @@ function renderLeads(){
       if(invN&&invT&&Math.abs(invT-invN)>0.5) splitBits+='<span class="meta" style="display:contents"><span>ex VAT '+money0(invN)+'</span></span>';
       finLabel="Final (white)";
     }
+    var src=leadSource(r);
+    var srcPill=src==="captain"
+      ?'<span class="pill p-blue">Captain</span>'
+      :'<span class="pill p-grey">Other</span>';
     html+='<div class="item" data-edit-ld="'+esc(r.id)+'">'+
       '<div class="top"><div class="title">'+esc(r.name||"—")+'</div><div class="amt money">'+money0(r.total)+'</div></div>'+
-      '<div class="meta"><span>'+leadMeta(r)+'</span>'+(vatNote?'<span>'+esc(vatNote)+'</span>':'')+splitBits+
+      '<div class="meta"><span>'+leadMeta(r)+'</span>'+srcPill+(vatNote?'<span>'+esc(vatNote)+'</span>':'')+splitBits+
+        (src==="captain"&&isCaptain()?'<span class="pill p-green">Comm '+money0(leadCommissionAmt(r))+'</span>':'')+
         (pendForLead(r)?'<span class="pill p-amber">'+pendForLead(r)+' invoice'+(pendForLead(r)>1?'s':'')+' requested</span>':'')+'</div>'+
       '<div class="invtags">'+
         leadInvTag("Deposit",r.dep,r.depPct,r.deps,r.depInv,r.id,"deps")+
@@ -7803,6 +7825,82 @@ function leadSplit(base, vatMode, vatPctRaw, splitOn, whiteAmtRaw, cashBlackRaw,
   };
 }
 function leadHasSplit(r){ return !!(r&&(r.split||r.splitCash)&&(Number(r.invoiceNet)>0||Number(r.invoiceTotal)>0||Number(r.cashAmt)>0||Number(r.dealNet)>0||r.split||r.splitCash)); }
+/** Lead source for captain commission: captain | other */
+function leadSource(r){
+  if(!r) return "other";
+  var s=String(r.leadSource||"").toLowerCase();
+  if(s==="captain"||s==="cpt"||r.captainLead===true) return "captain";
+  return "other";
+}
+function isCaptainLead(r){ return leadSource(r)==="captain"; }
+/**
+ * Charter amount before VAT (commission base).
+ * Split: white net + cash black. Else: stored net, or total stripped of VAT.
+ */
+function leadCommissionBase(r){
+  if(!r) return 0;
+  if(leadHasSplit(r)){
+    var wNet=Number(r.invoiceNet)||0;
+    if(!(wNet>0)&&Number(r.invoiceTotal)>0){
+      wNet=leadMoney(Number(r.invoiceTotal), r.whiteVatMode||"include", r.vatPct).net;
+    }
+    var cash=Number(r.cashAmt)||0;
+    return Math.round((wNet+cash)*100)/100;
+  }
+  if(r.vatMode==="none"||!(Number(r.vatPct)>0)){
+    return Math.round((Number(r.total)||Number(r.base)||Number(r.price)||0)*100)/100;
+  }
+  if(Number(r.net)>0) return Math.round(Number(r.net)*100)/100;
+  var tot=Number(r.total)||Number(r.base)||Number(r.price)||0;
+  if(!(tot>0)) return 0;
+  if(r.vatMode==="add"){
+    return Math.round((Number(r.base)||Number(r.price)||tot)*100)/100;
+  }
+  return Math.round(leadMoney(tot, "include", r.vatPct||21).net*100)/100;
+}
+function leadCommissionAmt(r){
+  var base=leadCommissionBase(r);
+  return Math.round(base*(CAPTAIN_COMMISSION_PCT/100)*100)/100;
+}
+function renderCommissions(){
+  var wrap=el("cmList"); if(!wrap) return;
+  if(!isCaptain()){
+    wrap.innerHTML=emptyBox("💸","Captain only","Commissions are private to the captain.");
+    return;
+  }
+  var rows=(state.leads||[]).filter(isCaptainLead).slice().sort(function(a,b){
+    var da=String(a.closed||a.start||""), db=String(b.closed||b.start||"");
+    if(da&&db&&da!==db) return db<da?-1:1;
+    return 0;
+  });
+  var baseTot=0, comTot=0, html="";
+  rows.forEach(function(r){
+    var base=leadCommissionBase(r);
+    var com=leadCommissionAmt(r);
+    baseTot+=base; comTot+=com;
+    html+='<div class="item" data-edit-ld="'+esc(r.id)+'">'+
+      '<div class="top"><div class="title">'+esc(r.name||"—")+'</div><div class="amt money">'+money(com)+'</div></div>'+
+      '<div class="meta">'+
+        (r.closed?'<span>Closed '+esc(fmtDate(r.closed))+'</span>':'')+
+        (r.start?'<span>'+esc(fmtDate(r.start))+(r.end&&r.end!==r.start?"–"+esc(fmtDate(r.end)):"")+'</span>':'')+
+        '<span class="pill p-blue">Captain lead</span>'+
+        '<span>Base ex VAT '+money0(base)+'</span>'+
+        '<span>'+CAPTAIN_COMMISSION_PCT+'% → '+money(com)+'</span>'+
+      '</div></div>';
+  });
+  wrap.innerHTML=html||emptyBox("💸","No captain leads yet","On a lead, set Lead source → Captain. Commission = "+CAPTAIN_COMMISSION_PCT+"% of charter before VAT.");
+  if(el("cmCount")) el("cmCount").textContent=String(rows.length);
+  if(el("cmBase")) el("cmBase").textContent=money(baseTot);
+  if(el("cmTot")) el("cmTot").textContent=money(comTot);
+  bindEdit(wrap,"data-edit-ld","lead");
+}
+function selLeadSourceField(val){
+  var v=val==="captain"?"captain":"other";
+  return '<select class="ctl" id="f_leadSource">'+
+    '<option value="other"'+(v==="other"?" selected":"")+'>Other (agency / website / manager)</option>'+
+    '<option value="captain"'+(v==="captain"?" selected":"")+'>Captain (my lead — commission)</option>'+
+  '</select>';
+}
 /**
  * Deposit / final / overnight APA amounts for a lead.
  * With black split: deposit + final = white invoice total only (cash is not invoiced formally).
@@ -7913,7 +8011,7 @@ function openSheet(type,id){
     '</div>';
     h+=fieldHTML("Notes",'<textarea class="ctl" id="f_notes" placeholder="optional">'+esc(r.notes)+'</textarea>');
   } else {
-    r=rec||{closed:"",name:"",dur:"8h",start:"",end:"",rate:"",price:"",vatMode:"include",vatPct:"21",split:false,dealNet:"",invoiceNet:"",invoiceTotal:"",cashAmt:"",splitVatOnTop:true,deps:"Not requested",fins:"Not requested",apas:"Not requested",depPct:"50",apaPct:"",depInv:"",finInv:"",apaInv:"",notes:""};
+    r=rec||{closed:"",name:"",dur:"8h",start:"",end:"",rate:"",price:"",vatMode:"include",vatPct:"21",split:false,dealNet:"",invoiceNet:"",invoiceTotal:"",cashAmt:"",leadSource:"other",splitVatOnTop:true,deps:"Not requested",fins:"Not requested",apas:"Not requested",depPct:"50",apaPct:"",depInv:"",finInv:"",apaInv:"",notes:""};
     var ldur=r.dur||"8h";
     var vMode=r.vatMode||(rec?"none":"include");
     var vPct=(r.vatPct!=null&&r.vatPct!=="")?r.vatPct:(vMode==="none"?"":"21");
@@ -7926,6 +8024,7 @@ function openSheet(type,id){
     var vatTopDef=r.splitVatOnTop===true||r.splitVatOnTop==="top";
     var whiteVatModeDef=r.whiteVatMode||(r.invoiceTotal&&r.invoiceNet&&Math.abs(Number(r.invoiceTotal)-Number(r.invoiceNet))>0.5?"include":(r.invoiceNet&&!r.invoiceTotal?"add":"include"));
     var cashDef=(r.cashAmt!=null&&r.cashAmt!=="")?r.cashAmt:"";
+    var leadSrcDef=leadSource(r);
     h+='<div class="sheethead"><h2>'+(rec?"Edit lead":"New lead")+'</h2><button type="button" class="sheetx" id="sheetClose" aria-label="Close">×</button></div>';
     if(rec&&leadHasSplit(r)&&cashAmtLooksSuggested(r)){
       h+='<div class="apa-card" style="margin:0 0 12px;padding:10px 12px;border:1.5px solid #f0d48a;background:#fffbf0">'+
@@ -7934,6 +8033,8 @@ function openSheet(type,id){
       '</div>';
     }
     h+=fieldHTML("Lead name",'<input class="ctl" id="f_name" value="'+esc(r.name)+'" placeholder="e.g. Acme Corp (website)">');
+    h+=fieldHTML("Lead source",selLeadSourceField(leadSrcDef));
+    h+='<p style="margin:-6px 0 12px;font-size:12.5px;color:var(--muted);line-height:1.4"><b>Captain</b> = your deal → '+CAPTAIN_COMMISSION_PCT+'% of charter before VAT (Ops → Commissions). <b>Other</b> = no captain commission.</p>';
     h+=fieldHTML("Date closed",'<input class="ctl" id="f_closed" type="date" value="'+esc(r.closed)+'">');
     h+=fieldHTML("Duration",durField(ldur));
     h+='<div id="f_durfields">'+durFieldsHTML(ldur,r)+'</div>';
@@ -8205,6 +8306,8 @@ function saveSheet(type,rec){
     [["deps",deps],["fins",fins],["apas",apas]].forEach(function(p){
       if(p[1]==="Requested"&&(!reqAt[p[0]]||(rec&&rec[p[0]]!=="Requested"))) reqAt[p[0]]=new Date().toISOString();
     });
+    var leadSrcRaw=(el("f_leadSource")&&el("f_leadSource").value)||"other";
+    var leadSrc=leadSrcRaw==="captain"?"captain":"other";
     var o2={ id:rec?rec.id:uid(), closed:el("f_closed").value, name:el("f_name").value.trim(),
       dur:dur, start:start, end:end, rate:rate, price:price, days:days,
       base:quoteBase, net:sp.split?sp.dealNet:m.net, vat:sp.split?sp.white.vat:m.vat, total:parts.client,
@@ -8217,6 +8320,7 @@ function saveSheet(type,rec){
       invoiceNet:sp.split?sp.invoiceNet:0, invoiceVat:sp.split?sp.white.vat:0, invoiceTotal:sp.split?sp.invoiceTotal:parts.client,
       cashAmt:sp.split?(cashForced>0?cashForced:sp.cashAmt):0,
       cashAmtUser:sp.split&&(cashForced>0||Number(sp.cashAmt)>0),
+      leadSource:leadSrc,
       depPct:depPct, dep:parts.dep, deps:deps, depInv:el("f_depInv").value.trim(),
       fin:parts.fin, fins:fins, finInv:el("f_finInv").value.trim(),
       apaPct:apaPct, apa:parts.apa, apas:apas, apaInv:el("f_apaInv").value.trim(),
