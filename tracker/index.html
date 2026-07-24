@@ -964,6 +964,7 @@ function renderLeads(){
       (r.notes?'<div class="notes">'+esc(r.notes)+'</div>':'')+
       '<div class="lead-actions">'+
         '<button type="button" class="btn" data-inv-lead="'+esc(r.id)+'">Make invoice</button>'+
+        '<button type="button" class="btn ghost" data-agr-lead="'+esc(r.id)+'">Agreement</button>'+
         '<button type="button" class="btn ghost" data-copy-lead="'+esc(r.id)+'">Copy name</button>'+
       '</div>'+
       '<span class="chev">✎</span></div>';
@@ -987,6 +988,12 @@ function renderLeads(){
     btn.addEventListener("click",function(ev){
       ev.preventDefault(); ev.stopPropagation();
       openLeadInvoiceSheet(btn.getAttribute("data-inv-lead"));
+    });
+  });
+  Array.prototype.forEach.call(wrap.querySelectorAll("[data-agr-lead]"),function(btn){
+    btn.addEventListener("click",function(ev){
+      ev.preventDefault(); ev.stopPropagation();
+      openLeadAgreementSheet(btn.getAttribute("data-agr-lead"));
     });
   });
 }
@@ -1649,13 +1656,14 @@ function canSharePdfFile(file){
   }catch(e){ return false; }
 }
 function sharePdfBlob(blob, p){
-  var name=invoicePdfFileName(p);
+  var name=p.fileName||invoicePdfFileName(p);
   var file=new File([blob], name, {type:"application/pdf"});
-  var text="Invoice "+(p.invNo||"")+(p.billName?" — "+p.billName:"");
+  var title=p.shareTitle||("Invoice "+(p.invNo||""));
+  var text=p.shareText||(title+(p.billName||p.charterer?" — "+(p.billName||p.charterer):""));
   if(canSharePdfFile(file)){
     return navigator.share({
       files:[file],
-      title:"Invoice "+(p.invNo||""),
+      title:title,
       text:text
     }).then(function(){ return "shared"; });
   }
@@ -1880,6 +1888,440 @@ function createAndOfferInvoicePdf(p){
   }).catch(function(err){
     if(go){ go.disabled=false; go.textContent="Create PDF"; }
     window.alert("Could not create PDF: "+(err&&err.message?err.message:"try again"));
+  });
+}
+
+/* -------- Charter agreement PDF (from sample: Limitless charter agreement) -------- */
+var AGREEMENT_DEFAULTS={
+  operator:"Limitless Opportunities SL",
+  vesselName:"Limitless Opportunities",
+  vesselType:"Motorboat",
+  loa:"22m",
+  portDelivery:"Club De Mar",
+  portRedelivery:"Club De Mar",
+  cruisingLimits:"Balearic Islands, Spain",
+  crew:"Luigi Tommaseo — Captain",
+  specialTerms:"All fuel used shall be replaced."
+};
+function agreementOrdinal(n){
+  n=Number(n)||0;
+  var s=["th","st","nd","rd"], v=n%100;
+  return n+(s[(v-20)%10]||s[v]||s[0]);
+}
+function agreementMonthName(m){
+  return ["January","February","March","April","May","June","July","August","September","October","November","December"][Number(m)-1]||"";
+}
+function fmtAgreementLongDate(iso){
+  if(!iso) return "";
+  var p=String(iso).slice(0,10).split("-");
+  if(p.length!==3) return fmtDate(iso);
+  return agreementOrdinal(parseInt(p[2],10))+" day of "+agreementMonthName(p[1])+" "+p[0];
+}
+function agreementDefaultHours(r){
+  var dur=String((r&&r.dur)||"");
+  if(dur==="4h") return {from:"10:00", to:"14:00"};
+  if(dur==="6h") return {from:"10:00", to:"16:00"};
+  if(dur==="multi") return {from:"12:00", to:"12:00"};
+  return {from:"10:00", to:"18:00"};
+}
+function agreementPdfFileName(p){
+  var who=String(p.charterer||"charter").replace(/[^\w.\-]+/g,"_").replace(/^_|_$/g,"");
+  var d=String(p.start||p.agreeDate||"").slice(0,10).replace(/-/g,"");
+  return "Charter_Agreement_"+(who||"client")+(d?"_"+d:"")+".pdf";
+}
+/**
+ * Prefill agreement fields from a lead (amounts, dates, guest name).
+ * Formal contract only — white invoice amounts. Never cash/black.
+ */
+function agreementPayloadFromLead(r){
+  r=r||{};
+  var hrs=agreementDefaultHours(r);
+  var fee;
+  if(leadHasSplit(r)){
+    fee=Number(r.invoiceTotal)||0;
+    if(!(fee>0)&&Number(r.invoiceNet)>0){
+      fee=Math.round(((Number(r.invoiceNet)||0)+(Number(r.invoiceVat)||0))*100)/100;
+    }
+  } else {
+    fee=Number(r.total)||Number(r.invoiceTotal)||0;
+  }
+  var adv=Number(r.dep)||0;
+  var bal=Number(r.fin)||0;
+  if(!(bal>0)&&fee>0) bal=Math.round((fee-adv)*100)/100;
+  /* Special terms: default fuel note only — no cash/black, no lead notes */
+  return {
+    agreeDate:r.closed||new Date().toISOString().slice(0,10),
+    charterer:r.name||"",
+    chartererAddr:r.billToAddr||"",
+    operator:AGREEMENT_DEFAULTS.operator,
+    vesselName:AGREEMENT_DEFAULTS.vesselName,
+    vesselType:AGREEMENT_DEFAULTS.vesselType,
+    loa:AGREEMENT_DEFAULTS.loa,
+    portDelivery:AGREEMENT_DEFAULTS.portDelivery,
+    portRedelivery:AGREEMENT_DEFAULTS.portRedelivery,
+    cruisingLimits:AGREEMENT_DEFAULTS.cruisingLimits,
+    start:r.start||r.cdate||"",
+    end:(r.dur==="multi"?(r.end||r.start||""):(r.start||r.cdate||"")),
+    fromHrs:hrs.from,
+    toHrs:hrs.to,
+    crew:AGREEMENT_DEFAULTS.crew,
+    fee:fee,
+    advance:adv,
+    balance:bal,
+    security:"",
+    specialTerms:AGREEMENT_DEFAULTS.specialTerms
+  };
+}
+function openLeadAgreementSheet(id){
+  var r=(state.leads||[]).filter(function(x){return String(x.id)===String(id);})[0];
+  if(!r) return;
+  var p0=agreementPayloadFromLead(r);
+  var h='<div class="sheethead"><h2>Charter agreement</h2><button type="button" class="sheetx" id="sheetClose" aria-label="Close">×</button></div>';
+  h+='<p style="margin:0 0 12px;font-size:13px;color:var(--muted);line-height:1.45">Formal contract only (white invoice fee, deposit &amp; balance). Cash/black is never included. Prefills from this lead — edit before creating.</p>';
+  h+='<div class="row2">'+
+    fieldHTML("Agreement date",'<input class="ctl" id="f_agr_date" type="date" value="'+esc(p0.agreeDate)+'">')+
+    fieldHTML("Charter fee €",moneyField("f_agr_fee", p0.fee))+
+  '</div>';
+  h+=fieldHTML("Charterer (name)",'<input class="ctl" id="f_agr_name" value="'+esc(p0.charterer)+'">');
+  h+=fieldHTML("Charterer address",'<textarea class="ctl" id="f_agr_addr" placeholder="Street, city, country…">'+esc(p0.chartererAddr)+'</textarea>');
+  h+='<div class="row2">'+
+    fieldHTML("Advance €",moneyField("f_agr_adv", p0.advance))+
+    fieldHTML("Balance €",moneyField("f_agr_bal", p0.balance))+
+  '</div>';
+  h+=fieldHTML("Security deposit € (optional)",moneyField("f_agr_sec", p0.security));
+  h+='<div class="sect">Charter period</div>';
+  h+='<div class="row2">'+
+    fieldHTML("From date",'<input class="ctl" id="f_agr_start" type="date" value="'+esc(p0.start)+'">')+
+    fieldHTML("From time",'<input class="ctl" id="f_agr_fromh" value="'+esc(p0.fromHrs)+'" placeholder="10:00">')+
+  '</div>';
+  h+='<div class="row2">'+
+    fieldHTML("To date",'<input class="ctl" id="f_agr_end" type="date" value="'+esc(p0.end)+'">')+
+    fieldHTML("To time",'<input class="ctl" id="f_agr_toh" value="'+esc(p0.toHrs)+'" placeholder="18:00">')+
+  '</div>';
+  h+='<div class="sect">Vessel &amp; ports</div>';
+  h+='<div class="row2">'+
+    fieldHTML("Vessel",'<input class="ctl" id="f_agr_vessel" value="'+esc(p0.vesselName)+'">')+
+    fieldHTML("Type / LOA",'<input class="ctl" id="f_agr_type" value="'+esc(p0.vesselType+" · "+p0.loa)+'">')+
+  '</div>';
+  h+='<div class="row2">'+
+    fieldHTML("Port of delivery",'<input class="ctl" id="f_agr_pdel" value="'+esc(p0.portDelivery)+'">')+
+    fieldHTML("Port of redelivery",'<input class="ctl" id="f_agr_pred" value="'+esc(p0.portRedelivery)+'">')+
+  '</div>';
+  h+=fieldHTML("Cruising limits",'<input class="ctl" id="f_agr_cruise" value="'+esc(p0.cruisingLimits)+'">');
+  h+=fieldHTML("Crew",'<input class="ctl" id="f_agr_crew" value="'+esc(p0.crew)+'">');
+  h+=fieldHTML("Special terms",'<textarea class="ctl" id="f_agr_special" rows="4">'+esc(p0.specialTerms)+'</textarea>');
+  h+='<div class="sheetfoot">'+
+    '<button type="button" class="btn ghost" id="sheetCancel">Cancel</button>'+
+    '<button type="button" class="btn" id="sheetAgrGo">Create PDF</button></div>';
+  el("sheetInner").innerHTML=h;
+  showSheet(true);
+  el("sheetCancel").addEventListener("click",function(){ showSheet(false); });
+  el("sheetClose").addEventListener("click",function(){ showSheet(false); });
+  el("sheetAgrGo").addEventListener("click",function(){
+    var typeLoa=String(el("f_agr_type").value||"").split("·").map(function(s){return s.trim();});
+    var payload={
+      agreeDate:el("f_agr_date").value,
+      charterer:el("f_agr_name").value.trim(),
+      chartererAddr:el("f_agr_addr").value.trim(),
+      operator:AGREEMENT_DEFAULTS.operator,
+      vesselName:el("f_agr_vessel").value.trim()||AGREEMENT_DEFAULTS.vesselName,
+      vesselType:typeLoa[0]||AGREEMENT_DEFAULTS.vesselType,
+      loa:typeLoa[1]||AGREEMENT_DEFAULTS.loa,
+      portDelivery:el("f_agr_pdel").value.trim(),
+      portRedelivery:el("f_agr_pred").value.trim(),
+      cruisingLimits:el("f_agr_cruise").value.trim(),
+      start:el("f_agr_start").value,
+      end:el("f_agr_end").value,
+      fromHrs:el("f_agr_fromh").value.trim(),
+      toHrs:el("f_agr_toh").value.trim(),
+      crew:el("f_agr_crew").value.trim(),
+      fee:apaNum(el("f_agr_fee").value),
+      advance:apaNum(el("f_agr_adv").value),
+      balance:apaNum(el("f_agr_bal").value),
+      security:apaNum(el("f_agr_sec").value),
+      specialTerms:el("f_agr_special").value.trim()
+    };
+    if(!payload.charterer){ el("f_agr_name").focus(); return; }
+    if(!(payload.fee>0)){ el("f_agr_fee").focus(); return; }
+    payload.fileName=agreementPdfFileName(payload);
+    payload.shareTitle="Charter agreement — "+payload.charterer;
+    payload.shareText=payload.shareTitle;
+    createAndOfferAgreementPdf(payload);
+  });
+}
+function createAndOfferAgreementPdf(p){
+  var go=el("sheetAgrGo");
+  if(go){ go.disabled=true; go.textContent="Creating PDF…"; }
+  buildCharterAgreementPdf(p).then(function(blob){
+    showAgreementShareSheet(blob, p);
+  }).catch(function(err){
+    if(go){ go.disabled=false; go.textContent="Create PDF"; }
+    window.alert("Could not create agreement: "+(err&&err.message?err.message:"try again"));
+  });
+}
+function showAgreementShareSheet(blob, p){
+  var name=p.fileName||agreementPdfFileName(p);
+  var file=new File([blob], name, {type:"application/pdf"});
+  var shareOk=canSharePdfFile(file);
+  var url=URL.createObjectURL(blob);
+  var h='<div class="sheethead"><h2>Agreement ready</h2><button type="button" class="sheetx" id="sheetClose" aria-label="Close">×</button></div>';
+  h+='<p style="margin:0 0 6px;font-size:15px;font-weight:700">'+esc(p.charterer||"Charter agreement")+'</p>';
+  h+='<p style="margin:0 0 14px;font-size:13px;color:var(--muted);line-height:1.45">'+esc(fmtInvMoney(p.fee))+' · '+esc(p.start?fmtDate(p.start):"")+(p.end&&p.end!==p.start?" – "+esc(fmtDate(p.end)):"")+'</p>';
+  if(shareOk){
+    h+='<button type="button" class="btn" id="agrShare" style="margin-bottom:10px">Share…</button>';
+    h+='<p style="margin:0 0 14px;font-size:12.5px;color:var(--muted);line-height:1.4;text-align:center">Opens the share sheet — pick WhatsApp, Mail, Files…</p>';
+  } else {
+    h+='<p style="margin:0 0 12px;font-size:13px;color:var(--muted);line-height:1.45">Download the PDF, then send or print for signature.</p>';
+  }
+  h+='<button type="button" class="btn ghost" id="agrDl" style="margin-bottom:10px">Download PDF</button>';
+  h+='<a class="btn ghost" id="agrOpen" href="'+url+'" target="_blank" rel="noopener" style="display:flex;margin-bottom:10px;text-decoration:none">Preview PDF</a>';
+  h+='<div class="sheetfoot"><button type="button" class="btn ghost" id="sheetCancel">Done</button></div>';
+  el("sheetInner").innerHTML=h;
+  showSheet(true);
+  function cleanup(){ try{ URL.revokeObjectURL(url); }catch(e){} }
+  if(el("agrShare")){
+    el("agrShare").addEventListener("click",function(){
+      var btn=el("agrShare");
+      btn.disabled=true; btn.textContent="Opening share…";
+      sharePdfBlob(blob, p).then(function(){
+        btn.disabled=false; btn.textContent="Share…";
+      }).catch(function(err){
+        btn.disabled=false; btn.textContent="Share…";
+        if(err&&err.name==="AbortError") return;
+        downloadBlob(blob, name);
+        window.alert("Share cancelled or not available — PDF downloaded instead.");
+      });
+    });
+  }
+  el("agrDl").addEventListener("click",function(){ downloadBlob(blob, name); });
+  el("sheetCancel").addEventListener("click",function(){ cleanup(); showSheet(false); });
+  el("sheetClose").addEventListener("click",function(){ cleanup(); showSheet(false); });
+}
+/** Multi-page A4 charter agreement (layout + terms from the Andrew sample). */
+function buildCharterAgreementPdf(p){
+  return loadPdfLib().then(function(PDFLib){
+    var PDFDocument=PDFLib.PDFDocument, rgb=PDFLib.rgb, StandardFonts=PDFLib.StandardFonts;
+    return PDFDocument.create().then(function(doc){
+      return Promise.all([
+        doc.embedFont(StandardFonts.TimesRoman),
+        doc.embedFont(StandardFonts.TimesRomanBold),
+        doc.embedFont(StandardFonts.TimesRomanItalic)
+      ]).then(function(res){
+        var font=res[0], fontBold=res[1], fontItalic=res[2];
+        var W=595.28, H=841.89, margin=54;
+        var black=rgb(0.05,0.05,0.05);
+        var grey=rgb(0.32,0.32,0.32);
+        var page=null, y=0;
+
+        function newPage(){
+          page=doc.addPage([W, H]);
+          y=H-margin;
+          return page;
+        }
+        function ensure(need){
+          if(y<margin+need) newPage();
+        }
+        function wrapLines(str, size, maxW, f){
+          f=f||font;
+          str=String(str==null?"":str).replace(/\s+/g," ").trim();
+          if(!str) return [];
+          var words=str.split(" "), lines=[], cur="";
+          words.forEach(function(w){
+            var test=cur?cur+" "+w:w;
+            if(f.widthOfTextAtSize(test, size)<=maxW) cur=test;
+            else { if(cur) lines.push(cur); cur=w; }
+          });
+          if(cur) lines.push(cur);
+          return lines;
+        }
+        function draw(str, x, size, bold, italic, color){
+          var f=italic?fontItalic:(bold?fontBold:font);
+          page.drawText(String(str||""), {x:x, y:y, size:size, font:f, color:color||black});
+        }
+        function drawCenter(str, size, bold, italic, color){
+          var f=italic?fontItalic:(bold?fontBold:font);
+          var s=String(str||"");
+          var w=f.widthOfTextAtSize(s, size);
+          page.drawText(s, {x:(W-w)/2, y:y, size:size, font:f, color:color||black});
+        }
+        function para(str, size, opts){
+          opts=opts||{};
+          var f=opts.bold?fontBold:(opts.italic?fontItalic:font);
+          var maxW=opts.maxW||(W-margin*2);
+          var lh=opts.lh||(size+3.5);
+          var lines=wrapLines(str, size, maxW, f);
+          lines.forEach(function(line){
+            ensure(lh+4);
+            page.drawText(line, {x:opts.x||margin, y:y, size:size, font:f, color:opts.color||black});
+            y-=lh;
+          });
+          if(opts.gap!=null) y-=opts.gap; else y-=2;
+        }
+        function blankLine(h){ y-=(h==null?10:h); }
+        function moneyLine(n){
+          if(n==null||n===""||isNaN(Number(n))) return "€";
+          return "€ "+Number(n).toLocaleString("en-GB",{minimumFractionDigits:2,maximumFractionDigits:2});
+        }
+        function fieldRow(label, value, size){
+          size=size||10.5;
+          ensure(size+14);
+          var lab=label+(label.slice(-1)===":"?"":":");
+          draw(lab, margin, size, true, false, black);
+          var lw=fontBold.widthOfTextAtSize(lab+" ", size);
+          var val=String(value||"");
+          var lines=wrapLines(val, size, W-margin*2-lw, font);
+          if(!lines.length) lines=[""];
+          page.drawText(lines[0], {x:margin+lw, y:y, size:size, font:font, color:black});
+          y-=size+5;
+          for(var i=1;i<lines.length;i++){
+            ensure(size+6);
+            page.drawText(lines[i], {x:margin+lw, y:y, size:size, font:font, color:black});
+            y-=size+5;
+          }
+        }
+
+        /* —— Page 1: cover particulars —— */
+        newPage();
+        drawCenter("CHARTER AGREEMENT", 16, true, false, black);
+        blankLine(18);
+        var longDate=fmtAgreementLongDate(p.agreeDate);
+        drawCenter("dated this "+(longDate||"____________ day of ______________ 20__"), 10.5, false, false, black);
+        blankLine(14);
+        drawCenter("- between -", 11, false, true, grey);
+        blankLine(16);
+        drawCenter(p.operator||AGREEMENT_DEFAULTS.operator, 12, true, false, black);
+        blankLine(4);
+        drawCenter("(\"the Operator\")", 10, false, false, grey);
+        blankLine(14);
+        drawCenter("- and -", 11, false, true, grey);
+        blankLine(14);
+        drawCenter(p.charterer||"________________________", 12, true, false, black);
+        if(p.chartererAddr){
+          blankLine(6);
+          String(p.chartererAddr).split(/\n/).forEach(function(line){
+            if(String(line).trim()){ drawCenter(String(line).trim(), 10, false, false, grey); blankLine(12); }
+          });
+        }
+        blankLine(4);
+        drawCenter("(\"the Charterer\")", 10, false, false, grey);
+        blankLine(18);
+
+        fieldRow("Vessel name", p.vesselName||AGREEMENT_DEFAULTS.vesselName);
+        fieldRow("Type", (p.vesselType||AGREEMENT_DEFAULTS.vesselType)+"    LOA: "+(p.loa||AGREEMENT_DEFAULTS.loa));
+        para("which includes all gear and equipment on board and in any inventory attached hereto and initialled by the parties.", 9.5, {color:grey, gap:8});
+        fieldRow("Port of Delivery", p.portDelivery||AGREEMENT_DEFAULTS.portDelivery);
+        fieldRow("Port of Redelivery", p.portRedelivery||AGREEMENT_DEFAULTS.portRedelivery);
+        fieldRow("Cruising Limits", p.cruisingLimits||AGREEMENT_DEFAULTS.cruisingLimits);
+        blankLine(6);
+        draw("Charter Period:", margin, 10.5, true, false, black);
+        blankLine(14);
+        var fromBit="From  "+(p.fromHrs||"____")+" hrs  on  "+(p.start?fmtDate(p.start):"__/__/____");
+        var toBit="To    "+(p.toHrs||"____")+" hrs  on  "+(p.end?fmtDate(p.end):(p.start?fmtDate(p.start):"__/__/____"));
+        para(fromBit, 10.5, {gap:2});
+        para(toBit, 10.5, {gap:8});
+        fieldRow("Crew", p.crew||AGREEMENT_DEFAULTS.crew);
+        blankLine(4);
+        fieldRow("Charter Fee", moneyLine(p.fee)+"  (comprising Advance and Balance Payments)");
+        fieldRow("Advance Payment", moneyLine(p.advance)+"  on the date hereof");
+        fieldRow("Balance Payment", moneyLine(p.balance));
+        if(Number(p.security)>0) fieldRow("Security Deposit", moneyLine(p.security));
+        blankLine(10);
+        draw("SPECIAL TERMS", margin, 11, true, false, black);
+        blankLine(14);
+        para("(any special terms agreed between the Operator and Charterer should be recorded in this space before this Agreement is signed)", 8.5, {color:grey, gap:6});
+        String(p.specialTerms||"").split(/\n/).forEach(function(line){
+          if(String(line).trim()) para(String(line).trim(), 10.5, {gap:3});
+        });
+
+        /* —— Terms pages —— */
+        var clauses=[
+          {h:"1. Charter and Payment", body:[
+            "1.1 The Charterer shall hire the Vessel for the Charter Period for the Charter Fee.",
+            "1.2 The Advance Payment is paid by way of a deposit to secure the Vessel for the Charter Period and shall be paid to the Operator on the signing of this Agreement. On payment by the Charterer of the Advance Payment, the Operator agrees not to enter into any other agreement for the charter of the Vessel for the same period. The Balance Payment and the Security Deposit shall be paid to the Operator no later than the date stipulated herein. All monies payable hereunder are deemed due on the date hereof."
+          ]},
+          {h:"2. Security Deposit", body:[
+            "2.1 The Operator may retain and apply the Security Deposit in reduction or extinction of any liability of the Charterer to the Operator, save that no retention shall be made in respect of liability, loss or damage occasioned by the negligence of the Operator, and provided always that such retention shall be without prejudice to the right of the Operator to recover any unsatisfied balance of such liability from the Charterer.",
+            "2.2 Subject as aforesaid, the Security Deposit or any balance remaining shall be returned to the Charterer within 14 days after redelivery or, in the event of dispute, upon the determination of such dispute."
+          ]},
+          {h:"3. Operator's Obligations", body:[
+            "3.1 The Operator shall at the beginning of the Charter Period deliver the Vessel to the Charterer or his representative in good, seaworthy condition complying with the MCA's Code of Practice for the Safety of Small Commercial Motor or Sailing Vessels or its equivalent approved by the appropriate authority in the country of delivery where handover takes place elsewhere than in the UK (if and as applicable) and with the minimum equipment requirements of the Marine Leisure Association (MLA).",
+            "3.2 The Operator will use all reasonable endeavours to deliver the Vessel to the Charterer in the aforesaid condition at the agreed time and place but in default, whether as a result of a breach of 3.1 or otherwise, its liability shall be limited to a pro rata return of the Charter Fee for each period of 12 hours for which delivery is delayed. If such delay exceeds 25% of the Charter Period, the Charterer shall be at liberty to treat the Charter as cancelled. The Operator shall thereupon return all sums paid together with reasonable compensation for travel and accommodation costs but shall have no further liability to the Charterer in respect of the curtailment or cancellation of the Charter including without prejudice to the generality of the foregoing liability in respect of consequential or economic loss or loss of use or enjoyment, save where delivery is delayed otherwise than by reason of force majeure in which case the Operator's maximum liability, in addition to the return of all sums paid, shall be limited to an amount equal to 50% of the Charter Fee.",
+            "3.3 The Operator shall provide an experienced skipper suitably qualified by the Royal Yachting Association (RYA) who shall be at the disposal of the Charterer for the navigation of the Vessel to ports within the Cruising Limits as the Charterer may direct and who shall, so far as is consistent with the safety of the Vessel and her guests and crew, comply with all reasonable requests of the Charterer. The skipper shall however have absolute authority in matters of navigation, seamanship and safety and shall be entitled to require the Charterer and all members of his party to comply with all reasonable orders where the Charterer or any member of his party might otherwise endanger the Vessel or any person on board, or vitiate the Vessel's insurance, or prevent or be likely to prevent timely redelivery at the end of the Charter Period or otherwise be prejudicial to the Operator's interests."
+          ]},
+          {h:"4. Insurance", body:[
+            "4.1 The Vessel and her equipment shall be insured on the terms of the Institute Yacht Clauses, or on comparable terms, for her full value with third party liability cover of no less than €10,000,000 and subject to a policy deductible no greater than the Security Deposit.",
+            "4.2 The Charterer shall indemnify the Operator in respect of any loss of or damage to the Vessel or her equipment or any other expense or liability arising out of any act or omission of the Charterer or any members of his party which is not for any reason covered by the Vessel's insurance.",
+            "4.3 The Operator and/or its skipper shall have no liability for death or personal injury suffered by the Charterer or any member of his party unless caused by its negligence or wilful default.",
+            "4.4 The Charterer and members of his party shall do nothing which may vitiate the Vessel's insurance or prejudice the Operator's right to claim thereunder.",
+            "4.5 In the event of major damage to the Vessel during the Charter Period involving a claim on the Vessel's insurance or in the event of a breakdown of gear or machinery rendering the Vessel unseaworthy and/or unusable, a pro-rata credit will be made for the period during which the Vessel was unseaworthy or unusable provided that neither the Charterer nor any member of his party caused or contributed to the damage or breakdown and provided also that the Operator shall not be liable to the Charterer for any other compensation in respect of damage or breakdown whether in respect of consequential or financial loss or otherwise, unless damage or breakdown is caused by the negligence or wilful default of the Operator and results in death or personal injury."
+          ]},
+          {h:"5. Charterers' Obligations", body:[
+            "5.1 If the Charterer fails to accept delivery of the Vessel within 24 hours of the start of the Charter Period and has not by then notified the Operator of his intention to accept delivery later during the Charter Period, the Operator may treat this Agreement as terminated without prejudice to its rights to recover any unpaid portion of the Charter Fee.",
+            "5.2 The Charterer warrants that he and all members of his party have the experience and competence stated in the Operator's Booking Request Form. Further, the Charterer warrants the medical fitness of himself and all members of his party for the passages and other activities envisaged hereunder.",
+            "5.3 The Charterer and all members of his party shall give such assistance as shall reasonably be required in handling the Vessel.",
+            "5.4 The Charterer shall pay for all running expenses and provisions during the Charter Period and, to the extent that on redelivery any consumables have not been restored to their handover levels, the Charterer shall be liable to the Operator for the cost thereof.",
+            "5.5 The Charterer shall neither use the Vessel for any purpose other than private pleasure cruising for himself and his party nor race the Vessel without prior written consent of the Operator.",
+            "5.6 The Charterer shall limit the number of persons in his party to not more than the number of berths on the Vessel, except by prior agreement with the Operator, such agreement to be contingent on the Charterer's party not exceeding the number of places on the Vessel licensed by the appropriate authority.",
+            "5.7 The Charterer and all members of his party shall take all reasonable care of the Vessel and its equipment.",
+            "5.8 The Charterer shall observe all applicable rules, regulations and laws whether of customs, harbour or other authorities or otherwise.",
+            "5.9 The Charterer shall not allow any animals on board the Vessel without the written consent of the Operator.",
+            "5.10 The Charterer shall do nothing to interfere with the redelivery of the Vessel to the Operator at the Port of Redelivery or at such other place as may be agreed between the parties at the end of the Charter Period cleaned, in the same condition as on delivery (fair wear and tear excepted) and with her inventory complete. If the Charterer interferes with the redelivery of the Vessel as aforesaid, he shall be liable for a sum not exceeding twice the pro rata Charter Fee for every day or part thereof by which redelivery is delayed unless such delay is caused by the operation of an insured peril or other circumstances beyond the Charterer's control."
+          ]},
+          {h:"6. Notice of withdrawal", body:[
+            "6.1 Where the Charterer is not a Consumer, should the Charterer give notice of cancellation of this Agreement on or at any time before the commencement of the Charter Period the Charterer shall remain liable for all payments due to the Operator prior to and unpaid at the date of cancellation. Should notice of cancellation be given by the Charterer or should the Charterer fail after having been given notice to pay any amount due under this Agreement, the Operator shall be entitled to treat this Agreement as having been repudiated by the Charterer and to retain the full amount of all payments.",
+            "6.2 Where the Charterer is a Consumer:",
+            "6.2.1 Should the Charterer give written notice to the Operator more than ten weeks before the start of the Charter Period of its withdrawal from the Charter, no liability for any outstanding portion of the Charter Fee will remain (and if it and/or the Security Deposit have already been paid, it and/or they shall be refunded) but the Advance Payment shall be forfeit save that half the Advance Payment will be refunded if the Operator re-charters the Vessel for the Charter Period for no less than the Charter Fee. The Operator shall use all reasonable endeavours to re-charter the Vessel in such circumstances.",
+            "6.2.2 Should the Charterer give written notice to the Operator within ten weeks of the start of the Charter Period of its withdrawal from the Charter, the Charterer shall remain liable for all payments due to the Operator prior to and unpaid at the date of the cancellation, save for in the circumstances envisaged in Clause 6.3.",
+            "6.2.3 If prior to the commencement of the Charter Period the Operator gives notice to the Charterer of cancellation, the Charterer shall be entitled to repayment without interest of all sums paid by him to the Operator.",
+            "6.3 Notwithstanding the Operator's right to receive or retain all payments referred to in Clauses 6.1 and 6.2.2 above, the Operator shall be under a duty to mitigate his loss and in the event that the Operator is able to re-charter the Vessel for all or part of the Charter Period, the Operator will give credit for the net amount of charter hire arising from the re-charter after deduction of all commissions and other consequential expenses arising from such re-charter. The intention is that the Operator shall receive the same in net proceeds from any re-charter as would have been received under this Agreement. The Operator shall use all reasonable endeavours to re-charter the Vessel and shall not unreasonably withhold his agreement to re-charter, although charters which may reasonably be considered detrimental to the Vessel, its reputation, or its schedule may be refused.",
+            "6.4 If prior to the date of cancellation the Vessel has taken on provisions for the Charter, then the Charterer shall reimburse these expenses unless all or part can either be refunded by the supplier or transferred to the next charter, in which case such expenses shall be adjusted accordingly. The Operator shall be under a duty to mitigate these expenses where possible."
+          ]},
+          {h:"7. General", body:[
+            "7.1 References herein to a \"Consumer\" means any Charterer who is a natural person and is acting for purposes which are outside his trade, business or profession.",
+            "7.2 The Operator shall have the right to restrict the Cruising Limits in the light of actual or anticipated weather conditions, or the experience and ability of the Charterer and his party.",
+            "7.3 Save as otherwise provided in the terms of business of the Operator, and subject to the statutory rights of the Charterer if contracting as a Consumer, the provisions of this Agreement shall exhaustively and exclusively govern the rights and obligations of the parties.",
+            "7.4 This Agreement is subject to English law. In the event of a dispute arising under this Agreement, the parties agree to use reasonable endeavours to resolve such a dispute by negotiation and, if such negotiation fails, to consider referring the dispute to alternative dispute resolution under the dispute resolution procedures adopted from time to time by the British Marine Federation. Save as aforesaid, in the case of a Charterer contracting otherwise than as a Consumer, any dispute arising under this Agreement shall be submitted to the exclusive jurisdiction of the Courts of England and Wales; in the case of a Charterer contracting as a Consumer, any dispute shall be submitted to the non-exclusive jurisdiction of the Courts of England and Wales.",
+            "7.5 If any provision of this Agreement is held by any court or other competent authority to be void or unenforceable in whole or part, this Agreement shall continue to be valid as to the other provisions thereof and the remainder of the affected provision."
+          ]}
+        ];
+
+        newPage();
+        clauses.forEach(function(cl){
+          ensure(40);
+          para(cl.h, 11, {bold:true, gap:6});
+          cl.body.forEach(function(b){ para(b, 9.2, {lh:12, gap:5}); });
+          blankLine(6);
+        });
+
+        ensure(80);
+        blankLine(8);
+        para("THE PARTIES ACKNOWLEDGE that they have read and understood the terms and conditions above and have caused this Agreement to be duly executed the day and year first above written.", 9.5, {italic:true, gap:16});
+
+        /* Signatures */
+        ensure(120);
+        var colW=(W-margin*2-24)/2;
+        var leftX=margin, rightX=margin+colW+24;
+        var sigY=y;
+        function sigCol(x, title){
+          y=sigY;
+          page.drawText(title, {x:x, y:y, size:9.5, font:fontBold, color:black});
+          y-=28;
+          page.drawText("Name: ________________________________", {x:x, y:y, size:9.5, font:font, color:black});
+          y-=26;
+          page.drawText("Signature: ____________________________", {x:x, y:y, size:9.5, font:font, color:black});
+          y-=26;
+          page.drawText("Date: ________________________________", {x:x, y:y, size:9.5, font:font, color:black});
+        }
+        sigCol(leftX, "Signed for and on behalf of the Operator:");
+        var botY=y;
+        sigCol(rightX, "Signed for and on behalf of the Charterer:");
+        y=Math.min(botY, y)-20;
+
+        return doc.save().then(function(bytes){
+          return new Blob([bytes], {type:"application/pdf"});
+        });
+      });
+    });
   });
 }
 function requestLeadInvoice(id, which){
@@ -7168,6 +7610,7 @@ function openSheet(type,id){
     h+='<div class="sheetbtns">';
     if(type==="lead"){
       h+='<button type="button" class="btn" id="sheetMakeInv">Make invoice</button>';
+      h+='<button type="button" class="btn ghost" id="sheetMakeAgr">Agreement</button>';
       h+='<button type="button" class="btn ghost" id="sheetCopyInv">Copy name</button>';
     }
     if(type==="charter"){
@@ -7191,6 +7634,12 @@ function openSheet(type,id){
         if(type==="lead") openLeadInvoiceSheet(rec.id);
         else openChargeInvoiceSheet(rec.id);
       },80);
+    });
+  }
+  if(el("sheetMakeAgr")&&rec&&type==="lead"){
+    el("sheetMakeAgr").addEventListener("click",function(){
+      showSheet(false);
+      setTimeout(function(){ openLeadAgreementSheet(rec.id); },80);
     });
   }
   if(el("f_dur")){ el("f_dur").addEventListener("change",function(){
