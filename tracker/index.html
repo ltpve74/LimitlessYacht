@@ -2886,8 +2886,9 @@ function ensureLeadCashApa(lead){
 /**
  * Light repair for black-split leads:
  *   total = white + cash (never quote÷1.21, never “suggested” cash).
- *   cashAmt is FREE — never overwrite it.
+ *   cashAmt is FREE — never overwrite it (user cash black e.g. €1800).
  *   Only recompute dep/fin from stored white total + dep %.
+ * Does not persist — caller must not auto-save (that re-wrote stale cash).
  */
 function repairLeadWhiteInvoices(){
   var dirty=false;
@@ -2901,6 +2902,7 @@ function repairLeadWhiteInvoices(){
       white=Math.round(w.total*100)/100;
       if(Math.abs((Number(l.invoiceTotal)||0)-white)>0.02){ l.invoiceTotal=white; dirty=true; }
     }
+    /* NEVER recompute or replace cashAmt — free amount only */
     var cash=Math.round((Number(l.cashAmt)||0)*100)/100;
     var depPct=Number(l.depPct)||0;
     var dep=Math.round(white*depPct/100*100)/100;
@@ -2910,7 +2912,7 @@ function repairLeadWhiteInvoices(){
     if(Math.abs((Number(l.dep)||0)-dep)>0.02){ l.dep=dep; ch=true; }
     if(Math.abs((Number(l.fin)||0)-fin)>0.02){ l.fin=fin; ch=true; }
     if(Math.abs((Number(l.total)||0)-tot)>0.02){ l.total=tot; ch=true; }
-    /* Optional reference dealNet from quote — never used as total */
+    /* Optional reference dealNet from quote — never used as total or cash */
     var base=Number(l.base)||Number(l.price)||0;
     if(base>0){
       var ref=leadMoney(base, l.vatMode||"include", l.vatPct);
@@ -4687,28 +4689,91 @@ function touchLocalSave(coll){
   if(coll) lastLocalSaveAt[coll]=Date.now();
 }
 function localSaveIsFresh(coll, ms){
-  ms=ms||15000;
+  /* Leads need a long window — suggested cash race used to win after 15s */
+  if(ms==null) ms=(coll==="leads"?120000:15000);
   var t=lastLocalSaveAt[coll]||0;
   return t>0&&(Date.now()-t)<ms;
 }
 /**
- * Merge remote leads with local by id — newer updatedAt wins.
- * Prevents a stale poll (still €1653 cash) from wiping a just-saved €1800.
+ * Auto “suggested” cash = quote÷1.21 − white net (≈€1653 for €2k white).
+ * Free cash black (e.g. €1800) must never be replaced by that figure.
+ */
+function leadSuggestedCashAmt(l){
+  if(!l) return null;
+  var base=Number(l.base)||Number(l.price)||0;
+  if(!(base>0)&&l.rate&&l.days) base=(Number(l.rate)||0)*(Number(l.days)||1);
+  if(!(base>0)) return null;
+  var ref=leadMoney(base, l.vatMode||"include", l.vatPct);
+  var wNet=Number(l.invoiceNet)||0;
+  if(!(wNet>0)&&Number(l.invoiceTotal)>0){
+    wNet=leadMoney(Number(l.invoiceTotal), l.whiteVatMode||"include", l.vatPct).net;
+  }
+  if(!(wNet>0)&&!(ref.net>0)) return null;
+  return Math.round(Math.max(0, ref.net-wNet)*100)/100;
+}
+function cashAmtLooksSuggested(l){
+  var sug=leadSuggestedCashAmt(l);
+  if(sug==null||!(sug>0)) return false;
+  return Math.abs((Number(l.cashAmt)||0)-sug)<1.01;
+}
+/** Prefer free cash over auto-suggested ex-VAT cash when merging two versions of a lead. */
+function pickLeadCashAmt(a, b){
+  var ca=Number(a&&a.cashAmt)||0, cb=Number(b&&b.cashAmt)||0;
+  if(!(ca>0)&&!(cb>0)) return 0;
+  if(!(ca>0)) return cb;
+  if(!(cb>0)) return ca;
+  if(Math.abs(ca-cb)<0.02) return ca;
+  var aUser=!!(a&&a.cashAmtUser), bUser=!!(b&&b.cashAmtUser);
+  if(aUser&&!bUser) return ca;
+  if(bUser&&!aUser) return cb;
+  var aSug=cashAmtLooksSuggested(a), bSug=cashAmtLooksSuggested(b);
+  /* Never keep the auto ex-VAT figure when the other side has free cash */
+  if(aSug&&!bSug) return cb;
+  if(bSug&&!aSug) return ca;
+  /* Both free or both suggested: newer updatedAt */
+  var ta=String((a&&a.updatedAt)||""), tb=String((b&&b.updatedAt)||"");
+  return tb>ta?cb:ca;
+}
+function mergeLeadPair(remote, local){
+  if(!remote) return local;
+  if(!local) return remote;
+  var rt=String(remote.updatedAt||""), lt=String(local.updatedAt||"");
+  var newer=lt>=rt?local:remote;
+  var older=newer===local?remote:local;
+  var out=Object.assign({}, newer);
+  if(leadHasSplit(remote)||leadHasSplit(local)){
+    var cash=pickLeadCashAmt(local, remote);
+    if(cash>0){
+      out.cashAmt=cash;
+      if((local&&local.cashAmtUser&&Math.abs((Number(local.cashAmt)||0)-cash)<0.02)||
+         (remote&&remote.cashAmtUser&&Math.abs((Number(remote.cashAmt)||0)-cash)<0.02)){
+        out.cashAmtUser=true;
+      }
+      /* Keep total = white + free cash */
+      var white=Number(out.invoiceTotal)||0;
+      if(!(white>0)&&Number(out.invoiceNet)>0){
+        white=leadMoney(Number(out.invoiceNet), out.whiteVatMode==="add"?"add":"include", out.vatPct).total;
+      }
+      if(white>0||cash>0) out.total=Math.round((white+cash)*100)/100;
+    }
+  }
+  /* Prefer newer for other fields; already started from newer */
+  if(older.cashAmtUser&&!out.cashAmtUser&&Math.abs((Number(older.cashAmt)||0)-(Number(out.cashAmt)||0))<0.02){
+    out.cashAmtUser=true;
+  }
+  return out;
+}
+/**
+ * Merge remote leads with local by id — newer updatedAt wins, but free cash black
+ * is never replaced by the auto “suggested” ex-VAT amount (€1653).
  */
 function mergeLeadsById(local, remote){
   var by={};
-  function take(l, preferIfTie){
+  (remote||[]).forEach(function(l){ if(l&&l.id) by[l.id]=l; });
+  (local||[]).forEach(function(l){
     if(!l||!l.id) return;
-    var cur=by[l.id];
-    if(!cur){ by[l.id]=l; return; }
-    var ct=String(cur.updatedAt||"");
-    var pt=String(l.updatedAt||"");
-    if(pt>ct) by[l.id]=l;
-    else if(pt===ct&&preferIfTie) by[l.id]=l;
-    else if(!ct&&pt) by[l.id]=l;
-  }
-  (remote||[]).forEach(function(l){ take(l, false); });
-  (local||[]).forEach(function(l){ take(l, true); });
+    by[l.id]=by[l.id]?mergeLeadPair(by[l.id], l):l;
+  });
   var out=[], seen={};
   (local||[]).forEach(function(l){
     if(l&&l.id&&by[l.id]&&!seen[l.id]){ out.push(by[l.id]); seen[l.id]=1; }
@@ -7862,6 +7927,12 @@ function openSheet(type,id){
     var whiteVatModeDef=r.whiteVatMode||(r.invoiceTotal&&r.invoiceNet&&Math.abs(Number(r.invoiceTotal)-Number(r.invoiceNet))>0.5?"include":(r.invoiceNet&&!r.invoiceTotal?"add":"include"));
     var cashDef=(r.cashAmt!=null&&r.cashAmt!=="")?r.cashAmt:"";
     h+='<div class="sheethead"><h2>'+(rec?"Edit lead":"New lead")+'</h2><button type="button" class="sheetx" id="sheetClose" aria-label="Close">×</button></div>';
+    if(rec&&leadHasSplit(r)&&cashAmtLooksSuggested(r)){
+      h+='<div class="apa-card" style="margin:0 0 12px;padding:10px 12px;border:1.5px solid #f0d48a;background:#fffbf0">'+
+        '<div style="font-weight:800;color:#9a6b00">Cash looks like the auto “ex VAT” figure ('+money0(r.cashAmt)+')</div>'+
+        '<div class="meta" style="margin-top:4px">Free cash black is often <b>€1,800</b> — not quote÷1.21 − white net. Type the agreed cash and Save.</div>'+
+      '</div>';
+    }
     h+=fieldHTML("Lead name",'<input class="ctl" id="f_name" value="'+esc(r.name)+'" placeholder="e.g. Acme Corp (website)">');
     h+=fieldHTML("Date closed",'<input class="ctl" id="f_closed" type="date" value="'+esc(r.closed)+'">');
     h+=fieldHTML("Duration",durField(ldur));
@@ -8116,7 +8187,15 @@ function saveSheet(type,rec){
     var legNetIn=el("f_invoiceNet")?el("f_invoiceNet").value:"";
     var whiteVatMode=el("f_whiteVatMode")?el("f_whiteVatMode").value:"include";
     var quoteBase=base;
-    var sp=leadSplit(quoteBase, vatMode, vatPctIn, splitOn, whiteIn, cashIn, legNetIn, "", false, whiteVatMode);
+    /* Free cash black from the field only — never fall back to suggested ex-VAT */
+    var cashForced=apaNum(cashIn);
+    var sp=leadSplit(quoteBase, vatMode, vatPctIn, splitOn, whiteIn, cashForced>0?cashForced:cashIn, legNetIn, "", false, whiteVatMode);
+    if(sp.split&&cashForced>0){
+      sp.cashAmt=cashForced;
+      sp.cash=cashForced;
+      sp.clientTotal=Math.round((Number(sp.invoiceTotal||0)+cashForced)*100)/100;
+      sp.bookedTotal=sp.clientTotal;
+    }
     var m=sp.full;
     var depPct=el("f_dep").value===""?"":apaNum(el("f_dep").value);
     var apaPct=el("f_apa").value===""?"":apaNum(el("f_apa").value);
@@ -8136,7 +8215,8 @@ function saveSheet(type,rec){
       splitVatOnTop:sp.split?!!sp.vatOnTop:false,
       whiteVatMode:sp.split?(sp.whiteVatMode||whiteVatMode):"",
       invoiceNet:sp.split?sp.invoiceNet:0, invoiceVat:sp.split?sp.white.vat:0, invoiceTotal:sp.split?sp.invoiceTotal:parts.client,
-      cashAmt:sp.split?sp.cashAmt:0,
+      cashAmt:sp.split?(cashForced>0?cashForced:sp.cashAmt):0,
+      cashAmtUser:sp.split&&(cashForced>0||Number(sp.cashAmt)>0),
       depPct:depPct, dep:parts.dep, deps:deps, depInv:el("f_depInv").value.trim(),
       fin:parts.fin, fins:fins, finInv:el("f_finInv").value.trim(),
       apaPct:apaPct, apa:parts.apa, apas:apas, apaInv:el("f_apaInv").value.trim(),
@@ -8144,6 +8224,9 @@ function saveSheet(type,rec){
       notes:el("f_notes").value.trim(), by:session.who,
       createdAt:(rec&&rec.createdAt)?rec.createdAt:new Date().toISOString(),
       updatedAt:new Date().toISOString() };
+    if(sp.split&&o2.cashAmt>0){
+      o2.total=Math.round((Number(o2.invoiceTotal||0)+Number(o2.cashAmt))*100)/100;
+    }
     if(!o2.name){ el("f_name").focus(); return; }
     if(sp.split){
       if(!(Number(quoteBase)>0)){
@@ -8152,10 +8235,18 @@ function saveSheet(type,rec){
         return;
       }
       if(!(Number(sp.invoiceTotal)>0)&&!(Number(sp.invoiceNet)>0)){ if(el("f_whiteTotal")) el("f_whiteTotal").focus(); return; }
-      if(!(Number(sp.cashAmt)>0)){
-        window.alert("Enter the cash black amount (e.g. €1,800).");
+      if(!(Number(o2.cashAmt)>0)){
+        window.alert("Enter the cash black amount (e.g. €1,800).\n\nDo not use “suggested” if that is the ex-VAT figure — type the free cash you agreed.");
         if(el("f_cashBlack")) el("f_cashBlack").focus();
         return;
+      }
+      var sug=sp.suggestedCash;
+      if(sug>0&&Math.abs(o2.cashAmt-sug)<1&&Math.abs(o2.cashAmt-1800)>1){
+        /* Soft warn: looks like they kept the auto ex-VAT amount */
+        if(!window.confirm("Cash is "+money0(o2.cashAmt)+" — that matches the auto “without VAT” suggestion.\n\nFor this deal free cash is often €1,800.\n\nSave "+money0(o2.cashAmt)+" anyway?")){
+          if(el("f_cashBlack")){ el("f_cashBlack").focus(); el("f_cashBlack").value="1800"; }
+          return;
+        }
       }
     }
     upsert("leads",o2,rec); renderLeads(); save("leads");
@@ -8721,9 +8812,8 @@ function applyData(d, opts){
   if(d.vapidPublicKey) pushMeta.vapidPublicKey=d.vapidPublicKey;
   sortCharters();
   sortLeads();
-  /* Repair dep/fin/total in memory. Never re-save leads on poll — that raced with cash edits and wrote €1653 back. */
-  var leadsRepaired=repairLeadWhiteInvoices();
-  if(leadsRepaired&&!DEMO&&!fromPoll) save("leads");
+  /* Repair dep/fin/total in memory only — never auto-save leads (re-saved whole array and wiped free cash). */
+  repairLeadWhiteInvoices();
   if(canOps()){
     /* Collapse cash-shell + real prepaid duplicates (e.g. two Joel Freeland pots) */
     mergeDuplicateApaTrips();
