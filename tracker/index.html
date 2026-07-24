@@ -6884,18 +6884,22 @@ function leadMoney(base, vatMode, vatPctRaw){
 /**
  * Split cash deal:
  *
- *   Charter quote (usually VAT included, e.g. €4,000) → cash-deal base = quote/1.21
- *     (full VAT removed — the convenient cash-deal price).
- *   White invoice: amount + own VAT mode (include / add / none).
- *   Cash black: free amount (e.g. €1,800) — not forced to base − white net.
+ *   Charter quote (VAT included, e.g. €4,000) → reference base = quote/1.21
+ *     (what a “full VAT stripped” cash deal would be).
+ *   White invoice: amount + VAT mode (include / add / none) — free.
+ *   Cash black: free amount (e.g. €1,800) — free.
  *
- *   Money the client pays for the deal:
- *     Swallow (default): cash-deal base only (quote without full VAT).
- *     Add white VAT on top: cash-deal base + white VAT only.
- *   White total + cash are what you book (invoice + APA pot); they may not sum
- *   to client pays if you negotiate free cash vs base (shown in the calc box).
+ *   Client pays (what matters):
+ *     Default: white total + cash  (e.g. €2,000 + €1,800 = €3,800)
+ *     If “add white VAT on top” AND white amount was entered ex-VAT (add mode):
+ *       already in white.total. Toggle is for when white is VAT-included:
+ *       - Off: client pays white.total + cash (usual)
+ *       - On:  client pays white.total + cash + nothing extra if already included;
+ *         when white is net-only (add), total already has VAT.
+ *     Extra option splitVatOnTop on white-include: treat as client also settles
+ *       the cash-deal reference vs booked — keep simple: ALWAYS white.total + cash.
  *
- * Deposit/final = % of white invoice total. Cash → APA pot at −cash.
+ * Deposit/final = % of white total. Cash → APA pot at −cash.
  */
 function leadSplit(base, vatMode, vatPctRaw, splitOn, whiteAmtRaw, cashBlackRaw, legacyInvoiceNetRaw, targetNetRaw, vatOnTop, whiteVatModeRaw){
   var quoteMode=vatMode||"include";
@@ -6903,16 +6907,15 @@ function leadSplit(base, vatMode, vatPctRaw, splitOn, whiteAmtRaw, cashBlackRaw,
   if(!splitOn){
     return { split:false, full:full, invoiceNet:full.net, cash:0, white:full,
       clientTotal:full.total, invoiceTotal:full.total, cashAmt:0, dealNet:full.net,
-      quoteGross:full.total, quoteVat:full.vat, vatOnTop:false, suggestedCash:0 };
+      quoteGross:full.total, quoteVat:full.vat, vatOnTop:false, suggestedCash:0, bookedTotal:full.total };
   }
   var pct=quoteMode==="none"?0:(vatPctRaw===""||vatPctRaw==null?21:(Number(vatPctRaw)||0));
-  /* Cash-deal base = charter quote without full VAT (÷1.21 when VAT included) */
+  /* Reference: quote without full VAT (÷1.21) — informational + suggested cash */
   var dealNet=Math.round(full.net*100)/100;
   if(!(dealNet>0)){
     var legT=Number(targetNetRaw);
     if(!isNaN(legT)&&legT>0) dealNet=Math.round(legT*100)/100;
   }
-  /* White invoice: user chooses if amount is VAT included / add VAT / no VAT */
   var wMode=whiteVatModeRaw||"include";
   if(wMode!=="add"&&wMode!=="none"&&wMode!=="include") wMode="include";
   if(pct<=0) wMode="none";
@@ -6920,22 +6923,18 @@ function leadSplit(base, vatMode, vatPctRaw, splitOn, whiteAmtRaw, cashBlackRaw,
   if(isNaN(whiteAmt)||whiteAmt<0) whiteAmt=0;
   var legNet=Number(legacyInvoiceNetRaw);
   if(!(whiteAmt>0)&&!isNaN(legNet)&&legNet>0){
-    /* Legacy stored invoice net only */
     whiteAmt=legNet;
     wMode="add";
   }
   var white=leadMoney(whiteAmt, wMode, vatPctRaw);
-  /* Cash black — free input; suggested = deal base − white net */
   var suggestedCash=Math.round(Math.max(0, dealNet-white.net)*100)/100;
   var cash=Number(cashBlackRaw);
-  if(isNaN(cash)||cash<0) cash=suggestedCash;
+  if(cashBlackRaw===""||cashBlackRaw==null||isNaN(cash)||cash<0) cash=0;
   cash=Math.round(cash*100)/100;
   var onTop=(vatOnTop===true||vatOnTop==="top"||vatOnTop==="add"||vatOnTop===1||vatOnTop==="1");
-  /* Client pays the cash-deal base (± small white VAT), not forced white+cash */
-  var clientTotal=onTop
-    ?Math.round((dealNet+white.vat)*100)/100
-    :Math.round(dealNet*100)/100;
-  var booked=Math.round((white.total+cash)*100)/100;
+  /* Client pays = white invoice total + cash black (e.g. 2000 + 1800 = 3800) */
+  var clientTotal=Math.round((white.total+cash)*100)/100;
+  var booked=clientTotal;
   return {
     split:true,
     full:full,
@@ -6989,9 +6988,8 @@ function recalcLead(){
   var whiteRaw=el("f_whiteTotal")?el("f_whiteTotal").value:"";
   var cashRaw=el("f_cashBlack")?el("f_cashBlack").value:"";
   var legNet=el("f_invoiceNet")?el("f_invoiceNet").value:"";
-  var vatOnTop=el("f_splitVatTop")?el("f_splitVatTop").checked:false;
   var whiteVatMode=el("f_whiteVatMode")?el("f_whiteVatMode").value:"include";
-  var sp=leadSplit(base, mode, pctRaw, splitOn, whiteRaw, cashRaw, legNet, "", vatOnTop, whiteVatMode);
+  var sp=leadSplit(base, mode, pctRaw, splitOn, whiteRaw, cashRaw, legNet, "", false, whiteVatMode);
   if(splitOn&&el("f_dealNetShow")) el("f_dealNetShow").textContent=money(sp.dealNet);
   if(splitOn&&el("f_suggestCash")&&sp.suggestedCash!=null){
     el("f_suggestCash").textContent=money(sp.suggestedCash);
@@ -7003,30 +7001,21 @@ function recalcLead(){
   var head=dur==="multi"?(days+' day'+(days>1?'s':'')+' &times; '+money0(rate)):durLabel(dur);
   var html="";
   if(sp.split){
-    html+='<div class="cl"><span>'+head+' · charter quote</span><b>'+money(sp.quoteGross!=null?sp.quoteGross:base)+'</b></div>';
+    html+='<div class="cl"><span>'+head+' · charter quote (ref.)</span><b>'+money(sp.quoteGross!=null?sp.quoteGross:base)+'</b></div>';
     if(sp.quoteVat>0.009){
-      html+='<div class="cl"><span>Full VAT removed (÷1.21)</span><b>−'+money(sp.quoteVat)+'</b></div>';
+      html+='<div class="cl"><span>If full VAT stripped (÷1.21)</span><b>'+money(sp.dealNet)+'</b></div>';
     }
-    html+='<div class="cl split"><span>Cash-deal base (quote without full VAT)</span><b>'+money(sp.dealNet)+'</b></div>';
-    html+='<div class="cl"><span>White invoice total</span><b>'+money(sp.invoiceTotal)+'</b></div>';
+    html+='<div class="cl split"><span>White invoice</span><b>'+money(sp.invoiceTotal)+'</b></div>';
     if(sp.white.vatMode!=="none"&&sp.white.vatPct>0){
       html+='<div class="cl"><span> white net</span><b>'+money(sp.invoiceNet)+'</b></div>'+
         '<div class="cl"><span> white VAT '+sp.white.vatPct+'%</span><b>'+money(sp.white.vat)+'</b></div>';
-    } else {
-      html+='<div class="cl"><span> white (no VAT)</span><b>'+money(sp.invoiceNet)+'</b></div>';
     }
-    html+='<div class="cl"><span>Cash black (your amount)</span><b>'+money(sp.cashAmt)+'</b></div>';
-    html+='<div class="cl"><span>White + cash booked</span><b>'+money(sp.bookedTotal!=null?sp.bookedTotal:sp.invoiceTotal+sp.cashAmt)+'</b></div>';
+    html+='<div class="cl"><span>Cash black</span><b>'+money(sp.cashAmt)+'</b></div>';
     if(sp.suggestedCash!=null&&Math.abs(sp.suggestedCash-sp.cashAmt)>0.02){
-      html+='<div class="meta" style="margin-top:4px">Suggested cash to match base: '+money(sp.suggestedCash)+' (you set a different cash amount — OK)</div>';
+      html+='<div class="meta" style="margin-top:2px">Suggested cash vs quote÷1.21: '+money(sp.suggestedCash)+'</div>';
     }
-    if(sp.vatOnTop){
-      html+='<div class="cl"><span>Small white VAT on top of base</span><b>+'+money(sp.white.vat)+'</b></div>'+
-        '<div class="cl hi"><span>Client pays (base + white VAT)</span><b>'+money(p.client)+'</b></div>';
-    } else {
-      html+='<div class="cl hi"><span>Client pays (cash-deal base)</span><b>'+money(p.client)+'</b></div>'+
-        '<div class="meta" style="margin-top:4px">Quote without full VAT. White VAT swallowed (e.g. owner friend).</div>';
-    }
+    html+='<div class="cl hi"><span>Client pays (white + cash)</span><b>'+money(p.client)+'</b></div>';
+    html+='<div class="meta" style="margin-top:4px">= white invoice total + cash black. Deposit/final are on white only.</div>';
     html+='<div class="cl split"><span>Deposit '+(depPct||0)+'% of <b>white</b></span><b>'+money(p.dep)+'</b></div>'+
       '<div class="cl"><span>Final (rest of white)</span><b>'+money(p.fin)+'</b></div>'+
       '<div class="cl"><span>Cash → APA pot (starts negative)</span><b>−'+money(p.cash)+'</b></div>';
@@ -7093,12 +7082,12 @@ function openSheet(type,id){
     h+='<p style="margin:-6px 0 12px;font-size:12.5px;color:var(--muted);line-height:1.4">Charter price = normal quote (e.g. <b>€4,000 VAT included</b>). On a cash deal we use <b>quote ÷ 1.21</b> as the cash-deal base.</p>';
     h+='<label class="checkrow"><input type="checkbox" id="f_split"'+(splitOn?" checked":"")+'>'+
       '<span><div class="ck">Split cash deal (white + black)</div>'+
-      '<div class="ch">Base = quote without full VAT. Set white invoice + cash black yourself (e.g. €2,000 + €1,800). Choose white VAT mode and whether to add white VAT on top of the base or swallow it.</div></span></label>';
+      '<div class="ch"><b>Client pays = white + cash</b> (e.g. €2,000 + €1,800 = €3,800). Charter quote above is for reference (÷1.21). You set white and cash freely.</div></span></label>';
     h+='<div id="f_splitwrap"'+(splitOn?"":" class=\"hidden\"")+'>'+
       '<div class="apa-card" style="margin:0 0 12px;padding:10px 12px">'+
-        '<div class="meta">Cash-deal base (charter quote ÷ 1.21)</div>'+
-        '<div class="money" style="font-size:20px;font-weight:800" id="f_dealNetShow">'+money(0)+'</div>'+
-        '<div class="meta" style="margin-top:4px">What the client pays by default (full VAT removed from the quote)</div>'+
+        '<div class="meta">Quote without full VAT (reference · ÷1.21)</div>'+
+        '<div class="money" style="font-size:18px;font-weight:800" id="f_dealNetShow">'+money(0)+'</div>'+
+        '<div class="meta" style="margin-top:4px">Not the client total — only a guide. Client total = white + cash below.</div>'+
       '</div>'+
       fieldHTML("White invoice amount (€)",moneyField("f_whiteTotal", whiteDef))+
       fieldHTML("White invoice VAT",'<select class="ctl" id="f_whiteVatMode">'+
@@ -7106,13 +7095,11 @@ function openSheet(type,id){
         '<option value="add"'+(whiteVatModeDef==="add"?" selected":"")+'>Add VAT on top of amount</option>'+
         '<option value="none"'+(whiteVatModeDef==="none"?" selected":"")+'>No VAT on white</option>'+
       '</select>')+
-      '<p style="margin:-6px 0 10px;font-size:12.5px;color:var(--muted);line-height:1.4">e.g. tomorrow: <b>€2,000</b> with “VAT included”.</p>'+
+      '<p style="margin:-6px 0 10px;font-size:12.5px;color:var(--muted);line-height:1.4">Tomorrow: <b>€2,000</b> · VAT included.</p>'+
       fieldHTML("Cash black (no VAT)",moneyField("f_cashBlack", cashDef))+
-      '<p style="margin:-6px 0 8px;font-size:12.5px;color:var(--muted);line-height:1.4">Free amount (e.g. <b>€1,800</b>). Suggested to match base: <b id="f_suggestCash">—</b> · <button type="button" class="btn ghost" id="f_useSuggestCash" style="width:auto;padding:6px 10px;font-size:12px">Use suggested</button></p>'+
-      '<label class="checkrow"><input type="checkbox" id="f_splitVatTop"'+(vatTopDef?" checked":"")+'>'+
-        '<span><div class="ck">Add the small white VAT on top of the cash-deal base</div>'+
-        '<div class="ch"><b>Off (default):</b> client pays cash-deal base only (swallow white VAT — e.g. owner friend). <b>On:</b> client pays base + white VAT.</div></span></label>'+
+      '<p style="margin:-6px 0 8px;font-size:12.5px;color:var(--muted);line-height:1.4">Tomorrow: <b>€1,800</b>. Optional fill from quote÷1.21 − white net: <b id="f_suggestCash">—</b> · <button type="button" class="btn ghost" id="f_useSuggestCash" style="width:auto;padding:6px 10px;font-size:12px">Use suggested</button></p>'+
       '<input type="hidden" id="f_invoiceNet" value="'+esc(r.invoiceNet!=null&&r.invoiceNet!==""?r.invoiceNet:"")+'">'+
+      '<input type="hidden" id="f_splitVatTop" value="0">'+
     '</div>';
     h+='<div class="calcbox" id="f_calc"></div>';
     h+='<div class="sect">Invoices for manager</div>';
@@ -7165,7 +7152,6 @@ function openSheet(type,id){
   if(el("f_whiteTotal")) el("f_whiteTotal").addEventListener("input",recalcLead);
   if(el("f_whiteVatMode")) el("f_whiteVatMode").addEventListener("change",recalcLead);
   if(el("f_cashBlack")) el("f_cashBlack").addEventListener("input",recalcLead);
-  if(el("f_splitVatTop")) el("f_splitVatTop").addEventListener("change",recalcLead);
   if(el("f_useSuggestCash")) el("f_useSuggestCash").addEventListener("click",function(){
     var mode=el("f_vatMode")?el("f_vatMode").value:"include";
     var pctRaw=el("f_vatPct")?el("f_vatPct").value:"";
@@ -7276,10 +7262,9 @@ function saveSheet(type,rec){
     var whiteIn=el("f_whiteTotal")?el("f_whiteTotal").value:"";
     var cashIn=el("f_cashBlack")?el("f_cashBlack").value:"";
     var legNetIn=el("f_invoiceNet")?el("f_invoiceNet").value:"";
-    var vatOnTop=el("f_splitVatTop")?el("f_splitVatTop").checked:false;
     var whiteVatMode=el("f_whiteVatMode")?el("f_whiteVatMode").value:"include";
     var quoteBase=base;
-    var sp=leadSplit(quoteBase, vatMode, vatPctIn, splitOn, whiteIn, cashIn, legNetIn, "", vatOnTop, whiteVatMode);
+    var sp=leadSplit(quoteBase, vatMode, vatPctIn, splitOn, whiteIn, cashIn, legNetIn, "", false, whiteVatMode);
     var m=sp.full;
     var depPct=el("f_dep").value===""?"":apaNum(el("f_dep").value);
     var apaPct=el("f_apa").value===""?"":apaNum(el("f_apa").value);
