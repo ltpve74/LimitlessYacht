@@ -448,7 +448,7 @@
         <div class="sumcard"><div class="l">Base (ex VAT)</div><div class="v money" id="cmBase">€0</div></div>
         <div class="sumcard"><div class="l">Commission 15%</div><div class="v money" id="cmTot">€0</div></div>
       </div>
-      <div class="legend">Captain leads + <b>extension charges</b> (same-day extra hours). Lead: 15% of charter before VAT (split = white ex VAT + cash). Extension charge: 15% of amount before VAT (e.g. €1,050 inc. VAT → ≈€130).</div>
+      <div class="legend">Captain leads + charges where you ticked <b>I get commission</b>. Lead: 15% before VAT (split = white ex VAT + cash black). Charge: 15% of that charge before VAT.</div>
       <div class="list" id="cmList"></div>
     </section>
 
@@ -4721,9 +4721,26 @@ function localSaveIsFresh(coll, ms){
   return t>0&&(Date.now()-t)<ms;
 }
 /**
- * Auto “suggested” cash = quote÷1.21 − white net (≈€1653 for €2k white).
- * Free cash black (e.g. €1800) must never be replaced by that figure.
+ * Auto “suggested” cash = quote÷1.21 − white net (≈€1653 for €2k white),
+ * or simply white net. Free cash black (e.g. €1800) must never replace that.
  */
+var LEAD_CASH_PIN_KEY="ly_tracker_lead_cash_pins";
+function leadCashPinsLoad(){
+  try{ return JSON.parse(safeGet(LEAD_CASH_PIN_KEY)||"{}")||{}; }catch(e){ return {}; }
+}
+function leadCashPinGet(id){
+  if(!id) return 0;
+  var n=Number(leadCashPinsLoad()[String(id)]);
+  return n>0?Math.round(n*100)/100:0;
+}
+function leadCashPinSet(id, amt){
+  if(!id||!(Number(amt)>0)) return;
+  try{
+    var pins=leadCashPinsLoad();
+    pins[String(id)]=Math.round(Number(amt)*100)/100;
+    safeSet(LEAD_CASH_PIN_KEY, JSON.stringify(pins));
+  }catch(e){}
+}
 function leadSuggestedCashAmt(l){
   if(!l) return null;
   var base=Number(l.base)||Number(l.price)||0;
@@ -4738,9 +4755,18 @@ function leadSuggestedCashAmt(l){
   return Math.round(Math.max(0, ref.net-wNet)*100)/100;
 }
 function cashAmtLooksSuggested(l){
+  var cash=Number(l&&l.cashAmt)||0;
+  if(!(cash>0)) return false;
   var sug=leadSuggestedCashAmt(l);
-  if(sug==null||!(sug>0)) return false;
-  return Math.abs((Number(l.cashAmt)||0)-sug)<1.01;
+  if(sug!=null&&sug>0&&Math.abs(cash-sug)<1.01) return true;
+  /* Classic bug: cash set to white net (2000÷1.21 ≈ 1653) */
+  var wNet=Number(l.invoiceNet)||0;
+  if(wNet>0&&Math.abs(cash-wNet)<1.01) return true;
+  if(Number(l.invoiceTotal)>0){
+    var wn=leadMoney(Number(l.invoiceTotal), l.whiteVatMode||"include", l.vatPct||21).net;
+    if(wn>0&&Math.abs(cash-wn)<1.01) return true;
+  }
+  return false;
 }
 /** Prefer free cash over auto-suggested ex-VAT cash when merging two versions of a lead. */
 function pickLeadCashAmt(a, b){
@@ -4749,16 +4775,49 @@ function pickLeadCashAmt(a, b){
   if(!(ca>0)) return cb;
   if(!(cb>0)) return ca;
   if(Math.abs(ca-cb)<0.02) return ca;
+  var aSug=cashAmtLooksSuggested(a), bSug=cashAmtLooksSuggested(b);
+  /* Free cash ALWAYS beats suggested ex-VAT figure (even if remote is newer) */
+  if(aSug&&!bSug) return cb;
+  if(bSug&&!aSug) return ca;
   var aUser=!!(a&&a.cashAmtUser), bUser=!!(b&&b.cashAmtUser);
   if(aUser&&!bUser) return ca;
   if(bUser&&!aUser) return cb;
-  var aSug=cashAmtLooksSuggested(a), bSug=cashAmtLooksSuggested(b);
-  /* Never keep the auto ex-VAT figure when the other side has free cash */
-  if(aSug&&!bSug) return cb;
-  if(bSug&&!aSug) return ca;
-  /* Both free or both suggested: newer updatedAt */
+  /* Device pin wins over unpinned suggested/stale values */
+  var pinA=leadCashPinGet(a&&a.id), pinB=leadCashPinGet(b&&b.id);
+  var pin=pinA||pinB;
+  if(pin>0){
+    if(Math.abs(ca-pin)<0.02) return ca;
+    if(Math.abs(cb-pin)<0.02) return cb;
+    if(aSug&&bSug) return pin;
+  }
   var ta=String((a&&a.updatedAt)||""), tb=String((b&&b.updatedAt)||"");
   return tb>ta?cb:ca;
+}
+function applyLeadCashPin(l){
+  if(!l||!l.id||!leadHasSplit(l)) return false;
+  var pin=leadCashPinGet(l.id);
+  if(!(pin>0)) return false;
+  var cur=Math.round((Number(l.cashAmt)||0)*100)/100;
+  if(Math.abs(cur-pin)<0.02&&l.cashAmtUser) return false;
+  /* Restore free cash if missing, suggested, or different from pin */
+  if(cur<=0||cashAmtLooksSuggested(l)||Math.abs(cur-pin)>0.02){
+    l.cashAmt=pin;
+    l.cashAmtUser=true;
+    var white=Number(l.invoiceTotal)||0;
+    if(!(white>0)&&Number(l.invoiceNet)>0){
+      white=leadMoney(Number(l.invoiceNet), l.whiteVatMode==="add"?"add":"include", l.vatPct).total;
+    }
+    l.total=Math.round((white+pin)*100)/100;
+    return true;
+  }
+  return false;
+}
+function restoreAllLeadCashPins(){
+  var dirty=false;
+  (state.leads||[]).forEach(function(l){
+    if(applyLeadCashPin(l)) dirty=true;
+  });
+  return dirty;
 }
 function mergeLeadPair(remote, local){
   if(!remote) return local;
@@ -4769,13 +4828,16 @@ function mergeLeadPair(remote, local){
   var out=Object.assign({}, newer);
   if(leadHasSplit(remote)||leadHasSplit(local)){
     var cash=pickLeadCashAmt(local, remote);
+    var pin=leadCashPinGet(out.id)||leadCashPinGet(local.id)||leadCashPinGet(remote.id);
+    if(pin>0&&(cashAmtLooksSuggested({cashAmt:cash, invoiceNet:out.invoiceNet, invoiceTotal:out.invoiceTotal, whiteVatMode:out.whiteVatMode, vatPct:out.vatPct, base:out.base, price:out.price, vatMode:out.vatMode})||!(cash>0)||Math.abs(cash-pin)>0.02)){
+      /* Prefer device pin over stale suggested server cash */
+      if(!cashAmtLooksSuggested({cashAmt:pin, invoiceNet:out.invoiceNet, invoiceTotal:out.invoiceTotal, whiteVatMode:out.whiteVatMode, vatPct:out.vatPct, base:out.base, price:out.price, vatMode:out.vatMode})){
+        cash=pin;
+      }
+    }
     if(cash>0){
       out.cashAmt=cash;
-      if((local&&local.cashAmtUser&&Math.abs((Number(local.cashAmt)||0)-cash)<0.02)||
-         (remote&&remote.cashAmtUser&&Math.abs((Number(remote.cashAmt)||0)-cash)<0.02)){
-        out.cashAmtUser=true;
-      }
-      /* Keep total = white + free cash */
+      out.cashAmtUser=true;
       var white=Number(out.invoiceTotal)||0;
       if(!(white>0)&&Number(out.invoiceNet)>0){
         white=leadMoney(Number(out.invoiceNet), out.whiteVatMode==="add"?"add":"include", out.vatPct).total;
@@ -4783,10 +4845,10 @@ function mergeLeadPair(remote, local){
       if(white>0||cash>0) out.total=Math.round((white+cash)*100)/100;
     }
   }
-  /* Prefer newer for other fields; already started from newer */
   if(older.cashAmtUser&&!out.cashAmtUser&&Math.abs((Number(older.cashAmt)||0)-(Number(out.cashAmt)||0))<0.02){
     out.cashAmtUser=true;
   }
+  applyLeadCashPin(out);
   return out;
 }
 /**
@@ -7950,22 +8012,13 @@ function leadCommissionGross(r){ return leadCommissionParts(r).gross; }
 function leadCommissionAmt(r){ return leadCommissionParts(r).total; }
 
 /**
- * Same-day extension / extra hours on a Charge.
- * Flag captainComm, or chargeKind "extension", or notes like "extra 3 hours".
+ * Captain commission on a charge — explicit choice only (checkbox on the charge).
+ * No auto-guess from notes (you decide per charge).
  */
 function isChargeCaptainComm(c){
   if(!c||!(apaNum(c.amount)>0)) return false;
-  if(c.captainComm===false||c.captainComm==="false") return false;
-  if(c.captainComm===true||c.captainComm==="true"||c.captainComm===1) return true;
-  if(String(c.chargeKind||"").toLowerCase()==="extension") return true;
-  if(c.kind==="extension") return true;
-  var n=String(c.notes||"").toLowerCase();
-  /* Existing Oliver-style notes: extra 3 hours, extension, +3h, overtime */
-  if(/\bexten(sion|ded)?\b/.test(n)) return true;
-  if(/\bextra\b/.test(n)&&(/\bhour|\bh\b|\bhrs\b|\d+\s*h/.test(n))) return true;
-  if(/\+\s*\d+\s*h/.test(n)) return true;
-  if(/\bovertime\b/.test(n)) return true;
-  return false;
+  if(c.captainComm===false||c.captainComm==="false"||c.captainComm===0) return false;
+  return c.captainComm===true||c.captainComm==="true"||c.captainComm===1;
 }
 function chargeExtHours(c){
   if(!c) return 0;
@@ -8087,7 +8140,7 @@ function renderCommissions(){
     }
   });
   wrap.innerHTML=html||emptyBox("💸","No commissions yet",
-    "Mark Lead source → Captain, or on a Charge tick <b>Captain commission (extension)</b> for same-day extra hours.");
+    "Mark Lead source → Captain, or on a Charge tick <b>I get commission on this charge</b>.");
   if(el("cmCount")) el("cmCount").textContent=String(items.length);
   if(el("cmBase")) el("cmBase").textContent=money(baseTot);
   if(el("cmTot")) el("cmTot").textContent=money(comTot);
@@ -8212,10 +8265,11 @@ function openSheet(type,id){
     var commOn=rec?isChargeCaptainComm(r):false;
     var extHDef=apaNum(r.extHours)>0?r.extHours:(chargeExtHours(r)||"");
     h+='<label class="checkrow"><input type="checkbox" id="f_captainComm"'+(commOn?" checked":"")+'>'+
-      '<span><div class="ck">Captain commission (extension / extra hours)</div>'+
-      '<div class="ch">Same-day extension you negotiated. Counts in Ops → Commissions at '+CAPTAIN_COMMISSION_PCT+'% of amount <b>before VAT</b> (e.g. €1,050 inc. VAT → ≈€130).</div></span></label>';
+      '<span><div class="ck">I get commission on this charge</div>'+
+      '<div class="ch">Tick only when you want '+CAPTAIN_COMMISSION_PCT+'% (e.g. same-day extension). Off = no commission. Ops → Commissions uses amount <b>before VAT</b>.</div></span></label>';
     h+='<div id="f_extHours_wrap" style="'+(commOn?"":"display:none")+'">'+
       fieldHTML("Extra hours (optional)",'<input class="ctl" id="f_extHours" inputmode="decimal" value="'+esc(extHDef)+'" placeholder="e.g. 3">')+
+      '<p style="margin:-6px 0 12px;font-size:12px;color:var(--muted)">Optional label only (e.g. +3 h). Does not change the amount.</p>'+
     '</div>';
     h+=fieldHTML("Notes",'<textarea class="ctl" id="f_notes" placeholder="e.g. Extra 3 hours extension">'+esc(r.notes)+'</textarea>');
   } else {
@@ -8590,12 +8644,14 @@ function saveSheet(type,rec){
       }
       var sug=sp.suggestedCash;
       if(sug>0&&Math.abs(o2.cashAmt-sug)<1&&Math.abs(o2.cashAmt-1800)>1){
-        /* Soft warn: looks like they kept the auto ex-VAT amount */
         if(!window.confirm("Cash is "+money0(o2.cashAmt)+" — that matches the auto “without VAT” suggestion.\n\nFor this deal free cash is often €1,800.\n\nSave "+money0(o2.cashAmt)+" anyway?")){
           if(el("f_cashBlack")){ el("f_cashBlack").focus(); el("f_cashBlack").value="1800"; }
           return;
         }
       }
+      /* Pin free cash on this device so polls cannot wipe it back to ≈€1653 */
+      leadCashPinSet(o2.id, o2.cashAmt);
+      o2.cashAmtUser=true;
     }
     upsert("leads",o2,rec); renderLeads(); save("leads");
     /* Cash (black) → APA pot = −cash so charter spend settles on Charges */
@@ -9160,8 +9216,14 @@ function applyData(d, opts){
   if(d.vapidPublicKey) pushMeta.vapidPublicKey=d.vapidPublicKey;
   sortCharters();
   sortLeads();
-  /* Repair dep/fin/total in memory only — never auto-save leads (re-saved whole array and wiped free cash). */
+  /* Device pin: free cash black (e.g. Michael €1800) restored if server still has ≈€1653 */
+  var cashPinsRestored=restoreAllLeadCashPins();
+  /* Repair dep/fin/total in memory only — never auto-save from repair alone. */
   repairLeadWhiteInvoices();
+  if(cashPinsRestored&&!DEMO){
+    touchLocalSave("leads");
+    save("leads"); /* push free cash back to server so it sticks for all devices */
+  }
   if(canOps()){
     /* Collapse cash-shell + real prepaid duplicates (e.g. two Joel Freeland pots) */
     mergeDuplicateApaTrips();
