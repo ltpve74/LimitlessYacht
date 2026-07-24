@@ -2218,22 +2218,36 @@ function ensureLeadCashApa(lead){
   renderApa(); renderCharters();
   return true;
 }
-/** Recompute deposit/final for black-split leads (white invoice only). */
+/**
+ * Recompute deposit/final for black-split leads (from stored white + cash).
+ * Never overwrite free cashAmt — that was wiping €1800 with “suggested” ≈€1653.
+ */
 function repairLeadWhiteInvoices(){
   var dirty=false;
   (state.leads||[]).forEach(function(l){
     if(!l||!leadHasSplit(l)) return;
-    var base=Number(l.base)!=null&&l.base!==""?Number(l.base):(Number(l.total)||0);
-    if(!(base>0)&&l.price) base=Number(l.price)||0;
+    var base=Number(l.base)!=null&&l.base!==""?Number(l.base):(Number(l.price)||0);
     if(!(base>0)&&l.rate&&l.days) base=(Number(l.rate)||0)*(Number(l.days)||1);
-    var sp=leadSplit(base, l.vatMode||"include", l.vatPct, true, l.invoiceTotal||l.invoiceNet, l.cashAmt, l.invoiceNet, l.dealNet, l.splitVatOnTop===true, l.whiteVatMode||"include");
+    var cashKeep=Math.round((Number(l.cashAmt)||0)*100)/100;
+    var sp=leadSplit(base, l.vatMode||"include", l.vatPct, true, l.invoiceTotal||l.invoiceNet, cashKeep, l.invoiceNet, l.dealNet, false, l.whiteVatMode||"include");
+    /* Force free cash — leadSplit may treat 0 as empty; always prefer stored cash when set */
+    if(cashKeep>0){
+      sp.cashAmt=cashKeep;
+      sp.cash=cashKeep;
+      sp.clientTotal=Math.round((Number(sp.invoiceTotal||0)+cashKeep)*100)/100;
+      sp.bookedTotal=sp.clientTotal;
+    }
     var p=leadParts(sp, l.depPct, l.apaPct);
     var ch=false;
     if(Math.abs((Number(l.fin)||0)-p.fin)>0.02){ l.fin=p.fin; ch=true; }
     if(Math.abs((Number(l.dep)||0)-p.dep)>0.02){ l.dep=p.dep; ch=true; }
     if(Math.abs((Number(l.invoiceTotal)||0)-sp.invoiceTotal)>0.02){ l.invoiceTotal=sp.invoiceTotal; ch=true; }
-    if(Math.abs((Number(l.cashAmt)||0)-sp.cashAmt)>0.02){ l.cashAmt=sp.cashAmt; ch=true; }
-    if(Math.abs((Number(l.total)||0)-p.client)>0.02){ l.total=p.client; ch=true; }
+    if(Math.abs((Number(l.invoiceNet)||0)-sp.invoiceNet)>0.02){ l.invoiceNet=sp.invoiceNet; ch=true; }
+    if(Math.abs((Number(l.invoiceVat)||0)-(sp.white&&sp.white.vat||0))>0.02){ l.invoiceVat=sp.white?sp.white.vat:0; ch=true; }
+    /* total always white + cash (preserve cashAmt) */
+    var tot=Math.round((Number(l.invoiceTotal||sp.invoiceTotal||0)+cashKeep)*100)/100;
+    if(Math.abs((Number(l.total)||0)-tot)>0.02){ l.total=tot; ch=true; }
+    if(sp.dealNet>0&&Math.abs((Number(l.dealNet)||0)-sp.dealNet)>0.02){ l.dealNet=sp.dealNet; ch=true; }
     if(ch) dirty=true;
   });
   return dirty;
@@ -2316,6 +2330,17 @@ function removeApaLinkedCharges(t, onlyUnpaid){
 function syncApaToCharge(t){
   if(!t||!String(t.guest||"").trim()) return null;
   if(!state.charters) state.charters=[];
+  var lead=apaLinkedLead(t);
+  var cashPot=Number(t.apaSent)<0||t.cashFromLead;
+  /* Sync free cash black from lead first (€1800 not suggested €1653) */
+  if(cashPot&&lead&&Number(lead.cashAmt)>0){
+    var leadCash=Math.round(Number(lead.cashAmt)*100)/100;
+    t.cashAmt=leadCash;
+    if(!t.cashSettled&&!(Number(t.topUps)>0)&&(Number(t.apaSent)<=0||t.cashFromLead)){
+      var wantNeg=Math.round((-leadCash)*100)/100;
+      if(Math.abs((Number(t.apaSent)||0)-wantNeg)>0.02) t.apaSent=wantNeg;
+    }
+  }
   var over=apaOverageAmount(t);
   var ch=findApaPendingCharge(t);
   if(over<=0){
@@ -2326,10 +2351,17 @@ function syncApaToCharge(t){
   }
   var pct=21;
   var gross=over;
-  var net=pct>0?gross/(1+pct/100):gross;
-  var vat=gross-net;
+  /* Cash-deal shortfall is cash + spend — not a VAT-included list price */
+  var net, vat;
+  if(cashPot){
+    pct=0;
+    net=gross;
+    vat=0;
+  } else {
+    net=pct>0?gross/(1+pct/100):gross;
+    vat=gross-net;
+  }
   var date="";
-  var lead=apaLinkedLead(t);
   if(lead&&lead.start) date=lead.start;
   if(!date&&t.expenses&&t.expenses.length){
     var sorted=t.expenses.slice().sort(function(a,b){return String(a.date||"").localeCompare(String(b.date||""));});
@@ -2338,7 +2370,7 @@ function syncApaToCharge(t){
   if(!date) date=new Date().toISOString().slice(0,10);
   var x=apaTotals(t);
   var zeroPot=!apaHasPrepaid(t);
-  var cashPot=Number(t.apaSent)<0||t.cashFromLead;
+  cashPot=Number(t.apaSent)<0||t.cashFromLead;
   var note=cashPot
     ?"Cash (black) + charter spend — synced from APA ledger"
     :(zeroPot
@@ -2350,7 +2382,7 @@ function syncApaToCharge(t){
   if(ch){
     ch.client=t.guest;
     ch.amount=gross;
-    ch.net=net; ch.vat=vat; ch.vatPct=pct; ch.vatMode="include";
+    ch.net=net; ch.vat=vat; ch.vatPct=pct; ch.vatMode=cashPot?"none":"include";
     ch.kind="apa";
     ch.apaTripId=t.id;
     ch.apaZeroPot=zeroPot;
@@ -2368,7 +2400,7 @@ function syncApaToCharge(t){
       id:uid(), kind:"apa", apaTripId:t.id, apaZeroPot:zeroPot, cashDeal:!!cashPot,
       cashAmt:cashPot?(Number(t.cashAmt)||0):0,
       date:date, client:t.guest,
-      amount:gross, net:net, vat:vat, vatPct:pct, vatMode:"include",
+      amount:gross, net:net, vat:vat, vatPct:pct, vatMode:cashPot?"none":"include",
       payStatus:"Pending", payMethod:cashPot?"Cash":"Card",
       invStatus:"Not issued", status:"Pending",
       inv:"", notes:note, by:session.who||"Captain"
