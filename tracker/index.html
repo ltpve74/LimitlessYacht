@@ -4437,14 +4437,41 @@ function mergeExpensesById(local, remote){
   return out;
 }
 /** After a local save, ignore poll overwrites for a short window. */
-var lastLocalSaveAt={expenses:0, expPetty:0, stewAssign:0};
+var lastLocalSaveAt={expenses:0, expPetty:0, stewAssign:0, leads:0, charters:0, apa:0};
 function touchLocalSave(coll){
   if(coll) lastLocalSaveAt[coll]=Date.now();
 }
 function localSaveIsFresh(coll, ms){
-  ms=ms||12000;
+  ms=ms||15000;
   var t=lastLocalSaveAt[coll]||0;
   return t>0&&(Date.now()-t)<ms;
+}
+/**
+ * Merge remote leads with local by id — newer updatedAt wins.
+ * Prevents a stale poll (still €1653 cash) from wiping a just-saved €1800.
+ */
+function mergeLeadsById(local, remote){
+  var by={};
+  function take(l, preferIfTie){
+    if(!l||!l.id) return;
+    var cur=by[l.id];
+    if(!cur){ by[l.id]=l; return; }
+    var ct=String(cur.updatedAt||"");
+    var pt=String(l.updatedAt||"");
+    if(pt>ct) by[l.id]=l;
+    else if(pt===ct&&preferIfTie) by[l.id]=l;
+    else if(!ct&&pt) by[l.id]=l;
+  }
+  (remote||[]).forEach(function(l){ take(l, false); });
+  (local||[]).forEach(function(l){ take(l, true); });
+  var out=[], seen={};
+  (local||[]).forEach(function(l){
+    if(l&&l.id&&by[l.id]&&!seen[l.id]){ out.push(by[l.id]); seen[l.id]=1; }
+  });
+  (remote||[]).forEach(function(l){
+    if(l&&l.id&&by[l.id]&&!seen[l.id]){ out.push(by[l.id]); seen[l.id]=1; }
+  });
+  return out;
 }
 function expLinesForMonth(month){
   return (state.expenses||[]).filter(function(e){return e&&expMonthKey(e.date)===month;});
@@ -7416,17 +7443,21 @@ function leadSplit(base, vatMode, vatPctRaw, splitOn, whiteAmtRaw, cashBlackRaw,
   var wMode=whiteVatModeRaw||"include";
   if(wMode!=="add"&&wMode!=="none"&&wMode!=="include") wMode="include";
   if(pct<=0) wMode="none";
-  var whiteAmt=Number(whiteAmtRaw);
-  if(isNaN(whiteAmt)||whiteAmt<0) whiteAmt=0;
-  var legNet=Number(legacyInvoiceNetRaw);
-  if(!(whiteAmt>0)&&!isNaN(legNet)&&legNet>0){
+  /* apaNum so "1.800" / "1,800" still mean eighteen hundred, not 1.8 / NaN */
+  var whiteAmt=apaNum(whiteAmtRaw);
+  if(whiteAmt<0) whiteAmt=0;
+  var legNet=apaNum(legacyInvoiceNetRaw);
+  if(!(whiteAmt>0)&&legNet>0){
     whiteAmt=legNet;
     wMode="add";
   }
   var white=leadMoney(whiteAmt, wMode, vatPctRaw);
   var suggestedCash=Math.round(Math.max(0, dealNet-white.net)*100)/100;
-  var cash=Number(cashBlackRaw);
-  if(cashBlackRaw===""||cashBlackRaw==null||isNaN(cash)||cash<0) cash=0;
+  var cash=0;
+  if(cashBlackRaw!==""&&cashBlackRaw!=null){
+    cash=apaNum(cashBlackRaw);
+    if(cash<0||!isFinite(cash)) cash=0;
+  }
   cash=Math.round(cash*100)/100;
   var onTop=(vatOnTop===true||vatOnTop==="top"||vatOnTop==="add"||vatOnTop===1||vatOnTop==="1");
   /* Client pays = white invoice total + cash black (e.g. 2000 + 1800 = 3800) */
@@ -8041,9 +8072,12 @@ function save(coll){
   var hint=el("saveHint");
   if(DEMO){ hint.textContent="Saved (demo — not stored)"; hint.className="savehint saved"; return; }
   hint.textContent="Saving…"; hint.className="savehint saving";
-  if(coll==="expenses"||coll==="expPetty"||coll==="stewAssign") touchLocalSave(coll);
-  api("save",{collection:coll,rows:state[coll],pushEndpoint:pushMeta.endpoint||""}).then(function(){
-    if(coll==="expenses"||coll==="expPetty"||coll==="stewAssign") touchLocalSave(coll);
+  /* Snapshot now so a concurrent poll cannot mutate the payload mid-flight */
+  var rows=state[coll];
+  try{ rows=JSON.parse(JSON.stringify(state[coll]||[])); }catch(e){ rows=state[coll]; }
+  if(coll==="expenses"||coll==="expPetty"||coll==="stewAssign"||coll==="leads"||coll==="charters"||coll==="apa") touchLocalSave(coll);
+  api("save",{collection:coll,rows:rows,pushEndpoint:pushMeta.endpoint||""}).then(function(){
+    if(coll==="expenses"||coll==="expPetty"||coll==="stewAssign"||coll==="leads"||coll==="charters"||coll==="apa") touchLocalSave(coll);
     hint.textContent="All changes saved ✓"; hint.className="savehint saved";
   })
     .catch(function(e){ hint.textContent=(e&&e.code===401)?"Session expired — reload":"Couldn't save — check connection"; hint.className="savehint error"; });
@@ -8311,9 +8345,31 @@ function applyData(d, opts){
   opts=opts||{};
   var fromPoll=!!opts.fromPoll;
   if(!d)return;
-  state.charters=d.charters||[]; state.leads=d.leads||[]; state.devices=d.devices||[]; state.log=d.log||[];
-  if(canOps() && Array.isArray(d.apa)) state.apa=d.apa;
-  else if(!canOps()) state.apa=[];
+  /* Leads: never let a stale poll wipe free cashAmt (€1800 → €1653 race) */
+  if(fromPoll&&localSaveIsFresh("leads")){
+    /* keep local leads while save settles */
+  } else if(fromPoll&&Array.isArray(d.leads)){
+    state.leads=mergeLeadsById(state.leads, d.leads);
+  } else {
+    state.leads=d.leads||[];
+  }
+  if(fromPoll&&localSaveIsFresh("charters")){
+    /* keep local charges */
+  } else if(fromPoll&&Array.isArray(d.charters)){
+    state.charters=mergeExpensesById(state.charters||[], d.charters||[]);
+  } else {
+    state.charters=d.charters||[];
+  }
+  state.devices=d.devices||[]; state.log=d.log||[];
+  if(canOps() && Array.isArray(d.apa)){
+    if(fromPoll&&localSaveIsFresh("apa")){
+      /* keep local APA pots (cash black pin) while save settles */
+    } else if(fromPoll){
+      state.apa=mergeExpensesById(state.apa||[], d.apa);
+    } else {
+      state.apa=d.apa;
+    }
+  } else if(!canOps()) state.apa=[];
   if(canOps() && Array.isArray(d.diesel)) state.diesel=d.diesel;
   else if(!canOps()) state.diesel=[];
   if(isCaptain() && Array.isArray(d.stews)) state.stews=d.stews;
@@ -8348,7 +8404,9 @@ function applyData(d, opts){
   if(d.vapidPublicKey) pushMeta.vapidPublicKey=d.vapidPublicKey;
   sortCharters();
   sortLeads();
-  if(repairLeadWhiteInvoices()){ if(!DEMO) save("leads"); }
+  /* Repair dep/fin/total in memory. Never re-save leads on poll — that raced with cash edits and wrote €1653 back. */
+  var leadsRepaired=repairLeadWhiteInvoices();
+  if(leadsRepaired&&!DEMO&&!fromPoll) save("leads");
   if(canOps()){
     /* Collapse cash-shell + real prepaid duplicates (e.g. two Joel Freeland pots) */
     mergeDuplicateApaTrips();
