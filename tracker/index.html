@@ -448,7 +448,7 @@
         <div class="sumcard"><div class="l">Base (ex VAT)</div><div class="v money" id="cmBase">€0</div></div>
         <div class="sumcard"><div class="l">Commission 15%</div><div class="v money" id="cmTot">€0</div></div>
       </div>
-      <div class="legend">Captain leads only. <b>Normal:</b> 15% of charter before VAT (€12k inc. VAT → ≈€9,917 → ≈€1,488). <b>Split:</b> 15% of white before VAT <b>+</b> 15% of cash black.</div>
+      <div class="legend">Captain leads + <b>extension charges</b> (same-day extra hours). Lead: 15% of charter before VAT (split = white ex VAT + cash). Extension charge: 15% of amount before VAT (e.g. €1,050 inc. VAT → ≈€130).</div>
       <div class="list" id="cmList"></div>
     </section>
 
@@ -953,12 +953,16 @@ function renderCharters(){
     if(bt==="mix"){
       splitMeta='<span class="pill p-cash">Cash '+money0(cashP)+'</span><span class="pill p-card">Invoice '+money0(invP)+'</span>';
     }
+    var isExt=isChargeCaptainComm(r);
+    var extH=chargeExtHours(r);
+    var extComm=isExt?chargeCommissionAmt(r):0;
     html+='<div class="item" data-edit-ch="'+esc(r.id)+'">'+
-      '<div class="top"><div class="title">'+esc(r.client||"—")+(isApa?' <span class="pill p-apa">APA</span>':'')+(apaReq?' <span class="pill p-amber">Invoice request</span>':'')+'</div><div class="amt money">'+money0(r.amount)+'</div></div>'+
+      '<div class="top"><div class="title">'+esc(r.client||"—")+(isApa?' <span class="pill p-apa">APA</span>':'')+(isExt?' <span class="pill p-amber">Extension</span>':'')+(apaReq?' <span class="pill p-amber">Invoice request</span>':'')+'</div><div class="amt money">'+money0(r.amount)+'</div></div>'+
       '<div class="meta">'+(r.date?'<span>📅 '+esc(fmtDate(r.date))+'</span>':'')+
         billTypePill(r)+
         (bt==="invoice"||bt==="mix"?(v.pct?'<span>IVA '+v.pct+'% on invoice part</span>':'<span>Invoice (no VAT)</span>'):'<span>Cash settlement</span>')+
         pill(pay)+payMethodPill(pm)+invPill+splitMeta+
+        (isExt?'<span class="pill p-green">Comm '+money(extComm)+(extH>0?" · +"+extH+"h":"")+'</span>':'')+
         (cashBoat>0?'<span class="pill p-cash">→ pot '+money0(cashBoat)+'</span>':'')+
         (r.inv?'<span>#'+esc(r.inv)+'</span>':'')+'</div>'+
       (r.notes?'<div class="notes">'+esc(r.notes)+'</div>':'')+
@@ -7944,46 +7948,151 @@ function leadCommissionParts(r){
 function leadCommissionBase(r){ return leadCommissionParts(r).base; }
 function leadCommissionGross(r){ return leadCommissionParts(r).gross; }
 function leadCommissionAmt(r){ return leadCommissionParts(r).total; }
+
+/**
+ * Same-day extension / extra hours on a Charge.
+ * Flag captainComm, or chargeKind "extension", or notes like "extra 3 hours".
+ */
+function isChargeCaptainComm(c){
+  if(!c||!(apaNum(c.amount)>0)) return false;
+  if(c.captainComm===false||c.captainComm==="false") return false;
+  if(c.captainComm===true||c.captainComm==="true"||c.captainComm===1) return true;
+  if(String(c.chargeKind||"").toLowerCase()==="extension") return true;
+  if(c.kind==="extension") return true;
+  var n=String(c.notes||"").toLowerCase();
+  /* Existing Oliver-style notes: extra 3 hours, extension, +3h, overtime */
+  if(/\bexten(sion|ded)?\b/.test(n)) return true;
+  if(/\bextra\b/.test(n)&&(/\bhour|\bh\b|\bhrs\b|\d+\s*h/.test(n))) return true;
+  if(/\+\s*\d+\s*h/.test(n)) return true;
+  if(/\bovertime\b/.test(n)) return true;
+  return false;
+}
+function chargeExtHours(c){
+  if(!c) return 0;
+  if(apaNum(c.extHours)>0) return apaNum(c.extHours);
+  var n=String(c.notes||"");
+  var m=n.match(/(?:extra|extension|extended|overtime|\+)\s*(\d+(?:[.,]\d+)?)\s*h/i)
+    ||n.match(/(\d+(?:[.,]\d+)?)\s*(?:extra\s*)?h(?:ou)?rs?/i);
+  if(m) return apaNum(m[1]);
+  return 0;
+}
+/**
+ * Commission on an extension charge:
+ *   VAT-included amount → strip VAT → 15%
+ *   Cash-only charge → 15% of full amount (no VAT)
+ *   Mix → 15% of invoice part before VAT + 15% of cash part
+ */
+function chargeCommissionParts(c){
+  var empty={base:0, total:0, gross:0, detail:"", hours:0, client:"", date:"", id:""};
+  if(!c||!isChargeCaptainComm(c)) return empty;
+  var pctRate=CAPTAIN_COMMISSION_PCT/100;
+  var gross=apaNum(c.amount);
+  if(!(gross>0)) return empty;
+  var hours=chargeExtHours(c);
+  var bt=chargeBillType(c);
+  var base=0, detail="";
+  if(bt==="cash"||c.vatMode==="none"){
+    base=gross;
+    detail=money(gross)+" cash → "+CAPTAIN_COMMISSION_PCT+"% = "+money(Math.round(base*pctRate*100)/100);
+  } else if(bt==="mix"){
+    var cashP=chargeCashPart(c);
+    var invP=chargeInvoicePart(c);
+    var invBase=invP>0?invP/(1+leadCommissionVatPct(c)/100):0;
+    base=Math.round((invBase+cashP)*100)/100;
+    detail="Invoice part before VAT "+money(invBase)+" + cash "+money(cashP)+" → "+CAPTAIN_COMMISSION_PCT+"% = "+money(Math.round(base*pctRate*100)/100);
+  } else {
+    /* invoice / VAT included (Oliver €1,050 extra 3h) */
+    var vp=leadCommissionVatPct(c);
+    if(c.vatMode==="add"&&Number(c.net)>0&&Number(c.net)<gross*0.99){
+      base=Math.round(Number(c.net)*100)/100;
+    } else {
+      base=Math.round(gross/(1+vp/100)*100)/100;
+    }
+    detail=money(gross)+" inc. VAT → before VAT "+money(base)+" × "+CAPTAIN_COMMISSION_PCT+"% = "+money(Math.round(base*pctRate*100)/100);
+  }
+  var total=Math.round(base*pctRate*100)/100;
+  return {
+    base:base, total:total, gross:gross, detail:detail, hours:hours,
+    client:c.client||"", date:c.date||"", id:c.id||"",
+    source:"charge", charge:c
+  };
+}
+function chargeCommissionAmt(c){ return chargeCommissionParts(c).total; }
 function renderCommissions(){
   var wrap=el("cmList"); if(!wrap) return;
   if(!isCaptain()){
     wrap.innerHTML=emptyBox("💸","Captain only","Commissions are private to the captain.");
     return;
   }
-  var rows=(state.leads||[]).filter(isCaptainLead).slice().sort(function(a,b){
-    var da=String(a.closed||a.start||""), db=String(b.closed||b.start||"");
-    if(da&&db&&da!==db) return db<da?-1:1;
+  var items=[];
+  (state.leads||[]).filter(isCaptainLead).forEach(function(r){
+    var p=leadCommissionParts(r);
+    items.push({
+      sort:String(r.closed||r.start||""),
+      title:r.name||"—",
+      total:p.total, base:p.base, p:p, kind:"lead", rec:r
+    });
+  });
+  (state.charters||[]).forEach(function(c){
+    if(!isChargeCaptainComm(c)) return;
+    var p=chargeCommissionParts(c);
+    if(!(p.total>0)) return;
+    items.push({
+      sort:String(c.date||""),
+      title:c.client||"Extension",
+      total:p.total, base:p.base, p:p, kind:"extension", rec:c
+    });
+  });
+  items.sort(function(a,b){
+    if(a.sort&&b.sort&&a.sort!==b.sort) return b.sort<a.sort?-1:1;
     return 0;
   });
   var baseTot=0, comTot=0, html="";
-  rows.forEach(function(r){
-    var p=leadCommissionParts(r);
-    baseTot+=p.base; comTot+=p.total;
-    html+='<div class="item" data-edit-ld="'+esc(r.id)+'">'+
-      '<div class="top"><div class="title">'+esc(r.name||"—")+'</div><div class="amt money">'+money(p.total)+'</div></div>'+
-      '<div class="meta">'+
-        (r.closed?'<span>Closed '+esc(fmtDate(r.closed))+'</span>':'')+
-        (r.start?'<span>'+esc(fmtDate(r.start))+(r.end&&r.end!==r.start?"–"+esc(fmtDate(r.end)):"")+'</span>':'')+
-        '<span class="pill p-blue">Captain lead</span>'+
-        (p.split?'<span class="pill p-black">Split deal</span>':'')+
-      '</div>';
-    if(p.split){
-      html+='<div class="notes" style="font-style:normal;line-height:1.5">'+
-        '<div>White before VAT <b class="money">'+money(p.whiteBeforeVat)+'</b> × '+CAPTAIN_COMMISSION_PCT+'% = <b class="money">'+money(p.whiteComm)+'</b></div>'+
-        '<div>Cash black <b class="money">'+money(p.cashBlack)+'</b> × '+CAPTAIN_COMMISSION_PCT+'% = <b class="money">'+money(p.cashComm)+'</b></div>'+
-        '<div style="margin-top:4px">Commission total <b class="money">'+money(p.total)+'</b></div>'+
-      '</div>';
+  items.forEach(function(it){
+    baseTot+=it.base; comTot+=it.total;
+    if(it.kind==="lead"){
+      var r=it.rec, p=it.p;
+      html+='<div class="item" data-edit-ld="'+esc(r.id)+'">'+
+        '<div class="top"><div class="title">'+esc(r.name||"—")+'</div><div class="amt money">'+money(p.total)+'</div></div>'+
+        '<div class="meta">'+
+          (r.closed?'<span>Closed '+esc(fmtDate(r.closed))+'</span>':'')+
+          (r.start?'<span>'+esc(fmtDate(r.start))+(r.end&&r.end!==r.start?"–"+esc(fmtDate(r.end)):"")+'</span>':'')+
+          '<span class="pill p-blue">Captain lead</span>'+
+          (p.split?'<span class="pill p-black">Split deal</span>':'')+
+        '</div>';
+      if(p.split){
+        html+='<div class="notes" style="font-style:normal;line-height:1.5">'+
+          '<div>White before VAT <b class="money">'+money(p.whiteBeforeVat)+'</b> × '+CAPTAIN_COMMISSION_PCT+'% = <b class="money">'+money(p.whiteComm)+'</b></div>'+
+          '<div>Cash black <b class="money">'+money(p.cashBlack)+'</b> × '+CAPTAIN_COMMISSION_PCT+'% = <b class="money">'+money(p.cashComm)+'</b></div>'+
+          '<div style="margin-top:4px">Commission total <b class="money">'+money(p.total)+'</b></div>'+
+        '</div>';
+      } else {
+        html+='<div class="notes" style="font-style:normal;color:var(--muted)">'+esc(p.detail)+'</div>';
+      }
+      html+='</div>';
     } else {
-      html+='<div class="notes" style="font-style:normal;color:var(--muted)">'+esc(p.detail)+'</div>';
+      var c=it.rec, cp=it.p;
+      html+='<div class="item" data-edit-ch="'+esc(c.id)+'">'+
+        '<div class="top"><div class="title">'+esc(c.client||"Extension")+'</div><div class="amt money">'+money(cp.total)+'</div></div>'+
+        '<div class="meta">'+
+          (c.date?'<span>📅 '+esc(fmtDate(c.date))+'</span>':'')+
+          '<span class="pill p-amber">Extension</span>'+
+          (cp.hours>0?'<span>+'+esc(String(cp.hours))+' h</span>':'')+
+          '<span class="pill p-green">Captain comm</span>'+
+          '<span>Charge '+money0(cp.gross)+'</span>'+
+        '</div>'+
+        '<div class="notes" style="font-style:normal;color:var(--muted)">'+esc(cp.detail)+
+          (c.notes?' · '+esc(c.notes):'')+
+        '</div></div>';
     }
-    html+='</div>';
   });
-  wrap.innerHTML=html||emptyBox("💸","No captain leads yet",
-    "Mark Lead source → Captain. Normal: "+CAPTAIN_COMMISSION_PCT+"% of charter before VAT. Split: "+CAPTAIN_COMMISSION_PCT+"% of white before VAT + "+CAPTAIN_COMMISSION_PCT+"% of cash black.");
-  if(el("cmCount")) el("cmCount").textContent=String(rows.length);
+  wrap.innerHTML=html||emptyBox("💸","No commissions yet",
+    "Mark Lead source → Captain, or on a Charge tick <b>Captain commission (extension)</b> for same-day extra hours.");
+  if(el("cmCount")) el("cmCount").textContent=String(items.length);
   if(el("cmBase")) el("cmBase").textContent=money(baseTot);
   if(el("cmTot")) el("cmTot").textContent=money(comTot);
   bindEdit(wrap,"data-edit-ld","lead");
+  bindEdit(wrap,"data-edit-ch","charter");
 }
 function selLeadSourceField(val){
   var v=val==="captain"?"captain":"other";
@@ -8100,7 +8209,15 @@ function openSheet(type,id){
     h+='<div id="f_inv_fields_wrap" style="'+(bt0==="cash"?"display:none":"")+'">'+
       '<div class="row2">'+fieldHTML("Invoice (manager)",selInvField(invSt=== "Not needed"?"Not issued":invSt))+fieldHTML("Invoice # (manager)",'<input class="ctl" id="f_inv" value="'+esc(r.inv)+'" placeholder="fill when issued">')+'</div>'+
     '</div>';
-    h+=fieldHTML("Notes",'<textarea class="ctl" id="f_notes" placeholder="optional">'+esc(r.notes)+'</textarea>');
+    var commOn=rec?isChargeCaptainComm(r):false;
+    var extHDef=apaNum(r.extHours)>0?r.extHours:(chargeExtHours(r)||"");
+    h+='<label class="checkrow"><input type="checkbox" id="f_captainComm"'+(commOn?" checked":"")+'>'+
+      '<span><div class="ck">Captain commission (extension / extra hours)</div>'+
+      '<div class="ch">Same-day extension you negotiated. Counts in Ops → Commissions at '+CAPTAIN_COMMISSION_PCT+'% of amount <b>before VAT</b> (e.g. €1,050 inc. VAT → ≈€130).</div></span></label>';
+    h+='<div id="f_extHours_wrap" style="'+(commOn?"":"display:none")+'">'+
+      fieldHTML("Extra hours (optional)",'<input class="ctl" id="f_extHours" inputmode="decimal" value="'+esc(extHDef)+'" placeholder="e.g. 3">')+
+    '</div>';
+    h+=fieldHTML("Notes",'<textarea class="ctl" id="f_notes" placeholder="e.g. Extra 3 hours extension">'+esc(r.notes)+'</textarea>');
   } else {
     r=rec||{closed:"",name:"",dur:"8h",start:"",end:"",rate:"",price:"",vatMode:"include",vatPct:"21",split:false,dealNet:"",invoiceNet:"",invoiceTotal:"",cashAmt:"",leadSource:"other",splitVatOnTop:true,deps:"Not requested",fins:"Not requested",apas:"Not requested",depPct:"50",apaPct:"",depInv:"",finInv:"",apaInv:"",notes:""};
     var ldur=r.dur||"8h";
@@ -8251,6 +8368,14 @@ function openSheet(type,id){
       recalcCharge();
     });
     if(el("f_cashPaid")) el("f_cashPaid").addEventListener("input",recalcCharge);
+    if(el("f_captainComm")){
+      el("f_captainComm").addEventListener("change",function(){
+        var on=!!el("f_captainComm").checked;
+        if(el("f_extHours_wrap")) el("f_extHours_wrap").style.display=on?"":"none";
+        recalcCharge();
+      });
+    }
+    if(el("f_extHours")) el("f_extHours").addEventListener("input",recalcCharge);
     syncChargeBillUi();
   } else recalcLead();
   showSheet(true);
@@ -8287,6 +8412,17 @@ function recalcCharge(){
       '<div class="cl hi"><span>To invoice</span><b>'+money(gross)+'</b></div>';
   }
   if(cash>0) html+='<div class="cl"><span>→ Boat cash pot (when Paid)</span><b>'+money(cash)+'</b></div>';
+  if(el("f_captainComm")&&el("f_captainComm").checked&&gross>0){
+    var draft={
+      amount:gross, billType:bt, vatMode:bt==="cash"?"none":"include", vatPct:bt==="cash"?0:21,
+      cashPaid:cash, captainComm:true, chargeKind:"extension",
+      extHours:apaNum(el("f_extHours")?el("f_extHours").value:0),
+      notes:el("f_notes")?el("f_notes").value:""
+    };
+    var cp=chargeCommissionParts(draft);
+    html+='<div class="cl hi"><span>Your commission ('+CAPTAIN_COMMISSION_PCT+'%)</span><b>'+money(cp.total)+'</b></div>'+
+      '<div class="meta" style="margin-top:2px">Before VAT '+money(cp.base)+(cp.hours>0?" · +"+cp.hours+" h":"")+'</div>';
+  }
   box.innerHTML=html;
 }
 
@@ -8331,20 +8467,36 @@ function saveSheet(type,rec){
       var spI=invoiceSplitGross(gross, 21);
       net=spI.net; vat=spI.vat; vatPct=spI.pct;
     }
+    var captainComm=!!(el("f_captainComm")&&el("f_captainComm").checked);
+    var extHours=apaNum(el("f_extHours")?el("f_extHours").value:0);
+    var notesTxt=el("f_notes").value.trim();
     var obj={ id:rec?rec.id:uid(), date:el("f_date").value, client:el("f_client").value.trim(),
       amount:gross, billType:billType, vatMode:vatMode, vatPct:vatPct, net:net, vat:vat,
       payStatus:payStatus, payMethod:payMethod, cashPaid:cashPaid>0?Math.round(cashPaid*100)/100:0,
       invStatus:invStatus,
       status:invStatus==="Issued"?"Invoiced":(invStatus==="Not needed"?payStatus:payStatus),
       inv:el("f_inv")?el("f_inv").value.trim():"",
-      notes:el("f_notes").value.trim(), by:session.who };
+      notes:notesTxt, by:session.who,
+      captainComm:captainComm,
+      chargeKind:captainComm?"extension":"",
+      extHours:captainComm&&extHours>0?extHours:0 };
     /* Keep APA linkage when editing payment / invoice status */
     if(rec){
-      if(rec.kind) obj.kind=rec.kind;
-      if(rec.apaTripId) obj.apaTripId=rec.apaTripId;
+      if(rec.kind==="apa"||rec.apaTripId){
+        obj.kind="apa";
+        if(rec.apaTripId) obj.apaTripId=rec.apaTripId;
+      } else if(captainComm){
+        obj.kind="extension";
+      } else if(rec.kind&&rec.kind!=="extension"){
+        obj.kind=rec.kind;
+      } else {
+        obj.kind="";
+      }
       if(rec.cashDeal) obj.cashDeal=rec.cashDeal;
       if(rec.cashAmt!=null) obj.cashAmt=rec.cashAmt;
       if(rec.apaZeroPot!=null) obj.apaZeroPot=rec.apaZeroPot;
+    } else if(captainComm){
+      obj.kind="extension";
     }
     if(billType==="mix"||billType==="cash"){
       if(!(obj.cashAmt>0)&&cashPaid>0) obj.cashAmt=cashPaid;
@@ -8363,6 +8515,7 @@ function saveSheet(type,rec){
       syncChargeCashToPetty(obj);
       saveExpPetty();
       if(curTab==="expenses") renderExpenses();
+      if(curTab==="commissions") renderCommissions();
     }
   } else {
     var dur=el("f_dur").value;
