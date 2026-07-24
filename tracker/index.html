@@ -448,7 +448,7 @@
         <div class="sumcard"><div class="l">Base (ex VAT)</div><div class="v money" id="cmBase">€0</div></div>
         <div class="sumcard"><div class="l">Commission 15%</div><div class="v money" id="cmTot">€0</div></div>
       </div>
-      <div class="legend">Only leads marked <b>Captain</b>. Commission = <b>15%</b> of charter <b>before VAT</b> — e.g. €12,000 VAT included → base ≈ €9,917 → commission ≈ €1,488 (never 15% of the VAT-included total).</div>
+      <div class="legend">Captain leads only. <b>Normal:</b> 15% of charter before VAT (€12k inc. VAT → ≈€9,917 → ≈€1,488). <b>Split:</b> 15% of white before VAT <b>+</b> 15% of cash black.</div>
       <div class="list" id="cmList"></div>
     </section>
 
@@ -751,7 +751,7 @@ function renderOpsHub(){
     {id:"diesel",ic:"⛽",t:"Diesel",d:"Bunker, tank levels, sell price"},
     {id:"stews",ic:"👩‍✈️",t:"Stews",d:"Roster, day pay, tips (private)"},
     {id:"expenses",ic:"💶",t:"Expenses",d:"Monthly boat ledger + export for manager"},
-    {id:"commissions",ic:"💸",t:"Commissions",d:CAPTAIN_COMMISSION_PCT+"% of charter before VAT — captain leads only"}
+    {id:"commissions",ic:"💸",t:"Commissions",d:CAPTAIN_COMMISSION_PCT+"% white (ex VAT) + "+CAPTAIN_COMMISSION_PCT+"% cash black on split deals"}
   ];
   grid.innerHTML=tiles.map(function(x){
     return '<button type="button" class="ops-tile" data-ops-go="'+esc(x.id)+'">'+
@@ -7834,19 +7834,23 @@ function leadSource(r){
 }
 function isCaptainLead(r){ return leadSource(r)==="captain"; }
 /**
- * Charter amount BEFORE VAT (commission base).
+ * Commission math (captain leads only):
  *
- * Joel: €12,000 VAT *included* → base = 12000/1.21 ≈ €9,917.36
- *        commission 15% ≈ €1,487.60  (NOT €1,800 = 15% of 12k).
+ * Normal (VAT included, e.g. Joel €12k):
+ *   base = total ÷ 1.21   →  15% × base
  *
- * Spanish charters are VAT-included by default. Only skip stripping when
- * vatMode is explicitly "none". Empty/0 vatPct still means 21%.
+ * Split deal:
+ *   whiteBeforeVat = white invoice stripped of VAT (or full white if no VAT)
+ *   cashBlack      = free cash (no VAT)
+ *   commission     = 15% × whiteBeforeVat  +  15% × cashBlack
+ *
+ * Explicit vatMode "none" → no strip. Empty/0 vat% still means 21%.
  */
 function leadCommissionVatPct(r){
   var raw=r&&r.vatPct;
   if(raw===""||raw==null) return 21;
   var n=Number(raw);
-  if(!isFinite(n)||n<=0) return 21; /* never treat missing VAT as 0% */
+  if(!isFinite(n)||n<=0) return 21;
   return n;
 }
 function leadCommissionGrossAmount(r){
@@ -7857,79 +7861,89 @@ function leadCommissionGrossAmount(r){
   if(!(g>0)&&r.rate&&r.days) g=(Number(r.rate)||0)*(Number(r.days)||1);
   return Math.round((g||0)*100)/100;
 }
-function leadCommissionBase(r){
+/** White invoice amount before VAT (split deals). */
+function leadCommissionWhiteBeforeVat(r){
   if(!r) return 0;
   var pct=leadCommissionVatPct(r);
+  var whiteGross=Number(r.invoiceTotal)||0;
+  var whiteNet=Number(r.invoiceNet)||0;
+  var wMode=String(r.whiteVatMode||"include").toLowerCase();
+  if(!(whiteGross>0)&&!(whiteNet>0)) return 0;
+  if(wMode==="none"){
+    return Math.round((whiteGross>0?whiteGross:whiteNet)*100)/100;
+  }
+  if(wMode==="add"){
+    /* Amount was entered ex-VAT (add VAT on top) → use net / amount as base */
+    if(whiteNet>0&&whiteNet<whiteGross*0.99) return Math.round(whiteNet*100)/100;
+    if(whiteGross>0) return Math.round(whiteGross*100)/100; /* form stores net as total when add */
+    return Math.round(whiteNet*100)/100;
+  }
+  /* include (default): white total is VAT-included → strip */
+  if(whiteGross>0){
+    if(whiteNet>0&&whiteNet<whiteGross*0.95) return Math.round(whiteNet*100)/100;
+    return Math.round(whiteGross/(1+pct/100)*100)/100;
+  }
+  /* only net stored */
+  return Math.round(whiteNet*100)/100;
+}
+/**
+ * Full breakdown for UI + totals.
+ * { split, whiteBeforeVat, cashBlack, base, whiteComm, cashComm, total, gross, detail }
+ */
+function leadCommissionParts(r){
+  var pctRate=CAPTAIN_COMMISSION_PCT/100;
+  var empty={split:false, whiteBeforeVat:0, cashBlack:0, base:0, whiteComm:0, cashComm:0, total:0, gross:0, detail:""};
+  if(!r) return empty;
+  var pct=leadCommissionVatPct(r);
   var mode=String(r.vatMode||"include").toLowerCase();
+  var isSplit=!!(r.split===true||r.splitCash===true||r.split==="true"||r.splitCash==="true"||leadHasSplit(r));
 
-  /* Split: white may include VAT; cash black has no VAT */
-  if(r.split===true||r.splitCash===true||r.split==="true"||r.splitCash==="true"){
-    var whiteGross=Number(r.invoiceTotal)||0;
-    var whiteNet=Number(r.invoiceNet)||0;
-    var wMode=String(r.whiteVatMode||"include").toLowerCase();
-    if(whiteGross>0){
-      if(wMode==="none"){
-        whiteNet=whiteGross;
-      } else if(wMode==="add"){
-        /* invoiceTotal may be gross with VAT; prefer net field if sensible */
-        if(!(whiteNet>0)||whiteNet>=whiteGross-0.01) whiteNet=whiteGross; /* amount was ex-VAT */
-        /* if whiteGross looks like VAT-included (net stored lower), use net */
-        if(Number(r.invoiceNet)>0&&Number(r.invoiceNet)<whiteGross*0.95) whiteNet=Number(r.invoiceNet);
-      } else {
-        /* include — strip VAT from white invoice total */
-        if(whiteNet>0&&whiteNet<whiteGross*0.95){
-          /* keep stored white net */
-        } else {
-          whiteNet=whiteGross/(1+pct/100);
-        }
-      }
-    } else if(whiteNet>0&&wMode==="add"){
-      /* only net entered */
-    } else if(whiteNet>0){
-      /* only net-like figure — already ex VAT if mode add; if include mis-stored, leave */
-    }
-    var cash=Number(r.cashAmt)||0;
-    return Math.round((whiteNet+cash)*100)/100;
+  if(isSplit&&(Number(r.invoiceTotal)>0||Number(r.invoiceNet)>0||Number(r.cashAmt)>0||r.split||r.splitCash)){
+    var whiteB=leadCommissionWhiteBeforeVat(r);
+    var cashB=Math.round((Number(r.cashAmt)||0)*100)/100;
+    var whiteC=Math.round(whiteB*pctRate*100)/100;
+    var cashC=Math.round(cashB*pctRate*100)/100;
+    var base=Math.round((whiteB+cashB)*100)/100;
+    var total=Math.round((whiteC+cashC)*100)/100;
+    var whiteG=Number(r.invoiceTotal)||0;
+    if(!(whiteG>0)&&Number(r.invoiceNet)>0) whiteG=Number(r.invoiceNet);
+    var gross=Math.round((whiteG+cashB)*100)/100;
+    var detail="White before VAT "+money(whiteB)+" × "+CAPTAIN_COMMISSION_PCT+"% = "+money(whiteC)+
+      "  ·  Cash black "+money(cashB)+" × "+CAPTAIN_COMMISSION_PCT+"% = "+money(cashC)+
+      "  ·  Total "+money(total);
+    return {
+      split:true, whiteBeforeVat:whiteB, cashBlack:cashB, base:base,
+      whiteComm:whiteC, cashComm:cashC, total:total, gross:gross, detail:detail
+    };
   }
 
   var gross=leadCommissionGrossAmount(r);
-  if(!(gross>0)) return 0;
-
-  /* Explicit no VAT only */
-  if(mode==="none") return gross;
-
-  if(mode==="add"){
+  if(!(gross>0)) return empty;
+  var base;
+  if(mode==="none"){
+    base=gross;
+  } else if(mode==="add"){
     var ex=Number(r.base)||Number(r.price)||0;
     if(!(ex>0)&&r.rate&&r.days) ex=(Number(r.rate)||0)*(Number(r.days)||1);
     if(!(ex>0)&&Number(r.net)>0&&Number(r.net)<gross*0.99) ex=Number(r.net);
-    /* base equal to total → data is VAT-included mis-tagged as add; strip */
-    if(ex>0&&Math.abs(ex-gross)<0.05) return Math.round(gross/(1+pct/100)*100)/100;
-    if(ex>0) return Math.round(ex*100)/100;
+    if(ex>0&&Math.abs(ex-gross)<0.05) base=Math.round(gross/(1+pct/100)*100)/100;
+    else if(ex>0) base=Math.round(ex*100)/100;
+    else base=Math.round(gross/(1+pct/100)*100)/100;
+  } else {
+    /* VAT included (default) */
+    base=Math.round(gross/(1+pct/100)*100)/100;
   }
-
-  /* VAT included (default): ALWAYS ÷ (1 + vat%) — Joel €12k → €9,917.36 */
-  return Math.round(gross/(1+pct/100)*100)/100;
+  var total=Math.round(base*pctRate*100)/100;
+  var detail=money(gross)+(mode==="none"?"":" inc. VAT")+" → before VAT "+money(base)+
+    " × "+CAPTAIN_COMMISSION_PCT+"% = "+money(total);
+  return {
+    split:false, whiteBeforeVat:base, cashBlack:0, base:base,
+    whiteComm:total, cashComm:0, total:total, gross:gross, detail:detail
+  };
 }
-/** Gross charter figure shown as “VAT included” when applicable. */
-function leadCommissionGross(r){
-  if(!r) return 0;
-  if(r.split===true||r.splitCash===true||r.split==="true"||r.splitCash==="true"){
-    var w=Number(r.invoiceTotal)||0;
-    if(!(w>0)&&Number(r.invoiceNet)>0){
-      var pct=leadCommissionVatPct(r);
-      var wm=String(r.whiteVatMode||"include").toLowerCase();
-      if(wm==="add") w=Number(r.invoiceNet)*(1+pct/100);
-      else if(wm==="none") w=Number(r.invoiceNet);
-      else w=Number(r.invoiceNet); /* if only net stored, show as-is + cash */
-    }
-    return Math.round((w+(Number(r.cashAmt)||0))*100)/100;
-  }
-  return leadCommissionGrossAmount(r);
-}
-function leadCommissionAmt(r){
-  var base=leadCommissionBase(r);
-  return Math.round(base*(CAPTAIN_COMMISSION_PCT/100)*100)/100;
-}
+function leadCommissionBase(r){ return leadCommissionParts(r).base; }
+function leadCommissionGross(r){ return leadCommissionParts(r).gross; }
+function leadCommissionAmt(r){ return leadCommissionParts(r).total; }
 function renderCommissions(){
   var wrap=el("cmList"); if(!wrap) return;
   if(!isCaptain()){
@@ -7943,25 +7957,29 @@ function renderCommissions(){
   });
   var baseTot=0, comTot=0, html="";
   rows.forEach(function(r){
-    var base=leadCommissionBase(r);
-    var com=leadCommissionAmt(r);
-    var gross=leadCommissionGross(r);
-    baseTot+=base; comTot+=com;
+    var p=leadCommissionParts(r);
+    baseTot+=p.base; comTot+=p.total;
     html+='<div class="item" data-edit-ld="'+esc(r.id)+'">'+
-      '<div class="top"><div class="title">'+esc(r.name||"—")+'</div><div class="amt money">'+money(com)+'</div></div>'+
+      '<div class="top"><div class="title">'+esc(r.name||"—")+'</div><div class="amt money">'+money(p.total)+'</div></div>'+
       '<div class="meta">'+
         (r.closed?'<span>Closed '+esc(fmtDate(r.closed))+'</span>':'')+
         (r.start?'<span>'+esc(fmtDate(r.start))+(r.end&&r.end!==r.start?"–"+esc(fmtDate(r.end)):"")+'</span>':'')+
         '<span class="pill p-blue">Captain lead</span>'+
-        (gross>0?'<span>Charter '+money0(gross)+(r.vatMode==="none"?"":" inc. VAT")+'</span>':'')+
-        '<span>Before VAT '+money(base)+'</span>'+
-        '<span>'+CAPTAIN_COMMISSION_PCT+'% of before VAT → '+money(com)+'</span>'+
-      '</div>'+
-      '<div class="notes" style="font-style:normal;color:var(--muted)">'+
-        money(gross)+' inc. VAT → strip VAT → '+money(base)+' × '+CAPTAIN_COMMISSION_PCT+'% = '+money(com)+
-      '</div></div>';
+        (p.split?'<span class="pill p-black">Split deal</span>':'')+
+      '</div>';
+    if(p.split){
+      html+='<div class="notes" style="font-style:normal;line-height:1.5">'+
+        '<div>White before VAT <b class="money">'+money(p.whiteBeforeVat)+'</b> × '+CAPTAIN_COMMISSION_PCT+'% = <b class="money">'+money(p.whiteComm)+'</b></div>'+
+        '<div>Cash black <b class="money">'+money(p.cashBlack)+'</b> × '+CAPTAIN_COMMISSION_PCT+'% = <b class="money">'+money(p.cashComm)+'</b></div>'+
+        '<div style="margin-top:4px">Commission total <b class="money">'+money(p.total)+'</b></div>'+
+      '</div>';
+    } else {
+      html+='<div class="notes" style="font-style:normal;color:var(--muted)">'+esc(p.detail)+'</div>';
+    }
+    html+='</div>';
   });
-  wrap.innerHTML=html||emptyBox("💸","No captain leads yet","On a lead, set Lead source → Captain. Commission = "+CAPTAIN_COMMISSION_PCT+"% of charter before VAT (e.g. €12,000 inc. VAT → base ≈ €9,917 → commission ≈ €1,488).");
+  wrap.innerHTML=html||emptyBox("💸","No captain leads yet",
+    "Mark Lead source → Captain. Normal: "+CAPTAIN_COMMISSION_PCT+"% of charter before VAT. Split: "+CAPTAIN_COMMISSION_PCT+"% of white before VAT + "+CAPTAIN_COMMISSION_PCT+"% of cash black.");
   if(el("cmCount")) el("cmCount").textContent=String(rows.length);
   if(el("cmBase")) el("cmBase").textContent=money(baseTot);
   if(el("cmTot")) el("cmTot").textContent=money(comTot);
