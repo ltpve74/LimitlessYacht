@@ -2002,12 +2002,86 @@ function fmtAgreementLongDate(iso){
   if(p.length!==3) return fmtDate(iso);
   return agreementOrdinal(parseInt(p[2],10))+" day of "+agreementMonthName(p[1])+" "+p[0];
 }
-function agreementDefaultHours(r){
-  var dur=String((r&&r.dur)||"");
-  if(dur==="4h") return {from:"10:00", to:"14:00"};
-  if(dur==="6h") return {from:"10:00", to:"16:00"};
-  if(dur==="multi") return {from:"12:00", to:"12:00"};
-  return {from:"10:00", to:"18:00"};
+/** Local calendar YYYY-MM-DD (not UTC — avoids off-by-one on evening phones). */
+function agreementLocalYmd(d){
+  d=d||new Date();
+  return d.getFullYear()+"-"+String(d.getMonth()+1).padStart(2,"0")+"-"+String(d.getDate()).padStart(2,"0");
+}
+function agreementLeadHours(dur){
+  dur=String(dur||"");
+  if(dur==="4h") return 4;
+  if(dur==="6h") return 6;
+  if(dur==="multi") return 0;
+  return 8;
+}
+/**
+ * Paper duration for the formal agreement.
+ * Split deals: white fee must look like a real charter length (e.g. €2k white
+ * on a €4k / 8h quote → 4 hours — not 8h for €2k). Never cash/black.
+ */
+function agreementPaperDuration(r, whiteFee){
+  r=r||{};
+  whiteFee=Number(whiteFee)||0;
+  if(r.dur==="multi"||(!r.dur&&r.end&&r.start&&r.end!==r.start)){
+    var days=Number(r.days)||(r.start&&r.end?daysBetween(r.start,r.end):1);
+    return { multi:true, hours:0, days:days||1, label:(days||1)+" day"+((days||1)>1?"s":"") };
+  }
+  var leadH=agreementLeadHours(r.dur);
+  var paperH=leadH;
+  if(leadHasSplit(r)&&whiteFee>0){
+    var quote=Number(r.base)||Number(r.price)||0;
+    if(quote>0&&leadH>0){
+      /* Scale white / full quote onto lead hours, snap to 4 / 6 / 8 */
+      var raw=Math.round((whiteFee/quote)*leadH);
+      if(raw<=4) paperH=4;
+      else if(raw<=6) paperH=6;
+      else paperH=8;
+    } else {
+      /* No quote: band by white fee (typical day-rate steps) */
+      if(whiteFee<=2500) paperH=4;
+      else if(whiteFee<=3500) paperH=6;
+      else paperH=8;
+    }
+  }
+  return { multi:false, hours:paperH, days:1, label:paperH+" hours", dur:paperH+"h" };
+}
+/**
+ * From/to times for the paper period.
+ * Same calendar day as “now”: pick a window that includes the current time
+ * (or the next legal slot) so a Guardia check looks consistent.
+ * Other days: standard morning start.
+ */
+function agreementTimesForPaper(paperHours, charterDateIso){
+  var hours=Number(paperHours)||8;
+  if(hours<=0) return {from:"12:00", to:"12:00"};
+  var windows={
+    4:[["10:00","14:00"],["11:00","15:00"],["12:00","16:00"],["14:00","18:00"],["15:00","19:00"]],
+    6:[["10:00","16:00"],["11:00","17:00"],["12:00","18:00"]],
+    8:[["09:00","17:00"],["10:00","18:00"],["11:00","19:00"]]
+  };
+  var list=windows[hours]||windows[8];
+  var day=String(charterDateIso||"").slice(0,10);
+  var today=agreementLocalYmd();
+  if(!day||day!==today){
+    return {from:list[0][0], to:list[0][1]};
+  }
+  var now=new Date();
+  var nowM=now.getHours()*60+now.getMinutes();
+  function toM(hhmm){
+    var p=String(hhmm||"0:0").split(":");
+    return (parseInt(p[0],10)||0)*60+(parseInt(p[1],10)||0);
+  }
+  /* Prefer a window that already contains “now” (charter under way) */
+  var i, a, b;
+  for(i=0;i<list.length;i++){
+    a=toM(list[i][0]); b=toM(list[i][1]);
+    if(nowM>=a-20&&nowM<=b) return {from:list[i][0], to:list[i][1]};
+  }
+  /* Else next window still starting today */
+  for(i=0;i<list.length;i++){
+    if(toM(list[i][0])>=nowM-5) return {from:list[i][0], to:list[i][1]};
+  }
+  return {from:list[list.length-1][0], to:list[list.length-1][1]};
 }
 function agreementPdfFileName(p){
   var who=String(p.charterer||"charter").replace(/[^\w.\-]+/g,"_").replace(/^_|_$/g,"");
@@ -2017,10 +2091,10 @@ function agreementPdfFileName(p){
 /**
  * Prefill agreement fields from a lead (amounts, dates, guest name).
  * Formal contract only — white invoice amounts. Never cash/black.
+ * Split: paper duration/times match white fee (legal-looking vs full day rate).
  */
 function agreementPayloadFromLead(r){
   r=r||{};
-  var hrs=agreementDefaultHours(r);
   var fee;
   if(leadHasSplit(r)){
     fee=Number(r.invoiceTotal)||0;
@@ -2030,12 +2104,21 @@ function agreementPayloadFromLead(r){
   } else {
     fee=Number(r.total)||Number(r.invoiceTotal)||0;
   }
+  var paper=agreementPaperDuration(r, fee);
+  var start=r.start||r.cdate||"";
+  /* Same-day Guardia: default charter date to today when lead date is today or missing */
+  var today=agreementLocalYmd();
+  if(!start) start=today;
+  var end=paper.multi?(r.end||start):start;
+  var hrs=paper.multi
+    ?{from:"12:00", to:"12:00"}
+    :agreementTimesForPaper(paper.hours, start);
   var adv=Number(r.dep)||0;
   var bal=Number(r.fin)||0;
   if(!(bal>0)&&fee>0) bal=Math.round((fee-adv)*100)/100;
-  /* Special terms: default fuel note only — no cash/black, no lead notes */
+  var special=AGREEMENT_DEFAULTS.specialTerms;
   return {
-    agreeDate:r.closed||new Date().toISOString().slice(0,10),
+    agreeDate:r.closed||today,
     charterer:r.name||"",
     chartererAddr:r.billToAddr||"",
     operator:AGREEMENT_DEFAULTS.operator,
@@ -2045,16 +2128,20 @@ function agreementPayloadFromLead(r){
     portDelivery:AGREEMENT_DEFAULTS.portDelivery,
     portRedelivery:AGREEMENT_DEFAULTS.portRedelivery,
     cruisingLimits:AGREEMENT_DEFAULTS.cruisingLimits,
-    start:r.start||r.cdate||"",
-    end:(r.dur==="multi"?(r.end||r.start||""):(r.start||r.cdate||"")),
+    start:start,
+    end:end,
     fromHrs:hrs.from,
     toHrs:hrs.to,
+    paperLabel:paper.label,
+    paperHours:paper.hours,
+    paperMulti:!!paper.multi,
     crew:AGREEMENT_DEFAULTS.crew,
     fee:fee,
     advance:adv,
     balance:bal,
     security:"",
-    specialTerms:AGREEMENT_DEFAULTS.specialTerms
+    specialTerms:special,
+    splitPaper:!!leadHasSplit(r)
   };
 }
 function openLeadAgreementSheet(id){
@@ -2062,10 +2149,21 @@ function openLeadAgreementSheet(id){
   if(!r) return;
   var p0=agreementPayloadFromLead(r);
   var h='<div class="sheethead"><h2>Charter agreement</h2><button type="button" class="sheetx" id="sheetClose" aria-label="Close">×</button></div>';
-  h+='<p style="margin:0 0 12px;font-size:13px;color:var(--muted);line-height:1.45">Formal contract only (white invoice fee, deposit &amp; balance). Cash/black is never included. Prefills from this lead — edit before creating.</p>';
+  h+='<p style="margin:0 0 12px;font-size:13px;color:var(--muted);line-height:1.45">Formal contract = <b>white invoice only</b> (never cash/black). '+
+    (p0.splitPaper
+      ?'Split deal: paper length is sized to the white fee (e.g. €2,000 → <b>4 hours</b>), with times that fit today if you open this on the charter day.'
+      :'Fee, deposit and period match the formal booking.')+
+    '</p>';
+  if(p0.paperLabel){
+    h+='<div class="apa-card" style="margin:0 0 12px;padding:10px 12px">'+
+      '<div class="meta">Paper charter length (on agreement)</div>'+
+      '<div class="money" style="font-size:18px;font-weight:800">'+esc(p0.paperLabel)+'</div>'+
+      (p0.splitPaper?'<div class="meta" style="margin-top:4px">Matched to white invoice '+money(p0.fee)+' — not the full cash deal day.</div>':'')+
+    '</div>';
+  }
   h+='<div class="row2">'+
     fieldHTML("Agreement date",'<input class="ctl" id="f_agr_date" type="date" value="'+esc(p0.agreeDate)+'">')+
-    fieldHTML("Charter fee €",moneyField("f_agr_fee", p0.fee))+
+    fieldHTML("Charter fee € (white)",moneyField("f_agr_fee", p0.fee))+
   '</div>';
   h+=fieldHTML("Charterer (name)",'<input class="ctl" id="f_agr_name" value="'+esc(p0.charterer)+'">');
   h+=fieldHTML("Charterer address",'<textarea class="ctl" id="f_agr_addr" placeholder="Street, city, country…">'+esc(p0.chartererAddr)+'</textarea>');
@@ -2104,6 +2202,26 @@ function openLeadAgreementSheet(id){
   el("sheetClose").addEventListener("click",function(){ showSheet(false); });
   el("sheetAgrGo").addEventListener("click",function(){
     var typeLoa=String(el("f_agr_type").value||"").split("·").map(function(s){return s.trim();});
+    var fromH=el("f_agr_fromh").value.trim();
+    var toH=el("f_agr_toh").value.trim();
+    var startD=el("f_agr_start").value;
+    var endD=el("f_agr_end").value;
+    function toMin(hhmm){
+      var p=String(hhmm||"").split(":");
+      return (parseInt(p[0],10)||0)*60+(parseInt(p[1],10)||0);
+    }
+    var paperLabel=p0.paperLabel||"";
+    var paperHours=p0.paperHours||0;
+    if(startD&&endD&&startD!==endD){
+      var dN=daysBetween(startD, endD);
+      paperLabel=dN+" day"+(dN>1?"s":"");
+      paperHours=0;
+    } else if(fromH&&toH){
+      var span=toMin(toH)-toMin(fromH);
+      if(span<=0) span+=24*60;
+      paperHours=Math.max(1, Math.round(span/60));
+      paperLabel=paperHours+" hours";
+    }
     var payload={
       agreeDate:el("f_agr_date").value,
       charterer:el("f_agr_name").value.trim(),
@@ -2115,10 +2233,12 @@ function openLeadAgreementSheet(id){
       portDelivery:el("f_agr_pdel").value.trim(),
       portRedelivery:el("f_agr_pred").value.trim(),
       cruisingLimits:el("f_agr_cruise").value.trim(),
-      start:el("f_agr_start").value,
-      end:el("f_agr_end").value,
-      fromHrs:el("f_agr_fromh").value.trim(),
-      toHrs:el("f_agr_toh").value.trim(),
+      start:startD,
+      end:endD,
+      fromHrs:fromH,
+      toHrs:toH,
+      paperLabel:paperLabel,
+      paperHours:paperHours,
       crew:el("f_agr_crew").value.trim(),
       fee:apaNum(el("f_agr_fee").value),
       advance:apaNum(el("f_agr_adv").value),
@@ -2300,6 +2420,9 @@ function buildCharterAgreementPdf(p){
         blankLine(6);
         draw("Charter Period:", margin, 10.5, true, false, black);
         blankLine(14);
+        if(p.paperLabel){
+          fieldRow("Duration", p.paperLabel);
+        }
         var fromBit="From  "+(p.fromHrs||"____")+" hrs  on  "+(p.start?fmtDate(p.start):"__/__/____");
         var toBit="To    "+(p.toHrs||"____")+" hrs  on  "+(p.end?fmtDate(p.end):(p.start?fmtDate(p.start):"__/__/____"));
         para(fromBit, 10.5, {gap:2});
