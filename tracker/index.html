@@ -85,10 +85,12 @@
     background:#eef1f4;color:var(--ink);font-size:22px;line-height:34px;text-align:center;padding:0}
   .install-prompt .ip-x:active{background:#e0e5ea}
 
-  .summary{display:flex;gap:10px;margin-bottom:14px}
-  .sumcard{flex:1;background:var(--card);border-radius:14px;padding:13px 15px;box-shadow:0 1px 3px rgba(0,0,0,.07)}
+  .summary{display:flex;flex-wrap:wrap;gap:10px;margin-bottom:14px}
+  .sumcard{flex:1 1 140px;min-width:0;background:var(--card);border-radius:14px;padding:13px 15px;box-shadow:0 1px 3px rgba(0,0,0,.07)}
   .sumcard .l{font-size:11.5px;color:var(--muted);text-transform:uppercase;letter-spacing:.03em}
   .sumcard .v{font-size:21px;font-weight:800;margin-top:3px}
+  #tab-charters .summary .sumcard{flex:1 1 calc(50% - 10px)}
+  @media(min-width:620px){ #tab-charters .summary .sumcard{flex:1 1 calc(25% - 10px)} }
   .sectitle{font-size:13px;font-weight:700;color:var(--muted);margin:4px 2px 10px;text-transform:uppercase;letter-spacing:.04em}
   .legend{font-size:12.5px;color:var(--muted);margin:-4px 2px 14px;line-height:1.45}
 
@@ -372,10 +374,12 @@
     <!-- CHARGES -->
     <section id="tab-charters">
       <div class="summary">
-        <div class="sumcard"><div class="l">Total charged <span style="font-weight:500;text-transform:none;letter-spacing:0">(inc. VAT)</span></div><div class="v money" id="chTot">€0</div></div>
+        <div class="sumcard"><div class="l">Total charged</div><div class="v money" id="chTot">€0</div></div>
+        <div class="sumcard"><div class="l">Cash settlement</div><div class="v money" id="chCashTot">€0</div></div>
+        <div class="sumcard"><div class="l">To invoice</div><div class="v money" id="chInvTot">€0</div></div>
         <div class="sumcard"><div class="l">Invoices to issue</div><div class="v" id="chPending">0</div></div>
       </div>
-      <div class="legend">Charges taken on board (card or cash). Amounts are VAT included. Mark <b>Paid</b> and <b>Card / Cash / Split</b>. Cash (full or part) goes into the <b>monthly boat float</b> (Expenses → cash in). <b>Make invoice</b> for the manager. Cash-deal APA: Paid also books APA received.</div>
+      <div class="legend">Each charge is <b>Cash</b> (no formal invoice), <b>Invoice</b> (manager PDF), or <b>Mix</b> (cash part + invoice part). Mix is for cash-deal black + spend that needs an invoice. Cash goes to the boat float when <b>Paid</b>.</div>
       <div class="list" id="chList"></div>
     </section>
 
@@ -797,6 +801,8 @@ function chargePay(r){
   return r.status||"Paid";
 }
 function chargeInv(r){
+  if(r&&(r.invStatus==="Not needed"||r.invStatus==="N/A")) return "Not needed";
+  if(r&&!chargeNeedsInvoice(r)) return "Not needed";
   if(r.invStatus) return r.invStatus;
   if(r.status==="Invoiced") return "Issued";
   if(r.status==="Paid"&&r.inv) return "Issued";
@@ -813,17 +819,54 @@ function chargePayMethod(r){
   return "Card";
 }
 /**
+ * How this charge is settled for the books:
+ *   cash    — all cash black / cash settlement (no formal invoice)
+ *   invoice — formal invoice (manager PDF, usually card/transfer)
+ *   mix     — part cash + part to invoice (e.g. cash deal + spend)
+ */
+function chargeBillType(r){
+  if(!r) return "invoice";
+  var bt=String(r.billType||"").toLowerCase();
+  if(bt==="cash"||bt==="invoice"||bt==="mix") return bt;
+  var tot=apaNum(r.amount), cashP=apaNum(r.cashPaid), free=apaNum(r.cashAmt);
+  if(r.cashDeal||r.vatMode==="none"){
+    if(free>0&&tot>free+0.02) return "mix";
+    if(cashP>0&&cashP<tot-0.009) return "mix";
+    if(chargePayMethod(r)==="Cash"||r.vatMode==="none") return "cash";
+  }
+  if(chargePayMethod(r)==="Cash") return "cash";
+  if(chargePayMethod(r)==="Split"||(cashP>0&&cashP<tot-0.009)) return "mix";
+  return "invoice";
+}
+/** Cash portion of the charge (black / boat pot). */
+function chargeCashPart(r){
+  var total=apaNum(r.amount);
+  var t=chargeBillType(r);
+  if(!(total>0)||t==="invoice") return 0;
+  if(t==="cash") return total;
+  var cash=apaNum(r.cashPaid);
+  if(!(cash>0)&&apaNum(r.cashAmt)>0) cash=Math.min(total, apaNum(r.cashAmt));
+  if(!(cash>0)) cash=0;
+  return Math.min(total, Math.round(cash*100)/100);
+}
+/** Formal invoice portion (manager PDF). */
+function chargeInvoicePart(r){
+  return Math.max(0, Math.round((apaNum(r.amount)-chargeCashPart(r))*100)/100);
+}
+function chargeNeedsInvoice(r){ return chargeInvoicePart(r)>0.009; }
+/**
  * Cash that entered the boat pot from this charge (when Paid).
- * Full Cash → full amount; Split → cashPaid; Card → 0.
+ * Uses bill type cash/mix parts; legacy Card/Cash/Split still works.
  */
 function chargeCashToBoat(r){
   if(!r||chargePay(r)!=="Paid") return 0;
+  var part=chargeCashPart(r);
+  if(part>0) return part;
   var total=apaNum(r.amount);
   var explicit=apaNum(r.cashPaid);
   var m=chargePayMethod(r);
   if(m==="Card") return explicit>0?Math.min(explicit,total):0;
   if(m==="Split") return explicit>0?Math.min(explicit,total):0;
-  /* Cash */
   if(explicit>0) return Math.min(explicit,total);
   return total;
 }
@@ -832,12 +875,31 @@ function payMethodPill(m){
   if(m==="Split") return '<span class="pill p-amber">Split</span>';
   return '<span class="pill p-card">Card</span>';
 }
+function billTypePill(r){
+  var t=chargeBillType(r);
+  if(t==="cash") return '<span class="pill p-cash">Cash</span>';
+  if(t==="mix") return '<span class="pill p-amber">Mix</span>';
+  return '<span class="pill p-card">Invoice</span>';
+}
 function chargeVat(r){
-  var gross=Number(r.amount)||0;
+  var inv=chargeInvoicePart(r);
+  var cash=chargeCashPart(r);
+  var gross=apaNum(r.amount);
+  /* VAT only applies to the invoice portion */
+  var base=inv>0.009?inv:((chargeBillType(r)==="cash")?0:gross);
   var pct=(r.vatPct!=null&&r.vatPct!=="")?Number(r.vatPct):21;
-  if(r.vat!=null&&r.net!=null) return { net:Number(r.net)||0, vat:Number(r.vat)||0, pct:pct, gross:gross };
+  if(chargeBillType(r)==="cash"||r.vatMode==="none"){
+    return { net:gross, vat:0, pct:0, gross:gross, inv:inv, cash:cash };
+  }
+  if(r.vat!=null&&r.net!=null&&inv<=0.009){
+    return { net:Number(r.net)||0, vat:Number(r.vat)||0, pct:pct, gross:gross, inv:inv, cash:cash };
+  }
+  if(inv>0.009){
+    var sp=invoiceSplitGross(inv, pct);
+    return { net:Math.round((cash+sp.net)*100)/100, vat:sp.vat, pct:sp.pct, gross:gross, inv:inv, cash:cash };
+  }
   var net=pct>0?gross/(1+pct/100):gross;
-  return { net:net, vat:gross-net, pct:pct, gross:gross };
+  return { net:net, vat:gross-net, pct:pct, gross:gross, inv:inv, cash:cash };
 }
 /** ISO YYYY-MM-DD; empty dates sort last when listing latest-first. */
 function chargeDateKey(r){ return (r&&r.date)||""; }
@@ -853,31 +915,46 @@ function sortCharters(){
 }
 function renderCharters(){
   sortCharters();
-  var wrap=el("chList"), tot=0, pend=0, html="";
+  var wrap=el("chList"), tot=0, cashTot=0, invTot=0, pend=0, html="";
   state.charters.forEach(function(r){
     tot+=Number(r.amount)||0;
+    var cashP=chargeCashPart(r), invP=chargeInvoicePart(r);
+    cashTot+=cashP; invTot+=invP;
     var invSt=chargeInv(r);
-    if(invSt!=="Issued") pend++;
+    var needsInv=chargeNeedsInvoice(r);
+    if(needsInv&&invSt!=="Issued") pend++;
     var pay=chargePay(r), v=chargeVat(r);
     var isApa=r.kind==="apa"||!!r.apaTripId;
-    var apaReq=isApa&&pay!=="Paid"&&invSt!=="Issued";
+    var bt=chargeBillType(r);
+    var apaReq=isApa&&pay!=="Paid"&&needsInv&&invSt!=="Issued";
     var pm=chargePayMethod(r);
     var cashBoat=chargeCashToBoat(r);
+    var invPill=needsInv
+      ?(invSt==="Issued"?'<span class="pill p-green">Invoice issued</span>':'<span class="pill p-amber">Invoice pending</span>')
+      :'<span class="pill p-cash">No invoice</span>';
+    var splitMeta="";
+    if(bt==="mix"){
+      splitMeta='<span class="pill p-cash">Cash '+money0(cashP)+'</span><span class="pill p-card">Invoice '+money0(invP)+'</span>';
+    }
     html+='<div class="item" data-edit-ch="'+esc(r.id)+'">'+
       '<div class="top"><div class="title">'+esc(r.client||"—")+(isApa?' <span class="pill p-apa">APA</span>':'')+(apaReq?' <span class="pill p-amber">Invoice request</span>':'')+'</div><div class="amt money">'+money0(r.amount)+'</div></div>'+
       '<div class="meta">'+(r.date?'<span>📅 '+esc(fmtDate(r.date))+'</span>':'')+
-        '<span>inc. VAT'+(v.pct?' '+v.pct+'%':'')+'</span>'+
-        pill(pay)+payMethodPill(pm)+pill(invSt==="Issued"?"Invoice issued":"Invoice pending")+
+        billTypePill(r)+
+        (bt==="invoice"||bt==="mix"?(v.pct?'<span>IVA '+v.pct+'% on invoice part</span>':'<span>Invoice (no VAT)</span>'):'<span>Cash settlement</span>')+
+        pill(pay)+payMethodPill(pm)+invPill+splitMeta+
         (cashBoat>0?'<span class="pill p-cash">→ pot '+money0(cashBoat)+'</span>':'')+
         (r.inv?'<span>#'+esc(r.inv)+'</span>':'')+'</div>'+
       (r.notes?'<div class="notes">'+esc(r.notes)+'</div>':'')+
-      '<div class="lead-actions">'+
-        '<button type="button" class="btn" data-inv-ch="'+esc(r.id)+'">Make invoice</button>'+
-      '</div>'+
+      (needsInv
+        ?'<div class="lead-actions"><button type="button" class="btn" data-inv-ch="'+esc(r.id)+'">Make invoice'+(bt==="mix"?" ("+money0(invP)+")":"")+'</button></div>'
+        :'')+
       '<span class="chev">✎</span></div>';
   });
   wrap.innerHTML=html||emptyBox("🧾","No charter charges yet","Tap + to add the first one.");
-  el("chTot").textContent=money(tot); el("chPending").textContent=pend;
+  if(el("chTot")) el("chTot").textContent=money(tot);
+  if(el("chCashTot")) el("chCashTot").textContent=money(cashTot);
+  if(el("chInvTot")) el("chInvTot").textContent=money(invTot);
+  if(el("chPending")) el("chPending").textContent=pend;
   bindEdit(wrap,"data-edit-ch","charter");
   Array.prototype.forEach.call(wrap.querySelectorAll("[data-inv-ch]"),function(btn){
     btn.addEventListener("click",function(ev){
@@ -1440,13 +1517,21 @@ function openLeadInvoiceSheet(id){
 function openChargeInvoiceSheet(id){
   var c=(state.charters||[]).filter(function(x){return String(x.id)===String(id);})[0];
   if(!c) return;
+  if(!chargeNeedsInvoice(c)){
+    window.alert("This charge is cash settlement only — no formal invoice.\n\nEdit the charge and set Settlement to Invoice or Mix if part needs a PDF.");
+    return;
+  }
   var typeLab=chargeInvoiceTypeLabel(c);
   var existing=String(c.inv||"").trim();
   var trip=apaTripForCharge(c);
   var apaLines=trip?buildApaInvoiceLines(trip):[];
-  var canItemise=apaLines.length>0;
+  var canItemise=apaLines.length>0&&chargeBillType(c)!=="mix";
+  var invGross=chargeInvoicePart(c);
+  if(!(invGross>0)) invGross=apaNum(c.amount);
   var h='<div class="sheethead"><h2>Make invoice</h2><button type="button" class="sheetx" id="sheetClose" aria-label="Close">×</button></div>';
-  h+='<p style="margin:0 0 12px;font-size:13px;color:var(--muted);line-height:1.45">PDF for the manager / accountant. Same number if you regenerate this charge.</p>';
+  h+='<p style="margin:0 0 12px;font-size:13px;color:var(--muted);line-height:1.45">PDF for the manager / accountant. Same number if you regenerate this charge.'+
+    (chargeBillType(c)==="mix"?' <b>Mix charge:</b> PDF covers the invoice part only ('+money(invGross)+'); cash part is separate.':'')+
+    '</p>';
   h+='<div class="apa-card" style="margin-bottom:12px"><div class="k">Type on PDF</div><div style="font-weight:700;margin-top:4px">'+esc(typeLab)+'</div></div>';
   if(canItemise){
     h+='<label class="checkrow"><input type="checkbox" id="f_inv_itemise" checked>'+
@@ -1468,10 +1553,10 @@ function openChargeInvoiceSheet(id){
     fieldHTML("Rate",'<input class="ctl" id="f_inv_rate" value="" placeholder="optional">')+
   '</div>';
   h+='</div>';
-  h+=fieldHTML("Total (VAT included)",moneyField("f_inv_gross", c.amount));
+  h+=fieldHTML("Total (VAT included)",moneyField("f_inv_gross", invGross));
   h+='<div class="calcbox" id="f_inv_calc"></div>';
-  /* Norm: card at end of charter — default paid by card unless charge already marked Cash */
-  var defaultCard=chargePayMethod(c)!=="Cash";
+  /* Mix / invoice part is usually card; pure cash bill type never opens this sheet */
+  var defaultCard=chargeBillType(c)!=="cash";
   h+='<label class="checkrow"><input type="checkbox" id="f_inv_paid_card"'+(defaultCard?" checked":"")+'>'+
     '<span><div class="ck">Paid by card</div>'+
     '<div class="ch">Usual case: card at end of charter. Shows on the PDF for the accountant.</div></span></label>';
@@ -2814,14 +2899,41 @@ function syncApaToCharge(t){
     t.chargeId=left?left.id:"";
     return left;
   }
-  var pct=21;
   var gross=over;
-  /* Cash-deal shortfall is cash + spend — not a VAT-included list price */
-  var net, vat;
+  var freeCash=Math.round((Number(t.cashAmt)||0)*100)/100;
+  /* Cash pot: free cash black = cash settlement; spend on top = formal invoice (mix). */
+  var cashPart=0, invPart=gross, billType="invoice", pct=21, net, vat, vatMode="include", payMethod="Card", invStatus="Not issued";
+  cashPot=Number(t.apaSent)<0||t.cashFromLead;
   if(cashPot){
-    pct=0;
-    net=gross;
-    vat=0;
+    if(!t.cashSettled&&freeCash>0){
+      cashPart=Math.min(over, freeCash);
+      invPart=Math.round((over-cashPart)*100)/100;
+    } else {
+      cashPart=0;
+      invPart=over;
+    }
+    if(cashPart>0.009&&invPart>0.009){
+      billType="mix";
+      payMethod="Split";
+      var spMix=invoiceSplitGross(invPart, 21);
+      net=Math.round((cashPart+spMix.net)*100)/100;
+      vat=spMix.vat;
+      pct=21;
+      vatMode="include";
+      invStatus="Not issued";
+    } else if(cashPart>0.009){
+      billType="cash";
+      payMethod="Cash";
+      pct=0; net=gross; vat=0; vatMode="none";
+      invStatus="Not needed";
+    } else {
+      billType="invoice";
+      payMethod="Card";
+      net=pct>0?gross/(1+pct/100):gross;
+      vat=gross-net;
+      vatMode="include";
+      invStatus="Not issued";
+    }
   } else {
     net=pct>0?gross/(1+pct/100):gross;
     vat=gross-net;
@@ -2837,37 +2949,47 @@ function syncApaToCharge(t){
   var zeroPot=!apaHasPrepaid(t);
   cashPot=Number(t.apaSent)<0||t.cashFromLead;
   var note=cashPot
-    ?"Cash (black) + charter spend — synced from APA ledger"
+    ?(billType==="mix"
+      ?"Cash black "+money0(cashPart)+" + charter spend "+money0(invPart)+" (invoice) — synced from APA"
+      :(billType==="cash"
+        ?"Cash (black) settlement — synced from APA ledger"
+        :"Charter spend to invoice — synced from APA ledger"))
     :(zeroPot
       ?"APA spend invoice request (no prepaid pot) — synced from APA ledger"
       :"APA shortfall (overspend) — synced from APA ledger");
   if(t.dates) note="APA · "+t.dates+". "+note;
-  if(cashPot&&t.cashAmt) note+=" · cash "+money0(t.cashAmt)+(t.cashSettled?" received":" due");
+  if(cashPot&&t.cashAmt) note+=" · cash black "+money0(t.cashAmt)+(t.cashSettled?" received":" due");
   note+=" · pot "+money0(x.basePot)+" · paid "+money0(x.paidCovered)+" · spent "+money0(x.spent);
   if(ch){
     ch.client=t.guest;
     ch.amount=gross;
-    ch.net=net; ch.vat=vat; ch.vatPct=pct; ch.vatMode=cashPot?"none":"include";
+    ch.net=net; ch.vat=vat; ch.vatPct=pct; ch.vatMode=vatMode;
+    ch.billType=billType;
     ch.kind="apa";
     ch.apaTripId=t.id;
     ch.apaZeroPot=zeroPot;
     ch.cashDeal=!!cashPot;
     if(cashPot&&t.cashAmt) ch.cashAmt=Number(t.cashAmt)||0;
+    ch.cashPaid=cashPart>0?cashPart:0;
     if(!ch.date) ch.date=date;
     if(ch.payStatus!=="Paid") ch.payStatus="Pending";
-    if(chargeInv(ch)!=="Issued"){ ch.invStatus="Not issued"; ch.status=ch.payStatus; }
-    else ch.status="Invoiced";
-    if(!ch.payMethod) ch.payMethod=cashPot?"Cash":"Card";
-    if(!ch.notes||/^APA/i.test(ch.notes)||/synced from APA/i.test(ch.notes)||/shortfall/i.test(ch.notes)||/invoice request/i.test(ch.notes)||/pot \(sent/i.test(ch.notes)||/^Cash \(black\)/i.test(ch.notes)) ch.notes=note;
+    if(ch.invStatus!=="Issued"){
+      ch.invStatus=invStatus;
+      ch.status=ch.payStatus;
+    } else ch.status="Invoiced";
+    if(ch.payStatus!=="Paid"||!ch.payMethod) ch.payMethod=payMethod;
+    if(!ch.notes||/^APA/i.test(ch.notes)||/synced from APA/i.test(ch.notes)||/shortfall/i.test(ch.notes)||/invoice request/i.test(ch.notes)||/pot \(sent/i.test(ch.notes)||/^Cash \(black\)/i.test(ch.notes)||/Cash black/i.test(ch.notes)||/Charter spend to invoice/i.test(ch.notes)) ch.notes=note;
     ch.by=session.who||ch.by;
   } else {
     ch={
       id:uid(), kind:"apa", apaTripId:t.id, apaZeroPot:zeroPot, cashDeal:!!cashPot,
       cashAmt:cashPot?(Number(t.cashAmt)||0):0,
+      cashPaid:cashPart>0?cashPart:0,
+      billType:billType,
       date:date, client:t.guest,
-      amount:gross, net:net, vat:vat, vatPct:pct, vatMode:cashPot?"none":"include",
-      payStatus:"Pending", payMethod:cashPot?"Cash":"Card",
-      invStatus:"Not issued", status:"Pending",
+      amount:gross, net:net, vat:vat, vatPct:pct, vatMode:vatMode,
+      payStatus:"Pending", payMethod:payMethod,
+      invStatus:invStatus, status:"Pending",
       inv:"", notes:note, by:session.who||"Captain"
     };
     state.charters.unshift(ch);
@@ -7283,6 +7405,17 @@ function selPayMethodField(val){
   var v=val==="Cash"||val==="Split"?val:"Card";
   return '<select class="ctl" id="f_payMethod">'+o.map(function(s){return '<option'+(s===v?' selected':'')+'>'+s+'</option>';}).join("")+'</select>';
 }
+function selBillTypeField(val){
+  var o=[
+    ["invoice","Invoice (formal PDF)"],
+    ["cash","Cash only (no invoice)"],
+    ["mix","Mix (cash + invoice)"]
+  ];
+  var v=val==="cash"||val==="mix"?val:"invoice";
+  return '<select class="ctl" id="f_billType">'+o.map(function(p){
+    return '<option value="'+p[0]+'"'+(p[0]===v?' selected':'')+'>'+p[1]+'</option>';
+  }).join("")+'</select>';
+}
 /**
  * When a charge is Paid with cash (full or part), post that cash into monthly
  * petty cash-in (Charter income). Stable id so re-saves update the same line.
@@ -7568,24 +7701,28 @@ function openSheet(type,id){
   if(id){ rec=(type==="charter"?state.charters:state.leads).filter(function(r){return r.id===id;})[0]; }
   var inner=el("sheetInner"), h="", r;
   if(type==="charter"){
-    r=rec||{date:"",client:"",amount:"",payStatus:"Paid",payMethod:"Card",invStatus:"Not issued",vatMode:"include",vatPct:21,inv:"",notes:""};
+    r=rec||{date:"",client:"",amount:"",payStatus:"Paid",payMethod:"Card",billType:"invoice",invStatus:"Not issued",vatMode:"include",vatPct:21,inv:"",notes:""};
     var pay=rec?chargePay(r):"Paid", invSt=rec?chargeInv(r):"Not issued";
-    var pm=rec?chargePayMethod(r):(r.cashDeal||r.kind==="apa"&&Number(r.cashAmt)>0?"Cash":"Card");
+    var bt0=rec?chargeBillType(r):(r.cashDeal?"cash":"invoice");
+    var pm=rec?chargePayMethod(r):(bt0==="cash"?"Cash":(bt0==="mix"?"Split":"Card"));
     h+='<div class="sheethead"><h2>'+(rec?"Edit charge":"New charter charge")+'</h2><button type="button" class="sheetx" id="sheetClose" aria-label="Close">×</button></div>';
     h+=fieldHTML("Client name",'<input class="ctl" id="f_client" value="'+esc(r.client)+'" placeholder="e.g. Smith family">');
-    h+='<div class="row2">'+fieldHTML("Charter date",'<input class="ctl" id="f_date" type="date" value="'+esc(r.date)+'">')+fieldHTML("Amount charged (VAT included)",moneyField("f_amount",r.amount))+'</div>';
+    h+='<div class="row2">'+fieldHTML("Charter date",'<input class="ctl" id="f_date" type="date" value="'+esc(r.date)+'">')+fieldHTML("Total amount (€)",moneyField("f_amount",r.amount))+'</div>';
+    h+=fieldHTML("Settlement",selBillTypeField(bt0));
+    h+='<p style="margin:-6px 0 12px;font-size:12.5px;color:var(--muted);line-height:1.4">'+
+      '<b>Invoice</b> = formal PDF for the manager. <b>Cash</b> = cash black / cash only (no invoice). <b>Mix</b> = both on one charge (enter cash part below).</p>';
     h+='<div class="calcbox" id="f_ch_calc"></div>';
     h+='<div class="row2">'+fieldHTML("Payment",selPayField(pay))+fieldHTML("Paid by",selPayMethodField(pm))+'</div>';
-    var cashDef=apaNum(r.cashPaid)>0?r.cashPaid:(pm==="Cash"?r.amount:"");
-    h+='<div id="f_cashPaid_wrap" style="'+(pm==="Card"?"display:none":"")+'">'+
-      fieldHTML("Cash into boat pot (€)",moneyField("f_cashPaid", cashDef))+
+    var cashDef=apaNum(r.cashPaid)>0?r.cashPaid:(bt0==="cash"?r.amount:(bt0==="mix"&&apaNum(r.cashAmt)>0?r.cashAmt:""));
+    h+='<div id="f_cashPaid_wrap" style="'+(bt0==="invoice"&&pm==="Card"?"display:none":"")+'">'+
+      fieldHTML("Cash part (€)",moneyField("f_cashPaid", cashDef))+
       '<p style="margin:-6px 0 12px;font-size:12px;color:var(--muted);line-height:1.4">'+
-        '<b>Cash</b> = full amount goes to the monthly float (cash in · Charter income). '+
-        '<b>Split</b> = enter only the cash part; the rest is card/transfer. '+
-        'When Payment is <b>Paid</b>, this updates Expenses → cash in.'+
+        'For <b>Mix</b>: cash black / cash into boat pot. Invoice part = total − cash. '+
+        'For <b>Cash</b>: usually the full amount. When Payment is <b>Paid</b>, cash updates Expenses → cash in.'+
       '</p></div>';
-    h+='<p style="margin:-6px 0 12px;font-size:12px;color:var(--muted);line-height:1.4">Card = terminal / transfer only. On a <b>cash (black) deal APA</b>, Paid still books cash as APA received on that pot.</p>';
-    h+='<div class="row2">'+fieldHTML("Invoice (manager)",selInvField(invSt))+fieldHTML("Invoice # (manager)",'<input class="ctl" id="f_inv" value="'+esc(r.inv)+'" placeholder="fill when issued">')+'</div>';
+    h+='<div id="f_inv_fields_wrap" style="'+(bt0==="cash"?"display:none":"")+'">'+
+      '<div class="row2">'+fieldHTML("Invoice (manager)",selInvField(invSt=== "Not needed"?"Not issued":invSt))+fieldHTML("Invoice # (manager)",'<input class="ctl" id="f_inv" value="'+esc(r.inv)+'" placeholder="fill when issued">')+'</div>'+
+    '</div>';
     h+=fieldHTML("Notes",'<textarea class="ctl" id="f_notes" placeholder="optional">'+esc(r.notes)+'</textarea>');
   } else {
     r=rec||{closed:"",name:"",dur:"8h",start:"",end:"",rate:"",price:"",vatMode:"include",vatPct:"21",split:false,dealNet:"",invoiceNet:"",invoiceTotal:"",cashAmt:"",splitVatOnTop:true,deps:"Not requested",fins:"Not requested",apas:"Not requested",depPct:"50",apaPct:"",depInv:"",finInv:"",apaInv:"",notes:""};
@@ -7704,62 +7841,116 @@ function openSheet(type,id){
   if(el("f_end")) el("f_end").addEventListener("change",recalcLead);
   if(el("f_vatPct")) el("f_vatPct").addEventListener("input",recalcLead);
   if(type==="charter"){
-    function syncCashPaidVis(){
+    function syncChargeBillUi(){
+      var bt=(el("f_billType")&&el("f_billType").value)||"invoice";
       var method=(el("f_payMethod")&&el("f_payMethod").value)||"Card";
-      var wrap=el("f_cashPaid_wrap");
-      if(wrap) wrap.style.display=method==="Card"?"none":"";
-      if(method==="Cash"&&el("f_cashPaid")&&!el("f_cashPaid").value){
+      var cashWrap=el("f_cashPaid_wrap");
+      var invWrap=el("f_inv_fields_wrap");
+      if(cashWrap) cashWrap.style.display=(bt==="cash"||bt==="mix"||method==="Cash"||method==="Split")?"":"none";
+      if(invWrap) invWrap.style.display=bt==="cash"?"none":"";
+      if(bt==="cash"&&el("f_payMethod")&&el("f_payMethod").value!=="Cash") el("f_payMethod").value="Cash";
+      if(bt==="mix"&&el("f_payMethod")&&el("f_payMethod").value==="Card") el("f_payMethod").value="Split";
+      if(bt==="invoice"&&el("f_payMethod")&&el("f_payMethod").value==="Cash") el("f_payMethod").value="Card";
+      if((bt==="cash"||(method==="Cash"&&bt!=="mix"))&&el("f_cashPaid")&&!el("f_cashPaid").value){
         var a=el("f_amount")?el("f_amount").value:"";
         if(a) el("f_cashPaid").value=a;
       }
+      recalcCharge();
     }
-    if(el("f_payMethod")) el("f_payMethod").addEventListener("change",syncCashPaidVis);
+    if(el("f_billType")) el("f_billType").addEventListener("change",syncChargeBillUi);
+    if(el("f_payMethod")) el("f_payMethod").addEventListener("change",syncChargeBillUi);
     if(el("f_amount")) el("f_amount").addEventListener("input",function(){
-      var method=(el("f_payMethod")&&el("f_payMethod").value)||"Card";
-      if(method==="Cash"&&el("f_cashPaid")) el("f_cashPaid").value=el("f_amount").value;
+      var bt=(el("f_billType")&&el("f_billType").value)||"invoice";
+      if(bt==="cash"&&el("f_cashPaid")) el("f_cashPaid").value=el("f_amount").value;
       recalcCharge();
     });
-    syncCashPaidVis();
-    recalcCharge();
+    if(el("f_cashPaid")) el("f_cashPaid").addEventListener("input",recalcCharge);
+    syncChargeBillUi();
   } else recalcLead();
   showSheet(true);
 }
 function recalcCharge(){
   var box=el("f_ch_calc"); if(!box) return;
   var gross=apaNum(el("f_amount")?el("f_amount").value:0);
-  var pct=21, net=gross/(1+pct/100), vat=gross-net;
+  var bt=(el("f_billType")&&el("f_billType").value)||"invoice";
   var method=(el("f_payMethod")&&el("f_payMethod").value)||"Card";
   var cash=apaNum(el("f_cashPaid")?el("f_cashPaid").value:0);
-  if(method==="Cash"&&!(cash>0)) cash=gross;
-  if(method==="Card") cash=0;
+  if(bt==="cash"){ if(!(cash>0)) cash=gross; }
+  else if(bt==="invoice"){ cash=0; }
+  else if(bt==="mix"){
+    if(!(cash>0)&&method==="Split") cash=0;
+  } else if(method==="Cash"&&!(cash>0)) cash=gross;
+  if(method==="Card"&&bt==="invoice") cash=0;
   if(cash>gross) cash=gross;
-  box.innerHTML='<div class="cl"><span>Amount (VAT included)</span><b>'+money(gross)+'</b></div>'+
-    '<div class="cl"><span>Net (ex VAT)</span><b>'+money(net)+'</b></div>'+
-    '<div class="cl"><span>VAT '+pct+'% included</span><b>'+money(vat)+'</b></div>'+
-    (method!=="Card"?'<div class="cl hi"><span>→ Boat cash pot</span><b>'+money(cash)+'</b></div>':'');
+  var inv=Math.max(0, Math.round((gross-cash)*100)/100);
+  var html='<div class="cl"><span>Total</span><b>'+money(gross)+'</b></div>';
+  if(bt==="cash"){
+    html+='<div class="cl hi"><span>Cash settlement (no invoice)</span><b>'+money(cash||gross)+'</b></div>';
+  } else if(bt==="mix"){
+    html+='<div class="cl"><span>Cash part</span><b>'+money(cash)+'</b></div>'+
+      '<div class="cl hi"><span>Invoice part (VAT incl.)</span><b>'+money(inv)+'</b></div>';
+    if(inv>0){
+      var sp=invoiceSplitGross(inv, 21);
+      html+='<div class="cl"><span> invoice net</span><b>'+money(sp.net)+'</b></div>'+
+        '<div class="cl"><span> VAT 21%</span><b>'+money(sp.vat)+'</b></div>';
+    }
+  } else {
+    var sp2=invoiceSplitGross(gross, 21);
+    html+='<div class="cl"><span>Net (ex VAT)</span><b>'+money(sp2.net)+'</b></div>'+
+      '<div class="cl"><span>VAT 21% included</span><b>'+money(sp2.vat)+'</b></div>'+
+      '<div class="cl hi"><span>To invoice</span><b>'+money(gross)+'</b></div>';
+  }
+  if(cash>0) html+='<div class="cl"><span>→ Boat cash pot (when Paid)</span><b>'+money(cash)+'</b></div>';
+  box.innerHTML=html;
 }
 
 function saveSheet(type,rec){
   if(type==="charter"){
-    var gross=apaNum(el("f_amount").value), vatPct=21;
-    var net=gross/(1+vatPct/100), vat=gross-net;
-    var payStatus=el("f_pay").value, invStatus=el("f_invStatus").value;
+    var gross=apaNum(el("f_amount").value);
+    var billType=(el("f_billType")&&el("f_billType").value)||"invoice";
+    if(billType!=="cash"&&billType!=="mix") billType="invoice";
+    var payStatus=el("f_pay").value;
+    var invStatus=el("f_invStatus")?el("f_invStatus").value:"Not issued";
     var pmRaw=(el("f_payMethod")&&el("f_payMethod").value)||"Card";
     var payMethod=pmRaw==="Cash"||pmRaw==="Split"?pmRaw:"Card";
     var cashPaid=apaNum(el("f_cashPaid")?el("f_cashPaid").value:0);
-    if(payMethod==="Cash"&&!(cashPaid>0)) cashPaid=gross;
-    if(payMethod==="Card") cashPaid=0;
-    if(payMethod==="Split"){
-      if(!(cashPaid>0)){ window.alert("Split: enter how much cash went into the boat pot."); if(el("f_cashPaid")) el("f_cashPaid").focus(); return; }
-      if(cashPaid>gross+0.009){ window.alert("Cash amount cannot exceed the charge total."); if(el("f_cashPaid")) el("f_cashPaid").focus(); return; }
+    if(billType==="cash"){
+      payMethod="Cash";
+      if(!(cashPaid>0)) cashPaid=gross;
+      invStatus="Not needed";
+    } else if(billType==="mix"){
+      if(!(cashPaid>0)){ window.alert("Mix: enter the cash part (e.g. cash black €1,800)."); if(el("f_cashPaid")) el("f_cashPaid").focus(); return; }
+      if(cashPaid>gross+0.009){ window.alert("Cash part cannot exceed the total."); if(el("f_cashPaid")) el("f_cashPaid").focus(); return; }
+      if(cashPaid>=gross-0.009){ window.alert("Mix needs both a cash part and an invoice part. Use Cash only if everything is cash."); return; }
+      payMethod="Split";
+      if(invStatus==="Not needed") invStatus="Not issued";
+    } else {
+      /* invoice */
+      if(payMethod==="Cash") payMethod="Card";
+      cashPaid=0;
+      if(invStatus==="Not needed") invStatus="Not issued";
     }
     if(cashPaid>gross) cashPaid=gross;
+    var invPart=billType==="cash"?0:Math.round((gross-cashPaid)*100)/100;
+    var vatPct=billType==="cash"?0:21;
+    var vatMode=billType==="cash"?"none":"include";
+    var net, vat;
+    if(billType==="cash"){ net=gross; vat=0; }
+    else if(billType==="mix"){
+      var spM=invoiceSplitGross(invPart, 21);
+      net=Math.round((cashPaid+spM.net)*100)/100;
+      vat=spM.vat;
+      vatPct=21;
+    } else {
+      var spI=invoiceSplitGross(gross, 21);
+      net=spI.net; vat=spI.vat; vatPct=spI.pct;
+    }
     var obj={ id:rec?rec.id:uid(), date:el("f_date").value, client:el("f_client").value.trim(),
-      amount:gross, vatMode:"include", vatPct:vatPct, net:net, vat:vat,
+      amount:gross, billType:billType, vatMode:vatMode, vatPct:vatPct, net:net, vat:vat,
       payStatus:payStatus, payMethod:payMethod, cashPaid:cashPaid>0?Math.round(cashPaid*100)/100:0,
       invStatus:invStatus,
-      status:invStatus==="Issued"?"Invoiced":payStatus,
-      inv:el("f_inv").value.trim(),
+      status:invStatus==="Issued"?"Invoiced":(invStatus==="Not needed"?payStatus:payStatus),
+      inv:el("f_inv")?el("f_inv").value.trim():"",
       notes:el("f_notes").value.trim(), by:session.who };
     /* Keep APA linkage when editing payment / invoice status */
     if(rec){
@@ -7768,6 +7959,9 @@ function saveSheet(type,rec){
       if(rec.cashDeal) obj.cashDeal=rec.cashDeal;
       if(rec.cashAmt!=null) obj.cashAmt=rec.cashAmt;
       if(rec.apaZeroPot!=null) obj.apaZeroPot=rec.apaZeroPot;
+    }
+    if(billType==="mix"||billType==="cash"){
+      if(!(obj.cashAmt>0)&&cashPaid>0) obj.cashAmt=cashPaid;
     }
     if(!obj.client && !obj.amount){ el("f_client").focus(); return; }
     upsert("charters",obj,rec); renderCharters(); save("charters");
