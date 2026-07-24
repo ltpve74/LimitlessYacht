@@ -56,9 +56,9 @@ function isCaptain(who) {
 function isManager(who) {
   return /^manager\b/i.test(String(who || "").trim());
 }
-/** Full ops: APA + vessel diesel — captain and manager. */
+/** Ops (APA + vessel diesel): captain only. Manager uses charges/leads. */
 function canOps(who) {
-  return isCaptain(who) || isManager(who);
+  return isCaptain(who);
 }
 
 /** Stable IDs — real first APA entry from tracker/Limitless_APA_Tracker.xlsx */
