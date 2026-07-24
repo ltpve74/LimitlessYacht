@@ -3397,10 +3397,10 @@ def check_shared_assets(r: Runner) -> None:
     r.check(
         'reviews grid + loading reserve height so lazy-load does not shift (CLS)',  # DECISION (see DECISIONS.md — do not weaken to pass)
         css is not None
-        # Placeholder and grid reserve the loaded height (mobile 98rem / desktop 38rem — 6 reviews)
-        and re.search(r'\.reviews-loading\{[^}]*min-height:98rem', css) is not None
-        and re.search(r'\.reviews-grid\{[^}]*min-height:98rem', css) is not None
-        and 'min-height:38rem' in css,
+        # Placeholder and grid reserve the loaded height (mobile 115rem / desktop 51rem — 7 reviews)
+        and re.search(r'\.reviews-loading\{[^}]*min-height:115rem', css) is not None
+        and re.search(r'\.reviews-grid\{[^}]*min-height:115rem', css) is not None
+        and 'min-height:51rem' in css,
     )
     r.check(
         'mobile carousel-nav reserves height so position indicator does not shift (CLS)',  # DECISION (see DECISIONS.md — do not weaken to pass)

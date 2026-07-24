@@ -1146,6 +1146,16 @@ REVIEWS_UI = {
 
 REVIEWS = [
     {
+        "author": "Oliver",
+        "date": "Juli 2026",
+        "rating": 5,
+        "text": (
+            "Fantastischer Tag – das war unser bestes Yacht-Erlebnis. Wir sind zu 100 % "
+            "zufrieden und würden euch jedem empfehlen, der eine Luxusyacht chartern möchte. "
+            "Ihr und Toni wart fantastisch – unser bester Tag der Reise."
+        ),
+    },
+    {
         "author": "Joel",
         "date": "Juli 2026",
         "rating": 5,

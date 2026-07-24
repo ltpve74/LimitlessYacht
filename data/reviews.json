@@ -1,6 +1,12 @@
 {
   "reviews": [
     {
+      "author": "Oliver",
+      "date": "Jul 2026",
+      "rating": 5,
+      "text": "Fantastic day - this has been our best yacht experience. We are 100% happy and would recommend you to anyone looking to charter a luxury yacht. You and Toni were fantastic - our best day of the trip."
+    },
+    {
       "author": "Joel",
       "date": "Jul 2026",
       "rating": 5,

@@ -1144,6 +1144,16 @@ REVIEWS_UI = {
 
 REVIEWS = [
     {
+        "author": "Oliver",
+        "date": "Jul 2026",
+        "rating": 5,
+        "text": (
+            "Día fantástico: esta ha sido nuestra mejor experiencia en un yate. Estamos "
+            "100% contentos y os recomendaríamos a cualquiera que busque fletar un yate "
+            "de lujo. Tú y Toni fuisteis fantásticos: el mejor día del viaje."
+        ),
+    },
+    {
         "author": "Joel",
         "date": "Jul 2026",
         "rating": 5,
