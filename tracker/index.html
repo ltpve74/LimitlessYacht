@@ -546,7 +546,10 @@ var EXP_POCKET_CAPTAIN="captain";
 /** Monthly expense charge target: boat running vs a charter APA pot. */
 var EXP_CHARGE_TO=["boat","apa"];
 var pushMeta={ server:false, vapidPublicKey:"", endpoint:"" };
-var DIESEL_DEFAULT_BUY=1.75, DIESEL_DEFAULT_SELL=2.20;
+/* Vessel diesel — buy = bunker cost; sell = guest/charge rate. Update both when marina price moves. */
+var DIESEL_DEFAULT_BUY=1.74, DIESEL_DEFAULT_SELL=1.85;
+/* Previous defaults — rolled forward once so live Blobs pick up new rates */
+var DIESEL_PREV_BUY=1.75, DIESEL_PREV_SELL=2.20;
 var SESSION_KEY="limitless_tracker_session";
 function isCaptain(){ return /^captain\b/i.test(String(session.who||"").trim()); }
 function isManager(){ return /^manager\b/i.test(String(session.who||"").trim()); }
@@ -2590,7 +2593,7 @@ function bindEdit(wrap,attr,type){
 function emptyApaTrip(){
   return { id:uid(), vessel:"M/Y Limitless", guest:"", captain:"Luigi", dates:"",
     clientKey:"", chargeId:"", linkKey:"", linkSource:"", linkSourceId:"", linkInvKind:"", linkInvNo:"", linkInvLabel:"", linkInvAmount:0,
-    apaSent:0, topUps:0, dieselPrice:1.75, genBurn:6,
+    apaSent:0, topUps:0, dieselPrice:DIESEL_DEFAULT_SELL, genBurn:6,
     expenses:[], provisions:[], diesel:[], dieselLoads:[], notes:"", by:session.who||"Captain", updatedAt:new Date().toISOString() };
 }
 function normName(s){ return String(s||"").trim().toLowerCase().replace(/\s+/g," "); }
@@ -3396,13 +3399,15 @@ function apaEnsureArrays(t){
   t.provisions.forEach(function(p){ if(p&&!p.id) p.id=uid(); });
   t.diesel.forEach(function(d){ if(d&&!d.id) d.id=uid(); });
   t.dieselLoads.forEach(function(d){ if(d&&!d.id) d.id=uid(); });
-  if(!(Number(t.dieselPrice)>0)) t.dieselPrice=1.75;
+  if(!(Number(t.dieselPrice)>0)) t.dieselPrice=DIESEL_DEFAULT_SELL;
+  /* Old APA default was buy-ish 1.75 — use current sell rate for guest charges */
+  else if(Math.abs(Number(t.dieselPrice)-DIESEL_PREV_BUY)<0.001) t.dieselPrice=DIESEL_DEFAULT_SELL;
   if(!(Number(t.genBurn)>0)) t.genBurn=6;
   return t;
 }
 function apaDieselPrice(t){
   var p=Number(t&&t.dieselPrice);
-  if(p>0) return p;
+  if(p>0&&Math.abs(p-DIESEL_PREV_BUY)>0.001) return p;
   /* Fall back to vessel sell price (guest rate) from Diesel tab */
   try{ var sp=dieselSettings().sellPrice; if(sp>0) return sp; }catch(e){}
   return DIESEL_DEFAULT_SELL;
@@ -3960,7 +3965,7 @@ function openApaTrip(id){
       end:endIso||"",
       apaSent:apaNum(el("f_apaSent").value),
       topUps:apaNum(el("f_topUps").value),
-      dieselPrice:apaNum(el("f_dPrice").value)||1.75,
+      dieselPrice:apaNum(el("f_dPrice").value)||DIESEL_DEFAULT_SELL,
       genBurn:apaNum(el("f_genBurn").value)||6,
       expenses:r.expenses||[],
       provisions:r.provisions||[],
@@ -4194,12 +4199,24 @@ function dieselEnsure(){
   for(var i=0;i<state.diesel.length;i++){
     if(state.diesel[i]&&state.diesel[i].kind==="settings"){ s=state.diesel[i]; break; }
   }
+  var dirty=false;
   if(!s){
     s={id:"diesel-settings",kind:"settings",buyPrice:DIESEL_DEFAULT_BUY,sellPrice:DIESEL_DEFAULT_SELL};
     state.diesel.unshift(s);
+    dirty=true;
   }
-  if(!(Number(s.buyPrice)>0)) s.buyPrice=DIESEL_DEFAULT_BUY;
-  if(!(Number(s.sellPrice)>0)) s.sellPrice=DIESEL_DEFAULT_SELL;
+  var buy=apaNum(s.buyPrice), sell=apaNum(s.sellPrice);
+  if(!(buy>0)||Math.abs(buy-DIESEL_PREV_BUY)<0.001){
+    if(Math.abs(apaNum(s.buyPrice)-DIESEL_DEFAULT_BUY)>0.001) dirty=true;
+    s.buyPrice=DIESEL_DEFAULT_BUY;
+  }
+  if(!(sell>0)||Math.abs(sell-DIESEL_PREV_SELL)<0.001){
+    if(Math.abs(apaNum(s.sellPrice)-DIESEL_DEFAULT_SELL)>0.001) dirty=true;
+    s.sellPrice=DIESEL_DEFAULT_SELL;
+  }
+  if(dirty&&typeof save==="function"){
+    try{ save("diesel"); }catch(e){}
+  }
   return s;
 }
 function dieselSettings(){
@@ -9124,7 +9141,7 @@ function sheetJoelApaTrip(){
   return {id:SHEET_TRIP_ID,vessel:"M/Y Limitless",guest:"Joel Freeland",captain:"Luigi",dates:"17-19/07",
     clientKey:ck,chargeId:"",linkKey:ck+":apas",linkSource:"lead",linkSourceId:SHEET_LEAD_ID,
     linkInvKind:"apas",linkInvNo:"APA-JF-2400",linkInvLabel:"APA",linkInvAmount:2400,
-    apaSent:2400,topUps:0,dieselPrice:1.75,genBurn:6,
+    apaSent:2400,topUps:0,dieselPrice:DIESEL_DEFAULT_SELL,genBurn:6,
     expenses:[
       {id:"exp-jf-marina-soller",date:"2026-07-17",category:"Dockage / Marina",amount:579.07,vendor:"Marina Tramontana - Soller",paidBy:"Ship card",receipt:"",notes:""},
       {id:"exp-jf-marina-andratx",date:"2026-07-18",category:"Dockage / Marina",amount:450.64,vendor:"Marina Port Andratx - Andratx",paidBy:"Ship card",receipt:"",notes:""}
@@ -9144,7 +9161,7 @@ function sheetJoelApaTrip(){
 }
 function sheetDieselSeed(){
   return [
-    {id:"diesel-settings",kind:"settings",buyPrice:1.75,sellPrice:2.20},
+    {id:"diesel-settings",kind:"settings",buyPrice:DIESEL_DEFAULT_BUY,sellPrice:DIESEL_DEFAULT_SELL},
     {id:"dsl-buy-jf-example",kind:"buy",date:"2026-07-16",litres:2200,onboard:400,price:"",notes:"EXAMPLE bunker — overwrite or delete"}
   ];
 }
