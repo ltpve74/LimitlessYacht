@@ -503,6 +503,8 @@
 <div class="scrim" id="scrim"></div>
 <div class="sheet" id="sheet"><div class="grip"></div><div id="sheetInner"></div></div>
 
+<!-- Domain models (money rules) — single source of truth; tests: node scripts/test-tracker-models.mjs -->
+<script src="/tracker/js/models.js"></script>
 <script>
 "use strict";
 var API = "/.netlify/functions/tracker";
@@ -550,8 +552,11 @@ function isCaptain(){ return /^captain\b/i.test(String(session.who||"").trim());
 function isManager(){ return /^manager\b/i.test(String(session.who||"").trim()); }
 /** Ops (APA, Diesel, Stews, Expenses, commissions) — captain only. */
 function canOps(){ return isCaptain(); }
-/** Captain commission rate on leads he gained (of charter amount before VAT). */
-var CAPTAIN_COMMISSION_PCT=15;
+/** Captain commission % — locked in tracker/js/models.js */
+var CAPTAIN_COMMISSION_PCT=(window.LY_MODELS&&LY_MODELS.CAPTAIN_COMMISSION_PCT)||15;
+if(!window.LY_MODELS){
+  console.error("[tracker] LY_MODELS missing — load /tracker/js/models.js");
+}
 
 function deviceId(){
   var id=safeGet("limitless_device");
@@ -835,42 +840,11 @@ function chargePayMethod(r){
   if(r&&/cash/i.test(String(r.notes||""))&&!/card/i.test(String(r.notes||""))) return "Cash";
   return "Card";
 }
-/**
- * How this charge is settled for the books:
- *   cash    — all cash black / cash settlement (no formal invoice)
- *   invoice — formal invoice (manager PDF, usually card/transfer)
- *   mix     — part cash + part to invoice (e.g. cash deal + spend)
- */
-function chargeBillType(r){
-  if(!r) return "invoice";
-  var bt=String(r.billType||"").toLowerCase();
-  if(bt==="cash"||bt==="invoice"||bt==="mix") return bt;
-  var tot=apaNum(r.amount), cashP=apaNum(r.cashPaid), free=apaNum(r.cashAmt);
-  if(r.cashDeal||r.vatMode==="none"){
-    if(free>0&&tot>free+0.02) return "mix";
-    if(cashP>0&&cashP<tot-0.009) return "mix";
-    if(chargePayMethod(r)==="Cash"||r.vatMode==="none") return "cash";
-  }
-  if(chargePayMethod(r)==="Cash") return "cash";
-  if(chargePayMethod(r)==="Split"||(cashP>0&&cashP<tot-0.009)) return "mix";
-  return "invoice";
-}
-/** Cash portion of the charge (black / boat pot). */
-function chargeCashPart(r){
-  var total=apaNum(r.amount);
-  var t=chargeBillType(r);
-  if(!(total>0)||t==="invoice") return 0;
-  if(t==="cash") return total;
-  var cash=apaNum(r.cashPaid);
-  if(!(cash>0)&&apaNum(r.cashAmt)>0) cash=Math.min(total, apaNum(r.cashAmt));
-  if(!(cash>0)) cash=0;
-  return Math.min(total, Math.round(cash*100)/100);
-}
-/** Formal invoice portion (manager PDF). */
-function chargeInvoicePart(r){
-  return Math.max(0, Math.round((apaNum(r.amount)-chargeCashPart(r))*100)/100);
-}
-function chargeNeedsInvoice(r){ return chargeInvoicePart(r)>0.009; }
+/** Bill type / cash-invoice split — models (cash | invoice | mix). */
+function chargeBillType(r){ return LY_MODELS?LY_MODELS.chargeBillType(r):"invoice"; }
+function chargeCashPart(r){ return LY_MODELS?LY_MODELS.chargeCashPart(r):0; }
+function chargeInvoicePart(r){ return LY_MODELS?LY_MODELS.chargeInvoicePart(r):0; }
+function chargeNeedsInvoice(r){ return LY_MODELS?LY_MODELS.chargeNeedsInvoice(r):false; }
 /**
  * Cash that entered the boat pot from this charge (when Paid).
  * Uses bill type cash/mix parts; legacy Card/Cash/Split still works.
@@ -4741,33 +4715,8 @@ function leadCashPinSet(id, amt){
     safeSet(LEAD_CASH_PIN_KEY, JSON.stringify(pins));
   }catch(e){}
 }
-function leadSuggestedCashAmt(l){
-  if(!l) return null;
-  var base=Number(l.base)||Number(l.price)||0;
-  if(!(base>0)&&l.rate&&l.days) base=(Number(l.rate)||0)*(Number(l.days)||1);
-  if(!(base>0)) return null;
-  var ref=leadMoney(base, l.vatMode||"include", l.vatPct);
-  var wNet=Number(l.invoiceNet)||0;
-  if(!(wNet>0)&&Number(l.invoiceTotal)>0){
-    wNet=leadMoney(Number(l.invoiceTotal), l.whiteVatMode||"include", l.vatPct).net;
-  }
-  if(!(wNet>0)&&!(ref.net>0)) return null;
-  return Math.round(Math.max(0, ref.net-wNet)*100)/100;
-}
-function cashAmtLooksSuggested(l){
-  var cash=Number(l&&l.cashAmt)||0;
-  if(!(cash>0)) return false;
-  var sug=leadSuggestedCashAmt(l);
-  if(sug!=null&&sug>0&&Math.abs(cash-sug)<1.01) return true;
-  /* Classic bug: cash set to white net (2000÷1.21 ≈ 1653) */
-  var wNet=Number(l.invoiceNet)||0;
-  if(wNet>0&&Math.abs(cash-wNet)<1.01) return true;
-  if(Number(l.invoiceTotal)>0){
-    var wn=leadMoney(Number(l.invoiceTotal), l.whiteVatMode||"include", l.vatPct||21).net;
-    if(wn>0&&Math.abs(cash-wn)<1.01) return true;
-  }
-  return false;
-}
+function leadSuggestedCashAmt(l){ return LY_MODELS?LY_MODELS.leadSuggestedCashAmt(l):null; }
+function cashAmtLooksSuggested(l){ return LY_MODELS?LY_MODELS.cashAmtLooksSuggested(l):false; }
 /** Prefer free cash over auto-suggested ex-VAT cash when merging two versions of a lead. */
 function pickLeadCashAmt(a, b){
   var ca=Number(a&&a.cashAmt)||0, cb=Number(b&&b.cashAmt)||0;
@@ -7890,183 +7839,43 @@ function leadSplit(base, vatMode, vatPctRaw, splitOn, whiteAmtRaw, cashBlackRaw,
     whiteVatMode:wMode
   };
 }
-function leadHasSplit(r){ return !!(r&&(r.split||r.splitCash)&&(Number(r.invoiceNet)>0||Number(r.invoiceTotal)>0||Number(r.cashAmt)>0||Number(r.dealNet)>0||r.split||r.splitCash)); }
-/** Lead source for captain commission: captain | other */
-function leadSource(r){
-  if(!r) return "other";
-  var s=String(r.leadSource||"").toLowerCase();
-  if(s==="captain"||s==="cpt"||r.captainLead===true) return "captain";
-  return "other";
-}
-function isCaptainLead(r){ return leadSource(r)==="captain"; }
-/**
- * Commission math (captain leads only):
- *
- * Normal (VAT included, e.g. Joel €12k):
- *   base = total ÷ 1.21   →  15% × base
- *
- * Split deal:
- *   whiteBeforeVat = white invoice stripped of VAT (or full white if no VAT)
- *   cashBlack      = free cash (no VAT)
- *   commission     = 15% × whiteBeforeVat  +  15% × cashBlack
- *
- * Explicit vatMode "none" → no strip. Empty/0 vat% still means 21%.
- */
-function leadCommissionVatPct(r){
-  var raw=r&&r.vatPct;
-  if(raw===""||raw==null) return 21;
-  var n=Number(raw);
-  if(!isFinite(n)||n<=0) return 21;
-  return n;
-}
-function leadCommissionGrossAmount(r){
-  if(!r) return 0;
-  var g=Number(r.total)||0;
-  if(!(g>0)) g=Number(r.base)||0;
-  if(!(g>0)) g=Number(r.price)||0;
-  if(!(g>0)&&r.rate&&r.days) g=(Number(r.rate)||0)*(Number(r.days)||1);
-  return Math.round((g||0)*100)/100;
-}
-/** White invoice amount before VAT (split deals). */
-function leadCommissionWhiteBeforeVat(r){
-  if(!r) return 0;
-  var pct=leadCommissionVatPct(r);
-  var whiteGross=Number(r.invoiceTotal)||0;
-  var whiteNet=Number(r.invoiceNet)||0;
-  var wMode=String(r.whiteVatMode||"include").toLowerCase();
-  if(!(whiteGross>0)&&!(whiteNet>0)) return 0;
-  if(wMode==="none"){
-    return Math.round((whiteGross>0?whiteGross:whiteNet)*100)/100;
-  }
-  if(wMode==="add"){
-    /* Amount was entered ex-VAT (add VAT on top) → use net / amount as base */
-    if(whiteNet>0&&whiteNet<whiteGross*0.99) return Math.round(whiteNet*100)/100;
-    if(whiteGross>0) return Math.round(whiteGross*100)/100; /* form stores net as total when add */
-    return Math.round(whiteNet*100)/100;
-  }
-  /* include (default): white total is VAT-included → strip */
-  if(whiteGross>0){
-    if(whiteNet>0&&whiteNet<whiteGross*0.95) return Math.round(whiteNet*100)/100;
-    return Math.round(whiteGross/(1+pct/100)*100)/100;
-  }
-  /* only net stored */
-  return Math.round(whiteNet*100)/100;
-}
-/**
- * Full breakdown for UI + totals.
- * { split, whiteBeforeVat, cashBlack, base, whiteComm, cashComm, total, gross, detail }
- */
+/* ---- Domain wrappers (logic lives in tracker/js/models.js — do not re-copy math here) ---- */
+function leadHasSplit(r){ return LY_MODELS?LY_MODELS.leadHasSplit(r):false; }
+function leadSource(r){ return LY_MODELS?LY_MODELS.leadSource(r):"other"; }
+function isCaptainLead(r){ return LY_MODELS?LY_MODELS.isCaptainLead(r):false; }
+function leadCommissionVatPct(r){ return LY_MODELS?LY_MODELS.commissionVatPct(r):21; }
+function leadCommissionWhiteBeforeVat(r){ return LY_MODELS?LY_MODELS.leadCommissionWhiteBeforeVat(r):0; }
 function leadCommissionParts(r){
-  var pctRate=CAPTAIN_COMMISSION_PCT/100;
-  var empty={split:false, whiteBeforeVat:0, cashBlack:0, base:0, whiteComm:0, cashComm:0, total:0, gross:0, detail:""};
-  if(!r) return empty;
-  var pct=leadCommissionVatPct(r);
-  var mode=String(r.vatMode||"include").toLowerCase();
-  var isSplit=!!(r.split===true||r.splitCash===true||r.split==="true"||r.splitCash==="true"||leadHasSplit(r));
-
-  if(isSplit&&(Number(r.invoiceTotal)>0||Number(r.invoiceNet)>0||Number(r.cashAmt)>0||r.split||r.splitCash)){
-    var whiteB=leadCommissionWhiteBeforeVat(r);
-    var cashB=Math.round((Number(r.cashAmt)||0)*100)/100;
-    var whiteC=Math.round(whiteB*pctRate*100)/100;
-    var cashC=Math.round(cashB*pctRate*100)/100;
-    var base=Math.round((whiteB+cashB)*100)/100;
-    var total=Math.round((whiteC+cashC)*100)/100;
-    var whiteG=Number(r.invoiceTotal)||0;
-    if(!(whiteG>0)&&Number(r.invoiceNet)>0) whiteG=Number(r.invoiceNet);
-    var gross=Math.round((whiteG+cashB)*100)/100;
-    var detail="White before VAT "+money(whiteB)+" × "+CAPTAIN_COMMISSION_PCT+"% = "+money(whiteC)+
-      "  ·  Cash black "+money(cashB)+" × "+CAPTAIN_COMMISSION_PCT+"% = "+money(cashC)+
-      "  ·  Total "+money(total);
-    return {
-      split:true, whiteBeforeVat:whiteB, cashBlack:cashB, base:base,
-      whiteComm:whiteC, cashComm:cashC, total:total, gross:gross, detail:detail
-    };
-  }
-
-  var gross=leadCommissionGrossAmount(r);
-  if(!(gross>0)) return empty;
-  var base;
-  if(mode==="none"){
-    base=gross;
-  } else if(mode==="add"){
-    var ex=Number(r.base)||Number(r.price)||0;
-    if(!(ex>0)&&r.rate&&r.days) ex=(Number(r.rate)||0)*(Number(r.days)||1);
-    if(!(ex>0)&&Number(r.net)>0&&Number(r.net)<gross*0.99) ex=Number(r.net);
-    if(ex>0&&Math.abs(ex-gross)<0.05) base=Math.round(gross/(1+pct/100)*100)/100;
-    else if(ex>0) base=Math.round(ex*100)/100;
-    else base=Math.round(gross/(1+pct/100)*100)/100;
+  var p=LY_MODELS?LY_MODELS.leadCommissionParts(r):{split:false,whiteBeforeVat:0,cashBlack:0,base:0,whiteComm:0,cashComm:0,total:0,gross:0};
+  /* UI-only detail strings */
+  if(p.split){
+    p.detail="White before VAT "+money(p.whiteBeforeVat)+" × "+CAPTAIN_COMMISSION_PCT+"% = "+money(p.whiteComm)+
+      "  ·  Cash black "+money(p.cashBlack)+" × "+CAPTAIN_COMMISSION_PCT+"% = "+money(p.cashComm)+
+      "  ·  Total "+money(p.total);
   } else {
-    /* VAT included (default) */
-    base=Math.round(gross/(1+pct/100)*100)/100;
+    var mode=r&&r.vatMode?String(r.vatMode):"include";
+    p.detail=money(p.gross)+(mode==="none"?"":" inc. VAT")+" → before VAT "+money(p.base)+
+      " × "+CAPTAIN_COMMISSION_PCT+"% = "+money(p.total);
   }
-  var total=Math.round(base*pctRate*100)/100;
-  var detail=money(gross)+(mode==="none"?"":" inc. VAT")+" → before VAT "+money(base)+
-    " × "+CAPTAIN_COMMISSION_PCT+"% = "+money(total);
-  return {
-    split:false, whiteBeforeVat:base, cashBlack:0, base:base,
-    whiteComm:total, cashComm:0, total:total, gross:gross, detail:detail
-  };
+  return p;
 }
 function leadCommissionBase(r){ return leadCommissionParts(r).base; }
 function leadCommissionGross(r){ return leadCommissionParts(r).gross; }
 function leadCommissionAmt(r){ return leadCommissionParts(r).total; }
-
-/**
- * Captain commission on a charge — explicit choice only (checkbox on the charge).
- * No auto-guess from notes (you decide per charge).
- */
-function isChargeCaptainComm(c){
-  if(!c||!(apaNum(c.amount)>0)) return false;
-  if(c.captainComm===false||c.captainComm==="false"||c.captainComm===0) return false;
-  return c.captainComm===true||c.captainComm==="true"||c.captainComm===1;
-}
-function chargeExtHours(c){
-  if(!c) return 0;
-  if(apaNum(c.extHours)>0) return apaNum(c.extHours);
-  var n=String(c.notes||"");
-  var m=n.match(/(?:extra|extension|extended|overtime|\+)\s*(\d+(?:[.,]\d+)?)\s*h/i)
-    ||n.match(/(\d+(?:[.,]\d+)?)\s*(?:extra\s*)?h(?:ou)?rs?/i);
-  if(m) return apaNum(m[1]);
-  return 0;
-}
-/**
- * Commission on an extension charge:
- *   VAT-included amount → strip VAT → 15%
- *   Cash-only charge → 15% of full amount (no VAT)
- *   Mix → 15% of invoice part before VAT + 15% of cash part
- */
+function isChargeCaptainComm(c){ return LY_MODELS?LY_MODELS.isChargeCaptainComm(c):false; }
+function chargeExtHours(c){ return LY_MODELS?LY_MODELS.chargeExtHours(c):0; }
 function chargeCommissionParts(c){
-  var empty={base:0, total:0, gross:0, detail:"", hours:0, client:"", date:"", id:""};
-  if(!c||!isChargeCaptainComm(c)) return empty;
-  var pctRate=CAPTAIN_COMMISSION_PCT/100;
-  var gross=apaNum(c.amount);
-  if(!(gross>0)) return empty;
-  var hours=chargeExtHours(c);
+  var p=LY_MODELS?LY_MODELS.chargeCommissionParts(c):{base:0,total:0,gross:0,hours:0};
+  var empty={base:0,total:0,gross:0,detail:"",hours:0,client:"",date:"",id:"",source:"charge",charge:c};
+  if(!(p.total>0)&&!(p.base>0)) return empty;
   var bt=chargeBillType(c);
-  var base=0, detail="";
-  if(bt==="cash"||c.vatMode==="none"){
-    base=gross;
-    detail=money(gross)+" cash → "+CAPTAIN_COMMISSION_PCT+"% = "+money(Math.round(base*pctRate*100)/100);
-  } else if(bt==="mix"){
-    var cashP=chargeCashPart(c);
-    var invP=chargeInvoicePart(c);
-    var invBase=invP>0?invP/(1+leadCommissionVatPct(c)/100):0;
-    base=Math.round((invBase+cashP)*100)/100;
-    detail="Invoice part before VAT "+money(invBase)+" + cash "+money(cashP)+" → "+CAPTAIN_COMMISSION_PCT+"% = "+money(Math.round(base*pctRate*100)/100);
-  } else {
-    /* invoice / VAT included (Oliver €1,050 extra 3h) */
-    var vp=leadCommissionVatPct(c);
-    if(c.vatMode==="add"&&Number(c.net)>0&&Number(c.net)<gross*0.99){
-      base=Math.round(Number(c.net)*100)/100;
-    } else {
-      base=Math.round(gross/(1+vp/100)*100)/100;
-    }
-    detail=money(gross)+" inc. VAT → before VAT "+money(base)+" × "+CAPTAIN_COMMISSION_PCT+"% = "+money(Math.round(base*pctRate*100)/100);
-  }
-  var total=Math.round(base*pctRate*100)/100;
+  var detail="";
+  if(bt==="cash"||(c&&c.vatMode==="none")) detail=money(p.gross)+" cash → "+CAPTAIN_COMMISSION_PCT+"% = "+money(p.total);
+  else if(bt==="mix") detail="Mix before VAT "+money(p.base)+" → "+CAPTAIN_COMMISSION_PCT+"% = "+money(p.total);
+  else detail=money(p.gross)+" inc. VAT → before VAT "+money(p.base)+" × "+CAPTAIN_COMMISSION_PCT+"% = "+money(p.total);
   return {
-    base:base, total:total, gross:gross, detail:detail, hours:hours,
-    client:c.client||"", date:c.date||"", id:c.id||"",
+    base:p.base, total:p.total, gross:p.gross, detail:detail, hours:p.hours,
+    client:(c&&c.client)||"", date:(c&&c.date)||"", id:(c&&c.id)||"",
     source:"charge", charge:c
   };
 }
