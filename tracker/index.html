@@ -8120,7 +8120,7 @@ function openSheet(type,id){
     h+='<div class="sheethead"><h2>'+(rec?"Edit lead":"New lead")+'</h2><button type="button" class="sheetx" id="sheetClose" aria-label="Close">×</button></div>';
     if(rec&&leadHasSplit(r)&&(cashAmtLooksSuggested(r)||(Number(r.cashAmt)>0&&!(freeCashShow>0)))){
       h+='<div class="apa-card" style="margin:0 0 12px;padding:10px 12px;border:1.5px solid #f0d48a;background:#fffbf0">'+
-        '<div style="font-weight:800;color:#9a6b00">Stored cash was the white net (€+money(Number(r.cashAmt)||0)+' = amount÷1.21) — not free cash black</div>'+
+        '<div style="font-weight:800;color:#9a6b00">Stored cash was the white net (€'+money(Number(r.cashAmt)||0)+' = amount÷1.21) — not free cash black</div>'+
         '<div class="meta" style="margin-top:4px">Enter free cash e.g. <b>€1,800</b> and Save. Do not use “Use suggested”.</div>'+
       '</div>';
     }
