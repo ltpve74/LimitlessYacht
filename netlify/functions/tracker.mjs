@@ -226,11 +226,22 @@ function chargeIsLockedMoney(c) {
   return false;
 }
 
+/** APA base only restores pot — never extAmt (mirrors client chargeApaBaseTowardPot). */
+function chargeApaBaseTowardPot(c) {
+  if (!c) return 0;
+  const ext = Math.max(0, Math.round((Number(c.extAmt) || 0) * 100) / 100);
+  if (c.apaBaseAmt != null && c.apaBaseAmt !== "") {
+    const b = Math.round((Number(c.apaBaseAmt) || 0) * 100) / 100;
+    if (b >= 0) return b;
+  }
+  return Math.max(0, Math.round(((Number(c.amount) || 0) - ext) * 100) / 100);
+}
+
 /** Paid shortfall charges count toward pot (mirrors client). Free cash is lead-only. */
 function tripApaPaidCovered(data, t) {
   let s = 0;
   for (const c of tripLinkedCharges(data, t)) {
-    if (chargeIsPaid(c)) s += Number(c.amount) || 0;
+    if (chargeIsPaid(c)) s += chargeApaBaseTowardPot(c);
   }
   return Math.round(s * 100) / 100;
 }
@@ -312,13 +323,15 @@ function tripApaOverage(data, t) {
       dCost += manual;
       continue;
     }
+    /* Prefer stored amount (freeze ledger) over re-pricing litres */
+    const stored = Number(r.amount) || 0;
+    if (stored > 0) {
+      dCost += stored;
+      continue;
+    }
     const port = Number(r.enginePortL) || 0;
     const stbd = Number(r.engineStbdL) || 0;
     const eng = port > 0 || stbd > 0 ? port + stbd : Number(r.engineL) || 0;
-    if (Number(r.amount) > 0 && !(eng || Number(r.genHrs))) {
-      dCost += Number(r.amount);
-      continue;
-    }
     const genL = (Number(r.genHrs) || 0) * genBurn;
     dCost += (eng + genL) * price;
   }
