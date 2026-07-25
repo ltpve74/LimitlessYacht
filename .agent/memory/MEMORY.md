@@ -14,3 +14,5 @@
 - [tracker-always-push-live.md](tracker-always-push-live.md) — always publish tracker to main/live
 
 - [tracker-extra-hours-commission.md](tracker-extra-hours-commission.md) — extra hours on Charges; cash vs invoice commission
+
+- [../briefs/tracker-cash-foundation.md](../briefs/tracker-cash-foundation.md) — cash envelope foundation strategy
