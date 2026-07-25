@@ -2611,45 +2611,56 @@ function apaLinkedCharges(t){
 }
 /**
  * Paid shortfall charges count as recovered APA funds (same as top-ups).
- * On cash (black) deals, once cash is booked as received (apaSent zeroed / cashSettled),
- * that cash portion is already outside the pot — only count charge amount minus cash once.
+ * Free cash on the lead is never part of APA — no cashSettled adjustment.
  */
 function apaPaidCovered(t){
   var s=0;
   apaLinkedCharges(t).forEach(function(c){
     if(chargePay(c)==="Paid") s+=Number(c.amount)||0;
   });
-  if(t&&t.cashSettled){
-    var cash=Number(t.cashReceived)||Number(t.cashAmt)||0;
-    if(cash>0) s=Math.max(0, s-cash);
-  }
   return Math.round(s*100)/100;
 }
+/** True when this pot was wrongly holding lead free cash as −APA. */
+function apaTripLooksLikeLeadCashShell(t){
+  if(!t) return false;
+  if(t.cashFromLead||t.cashSettled||Number(t.cashReceived)>0) return true;
+  if(Number(t.apaSent)<0) return true;
+  if(Number(t.cashAmt)>0&&!(Number(t.apaSent)>0)) return true;
+  return false;
+}
 /**
- * Cash deal: when any linked charge is Paid, book cash as received (apaSent was −cash).
- * If unpaid again, restore the negative pot. Returns true if trip changed.
+ * Free cash black lives on the lead only — never as “APA received = −cash”.
+ * Clears cash-from-lead fields and zeros negative pots (e.g. Michael −€1800).
+ */
+function stripLeadCashFromApaTrip(t){
+  if(!t) return false;
+  var dirty=false;
+  if(t.cashFromLead){ t.cashFromLead=false; dirty=true; }
+  if(Number(t.cashAmt)>0){ t.cashAmt=0; dirty=true; }
+  if(t.cashSettled){ t.cashSettled=false; dirty=true; }
+  if(Number(t.cashReceived)>0){ t.cashReceived=0; dirty=true; }
+  if(Number(t.apaSent)<0){ t.apaSent=0; dirty=true; }
+  if(t.notes&&/^Cash \(black\)/i.test(String(t.notes))){ t.notes=""; dirty=true; }
+  return dirty;
+}
+function apaTripIsEmptyShell(t){
+  if(!t) return true;
+  apaEnsureArrays(t);
+  var spent=0;
+  try{ spent=apaTotals(t).spent; }catch(e){ spent=0; }
+  return spent<=0.009
+    &&!(Number(t.apaSent)>0)
+    &&!(Number(t.topUps)>0)
+    &&!(t.expenses&&t.expenses.length)
+    &&!(t.provisions&&t.provisions.length)
+    &&!(t.diesel&&t.diesel.length);
+}
+/**
+ * Legacy no-op path: never re-create −cash APA pots. Only strip residual fields.
  */
 function syncCashReceivedFromCharges(t){
-  if(!t||!(t.cashFromLead||Number(t.cashAmt)>0)) return false;
-  var cash=Math.round((Number(t.cashAmt)||0)*100)/100;
-  if(!(cash>0)&&!t.cashFromLead) return false;
-  var anyPaid=apaLinkedCharges(t).some(function(c){ return chargePay(c)==="Paid"; });
-  var dirty=false;
-  if(anyPaid&&cash>0){
-    /* Book cash as received (display); zero the −cash pot so paid charges aren't double-counted */
-    if(!t.cashSettled||Math.abs((Number(t.cashReceived)||0)-cash)>0.02||(Number(t.apaSent)||0)!==0){
-      t.cashSettled=true;
-      t.cashReceived=cash;
-      t.apaSent=0;
-      dirty=true;
-    }
-  } else if(!anyPaid&&(t.cashSettled||Number(t.cashReceived)>0||((Number(t.apaSent)||0)>=0&&t.cashFromLead&&cash>0))){
-    t.cashSettled=false;
-    t.cashReceived=0;
-    t.apaSent=Math.round((-cash)*100)/100;
-    dirty=true;
-  }
-  return dirty;
+  if(!t||!apaTripLooksLikeLeadCashShell(t)) return false;
+  return stripLeadCashFromApaTrip(t);
 }
 /**
  * Amount still to invoice on Charges: spent − prepaid pot − paid charges.
@@ -2772,23 +2783,12 @@ function mergeApaTripInto(winner, loser){
     winner.linkInvLabel=loser.linkInvLabel||winner.linkInvLabel;
     winner.linkInvAmount=loser.linkInvAmount||winner.linkInvAmount;
   }
-  if(!(Number(winner.apaSent)>0)&&Number(loser.apaSent)>0&&!winner.cashFromLead){
+  /* Only absorb real prepaid APA (positive). Never merge lead free cash as −APA. */
+  if(!(Number(winner.apaSent)>0)&&Number(loser.apaSent)>0){
     winner.apaSent=loser.apaSent;
   }
-  /* Absorb cash-deal pot when winner is not a prepaid ledger */
-  if(!(Number(winner.apaSent)>0)&&(loser.cashFromLead||Number(loser.apaSent)<0||Number(loser.cashAmt)>0)){
-    if(loser.cashFromLead) winner.cashFromLead=true;
-    if(Number(loser.cashAmt)>0&&!(Number(winner.cashAmt)>0)) winner.cashAmt=loser.cashAmt;
-    if(Number(loser.apaSent)<0&&(Number(winner.apaSent)||0)>=0&&!winner.cashSettled){
-      winner.apaSent=loser.apaSent;
-      winner.cashFromLead=true;
-    }
-    if(loser.cashSettled&&!winner.cashSettled){
-      winner.cashSettled=true;
-      winner.cashReceived=loser.cashReceived||loser.cashAmt||winner.cashAmt;
-      winner.apaSent=0;
-    }
-  }
+  stripLeadCashFromApaTrip(winner);
+  stripLeadCashFromApaTrip(loser);
   if(!winner.dates&&loser.dates) winner.dates=loser.dates;
   if(!winner.guest&&loser.guest) winner.guest=loser.guest;
   if(state.expenses){
@@ -2839,93 +2839,28 @@ function mergeDuplicateApaTrips(){
   return dirty;
 }
 /**
- * Black-split cash: APA pot = −cash so balance starts short by cash owed.
- * Never creates a second pot when the lead already has an APA ledger.
+ * Free cash on the lead must never appear as −APA.
+ * Strips cash shells for this lead (e.g. Michael −€1800 with €0 APA given).
  * Returns true if APA/charters changed.
  */
 function ensureLeadCashApa(lead){
   if(!canOps()||!lead||!lead.id) return false;
-  /* Refuse auto-suggested cash (€1.652,89 = white net) — use free cash / pin only */
-  var cash=leadFreeCashAmt(lead);
-  if(cash>0&&Math.abs((Number(lead.cashAmt)||0)-cash)>0.02){
-    lead.cashAmt=cash;
-    lead.cashAmtUser=true;
-  }
-  var key="lead:"+lead.id;
   if(!state.apa) state.apa=[];
   var trip=findApaTripForLead(lead);
-  var isCashShell=!!(trip&&trip.cashFromLead);
-  if(!(cash>0)||!leadHasSplit(lead)){
-    if(trip&&trip.cashFromLead){
-      var x0=apaTotals(trip);
-      var emptySpend=x0.spent<=0&&!(trip.expenses&&trip.expenses.length)&&!(trip.provisions&&trip.provisions.length)&&!(trip.diesel&&trip.diesel.length);
-      if(emptySpend){
-        removeApaLinkedCharges(trip, false);
-        state.apa=state.apa.filter(function(t){return t.id!==trip.id;});
-      } else {
-        trip.cashFromLead=false; trip.cashAmt=0;
-        if(Number(trip.apaSent)<0) trip.apaSent=0;
-        syncApaToCharge(trip);
-      }
-      save("apa"); save("charters"); renderApa(); renderCharters();
-      return true;
-    }
-    return false;
+  if(!trip||!apaTripLooksLikeLeadCashShell(trip)) return false;
+  var dirty=stripLeadCashFromApaTrip(trip);
+  if(apaTripIsEmptyShell(trip)){
+    removeApaLinkedCharges(trip, false);
+    state.apa=state.apa.filter(function(t){ return t.id!==trip.id; });
+    dirty=true;
+  } else if(dirty){
+    syncApaToCharge(trip);
   }
-  /* Existing prepaid / real ledger — do not create a second cash APA */
-  if(trip&&!isCashShell&&(Number(trip.apaSent)>0||apaTotals(trip).spent>0.009||(trip.expenses&&trip.expenses.length)||(trip.provisions&&trip.provisions.length))){
-    trip.clientKey=trip.clientKey||key;
-    trip.linkSource=trip.linkSource||"lead";
-    trip.linkSourceId=trip.linkSourceId||lead.id;
-    return false;
+  if(dirty){
+    save("apa"); save("charters");
+    renderApa(); renderCharters();
   }
-  var neg=Math.round((-cash)*100)/100;
-  var dates=apaClientDates(lead)||"";
-  var guest=lead.name||"";
-  if(trip
-    && trip.cashFromLead
-    && Math.abs((Number(trip.cashAmt)||0)-cash)<0.005
-    && trip.guest===guest
-    && (trip.clientKey===key||!trip.clientKey)
-    && (trip.cashSettled
-      ? ((Number(trip.apaSent)||0)===0 && Math.abs((Number(trip.cashReceived)||0)-cash)<0.005)
-      : Math.abs((Number(trip.apaSent)||0)-neg)<0.005)){
-    return false;
-  }
-  if(!trip){
-    trip=emptyApaTrip();
-    trip.cashFromLead=true;
-    state.apa.unshift(trip);
-  }
-  if(!(Number(trip.apaSent)>0)){
-    trip.cashFromLead=true;
-    trip.cashAmt=cash;
-    if(trip.cashSettled&&(Number(trip.cashReceived)||0)>0){
-      trip.apaSent=0;
-      trip.cashReceived=cash;
-    } else {
-      trip.apaSent=neg;
-      trip.cashSettled=false;
-      trip.cashReceived=0;
-    }
-    if(!trip.notes||/^Cash \(black\)/i.test(trip.notes)||!String(trip.notes).trim()){
-      trip.notes="Cash (black) "+money0(cash)+" from lead — pot starts at −cash. Mark Charges Paid to book cash as received; log diesel/expenses on charter.";
-    }
-  } else {
-    trip.cashAmt=cash;
-  }
-  trip.guest=guest||trip.guest||"";
-  trip.clientKey=key;
-  trip.linkSource="lead";
-  trip.linkSourceId=lead.id;
-  if(dates) trip.dates=dates;
-  trip.updatedAt=new Date().toISOString();
-  trip.by=session.who||trip.by||"Captain";
-  syncCashReceivedFromCharges(trip);
-  syncApaToCharge(trip);
-  save("apa"); save("charters");
-  renderApa(); renderCharters();
-  return true;
+  return dirty;
 }
 /**
  * Light repair for black-split leads:
@@ -2966,46 +2901,31 @@ function repairLeadWhiteInvoices(){
   });
   return dirty;
 }
-/** Ops load: ensure black-split leads have cash APA trips pinned to free cashAmt. */
+/**
+ * Ops load: free cash stays on the lead — strip every −cash / cashFromLead APA pot.
+ * (Was pinning €1800 onto APA as negative “received”; that is wrong when APA given is €0.)
+ */
 function ensureAllLeadCashApa(){
   if(!canOps()) return;
   var dirty=false;
+  (state.apa||[]).slice().forEach(function(trip){
+    if(!trip||!apaTripLooksLikeLeadCashShell(trip)) return;
+    if(stripLeadCashFromApaTrip(trip)) dirty=true;
+    if(apaTripIsEmptyShell(trip)){
+      removeApaLinkedCharges(trip, false);
+      state.apa=(state.apa||[]).filter(function(t){ return t.id!==trip.id; });
+      dirty=true;
+    } else {
+      syncApaToCharge(trip);
+    }
+  });
+  /* Keep free cash on leads correct (pin), without touching APA */
   (state.leads||[]).forEach(function(l){
     if(!l||!leadHasSplit(l)) return;
     var cash=leadFreeCashAmt(l);
-    if(!(cash>0)) return; /* skip white-net bug €1.652,89 */
-    if(Math.abs((Number(l.cashAmt)||0)-cash)>0.02){ l.cashAmt=cash; l.cashAmtUser=true; }
-    var key="lead:"+l.id;
-    var trip=findApaTripForLead(l);
-    var want=Math.round((-cash)*100)/100;
-    /* Prepaid pot with real money/spend — link only, never fork a second cash APA */
-    if(trip&&!trip.cashFromLead&&(Number(trip.apaSent)>0||apaTotals(trip).spent>0.009||(trip.expenses&&trip.expenses.length)||(trip.provisions&&trip.provisions.length))){
-      if(!trip.clientKey){ trip.clientKey=key; dirty=true; }
-      if(!trip.linkSourceId){ trip.linkSource="lead"; trip.linkSourceId=l.id; dirty=true; }
-      return;
+    if(cash>0&&Math.abs((Number(l.cashAmt)||0)-cash)>0.02){
+      l.cashAmt=cash; l.cashAmtUser=true;
     }
-    /* Pin free cash black onto pot + Charges (e.g. €1800, never suggested €1653) */
-    if(ensureLeadCashApa(l)) dirty=true;
-    trip=findApaTripForLead(l);
-    if(!trip) return;
-    var chg=false;
-    if(!trip.cashFromLead&&!(Number(trip.apaSent)>0)){ trip.cashFromLead=true; chg=true; }
-    if(Math.abs((Number(trip.cashAmt)||0)-cash)>0.02){ trip.cashAmt=cash; chg=true; }
-    if(trip.cashSettled){
-      if((Number(trip.apaSent)||0)!==0||Math.abs((Number(trip.cashReceived)||0)-cash)>0.02){
-        trip.apaSent=0; trip.cashReceived=cash; chg=true;
-      }
-    } else if(!(Number(trip.topUps)>0)&&!(Number(trip.apaSent)>0)){
-      if(Math.abs((Number(trip.apaSent)||0)-want)>0.005){ trip.apaSent=want; chg=true; }
-    }
-    if(syncCashReceivedFromCharges(trip)) chg=true;
-    var overBefore=apaOverageAmount(trip);
-    var pend=findApaPendingCharge(trip);
-    var amtBefore=pend?Number(pend.amount)||0:0;
-    syncApaToCharge(trip);
-    pend=findApaPendingCharge(trip);
-    var amtAfter=pend?Number(pend.amount)||0:0;
-    if(chg||Math.abs(overBefore-apaOverageAmount(trip))>0.02||Math.abs(amtBefore-amtAfter)>0.02) dirty=true;
   });
   if(dirty){ save("apa"); save("charters"); renderApa(); renderCharters(); }
 }
@@ -3051,17 +2971,9 @@ function removeApaLinkedCharges(t, onlyUnpaid){
 function syncApaToCharge(t){
   if(!t||!String(t.guest||"").trim()) return null;
   if(!state.charters) state.charters=[];
+  /* Never re-pin lead free cash as −APA */
+  if(apaTripLooksLikeLeadCashShell(t)) stripLeadCashFromApaTrip(t);
   var lead=apaLinkedLead(t);
-  var cashPot=Number(t.apaSent)<0||t.cashFromLead;
-  /* Sync free cash black from lead first (€1800 not suggested €1653) */
-  if(cashPot&&lead&&Number(lead.cashAmt)>0){
-    var leadCash=Math.round(Number(lead.cashAmt)*100)/100;
-    t.cashAmt=leadCash;
-    if(!t.cashSettled&&!(Number(t.topUps)>0)&&(Number(t.apaSent)<=0||t.cashFromLead)){
-      var wantNeg=Math.round((-leadCash)*100)/100;
-      if(Math.abs((Number(t.apaSent)||0)-wantNeg)>0.02) t.apaSent=wantNeg;
-    }
-  }
   var over=apaOverageAmount(t);
   var ch=findApaPendingCharge(t);
   if(over<=0){
@@ -3071,44 +2983,11 @@ function syncApaToCharge(t){
     return left;
   }
   var gross=over;
-  var freeCash=Math.round((Number(t.cashAmt)||0)*100)/100;
-  /* Cash pot: free cash black = cash settlement; spend on top = formal invoice (mix). */
-  var cashPart=0, invPart=gross, billType="invoice", pct=21, net, vat, vatMode="include", payMethod="Card", invStatus="Not issued";
-  cashPot=Number(t.apaSent)<0||t.cashFromLead;
-  if(cashPot){
-    if(!t.cashSettled&&freeCash>0){
-      cashPart=Math.min(over, freeCash);
-      invPart=Math.round((over-cashPart)*100)/100;
-    } else {
-      cashPart=0;
-      invPart=over;
-    }
-    if(cashPart>0.009&&invPart>0.009){
-      billType="mix";
-      payMethod="Split";
-      var spMix=invoiceSplitGross(invPart, 21);
-      net=Math.round((cashPart+spMix.net)*100)/100;
-      vat=spMix.vat;
-      pct=21;
-      vatMode="include";
-      invStatus="Not issued";
-    } else if(cashPart>0.009){
-      billType="cash";
-      payMethod="Cash";
-      pct=0; net=gross; vat=0; vatMode="none";
-      invStatus="Not needed";
-    } else {
-      billType="invoice";
-      payMethod="Card";
-      net=pct>0?gross/(1+pct/100):gross;
-      vat=gross-net;
-      vatMode="include";
-      invStatus="Not issued";
-    }
-  } else {
-    net=pct>0?gross/(1+pct/100):gross;
-    vat=gross-net;
-  }
+  /* APA charges = charter spend only (formal invoice). Lead cash is not APA. */
+  var billType="invoice", pct=21, payMethod="Card", invStatus="Not issued";
+  var net=pct>0?gross/(1+pct/100):gross;
+  var vat=gross-net;
+  var vatMode="include";
   var date="";
   if(lead&&lead.start) date=lead.start;
   if(!date&&t.expenses&&t.expenses.length){
@@ -3118,18 +2997,10 @@ function syncApaToCharge(t){
   if(!date) date=new Date().toISOString().slice(0,10);
   var x=apaTotals(t);
   var zeroPot=!apaHasPrepaid(t);
-  cashPot=Number(t.apaSent)<0||t.cashFromLead;
-  var note=cashPot
-    ?(billType==="mix"
-      ?"Cash black "+money0(cashPart)+" + charter spend "+money0(invPart)+" (invoice) — synced from APA"
-      :(billType==="cash"
-        ?"Cash (black) settlement — synced from APA ledger"
-        :"Charter spend to invoice — synced from APA ledger"))
-    :(zeroPot
-      ?"APA spend invoice request (no prepaid pot) — synced from APA ledger"
-      :"APA shortfall (overspend) — synced from APA ledger");
+  var note=zeroPot
+    ?"APA spend invoice request (no prepaid pot) — synced from APA ledger"
+    :"APA shortfall (overspend) — synced from APA ledger";
   if(t.dates) note="APA · "+t.dates+". "+note;
-  if(cashPot&&t.cashAmt) note+=" · cash black "+money0(t.cashAmt)+(t.cashSettled?" received":" due");
   note+=" · pot "+money0(x.basePot)+" · paid "+money0(x.paidCovered)+" · spent "+money0(x.spent);
   if(ch){
     ch.client=t.guest;
@@ -3139,9 +3010,9 @@ function syncApaToCharge(t){
     ch.kind="apa";
     ch.apaTripId=t.id;
     ch.apaZeroPot=zeroPot;
-    ch.cashDeal=!!cashPot;
-    if(cashPot&&t.cashAmt) ch.cashAmt=Number(t.cashAmt)||0;
-    ch.cashPaid=cashPart>0?cashPart:0;
+    ch.cashDeal=false;
+    ch.cashAmt=0;
+    ch.cashPaid=0;
     if(!ch.date) ch.date=date;
     if(ch.payStatus!=="Paid") ch.payStatus="Pending";
     if(ch.invStatus!=="Issued"){
@@ -3153,10 +3024,8 @@ function syncApaToCharge(t){
     ch.by=session.who||ch.by;
   } else {
     ch={
-      id:uid(), kind:"apa", apaTripId:t.id, apaZeroPot:zeroPot, cashDeal:!!cashPot,
-      cashAmt:cashPot?(Number(t.cashAmt)||0):0,
-      cashPaid:cashPart>0?cashPart:0,
-      billType:billType,
+      id:uid(), kind:"apa", apaTripId:t.id, apaZeroPot:zeroPot, cashDeal:false,
+      cashAmt:0, cashPaid:0, billType:billType,
       date:date, client:t.guest,
       amount:gross, net:net, vat:vat, vatPct:pct, vatMode:vatMode,
       payStatus:"Pending", payMethod:payMethod,
@@ -3734,15 +3603,10 @@ function apaOverviewHTML(t){
   } else {
     linkBits+='<div class="meta" style="margin-top:6px"><span class="pill p-grey">In pot — charge only if you overspend</span></div>';
   }
-  var recvLabel=t.cashFromLead?(t.cashSettled?"Cash received":"Cash (black) due"):"APA received";
-  var recvVal=t.cashFromLead
-    ?(t.cashSettled?(Number(t.cashReceived)||Number(t.cashAmt)||0):(Number(t.apaSent)||0))
-    :(Number(t.apaSent)||0);
-  /* Settled cash is stored on cashReceived; pot (apaSent) is 0 so balance math stays clean */
+  var recvVal=Number(t.apaSent)||0;
   return '<div class="apa-grid">'+
-    '<div class="apa-card"><div class="k">'+esc(recvLabel)+'</div><div class="n money"'+(t.cashFromLead&&!t.cashSettled&&recvVal<0?' style="color:var(--danger)"':'')+'>'+money(recvVal)+'</div>'+
-      (t.cashFromLead&&!t.cashSettled?'<div style="font-size:11.5px;color:var(--muted);margin-top:4px">Mark Charges Paid to book as received</div>':'')+
-      (t.cashFromLead&&t.cashSettled?'<div style="font-size:11.5px;color:var(--muted);margin-top:4px">Booked when charge marked Paid</div>':'')+
+    '<div class="apa-card"><div class="k">APA received</div><div class="n money">'+money(recvVal)+'</div>'+
+      (!(recvVal>0)?'<div style="font-size:11.5px;color:var(--muted);margin-top:4px">Lead free cash is not APA</div>':'')+
     '</div>'+
     '<div class="apa-card"><div class="k">Top-ups</div><div class="n money">'+money(Number(t.topUps)||0)+'</div></div>'+
     '<div class="apa-card"><div class="k">Paid on Charges</div><div class="n money">'+money(x.paidCovered)+'</div></div>'+
@@ -3750,7 +3614,7 @@ function apaOverviewHTML(t){
     '<div class="apa-card"><div class="k">Spent</div><div class="n money">'+money(x.spent)+'</div></div>'+
     '<div class="apa-card bal'+(over?' warn':'')+' wide"><div class="k">Balance remaining</div><div class="n money">'+money(x.bal)+'</div>'+
       '<div class="apa-bar'+(over?' over':'')+'"><i style="width:'+Math.min(100,pctShow)+'%"></i></div>'+
-      '<div style="font-size:12px;color:var(--muted);margin-top:6px">'+(t.cashFromLead?(t.cashSettled?"Cash booked as received · ":"Cash due (−pot) · "):(apaHasPrepaid(t)?pctShow+"% of funds spent · ":"No prepaid pot · "))+'pot + top-ups + paid charges − spend.</div></div>'+
+      '<div style="font-size:12px;color:var(--muted);margin-top:6px">'+(apaHasPrepaid(t)?pctShow+"% of funds spent · ":"No prepaid pot · ")+'pot + top-ups + paid charges − spend. Free cash stays on the lead.</div></div>'+
   '</div>'+
   '<div class="apa-card" style="margin-bottom:12px">'+
     '<div class="k" style="margin-bottom:8px">Trip</div>'+
@@ -3977,10 +3841,12 @@ function openApaTrip(id){
     };
     if(rec){
       obj.chargeId=r.chargeId||"";
-      obj.cashFromLead=!!r.cashFromLead;
-      obj.cashAmt=r.cashAmt;
-      obj.cashSettled=r.cashSettled;
-      obj.cashReceived=r.cashReceived;
+      /* Free cash stays on the lead — never keep −cash APA fields on save */
+      obj.cashFromLead=false;
+      obj.cashAmt=0;
+      obj.cashSettled=false;
+      obj.cashReceived=0;
+      if(Number(obj.apaSent)<0) obj.apaSent=0;
       obj.expenses=r.expenses||[];
       obj.provisions=r.provisions||[];
       obj.diesel=r.diesel||[];
@@ -8543,7 +8409,7 @@ function saveSheet(type,rec){
       o2.cashAmtUser=true;
     }
     upsert("leads",o2,rec); renderLeads(); save("leads");
-    /* Cash (black) → APA pot = −cash so charter spend settles on Charges */
+    /* Free cash stays on the lead — strip any −cash APA shell for this guest */
     if(canOps()) ensureLeadCashApa(o2);
   }
   showSheet(false);
