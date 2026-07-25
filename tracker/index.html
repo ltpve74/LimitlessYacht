@@ -3539,17 +3539,67 @@ function apaEnsureArrays(t){
   t.provisions.forEach(function(p){ if(p&&!p.id) p.id=uid(); });
   t.diesel.forEach(function(d){ if(d&&!d.id) d.id=uid(); });
   t.dieselLoads.forEach(function(d){ if(d&&!d.id) d.id=uid(); });
-  /* Never rewrite a stored trip rate (incl. historical 1.75). Only fill if missing. */
-  if(!(Number(t.dieselPrice)>0)){
-    try{ t.dieselPrice=dieselSuggestedSell(); }catch(e){ t.dieselPrice=DIESEL_LEGACY_SELL; }
-  }
   if(!(Number(t.genBurn)>0)) t.genBurn=6;
+  /* Guest €/L from last bunker + 10c (or legacy 1.75 if no bunker yet). Pinned trips keep manual rate. */
+  try{ dieselSyncTripPriceFromBunker(t); }catch(e){
+    if(!(Number(t.dieselPrice)>0)) t.dieselPrice=DIESEL_LEGACY_SELL;
+  }
   return t;
 }
+/**
+ * Latest bunker (with €/L) on or before dateStr (YYYY-MM-DD). Omit date = latest ever.
+ */
+function dieselLastBunker(atOrBeforeDate){
+  var best=null;
+  var cut=atOrBeforeDate?String(atOrBeforeDate).slice(0,10):"";
+  (state.diesel||[]).forEach(function(e){
+    if(!e||e.kind!=="buy") return;
+    var px=apaNum(e.price);
+    if(!(px>0)) return;
+    var d=String(e.date||"").slice(0,10);
+    if(cut&&d&&d>cut) return;
+    if(!best||!d||d>=String(best.date||"")) best={date:d, price:px, id:e.id};
+  });
+  return best;
+}
+/** Reference date for which bunker applies to a trip (earliest fuel day or start). */
+function dieselTripRefDate(t){
+  if(!t) return "";
+  var d=t.start?String(t.start).slice(0,10):"";
+  (t.diesel||[]).forEach(function(r){
+    if(!r||!r.date) return;
+    var x=String(r.date).slice(0,10);
+    if(x&&(!d||x<d)) d=x;
+  });
+  if(!d&&t.end) d=String(t.end).slice(0,10);
+  if(!d&&t.dates){
+    var m=String(t.dates).match(/(20\d{2})-(\d{2})-(\d{2})/);
+    if(m) d=m[1]+"-"+m[2]+"-"+m[3];
+  }
+  return d;
+}
+/** Guest sell for a day: last bunker on/before that day + 10c, else historical 1.75. */
+function dieselGuestRateForDate(dateStr){
+  var b=dieselLastBunker(dateStr||"");
+  if(b&&b.price>0) return dieselSuggestedSell(b.price);
+  return DIESEL_LEGACY_SELL;
+}
+/** Keep trip.dieselPrice in sync with bunker+10c unless captain pinned a manual rate. */
+function dieselSyncTripPriceFromBunker(t){
+  if(!t||t.dieselPricePinned) return false;
+  var want=dieselGuestRateForDate(dieselTripRefDate(t)||(typeof localTodayYmd==="function"?localTodayYmd():""));
+  if(!(want>0)) return false;
+  if(Math.abs((Number(t.dieselPrice)||0)-want)<0.001) return false;
+  t.dieselPrice=want;
+  return true;
+}
 function apaDieselPrice(t){
+  if(t&&t.dieselPricePinned&&Number(t.dieselPrice)>0) return Number(t.dieselPrice);
+  /* Always derive from last bunker before trip so today’s 1.74 bunker → 1.84, not stuck 1.75 */
+  var fromBunker=dieselGuestRateForDate(dieselTripRefDate(t));
+  if(fromBunker>0) return fromBunker;
   var p=Number(t&&t.dieselPrice);
-  if(p>0) return p; /* keep real history — do not map 1.75 → “current” sell */
-  try{ var sp=dieselSuggestedSell(); if(sp>0) return sp; }catch(e){}
+  if(p>0) return p;
   return DIESEL_LEGACY_SELL;
 }
 function apaGenBurn(t){ var g=Number(t&&t.genBurn); return g>0?g:6; }
@@ -4061,7 +4111,10 @@ function openApaTrip(id){
   '</div>';
   h+='<p style="margin:-6px 0 12px;font-size:12px;color:var(--muted);line-height:1.4">Tap a date field for the calendar. Same day for a day charter; set end for multi-day.</p>';
   h+='<div class="row2">'+fieldHTML("APA sent to us (0 ok)",moneyField("f_apaSent",r.apaSent!=null?r.apaSent:0))+fieldHTML("Additional top-ups",moneyField("f_topUps",r.topUps!=null?r.topUps:0))+'</div>';
-  h+='<div class="row2">'+fieldHTML("Diesel € / litre",moneyField("f_dPrice",r.dieselPrice))+fieldHTML("Generator L/hr",moneyField("f_genBurn",r.genBurn))+'</div>';
+  var dRateShow=apaDieselPrice(r);
+  var lastB=dieselLastBunker(dieselTripRefDate(r)||defStart);
+  h+='<div class="row2">'+fieldHTML("Diesel € / litre (guest)",moneyField("f_dPrice",dRateShow))+fieldHTML("Generator L/hr",moneyField("f_genBurn",r.genBurn))+'</div>';
+  h+='<p style="margin:-6px 0 12px;font-size:12px;color:var(--muted);line-height:1.4">Auto = last bunker'+(lastB?' (€'+esc(String(lastB.price))+')':'')+' + €'+esc(String(DIESEL_MARKUP))+' = <b>€'+esc(String(dRateShow))+'/L</b>. Edit the field to pin a manual rate for this trip only.</p>';
   h+=fieldHTML("Notes",'<textarea class="ctl" id="f_notes" placeholder="optional">'+esc(r.notes||"")+'</textarea>');
   if(rec) h+='<div class="sheetbtns"><button type="button" class="btn danger" id="sheetDel">Delete trip</button></div>';
   h+='<div class="sheetfoot"><button type="button" class="btn ghost" id="sheetCancel">Cancel</button><button type="button" class="btn" id="sheetSave">Save</button></div>';
@@ -4070,7 +4123,15 @@ function openApaTrip(id){
   if(el("f_date_start")) el("f_date_start").addEventListener("change",function(){
     var s=el("f_date_start").value, e=el("f_date_end")&&el("f_date_end").value;
     if(s&&(!e||e<s)&&el("f_date_end")) el("f_date_end").value=s;
+    /* Refresh guest diesel from bunker on that day unless user pinned */
+    if(el("f_dPrice")&&el("f_dPrice").dataset.pinned!=="1"){
+      el("f_dPrice").value=String(dieselGuestRateForDate(s||""));
+    }
   });
+  if(el("f_dPrice")){
+    if(r.dieselPricePinned) el("f_dPrice").dataset.pinned="1";
+    el("f_dPrice").addEventListener("input",function(){ el("f_dPrice").dataset.pinned="1"; });
+  }
   if(el("f_guest")) setTimeout(function(){ try{ el("f_guest").focus(); }catch(e){} }, 50);
 
   el("sheetSave").addEventListener("click",function(){
@@ -4100,7 +4161,8 @@ function openApaTrip(id){
       end:endIso||"",
       apaSent:apaNum(el("f_apaSent").value),
       topUps:apaNum(el("f_topUps").value),
-      dieselPrice:apaNum(el("f_dPrice").value)||DIESEL_DEFAULT_SELL,
+      dieselPrice:apaNum(el("f_dPrice").value)||dieselGuestRateForDate((startIso||"").slice(0,10))||DIESEL_LEGACY_SELL,
+      dieselPricePinned:!!(el("f_dPrice")&&el("f_dPrice").dataset.pinned==="1")||!!(rec&&r.dieselPricePinned),
       genBurn:apaNum(el("f_genBurn").value)||6,
       expenses:r.expenses||[],
       provisions:r.provisions||[],
@@ -4347,39 +4409,40 @@ function dieselSettingsRaw(){
   return null;
 }
 /**
- * One-time: undo mistaken rewrite of historical guest rate 1.75 → 1.85
- * (we wrongly treated 1.75 as “buy default”). Does not touch dieselPricePinned trips.
+ * Align defaults + unpinned trip sell rates with last bunker + 10c.
+ * Does not change dieselPricePinned trips. Historical trips before any priced bunker stay 1.75.
  */
-function dieselRepairLegacyTripSellPrices(){
+function dieselSyncRatesFromBunkers(){
   var s=dieselSettingsRaw();
-  if(s&&s.legacySell185Fixed) return false;
-  var apaDirty=false;
-  (state.apa||[]).forEach(function(t){
-    if(!t||t.dieselPricePinned) return;
-    if(Math.abs(Number(t.dieselPrice)-1.85)<0.001){
-      t.dieselPrice=DIESEL_LEGACY_SELL;
-      apaDirty=true;
+  var last=dieselLastBunker("");
+  var dirtyD=false, dirtyA=false;
+  if(last&&last.price>0){
+    if(!s){
+      s={id:"diesel-settings",kind:"settings",buyPrice:last.price,sellPrice:dieselSuggestedSell(last.price)};
+      state.diesel=state.diesel||[];
+      state.diesel.unshift(s);
+      dirtyD=true;
+    } else {
+      if(Math.abs(apaNum(s.buyPrice)-last.price)>0.001){ s.buyPrice=last.price; dirtyD=true; }
+      var wantSell=dieselSuggestedSell(last.price);
+      if(Math.abs(apaNum(s.sellPrice)-wantSell)>0.001){ s.sellPrice=wantSell; dirtyD=true; }
     }
-  });
-  if(!s){
-    s={id:"diesel-settings",kind:"settings",buyPrice:DIESEL_DEFAULT_BUY,sellPrice:dieselSuggestedSell(DIESEL_DEFAULT_BUY),legacySell185Fixed:true};
-    state.diesel=state.diesel||[];
-    state.diesel.unshift(s);
-  } else {
-    s.legacySell185Fixed=true;
   }
-  if(typeof save==="function"){
+  (state.apa||[]).forEach(function(t){
+    if(dieselSyncTripPriceFromBunker(t)) dirtyA=true;
+  });
+  if((dirtyD||dirtyA)&&typeof save==="function"){
     try{
       if(BOOT_QUIET){
-        queueBootSave("diesel");
-        if(apaDirty) queueBootSave("apa");
+        if(dirtyD) queueBootSave("diesel");
+        if(dirtyA) queueBootSave("apa");
       } else {
-        save("diesel");
-        if(apaDirty&&canOps()) save("apa");
+        if(dirtyD) save("diesel");
+        if(dirtyA&&canOps()) save("apa");
       }
     }catch(e){}
   }
-  return true;
+  return dirtyD||dirtyA;
 }
 function dieselEnsure(){
   if(!Array.isArray(state.diesel)) state.diesel=[];
@@ -4389,12 +4452,13 @@ function dieselEnsure(){
   }
   var dirty=false;
   if(!s){
-    s={id:"diesel-settings",kind:"settings",buyPrice:DIESEL_DEFAULT_BUY,sellPrice:dieselSuggestedSell(DIESEL_DEFAULT_BUY)};
+    var last0=dieselLastBunker("");
+    var b0=last0&&last0.price>0?last0.price:DIESEL_DEFAULT_BUY;
+    s={id:"diesel-settings",kind:"settings",buyPrice:b0,sellPrice:dieselSuggestedSell(b0)};
     state.diesel.unshift(s);
     dirty=true;
   }
   var buy=apaNum(s.buyPrice), sell=apaNum(s.sellPrice);
-  /* Only fill missing / scrub old 2.20 default — never rewrite 1.75 history */
   if(!(buy>0)){ s.buyPrice=DIESEL_DEFAULT_BUY; dirty=true; }
   if(!(sell>0)||Math.abs(sell-DIESEL_PREV_SELL_HIGH)<0.001){
     s.sellPrice=dieselSuggestedSell(s.buyPrice);
@@ -4406,8 +4470,7 @@ function dieselEnsure(){
       else save("diesel");
     }catch(e){}
   }
-  /* Run after settings exist; may save diesel + apa itself */
-  dieselRepairLegacyTripSellPrices();
+  dieselSyncRatesFromBunkers();
   return s;
 }
 function dieselSettings(){
@@ -7835,13 +7898,13 @@ function openDieselEntry(kind,id){
   if(rec) kind=rec.kind;
   if(kind!=="buy"&&kind!=="level"&&kind!=="sell") kind="buy";
   var st=dieselSettings();
-  var Lhint=dieselLedger();
-  var defaultBuy=Lhint.lastBuyPrice!=null?Lhint.lastBuyPrice:st.buyPrice;
-  var defaultSell=kind==="sell"
-    ?(Lhint.lastBuyPrice!=null?dieselSuggestedSell(Lhint.lastBuyPrice):st.sellPrice)
-    :defaultBuy;
+  var lastB=dieselLastBunker("");
+  var defaultBuy=lastB&&lastB.price>0?lastB.price:st.buyPrice;
+  var defaultSell=lastB&&lastB.price>0?dieselSuggestedSell(lastB.price):(st.sellPrice||DIESEL_LEGACY_SELL);
   var defaultPx=kind==="buy"?defaultBuy:defaultSell;
   var r=rec||{id:uid(),kind:kind,date:new Date().toISOString().slice(0,10),litres:"",onboard:"",price:defaultPx,notes:"",guest:""};
+  /* Editing old row without stored price: still prefill the correct side default */
+  if(rec&&(r.price==null||r.price==="")&&(kind==="buy"||kind==="sell")) r.price=defaultPx;
   var titles={buy:rec?"Edit buy":"Buy / bunker",level:rec?"Edit level":"Tank level",sell:rec?"Edit sell":"Sell diesel"};
   var h='<div class="sheethead"><h2>'+titles[kind]+'</h2><button type="button" class="sheetx" id="sheetClose" aria-label="Close">×</button></div>';
   if(kind==="buy"){
@@ -7930,7 +7993,10 @@ function openDieselEntry(kind,id){
         [obj].concat(state.diesel.filter(function(x){ return x&&x.kind&&x.kind!=="settings"; }))
       );
     }
+    /* After bunker, refresh unpinned trip guest rates from bunker+10c */
+    if(kind==="buy") dieselSyncRatesFromBunkers();
     showSheet(false); saveDiesel();
+    if(kind==="buy"&&canOps()){ try{ save("apa"); if(curTab==="apa") renderApa(); }catch(e){} }
   });
   el("sheetCancel").addEventListener("click",function(){ showSheet(false); });
   el("sheetClose").addEventListener("click",function(){ showSheet(false); });
