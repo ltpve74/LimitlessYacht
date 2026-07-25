@@ -210,15 +210,20 @@ function chargeIsPaid(c) {
 }
 
 function tripLinkedCharges(data, t) {
-  const norm = (s) => String(s || "").trim().toLowerCase().replace(/\s+/g, " ");
-  const name = norm(t.guest);
+  /* Only trip id / chargeId — never guest name (that shared one Alvaro charge across pots). */
   return (data.charters || []).filter((c) => {
     if (!c) return false;
-    if (c.apaTripId && c.apaTripId === t.id) return true;
-    if (t.chargeId && c.id === t.chargeId) return true;
-    if (c.kind === "apa" && name && norm(c.client) === name) return true;
+    if (c.apaTripId && String(c.apaTripId) === String(t.id)) return true;
+    if (t.chargeId && String(c.id) === String(t.chargeId)) return true;
     return false;
   });
+}
+
+function chargeIsLockedMoney(c) {
+  if (!c) return false;
+  if (c.invStatus === "Issued") return true;
+  if (c.payStatus === "Paid" || c.status === "Paid") return true;
+  return false;
 }
 
 /** Paid shortfall charges count toward pot (mirrors client). Free cash is lead-only. */
@@ -428,11 +433,22 @@ function ensureApaChargesLinked(data) {
         t.chargeId = ch.id;
         dirty = true;
       }
+      if (String(ch.apaTripId || "") !== String(t.id)) {
+        ch.apaTripId = t.id;
+        dirty = true;
+      }
+      /* Never rewrite Issued / Paid amounts (stops €3k → €33 clobber) */
+      if (chargeIsLockedMoney(ch)) {
+        if (!ch.notes || /^APA/i.test(ch.notes) || /synced from APA|shortfall/i.test(ch.notes)) {
+          ch.notes = note;
+          dirty = true;
+        }
+        continue;
+      }
       const wantAmt = total;
       if (
         Math.abs((Number(ch.amount) || 0) - wantAmt) > 0.005 ||
         ch.kind !== "apa" ||
-        ch.apaTripId !== t.id ||
         Math.abs((Number(ch.apaBaseAmt) || 0) - apaBase) > 0.005
       ) {
         ch.client = t.guest;
@@ -459,7 +475,7 @@ function ensureApaChargesLinked(data) {
           ch.invStatus = billType === "cash" ? "Not needed" : "Not issued";
           ch.status = ch.payStatus || "Pending";
         }
-        if (!ch.notes || /^APA/i.test(ch.notes) || /synced from APA|shortfall|pot \(sent|Cash \(black\)|\+\s*[\d.]+ ext/i.test(ch.notes)) {
+        if (!ch.notes || /^APA/i.test(ch.notes) || /synced from APA|shortfall|pot \(sent|Cash \(black\)|\+\s*[\d.]+ ext|not the full charter/i.test(ch.notes)) {
           ch.notes = note;
         }
         dirty = true;
