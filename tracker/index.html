@@ -3570,7 +3570,9 @@ function apaEnsureArrays(t){
   return t;
 }
 /**
- * Latest bunker (with €/L) on or before dateStr (YYYY-MM-DD). Omit date = latest ever.
+ * Latest bunker (with €/L) on or before dateStr (YYYY-MM-DD).
+ * Same-day bunkers count (d <= cut). Omit date = latest ever.
+ * If several bunkers share a day, the last one in the log wins.
  */
 function dieselLastBunker(atOrBeforeDate){
   var best=null;
@@ -3580,49 +3582,71 @@ function dieselLastBunker(atOrBeforeDate){
     var px=apaNum(e.price);
     if(!(px>0)) return;
     var d=String(e.date||"").slice(0,10);
-    if(cut&&d&&d>cut) return;
-    if(!best||!d||d>=String(best.date||"")) best={date:d, price:px, id:e.id};
+    if(cut&&d&&d>cut) return; /* future bunkers only excluded */
+    if(!best){ best={date:d, price:px, id:e.id}; return; }
+    if(!d) return;
+    if(d>String(best.date||"")){ best={date:d, price:px, id:e.id}; return; }
+    if(d===String(best.date||"")) best={date:d, price:px, id:e.id}; /* same day: later log row wins */
   });
   return best;
 }
-/** Reference date for which bunker applies to a trip (earliest fuel day or start). */
+/**
+ * Date used for auto guest rate when no consumption line date.
+ * Prefer latest consumption (use after bunker same day), else charter end/start.
+ */
 function dieselTripRefDate(t){
   if(!t) return "";
-  var d=t.start?String(t.start).slice(0,10):"";
+  var d="";
   (t.diesel||[]).forEach(function(r){
     if(!r||!r.date) return;
     var x=String(r.date).slice(0,10);
-    if(x&&(!d||x<d)) d=x;
+    if(x&&(!d||x>d)) d=x;
   });
   if(!d&&t.end) d=String(t.end).slice(0,10);
+  if(!d&&t.start) d=String(t.start).slice(0,10);
   if(!d&&t.dates){
-    var m=String(t.dates).match(/(20\d{2})-(\d{2})-(\d{2})/);
-    if(m) d=m[1]+"-"+m[2]+"-"+m[3];
+    var m=String(t.dates).match(/(20\d{2})-(\d{2})-(\d{2})/g);
+    if(m&&m.length){
+      /* last ISO-like date in free text */
+      var last=m[m.length-1];
+      var p=last.match(/(20\d{2})-(\d{2})-(\d{2})/);
+      if(p) d=p[1]+"-"+p[2]+"-"+p[3];
+    } else {
+      var one=String(t.dates).match(/(20\d{2})-(\d{2})-(\d{2})/);
+      if(one) d=one[1]+"-"+one[2]+"-"+one[3];
+    }
   }
   return d;
 }
-/** Guest sell for a day: last bunker on/before that day + 10c, else historical 1.75. */
+/** Guest sell for a day: last bunker on/before that day (incl. same day) + 10c. */
 function dieselGuestRateForDate(dateStr){
   var b=dieselLastBunker(dateStr||"");
   if(b&&b.price>0) return dieselSuggestedSell(b.price);
   return DIESEL_LEGACY_SELL;
 }
+/** Auto guest rate (never pinned override). */
+function dieselAutoGuestRate(t, lineOrDate){
+  var lineDate="";
+  if(lineOrDate&&typeof lineOrDate==="object") lineDate=String(lineOrDate.date||"").slice(0,10);
+  else if(lineOrDate) lineDate=String(lineOrDate).slice(0,10);
+  var ref=lineDate||dieselTripRefDate(t)||(typeof localTodayYmd==="function"?localTodayYmd():"")||"";
+  return dieselGuestRateForDate(ref)||DIESEL_LEGACY_SELL;
+}
 /**
- * Guest diesel €/L for a trip (read-only; never mutates state).
- * Always prefer the rate stored on the trip — recalculating from bunker
- * rewrote historical fuel € and made settled APAs show fake leftover balances.
- * Bunker+10c only when the trip has no price yet (new charter).
+ * Guest €/L for a trip (summary / default).
+ * Pinned → captain’s manual rate. Else auto = last bunker on/before rate date + 10c.
  */
 function apaDieselPrice(t){
-  var p=Number(t&&t.dieselPrice);
-  if(p>0) return p;
-  var ref=dieselTripRefDate(t);
-  if(ref){
-    var fromBunker=dieselGuestRateForDate(ref);
-    if(fromBunker>0) return fromBunker;
-  }
-  var today=(typeof localTodayYmd==="function"?localTodayYmd():"")||"";
-  return dieselGuestRateForDate(today)||DIESEL_LEGACY_SELL;
+  if(t&&t.dieselPricePinned&&Number(t.dieselPrice)>0) return Number(t.dieselPrice);
+  return dieselAutoGuestRate(t);
+}
+/**
+ * Guest €/L for one consumption line.
+ * Trip pin wins; else last bunker on/before the line’s date (so use after bunkering picks new rate).
+ */
+function apaDieselPriceForLine(t, r){
+  if(t&&t.dieselPricePinned&&Number(t.dieselPrice)>0) return Number(t.dieselPrice);
+  return dieselAutoGuestRate(t, r);
 }
 function apaGenBurn(t){ var g=Number(t&&t.genBurn); return g>0?g:6; }
 /** Parse money/qty strings: accepts "1,75", "1.75", "1.234,56", "1,234.56", "€1 75". */
@@ -3656,17 +3680,18 @@ function apaEngineLitres(r){
 function apaDieselCalc(t,r){
   var port=apaNum(r&&r.enginePortL), stbd=apaNum(r&&r.engineStbdL);
   var eng=apaEngineLitres(r), hrs=apaNum(r&&r.genHrs);
-  var price=apaDieselPrice(t), burn=apaGenBurn(t);
+  var price=apaDieselPriceForLine(t, r), burn=apaGenBurn(t);
   var genL=hrs*burn;
   var lit=eng+genL;
-  /* Freeze ledger €: manual cost → stored amount → litres×price.
-     Prefer stored amount over re-pricing so rate experiments never invent money. */
+  /* Manual € always wins. Pinned trip freezes stored line €.
+     Unpinned: recompute lit×(bunker+10c for that day) so same-day bunker applies. */
   var manual=apaNum(r&&r.cost);
   var stored=apaNum(r&&r.amount);
   var cost=0;
   if(manual>0) cost=manual;
-  else if(stored>0) cost=stored;
+  else if(t&&t.dieselPricePinned&&stored>0) cost=stored;
   else if(lit>0) cost=lit*price;
+  else if(stored>0) cost=stored;
   return { genL:genL, lit:lit, cost:cost, price:price, burn:burn, eng:eng, port:port, stbd:stbd };
 }
 /** Always write ledger lines onto the trip in state.apa (not a stale copy). */
@@ -4026,17 +4051,28 @@ function apaProvisionsHTML(t){
 function apaDieselHTML(t){
   var x=apaTotals(t);
   var price=apaDieselPrice(t), burn=apaGenBurn(t);
+  var autoR=dieselAutoGuestRate(t);
   var used=apaLit(x.dLit);
+  var lastB=dieselLastBunker(dieselTripRefDate(t)||(typeof localTodayYmd==="function"?localTodayYmd():""));
+  var pinNote=t.dieselPricePinned
+    ?"Pinned manual rate for this trip (edit below to change)."
+    :"Auto = last bunker"+(lastB?" (€"+esc(String(lastB.price))+" on "+esc(fmtDate(lastB.date)||lastB.date)+")":"")+" + €"+esc(String(DIESEL_MARKUP))+" = <b>€"+esc(String(autoR))+"/L</b>. Same-day bunker counts. Edit to pin a different rate.";
   var html='<div class="apa-card" style="margin-bottom:12px">'+
-    '<p style="margin:0;font-size:13px;line-height:1.45;color:var(--muted)">Trip fuel is charged at <b>this trip’s</b> sell rate (€'+esc(String(price))+'/L — change in Trip setup). Vessel bunkers each have their own pump €/L on the <b>Diesel</b> tab (prices change over time).</p>'+
+    '<p style="margin:0 0 10px;font-size:13px;line-height:1.45;color:var(--muted)">Guest sell rate for this pot. Consumption uses the bunker on or before <b>each use date</b> (unless you pin a trip rate). Vessel pump log is on the <b>Diesel</b> tab.</p>'+
+    fieldHTML("Guest € / litre",moneyField("f_apa_dPrice", price))+
+    '<p style="margin:-6px 0 10px;font-size:12px;color:var(--muted);line-height:1.4">'+pinNote+'</p>'+
+    '<div class="row2" style="gap:8px">'+
+      '<button type="button" class="btn" id="apaSaveDPrice" style="flex:1">Save rate</button>'+
+      (t.dieselPricePinned?'<button type="button" class="btn ghost" id="apaClearDPin" style="flex:1">Use auto (bunker+10c)</button>':'')+
+    '</div>'+
   '</div>'+
   '<div class="apa-grid" style="margin-bottom:12px">'+
     '<div class="apa-card"><div class="k">Used (trip)</div><div class="n">'+esc(String(used))+' L</div></div>'+
     '<div class="apa-card"><div class="k">APA cost</div><div class="n money">'+money(x.dCost)+'</div></div>'+
-    '<div class="apa-card"><div class="k">Sell € / L</div><div class="n">'+esc(String(price))+'</div></div>'+
+    '<div class="apa-card"><div class="k">Sell € / L</div><div class="n">'+esc(String(price))+(t.dieselPricePinned?' <span class="pill p-amber">pinned</span>':'')+'</div></div>'+
     '<div class="apa-card"><div class="k">Gen L/hr</div><div class="n">'+esc(String(burn))+'</div></div>'+
   '</div>'+
-  '<p class="apa-fuel-note">Tap + for port &amp; starboard engine litres and/or generator hours. Optional manual € cost. Trip rate in Trip setup (defaults to vessel sell price).</p>';
+  '<p class="apa-fuel-note">Tap + for engine litres and/or generator hours. Optional manual € overrides the rate for that line only.</p>';
 
   var rows=(t.diesel||[]).slice().sort(function(a,b){return String(b.date||"").localeCompare(String(a.date||""));});
   html+='<div class="apa-sect-h"><h3>Consumption</h3><span style="font-size:12px;color:var(--muted);font-weight:600">Tap + to add</span></div>';
@@ -4051,7 +4087,7 @@ function apaDieselHTML(t){
         :('<span>Engine '+esc(String(apaLit(c.eng)))+' L</span>');
       html+='<div class="item apa-row" data-apa-dsl="'+esc(r.id)+'" role="button" tabindex="0">'+
         '<div class="top"><div class="title">'+esc(fmtDate(r.date)||"Use")+'</div><div class="amt money">'+money(c.cost)+'</div></div>'+
-        '<div class="meta">'+engMeta+'<span>Gen '+esc(String(apaNum(r.genHrs)))+' h → '+esc(String(apaLit(c.genL)))+' L</span><span>'+esc(String(apaLit(c.lit)))+' L used</span></div>'+
+        '<div class="meta">'+engMeta+'<span>@ €'+esc(String(c.price))+'/L</span><span>Gen '+esc(String(apaNum(r.genHrs)))+' h → '+esc(String(apaLit(c.genL)))+' L</span><span>'+esc(String(apaLit(c.lit)))+' L used</span></div>'+
         (r.notes?'<div class="notes">'+esc(r.notes)+'</div>':'')+
         '<button type="button" class="apa-x" data-apa-del-line="diesel" data-id="'+esc(r.id)+'" aria-label="Delete">×</button></div>';
     });
@@ -4101,6 +4137,38 @@ function apaBindBody(t){
   if(el("apaEditTrip")) el("apaEditTrip").addEventListener("click",function(){ openApaTrip(t.id); });
   if(el("apaSyncCharge")) el("apaSyncCharge").addEventListener("click",function(){ saveApa(t); });
   if(el("apaDelTrip")) el("apaDelTrip").addEventListener("click",function(){ deleteApaTrip(t.id); });
+  function apaRestampDieselLines(trip, forcePrice){
+    (trip.diesel||[]).forEach(function(line){
+      if(!line||apaNum(line.cost)>0) return;
+      var eng=apaEngineLitres(line);
+      var genL=apaNum(line.genHrs)*apaGenBurn(trip);
+      var lit=eng+genL;
+      if(!(lit>0)) return;
+      var px=forcePrice>0?forcePrice:apaDieselPriceForLine(trip, line);
+      line.unitPrice=px;
+      line.amount=Math.round(lit*px*100)/100;
+    });
+  }
+  if(el("apaSaveDPrice")) el("apaSaveDPrice").addEventListener("click",function(){
+    var v=apaNum(el("f_apa_dPrice")&&el("f_apa_dPrice").value);
+    if(!(v>0)){ if(el("f_apa_dPrice")) el("f_apa_dPrice").focus(); return; }
+    var auto=dieselAutoGuestRate(t);
+    var pinned=Math.abs(v-auto)>0.001;
+    var saved=apaMutateTrip(t.id,function(trip){
+      trip.dieselPrice=v;
+      trip.dieselPricePinned=pinned;
+      apaRestampDieselLines(trip, pinned?v:0);
+    });
+    saveApa(saved||t);
+  });
+  if(el("apaClearDPin")) el("apaClearDPin").addEventListener("click",function(){
+    var saved=apaMutateTrip(t.id,function(trip){
+      trip.dieselPricePinned=false;
+      trip.dieselPrice=dieselAutoGuestRate(trip);
+      apaRestampDieselLines(trip, 0);
+    });
+    saveApa(saved||t);
+  });
 }
 function openApaTrip(id){
   var rec=id?state.apa.filter(function(t){return t.id===id;})[0]:null;
@@ -4185,8 +4253,9 @@ function openApaTrip(id){
       end:endIso||"",
       apaSent:apaNum(el("f_apaSent").value),
       topUps:apaNum(el("f_topUps").value),
-      dieselPrice:apaNum(el("f_dPrice").value)||dieselGuestRateForDate((startIso||"").slice(0,10))||DIESEL_LEGACY_SELL,
-      dieselPricePinned:!!(el("f_dPrice")&&el("f_dPrice").dataset.pinned==="1")||!!(rec&&r.dieselPricePinned),
+      dieselPrice:apaNum(el("f_dPrice").value)||dieselGuestRateForDate((startIso||"").slice(0,10)||(typeof localTodayYmd==="function"?localTodayYmd():""))||DIESEL_LEGACY_SELL,
+      /* Pin only when captain edits the field (or already pinned) — not when form just shows auto */
+      dieselPricePinned:!!(el("f_dPrice")&&el("f_dPrice").dataset.pinned==="1"),
       genBurn:apaNum(el("f_genBurn").value)||6,
       expenses:r.expenses||[],
       provisions:r.provisions||[],
@@ -4270,7 +4339,7 @@ function openApaLine(kind,id){
     '</div>';
     h+=fieldHTML("Generator hours",decField("f_genhrs", r.genHrs!=null&&r.genHrs!==""?r.genHrs:"", "e.g. 4"));
     h+=fieldHTML("Manual cost (€) — optional",moneyField("f_dsl_cost", r.cost||""));
-    h+='<p style="margin:-8px 0 12px;font-size:12px;color:var(--muted);line-height:1.4">Enter each engine’s litres — they are added for you. Cost = total litres × sell €'+esc(String(apaDieselPrice(t)))+'/L (gen: × '+esc(String(apaGenBurn(t)))+' L/hr). Optional manual € overrides. Vessel bunker: <b>Diesel</b> tab.</p>';
+    h+='<p style="margin:-8px 0 12px;font-size:12px;color:var(--muted);line-height:1.4">Litres × guest €/L for <b>this use date</b> (last bunker that day or earlier + €'+esc(String(DIESEL_MARKUP))+'; trip pin overrides). Optional manual € overrides. Change the date if you used fuel after bunkering.</p>';
     h+='<div class="calcbox" id="f_dsl_calc"></div>';
   }
   if(needsReceipt){
@@ -4308,7 +4377,9 @@ function openApaLine(kind,id){
   });
   function dslRecalc(){
     var box=el("f_dsl_calc"); if(!box) return;
+    var useDate=(el("f_date")&&el("f_date").value)||"";
     var tmp={
+      date:useDate,
       enginePortL:el("f_engine_port")?el("f_engine_port").value:"",
       engineStbdL:el("f_engine_stbd")?el("f_engine_stbd").value:"",
       genHrs:el("f_genhrs")?el("f_genhrs").value:"",
@@ -4316,17 +4387,20 @@ function openApaLine(kind,id){
     };
     var c=apaDieselCalc(t,tmp);
     var manual=apaNum(tmp.cost)>0;
+    var b=dieselLastBunker(useDate||"");
     box.innerHTML=
       '<div class="cl"><span>Port + starboard</span><b>'+esc(String(apaLit(c.port)))+' + '+esc(String(apaLit(c.stbd)))+' = '+esc(String(apaLit(c.eng)))+' L</b></div>'+
       '<div class="cl"><span>Gen litres ('+esc(String(c.burn))+' L/hr)</span><b>'+esc(String(Math.round(c.genL*10)/10))+' L</b></div>'+
       '<div class="cl"><span>Total litres</span><b>'+esc(String(Math.round(c.lit*10)/10))+' L</b></div>'+
+      '<div class="cl"><span>Rate for '+(useDate?esc(fmtDate(useDate)):"today")+'</span><b>€'+esc(String(c.price))+'/L'+(t.dieselPricePinned?" (pinned)":(b?" · bunker €"+esc(String(b.price)):"+10c":""))+'</b></div>'+
       '<div class="cl hi"><span>'+(manual?"Manual cost":"Cost @ €"+esc(String(c.price))+"/L")+'</span><b>'+money(c.cost)+'</b></div>'+
       (c.cost<=0?'<div class="cl" style="color:var(--danger)"><span>Enter port, starboard, gen hours, or a manual € cost</span><b></b></div>':'');
   }
   if(kind==="diesel"){
     dslRecalc();
-    ["f_engine_port","f_engine_stbd","f_genhrs","f_dsl_cost"].forEach(function(id){
+    ["f_engine_port","f_engine_stbd","f_genhrs","f_dsl_cost","f_date"].forEach(function(id){
       if(el(id)) el(id).addEventListener("input",dslRecalc);
+      if(el(id)) el(id).addEventListener("change",dslRecalc);
     });
   }
   el("sheetSave").addEventListener("click",function(){
@@ -4360,6 +4434,7 @@ function openApaLine(kind,id){
         if(el("f_engine_port")) el("f_engine_port").focus();
         return;
       }
+      obj.unitPrice=preview.price;
       if(!obj.cost) obj.amount=Math.round(preview.cost*100)/100;
       else obj.amount=obj.cost;
     }
