@@ -1077,23 +1077,36 @@ function leadInvTag(label, amount, pct, status, invNo, id, which){
   var pctS=(pct!==""&&pct!=null)?' ('+pct+'%)':'';
   return '<span class="invtag'+cls+'"><b>'+esc(label)+'</b> '+money0(amount)+pctS+' '+pill(st)+inv+btn+'</span>';
 }
-/** Close date for list order (YYYY-MM-DD); empty sorts last. */
-function leadCloseKey(r){
+/**
+ * Charter date for list order (YYYY-MM-DD), newest first.
+ * Prefer start → cdate → end; only then closed (deal date) if no charter day set.
+ */
+function leadCharterKey(r){
   if(!r) return "";
-  return String(r.closed||"").trim();
+  var s=String(r.start||"").trim().slice(0,10);
+  if(s) return s;
+  s=String(r.cdate||"").trim().slice(0,10);
+  if(s) return s;
+  s=String(r.end||"").trim().slice(0,10);
+  if(s) return s;
+  return String(r.closed||"").trim().slice(0,10);
 }
 function sortLeads(){
   if(!state.leads||!state.leads.length) return;
   state.leads.sort(function(a,b){
-    var da=leadCloseKey(a), db=leadCloseKey(b);
-    if(da&&db&&da!==db) return db<da?-1:1; /* newest close date first */
+    var da=leadCharterKey(a), db=leadCharterKey(b);
+    if(da&&db&&da!==db) return db<da?-1:1; /* newest charter date first */
     if(db&&!da) return 1;
     if(da&&!db) return -1;
-    /* Same close day: newest createdAt first */
-    var ca=String(a.createdAt||""), cb=String(b.createdAt||"");
+    /* Same charter day: later deal close, then createdAt */
+    var ca=String(a.closed||"").trim().slice(0,10), cb=String(b.closed||"").trim().slice(0,10);
     if(ca&&cb&&ca!==cb) return cb<ca?-1:1;
     if(cb&&!ca) return 1;
     if(ca&&!cb) return -1;
+    var ta=String(a.createdAt||""), tb=String(b.createdAt||"");
+    if(ta&&tb&&ta!==tb) return tb<ta?-1:1;
+    if(tb&&!ta) return 1;
+    if(ta&&!tb) return -1;
     return String(b.id||"").localeCompare(String(a.id||""));
   });
 }
