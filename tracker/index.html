@@ -1351,10 +1351,14 @@ function leadInvoiceDesc(r, kind){
   return leadCharterDesc(r)+" — "+leadInvoiceTypeLabel(r, kind);
 }
 function chargeInvoiceTypeLabel(c){
+  var ext=chargeExtAmt(c);
+  var extOnBill=ext>0&&chargeExtSettle(c)!=="cash";
   if(c&&(c.kind==="apa"||c.apaTripId||c.cashDeal)){
+    if(extOnBill) return "APA expenses + extra charter time";
     if(c.cashDeal||c.cashAmt) return "APA / charter expenses";
     return "APA shortfall / charter expenses";
   }
+  if(extOnBill||(c&&(c.kind==="extension"||c.chargeKind==="extension"))) return "Extra charter time";
   return "Charter charge";
 }
 function chargeInvoiceDesc(c){
@@ -1364,6 +1368,11 @@ function chargeInvoiceDesc(c){
   var bits=["M/Y Limitless", type];
   if(client) bits.push(client);
   if(date) bits.push(date);
+  var ext=chargeExtAmt(c);
+  if(ext>0&&chargeExtSettle(c)!=="cash"){
+    var h=chargeExtHours(c);
+    bits.push("incl. extra "+(h>0?(h===1?"1 hour":h+" hours"):"time")+" "+money0(ext));
+  }
   return bits.join(" — ");
 }
 function chargeInvoicePeriod(c){
@@ -1452,6 +1461,33 @@ function buildApaInvoiceLines(trip){
   });
   return lines;
 }
+/**
+ * Invoice line items for a charge: APA spend groups + same-bill extension (on invoice / card).
+ * Cash-settled extension is omitted (not on formal PDF).
+ */
+function buildChargeInvoiceLines(c){
+  var trip=apaTripForCharge(c);
+  var lines=trip?buildApaInvoiceLines(trip):[];
+  var extA=chargeExtAmt(c);
+  if(extA>0&&chargeExtSettle(c)!=="cash"){
+    var h=chargeExtHours(c);
+    var desc="Extra charter time";
+    if(h>0) desc+=h===1?" (1 hour)":" ("+h+" hours)";
+    var rate="";
+    if(h>0){
+      var per=Math.round((extA/h)*100)/100;
+      rate=money(per)+"/h";
+    }
+    lines.push({
+      desc:desc,
+      period:chargeInvoicePeriod(c)||"",
+      rate:rate,
+      gross:Math.round(extA*100)/100,
+      isExt:true
+    });
+  }
+  return lines;
+}
 function apaInvoiceLinesNet(lines, vatPct){
   return (lines||[]).map(function(ln){
     var sp=invoiceSplitGross(ln.gross, vatPct);
@@ -1460,7 +1496,8 @@ function apaInvoiceLinesNet(lines, vatPct){
       period:ln.period||"",
       rate:ln.rate||"",
       net:sp.net,
-      gross:sp.gross
+      gross:sp.gross,
+      isExt:!!ln.isExt
     };
   });
 }
@@ -1626,19 +1663,20 @@ function openChargeInvoiceSheet(id){
   var typeLab=chargeInvoiceTypeLabel(c);
   var existing=String(c.inv||"").trim();
   var trip=apaTripForCharge(c);
-  var apaLines=trip?buildApaInvoiceLines(trip):[];
-  var canItemise=apaLines.length>0&&chargeBillType(c)!=="mix";
+  var chargeLines=buildChargeInvoiceLines(c);
+  var canItemise=chargeLines.length>0&&chargeBillType(c)!=="mix";
   var invGross=chargeInvoicePart(c);
   if(!(invGross>0)) invGross=apaNum(c.amount);
   var h='<div class="sheethead"><h2>Make invoice</h2><button type="button" class="sheetx" id="sheetClose" aria-label="Close">×</button></div>';
   h+='<p style="margin:0 0 12px;font-size:13px;color:var(--muted);line-height:1.45">PDF for the manager / accountant. Formal invoice only — cash settlement is never on the PDF. Same number if you regenerate this charge.'+
     (chargeBillType(c)==="mix"?' <b>Mix:</b> PDF = invoice part only ('+money(invGross)+'); cash part stays off-invoice.':'')+
+    (chargeExtAmt(c)>0&&chargeExtSettle(c)!=="cash"?' <b>Extra hours</b> on this charge appear as their own line on the itemised PDF.':'')+
     '</p>';
   h+='<div class="apa-card" style="margin-bottom:12px"><div class="k">Type on PDF</div><div style="font-weight:700;margin-top:4px">'+esc(typeLab)+'</div></div>';
   if(canItemise){
     h+='<label class="checkrow"><input type="checkbox" id="f_inv_itemise" checked>'+
-      '<span><div class="ck">Itemise APA entries</div>'+
-      '<div class="ch">Groups by type: dockage, provisions, diesel (€ only), etc. — no shop names.</div></span></label>';
+      '<span><div class="ck">Itemise lines</div>'+
+      '<div class="ch">APA spend by type (dockage, provisions, diesel € only) plus extra charter time when on this bill — no shop names.</div></span></label>';
     h+='<div id="f_inv_item_preview" class="calcbox" style="max-height:160px;overflow:auto;font-size:12.5px"></div>';
   }
   h+='<div class="row2">'+
@@ -1677,27 +1715,27 @@ function openChargeInvoiceSheet(id){
     if(c.vatMode==="none") p=0;
     return p;
   }
+  function liveChargeLines(){ return buildChargeInvoiceLines(c); }
   function updateItemPreview(){
     var box=el("f_inv_item_preview");
     if(!box) return;
     if(!itemiseOn()){ box.classList.add("hidden"); return; }
     box.classList.remove("hidden");
-    /* Live rebuild so preview matches the PDF */
-    var live=apaTripForCharge(c);
-    var rows=live?buildApaInvoiceLines(live):apaLines;
+    var rows=liveChargeLines();
     var html="";
     var vatP=pct();
     rows.forEach(function(ln){
       var sp=invoiceSplitGross(ln.gross, vatP);
-      html+='<div class="cl"><span>'+esc(ln.desc)+'</span><b>'+money(ln.gross)+'</b></div>'+
+      html+='<div class="cl"><span>'+esc(ln.desc)+(ln.isExt?' <span class="pill p-amber">ext</span>':'')+'</span><b>'+money(ln.gross)+'</b></div>'+
         '<div style="font-size:11px;color:var(--muted);margin:-2px 0 6px 0">on PDF amount column (ex IVA): '+money(sp.net)+'</div>';
     });
     var sum=rows.reduce(function(s,ln){return s+apaNum(ln.gross);},0);
     html+='<div class="cl hi"><span>Lines total (incl. IVA)</span><b>'+money(sum)+'</b></div>';
-    if(Math.abs(sum-(Number(c.amount)||0))>0.05){
-      html+='<div style="font-size:11.5px;color:var(--amberInk);margin-top:6px">Lines sum differs from charge amount — check APA entries or the total field below.</div>';
+    var invPart=chargeInvoicePart(c)||Number(c.amount)||0;
+    if(Math.abs(sum-invPart)>0.05){
+      html+='<div style="font-size:11.5px;color:var(--amberInk);margin-top:6px">Lines sum differs from invoice part of charge ('+money(invPart)+') — check APA entries or extension €.</div>';
     }
-    box.innerHTML=html||'<div class="cl"><span>No APA lines found</span><b></b></div>';
+    box.innerHTML=html||'<div class="cl"><span>No lines found</span><b></b></div>';
   }
   function syncItemiseUi(){
     var on=itemiseOn();
@@ -1705,12 +1743,13 @@ function openChargeInvoiceSheet(id){
     if(single) single.classList.toggle("hidden", on);
     if(el("f_inv_gross")) el("f_inv_gross").disabled=on;
     if(on){
-      var sum=apaLines.reduce(function(s,ln){return s+(Number(ln.gross)||0);},0);
-      /* Prefer charge amount (shortfall) when it matches pot logic; else lines sum */
-      var chAmt=Number(c.amount)||0;
+      var rows=liveChargeLines();
+      var sum=rows.reduce(function(s,ln){return s+(Number(ln.gross)||0);},0);
+      /* Prefer full charge invoice part (includes same-bill extension) */
+      var chAmt=chargeInvoicePart(c)||Number(c.amount)||0;
       if(el("f_inv_gross")) el("f_inv_gross").value=String(Math.round((chAmt>0?chAmt:sum)*100)/100);
     } else if(el("f_inv_gross")&&!el("f_inv_gross").dataset.touched){
-      el("f_inv_gross").value=String(Math.round((Number(c.amount)||0)*100)/100);
+      el("f_inv_gross").value=String(Math.round((chargeInvoicePart(c)||Number(c.amount)||0)*100)/100);
     }
     updateItemPreview();
     recalc();
@@ -1720,7 +1759,7 @@ function openChargeInvoiceSheet(id){
     var sp=invoiceSplitGross(gross, pct());
     var box=el("f_inv_calc");
     if(!box) return;
-    var nLines=itemiseOn()?apaLines.length:1;
+    var nLines=itemiseOn()?liveChargeLines().length:1;
     box.innerHTML=
       '<div class="cl"><span>Type on PDF</span><b>'+esc(typeLab)+'</b></div>'+
       (itemiseOn()?'<div class="cl"><span>Itemised lines</span><b>'+nLines+'</b></div>':'')+
@@ -1748,26 +1787,40 @@ function openChargeInvoiceSheet(id){
     var sp=invoiceSplitGross(gross, vatPct);
     var lines=null;
     if(itemiseOn()){
-      /* Rebuild from live APA trip so every provision/expense is included */
-      var liveTrip=apaTripForCharge(c);
-      var liveLines=liveTrip?buildApaInvoiceLines(liveTrip):apaLines;
-      lines=apaInvoiceLinesNet(liveLines, vatPct);
-      var sumGross=liveLines.reduce(function(s,ln){return s+apaNum(ln.gross);},0);
-      var sumNet=lines.reduce(function(s,ln){return s+apaNum(ln.net);},0);
+      /* APA groups + same-bill extension line (extra hours on invoice/card) */
+      var liveLines=liveChargeLines();
+      var baseLines=liveLines.filter(function(ln){ return !ln.isExt; });
+      var extLines=liveLines.filter(function(ln){ return ln.isExt; });
+      var extGross=extLines.reduce(function(s,ln){return s+apaNum(ln.gross);},0);
+      var baseGross=baseLines.reduce(function(s,ln){return s+apaNum(ln.gross);},0);
+      var sumGross=baseGross+extGross;
       /*
-       * Only scale when charge is a true shortfall (less than full spend).
-       * Never scale when lines already match the invoice total — that was
-       * hiding a missed provision sum (e.g. 90+20 → only 90 shown).
+       * Shortfall: scale APA spend lines only so pot logic still works.
+       * Never scale the extension line — keep full extra-hour €.
+       * Never drop total down to lines-without-extension (that hid €500 extra).
        */
-      if(sumNet>0&&sumGross>0&&sp.gross+0.02<sumGross&&Math.abs(sumNet-sp.net)>0.02){
-        var scale=sp.net/sumNet;
-        lines=lines.map(function(ln){
-          return {desc:ln.desc, period:ln.period, rate:ln.rate, net:Math.round(ln.net*scale*100)/100, gross:Math.round(ln.gross*scale*100)/100};
+      var targetGross=sp.gross;
+      var baseTarget=Math.max(0, Math.round((targetGross-extGross)*100)/100);
+      var baseNetLines=apaInvoiceLinesNet(baseLines, vatPct);
+      var baseSumNet=baseNetLines.reduce(function(s,ln){return s+apaNum(ln.net);},0);
+      var baseSumGross=baseGross;
+      if(baseSumNet>0&&baseSumGross>0&&baseTarget+0.02<baseSumGross&&Math.abs(baseSumGross-baseTarget)>0.02){
+        var scale=baseTarget/baseSumGross;
+        baseNetLines=baseNetLines.map(function(ln){
+          return {desc:ln.desc, period:ln.period, rate:ln.rate, net:Math.round(ln.net*scale*100)/100, gross:Math.round(ln.gross*scale*100)/100, isExt:false};
         });
-      } else if(sumGross>0&&Math.abs(sumGross-sp.gross)>0.05&&sp.gross+0.02>=sumGross){
-        /* Itemisation total is the real spend — prefer it when charge ≥ lines (or equal) */
-        sp=invoiceSplitGross(sumGross, vatPct);
-        if(el("f_inv_gross")) el("f_inv_gross").value=String(Math.round(sumGross*100)/100);
+      }
+      var extNetLines=apaInvoiceLinesNet(extLines, vatPct);
+      lines=baseNetLines.concat(extNetLines);
+      var linesSum=lines.reduce(function(s,ln){return s+apaNum(ln.gross);},0);
+      /* Prefer charge total when it includes extension and is ≥ line sum */
+      if(targetGross+0.02>=linesSum-0.02&&Math.abs(targetGross-linesSum)>0.05){
+        /* keep sp.gross = charge invoice total (card amount) */
+      } else if(linesSum>0&&Math.abs(linesSum-targetGross)>0.05&&targetGross+0.02<linesSum){
+        /* shortfall already scaled above */
+      } else if(linesSum>0&&Math.abs(linesSum-sp.gross)>0.05){
+        sp=invoiceSplitGross(Math.max(targetGross, linesSum), vatPct);
+        if(el("f_inv_gross")) el("f_inv_gross").value=String(Math.round(sp.gross*100)/100);
       }
     }
     var byCard=paidByCardOn();
