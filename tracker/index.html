@@ -1012,7 +1012,7 @@ function renderLeads(){
     var splitBits="";
     var finLabel="Final";
     if(leadHasSplit(r)){
-      var invN=Number(r.invoiceNet)||0, cashN=Number(r.cashAmt)||0;
+      var invN=Number(r.invoiceNet)||0, cashN=leadFreeCashAmt(r)||Number(r.cashAmt)||0;
       var invT=Number(r.invoiceTotal)!=null&&r.invoiceTotal!==""?Number(r.invoiceTotal):(invN+(Number(r.invoiceVat)||0));
       var dealN=Number(r.dealNet)||0;
       var quoteB=Number(r.base)||0;
@@ -2806,7 +2806,12 @@ function mergeDuplicateApaTrips(){
  */
 function ensureLeadCashApa(lead){
   if(!canOps()||!lead||!lead.id) return false;
-  var cash=Math.round((Number(lead.cashAmt)||0)*100)/100;
+  /* Refuse auto-suggested cash (€1.652,89 = white net) — use free cash / pin only */
+  var cash=leadFreeCashAmt(lead);
+  if(cash>0&&Math.abs((Number(lead.cashAmt)||0)-cash)>0.02){
+    lead.cashAmt=cash;
+    lead.cashAmtUser=true;
+  }
   var key="lead:"+lead.id;
   if(!state.apa) state.apa=[];
   var trip=findApaTripForLead(lead);
@@ -2927,10 +2932,12 @@ function ensureAllLeadCashApa(){
   if(!canOps()) return;
   var dirty=false;
   (state.leads||[]).forEach(function(l){
-    if(!l||!leadHasSplit(l)||!(Number(l.cashAmt)>0)) return;
+    if(!l||!leadHasSplit(l)) return;
+    var cash=leadFreeCashAmt(l);
+    if(!(cash>0)) return; /* skip white-net bug €1.652,89 */
+    if(Math.abs((Number(l.cashAmt)||0)-cash)>0.02){ l.cashAmt=cash; l.cashAmtUser=true; }
     var key="lead:"+l.id;
     var trip=findApaTripForLead(l);
-    var cash=Math.round((Number(l.cashAmt)||0)*100)/100;
     var want=Math.round((-cash)*100)/100;
     /* Prepaid pot with real money/spend — link only, never fork a second cash APA */
     if(trip&&!trip.cashFromLead&&(Number(trip.apaSent)>0||apaTotals(trip).spent>0.009||(trip.expenses&&trip.expenses.length)||(trip.provisions&&trip.provisions.length))){
@@ -4745,10 +4752,16 @@ function pickLeadCashAmt(a, b){
 function applyLeadCashPin(l){
   if(!l||!l.id||!leadHasSplit(l)) return false;
   var pin=leadCashPinGet(l.id);
-  if(!(pin>0)) return false;
+  /* Never treat €1.652,89 as free cash — pin or clear */
+  if(LY_MODELS&&LY_MODELS.sanitizeLeadCash){
+    return LY_MODELS.sanitizeLeadCash(l, pin);
+  }
+  if(!(pin>0)){
+    if(cashAmtLooksSuggested(l)){ l.cashAmt=0; l.cashAmtUser=false; return true; }
+    return false;
+  }
   var cur=Math.round((Number(l.cashAmt)||0)*100)/100;
-  if(Math.abs(cur-pin)<0.02&&l.cashAmtUser) return false;
-  /* Restore free cash if missing, suggested, or different from pin */
+  if(Math.abs(cur-pin)<0.02&&l.cashAmtUser&&!cashAmtLooksSuggested(l)) return false;
   if(cur<=0||cashAmtLooksSuggested(l)||Math.abs(cur-pin)>0.02){
     l.cashAmt=pin;
     l.cashAmtUser=true;
@@ -4767,6 +4780,12 @@ function restoreAllLeadCashPins(){
     if(applyLeadCashPin(l)) dirty=true;
   });
   return dirty;
+}
+/** Free cash for APA / display — never €1.652,89 (white net). */
+function leadFreeCashAmt(l){
+  if(LY_MODELS&&LY_MODELS.leadFreeCashAmt) return LY_MODELS.leadFreeCashAmt(l, leadCashPinGet(l&&l.id));
+  var c=Math.round((Number(l&&l.cashAmt)||0)*100)/100;
+  return cashAmtLooksSuggested(l)?0:c;
 }
 function mergeLeadPair(remote, local){
   if(!remote) return local;
@@ -8094,13 +8113,15 @@ function openSheet(type,id){
     }
     var vatTopDef=r.splitVatOnTop===true||r.splitVatOnTop==="top";
     var whiteVatModeDef=r.whiteVatMode||(r.invoiceTotal&&r.invoiceNet&&Math.abs(Number(r.invoiceTotal)-Number(r.invoiceNet))>0.5?"include":(r.invoiceNet&&!r.invoiceTotal?"add":"include"));
-    var cashDef=(r.cashAmt!=null&&r.cashAmt!=="")?r.cashAmt:"";
+    /* Never put €1.652,89 (white net) in the cash field — pin or blank */
+    var freeCashShow=leadFreeCashAmt(r);
+    var cashDef=freeCashShow>0?freeCashShow:"";
     var leadSrcDef=leadSource(r);
     h+='<div class="sheethead"><h2>'+(rec?"Edit lead":"New lead")+'</h2><button type="button" class="sheetx" id="sheetClose" aria-label="Close">×</button></div>';
-    if(rec&&leadHasSplit(r)&&cashAmtLooksSuggested(r)){
+    if(rec&&leadHasSplit(r)&&(cashAmtLooksSuggested(r)||(Number(r.cashAmt)>0&&!(freeCashShow>0)))){
       h+='<div class="apa-card" style="margin:0 0 12px;padding:10px 12px;border:1.5px solid #f0d48a;background:#fffbf0">'+
-        '<div style="font-weight:800;color:#9a6b00">Cash looks like the auto “ex VAT” figure ('+money0(r.cashAmt)+')</div>'+
-        '<div class="meta" style="margin-top:4px">Free cash black is often <b>€1,800</b> — not quote÷1.21 − white net. Type the agreed cash and Save.</div>'+
+        '<div style="font-weight:800;color:#9a6b00">Stored cash was the white net (€+money(Number(r.cashAmt)||0)+' = amount÷1.21) — not free cash black</div>'+
+        '<div class="meta" style="margin-top:4px">Enter free cash e.g. <b>€1,800</b> and Save. Do not use “Use suggested”.</div>'+
       '</div>';
     }
     h+=fieldHTML("Lead name",'<input class="ctl" id="f_name" value="'+esc(r.name)+'" placeholder="e.g. Acme Corp (website)">');
@@ -8191,6 +8212,7 @@ function openSheet(type,id){
   if(el("f_whiteVatMode")) el("f_whiteVatMode").addEventListener("change",recalcLead);
   if(el("f_cashBlack")) el("f_cashBlack").addEventListener("input",recalcLead);
   if(el("f_useSuggestCash")) el("f_useSuggestCash").addEventListener("click",function(){
+    if(!window.confirm("“Suggested” is white net / quote÷1.21 − white (e.g. €1.652,89) — NOT free cash black.\n\nFree cash is usually a round amount like €1,800.\n\nOnly continue if you really want that ex-VAT figure.")) return;
     var mode=el("f_vatMode")?el("f_vatMode").value:"include";
     var pctRaw=el("f_vatPct")?el("f_vatPct").value:"";
     var dur=el("f_dur")?el("f_dur").value:"8h";
@@ -8458,7 +8480,12 @@ function saveSheet(type,rec){
           return;
         }
       }
-      /* Pin free cash on this device so polls cannot wipe it back to ≈€1653 */
+      /* Never pin the white-net figure (€1.652,89) */
+      if(cashAmtLooksSuggested(o2)){
+        window.alert("Cash black cannot be the white net ("+money(o2.cashAmt)+").\n\nThat is amount÷1.21, not free cash. Enter e.g. 1800.");
+        if(el("f_cashBlack")){ el("f_cashBlack").value="1800"; el("f_cashBlack").focus(); }
+        return;
+      }
       leadCashPinSet(o2.id, o2.cashAmt);
       o2.cashAmtUser=true;
     }

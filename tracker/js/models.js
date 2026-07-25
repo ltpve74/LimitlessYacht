@@ -129,6 +129,7 @@
     if (!(cash > 0)) return false;
     var sug = leadSuggestedCashAmt(l);
     if (sug != null && sug > 0 && Math.abs(cash - sug) < 1.01) return true;
+    /* €1.652,89 = white net (2000÷1.21) — classic corrupt free-cash value */
     var wNet = num(l.invoiceNet);
     if (wNet > 0 && Math.abs(cash - wNet) < 1.01) return true;
     if (num(l.invoiceTotal) > 0) {
@@ -136,6 +137,47 @@
       if (wn > 0 && Math.abs(cash - wn) < 1.01) return true;
     }
     return false;
+  }
+
+  /**
+   * Free cash black for ops/APA — never returns the auto ex-VAT figure (€1.652,89).
+   * pin (optional device pin) wins when stored cash is missing or looks suggested.
+   */
+  function leadFreeCashAmt(l, pin) {
+    pin = round2(num(pin));
+    var cash = round2(num(l && l.cashAmt));
+    if (pin > 0 && !cashAmtLooksSuggested(Object.assign({}, l || {}, { cashAmt: pin }))) {
+      if (!(cash > 0) || cashAmtLooksSuggested(l) || Math.abs(cash - pin) > 0.02) return pin;
+    }
+    if (cashAmtLooksSuggested(l)) return 0;
+    return cash > 0 ? cash : 0;
+  }
+
+  /** Mutate lead: replace suggested cash with pin or clear corrupt value. */
+  function sanitizeLeadCash(l, pin) {
+    if (!l || !leadHasSplit(l)) return false;
+    var free = leadFreeCashAmt(l, pin);
+    var cur = round2(num(l.cashAmt));
+    if (Math.abs(cur - free) < 0.02 && !(cashAmtLooksSuggested(l) && free <= 0)) {
+      if (free > 0) l.cashAmtUser = true;
+      return false;
+    }
+    if (free > 0) {
+      l.cashAmt = free;
+      l.cashAmtUser = true;
+    } else if (cashAmtLooksSuggested(l)) {
+      /* Drop corrupt €1.652,89 so APA/notices do not use it */
+      l.cashAmt = 0;
+      l.cashAmtUser = false;
+    } else {
+      return false;
+    }
+    var white = num(l.invoiceTotal);
+    if (!(white > 0) && num(l.invoiceNet) > 0) {
+      white = moneyFromBase(num(l.invoiceNet), l.whiteVatMode === "add" ? "add" : "include", l.vatPct).total;
+    }
+    l.total = round2(white + num(l.cashAmt));
+    return true;
   }
 
   /** Client total for split = white invoice total + free cash (never dealNet). */
@@ -146,7 +188,8 @@
     if (!(white > 0) && num(l.invoiceNet) > 0) {
       white = moneyFromBase(num(l.invoiceNet), l.whiteVatMode === "add" ? "add" : "include", l.vatPct).total;
     }
-    return round2(white + num(l.cashAmt));
+    var cash = leadFreeCashAmt(l);
+    return round2(white + cash);
   }
 
   /* ---------- commission (locked) ---------- */
@@ -385,6 +428,8 @@
     constrainBillType: constrainBillType,
     leadSuggestedCashAmt: leadSuggestedCashAmt,
     cashAmtLooksSuggested: cashAmtLooksSuggested,
+    leadFreeCashAmt: leadFreeCashAmt,
+    sanitizeLeadCash: sanitizeLeadCash,
     leadClientTotal: leadClientTotal,
     commissionVatPct: commissionVatPct,
     leadCommissionWhiteBeforeVat: leadCommissionWhiteBeforeVat,

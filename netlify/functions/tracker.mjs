@@ -450,6 +450,63 @@ function chargeInv(r) {
   return r.inv ? "Issued" : "Not issued";
 }
 
+/** True if cash black equals white net / suggested ex-VAT (corrupt free cash). */
+function leadCashLooksSuggested(l) {
+  if (!l) return false;
+  const cash = Number(l.cashAmt) || 0;
+  if (!(cash > 0)) return false;
+  const wNet = Number(l.invoiceNet) || 0;
+  if (wNet > 0 && Math.abs(cash - wNet) < 1.01) return true;
+  const white = Number(l.invoiceTotal) || 0;
+  const pct = Number(l.vatPct) > 0 ? Number(l.vatPct) : 21;
+  if (white > 0 && (l.whiteVatMode || "include") !== "none" && (l.whiteVatMode || "include") !== "add") {
+    const wn = white / (1 + pct / 100);
+    if (Math.abs(cash - wn) < 1.01) return true;
+  }
+  const base = Number(l.base) || Number(l.price) || 0;
+  if (base > 0 && wNet > 0) {
+    const dealNet = base / (1 + pct / 100);
+    const sug = Math.max(0, dealNet - wNet);
+    if (sug > 0 && Math.abs(cash - sug) < 1.01) return true;
+  }
+  return false;
+}
+
+/**
+ * On leads save: keep previous free cash if incoming cash is the white-net bug (€1.652,89).
+ * Prevents any client from re-poisoning the blob and firing APA notifications at that amount.
+ */
+function protectLeadFreeCash(prevRows, nextRows) {
+  const prev = Array.isArray(prevRows) ? prevRows : [];
+  const next = Array.isArray(nextRows) ? nextRows : [];
+  const byId = new Map(prev.map((r) => [r && r.id, r]));
+  return next.map((lead) => {
+    if (!lead || !lead.id) return lead;
+    const old = byId.get(lead.id);
+    const split = !!(lead.split || lead.splitCash);
+    if (!split) return lead;
+    const incomingBad = leadCashLooksSuggested(lead);
+    const oldCash = old ? Number(old.cashAmt) || 0 : 0;
+    const oldGood = old && oldCash > 0 && !leadCashLooksSuggested(old);
+    if (incomingBad && oldGood) {
+      const fixed = Object.assign({}, lead);
+      fixed.cashAmt = oldCash;
+      fixed.cashAmtUser = true;
+      const white = Number(fixed.invoiceTotal) || 0;
+      fixed.total = Math.round((white + oldCash) * 100) / 100;
+      return fixed;
+    }
+    if (incomingBad && !lead.cashAmtUser) {
+      const fixed = Object.assign({}, lead);
+      fixed.cashAmt = 0;
+      const white = Number(fixed.invoiceTotal) || 0;
+      fixed.total = Math.round(white * 100) / 100;
+      return fixed;
+    }
+    return lead;
+  });
+}
+
 /** Build human notifications from a collection save. */
 function buildNotices(coll, prevRows, nextRows, who) {
   const prev = Array.isArray(prevRows) ? prevRows : [];
@@ -693,7 +750,11 @@ export default async (req, context) => {
       return json({ error: "Stews / expenses are captain-only" }, 403);
     }
     const prev = Array.isArray(data[coll]) ? data[coll] : [];
-    const next = Array.isArray(body.rows) ? body.rows.slice(0, 5000) : [];
+    let next = Array.isArray(body.rows) ? body.rows.slice(0, 5000) : [];
+    /* Protect free cash black: never let a save overwrite good cash with white net (€1.652,89) */
+    if (coll === "leads") {
+      next = protectLeadFreeCash(prev, next);
+    }
     const notices = coll === "apa" || coll === "diesel" ? [] : buildNotices(coll, prev, next, who);
     data[coll] = next;
     /* Charters Paid/Pending → re-link APA shortfall + book cash (black) as received */
