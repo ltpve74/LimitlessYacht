@@ -221,48 +221,76 @@ function tripLinkedCharges(data, t) {
   });
 }
 
-/** Paid shortfall charges count toward pot (mirrors client). */
+/** Paid shortfall charges count toward pot (mirrors client). Free cash is lead-only. */
 function tripApaPaidCovered(data, t) {
   let s = 0;
   for (const c of tripLinkedCharges(data, t)) {
     if (chargeIsPaid(c)) s += Number(c.amount) || 0;
   }
-  /* Cash deal settled: cash booked as received — don't double-count vs pot */
-  if (t && t.cashSettled) {
-    const cash = Number(t.cashReceived) || Number(t.cashAmt) || 0;
-    if (cash > 0) s = Math.max(0, s - cash);
-  }
   return Math.round(s * 100) / 100;
 }
 
-/** Cash (black) deal: Paid charge → book cash as received (mirrors client). */
-function syncCashReceivedFromCharges(data, t) {
-  if (!t || !(t.cashFromLead || Number(t.cashAmt) > 0)) return false;
-  const cash = Math.round((Number(t.cashAmt) || 0) * 100) / 100;
-  const anyPaid = tripLinkedCharges(data, t).some((c) => chargeIsPaid(c));
-  if (anyPaid && cash > 0) {
-    if (
-      !t.cashSettled ||
-      Math.abs((Number(t.cashReceived) || 0) - cash) > 0.02 ||
-      (Number(t.apaSent) || 0) !== 0
-    ) {
-      t.cashSettled = true;
-      t.cashReceived = cash;
-      t.apaSent = 0;
-      return true;
-    }
-  } else if (
-    !anyPaid &&
-    (t.cashSettled ||
-      Number(t.cashReceived) > 0 ||
-      ((Number(t.apaSent) || 0) >= 0 && t.cashFromLead && cash > 0))
-  ) {
-    t.cashSettled = false;
-    t.cashReceived = 0;
-    t.apaSent = Math.round(-cash * 100) / 100;
-    return true;
+/** Free cash lives on the lead — never as APA received = −cash. */
+function stripLeadCashFromApaTrip(t) {
+  if (!t) return false;
+  let dirty = false;
+  if (t.cashFromLead) {
+    t.cashFromLead = false;
+    dirty = true;
   }
+  if (Number(t.cashAmt) > 0) {
+    t.cashAmt = 0;
+    dirty = true;
+  }
+  if (t.cashSettled) {
+    t.cashSettled = false;
+    dirty = true;
+  }
+  if (Number(t.cashReceived) > 0) {
+    t.cashReceived = 0;
+    dirty = true;
+  }
+  if (Number(t.apaSent) < 0) {
+    t.apaSent = 0;
+    dirty = true;
+  }
+  if (t.notes && /^Cash \(black\)/i.test(String(t.notes))) {
+    t.notes = "";
+    dirty = true;
+  }
+  return dirty;
+}
+
+function apaTripLooksLikeLeadCashShell(t) {
+  if (!t) return false;
+  if (t.cashFromLead || t.cashSettled || Number(t.cashReceived) > 0) return true;
+  if (Number(t.apaSent) < 0) return true;
+  if (Number(t.cashAmt) > 0 && !(Number(t.apaSent) > 0)) return true;
   return false;
+}
+
+function apaTripIsEmptyShell(t) {
+  if (!t) return true;
+  const exp = (t.expenses || []).length;
+  const prov = (t.provisions || []).length;
+  const dsl = (t.diesel || []).length;
+  const spent =
+    (t.expenses || []).reduce((s, e) => s + (Number(e.amount) || 0), 0) +
+    (t.provisions || []).reduce((s, p) => s + (Number(p.amount) || 0), 0);
+  return (
+    spent <= 0.009 &&
+    !(Number(t.apaSent) > 0) &&
+    !(Number(t.topUps) > 0) &&
+    !exp &&
+    !prov &&
+    !dsl
+  );
+}
+
+/** Strip residual −cash pots; never re-create them. */
+function syncCashReceivedFromCharges(data, t) {
+  if (!t || !apaTripLooksLikeLeadCashShell(t)) return false;
+  return stripLeadCashFromApaTrip(t);
 }
 
 /** Unpaid shortfall after pot + paid charges. Mirrors client apaOverageAmount. */
@@ -301,9 +329,36 @@ function tripApaOverage(data, t) {
  * Never deletes Paid charges (they restore APA balance).
  */
 function ensureApaChargesLinked(data) {
-  if (!Array.isArray(data.apa) || !data.apa.length) return false;
+  if (!Array.isArray(data.apa)) return false;
   if (!Array.isArray(data.charters)) data.charters = [];
   let dirty = false;
+
+  /* Free cash is lead-only: strip −cash shells (e.g. Michael −€1800 with €0 APA) */
+  const keepApa = [];
+  for (const t of data.apa) {
+    if (!t) continue;
+    if (apaTripLooksLikeLeadCashShell(t)) {
+      if (stripLeadCashFromApaTrip(t)) dirty = true;
+      if (apaTripIsEmptyShell(t)) {
+        const drop = new Set(
+          tripLinkedCharges(data, t)
+            .filter((c) => !chargeIsPaid(c))
+            .map((c) => c.id)
+        );
+        if (drop.size) {
+          data.charters = data.charters.filter((c) => c && !drop.has(c.id));
+          dirty = true;
+        }
+        dirty = true;
+        continue; /* drop empty cash shell */
+      }
+    }
+    keepApa.push(t);
+  }
+  if (keepApa.length !== data.apa.length) {
+    data.apa = keepApa;
+    dirty = true;
+  }
 
   for (const t of data.apa) {
     if (!t || !String(t.guest || "").trim()) continue;
@@ -312,7 +367,6 @@ function ensureApaChargesLinked(data) {
     const linked = tripLinkedCharges(data, t);
     const pending = linked.filter((c) => !chargeIsPaid(c));
     const paid = linked.filter((c) => chargeIsPaid(c));
-    const cashPot = Number(t.apaSent) < 0 || t.cashFromLead;
 
     if (over <= 0) {
       if (pending.length) {
@@ -335,9 +389,7 @@ function ensureApaChargesLinked(data) {
     const vat = gross - net;
     const note =
       (t.dates ? "APA · " + t.dates + ". " : "") +
-      (cashPot
-        ? "Cash (black) + charter spend — synced from APA ledger"
-        : "APA shortfall (balance negative) — synced from APA ledger");
+      "APA shortfall (balance negative) — synced from APA ledger";
 
     if (ch) {
       if (t.chargeId !== ch.id) {
@@ -347,7 +399,8 @@ function ensureApaChargesLinked(data) {
       if (
         Math.abs((Number(ch.amount) || 0) - gross) > 0.005 ||
         ch.kind !== "apa" ||
-        ch.apaTripId !== t.id
+        ch.apaTripId !== t.id ||
+        ch.cashDeal
       ) {
         ch.client = t.guest;
         ch.amount = gross;
@@ -357,9 +410,9 @@ function ensureApaChargesLinked(data) {
         ch.vatMode = "include";
         ch.kind = "apa";
         ch.apaTripId = t.id;
-        ch.cashDeal = !!cashPot;
-        if (cashPot && t.cashAmt) ch.cashAmt = Number(t.cashAmt) || 0;
-        if (!ch.payMethod) ch.payMethod = cashPot ? "Cash" : "Card";
+        ch.cashDeal = false;
+        ch.cashAmt = 0;
+        if (!ch.payMethod || ch.payMethod === "Cash" || ch.payMethod === "Split") ch.payMethod = "Card";
         if (ch.payStatus !== "Paid") ch.payStatus = "Pending";
         if (ch.invStatus !== "Issued") {
           ch.invStatus = "Not issued";
@@ -380,8 +433,8 @@ function ensureApaChargesLinked(data) {
       id: idFree ? id : "charge-apa-" + t.id + "-" + Date.now().toString(36),
       kind: "apa",
       apaTripId: t.id,
-      cashDeal: !!cashPot,
-      cashAmt: cashPot ? Number(t.cashAmt) || 0 : 0,
+      cashDeal: false,
+      cashAmt: 0,
       date: t.id === SHEET_TRIP_ID ? "2026-07-17" : new Date().toISOString().slice(0, 10),
       client: t.guest,
       amount: gross,
@@ -390,7 +443,7 @@ function ensureApaChargesLinked(data) {
       vatPct: pct,
       vatMode: "include",
       payStatus: "Pending",
-      payMethod: cashPot ? "Cash" : "Card",
+      payMethod: "Card",
       invStatus: "Not issued",
       status: "Pending",
       inv: "",
