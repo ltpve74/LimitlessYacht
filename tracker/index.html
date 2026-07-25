@@ -3540,10 +3540,8 @@ function apaEnsureArrays(t){
   t.diesel.forEach(function(d){ if(d&&!d.id) d.id=uid(); });
   t.dieselLoads.forEach(function(d){ if(d&&!d.id) d.id=uid(); });
   if(!(Number(t.genBurn)>0)) t.genBurn=6;
-  /* Guest €/L from last bunker + 10c (or legacy 1.75 if no bunker yet). Pinned trips keep manual rate. */
-  try{ dieselSyncTripPriceFromBunker(t); }catch(e){
-    if(!(Number(t.dieselPrice)>0)) t.dieselPrice=DIESEL_LEGACY_SELL;
-  }
+  /* Never rewrite dieselPrice here — bulk bunker sync corrupted trip history.
+     Guest €/L is always apaDieselPrice() (pin, or bunker+10c by trip date, or 1.75). */
   return t;
 }
 /**
@@ -3584,23 +3582,24 @@ function dieselGuestRateForDate(dateStr){
   if(b&&b.price>0) return dieselSuggestedSell(b.price);
   return DIESEL_LEGACY_SELL;
 }
-/** Keep trip.dieselPrice in sync with bunker+10c unless captain pinned a manual rate. */
-function dieselSyncTripPriceFromBunker(t){
-  if(!t||t.dieselPricePinned) return false;
-  var want=dieselGuestRateForDate(dieselTripRefDate(t)||(typeof localTodayYmd==="function"?localTodayYmd():""));
-  if(!(want>0)) return false;
-  if(Math.abs((Number(t.dieselPrice)||0)-want)<0.001) return false;
-  t.dieselPrice=want;
-  return true;
-}
+/**
+ * Guest diesel €/L for a trip (read-only; never mutates state).
+ * Pinned → stored rate.
+ * Dated trip → last bunker on/before that day + 10c (else legacy 1.75).
+ * Undated + stored price → keep stored (don't apply today's bunker to old messes).
+ * New / empty → today's bunker+10c or legacy.
+ */
 function apaDieselPrice(t){
   if(t&&t.dieselPricePinned&&Number(t.dieselPrice)>0) return Number(t.dieselPrice);
-  /* Always derive from last bunker before trip so today’s 1.74 bunker → 1.84, not stuck 1.75 */
-  var fromBunker=dieselGuestRateForDate(dieselTripRefDate(t));
-  if(fromBunker>0) return fromBunker;
+  var ref=dieselTripRefDate(t);
+  if(ref){
+    var fromBunker=dieselGuestRateForDate(ref);
+    if(fromBunker>0) return fromBunker;
+  }
   var p=Number(t&&t.dieselPrice);
   if(p>0) return p;
-  return DIESEL_LEGACY_SELL;
+  var today=(typeof localTodayYmd==="function"?localTodayYmd():"")||"";
+  return dieselGuestRateForDate(today)||DIESEL_LEGACY_SELL;
 }
 function apaGenBurn(t){ var g=Number(t&&t.genBurn); return g>0?g:6; }
 /** Parse money/qty strings: accepts "1,75", "1.75", "1.234,56", "1,234.56", "€1 75". */
@@ -4409,13 +4408,13 @@ function dieselSettingsRaw(){
   return null;
 }
 /**
- * Align defaults + unpinned trip sell rates with last bunker + 10c.
- * Does not change dieselPricePinned trips. Historical trips before any priced bunker stay 1.75.
+ * Update diesel *settings* prefill (buy/sell defaults) from latest bunker only.
+ * Never rewrites APA trip dieselPrice — trips resolve rate at read time (or pin).
  */
 function dieselSyncRatesFromBunkers(){
   var s=dieselSettingsRaw();
   var last=dieselLastBunker("");
-  var dirtyD=false, dirtyA=false;
+  var dirtyD=false;
   if(last&&last.price>0){
     if(!s){
       s={id:"diesel-settings",kind:"settings",buyPrice:last.price,sellPrice:dieselSuggestedSell(last.price)};
@@ -4428,21 +4427,13 @@ function dieselSyncRatesFromBunkers(){
       if(Math.abs(apaNum(s.sellPrice)-wantSell)>0.001){ s.sellPrice=wantSell; dirtyD=true; }
     }
   }
-  (state.apa||[]).forEach(function(t){
-    if(dieselSyncTripPriceFromBunker(t)) dirtyA=true;
-  });
-  if((dirtyD||dirtyA)&&typeof save==="function"){
+  if(dirtyD&&typeof save==="function"){
     try{
-      if(BOOT_QUIET){
-        if(dirtyD) queueBootSave("diesel");
-        if(dirtyA) queueBootSave("apa");
-      } else {
-        if(dirtyD) save("diesel");
-        if(dirtyA&&canOps()) save("apa");
-      }
+      if(BOOT_QUIET) queueBootSave("diesel");
+      else save("diesel");
     }catch(e){}
   }
-  return dirtyD||dirtyA;
+  return dirtyD;
 }
 function dieselEnsure(){
   if(!Array.isArray(state.diesel)) state.diesel=[];
