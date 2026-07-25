@@ -10,3 +10,5 @@
 - [Publishing process](publishing-process.md) — develop→main flow; develop is meant to be behind main; publish is slow (QA gate), not broken; disregard other agents' branches
 - [Agent files off main](agent-files-off-main.md) — all agent files stay off main; working files/memory live in .agent/ (stripped on publish); 4 instruction files stay at root
 - [Google Ads project](project_google_ads.md) — campaign state/setup (folded in from the other agent's local memory/)
+
+- [tracker-always-push-live.md](tracker-always-push-live.md) — always publish tracker to main/live
