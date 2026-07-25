@@ -620,20 +620,71 @@ function api(action,payload){
 }
 
 /* -------- login -------- */
+/** During open: queue saves so a slow/hanging save cannot block the gate. */
+var BOOT_QUIET=false;
+var bootSaveQueue={};
+function queueBootSave(coll){ if(coll) bootSaveQueue[coll]=1; }
+function flushBootSaves(){
+  var keys=Object.keys(bootSaveQueue);
+  bootSaveQueue={};
+  keys.forEach(function(c){ try{ save(c); }catch(e){} });
+}
+/** Cash-strip / diesel defaults / stew seeds — run after UI is open. */
+function runPostLoadMaintenance(){
+  if(DEMO) return;
+  try{
+    if(canOps()){
+      mergeDuplicateApaTrips();
+      ensureAllLeadCashApa();
+    }
+    if(isCaptain()){
+      ensureStewAssignPaidBeforeCut();
+      expResetInventedCrewFloatPay();
+      seedCurrentMonthStewCashExpenses();
+      syncAllChargeCashToPetty();
+    }
+  }catch(e){ console&&console.error&&console.error("[tracker] post-load",e); }
+}
 var whoSel=el("whoSel");
 whoSel.addEventListener("change",function(){ el("otherWrap").classList.toggle("hidden",whoSel.value!=="Other"); });
 el("gateForm").addEventListener("submit",function(ev){
   ev.preventDefault();
-  var e=el("gateErr"); e.textContent="";
+  var e=el("gateErr"); e.textContent="Opening…";
   var who=whoSel.value==="Other"?(el("otherName").value.trim()||"Other"):whoSel.value;
   var pass=el("passInput").value;
   if(!pass){ e.textContent="Enter the passcode."; return; }
   session.who=who; session.pass=pass; session.deviceId=deviceId();
+  var btn=ev.target&&ev.target.querySelector?ev.target.querySelector("button[type=submit]"):null;
+  if(btn){ btn.disabled=true; }
+  var hang=setTimeout(function(){
+    e.textContent="Still opening… check connection, then try again.";
+    if(btn) btn.disabled=false;
+  },12000);
   api("load").then(function(d){
-    applyData(d);
-    enterApp();
-    maybePersistSession(); /* stay logged in only if this device is already trusted */
+    clearTimeout(hang);
+    try{
+      BOOT_QUIET=true;
+      applyData(d,{fromBoot:true});
+    }catch(errApply){
+      BOOT_QUIET=false;
+      e.textContent="Load error — try again or check connection.";
+      console&&console.error&&console.error(errApply);
+      if(btn) btn.disabled=false;
+      return;
+    }
+    BOOT_QUIET=false;
+    try{
+      enterApp();
+      maybePersistSession();
+      setTimeout(function(){ runPostLoadMaintenance(); flushBootSaves(); },0);
+    }catch(errEnter){
+      e.textContent="Open error — enter the passcode again.";
+      console&&console.error&&console.error(errEnter);
+      if(btn) btn.disabled=false;
+    }
   }).catch(function(err){
+    clearTimeout(hang);
+    if(btn) btn.disabled=false;
     if(err&&err.code===401){ e.textContent="Wrong passcode."; clearSession(); return; }
     DEMO=true; seedDemo(); enterApp();
   });
@@ -645,7 +696,8 @@ function enterApp(){
   /* Ops hub is captain-only (APA, Diesel, Stews, Expenses, commissions). Manager uses Charges + Leads. */
   if(el("navOps")) el("navOps").classList.toggle("hidden",!isCaptain());
   if(!isCaptain()&&isOpsTab(curTab)) curTab="charters";
-  renderAll(); if(!DEMO){ startPolling(); initPushUI(); }
+  try{ renderAll(); }catch(e){ console&&console.error&&console.error("[tracker] renderAll",e); }
+  if(!DEMO){ startPolling(); initPushUI(); }
   else { setPushStatus("na","Demo mode — notifications need the live app"); }
   /* Prompt once logged in if not already running as home-screen app */
   setTimeout(function(){ maybeShowInstallPrompt(); }, 600);
@@ -683,28 +735,43 @@ function tryAutoLogin(){
   function failOpen(msg){
     if(settled) return;
     settled=true;
+    BOOT_QUIET=false;
     session.pass=null;
     if(el("gateErr")) el("gateErr").textContent=msg||"Could not open — enter the passcode.";
   }
+  /* Keep timer until open succeeds — do not clear before applyData (that caused “Opening…” forever). */
   var hangTimer=setTimeout(function(){
     failOpen("Still opening… check connection, then enter the passcode.");
-  },18000);
+  },12000);
   api("load",{silent:true}).then(function(d){
-    clearTimeout(hangTimer);
     if(settled) return;
     try{
-      applyData(d);
+      BOOT_QUIET=true;
+      applyData(d,{fromBoot:true});
+      BOOT_QUIET=false;
     }catch(errApply){
-      settled=true;
-      if(el("gateErr")) el("gateErr").textContent="Load error — enter the passcode to retry.";
+      clearTimeout(hangTimer);
+      failOpen("Load error — enter the passcode to retry.");
       console&&console.error&&console.error(errApply);
       return;
     }
+    if(settled) return; /* hang timer already failed open */
+    clearTimeout(hangTimer);
     settled=true;
     if(isCurrentDeviceTrusted()){
-      if(el("gateErr")) el("gateErr").textContent="";
-      enterApp();
-      saveSession(); /* refresh timestamp */
+      try{
+        if(el("gateErr")) el("gateErr").textContent="";
+        enterApp();
+        saveSession();
+        setTimeout(function(){
+          try{ runPostLoadMaintenance(); flushBootSaves(); }
+          catch(e){ console&&console.error&&console.error(e); }
+        },0);
+      }catch(errEnter){
+        session.pass=null;
+        if(el("gateErr")) el("gateErr").textContent="Open error — enter the passcode.";
+        console&&console.error&&console.error(errEnter);
+      }
     } else {
       /* Device no longer trusted — require passcode again (keep who prefilled) */
       clearSession();
@@ -715,6 +782,7 @@ function tryAutoLogin(){
     clearTimeout(hangTimer);
     if(settled) return;
     settled=true;
+    BOOT_QUIET=false;
     clearSession();
     session.pass=null;
     if(err&&err.code===401){
@@ -810,11 +878,12 @@ function updateFab(){
 /* -------- render -------- */
 function pill(v){ var c="p-grey"; if(v==="Pending"||v==="Requested"||v==="Not issued")c="p-amber"; else if(v==="Invoiced"||v==="Issued")c="p-blue"; else if(v==="Paid")c="p-green"; return '<span class="pill '+c+'">'+esc(v)+'</span>'; }
 function renderAll(){
-  renderCharters(); renderLeads(); renderSecurity();
+  function safe(fn){ try{ fn(); }catch(e){ console&&console.error&&console.error(e); } }
+  safe(renderCharters); safe(renderLeads); safe(renderSecurity);
   if(isCaptain()){
-    renderApa(); renderDiesel(); renderStews({soft:true});
-    if(curTab==="expenses") renderExpenses();
-    if(curTab==="commissions") renderCommissions();
+    safe(renderApa); safe(renderDiesel); safe(function(){ renderStews({soft:true}); });
+    if(curTab==="expenses") safe(renderExpenses);
+    if(curTab==="commissions") safe(renderCommissions);
   }
 }
 
@@ -4081,7 +4150,10 @@ function dieselEnsure(){
     s.sellPrice=DIESEL_DEFAULT_SELL;
   }
   if(dirty&&typeof save==="function"){
-    try{ save("diesel"); }catch(e){}
+    try{
+      if(BOOT_QUIET) queueBootSave("diesel");
+      else save("diesel");
+    }catch(e){}
   }
   return s;
 }
@@ -8641,17 +8713,26 @@ el("sheetInner").addEventListener("change",function(){ recalcLead(); recalcCharg
 /* -------- save -------- */
 function save(coll){
   var hint=el("saveHint");
-  if(DEMO){ hint.textContent="Saved (demo — not stored)"; hint.className="savehint saved"; return; }
-  hint.textContent="Saving…"; hint.className="savehint saving";
+  if(DEMO){
+    if(hint){ hint.textContent="Saved (demo — not stored)"; hint.className="savehint saved"; }
+    return;
+  }
+  if(BOOT_QUIET){ queueBootSave(coll); return; }
+  if(hint){ hint.textContent="Saving…"; hint.className="savehint saving"; }
   /* Snapshot now so a concurrent poll cannot mutate the payload mid-flight */
   var rows=state[coll];
   try{ rows=JSON.parse(JSON.stringify(state[coll]||[])); }catch(e){ rows=state[coll]; }
   if(coll==="expenses"||coll==="expPetty"||coll==="stewAssign"||coll==="leads"||coll==="charters"||coll==="apa") touchLocalSave(coll);
   api("save",{collection:coll,rows:rows,pushEndpoint:pushMeta.endpoint||""}).then(function(){
     if(coll==="expenses"||coll==="expPetty"||coll==="stewAssign"||coll==="leads"||coll==="charters"||coll==="apa") touchLocalSave(coll);
-    hint.textContent="All changes saved ✓"; hint.className="savehint saved";
+    if(hint){ hint.textContent="All changes saved ✓"; hint.className="savehint saved"; }
   })
-    .catch(function(e){ hint.textContent=(e&&e.code===401)?"Session expired — reload":"Couldn't save — check connection"; hint.className="savehint error"; });
+    .catch(function(e){
+      if(hint){
+        hint.textContent=(e&&e.code===401)?"Session expired — reload":"Couldn't save — check connection";
+        hint.className="savehint error";
+      }
+    });
 }
 
 /* -------- push notifications (homescreen PWA) -------- */
@@ -8981,23 +9062,26 @@ function applyData(d, opts){
   repairLeadWhiteInvoices();
   if(cashPinsRestored&&!DEMO){
     touchLocalSave("leads");
-    save("leads"); /* push free cash back to server so it sticks for all devices */
+    save("leads"); /* under BOOT_QUIET this only queues until after open */
   }
-  if(canOps()){
-    /* Collapse cash-shell + real prepaid duplicates (e.g. two Joel Freeland pots) */
-    mergeDuplicateApaTrips();
-    ensureAllLeadCashApa();
+  /*
+   * Gate open must stay fast. Heavy APA strip / stew seed / multi-save runs after
+   * enterApp via runPostLoadMaintenance (fromBoot). Polls skip that work too.
+   */
+  if(!opts.fromBoot){
+    if(canOps()){
+      mergeDuplicateApaTrips();
+      ensureAllLeadCashApa();
+    }
+    if(isCaptain()&&!fromPoll){
+      ensureStewAssignPaidBeforeCut();
+      expResetInventedCrewFloatPay();
+      seedCurrentMonthStewCashExpenses();
+      syncAllChargeCashToPetty();
+    }
+    renderAll();
+    if(!DEMO) refreshPushStatus();
   }
-  if(isCaptain()&&!fromPoll){
-    ensureStewAssignPaidBeforeCut();
-    expResetInventedCrewFloatPay();
-    /* Current-month Cash expenses from Paid stew day pay (not tips, not other months) */
-    seedCurrentMonthStewCashExpenses();
-    /* Paid cash charges → boat float cash-in lines */
-    syncAllChargeCashToPetty();
-  }
-  renderAll();
-  if(!DEMO) refreshPushStatus();
 }
 
 /* Fixed IDs match server seed (real spreadsheet trip is first live APA entry) */
