@@ -383,29 +383,111 @@
     return 0;
   }
 
+  /** Extra-hour € amount on a charge (same bill as APA spend when set). */
+  function chargeExtAmt(c) {
+    return num(c && c.extAmt) > 0 ? round2(num(c.extAmt)) : 0;
+  }
+
+  /** How the extension is settled: "invoice" (card / same bill) or "cash". */
+  function chargeExtSettle(c) {
+    var s = c && c.extSettle != null ? String(c.extSettle).toLowerCase() : "";
+    return s === "cash" ? "cash" : "invoice";
+  }
+
   /**
-   * Extra charter hours / same-day extensions:
-   *   Belong on Charges (not the lead, not APA).
-   *   Tick captainComm → 15% commission on this charge only:
-   *     - Cash settlement: 15% of full amount (no VAT strip)
-   *     - Invoice: 15% of amount before VAT (÷1.21 if VAT included)
-   *     - Mix: cash full + invoice part before VAT
-   * Example: +1h for €500 cash → base 500, commission €75.
-   *          +1h for €500 invoice (VAT incl.) → base 500/1.21, commission ≈ €61.98.
+   * Build total / bill type from APA ledger base + optional extension on the same charge.
+   * extSettle "invoice" → full amount on formal invoice (bank statement matches one bill).
+   * extSettle "cash" → extension is cash (mix if APA base > 0).
+   */
+  function chargeTotalsFromApaAndExt(apaBase, extAmt, extSettle) {
+    apaBase = Math.max(0, round2(num(apaBase)));
+    extAmt = Math.max(0, round2(num(extAmt)));
+    var settle = String(extSettle || "invoice").toLowerCase() === "cash" ? "cash" : "invoice";
+    var amount = round2(apaBase + extAmt);
+    var billType = "invoice";
+    var cashPaid = 0;
+    if (extAmt > 0 && settle === "cash") {
+      if (apaBase > 0.009) {
+        billType = "mix";
+        cashPaid = extAmt;
+      } else {
+        billType = "cash";
+        cashPaid = extAmt;
+      }
+    }
+    var invPart = billType === "cash" ? 0 : round2(amount - cashPaid);
+    var vatPct = billType === "cash" ? 0 : 21;
+    var vatMode = billType === "cash" ? "none" : "include";
+    var net = 0,
+      vat = 0;
+    if (billType === "cash") {
+      net = amount;
+      vat = 0;
+    } else if (billType === "mix") {
+      var invNet = invPart > 0 ? invPart / 1.21 : 0;
+      var invVat = invPart - invNet;
+      net = round2(cashPaid + invNet);
+      vat = round2(invVat);
+    } else {
+      net = amount > 0 ? round2(amount / 1.21) : 0;
+      vat = round2(amount - net);
+    }
+    return {
+      apaBase: apaBase,
+      extAmt: extAmt,
+      extSettle: settle,
+      amount: amount,
+      billType: billType,
+      cashPaid: cashPaid,
+      net: net,
+      vat: vat,
+      vatPct: vatPct,
+      vatMode: vatMode,
+    };
+  }
+
+  /**
+   * Extra charter hours:
+   *   Prefer same charge as APA (extAmt + extSettle) so one invoice matches the card payment.
+   *   Commission only on the extension slice when extAmt is set (not on APA spend).
+   *   Cash ext → 15% of full ext €; invoice ext → 15% before VAT.
    */
   function chargeCommissionParts(c) {
     var empty = { base: 0, total: 0, gross: 0, hours: 0, billType: "invoice", mode: "" };
     if (!c || !isChargeCaptainComm(c)) return empty;
     var pctRate = CAPTAIN_COMMISSION_PCT / 100;
-    var gross = num(c.amount);
-    if (!(gross > 0)) return empty;
     var hours = chargeExtHours(c);
-    var bt = chargeBillType(c);
+    var extA = chargeExtAmt(c);
     var base = 0;
     var mode = "";
+    var gross = 0;
+    var bt = chargeBillType(c);
+
+    /* Same-bill extension: commission only on extAmt (APA pot spend is not commissionable). */
+    if (extA > 0) {
+      gross = extA;
+      if (chargeExtSettle(c) === "cash") {
+        base = gross;
+        mode = "cash";
+      } else {
+        base = round2(gross / (1 + commissionVatPct(c) / 100));
+        mode = "invoice";
+      }
+      return {
+        base: base,
+        total: round2(base * pctRate),
+        gross: gross,
+        hours: hours,
+        billType: bt,
+        mode: mode,
+      };
+    }
+
+    gross = num(c.amount);
+    if (!(gross > 0)) return empty;
     if (bt === "cash" || c.vatMode === "none") {
       base = gross;
-      mode = "cash"; /* full amount — no VAT */
+      mode = "cash";
     } else if (bt === "mix") {
       var cashP = chargeCashPart(c);
       var invP = chargeInvoicePart(c);
@@ -419,7 +501,7 @@
       } else {
         base = round2(gross / (1 + vp / 100));
       }
-      mode = "invoice"; /* before VAT */
+      mode = "invoice";
     }
     return {
       base: base,
@@ -464,6 +546,9 @@
     chargeNeedsInvoice: chargeNeedsInvoice,
     isChargeCaptainComm: isChargeCaptainComm,
     chargeExtHours: chargeExtHours,
+    chargeExtAmt: chargeExtAmt,
+    chargeExtSettle: chargeExtSettle,
+    chargeTotalsFromApaAndExt: chargeTotalsFromApaAndExt,
     chargeCommissionParts: chargeCommissionParts,
     chargeCommissionAmt: chargeCommissionAmt,
   };

@@ -379,7 +379,7 @@
         <div class="sumcard"><div class="l">To invoice</div><div class="v money" id="chInvTot">€0</div></div>
         <div class="sumcard"><div class="l">Invoices to issue</div><div class="v" id="chPending">0</div></div>
       </div>
-      <div class="legend">Each charge is <b>Cash</b> (no formal invoice), <b>Invoice</b> (manager PDF), or <b>Mix</b> (cash part + invoice part). Cash is never on a formal invoice — Mix puts only the invoice part on the PDF. Cash goes to the boat float when <b>Paid</b>. <b>Extra hours</b> (e.g. +1h €500) go here as a charge with <b>I get commission</b> — not on the lead or APA.</div>
+      <div class="legend">Each charge is <b>Cash</b>, <b>Invoice</b>, or <b>Mix</b>. On an <b>APA charge</b>, add <b>extra hours on the same bill</b> (card/invoice so bank matches, or cash). One PDF can cover APA spend + extension.</div>
       <div class="list" id="chList"></div>
     </section>
 
@@ -999,16 +999,20 @@ function renderCharters(){
     if(bt==="mix"){
       splitMeta='<span class="pill p-cash">Cash '+money0(cashP)+'</span><span class="pill p-card">Invoice '+money0(invP)+'</span>';
     }
-    var isExt=isChargeCaptainComm(r);
+    var extA=chargeExtAmt(r);
+    var isExt=isChargeCaptainComm(r)||extA>0;
     var extH=chargeExtHours(r);
-    var extComm=isExt?chargeCommissionAmt(r):0;
+    var extComm=isChargeCaptainComm(r)?chargeCommissionAmt(r):0;
+    var extPill=extA>0
+      ?'<span class="pill p-amber">+'+money0(extA)+' ext '+(chargeExtSettle(r)==="cash"?"cash":"on bill")+(extH>0?" · +"+extH+"h":"")+'</span>'
+      :(isExt?'<span class="pill p-amber">Extension</span>':"");
     html+='<div class="item" data-edit-ch="'+esc(r.id)+'">'+
-      '<div class="top"><div class="title">'+esc(r.client||"—")+(isApa?' <span class="pill p-apa">APA</span>':'')+(isExt?' <span class="pill p-amber">Extension</span>':'')+(apaReq?' <span class="pill p-amber">Invoice request</span>':'')+'</div><div class="amt money">'+money0(r.amount)+'</div></div>'+
+      '<div class="top"><div class="title">'+esc(r.client||"—")+(isApa?' <span class="pill p-apa">APA</span>':'')+extPill+(apaReq?' <span class="pill p-amber">Invoice request</span>':'')+'</div><div class="amt money">'+money0(r.amount)+'</div></div>'+
       '<div class="meta">'+(r.date?'<span>📅 '+esc(fmtDate(r.date))+'</span>':'')+
         billTypePill(r)+
         (bt==="invoice"||bt==="mix"?(v.pct?'<span>IVA '+v.pct+'% on invoice part</span>':'<span>Invoice (no VAT)</span>'):'<span>Cash settlement</span>')+
         pill(pay)+payMethodPill(pm)+invPill+splitMeta+
-        (isExt?'<span class="pill p-green">Comm '+money(extComm)+(extH>0?" · +"+extH+"h":"")+'</span>':'')+
+        (extComm>0?'<span class="pill p-green">Comm '+money(extComm)+(extH>0?" · +"+extH+"h":"")+'</span>':'')+
         (cashBoat>0?'<span class="pill p-cash">→ pot '+money0(cashBoat)+'</span>':'')+
         (r.inv?'<span>#'+esc(r.inv)+'</span>':'')+'</div>'+
       (r.notes?'<div class="notes">'+esc(r.notes)+'</div>':'')+
@@ -3037,6 +3041,44 @@ function removeApaLinkedCharges(t, onlyUnpaid){
  * (full spend when pot is €0, or overspend when prepaid APA exists).
  * Paid charges are kept and raise the APA balance.
  */
+function chargeExtAmt(c){ return LY_MODELS&&LY_MODELS.chargeExtAmt?LY_MODELS.chargeExtAmt(c):(Number(c&&c.extAmt)>0?Math.round(Number(c.extAmt)*100)/100:0); }
+function chargeExtSettle(c){ return LY_MODELS&&LY_MODELS.chargeExtSettle?LY_MODELS.chargeExtSettle(c):(String(c&&c.extSettle||"").toLowerCase()==="cash"?"cash":"invoice"); }
+function chargeTotalsFromApaAndExt(apaBase, extAmt, extSettle){
+  if(LY_MODELS&&LY_MODELS.chargeTotalsFromApaAndExt) return LY_MODELS.chargeTotalsFromApaAndExt(apaBase, extAmt, extSettle);
+  var a=Math.max(0, Math.round((Number(apaBase)||0)*100)/100);
+  var e=Math.max(0, Math.round((Number(extAmt)||0)*100)/100);
+  var settle=String(extSettle||"invoice").toLowerCase()==="cash"?"cash":"invoice";
+  return {apaBase:a, extAmt:e, extSettle:settle, amount:Math.round((a+e)*100)/100, billType:e>0&&settle==="cash"?(a>0?"mix":"cash"):"invoice", cashPaid:e>0&&settle==="cash"?e:0, net:0, vat:0, vatPct:21, vatMode:"include"};
+}
+/**
+ * Apply APA overspend + optional same-bill extension onto a charge row.
+ * Preserves extAmt / extSettle / captainComm so resync does not drop extra hours.
+ */
+function applyApaChargeMoney(ch, apaBase){
+  var extA=chargeExtAmt(ch);
+  var settle=chargeExtSettle(ch);
+  var tot=chargeTotalsFromApaAndExt(apaBase, extA, settle);
+  ch.apaBaseAmt=tot.apaBase;
+  ch.extAmt=tot.extAmt>0?tot.extAmt:0;
+  ch.extSettle=tot.extAmt>0?tot.extSettle:"invoice";
+  ch.amount=tot.amount;
+  ch.billType=tot.billType;
+  ch.cashPaid=tot.cashPaid;
+  ch.cashAmt=tot.cashPaid>0?tot.cashPaid:0;
+  ch.cashDeal=tot.billType==="cash"||tot.billType==="mix";
+  ch.net=tot.net; ch.vat=tot.vat; ch.vatPct=tot.vatPct; ch.vatMode=tot.vatMode;
+  if(tot.billType==="cash"){
+    ch.payMethod="Cash";
+    if(ch.invStatus!=="Issued") ch.invStatus="Not needed";
+  } else if(tot.billType==="mix"){
+    ch.payMethod="Split";
+    if(ch.invStatus==="Not needed") ch.invStatus="Not issued";
+  } else {
+    if(ch.payMethod==="Cash"||ch.payMethod==="Split") ch.payMethod="Card";
+    if(ch.invStatus==="Not needed") ch.invStatus="Not issued";
+  }
+  return tot;
+}
 function syncApaToCharge(t){
   if(!t||!String(t.guest||"").trim()) return null;
   if(!state.charters) state.charters=[];
@@ -3045,18 +3087,21 @@ function syncApaToCharge(t){
   var lead=apaLinkedLead(t);
   var over=apaOverageAmount(t);
   var ch=findApaPendingCharge(t);
+  /* Keep a charge if only extension remains (APA pot balanced) */
   if(over<=0){
+    if(ch&&chargeExtAmt(ch)>0){
+      applyApaChargeMoney(ch, 0);
+      ch.kind="apa";
+      ch.apaTripId=t.id;
+      ch.client=t.guest||ch.client;
+      t.chargeId=ch.id;
+      return ch;
+    }
     removeApaLinkedCharges(t, true);
     var left=findApaChargeForTrip(t);
     t.chargeId=left?left.id:"";
     return left;
   }
-  var gross=over;
-  /* APA charges = charter spend only (formal invoice). Lead cash is not APA. */
-  var billType="invoice", pct=21, payMethod="Card", invStatus="Not issued";
-  var net=pct>0?gross/(1+pct/100):gross;
-  var vat=gross-net;
-  var vatMode="include";
   var date="";
   if(lead&&lead.start) date=lead.start;
   if(!date&&t.expenses&&t.expenses.length){
@@ -3071,41 +3116,36 @@ function syncApaToCharge(t){
     :"APA shortfall (overspend) — synced from APA ledger";
   if(t.dates) note="APA · "+t.dates+". "+note;
   note+=" · pot "+money0(x.basePot)+" · paid "+money0(x.paidCovered)+" · spent "+money0(x.spent);
-  if(ch){
-    ch.client=t.guest;
-    ch.amount=gross;
-    ch.net=net; ch.vat=vat; ch.vatPct=pct; ch.vatMode=vatMode;
-    ch.billType=billType;
-    ch.kind="apa";
-    ch.apaTripId=t.id;
-    ch.apaZeroPot=zeroPot;
-    ch.cashDeal=false;
-    ch.cashAmt=0;
-    ch.cashPaid=0;
-    if(!ch.date) ch.date=date;
-    if(ch.payStatus!=="Paid") ch.payStatus="Pending";
-    if(ch.invStatus!=="Issued"){
-      ch.invStatus=invStatus;
-      ch.status=ch.payStatus;
-    } else ch.status="Invoiced";
-    if(ch.payStatus!=="Paid"||!ch.payMethod) ch.payMethod=payMethod;
-    if(!ch.notes||/^APA/i.test(ch.notes)||/synced from APA/i.test(ch.notes)||/shortfall/i.test(ch.notes)||/invoice request/i.test(ch.notes)||/pot \(sent/i.test(ch.notes)||/^Cash \(black\)/i.test(ch.notes)||/Cash black/i.test(ch.notes)||/Charter spend to invoice/i.test(ch.notes)) ch.notes=note;
-    ch.by=session.who||ch.by;
-  } else {
+  if(!ch){
     ch={
-      id:uid(), kind:"apa", apaTripId:t.id, apaZeroPot:zeroPot, cashDeal:false,
-      cashAmt:0, cashPaid:0, billType:billType,
+      id:uid(), kind:"apa", apaTripId:t.id, apaZeroPot:zeroPot,
       date:date, client:t.guest,
-      amount:gross, net:net, vat:vat, vatPct:pct, vatMode:vatMode,
-      payStatus:"Pending", payMethod:payMethod,
-      invStatus:invStatus, status:"Pending",
-      inv:"", notes:note, by:session.who||"Captain"
+      payStatus:"Pending", payMethod:"Card",
+      invStatus:"Not issued", status:"Pending",
+      inv:"", notes:note, by:session.who||"Captain",
+      extAmt:0, extSettle:"invoice", extHours:0, captainComm:false
     };
     state.charters.unshift(ch);
   }
+  /* extAmt / extSettle / captainComm stay on the charge; only apaBase is resynced */
+  applyApaChargeMoney(ch, over);
+  if(chargeExtAmt(ch)>0){
+    note+=" · +"+money0(chargeExtAmt(ch))+" ext ("+(chargeExtSettle(ch)==="cash"?"cash":"on invoice")+")";
+  }
+  ch.client=t.guest;
+  ch.kind="apa";
+  ch.apaTripId=t.id;
+  ch.apaZeroPot=zeroPot;
+  if(!ch.date) ch.date=date;
+  if(ch.payStatus!=="Paid") ch.payStatus="Pending";
+  if(ch.invStatus!=="Issued"&&ch.invStatus!=="Not needed"){
+    ch.status=ch.payStatus;
+  } else if(ch.invStatus==="Issued") ch.status="Invoiced";
+  if(!ch.notes||/^APA/i.test(ch.notes)||/synced from APA/i.test(ch.notes)||/shortfall/i.test(ch.notes)||/invoice request/i.test(ch.notes)||/pot \(sent/i.test(ch.notes)||/^Cash \(black\)/i.test(ch.notes)||/Cash black/i.test(ch.notes)||/Charter spend to invoice/i.test(ch.notes)||/\+\s*€/.test(ch.notes)||/ext \(cash\)|ext \(on invoice\)/i.test(ch.notes)) ch.notes=note;
+  ch.by=session.who||ch.by;
   t.chargeId=ch.id;
-  /* No prepaid APA → also raise lead APA invoice request for the manager */
-  if(syncLeadApaInvoiceRequest(t, gross)){
+  /* No prepaid APA → also raise lead APA invoice request for the manager (ledger part only) */
+  if(syncLeadApaInvoiceRequest(t, over)){
     /* leads saved by caller via saveApa */
   }
   return ch;
@@ -8064,36 +8104,49 @@ function openSheet(type,id){
     var pay=rec?chargePay(r):"Paid", invSt=rec?chargeInv(r):"Not issued";
     var bt0=rec?chargeBillType(r):(r.cashDeal?"cash":"invoice");
     var pm=rec?chargePayMethod(r):(bt0==="cash"?"Cash":(bt0==="mix"?"Split":"Card"));
-    h+='<div class="sheethead"><h2>'+(rec?"Edit charge":"New charter charge")+'</h2><button type="button" class="sheetx" id="sheetClose" aria-label="Close">×</button></div>';
+    var isApaCh=!!(rec&&(r.kind==="apa"||r.apaTripId));
+    var apaBaseShow=isApaCh?(Number(r.apaBaseAmt)>0?r.apaBaseAmt:(Math.max(0,(Number(r.amount)||0)-chargeExtAmt(r)))):0;
+    var extADef=chargeExtAmt(r);
+    var extSDef=chargeExtSettle(r);
+    var extHDef=apaNum(r.extHours)>0?r.extHours:(chargeExtHours(r)||"");
+    var commOn=rec?isChargeCaptainComm(r):(extADef>0);
+    h+='<div class="sheethead"><h2>'+(rec?(isApaCh?"Edit APA charge":"Edit charge"):"New charter charge")+'</h2><button type="button" class="sheetx" id="sheetClose" aria-label="Close">×</button></div>';
     h+=fieldHTML("Client name",'<input class="ctl" id="f_client" value="'+esc(r.client)+'" placeholder="e.g. Smith family">');
-    h+='<div class="row2">'+fieldHTML("Charter date",'<input class="ctl" id="f_date" type="date" value="'+esc(r.date)+'">')+fieldHTML("Total amount (€)",moneyField("f_amount",r.amount))+'</div>';
+    h+='<div class="row2">'+fieldHTML("Charter date",'<input class="ctl" id="f_date" type="date" value="'+esc(r.date)+'">')+
+      fieldHTML(isApaCh?"Total (APA + ext) €":"Total amount (€)",moneyField("f_amount",r.amount))+'</div>';
+    if(isApaCh){
+      h+='<p style="margin:-6px 0 10px;font-size:12.5px;color:var(--muted);line-height:1.4">APA ledger part ≈ <b class="money">'+money(apaBaseShow)+'</b> (updates from Ops → APA). Total = APA + extension below so <b>one invoice can match the card payment</b>.</p>';
+      h+='<input type="hidden" id="f_apaBaseAmt" value="'+esc(apaBaseShow)+'">';
+    }
     h+=fieldHTML("Settlement",selBillTypeField(bt0));
     h+='<p style="margin:-6px 0 12px;font-size:12.5px;color:var(--muted);line-height:1.4">'+
-      '<b>Invoice</b> = formal PDF for the manager. <b>Cash</b> = cash black / cash only (no invoice). <b>Mix</b> = both on one charge (enter cash part below).</p>';
+      '<b>Invoice</b> = formal PDF. <b>Cash</b> = cash only. <b>Mix</b> = both. Using “extra hours” below can set Mix automatically.</p>';
     h+='<div class="calcbox" id="f_ch_calc"></div>';
     h+='<div class="row2">'+fieldHTML("Payment",selPayField(pay))+fieldHTML("Paid by",selPayMethodField(pm))+'</div>';
     var cashDef=apaNum(r.cashPaid)>0?r.cashPaid:(bt0==="cash"?r.amount:(bt0==="mix"&&apaNum(r.cashAmt)>0?r.cashAmt:""));
     h+='<div id="f_cashPaid_wrap" style="'+(bt0==="invoice"&&pm==="Card"?"display:none":"")+'">'+
       fieldHTML("Cash part (€)",moneyField("f_cashPaid", cashDef))+
       '<p style="margin:-6px 0 12px;font-size:12px;color:var(--muted);line-height:1.4">'+
-        'For <b>Mix</b>: cash black / cash into boat pot. Invoice part = total − cash. '+
-        'For <b>Cash</b>: usually the full amount. When Payment is <b>Paid</b>, cash updates Expenses → cash in.'+
+        'For <b>Mix</b>: cash into boat pot; invoice part = total − cash. When <b>Paid</b>, cash updates Expenses → cash in.'+
       '</p></div>';
     h+='<div id="f_inv_fields_wrap" style="'+(bt0==="cash"?"display:none":"")+'">'+
       '<div class="row2">'+fieldHTML("Invoice (manager)",selInvField(invSt=== "Not needed"?"Not issued":invSt))+fieldHTML("Invoice # (manager)",'<input class="ctl" id="f_inv" value="'+esc(r.inv)+'" placeholder="fill when issued">')+'</div>'+
     '</div>';
-    /* Extra hours belong on Charges — default commission on for new extension-ish notes / kind */
-    var isExtRec=rec&&(r.kind==="extension"||r.chargeKind==="extension"||isChargeCaptainComm(r));
-    var commOn=rec?isChargeCaptainComm(r):false;
-    var extHDef=apaNum(r.extHours)>0?r.extHours:(chargeExtHours(r)||"");
-    h+='<label class="checkrow"><input type="checkbox" id="f_captainComm"'+(commOn?" checked":"")+'>'+
-      '<span><div class="ck">I get commission (extra hours / extension)</div>'+
-      '<div class="ch">'+CAPTAIN_COMMISSION_PCT+'% on this charge only. <b>Cash</b> = '+CAPTAIN_COMMISSION_PCT+'% of full amount (no VAT). <b>Invoice</b> = '+CAPTAIN_COMMISSION_PCT+'% before VAT. Example: €500 cash → €75; €500 invoice → ≈€62. Off = no commission (APA shortfalls, etc.).</div></span></label>';
-    h+='<div id="f_extHours_wrap" style="'+(commOn?"":"display:none")+'">'+
-      fieldHTML("Extra hours (optional)",'<input class="ctl" id="f_extHours" inputmode="decimal" value="'+esc(extHDef)+'" placeholder="e.g. 1">')+
-      '<p style="margin:-6px 0 12px;font-size:12px;color:var(--muted)">Label only (e.g. +1 h). Enter the € amount above — that drives commission.</p>'+
+    /* Same-bill extra hours (preferred for APA + card so bank matches invoice) */
+    h+='<div class="sect">Extra hours (same bill)</div>';
+    h+='<p style="margin:-4px 0 10px;font-size:12.5px;color:var(--muted);line-height:1.45">Add extension on <b>this</b> charge — not a second charge. <b>On invoice / card</b> = one PDF + one bank amount. <b>Cash</b> = extension off the formal invoice (Mix).</p>';
+    h+='<div class="row2">'+
+      fieldHTML("Extra hours",'<input class="ctl" id="f_extHours" inputmode="decimal" value="'+esc(extHDef)+'" placeholder="e.g. 1">')+
+      fieldHTML("Extension €",moneyField("f_extAmt", extADef>0?extADef:""))+
     '</div>';
-    h+=fieldHTML("Notes",'<textarea class="ctl" id="f_notes" placeholder="e.g. Extra 1 hour @ €500">'+esc(r.notes||(isExtRec?"":""))+'</textarea>');
+    h+='<div class="field"><label>Extension settlement</label><select class="ctl" id="f_extSettle">'+
+      '<option value="invoice"'+(extSDef!=="cash"?" selected":"")+'>On invoice / card (same bill)</option>'+
+      '<option value="cash"'+(extSDef==="cash"?" selected":"")+'>Cash (off formal invoice)</option>'+
+    '</select></div>';
+    h+='<label class="checkrow"><input type="checkbox" id="f_captainComm"'+(commOn?" checked":"")+'>'+
+      '<span><div class="ck">I get commission on the extension</div>'+
+      '<div class="ch">'+CAPTAIN_COMMISSION_PCT+'% of the <b>extension €</b> only (not APA spend). Cash ext → full amount; on invoice → before VAT. e.g. €500 cash → €75.</div></span></label>';
+    h+=fieldHTML("Notes",'<textarea class="ctl" id="f_notes" placeholder="e.g. APA spend + 1h extension @ €500">'+esc(r.notes||"")+'</textarea>');
   } else {
     r=rec||{closed:"",name:"",dur:"8h",start:"",end:"",rate:"",price:"",vatMode:"include",vatPct:"21",split:false,dealNet:"",invoiceNet:"",invoiceTotal:"",cashAmt:"",leadSource:"other",splitVatOnTop:true,deps:"Not requested",fins:"Not requested",apas:"Not requested",depPct:"50",apaPct:"",depInv:"",finInv:"",apaInv:"",notes:""};
     var ldur=r.dur||"8h";
@@ -8247,20 +8300,36 @@ function openSheet(type,id){
       recalcCharge();
     });
     if(el("f_cashPaid")) el("f_cashPaid").addEventListener("input",recalcCharge);
-    if(el("f_captainComm")){
-      el("f_captainComm").addEventListener("change",function(){
-        var on=!!el("f_captainComm").checked;
-        if(el("f_extHours_wrap")) el("f_extHours_wrap").style.display=on?"":"none";
-        recalcCharge();
-      });
-    }
+    if(el("f_captainComm")) el("f_captainComm").addEventListener("change",recalcCharge);
     if(el("f_extHours")) el("f_extHours").addEventListener("input",recalcCharge);
+    if(el("f_extAmt")) el("f_extAmt").addEventListener("input",recalcCharge);
+    if(el("f_extSettle")) el("f_extSettle").addEventListener("change",recalcCharge);
     syncChargeBillUi();
   } else recalcLead();
   showSheet(true);
 }
 function recalcCharge(){
   var box=el("f_ch_calc"); if(!box) return;
+  var extA=apaNum(el("f_extAmt")?el("f_extAmt").value:0);
+  var extS=(el("f_extSettle")&&el("f_extSettle").value)==="cash"?"cash":"invoice";
+  var apaBase=el("f_apaBaseAmt")?apaNum(el("f_apaBaseAmt").value):0;
+  var hasApa=!!el("f_apaBaseAmt");
+  /* Same-bill extension drives total + settlement when APA-linked or ext amount set */
+  if(hasApa||extA>0){
+    var built=chargeTotalsFromApaAndExt(hasApa?apaBase:Math.max(0,apaNum(el("f_amount")?el("f_amount").value:0)-extA), extA, extS);
+    if(hasApa||extA>0){
+      if(el("f_amount")) el("f_amount").value=String(built.amount);
+      if(el("f_billType")) el("f_billType").value=built.billType;
+      if(el("f_cashPaid")) el("f_cashPaid").value=built.cashPaid>0?String(built.cashPaid):"";
+      if(el("f_payMethod")){
+        if(built.billType==="cash") el("f_payMethod").value="Cash";
+        else if(built.billType==="mix") el("f_payMethod").value="Split";
+        else if(el("f_payMethod").value==="Cash"||el("f_payMethod").value==="Split") el("f_payMethod").value="Card";
+      }
+      if(el("f_cashPaid_wrap")) el("f_cashPaid_wrap").style.display=built.billType==="invoice"?"none":"";
+      if(el("f_inv_fields_wrap")) el("f_inv_fields_wrap").style.display=built.billType==="cash"?"none":"";
+    }
+  }
   var gross=apaNum(el("f_amount")?el("f_amount").value:0);
   var bt=(el("f_billType")&&el("f_billType").value)||"invoice";
   var method=(el("f_payMethod")&&el("f_payMethod").value)||"Card";
@@ -8273,12 +8342,21 @@ function recalcCharge(){
   if(method==="Card"&&bt==="invoice") cash=0;
   if(cash>gross) cash=gross;
   var inv=Math.max(0, Math.round((gross-cash)*100)/100);
-  var html='<div class="cl"><span>Total</span><b>'+money(gross)+'</b></div>';
+  var html="";
+  if(hasApa||extA>0){
+    var baseShow=hasApa?apaBase:Math.max(0, Math.round((gross-extA)*100)/100);
+    if(hasApa) html+='<div class="cl"><span>APA ledger</span><b>'+money(baseShow)+'</b></div>';
+    if(extA>0){
+      var eh=apaNum(el("f_extHours")?el("f_extHours").value:0);
+      html+='<div class="cl"><span>Extension ('+(extS==="cash"?"cash":"on invoice")+(eh>0?" · +"+eh+"h":"")+")</span><b>"+money(extA)+"</b></div>";
+    }
+  }
+  html+='<div class="cl hi"><span>Total</span><b>'+money(gross)+'</b></div>';
   if(bt==="cash"){
-    html+='<div class="cl hi"><span>Cash settlement (no invoice)</span><b>'+money(cash||gross)+'</b></div>';
+    html+='<div class="cl"><span>Cash settlement (no invoice)</span><b>'+money(cash||gross)+'</b></div>';
   } else if(bt==="mix"){
     html+='<div class="cl"><span>Cash part</span><b>'+money(cash)+'</b></div>'+
-      '<div class="cl hi"><span>Invoice part (VAT incl.)</span><b>'+money(inv)+'</b></div>';
+      '<div class="cl"><span>Invoice part (VAT incl.)</span><b>'+money(inv)+'</b></div>';
     if(inv>0){
       var sp=invoiceSplitGross(inv, 21);
       html+='<div class="cl"><span> invoice net</span><b>'+money(sp.net)+'</b></div>'+
@@ -8288,46 +8366,63 @@ function recalcCharge(){
     var sp2=invoiceSplitGross(gross, 21);
     html+='<div class="cl"><span>Net (ex VAT)</span><b>'+money(sp2.net)+'</b></div>'+
       '<div class="cl"><span>VAT 21% included</span><b>'+money(sp2.vat)+'</b></div>'+
-      '<div class="cl hi"><span>To invoice</span><b>'+money(gross)+'</b></div>';
+      '<div class="cl"><span>To invoice (matches card if paid in full)</span><b>'+money(gross)+'</b></div>';
   }
   if(cash>0) html+='<div class="cl"><span>→ Boat cash pot (when Paid)</span><b>'+money(cash)+'</b></div>';
-  if(el("f_captainComm")&&el("f_captainComm").checked&&gross>0){
+  if(el("f_captainComm")&&el("f_captainComm").checked&&(extA>0||gross>0)){
     var draft={
       amount:gross, billType:bt, vatMode:bt==="cash"?"none":"include", vatPct:bt==="cash"?0:21,
-      cashPaid:cash, captainComm:true, chargeKind:"extension",
+      cashPaid:cash, captainComm:true,
+      extAmt:extA, extSettle:extS,
       extHours:apaNum(el("f_extHours")?el("f_extHours").value:0),
       notes:el("f_notes")?el("f_notes").value:""
     };
     var cp=chargeCommissionParts(draft);
-    var baseLab=cp.mode==="cash"?"Cash base (no VAT)":(cp.mode==="mix"?"Mix base (cash + inv. ex VAT)":"Before VAT");
+    var baseLab=cp.mode==="cash"?"Ext cash (no VAT)":(cp.mode==="mix"?"Mix base":"Ext before VAT");
     html+='<div class="cl hi"><span>Your commission ('+CAPTAIN_COMMISSION_PCT+'%)</span><b>'+money(cp.total)+'</b></div>'+
-      '<div class="meta" style="margin-top:2px">'+baseLab+' '+money(cp.base)+(cp.hours>0?" · +"+cp.hours+" h":"")+'</div>';
+      '<div class="meta" style="margin-top:2px">'+baseLab+' '+money(cp.base)+(cp.hours>0?" · +"+cp.hours+" h":"")+(extA>0?" · extension only":"")+'</div>';
   }
   box.innerHTML=html;
 }
 
 function saveSheet(type,rec){
   if(type==="charter"){
+    var extAmt=apaNum(el("f_extAmt")?el("f_extAmt").value:0);
+    var extSettle=(el("f_extSettle")&&el("f_extSettle").value)==="cash"?"cash":"invoice";
+    var extHours=apaNum(el("f_extHours")?el("f_extHours").value:0);
+    var isApaRec=!!(rec&&(rec.kind==="apa"||rec.apaTripId));
+    var apaBase=el("f_apaBaseAmt")?apaNum(el("f_apaBaseAmt").value):0;
+    if(isApaRec&&!(apaBase>0)&&rec){
+      apaBase=Number(rec.apaBaseAmt)>0?Number(rec.apaBaseAmt):Math.max(0,(Number(rec.amount)||0)-chargeExtAmt(rec));
+    }
     var gross=apaNum(el("f_amount").value);
     var billType=(el("f_billType")&&el("f_billType").value)||"invoice";
-    if(billType!=="cash"&&billType!=="mix") billType="invoice";
     var payStatus=el("f_pay").value;
     var invStatus=el("f_invStatus")?el("f_invStatus").value:"Not issued";
     var pmRaw=(el("f_payMethod")&&el("f_payMethod").value)||"Card";
     var payMethod=pmRaw==="Cash"||pmRaw==="Split"?pmRaw:"Card";
     var cashPaid=apaNum(el("f_cashPaid")?el("f_cashPaid").value:0);
+    /* Rebuild totals from APA + extension when applicable */
+    if(isApaRec||extAmt>0){
+      var built=chargeTotalsFromApaAndExt(isApaRec?apaBase:Math.max(0,gross-extAmt), extAmt, extSettle);
+      gross=built.amount;
+      billType=built.billType;
+      cashPaid=built.cashPaid;
+      apaBase=built.apaBase;
+      if(el("f_amount")) el("f_amount").value=String(gross);
+    }
+    if(billType!=="cash"&&billType!=="mix") billType="invoice";
     if(billType==="cash"){
       payMethod="Cash";
       if(!(cashPaid>0)) cashPaid=gross;
       invStatus="Not needed";
     } else if(billType==="mix"){
-      if(!(cashPaid>0)){ window.alert("Mix: enter the cash part (e.g. cash black €1,800)."); if(el("f_cashPaid")) el("f_cashPaid").focus(); return; }
+      if(!(cashPaid>0)){ window.alert("Mix: enter the cash part (or set extension settlement to Cash)."); if(el("f_cashPaid")) el("f_cashPaid").focus(); return; }
       if(cashPaid>gross+0.009){ window.alert("Cash part cannot exceed the total."); if(el("f_cashPaid")) el("f_cashPaid").focus(); return; }
       if(cashPaid>=gross-0.009){ window.alert("Mix needs both a cash part and an invoice part. Use Cash only if everything is cash."); return; }
       payMethod="Split";
       if(invStatus==="Not needed") invStatus="Not issued";
     } else {
-      /* invoice */
       if(payMethod==="Cash") payMethod="Card";
       cashPaid=0;
       if(invStatus==="Not needed") invStatus="Not issued";
@@ -8348,7 +8443,7 @@ function saveSheet(type,rec){
       net=spI.net; vat=spI.vat; vatPct=spI.pct;
     }
     var captainComm=!!(el("f_captainComm")&&el("f_captainComm").checked);
-    var extHours=apaNum(el("f_extHours")?el("f_extHours").value:0);
+    if(extAmt>0&&!captainComm){ /* keep explicit off */ }
     var notesTxt=el("f_notes").value.trim();
     var obj={ id:rec?rec.id:uid(), date:el("f_date").value, client:el("f_client").value.trim(),
       amount:gross, billType:billType, vatMode:vatMode, vatPct:vatPct, net:net, vat:vat,
@@ -8358,14 +8453,17 @@ function saveSheet(type,rec){
       inv:el("f_inv")?el("f_inv").value.trim():"",
       notes:notesTxt, by:session.who,
       captainComm:captainComm,
-      chargeKind:captainComm?"extension":"",
-      extHours:captainComm&&extHours>0?extHours:0 };
+      chargeKind:(captainComm||extAmt>0)?"extension":"",
+      extHours:extHours>0?extHours:0,
+      extAmt:extAmt>0?extAmt:0,
+      extSettle:extAmt>0?extSettle:"invoice",
+      apaBaseAmt:isApaRec?apaBase:0 };
     /* Keep APA linkage when editing payment / invoice status */
     if(rec){
       if(rec.kind==="apa"||rec.apaTripId){
         obj.kind="apa";
         if(rec.apaTripId) obj.apaTripId=rec.apaTripId;
-      } else if(captainComm){
+      } else if(captainComm||extAmt>0){
         obj.kind="extension";
       } else if(rec.kind&&rec.kind!=="extension"){
         obj.kind=rec.kind;
@@ -8375,7 +8473,7 @@ function saveSheet(type,rec){
       if(rec.cashDeal) obj.cashDeal=rec.cashDeal;
       if(rec.cashAmt!=null) obj.cashAmt=rec.cashAmt;
       if(rec.apaZeroPot!=null) obj.apaZeroPot=rec.apaZeroPot;
-    } else if(captainComm){
+    } else if(captainComm||extAmt>0){
       obj.kind="extension";
     }
     if(billType==="mix"||billType==="cash"){
@@ -8385,14 +8483,22 @@ function saveSheet(type,rec){
     upsert("charters",obj,rec); renderCharters(); save("charters");
     if(canOps()&&(obj.kind==="apa"||obj.apaTripId||(rec&&(rec.kind==="apa"||rec.apaTripId)))){
       refreshApaFromCharges();
-      save("charters");
+      /* Re-apply extension after APA sync (preserves ext on charge) */
+      var linked=(state.charters||[]).filter(function(c){return c&&c.id===obj.id;})[0];
+      if(linked){
+        linked.extAmt=obj.extAmt; linked.extSettle=obj.extSettle; linked.extHours=obj.extHours;
+        linked.captainComm=obj.captainComm;
+        if(obj.apaBaseAmt>0||obj.extAmt>0) applyApaChargeMoney(linked, Number(linked.apaBaseAmt)||obj.apaBaseAmt||0);
+        save("charters");
+      }
     } else if(canOps()){
       refreshApaFromCharges();
       save("charters");
     }
     /* Boat float: cash portion of Paid charges → monthly cash in */
     if(isCaptain()){
-      syncChargeCashToPetty(obj);
+      var saved=(state.charters||[]).filter(function(c){return c&&c.id===obj.id;})[0]||obj;
+      syncChargeCashToPetty(saved);
       saveExpPetty();
       if(curTab==="expenses") renderExpenses();
       if(curTab==="commissions") renderCommissions();

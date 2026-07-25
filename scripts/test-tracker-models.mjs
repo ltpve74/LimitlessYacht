@@ -184,6 +184,52 @@ console.log("\n[Charge commission — explicit only]");
   ok("€500 invoice: commission ≈ 61.98", near(p.total, (500 / 1.21) * 0.15, 0.05), "got " + p.total);
   ok("€500 invoice: mode invoice", p.mode === "invoice");
 }
+/* Same bill: APA spend + extension — commission only on extension */
+console.log("\n[APA charge + extension same bill]");
+{
+  const t = M.chargeTotalsFromApaAndExt(800, 500, "invoice");
+  ok("invoice settle: total 1300", near(t.amount, 1300));
+  ok("invoice settle: billType invoice", t.billType === "invoice");
+  ok("invoice settle: cash 0", near(t.cashPaid, 0));
+}
+{
+  const t = M.chargeTotalsFromApaAndExt(800, 500, "cash");
+  ok("cash settle: total 1300", near(t.amount, 1300));
+  ok("cash settle: mix", t.billType === "mix");
+  ok("cash settle: cash part 500", near(t.cashPaid, 500));
+}
+{
+  const ch = {
+    amount: 1300,
+    billType: "invoice",
+    vatMode: "include",
+    vatPct: 21,
+    apaBaseAmt: 800,
+    extAmt: 500,
+    extSettle: "invoice",
+    captainComm: true,
+    extHours: 1,
+  };
+  const p = M.chargeCommissionParts(ch);
+  ok("same-bill inv: commission only on €500", near(p.gross, 500));
+  ok("same-bill inv: base before VAT", near(p.base, 500 / 1.21, 0.05));
+  ok("same-bill inv: not 15% of 1300", !near(p.total, (1300 / 1.21) * 0.15, 1));
+}
+{
+  const ch = {
+    amount: 1300,
+    billType: "mix",
+    cashPaid: 500,
+    extAmt: 500,
+    extSettle: "cash",
+    captainComm: true,
+    vatMode: "include",
+    vatPct: 21,
+  };
+  const p = M.chargeCommissionParts(ch);
+  ok("same-bill cash ext: base 500", near(p.base, 500));
+  ok("same-bill cash ext: comm €75", near(p.total, 75));
+}
 
 console.log("\n──────────────────────────────────────────────────────────");
 if (failed) {

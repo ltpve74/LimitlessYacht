@@ -383,42 +383,83 @@ function ensureApaChargesLinked(data) {
       const byId = pending.find((c) => c.id === t.chargeId);
       if (byId) ch = byId;
     }
-    const pct = 21;
-    const gross = over;
-    const net = pct > 0 ? gross / (1 + pct / 100) : gross;
-    const vat = gross - net;
-    const note =
+    /* Preserve same-bill extension (extAmt) so invoice can match card + APA spend */
+    const extAmt = Math.max(0, Math.round((Number(ch && ch.extAmt) || 0) * 100) / 100);
+    const extSettle =
+      ch && String(ch.extSettle || "").toLowerCase() === "cash" ? "cash" : "invoice";
+    const apaBase = over;
+    const total = Math.round((apaBase + extAmt) * 100) / 100;
+    let billType = "invoice";
+    let cashPaid = 0;
+    if (extAmt > 0 && extSettle === "cash") {
+      billType = apaBase > 0.009 ? "mix" : "cash";
+      cashPaid = extAmt;
+    }
+    const invPart = billType === "cash" ? 0 : Math.round((total - cashPaid) * 100) / 100;
+    const pct = billType === "cash" ? 0 : 21;
+    let net = 0;
+    let vat = 0;
+    let vatMode = billType === "cash" ? "none" : "include";
+    if (billType === "cash") {
+      net = total;
+      vat = 0;
+    } else if (billType === "mix") {
+      const invNet = invPart > 0 ? invPart / 1.21 : 0;
+      net = Math.round((cashPaid + invNet) * 100) / 100;
+      vat = Math.round((invPart - invNet) * 100) / 100;
+    } else {
+      net = total > 0 ? Math.round((total / 1.21) * 100) / 100 : 0;
+      vat = Math.round((total - net) * 100) / 100;
+    }
+    let note =
       (t.dates ? "APA · " + t.dates + ". " : "") +
       "APA shortfall (balance negative) — synced from APA ledger";
+    if (extAmt > 0) {
+      note +=
+        " · +" +
+        extAmt.toFixed(2) +
+        " ext (" +
+        (extSettle === "cash" ? "cash" : "on invoice") +
+        ")";
+    }
 
     if (ch) {
       if (t.chargeId !== ch.id) {
         t.chargeId = ch.id;
         dirty = true;
       }
+      const wantAmt = total;
       if (
-        Math.abs((Number(ch.amount) || 0) - gross) > 0.005 ||
+        Math.abs((Number(ch.amount) || 0) - wantAmt) > 0.005 ||
         ch.kind !== "apa" ||
         ch.apaTripId !== t.id ||
-        ch.cashDeal
+        Math.abs((Number(ch.apaBaseAmt) || 0) - apaBase) > 0.005
       ) {
         ch.client = t.guest;
-        ch.amount = gross;
+        ch.amount = wantAmt;
+        ch.apaBaseAmt = apaBase;
+        ch.extAmt = extAmt;
+        ch.extSettle = extAmt > 0 ? extSettle : "invoice";
         ch.net = net;
         ch.vat = vat;
         ch.vatPct = pct;
-        ch.vatMode = "include";
+        ch.vatMode = vatMode;
+        ch.billType = billType;
+        ch.cashPaid = cashPaid;
+        ch.cashAmt = cashPaid > 0 ? cashPaid : 0;
+        ch.cashDeal = billType === "cash" || billType === "mix";
         ch.kind = "apa";
         ch.apaTripId = t.id;
-        ch.cashDeal = false;
-        ch.cashAmt = 0;
-        if (!ch.payMethod || ch.payMethod === "Cash" || ch.payMethod === "Split") ch.payMethod = "Card";
+        if (billType === "cash") ch.payMethod = "Cash";
+        else if (billType === "mix") ch.payMethod = "Split";
+        else if (!ch.payMethod || ch.payMethod === "Cash" || ch.payMethod === "Split")
+          ch.payMethod = "Card";
         if (ch.payStatus !== "Paid") ch.payStatus = "Pending";
         if (ch.invStatus !== "Issued") {
-          ch.invStatus = "Not issued";
+          ch.invStatus = billType === "cash" ? "Not needed" : "Not issued";
           ch.status = ch.payStatus || "Pending";
         }
-        if (!ch.notes || /^APA/i.test(ch.notes) || /synced from APA|shortfall|pot \(sent|Cash \(black\)/i.test(ch.notes)) {
+        if (!ch.notes || /^APA/i.test(ch.notes) || /synced from APA|shortfall|pot \(sent|Cash \(black\)|\+\s*[\d.]+ ext/i.test(ch.notes)) {
           ch.notes = note;
         }
         dirty = true;
@@ -433,15 +474,20 @@ function ensureApaChargesLinked(data) {
       id: idFree ? id : "charge-apa-" + t.id + "-" + Date.now().toString(36),
       kind: "apa",
       apaTripId: t.id,
+      apaBaseAmt: apaBase,
+      extAmt: 0,
+      extSettle: "invoice",
       cashDeal: false,
       cashAmt: 0,
+      cashPaid: 0,
+      billType: "invoice",
       date: t.id === SHEET_TRIP_ID ? "2026-07-17" : new Date().toISOString().slice(0, 10),
       client: t.guest,
-      amount: gross,
+      amount: total,
       net,
       vat,
       vatPct: pct,
-      vatMode: "include",
+      vatMode,
       payStatus: "Pending",
       payMethod: "Card",
       invStatus: "Not issued",
