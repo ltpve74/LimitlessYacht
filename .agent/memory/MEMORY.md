@@ -12,3 +12,5 @@
 - [Google Ads project](project_google_ads.md) — campaign state/setup (folded in from the other agent's local memory/)
 
 - [tracker-always-push-live.md](tracker-always-push-live.md) — always publish tracker to main/live
+
+- [tracker-extra-hours-commission.md](tracker-extra-hours-commission.md) — extra hours on Charges; cash vs invoice commission

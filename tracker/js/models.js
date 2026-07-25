@@ -383,8 +383,18 @@
     return 0;
   }
 
+  /**
+   * Extra charter hours / same-day extensions:
+   *   Belong on Charges (not the lead, not APA).
+   *   Tick captainComm → 15% commission on this charge only:
+   *     - Cash settlement: 15% of full amount (no VAT strip)
+   *     - Invoice: 15% of amount before VAT (÷1.21 if VAT included)
+   *     - Mix: cash full + invoice part before VAT
+   * Example: +1h for €500 cash → base 500, commission €75.
+   *          +1h for €500 invoice (VAT incl.) → base 500/1.21, commission ≈ €61.98.
+   */
   function chargeCommissionParts(c) {
-    var empty = { base: 0, total: 0, gross: 0, hours: 0 };
+    var empty = { base: 0, total: 0, gross: 0, hours: 0, billType: "invoice", mode: "" };
     if (!c || !isChargeCaptainComm(c)) return empty;
     var pctRate = CAPTAIN_COMMISSION_PCT / 100;
     var gross = num(c.amount);
@@ -392,13 +402,16 @@
     var hours = chargeExtHours(c);
     var bt = chargeBillType(c);
     var base = 0;
+    var mode = "";
     if (bt === "cash" || c.vatMode === "none") {
       base = gross;
+      mode = "cash"; /* full amount — no VAT */
     } else if (bt === "mix") {
       var cashP = chargeCashPart(c);
       var invP = chargeInvoicePart(c);
       var invBase = invP > 0 ? invP / (1 + commissionVatPct(c) / 100) : 0;
       base = round2(invBase + cashP);
+      mode = "mix";
     } else {
       var vp = commissionVatPct(c);
       if (c.vatMode === "add" && num(c.net) > 0 && num(c.net) < gross * 0.99) {
@@ -406,8 +419,16 @@
       } else {
         base = round2(gross / (1 + vp / 100));
       }
+      mode = "invoice"; /* before VAT */
     }
-    return { base: base, total: round2(base * pctRate), gross: gross, hours: hours };
+    return {
+      base: base,
+      total: round2(base * pctRate),
+      gross: gross,
+      hours: hours,
+      billType: bt,
+      mode: mode,
+    };
   }
 
   function chargeCommissionAmt(c) {
