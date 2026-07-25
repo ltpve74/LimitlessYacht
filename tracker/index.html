@@ -1098,6 +1098,7 @@ function renderLeads(){
         (dealN>0?'<span class="pill p-grey">Base '+money0(dealN)+' ex VAT</span>':'')+
         '<span class="pill p-white">Invoice '+money0(invT||invN)+'</span>'+
         '<span class="pill p-black">Cash '+money0(cashN)+'</span>'+
+        (leadFreeCashIsOnBoat(r)?'<span class="pill p-green">Cash on boat</span>':'<span class="pill p-amber">Cash not on boat</span>')+
         (r.splitVatOnTop===true?'<span class="pill p-blue">+ invoice VAT</span>':'<span class="pill p-amber">VAT swallowed</span>');
       if(invN&&invT&&Math.abs(invT-invN)>0.5) splitBits+='<span class="meta" style="display:contents"><span>ex VAT '+money0(invN)+'</span></span>';
       finLabel="Final";
@@ -7902,23 +7903,107 @@ function syncChargeCashToPetty(charge){
   p.updatedAt=new Date().toISOString();
   return true;
 }
-/** Re-sync all charges → petty cash-ins (captain). */
+/* -------- Lead free cash → boat petty cash -------- */
+function leadCashInId(leadId){ return "lead-cash:"+String(leadId||""); }
+/**
+ * Free cash on a split lead is on the boat when:
+ *  - cashSettled is explicitly true, OR
+ *  - checkbox / default: deposit or final is Paid (invoice paid ≠ cash in hand unless settled)
+ * Explicit false always wins (cash not yet on board).
+ */
+function leadFreeCashIsOnBoat(l){
+  if(!l||!leadHasSplit(l)) return false;
+  var cash=leadFreeCashAmt(l)||Number(l.cashAmt)||0;
+  if(!(cash>0.009)) return false;
+  if(l.cashSettled===false||l.cashSettled==="false"||l.cashSettled===0) return false;
+  if(l.cashSettled===true||l.cashSettled==="true"||l.cashSettled===1) return true;
+  /* Auto: final or deposit marked Paid → treat free cash as received */
+  return l.fins==="Paid"||l.deps==="Paid";
+}
+function expRemoveLeadCashIn(leadId, skipSave){
+  if(!leadId||!state.expPetty) return false;
+  var cid=leadCashInId(leadId);
+  var dirty=false;
+  state.expPetty.forEach(function(p){
+    if(!p||!Array.isArray(p.cashIns)) return;
+    var n=p.cashIns.length;
+    p.cashIns=p.cashIns.filter(function(r){
+      if(!r) return false;
+      if(String(r.id)===cid||String(r.fromLeadId||"")===String(leadId)) return false;
+      return true;
+    });
+    if(p.cashIns.length!==n){
+      dirty=true;
+      p.pettyIn=expCashInSum(p);
+      p.updatedAt=new Date().toISOString();
+    }
+  });
+  if(dirty&&!skipSave&&isCaptain()) saveExpPetty();
+  return dirty;
+}
+/**
+ * Post split-deal free cash (€1,800 etc.) into Expenses boat float when received.
+ * Does not use Charges — cash never sits on the formal invoice.
+ */
+function syncLeadCashToPetty(lead){
+  if(!isCaptain()||!lead||!lead.id) return false;
+  var cash=leadFreeCashAmt(lead)||Number(lead.cashAmt)||0;
+  if(!(cash>0.009)||!leadFreeCashIsOnBoat(lead)){
+    return expRemoveLeadCashIn(lead.id, true);
+  }
+  cash=Math.round(cash*100)/100;
+  var date=String(lead.start||lead.cdate||lead.closed||"").slice(0,10)||localTodayYmd();
+  var month=expMonthKey(date)||expDefaultMonth();
+  var p=expEnsurePetty(month);
+  if(!Array.isArray(p.cashIns)) p.cashIns=[];
+  var cid=leadCashInId(lead.id);
+  var name=(lead.name||"Guest").trim();
+  var row={
+    id:cid,
+    fromLeadId:String(lead.id),
+    date:date,
+    source:"Charter income — "+name+" (lead free cash)",
+    amount:cash,
+    notes:"Split deal cash · not on invoice · "+money0(cash),
+    updatedAt:new Date().toISOString()
+  };
+  var found=false;
+  p.cashIns=p.cashIns.map(function(r){
+    if(r&&(String(r.id)===cid||String(r.fromLeadId||"")===String(lead.id))){
+      found=true;
+      return row;
+    }
+    return r;
+  });
+  if(!found) p.cashIns.unshift(row);
+  p.pettyIn=expCashInSum(p);
+  p.updatedAt=new Date().toISOString();
+  return true;
+}
+/** Re-sync all charges + lead free cash → petty cash-ins (captain). */
 function syncAllChargeCashToPetty(){
   if(!isCaptain()) return false;
   var dirty=false;
-  var seen={};
+  var seenCharge={}, seenLead={};
   (state.charters||[]).forEach(function(c){
     if(!c||!c.id) return;
-    seen[c.id]=1;
+    seenCharge[c.id]=1;
     if(syncChargeCashToPetty(c)) dirty=true;
   });
-  /* Drop orphan cash-ins if charge deleted */
+  (state.leads||[]).forEach(function(l){
+    if(!l||!l.id) return;
+    seenLead[l.id]=1;
+    if(syncLeadCashToPetty(l)) dirty=true;
+  });
+  /* Drop orphan cash-ins if charge/lead deleted */
   (state.expPetty||[]).forEach(function(p){
     if(!p||!Array.isArray(p.cashIns)) return;
     var n=p.cashIns.length;
     p.cashIns=p.cashIns.filter(function(r){
-      if(!r||!r.fromChargeId) return true;
-      return !!seen[r.fromChargeId];
+      if(!r) return false;
+      if(r.fromChargeId) return !!seenCharge[r.fromChargeId];
+      if(r.fromLeadId) return !!seenLead[r.fromLeadId];
+      return true;
     });
     if(p.cashIns.length!==n){
       dirty=true;
@@ -8343,6 +8428,14 @@ function openSheet(type,id){
       '<p style="margin:-6px 0 10px;font-size:12.5px;color:var(--muted);line-height:1.4">Tomorrow: <b>€2,000</b> · VAT included.</p>'+
       fieldHTML("Cash black (no VAT)",moneyField("f_cashBlack", cashDef))+
       '<p style="margin:-6px 0 8px;font-size:12.5px;color:var(--muted);line-height:1.4">Tomorrow: <b>€1,800</b>. Optional fill from quote÷1.21 − white net: <b id="f_suggestCash">—</b> · <button type="button" class="btn ghost" id="f_useSuggestCash" style="width:auto;padding:6px 10px;font-size:12px">Use suggested</button></p>'+
+      (function(){
+        var cashOn=leadFreeCashIsOnBoat(r)||(rec&&(r.cashSettled===true||r.fins==="Paid"||r.deps==="Paid"));
+        if(r.cashSettled===false) cashOn=false;
+        if(r.cashSettled===true) cashOn=true;
+        return '<label class="checkrow" id="f_cashSettled_wrap"><input type="checkbox" id="f_cashSettled"'+(cashOn?" checked":"")+'>'+
+          '<span><div class="ck">Cash received on the boat</div>'+
+          '<div class="ch">Posts free cash to <b>Ops → Expenses</b> petty cash (Charter income). Tick when you have the cash in hand — deposit/final Paid also auto-posts if this is left on.</div></span></label>';
+      })()+
       '<input type="hidden" id="f_invoiceNet" value="'+esc(r.invoiceNet!=null&&r.invoiceNet!==""?r.invoiceNet:"")+'">'+
       '<input type="hidden" id="f_splitVatTop" value="0">'+
     '</div>';
@@ -8696,6 +8789,7 @@ function saveSheet(type,rec){
       invoiceNet:sp.split?sp.invoiceNet:0, invoiceVat:sp.split?sp.white.vat:0, invoiceTotal:sp.split?sp.invoiceTotal:parts.client,
       cashAmt:sp.split?(cashForced>0?cashForced:sp.cashAmt):0,
       cashAmtUser:sp.split&&(cashForced>0||Number(sp.cashAmt)>0),
+      cashSettled:sp.split?(!!(el("f_cashSettled")&&el("f_cashSettled").checked)):false,
       leadSource:leadSrc,
       depPct:depPct, dep:parts.dep, deps:deps, depInv:el("f_depInv").value.trim(),
       fin:parts.fin, fins:fins, finInv:el("f_finInv").value.trim(),
@@ -8739,6 +8833,11 @@ function saveSheet(type,rec){
     upsert("leads",o2,rec); renderLeads(); save("leads");
     /* Free cash stays on the lead — strip any −cash APA shell for this guest */
     if(canOps()) ensureLeadCashApa(o2);
+    /* Split free cash → boat petty cash when received / Paid */
+    if(isCaptain()&&sp.split){
+      if(syncLeadCashToPetty(o2)) saveExpPetty();
+      if(curTab==="expenses") renderExpenses();
+    }
   }
   showSheet(false);
 }
@@ -8760,6 +8859,10 @@ function delRec(type,id){
       expRemoveChargeCashIn(id, true);
       saveExpPetty();
     }
+  }
+  if(coll==="leads"&&isCaptain()&&id){
+    expRemoveLeadCashIn(id, true);
+    saveExpPetty();
   }
   state[coll]=state[coll].filter(function(r){return r.id!==id;});
   if(coll==="charters"){
