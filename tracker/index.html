@@ -538,7 +538,7 @@ var state={ charters:[], leads:[], apa:[], diesel:[], stews:[], stewAssign:[], e
 var EXP_CATS=["Crew Salaries","Miscellaneous","Fuel Cars","Dockage / Marina","Provisions","Maintenance","Insurance","Captain reimbursement","Crew reimbursement","Other"];
 var EXP_METHODS=["Cash","Credit Card"];
 /** Where petty cash top-ups come from (own money = captain float top-up, boat owes captain). */
-var EXP_CASH_IN_SOURCES=["Own money","Charter income","Bank / ATM","Owner float","Other"];
+var EXP_CASH_IN_SOURCES=["Own money","Charter income","Guest tips held","Bank / ATM","Owner float","Other"];
 /** Cash expense funded from boat float or someone’s pocket (reimburse later). */
 var EXP_PAID_FROM=["Petty cash","Own money"];
 /** Sentinel id for captain in paidById / reimburseToId. */
@@ -919,19 +919,31 @@ function chargeInvoicePart(r){ return LY_MODELS?LY_MODELS.chargeInvoicePart(r):0
 function chargeNeedsInvoice(r){ return LY_MODELS?LY_MODELS.chargeNeedsInvoice(r):false; }
 /**
  * Cash that entered the boat pot from this charge (when Paid).
- * Uses bill type cash/mix parts; legacy Card/Cash/Split still works.
+ * Strict: only the cash settlement slice — never the full invoice total.
+ * (A Paid invoice/card charge must not inflate petty cash.)
  */
 function chargeCashToBoat(r){
   if(!r||chargePay(r)!=="Paid") return 0;
-  var part=chargeCashPart(r);
-  if(part>0) return part;
   var total=apaNum(r.amount);
-  var explicit=apaNum(r.cashPaid);
+  if(!(total>0)) return 0;
+  var bt=chargeBillType(r);
+  if(bt==="invoice") return 0; /* formal invoice / card — not boat envelope */
+  if(bt==="cash") return total;
+  if(bt==="mix"){
+    var part=chargeCashPart(r);
+    if(part>0) return Math.min(part, total);
+    var explicit=apaNum(r.cashPaid);
+    return explicit>0?Math.min(explicit,total):0;
+  }
+  /* Legacy rows without billType */
+  var part2=chargeCashPart(r);
+  if(part2>0) return Math.min(part2, total);
   var m=chargePayMethod(r);
-  if(m==="Card") return explicit>0?Math.min(explicit,total):0;
-  if(m==="Split") return explicit>0?Math.min(explicit,total):0;
-  if(explicit>0) return Math.min(explicit,total);
-  return total;
+  var explicit2=apaNum(r.cashPaid);
+  if(m==="Card") return 0;
+  if(m==="Split") return explicit2>0?Math.min(explicit2,total):0;
+  if(m==="Cash") return explicit2>0?Math.min(explicit2,total):total;
+  return 0;
 }
 function payMethodPill(m){
   if(m==="Cash") return '<span class="pill p-cash">Cash</span>';
@@ -5945,7 +5957,7 @@ function paintExpensesBody(){
   var floatAfterPays=S.floatAfterPays!=null?S.floatAfterPays:Math.round((pettyCash-peopleOwed)*100)/100;
   var floatBehind=S.floatBehind!=null?S.floatBehind:(floatAfterPays<0?-floatAfterPays:0);
   var cashIns=expCashInLines(petty);
-  var h='<div class="legend">Captain-only. <b>Petty cash</b> = actual cash on board (only falls when cash leaves the boat). <b>Float books</b> = petty vs people still unpaid (can show behind). Tips stay on Stews only.</div>';
+  var h='<div class="legend">Captain-only. <b>Petty cash</b> = physical cash in the envelope. Every euro in should appear as a <b>cash-in line</b> below (lead free cash, charge cash, owner top-up, tips held). Tips on Stews do not hit the envelope until you log them as cash in / cash out.</div>';
   h+='<div class="exp-month"><label class="meta" style="font-weight:700">Month</label>'+
     '<select class="ctl" id="expMonthSel">'+monthList.map(function(m){
       return '<option value="'+esc(m)+'"'+(m===expMonth?" selected":"")+'>'+esc(m)+'</option>';
@@ -6102,24 +6114,35 @@ function paintExpensesBody(){
     '<button type="button" class="btn ghost" id="expPettySave" style="width:auto;margin-top:4px;padding:10px 14px">Save start</button>'+
     '<div class="apa-sect-h" style="margin:14px 0 8px"><h3 style="font-size:13px">Cash in (into the envelope)</h3>'+
       '<button type="button" class="btn" id="expCashInAdd" style="width:auto;padding:8px 12px;font-size:13px">Add cash in</button></div>'+
-    '<p style="margin:0 0 8px;font-size:12.5px;color:var(--muted)"><b>Own money</b> here = you put personal cash <em>into</em> the float (boat owes you). '+
-      'If you paid a shop or stew from your pocket <em>without</em> taking float, use the expense’s <b>Paid from → Own money</b> instead.</p>';
+    '<p style="margin:0 0 8px;font-size:12.5px;color:var(--muted)">Total cash in is the <b>sum of lines below</b> — tap a line to edit or × to remove a wrong auto line. '+
+      '<b>Own money</b> = personal cash into the float (boat owes you). Guest tips held in the envelope: add as cash in with source <b>Guest tips held</b>, then pay out via expenses/stews.</p>';
   if(!cashIns.length){
-    h+='<div class="meta" style="margin-bottom:8px">No cash-in lines yet.</div>';
+    h+='<div class="meta" style="margin-bottom:8px">No cash-in lines yet. If you expected Michael €1,800, open the lead → tick <b>Cash received on the boat</b> → Save.</div>';
   } else {
     h+='<div class="list" style="margin-bottom:8px">';
     cashIns.slice().sort(function(a,b){ return String(b.date||"").localeCompare(String(a.date||"")); }).forEach(function(r){
       var ownIn=expCashInIsOwnMoney(r);
+      var kindPill="";
+      if(r.fromLeadId) kindPill='<span class="pill p-black">Lead free cash</span>';
+      else if(r.fromChargeId) kindPill='<span class="pill p-cash">Charge cash</span>';
+      else if(/tip/i.test(String(r.source||""))) kindPill='<span class="pill p-amber">Tips</span>';
+      else if(ownIn) kindPill='<span class="pill p-own">Own money</span>';
+      else kindPill='<span class="pill p-grey">Manual</span>';
       h+='<div class="item apa-row'+(ownIn?' exp-own':'')+'" data-cashin-id="'+esc(r.id)+'" role="button" tabindex="0" style="padding:12px">'+
-        '<div class="top"><div class="title" style="font-size:14.5px">'+esc(r.source||"Cash in")+(ownIn?' <span class="pill p-own">Boat owes me</span>':'')+'</div>'+
+        '<div class="top"><div class="title" style="font-size:14.5px">'+esc(r.source||"Cash in")+' '+kindPill+'</div>'+
           '<div class="amt money" style="font-size:15px">+'+money0(r.amount)+'</div></div>'+
         '<div class="meta"><span>📅 '+esc(fmtDate(r.date)||r.date||"")+'</span>'+
           (r.notes?'<span>'+esc(r.notes)+'</span>':'')+
+          (r.fromLeadId?'<span>auto from lead</span>':'')+
+          (r.fromChargeId?'<span>auto from charge</span>':'')+
         '</div>'+
         '<button type="button" class="apa-x" data-cashin-del="'+esc(r.id)+'" aria-label="Delete">×</button>'+
         '<span class="chev">✎</span></div>';
     });
     h+='</div>';
+    h+='<div class="meta" style="margin-bottom:6px">'+cashIns.length+' line'+(cashIns.length===1?"":"s")+' sum to <b class="money">'+money(cashInTotal)+'</b>'+
+      (Math.abs(cashInTotal-1800)>1?' — if you only took €1,800 cash, delete extra lines (e.g. a €500 charge-cash line if that went on card).':'')+
+    '</div>';
   }
   h+='<div class="meta">Cash in <b class="money">'+money(cashInTotal)+'</b> · available <b class="money">'+money(cashInHand)+'</b> · left boat <b class="money">'+money(cashOut)+'</b> · petty cash <b class="money">'+money(pettyCash)+'</b></div>'+
   '</div>';
@@ -7907,9 +7930,9 @@ function syncChargeCashToPetty(charge){
 function leadCashInId(leadId){ return "lead-cash:"+String(leadId||""); }
 /**
  * Free cash on a split lead is on the boat when:
- *  - cashSettled is explicitly true, OR
- *  - checkbox / default: deposit or final is Paid (invoice paid ≠ cash in hand unless settled)
- * Explicit false always wins (cash not yet on board).
+ *  - cashSettled is explicitly true (checkbox), OR
+ *  - final is Paid (cash usually collected with final, not deposit)
+ * Explicit false always wins. Deposit Paid alone does not post free cash.
  */
 function leadFreeCashIsOnBoat(l){
   if(!l||!leadHasSplit(l)) return false;
@@ -7917,8 +7940,7 @@ function leadFreeCashIsOnBoat(l){
   if(!(cash>0.009)) return false;
   if(l.cashSettled===false||l.cashSettled==="false"||l.cashSettled===0) return false;
   if(l.cashSettled===true||l.cashSettled==="true"||l.cashSettled===1) return true;
-  /* Auto: final or deposit marked Paid → treat free cash as received */
-  return l.fins==="Paid"||l.deps==="Paid";
+  return l.fins==="Paid";
 }
 function expRemoveLeadCashIn(leadId, skipSave){
   if(!leadId||!state.expPetty) return false;
@@ -8434,7 +8456,7 @@ function openSheet(type,id){
         if(r.cashSettled===true) cashOn=true;
         return '<label class="checkrow" id="f_cashSettled_wrap"><input type="checkbox" id="f_cashSettled"'+(cashOn?" checked":"")+'>'+
           '<span><div class="ck">Cash received on the boat</div>'+
-          '<div class="ch">Posts free cash to <b>Ops → Expenses</b> petty cash (Charter income). Tick when you have the cash in hand — deposit/final Paid also auto-posts if this is left on.</div></span></label>';
+          '<div class="ch">Posts free cash to <b>Ops → Expenses</b> petty cash. Tick when cash is in the envelope. Final → <b>Paid</b> also auto-posts (deposit Paid alone does not).</div></span></label>';
       })()+
       '<input type="hidden" id="f_invoiceNet" value="'+esc(r.invoiceNet!=null&&r.invoiceNet!==""?r.invoiceNet:"")+'">'+
       '<input type="hidden" id="f_splitVatTop" value="0">'+
