@@ -75,6 +75,19 @@ if printf '%s\n' "$CHANGED" | grep -qE '^css/main\.css$'; then
   LOCALE_REBUILD=1
 fi
 
+# Tracker is daily-use ops software: any syntax error in index.html kills login.
+if printf '%s\n' "$CHANGED" | grep -qE '^tracker/'; then
+  echo "[pre-commit] Tracker changed — syntax + domain model tests..."
+  if ! command -v node >/dev/null 2>&1; then
+    echo "[pre-commit] ERROR: node required to test tracker." >&2
+    exit 1
+  fi
+  if ! node scripts/test-tracker-models.mjs; then
+    echo "[pre-commit] ERROR: tracker tests failed — aborting (login would break if syntax is bad)." >&2
+    exit 1
+  fi
+fi
+
 if [ "$BRANCH" != "main" ]; then
   if [ "$LOCALE_REBUILD" -eq 1 ]; then
     echo "[pre-commit] EN source / locale data changed — rebuilding locales..."

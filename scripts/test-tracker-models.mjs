@@ -7,10 +7,13 @@
 import { createRequire } from "module";
 import { fileURLToPath } from "url";
 import { dirname, join } from "path";
+import { readFileSync } from "fs";
+import { spawnSync } from "child_process";
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
 const require = createRequire(import.meta.url);
-const M = require(join(__dirname, "../tracker/js/models.js"));
+const root = join(__dirname, "..");
+const M = require(join(root, "tracker/js/models.js"));
 
 let failed = 0;
 function ok(name, cond, detail) {
@@ -21,6 +24,30 @@ function ok(name, cond, detail) {
     console.log("  ✗  " + name + (detail ? " — " + detail : ""));
   }
 }
+
+/** Inline script must parse — a SyntaxError kills login (whole page dead). */
+function checkTrackerHtmlSyntax() {
+  console.log("[Tracker index.html inline JS syntax]");
+  const html = readFileSync(join(root, "tracker/index.html"), "utf8");
+  const m = html.match(/<script(?![^>]*\bsrc=)[^>]*>([\s\S]*?)<\/script>/i);
+  if (!m) {
+    ok("inline script present", false, "no inline <script> found");
+    return;
+  }
+  try {
+    // eslint-disable-next-line no-new-func
+    new Function(m[1]);
+    ok("inline script parses (login/boot can run)", true);
+  } catch (e) {
+    ok("inline script parses (login/boot can run)", false, e && e.message);
+  }
+  const chk = spawnSync(process.execPath, ["--check", join(root, "tracker/js/models.js")], {
+    encoding: "utf8",
+  });
+  ok("models.js syntax", chk.status === 0, chk.stderr || chk.stdout);
+}
+
+checkTrackerHtmlSyntax();
 function near(a, b, eps) {
   eps = eps == null ? 0.02 : eps;
   return Math.abs(Number(a) - Number(b)) <= eps;
