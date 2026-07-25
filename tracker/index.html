@@ -859,7 +859,11 @@ function switchTab(t){
   el("tab-security").classList.toggle("hidden",t!=="security");
   updateFab();
   if(t==="ops") renderOpsHub();
-  if(t==="apa") renderApa();
+  if(t==="apa"){
+    /* Collapse guest dup pots (e.g. Alvaro) + double Paid charges before paint */
+    try{ if(canOps()&&!DEMO) mergeDuplicateApaTrips(); }catch(e){}
+    renderApa();
+  }
   if(t==="diesel") renderDiesel();
   if(t==="stews") renderStews();
   if(t==="expenses") renderExpenses();
@@ -2770,12 +2774,22 @@ function apaLinkedCharges(t){
 }
 /**
  * Paid shortfall charges count as recovered APA funds (same as top-ups).
- * Free cash on the lead is never part of APA — no cashSettled adjustment.
+ * Only the APA base restores the pot — never extra-hours (extAmt).
+ * Free cash on the lead is never part of APA.
  */
+function chargeApaBaseTowardPot(c){
+  if(LY_MODELS&&LY_MODELS.chargeApaBaseTowardPot) return LY_MODELS.chargeApaBaseTowardPot(c);
+  var ext=chargeExtAmt(c);
+  if(c&&c.apaBaseAmt!=null&&c.apaBaseAmt!==""){
+    var b=Math.round((Number(c.apaBaseAmt)||0)*100)/100;
+    if(b>=0) return b;
+  }
+  return Math.max(0, Math.round(((Number(c&&c.amount)||0)-ext)*100)/100);
+}
 function apaPaidCovered(t){
   var s=0;
   apaLinkedCharges(t).forEach(function(c){
-    if(chargePay(c)==="Paid") s+=Number(c.amount)||0;
+    if(chargePay(c)==="Paid") s+=chargeApaBaseTowardPot(c);
   });
   return Math.round(s*100)/100;
 }
@@ -2960,7 +2974,9 @@ function mergeApaTripInto(winner, loser){
     if(String(c.apaTripId||"")===String(loser.id)) c.apaTripId=winner.id;
     if(String(c.id||"")===String(loser.chargeId)&&loser.chargeId) winner.chargeId=winner.chargeId||c.id;
   });
-  removeApaLinkedCharges(loser, false);
+  /* Never removeApaLinkedCharges(loser) after re-point — that deleted the
+     re-pointed Paid charge (matched via loser.chargeId) and left Alvaro/etc. broken. */
+  loser.chargeId="";
   state.apa=(state.apa||[]).filter(function(t){ return !t||t.id!==loser.id; });
   winner.updatedAt=new Date().toISOString();
   return true;
@@ -3190,8 +3206,9 @@ function relinkOrphanApaCharges(){
   return dirty;
 }
 /**
- * One unpaid APA shortfall charge per trip. Drop weaker duplicates (same trip id).
- * Also collapse same-guest unpaid APA charges that have no trip id (after merge).
+ * One APA shortfall charge per trip (paid or pending). Drop weaker duplicates.
+ * Two Paid rows on the same pot double-count “Paid on Charges” and invent leftover €.
+ * Also collapse same-guest orphan APA charges (no trip id) after pot merge.
  */
 function mergeDuplicateApaCharges(){
   if(!state.charters||!state.charters.length) return false;
@@ -3199,12 +3216,13 @@ function mergeDuplicateApaCharges(){
   var byTrip={}, byGuestOrphan={};
   state.charters.forEach(function(c){
     if(!c||c.kind!=="apa") return;
-    if(chargeIsLockedMoney(c)) return;
     if(c.apaTripId){
       var k=String(c.apaTripId);
       if(!byTrip[k]) byTrip[k]=[];
       byTrip[k].push(c);
     } else {
+      /* Orphans: only collapse unlocked (pending) by name — never merge two Paid guests */
+      if(chargeIsLockedMoney(c)) return;
       var g=normName(c.client);
       if(!g) return;
       if(!byGuestOrphan[g]) byGuestOrphan[g]=[];
@@ -3212,7 +3230,10 @@ function mergeDuplicateApaCharges(){
     }
   });
   function score(c){
-    return (Number(c.amount)||0)*10+(chargeExtAmt(c)>0?1000:0)+(c.captainComm?50:0)+(c.inv?20:0);
+    var s=(Number(c.amount)||0)*10+(chargeExtAmt(c)>0?1000:0)+(c.captainComm?50:0)+(c.inv?20:0);
+    if(chargePay(c)==="Paid") s+=5000;
+    if(c.invStatus==="Issued") s+=2000;
+    return s;
   }
   function collapse(list){
     if(!list||list.length<2) return;
@@ -3224,6 +3245,11 @@ function mergeDuplicateApaCharges(){
         win.captainComm=win.captainComm||loser.captainComm;
       }
       if(loser.inv&&!win.inv) win.inv=loser.inv;
+      /* Prefer keeping paid status if loser was paid and win was not */
+      if(chargePay(loser)==="Paid"&&chargePay(win)!=="Paid"){
+        win.payStatus="Paid";
+        win.status="Paid";
+      }
       state.charters=state.charters.filter(function(x){ return !x||x.id!==loser.id; });
       (state.apa||[]).forEach(function(t){
         if(t&&String(t.chargeId)===String(loser.id)) t.chargeId=win.id;
@@ -3540,8 +3566,7 @@ function apaEnsureArrays(t){
   t.diesel.forEach(function(d){ if(d&&!d.id) d.id=uid(); });
   t.dieselLoads.forEach(function(d){ if(d&&!d.id) d.id=uid(); });
   if(!(Number(t.genBurn)>0)) t.genBurn=6;
-  /* Never rewrite dieselPrice here — bulk bunker sync corrupted trip history.
-     Guest €/L is always apaDieselPrice() (pin, or bunker+10c by trip date, or 1.75). */
+  /* Never rewrite dieselPrice here — bulk bunker sync corrupted trip history. */
   return t;
 }
 /**
@@ -3584,20 +3609,18 @@ function dieselGuestRateForDate(dateStr){
 }
 /**
  * Guest diesel €/L for a trip (read-only; never mutates state).
- * Pinned → stored rate.
- * Dated trip → last bunker on/before that day + 10c (else legacy 1.75).
- * Undated + stored price → keep stored (don't apply today's bunker to old messes).
- * New / empty → today's bunker+10c or legacy.
+ * Always prefer the rate stored on the trip — recalculating from bunker
+ * rewrote historical fuel € and made settled APAs show fake leftover balances.
+ * Bunker+10c only when the trip has no price yet (new charter).
  */
 function apaDieselPrice(t){
-  if(t&&t.dieselPricePinned&&Number(t.dieselPrice)>0) return Number(t.dieselPrice);
+  var p=Number(t&&t.dieselPrice);
+  if(p>0) return p;
   var ref=dieselTripRefDate(t);
   if(ref){
     var fromBunker=dieselGuestRateForDate(ref);
     if(fromBunker>0) return fromBunker;
   }
-  var p=Number(t&&t.dieselPrice);
-  if(p>0) return p;
   var today=(typeof localTodayYmd==="function"?localTodayYmd():"")||"";
   return dieselGuestRateForDate(today)||DIESEL_LEGACY_SELL;
 }
@@ -3636,12 +3659,14 @@ function apaDieselCalc(t,r){
   var price=apaDieselPrice(t), burn=apaGenBurn(t);
   var genL=hrs*burn;
   var lit=eng+genL;
-  /* Manual € cost > litres×price > stored amount */
+  /* Freeze ledger €: manual cost → stored amount → litres×price.
+     Prefer stored amount over re-pricing so rate experiments never invent money. */
   var manual=apaNum(r&&r.cost);
+  var stored=apaNum(r&&r.amount);
   var cost=0;
   if(manual>0) cost=manual;
+  else if(stored>0) cost=stored;
   else if(lit>0) cost=lit*price;
-  else cost=apaNum(r&&r.amount);
   return { genL:genL, lit:lit, cost:cost, price:price, burn:burn, eng:eng, port:port, stbd:stbd };
 }
 /** Always write ledger lines onto the trip in state.apa (not a stale copy). */

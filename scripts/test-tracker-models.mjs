@@ -231,6 +231,20 @@ console.log("\n[APA charge + extension same bill]");
   ok("same-bill cash ext: comm €75", near(p.total, 75));
 }
 
+console.log("\n[APA paid → pot: base only, not extension]");
+{
+  const ch = { amount: 1300, apaBaseAmt: 800, extAmt: 500 };
+  ok("pot credit is 800 not 1300", near(M.chargeApaBaseTowardPot(ch), 800));
+}
+{
+  const ch = { amount: 500, extAmt: 500 }; /* extension-only */
+  ok("ext-only toward pot is 0", near(M.chargeApaBaseTowardPot(ch), 0));
+}
+{
+  const ch = { amount: 300 }; /* pure shortfall, no fields */
+  ok("legacy shortfall full amount", near(M.chargeApaBaseTowardPot(ch), 300));
+}
+
 console.log("\n──────────────────────────────────────────────────────────");
 if (failed) {
   console.log("FAILED  " + failed + " check(s)");

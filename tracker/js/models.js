@@ -399,6 +399,21 @@
    * extSettle "invoice" → full amount on formal invoice (bank statement matches one bill).
    * extSettle "cash" → extension is cash (mix if APA base > 0).
    */
+  /**
+   * Slice of a paid APA charge that restores the pot (shortfall only).
+   * Extra charter hours (extAmt) are never pot money — counting them
+   * made settled APAs show a fake positive “remaining”.
+   */
+  function chargeApaBaseTowardPot(c) {
+    if (!c) return 0;
+    var ext = chargeExtAmt(c);
+    if (c.apaBaseAmt != null && c.apaBaseAmt !== "") {
+      var b = round2(num(c.apaBaseAmt));
+      if (b >= 0) return b;
+    }
+    return Math.max(0, round2(num(c.amount) - ext));
+  }
+
   function chargeTotalsFromApaAndExt(apaBase, extAmt, extSettle) {
     apaBase = Math.max(0, round2(num(apaBase)));
     extAmt = Math.max(0, round2(num(extAmt)));
@@ -548,6 +563,7 @@
     chargeExtHours: chargeExtHours,
     chargeExtAmt: chargeExtAmt,
     chargeExtSettle: chargeExtSettle,
+    chargeApaBaseTowardPot: chargeApaBaseTowardPot,
     chargeTotalsFromApaAndExt: chargeTotalsFromApaAndExt,
     chargeCommissionParts: chargeCommissionParts,
     chargeCommissionAmt: chargeCommissionAmt,
