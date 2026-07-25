@@ -87,7 +87,13 @@ console.log("\n[Free cash black — never suggested]");
     whiteVatMode: "include",
     cashAmt: 1652.89,
   };
-  ok("1653 looks suggested", M.cashAmtLooksSuggested(lead));
+  ok("1652.89 looks suggested", M.cashAmtLooksSuggested(lead));
+  ok("free cash refuses 1652.89", M.leadFreeCashAmt(lead) === 0, "got " + M.leadFreeCashAmt(lead));
+  ok("free cash uses pin 1800", near(M.leadFreeCashAmt(lead, 1800), 1800));
+  const copy = Object.assign({}, lead);
+  ok("sanitize clears 1652.89 without pin", M.sanitizeLeadCash(copy, 0) && copy.cashAmt === 0);
+  const copy2 = Object.assign({}, lead);
+  ok("sanitize applies pin 1800", M.sanitizeLeadCash(copy2, 1800) && near(copy2.cashAmt, 1800));
   lead.cashAmt = 1800;
   ok("1800 does not look suggested", !M.cashAmtLooksSuggested(lead));
   ok("client total white+cash", near(M.leadClientTotal(lead), 3800, 0.02));
