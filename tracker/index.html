@@ -4392,7 +4392,7 @@ function openApaLine(kind,id){
       '<div class="cl"><span>Port + starboard</span><b>'+esc(String(apaLit(c.port)))+' + '+esc(String(apaLit(c.stbd)))+' = '+esc(String(apaLit(c.eng)))+' L</b></div>'+
       '<div class="cl"><span>Gen litres ('+esc(String(c.burn))+' L/hr)</span><b>'+esc(String(Math.round(c.genL*10)/10))+' L</b></div>'+
       '<div class="cl"><span>Total litres</span><b>'+esc(String(Math.round(c.lit*10)/10))+' L</b></div>'+
-      '<div class="cl"><span>Rate for '+(useDate?esc(fmtDate(useDate)):"today")+'</span><b>€'+esc(String(c.price))+'/L'+(t.dieselPricePinned?" (pinned)":(b?" · bunker €"+esc(String(b.price)):"+10c":""))+'</b></div>'+
+      '<div class="cl"><span>Rate for '+(useDate?esc(fmtDate(useDate)):"today")+'</span><b>€'+esc(String(c.price))+'/L'+(t.dieselPricePinned?" (pinned)":(b?(" · bunker €"+esc(String(b.price))+" +10c"):""))+'</b></div>'+
       '<div class="cl hi"><span>'+(manual?"Manual cost":"Cost @ €"+esc(String(c.price))+"/L")+'</span><b>'+money(c.cost)+'</b></div>'+
       (c.cost<=0?'<div class="cl" style="color:var(--danger)"><span>Enter port, starboard, gen hours, or a manual € cost</span><b></b></div>':'');
   }
