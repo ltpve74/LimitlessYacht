@@ -1005,11 +1005,13 @@ function renderCharters(){
     var extComm=isChargeCaptainComm(r)?chargeCommissionAmt(r):0;
     var extPill=extA>0
       ?'<span class="pill p-amber">+'+money0(extA)+' ext '+(chargeExtSettle(r)==="cash"?"cash":"on bill")+(extH>0?" · +"+extH+"h":"")+'</span>'
-      :(isExt?'<span class="pill p-amber">Extension</span>':"");
+      :(isExt&&!isApa?'<span class="pill p-amber">Extension</span>':"");
+    var apaBaseShow=isApa&&Number(r.apaBaseAmt)>0?Number(r.apaBaseAmt):(isApa?Number(r.amount)||0:0);
     html+='<div class="item" data-edit-ch="'+esc(r.id)+'">'+
-      '<div class="top"><div class="title">'+esc(r.client||"—")+(isApa?' <span class="pill p-apa">APA</span>':'')+extPill+(apaReq?' <span class="pill p-amber">Invoice request</span>':'')+'</div><div class="amt money">'+money0(r.amount)+'</div></div>'+
+      '<div class="top"><div class="title">'+esc(r.client||"—")+(isApa?' <span class="pill p-apa">APA shortfall</span>':'')+extPill+(apaReq?' <span class="pill p-amber">Invoice request</span>':'')+'</div><div class="amt money">'+money0(r.amount)+'</div></div>'+
       '<div class="meta">'+(r.date?'<span>📅 '+esc(fmtDate(r.date))+'</span>':'')+
         billTypePill(r)+
+        (isApa?'<span class="meta">Pot balance due (not full charter fee)</span>':'')+
         (bt==="invoice"||bt==="mix"?(v.pct?'<span>IVA '+v.pct+'% on invoice part</span>':'<span>Invoice (no VAT)</span>'):'<span>Cash settlement</span>')+
         pill(pay)+payMethodPill(pm)+invPill+splitMeta+
         (extComm>0?'<span class="pill p-green">Comm '+money(extComm)+(extH>0?" · +"+extH+"h":"")+'</span>':'')+
@@ -2669,13 +2671,28 @@ function emptyApaTrip(){
     apaSent:0, topUps:0, dieselPrice:DIESEL_DEFAULT_SELL, genBurn:6,
     expenses:[], provisions:[], diesel:[], dieselLoads:[], notes:"", by:session.who||"Captain", updatedAt:new Date().toISOString() };
 }
-function normName(s){ return String(s||"").trim().toLowerCase().replace(/\s+/g," "); }
+/** Accent-insensitive name key — Álvaro and Alvaro are the same guest. */
+function normName(s){
+  return String(s||"").trim().toLowerCase()
+    .normalize("NFD").replace(/[\u0300-\u036f]/g,"")
+    .replace(/['’]/g,"")
+    .replace(/\s+/g," ");
+}
 function apaDueAmount(t){ return (Number(t&&t.apaSent)||0)+(Number(t&&t.topUps)||0); }
+/**
+ * Link charges only by trip id / chargeId — never by guest name alone.
+ * Name matching made two Alvaro pots fight over one charge and clobber amounts (€33 etc.).
+ */
 function apaIsLinkedCharge(t,c){
   if(!t||!c) return false;
-  if(c.apaTripId&&c.apaTripId===t.id) return true;
-  if(t.chargeId&&c.id===t.chargeId) return true;
-  if(c.kind==="apa"&&normName(c.client)===normName(t.guest)&&normName(t.guest)) return true;
+  if(c.apaTripId&&String(c.apaTripId)===String(t.id)) return true;
+  if(t.chargeId&&String(c.id)===String(t.chargeId)) return true;
+  return false;
+}
+function chargeIsLockedMoney(c){
+  if(!c) return false;
+  if(c.invStatus==="Issued") return true;
+  if(chargePay(c)==="Paid") return true;
   return false;
 }
 function apaLinkedCharges(t){
@@ -2901,6 +2918,8 @@ function mergeDuplicateApaTrips(){
       if(mergeApaTripInto(winner, loser)) dirty=true;
     });
   });
+  if(relinkOrphanApaCharges()) dirty=true;
+  if(mergeDuplicateApaCharges()) dirty=true;
   if(dirty){
     if(isCaptain()) saveExpenses();
     save("apa");
@@ -3055,6 +3074,7 @@ function chargeTotalsFromApaAndExt(apaBase, extAmt, extSettle){
  * Preserves extAmt / extSettle / captainComm so resync does not drop extra hours.
  */
 function applyApaChargeMoney(ch, apaBase){
+  if(chargeIsLockedMoney(ch)) return null; /* never rewrite Issued / Paid amounts */
   var extA=chargeExtAmt(ch);
   var settle=chargeExtSettle(ch);
   var tot=chargeTotalsFromApaAndExt(apaBase, extA, settle);
@@ -3079,6 +3099,73 @@ function applyApaChargeMoney(ch, apaBase){
   }
   return tot;
 }
+/**
+ * Re-point orphan APA charges (no apaTripId) to the only matching trip, if unique.
+ * Never steal a charge already tied to another trip.
+ */
+function relinkOrphanApaCharges(){
+  if(!state.charters||!state.apa) return false;
+  var dirty=false;
+  state.charters.forEach(function(c){
+    if(!c||c.kind!=="apa"||c.apaTripId) return;
+    if(chargeIsLockedMoney(c)) return;
+    var name=normName(c.client);
+    if(!name) return;
+    var matches=(state.apa||[]).filter(function(t){ return t&&normName(t.guest)===name; });
+    if(matches.length===1){
+      c.apaTripId=matches[0].id;
+      if(!matches[0].chargeId) matches[0].chargeId=c.id;
+      dirty=true;
+    }
+  });
+  return dirty;
+}
+/**
+ * One unpaid APA shortfall charge per trip. Drop weaker duplicates (same trip id).
+ * Also collapse same-guest unpaid APA charges that have no trip id (after merge).
+ */
+function mergeDuplicateApaCharges(){
+  if(!state.charters||!state.charters.length) return false;
+  var dirty=false;
+  var byTrip={}, byGuestOrphan={};
+  state.charters.forEach(function(c){
+    if(!c||c.kind!=="apa") return;
+    if(chargeIsLockedMoney(c)) return;
+    if(c.apaTripId){
+      var k=String(c.apaTripId);
+      if(!byTrip[k]) byTrip[k]=[];
+      byTrip[k].push(c);
+    } else {
+      var g=normName(c.client);
+      if(!g) return;
+      if(!byGuestOrphan[g]) byGuestOrphan[g]=[];
+      byGuestOrphan[g].push(c);
+    }
+  });
+  function score(c){
+    return (Number(c.amount)||0)*10+(chargeExtAmt(c)>0?1000:0)+(c.captainComm?50:0)+(c.inv?20:0);
+  }
+  function collapse(list){
+    if(!list||list.length<2) return;
+    list=list.slice().sort(function(a,b){ return score(b)-score(a); });
+    var win=list[0];
+    list.slice(1).forEach(function(loser){
+      if(chargeExtAmt(loser)>chargeExtAmt(win)){
+        win.extAmt=loser.extAmt; win.extSettle=loser.extSettle; win.extHours=loser.extHours||win.extHours;
+        win.captainComm=win.captainComm||loser.captainComm;
+      }
+      if(loser.inv&&!win.inv) win.inv=loser.inv;
+      state.charters=state.charters.filter(function(x){ return !x||x.id!==loser.id; });
+      (state.apa||[]).forEach(function(t){
+        if(t&&String(t.chargeId)===String(loser.id)) t.chargeId=win.id;
+      });
+      dirty=true;
+    });
+  }
+  Object.keys(byTrip).forEach(function(k){ collapse(byTrip[k]); });
+  Object.keys(byGuestOrphan).forEach(function(k){ collapse(byGuestOrphan[k]); });
+  return dirty;
+}
 function syncApaToCharge(t){
   if(!t||!String(t.guest||"").trim()) return null;
   if(!state.charters) state.charters=[];
@@ -3089,11 +3176,15 @@ function syncApaToCharge(t){
   var ch=findApaPendingCharge(t);
   /* Keep a charge if only extension remains (APA pot balanced) */
   if(over<=0){
-    if(ch&&chargeExtAmt(ch)>0){
+    if(ch&&chargeExtAmt(ch)>0&&!chargeIsLockedMoney(ch)){
       applyApaChargeMoney(ch, 0);
       ch.kind="apa";
       ch.apaTripId=t.id;
       ch.client=t.guest||ch.client;
+      t.chargeId=ch.id;
+      return ch;
+    }
+    if(ch&&chargeIsLockedMoney(ch)){
       t.chargeId=ch.id;
       return ch;
     }
@@ -3112,10 +3203,9 @@ function syncApaToCharge(t){
   var x=apaTotals(t);
   var zeroPot=!apaHasPrepaid(t);
   var note=zeroPot
-    ?"APA spend invoice request (no prepaid pot) — synced from APA ledger"
-    :"APA shortfall (overspend) — synced from APA ledger";
+    ?"APA shortfall / spend to invoice (not the full charter fee) — pot "+money0(x.basePot)+" · spent "+money0(x.spent)
+    :"APA shortfall (overspend vs pot) — pot "+money0(x.basePot)+" · spent "+money0(x.spent);
   if(t.dates) note="APA · "+t.dates+". "+note;
-  note+=" · pot "+money0(x.basePot)+" · paid "+money0(x.paidCovered)+" · spent "+money0(x.spent);
   if(!ch){
     ch={
       id:uid(), kind:"apa", apaTripId:t.id, apaZeroPot:zeroPot,
@@ -3127,27 +3217,30 @@ function syncApaToCharge(t){
     };
     state.charters.unshift(ch);
   }
-  /* extAmt / extSettle / captainComm stay on the charge; only apaBase is resynced */
+  /* Always pin trip id — never share one charge across two Alvaro pots */
+  ch.apaTripId=t.id;
+  ch.kind="apa";
+  ch.client=t.guest||ch.client;
+  ch.apaZeroPot=zeroPot;
+  if(!ch.date) ch.date=date;
+  if(chargeIsLockedMoney(ch)){
+    /* Issued/Paid: keep € amount; only refresh notes if still auto-text */
+    if(!ch.notes||/^APA/i.test(ch.notes)||/synced from APA|shortfall|invoice request/i.test(ch.notes)) ch.notes=note;
+    t.chargeId=ch.id;
+    return ch;
+  }
   applyApaChargeMoney(ch, over);
   if(chargeExtAmt(ch)>0){
     note+=" · +"+money0(chargeExtAmt(ch))+" ext ("+(chargeExtSettle(ch)==="cash"?"cash":"on invoice")+")";
   }
-  ch.client=t.guest;
-  ch.kind="apa";
-  ch.apaTripId=t.id;
-  ch.apaZeroPot=zeroPot;
-  if(!ch.date) ch.date=date;
   if(ch.payStatus!=="Paid") ch.payStatus="Pending";
   if(ch.invStatus!=="Issued"&&ch.invStatus!=="Not needed"){
     ch.status=ch.payStatus;
   } else if(ch.invStatus==="Issued") ch.status="Invoiced";
-  if(!ch.notes||/^APA/i.test(ch.notes)||/synced from APA/i.test(ch.notes)||/shortfall/i.test(ch.notes)||/invoice request/i.test(ch.notes)||/pot \(sent/i.test(ch.notes)||/^Cash \(black\)/i.test(ch.notes)||/Cash black/i.test(ch.notes)||/Charter spend to invoice/i.test(ch.notes)||/\+\s*€/.test(ch.notes)||/ext \(cash\)|ext \(on invoice\)/i.test(ch.notes)) ch.notes=note;
+  if(!ch.notes||/^APA/i.test(ch.notes)||/synced from APA/i.test(ch.notes)||/shortfall/i.test(ch.notes)||/invoice request/i.test(ch.notes)||/pot \(sent/i.test(ch.notes)||/^Cash \(black\)/i.test(ch.notes)||/Cash black/i.test(ch.notes)||/Charter spend to invoice/i.test(ch.notes)||/\+\s*€/.test(ch.notes)||/ext \(cash\)|ext \(on invoice\)/i.test(ch.notes)||/not the full charter/i.test(ch.notes)) ch.notes=note;
   ch.by=session.who||ch.by;
   t.chargeId=ch.id;
-  /* No prepaid APA → also raise lead APA invoice request for the manager (ledger part only) */
-  if(syncLeadApaInvoiceRequest(t, over)){
-    /* leads saved by caller via saveApa */
-  }
+  if(syncLeadApaInvoiceRequest(t, over)){ /* leads saved by caller */ }
   return ch;
 }
 /** After Charges payment status changes, recompute APA balance + invoice request. */
