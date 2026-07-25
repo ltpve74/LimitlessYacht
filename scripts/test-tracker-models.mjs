@@ -154,6 +154,36 @@ console.log("\n[Charge commission — explicit only]");
   const off = { amount: 500, captainComm: false, notes: "extension" };
   ok("explicit false wins", !M.isChargeCaptainComm(off));
 }
+/* Extra hour €500 — cash vs invoice commission */
+{
+  const cashH = {
+    amount: 500,
+    billType: "cash",
+    vatMode: "none",
+    captainComm: true,
+    extHours: 1,
+    notes: "Extra 1 hour",
+  };
+  const p = M.chargeCommissionParts(cashH);
+  ok("€500 cash: base is full 500 (no VAT)", near(p.base, 500), "got " + p.base);
+  ok("€500 cash: commission €75", near(p.total, 75), "got " + p.total);
+  ok("€500 cash: mode cash", p.mode === "cash");
+}
+{
+  const invH = {
+    amount: 500,
+    billType: "invoice",
+    vatMode: "include",
+    vatPct: 21,
+    captainComm: true,
+    extHours: 1,
+    notes: "Extra 1 hour",
+  };
+  const p = M.chargeCommissionParts(invH);
+  ok("€500 invoice: base before VAT ≈ 413.22", near(p.base, 500 / 1.21, 0.05), "got " + p.base);
+  ok("€500 invoice: commission ≈ 61.98", near(p.total, (500 / 1.21) * 0.15, 0.05), "got " + p.total);
+  ok("€500 invoice: mode invoice", p.mode === "invoice");
+}
 
 console.log("\n──────────────────────────────────────────────────────────");
 if (failed) {

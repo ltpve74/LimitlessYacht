@@ -379,7 +379,7 @@
         <div class="sumcard"><div class="l">To invoice</div><div class="v money" id="chInvTot">€0</div></div>
         <div class="sumcard"><div class="l">Invoices to issue</div><div class="v" id="chPending">0</div></div>
       </div>
-      <div class="legend">Each charge is <b>Cash</b> (no formal invoice), <b>Invoice</b> (manager PDF), or <b>Mix</b> (cash part + invoice part). Cash is never on a formal invoice — Mix puts only the invoice part on the PDF. Cash goes to the boat float when <b>Paid</b>.</div>
+      <div class="legend">Each charge is <b>Cash</b> (no formal invoice), <b>Invoice</b> (manager PDF), or <b>Mix</b> (cash part + invoice part). Cash is never on a formal invoice — Mix puts only the invoice part on the PDF. Cash goes to the boat float when <b>Paid</b>. <b>Extra hours</b> (e.g. +1h €500) go here as a charge with <b>I get commission</b> — not on the lead or APA.</div>
       <div class="list" id="chList"></div>
     </section>
 
@@ -448,7 +448,7 @@
         <div class="sumcard"><div class="l">Base (ex VAT)</div><div class="v money" id="cmBase">€0</div></div>
         <div class="sumcard"><div class="l">Commission 15%</div><div class="v money" id="cmTot">€0</div></div>
       </div>
-      <div class="legend">Captain leads + charges where you ticked <b>I get commission</b>. Lead: 15% before VAT (split = white ex VAT + cash black). Charge: 15% of that charge before VAT.</div>
+      <div class="legend">Captain leads + charges with <b>I get commission</b> (extra hours live on Charges). Lead: 15% before VAT (split = invoice ex VAT + cash). Charge: <b>Cash</b> → 15% of full amount; <b>Invoice</b> → 15% before VAT; <b>Mix</b> → cash full + invoice before VAT.</div>
       <div class="list" id="cmList"></div>
     </section>
 
@@ -7803,16 +7803,17 @@ function leadCommissionAmt(r){ return leadCommissionParts(r).total; }
 function isChargeCaptainComm(c){ return LY_MODELS?LY_MODELS.isChargeCaptainComm(c):false; }
 function chargeExtHours(c){ return LY_MODELS?LY_MODELS.chargeExtHours(c):0; }
 function chargeCommissionParts(c){
-  var p=LY_MODELS?LY_MODELS.chargeCommissionParts(c):{base:0,total:0,gross:0,hours:0};
-  var empty={base:0,total:0,gross:0,detail:"",hours:0,client:"",date:"",id:"",source:"charge",charge:c};
+  var p=LY_MODELS?LY_MODELS.chargeCommissionParts(c):{base:0,total:0,gross:0,hours:0,mode:""};
+  var empty={base:0,total:0,gross:0,detail:"",hours:0,mode:"",client:"",date:"",id:"",source:"charge",charge:c};
   if(!(p.total>0)&&!(p.base>0)) return empty;
   var bt=chargeBillType(c);
+  var mode=p.mode||(bt==="cash"||(c&&c.vatMode==="none")?"cash":(bt==="mix"?"mix":"invoice"));
   var detail="";
-  if(bt==="cash"||(c&&c.vatMode==="none")) detail=money(p.gross)+" cash → "+CAPTAIN_COMMISSION_PCT+"% = "+money(p.total);
-  else if(bt==="mix") detail="Mix before VAT "+money(p.base)+" → "+CAPTAIN_COMMISSION_PCT+"% = "+money(p.total);
-  else detail=money(p.gross)+" inc. VAT → before VAT "+money(p.base)+" × "+CAPTAIN_COMMISSION_PCT+"% = "+money(p.total);
+  if(mode==="cash") detail=money(p.gross)+" cash (no VAT) × "+CAPTAIN_COMMISSION_PCT+"% = "+money(p.total);
+  else if(mode==="mix") detail="Mix base "+money(p.base)+" (cash full + invoice ex VAT) × "+CAPTAIN_COMMISSION_PCT+"% = "+money(p.total);
+  else detail=money(p.gross)+" invoice → before VAT "+money(p.base)+" × "+CAPTAIN_COMMISSION_PCT+"% = "+money(p.total);
   return {
-    base:p.base, total:p.total, gross:p.gross, detail:detail, hours:p.hours,
+    base:p.base, total:p.total, gross:p.gross, detail:detail, hours:p.hours, mode:mode,
     client:(c&&c.client)||"", date:(c&&c.date)||"", id:(c&&c.id)||"",
     source:"charge", charge:c
   };
@@ -7887,7 +7888,7 @@ function renderCommissions(){
     }
   });
   wrap.innerHTML=html||emptyBox("💸","No commissions yet",
-    "Mark Lead source → Captain, or on a Charge tick <b>I get commission on this charge</b>.");
+    "Mark Lead source → Captain, or log extra hours as a Charge with <b>I get commission</b>.");
   if(el("cmCount")) el("cmCount").textContent=String(items.length);
   if(el("cmBase")) el("cmBase").textContent=money(baseTot);
   if(el("cmTot")) el("cmTot").textContent=money(comTot);
@@ -8009,16 +8010,18 @@ function openSheet(type,id){
     h+='<div id="f_inv_fields_wrap" style="'+(bt0==="cash"?"display:none":"")+'">'+
       '<div class="row2">'+fieldHTML("Invoice (manager)",selInvField(invSt=== "Not needed"?"Not issued":invSt))+fieldHTML("Invoice # (manager)",'<input class="ctl" id="f_inv" value="'+esc(r.inv)+'" placeholder="fill when issued">')+'</div>'+
     '</div>';
+    /* Extra hours belong on Charges — default commission on for new extension-ish notes / kind */
+    var isExtRec=rec&&(r.kind==="extension"||r.chargeKind==="extension"||isChargeCaptainComm(r));
     var commOn=rec?isChargeCaptainComm(r):false;
     var extHDef=apaNum(r.extHours)>0?r.extHours:(chargeExtHours(r)||"");
     h+='<label class="checkrow"><input type="checkbox" id="f_captainComm"'+(commOn?" checked":"")+'>'+
-      '<span><div class="ck">I get commission on this charge</div>'+
-      '<div class="ch">Tick only when you want '+CAPTAIN_COMMISSION_PCT+'% (e.g. same-day extension). Off = no commission. Ops → Commissions uses amount <b>before VAT</b>.</div></span></label>';
+      '<span><div class="ck">I get commission (extra hours / extension)</div>'+
+      '<div class="ch">'+CAPTAIN_COMMISSION_PCT+'% on this charge only. <b>Cash</b> = '+CAPTAIN_COMMISSION_PCT+'% of full amount (no VAT). <b>Invoice</b> = '+CAPTAIN_COMMISSION_PCT+'% before VAT. Example: €500 cash → €75; €500 invoice → ≈€62. Off = no commission (APA shortfalls, etc.).</div></span></label>';
     h+='<div id="f_extHours_wrap" style="'+(commOn?"":"display:none")+'">'+
-      fieldHTML("Extra hours (optional)",'<input class="ctl" id="f_extHours" inputmode="decimal" value="'+esc(extHDef)+'" placeholder="e.g. 3">')+
-      '<p style="margin:-6px 0 12px;font-size:12px;color:var(--muted)">Optional label only (e.g. +3 h). Does not change the amount.</p>'+
+      fieldHTML("Extra hours (optional)",'<input class="ctl" id="f_extHours" inputmode="decimal" value="'+esc(extHDef)+'" placeholder="e.g. 1">')+
+      '<p style="margin:-6px 0 12px;font-size:12px;color:var(--muted)">Label only (e.g. +1 h). Enter the € amount above — that drives commission.</p>'+
     '</div>';
-    h+=fieldHTML("Notes",'<textarea class="ctl" id="f_notes" placeholder="e.g. Extra 3 hours extension">'+esc(r.notes)+'</textarea>');
+    h+=fieldHTML("Notes",'<textarea class="ctl" id="f_notes" placeholder="e.g. Extra 1 hour @ €500">'+esc(r.notes||(isExtRec?"":""))+'</textarea>');
   } else {
     r=rec||{closed:"",name:"",dur:"8h",start:"",end:"",rate:"",price:"",vatMode:"include",vatPct:"21",split:false,dealNet:"",invoiceNet:"",invoiceTotal:"",cashAmt:"",leadSource:"other",splitVatOnTop:true,deps:"Not requested",fins:"Not requested",apas:"Not requested",depPct:"50",apaPct:"",depInv:"",finInv:"",apaInv:"",notes:""};
     var ldur=r.dur||"8h";
@@ -8224,8 +8227,9 @@ function recalcCharge(){
       notes:el("f_notes")?el("f_notes").value:""
     };
     var cp=chargeCommissionParts(draft);
+    var baseLab=cp.mode==="cash"?"Cash base (no VAT)":(cp.mode==="mix"?"Mix base (cash + inv. ex VAT)":"Before VAT");
     html+='<div class="cl hi"><span>Your commission ('+CAPTAIN_COMMISSION_PCT+'%)</span><b>'+money(cp.total)+'</b></div>'+
-      '<div class="meta" style="margin-top:2px">Before VAT '+money(cp.base)+(cp.hours>0?" · +"+cp.hours+" h":"")+'</div>';
+      '<div class="meta" style="margin-top:2px">'+baseLab+' '+money(cp.base)+(cp.hours>0?" · +"+cp.hours+" h":"")+'</div>';
   }
   box.innerHTML=html;
 }
