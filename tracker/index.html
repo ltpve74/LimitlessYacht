@@ -546,7 +546,7 @@ var EXP_POCKET_CAPTAIN="captain";
 /** Monthly expense charge target: boat running vs a charter APA pot. */
 var EXP_CHARGE_TO=["boat","apa"];
 var pushMeta={ server:false, vapidPublicKey:"", endpoint:"" };
-/* Vessel diesel — buy = bunker cost; sell = guest/charge rate. Update both when marina price moves. */
+/* Vessel diesel — defaults only prefill NEW buy/sell rows. Real €/L lives on each bunker & sell. */
 var DIESEL_DEFAULT_BUY=1.74, DIESEL_DEFAULT_SELL=1.85;
 /* Previous defaults — rolled forward once so live Blobs pick up new rates */
 var DIESEL_PREV_BUY=1.75, DIESEL_PREV_SELL=2.20;
@@ -824,7 +824,7 @@ function renderOpsHub(){
   }
   var tiles=[
     {id:"apa",ic:"📒",t:"APA",d:"Guest pot, spend ledger, shortfall charges"},
-    {id:"diesel",ic:"⛽",t:"Diesel",d:"Bunker, tank levels, sell price"},
+    {id:"diesel",ic:"⛽",t:"Diesel",d:"Bunker & sell by date (€/L each load)"},
     {id:"stews",ic:"👩‍✈️",t:"Stews",d:"Roster, day pay, tips (private)"},
     {id:"expenses",ic:"💶",t:"Expenses",d:"Monthly boat ledger + export for manager"},
     {id:"commissions",ic:"💸",t:"Commissions",d:CAPTAIN_COMMISSION_PCT+"% white (ex VAT) + "+CAPTAIN_COMMISSION_PCT+"% cash black on split deals"}
@@ -3951,7 +3951,7 @@ function apaDieselHTML(t){
   var price=apaDieselPrice(t), burn=apaGenBurn(t);
   var used=apaLit(x.dLit);
   var html='<div class="apa-card" style="margin-bottom:12px">'+
-    '<p style="margin:0;font-size:13px;line-height:1.45;color:var(--muted)">Trip consumption charged to this APA pot at the <b>sell</b> rate (€'+esc(String(price))+'/L). Buy/sell prices, bunker loads, and tank levels are on the vessel <b>Diesel</b> tab — that ledger uses these use rows to estimate fuel remaining.</p>'+
+    '<p style="margin:0;font-size:13px;line-height:1.45;color:var(--muted)">Trip fuel is charged at <b>this trip’s</b> sell rate (€'+esc(String(price))+'/L — change in Trip setup). Vessel bunkers each have their own pump €/L on the <b>Diesel</b> tab (prices change over time).</p>'+
   '</div>'+
   '<div class="apa-grid" style="margin-bottom:12px">'+
     '<div class="apa-card"><div class="k">Used (trip)</div><div class="n">'+esc(String(used))+' L</div></div>'+
@@ -4364,15 +4364,19 @@ function dieselLogEntries(){
   dieselEnsure();
   return state.diesel.filter(function(r){ return r&&r.kind&&r.kind!=="settings"; });
 }
-/** APA trip consumption rows as virtual ledger events (read-only). */
+/** APA trip consumption rows as virtual ledger events (read-only). Price = that trip’s sell €/L. */
 function dieselApaEvents(){
   var out=[];
   (state.apa||[]).forEach(function(t){
     if(!t) return;
     apaEnsureArrays(t);
+    var tripSell=apaDieselPrice(t);
     (t.diesel||[]).forEach(function(r){
       var c=apaDieselCalc(t,r);
       if(c.lit<=0) return;
+      /* Prefer rate used for the cost calc (manual cost → effective €/L) */
+      var unit=c.price;
+      if(c.cost>0&&c.lit>0&&apaNum(r.cost)>0) unit=Math.round((c.cost/c.lit)*10000)/10000;
       out.push({
         id:"apa:"+t.id+":"+(r.id||""),
         date:r.date||"",
@@ -4381,7 +4385,9 @@ function dieselApaEvents(){
         guest:t.guest||"",
         tripId:t.id,
         notes:r.notes||"",
-        source:"apa"
+        source:"apa",
+        price:unit>0?unit:tripSell,
+        lineEuro:c.cost
       });
     });
   });
@@ -4394,9 +4400,15 @@ function dieselKindOrder(k){
   if(k==="apa") return 3;
   return 9;
 }
+/** Resolve €/L for a buy/sell log row; prefer stored price, else default for that side. */
+function dieselEntryUnitPrice(e, side){
+  var st=dieselSettings();
+  if(e&&e.price!=null&&e.price!==""&&apaNum(e.price)>0) return apaNum(e.price);
+  return side==="buy"?st.buyPrice:st.sellPrice;
+}
 /**
- * Walk buys / levels / sells + APA use to estimate tank.
- * level = set onboard; buy = +litres (optional onboard before); sell/apa = −litres.
+ * Walk buys / levels / sells + APA use to estimate tank and money.
+ * Money uses each transaction’s own €/L (prices oscillate) — not a single period rate.
  */
 function dieselLedger(){
   var st=dieselSettings();
@@ -4405,7 +4417,7 @@ function dieselLedger(){
     events.push({
       id:e.id, date:e.date||"", kind:e.kind,
       litres:apaNum(e.litres), onboard:e.onboard, hasOnboard:e.onboard!=null&&e.onboard!=="",
-      price:e.price!=null&&e.price!==""?apaNum(e.price):null,
+      price:e.price!=null&&e.price!==""&&apaNum(e.price)>0?apaNum(e.price):null,
       notes:e.notes||"", guest:e.guest||"", source:"log", raw:e
     });
   });
@@ -4416,8 +4428,10 @@ function dieselLedger(){
     return dieselKindOrder(a.kind)-dieselKindOrder(b.kind);
   });
   var tank=null, bought=0, sold=0, apaUsed=0, buyCost=0, sellVal=0, apaSellVal=0;
+  var lastBuyP=null, lastSellP=null, lastApaSellP=null;
   var timeline=[];
   events.forEach(function(ev){
+    var lineEuro=null;
     if(ev.kind==="level"){
       tank=apaNum(ev.onboard);
     } else if(ev.kind==="buy"){
@@ -4426,42 +4440,57 @@ function dieselLedger(){
       else if(tank!=null) tank=tank+lit;
       else tank=lit;
       bought+=lit;
-      var bp=ev.price!=null?ev.price:st.buyPrice;
+      var bp=ev.price!=null&&ev.price>0?ev.price:st.buyPrice;
       buyCost+=lit*bp;
       ev._unitPrice=bp;
+      lastBuyP=bp;
+      lineEuro=Math.round(lit*bp*100)/100;
     } else if(ev.kind==="sell"){
       var litS=apaNum(ev.litres);
       if(tank!=null) tank-=litS;
       sold+=litS;
-      var sp=ev.price!=null?ev.price:st.sellPrice;
+      var sp=ev.price!=null&&ev.price>0?ev.price:st.sellPrice;
       sellVal+=litS*sp;
       ev._unitPrice=sp;
+      lastSellP=sp;
+      lineEuro=Math.round(litS*sp*100)/100;
     } else if(ev.kind==="apa"){
       var litA=apaNum(ev.litres);
       if(tank!=null) tank-=litA;
       apaUsed+=litA;
-      apaSellVal+=litA*st.sellPrice;
-      ev._unitPrice=st.sellPrice;
+      var ap=ev.price!=null&&ev.price>0?ev.price:st.sellPrice;
+      var euro=ev.lineEuro!=null&&ev.lineEuro>0?ev.lineEuro:litA*ap;
+      apaSellVal+=euro;
+      ev._unitPrice=ap;
+      lastApaSellP=ap;
+      lineEuro=Math.round(euro*100)/100;
     }
     timeline.push({
       id:ev.id, date:ev.date, kind:ev.kind, litres:apaLit(apaNum(ev.litres)),
       onboard:ev.hasOnboard||ev.kind==="level"?apaLit(apaNum(ev.onboard)):null,
       tankAfter:tank==null?null:apaLit(tank),
       notes:ev.notes||"", guest:ev.guest||"", tripId:ev.tripId||"",
-      source:ev.source||"log", unitPrice:ev._unitPrice, raw:ev.raw
+      source:ev.source||"log", unitPrice:ev._unitPrice, lineEuro:lineEuro, raw:ev.raw
     });
   });
   var outL=sold+apaUsed;
+  var avgBuy=bought>0?Math.round((buyCost/bought)*1000)/1000:null;
+  var outVal=sellVal+apaSellVal;
+  var avgSellOut=outL>0?Math.round((outVal/outL)*1000)/1000:null;
   return {
-    buyPrice:st.buyPrice, sellPrice:st.sellPrice,
+    /* Defaults for NEW rows only — not “the price for the whole period” */
+    defaultBuy:st.buyPrice, defaultSell:st.sellPrice,
+    lastBuyPrice:lastBuyP, lastSellPrice:lastSellP!=null?lastSellP:lastApaSellP,
+    avgBuyPrice:avgBuy, avgSellPrice:avgSellOut,
+    buyPrice:st.buyPrice, sellPrice:st.sellPrice, /* keep for older callers */
     tank:tank==null?null:apaLit(tank),
     bought:apaLit(bought), sold:apaLit(sold), apaUsed:apaLit(apaUsed),
     out:apaLit(outL),
     buyCost:Math.round(buyCost*100)/100,
     sellVal:Math.round(sellVal*100)/100,
     apaSellVal:Math.round(apaSellVal*100)/100,
-    outVal:Math.round((sellVal+apaSellVal)*100)/100,
-    margin:Math.round(((sellVal+apaSellVal)-buyCost)*100)/100,
+    outVal:Math.round(outVal*100)/100,
+    margin:Math.round((outVal-buyCost)*100)/100,
     timeline:timeline, events:events
   };
 }
@@ -4483,22 +4512,24 @@ function renderDiesel(){
     '<div class="sumcard"><div class="l">Est. on board</div><div class="v"'+(warn?' style="color:var(--danger)"':'')+'>'+(tankKnown?esc(String(L.tank))+" L":"—")+'</div></div>'+
     '<div class="sumcard"><div class="l">Used (APA)</div><div class="v">'+esc(String(L.apaUsed))+' L</div></div>'+
   '</div>'+
-  '<div class="legend">Vessel fuel. <b>Buy</b> = bunker (cost at buy €/L). <b>Level</b> = how much is on board on a date. <b>Sell</b> = diesel sold/charged outside APA. APA trip consumption is pulled in automatically at the <b>sell</b> rate.</div>'+
+  '<div class="legend">Prices move over time — each <b>bunker</b> and <b>sell</b> has its own €/L. Money totals use those line prices (not one fixed rate). Defaults only prefill the next entry. APA trip fuel uses that trip’s sell €/L (Trip setup).</div>'+
   '<div class="apa-grid" style="margin-bottom:12px">'+
-    '<div class="apa-card"><div class="k">Buy € / L</div><div class="n">'+esc(String(L.buyPrice))+'</div></div>'+
-    '<div class="apa-card"><div class="k">Sell € / L</div><div class="n">'+esc(String(L.sellPrice))+'</div></div>'+
+    '<div class="apa-card"><div class="k">Last bunker € / L</div><div class="n">'+(L.lastBuyPrice!=null?esc(String(L.lastBuyPrice)):"—")+'</div></div>'+
+    '<div class="apa-card"><div class="k">Last sell / APA € / L</div><div class="n">'+(L.lastSellPrice!=null?esc(String(L.lastSellPrice)):"—")+'</div></div>'+
+    '<div class="apa-card"><div class="k">Avg buy (weighted)</div><div class="n">'+(L.avgBuyPrice!=null?esc(String(L.avgBuyPrice)):"—")+'</div></div>'+
+    '<div class="apa-card"><div class="k">Avg out (weighted)</div><div class="n">'+(L.avgSellPrice!=null?esc(String(L.avgSellPrice)):"—")+'</div></div>'+
     '<div class="apa-card"><div class="k">Bought</div><div class="n">'+esc(String(L.bought))+' L</div></div>'+
     '<div class="apa-card"><div class="k">Out (sell + APA)</div><div class="n">'+esc(String(L.out))+' L</div></div>'+
-    '<div class="apa-card"><div class="k">Buy cost</div><div class="n money">'+money(L.buyCost)+'</div></div>'+
-    '<div class="apa-card"><div class="k">Sell value</div><div class="n money">'+money(L.outVal)+'</div></div>'+
-    '<div class="apa-card wide bal'+(L.margin<0?' warn':'')+'"><div class="k">Margin (sell value − buy cost)</div><div class="n money">'+money(L.margin)+'</div>'+
-      '<div style="font-size:12px;color:var(--muted);margin-top:6px">APA use '+esc(String(L.apaUsed))+' L @ sell · manual sell '+esc(String(L.sold))+' L</div></div>'+
+    '<div class="apa-card"><div class="k">Buy cost (sum of bunkers)</div><div class="n money">'+money(L.buyCost)+'</div></div>'+
+    '<div class="apa-card"><div class="k">Out value (sum of sales)</div><div class="n money">'+money(L.outVal)+'</div></div>'+
+    '<div class="apa-card wide bal'+(L.margin<0?' warn':'')+'"><div class="k">Margin (out value − buy cost)</div><div class="n money">'+money(L.margin)+'</div>'+
+      '<div style="font-size:12px;color:var(--muted);margin-top:6px">From each line’s €/L · APA '+esc(String(L.apaUsed))+' L · sold '+esc(String(L.sold))+' L · default for new rows €'+esc(String(L.defaultBuy))+' buy / €'+esc(String(L.defaultSell))+' sell</div></div>'+
   '</div>'+
-  '<div class="apa-sect-h"><h3>Prices</h3><button type="button" class="btn ghost" id="dieselEditPrices">Edit prices</button></div>'+
+  '<div class="apa-sect-h"><h3>Defaults for new rows</h3><button type="button" class="btn ghost" id="dieselEditPrices">Edit defaults</button></div>'+
   '<div class="apa-sect-h" style="margin-top:4px"><h3>Log</h3><button type="button" class="btn" id="dieselAdd">Add…</button></div>';
 
   if(!L.timeline.length){
-    html+=emptyBox("⛽","No diesel log yet","Tap + or Add to log a buy, set a tank level, or record a sale. APA consumption appears here once you log trip fuel.");
+    html+=emptyBox("⛽","No diesel log yet","Tap + or Add to log a buy (with that day’s €/L), tank level, or sale. APA trip fuel appears with each trip’s sell rate.");
   } else {
     html+='<div class="list">';
     L.timeline.slice().reverse().forEach(function(row){
@@ -4509,6 +4540,7 @@ function renderDiesel(){
         if(row.onboard!=null) meta+='<span>Before '+esc(String(row.onboard))+' L</span>';
         if(row.tankAfter!=null) meta+='<span>→ '+esc(String(row.tankAfter))+' L</span>';
         if(row.unitPrice!=null) meta+='<span class="money">@ €'+esc(String(row.unitPrice))+'/L</span>';
+        if(row.lineEuro!=null) meta+='<span class="money">'+money(row.lineEuro)+'</span>';
       } else if(row.kind==="level"){
         title="On board"; amt=esc(String(row.onboard!=null?row.onboard:row.litres))+" L"; pillC="p-level"; pillT="Level";
         meta='<span class="pill '+pillC+'">'+pillT+'</span><span>'+esc(fmtDate(row.date))+'</span>';
@@ -4518,11 +4550,13 @@ function renderDiesel(){
         meta='<span class="pill '+pillC+'">'+pillT+'</span><span>'+esc(fmtDate(row.date))+'</span>';
         if(row.tankAfter!=null) meta+='<span>→ '+esc(String(row.tankAfter))+' L</span>';
         if(row.unitPrice!=null) meta+='<span class="money">@ €'+esc(String(row.unitPrice))+'/L</span>';
+        if(row.lineEuro!=null) meta+='<span class="money">'+money(row.lineEuro)+'</span>';
       } else {
         title="APA · "+(row.guest||"trip"); amt="−"+esc(String(row.litres))+" L"; pillC="p-apa"; pillT="APA";
         meta='<span class="pill '+pillC+'">'+pillT+'</span><span>'+esc(fmtDate(row.date))+'</span>';
         if(row.tankAfter!=null) meta+='<span>→ '+esc(String(row.tankAfter))+' L</span>';
-        meta+='<span class="money">@ sell €'+esc(String(L.sellPrice))+'/L</span>';
+        if(row.unitPrice!=null) meta+='<span class="money">@ €'+esc(String(row.unitPrice))+'/L</span>';
+        if(row.lineEuro!=null) meta+='<span class="money">'+money(row.lineEuro)+'</span>';
       }
       var editable=row.source==="log";
       html+='<div class="item'+(editable?' apa-row':'')+'"'+(editable?' data-diesel-edit="'+esc(row.id)+'" role="button" tabindex="0"':'')+'>'+
@@ -7702,13 +7736,18 @@ function openDieselPicker(){
 }
 function openDieselPrices(){
   var st=dieselSettings();
-  var h='<div class="sheethead"><h2>Diesel prices</h2><button type="button" class="sheetx" id="sheetClose" aria-label="Close">×</button></div>';
-  h+='<p style="margin:0 0 12px;font-size:12.5px;color:var(--muted);line-height:1.45"><b>Buy</b> = what you pay at the pump. <b>Sell</b> = what guests are charged (APA consumption uses this by default).</p>';
+  var L=dieselLedger();
+  var h='<div class="sheethead"><h2>Default diesel prices</h2><button type="button" class="sheetx" id="sheetClose" aria-label="Close">×</button></div>';
+  h+='<p style="margin:0 0 12px;font-size:12.5px;color:var(--muted);line-height:1.45">These only <b>prefill the next</b> bunker or sell form. They do <b>not</b> rewrite past loads or the period totals — each log line keeps its own €/L. When you save a bunker/sell, its price becomes the new default.</p>';
+  if(L.lastBuyPrice!=null||L.lastSellPrice!=null){
+    h+='<div class="meta" style="margin-bottom:12px">Last bunker: '+(L.lastBuyPrice!=null?"€"+L.lastBuyPrice+"/L":"—")+
+      ' · Last sell/APA: '+(L.lastSellPrice!=null?"€"+L.lastSellPrice+"/L":"—")+'</div>';
+  }
   h+='<div class="row2">'+
-    fieldHTML("Buy € / litre",moneyField("f_buy_price",st.buyPrice))+
-    fieldHTML("Sell € / litre",moneyField("f_sell_price",st.sellPrice))+
+    fieldHTML("Default buy € / L",moneyField("f_buy_price",st.buyPrice))+
+    fieldHTML("Default sell € / L",moneyField("f_sell_price",st.sellPrice))+
   '</div>';
-  h+='<div class="sheetfoot"><button type="button" class="btn ghost" id="sheetCancel">Cancel</button><button type="button" class="btn" id="sheetSave">Save</button></div>';
+  h+='<div class="sheetfoot"><button type="button" class="btn ghost" id="sheetCancel">Cancel</button><button type="button" class="btn" id="sheetSave">Save defaults</button></div>';
   el("sheetInner").innerHTML=h;
   el("sheetSave").addEventListener("click",function(){
     var s=dieselEnsure();
@@ -7726,28 +7765,32 @@ function openDieselEntry(kind,id){
   if(rec) kind=rec.kind;
   if(kind!=="buy"&&kind!=="level"&&kind!=="sell") kind="buy";
   var st=dieselSettings();
-  var r=rec||{id:uid(),kind:kind,date:new Date().toISOString().slice(0,10),litres:"",onboard:"",price:"",notes:"",guest:""};
+  var Lhint=dieselLedger();
+  var defaultPx=kind==="buy"
+    ?(Lhint.lastBuyPrice!=null?Lhint.lastBuyPrice:st.buyPrice)
+    :(Lhint.lastSellPrice!=null?Lhint.lastSellPrice:st.sellPrice);
+  var r=rec||{id:uid(),kind:kind,date:new Date().toISOString().slice(0,10),litres:"",onboard:"",price:defaultPx,notes:"",guest:""};
   var titles={buy:rec?"Edit buy":"Buy / bunker",level:rec?"Edit level":"Tank level",sell:rec?"Edit sell":"Sell diesel"};
   var h='<div class="sheethead"><h2>'+titles[kind]+'</h2><button type="button" class="sheetx" id="sheetClose" aria-label="Close">×</button></div>';
   if(kind==="buy"){
-    h+='<p style="margin:0 0 12px;font-size:12.5px;color:var(--muted);line-height:1.45">Litres you paid for. Optional <b>on board before</b> anchors the tank (sounding before the hose).</p>';
+    h+='<p style="margin:0 0 12px;font-size:12.5px;color:var(--muted);line-height:1.45">Log this bunker’s litres and <b>that day’s pump price</b>. Totals use each load’s price (prices can change).</p>';
   } else if(kind==="level"){
     h+='<p style="margin:0 0 12px;font-size:12.5px;color:var(--muted);line-height:1.45">Snapshot of how much diesel is on board on this date. Later buys/APA use are applied from here.</p>';
   } else {
-    h+='<p style="margin:0 0 12px;font-size:12.5px;color:var(--muted);line-height:1.45">Diesel sold or charged outside an APA trip. APA trip fuel is logged under APA → Trip fuel.</p>';
+    h+='<p style="margin:0 0 12px;font-size:12.5px;color:var(--muted);line-height:1.45">Diesel sold outside APA. Enter the <b>€/L charged on this sale</b>. APA trip fuel is under APA → Trip fuel (trip sell rate).</p>';
   }
   h+=fieldHTML("Date",'<input class="ctl" id="f_date" type="date" value="'+esc(r.date||"")+'">');
   if(kind==="level"){
     h+=fieldHTML("On board (litres)",decField("f_onboard", r.onboard!=null&&r.onboard!==""?r.onboard:"", "e.g. 1800"));
   } else if(kind==="buy"){
     h+=fieldHTML("Litres bought",decField("f_litres", r.litres!=null&&r.litres!==""?r.litres:"", "e.g. 800"));
-    h+=fieldHTML("Price €/L (optional)",moneyField("f_price", r.price!==""&&r.price!=null?r.price:""));
-    h+='<p style="margin:-8px 0 12px;font-size:12px;color:var(--muted)">Use comma or dot (1,75). Empty = vessel buy rate €'+esc(String(st.buyPrice))+'/L.</p>';
+    h+=fieldHTML("Price €/L (this bunker)",moneyField("f_price", r.price!==""&&r.price!=null?r.price:defaultPx));
+    h+='<p style="margin:-8px 0 12px;font-size:12px;color:var(--muted)">Required for honest cost. Prefills last bunker / default (€'+esc(String(defaultPx))+'). Stored on this line only.</p>';
     h+=fieldHTML("On board before (optional)",decField("f_onboard", r.onboard!=null&&r.onboard!==""?r.onboard:"", "sounding before fill"));
   } else {
     h+=fieldHTML("Litres sold",decField("f_litres", r.litres!=null&&r.litres!==""?r.litres:"", "e.g. 50"));
-    h+=fieldHTML("Price €/L (optional)",moneyField("f_price", r.price!==""&&r.price!=null?r.price:""));
-    h+='<p style="margin:-8px 0 12px;font-size:12px;color:var(--muted)">Use comma or dot (1,75). Empty = vessel sell rate €'+esc(String(st.sellPrice))+'/L.</p>';
+    h+=fieldHTML("Price €/L (this sale)",moneyField("f_price", r.price!==""&&r.price!=null?r.price:defaultPx));
+    h+='<p style="margin:-8px 0 12px;font-size:12px;color:var(--muted)">What you charged for this sale (€'+esc(String(defaultPx))+' prefilled from last sell/default).</p>';
     h+=fieldHTML("Guest / note",'<input class="ctl" id="f_guest" value="'+esc(r.guest||"")+'" placeholder="optional" enterkeyhint="next">');
   }
   h+='<div class="calcbox" id="f_dsl_v_calc"></div>';
@@ -7796,7 +7839,14 @@ function openDieselEntry(kind,id){
       } else {
         obj.guest=(el("f_guest")?el("f_guest").value:"").trim();
       }
-      obj.price=el("f_price")&&el("f_price").value!==""?apaNum(el("f_price").value):"";
+      /* Always store the €/L used for this load (prefill or typed) so history is not rewritten later */
+      var px=el("f_price")&&el("f_price").value!==""?apaNum(el("f_price").value):(kind==="buy"?st.buyPrice:st.sellPrice);
+      if(!(px>0)){ if(el("f_price")) el("f_price").focus(); return; }
+      obj.price=px;
+      /* Roll defaults forward so the next bunker/sell matches the market */
+      var srow=dieselEnsure();
+      if(kind==="buy") srow.buyPrice=px;
+      else srow.sellPrice=px;
     }
     if(rec){
       state.diesel=state.diesel.map(function(x){ return String(x.id)===String(obj.id)?obj:x; });
