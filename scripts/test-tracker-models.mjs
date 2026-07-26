@@ -125,34 +125,42 @@ console.log("\n[Free cash black — never suggested]");
   ok("1800 does not look suggested", !M.cashAmtLooksSuggested(lead));
   ok("client total white+cash", near(M.leadClientTotal(lead), 3800, 0.02));
   lead.cashAmt = 1652.89;
-  /* Guide: deal base − what guest pays on white (default = formal total €2000) */
+  /* Default charge VAT: cash guide = B − white net */
   ok(
-    "suggested cash ≈ dealNet − guest white total",
-    near(M.leadSuggestedCashAmt(lead), 4000 / 1.21 - 2000, 1),
+    "suggested cash ≈ B − white net (charge default)",
+    near(M.leadSuggestedCashAmt(lead), 4000 / 1.21 - 2000 / 1.21, 1),
     "got " + M.leadSuggestedCashAmt(lead)
   );
-  /* 1000 + VAT on top, swallow vs charge */
+  /*
+   * Quote 4000 inc. VAT → B ≈ 3305.79
+   * Invoice 1000 + 21% → T=1210, W=1000, V=210
+   * Charge: final B+V ≈ 3515.79, cash B−W ≈ 2305.79
+   * Swallow: final B, cash B−T ≈ 2095.79
+   */
+  const B = 4000 / 1.21;
   const splitVat = {
     split: true,
     base: 4000,
     price: 4000,
-    vatMode: "none",
-    vatPct: 0,
+    vatMode: "include",
+    vatPct: 21,
+    dealNet: B,
     invoiceNet: 1000,
     invoiceTotal: 1210,
     invoiceVat: 210,
     whiteVatMode: "add",
-    cashAmt: 3000,
-    cashAmtUser: true,
+    cashAmt: 0,
     splitVatOnTop: false,
   };
-  ok("swallow: guest white 1000", near(M.leadWhiteClientPay(splitVat), 1000));
-  ok("swallow: client 4000", near(M.leadClientTotal(splitVat), 4000), "got " + M.leadClientTotal(splitVat));
+  ok("PDF white always 1210", near(M.leadWhiteClientPay(splitVat), 1210));
+  ok("swallow: final = B", near(M.leadSplitFinalPrice(splitVat), B, 0.05), "got " + M.leadSplitFinalPrice(splitVat));
+  ok("swallow: cash = B − T", near(M.leadSuggestedCashAmt(splitVat), B - 1210, 0.05), "got " + M.leadSuggestedCashAmt(splitVat));
   splitVat.splitVatOnTop = true;
-  splitVat.cashAmt = 2790;
-  ok("charge: guest white 1210", near(M.leadWhiteClientPay(splitVat), 1210));
-  ok("charge: client 4000", near(M.leadClientTotal(splitVat), 4000), "got " + M.leadClientTotal(splitVat));
-  ok("charge: suggested cash 2790", near(M.leadSuggestedCashAmt(splitVat), 2790));
+  ok("charge: final = B + V", near(M.leadSplitFinalPrice(splitVat), B + 210, 0.05), "got " + M.leadSplitFinalPrice(splitVat));
+  ok("charge: cash = B − W", near(M.leadSuggestedCashAmt(splitVat), B - 1000, 0.05), "got " + M.leadSuggestedCashAmt(splitVat));
+  splitVat.cashAmt = B - 1000;
+  splitVat.cashAmtUser = true;
+  ok("charge: client = T + cash", near(M.leadClientTotal(splitVat), 1210 + (B - 1000), 0.05));
 }
 
 /* ---- Lead source ---- */
