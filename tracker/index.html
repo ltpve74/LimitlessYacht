@@ -387,9 +387,9 @@
     <section id="tab-leads" class="hidden">
       <div class="summary">
         <div class="sumcard"><div class="l">Deals value</div><div class="v money" id="ldTot">€0</div></div>
-        <div class="sumcard"><div class="l">Invoices requested</div><div class="v" id="ldPending">0</div></div>
+        <div class="sumcard"><div class="l">Invoices open</div><div class="v" id="ldPending">0</div></div>
       </div>
-      <div class="legend">Leads. Mark each as <b>Captain</b> (your deal → 15% commission in Ops) or <b>Other</b>. <b>Split deal:</b> formal invoice amount + cash (off-invoice). Deposit/final = invoice only — cash is never on an invoice.</div>
+      <div class="legend">Leads. <b>Make invoice</b> generates the PDF here (send to manager/accountant or download). Status: <b>Not issued</b> → <b>Issued</b> → <b>Paid</b>. Split: formal white + cash (cash never on a PDF).</div>
       <div class="list" id="ldList"></div>
     </section>
 
@@ -401,7 +401,7 @@
           <div class="sumcard"><div class="l">APA pots</div><div class="v money" id="apaSumPot">€0</div></div>
           <div class="sumcard"><div class="l">Balance left</div><div class="v money" id="apaSumBal">€0</div></div>
         </div>
-        <div class="legend">Captain only. Log spend even with <b>€0 prepaid APA</b> — expenses / diesel create a <b>Charges</b> invoice request for the full amount. Prepaid pot only reduces what is still owed. Vessel fuel balance lives on the <b>Diesel</b> tab.</div>
+        <div class="legend">Captain only. Log spend even with <b>€0 prepaid APA</b> — expenses / diesel create a <b>Charges</b> row for the amount still owed (Make invoice from Charges). Prepaid pot only reduces what is still owed. Vessel fuel: <b>Diesel</b> tab.</div>
         <div class="list" id="apaList"></div>
       </div>
       <div id="apaDetailWrap" class="hidden">
@@ -508,7 +508,8 @@
 <script>
 "use strict";
 var API = "/.netlify/functions/tracker";
-var LEAD_STATUSES = ["Not requested","Requested","Issued","Paid"];
+/* Lead dep/fin/APA invoice status — no “request” step; PDF is made in-app */
+var LEAD_STATUSES = ["Not issued","Issued","Paid"];
 var EXPECTED_PEOPLE = 2;
 var APA_EXP_CATS = ["Drinks & Bar","Dockage / Marina","Crew Tips","Miscellaneous","Fuel / Diesel","Food & Provisions"];
 var APA_PAID_BY = ["APA cash","Ship card","Guest card","Bank transfer"];
@@ -883,7 +884,13 @@ function updateFab(){
 }
 
 /* -------- render -------- */
-function pill(v){ var c="p-grey"; if(v==="Pending"||v==="Requested"||v==="Not issued")c="p-amber"; else if(v==="Invoiced"||v==="Issued")c="p-blue"; else if(v==="Paid")c="p-green"; return '<span class="pill '+c+'">'+esc(v)+'</span>'; }
+function pill(v){ var c="p-grey"; if(v==="Pending"||v==="Not issued")c="p-amber"; else if(v==="Invoiced"||v==="Issued")c="p-blue"; else if(v==="Paid")c="p-green"; return '<span class="pill '+c+'">'+esc(v)+'</span>'; }
+/** Normalize legacy “Not requested” / “Requested” → Not issued */
+function leadInvStatus(s){
+  s=String(s||"").trim();
+  if(s==="Issued"||s==="Paid") return s;
+  return "Not issued";
+}
 function renderAll(){
   function safe(fn){ try{ fn(); }catch(e){ console&&console.error&&console.error(e); } }
   safe(renderCharters); safe(renderLeads); safe(renderSecurity);
@@ -1012,7 +1019,7 @@ function renderCharters(){
     var pm=chargePayMethod(r);
     var cashBoat=chargeCashToBoat(r);
     var invPill=needsInv
-      ?(invSt==="Issued"?'<span class="pill p-green">Invoice issued</span>':'<span class="pill p-amber">Invoice pending</span>')
+      ?(invSt==="Issued"?'<span class="pill p-green">Invoice issued</span>':'<span class="pill p-amber">Invoice open</span>')
       :'<span class="pill p-cash">No invoice</span>';
     var splitMeta="";
     if(bt==="mix"){
@@ -1027,7 +1034,7 @@ function renderCharters(){
       :(isExt&&!isApa?'<span class="pill p-amber">Extension</span>':"");
     var apaBaseShow=isApa&&Number(r.apaBaseAmt)>0?Number(r.apaBaseAmt):(isApa?Number(r.amount)||0:0);
     html+='<div class="item" data-edit-ch="'+esc(r.id)+'">'+
-      '<div class="top"><div class="title">'+esc(r.client||"—")+(isApa?' <span class="pill p-apa">APA shortfall</span>':'')+extPill+(apaReq?' <span class="pill p-amber">Invoice request</span>':'')+'</div><div class="amt money">'+money0(r.amount)+'</div></div>'+
+      '<div class="top"><div class="title">'+esc(r.client||"—")+(isApa?' <span class="pill p-apa">APA shortfall</span>':'')+extPill+(apaReq?' <span class="pill p-amber">Invoice open</span>':'')+'</div><div class="amt money">'+money0(r.amount)+'</div></div>'+
       '<div class="meta">'+(r.date?'<span>📅 '+esc(fmtDate(r.date))+'</span>':'')+
         billTypePill(r)+
         (isApa?'<span class="meta">Pot balance due (not full charter fee)</span>':'')+
@@ -1068,14 +1075,12 @@ function leadMeta(r){
   return '🕐 '+esc(durLabel(r.dur))+(r.start?' · '+esc(fmtDate(r.start)):(r.cdate?' · '+esc(fmtDate(r.cdate)):''));
 }
 function vatModeLabel(m){ return m==="add"?"+ VAT":(m==="include"?"inc. VAT":""); }
-function leadInvTag(label, amount, pct, status, invNo, id, which){
-  var st=status||"Not requested";
-  var cls=st==="Requested"?" need":(st==="Issued"||st==="Paid"?" done":"");
-  var canReq=st==="Not requested"||st===""||!st;
-  var btn=canReq?'<button type="button" class="req" data-req-lead="'+esc(id)+'" data-req-which="'+esc(which)+'">Request invoice</button>':'';
+function leadInvTag(label, amount, pct, status, invNo){
+  var st=leadInvStatus(status);
+  var cls=st==="Not issued"?" need":(st==="Issued"||st==="Paid"?" done":"");
   var inv=invNo?' <span>#'+esc(invNo)+'</span>':'';
   var pctS=(pct!==""&&pct!=null)?' ('+pct+'%)':'';
-  return '<span class="invtag'+cls+'"><b>'+esc(label)+'</b> '+money0(amount)+pctS+' '+pill(st)+inv+btn+'</span>';
+  return '<span class="invtag'+cls+'"><b>'+esc(label)+'</b> '+money0(amount)+pctS+' '+pill(st)+inv+'</span>';
 }
 /**
  * Charter date for list order (YYYY-MM-DD), newest first.
@@ -1115,7 +1120,8 @@ function renderLeads(){
   var wrap=el("ldList"), tot=0, pend=0, html="";
   state.leads.forEach(function(r){
     tot+=(leadHasSplit(r)?leadClientTotal(r):(Number(r.total)||0));
-    [r.deps,r.fins,r.apas].forEach(function(s){ if(s==="Requested")pend++; });
+    /* Open = not yet Issued/Paid (legacy Requested counts as open) */
+    [r.deps,r.fins,r.apas].forEach(function(s){ if(leadInvStatus(s)==="Not issued")pend++; });
     var showApa=(Number(r.apaPct)||0)>0||(Number(r.apa)||0)>0;
     var vatNote=vatModeLabel(r.vatMode);
     if(vatNote&&(Number(r.vatPct)||0)>0) vatNote+=" "+r.vatPct+"%";
@@ -1146,11 +1152,11 @@ function renderLeads(){
       '<div class="top"><div class="title">'+esc(r.name||"—")+'</div><div class="amt money">'+money0(leadHasSplit(r)?leadClientTotal(r):r.total)+'</div></div>'+
       '<div class="meta"><span>'+leadMeta(r)+'</span>'+srcPill+(vatNote?'<span>'+esc(vatNote)+'</span>':'')+splitBits+
         (src==="captain"&&isCaptain()?'<span class="pill p-green">Comm '+money(leadCommissionAmt(r))+'</span>':'')+
-        (pendForLead(r)?'<span class="pill p-amber">'+pendForLead(r)+' invoice'+(pendForLead(r)>1?'s':'')+' requested</span>':'')+'</div>'+
+        (pendForLead(r)?'<span class="pill p-amber">'+pendForLead(r)+' invoice'+(pendForLead(r)>1?'s':'')+' open</span>':'')+'</div>'+
       '<div class="invtags">'+
-        leadInvTag("Deposit",r.dep,r.depPct,r.deps,r.depInv,r.id,"deps")+
-        leadInvTag(finLabel,r.fin,"",r.fins,r.finInv,r.id,"fins")+
-        (showApa?leadInvTag("APA",r.apa,r.apaPct,r.apas,r.apaInv,r.id,"apas"):"")+
+        leadInvTag("Deposit",r.dep,r.depPct,r.deps,r.depInv)+
+        leadInvTag(finLabel,r.fin,"",r.fins,r.finInv)+
+        (showApa?leadInvTag("APA",r.apa,r.apaPct,r.apas,r.apaInv):"")+
       '</div>'+
       (r.notes?'<div class="notes">'+esc(r.notes)+'</div>':'')+
       '<div class="lead-actions">'+
@@ -1163,12 +1169,6 @@ function renderLeads(){
   wrap.innerHTML=html||emptyBox("🌐","No leads logged yet","Tap + when you close a website lead.");
   el("ldTot").textContent=money(tot); el("ldPending").textContent=pend;
   bindEdit(wrap,"data-edit-ld","lead");
-  Array.prototype.forEach.call(wrap.querySelectorAll("[data-req-lead]"),function(btn){
-    btn.addEventListener("click",function(ev){
-      ev.preventDefault(); ev.stopPropagation();
-      requestLeadInvoice(btn.getAttribute("data-req-lead"), btn.getAttribute("data-req-which"));
-    });
-  });
   Array.prototype.forEach.call(wrap.querySelectorAll("[data-copy-lead]"),function(btn){
     btn.addEventListener("click",function(ev){
       ev.preventDefault(); ev.stopPropagation();
@@ -1189,7 +1189,7 @@ function renderLeads(){
   });
 }
 function pendForLead(r){
-  var n=0; [r.deps,r.fins,r.apas].forEach(function(s){ if(s==="Requested")n++; }); return n;
+  var n=0; [r.deps,r.fins,r.apas].forEach(function(s){ if(leadInvStatus(s)==="Not issued")n++; }); return n;
 }
 /** Client name + charter identity only — manager fills amounts on the invoice. */
 function leadInvoiceText(r){
@@ -1319,9 +1319,9 @@ function getLeadIssuedNo(r, kind){
 function setLeadIssuedNo(r, kind, no){
   if(!r.issuedInvoices) r.issuedInvoices={};
   r.issuedInvoices[kind]=no;
-  if(kind==="dep"){ r.depInv=no; if(r.deps==="Not requested"||!r.deps) r.deps="Issued"; }
-  else if(kind==="fin"){ r.finInv=no; if(r.fins==="Not requested"||!r.fins) r.fins="Issued"; }
-  else if(kind==="apa"){ r.apaInv=no; if(r.apas==="Not requested"||!r.apas) r.apas="Issued"; }
+  if(kind==="dep"){ r.depInv=no; if(leadInvStatus(r.deps)==="Not issued") r.deps="Issued"; }
+  else if(kind==="fin"){ r.finInv=no; if(leadInvStatus(r.fins)==="Not issued") r.fins="Issued"; }
+  else if(kind==="apa"){ r.apaInv=no; if(leadInvStatus(r.apas)==="Not issued") r.apas="Issued"; }
 }
 function leadInvoicePeriod(r){
   if(!r) return "";
@@ -2735,17 +2735,6 @@ function buildCharterAgreementPdf(p){
     });
   });
 }
-function requestLeadInvoice(id, which){
-  var rec=state.leads.filter(function(r){return r.id===id;})[0];
-  if(!rec||!which) return;
-  if(rec[which]==="Requested"||rec[which]==="Issued"||rec[which]==="Paid") return;
-  rec[which]="Requested";
-  if(!rec.reqAt) rec.reqAt={};
-  rec.reqAt[which]=new Date().toISOString();
-  rec.reqBy=session.who;
-  renderLeads();
-  save("leads");
-}
 function emptyBox(ic,t,s){ return '<div class="empty"><div class="big">'+ic+'</div><div>'+t+'</div><div style="font-size:12.5px;margin-top:4px">'+s+'</div></div>'; }
 function bindEdit(wrap,attr,type){
   Array.prototype.forEach.call(wrap.querySelectorAll("["+attr+"]"),function(x){
@@ -2853,7 +2842,7 @@ function syncCashReceivedFromCharges(t){
 }
 /**
  * Amount still to invoice on Charges: spent − prepaid pot − paid charges.
- * Works with €0 prepaid APA (full spend becomes the invoice request).
+ * Works with €0 prepaid APA (full spend becomes the charge to invoice).
  */
 function apaOverageAmount(t){
   if(!t) return 0;
@@ -2870,30 +2859,21 @@ function apaLinkedLead(t){
   return (state.leads||[]).filter(function(l){return l.id===id;})[0]||null;
 }
 /**
- * When there was no prepaid APA, flag the lead APA invoice as Requested
- * (same manager flow as requesting APA on Leads) and keep the amount in sync.
+ * Keep linked lead overnight APA € in sync with spend-to-invoice (no “request” status).
+ * Issued/Paid APA on the lead is left alone.
  */
-function syncLeadApaInvoiceRequest(t, billable){
+function syncLeadApaInvoiceAmount(t, billable){
   var lead=apaLinkedLead(t);
   if(!lead||!(billable>0)) return false;
-  /* Cash-from-black trips settle on Charges only — don't overwrite overnight APA invoice */
   if(t.cashFromLead||Number(t.apaSent)<0) return false;
-  /* Prepaid APA already issued/paid on the lead — only Charges shortfall applies */
-  if(lead.apas==="Issued"||lead.apas==="Paid") return false;
+  if(leadInvStatus(lead.apas)==="Issued"||leadInvStatus(lead.apas)==="Paid") return false;
   if(apaHasPrepaid(t)) return false;
-  var dirty=false;
   if(Math.abs((Number(lead.apa)||0)-billable)>0.005){
     lead.apa=billable;
-    dirty=true;
+    if(leadInvStatus(lead.apas)!=="Not issued") lead.apas="Not issued";
+    return true;
   }
-  if(lead.apas!=="Requested"){
-    lead.apas="Requested";
-    if(!lead.reqAt) lead.reqAt={};
-    lead.reqAt.apas=new Date().toISOString();
-    lead.reqBy=session.who||lead.reqBy;
-    dirty=true;
-  }
-  return dirty;
+  return false;
 }
 /**
  * Prefer a single APA pot per lead/guest. Score favors the real ledger
@@ -3158,8 +3138,7 @@ function removeApaLinkedCharges(t, onlyUnpaid){
   t.chargeId=keep?keep.id:"";
 }
 /**
- * Create/update Charges invoice request for amount still owed
- * (full spend when pot is €0, or overspend when prepaid APA exists).
+ * Create/update Charges row for amount still owed (Make invoice from Charges).
  * Paid charges are kept and raise the APA balance.
  */
 function chargeExtAmt(c){ return LY_MODELS&&LY_MODELS.chargeExtAmt?LY_MODELS.chargeExtAmt(c):(Number(c&&c.extAmt)>0?Math.round(Number(c.extAmt)*100)/100:0); }
@@ -3352,10 +3331,10 @@ function syncApaToCharge(t){
   if(!ch.notes||/^APA/i.test(ch.notes)||/synced from APA/i.test(ch.notes)||/shortfall/i.test(ch.notes)||/invoice request/i.test(ch.notes)||/pot \(sent/i.test(ch.notes)||/^Cash \(black\)/i.test(ch.notes)||/Cash black/i.test(ch.notes)||/Charter spend to invoice/i.test(ch.notes)||/\+\s*€/.test(ch.notes)||/ext \(cash\)|ext \(on invoice\)/i.test(ch.notes)||/not the full charter/i.test(ch.notes)) ch.notes=note;
   ch.by=session.who||ch.by;
   t.chargeId=ch.id;
-  if(syncLeadApaInvoiceRequest(t, over)){ /* leads saved by caller */ }
+  if(syncLeadApaInvoiceAmount(t, over)){ /* leads saved by caller */ }
   return ch;
 }
-/** After Charges payment status changes, recompute APA balance + invoice request. */
+/** After Charges payment status changes, recompute APA balance + charge row. */
 function refreshApaFromCharges(){
   if(!canOps()||!state.apa||!state.apa.length) return;
   var leadDirty=false;
@@ -3905,7 +3884,7 @@ function renderApaList(){
         (rangeStr(l)?'<span>'+esc(rangeStr(l))+'</span>':'')+'</div>'+
       '<span class="chev">+</span></div>';
   });
-  wrap.innerHTML=html||emptyBox("⛽","No APA ledgers yet","Tap + to add a trip (APA received can be €0). Log spend → invoice request on Charges.");
+  wrap.innerHTML=html||emptyBox("⛽","No APA ledgers yet","Tap + to add a trip (APA received can be €0). Log spend → shortfall charge on Charges → Make invoice.");
   if(el("apaSumPot")) el("apaSumPot").textContent=money(pot);
   if(el("apaSumBal")) el("apaSumBal").textContent=money(bal);
   Array.prototype.forEach.call(wrap.querySelectorAll("[data-apa-open]"),function(x){
@@ -3996,17 +3975,17 @@ function apaOverviewHTML(t){
   }
   if(over&&ch&&chargePay(ch)!=="Paid"){
     linkBits+='<div class="meta" style="margin-top:6px">'+
-      '<span class="pill p-over">Charges · '+(apaHasPrepaid(t)?"still owe ":"invoice request ")+money(ch.amount)+'</span>'+
+      '<span class="pill p-over">Charges · '+(apaHasPrepaid(t)?"still owe ":"to invoice ")+money(ch.amount)+'</span>'+
       (ch.inv?'<span>#'+esc(ch.inv)+'</span>':'')+
       pill(chargePay(ch))+
-      pill(chargeInv(ch)==="Issued"?"Invoice issued":"Invoice pending")+
+      pill(chargeInv(ch)==="Issued"?"Invoice issued":"Invoice open")+
     '</div>';
   } else if(over){
     linkBits+='<div class="meta" style="margin-top:6px"><span class="pill p-over">'+(apaHasPrepaid(t)?"Shortfall ":"To invoice ")+money(-x.bal)+' — charge on save</span></div>';
   } else if(x.paidCovered>0){
     linkBits+='<div class="meta" style="margin-top:6px"><span class="pill p-apa">Invoiced spend paid '+money(x.paidCovered)+' · balance restored</span></div>';
   } else if(!apaHasPrepaid(t)){
-    linkBits+='<div class="meta" style="margin-top:6px"><span class="pill p-grey">No prepaid APA — log spend to create an invoice request</span></div>';
+    linkBits+='<div class="meta" style="margin-top:6px"><span class="pill p-grey">No prepaid APA — log spend → Charges → Make invoice</span></div>';
   } else {
     linkBits+='<div class="meta" style="margin-top:6px"><span class="pill p-grey">In pot — charge only if you overspend</span></div>';
   }
@@ -4138,11 +4117,11 @@ function apaSetupHTML(t){
   var ch=findApaChargeForTrip(t);
   var over=apaOverageAmount(t);
   return '<div class="apa-card" style="margin-bottom:12px">'+
-    '<p style="margin:0 0 10px;font-size:13.5px;line-height:1.45;color:var(--muted)"><b>APA received can be €0.</b> Any spend (expenses, provisions, diesel) creates a <b>Charges</b> invoice request for the amount still owed. If linked to a lead with no prepaid APA, the lead APA is set to <b>Requested</b> for the manager. Mark charge <b>Paid</b> to restore balance.</p>'+
-    (over&&ch&&chargePay(ch)!=="Paid"?'<p style="margin:0 0 12px;font-size:13px">Invoice request: <b>'+esc(ch.client)+'</b> · '+money(ch.amount)+(ch.inv?' · #'+esc(ch.inv):'')+'</p>':
+    '<p style="margin:0 0 10px;font-size:13.5px;line-height:1.45;color:var(--muted)"><b>APA received can be €0.</b> Spend creates a <b>Charges</b> row for the amount still owed — use <b>Make invoice</b> there to generate the PDF. Mark charge <b>Paid</b> to restore balance.</p>'+
+    (over&&ch&&chargePay(ch)!=="Paid"?'<p style="margin:0 0 12px;font-size:13px">Charge: <b>'+esc(ch.client)+'</b> · '+money(ch.amount)+(ch.inv?' · #'+esc(ch.inv):'')+'</p>':
       over?'<p style="margin:0 0 12px;font-size:13px;color:var(--danger)">To invoice '+money(over)+' — will create charge on save.</p>':
       (apaPaidCovered(t)>0?'<p style="margin:0 0 12px;font-size:13px;color:var(--greenInk)">Paid on Charges '+money(apaPaidCovered(t))+' is included in balance.</p>':
-        '<p style="margin:0 0 12px;font-size:13px;color:var(--muted)">'+(apaHasPrepaid(t)?"Still in pot — no extra charge yet.":"No spend yet — add expenses or diesel to create an invoice request.")+'</p>'))+
+        '<p style="margin:0 0 12px;font-size:13px;color:var(--muted)">'+(apaHasPrepaid(t)?"Still in pot — no extra charge yet.":"No spend yet — add expenses or diesel to open a charge.")+'</p>'))+
     '<button type="button" class="btn" id="apaEditTrip">Edit trip / APA pot</button>'+
     '<button type="button" class="btn ghost" id="apaSyncCharge" style="margin-top:10px">Sync charge now</button>'+
     '<button type="button" class="btn danger" id="apaDelTrip" style="margin-top:10px">Delete this trip</button>'+
@@ -8160,12 +8139,15 @@ function decField(id,val,ph){
   var v=val!=null&&val!==""?String(val):"";
   return '<input class="ctl" id="'+id+'" type="text" inputmode="decimal" enterkeyhint="next" autocomplete="off" autocapitalize="off" spellcheck="false" value="'+esc(v)+'" placeholder="'+esc(ph||"")+'">';
 }
-function selField(id,val){ return '<select class="ctl" id="'+id+'">'+LEAD_STATUSES.map(function(s){return '<option'+(s===val?' selected':'')+'>'+s+'</option>';}).join("")+'</select>'; }
+function selField(id,val){
+  var cur=leadInvStatus(val);
+  return '<select class="ctl" id="'+id+'">'+LEAD_STATUSES.map(function(s){return '<option'+(s===cur?' selected':'')+'>'+s+'</option>';}).join("")+'</select>';
+}
 function leadInvBlock(title, pctId, pctVal, stId, stVal, invId, invVal, showPct){
   var h='<div class="sect">'+esc(title)+' invoice</div>';
-  if(showPct) h+='<div class="row2">'+fieldHTML(title+" %",pctField(pctId,pctVal))+fieldHTML("Status",selField(stId,stVal||"Not requested"))+'</div>';
-  else h+=fieldHTML("Status",selField(stId,stVal||"Not requested"));
-  h+=fieldHTML("Invoice # (manager)",'<input class="ctl" id="'+invId+'" value="'+esc(invVal||"")+'" placeholder="fill when issued">');
+  if(showPct) h+='<div class="row2">'+fieldHTML(title+" %",pctField(pctId,pctVal))+fieldHTML("Status",selField(stId,stVal||"Not issued"))+'</div>';
+  else h+=fieldHTML("Status",selField(stId,stVal||"Not issued"));
+  h+=fieldHTML("Invoice #",'<input class="ctl" id="'+invId+'" value="'+esc(invVal||"")+'" placeholder="set when you issue the PDF">');
   return h;
 }
 function selPayField(val){ var o=["Paid","Pending"]; return '<select class="ctl" id="f_pay">'+o.map(function(s){return '<option'+(s===val?' selected':'')+'>'+s+'</option>';}).join("")+'</select>'; }
@@ -8782,7 +8764,7 @@ function openSheet(type,id){
       '<div class="ch">'+CAPTAIN_COMMISSION_PCT+'% of the <b>extension €</b> only (not APA spend). Cash ext → full amount; on invoice → before VAT. e.g. €500 cash → €75.</div></span></label>';
     h+=fieldHTML("Notes",'<textarea class="ctl" id="f_notes" placeholder="e.g. APA spend + 1h extension @ €500">'+esc(r.notes||"")+'</textarea>');
   } else {
-    r=rec||{closed:"",name:"",dur:"8h",start:"",end:"",rate:"",price:"",vatMode:"include",vatPct:"21",split:false,dealNet:"",invoiceNet:"",invoiceTotal:"",cashAmt:"",leadSource:"other",splitVatOnTop:true,deps:"Not requested",fins:"Not requested",apas:"Not requested",depPct:"50",apaPct:"",depInv:"",finInv:"",apaInv:"",notes:""};
+    r=rec||{closed:"",name:"",dur:"8h",start:"",end:"",rate:"",price:"",vatMode:"include",vatPct:"21",split:false,dealNet:"",invoiceNet:"",invoiceTotal:"",cashAmt:"",leadSource:"other",splitVatOnTop:true,deps:"Not issued",fins:"Not issued",apas:"Not issued",depPct:"50",apaPct:"",depInv:"",finInv:"",apaInv:"",notes:""};
     var ldur=r.dur||"8h";
     var vMode=r.vatMode||(rec?"none":"include");
     var vPct=(r.vatPct!=null&&r.vatPct!=="")?r.vatPct:(vMode==="none"?"":"21");
@@ -8853,8 +8835,8 @@ function openSheet(type,id){
       '<input type="hidden" id="f_invoiceNet" value="'+esc(r.invoiceNet!=null&&r.invoiceNet!==""?r.invoiceNet:"")+'">'+
     '</div>';
     h+='<div class="calcbox" id="f_calc"></div>';
-    h+='<div class="sect">Invoices for manager</div>';
-    h+='<p style="margin:-4px 0 12px;font-size:12.5px;color:var(--muted);line-height:1.45"><b>Split:</b> deposit &amp; final = formal (invoiced) amounts only. Cash is never on an invoice. Overnight APA % is separate. Set status to <b>Requested</b> for the manager.</p>';
+    h+='<div class="sect">Invoices (generate in app)</div>';
+    h+='<p style="margin:-4px 0 12px;font-size:12.5px;color:var(--muted);line-height:1.45">Use <b>Make invoice</b> to create the PDF (share/download). Status: Not issued → Issued → Paid. <b>Split:</b> deposit/final = formal white only — cash never on a PDF.</p>';
     h+=leadInvBlock("Deposit","f_dep",r.depPct,"f_deps",r.deps,"f_depInv",r.depInv,true);
     h+=leadInvBlock("Final","","","f_fins",r.fins,"f_finInv",r.finInv,false);
     h+=leadInvBlock("APA (overnight)","f_apa",r.apaPct,"f_apas",r.apas,"f_apaInv",r.apaInv,true);
@@ -9209,11 +9191,7 @@ function saveSheet(type,rec){
     var depPct=el("f_dep").value===""?"":apaNum(el("f_dep").value);
     var apaPct=el("f_apa").value===""?"":apaNum(el("f_apa").value);
     var parts=leadParts(sp, depPct, apaPct);
-    var deps=el("f_deps").value, fins=el("f_fins").value, apas=el("f_apas").value;
-    var reqAt=(rec&&rec.reqAt)?Object.assign({},rec.reqAt):{};
-    [["deps",deps],["fins",fins],["apas",apas]].forEach(function(p){
-      if(p[1]==="Requested"&&(!reqAt[p[0]]||(rec&&rec[p[0]]!=="Requested"))) reqAt[p[0]]=new Date().toISOString();
-    });
+    var deps=leadInvStatus(el("f_deps").value), fins=leadInvStatus(el("f_fins").value), apas=leadInvStatus(el("f_apas").value);
     var leadSrcRaw=(el("f_leadSource")&&el("f_leadSource").value)||"other";
     var leadSrc=leadSrcRaw==="captain"?"captain":"other";
     var o2={ id:rec?rec.id:uid(), closed:el("f_closed").value, name:el("f_name").value.trim(),
@@ -9233,7 +9211,6 @@ function saveSheet(type,rec){
       depPct:depPct, dep:parts.dep, deps:deps, depInv:el("f_depInv").value.trim(),
       fin:parts.fin, fins:fins, finInv:el("f_finInv").value.trim(),
       apaPct:apaPct, apa:parts.apa, apas:apas, apaInv:el("f_apaInv").value.trim(),
-      reqAt:reqAt, reqBy:session.who,
       notes:el("f_notes").value.trim(), by:session.who,
       createdAt:(rec&&rec.createdAt)?rec.createdAt:new Date().toISOString(),
       updatedAt:new Date().toISOString() };
@@ -9888,7 +9865,7 @@ function applyData(d, opts){
 var SHEET_LEAD_ID="lead-joel-freeland-2026-07";
 var SHEET_TRIP_ID="apa-joel-freeland-2026-07";
 function sheetJoelLead(){
-  return {id:SHEET_LEAD_ID,closed:"2026-07-16",name:"Joel Freeland",dur:"multi",start:"2026-07-17",end:"2026-07-19",rate:4000,price:"",days:3,base:12000,net:9917.36,vat:2082.64,total:12000,vatMode:"include",vatPct:21,depPct:50,dep:6000,deps:"Paid",depInv:"DEP-JF-01",fin:6000,fins:"Paid",finInv:"FIN-JF-01",apaPct:20,apa:2400,apas:"Issued",apaInv:"APA-JF-2400",reqAt:{apas:"2026-07-16T09:00:00Z"},notes:"APA ledger trip 17–19/07 — from Limitless APA Tracker spreadsheet",by:"Captain"};
+  return {id:SHEET_LEAD_ID,closed:"2026-07-16",name:"Joel Freeland",dur:"multi",start:"2026-07-17",end:"2026-07-19",rate:4000,price:"",days:3,base:12000,net:9917.36,vat:2082.64,total:12000,vatMode:"include",vatPct:21,depPct:50,dep:6000,deps:"Paid",depInv:"DEP-JF-01",fin:6000,fins:"Paid",finInv:"FIN-JF-01",apaPct:20,apa:2400,apas:"Issued",apaInv:"APA-JF-2400",notes:"APA ledger trip 17–19/07 — from Limitless APA Tracker spreadsheet",by:"Captain"};
 }
 function sheetJoelApaTrip(){
   var ck="lead:"+SHEET_LEAD_ID;
@@ -9928,8 +9905,8 @@ function seedDemo(){
   ];
   state.leads=[
     sheetJoelLead(),
-    {id:uid(),closed:"2026-07-15",name:"Acme Corp (website form)",dur:"multi",start:"2026-08-10",end:"2026-08-12",rate:5000,price:"",days:3,base:15000,net:12396.69,vat:2603.31,total:15000,vatMode:"include",vatPct:21,depPct:50,dep:7500,deps:"Requested",depInv:"",fin:7500,fins:"Not requested",finInv:"",apaPct:30,apa:4500,apas:"Not requested",apaInv:"",reqAt:{deps:"2026-07-15T10:00:00Z"},notes:"Overnight charter — APA applies; price includes VAT",by:"Captain"},
-    {id:uid(),closed:"2026-07-17",name:"Rossi family (website)",dur:"6h",start:"2026-07-25",end:"",rate:3500,price:3500,days:1,base:3500,net:3500,vat:735,total:4235,vatMode:"add",vatPct:21,depPct:50,dep:2117.5,deps:"Issued",depInv:"INV-2101",fin:2117.5,fins:"Not requested",finInv:"",apaPct:"",apa:0,apas:"Not requested",apaInv:"",notes:"6-hour day charter, VAT added on top",by:"Captain"}
+    {id:uid(),closed:"2026-07-15",name:"Acme Corp (website form)",dur:"multi",start:"2026-08-10",end:"2026-08-12",rate:5000,price:"",days:3,base:15000,net:12396.69,vat:2603.31,total:15000,vatMode:"include",vatPct:21,depPct:50,dep:7500,deps:"Not issued",depInv:"",fin:7500,fins:"Not issued",finInv:"",apaPct:30,apa:4500,apas:"Not issued",apaInv:"",notes:"Overnight charter — APA applies; price includes VAT",by:"Captain"},
+    {id:uid(),closed:"2026-07-17",name:"Rossi family (website)",dur:"6h",start:"2026-07-25",end:"",rate:3500,price:3500,days:1,base:3500,net:3500,vat:735,total:4235,vatMode:"add",vatPct:21,depPct:50,dep:2117.5,deps:"Issued",depInv:"INV-2101",fin:2117.5,fins:"Not issued",finInv:"",apaPct:"",apa:0,apas:"Not issued",apaInv:"",notes:"6-hour day charter, VAT added on top",by:"Captain"}
   ];
   state.devices=[
     {id:"cpt-luigi-01",who:"Captain",browser:"Safari · iPhone",ip:"88.16.x.x",country:"ES",firstSeen:"2026-07-10T09:12:00Z",lastSeen:"2026-07-20T08:40:00Z",trusted:true},

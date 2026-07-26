@@ -651,14 +651,6 @@ function buildNotices(coll, prevRows, nextRows, who) {
         ["fins", "Final balance"],
         ["apas", "APA"],
       ]) {
-        if (lead[field] === "Requested" && old[field] !== "Requested") {
-          notices.push({
-            title: "Invoice requested",
-            body: `${label} · ${name} (by ${who})`,
-            tag: `lead-req-${lead.id}-${field}`,
-            url: "/tracker/",
-          });
-        }
         if (lead[field] === "Issued" && old[field] !== "Issued") {
           const invNo =
             field === "deps" ? lead.depInv : field === "fins" ? lead.finInv : lead.apaInv;
@@ -689,7 +681,7 @@ function buildNotices(coll, prevRows, nextRows, who) {
       const isApa = ch.kind === "apa" || !!ch.apaTripId;
       if (!old) {
         notices.push({
-          title: isApa ? "APA invoice request" : "New card charge",
+          title: isApa ? "APA shortfall charge" : "New card charge",
           body: `${client} · €${Number(ch.amount) || 0} (by ${who})`,
           tag: `ch-new-${ch.id}`,
           url: "/tracker/",
