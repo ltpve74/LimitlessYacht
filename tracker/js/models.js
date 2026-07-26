@@ -110,18 +110,46 @@
 
   /* ---------- free cash black (locked: never suggested ex-VAT) ---------- */
 
+  /**
+   * What the guest pays for the white slice.
+   * Charge VAT (splitVatOnTop): invoice total (e.g. €1000 + 21% = €1210).
+   * Swallow VAT: invoice net only (€1000) — boat absorbs IVA on that line.
+   * Formal PDF still uses invoiceTotal / invoiceNet separately.
+   */
+  function leadWhiteClientPay(l) {
+    if (!l) return 0;
+    var total = num(l.invoiceTotal);
+    var net = num(l.invoiceNet);
+    var vat = num(l.invoiceVat);
+    if (!(total > 0) && net > 0) {
+      total = moneyFromBase(net, l.whiteVatMode === "add" ? "add" : "include", l.vatPct).total;
+      if (!(vat > 0)) vat = round2(total - net);
+    }
+    if (!(net > 0) && total > 0) {
+      net = moneyFromBase(total, l.whiteVatMode || "include", l.vatPct).net;
+      if (!(vat > 0)) vat = round2(total - net);
+    }
+    /* Default charge VAT (guest pays formal total). Swallow only when explicitly false. */
+    var swallow =
+      l.splitVatOnTop === false ||
+      l.splitVatOnTop === 0 ||
+      l.splitVatOnTop === "0" ||
+      l.splitVatOnTop === "false" ||
+      l.splitVatOnTop === "swallow";
+    if (swallow && net > 0 && total > net + 0.5) return round2(net);
+    return round2(total > 0 ? total : net);
+  }
+
   function leadSuggestedCashAmt(l) {
     if (!l) return null;
     var base = num(l.base) || num(l.price) || 0;
     if (!(base > 0) && l.rate && l.days) base = num(l.rate) * num(l.days);
     if (!(base > 0)) return null;
     var ref = moneyFromBase(base, l.vatMode || "include", l.vatPct);
-    var wNet = num(l.invoiceNet);
-    if (!(wNet > 0) && num(l.invoiceTotal) > 0) {
-      wNet = moneyFromBase(num(l.invoiceTotal), l.whiteVatMode || "include", l.vatPct).net;
-    }
-    if (!(wNet > 0) && !(ref.net > 0)) return null;
-    return round2(Math.max(0, ref.net - wNet));
+    /* Cash fills the deal base after what the guest actually pays on white */
+    var wPay = leadWhiteClientPay(l);
+    if (!(wPay > 0) && !(ref.net > 0)) return null;
+    return round2(Math.max(0, ref.net - wPay));
   }
 
   function cashAmtLooksSuggested(l) {
@@ -172,24 +200,28 @@
     } else {
       return false;
     }
-    var white = num(l.invoiceTotal);
-    if (!(white > 0) && num(l.invoiceNet) > 0) {
-      white = moneyFromBase(num(l.invoiceNet), l.whiteVatMode === "add" ? "add" : "include", l.vatPct).total;
-    }
-    l.total = round2(white + num(l.cashAmt));
+    l.total = round2(leadWhiteClientPay(l) + num(l.cashAmt));
     return true;
   }
 
-  /** Client total for split = white invoice total + free cash (never dealNet). */
+  /**
+   * Client total for split = guest white pay + stored cash.
+   * Does not use leadFreeCashAmt (that zeros “suggested” deal-remainder cash for APA safety).
+   * Still strips classic white-net corruption (€1.652,89) unless cashAmtUser.
+   */
   function leadClientTotal(l) {
     if (!l) return 0;
     if (!leadHasSplit(l)) return round2(num(l.total) || num(l.base) || num(l.price));
-    var white = num(l.invoiceTotal);
-    if (!(white > 0) && num(l.invoiceNet) > 0) {
-      white = moneyFromBase(num(l.invoiceNet), l.whiteVatMode === "add" ? "add" : "include", l.vatPct).total;
+    var cash = round2(num(l.cashAmt));
+    if (cash > 0 && !l.cashAmtUser) {
+      var wNet = num(l.invoiceNet);
+      if (wNet > 0 && Math.abs(cash - wNet) < 1.01) cash = 0;
+      else if (num(l.invoiceTotal) > 0) {
+        var wn = moneyFromBase(num(l.invoiceTotal), l.whiteVatMode || "include", l.vatPct || 21).net;
+        if (wn > 0 && Math.abs(cash - wn) < 1.01) cash = 0;
+      }
     }
-    var cash = leadFreeCashAmt(l);
-    return round2(white + cash);
+    return round2(leadWhiteClientPay(l) + cash);
   }
 
   /* ---------- commission (locked) ---------- */
@@ -544,6 +576,7 @@
     isCaptainLead: isCaptainLead,
     constrainLeadSource: constrainLeadSource,
     constrainBillType: constrainBillType,
+    leadWhiteClientPay: leadWhiteClientPay,
     leadSuggestedCashAmt: leadSuggestedCashAmt,
     cashAmtLooksSuggested: cashAmtLooksSuggested,
     leadFreeCashAmt: leadFreeCashAmt,
