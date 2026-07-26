@@ -2325,6 +2325,52 @@ def check_shared_assets(r: Runner) -> None:
         and '.cal-enquire-link.is-disabled' in css,
     )
     r.check(
+        'bookable calendar days are styled unmistakably (not bare text)',
+        css is not None
+        and '.cal-cell.free' in css
+        and 'box-shadow:inset0001.5pxrgba(201,168,76,.55)' in re.sub(r'\s+', '', css)
+        and 'background:rgba(201,168,76,.14)' in re.sub(r'\s+', '', css),
+    )
+    r.check(
+        'carousel position counter is readable on mobile',
+        css is not None
+        and '.carousel-pos' in css
+        and 'aria-live="polite"' in index_html
+        and index_html.count('class="carousel-pos"') >= 2,
+    )
+    r.check(
+        'calendar opens on first month with free dates after availability loads',
+        'function firstOpenMonthIndex' in index_html
+        and 'function jumpViewToOpenMonth' in index_html
+        and 'jumpViewToOpenMonth()' in index_html
+        and 'userPagedCal' in index_html,
+    )
+    r.check(
+        'sticky WhatsApp CTA surfaces when calendar dates are selected',
+        'id="calStickyCta"' in index_html
+        and 'function syncStickyCta' in index_html
+        and 'data-label-one="Enquire on WhatsApp for {date}"' in index_html
+        and 'ly_cal_sticky_whatsapp' in index_html
+        and css is not None
+        and '.cal-sticky-cta' in css
+        and '--ly-cookie-h' in css,
+    )
+    r.check(
+        'bottom chrome offsets keep cookie banner clear of calendar/sticky CTA',
+        'LY_syncBottomChrome' in index_html
+        and 'ly-cookie-open' in index_html
+        and css is not None
+        and 'html.ly-cookie-open #availability' in css
+        and 'html.ly-cal-sticky-open #availability' in css,
+    )
+    r.check(
+        'View Dates CTA has full locale pairs (no partial Dates→Daten)',
+        "View Dates" in (read_file('i18n/locales/de.py') or '')
+        and 'Termine ansehen' in (read_file('i18n/locales/de.py') or '')
+        and 'Ver fechas' in (read_file('i18n/locales/es.py') or '')
+        and 'Voir les dates' in (read_file('i18n/locales/fr.py') or ''),
+    )
+    r.check(
         'calendar legend swatches are reliable at narrow widths',
         css is not None
         and '.cal-legend-swatch' in css
