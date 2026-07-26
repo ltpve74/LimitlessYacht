@@ -1215,7 +1215,8 @@ function leadSplitSummaryHTML(r){
   h+='<div class="ls-note">'+
     (swallow?"Small VAT swallowed · final ≈ base":"Small VAT charged · final ≈ base + white VAT")+
     ' · client <b class="money">'+money0(finalTot)+'</b>'+
-    ' · cash '+(onBoat?"on boat":"not on boat yet")+
+    ' · free cash '+(onBoat?"received (petty)":"still on lead")+
+    ' · not APA pot'+
   '</div></div>';
   return h;
 }
@@ -2901,8 +2902,8 @@ function apaTripCanonicalScore(t){
   var s=0;
   if(typeof SHEET_TRIP_ID!=="undefined"&&t.id===SHEET_TRIP_ID) s+=10000;
   if(Number(t.apaSent)>0) s+=800;
-  /* Cash black pot is intentional — not a “empty shell” to discard */
-  if(t.cashFromLead||Number(t.apaSent)<0) s+=450;
+  /* Legacy −cash shells score lower so real prepaid pots win merge (then strip) */
+  if(t.cashFromLead||Number(t.apaSent)<0) s-=200;
   if(t.linkInvNo) s+=300;
   if(t.linkSourceId||t.clientKey) s+=100;
   s+=x.spent*2;
@@ -8644,8 +8645,9 @@ function selLeadSourceField(val){
 }
 /**
  * Deposit / final / overnight APA amounts for a lead.
- * With black split: deposit + final = white invoice total only (cash is not invoiced formally).
- * Cash is tracked on a captain APA ledger (negative pot = cash owed).
+ * Split: deposit + final = formal white PDF only (never free cash).
+ * Free cash black stays on the lead (cashAmt) → boat petty when received.
+ * APA pot is only prepaid guest spend (fuel/provisions) — not charter fee cash.
  */
 function leadParts(sp, depPctRaw, apaPctRaw){
   var depPct=Number(depPctRaw)||0, apaPct=Number(apaPctRaw)||0;
@@ -8748,12 +8750,12 @@ function recalcLead(){
       html+='<div class="cl"><span>Swallow small VAT → final B</span><b>'+money(finalP)+'</b></div>';
       html+='<div class="meta" style="margin-top:2px">Exact cash B − T = '+money(exactCash)+' · prefill ↑€50 = '+money0(cashRounded)+'</div>';
     }
-    html+='<div class="cl"><span>Cash black (editable)</span><b>'+money(sp.cashAmt)+'</b></div>';
-    html+='<div class="cl hi"><span>Client pays (PDF + cash)</span><b>'+money(p.client)+'</b></div>';
-    html+='<div class="meta" style="margin-top:4px">Deposit/final % on formal white T only. Cash is never on an invoice.</div>';
+    html+='<div class="cl"><span>Free cash (on this lead · not APA)</span><b>'+money(sp.cashAmt)+'</b></div>';
+    html+='<div class="cl hi"><span>Client pays (PDF + free cash)</span><b>'+money(p.client)+'</b></div>';
+    html+='<div class="meta" style="margin-top:4px">Free cash is charter fee on the <b>lead</b>. Deposit/final = white PDF only. APA pot is only guest spend if you open one.</div>';
     html+='<div class="cl split"><span>Deposit '+(depPct||0)+'% of formal white</span><b>'+money(p.dep)+'</b></div>'+
       '<div class="cl"><span>Final (rest of formal white)</span><b>'+money(p.fin)+'</b></div>'+
-      '<div class="cl"><span>Cash black (boat)</span><b>'+money(p.cash)+'</b></div>';
+      '<div class="cl"><span>Free cash → petty when “on boat”</span><b>'+money(p.cash)+'</b></div>';
   } else {
     html+='<div class="cl"><span>'+head+' (charter)</span><b>'+money(base)+'</b></div>';
     if(sp.full.vatMode!=="none"&&sp.full.vatPct>0){
@@ -8863,7 +8865,7 @@ function openSheet(type,id){
     h+='<p style="margin:-6px 0 12px;font-size:12.5px;color:var(--muted);line-height:1.4">Charter quote for the deal base. For <b>€4,000 without VAT</b> use quote <b>€4,000</b> and VAT = <b>No VAT</b> (or “included” only if 4k already has VAT). Split cash uses this base to suggest free cash.</p>';
     h+='<label class="checkrow"><input type="checkbox" id="f_split"'+(splitOn?" checked":"")+'>'+
       '<span><div class="ck">Split cash deal (white + black)</div>'+
-      '<div class="ch">Formal white invoice + free cash. Choose whether the guest pays white VAT or you swallow it. Deposit/final follow the formal white total.</div></span></label>';
+      '<div class="ch">Formal white invoice + free cash <b>on this lead</b> (charter fee — not the APA pot). Deposit/final = white only. Tick “cash on boat” → Expenses petty.</div></span></label>';
     h+='<div id="f_splitwrap"'+(splitOn?"":" class=\"hidden\"")+'>'+
       '<div class="apa-card" style="margin:0 0 12px;padding:10px 12px">'+
         '<div class="meta">Deal base (cash guide)</div>'+
@@ -9847,7 +9849,7 @@ function applyData(d, opts){
   state.devices=d.devices||[]; state.log=d.log||[];
   if(canOps() && Array.isArray(d.apa)){
     if(fromPoll&&localSaveIsFresh("apa")){
-      /* keep local APA pots (cash black pin) while save settles */
+      /* keep local APA pots while save settles */
     } else if(fromPoll){
       state.apa=mergeExpensesById(state.apa||[], d.apa);
     } else {
