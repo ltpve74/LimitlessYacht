@@ -1082,6 +1082,21 @@ function leadInvTag(label, amount, pct, status, invNo){
   var pctS=(pct!==""&&pct!=null)?' ('+pct+'%)':'';
   return '<span class="invtag'+cls+'"><b>'+esc(label)+'</b> '+money0(amount)+pctS+' '+pill(st)+inv+'</span>';
 }
+/** Only count invoice lines that actually exist (€ > 0). Empty APA must not inflate “open”. */
+function leadNeedsDepInv(r){ return !!(r&&(Number(r.dep)||0)>0.009); }
+function leadNeedsFinInv(r){ return !!(r&&(Number(r.fin)||0)>0.009); }
+function leadNeedsApaInv(r){
+  if(!r) return false;
+  return (Number(r.apaPct)||0)>0||(Number(r.apa)||0)>0.009;
+}
+/** How many formal invoices on this lead are still Not issued. */
+function pendForLead(r){
+  var n=0;
+  if(leadNeedsDepInv(r)&&leadInvStatus(r.deps)==="Not issued") n++;
+  if(leadNeedsFinInv(r)&&leadInvStatus(r.fins)==="Not issued") n++;
+  if(leadNeedsApaInv(r)&&leadInvStatus(r.apas)==="Not issued") n++;
+  return n;
+}
 /**
  * Charter date for list order (YYYY-MM-DD), newest first.
  * Prefer start → cdate → end; only then closed (deal date) if no charter day set.
@@ -1120,9 +1135,8 @@ function renderLeads(){
   var wrap=el("ldList"), tot=0, pend=0, html="";
   state.leads.forEach(function(r){
     tot+=(leadHasSplit(r)?leadClientTotal(r):(Number(r.total)||0));
-    /* Open = not yet Issued/Paid (legacy Requested counts as open) */
-    [r.deps,r.fins,r.apas].forEach(function(s){ if(leadInvStatus(s)==="Not issued")pend++; });
-    var showApa=(Number(r.apaPct)||0)>0||(Number(r.apa)||0)>0;
+    pend+=pendForLead(r);
+    var showApa=leadNeedsApaInv(r);
     var vatNote=vatModeLabel(r.vatMode);
     if(vatNote&&(Number(r.vatPct)||0)>0) vatNote+=" "+r.vatPct+"%";
     var splitBits="";
@@ -1181,10 +1195,6 @@ function renderLeads(){
     });
   });
 }
-function pendForLead(r){
-  var n=0; [r.deps,r.fins,r.apas].forEach(function(s){ if(leadInvStatus(s)==="Not issued")n++; }); return n;
-}
-
 /* -------- PDF invoices (Limitless Opportunities) — leads + charges -------- */
 /** Parse YYYY-NNN (and legacy YSG26-NNN) → {year, n} or null. */
 function parseInvoiceNo(str){
