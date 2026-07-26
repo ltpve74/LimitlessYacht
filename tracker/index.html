@@ -452,6 +452,7 @@
       <button type="button" class="ops-back" data-ops-back>← Ops</button>
       <div class="summary">
         <div class="sumcard"><div class="l">Captain leads</div><div class="v" id="cmCount">0</div></div>
+        <div class="sumcard"><div class="l">Extensions</div><div class="v" id="cmExt">0</div></div>
         <div class="sumcard"><div class="l">Base (ex VAT)</div><div class="v money" id="cmBase">€0</div></div>
         <div class="sumcard"><div class="l">Commission 15%</div><div class="v money" id="cmTot">€0</div></div>
       </div>
@@ -8495,9 +8496,10 @@ function renderCommissions(){
     if(a.sort&&b.sort&&a.sort!==b.sort) return b.sort<a.sort?-1:1;
     return 0;
   });
-  var baseTot=0, comTot=0, html="";
+  var baseTot=0, comTot=0, leadN=0, extN=0, html="";
   items.forEach(function(it){
     baseTot+=it.base; comTot+=it.total;
+    if(it.kind==="lead") leadN++; else extN++;
     if(it.kind==="lead"){
       var r=it.rec, p=it.p;
       html+='<div class="item" data-edit-ld="'+esc(r.id)+'">'+
@@ -8536,7 +8538,9 @@ function renderCommissions(){
   });
   wrap.innerHTML=html||emptyBox("💸","No commissions yet",
     "Mark Lead source → Captain, or log extra hours as a Charge with <b>I get commission</b>.");
-  if(el("cmCount")) el("cmCount").textContent=String(items.length);
+  /* Captain leads only — do not count extension charges as “Captain leads” */
+  if(el("cmCount")) el("cmCount").textContent=String(leadN);
+  if(el("cmExt")) el("cmExt").textContent=String(extN);
   if(el("cmBase")) el("cmBase").textContent=money(baseTot);
   if(el("cmTot")) el("cmTot").textContent=money(comTot);
   bindEdit(wrap,"data-edit-ld","lead");
