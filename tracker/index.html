@@ -147,6 +147,13 @@
   .lead-actions{display:flex;flex-wrap:wrap;gap:8px;margin-top:11px;padding-right:28px}
   .lead-actions .btn{width:auto;flex:0 0 auto;padding:9px 12px;font-size:12.5px;font-weight:700}
   .lead-actions .btn.copied{background:var(--green);color:var(--greenInk);border-color:transparent}
+  /* Split deal money strip — ordered story, not a pill pile */
+  .lead-split{margin-top:10px;padding:10px 11px;background:#f5f8f9;border:1px solid var(--line);border-radius:12px}
+  .lead-split .ls-row{display:flex;flex-wrap:wrap;align-items:baseline;gap:6px 14px;font-size:13px;line-height:1.45}
+  .lead-split .ls-row+.ls-row{margin-top:6px;padding-top:6px;border-top:1px dashed var(--line)}
+  .lead-split .ls-k{color:var(--muted);font-size:11.5px;font-weight:700;text-transform:uppercase;letter-spacing:.03em}
+  .lead-split .ls-v{font-weight:800;color:var(--ink)}
+  .lead-split .ls-note{font-size:12px;color:var(--muted);margin-top:6px;line-height:1.4}
   .sheet .sect{font-size:12px;font-weight:700;color:var(--muted);text-transform:uppercase;letter-spacing:.04em;margin:14px 0 10px;padding-top:4px;border-top:1px solid var(--line)}
   .sheet .sect:first-of-type{border-top:none;margin-top:6px}
   .pill{display:inline-block;padding:3px 10px;border-radius:20px;font-size:11.5px;font-weight:700;white-space:nowrap}
@@ -1130,46 +1137,63 @@ function sortLeads(){
     return String(b.id||"").localeCompare(String(a.id||""));
   });
 }
+/** Compact split money block — quote → base → white PDF → cash (logical order). */
+function leadSplitSummaryHTML(r){
+  if(!r||!leadHasSplit(r)) return "";
+  var invN=Number(r.invoiceNet)||0;
+  var invT=Number(r.invoiceTotal)!=null&&r.invoiceTotal!==""?Number(r.invoiceTotal):(invN+(Number(r.invoiceVat)||0));
+  var dealN=Number(r.dealNet)||leadDealBase(r)||0;
+  var quoteB=Number(r.base)||Number(r.price)||0;
+  var cashN=leadFreeCashAmt(r)||Number(r.cashAmt)||0;
+  var swallow=leadSplitVatSwallowed(r);
+  var onBoat=leadFreeCashIsOnBoat(r);
+  var finalTot=leadClientTotal(r);
+  var h='<div class="lead-split">';
+  h+='<div class="ls-row">';
+  if(quoteB>0) h+='<span class="ls-k">Quote</span><span class="ls-v money">'+money0(quoteB)+'</span>';
+  if(dealN>0) h+='<span class="ls-k">Base (ex VAT)</span><span class="ls-v money">'+money0(dealN)+'</span>';
+  h+='</div>';
+  h+='<div class="ls-row">';
+  h+='<span class="ls-k">White PDF</span><span class="ls-v money">'+money0(invT||invN)+'</span>';
+  if(invN>0&&invT>0&&Math.abs(invT-invN)>0.5) h+='<span class="ls-k">net</span><span class="ls-v">'+money0(invN)+'</span>';
+  h+='<span class="ls-k">Cash</span><span class="ls-v money">'+money0(cashN)+'</span>';
+  h+='</div>';
+  h+='<div class="ls-note">'+
+    (swallow?"Small VAT swallowed · final ≈ base":"Small VAT charged · final ≈ base + white VAT")+
+    ' · client <b class="money">'+money0(finalTot)+'</b>'+
+    ' · cash '+(onBoat?"on boat":"not on boat yet")+
+  '</div></div>';
+  return h;
+}
 function renderLeads(){
   sortLeads();
   var wrap=el("ldList"), tot=0, pend=0, html="";
   state.leads.forEach(function(r){
     tot+=(leadHasSplit(r)?leadClientTotal(r):(Number(r.total)||0));
-    pend+=pendForLead(r);
+    var openN=pendForLead(r);
+    pend+=openN;
     var showApa=leadNeedsApaInv(r);
-    var vatNote=vatModeLabel(r.vatMode);
-    if(vatNote&&(Number(r.vatPct)||0)>0) vatNote+=" "+r.vatPct+"%";
-    var splitBits="";
+    var isSplit=leadHasSplit(r);
     var finLabel="Final";
-    if(leadHasSplit(r)){
-      var invN=Number(r.invoiceNet)||0, cashN=leadFreeCashAmt(r)||Number(r.cashAmt)||0;
-      var invT=Number(r.invoiceTotal)!=null&&r.invoiceTotal!==""?Number(r.invoiceTotal):(invN+(Number(r.invoiceVat)||0));
-      var dealN=Number(r.dealNet)||0;
-      var quoteB=Number(r.base)||0;
-      var wPay=leadWhiteClientPay(r);
-      var swallowVat=r.splitVatOnTop===false||r.splitVatOnTop===0||r.splitVatOnTop==="0"||r.splitVatOnTop==="false"||r.splitVatOnTop==="swallow";
-      splitBits=(quoteB>0?'<span class="pill p-grey">Quote '+money0(quoteB)+'</span>':'')+
-        (dealN>0?'<span class="pill p-grey">Base '+money0(dealN)+'</span>':'')+
-        '<span class="pill p-white">PDF '+money0(invT||invN)+'</span>'+
-        (invN&&invT&&Math.abs(invT-invN)>0.5?'<span class="pill p-grey">net '+money0(invN)+'</span>':'')+
-        '<span class="pill p-blue">Guest white '+money0(wPay)+'</span>'+
-        '<span class="pill p-black">Cash '+money0(cashN)+'</span>'+
-        (leadFreeCashIsOnBoat(r)?'<span class="pill p-green">Cash on boat</span>':'<span class="pill p-amber">Cash not on boat</span>')+
-        (swallowVat?'<span class="pill p-amber">VAT swallowed</span>':'<span class="pill p-blue">VAT charged</span>');
-      finLabel="Final";
-    }
     var src=leadSource(r);
-    var srcPill=src==="captain"
-      ?'<span class="pill p-blue">Captain</span>'
-      :'<span class="pill p-grey">Other</span>';
+    /* Meta: identity + role only — money lives in lead-split block */
+    var metaBits='<span>'+leadMeta(r)+'</span>'+
+      (isSplit?'<span class="pill p-black">Split</span>':'')+
+      (src==="captain"?'<span class="pill p-blue">Captain</span>':'<span class="pill p-grey">Other</span>')+
+      (src==="captain"&&isCaptain()?'<span class="pill p-green">Comm '+money(leadCommissionAmt(r))+'</span>':'')+
+      (openN>0?'<span class="pill p-amber">'+openN+' invoice'+(openN>1?'s':'')+' open</span>':'');
+    if(!isSplit){
+      var vatNote=vatModeLabel(r.vatMode);
+      if(vatNote&&(Number(r.vatPct)||0)>0) vatNote+=" "+r.vatPct+"%";
+      if(vatNote) metaBits+='<span>'+esc(vatNote)+'</span>';
+    }
     html+='<div class="item" data-edit-ld="'+esc(r.id)+'">'+
-      '<div class="top"><div class="title">'+esc(r.name||"—")+'</div><div class="amt money">'+money0(leadHasSplit(r)?leadClientTotal(r):r.total)+'</div></div>'+
-      '<div class="meta"><span>'+leadMeta(r)+'</span>'+srcPill+(vatNote?'<span>'+esc(vatNote)+'</span>':'')+splitBits+
-        (src==="captain"&&isCaptain()?'<span class="pill p-green">Comm '+money(leadCommissionAmt(r))+'</span>':'')+
-        (pendForLead(r)?'<span class="pill p-amber">'+pendForLead(r)+' invoice'+(pendForLead(r)>1?'s':'')+' open</span>':'')+'</div>'+
+      '<div class="top"><div class="title">'+esc(r.name||"—")+'</div><div class="amt money">'+money0(isSplit?leadClientTotal(r):r.total)+'</div></div>'+
+      '<div class="meta">'+metaBits+'</div>'+
+      leadSplitSummaryHTML(r)+
       '<div class="invtags">'+
-        leadInvTag("Deposit",r.dep,r.depPct,r.deps,r.depInv)+
-        leadInvTag(finLabel,r.fin,"",r.fins,r.finInv)+
+        (leadNeedsDepInv(r)?leadInvTag("Deposit",r.dep,r.depPct,r.deps,r.depInv):"")+
+        (leadNeedsFinInv(r)?leadInvTag(finLabel,r.fin,"",r.fins,r.finInv):"")+
         (showApa?leadInvTag("APA",r.apa,r.apaPct,r.apas,r.apaInv):"")+
       '</div>'+
       (r.notes?'<div class="notes">'+esc(r.notes)+'</div>':'')+
@@ -8397,6 +8421,11 @@ function leadSplit(base, vatMode, vatPctRaw, splitOn, whiteAmtRaw, cashBlackRaw,
 function leadHasSplit(r){ return LY_MODELS?LY_MODELS.leadHasSplit(r):false; }
 function leadWhiteClientPay(r){ return LY_MODELS&&LY_MODELS.leadWhiteClientPay?LY_MODELS.leadWhiteClientPay(r):(Number(r&&r.invoiceTotal)||Number(r&&r.invoiceNet)||0); }
 function leadClientTotal(r){ return LY_MODELS&&LY_MODELS.leadClientTotal?LY_MODELS.leadClientTotal(r):(Number(r&&r.total)||0); }
+function leadDealBase(r){ return LY_MODELS&&LY_MODELS.leadDealBase?LY_MODELS.leadDealBase(r):(Number(r&&r.dealNet)||0); }
+function leadSplitVatSwallowed(r){
+  if(LY_MODELS&&LY_MODELS.leadSplitVatSwallowed) return LY_MODELS.leadSplitVatSwallowed(r);
+  return !!(r&&(r.splitVatOnTop===false||r.splitVatOnTop===0||r.splitVatOnTop==="0"||r.splitVatOnTop==="false"||r.splitVatOnTop==="swallow"));
+}
 function leadSource(r){ return LY_MODELS?LY_MODELS.leadSource(r):"other"; }
 function isCaptainLead(r){ return LY_MODELS?LY_MODELS.isCaptainLead(r):false; }
 function leadCommissionVatPct(r){ return LY_MODELS?LY_MODELS.commissionVatPct(r):21; }
