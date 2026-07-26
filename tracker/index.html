@@ -1162,19 +1162,12 @@ function renderLeads(){
       '<div class="lead-actions">'+
         '<button type="button" class="btn" data-inv-lead="'+esc(r.id)+'">Make invoice</button>'+
         '<button type="button" class="btn ghost" data-agr-lead="'+esc(r.id)+'">Agreement</button>'+
-        '<button type="button" class="btn ghost" data-copy-lead="'+esc(r.id)+'">Copy name</button>'+
       '</div>'+
       '<span class="chev">✎</span></div>';
   });
   wrap.innerHTML=html||emptyBox("🌐","No leads logged yet","Tap + when you close a website lead.");
   el("ldTot").textContent=money(tot); el("ldPending").textContent=pend;
   bindEdit(wrap,"data-edit-ld","lead");
-  Array.prototype.forEach.call(wrap.querySelectorAll("[data-copy-lead]"),function(btn){
-    btn.addEventListener("click",function(ev){
-      ev.preventDefault(); ev.stopPropagation();
-      copyLeadInvoiceText(btn.getAttribute("data-copy-lead"), btn);
-    });
-  });
   Array.prototype.forEach.call(wrap.querySelectorAll("[data-inv-lead]"),function(btn){
     btn.addEventListener("click",function(ev){
       ev.preventDefault(); ev.stopPropagation();
@@ -1190,72 +1183,6 @@ function renderLeads(){
 }
 function pendForLead(r){
   var n=0; [r.deps,r.fins,r.apas].forEach(function(s){ if(leadInvStatus(s)==="Not issued")n++; }); return n;
-}
-/** Client name + charter identity only — manager fills amounts on the invoice. */
-function leadInvoiceText(r){
-  if(!r) return "";
-  var lines=[], L=function(s){ if(s) lines.push(s); };
-  var isMulti=(r.dur==="multi")||(!r.dur&&(r.end||(Number(r.days)||0)>1));
-  L((r.name||"").trim());
-  if(isMulti){
-    var s=r.start||r.cdate||"", e=r.end||"";
-    var days=Number(r.days)||(s&&e?daysBetween(s,e):0);
-    var range="";
-    if(s&&e&&e!==s) range=fmtDate(s)+" – "+fmtDate(e);
-    else if(s) range=fmtDate(s);
-    if(range) L(range+(days?(" ("+days+" day"+(days>1?"s":"")+")"):""));
-    else if(days) L(days+" day"+(days>1?"s":"")+" charter");
-  } else {
-    var d=r.start||r.cdate||"";
-    var dur=durLabel(r.dur||"");
-    if(d&&dur) L(dur+" · "+fmtDate(d));
-    else if(d) L(fmtDate(d));
-    else if(dur) L(dur);
-  }
-  L("M/Y Limitless");
-  return lines.join("\n");
-}
-function copyTextToClipboard(text){
-  if(navigator.clipboard&&navigator.clipboard.writeText){
-    return navigator.clipboard.writeText(text);
-  }
-  return new Promise(function(resolve,reject){
-    try{
-      var ta=document.createElement("textarea");
-      ta.value=text;
-      ta.setAttribute("readonly","");
-      ta.style.position="fixed";
-      ta.style.left="-9999px";
-      ta.style.top="0";
-      document.body.appendChild(ta);
-      ta.select();
-      ta.setSelectionRange(0, text.length);
-      var ok=document.execCommand("copy");
-      document.body.removeChild(ta);
-      if(ok) resolve(); else reject(new Error("copy failed"));
-    }catch(e){ reject(e); }
-  });
-}
-function flashCopyBtn(btn){
-  if(!btn) return;
-  var prev=btn.textContent;
-  btn.textContent="Copied ✓";
-  btn.classList.add("copied");
-  setTimeout(function(){
-    btn.textContent=prev;
-    btn.classList.remove("copied");
-  },1600);
-}
-function copyLeadInvoiceText(id, btn){
-  var rec=(state.leads||[]).filter(function(r){return String(r.id)===String(id);})[0];
-  if(!rec) return;
-  var text=leadInvoiceText(rec);
-  copyTextToClipboard(text).then(function(){
-    flashCopyBtn(btn);
-  }).catch(function(){
-    /* Last resort: select in a prompt so user can copy manually */
-    window.prompt("Copy invoice details:", text);
-  });
 }
 
 /* -------- PDF invoices (Limitless Opportunities) — leads + charges -------- */
@@ -8847,7 +8774,6 @@ function openSheet(type,id){
     if(type==="lead"){
       h+='<button type="button" class="btn" id="sheetMakeInv">Make invoice</button>';
       h+='<button type="button" class="btn ghost" id="sheetMakeAgr">Agreement</button>';
-      h+='<button type="button" class="btn ghost" id="sheetCopyInv">Copy name</button>';
     }
     if(type==="charter"){
       h+='<button type="button" class="btn" id="sheetMakeInv">Make invoice</button>';
@@ -8860,9 +8786,6 @@ function openSheet(type,id){
   el("sheetCancel").addEventListener("click",function(){ showSheet(false); });
   el("sheetClose").addEventListener("click",function(){ showSheet(false); });
   if(rec){ el("sheetDel").addEventListener("click",function(){ confirmDel(type,rec); }); }
-  if(el("sheetCopyInv")&&rec){
-    el("sheetCopyInv").addEventListener("click",function(){ copyLeadInvoiceText(rec.id, el("sheetCopyInv")); });
-  }
   if(el("sheetMakeInv")&&rec){
     el("sheetMakeInv").addEventListener("click",function(){
       showSheet(false);
