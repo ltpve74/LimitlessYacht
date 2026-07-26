@@ -110,46 +110,91 @@
 
   /* ---------- free cash black (locked: never suggested ex-VAT) ---------- */
 
+  function leadSplitVatSwallowed(l) {
+    return (
+      l &&
+      (l.splitVatOnTop === false ||
+        l.splitVatOnTop === 0 ||
+        l.splitVatOnTop === "0" ||
+        l.splitVatOnTop === "false" ||
+        l.splitVatOnTop === "swallow")
+    );
+  }
+
   /**
-   * What the guest pays for the white slice.
-   * Charge VAT (splitVatOnTop): invoice total (e.g. €1000 + 21% = €1210).
-   * Swallow VAT: invoice net only (€1000) — boat absorbs IVA on that line.
-   * Formal PDF still uses invoiceTotal / invoiceNet separately.
+   * Formal white on PDF / card (always net + VAT when invoice has VAT).
+   * Guest settles this amount on the invoice; cash is separate.
    */
   function leadWhiteClientPay(l) {
     if (!l) return 0;
     var total = num(l.invoiceTotal);
     var net = num(l.invoiceNet);
-    var vat = num(l.invoiceVat);
     if (!(total > 0) && net > 0) {
       total = moneyFromBase(net, l.whiteVatMode === "add" ? "add" : "include", l.vatPct).total;
-      if (!(vat > 0)) vat = round2(total - net);
     }
-    if (!(net > 0) && total > 0) {
-      net = moneyFromBase(total, l.whiteVatMode || "include", l.vatPct).net;
-      if (!(vat > 0)) vat = round2(total - net);
-    }
-    /* Default charge VAT (guest pays formal total). Swallow only when explicitly false. */
-    var swallow =
-      l.splitVatOnTop === false ||
-      l.splitVatOnTop === 0 ||
-      l.splitVatOnTop === "0" ||
-      l.splitVatOnTop === "false" ||
-      l.splitVatOnTop === "swallow";
-    if (swallow && net > 0 && total > net + 0.5) return round2(net);
+    if (!(total > 0) && net > 0) total = net;
     return round2(total > 0 ? total : net);
   }
 
-  function leadSuggestedCashAmt(l) {
-    if (!l) return null;
+  /** Deal base for split cash: quote without full VAT (e.g. 4000÷1.21 = 3305.79). */
+  function leadDealBase(l) {
+    if (!l) return 0;
+    if (num(l.dealNet) > 0) return round2(num(l.dealNet));
     var base = num(l.base) || num(l.price) || 0;
     if (!(base > 0) && l.rate && l.days) base = num(l.rate) * num(l.days);
-    if (!(base > 0)) return null;
-    var ref = moneyFromBase(base, l.vatMode || "include", l.vatPct);
-    /* Cash fills the deal base after what the guest actually pays on white */
-    var wPay = leadWhiteClientPay(l);
-    if (!(wPay > 0) && !(ref.net > 0)) return null;
-    return round2(Math.max(0, ref.net - wPay));
+    if (!(base > 0)) return 0;
+    return round2(moneyFromBase(base, l.vatMode || "include", l.vatPct).net);
+  }
+
+  /**
+   * Suggested free cash after white invoice is paid in full (PDF total).
+   *
+   * Deal base B = quote ex full VAT (4000÷1.21).
+   * White net W, white VAT V, formal invoice T = W+V.
+   *   Swallow V: final = B;           cash = B − T
+   *   Charge V:  final = B + V;       cash = B − W
+   * (e.g. B=3305.79, W=1000, V=210 → charge cash 2305.79, final 3515.79)
+   */
+  function leadSuggestedCashAmt(l) {
+    if (!l) return null;
+    var B = leadDealBase(l);
+    if (!(B > 0)) return null;
+    var total = num(l.invoiceTotal);
+    var net = num(l.invoiceNet);
+    if (!(total > 0) && net > 0) {
+      total = moneyFromBase(net, l.whiteVatMode === "add" ? "add" : "include", l.vatPct).total;
+    }
+    if (!(net > 0) && total > 0) {
+      net = moneyFromBase(total, l.whiteVatMode || "include", l.vatPct).net;
+    }
+    if (leadSplitVatSwallowed(l)) {
+      if (!(total > 0)) return null;
+      return round2(Math.max(0, B - total));
+    }
+    if (!(net > 0)) return null;
+    return round2(Math.max(0, B - net));
+  }
+
+  /** Final client price for split: B (swallow) or B + white VAT (charge). */
+  function leadSplitFinalPrice(l) {
+    if (!l) return 0;
+    if (!leadHasSplit(l)) return round2(num(l.total) || num(l.base) || num(l.price));
+    var B = leadDealBase(l);
+    if (!(B > 0)) return round2(num(l.total) || 0);
+    if (leadSplitVatSwallowed(l)) return B;
+    var total = num(l.invoiceTotal);
+    var net = num(l.invoiceNet);
+    var vat = num(l.invoiceVat);
+    if (!(vat > 0) && total > 0 && net > 0) vat = round2(total - net);
+    if (!(vat > 0) && net > 0) {
+      var built = moneyFromBase(net, l.whiteVatMode === "add" ? "add" : "include", l.vatPct);
+      vat = round2(built.vat);
+    }
+    if (!(vat > 0) && total > 0 && !(net > 0)) {
+      var fromIncl = moneyFromBase(total, l.whiteVatMode || "include", l.vatPct);
+      vat = round2(fromIncl.vat);
+    }
+    return round2(B + Math.max(0, vat));
   }
 
   function cashAmtLooksSuggested(l) {
@@ -200,14 +245,13 @@
     } else {
       return false;
     }
-    l.total = round2(leadWhiteClientPay(l) + num(l.cashAmt));
+    l.total = leadSplitFinalPrice(l);
     return true;
   }
 
   /**
-   * Client total for split = guest white pay + stored cash.
-   * Does not use leadFreeCashAmt (that zeros “suggested” deal-remainder cash for APA safety).
-   * Still strips classic white-net corruption (€1.652,89) unless cashAmtUser.
+   * Client total for split = formal white (PDF) + free cash when cash is set;
+   * else theoretical final (B or B+V). Prefer stored cash + invoice total when present.
    */
   function leadClientTotal(l) {
     if (!l) return 0;
@@ -221,7 +265,9 @@
         if (wn > 0 && Math.abs(cash - wn) < 1.01) cash = 0;
       }
     }
-    return round2(leadWhiteClientPay(l) + cash);
+    var whitePay = leadWhiteClientPay(l);
+    if (cash > 0 && whitePay > 0) return round2(whitePay + cash);
+    return leadSplitFinalPrice(l);
   }
 
   /* ---------- commission (locked) ---------- */
@@ -576,8 +622,11 @@
     isCaptainLead: isCaptainLead,
     constrainLeadSource: constrainLeadSource,
     constrainBillType: constrainBillType,
+    leadSplitVatSwallowed: leadSplitVatSwallowed,
     leadWhiteClientPay: leadWhiteClientPay,
+    leadDealBase: leadDealBase,
     leadSuggestedCashAmt: leadSuggestedCashAmt,
+    leadSplitFinalPrice: leadSplitFinalPrice,
     cashAmtLooksSuggested: cashAmtLooksSuggested,
     leadFreeCashAmt: leadFreeCashAmt,
     sanitizeLeadCash: sanitizeLeadCash,
