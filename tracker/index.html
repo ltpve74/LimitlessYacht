@@ -8630,6 +8630,24 @@ function leadVatOnTopFromForm(){
   }
   return false;
 }
+/** Cash deals: round up to next €50 (e.g. 2305.79 → 2350). */
+function cashRound50Up(n){
+  n=Number(n)||0;
+  if(!(n>0)) return 0;
+  return Math.ceil(n/50-1e-9)*50;
+}
+function leadCashFieldUserEdited(){
+  return !!(el("f_cashBlack")&&el("f_cashBlack").dataset.userEdited==="1");
+}
+function leadPrefillCashFromSuggested(exactSug, force){
+  if(!el("f_cashBlack")) return;
+  var pre=cashRound50Up(exactSug);
+  if(!(pre>0)) return;
+  if(!force&&leadCashFieldUserEdited()) return;
+  el("f_cashBlack").value=String(pre);
+  el("f_cashBlack").dataset.autofilled=String(pre);
+  if(force) el("f_cashBlack").dataset.userEdited="";
+}
 function recalcLead(){
   if(!el("f_dur")) return;
   var dur=el("f_dur").value, rate, days, base;
@@ -8645,10 +8663,19 @@ function recalcLead(){
   var legNet=el("f_invoiceNet")?el("f_invoiceNet").value:"";
   var whiteVatMode=el("f_whiteVatMode")?el("f_whiteVatMode").value:"include";
   var vatOnTop=leadVatOnTopFromForm();
+  /* Exact math first (cash field ignored for suggested) */
+  var spGuide=leadSplit(base, mode, pctRaw, splitOn, whiteRaw, "", legNet, "", vatOnTop, whiteVatMode);
+  if(splitOn&&spGuide.suggestedCash!=null){
+    var forceCash=!!(el("f_cashBlack")&&el("f_cashBlack").dataset.forcePrefill==="1");
+    if(el("f_cashBlack")) el("f_cashBlack").dataset.forcePrefill="";
+    leadPrefillCashFromSuggested(spGuide.suggestedCash, forceCash);
+    cashRaw=el("f_cashBlack")?el("f_cashBlack").value:cashRaw;
+  }
   var sp=leadSplit(base, mode, pctRaw, splitOn, whiteRaw, cashRaw, legNet, "", vatOnTop, whiteVatMode);
+  var cashRounded=cashRound50Up(spGuide.suggestedCash);
   if(splitOn&&el("f_dealNetShow")) el("f_dealNetShow").textContent=money(sp.dealNet);
-  if(splitOn&&el("f_suggestCash")&&sp.suggestedCash!=null){
-    el("f_suggestCash").textContent=money(sp.suggestedCash);
+  if(splitOn&&el("f_suggestCash")&&spGuide.suggestedCash!=null){
+    el("f_suggestCash").textContent=money(spGuide.suggestedCash)+(cashRounded>0&&Math.abs(cashRounded-spGuide.suggestedCash)>0.02?" → cash "+money0(cashRounded):"");
   }
   var whiteLabel=el("f_whiteAmtLabel");
   if(whiteLabel){
@@ -8665,6 +8692,7 @@ function recalcLead(){
   if(sp.split){
     var B=sp.dealNet, T=sp.invoiceTotal, W=sp.invoiceNet, V=sp.whiteVatAmt!=null?sp.whiteVatAmt:sp.white.vat;
     var finalP=sp.finalPrice!=null?sp.finalPrice:p.client;
+    var exactCash=spGuide.suggestedCash;
     html+='<div class="cl"><span>'+head+' · quote (VAT incl.)</span><b>'+money(sp.quoteGross!=null?sp.quoteGross:base)+'</b></div>';
     html+='<div class="cl"><span>Deal base B (quote − full VAT)</span><b>'+money(B)+'</b></div>';
     html+='<div class="cl split"><span>White PDF T (formal / card)</span><b>'+money(T)+'</b></div>';
@@ -8674,12 +8702,12 @@ function recalcLead(){
     }
     if(sp.vatOnTop){
       html+='<div class="cl"><span>Charge small VAT → final B+V</span><b>'+money(finalP)+'</b></div>';
-      html+='<div class="meta" style="margin-top:2px">After invoice paid: cash ≈ B − W = '+money(sp.suggestedCash)+'</div>';
+      html+='<div class="meta" style="margin-top:2px">Exact cash B − W = '+money(exactCash)+' · prefill ↑€50 = '+money0(cashRounded)+'</div>';
     } else {
       html+='<div class="cl"><span>Swallow small VAT → final B</span><b>'+money(finalP)+'</b></div>';
-      html+='<div class="meta" style="margin-top:2px">After invoice paid: cash ≈ B − T = '+money(sp.suggestedCash)+'</div>';
+      html+='<div class="meta" style="margin-top:2px">Exact cash B − T = '+money(exactCash)+' · prefill ↑€50 = '+money0(cashRounded)+'</div>';
     }
-    html+='<div class="cl"><span>Cash black</span><b>'+money(sp.cashAmt)+'</b></div>';
+    html+='<div class="cl"><span>Cash black (editable)</span><b>'+money(sp.cashAmt)+'</b></div>';
     html+='<div class="cl hi"><span>Client pays (PDF + cash)</span><b>'+money(p.client)+'</b></div>';
     html+='<div class="meta" style="margin-top:4px">Deposit/final % on formal white T only. Cash is never on an invoice.</div>';
     html+='<div class="cl split"><span>Deposit '+(depPct||0)+'% of formal white</span><b>'+money(p.dep)+'</b></div>'+
@@ -8813,7 +8841,7 @@ function openSheet(type,id){
       '</select>')+
       '<p style="margin:-6px 0 10px;font-size:12.5px;color:var(--muted);line-height:1.4">Example: quote €4,000 inc. VAT → B ≈ €3,305.79. Invoice €1,000+VAT → PDF €1,210. <b>Charge</b>: final ≈ €3,515.79, cash ≈ €2,305.79. <b>Swallow</b>: final ≈ €3,305.79, cash ≈ €2,095.79.</p>'+
       fieldHTML("Cash black (no VAT)",moneyField("f_cashBlack", cashDef))+
-      '<p style="margin:-6px 0 8px;font-size:12.5px;color:var(--muted);line-height:1.4">Cash after invoice paid (guide): <b id="f_suggestCash">—</b> · <button type="button" class="btn ghost" id="f_useSuggestCash" style="width:auto;padding:6px 10px;font-size:12px">Use suggested</button></p>'+
+      '<p style="margin:-6px 0 8px;font-size:12.5px;color:var(--muted);line-height:1.4">Prefills when you pick swallow/charge (exact cash rounded <b>up to €50</b>). Editable anytime. Guide: <b id="f_suggestCash">—</b> · <button type="button" class="btn ghost" id="f_useSuggestCash" style="width:auto;padding:6px 10px;font-size:12px">Use suggested</button></p>'+
       (function(){
         var cashOn=leadFreeCashIsOnBoat(r)||(rec&&(r.cashSettled===true||r.fins==="Paid"||r.deps==="Paid"));
         if(r.cashSettled===false) cashOn=false;
@@ -8872,34 +8900,56 @@ function openSheet(type,id){
     var draft=collectLeadDraft(), dur=el("f_dur").value;
     el("f_durfields").innerHTML=durFieldsHTML(dur,draft);
     if(dur!=="multi" && el("f_dep").value==="") el("f_dep").value="50";
+    if(el("f_cashBlack")&&!leadCashFieldUserEdited()) el("f_cashBlack").dataset.forcePrefill="1";
     recalcLead();
   }); }
-  if(el("f_vatMode")){ el("f_vatMode").addEventListener("change",function(){
-    if(el("f_vatMode").value!=="none" && (!el("f_vatPct").value||el("f_vatPct").disabled)) el("f_vatPct").value="21";
+  /* Existing saved cash: keep it until captain changes swallow/charge or taps Use suggested */
+  if(el("f_cashBlack")&&apaNum(el("f_cashBlack").value)>0) el("f_cashBlack").dataset.userEdited="1";
+  if(el("f_split")){ el("f_split").addEventListener("change",function(){
+    if(el("f_cashBlack")&&el("f_split").checked){ el("f_cashBlack").dataset.userEdited=""; el("f_cashBlack").dataset.forcePrefill="1"; }
     recalcLead();
   }); }
-  if(el("f_split")){ el("f_split").addEventListener("change",function(){ recalcLead(); }); }
-  if(el("f_whiteTotal")) el("f_whiteTotal").addEventListener("input",recalcLead);
-  if(el("f_whiteVatMode")) el("f_whiteVatMode").addEventListener("change",recalcLead);
-  if(el("f_splitVatTop")) el("f_splitVatTop").addEventListener("change",recalcLead);
-  if(el("f_cashBlack")) el("f_cashBlack").addEventListener("input",recalcLead);
-  if(el("f_useSuggestCash")) el("f_useSuggestCash").addEventListener("click",function(){
-    if(!window.confirm("Suggested cash = deal base − what the guest pays on white (after swallow/charge VAT).\n\nIt is a guide only — free cash is often a round amount (e.g. €1,800 or €3,000).\n\nUse the suggested figure?")) return;
-    var mode=el("f_vatMode")?el("f_vatMode").value:"include";
-    var pctRaw=el("f_vatPct")?el("f_vatPct").value:"";
-    var dur=el("f_dur")?el("f_dur").value:"8h";
-    var b=0;
-    if(dur==="multi"){ b=apaNum(el("f_rate")?el("f_rate").value:0)*daysBetween(el("f_start")?el("f_start").value:"", el("f_end")?el("f_end").value:""); }
-    else b=apaNum(el("f_price")?el("f_price").value:0);
-    var sp=leadSplit(b, mode, pctRaw, true, el("f_whiteTotal")?el("f_whiteTotal").value:"", "", "", "", leadVatOnTopFromForm(), el("f_whiteVatMode")?el("f_whiteVatMode").value:"include");
-    if(el("f_cashBlack")&&sp.suggestedCash!=null) el("f_cashBlack").value=String(Math.round(sp.suggestedCash*100)/100);
+  if(el("f_whiteTotal")) el("f_whiteTotal").addEventListener("input",function(){
+    /* White amount change updates prefill unless captain typed cash */
+    if(el("f_cashBlack")&&!leadCashFieldUserEdited()) el("f_cashBlack").dataset.forcePrefill="1";
     recalcLead();
   });
-  if(el("f_price")) el("f_price").addEventListener("input",recalcLead);
-  if(el("f_rate")) el("f_rate").addEventListener("input",recalcLead);
+  if(el("f_whiteVatMode")) el("f_whiteVatMode").addEventListener("change",function(){
+    if(el("f_cashBlack")&&!leadCashFieldUserEdited()) el("f_cashBlack").dataset.forcePrefill="1";
+    recalcLead();
+  });
+  if(el("f_splitVatTop")) el("f_splitVatTop").addEventListener("change",function(){
+    /* Broker swallow/charge always refreshes cash prefill (still editable after) */
+    if(el("f_cashBlack")){ el("f_cashBlack").dataset.userEdited=""; el("f_cashBlack").dataset.forcePrefill="1"; }
+    recalcLead();
+  });
+  if(el("f_cashBlack")) el("f_cashBlack").addEventListener("input",function(){
+    el("f_cashBlack").dataset.userEdited="1";
+    recalcLead();
+  });
+  if(el("f_useSuggestCash")) el("f_useSuggestCash").addEventListener("click",function(){
+    if(el("f_cashBlack")){ el("f_cashBlack").dataset.userEdited=""; el("f_cashBlack").dataset.forcePrefill="1"; }
+    recalcLead();
+  });
+  if(el("f_price")) el("f_price").addEventListener("input",function(){
+    if(el("f_cashBlack")&&!leadCashFieldUserEdited()) el("f_cashBlack").dataset.forcePrefill="1";
+    recalcLead();
+  });
+  if(el("f_rate")) el("f_rate").addEventListener("input",function(){
+    if(el("f_cashBlack")&&!leadCashFieldUserEdited()) el("f_cashBlack").dataset.forcePrefill="1";
+    recalcLead();
+  });
   if(el("f_start")) el("f_start").addEventListener("change",recalcLead);
   if(el("f_end")) el("f_end").addEventListener("change",recalcLead);
-  if(el("f_vatPct")) el("f_vatPct").addEventListener("input",recalcLead);
+  if(el("f_vatPct")) el("f_vatPct").addEventListener("input",function(){
+    if(el("f_cashBlack")&&!leadCashFieldUserEdited()) el("f_cashBlack").dataset.forcePrefill="1";
+    recalcLead();
+  });
+  if(el("f_vatMode")) el("f_vatMode").addEventListener("change",function(){
+    if(el("f_vatMode").value!=="none" && (!el("f_vatPct").value||el("f_vatPct").disabled)) el("f_vatPct").value="21";
+    if(el("f_cashBlack")&&!leadCashFieldUserEdited()) el("f_cashBlack").dataset.forcePrefill="1";
+    recalcLead();
+  });
   if(type==="charter"){
     function syncChargeBillUi(){
       var bt=(el("f_billType")&&el("f_billType").value)||"invoice";
