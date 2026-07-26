@@ -1069,9 +1069,10 @@ function renderCharters(){
   if(canOps()&&!DEMO&&!renderCharters._merging){
     renderCharters._merging=true;
     try{
+      var d0=purgeLeadFreeCashCharges();
       var d1=relinkOrphanApaCharges();
       var d2=mergeDuplicateApaCharges();
-      if(d1||d2){
+      if(d0||d1||d2){
         try{ save("charters"); save("apa"); }catch(e){}
       }
     }catch(e){}
@@ -3092,8 +3093,63 @@ function repairLeadWhiteInvoices(){
   return dirty;
 }
 /**
- * Ops load: free cash stays on the lead — strip every −cash / cashFromLead APA pot.
- * (Was pinning €1800 onto APA as negative “received”; that is wrong when APA given is €0.)
+ * True when a Charges row is really split free cash (charter fee on the lead),
+ * misfiled as “APA shortfall”. Free cash must never appear here.
+ */
+function chargeIsMisplacedLeadFreeCash(c){
+  if(!c) return false;
+  if(chargeExtAmt(c)>0) return false; /* real same-bill extension stays */
+  var notes=String(c.notes||"");
+  if(/Cash \(black\)|^Cash black|free cash|cashFromLead|Cash pot|lead free cash|−\s*cash|APA received\s*=\s*−/i.test(notes)) return true;
+  var g=normName(c.client);
+  if(!g) return false;
+  var freeMatch=false, freeAmt=0;
+  (state.leads||[]).forEach(function(l){
+    if(!l||!leadHasSplit(l)) return;
+    if(normName(l.name)!==g) return;
+    freeAmt=Math.round((leadFreeCashAmt(l)||Number(l.cashAmt)||0)*100)/100;
+    if(!(freeAmt>0.5)) return;
+    var amt=Math.round((Number(c.amount)||0)*100)/100;
+    if(Math.abs(amt-freeAmt)<1.01) freeMatch=true;
+    if(typeof cashRound50Up==="function"&&Math.abs(amt-cashRound50Up(freeAmt))<1.01) freeMatch=true;
+  });
+  if(!freeMatch) return false;
+  /* Linked pot: if real guest spend, keep real shortfall */
+  if(c.apaTripId){
+    var trip=(state.apa||[]).filter(function(t){ return t&&String(t.id)===String(c.apaTripId); })[0];
+    if(trip){
+      if(apaTripLooksLikeLeadCashShell(trip)) return true;
+      var spent=0;
+      try{ spent=apaTotals(trip).spent; }catch(e){ spent=0; }
+      if(spent>0.5){
+        var base=Number(c.apaBaseAmt)>0?Number(c.apaBaseAmt):Number(c.amount)||0;
+        /* Charge € matches free cash, not pot spend → misfiled free cash */
+        if(Math.abs(base-spent)>1&&Math.abs((Number(c.amount)||0)-freeAmt)<1.01) return true;
+        return false;
+      }
+      if(!(Number(trip.apaSent)>0)&&!(Number(trip.topUps)>0)) return true;
+    }
+  }
+  if(c.kind==="apa"||c.apaTripId||c.cashDeal||c.cashDeal===true) return true;
+  return freeMatch&&(c.kind==="apa"||!!c.apaTripId);
+}
+/** Delete Charges that are lead free cash wrongly labeled APA shortfall. */
+function purgeLeadFreeCashCharges(){
+  if(!state.charters||!state.charters.length) return false;
+  var drop={}, dirty=false;
+  state.charters.forEach(function(c){
+    if(chargeIsMisplacedLeadFreeCash(c)) drop[c.id]=1;
+  });
+  if(!Object.keys(drop).length) return false;
+  state.charters=state.charters.filter(function(c){ return c&&!drop[c.id]; });
+  (state.apa||[]).forEach(function(t){
+    if(t&&drop[t.chargeId]){ t.chargeId=""; dirty=true; }
+  });
+  return true;
+}
+/**
+ * Ops load: free cash stays on the lead — strip every −cash / cashFromLead APA pot
+ * and purge Charges that still show free cash as “APA shortfall”.
  */
 function ensureAllLeadCashApa(){
   if(!canOps()) return;
@@ -3109,6 +3165,7 @@ function ensureAllLeadCashApa(){
       syncApaToCharge(trip);
     }
   });
+  if(purgeLeadFreeCashCharges()) dirty=true;
   /* Keep free cash on leads correct (pin), without touching APA */
   (state.leads||[]).forEach(function(l){
     if(!l||!leadHasSplit(l)) return;
@@ -3198,6 +3255,7 @@ function applyApaChargeMoney(ch, apaBase){
 }
 function isApaChargeRow(c){
   if(!c) return false;
+  if(typeof chargeIsMisplacedLeadFreeCash==="function"&&chargeIsMisplacedLeadFreeCash(c)) return false;
   if(c.kind==="apa"||c.apaTripId) return true;
   return /synced from APA|APA shortfall|APA ·|pot \(sent|spend to invoice/i.test(String(c.notes||""));
 }
