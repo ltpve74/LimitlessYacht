@@ -342,6 +342,71 @@ function tripApaOverage(data, t) {
   return bal < 0 ? Math.round(-bal * 100) / 100 : 0;
 }
 
+function normNameSrv(s) {
+  return String(s || "")
+    .trim()
+    .toLowerCase()
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "")
+    .replace(/['’]/g, "")
+    .replace(/\s+/g, " ");
+}
+
+/** Charges that are really split free cash misfiled as APA shortfall. */
+function purgeLeadFreeCashCharges(data) {
+  if (!Array.isArray(data.charters) || !data.charters.length) return false;
+  const freeByGuest = {};
+  for (const l of data.leads || []) {
+    if (!l || !(l.split || l.splitCash)) continue;
+    const free = Math.round((Number(l.cashAmt) || 0) * 100) / 100;
+    if (!(free > 0.5)) continue;
+    const g = normNameSrv(l.name);
+    if (g) freeByGuest[g] = free;
+  }
+  const drop = new Set();
+  for (const c of data.charters) {
+    if (!c) continue;
+    if (Number(c.extAmt) > 0) continue;
+    const notes = String(c.notes || "");
+    if (/Cash \(black\)|^Cash black|free cash|cashFromLead|Cash pot|lead free cash/i.test(notes)) {
+      drop.add(c.id);
+      continue;
+    }
+    const g = normNameSrv(c.client);
+    const free = freeByGuest[g];
+    if (!(free > 0.5)) continue;
+    const amt = Math.round((Number(c.amount) || 0) * 100) / 100;
+    if (Math.abs(amt - free) > 1.01) continue;
+    const isApa = c.kind === "apa" || c.apaTripId || c.cashDeal;
+    if (!isApa) continue;
+    let spent = 0;
+    if (c.apaTripId) {
+      const trip = (data.apa || []).find((t) => t && String(t.id) === String(c.apaTripId));
+      if (trip) {
+        if (apaTripLooksLikeLeadCashShell(trip)) {
+          drop.add(c.id);
+          continue;
+        }
+        spent =
+          (trip.expenses || []).reduce((s, e) => s + (Number(e.amount) || 0), 0) +
+          (trip.provisions || []).reduce((s, p) => s + (Number(p.amount) || 0), 0);
+        if (spent > 0.5) continue; /* real pot shortfall */
+        if (!(Number(trip.apaSent) > 0) && !(Number(trip.topUps) > 0)) {
+          drop.add(c.id);
+          continue;
+        }
+      }
+    }
+    if (spent <= 0.009) drop.add(c.id);
+  }
+  if (!drop.size) return false;
+  data.charters = data.charters.filter((c) => c && !drop.has(c.id));
+  for (const t of data.apa || []) {
+    if (t && drop.has(t.chargeId)) t.chargeId = "";
+  }
+  return true;
+}
+
 /**
  * Pending shortfall charge when still overspent after paid charges.
  * Never deletes Paid charges (they restore APA balance).
@@ -377,6 +442,7 @@ function ensureApaChargesLinked(data) {
     data.apa = keepApa;
     dirty = true;
   }
+  if (purgeLeadFreeCashCharges(data)) dirty = true;
 
   for (const t of data.apa) {
     if (!t || !String(t.guest || "").trim()) continue;
