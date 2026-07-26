@@ -147,13 +147,15 @@
   .lead-actions{display:flex;flex-wrap:wrap;gap:8px;margin-top:11px;padding-right:28px}
   .lead-actions .btn{width:auto;flex:0 0 auto;padding:9px 12px;font-size:12.5px;font-weight:700}
   .lead-actions .btn.copied{background:var(--green);color:var(--greenInk);border-color:transparent}
-  /* Split deal money strip — ordered story, not a pill pile */
-  .lead-split{margin-top:10px;padding:10px 11px;background:#f5f8f9;border:1px solid var(--line);border-radius:12px}
-  .lead-split .ls-row{display:flex;flex-wrap:wrap;align-items:baseline;gap:6px 14px;font-size:13px;line-height:1.45}
-  .lead-split .ls-row+.ls-row{margin-top:6px;padding-top:6px;border-top:1px dashed var(--line)}
-  .lead-split .ls-k{color:var(--muted);font-size:11.5px;font-weight:700;text-transform:uppercase;letter-spacing:.03em}
-  .lead-split .ls-v{font-weight:800;color:var(--ink)}
-  .lead-split .ls-note{font-size:12px;color:var(--muted);margin-top:6px;line-height:1.4}
+  /* Money strip (leads split + charges) — ordered story, not a pill pile */
+  .lead-split,.ch-money{margin-top:10px;padding:10px 11px;background:#f5f8f9;border:1px solid var(--line);border-radius:12px}
+  .lead-split .ls-row,.ch-money .ls-row{display:flex;flex-wrap:wrap;align-items:baseline;gap:6px 14px;font-size:13px;line-height:1.45}
+  .lead-split .ls-row+.ls-row,.ch-money .ls-row+.ls-row{margin-top:6px;padding-top:6px;border-top:1px dashed var(--line)}
+  .lead-split .ls-k,.ch-money .ls-k{color:var(--muted);font-size:11.5px;font-weight:700;text-transform:uppercase;letter-spacing:.03em}
+  .lead-split .ls-v,.ch-money .ls-v{font-weight:800;color:var(--ink)}
+  .lead-split .ls-note,.ch-money .ls-note{font-size:12px;color:var(--muted);margin-top:6px;line-height:1.4}
+  .ch-money .ls-v.cash{color:#1b5e20}
+  .ch-money .ls-v.inv{color:#1a3a6b}
   .sheet .sect{font-size:12px;font-weight:700;color:var(--muted);text-transform:uppercase;letter-spacing:.04em;margin:14px 0 10px;padding-top:4px;border-top:1px solid var(--line)}
   .sheet .sect:first-of-type{border-top:none;margin-top:6px}
   .pill{display:inline-block;padding:3px 10px;border-radius:20px;font-size:11.5px;font-weight:700;white-space:nowrap}
@@ -386,7 +388,7 @@
         <div class="sumcard"><div class="l">To invoice</div><div class="v money" id="chInvTot">€0</div></div>
         <div class="sumcard"><div class="l">Invoices to issue</div><div class="v" id="chPending">0</div></div>
       </div>
-      <div class="legend">Each charge is <b>Cash</b>, <b>Invoice</b>, or <b>Mix</b>. On an <b>APA charge</b>, add <b>extra hours on the same bill</b> (card/invoice so bank matches, or cash). One PDF can cover APA spend + extension.</div>
+      <div class="legend">Each charge is <b>Cash only</b>, <b>Invoice only</b>, or <b>Mix</b> — the card shows cash vs invoice/card clearly. APA shortfall = pot overspend (not full charter). Extra hours can sit on the same bill.</div>
       <div class="list" id="chList"></div>
     </section>
 
@@ -1010,6 +1012,58 @@ function sortCharters(){
     return 0;
   });
 }
+/** Clear money strip for a charge: settlement type, cash vs invoice, APA/ext. */
+function chargeMoneySummaryHTML(r){
+  if(!r) return "";
+  var cashP=chargeCashPart(r), invP=chargeInvoicePart(r);
+  var bt=chargeBillType(r);
+  var isApa=r.kind==="apa"||!!r.apaTripId;
+  var extA=chargeExtAmt(r);
+  var extH=chargeExtHours(r);
+  var extSettle=chargeExtSettle(r);
+  var apaBase=isApa?(Number(r.apaBaseAmt)>0?Number(r.apaBaseAmt):Math.max(0,(Number(r.amount)||0)-extA)):0;
+  var cashBoat=chargeCashToBoat(r);
+  var pay=chargePay(r);
+  var invSt=chargeInv(r);
+  var needsInv=chargeNeedsInvoice(r);
+  var settle=bt==="cash"?"Cash only":(bt==="mix"?"Mix":"Invoice only");
+  var h='<div class="ch-money">';
+  h+='<div class="ls-row">';
+  h+='<span class="ls-k">Settlement</span><span class="ls-v">'+esc(settle)+'</span>';
+  h+='<span class="ls-k">Total</span><span class="ls-v money">'+money0(r.amount)+'</span>';
+  h+='</div>';
+  h+='<div class="ls-row">';
+  h+='<span class="ls-k">Cash</span><span class="ls-v cash money">'+(cashP>0?money0(cashP):"€0")+'</span>';
+  h+='<span class="ls-k">Invoice / card</span><span class="ls-v inv money">'+(invP>0?money0(invP):"€0")+'</span>';
+  h+='</div>';
+  if(isApa||extA>0){
+    h+='<div class="ls-row">';
+    if(isApa) h+='<span class="ls-k">APA shortfall</span><span class="ls-v money">'+money0(apaBase)+'</span>';
+    if(extA>0){
+      h+='<span class="ls-k">Extra hours</span><span class="ls-v money">'+money0(extA)+'</span>';
+      h+='<span class="ls-k">'+(extSettle==="cash"?"ext cash":"ext on bill")+'</span>';
+      if(extH>0) h+='<span class="ls-v">+'+esc(String(extH))+'h</span>';
+    }
+    h+='</div>';
+  }
+  var notes=[];
+  if(isApa) notes.push("APA pot balance (not full charter fee)");
+  notes.push(pay==="Paid"?"Payment paid":"Payment pending");
+  if(needsInv){
+    if(invSt==="Issued") notes.push("Invoice issued"+(r.inv?" #"+r.inv:""));
+    else notes.push("Invoice open — Make invoice");
+  } else {
+    notes.push("No formal invoice");
+  }
+  if(cashBoat>0) notes.push("Cash → boat pot "+money0(cashBoat)+(pay==="Paid"?"":" when paid"));
+  if(isChargeCaptainComm(r)){
+    var cm=chargeCommissionAmt(r);
+    if(cm>0) notes.push("Your comm "+money(cm));
+  }
+  h+='<div class="ls-note">'+esc(notes.join(" · "))+'</div>';
+  h+='</div>';
+  return h;
+}
 function renderCharters(){
   /* Collapse duplicate APA shortfall rows (e.g. Alvaro ×4) before paint — no re-render loop */
   if(canOps()&&!DEMO&&!renderCharters._merging){
@@ -1032,40 +1086,27 @@ function renderCharters(){
     var invSt=chargeInv(r);
     var needsInv=chargeNeedsInvoice(r);
     if(needsInv&&invSt!=="Issued") pend++;
-    var pay=chargePay(r), v=chargeVat(r);
+    var pay=chargePay(r);
     var isApa=r.kind==="apa"||!!r.apaTripId;
     var bt=chargeBillType(r);
-    var apaReq=isApa&&pay!=="Paid"&&needsInv&&invSt!=="Issued";
-    var pm=chargePayMethod(r);
-    var cashBoat=chargeCashToBoat(r);
-    var invPill=needsInv
-      ?(invSt==="Issued"?'<span class="pill p-green">Invoice issued</span>':'<span class="pill p-amber">Invoice open</span>')
-      :'<span class="pill p-cash">No invoice</span>';
-    var splitMeta="";
-    if(bt==="mix"){
-      splitMeta='<span class="pill p-cash">Cash '+money0(cashP)+'</span><span class="pill p-card">Invoice '+money0(invP)+'</span>';
-    }
     var extA=chargeExtAmt(r);
-    var isExt=isChargeCaptainComm(r)||extA>0;
-    var extH=chargeExtHours(r);
-    var extComm=isChargeCaptainComm(r)?chargeCommissionAmt(r):0;
-    var extPill=extA>0
-      ?'<span class="pill p-amber">+'+money0(extA)+' ext '+(chargeExtSettle(r)==="cash"?"cash":"on bill")+(extH>0?" · +"+extH+"h":"")+'</span>'
-      :(isExt&&!isApa?'<span class="pill p-amber">Extension</span>':"");
-    var apaBaseShow=isApa&&Number(r.apaBaseAmt)>0?Number(r.apaBaseAmt):(isApa?Number(r.amount)||0:0);
+    var kindPill=isApa
+      ?'<span class="pill p-apa">APA shortfall</span>'
+      :(extA>0||isChargeCaptainComm(r)?'<span class="pill p-amber">Extension</span>':'');
+    var settlePill=bt==="cash"
+      ?'<span class="pill p-cash">Cash</span>'
+      :(bt==="mix"?'<span class="pill p-amber">Mix</span>':'<span class="pill p-card">Invoice</span>');
     html+='<div class="item" data-edit-ch="'+esc(r.id)+'">'+
-      '<div class="top"><div class="title">'+esc(r.client||"—")+(isApa?' <span class="pill p-apa">APA shortfall</span>':'')+extPill+(apaReq?' <span class="pill p-amber">Invoice open</span>':'')+'</div><div class="amt money">'+money0(r.amount)+'</div></div>'+
-      '<div class="meta">'+(r.date?'<span>📅 '+esc(fmtDate(r.date))+'</span>':'')+
-        billTypePill(r)+
-        (isApa?'<span class="meta">Pot balance due (not full charter fee)</span>':'')+
-        (bt==="invoice"||bt==="mix"?(v.pct?'<span>IVA '+v.pct+'% on invoice part</span>':'<span>Invoice (no VAT)</span>'):'<span>Cash settlement</span>')+
-        pill(pay)+payMethodPill(pm)+invPill+splitMeta+
-        (extComm>0?'<span class="pill p-green">Comm '+money(extComm)+(extH>0?" · +"+extH+"h":"")+'</span>':'')+
-        (cashBoat>0?'<span class="pill p-cash">→ pot '+money0(cashBoat)+'</span>':'')+
-        (r.inv?'<span>#'+esc(r.inv)+'</span>':'')+'</div>'+
+      '<div class="top"><div class="title">'+esc(r.client||"—")+'</div><div class="amt money">'+money0(r.amount)+'</div></div>'+
+      '<div class="meta">'+
+        (r.date?'<span>'+esc(fmtDate(r.date))+'</span>':'')+
+        kindPill+settlePill+
+        (pay==="Paid"?'<span class="pill p-green">Paid</span>':'<span class="pill p-amber">Pending</span>')+
+      '</div>'+
+      chargeMoneySummaryHTML(r)+
       (r.notes?'<div class="notes">'+esc(r.notes)+'</div>':'')+
       (needsInv
-        ?'<div class="lead-actions"><button type="button" class="btn" data-inv-ch="'+esc(r.id)+'">Make invoice'+(bt==="mix"?" ("+money0(invP)+")":"")+'</button></div>'
+        ?'<div class="lead-actions"><button type="button" class="btn" data-inv-ch="'+esc(r.id)+'">Make invoice'+(bt==="mix"&&invP>0?" ("+money0(invP)+")":"")+'</button></div>'
         :'')+
       '<span class="chev">✎</span></div>';
   });
