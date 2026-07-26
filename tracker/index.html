@@ -1011,6 +1011,18 @@ function sortCharters(){
   });
 }
 function renderCharters(){
+  /* Collapse duplicate APA shortfall rows (e.g. Alvaro ×4) before paint — no re-render loop */
+  if(canOps()&&!DEMO&&!renderCharters._merging){
+    renderCharters._merging=true;
+    try{
+      var d1=relinkOrphanApaCharges();
+      var d2=mergeDuplicateApaCharges();
+      if(d1||d2){
+        try{ save("charters"); save("apa"); }catch(e){}
+      }
+    }catch(e){}
+    renderCharters._merging=false;
+  }
   sortCharters();
   var wrap=el("chList"), tot=0, cashTot=0, invTot=0, pend=0, html="";
   state.charters.forEach(function(r){
@@ -3142,6 +3154,11 @@ function applyApaChargeMoney(ch, apaBase){
   }
   return tot;
 }
+function isApaChargeRow(c){
+  if(!c) return false;
+  if(c.kind==="apa"||c.apaTripId) return true;
+  return /synced from APA|APA shortfall|APA ·|pot \(sent|spend to invoice/i.test(String(c.notes||""));
+}
 /**
  * Re-point orphan APA charges (no apaTripId) to the only matching trip, if unique.
  * Never steal a charge already tied to another trip.
@@ -3150,13 +3167,14 @@ function relinkOrphanApaCharges(){
   if(!state.charters||!state.apa) return false;
   var dirty=false;
   state.charters.forEach(function(c){
-    if(!c||c.kind!=="apa"||c.apaTripId) return;
+    if(!c||!isApaChargeRow(c)||c.apaTripId) return;
     if(chargeIsLockedMoney(c)) return;
     var name=normName(c.client);
     if(!name) return;
     var matches=(state.apa||[]).filter(function(t){ return t&&normName(t.guest)===name; });
     if(matches.length===1){
       c.apaTripId=matches[0].id;
+      c.kind="apa";
       if(!matches[0].chargeId) matches[0].chargeId=c.id;
       dirty=true;
     }
@@ -3164,59 +3182,89 @@ function relinkOrphanApaCharges(){
   return dirty;
 }
 /**
- * One APA shortfall charge per trip (paid or pending). Drop weaker duplicates.
- * Two Paid rows on the same pot double-count “Paid on Charges” and invent leftover €.
- * Also collapse same-guest orphan APA charges (no trip id) after pot merge.
+ * One APA shortfall charge per trip, then one per guest name.
+ * Multiple Alvaro rows (different trip ids / orphans) collapse to the strongest charge.
+ * Do not sum amounts — keep winner € only (avoids inventing money).
  */
 function mergeDuplicateApaCharges(){
   if(!state.charters||!state.charters.length) return false;
   var dirty=false;
-  var byTrip={}, byGuestOrphan={};
+  var byTrip={}, byGuest={};
   state.charters.forEach(function(c){
-    if(!c||c.kind!=="apa") return;
+    if(!isApaChargeRow(c)) return;
     if(c.apaTripId){
       var k=String(c.apaTripId);
       if(!byTrip[k]) byTrip[k]=[];
       byTrip[k].push(c);
-    } else {
-      /* Orphans: only collapse unlocked (pending) by name — never merge two Paid guests */
-      if(chargeIsLockedMoney(c)) return;
-      var g=normName(c.client);
-      if(!g) return;
-      if(!byGuestOrphan[g]) byGuestOrphan[g]=[];
-      byGuestOrphan[g].push(c);
+    }
+    var g=normName(c.client);
+    if(g){
+      if(!byGuest[g]) byGuest[g]=[];
+      byGuest[g].push(c);
     }
   });
   function score(c){
     var s=(Number(c.amount)||0)*10+(chargeExtAmt(c)>0?1000:0)+(c.captainComm?50:0)+(c.inv?20:0);
     if(chargePay(c)==="Paid") s+=5000;
     if(c.invStatus==="Issued") s+=2000;
+    if(c.kind==="apa") s+=5;
     return s;
   }
   function collapse(list){
     if(!list||list.length<2) return;
-    list=list.slice().sort(function(a,b){ return score(b)-score(a); });
-    var win=list[0];
-    list.slice(1).forEach(function(loser){
+    /* De-dupe list by id (same charge can appear in trip + guest groups) */
+    var seen={}, uniq=[];
+    list.forEach(function(c){
+      if(!c||!c.id||seen[c.id]) return;
+      seen[c.id]=1;
+      /* Still in state.charters? */
+      if(!(state.charters||[]).some(function(x){ return x&&x.id===c.id; })) return;
+      uniq.push(c);
+    });
+    if(uniq.length<2) return;
+    uniq=uniq.slice().sort(function(a,b){ return score(b)-score(a); });
+    var win=uniq[0];
+    var gName=normName(win.client);
+    uniq.slice(1).forEach(function(loser){
       if(chargeExtAmt(loser)>chargeExtAmt(win)){
         win.extAmt=loser.extAmt; win.extSettle=loser.extSettle; win.extHours=loser.extHours||win.extHours;
         win.captainComm=win.captainComm||loser.captainComm;
       }
       if(loser.inv&&!win.inv) win.inv=loser.inv;
-      /* Prefer keeping paid status if loser was paid and win was not */
       if(chargePay(loser)==="Paid"&&chargePay(win)!=="Paid"){
         win.payStatus="Paid";
         win.status="Paid";
       }
-      state.charters=state.charters.filter(function(x){ return !x||x.id!==loser.id; });
+      if(loser.invStatus==="Issued"&&win.invStatus!=="Issued"){
+        win.invStatus="Issued";
+      }
+      if(!win.apaTripId&&loser.apaTripId) win.apaTripId=loser.apaTripId;
+      win.kind="apa";
+      state.charters=(state.charters||[]).filter(function(x){ return !x||x.id!==loser.id; });
       (state.apa||[]).forEach(function(t){
-        if(t&&String(t.chargeId)===String(loser.id)) t.chargeId=win.id;
+        if(!t) return;
+        if(String(t.chargeId)===String(loser.id)) t.chargeId=win.id;
+        if(String(t.id)===String(loser.apaTripId)&&!t.chargeId) t.chargeId=win.id;
       });
       dirty=true;
     });
+    /* Pin winner to canonical APA pot for this guest when possible */
+    if(gName&&(state.apa||[]).length){
+      var trips=(state.apa||[]).filter(function(t){ return t&&normName(t.guest)===gName; });
+      if(trips.length){
+        trips=trips.slice().sort(function(a,b){ return apaTripCanonicalScore(b)-apaTripCanonicalScore(a); });
+        var trip=trips[0];
+        if(trip&&String(win.apaTripId||"")!==String(trip.id)){
+          win.apaTripId=trip.id;
+          dirty=true;
+        }
+        if(trip) trip.chargeId=win.id;
+      }
+    }
   }
   Object.keys(byTrip).forEach(function(k){ collapse(byTrip[k]); });
-  Object.keys(byGuestOrphan).forEach(function(k){ collapse(byGuestOrphan[k]); });
+  /* Same guest, different trip ids → one charge (fixes Alvaro ×4) */
+  Object.keys(byGuest).forEach(function(k){ collapse(byGuest[k]); });
   return dirty;
 }
 function syncApaToCharge(t){
