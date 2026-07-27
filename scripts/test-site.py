@@ -391,8 +391,8 @@ def check_html(r: Runner, rel: str, html: str) -> None:
         'window.LY_syncDestCardImages' not in html
         and html.count('class="destination-card-bg"') == 12
         and html.count('sizes="78vw"') == 12
-        and html.count('media="(min-width: 769px)"') == 34
-        and html.count('media="(min-width: 769px)" data-ly-srcset=') == 34
+        and html.count('media="(min-width: 769px)"') == 41
+        and html.count('media="(min-width: 769px)" data-ly-srcset=') == 41
         and 'media="(min-width: 769px)" data-ly-srcset="images/mobile/' not in html
         and 'reframe_immersive.py' in (read_file('scripts/reframe_immersive.py') or '')
         and 'DJI_20260626132137_0266_D.JPG' in (read_file('scripts/reframe_immersive.py') or '')
@@ -482,18 +482,38 @@ def check_html(r: Runner, rel: str, html: str) -> None:
         'gallery is one continuous swipe carousel (single track tagged by category)',
         html.count('class="gallery-group') == 1
         and html.count('class="gallery-grid"') == 1
-        and html.count('class="gallery-item') == 21
+        and html.count('class="gallery-item') == 28
         and html.count('data-cat="water"') == 7
-        and html.count('data-cat="deck"') == 6
+        and html.count('data-cat="deck"') == 13
         and html.count('data-cat="interior"') == 8,
     )
-    water_block = html.split('data-cat="water"')[1:8]
+    r.check(
+        'deck life narrative shots from Jul 2026 charter day are wired',
+        all(stem in html for stem in (
+            'life_aft_grazing', 'life_swim_pad', 'life_portals_ensign',
+            'life_portals_paddle', 'life_bow_hang', 'life_bow_sunset', 'life_rock_dusk',
+        ))
+        and all(f'images/mobile/{stem}gm-480.webp' in html for stem in (
+            'life_aft_grazing', 'life_swim_pad', 'life_portals_ensign',
+            'life_portals_paddle', 'life_bow_hang', 'life_bow_sunset', 'life_rock_dusk',
+        )),
+    )
+    # Per-panel slices (not a naive split) so the last water panel does not
+    # bleed into deck and false-positive on life_* lifestyle stems.
+    _water_opens = list(re.finditer(r'<div class="gallery-item\b[^>]*data-cat="water"[^>]*>', html))
+    water_panels = []
+    for i, m in enumerate(_water_opens):
+        end = _water_opens[i + 1].start() if i + 1 < len(_water_opens) else html.find('<div class="gallery-item', m.start() + 20)
+        if end < 0:
+            end = m.start() + 1500
+        water_panels.append(html[m.start():end])
     r.check(
         'water gallery uses owned Limitless drone/video frames (no borrowed life_* slots)',
-        all('life_' not in chunk[:1200] for chunk in water_block)
-        and 'maiora_20s_19' in water_block[4]
-        and 'maiora_20s_20' in water_block[5]
-        and 'maiora_20s_04' in water_block[6],
+        len(water_panels) == 7
+        and all('life_' not in panel for panel in water_panels)
+        and 'maiora_20s_19' in water_panels[4]
+        and 'maiora_20s_20' in water_panels[5]
+        and 'maiora_20s_04' in water_panels[6],
     )
     r.check(
         'landscape water gallery panels ship mobile gm reframes',
@@ -603,8 +623,8 @@ def check_html(r: Runner, rel: str, html: str) -> None:
         and 'openGalleryLb' in html
         and 'applyGalleryLbFrame' in html
         and 'function showImage(idx)' in html
-        and html.count('class="gallery-item') == 21
-        and html.split('window.LY_GALLERY_IMAGES = [', 1)[1].split('];', 1)[0].count('.webp') == 21,
+        and html.count('class="gallery-item') == 28
+        and html.split('window.LY_GALLERY_IMAGES = [', 1)[1].split('];', 1)[0].count('.webp') == 28,
     )
     r.check(
         'swipe-settle fires debounced, in-view-gated category view events',
@@ -744,8 +764,9 @@ def check_html(r: Runner, rel: str, html: str) -> None:
         # Previews keep a real src so they load immediately when near viewport.
         'class="ly-prog-preview" src="' in html
         # Every non-hero sharp ships deferred — no eager src/srcset to race the preview.
-        # +5 life-aboard gallery cards (3 water, 2 deck) added 6 Jul 2026
-        and html.count('class="ly-prog-sharp" data-ly-src="') == 35
+        # Gallery sharps: 28 panels (7 water + 13 deck + 8 interior) + non-gallery content
+        # +7 deck-life narrative stills from 25 Jul 2026 charter day (Portals Vells run)
+        and html.count('class="ly-prog-sharp" data-ly-src="') == 42
         and 'class="ly-prog-sharp" src=' not in html
         and html.count('data-ly-srcset="') >= 56
         # Hero stays eager (it is the LCP): its sharp keeps a real src.
@@ -2302,6 +2323,52 @@ def check_shared_assets(r: Runner) -> None:
         and '.cal-cell[data-selected="true"]' in css
         and '.cal-footer' in css
         and '.cal-enquire-link.is-disabled' in css,
+    )
+    r.check(
+        'bookable calendar days are styled unmistakably (not bare text)',
+        css is not None
+        and '.cal-cell.free' in css
+        and 'box-shadow:inset0001.5pxrgba(201,168,76,.55)' in re.sub(r'\s+', '', css)
+        and 'background:rgba(201,168,76,.14)' in re.sub(r'\s+', '', css),
+    )
+    r.check(
+        'carousel position counter is readable on mobile',
+        css is not None
+        and '.carousel-pos' in css
+        and 'aria-live="polite"' in index_html
+        and index_html.count('class="carousel-pos"') >= 2,
+    )
+    r.check(
+        'calendar opens on first month with free dates after availability loads',
+        'function firstOpenMonthIndex' in index_html
+        and 'function jumpViewToOpenMonth' in index_html
+        and 'jumpViewToOpenMonth()' in index_html
+        and 'userPagedCal' in index_html,
+    )
+    r.check(
+        'sticky WhatsApp CTA surfaces when calendar dates are selected',
+        'id="calStickyCta"' in index_html
+        and 'function syncStickyCta' in index_html
+        and 'data-label-one="Enquire on WhatsApp for {date}"' in index_html
+        and 'ly_cal_sticky_whatsapp' in index_html
+        and css is not None
+        and '.cal-sticky-cta' in css
+        and '--ly-cookie-h' in css,
+    )
+    r.check(
+        'bottom chrome offsets keep cookie banner clear of calendar/sticky CTA',
+        'LY_syncBottomChrome' in index_html
+        and 'ly-cookie-open' in index_html
+        and css is not None
+        and 'html.ly-cookie-open #availability' in css
+        and 'html.ly-cal-sticky-open #availability' in css,
+    )
+    r.check(
+        'View Dates CTA has full locale pairs (no partial Dates→Daten)',
+        "View Dates" in (read_file('i18n/locales/de.py') or '')
+        and 'Termine ansehen' in (read_file('i18n/locales/de.py') or '')
+        and 'Ver fechas' in (read_file('i18n/locales/es.py') or '')
+        and 'Voir les dates' in (read_file('i18n/locales/fr.py') or ''),
     )
     r.check(
         'calendar legend swatches are reliable at narrow widths',
