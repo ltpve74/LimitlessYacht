@@ -279,6 +279,9 @@
   .pill.p-white{background:#e8f0f4;color:var(--brand)}
   .pill.p-card{background:#e8eef8;color:#1a3a6b}
   .pill.p-cash{background:#e8f5e9;color:#1b5e20}
+  .pill.p-red{background:var(--dangerBg);color:var(--danger)}
+  .item.item--cancelled{opacity:0.72}
+  .item.item--cancelled .title{text-decoration:line-through;text-decoration-thickness:1px}
   /* APA (captain + manager) */
   .apa-sub{display:flex;gap:6px;overflow-x:auto;-webkit-overflow-scrolling:touch;margin:0 0 12px;padding-bottom:2px}
   .apa-sub button{flex:0 0 auto;padding:8px 12px;border-radius:999px;border:1.5px solid var(--line);background:#fff;color:var(--muted);font-size:12.5px;font-weight:700}
@@ -398,7 +401,7 @@
         <div class="sumcard"><div class="l">Deals value</div><div class="v money" id="ldTot">€0</div></div>
         <div class="sumcard"><div class="l">Invoices open</div><div class="v" id="ldPending">0</div></div>
       </div>
-      <div class="legend">Leads. <b>Make invoice</b> generates the PDF here (send to manager/accountant or download). Status: <b>Not issued</b> → <b>Issued</b> → <b>Paid</b>. Split: formal white + cash (cash never on a PDF).</div>
+      <div class="legend">Leads. <b>Make invoice</b> generates the PDF (Not issued → Issued → Paid → Refunded). Weather cancel: open the lead → <b>Cancel charter — refund deposit</b> (stews + free cash updated). Split: formal white + cash (cash never on a PDF).</div>
       <div class="list" id="ldList"></div>
     </section>
 
@@ -518,8 +521,11 @@
 <script>
 "use strict";
 var API = "/.netlify/functions/tracker";
-/* Lead dep/fin/APA invoice status — no “request” step; PDF is made in-app */
-var LEAD_STATUSES = ["Not issued","Issued","Paid"];
+/* Lead dep/fin/APA invoice status — no “request” step; PDF is made in-app.
+   Refunded = money returned (e.g. captain weather cancel → refund deposit). */
+var LEAD_STATUSES = ["Not issued","Issued","Paid","Refunded"];
+/** Lead booking lifecycle (separate from invoice status). */
+var LEAD_BOOKING_STATUSES = ["active","cancelled"];
 var EXPECTED_PEOPLE = 2;
 var APA_EXP_CATS = ["Drinks & Bar","Dockage / Marina","Crew Tips","Miscellaneous","Fuel / Diesel","Food & Provisions"];
 var APA_PAID_BY = ["APA cash","Ship card","Guest card","Bank transfer"];
@@ -895,13 +901,27 @@ function updateFab(){
 }
 
 /* -------- render -------- */
-function pill(v){ var c="p-grey"; if(v==="Pending"||v==="Not issued")c="p-amber"; else if(v==="Invoiced"||v==="Issued")c="p-blue"; else if(v==="Paid")c="p-green"; return '<span class="pill '+c+'">'+esc(v)+'</span>'; }
+function pill(v){
+  var c="p-grey";
+  if(v==="Pending"||v==="Not issued") c="p-amber";
+  else if(v==="Invoiced"||v==="Issued") c="p-blue";
+  else if(v==="Paid") c="p-green";
+  else if(v==="Refunded"||v==="Cancelled"||v==="cancelled") c="p-red";
+  return '<span class="pill '+c+'">'+esc(v)+'</span>';
+}
 /** Normalize legacy “Not requested” / “Requested” → Not issued */
 function leadInvStatus(s){
   s=String(s||"").trim();
-  if(s==="Issued"||s==="Paid") return s;
+  if(s==="Issued"||s==="Paid"||s==="Refunded") return s;
   return "Not issued";
 }
+/** Charter booking status on a lead (active unless cancelled). */
+function leadBookingStatus(r){
+  if(!r) return "active";
+  if(r.bookingStatus==="cancelled"||r.cancelled===true||r.status==="Cancelled"||r.status==="cancelled") return "cancelled";
+  return "active";
+}
+function leadIsCancelled(r){ return leadBookingStatus(r)==="cancelled"; }
 function renderAll(){
   function safe(fn){ try{ fn(); }catch(e){ console&&console.error&&console.error(e); } }
   safe(renderCharters); safe(renderLeads); safe(renderSecurity);
@@ -1140,7 +1160,7 @@ function leadMeta(r){
 function vatModeLabel(m){ return m==="add"?"+ VAT":(m==="include"?"inc. VAT":""); }
 function leadInvTag(label, amount, pct, status, invNo){
   var st=leadInvStatus(status);
-  var cls=st==="Not issued"?" need":(st==="Issued"||st==="Paid"?" done":"");
+  var cls=st==="Not issued"?" need":(st==="Issued"||st==="Paid"||st==="Refunded"?" done":"");
   var inv=invNo?' <span>#'+esc(invNo)+'</span>':'';
   var pctS=(pct!==""&&pct!=null)?' ('+pct+'%)':'';
   return '<span class="invtag'+cls+'"><b>'+esc(label)+'</b> '+money0(amount)+pctS+' '+pill(st)+inv+'</span>';
@@ -1152,13 +1172,177 @@ function leadNeedsApaInv(r){
   if(!r) return false;
   return (Number(r.apaPct)||0)>0||(Number(r.apa)||0)>0.009;
 }
-/** How many formal invoices on this lead are still Not issued. */
+/** How many formal invoices on this lead are still Not issued. Cancelled leads never count as open. */
 function pendForLead(r){
+  if(leadIsCancelled(r)) return 0;
   var n=0;
   if(leadNeedsDepInv(r)&&leadInvStatus(r.deps)==="Not issued") n++;
   if(leadNeedsFinInv(r)&&leadInvStatus(r.fins)==="Not issued") n++;
   if(leadNeedsApaInv(r)&&leadInvStatus(r.apas)==="Not issued") n++;
   return n;
+}
+/**
+ * Guest tokens for matching calendar titles (e.g. “Alvaro - stew Laura”).
+ * Uses same accent-fold as APA guest keys.
+ */
+function leadGuestMatchTokens(r){
+  var raw=String((r&&r.name)||"").replace(/\([^)]*\)/g," ");
+  var key=(typeof normName==="function"?normName(raw):String(raw).toLowerCase()).replace(/[^a-z0-9]+/g," ");
+  var toks=key.split(/\s+/).filter(function(t){ return t&&t.length>=3; });
+  /* Drop noise suffixes */
+  return toks.filter(function(t){
+    return !/^(website|lead|click|boat|corp|family|guest)$/.test(t);
+  });
+}
+function stewSummaryMatchesLead(summary, lead){
+  var toks=leadGuestMatchTokens(lead);
+  if(!toks.length) return false;
+  var sum=typeof normName==="function"?normName(summary||""):String(summary||"").toLowerCase();
+  if(!sum) return false;
+  return toks.some(function(t){ return sum.indexOf(t)>=0; });
+}
+function leadDateOverlapsEvent(lead, ev){
+  if(!lead||!ev) return false;
+  var ls=String(lead.start||lead.cdate||"").slice(0,10);
+  var le=String(lead.end||lead.start||lead.cdate||"").slice(0,10);
+  var es=String(ev.start||"").slice(0,10);
+  var ee=String(ev.end||ev.start||"").slice(0,10);
+  if(!ls||!es) return false;
+  if(!le) le=ls;
+  if(!ee) ee=es;
+  /* Inclusive range overlap */
+  return ls<=ee&&es<=le;
+}
+/** Calendar / assign events that belong to this lead (name + date). */
+function stewEventsForLead(lead){
+  if(!lead) return [];
+  var out=[], seen={};
+  function take(ev){
+    if(!ev||!ev.key||seen[ev.key]) return;
+    if(stewIsOffEvent&&stewIsOffEvent(ev)) return;
+    if(!stewSummaryMatchesLead(ev.summary||"", lead)) return;
+    if(!leadDateOverlapsEvent(lead, ev)) return;
+    seen[ev.key]=1;
+    out.push(ev);
+  }
+  try{
+    (typeof stewMergedEvents==="function"?stewMergedEvents():[]).forEach(take);
+  }catch(e){}
+  (state.stewAssign||[]).forEach(function(a){
+    if(!a||!a.eventKey||seen[a.eventKey]) return;
+    if(!stewSummaryMatchesLead(a.summary||"", lead)) return;
+    if(!leadDateOverlapsEvent(lead, {start:a.start, end:a.end||a.start})) return;
+    seen[a.eventKey]=1;
+    out.push({
+      key:a.eventKey, summary:a.summary||"", start:a.start, end:a.end||a.start,
+      status:a.status||"booked", source:"assign"
+    });
+  });
+  return out;
+}
+/**
+ * Mark stew assigns for this lead cancelled — no day pay / tip due.
+ * Removes current-month stew day-pay expense lines for those events.
+ */
+function cancelStewsForLead(lead){
+  if(!isCaptain()||!lead) return {n:0, keys:[]};
+  var events=stewEventsForLead(lead);
+  if(!state.stewAssign) state.stewAssign=[];
+  var keys={}, dirty=false, touched=[];
+  events.forEach(function(ev){ if(ev&&ev.key) keys[ev.key]=1; });
+  /* Also match assigns by guest name alone on the lead charter date (title may omit guest) */
+  var ls=String(lead.start||lead.cdate||"").slice(0,10);
+  if(ls){
+    (state.stewAssign||[]).forEach(function(a){
+      if(!a||!a.eventKey) return;
+      if(String(a.start||"").slice(0,10)!==ls) return;
+      if(stewSummaryMatchesLead(a.summary||"", lead)||!a.summary){
+        /* Same-day assign with matching name or blank summary after we already matched events */
+        if(stewSummaryMatchesLead(a.summary||"", lead)) keys[a.eventKey]=1;
+      }
+    });
+  }
+  Object.keys(keys).forEach(function(ek){
+    var asg=(state.stewAssign||[]).filter(function(a){return a&&String(a.eventKey)===String(ek);})[0];
+    if(!asg){
+      var ev=events.filter(function(e){return e&&e.key===ek;})[0];
+      asg={
+        id:uid(), eventKey:ek, summary:(ev&&ev.summary)||(lead.name||"Cancelled charter"),
+        start:(ev&&ev.start)||lead.start||"", end:(ev&&ev.end)||lead.end||lead.start||"",
+        stewIds:[], dayRate:"", payUnits:1, payEach:0, payStatus:"Unpaid", payStatusManual:true,
+        tipTotal:"", tipPayStatus:"Unpaid", notes:"", updatedAt:new Date().toISOString(), by:session.who||"Captain"
+      };
+      state.stewAssign.unshift(asg);
+    }
+    asg.cancelled=true;
+    asg.status="cancelled";
+    asg.payStatus="Unpaid";
+    asg.payStatusManual=true;
+    asg.tipPayStatus="Unpaid";
+    asg.cancelLeadId=String(lead.id||"");
+    asg.cancelReason=lead.cancelReason||"weather-captain";
+    asg.notes=((asg.notes?asg.notes+" · ":"")+"Cancelled with lead "+(lead.name||"")+" — no stew pay").trim();
+    asg.updatedAt=new Date().toISOString();
+    dirty=true;
+    touched.push(ek);
+    /* Drop crew day-pay expense lines for this event */
+    if(state.expenses&&state.expenses.length){
+      var n0=state.expenses.length;
+      state.expenses=state.expenses.filter(function(e){
+        if(!e) return false;
+        if(e.source==="stew"&&String(e.stewEventKey)===String(ek)) return false;
+        if(e.linkId&&String(e.linkId).indexOf("stew-day:"+ek+":")===0) return false;
+        return true;
+      });
+      if(state.expenses.length!==n0) dirty=true;
+    }
+  });
+  if(dirty){
+    if(!DEMO){
+      saveStewAssign();
+      saveExpenses();
+    }
+  }
+  return {n:touched.length, keys:touched};
+}
+/**
+ * Captain weather cancel (or similar): booking cancelled, deposit refunded,
+ * free cash not on boat, stews zeroed for matching calendar days.
+ */
+function cancelLeadCharter(lead, opts){
+  opts=opts||{};
+  if(!lead||!lead.id) return false;
+  var reason=opts.reason||"weather-captain";
+  lead.bookingStatus="cancelled";
+  lead.cancelled=true;
+  lead.cancelReason=reason;
+  lead.cancelledAt=new Date().toISOString();
+  lead.cancelledBy=session.who||"Captain";
+  /* Deposit refund when it was issued or paid (captain decision / weather). */
+  var depSt=leadInvStatus(lead.deps);
+  if(depSt==="Paid"||depSt==="Issued"||(Number(lead.dep)||0)>0.009){
+    lead.deps="Refunded";
+  }
+  /* Final / APA no longer expected */
+  if(leadInvStatus(lead.fins)==="Not issued"){ /* keep */ }
+  else if(leadInvStatus(lead.fins)!=="Paid") lead.fins="Not issued";
+  if(leadInvStatus(lead.apas)==="Not issued"){ /* keep */ }
+  else if(leadInvStatus(lead.apas)!=="Paid") lead.apas="Not issued";
+  /* Free cash never collected for a cancelled charter */
+  lead.cashSettled=false;
+  if(isCaptain()&&lead.id) expRemoveLeadCashIn(lead.id, true);
+  var noteBit="Cancelled ("+(reason==="weather-captain"?"bad weather — captain decision":reason)+")"+
+    (opts.note?": "+opts.note:"")+" · deposit refunded";
+  var prev=String(lead.notes||"").trim();
+  if(prev&&prev.toLowerCase().indexOf("cancelled")<0) lead.notes=prev+"\n"+noteBit;
+  else if(!prev) lead.notes=noteBit;
+  lead.updatedAt=new Date().toISOString();
+  var stew=cancelStewsForLead(lead);
+  if(!DEMO){
+    save("leads");
+    if(isCaptain()) saveExpPetty();
+  }
+  return {lead:lead, stew:stew};
 }
 /**
  * Charter date for list order (YYYY-MM-DD), newest first.
@@ -1226,7 +1410,8 @@ function renderLeads(){
   sortLeads();
   var wrap=el("ldList"), tot=0, pend=0, html="";
   state.leads.forEach(function(r){
-    tot+=(leadHasSplit(r)?leadClientTotal(r):(Number(r.total)||0));
+    var cancelled=leadIsCancelled(r);
+    if(!cancelled) tot+=(leadHasSplit(r)?leadClientTotal(r):(Number(r.total)||0));
     var openN=pendForLead(r);
     pend+=openN;
     var showApa=leadNeedsApaInv(r);
@@ -1235,28 +1420,30 @@ function renderLeads(){
     var src=leadSource(r);
     /* Meta: identity + role only — money lives in lead-split block */
     var metaBits='<span>'+leadMeta(r)+'</span>'+
+      (cancelled?'<span class="pill p-red">Cancelled</span>':'')+
+      (cancelled&&leadInvStatus(r.deps)==="Refunded"?'<span class="pill p-red">Deposit refunded</span>':'')+
       (isSplit?'<span class="pill p-black">Split</span>':'')+
       (src==="captain"?'<span class="pill p-blue">Captain</span>':'<span class="pill p-grey">Other</span>')+
-      (src==="captain"&&isCaptain()?'<span class="pill p-green">Comm '+money(leadCommissionAmt(r))+'</span>':'')+
+      (src==="captain"&&isCaptain()&&!cancelled?'<span class="pill p-green">Comm '+money(leadCommissionAmt(r))+'</span>':'')+
       (openN>0?'<span class="pill p-amber">'+openN+' invoice'+(openN>1?'s':'')+' open</span>':'');
     if(!isSplit){
       var vatNote=vatModeLabel(r.vatMode);
       if(vatNote&&(Number(r.vatPct)||0)>0) vatNote+=" "+r.vatPct+"%";
       if(vatNote) metaBits+='<span>'+esc(vatNote)+'</span>';
     }
-    html+='<div class="item" data-edit-ld="'+esc(r.id)+'">'+
-      '<div class="top"><div class="title">'+esc(r.name||"—")+'</div><div class="amt money">'+money0(isSplit?leadClientTotal(r):r.total)+'</div></div>'+
+    html+='<div class="item'+(cancelled?' item--cancelled':'')+'" data-edit-ld="'+esc(r.id)+'">'+
+      '<div class="top"><div class="title">'+esc(r.name||"—")+'</div><div class="amt money">'+(cancelled?'—':money0(isSplit?leadClientTotal(r):r.total))+'</div></div>'+
       '<div class="meta">'+metaBits+'</div>'+
-      leadSplitSummaryHTML(r)+
+      (cancelled?"":leadSplitSummaryHTML(r))+
       '<div class="invtags">'+
         (leadNeedsDepInv(r)?leadInvTag("Deposit",r.dep,r.depPct,r.deps,r.depInv):"")+
-        (leadNeedsFinInv(r)?leadInvTag(finLabel,r.fin,"",r.fins,r.finInv):"")+
-        (showApa?leadInvTag("APA",r.apa,r.apaPct,r.apas,r.apaInv):"")+
+        (leadNeedsFinInv(r)&&!cancelled?leadInvTag(finLabel,r.fin,"",r.fins,r.finInv):"")+
+        (showApa&&!cancelled?leadInvTag("APA",r.apa,r.apaPct,r.apas,r.apaInv):"")+
       '</div>'+
       (r.notes?'<div class="notes">'+esc(r.notes)+'</div>':'')+
       '<div class="lead-actions">'+
-        '<button type="button" class="btn" data-inv-lead="'+esc(r.id)+'">Make invoice</button>'+
-        '<button type="button" class="btn ghost" data-agr-lead="'+esc(r.id)+'">Agreement</button>'+
+        (cancelled?"":'<button type="button" class="btn" data-inv-lead="'+esc(r.id)+'">Make invoice</button>')+
+        (cancelled?"":'<button type="button" class="btn ghost" data-agr-lead="'+esc(r.id)+'">Agreement</button>')+
       '</div>'+
       '<span class="chev">✎</span></div>';
   });
@@ -5964,6 +6151,7 @@ function seedCurrentMonthStewCashExpenses(){
   var wanted={};
   (state.stewAssign||[]).forEach(function(asg){
     if(!asg||!asg.eventKey||expMonthKey(asg.start)!==month) return;
+    if(asg.cancelled||asg.status==="cancelled") return;
     if(String(asg.start||"")>today) return;
     var each=stewAssignDayPayAmount(asg);
     if(!(each>0)) return;
@@ -7411,10 +7599,20 @@ function stewCharterDayReached(ev, asg){
   return d<=(y+"-"+m+"-"+day);
 }
 function stewPayBreakdown(ev, asg){
+  var cancelled=!!(asg&&(asg.cancelled||asg.status==="cancelled"));
   var rate=asg&&asg.dayRate!=null&&asg.dayRate!==""?apaNum(asg.dayRate):stewDefaultRate(ev, null);
   var units=stewPayUnits(ev, asg&&asg.payUnits);
-  var each=stewPayEach(rate, units);
+  var each=cancelled?0:stewPayEach(rate, units);
   var nStews=asg&&asg.stewIds?asg.stewIds.filter(Boolean).length:0;
+  /* Cancelled charter (weather etc.): no pay, no tip due */
+  if(cancelled){
+    return {
+      rate:rate, units:units, each:0, totalAll:0, nStews:nStews,
+      paid:false, due:false, unpaid:false, upcoming:false, cancelled:true,
+      tipTotal:0, tipStewSide:0, tipEach:0, tipPaid:false, tipUnpaid:false, tipUpcoming:false,
+      unitLabel:units===1?"day":"days"
+    };
+  }
   /* Respect saved payStatus only — never force Paid for pre-17/07 */
   var paid=asg&&asg.payStatus==="Paid";
   var due=stewCharterDayReached(ev, asg);
@@ -7428,7 +7626,7 @@ function stewPayBreakdown(ev, asg){
   return {
     rate:rate, units:units, each:each,
     totalAll:each*Math.max(1, nStews||0),
-    nStews:nStews, paid:!!paid, due:!!due, unpaid:unpaid, upcoming:upcoming,
+    nStews:nStews, paid:!!paid, due:!!due, unpaid:unpaid, upcoming:upcoming, cancelled:false,
     tipTotal:tip.total, tipStewSide:tip.stewSide, tipEach:tip.each,
     tipPaid:!!tipPaid, tipUnpaid:tipUnpaid, tipUpcoming:tipUpcoming,
     unitLabel:units===1?"day":"days"
@@ -7436,6 +7634,7 @@ function stewPayBreakdown(ev, asg){
 }
 function stewPayStatusPill(pay){
   if(!pay) return "";
+  if(pay.cancelled) return '<span class="pill p-red">Cancelled</span>';
   if(pay.paid) return '<span class="pill p-green">Pay paid</span>';
   if(pay.upcoming) return '<span class="pill p-grey">Pay not due</span>';
   if(pay.unpaid) return '<span class="pill p-amber">Pay unpaid</span>';
@@ -7645,11 +7844,12 @@ function paintStewCharters(){
     html+='</ul><div class="meta" style="margin-top:8px">Add them under <b>Team</b> if you want them auto-assigned, then refresh. Only charters before 17/07 are auto-filled from the calendar title.</div></div>';
   }
   /* Accounting: day pay + tips + pocket reimbursements. Unpaid day pay only from charter day+. */
-  var unpaidSum=0, paidSum=0, upcomingSum=0, tripWithStew=0, tripDays=0, byStew={};
+  var unpaidSum=0, paidSum=0, upcomingSum=0, tripWithStew=0, tripDays=0, byStew={}, cancelledN=0;
   var tipUnpaidSum=0, tipPaidSum=0, tipGuestSum=0, pocketSum=0;
   events.forEach(function(ev){
     var asg0=assignForEvent(ev.key);
     var pay0=stewPayBreakdown(ev, asg0||{});
+    if(pay0.cancelled||(asg0&&asg0.cancelled)){ cancelledN++; return; }
     tripDays+=pay0.units||0;
     if(pay0.tipTotal>0) tipGuestSum+=pay0.tipTotal;
     if(pay0.tipPaid) tipPaidSum+=pay0.tipStewSide;
@@ -7685,6 +7885,7 @@ function paintStewCharters(){
     '<div class="meta" style="margin-bottom:6px">Season accounting'+(stewYearFilter!=="all"?" · "+esc(stewYearFilter):"")+' · day pay + tips + pocket reimburse</div>'+
     '<div style="display:flex;flex-wrap:wrap;gap:10px 16px;align-items:baseline">'+
       '<div><span class="meta">Trips listed</span><div style="font-size:20px;font-weight:800">'+events.length+'</div></div>'+
+      (cancelledN>0?'<div><span class="meta">Cancelled</span><div style="font-size:20px;font-weight:800;color:var(--danger)">'+cancelledN+'</div></div>':'')+
       '<div><span class="meta">With stew assigned</span><div style="font-size:20px;font-weight:800">'+tripWithStew+'</div></div>'+
       '<div><span class="meta">Billable days</span><div style="font-size:20px;font-weight:800">'+tripDays+'</div></div>'+
       (unpaidSum>0?'<div><span class="meta">Day pay unpaid</span><div class="money" style="font-size:20px;font-weight:800;color:var(--amber,#c9a84c)">'+money0(unpaidSum)+'</div></div>':'')+
@@ -7741,9 +7942,12 @@ function paintStewCharters(){
         (pay.tipTotal>0?'<span class="money">Tip '+money0(pay.tipTotal)+' → '+money0(pay.tipEach)+'/crew</span>':'')+
         (ev.source==="seed"?'<span class="pill p-grey">Seed</span>':'')+
         (ev.status==="tentative"?'<span class="pill p-amber">Tentative</span>':'')+
-        (past?'<span class="pill p-grey">Past</span>':'')+
+        (pay.cancelled||(asg&&asg.cancelled)?'<span class="pill p-red">Cancelled</span>':'')+
+        (past&&!(pay.cancelled||(asg&&asg.cancelled))?'<span class="pill p-grey">Past</span>':'')+
       '</div>';
-    if(names.length){
+    if(pay.cancelled||(asg&&asg.cancelled)){
+      html+='<div class="meta" style="margin-top:4px"><span class="pill p-red">No stew pay — charter cancelled</span></div>';
+    } else if(names.length){
       names.forEach(function(nm){
         html+='<div class="stew-row">'+
           '<span class="stew-name">'+esc(nm)+'</span>'+
@@ -8660,6 +8864,7 @@ function renderCommissions(){
   }
   var items=[];
   (state.leads||[]).filter(isCaptainLead).forEach(function(r){
+    if(leadIsCancelled(r)) return; /* cancelled charter — no commission */
     var p=leadCommissionParts(r);
     items.push({
       sort:String(r.closed||r.start||""),
@@ -8953,6 +9158,21 @@ function openSheet(type,id){
     h+=fieldHTML("Lead name",'<input class="ctl" id="f_name" value="'+esc(r.name)+'" placeholder="e.g. Acme Corp (website)">');
     h+=fieldHTML("Lead source",selLeadSourceField(leadSrcDef));
     h+='<p style="margin:-6px 0 12px;font-size:12.5px;color:var(--muted);line-height:1.4"><b>Captain</b> = your deal → '+CAPTAIN_COMMISSION_PCT+'% of charter before VAT (Ops → Commissions). <b>Other</b> = no captain commission.</p>';
+    var bookSt=leadBookingStatus(r);
+    h+=fieldHTML("Charter status",'<select class="ctl" id="f_bookingStatus">'+
+      '<option value="active"'+(bookSt!=="cancelled"?" selected":"")+'>Active</option>'+
+      '<option value="cancelled"'+(bookSt==="cancelled"?" selected":"")+'>Cancelled</option>'+
+    '</select>');
+    h+='<p style="margin:-6px 0 10px;font-size:12.5px;color:var(--muted);line-height:1.4">Bad weather / captain cancel: use <b>Cancel charter</b> below — marks deposit <b>Refunded</b>, zeroes matching stew pay, clears free cash from the boat.</p>';
+    if(rec&&bookSt!=="cancelled"){
+      h+='<button type="button" class="btn danger" id="sheetCancelCharter" style="width:100%;margin:0 0 14px">Cancel charter — refund deposit</button>';
+    }
+    if(bookSt==="cancelled"){
+      h+='<div class="apa-card" style="margin:0 0 12px;padding:10px 12px;border:1.5px solid #f0b4b0;background:#fdeeee">'+
+        '<div style="font-weight:800;color:var(--danger)">Cancelled'+(r.cancelReason==="weather-captain"?" · bad weather (captain)":(r.cancelReason?" · "+esc(r.cancelReason):""))+'</div>'+
+        (r.cancelledAt?'<div class="meta" style="margin-top:4px">'+esc(String(r.cancelledAt).slice(0,16).replace("T"," "))+(r.cancelledBy?" · "+esc(r.cancelledBy):"")+'</div>':'')+
+      '</div>';
+    }
     h+=fieldHTML("Date closed",'<input class="ctl" id="f_closed" type="date" value="'+esc(r.closed)+'">');
     h+=fieldHTML("Duration",durField(ldur));
     h+='<div id="f_durfields">'+durFieldsHTML(ldur,r)+'</div>';
@@ -8992,7 +9212,7 @@ function openSheet(type,id){
     '</div>';
     h+='<div class="calcbox" id="f_calc"></div>';
     h+='<div class="sect">Invoices (generate in app)</div>';
-    h+='<p style="margin:-4px 0 12px;font-size:12.5px;color:var(--muted);line-height:1.45">Use <b>Make invoice</b> to create the PDF (share/download). Status: Not issued → Issued → Paid. <b>Split:</b> deposit/final = formal white only — cash never on a PDF.</p>';
+    h+='<p style="margin:-4px 0 12px;font-size:12.5px;color:var(--muted);line-height:1.45">Use <b>Make invoice</b> to create the PDF (share/download). Status: Not issued → Issued → Paid → <b>Refunded</b>. <b>Split:</b> deposit/final = formal white only — cash never on a PDF.</p>';
     h+=leadInvBlock("Deposit","f_dep",r.depPct,"f_deps",r.deps,"f_depInv",r.depInv,true);
     h+=leadInvBlock("Final","","","f_fins",r.fins,"f_finInv",r.finInv,false);
     h+=leadInvBlock("APA (overnight)","f_apa",r.apaPct,"f_apas",r.apas,"f_apaInv",r.apaInv,true);
@@ -9028,6 +9248,40 @@ function openSheet(type,id){
     el("sheetMakeAgr").addEventListener("click",function(){
       showSheet(false);
       setTimeout(function(){ openLeadAgreementSheet(rec.id); },80);
+    });
+  }
+  if(el("sheetCancelCharter")&&rec&&type==="lead"){
+    el("sheetCancelCharter").addEventListener("click",function(){
+      var name=rec.name||"this guest";
+      var dep=money0(rec.dep||0);
+      if(!window.confirm(
+        "Cancel charter for "+name+"?\n\n"+
+        "Captain decision / bad weather:\n"+
+        "• Lead → Cancelled\n"+
+        "• Deposit → Refunded ("+dep+")\n"+
+        "• Matching stew day(s) → no pay\n"+
+        "• Free cash removed from boat petty if posted\n\n"+
+        "Continue?"
+      )) return;
+      /* Prefer live calendar for stew match */
+      var run=function(){
+        var live=state.leads.filter(function(x){return x&&x.id===rec.id;})[0]||rec;
+        var res=cancelLeadCharter(live,{reason:"weather-captain"});
+        showSheet(false);
+        renderLeads();
+        if(isCaptain()&&curTab==="stews") renderStews({soft:false});
+        if(isCaptain()&&curTab==="expenses") renderExpenses();
+        if(isCaptain()&&curTab==="commissions") renderCommissions();
+        var n=res&&res.stew?res.stew.n:0;
+        window.alert(
+          "Charter cancelled.\nDeposit marked Refunded.\n"+
+          (n?("Stew pay cleared on "+n+" calendar day"+(n===1?"":"s")+"."):
+            "No matching stew calendar day found by guest name + date — open Stews and mark that day Cancelled if needed.")
+        );
+      };
+      if(isCaptain()&&typeof loadStewCalendar==="function"){
+        loadStewCalendar(false).then(run).catch(run);
+      } else run();
     });
   }
   if(el("f_dur")){ el("f_dur").addEventListener("change",function(){
@@ -9346,6 +9600,7 @@ function saveSheet(type,rec){
     var deps=leadInvStatus(el("f_deps").value), fins=leadInvStatus(el("f_fins").value), apas=leadInvStatus(el("f_apas").value);
     var leadSrcRaw=(el("f_leadSource")&&el("f_leadSource").value)||"other";
     var leadSrc=leadSrcRaw==="captain"?"captain":"other";
+    var bookingSt=(el("f_bookingStatus")&&el("f_bookingStatus").value)==="cancelled"?"cancelled":"active";
     var o2={ id:rec?rec.id:uid(), closed:el("f_closed").value, name:el("f_name").value.trim(),
       dur:dur, start:start, end:end, rate:rate, price:price, days:days,
       base:quoteBase, net:sp.split?sp.dealNet:m.net, vat:sp.split?sp.white.vat:m.vat, total:parts.client,
@@ -9360,12 +9615,31 @@ function saveSheet(type,rec){
       cashAmtUser:sp.split&&(cashForced>0||Number(sp.cashAmt)>0),
       cashSettled:sp.split?(!!(el("f_cashSettled")&&el("f_cashSettled").checked)):false,
       leadSource:leadSrc,
+      bookingStatus:bookingSt,
+      cancelled:bookingSt==="cancelled",
+      cancelReason:(rec&&rec.cancelReason)||"",
+      cancelledAt:(rec&&rec.cancelledAt)||"",
+      cancelledBy:(rec&&rec.cancelledBy)||"",
       depPct:depPct, dep:parts.dep, deps:deps, depInv:el("f_depInv").value.trim(),
       fin:parts.fin, fins:fins, finInv:el("f_finInv").value.trim(),
       apaPct:apaPct, apa:parts.apa, apas:apas, apaInv:el("f_apaInv").value.trim(),
       notes:el("f_notes").value.trim(), by:session.who,
       createdAt:(rec&&rec.createdAt)?rec.createdAt:new Date().toISOString(),
       updatedAt:new Date().toISOString() };
+    if(bookingSt==="cancelled"&&rec&&!leadIsCancelled(rec)){
+      /* Manual status flip to cancelled without the button — still refund deposit if set */
+      o2.cancelReason=o2.cancelReason||"manual";
+      o2.cancelledAt=o2.cancelledAt||new Date().toISOString();
+      o2.cancelledBy=o2.cancelledBy||(session.who||"Captain");
+      if(deps==="Paid"||deps==="Issued") o2.deps="Refunded";
+      o2.cashSettled=false;
+    }
+    if(bookingSt==="active"){
+      o2.cancelled=false;
+      o2.cancelReason="";
+      o2.cancelledAt="";
+      o2.cancelledBy="";
+    }
     if(sp.split){
       /* Prefer PDF + cash when cash set; else theoretical final B or B+V */
       if(Number(o2.cashAmt)>0){
@@ -9407,10 +9681,20 @@ function saveSheet(type,rec){
     upsert("leads",o2,rec); renderLeads(); save("leads");
     /* Free cash stays on the lead — strip any −cash APA shell for this guest */
     if(canOps()) ensureLeadCashApa(o2);
-    /* Split free cash → boat petty cash when received / Paid */
-    if(isCaptain()&&sp.split){
+    /* Newly cancelled via status field: stews + petty free cash */
+    if(bookingSt==="cancelled"&&!(rec&&leadIsCancelled(rec))){
+      var live=state.leads.filter(function(x){return x&&x.id===o2.id;})[0]||o2;
+      cancelStewsForLead(live);
+      if(isCaptain()){ expRemoveLeadCashIn(live.id, true); saveExpPetty(); }
+    }
+    /* Split free cash → boat petty cash when received / Paid (not when cancelled) */
+    if(isCaptain()&&sp.split&&bookingSt!=="cancelled"){
       if(syncLeadCashToPetty(o2)) saveExpPetty();
       if(curTab==="expenses") renderExpenses();
+    } else if(isCaptain()&&bookingSt==="cancelled"){
+      if(curTab==="expenses") renderExpenses();
+      if(curTab==="stews") renderStews({soft:false});
+      if(curTab==="commissions") renderCommissions();
     }
   }
   showSheet(false);
