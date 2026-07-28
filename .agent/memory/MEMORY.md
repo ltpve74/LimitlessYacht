@@ -19,3 +19,4 @@
 - [../briefs/tracker-v2-architecture.md](../briefs/tracker-v2-architecture.md) — parallel v2 (Next.js MVC + Postgres); v1 stays live
 - [tracker-split-cash-on-lead.md](tracker-split-cash-on-lead.md) — free cash on lead, not APA
 - [tracker-floatpay-wipe-bug.md](tracker-floatpay-wipe-bug.md) — petty cash “reverted” after crew pay: floatPay wipe bug + restore
+- [../briefs/tracker-charter-identity.md](../briefs/tracker-charter-identity.md) — lead.id + ICS uid as source of truth (not date/name)
