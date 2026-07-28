@@ -6883,167 +6883,89 @@ function paintExpensesBody(){
   var floatAfterPays=S.floatAfterPays!=null?S.floatAfterPays:Math.round((pettyCash-peopleOwed)*100)/100;
   var floatBehind=S.floatBehind!=null?S.floatBehind:(floatAfterPays<0?-floatAfterPays:0);
   var cashIns=expCashInLines(petty);
-  var h='<div class="legend">Captain-only. <b>Petty cash</b> = physical cash in the envelope. Every euro in should appear as a <b>cash-in line</b> below (lead free cash, charge cash, owner top-up, tips held). Tips on Stews do not hit the envelope until you log them as cash in / cash out.</div>';
+  /* Who is still owed (pocket + unpaid day pay) — for negative float / owed list */
+  var owedPeople=[];
+  (pockets.list||[]).forEach(function(row){
+    if(row&&row.owed>0.009) owedPeople.push({name:row.name, amount:row.owed, kind:"pocket", id:row.id});
+  });
+  if(oweCrew>0.009) owedPeople.push({name:"Crew day pay (unpaid)", amount:oweCrew, kind:"crew", id:""});
+  var floatNeg=pettyEntered&&pettyCash<-0.009;
+  var floatPos=pettyEntered&&pettyCash>0.009;
+  var floatZero=pettyEntered&&!floatNeg&&!floatPos;
+  var h='<div class="legend">Captain-only. <b>Float</b> = cash in the boat envelope (cash in − cash out). Log every euro that comes in or leaves as petty.</div>';
   h+='<div class="exp-month"><label class="meta" style="font-weight:700">Month</label>'+
     '<select class="ctl" id="expMonthSel">'+monthList.map(function(m){
       return '<option value="'+esc(m)+'"'+(m===expMonth?" selected":"")+'>'+esc(m)+'</option>';
     }).join("")+'</select>'+
     '<button type="button" class="btn ghost" id="expExport" style="width:auto;padding:10px 14px">Export CSV</button>'+
   '</div>';
-  /* 1) Actual cash on board — physical envelope */
-  h+='<div class="exp-alert '+(pettyEntered?(cashShort>0?'owe':'ok'):'owe')+'" style="margin-bottom:12px">'+
-    '<div style="font-weight:800">Petty cash (actual cash on board)</div>'+
-    '<div class="money" style="font-size:28px;font-weight:800;margin-top:4px">'+(pettyEntered?money(pettyCash):'—')+'</div>'+
-    '<div style="font-weight:500;margin-top:8px;font-size:13px;line-height:1.55">'+
+  /* Hero: float balance + / − */
+  h+='<div class="exp-alert '+(floatNeg?'owe':(floatPos?'ok':'owe'))+'" style="margin-bottom:12px">'+
+    '<div style="font-weight:800">Float balance (petty cash)</div>'+
+    '<div class="money" style="font-size:32px;font-weight:800;margin-top:6px;color:'+
+      (floatNeg?'var(--danger)':(floatPos?'var(--greenInk,#1a5c48)':'inherit'))+'">'+
+      (pettyEntered?(floatNeg?'−':'')+money(Math.abs(pettyCash)):(floatZero?money(0):'—'))+
+    '</div>'+
+    '<div class="meta" style="margin-top:8px;line-height:1.5">'+
       (pettyEntered
-        ?('start '+money(pettyStart)+' + cash in '+money(cashInTotal)+
-          ' − left the boat '+money(cashOut)+
-          '<br><span class="meta">Cash leaves only when: (1) an expense is <b>Paid from → Petty cash</b>, or (2) crew is marked <b>Paid via Petty cash</b>.</span>'+
-          '<br><span class="meta">Outs: crew paid from petty '+money(crewPaid)+
-          (otherCash>0||reimburseCap>0?' · expenses from petty '+money(otherCash+(reimburseCap||0)):' · no other petty expenses')+
-          '</span>'+
-          (crewPrior>0.009?'<br><span class="meta">Paid crew not from this pot (status only): '+money(crewPrior)+' — does not change petty cash.</span>':'')+
-          (S.nSkippedDup>0?' <span style="color:var(--danger)">· skipped '+S.nSkippedDup+' duplicate crew lines</span>':''))
-        :'Add start and/or cash in below. Owner puts in €3,000 → petty cash = €3,000 until cash leaves the boat.')+
+        ?('In '+money(cashInHand)+' − out '+money(cashOut)+
+          (floatNeg
+            ?' · <b>short by '+money(Math.abs(pettyCash))+'</b> (books spent more than the envelope)'
+            :(floatPos?' · on board':' · empty')))
+        :'Set start / cash in below to open the float.')+
     '</div>'+
   '</div>';
-  /* 2) Float books — can show behind without changing petty */
-  h+='<div class="exp-alert '+(floatBehind>0.009?'owe':(peopleOwed>0.009?'ok':'ok'))+'" style="margin-bottom:12px">'+
-    '<div style="font-weight:800">Float books (petty vs people still unpaid)</div>'+
-    '<div class="money" style="font-size:22px;font-weight:800;margin-top:4px;color:'+(floatBehind>0.009?'#9a6b00':'var(--greenInk,#1a5c48)')+'">'+
-      (pettyEntered?money(floatAfterPays):'—')+
-    '</div>'+
-    '<div style="font-weight:500;margin-top:8px;font-size:13px;line-height:1.55">'+
-      (pettyEntered
-        ?('Petty cash '+money(pettyCash)+' − people owed '+money(peopleOwed)+
-          ' = <b>'+money(floatAfterPays)+'</b>'+
-          (floatBehind>0.009
-            ?'<br><span class="meta">Behind by '+money(floatBehind)+' if you paid everyone from the envelope now (books only — petty cash above is unchanged).</span>'
-            :(peopleOwed>0.009
-              ?'<br><span class="meta">Envelope covers remaining people; leftover '+money(floatAfterPays)+' stays on board after pays.</span>'
-              :'<br><span class="meta">No unpaid people.</span>')))
-        :'Set petty start / cash in to compare against unpaid people.')+
-    '</div>'+
-  '</div>';
-  h+='<div class="apa-card exp-howto">'+
-    '<div style="font-weight:800;margin-bottom:8px">Cash movement (petty)</div>'+
-    '<div style="font-size:0.9rem;line-height:1.55">'+
-      (pettyEntered
-        ?('<div class="meta" style="display:block;margin-bottom:8px">'+
-            '<b>In:</b> start '+money(pettyStart)+' + cash in '+money(cashInTotal)+' = <b>'+money(cashInHand)+'</b><br>'+
-            '<b>Out (left the boat):</b> '+money(cashOut)+
-            ' = crew via petty '+money(crewPaid)+' ('+(S.nCrewPaidLines||0)+')'+
-            ' + expenses via petty '+money(otherCash)+
-            (reimburseCap>0?' + reimbursements '+money(reimburseCap):'')+
-            '<br><b>Petty cash</b> = in − out = <b class="money">'+money(pettyCash)+'</b>'+
-          '</div>')
-        :'<div class="meta" style="margin-bottom:8px">Set start + cash in below.</div>')+
-    '</div>'+
-    '<div style="font-weight:800;margin:12px 0 8px">People still unpaid</div>'+
-    '<div style="font-size:0.9rem;line-height:1.55">'+
-      (pockets.list&&pockets.list.length
-        ?pockets.list.map(function(row){
-            return '<div style="display:flex;justify-content:space-between;gap:12px"><span>'+esc(row.name)+' (pocket)</span><b class="money">'+money(row.owed)+'</b></div>';
-          }).join("")
-        :'<div style="display:flex;justify-content:space-between;gap:12px"><span>Pocket reimbursements</span><b class="money">'+money(0)+'</b></div>')+
-      '<div class="meta" style="display:block;margin:2px 0 8px">Own-money spends by captain or crew − already paid back from petty. Day pay is separate below.</div>'+
-      '<div style="display:flex;justify-content:space-between;gap:12px"><span>Crew (unpaid day pay)</span><b class="money">'+money(oweCrew)+'</b></div>'+
-      '<div style="display:flex;justify-content:space-between;gap:12px;padding-top:8px;border-top:1px solid var(--line)">'+
-        '<span><b>People owed</b></span><b class="money">'+money(peopleOwed)+'</b></div>'+
-      '<div class="meta" style="display:block;margin-top:4px">pockets '+money(pocketOwed)+' + day pay '+money(oweCrew)+'</div>'+
-    '</div>'+
-    '<div style="font-weight:800;margin:12px 0 8px">Owner cash in still needed</div>'+
-    '<div style="font-size:0.9rem;line-height:1.55">'+
-      '<div class="meta" style="display:block;margin-bottom:6px">'+
-        'max(0, people unpaid − petty cash on board)'+
-      '</div>'+
-      '<div style="display:flex;justify-content:space-between;gap:12px;font-size:1.05rem">'+
-        '<span><b>Owner cash in needed</b></span>'+
-        '<b class="money" style="color:'+(ownerCashIn>0.009?'#9a6b00':'var(--greenInk,#1a5c48)')+'">'+money(ownerCashIn)+'</b>'+
-      '</div>'+
-      '<div class="meta" style="display:block;margin-top:6px">'+
-        (ownerCashIn>0.009
-          ?'Top up by this amount so the envelope can cover remaining people.'
-          :(peopleOwed>0.009
-            ?'Petty cash on board already covers unpaid people — no extra owner deposit.'
-            :'No unpaid crew or captain balance.'))+
-      '</div>'+
-    '</div>'+
-  '</div>';
-  /* Attention banners */
-  if(!pettyEntered&&cashOut>0){
-    h+='<div class="exp-alert owe">Petty start / cash in not set. Recorded float cash out is <b class="money">'+money(cashOut)+'</b>. Set start + cash in so free float can reduce owner cash needed.</div>';
+  /* Owed list: always show when someone is unpaid; if float negative, lead with that */
+  if(owedPeople.length||floatNeg){
+    h+='<div class="exp-alert '+(owedPeople.length||floatNeg?'owe':'ok')+'" id="expBoatOwesCard" style="margin-bottom:12px">'+
+      '<div style="font-weight:800;margin-bottom:6px">'+
+        (floatNeg?'Money short — who is still owed':(owedPeople.length?'Still owed':'Settled'))+
+      '</div>';
+    if(floatNeg){
+      h+='<div class="meta" style="margin-bottom:8px">Float is negative by <b class="money">'+money(Math.abs(pettyCash))+
+        '</b>. That usually means cash outs exceed cash in — check lines below. People still unpaid:</div>';
+    } else if(owedPeople.length){
+      h+='<div class="meta" style="margin-bottom:8px">Pay from the float when you can. Pocket = shop spend on someone’s cash; day pay from Stews.</div>';
+    }
+    if(!owedPeople.length){
+      h+='<div class="meta">No open pocket or day-pay balances.</div>';
+    } else {
+      owedPeople.forEach(function(row){
+        h+='<div style="display:flex;justify-content:space-between;align-items:center;gap:10px;margin-top:8px;padding-top:8px;border-top:1px solid var(--line)">'+
+          '<div><b>'+esc(row.name)+'</b> '+
+            '<span class="pill '+(row.kind==="crew"?'p-amber':'p-own')+'">'+(row.kind==="crew"?"Day pay":"Pocket")+'</span></div>'+
+          '<div style="display:flex;align-items:center;gap:8px">'+
+            '<b class="money">'+money(row.amount)+'</b>'+
+            (row.kind==="pocket"&&row.id
+              ?'<button type="button" class="btn" data-exp-reimburse="'+esc(row.id)+'" data-exp-reimburse-amt="'+esc(String(row.amount))+'" data-exp-reimburse-name="'+esc(row.name)+'" style="width:auto;padding:6px 10px;font-size:12px">Repay</button>'
+              :'')+
+          '</div></div>';
+      });
+      h+='<div class="meta" style="margin-top:10px;padding-top:8px;border-top:1px solid var(--line)">Total still owed <b class="money">'+money(peopleOwed)+'</b>'+
+        (floatPos&&peopleOwed>0.009?' · float covers '+(floatAfterPays>=0?'all remaining':'part — short '+money(floatBehind)):'')+
+      '</div>';
+    }
+    h+='</div>';
+  } else if(pettyEntered){
+    h+='<div class="exp-alert ok" style="margin-bottom:12px"><b>All clear</b> — no open pocket or day-pay balances'+(floatPos?' · '+money(pettyCash)+' on board':'')+'.</div>';
   }
-  if(ownerCashIn>0.009){
-    h+='<div class="exp-alert owe">'+
-      '<div style="font-weight:800">Owner cash in needed</div>'+
-      '<div class="money" style="font-size:22px;font-weight:800;margin-top:2px">'+money(ownerCashIn)+'</div>'+
-      '<div style="font-weight:500;margin-top:8px;font-size:13px;line-height:1.55">'+
-        'People still unpaid '+money(peopleOwed)+' − free in float '+money(freeFloat)+
-        ' · pockets '+money(pocketOwed)+' · day pay '+money(oweCrew)+
-      '</div></div>';
-  } else if(peopleOwed>0.009){
-    h+='<div class="exp-alert ok">'+
-      '<div style="font-weight:800">No extra owner cash needed</div>'+
-      '<div style="font-weight:500;margin-top:6px;font-size:13px;line-height:1.45">'+
-        'Still unpaid: pockets '+money(pocketOwed)+' + day pay '+money(oweCrew)+
-        ' = '+money(peopleOwed)+', covered by free float '+money(freeFloat)+'. Pay them from petty.'+
-      '</div></div>';
-  }
-  /* Pocket balances: captain + any crew who spent own money */
-  h+='<div class="exp-alert '+(pocketOwed>0?'owe':(pockets.list&&pockets.list.length?'ok':'owe'))+'" id="expBoatOwesCard" style="'+(pocketOwed>0?'':'border-style:dashed')+'">'+
-    '<div style="display:flex;align-items:baseline;justify-content:space-between;gap:10px;flex-wrap:wrap">'+
-      '<div style="font-weight:800">Owed for pocket spends</div>'+
-      '<div class="money" style="font-size:22px;font-weight:800">'+money(pocketOwed)+'</div>'+
-    '</div>'+
-    '<div style="font-weight:500;margin-top:8px;font-size:13px;line-height:1.5">'+
-      '<div class="meta" style="margin-bottom:8px">When someone pays a shop with their own money, assign them on the expense. Reimburse from petty when the float has cash.</div>'+
-      (!(pockets.list&&pockets.list.length)
-        ?'<div style="color:var(--muted)">No pocket (own-money) lines this month yet.</div>'
-        :pockets.list.map(function(row){
-            return '<div style="margin-top:10px;padding-top:10px;border-top:1px solid var(--line)">'+
-              '<div style="display:flex;justify-content:space-between;gap:10px;align-items:baseline">'+
-                '<b>'+esc(row.name)+'</b><span class="money" style="font-weight:800">'+money(row.owed)+'</span></div>'+
-              '<div class="meta" style="margin-top:4px">'+
-                (row.id===EXP_POCKET_CAPTAIN?'float top-up '+money(row.putIn)+' · ':'')+
-                'spent '+money(row.paidOut)+' · repaid '+money(row.reimbursed)+
-              '</div>'+
-              (row.owed>0.009
-                ?'<button type="button" class="btn" data-exp-reimburse="'+esc(row.id)+'" data-exp-reimburse-amt="'+esc(String(row.owed))+'" data-exp-reimburse-name="'+esc(row.name)+'" style="width:auto;margin-top:8px;padding:8px 12px;font-size:13px">Log reimbursement '+money(row.owed)+'</button>'
-                :'<div class="meta" style="margin-top:4px">Settled</div>')+
-            '</div>';
-          }).join(""))+
-    '</div>'+
-  '</div>';
-  if(pettyEntered&&cashShort<=0&&oweCrew<=0&&pocketOwed<=0){
-    h+='<div class="exp-alert ok">People paid / reimbursed and float books look settled'+(pettyOnboard>0?' · '+money(pettyOnboard)+' still onboard':'')+'.</div>';
-  }
-  /* 2-col grid — petty cash first, float books second */
+  /* Compact strip */
   h+='<div class="exp-summary">'+
-    '<div class="sumcard'+(pettyEntered&&pettyCash<0?' sum-danger':(pettyEntered&&pettyCash>0?' sum-ok':''))+'"><div class="l">Petty cash (on board)</div><div class="v money">'+(pettyEntered?money(pettyCash):'—')+'</div></div>'+
-    '<div class="sumcard'+(floatBehind>0?' sum-warn':(pettyEntered?' sum-ok':''))+'"><div class="l">Float after unpaid</div><div class="v money">'+(pettyEntered?money(floatAfterPays):'—')+'</div></div>'+
-    '<div class="sumcard"><div class="l">Cash in (total)</div><div class="v money">'+money(cashInTotal)+'</div></div>'+
-    '<div class="sumcard"><div class="l">Left the boat</div><div class="v money">'+money(cashOut)+'</div></div>'+
-    '<div class="sumcard"><div class="l">Crew paid (petty)</div><div class="v money">'+money(crewPaid)+'</div></div>'+
-    '<div class="sumcard"><div class="l">Expenses (petty)</div><div class="v money">'+money(otherCash+(reimburseCap||0))+'</div></div>'+
-    '<div class="sumcard'+(ownerCashIn>0?' sum-warn':'')+'"><div class="l">Owner cash in needed</div><div class="v money">'+money(ownerCashIn)+'</div></div>'+
-    '<div class="sumcard'+(pocketOwed>0?' sum-warn':'')+'"><div class="l">Pocket owed (all)</div><div class="v money">'+money(pocketOwed)+'</div></div>'+
-    '<div class="sumcard'+(boatOwes>0?' sum-warn':'')+'"><div class="l">Captain pocket</div><div class="v money">'+money(boatOwes)+'</div></div>'+
-    '<div class="sumcard'+(oweCrew>0?' sum-warn':'')+'"><div class="l">Owe crew (day pay)</div><div class="v money">'+money(oweCrew)+'</div></div>'+
-    '<div class="sumcard'+(peopleOwed>0?' sum-warn':'')+'"><div class="l">People owed</div><div class="v money">'+money(peopleOwed)+'</div></div>'+
-    '<div class="sumcard"><div class="l">Own-money spends</div><div class="v money">'+money(ownMoneyExp)+'</div></div>'+
+    '<div class="sumcard'+(floatNeg?' sum-danger':(floatPos?' sum-ok':''))+'"><div class="l">Float</div><div class="v money">'+(pettyEntered?money(pettyCash):'—')+'</div></div>'+
+    '<div class="sumcard"><div class="l">Cash in</div><div class="v money">'+money(cashInTotal)+'</div></div>'+
+    '<div class="sumcard"><div class="l">Cash out</div><div class="v money">'+money(cashOut)+'</div></div>'+
+    '<div class="sumcard'+(peopleOwed>0?' sum-warn':'')+'"><div class="l">Still owed</div><div class="v money">'+money(peopleOwed)+'</div></div>'+
   '</div>';
-  /* Petty start + itemised cash in */
+  /* Cash in */
   h+='<div class="apa-card" style="margin-bottom:12px">'+
-    '<div class="meta" style="margin-bottom:8px">Petty cash — boat float ('+esc(expMonth)+')</div>'+
-    fieldHTML("Start amount on board (€)",moneyField("exp_petty_start", pettyStart||""))+
+    '<div style="font-weight:800;margin-bottom:8px">Cash in · '+esc(expMonth)+'</div>'+
+    fieldHTML("Start on board (€)",moneyField("exp_petty_start", pettyStart||""))+
     '<button type="button" class="btn ghost" id="expPettySave" style="width:auto;margin-top:4px;padding:10px 14px">Save start</button>'+
-    '<div class="apa-sect-h" style="margin:14px 0 8px"><h3 style="font-size:13px">Cash in (into the envelope)</h3>'+
+    '<div class="apa-sect-h" style="margin:14px 0 8px"><h3 style="font-size:13px">Lines</h3>'+
       '<button type="button" class="btn" id="expCashInAdd" style="width:auto;padding:8px 12px;font-size:13px">Add cash in</button></div>'+
-    '<p style="margin:0 0 8px;font-size:12.5px;color:var(--muted)">Total cash in is the <b>sum of lines below</b> — tap a line to edit or × to remove a wrong auto line. '+
-      '<b>Own money</b> = personal cash into the float (boat owes you). Guest tips held in the envelope: add as cash in with source <b>Guest tips held</b>, then pay out via expenses/stews.</p>';
+    '<p class="meta" style="margin:0 0 8px">Lead free cash, charge cash, tips held, top-ups. Tap a line to edit.</p>';
   if(!cashIns.length){
-    h+='<div class="meta" style="margin-bottom:8px">No cash-in lines yet. If you expected Michael €1,800, open the lead → tick <b>Cash received on the boat</b> → Save.</div>';
+    h+='<div class="meta" style="margin-bottom:8px">No cash-in lines yet.</div>';
   } else {
     h+='<div class="list" style="margin-bottom:8px">';
     cashIns.slice().sort(function(a,b){ return String(b.date||"").localeCompare(String(a.date||"")); }).forEach(function(r){
@@ -7052,45 +6974,38 @@ function paintExpensesBody(){
       if(r.fromLeadId) kindPill='<span class="pill p-black">Lead free cash</span>';
       else if(r.fromChargeId) kindPill='<span class="pill p-cash">Charge cash</span>';
       else if(/tip/i.test(String(r.source||""))) kindPill='<span class="pill p-amber">Tips</span>';
-      else if(ownIn) kindPill='<span class="pill p-own">Own money</span>';
+      else if(ownIn) kindPill='<span class="pill p-own">Top-up</span>';
       else kindPill='<span class="pill p-grey">Manual</span>';
       h+='<div class="item apa-row'+(ownIn?' exp-own':'')+'" data-cashin-id="'+esc(r.id)+'" role="button" tabindex="0" style="padding:12px">'+
         '<div class="top"><div class="title" style="font-size:14.5px">'+esc(r.source||"Cash in")+' '+kindPill+'</div>'+
           '<div class="amt money" style="font-size:15px">+'+money0(r.amount)+'</div></div>'+
         '<div class="meta"><span>📅 '+esc(fmtDate(r.date)||r.date||"")+'</span>'+
           (r.notes?'<span>'+esc(r.notes)+'</span>':'')+
-          (r.fromLeadId?'<span>auto from lead</span>':'')+
-          (r.fromChargeId?'<span>auto from charge</span>':'')+
         '</div>'+
         '<button type="button" class="apa-x" data-cashin-del="'+esc(r.id)+'" aria-label="Delete">×</button>'+
         '<span class="chev">✎</span></div>';
     });
     h+='</div>';
-    h+='<div class="meta" style="margin-bottom:6px">'+cashIns.length+' line'+(cashIns.length===1?"":"s")+' sum to <b class="money">'+money(cashInTotal)+'</b>'+
-      (Math.abs(cashInTotal-1800)>1?' — if you only took €1,800 cash, delete extra lines (e.g. a €500 charge-cash line if that went on card).':'')+
-    '</div>';
+    h+='<div class="meta">'+cashIns.length+' line'+(cashIns.length===1?"":"s")+' · <b class="money">'+money(cashInTotal)+'</b></div>';
   }
-  h+='<div class="meta">Cash in <b class="money">'+money(cashInTotal)+'</b> · available <b class="money">'+money(cashInHand)+'</b> · left boat <b class="money">'+money(cashOut)+'</b> · petty cash <b class="money">'+money(pettyCash)+'</b></div>'+
-  '</div>';
-  /* Envelope audit — every cash-out so Toni €60 etc. are visible */
+  h+='</div>';
+  /* Cash out audit */
   var outs=S.cashOutLines||[];
   h+='<div class="apa-card" style="margin-bottom:12px">'+
-    '<div style="font-weight:800;margin-bottom:6px">Left the boat (petty cash-out)</div>'+
-    '<div class="meta" style="margin-bottom:8px">Physical envelope: start + cash in − these lines = petty cash <b class="money">'+money(pettyCash)+'</b>. '+
-      'Shop spends paid with someone’s pocket are <b>not</b> here until you log <b>Repay from petty</b>.</div>';
+    '<div style="font-weight:800;margin-bottom:6px">Cash out</div>'+
+    '<div class="meta" style="margin-bottom:8px">Left the envelope (petty). Total <b class="money">'+money(cashOut)+'</b>.</div>';
   if(!outs.length){
-    h+='<div class="meta">No petty cash-outs this month yet.</div>';
+    h+='<div class="meta">None this month.</div>';
   } else {
     h+='<div class="list" style="margin:0">';
     outs.slice().sort(function(a,b){ return (b.amount||0)-(a.amount||0); }).forEach(function(row){
       h+='<div class="item" style="padding:10px 12px"'+(row.id?' data-exp-id="'+esc(row.id)+'" role="button" tabindex="0"':'')+'>'+
         '<div class="top"><div class="title" style="font-size:14px">'+esc(row.label||row.kind||"Out")+'</div>'+
           '<div class="amt money" style="font-size:14px">−'+money0(row.amount)+'</div></div>'+
-        '<div class="meta"><span class="pill p-cash">'+esc(row.kind==="reimburse"?"Reimbursement":(row.kind==="crew"?"Crew pay":"Expense"))+'</span></div>'+
+        '<div class="meta"><span class="pill p-cash">'+esc(row.kind==="reimburse"?"Repay":(row.kind==="crew"?"Crew":"Expense"))+'</span></div>'+
       '</div>';
     });
     h+='</div>';
-    h+='<div class="meta" style="margin-top:8px">'+outs.length+' out'+(outs.length===1?"":"s")+' · total <b class="money">'+money(cashOut)+'</b></div>';
   }
   h+='</div>';
   h+='<div class="apa-sect-h" style="margin-top:4px"><h3>Expenses</h3><button type="button" class="btn" id="expAdd">Add expense</button></div>';
