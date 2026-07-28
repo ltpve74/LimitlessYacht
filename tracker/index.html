@@ -653,8 +653,9 @@ function runPostLoadMaintenance(){
     }
     if(isCaptain()){
       ensureStewAssignPaidBeforeCut();
-      expResetInventedCrewFloatPay();
       seedCurrentMonthStewCashExpenses();
+      /* After seed: restore floatPay wiped by the old one-shot localStorage clear */
+      expRestoreCrewFloatPayAfterWipe();
       syncAllChargeCashToPetty();
     }
   }catch(e){ console&&console.error&&console.error("[tracker] post-load",e); }
@@ -5783,12 +5784,14 @@ function syncStewDayPayExpenses(asg, opts){
   }
   /*
    * floatPay = cash left the envelope (Paid via Petty cash).
-   * Set when captain explicitly marks Paid (_floatPayMark), or keep if already set.
-   * Status “Paid” alone (history) does not invent floatPay.
+   * Set when captain explicitly marks Paid (_floatPayMark), already set on the
+   * line, or payStatusManual (intentional Save as Paid — not historical status).
+   * Status “Paid” alone without those signals does not invent floatPay.
    */
   var crewPayStatus=isPaid?"Paid":"Unpaid";
   var summary=asg.summary||"Charter";
   var markFloat=!!asg._floatPayMark;
+  var manualPaid=!!asg.payStatusManual;
   ids.forEach(function(sid){
     var name=(stewById(sid)&&stewById(sid).name)||"Stew";
     var linkId="stew-day:"+eventKey+":"+sid;
@@ -5800,6 +5803,7 @@ function syncStewDayPayExpenses(asg, opts){
     if(crewPayStatus==="Paid"&&paidFrom!=="Own money"){
       if(markFloat) floatPay=true;
       else if(old&&old.floatPay===true) floatPay=true;
+      else if(manualPaid||(old&&old.payStatusManual)) floatPay=true;
     }
     state.expenses.unshift({
       id:(old&&old.id)||uid(),
@@ -5901,23 +5905,48 @@ function stewDisplayName(tok, rec){
   return t.charAt(0).toUpperCase()+t.slice(1);
 }
 /**
- * One-time cleanup: older builds set floatPay from “Paid” status alone.
- * Cash only leaves when captain marks Paid via petty (floatPay). Clear invented flags.
- * Legitimate pays set floatPay again when you mark Paid from this pot.
+ * NEVER bulk-clear floatPay.
+ *
+ * Older builds had expResetInventedCrewFloatPay which wiped every floatPay=true
+ * on first open of a browser without localStorage key ly_exp_floatpay_v2, then
+ * saved to the shared server. That made petty cash jump back up after real pays
+ * (e.g. ~€50 remaining → ~€1,740). The wipe is gone permanently.
+ *
+ * Repair: re-attach floatPay for intentional Paid-via-petty crew lines that still
+ * look like a wipe (Paid + Petty, not card/own-money, floatPay false, and either
+ * payStatusManual or a manual stew assign). Historical pre-17/07 status-only Paid
+ * stays prior (does not hit the envelope).
  */
-function expResetInventedCrewFloatPay(){
+function expRestoreCrewFloatPayAfterWipe(){
   if(!isCaptain()||!state.expenses) return false;
-  try{
-    if(localStorage.getItem("ly_exp_floatpay_v2")==="1") return false;
-  }catch(err){}
+  var byEvent={};
+  (state.stewAssign||[]).forEach(function(a){
+    if(a&&a.eventKey) byEvent[String(a.eventKey)]=a;
+  });
   var dirty=false;
   state.expenses.forEach(function(e){
     if(!e||!expIsCrewDayPayLine(e)) return;
-    if(e.floatPay===true){ e.floatPay=false; dirty=true; }
+    if(e.crewPayStatus!=="Paid") return;
+    if(e.payMethod==="Credit Card") return;
+    if(e.paidFrom==="Own money"||expIsOwnMoneyLabel(e.paidFrom)) return;
+    if(e.floatPay===true) return;
+    var asg=e.stewEventKey?byEvent[String(e.stewEventKey)]:null;
+    var manual=!!e.payStatusManual||!!(asg&&asg.payStatusManual);
+    if(!manual) return;
+    /* Do not invent cash-out for pure historical status (pre cut, never manual) */
+    var d=String(e.date||"").slice(0,10);
+    if(d&&d<STEW_PAID_BEFORE&&!e.payStatusManual&&!(asg&&asg.payStatusManual)) return;
+    e.floatPay=true;
+    if(!e.paidFrom) e.paidFrom="Petty cash";
+    e.updatedAt=new Date().toISOString();
+    dirty=true;
   });
-  try{ localStorage.setItem("ly_exp_floatpay_v2","1"); }catch(err2){}
   if(dirty&&!DEMO) saveExpenses();
   return dirty;
+}
+/** @deprecated name — was a destructive wipe; now restores intentional pays. */
+function expResetInventedCrewFloatPay(){
+  return expRestoreCrewFloatPayAfterWipe();
 }
 /**
  * Seed this month’s crew lines from Stews charters (Paid and Unpaid).
@@ -5948,8 +5977,16 @@ function seedCurrentMonthStewCashExpenses(){
       var linkId="stew-day:"+asg.eventKey+":"+sid;
       var old=prevByLink[linkId];
       var paidFrom=(old&&old.paidFrom==="Own money")?"Own money":"Petty cash";
-      /* Never invent floatPay on seed — only keep if cash already left the boat */
-      var floatPay=crewPayStatus==="Paid"&&paidFrom!=="Own money"&&!!(old&&old.floatPay===true);
+      /*
+       * floatPay: keep existing cash-out, or restore from intentional Save as Paid
+       * (payStatusManual on the line or stew assign). Never invent from status alone.
+       */
+      var manualPaid=!!(old&&old.payStatusManual)||!!asg.payStatusManual;
+      var floatPay=false;
+      if(crewPayStatus==="Paid"&&paidFrom!=="Own money"){
+        if(old&&old.floatPay===true) floatPay=true;
+        else if(manualPaid) floatPay=true;
+      }
       wanted[linkId]={
         id:(old&&old.id)||uid(),
         linkId:linkId,
@@ -5959,7 +5996,7 @@ function seedCurrentMonthStewCashExpenses(){
         stewPayKind:"dayPay",
         crewPayStatus:crewPayStatus,
         floatPay:floatPay,
-        payStatusManual:!!asg.payStatusManual,
+        payStatusManual:manualPaid,
         date:date,
         vendor:(rec&&rec.name)||"Stew",
         description:"Stewardess / day work — "+summary,
@@ -9967,8 +10004,8 @@ function applyData(d, opts){
     }
     if(isCaptain()&&!fromPoll){
       ensureStewAssignPaidBeforeCut();
-      expResetInventedCrewFloatPay();
       seedCurrentMonthStewCashExpenses();
+      expRestoreCrewFloatPayAfterWipe();
       syncAllChargeCashToPetty();
     }
     renderAll();
