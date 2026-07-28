@@ -6119,10 +6119,13 @@ function expSettlementFigures(month){
       if(e.payMethod==="Credit Card"){ cardOut+=a; return; }
       if(e.paidFrom==="Own money"||expIsOwnMoneyLabel(e.paidFrom)){
         ownMoneyExp+=a;
+        var crewPayer=expPocketPersonName(e.paidById||EXP_POCKET_CAPTAIN);
+        var crewWho=e.vendor||"Crew";
         pocketOutLines.push({
           kind:"crew",
-          who:expPocketPersonName(e.paidById||EXP_POCKET_CAPTAIN),
-          label:(e.vendor||"Crew")+" day pay",
+          who:crewPayer,
+          crewName:crewWho,
+          label:crewWho+" day pay",
           amount:a, id:e.id, repaid:false
         });
         return;
@@ -6392,8 +6395,10 @@ function expSetStewDayPayStatus(eventKey, payStatus, opts){
           var pf0=opts.paidFrom==="Own money"?"Own money":"Petty cash";
           if(opts.paidFrom) e.paidFrom=pf0;
           e.floatPay=e.paidFrom!=="Own money";
+          e.paidById=e.paidFrom==="Own money"?String(opts.paidById||EXP_POCKET_CAPTAIN):"";
         } else {
           e.floatPay=false;
+          e.paidById="";
         }
         e.updatedAt=new Date().toISOString();
         any=true;
@@ -6405,6 +6410,7 @@ function expSetStewDayPayStatus(eventKey, payStatus, opts){
   asg.payStatusManual=true;
   /* Explicit mark Paid via Petty cash → money leaves the envelope (always, not only Unpaid→Paid) */
   var pfMark=opts.paidFrom==="Own money"?"Own money":"Petty cash";
+  var payerMark=opts.paidById?String(opts.paidById):EXP_POCKET_CAPTAIN;
   asg._floatPayMark=status==="Paid"&&pfMark!=="Own money";
   asg._floatPayFrom=status==="Paid"?pfMark:"";
   if(status!=="Paid"){ asg._floatPayMark=false; asg._floatPayFrom=""; }
@@ -6415,6 +6421,7 @@ function expSetStewDayPayStatus(eventKey, payStatus, opts){
       if(e&&e.source==="stew"&&e.stewPayKind==="dayPay"&&String(e.stewEventKey)===String(eventKey)){
         e.paidFrom=pfMark;
         e.floatPay=pfMark!=="Own money";
+        e.paidById=pfMark==="Own money"?payerMark:"";
         e.payStatusManual=true;
         e.updatedAt=new Date().toISOString();
       }
@@ -6423,6 +6430,7 @@ function expSetStewDayPayStatus(eventKey, payStatus, opts){
     (state.expenses||[]).forEach(function(e){
       if(e&&e.source==="stew"&&e.stewPayKind==="dayPay"&&String(e.stewEventKey)===String(eventKey)){
         e.floatPay=false;
+        e.paidById="";
         e.payStatusManual=true;
         e.updatedAt=new Date().toISOString();
       }
@@ -7065,6 +7073,10 @@ function paintExpensesBody(){
         statusPill='<span class="pill p-green">Paid to '+esc(paidTo)+'</span>'+
           '<span class="pill p-amber">Awaiting repay to '+esc(row.who||"Captain")+'</span>';
         whoPill='<span class="pill p-own">'+esc(row.who||"Captain")+' pocket</span>';
+      } else if(row.kind==="crew"){
+        statusPill='<span class="pill p-green">Paid'+(row.crewName?' · '+esc(row.crewName):'')+'</span>'+
+          '<span class="pill p-amber">Awaiting repay to '+esc(row.who||"Captain")+'</span>';
+        whoPill='<span class="pill p-own">Own money · '+esc(row.who||"Captain")+'</span>';
       } else if(row.repaid){
         statusPill='<span class="pill p-green">Repaid'+(row.repaidAmt>0?' '+money0(row.repaidAmt):'')+'</span>';
       } else {
@@ -7087,20 +7099,39 @@ function paintExpensesBody(){
     lines.forEach(function(e){
       expNormalizeReimbursement(e);
       var unpaid=expIsCrewUnpaid(e);
+      var isCrewDay=expIsCrewDayPayLine(e);
       var prior=expIsCrewPriorSettled(e);
       var hitsFloat=expCrewPayHitsFloat(e);
-      var ownPay=expPaidFromOwnMoney(e);
-      var pocketName=ownPay?expPocketPersonName(expPocketWhoId(e)):"";
-          var isReimb=expIsReimbursement(e);
+      /* Crew day-pay from captain/crew pocket (not petty float) */
+      var crewPaidFromOwn=isCrewDay&&!unpaid&&(e.paidFrom==="Own money"||expIsOwnMoneyLabel(e.paidFrom));
+      var ownPay=expPaidFromOwnMoney(e)||crewPaidFromOwn;
+      var pocketWhoId=e.paidById!=null&&String(e.paidById)!==""?String(e.paidById):EXP_POCKET_CAPTAIN;
+      var pocketName=ownPay||crewPaidFromOwn?expPocketPersonName(pocketWhoId):"";
+      var isReimb=expIsReimbursement(e);
       var reimbFromPetty=isReimb&&expReimburseHitsPetty(e);
       var reimbFromOwn=isReimb&&(e.paidFrom==="Own money"||expIsOwnMoneyLabel(e.paidFrom));
       var reimbName=isReimb?expPocketPersonName(expReimburseWhoId(e)):"";
-      var ownRepaid=ownPay?expOwnMoneyIsRepaid(e, expMonth):false;
-      var ownRepaidAmt=ownPay?expOwnMoneyRepaidAmt(e, expMonth):0;
+      var ownRepaid=ownPay&&!isCrewDay?expOwnMoneyIsRepaid(e, expMonth):false;
+      var ownRepaidAmt=ownPay&&!isCrewDay?expOwnMoneyRepaidAmt(e, expMonth):0;
+      /* Day-pay paid from pocket: boat owes the pocket holder until reimbursed */
+      var crewOwnRepaid=false;
+      if(crewPaidFromOwn){
+        /* Treated like pocket out for that person — reuse FIFO against reimbursements to captain/payer */
+        var fakeShop={id:e.id, amount:e.amount, paidFrom:"Own money", paidById:pocketWhoId, date:e.date, category:"Crew Salaries"};
+        crewOwnRepaid=expOwnMoneyIsRepaid(fakeShop, expMonth)||expOwnMoneyIsRepaid(Object.assign({},e,{paidFrom:"Own money", paidById:pocketWhoId}), expMonth);
+        ownRepaid=crewOwnRepaid;
+      }
       var payPill="";
       var reimbPayer=isReimb&&reimbFromOwn?expPocketPersonName(e.paidById||EXP_POCKET_CAPTAIN):"";
+      var crewName=isCrewDay?(e.vendor||"Crew"):"";
       if(unpaid) payPill='<span class="pill p-amber">Owe · not cash out</span>';
-      else if(prior) payPill='<span class="pill p-grey">Prior float · not this pot</span>';
+      else if(crewPaidFromOwn){
+        /* Vicky day pay paid from captain pocket */
+        payPill='<span class="pill p-green">Paid'+(crewName?' · '+esc(crewName):'')+'</span>'+
+          (ownRepaid
+            ?'<span class="pill p-own-ok">Own money · '+esc(pocketName||"Captain")+'</span><span class="pill p-green">Repaid</span>'
+            :'<span class="pill p-own">Own money · '+esc(pocketName||"Captain")+'</span><span class="pill p-amber">Awaiting repay to '+esc(pocketName||"Captain")+'</span>');
+      } else if(prior) payPill='<span class="pill p-grey">Prior float · not this pot</span>';
       else if(isReimb&&reimbFromPetty){
         payPill='<span class="pill p-cash">From petty cash</span>'+
           '<span class="pill p-green">Paid to '+(reimbName?esc(reimbName):"crew")+'</span>';
@@ -7125,12 +7156,14 @@ function paintExpensesBody(){
           payPill='<span class="pill p-own">Own money'+(pocketName?' · '+esc(pocketName):'')+'</span>'+
             '<span class="pill p-amber">Awaiting repay</span>';
         }
-      } else if(hitsFloat||!expIsCrewDayPayLine(e)) payPill='<span class="pill p-cash">Petty cash</span>';
-      else payPill='<span class="pill p-grey">Paid</span>';
-      h+='<div class="item'+(e.source==="stew"?"":" apa-row")+(unpaid?' exp-unpaid':((ownPay&&!ownRepaid)||(isReimb&&reimbFromOwn)?' exp-own':''))+'" data-exp-id="'+esc(e.id)+'" role="button" tabindex="0">'+
+      } else if(hitsFloat){
+        payPill='<span class="pill p-cash">Petty cash</span><span class="pill p-green">Paid'+(crewName?' · '+esc(crewName):'')+'</span>';
+      } else if(!isCrewDay) payPill='<span class="pill p-cash">Petty cash</span>';
+      else payPill='<span class="pill p-grey">Paid · prior</span>';
+      h+='<div class="item'+(e.source==="stew"?"":" apa-row")+(unpaid?' exp-unpaid':((ownPay&&!ownRepaid)||(isReimb&&reimbFromOwn)||(crewPaidFromOwn&&!ownRepaid)?' exp-own':''))+'" data-exp-id="'+esc(e.id)+'" role="button" tabindex="0">'+
         '<div class="top">'+
           (expIsImageReceipt(e.receipt)?'<img class="exp-rcpt" src="'+e.receipt+'" alt="">':(expIsPdfReceipt(e.receipt)?'<span class="exp-rcpt" style="display:flex;align-items:center;justify-content:center;font-size:22px;background:#f0f3f5">📄</span>':''))+
-          '<div style="flex:1;min-width:0"><div class="title">'+esc(e.vendor||"—")+(unpaid?' <span class="pill p-amber">Unpaid</span>':(prior?' <span class="pill p-grey">Paid · prior</span>':''))+(e.source==="apa"?' <span class="pill p-blue">From APA</span>':'')+(isReimb?' <span class="pill p-green">Reimbursement</span>':'')+'</div>'+
+          '<div style="flex:1;min-width:0"><div class="title">'+esc(e.vendor||"—")+(unpaid?' <span class="pill p-amber">Unpaid</span>':(crewPaidFromOwn||hitsFloat?' <span class="pill p-green">Paid</span>':(prior?' <span class="pill p-grey">Paid · prior</span>':'')))+(e.source==="apa"?' <span class="pill p-blue">From APA</span>':'')+(isReimb?' <span class="pill p-green">Reimbursement</span>':'')+'</div>'+
             '<div class="meta" style="margin-top:4px"><span>📅 '+esc(fmtDate(e.date)||e.date||"")+'</span>'+
               payPill+
               '<span class="pill p-grey">'+esc(e.category||"")+'</span>'+
@@ -7503,22 +7536,31 @@ function openExpense(id, opts){
     if(fromStew){
       var pf=(el("f_exp_paidFrom")&&el("f_exp_paidFrom").value)==="Own money"?"Own money":"Petty cash";
       var crewPay=(el("f_exp_crew_pay")&&el("f_exp_crew_pay").value)==="Paid"?"Paid":"Unpaid";
+      var payerId=EXP_POCKET_CAPTAIN;
+      if(pf==="Own money"&&el("f_exp_paidBy")) payerId=String(el("f_exp_paidBy").value||EXP_POCKET_CAPTAIN);
+      else if(pf==="Own money") payerId=String(r.paidById||EXP_POCKET_CAPTAIN);
       var eventKey=r.stewEventKey||"";
       if(eventKey){
-        expSetStewDayPayStatus(eventKey, crewPay, {paidFrom:crewPay==="Paid"?pf:""});
+        expSetStewDayPayStatus(eventKey, crewPay, {paidFrom:crewPay==="Paid"?pf:"", paidById:crewPay==="Paid"&&pf==="Own money"?payerId:""});
         /* Re-apply receipt on this stew’s line (sync may keep id) */
         state.expenses=(state.expenses||[]).map(function(e){
           if(e&&e.id===r.id){
             e.receipt=receiptData;
             e.payStatusManual=true;
-            if(crewPay==="Paid"){ e.paidFrom=pf; e.floatPay=pf!=="Own money"; }
-            else e.floatPay=false;
+            if(crewPay==="Paid"){
+              e.paidFrom=pf;
+              e.floatPay=pf!=="Own money";
+              e.paidById=pf==="Own money"?payerId:"";
+            } else { e.floatPay=false; e.paidById=""; }
             e.updatedAt=new Date().toISOString();
           } else if(e&&e.source==="stew"&&e.stewPayKind==="dayPay"&&String(e.stewEventKey)===String(eventKey)&&String(e.stewId)===String(r.stewId)){
             e.receipt=receiptData||e.receipt;
             e.payStatusManual=true;
-            if(crewPay==="Paid"){ e.paidFrom=pf; e.floatPay=pf!=="Own money"; }
-            else e.floatPay=false;
+            if(crewPay==="Paid"){
+              e.paidFrom=pf;
+              e.floatPay=pf!=="Own money";
+              e.paidById=pf==="Own money"?payerId:"";
+            } else { e.floatPay=false; e.paidById=""; }
           }
           return e;
         });
@@ -7531,8 +7573,10 @@ function openExpense(id, opts){
             if(crewPay==="Paid"){
               e.paidFrom=pf;
               e.floatPay=pf!=="Own money";
+              e.paidById=pf==="Own money"?payerId:"";
             } else {
               e.floatPay=false;
+              e.paidById="";
             }
             e.updatedAt=new Date().toISOString();
           }
