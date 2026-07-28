@@ -6,12 +6,16 @@
  *   - captain commission (VAT strip; split = white ex VAT + cash)
  *   - charge bill type (cash / invoice / mix)
  *   - charge captain commission (explicit flag only)
+ *   - expense envelope: reimbursement / petty vs own-money (structured fields only)
  *
  * Browser: loaded before the main tracker script → window.LY_MODELS
  * Tests:   node scripts/test-tracker-models.mjs
  *
  * When changing a locked rule: update HERE, update tests, then thin wrappers
  * in tracker/index.html — do not re-implement the same math in the UI.
+ *
+ * NEVER classify money from free-text regex on descriptions. Past data fixes
+ * belong in explicit migrations that set category/flags once, not in hot path.
  */
 (function (root) {
   "use strict";
@@ -610,10 +614,152 @@
     return chargeCommissionParts(c).total;
   }
 
+  /* ---------- Expenses / petty envelope (structured fields only) ---------- */
+
+  var EXP_REIMBURSE_CATS = {
+    "Captain reimbursement": 1,
+    "Crew reimbursement": 1,
+    Reimbursement: 1,
+  };
+  var EXP_POCKET_CAPTAIN = "captain";
+
+  /**
+   * Reimbursement = boat (or captain) repays someone for a pocket spend.
+   * Source of truth (any one is enough):
+   *   - category in EXP_REIMBURSE_CATS
+   *   - reimburseCaptain / reimburseCrew flags
+   *   - reimbursesExpenseId link to the original own-money spend
+   * Description text is NEVER used.
+   */
+  function isExpenseReimbursement(e) {
+    if (!e) return false;
+    if (e.reimburseCaptain === true || e.reimburseCrew === true) return true;
+    if (e.reimbursesExpenseId != null && String(e.reimbursesExpenseId) !== "") return true;
+    var c = String(e.category || "");
+    return !!EXP_REIMBURSE_CATS[c];
+  }
+
+  /** Paid-from envelope: petty | own | card (card is payMethod). */
+  function expensePaidFrom(e) {
+    if (!e) return "petty";
+    if (String(e.payMethod || "") === "Credit Card") return "card";
+    var p = String(e.paidFrom || "").trim();
+    if (p === "Own money" || /^own money\b/i.test(p)) return "own";
+    if (p === "Petty cash" || /^petty\b/i.test(p)) return "petty";
+    /* Blank / unknown on a reimbursement defaults to petty (boat cash left envelope) */
+    if (isExpenseReimbursement(e)) return "petty";
+    /* Blank on normal cash expense = petty (legacy) */
+    if (!p) return "petty";
+    if (/\bown money\b/i.test(p) || /^(my|captain)/i.test(p)) return "own";
+    return "petty";
+  }
+
+  /**
+   * Does this row remove physical cash from the boat envelope?
+   *  - Credit card: never
+   *  - Own money: never
+   *  - Reimbursement from petty: yes
+   *  - Reimbursement from own money: no (captain paid person; boat owes captain)
+   *  - Normal cash + petty: yes
+   *  - Crew day-pay: only when floatPay === true (caller may pass crew flag)
+   */
+  function expenseHitsPettyCash(e, opts) {
+    opts = opts || {};
+    if (!e) return false;
+    if (opts.isCrewDayPay) {
+      if (e.crewPayStatus !== "Paid") return false;
+      if (expensePaidFrom(e) === "own" || expensePaidFrom(e) === "card") return false;
+      return e.floatPay === true;
+    }
+    if (expensePaidFrom(e) === "card") return false;
+    if (isExpenseReimbursement(e)) return expensePaidFrom(e) === "petty";
+    if (expensePaidFrom(e) === "own") return false;
+    return true;
+  }
+
+  /** Normalize reimbursement row to explicit structured fields (idempotent). */
+  function normalizeExpenseReimbursement(e) {
+    if (!e || !isExpenseReimbursement(e)) return { changed: false, expense: e };
+    var dirty = false;
+    var out = e;
+    function set(k, v) {
+      if (out[k] !== v) {
+        out[k] = v;
+        dirty = true;
+      }
+    }
+    if (String(out.payMethod || "") === "Credit Card") set("payMethod", "Cash");
+    var pf = expensePaidFrom(out);
+    if (pf === "own") {
+      set("paidFrom", "Own money");
+      if (!out.paidById) set("paidById", EXP_POCKET_CAPTAIN);
+    } else {
+      set("paidFrom", "Petty cash");
+      set("paidById", "");
+    }
+    var to =
+      out.reimburseToId != null && String(out.reimburseToId) !== ""
+        ? String(out.reimburseToId)
+        : out.reimburseCaptain
+          ? EXP_POCKET_CAPTAIN
+          : EXP_POCKET_CAPTAIN;
+    set("reimburseToId", to);
+    if (to === EXP_POCKET_CAPTAIN) {
+      set("category", "Captain reimbursement");
+      set("reimburseCaptain", true);
+      set("reimburseCrew", false);
+    } else {
+      if (!EXP_REIMBURSE_CATS[String(out.category || "")]) set("category", "Crew reimbursement");
+      set("reimburseCaptain", false);
+      set("reimburseCrew", true);
+    }
+    set("chargeTo", "boat");
+    return { changed: dirty, expense: out };
+  }
+
+  /**
+   * Classify one expense for envelope + pocket books.
+   * Returns a plain DTO — UI must not invent parallel rules.
+   */
+  function classifyExpenseCash(e, opts) {
+    opts = opts || {};
+    var a = round2(num(e && e.amount));
+    var reimb = isExpenseReimbursement(e);
+    var pf = expensePaidFrom(e);
+    var hitsPetty = expenseHitsPettyCash(e, opts);
+    return {
+      amount: a,
+      isReimbursement: reimb,
+      paidFrom: pf, /* petty | own | card */
+      hitsPettyCash: hitsPetty,
+      hitsOwnMoneyPocket: !reimb && pf === "own",
+      /* Reimburse recipient always gets pocket credit when row is a reimbursement */
+      clearsPocketFor:
+        reimb && e
+          ? e.reimburseToId != null && String(e.reimburseToId) !== ""
+            ? String(e.reimburseToId)
+            : EXP_POCKET_CAPTAIN
+          : "",
+      /* Who funded an own-money reimbursement (boat now owes them) */
+      ownMoneyPayerId:
+        reimb && pf === "own"
+          ? e.paidById != null && String(e.paidById) !== ""
+            ? String(e.paidById)
+            : EXP_POCKET_CAPTAIN
+          : !reimb && pf === "own"
+            ? e.paidById != null && String(e.paidById) !== ""
+              ? String(e.paidById)
+              : EXP_POCKET_CAPTAIN
+            : "",
+    };
+  }
+
   var api = {
     CAPTAIN_COMMISSION_PCT: CAPTAIN_COMMISSION_PCT,
     BILL_TYPES: Object.keys(BILL_TYPES),
     LEAD_SOURCES: Object.keys(LEAD_SOURCES),
+    EXP_REIMBURSE_CATS: Object.keys(EXP_REIMBURSE_CATS),
+    EXP_POCKET_CAPTAIN: EXP_POCKET_CAPTAIN,
     num: num,
     round2: round2,
     moneyFromBase: moneyFromBase,
@@ -649,6 +795,11 @@
     chargeTotalsFromApaAndExt: chargeTotalsFromApaAndExt,
     chargeCommissionParts: chargeCommissionParts,
     chargeCommissionAmt: chargeCommissionAmt,
+    isExpenseReimbursement: isExpenseReimbursement,
+    expensePaidFrom: expensePaidFrom,
+    expenseHitsPettyCash: expenseHitsPettyCash,
+    normalizeExpenseReimbursement: normalizeExpenseReimbursement,
+    classifyExpenseCash: classifyExpenseCash,
   };
 
   root.LY_MODELS = api;

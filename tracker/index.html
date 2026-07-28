@@ -5808,10 +5808,11 @@ function expIsCrewPriorSettled(e){
 }
 /**
  * Non-crew: cash left the boat only when logged as Cash + Petty cash.
- * (Card / Own money never touch the envelope.)
+ * (Card / Own money never touch the envelope.) Model owns the rule.
  */
 function expExpenseHitsPetty(e){
   if(!e||expIsCrewDayPayLine(e)) return false;
+  if(LY_MODELS&&LY_MODELS.expenseHitsPettyCash) return LY_MODELS.expenseHitsPettyCash(e);
   if(e.payMethod==="Credit Card") return false;
   if(e.paidFrom==="Own money"||expIsOwnMoneyLabel(e.paidFrom)) return false;
   /* Explicit own-money already excluded; anything else cash is petty envelope */
@@ -5834,9 +5835,12 @@ function expCashInIsOwnMoney(r){
   if(r.fromCaptain===true||r.ownMoney===true) return true;
   return expIsOwnMoneyLabel(r.source);
 }
-/** Cash expense paid from someone’s pocket (not boat float). Reimbursements use their own path. */
+/** Cash expense paid from someone’s pocket (not boat float). Model: structured paidFrom only. */
 function expPaidFromOwnMoney(e){
   if(!e||expIsCrewUnpaid(e)) return false;
+  if(LY_MODELS&&LY_MODELS.classifyExpenseCash){
+    return !!LY_MODELS.classifyExpenseCash(e).hitsOwnMoneyPocket;
+  }
   if(expIsReimbursement(e)) return false;
   if(e.payMethod==="Credit Card") return false;
   if(e.paidFrom==="Own money"||expIsOwnMoneyLabel(e.paidFrom)) return true;
@@ -5863,75 +5867,42 @@ function expPocketWhoId(e){
   if(e.paidById!=null&&String(e.paidById)!=="") return String(e.paidById);
   return EXP_POCKET_CAPTAIN;
 }
-/** Boat paying someone back (reduces their pocket balance). */
+/**
+ * Boat paying someone back (reduces their pocket balance).
+ * Model only — category / reimburse* flags / reimbursesExpenseId.
+ * No free-text regex (that briefly lived here and mis-classified rows).
+ */
 function expIsReimbursement(e){
   if(!e||expIsCrewUnpaid(e)) return false;
+  if(LY_MODELS&&LY_MODELS.isExpenseReimbursement) return LY_MODELS.isExpenseReimbursement(e);
   if(e.reimburseCaptain||e.reimburseCrew) return true;
   if(e.reimbursesExpenseId) return true;
   var c=String(e.category||"");
-  if(c==="Captain reimbursement"||c==="Crew reimbursement"||c==="Reimbursement") return true;
-  /* Captains sometimes only typed the story in the description */
-  if(/\b(repay|repaid|reimburse|reimbursed|paid back|pocket repay)\b/i.test(String(e.description||""))) return true;
-  return false;
+  return c==="Captain reimbursement"||c==="Crew reimbursement"||c==="Reimbursement";
 }
 function expReimburseWhoId(e){
   if(!expIsReimbursement(e)) return "";
+  if(LY_MODELS&&LY_MODELS.classifyExpenseCash){
+    var cl=LY_MODELS.classifyExpenseCash(e);
+    if(cl.clearsPocketFor) return cl.clearsPocketFor;
+  }
   if(e.reimburseToId!=null&&String(e.reimburseToId)!=="") return String(e.reimburseToId);
   if(e.reimburseCaptain||String(e.category||"")==="Captain reimbursement") return EXP_POCKET_CAPTAIN;
   return EXP_POCKET_CAPTAIN;
 }
-/**
- * Normalize reimbursement rows.
- * Default = repaid from boat petty (Cash + Petty) so envelope cash-out matches
- * physical pays (e.g. Toni €60 from the free-cash pot).
- * If captain intentionally set Paid from → Own money, keep that (boat owes captain).
- */
+/** Normalize reimbursement to explicit category/flags/paidFrom (model). */
 function expNormalizeReimbursement(e){
   if(!e||!expIsReimbursement(e)) return false;
-  var dirty=false;
-  if(e.payMethod==="Credit Card"){ e.payMethod="Cash"; dirty=true; }
-  /* Missing / blank paidFrom → Petty (physical boat cash). Keep explicit Own money. */
-  if(!e.paidFrom||e.paidFrom===""||(!expIsOwnMoneyLabel(e.paidFrom)&&e.paidFrom!=="Petty cash"&&e.paidFrom!=="Own money")){
-    e.paidFrom="Petty cash";
-    dirty=true;
+  if(LY_MODELS&&LY_MODELS.normalizeExpenseReimbursement){
+    var r=LY_MODELS.normalizeExpenseReimbursement(e);
+    return !!r.changed;
   }
-  if(e.paidFrom==="Own money"||expIsOwnMoneyLabel(e.paidFrom)){
-    e.paidFrom="Own money";
-    if(!e.paidById) e.paidById=EXP_POCKET_CAPTAIN;
-  } else {
-    e.paidFrom="Petty cash";
-    e.paidById="";
-  }
-  if(!e.reimburseToId){
-    var guess="";
-    if(e.reimburseCaptain) guess=EXP_POCKET_CAPTAIN;
-    else if(e.reimburseToId) guess=String(e.reimburseToId);
-    /* Infer Toni/Vicky from vendor name when flags missing */
-    if(!guess){
-      var vn=normName(e.vendor||"");
-      (state.stews||[]).forEach(function(s){
-        if(!s||!s.id||!s.name) return;
-        var sn=normName(s.name);
-        if(sn&&vn&&(vn.indexOf(sn)>=0||sn.indexOf(vn.split(/\s+/)[0])>=0)) guess=String(s.id);
-      });
-    }
-    e.reimburseToId=guess||EXP_POCKET_CAPTAIN;
-    dirty=true;
-  }
-  var to=String(e.reimburseToId||EXP_POCKET_CAPTAIN);
-  if(to===EXP_POCKET_CAPTAIN){
-    if(e.category!=="Captain reimbursement"){ e.category="Captain reimbursement"; dirty=true; }
-    e.reimburseCaptain=true; e.reimburseCrew=false;
-  } else {
-    if(e.category!=="Crew reimbursement"&&e.category!=="Reimbursement"){ e.category="Crew reimbursement"; dirty=true; }
-    e.reimburseCaptain=false; e.reimburseCrew=true;
-  }
-  e.chargeTo="boat";
-  return dirty;
+  return false;
 }
 /** True when boat repaid someone from the envelope (reduces petty cash). */
 function expReimburseHitsPetty(e){
   if(!e||!expIsReimbursement(e)) return false;
+  if(LY_MODELS&&LY_MODELS.expenseHitsPettyCash) return LY_MODELS.expenseHitsPettyCash(e);
   if(e.payMethod==="Credit Card") return false;
   if(e.paidFrom==="Own money"||expIsOwnMoneyLabel(e.paidFrom)) return false;
   return true;
@@ -6053,16 +6024,20 @@ function expPocketBalances(month, petty){
   });
   expLinesForMonth(month).forEach(function(e){
     expNormalizeReimbursement(e);
-    /*
-     * Reimbursement always clears the recipient’s pocket claim.
-     * If paid from Petty → cash leaves boat (settlement).
-     * If paid from Own money (captain) → captain’s pocket claim goes up (boat owes captain).
-     */
+    var cls=LY_MODELS&&LY_MODELS.classifyExpenseCash
+      ?LY_MODELS.classifyExpenseCash(e)
+      :null;
+    if(cls&&cls.isReimbursement){
+      ensure(cls.clearsPocketFor||EXP_POCKET_CAPTAIN).reimbursed+=apaNum(e.amount);
+      if(cls.paidFrom==="own"&&cls.ownMoneyPayerId){
+        ensure(cls.ownMoneyPayerId).paidOut+=apaNum(e.amount);
+      }
+      return;
+    }
     if(expIsReimbursement(e)){
       ensure(expReimburseWhoId(e)||EXP_POCKET_CAPTAIN).reimbursed+=apaNum(e.amount);
       if(e.paidFrom==="Own money"||expIsOwnMoneyLabel(e.paidFrom)){
-        var payer=String(e.paidById||EXP_POCKET_CAPTAIN);
-        ensure(payer).paidOut+=apaNum(e.amount);
+        ensure(String(e.paidById||EXP_POCKET_CAPTAIN)).paidOut+=apaNum(e.amount);
       }
       return;
     }
@@ -6151,26 +6126,26 @@ function expSettlementFigures(month){
       }
       return;
     }
-    /* Reimbursements: pocket always cleared (in expPocketBalances). Envelope only if petty. */
-    if(expIsReimbursement(e)){
-      if(e.payMethod==="Credit Card"){ cardOut+=a; return; }
-      if(e.paidFrom==="Own money"||expIsOwnMoneyLabel(e.paidFrom)){
-        /* Captain/crew paid the person from personal cash — no boat cash out */
-        return;
+    /* Model classification — no description heuristics */
+    var cls=LY_MODELS&&LY_MODELS.classifyExpenseCash
+      ?LY_MODELS.classifyExpenseCash(e)
+      :{isReimbursement:expIsReimbursement(e), paidFrom:expPaidFromOwnMoney(e)?"own":(e.payMethod==="Credit Card"?"card":"petty"), hitsPettyCash:expExpenseHitsPetty(e), hitsOwnMoneyPocket:expPaidFromOwnMoney(e)};
+    if(cls.isReimbursement){
+      if(cls.paidFrom==="card"){ cardOut+=a; return; }
+      if(cls.hitsPettyCash){
+        cashOut+=a;
+        reimburseCap+=a;
+        cashOutLines.push({
+          kind:"reimburse",
+          label:"Repaid "+expPocketPersonName(expReimburseWhoId(e))+(e.vendor?" · "+e.vendor:""),
+          amount:a, id:e.id
+        });
       }
-      e.paidFrom="Petty cash";
-      cashOut+=a;
-      reimburseCap+=a;
-      cashOutLines.push({
-        kind:"reimburse",
-        label:"Repaid "+expPocketPersonName(expReimburseWhoId(e))+(e.vendor?" · "+e.vendor:""),
-        amount:a, id:e.id
-      });
       return;
     }
-    if(e.payMethod==="Credit Card"){ cardOut+=a; return; }
-    if(expPaidFromOwnMoney(e)){ ownMoneyExp+=a; return; }
-    if(!expExpenseHitsPetty(e)) return;
+    if(cls.paidFrom==="card"){ cardOut+=a; return; }
+    if(cls.hitsOwnMoneyPocket){ ownMoneyExp+=a; return; }
+    if(!cls.hitsPettyCash) return;
     cashOut+=a;
     otherCash+=a;
     cashOutLines.push({kind:"expense", label:(e.vendor||e.category||"Expense"), amount:a, id:e.id});
