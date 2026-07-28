@@ -6133,14 +6133,22 @@ function expSettlementFigures(month){
       if(e.payMethod==="Credit Card"){ cardOut+=a; return; }
       if(e.paidFrom==="Own money"||expIsOwnMoneyLabel(e.paidFrom)){
         ownMoneyExp+=a;
-        var crewPayer=expPocketPersonName(e.paidById||EXP_POCKET_CAPTAIN);
+        var crewPayerId=String(e.paidById||EXP_POCKET_CAPTAIN);
+        var crewPayer=expPocketPersonName(crewPayerId);
         var crewWho=e.vendor||"Crew";
+        /* Treat day-pay own-money like a shop line for repay tracking */
+        var crewAsOwn={id:e.id, amount:e.amount, paidFrom:"Own money", paidById:crewPayerId, date:e.date, category:"Crew Salaries"};
+        var crewRepaidAmt=expOwnMoneyRepaidAmt(crewAsOwn, month);
+        var crewRepaid=crewRepaidAmt>=a-0.009;
         pocketOutLines.push({
           kind:"crew",
+          whoId:crewPayerId,
           who:crewPayer,
           crewName:crewWho,
           label:crewWho+" day pay",
-          amount:a, id:e.id, repaid:false
+          amount:a, id:e.id,
+          repaid:crewRepaid,
+          repaidAmt:crewRepaidAmt
         });
         return;
       }
@@ -6169,13 +6177,19 @@ function expSettlementFigures(month){
           amount:a, id:e.id
         });
       } else if(cls.paidFrom==="own"){
-        /* Captain/crew paid the person from personal cash */
+        /* Captain/crew paid the person from personal cash — boat now owes the payer */
         ownMoneyExp+=a;
+        var roWhoId=String(cls.ownMoneyPayerId||EXP_POCKET_CAPTAIN);
+        var roAsOwn={id:e.id, amount:e.amount, paidFrom:"Own money", paidById:roWhoId, date:e.date, category:e.category||"Reimbursement"};
+        var roRepaidAmt=expOwnMoneyRepaidAmt(roAsOwn, month);
         pocketOutLines.push({
           kind:"reimburse-own",
-          who:expPocketPersonName(cls.ownMoneyPayerId||EXP_POCKET_CAPTAIN),
+          whoId:roWhoId,
+          who:expPocketPersonName(roWhoId),
           label:"Repaid "+expPocketPersonName(cls.clearsPocketFor||expReimburseWhoId(e))+(e.vendor?" · "+e.vendor:""),
-          amount:a, id:e.id, repaid:false
+          amount:a, id:e.id,
+          repaid:roRepaidAmt>=a-0.009,
+          repaidAmt:roRepaidAmt
         });
       }
       return;
@@ -6183,9 +6197,10 @@ function expSettlementFigures(month){
     if(cls.paidFrom==="card"){ cardOut+=a; return; }
     if(cls.hitsOwnMoneyPocket){
       ownMoneyExp+=a;
-      var whoId=cls.ownMoneyPayerId||expPocketWhoId(e)||EXP_POCKET_CAPTAIN;
+      var whoId=String(cls.ownMoneyPayerId||expPocketWhoId(e)||EXP_POCKET_CAPTAIN);
       pocketOutLines.push({
         kind:"shop",
+        whoId:whoId,
         who:expPocketPersonName(whoId),
         label:(e.vendor||e.category||"Expense")+(e.description?" · "+String(e.description).slice(0,40):""),
         amount:a, id:e.id,
@@ -7064,47 +7079,71 @@ function paintExpensesBody(){
     h+='</div>';
   }
   h+='</div>';
-  /* Pocket money out — someone’s personal cash (not the boat envelope) */
-  var pouts=S.pocketOutLines||[];
-  var pocketOutTot=0;
-  pouts.forEach(function(r){ pocketOutTot+=apaNum(r.amount); });
-  pocketOutTot=Math.round(pocketOutTot*100)/100;
-  h+='<div class="apa-card" style="margin-bottom:12px">'+
-    '<div style="font-weight:800;margin-bottom:6px">Pocket money out</div>'+
-    '<div class="meta" style="margin-bottom:8px">Spent from someone’s personal cash (not the float). Boat may still owe them until repaid. Total <b class="money">'+money(pocketOutTot)+'</b>.</div>';
-  if(!pouts.length){
-    h+='<div class="meta">None this month.</div>';
-  } else {
-    h+='<div class="list" style="margin:0">';
-    pouts.slice().sort(function(a,b){ return (b.amount||0)-(a.amount||0); }).forEach(function(row){
-      var stMain="", stSub="", stTone="warn", stSubOk=false;
-      if(row.kind==="reimburse-own"){
-        var paidTo=(row.label||"").replace(/^Repaid\s+/i,"").split(" · ")[0]||"crew";
-        stMain="Paid to "+paidTo+" · "+(row.who||"Captain")+" pocket";
-        stTone="ok";
-        stSub="Awaiting repay to "+(row.who||"Captain");
-      } else if(row.kind==="crew"){
-        stMain="Paid · own money ("+(row.who||"Captain")+")";
-        stTone="ok";
-        stSub="Awaiting repay to "+(row.who||"Captain");
-      } else if(row.repaid){
-        stMain="Own money ("+(row.who||"Someone")+")";
-        stTone="ok";
-        stSub="Repaid";
-        stSubOk=true;
-      } else {
-        stMain="Own money ("+(row.who||"Someone")+")";
-        stTone="warn";
-        stSub="Awaiting repay";
-      }
-      h+='<div class="item'+(row.repaid?'':' exp-own')+'" style="padding:10px 12px"'+(row.id?' data-exp-id="'+esc(row.id)+'" role="button" tabindex="0"':'')+'>'+
-        '<div class="top"><div class="title" style="font-size:14px">'+esc(row.label||"Pocket")+'</div>'+
-          '<div class="amt money" style="font-size:14px">−'+money0(row.amount)+'</div></div>'+
-        '<div class="exp-status '+stTone+'">'+esc(stMain)+'</div>'+
-        (stSub?'<div class="exp-status-sub'+(stSubOk?' ok':'')+'">'+esc(stSub)+'</div>':'')+
-      '</div>';
+  /*
+   * Outstanding pocket money out — only still-to-repay amounts, grouped by person.
+   * Fully repaid lines are omitted; people with zero balance are omitted.
+   */
+  var poutsAll=S.pocketOutLines||[];
+  var pocketGroups=[];
+  (pockets.list||[]).forEach(function(row){
+    if(!row||!(row.owed>0.009)) return;
+    var whoName=row.name||"Someone";
+    var whoId=String(row.id||"");
+    var items=[];
+    poutsAll.forEach(function(r){
+      if(!r||r.repaid) return;
+      var rId=String(r.whoId||"");
+      var rWho=String(r.who||"");
+      var match=rId&&whoId?rId===whoId:(rWho===whoName||rWho.toLowerCase()===whoName.toLowerCase());
+      if(!match) return;
+      var remain=apaNum(r.amount);
+      if(r.repaidAmt>0) remain=Math.max(0, remain-apaNum(r.repaidAmt));
+      if(remain<0.01) return;
+      items.push({label:r.label||"Spend", amount:remain, id:r.id, kind:r.kind||"shop"});
     });
-    h+='</div>';
+    items.sort(function(a,b){ return (b.amount||0)-(a.amount||0); });
+    pocketGroups.push({id:whoId, name:whoName, owed:row.owed, items:items});
+  });
+  pocketGroups.sort(function(a,b){ return (b.owed||0)-(a.owed||0); });
+  var pocketOutTot=0;
+  pocketGroups.forEach(function(g){ pocketOutTot+=apaNum(g.owed); });
+  pocketOutTot=Math.round(pocketOutTot*100)/100;
+  h+='<div class="apa-card" style="margin-bottom:12px" id="expOutstandingPocket">'+
+    '<div style="font-weight:800;margin-bottom:6px">Outstanding pocket money out</div>'+
+    '<div class="meta" style="margin-bottom:8px">Still to be repaid (not yet settled). Grouped by person. Total <b class="money">'+money(pocketOutTot)+'</b>.</div>';
+  if(!pocketGroups.length){
+    h+='<div class="meta">Nothing outstanding — all pocket outs repaid.</div>';
+  } else {
+    pocketGroups.forEach(function(g){
+      h+='<div style="margin-top:12px;padding-top:12px;border-top:1px solid var(--line)">'+
+        '<div style="display:flex;justify-content:space-between;align-items:center;gap:10px;flex-wrap:wrap">'+
+          '<div style="font-weight:800;min-width:0">'+esc(g.name)+'</div>'+
+          '<div style="display:flex;align-items:center;gap:8px;flex-shrink:0">'+
+            '<b class="money">'+money(g.owed)+'</b>'+
+            (g.id
+              ?'<button type="button" class="btn" data-exp-reimburse="'+esc(g.id)+'" data-exp-reimburse-amt="'+esc(String(g.owed))+'" data-exp-reimburse-name="'+esc(g.name)+'" style="width:auto;padding:6px 10px;font-size:12px">Repay</button>'
+              :'')+
+          '</div></div>';
+      if(g.items.length){
+        h+='<div class="list" style="margin:8px 0 0">';
+        g.items.forEach(function(it){
+          var kindPill=it.kind==="crew"
+            ?'<span class="pill p-blue">Day pay</span>'
+            :(it.kind==="reimburse-own"
+              ?'<span class="pill p-own">Paid for crew</span>'
+              :'<span class="pill p-own">Shop</span>');
+          h+='<div class="item exp-own" style="padding:10px 12px"'+(it.id?' data-exp-id="'+esc(it.id)+'" role="button" tabindex="0"':'')+'>'+
+            '<div class="top"><div class="title" style="font-size:13.5px">'+esc(it.label)+'</div>'+
+              '<div class="amt money" style="font-size:13.5px">'+money0(it.amount)+'</div></div>'+
+            '<div class="meta" style="margin-top:4px">'+kindPill+'</div>'+
+          '</div>';
+        });
+        h+='</div>';
+      } else {
+        h+='<div class="meta" style="margin-top:6px">Open balance (see Expenses for lines).</div>';
+      }
+      h+='</div>';
+    });
   }
   h+='</div>';
   h+='<div class="apa-sect-h" style="margin-top:4px"><h3>Expenses</h3><button type="button" class="btn" id="expAdd">Add expense</button></div>';
@@ -7133,41 +7172,52 @@ function paintExpensesBody(){
         var fakeShop={id:e.id, amount:e.amount, paidFrom:"Own money", paidById:pocketWhoId, date:e.date, category:"Crew Salaries"};
         ownRepaid=expOwnMoneyIsRepaid(fakeShop, expMonth)||expOwnMoneyIsRepaid(Object.assign({},e,{paidFrom:"Own money", paidById:pocketWhoId}), expMonth);
       }
-      /*
-       * Compact card status — max 2 short lines, no pill piles.
-       * primary = what happened; secondary = repay state if needed.
-       */
-      var stMain="", stSub="", stTone="muted", stSubOk=false, showRepayBtn=false;
+      /* 2–3 complementary pills — never repeat “Paid” */
+      var pills=[];
+      var showRepayBtn=false;
       if(unpaid){
-        stMain="Unpaid"; stTone="warn";
+        pills.push('<span class="pill p-amber">Unpaid</span>');
       } else if(crewPaidFromOwn){
-        stMain="Paid · own money ("+(pocketName||"Captain")+")";
-        stTone="ok";
-        if(ownRepaid){ stSub="Repaid to "+(pocketName||"Captain"); stSubOk=true; }
-        else stSub="Awaiting repay to "+(pocketName||"Captain");
+        pills.push('<span class="pill p-green">Paid</span>');
+        pills.push(ownRepaid
+          ?'<span class="pill p-own-ok">Own money · '+esc(pocketName||"Captain")+'</span>'
+          :'<span class="pill p-own">Own money · '+esc(pocketName||"Captain")+'</span>');
+        if(ownRepaid) pills.push('<span class="pill p-green">Repaid</span>');
+        else pills.push('<span class="pill p-amber">Awaiting repay</span>');
       } else if(prior){
-        stMain="Paid earlier (not this float)"; stTone="muted";
+        pills.push('<span class="pill p-grey">Prior · not this float</span>');
       } else if(isReimb&&reimbFromPetty){
-        stMain="Paid to "+(reimbName||"crew")+" · petty cash"; stTone="ok";
+        pills.push('<span class="pill p-cash">Petty cash</span>');
+        pills.push('<span class="pill p-green">Paid to '+esc(reimbName||"crew")+'</span>');
       } else if(isReimb&&reimbFromOwn){
-        stMain="Paid to "+(reimbName||"crew")+" · "+(reimbPayer||"Captain")+" pocket";
-        stTone="ok";
-        stSub="Awaiting repay to "+(reimbPayer||"Captain");
+        pills.push('<span class="pill p-green">Paid to '+esc(reimbName||"crew")+'</span>');
+        pills.push('<span class="pill p-own">'+esc(reimbPayer||"Captain")+' pocket</span>');
+        pills.push('<span class="pill p-amber">Awaiting repay</span>');
       } else if(isReimb){
-        stMain="Paid to "+(reimbName||"crew")+" · petty cash"; stTone="ok";
+        pills.push('<span class="pill p-cash">Petty cash</span>');
+        pills.push('<span class="pill p-green">Paid to '+esc(reimbName||"crew")+'</span>');
       } else if(e.payMethod==="Credit Card"){
-        stMain="Card"; stTone="muted";
+        pills.push('<span class="pill p-card">Card</span>');
       } else if(ownPay){
-        stMain="Own money"+(pocketName?" ("+pocketName+")":"");
-        if(ownRepaid){ stTone="ok"; stSub="Repaid"; stSubOk=true; }
-        else if(ownRepaidAmt>0.009){ stTone="warn"; stSub="Part repaid "+money0(ownRepaidAmt); showRepayBtn=true; }
-        else { stTone="warn"; stSub="Awaiting repay"; showRepayBtn=true; }
+        if(ownRepaid){
+          pills.push('<span class="pill p-own-ok">Own money'+(pocketName?' · '+esc(pocketName):'')+'</span>');
+          pills.push('<span class="pill p-green">Repaid</span>');
+        } else if(ownRepaidAmt>0.009){
+          pills.push('<span class="pill p-own">Own money'+(pocketName?' · '+esc(pocketName):'')+'</span>');
+          pills.push('<span class="pill p-amber">Part repaid</span>');
+          showRepayBtn=true;
+        } else {
+          pills.push('<span class="pill p-own">Own money'+(pocketName?' · '+esc(pocketName):'')+'</span>');
+          pills.push('<span class="pill p-amber">Awaiting repay</span>');
+          showRepayBtn=true;
+        }
       } else if(hitsFloat){
-        stMain="Paid · petty cash"; stTone="ok";
+        pills.push('<span class="pill p-green">Paid</span>');
+        pills.push('<span class="pill p-cash">Petty cash</span>');
       } else if(isCrewDay){
-        stMain="Paid earlier (not this float)"; stTone="muted";
+        pills.push('<span class="pill p-grey">Prior · not this float</span>');
       } else {
-        stMain="Petty cash"; stTone="ok";
+        pills.push('<span class="pill p-cash">Petty cash</span>');
       }
       var bits=[];
       if(e.date) bits.push(fmtDate(e.date)||e.date);
@@ -7185,9 +7235,8 @@ function paintExpensesBody(){
           (expIsImageReceipt(e.receipt)?'<img class="exp-rcpt" src="'+e.receipt+'" alt="">':(expIsPdfReceipt(e.receipt)?'<span class="exp-rcpt" style="display:flex;align-items:center;justify-content:center;font-size:22px;background:#f0f3f5">📄</span>':''))+
           '<div style="flex:1;min-width:0">'+
             '<div class="title">'+esc(e.vendor||"—")+'</div>'+
-            '<div class="exp-status '+stTone+'">'+esc(stMain)+'</div>'+
-            (stSub?'<div class="exp-status-sub'+(stSubOk?' ok':'')+'">'+esc(stSub)+'</div>':'')+
-            (bits.length?'<div class="meta" style="margin-top:6px">'+esc(bits.join(" · "))+'</div>':'')+
+            '<div class="meta" style="margin-top:6px">'+pills.join("")+'</div>'+
+            (bits.length?'<div class="meta" style="margin-top:4px;opacity:.9">'+esc(bits.join(" · "))+'</div>':'')+
             (e.description&&!isCrewDay?'<div class="notes" style="font-style:normal;margin-top:4px">'+esc(e.description)+'</div>':'')+
             (showRepayBtn
               ?'<button type="button" class="btn" data-exp-repay="'+esc(e.id)+'" style="width:auto;margin-top:8px;padding:8px 12px;font-size:13px">Repay from petty '+money0(Math.max(0,apaNum(e.amount)-ownRepaidAmt))+'</button>'
