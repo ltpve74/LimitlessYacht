@@ -659,9 +659,18 @@ function runPostLoadMaintenance(){
     }
     if(isCaptain()){
       ensureStewAssignPaidBeforeCut();
-      seedCurrentMonthStewCashExpenses();
-      /* After seed: restore floatPay wiped by the old one-shot localStorage clear */
-      expRestoreCrewFloatPayAfterWipe();
+      /* Dates follow ICS uid; pay/cancel follow lead.id ↔ calendarEventKey */
+      try{ loadStewCalendar(false).then(function(){
+        syncStewAssignsFromCalendar();
+        syncCancelledLeadsToStews();
+        seedCurrentMonthStewCashExpenses();
+        expRestoreCrewFloatPayAfterWipe();
+        if(curTab==="stews") renderStews({soft:true});
+        if(curTab==="expenses") renderExpenses();
+      }); }catch(eCal){
+        seedCurrentMonthStewCashExpenses();
+        expRestoreCrewFloatPayAfterWipe();
+      }
       syncAllChargeCashToPetty();
     }
   }catch(e){ console&&console.error&&console.error("[tracker] post-load",e); }
@@ -919,9 +928,112 @@ function leadInvStatus(s){
 function leadBookingStatus(r){
   if(!r) return "active";
   if(r.bookingStatus==="cancelled"||r.cancelled===true||r.status==="Cancelled"||r.status==="cancelled") return "cancelled";
+  /* Manual cancel path: deposit Refunded without using the Cancel button */
+  if(leadInvStatus(r.deps)==="Refunded") return "cancelled";
+  if(/\bcancel+l?ed\b/i.test(String(r.notes||""))&&leadInvStatus(r.deps)!=="Paid") return "cancelled";
   return "active";
 }
 function leadIsCancelled(r){ return leadBookingStatus(r)==="cancelled"; }
+/**
+ * Stable charter identity:
+ *  - lead.id (UUID) = commercial deal
+ *  - calendarEventKey = ICS uid ("uid:…") = same event when date/hold changes
+ *  - stewAssign.eventKey = calendarEventKey; stewAssign.leadId = reverse link
+ * Dates are attributes; never join stews/leads by name+date once linked.
+ */
+function leadCalendarEventKey(r){
+  if(!r) return "";
+  var k=String(r.calendarEventKey||r.calEventKey||"").trim();
+  if(k) return k;
+  var u=String(r.calendarUid||r.calUid||"").trim();
+  if(u) return u.indexOf("uid:")===0?u:("uid:"+u);
+  return "";
+}
+function calendarEventByKey(key){
+  if(!key) return null;
+  try{
+    return (stewMergedEvents()||[]).filter(function(e){return e&&String(e.key)===String(key);})[0]||null;
+  }catch(err){ return null; }
+}
+function setLeadCalendarLink(lead, eventKey, opts){
+  opts=opts||{};
+  if(!lead) return false;
+  var key=String(eventKey||"").trim();
+  if(!key){
+    lead.calendarEventKey="";
+    lead.calendarUid="";
+    return true;
+  }
+  lead.calendarEventKey=key;
+  lead.calendarUid=key.indexOf("uid:")===0?key.slice(4):key;
+  var ev=calendarEventByKey(key);
+  if(ev&&opts.syncDates!==false){
+    if(ev.start) lead.start=String(ev.start).slice(0,10);
+    if(ev.end&&String(ev.end).slice(0,10)!==String(ev.start).slice(0,10)) lead.end=String(ev.end).slice(0,10);
+    else if(lead.dur!=="multi") lead.end="";
+  }
+  /* Reverse-link stew assign so pay follows the id, not the title */
+  if(!state.stewAssign) state.stewAssign=[];
+  var asg=assignForEvent(key);
+  if(!asg&&ev){
+    asg={
+      id:uid(), eventKey:key, summary:ev.summary||lead.name||"Charter",
+      start:ev.start||"", end:ev.end||ev.start||"",
+      startTime:ev.startTime||"", endTime:ev.endTime||"", allDay:!!ev.allDay,
+      status:ev.status||"booked", stewIds:[], dayRate:"", payUnits:"",
+      payStatus:"Unpaid", payStatusManual:false, tipTotal:"", tipPayStatus:"Unpaid",
+      notes:"", updatedAt:new Date().toISOString(), by:session.who||"Captain"
+    };
+    state.stewAssign.unshift(asg);
+  }
+  if(asg){
+    asg.leadId=String(lead.id||"");
+    asg.eventKey=key;
+    if(ev){
+      asg.start=ev.start||asg.start;
+      asg.end=ev.end||ev.start||asg.end;
+      asg.summary=ev.summary||asg.summary;
+      asg.status=ev.status||asg.status;
+    }
+    asg.updatedAt=new Date().toISOString();
+  }
+  return true;
+}
+/** Refresh stew assign dates from live calendar (same eventKey survives reschedule). */
+function syncStewAssignsFromCalendar(){
+  if(!isCaptain()||!state.stewAssign) return false;
+  var dirty=false;
+  state.stewAssign.forEach(function(a){
+    if(!a||!a.eventKey) return;
+    var ev=calendarEventByKey(a.eventKey);
+    if(!ev) return;
+    var ns=String(ev.start||"").slice(0,10), os=String(a.start||"").slice(0,10);
+    var ne=String(ev.end||ev.start||"").slice(0,10), oe=String(a.end||a.start||"").slice(0,10);
+    if(ns&&ns!==os){ a.start=ns; dirty=true; }
+    if(ne&&ne!==oe){ a.end=ne; dirty=true; }
+    if(ev.summary&&a.summary!==ev.summary){ a.summary=ev.summary; dirty=true; }
+    if(ev.status&&a.status!=="cancelled"&&a.status!==ev.status){ a.status=ev.status; dirty=true; }
+  });
+  if(dirty){
+    state.stewAssign.forEach(function(a){ if(a) a.updatedAt=new Date().toISOString(); });
+    if(!DEMO) saveStewAssign();
+  }
+  return dirty;
+}
+/**
+ * For every cancelled lead, clear stew pay via calendarEventKey / leadId.
+ * Soft-match only when no id link yet (legacy), then pin calendarEventKey.
+ */
+function syncCancelledLeadsToStews(){
+  if(!isCaptain()) return false;
+  var any=false;
+  (state.leads||[]).forEach(function(l){
+    if(!l||!leadIsCancelled(l)) return;
+    var res=cancelStewsForLead(l);
+    if(res&&res.n>0) any=true;
+  });
+  return any;
+}
 function renderAll(){
   function safe(fn){ try{ fn(); }catch(e){ console&&console.error&&console.error(e); } }
   safe(renderCharters); safe(renderLeads); safe(renderSecurity);
@@ -1213,36 +1325,60 @@ function leadDateOverlapsEvent(lead, ev){
   /* Inclusive range overlap */
   return ls<=ee&&es<=le;
 }
-/** Calendar / assign events that belong to this lead (name + date). */
+/**
+ * Calendar / assign rows for a lead.
+ * Prefer stable ids: calendarEventKey, stewAssign.leadId. Name+date is legacy fallback only.
+ */
 function stewEventsForLead(lead){
   if(!lead) return [];
   var out=[], seen={};
-  function take(ev){
+  function take(ev, force){
+    if(!ev||!ev.key||seen[ev.key]) return;
+    if(!force&&stewIsOffEvent&&stewIsOffEvent(ev)) return;
+    seen[ev.key]=1;
+    out.push(ev);
+  }
+  /* 1) Explicit calendar link on the lead */
+  var ck=leadCalendarEventKey(lead);
+  if(ck){
+    var linked=calendarEventByKey(ck);
+    if(linked) take(linked, true);
+    else take({key:ck, summary:lead.name||"Charter", start:lead.start||"", end:lead.end||lead.start||"", status:"booked", source:"lead-link"}, true);
+  }
+  /* 2) Reverse link on stew assigns */
+  (state.stewAssign||[]).forEach(function(a){
+    if(!a||!a.eventKey||seen[a.eventKey]) return;
+    if(String(a.leadId||a.cancelLeadId||"")!==String(lead.id||"")) return;
+    take({
+      key:a.eventKey, summary:a.summary||"", start:a.start, end:a.end||a.start,
+      status:a.status||"booked", source:"assign-leadId"
+    }, true);
+  });
+  if(out.length) return out;
+  /* 3) Legacy soft match (name + date) — only when unlinked */
+  function soft(ev){
     if(!ev||!ev.key||seen[ev.key]) return;
     if(stewIsOffEvent&&stewIsOffEvent(ev)) return;
     if(!stewSummaryMatchesLead(ev.summary||"", lead)) return;
     if(!leadDateOverlapsEvent(lead, ev)) return;
-    seen[ev.key]=1;
-    out.push(ev);
+    take(ev, false);
   }
-  try{
-    (typeof stewMergedEvents==="function"?stewMergedEvents():[]).forEach(take);
-  }catch(e){}
+  try{ (stewMergedEvents()||[]).forEach(soft); }catch(e){}
   (state.stewAssign||[]).forEach(function(a){
     if(!a||!a.eventKey||seen[a.eventKey]) return;
     if(!stewSummaryMatchesLead(a.summary||"", lead)) return;
     if(!leadDateOverlapsEvent(lead, {start:a.start, end:a.end||a.start})) return;
-    seen[a.eventKey]=1;
-    out.push({
+    take({
       key:a.eventKey, summary:a.summary||"", start:a.start, end:a.end||a.start,
-      status:a.status||"booked", source:"assign"
-    });
+      status:a.status||"booked", source:"assign-soft"
+    }, false);
   });
   return out;
 }
 /**
  * Mark stew assigns for this lead cancelled — no day pay / tip due.
- * Removes current-month stew day-pay expense lines for those events.
+ * Identity: calendarEventKey / leadId first; soft match only if unlinked.
+ * Pins calendarEventKey when a soft match is used so future reschedules stay linked.
  */
 function cancelStewsForLead(lead){
   if(!isCaptain()||!lead) return {n:0, keys:[]};
@@ -1250,22 +1386,41 @@ function cancelStewsForLead(lead){
   if(!state.stewAssign) state.stewAssign=[];
   var keys={}, dirty=false, touched=[];
   events.forEach(function(ev){ if(ev&&ev.key) keys[ev.key]=1; });
-  /* Also match assigns by guest name alone on the lead charter date (title may omit guest) */
-  var ls=String(lead.start||lead.cdate||"").slice(0,10);
-  if(ls){
+  /* Explicit reverse link */
+  (state.stewAssign||[]).forEach(function(a){
+    if(a&&a.eventKey&&String(a.leadId||a.cancelLeadId||"")===String(lead.id||"")) keys[a.eventKey]=1;
+  });
+  /* Explicit lead calendar key even if event missing from feed */
+  var ck=leadCalendarEventKey(lead);
+  if(ck) keys[ck]=1;
+  /*
+   * Soft fallback for legacy unlinked cancels (manual refund without Cancel button):
+   *  - summary mentions guest (any date — event may have moved on-hold)
+   *  - or original lead date still has exactly one stew assign (day charter)
+   */
+  if(!Object.keys(keys).length||!ck){
     (state.stewAssign||[]).forEach(function(a){
-      if(!a||!a.eventKey) return;
-      if(String(a.start||"").slice(0,10)!==ls) return;
-      if(stewSummaryMatchesLead(a.summary||"", lead)||!a.summary){
-        /* Same-day assign with matching name or blank summary after we already matched events */
-        if(stewSummaryMatchesLead(a.summary||"", lead)) keys[a.eventKey]=1;
-      }
+      if(!a||!a.eventKey||a.cancelled) return;
+      if(stewSummaryMatchesLead(a.summary||"", lead)) keys[a.eventKey]=1;
     });
+    try{
+      (stewMergedEvents()||[]).forEach(function(ev){
+        if(!ev||!ev.key) return;
+        if(stewSummaryMatchesLead(ev.summary||"", lead)) keys[ev.key]=1;
+      });
+    }catch(e2){}
+    var lsSoft=String(lead.start||lead.cdate||"").slice(0,10);
+    if(lsSoft&&!Object.keys(keys).length){
+      var sameDay=(state.stewAssign||[]).filter(function(a){
+        return a&&a.eventKey&&!a.cancelled&&String(a.start||"").slice(0,10)===lsSoft&&(a.stewIds||[]).length;
+      });
+      if(sameDay.length===1) keys[sameDay[0].eventKey]=1;
+    }
   }
   Object.keys(keys).forEach(function(ek){
     var asg=(state.stewAssign||[]).filter(function(a){return a&&String(a.eventKey)===String(ek);})[0];
+    var ev=events.filter(function(e){return e&&e.key===ek;})[0]||calendarEventByKey(ek);
     if(!asg){
-      var ev=events.filter(function(e){return e&&e.key===ek;})[0];
       asg={
         id:uid(), eventKey:ek, summary:(ev&&ev.summary)||(lead.name||"Cancelled charter"),
         start:(ev&&ev.start)||lead.start||"", end:(ev&&ev.end)||lead.end||lead.start||"",
@@ -1274,18 +1429,26 @@ function cancelStewsForLead(lead){
       };
       state.stewAssign.unshift(asg);
     }
+    /* Pin identity both ways */
+    asg.leadId=String(lead.id||"");
     asg.cancelled=true;
     asg.status="cancelled";
     asg.payStatus="Unpaid";
     asg.payStatusManual=true;
     asg.tipPayStatus="Unpaid";
     asg.cancelLeadId=String(lead.id||"");
-    asg.cancelReason=lead.cancelReason||"weather-captain";
-    asg.notes=((asg.notes?asg.notes+" · ":"")+"Cancelled with lead "+(lead.name||"")+" — no stew pay").trim();
+    asg.cancelReason=lead.cancelReason||(leadInvStatus(lead.deps)==="Refunded"?"deposit-refunded":"manual");
+    if(!/no stew pay/i.test(String(asg.notes||""))){
+      asg.notes=((asg.notes?asg.notes+" · ":"")+"Cancelled with lead "+(lead.name||"")+" — no stew pay").trim();
+    }
     asg.updatedAt=new Date().toISOString();
     dirty=true;
     touched.push(ek);
-    /* Drop crew day-pay expense lines for this event */
+    if(!leadCalendarEventKey(lead)){
+      lead.calendarEventKey=ek;
+      lead.calendarUid=ek.indexOf("uid:")===0?ek.slice(4):ek;
+    }
+    /* Drop crew day-pay expense lines for this event (Toni unpaid etc.) */
     if(state.expenses&&state.expenses.length){
       var n0=state.expenses.length;
       state.expenses=state.expenses.filter(function(e){
@@ -1301,6 +1464,8 @@ function cancelStewsForLead(lead){
     if(!DEMO){
       saveStewAssign();
       saveExpenses();
+      /* Persist pinned calendarEventKey on lead */
+      try{ save("leads"); }catch(e3){}
     }
   }
   return {n:touched.length, keys:touched};
@@ -7420,8 +7585,18 @@ function ensureStewAssignFromCalendar(){
     var keepTips=asg&&asg.tipTotal!=null?asg.tipTotal:"";
     var keepTipPay=asg&&asg.tipPayStatus==="Paid"?"Paid":(asg&&asg.tipPayStatus==="Unpaid"?"Unpaid":"Unpaid");
     var keepNotes=(asg&&asg.notes)||"";
+    var keepCancelled=!!(asg&&(asg.cancelled||asg.status==="cancelled"));
+    var keepLeadId=(asg&&asg.leadId)||"";
+    var keepCancelLead=(asg&&asg.cancelLeadId)||"";
     if(asg&&prevKey===idsKey&&asg.payStatus===keepPay
-      &&apaNum(asg.dayRate)===keepRate&&apaNum(asg.payUnits||1)===keepUnits) return;
+      &&apaNum(asg.dayRate)===keepRate&&apaNum(asg.payUnits||1)===keepUnits
+      &&!!asg.cancelled===keepCancelled&&String(asg.leadId||"")===String(keepLeadId)) return;
+    /* Cancelled charter: never revive pay or drop lead id when calendar auto-refreshes */
+    if(keepCancelled){
+      keepPay="Unpaid";
+      keepTips="";
+      keepTipPay="Unpaid";
+    }
     var obj={
       id:(asg&&asg.id)||uid(),
       eventKey:ev.key,
@@ -7431,11 +7606,14 @@ function ensureStewAssignFromCalendar(){
       startTime:ev.startTime||"",
       endTime:ev.endTime||"",
       allDay:!!ev.allDay,
-      status:ev.status||"booked",
+      status:keepCancelled?"cancelled":(ev.status||"booked"),
+      cancelled:keepCancelled,
+      leadId:keepLeadId,
+      cancelLeadId:keepCancelLead,
       stewIds:ids,
       dayRate:keepRate,
       payUnits:keepUnits,
-      payEach:stewPayEach(keepRate, keepUnits),
+      payEach:keepCancelled?0:stewPayEach(keepRate, keepUnits),
       rateBand:band.kind,
       payStatus:keepPay,
       payStatusManual:keepManual,
@@ -7788,6 +7966,9 @@ function paintStewCharters(){
   var all=stewMergedEvents().filter(function(ev){ return ev&&!stewIsOffEvent(ev); });
   ensureStewAssignFromCalendar();
   ensureStewAssignPaidBeforeCut();
+  syncStewAssignsFromCalendar();
+  /* Manual cancel / refunded deposit → clear stew pay via lead.id / calendar uid */
+  syncCancelledLeadsToStews();
   /* Drop any accidental assigns on "off" days (do not touch pay flags on real charters) */
   var offKeys={};
   stewMergedEvents().forEach(function(ev){ if(ev&&stewIsOffEvent(ev)&&ev.key) offKeys[ev.key]=1; });
@@ -8162,6 +8343,23 @@ function openStewAssign(eventKey){
     '<button type="button" class="btn ghost" data-stew-rate="'+STEW_RATE_ON+'" style="width:auto;padding:8px 12px;font-size:12.5px">Overnight €'+STEW_RATE_ON+'</button>'+
   '</div>';
   h+=fieldHTML("Day pay status",'<select class="ctl" id="f_stew_pay"><option value="Unpaid"'+(pay==="Unpaid"?" selected":"")+'>Unpaid</option><option value="Paid"'+(pay==="Paid"?" selected":"")+'>Paid</option></select>');
+  var isAsgCancelled=!!(asg.cancelled||asg.status==="cancelled");
+  h+='<label class="checkrow" style="margin:8px 0 12px"><input type="checkbox" id="f_stew_cancelled"'+(isAsgCancelled?" checked":"")+'>'+
+    '<span><div class="ck">Charter cancelled — no stew pay</div>'+
+    '<div class="ch">Use when the guest trip is off (weather etc.). Clears Toni/Laura pay for this calendar event only. Link a lead below so cancel/reschedule stays on the ICS uid.</div></span></label>';
+  /* Link to commercial lead by stable id */
+  var leadOpts=(state.leads||[]).slice().sort(function(a,b){
+    return String(b.start||b.closed||"").localeCompare(String(a.start||a.closed||""));
+  }).slice(0,60);
+  var leadLink=String(asg.leadId||"");
+  h+=fieldHTML("Linked lead (deal id)",
+    '<select class="ctl" id="f_stew_leadId">'+
+      '<option value="">— Not linked —</option>'+
+      leadOpts.map(function(L){
+        var lab=(L.name||"—")+" · "+(fmtDate(L.start)||L.start||"?")+(leadIsCancelled(L)?" · cancelled":"");
+        return '<option value="'+esc(L.id)+'"'+(leadLink===String(L.id)?" selected":"")+'>'+esc(lab)+'</option>';
+      }).join("")+
+    '</select>');
   h+='<div class="sectitle" style="margin:16px 0 8px">Tip (guest gratuity)</div>';
   h+='<div class="row2">'+
     fieldHTML("Total tip received (€)",moneyField("f_stew_tip", tipPrefill))+
@@ -8244,8 +8442,10 @@ function openStewAssign(eventKey){
     var tipShare=stewTipShare({tipTotal:tipTotal, stewIds:ids});
     var nowPaid=(el("f_stew_pay")&&el("f_stew_pay").value==="Paid");
     var wasPaid=asg.payStatus==="Paid";
+    var markCancelled=!!(el("f_stew_cancelled")&&el("f_stew_cancelled").checked);
+    var linkedLeadId=(el("f_stew_leadId")&&el("f_stew_leadId").value)||"";
     /* Any intentional Save as Paid from this form = pay from petty (Stews has no Own-money toggle) */
-    var payFromPetty=nowPaid;
+    var payFromPetty=nowPaid&&!markCancelled;
     var obj={
       id:asg.id||uid(),
       eventKey:ev.key,
@@ -8255,24 +8455,30 @@ function openStewAssign(eventKey){
       startTime:ev.startTime||"",
       endTime:ev.endTime||"",
       allDay:!!ev.allDay,
-      status:ev.status||"booked",
-      stewIds:ids,
+      status:markCancelled?"cancelled":(ev.status||"booked"),
+      cancelled:markCancelled,
+      leadId:linkedLeadId||"",
+      cancelLeadId:markCancelled?(linkedLeadId||asg.cancelLeadId||""):"",
+      stewIds:markCancelled?ids:ids,
       dayRate:rate,
       payUnits:units,
-      payEach:each,
+      payEach:markCancelled?0:each,
       rateBand:band.kind,
-      payStatus:nowPaid?"Paid":"Unpaid",
+      payStatus:markCancelled?"Unpaid":(nowPaid?"Paid":"Unpaid"),
       payStatusManual:true,
       /* Cash leaves petty when you save as Paid (including re-mark after testing) */
       _floatPayMark:payFromPetty,
       _floatPayFrom:payFromPetty?"Petty cash":"",
-      tipTotal:tipTotal,
-      tipStewShare:tipShare.stewSide,
-      tipPayStatus:tipPayStatus,
+      tipTotal:markCancelled?"":tipTotal,
+      tipStewShare:markCancelled?0:tipShare.stewSide,
+      tipPayStatus:markCancelled?"Unpaid":tipPayStatus,
       notes:(el("f_stew_asg_notes").value||"").trim(),
       updatedAt:new Date().toISOString(),
       by:session.who||"Captain"
     };
+    if(markCancelled&&!/no stew pay/i.test(obj.notes)){
+      obj.notes=(obj.notes?obj.notes+" · ":"")+"Cancelled — no stew pay";
+    }
     if(!state.stewAssign) state.stewAssign=[];
     var found=false;
     state.stewAssign=state.stewAssign.map(function(a){
@@ -8280,10 +8486,35 @@ function openStewAssign(eventKey){
       return a;
     });
     if(!found) state.stewAssign.unshift(obj);
+    /* Pin reverse link on the lead (ICS uid = source of truth for this day) */
+    if(linkedLeadId){
+      var L=(state.leads||[]).filter(function(x){return x&&String(x.id)===String(linkedLeadId);})[0];
+      if(L){
+        setLeadCalendarLink(L, ev.key, {syncDates:false});
+        if(markCancelled){
+          L.bookingStatus="cancelled";
+          L.cancelled=true;
+          if(leadInvStatus(L.deps)==="Paid"||leadInvStatus(L.deps)==="Issued") L.deps="Refunded";
+        }
+        if(!DEMO) save("leads");
+      }
+    }
     showSheet(false); saveStewAssign();
-    /* Day pay → Expenses ledger; always persist so floatPay hits the server */
-    syncStewDayPayExpenses(obj);
-    saveExpenses();
+    /* Day pay → Expenses ledger; cancelled days drop pay lines */
+    if(markCancelled){
+      if(state.expenses&&state.expenses.length){
+        state.expenses=state.expenses.filter(function(e){
+          if(!e) return false;
+          if(e.source==="stew"&&String(e.stewEventKey)===String(ev.key)) return false;
+          if(e.linkId&&String(e.linkId).indexOf("stew-day:"+ev.key+":")===0) return false;
+          return true;
+        });
+      }
+      saveExpenses();
+    } else {
+      syncStewDayPayExpenses(obj);
+      saveExpenses();
+    }
     delete obj._floatPayMark;
     delete obj._floatPayFrom;
     /* In-place list refresh — do not rebuild tab (that jumped scroll to top) */
@@ -9158,6 +9389,24 @@ function openSheet(type,id){
     h+=fieldHTML("Lead name",'<input class="ctl" id="f_name" value="'+esc(r.name)+'" placeholder="e.g. Acme Corp (website)">');
     h+=fieldHTML("Lead source",selLeadSourceField(leadSrcDef));
     h+='<p style="margin:-6px 0 12px;font-size:12.5px;color:var(--muted);line-height:1.4"><b>Captain</b> = your deal → '+CAPTAIN_COMMISSION_PCT+'% of charter before VAT (Ops → Commissions). <b>Other</b> = no captain commission.</p>';
+    /* Stable link to calendar ICS uid — survives date moves / on-hold */
+    var calKeyNow=leadCalendarEventKey(r);
+    var calOpts=[];
+    try{
+      calOpts=(stewMergedEvents()||[]).filter(function(ev){ return ev&&ev.key&&!stewIsOffEvent(ev); })
+        .slice(0,80);
+    }catch(eCalOpts){ calOpts=[]; }
+    h+=fieldHTML("Calendar charter (stable id)",
+      '<select class="ctl" id="f_calendarEventKey">'+
+        '<option value="">— Not linked —</option>'+
+        calOpts.map(function(ev){
+          var lab=(fmtDate(ev.start)||ev.start)+" · "+(ev.summary||"Charter")+(ev.status==="tentative"?" (on hold)":"");
+          return '<option value="'+esc(ev.key)+'"'+(calKeyNow===ev.key?" selected":"")+'>'+esc(lab)+'</option>';
+        }).join("")+
+        (calKeyNow&&!calOpts.some(function(e){return e.key===calKeyNow;})
+          ?'<option value="'+esc(calKeyNow)+'" selected>Linked (not in feed): '+esc(calKeyNow)+'</option>':'')+
+      '</select>');
+    h+='<p style="margin:-6px 0 12px;font-size:12.5px;color:var(--muted);line-height:1.4">Links this lead to the calendar event’s <b>ICS uid</b> (not the date). Moving the day or putting it on hold keeps stews + cancel in sync. Lead id: <code style="font-size:11px">'+(rec?esc(r.id):"new on save")+'</code></p>';
     var bookSt=leadBookingStatus(r);
     h+=fieldHTML("Charter status",'<select class="ctl" id="f_bookingStatus">'+
       '<option value="active"'+(bookSt!=="cancelled"?" selected":"")+'>Active</option>'+
@@ -9620,6 +9869,8 @@ function saveSheet(type,rec){
       cancelReason:(rec&&rec.cancelReason)||"",
       cancelledAt:(rec&&rec.cancelledAt)||"",
       cancelledBy:(rec&&rec.cancelledBy)||"",
+      calendarEventKey:(el("f_calendarEventKey")&&el("f_calendarEventKey").value)||(rec&&rec.calendarEventKey)||"",
+      calendarUid:"",
       depPct:depPct, dep:parts.dep, deps:deps, depInv:el("f_depInv").value.trim(),
       fin:parts.fin, fins:fins, finInv:el("f_finInv").value.trim(),
       apaPct:apaPct, apa:parts.apa, apas:apas, apaInv:el("f_apaInv").value.trim(),
@@ -9678,14 +9929,25 @@ function saveSheet(type,rec){
       leadCashPinSet(o2.id, o2.cashAmt);
       o2.cashAmtUser=true;
     }
-    upsert("leads",o2,rec); renderLeads(); save("leads");
+    /* Normalize calendar uid from picker */
+    if(o2.calendarEventKey){
+      o2.calendarUid=o2.calendarEventKey.indexOf("uid:")===0?o2.calendarEventKey.slice(4):o2.calendarEventKey;
+    }
+    upsert("leads",o2,rec);
+    var liveLead=state.leads.filter(function(x){return x&&x.id===o2.id;})[0]||o2;
+    if(o2.calendarEventKey) setLeadCalendarLink(liveLead, o2.calendarEventKey, {syncDates:false});
+    else if(rec&&leadCalendarEventKey(rec)&&!o2.calendarEventKey){
+      /* cleared link */
+      liveLead.calendarEventKey=""; liveLead.calendarUid="";
+    }
+    renderLeads(); save("leads");
     /* Free cash stays on the lead — strip any −cash APA shell for this guest */
-    if(canOps()) ensureLeadCashApa(o2);
-    /* Newly cancelled via status field: stews + petty free cash */
-    if(bookingSt==="cancelled"&&!(rec&&leadIsCancelled(rec))){
-      var live=state.leads.filter(function(x){return x&&x.id===o2.id;})[0]||o2;
-      cancelStewsForLead(live);
-      if(isCaptain()){ expRemoveLeadCashIn(live.id, true); saveExpPetty(); }
+    if(canOps()) ensureLeadCashApa(liveLead);
+    /* Cancelled (status, Refunded deposit, or Cancel button path): clear stews by id link */
+    if(leadIsCancelled(liveLead)){
+      cancelStewsForLead(liveLead);
+      if(isCaptain()){ expRemoveLeadCashIn(liveLead.id, true); saveExpPetty(); }
+      if(isCaptain()&&curTab==="stews") renderStews({soft:false});
     }
     /* Split free cash → boat petty cash when received / Paid (not when cancelled) */
     if(isCaptain()&&sp.split&&bookingSt!=="cancelled"){
