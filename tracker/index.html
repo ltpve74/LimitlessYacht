@@ -7872,7 +7872,11 @@ function loadCalEvents(force){
   return calEventsPromise;
 }
 function loadStewCalendar(force){
-  return Promise.all([loadStewSeed(), loadCalEvents(!!force)]).then(function(){ return stewMergedEvents(); });
+  return Promise.all([loadStewSeed(), loadCalEvents(!!force)]).then(function(){
+    /* After a successful live pull, drop ghost days (deleted ICS events / leftover assigns) */
+    purgeOrphanStewAssigns();
+    return stewMergedEvents();
+  });
 }
 /** Merge season seed + live ICS + saved assignments (live wins on same UID). Full history for accounting. */
 function stewEventId(ev){
@@ -7880,7 +7884,17 @@ function stewEventId(ev){
   if(ev.uid) return "uid:"+String(ev.uid);
   return String(ev.key||"");
 }
-function stewMergedEvents(){
+/** Live feed loaded at least once this session (empty array still counts as “we know the schedule”). */
+function stewLiveFeedReady(){
+  return !!(calEventsAt>0);
+}
+/**
+ * Calendar truth: seed + live ICS only (no stewAssign ghosts).
+ * When live has loaded, seed rows whose date falls inside the live span but whose
+ * uid is missing from live are treated as deleted (e.g. leftover single-day after
+ * merging 13+14 into overnight) and omitted.
+ */
+function stewCalendarFeedEvents(){
   var map={};
   function put(ev, prefer){
     if(!ev||!ev.start) return;
@@ -7889,24 +7903,107 @@ function stewMergedEvents(){
     if(map[id]&&!prefer) return;
     map[id]=ev;
   }
-  (stewSeedEvents||[]).forEach(function(ev){ put(ev, false); });
-  (calEvents||[]).forEach(function(ev){ put(Object.assign({},ev,{source:ev.source||"live"}), true); });
-  (state.stewAssign||[]).forEach(function(a){
-    if(!a||!a.eventKey||!a.start) return;
-    var already=false;
-    Object.keys(map).forEach(function(k){
-      if(map[k]&&map[k].key===a.eventKey) already=true;
-    });
-    if(already) return;
-    put({
-      key:a.eventKey, uid:"", summary:a.summary||"Charter",
-      start:a.start, end:a.end||a.start||"",
-      startTime:a.startTime||"", endTime:a.endTime||"",
-      allDay:!!a.allDay, status:a.status||"booked", days:null, source:"assign"
-    }, false);
+  var liveReady=stewLiveFeedReady();
+  var liveMin="", liveMax="";
+  var liveKeys={};
+  (calEvents||[]).forEach(function(ev){
+    if(!ev||!ev.start) return;
+    var s=String(ev.start).slice(0,10);
+    if(!liveMin||s<liveMin) liveMin=s;
+    if(!liveMax||s>liveMax) liveMax=s;
+    var id=stewEventId(ev);
+    if(id) liveKeys[id]=1;
+    if(ev.key) liveKeys[String(ev.key)]=1;
   });
-  return Object.keys(map).map(function(k){ return map[k]; }).sort(function(a,b){
-    var c=String(b.start).localeCompare(String(a.start));
+  (stewSeedEvents||[]).forEach(function(ev){
+    if(!ev||!ev.start) return;
+    var id=stewEventId(ev);
+    var s=String(ev.start).slice(0,10);
+    /* Live span loaded and this seed day is inside it but gone from ICS → deleted */
+    if(liveReady&&liveMin&&liveMax&&s>=liveMin&&s<=liveMax){
+      if(id&&!liveKeys[id]&&!(ev.key&&liveKeys[String(ev.key)])) return;
+    }
+    put(Object.assign({},ev,{source:ev.source||"seed"}), false);
+  });
+  (calEvents||[]).forEach(function(ev){
+    put(Object.assign({},ev,{source:ev.source||"live"}), true);
+  });
+  return Object.keys(map).map(function(k){ return map[k]; });
+}
+function stewCalendarKnownKeys(){
+  var keys={};
+  stewCalendarFeedEvents().forEach(function(ev){
+    if(!ev) return;
+    if(ev.key) keys[String(ev.key)]=1;
+    var id=stewEventId(ev);
+    if(id) keys[id]=1;
+  });
+  return keys;
+}
+/**
+ * Drop stewAssign (+ expense day-pay lines) for calendar events that no longer
+ * exist in seed/live. Fixes “deleted the leftover 14th but roster still shows it”.
+ * Paid rows without a calendar home are also dropped (pay was on a ghost day) —
+ * overnight 13–14 keeps its own eventKey; the deleted single-day uid is the orphan.
+ */
+function purgeOrphanStewAssigns(){
+  if(!isCaptain()||!state.stewAssign||!state.stewAssign.length) return false;
+  if(!stewLiveFeedReady()&&!(stewSeedEvents&&stewSeedEvents.length)) return false;
+  var known=stewCalendarKnownKeys();
+  if(!Object.keys(known).length&&!(calEvents&&calEvents.length)) return false;
+  var drop={}, dirty=false;
+  state.stewAssign.forEach(function(a){
+    if(!a||!a.eventKey) return;
+    var k=String(a.eventKey);
+    if(known[k]) return;
+    /* Not in calendar feed → ghost (deleted ICS event or bad uid) */
+    drop[k]=1;
+  });
+  if(!Object.keys(drop).length) return false;
+  var n0=state.stewAssign.length;
+  state.stewAssign=state.stewAssign.filter(function(a){
+    return !(a&&a.eventKey&&drop[String(a.eventKey)]);
+  });
+  if(state.stewAssign.length!==n0) dirty=true;
+  if(state.expenses&&state.expenses.length){
+    var e0=state.expenses.length;
+    state.expenses=state.expenses.filter(function(e){
+      if(!e) return false;
+      if(e.source==="stew"&&e.stewEventKey&&drop[String(e.stewEventKey)]) return false;
+      if(e.linkId){
+        for(var dk in drop){
+          if(drop[dk]&&String(e.linkId).indexOf("stew-day:"+dk+":")===0) return false;
+        }
+      }
+      return true;
+    });
+    if(state.expenses.length!==e0) dirty=true;
+  }
+  /* Clear lead calendar links pointing at purged keys */
+  (state.leads||[]).forEach(function(l){
+    if(!l) return;
+    var ck=leadCalendarEventKey(l);
+    if(ck&&drop[ck]){
+      l.calendarEventKey="";
+      l.calendarUid="";
+      dirty=true;
+    }
+  });
+  if(dirty&&!DEMO){
+    saveStewAssign();
+    saveExpenses();
+    try{ save("leads"); }catch(e){}
+  }
+  return dirty;
+}
+/**
+ * Full list for Stews UI: calendar feed (seed+live, live authority) only.
+ * Does NOT re-inject deleted assigns as fake charters (that caused double 13–14 + 14).
+ */
+function stewMergedEvents(){
+  var list=stewCalendarFeedEvents();
+  return list.sort(function(a,b){
+    var c=String(b.start||"").localeCompare(String(a.start||""));
     if(c) return c;
     return String(b.startTime||"").localeCompare(String(a.startTime||""));
   });
@@ -7949,7 +8046,7 @@ function renderStews(opts){
     paintStewChartersKeepScroll();
     return;
   }
-  body.innerHTML='<div class="legend">Full season list: <b>export seed</b> (past + booked) plus live calendar. Live feed wins when the same event appears in both. Use this for stew pay accounting and to judge a permanent stew next year.</div>'+
+  body.innerHTML='<div class="legend">Full season list: <b>live calendar</b> is source of truth (same ICS uid when you reschedule). Seed fills older days. Deleting a day in the calendar removes it here (no leftover ghost assigns). Use for stew pay and next-year permanent stew decisions.</div>'+
     '<div class="apa-sect-h" style="margin-top:0"><h3>All charters</h3>'+
     '<button type="button" class="btn ghost" id="stewRefreshCal">Refresh calendar</button></div>'+
     '<div id="stewYearFilters" style="display:flex;flex-wrap:wrap;gap:6px;margin:0 0 10px"></div>'+
@@ -7963,6 +8060,8 @@ function renderStews(opts){
 function paintStewCharters(){
   var wrap=el("stewCalList"); if(!wrap) return;
   var today=new Date().toISOString().slice(0,10);
+  /* Drop assigns for ICS events that were deleted (e.g. leftover 14 after overnight 13–14) */
+  purgeOrphanStewAssigns();
   var all=stewMergedEvents().filter(function(ev){ return ev&&!stewIsOffEvent(ev); });
   ensureStewAssignFromCalendar();
   ensureStewAssignPaidBeforeCut();
