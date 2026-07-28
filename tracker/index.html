@@ -6102,6 +6102,7 @@ function expSettlementFigures(month){
   var cashOut=0, cardOut=0, crewPaid=0, crewUnpaid=0, crewPrior=0, otherCash=0, ownMoneyExp=0, reimburseCap=0;
   var seenStewLink={}, nCrewPaidLines=0, nSkippedDup=0, nDayPayLines=0;
   var cashOutLines=[]; /* audit: every euro that left the envelope */
+  var pocketOutLines=[]; /* audit: every euro spent from someone’s pocket */
   lines.forEach(function(e){
     expNormalizeReimbursement(e);
     var a=apaNum(e.amount);
@@ -6115,7 +6116,16 @@ function expSettlementFigures(month){
         return;
       }
       if(e.payMethod==="Credit Card"){ cardOut+=a; return; }
-      if(e.paidFrom==="Own money"||expIsOwnMoneyLabel(e.paidFrom)){ ownMoneyExp+=a; return; }
+      if(e.paidFrom==="Own money"||expIsOwnMoneyLabel(e.paidFrom)){
+        ownMoneyExp+=a;
+        pocketOutLines.push({
+          kind:"crew",
+          who:expPocketPersonName(e.paidById||EXP_POCKET_CAPTAIN),
+          label:(e.vendor||"Crew")+" day pay",
+          amount:a, id:e.id, repaid:false
+        });
+        return;
+      }
       if(expCrewPayHitsFloat(e)){
         cashOut+=a;
         crewPaid+=a;
@@ -6129,7 +6139,7 @@ function expSettlementFigures(month){
     /* Model classification — no description heuristics */
     var cls=LY_MODELS&&LY_MODELS.classifyExpenseCash
       ?LY_MODELS.classifyExpenseCash(e)
-      :{isReimbursement:expIsReimbursement(e), paidFrom:expPaidFromOwnMoney(e)?"own":(e.payMethod==="Credit Card"?"card":"petty"), hitsPettyCash:expExpenseHitsPetty(e), hitsOwnMoneyPocket:expPaidFromOwnMoney(e)};
+      :{isReimbursement:expIsReimbursement(e), paidFrom:expPaidFromOwnMoney(e)?"own":(e.payMethod==="Credit Card"?"card":"petty"), hitsPettyCash:expExpenseHitsPetty(e), hitsOwnMoneyPocket:expPaidFromOwnMoney(e), ownMoneyPayerId:expPocketWhoId(e)||EXP_POCKET_CAPTAIN, clearsPocketFor:expReimburseWhoId(e)};
     if(cls.isReimbursement){
       if(cls.paidFrom==="card"){ cardOut+=a; return; }
       if(cls.hitsPettyCash){
@@ -6140,11 +6150,32 @@ function expSettlementFigures(month){
           label:"Repaid "+expPocketPersonName(expReimburseWhoId(e))+(e.vendor?" · "+e.vendor:""),
           amount:a, id:e.id
         });
+      } else if(cls.paidFrom==="own"){
+        /* Captain/crew paid the person from personal cash */
+        ownMoneyExp+=a;
+        pocketOutLines.push({
+          kind:"reimburse-own",
+          who:expPocketPersonName(cls.ownMoneyPayerId||EXP_POCKET_CAPTAIN),
+          label:"Repaid "+expPocketPersonName(cls.clearsPocketFor||expReimburseWhoId(e))+(e.vendor?" · "+e.vendor:""),
+          amount:a, id:e.id, repaid:false
+        });
       }
       return;
     }
     if(cls.paidFrom==="card"){ cardOut+=a; return; }
-    if(cls.hitsOwnMoneyPocket){ ownMoneyExp+=a; return; }
+    if(cls.hitsOwnMoneyPocket){
+      ownMoneyExp+=a;
+      var whoId=cls.ownMoneyPayerId||expPocketWhoId(e)||EXP_POCKET_CAPTAIN;
+      pocketOutLines.push({
+        kind:"shop",
+        who:expPocketPersonName(whoId),
+        label:(e.vendor||e.category||"Expense")+(e.description?" · "+String(e.description).slice(0,40):""),
+        amount:a, id:e.id,
+        repaid:expOwnMoneyIsRepaid(e, month),
+        repaidAmt:expOwnMoneyRepaidAmt(e, month)
+      });
+      return;
+    }
     if(!cls.hitsPettyCash) return;
     cashOut+=a;
     otherCash+=a;
@@ -6155,6 +6186,7 @@ function expSettlementFigures(month){
   crewPrior=Math.round(crewPrior*100)/100;
   otherCash=Math.round(otherCash*100)/100;
   reimburseCap=Math.round(reimburseCap*100)/100;
+  ownMoneyExp=Math.round(ownMoneyExp*100)/100;
   var petty=expEnsurePetty(month);
   var pettyStart=apaNum(petty.pettyStart);
   var cashInTotal=expCashInSum(petty);
@@ -6180,12 +6212,13 @@ function expSettlementFigures(month){
   return {
     cashOut:cashOut,
     cashOutLines:cashOutLines,
+    pocketOutLines:pocketOutLines,
     cardOut:Math.round(cardOut*100)/100,
     crewPaid:crewPaid,
     crewPrior:crewPrior,
     otherCash:otherCash,
     reimburseCap:reimburseCap,
-    ownMoneyExp:Math.round(ownMoneyExp*100)/100,
+    ownMoneyExp:ownMoneyExp,
     pettyStart:pettyStart,
     cashInTotal:cashInTotal,
     cashInHand:cashInHand,
@@ -6989,7 +7022,7 @@ function paintExpensesBody(){
     h+='<div class="meta">'+cashIns.length+' line'+(cashIns.length===1?"":"s")+' · <b class="money">'+money(cashInTotal)+'</b></div>';
   }
   h+='</div>';
-  /* Cash out audit */
+  /* Cash out audit (petty) */
   var outs=S.cashOutLines||[];
   h+='<div class="apa-card" style="margin-bottom:12px">'+
     '<div style="font-weight:800;margin-bottom:6px">Cash out</div>'+
@@ -7003,6 +7036,36 @@ function paintExpensesBody(){
         '<div class="top"><div class="title" style="font-size:14px">'+esc(row.label||row.kind||"Out")+'</div>'+
           '<div class="amt money" style="font-size:14px">−'+money0(row.amount)+'</div></div>'+
         '<div class="meta"><span class="pill p-cash">'+esc(row.kind==="reimburse"?"Repay":(row.kind==="crew"?"Crew":"Expense"))+'</span></div>'+
+      '</div>';
+    });
+    h+='</div>';
+  }
+  h+='</div>';
+  /* Pocket money out — someone’s personal cash (not the boat envelope) */
+  var pouts=S.pocketOutLines||[];
+  var pocketOutTot=0;
+  pouts.forEach(function(r){ pocketOutTot+=apaNum(r.amount); });
+  pocketOutTot=Math.round(pocketOutTot*100)/100;
+  h+='<div class="apa-card" style="margin-bottom:12px">'+
+    '<div style="font-weight:800;margin-bottom:6px">Pocket money out</div>'+
+    '<div class="meta" style="margin-bottom:8px">Spent from someone’s personal cash (not the float). Boat may still owe them until repaid. Total <b class="money">'+money(pocketOutTot)+'</b>.</div>';
+  if(!pouts.length){
+    h+='<div class="meta">None this month.</div>';
+  } else {
+    h+='<div class="list" style="margin:0">';
+    pouts.slice().sort(function(a,b){ return (b.amount||0)-(a.amount||0); }).forEach(function(row){
+      var statusPill=row.repaid
+        ?'<span class="pill p-green">Repaid'+(row.repaidAmt>0?' '+money0(row.repaidAmt):'')+'</span>'
+        :(row.kind==="reimburse-own"
+          ?'<span class="pill p-own">Paid person from pocket</span>'
+          :'<span class="pill p-amber">Awaiting repay</span>');
+      h+='<div class="item exp-own" style="padding:10px 12px"'+(row.id?' data-exp-id="'+esc(row.id)+'" role="button" tabindex="0"':'')+'>'+
+        '<div class="top"><div class="title" style="font-size:14px">'+esc(row.label||"Pocket")+'</div>'+
+          '<div class="amt money" style="font-size:14px">−'+money0(row.amount)+'</div></div>'+
+        '<div class="meta">'+
+          '<span class="pill p-own">'+esc(row.who||"Someone")+'</span>'+
+          statusPill+
+        '</div>'+
       '</div>';
     });
     h+='</div>';
