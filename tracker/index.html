@@ -578,13 +578,13 @@ var EXP_POCKET_CAPTAIN="captain";
 /** Monthly expense charge target: boat running vs a charter APA pot. */
 var EXP_CHARGE_TO=["boat","apa"];
 var pushMeta={ server:false, vapidPublicKey:"", endpoint:"" };
-/* Vessel diesel — per-load prices; guest sell = last bunker + markup (do not rewrite history). */
-var DIESEL_DEFAULT_BUY=1.74;
-var DIESEL_LEGACY_SELL=1.75; /* guest rate until bunker+10c rule — never auto-upgrade past data */
-var DIESEL_MARKUP=0.10; /* sell €/L = bunker €/L + 10c since last bunker */
-var DIESEL_DEFAULT_SELL=Math.round((DIESEL_DEFAULT_BUY+DIESEL_MARKUP)*100)/100; /* 1.84 after 1.74 bunker */
-/* Only scrub the old fixed 2.20 default — not 1.75 historical sell */
-var DIESEL_PREV_SELL_HIGH=2.20;
+/* Vessel diesel — locked in LY_MODELS (bunker buy + sticky active guest sell). */
+var DIESEL_DEFAULT_BUY=(window.LY_MODELS&&LY_MODELS.DIESEL_DEFAULT_BUY)||1.74;
+var DIESEL_MARKUP=(window.LY_MODELS&&LY_MODELS.DIESEL_MARKUP)!=null?LY_MODELS.DIESEL_MARKUP:0.10;
+/* Reconstruct-only fallback for pre-model trips — never treat as “today’s rate”. */
+var DIESEL_LEGACY_SELL=(window.LY_MODELS&&LY_MODELS.DIESEL_LEGACY_FALLBACK_SELL)||1.75;
+var DIESEL_DEFAULT_SELL=Math.round((DIESEL_DEFAULT_BUY+DIESEL_MARKUP)*100)/100; /* e.g. 1.84 after 1.74 bunker */
+var DIESEL_PREV_SELL_HIGH=2.20; /* obsolete early default to scrub */
 var SESSION_KEY="limitless_tracker_session";
 function isCaptain(){ return /^captain\b/i.test(String(session.who||"").trim()); }
 function isManager(){ return /^manager\b/i.test(String(session.who||"").trim()); }
@@ -4106,19 +4106,35 @@ function dieselTripRefDate(t){
   }
   return d;
 }
-/** Guest sell for a day: last bunker on/before that day (incl. same day) + 10c. */
+/** Guest sell for a day: model (last bunker + markup, else active sell, else legacy reconstruct). */
 function dieselGuestRateForDate(dateStr){
+  if(LY_MODELS&&LY_MODELS.dieselGuestSellForDate){
+    var bunkers=(state.diesel||[]).filter(function(e){ return e&&e.kind==="buy"; });
+    var st=dieselSettingsRaw();
+    return LY_MODELS.dieselGuestSellForDate(bunkers, dateStr||"", {
+      markup:DIESEL_MARKUP,
+      activeSell:st?apaNum(st.sellPrice):0
+    });
+  }
   var b=dieselLastBunker(dateStr||"");
   if(b&&b.price>0) return dieselSuggestedSell(b.price);
+  var s=dieselSettingsRaw();
+  if(s&&apaNum(s.sellPrice)>0) return apaNum(s.sellPrice);
   return DIESEL_LEGACY_SELL;
 }
-/** Auto guest rate (never pinned override). */
+/** Auto guest rate (never trip-pinned). Prefer active sale price for “today” work. */
 function dieselAutoGuestRate(t, lineOrDate){
   var lineDate="";
   if(lineOrDate&&typeof lineOrDate==="object") lineDate=String(lineOrDate.date||"").slice(0,10);
   else if(lineOrDate) lineDate=String(lineOrDate).slice(0,10);
   var ref=lineDate||dieselTripRefDate(t)||(typeof localTodayYmd==="function"?localTodayYmd():"")||"";
-  return dieselGuestRateForDate(ref)||DIESEL_LEGACY_SELL;
+  var today=typeof localTodayYmd==="function"?localTodayYmd():"";
+  /* New / current-day work uses sticky active sell (set after bunker or manual). */
+  if(!ref||ref===today){
+    var active=dieselActiveSellPrice();
+    if(active>0) return active;
+  }
+  return dieselGuestRateForDate(ref)||dieselActiveSellPrice()||DIESEL_LEGACY_SELL;
 }
 /**
  * Guest €/L for a trip (summary / default).
@@ -4556,7 +4572,7 @@ function apaDieselHTML(t){
       ?"This trip’s charged rate is <b>€"+esc(String(price))+"/L</b> (saved on the pot). Bunker auto would be €"+esc(String(autoR))+"/L"+(lastB?" from €"+esc(String(lastB.price))+" pump":"")+". Use <b>Use auto</b> only if you want to switch; Edit + Save to pin another rate."
       :"No rate saved yet — auto = last bunker"+(lastB?" (€"+esc(String(lastB.price))+")":"")+" + €"+esc(String(DIESEL_MARKUP))+" = <b>€"+esc(String(autoR))+"/L</b>. Save a rate to lock what you charged.");
   var html='<div class="apa-card" style="margin-bottom:12px">'+
-    '<p style="margin:0 0 10px;font-size:13px;line-height:1.45;color:var(--muted)">Guest sell rate for this pot. Consumption uses the bunker on or before <b>each use date</b> (unless you pin a trip rate). Vessel pump log is on the <b>Diesel</b> tab.</p>'+
+    '<p style="margin:0 0 10px;font-size:13px;line-height:1.45;color:var(--muted)">Guest sell for this pot. New work follows the <b>active sale price</b> on the Diesel tab (set after each bunker, or raised manually). Pin a trip rate to lock what you charged. Vessel pump log is on the <b>Diesel</b> tab.</p>'+
     fieldHTML("Guest € / litre",moneyField("f_apa_dPrice", price))+
     '<p style="margin:-6px 0 10px;font-size:12px;color:var(--muted);line-height:1.4">'+pinNote+'</p>'+
     '<div class="row2" style="gap:8px">'+
@@ -4991,15 +5007,31 @@ function openApaLine(kind,id){
   });
 })();
 
-/* -------- Vessel diesel (captain + manager) -------- */
-/** Guest sell €/L = bunker buy + 10c (after last bunker). */
+/* -------- Vessel diesel (captain + manager) — model in LY_MODELS -------- */
+/** Suggested guest sell = bunker + markup (model). */
 function dieselSuggestedSell(buyP){
-  var b=apaNum(buyP);
-  if(!(b>0)){
-    try{ b=apaNum(dieselSettingsRaw().buyPrice); }catch(e){ b=0; }
+  if(LY_MODELS&&LY_MODELS.dieselSuggestedSell){
+    var b=apaNum(buyP);
+    if(!(b>0)){
+      try{ b=apaNum(dieselSettingsRaw().buyPrice); }catch(e){ b=0; }
+    }
+    if(!(b>0)) b=DIESEL_DEFAULT_BUY;
+    return LY_MODELS.dieselSuggestedSell(b, DIESEL_MARKUP);
   }
-  if(!(b>0)) b=DIESEL_DEFAULT_BUY;
-  return Math.round((b+DIESEL_MARKUP)*100)/100;
+  var b2=apaNum(buyP);
+  if(!(b2>0)){
+    try{ b2=apaNum(dieselSettingsRaw().buyPrice); }catch(e2){ b2=0; }
+  }
+  if(!(b2>0)) b2=DIESEL_DEFAULT_BUY;
+  return Math.round((b2+DIESEL_MARKUP)*100)/100;
+}
+/** Sticky active guest sell €/L for new sells / new APA. */
+function dieselActiveSellPrice(){
+  var s=dieselEnsure();
+  if(LY_MODELS&&LY_MODELS.dieselActiveSell) return LY_MODELS.dieselActiveSell(s);
+  var sell=apaNum(s.sellPrice);
+  if(sell>0) return sell;
+  return dieselSuggestedSell(s.buyPrice);
 }
 function dieselSettingsRaw(){
   if(!Array.isArray(state.diesel)) state.diesel=[];
@@ -5009,8 +5041,8 @@ function dieselSettingsRaw(){
   return null;
 }
 /**
- * Update diesel *settings* prefill (buy/sell defaults) from latest bunker only.
- * Never rewrites APA trip dieselPrice — trips resolve rate at read time (or pin).
+ * Sync buyPrice from latest bunker only.
+ * Does NOT overwrite sellPrice — active sale is set only by bunker save or manual edit.
  */
 function dieselSyncRatesFromBunkers(){
   var s=dieselSettingsRaw();
@@ -5018,14 +5050,20 @@ function dieselSyncRatesFromBunkers(){
   var dirtyD=false;
   if(last&&last.price>0){
     if(!s){
-      s={id:"diesel-settings",kind:"settings",buyPrice:last.price,sellPrice:dieselSuggestedSell(last.price)};
+      var created={id:"diesel-settings",kind:"settings",buyPrice:last.price,sellPrice:dieselSuggestedSell(last.price),sellSource:"bunker"};
+      if(LY_MODELS&&LY_MODELS.dieselApplyBunker){
+        var ap0=LY_MODELS.dieselApplyBunker({id:"diesel-settings",kind:"settings"}, last.price, null);
+        created=ap0.settings;
+        created.id="diesel-settings";
+        created.kind="settings";
+      }
       state.diesel=state.diesel||[];
-      state.diesel.unshift(s);
+      state.diesel.unshift(created);
       dirtyD=true;
-    } else {
-      if(Math.abs(apaNum(s.buyPrice)-last.price)>0.001){ s.buyPrice=last.price; dirtyD=true; }
-      var wantSell=dieselSuggestedSell(last.price);
-      if(Math.abs(apaNum(s.sellPrice)-wantSell)>0.001){ s.sellPrice=wantSell; dirtyD=true; }
+    } else if(Math.abs(apaNum(s.buyPrice)-last.price)>0.001){
+      /* Buy drifts to last bunker; keep captain’s sale price */
+      s.buyPrice=last.price;
+      dirtyD=true;
     }
   }
   if(dirtyD&&typeof save==="function"){
@@ -5043,17 +5081,28 @@ function dieselEnsure(){
     if(state.diesel[i]&&state.diesel[i].kind==="settings"){ s=state.diesel[i]; break; }
   }
   var dirty=false;
+  var last0=dieselLastBunker("");
+  var b0=last0&&last0.price>0?last0.price:DIESEL_DEFAULT_BUY;
   if(!s){
-    var last0=dieselLastBunker("");
-    var b0=last0&&last0.price>0?last0.price:DIESEL_DEFAULT_BUY;
-    s={id:"diesel-settings",kind:"settings",buyPrice:b0,sellPrice:dieselSuggestedSell(b0)};
+    s={id:"diesel-settings",kind:"settings",buyPrice:b0,sellPrice:dieselSuggestedSell(b0),sellSource:"suggested"};
     state.diesel.unshift(s);
     dirty=true;
   }
-  var buy=apaNum(s.buyPrice), sell=apaNum(s.sellPrice);
-  if(!(buy>0)){ s.buyPrice=DIESEL_DEFAULT_BUY; dirty=true; }
-  if(!(sell>0)||Math.abs(sell-DIESEL_PREV_SELL_HIGH)<0.001){
-    s.sellPrice=dieselSuggestedSell(s.buyPrice);
+  if(LY_MODELS&&LY_MODELS.dieselNormalizeSettings){
+    var n=LY_MODELS.dieselNormalizeSettings(s,{lastBunkerBuy:b0});
+    s=n.settings;
+    if(n.changed) dirty=true;
+  } else {
+    var buy=apaNum(s.buyPrice), sell=apaNum(s.sellPrice);
+    if(!(buy>0)){ s.buyPrice=b0; dirty=true; }
+    if(!(sell>0)||Math.abs(sell-DIESEL_PREV_SELL_HIGH)<0.001){
+      s.sellPrice=dieselSuggestedSell(s.buyPrice);
+      dirty=true;
+    }
+  }
+  /* Align buy to last bunker only; never force sell = buy+10c here */
+  if(last0&&last0.price>0&&Math.abs(apaNum(s.buyPrice)-last0.price)>0.001){
+    s.buyPrice=last0.price;
     dirty=true;
   }
   if(dirty&&typeof save==="function"){
@@ -5062,7 +5111,6 @@ function dieselEnsure(){
       else save("diesel");
     }catch(e){}
   }
-  dieselSyncRatesFromBunkers();
   return s;
 }
 function dieselSettings(){
@@ -5070,7 +5118,13 @@ function dieselSettings(){
   var buy=apaNum(s.buyPrice)||DIESEL_DEFAULT_BUY;
   var sell=apaNum(s.sellPrice);
   if(!(sell>0)) sell=dieselSuggestedSell(buy);
-  return { buyPrice:buy, sellPrice:sell, row:s };
+  return {
+    buyPrice:buy,
+    sellPrice:sell,
+    sellSource:s.sellSource||(s.sellPinned?"manual":"suggested"),
+    suggestedSell:dieselSuggestedSell(buy),
+    row:s
+  };
 }
 function dieselLogEntries(){
   dieselEnsure();
@@ -5141,8 +5195,8 @@ function dieselLedger(){
   });
   var tank=null, bought=0, sold=0, apaUsed=0, buyCost=0, sellVal=0, apaSellVal=0;
   var lastBuyP=null, lastSellP=null, lastApaSellP=null;
-  /* Walking defaults: missing line price uses last known, not “today’s” rate (protects history) */
-  var walkBuy=st.buyPrice, walkSell=DIESEL_LEGACY_SELL;
+  /* Walking defaults: missing line price uses last known active sell — never invent 1.75 mid-log */
+  var walkBuy=st.buyPrice, walkSell=st.sellPrice>0?st.sellPrice:dieselSuggestedSell(st.buyPrice);
   var timeline=[];
   events.forEach(function(ev){
     var lineEuro=null;
@@ -5159,7 +5213,8 @@ function dieselLedger(){
       ev._unitPrice=bp;
       lastBuyP=bp;
       walkBuy=bp;
-      walkSell=dieselSuggestedSell(bp); /* after this bunker, guest rate = buy + 10c */
+      /* After bunker, default guest walk rate = suggested (stored sell lines keep their own €/L) */
+      walkSell=dieselSuggestedSell(bp);
       lineEuro=Math.round(lit*bp*100)/100;
     } else if(ev.kind==="sell"){
       var litS=apaNum(ev.litres);
@@ -5169,13 +5224,13 @@ function dieselLedger(){
       sellVal+=litS*sp;
       ev._unitPrice=sp;
       lastSellP=sp;
-      walkSell=sp;
+      walkSell=sp; /* captain may have sold at a raised rate — that becomes walk active */
       lineEuro=Math.round(litS*sp*100)/100;
     } else if(ev.kind==="apa"){
       var litA=apaNum(ev.litres);
       if(tank!=null) tank-=litA;
       apaUsed+=litA;
-      /* Prefer trip’s stored rate (history). Only fall back to walkSell / legacy 1.75 */
+      /* Prefer trip’s stored rate (history). Fall back to walk active sell */
       var ap=ev.price!=null&&ev.price>0?ev.price:walkSell;
       var euro=ev.lineEuro!=null&&ev.lineEuro>0?ev.lineEuro:litA*ap;
       apaSellVal+=euro;
@@ -5224,26 +5279,49 @@ function renderDiesel(){
   if(!wrap) return;
   /* Always keep body fresh so switching tab shows current APA-linked figures */
   var L=dieselLedger();
+  var st=dieselSettings();
+  var activeSell=st.sellPrice;
+  var suggested=st.suggestedSell;
+  var sellSrc=st.sellSource||"suggested";
+  var sellSrcLabel=sellSrc==="manual"?"Manual":(sellSrc==="bunker"?"After bunker":"Suggested");
+  var spread=activeSell>0&&st.buyPrice>0?Math.round((activeSell-st.buyPrice)*100)/100:null;
   var tankKnown=L.tank!=null;
   var warn=tankKnown&&L.tank<0;
   var html='<div class="summary">'+
     '<div class="sumcard"><div class="l">Est. on board</div><div class="v"'+(warn?' style="color:var(--danger)"':'')+'>'+(tankKnown?esc(String(L.tank))+" L":"—")+'</div></div>'+
     '<div class="sumcard"><div class="l">Used (APA)</div><div class="v">'+esc(String(L.apaUsed))+' L</div></div>'+
   '</div>'+
-  '<div class="legend">Each <b>bunker</b> stores pump €/L. Guest sell rate = <b>last bunker + €0.10</b> (if pump rises, sell rises; if it falls, sell falls). History is never rewritten. APA uses each trip’s stored sell €/L.</div>'+
+  '<div class="legend">After each <b>bunker</b>, set the <b>sale price</b> (default pump + €'+esc(String(DIESEL_MARKUP))+'). That rate applies to all later sells until you change it or bunker again. Raise it anytime when the market moves. Past log lines keep their own €/L.</div>'+
+  '<div class="exp-alert ok" style="margin-bottom:12px">'+
+    '<div style="font-weight:800;margin-bottom:4px">Active sale price</div>'+
+    '<div class="money" style="font-size:28px;font-weight:800;margin-top:4px">€'+esc(String(activeSell))+'<span style="font-size:15px;font-weight:600"> / L</span></div>'+
+    '<div class="meta" style="margin-top:8px;line-height:1.45">'+
+      'Source: <b>'+esc(sellSrcLabel)+'</b>'+
+      (st.buyPrice>0?' · last bunker €'+esc(String(st.buyPrice))+'/L':'')+
+      (spread!=null?' · spread €'+esc(String(spread))+'/L':'')+
+      (Math.abs(activeSell-suggested)>0.001?' · bunker+10c would be €'+esc(String(suggested))+'/L':'')+
+    '</div>'+
+    '<div style="display:flex;gap:8px;flex-wrap:wrap;margin-top:10px">'+
+      '<button type="button" class="btn" id="dieselEditSell" style="width:auto;padding:8px 14px;font-size:13px">Change sale price</button>'+
+      (Math.abs(activeSell-suggested)>0.001
+        ?'<button type="button" class="btn ghost" id="dieselResetSell" style="width:auto;padding:8px 14px;font-size:13px">Reset to bunker + €'+esc(String(DIESEL_MARKUP))+'</button>'
+        :'')+
+    '</div>'+
+  '</div>'+
   '<div class="apa-grid" style="margin-bottom:12px">'+
-    '<div class="apa-card"><div class="k">Last bunker € / L</div><div class="n">'+(L.lastBuyPrice!=null?esc(String(L.lastBuyPrice)):"—")+'</div></div>'+
-    '<div class="apa-card"><div class="k">Last sell / APA € / L</div><div class="n">'+(L.lastSellPrice!=null?esc(String(L.lastSellPrice)):"—")+'</div></div>'+
+    '<div class="apa-card"><div class="k">Last bunker € / L</div><div class="n">'+(L.lastBuyPrice!=null?esc(String(L.lastBuyPrice)):(st.buyPrice?esc(String(st.buyPrice)):"—"))+'</div></div>'+
+    '<div class="apa-card"><div class="k">Active sell € / L</div><div class="n">'+esc(String(activeSell))+'</div></div>'+
+    '<div class="apa-card"><div class="k">Last charged € / L</div><div class="n">'+(L.lastSellPrice!=null?esc(String(L.lastSellPrice)):"—")+'</div></div>'+
     '<div class="apa-card"><div class="k">Avg buy (weighted)</div><div class="n">'+(L.avgBuyPrice!=null?esc(String(L.avgBuyPrice)):"—")+'</div></div>'+
     '<div class="apa-card"><div class="k">Avg out (weighted)</div><div class="n">'+(L.avgSellPrice!=null?esc(String(L.avgSellPrice)):"—")+'</div></div>'+
     '<div class="apa-card"><div class="k">Bought</div><div class="n">'+esc(String(L.bought))+' L</div></div>'+
     '<div class="apa-card"><div class="k">Out (sell + APA)</div><div class="n">'+esc(String(L.out))+' L</div></div>'+
-    '<div class="apa-card"><div class="k">Buy cost (sum of bunkers)</div><div class="n money">'+money(L.buyCost)+'</div></div>'+
-    '<div class="apa-card"><div class="k">Out value (sum of sales)</div><div class="n money">'+money(L.outVal)+'</div></div>'+
+    '<div class="apa-card"><div class="k">Buy cost</div><div class="n money">'+money(L.buyCost)+'</div></div>'+
+    '<div class="apa-card"><div class="k">Out value</div><div class="n money">'+money(L.outVal)+'</div></div>'+
     '<div class="apa-card wide bal'+(L.margin<0?' warn':'')+'"><div class="k">Margin (out value − buy cost)</div><div class="n money">'+money(L.margin)+'</div>'+
-      '<div style="font-size:12px;color:var(--muted);margin-top:6px">From each line’s €/L · APA '+esc(String(L.apaUsed))+' L · sold '+esc(String(L.sold))+' L · default for new rows €'+esc(String(L.defaultBuy))+' buy / €'+esc(String(L.defaultSell))+' sell</div></div>'+
+      '<div style="font-size:12px;color:var(--muted);margin-top:6px">Each line’s own €/L · APA '+esc(String(L.apaUsed))+' L · sold '+esc(String(L.sold))+' L</div></div>'+
   '</div>'+
-  '<div class="apa-sect-h"><h3>Defaults for new rows</h3><button type="button" class="btn ghost" id="dieselEditPrices">Edit defaults</button></div>'+
+  '<div class="apa-sect-h"><h3>Prices</h3><button type="button" class="btn ghost" id="dieselEditPrices">Edit buy / sell</button></div>'+
   '<div class="apa-sect-h" style="margin-top:4px"><h3>Log</h3><button type="button" class="btn" id="dieselAdd">Add…</button></div>';
 
   if(!L.timeline.length){
@@ -5288,6 +5366,19 @@ function renderDiesel(){
   }
   wrap.innerHTML=html;
   if(el("dieselEditPrices")) el("dieselEditPrices").addEventListener("click",function(){ openDieselPrices(); });
+  if(el("dieselEditSell")) el("dieselEditSell").addEventListener("click",function(){ openDieselPrices({focusSell:true}); });
+  if(el("dieselResetSell")) el("dieselResetSell").addEventListener("click",function(){
+    var srow=dieselEnsure();
+    var sug=dieselSuggestedSell(srow.buyPrice);
+    if(LY_MODELS&&LY_MODELS.dieselApplyBunker){
+      LY_MODELS.dieselApplyBunker(srow, srow.buyPrice, sug);
+    } else {
+      srow.sellPrice=sug;
+      srow.sellSource="bunker";
+      srow.sellPinned=false;
+    }
+    saveDiesel();
+  });
   if(el("dieselAdd")) el("dieselAdd").addEventListener("click",function(){ openDieselPicker(); });
   Array.prototype.forEach.call(wrap.querySelectorAll("[data-diesel-edit]"),function(x){
     x.addEventListener("click",function(ev){
@@ -8990,32 +9081,45 @@ function openDieselPicker(){
   el("sheetClose").addEventListener("click",function(){ showSheet(false); });
   showSheet(true);
 }
-function openDieselPrices(){
+function openDieselPrices(opts){
+  opts=opts||{};
   var st=dieselSettings();
   var L=dieselLedger();
-  var h='<div class="sheethead"><h2>Default diesel prices</h2><button type="button" class="sheetx" id="sheetClose" aria-label="Close">×</button></div>';
-  h+='<p style="margin:0 0 12px;font-size:12.5px;color:var(--muted);line-height:1.45">Prefill only. <b>Rule:</b> guest sell = last bunker + €'+esc(String(DIESEL_MARKUP))+'/L. Saving a bunker updates both. Past log lines and trip rates are never changed here.</p>';
-  if(L.lastBuyPrice!=null||L.lastSellPrice!=null){
-    h+='<div class="meta" style="margin-bottom:12px">Last bunker: '+(L.lastBuyPrice!=null?"€"+L.lastBuyPrice+"/L → sell €"+dieselSuggestedSell(L.lastBuyPrice)+"/L":"—")+
-      ' · Last charged: '+(L.lastSellPrice!=null?"€"+L.lastSellPrice+"/L":"—")+'</div>';
+  var h='<div class="sheethead"><h2>Active diesel prices</h2><button type="button" class="sheetx" id="sheetClose" aria-label="Close">×</button></div>';
+  h+='<p style="margin:0 0 12px;font-size:12.5px;color:var(--muted);line-height:1.45"><b>Sale price</b> is what you charge guests until you change it or log a new bunker. Suggested = last bunker + €'+esc(String(DIESEL_MARKUP))+'/L — raise it anytime for market spread. Past log lines are never rewritten.</p>';
+  if(L.lastBuyPrice!=null||st.buyPrice){
+    h+='<div class="meta" style="margin-bottom:12px">Last bunker €'+esc(String(L.lastBuyPrice!=null?L.lastBuyPrice:st.buyPrice))+'/L · suggested sell €'+esc(String(dieselSuggestedSell(L.lastBuyPrice!=null?L.lastBuyPrice:st.buyPrice)))+'/L'+
+      (L.lastSellPrice!=null?' · last charged €'+esc(String(L.lastSellPrice))+'/L':'')+'</div>';
   }
   h+='<div class="row2">'+
-    fieldHTML("Default buy € / L",moneyField("f_buy_price",st.buyPrice))+
-    fieldHTML("Default sell € / L",moneyField("f_sell_price",st.sellPrice))+
+    fieldHTML("Last bunker € / L",moneyField("f_buy_price",st.buyPrice))+
+    fieldHTML("Active sale € / L",moneyField("f_sell_price",st.sellPrice))+
   '</div>';
-  h+='<p style="margin:-6px 0 12px;font-size:12px;color:var(--muted)">Sell prefill should stay buy + €'+esc(String(DIESEL_MARKUP))+' unless you override.</p>';
-  h+='<div class="sheetfoot"><button type="button" class="btn ghost" id="sheetCancel">Cancel</button><button type="button" class="btn" id="sheetSave">Save defaults</button></div>';
+  h+='<p style="margin:-6px 0 12px;font-size:12px;color:var(--muted)">Change sale only to lock a new active rate (manual). Changing bunker here does not invent a sell unless sale is empty.</p>';
+  h+='<div class="sheetfoot"><button type="button" class="btn ghost" id="sheetCancel">Cancel</button><button type="button" class="btn" id="sheetSave">Save</button></div>';
   el("sheetInner").innerHTML=h;
   if(el("f_buy_price")) el("f_buy_price").addEventListener("input",function(){
     if(el("f_sell_price")&&!el("f_sell_price").dataset.touched){
       el("f_sell_price").value=String(dieselSuggestedSell(el("f_buy_price").value));
     }
   });
-  if(el("f_sell_price")) el("f_sell_price").addEventListener("input",function(){ el("f_sell_price").dataset.touched="1"; });
+  if(el("f_sell_price")){
+    el("f_sell_price").addEventListener("input",function(){ el("f_sell_price").dataset.touched="1"; });
+    if(opts.focusSell){ try{ el("f_sell_price").focus(); el("f_sell_price").select&&el("f_sell_price").select(); }catch(e){} }
+  }
   el("sheetSave").addEventListener("click",function(){
     var s=dieselEnsure();
-    s.buyPrice=apaNum(el("f_buy_price").value)||DIESEL_DEFAULT_BUY;
-    s.sellPrice=apaNum(el("f_sell_price").value)||dieselSuggestedSell(s.buyPrice);
+    var buy=apaNum(el("f_buy_price").value)||DIESEL_DEFAULT_BUY;
+    var sell=apaNum(el("f_sell_price").value);
+    s.buyPrice=buy;
+    if(sell>0){
+      if(LY_MODELS&&LY_MODELS.dieselSetActiveSell) LY_MODELS.dieselSetActiveSell(s, sell);
+      else { s.sellPrice=sell; s.sellSource="manual"; s.sellPinned=true; }
+    } else {
+      s.sellPrice=dieselSuggestedSell(buy);
+      s.sellSource="suggested";
+      s.sellPinned=false;
+    }
     showSheet(false); saveDiesel();
   });
   el("sheetCancel").addEventListener("click",function(){ showSheet(false); });
@@ -9030,32 +9134,35 @@ function openDieselEntry(kind,id){
   var st=dieselSettings();
   var lastB=dieselLastBunker("");
   var defaultBuy=lastB&&lastB.price>0?lastB.price:st.buyPrice;
-  var defaultSell=lastB&&lastB.price>0?dieselSuggestedSell(lastB.price):(st.sellPrice||DIESEL_LEGACY_SELL);
+  /* Sells use sticky active sale price — not a fresh bunker+10c guess, not legacy 1.75 */
+  var defaultSell=dieselActiveSellPrice()||st.sellPrice||dieselSuggestedSell(defaultBuy);
   var defaultPx=kind==="buy"?defaultBuy:defaultSell;
+  var defaultGuestSell=dieselSuggestedSell(defaultBuy);
   var r=rec||{id:uid(),kind:kind,date:new Date().toISOString().slice(0,10),litres:"",onboard:"",price:defaultPx,notes:"",guest:""};
   /* Editing old row without stored price: still prefill the correct side default */
   if(rec&&(r.price==null||r.price==="")&&(kind==="buy"||kind==="sell")) r.price=defaultPx;
   var titles={buy:rec?"Edit buy":"Buy / bunker",level:rec?"Edit level":"Tank level",sell:rec?"Edit sell":"Sell diesel"};
   var h='<div class="sheethead"><h2>'+titles[kind]+'</h2><button type="button" class="sheetx" id="sheetClose" aria-label="Close">×</button></div>';
   if(kind==="buy"){
-    h+='<p style="margin:0 0 12px;font-size:12.5px;color:var(--muted);line-height:1.45">Enter pump €/L for <b>this</b> bunker. Guest sell becomes <b>pump + €'+esc(String(DIESEL_MARKUP))+'/L</b> for new trips until the next bunker. Older lines stay as stored.</p>';
+    h+='<p style="margin:0 0 12px;font-size:12.5px;color:var(--muted);line-height:1.45">Enter pump €/L for <b>this</b> bunker, then set the <b>sale price</b> that applies to later sells (default pump + €'+esc(String(DIESEL_MARKUP))+'). You can raise the sale price later. Older lines keep their stored €/L.</p>';
   } else if(kind==="level"){
     h+='<p style="margin:0 0 12px;font-size:12.5px;color:var(--muted);line-height:1.45">Snapshot of how much diesel is on board on this date. Later buys/APA use are applied from here.</p>';
   } else {
-    h+='<p style="margin:0 0 12px;font-size:12.5px;color:var(--muted);line-height:1.45">Outside APA. Prefill = last bunker + €'+esc(String(DIESEL_MARKUP))+' (change if you charged differently). Stored on this line only.</p>';
+    h+='<p style="margin:0 0 12px;font-size:12.5px;color:var(--muted);line-height:1.45">Outside APA. Prefill = <b>active sale price</b> (€'+esc(String(defaultSell))+'/L). Change only if this sale differs. Stored on this line only.</p>';
   }
   h+=fieldHTML("Date",'<input class="ctl" id="f_date" type="date" value="'+esc(r.date||"")+'">');
   if(kind==="level"){
     h+=fieldHTML("On board (litres)",decField("f_onboard", r.onboard!=null&&r.onboard!==""?r.onboard:"", "e.g. 1800"));
   } else if(kind==="buy"){
     h+=fieldHTML("Litres bought",decField("f_litres", r.litres!=null&&r.litres!==""?r.litres:"", "e.g. 800"));
-    h+=fieldHTML("Price €/L (this bunker)",moneyField("f_price", r.price!==""&&r.price!=null?r.price:defaultPx));
-    h+='<p style="margin:-8px 0 12px;font-size:12px;color:var(--muted)">After save: guest default = this price + €'+esc(String(DIESEL_MARKUP))+' (e.g. €'+esc(String(defaultPx))+' → €'+esc(String(dieselSuggestedSell(defaultPx)))+').</p>';
+    h+=fieldHTML("Pump € / L (this bunker)",moneyField("f_price", r.price!==""&&r.price!=null?r.price:defaultPx));
+    h+=fieldHTML("Sale € / L after this bunker",moneyField("f_sell_after", rec?dieselActiveSellPrice():defaultGuestSell));
+    h+='<p style="margin:-8px 0 12px;font-size:12px;color:var(--muted)">Suggested €'+esc(String(defaultGuestSell))+'/L = pump + €'+esc(String(DIESEL_MARKUP))+'. Edit to lock a different active sale (e.g. market up). Applies to later sells until changed.</p>';
     h+=fieldHTML("On board before (optional)",decField("f_onboard", r.onboard!=null&&r.onboard!==""?r.onboard:"", "sounding before fill"));
   } else {
     h+=fieldHTML("Litres sold",decField("f_litres", r.litres!=null&&r.litres!==""?r.litres:"", "e.g. 50"));
     h+=fieldHTML("Price €/L (this sale)",moneyField("f_price", r.price!==""&&r.price!=null?r.price:defaultPx));
-    h+='<p style="margin:-8px 0 12px;font-size:12px;color:var(--muted)">Usually last bunker + €'+esc(String(DIESEL_MARKUP))+' (prefilled €'+esc(String(defaultPx))+').</p>';
+    h+='<p style="margin:-8px 0 12px;font-size:12px;color:var(--muted)">Active sale €'+esc(String(defaultSell))+'/L'+(st.buyPrice>0?' · bunker €'+esc(String(st.buyPrice))+'/L · spread €'+esc(String(Math.round((defaultSell-st.buyPrice)*100)/100)):'')+'.</p>';
     h+=fieldHTML("Guest / note",'<input class="ctl" id="f_guest" value="'+esc(r.guest||"")+'" placeholder="optional" enterkeyhint="next">');
   }
   h+='<div class="calcbox" id="f_dsl_v_calc"></div>';
@@ -9075,15 +9182,23 @@ function openDieselEntry(kind,id){
     var onbB=el("f_onboard")?el("f_onboard").value:"";
     var lines='<div class="cl"><span>Litres</span><b>'+(kind==="buy"?"+":"−")+esc(String(apaLit(lit)))+' L</b></div>'+
       '<div class="cl"><span>@ €'+esc(String(px))+'/L</span><b>'+money(lit*px)+'</b></div>';
-    if(kind==="buy"&&onbB!==""){
-      lines+='<div class="cl hi"><span>After fill (est.)</span><b>'+esc(String(apaLit(apaNum(onbB)+lit)))+' L</b></div>';
+    if(kind==="buy"){
+      var sellA=el("f_sell_after")&&el("f_sell_after").value!==""?apaNum(el("f_sell_after").value):dieselSuggestedSell(px);
+      lines+='<div class="cl hi"><span>Active sale after</span><b>€'+esc(String(sellA))+'/L</b></div>';
+      if(onbB!=="") lines+='<div class="cl"><span>After fill (est.)</span><b>'+esc(String(apaLit(apaNum(onbB)+lit)))+' L</b></div>';
     }
     box.innerHTML=lines;
   }
   vRecalc();
-  ["f_litres","f_onboard","f_price"].forEach(function(id){
-    if(el(id)) el(id).addEventListener("input",vRecalc);
+  ["f_litres","f_onboard","f_price","f_sell_after"].forEach(function(fid){
+    if(el(fid)) el(fid).addEventListener("input",function(){
+      if(fid==="f_price"&&kind==="buy"&&el("f_sell_after")&&!el("f_sell_after").dataset.touched){
+        el("f_sell_after").value=String(dieselSuggestedSell(el("f_price").value));
+      }
+      vRecalc();
+    });
   });
+  if(el("f_sell_after")) el("f_sell_after").addEventListener("input",function(){ el("f_sell_after").dataset.touched="1"; vRecalc(); });
   el("sheetSave").addEventListener("click",function(){
     var obj={
       id:r.id||uid(), kind:kind,
@@ -9110,10 +9225,19 @@ function openDieselEntry(kind,id){
       obj.price=px;
       var srow=dieselEnsure();
       if(kind==="buy"){
-        srow.buyPrice=px;
-        srow.sellPrice=dieselSuggestedSell(px); /* guest rate = bunker + 10c until next bunker */
+        var sellAfter=el("f_sell_after")&&el("f_sell_after").value!==""?apaNum(el("f_sell_after").value):dieselSuggestedSell(px);
+        if(!(sellAfter>0)) sellAfter=dieselSuggestedSell(px);
+        if(LY_MODELS&&LY_MODELS.dieselApplyBunker){
+          LY_MODELS.dieselApplyBunker(srow, px, sellAfter);
+        } else {
+          srow.buyPrice=px;
+          srow.sellPrice=sellAfter;
+          srow.sellSource=Math.abs(sellAfter-dieselSuggestedSell(px))<0.001?"bunker":"manual";
+          srow.sellPinned=false;
+        }
       } else {
-        srow.sellPrice=px;
+        /* Optional: a one-off sell at different rate does not change active unless captain wants —
+           keep active sale sticky; only store line price. */
       }
     }
     if(rec){
@@ -9123,8 +9247,6 @@ function openDieselEntry(kind,id){
         [obj].concat(state.diesel.filter(function(x){ return x&&x.kind&&x.kind!=="settings"; }))
       );
     }
-    /* After bunker, refresh unpinned trip guest rates from bunker+10c */
-    if(kind==="buy") dieselSyncRatesFromBunkers();
     showSheet(false); saveDiesel();
     if(kind==="buy"&&canOps()){ try{ save("apa"); if(curTab==="apa") renderApa(); }catch(e){} }
   });

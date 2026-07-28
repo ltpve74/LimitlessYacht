@@ -381,6 +381,70 @@ console.log("\n[Expenses — reimbursement & petty (no description regex)]");
   ok("normalize keeps reimburseToId", n.expense.reimburseToId === "stew-toni");
 }
 
+/* ---- Diesel: bunker + sticky active sell ---- */
+console.log("\n[Diesel — bunker buy + sticky active sell]");
+{
+  ok("markup is 0.10", near(M.DIESEL_MARKUP, 0.1));
+  ok("suggested sell = buy + 0.10", near(M.dieselSuggestedSell(1.65), 1.75));
+  ok("suggested sell 1.74 → 1.84", near(M.dieselSuggestedSell(1.74), 1.84));
+}
+{
+  const ap = M.dieselApplyBunker({ kind: "settings" }, 1.65, null);
+  ok("bunker sets buy 1.65", near(ap.buyPrice, 1.65));
+  ok("bunker default sell 1.75", near(ap.sellPrice, 1.75));
+  ok("bunker sellSource bunker", ap.sellSource === "bunker");
+  ok("active sell after bunker", near(M.dieselActiveSell(ap.settings), 1.75));
+}
+{
+  const ap = M.dieselApplyBunker({ kind: "settings" }, 1.65, 1.9);
+  ok("bunker explicit sell 1.90", near(ap.sellPrice, 1.9));
+  ok("explicit sell is manual source", ap.sellSource === "manual");
+}
+{
+  let s = M.dieselApplyBunker({ kind: "settings" }, 1.6, null).settings;
+  s = M.dieselSetActiveSell(s, 1.85).settings;
+  ok("manual raise sticks", near(M.dieselActiveSell(s), 1.85));
+  ok("manual source", s.sellSource === "manual");
+  /* Normalize must NOT overwrite manual sell with buy+10c */
+  const n = M.dieselNormalizeSettings(s);
+  ok("normalize keeps manual 1.85", near(n.sellPrice, 1.85));
+  ok("normalize does not force 1.70", !near(n.sellPrice, 1.7));
+}
+{
+  const bunkers = [
+    { kind: "buy", date: "2026-07-01", price: 1.5 },
+    { kind: "buy", date: "2026-07-20", price: 1.65 },
+  ];
+  ok(
+    "guest sell on 10 Jul uses earlier bunker",
+    near(M.dieselGuestSellForDate(bunkers, "2026-07-10"), 1.6)
+  );
+  ok(
+    "guest sell on 21 Jul uses later bunker",
+    near(M.dieselGuestSellForDate(bunkers, "2026-07-21"), 1.75)
+  );
+  ok(
+    "no bunker uses activeSell not 1.75 invent when provided",
+    near(M.dieselGuestSellForDate([], "2026-07-21", { activeSell: 1.9 }), 1.9)
+  );
+  ok(
+    "no bunker no active → legacy reconstruct only",
+    near(M.dieselGuestSellForDate([], "2026-07-21"), M.DIESEL_LEGACY_FALLBACK_SELL)
+  );
+}
+{
+  /* Scrub obsolete 2.20 default */
+  const n = M.dieselNormalizeSettings({ buyPrice: 1.74, sellPrice: 2.2 });
+  ok("scrubs 2.20 to suggested", near(n.sellPrice, 1.84));
+}
+{
+  /* Next bunker refreshes sell period */
+  let s = M.dieselApplyBunker({}, 1.5, 1.9).settings;
+  s = M.dieselApplyBunker(s, 1.7, null).settings;
+  ok("next bunker resets sell to suggested", near(M.dieselActiveSell(s), 1.8));
+  ok("next bunker source bunker", s.sellSource === "bunker");
+}
+
 console.log("\n──────────────────────────────────────────────────────────");
 if (failed) {
   console.log("FAILED  " + failed + " check(s)");
