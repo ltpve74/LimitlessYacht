@@ -307,6 +307,80 @@ console.log("\n[APA paid → pot: base only, not extension]");
   ok("legacy shortfall full amount", near(M.chargeApaBaseTowardPot(ch), 300));
 }
 
+/* ---- Expenses / petty envelope (structured only) ---- */
+console.log("\n[Expenses — reimbursement & petty (no description regex)]");
+{
+  const shop = {
+    amount: 60,
+    category: "Provisions",
+    payMethod: "Cash",
+    paidFrom: "Own money",
+    paidById: "stew-toni",
+    description: "repaid Toni pocket", // free text must NOT reclassify
+  };
+  ok("shop own-money is NOT reimbursement (ignore description)", !M.isExpenseReimbursement(shop));
+  ok("shop does not hit petty", !M.expenseHitsPettyCash(shop));
+  const c = M.classifyExpenseCash(shop);
+  ok("shop hits own-money pocket", c.hitsOwnMoneyPocket);
+}
+{
+  const reimb = {
+    amount: 60,
+    category: "Crew reimbursement",
+    payMethod: "Cash",
+    paidFrom: "Petty cash",
+    reimburseToId: "stew-toni",
+    reimburseCrew: true,
+  };
+  ok("crew reimburse is reimbursement", M.isExpenseReimbursement(reimb));
+  ok("crew reimburse hits petty", M.expenseHitsPettyCash(reimb));
+  const c = M.classifyExpenseCash(reimb);
+  ok("clears Toni pocket", c.clearsPocketFor === "stew-toni");
+  ok("paidFrom petty", c.paidFrom === "petty");
+}
+{
+  const reimbOwn = {
+    amount: 200,
+    category: "Crew reimbursement",
+    payMethod: "Cash",
+    paidFrom: "Own money",
+    paidById: "captain",
+    reimburseToId: "stew-vicky",
+    reimburseCrew: true,
+  };
+  ok("own-money reimburse does NOT hit petty", !M.expenseHitsPettyCash(reimbOwn));
+  const c = M.classifyExpenseCash(reimbOwn);
+  ok("clears Vicky pocket", c.clearsPocketFor === "stew-vicky");
+  ok("captain is payer claim", c.ownMoneyPayerId === "captain");
+}
+{
+  const blank = {
+    amount: 60,
+    category: "Crew reimbursement",
+    payMethod: "Cash",
+    paidFrom: "",
+    reimburseToId: "stew-toni",
+    reimburseCrew: true,
+  };
+  ok("blank paidFrom on reimburse defaults to petty hit", M.expenseHitsPettyCash(blank));
+}
+{
+  const linked = { amount: 60, reimbursesExpenseId: "exp-1", payMethod: "Cash", paidFrom: "Petty cash" };
+  ok("reimbursesExpenseId alone marks reimbursement", M.isExpenseReimbursement(linked));
+}
+{
+  const n = M.normalizeExpenseReimbursement({
+    amount: 60,
+    category: "Crew reimbursement",
+    reimburseToId: "stew-toni",
+    reimburseCrew: true,
+    paidFrom: "",
+    payMethod: "Cash",
+  });
+  ok("normalize sets Petty cash", n.expense.paidFrom === "Petty cash");
+  ok("normalize keeps reimburseToId", n.expense.reimburseToId === "stew-toni");
+}
+
 console.log("\n──────────────────────────────────────────────────────────");
 if (failed) {
   console.log("FAILED  " + failed + " check(s)");
