@@ -5784,10 +5784,14 @@ function mergeLeadsById(local, remote){
 function expLinesForMonth(month){
   return (state.expenses||[]).filter(function(e){return e&&expMonthKey(e.date)===month;});
 }
-/** Stew day-pay expense line (Paid or Unpaid). */
+/** Stew day-pay expense line (Paid or Unpaid) — only Stews-synced rows. */
 function expIsCrewDayPayLine(e){
   if(!e||e.source!=="stew") return false;
   return e.stewPayKind==="dayPay"||!!e.stewEventKey||(e.linkId&&String(e.linkId).indexOf("stew-day:")===0);
+}
+/** Manual or stew: category is crew day/salary pay (used for pocket-out labels). */
+function expIsCrewSalariesCategory(e){
+  return !!e&&String(e.category||"")==="Crew Salaries";
 }
 function expStewAssignForExpense(e){
   if(!e||!e.stewEventKey) return null;
@@ -6198,11 +6202,17 @@ function expSettlementFigures(month){
     if(cls.hitsOwnMoneyPocket){
       ownMoneyExp+=a;
       var whoId=String(cls.ownMoneyPayerId||expPocketWhoId(e)||EXP_POCKET_CAPTAIN);
+      /* Manual Crew Salaries (e.g. Laura day pay logged as expense) = day pay, not shop */
+      var isCrewSal=expIsCrewSalariesCategory(e);
+      var crewWhoLabel=e.vendor||"Crew";
       pocketOutLines.push({
-        kind:"shop",
+        kind:isCrewSal?"crew":"shop",
         whoId:whoId,
         who:expPocketPersonName(whoId),
-        label:(e.vendor||e.category||"Expense")+(e.description?" · "+String(e.description).slice(0,40):""),
+        crewName:isCrewSal?crewWhoLabel:"",
+        label:isCrewSal
+          ?(crewWhoLabel+" day pay"+(e.description?" · "+String(e.description).slice(0,40):""))
+          :((e.vendor||e.category||"Expense")+(e.description?" · "+String(e.description).slice(0,40):"")),
         amount:a, id:e.id,
         repaid:expOwnMoneyIsRepaid(e, month),
         repaidAmt:expOwnMoneyRepaidAmt(e, month)
@@ -7199,6 +7209,7 @@ function paintExpensesBody(){
       } else if(e.payMethod==="Credit Card"){
         pills.push('<span class="pill p-card">Card</span>');
       } else if(ownPay){
+        if(expIsCrewSalariesCategory(e)) pills.push('<span class="pill p-blue">Day pay</span>');
         if(ownRepaid){
           pills.push('<span class="pill p-own-ok">Own money'+(pocketName?' · '+esc(pocketName):'')+'</span>');
           pills.push('<span class="pill p-green">Repaid</span>');
