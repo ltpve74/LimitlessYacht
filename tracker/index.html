@@ -534,7 +534,7 @@
 <div class="sheet" id="sheet"><div class="grip"></div><div id="sheetInner"></div></div>
 
 <!-- Domain models (money rules) — single source of truth; tests: node scripts/test-tracker-models.mjs -->
-<script src="/tracker/js/models.js"></script>
+<script src="/tracker/js/models.js?v=20260729-roster1"></script>
 <script>
 "use strict";
 var API = "/.netlify/functions/tracker";
@@ -711,7 +711,11 @@ function flushBootSaves(){
   bootSaveQueue={};
   keys.forEach(function(c){ try{ save(c); }catch(e){} });
 }
-/** Cash-strip / diesel defaults / stew seeds — run after UI is open. */
+/**
+ * Light post-login work only — never block first paint of charges/leads.
+ * Live ICS / calendar snapshot is loaded when Stews is opened (loadStewCalendar),
+ * not on every captain login (that made multiuser feel slow).
+ */
 function runPostLoadMaintenance(){
   if(DEMO) return;
   try{
@@ -720,22 +724,14 @@ function runPostLoadMaintenance(){
       ensureAllLeadCashApa();
     }
     if(isCaptain()){
-      ensureStewAssignPaidBeforeCut();
-      /* Dates follow ICS uid; pay/cancel follow lead.id ↔ calendarEventKey */
-      try{ loadStewCalendar(false).then(function(){
-        syncStewAssignsFromCalendar();
-        syncCancelledLeadsToStews();
-        seedCurrentMonthStewCashExpenses();
-        expRestoreCrewFloatPayAfterWipe();
-        expNormalizeAllReimbursements();
-        if(curTab==="stews") renderStews({soft:true});
-        if(curTab==="expenses") renderExpenses();
-      }); }catch(eCal){
-        seedCurrentMonthStewCashExpenses();
-        expRestoreCrewFloatPayAfterWipe();
-        expNormalizeAllReimbursements();
-      }
-      syncAllChargeCashToPetty();
+      /* Uses stewAssign already in state — no ICS round-trip */
+      try{ seedCurrentMonthStewCashExpenses(); }catch(e1){}
+      try{ expRestoreCrewFloatPayAfterWipe(); }catch(e2){}
+      try{ expNormalizeAllReimbursements(); }catch(e3){}
+      try{ syncAllChargeCashToPetty(); }catch(e4){}
+      if(curTab==="expenses") try{ renderExpenses(); }catch(e5){}
+      if(curTab==="charters") try{ renderCharters(); }catch(e6){}
+      if(curTab==="leads") try{ renderLeads(); }catch(e7){}
     }
   }catch(e){ console&&console.error&&console.error("[tracker] post-load",e); }
 }
@@ -811,15 +807,17 @@ function enterApp(){
   el("meLabel").textContent=session.who+(session.who!==roleLabel?" · "+roleLabel:"")+(DEMO?" · demo":"");
   el("demoNote").classList.toggle("hidden",!DEMO);
   configureNavForRole();
-  /* Default landing: team → roster; manager → charges; captain keeps current/ops-safe tab */
+  /* Default landing: team → roster; manager/captain → charges */
   if(isTeam()){
     if(curTab!=="stews"&&curTab!=="security") curTab="stews";
   } else if(!isCaptain()&&isOpsTab(curTab)){
     curTab="charters";
-  } else if(isCaptain()&&!canCommercial()&&curTab==="charters"){
-    /* no-op */
+  } else if(canCommercial()&&(isOpsTab(curTab)||!curTab)){
+    curTab="charters";
   }
-  try{ switchTab(curTab); }catch(e0){ try{ renderAll(); }catch(e){ console&&console.error&&console.error("[tracker] renderAll",e); } }
+  try{ switchTab(curTab); }catch(e0){ console&&console.error&&console.error("[tracker] switchTab",e0); }
+  /* Always paint all visible data once — switchTab alone used to skip charges/leads */
+  try{ renderAll(); }catch(e){ console&&console.error&&console.error("[tracker] renderAll",e); }
   if(!DEMO){ startPolling(); initPushUI(); }
   else { setPushStatus("na","Demo mode — notifications need the live app"); }
   /* Prompt once logged in if not already running as home-screen app */
@@ -989,6 +987,8 @@ function switchTab(t){
   if(el("tab-ops")) el("tab-ops").classList.toggle("hidden",t!=="ops");
   el("tab-security").classList.toggle("hidden",t!=="security");
   updateFab();
+  if(t==="charters"&&canCommercial()) renderCharters();
+  if(t==="leads"&&canCommercial()) renderLeads();
   if(t==="ops") renderOpsHub();
   if(t==="apa"){
     /* Collapse guest dup pots (e.g. Alvaro) + double Paid charges before paint */
@@ -999,6 +999,7 @@ function switchTab(t){
   if(t==="stews") renderStews();
   if(t==="expenses") renderExpenses();
   if(t==="commissions") renderCommissions();
+  if(t==="security") renderSecurity();
 }
 function updateFab(){
   var hide=false;
@@ -11297,7 +11298,10 @@ function startPolling(){
 function applyData(d, opts){
   opts=opts||{};
   var fromPoll=!!opts.fromPoll;
+  var fromBoot=!!opts.fromBoot;
   if(!d)return;
+  /* Apply role first so canCommercial / canOps gates see server truth */
+  if(d.role) session.role=d.role;
   /* Leads: never let a stale poll wipe free cashAmt (€1800 → €1653 race) */
   if(fromPoll&&localSaveIsFresh("leads")){
     /* keep local leads while save settles */
@@ -11323,7 +11327,6 @@ function applyData(d, opts){
     }
   }
   state.devices=d.devices||[]; state.log=d.log||[];
-  if(d.role) session.role=d.role;
   if(canOps() && Array.isArray(d.apa)){
     if(fromPoll&&localSaveIsFresh("apa")){
       /* keep local APA pots while save settles */
