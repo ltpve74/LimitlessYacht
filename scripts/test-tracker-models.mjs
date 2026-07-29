@@ -445,6 +445,46 @@ console.log("\n[Diesel — bunker buy + sticky active sell]");
   ok("next bunker source bunker", s.sellSource === "bunker");
 }
 
+/* ---- Stew roster status (assigned = resolvable crew) ---- */
+console.log("\n[Stew roster — assigned / unassigned / cancelled]");
+{
+  const stews = [
+    { id: "s1", name: "Toni" },
+    { id: "s2", name: "Laura" },
+  ];
+  const events = [
+    { key: "uid:a", start: "2026-07-20", summary: "Charter A", status: "booked" },
+    { key: "uid:b", start: "2026-07-21", summary: "Charter B", status: "booked" },
+    { key: "uid:c", start: "2026-07-22", summary: "Charter C", status: "booked" },
+    { key: "uid:d", start: "2026-07-23", summary: "Off", status: "booked" }, // off day skipped
+    { key: "uid:e", start: "2026-07-24", summary: "Charter E", status: "cancelled" },
+  ];
+  const assigns = [
+    { eventKey: "uid:a", stewIds: ["s1"], start: "2026-07-20", summary: "Charter A" },
+    { eventKey: "b", stewIds: ["s2"], start: "2026-07-21", summary: "Charter B" }, // bare key match
+    { eventKey: "uid:c", stewIds: ["gone"], start: "2026-07-22", summary: "Charter C" }, // dead id → unassigned
+    { eventKey: "uid:e", stewIds: ["s1"], cancelled: true, start: "2026-07-24", summary: "Charter E" },
+  ];
+  ok("keys match uid vs bare", M.stewKeysMatch("uid:b", "b"));
+  ok("has crew Toni", M.stewAssignHasCrew(assigns[0], stews));
+  ok("dead stewId is NOT crew", !M.stewAssignHasCrew(assigns[2], stews));
+  ok("cancelled flag", M.stewEventIsCancelled(events[4], assigns[3]));
+  ok("status cancelled on event", M.stewEventIsCancelled(events[4], null));
+  const sum = M.stewRosterSummary(events, assigns, stews);
+  ok("trips skip off days (4 not 5)", sum.trips === 4, "got " + sum.trips);
+  ok("assigned 2 (A+B)", sum.assigned === 2, "got " + sum.assigned);
+  ok("unassigned 1 (C dead id)", sum.unassigned === 1, "got " + sum.unassigned);
+  ok("cancelled 1", sum.cancelled === 1, "got " + sum.cancelled);
+  ok("A+U+C = trips", sum.assigned + sum.unassigned + sum.cancelled === sum.trips);
+  ok(
+    "find assign bare key for uid:b event",
+    M.findAssignForEvent(assigns, events[1]) && M.findAssignForEvent(assigns, events[1]).stewIds[0] === "s2"
+  );
+  ok("status A assigned", M.stewRosterStatus(events[0], assigns[0], stews) === "assigned");
+  ok("status C unassigned", M.stewRosterStatus(events[2], assigns[2], stews) === "unassigned");
+  ok("off event detected", M.stewIsOffEvent({ summary: "Off" }));
+}
+
 console.log("\n──────────────────────────────────────────────────────────");
 if (failed) {
   console.log("FAILED  " + failed + " check(s)");
