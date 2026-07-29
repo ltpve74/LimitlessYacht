@@ -173,9 +173,38 @@ ok("clickboat", M.constrainLeadSource("clickboat") === "clickboat");
 ok("owner", M.constrainLeadSource("owner") === "owner");
 ok("isCaptainLead", M.isCaptainLead({ leadSource: "captain" }));
 ok("not captain", !M.isCaptainLead({ leadSource: "other" }));
-ok("clickboat no captain comm", !M.leadEarnsCaptainCommission({ leadSource: "clickboat" }));
-ok("owner no captain comm", !M.leadEarnsCaptainCommission({ leadSource: "owner" }));
-ok("captain earns comm", M.leadEarnsCaptainCommission({ leadSource: "captain" }));
+ok("clickboat no captain-only flag", !M.leadEarnsCaptainCommission({ leadSource: "clickboat" }));
+ok("owner no captain-only flag", !M.leadEarnsCaptainCommission({ leadSource: "owner" }));
+ok("captain earns captain flag", M.leadEarnsCaptainCommission({ leadSource: "captain" }));
+ok("clickboat rate 21%", M.leadCommissionRatePct({ leadSource: "clickboat" }) === 21);
+ok("captain rate 15%", M.leadCommissionRatePct({ leadSource: "captain" }) === 15);
+ok("owner rate 0%", M.leadCommissionRatePct({ leadSource: "owner" }) === 0);
+ok("clickboat earns commission", M.leadEarnsCommission({ leadSource: "clickboat" }));
+ok("owner no earns commission", !M.leadEarnsCommission({ leadSource: "owner" }));
+{
+  const cb = M.leadCommissionParts({
+    leadSource: "clickboat",
+    total: 4000,
+    vatMode: "include",
+    vatPct: 21,
+  });
+  const base = 4000 / 1.21;
+  ok("clickboat base before VAT", Math.abs(cb.base - base) < 0.05, "got " + cb.base);
+  ok("clickboat 21% of base", Math.abs(cb.total - base * 0.21) < 0.05, "got " + cb.total);
+  const own = M.leadCommissionParts({
+    leadSource: "owner",
+    total: 4000,
+    vatMode: "include",
+    vatPct: 21,
+  });
+  ok("owner comm total 0", own.total === 0);
+  ok("owner benefit base > 0", own.base > 0);
+  ok("owner benefit included default", M.ownerBenefitIncluded({ leadSource: "owner" }));
+  ok(
+    "owner benefit excluded when flagged",
+    !M.ownerBenefitIncluded({ leadSource: "owner", ownerBenefitExclude: true })
+  );
+}
 
 /* ---- Seasonal charter pricing ---- */
 console.log("\n[Charter price from event]");

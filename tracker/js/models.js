@@ -23,13 +23,15 @@
   "use strict";
 
   var CAPTAIN_COMMISSION_PCT = 15;
+  /** Click&Boat (Paul): 21% of charter fee before VAT. */
+  var CLICKBOAT_COMMISSION_PCT = 21;
   var BILL_TYPES = { cash: 1, invoice: 1, mix: 1 };
   /**
    * Charter book source (commission assignment):
-   *  - captain = website or direct contact (captain commission)
-   *  - clickboat = Paul / Click&Boat (no captain commission)
-   *  - owner = owner-sourced (no captain commission)
-   *  - other = legacy / unknown (no captain commission)
+   *  - captain = website or direct contact (15% commission)
+   *  - clickboat = Paul / Click&Boat (21% before VAT)
+   *  - owner = owner use (no commission; track as owner benefits)
+   *  - other = legacy / unknown (no commission)
    */
   var LEAD_SOURCES = { captain: 1, clickboat: 1, owner: 1, other: 1 };
   /**
@@ -110,7 +112,9 @@
 
   function leadSource(r) {
     if (!r) return "other";
-    if (r.captainLead === true && !r.leadSource) return "captain";
+    if (r.captainLead === true) return "captain";
+    /* Empty / missing source = captain (legacy book before ICS import) */
+    if (r.leadSource == null || r.leadSource === "") return "captain";
     return constrainLeadSource(r.leadSource);
   }
 
@@ -118,9 +122,42 @@
     return leadSource(r) === "captain";
   }
 
-  /** Captain commission only on captain-sourced charters (website / direct). */
+  /** Captain’s own 15% deals (website / direct). */
   function leadEarnsCaptainCommission(r) {
     return isCaptainLead(r);
+  }
+
+  /** Commission rate % for this lead’s source (0 = none). */
+  function leadCommissionRatePct(r) {
+    var src = leadSource(r);
+    if (src === "captain") return CAPTAIN_COMMISSION_PCT;
+    if (src === "clickboat") return CLICKBOAT_COMMISSION_PCT;
+    return 0;
+  }
+
+  /** Captain or Click&Boat — any payable commission line. */
+  function leadEarnsCommission(r) {
+    return leadCommissionRatePct(r) > 0;
+  }
+
+  function isClickboatLead(r) {
+    return leadSource(r) === "clickboat";
+  }
+
+  function isOwnerLead(r) {
+    return leadSource(r) === "owner";
+  }
+
+  /**
+   * Owner-use trips: no commission. Count toward “owner benefits” total unless excluded.
+   * ownerBenefitExclude === true → out of the benefits total (user toggled off).
+   */
+  function ownerBenefitIncluded(r) {
+    if (!isOwnerLead(r)) return false;
+    if (r.ownerBenefitExclude === true || r.ownerBenefitExclude === "true" || r.ownerBenefitExclude === 1)
+      return false;
+    if (r.ownerBenefit === false || r.ownerBenefit === "false" || r.ownerBenefit === 0) return false;
+    return true;
   }
 
   function constrainLeadSource(v) {
@@ -472,11 +509,15 @@
 
   /**
    * Lead commission breakdown (numbers only — UI formats strings).
-   * Split: 15% white before VAT + 15% cash black.
-   * Normal VAT-include: 15% of total÷1.21.
+   * Rate from source: captain 15%, clickboat 21%, owner/other 0%.
+   * Split: rate × white before VAT + rate × cash black.
+   * Normal VAT-include: rate × (total÷1.21).
+   * Owner: total commission 0; base still = charter before VAT (owner benefit value).
    */
   function leadCommissionParts(r) {
-    var pctRate = CAPTAIN_COMMISSION_PCT / 100;
+    var ratePct = leadCommissionRatePct(r);
+    var pctRate = ratePct / 100;
+    var src = leadSource(r);
     var empty = {
       split: false,
       whiteBeforeVat: 0,
@@ -486,6 +527,8 @@
       cashComm: 0,
       total: 0,
       gross: 0,
+      ratePct: ratePct,
+      source: src,
     };
     if (!r) return empty;
     var pct = commissionVatPct(r);
@@ -520,6 +563,8 @@
         cashComm: cashC,
         total: total,
         gross: gross,
+        ratePct: ratePct,
+        source: src,
       };
     }
 
@@ -548,7 +593,15 @@
       cashComm: 0,
       total: totalN,
       gross: grossN,
+      ratePct: ratePct,
+      source: src,
     };
+  }
+
+  /** Charter value before VAT for owner-use benefits (same base as commission math). */
+  function leadOwnerBenefitValue(r) {
+    if (!isOwnerLead(r)) return 0;
+    return leadCommissionParts(r).base;
   }
 
   function leadCommissionBase(r) {
@@ -1280,6 +1333,7 @@
 
   var api = {
     CAPTAIN_COMMISSION_PCT: CAPTAIN_COMMISSION_PCT,
+    CLICKBOAT_COMMISSION_PCT: CLICKBOAT_COMMISSION_PCT,
     BILL_TYPES: Object.keys(BILL_TYPES),
     LEAD_SOURCES: Object.keys(LEAD_SOURCES),
     CHARTER_RATES: CHARTER_RATES,
@@ -1294,7 +1348,13 @@
     leadHasSplit: leadHasSplit,
     leadSource: leadSource,
     isCaptainLead: isCaptainLead,
+    isClickboatLead: isClickboatLead,
+    isOwnerLead: isOwnerLead,
     leadEarnsCaptainCommission: leadEarnsCaptainCommission,
+    leadEarnsCommission: leadEarnsCommission,
+    leadCommissionRatePct: leadCommissionRatePct,
+    ownerBenefitIncluded: ownerBenefitIncluded,
+    leadOwnerBenefitValue: leadOwnerBenefitValue,
     constrainLeadSource: constrainLeadSource,
     leadSourceLabel: leadSourceLabel,
     charterSeason: charterSeason,
