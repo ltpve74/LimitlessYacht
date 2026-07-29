@@ -7939,8 +7939,57 @@ function stewById(id){ return (state.stews||[]).filter(function(s){return s&&Str
 function stewNames(ids){
   return (ids||[]).map(function(id){ var s=stewById(id); return s?s.name:""; }).filter(Boolean);
 }
+/** Match assign row to a calendar event key (handles uid: / bare uid drift). */
 function assignForEvent(eventKey){
-  return (state.stewAssign||[]).filter(function(a){return a&&a.eventKey===eventKey;})[0]||null;
+  if(eventKey==null||eventKey==="") return null;
+  var k=String(eventKey);
+  var list=state.stewAssign||[];
+  var i, a, ek;
+  for(i=0;i<list.length;i++){
+    a=list[i];
+    if(a&&a.eventKey!=null&&String(a.eventKey)===k) return a;
+  }
+  var bare=k.replace(/^uid:/i,"");
+  var withUid=bare.indexOf("uid:")===0?bare:("uid:"+bare);
+  for(i=0;i<list.length;i++){
+    a=list[i];
+    if(!a||a.eventKey==null) continue;
+    ek=String(a.eventKey);
+    if(ek===bare||ek===withUid||ek.replace(/^uid:/i,"")===bare) return a;
+  }
+  return null;
+}
+/** Assign for a calendar event — try key, uid-key, then start+summary soft match. */
+function assignForCalendarEvent(ev){
+  if(!ev) return null;
+  var a=assignForEvent(ev.key)||assignForEvent(stewEventId(ev));
+  if(a) return a;
+  if(ev.uid) a=assignForEvent("uid:"+String(ev.uid))||assignForEvent(String(ev.uid));
+  if(a) return a;
+  /* Soft: same start date + similar summary (blob vs live key drift) */
+  var start=String(ev.start||"").slice(0,10);
+  var sum=String(ev.summary||"").trim().toLowerCase();
+  if(!start) return null;
+  var hits=(state.stewAssign||[]).filter(function(x){
+    if(!x||x.eventKey==null) return false;
+    if(String(x.start||"").slice(0,10)!==start) return false;
+    if(!sum) return true;
+    var xs=String(x.summary||"").trim().toLowerCase();
+    return !xs||xs===sum||xs.indexOf(sum)>=0||sum.indexOf(xs)>=0;
+  });
+  if(hits.length===1) return hits[0];
+  return null;
+}
+/** True when someone on the roster is on this charter (matches list UI). */
+function stewAssignHasCrew(asg){
+  if(!asg||!asg.stewIds||!asg.stewIds.length) return false;
+  return stewNames(asg.stewIds).length>0;
+}
+/** Cancelled for roster counts — assign flag or calendar status. */
+function stewEventIsCancelled(ev, asg){
+  if(asg&&(asg.cancelled||asg.status==="cancelled")) return true;
+  if(ev&&(ev.cancelled||String(ev.status||"").toLowerCase()==="cancelled")) return true;
+  return false;
 }
 /** Stews only: assignments for charters starting before this date are Paid (exclusive). */
 var STEW_PAID_BEFORE="2026-07-17";
@@ -8731,19 +8780,20 @@ function paintStewCharters(){
     });
     html+='</ul><div class="meta" style="margin-top:8px">Add them under <b>Team</b> if you want them auto-assigned, then refresh. Only charters before 17/07 are auto-filled from the calendar title.</div></div>';
   }
-  /* Season summary: team gets assigned / unassigned / cancelled only; captain gets full pay totals */
+  /* Season summary — assigned = has roster crew (same as list UI); always A+U+C = trips */
   var unpaidSum=0, paidSum=0, upcomingSum=0, tripWithStew=0, tripUnassigned=0, tripDays=0, byStew={}, cancelledN=0;
   var tipUnpaidSum=0, tipPaidSum=0, tipGuestSum=0, pocketSum=0;
   var showMoney=isCaptain();
   events.forEach(function(ev){
-    var asg0=assignForEvent(ev.key);
+    var asg0=assignForCalendarEvent(ev);
     var pay0=stewPayBreakdown(ev, asg0||{});
-    if(pay0.cancelled||(asg0&&asg0.cancelled)){ cancelledN++; return; }
+    if(stewEventIsCancelled(ev, asg0)||pay0.cancelled){ cancelledN++; return; }
     tripDays+=pay0.units||0;
     if(pay0.tipTotal>0) tipGuestSum+=pay0.tipTotal;
     if(pay0.tipPaid) tipPaidSum+=pay0.tipStewSide;
     else if(pay0.tipUnpaid) tipUnpaidSum+=pay0.tipStewSide;
-    if(!asg0||!(asg0.stewIds||[]).length){ tripUnassigned++; return; }
+    /* Match list cards: unassigned when no resolvable stew names on roster */
+    if(!stewAssignHasCrew(asg0)){ tripUnassigned++; return; }
     tripWithStew++;
     if(!showMoney) return;
     var names=stewNames(asg0.stewIds);
@@ -8778,7 +8828,7 @@ function paintStewCharters(){
       '<div><span class="meta">Trips</span><div style="font-size:20px;font-weight:800">'+events.length+'</div></div>'+
       '<div><span class="meta">Assigned</span><div style="font-size:20px;font-weight:800">'+tripWithStew+'</div></div>'+
       '<div><span class="meta">Unassigned</span><div style="font-size:20px;font-weight:800'+(tripUnassigned>0?";color:var(--amber,#c9a84c)":"")+'">'+tripUnassigned+'</div></div>'+
-      (cancelledN>0?'<div><span class="meta">Cancelled</span><div style="font-size:20px;font-weight:800;color:var(--danger)">'+cancelledN+'</div></div>':'')+
+      '<div><span class="meta">Cancelled</span><div style="font-size:20px;font-weight:800'+(cancelledN>0?";color:var(--danger)":"")+'">'+cancelledN+'</div></div>'+
       (showMoney?'<div><span class="meta">Billable days</span><div style="font-size:20px;font-weight:800">'+tripDays+'</div></div>':'')+
       (showMoney&&unpaidSum>0?'<div><span class="meta">Day pay unpaid</span><div class="money" style="font-size:20px;font-weight:800;color:var(--amber,#c9a84c)">'+money0(unpaidSum)+'</div></div>':'')+
       (showMoney&&paidSum>0?'<div><span class="meta">Day pay paid</span><div class="money" style="font-size:20px;font-weight:800">'+money0(paidSum)+'</div></div>':'')+
@@ -8816,9 +8866,9 @@ function paintStewCharters(){
   html+='</div>';
   html+='<div class="list">';
   events.forEach(function(ev){
-    var asg=assignForEvent(ev.key);
+    var asg=assignForCalendarEvent(ev);
     var names=asg?stewNames(asg.stewIds):[];
-    var unassigned=!names.length;
+    var unassigned=!names.length&&!stewEventIsCancelled(ev, asg);
     var past=ev.end?String(ev.end)<today:String(ev.start)<today;
     var pay=stewPayBreakdown(ev, asg||{});
     var rate=pay.rate;
