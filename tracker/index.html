@@ -420,7 +420,7 @@
         <div class="sumcard"><div class="l">Deals value</div><div class="v money" id="ldTot">€0</div></div>
         <div class="sumcard"><div class="l">Invoices open</div><div class="v" id="ldPending">0</div></div>
       </div>
-      <div class="legend">Leads. <b>Make invoice</b> generates the PDF (Not issued → Issued → Paid → Refunded). Weather cancel: open the lead → <b>Cancel charter — refund deposit</b> (stews + free cash updated). Split: formal white + cash (cash never on a PDF).</div>
+      <div class="legend">Charter book (all trips). Source: <b>Captain</b> (website/direct · commission) · <b>Click&amp;Boat</b> (Paul) · <b>Owner</b>. <b>Import from calendar</b> fills missing ICS trips. <b>Make invoice</b> = PDF. Weather cancel: open lead → Cancel charter.</div>
       <div class="list" id="ldList"></div>
     </section>
 
@@ -2084,12 +2084,15 @@ function renderLeads(){
     var isSplit=leadHasSplit(r);
     var finLabel="Final";
     var src=leadSource(r);
+    var srcPill=src==="captain"?'<span class="pill p-blue">Captain</span>':
+      (src==="clickboat"?'<span class="pill p-amber">Click&amp;Boat</span>':
+        (src==="owner"?'<span class="pill p-own">Owner</span>':'<span class="pill p-grey">Other</span>'));
     /* Meta: identity + role only — money lives in lead-split block */
     var metaBits='<span>'+leadMeta(r)+'</span>'+
       (cancelled?'<span class="pill p-red">Cancelled</span>':'')+
       (cancelled&&leadInvStatus(r.deps)==="Refunded"?'<span class="pill p-red">Deposit refunded</span>':'')+
       (isSplit?'<span class="pill p-black">Split</span>':'')+
-      (src==="captain"?'<span class="pill p-blue">Captain</span>':'<span class="pill p-grey">Other</span>')+
+      srcPill+
       (src==="captain"&&isCaptain()&&!cancelled?'<span class="pill p-green">Comm '+money(leadCommissionAmt(r))+'</span>':'')+
       (openN>0?'<span class="pill p-amber">'+openN+' invoice'+(openN>1?'s':'')+' open</span>':'');
     if(!isSplit){
@@ -2113,8 +2116,40 @@ function renderLeads(){
       '</div>'+
       '<span class="chev">✎</span></div>';
   });
-  wrap.innerHTML=html||emptyBox("🌐","No leads logged yet","Tap + when you close a website lead.");
+  wrap.innerHTML=html||emptyBox("🌐","No charters in the book yet","Tap + for a new lead, or Import from calendar.");
   el("ldTot").textContent=money(tot); el("ldPending").textContent=pend;
+  /* Import bar (once) above list */
+  var importBar=el("ldImportBar");
+  if(!importBar&&wrap.parentNode){
+    importBar=document.createElement("div");
+    importBar.id="ldImportBar";
+    importBar.style.cssText="margin:0 0 12px";
+    wrap.parentNode.insertBefore(importBar, wrap);
+  }
+  if(importBar&&canCommercial()){
+    importBar.innerHTML='<div class="legend" style="margin-bottom:8px">Charter book: every trip is a lead with a <b>source</b> (Captain · Click&amp;Boat · Owner) for commission. '+
+      'Import fills missing calendar trips as <b>Click&amp;Boat (Paul)</b>; existing leads stay <b>Captain</b>. Change source on any lead.</div>'+
+      '<button type="button" class="btn" id="ldImportIcs" style="width:100%">Import from calendar (ICS)</button>';
+    if(el("ldImportIcs")) el("ldImportIcs").onclick=function(){
+      if(DEMO){ window.alert("Import needs the live server (not demo)."); return; }
+      if(!window.confirm("Import manager ICS into leads?\n\n• Existing leads → Captain (if not already Click&Boat/Owner)\n• New calendar trips → Click&Boat (Paul) with seasonal list price\n• You can edit source/price on each lead after.")) return;
+      var btn=el("ldImportIcs");
+      if(btn){ btn.disabled=true; btn.textContent="Importing…"; }
+      api("importIcsLeads").then(function(j){
+        if(j.leads) state.leads=j.leads;
+        sortLeads();
+        renderLeads();
+        var s=j.stats||{};
+        window.alert("Import done.\n\nNew leads: "+(s.created||0)+
+          "\nMarked captain: "+(s.markedCaptain||0)+
+          "\nAlready linked: "+(s.linkedExisting||0)+
+          "\nTotal leads: "+(s.totalLeads||(state.leads||[]).length));
+      }).catch(function(err){
+        window.alert((err&&err.error)||(err&&err.body&&err.body.error)||"Import failed");
+        if(btn){ btn.disabled=false; btn.textContent="Import from calendar (ICS)"; }
+      });
+    };
+  }
   bindEdit(wrap,"data-edit-ld","lead");
   Array.prototype.forEach.call(wrap.querySelectorAll("[data-inv-lead]"),function(btn){
     btn.addEventListener("click",function(ev){
@@ -10348,6 +10383,7 @@ function leadSplitVatSwallowed(r){
 }
 function leadSource(r){ return LY_MODELS?LY_MODELS.leadSource(r):"other"; }
 function isCaptainLead(r){ return LY_MODELS?LY_MODELS.isCaptainLead(r):false; }
+function leadSourceLabel(src){ return LY_MODELS&&LY_MODELS.leadSourceLabel?LY_MODELS.leadSourceLabel(src):(src==="captain"?"Captain":"Other"); }
 function leadCommissionVatPct(r){ return LY_MODELS?LY_MODELS.commissionVatPct(r):21; }
 function leadCommissionWhiteBeforeVat(r){ return LY_MODELS?LY_MODELS.leadCommissionWhiteBeforeVat(r):0; }
 function leadCommissionParts(r){
@@ -10457,7 +10493,7 @@ function renderCommissions(){
     }
   });
   wrap.innerHTML=html||emptyBox("💸","No commissions yet",
-    "Mark Lead source → Captain, or log extra hours as a Charge with <b>I get commission</b>.");
+    "Mark lead source → <b>Captain</b> (website/direct), or log extra hours as a Charge with <b>I get commission</b>.");
   /* Captain leads only — do not count extension charges as “Captain leads” */
   if(el("cmCount")) el("cmCount").textContent=String(leadN);
   if(el("cmExt")) el("cmExt").textContent=String(extN);
@@ -10467,10 +10503,13 @@ function renderCommissions(){
   bindEdit(wrap,"data-edit-ch","charter");
 }
 function selLeadSourceField(val){
-  var v=val==="captain"?"captain":"other";
+  var v=(LY_MODELS&&LY_MODELS.constrainLeadSource)?LY_MODELS.constrainLeadSource(val):String(val||"other");
+  if(v!=="captain"&&v!=="clickboat"&&v!=="owner"&&v!=="other") v="other";
   return '<select class="ctl" id="f_leadSource">'+
-    '<option value="other"'+(v==="other"?" selected":"")+'>Other (agency / website / manager)</option>'+
-    '<option value="captain"'+(v==="captain"?" selected":"")+'>Captain (my lead — commission)</option>'+
+    '<option value="captain"'+(v==="captain"?" selected":"")+'>Captain (website / direct — commission)</option>'+
+    '<option value="clickboat"'+(v==="clickboat"?" selected":"")+'>Click&amp;Boat (Paul)</option>'+
+    '<option value="owner"'+(v==="owner"?" selected":"")+'>Owner</option>'+
+    '<option value="other"'+(v==="other"?" selected":"")+'>Other</option>'+
   '</select>';
 }
 /**
@@ -10655,7 +10694,7 @@ function openSheet(type,id){
       '<div class="ch">'+CAPTAIN_COMMISSION_PCT+'% of the <b>extension €</b> only (not APA spend). Cash ext → full amount; on invoice → before VAT. e.g. €500 cash → €75.</div></span></label>';
     h+=fieldHTML("Notes",'<textarea class="ctl" id="f_notes" placeholder="e.g. APA spend + 1h extension @ €500">'+esc(r.notes||"")+'</textarea>');
   } else {
-    r=rec||{closed:"",name:"",dur:"8h",start:"",end:"",rate:"",price:"",vatMode:"include",vatPct:"21",split:false,dealNet:"",invoiceNet:"",invoiceTotal:"",cashAmt:"",leadSource:"other",splitVatOnTop:true,deps:"Not issued",fins:"Not issued",apas:"Not issued",depPct:"50",apaPct:"",depInv:"",finInv:"",apaInv:"",notes:""};
+    r=rec||{closed:"",name:"",dur:"8h",start:"",end:"",rate:"",price:"",vatMode:"include",vatPct:"21",split:false,dealNet:"",invoiceNet:"",invoiceTotal:"",cashAmt:"",leadSource:"captain",splitVatOnTop:true,deps:"Not issued",fins:"Not issued",apas:"Not issued",depPct:"50",apaPct:"",depInv:"",finInv:"",apaInv:"",notes:""};
     var ldur=r.dur||"8h";
     var vMode=r.vatMode||(rec?"none":"include");
     var vPct=(r.vatPct!=null&&r.vatPct!=="")?r.vatPct:(vMode==="none"?"":"21");
@@ -10685,9 +10724,9 @@ function openSheet(type,id){
         '<div class="meta" style="margin-top:4px">Enter free cash e.g. <b>€1,800</b> and Save. Do not use “Use suggested”.</div>'+
       '</div>';
     }
-    h+=fieldHTML("Lead name",'<input class="ctl" id="f_name" value="'+esc(r.name)+'" placeholder="e.g. Acme Corp (website)">');
-    h+=fieldHTML("Lead source",selLeadSourceField(leadSrcDef));
-    h+='<p style="margin:-6px 0 12px;font-size:12.5px;color:var(--muted);line-height:1.4"><b>Captain</b> = your deal → '+CAPTAIN_COMMISSION_PCT+'% of charter before VAT (Ops → Commissions). <b>Other</b> = no captain commission.</p>';
+    h+=fieldHTML("Lead name",'<input class="ctl" id="f_name" value="'+esc(r.name)+'" placeholder="e.g. Guest or company name">');
+    h+=fieldHTML("Lead source (commission)",selLeadSourceField(leadSrcDef));
+    h+='<p style="margin:-6px 0 12px;font-size:12.5px;color:var(--muted);line-height:1.4"><b>Captain</b> = website or direct contact → '+CAPTAIN_COMMISSION_PCT+'% commission. <b>Click&amp;Boat (Paul)</b> / <b>Owner</b> = no captain commission. Change anytime — calendar does not set this reliably.</p>';
     /* Stable link to calendar ICS uid — survives date moves / on-hold */
     var calKeyNow=leadCalendarEventKey(r);
     var calOpts=[];
@@ -11147,7 +11186,7 @@ function saveSheet(type,rec){
     var parts=leadParts(sp, depPct, apaPct);
     var deps=leadInvStatus(el("f_deps").value), fins=leadInvStatus(el("f_fins").value), apas=leadInvStatus(el("f_apas").value);
     var leadSrcRaw=(el("f_leadSource")&&el("f_leadSource").value)||"other";
-    var leadSrc=leadSrcRaw==="captain"?"captain":"other";
+    var leadSrc=(LY_MODELS&&LY_MODELS.constrainLeadSource)?LY_MODELS.constrainLeadSource(leadSrcRaw):(leadSrcRaw==="captain"?"captain":"other");
     var bookingSt=(el("f_bookingStatus")&&el("f_bookingStatus").value)==="cancelled"?"cancelled":"active";
     var o2={ id:rec?rec.id:uid(), closed:el("f_closed").value, name:el("f_name").value.trim(),
       dur:dur, start:start, end:end, rate:rate, price:price, days:days,

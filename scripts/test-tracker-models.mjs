@@ -167,8 +167,49 @@ console.log("\n[Free cash black — never suggested]");
 console.log("\n[Lead source model]");
 ok("constrain other", M.constrainLeadSource("agency") === "other");
 ok("constrain captain", M.constrainLeadSource("captain") === "captain");
+ok("website → captain", M.constrainLeadSource("website") === "captain");
+ok("paul → clickboat", M.constrainLeadSource("paul") === "clickboat");
+ok("clickboat", M.constrainLeadSource("clickboat") === "clickboat");
+ok("owner", M.constrainLeadSource("owner") === "owner");
 ok("isCaptainLead", M.isCaptainLead({ leadSource: "captain" }));
 ok("not captain", !M.isCaptainLead({ leadSource: "other" }));
+ok("clickboat no captain comm", !M.leadEarnsCaptainCommission({ leadSource: "clickboat" }));
+ok("owner no captain comm", !M.leadEarnsCaptainCommission({ leadSource: "owner" }));
+ok("captain earns comm", M.leadEarnsCaptainCommission({ leadSource: "captain" }));
+
+/* ---- Seasonal charter pricing ---- */
+console.log("\n[Charter price from event]");
+{
+  const half = M.charterPriceFromEvent({
+    start: "2026-05-10",
+    end: "2026-05-10",
+    startTime: "10:00",
+    endTime: "14:00",
+    summary: "Guest half day",
+  });
+  ok("May is low season", half.season === "low");
+  ok("4h low €1700", half.dur === "4h" && half.total === 1700, JSON.stringify(half));
+  const highFull = M.charterPriceFromEvent({
+    start: "2026-07-20",
+    end: "2026-07-20",
+    startTime: "10:00",
+    endTime: "18:00",
+    summary: "Full day",
+  });
+  ok("Jul high season", highFull.season === "high");
+  ok("8h high €4000", highFull.dur === "8h" && highFull.total === 4000, JSON.stringify(highFull));
+  const multi = M.charterPriceFromEvent({
+    start: "2026-07-17",
+    end: "2026-07-20",
+    allDay: true,
+    days: ["2026-07-17", "2026-07-18", "2026-07-19"],
+    summary: "Multi guest",
+  });
+  ok("multi days", multi.dur === "multi" && multi.days === 3, JSON.stringify(multi));
+  ok("multi high 3×4000", multi.total === 12000, "got " + multi.total);
+  ok("guest name", M.guestNameFromIcsSummary("Alvaro - stew Laura") === "Alvaro");
+  ok("off day", M.isIcsOffSummary("Off — maintenance"));
+}
 
 /* ---- Charge bill type ---- */
 console.log("\n[Charge bill type]");

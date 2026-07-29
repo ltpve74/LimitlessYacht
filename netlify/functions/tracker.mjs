@@ -8,7 +8,11 @@
 
 import { getStore } from "@netlify/blobs";
 import webpush from "web-push";
+import { createRequire } from "module";
 import { parseIcs, siteCalendarPublicPayload } from "./lib/ics.mjs";
+
+const require = createRequire(import.meta.url);
+const LY = require("../../tracker/js/models.js");
 
 const BLOB_KEY = "data";
 const LOG_CAP = 500;
@@ -709,6 +713,135 @@ async function fetchManagerIcsText() {
   });
   if (!res.ok) throw new Error("ICS fetch failed: " + res.status);
   return res.text();
+}
+
+function leadKeyFromEvent(ev) {
+  if (!ev) return "";
+  if (ev.key) return String(ev.key);
+  if (ev.uid) return "uid:" + String(ev.uid);
+  return "";
+}
+
+/**
+ * Import ICS trips into leads (charter book).
+ * - Existing leads → captain (truth so far), keep prices/money
+ * - New ICS events not linked → clickboat (Paul), seasonal list price
+ * Source is always editable later on each lead.
+ */
+function importIcsIntoLeads(data, events, who, now) {
+  if (!Array.isArray(data.leads)) data.leads = [];
+  const leads = data.leads;
+  let markedCaptain = 0;
+  let created = 0;
+  let skippedOff = 0;
+  let linkedExisting = 0;
+
+  /* 1) All current leads are captain-sourced unless already clickboat/owner */
+  leads.forEach((l) => {
+    if (!l) return;
+    const src = LY.constrainLeadSource(l.leadSource);
+    if (src === "clickboat" || src === "owner") return;
+    if (src !== "captain") {
+      l.leadSource = "captain";
+      l.updatedAt = now;
+      markedCaptain++;
+    } else if (!l.leadSource) {
+      l.leadSource = "captain";
+      markedCaptain++;
+    }
+  });
+
+  const byCal = new Map();
+  leads.forEach((l) => {
+    if (!l) return;
+    const k = String(l.calendarEventKey || l.calEventKey || "").trim();
+    if (k) byCal.set(k, l);
+    const u = String(l.calendarUid || "").trim();
+    if (u) {
+      const uk = u.indexOf("uid:") === 0 ? u : "uid:" + u;
+      byCal.set(uk, l);
+    }
+  });
+
+  (events || []).forEach((ev) => {
+    if (!ev || !ev.start) return;
+    if (LY.isIcsOffSummary(ev.summary)) {
+      skippedOff++;
+      return;
+    }
+    const ek = leadKeyFromEvent(ev);
+    if (!ek) return;
+    if (byCal.has(ek)) {
+      const L = byCal.get(ek);
+      /* Keep source; refresh dates if empty */
+      if (!L.start && ev.start) L.start = String(ev.start).slice(0, 10);
+      linkedExisting++;
+      return;
+    }
+
+    const priced = LY.charterPriceFromEvent(ev);
+    const name = LY.guestNameFromIcsSummary(ev.summary);
+    const id =
+      "lead-ics-" +
+      String(ek)
+        .replace(/^uid:/, "")
+        .replace(/[^a-zA-Z0-9_-]+/g, "-")
+        .slice(0, 48) +
+      "-" +
+      String(ev.start).slice(0, 10);
+    /* Avoid id collision if re-import */
+    if (leads.some((x) => x && x.id === id)) {
+      byCal.set(ek, leads.find((x) => x && x.id === id));
+      return;
+    }
+
+    const isMulti = priced.dur === "multi";
+    const lead = {
+      id: id,
+      closed: String(ev.start).slice(0, 10),
+      name: name,
+      dur: priced.dur,
+      start: String(ev.start).slice(0, 10),
+      end: isMulti ? String(ev.end || ev.start).slice(0, 10) : "",
+      rate: priced.rate,
+      price: priced.price,
+      days: priced.days,
+      base: priced.total,
+      net: priced.total / 1.21,
+      vat: priced.total - priced.total / 1.21,
+      total: priced.total,
+      vatMode: "include",
+      vatPct: 21,
+      split: false,
+      leadSource: "clickboat",
+      bookingStatus: "active",
+      cancelled: false,
+      calendarEventKey: ek,
+      calendarUid: ek.indexOf("uid:") === 0 ? ek.slice(4) : ek,
+      depPct: 50,
+      dep: Math.round(priced.total * 0.5 * 100) / 100,
+      deps: "Not issued",
+      fin: Math.round(priced.total * 0.5 * 100) / 100,
+      fins: "Not issued",
+      apaPct: "",
+      apa: 0,
+      apas: "Not issued",
+      notes:
+        "Imported from ICS · Click&Boat (Paul) default — change source if owner/captain. " +
+        priced.label +
+        (ev.summary ? " · cal: " + String(ev.summary).slice(0, 60) : ""),
+      by: who || "ICS import",
+      createdAt: now,
+      updatedAt: now,
+      icsImport: true,
+    };
+    leads.unshift(lead);
+    byCal.set(ek, lead);
+    created++;
+  });
+
+  data.leads = leads;
+  return { markedCaptain, created, skippedOff, linkedExisting, totalLeads: leads.length };
 }
 async function saveData(store, data) {
   await store.setJSON(BLOB_KEY, data);
@@ -1441,6 +1574,42 @@ export default async (req, context) => {
    * Seed from manager ICS without activating — production stays on live ICS
    * until captain sets active=true (or AVAILABILITY_SOURCE=blob).
    */
+  /*
+   * Charter book: pull manager ICS → leads.
+   * Existing leads → captain; new events → clickboat (Paul); source editable later.
+   */
+  if (action === "importIcsLeads") {
+    if (!canCommercial(who, role)) {
+      return json({ error: "Leads import is captain/manager only" }, 403);
+    }
+    touchDevice();
+    let text;
+    try {
+      text = await fetchManagerIcsText();
+    } catch (e) {
+      return json(
+        { ok: false, error: e && e.message ? e.message : String(e), code: e && e.code },
+        400
+      );
+    }
+    const parsed = parseIcs(text);
+    const stats = importIcsIntoLeads(data, parsed.events, who, now);
+    addLog(
+      "import ICS leads created=" +
+        stats.created +
+        " captainMarked=" +
+        stats.markedCaptain +
+        " linked=" +
+        stats.linkedExisting
+    );
+    await saveData(store, data);
+    return json({
+      ok: true,
+      stats: stats,
+      leads: data.leads,
+    });
+  }
+
   if (
     action === "getSiteCalendar" ||
     action === "seedSiteCalendar" ||

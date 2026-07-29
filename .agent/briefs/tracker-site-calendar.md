@@ -28,7 +28,18 @@ Tracker **Stews → Refresh calendar** still uses live ICS (`?fresh=1`). Ops ros
 - `netlify/functions/tracker.mjs` — `seedSiteCalendar`, `getSiteCalendar`, `setSiteCalendarActive`
 - `tracker/index.html` — Ops tile + sheet
 
+## Charter book sources (leads)
+
+| Source | Meaning | Captain commission |
+|--------|---------|-------------------|
+| `captain` | Website or direct contact | Yes 15% |
+| `clickboat` | Paul / Click&Boat | No |
+| `owner` | Owner-sourced | No |
+| `other` | Legacy / unknown | No |
+
+**Import ICS** (`importIcsLeads`): existing leads → captain (unless already clickboat/owner); new calendar events → clickboat + seasonal list price (4h/6h/8h/multi × low/high). Editable on each lead.
+
 ## Next
 
-- Import ICS trips missing from leads as Click&Boat (manual re-tag owner/website).
 - Rebuild site calendar from active leads only (continuous gate).
+- Optional: tag-based source override from ICS title `[CB]` / `[WEB]`.
