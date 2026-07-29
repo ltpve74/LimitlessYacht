@@ -737,17 +737,99 @@ function protectLeadFreeCash(prevRows, nextRows) {
   });
 }
 
-/** Build human notifications from a collection save. */
+/** Role of a push subscriber from who label / stored role. */
+function pushSubRole(sub) {
+  const r = String((sub && sub.role) || "")
+    .toLowerCase()
+    .trim();
+  if (r === "captain" || r === "manager" || r === "team") return r;
+  const who = String((sub && sub.who) || "").trim();
+  if (isCaptain(who)) return "captain";
+  if (isManager(who)) return "manager";
+  return "team";
+}
+/** notice.to: all | team | captain | team_and_captain | commercial (captain+manager) */
+function noticeMatchesSub(notice, sub) {
+  const to = (notice && notice.to) || "all";
+  if (!to || to === "all") return true;
+  const role = pushSubRole(sub);
+  if (to === "team") return role === "team";
+  if (to === "captain") return role === "captain";
+  if (to === "team_and_captain") return role === "team" || role === "captain";
+  if (to === "commercial") return role === "captain" || role === "manager";
+  return true;
+}
+function leadIsCancelledRow(lead) {
+  if (!lead) return false;
+  if (lead.bookingStatus === "cancelled" || lead.cancelled === true) return true;
+  if (lead.status === "Cancelled" || lead.status === "cancelled") return true;
+  return false;
+}
+function stewIdsKey(asg) {
+  return (asg && Array.isArray(asg.stewIds) ? asg.stewIds : [])
+    .map(String)
+    .sort()
+    .join(",");
+}
+function stewIsCancelledRow(asg) {
+  return !!(asg && (asg.cancelled || asg.status === "cancelled"));
+}
+function fmtLeadWhen(lead) {
+  if (!lead) return "";
+  const s = String(lead.start || "").slice(0, 10);
+  const e = String(lead.end || "").slice(0, 10);
+  if (s && e && e !== s) return s + "–" + e;
+  return s || String(lead.closed || "").slice(0, 10) || "";
+}
+function fmtAsgWhen(asg) {
+  if (!asg) return "";
+  const s = String(asg.start || "").slice(0, 10);
+  const e = String(asg.end || "").slice(0, 10);
+  if (s && e && e !== s) return s + "–" + e;
+  return s || "";
+}
+
+/**
+ * Build human notifications from a collection save.
+ * notice.to targets push audience (team / captain / all / …).
+ */
 function buildNotices(coll, prevRows, nextRows, who) {
   const prev = Array.isArray(prevRows) ? prevRows : [];
   const next = Array.isArray(nextRows) ? nextRows : [];
-  const byId = new Map(prev.map((r) => [r.id, r]));
+  const byId = new Map(prev.map((r) => [r && r.id, r]));
   const notices = [];
 
   if (coll === "leads") {
     for (const lead of next) {
-      const old = byId.get(lead.id) || {};
+      if (!lead || !lead.id) continue;
+      const old = byId.get(lead.id);
       const name = lead.name || "Lead";
+      const when = fmtLeadWhen(lead);
+      const wasCanc = old ? leadIsCancelledRow(old) : false;
+      const nowCanc = leadIsCancelledRow(lead);
+
+      /* New commercial charter → notify stews (team) */
+      if (!old && !nowCanc) {
+        notices.push({
+          title: "New charter",
+          body: `${name}${when ? " · " + when : ""}`,
+          tag: `lead-new-${lead.id}`,
+          url: "/tracker/",
+          to: "team",
+        });
+      }
+      /* Lead cancelled → team + captain */
+      if (old && nowCanc && !wasCanc) {
+        notices.push({
+          title: "Charter cancelled",
+          body: `${name}${when ? " · " + when : ""} (by ${who})`,
+          tag: `lead-cancel-${lead.id}`,
+          url: "/tracker/",
+          to: "team_and_captain",
+        });
+      }
+
+      if (!old) continue;
       for (const [field, label] of [
         ["deps", "Deposit"],
         ["fins", "Final balance"],
@@ -761,6 +843,7 @@ function buildNotices(coll, prevRows, nextRows, who) {
             body: `${label} · ${name}${invNo ? " #" + invNo : ""}`,
             tag: `lead-iss-${lead.id}-${field}`,
             url: "/tracker/",
+            to: "commercial",
           });
         }
         if (lead[field] === "Paid" && old[field] !== "Paid") {
@@ -769,6 +852,7 @@ function buildNotices(coll, prevRows, nextRows, who) {
             body: `${label} · ${name}`,
             tag: `lead-paid-${lead.id}-${field}`,
             url: "/tracker/",
+            to: "commercial",
           });
         }
       }
@@ -787,6 +871,7 @@ function buildNotices(coll, prevRows, nextRows, who) {
           body: `${client} · €${Number(ch.amount) || 0} (by ${who})`,
           tag: `ch-new-${ch.id}`,
           url: "/tracker/",
+          to: "commercial",
         });
         continue;
       }
@@ -797,6 +882,7 @@ function buildNotices(coll, prevRows, nextRows, who) {
           body: `${client}${ch.inv ? " #" + ch.inv : ""}`,
           tag: `ch-iss-${ch.id}`,
           url: "/tracker/",
+          to: "commercial",
         });
       }
       if (
@@ -809,12 +895,55 @@ function buildNotices(coll, prevRows, nextRows, who) {
           body: `${client} · €${Number(ch.amount) || 0}`,
           tag: `ch-apa-amt-${ch.id}`,
           url: "/tracker/",
+          to: "commercial",
         });
       }
     }
   }
 
-  return notices.slice(0, 8);
+  /* Roster: assignment changes + charter cancel on stew assign */
+  if (coll === "stewAssign") {
+    const prevByKey = new Map(
+      prev.filter((a) => a && a.eventKey).map((a) => [String(a.eventKey), a])
+    );
+    for (const asg of next) {
+      if (!asg || !asg.eventKey) continue;
+      const key = String(asg.eventKey);
+      const old = prevByKey.get(key);
+      const summary = asg.summary || "Charter";
+      const when = fmtAsgWhen(asg);
+      const label = `${summary}${when ? " · " + when : ""}`;
+      const nowCanc = stewIsCancelledRow(asg);
+      const wasCanc = old ? stewIsCancelledRow(old) : false;
+
+      if (old && nowCanc && !wasCanc) {
+        notices.push({
+          title: "Charter cancelled",
+          body: `${label} (by ${who})`,
+          tag: `stew-cancel-${key}`,
+          url: "/tracker/",
+          to: "team_and_captain",
+        });
+        continue; /* skip assign spam on the same save */
+      }
+      if (nowCanc) continue;
+
+      const oldIds = old ? stewIdsKey(old) : "";
+      const newIds = stewIdsKey(asg);
+      if (old && oldIds !== newIds) {
+        const n = Array.isArray(asg.stewIds) ? asg.stewIds.length : 0;
+        notices.push({
+          title: n ? "Stews assigned" : "Stews cleared",
+          body: `${label} · ${n ? n + " on board" : "no stew"} (by ${who})`,
+          tag: `stew-asg-${key}-${newIds || "none"}`,
+          url: "/tracker/",
+          to: "team_and_captain",
+        });
+      }
+    }
+  }
+
+  return notices.slice(0, 12);
 }
 
 async function sendPushes(data, notices, excludeEndpoint) {
@@ -830,10 +959,18 @@ async function sendPushes(data, notices, excludeEndpoint) {
     }
     let dead = false;
     for (const n of notices) {
+      if (!noticeMatchesSub(n, sub)) continue;
+      /* Strip internal `to` before sending (not needed by SW) */
+      const payload = {
+        title: n.title,
+        body: n.body,
+        tag: n.tag,
+        url: n.url || "/tracker/",
+      };
       try {
         await webpush.sendNotification(
           { endpoint: sub.endpoint, keys: sub.keys },
-          JSON.stringify(n)
+          JSON.stringify(payload)
         );
       } catch (err) {
         const code = err && (err.statusCode || err.status);
@@ -1025,6 +1162,7 @@ export default async (req, context) => {
       endpoint: sub.endpoint,
       keys: { p256dh: sub.keys.p256dh, auth: sub.keys.auth },
       who,
+      role,
       deviceId,
       browser,
       subscribedAt: now,
