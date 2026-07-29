@@ -791,6 +791,16 @@ el("gateForm").addEventListener("submit",function(ev){
     clearTimeout(hang);
     if(btn) btn.disabled=false;
     if(err&&err.code===401){ e.textContent="Wrong passcode for that login."; clearSession(); return; }
+    /* Live host: never fall into browser-only demo (that looked like “preview mode”). */
+    var host=String(location.hostname||"");
+    var isLive=/limitlessyacht|netlify\.app$/i.test(host)||host==="limitlessyachtcharter.com";
+    if(isLive||host==="127.0.0.1"||host==="localhost"){
+      var msg=(err&&err.error)||(err&&err.body&&err.body.error)||(err&&err.code?"HTTP "+err.code:"");
+      e.textContent=msg
+        ?("Server error — "+String(msg).slice(0,120)+" — try again.")
+        :"Could not reach the server — check connection and try again.";
+      return;
+    }
     DEMO=true; seedDemo(); enterApp();
   });
 });
