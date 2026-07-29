@@ -8,6 +8,7 @@
 
 import { getStore } from "@netlify/blobs";
 import webpush from "web-push";
+import { parseIcs, siteCalendarPublicPayload } from "./lib/ics.mjs";
 
 const BLOB_KEY = "data";
 const LOG_CAP = 500;
@@ -648,6 +649,7 @@ async function loadData(store) {
       stews: [],
       stewAssign: [],
       stewCalendar: [], /* captain-refreshed ICS snapshot for team roster */
+      siteCalendar: null, /* app-owned public website calendar (seeded from ICS) */
       expenses: [],
       expPetty: [],
       devices: [],
@@ -656,6 +658,57 @@ async function loadData(store) {
       meta: {},
     }
   );
+}
+
+/** Public site calendar summary for captain UI (no full events list required). */
+function siteCalendarSummary(cal) {
+  if (!cal || typeof cal !== "object") {
+    return {
+      exists: false,
+      active: false,
+      eventCount: 0,
+      bookedCount: 0,
+      tentativeCount: 0,
+      seededAt: "",
+      updatedAt: "",
+      updatedBy: "",
+      sample: [],
+    };
+  }
+  const booked = Array.isArray(cal.booked) ? cal.booked : [];
+  const today = new Date().toISOString().slice(0, 10);
+  const sample = booked.filter((d) => d >= today).slice(0, 12);
+  return {
+    exists: true,
+    active: !!cal.active,
+    eventCount: Array.isArray(cal.events) ? cal.events.length : 0,
+    bookedCount: booked.length,
+    tentativeCount: Array.isArray(cal.tentative) ? cal.tentative.length : 0,
+    seededAt: cal.seededAt || "",
+    seededFrom: cal.seededFrom || "",
+    updatedAt: cal.updatedAt || cal.generatedAt || "",
+    updatedBy: cal.updatedBy || "",
+    sample,
+  };
+}
+
+async function fetchManagerIcsText() {
+  const icsUrl = process.env.AVAILABILITY_ICS_URL || "";
+  if (!icsUrl) {
+    const err = new Error("AVAILABILITY_ICS_URL not configured");
+    err.code = "no_ics";
+    throw err;
+  }
+  const url = icsUrl.replace(/^webcal:\/\//i, "https://");
+  const res = await fetch(url, {
+    headers: {
+      "User-Agent": "LimitlessYacht-Tracker/1.0 (+https://limitlessyachtcharter.com)",
+      "Cache-Control": "no-cache",
+      Pragma: "no-cache",
+    },
+  });
+  if (!res.ok) throw new Error("ICS fetch failed: " + res.status);
+  return res.text();
 }
 async function saveData(store, data) {
   await store.setJSON(BLOB_KEY, data);
@@ -1223,6 +1276,12 @@ export default async (req, context) => {
       out.stewCalendarAt = "";
       out.stewCalendarBy = "";
     }
+    /* App-owned website calendar status (captain only — seed/activate in Ops) */
+    if (captain) {
+      out.siteCalendar = siteCalendarSummary(data.siteCalendar);
+    } else {
+      out.siteCalendar = null;
+    }
     return json(out);
   }
 
@@ -1375,6 +1434,98 @@ export default async (req, context) => {
       failed: result.failed,
       subscribed: (data.pushSubs || []).length,
     });
+  }
+
+  /*
+   * App-owned public website calendar (Netlify Blobs).
+   * Seed from manager ICS without activating — production stays on live ICS
+   * until captain sets active=true (or AVAILABILITY_SOURCE=blob).
+   */
+  if (
+    action === "getSiteCalendar" ||
+    action === "seedSiteCalendar" ||
+    action === "setSiteCalendarActive"
+  ) {
+    if (!(role === "captain" || isCaptain(who))) {
+      return json({ error: "Site calendar is captain-only" }, 403);
+    }
+    touchDevice();
+
+    if (action === "getSiteCalendar") {
+      return json({
+        ok: true,
+        siteCalendar: siteCalendarSummary(data.siteCalendar),
+        preview: data.siteCalendar
+          ? siteCalendarPublicPayload(data.siteCalendar)
+          : null,
+      });
+    }
+
+    if (action === "seedSiteCalendar") {
+      let text;
+      try {
+        text = await fetchManagerIcsText();
+      } catch (e) {
+        return json(
+          {
+            ok: false,
+            error: e && e.message ? e.message : String(e),
+            code: e && e.code,
+          },
+          400
+        );
+      }
+      const parsed = parseIcs(text);
+      const keepActive = !!(data.siteCalendar && data.siteCalendar.active);
+      data.siteCalendar = {
+        active: keepActive,
+        booked: parsed.booked,
+        tentative: parsed.tentative,
+        events: parsed.events,
+        generatedAt: now,
+        seededAt: now,
+        seededFrom: "ics",
+        updatedAt: now,
+        updatedBy: who,
+        note: "Seeded from manager ICS",
+      };
+      addLog(
+        "seed site calendar events=" +
+          parsed.events.length +
+          " bookedDays=" +
+          parsed.booked.length +
+          (keepActive ? " (kept active)" : " (inactive)")
+      );
+      await saveData(store, data);
+      return json({
+        ok: true,
+        siteCalendar: siteCalendarSummary(data.siteCalendar),
+        preview: siteCalendarPublicPayload(data.siteCalendar),
+      });
+    }
+
+    if (action === "setSiteCalendarActive") {
+      if (!data.siteCalendar || typeof data.siteCalendar !== "object") {
+        return json(
+          {
+            ok: false,
+            error: "Seed the site calendar from ICS first",
+          },
+          400
+        );
+      }
+      const want = !!body.active;
+      data.siteCalendar.active = want;
+      data.siteCalendar.updatedAt = now;
+      data.siteCalendar.updatedBy = who;
+      data.siteCalendar.generatedAt = now;
+      addLog(want ? "activate site calendar (website uses app store)" : "deactivate site calendar (website falls back to ICS)");
+      await saveData(store, data);
+      return json({
+        ok: true,
+        siteCalendar: siteCalendarSummary(data.siteCalendar),
+      });
+    }
   }
 
   return json({ error: "unknown action" }, 400);

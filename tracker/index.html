@@ -574,6 +574,8 @@ var session={ who:null, role:null, pass:null, deviceId:null };
 var state={ charters:[], leads:[], apa:[], diesel:[], stews:[], stewAssign:[], stewCalendar:[], expenses:[], expPetty:[], devices:[], log:[] };
 var stewCalendarAt=""; /* when captain last published ICS snapshot to blob */
 var stewCalendarBy="";
+/** App-owned public website calendar (blob summary from server — captain Ops). */
+var siteCalendarMeta=null;
 /** Categories aligned with monthly expenses spreadsheet (+ common boat ones). */
 var EXP_CATS=["Crew Salaries","Miscellaneous","Fuel Cars","Dockage / Marina","Provisions","Maintenance","Insurance","Captain reimbursement","Crew reimbursement","Other"];
 var EXP_METHODS=["Cash","Credit Card"];
@@ -947,7 +949,12 @@ document.addEventListener("click",function(ev){
   var back=ev.target.closest&&ev.target.closest("[data-ops-back]");
   if(back){ ev.preventDefault(); if(isTeam()) switchTab("stews"); else switchTab("ops"); return; }
   var tile=ev.target.closest&&ev.target.closest("[data-ops-go]");
-  if(tile){ ev.preventDefault(); switchTab(tile.getAttribute("data-ops-go")); }
+  if(tile){
+    ev.preventDefault();
+    var go=tile.getAttribute("data-ops-go");
+    if(go==="siteCal"){ openSiteCalendarSheet(); return; }
+    switchTab(go);
+  }
 });
 function renderOpsHub(){
   var grid=el("opsGrid"); if(!grid) return;
@@ -955,12 +962,17 @@ function renderOpsHub(){
     grid.innerHTML='<div class="empty"><div class="big">⚓</div><div>Ops is captain-only.</div></div>';
     return;
   }
+  var sc=siteCalendarMeta||{};
+  var calDesc=sc.exists
+    ?((sc.active?"LIVE on website · ":"Seeded (not live) · ")+(sc.eventCount||0)+" trips · "+(sc.bookedCount||0)+" booked days")
+    :"Seed from manager ICS, then activate when ready";
   var tiles=[
     {id:"apa",ic:"📒",t:"APA",d:"Guest pot, spend ledger, shortfall charges"},
     {id:"diesel",ic:"⛽",t:"Diesel",d:"Bunker & sell by date (€/L each load)"},
     {id:"stews",ic:"👩‍✈️",t:"Stews",d:"Roster, day pay, tips (private)"},
     {id:"expenses",ic:"💶",t:"Expenses",d:"Monthly boat ledger + export for manager"},
-    {id:"commissions",ic:"💸",t:"Commissions",d:CAPTAIN_COMMISSION_PCT+"% white (ex VAT) + "+CAPTAIN_COMMISSION_PCT+"% cash black on split deals"}
+    {id:"commissions",ic:"💸",t:"Commissions",d:CAPTAIN_COMMISSION_PCT+"% white (ex VAT) + "+CAPTAIN_COMMISSION_PCT+"% cash black on split deals"},
+    {id:"siteCal",ic:"🗓️",t:"Site calendar",d:calDesc}
   ];
   grid.innerHTML=tiles.map(function(x){
     return '<button type="button" class="ops-tile" data-ops-go="'+esc(x.id)+'">'+
@@ -968,6 +980,116 @@ function renderOpsHub(){
       '<span class="ops-t">'+esc(x.t)+'</span>'+
       '<span class="ops-d">'+esc(x.d)+'</span></button>';
   }).join("");
+}
+/**
+ * Captain: seed app-owned website calendar from manager ICS, activate when ready.
+ * Until active, public /api/availability still serves live ICS (safe default).
+ */
+function openSiteCalendarSheet(){
+  if(!isCaptain()) return;
+  var sc=siteCalendarMeta||{exists:false,active:false};
+  function fmtWhen(iso){
+    if(!iso) return "—";
+    try{ return new Date(iso).toLocaleString(); }catch(e){ return String(iso); }
+  }
+  function paint(meta, busyMsg){
+    siteCalendarMeta=meta||siteCalendarMeta;
+    sc=siteCalendarMeta||{exists:false,active:false};
+    var sample=(sc.sample||[]).slice(0,10);
+    var h='<div class="sheethead"><h2>Site calendar</h2><button type="button" class="sheetx" id="sheetClose" aria-label="Close">×</button></div>';
+    h+='<p style="margin:0 0 12px;font-size:13px;color:var(--muted);line-height:1.45">'+
+      'App-owned store for the <b>public website</b> calendar. Seed from the manager ICS (current trips). '+
+      'Website keeps using <b>live ICS</b> until you activate. Stews roster still refreshes from ICS separately.'+
+    '</p>';
+    if(busyMsg){
+      h+='<div class="banner warn show" style="margin-bottom:12px">'+esc(busyMsg)+'</div>';
+    } else if(sc.active){
+      h+='<div class="banner show" style="margin-bottom:12px;background:rgba(46,125,50,.12);border-color:rgba(46,125,50,.35)">'+
+        '<b>Live on website</b> — guests see this store, not a live ICS scrape.</div>';
+    } else if(sc.exists){
+      h+='<div class="banner warn show" style="margin-bottom:12px">Seeded but <b>not live</b> — website still uses manager ICS.</div>';
+    } else {
+      h+='<div class="banner warn show" style="margin-bottom:12px">Not seeded yet. Tap <b>Seed from ICS</b> first.</div>';
+    }
+    h+='<div class="apa-card" style="margin-bottom:12px">'+
+      '<div class="meta">Status</div>'+
+      '<div style="margin-top:6px;font-size:15px;font-weight:700">'+(sc.exists?(sc.active?"Active on website":"Seeded · inactive"):"Empty")+'</div>'+
+      '<div class="meta" style="margin-top:10px">'+
+        (sc.eventCount!=null?esc(String(sc.eventCount))+" trips":"—")+' · '+
+        (sc.bookedCount!=null?esc(String(sc.bookedCount))+" booked days":"")+' · '+
+        (sc.tentativeCount!=null?esc(String(sc.tentativeCount))+" on-hold days":"")+
+      '</div>'+
+      '<div class="meta" style="margin-top:6px">Seeded '+esc(fmtWhen(sc.seededAt))+
+        (sc.updatedBy?' · by '+esc(sc.updatedBy):'')+'</div>'+
+      (sc.updatedAt&&sc.updatedAt!==sc.seededAt?'<div class="meta">Updated '+esc(fmtWhen(sc.updatedAt))+'</div>':'')+
+    '</div>';
+    if(sample.length){
+      h+='<div class="sectitle" style="margin:0 0 8px">Upcoming booked days (sample)</div>'+
+        '<div class="meta" style="margin:0 0 14px;line-height:1.5">'+esc(sample.join(" · "))+'</div>';
+    }
+    h+='<div class="sheetbtns" style="flex-direction:column;gap:8px">'+
+      '<button type="button" class="btn" id="siteCalSeed"'+(busyMsg?" disabled":"")+'>Seed from manager ICS</button>'+
+      (sc.exists&&!sc.active?'<button type="button" class="btn" id="siteCalOn"'+(busyMsg?" disabled":"")+'>Activate on website</button>':'')+
+      (sc.exists&&sc.active?'<button type="button" class="btn ghost" id="siteCalOff"'+(busyMsg?" disabled":"")+'>Deactivate (fall back to ICS)</button>':'')+
+      '<button type="button" class="btn ghost" id="siteCalRefresh"'+(busyMsg?" disabled":"")+'>Refresh status</button>'+
+    '</div>';
+    h+='<div class="sheetfoot"><button type="button" class="btn ghost" id="sheetCancel">Close</button></div>';
+    el("sheetInner").innerHTML=h;
+    function bind(){
+      if(el("sheetClose")) el("sheetClose").onclick=function(){ showSheet(false); };
+      if(el("sheetCancel")) el("sheetCancel").onclick=function(){ showSheet(false); };
+      if(el("siteCalRefresh")) el("siteCalRefresh").onclick=function(){
+        paint(siteCalendarMeta, "Loading…");
+        api("getSiteCalendar").then(function(j){
+          paint(j.siteCalendar||null, "");
+          if(curTab==="ops") renderOpsHub();
+        }).catch(function(err){
+          paint(siteCalendarMeta, (err&&err.error)||"Could not load status");
+        });
+      };
+      if(el("siteCalSeed")) el("siteCalSeed").onclick=function(){
+        if(!window.confirm("Overwrite the app site calendar with a fresh snapshot from the manager ICS?\n\nWebsite stays on live ICS until you Activate.")) return;
+        paint(siteCalendarMeta, "Seeding from ICS…");
+        api("seedSiteCalendar").then(function(j){
+          paint(j.siteCalendar||null, "");
+          if(curTab==="ops") renderOpsHub();
+          window.alert("Seeded "+((j.siteCalendar&&j.siteCalendar.eventCount)||0)+" trips · "+
+            ((j.siteCalendar&&j.siteCalendar.bookedCount)||0)+" booked days.\n\n"+
+            (j.siteCalendar&&j.siteCalendar.active?"Still ACTIVE on the website.":"Not live yet — Activate when ready."));
+        }).catch(function(err){
+          paint(siteCalendarMeta, (err&&err.error)||(err&&err.body&&err.body.error)||"Seed failed");
+        });
+      };
+      if(el("siteCalOn")) el("siteCalOn").onclick=function(){
+        if(!window.confirm("Activate app calendar on the LIVE website?\n\nGuests will see this store instead of a live ICS scrape.\nYou can deactivate anytime.")) return;
+        paint(siteCalendarMeta, "Activating…");
+        api("setSiteCalendarActive",{active:true}).then(function(j){
+          paint(j.siteCalendar||null, "");
+          if(curTab==="ops") renderOpsHub();
+        }).catch(function(err){
+          paint(siteCalendarMeta, (err&&err.error)||"Activate failed");
+        });
+      };
+      if(el("siteCalOff")) el("siteCalOff").onclick=function(){
+        if(!window.confirm("Deactivate app calendar?\n\nWebsite falls back to live manager ICS.")) return;
+        paint(siteCalendarMeta, "Deactivating…");
+        api("setSiteCalendarActive",{active:false}).then(function(j){
+          paint(j.siteCalendar||null, "");
+          if(curTab==="ops") renderOpsHub();
+        }).catch(function(err){
+          paint(siteCalendarMeta, (err&&err.error)||"Deactivate failed");
+        });
+      };
+    }
+    bind();
+    showSheet(true);
+  }
+  paint(sc, DEMO?"Demo mode — site calendar needs live server":"");
+  if(!DEMO){
+    api("getSiteCalendar").then(function(j){
+      paint(j.siteCalendar||null, "");
+    }).catch(function(){ /* keep boot summary */ });
+  }
 }
 function switchTab(t){
   if(t==="stews"&&!canRoster()) return;
@@ -11714,6 +11836,8 @@ function applyData(d, opts){
   else if(!canRoster()) state.stewCalendar=[];
   if(d.stewCalendarAt!=null&&d.stewCalendarAt!=="") stewCalendarAt=d.stewCalendarAt;
   if(d.stewCalendarBy!=null&&d.stewCalendarBy!=="") stewCalendarBy=d.stewCalendarBy;
+  if(isCaptain() && d.siteCalendar && typeof d.siteCalendar==="object") siteCalendarMeta=d.siteCalendar;
+  else if(!isCaptain()) siteCalendarMeta=null;
   if(isCaptain() && Array.isArray(d.expenses)){
     if(fromPoll&&localSaveIsFresh("expenses")){
       /* keep local expenses (floatPay / edits) for a few seconds after save */

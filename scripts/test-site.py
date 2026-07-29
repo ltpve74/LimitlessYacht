@@ -3687,12 +3687,27 @@ def check_shared_assets(r: Runner) -> None:
         r.check(f'{rel} exists', os.path.isfile(os.path.join(ROOT, rel)))
 
     availability_mjs = read_file('netlify/functions/availability.mjs') or ''
+    ics_lib = read_file('netlify/functions/lib/ics.mjs') or ''
     r.check(
         'availability ICS parser handles dashed dates and tentative status',
-        'expandEvent' in availability_mjs
-        and 'STATUS' in availability_mjs
-        and 'RRULE' in availability_mjs
-        and r'(\d{4})-?(\d{2})-?(\d{2})' in availability_mjs,
+        (
+            'expandEvent' in availability_mjs
+            or 'expandEvent' in ics_lib
+        )
+        and (
+            'STATUS' in availability_mjs
+            or 'STATUS' in ics_lib
+        )
+        and (
+            'RRULE' in availability_mjs
+            or 'RRULE' in ics_lib
+        )
+        and (
+            r'(\d{4})-?(\d{2})-?(\d{2})' in availability_mjs
+            or r'(\d{4})-?(\d{2})-?(\d{2})' in ics_lib
+        )
+        and 'siteCalendar' in availability_mjs
+        and "from './lib/ics.mjs'" in availability_mjs.replace('"', "'"),
     )
 
     reviews_raw = read_file('data/reviews.json')
