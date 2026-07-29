@@ -7935,61 +7935,38 @@ function openExpense(id, opts){
   });
   showSheet(true);
 }
-function stewById(id){ return (state.stews||[]).filter(function(s){return s&&String(s.id)===String(id);})[0]||null; }
+/* Stew roster status — locked in LY_MODELS (assigned = resolvable roster crew). */
+function stewById(id){
+  if(LY_MODELS&&LY_MODELS.stewById) return LY_MODELS.stewById(state.stews, id);
+  return (state.stews||[]).filter(function(s){return s&&String(s.id)===String(id);})[0]||null;
+}
 function stewNames(ids){
+  if(LY_MODELS&&LY_MODELS.stewNames) return LY_MODELS.stewNames(state.stews, ids);
   return (ids||[]).map(function(id){ var s=stewById(id); return s?s.name:""; }).filter(Boolean);
 }
-/** Match assign row to a calendar event key (handles uid: / bare uid drift). */
 function assignForEvent(eventKey){
-  if(eventKey==null||eventKey==="") return null;
-  var k=String(eventKey);
-  var list=state.stewAssign||[];
-  var i, a, ek;
-  for(i=0;i<list.length;i++){
-    a=list[i];
-    if(a&&a.eventKey!=null&&String(a.eventKey)===k) return a;
-  }
-  var bare=k.replace(/^uid:/i,"");
-  var withUid=bare.indexOf("uid:")===0?bare:("uid:"+bare);
-  for(i=0;i<list.length;i++){
-    a=list[i];
-    if(!a||a.eventKey==null) continue;
-    ek=String(a.eventKey);
-    if(ek===bare||ek===withUid||ek.replace(/^uid:/i,"")===bare) return a;
-  }
-  return null;
+  if(LY_MODELS&&LY_MODELS.findAssignByEventKey) return LY_MODELS.findAssignByEventKey(state.stewAssign, eventKey);
+  return (state.stewAssign||[]).filter(function(a){return a&&String(a.eventKey)===String(eventKey);})[0]||null;
 }
-/** Assign for a calendar event — try key, uid-key, then start+summary soft match. */
 function assignForCalendarEvent(ev){
-  if(!ev) return null;
-  var a=assignForEvent(ev.key)||assignForEvent(stewEventId(ev));
-  if(a) return a;
-  if(ev.uid) a=assignForEvent("uid:"+String(ev.uid))||assignForEvent(String(ev.uid));
-  if(a) return a;
-  /* Soft: same start date + similar summary (blob vs live key drift) */
-  var start=String(ev.start||"").slice(0,10);
-  var sum=String(ev.summary||"").trim().toLowerCase();
-  if(!start) return null;
-  var hits=(state.stewAssign||[]).filter(function(x){
-    if(!x||x.eventKey==null) return false;
-    if(String(x.start||"").slice(0,10)!==start) return false;
-    if(!sum) return true;
-    var xs=String(x.summary||"").trim().toLowerCase();
-    return !xs||xs===sum||xs.indexOf(sum)>=0||sum.indexOf(xs)>=0;
-  });
-  if(hits.length===1) return hits[0];
-  return null;
+  if(LY_MODELS&&LY_MODELS.findAssignForEvent) return LY_MODELS.findAssignForEvent(state.stewAssign, ev);
+  return assignForEvent(ev&&ev.key)||assignForEvent(stewEventId(ev));
 }
-/** True when someone on the roster is on this charter (matches list UI). */
 function stewAssignHasCrew(asg){
-  if(!asg||!asg.stewIds||!asg.stewIds.length) return false;
-  return stewNames(asg.stewIds).length>0;
+  if(LY_MODELS&&LY_MODELS.stewAssignHasCrew) return LY_MODELS.stewAssignHasCrew(asg, state.stews);
+  return !!(asg&&asg.stewIds&&asg.stewIds.length&&stewNames(asg.stewIds).length);
 }
-/** Cancelled for roster counts — assign flag or calendar status. */
 function stewEventIsCancelled(ev, asg){
+  if(LY_MODELS&&LY_MODELS.stewEventIsCancelled) return LY_MODELS.stewEventIsCancelled(ev, asg);
   if(asg&&(asg.cancelled||asg.status==="cancelled")) return true;
   if(ev&&(ev.cancelled||String(ev.status||"").toLowerCase()==="cancelled")) return true;
   return false;
+}
+function stewRosterStatus(ev, asg){
+  if(LY_MODELS&&LY_MODELS.stewRosterStatus) return LY_MODELS.stewRosterStatus(ev, asg, state.stews);
+  if(stewEventIsCancelled(ev, asg)) return "cancelled";
+  if(stewAssignHasCrew(asg)) return "assigned";
+  return "unassigned";
 }
 /** Stews only: assignments for charters starting before this date are Paid (exclusive). */
 var STEW_PAID_BEFORE="2026-07-17";
@@ -8075,6 +8052,7 @@ function stewFindInRoster(token){
 }
 /** Calendar "off" days — not charters; never show or assign on Stews. */
 function stewIsOffEvent(ev){
+  if(LY_MODELS&&LY_MODELS.stewIsOffEvent) return LY_MODELS.stewIsOffEvent(ev);
   var s=String((ev&&ev.summary)||"").trim();
   if(!s) return false;
   if(/^\s*off\s*$/i.test(s)) return true;
@@ -8499,8 +8477,9 @@ function loadStewCalendar(force){
     return stewMergedEvents();
   });
 }
-/** Merge season seed + live ICS + saved assignments (live wins on same UID). Full history for accounting. */
+/** Stable event id — model owns the form. */
 function stewEventId(ev){
+  if(LY_MODELS&&LY_MODELS.stewEventId) return LY_MODELS.stewEventId(ev);
   if(!ev) return "";
   if(ev.uid) return "uid:"+String(ev.uid);
   return String(ev.key||"");
@@ -8780,23 +8759,36 @@ function paintStewCharters(){
     });
     html+='</ul><div class="meta" style="margin-top:8px">Add them under <b>Team</b> if you want them auto-assigned, then refresh. Only charters before 17/07 are auto-filled from the calendar title.</div></div>';
   }
-  /* Season summary — assigned = has roster crew (same as list UI); always A+U+C = trips */
+  /* Season summary — status from LY_MODELS (A+U+C = trips); pay totals captain-only */
   var unpaidSum=0, paidSum=0, upcomingSum=0, tripWithStew=0, tripUnassigned=0, tripDays=0, byStew={}, cancelledN=0;
   var tipUnpaidSum=0, tipPaidSum=0, tipGuestSum=0, pocketSum=0;
   var showMoney=isCaptain();
+  var rosterSum=LY_MODELS&&LY_MODELS.stewRosterSummary
+    ?LY_MODELS.stewRosterSummary(events, state.stewAssign, state.stews)
+    :null;
+  if(rosterSum){
+    tripWithStew=rosterSum.assigned;
+    tripUnassigned=rosterSum.unassigned;
+    cancelledN=rosterSum.cancelled;
+  }
   events.forEach(function(ev){
     var asg0=assignForCalendarEvent(ev);
     var pay0=stewPayBreakdown(ev, asg0||{});
-    if(stewEventIsCancelled(ev, asg0)||pay0.cancelled){ cancelledN++; return; }
+    var st=stewRosterStatus(ev, asg0);
+    if(!rosterSum){
+      if(st==="cancelled"){ cancelledN++; return; }
+      if(st==="unassigned"){ tripUnassigned++; return; }
+      tripWithStew++;
+    } else if(st==="cancelled"){
+      return;
+    }
+    if(st!=="assigned") return;
     tripDays+=pay0.units||0;
     if(pay0.tipTotal>0) tipGuestSum+=pay0.tipTotal;
     if(pay0.tipPaid) tipPaidSum+=pay0.tipStewSide;
     else if(pay0.tipUnpaid) tipUnpaidSum+=pay0.tipStewSide;
-    /* Match list cards: unassigned when no resolvable stew names on roster */
-    if(!stewAssignHasCrew(asg0)){ tripUnassigned++; return; }
-    tripWithStew++;
     if(!showMoney) return;
-    var names=stewNames(asg0.stewIds);
+    var names=stewNames(asg0&&asg0.stewIds);
     names.forEach(function(nm){
       if(!byStew[nm]) byStew[nm]={paid:0,unpaid:0,upcoming:0,tipPaid:0,tipUnpaid:0,pocket:0,trips:0};
       byStew[nm].trips++;
