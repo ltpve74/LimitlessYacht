@@ -793,15 +793,29 @@ function fmtAsgWhen(asg) {
   return s || "";
 }
 
+/** Resolve stewIds → names from roster (server-side, for push body). */
+function stewNamesFromRoster(stews, ids) {
+  const list = Array.isArray(stews) ? stews : [];
+  const byId = new Map(list.filter((s) => s && s.id != null).map((s) => [String(s.id), s]));
+  return (Array.isArray(ids) ? ids : [])
+    .map((id) => {
+      const s = byId.get(String(id));
+      return s && s.name ? String(s.name) : "";
+    })
+    .filter(Boolean);
+}
+
 /**
  * Build human notifications from a collection save.
  * notice.to targets push audience (team / captain / all / …).
+ * data: full store (optional) — used to resolve stew names on assign.
  */
-function buildNotices(coll, prevRows, nextRows, who) {
+function buildNotices(coll, prevRows, nextRows, who, data) {
   const prev = Array.isArray(prevRows) ? prevRows : [];
   const next = Array.isArray(nextRows) ? nextRows : [];
   const byId = new Map(prev.map((r) => [r && r.id, r]));
   const notices = [];
+  const stews = data && Array.isArray(data.stews) ? data.stews : [];
 
   if (coll === "leads") {
     for (const lead of next) {
@@ -934,16 +948,46 @@ function buildNotices(coll, prevRows, nextRows, who) {
 
       const oldIds = old ? stewIdsKey(old) : "";
       const newIds = stewIdsKey(asg);
-      if (old && oldIds !== newIds) {
-        const n = Array.isArray(asg.stewIds) ? asg.stewIds.length : 0;
-        notices.push({
-          title: n ? "Stews assigned" : "Stews cleared",
-          body: `${label} · ${n ? n + " on board" : "no stew"} (by ${who})`,
-          tag: `stew-asg-${key}-${newIds || "none"}`,
-          url: "/tracker/",
-          to: "team_and_captain",
-        });
+      if (oldIds === newIds) continue;
+
+      const names = stewNamesFromRoster(stews, asg.stewIds);
+      const n = names.length || (Array.isArray(asg.stewIds) ? asg.stewIds.filter(Boolean).length : 0);
+      const whoList =
+        names.length > 0
+          ? names.join(", ")
+          : n > 0
+            ? n + " stew" + (n === 1 ? "" : "s")
+            : "";
+      /* Who was added vs previous set (for clearer copy) */
+      const oldSet = new Set(
+        (old && Array.isArray(old.stewIds) ? old.stewIds : []).map(String).filter(Boolean)
+      );
+      const addedIds = (Array.isArray(asg.stewIds) ? asg.stewIds : [])
+        .map(String)
+        .filter((id) => id && !oldSet.has(id));
+      const addedNames = stewNamesFromRoster(stews, addedIds);
+      let title;
+      let body;
+      if (!n) {
+        title = "Stews cleared";
+        body = `${label} · no stew (by ${who})`;
+      } else if (addedNames.length && oldIds) {
+        title = addedNames.length === 1 ? "Stew assigned" : "Stews assigned";
+        body = `${label} · ${addedNames.join(", ")} on board (by ${who})`;
+        if (names.length > addedNames.length) {
+          body = `${label} · now ${whoList} (added ${addedNames.join(", ")}) (by ${who})`;
+        }
+      } else {
+        title = n === 1 ? "Stew assigned" : "Stews assigned";
+        body = `${label} · ${whoList} (by ${who})`;
       }
+      notices.push({
+        title,
+        body,
+        tag: `stew-asg-${key}-${newIds || "none"}`,
+        url: "/tracker/",
+        to: "team_and_captain",
+      });
     }
   }
 
@@ -1222,7 +1266,7 @@ export default async (req, context) => {
     const notices =
       coll === "apa" || coll === "diesel" || coll === "stewCalendar"
         ? []
-        : buildNotices(coll, prev, next, who);
+        : buildNotices(coll, prev, next, who, data);
     data[coll] = next;
     if (coll === "stewCalendar") {
       if (!data.meta || typeof data.meta !== "object") data.meta = {};
