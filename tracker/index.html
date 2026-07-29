@@ -17,7 +17,9 @@
   :root{
     --bg:#eef1f4; --card:#fff; --ink:#17242b; --muted:#6b7780; --line:#e4e9ee;
     --brand:#1F4E5F; --brand2:#2E7D8F; --accent:#B5651D;
-    --amber:#FFF2CC; --amberInk:#8a5a00; --blue:#D6E4FF; --blueInk:#1a3a7a;
+    /* Warning amber: stronger fill + dark ink (never use --amber as text color) */
+    --amber:#FFE08A; --amberInk:#7A4500; --amberDeep:#B35C00;
+    --blue:#D6E4FF; --blueInk:#1a3a7a;
     --green:#D5F5E3; --greenInk:#1a6b3a; --grey:#ECECEC; --greyInk:#555;
     --danger:#c0392b; --dangerBg:#fdecec;
     --safe-b:env(safe-area-inset-bottom,0px);
@@ -60,7 +62,7 @@
   .demo{background:#e9edff;border:1px solid #c7d0ff;color:#2f3a7a;border-radius:12px;padding:10px 13px;font-size:12.5px;margin-bottom:12px}
   .banner{border-radius:12px;padding:11px 14px;font-size:13.5px;margin-bottom:12px;display:none}
   .banner.show{display:block}
-  .banner.warn{background:#fff8e1;border:1px solid #ffe08a;color:#7a5c00}
+  .banner.warn{background:#FFE8A3;border:1.5px solid #E0A800;color:var(--amberInk);font-weight:600}
   .banner.alarm{background:var(--dangerBg);border:1px solid #f3b4ae;color:var(--danger)}
 
   /* home-screen install prompt (browser only — hidden when already a PWA) */
@@ -110,8 +112,8 @@
   .exp-rcpt-lg{max-width:100%;max-height:220px;border-radius:12px;border:1px solid var(--line);display:block;margin:8px 0}
   .exp-month{display:flex;gap:8px;flex-wrap:wrap;align-items:center;margin:0 0 12px}
   .exp-month select.ctl{width:auto;min-width:9.5rem;padding:10px 12px}
-  .sumcard.sum-warn{background:#fff8e8;border:1.5px solid #f0d48a}
-  .sumcard.sum-warn .v{color:#9a6b00}
+  .sumcard.sum-warn{background:#FFE8A3;border:1.5px solid #E0A800}
+  .sumcard.sum-warn .v{color:var(--amberDeep)}
   .sumcard.sum-danger{background:#fdeeee;border:1.5px solid #f0b4b0}
   .sumcard.sum-danger .v{color:var(--danger)}
   .sumcard.sum-ok{background:#eef8f1;border:1.5px solid #b8e0c4}
@@ -120,7 +122,7 @@
              max-width:100%;box-sizing:border-box;overflow-wrap:anywhere;word-break:break-word}
   .exp-alert .money{font-size:inherit;white-space:normal}
   .exp-alert.short{background:#fdeeee;border:1.5px solid #f0b4b0;color:var(--danger)}
-  .exp-alert.owe{background:#fff8e8;border:1.5px solid #f0d48a;color:#7a5c00}
+  .exp-alert.owe{background:#FFE8A3;border:1.5px solid #E0A800;color:var(--amberInk)}
   .exp-alert.ok{background:#eef8f1;border:1.5px solid #b8e0c4;color:#1a5c48}
   /* Expenses stats: wrap in a 2-col grid (global .summary is single-row flex and overflows) */
   .exp-summary{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:14px;width:100%;max-width:100%;box-sizing:border-box}
@@ -131,7 +133,7 @@
     .exp-summary{grid-template-columns:repeat(3,1fr)}
     .exp-summary .sumcard .v{font-size:20px}
   }
-  .item.exp-unpaid{border:1.5px solid #f0d48a;background:#fffdf6}
+  .item.exp-unpaid{border:1.5px solid #E0A800;background:#FFF6D6}
   .item.exp-own{border:1.5px solid #e8d4a8;background:#fffcf5}
   .pill.p-own{background:#f5e6c8;color:#7a5200}
   .pill.p-own-ok{background:var(--green);color:var(--greenInk)}
@@ -157,7 +159,7 @@
   .invtag b{font-weight:700}
   .invtag .req{margin-left:2px;background:var(--brand);color:#fff;border-radius:8px;padding:4px 9px;font-size:11.5px;font-weight:700}
   .invtag .req:active{opacity:.85}
-  .invtag.need{border-color:#f0d48a;background:#fffbf0}
+  .invtag.need{border-color:#E0A800;background:#FFF6D6}
   .invtag.done{border-color:#b8e6c9;background:#f4fcf7}
   .lead-actions{display:flex;flex-wrap:wrap;gap:8px;margin-top:11px;padding-right:28px}
   .lead-actions .btn{width:auto;flex:0 0 auto;padding:9px 12px;font-size:12.5px;font-weight:700}
@@ -174,7 +176,8 @@
   .sheet .sect{font-size:12px;font-weight:700;color:var(--muted);text-transform:uppercase;letter-spacing:.04em;margin:14px 0 10px;padding-top:4px;border-top:1px solid var(--line)}
   .sheet .sect:first-of-type{border-top:none;margin-top:6px}
   .pill{display:inline-block;padding:3px 10px;border-radius:20px;font-size:11.5px;font-weight:700;white-space:nowrap}
-  .p-grey{background:var(--grey);color:var(--greyInk)} .p-amber{background:var(--amber);color:var(--amberInk)}
+  .p-grey{background:var(--grey);color:var(--greyInk)}
+  .p-amber{background:var(--amber);color:var(--amberInk);font-weight:800;border:1px solid #E0A800}
   .p-blue{background:var(--blue);color:var(--blueInk)} .p-green{background:var(--green);color:var(--greenInk)}
   .empty{background:var(--card);border-radius:14px;padding:34px 18px;text-align:center;color:var(--muted);font-size:14px;box-shadow:0 1px 3px rgba(0,0,0,.06)}
   .empty .big{font-size:30px;margin-bottom:8px}
@@ -8817,17 +8820,17 @@ function paintStewCharters(){
     '<div style="display:flex;flex-wrap:wrap;gap:10px 16px;align-items:baseline">'+
       '<div><span class="meta">Trips</span><div style="font-size:20px;font-weight:800">'+tripTotal+'</div></div>'+
       '<div><span class="meta">Assigned</span><div style="font-size:20px;font-weight:800">'+tripWithStew+'</div></div>'+
-      '<div><span class="meta">Unassigned</span><div style="font-size:20px;font-weight:800'+(tripUnassigned>0?";color:var(--amber,#c9a84c)":"")+'">'+tripUnassigned+'</div></div>'+
+      '<div><span class="meta">Unassigned</span><div style="font-size:20px;font-weight:800'+(tripUnassigned>0?";color:var(--amberDeep)":"")+'">'+tripUnassigned+'</div></div>'+
       '<div><span class="meta">Cancelled</span><div style="font-size:20px;font-weight:800'+(cancelledN>0?";color:var(--danger)":"")+'">'+cancelledN+'</div></div>'+
       (showMoney?'<div><span class="meta">Billable days</span><div style="font-size:20px;font-weight:800">'+tripDays+'</div></div>':'')+
-      (showMoney&&unpaidSum>0?'<div><span class="meta">Day pay unpaid</span><div class="money" style="font-size:20px;font-weight:800;color:var(--amber,#c9a84c)">'+money0(unpaidSum)+'</div></div>':'')+
+      (showMoney&&unpaidSum>0?'<div><span class="meta">Day pay unpaid</span><div class="money" style="font-size:20px;font-weight:800;color:var(--amberDeep)">'+money0(unpaidSum)+'</div></div>':'')+
       (showMoney&&paidSum>0?'<div><span class="meta">Day pay paid</span><div class="money" style="font-size:20px;font-weight:800">'+money0(paidSum)+'</div></div>':'')+
-      (showMoney&&tipUnpaidSum>0?'<div><span class="meta">Tips unpaid (crew share)</span><div class="money" style="font-size:20px;font-weight:800;color:var(--amber,#c9a84c)">'+money0(tipUnpaidSum)+'</div></div>':'')+
+      (showMoney&&tipUnpaidSum>0?'<div><span class="meta">Tips unpaid (crew share)</span><div class="money" style="font-size:20px;font-weight:800;color:var(--amberDeep)">'+money0(tipUnpaidSum)+'</div></div>':'')+
       (showMoney&&tipPaidSum>0?'<div><span class="meta">Tips paid (crew share)</span><div class="money" style="font-size:20px;font-weight:800">'+money0(tipPaidSum)+'</div></div>':'')+
       (showMoney&&tipGuestSum>0?'<div><span class="meta">Tips guests total</span><div class="money" style="font-size:18px;font-weight:700">'+money0(tipGuestSum)+'</div></div>':'')+
       (showMoney&&upcomingSum>0?'<div><span class="meta">Day pay later</span><div class="money" style="font-size:18px;font-weight:700">'+money0(upcomingSum)+'</div></div>':'')+
-      (showMoney&&pocketSum>0?'<div><span class="meta">Pocket to reimburse</span><div class="money" style="font-size:20px;font-weight:800;color:var(--amber,#c9a84c)">'+money0(pocketSum)+'</div></div>':'')+
-      (showMoney&&(unpaidSum+tipUnpaidSum+pocketSum)>0?'<div><span class="meta">Still to pay (pay+tip+pocket)</span><div class="money" style="font-size:20px;font-weight:800;color:var(--amber,#c9a84c)">'+money0(unpaidSum+tipUnpaidSum+pocketSum)+'</div></div>':'')+
+      (showMoney&&pocketSum>0?'<div><span class="meta">Pocket to reimburse</span><div class="money" style="font-size:20px;font-weight:800;color:var(--amberDeep)">'+money0(pocketSum)+'</div></div>':'')+
+      (showMoney&&(unpaidSum+tipUnpaidSum+pocketSum)>0?'<div><span class="meta">Still to pay (pay+tip+pocket)</span><div class="money" style="font-size:20px;font-weight:800;color:var(--amberDeep)">'+money0(unpaidSum+tipUnpaidSum+pocketSum)+'</div></div>':'')+
     '</div>';
   /* Per-stew money breakdown — captain only (team does not need trip counts glued to names) */
   if(showMoney){
@@ -8976,7 +8979,7 @@ function paintStewTeam(){
     var bal=showMoney?stewPersonBalances(s.id):{dueTotal:0,allPaid:0,unpaid:0,tipUnpaid:0,pocket:0,paid:0,tipPaid:0};
     html+='<div class="item'+(canEdit?' apa-row':'')+'"'+(canEdit?' data-stew-person="'+esc(s.id)+'" role="button" tabindex="0"':'')+'>'+
       '<div class="top"><div class="title">'+esc(s.name||"—")+'</div>'+
-        (showMoney&&bal.dueTotal>0?'<div class="amt money" style="color:var(--amber,#c9a84c)">'+money0(bal.dueTotal)+'</div>':
+        (showMoney&&bal.dueTotal>0?'<div class="amt money" style="color:var(--amberDeep)">'+money0(bal.dueTotal)+'</div>':
           (showMoney&&bal.allPaid>0?'<div class="amt money">'+money0(bal.allPaid)+'</div>':''))+
       '</div>'+
       '<div class="meta">'+(s.phone?'<span>📞 '+esc(s.phone)+'</span>':'')+
