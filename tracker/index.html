@@ -591,10 +591,11 @@ var DIESEL_PREV_SELL_HIGH=2.20; /* obsolete early default to scrub */
 var SESSION_KEY="limitless_tracker_session";
 /** Roles: captain (full) · manager (charges+leads) · team (roster only). */
 function sessionRole(){
-  var r=String(session.role||"").toLowerCase().trim();
-  if(r==="captain"||r==="manager"||r==="team") return r;
+  /* Who-label wins for Captain/Manager so a stale session.role never demotes them */
   if(/^captain\b/i.test(String(session.who||"").trim())) return "captain";
   if(/^manager\b/i.test(String(session.who||"").trim())) return "manager";
+  var r=String(session.role||"").toLowerCase().trim();
+  if(r==="captain"||r==="manager"||r==="team") return r;
   if(/^team\b/i.test(String(session.who||"").trim())) return "team";
   return "other";
 }
@@ -685,7 +686,17 @@ function updateGateRoleUI(){
 function api(action,payload){
   return fetch(API,{method:"POST",headers:{"Content-Type":"application/json","x-tracker-pass":session.pass||""},
     body:JSON.stringify(Object.assign({action:action,who:session.who,role:session.role||sessionRole(),deviceId:session.deviceId},payload||{}))
-  }).then(function(r){ if(r.status===401) throw{code:401}; if(!r.ok) throw{code:r.status}; return r.json(); });
+  }).then(function(r){
+    return r.json().then(function(j){
+      if(r.status===401) throw{code:401, body:j};
+      if(!r.ok) throw{code:r.status, body:j, error:j&&j.error};
+      return j;
+    }).catch(function(e){
+      if(e&&e.code) throw e;
+      if(!r.ok) throw{code:r.status};
+      throw e;
+    });
+  });
 }
 
 /* -------- login -------- */
@@ -11076,9 +11087,19 @@ function testPush(){
   if(DEMO){ setPushStatus("na","Demo mode only"); return; }
   if(!pushMeta.server){ setPushStatus("na","Push not configured on server"); return; }
   setPushStatus("na","Sending test…");
-  api("push-test").then(function(){
-    setPushStatus("on","Test sent — check notification centre (may take a few seconds)");
-  }).catch(function(){ setPushStatus("off","Test failed — enable alerts first"); });
+  api("push-test").then(function(r){
+    if(r&&r.ok===false){
+      setPushStatus("off", (r.error||"No subscription")+" — tap Enable alerts");
+      return;
+    }
+    var n=r&&r.sent!=null?r.sent:1;
+    setPushStatus("on","Test sent to "+n+" device"+(n===1?"":"s")+" — check notifications");
+  }).catch(function(err){
+    var detail=err&&err.error?String(err.error):"";
+    var msg=detail||"Test failed — enable alerts first (home-screen app works best)";
+    if(err&&err.code===400&&!detail) msg="No subscription on this device — Enable alerts first";
+    setPushStatus("off", msg);
+  });
 }
 
 /* -------- security -------- */
@@ -11146,17 +11167,26 @@ function applyData(d, opts){
   /* Leads: never let a stale poll wipe free cashAmt (€1800 → €1653 race) */
   if(fromPoll&&localSaveIsFresh("leads")){
     /* keep local leads while save settles */
-  } else if(fromPoll&&Array.isArray(d.leads)){
-    state.leads=mergeLeadsById(state.leads, d.leads);
-  } else {
-    state.leads=d.leads||[];
+  } else if(Array.isArray(d.leads)){
+    /* Never wipe captain/manager finance with an empty role-bug payload */
+    if(canCommercial()&&!d.leads.length&&(state.leads||[]).length){
+      /* keep local */
+    } else if(fromPoll){
+      state.leads=mergeLeadsById(state.leads, d.leads);
+    } else {
+      state.leads=d.leads;
+    }
   }
   if(fromPoll&&localSaveIsFresh("charters")){
     /* keep local charges */
-  } else if(fromPoll&&Array.isArray(d.charters)){
-    state.charters=mergeExpensesById(state.charters||[], d.charters||[]);
-  } else {
-    state.charters=d.charters||[];
+  } else if(Array.isArray(d.charters)){
+    if(canCommercial()&&!d.charters.length&&(state.charters||[]).length){
+      /* keep local */
+    } else if(fromPoll){
+      state.charters=mergeExpensesById(state.charters||[], d.charters||[]);
+    } else {
+      state.charters=d.charters;
+    }
   }
   state.devices=d.devices||[]; state.log=d.log||[];
   if(d.role) session.role=d.role;
