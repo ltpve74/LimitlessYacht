@@ -2088,13 +2088,15 @@ function renderLeads(){
   var wrap=el("ldList"), tot=0, pend=0, html="";
   state.leads.forEach(function(r){
     var cancelled=leadIsCancelled(r);
-    if(!cancelled) tot+=(leadHasSplit(r)?leadClientTotal(r):(Number(r.total)||0));
-    var openN=pendForLead(r);
-    pend+=openN;
-    var showApa=leadNeedsApaInv(r);
-    var isSplit=leadHasSplit(r);
-    var finLabel="Final";
     var src=leadSource(r);
+    var isOwner=src==="owner";
+    /* Owner use is not business income — omit from deals total and list amount */
+    if(!cancelled&&!isOwner) tot+=(leadHasSplit(r)?leadClientTotal(r):(Number(r.total)||0));
+    var openN=isOwner?0:pendForLead(r);
+    if(!isOwner) pend+=openN;
+    var showApa=!isOwner&&leadNeedsApaInv(r);
+    var isSplit=!isOwner&&leadHasSplit(r);
+    var finLabel="Final";
     var srcPill=src==="captain"?'<span class="pill p-blue">Captain</span>':
       (src==="clickboat"?'<span class="pill p-amber">Click&amp;Boat</span>':
         (src==="owner"?'<span class="pill p-own">Owner</span>':'<span class="pill p-grey">Other</span>'));
@@ -2105,26 +2107,28 @@ function renderLeads(){
       (isSplit?'<span class="pill p-black">Split</span>':'')+
       srcPill+
       (isCaptain()&&!cancelled&&leadCommissionRatePct(r)>0?'<span class="pill p-green">Comm '+money(leadCommissionAmt(r))+'</span>':'')+
-      (isCaptain()&&!cancelled&&src==="owner"?'<span class="pill p-own">Owner benefit</span>':'')+
+      (isCaptain()&&!cancelled&&isOwner?'<span class="pill p-own">No income · owner benefit</span>':'')+
       (openN>0?'<span class="pill p-amber">'+openN+' invoice'+(openN>1?'s':'')+' open</span>':'');
-    if(!isSplit){
+    if(!isOwner&&!isSplit){
       var vatNote=vatModeLabel(r.vatMode);
       if(vatNote&&(Number(r.vatPct)||0)>0) vatNote+=" "+r.vatPct+"%";
       if(vatNote) metaBits+='<span>'+esc(vatNote)+'</span>';
     }
-    html+='<div class="item'+(cancelled?' item--cancelled':'')+'" data-edit-ld="'+esc(r.id)+'">'+
-      '<div class="top"><div class="title">'+esc(r.name||"—")+'</div><div class="amt money">'+(cancelled?'—':money0(isSplit?leadClientTotal(r):r.total))+'</div></div>'+
+    var amtShow=cancelled||isOwner?"—":money0(isSplit?leadClientTotal(r):r.total);
+    html+='<div class="item'+(cancelled||isOwner?' item--cancelled':'')+'" data-edit-ld="'+esc(r.id)+'">'+
+      '<div class="top"><div class="title">'+esc(r.name||"—")+'</div><div class="amt money">'+amtShow+'</div></div>'+
       '<div class="meta">'+metaBits+'</div>'+
-      (cancelled?"":leadSplitSummaryHTML(r))+
-      '<div class="invtags">'+
+      (cancelled||isOwner?"":leadSplitSummaryHTML(r))+
+      (isOwner&&!cancelled?'<div class="notes" style="font-style:normal;color:var(--muted)">Owner use — not counted as charter income (see Ops → Commissions → Owner benefits).</div>':'')+
+      (isOwner?"":('<div class="invtags">'+
         (leadNeedsDepInv(r)?leadInvTag("Deposit",r.dep,r.depPct,r.deps,r.depInv):"")+
         (leadNeedsFinInv(r)&&!cancelled?leadInvTag(finLabel,r.fin,"",r.fins,r.finInv):"")+
         (showApa&&!cancelled?leadInvTag("APA",r.apa,r.apaPct,r.apas,r.apaInv):"")+
-      '</div>'+
+      '</div>'))+
       (r.notes?'<div class="notes">'+esc(r.notes)+'</div>':'')+
       '<div class="lead-actions">'+
-        (cancelled?"":'<button type="button" class="btn" data-inv-lead="'+esc(r.id)+'">Make invoice</button>')+
-        (cancelled?"":'<button type="button" class="btn ghost" data-agr-lead="'+esc(r.id)+'">Agreement</button>')+
+        (cancelled||isOwner?"":'<button type="button" class="btn" data-inv-lead="'+esc(r.id)+'">Make invoice</button>')+
+        (cancelled||isOwner?"":'<button type="button" class="btn ghost" data-agr-lead="'+esc(r.id)+'">Agreement</button>')+
       '</div>'+
       '<span class="chev">✎</span></div>';
   });
