@@ -60,15 +60,18 @@ function isManager(who) {
 }
 /**
  * Roles: captain | manager | team
- * Client sends body.role; fall back to who-label for legacy sessions.
+ * Who-label for Captain/Manager wins over a stale body.role (avoids empty
+ * financial payloads if role was wrong on a poll).
+ * Team uses personal names + body.role === "team".
  */
 function roleOf(who, bodyRole) {
+  if (isCaptain(who)) return "captain";
+  if (isManager(who)) return "manager";
   var r = String(bodyRole || "")
     .toLowerCase()
     .trim();
-  if (r === "captain" || r === "manager" || r === "team") return r;
-  if (isCaptain(who)) return "captain";
-  if (isManager(who)) return "manager";
+  if (r === "team") return "team";
+  if (r === "captain" || r === "manager") return r;
   if (/^team\b/i.test(String(who || "").trim())) return "team";
   return "other";
 }
@@ -946,43 +949,97 @@ function buildNotices(coll, prevRows, nextRows, who) {
   return notices.slice(0, 12);
 }
 
-async function sendPushes(data, notices, excludeEndpoint) {
-  if (!notices.length || !setupVapid()) return;
-  if (!Array.isArray(data.pushSubs) || !data.pushSubs.length) return;
+/**
+ * Deliver notices to push subscribers. Returns { sent, failed, skipped }.
+ * excludeEndpoint: skip this device (usually the editor of a save).
+ * onlyDeviceId / onlyWho: restrict targets (push-test to this device).
+ */
+async function sendPushes(data, notices, opts) {
+  opts = opts || {};
+  const excludeEndpoint = opts.excludeEndpoint || "";
+  const onlyDeviceId = opts.onlyDeviceId || "";
+  const onlyWho = opts.onlyWho || "";
+  if (!notices.length || !setupVapid()) return { sent: 0, failed: 0, skipped: 0 };
+  if (!Array.isArray(data.pushSubs) || !data.pushSubs.length) {
+    return { sent: 0, failed: 0, skipped: 0 };
+  }
 
+  let sent = 0;
+  let failed = 0;
+  let skipped = 0;
   const keep = [];
+
+  async function deliverOne(sub, n) {
+    const payload = {
+      title: n.title,
+      body: n.body,
+      tag: n.tag,
+      url: n.url || "/tracker/",
+    };
+    await webpush.sendNotification(
+      { endpoint: sub.endpoint, keys: sub.keys },
+      JSON.stringify(payload)
+    );
+  }
+
+  /* Build work list, then run deliveries in parallel (caps hang on dead endpoints) */
+  const jobs = [];
   for (const sub of data.pushSubs) {
     if (!sub || !sub.endpoint) continue;
     if (excludeEndpoint && sub.endpoint === excludeEndpoint) {
       keep.push(sub);
+      skipped++;
       continue;
     }
-    let dead = false;
-    for (const n of notices) {
-      if (!noticeMatchesSub(n, sub)) continue;
-      /* Strip internal `to` before sending (not needed by SW) */
-      const payload = {
-        title: n.title,
-        body: n.body,
-        tag: n.tag,
-        url: n.url || "/tracker/",
-      };
-      try {
-        await webpush.sendNotification(
-          { endpoint: sub.endpoint, keys: sub.keys },
-          JSON.stringify(payload)
-        );
-      } catch (err) {
-        const code = err && (err.statusCode || err.status);
-        if (code === 404 || code === 410) {
-          dead = true;
-          break;
+    if (onlyDeviceId && String(sub.deviceId || "") !== String(onlyDeviceId)) {
+      keep.push(sub);
+      skipped++;
+      continue;
+    }
+    if (onlyWho && String(sub.who || "") !== String(onlyWho) && !onlyDeviceId) {
+      keep.push(sub);
+      skipped++;
+      continue;
+    }
+    const matching = notices.filter((n) => noticeMatchesSub(n, sub));
+    if (!matching.length) {
+      keep.push(sub);
+      skipped++;
+      continue;
+    }
+    jobs.push({ sub, matching });
+  }
+
+  const results = await Promise.all(
+    jobs.map(async ({ sub, matching }) => {
+      let dead = false;
+      let localSent = 0;
+      let localFailed = 0;
+      for (const n of matching) {
+        try {
+          await deliverOne(sub, n);
+          localSent++;
+        } catch (err) {
+          const code = err && (err.statusCode || err.status);
+          if (code === 404 || code === 410) {
+            dead = true;
+            localFailed++;
+            break;
+          }
+          localFailed++;
         }
       }
-    }
-    if (!dead) keep.push(sub);
+      return { sub, dead, localSent, localFailed };
+    })
+  );
+
+  for (const r of results) {
+    sent += r.localSent;
+    failed += r.localFailed;
+    if (!r.dead) keep.push(r.sub);
   }
   data.pushSubs = keep.slice(-SUB_CAP);
+  return { sent, failed, skipped };
 }
 
 export default async (req, context) => {
@@ -1049,14 +1106,31 @@ export default async (req, context) => {
   }
 
   if (action === "load") {
-    if (securityWiped) addLog("security log reset (start from scratch)");
-    touchDevice();
-    /* Polling / auto-open uses silent — don't spam the security log as "login" */
-    if (!body.silent) addLog("login");
+    /*
+     * Silent polls must stay cheap: do not rewrite the whole blob every 20s.
+     * Only persist when seed/link/security/login actually changed data.
+     */
+    let dirty = false;
+    if (securityWiped) {
+      addLog("security log reset (start from scratch)");
+      dirty = true;
+    }
+    if (!body.silent) {
+      touchDevice();
+      addLog("login");
+      dirty = true;
+    }
     /* Install real spreadsheet APA as first live records (once); link missing APA charges */
-    if (ensureSheetApaSeed(data)) addLog("seed sheet APA (Joel Freeland)");
-    if (ensureApaChargesLinked(data)) addLog("link APA charges");
-    await saveData(store, data);
+    if (ensureSheetApaSeed(data)) {
+      addLog("seed sheet APA (Joel Freeland)");
+      dirty = true;
+    }
+    if (ensureApaChargesLinked(data)) {
+      addLog("link APA charges");
+      dirty = true;
+    }
+    if (dirty) await saveData(store, data);
+
     const out = {
       role,
       devices: data.devices,
@@ -1064,10 +1138,10 @@ export default async (req, context) => {
       pushEnabled: vapidConfigured(),
       vapidPublicKey: process.env.TRACKER_VAPID_PUBLIC_KEY || "",
     };
-    /* Commercial: captain + manager */
+    /* Commercial: captain + manager — always full arrays when allowed (never omit keys) */
     if (canCommercial(who, role)) {
-      out.charters = data.charters;
-      out.leads = data.leads;
+      out.charters = Array.isArray(data.charters) ? data.charters : [];
+      out.leads = Array.isArray(data.leads) ? data.leads : [];
     } else {
       out.charters = [];
       out.leads = [];
@@ -1138,9 +1212,15 @@ export default async (req, context) => {
     }
     touchDevice();
     addLog("save " + coll + (notices.length ? " (+notify " + notices.length + ")" : ""));
-    await sendPushes(data, notices, body.pushEndpoint || "");
+    const pushResult = await sendPushes(data, notices, {
+      excludeEndpoint: body.pushEndpoint || "",
+    });
     await saveData(store, data);
-    return json({ ok: true, notified: notices.length });
+    return json({
+      ok: true,
+      notified: notices.length,
+      pushSent: pushResult.sent || 0,
+    });
   }
 
   if (action === "trust") {
@@ -1184,21 +1264,50 @@ export default async (req, context) => {
   if (action === "push-test") {
     if (!vapidConfigured()) return json({ error: "Push not configured on server" }, 503);
     touchDevice();
-    addLog("push test");
-    await sendPushes(
-      data,
-      [
-        {
-          title: "Limitless Tracker",
-          body: "Test notification — push is working (" + who + ")",
-          tag: "tracker-test",
-          url: "/tracker/",
-        },
-      ],
-      ""
+    const notice = {
+      title: "Limitless Tracker",
+      body: "Test notification — push is working (" + who + ")",
+      tag: "tracker-test-" + Date.now(),
+      url: "/tracker/",
+      to: "all",
+    };
+    /* Prefer this device's subscription; fall back to same who, then everyone */
+    let result = { sent: 0, failed: 0, skipped: 0 };
+    if (deviceId) {
+      result = await sendPushes(data, [notice], { onlyDeviceId: deviceId });
+    }
+    if (!(result.sent > 0) && who) {
+      result = await sendPushes(data, [notice], { onlyWho: who });
+    }
+    if (!(result.sent > 0)) {
+      result = await sendPushes(data, [notice], {});
+    }
+    addLog(
+      "push test sent=" +
+        (result.sent || 0) +
+        " failed=" +
+        (result.failed || 0) +
+        " subs=" +
+        (data.pushSubs || []).length
     );
     await saveData(store, data);
-    return json({ ok: true });
+    if (!(result.sent > 0)) {
+      return json(
+        {
+          ok: false,
+          error: "No active push subscription for this device. Tap Enable alerts first.",
+          sent: 0,
+          subscribed: (data.pushSubs || []).length,
+        },
+        400
+      );
+    }
+    return json({
+      ok: true,
+      sent: result.sent,
+      failed: result.failed,
+      subscribed: (data.pushSubs || []).length,
+    });
   }
 
   return json({ error: "unknown action" }, 400);
