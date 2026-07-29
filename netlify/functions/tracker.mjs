@@ -8,11 +8,8 @@
 
 import { getStore } from "@netlify/blobs";
 import webpush from "web-push";
-import { createRequire } from "module";
 import { parseIcs, siteCalendarPublicPayload } from "./lib/ics.mjs";
-
-const require = createRequire(import.meta.url);
-const LY = require("../../tracker/js/models.js");
+import * as LY from "./lib/leads-import.mjs";
 
 const BLOB_KEY = "data";
 const LOG_CAP = 500;
