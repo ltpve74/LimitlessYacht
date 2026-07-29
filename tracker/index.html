@@ -1113,8 +1113,16 @@ function syncStewAssignsFromCalendar(){
   var dirty=false;
   state.stewAssign.forEach(function(a){
     if(!a||!a.eventKey) return;
+    /* Cancelled / ghost rows keep commercial dates — do not follow a wrong ICS pin to the 14th */
+    if(isLeadCancelGhostKey(a.eventKey)||a.cancelGhost) return;
+    if(a.cancelled||a.status==="cancelled") return;
     var ev=calendarEventByKey(a.eventKey);
     if(!ev) return;
+    /* Refuse to adopt a title that no longer matches a linked lead guest */
+    if(a.leadId&&ev.summary){
+      var L=(state.leads||[]).filter(function(x){return x&&String(x.id)===String(a.leadId);})[0];
+      if(L&&!stewSummaryMatchesLead(ev.summary, L)) return;
+    }
     var ns=String(ev.start||"").slice(0,10), os=String(a.start||"").slice(0,10);
     var ne=String(ev.end||ev.start||"").slice(0,10), oe=String(a.end||a.start||"").slice(0,10);
     if(ns&&ns!==os){ a.start=ns; dirty=true; }
@@ -1129,8 +1137,8 @@ function syncStewAssignsFromCalendar(){
   return dirty;
 }
 /**
- * For every cancelled lead, clear stew pay via calendarEventKey / leadId.
- * Soft-match only when no id link yet (legacy), then pin calendarEventKey.
+ * For every cancelled lead, ensure a cancelled stew row (hard id or leadcancel ghost).
+ * No soft name/date steal — deleting Alvaro from ICS must not cancel Oliver.
  */
 function syncCancelledLeadsToStews(){
   if(!isCaptain()) return false;
@@ -1465,17 +1473,20 @@ function stewEventsForLead(lead){
     }, true);
   });
   if(out.length) return out;
-  /* 3) Legacy soft match (name + date) — only when unlinked */
+  /* 3) Legacy soft match (name + date) — only when unlinked; never steal another lead’s assign */
   function soft(ev){
     if(!ev||!ev.key||seen[ev.key]) return;
     if(stewIsOffEvent&&stewIsOffEvent(ev)) return;
+    var a0=(state.stewAssign||[]).filter(function(x){return x&&String(x.eventKey)===String(ev.key);})[0];
+    if(a0&&stewAssignOwnedByOtherLead(a0, lead)) return;
     if(!stewSummaryMatchesLead(ev.summary||"", lead)) return;
     if(!leadDateOverlapsEvent(lead, ev)) return;
-    take(ev, false);
+    take(Object.assign({}, ev, {source:ev.source||"cal-soft"}), false);
   }
   try{ (stewMergedEvents()||[]).forEach(soft); }catch(e){}
   (state.stewAssign||[]).forEach(function(a){
     if(!a||!a.eventKey||seen[a.eventKey]) return;
+    if(stewAssignOwnedByOtherLead(a, lead)) return;
     if(!stewSummaryMatchesLead(a.summary||"", lead)) return;
     if(!leadDateOverlapsEvent(lead, {start:a.start, end:a.end||a.start})) return;
     take({
@@ -1486,79 +1497,213 @@ function stewEventsForLead(lead){
   return out;
 }
 /**
+ * True when this stew row is already owned by a *different* lead.
+ * Soft cancel must never steal Oliver to cancel Alvaro.
+ */
+function stewAssignOwnedByOtherLead(a, lead){
+  if(!a||!lead||!lead.id) return false;
+  var lid=String(a.leadId||a.cancelLeadId||"").trim();
+  if(!lid) return false;
+  return lid!==String(lead.id);
+}
+/** Durable cancel row when ICS event was deleted (does not depend on Google Calendar). */
+function leadCancelGhostKey(lead){
+  if(!lead||!lead.id) return "";
+  return "leadcancel:"+String(lead.id);
+}
+function isLeadCancelGhostKey(key){
+  return String(key||"").indexOf("leadcancel:")===0;
+}
+/**
+ * Apply cancelled flags on one stew assign for a lead (no day pay / tip).
+ */
+function markStewAssignCancelledForLead(asg, lead, opts){
+  opts=opts||{};
+  if(!asg||!lead) return false;
+  if(asg.cancelOverride&&!opts.force) return false;
+  asg.leadId=String(lead.id||"");
+  asg.cancelled=true;
+  asg.status="cancelled";
+  asg.cancelOverride=false;
+  asg.payStatus="Unpaid";
+  asg.payStatusManual=true;
+  asg.tipPayStatus="Unpaid";
+  asg.tipTotal="";
+  asg.payEach=0;
+  asg.cancelLeadId=String(lead.id||"");
+  asg.cancelReason=lead.cancelReason||(leadInvStatus(lead.deps)==="Refunded"?"deposit-refunded":"manual");
+  if(opts.summary) asg.summary=opts.summary;
+  if(opts.start) asg.start=opts.start;
+  if(opts.end) asg.end=opts.end;
+  if(!/no stew pay/i.test(String(asg.notes||""))){
+    asg.notes=((asg.notes?asg.notes+" · ":"")+"Cancelled with lead "+(lead.name||"")+" — no stew pay").trim();
+  }
+  asg.updatedAt=new Date().toISOString();
+  return true;
+}
+/**
+ * Ensure a cancelled lead always has its own stew cancel row (even if ICS deleted).
+ * Uses leadcancel:{lead.id} when no safe calendar key remains — never steals Oliver.
+ */
+function ensureCancelledLeadStewGhost(lead){
+  if(!isCaptain()||!lead||!lead.id||!leadIsCancelled(lead)) return false;
+  if(!state.stewAssign) state.stewAssign=[];
+  var lid=String(lead.id);
+  /* Prefer an existing assign already correctly tied to this lead */
+  var own=(state.stewAssign||[]).filter(function(a){
+    if(!a||!a.eventKey) return false;
+    if(a.cancelOverride) return false;
+    if(isLeadCancelGhostKey(a.eventKey)&&String(a.eventKey)===leadCancelGhostKey(lead)) return true;
+    if(String(a.leadId||"")===lid||String(a.cancelLeadId||"")===lid){
+      var sum=stewAssignSummary(a)||a.summary||"";
+      if(sum&&!stewSummaryMatchesLead(sum, lead)&&!isLeadCancelGhostKey(a.eventKey)) return false;
+      return true;
+    }
+    return false;
+  })[0];
+  if(own){
+    return markStewAssignCancelledForLead(own, lead, {
+      summary:own.summary||lead.name||"Cancelled charter",
+      start:own.start||lead.start||lead.cdate||"",
+      end:own.end||lead.end||lead.start||lead.cdate||""
+    });
+  }
+  /* Safe calendar key only if event missing OR title matches this guest */
+  var ek="";
+  var ck=leadCalendarEventKey(lead);
+  if(ck){
+    var sumCk="";
+    try{
+      var evCk=calendarEventByKey(ck);
+      if(evCk&&evCk.summary) sumCk=evCk.summary;
+    }catch(e0){}
+    var asgCk=(state.stewAssign||[]).filter(function(a){return a&&String(a.eventKey)===String(ck);})[0];
+    if(asgCk&&!sumCk) sumCk=asgCk.summary||"";
+    if(asgCk&&asgCk.cancelOverride){
+      lead.calendarEventKey=""; lead.calendarUid=""; ck="";
+    } else if(sumCk&&!stewSummaryMatchesLead(sumCk, lead)){
+      lead.calendarEventKey=""; lead.calendarUid=""; ck="";
+    } else {
+      ek=ck;
+    }
+  }
+  if(!ek) ek=leadCancelGhostKey(lead);
+  var asg=(state.stewAssign||[]).filter(function(a){return a&&String(a.eventKey)===String(ek);})[0];
+  if(!asg){
+    asg={
+      id:uid(), eventKey:ek,
+      summary:lead.name||"Cancelled charter",
+      start:String(lead.start||lead.cdate||"").slice(0,10),
+      end:String(lead.end||lead.start||lead.cdate||"").slice(0,10),
+      stewIds:[], dayRate:"", payUnits:1, payEach:0,
+      payStatus:"Unpaid", payStatusManual:true,
+      tipTotal:"", tipPayStatus:"Unpaid", notes:"",
+      cancelGhost:true,
+      updatedAt:new Date().toISOString(), by:session.who||"Captain"
+    };
+    state.stewAssign.unshift(asg);
+  }
+  markStewAssignCancelledForLead(asg, lead, {
+    summary:asg.summary||lead.name||"Cancelled charter",
+    start:asg.start||String(lead.start||lead.cdate||"").slice(0,10),
+    end:asg.end||String(lead.end||lead.start||lead.cdate||"").slice(0,10)
+  });
+  asg.cancelGhost=true;
+  /* Do not pin live ICS uids from ghost-only path — leadcancel stays local */
+  if(isLeadCancelGhostKey(ek)){
+    /* keep commercial dates on lead; clear bad ICS pin if any remains mismatched */
+  }
+  return true;
+}
+/**
  * Mark stew assigns for this lead cancelled — no day pay / tip due.
- * Identity: calendarEventKey / leadId first; soft match only if unlinked.
- * Pins calendarEventKey when a soft match is used so future reschedules stay linked.
+ * Identity (strict, no soft steal):
+ *  1. stewAssign already linked to lead.id (name must match if title known)
+ *  2. lead.calendarEventKey only if ICS title matches guest or event is gone
+ *  3. Otherwise durable ghost leadcancel:{lead.id} (survives ICS delete)
+ * Never cancel by name/date or “only assign left that day”.
  */
 function cancelStewsForLead(lead){
   if(!isCaptain()||!lead) return {n:0, keys:[]};
-  var events=stewEventsForLead(lead);
   if(!state.stewAssign) state.stewAssign=[];
   var keys={}, dirty=false, touched=[];
-  events.forEach(function(ev){ if(ev&&ev.key) keys[ev.key]=1; });
-  /* Explicit reverse link */
+  function takeKey(ek){ if(ek) keys[String(ek)]=1; }
+
+  /* 1) Reverse link — only rows that still look like this guest */
   (state.stewAssign||[]).forEach(function(a){
-    if(a&&a.eventKey&&String(a.leadId||a.cancelLeadId||"")===String(lead.id||"")) keys[a.eventKey]=1;
+    if(!a||!a.eventKey) return;
+    if(a.cancelOverride) return;
+    if(String(a.leadId||a.cancelLeadId||"")!==String(lead.id||"")) return;
+    var sumR=stewAssignSummary(a)||a.summary||"";
+    if(sumR&&!isLeadCancelGhostKey(a.eventKey)&&!stewSummaryMatchesLead(sumR, lead)){
+      if(String(a.leadId||"")===String(lead.id||"")) a.leadId="";
+      if(String(a.cancelLeadId||"")===String(lead.id||"")) a.cancelLeadId="";
+      dirty=true;
+      return;
+    }
+    takeKey(a.eventKey);
   });
-  /* Explicit lead calendar key even if event missing from feed */
+  /* 2) Explicit lead calendar key — refuse if it names another guest (Oliver pin) */
   var ck=leadCalendarEventKey(lead);
-  if(ck) keys[ck]=1;
-  /*
-   * Soft fallback for legacy unlinked cancels (manual refund without Cancel button):
-   *  - summary mentions guest (any date — event may have moved on-hold)
-   *  - or original lead date still has exactly one stew assign (day charter)
-   */
-  if(!Object.keys(keys).length||!ck){
-    (state.stewAssign||[]).forEach(function(a){
-      if(!a||!a.eventKey||a.cancelled) return;
-      if(stewSummaryMatchesLead(a.summary||"", lead)) keys[a.eventKey]=1;
-    });
-    try{
-      (stewMergedEvents()||[]).forEach(function(ev){
-        if(!ev||!ev.key) return;
-        if(stewSummaryMatchesLead(ev.summary||"", lead)) keys[ev.key]=1;
-      });
-    }catch(e2){}
-    var lsSoft=String(lead.start||lead.cdate||"").slice(0,10);
-    if(lsSoft&&!Object.keys(keys).length){
-      var sameDay=(state.stewAssign||[]).filter(function(a){
-        return a&&a.eventKey&&!a.cancelled&&String(a.start||"").slice(0,10)===lsSoft&&(a.stewIds||[]).length;
-      });
-      if(sameDay.length===1) keys[sameDay[0].eventKey]=1;
+  if(ck){
+    var asgCk=(state.stewAssign||[]).filter(function(a){return a&&String(a.eventKey)===String(ck);})[0];
+    if(asgCk&&asgCk.cancelOverride){
+      lead.calendarEventKey=""; lead.calendarUid=""; ck=""; dirty=true;
+    } else {
+      var sumCk=asgCk?stewAssignSummary(asgCk):"";
+      try{
+        var evCk=calendarEventByKey(ck);
+        if(evCk&&evCk.summary) sumCk=evCk.summary;
+      }catch(eCk){}
+      if(sumCk&&!stewSummaryMatchesLead(sumCk, lead)){
+        lead.calendarEventKey=""; lead.calendarUid=""; ck=""; dirty=true;
+      } else {
+        takeKey(ck);
+      }
     }
   }
+  /* 3) No safe calendar home → durable ghost (ICS deleted / never linked) */
+  if(!Object.keys(keys).length){
+    takeKey(leadCancelGhostKey(lead));
+  }
+
   Object.keys(keys).forEach(function(ek){
     var asg=(state.stewAssign||[]).filter(function(a){return a&&String(a.eventKey)===String(ek);})[0];
-    var ev=events.filter(function(e){return e&&e.key===ek;})[0]||calendarEventByKey(ek);
+    if(asg&&asg.cancelOverride) return;
+    var ev=null;
+    try{ ev=calendarEventByKey(ek); }catch(eEv){ ev=null; }
+    var sumAsg=(asg&&(stewAssignSummary(asg)||asg.summary))||(ev&&ev.summary)||"";
+    /* Refuse cancelling a live calendar row that clearly names another guest */
+    if(!isLeadCancelGhostKey(ek)&&sumAsg&&!stewSummaryMatchesLead(sumAsg, lead)){
+      if(String(leadCalendarEventKey(lead))===String(ek)){
+        lead.calendarEventKey=""; lead.calendarUid=""; dirty=true;
+      }
+      return;
+    }
     if(!asg){
       asg={
-        id:uid(), eventKey:ek, summary:(ev&&ev.summary)||(lead.name||"Cancelled charter"),
-        start:(ev&&ev.start)||lead.start||"", end:(ev&&ev.end)||lead.end||lead.start||"",
-        stewIds:[], dayRate:"", payUnits:1, payEach:0, payStatus:"Unpaid", payStatusManual:true,
-        tipTotal:"", tipPayStatus:"Unpaid", notes:"", updatedAt:new Date().toISOString(), by:session.who||"Captain"
+        id:uid(), eventKey:ek,
+        summary:(ev&&ev.summary)||(lead.name||"Cancelled charter"),
+        start:(ev&&ev.start)||String(lead.start||lead.cdate||"").slice(0,10),
+        end:(ev&&ev.end)||String(lead.end||lead.start||lead.cdate||"").slice(0,10),
+        stewIds:[], dayRate:"", payUnits:1, payEach:0,
+        payStatus:"Unpaid", payStatusManual:true,
+        tipTotal:"", tipPayStatus:"Unpaid", notes:"",
+        cancelGhost:isLeadCancelGhostKey(ek)||!ev,
+        updatedAt:new Date().toISOString(), by:session.who||"Captain"
       };
       state.stewAssign.unshift(asg);
     }
-    /* Pin identity both ways */
-    asg.leadId=String(lead.id||"");
-    asg.cancelled=true;
-    asg.status="cancelled";
-    asg.payStatus="Unpaid";
-    asg.payStatusManual=true;
-    asg.tipPayStatus="Unpaid";
-    asg.cancelLeadId=String(lead.id||"");
-    asg.cancelReason=lead.cancelReason||(leadInvStatus(lead.deps)==="Refunded"?"deposit-refunded":"manual");
-    if(!/no stew pay/i.test(String(asg.notes||""))){
-      asg.notes=((asg.notes?asg.notes+" · ":"")+"Cancelled with lead "+(lead.name||"")+" — no stew pay").trim();
+    if(markStewAssignCancelledForLead(asg, lead, {
+      summary:asg.summary||(ev&&ev.summary)||lead.name||"Cancelled charter",
+      start:asg.start||(ev&&ev.start)||String(lead.start||lead.cdate||"").slice(0,10),
+      end:asg.end||(ev&&ev.end)||String(lead.end||lead.start||lead.cdate||"").slice(0,10)
+    })){
+      if(isLeadCancelGhostKey(ek)||!ev) asg.cancelGhost=true;
+      dirty=true;
+      touched.push(ek);
     }
-    asg.updatedAt=new Date().toISOString();
-    dirty=true;
-    touched.push(ek);
-    if(!leadCalendarEventKey(lead)){
-      lead.calendarEventKey=ek;
-      lead.calendarUid=ek.indexOf("uid:")===0?ek.slice(4):ek;
-    }
-    /* Drop crew day-pay expense lines for this event (Toni unpaid etc.) */
+    /* Drop crew day-pay expense lines for this event */
     if(state.expenses&&state.expenses.length){
       var n0=state.expenses.length;
       state.expenses=state.expenses.filter(function(e){
@@ -1570,15 +1715,139 @@ function cancelStewsForLead(lead){
       if(state.expenses.length!==n0) dirty=true;
     }
   });
+  /* Always leave a cancelled stew row for this lead (ghost if ICS gone) */
+  if(leadIsCancelled(lead)&&!touched.length){
+    if(ensureCancelledLeadStewGhost(lead)){
+      dirty=true;
+      touched.push(leadCancelGhostKey(lead));
+    }
+  } else if(leadIsCancelled(lead)){
+    /* Also ensure ghost if we only cleared bad pins and never wrote a row */
+    var hasOwn=(state.stewAssign||[]).some(function(a){
+      return a&&(a.cancelled||a.status==="cancelled")&&
+        (String(a.cancelLeadId||"")===String(lead.id)||String(a.leadId||"")===String(lead.id)||
+         String(a.eventKey)===leadCancelGhostKey(lead));
+    });
+    if(!hasOwn&&ensureCancelledLeadStewGhost(lead)){
+      dirty=true;
+      touched.push(leadCancelGhostKey(lead));
+    }
+  }
   if(dirty){
     if(!DEMO){
       saveStewAssign();
       saveExpenses();
-      /* Persist pinned calendarEventKey on lead */
       try{ save("leads"); }catch(e3){}
     }
   }
   return {n:touched.length, keys:touched};
+}
+/** Guest name embedded in auto cancel notes: "Cancelled with lead Alvaro — no stew pay" */
+function guestNameFromStewCancelNote(notes){
+  var m=String(notes||"").match(/Cancelled with lead\s+(.+?)\s*[—\-\u2013]\s*no stew pay/i);
+  if(m&&m[1]) return m[1].replace(/\s+/g," ").trim();
+  m=String(notes||"").match(/Cancelled with lead\s+([^·\n]+?)(?:\s*[—\-\u2013]\s*no stew pay)?\s*$/i);
+  if(m&&m[1]) return m[1].replace(/\s*[—\-\u2013]\s*no stew pay\s*$/i,"").replace(/\s+/g," ").trim();
+  m=String(notes||"").match(/Cancelled with lead\s+([^·\n]+)/i);
+  if(!m||!m[1]) return "";
+  return m[1].replace(/\s*[—\-\u2013]\s*no stew pay\s*/i,"").replace(/\s+/g," ").trim();
+}
+function stripStewCancelNotes(notes){
+  return String(notes||"")
+    .replace(/\s*·?\s*Cancelled with lead[^·\n]*/gi,"")
+    .replace(/\s*·?\s*Cancelled\s*[—\-\u2013]\s*no stew pay/gi,"")
+    .replace(/^[\s·]+|[\s·]+$/g,"")
+    .trim();
+}
+/**
+ * Best-effort calendar title for an assign (prefer live ICS, then stored summary).
+ */
+function stewAssignSummary(a){
+  if(!a) return "";
+  try{
+    var ev=calendarEventByKey(a.eventKey);
+    if(ev&&ev.summary) return String(ev.summary);
+  }catch(e0){}
+  return String(a.summary||"");
+}
+/**
+ * Undo false stew cancels (Alvaro ICS gone → nearest day pin hit Oliver).
+ * Triggers: wrong guest vs lead/note, active lead, missing lead, captain cancelOverride.
+ */
+function repairFalseStewCancels(){
+  if(!isCaptain()||!state.stewAssign||!state.stewAssign.length) return false;
+  var dirty=false;
+  var leadById={};
+  (state.leads||[]).forEach(function(l){ if(l&&l.id) leadById[String(l.id)]=l; });
+  function uncancelAssign(a, clearLeadId){
+    a.cancelled=false;
+    if(a.status==="cancelled") a.status="booked";
+    a.cancelLeadId="";
+    a.cancelReason="";
+    a.cancelOverride=true; /* stick: sync must not re-cancel this eventKey */
+    if(clearLeadId) a.leadId="";
+    a.notes=stripStewCancelNotes(a.notes);
+    a.updatedAt=new Date().toISOString();
+    dirty=true;
+  }
+  state.stewAssign.forEach(function(a){
+    if(!a||!a.eventKey) return;
+    /* Captain override always wins (manual uncancel) */
+    if(a.cancelOverride&&(a.cancelled||a.status==="cancelled")){
+      uncancelAssign(a, false);
+      return;
+    }
+    if(!(a.cancelled||a.status==="cancelled")) return;
+    var cid=String(a.cancelLeadId||a.leadId||"").trim();
+    var lead=cid?leadById[cid]:null;
+    var sum=stewAssignSummary(a);
+    var wrongGuest=false;
+    if(lead&&sum&&!stewSummaryMatchesLead(sum, lead)) wrongGuest=true;
+    /* Notes: “Cancelled with lead Alvaro” but calendar title is Oliver */
+    var noteGuest=guestNameFromStewCancelNote(a.notes);
+    if(noteGuest&&sum&&!stewSummaryMatchesLead(sum, {name:noteGuest})) wrongGuest=true;
+    /* Even with empty stored summary, note guest ≠ any token in calendar event title */
+    if(!wrongGuest&&noteGuest){
+      try{
+        var evN=calendarEventByKey(a.eventKey);
+        if(evN&&evN.summary&&!stewSummaryMatchesLead(evN.summary, {name:noteGuest})) wrongGuest=true;
+      }catch(eN){}
+    }
+    var leadActive=lead?!leadIsCancelled(lead):false;
+    var orphanCancel=!lead&&!!cid;
+    if(!(wrongGuest||leadActive||orphanCancel)) return;
+    if(lead&&leadIsCancelled(lead)&&!wrongGuest) return;
+    /* Drop reverse link when it pointed at the wrong (or cancelled-mismatched) lead */
+    var dropLink=wrongGuest||orphanCancel||(leadActive&&cid&&String(a.leadId||"")===cid);
+    if(wrongGuest&&cid) dropLink=true;
+    uncancelAssign(a, dropLink&&String(a.leadId||"")===cid);
+    if(wrongGuest) a.leadId=""; /* always clear wrong guest pin */
+  });
+  /*
+   * Clear calendarEventKey when it points at a different guest's event
+   * (soft-pin bug: cancelled Alvaro held Oliver's uid → re-sync would re-cancel Oliver).
+   */
+  (state.leads||[]).forEach(function(l){
+    if(!l) return;
+    var ck=leadCalendarEventKey(l);
+    if(!ck) return;
+    var asg=(state.stewAssign||[]).filter(function(a){return a&&String(a.eventKey)===String(ck);})[0];
+    var sum=asg?stewAssignSummary(asg):"";
+    try{
+      var ev=calendarEventByKey(ck);
+      if(ev&&ev.summary) sum=ev.summary;
+    }catch(e1){}
+    if(sum&&!stewSummaryMatchesLead(sum, l)){
+      l.calendarEventKey="";
+      l.calendarUid="";
+      dirty=true;
+    }
+  });
+  if(dirty&&!DEMO){
+    saveStewAssign();
+    try{ save("leads"); }catch(e2){}
+  }
+  return dirty;
 }
 /**
  * Captain weather cancel (or similar): booking cancelled, deposit refunded,
@@ -8086,6 +8355,9 @@ function ensureStewAssignFromCalendar(){
   var changed=false;
   var ignoredMap={}; /* nameNorm -> {token, dates:[]} */
   events.forEach(function(ev){
+    if(!ev||!ev.key) return;
+    if(ev.cancelled||String(ev.status||"").toLowerCase()==="cancelled"||ev.source==="cancel-ghost") return;
+    if(isLeadCancelGhostKey(ev.key)) return;
     var tokens=stewNamesFromSummary(ev.summary);
     if(!tokens.length) return;
     var ids=[], order=[];
@@ -8131,12 +8403,17 @@ function ensureStewAssignFromCalendar(){
     var keepTips=asg&&asg.tipTotal!=null?asg.tipTotal:"";
     var keepTipPay=asg&&asg.tipPayStatus==="Paid"?"Paid":(asg&&asg.tipPayStatus==="Unpaid"?"Unpaid":"Unpaid");
     var keepNotes=(asg&&asg.notes)||"";
+    var keepOverride=!!(asg&&asg.cancelOverride);
     var keepCancelled=!!(asg&&(asg.cancelled||asg.status==="cancelled"));
+    /* Captain uncancelled — calendar auto-assign must not re-mark cancelled */
+    if(keepOverride) keepCancelled=false;
     var keepLeadId=(asg&&asg.leadId)||"";
-    var keepCancelLead=(asg&&asg.cancelLeadId)||"";
+    var keepCancelLead=keepCancelled?((asg&&asg.cancelLeadId)||""):"";
+    var keepCancelReason=keepCancelled?((asg&&asg.cancelReason)||""):"";
     if(asg&&prevKey===idsKey&&asg.payStatus===keepPay
       &&apaNum(asg.dayRate)===keepRate&&apaNum(asg.payUnits||1)===keepUnits
-      &&!!asg.cancelled===keepCancelled&&String(asg.leadId||"")===String(keepLeadId)) return;
+      &&!!asg.cancelled===keepCancelled&&!!asg.cancelOverride===keepOverride
+      &&String(asg.leadId||"")===String(keepLeadId)) return;
     /* Cancelled charter: never revive pay or drop lead id when calendar auto-refreshes */
     if(keepCancelled){
       keepPay="Unpaid";
@@ -8154,6 +8431,8 @@ function ensureStewAssignFromCalendar(){
       allDay:!!ev.allDay,
       status:keepCancelled?"cancelled":(ev.status||"booked"),
       cancelled:keepCancelled,
+      cancelOverride:keepOverride,
+      cancelReason:keepCancelReason,
       leadId:keepLeadId,
       cancelLeadId:keepCancelLead,
       stewIds:ids,
@@ -8560,10 +8839,25 @@ function stewCalendarKnownKeys(){
   return keys;
 }
 /**
+ * Keep this stew assign even if its ICS uid is gone from the feed.
+ * Cancelled commercial rows (Alvaro deleted from Google) must not be purged.
+ */
+function stewAssignIsProtectedFromPurge(a){
+  if(!a||!a.eventKey) return false;
+  if(isLeadCancelGhostKey(a.eventKey)||a.cancelGhost) return true;
+  if(a.cancelled||a.status==="cancelled") return true;
+  if(a.cancelLeadId) return true;
+  /* Active lead still linked — keep until lead unlinks (rare if ICS deleted) */
+  if(a.leadId){
+    var L=(state.leads||[]).filter(function(x){return x&&String(x.id)===String(a.leadId);})[0];
+    if(L&&leadIsCancelled(L)) return true;
+  }
+  return false;
+}
+/**
  * Drop stewAssign (+ expense day-pay lines) for calendar events that no longer
  * exist in seed/live. Fixes “deleted the leftover 14th but roster still shows it”.
- * Paid rows without a calendar home are also dropped (pay was on a ghost day) —
- * overnight 13–14 keeps its own eventKey; the deleted single-day uid is the orphan.
+ * Does NOT drop cancelled-lead ghosts (ICS deleted after cancel — Alvaro).
  */
 function purgeOrphanStewAssigns(){
   if(!isCaptain()||!state.stewAssign||!state.stewAssign.length) return false;
@@ -8575,7 +8869,8 @@ function purgeOrphanStewAssigns(){
     if(!a||!a.eventKey) return;
     var k=String(a.eventKey);
     if(known[k]) return;
-    /* Not in calendar feed → ghost (deleted ICS event or bad uid) */
+    if(stewAssignIsProtectedFromPurge(a)) return;
+    /* Not in calendar feed → ghost (deleted leftover day / bad uid) */
     drop[k]=1;
   });
   if(!Object.keys(drop).length) return false;
@@ -8598,7 +8893,7 @@ function purgeOrphanStewAssigns(){
     });
     if(state.expenses.length!==e0) dirty=true;
   }
-  /* Clear lead calendar links pointing at purged keys */
+  /* Clear lead calendar links pointing at purged keys (not cancelled ghosts) */
   (state.leads||[]).forEach(function(l){
     if(!l) return;
     var ck=leadCalendarEventKey(l);
@@ -8616,11 +8911,43 @@ function purgeOrphanStewAssigns(){
   return dirty;
 }
 /**
- * Full list for Stews UI: calendar feed (seed+live, live authority) only.
- * Does NOT re-inject deleted assigns as fake charters (that caused double 13–14 + 14).
+ * Full list for Stews UI: calendar feed + cancelled commercial ghosts.
+ * Ghosts (leadcancel:* / cancelled assigns with no live ICS) stay visible so
+ * Alvaro remains on the roster after ICS delete. Does NOT re-inject non-cancelled
+ * orphan days (that caused double 13–14 + 14).
  */
 function stewMergedEvents(){
   var list=stewCalendarFeedEvents();
+  var seen={};
+  list.forEach(function(ev){
+    if(ev&&ev.key) seen[String(ev.key)]=1;
+    if(ev){
+      var id=stewEventId(ev);
+      if(id) seen[String(id)]=1;
+    }
+  });
+  (state.stewAssign||[]).forEach(function(a){
+    if(!a||!a.eventKey||!a.start) return;
+    var k=String(a.eventKey);
+    if(seen[k]) return;
+    if(!(a.cancelled||a.status==="cancelled"||isLeadCancelGhostKey(k)||a.cancelGhost)) return;
+    /* Skip "off" titles if any */
+    if(stewIsOffEvent&&stewIsOffEvent(a)) return;
+    list.push({
+      key:k,
+      summary:a.summary||"Cancelled charter",
+      start:a.start,
+      end:a.end||a.start,
+      startTime:a.startTime||"",
+      endTime:a.endTime||"",
+      allDay:!!a.allDay,
+      status:"cancelled",
+      cancelled:true,
+      source:"cancel-ghost",
+      leadId:a.leadId||a.cancelLeadId||""
+    });
+    seen[k]=1;
+  });
   return list.sort(function(a,b){
     var c=String(b.start||"").localeCompare(String(a.start||""));
     if(c) return c;
@@ -8667,7 +8994,7 @@ function renderStews(opts){
   }
   var legend=isTeam()
     ?"Your roster (same list the captain publishes). Tap a charter to update who is on it. Day pay is set by the captain."
-    :"Full season list: <b>Refresh calendar</b> pulls the live ICS, then saves a snapshot for the team. Seed fills older days. Deleting a day in the calendar removes it here after refresh.";
+    :"Full season list: <b>Refresh calendar</b> pulls the live ICS, then saves a snapshot for the team. Seed fills older days. Leftover deleted days drop off; <b>cancelled leads stay</b> (even if removed from Google Calendar).";
   var refreshLabel=isTeam()?"Reload roster":"Refresh calendar";
   var loadingMsg=isTeam()?"Loading roster…":"Loading calendar…";
   body.innerHTML='<div class="legend">'+legend+'</div>'+
@@ -8700,13 +9027,14 @@ function renderStews(opts){
 function paintStewCharters(){
   var wrap=el("stewCalList"); if(!wrap) return;
   var today=new Date().toISOString().slice(0,10);
-  /* Drop assigns for ICS events that were deleted (e.g. leftover 14 after overnight 13–14) */
+  /* Drop assigns for leftover deleted ICS days — keep cancelled-lead ghosts */
   purgeOrphanStewAssigns();
-  var all=stewMergedEvents().filter(function(ev){ return ev&&!stewIsOffEvent(ev); });
   ensureStewAssignFromCalendar();
   ensureStewAssignPaidBeforeCut();
   syncStewAssignsFromCalendar();
-  /* Manual cancel / refunded deposit → clear stew pay via lead.id / calendar uid */
+  /* Undo bad soft cancels (Alvaro note on Oliver) before re-applying real cancelled leads */
+  repairFalseStewCancels();
+  /* Cancelled leads → durable stew cancel row (leadcancel ghost if ICS deleted) */
   syncCancelledLeadsToStews();
   /* Drop any accidental assigns on "off" days (do not touch pay flags on real charters) */
   var offKeys={};
@@ -8716,6 +9044,8 @@ function paintStewCharters(){
     state.stewAssign=state.stewAssign.filter(function(a){ return !(a&&offKeys[a.eventKey]); });
     if(state.stewAssign.length!==n0&&!DEMO) saveStewAssign();
   }
+  /* Rebuild list after cancel ghosts are created */
+  var all=stewMergedEvents().filter(function(ev){ return ev&&!stewIsOffEvent(ev); });
   var years=stewEventYears(all);
   var yf=el("stewYearFilters");
   if(yf){
@@ -9117,7 +9447,11 @@ function openStewAssign(eventKey){
     var isAsgCancelled=!!(asg.cancelled||asg.status==="cancelled");
     h+='<label class="checkrow" style="margin:8px 0 12px"><input type="checkbox" id="f_stew_cancelled"'+(isAsgCancelled?" checked":"")+'>'+
       '<span><div class="ck">Charter cancelled — no stew pay</div>'+
-      '<div class="ch">Use when the guest trip is off (weather etc.). Clears Toni/Laura pay for this calendar event only. Link a lead below so cancel/reschedule stays on the ICS uid.</div></span></label>';
+      '<div class="ch">Use when the guest trip is off (weather etc.). Clears Toni/Laura pay for this calendar event only. Uncheck + Save to restore pay if this was cancelled by mistake (e.g. wrong lead pin).</div></span></label>';
+    if(isAsgCancelled){
+      h+='<div class="banner warn show" style="margin:0 0 12px">This row is cancelled'+(asg.cancelLeadId||asg.leadId?' (linked lead)':'')+
+        '. Uncheck <b>Charter cancelled</b> above and tap <b>Save assignment</b> to restore it — a mismatched lead will not re-cancel this charter.</div>';
+    }
     /* Link to commercial lead by stable id */
     var leadOpts=(state.leads||[]).slice().sort(function(a,b){
       return String(b.start||b.closed||"").localeCompare(String(a.start||a.closed||""));
@@ -9234,6 +9568,26 @@ function openStewAssign(eventKey){
       linkedLeadId=asg.leadId||"";
       payFromPetty=false;
     }
+    var notesOut=(el("f_stew_asg_notes").value||"").trim();
+    var wasCancelled=!!(asg.cancelled||asg.status==="cancelled");
+    /* Manual uncancel: strip auto notes, clear cancel ids, set override so paint cannot re-cancel */
+    var cancelOverride=false;
+    if(captainMode&&wasCancelled&&!markCancelled){
+      cancelOverride=true;
+      notesOut=stripStewCancelNotes(notesOut);
+      /* Drop reverse link to a cancelled lead that is not this guest (Alvaro pin on Oliver) */
+      if(linkedLeadId){
+        var Lbad=(state.leads||[]).filter(function(x){return x&&String(x.id)===String(linkedLeadId);})[0];
+        if(Lbad&&leadIsCancelled(Lbad)&&ev.summary&&!stewSummaryMatchesLead(ev.summary, Lbad)){
+          linkedLeadId="";
+        }
+      }
+      if(!linkedLeadId&&asg.cancelLeadId){
+        /* leave lead unlinked after false cancel */
+      }
+    }
+    if(captainMode&&markCancelled) cancelOverride=false;
+    if(!captainMode) cancelOverride=!!asg.cancelOverride&&!markCancelled;
     var obj={
       id:asg.id||uid(),
       eventKey:ev.key,
@@ -9245,8 +9599,10 @@ function openStewAssign(eventKey){
       allDay:!!ev.allDay,
       status:markCancelled?"cancelled":(ev.status||"booked"),
       cancelled:markCancelled,
+      cancelOverride:cancelOverride,
       leadId:linkedLeadId||"",
       cancelLeadId:markCancelled?(linkedLeadId||asg.cancelLeadId||""):"",
+      cancelReason:markCancelled?(asg.cancelReason||"manual"):"",
       stewIds:ids,
       dayRate:rate,
       payUnits:units,
@@ -9260,7 +9616,7 @@ function openStewAssign(eventKey){
       tipTotal:markCancelled?"":tipTotal,
       tipStewShare:markCancelled?0:tipShare.stewSide,
       tipPayStatus:markCancelled?"Unpaid":tipPayStatus,
-      notes:(el("f_stew_asg_notes").value||"").trim(),
+      notes:notesOut,
       updatedAt:new Date().toISOString(),
       by:session.who||(captainMode?"Captain":"Team")
     };
