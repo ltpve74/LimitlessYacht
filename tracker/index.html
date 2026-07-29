@@ -568,7 +568,9 @@ var calEvents=[], calEventsAt=0, calEventsLoading=false, calEventsGeneratedAt=""
 var stewSeedEvents=[], stewSeedLoaded=false, stewSeedPromise=null, stewYearFilter="all";
 /* who = display name; role = captain | manager | team */
 var session={ who:null, role:null, pass:null, deviceId:null };
-var state={ charters:[], leads:[], apa:[], diesel:[], stews:[], stewAssign:[], expenses:[], expPetty:[], devices:[], log:[] };
+var state={ charters:[], leads:[], apa:[], diesel:[], stews:[], stewAssign:[], stewCalendar:[], expenses:[], expPetty:[], devices:[], log:[] };
+var stewCalendarAt=""; /* when captain last published ICS snapshot to blob */
+var stewCalendarBy="";
 /** Categories aligned with monthly expenses spreadsheet (+ common boat ones). */
 var EXP_CATS=["Crew Salaries","Miscellaneous","Fuel Cars","Dockage / Marina","Provisions","Maintenance","Insurance","Captain reimbursement","Crew reimbursement","Other"];
 var EXP_METHODS=["Cash","Credit Card"];
@@ -8339,8 +8341,8 @@ function stewTipStatusPill(pay){
   return '<span class="pill p-grey">Tip</span>';
 }
 function loadStewSeed(){
-  /* Captain + team need the season seed for roster (public static JSON). */
-  if(!canRoster()) return Promise.resolve([]);
+  /* Season seed is captain-only (used when merging live ICS into blob snapshot). */
+  if(!isCaptain()) return Promise.resolve([]);
   if(stewSeedLoaded) return Promise.resolve(stewSeedEvents);
   if(stewSeedPromise) return stewSeedPromise;
   stewSeedPromise=fetch("/tracker/stew-calendar-seed.json",{credentials:"omit",cache:"default"})
@@ -8358,8 +8360,8 @@ function loadStewSeed(){
   return stewSeedPromise;
 }
 function loadCalEvents(force){
-  /* Captain + team need live ICS for the roster calendar. Public availability API. */
-  if(!canRoster()) return Promise.resolve([]);
+  /* Live ICS is captain-only. Team reads the published blob snapshot. */
+  if(!isCaptain()) return Promise.resolve([]);
   var now=Date.now();
   /* In-memory cache only when not forcing — never block a real refresh */
   if(!force&&calEvents.length&&(now-calEventsAt)<60*1000) return Promise.resolve(calEvents);
@@ -8386,10 +8388,65 @@ function loadCalEvents(force){
     });
   return calEventsPromise;
 }
+/** Normalize one calendar event for blob storage (team roster feed). */
+function stewCalendarRowFromEv(ev){
+  if(!ev||!ev.start) return null;
+  var key=String(ev.key||stewEventId(ev)||"");
+  if(!key) return null;
+  return {
+    key:key,
+    uid:ev.uid?String(ev.uid):"",
+    start:String(ev.start).slice(0,10),
+    end:String(ev.end||ev.start).slice(0,10),
+    startTime:ev.startTime||"",
+    endTime:ev.endTime||"",
+    allDay:!!ev.allDay,
+    summary:ev.summary||"",
+    status:ev.status||"booked",
+    source:ev.source||"live"
+  };
+}
+/** Captain: write live feed → blob so team sees the same charter list. */
+function persistStewCalendarSnapshot(){
+  if(!isCaptain()||DEMO) return;
+  var rows=[];
+  stewCalendarFeedEvents().forEach(function(ev){
+    var row=stewCalendarRowFromEv(ev);
+    if(row) rows.push(row);
+  });
+  state.stewCalendar=rows;
+  stewCalendarAt=new Date().toISOString();
+  stewCalendarBy=session.who||"Captain";
+  save("stewCalendar");
+}
+/**
+ * Load roster calendar:
+ *  - Captain: live ICS (+ seed), purge ghosts, publish snapshot to blob
+ *  - Team: blob snapshot only (optional force = re-fetch from server)
+ */
 function loadStewCalendar(force){
+  if(isTeam()){
+    if(force){
+      return api("load",{silent:true}).then(function(d){
+        if(Array.isArray(d.stewCalendar)) state.stewCalendar=d.stewCalendar;
+        if(Array.isArray(d.stews)) state.stews=d.stews;
+        if(Array.isArray(d.stewAssign)){
+          if(localSaveIsFresh("stewAssign")){ /* keep local assign edits */ }
+          else state.stewAssign=d.stewAssign;
+        }
+        if(d.stewCalendarAt) stewCalendarAt=d.stewCalendarAt;
+        if(d.stewCalendarBy) stewCalendarBy=d.stewCalendarBy;
+        return stewMergedEvents();
+      });
+    }
+    return Promise.resolve(stewMergedEvents());
+  }
+  if(!isCaptain()) return Promise.resolve([]);
   return Promise.all([loadStewSeed(), loadCalEvents(!!force)]).then(function(){
     /* After a successful live pull, drop ghost days (deleted ICS events / leftover assigns) */
     purgeOrphanStewAssigns();
+    /* Publish snapshot for team: always after explicit refresh, or once if blob empty */
+    if(force||!(state.stewCalendar&&state.stewCalendar.length)) persistStewCalendarSnapshot();
     return stewMergedEvents();
   });
 }
@@ -8399,17 +8456,26 @@ function stewEventId(ev){
   if(ev.uid) return "uid:"+String(ev.uid);
   return String(ev.key||"");
 }
-/** Live feed loaded at least once this session (empty array still counts as “we know the schedule”). */
+/** True when we have a schedule feed for this session/role. */
 function stewLiveFeedReady(){
-  return !!(calEventsAt>0);
+  if(isTeam()) return !!(stewCalendarAt||(state.stewCalendar&&state.stewCalendar.length));
+  return !!(calEventsAt>0)||!!(state.stewCalendar&&state.stewCalendar.length);
 }
 /**
- * Calendar truth: seed + live ICS only (no stewAssign ghosts).
+ * Calendar truth for the roster list:
+ *  - Team: captain-published blob snapshot only (no live ICS)
+ *  - Captain: seed + live ICS (then published to blob)
  * When live has loaded, seed rows whose date falls inside the live span but whose
  * uid is missing from live are treated as deleted (e.g. leftover single-day after
  * merging 13+14 into overnight) and omitted.
  */
 function stewCalendarFeedEvents(){
+  /* Team always uses the blob snapshot the captain last published */
+  if(isTeam()){
+    return (state.stewCalendar||[]).map(function(ev){
+      return Object.assign({},ev,{source:ev.source||"blob", key:ev.key||stewEventId(ev)});
+    }).filter(function(ev){ return ev&&ev.start; });
+  }
   var map={};
   function put(ev, prefer){
     if(!ev||!ev.start) return;
@@ -8418,7 +8484,7 @@ function stewCalendarFeedEvents(){
     if(map[id]&&!prefer) return;
     map[id]=ev;
   }
-  var liveReady=stewLiveFeedReady();
+  var liveReady=!!(calEventsAt>0);
   var liveMin="", liveMax="";
   var liveKeys={};
   (calEvents||[]).forEach(function(ev){
@@ -8443,6 +8509,12 @@ function stewCalendarFeedEvents(){
   (calEvents||[]).forEach(function(ev){
     put(Object.assign({},ev,{source:ev.source||"live"}), true);
   });
+  /* If live ICS not yet pulled this session, fall back to last published blob */
+  if(!liveReady&&state.stewCalendar&&state.stewCalendar.length){
+    (state.stewCalendar||[]).forEach(function(ev){
+      put(Object.assign({},ev,{source:ev.source||"blob"}), false);
+    });
+  }
   return Object.keys(map).map(function(k){ return map[k]; });
 }
 function stewCalendarKnownKeys(){
@@ -8562,30 +8634,35 @@ function renderStews(opts){
     return;
   }
   var legend=isTeam()
-    ?"Your roster. Tap a charter to see or update who is on it. Day pay is set by the captain."
-    :"Full season list: <b>live calendar</b> is source of truth (same ICS uid when you reschedule). Seed fills older days. Deleting a day in the calendar removes it here (no leftover ghost assigns). Use for stew pay and next-year permanent stew decisions.";
+    ?"Your roster (same list the captain publishes). Tap a charter to update who is on it. Day pay is set by the captain."
+    :"Full season list: <b>Refresh calendar</b> pulls the live ICS, then saves a snapshot for the team. Seed fills older days. Deleting a day in the calendar removes it here after refresh.";
+  var refreshLabel=isTeam()?"Reload roster":"Refresh calendar";
+  var loadingMsg=isTeam()?"Loading roster…":"Loading calendar…";
   body.innerHTML='<div class="legend">'+legend+'</div>'+
+    (stewCalendarAt?'<div class="meta" style="margin:0 0 8px;font-size:12px">Calendar snapshot'+(stewCalendarBy?' by '+esc(stewCalendarBy):'')+' · '+esc((function(){try{return new Date(stewCalendarAt).toLocaleString();}catch(e){return stewCalendarAt;}})())+'</div>':'')+
     '<div class="apa-sect-h" style="margin-top:0"><h3>All charters</h3>'+
-    '<button type="button" class="btn ghost" id="stewRefreshCal">Refresh calendar</button></div>'+
+    '<button type="button" class="btn ghost" id="stewRefreshCal">'+esc(refreshLabel)+'</button></div>'+
     '<div id="stewYearFilters" style="display:flex;flex-wrap:wrap;gap:6px;margin:0 0 10px"></div>'+
-    '<div id="stewCalList"><div class="empty"><div class="big">⏳</div><div>Loading calendar…</div></div></div>';
+    '<div id="stewCalList"><div class="empty"><div class="big">⏳</div><div>'+esc(loadingMsg)+'</div></div></div>';
   if(el("stewRefreshCal")) el("stewRefreshCal").addEventListener("click",function(){
-    el("stewCalList").innerHTML='<div class="empty"><div class="big">⏳</div><div>Refreshing from calendar…</div></div>';
+    el("stewCalList").innerHTML='<div class="empty"><div class="big">⏳</div><div>'+(isTeam()?"Reloading roster…":"Refreshing from live calendar…")+'</div></div>';
     loadStewCalendar(true).then(function(){
       paintStewChartersKeepScroll();
       if(!stewMergedEvents().filter(function(ev){ return ev&&!stewIsOffEvent(ev); }).length){
         var w=el("stewCalList");
-        if(w) w.innerHTML=emptyBox("📅","No charters loaded","Check connection and tap Refresh calendar again.");
+        if(w) w.innerHTML=emptyBox("📅",isTeam()?"No roster snapshot yet":"No charters loaded",
+          isTeam()?"Ask the captain to tap Refresh calendar once.":"Check connection and tap Refresh calendar again.");
       }
     }).catch(function(){
       var w=el("stewCalList");
-      if(w) w.innerHTML=emptyBox("📅","Calendar refresh failed","Check connection and try again.");
+      if(w) w.innerHTML=emptyBox("📅",isTeam()?"Could not reload roster":"Calendar refresh failed","Check connection and try again.");
     });
   });
   loadStewCalendar(false).then(function(){ paintStewChartersKeepScroll(); })
     .catch(function(){
       var w=el("stewCalList");
-      if(w) w.innerHTML=emptyBox("📅","Could not load calendar","Tap Refresh calendar to retry.");
+      if(w) w.innerHTML=emptyBox("📅",isTeam()?"No roster yet":"Could not load calendar",
+        isTeam()?"Ask the captain to refresh the calendar.":"Tap Refresh calendar to retry.");
     });
 }
 function paintStewCharters(){
@@ -11227,6 +11304,11 @@ function applyData(d, opts){
       state.stewAssign=d.stewAssign;
     }
   } else if(!canRoster()) state.stewAssign=[];
+  /* Captain-published calendar snapshot (team roster feed) */
+  if(canRoster() && Array.isArray(d.stewCalendar)) state.stewCalendar=d.stewCalendar;
+  else if(!canRoster()) state.stewCalendar=[];
+  if(d.stewCalendarAt!=null&&d.stewCalendarAt!=="") stewCalendarAt=d.stewCalendarAt;
+  if(d.stewCalendarBy!=null&&d.stewCalendarBy!=="") stewCalendarBy=d.stewCalendarBy;
   if(isCaptain() && Array.isArray(d.expenses)){
     if(fromPoll&&localSaveIsFresh("expenses")){
       /* keep local expenses (floatPay / edits) for a few seconds after save */
