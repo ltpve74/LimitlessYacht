@@ -1032,7 +1032,9 @@
   }
 
   /**
-   * Assign for a calendar event: key / uid / unique start+summary soft match.
+   * Assign for a calendar event: key / uid only (no fuzzy summary match —
+   * substring matches stole assigns across same-day charters and broke counts).
+   * Optional exact start+exact summary only when unique.
    */
   function findAssignForEvent(assigns, ev) {
     if (!ev) return null;
@@ -1050,28 +1052,47 @@
     var sum = String(ev.summary || "")
       .trim()
       .toLowerCase();
-    if (!start) return null;
+    if (!start || !sum) return null;
     var hits = (assigns || []).filter(function (x) {
       if (!x || x.eventKey == null) return false;
       if (String(x.start || "").slice(0, 10) !== start) return false;
-      if (!sum) return true;
       var xs = String(x.summary || "")
         .trim()
         .toLowerCase();
-      return !xs || xs === sum || xs.indexOf(sum) >= 0 || sum.indexOf(xs) >= 0;
+      return xs === sum;
     });
     if (hits.length === 1) return hits[0];
     return null;
   }
 
   /**
-   * One charter status for roster totals.
+   * One charter status for roster totals / list cards (identical rules).
    * @returns {"cancelled"|"assigned"|"unassigned"}
    */
   function stewRosterStatus(ev, asg, stews) {
     if (stewEventIsCancelled(ev, asg)) return "cancelled";
     if (stewAssignHasCrew(asg, stews)) return "assigned";
     return "unassigned";
+  }
+
+  /**
+   * Per-event row used for both summary counts and list paint.
+   * status is the single source of truth for assigned/unassigned/cancelled.
+   */
+  function stewRosterRow(ev, assigns, stews) {
+    var asg = findAssignForEvent(assigns, ev);
+    var names = stewNames(stews, asg && asg.stewIds);
+    var status = stewRosterStatus(ev, asg, stews);
+    /* Force status from names so counts never disagree with what the card shows */
+    if (status !== "cancelled") {
+      status = names.length > 0 ? "assigned" : "unassigned";
+    }
+    return {
+      event: ev,
+      assign: asg,
+      names: names,
+      status: status,
+    };
   }
 
   /**
@@ -1083,13 +1104,14 @@
     var assigned = 0;
     var unassigned = 0;
     var cancelled = 0;
+    var rows = [];
     (events || []).forEach(function (ev) {
       if (!ev || !ev.start || stewIsOffEvent(ev)) return;
       trips++;
-      var asg = findAssignForEvent(assigns, ev);
-      var st = stewRosterStatus(ev, asg, stews);
-      if (st === "cancelled") cancelled++;
-      else if (st === "assigned") assigned++;
+      var row = stewRosterRow(ev, assigns, stews);
+      rows.push(row);
+      if (row.status === "cancelled") cancelled++;
+      else if (row.status === "assigned") assigned++;
       else unassigned++;
     });
     return {
@@ -1097,6 +1119,7 @@
       assigned: assigned,
       unassigned: unassigned,
       cancelled: cancelled,
+      rows: rows,
     };
   }
 
@@ -1165,6 +1188,7 @@
     findAssignByEventKey: findAssignByEventKey,
     findAssignForEvent: findAssignForEvent,
     stewRosterStatus: stewRosterStatus,
+    stewRosterRow: stewRosterRow,
     stewRosterSummary: stewRosterSummary,
   };
 

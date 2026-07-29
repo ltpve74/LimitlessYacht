@@ -534,7 +534,7 @@
 <div class="sheet" id="sheet"><div class="grip"></div><div id="sheetInner"></div></div>
 
 <!-- Domain models (money rules) — single source of truth; tests: node scripts/test-tracker-models.mjs -->
-<script src="/tracker/js/models.js?v=20260729-roster1"></script>
+<script src="/tracker/js/models.js?v=20260729-roster2"></script>
 <script>
 "use strict";
 var API = "/.netlify/functions/tracker";
@@ -8760,37 +8760,47 @@ function paintStewCharters(){
     });
     html+='</ul><div class="meta" style="margin-top:8px">Add them under <b>Team</b> if you want them auto-assigned, then refresh. Only charters before 17/07 are auto-filled from the calendar title.</div></div>';
   }
-  /* Season summary — status from LY_MODELS (A+U+C = trips); pay totals captain-only */
-  var unpaidSum=0, paidSum=0, upcomingSum=0, tripWithStew=0, tripUnassigned=0, tripDays=0, byStew={}, cancelledN=0;
+  /*
+   * Single pass: same rows for summary counts AND list cards (model).
+   * Assigned = card would show at least one stew name. Never double-count.
+   */
+  var unpaidSum=0, paidSum=0, upcomingSum=0, tripDays=0, byStew={};
   var tipUnpaidSum=0, tipPaidSum=0, tipGuestSum=0, pocketSum=0;
   var showMoney=isCaptain();
   var rosterSum=LY_MODELS&&LY_MODELS.stewRosterSummary
     ?LY_MODELS.stewRosterSummary(events, state.stewAssign, state.stews)
     :null;
-  if(rosterSum){
-    tripWithStew=rosterSum.assigned;
-    tripUnassigned=rosterSum.unassigned;
-    cancelledN=rosterSum.cancelled;
+  var rosterRows=rosterSum&&rosterSum.rows?rosterSum.rows:null;
+  if(!rosterRows){
+    /* Fallback if models.js not loaded */
+    rosterRows=events.map(function(ev){
+      var asg=assignForCalendarEvent(ev);
+      var names=asg?stewNames(asg.stewIds):[];
+      var st=stewEventIsCancelled(ev, asg)?"cancelled":(names.length?"assigned":"unassigned");
+      return {event:ev, assign:asg, names:names, status:st};
+    });
+    rosterSum={
+      trips:rosterRows.length,
+      assigned:rosterRows.filter(function(r){return r.status==="assigned";}).length,
+      unassigned:rosterRows.filter(function(r){return r.status==="unassigned";}).length,
+      cancelled:rosterRows.filter(function(r){return r.status==="cancelled";}).length,
+      rows:rosterRows
+    };
   }
-  events.forEach(function(ev){
-    var asg0=assignForCalendarEvent(ev);
-    var pay0=stewPayBreakdown(ev, asg0||{});
-    var st=stewRosterStatus(ev, asg0);
-    if(!rosterSum){
-      if(st==="cancelled"){ cancelledN++; return; }
-      if(st==="unassigned"){ tripUnassigned++; return; }
-      tripWithStew++;
-    } else if(st==="cancelled"){
-      return;
-    }
-    if(st!=="assigned") return;
+  var tripWithStew=rosterSum.assigned;
+  var tripUnassigned=rosterSum.unassigned;
+  var cancelledN=rosterSum.cancelled;
+  var tripTotal=rosterSum.trips;
+  rosterRows.forEach(function(row){
+    if(row.status!=="assigned") return;
+    var asg0=row.assign;
+    var pay0=stewPayBreakdown(row.event, asg0||{});
     tripDays+=pay0.units||0;
     if(pay0.tipTotal>0) tipGuestSum+=pay0.tipTotal;
     if(pay0.tipPaid) tipPaidSum+=pay0.tipStewSide;
     else if(pay0.tipUnpaid) tipUnpaidSum+=pay0.tipStewSide;
     if(!showMoney) return;
-    var names=stewNames(asg0&&asg0.stewIds);
-    names.forEach(function(nm){
+    (row.names||[]).forEach(function(nm){
       if(!byStew[nm]) byStew[nm]={paid:0,unpaid:0,upcoming:0,tipPaid:0,tipUnpaid:0,pocket:0,trips:0};
       byStew[nm].trips++;
       if(pay0.each>0){
@@ -8818,7 +8828,7 @@ function paintStewCharters(){
   html+='<div class="apa-card" style="margin-bottom:12px">'+
     '<div class="meta" style="margin-bottom:6px">'+(showMoney?"Season accounting":"Season roster")+(stewYearFilter!=="all"?" · "+esc(stewYearFilter):"")+(showMoney?" · day pay + tips + pocket":"")+'</div>'+
     '<div style="display:flex;flex-wrap:wrap;gap:10px 16px;align-items:baseline">'+
-      '<div><span class="meta">Trips</span><div style="font-size:20px;font-weight:800">'+events.length+'</div></div>'+
+      '<div><span class="meta">Trips</span><div style="font-size:20px;font-weight:800">'+tripTotal+'</div></div>'+
       '<div><span class="meta">Assigned</span><div style="font-size:20px;font-weight:800">'+tripWithStew+'</div></div>'+
       '<div><span class="meta">Unassigned</span><div style="font-size:20px;font-weight:800'+(tripUnassigned>0?";color:var(--amber,#c9a84c)":"")+'">'+tripUnassigned+'</div></div>'+
       '<div><span class="meta">Cancelled</span><div style="font-size:20px;font-weight:800'+(cancelledN>0?";color:var(--danger)":"")+'">'+cancelledN+'</div></div>'+
@@ -8858,33 +8868,37 @@ function paintStewCharters(){
   }
   html+='</div>';
   html+='<div class="list">';
-  events.forEach(function(ev){
-    var asg=assignForCalendarEvent(ev);
-    var names=asg?stewNames(asg.stewIds):[];
-    var unassigned=!names.length&&!stewEventIsCancelled(ev, asg);
+  rosterRows.forEach(function(row){
+    var ev=row.event;
+    var asg=row.assign;
+    var names=row.names||[];
+    var unassigned=row.status==="unassigned";
+    var isCanc=row.status==="cancelled";
     var past=ev.end?String(ev.end)<today:String(ev.start)<today;
     var pay=stewPayBreakdown(ev, asg||{});
     var rate=pay.rate;
     var each=pay.each;
     var units=pay.units;
     var rightBits=[];
-    if(showMoney&&each>0) rightBits.push(names.length>1?(money0(each)+" pay"):money0(each)+" pay");
-    if(showMoney&&pay.tipStewSide>0) rightBits.push(money0(pay.tipStewSide)+" tip");
+    if(showMoney&&each>0&&!isCanc) rightBits.push(names.length>1?(money0(each)+" pay"):money0(each)+" pay");
+    if(showMoney&&pay.tipStewSide>0&&!isCanc) rightBits.push(money0(pay.tipStewSide)+" tip");
     var amtLabel=rightBits.join(" · ");
-    html+='<div class="item'+(unassigned&&!past?' apa-row':'')+'" data-stew-ev="'+esc(ev.key)+'" role="button" tabindex="0">'+
+    var openKey=esc(ev.key||(asg&&asg.eventKey)||stewEventId(ev));
+    html+='<div class="item'+(unassigned&&!past?' apa-row':'')+'" data-stew-ev="'+openKey+'" role="button" tabindex="0">'+
       '<div class="top"><div class="title">'+esc(ev.summary||"Charter")+'</div>'+
         (amtLabel?'<div class="amt money" style="font-size:14px;text-align:right">'+esc(amtLabel)+'</div>':'')+
       '</div>'+
       '<div class="meta"><span>📅 '+esc(fmtCalEventWhen(ev))+'</span>'+
         (units>1?'<span class="pill p-blue">'+units+' days</span>':'')+
-        (showMoney&&rate>0?'<span class="money">'+money0(rate)+' × '+units+'</span>':'')+
-        (showMoney&&pay.tipTotal>0?'<span class="money">Tip '+money0(pay.tipTotal)+' → '+money0(pay.tipEach)+'/crew</span>':'')+
+        (showMoney&&rate>0&&!isCanc?'<span class="money">'+money0(rate)+' × '+units+'</span>':'')+
+        (showMoney&&pay.tipTotal>0&&!isCanc?'<span class="money">Tip '+money0(pay.tipTotal)+' → '+money0(pay.tipEach)+'/crew</span>':'')+
         (ev.source==="seed"?'<span class="pill p-grey">Seed</span>':'')+
+        (ev.source==="blob"?'<span class="pill p-grey">Snapshot</span>':'')+
         (ev.status==="tentative"?'<span class="pill p-amber">Tentative</span>':'')+
-        (pay.cancelled||(asg&&asg.cancelled)?'<span class="pill p-red">Cancelled</span>':'')+
-        (past&&!(pay.cancelled||(asg&&asg.cancelled))?'<span class="pill p-grey">Past</span>':'')+
+        (isCanc?'<span class="pill p-red">Cancelled</span>':'')+
+        (past&&!isCanc?'<span class="pill p-grey">Past</span>':'')+
       '</div>';
-    if(pay.cancelled||(asg&&asg.cancelled)){
+    if(isCanc){
       html+='<div class="meta" style="margin-top:4px"><span class="pill p-red">'+(showMoney?"No stew pay — charter cancelled":"Cancelled")+'</span></div>';
     } else if(names.length){
       names.forEach(function(nm){

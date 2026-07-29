@@ -483,6 +483,28 @@ console.log("\n[Stew roster — assigned / unassigned / cancelled]");
   ok("status A assigned", M.stewRosterStatus(events[0], assigns[0], stews) === "assigned");
   ok("status C unassigned", M.stewRosterStatus(events[2], assigns[2], stews) === "unassigned");
   ok("off event detected", M.stewIsOffEvent({ summary: "Off" }));
+  /* Fuzzy summary must NOT steal an assign across same-day charters */
+  {
+    const day = [
+      { key: "uid:x1", start: "2026-08-01", summary: "Morning private", status: "booked" },
+      { key: "uid:x2", start: "2026-08-01", summary: "Evening private", status: "booked" },
+    ];
+    const asg = [
+      {
+        eventKey: "uid:x1",
+        start: "2026-08-01",
+        summary: "Morning private",
+        stewIds: ["s1"],
+      },
+    ];
+    const s2 = M.stewRosterSummary(day, asg, stews);
+    ok("same-day: one assigned", s2.assigned === 1, "got " + s2.assigned);
+    ok("same-day: one unassigned (no fuzzy steal)", s2.unassigned === 1, "got " + s2.unassigned);
+    const rowX2 = s2.rows.find(function (r) {
+      return r.event.key === "uid:x2";
+    });
+    ok("evening card unassigned", rowX2 && rowX2.status === "unassigned");
+  }
 }
 
 console.log("\n──────────────────────────────────────────────────────────");
