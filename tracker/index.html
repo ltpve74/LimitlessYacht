@@ -365,23 +365,24 @@
   <form class="gatebox" id="gateForm" autocomplete="off">
     <div class="brandmark"><img src="/tracker/icons/icon-192.png" width="64" height="64" alt=""></div>
     <h1>Limitless Tracker</h1>
-    <p class="sub">Private access — captain &amp; manager only</p>
+    <p class="sub">Private access — captain, manager &amp; team</p>
     <div class="field">
       <label>I am</label>
       <select id="whoSel" class="ctl">
-        <option value="Captain">Captain (Luigi)</option>
-        <option value="Manager">Manager</option>
-        <option value="Other">Someone else…</option>
+        <option value="captain">Captain (Luigi)</option>
+        <option value="manager">Manager</option>
+        <option value="team">Team (stew)</option>
       </select>
     </div>
-    <div class="field hidden" id="otherWrap">
+    <div class="field hidden" id="teamNameWrap">
       <label>Your name</label>
-      <input id="otherName" class="ctl" placeholder="Type your name">
+      <input id="teamName" class="ctl" placeholder="e.g. Toni, Vicky, Laura" autocomplete="name">
     </div>
     <div class="field">
       <label>Passcode</label>
-      <input id="passInput" class="ctl" type="password" placeholder="Enter passcode">
+      <input id="passInput" class="ctl" type="password" placeholder="Enter your passcode" autocomplete="current-password">
     </div>
+    <p class="sub" style="margin-top:10px;font-size:12px;line-height:1.4;opacity:.85">Captain: full ops. Manager: charges &amp; leads. Team: roster only.</p>
     <button class="btn" type="submit">Open tracker</button>
     <div class="err" id="gateErr"></div>
   </form>
@@ -451,9 +452,9 @@
       <div id="dieselBody"></div>
     </section>
 
-    <!-- STEWS (captain only — roster + charter assignment from calendar) -->
+    <!-- STEWS / ROSTER (captain under Ops; team as main area) -->
     <section id="tab-stews" class="hidden">
-      <button type="button" class="ops-back" data-ops-back>← Ops</button>
+      <button type="button" class="ops-back" data-ops-back id="stewOpsBack">← Ops</button>
       <div class="apa-sub" id="stewSubNav">
         <button type="button" data-stewsub="charters" class="on">Charters</button>
         <button type="button" data-stewsub="team">Team</button>
@@ -482,7 +483,7 @@
 
     <!-- OPS HUB (captain only — keeps bottom nav to 4 slots) -->
     <section id="tab-ops" class="hidden">
-      <div class="legend">Captain ops tools. Manager uses Charges and Leads only. Pick a section below.</div>
+      <div class="legend">Captain ops tools. Manager: Charges &amp; Leads. Team: Roster only. Pick a section below.</div>
       <div class="ops-grid" id="opsGrid"></div>
     </section>
 
@@ -498,7 +499,7 @@
           <button type="button" class="btn ghost" id="pushTest">Send test</button>
         </div>
       </div>
-      <div class="sectitle">Who's using this passcode</div>
+      <div class="sectitle">Who's using the tracker</div>
       <div class="statrow">
         <div class="stat"><div class="n" id="sDevices">0</div><div class="l">Devices seen</div></div>
         <div class="stat" id="sNewWrap"><div class="n" id="sNew">0</div><div class="l">Unrecognised</div></div>
@@ -517,10 +518,11 @@
   <button class="fab" id="fab" aria-label="Add">+</button>
 
   <nav class="bnav" aria-label="Main">
-    <button type="button" data-nav="charters" class="active"><span class="ic">🧾</span>Charges</button>
-    <button type="button" data-nav="leads"><span class="ic">🌐</span>Leads</button>
+    <button type="button" data-nav="charters" id="navCharters" class="active"><span class="ic">🧾</span>Charges</button>
+    <button type="button" data-nav="leads" id="navLeads"><span class="ic">🌐</span>Leads</button>
     <button type="button" data-nav="ops" id="navOps" class="hidden"><span class="ic">⚓</span>Ops</button>
-    <button type="button" data-nav="security"><span class="ic">🔒</span>Security<span class="badge hidden" id="secBadge">0</span></button>
+    <button type="button" data-nav="stews" id="navRoster" class="hidden"><span class="ic">👩‍✈️</span>Roster</button>
+    <button type="button" data-nav="security" id="navSecurity"><span class="ic">🔒</span>Security<span class="badge hidden" id="secBadge">0</span></button>
   </nav>
 </div>
 
@@ -564,7 +566,8 @@ var stewSub="charters"; /* charters | team */
 var expMonth=""; /* YYYY-MM — empty until first render */
 var calEvents=[], calEventsAt=0, calEventsLoading=false, calEventsGeneratedAt="", calEventsPromise=null;
 var stewSeedEvents=[], stewSeedLoaded=false, stewSeedPromise=null, stewYearFilter="all";
-var session={ who:null, pass:null, deviceId:null };
+/* who = display name; role = captain | manager | team */
+var session={ who:null, role:null, pass:null, deviceId:null };
 var state={ charters:[], leads:[], apa:[], diesel:[], stews:[], stewAssign:[], expenses:[], expPetty:[], devices:[], log:[] };
 /** Categories aligned with monthly expenses spreadsheet (+ common boat ones). */
 var EXP_CATS=["Crew Salaries","Miscellaneous","Fuel Cars","Dockage / Marina","Provisions","Maintenance","Insurance","Captain reimbursement","Crew reimbursement","Other"];
@@ -586,10 +589,24 @@ var DIESEL_LEGACY_SELL=(window.LY_MODELS&&LY_MODELS.DIESEL_LEGACY_FALLBACK_SELL)
 var DIESEL_DEFAULT_SELL=Math.round((DIESEL_DEFAULT_BUY+DIESEL_MARKUP)*100)/100; /* e.g. 1.84 after 1.74 bunker */
 var DIESEL_PREV_SELL_HIGH=2.20; /* obsolete early default to scrub */
 var SESSION_KEY="limitless_tracker_session";
-function isCaptain(){ return /^captain\b/i.test(String(session.who||"").trim()); }
-function isManager(){ return /^manager\b/i.test(String(session.who||"").trim()); }
-/** Ops (APA, Diesel, Stews, Expenses, commissions) — captain only. */
+/** Roles: captain (full) · manager (charges+leads) · team (roster only). */
+function sessionRole(){
+  var r=String(session.role||"").toLowerCase().trim();
+  if(r==="captain"||r==="manager"||r==="team") return r;
+  if(/^captain\b/i.test(String(session.who||"").trim())) return "captain";
+  if(/^manager\b/i.test(String(session.who||"").trim())) return "manager";
+  if(/^team\b/i.test(String(session.who||"").trim())) return "team";
+  return "other";
+}
+function isCaptain(){ return sessionRole()==="captain"; }
+function isManager(){ return sessionRole()==="manager"; }
+function isTeam(){ return sessionRole()==="team"; }
+/** Ops (APA, Diesel, Expenses, commissions) — captain only. */
 function canOps(){ return isCaptain(); }
+/** Roster (stews + assignments) — captain and team. */
+function canRoster(){ return isCaptain()||isTeam(); }
+/** Charges + leads — captain and manager. */
+function canCommercial(){ return isCaptain()||isManager(); }
 /** Captain commission % — locked in tracker/js/models.js */
 var CAPTAIN_COMMISSION_PCT=(window.LY_MODELS&&LY_MODELS.CAPTAIN_COMMISSION_PCT)||15;
 if(!window.LY_MODELS){
@@ -623,6 +640,7 @@ function saveSession(){
   if(DEMO||!session.pass||!session.who) return;
   safeSet(SESSION_KEY, JSON.stringify({
     who:session.who,
+    role:session.role||sessionRole(),
     pass:session.pass,
     deviceId:session.deviceId||deviceId(),
     at:Date.now()
@@ -640,17 +658,33 @@ function maybePersistSession(){
   if(isCurrentDeviceTrusted()) saveSession();
   else clearSession();
 }
-function prefillGateWho(who){
-  if(!who||!whoSel) return;
-  var w=String(who);
-  if(w==="Captain"||w==="Manager"){ whoSel.value=w; el("otherWrap").classList.add("hidden"); }
-  else { whoSel.value="Other"; el("otherWrap").classList.remove("hidden"); el("otherName").value=w; }
+function prefillGateWho(who, role){
+  if(!whoSel) return;
+  var r=String(role||"").toLowerCase();
+  var w=String(who||"");
+  if(!r){
+    if(/^captain\b/i.test(w)) r="captain";
+    else if(/^manager\b/i.test(w)) r="manager";
+    else r="team";
+  }
+  if(r==="captain"||r==="manager"){
+    whoSel.value=r;
+    if(el("teamNameWrap")) el("teamNameWrap").classList.add("hidden");
+  } else {
+    whoSel.value="team";
+    if(el("teamNameWrap")) el("teamNameWrap").classList.remove("hidden");
+    if(el("teamName")) el("teamName").value=w.replace(/^team\s*[·\-:]\s*/i,"").trim()||w;
+  }
+}
+function updateGateRoleUI(){
+  var r=whoSel?whoSel.value:"captain";
+  if(el("teamNameWrap")) el("teamNameWrap").classList.toggle("hidden", r!=="team");
 }
 
 /* -------- api -------- */
 function api(action,payload){
   return fetch(API,{method:"POST",headers:{"Content-Type":"application/json","x-tracker-pass":session.pass||""},
-    body:JSON.stringify(Object.assign({action:action,who:session.who,deviceId:session.deviceId},payload||{}))
+    body:JSON.stringify(Object.assign({action:action,who:session.who,role:session.role||sessionRole(),deviceId:session.deviceId},payload||{}))
   }).then(function(r){ if(r.status===401) throw{code:401}; if(!r.ok) throw{code:r.status}; return r.json(); });
 }
 
@@ -693,14 +727,23 @@ function runPostLoadMaintenance(){
   }catch(e){ console&&console.error&&console.error("[tracker] post-load",e); }
 }
 var whoSel=el("whoSel");
-whoSel.addEventListener("change",function(){ el("otherWrap").classList.toggle("hidden",whoSel.value!=="Other"); });
+if(whoSel) whoSel.addEventListener("change", updateGateRoleUI);
+updateGateRoleUI();
 el("gateForm").addEventListener("submit",function(ev){
   ev.preventDefault();
   var e=el("gateErr"); e.textContent="Opening…";
-  var who=whoSel.value==="Other"?(el("otherName").value.trim()||"Other"):whoSel.value;
+  var role=whoSel?String(whoSel.value||"captain"):"captain";
+  if(role!=="captain"&&role!=="manager"&&role!=="team") role="captain";
+  var who;
+  if(role==="captain") who="Captain";
+  else if(role==="manager") who="Manager";
+  else {
+    who=(el("teamName")&&el("teamName").value||"").trim();
+    if(!who){ e.textContent="Enter your name (team login)."; if(el("teamName")) el("teamName").focus(); return; }
+  }
   var pass=el("passInput").value;
-  if(!pass){ e.textContent="Enter the passcode."; return; }
-  session.who=who; session.pass=pass; session.deviceId=deviceId();
+  if(!pass){ e.textContent="Enter your passcode."; return; }
+  session.who=who; session.role=role; session.pass=pass; session.deviceId=deviceId();
   var btn=ev.target&&ev.target.querySelector?ev.target.querySelector("button[type=submit]"):null;
   if(btn){ btn.disabled=true; }
   var hang=setTimeout(function(){
@@ -711,6 +754,7 @@ el("gateForm").addEventListener("submit",function(ev){
     clearTimeout(hang);
     try{
       BOOT_QUIET=true;
+      if(d&&d.role) session.role=d.role;
       applyData(d,{fromBoot:true});
     }catch(errApply){
       BOOT_QUIET=false;
@@ -732,18 +776,37 @@ el("gateForm").addEventListener("submit",function(ev){
   }).catch(function(err){
     clearTimeout(hang);
     if(btn) btn.disabled=false;
-    if(err&&err.code===401){ e.textContent="Wrong passcode."; clearSession(); return; }
+    if(err&&err.code===401){ e.textContent="Wrong passcode for that login."; clearSession(); return; }
     DEMO=true; seedDemo(); enterApp();
   });
 });
+function configureNavForRole(){
+  var cap=isCaptain(), mgr=isManager(), team=isTeam();
+  if(el("navCharters")) el("navCharters").classList.toggle("hidden", !canCommercial());
+  if(el("navLeads")) el("navLeads").classList.toggle("hidden", !canCommercial());
+  if(el("navOps")) el("navOps").classList.toggle("hidden", !cap);
+  if(el("navRoster")) el("navRoster").classList.toggle("hidden", !team);
+  if(el("stewOpsBack")) el("stewOpsBack").classList.toggle("hidden", team);
+  Array.prototype.forEach.call(document.querySelectorAll("[data-ops-back]"),function(b){
+    if(b.id==="stewOpsBack") return;
+    b.classList.toggle("hidden", team);
+  });
+}
 function enterApp(){
   el("gate").classList.add("hidden"); el("app").classList.remove("hidden");
-  el("meLabel").textContent=session.who+(DEMO?" · demo":"");
+  var roleLabel=isTeam()?"Team":(isManager()?"Manager":"Captain");
+  el("meLabel").textContent=session.who+(session.who!==roleLabel?" · "+roleLabel:"")+(DEMO?" · demo":"");
   el("demoNote").classList.toggle("hidden",!DEMO);
-  /* Ops hub is captain-only (APA, Diesel, Stews, Expenses, commissions). Manager uses Charges + Leads. */
-  if(el("navOps")) el("navOps").classList.toggle("hidden",!isCaptain());
-  if(!isCaptain()&&isOpsTab(curTab)) curTab="charters";
-  try{ renderAll(); }catch(e){ console&&console.error&&console.error("[tracker] renderAll",e); }
+  configureNavForRole();
+  /* Default landing: team → roster; manager → charges; captain keeps current/ops-safe tab */
+  if(isTeam()){
+    if(curTab!=="stews"&&curTab!=="security") curTab="stews";
+  } else if(!isCaptain()&&isOpsTab(curTab)){
+    curTab="charters";
+  } else if(isCaptain()&&!canCommercial()&&curTab==="charters"){
+    /* no-op */
+  }
+  try{ switchTab(curTab); }catch(e0){ try{ renderAll(); }catch(e){ console&&console.error&&console.error("[tracker] renderAll",e); } }
   if(!DEMO){ startPolling(); initPushUI(); }
   else { setPushStatus("na","Demo mode — notifications need the live app"); }
   /* Prompt once logged in if not already running as home-screen app */
@@ -751,7 +814,7 @@ function enterApp(){
 }
 function lockApp(){
   clearSession();
-  session.who=null; session.pass=null;
+  session.who=null; session.role=null; session.pass=null;
   if(pollTimer){ clearInterval(pollTimer); pollTimer=null; }
   DEMO=false;
   el("app").classList.add("hidden");
@@ -767,6 +830,7 @@ function tryAutoLogin(){
   var s=loadSavedSession();
   if(!s||!s.pass||!s.who) return;
   session.who=s.who;
+  session.role=s.role||null;
   session.pass=s.pass;
   /* Prefer remembered device id so “trusted” still matches after refresh */
   if(s.deviceId){
@@ -775,7 +839,7 @@ function tryAutoLogin(){
   } else {
     session.deviceId=deviceId();
   }
-  prefillGateWho(s.who);
+  prefillGateWho(s.who, s.role);
   if(el("passInput")) el("passInput").value=""; /* never leave pass in the field */
   if(el("gateErr")) el("gateErr").textContent="Opening…";
   var settled=false;
@@ -841,25 +905,33 @@ function tryAutoLogin(){
 }
 
 /* -------- tabs / nav -------- */
-/** Bottom nav only: charges | leads | ops | security. Ops children live under Ops hub. */
+/** Bottom nav: charges | leads | ops | roster(team) | security. Ops children under Ops hub. */
 var OPS_CHILD={apa:1,diesel:1,stews:1,expenses:1,commissions:1};
-function isOpsTab(t){ return t==="ops"||!!OPS_CHILD[t]; }
+function isOpsTab(t){
+  if(t==="ops") return true;
+  if(t==="stews"&&isTeam()) return false; /* team uses Roster as top-level */
+  return !!OPS_CHILD[t];
+}
 function navSlotForTab(t){
+  if(t==="stews"&&isTeam()) return "stews";
   if(isOpsTab(t)) return "ops";
   if(t==="leads") return "leads";
   if(t==="security") return "security";
+  if(t==="stews") return "ops";
   return "charters";
 }
 Array.prototype.forEach.call(document.querySelectorAll(".bnav button"),function(b){
   b.addEventListener("click",function(){
     var nav=b.getAttribute("data-nav");
     if(nav==="ops"){ switchTab("ops"); return; }
+    if(nav==="stews"&&!canRoster()) return;
+    if((nav==="charters"||nav==="leads")&&!canCommercial()) return;
     switchTab(nav);
   });
 });
 document.addEventListener("click",function(ev){
   var back=ev.target.closest&&ev.target.closest("[data-ops-back]");
-  if(back){ ev.preventDefault(); switchTab("ops"); return; }
+  if(back){ ev.preventDefault(); if(isTeam()) switchTab("stews"); else switchTab("ops"); return; }
   var tile=ev.target.closest&&ev.target.closest("[data-ops-go]");
   if(tile){ ev.preventDefault(); switchTab(tile.getAttribute("data-ops-go")); }
 });
@@ -884,7 +956,9 @@ function renderOpsHub(){
   }).join("");
 }
 function switchTab(t){
-  if(isOpsTab(t)&&t!=="ops"&&!isCaptain()) return;
+  if(t==="stews"&&!canRoster()) return;
+  if((t==="charters"||t==="leads")&&!canCommercial()&&t!=="security") return;
+  if(isOpsTab(t)&&t!=="ops"&&!isCaptain()&&!(t==="stews"&&isTeam())) return;
   if(t==="ops"&&!isCaptain()) return;
   curTab=t;
   if(t==="apa") apaView="list";
@@ -920,7 +994,7 @@ function updateFab(){
     if(apaView==="list") hide=false; /* + new trip */
     else hide=(apaSub==="overview"||apaSub==="setup"||!activeApaId);
   } else if(curTab==="stews"){
-    hide=stewSub!=="team"; /* + add stew on Team only */
+    hide=stewSub!=="team"||!isCaptain(); /* + add stew on Team only (captain) */
   }
   /* expenses + diesel: FAB always opens add */
   el("fab").classList.toggle("hidden",hide);
@@ -1053,12 +1127,14 @@ function syncCancelledLeadsToStews(){
 }
 function renderAll(){
   function safe(fn){ try{ fn(); }catch(e){ console&&console.error&&console.error(e); } }
-  safe(renderCharters); safe(renderLeads); safe(renderSecurity);
+  if(canCommercial()){ safe(renderCharters); safe(renderLeads); }
+  safe(renderSecurity);
   if(isCaptain()){
-    safe(renderApa); safe(renderDiesel); safe(function(){ renderStews({soft:true}); });
+    safe(renderApa); safe(renderDiesel);
     if(curTab==="expenses") safe(renderExpenses);
     if(curTab==="commissions") safe(renderCommissions);
   }
+  if(canRoster()) safe(function(){ renderStews({soft:true}); });
 }
 
 /** Charges: payment defaults Paid; invStatus is what the manager tracks. */
@@ -5392,8 +5468,8 @@ function renderDiesel(){
   });
 }
 /* -------- Stews (captain only) — calendar + roster -------- */
-function saveStews(){ if(!isCaptain()) return; save("stews"); }
-function saveStewAssign(){ if(!isCaptain()) return; save("stewAssign"); }
+function saveStews(){ if(!canRoster()) return; save("stews"); }
+function saveStewAssign(){ if(!canRoster()) return; save("stewAssign"); }
 function saveExpenses(){ if(!isCaptain()) return; save("expenses"); }
 /** Stable APA line id for a monthly expense mirror. */
 function expApaMirrorId(expenseId){ return "from-exp:"+String(expenseId||""); }
@@ -8460,7 +8536,7 @@ function paintStewChartersKeepScroll(){
   stewRestorePageScroll(y);
 }
 function renderStews(opts){
-  if(!isCaptain()) return;
+  if(!canRoster()) return;
   opts=opts||{};
   Array.prototype.forEach.call(document.querySelectorAll("#stewSubNav button"),function(b){
     b.classList.toggle("on", b.getAttribute("data-stewsub")===stewSub);
@@ -8472,7 +8548,10 @@ function renderStews(opts){
     paintStewChartersKeepScroll();
     return;
   }
-  body.innerHTML='<div class="legend">Full season list: <b>live calendar</b> is source of truth (same ICS uid when you reschedule). Seed fills older days. Deleting a day in the calendar removes it here (no leftover ghost assigns). Use for stew pay and next-year permanent stew decisions.</div>'+
+  var legend=isTeam()
+    ?"Your roster. Tap a charter to see or update who is on it. Day pay is set by the captain."
+    :"Full season list: <b>live calendar</b> is source of truth (same ICS uid when you reschedule). Seed fills older days. Deleting a day in the calendar removes it here (no leftover ghost assigns). Use for stew pay and next-year permanent stew decisions.";
+  body.innerHTML='<div class="legend">'+legend+'</div>'+
     '<div class="apa-sect-h" style="margin-top:0"><h3>All charters</h3>'+
     '<button type="button" class="btn ghost" id="stewRefreshCal">Refresh calendar</button></div>'+
     '<div id="stewYearFilters" style="display:flex;flex-wrap:wrap;gap:6px;margin:0 0 10px"></div>'+
@@ -8552,6 +8631,7 @@ function paintStewCharters(){
   /* Accounting: day pay + tips + pocket reimbursements. Unpaid day pay only from charter day+. */
   var unpaidSum=0, paidSum=0, upcomingSum=0, tripWithStew=0, tripDays=0, byStew={}, cancelledN=0;
   var tipUnpaidSum=0, tipPaidSum=0, tipGuestSum=0, pocketSum=0;
+  var showMoney=isCaptain(); /* team sees roster/names; captain sees pay totals */
   events.forEach(function(ev){
     var asg0=assignForEvent(ev.key);
     var pay0=stewPayBreakdown(ev, asg0||{});
@@ -8588,20 +8668,20 @@ function paintStewCharters(){
     byStew[nm].pocket=pk;
   });
   html+='<div class="apa-card" style="margin-bottom:12px">'+
-    '<div class="meta" style="margin-bottom:6px">Season accounting'+(stewYearFilter!=="all"?" · "+esc(stewYearFilter):"")+' · day pay + tips + pocket reimburse</div>'+
+    '<div class="meta" style="margin-bottom:6px">'+(showMoney?"Season accounting":"Season roster")+(stewYearFilter!=="all"?" · "+esc(stewYearFilter):"")+(showMoney?" · day pay + tips + pocket reimburse":"")+'</div>'+
     '<div style="display:flex;flex-wrap:wrap;gap:10px 16px;align-items:baseline">'+
       '<div><span class="meta">Trips listed</span><div style="font-size:20px;font-weight:800">'+events.length+'</div></div>'+
       (cancelledN>0?'<div><span class="meta">Cancelled</span><div style="font-size:20px;font-weight:800;color:var(--danger)">'+cancelledN+'</div></div>':'')+
       '<div><span class="meta">With stew assigned</span><div style="font-size:20px;font-weight:800">'+tripWithStew+'</div></div>'+
-      '<div><span class="meta">Billable days</span><div style="font-size:20px;font-weight:800">'+tripDays+'</div></div>'+
-      (unpaidSum>0?'<div><span class="meta">Day pay unpaid</span><div class="money" style="font-size:20px;font-weight:800;color:var(--amber,#c9a84c)">'+money0(unpaidSum)+'</div></div>':'')+
-      (paidSum>0?'<div><span class="meta">Day pay paid</span><div class="money" style="font-size:20px;font-weight:800">'+money0(paidSum)+'</div></div>':'')+
-      (tipUnpaidSum>0?'<div><span class="meta">Tips unpaid (crew share)</span><div class="money" style="font-size:20px;font-weight:800;color:var(--amber,#c9a84c)">'+money0(tipUnpaidSum)+'</div></div>':'')+
-      (tipPaidSum>0?'<div><span class="meta">Tips paid (crew share)</span><div class="money" style="font-size:20px;font-weight:800">'+money0(tipPaidSum)+'</div></div>':'')+
-      (tipGuestSum>0?'<div><span class="meta">Tips guests total</span><div class="money" style="font-size:18px;font-weight:700">'+money0(tipGuestSum)+'</div></div>':'')+
-      (upcomingSum>0?'<div><span class="meta">Day pay later</span><div class="money" style="font-size:18px;font-weight:700">'+money0(upcomingSum)+'</div></div>':'')+
-      (pocketSum>0?'<div><span class="meta">Pocket to reimburse</span><div class="money" style="font-size:20px;font-weight:800;color:var(--amber,#c9a84c)">'+money0(pocketSum)+'</div></div>':'')+
-      ((unpaidSum+tipUnpaidSum+pocketSum)>0?'<div><span class="meta">Still to pay (pay+tip+pocket)</span><div class="money" style="font-size:20px;font-weight:800;color:var(--amber,#c9a84c)">'+money0(unpaidSum+tipUnpaidSum+pocketSum)+'</div></div>':'')+
+      (showMoney?'<div><span class="meta">Billable days</span><div style="font-size:20px;font-weight:800">'+tripDays+'</div></div>':'')+
+      (showMoney&&unpaidSum>0?'<div><span class="meta">Day pay unpaid</span><div class="money" style="font-size:20px;font-weight:800;color:var(--amber,#c9a84c)">'+money0(unpaidSum)+'</div></div>':'')+
+      (showMoney&&paidSum>0?'<div><span class="meta">Day pay paid</span><div class="money" style="font-size:20px;font-weight:800">'+money0(paidSum)+'</div></div>':'')+
+      (showMoney&&tipUnpaidSum>0?'<div><span class="meta">Tips unpaid (crew share)</span><div class="money" style="font-size:20px;font-weight:800;color:var(--amber,#c9a84c)">'+money0(tipUnpaidSum)+'</div></div>':'')+
+      (showMoney&&tipPaidSum>0?'<div><span class="meta">Tips paid (crew share)</span><div class="money" style="font-size:20px;font-weight:800">'+money0(tipPaidSum)+'</div></div>':'')+
+      (showMoney&&tipGuestSum>0?'<div><span class="meta">Tips guests total</span><div class="money" style="font-size:18px;font-weight:700">'+money0(tipGuestSum)+'</div></div>':'')+
+      (showMoney&&upcomingSum>0?'<div><span class="meta">Day pay later</span><div class="money" style="font-size:18px;font-weight:700">'+money0(upcomingSum)+'</div></div>':'')+
+      (showMoney&&pocketSum>0?'<div><span class="meta">Pocket to reimburse</span><div class="money" style="font-size:20px;font-weight:800;color:var(--amber,#c9a84c)">'+money0(pocketSum)+'</div></div>':'')+
+      (showMoney&&(unpaidSum+tipUnpaidSum+pocketSum)>0?'<div><span class="meta">Still to pay (pay+tip+pocket)</span><div class="money" style="font-size:20px;font-weight:800;color:var(--amber,#c9a84c)">'+money0(unpaidSum+tipUnpaidSum+pocketSum)+'</div></div>':'')+
     '</div>';
   var stewKeys=Object.keys(byStew).sort();
   if(stewKeys.length){
@@ -8610,17 +8690,17 @@ function paintStewCharters(){
       var b=byStew[nm], tot=b.paid+b.unpaid+b.tipPaid+b.tipUnpaid+(b.pocket||0);
       html+='<div class="meta" style="margin-top:4px"><span style="font-weight:700">'+esc(nm)+'</span>'+
         (b.trips?'<span>'+b.trips+' trip'+(b.trips===1?"":"s")+'</span>':'')+
-        (tot>0?'<span class="money" style="font-weight:800">'+money0(tot)+'</span>':'')+
-        (b.unpaid>0?'<span class="pill p-amber">Pay '+money0(b.unpaid)+'</span>':'')+
-        (b.paid>0?'<span class="pill p-green">Pay '+money0(b.paid)+'</span>':'')+
-        (b.tipUnpaid>0?'<span class="pill p-amber">Tip '+money0(b.tipUnpaid)+'</span>':'')+
-        (b.tipPaid>0?'<span class="pill p-green">Tip '+money0(b.tipPaid)+'</span>':'')+
-        (b.pocket>0?'<span class="pill p-own">Pocket '+money0(b.pocket)+'</span>':'')+
-        (b.upcoming>0?'<span class="pill p-grey">Later '+money0(b.upcoming)+'</span>':'')+
+        (showMoney&&tot>0?'<span class="money" style="font-weight:800">'+money0(tot)+'</span>':'')+
+        (showMoney&&b.unpaid>0?'<span class="pill p-amber">Pay '+money0(b.unpaid)+'</span>':'')+
+        (showMoney&&b.paid>0?'<span class="pill p-green">Pay '+money0(b.paid)+'</span>':'')+
+        (showMoney&&b.tipUnpaid>0?'<span class="pill p-amber">Tip '+money0(b.tipUnpaid)+'</span>':'')+
+        (showMoney&&b.tipPaid>0?'<span class="pill p-green">Tip '+money0(b.tipPaid)+'</span>':'')+
+        (showMoney&&b.pocket>0?'<span class="pill p-own">Pocket '+money0(b.pocket)+'</span>':'')+
+        (showMoney&&b.upcoming>0?'<span class="pill p-grey">Later '+money0(b.upcoming)+'</span>':'')+
       '</div>';
     });
     html+='</div>';
-  } else {
+  } else if(showMoney){
     html+='<p style="margin:10px 0 0;font-size:12px;color:var(--muted)">Assign stews, rates and tips to build the season cost picture. Pocket spends from Expenses appear here too.</p>';
   }
   html+='</div>';
@@ -8635,8 +8715,8 @@ function paintStewCharters(){
     var each=pay.each;
     var units=pay.units;
     var rightBits=[];
-    if(each>0) rightBits.push(names.length>1?(money0(each)+" pay"):money0(each)+" pay");
-    if(pay.tipStewSide>0) rightBits.push(money0(pay.tipStewSide)+" tip");
+    if(showMoney&&each>0) rightBits.push(names.length>1?(money0(each)+" pay"):money0(each)+" pay");
+    if(showMoney&&pay.tipStewSide>0) rightBits.push(money0(pay.tipStewSide)+" tip");
     var amtLabel=rightBits.join(" · ");
     html+='<div class="item'+(unassigned&&!past?' apa-row':'')+'" data-stew-ev="'+esc(ev.key)+'" role="button" tabindex="0">'+
       '<div class="top"><div class="title">'+esc(ev.summary||"Charter")+'</div>'+
@@ -8644,29 +8724,29 @@ function paintStewCharters(){
       '</div>'+
       '<div class="meta"><span>📅 '+esc(fmtCalEventWhen(ev))+'</span>'+
         (units>1?'<span class="pill p-blue">'+units+' days</span>':'')+
-        (rate>0?'<span class="money">'+money0(rate)+' × '+units+'</span>':'')+
-        (pay.tipTotal>0?'<span class="money">Tip '+money0(pay.tipTotal)+' → '+money0(pay.tipEach)+'/crew</span>':'')+
+        (showMoney&&rate>0?'<span class="money">'+money0(rate)+' × '+units+'</span>':'')+
+        (showMoney&&pay.tipTotal>0?'<span class="money">Tip '+money0(pay.tipTotal)+' → '+money0(pay.tipEach)+'/crew</span>':'')+
         (ev.source==="seed"?'<span class="pill p-grey">Seed</span>':'')+
         (ev.status==="tentative"?'<span class="pill p-amber">Tentative</span>':'')+
         (pay.cancelled||(asg&&asg.cancelled)?'<span class="pill p-red">Cancelled</span>':'')+
         (past&&!(pay.cancelled||(asg&&asg.cancelled))?'<span class="pill p-grey">Past</span>':'')+
       '</div>';
     if(pay.cancelled||(asg&&asg.cancelled)){
-      html+='<div class="meta" style="margin-top:4px"><span class="pill p-red">No stew pay — charter cancelled</span></div>';
+      html+='<div class="meta" style="margin-top:4px"><span class="pill p-red">'+(showMoney?"No stew pay — charter cancelled":"Cancelled")+'</span></div>';
     } else if(names.length){
       names.forEach(function(nm){
         html+='<div class="stew-row">'+
           '<span class="stew-name">'+esc(nm)+'</span>'+
-          (each>0?'<span class="money" style="font-weight:800;font-size:15px">Pay '+money0(each)+'</span>':'')+
-          stewPayStatusPill(pay)+
-          (pay.tipEach>0?'<span class="money" style="font-weight:800;font-size:15px">Tip '+money0(pay.tipEach)+'</span>':'')+
-          stewTipStatusPill(pay)+
+          (showMoney&&each>0?'<span class="money" style="font-weight:800;font-size:15px">Pay '+money0(each)+'</span>':'')+
+          (showMoney?stewPayStatusPill(pay):'')+
+          (showMoney&&pay.tipEach>0?'<span class="money" style="font-weight:800;font-size:15px">Tip '+money0(pay.tipEach)+'</span>':'')+
+          (showMoney?stewTipStatusPill(pay):'')+
         '</div>';
       });
     } else {
       html+='<div class="meta" style="margin-top:4px"><span class="pill p-amber">No stew assigned</span>'+
-        (each>0?'<span class="meta">Would be '+money0(each)+' ('+money0(rate)+' × '+units+')</span>':'')+
-        (pay.upcoming?'<span class="pill p-grey">Not due yet</span>':'')+
+        (showMoney&&each>0?'<span class="meta">Would be '+money0(each)+' ('+money0(rate)+' × '+units+')</span>':'')+
+        (showMoney&&pay.upcoming?'<span class="pill p-grey">Not due yet</span>':'')+
       '</div>';
     }
     if(asg&&asg.notes) html+='<div class="notes">'+esc(asg.notes)+'</div>';
@@ -8679,8 +8759,13 @@ function paintStewCharters(){
   });
 }
 function renderStewTeam(body){
-  body.innerHTML='<div class="legend">Stew roster. Add names here, then assign them on the <b>Charters</b> tab.</div>'+
-    '<div class="apa-sect-h" style="margin-top:0"><h3>Team</h3><button type="button" class="btn" id="stewAddPerson">Add stew</button></div>'+
+  var canEditTeam=isCaptain(); /* team can view roster names; captain adds/removes people */
+  body.innerHTML='<div class="legend">'+(isTeam()
+    ?"Team roster — names used on charters. Ask the captain to add or remove people."
+    :"Stew roster. Add names here, then assign them on the <b>Charters</b> tab.")+'</div>'+
+    '<div class="apa-sect-h" style="margin-top:0"><h3>Team</h3>'+
+      (canEditTeam?'<button type="button" class="btn" id="stewAddPerson">Add stew</button>':'')+
+    '</div>'+
     '<div id="stewTeamList"></div>';
   paintStewTeam();
   if(el("stewAddPerson")) el("stewAddPerson").addEventListener("click",function(){ openStewPerson(null); });
@@ -8727,30 +8812,32 @@ function paintStewTeam(){
   var wrap=el("stewTeamList"); if(!wrap) return;
   var list=(state.stews||[]).slice().sort(function(a,b){ return String(a.name||"").localeCompare(String(b.name||"")); });
   if(!list.length){
-    wrap.innerHTML=emptyBox("👩‍✈️","No stews yet","Tap Add stew or + to build your roster.");
+    wrap.innerHTML=emptyBox("👩‍✈️","No stews yet",isCaptain()?"Tap Add stew or + to build your roster.":"Ask the captain to add the team.");
     return;
   }
+  var showMoney=isCaptain();
+  var canEdit=isCaptain();
   var html='<div class="list">';
   list.forEach(function(s){
-    var bal=stewPersonBalances(s.id);
-    html+='<div class="item apa-row" data-stew-person="'+esc(s.id)+'" role="button" tabindex="0">'+
+    var bal=showMoney?stewPersonBalances(s.id):{dueTotal:0,allPaid:0,unpaid:0,tipUnpaid:0,pocket:0,paid:0,tipPaid:0};
+    html+='<div class="item'+(canEdit?' apa-row':'')+'"'+(canEdit?' data-stew-person="'+esc(s.id)+'" role="button" tabindex="0"':'')+'>'+
       '<div class="top"><div class="title">'+esc(s.name||"—")+'</div>'+
-        (bal.dueTotal>0?'<div class="amt money" style="color:var(--amber,#c9a84c)">'+money0(bal.dueTotal)+'</div>':
-          (bal.allPaid>0?'<div class="amt money">'+money0(bal.allPaid)+'</div>':''))+
+        (showMoney&&bal.dueTotal>0?'<div class="amt money" style="color:var(--amber,#c9a84c)">'+money0(bal.dueTotal)+'</div>':
+          (showMoney&&bal.allPaid>0?'<div class="amt money">'+money0(bal.allPaid)+'</div>':''))+
       '</div>'+
       '<div class="meta">'+(s.phone?'<span>📞 '+esc(s.phone)+'</span>':'')+
         (s.active===false?'<span class="pill p-grey">Inactive</span>':'<span class="pill p-green">Active</span>')+
-        (bal.unpaid>0?'<span class="pill p-amber">Pay '+money0(bal.unpaid)+'</span>':'')+
-        (bal.tipUnpaid>0?'<span class="pill p-amber">Tip '+money0(bal.tipUnpaid)+'</span>':'')+
-        (bal.pocket>0?'<span class="pill p-own">Pocket '+money0(bal.pocket)+'</span>':'')+
-        (bal.paid>0?'<span class="pill p-green">Pay '+money0(bal.paid)+'</span>':'')+
-        (bal.tipPaid>0?'<span class="pill p-green">Tip '+money0(bal.tipPaid)+'</span>':'')+
-        (bal.dueTotal<=0&&bal.allPaid>0?'<span class="pill p-green">Settled</span>':'')+
+        (showMoney&&bal.unpaid>0?'<span class="pill p-amber">Pay '+money0(bal.unpaid)+'</span>':'')+
+        (showMoney&&bal.tipUnpaid>0?'<span class="pill p-amber">Tip '+money0(bal.tipUnpaid)+'</span>':'')+
+        (showMoney&&bal.pocket>0?'<span class="pill p-own">Pocket '+money0(bal.pocket)+'</span>':'')+
+        (showMoney&&bal.paid>0?'<span class="pill p-green">Pay '+money0(bal.paid)+'</span>':'')+
+        (showMoney&&bal.tipPaid>0?'<span class="pill p-green">Tip '+money0(bal.tipPaid)+'</span>':'')+
+        (showMoney&&bal.dueTotal<=0&&bal.allPaid>0?'<span class="pill p-green">Settled</span>':'')+
       '</div>'+
-      (bal.pocket>0?'<div class="notes" style="font-style:normal">Own-money shop spends to reimburse (from Expenses)</div>':'')+
+      (showMoney&&bal.pocket>0?'<div class="notes" style="font-style:normal">Own-money shop spends to reimburse (from Expenses)</div>':'')+
       (s.notes?'<div class="notes">'+esc(s.notes)+'</div>':'')+
-      '<button type="button" class="apa-x" data-stew-del="'+esc(s.id)+'" aria-label="Delete">×</button>'+
-      '<span class="chev">✎</span></div>';
+      (canEdit?'<button type="button" class="apa-x" data-stew-del="'+esc(s.id)+'" aria-label="Delete">×</button><span class="chev">✎</span>':'')+
+      '</div>';
   });
   html+='</div>';
   wrap.innerHTML=html;
@@ -8813,7 +8900,8 @@ function deleteStewPerson(id){
   saveStews(); saveStewAssign(); renderStews();
 }
 function openStewAssign(eventKey){
-  if(!isCaptain()||!eventKey) return;
+  if(!canRoster()||!eventKey) return;
+  var captainMode=isCaptain();
   var ev=stewMergedEvents().filter(function(e){return e&&e.key===eventKey;})[0];
   if(!ev){
     /* assignment may exist without live/seed cal event */
@@ -8845,7 +8933,7 @@ function openStewAssign(eventKey){
       (ev.status==="tentative"?'<span class="pill p-amber">Tentative</span>':'')+
     '</div></div>';
   if(!team.length){
-    h+='<div class="banner warn show">No active stews in the roster. Add people on the <b>Team</b> tab first.</div>';
+    h+='<div class="banner warn show">No active stews in the roster. '+(captainMode?'Add people on the <b>Team</b> tab first.':'Ask the captain to add the team.')+'</div>';
   } else {
     h+='<div class="sectitle" style="margin:0 0 8px">Who is on this charter?</div>';
     h+='<div id="stewPickList">';
@@ -8857,42 +8945,46 @@ function openStewAssign(eventKey){
     });
     h+='</div>';
   }
-  h+='<div class="sectitle" style="margin:12px 0 8px">Day pay</div>';
-  h+='<div class="row2">'+
-    fieldHTML("Day rate (€)",moneyField("f_stew_rate", ratePrefill))+
-    fieldHTML("Days (billable)",'<input class="ctl" id="f_stew_units" type="number" min="1" step="1" inputmode="numeric" value="'+esc(String(unitsPrefill))+'">')+
-  '</div>';
-  h+='<div style="display:flex;gap:8px;flex-wrap:wrap;margin:-4px 0 12px">'+
-    '<button type="button" class="btn ghost" data-stew-rate="'+STEW_RATE_4H+'" style="width:auto;padding:8px 12px;font-size:12.5px">4h €'+STEW_RATE_4H+'</button>'+
-    '<button type="button" class="btn ghost" data-stew-rate="'+STEW_RATE_6H+'" style="width:auto;padding:8px 12px;font-size:12.5px">6h+ €'+STEW_RATE_6H+'</button>'+
-    '<button type="button" class="btn ghost" data-stew-rate="'+STEW_RATE_ON+'" style="width:auto;padding:8px 12px;font-size:12.5px">Overnight €'+STEW_RATE_ON+'</button>'+
-  '</div>';
-  h+=fieldHTML("Day pay status",'<select class="ctl" id="f_stew_pay"><option value="Unpaid"'+(pay==="Unpaid"?" selected":"")+'>Unpaid</option><option value="Paid"'+(pay==="Paid"?" selected":"")+'>Paid</option></select>');
-  var isAsgCancelled=!!(asg.cancelled||asg.status==="cancelled");
-  h+='<label class="checkrow" style="margin:8px 0 12px"><input type="checkbox" id="f_stew_cancelled"'+(isAsgCancelled?" checked":"")+'>'+
-    '<span><div class="ck">Charter cancelled — no stew pay</div>'+
-    '<div class="ch">Use when the guest trip is off (weather etc.). Clears Toni/Laura pay for this calendar event only. Link a lead below so cancel/reschedule stays on the ICS uid.</div></span></label>';
-  /* Link to commercial lead by stable id */
-  var leadOpts=(state.leads||[]).slice().sort(function(a,b){
-    return String(b.start||b.closed||"").localeCompare(String(a.start||a.closed||""));
-  }).slice(0,60);
-  var leadLink=String(asg.leadId||"");
-  h+=fieldHTML("Linked lead (deal id)",
-    '<select class="ctl" id="f_stew_leadId">'+
-      '<option value="">— Not linked —</option>'+
-      leadOpts.map(function(L){
-        var lab=(L.name||"—")+" · "+(fmtDate(L.start)||L.start||"?")+(leadIsCancelled(L)?" · cancelled":"");
-        return '<option value="'+esc(L.id)+'"'+(leadLink===String(L.id)?" selected":"")+'>'+esc(lab)+'</option>';
-      }).join("")+
-    '</select>');
-  h+='<div class="sectitle" style="margin:16px 0 8px">Tip (guest gratuity)</div>';
-  h+='<div class="row2">'+
-    fieldHTML("Total tip received (€)",moneyField("f_stew_tip", tipPrefill))+
-    fieldHTML("Tip pay status",'<select class="ctl" id="f_stew_tip_pay"><option value="Unpaid"'+(tipPay==="Unpaid"?" selected":"")+'>Unpaid</option><option value="Paid"'+(tipPay==="Paid"?" selected":"")+'>Paid</option></select>')+
-  '</div>';
-  h+='<p style="margin:-4px 0 12px;font-size:12px;color:var(--muted)">Tip is split <b>equally among all crew</b> (you + every assigned stew). One stew → 50% each. Two stews → three equal shares. You almost always have one.</p>';
-  h+='<div class="apa-card" id="stewPayLive" style="margin-bottom:12px;background:rgba(201,168,76,.12)"></div>';
-  h+='<p style="margin:0 0 12px;font-size:12px;color:var(--muted)">Day pay = rate × days per stew. Suggested rate: <b>'+esc(band.label)+' · €'+band.rate+'/day</b>.</p>';
+  if(captainMode){
+    h+='<div class="sectitle" style="margin:12px 0 8px">Day pay</div>';
+    h+='<div class="row2">'+
+      fieldHTML("Day rate (€)",moneyField("f_stew_rate", ratePrefill))+
+      fieldHTML("Days (billable)",'<input class="ctl" id="f_stew_units" type="number" min="1" step="1" inputmode="numeric" value="'+esc(String(unitsPrefill))+'">')+
+    '</div>';
+    h+='<div style="display:flex;gap:8px;flex-wrap:wrap;margin:-4px 0 12px">'+
+      '<button type="button" class="btn ghost" data-stew-rate="'+STEW_RATE_4H+'" style="width:auto;padding:8px 12px;font-size:12.5px">4h €'+STEW_RATE_4H+'</button>'+
+      '<button type="button" class="btn ghost" data-stew-rate="'+STEW_RATE_6H+'" style="width:auto;padding:8px 12px;font-size:12.5px">6h+ €'+STEW_RATE_6H+'</button>'+
+      '<button type="button" class="btn ghost" data-stew-rate="'+STEW_RATE_ON+'" style="width:auto;padding:8px 12px;font-size:12.5px">Overnight €'+STEW_RATE_ON+'</button>'+
+    '</div>';
+    h+=fieldHTML("Day pay status",'<select class="ctl" id="f_stew_pay"><option value="Unpaid"'+(pay==="Unpaid"?" selected":"")+'>Unpaid</option><option value="Paid"'+(pay==="Paid"?" selected":"")+'>Paid</option></select>');
+    var isAsgCancelled=!!(asg.cancelled||asg.status==="cancelled");
+    h+='<label class="checkrow" style="margin:8px 0 12px"><input type="checkbox" id="f_stew_cancelled"'+(isAsgCancelled?" checked":"")+'>'+
+      '<span><div class="ck">Charter cancelled — no stew pay</div>'+
+      '<div class="ch">Use when the guest trip is off (weather etc.). Clears Toni/Laura pay for this calendar event only. Link a lead below so cancel/reschedule stays on the ICS uid.</div></span></label>';
+    /* Link to commercial lead by stable id */
+    var leadOpts=(state.leads||[]).slice().sort(function(a,b){
+      return String(b.start||b.closed||"").localeCompare(String(a.start||a.closed||""));
+    }).slice(0,60);
+    var leadLink=String(asg.leadId||"");
+    h+=fieldHTML("Linked lead (deal id)",
+      '<select class="ctl" id="f_stew_leadId">'+
+        '<option value="">— Not linked —</option>'+
+        leadOpts.map(function(L){
+          var lab=(L.name||"—")+" · "+(fmtDate(L.start)||L.start||"?")+(leadIsCancelled(L)?" · cancelled":"");
+          return '<option value="'+esc(L.id)+'"'+(leadLink===String(L.id)?" selected":"")+'>'+esc(lab)+'</option>';
+        }).join("")+
+      '</select>');
+    h+='<div class="sectitle" style="margin:16px 0 8px">Tip (guest gratuity)</div>';
+    h+='<div class="row2">'+
+      fieldHTML("Total tip received (€)",moneyField("f_stew_tip", tipPrefill))+
+      fieldHTML("Tip pay status",'<select class="ctl" id="f_stew_tip_pay"><option value="Unpaid"'+(tipPay==="Unpaid"?" selected":"")+'>Unpaid</option><option value="Paid"'+(tipPay==="Paid"?" selected":"")+'>Paid</option></select>')+
+    '</div>';
+    h+='<p style="margin:-4px 0 12px;font-size:12px;color:var(--muted)">Tip is split <b>equally among all crew</b> (you + every assigned stew). One stew → 50% each. Two stews → three equal shares. You almost always have one.</p>';
+    h+='<div class="apa-card" id="stewPayLive" style="margin-bottom:12px;background:rgba(201,168,76,.12)"></div>';
+    h+='<p style="margin:0 0 12px;font-size:12px;color:var(--muted)">Day pay = rate × days per stew. Suggested rate: <b>'+esc(band.label)+' · €'+band.rate+'/day</b>.</p>';
+  } else {
+    h+='<p style="margin:12px 0;font-size:12.5px;color:var(--muted);line-height:1.45">Tick who is working this charter. Day pay and tips are managed by the captain.</p>';
+  }
   h+=fieldHTML("Notes",'<textarea class="ctl" id="f_stew_asg_notes" placeholder="e.g. pick-up time, uniform…">'+esc(asg.notes||"")+'</textarea>');
   h+='<div class="sheetfoot"><button type="button" class="btn ghost" id="sheetCancel">Cancel</button><button type="button" class="btn" id="sheetSave">Save assignment</button></div>';
   el("sheetInner").innerHTML=h;
@@ -8950,27 +9042,41 @@ function openStewAssign(eventKey){
   if(el("f_stew_pay")) el("f_stew_pay").addEventListener("change", refreshStewPayLive);
   if(el("f_stew_tip")) el("f_stew_tip").addEventListener("input", refreshStewPayLive);
   if(el("f_stew_tip_pay")) el("f_stew_tip_pay").addEventListener("change", refreshStewPayLive);
-  refreshStewPayLive();
+  if(captainMode) refreshStewPayLive();
   el("sheetSave").addEventListener("click",function(){
     var ids=[];
     Array.prototype.forEach.call(document.querySelectorAll("[data-stew-pick]"),function(inp){
       if(inp.checked) ids.push(inp.getAttribute("data-stew-pick"));
     });
-    var rateRaw=el("f_stew_rate")?el("f_stew_rate").value:"";
-    var rate=rateRaw===""?"":apaNum(rateRaw);
-    var units=el("f_stew_units")?Math.max(1, Math.round(apaNum(el("f_stew_units").value)||1)):1;
-    var each=stewPayEach(rate, units);
-    var tipRaw=el("f_stew_tip")?el("f_stew_tip").value:"";
-    var tipTotal=tipRaw===""?"":apaNum(tipRaw);
-    if(tipTotal!==""&&!(tipTotal>0)) tipTotal="";
-    var tipPayStatus=(el("f_stew_tip_pay")&&el("f_stew_tip_pay").value==="Paid")?"Paid":"Unpaid";
-    var tipShare=stewTipShare({tipTotal:tipTotal, stewIds:ids});
-    var nowPaid=(el("f_stew_pay")&&el("f_stew_pay").value==="Paid");
-    var wasPaid=asg.payStatus==="Paid";
-    var markCancelled=!!(el("f_stew_cancelled")&&el("f_stew_cancelled").checked);
-    var linkedLeadId=(el("f_stew_leadId")&&el("f_stew_leadId").value)||"";
-    /* Any intentional Save as Paid from this form = pay from petty (Stews has no Own-money toggle) */
-    var payFromPetty=nowPaid&&!markCancelled;
+    var rate, units, each, tipTotal, tipPayStatus, tipShare, nowPaid, markCancelled, linkedLeadId, payFromPetty;
+    if(captainMode){
+      var rateRaw=el("f_stew_rate")?el("f_stew_rate").value:"";
+      rate=rateRaw===""?"":apaNum(rateRaw);
+      units=el("f_stew_units")?Math.max(1, Math.round(apaNum(el("f_stew_units").value)||1)):1;
+      each=stewPayEach(rate, units);
+      var tipRaw=el("f_stew_tip")?el("f_stew_tip").value:"";
+      tipTotal=tipRaw===""?"":apaNum(tipRaw);
+      if(tipTotal!==""&&!(tipTotal>0)) tipTotal="";
+      tipPayStatus=(el("f_stew_tip_pay")&&el("f_stew_tip_pay").value==="Paid")?"Paid":"Unpaid";
+      tipShare=stewTipShare({tipTotal:tipTotal, stewIds:ids});
+      nowPaid=(el("f_stew_pay")&&el("f_stew_pay").value==="Paid");
+      markCancelled=!!(el("f_stew_cancelled")&&el("f_stew_cancelled").checked);
+      linkedLeadId=(el("f_stew_leadId")&&el("f_stew_leadId").value)||"";
+      /* Any intentional Save as Paid from this form = pay from petty (Stews has no Own-money toggle) */
+      payFromPetty=nowPaid&&!markCancelled;
+    } else {
+      /* Team: only change who is on the charter + notes — keep captain pay fields */
+      rate=asg.dayRate!=null&&asg.dayRate!==""?asg.dayRate:ratePrefill;
+      units=asg.payUnits!=null&&asg.payUnits!==""&&apaNum(asg.payUnits)>0?Math.round(apaNum(asg.payUnits)):unitsPrefill;
+      each=stewPayEach(rate, units);
+      tipTotal=asg.tipTotal!=null&&asg.tipTotal!==""?asg.tipTotal:"";
+      tipPayStatus=asg.tipPayStatus==="Paid"?"Paid":"Unpaid";
+      tipShare=stewTipShare({tipTotal:tipTotal, stewIds:ids});
+      nowPaid=asg.payStatus==="Paid";
+      markCancelled=!!(asg.cancelled||asg.status==="cancelled");
+      linkedLeadId=asg.leadId||"";
+      payFromPetty=false;
+    }
     var obj={
       id:asg.id||uid(),
       eventKey:ev.key,
@@ -8984,22 +9090,22 @@ function openStewAssign(eventKey){
       cancelled:markCancelled,
       leadId:linkedLeadId||"",
       cancelLeadId:markCancelled?(linkedLeadId||asg.cancelLeadId||""):"",
-      stewIds:markCancelled?ids:ids,
+      stewIds:ids,
       dayRate:rate,
       payUnits:units,
       payEach:markCancelled?0:each,
       rateBand:band.kind,
       payStatus:markCancelled?"Unpaid":(nowPaid?"Paid":"Unpaid"),
-      payStatusManual:true,
-      /* Cash leaves petty when you save as Paid (including re-mark after testing) */
-      _floatPayMark:payFromPetty,
-      _floatPayFrom:payFromPetty?"Petty cash":"",
+      payStatusManual:captainMode?true:!!asg.payStatusManual,
+      /* Cash leaves petty when captain saves as Paid */
+      _floatPayMark:captainMode&&payFromPetty,
+      _floatPayFrom:captainMode&&payFromPetty?"Petty cash":"",
       tipTotal:markCancelled?"":tipTotal,
       tipStewShare:markCancelled?0:tipShare.stewSide,
       tipPayStatus:markCancelled?"Unpaid":tipPayStatus,
       notes:(el("f_stew_asg_notes").value||"").trim(),
       updatedAt:new Date().toISOString(),
-      by:session.who||"Captain"
+      by:session.who||(captainMode?"Captain":"Team")
     };
     if(markCancelled&&!/no stew pay/i.test(obj.notes)){
       obj.notes=(obj.notes?obj.notes+" · ":"")+"Cancelled — no stew pay";
@@ -9011,8 +9117,8 @@ function openStewAssign(eventKey){
       return a;
     });
     if(!found) state.stewAssign.unshift(obj);
-    /* Pin reverse link on the lead (ICS uid = source of truth for this day) */
-    if(linkedLeadId){
+    /* Pin reverse link on the lead (captain only) */
+    if(captainMode&&linkedLeadId){
       var L=(state.leads||[]).filter(function(x){return x&&String(x.id)===String(linkedLeadId);})[0];
       if(L){
         setLeadCalendarLink(L, ev.key, {syncDates:false});
@@ -9025,20 +9131,22 @@ function openStewAssign(eventKey){
       }
     }
     showSheet(false); saveStewAssign();
-    /* Day pay → Expenses ledger; cancelled days drop pay lines */
-    if(markCancelled){
-      if(state.expenses&&state.expenses.length){
-        state.expenses=state.expenses.filter(function(e){
-          if(!e) return false;
-          if(e.source==="stew"&&String(e.stewEventKey)===String(ev.key)) return false;
-          if(e.linkId&&String(e.linkId).indexOf("stew-day:"+ev.key+":")===0) return false;
-          return true;
-        });
+    /* Day pay → Expenses ledger (captain only — team only updates who is on charter) */
+    if(captainMode){
+      if(markCancelled){
+        if(state.expenses&&state.expenses.length){
+          state.expenses=state.expenses.filter(function(e){
+            if(!e) return false;
+            if(e.source==="stew"&&String(e.stewEventKey)===String(ev.key)) return false;
+            if(e.linkId&&String(e.linkId).indexOf("stew-day:"+ev.key+":")===0) return false;
+            return true;
+          });
+        }
+        saveExpenses();
+      } else {
+        syncStewDayPayExpenses(obj);
+        saveExpenses();
       }
-      saveExpenses();
-    } else {
-      syncStewDayPayExpenses(obj);
-      saveExpenses();
     }
     delete obj._floatPayMark;
     delete obj._floatPayFrom;
@@ -11044,6 +11152,7 @@ function applyData(d, opts){
     state.charters=d.charters||[];
   }
   state.devices=d.devices||[]; state.log=d.log||[];
+  if(d.role) session.role=d.role;
   if(canOps() && Array.isArray(d.apa)){
     if(fromPoll&&localSaveIsFresh("apa")){
       /* keep local APA pots while save settles */
@@ -11055,9 +11164,9 @@ function applyData(d, opts){
   } else if(!canOps()) state.apa=[];
   if(canOps() && Array.isArray(d.diesel)) state.diesel=d.diesel;
   else if(!canOps()) state.diesel=[];
-  if(isCaptain() && Array.isArray(d.stews)) state.stews=d.stews;
-  else if(!isCaptain()) state.stews=[];
-  if(isCaptain() && Array.isArray(d.stewAssign)){
+  if(canRoster() && Array.isArray(d.stews)) state.stews=d.stews;
+  else if(!canRoster()) state.stews=[];
+  if(canRoster() && Array.isArray(d.stewAssign)){
     if(fromPoll&&localSaveIsFresh("stewAssign")){
       /* keep local stew pay marks while save is in flight */
     } else if(fromPoll){
@@ -11065,7 +11174,7 @@ function applyData(d, opts){
     } else {
       state.stewAssign=d.stewAssign;
     }
-  } else if(!isCaptain()) state.stewAssign=[];
+  } else if(!canRoster()) state.stewAssign=[];
   if(isCaptain() && Array.isArray(d.expenses)){
     if(fromPoll&&localSaveIsFresh("expenses")){
       /* keep local expenses (floatPay / edits) for a few seconds after save */

@@ -1,6 +1,8 @@
 // Limitless Tracker — Netlify Function (v2) + Netlify Blobs storage
 // Endpoint: /.netlify/functions/tracker
-// Env: TRACKER_PASSCODE (required)
+// Env: TRACKER_PASSCODE (required — captain)
+//      TRACKER_MANAGER_PASSCODE (optional — manager; falls back to TRACKER_PASSCODE)
+//      TRACKER_TEAM_PASSCODE (optional — stews/team; falls back to TRACKER_PASSCODE)
 //      TRACKER_VAPID_PUBLIC_KEY + TRACKER_VAPID_PRIVATE_KEY (for push notifications)
 //      TRACKER_VAPID_SUBJECT optional, e.g. mailto:you@example.com
 
@@ -56,9 +58,43 @@ function isCaptain(who) {
 function isManager(who) {
   return /^manager\b/i.test(String(who || "").trim());
 }
-/** Ops (APA + vessel diesel): captain only. Manager uses charges/leads. */
-function canOps(who) {
-  return isCaptain(who);
+/**
+ * Roles: captain | manager | team
+ * Client sends body.role; fall back to who-label for legacy sessions.
+ */
+function roleOf(who, bodyRole) {
+  var r = String(bodyRole || "")
+    .toLowerCase()
+    .trim();
+  if (r === "captain" || r === "manager" || r === "team") return r;
+  if (isCaptain(who)) return "captain";
+  if (isManager(who)) return "manager";
+  if (/^team\b/i.test(String(who || "").trim())) return "team";
+  return "other";
+}
+/** Ops (APA + vessel diesel): captain only. Manager = charges/leads. Team = roster. */
+function canOps(who, role) {
+  return (role || roleOf(who)) === "captain" || isCaptain(who);
+}
+function canRoster(who, role) {
+  var r = role || roleOf(who);
+  return r === "captain" || r === "team" || isCaptain(who);
+}
+function canCommercial(who, role) {
+  var r = role || roleOf(who);
+  return r === "captain" || r === "manager" || isCaptain(who) || isManager(who);
+}
+/** Passcode per role (manager/team optional env, else same as captain). */
+function passOk(pass, role) {
+  var captain = process.env.TRACKER_PASSCODE || "";
+  if (!captain) return false;
+  var manager = process.env.TRACKER_MANAGER_PASSCODE || captain;
+  var team = process.env.TRACKER_TEAM_PASSCODE || captain;
+  if (role === "captain") return pass === captain;
+  if (role === "manager") return pass === manager;
+  if (role === "team") return pass === team;
+  /* Legacy "Other" names: captain pass only */
+  return pass === captain;
 }
 
 /** Stable IDs — real first APA entry from tracker/Limitless_APA_Tracker.xlsx */
@@ -815,12 +851,9 @@ async function sendPushes(data, notices, excludeEndpoint) {
 export default async (req, context) => {
   if (req.method !== "POST") return json({ error: "method" }, 405);
 
-  const expected = process.env.TRACKER_PASSCODE;
-  if (!expected) {
+  if (!process.env.TRACKER_PASSCODE) {
     return json({ error: "Server not configured: set the TRACKER_PASSCODE environment variable in Netlify." }, 500);
   }
-  const pass = req.headers.get("x-tracker-pass") || "";
-  if (pass !== expected) return json({ error: "unauthorized" }, 401);
 
   let body;
   try {
@@ -831,6 +864,9 @@ export default async (req, context) => {
 
   const action = body.action;
   const who = (body.who || "Unknown").toString().slice(0, 60);
+  const role = roleOf(who, body.role);
+  const pass = req.headers.get("x-tracker-pass") || "";
+  if (!passOk(pass, role)) return json({ error: "unauthorized" }, 401);
   const deviceId = (body.deviceId || "").toString().slice(0, 80);
 
   const ip =
@@ -885,30 +921,40 @@ export default async (req, context) => {
     if (ensureApaChargesLinked(data)) addLog("link APA charges");
     await saveData(store, data);
     const out = {
-      charters: data.charters,
-      leads: data.leads,
+      role,
       devices: data.devices,
       log: data.log,
       pushEnabled: vapidConfigured(),
       vapidPublicKey: process.env.TRACKER_VAPID_PUBLIC_KEY || "",
     };
-    /* APA + vessel diesel: captain and manager; not for Other / guests */
-    if (canOps(who)) {
+    /* Commercial: captain + manager */
+    if (canCommercial(who, role)) {
+      out.charters = data.charters;
+      out.leads = data.leads;
+    } else {
+      out.charters = [];
+      out.leads = [];
+    }
+    /* APA + vessel diesel: captain only */
+    if (canOps(who, role)) {
       out.apa = Array.isArray(data.apa) ? data.apa : [];
       out.diesel = Array.isArray(data.diesel) ? data.diesel : [];
     } else {
       out.apa = null;
       out.diesel = null;
     }
-    /* Stew roster + assignments + vessel expenses: captain only (not manager) */
-    if (isCaptain(who)) {
+    /* Roster: captain + team (stews). Expenses: captain only */
+    if (canRoster(who, role)) {
       out.stews = Array.isArray(data.stews) ? data.stews : [];
       out.stewAssign = Array.isArray(data.stewAssign) ? data.stewAssign : [];
-      out.expenses = Array.isArray(data.expenses) ? data.expenses : [];
-      out.expPetty = Array.isArray(data.expPetty) ? data.expPetty : [];
     } else {
       out.stews = null;
       out.stewAssign = null;
+    }
+    if (role === "captain" || isCaptain(who)) {
+      out.expenses = Array.isArray(data.expenses) ? data.expenses : [];
+      out.expPetty = Array.isArray(data.expPetty) ? data.expPetty : [];
+    } else {
       out.expenses = null;
       out.expPetty = null;
     }
@@ -929,11 +975,17 @@ export default async (req, context) => {
     ) {
       return json({ error: "bad collection" }, 400);
     }
-    if ((coll === "apa" || coll === "diesel") && !canOps(who)) {
-      return json({ error: coll === "diesel" ? "Diesel is captain/manager only" : "APA is captain/manager only" }, 403);
+    if ((coll === "charters" || coll === "leads") && !canCommercial(who, role)) {
+      return json({ error: "Charges and leads are captain/manager only" }, 403);
     }
-    if ((coll === "stews" || coll === "stewAssign" || coll === "expenses" || coll === "expPetty") && !isCaptain(who)) {
-      return json({ error: "Stews / expenses are captain-only" }, 403);
+    if ((coll === "apa" || coll === "diesel") && !canOps(who, role)) {
+      return json({ error: coll === "diesel" ? "Diesel is captain only" : "APA is captain only" }, 403);
+    }
+    if ((coll === "stews" || coll === "stewAssign") && !canRoster(who, role)) {
+      return json({ error: "Roster is captain/team only" }, 403);
+    }
+    if ((coll === "expenses" || coll === "expPetty") && !(role === "captain" || isCaptain(who))) {
+      return json({ error: "Expenses are captain-only" }, 403);
     }
     const prev = Array.isArray(data[coll]) ? data[coll] : [];
     let next = Array.isArray(body.rows) ? body.rows.slice(0, 5000) : [];
