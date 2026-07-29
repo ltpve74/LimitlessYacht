@@ -1139,44 +1139,45 @@ export default async (req, context) => {
       pushEnabled: vapidConfigured(),
       vapidPublicKey: process.env.TRACKER_VAPID_PUBLIC_KEY || "",
     };
-    /* Commercial: captain + manager — always full arrays when allowed (never omit keys) */
-    if (canCommercial(who, role)) {
+    /*
+     * Payload by role. Captain always gets the full store (who-label is trusted).
+     * Manager: commercial only. Team: roster snapshot only.
+     * Never send empty [] for captain commercial — that wiped the UI after role bugs.
+     */
+    const captain = role === "captain" || isCaptain(who);
+    const commercial = captain || role === "manager" || isManager(who);
+    const roster = captain || role === "team";
+
+    if (commercial) {
       out.charters = Array.isArray(data.charters) ? data.charters : [];
       out.leads = Array.isArray(data.leads) ? data.leads : [];
     } else {
       out.charters = [];
       out.leads = [];
     }
-    /* APA + vessel diesel: captain only */
-    if (canOps(who, role)) {
+    if (captain) {
       out.apa = Array.isArray(data.apa) ? data.apa : [];
       out.diesel = Array.isArray(data.diesel) ? data.diesel : [];
+      out.expenses = Array.isArray(data.expenses) ? data.expenses : [];
+      out.expPetty = Array.isArray(data.expPetty) ? data.expPetty : [];
     } else {
       out.apa = null;
       out.diesel = null;
+      out.expenses = null;
+      out.expPetty = null;
     }
-    /* Roster: captain + team (stews + calendar snapshot). Expenses: captain only */
-    if (canRoster(who, role)) {
+    if (roster) {
       out.stews = Array.isArray(data.stews) ? data.stews : [];
       out.stewAssign = Array.isArray(data.stewAssign) ? data.stewAssign : [];
       out.stewCalendar = Array.isArray(data.stewCalendar) ? data.stewCalendar : [];
-      out.stewCalendarAt =
-        (data.meta && data.meta.stewCalendarAt) || "";
-      out.stewCalendarBy =
-        (data.meta && data.meta.stewCalendarBy) || "";
+      out.stewCalendarAt = (data.meta && data.meta.stewCalendarAt) || "";
+      out.stewCalendarBy = (data.meta && data.meta.stewCalendarBy) || "";
     } else {
       out.stews = null;
       out.stewAssign = null;
       out.stewCalendar = null;
       out.stewCalendarAt = "";
       out.stewCalendarBy = "";
-    }
-    if (role === "captain" || isCaptain(who)) {
-      out.expenses = Array.isArray(data.expenses) ? data.expenses : [];
-      out.expPetty = Array.isArray(data.expPetty) ? data.expPetty : [];
-    } else {
-      out.expenses = null;
-      out.expPetty = null;
     }
     return json(out);
   }
