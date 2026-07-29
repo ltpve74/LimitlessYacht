@@ -19,3 +19,8 @@ Set separate team/manager codes when ready so stews don’t share the captain co
 **Client:** `session.role` + `canRoster` / `canCommercial` / `canOps`.
 
 Team can tick who is on a charter; cannot mark day pay Paid or edit expenses.
+
+**Calendar source of truth**
+- Captain: **Refresh calendar** hits live ICS, then saves `stewCalendar` snapshot to Netlify Blobs.
+- Team: loads roster list from blob `stewCalendar` only; **Reload roster** re-fetches blob (no live ICS).
+- Assignments still live in `stewAssign` (both roles can save).

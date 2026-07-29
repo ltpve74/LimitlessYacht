@@ -647,6 +647,7 @@ async function loadData(store) {
       diesel: [],
       stews: [],
       stewAssign: [],
+      stewCalendar: [], /* captain-refreshed ICS snapshot for team roster */
       expenses: [],
       expPetty: [],
       devices: [],
@@ -1154,13 +1155,21 @@ export default async (req, context) => {
       out.apa = null;
       out.diesel = null;
     }
-    /* Roster: captain + team (stews). Expenses: captain only */
+    /* Roster: captain + team (stews + calendar snapshot). Expenses: captain only */
     if (canRoster(who, role)) {
       out.stews = Array.isArray(data.stews) ? data.stews : [];
       out.stewAssign = Array.isArray(data.stewAssign) ? data.stewAssign : [];
+      out.stewCalendar = Array.isArray(data.stewCalendar) ? data.stewCalendar : [];
+      out.stewCalendarAt =
+        (data.meta && data.meta.stewCalendarAt) || "";
+      out.stewCalendarBy =
+        (data.meta && data.meta.stewCalendarBy) || "";
     } else {
       out.stews = null;
       out.stewAssign = null;
+      out.stewCalendar = null;
+      out.stewCalendarAt = "";
+      out.stewCalendarBy = "";
     }
     if (role === "captain" || isCaptain(who)) {
       out.expenses = Array.isArray(data.expenses) ? data.expenses : [];
@@ -1181,6 +1190,7 @@ export default async (req, context) => {
       coll !== "diesel" &&
       coll !== "stews" &&
       coll !== "stewAssign" &&
+      coll !== "stewCalendar" &&
       coll !== "expenses" &&
       coll !== "expPetty"
     ) {
@@ -1191,6 +1201,10 @@ export default async (req, context) => {
     }
     if ((coll === "apa" || coll === "diesel") && !canOps(who, role)) {
       return json({ error: coll === "diesel" ? "Diesel is captain only" : "APA is captain only" }, 403);
+    }
+    /* Live ICS snapshot: captain only. Team assigns stews but cannot refresh the feed. */
+    if (coll === "stewCalendar" && !(role === "captain" || isCaptain(who))) {
+      return json({ error: "Calendar refresh is captain-only" }, 403);
     }
     if ((coll === "stews" || coll === "stewAssign") && !canRoster(who, role)) {
       return json({ error: "Roster is captain/team only" }, 403);
@@ -1204,8 +1218,16 @@ export default async (req, context) => {
     if (coll === "leads") {
       next = protectLeadFreeCash(prev, next);
     }
-    const notices = coll === "apa" || coll === "diesel" ? [] : buildNotices(coll, prev, next, who);
+    const notices =
+      coll === "apa" || coll === "diesel" || coll === "stewCalendar"
+        ? []
+        : buildNotices(coll, prev, next, who);
     data[coll] = next;
+    if (coll === "stewCalendar") {
+      if (!data.meta || typeof data.meta !== "object") data.meta = {};
+      data.meta.stewCalendarAt = now;
+      data.meta.stewCalendarBy = who;
+    }
     /* Charters Paid/Pending → re-link APA shortfall + book cash (black) as received */
     if (coll === "charters" || coll === "apa") {
       if (ensureApaChargesLinked(data)) addLog("sync APA after " + coll);
