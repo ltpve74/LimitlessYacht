@@ -471,16 +471,16 @@
       <div id="expBody"></div>
     </section>
 
-    <!-- COMMISSIONS (captain only — 15% of charter before VAT on captain-gained leads) -->
+    <!-- COMMISSIONS (captain only — by source rate) -->
     <section id="tab-commissions" class="hidden">
       <button type="button" class="ops-back" data-ops-back>← Ops</button>
       <div class="summary">
-        <div class="sumcard"><div class="l">Captain leads</div><div class="v" id="cmCount">0</div></div>
-        <div class="sumcard"><div class="l">Extensions</div><div class="v" id="cmExt">0</div></div>
-        <div class="sumcard"><div class="l">Base (ex VAT)</div><div class="v money" id="cmBase">€0</div></div>
-        <div class="sumcard"><div class="l">Commission 15%</div><div class="v money" id="cmTot">€0</div></div>
+        <div class="sumcard"><div class="l">Captain 15%</div><div class="v money" id="cmCaptTot">€0</div></div>
+        <div class="sumcard"><div class="l">Click&amp;Boat 21%</div><div class="v money" id="cmCbTot">€0</div></div>
+        <div class="sumcard"><div class="l">Owner benefits</div><div class="v money" id="cmOwnTot">€0</div></div>
+        <div class="sumcard"><div class="l">Comm total</div><div class="v money" id="cmTot">€0</div></div>
       </div>
-      <div class="legend">Captain leads + charges with <b>I get commission</b> (extra hours live on Charges). Lead: 15% before VAT (split = invoice ex VAT + cash). Charge: <b>Cash</b> → 15% of full amount; <b>Invoice</b> → 15% before VAT; <b>Mix</b> → cash full + invoice before VAT.</div>
+      <div class="legend">Commission by lead source (before VAT). <b>Captain</b> 15% · <b>Click&amp;Boat (Paul)</b> 21% · <b>Owner</b> no commission (value listed under Owner benefits — untick to drop from that total). Extensions: charges with <b>I get commission</b>.</div>
       <div class="list" id="cmList"></div>
     </section>
 
@@ -537,7 +537,7 @@
 <div class="sheet" id="sheet"><div class="grip"></div><div id="sheetInner"></div></div>
 
 <!-- Domain models (money rules) — single source of truth; tests: node scripts/test-tracker-models.mjs -->
-<script src="/tracker/js/models.js?v=20260729-roster3"></script>
+<script src="/tracker/js/models.js?v=20260730-comm21"></script>
 <script>
 "use strict";
 var API = "/.netlify/functions/tracker";
@@ -617,6 +617,7 @@ function canRoster(){ return isCaptain()||isTeam(); }
 function canCommercial(){ return isCaptain()||isManager(); }
 /** Captain commission % — locked in tracker/js/models.js */
 var CAPTAIN_COMMISSION_PCT=(window.LY_MODELS&&LY_MODELS.CAPTAIN_COMMISSION_PCT)||15;
+var CLICKBOAT_COMMISSION_PCT=(window.LY_MODELS&&LY_MODELS.CLICKBOAT_COMMISSION_PCT)||21;
 if(!window.LY_MODELS){
   console.error("[tracker] LY_MODELS missing — load /tracker/js/models.js");
 }
@@ -981,7 +982,7 @@ function renderOpsHub(){
     {id:"diesel",ic:"⛽",t:"Diesel",d:"Bunker & sell by date (€/L each load)"},
     {id:"stews",ic:"👩‍✈️",t:"Stews",d:"Roster, day pay, tips (private)"},
     {id:"expenses",ic:"💶",t:"Expenses",d:"Monthly boat ledger + export for manager"},
-    {id:"commissions",ic:"💸",t:"Commissions",d:CAPTAIN_COMMISSION_PCT+"% white (ex VAT) + "+CAPTAIN_COMMISSION_PCT+"% cash black on split deals"},
+    {id:"commissions",ic:"💸",t:"Commissions",d:"Captain "+CAPTAIN_COMMISSION_PCT+"% · Click&Boat "+CLICKBOAT_COMMISSION_PCT+"% · Owner benefits"},
     {id:"siteCal",ic:"🗓️",t:"Site calendar",d:calDesc}
   ];
   grid.innerHTML=tiles.map(function(x){
@@ -2103,7 +2104,8 @@ function renderLeads(){
       (cancelled&&leadInvStatus(r.deps)==="Refunded"?'<span class="pill p-red">Deposit refunded</span>':'')+
       (isSplit?'<span class="pill p-black">Split</span>':'')+
       srcPill+
-      (src==="captain"&&isCaptain()&&!cancelled?'<span class="pill p-green">Comm '+money(leadCommissionAmt(r))+'</span>':'')+
+      (isCaptain()&&!cancelled&&leadCommissionRatePct(r)>0?'<span class="pill p-green">Comm '+money(leadCommissionAmt(r))+'</span>':'')+
+      (isCaptain()&&!cancelled&&src==="owner"?'<span class="pill p-own">Owner benefit</span>':'')+
       (openN>0?'<span class="pill p-amber">'+openN+' invoice'+(openN>1?'s':'')+' open</span>':'');
     if(!isSplit){
       var vatNote=vatModeLabel(r.vatMode);
@@ -10393,20 +10395,29 @@ function leadSplitVatSwallowed(r){
 }
 function leadSource(r){ return LY_MODELS?LY_MODELS.leadSource(r):"other"; }
 function isCaptainLead(r){ return LY_MODELS?LY_MODELS.isCaptainLead(r):false; }
+function isClickboatLead(r){ return LY_MODELS&&LY_MODELS.isClickboatLead?LY_MODELS.isClickboatLead(r):leadSource(r)==="clickboat"; }
+function isOwnerLead(r){ return LY_MODELS&&LY_MODELS.isOwnerLead?LY_MODELS.isOwnerLead(r):leadSource(r)==="owner"; }
 function leadSourceLabel(src){ return LY_MODELS&&LY_MODELS.leadSourceLabel?LY_MODELS.leadSourceLabel(src):(src==="captain"?"Captain":"Other"); }
+function leadCommissionRatePct(r){ return LY_MODELS&&LY_MODELS.leadCommissionRatePct?LY_MODELS.leadCommissionRatePct(r):(isCaptainLead(r)?CAPTAIN_COMMISSION_PCT:0); }
+function ownerBenefitIncluded(r){ return LY_MODELS&&LY_MODELS.ownerBenefitIncluded?LY_MODELS.ownerBenefitIncluded(r):false; }
 function leadCommissionVatPct(r){ return LY_MODELS?LY_MODELS.commissionVatPct(r):21; }
 function leadCommissionWhiteBeforeVat(r){ return LY_MODELS?LY_MODELS.leadCommissionWhiteBeforeVat(r):0; }
 function leadCommissionParts(r){
-  var p=LY_MODELS?LY_MODELS.leadCommissionParts(r):{split:false,whiteBeforeVat:0,cashBlack:0,base:0,whiteComm:0,cashComm:0,total:0,gross:0};
+  var p=LY_MODELS?LY_MODELS.leadCommissionParts(r):{split:false,whiteBeforeVat:0,cashBlack:0,base:0,whiteComm:0,cashComm:0,total:0,gross:0,ratePct:0,source:"other"};
+  var rate=p.ratePct!=null?p.ratePct:CAPTAIN_COMMISSION_PCT;
   /* UI-only detail strings */
   if(p.split){
-    p.detail="White before VAT "+money(p.whiteBeforeVat)+" × "+CAPTAIN_COMMISSION_PCT+"% = "+money(p.whiteComm)+
-      "  ·  Cash black "+money(p.cashBlack)+" × "+CAPTAIN_COMMISSION_PCT+"% = "+money(p.cashComm)+
+    p.detail="White before VAT "+money(p.whiteBeforeVat)+" × "+rate+"% = "+money(p.whiteComm)+
+      "  ·  Cash black "+money(p.cashBlack)+" × "+rate+"% = "+money(p.cashComm)+
       "  ·  Total "+money(p.total);
   } else {
     var mode=r&&r.vatMode?String(r.vatMode):"include";
-    p.detail=money(p.gross)+(mode==="none"?"":" inc. VAT")+" → before VAT "+money(p.base)+
-      " × "+CAPTAIN_COMMISSION_PCT+"% = "+money(p.total);
+    if(rate>0){
+      p.detail=money(p.gross)+(mode==="none"?"":" inc. VAT")+" → before VAT "+money(p.base)+
+        " × "+rate+"% = "+money(p.total);
+    } else {
+      p.detail=money(p.gross)+(mode==="none"?"":" inc. VAT")+" → before VAT "+money(p.base)+" · no commission";
+    }
   }
   return p;
 }
@@ -10432,61 +10443,88 @@ function chargeCommissionParts(c){
   };
 }
 function chargeCommissionAmt(c){ return chargeCommissionParts(c).total; }
+function setOwnerBenefitExclude(leadId, exclude){
+  if(!isCaptain()||!leadId) return;
+  var L=(state.leads||[]).filter(function(x){return x&&String(x.id)===String(leadId);})[0];
+  if(!L) return;
+  L.ownerBenefitExclude=!!exclude;
+  L.updatedAt=new Date().toISOString();
+  if(!DEMO) save("leads");
+  renderCommissions();
+}
 function renderCommissions(){
   var wrap=el("cmList"); if(!wrap) return;
   if(!isCaptain()){
     wrap.innerHTML=emptyBox("💸","Captain only","Commissions are private to the captain.");
     return;
   }
-  var items=[];
-  (state.leads||[]).filter(isCaptainLead).forEach(function(r){
-    if(leadIsCancelled(r)) return; /* cancelled charter — no commission */
+  var captItems=[], cbItems=[], ownItems=[], extItems=[];
+  (state.leads||[]).forEach(function(r){
+    if(!r||leadIsCancelled(r)) return;
+    var src=leadSource(r);
     var p=leadCommissionParts(r);
-    items.push({
-      sort:String(r.closed||r.start||""),
-      title:r.name||"—",
-      total:p.total, base:p.base, p:p, kind:"lead", rec:r
-    });
+    var row={sort:String(r.closed||r.start||""), title:r.name||"—", total:p.total, base:p.base, p:p, kind:"lead", rec:r, src:src};
+    if(src==="captain") captItems.push(row);
+    else if(src==="clickboat") cbItems.push(row);
+    else if(src==="owner") ownItems.push(row);
   });
   (state.charters||[]).forEach(function(c){
     if(!isChargeCaptainComm(c)) return;
     var p=chargeCommissionParts(c);
     if(!(p.total>0)) return;
-    items.push({
+    extItems.push({
       sort:String(c.date||""),
       title:c.client||"Extension",
       total:p.total, base:p.base, p:p, kind:"extension", rec:c
     });
   });
-  items.sort(function(a,b){
+  function bySort(a,b){
     if(a.sort&&b.sort&&a.sort!==b.sort) return b.sort<a.sort?-1:1;
     return 0;
+  }
+  captItems.sort(bySort); cbItems.sort(bySort); ownItems.sort(bySort); extItems.sort(bySort);
+
+  var captCom=0, captBase=0, cbCom=0, cbBase=0, ownVal=0, ownExcluded=0, extCom=0;
+  captItems.forEach(function(it){ captCom+=it.total; captBase+=it.base; });
+  cbItems.forEach(function(it){ cbCom+=it.total; cbBase+=it.base; });
+  extItems.forEach(function(it){ extCom+=it.total; });
+  ownItems.forEach(function(it){
+    if(ownerBenefitIncluded(it.rec)) ownVal+=it.base;
+    else ownExcluded+=it.base;
   });
-  var baseTot=0, comTot=0, leadN=0, extN=0, html="";
-  items.forEach(function(it){
-    baseTot+=it.base; comTot+=it.total;
-    if(it.kind==="lead") leadN++; else extN++;
-    if(it.kind==="lead"){
-      var r=it.rec, p=it.p;
-      html+='<div class="item" data-edit-ld="'+esc(r.id)+'">'+
-        '<div class="top"><div class="title">'+esc(r.name||"—")+'</div><div class="amt money">'+money(p.total)+'</div></div>'+
-        '<div class="meta">'+
-          (r.closed?'<span>Closed '+esc(fmtDate(r.closed))+'</span>':'')+
-          (r.start?'<span>'+esc(fmtDate(r.start))+(r.end&&r.end!==r.start?"–"+esc(fmtDate(r.end)):"")+'</span>':'')+
-          '<span class="pill p-blue">Captain lead</span>'+
-          (p.split?'<span class="pill p-black">Split deal</span>':'')+
-        '</div>';
+  var comTot=captCom+cbCom+extCom;
+
+  function leadCommCard(it, pillHtml){
+    var r=it.rec, p=it.p, rate=p.ratePct!=null?p.ratePct:0;
+    var h='<div class="item" data-edit-ld="'+esc(r.id)+'">'+
+      '<div class="top"><div class="title">'+esc(r.name||"—")+'</div><div class="amt money">'+(rate>0?money(p.total):money(p.base))+'</div></div>'+
+      '<div class="meta">'+
+        (r.start?'<span>'+esc(fmtDate(r.start))+(r.end&&r.end!==r.start?"–"+esc(fmtDate(r.end)):"")+'</span>':'')+
+        pillHtml+
+        (p.split?'<span class="pill p-black">Split</span>':'')+
+      '</div>';
+    if(rate>0){
       if(p.split){
-        html+='<div class="notes" style="font-style:normal;line-height:1.5">'+
-          '<div>White before VAT <b class="money">'+money(p.whiteBeforeVat)+'</b> × '+CAPTAIN_COMMISSION_PCT+'% = <b class="money">'+money(p.whiteComm)+'</b></div>'+
-          '<div>Cash black <b class="money">'+money(p.cashBlack)+'</b> × '+CAPTAIN_COMMISSION_PCT+'% = <b class="money">'+money(p.cashComm)+'</b></div>'+
-          '<div style="margin-top:4px">Commission total <b class="money">'+money(p.total)+'</b></div>'+
+        h+='<div class="notes" style="font-style:normal;line-height:1.5">'+
+          '<div>White before VAT <b class="money">'+money(p.whiteBeforeVat)+'</b> × '+rate+'% = <b class="money">'+money(p.whiteComm)+'</b></div>'+
+          '<div>Cash black <b class="money">'+money(p.cashBlack)+'</b> × '+rate+'% = <b class="money">'+money(p.cashComm)+'</b></div>'+
+          '<div style="margin-top:4px">Commission <b class="money">'+money(p.total)+'</b></div>'+
         '</div>';
       } else {
-        html+='<div class="notes" style="font-style:normal;color:var(--muted)">'+esc(p.detail)+'</div>';
+        h+='<div class="notes" style="font-style:normal;color:var(--muted)">'+esc(p.detail)+'</div>';
       }
-      html+='</div>';
     } else {
+      h+='<div class="notes" style="font-style:normal;color:var(--muted)">Before VAT <b class="money">'+money(p.base)+'</b> · no commission (owner use)</div>';
+    }
+    h+='</div>';
+    return h;
+  }
+
+  var html="";
+  html+='<div class="apa-sect-h" style="margin-top:0"><h3>Captain · '+CAPTAIN_COMMISSION_PCT+'%</h3></div>';
+  if(captItems.length||extItems.length){
+    captItems.forEach(function(it){ html+=leadCommCard(it,'<span class="pill p-blue">Captain</span>'); });
+    extItems.forEach(function(it){
       var c=it.rec, cp=it.p;
       html+='<div class="item" data-edit-ch="'+esc(c.id)+'">'+
         '<div class="top"><div class="title">'+esc(c.client||"Extension")+'</div><div class="amt money">'+money(cp.total)+'</div></div>'+
@@ -10495,20 +10533,72 @@ function renderCommissions(){
           '<span class="pill p-amber">Extension</span>'+
           (cp.hours>0?'<span>+'+esc(String(cp.hours))+' h</span>':'')+
           '<span class="pill p-green">Captain comm</span>'+
-          '<span>Charge '+money0(cp.gross)+'</span>'+
         '</div>'+
-        '<div class="notes" style="font-style:normal;color:var(--muted)">'+esc(cp.detail)+
-          (c.notes?' · '+esc(c.notes):'')+
-        '</div></div>';
-    }
-  });
-  wrap.innerHTML=html||emptyBox("💸","No commissions yet",
-    "Mark lead source → <b>Captain</b> (website/direct), or log extra hours as a Charge with <b>I get commission</b>.");
-  /* Captain leads only — do not count extension charges as “Captain leads” */
-  if(el("cmCount")) el("cmCount").textContent=String(leadN);
-  if(el("cmExt")) el("cmExt").textContent=String(extN);
-  if(el("cmBase")) el("cmBase").textContent=money(baseTot);
+        '<div class="notes" style="font-style:normal;color:var(--muted)">'+esc(cp.detail)+'</div></div>';
+    });
+    html+='<div class="meta" style="margin:0 0 14px">Base '+money(captBase)+(extCom>0?" · ext "+money(extCom):"")+' · commission <b class="money">'+money(captCom+extCom)+'</b></div>';
+  } else {
+    html+='<div class="meta" style="margin:0 0 14px">No captain-source leads yet.</div>';
+  }
+
+  html+='<div class="apa-sect-h"><h3>Click&amp;Boat (Paul) · '+CLICKBOAT_COMMISSION_PCT+'%</h3></div>';
+  if(cbItems.length){
+    cbItems.forEach(function(it){ html+=leadCommCard(it,'<span class="pill p-amber">Click&amp;Boat</span>'); });
+    html+='<div class="meta" style="margin:0 0 14px">Base '+money(cbBase)+' · commission <b class="money">'+money(cbCom)+'</b></div>';
+  } else {
+    html+='<div class="meta" style="margin:0 0 14px">No Click&amp;Boat leads yet — import from calendar or set source on a lead.</div>';
+  }
+
+  html+='<div class="apa-sect-h"><h3>Owner benefits</h3></div>';
+  html+='<p style="margin:0 0 10px;font-size:12.5px;color:var(--muted);line-height:1.4">Owner use · no commission. Amount = charter before VAT. <b>Untick</b> to drop a trip from the owner-benefits total (still stays an owner lead).</p>';
+  if(ownItems.length){
+    ownItems.forEach(function(it){
+      var r=it.rec, p=it.p;
+      var on=ownerBenefitIncluded(r);
+      html+='<div class="item'+(on?"":" item--cancelled")+'">'+
+        '<div class="top"><div class="title">'+esc(r.name||"—")+'</div><div class="amt money">'+money(p.base)+'</div></div>'+
+        '<div class="meta">'+
+          (r.start?'<span>'+esc(fmtDate(r.start))+(r.end&&r.end!==r.start?"–"+esc(fmtDate(r.end)):"")+'</span>':'')+
+          '<span class="pill p-own">Owner</span>'+
+          (on?'<span class="pill p-own-ok">In benefits</span>':'<span class="pill p-grey">Off total</span>')+
+        '</div>'+
+        '<label class="checkrow" style="margin-top:8px" data-own-benefit="'+esc(r.id)+'">'+
+          '<input type="checkbox"'+(on?" checked":"")+'>'+
+          '<span><div class="ck">Count in owner benefits total</div>'+
+          '<div class="ch">Before VAT '+money(p.base)+(on?"":" — currently excluded")+'</div></span></label>'+
+        '<button type="button" class="btn ghost" data-edit-ld="'+esc(r.id)+'" style="margin-top:8px;width:auto;padding:6px 12px;font-size:12px">Edit lead</button>'+
+      '</div>';
+    });
+    html+='<div class="meta" style="margin:0 0 14px">Owner benefits total <b class="money">'+money(ownVal)+'</b>'+
+      (ownExcluded>0?' · excluded '+money(ownExcluded):'')+'</div>';
+  } else {
+    html+='<div class="meta" style="margin:0 0 14px">No owner trips yet — set lead source to <b>Owner</b> on those charters.</div>';
+  }
+
+  if(!captItems.length&&!cbItems.length&&!ownItems.length&&!extItems.length){
+    html=emptyBox("💸","No commission lines yet",
+      "Import calendar leads, set source to Captain / Click&amp;Boat / Owner, or mark extra hours with <b>I get commission</b>.");
+  }
+  wrap.innerHTML=html;
+  if(el("cmCaptTot")) el("cmCaptTot").textContent=money(captCom+extCom);
+  if(el("cmCbTot")) el("cmCbTot").textContent=money(cbCom);
+  if(el("cmOwnTot")) el("cmOwnTot").textContent=money(ownVal);
   if(el("cmTot")) el("cmTot").textContent=money(comTot);
+  /* legacy ids if still present */
+  if(el("cmCount")) el("cmCount").textContent=String(captItems.length);
+  if(el("cmExt")) el("cmExt").textContent=String(extItems.length);
+  if(el("cmBase")) el("cmBase").textContent=money(captBase+cbBase);
+
+  Array.prototype.forEach.call(wrap.querySelectorAll("[data-own-benefit]"),function(lab){
+    var inp=lab.querySelector("input[type=checkbox]");
+    if(!inp) return;
+    inp.addEventListener("click",function(ev){ ev.stopPropagation(); });
+    inp.addEventListener("change",function(ev){
+      ev.stopPropagation();
+      var id=lab.getAttribute("data-own-benefit");
+      setOwnerBenefitExclude(id, !inp.checked);
+    });
+  });
   bindEdit(wrap,"data-edit-ld","lead");
   bindEdit(wrap,"data-edit-ch","charter");
 }
@@ -10516,10 +10606,10 @@ function selLeadSourceField(val){
   var v=(LY_MODELS&&LY_MODELS.constrainLeadSource)?LY_MODELS.constrainLeadSource(val):String(val||"other");
   if(v!=="captain"&&v!=="clickboat"&&v!=="owner"&&v!=="other") v="other";
   return '<select class="ctl" id="f_leadSource">'+
-    '<option value="captain"'+(v==="captain"?" selected":"")+'>Captain (website / direct — commission)</option>'+
-    '<option value="clickboat"'+(v==="clickboat"?" selected":"")+'>Click&amp;Boat (Paul)</option>'+
-    '<option value="owner"'+(v==="owner"?" selected":"")+'>Owner</option>'+
-    '<option value="other"'+(v==="other"?" selected":"")+'>Other</option>'+
+    '<option value="captain"'+(v==="captain"?" selected":"")+'>Captain (website / direct — '+CAPTAIN_COMMISSION_PCT+'%)</option>'+
+    '<option value="clickboat"'+(v==="clickboat"?" selected":"")+'>Click&amp;Boat (Paul — '+CLICKBOAT_COMMISSION_PCT+'%)</option>'+
+    '<option value="owner"'+(v==="owner"?" selected":"")+'>Owner (no commission · benefits)</option>'+
+    '<option value="other"'+(v==="other"?" selected":"")+'>Other (no commission)</option>'+
   '</select>';
 }
 /**
@@ -10736,7 +10826,7 @@ function openSheet(type,id){
     }
     h+=fieldHTML("Lead name",'<input class="ctl" id="f_name" value="'+esc(r.name)+'" placeholder="e.g. Guest or company name">');
     h+=fieldHTML("Lead source (commission)",selLeadSourceField(leadSrcDef));
-    h+='<p style="margin:-6px 0 12px;font-size:12.5px;color:var(--muted);line-height:1.4"><b>Captain</b> = website or direct contact → '+CAPTAIN_COMMISSION_PCT+'% commission. <b>Click&amp;Boat (Paul)</b> / <b>Owner</b> = no captain commission. Change anytime — calendar does not set this reliably.</p>';
+    h+='<p style="margin:-6px 0 12px;font-size:12.5px;color:var(--muted);line-height:1.4"><b>Captain</b> = website/direct → '+CAPTAIN_COMMISSION_PCT+'% before VAT. <b>Click&amp;Boat (Paul)</b> → '+CLICKBOAT_COMMISSION_PCT+'% before VAT. <b>Owner</b> = no commission (owner benefits). Change anytime.</p>';
     /* Stable link to calendar ICS uid — survives date moves / on-hold */
     var calKeyNow=leadCalendarEventKey(r);
     var calOpts=[];
