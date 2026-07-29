@@ -8339,7 +8339,8 @@ function stewTipStatusPill(pay){
   return '<span class="pill p-grey">Tip</span>';
 }
 function loadStewSeed(){
-  if(!isCaptain()) return Promise.resolve([]);
+  /* Captain + team need the season seed for roster (public static JSON). */
+  if(!canRoster()) return Promise.resolve([]);
   if(stewSeedLoaded) return Promise.resolve(stewSeedEvents);
   if(stewSeedPromise) return stewSeedPromise;
   stewSeedPromise=fetch("/tracker/stew-calendar-seed.json",{credentials:"omit",cache:"default"})
@@ -8357,7 +8358,8 @@ function loadStewSeed(){
   return stewSeedPromise;
 }
 function loadCalEvents(force){
-  if(!isCaptain()) return Promise.resolve([]);
+  /* Captain + team need live ICS for the roster calendar. Public availability API. */
+  if(!canRoster()) return Promise.resolve([]);
   var now=Date.now();
   /* In-memory cache only when not forcing — never block a real refresh */
   if(!force&&calEvents.length&&(now-calEventsAt)<60*1000) return Promise.resolve(calEvents);
@@ -8569,9 +8571,22 @@ function renderStews(opts){
     '<div id="stewCalList"><div class="empty"><div class="big">⏳</div><div>Loading calendar…</div></div></div>';
   if(el("stewRefreshCal")) el("stewRefreshCal").addEventListener("click",function(){
     el("stewCalList").innerHTML='<div class="empty"><div class="big">⏳</div><div>Refreshing from calendar…</div></div>';
-    loadStewCalendar(true).then(function(){ paintStewChartersKeepScroll(); });
+    loadStewCalendar(true).then(function(){
+      paintStewChartersKeepScroll();
+      if(!stewMergedEvents().filter(function(ev){ return ev&&!stewIsOffEvent(ev); }).length){
+        var w=el("stewCalList");
+        if(w) w.innerHTML=emptyBox("📅","No charters loaded","Check connection and tap Refresh calendar again.");
+      }
+    }).catch(function(){
+      var w=el("stewCalList");
+      if(w) w.innerHTML=emptyBox("📅","Calendar refresh failed","Check connection and try again.");
+    });
   });
-  loadStewCalendar(false).then(function(){ paintStewChartersKeepScroll(); });
+  loadStewCalendar(false).then(function(){ paintStewChartersKeepScroll(); })
+    .catch(function(){
+      var w=el("stewCalList");
+      if(w) w.innerHTML=emptyBox("📅","Could not load calendar","Tap Refresh calendar to retry.");
+    });
 }
 function paintStewCharters(){
   var wrap=el("stewCalList"); if(!wrap) return;
