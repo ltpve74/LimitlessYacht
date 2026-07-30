@@ -836,8 +836,10 @@ function runPostLoadMaintenance(){
       try{ runStewAssignFullRestore(); }catch(eRest){}
       try{ healStewAssignsToLeads(); }catch(eHeal){}
       try{ backupStewAssignLocal(); }catch(eBak){}
-      /* Publish roster snapshot (dur + times) so team/stews see 4h/6h/8h not “all day” */
-      try{ persistStewCalendarSnapshot(); }catch(eSnap){}
+      /* Snapshot for team after open (never block gate; never recurse into merged feed) */
+      setTimeout(function(){
+        try{ persistStewCalendarSnapshot(); }catch(eSnap){}
+      }, 400);
       try{ expCleanOrphanStewDayPayLines(); }catch(eCl0){}
       /* Uses stewAssign already in state — no ICS round-trip */
       try{ seedCurrentMonthStewCashExpenses(); }catch(e1){}
@@ -1200,11 +1202,32 @@ function leadCalendarEventKey(r){
   if(u) return u.indexOf("uid:")===0?u:("uid:"+u);
   return "";
 }
+/**
+ * Look up a calendar feed event by key/uid.
+ * Must NOT call stewMergedEvents() — that is built from leads which call this
+ * (via time resolve) and would recurse forever and hang on “Opening…”.
+ */
 function calendarEventByKey(key){
   if(!key) return null;
+  var k=String(key);
+  function match(e){
+    if(!e) return false;
+    if(String(e.key||"")===k) return true;
+    if(e.uid&&("uid:"+String(e.uid))===k) return true;
+    if(e.uid&&String(e.uid)===k) return true;
+    var id=stewEventId(e);
+    return !!id&&String(id)===k;
+  }
   try{
-    return (stewMergedEvents()||[]).filter(function(e){return e&&String(e.key)===String(key);})[0]||null;
+    var i, list;
+    list=calEvents||[];
+    for(i=0;i<list.length;i++){ if(match(list[i])) return list[i]; }
+    list=stewSeedEvents||[];
+    for(i=0;i<list.length;i++){ if(match(list[i])) return list[i]; }
+    list=state.stewCalendar||[];
+    for(i=0;i<list.length;i++){ if(match(list[i])) return list[i]; }
   }catch(err){ return null; }
+  return null;
 }
 function setLeadCalendarLink(lead, eventKey, opts){
   opts=opts||{};
@@ -1302,7 +1325,8 @@ function renderAll(){
     if(curTab==="expenses") safe(renderExpenses);
     if(curTab==="commissions") safe(renderCommissions);
   }
-  if(canRoster()) safe(function(){ renderStews({soft:true}); });
+  /* Only paint Stews when that tab is open — avoid full roster rebuild on every boot */
+  if(canRoster()&&curTab==="stews") safe(function(){ renderStews({soft:true}); });
 }
 
 /** Charges: payment defaults Paid; invStatus is what the manager tracks. */
