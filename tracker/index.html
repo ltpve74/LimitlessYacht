@@ -428,10 +428,9 @@
     <section id="tab-leads" class="hidden">
       <div class="ld-summary" id="ldSummary">
         <div class="sumcard"><div class="l">Closed deals</div><div class="v money" id="ldTot">€0</div><div class="sub" id="ldTotSub">Excludes pending source</div></div>
-        <div class="sumcard"><div class="l">Luigi (Captain)</div><div class="v money" id="ldCap">€0</div><div class="sub" id="ldCapSub">0 trips · 15% commission</div></div>
-        <div class="sumcard"><div class="l">Paul (Click&amp;Boat)</div><div class="v money" id="ldCb">€0</div><div class="sub" id="ldCbSub">0 trips · 21% commission</div></div>
+        <div class="sumcard"><div class="l">Luigi (Captain)</div><div class="v money" id="ldCap">€0</div><div class="sub" id="ldCapSub">0 trips · 15%</div><div class="sub" id="ldCapTypes" style="margin-top:6px">—</div></div>
+        <div class="sumcard"><div class="l">Paul (Click&amp;Boat)</div><div class="v money" id="ldCb">€0</div><div class="sub" id="ldCbSub">0 trips · 21%</div><div class="sub" id="ldCbTypes" style="margin-top:6px">—</div></div>
         <div class="sumcard"><div class="l">Invoices open</div><div class="v" id="ldPending">0</div><div class="sub" id="ldPendSub">On closed deals only</div></div>
-        <div class="sumcard"><div class="l">Charter types</div><div class="v" id="ldTypes" style="font-size:15px;font-weight:700">—</div><div class="sub" id="ldTypesSub">Closed trips only</div></div>
         <div class="sumcard"><div class="l">Pending source</div><div class="v" id="ldOpenSrc">0</div><div class="sub">Not in closed total</div></div>
       </div>
       <div class="legend">Charter book. <b>Pending</b> = calendar hold (not closed — excluded from money totals). Closed = Captain (Luigi) · Click&amp;Boat (Paul) · Owner. New ICS dates → pending until you assign source. <b>Make invoice</b> = PDF.</div>
@@ -2066,7 +2065,16 @@ function renderLeads(){
   var tot=0, pend=0, nClosed=0, nPendSrc=0;
   var capTot=0, capN=0, capComm=0;
   var cbTot=0, cbN=0, cbComm=0;
-  var typeCounts={};
+  var capTypes={}, cbTypes={};
+  function bumpType(map, k){ map[k]=(map[k]||0)+1; }
+  function formatTypeMix(map){
+    var order=["4h","6h","8h","multi"], parts=[];
+    order.forEach(function(k){ if(map[k]) parts.push(map[k]+"× "+leadCharterTypeLabel(k)); });
+    Object.keys(map).forEach(function(k){
+      if(order.indexOf(k)<0&&map[k]) parts.push(map[k]+"× "+leadCharterTypeLabel(k));
+    });
+    return parts.length?parts.join(" · "):"—";
+  }
   (state.leads||[]).forEach(function(r){
     if(!r) return;
     var cancelled=leadIsCancelled(r);
@@ -2081,13 +2089,14 @@ function renderLeads(){
       tot+=val;
       nClosed++;
       var tk=leadCharterTypeKey(r);
-      typeCounts[tk]=(typeCounts[tk]||0)+1;
       if(src==="captain"){
         capTot+=val; capN++;
         capComm+=leadCommissionAmt(r)||0;
+        bumpType(capTypes, tk);
       } else if(src==="clickboat"){
         cbTot+=val; cbN++;
         cbComm+=leadCommissionAmt(r)||0;
+        bumpType(cbTypes, tk);
       }
     }
     /* Open invoices only on closed commercial deals */
@@ -2163,21 +2172,13 @@ function renderLeads(){
   if(el("ldTotSub")) el("ldTotSub").textContent=nClosed+" closed trip"+(nClosed===1?"":"s")+" · pending excluded";
   if(el("ldCap")) el("ldCap").textContent=money(capTot);
   if(el("ldCapSub")) el("ldCapSub").textContent=capN+" trip"+(capN===1?"":"s")+(isCaptain()&&capComm>0?" · comm "+money(capComm):" · 15%");
+  if(el("ldCapTypes")) el("ldCapTypes").textContent=formatTypeMix(capTypes);
   if(el("ldCb")) el("ldCb").textContent=money(cbTot);
   if(el("ldCbSub")) el("ldCbSub").textContent=cbN+" trip"+(cbN===1?"":"s")+(isCaptain()&&cbComm>0?" · comm "+money(cbComm):" · 21%");
+  if(el("ldCbTypes")) el("ldCbTypes").textContent=formatTypeMix(cbTypes);
   if(el("ldPending")) el("ldPending").textContent=String(pend);
   if(el("ldPendSub")) el("ldPendSub").textContent=pend?"On closed deals":"All closed invoices issued";
   if(el("ldOpenSrc")) el("ldOpenSrc").textContent=String(nPendSrc);
-  var typeOrder=["4h","6h","8h","multi"];
-  var typeParts=[];
-  typeOrder.forEach(function(k){
-    if(typeCounts[k]) typeParts.push(typeCounts[k]+"× "+leadCharterTypeLabel(k));
-  });
-  Object.keys(typeCounts).forEach(function(k){
-    if(typeOrder.indexOf(k)<0&&typeCounts[k]) typeParts.push(typeCounts[k]+"× "+leadCharterTypeLabel(k));
-  });
-  if(el("ldTypes")) el("ldTypes").textContent=typeParts.length?typeParts.join(" · "):"—";
-  if(el("ldTypesSub")) el("ldTypesSub").textContent=nClosed?"Closed trips only":"No closed trips yet";
   Array.prototype.forEach.call(wrap.querySelectorAll("[data-edit-ld-btn]"),function(btn){
     btn.addEventListener("click",function(ev){
       ev.preventDefault(); ev.stopPropagation();
