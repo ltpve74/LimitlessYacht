@@ -448,13 +448,13 @@
       <div class="ld-summary" id="ldSummary">
         <div class="sumcard ld-snap" id="ldSnap">
           <div class="ld-snap-hero">
-            <div class="k">Projected total money in</div>
+            <div class="k">Projected closed total</div>
             <div class="big money" id="ldAllTot">€0</div>
-            <div class="s" id="ldAllSub">Done + confirmed closed deals (charters + upsells)</div>
+            <div class="s" id="ldAllSub">Realised + scheduled closed deals (charters + upsells)</div>
           </div>
           <div class="ld-snap-cols">
             <div class="ld-snap-col done">
-              <div class="hd">Done · already in</div>
+              <div class="hd">Realised · past / today</div>
               <div class="big money" id="ldDoneTot">€0</div>
               <div class="meta" id="ldDoneSub">0 sailed trips</div>
               <div class="lines">
@@ -467,7 +467,7 @@
               </div>
             </div>
             <div class="ld-snap-col proj">
-              <div class="hd">Confirmed · still to cash</div>
+              <div class="hd">Scheduled · future dates</div>
               <div class="big money" id="ldProjTot">€0</div>
               <div class="meta" id="ldProjSub">0 future trips</div>
               <div class="lines">
@@ -484,7 +484,7 @@
             <div class="ld-snap-row"><span class="k">Awaiting confirmation</span><span class="v" id="ldAwait">0</span><span class="s" id="ldAwaitSub">Possible new business · pending source</span></div>
             <div class="ld-snap-row"><span class="k">Owner days (notional)</span><span class="v money" id="ldOwn">€0</span><span class="s" id="ldOwnSub">List-rate estimate · not cash</span></div>
           </div>
-          <div class="ld-snap-note">Projected total = done + confirmed closed deals. Open deals and pending source are not included. Owner days are list-rate notional only.</div>
+          <div class="ld-snap-note">Projected closed total = realised (past/today) + scheduled (future closed deals). Open deals and pending source are not included. Owner days are list-rate notional only.</div>
         </div>
         <div class="sumcard ld-src"><div class="l">Luigi · Captain</div><div class="v money" id="ldCap">€0</div><div class="sub" id="ldCapSub">—</div><div id="ldCapTypes" class="ld-type-table"></div></div>
         <div class="sumcard ld-src"><div class="l">Paul · Click&amp;Boat</div><div class="v money" id="ldCb">€0</div><div class="sub" id="ldCbSub">—</div><div id="ldCbTypes" class="ld-type-table"></div></div>
@@ -2205,8 +2205,8 @@ function leadTodayYmd(){
 }
 /**
  * Charter timing for closed deals:
- *  - done = sailed / today or past (money treated as already in)
- *  - upcoming = confirmed source, start still in the future (projected cash)
+ *  - done = sailed / today or past (realised)
+ *  - upcoming = confirmed source, start still in the future (scheduled)
  */
 function leadCharterTiming(r){
   if(!leadIsClosedDeal(r)) return "";
@@ -2411,8 +2411,8 @@ function renderLeads(){
       (cancelled&&leadInvStatus(r.deps)==="Refunded"?'<span class="pill p-red">Deposit refunded</span>':'')+
       (isPending?'<span class="pill p-amber">Pending source</span>':'')+
       (!isPending&&!isOwner&&!cancelled&&!leadIsDealClosed(r)?'<span class="pill p-amber">Open deal</span>':'')+
-      (timing==="upcoming"?'<span class="pill p-blue">Upcoming · to cash</span>':'')+
-      (timing==="done"?'<span class="pill p-green">Done</span>':'')+
+      (timing==="upcoming"?'<span class="pill p-blue">Scheduled</span>':'')+
+      (timing==="done"?'<span class="pill p-green">Realised</span>':'')+
       (isSplit?'<span class="pill p-black">Split</span>':'')+
       (rateBits.length?'<span>'+rateBits.join(" · ")+'</span>':'')+
       (calKey?'<span class="pill p-grey">Cal linked</span>':'')+
@@ -2453,7 +2453,7 @@ function renderLeads(){
   if(el("ldAllTot")) el("ldAllTot").textContent=money(allTot);
   if(el("ldAllSub")){
     el("ldAllSub").textContent=allN+" closed trip"+(allN===1?"":"s")+
-      " · "+money(done.tot)+" in + "+money(proj.tot)+" still to cash";
+      " · "+money(done.tot)+" realised + "+money(proj.tot)+" scheduled";
   }
   if(el("ldDoneTot")) el("ldDoneTot").textContent=money(done.tot);
   if(el("ldDoneSub")){
