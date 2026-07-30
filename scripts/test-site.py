@@ -2346,8 +2346,10 @@ def check_shared_assets(r: Runner) -> None:
         'bookable calendar days are styled unmistakably (not bare text)',
         css is not None
         and '.cal-cell.free' in css
-        and 'box-shadow:inset0001.5pxrgba(201,168,76,.55)' in re.sub(r'\s+', '', css)
-        and 'background:rgba(201,168,76,.14)' in re.sub(r'\s+', '', css),
+        and 'box-shadow:inset0001.5pxrgba(201,168,76,.75)' in re.sub(r'\s+', '', css)
+        and 'background:rgba(201,168,76,.22)' in re.sub(r'\s+', '', css)
+        and 'repeating-linear-gradient' in css
+        and '.cal-cell.tentative' in css,
     )
     r.check(
         'carousel position counter is readable on mobile',
