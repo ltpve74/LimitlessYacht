@@ -831,6 +831,13 @@ function enterApp(){
   } else if(canCommercial()&&(isOpsTab(curTab)||!curTab)){
     curTab="charters";
   }
+  /* Deep link from push: /tracker/?tab=leads&pending=1 */
+  try{
+    var q=new URLSearchParams(location.search||"");
+    var tabQ=q.get("tab");
+    if(tabQ==="leads"&&canCommercial()) curTab="leads";
+    else if(tabQ==="stews"&&canRoster()) curTab="stews";
+  }catch(eQ){}
   try{ switchTab(curTab); }catch(e0){ console&&console.error&&console.error("[tracker] switchTab",e0); }
   /* Always paint all visible data once — switchTab alone used to skip charges/leads */
   try{ renderAll(); }catch(e){ console&&console.error&&console.error("[tracker] renderAll",e); }
@@ -838,6 +845,15 @@ function enterApp(){
   else { setPushStatus("na","Demo mode — notifications need the live app"); }
   /* Prompt once logged in if not already running as home-screen app */
   setTimeout(function(){ maybeShowInstallPrompt(); }, 600);
+  try{
+    var q2=new URLSearchParams(location.search||"");
+    if(q2.get("pending")==="1"&&canCommercial()){
+      setTimeout(function(){
+        if(curTab!=="leads") switchTab("leads");
+        openNextPendingLead();
+      }, 400);
+    }
+  }catch(eP){}
 }
 function lockApp(){
   clearSession();
@@ -2040,6 +2056,10 @@ function leadCharterKey(r){
 function sortLeads(){
   if(!state.leads||!state.leads.length) return;
   state.leads.sort(function(a,b){
+    /* Pending source first — easy to assign without scrolling */
+    var ap=leadSource(a)==="pending"?0:1;
+    var bp=leadSource(b)==="pending"?0:1;
+    if(ap!==bp) return ap-bp;
     var da=leadCharterKey(a), db=leadCharterKey(b);
     if(da&&db&&da!==db) return db<da?-1:1; /* newest charter date first */
     if(db&&!da) return 1;
@@ -2055,6 +2075,21 @@ function sortLeads(){
     if(ta&&!tb) return -1;
     return String(b.id||"").localeCompare(String(a.id||""));
   });
+}
+function pendingLeadsList(){
+  return (state.leads||[]).filter(function(r){
+    return r&&!leadIsCancelled(r)&&leadSource(r)==="pending";
+  });
+}
+function openNextPendingLead(){
+  var list=pendingLeadsList();
+  if(!list.length){ window.alert("No pending-source leads."); return; }
+  if(typeof openSheet==="function") openSheet("lead", list[0].id);
+}
+function scrollLeadIntoView(id){
+  var safe=String(id||"").replace(/\\/g,"\\\\").replace(/"/g,'\\"');
+  var node=document.querySelector('[data-edit-ld="'+safe+'"]');
+  if(node&&node.scrollIntoView) node.scrollIntoView({block:"center", behavior:"smooth"});
 }
 /** Compact split money block — quote → base → white PDF → cash (logical order). */
 function leadSplitSummaryHTML(r){
@@ -2146,28 +2181,56 @@ function renderLeads(){
     wrap.parentNode.insertBefore(importBar, wrap);
   }
   if(importBar&&canCommercial()){
-    importBar.innerHTML='<div class="legend" style="margin-bottom:8px">Leads are the cleaned history — we do <b>not</b> re-import old calendar bulk. '+
-      'When a <b>new</b> date appears on the manager calendar, sync creates a lead as <b>Pending source</b> (assign Captain / Click&amp;Boat / Owner).</div>'+
-      '<button type="button" class="btn" id="ldSyncIcs" style="width:100%">Sync new calendar dates only</button>';
+    var pendList=pendingLeadsList();
+    var pendHtml="";
+    if(pendList.length){
+      pendHtml='<div class="apa-card" style="margin:0 0 12px;border:1.5px solid #E0A800;background:#fffbeb">'+
+        '<div style="font-weight:800;color:#9a6b00">'+pendList.length+' need source assignment</div>'+
+        '<div class="meta" style="margin:6px 0 10px">Pending trips sit at the top. Tap one below or open the next.</div>'+
+        '<button type="button" class="btn" id="ldOpenNextPend" style="width:100%;margin-bottom:8px">Assign next pending →</button>'+
+        '<div style="display:flex;flex-direction:column;gap:6px">'+
+        pendList.slice(0,8).map(function(r){
+          return '<button type="button" class="btn ghost" data-pend-lead="'+esc(r.id)+'" style="width:100%;text-align:left;padding:10px 12px">'+
+            '<b>'+esc(r.name||"Charter")+'</b> · '+esc(fmtDate(r.start)||r.start||"?")+
+            (r.end&&r.end!==r.start?"–"+esc(fmtDate(r.end)||r.end):"")+
+          '</button>';
+        }).join("")+
+        (pendList.length>8?'<div class="meta">+ '+(pendList.length-8)+' more at top of list</div>':'')+
+        '</div></div>';
+    }
+    importBar.innerHTML=pendHtml+
+      '<div class="legend" style="margin-bottom:8px">Leads are history. <b>New</b> manager-calendar dates only → <b>Pending source</b> (then assign). Roster + public site both use this book.</div>'+
+      '<button type="button" class="btn ghost" id="ldSyncIcs" style="width:100%">Sync new calendar dates</button>';
+    if(el("ldOpenNextPend")) el("ldOpenNextPend").onclick=function(){ openNextPendingLead(); };
+    Array.prototype.forEach.call(importBar.querySelectorAll("[data-pend-lead]"),function(btn){
+      btn.addEventListener("click",function(){
+        var id=btn.getAttribute("data-pend-lead");
+        if(id&&typeof openSheet==="function") openSheet("lead", id);
+      });
+    });
     if(el("ldSyncIcs")) el("ldSyncIcs").onclick=function(){
       if(DEMO){ window.alert("Sync needs the live server."); return; }
       var btn=el("ldSyncIcs");
       if(btn){ btn.disabled=true; btn.textContent="Syncing…"; }
       api("syncNewIcsLeads").then(function(j){
         if(j.leads) state.leads=j.leads;
+        if(isCaptain()) try{ persistStewCalendarSnapshot(); }catch(e0){}
         sortLeads();
         renderLeads();
         var s=j.stats||{};
         if(s.baselined){
           window.alert("Baseline set.\n\nRecorded "+(s.knownCount||0)+" existing calendar events.\nNo leads created (your history stays clean).\n\nFrom now on, only brand-new calendar dates become pending leads.");
         } else {
-          window.alert("Sync done.\n\nNew pending leads: "+(s.created||0)+
+          var msg="Sync done.\n\nNew pending leads: "+(s.created||0)+
             "\nAlready known: "+(s.alreadyKnown||0)+
-            "\nTotal leads: "+(s.totalLeads||(state.leads||[]).length));
+            "\nTotal leads: "+(s.totalLeads||(state.leads||[]).length);
+          if(j.pushSent) msg+="\nPush sent: "+j.pushSent;
+          window.alert(msg);
+          if(s.created>0) openNextPendingLead();
         }
       }).catch(function(err){
         window.alert((err&&err.error)||(err&&err.body&&err.body.error)||"Sync failed");
-        if(btn){ btn.disabled=false; btn.textContent="Sync new calendar dates only"; }
+        if(btn){ btn.disabled=false; btn.textContent="Sync new calendar dates"; }
       });
     };
   }
@@ -8930,20 +8993,23 @@ function loadStewCalendar(force){
     return Promise.resolve(stewMergedEvents());
   }
   if(!isCaptain()) return Promise.resolve([]);
+  /*
+   * Roster list = leads. Still pull ICS to detect brand-new events → pending leads,
+   * then publish lead-based snapshot for the team.
+   */
   return Promise.all([loadStewSeed(), loadCalEvents(!!force)]).then(function(){
-    /* After a successful live pull, drop ghost days (deleted ICS events / leftover assigns) */
-    purgeOrphanStewAssigns();
-    /* Publish snapshot for team: always after explicit refresh, or once if blob empty */
-    if(force||!(state.stewCalendar&&state.stewCalendar.length)) persistStewCalendarSnapshot();
-    /*
-     * Fresh leads only: baseline existing ICS once; then new calendar uids → pending leads.
-     * Never bulk-import historical trips into the cleaned leads book.
-     */
+    function afterSync(){
+      purgeOrphanStewAssigns();
+      if(force||!(state.stewCalendar&&state.stewCalendar.length)||stewEventsFromLeads().length){
+        persistStewCalendarSnapshot();
+      }
+      return stewMergedEvents();
+    }
     if(force||!window._icsLeadSyncOnce){
       window._icsLeadSyncOnce=true;
-      return syncFreshIcsLeadsQuiet().then(function(){ return stewMergedEvents(); });
+      return syncFreshIcsLeadsQuiet().then(afterSync);
     }
-    return stewMergedEvents();
+    return afterSync();
   });
 }
 /** Stable event id — model owns the form. */
@@ -8956,63 +9022,94 @@ function stewEventId(ev){
 /** True when we have a schedule feed for this session/role. */
 function stewLiveFeedReady(){
   if(isTeam()) return !!(stewCalendarAt||(state.stewCalendar&&state.stewCalendar.length));
+  /* Leads are SOT — ready when commercial book has dated trips */
+  if(stewEventsFromLeads().length) return true;
   return !!(calEventsAt>0)||!!(state.stewCalendar&&state.stewCalendar.length);
 }
+/** Blocked charter days for a lead (matches server site-calendar logic). */
+function leadBlockedDaysClient(l){
+  if(!l) return [];
+  var start=String(l.start||l.cdate||"").slice(0,10);
+  if(!/^\d{4}-\d{2}-\d{2}$/.test(start)) return [];
+  var end=String(l.end||"").slice(0,10);
+  var multi=l.dur==="multi"||(end&&end>start);
+  var nDays=Math.max(1, Math.round(Number(l.days)||0)||1);
+  function addD(ymd, n){
+    var p=ymd.split("-").map(Number);
+    var dt=new Date(Date.UTC(p[0], p[1]-1, p[2]+(n||0)));
+    return dt.getUTCFullYear()+"-"+String(dt.getUTCMonth()+1).padStart(2,"0")+"-"+String(dt.getUTCDate()).padStart(2,"0");
+  }
+  if(multi&&nDays>1){
+    var out=[];
+    for(var i=0;i<nDays&&i<60;i++) out.push(addD(start, i));
+    return out;
+  }
+  if(multi&&end&&end>start){
+    var out2=[], d=start;
+    while(d<=end){ out2.push(d); d=addD(d,1); if(out2.length>60) break; }
+    return out2;
+  }
+  return [start];
+}
+/** One stew-roster event from a commercial lead (SOT). */
+function stewEventFromLead(l){
+  if(!l||!l.id||leadIsCancelled(l)) return null;
+  var days=leadBlockedDaysClient(l);
+  if(!days.length) return null;
+  var start=days[0];
+  var end=days[days.length-1]||start;
+  var ek=leadCalendarEventKey(l)||("lead:"+String(l.id));
+  var src=leadSource(l);
+  var pending=src==="pending"||l.sourcePending===true;
+  return {
+    key:ek,
+    uid:l.calendarUid||l.id,
+    summary:l.name||"Charter",
+    start:start,
+    end:end,
+    startTime:"",
+    endTime:"",
+    allDay:true,
+    status:pending?"tentative":"booked",
+    source:"lead",
+    leadId:l.id,
+    leadSource:src,
+    days:days
+  };
+}
+function stewEventsFromLeads(){
+  var list=[];
+  (state.leads||[]).forEach(function(l){
+    var ev=stewEventFromLead(l);
+    if(ev) list.push(ev);
+  });
+  return list;
+}
 /**
- * Calendar truth for the roster list:
- *  - Team: captain-published blob snapshot only (no live ICS)
- *  - Captain: seed + live ICS (then published to blob)
- * When live has loaded, seed rows whose date falls inside the live span but whose
- * uid is missing from live are treated as deleted (e.g. leftover single-day after
- * merging 13+14 into overnight) and omitted.
+ * Roster calendar truth = commercial leads (same SOT as public site).
+ * Team: captain-published blob (built from leads).
+ * Captain: leads list (cancel ghosts still merged later via stewMergedEvents assigns).
  */
 function stewCalendarFeedEvents(){
-  /* Team always uses the blob snapshot the captain last published */
   if(isTeam()){
     return (state.stewCalendar||[]).map(function(ev){
       return Object.assign({},ev,{source:ev.source||"blob", key:ev.key||stewEventId(ev)});
     }).filter(function(ev){ return ev&&ev.start; });
   }
-  var map={};
-  function put(ev, prefer){
-    if(!ev||!ev.start) return;
-    var id=stewEventId(ev);
-    if(!id) return;
-    if(map[id]&&!prefer) return;
-    map[id]=ev;
+  /* Captain / manager with commercial access: leads are the roster */
+  var leadEvs=stewEventsFromLeads();
+  if(leadEvs.length){
+    return leadEvs;
   }
-  var liveReady=!!(calEventsAt>0);
-  var liveMin="", liveMax="";
-  var liveKeys={};
-  (calEvents||[]).forEach(function(ev){
-    if(!ev||!ev.start) return;
-    var s=String(ev.start).slice(0,10);
-    if(!liveMin||s<liveMin) liveMin=s;
-    if(!liveMax||s>liveMax) liveMax=s;
-    var id=stewEventId(ev);
-    if(id) liveKeys[id]=1;
-    if(ev.key) liveKeys[String(ev.key)]=1;
-  });
-  (stewSeedEvents||[]).forEach(function(ev){
-    if(!ev||!ev.start) return;
-    var id=stewEventId(ev);
-    var s=String(ev.start).slice(0,10);
-    /* Live span loaded and this seed day is inside it but gone from ICS → deleted */
-    if(liveReady&&liveMin&&liveMax&&s>=liveMin&&s<=liveMax){
-      if(id&&!liveKeys[id]&&!(ev.key&&liveKeys[String(ev.key)])) return;
-    }
-    put(Object.assign({},ev,{source:ev.source||"seed"}), false);
-  });
-  (calEvents||[]).forEach(function(ev){
-    put(Object.assign({},ev,{source:ev.source||"live"}), true);
-  });
-  /* If live ICS not yet pulled this session, fall back to last published blob */
-  if(!liveReady&&state.stewCalendar&&state.stewCalendar.length){
-    (state.stewCalendar||[]).forEach(function(ev){
-      put(Object.assign({},ev,{source:ev.source||"blob"}), false);
-    });
+  /* Fallback before leads load: last blob snapshot, then live ICS */
+  if(state.stewCalendar&&state.stewCalendar.length){
+    return (state.stewCalendar||[]).map(function(ev){
+      return Object.assign({},ev,{source:ev.source||"blob", key:ev.key||stewEventId(ev)});
+    }).filter(function(ev){ return ev&&ev.start; });
   }
-  return Object.keys(map).map(function(k){ return map[k]; });
+  return (calEvents||[]).map(function(ev){
+    return Object.assign({},ev,{source:ev.source||"live", key:ev.key||stewEventId(ev)});
+  }).filter(function(ev){ return ev&&ev.start; });
 }
 function stewCalendarKnownKeys(){
   var keys={};
@@ -9179,10 +9276,10 @@ function renderStews(opts){
     return;
   }
   var legend=isTeam()
-    ?"Your roster (same list the captain publishes). Tap a charter to update who is on it. Day pay is set by the captain."
-    :"Full season list: <b>Refresh calendar</b> pulls the live ICS, then saves a snapshot for the team. Seed fills older days. Leftover deleted days drop off; <b>cancelled leads stay</b> (even if removed from Google Calendar).";
-  var refreshLabel=isTeam()?"Reload roster":"Refresh calendar";
-  var loadingMsg=isTeam()?"Loading roster…":"Loading calendar…";
+    ?"Your roster (from the charter book the captain publishes). Tap a charter to update who is on it. Day pay is set by the captain."
+    :"Roster = <b>leads</b> (same SOT as the public site). <b>Refresh</b> checks the manager ICS for <b>new</b> dates only → pending leads, then updates the team snapshot.";
+  var refreshLabel=isTeam()?"Reload roster":"Refresh (new dates + publish)";
+  var loadingMsg=isTeam()?"Loading roster…":"Loading roster from leads…";
   body.innerHTML='<div class="legend">'+legend+'</div>'+
     (stewCalendarAt?'<div class="meta" style="margin:0 0 8px;font-size:12px">Calendar snapshot'+(stewCalendarBy?' by '+esc(stewCalendarBy):'')+' · '+esc((function(){try{return new Date(stewCalendarAt).toLocaleString();}catch(e){return stewCalendarAt;}})())+'</div>':'')+
     '<div class="apa-sect-h" style="margin-top:0"><h3>All charters</h3>'+
@@ -9190,7 +9287,7 @@ function renderStews(opts){
     '<div id="stewYearFilters" style="display:flex;flex-wrap:wrap;gap:6px;margin:0 0 10px"></div>'+
     '<div id="stewCalList"><div class="empty"><div class="big">⏳</div><div>'+esc(loadingMsg)+'</div></div></div>';
   if(el("stewRefreshCal")) el("stewRefreshCal").addEventListener("click",function(){
-    el("stewCalList").innerHTML='<div class="empty"><div class="big">⏳</div><div>'+(isTeam()?"Reloading roster…":"Refreshing from live calendar…")+'</div></div>';
+    el("stewCalList").innerHTML='<div class="empty"><div class="big">⏳</div><div>'+(isTeam()?"Reloading roster…":"Syncing new dates + publishing roster…")+'</div></div>';
     loadStewCalendar(true).then(function(){
       paintStewChartersKeepScroll();
       if(!stewMergedEvents().filter(function(ev){ return ev&&!stewIsOffEvent(ev); }).length){
@@ -9257,13 +9354,12 @@ function paintStewCharters(){
     return;
   }
   var html='';
-  var seedN=events.filter(function(e){return e.source==="seed";}).length;
-  var liveN=events.filter(function(e){return e.source==="live";}).length;
+  var leadN=events.filter(function(e){return e.source==="lead";}).length;
+  var pendN=events.filter(function(e){return e.status==="tentative"||e.leadSource==="pending";}).length;
   html+='<div class="meta" style="margin:0 0 10px;font-size:12px">'+
     events.length+' charter'+(events.length===1?"":"s")+
-    (seedN?' · '+seedN+' from export seed':'')+
-    (liveN?' · '+liveN+' live':'')+
-    (calEventsGeneratedAt?(' · live feed '+esc((function(){try{return new Date(calEventsGeneratedAt).toLocaleString();}catch(e){return "";}})())):'')+
+    (leadN?' · from leads':'')+
+    (pendN?' · <b style="color:var(--amberDeep)">'+pendN+' pending source</b>':'')+
   '</div>';
   if(stewAutoAssignIgnored.length){
     html+='<div class="banner warn show" style="margin-bottom:12px">'+
@@ -9292,7 +9388,12 @@ function paintStewCharters(){
     return;
   }
   var rosterSum=LY_MODELS.stewRosterSummary(events, state.stewAssign, state.stews);
-  var rosterRows=rosterSum.rows||[];
+  var rosterRows=(rosterSum.rows||[]).slice().sort(function(a,b){
+    var ap=(a.event&&(a.event.leadSource==="pending"||a.event.status==="tentative"))?0:1;
+    var bp=(b.event&&(b.event.leadSource==="pending"||b.event.status==="tentative"))?0:1;
+    if(ap!==bp) return ap-bp;
+    return String((b.event&&b.event.start)||"").localeCompare(String((a.event&&a.event.start)||""));
+  });
   var tripWithStew=rosterSum.assigned;
   var tripUnassigned=rosterSum.unassigned;
   var cancelledN=rosterSum.cancelled;
@@ -9398,14 +9499,16 @@ function paintStewCharters(){
         (units>1?'<span class="pill p-blue">'+units+' days</span>':'')+
         (showMoney&&rate>0&&!isCanc?'<span class="money">'+money0(rate)+' × '+units+'</span>':'')+
         (showMoney&&pay.tipTotal>0&&!isCanc?'<span class="money">Tip '+money0(pay.tipTotal)+' → '+money0(pay.tipEach)+'/crew</span>':'')+
-        (ev.source==="seed"?'<span class="pill p-grey">Seed</span>':'')+
+        (ev.source==="lead"?'<span class="pill p-blue">Lead</span>':'')+
         (ev.source==="blob"?'<span class="pill p-grey">Snapshot</span>':'')+
-        (ev.status==="tentative"?'<span class="pill p-amber">Tentative</span>':'')+
+        (ev.leadSource==="pending"||ev.status==="tentative"?'<span class="pill p-amber">Pending source</span>':'')+
         (isCanc?'<span class="pill p-red">Cancelled</span>':'')+
         (past&&!isCanc?'<span class="pill p-grey">Past</span>':'')+
       '</div>';
     if(isCanc){
       html+='<div class="meta" style="margin-top:4px"><span class="pill p-red">'+(showMoney?"No stew pay — charter cancelled":"Cancelled")+'</span></div>';
+    } else if(ev.leadId&&(ev.leadSource==="pending"||ev.status==="tentative")&&isCaptain()){
+      html+='<div class="meta" style="margin-top:6px"><button type="button" class="btn" data-assign-lead="'+esc(ev.leadId)+'" style="width:auto;padding:8px 14px;font-size:13px">Assign source →</button></div>';
     } else if(names.length){
       names.forEach(function(nm){
         html+='<div class="stew-row">'+
@@ -9427,8 +9530,18 @@ function paintStewCharters(){
   });
   html+='</div>';
   wrap.innerHTML=html;
+  Array.prototype.forEach.call(wrap.querySelectorAll("[data-assign-lead]"),function(btn){
+    btn.addEventListener("click",function(ev){
+      ev.preventDefault(); ev.stopPropagation();
+      var id=btn.getAttribute("data-assign-lead");
+      if(id&&typeof openSheet==="function") openSheet("lead", id);
+    });
+  });
   Array.prototype.forEach.call(wrap.querySelectorAll("[data-stew-ev]"),function(x){
-    x.addEventListener("click",function(){ openStewAssign(x.getAttribute("data-stew-ev")); });
+    x.addEventListener("click",function(ev){
+      if(ev.target.closest&&ev.target.closest("[data-assign-lead]")) return;
+      openStewAssign(x.getAttribute("data-stew-ev"));
+    });
   });
 }
 function renderStewTeam(body){

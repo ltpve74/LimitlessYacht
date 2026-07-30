@@ -737,6 +737,46 @@ function leadBlockedDays(l) {
  * - otherwise active → booked
  * Always sets siteCalendar.active = true (leads drive the site).
  */
+/** Stew roster snapshot rows for team (from leads). */
+function stewCalendarRowsFromLeads(leads) {
+  const rows = [];
+  (Array.isArray(leads) ? leads : []).forEach((l) => {
+    if (!l || !l.id) return;
+    if (
+      l.bookingStatus === "cancelled" ||
+      l.cancelled === true ||
+      l.status === "Cancelled" ||
+      l.status === "cancelled" ||
+      String(l.deps || "") === "Refunded"
+    )
+      return;
+    const days = leadBlockedDays(l);
+    if (!days.length) return;
+    const start = days[0];
+    const end = days[days.length - 1] || start;
+    const src = LY.constrainLeadSource(l.leadSource);
+    const pending = src === "pending" || l.sourcePending === true;
+    const ek = String(l.calendarEventKey || l.calEventKey || "").trim() || "lead:" + l.id;
+    rows.push({
+      key: ek,
+      uid: l.calendarUid || l.id,
+      summary: l.name || "Charter",
+      start: start,
+      end: end,
+      startTime: "",
+      endTime: "",
+      allDay: true,
+      status: pending ? "tentative" : "booked",
+      source: "lead",
+      leadId: l.id,
+      leadSource: src,
+      days: days,
+    });
+  });
+  rows.sort((a, b) => String(b.start || "").localeCompare(String(a.start || "")));
+  return rows;
+}
+
 function rebuildSiteCalendarFromLeads(data, who, now) {
   if (!data) return null;
   const leads = Array.isArray(data.leads) ? data.leads : [];
@@ -1611,8 +1651,12 @@ export default async (req, context) => {
         : buildNotices(coll, prev, next, who, data);
     data[coll] = next;
     if (coll === "leads") {
-      /* Public website calendar is driven by leads (pending = on hold) */
+      /* Public website calendar + team stew roster from leads */
       rebuildSiteCalendarFromLeads(data, who, now);
+      data.stewCalendar = stewCalendarRowsFromLeads(data.leads);
+      if (!data.meta || typeof data.meta !== "object") data.meta = {};
+      data.meta.stewCalendarAt = now;
+      data.meta.stewCalendarBy = who || "Lead save";
     }
     if (coll === "stewCalendar") {
       if (!data.meta || typeof data.meta !== "object") data.meta = {};
@@ -1749,17 +1793,40 @@ export default async (req, context) => {
     const parsed = parseIcs(text);
     const stats = syncNewIcsLeads(data, parsed.events, who, now);
     rebuildSiteCalendarFromLeads(data, who, now);
+    /* Publish stew roster snapshot from leads so team list stays in sync */
+    data.stewCalendar = stewCalendarRowsFromLeads(data.leads);
+    if (!data.meta || typeof data.meta !== "object") data.meta = {};
+    data.meta.stewCalendarAt = now;
+    data.meta.stewCalendarBy = who || "Calendar sync";
     addLog(
       (stats.baselined ? "ICS lead baseline keys=" : "ICS fresh leads created=") +
         (stats.baselined ? stats.knownCount : stats.created) +
         " · site cal from leads"
     );
+    let pushResult = { sent: 0 };
+    if (stats.created > 0 && !stats.baselined) {
+      const notices = [
+        {
+          title: "New calendar charter",
+          body:
+            stats.created === 1
+              ? "1 new trip needs source assignment (Captain / Click&Boat / Owner)"
+              : stats.created + " new trips need source assignment",
+          tag: "ics-pending-" + Date.now(),
+          url: "/tracker/?tab=leads&pending=1",
+          to: "commercial",
+        },
+      ];
+      pushResult = await sendPushes(data, notices, {});
+      addLog("push new ICS leads sent=" + (pushResult.sent || 0));
+    }
     await saveData(store, data);
     return json({
       ok: true,
       stats: stats,
       leads: data.leads,
       siteCalendar: siteCalendarSummary(data.siteCalendar),
+      pushSent: pushResult.sent || 0,
       icsLeadBaselineAt: (data.meta && data.meta.icsLeadBaselineAt) || "",
       icsLeadLastSyncAt: (data.meta && data.meta.icsLeadLastSyncAt) || "",
     });
