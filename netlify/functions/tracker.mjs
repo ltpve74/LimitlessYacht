@@ -1117,6 +1117,12 @@ function syncNewIcsLeads(data, events, who, now) {
   let namesUpdated = 0;
   const dateMoves = [];
   const orphans = []; /* live on calendar, known key, but no lead in the book */
+  const ignored = new Set(
+    (Array.isArray(data.meta.icsLeadIgnoredKeys)
+      ? data.meta.icsLeadIgnoredKeys
+      : []
+    ).map(String)
+  );
 
   (events || []).forEach((ev) => {
     if (!ev || !ev.start) return;
@@ -1194,12 +1200,33 @@ function syncNewIcsLeads(data, events, who, now) {
     if (known.has(ek) || known.has(bare) || known.has("uid:" + bare)) {
       /*
        * Seen before but no live lead — usually intentional delete, OR the lead
-       * vanished after a rename/stale save. Surface as orphan so captain can restore.
+       * vanished after a rename/stale save. Surface as orphan so captain can
+       * selectively restore or permanently ignore (already dealt with).
        */
       known.add(ek);
       alreadyKnown++;
+      if (
+        ignored.has(ek) ||
+        ignored.has(bare) ||
+        ignored.has(bare.indexOf("uid:") === 0 ? bare : "uid:" + bare)
+      ) {
+        return; /* captain marked already dealt with — do not nag */
+      }
       const d = leadDatesFromIcsEvent(ev);
       if (d.start) {
+        /* Soft hint: another lead already on this start date (possible duplicate) */
+        const sameDay = (leads || []).filter(function (x) {
+          if (!x) return false;
+          if (
+            x.bookingStatus === "cancelled" ||
+            x.cancelled === true ||
+            x.status === "Cancelled" ||
+            x.status === "cancelled" ||
+            String(x.deps || "") === "Refunded"
+          )
+            return false;
+          return String(x.start || x.cdate || "").slice(0, 10) === d.start;
+        });
         orphans.push({
           eventKey: ek,
           start: d.start,
@@ -1207,6 +1234,12 @@ function syncNewIcsLeads(data, events, who, now) {
           name: d.name || "Charter guest",
           label: (d.priced && d.priced.label) || "",
           summary: String((ev && ev.summary) || "").slice(0, 80),
+          sameDayCount: sameDay.length,
+          sameDayNames: sameDay
+            .slice(0, 3)
+            .map(function (x) {
+              return String(x.name || "—").slice(0, 40);
+            }),
         });
       }
       return;
@@ -2144,9 +2177,56 @@ export default async (req, context) => {
   }
 
   /*
+   * Permanently ignore calendar orphans (already dealt with / would duplicate).
+   * body.eventKeys = string[] — stays out of the missing list on future syncs.
+   */
+  if (action === "dismissIcsOrphans") {
+    if (!canCommercial(who, role)) {
+      return json({ error: "Dismiss is captain/manager only" }, 403);
+    }
+    touchDevice();
+    if (!data.meta || typeof data.meta !== "object") data.meta = {};
+    const ignored = new Set(
+      (Array.isArray(data.meta.icsLeadIgnoredKeys)
+        ? data.meta.icsLeadIgnoredKeys
+        : []
+      ).map(String)
+    );
+    const keys = (Array.isArray(body.eventKeys) ? body.eventKeys : [])
+      .map((k) => String(k || "").trim())
+      .filter(Boolean);
+    if (!keys.length) {
+      return json({ ok: false, error: "No event keys to ignore" }, 400);
+    }
+    keys.forEach((k) => {
+      ignored.add(k);
+      const bare = k.indexOf("uid:") === 0 ? k.slice(4) : k;
+      ignored.add(bare);
+      ignored.add(bare.indexOf("uid:") === 0 ? bare : "uid:" + bare);
+      /* Also keep in known so they never re-import as brand-new */
+      if (!Array.isArray(data.meta.icsLeadKnownKeys)) data.meta.icsLeadKnownKeys = [];
+      const known = new Set(data.meta.icsLeadKnownKeys.map(String));
+      known.add(k);
+      known.add(bare);
+      known.add(bare.indexOf("uid:") === 0 ? bare : "uid:" + bare);
+      data.meta.icsLeadKnownKeys = Array.from(known);
+    });
+    data.meta.icsLeadIgnoredKeys = Array.from(ignored);
+    data.meta.icsLeadLastSyncAt = now;
+    addLog("ICS orphans dismissed=" + keys.length);
+    await saveData(store, data);
+    return json({
+      ok: true,
+      dismissed: keys.length,
+      ignoredKeys: data.meta.icsLeadIgnoredKeys,
+    });
+  }
+
+  /*
    * Re-create pending leads for calendar events that are still on the ICS
    * but have no live lead (deleted by mistake, or wiped by a stale full save).
    * body.eventKeys = string[] of calendarEventKey values from sync orphans.
+   * Only the keys you select are imported — others stay missing until ignored or restored.
    */
   if (action === "restoreIcsOrphans") {
     if (!canCommercial(who, role)) {
@@ -2206,6 +2286,19 @@ export default async (req, context) => {
       restoredRows.push({ id: lead.id, name: lead.name, start: lead.start, eventKey: ek });
     });
     if (!data.meta || typeof data.meta !== "object") data.meta = {};
+    /* Restored keys leave the ignored list so they behave as normal leads */
+    if (Array.isArray(data.meta.icsLeadIgnoredKeys) && restoredRows.length) {
+      const restoredKeys = new Set(
+        restoredRows.flatMap(function (r) {
+          const k = String(r.eventKey || "");
+          const bare = k.indexOf("uid:") === 0 ? k.slice(4) : k;
+          return [k, bare, bare.indexOf("uid:") === 0 ? bare : "uid:" + bare];
+        })
+      );
+      data.meta.icsLeadIgnoredKeys = data.meta.icsLeadIgnoredKeys.filter(
+        (k) => !restoredKeys.has(String(k))
+      );
+    }
     data.meta.icsLeadLastSyncAt = now;
     rebuildSiteCalendarFromLeads(data, who, now);
     data.stewCalendar = stewCalendarRowsFromLeads(data.leads, data.stewAssign);
