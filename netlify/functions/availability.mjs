@@ -11,7 +11,11 @@
 // payload even when the full `data` blob is slow/unavailable.
 
 import { getStore } from "@netlify/blobs";
-import { parseIcs, siteCalendarPublicPayload } from "./lib/ics.mjs";
+import {
+  parseIcs,
+  siteCalendarPublicPayload,
+  sanitizePublicCalendarEvents,
+} from "./lib/ics.mjs";
 import { buildSiteCalendarFromLeads } from "./lib/site-calendar.mjs";
 
 const STORE_NAME = "limitless-tracker";
@@ -219,26 +223,33 @@ async function serveFromLeads(fresh) {
 }
 
 function finalizeLeadsBody(pub, fresh, source, diag, note) {
-  return {
-    booked: Array.isArray(pub.booked) ? pub.booked : [],
-    tentative: Array.isArray(pub.tentative) ? pub.tentative : [],
-    events: Array.isArray(pub.events) ? pub.events : [],
-    generatedAt: pub.generatedAt || new Date().toISOString(),
-    seededAt: pub.seededAt || "",
-    seededFrom: pub.seededFrom || "leads",
-    active: pub.active !== false,
-    source: source || "leads",
-    note: note || pub.note || "leads SOT · pending = on hold",
-    fresh: !!fresh,
-    leadCount: pub.leadCount,
-    pendingHoldDays:
-      pub.pendingHoldDays != null
-        ? pub.pendingHoldDays
-        : (pub.tentative || []).length,
-    bookedDays:
-      pub.bookedDays != null ? pub.bookedDays : (pub.booked || []).length,
-    diag,
-  };
+  /* Re-sanitize in case an older public-availability blob still has names/ids */
+  const cleaned = siteCalendarPublicPayload(
+    {
+      booked: pub.booked,
+      tentative: pub.tentative,
+      events: pub.events,
+      generatedAt: pub.generatedAt,
+      seededAt: pub.seededAt,
+      seededFrom: pub.seededFrom || "leads",
+      active: pub.active !== false,
+      note: note || pub.note || "leads SOT · pending = on hold",
+    },
+    { note: note || pub.note || "leads SOT · pending = on hold" }
+  );
+  cleaned.source = source || "leads";
+  cleaned.fresh = !!fresh;
+  /* Counts only — no PII */
+  cleaned.leadCount = pub.leadCount;
+  cleaned.pendingHoldDays =
+    pub.pendingHoldDays != null
+      ? pub.pendingHoldDays
+      : (cleaned.tentative || []).length;
+  cleaned.bookedDays =
+    pub.bookedDays != null ? pub.bookedDays : (cleaned.booked || []).length;
+  /* diag is blob-path only (no guest data); omit by default */
+  if (diag) cleaned.diag = diag;
+  return cleaned;
 }
 
 async function serveFromIcsBody(fresh, missDiag) {
@@ -268,7 +279,8 @@ async function serveFromIcsBody(fresh, missDiag) {
     return {
       booked: parsed.booked,
       tentative: parsed.tentative,
-      events: parsed.events,
+      /* ICS summaries are often generic; still strip anything that looks personal */
+      events: sanitizePublicCalendarEvents(parsed.events),
       generatedAt: new Date().toISOString(),
       fresh: !!fresh,
       source: "ics",

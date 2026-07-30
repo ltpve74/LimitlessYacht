@@ -232,7 +232,35 @@ export function expandEvent(ev) {
 }
 
 /**
+ * Guest-facing event shape only — no guest names, lead ids, or source labels.
+ * Website calendar only needs booked/tentative day lists; events stay anonymous
+ * for any client that still reads them.
+ */
+export function sanitizePublicCalendarEvents(events) {
+  if (!Array.isArray(events)) return [];
+  return events.map((e, i) => {
+    const days = Array.isArray(e && e.days) ? e.days.slice() : [];
+    const start = (e && e.start) || (days[0] || "");
+    const end = (e && e.end) || start;
+    const status =
+      e && e.status === "tentative" ? "tentative" : "booked";
+    return {
+      key: "block:" + (start || i) + ":" + status,
+      summary: "Charter",
+      start,
+      end,
+      startTime: "",
+      endTime: "",
+      allDay: true,
+      status,
+      days,
+    };
+  });
+}
+
+/**
  * Build public availability payload from a stored site calendar snapshot.
+ * Never includes guest names, phones, money, lead ids, or leadSource.
  */
 export function siteCalendarPublicPayload(cal, extras) {
   extras = extras || {};
@@ -250,7 +278,7 @@ export function siteCalendarPublicPayload(cal, extras) {
   return {
     booked: Array.isArray(cal.booked) ? cal.booked.slice() : [],
     tentative: Array.isArray(cal.tentative) ? cal.tentative.slice() : [],
-    events: Array.isArray(cal.events) ? cal.events.slice() : [],
+    events: sanitizePublicCalendarEvents(cal.events),
     generatedAt: cal.generatedAt || cal.updatedAt || new Date().toISOString(),
     seededAt: cal.seededAt || "",
     seededFrom: cal.seededFrom || "",
