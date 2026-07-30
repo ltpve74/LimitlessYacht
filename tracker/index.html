@@ -817,6 +817,7 @@ function runPostLoadMaintenance(){
       try{ runStewAssignFullRestore(); }catch(eRest){}
       try{ healStewAssignsToLeads(); }catch(eHeal){}
       try{ backupStewAssignLocal(); }catch(eBak){}
+      try{ expCleanOrphanStewDayPayLines(); }catch(eCl0){}
       /* Uses stewAssign already in state — no ICS round-trip */
       try{ seedCurrentMonthStewCashExpenses(); }catch(e1){}
       try{ expRestoreCrewFloatPayAfterWipe(); }catch(e2){}
@@ -7585,11 +7586,61 @@ function expResetInventedCrewFloatPay(){
   return expRestoreCrewFloatPayAfterWipe();
 }
 /**
+ * Drop ghost stew day-pay expense lines (empty description, orphan keys after
+ * calendar renames, exact dupes of a good line). Tips are never stored here.
+ */
+function expCleanOrphanStewDayPayLines(){
+  if(!isCaptain()||!state.expenses||!state.expenses.length) return false;
+  var assignKeys={};
+  (state.stewAssign||[]).forEach(function(a){
+    if(a&&a.eventKey) assignKeys[String(a.eventKey)]=1;
+  });
+  var goodFinger={}; /* stewId|date|amount for lines that have a real description */
+  (state.expenses||[]).forEach(function(e){
+    if(!e||!expIsCrewDayPayLine(e)) return;
+    var desc=String(e.description||"").trim();
+    if(!desc) return;
+    var sid=String(e.stewId||"");
+    var d=String(e.date||"").slice(0,10);
+    var a=String(Math.round((Number(e.amount)||0)*100));
+    if(sid&&d) goodFinger[sid+"|"+d+"|"+a]=1;
+  });
+  var n0=state.expenses.length;
+  var seenLink={};
+  state.expenses=state.expenses.filter(function(e){
+    if(!e||!expIsCrewDayPayLine(e)) return true;
+    var lid=e.linkId||(e.stewEventKey&&e.stewId?("stew-day:"+e.stewEventKey+":"+e.stewId):"");
+    if(lid){
+      if(seenLink[lid]) return false; /* exact linkId dupe */
+      seenLink[lid]=1;
+    }
+    var desc=String(e.description||"").trim();
+    var ek=String(e.stewEventKey||"");
+    var sid=String(e.stewId||"");
+    var d=String(e.date||"").slice(0,10);
+    var a=String(Math.round((Number(e.amount)||0)*100));
+    var finger=sid+"|"+d+"|"+a;
+    /* Blank description + another good line for same stew/day/amount → drop ghost */
+    if(!desc&&goodFinger[finger]) return false;
+    /* Blank description + no matching live assign → drop */
+    if(!desc&&ek&&!assignKeys[ek]) return false;
+    /* Blank description + unpaid + no linkId → drop (junk from bad sync) */
+    if(!desc&&!lid&&String(e.crewPayStatus||"")!=="Paid") return false;
+    /* Orphan key (assign gone) and unpaid → drop (keep Paid for history) */
+    if(ek&&!assignKeys[ek]&&String(e.crewPayStatus||"")!=="Paid"&&!e.floatPay) return false;
+    return true;
+  });
+  var dirty=state.expenses.length!==n0;
+  if(dirty&&!DEMO) saveExpenses();
+  return dirty;
+}
+/**
  * Seed this month’s crew lines from Stews charters (Paid and Unpaid).
  * Unpaid = visible for accountability, not cash out. Tips never included.
  */
 function seedCurrentMonthStewCashExpenses(){
   if(!isCaptain()) return false;
+  try{ expCleanOrphanStewDayPayLines(); }catch(eCl){}
   var month=expDefaultMonth();
   var today=localTodayYmd();
   if(!state.expenses) state.expenses=[];
@@ -7598,6 +7649,7 @@ function seedCurrentMonthStewCashExpenses(){
     if(e&&e.linkId) prevByLink[e.linkId]=e;
   });
   var wanted={};
+  var wantedFinger={}; /* stewId|date for this month’s live assigns */
   (state.stewAssign||[]).forEach(function(asg){
     if(!asg||!asg.eventKey||expMonthKey(asg.start)!==month) return;
     if(asg.cancelled||asg.status==="cancelled") return;
@@ -7607,23 +7659,27 @@ function seedCurrentMonthStewCashExpenses(){
     var ids=(asg.stewIds||[]).filter(Boolean);
     if(!ids.length) return;
     var date=String(asg.start).slice(0,10);
-    var summary=asg.summary||"Charter";
+    var summary=String(asg.summary||"").trim()||"Charter";
     var crewPayStatus=asg.payStatus==="Paid"?"Paid":"Unpaid";
     ids.forEach(function(sid){
       var rec=stewById(sid);
       var linkId="stew-day:"+asg.eventKey+":"+sid;
       var old=prevByLink[linkId];
+      /* Prefer a previous line for same stew+date if key renamed */
+      if(!old){
+        (state.expenses||[]).forEach(function(e){
+          if(e&&expIsCrewDayPayLine(e)&&String(e.stewId)===String(sid)&&String(e.date).slice(0,10)===date&&String(e.description||"").trim())
+            old=e;
+        });
+      }
       var paidFrom=(old&&old.paidFrom==="Own money")?"Own money":"Petty cash";
-      /*
-       * floatPay: keep existing cash-out, or restore from intentional Save as Paid
-       * (payStatusManual on the line or stew assign). Never invent from status alone.
-       */
       var manualPaid=!!(old&&old.payStatusManual)||!!asg.payStatusManual;
       var floatPay=false;
       if(crewPayStatus==="Paid"&&paidFrom!=="Own money"){
         if(old&&old.floatPay===true) floatPay=true;
         else if(manualPaid) floatPay=true;
       }
+      wantedFinger[String(sid)+"|"+date]=1;
       wanted[linkId]={
         id:(old&&old.id)||uid(),
         linkId:linkId,
@@ -7635,7 +7691,7 @@ function seedCurrentMonthStewCashExpenses(){
         floatPay:floatPay,
         payStatusManual:manualPaid,
         date:date,
-        vendor:(rec&&rec.name)||"Stew",
+        vendor:(rec&&rec.name)||(old&&old.vendor)||"Stew",
         description:"Stewardess / day work — "+summary,
         category:"Crew Salaries",
         payMethod:"Cash",
@@ -7651,8 +7707,8 @@ function seedCurrentMonthStewCashExpenses(){
     return e&&e.source==="stew"&&e.stewPayKind==="dayPay"&&expMonthKey(e.date)===month;
   }).map(function(e){return [e.linkId,e.amount,e.vendor,e.date,e.crewPayStatus||"Paid",!!e.floatPay,e.paidFrom||"Petty cash"];}).sort());
   /*
-   * Only replace lines we are regenerating. NEVER wipe orphan stew day-pay
-   * when stewAssign is empty/mismatched — that destroyed Laura pay history.
+   * Keep Paid orphan history; drop unpaid orphans that match a regenerated line
+   * (same stew + day) or have blank description after key renames.
    */
   var rest=(state.expenses||[]).filter(function(e){
     if(!e) return false;
@@ -7660,7 +7716,10 @@ function seedCurrentMonthStewCashExpenses(){
       if(e.stewPayKind==="dayPay"||e.stewEventKey||(e.linkId&&String(e.linkId).indexOf("stew-day:")===0)){
         var lid=e.linkId||(e.stewEventKey&&e.stewId?("stew-day:"+e.stewEventKey+":"+e.stewId):"");
         if(lid&&wanted[lid]) return false; /* replaced below */
-        return true; /* keep orphan recovery lines */
+        var finger=String(e.stewId||"")+"|"+String(e.date||"").slice(0,10);
+        if(wantedFinger[finger]&&String(e.crewPayStatus||"")!=="Paid"&&!e.floatPay) return false;
+        if(!String(e.description||"").trim()&&String(e.crewPayStatus||"")!=="Paid") return false;
+        return true;
       }
     }
     return true;
