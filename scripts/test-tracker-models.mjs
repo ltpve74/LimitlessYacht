@@ -41,10 +41,20 @@ function checkTrackerHtmlSyntax() {
   } catch (e) {
     ok("inline script parses (login/boot can run)", false, e && e.message);
   }
-  const chk = spawnSync(process.execPath, ["--check", join(root, "tracker/js/models.js")], {
-    encoding: "utf8",
-  });
-  ok("models.js syntax", chk.status === 0, chk.stderr || chk.stdout);
+  const modelFiles = [
+    "tracker/js/models.js",
+    "tracker/js/models/util.js",
+    "tracker/js/models/leads.js",
+    "tracker/js/models/charges.js",
+    "tracker/js/models/expenses.js",
+    "tracker/js/models/diesel.js",
+    "tracker/js/models/stews.js",
+    "tracker/js/models/index.js",
+  ];
+  for (const rel of modelFiles) {
+    const chk = spawnSync(process.execPath, ["--check", join(root, rel)], { encoding: "utf8" });
+    ok(rel + " syntax", chk.status === 0, chk.stderr || chk.stdout);
+  }
 }
 
 checkTrackerHtmlSyntax();
