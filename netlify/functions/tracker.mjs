@@ -110,58 +110,24 @@ function passOk(pass, role) {
 }
 
 /**
- * Names for team login dropdown. Pulls from stews, meta cache, assign links,
- * and calendar titles ("stew Laura") so an empty stews[] never blanks login.
+ * Names for team login dropdown — Stews → Team roster only (active people).
+ * Do not harvest calendar titles or old meta junk (stale “old names”).
  */
 function collectStewLoginNames(data) {
   const seen = new Set();
   const names = [];
-  function addName(n) {
-    n = String(n || "")
-      .trim()
-      .replace(/\s+/g, " ");
-    if (!n || n.length > 40) return;
-    if (/^(captain|manager|team|stew|charter|off)\b/i.test(n)) return;
-    const k = n.toLowerCase();
-    if (seen.has(k)) return;
-    seen.add(k);
-    names.push(n);
-  }
   const stews = Array.isArray(data && data.stews) ? data.stews : [];
   stews.forEach((s) => {
     if (!s) return;
     if (s.active === false || s.active === 0 || s.active === "false") return;
-    addName(s.name);
-  });
-  if (!names.length) {
-    stews.forEach((s) => {
-      if (s) addName(s.name);
-    });
-  }
-  const metaNames =
-    data && data.meta && Array.isArray(data.meta.stewLoginNames)
-      ? data.meta.stewLoginNames
-      : [];
-  metaNames.forEach(addName);
-  const byId = {};
-  stews.forEach((s) => {
-    if (s && s.id) byId[String(s.id)] = s;
-  });
-  (Array.isArray(data && data.stewAssign) ? data.stewAssign : []).forEach((a) => {
-    if (!a) return;
-    (a.stewIds || []).forEach((id) => {
-      const s = byId[String(id)];
-      if (s) addName(s.name);
-    });
-    /* Denormalized name if present */
-    if (a.stewName) addName(a.stewName);
-    (a.stewNames || []).forEach(addName);
-  });
-  (Array.isArray(data && data.stewCalendar) ? data.stewCalendar : []).forEach((ev) => {
-    const sum = String((ev && ev.summary) || "");
-    const re = /\bstew(?:ard(?:ess)?)?\s+([A-Za-z][\w'.-]{1,30})/gi;
-    let m;
-    while ((m = re.exec(sum))) addName(m[1]);
+    const n = String(s.name || "")
+      .trim()
+      .replace(/\s+/g, " ");
+    if (!n || n.length > 40) return;
+    const k = n.toLowerCase();
+    if (seen.has(k)) return;
+    seen.add(k);
+    names.push(n);
   });
   names.sort((a, b) => a.localeCompare(b));
   return names;
@@ -169,6 +135,7 @@ function collectStewLoginNames(data) {
 
 function syncStewLoginNamesMeta(data) {
   if (!data.meta || typeof data.meta !== "object") data.meta = {};
+  /* Mirror Team tab only — overwrite any previously harvested garbage */
   data.meta.stewLoginNames = collectStewLoginNames(data);
   return data.meta.stewLoginNames;
 }
