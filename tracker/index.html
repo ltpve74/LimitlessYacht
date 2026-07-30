@@ -141,9 +141,12 @@
   #tab-leads .ld-type-row .m{font-weight:800;white-space:nowrap;text-align:right;font-variant-numeric:tabular-nums}
   #tab-leads .ld-type-empty{font-size:12px;color:var(--muted);font-weight:600}
   @media(min-width:620px){
-    #tab-leads .ld-summary{grid-template-columns:1fr 1fr}
+    #tab-leads .ld-summary{grid-template-columns:1fr 1fr 1fr}
     #tab-leads .ld-snap{grid-column:1/-1}
     #tab-leads .ld-snap-col .big{font-size:22px}
+  }
+  @media(min-width:620px) and (max-width:900px){
+    #tab-leads .ld-summary{grid-template-columns:1fr 1fr}
   }
   .sectitle{font-size:13px;font-weight:700;color:var(--muted);margin:4px 2px 10px;text-transform:uppercase;letter-spacing:.04em}
   .legend{font-size:12.5px;color:var(--muted);margin:-4px 2px 14px;line-height:1.45}
@@ -539,6 +542,7 @@
         </div>
         <div class="sumcard ld-src"><div class="l">Luigi · Captain</div><div class="v money" id="ldCap">€0</div><div class="sub" id="ldCapSub">—</div><div id="ldCapTypes" class="ld-type-table"></div></div>
         <div class="sumcard ld-src"><div class="l">Paul · Click&amp;Boat</div><div class="v money" id="ldCb">€0</div><div class="sub" id="ldCbSub">—</div><div id="ldCbTypes" class="ld-type-table"></div></div>
+        <div class="sumcard ld-src"><div class="l">Owner-sourced · income</div><div class="v money" id="ldOs">€0</div><div class="sub" id="ldOsSub">—</div><div id="ldOsTypes" class="ld-type-table"></div></div>
       </div>
       <div class="legend"><b>Yellow = unconfirmed</b> until Confirm. <b>Assigning a source does not confirm.</b> <b>Owner’s days</b> = no income · benefits (friend pays owner cash / private use) — manual confirm. <b>Owner-sourced</b> = business income (we invoice) · 0% commission for now — deposit Paid or Confirm. Captain / Paul as before. <b>Make invoice</b> = PDF.</div>
       <div id="ldFindBar" style="margin:0 0 12px">
@@ -2567,7 +2571,8 @@ function renderLeads(){
   var proj={tot:0, charters:0, upsell:0, ex:0, comm:0, upsellComm:0, n:0, nUpsell:0};
   var capTot=0, capExVat=0, capN=0, capComm=0;
   var cbTot=0, cbExVat=0, cbN=0, cbComm=0;
-  var capTypes={}, cbTypes={};
+  var osTot=0, osExVat=0, osN=0, osComm=0;
+  var capTypes={}, cbTypes={}, osTypes={};
   function bumpType(map, k, val, exVat){
     if(!map[k]) map[k]={n:0, val:0, exVat:0};
     map[k].n++;
@@ -2652,8 +2657,12 @@ function renderLeads(){
         cbTot+=val; cbExVat+=exVat; cbN++;
         cbComm+=comm;
         bumpType(cbTypes, tk, val, exVat);
+      } else if(src==="ownersourced"){
+        osTot+=val; osExVat+=exVat; osN++;
+        osComm+=comm;
+        bumpType(osTypes, tk, val, exVat);
       }
-      /* ownersourced + other still count in done/proj hero totals */
+      /* other still counts in done/proj hero totals only */
     }
   });
   /* Captain extra-hour upsells from Charges (income + 15% when captainComm) */
@@ -2879,6 +2888,15 @@ function renderLeads(){
       " · comm "+money(cbComm)+" · net "+money(Math.max(0, cbExVat-cbComm));
   }
   if(el("ldCbTypes")) el("ldCbTypes").innerHTML=formatTypeMixHTML(cbTypes);
+  if(el("ldOs")) el("ldOs").textContent=money(osTot);
+  if(el("ldOsSub")){
+    el("ldOsSub").textContent=osN
+      ?(osN+"× · ex VAT "+money(osExVat)+
+        " · comm "+money(osComm)+" · net "+money(Math.max(0, osExVat-osComm))+
+        (osComm===0?" · 0% for now":""))
+      :"No confirmed owner-sourced income yet";
+  }
+  if(el("ldOsTypes")) el("ldOsTypes").innerHTML=formatTypeMixHTML(osTypes);
   Array.prototype.forEach.call(wrap.querySelectorAll("[data-edit-ld-btn]"),function(btn){
     btn.addEventListener("click",function(ev){
       ev.preventDefault(); ev.stopPropagation();
