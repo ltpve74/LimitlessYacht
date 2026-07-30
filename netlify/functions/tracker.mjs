@@ -17,6 +17,8 @@ import {
 } from "./lib/site-calendar.mjs";
 
 const BLOB_KEY = "data";
+/** Small public payload for /api/availability (pending = on hold). */
+const PUBLIC_AVAILABILITY_KEY = "public-availability";
 const LOG_CAP = 500;
 const DEVICE_CAP = 200;
 const SUB_CAP = 40;
@@ -764,6 +766,44 @@ function rebuildSiteCalendarFromLeads(data, who, now) {
   return data.siteCalendar;
 }
 
+/**
+ * Guest payload for public-availability blob.
+ * Sanitized: no names, ids, money, phones — only occupancy days.
+ * Written only from authenticated tracker saves (never from public endpoint).
+ */
+function publicAvailabilityPayload(data) {
+  const leads = Array.isArray(data && data.leads) ? data.leads : [];
+  const cal = buildSiteCalendarFromLeads(
+    leads,
+    "public",
+    new Date().toISOString()
+  );
+  const body = siteCalendarPublicPayload(cal, {
+    note: "leads SOT · pending = on hold",
+  });
+  /* Only fields the public function should ever see */
+  return {
+    booked: Array.isArray(body.booked) ? body.booked : [],
+    tentative: Array.isArray(body.tentative) ? body.tentative : [],
+    events: Array.isArray(body.events) ? body.events : [],
+    generatedAt: body.generatedAt || new Date().toISOString(),
+    seededFrom: "leads",
+    source: "leads",
+    active: true,
+    note: "leads SOT · pending = on hold",
+  };
+}
+
+async function publishPublicAvailability(store, data) {
+  if (!store || !data) return;
+  try {
+    const body = publicAvailabilityPayload(data);
+    await store.setJSON(PUBLIC_AVAILABILITY_KEY, body);
+  } catch (_) {
+    /* non-fatal — next save retries; site falls back to ICS */
+  }
+}
+
 async function fetchManagerIcsText() {
   const icsUrl = process.env.AVAILABILITY_ICS_URL || "";
   if (!icsUrl) {
@@ -1091,7 +1131,16 @@ function applyIcsDateMoveDecisions(data, acceptedIds, rejectedIds, who, now) {
   return { applied, dismissed };
 }
 async function saveData(store, data) {
+  /* Keep site calendar + public key aligned with leads on every persist */
+  if (Array.isArray(data.leads) && data.leads.length) {
+    rebuildSiteCalendarFromLeads(
+      data,
+      (data.siteCalendar && data.siteCalendar.updatedBy) || "saveData",
+      new Date().toISOString()
+    );
+  }
   await store.setJSON(BLOB_KEY, data);
+  await publishPublicAvailability(store, data);
 }
 
 /**

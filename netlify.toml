@@ -4,6 +4,9 @@
 [functions]
   directory = "netlify/functions"
   node_bundler = "esbuild"
+  # Keep platform Blobs client unbundled so runtime env injection works
+  # (same store as tracker — availability must see captain leads).
+  external_node_modules = ["@netlify/blobs"]
 
 # Clean URL for the availability feed
 [[redirects]]
