@@ -167,7 +167,6 @@
   #tab-leads .ld-src-meta-row{display:flex;justify-content:space-between;align-items:baseline;gap:10px;font-size:12px;line-height:1.35}
   #tab-leads .ld-src-meta-row .k{color:var(--muted);font-weight:650;min-width:0}
   #tab-leads .ld-src-meta-row .v{font-weight:750;text-align:right;white-space:nowrap;font-variant-numeric:tabular-nums}
-  #tab-leads .ld-src-meta-row .v .n{color:var(--muted);font-weight:700}
   #tab-leads .ld-src-meta-row .v .money{font-weight:800}
   #tab-leads .ld-src-meta-empty{font-size:12px;color:var(--muted);font-weight:600;line-height:1.35}
   #tab-leads .ld-type-table{margin-top:8px;border-top:1px solid var(--line);padding-top:8px;display:flex;flex-direction:column;gap:4px}
@@ -3139,10 +3138,6 @@ function renderLeads(){
   function ldSrcMetaMoney(label, amt){
     return ldSrcMetaRow(label, '<span class="money">'+money(amt)+'</span>');
   }
-  /* Count + money on one line: "4× · €1,234" */
-  function ldSrcMetaCountMoney(label, n, amt){
-    return ldSrcMetaRow(label, '<span class="n">'+(Number(n)||0)+'×</span> · <span class="money">'+money(amt)+'</span>');
-  }
   if(el("ldCap")) el("ldCap").textContent=money(capIncomeAll);
   if(el("ldCapComm")) el("ldCapComm").textContent=money(capCommAll);
   if(el("ldCapCommStatus")){
@@ -3151,11 +3146,11 @@ function renderLeads(){
     el("ldCapCommStatus").className="ld-comm-pill outstanding";
   }
   if(el("ldCapSub")){
-    var upN=capUpsell.n||0;
     var upComm=Number(capUpsell.comm)||0;
+    /* No trip counts here — type mix at bottom of card already itemises n× */
     el("ldCapSub").innerHTML=
-      ldSrcMetaCountMoney("Deals commission", capN, capComm)+
-      ldSrcMetaCountMoney("Upsell commission", upN, upComm)+
+      ldSrcMetaMoney("Deals commission", capComm)+
+      ldSrcMetaMoney("Upsell commission", upComm)+
       ldSrcMetaMoney("Before VAT", capExAll)+
       ldSrcMetaMoney("Net after commission", Math.max(0, capExAll-capCommAll));
   }
@@ -3177,7 +3172,6 @@ function renderLeads(){
   }
   if(el("ldCbSub")){
     el("ldCbSub").innerHTML=
-      ldSrcMetaCountMoney("Deals", cbN, cbTot)+
       ldSrcMetaMoney("Before VAT", cbExVat)+
       ldSrcMetaMoney("Net after commission", Math.max(0, cbExVat-cbComm));
   }
@@ -3198,9 +3192,9 @@ function renderLeads(){
       el("ldOsSub").innerHTML='<div class="ld-src-meta-empty">No confirmed owner-sourced income yet</div>';
     } else {
       el("ldOsSub").innerHTML=
-        ldSrcMetaCountMoney("Deals"+(osComm===0?" · 0% for now":""), osN, osTot)+
         ldSrcMetaMoney("Before VAT", osExVat)+
-        ldSrcMetaMoney("Net after commission", Math.max(0, osExVat-osComm));
+        ldSrcMetaMoney("Net after commission", Math.max(0, osExVat-osComm))+
+        (osComm===0?ldSrcMetaRow("Rate", "0% for now"):"");
     }
   }
   if(el("ldOsWhite")) el("ldOsWhite").textContent=money(osWhite);
