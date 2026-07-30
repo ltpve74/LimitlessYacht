@@ -718,17 +718,17 @@
       <div id="expBody"></div>
     </section>
 
-    <!-- COMMISSIONS (captain only — by source rate) -->
+    <!-- COMMISSIONS (captain only — same closed-deal model as Leads) -->
     <section id="tab-commissions" class="hidden">
       <button type="button" class="ops-back" data-ops-back>← Ops</button>
       <div class="summary">
-        <div class="sumcard"><div class="l">Captain 15%</div><div class="v money" id="cmCaptTot">€0</div></div>
-        <div class="sumcard"><div class="l">Click&amp;Boat 21%</div><div class="v money" id="cmCbTot">€0</div></div>
-        <div class="sumcard"><div class="l">Owner benefits</div><div class="v money" id="cmOwnTot">€0</div></div>
-        <div class="sumcard"><div class="l">Owner pocket cash</div><div class="v money" id="cmOwnPocket">€0</div></div>
-        <div class="sumcard"><div class="l">Comm total</div><div class="v money" id="cmTot">€0</div></div>
+        <div class="sumcard"><div class="l">Captain 15% · outstanding</div><div class="v money" id="cmCaptTot">€0</div></div>
+        <div class="sumcard"><div class="l">Click&amp;Boat 21% · paid</div><div class="v money" id="cmCbTot">€0</div></div>
+        <div class="sumcard"><div class="l">Comm total (payable)</div><div class="v money" id="cmTot">€0</div></div>
+        <div class="sumcard"><div class="l">Owner benefits · notional</div><div class="v money" id="cmOwnTot">€0</div></div>
+        <div class="sumcard"><div class="l">Owner pocket · received</div><div class="v money" id="cmOwnPocket">€0</div></div>
       </div>
-      <div class="legend">Commission by lead source (before VAT). <b>Captain</b> 15% · <b>Click&amp;Boat (Paul)</b> 21% · <b>Owner</b> no commission (value listed under Owner benefits — untick to drop from that total). Extensions: charges with <b>I get commission</b>.</div>
+      <div class="legend">Same rules as <b>Leads</b>: confirmed commercial deals only. <b>Captain</b> 15% (outstanding) + upsell charges · <b>Click&amp;Boat</b> 21% (paid after platform deduction) · <b>Owner-sourced</b> income, 0% commission · <b>Owner’s days</b> = notional benefits only (not commission). Untick a day to drop it from the benefits total.</div>
       <div class="list" id="cmList"></div>
     </section>
 
@@ -12881,21 +12881,34 @@ function renderCommissions(){
     wrap.innerHTML=emptyBox("💸","Captain only","Commissions are private to the captain.");
     return;
   }
-  var captItems=[], cbItems=[], ownItems=[], ownSrcItems=[], extItems=[];
+  /*
+   * Same closed-deal model as Leads summary:
+   *  - commercial commission lines = leadIsClosedDeal only (not tentative)
+   *  - owner’s days benefits = ownerBenefitIncluded only (confirmed + not toggled off)
+   *  - unconfirmed owner days listed separately, never inflate benefits total
+   *  - captain upsells = charges with captainComm (same as Leads captain card)
+   */
+  var captItems=[], cbItems=[], ownItems=[], ownTentItems=[], ownSrcItems=[], extItems=[];
   (state.leads||[]).forEach(function(r){
     if(!r||leadIsCancelled(r)) return;
     var src=leadSource(r);
     var p=leadCommissionParts(r);
     var row={sort:String(r.closed||r.start||""), title:r.name||"—", total:p.total, base:p.base, p:p, kind:"lead", rec:r, src:src};
-    if(src==="captain") captItems.push(row);
-    else if(src==="clickboat") cbItems.push(row);
-    else if(src==="owner") ownItems.push(row);
-    else if(src==="ownersourced") ownSrcItems.push(row);
+    if(src==="captain"){
+      if(leadIsClosedDeal(r)) captItems.push(row);
+    } else if(src==="clickboat"){
+      if(leadIsClosedDeal(r)) cbItems.push(row);
+    } else if(src==="owner"){
+      if(leadIsDealClosed(r)) ownItems.push(row);
+      else ownTentItems.push(row);
+    } else if(src==="ownersourced"){
+      if(leadIsClosedDeal(r)) ownSrcItems.push(row);
+    }
   });
   (state.charters||[]).forEach(function(c){
     if(!isChargeCaptainComm(c)) return;
     var p=chargeCommissionParts(c);
-    if(!(p.total>0)) return;
+    if(!(p.total>0.009)&&!(p.base>0.009)) return;
     extItems.push({
       sort:String(c.date||""),
       title:c.client||"Extension",
@@ -12906,23 +12919,28 @@ function renderCommissions(){
     if(a.sort&&b.sort&&a.sort!==b.sort) return b.sort<a.sort?-1:1;
     return 0;
   }
-  captItems.sort(bySort); cbItems.sort(bySort); ownItems.sort(bySort); ownSrcItems.sort(bySort); extItems.sort(bySort);
+  captItems.sort(bySort); cbItems.sort(bySort); ownItems.sort(bySort); ownTentItems.sort(bySort);
+  ownSrcItems.sort(bySort); extItems.sort(bySort);
 
-  var captCom=0, captBase=0, cbCom=0, cbBase=0, ownVal=0, ownExcluded=0, ownSrcBase=0, ownSrcCom=0, extCom=0;
+  var captCom=0, captBase=0, cbCom=0, cbBase=0, ownVal=0, ownExcluded=0, ownSrcBase=0, ownSrcCom=0, extCom=0, extBase=0;
   var ownPocketTot=0, ownPocketItems=[];
   captItems.forEach(function(it){ captCom+=it.total; captBase+=it.base; });
   cbItems.forEach(function(it){ cbCom+=it.total; cbBase+=it.base; });
-  extItems.forEach(function(it){ extCom+=it.total; });
+  extItems.forEach(function(it){ extCom+=it.total; extBase+=it.base; });
+  /* Benefits: confirmed owner’s days only — never tentatives, never unconfirmed base */
   ownItems.forEach(function(it){
     if(ownerBenefitIncluded(it.rec)) ownVal+=it.base;
-    else ownExcluded+=it.base;
+    else ownExcluded+=it.base; /* confirmed but toggled off */
   });
   ownSrcItems.forEach(function(it){
-    if(leadIsClosedDeal(it.rec)){ ownSrcBase+=it.base; ownSrcCom+=it.total; }
+    ownSrcBase+=it.base; ownSrcCom+=it.total;
   });
-  /* Owner pocket cash — split free cash destined to owner (income off the boat) */
+  /* Owner pocket cash — same story as Leads cash income (closed commercial + received for sumcard) */
   (state.leads||[]).forEach(function(r){
     if(!r||leadIsCancelled(r)||!leadHasSplit(r)) return;
+    if(!leadIsClosedDeal(r)&&leadSource(r)!=="ownersourced") return;
+    /* closed commercial only (captain / CB / owner-sourced / other) */
+    if(!leadIsClosedDeal(r)) return;
     if(leadCashDest(r)!=="owner") return;
     var cash=leadFreeCashAmt(r)||Number(r.cashAmt)||0;
     if(!(cash>0.009)) return;
@@ -12937,6 +12955,7 @@ function renderCommissions(){
     });
   });
   ownPocketItems.sort(bySort);
+  /* Payable commission only — owner benefits / pocket are not commission */
   var comTot=captCom+cbCom+ownSrcCom+extCom;
 
   function leadCommCard(it, pillHtml){
@@ -12985,73 +13004,74 @@ function renderCommissions(){
   }
 
   var html="";
-  html+='<div class="apa-sect-h" style="margin-top:0"><h3>Captain · '+CAPTAIN_COMMISSION_PCT+'%</h3></div>';
+  html+='<div class="apa-sect-h" style="margin-top:0"><h3>Captain · '+CAPTAIN_COMMISSION_PCT+'% · outstanding</h3></div>';
+  html+='<p style="margin:0 0 10px;font-size:12.5px;color:var(--muted);line-height:1.4">Confirmed captain deals only (same as Leads). Upsells/extensions from charges with <b>I get commission</b>. Currently all captain commission is <b>outstanding</b>.</p>';
   if(captItems.length||extItems.length){
-    captItems.forEach(function(it){ html+=leadCommCard(it,'<span class="pill p-blue">Captain</span>'); });
+    captItems.forEach(function(it){ html+=leadCommCard(it,'<span class="pill p-blue">Captain</span><span class="pill p-amber">Outstanding</span>'); });
     extItems.forEach(function(it){
       var c=it.rec, cp=it.p;
       html+='<div class="item" data-edit-ch="'+esc(c.id)+'">'+
         '<div class="top"><div class="title">'+esc(c.client||"Extension")+'</div><div class="amt money">'+money(cp.total)+'</div></div>'+
         '<div class="meta">'+
           (c.date?'<span>📅 '+esc(fmtDate(c.date))+'</span>':'')+
-          '<span class="pill p-amber">Extension</span>'+
+          '<span class="pill p-amber">Upsell / extension</span>'+
           (cp.hours>0?'<span>+'+esc(String(cp.hours))+' h</span>':'')+
-          '<span class="pill p-green">Captain comm</span>'+
+          '<span class="pill p-amber">Outstanding</span>'+
         '</div>'+
         '<div class="notes" style="font-style:normal;color:var(--muted)">'+esc(cp.detail)+'</div></div>';
     });
-    html+='<div class="meta" style="margin:0 0 14px">Base '+money(captBase)+(extCom>0?" · ext "+money(extCom):"")+' · commission <b class="money">'+money(captCom+extCom)+'</b></div>';
+    html+='<div class="meta" style="margin:0 0 14px">Deal base '+money(captBase)+
+      (extCom>0?" · upsell comm "+money(extCom):"")+
+      " · <b>total commission outstanding</b> <b class=\"money\">"+money(captCom+extCom)+"</b></div>";
   } else {
-    html+='<div class="meta" style="margin:0 0 14px">No captain-source leads yet.</div>';
+    html+='<div class="meta" style="margin:0 0 14px">No confirmed captain deals yet.</div>';
   }
 
-  html+='<div class="apa-sect-h"><h3>Click&amp;Boat (Paul) · '+CLICKBOAT_COMMISSION_PCT+'%</h3></div>';
+  html+='<div class="apa-sect-h"><h3>Click&amp;Boat (Paul) · '+CLICKBOAT_COMMISSION_PCT+'% · paid</h3></div>';
+  html+='<p style="margin:0 0 10px;font-size:12.5px;color:var(--muted);line-height:1.4">Confirmed Click&amp;Boat deals only. Commission is treated as <b>paid</b> — platform remits net after deduction.</p>';
   if(cbItems.length){
-    cbItems.forEach(function(it){ html+=leadCommCard(it,'<span class="pill p-amber">Click&amp;Boat</span>'); });
-    html+='<div class="meta" style="margin:0 0 14px">Base '+money(cbBase)+' · commission <b class="money">'+money(cbCom)+'</b></div>';
+    cbItems.forEach(function(it){ html+=leadCommCard(it,'<span class="pill p-amber">Click&amp;Boat</span><span class="pill p-green">Paid</span>'); });
+    html+='<div class="meta" style="margin:0 0 14px">Base '+money(cbBase)+' · commission <b class="money">'+money(cbCom)+'</b> (paid)</div>';
   } else {
-    html+='<div class="meta" style="margin:0 0 14px">No Click&amp;Boat leads yet — import from calendar or set source on a lead.</div>';
+    html+='<div class="meta" style="margin:0 0 14px">No confirmed Click&amp;Boat deals yet.</div>';
   }
 
-  html+='<div class="apa-sect-h"><h3>Owner-sourced · income</h3></div>';
-  html+='<p style="margin:0 0 10px;font-size:12.5px;color:var(--muted);line-height:1.4">Owner-referred charters we run as business. Split deals show <b>invoiced (white)</b> vs <b>cash in owner’s pocket</b> (still income, not boat float). Commission <b>0%</b> for now.</p>';
+  html+='<div class="apa-sect-h"><h3>Owner-sourced · income · 0% commission</h3></div>';
+  html+='<p style="margin:0 0 10px;font-size:12.5px;color:var(--muted);line-height:1.4">Confirmed owner-referred commercial charters only (same as Leads). Split deals show <b>invoiced (white)</b> vs <b>cash in owner’s pocket</b>. Commission <b>0%</b> for now — not payable commission.</p>';
   var osInvTot=0, osPocketSrc=0, osBoatSrc=0, osClientTot=0, osPocketPend=0;
   if(ownSrcItems.length){
     ownSrcItems.forEach(function(it){
       var r=it.rec;
-      if(leadIsClosedDeal(r)){
-        osClientTot+=leadClientTotal(r)||Number(r.total)||0;
-        if(leadHasSplit(r)){
-          osInvTot+=Number(r.invoiceTotal)>0?Number(r.invoiceTotal):(Number(r.invoiceNet)||0);
-          var cN=leadFreeCashAmt(r)||0;
-          if(leadCashDest(r)==="owner"){
-            osPocketSrc+=cN;
-            if(cN>0&&!leadFreeCashIsReceived(r)) osPocketPend+=cN;
-          } else osBoatSrc+=cN;
-        } else {
-          osInvTot+=Number(r.total)||Number(r.base)||0;
-        }
+      osClientTot+=leadClientTotal(r)||Number(r.total)||0;
+      if(leadHasSplit(r)){
+        osInvTot+=Number(r.invoiceTotal)>0?Number(r.invoiceTotal):(Number(r.invoiceNet)||0);
+        var cN=leadFreeCashAmt(r)||0;
+        if(leadCashDest(r)==="owner"){
+          osPocketSrc+=cN;
+          if(cN>0&&!leadFreeCashIsReceived(r)) osPocketPend+=cN;
+        } else osBoatSrc+=cN;
+      } else {
+        osInvTot+=Number(r.total)||Number(r.base)||0;
       }
-      var pills='<span class="pill p-own">Owner-sourced</span>'+
-        (leadIsClosedDeal(r)?'<span class="pill p-green">Income</span>':'<span class="pill p-amber">Tentative</span>');
+      var pills='<span class="pill p-own">Owner-sourced</span><span class="pill p-green">Income</span>';
       if(leadHasSplit(r)&&leadCashDest(r)==="owner"){
         pills+='<span class="pill p-own">Cash → owner pocket</span>';
         if(leadOwnerPocketCashAmt(r)>0) pills+='<span class="pill p-green">Pocket received</span>';
       }
       html+=leadCommCard(it, pills);
     });
-    html+='<div class="meta" style="margin:0 0 6px">Client total <b class="money">'+money(osClientTot)+'</b> <span style="color:var(--muted)">(full business income)</span></div>';
+    html+='<div class="meta" style="margin:0 0 6px">Client total <b class="money">'+money(osClientTot)+'</b> <span style="color:var(--muted)">(business income · not commission)</span></div>';
     html+='<div class="meta" style="margin:0 0 6px">· Invoiced (white) <b class="money">'+money(osInvTot)+'</b></div>';
     html+='<div class="meta" style="margin:0 0 6px">· Owner pocket cash <b class="money">'+money(osPocketSrc)+'</b> <span style="color:var(--muted)">(income in owner’s pocket · not boat float)</span>'+
       (osPocketPend>0?' · <span style="color:#9a6b00">'+money(osPocketPend)+' not marked received</span>':'')+'</div>';
     if(osBoatSrc>0) html+='<div class="meta" style="margin:0 0 6px">· Boat cash <b class="money">'+money(osBoatSrc)+'</b></div>';
-    html+='<div class="meta" style="margin:0 0 14px">Commission base (ex VAT) <b class="money">'+money(ownSrcBase)+'</b> · comm <b class="money">'+money(ownSrcCom)+'</b></div>';
+    html+='<div class="meta" style="margin:0 0 14px">Commission <b class="money">'+money(ownSrcCom)+'</b> (0% for now)</div>';
   } else {
-    html+='<div class="meta" style="margin:0 0 14px">None yet — set source to <b>Owner-sourced</b> when we invoice an owner-referred guest.</div>';
+    html+='<div class="meta" style="margin:0 0 14px">None confirmed yet — set source to <b>Owner-sourced</b> and confirm when we invoice an owner-referred guest.</div>';
   }
 
   html+='<div class="apa-sect-h"><h3>Owner pocket cash · income not on the boat</h3></div>';
-  html+='<p style="margin:0 0 10px;font-size:12.5px;color:var(--muted);line-height:1.4"><b>Part of business income</b> (client total) that went to the owner’s pocket on a split deal — not APA, not boat petty. Use this when showing the owner “the boat is doing well” including cash he took.</p>';
+  html+='<p style="margin:0 0 10px;font-size:12.5px;color:var(--muted);line-height:1.4">Confirmed closed split deals only — cash destined to the owner’s pocket (not APA, not boat petty). Sumcard above = <b>received</b> only.</p>';
   if(ownPocketItems.length){
     var pocketDestTot=0;
     ownPocketItems.forEach(function(it){
@@ -13069,17 +13089,17 @@ function renderCommissions(){
         '<div class="notes" style="font-style:normal;line-height:1.45;color:var(--muted)">'+
           (whiteA>0?'Invoiced white <b class="money">'+money(whiteA)+'</b> · ':'')+
           'Pocket cash <b class="money">'+money(it.cash)+'</b> · client <b class="money">'+money(leadClientTotal(r)||0)+'</b>'+
-          '<br><b>Business income in owner’s pocket</b> — not boat float, not APA'+
+          '<br><b>Business income in owner’s pocket</b> — not boat float, not APA, not commission'+
         '</div>'+
       '</div>';
     });
     html+='<div class="meta" style="margin:0 0 14px">Pocket-destined <b class="money">'+money(pocketDestTot)+'</b> · received <b class="money">'+money(ownPocketTot)+'</b> · '+ownPocketItems.length+' deal'+(ownPocketItems.length===1?"":"s")+'</div>';
   } else {
-    html+='<div class="meta" style="margin:0 0 14px">None yet — on a split lead set <b>Cash goes to · Owner’s pocket</b> (and tick <b>Cash received</b> when he has it).</div>';
+    html+='<div class="meta" style="margin:0 0 14px">None yet — on a confirmed split lead set <b>Cash goes to · Owner’s pocket</b> (and tick <b>Cash received</b> when he has it).</div>';
   }
 
-  html+='<div class="apa-sect-h"><h3>Owner’s days · benefits</h3></div>';
-  html+='<p style="margin:0 0 10px;font-size:12.5px;color:var(--muted);line-height:1.4">Private use or friend pays the owner directly — <b>no income</b>, no commission. Amount = charter before VAT (notional). <b>Untick</b> to drop a trip from the benefits total. (Separate from owner-pocket cash on invoiced split deals.)</p>';
+  html+='<div class="apa-sect-h"><h3>Owner’s days · benefits (not commission)</h3></div>';
+  html+='<p style="margin:0 0 10px;font-size:12.5px;color:var(--muted);line-height:1.4">Private use or friend pays the owner directly — <b>no income</b>, <b>no commission</b>. Amount = charter before VAT (notional benefit). Only <b>confirmed</b> days count (same as Leads). <b>Untick</b> to drop a confirmed day from the total. Unconfirmed owner days are listed separately and never inflate the total.</p>';
   if(ownItems.length){
     ownItems.forEach(function(it){
       var r=it.rec, p=it.p;
@@ -13094,19 +13114,39 @@ function renderCommissions(){
         '<label class="checkrow" style="margin-top:8px" data-own-benefit="'+esc(r.id)+'">'+
           '<input type="checkbox"'+(on?" checked":"")+'>'+
           '<span><div class="ck">Count in owner benefits total</div>'+
-          '<div class="ch">Before VAT '+money(p.base)+(on?"":" — currently excluded")+'</div></span></label>'+
+          '<div class="ch">Notional before VAT '+money(p.base)+(on?"":" — currently excluded")+' · not commission</div></span></label>'+
         '<button type="button" class="btn ghost" data-edit-ld="'+esc(r.id)+'" style="margin-top:8px;width:auto;padding:6px 12px;font-size:12px">Edit lead</button>'+
       '</div>';
     });
-    html+='<div class="meta" style="margin:0 0 14px">Owner benefits total <b class="money">'+money(ownVal)+'</b>'+
+    html+='<div class="meta" style="margin:0 0 14px"><b>Notional benefits</b> <b class="money">'+money(ownVal)+'</b> (not commission)'+
       (ownExcluded>0?' · excluded '+money(ownExcluded):'')+'</div>';
-  } else {
-    html+='<div class="meta" style="margin:0 0 14px">No owner’s days yet — set source to <b>Owner’s days</b> for private use / cash-to-owner trips.</div>';
+  }
+  if(ownTentItems.length){
+    html+='<div class="meta" style="margin:0 0 8px;color:#9a6b00;font-weight:650">'+ownTentItems.length+' unconfirmed owner’s day'+(ownTentItems.length===1?"":"s")+' — not in benefits total:</div>';
+    ownTentItems.forEach(function(it){
+      var r=it.rec, p=it.p;
+      html+='<div class="item item--tentative">'+
+        '<div class="top"><div class="title">'+esc(r.name||"—")+'</div><div class="amt money" style="opacity:.7">'+money(p.base)+'</div></div>'+
+        '<div class="meta">'+
+          (r.start?'<span>'+esc(fmtDate(r.start))+(r.end&&r.end!==r.start?"–"+esc(fmtDate(r.end)):"")+'</span>':'')+
+          '<span class="pill p-own">Owner’s days</span>'+
+          '<span class="pill p-amber">Unconfirmed</span>'+
+        '</div>'+
+        '<div class="notes" style="font-style:normal;color:#9a6b00">Confirm on the lead to count as notional benefit. Not commission.</div>'+
+        '<button type="button" class="btn ghost" data-edit-ld="'+esc(r.id)+'" style="margin-top:8px;width:auto;padding:6px 12px;font-size:12px">Confirm / edit</button>'+
+      '</div>';
+    });
+    html+='<div class="meta" style="margin:0 0 14px"></div>';
+  }
+  if(!ownItems.length&&!ownTentItems.length){
+    html+='<div class="meta" style="margin:0 0 14px">None yet — set source to <b>Owner’s days</b> for private use / friend-pays-owner trips.</div>';
+  } else if(!ownItems.length&&ownTentItems.length){
+    html+='<div class="meta" style="margin:0 0 14px">Benefits total <b class="money">€0</b> until at least one owner’s day is confirmed.</div>';
   }
 
-  if(!captItems.length&&!cbItems.length&&!ownItems.length&&!ownSrcItems.length&&!ownPocketItems.length&&!extItems.length){
+  if(!captItems.length&&!cbItems.length&&!ownItems.length&&!ownTentItems.length&&!ownSrcItems.length&&!ownPocketItems.length&&!extItems.length){
     html=emptyBox("💸","No commission lines yet",
-      "Import calendar leads, set source to Captain / Click&amp;Boat / Owner’s days / Owner-sourced, or mark extra hours with <b>I get commission</b>.");
+      "Import calendar leads, set source to Captain / Click&amp;Boat / Owner’s days / Owner-sourced, confirm the deal, or mark extra hours with <b>I get commission</b>.");
   }
   wrap.innerHTML=html;
   if(el("cmCaptTot")) el("cmCaptTot").textContent=money(captCom+extCom);
