@@ -97,6 +97,10 @@
   #tab-leads .ld-summary{display:grid;grid-template-columns:1fr;gap:10px;margin-bottom:12px;width:100%;box-sizing:border-box}
   #tab-leads .ld-summary .sumcard{min-width:0;flex:none;padding:12px 14px;box-sizing:border-box}
   #tab-leads .ld-snap{padding:12px 14px}
+  #tab-leads .ld-snap-hero{margin:0 0 12px;padding:0 0 12px;border-bottom:1px solid var(--line)}
+  #tab-leads .ld-snap-hero .k{font-size:11px;font-weight:800;text-transform:uppercase;letter-spacing:.04em;color:var(--muted)}
+  #tab-leads .ld-snap-hero .big{font-size:26px;font-weight:800;line-height:1.15;margin-top:4px;font-variant-numeric:tabular-nums}
+  #tab-leads .ld-snap-hero .s{font-size:11.5px;color:var(--muted);font-weight:600;margin-top:4px;line-height:1.35}
   #tab-leads .ld-snap-cols{display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-bottom:10px}
   #tab-leads .ld-snap-col{min-width:0;padding:10px 12px;border-radius:12px;background:rgba(0,0,0,.03);border:1px solid var(--line)}
   #tab-leads .ld-snap-col.done{background:rgba(46,125,50,.06);border-color:rgba(46,125,50,.2)}
@@ -108,9 +112,6 @@
   #tab-leads .ld-snap-col .lines span{display:flex;justify-content:space-between;gap:8px}
   #tab-leads .ld-snap-col .lines .m{font-weight:800;font-variant-numeric:tabular-nums}
   #tab-leads .ld-snap-foot{display:grid;grid-template-columns:1fr 1fr;gap:8px 14px;padding-top:8px;border-top:1px solid var(--line)}
-  @media(min-width:620px){
-    #tab-leads .ld-snap-foot{grid-template-columns:1fr 1fr 1fr}
-  }
   #tab-leads .ld-snap-row{display:flex;flex-direction:column;gap:2px;min-width:0}
   #tab-leads .ld-snap-row .k{font-size:10.5px;color:var(--muted);text-transform:uppercase;letter-spacing:.03em;font-weight:650;line-height:1.2}
   #tab-leads .ld-snap-row .v{font-size:16px;font-weight:800;line-height:1.2;font-variant-numeric:tabular-nums}
@@ -446,9 +447,14 @@
     <section id="tab-leads">
       <div class="ld-summary" id="ldSummary">
         <div class="sumcard ld-snap" id="ldSnap">
+          <div class="ld-snap-hero">
+            <div class="k">Projected total money in</div>
+            <div class="big money" id="ldAllTot">€0</div>
+            <div class="s" id="ldAllSub">Done + confirmed closed deals (charters + upsells)</div>
+          </div>
           <div class="ld-snap-cols">
             <div class="ld-snap-col done">
-              <div class="hd">Done · money in</div>
+              <div class="hd">Done · already in</div>
               <div class="big money" id="ldDoneTot">€0</div>
               <div class="meta" id="ldDoneSub">0 sailed trips</div>
               <div class="lines">
@@ -475,11 +481,10 @@
             </div>
           </div>
           <div class="ld-snap-foot">
-            <div class="ld-snap-row"><span class="k">Upsell benefit (your comm.)</span><span class="v money" id="ldUpsellBenefit">€0</span><span class="s" id="ldUpsellBenefitSub">Extra hours · captain</span></div>
-            <div class="ld-snap-row"><span class="k">Owner days (notional)</span><span class="v money" id="ldOwn">€0</span><span class="s" id="ldOwnSub">List-rate estimate</span></div>
-            <div class="ld-snap-row"><span class="k">Open / pending source</span><span class="v" id="ldOpenMix">0 · 0</span><span class="s" id="ldOpenMixSub">Invoices · unassigned</span></div>
+            <div class="ld-snap-row"><span class="k">Awaiting confirmation</span><span class="v" id="ldAwait">0</span><span class="s" id="ldAwaitSub">Possible new business · pending source</span></div>
+            <div class="ld-snap-row"><span class="k">Owner days (notional)</span><span class="v money" id="ldOwn">€0</span><span class="s" id="ldOwnSub">List-rate estimate · not cash</span></div>
           </div>
-          <div class="ld-snap-note">Done = sailed (date today/past). Confirmed upcoming = future dates, projected. Totals include charter sales + captain extra-hour upsells (and your 15% on those upsells when marked). Owner days = notional list-rate only — not cash.</div>
+          <div class="ld-snap-note">Projected total = done + confirmed closed deals. Open deals and pending source are not included. Owner days are list-rate notional only.</div>
         </div>
         <div class="sumcard ld-src"><div class="l">Luigi · Captain</div><div class="v money" id="ldCap">€0</div><div class="sub" id="ldCapSub">—</div><div id="ldCapTypes" class="ld-type-table"></div></div>
         <div class="sumcard ld-src"><div class="l">Paul · Click&amp;Boat</div><div class="v money" id="ldCb">€0</div><div class="sub" id="ldCbSub">—</div><div id="ldCbTypes" class="ld-type-table"></div></div>
@@ -2442,9 +2447,14 @@ function renderLeads(){
       '<span class="chev">✎</span></div>';
   });
   wrap.innerHTML=html||emptyBox("🌐","No charters in the book yet","Tap + for a new lead, or Sync calendar dates.");
-  /* Done vs projected snapshot + source cards */
-  var upsellCommAll=done.upsellComm+proj.upsellComm;
-  var upsellGrossAll=done.upsell+proj.upsell;
+  /* Snapshot: projected total + done/proj breakdown + source cards */
+  var allTot=done.tot+proj.tot;
+  var allN=done.n+proj.n;
+  if(el("ldAllTot")) el("ldAllTot").textContent=money(allTot);
+  if(el("ldAllSub")){
+    el("ldAllSub").textContent=allN+" closed trip"+(allN===1?"":"s")+
+      " · "+money(done.tot)+" in + "+money(proj.tot)+" still to cash";
+  }
   if(el("ldDoneTot")) el("ldDoneTot").textContent=money(done.tot);
   if(el("ldDoneSub")){
     el("ldDoneSub").textContent=done.n+" sailed trip"+(done.n===1?"":"s")+
@@ -2467,21 +2477,18 @@ function renderLeads(){
   if(el("ldProjComm")) el("ldProjComm").textContent=money(proj.comm);
   if(el("ldProjUpsellComm")) el("ldProjUpsellComm").textContent=money(proj.upsellComm);
   if(el("ldProjNet")) el("ldProjNet").textContent=money(Math.max(0, proj.ex-proj.comm));
-  if(el("ldUpsellBenefit")) el("ldUpsellBenefit").textContent=money(upsellCommAll);
-  if(el("ldUpsellBenefitSub")){
-    el("ldUpsellBenefitSub").textContent=upsellGrossAll>0
-      ?("on "+money(upsellGrossAll)+" extra hours · 15%")
-      :"Mark “I get commission” on extra hours";
+  if(el("ldAwait")) el("ldAwait").textContent=String(nPendSrc);
+  if(el("ldAwaitSub")){
+    el("ldAwaitSub").textContent=nPendSrc
+      ?(nPendSrc+" possible new · pending source")
+      :"No unconfirmed calendar holds";
   }
   if(el("ldOwn")) el("ldOwn").textContent=money(ownVal);
   if(el("ldOwnSub")) el("ldOwnSub").textContent=ownN?(ownN+" · not cash"):"None logged";
-  if(el("ldOpenMix")) el("ldOpenMix").textContent=pend+" · "+nPendSrc;
-  if(el("ldOpenMixSub")) el("ldOpenMixSub").textContent="Invoices open · pending source";
   if(el("ldCap")) el("ldCap").textContent=money(capTot);
   if(el("ldCapSub")){
     el("ldCapSub").textContent=capN+"× · ex VAT "+money(capExVat)+
-      " · comm "+money(capComm)+" · net "+money(Math.max(0, capExVat-capComm))+
-      (upsellCommAll>0?" · +upsell comm "+money(upsellCommAll):"");
+      " · comm "+money(capComm)+" · net "+money(Math.max(0, capExVat-capComm));
   }
   if(el("ldCapTypes")) el("ldCapTypes").innerHTML=formatTypeMixHTML(capTypes);
   if(el("ldCb")) el("ldCb").textContent=money(cbTot);
