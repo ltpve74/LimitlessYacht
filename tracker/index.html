@@ -442,7 +442,8 @@
       <select id="teamNameSel" class="ctl">
         <option value="">— Select your name —</option>
       </select>
-      <p class="sub" id="teamNameHint" style="margin:6px 0 0;font-size:11.5px;line-height:1.35;opacity:.85">Enter the team passcode so names load from the roster.</p>
+      <button type="button" class="btn ghost" id="teamNamesReload" style="width:auto;margin-top:8px;padding:8px 12px;font-size:12.5px">Load names</button>
+      <p class="sub" id="teamNameHint" style="margin:6px 0 0;font-size:11.5px;line-height:1.35;opacity:.85">Enter team passcode, then tap Load names.</p>
     </div>
     <div class="field">
       <label>Passcode</label>
@@ -847,10 +848,16 @@ function tryLoadTeamNamesFromPass(){
     if(names.length){
       cacheTeamStewNames(names);
       paintTeamNameSelect(names);
-      setTeamNameHint("Pick your name from the roster.");
+      setTeamNameHint("Pick your name from the roster ("+names.length+").");
     } else {
-      paintTeamNameSelect([]);
-      setTeamNameHint("No stews on the roster yet — captain must add people under Stews → Team, then save.");
+      var cached=loadCachedTeamStewNames();
+      if(cached.length){
+        paintTeamNameSelect(cached);
+        setTeamNameHint("Using saved names on this phone ("+cached.length+"). Tap Load names after captain refreshes roster if the list looks wrong.");
+      } else {
+        paintTeamNameSelect([]);
+        setTeamNameHint("No names found. As captain: Stews → Team, add Laura/Toni/…, Save, then Refresh roster. Then try Load names again.");
+      }
     }
   }
   function failNames(err){
@@ -865,18 +872,23 @@ function tryLoadTeamNamesFromPass(){
     session.role=prevRole;
     session.pass=prevPass;
   }
+  function namesFromPayload(d){
+    if(!d) return [];
+    if(Array.isArray(d.names)&&d.names.length) return d.names;
+    if(Array.isArray(d.stewNames)&&d.stewNames.length) return d.stewNames;
+    return stewNamesFromRows(d.stews);
+  }
   api("stewNames",{silent:true}).then(function(d){
-    if(d&&Array.isArray(d.names)){ applyNames(d.names); restoreSession(); return; }
-    /* Older deploy without stewNames action — fall back to load */
+    var n=namesFromPayload(d);
+    if(n.length||(d&&Array.isArray(d.names))){ applyNames(n); restoreSession(); return; }
     return api("load",{silent:true}).then(function(d2){
-      applyNames(stewNamesFromRows(d2&&d2.stews));
+      applyNames(namesFromPayload(d2));
       restoreSession();
     });
   }).catch(function(err){
-    /* stewNames missing (404/bad action) or network — try load */
     if(err&&err.code===401){ failNames(err); restoreSession(); return; }
     api("load",{silent:true}).then(function(d2){
-      applyNames(stewNamesFromRows(d2&&d2.stews));
+      applyNames(namesFromPayload(d2));
       restoreSession();
     }).catch(function(err2){
       failNames(err2);
@@ -996,21 +1008,10 @@ if(el("passInput")){
     if(whoSel&&whoSel.value==="team") tryLoadTeamNamesFromPass();
   });
 }
-/* Explicit reload if autofill skipped input events */
-if(el("teamNameWrap")){
-  var reloadBtn=document.createElement("button");
-  reloadBtn.type="button";
-  reloadBtn.className="btn ghost";
-  reloadBtn.id="teamNamesReload";
-  reloadBtn.style.cssText="width:auto;margin-top:8px;padding:8px 12px;font-size:12.5px";
-  reloadBtn.textContent="Load names";
-  var wrap=el("teamNameWrap");
-  if(wrap&&!el("teamNamesReload")) wrap.appendChild(reloadBtn);
-  if(el("teamNamesReload")) el("teamNamesReload").addEventListener("click",function(ev){
-    ev.preventDefault();
-    tryLoadTeamNamesFromPass();
-  });
-}
+if(el("teamNamesReload")) el("teamNamesReload").addEventListener("click",function(ev){
+  ev.preventDefault();
+  tryLoadTeamNamesFromPass();
+});
 el("gateForm").addEventListener("submit",function(ev){
   ev.preventDefault();
   var e=el("gateErr"); e.textContent="Opening…";
@@ -1045,7 +1046,11 @@ el("gateForm").addEventListener("submit",function(ev){
       BOOT_QUIET=true;
       if(d&&d.role) session.role=d.role;
       applyData(d,{fromBoot:true});
-      try{ rememberStewNamesFromState(); }catch(eN){}
+      try{
+        var bootNames=(d&&d.stewNames&&d.stewNames.length)?d.stewNames:stewNamesFromRows(d&&d.stews);
+        if(bootNames&&bootNames.length) cacheTeamStewNames(bootNames);
+        rememberStewNamesFromState();
+      }catch(eN){}
     }catch(errApply){
       BOOT_QUIET=false;
       gateLoginInFlight=false;
@@ -13786,7 +13791,10 @@ function applyData(d, opts){
   else if(!canOps()) state.diesel=[];
   if(canRoster() && Array.isArray(d.stews)){
     state.stews=d.stews;
-    try{ rememberStewNamesFromState(); }catch(eSn){}
+    try{
+      if(Array.isArray(d.stewNames)&&d.stewNames.length) cacheTeamStewNames(d.stewNames);
+      rememberStewNamesFromState();
+    }catch(eSn){}
   } else if(!canRoster()) state.stews=[];
   if(canRoster() && Array.isArray(d.stewAssign)){
     if(fromPoll&&localSaveIsFresh("stewAssign")){

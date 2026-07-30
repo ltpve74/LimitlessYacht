@@ -109,6 +109,70 @@ function passOk(pass, role) {
   return pass === captain;
 }
 
+/**
+ * Names for team login dropdown. Pulls from stews, meta cache, assign links,
+ * and calendar titles ("stew Laura") so an empty stews[] never blanks login.
+ */
+function collectStewLoginNames(data) {
+  const seen = new Set();
+  const names = [];
+  function addName(n) {
+    n = String(n || "")
+      .trim()
+      .replace(/\s+/g, " ");
+    if (!n || n.length > 40) return;
+    if (/^(captain|manager|team|stew|charter|off)\b/i.test(n)) return;
+    const k = n.toLowerCase();
+    if (seen.has(k)) return;
+    seen.add(k);
+    names.push(n);
+  }
+  const stews = Array.isArray(data && data.stews) ? data.stews : [];
+  stews.forEach((s) => {
+    if (!s) return;
+    if (s.active === false || s.active === 0 || s.active === "false") return;
+    addName(s.name);
+  });
+  if (!names.length) {
+    stews.forEach((s) => {
+      if (s) addName(s.name);
+    });
+  }
+  const metaNames =
+    data && data.meta && Array.isArray(data.meta.stewLoginNames)
+      ? data.meta.stewLoginNames
+      : [];
+  metaNames.forEach(addName);
+  const byId = {};
+  stews.forEach((s) => {
+    if (s && s.id) byId[String(s.id)] = s;
+  });
+  (Array.isArray(data && data.stewAssign) ? data.stewAssign : []).forEach((a) => {
+    if (!a) return;
+    (a.stewIds || []).forEach((id) => {
+      const s = byId[String(id)];
+      if (s) addName(s.name);
+    });
+    /* Denormalized name if present */
+    if (a.stewName) addName(a.stewName);
+    (a.stewNames || []).forEach(addName);
+  });
+  (Array.isArray(data && data.stewCalendar) ? data.stewCalendar : []).forEach((ev) => {
+    const sum = String((ev && ev.summary) || "");
+    const re = /\bstew(?:ard(?:ess)?)?\s+([A-Za-z][\w'.-]{1,30})/gi;
+    let m;
+    while ((m = re.exec(sum))) addName(m[1]);
+  });
+  names.sort((a, b) => a.localeCompare(b));
+  return names;
+}
+
+function syncStewLoginNamesMeta(data) {
+  if (!data.meta || typeof data.meta !== "object") data.meta = {};
+  data.meta.stewLoginNames = collectStewLoginNames(data);
+  return data.meta.stewLoginNames;
+}
+
 /** Stable IDs — real first APA entry from tracker/Limitless_APA_Tracker.xlsx */
 const SHEET_LEAD_ID = "lead-joel-freeland-2026-07";
 const SHEET_TRIP_ID = "apa-joel-freeland-2026-07";
@@ -1672,33 +1736,12 @@ export default async (req, context) => {
     if (data.log.length > LOG_CAP) data.log = data.log.slice(-LOG_CAP);
   }
 
-  /** Active stew names for team login dropdown (passcode-gated, minimal payload). */
+  /** Stew names for team login dropdown (passcode-gated, minimal payload). */
   if (action === "stewNames") {
     if (role !== "team" && role !== "captain") {
       return json({ error: "forbidden" }, 403);
     }
-    const seen = new Set();
-    const names = [];
-    function addName(n) {
-      n = String(n || "").trim();
-      if (!n) return;
-      const k = n.toLowerCase();
-      if (seen.has(k)) return;
-      seen.add(k);
-      names.push(n);
-    }
-    (Array.isArray(data.stews) ? data.stews : []).forEach((s) => {
-      if (!s) return;
-      if (s.active === false || s.active === 0 || s.active === "false") return;
-      addName(s.name);
-    });
-    /* If every row is inactive/missing, still surface named people so login works */
-    if (!names.length) {
-      (Array.isArray(data.stews) ? data.stews : []).forEach((s) => {
-        if (s) addName(s.name);
-      });
-    }
-    names.sort((a, b) => a.localeCompare(b));
+    const names = collectStewLoginNames(data);
     return json({ names, count: names.length });
   }
 
@@ -1768,12 +1811,15 @@ export default async (req, context) => {
       out.stewCalendar = Array.isArray(data.stewCalendar) ? data.stewCalendar : [];
       out.stewCalendarAt = (data.meta && data.meta.stewCalendarAt) || "";
       out.stewCalendarBy = (data.meta && data.meta.stewCalendarBy) || "";
+      /* Always expose login names so team dropdown works even if stews[] is thin */
+      out.stewNames = collectStewLoginNames(data);
     } else {
       out.stews = null;
       out.stewAssign = null;
       out.stewCalendar = null;
       out.stewCalendarAt = "";
       out.stewCalendarBy = "";
+      out.stewNames = [];
     }
     /* App-owned website calendar status (captain only — seed/activate in Ops) */
     if (captain) {
@@ -1862,11 +1908,16 @@ export default async (req, context) => {
       if (!data.meta || typeof data.meta !== "object") data.meta = {};
       data.meta.stewCalendarAt = now;
       data.meta.stewCalendarBy = who || "Lead save";
+      syncStewLoginNamesMeta(data);
     }
     if (coll === "stewCalendar") {
       if (!data.meta || typeof data.meta !== "object") data.meta = {};
       data.meta.stewCalendarAt = now;
       data.meta.stewCalendarBy = who;
+      syncStewLoginNamesMeta(data);
+    }
+    if (coll === "stews" || coll === "stewAssign") {
+      syncStewLoginNamesMeta(data);
     }
     /* Charters Paid/Pending → re-link APA shortfall + book cash (black) as received */
     if (coll === "charters" || coll === "apa") {
