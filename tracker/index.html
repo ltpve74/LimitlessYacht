@@ -730,6 +730,8 @@ function runPostLoadMaintenance(){
       ensureAllLeadCashApa();
     }
     if(isCaptain()){
+      /* Re-link stew crew after leads-SOT key rename (ICS uid ↔ lead id) */
+      try{ healStewAssignsToLeads(); }catch(eHeal){}
       /* Uses stewAssign already in state — no ICS round-trip */
       try{ seedCurrentMonthStewCashExpenses(); }catch(e1){}
       try{ expRestoreCrewFloatPayAfterWipe(); }catch(e2){}
@@ -738,6 +740,7 @@ function runPostLoadMaintenance(){
       if(curTab==="expenses") try{ renderExpenses(); }catch(e5){}
       if(curTab==="charters") try{ renderCharters(); }catch(e6){}
       if(curTab==="leads") try{ renderLeads(); }catch(e7){}
+      if(curTab==="stews") try{ renderStews({soft:true}); }catch(e8){}
     }
   }catch(e){ console&&console.error&&console.error("[tracker] post-load",e); }
 }
@@ -9030,6 +9033,7 @@ function loadStewCalendar(force){
    */
   return Promise.all([loadStewSeed(), loadCalEvents(!!force)]).then(function(){
     function afterSync(){
+      try{ healStewAssignsToLeads(); }catch(e0){}
       purgeOrphanStewAssigns();
       if(force||!(state.stewCalendar&&state.stewCalendar.length)||stewEventsFromLeads().length){
         persistStewCalendarSnapshot();
@@ -9082,6 +9086,31 @@ function leadBlockedDaysClient(l){
   }
   return [start];
 }
+/** Prefer existing stewAssign eventKey so crew links survive leads-SOT rename. */
+function stewEventKeyForLead(l){
+  if(!l||!l.id) return "";
+  var ck=leadCalendarEventKey(l);
+  if(ck) return ck;
+  var byLead=(state.stewAssign||[]).filter(function(a){
+    return a&&a.eventKey&&String(a.leadId||a.cancelLeadId||"")===String(l.id);
+  })[0];
+  if(byLead) return String(byLead.eventKey);
+  var start=String(l.start||l.cdate||"").slice(0,10);
+  if(start){
+    var day=(state.stewAssign||[]).filter(function(a){
+      if(!a||!a.eventKey) return false;
+      if(a.cancelled||a.status==="cancelled") return false;
+      if(stewAssignOwnedByOtherLead(a, l)) return false;
+      return String(a.start||"").slice(0,10)===start;
+    });
+    if(day.length===1) return String(day[0].eventKey);
+    var named=day.filter(function(a){ return stewSummaryMatchesLead(a.summary||"", l); });
+    if(named.length===1) return String(named[0].eventKey);
+    var crew=day.filter(function(a){ return a.stewIds&&a.stewIds.length; });
+    if(crew.length===1) return String(crew[0].eventKey);
+  }
+  return "lead:"+String(l.id);
+}
 /** One stew-roster event from a commercial lead (SOT). */
 function stewEventFromLead(l){
   if(!l||!l.id||leadIsCancelled(l)) return null;
@@ -9089,12 +9118,12 @@ function stewEventFromLead(l){
   if(!days.length) return null;
   var start=days[0];
   var end=days[days.length-1]||start;
-  var ek=leadCalendarEventKey(l)||("lead:"+String(l.id));
+  var ek=stewEventKeyForLead(l);
   var src=leadSource(l);
-  var pending=src==="pending"||l.sourcePending===true;
+  var pending=src==="pending";
   return {
     key:ek,
-    uid:l.calendarUid||l.id,
+    uid:l.calendarUid||(ek.indexOf("uid:")===0?ek.slice(4):l.id),
     summary:l.name||"Charter",
     start:start,
     end:end,
@@ -9161,12 +9190,132 @@ function stewAssignIsProtectedFromPurge(a){
   if(isLeadCancelGhostKey(a.eventKey)||a.cancelGhost) return true;
   if(a.cancelled||a.status==="cancelled") return true;
   if(a.cancelLeadId) return true;
-  /* Active lead still linked — keep until lead unlinks (rare if ICS deleted) */
+  /* Any commercial lead link — never drop (keys may be ICS uid while feed is lead:*) */
   if(a.leadId){
     var L=(state.leads||[]).filter(function(x){return x&&String(x.id)===String(a.leadId);})[0];
-    if(L&&leadIsCancelled(L)) return true;
+    if(L) return true;
+  }
+  /* Crew / pay data is sacred — re-link via heal, never purge */
+  if(a.stewIds&&a.stewIds.length) return true;
+  if(a.payStatus==="Paid"||Number(a.tipTotal)>0||Number(a.dayRate)>0) return true;
+  /* Start day still present on a live lead trip */
+  var st=String(a.start||"").slice(0,10);
+  if(st&&/^\d{4}-\d{2}-\d{2}$/.test(st)){
+    var hit=(state.leads||[]).some(function(l){
+      if(!l||leadIsCancelled(l)) return false;
+      var days=leadBlockedDaysClient(l);
+      return days.indexOf(st)>=0;
+    });
+    if(hit) return true;
   }
   return false;
+}
+/**
+ * Re-attach stewAssign rows to leads after the roster switched from ICS keys
+ * to lead-based events. Prefer keeping the assign eventKey (ICS uid) and
+ * writing it onto the lead so matching stays stable.
+ * Safe: never steals an assign already owned by another lead.
+ */
+function healStewAssignsToLeads(){
+  if(!isCaptain()||!state.stewAssign||!state.stewAssign.length) return false;
+  if(!(state.leads||[]).length) return false;
+  var dirty=false;
+  var now=new Date().toISOString();
+
+  function leadById(id){
+    return (state.leads||[]).filter(function(x){return x&&String(x.id)===String(id);})[0]||null;
+  }
+  function assignsForStart(ymd){
+    return (state.stewAssign||[]).filter(function(a){
+      if(!a||!a.eventKey) return false;
+      if(a.cancelled||a.status==="cancelled"||a.cancelGhost) return false;
+      return String(a.start||"").slice(0,10)===ymd;
+    });
+  }
+  function claimAssign(asg, lead){
+    if(!asg||!lead||!lead.id) return false;
+    if(stewAssignOwnedByOtherLead(asg, lead)) return false;
+    var changed=false;
+    if(String(asg.leadId||"")!==String(lead.id)){
+      asg.leadId=String(lead.id);
+      changed=true;
+    }
+    var ek=String(asg.eventKey||"").trim();
+    var lk=leadCalendarEventKey(lead);
+    /* Prefer stable ICS uid on the lead (matches historical stewAssign keys) */
+    if(ek&&(!lk||(String(lk).indexOf("lead:")===0&&ek.indexOf("uid:")===0))){
+      lead.calendarEventKey=ek;
+      lead.calendarUid=ek.indexOf("uid:")===0?ek.slice(4):ek;
+      changed=true;
+    } else if(lk&&ek&&String(ek).indexOf("lead:")===0&&String(lk).indexOf("uid:")===0){
+      asg.eventKey=lk;
+      changed=true;
+    }
+    if(changed){
+      asg.updatedAt=now;
+      dirty=true;
+    }
+    return changed;
+  }
+
+  /* 1) Reverse links already on assigns */
+  (state.stewAssign||[]).forEach(function(a){
+    if(!a||!a.leadId) return;
+    var L=leadById(a.leadId);
+    if(!L||leadIsCancelled(L)) return;
+    claimAssign(a, L);
+  });
+
+  /* 2) Lead calendarEventKey → assign with same key */
+  (state.leads||[]).forEach(function(l){
+    if(!l||leadIsCancelled(l)) return;
+    var ck=leadCalendarEventKey(l);
+    if(!ck) return;
+    var asg=assignForEvent(ck);
+    if(asg) claimAssign(asg, l);
+  });
+
+  /* 3) Unique start-day recovery (one lead day ↔ one open assign) */
+  (state.leads||[]).forEach(function(l){
+    if(!l||leadIsCancelled(l)) return;
+    if(leadCalendarEventKey(l)){
+      var already=assignForEvent(leadCalendarEventKey(l));
+      if(already&&String(already.leadId||"")===String(l.id)) return;
+    }
+    /* Already reverse-linked */
+    var linked=(state.stewAssign||[]).filter(function(a){
+      return a&&String(a.leadId||"")===String(l.id);
+    })[0];
+    if(linked){ claimAssign(linked, l); return; }
+
+    var days=leadBlockedDaysClient(l);
+    if(!days.length) return;
+    var start=days[0];
+    var dayAsg=assignsForStart(start).filter(function(a){
+      return !stewAssignOwnedByOtherLead(a, l);
+    });
+    if(!dayAsg.length) return;
+    var pick=null;
+    if(dayAsg.length===1) pick=dayAsg[0];
+    else {
+      /* Prefer title match */
+      var nameHits=dayAsg.filter(function(a){
+        return stewSummaryMatchesLead(a.summary||"", l);
+      });
+      if(nameHits.length===1) pick=nameHits[0];
+      else {
+        var crewHits=dayAsg.filter(function(a){ return a.stewIds&&a.stewIds.length; });
+        if(crewHits.length===1) pick=crewHits[0];
+      }
+    }
+    if(pick) claimAssign(pick, l);
+  });
+
+  if(dirty&&!DEMO){
+    saveStewAssign();
+    try{ save("leads"); }catch(e0){}
+  }
+  return dirty;
 }
 /**
  * Drop stewAssign (+ expense day-pay lines) for calendar events that no longer
@@ -9176,6 +9325,8 @@ function stewAssignIsProtectedFromPurge(a){
 function purgeOrphanStewAssigns(){
   if(!isCaptain()||!state.stewAssign||!state.stewAssign.length) return false;
   if(!stewLiveFeedReady()&&!(stewSeedEvents&&stewSeedEvents.length)) return false;
+  /* Heal first so ICS-uid assigns re-link to leads before any drop */
+  try{ healStewAssignsToLeads(); }catch(eHeal){}
   var known=stewCalendarKnownKeys();
   if(!Object.keys(known).length&&!(calEvents&&calEvents.length)) return false;
   var drop={}, dirty=false;
@@ -9183,8 +9334,10 @@ function purgeOrphanStewAssigns(){
     if(!a||!a.eventKey) return;
     var k=String(a.eventKey);
     if(known[k]) return;
+    /* uid: bare match against known lead keys */
+    if(known["uid:"+k]||(k.indexOf("uid:")===0&&known[k.slice(4)])) return;
     if(stewAssignIsProtectedFromPurge(a)) return;
-    /* Not in calendar feed → ghost (deleted leftover day / bad uid) */
+    /* Not in calendar feed → true ghost only (no crew, no lead, no live day) */
     drop[k]=1;
   });
   if(!Object.keys(drop).length) return false;
@@ -9238,29 +9391,34 @@ function stewMergedEvents(){
     if(ev){
       var id=stewEventId(ev);
       if(id) seen[String(id)]=1;
+      if(ev.leadId) seen["leadid:"+String(ev.leadId)]=1;
     }
   });
   (state.stewAssign||[]).forEach(function(a){
     if(!a||!a.eventKey||!a.start) return;
     var k=String(a.eventKey);
     if(seen[k]) return;
-    if(!(a.cancelled||a.status==="cancelled"||isLeadCancelGhostKey(k)||a.cancelGhost)) return;
-    /* Skip "off" titles if any */
+    if(a.leadId&&seen["leadid:"+String(a.leadId)]) return;
+    var isCancel=a.cancelled||a.status==="cancelled"||isLeadCancelGhostKey(k)||a.cancelGhost;
+    var hasCrew=a.stewIds&&a.stewIds.length;
+    /* Cancel ghosts OR crew rows whose key was renamed (ICS→lead) — keep visible */
+    if(!isCancel&&!hasCrew) return;
     if(stewIsOffEvent&&stewIsOffEvent(a)) return;
     list.push({
       key:k,
-      summary:a.summary||"Cancelled charter",
+      summary:a.summary||(isCancel?"Cancelled charter":"Charter"),
       start:a.start,
       end:a.end||a.start,
       startTime:a.startTime||"",
       endTime:a.endTime||"",
       allDay:!!a.allDay,
-      status:"cancelled",
-      cancelled:true,
-      source:"cancel-ghost",
+      status:isCancel?"cancelled":(a.status||"booked"),
+      cancelled:!!isCancel,
+      source:isCancel?"cancel-ghost":"assign-crew-orphan",
       leadId:a.leadId||a.cancelLeadId||""
     });
     seen[k]=1;
+    if(a.leadId) seen["leadid:"+String(a.leadId)]=1;
   });
   return list.sort(function(a,b){
     var c=String(b.start||"").localeCompare(String(a.start||""));
