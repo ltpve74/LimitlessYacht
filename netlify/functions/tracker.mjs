@@ -1412,6 +1412,39 @@ function protectLeadFreeCash(prevRows, nextRows) {
   });
 }
 
+/**
+ * Full-array collection saves used to wipe rows the client never loaded
+ * (e.g. a lead just restored from calendar, or added on another device).
+ * Merge by id: client rows win for shared ids; server-only rows are kept
+ * unless listed in deletedIds (explicit delete from the app).
+ */
+function mergeCollectionPreserveMissing(prevRows, nextRows, deletedIds) {
+  const prev = Array.isArray(prevRows) ? prevRows : [];
+  const next = Array.isArray(nextRows) ? nextRows : [];
+  const del = new Set(
+    (Array.isArray(deletedIds) ? deletedIds : []).map((x) => String(x))
+  );
+  const out = [];
+  const seen = new Set();
+  next.forEach((r) => {
+    if (!r || r.id == null || r.id === "") return;
+    const id = String(r.id);
+    if (del.has(id) || seen.has(id)) return;
+    out.push(r);
+    seen.add(id);
+  });
+  let preserved = 0;
+  prev.forEach((r) => {
+    if (!r || r.id == null || r.id === "") return;
+    const id = String(r.id);
+    if (del.has(id) || seen.has(id)) return;
+    out.push(r);
+    seen.add(id);
+    preserved++;
+  });
+  return { rows: out, preserved, deleted: del.size };
+}
+
 /** Role of a push subscriber from who label / stored role. */
 function pushSubRole(sub) {
   const r = String((sub && sub.role) || "")
@@ -1948,12 +1981,28 @@ export default async (req, context) => {
     }
     const prev = Array.isArray(data[coll]) ? data[coll] : [];
     let next = Array.isArray(body.rows) ? body.rows.slice(0, 5000) : [];
+    let mergeInfo = { preserved: 0, deleted: 0 };
+    /*
+     * Leads + charters: never wipe rows the client simply didn't have
+     * (restored calendar lead, concurrent device). Explicit deletes only
+     * via body.deletedIds. Other collections still full-replace.
+     */
+    if (coll === "leads" || coll === "charters") {
+      mergeInfo = mergeCollectionPreserveMissing(
+        prev,
+        next,
+        body.deletedIds || body.deleted || []
+      );
+      next = mergeInfo.rows;
+    }
     /* Protect free cash black: never let a save overwrite good cash with white net (€1.652,89) */
     if (coll === "leads") {
       next = protectLeadFreeCash(prev, next);
       /*
        * Never re-import deleted calendar links as "new" pending leads.
        * Keep ICS uids of removed leads in icsLeadKnownKeys permanently.
+       * Only mark known for *explicit* deletes (deletedIds), not for
+       * stale-client missing rows we just preserved.
        */
       if (!data.meta || typeof data.meta !== "object") data.meta = {};
       const known = new Set(
@@ -1961,11 +2010,16 @@ export default async (req, context) => {
           ? data.meta.icsLeadKnownKeys.map(String)
           : []
       );
-      const nextIds = new Set(
-        next.filter((l) => l && l.id).map((l) => String(l.id))
+      const deletedIds = new Set(
+        (Array.isArray(body.deletedIds)
+          ? body.deletedIds
+          : Array.isArray(body.deleted)
+            ? body.deleted
+            : []
+        ).map(String)
       );
       (prev || []).forEach((l) => {
-        if (!l || !l.id || nextIds.has(String(l.id))) return;
+        if (!l || !l.id || !deletedIds.has(String(l.id))) return;
         const k = String(l.calendarEventKey || l.calEventKey || "").trim();
         if (k) known.add(k);
         const u = String(l.calendarUid || "").trim();
@@ -2009,7 +2063,14 @@ export default async (req, context) => {
       if (ensureApaChargesLinked(data)) addLog("sync APA after " + coll);
     }
     touchDevice();
-    addLog("save " + coll + (notices.length ? " (+notify " + notices.length + ")" : ""));
+    addLog(
+      "save " +
+        coll +
+        (mergeInfo.preserved
+          ? " · preserved " + mergeInfo.preserved + " server-only"
+          : "") +
+        (notices.length ? " (+notify " + notices.length + ")" : "")
+    );
     const pushResult = await sendPushes(data, notices, {
       excludeEndpoint: body.pushEndpoint || "",
     });
@@ -2018,6 +2079,12 @@ export default async (req, context) => {
       ok: true,
       notified: notices.length,
       pushSent: pushResult.sent || 0,
+      preserved: mergeInfo.preserved || 0,
+      /* Echo so client can refresh if we kept rows it didn't send */
+      rows:
+        coll === "leads" || coll === "charters"
+          ? data[coll]
+          : undefined,
     });
   }
 

@@ -3010,12 +3010,14 @@ function renderLeads(){
         btn.disabled=true; btn.textContent="Importing…";
         api("restoreIcsOrphans",{eventKeys:[key]}).then(function(j){
           if(j&&j.leads) state.leads=j.leads;
+          /* Block stale poll/save races from dropping the restored row */
+          try{ touchLocalSave("leads"); }catch(eT){}
           dropOrphanFromLocal(key);
           if(isCaptain()) try{ persistStewCalendarSnapshot(); }catch(e0){}
           sortLeads();
           renderLeads();
           var row=j&&j.restoredRows&&j.restoredRows[0];
-          window.alert("Imported"+(row?" “"+(row.name||"Charter")+"” ("+(fmtDate(row.start)||row.start)+")":"")+".\n\nOpen it and set the source (e.g. Owner-sourced for income).");
+          window.alert("Imported"+(row?" “"+(row.name||"Charter")+"” ("+(fmtDate(row.start)||row.start)+")":"")+".\n\nOpen it and set the source (e.g. Owner-sourced for income).\n\nIt will stay after hard refresh — other saves can no longer wipe it.");
           if(row&&row.id&&typeof openSheet==="function") openSheet("lead", row.id);
           else if(j&&j.restored>0) openNextPendingLead();
         }).catch(function(err){
@@ -13612,6 +13614,8 @@ function delRec(type,id){
     }
   }
   state[coll]=state[coll].filter(function(r){return r.id!==id;});
+  /* So server merge does not re-attach this id from a concurrent restore */
+  if(coll==="leads"||coll==="charters") queueDeletedId(coll, id);
   if(coll==="charters"){
     renderCharters();
     if(wasApa&&canOps()){ refreshApaFromCharges(); save("charters"); }
@@ -13812,6 +13816,19 @@ el("sheet").querySelector(".grip").addEventListener("click",function(){ showShee
 el("sheetInner").addEventListener("input",function(){ recalcLead(); recalcCharge(); });
 el("sheetInner").addEventListener("change",function(){ recalcLead(); recalcCharge(); });
 
+/* Explicit deletes for merge-safe full-array saves (server keeps missing ids otherwise). */
+var pendingDeletedIds={ leads:[], charters:[] };
+function voidDeletedId(coll, id){
+  if((coll!=="leads"&&coll!=="charters")||id==null||id==="") return;
+  var arr=pendingDeletedIds[coll]||(pendingDeletedIds[coll]=[]);
+  var s=String(id);
+  if(arr.indexOf(s)<0) arr.push(s);
+}
+function takeDeletedIds(coll){
+  var arr=(pendingDeletedIds[coll]||[]).slice();
+  pendingDeletedIds[coll]=[];
+  return arr;
+}
 /* -------- save -------- */
 function save(coll){
   var hint=el("saveHint");
@@ -13819,17 +13836,37 @@ function save(coll){
     if(hint){ hint.textContent="Saved (demo — not stored)"; hint.className="savehint saved"; }
     return;
   }
-  if(BOOT_QUIET){ queueBootSave(coll); return; }
+  if(BOOT_QUIET){ voidBootSave(coll); return; }
   if(hint){ hint.textContent="Saving…"; hint.className="savehint saving"; }
   /* Snapshot now so a concurrent poll cannot mutate the payload mid-flight */
   var rows=state[coll];
   try{ rows=JSON.parse(JSON.stringify(state[coll]||[])); }catch(e){ rows=state[coll]; }
+  var deletedIds=(coll==="leads"||coll==="charters")?takeDeletedIds(coll):[];
   if(coll==="expenses"||coll==="expPetty"||coll==="stewAssign"||coll==="leads"||coll==="charters"||coll==="apa") touchLocalSave(coll);
-  api("save",{collection:coll,rows:rows,pushEndpoint:pushMeta.endpoint||""}).then(function(){
+  api("save",{collection:coll,rows:rows,deletedIds:deletedIds,pushEndpoint:pushMeta.endpoint||""}).then(function(j){
+    /*
+     * Server may have preserved leads/charters this client never had
+     * (e.g. calendar restore on another tab). Adopt merged rows.
+     */
+    if(j&&Array.isArray(j.rows)&&(coll==="leads"||coll==="charters")){
+      if(coll==="leads") state.leads=j.rows;
+      else state.charters=j.rows;
+      if(coll==="leads"&&curTab==="leads") try{ renderLeads(); }catch(eR){}
+      if(coll==="charters"&&curTab==="charters") try{ renderCharters(); }catch(eC){}
+    }
     if(coll==="expenses"||coll==="expPetty"||coll==="stewAssign"||coll==="leads"||coll==="charters"||coll==="apa") touchLocalSave(coll);
-    if(hint){ hint.textContent="All changes saved ✓"; hint.className="savehint saved"; }
+    if(hint){
+      hint.textContent=j&&j.preserved
+        ?("All changes saved ✓ · kept "+j.preserved+" other item"+(j.preserved===1?"":"s"))
+        :"All changes saved ✓";
+      hint.className="savehint saved";
+    }
   })
     .catch(function(e){
+      /* Put deletes back so a retry still removes them */
+      if(deletedIds&&deletedIds.length){
+        deletedIds.forEach(function(id){ voidDeletedId(coll, id); });
+      }
       if(hint){
         hint.textContent=(e&&e.code===401)?"Session expired — reload":"Couldn't save — check connection";
         hint.className="savehint error";
