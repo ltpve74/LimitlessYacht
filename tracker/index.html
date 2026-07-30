@@ -6357,6 +6357,78 @@ function renderDiesel(){
 function saveStews(){ if(!canRoster()) return; save("stews"); }
 function saveStewAssign(){ if(!canRoster()) return; save("stewAssign"); }
 function saveExpenses(){ if(!isCaptain()) return; save("expenses"); }
+/** linkId for a stew day-pay expense (or empty). */
+function expStewDayLinkId(e){
+  if(!e) return "";
+  if(e.linkId) return String(e.linkId);
+  if(e.stewEventKey&&e.stewId) return "stew-day:"+e.stewEventKey+":"+e.stewId;
+  return "";
+}
+/** Captain dismissed this day-pay line — seed/sync must not recreate it. */
+function expIsStewDayPaySkipped(eventKey, stewId){
+  if(!eventKey||!stewId) return false;
+  var asg=assignForEvent(eventKey);
+  if(!asg||!asg.dayPaySkip) return false;
+  return !!asg.dayPaySkip[String(stewId)];
+}
+/** Remember a manual delete so the line does not reappear on next seed. */
+function expMarkStewDayPaySkipped(e){
+  if(!e) return false;
+  var ek=String(e.stewEventKey||"").trim();
+  var sid=String(e.stewId||"").trim();
+  if(!ek||!sid){
+    var lid=expStewDayLinkId(e);
+    if(lid&&lid.indexOf("stew-day:")===0){
+      var rest=lid.slice("stew-day:".length);
+      var last=rest.lastIndexOf(":");
+      if(last>0){ ek=rest.slice(0,last); sid=rest.slice(last+1); }
+    }
+  }
+  if(!ek||!sid) return false;
+  var asg=assignForEvent(ek);
+  /* No live assign → orphan ghost; deleting is enough (seed will not recreate). */
+  if(!asg) return false;
+  if(!asg.dayPaySkip||typeof asg.dayPaySkip!=="object") asg.dayPaySkip={};
+  asg.dayPaySkip[String(sid)]=true;
+  asg.updatedAt=new Date().toISOString();
+  return true;
+}
+/**
+ * Delete any expense (including Stews day-pay). Stew day-pay is dismissed so
+ * seed/sync will not recreate it until the captain re-saves that charter in Stews.
+ */
+function expDeleteExpenseById(id, opts){
+  opts=opts||{};
+  if(!isCaptain()||!id) return false;
+  var rec=(state.expenses||[]).filter(function(e){return e&&String(e.id)===String(id);})[0];
+  if(!rec) return false;
+  var isStew=!!(rec.source==="stew"||expIsCrewDayPayLine(rec));
+  if(!opts.silent){
+    var msg="Delete this expense?";
+    if(rec.chargeTo==="apa") msg+="\n\nIt will also be removed from the linked APA pot.";
+    if(isStew) msg+="\n\nCrew day-pay from Stews will stay off Expenses until you re-save that charter in Stews.";
+    if(!window.confirm(msg)) return false;
+  }
+  expRemoveApaMirror(rec.id, true);
+  if(rec.fromApaLineId&&state.apa){
+    state.apa.forEach(function(trip){
+      if(!trip) return;
+      ["expenses","provisions"].forEach(function(k){
+        if(!trip[k]) return;
+        trip[k]=trip[k].filter(function(x){ return !x||String(x.id)!==String(rec.fromApaLineId); });
+      });
+    });
+  }
+  var skipDirty=false;
+  if(isStew) skipDirty=expMarkStewDayPaySkipped(rec);
+  state.expenses=(state.expenses||[]).filter(function(e){return !e||String(e.id)!==String(id);});
+  if(!DEMO){
+    saveExpenses();
+    if(skipDirty) saveStewAssign();
+    if(canOps()&&(rec.chargeTo==="apa"||rec.fromApaLineId)) save("apa");
+  }
+  return true;
+}
 /** Stable APA line id for a monthly expense mirror. */
 function expApaMirrorId(expenseId){ return "from-exp:"+String(expenseId||""); }
 /** Monthly category that belongs on the APA Provisions tab (not Expenses). */
@@ -7398,7 +7470,9 @@ function syncStewDayPayExpenses(asg, opts){
   if(opts.onlyMonth&&month&&month!==opts.onlyMonth) return false;
   var isPaid=asg.payStatus==="Paid";
   var each=stewAssignDayPayAmount(asg);
-  var ids=(asg.stewIds||[]).filter(Boolean);
+  var ids=(asg.stewIds||[]).filter(Boolean).filter(function(sid){
+    return !expIsStewDayPaySkipped(asg.eventKey, sid);
+  });
   var prevBySid={};
   (state.expenses||[]).forEach(function(e){
     if(e&&e.source==="stew"&&e.stewPayKind==="dayPay"&&String(e.stewEventKey)===eventKey){
@@ -7719,6 +7793,7 @@ function seedCurrentMonthStewCashExpenses(){
     var summary=String(asg.summary||"").trim()||"Charter";
     var crewPayStatus=asg.payStatus==="Paid"?"Paid":"Unpaid";
     ids.forEach(function(sid){
+      if(expIsStewDayPaySkipped(asg.eventKey, sid)) return;
       var finger=String(sid)+"|"+date;
       var linkId="stew-day:"+asg.eventKey+":"+sid;
       /* One expense per stew per day — prefer lead: keys / higher day pay / Paid */
@@ -8429,7 +8504,7 @@ function paintExpensesBody(){
         var apaG=(function(){ var t=(state.apa||[]).filter(function(x){return x&&String(x.id)===String(e.apaTripId);})[0]; return t&&t.guest?t.guest:"APA"; })();
         bits.push("APA · "+apaG);
       }
-      var cardCls="item"+(e.source==="stew"?"":" apa-row");
+      var cardCls="item apa-row";
       if(unpaid) cardCls+=" exp-unpaid";
       else if((ownPay&&!ownRepaid)||(isReimb&&reimbFromOwn)||(crewPaidFromOwn&&!ownRepaid)) cardCls+=" exp-own";
       h+='<div class="'+cardCls+'" data-exp-id="'+esc(e.id)+'" role="button" tabindex="0">'+
@@ -8446,7 +8521,7 @@ function paintExpensesBody(){
           '</div>'+
           '<div class="amt money">'+money0(e.amount)+'</div>'+
         '</div>'+
-        (e.source!=="stew"?'<button type="button" class="apa-x" data-exp-del="'+esc(e.id)+'" aria-label="Delete">×</button>':'')+
+        '<button type="button" class="apa-x" data-exp-del="'+esc(e.id)+'" aria-label="Delete">×</button>'+
         '<span class="chev">✎</span></div>';
     });
     h+='</div>';
@@ -8526,25 +8601,10 @@ function paintExpensesBody(){
     x.addEventListener("click",function(ev){
       ev.preventDefault(); ev.stopPropagation();
       var id=x.getAttribute("data-exp-del");
-      var rec=(state.expenses||[]).filter(function(e){return e&&e.id===id;})[0];
-      if(rec&&rec.source==="stew"){ window.alert("This line comes from Stews day pay. Mark that charter Unpaid (or edit stews) to remove it."); return; }
-      if(!window.confirm("Delete this expense?"+(rec&&rec.chargeTo==="apa"?"\n\nLinked APA line will be removed too.":""))) return;
-      if(rec){
-        expRemoveApaMirror(rec.id, true);
-        if(rec.fromApaLineId&&state.apa){
-          state.apa.forEach(function(trip){
-            if(!trip) return;
-            ["expenses","provisions"].forEach(function(k){
-              if(!trip[k]) return;
-              trip[k]=trip[k].filter(function(x){ return !x||String(x.id)!==String(rec.fromApaLineId); });
-            });
-          });
-        }
-      }
-      state.expenses=(state.expenses||[]).filter(function(e){return !e||e.id!==id;});
-      saveExpenses();
-      if(canOps()){ save("apa"); if(curTab==="apa") renderApa(); }
+      if(!expDeleteExpenseById(id)) return;
+      if(canOps()&&curTab==="apa") renderApa();
       renderExpenses();
+      if(typeof renderStews==="function"&&curTab==="stews") renderStews({soft:true});
     });
   });
 }
@@ -8736,7 +8796,7 @@ function openExpense(id, opts){
     (r.receipt?'<button type="button" class="btn ghost" id="f_exp_photo_clear" style="width:auto;margin-top:8px;padding:8px 12px">Remove receipt</button>':'')+
   '</div>';
   h+='<p style="margin:0 0 12px;font-size:12px;color:var(--muted)">Photo or PDF (Files / Drive). Photos are compressed; PDFs are turned into a compressed image on your phone (first 1–2 pages). Export CSV has no receipt files.</p>';
-  if(rec&&!fromStew) h+='<div class="sheetbtns"><button type="button" class="btn danger" id="sheetDel">Delete</button></div>';
+  if(rec) h+='<div class="sheetbtns"><button type="button" class="btn danger" id="sheetDel">Delete</button></div>';
   h+='<div class="sheetfoot"><button type="button" class="btn ghost" id="sheetCancel">Cancel</button>'+
     '<button type="button" class="btn" id="sheetSave">Save</button>'+
   '</div>';
@@ -8929,22 +8989,11 @@ function openExpense(id, opts){
   el("sheetCancel").addEventListener("click",function(){ showSheet(false); });
   el("sheetClose").addEventListener("click",function(){ showSheet(false); });
   if(el("sheetDel")) el("sheetDel").addEventListener("click",function(){
-    if(!window.confirm("Delete this expense?"+(r.chargeTo==="apa"?"\n\nIt will also be removed from the linked APA pot.":""))) return;
-    expRemoveApaMirror(r.id, true);
-    if(r.fromApaLineId&&state.apa){
-      state.apa.forEach(function(trip){
-        if(!trip) return;
-        ["expenses","provisions"].forEach(function(k){
-          if(!trip[k]) return;
-          trip[k]=trip[k].filter(function(x){ return !x||String(x.id)!==String(r.fromApaLineId); });
-        });
-      });
-    }
-    state.expenses=(state.expenses||[]).filter(function(e){return !e||e.id!==r.id;});
+    if(!expDeleteExpenseById(r.id)) return;
     showSheet(false);
-    saveExpenses();
-    if(canOps()){ save("apa"); if(curTab==="apa") renderApa(); }
+    if(canOps()&&curTab==="apa") renderApa();
     renderExpenses();
+    if(typeof renderStews==="function"&&curTab==="stews") renderStews({soft:true});
   });
   showSheet(true);
 }
@@ -10889,7 +10938,9 @@ function openStewAssign(eventKey){
       tipPayStatus:markCancelled?"Unpaid":tipPayStatus,
       notes:notesOut,
       updatedAt:new Date().toISOString(),
-      by:session.who||(captainMode?"Captain":"Team")
+      by:session.who||(captainMode?"Captain":"Team"),
+      /* Re-save in Stews clears expense dismissals so day-pay can reappear */
+      dayPaySkip:captainMode?{}:(asg.dayPaySkip&&typeof asg.dayPaySkip==="object"?asg.dayPaySkip:{})
     };
     if(markCancelled&&!/no stew pay/i.test(obj.notes)){
       obj.notes=(obj.notes?obj.notes+" · ":"")+"Cancelled — no stew pay";
