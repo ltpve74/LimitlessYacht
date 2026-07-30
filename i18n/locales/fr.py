@@ -8,6 +8,14 @@ MONTHS = [
 DOW = ["lun.", "mar.", "mer.", "jeu.", "ven.", "sam.", "dim."]
 
 PAIRS = [
+    ('“So impressed we chartered again the following week.”<span class="hero-pull-attr"> — Sebastien, group of 11, Jul 2026</span>',
+     '« Tellement impressionnés que nous avons recharter la semaine suivante. »<span class="hero-pull-attr"> — Sebastien, groupe de 11, juil. 2026</span>'),
+    ('“One of the highlights of our stay in Mallorca.”<span class="hero-pull-attr"> — Maurice, Jun 2026</span>',
+     '« L’un des temps forts de notre séjour à Majorque. »<span class="hero-pull-attr"> — Maurice, juin 2026</span>'),
+    ('“One of the best days of our trip. Captain Luigi knows all the best spots.”<span class="hero-pull-attr"> — Oliver, Jul 2026</span>',
+     '« Un des meilleurs jours de notre voyage. Le capitaine Luigi connaît les meilleurs spots. »<span class="hero-pull-attr"> — Oliver, juil. 2026</span>'),
+    ('“Professional, thoughtful but also relaxed and fun.”<span class="hero-pull-attr"> — Andrew, Jun 2026</span>',
+     '« Professionnel, attentionné, mais aussi détendu et fun. »<span class="hero-pull-attr"> — Andrew, juin 2026</span>'),
     (
         "Limitless Yacht Experience – Luxury Maiora Charter in Mallorca",
         "Limitless Yacht Experience – Charter de luxe Maiora à Majorque",
@@ -1042,10 +1050,6 @@ PAIRS = [
     ('aria-label="Close menu"', 'aria-label="Fermer le menu"'),
     # Hero ghost button and itinerary CTA
 
-    (
-        '"So impressed we chartered again the following week."<span class="hero-pull-attr"> — Sebastien, group of 11, Jul\xa02026</span>',
-        '«\xa0Tellement impressionnés que nous avons recharter la semaine suivante.\xa0»<span class="hero-pull-attr"> — Sebastien, groupe de 11, juil.\xa02026</span>',
-    ),
     ('>Meet The Yacht</a>', '>Découvrir le yacht</a>'),
     ('Meet The Yacht →', 'Découvrir le yacht →'),
     ('>The yacht</a>', '>Le yacht</a>'),

@@ -8,6 +8,14 @@ MONTHS = [
 DOW = ["Mo", "Di", "Mi", "Do", "Fr", "Sa", "So"]
 
 PAIRS = [
+    ('“So impressed we chartered again the following week.”<span class="hero-pull-attr"> — Sebastien, group of 11, Jul 2026</span>',
+     '„So begeistert, dass wir in der Folgewoche erneut gechartert haben.“<span class="hero-pull-attr"> — Sebastien, Gruppe 11 Pers., Juli 2026</span>'),
+    ('“One of the highlights of our stay in Mallorca.”<span class="hero-pull-attr"> — Maurice, Jun 2026</span>',
+     '„Eines der Highlights unseres Mallorca-Aufenthalts.“<span class="hero-pull-attr"> — Maurice, Juni 2026</span>'),
+    ('“One of the best days of our trip. Captain Luigi knows all the best spots.”<span class="hero-pull-attr"> — Oliver, Jul 2026</span>',
+     '„Einer der besten Tage unserer Reise. Kapitän Luigi kennt die besten Spots.“<span class="hero-pull-attr"> — Oliver, Juli 2026</span>'),
+    ('“Professional, thoughtful but also relaxed and fun.”<span class="hero-pull-attr"> — Andrew, Jun 2026</span>',
+     '„Professionell, aufmerksam und zugleich entspannt und unterhaltsam.“<span class="hero-pull-attr"> — Andrew, Juni 2026</span>'),
     # Meta & SEO
     (
         "Limitless Yacht Experience – Luxury Maiora Charter in Mallorca",
@@ -86,10 +94,6 @@ PAIRS = [
     ('onclick="closeMobile()">Contact</a>', 'onclick="closeMobile()">Kontakt</a>'),
     # Hero
 
-    (
-        '"So impressed we chartered again the following week."<span class="hero-pull-attr"> — Sebastien, group of 11, Jul\xa02026</span>',
-        '„So begeistert, dass wir in der Folgewoche erneut gechartert haben.“<span class="hero-pull-attr"> — Sebastien, Gruppe 11\xa0Pers., Juli\xa02026</span>',
-    ),
     (">Scroll</span>", ">Scrollen</span>"),
     ("Rates & Booking", "Preise & Buchung"),
     ("Explore Gallery", "Galerie entdecken"),
