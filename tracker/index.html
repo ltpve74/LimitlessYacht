@@ -2927,17 +2927,29 @@ function renderLeads(){
     var orphanBanner="";
     if(window._ldIcsOrphans&&window._ldIcsOrphans.length){
       var orph=window._ldIcsOrphans;
-      orphanBanner='<div class="apa-card" style="margin:0 0 12px;border:1.5px solid #E0A800;background:#FFF8E1">'+
+      orphanBanner='<div class="apa-card" id="ldOrphanCard" style="margin:0 0 12px;border:1.5px solid #E0A800;background:#FFF8E1">'+
         '<div style="font-weight:800;color:#9a6b00">'+orph.length+' calendar charter'+(orph.length===1?"":"s")+' missing from the book</div>'+
-        '<div class="meta" style="margin:6px 0 10px">Still on the manager calendar, but no matching lead (deleted, or lost after a rename/save). Restore creates a new pending lead you can re-assign.</div>'+
-        orph.slice(0,8).map(function(o){
-          return '<div class="meta" style="margin-top:4px"><b>'+esc(o.name||"Charter")+'</b> · '+esc(fmtDate(o.start)||o.start||"?")+
-            (o.end&&o.end!==o.start?"–"+esc(fmtDate(o.end)||o.end):"")+
-            (o.summary?' · cal: '+esc(String(o.summary).slice(0,40)):'')+
+        '<div class="meta" style="margin:6px 0 10px">Choose per row: <b>Import</b> = new pending lead · <b>Ignore</b> = already dealt with (won’t reappear; avoids duplicates). Do not import all if some already exist under another name.</div>'+
+        orph.map(function(o, idx){
+          var warn=Number(o.sameDayCount)>0
+            ? '<div style="font-size:11.5px;color:#9a6b00;margin-top:4px;font-weight:650">⚠ Same date already has '+(o.sameDayCount)+' lead'+(o.sameDayCount===1?"":"s")+
+              (o.sameDayNames&&o.sameDayNames.length?' ('+esc(o.sameDayNames.join(", "))+')':'')+
+              ' — import only if this is a different charter</div>'
+            : '';
+          return '<div class="item" style="margin-top:8px;padding:10px 12px;box-shadow:none;border:1px solid rgba(224,168,0,.35);background:#fffef8" data-orphan-key="'+esc(o.eventKey||"")+'">'+
+            '<div style="font-weight:800">'+esc(o.name||"Charter")+'</div>'+
+            '<div class="meta" style="margin-top:4px">📅 '+esc(fmtDate(o.start)||o.start||"?")+
+              (o.end&&o.end!==o.start?" – "+esc(fmtDate(o.end)||o.end):"")+
+              (o.label?' · '+esc(o.label):"")+
+            '</div>'+
+            (o.summary?'<div class="meta" style="margin-top:2px">cal: '+esc(String(o.summary).slice(0,70))+'</div>':'')+
+            warn+
+            '<div style="display:flex;gap:8px;margin-top:10px;flex-wrap:wrap">'+
+              '<button type="button" class="btn" data-orphan-import="'+esc(o.eventKey||"")+'" style="flex:1;min-width:7rem">Import this one</button>'+
+              '<button type="button" class="btn ghost" data-orphan-ignore="'+esc(o.eventKey||"")+'" style="flex:1;min-width:7rem">Ignore · already dealt with</button>'+
+            '</div>'+
           '</div>';
         }).join("")+
-        (orph.length>8?'<div class="meta">+ '+(orph.length-8)+' more</div>':'')+
-        '<button type="button" class="btn" id="ldRestoreOrphans" style="width:100%;margin-top:10px">Restore missing from calendar</button>'+
       '</div>';
     }
     importBar.innerHTML=pendHtml+orphanBanner+
@@ -2960,29 +2972,58 @@ function renderLeads(){
         if(id&&typeof openSheet==="function") openSheet("lead", id);
       });
     });
-    if(el("ldRestoreOrphans")) el("ldRestoreOrphans").onclick=function(){
-      var list=window._ldIcsOrphans||[];
-      if(!list.length){ window.alert("Nothing to restore."); return; }
-      var keys=list.map(function(o){ return o.eventKey; }).filter(Boolean);
-      var preview=list.slice(0,6).map(function(o){
-        return "• "+(o.name||"Charter")+" · "+(fmtDate(o.start)||o.start||"?");
-      }).join("\n");
-      if(!window.confirm("Restore "+keys.length+" missing calendar charter"+(keys.length===1?"":"s")+" as new pending leads?\n\n"+preview+(list.length>6?"\n…":"")+"\n\nYou can re-assign source (Owner’s days / Owner-sourced / Captain / Paul) after restore.")) return;
-      var btnR=el("ldRestoreOrphans");
-      if(btnR){ btnR.disabled=true; btnR.textContent="Restoring…"; }
-      api("restoreIcsOrphans",{eventKeys:keys}).then(function(j){
-        if(j&&j.leads) state.leads=j.leads;
-        window._ldIcsOrphans=[];
-        if(isCaptain()) try{ persistStewCalendarSnapshot(); }catch(e0){}
-        sortLeads();
-        renderLeads();
-        window.alert("Restored "+(j&&j.restored||0)+" lead"+(j&&j.restored===1?"":"s")+".\n\nThey appear as unconfirmed · pending source — open each and set Owner-sourced (income) or Owner’s days.");
-        if(j&&j.restored>0) openNextPendingLead();
-      }).catch(function(err){
-        window.alert((err&&err.error)||(err&&err.body&&err.body.error)||"Restore failed");
-        if(btnR){ btnR.disabled=false; btnR.textContent="Restore missing from calendar"; }
+    function dropOrphanFromLocal(key){
+      window._ldIcsOrphans=(window._ldIcsOrphans||[]).filter(function(o){
+        return o&&String(o.eventKey)!==String(key);
       });
-    };
+    }
+    Array.prototype.forEach.call(importBar.querySelectorAll("[data-orphan-import]"),function(btn){
+      btn.addEventListener("click",function(ev){
+        ev.preventDefault(); ev.stopPropagation();
+        var key=btn.getAttribute("data-orphan-import");
+        if(!key) return;
+        var o=(window._ldIcsOrphans||[]).filter(function(x){return x&&String(x.eventKey)===String(key);})[0];
+        var lab=(o&&o.name?o.name:"Charter")+" · "+(o&&o.start?(fmtDate(o.start)||o.start):"?");
+        if(o&&Number(o.sameDayCount)>0){
+          if(!window.confirm("Import this calendar charter?\n\n"+lab+"\n\n⚠ There is already "+o.sameDayCount+" lead(s) on that date"+(o.sameDayNames&&o.sameDayNames.length?": "+o.sameDayNames.join(", "):"")+".\n\nOnly import if this is a different booking (not a duplicate).")) return;
+        } else {
+          if(!window.confirm("Import this one as a new pending lead?\n\n"+lab+"\n\nThen set source (Owner-sourced / Owner’s days / Captain / Paul).")) return;
+        }
+        btn.disabled=true; btn.textContent="Importing…";
+        api("restoreIcsOrphans",{eventKeys:[key]}).then(function(j){
+          if(j&&j.leads) state.leads=j.leads;
+          dropOrphanFromLocal(key);
+          if(isCaptain()) try{ persistStewCalendarSnapshot(); }catch(e0){}
+          sortLeads();
+          renderLeads();
+          var row=j&&j.restoredRows&&j.restoredRows[0];
+          window.alert("Imported"+(row?" “"+(row.name||"Charter")+"” ("+(fmtDate(row.start)||row.start)+")":"")+".\n\nOpen it and set the source (e.g. Owner-sourced for income).");
+          if(row&&row.id&&typeof openSheet==="function") openSheet("lead", row.id);
+          else if(j&&j.restored>0) openNextPendingLead();
+        }).catch(function(err){
+          window.alert((err&&err.error)||(err&&err.body&&err.body.error)||"Import failed");
+          btn.disabled=false; btn.textContent="Import this one";
+        });
+      });
+    });
+    Array.prototype.forEach.call(importBar.querySelectorAll("[data-orphan-ignore]"),function(btn){
+      btn.addEventListener("click",function(ev){
+        ev.preventDefault(); ev.stopPropagation();
+        var key=btn.getAttribute("data-orphan-ignore");
+        if(!key) return;
+        var o=(window._ldIcsOrphans||[]).filter(function(x){return x&&String(x.eventKey)===String(key);})[0];
+        var lab=(o&&o.name?o.name:"Charter")+" · "+(o&&o.start?(fmtDate(o.start)||o.start):"?");
+        if(!window.confirm("Ignore this calendar event?\n\n"+lab+"\n\nUse when the charter is already in the book under another name (avoids a duplicate).\nIt will not show as missing again.")) return;
+        btn.disabled=true; btn.textContent="Ignoring…";
+        api("dismissIcsOrphans",{eventKeys:[key]}).then(function(){
+          dropOrphanFromLocal(key);
+          renderLeads();
+        }).catch(function(err){
+          window.alert((err&&err.error)||(err&&err.body&&err.body.error)||"Ignore failed");
+          btn.disabled=false; btn.textContent="Ignore · already dealt with";
+        });
+      });
+    });
     if(el("ldSyncIcs")) el("ldSyncIcs").onclick=function(){
       if(DEMO){ window.alert("Sync needs the live server."); return; }
       var btn=el("ldSyncIcs");
@@ -3004,16 +3045,16 @@ function renderLeads(){
               "\nGuest names updated from calendar: "+(s.namesUpdated||j.namesUpdated||0)+
               "\nDates auto-updated (on hold): "+(s.autoMoved||0)+
               "\nDate moves to confirm: "+(moves.length||0)+
-              "\nMissing from book (on calendar): "+(orphans.length||0)+
+              "\nMissing from book (choose Import or Ignore): "+(orphans.length||0)+
               "\nTotal leads: "+(s.totalLeads||(state.leads||[]).length);
             if(j.pushSent) msg+="\nPush sent: "+j.pushSent;
             if(orphans.length){
-              msg+="\n\n→ Use “Restore missing from calendar” above the Sync button if a charter vanished.";
+              msg+="\n\n→ For each missing row: Import (need it) or Ignore (already dealt with / would duplicate).";
             }
             window.alert(msg);
             if(s.created>0) openNextPendingLead();
-            else if(orphans.length&&el("ldRestoreOrphans")){
-              try{ el("ldRestoreOrphans").scrollIntoView({block:"center",behavior:"smooth"}); }catch(eSc){}
+            else if(orphans.length&&el("ldOrphanCard")){
+              try{ el("ldOrphanCard").scrollIntoView({block:"center",behavior:"smooth"}); }catch(eSc){}
             }
           }
         });
