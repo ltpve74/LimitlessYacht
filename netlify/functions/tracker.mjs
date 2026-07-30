@@ -17,6 +17,8 @@ import {
 } from "./lib/site-calendar.mjs";
 
 const BLOB_KEY = "data";
+/** Small public payload for /api/availability (pending = on hold). */
+const PUBLIC_AVAILABILITY_KEY = "public-availability";
 const LOG_CAP = 500;
 const DEVICE_CAP = 200;
 const SUB_CAP = 40;
@@ -764,6 +766,37 @@ function rebuildSiteCalendarFromLeads(data, who, now) {
   return data.siteCalendar;
 }
 
+/** Payload guests get from /api/availability (pending → tentative/on hold). */
+function publicAvailabilityPayload(data) {
+  const leads = Array.isArray(data && data.leads) ? data.leads : [];
+  /* Always rebuild from live leads so pending→hold is never stale */
+  const cal = buildSiteCalendarFromLeads(
+    leads,
+    "public",
+    new Date().toISOString()
+  );
+  const body = siteCalendarPublicPayload(cal, {
+    note: "leads SOT · pending = on hold",
+  });
+  body.source = "leads";
+  body.active = true;
+  body.leadCount = leads.length;
+  body.pendingHoldDays = (cal.tentative || []).length;
+  body.bookedDays = (cal.booked || []).length;
+  body.seededFrom = "leads";
+  return body;
+}
+
+async function publishPublicAvailability(store, data) {
+  if (!store || !data) return;
+  try {
+    const body = publicAvailabilityPayload(data);
+    await store.setJSON(PUBLIC_AVAILABILITY_KEY, body);
+  } catch (_) {
+    /* non-fatal — availability can still rebuild from data.leads */
+  }
+}
+
 async function fetchManagerIcsText() {
   const icsUrl = process.env.AVAILABILITY_ICS_URL || "";
   if (!icsUrl) {
@@ -1091,7 +1124,16 @@ function applyIcsDateMoveDecisions(data, acceptedIds, rejectedIds, who, now) {
   return { applied, dismissed };
 }
 async function saveData(store, data) {
+  /* Keep site calendar + public key aligned with leads on every persist */
+  if (Array.isArray(data.leads) && data.leads.length) {
+    rebuildSiteCalendarFromLeads(
+      data,
+      (data.siteCalendar && data.siteCalendar.updatedBy) || "saveData",
+      new Date().toISOString()
+    );
+  }
   await store.setJSON(BLOB_KEY, data);
+  await publishPublicAvailability(store, data);
 }
 
 /**
