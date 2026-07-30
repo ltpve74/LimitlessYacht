@@ -1217,8 +1217,9 @@ async function saveData(store, data) {
 /**
  * One-shot wipe of security log + device list (charters/leads/APA/push untouched).
  * Bump SECURITY_RESET_ID to force another wipe after deploy.
+ * 2026-07-30: clear test logins before inviting stews; real devices reappear on login.
  */
-const SECURITY_RESET_ID = "2026-07-21-scratch";
+const SECURITY_RESET_ID = "2026-07-30-stews-invite-clean";
 function ensureSecurityScratch(data) {
   if (!data.meta || typeof data.meta !== "object") data.meta = {};
   if (data.meta.securityResetId === SECURITY_RESET_ID) return false;
