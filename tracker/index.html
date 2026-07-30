@@ -618,6 +618,7 @@
         <div class="sumcard"><div class="l">Captain 15%</div><div class="v money" id="cmCaptTot">€0</div></div>
         <div class="sumcard"><div class="l">Click&amp;Boat 21%</div><div class="v money" id="cmCbTot">€0</div></div>
         <div class="sumcard"><div class="l">Owner benefits</div><div class="v money" id="cmOwnTot">€0</div></div>
+        <div class="sumcard"><div class="l">Owner pocket cash</div><div class="v money" id="cmOwnPocket">€0</div></div>
         <div class="sumcard"><div class="l">Comm total</div><div class="v money" id="cmTot">€0</div></div>
       </div>
       <div class="legend">Commission by lead source (before VAT). <b>Captain</b> 15% · <b>Click&amp;Boat (Paul)</b> 21% · <b>Owner</b> no commission (value listed under Owner benefits — untick to drop from that total). Extensions: charges with <b>I get commission</b>.</div>
@@ -2503,8 +2504,13 @@ function leadSplitSummaryHTML(r){
   var quoteB=Number(r.base)||Number(r.price)||0;
   var cashN=leadFreeCashAmt(r)||Number(r.cashAmt)||0;
   var swallow=leadSplitVatSwallowed(r);
+  var dest=leadCashDest(r);
   var onBoat=leadFreeCashIsOnBoat(r);
+  var toOwner=leadOwnerPocketCashAmt(r)>0.009;
+  var received=leadFreeCashIsReceived(r);
   var finalTot=leadClientTotal(r);
+  var cashWhere=dest==="owner"?"owner pocket":"boat";
+  var cashState=!received?"not received yet":(onBoat?"received → boat petty":(toOwner?"received → owner pocket":"received"));
   var h='<div class="lead-split">';
   h+='<div class="ls-row">';
   if(quoteB>0) h+='<span class="ls-k">Quote</span><span class="ls-v money">'+money0(quoteB)+'</span>';
@@ -2513,12 +2519,12 @@ function leadSplitSummaryHTML(r){
   h+='<div class="ls-row">';
   h+='<span class="ls-k">White PDF</span><span class="ls-v money">'+money0(invT||invN)+'</span>';
   if(invN>0&&invT>0&&Math.abs(invT-invN)>0.5) h+='<span class="ls-k">net</span><span class="ls-v">'+money0(invN)+'</span>';
-  h+='<span class="ls-k">Cash</span><span class="ls-v money">'+money0(cashN)+'</span>';
+  h+='<span class="ls-k">Cash → '+esc(cashWhere)+'</span><span class="ls-v money">'+money0(cashN)+'</span>';
   h+='</div>';
   h+='<div class="ls-note">'+
     (swallow?"Small VAT swallowed · final ≈ base":"Small VAT charged · final ≈ base + white VAT")+
     ' · client <b class="money">'+money0(finalTot)+'</b>'+
-    ' · free cash '+(onBoat?"received (petty)":"still on lead")+
+    ' · free cash '+cashState+
     ' · not APA pot'+
   '</div></div>';
   return h;
@@ -2765,6 +2771,8 @@ function renderLeads(){
       (timing==="upcoming"?'<span class="pill p-blue">Scheduled</span>':'')+
       (timing==="done"?'<span class="pill p-green">Realised</span>':'')+
       (isSplit?'<span class="pill p-black">Split</span>':'')+
+      (isSplit&&leadCashDest(r)==="owner"?'<span class="pill p-own">'+(leadOwnerPocketCashAmt(r)>0?"Cash → owner pocket":"Cash → owner (pending)")+'</span>':'')+
+      (isSplit&&leadCashDest(r)==="boat"&&leadFreeCashIsOnBoat(r)?'<span class="pill p-green">Cash → boat</span>':'')+
       (rateBits.length?'<span>'+rateBits.join(" · ")+'</span>':'')+
       (calKey?'<span class="pill p-grey">Cal linked</span>':'')+
       (isCaptain()&&closed&&leadCommissionRatePct(r)>0?'<span class="pill p-green">Comm '+money(leadCommissionAmt(r))+' ('+leadCommissionRatePct(r)+'%)</span>':'')+
@@ -12195,21 +12203,36 @@ function syncChargeCashToPetty(charge){
   p.updatedAt=new Date().toISOString();
   return true;
 }
-/* -------- Lead free cash → boat petty cash -------- */
+/* -------- Lead free cash → boat petty cash OR owner pocket -------- */
 function leadCashInId(leadId){ return "lead-cash:"+String(leadId||""); }
-/**
- * Free cash on a split lead is on the boat when:
- *  - cashSettled is explicitly true (checkbox), OR
- *  - final is Paid (cash usually collected with final, not deposit)
- * Explicit false always wins. Deposit Paid alone does not post free cash.
- */
-function leadFreeCashIsOnBoat(l){
+function leadCashDest(l){
+  if(LY_MODELS&&LY_MODELS.leadCashDest) return LY_MODELS.leadCashDest(l);
+  var s=String((l&&l.cashDest)||"").toLowerCase();
+  return s==="owner"||s==="pocket"?"owner":"boat";
+}
+function leadFreeCashIsReceived(l){
+  if(LY_MODELS&&LY_MODELS.leadFreeCashIsReceived) return !!LY_MODELS.leadFreeCashIsReceived(l);
   if(!l||!leadHasSplit(l)) return false;
   var cash=leadFreeCashAmt(l)||Number(l.cashAmt)||0;
   if(!(cash>0.009)) return false;
   if(l.cashSettled===false||l.cashSettled==="false"||l.cashSettled===0) return false;
   if(l.cashSettled===true||l.cashSettled==="true"||l.cashSettled===1) return true;
   return l.fins==="Paid";
+}
+/**
+ * Free cash on a split lead is on the boat when dest=boat and:
+ *  - cashSettled is explicitly true, OR final is Paid
+ * Explicit false always wins. Owner-pocket dest never posts to petty.
+ */
+function leadFreeCashIsOnBoat(l){
+  if(LY_MODELS&&LY_MODELS.leadFreeCashIsOnBoat) return !!LY_MODELS.leadFreeCashIsOnBoat(l);
+  return leadFreeCashIsReceived(l)&&leadCashDest(l)==="boat";
+}
+/** Free cash received that went to the owner’s pocket (still business income). */
+function leadOwnerPocketCashAmt(l){
+  if(LY_MODELS&&LY_MODELS.leadOwnerPocketCashAmt) return Number(LY_MODELS.leadOwnerPocketCashAmt(l))||0;
+  if(!leadFreeCashIsReceived(l)||leadCashDest(l)!=="owner") return 0;
+  return leadFreeCashAmt(l)||Number(l.cashAmt)||0;
 }
 function expRemoveLeadCashIn(leadId, skipSave){
   if(!leadId||!state.expPetty) return false;
@@ -12574,6 +12597,7 @@ function renderCommissions(){
   captItems.sort(bySort); cbItems.sort(bySort); ownItems.sort(bySort); ownSrcItems.sort(bySort); extItems.sort(bySort);
 
   var captCom=0, captBase=0, cbCom=0, cbBase=0, ownVal=0, ownExcluded=0, ownSrcBase=0, ownSrcCom=0, extCom=0;
+  var ownPocketTot=0, ownPocketItems=[];
   captItems.forEach(function(it){ captCom+=it.total; captBase+=it.base; });
   cbItems.forEach(function(it){ cbCom+=it.total; cbBase+=it.base; });
   extItems.forEach(function(it){ extCom+=it.total; });
@@ -12584,6 +12608,20 @@ function renderCommissions(){
   ownSrcItems.forEach(function(it){
     if(leadIsClosedDeal(it.rec)){ ownSrcBase+=it.base; ownSrcCom+=it.total; }
   });
+  /* Owner pocket cash — any split lead (any source) where free cash went to owner */
+  (state.leads||[]).forEach(function(r){
+    if(!r||leadIsCancelled(r)) return;
+    var pocket=leadOwnerPocketCashAmt(r);
+    if(!(pocket>0.009)) return;
+    ownPocketTot+=pocket;
+    ownPocketItems.push({
+      sort:String(r.closed||r.start||""),
+      rec:r,
+      cash:pocket,
+      src:leadSource(r)
+    });
+  });
+  ownPocketItems.sort(bySort);
   var comTot=captCom+cbCom+ownSrcCom+extCom;
 
   function leadCommCard(it, pillHtml){
@@ -12606,7 +12644,11 @@ function renderCommissions(){
         h+='<div class="notes" style="font-style:normal;color:var(--muted)">'+esc(p.detail)+'</div>';
       }
     } else if(it.src==="ownersourced"){
-      h+='<div class="notes" style="font-style:normal;color:var(--muted)">Income · before VAT <b class="money">'+money(p.base)+'</b> · commission 0% for now (owner-sourced)</div>';
+      var pocket=leadOwnerPocketCashAmt(r);
+      var cashN=leadFreeCashAmt(r)||0;
+      h+='<div class="notes" style="font-style:normal;color:var(--muted)">Income · before VAT <b class="money">'+money(p.base)+'</b> · commission 0% for now (owner-sourced)'+
+        (leadHasSplit(r)?' · free cash <b class="money">'+money(cashN)+'</b> → '+(leadCashDest(r)==="owner"?(pocket>0?"owner pocket (received)":"owner pocket (pending)"):(leadFreeCashIsOnBoat(r)?"boat petty":"boat (pending)")):"")+
+      '</div>';
     } else {
       h+='<div class="notes" style="font-style:normal;color:var(--muted)">Before VAT <b class="money">'+money(p.base)+'</b> · no commission (owner’s days)</div>';
     }
@@ -12654,8 +12696,29 @@ function renderCommissions(){
     html+='<div class="meta" style="margin:0 0 14px">None yet — set source to <b>Owner-sourced</b> when we invoice an owner-referred guest.</div>';
   }
 
+  html+='<div class="apa-sect-h"><h3>Owner pocket cash · split deals</h3></div>';
+  html+='<p style="margin:0 0 10px;font-size:12.5px;color:var(--muted);line-height:1.4">Free cash black marked <b>Cash goes to · Owner’s pocket</b> and <b>received</b>. Still business money (client total) — shown here so it does not vanish from the owner story. Does <b>not</b> enter the boat petty float.</p>';
+  if(ownPocketItems.length){
+    ownPocketItems.forEach(function(it){
+      var r=it.rec;
+      html+='<div class="item" data-edit-ld="'+esc(r.id)+'">'+
+        '<div class="top"><div class="title">'+esc(r.name||"—")+'</div><div class="amt money">'+money(it.cash)+'</div></div>'+
+        '<div class="meta">'+
+          (r.start?'<span>'+esc(fmtDate(r.start))+(r.end&&r.end!==r.start?"–"+esc(fmtDate(r.end)):"")+'</span>':'')+
+          '<span class="pill p-own">Owner pocket</span>'+
+          '<span class="pill p-grey">'+esc(leadSourceLabel(it.src))+'</span>'+
+          (leadIsClosedDeal(r)||(leadIsDealClosed(r)&&leadSource(r)==="owner")?'<span class="pill p-green">Received</span>':'')+
+        '</div>'+
+        '<div class="notes" style="font-style:normal;color:var(--muted)">Free cash black on split deal · not on invoice · not boat petty</div>'+
+      '</div>';
+    });
+    html+='<div class="meta" style="margin:0 0 14px">Owner pocket total <b class="money">'+money(ownPocketTot)+'</b> · '+ownPocketItems.length+' deal'+(ownPocketItems.length===1?"":"s")+'</div>';
+  } else {
+    html+='<div class="meta" style="margin:0 0 14px">None yet — on a split lead set <b>Cash goes to · Owner’s pocket</b> and tick <b>Cash received</b>.</div>';
+  }
+
   html+='<div class="apa-sect-h"><h3>Owner’s days · benefits</h3></div>';
-  html+='<p style="margin:0 0 10px;font-size:12.5px;color:var(--muted);line-height:1.4">Private use or friend pays the owner directly — <b>no income</b>, no commission. Amount = charter before VAT (notional). <b>Untick</b> to drop a trip from the benefits total.</p>';
+  html+='<p style="margin:0 0 10px;font-size:12.5px;color:var(--muted);line-height:1.4">Private use or friend pays the owner directly — <b>no income</b>, no commission. Amount = charter before VAT (notional). <b>Untick</b> to drop a trip from the benefits total. (Separate from owner-pocket cash on invoiced split deals.)</p>';
   if(ownItems.length){
     ownItems.forEach(function(it){
       var r=it.rec, p=it.p;
@@ -12680,7 +12743,7 @@ function renderCommissions(){
     html+='<div class="meta" style="margin:0 0 14px">No owner’s days yet — set source to <b>Owner’s days</b> for private use / cash-to-owner trips.</div>';
   }
 
-  if(!captItems.length&&!cbItems.length&&!ownItems.length&&!ownSrcItems.length&&!extItems.length){
+  if(!captItems.length&&!cbItems.length&&!ownItems.length&&!ownSrcItems.length&&!ownPocketItems.length&&!extItems.length){
     html=emptyBox("💸","No commission lines yet",
       "Import calendar leads, set source to Captain / Click&amp;Boat / Owner’s days / Owner-sourced, or mark extra hours with <b>I get commission</b>.");
   }
@@ -12688,6 +12751,7 @@ function renderCommissions(){
   if(el("cmCaptTot")) el("cmCaptTot").textContent=money(captCom+extCom);
   if(el("cmCbTot")) el("cmCbTot").textContent=money(cbCom);
   if(el("cmOwnTot")) el("cmOwnTot").textContent=money(ownVal);
+  if(el("cmOwnPocket")) el("cmOwnPocket").textContent=money(ownPocketTot);
   if(el("cmTot")) el("cmTot").textContent=money(comTot);
   /* legacy ids if still present */
   if(el("cmCount")) el("cmCount").textContent=String(captItems.length);
@@ -13009,12 +13073,20 @@ function openSheet(type,id){
       fieldHTML("Cash black (no VAT)",moneyField("f_cashBlack", cashDef))+
       '<p style="margin:-6px 0 8px;font-size:12.5px;color:var(--muted);line-height:1.4">Prefills when you pick swallow/charge (exact cash rounded <b>up to €50</b>). Editable anytime. Guide: <b id="f_suggestCash">—</b> · <button type="button" class="btn ghost" id="f_useSuggestCash" style="width:auto;padding:6px 10px;font-size:12px">Use suggested</button></p>'+
       (function(){
-        var cashOn=leadFreeCashIsOnBoat(r)||(rec&&(r.cashSettled===true||r.fins==="Paid"||r.deps==="Paid"));
-        if(r.cashSettled===false) cashOn=false;
-        if(r.cashSettled===true) cashOn=true;
-        return '<label class="checkrow" id="f_cashSettled_wrap"><input type="checkbox" id="f_cashSettled"'+(cashOn?" checked":"")+'>'+
-          '<span><div class="ck">Cash received on the boat</div>'+
-          '<div class="ch">Posts free cash to <b>Ops → Expenses</b> petty cash. Tick when cash is in the envelope. Final → <b>Paid</b> also auto-posts (deposit Paid alone does not).</div></span></label>';
+        var dest=leadCashDest(r);
+        var cashOn=false;
+        if(r.cashSettled===true||r.cashSettled==="true"||r.cashSettled===1) cashOn=true;
+        else if(r.cashSettled===false||r.cashSettled==="false"||r.cashSettled===0) cashOn=false;
+        else cashOn=!!(rec&&r.fins==="Paid");
+        return fieldHTML("Cash goes to",
+          '<select class="ctl" id="f_cashDest">'+
+            '<option value="boat"'+(dest!=="owner"?" selected":"")+'>Boat · petty cash envelope</option>'+
+            '<option value="owner"'+(dest==="owner"?" selected":"")+'>Owner’s pocket (still business income)</option>'+
+          '</select>')+
+          '<p style="margin:-6px 0 10px;font-size:12.5px;color:var(--muted);line-height:1.4"><b>Boat</b> → Expenses petty when received. <b>Owner’s pocket</b> → tracked for owner stats (does not hit the boat float). Either way the cash is part of client total / business generated.</p>'+
+          '<label class="checkrow" id="f_cashSettled_wrap"><input type="checkbox" id="f_cashSettled"'+(cashOn?" checked":"")+'>'+
+          '<span><div class="ck">Cash received</div>'+
+          '<div class="ch" id="f_cashSettled_help">Tick when the free cash is actually in hand. Final → <b>Paid</b> also marks received (deposit Paid alone does not).</div></span></label>';
       })()+
       '<input type="hidden" id="f_invoiceNet" value="'+esc(r.invoiceNet!=null&&r.invoiceNet!==""?r.invoiceNet:"")+'">'+
     '</div>';
@@ -13173,6 +13245,20 @@ function openSheet(type,id){
     el("f_cashBlack").dataset.userEdited="1";
     recalcLead();
   });
+  function paintCashDestHelp(){
+    var help=el("f_cashSettled_help");
+    if(!help) return;
+    var dest=el("f_cashDest")&&el("f_cashDest").value==="owner"?"owner":"boat";
+    if(dest==="owner"){
+      help.innerHTML="Tick when free cash is in the <b>owner’s pocket</b>. Tracked for owner stats — does <b>not</b> enter boat petty. Final → <b>Paid</b> also marks received.";
+    } else {
+      help.innerHTML="Tick when free cash is in the <b>boat envelope</b> → Expenses petty. Final → <b>Paid</b> also marks received (deposit Paid alone does not).";
+    }
+  }
+  if(el("f_cashDest")){
+    el("f_cashDest").addEventListener("change",paintCashDestHelp);
+    paintCashDestHelp();
+  }
   if(el("f_useSuggestCash")) el("f_useSuggestCash").addEventListener("click",function(){
     if(el("f_cashBlack")){ el("f_cashBlack").dataset.userEdited=""; el("f_cashBlack").dataset.forcePrefill="1"; }
     recalcLead();
@@ -13472,6 +13558,11 @@ function saveSheet(type,rec){
       invoiceNet:sp.split?sp.invoiceNet:0, invoiceVat:sp.split?sp.white.vat:0, invoiceTotal:sp.split?sp.invoiceTotal:parts.client,
       cashAmt:sp.split?(cashForced>0?cashForced:sp.cashAmt):0,
       cashAmtUser:sp.split&&(cashForced>0||Number(sp.cashAmt)>0),
+      cashDest:sp.split?(function(){
+        var d=el("f_cashDest")?el("f_cashDest").value:"boat";
+        if(LY_MODELS&&LY_MODELS.constrainCashDest) return LY_MODELS.constrainCashDest(d);
+        return d==="owner"?"owner":"boat";
+      })():"boat",
       cashSettled:sp.split?(!!(el("f_cashSettled")&&el("f_cashSettled").checked)):false,
       leadSource:leadSrc,
       sourcePending:leadSrc==="pending",
