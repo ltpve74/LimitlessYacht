@@ -9592,59 +9592,82 @@ function leadHasExplicitDur(l){
   return false;
 }
 /**
- * Resolve start/end clock times for a roster event (stews need these, not “all day”).
- * Prefer real ICS / assign times; else standard windows from duration.
+ * Real clock times only (event / assign / ICS). Never invents a window.
+ * Used for duration pills so we don’t mark 8h as 6h from a guessed slot.
  */
-function stewResolveEventTimes(ev, asg, lead){
+function stewRealClockTimes(ev, asg, lead){
   ev=ev||{};
   asg=asg||null;
   lead=lead||null;
-  if(ev.startTime||ev.endTime){
-    return {startTime:ev.startTime||"", endTime:ev.endTime||"", allDay:false};
+  if(ev.startTime&&ev.endTime&&!ev.timesSynthetic){
+    return {startTime:String(ev.startTime), endTime:String(ev.endTime), allDay:false, real:true};
   }
-  if(asg&&(asg.startTime||asg.endTime)){
-    return {startTime:asg.startTime||"", endTime:asg.endTime||"", allDay:false};
+  if(asg&&asg.startTime&&asg.endTime){
+    return {startTime:String(asg.startTime), endTime:String(asg.endTime), allDay:false, real:true};
   }
-  var typeKey="";
-  if(lead&&leadHasExplicitDur(lead)) typeKey=leadCharterTypeKey(lead);
-  else if(ev.dur||ev.leadDur) typeKey=String(ev.dur||ev.leadDur).toLowerCase();
-  else if(asg&&asg.rateBand) typeKey=String(asg.rateBand).toLowerCase();
-  if(typeKey==="multi"||typeKey==="overnight"){
-    return {startTime:"", endTime:"", allDay:true};
-  }
-  /* ICS calendar times when lead is still linked to a timed event */
   if(lead){
     try{
       var ck=leadCalendarEventKey(lead);
       if(ck){
         var ice=calendarEventByKey(ck);
-        if(ice&&(ice.startTime||ice.endTime)&&!ice.allDay){
-          return {startTime:ice.startTime||"", endTime:ice.endTime||"", allDay:false};
+        if(ice&&ice.startTime&&ice.endTime&&!ice.allDay){
+          return {startTime:String(ice.startTime), endTime:String(ice.endTime), allDay:false, real:true};
         }
       }
     }catch(eI){}
+  }
+  /* One-sided clock still useful for display */
+  if(ev.startTime||ev.endTime){
+    return {startTime:ev.startTime||"", endTime:ev.endTime||"", allDay:false, real:!!(ev.startTime&&ev.endTime)};
+  }
+  if(asg&&(asg.startTime||asg.endTime)){
+    return {startTime:asg.startTime||"", endTime:asg.endTime||"", allDay:false, real:!!(asg.startTime&&asg.endTime)};
+  }
+  return null;
+}
+/** Map timed length → 4h / 6h / 8h pill (half / mid / full day). */
+function stewHoursToDurPill(hours){
+  if(!(hours>0)) return "";
+  if(hours<=5) return "4h";
+  if(hours<=7) return "6h";
+  return "8h";
+}
+/**
+ * Resolve start/end clock times for a roster event (stews need these, not “all day”).
+ * Prefer real ICS / assign times; else standard windows from known duration.
+ */
+function stewResolveEventTimes(ev, asg, lead){
+  ev=ev||{};
+  asg=asg||null;
+  lead=lead||null;
+  var real=stewRealClockTimes(ev, asg, lead);
+  if(real&&(real.startTime||real.endTime)){
+    return {startTime:real.startTime, endTime:real.endTime, allDay:false, real:!!real.real};
+  }
+  var typeKey="";
+  if(lead&&leadHasExplicitDur(lead)) typeKey=leadCharterTypeKey(lead);
+  else if(ev.dur||ev.leadDur) typeKey=String(ev.dur||ev.leadDur).toLowerCase();
+  else if(asg&&asg.rateBand&&String(asg.rateBand)!=="6h+") typeKey=String(asg.rateBand).toLowerCase();
+  if(typeKey==="multi"||typeKey==="overnight"){
+    return {startTime:"", endTime:"", allDay:true, real:false};
   }
   var hours=stewDurHoursKey(typeKey);
   if(!hours&&asg){
     var r=apaNum(asg.dayRate);
     if(r===STEW_RATE_4H||Math.abs(r-STEW_RATE_4H)<0.5) hours=4;
     else if(r===STEW_RATE_ON||Math.abs(r-STEW_RATE_ON)<0.5){
-      return {startTime:"", endTime:"", allDay:true};
+      return {startTime:"", endTime:"", allDay:true, real:false};
     }
   }
-  if(!hours&&ev.startTime&&ev.endTime){
-    /* already handled above */
-  }
-  if(!hours) hours=stewHoursFromClock(ev.startTime, ev.endTime)||0;
-  /* Day-charter with known length → never “all day”; use standard slot if clock unknown */
+  /* Synthetic display window only — duration pills must not use this as “truth” */
   if(hours>=4){
     try{
       var win=agreementTimesForPaper(hours, ev.start||(asg&&asg.start)||"");
-      if(win&&win.from) return {startTime:win.from, endTime:win.to||"", allDay:false};
+      if(win&&win.from) return {startTime:win.from, endTime:win.to||"", allDay:false, real:false, synthetic:true};
     }catch(eW){}
-    return {startTime:"", endTime:"", allDay:false, hoursHint:hours};
+    return {startTime:"", endTime:"", allDay:false, hoursHint:hours, real:false};
   }
-  return {startTime:"", endTime:"", allDay:!!(ev.allDay||(!ev.startTime&&!ev.endTime))};
+  return {startTime:"", endTime:"", allDay:!!(ev.allDay||(!ev.startTime&&!ev.endTime)), real:false};
 }
 function stewHoursFromClock(st, et){
   if(!st||!et) return 0;
@@ -9715,51 +9738,36 @@ function stewIsAllDay(ev){
 }
 /**
  * Short duration label for Stews roster pills: 4h / 6h / 8h or "N days".
- * Prefer the same signals as day pay (assign rate / rateBand), then explicit
- * lead.dur, then clock span. Never invent 8h just because lead.dur is blank
- * (that made every team/stew card look like full day).
+ * Primary: real start–end clock (end − start). 6h and 8h share the same day-pay
+ * rate (€200), so without times we must not invent “6h”.
  */
 function stewDurationLabel(ev, asg){
   if(!asg&&ev&&ev.key){
     try{ asg=assignForEvent(ev.key); }catch(e0){ asg=null; }
   }
-  /* Assign first; team snapshot may also carry dayRate/rateBand/payUnits on the event */
   var units=asg&&asg.payUnits!=null&&asg.payUnits!==""?Math.max(1, Math.round(apaNum(asg.payUnits))):0;
   if(!units&&ev&&ev.payUnits!=null&&ev.payUnits!=="") units=Math.max(1, Math.round(apaNum(ev.payUnits)));
   var rate=asg&&asg.dayRate!=null&&asg.dayRate!==""?apaNum(asg.dayRate):0;
   if(!rate&&ev&&ev.dayRate!=null&&ev.dayRate!=="") rate=apaNum(ev.dayRate);
   var rb=String((asg&&asg.rateBand)||(ev&&ev.rateBand)||"").toLowerCase();
-  /* Overnight / multi from pay units or overnight rate (same as day-pay math) */
+  /* Overnight / multi from pay units or overnight rate */
   if(units>1||rb==="overnight"||rate===STEW_RATE_ON||Math.abs(rate-STEW_RATE_ON)<0.5){
     var u=units>1?units:(stewCalendarDays(ev)||1);
     return u===1?"1 day":(u+" days");
   }
-  if(rb==="4h"||rate===STEW_RATE_4H||Math.abs(rate-STEW_RATE_4H)<0.5) return "4h";
-  if(rb==="6h") return "6h";
-  if(rb==="8h") return "8h";
-  if(rb==="6h+"){
-    /* Historic bucket: 6h and 8h share €200 — split by clock/summary if we can */
-    var h6=stewHoursFromClock(ev&&ev.startTime, ev&&ev.endTime);
-    if(h6>6.5) return "8h";
-    if(h6>=5) return "6h";
-    var sum6=String((ev&&ev.summary)||"");
-    if(/\b8\s*h(our)?s?\b/i.test(sum6)||/\bfull[-\s]?day\b/i.test(sum6)) return "8h";
-    if(/\b6\s*h(our)?s?\b/i.test(sum6)) return "6h";
-    return "6h";
-  }
-  /* Snapshot / event dur (team feed) */
-  var durEv=String((ev&&(ev.dur||ev.leadDur))||"").toLowerCase().trim();
-  if(durEv==="4h"||durEv==="6h"||durEv==="8h") return durEv;
-  if(durEv==="multi"||durEv==="overnight"){
-    var nd=units||(ev&&ev.days&&ev.days.length)||stewCalendarDays(ev)||1;
-    return nd===1?"1 day":(nd+" days");
-  }
-  /* Explicit lead.dur only (blank dur must not default to 8h) */
   var lead=null;
   var lid=(ev&&ev.leadId)||(asg&&asg.leadId)||"";
   if(lid){
-    lead=(state.leads||[]).filter(function(x){return x&&String(x.id)===String(lid);})[0]||null;
+    try{ lead=(state.leads||[]).filter(function(x){return x&&String(x.id)===String(lid);})[0]||null; }catch(eL){}
   }
+  /* 1) Real clock on the item (or ICS / assign) — definitive for 4 vs 6 vs 8 */
+  var real=stewRealClockTimes(ev, asg, lead);
+  if(real&&real.real){
+    var hClock=stewHoursFromClock(real.startTime, real.endTime);
+    var fromClock=stewHoursToDurPill(hClock);
+    if(fromClock) return fromClock;
+  }
+  /* 2) Explicit lead.dur or snapshot dur (not blank → 8h default) */
   if(lead&&leadHasExplicitDur(lead)){
     var key=leadCharterTypeKey(lead);
     if(key==="multi"){
@@ -9770,27 +9778,32 @@ function stewDurationLabel(ev, asg){
     }
     if(key==="4h"||key==="6h"||key==="8h") return key;
   }
-  /* Clock span on the event */
-  var hours=stewHoursFromClock(ev&&ev.startTime, ev&&ev.endTime);
-  if(hours>0){
-    if(hours<=4.5) return "4h";
-    if(hours<=6.5) return "6h";
-    return "8h";
+  var durEv=String((ev&&(ev.dur||ev.leadDur))||"").toLowerCase().trim();
+  if(durEv==="4h"||durEv==="6h"||durEv==="8h") return durEv;
+  if(durEv==="multi"||durEv==="overnight"){
+    var nd=units||(ev&&ev.days&&ev.days.length)||stewCalendarDays(ev)||1;
+    return nd===1?"1 day":(nd+" days");
   }
-  var sum=String((ev&&ev.summary)||"");
+  /* 3) Explicit rate band (not ambiguous 6h+) */
+  if(rb==="4h"||rate===STEW_RATE_4H||Math.abs(rate-STEW_RATE_4H)<0.5) return "4h";
+  if(rb==="6h") return "6h";
+  if(rb==="8h") return "8h";
+  /* 4) Title / summary wording */
+  var sum=String((ev&&ev.summary)||"")+(lead&&lead.name?" "+lead.name:"");
   if(/\b4\s*h(our)?s?\b/i.test(sum)||/\bhalf[-\s]?day\b/i.test(sum)) return "4h";
   if(/\b6\s*h(our)?s?\b/i.test(sum)) return "6h";
   if(/\b8\s*h(our)?s?\b/i.test(sum)||/\bfull[-\s]?day\b/i.test(sum)) return "8h";
-  /* €200 day pay without band → 6h+ bucket (not forced 8h) */
-  if(rate===STEW_RATE_6H||Math.abs(rate-STEW_RATE_6H)<0.5) return "6h";
+  /* 5) €200 / 6h+ pay bucket is ambiguous (6 and 8 both use it) — prefer 8h full day */
+  if(rb==="6h+"||rate===STEW_RATE_6H||Math.abs(rate-STEW_RATE_6H)<0.5) return "8h";
   var band=stewRateBand(ev);
   if(band.kind==="overnight"){
     var u2=Math.max(1, stewPayUnits(ev, asg&&asg.payUnits)||1);
     return u2===1?"1 day":(u2+" days");
   }
   if(band.kind==="4h") return "4h";
-  if(band.kind==="6h"||band.kind==="6h+") return "6h";
+  if(band.kind==="6h") return "6h";
   if(band.kind==="8h") return "8h";
+  if(band.kind==="6h+") return "8h";
   return "8h";
 }
 function stewDurationPillHTML(ev, asg){
@@ -10196,11 +10209,11 @@ function stewEventFromLead(l){
       asg=(state.stewAssign||[]).filter(function(a){return a&&String(a.leadId||"")===String(l.id);})[0]||null;
     }catch(eB){}
   }
-  /* Prefer assign rateBand for length when lead.dur blank (day pay already correct) */
+  /* Prefer assign rateBand when explicit; 6h+ is ambiguous (6 and 8 share pay) */
   if(!typeKey&&asg){
     var rb=String(asg.rateBand||"").toLowerCase();
     if(rb==="4h") typeKey="4h";
-    else if(rb==="6h"||rb==="6h+") typeKey="6h";
+    else if(rb==="6h") typeKey="6h";
     else if(rb==="8h") typeKey="8h";
     else if(rb==="overnight") typeKey="multi";
     else {
@@ -10210,20 +10223,32 @@ function stewEventFromLead(l){
       else if(Number(asg.payUnits)>1) typeKey="multi";
     }
   }
-  if(!typeKey) typeKey=days.length>1?"multi":"8h";
+  /* Real ICS / assign clock first — sets 4h/6h/8h from end−start */
+  var real0=stewRealClockTimes({startTime:(asg&&asg.startTime)||"", endTime:(asg&&asg.endTime)||""}, asg, l);
+  if(real0&&real0.real){
+    var fromT=stewHoursToDurPill(stewHoursFromClock(real0.startTime, real0.endTime));
+    if(fromT) typeKey=fromT;
+  }
+  if(!typeKey) typeKey=days.length>1?"multi":"";
   var draft={
     key:ek,
     summary:l.name||"Charter",
     start:start,
     end:end,
-    startTime:"",
-    endTime:"",
+    startTime:(real0&&real0.startTime)||"",
+    endTime:(real0&&real0.endTime)||"",
     allDay:typeKey==="multi",
-    dur:typeKey==="multi"?"multi":typeKey,
-    leadDur:typeKey,
+    dur:typeKey||"",
+    leadDur:typeKey||"",
     leadId:l.id
   };
   var times=stewResolveEventTimes(draft, asg, l);
+  /* Duration from real times on the resolved event */
+  if(times&&times.real&&times.startTime&&times.endTime){
+    var fromRes=stewHoursToDurPill(stewHoursFromClock(times.startTime, times.endTime));
+    if(fromRes) typeKey=fromRes;
+  }
+  if(!typeKey) typeKey="8h";
   return {
     key:ek,
     uid:l.calendarUid||(ek.indexOf("uid:")===0?ek.slice(4):l.id),
@@ -10233,6 +10258,7 @@ function stewEventFromLead(l){
     startTime:times.startTime||"",
     endTime:times.endTime||"",
     allDay:!!(typeKey==="multi"||(times.allDay&&!(times.startTime||times.endTime))),
+    timesSynthetic:!!(times&&times.synthetic),
     status:"booked",
     source:"lead",
     leadId:l.id,
