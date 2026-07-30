@@ -93,6 +93,16 @@
   .sumcard .v{font-size:21px;font-weight:800;margin-top:3px}
   #tab-charters .summary .sumcard{flex:1 1 calc(50% - 10px)}
   @media(min-width:620px){ #tab-charters .summary .sumcard{flex:1 1 calc(25% - 10px)} }
+  /* Leads stats: multi-card grid (source totals + charter mix) */
+  #tab-leads .ld-summary{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:14px;width:100%;box-sizing:border-box}
+  #tab-leads .ld-summary .sumcard{min-width:0;flex:none;padding:12px 12px;box-sizing:border-box}
+  #tab-leads .ld-summary .sumcard .l{font-size:11px;line-height:1.25}
+  #tab-leads .ld-summary .sumcard .v{font-size:18px;overflow-wrap:anywhere}
+  #tab-leads .ld-summary .sumcard .sub{font-size:11px;color:var(--muted);margin-top:4px;line-height:1.35;font-weight:600}
+  @media(min-width:620px){
+    #tab-leads .ld-summary{grid-template-columns:repeat(3,1fr)}
+    #tab-leads .ld-summary .sumcard .v{font-size:20px}
+  }
   .sectitle{font-size:13px;font-weight:700;color:var(--muted);margin:4px 2px 10px;text-transform:uppercase;letter-spacing:.04em}
   .legend{font-size:12.5px;color:var(--muted);margin:-4px 2px 14px;line-height:1.45}
 
@@ -416,11 +426,15 @@
 
     <!-- LEADS -->
     <section id="tab-leads" class="hidden">
-      <div class="summary">
-        <div class="sumcard"><div class="l">Deals value</div><div class="v money" id="ldTot">€0</div></div>
-        <div class="sumcard"><div class="l">Invoices open</div><div class="v" id="ldPending">0</div></div>
+      <div class="ld-summary" id="ldSummary">
+        <div class="sumcard"><div class="l">Closed deals</div><div class="v money" id="ldTot">€0</div><div class="sub" id="ldTotSub">Excludes pending source</div></div>
+        <div class="sumcard"><div class="l">Luigi (Captain)</div><div class="v money" id="ldCap">€0</div><div class="sub" id="ldCapSub">0 trips · 15% commission</div></div>
+        <div class="sumcard"><div class="l">Paul (Click&amp;Boat)</div><div class="v money" id="ldCb">€0</div><div class="sub" id="ldCbSub">0 trips · 21% commission</div></div>
+        <div class="sumcard"><div class="l">Invoices open</div><div class="v" id="ldPending">0</div><div class="sub" id="ldPendSub">On closed deals only</div></div>
+        <div class="sumcard"><div class="l">Charter types</div><div class="v" id="ldTypes" style="font-size:15px;font-weight:700">—</div><div class="sub" id="ldTypesSub">Closed trips only</div></div>
+        <div class="sumcard"><div class="l">Pending source</div><div class="v" id="ldOpenSrc">0</div><div class="sub">Not in closed total</div></div>
       </div>
-      <div class="legend">Charter book (cleaned history). Sources: <b>Pending</b> · <b>Captain</b> · <b>Click&amp;Boat</b> · <b>Owner</b>. New calendar dates only → pending lead. No bulk re-import of old ICS. <b>Make invoice</b> = PDF.</div>
+      <div class="legend">Charter book. <b>Pending</b> = calendar hold (not closed — excluded from money totals). Closed = Captain (Luigi) · Click&amp;Boat (Paul) · Owner. New ICS dates → pending until you assign source. <b>Make invoice</b> = PDF.</div>
       <div class="list" id="ldList"></div>
     </section>
 
@@ -1982,6 +1996,41 @@ function scrollLeadIntoView(id){
   var node=document.querySelector('[data-edit-ld="'+safe+'"]');
   if(node&&node.scrollIntoView) node.scrollIntoView({block:"center", behavior:"smooth"});
 }
+/** Charter length bucket for stats / list. */
+function leadCharterTypeKey(r){
+  if(!r) return "day";
+  var d=String(r.dur||"").toLowerCase().trim();
+  var days=Math.max(1, Math.round(Number(r.days)||0)||1);
+  var multi=d==="multi"||(r.end&&r.start&&String(r.end).slice(0,10)>String(r.start).slice(0,10))||days>1;
+  if(multi) return "multi";
+  if(d==="4h") return "4h";
+  if(d==="6h") return "6h";
+  if(d==="8h") return "8h";
+  if(d==="day") return "8h";
+  return d||"8h";
+}
+function leadCharterTypeLabel(k){
+  return ({
+    multi:"Multi-day",
+    "4h":"4 hours",
+    "6h":"6 hours",
+    "8h":"Full day",
+    day:"Day charter"
+  })[k]||k||"Charter";
+}
+/** Money on list / totals for a lead (client total). */
+function leadListMoney(r){
+  if(!r||leadIsCancelled(r)||leadSource(r)==="owner"||leadSource(r)==="pending") return 0;
+  return leadHasSplit(r)?leadClientTotal(r):(Number(r.total)||Number(r.base)||Number(r.price)||0);
+}
+/** Closed commercial lead (counts in money totals). */
+function leadIsClosedDeal(r){
+  if(!r||leadIsCancelled(r)) return false;
+  var src=leadSource(r);
+  if(src==="pending") return false;
+  if(src==="owner") return false; /* owner use — not charter income */
+  return src==="captain"||src==="clickboat"||src==="other";
+}
 /** Compact split money block — quote → base → white PDF → cash (logical order). */
 function leadSplitSummaryHTML(r){
   if(!r||!leadHasSplit(r)) return "";
@@ -2013,56 +2062,129 @@ function leadSplitSummaryHTML(r){
 }
 function renderLeads(){
   sortLeads();
-  var wrap=el("ldList"), tot=0, pend=0, html="";
-  state.leads.forEach(function(r){
+  var wrap=el("ldList"), html="";
+  var tot=0, pend=0, nClosed=0, nPendSrc=0;
+  var capTot=0, capN=0, capComm=0;
+  var cbTot=0, cbN=0, cbComm=0;
+  var typeCounts={};
+  (state.leads||[]).forEach(function(r){
+    if(!r) return;
     var cancelled=leadIsCancelled(r);
     var src=leadSource(r);
     var isOwner=src==="owner";
-    /* Owner use is not business income — omit from deals total and list amount */
-    if(!cancelled&&!isOwner) tot+=(leadHasSplit(r)?leadClientTotal(r):(Number(r.total)||0));
-    var openN=isOwner?0:pendForLead(r);
-    if(!isOwner) pend+=openN;
-    var showApa=!isOwner&&leadNeedsApaInv(r);
+    var isPending=src==="pending";
+    if(isPending&&!cancelled) nPendSrc++;
+    var closed=leadIsClosedDeal(r);
+    var val=leadListMoney(r);
+    /* Money totals: closed deals only (not pending, not owner, not cancelled) */
+    if(closed){
+      tot+=val;
+      nClosed++;
+      var tk=leadCharterTypeKey(r);
+      typeCounts[tk]=(typeCounts[tk]||0)+1;
+      if(src==="captain"){
+        capTot+=val; capN++;
+        capComm+=leadCommissionAmt(r)||0;
+      } else if(src==="clickboat"){
+        cbTot+=val; cbN++;
+        cbComm+=leadCommissionAmt(r)||0;
+      }
+    }
+    /* Open invoices only on closed commercial deals */
+    var openN=(closed||(!isPending&&!isOwner&&!cancelled))?pendForLead(r):0;
+    if(closed) pend+=openN;
+
+    var showApa=!isOwner&&!isPending&&leadNeedsApaInv(r);
     var isSplit=!isOwner&&leadHasSplit(r);
     var finLabel="Final";
-    var srcPill=src==="pending"?'<span class="pill p-amber">Pending source</span>':
-      (src==="captain"?'<span class="pill p-blue">Captain</span>':
-        (src==="clickboat"?'<span class="pill p-amber">Click&amp;Boat</span>':
+    var srcPill=isPending?'<span class="pill p-amber">Pending source</span>':
+      (src==="captain"?'<span class="pill p-blue">Luigi · Captain</span>':
+        (src==="clickboat"?'<span class="pill p-amber">Paul · Click&amp;Boat</span>':
           (src==="owner"?'<span class="pill p-own">Owner</span>':'<span class="pill p-grey">Other</span>')));
-    /* Meta: identity + role only — money lives in lead-split block */
-    var metaBits='<span>'+leadMeta(r)+'</span>'+
+    var typeKey=leadCharterTypeKey(r);
+    var typeLab=leadCharterTypeLabel(typeKey);
+    var season=(LY_MODELS&&LY_MODELS.charterSeason)?LY_MODELS.charterSeason(r.start||r.cdate):"";
+    var seasonLab=season==="high"?"High season":(season==="low"?"Low season":"");
+    var startD=r.start||r.cdate||"";
+    var endD=r.end||"";
+    var dateLine="";
+    if(startD&&endD&&endD!==startD) dateLine=esc(fmtDate(startD))+" – "+esc(fmtDate(endD));
+    else if(startD) dateLine=esc(fmtDate(startD));
+    else dateLine="Date TBD";
+    var rateBits=[];
+    if(r.rate!=null&&r.rate!==""&&Number(r.rate)>0) rateBits.push(money0(r.rate)+"/day");
+    if(Number(r.days)>1) rateBits.push(Math.round(Number(r.days))+" days");
+    if(r.closed) rateBits.push("closed "+esc(fmtDate(r.closed)));
+    var calKey=leadCalendarEventKey(r);
+    /* Full info row for the charter book */
+    var metaBits=
+      '<span>📅 '+dateLine+'</span>'+
+      '<span class="pill p-grey">'+esc(typeLab)+'</span>'+
+      (seasonLab?'<span class="pill p-blue">'+esc(seasonLab)+'</span>':'')+
+      srcPill+
       (cancelled?'<span class="pill p-red">Cancelled</span>':'')+
       (cancelled&&leadInvStatus(r.deps)==="Refunded"?'<span class="pill p-red">Deposit refunded</span>':'')+
+      (isPending?'<span class="pill p-amber">Not closed</span>':'')+
       (isSplit?'<span class="pill p-black">Split</span>':'')+
-      srcPill+
-      (isCaptain()&&!cancelled&&leadCommissionRatePct(r)>0?'<span class="pill p-green">Comm '+money(leadCommissionAmt(r))+'</span>':'')+
+      (rateBits.length?'<span>'+rateBits.join(" · ")+'</span>':'')+
+      (calKey?'<span class="pill p-grey">Cal linked</span>':'')+
+      (isCaptain()&&closed&&leadCommissionRatePct(r)>0?'<span class="pill p-green">Comm '+money(leadCommissionAmt(r))+' ('+leadCommissionRatePct(r)+'%)</span>':'')+
       (isCaptain()&&!cancelled&&isOwner?'<span class="pill p-own">No income · owner benefit</span>':'')+
       (openN>0?'<span class="pill p-amber">'+openN+' invoice'+(openN>1?'s':'')+' open</span>':'');
-    if(!isOwner&&!isSplit){
+    if(!isOwner&&!isPending&&!isSplit){
       var vatNote=vatModeLabel(r.vatMode);
       if(vatNote&&(Number(r.vatPct)||0)>0) vatNote+=" "+r.vatPct+"%";
       if(vatNote) metaBits+='<span>'+esc(vatNote)+'</span>';
     }
-    var amtShow=cancelled||isOwner?"—":money0(isSplit?leadClientTotal(r):r.total);
-    html+='<div class="item'+(cancelled||isOwner?' item--cancelled':'')+'" data-edit-ld="'+esc(r.id)+'">'+
+    var amtShow=cancelled||isOwner?"—":(isPending?"—":money0(isSplit?leadClientTotal(r):(Number(r.total)||Number(r.base)||0)));
+    if(isPending) amtShow='<span style="font-size:13px;font-weight:700;color:var(--muted)">Open</span>';
+    html+='<div class="item'+(cancelled||isOwner||isPending?' item--cancelled':'')+'" data-edit-ld="'+esc(r.id)+'">'+
       '<div class="top"><div class="title">'+esc(r.name||"—")+'</div><div class="amt money">'+amtShow+'</div></div>'+
       '<div class="meta">'+metaBits+'</div>'+
-      (cancelled||isOwner?"":leadSplitSummaryHTML(r))+
+      (cancelled||isOwner||isPending?"":leadSplitSummaryHTML(r))+
+      (isPending&&!cancelled?'<div class="notes" style="font-style:normal;color:var(--muted)">Pending source — assign Captain / Click&amp;Boat / Owner to close. Not in money totals.</div>':'')+
       (isOwner&&!cancelled?'<div class="notes" style="font-style:normal;color:var(--muted)">Owner use — not counted as charter income (see Ops → Commissions → Owner benefits).</div>':'')+
-      (isOwner?"":('<div class="invtags">'+
+      (isOwner||isPending?"":('<div class="invtags">'+
         (leadNeedsDepInv(r)?leadInvTag("Deposit",r.dep,r.depPct,r.deps,r.depInv):"")+
         (leadNeedsFinInv(r)&&!cancelled?leadInvTag(finLabel,r.fin,"",r.fins,r.finInv):"")+
         (showApa&&!cancelled?leadInvTag("APA",r.apa,r.apaPct,r.apas,r.apaInv):"")+
       '</div>'))+
       (r.notes?'<div class="notes">'+esc(r.notes)+'</div>':'')+
       '<div class="lead-actions">'+
-        (cancelled||isOwner?"":'<button type="button" class="btn" data-inv-lead="'+esc(r.id)+'">Make invoice</button>')+
-        (cancelled||isOwner?"":'<button type="button" class="btn ghost" data-agr-lead="'+esc(r.id)+'">Agreement</button>')+
+        (cancelled||isOwner||isPending?"":'<button type="button" class="btn" data-inv-lead="'+esc(r.id)+'">Make invoice</button>')+
+        (cancelled||isOwner||isPending?"":'<button type="button" class="btn ghost" data-agr-lead="'+esc(r.id)+'">Agreement</button>')+
+        (isPending&&!cancelled?'<button type="button" class="btn" data-edit-ld-btn="'+esc(r.id)+'">Assign source</button>':'')+
       '</div>'+
       '<span class="chev">✎</span></div>';
   });
-  wrap.innerHTML=html||emptyBox("🌐","No charters in the book yet","Tap + for a new lead, or Import from calendar.");
-  el("ldTot").textContent=money(tot); el("ldPending").textContent=pend;
+  wrap.innerHTML=html||emptyBox("🌐","No charters in the book yet","Tap + for a new lead, or Sync calendar dates.");
+  /* Summary cards */
+  if(el("ldTot")) el("ldTot").textContent=money(tot);
+  if(el("ldTotSub")) el("ldTotSub").textContent=nClosed+" closed trip"+(nClosed===1?"":"s")+" · pending excluded";
+  if(el("ldCap")) el("ldCap").textContent=money(capTot);
+  if(el("ldCapSub")) el("ldCapSub").textContent=capN+" trip"+(capN===1?"":"s")+(isCaptain()&&capComm>0?" · comm "+money(capComm):" · 15%");
+  if(el("ldCb")) el("ldCb").textContent=money(cbTot);
+  if(el("ldCbSub")) el("ldCbSub").textContent=cbN+" trip"+(cbN===1?"":"s")+(isCaptain()&&cbComm>0?" · comm "+money(cbComm):" · 21%");
+  if(el("ldPending")) el("ldPending").textContent=String(pend);
+  if(el("ldPendSub")) el("ldPendSub").textContent=pend?"On closed deals":"All closed invoices issued";
+  if(el("ldOpenSrc")) el("ldOpenSrc").textContent=String(nPendSrc);
+  var typeOrder=["4h","6h","8h","multi"];
+  var typeParts=[];
+  typeOrder.forEach(function(k){
+    if(typeCounts[k]) typeParts.push(typeCounts[k]+"× "+leadCharterTypeLabel(k));
+  });
+  Object.keys(typeCounts).forEach(function(k){
+    if(typeOrder.indexOf(k)<0&&typeCounts[k]) typeParts.push(typeCounts[k]+"× "+leadCharterTypeLabel(k));
+  });
+  if(el("ldTypes")) el("ldTypes").textContent=typeParts.length?typeParts.join(" · "):"—";
+  if(el("ldTypesSub")) el("ldTypesSub").textContent=nClosed?"Closed trips only":"No closed trips yet";
+  Array.prototype.forEach.call(wrap.querySelectorAll("[data-edit-ld-btn]"),function(btn){
+    btn.addEventListener("click",function(ev){
+      ev.preventDefault(); ev.stopPropagation();
+      var id=btn.getAttribute("data-edit-ld-btn");
+      if(id&&typeof openSheet==="function") openSheet("lead", id);
+    });
+  });
   /* Import bar (once) above list */
   var importBar=el("ldImportBar");
   if(!importBar&&wrap.parentNode){
