@@ -9729,16 +9729,46 @@ function stewDayDiff(a,b){
 function stewCalendarDays(ev){
   if(!ev||!ev.start) return 1;
   if(Array.isArray(ev.days)&&ev.days.length) return Math.max(1, ev.days.length);
-  var start=String(ev.start), end=String(ev.end||ev.start);
+  var start=String(ev.start).slice(0,10), end=String(ev.end||ev.start).slice(0,10);
   if(!end||end<start) end=start;
+  if(end<=start) return 1;
+  /*
+   * Leads store inclusive end (Joel 17–19 = 3 days). ICS all-day DTEND is exclusive.
+   * Prefer inclusive whenever the event is lead-sourced or has a leadId.
+   */
+  var leadish=ev.source==="lead"||!!ev.leadId||String(ev.key||"").indexOf("lead:")===0;
+  if(leadish) return Math.max(1, stewDayDiff(start, end)+1);
   if(ev.allDay||(!ev.startTime&&!ev.endTime)){
-    /* ICS all-day DTEND is exclusive → Jul 20–23 = 3 days */
-    if(end>start) return Math.max(1, stewDayDiff(start, end));
-    return 1;
+    /* ICS all-day DTEND exclusive → Jul 20–23 listed as end 23 = 3 days of charter */
+    return Math.max(1, stewDayDiff(start, end));
   }
   /* Timed multi-day: inclusive of start and end calendar days */
-  if(end>start) return Math.max(1, stewDayDiff(start, end)+1);
-  return 1;
+  return Math.max(1, stewDayDiff(start, end)+1);
+}
+/**
+ * How many calendar/billable days this trip covers (for multi-day pills).
+ * Max of pay units, lead blocked days, event day span — never trust units alone
+ * when the lead says 3 days but assign still has payUnits=1.
+ */
+function stewTripDayCount(ev, asg, lead){
+  var n=1;
+  var units=asg&&asg.payUnits!=null&&asg.payUnits!==""?Math.max(1, Math.round(apaNum(asg.payUnits))):0;
+  if(!units&&ev&&ev.payUnits!=null&&ev.payUnits!=="") units=Math.max(1, Math.round(apaNum(ev.payUnits)));
+  if(units>1) n=Math.max(n, units);
+  if(ev&&Array.isArray(ev.days)&&ev.days.length) n=Math.max(n, ev.days.length);
+  if(ev) n=Math.max(n, stewCalendarDays(ev)||1);
+  if(lead){
+    try{
+      var bd=leadBlockedDaysClient(lead);
+      if(bd&&bd.length) n=Math.max(n, bd.length);
+    }catch(e0){}
+    var ld=Math.max(1, Math.round(Number(lead.days)||0)||1);
+    if(lead.dur==="multi"||(lead.end&&lead.start&&String(lead.end).slice(0,10)>String(lead.start).slice(0,10))){
+      n=Math.max(n, ld);
+      try{ n=Math.max(n, daysBetween(lead.start, lead.end)||1); }catch(e1){}
+    }
+  }
+  return Math.max(1, n);
 }
 function stewIsAllDay(ev){
   if(!ev) return false;
@@ -9746,73 +9776,68 @@ function stewIsAllDay(ev){
   return !ev.startTime&&!ev.endTime;
 }
 /**
- * Short duration label for Stews roster pills: 4h / 6h / 8h or "N days".
- * Primary: real start–end clock (end − start). 6h and 8h share the same day-pay
- * rate (€200), so without times we must not invent “6h”.
+ * Roster duration pill — two families only:
+ *  • Multi-day trip (calendar/lead spans >1 day, or billable units >1 with multi span)
+ *    → "N days"
+ *  • Single calendar day → always "4h" / "6h" / "8h" (never "1 day")
+ *
+ * Oliver vs Mohammed both 8h same day must match. Joel multi 17–19 → "3 days".
+ * Do not treat overnight €250 + payUnits=1 as "1 day" for a single-day charter.
  */
 function stewDurationLabel(ev, asg){
   if(!asg&&ev&&ev.key){
     try{ asg=assignForEvent(ev.key); }catch(e0){ asg=null; }
-  }
-  var units=asg&&asg.payUnits!=null&&asg.payUnits!==""?Math.max(1, Math.round(apaNum(asg.payUnits))):0;
-  if(!units&&ev&&ev.payUnits!=null&&ev.payUnits!=="") units=Math.max(1, Math.round(apaNum(ev.payUnits)));
-  var rate=asg&&asg.dayRate!=null&&asg.dayRate!==""?apaNum(asg.dayRate):0;
-  if(!rate&&ev&&ev.dayRate!=null&&ev.dayRate!=="") rate=apaNum(ev.dayRate);
-  var rb=String((asg&&asg.rateBand)||(ev&&ev.rateBand)||"").toLowerCase();
-  /* Overnight / multi from pay units or overnight rate */
-  if(units>1||rb==="overnight"||rate===STEW_RATE_ON||Math.abs(rate-STEW_RATE_ON)<0.5){
-    var u=units>1?units:(stewCalendarDays(ev)||1);
-    return u===1?"1 day":(u+" days");
   }
   var lead=null;
   var lid=(ev&&ev.leadId)||(asg&&asg.leadId)||"";
   if(lid){
     try{ lead=(state.leads||[]).filter(function(x){return x&&String(x.id)===String(lid);})[0]||null; }catch(eL){}
   }
-  /* 1) Real clock on the item (or ICS / assign) — definitive for 4 vs 6 vs 8 */
+  var dayCount=stewTripDayCount(ev, asg, lead);
+  var multiHint=false;
+  if(dayCount>1) multiHint=true;
+  if(lead&&leadHasExplicitDur(lead)&&leadCharterTypeKey(lead)==="multi"&&dayCount>1) multiHint=true;
+  var durEv=String((ev&&(ev.dur||ev.leadDur))||"").toLowerCase().trim();
+  if((durEv==="multi"||durEv==="overnight")&&dayCount>1) multiHint=true;
+  if(multiHint){
+    return dayCount===1?"1 day":(dayCount+" days");
+  }
+  /* —— Single-day charter: only hour pills —— */
+  var rate=asg&&asg.dayRate!=null&&asg.dayRate!==""?apaNum(asg.dayRate):0;
+  if(!rate&&ev&&ev.dayRate!=null&&ev.dayRate!=="") rate=apaNum(ev.dayRate);
+  var rb=String((asg&&asg.rateBand)||(ev&&ev.rateBand)||"").toLowerCase();
+  /* 1) Real clock end−start */
   var real=stewRealClockTimes(ev, asg, lead);
   if(real&&real.real){
-    var hClock=stewHoursFromClock(real.startTime, real.endTime);
-    var fromClock=stewHoursToDurPill(hClock);
+    var fromClock=stewHoursToDurPill(stewHoursFromClock(real.startTime, real.endTime));
     if(fromClock) return fromClock;
   }
-  /* 2) Explicit lead.dur or snapshot dur (not blank → 8h default) */
+  /* 2) Explicit lead / snapshot length */
   if(lead&&leadHasExplicitDur(lead)){
     var key=leadCharterTypeKey(lead);
-    if(key==="multi"){
-      var md=Math.max(1, Math.round(Number(lead.days)||0)||1);
-      try{ if(lead.start&&lead.end) md=Math.max(md, daysBetween(lead.start, lead.end)||1); }catch(e1){}
-      try{ var bd=leadBlockedDaysClient(lead); if(bd&&bd.length) md=Math.max(md, bd.length); }catch(e2){}
-      return md===1?"1 day":(md+" days");
-    }
     if(key==="4h"||key==="6h"||key==="8h") return key;
+    /* multi with dayCount 1 (data glitch) → treat as full day */
+    if(key==="multi") return "8h";
   }
-  var durEv=String((ev&&(ev.dur||ev.leadDur))||"").toLowerCase().trim();
   if(durEv==="4h"||durEv==="6h"||durEv==="8h") return durEv;
-  if(durEv==="multi"||durEv==="overnight"){
-    var nd=units||(ev&&ev.days&&ev.days.length)||stewCalendarDays(ev)||1;
-    return nd===1?"1 day":(nd+" days");
-  }
-  /* 3) Explicit rate band (not ambiguous 6h+) */
+  if(durEv==="multi"||durEv==="overnight") return "8h";
+  /* 3) Rate band / day-pay rate (€150 = 4h; €200 = 6h or 8h → default 8h) */
   if(rb==="4h"||rate===STEW_RATE_4H||Math.abs(rate-STEW_RATE_4H)<0.5) return "4h";
   if(rb==="6h") return "6h";
   if(rb==="8h") return "8h";
-  /* 4) Title / summary wording */
+  /* overnight rate on a single calendar day is still a day charter for the pill */
+  if(rb==="overnight"||rate===STEW_RATE_ON||Math.abs(rate-STEW_RATE_ON)<0.5) return "8h";
+  /* 4) Title */
   var sum=String((ev&&ev.summary)||"")+(lead&&lead.name?" "+lead.name:"");
   if(/\b4\s*h(our)?s?\b/i.test(sum)||/\bhalf[-\s]?day\b/i.test(sum)) return "4h";
   if(/\b6\s*h(our)?s?\b/i.test(sum)) return "6h";
   if(/\b8\s*h(our)?s?\b/i.test(sum)||/\bfull[-\s]?day\b/i.test(sum)) return "8h";
-  /* 5) €200 / 6h+ pay bucket is ambiguous (6 and 8 both use it) — prefer 8h full day */
+  /* 5) €200 / 6h+ ambiguous → full day */
   if(rb==="6h+"||rate===STEW_RATE_6H||Math.abs(rate-STEW_RATE_6H)<0.5) return "8h";
   var band=stewRateBand(ev);
-  if(band.kind==="overnight"){
-    var u2=Math.max(1, stewPayUnits(ev, asg&&asg.payUnits)||1);
-    return u2===1?"1 day":(u2+" days");
-  }
   if(band.kind==="4h") return "4h";
   if(band.kind==="6h") return "6h";
-  if(band.kind==="8h") return "8h";
-  if(band.kind==="6h+") return "8h";
+  if(band.kind==="8h"||band.kind==="6h+"||band.kind==="overnight") return "8h";
   return "8h";
 }
 function stewDurationPillHTML(ev, asg){
