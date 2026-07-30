@@ -7586,48 +7586,99 @@ function expResetInventedCrewFloatPay(){
   return expRestoreCrewFloatPayAfterWipe();
 }
 /**
- * Drop ghost stew day-pay expense lines (empty description, orphan keys after
- * calendar renames, exact dupes of a good line). Tips are never stored here.
+ * Drop ghost stew day-pay expense lines after reassign / key renames:
+ * blank description, orphan keys, and unpaid dupes for the same stew+day.
+ * Tips are never stored on expense lines.
  */
 function expCleanOrphanStewDayPayLines(){
   if(!isCaptain()||!state.expenses||!state.expenses.length) return false;
   var assignKeys={};
+  var liveLink={};
+  var liveStewDate={};
   (state.stewAssign||[]).forEach(function(a){
-    if(a&&a.eventKey) assignKeys[String(a.eventKey)]=1;
+    if(!a||!a.eventKey) return;
+    if(a.cancelled||a.status==="cancelled"||a.cancelGhost) return;
+    var ek=String(a.eventKey);
+    assignKeys[ek]=1;
+    var d=String(a.start||"").slice(0,10);
+    (a.stewIds||[]).forEach(function(sid){
+      if(!sid) return;
+      liveLink["stew-day:"+ek+":"+sid]=1;
+      if(d) liveStewDate[String(sid)+"|"+d]=1;
+    });
   });
-  var goodFinger={}; /* stewId|date|amount for lines that have a real description */
+  function dayPayLid(e){
+    if(!e) return "";
+    if(e.linkId) return String(e.linkId);
+    if(e.stewEventKey&&e.stewId) return "stew-day:"+e.stewEventKey+":"+e.stewId;
+    return "";
+  }
+  function isUnpaidCrew(e){
+    return String(e.crewPayStatus||"")!=="Paid"&&!e.floatPay;
+  }
+  function scoreUnpaidDayPay(e){
+    var s=0;
+    if(String(e.description||"").trim()) s+=100;
+    var lid=dayPayLid(e);
+    if(lid&&liveLink[lid]) s+=40;
+    if(e.stewEventKey&&assignKeys[String(e.stewEventKey)]) s+=15;
+    if(e.source==="stew") s+=10;
+    s+=Math.min(40, Math.round((Number(e.amount)||0)/5));
+    return s;
+  }
+  /* Best unpaid line only per stewId|date — Paid history is never collapsed away */
+  var bestUnpaidId={};
+  var bestUnpaidScore={};
   (state.expenses||[]).forEach(function(e){
-    if(!e||!expIsCrewDayPayLine(e)) return;
-    var desc=String(e.description||"").trim();
-    if(!desc) return;
+    if(!e||!expIsCrewDayPayLine(e)||!isUnpaidCrew(e)) return;
     var sid=String(e.stewId||"");
     var d=String(e.date||"").slice(0,10);
-    var a=String(Math.round((Number(e.amount)||0)*100));
-    if(sid&&d) goodFinger[sid+"|"+d+"|"+a]=1;
+    if(!sid||!d) return;
+    var k=sid+"|"+d;
+    var sc=scoreUnpaidDayPay(e);
+    if(bestUnpaidScore[k]==null||sc>bestUnpaidScore[k]){
+      bestUnpaidScore[k]=sc;
+      bestUnpaidId[k]=String(e.id);
+    }
   });
   var n0=state.expenses.length;
   var seenLink={};
+  var seenPaidFinger={}; /* stew|date|amount for Paid exact dupes */
   state.expenses=state.expenses.filter(function(e){
-    if(!e||!expIsCrewDayPayLine(e)) return true;
-    var lid=e.linkId||(e.stewEventKey&&e.stewId?("stew-day:"+e.stewEventKey+":"+e.stewId):"");
+    if(!e) return false;
+    var desc=String(e.description||"").trim();
+    var unpaid=isUnpaidCrew(e);
+    /*
+     * Any unpaid Crew Salaries with empty description is junk (manual or stew).
+     * Legitimate day-pay always has “Stewardess / day work — …”.
+     */
+    if(unpaid&&expIsCrewSalariesCategory(e)&&!desc) return false;
+    if(!expIsCrewDayPayLine(e)) return true;
+    var lid=dayPayLid(e);
     if(lid){
       if(seenLink[lid]) return false; /* exact linkId dupe */
       seenLink[lid]=1;
     }
-    var desc=String(e.description||"").trim();
     var ek=String(e.stewEventKey||"");
     var sid=String(e.stewId||"");
     var d=String(e.date||"").slice(0,10);
-    var a=String(Math.round((Number(e.amount)||0)*100));
-    var finger=sid+"|"+d+"|"+a;
-    /* Blank description + another good line for same stew/day/amount → drop ghost */
-    if(!desc&&goodFinger[finger]) return false;
-    /* Blank description + no matching live assign → drop */
-    if(!desc&&ek&&!assignKeys[ek]) return false;
-    /* Blank description + unpaid + no linkId → drop (junk from bad sync) */
-    if(!desc&&!lid&&String(e.crewPayStatus||"")!=="Paid") return false;
-    /* Orphan key (assign gone) and unpaid → drop (keep Paid for history) */
-    if(ek&&!assignKeys[ek]&&String(e.crewPayStatus||"")!=="Paid"&&!e.floatPay) return false;
+    /* Blank description on day-pay → drop unless Paid history with amount */
+    if(!desc){
+      if(unpaid) return false;
+      if(!(Number(e.amount)>0)) return false;
+    }
+    /* Orphan event key + unpaid → drop (Paid kept for history) */
+    if(ek&&!assignKeys[ek]&&unpaid) return false;
+    /* Unpaid day-pay for a stew+day that has no live assign → drop */
+    if(unpaid&&sid&&d&&!liveStewDate[sid+"|"+d]&&!(lid&&liveLink[lid])) return false;
+    /* Same stew + same day: keep only the best unpaid line */
+    if(unpaid&&sid&&d&&bestUnpaidId[sid+"|"+d]&&String(e.id)!==bestUnpaidId[sid+"|"+d]) return false;
+    /* Exact Paid dupes (same stew/day/amount) after reassign noise */
+    if(!unpaid&&sid&&d){
+      var pf=sid+"|"+d+"|"+String(Math.round((Number(e.amount)||0)*100));
+      if(seenPaidFinger[pf]) return false;
+      seenPaidFinger[pf]=1;
+    }
     return true;
   });
   var dirty=state.expenses.length!==n0;
@@ -7649,10 +7700,16 @@ function seedCurrentMonthStewCashExpenses(){
     if(e&&e.linkId) prevByLink[e.linkId]=e;
   });
   var wanted={};
-  var wantedFinger={}; /* stewId|date for this month’s live assigns */
+  var wantedFinger={}; /* stewId|date → preferred linkId (one day-pay per stew per day) */
+  function preferAssignKey(ek){
+    ek=String(ek||"");
+    if(ek.indexOf("lead:")===0) return 3;
+    if(ek.indexOf("uid:")===0) return 2;
+    return 1;
+  }
   (state.stewAssign||[]).forEach(function(asg){
     if(!asg||!asg.eventKey||expMonthKey(asg.start)!==month) return;
-    if(asg.cancelled||asg.status==="cancelled") return;
+    if(asg.cancelled||asg.status==="cancelled"||asg.cancelGhost) return;
     if(String(asg.start||"")>today) return;
     var each=stewAssignDayPayAmount(asg);
     if(!(each>0)) return;
@@ -7662,8 +7719,18 @@ function seedCurrentMonthStewCashExpenses(){
     var summary=String(asg.summary||"").trim()||"Charter";
     var crewPayStatus=asg.payStatus==="Paid"?"Paid":"Unpaid";
     ids.forEach(function(sid){
-      var rec=stewById(sid);
+      var finger=String(sid)+"|"+date;
       var linkId="stew-day:"+asg.eventKey+":"+sid;
+      /* One expense per stew per day — prefer lead: keys / higher day pay / Paid */
+      var prevLink=wantedFinger[finger];
+      if(prevLink&&wanted[prevLink]){
+        var prev=wanted[prevLink];
+        var prevScore=(prev.crewPayStatus==="Paid"?100:0)+preferAssignKey(prev.stewEventKey)*10+(Number(prev.amount)||0);
+        var nextScore=(crewPayStatus==="Paid"?100:0)+preferAssignKey(asg.eventKey)*10+each;
+        if(nextScore<=prevScore) return;
+        delete wanted[prevLink];
+      }
+      var rec=stewById(sid);
       var old=prevByLink[linkId];
       /* Prefer a previous line for same stew+date if key renamed */
       if(!old){
@@ -7679,7 +7746,7 @@ function seedCurrentMonthStewCashExpenses(){
         if(old&&old.floatPay===true) floatPay=true;
         else if(manualPaid) floatPay=true;
       }
-      wantedFinger[String(sid)+"|"+date]=1;
+      wantedFinger[finger]=linkId;
       wanted[linkId]={
         id:(old&&old.id)||uid(),
         linkId:linkId,
@@ -7708,17 +7775,21 @@ function seedCurrentMonthStewCashExpenses(){
   }).map(function(e){return [e.linkId,e.amount,e.vendor,e.date,e.crewPayStatus||"Paid",!!e.floatPay,e.paidFrom||"Petty cash"];}).sort());
   /*
    * Keep Paid orphan history; drop unpaid orphans that match a regenerated line
-   * (same stew + day) or have blank description after key renames.
+   * (same stew + day), blank description, or duplicate link after key renames.
    */
   var rest=(state.expenses||[]).filter(function(e){
     if(!e) return false;
+    var unpaid=String(e.crewPayStatus||"")!=="Paid"&&!e.floatPay;
+    var desc=String(e.description||"").trim();
+    /* Blank unpaid Crew Salaries never survive seed */
+    if(unpaid&&expIsCrewSalariesCategory(e)&&!desc) return false;
     if(e.source==="stew"&&expMonthKey(e.date)===month){
       if(e.stewPayKind==="dayPay"||e.stewEventKey||(e.linkId&&String(e.linkId).indexOf("stew-day:")===0)){
         var lid=e.linkId||(e.stewEventKey&&e.stewId?("stew-day:"+e.stewEventKey+":"+e.stewId):"");
         if(lid&&wanted[lid]) return false; /* replaced below */
         var finger=String(e.stewId||"")+"|"+String(e.date||"").slice(0,10);
-        if(wantedFinger[finger]&&String(e.crewPayStatus||"")!=="Paid"&&!e.floatPay) return false;
-        if(!String(e.description||"").trim()&&String(e.crewPayStatus||"")!=="Paid") return false;
+        if(wantedFinger[finger]&&unpaid) return false;
+        if(!desc&&unpaid) return false;
         return true;
       }
     }
@@ -7726,6 +7797,8 @@ function seedCurrentMonthStewCashExpenses(){
   });
   var seeded=Object.keys(wanted).map(function(k){ return wanted[k]; });
   state.expenses=seeded.concat(rest);
+  /* Final safety: one unpaid day-pay line per stew|date this month */
+  try{ expCleanOrphanStewDayPayLines(); }catch(eCl2){}
   var afterSig=JSON.stringify((state.expenses||[]).filter(function(e){
     return e&&e.source==="stew"&&e.stewPayKind==="dayPay"&&expMonthKey(e.date)===month;
   }).map(function(e){return [e.linkId,e.amount,e.vendor,e.date,e.crewPayStatus||"Paid",!!e.floatPay,e.paidFrom||"Petty cash"];}).sort());
@@ -8366,7 +8439,7 @@ function paintExpensesBody(){
             '<div class="title">'+esc(e.vendor||"—")+'</div>'+
             '<div class="meta" style="margin-top:6px">'+pills.join("")+'</div>'+
             (bits.length?'<div class="meta" style="margin-top:4px;opacity:.9">'+esc(bits.join(" · "))+'</div>':'')+
-            (e.description&&!isCrewDay?'<div class="notes" style="font-style:normal;margin-top:4px">'+esc(e.description)+'</div>':'')+
+            (e.description?'<div class="notes" style="font-style:normal;margin-top:4px">'+esc(e.description)+'</div>':'')+
             (showRepayBtn
               ?'<button type="button" class="btn" data-exp-repay="'+esc(e.id)+'" style="width:auto;margin-top:8px;padding:8px 12px;font-size:13px">Repay from petty '+money0(Math.max(0,apaNum(e.amount)-ownRepaidAmt))+'</button>'
               :'')+
