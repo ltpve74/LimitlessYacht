@@ -9378,20 +9378,27 @@ function purgeOrphanStewAssigns(){
   return dirty;
 }
 /**
- * Full list for Stews UI: calendar feed + cancelled commercial ghosts.
- * Ghosts (leadcancel:* / cancelled assigns with no live ICS) stay visible so
- * Alvaro remains on the roster after ICS delete. Does NOT re-inject non-cancelled
- * orphan days (that caused double 13–14 + 14).
+ * Full list for Stews UI: calendar feed + cancelled commercial ghosts only.
+ * When leads drive the roster, do NOT re-inject crew-orphan assign rows —
+ * that doubled trips (lead row + old ICS uid row) and inflated Unassigned.
+ * Ghosts (leadcancel:* / cancelled assigns) stay visible after ICS delete.
  */
 function stewMergedEvents(){
   var list=stewCalendarFeedEvents();
+  var leadsSot=false;
+  try{ leadsSot=stewEventsFromLeads().length>0; }catch(e0){ leadsSot=false; }
   var seen={};
+  var startLead={}; /* start day → count of lead-sourced events */
   list.forEach(function(ev){
     if(ev&&ev.key) seen[String(ev.key)]=1;
     if(ev){
       var id=stewEventId(ev);
       if(id) seen[String(id)]=1;
       if(ev.leadId) seen["leadid:"+String(ev.leadId)]=1;
+      if(ev.source==="lead"&&ev.start){
+        var sd=String(ev.start).slice(0,10);
+        startLead[sd]=(startLead[sd]||0)+1;
+      }
     }
   });
   (state.stewAssign||[]).forEach(function(a){
@@ -9400,10 +9407,18 @@ function stewMergedEvents(){
     if(seen[k]) return;
     if(a.leadId&&seen["leadid:"+String(a.leadId)]) return;
     var isCancel=a.cancelled||a.status==="cancelled"||isLeadCancelGhostKey(k)||a.cancelGhost;
-    var hasCrew=a.stewIds&&a.stewIds.length;
-    /* Cancel ghosts OR crew rows whose key was renamed (ICS→lead) — keep visible */
-    if(!isCancel&&!hasCrew) return;
+    /*
+     * Under leads SOT: only cancel ghosts. Crew is matched onto lead rows via
+     * leadId / eventKey heal — injecting orphans made Unassigned 5 instead of 3.
+     */
+    if(!isCancel){
+      if(leadsSot) return;
+      if(!(a.stewIds&&a.stewIds.length)) return;
+    }
     if(stewIsOffEvent&&stewIsOffEvent(a)) return;
+    var st=String(a.start||"").slice(0,10);
+    /* Same-day lead already on the list → do not add a second card */
+    if(!isCancel&&startLead[st]) return;
     list.push({
       key:k,
       summary:a.summary||(isCancel?"Cancelled charter":"Charter"),
@@ -9420,11 +9435,43 @@ function stewMergedEvents(){
     seen[k]=1;
     if(a.leadId) seen["leadid:"+String(a.leadId)]=1;
   });
+  /* Final pass: one card per leadId (prefer source=lead) */
+  list=stewDedupeRosterEvents(list);
   return list.sort(function(a,b){
     var c=String(b.start||"").localeCompare(String(a.start||""));
     if(c) return c;
     return String(b.startTime||"").localeCompare(String(a.startTime||""));
   });
+}
+/** Collapse duplicate roster cards (same lead / same key / orphan under a lead day). */
+function stewDedupeRosterEvents(list){
+  var rank={lead:0, blob:1, live:2, "lead-link":0, "assign-leadId":1, "assign-crew-orphan":5, "cancel-ghost":4};
+  var sorted=(list||[]).slice().sort(function(a,b){
+    var ra=rank[a&&a.source]!=null?rank[a.source]:3;
+    var rb=rank[b&&b.source]!=null?rank[b.source]:3;
+    if(ra!==rb) return ra-rb;
+    return 0;
+  });
+  var out=[], seenKey={}, seenLead={}, seenStartSum={};
+  sorted.forEach(function(ev){
+    if(!ev||!ev.start) return;
+    var k=String(ev.key||"");
+    if(k&&seenKey[k]) return;
+    var lid=ev.leadId!=null&&String(ev.leadId)!==""?String(ev.leadId):"";
+    if(lid&&seenLead[lid]) return;
+    var st=String(ev.start).slice(0,10);
+    var sum=String(ev.summary||"").trim().toLowerCase();
+    var ss=st+"|"+sum;
+    if(sum&&seenStartSum[ss]&&ev.source==="assign-crew-orphan") return;
+    /* Orphan with no title under a day that already has a lead card */
+    if(ev.source==="assign-crew-orphan"&&seenKey["__leadstart:"+st]) return;
+    if(k) seenKey[k]=1;
+    if(lid) seenLead[lid]=1;
+    if(sum) seenStartSum[ss]=1;
+    if(ev.source==="lead") seenKey["__leadstart:"+st]=1;
+    out.push(ev);
+  });
+  return out;
 }
 function stewEventYears(events){
   var y={}, out=[];
