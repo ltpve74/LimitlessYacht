@@ -2081,6 +2081,11 @@ function pendingLeadsList(){
     return r&&!leadIsCancelled(r)&&leadSource(r)==="pending";
   });
 }
+function icsDateConflictLeadsList(){
+  return (state.leads||[]).filter(function(r){
+    return r&&!leadIsCancelled(r)&&r.icsDateConflict&&r.icsProposedStart;
+  });
+}
 function openNextPendingLead(){
   var list=pendingLeadsList();
   if(!list.length){ window.alert("No pending-source leads."); return; }
@@ -2182,9 +2187,10 @@ function renderLeads(){
   }
   if(importBar&&canCommercial()){
     var pendList=pendingLeadsList();
+    var moveList=icsDateConflictLeadsList();
     var pendHtml="";
     if(pendList.length){
-      pendHtml='<div class="apa-card" style="margin:0 0 12px;border:1.5px solid #E0A800;background:#fffbeb">'+
+      pendHtml+='<div class="apa-card" style="margin:0 0 12px;border:1.5px solid #E0A800;background:#fffbeb">'+
         '<div style="font-weight:800;color:#9a6b00">'+pendList.length+' need source assignment</div>'+
         '<div class="meta" style="margin:6px 0 10px">Pending trips sit at the top. Tap one below or open the next.</div>'+
         '<button type="button" class="btn" id="ldOpenNextPend" style="width:100%;margin-bottom:8px">Assign next pending →</button>'+
@@ -2198,10 +2204,31 @@ function renderLeads(){
         (pendList.length>8?'<div class="meta">+ '+(pendList.length-8)+' more at top of list</div>':'')+
         '</div></div>';
     }
+    if(moveList.length){
+      pendHtml+='<div class="apa-card" style="margin:0 0 12px;border:1.5px solid #c7d0ff;background:#f5f7ff">'+
+        '<div style="font-weight:800;color:#2f3a7a">'+moveList.length+' calendar date move'+(moveList.length===1?"":"s")+' to confirm</div>'+
+        '<div class="meta" style="margin:6px 0 10px">Confirmed charters moved on the manager calendar. Accept to update the app (and site/roster).</div>'+
+        '<button type="button" class="btn" id="ldResolveMoves" style="width:100%;margin-bottom:8px">Review date moves →</button>'+
+        moveList.slice(0,6).map(function(r){
+          return '<div class="meta" style="margin-top:4px">'+esc(r.name||"Charter")+' · app '+esc(fmtDate(r.start)||r.start||"?")+
+            ' → cal '+esc(fmtDate(r.icsProposedStart)||r.icsProposedStart)+'</div>';
+        }).join("")+
+      '</div>';
+    }
     importBar.innerHTML=pendHtml+
-      '<div class="legend" style="margin-bottom:8px">Leads are history. <b>New</b> manager-calendar dates only → <b>Pending source</b> (then assign). Roster + public site both use this book.</div>'+
-      '<button type="button" class="btn ghost" id="ldSyncIcs" style="width:100%">Sync new calendar dates</button>';
+      '<div class="legend" style="margin-bottom:8px">Leads stay linked to the calendar <b>event id</b>. On hold → dates follow the calendar. Confirmed → app asks before moving. New dates → pending source.</div>'+
+      '<button type="button" class="btn ghost" id="ldSyncIcs" style="width:100%">Sync calendar dates</button>';
     if(el("ldOpenNextPend")) el("ldOpenNextPend").onclick=function(){ openNextPendingLead(); };
+    if(el("ldResolveMoves")) el("ldResolveMoves").onclick=function(){
+      var moves=icsDateConflictLeadsList().map(function(r){
+        return {
+          leadId:r.id, name:r.name,
+          from:r.start, to:r.icsProposedStart,
+          fromEnd:r.end||"", toEnd:r.icsProposedEnd||""
+        };
+      });
+      promptIcsDateMoves(moves).then(function(){ sortLeads(); renderLeads(); });
+    };
     Array.prototype.forEach.call(importBar.querySelectorAll("[data-pend-lead]"),function(btn){
       btn.addEventListener("click",function(){
         var id=btn.getAttribute("data-pend-lead");
@@ -2215,19 +2242,23 @@ function renderLeads(){
       api("syncNewIcsLeads").then(function(j){
         if(j.leads) state.leads=j.leads;
         if(isCaptain()) try{ persistStewCalendarSnapshot(); }catch(e0){}
-        sortLeads();
-        renderLeads();
-        var s=j.stats||{};
-        if(s.baselined){
-          window.alert("Baseline set.\n\nRecorded "+(s.knownCount||0)+" existing calendar events.\nNo leads created (your history stays clean).\n\nFrom now on, only brand-new calendar dates become pending leads.");
-        } else {
-          var msg="Sync done.\n\nNew pending leads: "+(s.created||0)+
-            "\nAlready known: "+(s.alreadyKnown||0)+
-            "\nTotal leads: "+(s.totalLeads||(state.leads||[]).length);
-          if(j.pushSent) msg+="\nPush sent: "+j.pushSent;
-          window.alert(msg);
-          if(s.created>0) openNextPendingLead();
-        }
+        var moves=j.dateMoves||(j.stats&&j.stats.dateMoves)||[];
+        return promptIcsDateMoves(moves).then(function(){
+          sortLeads();
+          renderLeads();
+          var s=j.stats||{};
+          if(s.baselined){
+            window.alert("Baseline set.\n\nRecorded "+(s.knownCount||0)+" existing calendar events.\nNo leads created (your history stays clean).\n\nFrom now on, only brand-new calendar dates become pending leads.");
+          } else {
+            var msg="Sync done.\n\nNew pending: "+(s.created||0)+
+              "\nDates auto-updated (on hold): "+(s.autoMoved||0)+
+              "\nDate moves to confirm: "+(moves.length||0)+
+              "\nTotal leads: "+(s.totalLeads||(state.leads||[]).length);
+            if(j.pushSent) msg+="\nPush sent: "+j.pushSent;
+            window.alert(msg);
+            if(s.created>0) openNextPendingLead();
+          }
+        });
       }).catch(function(err){
         window.alert((err&&err.error)||(err&&err.body&&err.body.error)||"Sync failed");
         if(btn){ btn.disabled=false; btn.textContent="Sync new calendar dates"; }
@@ -10533,13 +10564,46 @@ function leadCommissionRatePct(r){
   if(leadSource(r)==="pending") return 0;
   return isCaptainLead(r)?CAPTAIN_COMMISSION_PCT:(isClickboatLead(r)?CLICKBOAT_COMMISSION_PCT:0);
 }
+/** Confirm calendar date moves for confirmed (non-pending) leads. */
+function promptIcsDateMoves(dateMoves){
+  dateMoves=dateMoves||[];
+  if(!dateMoves.length) return Promise.resolve(null);
+  var accepted=[], rejected=[];
+  dateMoves.forEach(function(m){
+    if(!m||!m.leadId) return;
+    var from=m.from+(m.fromEnd&&m.fromEnd!==m.from?"–"+m.fromEnd:"");
+    var to=m.to+(m.toEnd&&m.toEnd!==m.to?"–"+m.toEnd:"");
+    var ok=window.confirm(
+      "Calendar moved a confirmed charter:\n\n"+
+      (m.name||"Charter")+"\n"+
+      "App: "+from+"\n"+
+      "Calendar: "+to+"\n\n"+
+      "Update the app to the new calendar date?\n\n"+
+      "OK = use calendar date · Cancel = keep app date"
+    );
+    if(ok) accepted.push(m.leadId); else rejected.push(m.leadId);
+  });
+  if(!accepted.length&&!rejected.length) return Promise.resolve(null);
+  return api("applyIcsDateMoves",{accepted:accepted, rejected:rejected}).then(function(j){
+    if(j&&Array.isArray(j.leads)) state.leads=j.leads;
+    if(isCaptain()) try{ persistStewCalendarSnapshot(); }catch(e0){}
+    if(curTab==="leads") renderLeads();
+    if(curTab==="stews") try{ paintStewChartersKeepScroll(); }catch(e1){}
+    return j;
+  });
+}
 /** After calendar refresh: baseline once, then create pending leads for brand-new ICS uids only. */
 function syncFreshIcsLeadsQuiet(){
   if(DEMO||!canCommercial()) return Promise.resolve(null);
   return api("syncNewIcsLeads").then(function(j){
     if(j&&Array.isArray(j.leads)) state.leads=j.leads;
-    if(j&&j.stats&&j.stats.created>0&&curTab==="leads") renderLeads();
-    return j;
+    var moves=j&&j.dateMoves||(j&&j.stats&&j.stats.dateMoves)||[];
+    var chain=Promise.resolve(j);
+    if(moves.length) chain=promptIcsDateMoves(moves).then(function(){ return j; });
+    return chain.then(function(res){
+      if(j&&j.stats&&(j.stats.created>0||j.stats.autoMoved>0)&&curTab==="leads") renderLeads();
+      return res;
+    });
   }).catch(function(){ return null; });
 }
 function ownerBenefitIncluded(r){ return LY_MODELS&&LY_MODELS.ownerBenefitIncluded?LY_MODELS.ownerBenefitIncluded(r):false; }

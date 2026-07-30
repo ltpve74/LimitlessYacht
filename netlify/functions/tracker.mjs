@@ -869,13 +869,58 @@ function leadKeyFromEvent(ev) {
   return "";
 }
 
+/** Dates + pricing for a lead from a live ICS event (linked by uid). */
+function leadDatesFromIcsEvent(ev) {
+  const priced = LY.charterPriceFromEvent(ev);
+  const start = String((ev && ev.start) || "").slice(0, 10);
+  let end = "";
+  if (priced.dur === "multi" && priced.days > 1) {
+    end = addUtcDayYmd(start, priced.days - 1); /* inclusive last day in the app */
+  }
+  return {
+    start: start,
+    end: end,
+    priced: priced,
+    name: LY.guestNameFromIcsSummary(ev && ev.summary),
+  };
+}
+
+function applyIcsDatesToLead(L, d, now, opts) {
+  opts = opts || {};
+  if (!L || !d || !d.start) return false;
+  L.start = d.start;
+  L.end = d.end || "";
+  L.closed = d.start;
+  if (d.priced) {
+    L.dur = d.priced.dur;
+    L.days = d.priced.days;
+    L.rate = d.priced.rate;
+    L.price = d.priced.price;
+    L.base = d.priced.total;
+    L.total = d.priced.total;
+    L.net = d.priced.total / 1.21;
+    L.vat = d.priced.total - L.net;
+    L.dep = Math.round(d.priced.total * 0.5 * 100) / 100;
+    L.fin = Math.round(d.priced.total * 0.5 * 100) / 100;
+  }
+  if (opts.updateName && d.name && d.name !== "Charter guest") L.name = d.name;
+  L.icsDateConflict = false;
+  L.icsProposedStart = "";
+  L.icsProposedEnd = "";
+  L.icsProposedDur = "";
+  L.icsProposedDays = "";
+  L.icsProposedPrice = "";
+  L.icsProposedRate = "";
+  L.icsProposedTotal = "";
+  L.updatedAt = now;
+  return true;
+}
+
 /**
- * Fresh-only ICS → leads.
- * Leads list is the historical book — never re-import old calendar bulk.
- *
- * First run after deploy: baseline every current ICS uid + lead links into
- * meta.icsLeadKnownKeys with ZERO new leads (protects cleaned history).
- * Later: only brand-new calendar event keys create a lead with source=pending.
+ * Fresh-only ICS → leads + date sync for linked events.
+ * - New ICS uid → pending lead
+ * - Linked + pending/on-hold → auto-update dates from ICS
+ * - Linked + confirmed source → stage date move for app confirmation
  */
 function syncNewIcsLeads(data, events, who, now) {
   if (!data.meta || typeof data.meta !== "object") data.meta = {};
@@ -927,6 +972,8 @@ function syncNewIcsLeads(data, events, who, now) {
       created: 0,
       skippedOff: 0,
       alreadyKnown: feedKeys.length,
+      autoMoved: 0,
+      dateMoves: [],
       totalLeads: leads.length,
       knownCount: known.size,
     };
@@ -935,6 +982,8 @@ function syncNewIcsLeads(data, events, who, now) {
   let created = 0;
   let skippedOff = 0;
   let alreadyKnown = 0;
+  let autoMoved = 0;
+  const dateMoves = [];
 
   (events || []).forEach((ev) => {
     if (!ev || !ev.start) return;
@@ -945,21 +994,64 @@ function syncNewIcsLeads(data, events, who, now) {
     const ek = leadKeyFromEvent(ev);
     if (!ek) return;
 
-    if (byCal.has(ek) || known.has(ek)) {
+    const L = byCal.get(ek);
+    if (L) {
       known.add(ek);
       alreadyKnown++;
-      /* Optional: refresh start date on linked lead if empty */
-      const L = byCal.get(ek);
-      if (L && !L.start && ev.start) {
-        L.start = String(ev.start).slice(0, 10);
+      const d = leadDatesFromIcsEvent(ev);
+      if (!d.start) return;
+      const curS = String(L.start || "").slice(0, 10);
+      const curE = String(L.end || "").slice(0, 10);
+      const nextE = String(d.end || "").slice(0, 10);
+      const dateChanged = d.start !== curS || nextE !== curE;
+      if (!dateChanged && L.start) return;
+
+      const src = LY.constrainLeadSource(L.leadSource);
+      const onHold =
+        src === "pending" ||
+        L.sourcePending === true ||
+        L.bookingStatus === "hold" ||
+        String(L.status || "").toLowerCase() === "tentative";
+
+      if (onHold || !L.start) {
+        applyIcsDatesToLead(L, d, now, { updateName: src === "pending" });
+        autoMoved++;
+      } else if (dateChanged) {
+        /* Confirmed lead — do not move silently; stage proposal for captain confirm */
+        L.icsDateConflict = true;
+        L.icsProposedStart = d.start;
+        L.icsProposedEnd = d.end || "";
+        L.icsProposedDur = d.priced.dur;
+        L.icsProposedDays = d.priced.days;
+        L.icsProposedPrice = d.priced.price;
+        L.icsProposedRate = d.priced.rate;
+        L.icsProposedTotal = d.priced.total;
         L.updatedAt = now;
+        dateMoves.push({
+          leadId: L.id,
+          name: L.name || d.name || "Charter",
+          from: curS,
+          to: d.start,
+          fromEnd: curE,
+          toEnd: nextE,
+          eventKey: ek,
+          label: d.priced.label || "",
+        });
       }
       return;
     }
 
+    if (known.has(ek)) {
+      /* Baselined calendar id with no lead — leave history alone */
+      known.add(ek);
+      alreadyKnown++;
+      return;
+    }
+
     /* Brand-new calendar event only */
-    const priced = LY.charterPriceFromEvent(ev);
-    const name = LY.guestNameFromIcsSummary(ev.summary);
+    const d = leadDatesFromIcsEvent(ev);
+    const priced = d.priced;
+    const name = d.name;
     const id =
       "lead-ics-" +
       String(ek)
@@ -967,20 +1059,19 @@ function syncNewIcsLeads(data, events, who, now) {
         .replace(/[^a-zA-Z0-9_-]+/g, "-")
         .slice(0, 48) +
       "-" +
-      String(ev.start).slice(0, 10);
+      String(d.start || "").slice(0, 10);
     if (leads.some((x) => x && x.id === id)) {
       known.add(ek);
       return;
     }
 
-    const isMulti = priced.dur === "multi";
     const lead = {
       id: id,
-      closed: String(ev.start).slice(0, 10),
+      closed: d.start,
       name: name,
       dur: priced.dur,
-      start: String(ev.start).slice(0, 10),
-      end: isMulti ? String(ev.end || ev.start).slice(0, 10) : "",
+      start: d.start,
+      end: d.end || "",
       rate: priced.rate,
       price: priced.price,
       days: priced.days,
@@ -1029,9 +1120,54 @@ function syncNewIcsLeads(data, events, who, now) {
     created,
     skippedOff,
     alreadyKnown,
+    autoMoved,
+    dateMoves,
     totalLeads: leads.length,
     knownCount: known.size,
   };
+}
+
+/** Apply or dismiss staged ICS date moves on confirmed leads. */
+function applyIcsDateMoveDecisions(data, acceptedIds, rejectedIds, who, now) {
+  const accept = new Set((acceptedIds || []).map(String));
+  const reject = new Set((rejectedIds || []).map(String));
+  let applied = 0;
+  let dismissed = 0;
+  (data.leads || []).forEach((L) => {
+    if (!L || !L.id || !L.icsDateConflict) return;
+    const id = String(L.id);
+    if (accept.has(id) && L.icsProposedStart) {
+      applyIcsDatesToLead(
+        L,
+        {
+          start: String(L.icsProposedStart).slice(0, 10),
+          end: String(L.icsProposedEnd || "").slice(0, 10),
+          priced: {
+            dur: L.icsProposedDur || L.dur,
+            days: L.icsProposedDays || L.days || 1,
+            rate: L.icsProposedRate || L.rate,
+            price: L.icsProposedPrice || L.price,
+            total: L.icsProposedTotal || L.total || L.price,
+          },
+        },
+        now,
+        {}
+      );
+      applied++;
+    } else if (reject.has(id)) {
+      L.icsDateConflict = false;
+      L.icsProposedStart = "";
+      L.icsProposedEnd = "";
+      L.icsProposedDur = "";
+      L.icsProposedDays = "";
+      L.icsProposedPrice = "";
+      L.icsProposedRate = "";
+      L.icsProposedTotal = "";
+      L.updatedAt = now;
+      dismissed++;
+    }
+  });
+  return { applied, dismissed };
 }
 async function saveData(store, data) {
   await store.setJSON(BLOB_KEY, data);
@@ -1824,11 +1960,41 @@ export default async (req, context) => {
     return json({
       ok: true,
       stats: stats,
+      dateMoves: stats.dateMoves || [],
       leads: data.leads,
       siteCalendar: siteCalendarSummary(data.siteCalendar),
       pushSent: pushResult.sent || 0,
       icsLeadBaselineAt: (data.meta && data.meta.icsLeadBaselineAt) || "",
       icsLeadLastSyncAt: (data.meta && data.meta.icsLeadLastSyncAt) || "",
+    });
+  }
+
+  if (action === "applyIcsDateMoves") {
+    if (!canCommercial(who, role)) {
+      return json({ error: "Date moves are captain/manager only" }, 403);
+    }
+    touchDevice();
+    const dec = applyIcsDateMoveDecisions(
+      data,
+      body.accepted || body.accept || [],
+      body.rejected || body.reject || [],
+      who,
+      now
+    );
+    rebuildSiteCalendarFromLeads(data, who, now);
+    data.stewCalendar = stewCalendarRowsFromLeads(data.leads);
+    if (!data.meta || typeof data.meta !== "object") data.meta = {};
+    data.meta.stewCalendarAt = now;
+    data.meta.stewCalendarBy = who || "Date move";
+    addLog(
+      "ICS date moves applied=" + dec.applied + " dismissed=" + dec.dismissed
+    );
+    await saveData(store, data);
+    return json({
+      ok: true,
+      stats: dec,
+      leads: data.leads,
+      siteCalendar: siteCalendarSummary(data.siteCalendar),
     });
   }
 
