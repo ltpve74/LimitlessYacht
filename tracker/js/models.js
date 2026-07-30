@@ -597,8 +597,7 @@
   }
 
   /**
-   * Closed commercial lead whose commission base (ex VAT) already includes
-   * free cash black on split deals — same gate as money totals in the UI.
+   * Closed commercial lead (money totals gate) — pure, no DOM.
    */
   function leadIsClosedCommercialIncome(r) {
     if (!r || leadIsCancelled(r)) return false;
@@ -614,37 +613,87 @@
   }
 
   /**
+   * Projected-net parts: before VAT and commissions with free cash black REMOVED.
+   * Split: white before VAT only + white commission only.
+   * Non-split: full commission base + full commission.
+   * Free cash is reported separately (summarizeLeadCashIncome) then added in total net.
+   */
+  function leadProjectedNetParts(r) {
+    var p = leadCommissionParts(r);
+    if (p.split) {
+      var wEx = round2(p.whiteBeforeVat || 0);
+      var wComm = round2(p.whiteComm || 0);
+      return {
+        split: true,
+        ex: wEx,
+        comm: wComm,
+        net: round2(Math.max(0, wEx - wComm)),
+        cashBlack: round2(p.cashBlack || 0),
+      };
+    }
+    var ex = round2(p.base || 0);
+    var comm = round2(p.total || 0);
+    return {
+      split: false,
+      ex: ex,
+      comm: comm,
+      net: round2(Math.max(0, ex - comm)),
+      cashBlack: 0,
+    };
+  }
+
+  /**
+   * Projected net income across closed commercial leads — excludes free cash black.
+   * @param {Array} leads
+   * @param {{ isClosed?: function }} [opts] optional closed-commercial predicate
+   */
+  function summarizeProjectedNetExCash(leads, opts) {
+    opts = opts || {};
+    var isClosed =
+      typeof opts.isClosed === "function"
+        ? opts.isClosed
+        : leadIsClosedCommercialIncome;
+    var ex = 0;
+    var comm = 0;
+    var n = 0;
+    (Array.isArray(leads) ? leads : []).forEach(function (r) {
+      if (!r || !isClosed(r)) return;
+      var parts = leadProjectedNetParts(r);
+      ex = round2(ex + parts.ex);
+      comm = round2(comm + parts.comm);
+      n++;
+    });
+    return {
+      ex: ex,
+      comm: comm,
+      net: round2(Math.max(0, ex - comm)),
+      n: n,
+    };
+  }
+
+  /**
    * Display-only total net income:
-   *   projectedNet (ex VAT − commissions on closed commercial)
-   *   + received free cash that is NOT already inside that projected net base.
+   *   projectedNet (ex VAT − commissions, free cash excluded)
+   *   + cash income (received free cash: boat + owner pocket)
+   * = totalNet
    *
-   * On closed commercial split deals, free cash is already in commission base
-   * (white before VAT + cash black), so it must not be added again.
-   * Cash on other leads (e.g. received before deal closed) is additive.
+   * Call with projectedNet from summarizeProjectedNetExCash(...).net (or UI allNet
+   * once that uses cash-free bases). Cash is never inside projectedNet.
    *
    * @param {number} projectedNet
    * @param {Array} leads
    */
   function summarizeTotalNetIncome(projectedNet, leads) {
     var cash = summarizeLeadCashIncome(leads);
-    var inProjected = 0;
-    (Array.isArray(leads) ? leads : []).forEach(function (r) {
-      if (!r || leadIsCancelled(r) || !leadHasSplit(r)) return;
-      if (!leadFreeCashIsReceived(r)) return;
-      if (!leadIsClosedCommercialIncome(r)) return;
-      inProjected = round2(inProjected + leadFreeCashAmt(r));
-    });
-    var additive = round2(Math.max(0, cash.total - inProjected));
     var proj = round2(Number(projectedNet) || 0);
     return {
       projectedNet: proj,
       cashTotal: cash.total,
       cashBoat: cash.boat,
       cashOwner: cash.owner,
-      cashAlreadyInProjected: inProjected,
-      cashAdditive: additive,
-      totalNet: round2(proj + additive),
-      /** Simple sum of the two hero figures (may double-count closed-deal cash). */
+      cashAlreadyInProjected: 0,
+      cashAdditive: cash.total,
+      totalNet: round2(proj + cash.total),
       naiveSum: round2(proj + cash.total),
       cash: cash,
     };
@@ -1629,6 +1678,8 @@
     leadOwnerPocketCashAmt: leadOwnerPocketCashAmt,
     leadIsCancelled: leadIsCancelled,
     leadIsClosedCommercialIncome: leadIsClosedCommercialIncome,
+    leadProjectedNetParts: leadProjectedNetParts,
+    summarizeProjectedNetExCash: summarizeProjectedNetExCash,
     summarizeLeadCashIncome: summarizeLeadCashIncome,
     summarizeTotalNetIncome: summarizeTotalNetIncome,
     sanitizeLeadCash: sanitizeLeadCash,
