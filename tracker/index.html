@@ -535,12 +535,12 @@
             <div class="ld-snap-row"><span class="k">Unconfirmed / tentative</span><span class="v" id="ldAwait">0</span><span class="s" id="ldAwaitSub">Not in money totals · not firm</span></div>
             <div class="ld-snap-row"><span class="k">Owner days (notional)</span><span class="v money" id="ldOwn">€0</span><span class="s" id="ldOwnSub">List-rate estimate · not cash</span></div>
           </div>
-          <div class="ld-snap-note">Money totals = <b>deal closed</b> only (realised + scheduled). <b>Net income</b> = before VAT − commissions. <b>Unconfirmed</b> = pending source or open/tentative deal — yellow cards, not counted. Owner days = list-rate notional only.</div>
+          <div class="ld-snap-note">Money totals = <b>confirmed commercial</b> only (realised + scheduled). <b>Net income</b> = before VAT − commissions. <b>Unconfirmed</b> = pending source, or assigned but not confirmed (incl. owner) — yellow cards. Owner days (notional) count only after confirm.</div>
         </div>
         <div class="sumcard ld-src"><div class="l">Luigi · Captain</div><div class="v money" id="ldCap">€0</div><div class="sub" id="ldCapSub">—</div><div id="ldCapTypes" class="ld-type-table"></div></div>
         <div class="sumcard ld-src"><div class="l">Paul · Click&amp;Boat</div><div class="v money" id="ldCb">€0</div><div class="sub" id="ldCbSub">—</div><div id="ldCbTypes" class="ld-type-table"></div></div>
       </div>
-      <div class="legend"><b>Yellow = unconfirmed</b> (pending source or tentative open deal) — not firm, not in money totals. <b>Confirmed</b> = deal closed (auto when deposit Paid). Owner days = notional. <b>Make invoice</b> = PDF.</div>
+      <div class="legend"><b>Yellow = unconfirmed</b> — pending source, or assigned but not confirmed (incl. owner trips). <b>Assigning a source does not confirm.</b> Commercial: deposit/final <b>Paid</b> or the confirm tick closes the deal. Owner: manual confirm only. Confirmed commercial = money totals; confirmed owner = notional benefit. <b>Make invoice</b> = PDF.</div>
       <div class="list" id="ldList"></div>
     </section>
 
@@ -2282,9 +2282,8 @@ function leadCharterKey(r){
 }
 function leadIsUnconfirmed(r){
   if(!r||leadIsCancelled(r)) return false;
-  var src=leadSource(r);
-  if(src==="pending") return true;
-  if(src==="owner") return false;
+  /* Pending source, or any assigned source (incl. owner) until confirm tick */
+  if(leadSource(r)==="pending") return true;
   return !leadIsDealClosed(r);
 }
 function sortLeads(){
@@ -2359,10 +2358,13 @@ function leadListMoney(r){
 }
 /**
  * Deal closed vs open (tentative).
- * Open = may have Captain/Paul source but not counted in money / firm calendar
- * until closed. Auto-closes when deposit (or final) is Paid.
+ * Open = source may be set (Captain / Paul / Owner) but not firm until confirmed.
+ * Commercial: auto-closes when deposit or final is Paid, or manual confirm tick.
+ * Owner: manual confirm only (assignment never auto-confirms).
+ * Legacy saved leads without a flag stay closed — do not reopen past book.
  */
 function leadIsDealClosed(r){
+  if(LY_MODELS&&LY_MODELS.leadIsDealClosed) return !!LY_MODELS.leadIsDealClosed(r);
   if(!r) return false;
   if(r.dealClosed===true||r.dealClosed==="true"||r.dealClosed===1) return true;
   if(r.dealClosed===false||r.dealClosed==="false"||r.dealClosed===0) return false;
@@ -2580,8 +2582,9 @@ function renderLeads(){
     var isOwner=src==="owner";
     var isPending=src==="pending";
     if(isPending&&!cancelled) nPendSrc++;
-    if(!isPending&&!isOwner&&!cancelled&&!leadIsDealClosed(r)) nOpenDeal++;
-    /* Owner private / guest days — notional list-rate value (not cash sales) */
+    /* Assigned but not confirmed — commercial or owner */
+    if(!isPending&&!cancelled&&!leadIsDealClosed(r)) nOpenDeal++;
+    /* Owner private / guest days — notional only when confirmed (ownerBenefitIncluded gates dealClosed) */
     if(isOwner&&!cancelled&&ownerBenefitIncluded(r)){
       var ov=leadOwnerNotional(r);
       if(ov>0){ ownVal+=ov; ownN++; }
@@ -2638,13 +2641,15 @@ function renderLeads(){
     var isOwner=src==="owner";
     var isPending=src==="pending";
     var dealClosed=leadIsDealClosed(r);
-    var isOpenDeal=!isPending&&!isOwner&&!cancelled&&!dealClosed;
-    var isTentative=isPending||isOpenDeal; /* unconfirmed lead / not firm charter */
-    var closed=leadIsClosedDeal(r);
+    /* Open/tentative = assigned source (incl. owner) but not confirmed */
+    var isOpenDeal=!isPending&&!cancelled&&!dealClosed;
+    var isTentative=isPending||isOpenDeal;
+    var closed=leadIsClosedDeal(r); /* commercial money only */
+    var ownerConfirmed=isOwner&&dealClosed&&!cancelled;
     var timing=closed?leadCharterTiming(r):"";
     var val=leadListMoney(r);
-    /* Open invoices only on closed commercial deals */
-    var openN=(closed||(!isPending&&!isOwner&&!cancelled))?pendForLead(r):0;
+    /* Open invoices on commercial leads (even tentative) for prep; not owner/pending */
+    var openN=(!isPending&&!isOwner&&!cancelled)?pendForLead(r):0;
     if(closed) pend+=openN;
 
     var showApa=!isOwner&&!isPending&&leadNeedsApaInv(r);
@@ -2675,10 +2680,13 @@ function renderLeads(){
       statusBanner='<div class="ld-status-banner" style="background:#fde8e8;border-color:#f3b4ae;color:var(--danger)">Cancelled</div>';
     } else if(isPending){
       statusBanner='<div class="ld-status-banner"><b>Unconfirmed · tentative lead</b>'+
-        '<span class="ld-status-sub">Pending source — not a firm charter. Assign Captain / Click&amp;Boat / Owner. Not in money totals or website booked.</span></div>';
+        '<span class="ld-status-sub">Pending source — not a firm charter. Assign Captain / Click&amp;Boat / Owner. Assigning does <b>not</b> confirm.</span></div>';
+    } else if(isOpenDeal&&isOwner){
+      statusBanner='<div class="ld-status-banner"><b>Unconfirmed · owner trip</b>'+
+        '<span class="ld-status-sub">Assigned to Owner, but not confirmed yet. Tick <b>Confirm</b> when the owner day/guest trip is firm. Not firm on the website calendar until confirmed.</span></div>';
     } else if(isOpenDeal){
       statusBanner='<div class="ld-status-banner"><b>Unconfirmed · open deal</b>'+
-        '<span class="ld-status-sub">Tentative only — source may be set, but deal is not closed. Not in money totals or firm calendar until <b>Deal closed</b> (auto when deposit Paid).</span></div>';
+        '<span class="ld-status-sub">Source is set, but the deal is not closed. Not in money totals or firm calendar until confirmed — mark deposit <b>Paid</b>, or tick <b>Confirm</b> manually.</span></div>';
     }
     var metaBits=
       '<span>📅 '+dateLine+'</span>'+
@@ -2687,6 +2695,7 @@ function renderLeads(){
       (isPending?'<span class="pill p-amber">Pending source</span>':'')+
       (isOpenDeal?'<span class="pill p-amber">Tentative</span>':'')+
       (closed?'<span class="pill p-green">Confirmed · deal closed</span>':'')+
+      (ownerConfirmed?'<span class="pill p-green">Confirmed · owner</span>':'')+
       srcPill+
       (cancelled?'<span class="pill p-red">Cancelled</span>':'')+
       (cancelled&&leadInvStatus(r.deps)==="Refunded"?'<span class="pill p-red">Deposit refunded</span>':'')+
@@ -2696,7 +2705,7 @@ function renderLeads(){
       (rateBits.length?'<span>'+rateBits.join(" · ")+'</span>':'')+
       (calKey?'<span class="pill p-grey">Cal linked</span>':'')+
       (isCaptain()&&closed&&leadCommissionRatePct(r)>0?'<span class="pill p-green">Comm '+money(leadCommissionAmt(r))+' ('+leadCommissionRatePct(r)+'%)</span>':'')+
-      (isCaptain()&&!cancelled&&isOwner?'<span class="pill p-own">No income · owner benefit</span>':'')+
+      (isCaptain()&&ownerConfirmed?'<span class="pill p-own">No income · owner benefit</span>':'')+
       (openN>0?'<span class="pill p-amber">'+openN+' invoice'+(openN>1?'s':'')+' open</span>':'');
     if(!isOwner&&!isPending&&!isSplit){
       var vatNote=vatModeLabel(r.vatMode);
@@ -2706,16 +2715,19 @@ function renderLeads(){
     var moneyAmt=isSplit?leadClientTotal(r):(Number(r.total)||Number(r.base)||0);
     var amtShow=cancelled||isOwner?"—":money0(moneyAmt);
     if(isPending) amtShow='<span style="font-size:12.5px;font-weight:800;color:#9a6b00">Unconfirmed</span>';
+    else if(isOpenDeal&&isOwner) amtShow='<span style="font-size:12.5px;font-weight:800;color:#9a6b00">Owner · tentative</span>';
     else if(isOpenDeal) amtShow='<span style="font-size:12px;font-weight:800;color:#9a6b00;display:block;text-align:right">Tentative</span><span class="money" style="font-size:15px;opacity:.85">'+money0(moneyAmt)+'</span>';
     var cardCls="item";
-    if(cancelled||isOwner) cardCls+=" item--cancelled";
+    if(cancelled) cardCls+=" item--cancelled";
     if(isTentative) cardCls+=" item--tentative";
     html+='<div class="'+cardCls+'" data-edit-ld="'+esc(r.id)+'">'+
       statusBanner+
       '<div class="top"><div class="title">'+esc(r.name||"—")+'</div><div class="amt money">'+amtShow+'</div></div>'+
       '<div class="meta">'+metaBits+'</div>'+
       (cancelled||isOwner||isPending||isOpenDeal?"":leadSplitSummaryHTML(r))+
-      (isOwner&&!cancelled?'<div class="notes" style="font-style:normal;color:var(--muted)">Owner days — private use or owner guests. List-rate notional value only (not cash income). Toggle in Ops → Commissions if needed.</div>':'')+
+      (isOwner&&!cancelled?(dealClosed
+        ?'<div class="notes" style="font-style:normal;color:var(--muted)">Owner days — private use or owner guests. List-rate notional value only (not cash income). Toggle in Ops → Commissions if needed.</div>'
+        :'<div class="notes" style="font-style:normal;color:#9a6b00">Owner trip assigned but not confirmed — tick <b>Confirm</b> when firm. Notional benefits count only after confirm.</div>'):'')+
       (isOwner||isPending?"":('<div class="invtags">'+
         (leadNeedsDepInv(r)?leadInvTag("Deposit",r.dep,r.depPct,r.deps,r.depInv):"")+
         (leadNeedsFinInv(r)&&!cancelled?leadInvTag(finLabel,r.fin,"",r.fins,r.finInv):"")+
@@ -2726,7 +2738,7 @@ function renderLeads(){
         (cancelled||isOwner||isPending||isOpenDeal?"":'<button type="button" class="btn" data-inv-lead="'+esc(r.id)+'">Make invoice</button>')+
         (cancelled||isOwner||isPending?"":'<button type="button" class="btn ghost" data-agr-lead="'+esc(r.id)+'">Agreement</button>')+
         (isPending&&!cancelled?'<button type="button" class="btn" data-edit-ld-btn="'+esc(r.id)+'">Assign source</button>':'')+
-        (isOpenDeal?'<button type="button" class="btn" data-edit-ld-btn="'+esc(r.id)+'">Close deal / confirm</button>':'')+
+        (isOpenDeal?'<button type="button" class="btn" data-edit-ld-btn="'+esc(r.id)+'">'+(isOwner?"Confirm owner trip":"Close deal / confirm")+'</button>':'')+
       '</div>'+
       '<span class="chev">✎</span></div>';
   });
@@ -12675,7 +12687,7 @@ function openSheet(type,id){
       '<div class="ch">'+CAPTAIN_COMMISSION_PCT+'% of the <b>extension €</b> only (not APA spend). Cash ext → full amount; on invoice → before VAT. e.g. €500 cash → €75.</div></span></label>';
     h+=fieldHTML("Notes",'<textarea class="ctl" id="f_notes" placeholder="e.g. APA spend + 1h extension @ €500">'+esc(r.notes||"")+'</textarea>');
   } else {
-    r=rec||{closed:"",name:"",dur:"8h",start:"",end:"",rate:"",price:"",vatMode:"include",vatPct:"21",split:false,dealNet:"",invoiceNet:"",invoiceTotal:"",cashAmt:"",leadSource:"captain",splitVatOnTop:true,deps:"Not issued",fins:"Not issued",apas:"Not issued",depPct:"50",apaPct:"",depInv:"",finInv:"",apaInv:"",notes:""};
+    r=rec||{closed:"",name:"",dur:"8h",start:"",end:"",rate:"",price:"",vatMode:"include",vatPct:"21",split:false,dealNet:"",invoiceNet:"",invoiceTotal:"",cashAmt:"",leadSource:"captain",dealClosed:false,splitVatOnTop:true,deps:"Not issued",fins:"Not issued",apas:"Not issued",depPct:"50",apaPct:"",depInv:"",finInv:"",apaInv:"",notes:""};
     var ldur=r.dur||"8h";
     var vMode=r.vatMode||(rec?"none":"include");
     var vPct=(r.vatPct!=null&&r.vatPct!=="")?r.vatPct:(vMode==="none"?"":"21");
@@ -12707,14 +12719,16 @@ function openSheet(type,id){
     }
     h+=fieldHTML("Lead name",'<input class="ctl" id="f_name" value="'+esc(r.name)+'" placeholder="e.g. Guest or company name">');
     h+=fieldHTML("Lead source (commission)",selLeadSourceField(leadSrcDef));
-    h+='<p style="margin:-6px 0 12px;font-size:12.5px;color:var(--muted);line-height:1.4"><b>Captain</b> = website/direct → '+CAPTAIN_COMMISSION_PCT+'% before VAT. <b>Click&amp;Boat (Paul)</b> → '+CLICKBOAT_COMMISSION_PCT+'% before VAT. <b>Owner</b> = no commission (owner benefits). Change anytime.</p>';
+    h+='<p style="margin:-6px 0 12px;font-size:12.5px;color:var(--muted);line-height:1.4"><b>Captain</b> = website/direct → '+CAPTAIN_COMMISSION_PCT+'% before VAT. <b>Click&amp;Boat (Paul)</b> → '+CLICKBOAT_COMMISSION_PCT+'% before VAT. <b>Owner</b> = owner days/guests (no commission). <b>Assigning a source does not confirm</b> the trip.</p>';
+    /* New lead / pending always start unconfirmed. Owner never inherits accidental "closed". */
     var dealClosedDef=leadIsDealClosed(r);
-    if(leadSrcDef==="pending") dealClosedDef=false;
+    if(!rec||leadSrcDef==="pending") dealClosedDef=false;
     h+='<label class="checkrow" id="f_dealClosed_wrap" style="border:1.5px solid '+(dealClosedDef?"rgba(46,125,50,.35)":"#E0A800")+';background:'+(dealClosedDef?"rgba(46,125,50,.06)":"#FFF8E1")+';border-radius:12px;padding:12px 12px;margin:0 0 12px">'+
       '<input type="checkbox" id="f_dealClosed"'+(dealClosedDef?" checked":"")+'>'+
-      '<span><div class="ck">'+(dealClosedDef?"Confirmed · deal closed":"Unconfirmed · tentative lead")+'</div>'+
-      '<div class="ch"><b>Off</b> = unconfirmed / tentative only (yellow on the list) — not in money totals, not firm on the website calendar. '+
-      '<b>On</b> = confirmed charter — counts in money and as booked. Auto-ticks when deposit or final is <b>Paid</b>. Source can be Captain/Paul while still tentative.</div></span></label>';
+      '<span><div class="ck">'+(dealClosedDef?"Confirmed · deal closed":"Unconfirmed · tentative")+'</div>'+
+      '<div class="ch" id="f_dealClosed_help"><b>Off</b> = yellow / tentative — not firm on the calendar. '+
+      '<b>On</b> = confirmed. <b>Commercial:</b> auto-ticks when deposit or final is marked <b>Paid</b>; you can also tick here. '+
+      '<b>Owner:</b> manual tick only (assignment never confirms). Past confirmed deals stay as they were.</div></span></label>';
     /* Stable link to calendar ICS uid — survives date moves / on-hold */
     var calKeyNow=leadCalendarEventKey(r);
     var calOpts=[];
@@ -12872,20 +12886,49 @@ function openSheet(type,id){
     if(el("f_cashBlack")&&el("f_split").checked){ el("f_cashBlack").dataset.userEdited=""; el("f_cashBlack").dataset.forcePrefill="1"; }
     recalcLead();
   }); }
-  if(el("f_dealClosed")){
-    function paintDealClosedUI(){
-      var on=!!el("f_dealClosed").checked;
-      var wrap=el("f_dealClosed_wrap");
-      if(wrap){
-        wrap.style.border="1.5px solid "+(on?"rgba(46,125,50,.35)":"#E0A800");
-        wrap.style.background=on?"rgba(46,125,50,.06)":"#FFF8E1";
-      }
-      var ck=wrap&&wrap.querySelector(".ck");
-      if(ck) ck.textContent=on?"Confirmed · deal closed":"Unconfirmed · tentative lead";
+  function paintDealClosedUI(){
+    if(!el("f_dealClosed")) return;
+    var on=!!el("f_dealClosed").checked;
+    var wrap=el("f_dealClosed_wrap");
+    if(wrap){
+      wrap.style.border="1.5px solid "+(on?"rgba(46,125,50,.35)":"#E0A800");
+      wrap.style.background=on?"rgba(46,125,50,.06)":"#FFF8E1";
     }
+    var ck=wrap&&wrap.querySelector(".ck");
+    var srcNow=(el("f_leadSource")&&el("f_leadSource").value)||"";
+    if(ck){
+      if(on) ck.textContent=srcNow==="owner"?"Confirmed · owner trip":"Confirmed · deal closed";
+      else ck.textContent=srcNow==="owner"?"Unconfirmed · owner trip":"Unconfirmed · tentative";
+    }
+  }
+  if(el("f_dealClosed")){
     el("f_dealClosed").addEventListener("change",paintDealClosedUI);
     paintDealClosedUI();
   }
+  /* Assigning source never auto-confirms; pending forces open. Deposit/final Paid auto-ticks commercial only. */
+  if(el("f_leadSource")){
+    el("f_leadSource").addEventListener("change",function(){
+      var src=(el("f_leadSource").value)||"";
+      if(el("f_dealClosed")){
+        if(src==="pending") el("f_dealClosed").checked=false;
+        /* Never force confirm on when assigning Captain/Paul/Owner */
+        paintDealClosedUI();
+      }
+    });
+  }
+  function tryAutoConfirmFromPaid(){
+    if(!el("f_dealClosed")) return;
+    var src=(el("f_leadSource")&&el("f_leadSource").value)||"";
+    if(src==="pending"||src==="owner") return; /* owner = manual confirm only */
+    var deps=el("f_deps")?leadInvStatus(el("f_deps").value):"";
+    var fins=el("f_fins")?leadInvStatus(el("f_fins").value):"";
+    if(deps==="Paid"||fins==="Paid"){
+      el("f_dealClosed").checked=true;
+      paintDealClosedUI();
+    }
+  }
+  if(el("f_deps")) el("f_deps").addEventListener("change",tryAutoConfirmFromPaid);
+  if(el("f_fins")) el("f_fins").addEventListener("change",tryAutoConfirmFromPaid);
   if(el("f_whiteTotal")) el("f_whiteTotal").addEventListener("input",function(){
     /* White amount change updates prefill unless captain typed cash */
     if(el("f_cashBlack")&&!leadCashFieldUserEdited()) el("f_cashBlack").dataset.forcePrefill="1";
@@ -13218,10 +13261,14 @@ function saveSheet(type,rec){
       notes:el("f_notes").value.trim(), by:session.who,
       createdAt:(rec&&rec.createdAt)?rec.createdAt:new Date().toISOString(),
       updatedAt:new Date().toISOString() };
-    /* Deal closed: checkbox, or auto when deposit/final Paid; pending source forces open */
+    /* Confirm / deal closed:
+       - Pending source → always open
+       - Owner → manual checkbox only (assignment never auto-confirms)
+       - Commercial → checkbox OR deposit/final Paid auto-confirms
+       Never rewrite historical closed flags on load; only what this save sets. */
     var wantClosed=!!(el("f_dealClosed")&&el("f_dealClosed").checked);
     if(leadSrc==="pending") wantClosed=false;
-    if(deps==="Paid"||fins==="Paid") wantClosed=true;
+    else if(leadSrc!=="owner"&&(deps==="Paid"||fins==="Paid")) wantClosed=true;
     o2.dealClosed=wantClosed;
     if(bookingSt==="cancelled"&&rec&&!leadIsCancelled(rec)){
       /* Manual status flip to cancelled without the button — still refund deposit if set */

@@ -150,11 +150,31 @@
   }
 
   /**
-   * Owner-use trips: no commission. Count toward “owner benefits” total unless excluded.
+   * Deal confirmed/closed.
+   * Explicit false = tentative (source may be set; not firm).
+   * Explicit true = confirmed.
+   * Undefined on a saved lead (has id) = legacy closed — do not reopen past book.
+   * New drafts (no id) default open.
+   * Assigning source does NOT imply closed; deposit Paid or manual tick does.
+   */
+  function leadIsDealClosed(r) {
+    if (!r) return false;
+    if (r.dealClosed === true || r.dealClosed === "true" || r.dealClosed === 1) return true;
+    if (r.dealClosed === false || r.dealClosed === "false" || r.dealClosed === 0) return false;
+    if (!r.id) return false;
+    return true;
+  }
+
+  /**
+   * Owner-use trips: no commission. Count toward “owner benefits” only when
+   * the trip is confirmed (deal closed). Unconfirmed owner assignment stays
+   * out of the benefits total until the confirm tick. Legacy leads without
+   * dealClosed are treated as confirmed (see leadIsDealClosed).
    * ownerBenefitExclude === true → out of the benefits total (user toggled off).
    */
   function ownerBenefitIncluded(r) {
     if (!isOwnerLead(r)) return false;
+    if (!leadIsDealClosed(r)) return false;
     if (r.ownerBenefitExclude === true || r.ownerBenefitExclude === "true" || r.ownerBenefitExclude === 1)
       return false;
     if (r.ownerBenefit === false || r.ownerBenefit === "false" || r.ownerBenefit === 0) return false;
@@ -1376,6 +1396,7 @@
     isCaptainLead: isCaptainLead,
     isClickboatLead: isClickboatLead,
     isOwnerLead: isOwnerLead,
+    leadIsDealClosed: leadIsDealClosed,
     leadEarnsCaptainCommission: leadEarnsCaptainCommission,
     leadEarnsCommission: leadEarnsCommission,
     leadCommissionRatePct: leadCommissionRatePct,
