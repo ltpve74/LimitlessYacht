@@ -9598,23 +9598,17 @@ function loadStewCalendar(force){
   }
   if(!isCaptain()) return Promise.resolve([]);
   /*
-   * Roster list = leads. Still pull ICS to detect brand-new events → pending leads,
-   * then publish lead-based snapshot for the team.
+   * Roster list = leads only.
+   * Do NOT auto-import from ICS here (that re-created deleted leads when known
+   * keys were incomplete). New calendar dates → only via Leads “Sync calendar dates”.
    */
   return Promise.all([loadStewSeed(), loadCalEvents(!!force)]).then(function(){
-    function afterSync(){
-      try{ healStewAssignsToLeads(); }catch(e0){}
-      purgeOrphanStewAssigns();
-      if(force||!(state.stewCalendar&&state.stewCalendar.length)||stewEventsFromLeads().length){
-        persistStewCalendarSnapshot();
-      }
-      return stewMergedEvents();
+    try{ healStewAssignsToLeads(); }catch(e0){}
+    purgeOrphanStewAssigns();
+    if(force||!(state.stewCalendar&&state.stewCalendar.length)||stewEventsFromLeads().length){
+      persistStewCalendarSnapshot();
     }
-    if(force||!window._icsLeadSyncOnce){
-      window._icsLeadSyncOnce=true;
-      return syncFreshIcsLeadsQuiet().then(afterSync);
-    }
-    return afterSync();
+    return stewMergedEvents();
   });
 }
 /** Stable event id — model owns the form. */
@@ -10102,8 +10096,8 @@ function renderStews(opts){
   }
   var legend=isTeam()
     ?"Your roster (confirmed charters only). Tap a trip to update who is on it. Day pay is set by the captain."
-    :"Roster = <b>confirmed</b> leads only (Captain / Click&amp;Boat / Owner). Pending calendar dates stay off Stews until source is assigned. <b>Refresh</b> syncs new ICS dates → pending leads (Leads tab), then publishes the confirmed snapshot.";
-  var refreshLabel=isTeam()?"Reload roster":"Refresh (new dates + publish)";
+    :"Roster = <b>confirmed closed</b> leads only. New calendar dates are imported only from Leads → <b>Sync calendar dates</b> (never on roster open).";
+  var refreshLabel=isTeam()?"Reload roster":"Refresh roster";
   var loadingMsg=isTeam()?"Loading roster…":"Loading roster from leads…";
   body.innerHTML='<div class="legend">'+legend+'</div>'+
     (stewCalendarAt?'<div class="meta" style="margin:0 0 8px;font-size:12px">Calendar snapshot'+(stewCalendarBy?' by '+esc(stewCalendarBy):'')+' · '+esc((function(){try{return new Date(stewCalendarAt).toLocaleString();}catch(e){return stewCalendarAt;}})())+'</div>':'')+
@@ -11407,7 +11401,10 @@ function promptIcsDateMoves(dateMoves){
     return j;
   });
 }
-/** After calendar refresh: baseline once, then create pending leads for brand-new ICS uids only. */
+/**
+ * Explicit calendar sync only (Leads “Sync calendar dates”).
+ * Brand-new ICS uids → pending leads. Known / deleted uids never re-import.
+ */
 function syncFreshIcsLeadsQuiet(){
   if(DEMO||!canCommercial()) return Promise.resolve(null);
   return api("syncNewIcsLeads").then(function(j){
@@ -12455,6 +12452,24 @@ function delRec(type,id){
   if(coll==="leads"&&isCaptain()&&id){
     expRemoveLeadCashIn(id, true);
     saveExpPetty();
+  }
+  /* Remember calendar link so Sync never re-creates this ICS uid as a new lead */
+  if(coll==="leads"){
+    var goneL=(state.leads||[]).filter(function(r){return r&&String(r.id)===String(id);})[0];
+    if(goneL){
+      try{
+        var keys=[];
+        try{ keys=JSON.parse(safeGet("ly_ics_dismissed_keys")||"[]")||[]; }catch(e0){ keys=[]; }
+        var k=leadCalendarEventKey(goneL);
+        if(k&&keys.indexOf(k)<0) keys.push(k);
+        var u=String(goneL.calendarUid||"").trim();
+        if(u){
+          var uk=u.indexOf("uid:")===0?u:("uid:"+u);
+          if(keys.indexOf(uk)<0) keys.push(uk);
+        }
+        safeSet("ly_ics_dismissed_keys", JSON.stringify(keys.slice(-500)));
+      }catch(e1){}
+    }
   }
   state[coll]=state[coll].filter(function(r){return r.id!==id;});
   if(coll==="charters"){
