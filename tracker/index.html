@@ -220,6 +220,25 @@
   .p-grey{background:var(--grey);color:var(--greyInk)}
   .p-amber{background:var(--amber);color:var(--amberInk);font-weight:800;border:1px solid #E0A800}
   .p-blue{background:var(--blue);color:var(--blueInk)} .p-green{background:var(--green);color:var(--greenInk)}
+  /* Unconfirmed / tentative leads — unmistakable on the list */
+  .item.item--tentative{
+    border:1.5px solid #E0A800;
+    background:linear-gradient(180deg,#FFF8E1 0%,#fff 42%);
+    box-shadow:0 1px 4px rgba(224,168,0,.18);
+  }
+  .item.item--tentative .title{color:#6b4500}
+  .item.item--tentative .amt{color:#9a6b00}
+  .ld-status-banner{
+    display:block;font-size:11.5px;font-weight:800;letter-spacing:.03em;
+    text-transform:uppercase;color:#7a5200;background:#FFE08A;
+    border:1px solid #E0A800;border-radius:9px;padding:7px 10px;
+    margin:0 0 10px;line-height:1.35;
+  }
+  .ld-status-banner b{font-weight:900;letter-spacing:.02em}
+  .ld-status-banner .ld-status-sub{
+    display:block;margin-top:3px;font-size:11px;font-weight:650;
+    text-transform:none;letter-spacing:0;color:#8a5a00;line-height:1.35;
+  }
   .empty{background:var(--card);border-radius:14px;padding:34px 18px;text-align:center;color:var(--muted);font-size:14px;box-shadow:0 1px 3px rgba(0,0,0,.06)}
   .empty .big{font-size:30px;margin-bottom:8px}
   .savehint{font-size:12px;color:var(--muted);text-align:center;margin-top:14px;min-height:16px}
@@ -481,15 +500,15 @@
             </div>
           </div>
           <div class="ld-snap-foot">
-            <div class="ld-snap-row"><span class="k">Awaiting confirmation</span><span class="v" id="ldAwait">0</span><span class="s" id="ldAwaitSub">Possible new business · pending source</span></div>
+            <div class="ld-snap-row"><span class="k">Unconfirmed / tentative</span><span class="v" id="ldAwait">0</span><span class="s" id="ldAwaitSub">Not in money totals · not firm</span></div>
             <div class="ld-snap-row"><span class="k">Owner days (notional)</span><span class="v money" id="ldOwn">€0</span><span class="s" id="ldOwnSub">List-rate estimate · not cash</span></div>
           </div>
-          <div class="ld-snap-note">Projected closed total = realised (past/today) + scheduled (future closed deals). Open deals and pending source are not included. Owner days are list-rate notional only.</div>
+          <div class="ld-snap-note">Money totals = <b>deal closed</b> only (realised + scheduled). <b>Unconfirmed</b> = pending source or open/tentative deal — yellow cards, not counted. Owner days = list-rate notional only.</div>
         </div>
         <div class="sumcard ld-src"><div class="l">Luigi · Captain</div><div class="v money" id="ldCap">€0</div><div class="sub" id="ldCapSub">—</div><div id="ldCapTypes" class="ld-type-table"></div></div>
         <div class="sumcard ld-src"><div class="l">Paul · Click&amp;Boat</div><div class="v money" id="ldCb">€0</div><div class="sub" id="ldCbSub">—</div><div id="ldCbTypes" class="ld-type-table"></div></div>
       </div>
-      <div class="legend"><b>Done</b> / <b>Confirmed</b> = <b>deal closed</b> only (auto when deposit Paid). Open deals can have Captain/Paul source but stay off money totals (tentative). Upsells from Charges included. Owner days = notional. <b>Make invoice</b> = PDF.</div>
+      <div class="legend"><b>Yellow = unconfirmed</b> (pending source or tentative open deal) — not firm, not in money totals. <b>Confirmed</b> = deal closed (auto when deposit Paid). Owner days = notional. <b>Make invoice</b> = PDF.</div>
       <div class="list" id="ldList"></div>
     </section>
 
@@ -2024,12 +2043,19 @@ function leadCharterKey(r){
   if(s) return s;
   return String(r.closed||"").trim().slice(0,10);
 }
+function leadIsUnconfirmed(r){
+  if(!r||leadIsCancelled(r)) return false;
+  var src=leadSource(r);
+  if(src==="pending") return true;
+  if(src==="owner") return false;
+  return !leadIsDealClosed(r);
+}
 function sortLeads(){
   if(!state.leads||!state.leads.length) return;
   state.leads.sort(function(a,b){
-    /* Pending source first — easy to assign without scrolling */
-    var ap=leadSource(a)==="pending"?0:1;
-    var bp=leadSource(b)==="pending"?0:1;
+    /* Unconfirmed first (pending source, then open/tentative deals) */
+    var ap=leadSource(a)==="pending"?0:(leadIsUnconfirmed(a)?1:2);
+    var bp=leadSource(b)==="pending"?0:(leadIsUnconfirmed(b)?1:2);
     if(ap!==bp) return ap-bp;
     var da=leadCharterKey(a), db=leadCharterKey(b);
     if(da&&db&&da!==db) return db<da?-1:1; /* newest charter date first */
@@ -2249,7 +2275,7 @@ function leadSplitSummaryHTML(r){
 function renderLeads(){
   sortLeads();
   var wrap=el("ldList"), html="";
-  var pend=0, nPendSrc=0;
+  var pend=0, nPendSrc=0, nOpenDeal=0;
   var ownVal=0, ownN=0;
   /* Done (sailed) vs confirmed upcoming (projected) — charters + captain upsells */
   var done={tot:0, charters:0, upsell:0, ex:0, comm:0, upsellComm:0, n:0, nUpsell:0};
@@ -2317,6 +2343,7 @@ function renderLeads(){
     var isOwner=src==="owner";
     var isPending=src==="pending";
     if(isPending&&!cancelled) nPendSrc++;
+    if(!isPending&&!isOwner&&!cancelled&&!leadIsDealClosed(r)) nOpenDeal++;
     /* Owner private / guest days — notional list-rate value (not cash sales) */
     if(isOwner&&!cancelled&&ownerBenefitIncluded(r)){
       var ov=leadOwnerNotional(r);
@@ -2373,6 +2400,9 @@ function renderLeads(){
     var src=leadSource(r);
     var isOwner=src==="owner";
     var isPending=src==="pending";
+    var dealClosed=leadIsDealClosed(r);
+    var isOpenDeal=!isPending&&!isOwner&&!cancelled&&!dealClosed;
+    var isTentative=isPending||isOpenDeal; /* unconfirmed lead / not firm charter */
     var closed=leadIsClosedDeal(r);
     var timing=closed?leadCharterTiming(r):"";
     var val=leadListMoney(r);
@@ -2383,7 +2413,7 @@ function renderLeads(){
     var showApa=!isOwner&&!isPending&&leadNeedsApaInv(r);
     var isSplit=!isOwner&&leadHasSplit(r);
     var finLabel="Final";
-    var srcPill=isPending?'<span class="pill p-amber">Pending source</span>':
+    var srcPill=isPending?'':
       (src==="captain"?'<span class="pill p-blue">Luigi · Captain</span>':
         (src==="clickboat"?'<span class="pill p-amber">Paul · Click&amp;Boat</span>':
           (src==="owner"?'<span class="pill p-own">Owner</span>':'<span class="pill p-grey">Other</span>')));
@@ -2402,16 +2432,27 @@ function renderLeads(){
     if(Number(r.days)>1) rateBits.push(Math.round(Number(r.days))+" days");
     if(r.closed) rateBits.push("closed "+esc(fmtDate(r.closed)));
     var calKey=leadCalendarEventKey(r);
-    /* Full info row for the charter book */
+    /* Status first so unconfirmed never looks like a firm booking */
+    var statusBanner="";
+    if(cancelled){
+      statusBanner='<div class="ld-status-banner" style="background:#fde8e8;border-color:#f3b4ae;color:var(--danger)">Cancelled</div>';
+    } else if(isPending){
+      statusBanner='<div class="ld-status-banner"><b>Unconfirmed · tentative lead</b>'+
+        '<span class="ld-status-sub">Pending source — not a firm charter. Assign Captain / Click&amp;Boat / Owner. Not in money totals or website booked.</span></div>';
+    } else if(isOpenDeal){
+      statusBanner='<div class="ld-status-banner"><b>Unconfirmed · open deal</b>'+
+        '<span class="ld-status-sub">Tentative only — source may be set, but deal is not closed. Not in money totals or firm calendar until <b>Deal closed</b> (auto when deposit Paid).</span></div>';
+    }
     var metaBits=
       '<span>📅 '+dateLine+'</span>'+
       '<span class="pill p-grey">'+esc(typeLab)+'</span>'+
       (seasonLab?'<span class="pill p-blue">'+esc(seasonLab)+'</span>':'')+
+      (isPending?'<span class="pill p-amber">Pending source</span>':'')+
+      (isOpenDeal?'<span class="pill p-amber">Tentative</span>':'')+
+      (closed?'<span class="pill p-green">Confirmed · deal closed</span>':'')+
       srcPill+
       (cancelled?'<span class="pill p-red">Cancelled</span>':'')+
       (cancelled&&leadInvStatus(r.deps)==="Refunded"?'<span class="pill p-red">Deposit refunded</span>':'')+
-      (isPending?'<span class="pill p-amber">Pending source</span>':'')+
-      (!isPending&&!isOwner&&!cancelled&&!leadIsDealClosed(r)?'<span class="pill p-amber">Open deal</span>':'')+
       (timing==="upcoming"?'<span class="pill p-blue">Scheduled</span>':'')+
       (timing==="done"?'<span class="pill p-green">Realised</span>':'')+
       (isSplit?'<span class="pill p-black">Split</span>':'')+
@@ -2425,14 +2466,18 @@ function renderLeads(){
       if(vatNote&&(Number(r.vatPct)||0)>0) vatNote+=" "+r.vatPct+"%";
       if(vatNote) metaBits+='<span>'+esc(vatNote)+'</span>';
     }
-    var amtShow=cancelled||isOwner?"—":(isPending?"—":money0(isSplit?leadClientTotal(r):(Number(r.total)||Number(r.base)||0)));
-    if(isPending) amtShow='<span style="font-size:13px;font-weight:700;color:var(--muted)">Open</span>';
-    html+='<div class="item'+(cancelled||isOwner||isPending?' item--cancelled':'')+'" data-edit-ld="'+esc(r.id)+'">'+
+    var moneyAmt=isSplit?leadClientTotal(r):(Number(r.total)||Number(r.base)||0);
+    var amtShow=cancelled||isOwner?"—":money0(moneyAmt);
+    if(isPending) amtShow='<span style="font-size:12.5px;font-weight:800;color:#9a6b00">Unconfirmed</span>';
+    else if(isOpenDeal) amtShow='<span style="font-size:12px;font-weight:800;color:#9a6b00;display:block;text-align:right">Tentative</span><span class="money" style="font-size:15px;opacity:.85">'+money0(moneyAmt)+'</span>';
+    var cardCls="item";
+    if(cancelled||isOwner) cardCls+=" item--cancelled";
+    if(isTentative) cardCls+=" item--tentative";
+    html+='<div class="'+cardCls+'" data-edit-ld="'+esc(r.id)+'">'+
+      statusBanner+
       '<div class="top"><div class="title">'+esc(r.name||"—")+'</div><div class="amt money">'+amtShow+'</div></div>'+
       '<div class="meta">'+metaBits+'</div>'+
-      (cancelled||isOwner||isPending?"":leadSplitSummaryHTML(r))+
-      (isPending&&!cancelled?'<div class="notes" style="font-style:normal;color:var(--muted)">Pending source — assign Captain / Click&amp;Boat / Owner. Not in money totals.</div>':'')+
-      (!isPending&&!isOwner&&!cancelled&&!leadIsDealClosed(r)?'<div class="notes" style="font-style:normal;color:var(--muted)">Open deal — tentative. Not in money totals or firm calendar until <b>Deal closed</b> (auto when deposit Paid).</div>':'')+
+      (cancelled||isOwner||isPending||isOpenDeal?"":leadSplitSummaryHTML(r))+
       (isOwner&&!cancelled?'<div class="notes" style="font-style:normal;color:var(--muted)">Owner days — private use or owner guests. List-rate notional value only (not cash income). Toggle in Ops → Commissions if needed.</div>':'')+
       (isOwner||isPending?"":('<div class="invtags">'+
         (leadNeedsDepInv(r)?leadInvTag("Deposit",r.dep,r.depPct,r.deps,r.depInv):"")+
@@ -2441,9 +2486,10 @@ function renderLeads(){
       '</div>'))+
       (r.notes?'<div class="notes">'+esc(r.notes)+'</div>':'')+
       '<div class="lead-actions">'+
-        (cancelled||isOwner||isPending?"":'<button type="button" class="btn" data-inv-lead="'+esc(r.id)+'">Make invoice</button>')+
+        (cancelled||isOwner||isPending||isOpenDeal?"":'<button type="button" class="btn" data-inv-lead="'+esc(r.id)+'">Make invoice</button>')+
         (cancelled||isOwner||isPending?"":'<button type="button" class="btn ghost" data-agr-lead="'+esc(r.id)+'">Agreement</button>')+
         (isPending&&!cancelled?'<button type="button" class="btn" data-edit-ld-btn="'+esc(r.id)+'">Assign source</button>':'')+
+        (isOpenDeal?'<button type="button" class="btn" data-edit-ld-btn="'+esc(r.id)+'">Close deal / confirm</button>':'')+
       '</div>'+
       '<span class="chev">✎</span></div>';
   });
@@ -2478,11 +2524,16 @@ function renderLeads(){
   if(el("ldProjComm")) el("ldProjComm").textContent=money(proj.comm);
   if(el("ldProjUpsellComm")) el("ldProjUpsellComm").textContent=money(proj.upsellComm);
   if(el("ldProjNet")) el("ldProjNet").textContent=money(Math.max(0, proj.ex-proj.comm));
-  if(el("ldAwait")) el("ldAwait").textContent=String(nPendSrc);
+  var nUnconf=nPendSrc+nOpenDeal;
+  if(el("ldAwait")) el("ldAwait").textContent=String(nUnconf);
   if(el("ldAwaitSub")){
-    el("ldAwaitSub").textContent=nPendSrc
-      ?(nPendSrc+" possible new · pending source")
-      :"No unconfirmed calendar holds";
+    if(!nUnconf) el("ldAwaitSub").textContent="None — all commercial leads confirmed";
+    else {
+      var bits=[];
+      if(nPendSrc) bits.push(nPendSrc+" pending source");
+      if(nOpenDeal) bits.push(nOpenDeal+" open/tentative deal"+(nOpenDeal===1?"":"s"));
+      el("ldAwaitSub").textContent=bits.join(" · ")+" · not in money totals";
+    }
   }
   if(el("ldOwn")) el("ldOwn").textContent=money(ownVal);
   if(el("ldOwnSub")) el("ldOwnSub").textContent=ownN?(ownN+" · not cash"):"None logged";
@@ -6357,6 +6408,78 @@ function renderDiesel(){
 function saveStews(){ if(!canRoster()) return; save("stews"); }
 function saveStewAssign(){ if(!canRoster()) return; save("stewAssign"); }
 function saveExpenses(){ if(!isCaptain()) return; save("expenses"); }
+/** linkId for a stew day-pay expense (or empty). */
+function expStewDayLinkId(e){
+  if(!e) return "";
+  if(e.linkId) return String(e.linkId);
+  if(e.stewEventKey&&e.stewId) return "stew-day:"+e.stewEventKey+":"+e.stewId;
+  return "";
+}
+/** Captain dismissed this day-pay line — seed/sync must not recreate it. */
+function expIsStewDayPaySkipped(eventKey, stewId){
+  if(!eventKey||!stewId) return false;
+  var asg=assignForEvent(eventKey);
+  if(!asg||!asg.dayPaySkip) return false;
+  return !!asg.dayPaySkip[String(stewId)];
+}
+/** Remember a manual delete so the line does not reappear on next seed. */
+function expMarkStewDayPaySkipped(e){
+  if(!e) return false;
+  var ek=String(e.stewEventKey||"").trim();
+  var sid=String(e.stewId||"").trim();
+  if(!ek||!sid){
+    var lid=expStewDayLinkId(e);
+    if(lid&&lid.indexOf("stew-day:")===0){
+      var rest=lid.slice("stew-day:".length);
+      var last=rest.lastIndexOf(":");
+      if(last>0){ ek=rest.slice(0,last); sid=rest.slice(last+1); }
+    }
+  }
+  if(!ek||!sid) return false;
+  var asg=assignForEvent(ek);
+  /* No live assign → orphan ghost; deleting is enough (seed will not recreate). */
+  if(!asg) return false;
+  if(!asg.dayPaySkip||typeof asg.dayPaySkip!=="object") asg.dayPaySkip={};
+  asg.dayPaySkip[String(sid)]=true;
+  asg.updatedAt=new Date().toISOString();
+  return true;
+}
+/**
+ * Delete any expense (including Stews day-pay). Stew day-pay is dismissed so
+ * seed/sync will not recreate it until the captain re-saves that charter in Stews.
+ */
+function expDeleteExpenseById(id, opts){
+  opts=opts||{};
+  if(!isCaptain()||!id) return false;
+  var rec=(state.expenses||[]).filter(function(e){return e&&String(e.id)===String(id);})[0];
+  if(!rec) return false;
+  var isStew=!!(rec.source==="stew"||expIsCrewDayPayLine(rec));
+  if(!opts.silent){
+    var msg="Delete this expense?";
+    if(rec.chargeTo==="apa") msg+="\n\nIt will also be removed from the linked APA pot.";
+    if(isStew) msg+="\n\nCrew day-pay from Stews will stay off Expenses until you re-save that charter in Stews.";
+    if(!window.confirm(msg)) return false;
+  }
+  expRemoveApaMirror(rec.id, true);
+  if(rec.fromApaLineId&&state.apa){
+    state.apa.forEach(function(trip){
+      if(!trip) return;
+      ["expenses","provisions"].forEach(function(k){
+        if(!trip[k]) return;
+        trip[k]=trip[k].filter(function(x){ return !x||String(x.id)!==String(rec.fromApaLineId); });
+      });
+    });
+  }
+  var skipDirty=false;
+  if(isStew) skipDirty=expMarkStewDayPaySkipped(rec);
+  state.expenses=(state.expenses||[]).filter(function(e){return !e||String(e.id)!==String(id);});
+  if(!DEMO){
+    saveExpenses();
+    if(skipDirty) saveStewAssign();
+    if(canOps()&&(rec.chargeTo==="apa"||rec.fromApaLineId)) save("apa");
+  }
+  return true;
+}
 /** Stable APA line id for a monthly expense mirror. */
 function expApaMirrorId(expenseId){ return "from-exp:"+String(expenseId||""); }
 /** Monthly category that belongs on the APA Provisions tab (not Expenses). */
@@ -7398,7 +7521,9 @@ function syncStewDayPayExpenses(asg, opts){
   if(opts.onlyMonth&&month&&month!==opts.onlyMonth) return false;
   var isPaid=asg.payStatus==="Paid";
   var each=stewAssignDayPayAmount(asg);
-  var ids=(asg.stewIds||[]).filter(Boolean);
+  var ids=(asg.stewIds||[]).filter(Boolean).filter(function(sid){
+    return !expIsStewDayPaySkipped(asg.eventKey, sid);
+  });
   var prevBySid={};
   (state.expenses||[]).forEach(function(e){
     if(e&&e.source==="stew"&&e.stewPayKind==="dayPay"&&String(e.stewEventKey)===eventKey){
@@ -7586,48 +7711,99 @@ function expResetInventedCrewFloatPay(){
   return expRestoreCrewFloatPayAfterWipe();
 }
 /**
- * Drop ghost stew day-pay expense lines (empty description, orphan keys after
- * calendar renames, exact dupes of a good line). Tips are never stored here.
+ * Drop ghost stew day-pay expense lines after reassign / key renames:
+ * blank description, orphan keys, and unpaid dupes for the same stew+day.
+ * Tips are never stored on expense lines.
  */
 function expCleanOrphanStewDayPayLines(){
   if(!isCaptain()||!state.expenses||!state.expenses.length) return false;
   var assignKeys={};
+  var liveLink={};
+  var liveStewDate={};
   (state.stewAssign||[]).forEach(function(a){
-    if(a&&a.eventKey) assignKeys[String(a.eventKey)]=1;
+    if(!a||!a.eventKey) return;
+    if(a.cancelled||a.status==="cancelled"||a.cancelGhost) return;
+    var ek=String(a.eventKey);
+    assignKeys[ek]=1;
+    var d=String(a.start||"").slice(0,10);
+    (a.stewIds||[]).forEach(function(sid){
+      if(!sid) return;
+      liveLink["stew-day:"+ek+":"+sid]=1;
+      if(d) liveStewDate[String(sid)+"|"+d]=1;
+    });
   });
-  var goodFinger={}; /* stewId|date|amount for lines that have a real description */
+  function dayPayLid(e){
+    if(!e) return "";
+    if(e.linkId) return String(e.linkId);
+    if(e.stewEventKey&&e.stewId) return "stew-day:"+e.stewEventKey+":"+e.stewId;
+    return "";
+  }
+  function isUnpaidCrew(e){
+    return String(e.crewPayStatus||"")!=="Paid"&&!e.floatPay;
+  }
+  function scoreUnpaidDayPay(e){
+    var s=0;
+    if(String(e.description||"").trim()) s+=100;
+    var lid=dayPayLid(e);
+    if(lid&&liveLink[lid]) s+=40;
+    if(e.stewEventKey&&assignKeys[String(e.stewEventKey)]) s+=15;
+    if(e.source==="stew") s+=10;
+    s+=Math.min(40, Math.round((Number(e.amount)||0)/5));
+    return s;
+  }
+  /* Best unpaid line only per stewId|date — Paid history is never collapsed away */
+  var bestUnpaidId={};
+  var bestUnpaidScore={};
   (state.expenses||[]).forEach(function(e){
-    if(!e||!expIsCrewDayPayLine(e)) return;
-    var desc=String(e.description||"").trim();
-    if(!desc) return;
+    if(!e||!expIsCrewDayPayLine(e)||!isUnpaidCrew(e)) return;
     var sid=String(e.stewId||"");
     var d=String(e.date||"").slice(0,10);
-    var a=String(Math.round((Number(e.amount)||0)*100));
-    if(sid&&d) goodFinger[sid+"|"+d+"|"+a]=1;
+    if(!sid||!d) return;
+    var k=sid+"|"+d;
+    var sc=scoreUnpaidDayPay(e);
+    if(bestUnpaidScore[k]==null||sc>bestUnpaidScore[k]){
+      bestUnpaidScore[k]=sc;
+      bestUnpaidId[k]=String(e.id);
+    }
   });
   var n0=state.expenses.length;
   var seenLink={};
+  var seenPaidFinger={}; /* stew|date|amount for Paid exact dupes */
   state.expenses=state.expenses.filter(function(e){
-    if(!e||!expIsCrewDayPayLine(e)) return true;
-    var lid=e.linkId||(e.stewEventKey&&e.stewId?("stew-day:"+e.stewEventKey+":"+e.stewId):"");
+    if(!e) return false;
+    var desc=String(e.description||"").trim();
+    var unpaid=isUnpaidCrew(e);
+    /*
+     * Any unpaid Crew Salaries with empty description is junk (manual or stew).
+     * Legitimate day-pay always has “Stewardess / day work — …”.
+     */
+    if(unpaid&&expIsCrewSalariesCategory(e)&&!desc) return false;
+    if(!expIsCrewDayPayLine(e)) return true;
+    var lid=dayPayLid(e);
     if(lid){
       if(seenLink[lid]) return false; /* exact linkId dupe */
       seenLink[lid]=1;
     }
-    var desc=String(e.description||"").trim();
     var ek=String(e.stewEventKey||"");
     var sid=String(e.stewId||"");
     var d=String(e.date||"").slice(0,10);
-    var a=String(Math.round((Number(e.amount)||0)*100));
-    var finger=sid+"|"+d+"|"+a;
-    /* Blank description + another good line for same stew/day/amount → drop ghost */
-    if(!desc&&goodFinger[finger]) return false;
-    /* Blank description + no matching live assign → drop */
-    if(!desc&&ek&&!assignKeys[ek]) return false;
-    /* Blank description + unpaid + no linkId → drop (junk from bad sync) */
-    if(!desc&&!lid&&String(e.crewPayStatus||"")!=="Paid") return false;
-    /* Orphan key (assign gone) and unpaid → drop (keep Paid for history) */
-    if(ek&&!assignKeys[ek]&&String(e.crewPayStatus||"")!=="Paid"&&!e.floatPay) return false;
+    /* Blank description on day-pay → drop unless Paid history with amount */
+    if(!desc){
+      if(unpaid) return false;
+      if(!(Number(e.amount)>0)) return false;
+    }
+    /* Orphan event key + unpaid → drop (Paid kept for history) */
+    if(ek&&!assignKeys[ek]&&unpaid) return false;
+    /* Unpaid day-pay for a stew+day that has no live assign → drop */
+    if(unpaid&&sid&&d&&!liveStewDate[sid+"|"+d]&&!(lid&&liveLink[lid])) return false;
+    /* Same stew + same day: keep only the best unpaid line */
+    if(unpaid&&sid&&d&&bestUnpaidId[sid+"|"+d]&&String(e.id)!==bestUnpaidId[sid+"|"+d]) return false;
+    /* Exact Paid dupes (same stew/day/amount) after reassign noise */
+    if(!unpaid&&sid&&d){
+      var pf=sid+"|"+d+"|"+String(Math.round((Number(e.amount)||0)*100));
+      if(seenPaidFinger[pf]) return false;
+      seenPaidFinger[pf]=1;
+    }
     return true;
   });
   var dirty=state.expenses.length!==n0;
@@ -7649,10 +7825,16 @@ function seedCurrentMonthStewCashExpenses(){
     if(e&&e.linkId) prevByLink[e.linkId]=e;
   });
   var wanted={};
-  var wantedFinger={}; /* stewId|date for this month’s live assigns */
+  var wantedFinger={}; /* stewId|date → preferred linkId (one day-pay per stew per day) */
+  function preferAssignKey(ek){
+    ek=String(ek||"");
+    if(ek.indexOf("lead:")===0) return 3;
+    if(ek.indexOf("uid:")===0) return 2;
+    return 1;
+  }
   (state.stewAssign||[]).forEach(function(asg){
     if(!asg||!asg.eventKey||expMonthKey(asg.start)!==month) return;
-    if(asg.cancelled||asg.status==="cancelled") return;
+    if(asg.cancelled||asg.status==="cancelled"||asg.cancelGhost) return;
     if(String(asg.start||"")>today) return;
     var each=stewAssignDayPayAmount(asg);
     if(!(each>0)) return;
@@ -7662,8 +7844,19 @@ function seedCurrentMonthStewCashExpenses(){
     var summary=String(asg.summary||"").trim()||"Charter";
     var crewPayStatus=asg.payStatus==="Paid"?"Paid":"Unpaid";
     ids.forEach(function(sid){
-      var rec=stewById(sid);
+      if(expIsStewDayPaySkipped(asg.eventKey, sid)) return;
+      var finger=String(sid)+"|"+date;
       var linkId="stew-day:"+asg.eventKey+":"+sid;
+      /* One expense per stew per day — prefer lead: keys / higher day pay / Paid */
+      var prevLink=wantedFinger[finger];
+      if(prevLink&&wanted[prevLink]){
+        var prev=wanted[prevLink];
+        var prevScore=(prev.crewPayStatus==="Paid"?100:0)+preferAssignKey(prev.stewEventKey)*10+(Number(prev.amount)||0);
+        var nextScore=(crewPayStatus==="Paid"?100:0)+preferAssignKey(asg.eventKey)*10+each;
+        if(nextScore<=prevScore) return;
+        delete wanted[prevLink];
+      }
+      var rec=stewById(sid);
       var old=prevByLink[linkId];
       /* Prefer a previous line for same stew+date if key renamed */
       if(!old){
@@ -7679,7 +7872,7 @@ function seedCurrentMonthStewCashExpenses(){
         if(old&&old.floatPay===true) floatPay=true;
         else if(manualPaid) floatPay=true;
       }
-      wantedFinger[String(sid)+"|"+date]=1;
+      wantedFinger[finger]=linkId;
       wanted[linkId]={
         id:(old&&old.id)||uid(),
         linkId:linkId,
@@ -7708,17 +7901,21 @@ function seedCurrentMonthStewCashExpenses(){
   }).map(function(e){return [e.linkId,e.amount,e.vendor,e.date,e.crewPayStatus||"Paid",!!e.floatPay,e.paidFrom||"Petty cash"];}).sort());
   /*
    * Keep Paid orphan history; drop unpaid orphans that match a regenerated line
-   * (same stew + day) or have blank description after key renames.
+   * (same stew + day), blank description, or duplicate link after key renames.
    */
   var rest=(state.expenses||[]).filter(function(e){
     if(!e) return false;
+    var unpaid=String(e.crewPayStatus||"")!=="Paid"&&!e.floatPay;
+    var desc=String(e.description||"").trim();
+    /* Blank unpaid Crew Salaries never survive seed */
+    if(unpaid&&expIsCrewSalariesCategory(e)&&!desc) return false;
     if(e.source==="stew"&&expMonthKey(e.date)===month){
       if(e.stewPayKind==="dayPay"||e.stewEventKey||(e.linkId&&String(e.linkId).indexOf("stew-day:")===0)){
         var lid=e.linkId||(e.stewEventKey&&e.stewId?("stew-day:"+e.stewEventKey+":"+e.stewId):"");
         if(lid&&wanted[lid]) return false; /* replaced below */
         var finger=String(e.stewId||"")+"|"+String(e.date||"").slice(0,10);
-        if(wantedFinger[finger]&&String(e.crewPayStatus||"")!=="Paid"&&!e.floatPay) return false;
-        if(!String(e.description||"").trim()&&String(e.crewPayStatus||"")!=="Paid") return false;
+        if(wantedFinger[finger]&&unpaid) return false;
+        if(!desc&&unpaid) return false;
         return true;
       }
     }
@@ -7726,6 +7923,8 @@ function seedCurrentMonthStewCashExpenses(){
   });
   var seeded=Object.keys(wanted).map(function(k){ return wanted[k]; });
   state.expenses=seeded.concat(rest);
+  /* Final safety: one unpaid day-pay line per stew|date this month */
+  try{ expCleanOrphanStewDayPayLines(); }catch(eCl2){}
   var afterSig=JSON.stringify((state.expenses||[]).filter(function(e){
     return e&&e.source==="stew"&&e.stewPayKind==="dayPay"&&expMonthKey(e.date)===month;
   }).map(function(e){return [e.linkId,e.amount,e.vendor,e.date,e.crewPayStatus||"Paid",!!e.floatPay,e.paidFrom||"Petty cash"];}).sort());
@@ -8356,7 +8555,7 @@ function paintExpensesBody(){
         var apaG=(function(){ var t=(state.apa||[]).filter(function(x){return x&&String(x.id)===String(e.apaTripId);})[0]; return t&&t.guest?t.guest:"APA"; })();
         bits.push("APA · "+apaG);
       }
-      var cardCls="item"+(e.source==="stew"?"":" apa-row");
+      var cardCls="item apa-row";
       if(unpaid) cardCls+=" exp-unpaid";
       else if((ownPay&&!ownRepaid)||(isReimb&&reimbFromOwn)||(crewPaidFromOwn&&!ownRepaid)) cardCls+=" exp-own";
       h+='<div class="'+cardCls+'" data-exp-id="'+esc(e.id)+'" role="button" tabindex="0">'+
@@ -8366,14 +8565,14 @@ function paintExpensesBody(){
             '<div class="title">'+esc(e.vendor||"—")+'</div>'+
             '<div class="meta" style="margin-top:6px">'+pills.join("")+'</div>'+
             (bits.length?'<div class="meta" style="margin-top:4px;opacity:.9">'+esc(bits.join(" · "))+'</div>':'')+
-            (e.description&&!isCrewDay?'<div class="notes" style="font-style:normal;margin-top:4px">'+esc(e.description)+'</div>':'')+
+            (e.description?'<div class="notes" style="font-style:normal;margin-top:4px">'+esc(e.description)+'</div>':'')+
             (showRepayBtn
               ?'<button type="button" class="btn" data-exp-repay="'+esc(e.id)+'" style="width:auto;margin-top:8px;padding:8px 12px;font-size:13px">Repay from petty '+money0(Math.max(0,apaNum(e.amount)-ownRepaidAmt))+'</button>'
               :'')+
           '</div>'+
           '<div class="amt money">'+money0(e.amount)+'</div>'+
         '</div>'+
-        (e.source!=="stew"?'<button type="button" class="apa-x" data-exp-del="'+esc(e.id)+'" aria-label="Delete">×</button>':'')+
+        '<button type="button" class="apa-x" data-exp-del="'+esc(e.id)+'" aria-label="Delete">×</button>'+
         '<span class="chev">✎</span></div>';
     });
     h+='</div>';
@@ -8453,25 +8652,10 @@ function paintExpensesBody(){
     x.addEventListener("click",function(ev){
       ev.preventDefault(); ev.stopPropagation();
       var id=x.getAttribute("data-exp-del");
-      var rec=(state.expenses||[]).filter(function(e){return e&&e.id===id;})[0];
-      if(rec&&rec.source==="stew"){ window.alert("This line comes from Stews day pay. Mark that charter Unpaid (or edit stews) to remove it."); return; }
-      if(!window.confirm("Delete this expense?"+(rec&&rec.chargeTo==="apa"?"\n\nLinked APA line will be removed too.":""))) return;
-      if(rec){
-        expRemoveApaMirror(rec.id, true);
-        if(rec.fromApaLineId&&state.apa){
-          state.apa.forEach(function(trip){
-            if(!trip) return;
-            ["expenses","provisions"].forEach(function(k){
-              if(!trip[k]) return;
-              trip[k]=trip[k].filter(function(x){ return !x||String(x.id)!==String(rec.fromApaLineId); });
-            });
-          });
-        }
-      }
-      state.expenses=(state.expenses||[]).filter(function(e){return !e||e.id!==id;});
-      saveExpenses();
-      if(canOps()){ save("apa"); if(curTab==="apa") renderApa(); }
+      if(!expDeleteExpenseById(id)) return;
+      if(canOps()&&curTab==="apa") renderApa();
       renderExpenses();
+      if(typeof renderStews==="function"&&curTab==="stews") renderStews({soft:true});
     });
   });
 }
@@ -8663,7 +8847,7 @@ function openExpense(id, opts){
     (r.receipt?'<button type="button" class="btn ghost" id="f_exp_photo_clear" style="width:auto;margin-top:8px;padding:8px 12px">Remove receipt</button>':'')+
   '</div>';
   h+='<p style="margin:0 0 12px;font-size:12px;color:var(--muted)">Photo or PDF (Files / Drive). Photos are compressed; PDFs are turned into a compressed image on your phone (first 1–2 pages). Export CSV has no receipt files.</p>';
-  if(rec&&!fromStew) h+='<div class="sheetbtns"><button type="button" class="btn danger" id="sheetDel">Delete</button></div>';
+  if(rec) h+='<div class="sheetbtns"><button type="button" class="btn danger" id="sheetDel">Delete</button></div>';
   h+='<div class="sheetfoot"><button type="button" class="btn ghost" id="sheetCancel">Cancel</button>'+
     '<button type="button" class="btn" id="sheetSave">Save</button>'+
   '</div>';
@@ -8856,22 +9040,11 @@ function openExpense(id, opts){
   el("sheetCancel").addEventListener("click",function(){ showSheet(false); });
   el("sheetClose").addEventListener("click",function(){ showSheet(false); });
   if(el("sheetDel")) el("sheetDel").addEventListener("click",function(){
-    if(!window.confirm("Delete this expense?"+(r.chargeTo==="apa"?"\n\nIt will also be removed from the linked APA pot.":""))) return;
-    expRemoveApaMirror(r.id, true);
-    if(r.fromApaLineId&&state.apa){
-      state.apa.forEach(function(trip){
-        if(!trip) return;
-        ["expenses","provisions"].forEach(function(k){
-          if(!trip[k]) return;
-          trip[k]=trip[k].filter(function(x){ return !x||String(x.id)!==String(r.fromApaLineId); });
-        });
-      });
-    }
-    state.expenses=(state.expenses||[]).filter(function(e){return !e||e.id!==r.id;});
+    if(!expDeleteExpenseById(r.id)) return;
     showSheet(false);
-    saveExpenses();
-    if(canOps()){ save("apa"); if(curTab==="apa") renderApa(); }
+    if(canOps()&&curTab==="apa") renderApa();
     renderExpenses();
+    if(typeof renderStews==="function"&&curTab==="stews") renderStews({soft:true});
   });
   showSheet(true);
 }
@@ -10816,7 +10989,9 @@ function openStewAssign(eventKey){
       tipPayStatus:markCancelled?"Unpaid":tipPayStatus,
       notes:notesOut,
       updatedAt:new Date().toISOString(),
-      by:session.who||(captainMode?"Captain":"Team")
+      by:session.who||(captainMode?"Captain":"Team"),
+      /* Re-save in Stews clears expense dismissals so day-pay can reappear */
+      dayPaySkip:captainMode?{}:(asg.dayPaySkip&&typeof asg.dayPaySkip==="object"?asg.dayPaySkip:{})
     };
     if(markCancelled&&!/no stew pay/i.test(obj.notes)){
       obj.notes=(obj.notes?obj.notes+" · ":"")+"Cancelled — no stew pay";
@@ -11908,9 +12083,11 @@ function openSheet(type,id){
     h+='<p style="margin:-6px 0 12px;font-size:12.5px;color:var(--muted);line-height:1.4"><b>Captain</b> = website/direct → '+CAPTAIN_COMMISSION_PCT+'% before VAT. <b>Click&amp;Boat (Paul)</b> → '+CLICKBOAT_COMMISSION_PCT+'% before VAT. <b>Owner</b> = no commission (owner benefits). Change anytime.</p>';
     var dealClosedDef=leadIsDealClosed(r);
     if(leadSrcDef==="pending") dealClosedDef=false;
-    h+='<label class="checkrow" id="f_dealClosed_wrap"><input type="checkbox" id="f_dealClosed"'+(dealClosedDef?" checked":"")+'>'+
-      '<span><div class="ck">Deal closed</div>'+
-      '<div class="ch">Counts in money totals and as firm on the website. Leave off for tentative (source can be Captain/Paul already). Auto-ticks when deposit or final is <b>Paid</b>.</div></span></label>';
+    h+='<label class="checkrow" id="f_dealClosed_wrap" style="border:1.5px solid '+(dealClosedDef?"rgba(46,125,50,.35)":"#E0A800")+';background:'+(dealClosedDef?"rgba(46,125,50,.06)":"#FFF8E1")+';border-radius:12px;padding:12px 12px;margin:0 0 12px">'+
+      '<input type="checkbox" id="f_dealClosed"'+(dealClosedDef?" checked":"")+'>'+
+      '<span><div class="ck">'+(dealClosedDef?"Confirmed · deal closed":"Unconfirmed · tentative lead")+'</div>'+
+      '<div class="ch"><b>Off</b> = unconfirmed / tentative only (yellow on the list) — not in money totals, not firm on the website calendar. '+
+      '<b>On</b> = confirmed charter — counts in money and as booked. Auto-ticks when deposit or final is <b>Paid</b>. Source can be Captain/Paul while still tentative.</div></span></label>';
     /* Stable link to calendar ICS uid — survives date moves / on-hold */
     var calKeyNow=leadCalendarEventKey(r);
     var calOpts=[];
@@ -12068,6 +12245,20 @@ function openSheet(type,id){
     if(el("f_cashBlack")&&el("f_split").checked){ el("f_cashBlack").dataset.userEdited=""; el("f_cashBlack").dataset.forcePrefill="1"; }
     recalcLead();
   }); }
+  if(el("f_dealClosed")){
+    function paintDealClosedUI(){
+      var on=!!el("f_dealClosed").checked;
+      var wrap=el("f_dealClosed_wrap");
+      if(wrap){
+        wrap.style.border="1.5px solid "+(on?"rgba(46,125,50,.35)":"#E0A800");
+        wrap.style.background=on?"rgba(46,125,50,.06)":"#FFF8E1";
+      }
+      var ck=wrap&&wrap.querySelector(".ck");
+      if(ck) ck.textContent=on?"Confirmed · deal closed":"Unconfirmed · tentative lead";
+    }
+    el("f_dealClosed").addEventListener("change",paintDealClosedUI);
+    paintDealClosedUI();
+  }
   if(el("f_whiteTotal")) el("f_whiteTotal").addEventListener("input",function(){
     /* White amount change updates prefill unless captain typed cash */
     if(el("f_cashBlack")&&!leadCashFieldUserEdited()) el("f_cashBlack").dataset.forcePrefill="1";
