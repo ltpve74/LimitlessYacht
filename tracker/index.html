@@ -423,13 +423,16 @@
     <!-- LEADS (default landing) -->
     <section id="tab-leads">
       <div class="ld-summary" id="ldSummary">
-        <div class="sumcard"><div class="l">Closed deals</div><div class="v money" id="ldTot">€0</div><div class="sub" id="ldTotSub">Excludes pending source</div></div>
+        <div class="sumcard"><div class="l">Closed (client total)</div><div class="v money" id="ldTot">€0</div><div class="sub" id="ldTotSub">Excludes pending source</div></div>
+        <div class="sumcard"><div class="l">Closed before VAT</div><div class="v money" id="ldExVat">€0</div><div class="sub" id="ldExVatSub">Commission base</div></div>
+        <div class="sumcard"><div class="l">Commissions</div><div class="v money" id="ldComm">€0</div><div class="sub" id="ldCommSub">Captain 15% · Paul 21%</div></div>
+        <div class="sumcard"><div class="l">Net remaining</div><div class="v money" id="ldNet">€0</div><div class="sub" id="ldNetSub">Before VAT − commissions</div></div>
         <div class="sumcard"><div class="l">Invoices open</div><div class="v" id="ldPending">0</div><div class="sub" id="ldPendSub">On closed deals only</div></div>
         <div class="sumcard"><div class="l">Pending source</div><div class="v" id="ldOpenSrc">0</div><div class="sub">Not in closed total</div></div>
         <div class="sumcard ld-src"><div class="l">Luigi · Captain</div><div class="v money" id="ldCap">€0</div><div class="sub" id="ldCapSub">0 trips · 15% commission</div><div id="ldCapTypes" class="ld-type-table"></div></div>
         <div class="sumcard ld-src"><div class="l">Paul · Click&amp;Boat</div><div class="v money" id="ldCb">€0</div><div class="sub" id="ldCbSub">0 trips · 21% commission</div><div id="ldCbTypes" class="ld-type-table"></div></div>
       </div>
-      <div class="legend">Charter book. <b>Pending</b> = calendar hold (not closed — excluded from money totals). Closed = Captain (Luigi) · Click&amp;Boat (Paul) · Owner. New ICS dates → pending until you assign source. <b>Make invoice</b> = PDF.</div>
+      <div class="legend">Charter book. <b>Pending</b> = not closed (excluded from money). <b>Before VAT</b> = commission base. <b>Net remaining</b> = before VAT − commissions. Closed = Luigi · Paul · (owner excluded from income). <b>Make invoice</b> = PDF.</div>
       <div class="list" id="ldList"></div>
     </section>
 
@@ -2070,15 +2073,20 @@ function leadSplitSummaryHTML(r){
 function renderLeads(){
   sortLeads();
   var wrap=el("ldList"), html="";
-  var tot=0, pend=0, nClosed=0, nPendSrc=0;
-  var capTot=0, capN=0, capComm=0;
-  var cbTot=0, cbN=0, cbComm=0;
-  /* Per source × charter type: { n, val } */
+  var tot=0, totExVat=0, totComm=0, pend=0, nClosed=0, nPendSrc=0;
+  var capTot=0, capExVat=0, capN=0, capComm=0;
+  var cbTot=0, cbExVat=0, cbN=0, cbComm=0;
+  /* Per source × charter type: { n, val, exVat } */
   var capTypes={}, cbTypes={};
-  function bumpType(map, k, val){
-    if(!map[k]) map[k]={n:0, val:0};
+  function bumpType(map, k, val, exVat){
+    if(!map[k]) map[k]={n:0, val:0, exVat:0};
     map[k].n++;
     map[k].val+=Number(val)||0;
+    map[k].exVat+=Number(exVat)||0;
+  }
+  function leadExVatBase(r){
+    if(LY_MODELS&&LY_MODELS.leadCommissionBase) return Number(LY_MODELS.leadCommissionBase(r))||0;
+    return Number(leadDealBase(r))||0;
   }
   function formatTypeMixHTML(map){
     var order=["4h","6h","8h","multi"], keys=[];
@@ -2087,16 +2095,22 @@ function renderLeads(){
       if(order.indexOf(k)<0&&map[k]&&map[k].n) keys.push(k);
     });
     if(!keys.length) return '<div class="ld-type-empty">No closed trips yet</div>';
-    var h='<div class="ld-type-table">';
+    var h='';
     keys.forEach(function(k){
       var row=map[k];
       h+='<div class="ld-type-row">'+
         '<span class="t">'+esc(leadCharterTypeLabel(k))+'</span>'+
-        '<span class="n">'+row.n+' trip'+(row.n===1?"":"s")+'</span>'+
+        '<span class="n">'+row.n+'×</span>'+
         '<span class="m money">'+money0(row.val)+'</span>'+
       '</div>';
+      if(row.exVat>0&&Math.abs(row.exVat-row.val)>0.5){
+        h+='<div class="ld-type-row" style="opacity:.85;margin-top:-2px">'+
+          '<span class="t" style="font-weight:500;color:var(--muted)">ex VAT</span>'+
+          '<span class="n"></span>'+
+          '<span class="m money" style="font-weight:700;color:var(--muted)">'+money0(row.exVat)+'</span>'+
+        '</div>';
+      }
     });
-    h+='</div>';
     return h;
   }
   (state.leads||[]).forEach(function(r){
@@ -2108,19 +2122,23 @@ function renderLeads(){
     if(isPending&&!cancelled) nPendSrc++;
     var closed=leadIsClosedDeal(r);
     var val=leadListMoney(r);
+    var exVat=closed?leadExVatBase(r):0;
+    var comm=closed?(leadCommissionAmt(r)||0):0;
     /* Money totals: closed deals only (not pending, not owner, not cancelled) */
     if(closed){
       tot+=val;
+      totExVat+=exVat;
+      totComm+=comm;
       nClosed++;
       var tk=leadCharterTypeKey(r);
       if(src==="captain"){
-        capTot+=val; capN++;
-        capComm+=leadCommissionAmt(r)||0;
-        bumpType(capTypes, tk, val);
+        capTot+=val; capExVat+=exVat; capN++;
+        capComm+=comm;
+        bumpType(capTypes, tk, val, exVat);
       } else if(src==="clickboat"){
-        cbTot+=val; cbN++;
-        cbComm+=leadCommissionAmt(r)||0;
-        bumpType(cbTypes, tk, val);
+        cbTot+=val; cbExVat+=exVat; cbN++;
+        cbComm+=comm;
+        bumpType(cbTypes, tk, val, exVat);
       }
     }
     /* Open invoices only on closed commercial deals */
@@ -2192,18 +2210,33 @@ function renderLeads(){
   });
   wrap.innerHTML=html||emptyBox("🌐","No charters in the book yet","Tap + for a new lead, or Sync calendar dates.");
   /* Summary cards */
+  var netRem=Math.max(0, totExVat-totComm);
   if(el("ldTot")) el("ldTot").textContent=money(tot);
   if(el("ldTotSub")) el("ldTotSub").textContent=nClosed+" closed trip"+(nClosed===1?"":"s")+" · pending excluded";
+  if(el("ldExVat")) el("ldExVat").textContent=money(totExVat);
+  if(el("ldExVatSub")) el("ldExVatSub").textContent="Base for commission math";
+  if(el("ldComm")) el("ldComm").textContent=money(totComm);
+  if(el("ldCommSub")){
+    el("ldCommSub").textContent=
+      (capComm>0?"Luigi "+money(capComm):"")+(capComm>0&&cbComm>0?" · ":"")+
+      (cbComm>0?"Paul "+money(cbComm):"")+(totComm>0?"":"None on closed deals");
+  }
+  if(el("ldNet")) el("ldNet").textContent=money(netRem);
+  if(el("ldNetSub")) el("ldNetSub").textContent=money(totExVat)+" − "+money(totComm)+" commissions";
   if(el("ldCap")) el("ldCap").textContent=money(capTot);
   if(el("ldCapSub")){
     el("ldCapSub").textContent=capN+" trip"+(capN===1?"":"s")+
-      (isCaptain()?(capComm>0?" · commission "+money(capComm):" · 15% commission"):" · 15% commission");
+      " · before VAT "+money(capExVat)+
+      (capComm>0?" · comm "+money(capComm):" · 15%")+
+      (capExVat>0?" · net "+money(Math.max(0, capExVat-capComm)):"");
   }
   if(el("ldCapTypes")) el("ldCapTypes").innerHTML=formatTypeMixHTML(capTypes);
   if(el("ldCb")) el("ldCb").textContent=money(cbTot);
   if(el("ldCbSub")){
     el("ldCbSub").textContent=cbN+" trip"+(cbN===1?"":"s")+
-      (isCaptain()?(cbComm>0?" · commission "+money(cbComm):" · 21% commission"):" · 21% commission");
+      " · before VAT "+money(cbExVat)+
+      (cbComm>0?" · comm "+money(cbComm):" · 21%")+
+      (cbExVat>0?" · net "+money(Math.max(0, cbExVat-cbComm)):"");
   }
   if(el("ldCbTypes")) el("ldCbTypes").innerHTML=formatTypeMixHTML(cbTypes);
   if(el("ldPending")) el("ldPending").textContent=String(pend);
