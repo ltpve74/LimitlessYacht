@@ -1,23 +1,22 @@
 // Public site availability calendar.
 //
-// Default (production-safe): live manager ICS via AVAILABILITY_ICS_URL.
-// App-owned store: Netlify Blobs siteCalendar on the tracker store, when
-//   - env AVAILABILITY_SOURCE=blob, or
-//   - siteCalendar.active === true (captain Activate in tracker).
-//
-// Until activated, guests keep seeing live ICS. Tracker stews still use
-// ?fresh=1 → live ICS regardless of this switch.
+// Source of truth: commercial **leads** in the tracker blob.
+//   - pending source → tentative / on hold
+//   - captain / clickboat / owner → booked
+//   - cancelled → omitted
+// Fallback: manager ICS only if no leads in the store.
+// Tracker stews also use leads client-side; ICS still used for “new date” detection.
 
 import { getStore } from "@netlify/blobs";
 import { parseIcs, siteCalendarPublicPayload } from "./lib/ics.mjs";
+import { buildSiteCalendarFromLeads } from "./lib/site-calendar.mjs";
 
 const ICS_URL = process.env.AVAILABILITY_ICS_URL || "";
-const FORCE_BLOB =
-  String(process.env.AVAILABILITY_SOURCE || "").toLowerCase() === "blob";
+/** Force ICS (emergency only): AVAILABILITY_SOURCE=ics */
+const FORCE_ICS =
+  String(process.env.AVAILABILITY_SOURCE || "").toLowerCase() === "ics";
 
 export async function handler(event) {
-  // ?fresh=1 → no CDN/browser cache (tracker "Refresh calendar"). Default is short
-  // public cache so the marketing calendar stays snappy without hammering the ICS host.
   const qs = (event && event.queryStringParameters) || {};
   const fresh = qs.fresh === "1" || qs.fresh === "true";
   const headers = {
@@ -25,27 +24,16 @@ export async function handler(event) {
     "Access-Control-Allow-Origin": "*",
     "Cache-Control": fresh
       ? "private, no-store, max-age=0, must-revalidate"
-      : "public, max-age=300", // 5 min
+      : "public, max-age=120", // 2 min — pending→booked should show sooner
   };
 
   try {
-    const preferBlob = FORCE_BLOB || (await isSiteCalendarActive());
-    if (preferBlob) {
-      const fromBlob = await loadSiteCalendarBlob();
-      if (fromBlob && (fromBlob.booked || fromBlob.events)) {
-        const body = siteCalendarPublicPayload(fromBlob, {
-          note: FORCE_BLOB ? "AVAILABILITY_SOURCE=blob" : "siteCalendar.active",
-        });
-        body.fresh = !!fresh;
-        return {
-          statusCode: 200,
-          headers,
-          body: JSON.stringify(body),
-        };
+    if (!FORCE_ICS) {
+      const fromLeads = await serveFromLeads(fresh);
+      if (fromLeads) {
+        return { statusCode: 200, headers, body: JSON.stringify(fromLeads) };
       }
-      /* Active but empty — fall through to ICS so site is not all-open by mistake */
     }
-
     return await serveFromIcs(headers, fresh);
   } catch (err) {
     return {
@@ -62,24 +50,32 @@ export async function handler(event) {
   }
 }
 
-async function isSiteCalendarActive() {
-  try {
-    const cal = await loadSiteCalendarBlob();
-    return !!(cal && cal.active);
-  } catch (e) {
-    return false;
-  }
-}
-
-async function loadSiteCalendarBlob() {
+async function loadTrackerData() {
   try {
     const store = getStore("limitless-tracker");
-    const data = await store.get("data", { type: "json", consistency: "strong" });
-    if (!data || !data.siteCalendar || typeof data.siteCalendar !== "object") return null;
-    return data.siteCalendar;
+    return await store.get("data", { type: "json", consistency: "strong" });
   } catch (e) {
     return null;
   }
+}
+
+async function serveFromLeads(fresh) {
+  const data = await loadTrackerData();
+  if (!data || !Array.isArray(data.leads) || !data.leads.length) return null;
+
+  /* Always rebuild from live leads so pending→hold is never stale */
+  const cal = buildSiteCalendarFromLeads(data.leads, "availability", new Date().toISOString());
+  const body = siteCalendarPublicPayload(cal, {
+    note: "leads SOT · pending = on hold",
+  });
+  body.fresh = !!fresh;
+  body.source = "leads";
+  body.active = true;
+  /* Counts for debugging */
+  body.leadCount = data.leads.length;
+  body.pendingHoldDays = (cal.tentative || []).length;
+  body.bookedDays = (cal.booked || []).length;
+  return body;
 }
 
 async function serveFromIcs(headers, fresh) {
@@ -91,7 +87,7 @@ async function serveFromIcs(headers, fresh) {
         booked: [],
         tentative: [],
         events: [],
-        note: "ICS feed not configured",
+        note: "ICS feed not configured and no leads in store",
         source: "ics",
       }),
     };
@@ -118,10 +114,10 @@ async function serveFromIcs(headers, fresh) {
         generatedAt: new Date().toISOString(),
         fresh: !!fresh,
         source: "ics",
+        note: "Fallback ICS (no leads in tracker store)",
       }),
     };
   } catch (err) {
-    // Fail soft: the front-end falls back to an all-available calendar.
     return {
       statusCode: 200,
       headers: { ...headers, "Cache-Control": "public, max-age=60" },
@@ -136,5 +132,4 @@ async function serveFromIcs(headers, fresh) {
   }
 }
 
-// Re-export for tests / other callers that imported from this file historically
 export { parseIcs, expandEvent } from "./lib/ics.mjs";

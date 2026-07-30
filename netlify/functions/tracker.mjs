@@ -10,6 +10,11 @@ import { getStore } from "@netlify/blobs";
 import webpush from "web-push";
 import { parseIcs, siteCalendarPublicPayload, expandRange } from "./lib/ics.mjs";
 import * as LY from "./lib/leads-import.mjs";
+import {
+  buildSiteCalendarFromLeads,
+  leadBlockedDays as leadBlockedDaysShared,
+  leadIsOnHold,
+} from "./lib/site-calendar.mjs";
 
 const BLOB_KEY = "data";
 const LOG_CAP = 500;
@@ -707,36 +712,8 @@ function addUtcDayYmd(ymd, n) {
   return yy + "-" + mm + "-" + dd;
 }
 
-/**
- * Days the public site should block for this lead.
- * Prefer lead.days count from start; else inclusive start→end for multi.
- */
-function leadBlockedDays(l) {
-  if (!l) return [];
-  const start = String(l.start || l.cdate || "").slice(0, 10);
-  if (!/^\d{4}-\d{2}-\d{2}$/.test(start)) return [];
-  const end = String(l.end || "").slice(0, 10);
-  const multi = l.dur === "multi" || (end && end > start);
-  const nDays = Math.max(1, Math.round(Number(l.days) || 0) || 1);
-  if (multi && nDays > 1) {
-    const out = [];
-    for (let i = 0; i < nDays && i < 60; i++) out.push(addUtcDayYmd(start, i));
-    return out;
-  }
-  if (multi && end && end > start) {
-    /* Inclusive last day (manual multi form); expandRange allDay=true is exclusive */
-    return expandRange(start, addUtcDayYmd(end, 1), true);
-  }
-  return [start];
-}
+const leadBlockedDays = leadBlockedDaysShared;
 
-/**
- * Public website calendar from leads (source of truth).
- * - cancelled → omit
- * - leadSource pending → tentative / on hold
- * - otherwise active → booked
- * Always sets siteCalendar.active = true (leads drive the site).
- */
 /** Stew roster snapshot rows for team (from leads). */
 function stewCalendarRowsFromLeads(leads) {
   const rows = [];
@@ -755,7 +732,7 @@ function stewCalendarRowsFromLeads(leads) {
     const start = days[0];
     const end = days[days.length - 1] || start;
     const src = LY.constrainLeadSource(l.leadSource);
-    const pending = src === "pending" || l.sourcePending === true;
+    const pending = leadIsOnHold(l);
     const ek = String(l.calendarEventKey || l.calEventKey || "").trim() || "lead:" + l.id;
     rows.push({
       key: ek,
@@ -779,67 +756,11 @@ function stewCalendarRowsFromLeads(leads) {
 
 function rebuildSiteCalendarFromLeads(data, who, now) {
   if (!data) return null;
-  const leads = Array.isArray(data.leads) ? data.leads : [];
-  const booked = new Set();
-  const tentative = new Set();
-  const events = [];
-
-  leads.forEach((l) => {
-    if (!l || !l.id) return;
-    const cancelled =
-      l.bookingStatus === "cancelled" ||
-      l.cancelled === true ||
-      l.status === "Cancelled" ||
-      l.status === "cancelled" ||
-      String(l.deps || "") === "Refunded";
-    if (cancelled) return;
-
-    const days = leadBlockedDays(l);
-    if (!days.length) return;
-
-    const src = LY.constrainLeadSource(l.leadSource);
-    const isPending = src === "pending" || l.sourcePending === true;
-    const status = isPending ? "tentative" : "booked";
-    const target = isPending ? tentative : booked;
-    days.forEach((d) => target.add(d));
-
-    const start = days[0];
-    const end = days[days.length - 1];
-    const endExclusive = addUtcDayYmd(end, 1);
-    events.push({
-      key: l.calendarEventKey || "lead:" + l.id,
-      uid: l.calendarUid || l.id,
-      summary: l.name || "Charter",
-      start: start,
-      end: days.length > 1 ? endExclusive : start,
-      startTime: "",
-      endTime: "",
-      allDay: true,
-      status: status,
-      days: days.slice(),
-      leadId: l.id,
-      leadSource: src,
-    });
-  });
-
-  /* A day is booked if firm; remove from tentative if also firm */
-  booked.forEach((d) => tentative.delete(d));
-
-  const prevActive = !!(data.siteCalendar && data.siteCalendar.active);
-  data.siteCalendar = {
-    active: true, /* leads are SOT for public calendar */
-    booked: [...booked].sort(),
-    tentative: [...tentative].sort(),
-    events: events.sort((a, b) => String(a.start).localeCompare(String(b.start))),
-    generatedAt: now,
-    seededAt: (data.siteCalendar && data.siteCalendar.seededAt) || now,
-    seededFrom: "leads",
-    updatedAt: now,
-    updatedBy: who || "system",
-    note:
-      "From leads · pending source = on hold · firm sources = booked" +
-      (prevActive ? "" : " · activated"),
-  };
+  data.siteCalendar = buildSiteCalendarFromLeads(
+    data.leads,
+    who || "system",
+    now || new Date().toISOString()
+  );
   return data.siteCalendar;
 }
 
