@@ -1100,6 +1100,45 @@
     return chargeCommissionParts(c).total;
   }
 
+  /**
+   * Captain commissions from Charges (upsells / extensions with captainComm).
+   * Display-only aggregate — does not mutate charges.
+   * @param {Array} charters
+   * @returns {{ n, gross, base, comm, items }}
+   */
+  function summarizeCaptainChargeCommissions(charters) {
+    var n = 0;
+    var gross = 0;
+    var base = 0;
+    var comm = 0;
+    var items = [];
+    (Array.isArray(charters) ? charters : []).forEach(function (c) {
+      if (!c || !isChargeCaptainComm(c)) return;
+      var p = chargeCommissionParts(c);
+      if (!(p.total > 0.009) && !(p.base > 0.009)) return;
+      n++;
+      gross = round2(gross + (p.gross || 0));
+      base = round2(base + (p.base || 0));
+      comm = round2(comm + (p.total || 0));
+      items.push({
+        id: c.id,
+        client: String(c.client || "Upsell").trim() || "Upsell",
+        date: String(c.date || "").slice(0, 10),
+        gross: p.gross || 0,
+        base: p.base || 0,
+        comm: p.total || 0,
+        hours: p.hours || 0,
+      });
+    });
+    items.sort(function (a, b) {
+      var da = String(a.date || ""),
+        db = String(b.date || "");
+      if (da && db && da !== db) return db < da ? -1 : 1;
+      return String(b.client || "").localeCompare(String(a.client || ""));
+    });
+    return { n: n, gross: gross, base: base, comm: comm, items: items };
+  }
+
   /* ---------- Expenses / petty envelope (structured fields only) ---------- */
 
   var EXP_REIMBURSE_CATS = {
@@ -1702,6 +1741,7 @@
     chargeTotalsFromApaAndExt: chargeTotalsFromApaAndExt,
     chargeCommissionParts: chargeCommissionParts,
     chargeCommissionAmt: chargeCommissionAmt,
+    summarizeCaptainChargeCommissions: summarizeCaptainChargeCommissions,
     isExpenseReimbursement: isExpenseReimbursement,
     expensePaidFrom: expensePaidFrom,
     expenseHitsPettyCash: expenseHitsPettyCash,
