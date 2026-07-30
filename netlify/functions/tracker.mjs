@@ -8,7 +8,7 @@
 
 import { getStore } from "@netlify/blobs";
 import webpush from "web-push";
-import { parseIcs, siteCalendarPublicPayload } from "./lib/ics.mjs";
+import { parseIcs, siteCalendarPublicPayload, expandRange } from "./lib/ics.mjs";
 import * as LY from "./lib/leads-import.mjs";
 
 const BLOB_KEY = "data";
@@ -677,20 +677,130 @@ function siteCalendarSummary(cal) {
     };
   }
   const booked = Array.isArray(cal.booked) ? cal.booked : [];
+  const tentative = Array.isArray(cal.tentative) ? cal.tentative : [];
   const today = new Date().toISOString().slice(0, 10);
-  const sample = booked.filter((d) => d >= today).slice(0, 12);
+  const sample = booked
+    .concat(tentative)
+    .filter((d) => d >= today)
+    .sort()
+    .slice(0, 12);
   return {
     exists: true,
     active: !!cal.active,
     eventCount: Array.isArray(cal.events) ? cal.events.length : 0,
     bookedCount: booked.length,
-    tentativeCount: Array.isArray(cal.tentative) ? cal.tentative.length : 0,
+    tentativeCount: tentative.length,
     seededAt: cal.seededAt || "",
     seededFrom: cal.seededFrom || "",
     updatedAt: cal.updatedAt || cal.generatedAt || "",
     updatedBy: cal.updatedBy || "",
     sample,
   };
+}
+
+function addUtcDayYmd(ymd, n) {
+  const [y, m, d] = String(ymd).split("-").map(Number);
+  const dt = new Date(Date.UTC(y, m - 1, d + (n || 0)));
+  const yy = dt.getUTCFullYear();
+  const mm = String(dt.getUTCMonth() + 1).padStart(2, "0");
+  const dd = String(dt.getUTCDate()).padStart(2, "0");
+  return yy + "-" + mm + "-" + dd;
+}
+
+/**
+ * Days the public site should block for this lead.
+ * Prefer lead.days count from start; else inclusive start→end for multi.
+ */
+function leadBlockedDays(l) {
+  if (!l) return [];
+  const start = String(l.start || l.cdate || "").slice(0, 10);
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(start)) return [];
+  const end = String(l.end || "").slice(0, 10);
+  const multi = l.dur === "multi" || (end && end > start);
+  const nDays = Math.max(1, Math.round(Number(l.days) || 0) || 1);
+  if (multi && nDays > 1) {
+    const out = [];
+    for (let i = 0; i < nDays && i < 60; i++) out.push(addUtcDayYmd(start, i));
+    return out;
+  }
+  if (multi && end && end > start) {
+    /* Inclusive last day (manual multi form); expandRange allDay=true is exclusive */
+    return expandRange(start, addUtcDayYmd(end, 1), true);
+  }
+  return [start];
+}
+
+/**
+ * Public website calendar from leads (source of truth).
+ * - cancelled → omit
+ * - leadSource pending → tentative / on hold
+ * - otherwise active → booked
+ * Always sets siteCalendar.active = true (leads drive the site).
+ */
+function rebuildSiteCalendarFromLeads(data, who, now) {
+  if (!data) return null;
+  const leads = Array.isArray(data.leads) ? data.leads : [];
+  const booked = new Set();
+  const tentative = new Set();
+  const events = [];
+
+  leads.forEach((l) => {
+    if (!l || !l.id) return;
+    const cancelled =
+      l.bookingStatus === "cancelled" ||
+      l.cancelled === true ||
+      l.status === "Cancelled" ||
+      l.status === "cancelled" ||
+      String(l.deps || "") === "Refunded";
+    if (cancelled) return;
+
+    const days = leadBlockedDays(l);
+    if (!days.length) return;
+
+    const src = LY.constrainLeadSource(l.leadSource);
+    const isPending = src === "pending" || l.sourcePending === true;
+    const status = isPending ? "tentative" : "booked";
+    const target = isPending ? tentative : booked;
+    days.forEach((d) => target.add(d));
+
+    const start = days[0];
+    const end = days[days.length - 1];
+    const endExclusive = addUtcDayYmd(end, 1);
+    events.push({
+      key: l.calendarEventKey || "lead:" + l.id,
+      uid: l.calendarUid || l.id,
+      summary: l.name || "Charter",
+      start: start,
+      end: days.length > 1 ? endExclusive : start,
+      startTime: "",
+      endTime: "",
+      allDay: true,
+      status: status,
+      days: days.slice(),
+      leadId: l.id,
+      leadSource: src,
+    });
+  });
+
+  /* A day is booked if firm; remove from tentative if also firm */
+  booked.forEach((d) => tentative.delete(d));
+
+  const prevActive = !!(data.siteCalendar && data.siteCalendar.active);
+  data.siteCalendar = {
+    active: true, /* leads are SOT for public calendar */
+    booked: [...booked].sort(),
+    tentative: [...tentative].sort(),
+    events: events.sort((a, b) => String(a.start).localeCompare(String(b.start))),
+    generatedAt: now,
+    seededAt: (data.siteCalendar && data.siteCalendar.seededAt) || now,
+    seededFrom: "leads",
+    updatedAt: now,
+    updatedBy: who || "system",
+    note:
+      "From leads · pending source = on hold · firm sources = booked" +
+      (prevActive ? "" : " · activated"),
+  };
+  return data.siteCalendar;
 }
 
 async function fetchManagerIcsText() {
@@ -1500,6 +1610,10 @@ export default async (req, context) => {
         ? []
         : buildNotices(coll, prev, next, who, data);
     data[coll] = next;
+    if (coll === "leads") {
+      /* Public website calendar is driven by leads (pending = on hold) */
+      rebuildSiteCalendarFromLeads(data, who, now);
+    }
     if (coll === "stewCalendar") {
       if (!data.meta || typeof data.meta !== "object") data.meta = {};
       data.meta.stewCalendarAt = now;
@@ -1634,15 +1748,18 @@ export default async (req, context) => {
     }
     const parsed = parseIcs(text);
     const stats = syncNewIcsLeads(data, parsed.events, who, now);
+    rebuildSiteCalendarFromLeads(data, who, now);
     addLog(
       (stats.baselined ? "ICS lead baseline keys=" : "ICS fresh leads created=") +
-        (stats.baselined ? stats.knownCount : stats.created)
+        (stats.baselined ? stats.knownCount : stats.created) +
+        " · site cal from leads"
     );
     await saveData(store, data);
     return json({
       ok: true,
       stats: stats,
       leads: data.leads,
+      siteCalendar: siteCalendarSummary(data.siteCalendar),
       icsLeadBaselineAt: (data.meta && data.meta.icsLeadBaselineAt) || "",
       icsLeadLastSyncAt: (data.meta && data.meta.icsLeadLastSyncAt) || "",
     });
@@ -1651,6 +1768,7 @@ export default async (req, context) => {
   if (
     action === "getSiteCalendar" ||
     action === "seedSiteCalendar" ||
+    action === "rebuildSiteCalendar" ||
     action === "setSiteCalendarActive"
   ) {
     if (!(role === "captain" || isCaptain(who))) {
@@ -1668,40 +1786,14 @@ export default async (req, context) => {
       });
     }
 
-    if (action === "seedSiteCalendar") {
-      let text;
-      try {
-        text = await fetchManagerIcsText();
-      } catch (e) {
-        return json(
-          {
-            ok: false,
-            error: e && e.message ? e.message : String(e),
-            code: e && e.code,
-          },
-          400
-        );
-      }
-      const parsed = parseIcs(text);
-      const keepActive = !!(data.siteCalendar && data.siteCalendar.active);
-      data.siteCalendar = {
-        active: keepActive,
-        booked: parsed.booked,
-        tentative: parsed.tentative,
-        events: parsed.events,
-        generatedAt: now,
-        seededAt: now,
-        seededFrom: "ics",
-        updatedAt: now,
-        updatedBy: who,
-        note: "Seeded from manager ICS",
-      };
+    /* Rebuild from leads (SOT). seedSiteCalendar alias kept for old UI. */
+    if (action === "seedSiteCalendar" || action === "rebuildSiteCalendar") {
+      rebuildSiteCalendarFromLeads(data, who, now);
       addLog(
-        "seed site calendar events=" +
-          parsed.events.length +
-          " bookedDays=" +
-          parsed.booked.length +
-          (keepActive ? " (kept active)" : " (inactive)")
+        "rebuild site calendar from leads booked=" +
+          (data.siteCalendar.booked || []).length +
+          " hold=" +
+          (data.siteCalendar.tentative || []).length
       );
       await saveData(store, data);
       return json({
@@ -1712,21 +1804,21 @@ export default async (req, context) => {
     }
 
     if (action === "setSiteCalendarActive") {
+      /* Ensure calendar exists from leads before toggle */
       if (!data.siteCalendar || typeof data.siteCalendar !== "object") {
-        return json(
-          {
-            ok: false,
-            error: "Seed the site calendar from ICS first",
-          },
-          400
-        );
+        rebuildSiteCalendarFromLeads(data, who, now);
       }
       const want = !!body.active;
       data.siteCalendar.active = want;
       data.siteCalendar.updatedAt = now;
       data.siteCalendar.updatedBy = who;
       data.siteCalendar.generatedAt = now;
-      addLog(want ? "activate site calendar (website uses app store)" : "deactivate site calendar (website falls back to ICS)");
+      if (want) rebuildSiteCalendarFromLeads(data, who, now);
+      addLog(
+        want
+          ? "activate site calendar (website uses leads)"
+          : "deactivate site calendar (website falls back to ICS)"
+      );
       await saveData(store, data);
       return json({
         ok: true,
