@@ -494,6 +494,47 @@ console.log("\n[Charge commission — explicit only]");
   ok("€500 invoice: commission ≈ 61.98", near(p.total, (500 / 1.21) * 0.15, 0.05), "got " + p.total);
   ok("€500 invoice: mode invoice", p.mode === "invoice");
 }
+{
+  const sum = M.summarizeCaptainChargeCommissions([
+    {
+      amount: 500,
+      extAmt: 500,
+      extSettle: "cash",
+      captainComm: true,
+      client: "Extra hour",
+      date: "2026-08-01",
+    },
+    {
+      amount: 1300,
+      apaBaseAmt: 800,
+      extAmt: 500,
+      extSettle: "invoice",
+      vatMode: "include",
+      vatPct: 21,
+      captainComm: true,
+      client: "APA+ext",
+      date: "2026-08-02",
+    },
+    {
+      amount: 400,
+      captainComm: false,
+      client: "No flag",
+      date: "2026-08-03",
+    },
+  ]);
+  ok("captain upsell sum n=2", sum.n === 2);
+  ok(
+    "captain upsell comm cash+inv",
+    near(sum.comm, 75 + (500 / 1.21) * 0.15, 0.05),
+    "got " + sum.comm
+  );
+  ok(
+    "captain upsell ignores no-flag",
+    sum.items.every(function (it) {
+      return it.client !== "No flag";
+    })
+  );
+}
 /* Same bill: APA spend + extension — commission only on extension */
 console.log("\n[APA charge + extension same bill]");
 {
