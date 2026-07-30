@@ -171,6 +171,8 @@ ok("website → captain", M.constrainLeadSource("website") === "captain");
 ok("paul → clickboat", M.constrainLeadSource("paul") === "clickboat");
 ok("clickboat", M.constrainLeadSource("clickboat") === "clickboat");
 ok("owner", M.constrainLeadSource("owner") === "owner");
+ok("pending source", M.constrainLeadSource("pending") === "pending");
+ok("pending rate 0", M.leadCommissionRatePct({ leadSource: "pending" }) === 0);
 ok("isCaptainLead", M.isCaptainLead({ leadSource: "captain" }));
 ok("not captain", !M.isCaptainLead({ leadSource: "other" }));
 ok("clickboat no captain-only flag", !M.leadEarnsCaptainCommission({ leadSource: "clickboat" }));

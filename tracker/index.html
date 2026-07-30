@@ -420,7 +420,7 @@
         <div class="sumcard"><div class="l">Deals value</div><div class="v money" id="ldTot">€0</div></div>
         <div class="sumcard"><div class="l">Invoices open</div><div class="v" id="ldPending">0</div></div>
       </div>
-      <div class="legend">Charter book (all trips). Source: <b>Captain</b> (website/direct · commission) · <b>Click&amp;Boat</b> (Paul) · <b>Owner</b>. <b>Import from calendar</b> fills missing ICS trips. <b>Make invoice</b> = PDF. Weather cancel: open lead → Cancel charter.</div>
+      <div class="legend">Charter book (cleaned history). Sources: <b>Pending</b> · <b>Captain</b> · <b>Click&amp;Boat</b> · <b>Owner</b>. New calendar dates only → pending lead. No bulk re-import of old ICS. <b>Make invoice</b> = PDF.</div>
       <div class="list" id="ldList"></div>
     </section>
 
@@ -2097,9 +2097,10 @@ function renderLeads(){
     var showApa=!isOwner&&leadNeedsApaInv(r);
     var isSplit=!isOwner&&leadHasSplit(r);
     var finLabel="Final";
-    var srcPill=src==="captain"?'<span class="pill p-blue">Captain</span>':
-      (src==="clickboat"?'<span class="pill p-amber">Click&amp;Boat</span>':
-        (src==="owner"?'<span class="pill p-own">Owner</span>':'<span class="pill p-grey">Other</span>'));
+    var srcPill=src==="pending"?'<span class="pill p-amber">Pending source</span>':
+      (src==="captain"?'<span class="pill p-blue">Captain</span>':
+        (src==="clickboat"?'<span class="pill p-amber">Click&amp;Boat</span>':
+          (src==="owner"?'<span class="pill p-own">Owner</span>':'<span class="pill p-grey">Other</span>')));
     /* Meta: identity + role only — money lives in lead-split block */
     var metaBits='<span>'+leadMeta(r)+'</span>'+
       (cancelled?'<span class="pill p-red">Cancelled</span>':'')+
@@ -2143,26 +2144,28 @@ function renderLeads(){
     wrap.parentNode.insertBefore(importBar, wrap);
   }
   if(importBar&&canCommercial()){
-    importBar.innerHTML='<div class="legend" style="margin-bottom:8px">Charter book: every trip is a lead with a <b>source</b> (Captain · Click&amp;Boat · Owner) for commission. '+
-      'Import fills missing calendar trips as <b>Click&amp;Boat (Paul)</b>; existing leads stay <b>Captain</b>. Change source on any lead.</div>'+
-      '<button type="button" class="btn" id="ldImportIcs" style="width:100%">Import from calendar (ICS)</button>';
-    if(el("ldImportIcs")) el("ldImportIcs").onclick=function(){
-      if(DEMO){ window.alert("Import needs the live server (not demo)."); return; }
-      if(!window.confirm("Import manager ICS into leads?\n\n• Existing leads → Captain (if not already Click&Boat/Owner)\n• New calendar trips → Click&Boat (Paul) with seasonal list price\n• You can edit source/price on each lead after.")) return;
-      var btn=el("ldImportIcs");
-      if(btn){ btn.disabled=true; btn.textContent="Importing…"; }
-      api("importIcsLeads").then(function(j){
+    importBar.innerHTML='<div class="legend" style="margin-bottom:8px">Leads are the cleaned history — we do <b>not</b> re-import old calendar bulk. '+
+      'When a <b>new</b> date appears on the manager calendar, sync creates a lead as <b>Pending source</b> (assign Captain / Click&amp;Boat / Owner).</div>'+
+      '<button type="button" class="btn" id="ldSyncIcs" style="width:100%">Sync new calendar dates only</button>';
+    if(el("ldSyncIcs")) el("ldSyncIcs").onclick=function(){
+      if(DEMO){ window.alert("Sync needs the live server."); return; }
+      var btn=el("ldSyncIcs");
+      if(btn){ btn.disabled=true; btn.textContent="Syncing…"; }
+      api("syncNewIcsLeads").then(function(j){
         if(j.leads) state.leads=j.leads;
         sortLeads();
         renderLeads();
         var s=j.stats||{};
-        window.alert("Import done.\n\nNew leads: "+(s.created||0)+
-          "\nMarked captain: "+(s.markedCaptain||0)+
-          "\nAlready linked: "+(s.linkedExisting||0)+
-          "\nTotal leads: "+(s.totalLeads||(state.leads||[]).length));
+        if(s.baselined){
+          window.alert("Baseline set.\n\nRecorded "+(s.knownCount||0)+" existing calendar events.\nNo leads created (your history stays clean).\n\nFrom now on, only brand-new calendar dates become pending leads.");
+        } else {
+          window.alert("Sync done.\n\nNew pending leads: "+(s.created||0)+
+            "\nAlready known: "+(s.alreadyKnown||0)+
+            "\nTotal leads: "+(s.totalLeads||(state.leads||[]).length));
+        }
       }).catch(function(err){
-        window.alert((err&&err.error)||(err&&err.body&&err.body.error)||"Import failed");
-        if(btn){ btn.disabled=false; btn.textContent="Import from calendar (ICS)"; }
+        window.alert((err&&err.error)||(err&&err.body&&err.body.error)||"Sync failed");
+        if(btn){ btn.disabled=false; btn.textContent="Sync new calendar dates only"; }
       });
     };
   }
@@ -8930,6 +8933,14 @@ function loadStewCalendar(force){
     purgeOrphanStewAssigns();
     /* Publish snapshot for team: always after explicit refresh, or once if blob empty */
     if(force||!(state.stewCalendar&&state.stewCalendar.length)) persistStewCalendarSnapshot();
+    /*
+     * Fresh leads only: baseline existing ICS once; then new calendar uids → pending leads.
+     * Never bulk-import historical trips into the cleaned leads book.
+     */
+    if(force||!window._icsLeadSyncOnce){
+      window._icsLeadSyncOnce=true;
+      return syncFreshIcsLeadsQuiet().then(function(){ return stewMergedEvents(); });
+    }
     return stewMergedEvents();
   });
 }
@@ -10402,7 +10413,20 @@ function isCaptainLead(r){ return LY_MODELS?LY_MODELS.isCaptainLead(r):false; }
 function isClickboatLead(r){ return LY_MODELS&&LY_MODELS.isClickboatLead?LY_MODELS.isClickboatLead(r):leadSource(r)==="clickboat"; }
 function isOwnerLead(r){ return LY_MODELS&&LY_MODELS.isOwnerLead?LY_MODELS.isOwnerLead(r):leadSource(r)==="owner"; }
 function leadSourceLabel(src){ return LY_MODELS&&LY_MODELS.leadSourceLabel?LY_MODELS.leadSourceLabel(src):(src==="captain"?"Captain":"Other"); }
-function leadCommissionRatePct(r){ return LY_MODELS&&LY_MODELS.leadCommissionRatePct?LY_MODELS.leadCommissionRatePct(r):(isCaptainLead(r)?CAPTAIN_COMMISSION_PCT:0); }
+function leadCommissionRatePct(r){
+  if(LY_MODELS&&LY_MODELS.leadCommissionRatePct) return LY_MODELS.leadCommissionRatePct(r);
+  if(leadSource(r)==="pending") return 0;
+  return isCaptainLead(r)?CAPTAIN_COMMISSION_PCT:(isClickboatLead(r)?CLICKBOAT_COMMISSION_PCT:0);
+}
+/** After calendar refresh: baseline once, then create pending leads for brand-new ICS uids only. */
+function syncFreshIcsLeadsQuiet(){
+  if(DEMO||!canCommercial()) return Promise.resolve(null);
+  return api("syncNewIcsLeads").then(function(j){
+    if(j&&Array.isArray(j.leads)) state.leads=j.leads;
+    if(j&&j.stats&&j.stats.created>0&&curTab==="leads") renderLeads();
+    return j;
+  }).catch(function(){ return null; });
+}
 function ownerBenefitIncluded(r){ return LY_MODELS&&LY_MODELS.ownerBenefitIncluded?LY_MODELS.ownerBenefitIncluded(r):false; }
 function leadCommissionVatPct(r){ return LY_MODELS?LY_MODELS.commissionVatPct(r):21; }
 function leadCommissionWhiteBeforeVat(r){ return LY_MODELS?LY_MODELS.leadCommissionWhiteBeforeVat(r):0; }
@@ -10608,8 +10632,9 @@ function renderCommissions(){
 }
 function selLeadSourceField(val){
   var v=(LY_MODELS&&LY_MODELS.constrainLeadSource)?LY_MODELS.constrainLeadSource(val):String(val||"other");
-  if(v!=="captain"&&v!=="clickboat"&&v!=="owner"&&v!=="other") v="other";
+  if(v!=="pending"&&v!=="captain"&&v!=="clickboat"&&v!=="owner"&&v!=="other") v="other";
   return '<select class="ctl" id="f_leadSource">'+
+    '<option value="pending"'+(v==="pending"?" selected":"")+'>Pending source (assign me)</option>'+
     '<option value="captain"'+(v==="captain"?" selected":"")+'>Captain (website / direct — '+CAPTAIN_COMMISSION_PCT+'%)</option>'+
     '<option value="clickboat"'+(v==="clickboat"?" selected":"")+'>Click&amp;Boat (Paul — '+CLICKBOAT_COMMISSION_PCT+'%)</option>'+
     '<option value="owner"'+(v==="owner"?" selected":"")+'>Owner (no commission · benefits)</option>'+

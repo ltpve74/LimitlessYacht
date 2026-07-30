@@ -33,7 +33,7 @@
    *  - owner = owner use (no commission; track as owner benefits)
    *  - other = legacy / unknown (no commission)
    */
-  var LEAD_SOURCES = { captain: 1, clickboat: 1, owner: 1, other: 1 };
+  var LEAD_SOURCES = { pending: 1, captain: 1, clickboat: 1, owner: 1, other: 1 };
   /**
    * Public charter fee table (VAT included “from” rates on the site).
    * High season = Jul–Aug (month index 6–7). Multi-day uses full-day rate × nights/days.
@@ -130,6 +130,7 @@
   /** Commission rate % for this lead’s source (0 = none). */
   function leadCommissionRatePct(r) {
     var src = leadSource(r);
+    if (src === "pending") return 0;
     if (src === "captain") return CAPTAIN_COMMISSION_PCT;
     if (src === "clickboat") return CLICKBOAT_COMMISSION_PCT;
     return 0;
@@ -165,6 +166,7 @@
       .toLowerCase()
       .trim();
     if (!s) return "other";
+    if (s === "pending" || s === "unassigned" || s === "assign") return "pending";
     if (s === "captain" || s === "cpt" || s === "website" || s === "web" || s === "direct")
       return "captain";
     if (
@@ -184,6 +186,7 @@
 
   function leadSourceLabel(src) {
     var s = constrainLeadSource(src);
+    if (s === "pending") return "Pending source";
     if (s === "captain") return "Captain";
     if (s === "clickboat") return "Click&Boat (Paul)";
     if (s === "owner") return "Owner";
