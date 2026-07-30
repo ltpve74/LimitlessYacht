@@ -220,6 +220,25 @@
   .p-grey{background:var(--grey);color:var(--greyInk)}
   .p-amber{background:var(--amber);color:var(--amberInk);font-weight:800;border:1px solid #E0A800}
   .p-blue{background:var(--blue);color:var(--blueInk)} .p-green{background:var(--green);color:var(--greenInk)}
+  /* Unconfirmed / tentative leads — unmistakable on the list */
+  .item.item--tentative{
+    border:1.5px solid #E0A800;
+    background:linear-gradient(180deg,#FFF8E1 0%,#fff 42%);
+    box-shadow:0 1px 4px rgba(224,168,0,.18);
+  }
+  .item.item--tentative .title{color:#6b4500}
+  .item.item--tentative .amt{color:#9a6b00}
+  .ld-status-banner{
+    display:block;font-size:11.5px;font-weight:800;letter-spacing:.03em;
+    text-transform:uppercase;color:#7a5200;background:#FFE08A;
+    border:1px solid #E0A800;border-radius:9px;padding:7px 10px;
+    margin:0 0 10px;line-height:1.35;
+  }
+  .ld-status-banner b{font-weight:900;letter-spacing:.02em}
+  .ld-status-banner .ld-status-sub{
+    display:block;margin-top:3px;font-size:11px;font-weight:650;
+    text-transform:none;letter-spacing:0;color:#8a5a00;line-height:1.35;
+  }
   .empty{background:var(--card);border-radius:14px;padding:34px 18px;text-align:center;color:var(--muted);font-size:14px;box-shadow:0 1px 3px rgba(0,0,0,.06)}
   .empty .big{font-size:30px;margin-bottom:8px}
   .savehint{font-size:12px;color:var(--muted);text-align:center;margin-top:14px;min-height:16px}
@@ -481,15 +500,15 @@
             </div>
           </div>
           <div class="ld-snap-foot">
-            <div class="ld-snap-row"><span class="k">Awaiting confirmation</span><span class="v" id="ldAwait">0</span><span class="s" id="ldAwaitSub">Possible new business · pending source</span></div>
+            <div class="ld-snap-row"><span class="k">Unconfirmed / tentative</span><span class="v" id="ldAwait">0</span><span class="s" id="ldAwaitSub">Not in money totals · not firm</span></div>
             <div class="ld-snap-row"><span class="k">Owner days (notional)</span><span class="v money" id="ldOwn">€0</span><span class="s" id="ldOwnSub">List-rate estimate · not cash</span></div>
           </div>
-          <div class="ld-snap-note">Projected closed total = realised (past/today) + scheduled (future closed deals). Open deals and pending source are not included. Owner days are list-rate notional only.</div>
+          <div class="ld-snap-note">Money totals = <b>deal closed</b> only (realised + scheduled). <b>Unconfirmed</b> = pending source or open/tentative deal — yellow cards, not counted. Owner days = list-rate notional only.</div>
         </div>
         <div class="sumcard ld-src"><div class="l">Luigi · Captain</div><div class="v money" id="ldCap">€0</div><div class="sub" id="ldCapSub">—</div><div id="ldCapTypes" class="ld-type-table"></div></div>
         <div class="sumcard ld-src"><div class="l">Paul · Click&amp;Boat</div><div class="v money" id="ldCb">€0</div><div class="sub" id="ldCbSub">—</div><div id="ldCbTypes" class="ld-type-table"></div></div>
       </div>
-      <div class="legend"><b>Done</b> / <b>Confirmed</b> = <b>deal closed</b> only (auto when deposit Paid). Open deals can have Captain/Paul source but stay off money totals (tentative). Upsells from Charges included. Owner days = notional. <b>Make invoice</b> = PDF.</div>
+      <div class="legend"><b>Yellow = unconfirmed</b> (pending source or tentative open deal) — not firm, not in money totals. <b>Confirmed</b> = deal closed (auto when deposit Paid). Owner days = notional. <b>Make invoice</b> = PDF.</div>
       <div class="list" id="ldList"></div>
     </section>
 
@@ -2024,12 +2043,19 @@ function leadCharterKey(r){
   if(s) return s;
   return String(r.closed||"").trim().slice(0,10);
 }
+function leadIsUnconfirmed(r){
+  if(!r||leadIsCancelled(r)) return false;
+  var src=leadSource(r);
+  if(src==="pending") return true;
+  if(src==="owner") return false;
+  return !leadIsDealClosed(r);
+}
 function sortLeads(){
   if(!state.leads||!state.leads.length) return;
   state.leads.sort(function(a,b){
-    /* Pending source first — easy to assign without scrolling */
-    var ap=leadSource(a)==="pending"?0:1;
-    var bp=leadSource(b)==="pending"?0:1;
+    /* Unconfirmed first (pending source, then open/tentative deals) */
+    var ap=leadSource(a)==="pending"?0:(leadIsUnconfirmed(a)?1:2);
+    var bp=leadSource(b)==="pending"?0:(leadIsUnconfirmed(b)?1:2);
     if(ap!==bp) return ap-bp;
     var da=leadCharterKey(a), db=leadCharterKey(b);
     if(da&&db&&da!==db) return db<da?-1:1; /* newest charter date first */
@@ -2249,7 +2275,7 @@ function leadSplitSummaryHTML(r){
 function renderLeads(){
   sortLeads();
   var wrap=el("ldList"), html="";
-  var pend=0, nPendSrc=0;
+  var pend=0, nPendSrc=0, nOpenDeal=0;
   var ownVal=0, ownN=0;
   /* Done (sailed) vs confirmed upcoming (projected) — charters + captain upsells */
   var done={tot:0, charters:0, upsell:0, ex:0, comm:0, upsellComm:0, n:0, nUpsell:0};
@@ -2317,6 +2343,7 @@ function renderLeads(){
     var isOwner=src==="owner";
     var isPending=src==="pending";
     if(isPending&&!cancelled) nPendSrc++;
+    if(!isPending&&!isOwner&&!cancelled&&!leadIsDealClosed(r)) nOpenDeal++;
     /* Owner private / guest days — notional list-rate value (not cash sales) */
     if(isOwner&&!cancelled&&ownerBenefitIncluded(r)){
       var ov=leadOwnerNotional(r);
@@ -2373,6 +2400,9 @@ function renderLeads(){
     var src=leadSource(r);
     var isOwner=src==="owner";
     var isPending=src==="pending";
+    var dealClosed=leadIsDealClosed(r);
+    var isOpenDeal=!isPending&&!isOwner&&!cancelled&&!dealClosed;
+    var isTentative=isPending||isOpenDeal; /* unconfirmed lead / not firm charter */
     var closed=leadIsClosedDeal(r);
     var timing=closed?leadCharterTiming(r):"";
     var val=leadListMoney(r);
@@ -2383,7 +2413,7 @@ function renderLeads(){
     var showApa=!isOwner&&!isPending&&leadNeedsApaInv(r);
     var isSplit=!isOwner&&leadHasSplit(r);
     var finLabel="Final";
-    var srcPill=isPending?'<span class="pill p-amber">Pending source</span>':
+    var srcPill=isPending?'':
       (src==="captain"?'<span class="pill p-blue">Luigi · Captain</span>':
         (src==="clickboat"?'<span class="pill p-amber">Paul · Click&amp;Boat</span>':
           (src==="owner"?'<span class="pill p-own">Owner</span>':'<span class="pill p-grey">Other</span>')));
@@ -2402,16 +2432,27 @@ function renderLeads(){
     if(Number(r.days)>1) rateBits.push(Math.round(Number(r.days))+" days");
     if(r.closed) rateBits.push("closed "+esc(fmtDate(r.closed)));
     var calKey=leadCalendarEventKey(r);
-    /* Full info row for the charter book */
+    /* Status first so unconfirmed never looks like a firm booking */
+    var statusBanner="";
+    if(cancelled){
+      statusBanner='<div class="ld-status-banner" style="background:#fde8e8;border-color:#f3b4ae;color:var(--danger)">Cancelled</div>';
+    } else if(isPending){
+      statusBanner='<div class="ld-status-banner"><b>Unconfirmed · tentative lead</b>'+
+        '<span class="ld-status-sub">Pending source — not a firm charter. Assign Captain / Click&amp;Boat / Owner. Not in money totals or website booked.</span></div>';
+    } else if(isOpenDeal){
+      statusBanner='<div class="ld-status-banner"><b>Unconfirmed · open deal</b>'+
+        '<span class="ld-status-sub">Tentative only — source may be set, but deal is not closed. Not in money totals or firm calendar until <b>Deal closed</b> (auto when deposit Paid).</span></div>';
+    }
     var metaBits=
       '<span>📅 '+dateLine+'</span>'+
       '<span class="pill p-grey">'+esc(typeLab)+'</span>'+
       (seasonLab?'<span class="pill p-blue">'+esc(seasonLab)+'</span>':'')+
+      (isPending?'<span class="pill p-amber">Pending source</span>':'')+
+      (isOpenDeal?'<span class="pill p-amber">Tentative</span>':'')+
+      (closed?'<span class="pill p-green">Confirmed · deal closed</span>':'')+
       srcPill+
       (cancelled?'<span class="pill p-red">Cancelled</span>':'')+
       (cancelled&&leadInvStatus(r.deps)==="Refunded"?'<span class="pill p-red">Deposit refunded</span>':'')+
-      (isPending?'<span class="pill p-amber">Pending source</span>':'')+
-      (!isPending&&!isOwner&&!cancelled&&!leadIsDealClosed(r)?'<span class="pill p-amber">Open deal</span>':'')+
       (timing==="upcoming"?'<span class="pill p-blue">Scheduled</span>':'')+
       (timing==="done"?'<span class="pill p-green">Realised</span>':'')+
       (isSplit?'<span class="pill p-black">Split</span>':'')+
@@ -2425,14 +2466,18 @@ function renderLeads(){
       if(vatNote&&(Number(r.vatPct)||0)>0) vatNote+=" "+r.vatPct+"%";
       if(vatNote) metaBits+='<span>'+esc(vatNote)+'</span>';
     }
-    var amtShow=cancelled||isOwner?"—":(isPending?"—":money0(isSplit?leadClientTotal(r):(Number(r.total)||Number(r.base)||0)));
-    if(isPending) amtShow='<span style="font-size:13px;font-weight:700;color:var(--muted)">Open</span>';
-    html+='<div class="item'+(cancelled||isOwner||isPending?' item--cancelled':'')+'" data-edit-ld="'+esc(r.id)+'">'+
+    var moneyAmt=isSplit?leadClientTotal(r):(Number(r.total)||Number(r.base)||0);
+    var amtShow=cancelled||isOwner?"—":money0(moneyAmt);
+    if(isPending) amtShow='<span style="font-size:12.5px;font-weight:800;color:#9a6b00">Unconfirmed</span>';
+    else if(isOpenDeal) amtShow='<span style="font-size:12px;font-weight:800;color:#9a6b00;display:block;text-align:right">Tentative</span><span class="money" style="font-size:15px;opacity:.85">'+money0(moneyAmt)+'</span>';
+    var cardCls="item";
+    if(cancelled||isOwner) cardCls+=" item--cancelled";
+    if(isTentative) cardCls+=" item--tentative";
+    html+='<div class="'+cardCls+'" data-edit-ld="'+esc(r.id)+'">'+
+      statusBanner+
       '<div class="top"><div class="title">'+esc(r.name||"—")+'</div><div class="amt money">'+amtShow+'</div></div>'+
       '<div class="meta">'+metaBits+'</div>'+
-      (cancelled||isOwner||isPending?"":leadSplitSummaryHTML(r))+
-      (isPending&&!cancelled?'<div class="notes" style="font-style:normal;color:var(--muted)">Pending source — assign Captain / Click&amp;Boat / Owner. Not in money totals.</div>':'')+
-      (!isPending&&!isOwner&&!cancelled&&!leadIsDealClosed(r)?'<div class="notes" style="font-style:normal;color:var(--muted)">Open deal — tentative. Not in money totals or firm calendar until <b>Deal closed</b> (auto when deposit Paid).</div>':'')+
+      (cancelled||isOwner||isPending||isOpenDeal?"":leadSplitSummaryHTML(r))+
       (isOwner&&!cancelled?'<div class="notes" style="font-style:normal;color:var(--muted)">Owner days — private use or owner guests. List-rate notional value only (not cash income). Toggle in Ops → Commissions if needed.</div>':'')+
       (isOwner||isPending?"":('<div class="invtags">'+
         (leadNeedsDepInv(r)?leadInvTag("Deposit",r.dep,r.depPct,r.deps,r.depInv):"")+
@@ -2441,9 +2486,10 @@ function renderLeads(){
       '</div>'))+
       (r.notes?'<div class="notes">'+esc(r.notes)+'</div>':'')+
       '<div class="lead-actions">'+
-        (cancelled||isOwner||isPending?"":'<button type="button" class="btn" data-inv-lead="'+esc(r.id)+'">Make invoice</button>')+
+        (cancelled||isOwner||isPending||isOpenDeal?"":'<button type="button" class="btn" data-inv-lead="'+esc(r.id)+'">Make invoice</button>')+
         (cancelled||isOwner||isPending?"":'<button type="button" class="btn ghost" data-agr-lead="'+esc(r.id)+'">Agreement</button>')+
         (isPending&&!cancelled?'<button type="button" class="btn" data-edit-ld-btn="'+esc(r.id)+'">Assign source</button>':'')+
+        (isOpenDeal?'<button type="button" class="btn" data-edit-ld-btn="'+esc(r.id)+'">Close deal / confirm</button>':'')+
       '</div>'+
       '<span class="chev">✎</span></div>';
   });
@@ -2478,11 +2524,16 @@ function renderLeads(){
   if(el("ldProjComm")) el("ldProjComm").textContent=money(proj.comm);
   if(el("ldProjUpsellComm")) el("ldProjUpsellComm").textContent=money(proj.upsellComm);
   if(el("ldProjNet")) el("ldProjNet").textContent=money(Math.max(0, proj.ex-proj.comm));
-  if(el("ldAwait")) el("ldAwait").textContent=String(nPendSrc);
+  var nUnconf=nPendSrc+nOpenDeal;
+  if(el("ldAwait")) el("ldAwait").textContent=String(nUnconf);
   if(el("ldAwaitSub")){
-    el("ldAwaitSub").textContent=nPendSrc
-      ?(nPendSrc+" possible new · pending source")
-      :"No unconfirmed calendar holds";
+    if(!nUnconf) el("ldAwaitSub").textContent="None — all commercial leads confirmed";
+    else {
+      var bits=[];
+      if(nPendSrc) bits.push(nPendSrc+" pending source");
+      if(nOpenDeal) bits.push(nOpenDeal+" open/tentative deal"+(nOpenDeal===1?"":"s"));
+      el("ldAwaitSub").textContent=bits.join(" · ")+" · not in money totals";
+    }
   }
   if(el("ldOwn")) el("ldOwn").textContent=money(ownVal);
   if(el("ldOwnSub")) el("ldOwnSub").textContent=ownN?(ownN+" · not cash"):"None logged";
@@ -12032,9 +12083,11 @@ function openSheet(type,id){
     h+='<p style="margin:-6px 0 12px;font-size:12.5px;color:var(--muted);line-height:1.4"><b>Captain</b> = website/direct → '+CAPTAIN_COMMISSION_PCT+'% before VAT. <b>Click&amp;Boat (Paul)</b> → '+CLICKBOAT_COMMISSION_PCT+'% before VAT. <b>Owner</b> = no commission (owner benefits). Change anytime.</p>';
     var dealClosedDef=leadIsDealClosed(r);
     if(leadSrcDef==="pending") dealClosedDef=false;
-    h+='<label class="checkrow" id="f_dealClosed_wrap"><input type="checkbox" id="f_dealClosed"'+(dealClosedDef?" checked":"")+'>'+
-      '<span><div class="ck">Deal closed</div>'+
-      '<div class="ch">Counts in money totals and as firm on the website. Leave off for tentative (source can be Captain/Paul already). Auto-ticks when deposit or final is <b>Paid</b>.</div></span></label>';
+    h+='<label class="checkrow" id="f_dealClosed_wrap" style="border:1.5px solid '+(dealClosedDef?"rgba(46,125,50,.35)":"#E0A800")+';background:'+(dealClosedDef?"rgba(46,125,50,.06)":"#FFF8E1")+';border-radius:12px;padding:12px 12px;margin:0 0 12px">'+
+      '<input type="checkbox" id="f_dealClosed"'+(dealClosedDef?" checked":"")+'>'+
+      '<span><div class="ck">'+(dealClosedDef?"Confirmed · deal closed":"Unconfirmed · tentative lead")+'</div>'+
+      '<div class="ch"><b>Off</b> = unconfirmed / tentative only (yellow on the list) — not in money totals, not firm on the website calendar. '+
+      '<b>On</b> = confirmed charter — counts in money and as booked. Auto-ticks when deposit or final is <b>Paid</b>. Source can be Captain/Paul while still tentative.</div></span></label>';
     /* Stable link to calendar ICS uid — survives date moves / on-hold */
     var calKeyNow=leadCalendarEventKey(r);
     var calOpts=[];
@@ -12192,6 +12245,20 @@ function openSheet(type,id){
     if(el("f_cashBlack")&&el("f_split").checked){ el("f_cashBlack").dataset.userEdited=""; el("f_cashBlack").dataset.forcePrefill="1"; }
     recalcLead();
   }); }
+  if(el("f_dealClosed")){
+    function paintDealClosedUI(){
+      var on=!!el("f_dealClosed").checked;
+      var wrap=el("f_dealClosed_wrap");
+      if(wrap){
+        wrap.style.border="1.5px solid "+(on?"rgba(46,125,50,.35)":"#E0A800");
+        wrap.style.background=on?"rgba(46,125,50,.06)":"#FFF8E1";
+      }
+      var ck=wrap&&wrap.querySelector(".ck");
+      if(ck) ck.textContent=on?"Confirmed · deal closed":"Unconfirmed · tentative lead";
+    }
+    el("f_dealClosed").addEventListener("change",paintDealClosedUI);
+    paintDealClosedUI();
+  }
   if(el("f_whiteTotal")) el("f_whiteTotal").addEventListener("input",function(){
     /* White amount change updates prefill unless captain typed cash */
     if(el("f_cashBlack")&&!leadCashFieldUserEdited()) el("f_cashBlack").dataset.forcePrefill="1";
