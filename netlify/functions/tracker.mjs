@@ -716,8 +716,41 @@ function addUtcDayYmd(ymd, n) {
 
 const leadBlockedDays = leadBlockedDaysShared;
 
-/** Stew roster snapshot rows for team (from leads). */
-function stewCalendarRowsFromLeads(leads) {
+/**
+ * Stew roster snapshot rows for team (from leads).
+ * Prefer lead.calendarEventKey, then stewAssign.eventKey for that leadId /
+ * unique start day — so historical ICS-uid crew assigns still match.
+ */
+function stewCalendarRowsFromLeads(leads, stewAssign) {
+  const assigns = Array.isArray(stewAssign) ? stewAssign : [];
+  function assignKeyForLead(l, start) {
+    const ck = String(l.calendarEventKey || l.calEventKey || "").trim();
+    if (ck) return ck;
+    const byLead = assigns.filter(
+      (a) =>
+        a &&
+        a.eventKey &&
+        (String(a.leadId || "") === String(l.id) ||
+          String(a.cancelLeadId || "") === String(l.id))
+    );
+    if (byLead.length === 1) return String(byLead[0].eventKey);
+    if (byLead.length > 1) {
+      const withCrew = byLead.filter((a) => a.stewIds && a.stewIds.length);
+      if (withCrew.length === 1) return String(withCrew[0].eventKey);
+      return String(byLead[0].eventKey);
+    }
+    const day = assigns.filter((a) => {
+      if (!a || !a.eventKey) return false;
+      if (a.cancelled || a.status === "cancelled") return false;
+      if (a.leadId && String(a.leadId) !== String(l.id)) return false;
+      return String(a.start || "").slice(0, 10) === start;
+    });
+    if (day.length === 1) return String(day[0].eventKey);
+    const crew = day.filter((a) => a.stewIds && a.stewIds.length);
+    if (crew.length === 1) return String(crew[0].eventKey);
+    return "lead:" + l.id;
+  }
+
   const rows = [];
   (Array.isArray(leads) ? leads : []).forEach((l) => {
     if (!l || !l.id) return;
@@ -735,10 +768,10 @@ function stewCalendarRowsFromLeads(leads) {
     const end = days[days.length - 1] || start;
     const src = LY.constrainLeadSource(l.leadSource);
     const pending = leadIsOnHold(l);
-    const ek = String(l.calendarEventKey || l.calEventKey || "").trim() || "lead:" + l.id;
+    const ek = assignKeyForLead(l, start);
     rows.push({
       key: ek,
-      uid: l.calendarUid || l.id,
+      uid: l.calendarUid || (ek.indexOf("uid:") === 0 ? ek.slice(4) : l.id),
       summary: l.name || "Charter",
       start: start,
       end: end,
@@ -1759,7 +1792,7 @@ export default async (req, context) => {
     if (coll === "leads") {
       /* Public website calendar + team stew roster from leads */
       rebuildSiteCalendarFromLeads(data, who, now);
-      data.stewCalendar = stewCalendarRowsFromLeads(data.leads);
+      data.stewCalendar = stewCalendarRowsFromLeads(data.leads, data.stewAssign);
       if (!data.meta || typeof data.meta !== "object") data.meta = {};
       data.meta.stewCalendarAt = now;
       data.meta.stewCalendarBy = who || "Lead save";
@@ -1900,7 +1933,7 @@ export default async (req, context) => {
     const stats = syncNewIcsLeads(data, parsed.events, who, now);
     rebuildSiteCalendarFromLeads(data, who, now);
     /* Publish stew roster snapshot from leads so team list stays in sync */
-    data.stewCalendar = stewCalendarRowsFromLeads(data.leads);
+    data.stewCalendar = stewCalendarRowsFromLeads(data.leads, data.stewAssign);
     if (!data.meta || typeof data.meta !== "object") data.meta = {};
     data.meta.stewCalendarAt = now;
     data.meta.stewCalendarBy = who || "Calendar sync";
@@ -1952,7 +1985,7 @@ export default async (req, context) => {
       now
     );
     rebuildSiteCalendarFromLeads(data, who, now);
-    data.stewCalendar = stewCalendarRowsFromLeads(data.leads);
+    data.stewCalendar = stewCalendarRowsFromLeads(data.leads, data.stewAssign);
     if (!data.meta || typeof data.meta !== "object") data.meta = {};
     data.meta.stewCalendarAt = now;
     data.meta.stewCalendarBy = who || "Date move";

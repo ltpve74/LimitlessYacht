@@ -1243,9 +1243,10 @@
   }
 
   /**
-   * Assign for a calendar event: key / uid only (no fuzzy summary match —
-   * substring matches stole assigns across same-day charters and broke counts).
-   * Optional exact start+exact summary only when unique.
+   * Assign for a calendar event.
+   * Order: eventKey / uid → leadId (leads SOT) → unique start+summary →
+   * unique start when only one crew assign that day (recovery after key renames).
+   * No substring/fuzzy title match (stole same-day charters).
    */
   function findAssignForEvent(assigns, ev) {
     if (!ev) return null;
@@ -1259,20 +1260,42 @@
         findAssignByEventKey(assigns, String(ev.uid));
       if (a) return a;
     }
+    /* Commercial link — survives ICS uid → lead:id key renames */
+    if (ev.leadId != null && String(ev.leadId) !== "") {
+      var byLead = (assigns || []).filter(function (x) {
+        return (
+          x &&
+          (String(x.leadId || "") === String(ev.leadId) ||
+            String(x.cancelLeadId || "") === String(ev.leadId))
+        );
+      });
+      if (byLead.length === 1) return byLead[0];
+      /* Prefer row with crew if several */
+      var withCrew = byLead.filter(function (x) {
+        return x.stewIds && x.stewIds.length;
+      });
+      if (withCrew.length === 1) return withCrew[0];
+      if (byLead.length) return byLead[0];
+    }
     var start = String(ev.start || "").slice(0, 10);
     var sum = String(ev.summary || "")
       .trim()
       .toLowerCase();
-    if (!start || !sum) return null;
-    var hits = (assigns || []).filter(function (x) {
-      if (!x || x.eventKey == null) return false;
-      if (String(x.start || "").slice(0, 10) !== start) return false;
-      var xs = String(x.summary || "")
-        .trim()
-        .toLowerCase();
-      return xs === sum;
-    });
-    if (hits.length === 1) return hits[0];
+    if (start && sum) {
+      var hits = (assigns || []).filter(function (x) {
+        if (!x || x.eventKey == null) return false;
+        if (String(x.start || "").slice(0, 10) !== start) return false;
+        var xs = String(x.summary || "")
+          .trim()
+          .toLowerCase();
+        return xs === sum;
+      });
+      if (hits.length === 1) return hits[0];
+    }
+    /*
+     * Do NOT match by start day alone here — same-day dual charters would steal
+     * crew. Day-only recovery lives in healStewAssignsToLeads (one lead that day).
+     */
     return null;
   }
 
