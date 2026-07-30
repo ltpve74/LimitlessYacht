@@ -933,11 +933,31 @@
     return chargeInvoicePart(r) > 0.009;
   }
 
-  /** Explicit checkbox only — never guess from notes. */
+  /**
+   * Explicit checkbox only — never guess from notes.
+   * Amount may be 0 when only extAmt is set (same-bill extension on APA).
+   */
   function isChargeCaptainComm(c) {
-    if (!c || !(num(c.amount) > 0)) return false;
-    if (c.captainComm === false || c.captainComm === "false" || c.captainComm === 0) return false;
-    return c.captainComm === true || c.captainComm === "true" || c.captainComm === 1;
+    if (!c) return false;
+    if (
+      c.captainComm === false ||
+      c.captainComm === "false" ||
+      c.captainComm === 0 ||
+      c.captainComm === "0"
+    )
+      return false;
+    var on =
+      c.captainComm === true ||
+      c.captainComm === "true" ||
+      c.captainComm === 1 ||
+      c.captainComm === "1" ||
+      String(c.captainComm || "").toLowerCase() === "yes";
+    if (!on) return false;
+    /* Commissionable slice present */
+    if (num(c.amount) > 0) return true;
+    if (num(c.extAmt) > 0) return true;
+    if (num(c.extHours) > 0) return true;
+    return false;
   }
 
   function chargeExtHours(c) {

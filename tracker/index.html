@@ -732,7 +732,7 @@
 <div class="sheet" id="sheet"><div class="grip"></div><div id="sheetInner"></div></div>
 
 <!-- Domain models (money rules) — single source of truth; tests: node scripts/test-tracker-models.mjs -->
-<script src="/tracker/js/models.js?v=20260730-comm21"></script>
+<script src="/tracker/js/models.js?v=20260806-capupsell"></script>
 <script>
 "use strict";
 var API = "/.netlify/functions/tracker";
@@ -2614,6 +2614,7 @@ function renderLeads(){
   var done={tot:0, charters:0, upsell:0, ex:0, comm:0, upsellComm:0, n:0, nUpsell:0};
   var proj={tot:0, charters:0, upsell:0, ex:0, comm:0, upsellComm:0, n:0, nUpsell:0};
   var capTot=0, capExVat=0, capN=0, capComm=0;
+  var capUpsellLocal={ n:0, gross:0, base:0, comm:0 };
   var cbTot=0, cbExVat=0, cbN=0, cbComm=0;
   var osTot=0, osExVat=0, osN=0, osComm=0;
   var osWhite=0, osPocket=0, osBoat=0, osCashPend=0;
@@ -2759,6 +2760,20 @@ function renderLeads(){
   /* Captain extra-hour upsells from Charges (income + 15% when captainComm) */
   (state.charters||[]).forEach(function(c){
     if(!c) return;
+    /* All captainComm charges feed captain card (model + local), even if not tagged as upsell kind */
+    var cpAll={base:0, total:0, gross:0};
+    if(typeof chargeCommissionParts==="function"&&isChargeCaptainComm(c)){
+      cpAll=chargeCommissionParts(c)||cpAll;
+      var cmAll=Number(cpAll.total)||0;
+      var baseAll=Number(cpAll.base)||0;
+      var grossAll=Number(cpAll.gross)||0;
+      if(cmAll>0.009||baseAll>0.009){
+        capUpsellLocal.n++;
+        capUpsellLocal.comm+=cmAll;
+        capUpsellLocal.base+=baseAll;
+        capUpsellLocal.gross+=grossAll>0?grossAll:(Number(c.amount)||0);
+      }
+    }
     var gross=chargeUpsellGross(c);
     var hrs=typeof chargeExtHours==="function"?chargeExtHours(c):0;
     var kind=String(c.kind||c.chargeKind||"").toLowerCase();
@@ -3032,35 +3047,43 @@ function renderLeads(){
   }
   if(el("ldOwn")) el("ldOwn").textContent=money(ownVal);
   if(el("ldOwnSub")) el("ldOwnSub").textContent=ownN?(ownN+" · not cash"):"None logged";
-  /* Captain card: closed-deal income + upsell (charge) commissions from model */
+  /* Captain card: closed-deal income + upsell (charge) commissions — model + local loop */
   var capUpsell={ n:0, gross:0, base:0, comm:0, items:[] };
   try{
     if(LY_MODELS&&LY_MODELS.summarizeCaptainChargeCommissions){
       capUpsell=LY_MODELS.summarizeCaptainChargeCommissions(state.charters||[]);
     }
   }catch(eUp){}
+  /* Prefer whichever finds commission (local loop always runs; model may miss flags) */
+  if(!(Number(capUpsell.comm)>0.009)&&Number(capUpsellLocal.comm)>0.009){
+    capUpsell={ n:capUpsellLocal.n, gross:capUpsellLocal.gross, base:capUpsellLocal.base, comm:capUpsellLocal.comm, items:[] };
+  } else if(Number(capUpsellLocal.comm)>Number(capUpsell.comm)+0.009){
+    capUpsell={ n:capUpsellLocal.n, gross:capUpsellLocal.gross, base:capUpsellLocal.base, comm:capUpsellLocal.comm, items:capUpsell.items||[] };
+  }
   var capCommAll=capComm+(Number(capUpsell.comm)||0);
   var capExAll=capExVat+(Number(capUpsell.base)||0);
   var capIncomeAll=capTot+(Number(capUpsell.gross)||0);
   if(el("ldCap")) el("ldCap").textContent=money(capIncomeAll);
   if(el("ldCapSub")){
-    var capBits=capN+"× deals · ex VAT "+money(capExVat)+" · deal comm "+money(capComm);
-    if((capUpsell.n||0)>0){
-      capBits+=" · upsells "+capUpsell.n+"× · upsell comm "+money(capUpsell.comm);
+    var capBits=capN+"× deals · deal comm "+money(capComm);
+    if((capUpsell.n||0)>0||(Number(capUpsell.comm)||0)>0.009){
+      capBits+=" · upsells "+(capUpsell.n||0)+"× · upsell comm "+money(capUpsell.comm||0);
+    } else {
+      capBits+=" · upsells 0 · upsell comm €0";
     }
     capBits+=" · total comm "+money(capCommAll)+" · net "+money(Math.max(0, capExAll-capCommAll));
     el("ldCapSub").textContent=capBits;
   }
   if(el("ldCapTypes")){
     var typeHtml=formatTypeMixHTML(capTypes);
-    if((capUpsell.n||0)>0){
-      typeHtml+='<div class="ld-type-row">'+
-        '<span class="t">Upsells / extensions</span>'+
-        '<span class="n">'+capUpsell.n+'×</span>'+
-        '<span class="m money">'+money0(capUpsell.gross)+'</span>'+
-      '</div>';
-      typeHtml+='<div class="meta" style="margin-top:4px;font-size:11.5px">Upsell comm <b class="money">'+money(capUpsell.comm)+'</b> · base ex VAT '+money(capUpsell.base)+'</div>';
-    }
+    typeHtml+='<div class="ld-type-row">'+
+      '<span class="t">Upsells / extensions</span>'+
+      '<span class="n">'+(capUpsell.n||0)+'×</span>'+
+      '<span class="m money">'+money0(capUpsell.gross||0)+'</span>'+
+    '</div>';
+    typeHtml+='<div class="meta" style="margin-top:4px;font-size:11.5px">Upsell comm <b class="money">'+money(capUpsell.comm||0)+'</b> · base ex VAT '+money(capUpsell.base||0)+
+      ((state.charters&&state.charters.length)?' · charges loaded '+(state.charters.length):' · no charges in memory')+
+    '</div>';
     el("ldCapTypes").innerHTML=typeHtml;
   }
   if(el("ldCb")) el("ldCb").textContent=money(cbTot);
