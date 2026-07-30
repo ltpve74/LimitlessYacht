@@ -13,6 +13,7 @@ export function constrainLeadSource(v) {
     .toLowerCase()
     .trim();
   if (!s) return "other";
+  if (s === "pending" || s === "unassigned" || s === "assign") return "pending";
   if (s === "captain" || s === "cpt" || s === "website" || s === "web" || s === "direct")
     return "captain";
   if (

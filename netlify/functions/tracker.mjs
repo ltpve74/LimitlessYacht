@@ -720,45 +720,71 @@ function leadKeyFromEvent(ev) {
 }
 
 /**
- * Import ICS trips into leads (charter book).
- * - Existing leads → captain (truth so far), keep prices/money
- * - New ICS events not linked → clickboat (Paul), seasonal list price
- * Source is always editable later on each lead.
+ * Fresh-only ICS → leads.
+ * Leads list is the historical book — never re-import old calendar bulk.
+ *
+ * First run after deploy: baseline every current ICS uid + lead links into
+ * meta.icsLeadKnownKeys with ZERO new leads (protects cleaned history).
+ * Later: only brand-new calendar event keys create a lead with source=pending.
  */
-function importIcsIntoLeads(data, events, who, now) {
+function syncNewIcsLeads(data, events, who, now) {
+  if (!data.meta || typeof data.meta !== "object") data.meta = {};
   if (!Array.isArray(data.leads)) data.leads = [];
   const leads = data.leads;
-  let markedCaptain = 0;
-  let created = 0;
-  let skippedOff = 0;
-  let linkedExisting = 0;
 
-  /* 1) All current leads are captain-sourced unless already clickboat/owner */
-  leads.forEach((l) => {
-    if (!l) return;
-    const src = LY.constrainLeadSource(l.leadSource);
-    if (src === "clickboat" || src === "owner") return;
-    if (src !== "captain") {
-      l.leadSource = "captain";
-      l.updatedAt = now;
-      markedCaptain++;
-    } else if (!l.leadSource) {
-      l.leadSource = "captain";
-      markedCaptain++;
-    }
+  const known = new Set();
+  const prev = Array.isArray(data.meta.icsLeadKnownKeys)
+    ? data.meta.icsLeadKnownKeys
+    : [];
+  prev.forEach((k) => {
+    if (k) known.add(String(k));
   });
 
   const byCal = new Map();
   leads.forEach((l) => {
     if (!l) return;
     const k = String(l.calendarEventKey || l.calEventKey || "").trim();
-    if (k) byCal.set(k, l);
+    if (k) {
+      known.add(k);
+      byCal.set(k, l);
+    }
     const u = String(l.calendarUid || "").trim();
     if (u) {
       const uk = u.indexOf("uid:") === 0 ? u : "uid:" + u;
+      known.add(uk);
       byCal.set(uk, l);
     }
   });
+
+  const feedKeys = [];
+  (events || []).forEach((ev) => {
+    if (!ev || !ev.start) return;
+    if (LY.isIcsOffSummary(ev.summary)) return;
+    const ek = leadKeyFromEvent(ev);
+    if (!ek) return;
+    feedKeys.push(ek);
+  });
+
+  /* First baseline: remember the whole live feed, create nothing */
+  if (!data.meta.icsLeadBaselineAt) {
+    feedKeys.forEach((k) => known.add(k));
+    data.meta.icsLeadKnownKeys = Array.from(known);
+    data.meta.icsLeadBaselineAt = now;
+    data.meta.icsLeadBaselineBy = who || "system";
+    data.meta.icsLeadLastSyncAt = now;
+    return {
+      baselined: true,
+      created: 0,
+      skippedOff: 0,
+      alreadyKnown: feedKeys.length,
+      totalLeads: leads.length,
+      knownCount: known.size,
+    };
+  }
+
+  let created = 0;
+  let skippedOff = 0;
+  let alreadyKnown = 0;
 
   (events || []).forEach((ev) => {
     if (!ev || !ev.start) return;
@@ -768,14 +794,20 @@ function importIcsIntoLeads(data, events, who, now) {
     }
     const ek = leadKeyFromEvent(ev);
     if (!ek) return;
-    if (byCal.has(ek)) {
+
+    if (byCal.has(ek) || known.has(ek)) {
+      known.add(ek);
+      alreadyKnown++;
+      /* Optional: refresh start date on linked lead if empty */
       const L = byCal.get(ek);
-      /* Keep source; refresh dates if empty */
-      if (!L.start && ev.start) L.start = String(ev.start).slice(0, 10);
-      linkedExisting++;
+      if (L && !L.start && ev.start) {
+        L.start = String(ev.start).slice(0, 10);
+        L.updatedAt = now;
+      }
       return;
     }
 
+    /* Brand-new calendar event only */
     const priced = LY.charterPriceFromEvent(ev);
     const name = LY.guestNameFromIcsSummary(ev.summary);
     const id =
@@ -786,9 +818,8 @@ function importIcsIntoLeads(data, events, who, now) {
         .slice(0, 48) +
       "-" +
       String(ev.start).slice(0, 10);
-    /* Avoid id collision if re-import */
     if (leads.some((x) => x && x.id === id)) {
-      byCal.set(ek, leads.find((x) => x && x.id === id));
+      known.add(ek);
       return;
     }
 
@@ -810,7 +841,8 @@ function importIcsIntoLeads(data, events, who, now) {
       vatMode: "include",
       vatPct: 21,
       split: false,
-      leadSource: "clickboat",
+      leadSource: "pending",
+      sourcePending: true,
       bookingStatus: "active",
       cancelled: false,
       calendarEventKey: ek,
@@ -824,21 +856,32 @@ function importIcsIntoLeads(data, events, who, now) {
       apa: 0,
       apas: "Not issued",
       notes:
-        "Imported from ICS · Click&Boat (Paul) default — change source if owner/captain. " +
+        "New from calendar · assign source (Captain / Click&Boat / Owner). " +
         priced.label +
         (ev.summary ? " · cal: " + String(ev.summary).slice(0, 60) : ""),
-      by: who || "ICS import",
+      by: who || "Calendar sync",
       createdAt: now,
       updatedAt: now,
-      icsImport: true,
+      icsFresh: true,
     };
     leads.unshift(lead);
     byCal.set(ek, lead);
+    known.add(ek);
     created++;
   });
 
   data.leads = leads;
-  return { markedCaptain, created, skippedOff, linkedExisting, totalLeads: leads.length };
+  data.meta.icsLeadKnownKeys = Array.from(known);
+  data.meta.icsLeadLastSyncAt = now;
+  data.meta.icsLeadLastSyncBy = who || "";
+  return {
+    baselined: false,
+    created,
+    skippedOff,
+    alreadyKnown,
+    totalLeads: leads.length,
+    knownCount: known.size,
+  };
 }
 async function saveData(store, data) {
   await store.setJSON(BLOB_KEY, data);
@@ -1572,12 +1615,12 @@ export default async (req, context) => {
    * until captain sets active=true (or AVAILABILITY_SOURCE=blob).
    */
   /*
-   * Charter book: pull manager ICS → leads.
-   * Existing leads → captain; new events → clickboat (Paul); source editable later.
+   * Fresh calendar → leads only (no historical bulk import).
+   * First call baselines current ICS uids; later calls create pending-source leads.
    */
-  if (action === "importIcsLeads") {
+  if (action === "syncNewIcsLeads" || action === "importIcsLeads") {
     if (!canCommercial(who, role)) {
-      return json({ error: "Leads import is captain/manager only" }, 403);
+      return json({ error: "Calendar → leads sync is captain/manager only" }, 403);
     }
     touchDevice();
     let text;
@@ -1590,20 +1633,18 @@ export default async (req, context) => {
       );
     }
     const parsed = parseIcs(text);
-    const stats = importIcsIntoLeads(data, parsed.events, who, now);
+    const stats = syncNewIcsLeads(data, parsed.events, who, now);
     addLog(
-      "import ICS leads created=" +
-        stats.created +
-        " captainMarked=" +
-        stats.markedCaptain +
-        " linked=" +
-        stats.linkedExisting
+      (stats.baselined ? "ICS lead baseline keys=" : "ICS fresh leads created=") +
+        (stats.baselined ? stats.knownCount : stats.created)
     );
     await saveData(store, data);
     return json({
       ok: true,
       stats: stats,
       leads: data.leads,
+      icsLeadBaselineAt: (data.meta && data.meta.icsLeadBaselineAt) || "",
+      icsLeadLastSyncAt: (data.meta && data.meta.icsLeadLastSyncAt) || "",
     });
   }
 
