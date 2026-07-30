@@ -774,25 +774,25 @@ var TEAM_NAMES_CACHE_KEY="ly_team_stew_names_v1";
 var teamNamesLoadTimer=null;
 var teamNamesLoading=false;
 var gateLoginInFlight=false;
-/** Active stew display names for the team login dropdown. */
+/**
+ * Team login dropdown = active people on Stews → Team only (not calendar junk).
+ */
 function stewNamesFromRows(stews){
-  var seen={}, active=[], all=[];
+  var seen={}, out=[];
   (stews||[]).forEach(function(s){
     if(!s) return;
-    var n=String(s.name||"").trim();
+    if(s.active===false||s.active===0||s.active==="false") return;
+    var n=String(s.name||"").trim().replace(/\s+/g," ");
     if(!n||seen[n.toLowerCase()]) return;
     seen[n.toLowerCase()]=1;
-    all.push(n);
-    if(s.active===false||s.active===0||s.active==="false") return;
-    active.push(n);
+    out.push(n);
   });
-  var out=active.length?active:all;
   out.sort(function(a,b){ return a.localeCompare(b); });
   return out;
 }
 function cacheTeamStewNames(names){
-  if(!names||!names.length) return;
-  try{ safeSet(TEAM_NAMES_CACHE_KEY, JSON.stringify(names)); }catch(e){}
+  /* Always write (including empty) so stale calendar-harvested names are wiped */
+  try{ safeSet(TEAM_NAMES_CACHE_KEY, JSON.stringify(Array.isArray(names)?names:[])); }catch(e){}
 }
 function loadCachedTeamStewNames(){
   try{
@@ -801,8 +801,7 @@ function loadCachedTeamStewNames(){
   }catch(e){ return []; }
 }
 function rememberStewNamesFromState(){
-  var names=stewNamesFromRows(state.stews);
-  if(names.length) cacheTeamStewNames(names);
+  cacheTeamStewNames(stewNamesFromRows(state.stews));
 }
 function setTeamNameHint(msg){
   var hint=el("teamNameHint");
@@ -810,20 +809,21 @@ function setTeamNameHint(msg){
 }
 function paintTeamNameSelect(names, prefer){
   var sel=el("teamNameSel"); if(!sel) return;
-  var list=names&&names.length?names.slice():loadCachedTeamStewNames();
+  /* Prefer server/fresh list; only use cache if caller passed nothing */
+  var list=names!=null?names.slice():loadCachedTeamStewNames();
   var prev=prefer!=null&&prefer!==""?String(prefer):String(sel.value||"");
+  if(prev&&list.indexOf(prev)<0) prev="";
   var h='<option value="">— Select your name —</option>';
   list.forEach(function(n){
     h+='<option value="'+esc(n)+'"'+(n===prev?" selected":"")+'>'+esc(n)+'</option>';
   });
   sel.innerHTML=h;
-  if(prev&&list.indexOf(prev)>=0) sel.value=prev;
-  if(list.length) setTeamNameHint("Pick your name from the roster.");
-  else setTeamNameHint("Enter the team passcode to load names (or ask captain to add people under Stews → Team).");
+  if(prev) sel.value=prev;
+  if(list.length) setTeamNameHint("Pick your name (Stews → Team roster · "+list.length+").");
+  else setTeamNameHint("Enter team passcode and tap Load names. Names come only from captain’s Stews → Team list.");
 }
 /**
- * Fetch stew names with the team passcode (dedicated action — does not open the app).
- * Falls back to a silent full load if the action is older on the server.
+ * Load names = active stews from server Team roster only.
  */
 function tryLoadTeamNamesFromPass(){
   if(gateLoginInFlight) return;
@@ -835,7 +835,7 @@ function tryLoadTeamNamesFromPass(){
   }
   if(teamNamesLoading) return;
   teamNamesLoading=true;
-  setTeamNameHint("Loading names…");
+  setTeamNameHint("Loading names from Team roster…");
   var prevWho=session.who, prevRole=session.role, prevPass=session.pass;
   session.who="Team";
   session.role="team";
@@ -845,20 +845,10 @@ function tryLoadTeamNamesFromPass(){
     teamNamesLoading=false;
     if(gateLoginInFlight) return;
     names=(names||[]).filter(Boolean);
-    if(names.length){
-      cacheTeamStewNames(names);
-      paintTeamNameSelect(names);
-      setTeamNameHint("Pick your name from the roster ("+names.length+").");
-    } else {
-      var cached=loadCachedTeamStewNames();
-      if(cached.length){
-        paintTeamNameSelect(cached);
-        setTeamNameHint("Using saved names on this phone ("+cached.length+"). Tap Load names after captain refreshes roster if the list looks wrong.");
-      } else {
-        paintTeamNameSelect([]);
-        setTeamNameHint("No names found. As captain: Stews → Team, add Laura/Toni/…, Save, then Refresh roster. Then try Load names again.");
-      }
-    }
+    cacheTeamStewNames(names); /* wipe phone cache even when empty */
+    paintTeamNameSelect(names);
+    if(names.length) setTeamNameHint("Pick your name (Stews → Team · "+names.length+").");
+    else setTeamNameHint("Team roster is empty — captain must add people under Stews → Team and Save.");
   }
   function failNames(err){
     teamNamesLoading=false;
@@ -872,23 +862,16 @@ function tryLoadTeamNamesFromPass(){
     session.role=prevRole;
     session.pass=prevPass;
   }
-  function namesFromPayload(d){
-    if(!d) return [];
-    if(Array.isArray(d.names)&&d.names.length) return d.names;
-    if(Array.isArray(d.stewNames)&&d.stewNames.length) return d.stewNames;
-    return stewNamesFromRows(d.stews);
-  }
-  api("stewNames",{silent:true}).then(function(d){
-    var n=namesFromPayload(d);
-    if(n.length||(d&&Array.isArray(d.names))){ applyNames(n); restoreSession(); return; }
-    return api("load",{silent:true}).then(function(d2){
-      applyNames(namesFromPayload(d2));
-      restoreSession();
-    });
+  /* Prefer stews rows from full load (authoritative Team tab); stewNames API is same source */
+  api("load",{silent:true}).then(function(d){
+    var n=stewNamesFromRows(d&&d.stews);
+    if(!n.length&&d&&Array.isArray(d.stewNames)) n=d.stewNames.filter(Boolean);
+    applyNames(n);
+    restoreSession();
   }).catch(function(err){
     if(err&&err.code===401){ failNames(err); restoreSession(); return; }
-    api("load",{silent:true}).then(function(d2){
-      applyNames(namesFromPayload(d2));
+    api("stewNames",{silent:true}).then(function(d2){
+      applyNames((d2&&d2.names)||[]);
       restoreSession();
     }).catch(function(err2){
       failNames(err2);
@@ -917,7 +900,8 @@ function prefillGateWho(who, role){
     whoSel.value="team";
     if(el("teamNameWrap")) el("teamNameWrap").classList.remove("hidden");
     var nm=w.replace(/^team\s*[·\-:]\s*/i,"").trim()||w;
-    paintTeamNameSelect(loadCachedTeamStewNames(), nm);
+    /* Only Team-tab names — load with pass; do not show stale phone cache first */
+    paintTeamNameSelect([], nm);
     scheduleTeamNamesLoad();
   }
 }
@@ -925,7 +909,7 @@ function updateGateRoleUI(){
   var r=whoSel?whoSel.value:"captain";
   if(el("teamNameWrap")) el("teamNameWrap").classList.toggle("hidden", r!=="team");
   if(r==="team"){
-    paintTeamNameSelect(loadCachedTeamStewNames());
+    paintTeamNameSelect([]);
     scheduleTeamNamesLoad();
   }
 }
