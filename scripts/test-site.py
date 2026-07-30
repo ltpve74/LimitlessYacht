@@ -934,6 +934,24 @@ def check_html(r: Runner, rel: str, html: str) -> None:
         and "document.documentElement.classList.remove('ly-past-hero')" in html
         and "destId === 'itinerary-funnel' || destId === 'gallery-funnel'" in html,
     )
+
+    _hero_css = (read_file('css/layout.css') or '') + (read_file('css/main.css') or '')
+    _hero_struct = (
+        'id="heroPullQuote"' in html
+        and html.count('hero-pull-slide') >= 4
+        and 'hero-pull-slide is-active' in html
+        and 'hero-pull-track' in html
+        and '.hero-pull-slide' in _hero_css
+        and ('grid-area:1 / 1' in _hero_css or 'grid-area:1/1' in re.sub(r'\s+', '', _hero_css))
+    )
+    _hero_en_quotes = (
+        'chartered again the following week' in html
+        and 'highlights of our stay in Mallorca' in html
+    )
+    r.check(
+        'hero pull-quote is a fading review carousel (stacked slides)',
+        _hero_struct and (_hero_en_quotes if meta.get('lang') == 'en' else True),
+    )
     r.check(
         'nav scroll section highlighting script',
         'updateNavSection' in html

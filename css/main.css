@@ -2956,7 +2956,25 @@
       line-height:1.6;
       letter-spacing:.015em;
       color:rgba(245,240,232,0.92);
-      margin-top:.85rem
+      margin-top:.85rem;
+      max-width:38rem
+    }
+    .hero-pull-track{
+      display:grid;
+      width:100%;
+      justify-items:center
+    }
+    .hero-pull-slide{
+      grid-area:1 / 1;
+      opacity:0;
+      transition:opacity .85s ease;
+      pointer-events:none;
+      text-align:center;
+      max-width:38rem
+    }
+    .hero-pull-slide.is-active{
+      opacity:1;
+      pointer-events:auto
     }
     .hero-pull-attr{
       color:rgba(245,240,232,0.74)

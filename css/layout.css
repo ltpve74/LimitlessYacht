@@ -1599,7 +1599,31 @@
     letter-spacing:.01em;
     line-height:1.55;
     margin-top:.65rem;
-    text-shadow:0 1px 6px rgba(10,22,40,.7)
+    text-shadow:0 1px 6px rgba(10,22,40,.7);
+    max-width:36rem;
+    width:100%
+  }
+  .hero-pull-track{
+    display:grid;
+    width:100%;
+    justify-items:center
+  }
+  .hero-pull-slide{
+    grid-area:1 / 1;
+    opacity:0;
+    transition:opacity .85s ease;
+    pointer-events:none;
+    text-align:center;
+    max-width:36rem
+  }
+  .hero-pull-slide.is-active{
+    opacity:1;
+    pointer-events:auto
+  }
+  @media (prefers-reduced-motion:reduce){
+    .hero-pull-slide{
+      transition:none
+    }
   }
   .hero-pull-attr{
     font-style:normal;
@@ -1607,7 +1631,9 @@
   }
   .hero-pull-link{
     color:inherit;
-    text-decoration:none
+    text-decoration:none;
+    display:block;
+    width:100%
   }
   .hero-rates-note{
     font-size:.8em;
