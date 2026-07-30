@@ -7876,8 +7876,9 @@ function mergeLeadsById(local, remote){
 function expLinesForMonth(month){
   return (state.expenses||[]).filter(function(e){return e&&expMonthKey(e.date)===month;});
 }
-/** Stew day-pay expense line (Paid or Unpaid) — only Stews-synced rows. */
+/** Stew day-pay expense line (Paid or Unpaid) — model-backed when available. */
 function expIsCrewDayPayLine(e){
+  if(LY_MODELS&&LY_MODELS.isCrewDayPayExpense) return !!LY_MODELS.isCrewDayPayExpense(e);
   if(!e||e.source!=="stew") return false;
   return e.stewPayKind==="dayPay"||!!e.stewEventKey||(e.linkId&&String(e.linkId).indexOf("stew-day:")===0);
 }
