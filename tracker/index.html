@@ -574,8 +574,7 @@ var session={ who:null, role:null, pass:null, deviceId:null };
 var state={ charters:[], leads:[], apa:[], diesel:[], stews:[], stewAssign:[], stewCalendar:[], expenses:[], expPetty:[], devices:[], log:[] };
 var stewCalendarAt=""; /* when captain last published ICS snapshot to blob */
 var stewCalendarBy="";
-/** App-owned public website calendar (blob summary from server — captain Ops). */
-var siteCalendarMeta=null;
+
 /** Categories aligned with monthly expenses spreadsheet (+ common boat ones). */
 var EXP_CATS=["Crew Salaries","Miscellaneous","Fuel Cars","Dockage / Marina","Provisions","Maintenance","Insurance","Captain reimbursement","Crew reimbursement","Other"];
 var EXP_METHODS=["Cash","Credit Card"];
@@ -983,9 +982,7 @@ document.addEventListener("click",function(ev){
   var tile=ev.target.closest&&ev.target.closest("[data-ops-go]");
   if(tile){
     ev.preventDefault();
-    var go=tile.getAttribute("data-ops-go");
-    if(go==="siteCal"){ openSiteCalendarSheet(); return; }
-    switchTab(go);
+    switchTab(tile.getAttribute("data-ops-go"));
   }
 });
 function renderOpsHub(){
@@ -994,17 +991,13 @@ function renderOpsHub(){
     grid.innerHTML='<div class="empty"><div class="big">⚓</div><div>Ops is captain-only.</div></div>';
     return;
   }
-  var sc=siteCalendarMeta||{};
-  var calDesc=sc.exists
-    ?((sc.active?"LIVE from leads · ":"Built · ")+(sc.eventCount||0)+" trips · "+(sc.bookedCount||0)+" booked · "+(sc.tentativeCount||0)+" hold")
-    :"Public calendar from leads (pending = on hold)";
+  /* Site calendar ops removed — public site updates automatically from leads */
   var tiles=[
     {id:"apa",ic:"📒",t:"APA",d:"Guest pot, spend ledger, shortfall charges"},
     {id:"diesel",ic:"⛽",t:"Diesel",d:"Bunker & sell by date (€/L each load)"},
-    {id:"stews",ic:"👩‍✈️",t:"Stews",d:"Roster, day pay, tips (private)"},
+    {id:"stews",ic:"👩‍✈️",t:"Stews",d:"Confirmed charters only · day pay & tips"},
     {id:"expenses",ic:"💶",t:"Expenses",d:"Monthly boat ledger + export for manager"},
-    {id:"commissions",ic:"💸",t:"Commissions",d:"Captain "+CAPTAIN_COMMISSION_PCT+"% · Click&Boat "+CLICKBOAT_COMMISSION_PCT+"% · Owner benefits"},
-    {id:"siteCal",ic:"🗓️",t:"Site calendar",d:calDesc}
+    {id:"commissions",ic:"💸",t:"Commissions",d:"Captain "+CAPTAIN_COMMISSION_PCT+"% · Click&Boat "+CLICKBOAT_COMMISSION_PCT+"% · Owner benefits"}
   ];
   grid.innerHTML=tiles.map(function(x){
     return '<button type="button" class="ops-tile" data-ops-go="'+esc(x.id)+'">'+
@@ -1012,118 +1005,6 @@ function renderOpsHub(){
       '<span class="ops-t">'+esc(x.t)+'</span>'+
       '<span class="ops-d">'+esc(x.d)+'</span></button>';
   }).join("");
-}
-/**
- * Captain: public website calendar from leads (SOT).
- * Pending source → on hold; assigned sources → booked. Auto-activates on rebuild.
- */
-function openSiteCalendarSheet(){
-  if(!isCaptain()) return;
-  var sc=siteCalendarMeta||{exists:false,active:false};
-  function fmtWhen(iso){
-    if(!iso) return "—";
-    try{ return new Date(iso).toLocaleString(); }catch(e){ return String(iso); }
-  }
-  function paint(meta, busyMsg){
-    siteCalendarMeta=meta||siteCalendarMeta;
-    sc=siteCalendarMeta||{exists:false,active:false};
-    var sample=(sc.sample||[]).slice(0,10);
-    var h='<div class="sheethead"><h2>Site calendar</h2><button type="button" class="sheetx" id="sheetClose" aria-label="Close">×</button></div>';
-    h+='<p style="margin:0 0 12px;font-size:13px;color:var(--muted);line-height:1.45">'+
-      '<b>Leads</b> are the source of truth for the public website calendar. '+
-      '<b>Pending source</b> → on hold (tentative). Captain / Click&amp;Boat / Owner → booked. '+
-      'Stews roster still uses the manager ICS separately.'+
-    '</p>';
-    if(busyMsg){
-      h+='<div class="banner warn show" style="margin-bottom:12px">'+esc(busyMsg)+'</div>';
-    } else if(sc.active){
-      h+='<div class="banner show" style="margin-bottom:12px;background:rgba(46,125,50,.12);border-color:rgba(46,125,50,.35)">'+
-        '<b>Live on website</b> — guests see leads (booked + on hold), not a live ICS scrape.</div>';
-    } else if(sc.exists){
-      h+='<div class="banner warn show" style="margin-bottom:12px">Built but <b>not live</b> — website still uses manager ICS until activated.</div>';
-    } else {
-      h+='<div class="banner warn show" style="margin-bottom:12px">Not built yet. Tap <b>Rebuild from leads</b>.</div>';
-    }
-    h+='<div class="apa-card" style="margin-bottom:12px">'+
-      '<div class="meta">Status</div>'+
-      '<div style="margin-top:6px;font-size:15px;font-weight:700">'+(sc.exists?(sc.active?"Active on website (from leads)":"Built · inactive"):"Empty")+'</div>'+
-      '<div class="meta" style="margin-top:10px">'+
-        (sc.eventCount!=null?esc(String(sc.eventCount))+" trips":"—")+' · '+
-        (sc.bookedCount!=null?esc(String(sc.bookedCount))+" booked days":"")+' · '+
-        (sc.tentativeCount!=null?esc(String(sc.tentativeCount))+" on-hold days":"")+
-      '</div>'+
-      '<div class="meta" style="margin-top:6px">Source '+(sc.seededFrom?esc(sc.seededFrom):"leads")+
-        ' · updated '+esc(fmtWhen(sc.updatedAt))+
-        (sc.updatedBy?' · by '+esc(sc.updatedBy):'')+'</div>'+
-    '</div>';
-    if(sample.length){
-      h+='<div class="sectitle" style="margin:0 0 8px">Upcoming blocked days (sample)</div>'+
-        '<div class="meta" style="margin:0 0 14px;line-height:1.5">'+esc(sample.join(" · "))+'</div>';
-    }
-    h+='<div class="sheetbtns" style="flex-direction:column;gap:8px">'+
-      '<button type="button" class="btn" id="siteCalSeed"'+(busyMsg?" disabled":"")+'>Rebuild from leads (go live)</button>'+
-      (sc.exists&&!sc.active?'<button type="button" class="btn" id="siteCalOn"'+(busyMsg?" disabled":"")+'>Activate on website</button>':'')+
-      (sc.exists&&sc.active?'<button type="button" class="btn ghost" id="siteCalOff"'+(busyMsg?" disabled":"")+'>Deactivate (fall back to ICS)</button>':'')+
-      '<button type="button" class="btn ghost" id="siteCalRefresh"'+(busyMsg?" disabled":"")+'>Refresh status</button>'+
-    '</div>';
-    h+='<div class="sheetfoot"><button type="button" class="btn ghost" id="sheetCancel">Close</button></div>';
-    el("sheetInner").innerHTML=h;
-    function bind(){
-      if(el("sheetClose")) el("sheetClose").onclick=function(){ showSheet(false); };
-      if(el("sheetCancel")) el("sheetCancel").onclick=function(){ showSheet(false); };
-      if(el("siteCalRefresh")) el("siteCalRefresh").onclick=function(){
-        paint(siteCalendarMeta, "Loading…");
-        api("getSiteCalendar").then(function(j){
-          paint(j.siteCalendar||null, "");
-          if(curTab==="ops") renderOpsHub();
-        }).catch(function(err){
-          paint(siteCalendarMeta, (err&&err.error)||"Could not load status");
-        });
-      };
-      if(el("siteCalSeed")) el("siteCalSeed").onclick=function(){
-        if(!window.confirm("Rebuild the public website calendar from leads?\n\n• Pending source → on hold\n• Captain / Click&Boat / Owner → booked\n• Cancelled omitted\n\nThis goes live for guests (active).")) return;
-        paint(siteCalendarMeta, "Rebuilding from leads…");
-        api("rebuildSiteCalendar").then(function(j){
-          paint(j.siteCalendar||null, "");
-          if(curTab==="ops") renderOpsHub();
-          window.alert("Website calendar updated from leads.\n\n"+
-            ((j.siteCalendar&&j.siteCalendar.eventCount)||0)+" trips · "+
-            ((j.siteCalendar&&j.siteCalendar.bookedCount)||0)+" booked days · "+
-            ((j.siteCalendar&&j.siteCalendar.tentativeCount)||0)+" on hold.");
-        }).catch(function(err){
-          paint(siteCalendarMeta, (err&&err.error)||(err&&err.body&&err.body.error)||"Rebuild failed");
-        });
-      };
-      if(el("siteCalOn")) el("siteCalOn").onclick=function(){
-        if(!window.confirm("Activate leads calendar on the LIVE website?")) return;
-        paint(siteCalendarMeta, "Activating…");
-        api("setSiteCalendarActive",{active:true}).then(function(j){
-          paint(j.siteCalendar||null, "");
-          if(curTab==="ops") renderOpsHub();
-        }).catch(function(err){
-          paint(siteCalendarMeta, (err&&err.error)||"Activate failed");
-        });
-      };
-      if(el("siteCalOff")) el("siteCalOff").onclick=function(){
-        if(!window.confirm("Deactivate leads calendar?\n\nWebsite falls back to live manager ICS.")) return;
-        paint(siteCalendarMeta, "Deactivating…");
-        api("setSiteCalendarActive",{active:false}).then(function(j){
-          paint(j.siteCalendar||null, "");
-          if(curTab==="ops") renderOpsHub();
-        }).catch(function(err){
-          paint(siteCalendarMeta, (err&&err.error)||"Deactivate failed");
-        });
-      };
-    }
-    bind();
-    showSheet(true);
-  }
-  paint(sc, DEMO?"Demo mode — site calendar needs live server":"");
-  if(!DEMO){
-    api("getSiteCalendar").then(function(j){
-      paint(j.siteCalendar||null, "");
-    }).catch(function(){ /* keep boot summary */ });
-  }
 }
 function switchTab(t){
   if(t==="stews"&&!canRoster()) return;
@@ -12675,8 +12556,7 @@ function applyData(d, opts){
   else if(!canRoster()) state.stewCalendar=[];
   if(d.stewCalendarAt!=null&&d.stewCalendarAt!=="") stewCalendarAt=d.stewCalendarAt;
   if(d.stewCalendarBy!=null&&d.stewCalendarBy!=="") stewCalendarBy=d.stewCalendarBy;
-  if(isCaptain() && d.siteCalendar && typeof d.siteCalendar==="object") siteCalendarMeta=d.siteCalendar;
-  else if(!isCaptain()) siteCalendarMeta=null;
+
   if(isCaptain() && Array.isArray(d.expenses)){
     if(fromPoll&&localSaveIsFresh("expenses")){
       /* keep local expenses (floatPay / edits) for a few seconds after save */
