@@ -108,6 +108,10 @@
   #tab-leads .ld-snap-hero .k{font-size:11px;font-weight:800;text-transform:uppercase;letter-spacing:.04em;color:var(--muted)}
   #tab-leads .ld-snap-hero .big{font-size:26px;font-weight:800;line-height:1.15;margin-top:4px;font-variant-numeric:tabular-nums}
   #tab-leads .ld-snap-hero .s{font-size:11.5px;color:var(--muted);font-weight:600;margin-top:4px;line-height:1.35}
+  #tab-leads .ld-snap-hero .ld-snap-net{margin-top:12px;padding:10px 12px;border-radius:12px;background:rgba(46,125,50,.08);border:1px solid rgba(46,125,50,.22)}
+  #tab-leads .ld-snap-hero .ld-snap-net .k{color:rgba(27,94,32,.9)}
+  #tab-leads .ld-snap-hero .ld-snap-net .big{font-size:24px;color:#1b5e20;margin-top:3px}
+  #tab-leads .ld-snap-hero .ld-snap-net .s{color:rgba(27,94,32,.75)}
   #tab-leads .ld-snap-cols{display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-bottom:10px}
   #tab-leads .ld-snap-col{min-width:0;padding:10px 12px;border-radius:12px;background:rgba(0,0,0,.03);border:1px solid var(--line)}
   #tab-leads .ld-snap-col.done{background:rgba(46,125,50,.06);border-color:rgba(46,125,50,.2)}
@@ -490,9 +494,14 @@
       <div class="ld-summary" id="ldSummary">
         <div class="sumcard ld-snap" id="ldSnap">
           <div class="ld-snap-hero">
-            <div class="k">Projected closed total</div>
+            <div class="k">Projected closed total · gross</div>
             <div class="big money" id="ldAllTot">€0</div>
             <div class="s" id="ldAllSub">Realised + scheduled closed deals (charters + upsells)</div>
+            <div class="ld-snap-net">
+              <div class="k">Projected net income · after VAT &amp; commissions</div>
+              <div class="big money" id="ldAllNet">€0</div>
+              <div class="s" id="ldAllNetSub">Before VAT − commissions (realised + scheduled)</div>
+            </div>
           </div>
           <div class="ld-snap-cols">
             <div class="ld-snap-col done">
@@ -526,7 +535,7 @@
             <div class="ld-snap-row"><span class="k">Unconfirmed / tentative</span><span class="v" id="ldAwait">0</span><span class="s" id="ldAwaitSub">Not in money totals · not firm</span></div>
             <div class="ld-snap-row"><span class="k">Owner days (notional)</span><span class="v money" id="ldOwn">€0</span><span class="s" id="ldOwnSub">List-rate estimate · not cash</span></div>
           </div>
-          <div class="ld-snap-note">Money totals = <b>deal closed</b> only (realised + scheduled). <b>Unconfirmed</b> = pending source or open/tentative deal — yellow cards, not counted. Owner days = list-rate notional only.</div>
+          <div class="ld-snap-note">Money totals = <b>deal closed</b> only (realised + scheduled). <b>Net income</b> = before VAT − commissions. <b>Unconfirmed</b> = pending source or open/tentative deal — yellow cards, not counted. Owner days = list-rate notional only.</div>
         </div>
         <div class="sumcard ld-src"><div class="l">Luigi · Captain</div><div class="v money" id="ldCap">€0</div><div class="sub" id="ldCapSub">—</div><div id="ldCapTypes" class="ld-type-table"></div></div>
         <div class="sumcard ld-src"><div class="l">Paul · Click&amp;Boat</div><div class="v money" id="ldCb">€0</div><div class="sub" id="ldCbSub">—</div><div id="ldCbTypes" class="ld-type-table"></div></div>
@@ -2722,13 +2731,21 @@ function renderLeads(){
       '<span class="chev">✎</span></div>';
   });
   wrap.innerHTML=html||emptyBox("🌐","No charters in the book yet","Tap + for a new lead, or Sync calendar dates.");
-  /* Snapshot: projected total + done/proj breakdown + source cards */
+  /* Snapshot: projected total + net (ex VAT − commissions) + done/proj + source cards */
   var allTot=done.tot+proj.tot;
   var allN=done.n+proj.n;
+  var allEx=done.ex+proj.ex;
+  var allComm=done.comm+proj.comm;
+  var allNet=Math.max(0, allEx-allComm);
   if(el("ldAllTot")) el("ldAllTot").textContent=money(allTot);
   if(el("ldAllSub")){
     el("ldAllSub").textContent=allN+" closed trip"+(allN===1?"":"s")+
       " · "+money(done.tot)+" realised + "+money(proj.tot)+" scheduled";
+  }
+  if(el("ldAllNet")) el("ldAllNet").textContent=money(allNet);
+  if(el("ldAllNetSub")){
+    el("ldAllNetSub").textContent="Before VAT "+money(allEx)+" − commissions "+money(allComm)+
+      " · "+money(Math.max(0, done.ex-done.comm))+" realised + "+money(Math.max(0, proj.ex-proj.comm))+" scheduled";
   }
   if(el("ldDoneTot")) el("ldDoneTot").textContent=money(done.tot);
   if(el("ldDoneSub")){
