@@ -420,20 +420,8 @@
   <main>
     <div class="demo hidden" id="demoNote">Demo preview — sample data in your browser only. Once deployed it reads &amp; writes live data on Netlify.</div>
 
-    <!-- CHARGES -->
-    <section id="tab-charters">
-      <div class="summary">
-        <div class="sumcard"><div class="l">Total charged</div><div class="v money" id="chTot">€0</div></div>
-        <div class="sumcard"><div class="l">Cash settlement</div><div class="v money" id="chCashTot">€0</div></div>
-        <div class="sumcard"><div class="l">To invoice</div><div class="v money" id="chInvTot">€0</div></div>
-        <div class="sumcard"><div class="l">Invoices to issue</div><div class="v" id="chPending">0</div></div>
-      </div>
-      <div class="legend">Each charge is <b>Cash only</b>, <b>Invoice only</b>, or <b>Mix</b> — the card shows cash vs invoice/card clearly. APA shortfall = pot overspend (not full charter). Extra hours can sit on the same bill.</div>
-      <div class="list" id="chList"></div>
-    </section>
-
-    <!-- LEADS -->
-    <section id="tab-leads" class="hidden">
+    <!-- LEADS (default landing) -->
+    <section id="tab-leads">
       <div class="ld-summary" id="ldSummary">
         <div class="sumcard"><div class="l">Closed deals</div><div class="v money" id="ldTot">€0</div><div class="sub" id="ldTotSub">Excludes pending source</div></div>
         <div class="sumcard"><div class="l">Invoices open</div><div class="v" id="ldPending">0</div><div class="sub" id="ldPendSub">On closed deals only</div></div>
@@ -443,6 +431,18 @@
       </div>
       <div class="legend">Charter book. <b>Pending</b> = calendar hold (not closed — excluded from money totals). Closed = Captain (Luigi) · Click&amp;Boat (Paul) · Owner. New ICS dates → pending until you assign source. <b>Make invoice</b> = PDF.</div>
       <div class="list" id="ldList"></div>
+    </section>
+
+    <!-- CHARGES -->
+    <section id="tab-charters" class="hidden">
+      <div class="summary">
+        <div class="sumcard"><div class="l">Total charged</div><div class="v money" id="chTot">€0</div></div>
+        <div class="sumcard"><div class="l">Cash settlement</div><div class="v money" id="chCashTot">€0</div></div>
+        <div class="sumcard"><div class="l">To invoice</div><div class="v money" id="chInvTot">€0</div></div>
+        <div class="sumcard"><div class="l">Invoices to issue</div><div class="v" id="chPending">0</div></div>
+      </div>
+      <div class="legend">Each charge is <b>Cash only</b>, <b>Invoice only</b>, or <b>Mix</b> — the card shows cash vs invoice/card clearly. APA shortfall = pot overspend (not full charter). Extra hours can sit on the same bill.</div>
+      <div class="list" id="chList"></div>
     </section>
 
     <!-- APA (captain only — under Ops) -->
@@ -542,8 +542,8 @@
   <button class="fab" id="fab" aria-label="Add">+</button>
 
   <nav class="bnav" aria-label="Main">
-    <button type="button" data-nav="charters" id="navCharters" class="active"><span class="ic">🧾</span>Charges</button>
-    <button type="button" data-nav="leads" id="navLeads"><span class="ic">🌐</span>Leads</button>
+    <button type="button" data-nav="leads" id="navLeads" class="active"><span class="ic">🌐</span>Leads</button>
+    <button type="button" data-nav="charters" id="navCharters"><span class="ic">🧾</span>Charges</button>
     <button type="button" data-nav="ops" id="navOps" class="hidden"><span class="ic">⚓</span>Ops</button>
     <button type="button" data-nav="stews" id="navRoster" class="hidden"><span class="ic">👩‍✈️</span>Roster</button>
     <button type="button" data-nav="security" id="navSecurity"><span class="ic">🔒</span>Security<span class="badge hidden" id="secBadge">0</span></button>
@@ -585,7 +585,7 @@ function safeGet(k){ try{ return localStorage.getItem(k); }catch(e){ return memS
 function safeSet(k,v){ try{ localStorage.setItem(k,v); }catch(e){ memStore[k]=v; } }
 function safeDel(k){ try{ localStorage.removeItem(k); }catch(e){} try{ delete memStore[k]; }catch(e2){} }
 
-var DEMO=false, curTab="charters", apaSub="overview", activeApaId=null, apaView="list";
+var DEMO=false, curTab="leads", apaSub="overview", activeApaId=null, apaView="list";
 var stewSub="charters"; /* charters | team */
 var expMonth=""; /* YYYY-MM — empty until first render */
 var calEvents=[], calEventsAt=0, calEventsLoading=false, calEventsGeneratedAt="", calEventsPromise=null;
@@ -848,13 +848,13 @@ function enterApp(){
   el("meLabel").textContent=session.who+(session.who!==roleLabel?" · "+roleLabel:"")+(DEMO?" · demo":"");
   el("demoNote").classList.toggle("hidden",!DEMO);
   configureNavForRole();
-  /* Default landing: team → roster; manager/captain → charges */
+  /* Default landing: team → roster; manager/captain → leads (charges second) */
   if(isTeam()){
     if(curTab!=="stews"&&curTab!=="security") curTab="stews";
   } else if(!isCaptain()&&isOpsTab(curTab)){
-    curTab="charters";
+    curTab="leads";
   } else if(canCommercial()&&(isOpsTab(curTab)||!curTab)){
-    curTab="charters";
+    curTab="leads";
   }
   /* Deep link from push: /tracker/?tab=leads&pending=1 */
   try{
