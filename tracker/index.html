@@ -11172,27 +11172,88 @@ function stewPocketOwed(stewId){
   });
   return Math.round(total*100)/100;
 }
+/** Day-pay expense line for this stew + charter (if any). */
+function stewExpenseDayPayLine(asg, stewId){
+  if(!asg||!stewId||!state.expenses) return null;
+  var ek=String(asg.eventKey||"");
+  var sid=String(stewId);
+  var lid=ek?("stew-day:"+ek+":"+sid):"";
+  var date=String(asg.start||"").slice(0,10);
+  var hit=null;
+  (state.expenses||[]).forEach(function(e){
+    if(!e||!expIsCrewDayPayLine(e)) return;
+    if(String(e.stewId||"")!==sid) return;
+    if(lid&&e.linkId&&String(e.linkId)===lid){ hit=e; return; }
+    if(ek&&String(e.stewEventKey||"")===ek){ hit=e; return; }
+    if(date&&String(e.date||"").slice(0,10)===date&&String(e.vendor||"").toLowerCase().indexOf((stewById(sid)&&stewById(sid).name||"").toLowerCase())>=0)
+      if(!hit) hit=e;
+  });
+  return hit;
+}
+/**
+ * Money still due / already paid for one stew.
+ * Dedupes duplicate stewAssign rows (lead: + uid: for same day) — that was
+ * inflating Team “owe” (e.g. Laura €500 / Toni €900 from double counting).
+ */
 function stewPersonBalances(stewId){
   var unpaid=0, paid=0, nUnpaid=0, nPaid=0, tipUnpaid=0, tipPaid=0;
+  var sid=String(stewId||"");
+  /* Best assign per calendar start day for this stew */
+  var byDay={};
   (state.stewAssign||[]).forEach(function(a){
-    if(!a||!(a.stewIds||[]).some(function(id){return String(id)===String(stewId);})) return;
-    var ev=stewMergedEvents().filter(function(e){return e&&e.key===a.eventKey;})[0]||{
-      start:a.start, end:a.end, startTime:a.startTime, endTime:a.endTime, allDay:a.allDay, summary:a.summary, days:null
+    if(!a||!a.eventKey) return;
+    if(a.cancelled||a.status==="cancelled"||a.cancelGhost) return;
+    if(!(a.stewIds||[]).some(function(id){return String(id)===sid;})) return;
+    var day=String(a.start||"").slice(0,10)||"nodate";
+    var prev=byDay[day];
+    if(!prev){ byDay[day]=a; return; }
+    /* Prefer: Paid status, then lead: keys, then higher day pay, then tip set */
+    function score(x){
+      var s=0;
+      if(x.payStatus==="Paid") s+=100;
+      if(String(x.eventKey||"").indexOf("lead:")===0) s+=40;
+      if(x.leadId) s+=20;
+      s+=Math.min(50, apaNum(x.payEach)||apaNum(x.dayRate)||0);
+      if(apaNum(x.tipTotal)>0) s+=10;
+      if(x.payStatusManual) s+=5;
+      return s;
+    }
+    if(score(a)>score(prev)) byDay[day]=a;
+  });
+  var merged=[];
+  try{ merged=stewMergedEvents()||[]; }catch(eM){ merged=[]; }
+  Object.keys(byDay).forEach(function(day){
+    var a=byDay[day];
+    var ev=merged.filter(function(e){return e&&e.key===a.eventKey;})[0]||{
+      start:a.start, end:a.end, startTime:a.startTime, endTime:a.endTime,
+      allDay:a.allDay, summary:a.summary, days:null, key:a.eventKey, leadId:a.leadId
     };
     var pay=stewPayBreakdown(ev, a);
-    if(pay.each>0){
-      if(pay.paid){ paid+=pay.each; nPaid++; }
-      else if(pay.unpaid){ unpaid+=pay.each; nUnpaid++; }
+    var expLine=stewExpenseDayPayLine(a, sid);
+    var expPaid=!!(expLine&&String(expLine.crewPayStatus||"")==="Paid");
+    var dayPaid=!!pay.paid||expPaid;
+    var dayAmt=pay.each>0?pay.each:(expLine?apaNum(expLine.amount):0);
+    if(dayAmt>0){
+      if(dayPaid){ paid+=dayAmt; nPaid++; }
+      else if(pay.unpaid||pay.due){ unpaid+=dayAmt; nUnpaid++; }
+      /* upcoming (future charter) — not owed yet */
     }
     if(pay.tipEach>0){
       if(pay.tipPaid) tipPaid+=pay.tipEach;
       else if(pay.tipUnpaid) tipUnpaid+=pay.tipEach;
     }
   });
-  var pocket=stewPocketOwed(stewId);
-  return {unpaid:unpaid, paid:paid, nUnpaid:nUnpaid, nPaid:nPaid, tipUnpaid:tipUnpaid, tipPaid:tipPaid,
-    pocket:pocket,
-    dueTotal:unpaid+tipUnpaid+pocket, allPaid:paid+tipPaid};
+  var pocket=stewPocketOwed(sid);
+  unpaid=Math.round(unpaid*100)/100;
+  paid=Math.round(paid*100)/100;
+  tipUnpaid=Math.round(tipUnpaid*100)/100;
+  tipPaid=Math.round(tipPaid*100)/100;
+  return {
+    unpaid:unpaid, paid:paid, nUnpaid:nUnpaid, nPaid:nPaid,
+    tipUnpaid:tipUnpaid, tipPaid:tipPaid, pocket:pocket,
+    dueTotal:Math.round((unpaid+tipUnpaid+pocket)*100)/100,
+    allPaid:Math.round((paid+tipPaid)*100)/100
+  };
 }
 function paintStewTeam(){
   var wrap=el("stewTeamList"); if(!wrap) return;
@@ -11213,13 +11274,14 @@ function paintStewTeam(){
       '</div>'+
       '<div class="meta">'+(s.phone?'<span>📞 '+esc(s.phone)+'</span>':'')+
         (s.active===false?'<span class="pill p-grey">Inactive</span>':'<span class="pill p-green">Active</span>')+
-        (showMoney&&bal.unpaid>0?'<span class="pill p-amber">Pay '+money0(bal.unpaid)+'</span>':'')+
-        (showMoney&&bal.tipUnpaid>0?'<span class="pill p-amber">Tip '+money0(bal.tipUnpaid)+'</span>':'')+
+        (showMoney&&bal.unpaid>0?'<span class="pill p-amber">Day pay due '+money0(bal.unpaid)+(bal.nUnpaid?' · '+bal.nUnpaid+' trip'+(bal.nUnpaid===1?"":"s"):'')+'</span>':'')+
+        (showMoney&&bal.tipUnpaid>0?'<span class="pill p-amber">Tip due '+money0(bal.tipUnpaid)+'</span>':'')+
         (showMoney&&bal.pocket>0?'<span class="pill p-own">Pocket '+money0(bal.pocket)+'</span>':'')+
-        (showMoney&&bal.paid>0?'<span class="pill p-green">Pay '+money0(bal.paid)+'</span>':'')+
-        (showMoney&&bal.tipPaid>0?'<span class="pill p-green">Tip '+money0(bal.tipPaid)+'</span>':'')+
+        (showMoney&&bal.paid>0?'<span class="pill p-green">Day pay paid '+money0(bal.paid)+'</span>':'')+
+        (showMoney&&bal.tipPaid>0?'<span class="pill p-green">Tip paid '+money0(bal.tipPaid)+'</span>':'')+
         (showMoney&&bal.dueTotal<=0&&bal.allPaid>0?'<span class="pill p-green">Settled</span>':'')+
       '</div>'+
+      (showMoney&&bal.dueTotal>0?'<div class="notes" style="font-style:normal;color:var(--muted)">Still due = day pay + tips + pocket (one charter day counted once — mark Paid on Charters to clear day pay).</div>':'')+
       (showMoney&&bal.pocket>0?'<div class="notes" style="font-style:normal">Own-money shop spends to reimburse (from Expenses)</div>':'')+
       (s.notes?'<div class="notes">'+esc(s.notes)+'</div>':'')+
       (canEdit?'<button type="button" class="apa-x" data-stew-del="'+esc(s.id)+'" aria-label="Delete">×</button><span class="chev">✎</span>':'')+
