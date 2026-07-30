@@ -596,6 +596,60 @@
     };
   }
 
+  /**
+   * Closed commercial lead whose commission base (ex VAT) already includes
+   * free cash black on split deals — same gate as money totals in the UI.
+   */
+  function leadIsClosedCommercialIncome(r) {
+    if (!r || leadIsCancelled(r)) return false;
+    var src = leadSource(r);
+    if (src === "pending" || src === "owner") return false;
+    if (!leadIsDealClosed(r)) return false;
+    return (
+      src === "captain" ||
+      src === "clickboat" ||
+      src === "ownersourced" ||
+      src === "other"
+    );
+  }
+
+  /**
+   * Display-only total net income:
+   *   projectedNet (ex VAT − commissions on closed commercial)
+   *   + received free cash that is NOT already inside that projected net base.
+   *
+   * On closed commercial split deals, free cash is already in commission base
+   * (white before VAT + cash black), so it must not be added again.
+   * Cash on other leads (e.g. received before deal closed) is additive.
+   *
+   * @param {number} projectedNet
+   * @param {Array} leads
+   */
+  function summarizeTotalNetIncome(projectedNet, leads) {
+    var cash = summarizeLeadCashIncome(leads);
+    var inProjected = 0;
+    (Array.isArray(leads) ? leads : []).forEach(function (r) {
+      if (!r || leadIsCancelled(r) || !leadHasSplit(r)) return;
+      if (!leadFreeCashIsReceived(r)) return;
+      if (!leadIsClosedCommercialIncome(r)) return;
+      inProjected = round2(inProjected + leadFreeCashAmt(r));
+    });
+    var additive = round2(Math.max(0, cash.total - inProjected));
+    var proj = round2(Number(projectedNet) || 0);
+    return {
+      projectedNet: proj,
+      cashTotal: cash.total,
+      cashBoat: cash.boat,
+      cashOwner: cash.owner,
+      cashAlreadyInProjected: inProjected,
+      cashAdditive: additive,
+      totalNet: round2(proj + additive),
+      /** Simple sum of the two hero figures (may double-count closed-deal cash). */
+      naiveSum: round2(proj + cash.total),
+      cash: cash,
+    };
+  }
+
   /** Mutate lead: replace suggested cash with pin or clear corrupt value. */
   function sanitizeLeadCash(l, pin) {
     if (!l || !leadHasSplit(l)) return false;
@@ -1574,7 +1628,9 @@
     leadFreeCashIsOnBoat: leadFreeCashIsOnBoat,
     leadOwnerPocketCashAmt: leadOwnerPocketCashAmt,
     leadIsCancelled: leadIsCancelled,
+    leadIsClosedCommercialIncome: leadIsClosedCommercialIncome,
     summarizeLeadCashIncome: summarizeLeadCashIncome,
+    summarizeTotalNetIncome: summarizeTotalNetIncome,
     sanitizeLeadCash: sanitizeLeadCash,
     leadClientTotal: leadClientTotal,
     commissionVatPct: commissionVatPct,

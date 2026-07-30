@@ -124,6 +124,10 @@
   #tab-leads .ld-snap-hero .ld-cash-item .nm{font-weight:700;min-width:0;word-break:break-word}
   #tab-leads .ld-snap-hero .ld-cash-item .meta{grid-column:1/-1;font-size:11px;color:var(--muted);font-weight:600}
   #tab-leads .ld-snap-hero .ld-cash-item .am{font-weight:800;font-variant-numeric:tabular-nums;white-space:nowrap}
+  #tab-leads .ld-snap-hero .ld-snap-total{margin-top:12px;padding:10px 12px;border-radius:12px;background:rgba(201,168,76,.12);border:1px solid rgba(201,168,76,.4)}
+  #tab-leads .ld-snap-hero .ld-snap-total .k{color:rgba(120,90,20,.95);font-size:11px;font-weight:800;text-transform:uppercase;letter-spacing:.04em}
+  #tab-leads .ld-snap-hero .ld-snap-total .big{font-size:26px;font-weight:800;color:#6b4e0a;margin-top:3px;font-variant-numeric:tabular-nums}
+  #tab-leads .ld-snap-hero .ld-snap-total .s{font-size:11.5px;color:rgba(107,78,10,.8);font-weight:600;margin-top:4px;line-height:1.35}
   #tab-leads .ld-snap-cols{display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-bottom:10px}
   #tab-leads .ld-snap-col{min-width:0;padding:10px 12px;border-radius:12px;background:rgba(0,0,0,.03);border:1px solid var(--line)}
   #tab-leads .ld-snap-col.done{background:rgba(46,125,50,.06);border-color:rgba(46,125,50,.2)}
@@ -527,6 +531,11 @@
               </div>
               <div class="ld-cash-items" id="ldCashItems"></div>
             </div>
+            <div class="ld-snap-total" id="ldTotalNetSnap">
+              <div class="k">Total net income</div>
+              <div class="big money" id="ldTotalNet">€0</div>
+              <div class="s" id="ldTotalNetSub">Projected net + cash income (model · no double-count of free cash already in projected net)</div>
+            </div>
           </div>
           <div class="ld-snap-cols">
             <div class="ld-snap-col done">
@@ -560,7 +569,7 @@
             <div class="ld-snap-row"><span class="k">Unconfirmed / tentative</span><span class="v" id="ldAwait">0</span><span class="s" id="ldAwaitSub">Not in money totals · not firm</span></div>
             <div class="ld-snap-row"><span class="k">Owner days (notional)</span><span class="v money" id="ldOwn">€0</span><span class="s" id="ldOwnSub">List-rate estimate · not cash</span></div>
           </div>
-          <div class="ld-snap-note">Money totals = <b>confirmed commercial</b> only (Captain, Paul, Owner-sourced, Other). <b>Net income</b> = before VAT − commissions. <b>Cash income</b> = free cash already received on <b>split leads</b> only (boat petty vs owner pocket) — not charges. <b>Owner’s days</b> = no income · notional only. <b>Unconfirmed</b> = yellow until Confirm.</div>
+          <div class="ld-snap-note">Money totals = <b>confirmed commercial</b> only. <b>Net</b> = before VAT − commissions (includes free cash on closed split deals). <b>Cash income</b> = free cash received on split leads (boat vs owner pocket) — itemisation only; not charges. <b>Total net</b> = projected net + any cash not already inside that net. <b>Owner’s days</b> = notional only.</div>
         </div>
         <div class="sumcard ld-src"><div class="l">Luigi · Captain</div><div class="v money" id="ldCap">€0</div><div class="sub" id="ldCapSub">—</div><div id="ldCapTypes" class="ld-type-table"></div></div>
         <div class="sumcard ld-src"><div class="l">Paul · Click&amp;Boat</div><div class="v money" id="ldCb">€0</div><div class="sub" id="ldCbSub">—</div><div id="ldCbTypes" class="ld-type-table"></div></div>
@@ -2952,6 +2961,30 @@ function renderLeads(){
           '</span>'+
         '</div>';
       }).join("");
+    }
+  }
+  /* Total net = projected net + cash not already inside projected net (model) */
+  var totNet={ totalNet:allNet, projectedNet:allNet, cashTotal:cashSum.total||0, cashAdditive:0, cashAlreadyInProjected:0 };
+  try{
+    if(LY_MODELS&&LY_MODELS.summarizeTotalNetIncome){
+      totNet=LY_MODELS.summarizeTotalNetIncome(allNet, state.leads||[]);
+    } else {
+      totNet.totalNet=allNet+(cashSum.total||0);
+      totNet.cashAdditive=cashSum.total||0;
+    }
+  }catch(eTot){}
+  if(el("ldTotalNet")) el("ldTotalNet").textContent=money(totNet.totalNet||0);
+  if(el("ldTotalNetSub")){
+    var inP=totNet.cashAlreadyInProjected||0;
+    var add=totNet.cashAdditive||0;
+    if((cashSum.total||0)<0.01){
+      el("ldTotalNetSub").textContent="Projected net "+money(allNet)+" · no received free cash to add";
+    } else if(inP>0.009&&add<0.01){
+      el("ldTotalNetSub").textContent="Projected net "+money(allNet)+" (already includes free cash "+money(inP)+" on closed deals) · cash itemisation "+money(cashSum.total)+" above";
+    } else if(inP>0.009){
+      el("ldTotalNetSub").textContent="Projected net "+money(allNet)+" + cash not already in net "+money(add)+" · free cash already in projected net "+money(inP);
+    } else {
+      el("ldTotalNetSub").textContent="Projected net "+money(allNet)+" + cash income "+money(cashSum.total);
     }
   }
   if(el("ldDoneTot")) el("ldDoneTot").textContent=money(done.tot);

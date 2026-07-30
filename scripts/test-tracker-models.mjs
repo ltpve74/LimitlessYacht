@@ -339,6 +339,49 @@ ok("label owner-sourced", M.leadSourceLabel("ownersourced") === "Owner-sourced")
     ok("cash sum skips pending", cashSum.n === 2);
     ok("cash sum items 2", cashSum.items.length === 2);
     ok("cash sum no charges concept", cashSum.boatN === 1 && cashSum.ownerN === 1);
+    const tot = M.summarizeTotalNetIncome(10000, [
+      {
+        id: "c1",
+        name: "Boat guest",
+        start: "2026-08-01",
+        split: true,
+        cashAmt: 1800,
+        cashDest: "boat",
+        cashSettled: true,
+        invoiceTotal: 1210,
+        leadSource: "captain",
+        dealClosed: true,
+      },
+      {
+        id: "c2",
+        name: "Thomas",
+        start: "2026-08-06",
+        split: true,
+        cashAmt: 2000,
+        cashDest: "owner",
+        cashSettled: true,
+        invoiceTotal: 1210,
+        leadSource: "ownersourced",
+        dealClosed: true,
+      },
+    ]);
+    ok("total net does not double-count closed cash", Math.abs(tot.totalNet - 10000) < 0.02, "got " + tot.totalNet);
+    ok("total net cash already in projected 3800", Math.abs(tot.cashAlreadyInProjected - 3800) < 0.02);
+    ok("total net additive 0 when all cash closed", Math.abs(tot.cashAdditive) < 0.02);
+    const tot2 = M.summarizeTotalNetIncome(5000, [
+      {
+        id: "open1",
+        name: "Open cash",
+        split: true,
+        cashAmt: 900,
+        cashDest: "boat",
+        cashSettled: true,
+        invoiceTotal: 1210,
+        leadSource: "captain",
+        dealClosed: false,
+      },
+    ]);
+    ok("total net adds cash not in projected", Math.abs(tot2.totalNet - 5900) < 0.02, "got " + tot2.totalNet);
   }
   ok("deal closed explicit true", M.leadIsDealClosed({ id: "a", dealClosed: true }));
   ok("deal closed explicit false", !M.leadIsDealClosed({ id: "b", dealClosed: false }));
