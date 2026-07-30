@@ -1,7 +1,7 @@
 {
   "name": "Limitless Tracker",
   "short_name": "Tracker",
-  "description": "Private charter charges & invoice tracker for captain and manager.",
+  "description": "Private Limitless ops tracker — captain, manager, and team roster.",
   "start_url": "/tracker/",
   "scope": "/tracker/",
   "display": "standalone",
