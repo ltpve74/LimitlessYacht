@@ -911,6 +911,46 @@ function leadDatesFromIcsEvent(ev) {
   };
 }
 
+function leadNameIsPlaceholder(name) {
+  const n = String(name || "")
+    .trim()
+    .toLowerCase();
+  if (!n) return true;
+  if (n === "charter guest" || n === "charter" || n === "guest" || n === "tbd" || n === "—")
+    return true;
+  if (/^new from calendar/i.test(String(name || "").trim())) return true;
+  return false;
+}
+
+/**
+ * When the manager renames a calendar event, pull the guest name into the lead
+ * if the lead still looks calendar-driven (pending / unconfirmed / placeholder /
+ * last known ICS title). Never overwrite a deliberately different confirmed name.
+ */
+function shouldAutoUpdateLeadNameFromIcs(L, icsName) {
+  if (!L || !icsName || icsName === "Charter guest") return false;
+  const cur = String(L.name || "").trim();
+  if (!cur || leadNameIsPlaceholder(cur)) return true;
+  if (cur === icsName) return false;
+  const src = LY.constrainLeadSource(L.leadSource);
+  if (src === "pending" || L.sourcePending === true) return true;
+  if (
+    L.dealClosed === false ||
+    L.dealClosed === "false" ||
+    L.dealClosed === 0
+  )
+    return true;
+  /* Confirmed: only if app name still equals previous ICS guest title */
+  const prevIcs = String(L.icsGuestName || "").trim();
+  if (prevIcs && cur === prevIcs) return true;
+  const m = String(L.notes || "").match(/·\s*cal:\s*(.{1,80})/i);
+  if (m) {
+    const fromNotes = LY.guestNameFromIcsSummary(m[1]);
+    if (fromNotes && cur === fromNotes) return true;
+  }
+  return false;
+}
+
 function applyIcsDatesToLead(L, d, now, opts) {
   opts = opts || {};
   if (!L || !d || !d.start) return false;
@@ -929,7 +969,12 @@ function applyIcsDatesToLead(L, d, now, opts) {
     L.dep = Math.round(d.priced.total * 0.5 * 100) / 100;
     L.fin = Math.round(d.priced.total * 0.5 * 100) / 100;
   }
-  if (opts.updateName && d.name && d.name !== "Charter guest") L.name = d.name;
+  if (d.name && d.name !== "Charter guest") {
+    L.icsGuestName = d.name;
+    if (opts.updateName || shouldAutoUpdateLeadNameFromIcs(L, d.name)) {
+      L.name = d.name;
+    }
+  }
   L.icsDateConflict = false;
   L.icsProposedStart = "";
   L.icsProposedEnd = "";
@@ -940,6 +985,64 @@ function applyIcsDatesToLead(L, d, now, opts) {
   L.icsProposedTotal = "";
   L.updatedAt = now;
   return true;
+}
+
+/** Build a new pending lead from an ICS event (shared by fresh import + restore). */
+function buildPendingLeadFromIcsEvent(ev, ek, who, now) {
+  const d = leadDatesFromIcsEvent(ev);
+  if (!d.start) return null;
+  const priced = d.priced;
+  const name = d.name || "Charter guest";
+  const id =
+    "lead-ics-" +
+    String(ek)
+      .replace(/^uid:/, "")
+      .replace(/[^a-zA-Z0-9_-]+/g, "-")
+      .slice(0, 48) +
+    "-" +
+    String(d.start || "").slice(0, 10);
+  return {
+    id: id,
+    closed: d.start,
+    name: name,
+    icsGuestName: name !== "Charter guest" ? name : "",
+    dur: priced.dur,
+    start: d.start,
+    end: d.end || "",
+    rate: priced.rate,
+    price: priced.price,
+    days: priced.days,
+    base: priced.total,
+    net: priced.total / 1.21,
+    vat: priced.total - priced.total / 1.21,
+    total: priced.total,
+    vatMode: "include",
+    vatPct: 21,
+    split: false,
+    leadSource: "pending",
+    sourcePending: true,
+    dealClosed: false,
+    bookingStatus: "active",
+    cancelled: false,
+    calendarEventKey: ek,
+    calendarUid: ek.indexOf("uid:") === 0 ? ek.slice(4) : ek,
+    depPct: 50,
+    dep: Math.round(priced.total * 0.5 * 100) / 100,
+    deps: "Not issued",
+    fin: Math.round(priced.total * 0.5 * 100) / 100,
+    fins: "Not issued",
+    apaPct: "",
+    apa: 0,
+    apas: "Not issued",
+    notes:
+      "New from calendar · assign source (Captain / Paul / Owner’s days / Owner-sourced). " +
+      priced.label +
+      (ev.summary ? " · cal: " + String(ev.summary).slice(0, 60) : ""),
+    by: who || "Calendar sync",
+    createdAt: now,
+    updatedAt: now,
+    icsFresh: true,
+  };
 }
 
 /**
@@ -999,6 +1102,8 @@ function syncNewIcsLeads(data, events, who, now) {
       skippedOff: 0,
       alreadyKnown: feedKeys.length,
       autoMoved: 0,
+      namesUpdated: 0,
+      orphans: [],
       dateMoves: [],
       totalLeads: leads.length,
       knownCount: known.size,
@@ -1009,7 +1114,9 @@ function syncNewIcsLeads(data, events, who, now) {
   let skippedOff = 0;
   let alreadyKnown = 0;
   let autoMoved = 0;
+  let namesUpdated = 0;
   const dateMoves = [];
+  const orphans = []; /* live on calendar, known key, but no lead in the book */
 
   (events || []).forEach((ev) => {
     if (!ev || !ev.start) return;
@@ -1020,12 +1127,29 @@ function syncNewIcsLeads(data, events, who, now) {
     const ek = leadKeyFromEvent(ev);
     if (!ek) return;
 
-    const L = byCal.get(ek);
+    const bare = ek.indexOf("uid:") === 0 ? ek.slice(4) : ek;
+    const L =
+      byCal.get(ek) ||
+      byCal.get(bare) ||
+      byCal.get(bare.indexOf("uid:") === 0 ? bare : "uid:" + bare);
+
     if (L) {
       known.add(ek);
       alreadyKnown++;
       const d = leadDatesFromIcsEvent(ev);
       if (!d.start) return;
+
+      /* Always remember calendar guest title (manager renames) */
+      if (d.name && d.name !== "Charter guest") {
+        const prevName = String(L.name || "").trim();
+        if (shouldAutoUpdateLeadNameFromIcs(L, d.name) && prevName !== d.name) {
+          L.name = d.name;
+          namesUpdated++;
+          L.updatedAt = now;
+        }
+        L.icsGuestName = d.name;
+      }
+
       const curS = String(L.start || "").slice(0, 10);
       const curE = String(L.end || "").slice(0, 10);
       const nextE = String(d.end || "").slice(0, 10);
@@ -1040,7 +1164,7 @@ function syncNewIcsLeads(data, events, who, now) {
         String(L.status || "").toLowerCase() === "tentative";
 
       if (onHold || !L.start) {
-        applyIcsDatesToLead(L, d, now, { updateName: src === "pending" });
+        applyIcsDatesToLead(L, d, now, { updateName: true });
         autoMoved++;
       } else if (dateChanged) {
         /* Confirmed lead — do not move silently; stage proposal for captain confirm */
@@ -1067,77 +1191,34 @@ function syncNewIcsLeads(data, events, who, now) {
       return;
     }
 
-    if (known.has(ek)) {
-      /* Already seen (including deleted leads) — never re-create */
-      alreadyKnown++;
-      return;
-    }
-    /* Also refuse if a live lead already owns this key under another string form */
-    const bare = ek.indexOf("uid:") === 0 ? ek.slice(4) : ek;
-    if (known.has(bare) || known.has("uid:" + bare)) {
+    if (known.has(ek) || known.has(bare) || known.has("uid:" + bare)) {
+      /*
+       * Seen before but no live lead — usually intentional delete, OR the lead
+       * vanished after a rename/stale save. Surface as orphan so captain can restore.
+       */
       known.add(ek);
       alreadyKnown++;
+      const d = leadDatesFromIcsEvent(ev);
+      if (d.start) {
+        orphans.push({
+          eventKey: ek,
+          start: d.start,
+          end: d.end || "",
+          name: d.name || "Charter guest",
+          label: (d.priced && d.priced.label) || "",
+          summary: String((ev && ev.summary) || "").slice(0, 80),
+        });
+      }
       return;
     }
 
-    /* Brand-new calendar event only — never re-import known history */
-    const d = leadDatesFromIcsEvent(ev);
-    const priced = d.priced;
-    const name = d.name;
-    const id =
-      "lead-ics-" +
-      String(ek)
-        .replace(/^uid:/, "")
-        .replace(/[^a-zA-Z0-9_-]+/g, "-")
-        .slice(0, 48) +
-      "-" +
-      String(d.start || "").slice(0, 10);
-    if (leads.some((x) => x && x.id === id)) {
+    /* Brand-new calendar event only */
+    const lead = buildPendingLeadFromIcsEvent(ev, ek, who, now);
+    if (!lead) return;
+    if (leads.some((x) => x && x.id === lead.id)) {
       known.add(ek);
       return;
     }
-
-    const lead = {
-      id: id,
-      closed: d.start,
-      name: name,
-      dur: priced.dur,
-      start: d.start,
-      end: d.end || "",
-      rate: priced.rate,
-      price: priced.price,
-      days: priced.days,
-      base: priced.total,
-      net: priced.total / 1.21,
-      vat: priced.total - priced.total / 1.21,
-      total: priced.total,
-      vatMode: "include",
-      vatPct: 21,
-      split: false,
-      leadSource: "pending",
-      sourcePending: true,
-      dealClosed: false,
-      bookingStatus: "active",
-      cancelled: false,
-      calendarEventKey: ek,
-      calendarUid: ek.indexOf("uid:") === 0 ? ek.slice(4) : ek,
-      depPct: 50,
-      dep: Math.round(priced.total * 0.5 * 100) / 100,
-      deps: "Not issued",
-      fin: Math.round(priced.total * 0.5 * 100) / 100,
-      fins: "Not issued",
-      apaPct: "",
-      apa: 0,
-      apas: "Not issued",
-      notes:
-        "New from calendar · assign source (Captain / Paul / Owner’s days / Owner-sourced). " +
-        priced.label +
-        (ev.summary ? " · cal: " + String(ev.summary).slice(0, 60) : ""),
-      by: who || "Calendar sync",
-      createdAt: now,
-      updatedAt: now,
-      icsFresh: true,
-    };
     leads.unshift(lead);
     byCal.set(ek, lead);
     known.add(ek);
@@ -1154,6 +1235,8 @@ function syncNewIcsLeads(data, events, who, now) {
     skippedOff,
     alreadyKnown,
     autoMoved,
+    namesUpdated,
+    orphans,
     dateMoves,
     totalLeads: leads.length,
     knownCount: known.size,
@@ -2050,11 +2133,92 @@ export default async (req, context) => {
       ok: true,
       stats: stats,
       dateMoves: stats.dateMoves || [],
+      orphans: stats.orphans || [],
+      namesUpdated: stats.namesUpdated || 0,
       leads: data.leads,
       siteCalendar: siteCalendarSummary(data.siteCalendar),
       pushSent: pushResult.sent || 0,
       icsLeadBaselineAt: (data.meta && data.meta.icsLeadBaselineAt) || "",
       icsLeadLastSyncAt: (data.meta && data.meta.icsLeadLastSyncAt) || "",
+    });
+  }
+
+  /*
+   * Re-create pending leads for calendar events that are still on the ICS
+   * but have no live lead (deleted by mistake, or wiped by a stale full save).
+   * body.eventKeys = string[] of calendarEventKey values from sync orphans.
+   */
+  if (action === "restoreIcsOrphans") {
+    if (!canCommercial(who, role)) {
+      return json({ error: "Restore is captain/manager only" }, 403);
+    }
+    touchDevice();
+    let text;
+    try {
+      text = await fetchManagerIcsText();
+    } catch (e) {
+      return json(
+        { ok: false, error: e && e.message ? e.message : String(e), code: e && e.code },
+        400
+      );
+    }
+    const want = new Set(
+      (Array.isArray(body.eventKeys) ? body.eventKeys : [])
+        .map((k) => String(k || "").trim())
+        .filter(Boolean)
+    );
+    if (!want.size) {
+      return json({ ok: false, error: "No event keys to restore" }, 400);
+    }
+    const parsed = parseIcs(text);
+    if (!Array.isArray(data.leads)) data.leads = [];
+    const byCal = new Map();
+    data.leads.forEach((l) => {
+      if (!l) return;
+      const k = String(l.calendarEventKey || l.calEventKey || "").trim();
+      if (k) byCal.set(k, l);
+      const u = String(l.calendarUid || "").trim();
+      if (u) {
+        const uk = u.indexOf("uid:") === 0 ? u : "uid:" + u;
+        byCal.set(uk, l);
+      }
+    });
+    let restored = 0;
+    const restoredRows = [];
+    (parsed.events || []).forEach((ev) => {
+      if (!ev || !ev.start || LY.isIcsOffSummary(ev.summary)) return;
+      const ek = leadKeyFromEvent(ev);
+      if (!ek || !want.has(ek)) return;
+      if (byCal.get(ek)) return;
+      const lead = buildPendingLeadFromIcsEvent(ev, ek, who, now);
+      if (!lead) return;
+      /* Avoid id clash — keep unique */
+      if (data.leads.some((x) => x && x.id === lead.id)) {
+        lead.id = lead.id + "-r" + String(Date.now()).slice(-4);
+      }
+      lead.notes =
+        "Restored from calendar · was missing in the book. Assign source. " +
+        (lead.notes || "");
+      lead.restoredAt = now;
+      data.leads.unshift(lead);
+      byCal.set(ek, lead);
+      restored++;
+      restoredRows.push({ id: lead.id, name: lead.name, start: lead.start, eventKey: ek });
+    });
+    if (!data.meta || typeof data.meta !== "object") data.meta = {};
+    data.meta.icsLeadLastSyncAt = now;
+    rebuildSiteCalendarFromLeads(data, who, now);
+    data.stewCalendar = stewCalendarRowsFromLeads(data.leads, data.stewAssign);
+    data.meta.stewCalendarAt = now;
+    data.meta.stewCalendarBy = who || "Restore orphans";
+    addLog("ICS orphans restored=" + restored);
+    await saveData(store, data);
+    return json({
+      ok: true,
+      restored,
+      restoredRows,
+      leads: data.leads,
+      siteCalendar: siteCalendarSummary(data.siteCalendar),
     });
   }
 
