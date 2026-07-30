@@ -1456,6 +1456,7 @@
           label: (e.vendor || "Crew") + " day pay",
           amount: a,
           id: e.id,
+          date: String(e.date || "").slice(0, 10),
           finger: crewDayPayFinger(e),
         });
         return;
@@ -1468,11 +1469,19 @@
         label: e.vendor || e.category || "Expense",
         amount: a,
         id: e.id,
+        date: String(e.date || "").slice(0, 10),
       });
     });
     cashOut = round2(cashOut);
     crewPaidPetty = round2(crewPaidPetty);
     var pettyCash = round2(cashInHand - cashOut);
+    /* Newest first for captain audit */
+    cashOutLines.sort(function (a, b) {
+      var da = String((a && a.date) || "");
+      var db = String((b && b.date) || "");
+      if (da !== db) return db < da ? -1 : 1;
+      return (Number(b && b.amount) || 0) - (Number(a && a.amount) || 0);
+    });
     return {
       pettyStart: start,
       cashInTotal: cashInTotal,
