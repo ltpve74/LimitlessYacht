@@ -894,6 +894,8 @@ el("gateForm").addEventListener("submit",function(ev){
     try{
       enterApp();
       maybePersistSession();
+      /* Keep gate button usable after Lock → re-login (was left disabled on success) */
+      if(btn) btn.disabled=false;
       setTimeout(function(){ runPostLoadMaintenance(); flushBootSaves(); },0);
     }catch(errEnter){
       e.textContent="Open error — enter the passcode again.";
@@ -972,10 +974,17 @@ function lockApp(){
   session.who=null; session.role=null; session.pass=null;
   if(pollTimer){ clearInterval(pollTimer); pollTimer=null; }
   DEMO=false;
+  BOOT_QUIET=false;
   el("app").classList.add("hidden");
   el("gate").classList.remove("hidden");
   if(el("passInput")) el("passInput").value="";
   if(el("gateErr")) el("gateErr").textContent="";
+  /* Submit stays disabled after a successful Open — re-enable for next login */
+  try{
+    var gBtn=el("gateForm")&&el("gateForm").querySelector("button[type=submit]");
+    if(gBtn){ gBtn.disabled=false; gBtn.textContent=gBtn.textContent||"Open tracker"; }
+  }catch(eBtn){}
+  try{ updateGateRoleUI(); }catch(eG){}
   hideInstallPrompt();
 }
 el("logoutBtn").addEventListener("click",function(){ lockApp(); });
