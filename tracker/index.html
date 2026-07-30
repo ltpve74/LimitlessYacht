@@ -730,8 +730,10 @@ function runPostLoadMaintenance(){
       ensureAllLeadCashApa();
     }
     if(isCaptain()){
-      /* Re-link stew crew after leads-SOT key rename (ICS uid ↔ lead id) */
+      /* Recover crew/pay if leads-SOT rename or purge wiped links */
+      try{ runStewAssignFullRestore(); }catch(eRest){}
       try{ healStewAssignsToLeads(); }catch(eHeal){}
+      try{ backupStewAssignLocal(); }catch(eBak){}
       /* Uses stewAssign already in state — no ICS round-trip */
       try{ seedCurrentMonthStewCashExpenses(); }catch(e1){}
       try{ expRestoreCrewFloatPayAfterWipe(); }catch(e2){}
@@ -7326,17 +7328,26 @@ function seedCurrentMonthStewCashExpenses(){
   var beforeSig=JSON.stringify((state.expenses||[]).filter(function(e){
     return e&&e.source==="stew"&&e.stewPayKind==="dayPay"&&expMonthKey(e.date)===month;
   }).map(function(e){return [e.linkId,e.amount,e.vendor,e.date,e.crewPayStatus||"Paid",!!e.floatPay,e.paidFrom||"Petty cash"];}).sort());
+  /*
+   * Only replace lines we are regenerating. NEVER wipe orphan stew day-pay
+   * when stewAssign is empty/mismatched — that destroyed Laura pay history.
+   */
   var rest=(state.expenses||[]).filter(function(e){
     if(!e) return false;
-    /* Drop all current-month stew day-pay (with or without stewPayKind) to avoid ghost dupes */
     if(e.source==="stew"&&expMonthKey(e.date)===month){
-      if(e.stewPayKind==="dayPay"||e.stewEventKey||(e.linkId&&String(e.linkId).indexOf("stew-day:")===0)) return false;
+      if(e.stewPayKind==="dayPay"||e.stewEventKey||(e.linkId&&String(e.linkId).indexOf("stew-day:")===0)){
+        var lid=e.linkId||(e.stewEventKey&&e.stewId?("stew-day:"+e.stewEventKey+":"+e.stewId):"");
+        if(lid&&wanted[lid]) return false; /* replaced below */
+        return true; /* keep orphan recovery lines */
+      }
     }
     return true;
   });
   var seeded=Object.keys(wanted).map(function(k){ return wanted[k]; });
   state.expenses=seeded.concat(rest);
-  var afterSig=JSON.stringify(seeded.map(function(e){return [e.linkId,e.amount,e.vendor,e.date,e.crewPayStatus||"Paid",!!e.floatPay,e.paidFrom||"Petty cash"];}).sort());
+  var afterSig=JSON.stringify((state.expenses||[]).filter(function(e){
+    return e&&e.source==="stew"&&e.stewPayKind==="dayPay"&&expMonthKey(e.date)===month;
+  }).map(function(e){return [e.linkId,e.amount,e.vendor,e.date,e.crewPayStatus||"Paid",!!e.floatPay,e.paidFrom||"Petty cash"];}).sort());
   var changed=beforeSig!==afterSig;
   if(changed){
     expMonth=month;
@@ -8614,6 +8625,243 @@ function stewIsOffEvent(ev){
  * Skips "off" days. Never overwrites an existing Paid/Unpaid choice.
  * Unknown names are not added to Team (listed as ignored).
  */
+/**
+ * Local backup of stewAssign (browser). Survives accidental server purge if
+ * this device had a good copy; merge-restores crew/pay/tips by eventKey.
+ */
+var STEW_ASSIGN_BACKUP_KEY="ly_tracker_stewAssign_backup_v1";
+function backupStewAssignLocal(){
+  try{
+    if(!state.stewAssign||!state.stewAssign.length) return;
+    var rich=(state.stewAssign||[]).filter(function(a){
+      return a&&a.eventKey&&((a.stewIds&&a.stewIds.length)||Number(a.dayRate)>0||Number(a.tipTotal)>0||a.payStatus==="Paid");
+    });
+    if(!rich.length) return;
+    var prev=null;
+    try{ prev=JSON.parse(safeGet(STEW_ASSIGN_BACKUP_KEY)||"null"); }catch(e0){ prev=null; }
+    /* Keep the richest backup (more crew rows / tip money) */
+    var prevScore=prev&&Array.isArray(prev.rows)?prev.rows.length:0;
+    var prevTips=0;
+    if(prev&&prev.rows) prev.rows.forEach(function(r){ prevTips+=Number(r.tipTotal)||0; prevTips+=Number(r.dayRate)||0; });
+    var score=rich.length;
+    var tips=0;
+    rich.forEach(function(r){ tips+=Number(r.tipTotal)||0; tips+=Number(r.dayRate)||0; });
+    if(prev&&(prevScore>score||(prevScore===score&&prevTips>tips))) return;
+    safeSet(STEW_ASSIGN_BACKUP_KEY, JSON.stringify({ at:new Date().toISOString(), rows:state.stewAssign }));
+  }catch(e){}
+}
+function restoreStewAssignFromLocalBackup(){
+  if(!isCaptain()) return {ok:false, n:0};
+  var data=null;
+  try{ data=JSON.parse(safeGet(STEW_ASSIGN_BACKUP_KEY)||"null"); }catch(e){ data=null; }
+  if(!data||!Array.isArray(data.rows)||!data.rows.length) return {ok:false, n:0, reason:"no_backup"};
+  if(!state.stewAssign) state.stewAssign=[];
+  var byKey={};
+  state.stewAssign.forEach(function(a){ if(a&&a.eventKey) byKey[String(a.eventKey)]=a; });
+  var n=0, now=new Date().toISOString();
+  data.rows.forEach(function(bak){
+    if(!bak||!bak.eventKey) return;
+    var k=String(bak.eventKey);
+    var cur=byKey[k];
+    var bakCrew=(bak.stewIds&&bak.stewIds.length)?bak.stewIds.length:0;
+    var bakMoney=(Number(bak.dayRate)||0)+(Number(bak.tipTotal)||0);
+    if(!cur){
+      state.stewAssign.unshift(Object.assign({}, bak, { restoredFrom:"local-backup", updatedAt:now }));
+      byKey[k]=state.stewAssign[0];
+      n++;
+      return;
+    }
+    var curCrew=(cur.stewIds&&cur.stewIds.length)?cur.stewIds.length:0;
+    var curMoney=(Number(cur.dayRate)||0)+(Number(cur.tipTotal)||0);
+    /* Prefer backup when current lost crew or money */
+    if(bakCrew>curCrew||(bakMoney>curMoney&&bakCrew>=curCrew)){
+      if(bakCrew&&(!cur.stewIds||!cur.stewIds.length)) cur.stewIds=bak.stewIds.slice();
+      if(Number(bak.dayRate)>0&&!(Number(cur.dayRate)>0)) cur.dayRate=bak.dayRate;
+      if(Number(bak.tipTotal)>0&&!(Number(cur.tipTotal)>0)){
+        cur.tipTotal=bak.tipTotal;
+        if(bak.tipPayStatus) cur.tipPayStatus=bak.tipPayStatus;
+      }
+      if(bak.payStatus==="Paid"&&cur.payStatus!=="Paid"){
+        cur.payStatus="Paid";
+        cur.payStatusManual=true;
+      }
+      if(bak.payUnits!=null&&bak.payUnits!==""&&!(Number(cur.payUnits)>0)) cur.payUnits=bak.payUnits;
+      if(bak.summary&&(!cur.summary||cur.summary==="Charter")) cur.summary=bak.summary;
+      if(bak.start&&!cur.start) cur.start=bak.start;
+      if(bak.leadId&&!cur.leadId) cur.leadId=bak.leadId;
+      cur.restoredFrom="local-backup";
+      cur.updatedAt=now;
+      n++;
+    }
+  });
+  if(n&&!DEMO){ saveStewAssign(); backupStewAssignLocal(); }
+  return {ok:true, n:n, at:data.at||""};
+}
+/**
+ * Rebuild missing stewAssign from Crew Salaries expense lines (day pay).
+ * Tips are not stored on expenses — only day pay / who worked.
+ */
+function restoreStewAssignFromExpenses(){
+  if(!isCaptain()||!state.expenses||!state.expenses.length) return {ok:false, n:0};
+  if(!state.stewAssign) state.stewAssign=[];
+  var byKey={};
+  state.stewAssign.forEach(function(a){ if(a&&a.eventKey) byKey[String(a.eventKey)]=a; });
+  var n=0, now=new Date().toISOString();
+  (state.expenses||[]).forEach(function(e){
+    if(!e||!expIsCrewDayPayLine(e)) return;
+    var key=String(e.stewEventKey||"").trim();
+    if(!key&&e.linkId&&String(e.linkId).indexOf("stew-day:")===0){
+      var parts=String(e.linkId).split(":");
+      /* stew-day:uid:UUID:stewId  OR stew-day:lead:xxx:stewId */
+      if(parts.length>=4) key=parts.slice(1, parts.length-1).join(":");
+    }
+    if(!key) return;
+    var sid=e.stewId?String(e.stewId):"";
+    if(!sid&&e.vendor){
+      var rec=stewFindInRoster(e.vendor);
+      if(rec) sid=String(rec.id);
+    }
+    var asg=byKey[key];
+    if(!asg){
+      asg={
+        id:uid(), eventKey:key, summary:(e.description||"").replace(/^Stewardess \/ day work — /,"")||e.vendor||"Charter",
+        start:String(e.date||"").slice(0,10), end:String(e.date||"").slice(0,10),
+        stewIds:sid?[sid]:[], dayRate:e.amount||"", payUnits:1,
+        payEach:e.amount||0, payStatus:e.crewPayStatus==="Paid"?"Paid":"Unpaid",
+        payStatusManual:!!e.payStatusManual||e.crewPayStatus==="Paid",
+        tipTotal:"", tipPayStatus:"Unpaid", notes:"Restored from expenses",
+        restoredFrom:"expenses", updatedAt:now, by:session.who||"Captain"
+      };
+      state.stewAssign.unshift(asg);
+      byKey[key]=asg;
+      n++;
+    } else {
+      var changed=false;
+      if(sid&&(!asg.stewIds||asg.stewIds.map(String).indexOf(sid)<0)){
+        asg.stewIds=(asg.stewIds||[]).concat([sid]);
+        changed=true;
+      }
+      if(Number(e.amount)>0&&!(Number(asg.dayRate)>0)){
+        asg.dayRate=e.amount;
+        asg.payEach=e.amount;
+        changed=true;
+      }
+      if(e.crewPayStatus==="Paid"&&asg.payStatus!=="Paid"){
+        asg.payStatus="Paid";
+        asg.payStatusManual=true;
+        changed=true;
+      }
+      if(changed){ asg.updatedAt=now; asg.restoredFrom=(asg.restoredFrom||"")+"+expenses"; n++; }
+    }
+  });
+  if(n&&!DEMO){ saveStewAssign(); backupStewAssignLocal(); }
+  return {ok:true, n:n};
+}
+/** Force calendar-title auto-assign for every feed event with “stew X” in title. */
+function rebuildStewAssignFromAllCalendarTitles(){
+  if(!isCaptain()) return false;
+  stewAutoAssignIgnored=[];
+  var events=stewMergedEvents().filter(function(ev){
+    if(!ev||!ev.start||stewIsOffEvent(ev)) return false;
+    if(ev.cancelled||String(ev.status||"").toLowerCase()==="cancelled") return false;
+    return true;
+  });
+  /* Also seed file events if loaded */
+  try{
+    if(typeof stewSeedEvents!=="undefined"&&stewSeedEvents&&stewSeedEvents.length){
+      stewSeedEvents.forEach(function(ev){
+        if(!ev||!ev.start||stewIsOffEvent(ev)) return;
+        var k=String(ev.key||stewEventId(ev)||"");
+        if(!k) return;
+        if(events.some(function(x){ return x&&String(x.key)===k; })) return;
+        events.push(Object.assign({}, ev, {key:k, source:ev.source||"seed"}));
+      });
+    }
+  }catch(eSeed){}
+  if(!events.length) return false;
+  if(!state.stewAssign) state.stewAssign=[];
+  var changed=false;
+  var ignoredMap={};
+  events.forEach(function(ev){
+    if(!ev||!ev.key) return;
+    if(isLeadCancelGhostKey(ev.key)) return;
+    var tokens=stewNamesFromSummary(ev.summary);
+    if(!tokens.length) return;
+    var ids=[], order=[];
+    tokens.forEach(function(tok){
+      var rec=stewFindInRoster(tok);
+      if(rec){
+        if(order.indexOf(String(rec.id))<0){ order.push(String(rec.id)); ids.push(rec.id); }
+      } else {
+        var nk=stewNormName(tok);
+        if(!ignoredMap[nk]) ignoredMap[nk]={token:tok, dates:[]};
+        ignoredMap[nk].dates.push({start:ev.start, summary:ev.summary||"", key:ev.key});
+      }
+    });
+    if(!ids.length) return;
+    var band=stewRateBand(ev);
+    var rate=stewDefaultRate(ev, null);
+    var units=stewPayUnits(ev, null);
+    var asg=assignForEvent(ev.key)||assignForCalendarEvent(ev);
+    var keepPay=(asg&&(asg.payStatus==="Paid"||asg.payStatus==="Unpaid"))?asg.payStatus:"Unpaid";
+    var keepTips=asg&&asg.tipTotal!=null&&asg.tipTotal!==""?asg.tipTotal:"";
+    var keepTipPay=asg&&asg.tipPayStatus==="Paid"?"Paid":"Unpaid";
+    var keepRate=asg&&Number(asg.dayRate)>0?apaNum(asg.dayRate):rate;
+    var keepUnits=asg&&Number(asg.payUnits)>0?Math.max(1, Math.round(apaNum(asg.payUnits))):units;
+    var keepManual=!!(asg&&asg.payStatusManual);
+    var keepNotes=(asg&&asg.notes)||"";
+    var keepLeadId=(asg&&asg.leadId)||ev.leadId||"";
+    var prevIds=asg&&asg.stewIds?asg.stewIds.map(String).sort().join(","):"";
+    var nextIds=ids.map(String).sort().join(",");
+    /* Never wipe existing crew — only fill empty */
+    var finalIds=ids;
+    if(asg&&asg.stewIds&&asg.stewIds.length){
+      finalIds=asg.stewIds.slice();
+      ids.forEach(function(id){
+        if(finalIds.map(String).indexOf(String(id))<0) finalIds.push(id);
+      });
+    }
+    var obj={
+      id:(asg&&asg.id)||uid(), eventKey:ev.key, summary:ev.summary||"",
+      start:ev.start||"", end:ev.end||ev.start||"",
+      startTime:ev.startTime||"", endTime:ev.endTime||"", allDay:!!ev.allDay,
+      status:ev.status||"booked", cancelled:false, stewIds:finalIds,
+      dayRate:keepRate, payUnits:keepUnits, payEach:stewPayEach(keepRate, keepUnits),
+      rateBand:band.kind, payStatus:keepPay, payStatusManual:keepManual,
+      tipTotal:keepTips, tipPayStatus:keepTipPay, notes:keepNotes, leadId:keepLeadId,
+      autoFromCal:true, updatedAt:new Date().toISOString(), by:(asg&&asg.by)||session.who||"Captain"
+    };
+    var found=false;
+    state.stewAssign=state.stewAssign.map(function(a){
+      if(a&&String(a.eventKey)===String(obj.eventKey)){ found=true; return obj; }
+      return a;
+    });
+    if(!found) state.stewAssign.unshift(obj);
+    if(!found||prevIds!==finalIds.map(String).sort().join(",")) changed=true;
+  });
+  stewAutoAssignIgnored=Object.keys(ignoredMap).map(function(k){
+    var row=ignoredMap[k];
+    return { name:row.token, count:row.dates.length, dates:row.dates };
+  });
+  if(changed&&!DEMO){ saveStewAssign(); backupStewAssignLocal(); }
+  return changed;
+}
+function runStewAssignFullRestore(){
+  if(!isCaptain()) return {local:0, expenses:0, calendar:false};
+  var loc=restoreStewAssignFromLocalBackup();
+  var exp=restoreStewAssignFromExpenses();
+  var cal=false;
+  try{ cal=!!rebuildStewAssignFromAllCalendarTitles(); }catch(e1){ cal=false; }
+  try{ ensureStewAssignFromCalendar(); }catch(e2){}
+  try{ healStewAssignsToLeads(); }catch(e3){}
+  try{ backupStewAssignLocal(); }catch(e4){}
+  return {
+    local:loc&&loc.n||0,
+    expenses:exp&&exp.n||0,
+    calendar:cal,
+    backupAt:loc&&loc.at||""
+  };
+}
 function ensureStewAssignFromCalendar(){
   if(!isCaptain()) return false;
   stewAutoAssignIgnored=[];
@@ -9519,12 +9767,16 @@ function renderStews(opts){
   body.innerHTML='<div class="legend">'+legend+'</div>'+
     (stewCalendarAt?'<div class="meta" style="margin:0 0 8px;font-size:12px">Calendar snapshot'+(stewCalendarBy?' by '+esc(stewCalendarBy):'')+' · '+esc((function(){try{return new Date(stewCalendarAt).toLocaleString();}catch(e){return stewCalendarAt;}})())+'</div>':'')+
     '<div class="apa-sect-h" style="margin-top:0"><h3>All charters</h3>'+
-    '<button type="button" class="btn ghost" id="stewRefreshCal">'+esc(refreshLabel)+'</button></div>'+
+    '<div style="display:flex;flex-wrap:wrap;gap:8px;align-items:center">'+
+      '<button type="button" class="btn ghost" id="stewRefreshCal">'+esc(refreshLabel)+'</button>'+
+      (isCaptain()?'<button type="button" class="btn ghost" id="stewRestoreCrew" title="Rebuild crew from calendar titles, expenses, and local backup">Restore crew data</button>':'')+
+    '</div></div>'+
     '<div id="stewYearFilters" style="display:flex;flex-wrap:wrap;gap:6px;margin:0 0 10px"></div>'+
     '<div id="stewCalList"><div class="empty"><div class="big">⏳</div><div>'+esc(loadingMsg)+'</div></div></div>';
   if(el("stewRefreshCal")) el("stewRefreshCal").addEventListener("click",function(){
     el("stewCalList").innerHTML='<div class="empty"><div class="big">⏳</div><div>'+(isTeam()?"Reloading roster…":"Syncing new dates + publishing roster…")+'</div></div>';
     loadStewCalendar(true).then(function(){
+      try{ if(isCaptain()) runStewAssignFullRestore(); }catch(eR){}
       paintStewChartersKeepScroll();
       if(!stewMergedEvents().filter(function(ev){ return ev&&!stewIsOffEvent(ev); }).length){
         var w=el("stewCalList");
@@ -9534,6 +9786,22 @@ function renderStews(opts){
     }).catch(function(){
       var w=el("stewCalList");
       if(w) w.innerHTML=emptyBox("📅",isTeam()?"Could not reload roster":"Calendar refresh failed","Check connection and try again.");
+    });
+  });
+  if(el("stewRestoreCrew")) el("stewRestoreCrew").addEventListener("click",function(){
+    if(!window.confirm("Restore stew crew & day pay from:\n• This phone’s last backup (if any)\n• Expenses (Crew Salaries lines)\n• Calendar titles (e.g. “stew Laura”)\n\nDoes not invent tips that were never saved. Continue?")) return;
+    el("stewCalList").innerHTML='<div class="empty"><div class="big">⏳</div><div>Restoring crew data…</div></div>';
+    loadStewCalendar(true).then(function(){
+      var r=runStewAssignFullRestore();
+      paintStewChartersKeepScroll();
+      window.alert("Restore finished.\n\n"+
+        "Local backup rows used: "+(r.local||0)+"\n"+
+        "From expenses: "+(r.expenses||0)+"\n"+
+        "Calendar titles: "+(r.calendar?"yes":"no")+"\n"+
+        (r.backupAt?"Backup from: "+r.backupAt+"\n":"")+
+        "\nCheck Laura’s charters for day pay. Tips only return if they were on a backup.\nDiego only restores if the calendar title named the stew.");
+    }).catch(function(){
+      window.alert("Restore failed — check connection and try again.");
     });
   });
   loadStewCalendar(false).then(function(){ paintStewChartersKeepScroll(); })
@@ -9551,6 +9819,7 @@ function paintStewCharters(){
   ensureStewAssignFromCalendar();
   ensureStewAssignPaidBeforeCut();
   syncStewAssignsFromCalendar();
+  try{ backupStewAssignLocal(); }catch(eBak){}
   /* Undo bad soft cancels (Alvaro note on Oliver) before re-applying real cancelled leads */
   repairFalseStewCancels();
   /* Cancelled leads → durable stew cancel row (leadcancel ghost if ICS deleted) */
