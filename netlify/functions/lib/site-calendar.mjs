@@ -49,8 +49,9 @@ export function leadIsOnHold(l) {
   if (l.sourcePending === true || l.sourcePending === "true" || l.sourcePending === 1)
     return true;
   /*
-   * Source assigned but deal still open (tentative) → on hold until dealClosed.
-   * Explicit false only — undefined treated as closed (legacy / pre-migration).
+   * Source assigned (Captain / Paul / Owner) but still open → on hold until
+   * dealClosed is true. Explicit false only — undefined = closed (legacy book;
+   * never reopen past firm trips). Assigning source does not set dealClosed.
    */
   if (l.dealClosed === false || l.dealClosed === "false" || l.dealClosed === 0)
     return true;

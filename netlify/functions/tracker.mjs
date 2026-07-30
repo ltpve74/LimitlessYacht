@@ -1116,6 +1116,7 @@ function syncNewIcsLeads(data, events, who, now) {
       split: false,
       leadSource: "pending",
       sourcePending: true,
+      dealClosed: false,
       bookingStatus: "active",
       cancelled: false,
       calendarEventKey: ek,

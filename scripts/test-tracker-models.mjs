@@ -201,11 +201,30 @@ ok("owner no earns commission", !M.leadEarnsCommission({ leadSource: "owner" }))
   });
   ok("owner comm total 0", own.total === 0);
   ok("owner benefit base > 0", own.base > 0);
-  ok("owner benefit included default", M.ownerBenefitIncluded({ leadSource: "owner" }));
+  ok(
+    "owner benefit included when confirmed",
+    M.ownerBenefitIncluded({ leadSource: "owner", dealClosed: true })
+  );
+  ok(
+    "owner benefit included legacy (saved, no flag)",
+    M.ownerBenefitIncluded({ id: "own1", leadSource: "owner" })
+  );
+  ok(
+    "owner unconfirmed not in benefits",
+    !M.ownerBenefitIncluded({ id: "own2", leadSource: "owner", dealClosed: false })
+  );
+  ok(
+    "owner draft (no id) not in benefits until confirm",
+    !M.ownerBenefitIncluded({ leadSource: "owner" })
+  );
   ok(
     "owner benefit excluded when flagged",
-    !M.ownerBenefitIncluded({ leadSource: "owner", ownerBenefitExclude: true })
+    !M.ownerBenefitIncluded({ id: "own3", leadSource: "owner", dealClosed: true, ownerBenefitExclude: true })
   );
+  ok("deal closed explicit true", M.leadIsDealClosed({ id: "a", dealClosed: true }));
+  ok("deal closed explicit false", !M.leadIsDealClosed({ id: "b", dealClosed: false }));
+  ok("deal closed legacy undefined = closed", M.leadIsDealClosed({ id: "c" }));
+  ok("deal closed new draft = open", !M.leadIsDealClosed({ dealClosed: undefined }));
 }
 
 /* ---- Seasonal charter pricing ---- */
