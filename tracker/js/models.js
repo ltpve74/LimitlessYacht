@@ -530,6 +530,72 @@
     return leadFreeCashAmt(r);
   }
 
+  /** Cancelled commercial lead (display filters). Pure — no DOM. */
+  function leadIsCancelled(r) {
+    if (!r) return true;
+    if (r.bookingStatus === "cancelled" || r.cancelled === true) return true;
+    if (r.status === "Cancelled" || r.status === "cancelled") return true;
+    if (String(r.deps || "") === "Refunded") return true;
+    return false;
+  }
+
+  /**
+   * Display-only summary of free cash income already on leads (split deals only).
+   * - Only cash marked received (cashSettled or final Paid)
+   * - boat = petty envelope · owner = owner’s pocket (still income)
+   * - Does not include Charges / final-charge cash — leads only
+   * - Does not mutate rows
+   *
+   * @param {Array} leads
+   * @returns {{ total, boat, owner, boatN, ownerN, n, items: Array }}
+   */
+  function summarizeLeadCashIncome(leads) {
+    var boat = 0;
+    var owner = 0;
+    var boatN = 0;
+    var ownerN = 0;
+    var items = [];
+    (Array.isArray(leads) ? leads : []).forEach(function (r) {
+      if (!r || leadIsCancelled(r)) return;
+      if (!leadHasSplit(r)) return;
+      var cash = leadFreeCashAmt(r);
+      if (!(cash > 0.009)) return;
+      if (!leadFreeCashIsReceived(r)) return;
+      var dest = leadCashDest(r);
+      var row = {
+        id: r.id,
+        name: String(r.name || "—").trim() || "—",
+        start: String(r.start || r.cdate || "").slice(0, 10),
+        cash: cash,
+        dest: dest,
+        source: leadSource(r),
+      };
+      if (dest === "owner") {
+        owner = round2(owner + cash);
+        ownerN++;
+      } else {
+        boat = round2(boat + cash);
+        boatN++;
+      }
+      items.push(row);
+    });
+    items.sort(function (a, b) {
+      var da = String(a.start || ""),
+        db = String(b.start || "");
+      if (da && db && da !== db) return db < da ? -1 : 1;
+      return String(b.name || "").localeCompare(String(a.name || ""));
+    });
+    return {
+      total: round2(boat + owner),
+      boat: boat,
+      owner: owner,
+      boatN: boatN,
+      ownerN: ownerN,
+      n: boatN + ownerN,
+      items: items,
+    };
+  }
+
   /** Mutate lead: replace suggested cash with pin or clear corrupt value. */
   function sanitizeLeadCash(l, pin) {
     if (!l || !leadHasSplit(l)) return false;
@@ -1507,6 +1573,8 @@
     leadFreeCashIsReceived: leadFreeCashIsReceived,
     leadFreeCashIsOnBoat: leadFreeCashIsOnBoat,
     leadOwnerPocketCashAmt: leadOwnerPocketCashAmt,
+    leadIsCancelled: leadIsCancelled,
+    summarizeLeadCashIncome: summarizeLeadCashIncome,
     sanitizeLeadCash: sanitizeLeadCash,
     leadClientTotal: leadClientTotal,
     commissionVatPct: commissionVatPct,

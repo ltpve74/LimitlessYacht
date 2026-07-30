@@ -112,6 +112,18 @@
   #tab-leads .ld-snap-hero .ld-snap-net .k{color:rgba(27,94,32,.9)}
   #tab-leads .ld-snap-hero .ld-snap-net .big{font-size:24px;color:#1b5e20;margin-top:3px}
   #tab-leads .ld-snap-hero .ld-snap-net .s{color:rgba(27,94,32,.75)}
+  #tab-leads .ld-snap-hero .ld-snap-cash{margin-top:12px;padding:10px 12px;border-radius:12px;background:rgba(25,90,160,.07);border:1px solid rgba(25,90,160,.22)}
+  #tab-leads .ld-snap-hero .ld-snap-cash .k{color:rgba(25,90,160,.95);font-size:11px;font-weight:800;text-transform:uppercase;letter-spacing:.04em}
+  #tab-leads .ld-snap-hero .ld-snap-cash .big{font-size:22px;font-weight:800;color:#0d47a1;margin-top:3px;font-variant-numeric:tabular-nums}
+  #tab-leads .ld-snap-hero .ld-snap-cash .s{font-size:11.5px;color:rgba(13,71,161,.75);font-weight:600;margin-top:4px;line-height:1.35}
+  #tab-leads .ld-snap-hero .ld-snap-cash .lines{margin-top:8px;display:flex;flex-direction:column;gap:3px;font-size:12px;font-weight:600}
+  #tab-leads .ld-snap-hero .ld-snap-cash .lines span{display:flex;justify-content:space-between;gap:8px}
+  #tab-leads .ld-snap-hero .ld-snap-cash .lines .m{font-weight:800;font-variant-numeric:tabular-nums}
+  #tab-leads .ld-snap-hero .ld-cash-items{margin-top:8px;display:flex;flex-direction:column;gap:4px;max-height:9.5rem;overflow:auto}
+  #tab-leads .ld-snap-hero .ld-cash-item{display:grid;grid-template-columns:1fr auto;gap:4px 10px;font-size:12px;line-height:1.3;padding:4px 0;border-top:1px solid rgba(25,90,160,.12)}
+  #tab-leads .ld-snap-hero .ld-cash-item .nm{font-weight:700;min-width:0;word-break:break-word}
+  #tab-leads .ld-snap-hero .ld-cash-item .meta{grid-column:1/-1;font-size:11px;color:var(--muted);font-weight:600}
+  #tab-leads .ld-snap-hero .ld-cash-item .am{font-weight:800;font-variant-numeric:tabular-nums;white-space:nowrap}
   #tab-leads .ld-snap-cols{display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-bottom:10px}
   #tab-leads .ld-snap-col{min-width:0;padding:10px 12px;border-radius:12px;background:rgba(0,0,0,.03);border:1px solid var(--line)}
   #tab-leads .ld-snap-col.done{background:rgba(46,125,50,.06);border-color:rgba(46,125,50,.2)}
@@ -505,6 +517,16 @@
               <div class="big money" id="ldAllNet">€0</div>
               <div class="s" id="ldAllNetSub">Before VAT − commissions (realised + scheduled)</div>
             </div>
+            <div class="ld-snap-cash" id="ldCashSnap">
+              <div class="k">Cash income · from split deals (leads only)</div>
+              <div class="big money" id="ldCashTot">€0</div>
+              <div class="s" id="ldCashSub">Already received · not from charges</div>
+              <div class="lines">
+                <span><em style="font-style:normal;color:var(--muted);font-weight:600">→ Boat petty</em><span class="m money" id="ldCashBoat">€0</span></span>
+                <span><em style="font-style:normal;color:var(--muted);font-weight:600">→ Owner pocket <span style="font-weight:600;opacity:.85">(income off boat)</span></em><span class="m money" id="ldCashOwner">€0</span></span>
+              </div>
+              <div class="ld-cash-items" id="ldCashItems"></div>
+            </div>
           </div>
           <div class="ld-snap-cols">
             <div class="ld-snap-col done">
@@ -538,7 +560,7 @@
             <div class="ld-snap-row"><span class="k">Unconfirmed / tentative</span><span class="v" id="ldAwait">0</span><span class="s" id="ldAwaitSub">Not in money totals · not firm</span></div>
             <div class="ld-snap-row"><span class="k">Owner days (notional)</span><span class="v money" id="ldOwn">€0</span><span class="s" id="ldOwnSub">List-rate estimate · not cash</span></div>
           </div>
-          <div class="ld-snap-note">Money totals = <b>confirmed commercial</b> only (Captain, Paul, Owner-sourced, Other). <b>Net income</b> = before VAT − commissions. <b>Owner’s days</b> = no income · notional benefits only. <b>Unconfirmed</b> = yellow until Confirm (or deposit Paid for commercial).</div>
+          <div class="ld-snap-note">Money totals = <b>confirmed commercial</b> only (Captain, Paul, Owner-sourced, Other). <b>Net income</b> = before VAT − commissions. <b>Cash income</b> = free cash already received on <b>split leads</b> only (boat petty vs owner pocket) — not charges. <b>Owner’s days</b> = no income · notional only. <b>Unconfirmed</b> = yellow until Confirm.</div>
         </div>
         <div class="sumcard ld-src"><div class="l">Luigi · Captain</div><div class="v money" id="ldCap">€0</div><div class="sub" id="ldCapSub">—</div><div id="ldCapTypes" class="ld-type-table"></div></div>
         <div class="sumcard ld-src"><div class="l">Paul · Click&amp;Boat</div><div class="v money" id="ldCb">€0</div><div class="sub" id="ldCbSub">—</div><div id="ldCbTypes" class="ld-type-table"></div></div>
@@ -2896,6 +2918,41 @@ function renderLeads(){
   if(el("ldAllNetSub")){
     el("ldAllNetSub").textContent="Before VAT "+money(allEx)+" − commissions "+money(allComm)+
       " · "+money(Math.max(0, done.ex-done.comm))+" realised + "+money(Math.max(0, proj.ex-proj.comm))+" scheduled";
+  }
+  /* Cash income summary — model pure calc, leads split free cash only (no charges) */
+  var cashSum={ total:0, boat:0, owner:0, boatN:0, ownerN:0, n:0, items:[] };
+  try{
+    if(LY_MODELS&&LY_MODELS.summarizeLeadCashIncome){
+      cashSum=LY_MODELS.summarizeLeadCashIncome(state.leads||[]);
+    }
+  }catch(eCash){}
+  if(el("ldCashTot")) el("ldCashTot").textContent=money(cashSum.total||0);
+  if(el("ldCashBoat")) el("ldCashBoat").textContent=money(cashSum.boat||0);
+  if(el("ldCashOwner")) el("ldCashOwner").textContent=money(cashSum.owner||0);
+  if(el("ldCashSub")){
+    var cn=cashSum.n||0;
+    el("ldCashSub").textContent=cn
+      ?(cn+" split deal"+(cn===1?"":"s")+" with cash received · boat "+(cashSum.boatN||0)+" · owner pocket "+(cashSum.ownerN||0)+" · leads only, not charges")
+      :"No received free cash on split leads yet · boat petty and owner pocket both show here";
+  }
+  if(el("ldCashItems")){
+    var items=cashSum.items||[];
+    if(!items.length){
+      el("ldCashItems").innerHTML='<div class="meta" style="margin-top:6px">Itemisation empty until a split lead has free cash marked received (boat or owner pocket).</div>';
+    } else {
+      el("ldCashItems").innerHTML=items.map(function(it){
+        var destLab=it.dest==="owner"?"Owner pocket · income off boat":"Boat petty";
+        var dateLab="";
+        try{ dateLab=it.start?fmtDate(it.start):""; }catch(eD){ dateLab=it.start||""; }
+        return '<div class="ld-cash-item">'+
+          '<span class="nm">'+esc(it.name||"—")+'</span>'+
+          '<span class="am money">'+money(it.cash)+'</span>'+
+          '<span class="meta">'+esc(dateLab)+(dateLab?" · ":"")+esc(destLab)+
+            (it.source?' · '+esc(leadSourceLabel(it.source)):"")+
+          '</span>'+
+        '</div>';
+      }).join("");
+    }
   }
   if(el("ldDoneTot")) el("ldDoneTot").textContent=money(done.tot);
   if(el("ldDoneSub")){

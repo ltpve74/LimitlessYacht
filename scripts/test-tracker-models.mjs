@@ -289,6 +289,57 @@ ok("label owner-sourced", M.leadSourceLabel("ownersourced") === "Owner-sourced")
       invoiceTotal: 1210,
     }) === 0
   );
+  {
+    const cashSum = M.summarizeLeadCashIncome([
+      {
+        id: "c1",
+        name: "Boat guest",
+        start: "2026-08-01",
+        split: true,
+        cashAmt: 1800,
+        cashDest: "boat",
+        cashSettled: true,
+        invoiceTotal: 1210,
+        leadSource: "captain",
+      },
+      {
+        id: "c2",
+        name: "Thomas",
+        start: "2026-08-06",
+        split: true,
+        cashAmt: 2000,
+        cashDest: "owner",
+        cashSettled: true,
+        invoiceTotal: 1210,
+        leadSource: "ownersourced",
+      },
+      {
+        id: "c3",
+        name: "Pending cash",
+        start: "2026-08-10",
+        split: true,
+        cashAmt: 500,
+        cashDest: "boat",
+        cashSettled: false,
+        fins: "Not issued",
+        invoiceTotal: 1210,
+        leadSource: "captain",
+      },
+      {
+        id: "c4",
+        name: "Not split",
+        start: "2026-08-12",
+        total: 4000,
+        leadSource: "captain",
+      },
+    ]);
+    ok("cash sum total boat+owner", Math.abs(cashSum.total - 3800) < 0.02, "got " + cashSum.total);
+    ok("cash sum boat 1800", Math.abs(cashSum.boat - 1800) < 0.02);
+    ok("cash sum owner pocket 2000", Math.abs(cashSum.owner - 2000) < 0.02);
+    ok("cash sum skips pending", cashSum.n === 2);
+    ok("cash sum items 2", cashSum.items.length === 2);
+    ok("cash sum no charges concept", cashSum.boatN === 1 && cashSum.ownerN === 1);
+  }
   ok("deal closed explicit true", M.leadIsDealClosed({ id: "a", dealClosed: true }));
   ok("deal closed explicit false", !M.leadIsDealClosed({ id: "b", dealClosed: false }));
   ok("deal closed legacy undefined = closed", M.leadIsDealClosed({ id: "c" }));
