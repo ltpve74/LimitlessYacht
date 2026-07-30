@@ -9584,12 +9584,105 @@ function stewIsAllDay(ev){
   if(ev.allDay) return true;
   return !ev.startTime&&!ev.endTime;
 }
+/**
+ * Short duration label for Stews roster pills: 4h / 6h / 8h or "N days".
+ * Prefers linked lead.dur (source of truth under leads SOT).
+ */
+function stewDurationLabel(ev, asg){
+  var lead=null;
+  var lid=(ev&&ev.leadId)||(asg&&asg.leadId)||"";
+  if(lid){
+    lead=(state.leads||[]).filter(function(x){return x&&String(x.id)===String(lid);})[0]||null;
+  }
+  function multiDaysFromLead(L){
+    if(!L) return 1;
+    var n=Math.max(1, Math.round(Number(L.days)||0)||1);
+    try{
+      if(L.start&&L.end) n=Math.max(n, daysBetween(L.start, L.end)||1);
+    }catch(e0){}
+    try{
+      var bd=leadBlockedDaysClient(L);
+      if(bd&&bd.length) n=Math.max(n, bd.length);
+    }catch(e1){}
+    return Math.max(1, n);
+  }
+  if(lead){
+    var key=leadCharterTypeKey(lead);
+    if(key==="multi"){
+      var md=multiDaysFromLead(lead);
+      return md===1?"1 day":(md+" days");
+    }
+    if(key==="4h"||key==="6h"||key==="8h") return key;
+  }
+  var durEv=String((ev&&(ev.dur||ev.leadDur))||"").toLowerCase().trim();
+  if(durEv==="4h"||durEv==="6h"||durEv==="8h") return durEv;
+  if(durEv==="multi"||durEv==="overnight"){
+    var nd=1;
+    if(ev&&ev.days&&ev.days.length) nd=ev.days.length;
+    else nd=stewCalendarDays(ev)||1;
+    var units0=asg&&asg.payUnits!=null&&asg.payUnits!==""?Math.round(apaNum(asg.payUnits)):0;
+    if(units0>1) nd=Math.max(nd, units0);
+    return nd===1?"1 day":(nd+" days");
+  }
+  var band=stewRateBand(ev);
+  var units=stewPayUnits(ev, asg&&asg.payUnits);
+  if(band.kind==="overnight"||units>1){
+    var u=Math.max(1, units||stewCalendarDays(ev)||1);
+    return u===1?"1 day":(u+" days");
+  }
+  if(band.kind==="4h") return "4h";
+  if(band.kind==="6h") return "6h";
+  if(band.kind==="8h") return "8h";
+  if(band.kind==="6h+"){
+    /* Prefer 8h when summary/times say full day; else 6h */
+    var sum=String((ev&&ev.summary)||"");
+    if(/\b8\s*h(our)?s?\b/i.test(sum)||/\bfull[-\s]?day\b/i.test(sum)) return "8h";
+    if(ev&&ev.startTime&&ev.endTime){
+      var sh=String(ev.startTime).split(":"), eh=String(ev.endTime).split(":");
+      var sm=parseInt(sh[0],10)*60+(parseInt(sh[1],10)||0);
+      var em=parseInt(eh[0],10)*60+(parseInt(eh[1],10)||0);
+      var hours=(em-sm)/60;
+      if(hours<0) hours+=24;
+      if(hours>6.5) return "8h";
+    }
+    return "6h";
+  }
+  return "8h";
+}
+function stewDurationPillHTML(ev, asg){
+  var lab=stewDurationLabel(ev, asg);
+  if(!lab) return "";
+  return '<span class="pill p-blue">'+esc(lab)+'</span>';
+}
 function stewRateBand(ev){
   if(!ev) return {rate:STEW_RATE_6H, kind:"6h+", label:"Day charter"};
+  /* Lead duration is authoritative under leads SOT */
+  var lead=null;
+  if(ev.leadId){
+    lead=(state.leads||[]).filter(function(x){return x&&String(x.id)===String(ev.leadId);})[0]||null;
+  }
+  if(lead){
+    var lk=leadCharterTypeKey(lead);
+    if(lk==="multi"){
+      var ld=1;
+      try{ ld=Math.max(1, (leadBlockedDaysClient(lead)||[]).length||daysBetween(lead.start, lead.end)||1); }catch(eL){ ld=1; }
+      return {rate:STEW_RATE_ON, kind:"overnight", label:ld>1?(ld+"-day charter"):"Overnight"};
+    }
+    if(lk==="4h") return {rate:STEW_RATE_4H, kind:"4h", label:"4 hours"};
+    if(lk==="6h") return {rate:STEW_RATE_6H, kind:"6h", label:"6 hours"};
+    if(lk==="8h") return {rate:STEW_RATE_6H, kind:"8h", label:"8 hours"};
+  }
   var sum=String(ev.summary||"");
   var days=stewCalendarDays(ev);
   var allDay=stewIsAllDay(ev);
   var start=String((ev&&ev.start)||"").slice(0,10);
+  var durHint=String(ev.dur||ev.leadDur||"").toLowerCase().trim();
+  if(durHint==="4h") return {rate:STEW_RATE_4H, kind:"4h", label:"4 hours"};
+  if(durHint==="6h") return {rate:STEW_RATE_6H, kind:"6h", label:"6 hours"};
+  if(durHint==="8h") return {rate:STEW_RATE_6H, kind:"8h", label:"8 hours"};
+  if(durHint==="multi"||durHint==="overnight"){
+    return {rate:STEW_RATE_ON, kind:"overnight", label:days>1?(days+"-day charter"):"Overnight"};
+  }
   /* Legacy seed: all-day before 17/07 only → 8h day rate (not overnight). From 17/07 use times for overnight. */
   var legacyAllDay=allDay&&start&&start<STEW_PAID_BEFORE;
   /* Explicit overnight / multi-day wording always wins */
@@ -9600,7 +9693,7 @@ function stewRateBand(ev){
     return {rate:STEW_RATE_ON, kind:"overnight", label:days+"-day charter"};
   }
   if(legacyAllDay){
-    return {rate:STEW_RATE_6H, kind:"6h+", label:days>1?(days+" × 8h (all day)"):"8 hours (all day)"};
+    return {rate:STEW_RATE_6H, kind:"8h", label:days>1?(days+" × 8h (all day)"):"8 hours (all day)"};
   }
   /* From 17/07: overnight only when times span calendar days (or days>1). All-day exclusive DTEND alone is not overnight. */
   if(days>1){
@@ -9618,9 +9711,10 @@ function stewRateBand(ev){
   else if(/\b6\s*h(our)?s?\b/i.test(sum)) hours=6;
   else if(/\b8\s*h(our)?s?\b/i.test(sum)||/\bfull[-\s]?day\b/i.test(sum)) hours=8;
   if(hours!=null&&hours<=4.5) return {rate:STEW_RATE_4H, kind:"4h", label:"4 hours"};
-  if(hours!=null&&hours>4.5) return {rate:STEW_RATE_6H, kind:"6h+", label:"6 hours+"};
+  if(hours!=null&&hours<=6.5) return {rate:STEW_RATE_6H, kind:"6h", label:"6 hours"};
+  if(hours!=null) return {rate:STEW_RATE_6H, kind:"8h", label:"8 hours"};
   /* Timed overnight: same calendar day with end before start (spans midnight) already hours+=24 above */
-  return {rate:STEW_RATE_6H, kind:"6h+", label:"Day charter"};
+  return {rate:STEW_RATE_6H, kind:"8h", label:"8 hours"};
 }
 function stewDefaultRate(ev, existingRate){
   if(existingRate!=null&&existingRate!==""&&apaNum(existingRate)>0) return apaNum(existingRate);
@@ -9928,6 +10022,7 @@ function stewEventFromLead(l){
   var end=days[days.length-1]||start;
   var ek=stewEventKeyForLead(l);
   var src=leadSource(l);
+  var typeKey=leadCharterTypeKey(l);
   return {
     key:ek,
     uid:l.calendarUid||(ek.indexOf("uid:")===0?ek.slice(4):l.id),
@@ -9941,6 +10036,8 @@ function stewEventFromLead(l){
     source:"lead",
     leadId:l.id,
     leadSource:src,
+    dur:typeKey==="multi"?"multi":typeKey,
+    leadDur:typeKey,
     days:days
   };
 }
@@ -10426,11 +10523,9 @@ function paintStewCharters(){
     return;
   }
   var html='';
-  var leadN=events.filter(function(e){return e.source==="lead";}).length;
   var pendN=events.filter(function(e){return e.status==="tentative"||e.leadSource==="pending";}).length;
   html+='<div class="meta" style="margin:0 0 10px;font-size:12px">'+
     events.length+' charter'+(events.length===1?"":"s")+
-    (leadN?' · from leads':'')+
     (pendN?' · <b style="color:var(--amberDeep)">'+pendN+' pending source</b>':'')+
   '</div>';
   if(stewAutoAssignIgnored.length){
@@ -10568,11 +10663,9 @@ function paintStewCharters(){
         (amtLabel?'<div class="amt money" style="font-size:14px;text-align:right">'+esc(amtLabel)+'</div>':'')+
       '</div>'+
       '<div class="meta"><span>📅 '+esc(fmtCalEventWhen(ev))+'</span>'+
-        (units>1?'<span class="pill p-blue">'+units+' days</span>':'')+
+        stewDurationPillHTML(ev, asg)+
         (showMoney&&rate>0&&!isCanc?'<span class="money">'+money0(rate)+' × '+units+'</span>':'')+
         (showMoney&&pay.tipTotal>0&&!isCanc?'<span class="money">Tip '+money0(pay.tipTotal)+' → '+money0(pay.tipEach)+'/crew</span>':'')+
-        (ev.source==="lead"?'<span class="pill p-blue">Lead</span>':'')+
-        (ev.source==="blob"?'<span class="pill p-grey">Snapshot</span>':'')+
         (ev.leadSource==="pending"||ev.status==="tentative"?'<span class="pill p-amber">Pending source</span>':'')+
         (isCanc?'<span class="pill p-red">Cancelled</span>':'')+
         (past&&!isCanc?'<span class="pill p-grey">Past</span>':'')+
@@ -10786,8 +10879,7 @@ function openStewAssign(eventKey){
   h+='<div class="apa-card" style="margin-bottom:12px">'+
     '<div style="font-weight:800;font-size:16px">'+esc(ev.summary||"Charter")+'</div>'+
     '<div class="meta" style="margin-top:6px"><span>📅 '+esc(fmtCalEventWhen(ev))+'</span>'+
-      '<span class="pill p-blue">'+esc(band.label)+'</span>'+
-      (unitsPrefill>1?'<span class="pill p-blue">'+unitsPrefill+' days</span>':'')+
+      stewDurationPillHTML(ev, asg)+
       (ev.status==="tentative"?'<span class="pill p-amber">Tentative</span>':'')+
     '</div></div>';
   if(!team.length){
