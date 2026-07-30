@@ -951,12 +951,33 @@ function shouldAutoUpdateLeadNameFromIcs(L, icsName) {
   return false;
 }
 
+/** YYYY-MM-DD in Europe/Madrid (boat ops TZ) — not charter date. */
+function todayYmdMadrid(now) {
+  try {
+    const d = now ? new Date(now) : new Date();
+    if (!isNaN(d.getTime())) {
+      return new Intl.DateTimeFormat("en-CA", {
+        timeZone: "Europe/Madrid",
+        year: "numeric",
+        month: "2-digit",
+        day: "2-digit",
+      }).format(d);
+    }
+  } catch (e) {}
+  return String(now || new Date().toISOString()).slice(0, 10);
+}
+
 function applyIcsDatesToLead(L, d, now, opts) {
   opts = opts || {};
   if (!L || !d || !d.start) return false;
   L.start = d.start;
   L.end = d.end || "";
-  L.closed = d.start;
+  /*
+   * Do NOT set closed = charter start. "Date closed" is:
+   *  - import/entered day while the deal is open
+   *  - actual close day when deposit Paid / Confirm
+   * Charter day lives in start/end only.
+   */
   if (d.priced) {
     L.dur = d.priced.dur;
     L.days = d.priced.days;
@@ -1001,9 +1022,11 @@ function buildPendingLeadFromIcsEvent(ev, ek, who, now) {
       .slice(0, 48) +
     "-" +
     String(d.start || "").slice(0, 10);
+  const entered = todayYmdMadrid(now);
   return {
     id: id,
-    closed: d.start,
+    /* Date closed field = day entered/imported until the deal is really closed */
+    closed: entered,
     name: name,
     icsGuestName: name !== "Charter guest" ? name : "",
     dur: priced.dur,
