@@ -171,18 +171,31 @@ ok("website → captain", M.constrainLeadSource("website") === "captain");
 ok("paul → clickboat", M.constrainLeadSource("paul") === "clickboat");
 ok("clickboat", M.constrainLeadSource("clickboat") === "clickboat");
 ok("owner", M.constrainLeadSource("owner") === "owner");
+ok("owner-days alias", M.constrainLeadSource("owner-days") === "owner");
+ok("owner-sourced → ownersourced", M.constrainLeadSource("owner-sourced") === "ownersourced");
+ok("ownersourced", M.constrainLeadSource("ownersourced") === "ownersourced");
+ok("owner-sourced not owner days", M.constrainLeadSource("owner-sourced") !== "owner");
 ok("pending source", M.constrainLeadSource("pending") === "pending");
 ok("pending rate 0", M.leadCommissionRatePct({ leadSource: "pending" }) === 0);
 ok("isCaptainLead", M.isCaptainLead({ leadSource: "captain" }));
 ok("not captain", !M.isCaptainLead({ leadSource: "other" }));
 ok("clickboat no captain-only flag", !M.leadEarnsCaptainCommission({ leadSource: "clickboat" }));
 ok("owner no captain-only flag", !M.leadEarnsCaptainCommission({ leadSource: "owner" }));
+ok("ownersourced no captain-only flag", !M.leadEarnsCaptainCommission({ leadSource: "ownersourced" }));
 ok("captain earns captain flag", M.leadEarnsCaptainCommission({ leadSource: "captain" }));
 ok("clickboat rate 21%", M.leadCommissionRatePct({ leadSource: "clickboat" }) === 21);
 ok("captain rate 15%", M.leadCommissionRatePct({ leadSource: "captain" }) === 15);
 ok("owner rate 0%", M.leadCommissionRatePct({ leadSource: "owner" }) === 0);
+ok("ownersourced rate 0% for now", M.leadCommissionRatePct({ leadSource: "ownersourced" }) === 0);
 ok("clickboat earns commission", M.leadEarnsCommission({ leadSource: "clickboat" }));
 ok("owner no earns commission", !M.leadEarnsCommission({ leadSource: "owner" }));
+ok("ownersourced no commission for now", !M.leadEarnsCommission({ leadSource: "ownersourced" }));
+ok("isOwnerLead days", M.isOwnerLead({ leadSource: "owner" }));
+ok("ownersourced is not owner days", !M.isOwnerLead({ leadSource: "ownersourced" }));
+ok("isOwnerSourcedLead", M.isOwnerSourcedLead({ leadSource: "ownersourced" }));
+ok("owner days not owner-sourced", !M.isOwnerSourcedLead({ leadSource: "owner" }));
+ok("label owner days", M.leadSourceLabel("owner") === "Owner’s days" || M.leadSourceLabel("owner").indexOf("Owner") === 0);
+ok("label owner-sourced", M.leadSourceLabel("ownersourced") === "Owner-sourced");
 {
   const cb = M.leadCommissionParts({
     leadSource: "clickboat",
@@ -221,6 +234,18 @@ ok("owner no earns commission", !M.leadEarnsCommission({ leadSource: "owner" }))
     "owner benefit excluded when flagged",
     !M.ownerBenefitIncluded({ id: "own3", leadSource: "owner", dealClosed: true, ownerBenefitExclude: true })
   );
+  ok(
+    "ownersourced never owner benefit",
+    !M.ownerBenefitIncluded({ id: "os1", leadSource: "ownersourced", dealClosed: true })
+  );
+  const os = M.leadCommissionParts({
+    leadSource: "ownersourced",
+    total: 4000,
+    vatMode: "include",
+    vatPct: 21,
+  });
+  ok("ownersourced base before VAT > 0", os.base > 0);
+  ok("ownersourced commission 0 for now", os.total === 0);
   ok("deal closed explicit true", M.leadIsDealClosed({ id: "a", dealClosed: true }));
   ok("deal closed explicit false", !M.leadIsDealClosed({ id: "b", dealClosed: false }));
   ok("deal closed legacy undefined = closed", M.leadIsDealClosed({ id: "c" }));

@@ -535,12 +535,12 @@
             <div class="ld-snap-row"><span class="k">Unconfirmed / tentative</span><span class="v" id="ldAwait">0</span><span class="s" id="ldAwaitSub">Not in money totals · not firm</span></div>
             <div class="ld-snap-row"><span class="k">Owner days (notional)</span><span class="v money" id="ldOwn">€0</span><span class="s" id="ldOwnSub">List-rate estimate · not cash</span></div>
           </div>
-          <div class="ld-snap-note">Money totals = <b>confirmed commercial</b> only (realised + scheduled). <b>Net income</b> = before VAT − commissions. <b>Unconfirmed</b> = pending source, or assigned but not confirmed (incl. owner) — yellow cards. Owner days (notional) count only after confirm.</div>
+          <div class="ld-snap-note">Money totals = <b>confirmed commercial</b> only (Captain, Paul, Owner-sourced, Other). <b>Net income</b> = before VAT − commissions. <b>Owner’s days</b> = no income · notional benefits only. <b>Unconfirmed</b> = yellow until Confirm (or deposit Paid for commercial).</div>
         </div>
         <div class="sumcard ld-src"><div class="l">Luigi · Captain</div><div class="v money" id="ldCap">€0</div><div class="sub" id="ldCapSub">—</div><div id="ldCapTypes" class="ld-type-table"></div></div>
         <div class="sumcard ld-src"><div class="l">Paul · Click&amp;Boat</div><div class="v money" id="ldCb">€0</div><div class="sub" id="ldCbSub">—</div><div id="ldCbTypes" class="ld-type-table"></div></div>
       </div>
-      <div class="legend"><b>Yellow = unconfirmed</b> — pending source, or assigned but not confirmed (incl. owner trips). <b>Assigning a source does not confirm.</b> Commercial: deposit/final <b>Paid</b> or the confirm tick closes the deal. Owner: manual confirm only. Confirmed commercial = money totals; confirmed owner = notional benefit. <b>Make invoice</b> = PDF.</div>
+      <div class="legend"><b>Yellow = unconfirmed</b> until Confirm. <b>Assigning a source does not confirm.</b> <b>Owner’s days</b> = no income · benefits (friend pays owner cash / private use) — manual confirm. <b>Owner-sourced</b> = business income (we invoice) · 0% commission for now — deposit Paid or Confirm. Captain / Paul as before. <b>Make invoice</b> = PDF.</div>
       <div class="list" id="ldList"></div>
     </section>
 
@@ -1316,7 +1316,7 @@ function renderOpsHub(){
     {id:"diesel",ic:"⛽",t:"Diesel",d:"Bunker & sell by date (€/L each load)"},
     {id:"stews",ic:"👩‍✈️",t:"Stews",d:"Confirmed charters only · day pay & tips"},
     {id:"expenses",ic:"💶",t:"Expenses",d:"Monthly boat ledger + export for manager"},
-    {id:"commissions",ic:"💸",t:"Commissions",d:"Captain "+CAPTAIN_COMMISSION_PCT+"% · Click&Boat "+CLICKBOAT_COMMISSION_PCT+"% · Owner benefits"}
+    {id:"commissions",ic:"💸",t:"Commissions",d:"Captain "+CAPTAIN_COMMISSION_PCT+"% · Paul "+CLICKBOAT_COMMISSION_PCT+"% · Owner-sourced · Owner’s days"}
   ];
   grid.innerHTML=tiles.map(function(x){
     return '<button type="button" class="ops-tile" data-ops-go="'+esc(x.id)+'">'+
@@ -2353,7 +2353,10 @@ function leadCharterTypeLabel(k){
 }
 /** Money on list / totals for a lead (client total). */
 function leadListMoney(r){
-  if(!r||leadIsCancelled(r)||leadSource(r)==="owner"||leadSource(r)==="pending") return 0;
+  if(!r||leadIsCancelled(r)) return 0;
+  var src=leadSource(r);
+  /* Owner’s days = no income; pending = not assigned yet */
+  if(src==="owner"||src==="pending") return 0;
   return leadHasSplit(r)?leadClientTotal(r):(Number(r.total)||Number(r.base)||Number(r.price)||0);
 }
 /**
@@ -2378,9 +2381,10 @@ function leadIsClosedDeal(r){
   if(!r||leadIsCancelled(r)) return false;
   var src=leadSource(r);
   if(src==="pending") return false;
-  if(src==="owner") return false; /* owner use — not charter income */
+  if(src==="owner") return false; /* owner’s days — not charter income */
   if(!leadIsDealClosed(r)) return false;
-  return src==="captain"||src==="clickboat"||src==="other";
+  /* Income sources: captain, Paul, owner-sourced (friend invoiced by us), other */
+  return src==="captain"||src==="clickboat"||src==="ownersourced"||src==="other";
 }
 /** Fully issued/paid invoices already on the lead (skip migration invoice writes). */
 function leadIsFullyInvoiced(r){
@@ -2579,12 +2583,12 @@ function renderLeads(){
     if(!r) return;
     var cancelled=leadIsCancelled(r);
     var src=leadSource(r);
-    var isOwner=src==="owner";
+    var isOwner=src==="owner"; /* owner’s days only */
     var isPending=src==="pending";
     if(isPending&&!cancelled) nPendSrc++;
-    /* Assigned but not confirmed — commercial or owner */
+    /* Assigned but not confirmed — commercial or owner days */
     if(!isPending&&!cancelled&&!leadIsDealClosed(r)) nOpenDeal++;
-    /* Owner private / guest days — notional only when confirmed (ownerBenefitIncluded gates dealClosed) */
+    /* Owner’s days — notional only when confirmed (ownerBenefitIncluded gates dealClosed) */
     if(isOwner&&!cancelled&&ownerBenefitIncluded(r)){
       var ov=leadOwnerNotional(r);
       if(ov>0){ ownVal+=ov; ownN++; }
@@ -2607,6 +2611,7 @@ function renderLeads(){
         cbComm+=comm;
         bumpType(cbTypes, tk, val, exVat);
       }
+      /* ownersourced + other still count in done/proj hero totals */
     }
   });
   /* Captain extra-hour upsells from Charges (income + 15% when captainComm) */
@@ -2638,17 +2643,18 @@ function renderLeads(){
     if(!r) return;
     var cancelled=leadIsCancelled(r);
     var src=leadSource(r);
-    var isOwner=src==="owner";
+    var isOwner=src==="owner"; /* owner’s days — no income */
+    var isOwnerSrc=src==="ownersourced"; /* owner-sourced commercial — income */
     var isPending=src==="pending";
     var dealClosed=leadIsDealClosed(r);
-    /* Open/tentative = assigned source (incl. owner) but not confirmed */
+    /* Open/tentative = assigned source but not confirmed */
     var isOpenDeal=!isPending&&!cancelled&&!dealClosed;
     var isTentative=isPending||isOpenDeal;
     var closed=leadIsClosedDeal(r); /* commercial money only */
     var ownerConfirmed=isOwner&&dealClosed&&!cancelled;
     var timing=closed?leadCharterTiming(r):"";
     var val=leadListMoney(r);
-    /* Open invoices on commercial leads (even tentative) for prep; not owner/pending */
+    /* Invoices on commercial leads (incl. owner-sourced); not owner’s days / pending */
     var openN=(!isPending&&!isOwner&&!cancelled)?pendForLead(r):0;
     if(closed) pend+=openN;
 
@@ -2658,7 +2664,8 @@ function renderLeads(){
     var srcPill=isPending?'':
       (src==="captain"?'<span class="pill p-blue">Luigi · Captain</span>':
         (src==="clickboat"?'<span class="pill p-amber">Paul · Click&amp;Boat</span>':
-          (src==="owner"?'<span class="pill p-own">Owner</span>':'<span class="pill p-grey">Other</span>')));
+          (src==="owner"?'<span class="pill p-own">Owner’s days</span>':
+            (src==="ownersourced"?'<span class="pill p-own">Owner-sourced · income</span>':'<span class="pill p-grey">Other</span>'))));
     var typeKey=leadCharterTypeKey(r);
     var typeLab=leadCharterTypeLabel(typeKey);
     var season=(LY_MODELS&&LY_MODELS.charterSeason)?LY_MODELS.charterSeason(r.start||r.cdate):"";
@@ -2680,10 +2687,13 @@ function renderLeads(){
       statusBanner='<div class="ld-status-banner" style="background:#fde8e8;border-color:#f3b4ae;color:var(--danger)">Cancelled</div>';
     } else if(isPending){
       statusBanner='<div class="ld-status-banner"><b>Unconfirmed · tentative lead</b>'+
-        '<span class="ld-status-sub">Pending source — not a firm charter. Assign Captain / Click&amp;Boat / Owner. Assigning does <b>not</b> confirm.</span></div>';
+        '<span class="ld-status-sub">Pending source — not a firm charter. Assign Captain / Paul / Owner’s days / Owner-sourced. Assigning does <b>not</b> confirm.</span></div>';
     } else if(isOpenDeal&&isOwner){
-      statusBanner='<div class="ld-status-banner"><b>Unconfirmed · owner trip</b>'+
-        '<span class="ld-status-sub">Assigned to Owner, but not confirmed yet. Tick <b>Confirm</b> when the owner day/guest trip is firm. Not firm on the website calendar until confirmed.</span></div>';
+      statusBanner='<div class="ld-status-banner"><b>Unconfirmed · owner’s days</b>'+
+        '<span class="ld-status-sub">No income · owner benefit when confirmed. Tick <b>Confirm</b> when firm (friend pays owner cash / private use).</span></div>';
+    } else if(isOpenDeal&&isOwnerSrc){
+      statusBanner='<div class="ld-status-banner"><b>Unconfirmed · owner-sourced charter</b>'+
+        '<span class="ld-status-sub">Business income (we invoice). Confirm via deposit <b>Paid</b> or the Confirm tick. Counts in money totals once confirmed · no commission for now.</span></div>';
     } else if(isOpenDeal){
       statusBanner='<div class="ld-status-banner"><b>Unconfirmed · open deal</b>'+
         '<span class="ld-status-sub">Source is set, but the deal is not closed. Not in money totals or firm calendar until confirmed — mark deposit <b>Paid</b>, or tick <b>Confirm</b> manually.</span></div>';
@@ -2695,7 +2705,7 @@ function renderLeads(){
       (isPending?'<span class="pill p-amber">Pending source</span>':'')+
       (isOpenDeal?'<span class="pill p-amber">Tentative</span>':'')+
       (closed?'<span class="pill p-green">Confirmed · deal closed</span>':'')+
-      (ownerConfirmed?'<span class="pill p-green">Confirmed · owner</span>':'')+
+      (ownerConfirmed?'<span class="pill p-green">Confirmed · owner’s days</span>':'')+
       srcPill+
       (cancelled?'<span class="pill p-red">Cancelled</span>':'')+
       (cancelled&&leadInvStatus(r.deps)==="Refunded"?'<span class="pill p-red">Deposit refunded</span>':'')+
@@ -2705,6 +2715,7 @@ function renderLeads(){
       (rateBits.length?'<span>'+rateBits.join(" · ")+'</span>':'')+
       (calKey?'<span class="pill p-grey">Cal linked</span>':'')+
       (isCaptain()&&closed&&leadCommissionRatePct(r)>0?'<span class="pill p-green">Comm '+money(leadCommissionAmt(r))+' ('+leadCommissionRatePct(r)+'%)</span>':'')+
+      (isCaptain()&&closed&&isOwnerSrc?'<span class="pill p-own">Income · 0% commission</span>':'')+
       (isCaptain()&&ownerConfirmed?'<span class="pill p-own">No income · owner benefit</span>':'')+
       (openN>0?'<span class="pill p-amber">'+openN+' invoice'+(openN>1?'s':'')+' open</span>':'');
     if(!isOwner&&!isPending&&!isSplit){
@@ -2715,7 +2726,7 @@ function renderLeads(){
     var moneyAmt=isSplit?leadClientTotal(r):(Number(r.total)||Number(r.base)||0);
     var amtShow=cancelled||isOwner?"—":money0(moneyAmt);
     if(isPending) amtShow='<span style="font-size:12.5px;font-weight:800;color:#9a6b00">Unconfirmed</span>';
-    else if(isOpenDeal&&isOwner) amtShow='<span style="font-size:12.5px;font-weight:800;color:#9a6b00">Owner · tentative</span>';
+    else if(isOpenDeal&&isOwner) amtShow='<span style="font-size:12.5px;font-weight:800;color:#9a6b00">Owner’s days · tentative</span>';
     else if(isOpenDeal) amtShow='<span style="font-size:12px;font-weight:800;color:#9a6b00;display:block;text-align:right">Tentative</span><span class="money" style="font-size:15px;opacity:.85">'+money0(moneyAmt)+'</span>';
     var cardCls="item";
     if(cancelled) cardCls+=" item--cancelled";
@@ -2726,8 +2737,9 @@ function renderLeads(){
       '<div class="meta">'+metaBits+'</div>'+
       (cancelled||isOwner||isPending||isOpenDeal?"":leadSplitSummaryHTML(r))+
       (isOwner&&!cancelled?(dealClosed
-        ?'<div class="notes" style="font-style:normal;color:var(--muted)">Owner days — private use or owner guests. List-rate notional value only (not cash income). Toggle in Ops → Commissions if needed.</div>'
-        :'<div class="notes" style="font-style:normal;color:#9a6b00">Owner trip assigned but not confirmed — tick <b>Confirm</b> when firm. Notional benefits count only after confirm.</div>'):'')+
+        ?'<div class="notes" style="font-style:normal;color:var(--muted)">Owner’s days — private use or friend pays the owner directly. No income, no commission — list-rate notional (owner benefits). Switch to <b>Owner-sourced</b> if we invoice the guest.</div>'
+        :'<div class="notes" style="font-style:normal;color:#9a6b00">Owner’s days assigned but not confirmed — tick <b>Confirm</b> when firm. Benefits count only after confirm.</div>'):'')+
+      (isOwnerSrc&&!cancelled&&dealClosed?'<div class="notes" style="font-style:normal;color:var(--muted)">Owner-sourced charter — counts as business income. Commission 0% for now (can be added later). Not an owner-benefit day.</div>':'')+
       (isOwner||isPending?"":('<div class="invtags">'+
         (leadNeedsDepInv(r)?leadInvTag("Deposit",r.dep,r.depPct,r.deps,r.depInv):"")+
         (leadNeedsFinInv(r)&&!cancelled?leadInvTag(finLabel,r.fin,"",r.fins,r.finInv):"")+
@@ -2738,7 +2750,7 @@ function renderLeads(){
         (cancelled||isOwner||isPending||isOpenDeal?"":'<button type="button" class="btn" data-inv-lead="'+esc(r.id)+'">Make invoice</button>')+
         (cancelled||isOwner||isPending?"":'<button type="button" class="btn ghost" data-agr-lead="'+esc(r.id)+'">Agreement</button>')+
         (isPending&&!cancelled?'<button type="button" class="btn" data-edit-ld-btn="'+esc(r.id)+'">Assign source</button>':'')+
-        (isOpenDeal?'<button type="button" class="btn" data-edit-ld-btn="'+esc(r.id)+'">'+(isOwner?"Confirm owner trip":"Close deal / confirm")+'</button>':'')+
+        (isOpenDeal?'<button type="button" class="btn" data-edit-ld-btn="'+esc(r.id)+'">'+(isOwner?"Confirm owner’s days":"Close deal / confirm")+'</button>':'')+
       '</div>'+
       '<span class="chev">✎</span></div>';
   });
@@ -12240,6 +12252,7 @@ function leadSource(r){ return LY_MODELS?LY_MODELS.leadSource(r):"other"; }
 function isCaptainLead(r){ return LY_MODELS?LY_MODELS.isCaptainLead(r):false; }
 function isClickboatLead(r){ return LY_MODELS&&LY_MODELS.isClickboatLead?LY_MODELS.isClickboatLead(r):leadSource(r)==="clickboat"; }
 function isOwnerLead(r){ return LY_MODELS&&LY_MODELS.isOwnerLead?LY_MODELS.isOwnerLead(r):leadSource(r)==="owner"; }
+function isOwnerSourcedLead(r){ return LY_MODELS&&LY_MODELS.isOwnerSourcedLead?LY_MODELS.isOwnerSourcedLead(r):leadSource(r)==="ownersourced"; }
 function leadSourceLabel(src){ return LY_MODELS&&LY_MODELS.leadSourceLabel?LY_MODELS.leadSourceLabel(src):(src==="captain"?"Captain":"Other"); }
 function leadCommissionRatePct(r){
   if(LY_MODELS&&LY_MODELS.leadCommissionRatePct) return LY_MODELS.leadCommissionRatePct(r);
@@ -12350,7 +12363,7 @@ function renderCommissions(){
     wrap.innerHTML=emptyBox("💸","Captain only","Commissions are private to the captain.");
     return;
   }
-  var captItems=[], cbItems=[], ownItems=[], extItems=[];
+  var captItems=[], cbItems=[], ownItems=[], ownSrcItems=[], extItems=[];
   (state.leads||[]).forEach(function(r){
     if(!r||leadIsCancelled(r)) return;
     var src=leadSource(r);
@@ -12359,6 +12372,7 @@ function renderCommissions(){
     if(src==="captain") captItems.push(row);
     else if(src==="clickboat") cbItems.push(row);
     else if(src==="owner") ownItems.push(row);
+    else if(src==="ownersourced") ownSrcItems.push(row);
   });
   (state.charters||[]).forEach(function(c){
     if(!isChargeCaptainComm(c)) return;
@@ -12374,9 +12388,9 @@ function renderCommissions(){
     if(a.sort&&b.sort&&a.sort!==b.sort) return b.sort<a.sort?-1:1;
     return 0;
   }
-  captItems.sort(bySort); cbItems.sort(bySort); ownItems.sort(bySort); extItems.sort(bySort);
+  captItems.sort(bySort); cbItems.sort(bySort); ownItems.sort(bySort); ownSrcItems.sort(bySort); extItems.sort(bySort);
 
-  var captCom=0, captBase=0, cbCom=0, cbBase=0, ownVal=0, ownExcluded=0, extCom=0;
+  var captCom=0, captBase=0, cbCom=0, cbBase=0, ownVal=0, ownExcluded=0, ownSrcBase=0, ownSrcCom=0, extCom=0;
   captItems.forEach(function(it){ captCom+=it.total; captBase+=it.base; });
   cbItems.forEach(function(it){ cbCom+=it.total; cbBase+=it.base; });
   extItems.forEach(function(it){ extCom+=it.total; });
@@ -12384,7 +12398,10 @@ function renderCommissions(){
     if(ownerBenefitIncluded(it.rec)) ownVal+=it.base;
     else ownExcluded+=it.base;
   });
-  var comTot=captCom+cbCom+extCom;
+  ownSrcItems.forEach(function(it){
+    if(leadIsClosedDeal(it.rec)){ ownSrcBase+=it.base; ownSrcCom+=it.total; }
+  });
+  var comTot=captCom+cbCom+ownSrcCom+extCom;
 
   function leadCommCard(it, pillHtml){
     var r=it.rec, p=it.p, rate=p.ratePct!=null?p.ratePct:0;
@@ -12405,8 +12422,10 @@ function renderCommissions(){
       } else {
         h+='<div class="notes" style="font-style:normal;color:var(--muted)">'+esc(p.detail)+'</div>';
       }
+    } else if(it.src==="ownersourced"){
+      h+='<div class="notes" style="font-style:normal;color:var(--muted)">Income · before VAT <b class="money">'+money(p.base)+'</b> · commission 0% for now (owner-sourced)</div>';
     } else {
-      h+='<div class="notes" style="font-style:normal;color:var(--muted)">Before VAT <b class="money">'+money(p.base)+'</b> · no commission (owner use)</div>';
+      h+='<div class="notes" style="font-style:normal;color:var(--muted)">Before VAT <b class="money">'+money(p.base)+'</b> · no commission (owner’s days)</div>';
     }
     h+='</div>';
     return h;
@@ -12441,8 +12460,19 @@ function renderCommissions(){
     html+='<div class="meta" style="margin:0 0 14px">No Click&amp;Boat leads yet — import from calendar or set source on a lead.</div>';
   }
 
-  html+='<div class="apa-sect-h"><h3>Owner benefits</h3></div>';
-  html+='<p style="margin:0 0 10px;font-size:12.5px;color:var(--muted);line-height:1.4">Owner use · no commission. Amount = charter before VAT. <b>Untick</b> to drop a trip from the owner-benefits total (still stays an owner lead).</p>';
+  html+='<div class="apa-sect-h"><h3>Owner-sourced · income</h3></div>';
+  html+='<p style="margin:0 0 10px;font-size:12.5px;color:var(--muted);line-height:1.4">Owner brings the guest and <b>we invoice</b> — counts as business income. Commission <b>0%</b> for now (can be added later). Not owner-benefit days.</p>';
+  if(ownSrcItems.length){
+    ownSrcItems.forEach(function(it){
+      html+=leadCommCard(it,'<span class="pill p-own">Owner-sourced</span>'+(leadIsClosedDeal(it.rec)?'<span class="pill p-green">Income</span>':'<span class="pill p-amber">Tentative</span>'));
+    });
+    html+='<div class="meta" style="margin:0 0 14px">Confirmed income base <b class="money">'+money(ownSrcBase)+'</b> · commission <b class="money">'+money(ownSrcCom)+'</b></div>';
+  } else {
+    html+='<div class="meta" style="margin:0 0 14px">None yet — set source to <b>Owner-sourced</b> when we invoice an owner-referred guest.</div>';
+  }
+
+  html+='<div class="apa-sect-h"><h3>Owner’s days · benefits</h3></div>';
+  html+='<p style="margin:0 0 10px;font-size:12.5px;color:var(--muted);line-height:1.4">Private use or friend pays the owner directly — <b>no income</b>, no commission. Amount = charter before VAT (notional). <b>Untick</b> to drop a trip from the benefits total.</p>';
   if(ownItems.length){
     ownItems.forEach(function(it){
       var r=it.rec, p=it.p;
@@ -12451,7 +12481,7 @@ function renderCommissions(){
         '<div class="top"><div class="title">'+esc(r.name||"—")+'</div><div class="amt money">'+money(p.base)+'</div></div>'+
         '<div class="meta">'+
           (r.start?'<span>'+esc(fmtDate(r.start))+(r.end&&r.end!==r.start?"–"+esc(fmtDate(r.end)):"")+'</span>':'')+
-          '<span class="pill p-own">Owner</span>'+
+          '<span class="pill p-own">Owner’s days</span>'+
           (on?'<span class="pill p-own-ok">In benefits</span>':'<span class="pill p-grey">Off total</span>')+
         '</div>'+
         '<label class="checkrow" style="margin-top:8px" data-own-benefit="'+esc(r.id)+'">'+
@@ -12464,12 +12494,12 @@ function renderCommissions(){
     html+='<div class="meta" style="margin:0 0 14px">Owner benefits total <b class="money">'+money(ownVal)+'</b>'+
       (ownExcluded>0?' · excluded '+money(ownExcluded):'')+'</div>';
   } else {
-    html+='<div class="meta" style="margin:0 0 14px">No owner trips yet — set lead source to <b>Owner</b> on those charters.</div>';
+    html+='<div class="meta" style="margin:0 0 14px">No owner’s days yet — set source to <b>Owner’s days</b> for private use / cash-to-owner trips.</div>';
   }
 
-  if(!captItems.length&&!cbItems.length&&!ownItems.length&&!extItems.length){
+  if(!captItems.length&&!cbItems.length&&!ownItems.length&&!ownSrcItems.length&&!extItems.length){
     html=emptyBox("💸","No commission lines yet",
-      "Import calendar leads, set source to Captain / Click&amp;Boat / Owner, or mark extra hours with <b>I get commission</b>.");
+      "Import calendar leads, set source to Captain / Click&amp;Boat / Owner’s days / Owner-sourced, or mark extra hours with <b>I get commission</b>.");
   }
   wrap.innerHTML=html;
   if(el("cmCaptTot")) el("cmCaptTot").textContent=money(captCom+extCom);
@@ -12496,12 +12526,13 @@ function renderCommissions(){
 }
 function selLeadSourceField(val){
   var v=(LY_MODELS&&LY_MODELS.constrainLeadSource)?LY_MODELS.constrainLeadSource(val):String(val||"other");
-  if(v!=="pending"&&v!=="captain"&&v!=="clickboat"&&v!=="owner"&&v!=="other") v="other";
+  if(v!=="pending"&&v!=="captain"&&v!=="clickboat"&&v!=="owner"&&v!=="ownersourced"&&v!=="other") v="other";
   return '<select class="ctl" id="f_leadSource">'+
     '<option value="pending"'+(v==="pending"?" selected":"")+'>Pending source (assign me)</option>'+
     '<option value="captain"'+(v==="captain"?" selected":"")+'>Captain (website / direct — '+CAPTAIN_COMMISSION_PCT+'%)</option>'+
     '<option value="clickboat"'+(v==="clickboat"?" selected":"")+'>Click&amp;Boat (Paul — '+CLICKBOAT_COMMISSION_PCT+'%)</option>'+
-    '<option value="owner"'+(v==="owner"?" selected":"")+'>Owner (no commission · benefits)</option>'+
+    '<option value="owner"'+(v==="owner"?" selected":"")+'>Owner’s days (no income · benefits)</option>'+
+    '<option value="ownersourced"'+(v==="ownersourced"?" selected":"")+'>Owner-sourced (income · 0% commission for now)</option>'+
     '<option value="other"'+(v==="other"?" selected":"")+'>Other (no commission)</option>'+
   '</select>';
 }
@@ -12718,8 +12749,12 @@ function openSheet(type,id){
       '</div>';
     }
     h+=fieldHTML("Lead name",'<input class="ctl" id="f_name" value="'+esc(r.name)+'" placeholder="e.g. Guest or company name">');
-    h+=fieldHTML("Lead source (commission)",selLeadSourceField(leadSrcDef));
-    h+='<p style="margin:-6px 0 12px;font-size:12.5px;color:var(--muted);line-height:1.4"><b>Captain</b> = website/direct → '+CAPTAIN_COMMISSION_PCT+'% before VAT. <b>Click&amp;Boat (Paul)</b> → '+CLICKBOAT_COMMISSION_PCT+'% before VAT. <b>Owner</b> = owner days/guests (no commission). <b>Assigning a source does not confirm</b> the trip.</p>';
+    h+=fieldHTML("Lead source",selLeadSourceField(leadSrcDef));
+    h+='<p style="margin:-6px 0 12px;font-size:12.5px;color:var(--muted);line-height:1.4">'+
+      '<b>Captain</b> → '+CAPTAIN_COMMISSION_PCT+'% · <b>Paul</b> → '+CLICKBOAT_COMMISSION_PCT+'%. '+
+      '<b>Owner’s days</b> = no income (private / friend pays owner cash) · owner benefits. '+
+      '<b>Owner-sourced</b> = we invoice · counts as income · 0% commission for now. '+
+      '<b>Assigning a source does not confirm</b> the trip.</p>';
     /* New lead / pending always start unconfirmed. Owner never inherits accidental "closed". */
     var dealClosedDef=leadIsDealClosed(r);
     if(!rec||leadSrcDef==="pending") dealClosedDef=false;
@@ -12727,8 +12762,8 @@ function openSheet(type,id){
       '<input type="checkbox" id="f_dealClosed"'+(dealClosedDef?" checked":"")+'>'+
       '<span><div class="ck">'+(dealClosedDef?"Confirmed · deal closed":"Unconfirmed · tentative")+'</div>'+
       '<div class="ch" id="f_dealClosed_help"><b>Off</b> = yellow / tentative — not firm on the calendar. '+
-      '<b>On</b> = confirmed. <b>Commercial:</b> auto-ticks when deposit or final is marked <b>Paid</b>; you can also tick here. '+
-      '<b>Owner:</b> manual tick only (assignment never confirms). Past confirmed deals stay as they were.</div></span></label>';
+      '<b>On</b> = confirmed. <b>Commercial</b> (Captain / Paul / Owner-sourced / Other): auto-ticks when deposit or final is <b>Paid</b>, or tick here. '+
+      '<b>Owner’s days:</b> manual tick only. Past confirmed deals stay as they were.</div></span></label>';
     /* Stable link to calendar ICS uid — survives date moves / on-hold */
     var calKeyNow=leadCalendarEventKey(r);
     var calOpts=[];
@@ -12897,8 +12932,8 @@ function openSheet(type,id){
     var ck=wrap&&wrap.querySelector(".ck");
     var srcNow=(el("f_leadSource")&&el("f_leadSource").value)||"";
     if(ck){
-      if(on) ck.textContent=srcNow==="owner"?"Confirmed · owner trip":"Confirmed · deal closed";
-      else ck.textContent=srcNow==="owner"?"Unconfirmed · owner trip":"Unconfirmed · tentative";
+      if(on) ck.textContent=srcNow==="owner"?"Confirmed · owner’s days":(srcNow==="ownersourced"?"Confirmed · owner-sourced":"Confirmed · deal closed");
+      else ck.textContent=srcNow==="owner"?"Unconfirmed · owner’s days":(srcNow==="ownersourced"?"Unconfirmed · owner-sourced":"Unconfirmed · tentative");
     }
   }
   if(el("f_dealClosed")){
@@ -12919,7 +12954,7 @@ function openSheet(type,id){
   function tryAutoConfirmFromPaid(){
     if(!el("f_dealClosed")) return;
     var src=(el("f_leadSource")&&el("f_leadSource").value)||"";
-    if(src==="pending"||src==="owner") return; /* owner = manual confirm only */
+    if(src==="pending"||src==="owner") return; /* owner’s days = manual confirm only; owner-sourced is commercial */
     var deps=el("f_deps")?leadInvStatus(el("f_deps").value):"";
     var fins=el("f_fins")?leadInvStatus(el("f_fins").value):"";
     if(deps==="Paid"||fins==="Paid"){
@@ -13263,8 +13298,8 @@ function saveSheet(type,rec){
       updatedAt:new Date().toISOString() };
     /* Confirm / deal closed:
        - Pending source → always open
-       - Owner → manual checkbox only (assignment never auto-confirms)
-       - Commercial → checkbox OR deposit/final Paid auto-confirms
+       - Owner’s days → manual checkbox only
+       - Commercial (captain / paul / owner-sourced / other) → checkbox OR deposit/final Paid
        Never rewrite historical closed flags on load; only what this save sets. */
     var wantClosed=!!(el("f_dealClosed")&&el("f_dealClosed").checked);
     if(leadSrc==="pending") wantClosed=false;
