@@ -12980,7 +12980,8 @@ function openSheet(type,id){
         (r.cancelledAt?'<div class="meta" style="margin-top:4px">'+esc(String(r.cancelledAt).slice(0,16).replace("T"," "))+(r.cancelledBy?" · "+esc(r.cancelledBy):"")+'</div>':'')+
       '</div>';
     }
-    h+=fieldHTML("Date closed",'<input class="ctl" id="f_closed" type="date" value="'+esc(r.closed)+'">');
+    h+=fieldHTML("Date closed",'<input class="ctl" id="f_closed" type="date" value="'+esc(r.closed||(!rec?leadTodayYmd():""))+'">');
+    h+='<p style="margin:-6px 0 12px;font-size:12.5px;color:var(--muted);line-height:1.4">Entered/imported day while open. When the deal is <b>confirmed</b> (deposit Paid or Confirm tick), this becomes the real close date.</p>';
     h+=fieldHTML("Duration",durField(ldur));
     h+='<div id="f_durfields">'+durFieldsHTML(ldur,r)+'</div>';
     h+='<div class="row2">'+fieldHTML("VAT on charter quote",vatModeField(vMode))+fieldHTML("VAT %",pctField("f_vatPct",vPct))+'</div>';
@@ -13120,7 +13121,11 @@ function openSheet(type,id){
     }
   }
   if(el("f_dealClosed")){
-    el("f_dealClosed").addEventListener("change",paintDealClosedUI);
+    el("f_dealClosed").addEventListener("change",function(){
+      /* Manual confirm tick → real close date = today (import day was only while open) */
+      if(el("f_dealClosed").checked&&el("f_closed")) el("f_closed").value=leadTodayYmd();
+      paintDealClosedUI();
+    });
     paintDealClosedUI();
   }
   /* Assigning source never auto-confirms; pending forces open. Deposit/final Paid auto-ticks commercial only. */
@@ -13141,7 +13146,10 @@ function openSheet(type,id){
     var deps=el("f_deps")?leadInvStatus(el("f_deps").value):"";
     var fins=el("f_fins")?leadInvStatus(el("f_fins").value):"";
     if(deps==="Paid"||fins==="Paid"){
+      var wasOff=!el("f_dealClosed").checked;
       el("f_dealClosed").checked=true;
+      /* Real close date = today when deposit/final Paid closes the deal */
+      if(wasOff&&el("f_closed")) el("f_closed").value=leadTodayYmd();
       paintDealClosedUI();
     }
   }
@@ -13451,7 +13459,8 @@ function saveSheet(type,rec){
     var leadSrcRaw=(el("f_leadSource")&&el("f_leadSource").value)||"other";
     var leadSrc=(LY_MODELS&&LY_MODELS.constrainLeadSource)?LY_MODELS.constrainLeadSource(leadSrcRaw):(leadSrcRaw==="captain"?"captain":"other");
     var bookingSt=(el("f_bookingStatus")&&el("f_bookingStatus").value)==="cancelled"?"cancelled":"active";
-    var o2={ id:rec?rec.id:uid(), closed:el("f_closed").value, name:el("f_name").value.trim(),
+    var closedIn=el("f_closed")?el("f_closed").value:"";
+    var o2={ id:rec?rec.id:uid(), closed:closedIn, name:el("f_name").value.trim(),
       dur:dur, start:start, end:end, rate:rate, price:price, days:days,
       base:quoteBase, net:sp.split?sp.dealNet:m.net, vat:sp.split?sp.white.vat:m.vat, total:parts.client,
       vatMode:sp.split?(vatMode||"include"):m.vatMode,
@@ -13484,10 +13493,24 @@ function saveSheet(type,rec){
        - Owner’s days → manual checkbox only
        - Commercial (captain / paul / owner-sourced / other) → checkbox OR deposit/final Paid
        Never rewrite historical closed flags on load; only what this save sets. */
+    var wasClosed=!!(rec&&leadIsDealClosed(rec));
     var wantClosed=!!(el("f_dealClosed")&&el("f_dealClosed").checked);
     if(leadSrc==="pending") wantClosed=false;
     else if(leadSrc!=="owner"&&(deps==="Paid"||fins==="Paid")) wantClosed=true;
     o2.dealClosed=wantClosed;
+    /*
+     * Date closed:
+     *  - new / open: keep entered/imported day (form value; default today on new)
+     *  - just becoming confirmed: stamp today (real close day) unless user set a different closed date already for this close
+     *  - already confirmed: keep form value
+     */
+    var todayY=leadTodayYmd();
+    if(!rec&&!o2.closed) o2.closed=todayY;
+    if(wantClosed&&!wasClosed){
+      /* Transition open → closed: actual close date = today */
+      o2.closed=todayY;
+      if(el("f_closed")) el("f_closed").value=todayY;
+    }
     if(bookingSt==="cancelled"&&rec&&!leadIsCancelled(rec)){
       /* Manual status flip to cancelled without the button — still refund deposit if set */
       o2.cancelReason=o2.cancelReason||"manual";
