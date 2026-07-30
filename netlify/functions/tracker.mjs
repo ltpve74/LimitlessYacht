@@ -762,12 +762,13 @@ function stewCalendarRowsFromLeads(leads, stewAssign) {
       String(l.deps || "") === "Refunded"
     )
       return;
+    /* Pending / on-hold: public calendar only — not on stew roster until source assigned */
+    if (leadIsOnHold(l)) return;
     const days = leadBlockedDays(l);
     if (!days.length) return;
     const start = days[0];
     const end = days[days.length - 1] || start;
     const src = LY.constrainLeadSource(l.leadSource);
-    const pending = leadIsOnHold(l);
     const ek = assignKeyForLead(l, start);
     rows.push({
       key: ek,
@@ -778,7 +779,7 @@ function stewCalendarRowsFromLeads(leads, stewAssign) {
       startTime: "",
       endTime: "",
       allDay: true,
-      status: pending ? "tentative" : "booked",
+      status: "booked",
       source: "lead",
       leadId: l.id,
       leadSource: src,

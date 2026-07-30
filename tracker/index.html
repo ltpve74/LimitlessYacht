@@ -9359,16 +9359,25 @@ function stewEventKeyForLead(l){
   }
   return "lead:"+String(l.id);
 }
-/** One stew-roster event from a commercial lead (SOT). */
+/** True when lead is still on-hold / unconfirmed — not on stew roster yet. */
+function leadIsPendingForRoster(l){
+  if(!l) return true;
+  /* Assigned source wins even if sourcePending flag was left sticky */
+  return leadSource(l)==="pending";
+}
+/**
+ * One stew-roster event from a commercial lead (SOT).
+ * Pending / tentative source → omitted until captain assigns Captain / Click&Boat / Owner.
+ */
 function stewEventFromLead(l){
   if(!l||!l.id||leadIsCancelled(l)) return null;
+  if(leadIsPendingForRoster(l)) return null;
   var days=leadBlockedDaysClient(l);
   if(!days.length) return null;
   var start=days[0];
   var end=days[days.length-1]||start;
   var ek=stewEventKeyForLead(l);
   var src=leadSource(l);
-  var pending=src==="pending";
   return {
     key:ek,
     uid:l.calendarUid||(ek.indexOf("uid:")===0?ek.slice(4):l.id),
@@ -9378,7 +9387,7 @@ function stewEventFromLead(l){
     startTime:"",
     endTime:"",
     allDay:true,
-    status:pending?"tentative":"booked",
+    status:"booked",
     source:"lead",
     leadId:l.id,
     leadSource:src,
@@ -9393,31 +9402,39 @@ function stewEventsFromLeads(){
   });
   return list;
 }
+/** Drop hold/pending rows from any roster feed (blob / ICS fallback). */
+function stewRosterEventIsConfirmed(ev){
+  if(!ev||!ev.start) return false;
+  if(stewIsOffEvent&&stewIsOffEvent(ev)) return false;
+  if(ev.cancelled||String(ev.status||"").toLowerCase()==="cancelled") return true; /* cancel ghosts OK */
+  if(String(ev.status||"").toLowerCase()==="tentative") return false;
+  if(ev.leadSource==="pending") return false;
+  if(ev.sourcePending===true) return false;
+  return true;
+}
 /**
- * Roster calendar truth = commercial leads (same SOT as public site).
- * Team: captain-published blob (built from leads).
- * Captain: leads list (cancel ghosts still merged later via stewMergedEvents assigns).
+ * Roster = confirmed commercial leads only (source assigned).
+ * Pending calendar dates stay on Leads / public on-hold — not on Stews until confirmed.
+ * Team: captain-published blob (already filtered server-side).
  */
 function stewCalendarFeedEvents(){
   if(isTeam()){
     return (state.stewCalendar||[]).map(function(ev){
       return Object.assign({},ev,{source:ev.source||"blob", key:ev.key||stewEventId(ev)});
-    }).filter(function(ev){ return ev&&ev.start; });
+    }).filter(stewRosterEventIsConfirmed);
   }
-  /* Captain / manager with commercial access: leads are the roster */
+  /* Captain / manager: confirmed leads only */
   var leadEvs=stewEventsFromLeads();
-  if(leadEvs.length){
+  if(leadEvs.length||(state.leads&&state.leads.length)){
     return leadEvs;
   }
-  /* Fallback before leads load: last blob snapshot, then live ICS */
+  /* Fallback before leads load: last blob snapshot (no raw ICS — that adds holds) */
   if(state.stewCalendar&&state.stewCalendar.length){
     return (state.stewCalendar||[]).map(function(ev){
       return Object.assign({},ev,{source:ev.source||"blob", key:ev.key||stewEventId(ev)});
-    }).filter(function(ev){ return ev&&ev.start; });
+    }).filter(stewRosterEventIsConfirmed);
   }
-  return (calEvents||[]).map(function(ev){
-    return Object.assign({},ev,{source:ev.source||"live", key:ev.key||stewEventId(ev)});
-  }).filter(function(ev){ return ev&&ev.start; });
+  return [];
 }
 function stewCalendarKnownKeys(){
   var keys={};
@@ -9760,8 +9777,8 @@ function renderStews(opts){
     return;
   }
   var legend=isTeam()
-    ?"Your roster (from the charter book the captain publishes). Tap a charter to update who is on it. Day pay is set by the captain."
-    :"Roster = <b>leads</b> (same SOT as the public site). <b>Refresh</b> checks the manager ICS for <b>new</b> dates only → pending leads, then updates the team snapshot.";
+    ?"Your roster (confirmed charters only). Tap a trip to update who is on it. Day pay is set by the captain."
+    :"Roster = <b>confirmed</b> leads only (Captain / Click&amp;Boat / Owner). Pending calendar dates stay off Stews until source is assigned. <b>Refresh</b> syncs new ICS dates → pending leads (Leads tab), then publishes the confirmed snapshot.";
   var refreshLabel=isTeam()?"Reload roster":"Refresh (new dates + publish)";
   var loadingMsg=isTeam()?"Loading roster…":"Loading roster from leads…";
   body.innerHTML='<div class="legend">'+legend+'</div>'+
