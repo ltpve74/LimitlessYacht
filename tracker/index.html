@@ -86,6 +86,13 @@
   .install-prompt .ip-x{position:absolute;top:10px;right:10px;width:36px;height:36px;border-radius:18px;
     background:#eef1f4;color:var(--ink);font-size:22px;line-height:34px;text-align:center;padding:0}
   .install-prompt .ip-x:active{background:#e0e5ea}
+  /* Gate: install-first on mobile browser (not when already home-screen app) */
+  #gateInstallFirst .ip-steps{margin:12px 0;padding:12px 14px;background:#f5f8f9;border-radius:12px;font-size:13.5px;line-height:1.5;text-align:left}
+  #gateInstallFirst .ip-steps ol{margin:6px 0 0;padding-left:1.25em}
+  #gateInstallFirst .ip-steps li{margin:4px 0}
+  #gateInstallFirst .ip-steps b{color:var(--brand)}
+  #gateInstallFirst .gate-install-btns{display:flex;flex-direction:column;gap:8px;margin-top:14px}
+  #gateInstallFirst .gate-install-btns .btn{width:100%}
 
   .summary{display:flex;flex-wrap:wrap;gap:10px;margin-bottom:14px}
   .sumcard{flex:1 1 140px;min-width:0;background:var(--card);border-radius:14px;padding:13px 15px;box-shadow:0 1px 3px rgba(0,0,0,.07)}
@@ -425,6 +432,18 @@
 
 <!-- ============ LOGIN ============ -->
 <div id="gate">
+  <!-- Mobile browser only: prefer install to home screen before login -->
+  <div class="gatebox hidden" id="gateInstallFirst" role="region" aria-labelledby="gateInstallTitle">
+    <div class="brandmark"><img src="/tracker/icons/icon-192.png" width="64" height="64" alt=""></div>
+    <h1 id="gateInstallTitle">Install Tracker first</h1>
+    <p class="sub">On a phone, use the home-screen app for full screen, one-tap open, and reliable alerts. Then sign in from there.</p>
+    <div id="gateInstallSteps" class="ip-steps"></div>
+    <div class="gate-install-btns">
+      <button type="button" class="btn hidden" id="gateInstallNative">Install app</button>
+      <button type="button" class="btn ghost" id="gateInstallBrowser">Continue in browser</button>
+    </div>
+    <p class="sub" style="margin-top:14px;font-size:12px;line-height:1.4;opacity:.85">Already installed? Open <b>Tracker</b> from your home screen — you won’t see this screen.</p>
+  </div>
   <form class="gatebox" id="gateForm" autocomplete="off">
     <div class="brandmark"><img src="/tracker/icons/icon-192.png" width="64" height="64" alt=""></div>
     <h1>Limitless Tracker</h1>
@@ -1163,6 +1182,8 @@ el("logoutBtn").addEventListener("click",function(){ lockApp(); });
 
 /** Open app automatically when this device is trusted and session was saved. */
 function tryAutoLogin(){
+  /* Mobile browser: prefer install-first; don’t skip that screen via auto-login */
+  try{ if(typeof shouldShowGateInstallFirst==="function"&&shouldShowGateInstallFirst()) return; }catch(e0){}
   var s=loadSavedSession();
   if(!s||!s.pass||!s.who) return;
   session.who=s.who;
@@ -13562,6 +13583,76 @@ function isIosDevice(){
     || (navigator.platform==="MacIntel"&&navigator.maxTouchPoints>1);
 }
 function isAndroidDevice(){ return /Android/i.test(navigator.userAgent); }
+/** Phone/tablet browser where we prefer home-screen install before login. */
+function isMobileBrowserForInstall(){
+  if(isStandalone()) return false;
+  if(isIosDevice()||isAndroidDevice()) return true;
+  try{
+    if(navigator.maxTouchPoints>1&&window.innerWidth<900) return true;
+  }catch(e){}
+  return false;
+}
+var GATE_BROWSER_OK_KEY="tracker-gate-browser-ok";
+function gateBrowserBypass(){
+  try{ return sessionStorage.getItem(GATE_BROWSER_OK_KEY)==="1"; }catch(e){ return false; }
+}
+function setGateBrowserBypass(){
+  try{ sessionStorage.setItem(GATE_BROWSER_OK_KEY,"1"); }catch(e){}
+}
+/** Soft gate: mobile browser shows install-first; home-screen app / desktop skip. */
+function shouldShowGateInstallFirst(){
+  return isMobileBrowserForInstall()&&!gateBrowserBypass();
+}
+function paintGateInstallFirst(){
+  var panel=el("gateInstallFirst"), form=el("gateForm");
+  if(!panel||!form) return;
+  var show=shouldShowGateInstallFirst();
+  panel.classList.toggle("hidden",!show);
+  form.classList.toggle("hidden",!!show);
+  if(!show) return;
+  var steps=el("gateInstallSteps");
+  var nativeBtn=el("gateInstallNative");
+  if(steps){
+    if(isIosDevice()){
+      steps.innerHTML='<b>iPhone / iPad — Safari</b><ol>'+
+        '<li>Tap <b>Share</b> <span aria-hidden="true">⬆️</span> at the bottom</li>'+
+        '<li>Tap <b>Add to Home Screen</b></li>'+
+        '<li>Tap <b>Add</b>, then open <b>Tracker</b> from the home screen and sign in</li>'+
+        '</ol>';
+    } else if(isAndroidDevice()){
+      steps.innerHTML='<b>Android — Chrome</b><ol>'+
+        '<li>Tap <b>⋮</b> (top right)</li>'+
+        '<li>Tap <b>Install app</b> or <b>Add to Home screen</b></li>'+
+        '<li>Confirm, open <b>Tracker</b> from the home screen, then sign in</li>'+
+        '</ol>'+
+        '<p style="margin:8px 0 0;font-size:12.5px;color:var(--muted);line-height:1.4">Samsung Internet: menu → <b>Add page to</b> → <b>Home screen</b>.</p>';
+    } else {
+      steps.innerHTML='<b>Install this site as an app</b><ol>'+
+        '<li>Open the browser menu (⋮)</li>'+
+        '<li><b>Install app</b> / <b>Add to Home screen</b></li>'+
+        '<li>Open from the home screen and sign in</li>'+
+        '</ol>';
+    }
+  }
+  if(nativeBtn){
+    var canNative=!!deferredInstallEvt;
+    nativeBtn.classList.toggle("hidden",!canNative);
+    nativeBtn.textContent=canNative?"Install app":"Install app";
+  }
+}
+function bindGateInstallFirst(){
+  var browser=el("gateInstallBrowser"), nativeBtn=el("gateInstallNative");
+  if(browser) browser.addEventListener("click",function(){
+    setGateBrowserBypass();
+    paintGateInstallFirst();
+    try{ if(el("passInput")) el("passInput").focus(); }catch(e){}
+  });
+  if(nativeBtn) nativeBtn.addEventListener("click",function(){
+    if(deferredInstallEvt) runNativeInstall();
+    else paintGateInstallFirst();
+  });
+  paintGateInstallFirst();
+}
 
 /* -------- install as home-screen app -------- */
 var deferredInstallEvt=null;
@@ -13572,11 +13663,14 @@ window.addEventListener("beforeinstallprompt",function(e){
   deferredInstallEvt=e;
   /* If user is already in the app, refresh the banner so Install is one-tap */
   if(el("app")&&!el("app").classList.contains("hidden")) maybeShowInstallPrompt(true);
+  /* Gate install-first: show one-tap Install when Chrome is ready */
+  try{ paintGateInstallFirst(); }catch(err){}
 });
 window.addEventListener("appinstalled",function(){
   deferredInstallEvt=null;
   try{ localStorage.setItem(INSTALL_LS_KEY,"installed"); }catch(err){}
   hideInstallPrompt();
+  try{ paintGateInstallFirst(); }catch(err2){}
 });
 function installPromptStorageGet(){
   try{ return localStorage.getItem(INSTALL_LS_KEY)||""; }catch(e){ return ""; }
@@ -13984,7 +14078,8 @@ function seedDemo(){
   apaView="list";
 }
 
-/* Trusted device: reopen without passcode */
+/* Trusted device: reopen without passcode (skipped on mobile browser until install or Continue) */
+try{ bindGateInstallFirst(); }catch(eGate){}
 tryAutoLogin();
 </script>
 </body>
