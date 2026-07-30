@@ -246,6 +246,49 @@ ok("label owner-sourced", M.leadSourceLabel("ownersourced") === "Owner-sourced")
   });
   ok("ownersourced base before VAT > 0", os.base > 0);
   ok("ownersourced commission 0 for now", os.total === 0);
+  ok("cash dest boat default", M.leadCashDest({ split: true, cashAmt: 1800 }) === "boat");
+  ok("cash dest owner", M.leadCashDest({ cashDest: "owner" }) === "owner");
+  ok(
+    "owner pocket cash when settled",
+    M.leadOwnerPocketCashAmt({
+      split: true,
+      cashAmt: 1800,
+      cashDest: "owner",
+      cashSettled: true,
+      invoiceTotal: 1210,
+    }) === 1800
+  );
+  ok(
+    "owner pocket not on boat",
+    !M.leadFreeCashIsOnBoat({
+      split: true,
+      cashAmt: 1800,
+      cashDest: "owner",
+      cashSettled: true,
+      invoiceTotal: 1210,
+    })
+  );
+  ok(
+    "boat cash on boat when settled",
+    M.leadFreeCashIsOnBoat({
+      split: true,
+      cashAmt: 1800,
+      cashDest: "boat",
+      cashSettled: true,
+      invoiceTotal: 1210,
+    })
+  );
+  ok(
+    "owner pocket zero until received",
+    M.leadOwnerPocketCashAmt({
+      split: true,
+      cashAmt: 1800,
+      cashDest: "owner",
+      cashSettled: false,
+      fins: "Not issued",
+      invoiceTotal: 1210,
+    }) === 0
+  );
   ok("deal closed explicit true", M.leadIsDealClosed({ id: "a", dealClosed: true }));
   ok("deal closed explicit false", !M.leadIsDealClosed({ id: "b", dealClosed: false }));
   ok("deal closed legacy undefined = closed", M.leadIsDealClosed({ id: "c" }));

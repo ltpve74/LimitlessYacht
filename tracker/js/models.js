@@ -484,6 +484,52 @@
     return cash > 0 ? cash : 0;
   }
 
+  /**
+   * Where split free cash lands when received:
+   *  - boat  = boat petty cash envelope (default / legacy)
+   *  - owner = owner’s pocket (still business money — show in owner stats)
+   */
+  function constrainCashDest(v) {
+    var s = String(v || "")
+      .toLowerCase()
+      .trim();
+    if (s === "owner" || s === "pocket" || s === "owner-pocket" || s === "owner_pocket")
+      return "owner";
+    return "boat";
+  }
+
+  function leadCashDest(r) {
+    if (!r) return "boat";
+    if (r.cashDest != null && r.cashDest !== "") return constrainCashDest(r.cashDest);
+    /* Legacy aliases */
+    if (r.cashToOwner === true || r.cashToOwner === "true" || r.cashToOwner === 1) return "owner";
+    return "boat";
+  }
+
+  /**
+   * Free cash received (settled). Same gate for boat envelope and owner pocket:
+   * explicit cashSettled, or final Paid (unless cashSettled explicitly false).
+   */
+  function leadFreeCashIsReceived(r) {
+    if (!r || !leadHasSplit(r)) return false;
+    var cash = leadFreeCashAmt(r);
+    if (!(cash > 0.009)) return false;
+    if (r.cashSettled === false || r.cashSettled === "false" || r.cashSettled === 0)
+      return false;
+    if (r.cashSettled === true || r.cashSettled === "true" || r.cashSettled === 1) return true;
+    return String(r.fins || "") === "Paid";
+  }
+
+  function leadFreeCashIsOnBoat(r) {
+    return leadFreeCashIsReceived(r) && leadCashDest(r) === "boat";
+  }
+
+  /** Received free cash that went to the owner’s pocket (not boat float). */
+  function leadOwnerPocketCashAmt(r) {
+    if (!leadFreeCashIsReceived(r) || leadCashDest(r) !== "owner") return 0;
+    return leadFreeCashAmt(r);
+  }
+
   /** Mutate lead: replace suggested cash with pin or clear corrupt value. */
   function sanitizeLeadCash(l, pin) {
     if (!l || !leadHasSplit(l)) return false;
@@ -1456,6 +1502,11 @@
     leadSplitFinalPrice: leadSplitFinalPrice,
     cashAmtLooksSuggested: cashAmtLooksSuggested,
     leadFreeCashAmt: leadFreeCashAmt,
+    constrainCashDest: constrainCashDest,
+    leadCashDest: leadCashDest,
+    leadFreeCashIsReceived: leadFreeCashIsReceived,
+    leadFreeCashIsOnBoat: leadFreeCashIsOnBoat,
+    leadOwnerPocketCashAmt: leadOwnerPocketCashAmt,
     sanitizeLeadCash: sanitizeLeadCash,
     leadClientTotal: leadClientTotal,
     commissionVatPct: commissionVatPct,
