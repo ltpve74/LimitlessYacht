@@ -108,6 +108,9 @@
   #tab-leads .ld-snap-col .lines span{display:flex;justify-content:space-between;gap:8px}
   #tab-leads .ld-snap-col .lines .m{font-weight:800;font-variant-numeric:tabular-nums}
   #tab-leads .ld-snap-foot{display:grid;grid-template-columns:1fr 1fr;gap:8px 14px;padding-top:8px;border-top:1px solid var(--line)}
+  @media(min-width:620px){
+    #tab-leads .ld-snap-foot{grid-template-columns:1fr 1fr 1fr}
+  }
   #tab-leads .ld-snap-row{display:flex;flex-direction:column;gap:2px;min-width:0}
   #tab-leads .ld-snap-row .k{font-size:10.5px;color:var(--muted);text-transform:uppercase;letter-spacing:.03em;font-weight:650;line-height:1.2}
   #tab-leads .ld-snap-row .v{font-size:16px;font-weight:800;line-height:1.2;font-variant-numeric:tabular-nums}
@@ -449,8 +452,11 @@
               <div class="big money" id="ldDoneTot">€0</div>
               <div class="meta" id="ldDoneSub">0 sailed trips</div>
               <div class="lines">
+                <span><em style="font-style:normal;color:var(--muted);font-weight:600">Charters</em><span class="m money" id="ldDoneCharters">€0</span></span>
+                <span><em style="font-style:normal;color:var(--muted);font-weight:600">Captain upsells</em><span class="m money" id="ldDoneUpsell">€0</span></span>
                 <span><em style="font-style:normal;color:var(--muted);font-weight:600">Before VAT</em><span class="m money" id="ldDoneEx">€0</span></span>
                 <span><em style="font-style:normal;color:var(--muted);font-weight:600">Commissions</em><span class="m money" id="ldDoneComm">€0</span></span>
+                <span><em style="font-style:normal;color:var(--muted);font-weight:600">· of which upsells</em><span class="m money" id="ldDoneUpsellComm">€0</span></span>
                 <span><em style="font-style:normal;color:var(--muted);font-weight:600">Net after comm.</em><span class="m money" id="ldDoneNet">€0</span></span>
               </div>
             </div>
@@ -459,17 +465,21 @@
               <div class="big money" id="ldProjTot">€0</div>
               <div class="meta" id="ldProjSub">0 future trips</div>
               <div class="lines">
+                <span><em style="font-style:normal;color:var(--muted);font-weight:600">Charters</em><span class="m money" id="ldProjCharters">€0</span></span>
+                <span><em style="font-style:normal;color:var(--muted);font-weight:600">Captain upsells</em><span class="m money" id="ldProjUpsell">€0</span></span>
                 <span><em style="font-style:normal;color:var(--muted);font-weight:600">Before VAT</em><span class="m money" id="ldProjEx">€0</span></span>
                 <span><em style="font-style:normal;color:var(--muted);font-weight:600">Commissions</em><span class="m money" id="ldProjComm">€0</span></span>
+                <span><em style="font-style:normal;color:var(--muted);font-weight:600">· of which upsells</em><span class="m money" id="ldProjUpsellComm">€0</span></span>
                 <span><em style="font-style:normal;color:var(--muted);font-weight:600">Net after comm.</em><span class="m money" id="ldProjNet">€0</span></span>
               </div>
             </div>
           </div>
           <div class="ld-snap-foot">
+            <div class="ld-snap-row"><span class="k">Upsell benefit (your comm.)</span><span class="v money" id="ldUpsellBenefit">€0</span><span class="s" id="ldUpsellBenefitSub">Extra hours · captain</span></div>
             <div class="ld-snap-row"><span class="k">Owner days (notional)</span><span class="v money" id="ldOwn">€0</span><span class="s" id="ldOwnSub">List-rate estimate</span></div>
             <div class="ld-snap-row"><span class="k">Open / pending source</span><span class="v" id="ldOpenMix">0 · 0</span><span class="s" id="ldOpenMixSub">Invoices · unassigned</span></div>
           </div>
-          <div class="ld-snap-note">Done = source assigned and charter date today or past. Confirmed upcoming = source assigned, date still ahead (projected, not yet sailed). Owner days = private / owner guests at list rates — not cash income.</div>
+          <div class="ld-snap-note">Done = sailed (date today/past). Confirmed upcoming = future dates, projected. Totals include charter sales + captain extra-hour upsells (and your 15% on those upsells when marked). Owner days = notional list-rate only — not cash.</div>
         </div>
         <div class="sumcard ld-src"><div class="l">Luigi · Captain</div><div class="v money" id="ldCap">€0</div><div class="sub" id="ldCapSub">—</div><div id="ldCapTypes" class="ld-type-table"></div></div>
         <div class="sumcard ld-src"><div class="l">Paul · Click&amp;Boat</div><div class="v money" id="ldCb">€0</div><div class="sub" id="ldCbSub">—</div><div id="ldCbTypes" class="ld-type-table"></div></div>
@@ -2138,9 +2148,9 @@ function renderLeads(){
   var wrap=el("ldList"), html="";
   var pend=0, nPendSrc=0;
   var ownVal=0, ownN=0;
-  /* Done (sailed) vs confirmed upcoming (projected) */
-  var done={tot:0, ex:0, comm:0, n:0};
-  var proj={tot:0, ex:0, comm:0, n:0};
+  /* Done (sailed) vs confirmed upcoming (projected) — charters + captain upsells */
+  var done={tot:0, charters:0, upsell:0, ex:0, comm:0, upsellComm:0, n:0, nUpsell:0};
+  var proj={tot:0, charters:0, upsell:0, ex:0, comm:0, upsellComm:0, n:0, nUpsell:0};
   var capTot=0, capExVat=0, capN=0, capComm=0;
   var cbTot=0, cbExVat=0, cbN=0, cbComm=0;
   var capTypes={}, cbTypes={};
@@ -2157,6 +2167,20 @@ function renderLeads(){
   function leadOwnerNotional(r){
     if(LY_MODELS&&LY_MODELS.leadOwnerBenefitValue) return Number(LY_MODELS.leadOwnerBenefitValue(r))||0;
     return leadExVatBase(r);
+  }
+  /** Client € for extra hours (upsell income). */
+  function chargeUpsellGross(c){
+    if(!c) return 0;
+    var ext=typeof chargeExtAmt==="function"?chargeExtAmt(c):0;
+    if(ext>0) return ext;
+    var kind=String(c.kind||c.chargeKind||"").toLowerCase();
+    if(kind==="extension"||kind==="extra"||kind==="upsell") return Math.max(0, Number(c.amount)||0);
+    return 0;
+  }
+  function chargeTiming(c){
+    var d=String((c&&c.date)||"").slice(0,10);
+    if(!/^\d{4}-\d{2}-\d{2}$/.test(d)) return "done";
+    return d>leadTodayYmd()?"upcoming":"done";
   }
   function formatTypeMixHTML(map){
     var order=["4h","6h","8h","multi"], keys=[];
@@ -2176,8 +2200,12 @@ function renderLeads(){
     });
     return h;
   }
-  function addBucket(b, val, exVat, comm){
-    b.tot+=val; b.ex+=exVat; b.comm+=comm; b.n++;
+  function addCharterBucket(b, val, exVat, comm){
+    b.charters+=val; b.tot+=val; b.ex+=exVat; b.comm+=comm; b.n++;
+  }
+  function addUpsellBucket(b, gross, exVat, comm){
+    if(!(gross>0)&&!(comm>0)) return;
+    b.upsell+=gross; b.tot+=gross; b.ex+=exVat; b.comm+=comm; b.upsellComm+=comm; b.nUpsell++;
   }
   (state.leads||[]).forEach(function(r){
     if(!r) return;
@@ -2197,8 +2225,8 @@ function renderLeads(){
     var exVat=closed?leadExVatBase(r):0;
     var comm=closed?(leadCommissionAmt(r)||0):0;
     if(closed){
-      if(timing==="upcoming") addBucket(proj, val, exVat, comm);
-      else addBucket(done, val, exVat, comm);
+      if(timing==="upcoming") addCharterBucket(proj, val, exVat, comm);
+      else addCharterBucket(done, val, exVat, comm);
       var tk=leadCharterTypeKey(r);
       if(src==="captain"){
         capTot+=val; capExVat+=exVat; capN++;
@@ -2210,6 +2238,41 @@ function renderLeads(){
         bumpType(cbTypes, tk, val, exVat);
       }
     }
+  });
+  /* Captain extra-hour upsells from Charges (income + 15% when captainComm) */
+  (state.charters||[]).forEach(function(c){
+    if(!c) return;
+    var gross=chargeUpsellGross(c);
+    var hrs=typeof chargeExtHours==="function"?chargeExtHours(c):0;
+    var kind=String(c.kind||c.chargeKind||"").toLowerCase();
+    var isUpsell=gross>0||hrs>0||kind==="extension"||kind==="extra"||kind==="upsell";
+    if(!isUpsell) return;
+    if(!(gross>0)&&Number(c.amount)>0&&(kind==="extension"||kind==="extra"||kind==="upsell"||hrs>0)&&!(Number(c.apaBaseAmt)>0)){
+      gross=Math.max(0, Number(c.amount)||0);
+    }
+    if(!(gross>0)) return;
+    var cp={base:0, total:0};
+    if(typeof chargeCommissionParts==="function"&&isChargeCaptainComm(c)){
+      cp=chargeCommissionParts(c)||cp;
+      /* Prefer extension-slice base when present */
+      if(chargeExtAmt(c)>0&&cp.base>0){ /* ok */ }
+    }
+    var exB=Number(cp.base)>0?Number(cp.base):gross;
+    var cm=Number(cp.total)||0;
+    var timing=chargeTiming(c);
+    if(timing==="upcoming") addUpsellBucket(proj, gross, exB, cm);
+    else addUpsellBucket(done, gross, exB, cm);
+  });
+  /* re-open forEach for list paint only — leads already iterated above for stats */
+  (state.leads||[]).forEach(function(r){
+    if(!r) return;
+    var cancelled=leadIsCancelled(r);
+    var src=leadSource(r);
+    var isOwner=src==="owner";
+    var isPending=src==="pending";
+    var closed=leadIsClosedDeal(r);
+    var timing=closed?leadCharterTiming(r):"";
+    var val=leadListMoney(r);
     /* Open invoices only on closed commercial deals */
     var openN=(closed||(!isPending&&!isOwner&&!cancelled))?pendForLead(r):0;
     if(closed) pend+=openN;
@@ -2281,16 +2344,36 @@ function renderLeads(){
   });
   wrap.innerHTML=html||emptyBox("🌐","No charters in the book yet","Tap + for a new lead, or Sync calendar dates.");
   /* Done vs projected snapshot + source cards */
+  var upsellCommAll=done.upsellComm+proj.upsellComm;
+  var upsellGrossAll=done.upsell+proj.upsell;
   if(el("ldDoneTot")) el("ldDoneTot").textContent=money(done.tot);
-  if(el("ldDoneSub")) el("ldDoneSub").textContent=done.n+" sailed trip"+(done.n===1?"":"s");
+  if(el("ldDoneSub")){
+    el("ldDoneSub").textContent=done.n+" sailed trip"+(done.n===1?"":"s")+
+      (done.nUpsell?" · "+done.nUpsell+" upsell"+(done.nUpsell===1?"":"s"):"");
+  }
+  if(el("ldDoneCharters")) el("ldDoneCharters").textContent=money(done.charters);
+  if(el("ldDoneUpsell")) el("ldDoneUpsell").textContent=money(done.upsell);
   if(el("ldDoneEx")) el("ldDoneEx").textContent=money(done.ex);
   if(el("ldDoneComm")) el("ldDoneComm").textContent=money(done.comm);
+  if(el("ldDoneUpsellComm")) el("ldDoneUpsellComm").textContent=money(done.upsellComm);
   if(el("ldDoneNet")) el("ldDoneNet").textContent=money(Math.max(0, done.ex-done.comm));
   if(el("ldProjTot")) el("ldProjTot").textContent=money(proj.tot);
-  if(el("ldProjSub")) el("ldProjSub").textContent=proj.n+" future trip"+(proj.n===1?"":"s");
+  if(el("ldProjSub")){
+    el("ldProjSub").textContent=proj.n+" future trip"+(proj.n===1?"":"s")+
+      (proj.nUpsell?" · "+proj.nUpsell+" upsell"+(proj.nUpsell===1?"":"s"):"");
+  }
+  if(el("ldProjCharters")) el("ldProjCharters").textContent=money(proj.charters);
+  if(el("ldProjUpsell")) el("ldProjUpsell").textContent=money(proj.upsell);
   if(el("ldProjEx")) el("ldProjEx").textContent=money(proj.ex);
   if(el("ldProjComm")) el("ldProjComm").textContent=money(proj.comm);
+  if(el("ldProjUpsellComm")) el("ldProjUpsellComm").textContent=money(proj.upsellComm);
   if(el("ldProjNet")) el("ldProjNet").textContent=money(Math.max(0, proj.ex-proj.comm));
+  if(el("ldUpsellBenefit")) el("ldUpsellBenefit").textContent=money(upsellCommAll);
+  if(el("ldUpsellBenefitSub")){
+    el("ldUpsellBenefitSub").textContent=upsellGrossAll>0
+      ?("on "+money(upsellGrossAll)+" extra hours · 15%")
+      :"Mark “I get commission” on extra hours";
+  }
   if(el("ldOwn")) el("ldOwn").textContent=money(ownVal);
   if(el("ldOwnSub")) el("ldOwnSub").textContent=ownN?(ownN+" · not cash"):"None logged";
   if(el("ldOpenMix")) el("ldOpenMix").textContent=pend+" · "+nPendSrc;
@@ -2298,7 +2381,8 @@ function renderLeads(){
   if(el("ldCap")) el("ldCap").textContent=money(capTot);
   if(el("ldCapSub")){
     el("ldCapSub").textContent=capN+"× · ex VAT "+money(capExVat)+
-      " · comm "+money(capComm)+" · net "+money(Math.max(0, capExVat-capComm));
+      " · comm "+money(capComm)+" · net "+money(Math.max(0, capExVat-capComm))+
+      (upsellCommAll>0?" · +upsell comm "+money(upsellCommAll):"");
   }
   if(el("ldCapTypes")) el("ldCapTypes").innerHTML=formatTypeMixHTML(capTypes);
   if(el("ldCb")) el("ldCb").textContent=money(cbTot);
