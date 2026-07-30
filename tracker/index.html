@@ -93,23 +93,30 @@
   .sumcard .v{font-size:21px;font-weight:800;margin-top:3px}
   #tab-charters .summary .sumcard{flex:1 1 calc(50% - 10px)}
   @media(min-width:620px){ #tab-charters .summary .sumcard{flex:1 1 calc(25% - 10px)} }
-  /* Leads stats: multi-card grid (source totals + per-type value rows) */
-  #tab-leads .ld-summary{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:14px;width:100%;box-sizing:border-box}
+  /* Leads stats: compact snapshot + two source cards */
+  #tab-leads .ld-summary{display:grid;grid-template-columns:1fr;gap:10px;margin-bottom:12px;width:100%;box-sizing:border-box}
   #tab-leads .ld-summary .sumcard{min-width:0;flex:none;padding:12px 14px;box-sizing:border-box}
-  #tab-leads .ld-summary .sumcard.ld-src{grid-column:1/-1}
-  #tab-leads .ld-summary .sumcard .l{font-size:11px;line-height:1.25}
-  #tab-leads .ld-summary .sumcard .v{font-size:20px;overflow-wrap:anywhere}
-  #tab-leads .ld-summary .sumcard .sub{font-size:11.5px;color:var(--muted);margin-top:4px;line-height:1.35;font-weight:600}
-  #tab-leads .ld-type-table{margin-top:10px;border-top:1px solid var(--line);padding-top:8px;display:flex;flex-direction:column;gap:5px}
+  #tab-leads .ld-snap{padding:12px 14px}
+  #tab-leads .ld-snap-grid{display:grid;grid-template-columns:1fr 1fr;gap:8px 14px}
+  #tab-leads .ld-snap-row{display:flex;flex-direction:column;gap:2px;min-width:0}
+  #tab-leads .ld-snap-row .k{font-size:10.5px;color:var(--muted);text-transform:uppercase;letter-spacing:.03em;font-weight:650;line-height:1.2}
+  #tab-leads .ld-snap-row .v{font-size:17px;font-weight:800;line-height:1.2;font-variant-numeric:tabular-nums}
+  #tab-leads .ld-snap-row .s{font-size:11px;color:var(--muted);font-weight:600;line-height:1.3;margin-top:1px}
+  #tab-leads .ld-snap-note{margin-top:10px;padding-top:8px;border-top:1px solid var(--line);font-size:11px;color:var(--muted);line-height:1.4;font-weight:550}
+  #tab-leads .ld-summary .sumcard.ld-src .l{font-size:11px;line-height:1.25}
+  #tab-leads .ld-summary .sumcard.ld-src .v{font-size:20px}
+  #tab-leads .ld-summary .sumcard.ld-src .sub{font-size:11.5px;color:var(--muted);margin-top:4px;line-height:1.35;font-weight:600}
+  #tab-leads .ld-type-table{margin-top:8px;border-top:1px solid var(--line);padding-top:8px;display:flex;flex-direction:column;gap:4px}
   #tab-leads .ld-type-row{display:grid;grid-template-columns:1fr auto auto;gap:8px 12px;align-items:baseline;font-size:12.5px;line-height:1.3}
   #tab-leads .ld-type-row .t{color:var(--ink,#1a1a1a);font-weight:650;min-width:0}
   #tab-leads .ld-type-row .n{color:var(--muted);font-weight:600;white-space:nowrap;text-align:right}
   #tab-leads .ld-type-row .m{font-weight:800;white-space:nowrap;text-align:right;font-variant-numeric:tabular-nums}
-  #tab-leads .ld-type-empty{font-size:12px;color:var(--muted);margin-top:8px;font-weight:600}
-  @media(min-width:720px){
-    #tab-leads .ld-summary{grid-template-columns:1fr 1fr 1fr 1fr}
-    #tab-leads .ld-summary .sumcard.ld-src{grid-column:span 2}
-    #tab-leads .ld-summary .sumcard .v{font-size:22px}
+  #tab-leads .ld-type-empty{font-size:12px;color:var(--muted);font-weight:600}
+  @media(min-width:620px){
+    #tab-leads .ld-summary{grid-template-columns:1fr 1fr}
+    #tab-leads .ld-snap{grid-column:1/-1}
+    #tab-leads .ld-snap-grid{grid-template-columns:repeat(3,1fr);gap:10px 18px}
+    #tab-leads .ld-snap-row .v{font-size:18px}
   }
   .sectitle{font-size:13px;font-weight:700;color:var(--muted);margin:4px 2px 10px;text-transform:uppercase;letter-spacing:.04em}
   .legend{font-size:12.5px;color:var(--muted);margin:-4px 2px 14px;line-height:1.45}
@@ -423,16 +430,21 @@
     <!-- LEADS (default landing) -->
     <section id="tab-leads">
       <div class="ld-summary" id="ldSummary">
-        <div class="sumcard"><div class="l">Closed (client total)</div><div class="v money" id="ldTot">€0</div><div class="sub" id="ldTotSub">Excludes pending source</div></div>
-        <div class="sumcard"><div class="l">Closed before VAT</div><div class="v money" id="ldExVat">€0</div><div class="sub" id="ldExVatSub">Commission base</div></div>
-        <div class="sumcard"><div class="l">Commissions</div><div class="v money" id="ldComm">€0</div><div class="sub" id="ldCommSub">Captain 15% · Paul 21%</div></div>
-        <div class="sumcard"><div class="l">Net remaining</div><div class="v money" id="ldNet">€0</div><div class="sub" id="ldNetSub">Before VAT − commissions</div></div>
-        <div class="sumcard"><div class="l">Invoices open</div><div class="v" id="ldPending">0</div><div class="sub" id="ldPendSub">On closed deals only</div></div>
-        <div class="sumcard"><div class="l">Pending source</div><div class="v" id="ldOpenSrc">0</div><div class="sub">Not in closed total</div></div>
-        <div class="sumcard ld-src"><div class="l">Luigi · Captain</div><div class="v money" id="ldCap">€0</div><div class="sub" id="ldCapSub">0 trips · 15% commission</div><div id="ldCapTypes" class="ld-type-table"></div></div>
-        <div class="sumcard ld-src"><div class="l">Paul · Click&amp;Boat</div><div class="v money" id="ldCb">€0</div><div class="sub" id="ldCbSub">0 trips · 21% commission</div><div id="ldCbTypes" class="ld-type-table"></div></div>
+        <div class="sumcard ld-snap" id="ldSnap">
+          <div class="ld-snap-grid">
+            <div class="ld-snap-row"><span class="k">Closed sales</span><span class="v money" id="ldTot">€0</span><span class="s" id="ldTotSub">—</span></div>
+            <div class="ld-snap-row"><span class="k">Before VAT</span><span class="v money" id="ldExVat">€0</span><span class="s">Commission base</span></div>
+            <div class="ld-snap-row"><span class="k">Commissions</span><span class="v money" id="ldComm">€0</span><span class="s" id="ldCommSub">15% / 21%</span></div>
+            <div class="ld-snap-row"><span class="k">Net after commission</span><span class="v money" id="ldNet">€0</span><span class="s" id="ldNetSub">Before VAT − comm.</span></div>
+            <div class="ld-snap-row"><span class="k">Owner days (notional)</span><span class="v money" id="ldOwn">€0</span><span class="s" id="ldOwnSub">List-rate estimate</span></div>
+            <div class="ld-snap-row"><span class="k">Open / pending</span><span class="v" id="ldOpenMix">0 · 0</span><span class="s" id="ldOpenMixSub">Invoices · pending source</span></div>
+          </div>
+          <div class="ld-snap-note" id="ldOwnNote">Owner days: private use or owner guests, valued at published rates for reference only — not cash income and not in closed sales.</div>
+        </div>
+        <div class="sumcard ld-src"><div class="l">Luigi · Captain</div><div class="v money" id="ldCap">€0</div><div class="sub" id="ldCapSub">—</div><div id="ldCapTypes" class="ld-type-table"></div></div>
+        <div class="sumcard ld-src"><div class="l">Paul · Click&amp;Boat</div><div class="v money" id="ldCb">€0</div><div class="sub" id="ldCbSub">—</div><div id="ldCbTypes" class="ld-type-table"></div></div>
       </div>
-      <div class="legend">Charter book. <b>Pending</b> = not closed (excluded from money). <b>Before VAT</b> = commission base. <b>Net remaining</b> = before VAT − commissions. Closed = Luigi · Paul · (owner excluded from income). <b>Make invoice</b> = PDF.</div>
+      <div class="legend">Pending source is not closed (excluded from money). Net = before VAT − commissions. Owner days are a notional list-rate estimate for owner/private use. <b>Make invoice</b> = PDF.</div>
       <div class="list" id="ldList"></div>
     </section>
 
@@ -2074,9 +2086,9 @@ function renderLeads(){
   sortLeads();
   var wrap=el("ldList"), html="";
   var tot=0, totExVat=0, totComm=0, pend=0, nClosed=0, nPendSrc=0;
+  var ownVal=0, ownN=0;
   var capTot=0, capExVat=0, capN=0, capComm=0;
   var cbTot=0, cbExVat=0, cbN=0, cbComm=0;
-  /* Per source × charter type: { n, val, exVat } */
   var capTypes={}, cbTypes={};
   function bumpType(map, k, val, exVat){
     if(!map[k]) map[k]={n:0, val:0, exVat:0};
@@ -2088,13 +2100,17 @@ function renderLeads(){
     if(LY_MODELS&&LY_MODELS.leadCommissionBase) return Number(LY_MODELS.leadCommissionBase(r))||0;
     return Number(leadDealBase(r))||0;
   }
+  function leadOwnerNotional(r){
+    if(LY_MODELS&&LY_MODELS.leadOwnerBenefitValue) return Number(LY_MODELS.leadOwnerBenefitValue(r))||0;
+    return leadExVatBase(r);
+  }
   function formatTypeMixHTML(map){
     var order=["4h","6h","8h","multi"], keys=[];
     order.forEach(function(k){ if(map[k]&&map[k].n) keys.push(k); });
     Object.keys(map).forEach(function(k){
       if(order.indexOf(k)<0&&map[k]&&map[k].n) keys.push(k);
     });
-    if(!keys.length) return '<div class="ld-type-empty">No closed trips yet</div>';
+    if(!keys.length) return '<div class="ld-type-empty">No trips yet</div>';
     var h='';
     keys.forEach(function(k){
       var row=map[k];
@@ -2103,13 +2119,6 @@ function renderLeads(){
         '<span class="n">'+row.n+'×</span>'+
         '<span class="m money">'+money0(row.val)+'</span>'+
       '</div>';
-      if(row.exVat>0&&Math.abs(row.exVat-row.val)>0.5){
-        h+='<div class="ld-type-row" style="opacity:.85;margin-top:-2px">'+
-          '<span class="t" style="font-weight:500;color:var(--muted)">ex VAT</span>'+
-          '<span class="n"></span>'+
-          '<span class="m money" style="font-weight:700;color:var(--muted)">'+money0(row.exVat)+'</span>'+
-        '</div>';
-      }
     });
     return h;
   }
@@ -2120,11 +2129,15 @@ function renderLeads(){
     var isOwner=src==="owner";
     var isPending=src==="pending";
     if(isPending&&!cancelled) nPendSrc++;
+    /* Owner private / guest days — notional list-rate value (not cash sales) */
+    if(isOwner&&!cancelled&&ownerBenefitIncluded(r)){
+      var ov=leadOwnerNotional(r);
+      if(ov>0){ ownVal+=ov; ownN++; }
+    }
     var closed=leadIsClosedDeal(r);
     var val=leadListMoney(r);
     var exVat=closed?leadExVatBase(r):0;
     var comm=closed?(leadCommissionAmt(r)||0):0;
-    /* Money totals: closed deals only (not pending, not owner, not cancelled) */
     if(closed){
       tot+=val;
       totExVat+=exVat;
@@ -2194,7 +2207,7 @@ function renderLeads(){
       '<div class="meta">'+metaBits+'</div>'+
       (cancelled||isOwner||isPending?"":leadSplitSummaryHTML(r))+
       (isPending&&!cancelled?'<div class="notes" style="font-style:normal;color:var(--muted)">Pending source — assign Captain / Click&amp;Boat / Owner to close. Not in money totals.</div>':'')+
-      (isOwner&&!cancelled?'<div class="notes" style="font-style:normal;color:var(--muted)">Owner use — not counted as charter income (see Ops → Commissions → Owner benefits).</div>':'')+
+      (isOwner&&!cancelled?'<div class="notes" style="font-style:normal;color:var(--muted)">Owner days — private use or owner guests. List-rate notional value only (not cash income). Toggle in Ops → Commissions if needed.</div>':'')+
       (isOwner||isPending?"":('<div class="invtags">'+
         (leadNeedsDepInv(r)?leadInvTag("Deposit",r.dep,r.depPct,r.deps,r.depInv):"")+
         (leadNeedsFinInv(r)&&!cancelled?leadInvTag(finLabel,r.fin,"",r.fins,r.finInv):"")+
@@ -2209,39 +2222,36 @@ function renderLeads(){
       '<span class="chev">✎</span></div>';
   });
   wrap.innerHTML=html||emptyBox("🌐","No charters in the book yet","Tap + for a new lead, or Sync calendar dates.");
-  /* Summary cards */
+  /* Compact snapshot + source cards */
   var netRem=Math.max(0, totExVat-totComm);
   if(el("ldTot")) el("ldTot").textContent=money(tot);
-  if(el("ldTotSub")) el("ldTotSub").textContent=nClosed+" closed trip"+(nClosed===1?"":"s")+" · pending excluded";
+  if(el("ldTotSub")) el("ldTotSub").textContent=nClosed+" trip"+(nClosed===1?"":"s")+" · pending out";
   if(el("ldExVat")) el("ldExVat").textContent=money(totExVat);
-  if(el("ldExVatSub")) el("ldExVatSub").textContent="Base for commission math";
   if(el("ldComm")) el("ldComm").textContent=money(totComm);
   if(el("ldCommSub")){
-    el("ldCommSub").textContent=
-      (capComm>0?"Luigi "+money(capComm):"")+(capComm>0&&cbComm>0?" · ":"")+
-      (cbComm>0?"Paul "+money(cbComm):"")+(totComm>0?"":"None on closed deals");
+    var bits=[];
+    if(capComm>0) bits.push("Luigi "+money(capComm));
+    if(cbComm>0) bits.push("Paul "+money(cbComm));
+    el("ldCommSub").textContent=bits.length?bits.join(" · "):"None yet";
   }
   if(el("ldNet")) el("ldNet").textContent=money(netRem);
-  if(el("ldNetSub")) el("ldNetSub").textContent=money(totExVat)+" − "+money(totComm)+" commissions";
+  if(el("ldNetSub")) el("ldNetSub").textContent="ex VAT − commissions";
+  if(el("ldOwn")) el("ldOwn").textContent=money(ownVal);
+  if(el("ldOwnSub")) el("ldOwnSub").textContent=ownN?(ownN+" day"+(ownN===1?"":"s")+" · not cash"):"No owner days logged";
+  if(el("ldOpenMix")) el("ldOpenMix").textContent=pend+" · "+nPendSrc;
+  if(el("ldOpenMixSub")) el("ldOpenMixSub").textContent="Invoices open · pending source";
   if(el("ldCap")) el("ldCap").textContent=money(capTot);
   if(el("ldCapSub")){
-    el("ldCapSub").textContent=capN+" trip"+(capN===1?"":"s")+
-      " · before VAT "+money(capExVat)+
-      (capComm>0?" · comm "+money(capComm):" · 15%")+
-      (capExVat>0?" · net "+money(Math.max(0, capExVat-capComm)):"");
+    el("ldCapSub").textContent=capN+"× · ex VAT "+money(capExVat)+
+      " · comm "+money(capComm)+" · net "+money(Math.max(0, capExVat-capComm));
   }
   if(el("ldCapTypes")) el("ldCapTypes").innerHTML=formatTypeMixHTML(capTypes);
   if(el("ldCb")) el("ldCb").textContent=money(cbTot);
   if(el("ldCbSub")){
-    el("ldCbSub").textContent=cbN+" trip"+(cbN===1?"":"s")+
-      " · before VAT "+money(cbExVat)+
-      (cbComm>0?" · comm "+money(cbComm):" · 21%")+
-      (cbExVat>0?" · net "+money(Math.max(0, cbExVat-cbComm)):"");
+    el("ldCbSub").textContent=cbN+"× · ex VAT "+money(cbExVat)+
+      " · comm "+money(cbComm)+" · net "+money(Math.max(0, cbExVat-cbComm));
   }
   if(el("ldCbTypes")) el("ldCbTypes").innerHTML=formatTypeMixHTML(cbTypes);
-  if(el("ldPending")) el("ldPending").textContent=String(pend);
-  if(el("ldPendSub")) el("ldPendSub").textContent=pend?"On closed deals":"All closed invoices issued";
-  if(el("ldOpenSrc")) el("ldOpenSrc").textContent=String(nPendSrc);
   Array.prototype.forEach.call(wrap.querySelectorAll("[data-edit-ld-btn]"),function(btn){
     btn.addEventListener("click",function(ev){
       ev.preventDefault(); ev.stopPropagation();
