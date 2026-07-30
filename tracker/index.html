@@ -155,7 +155,6 @@
   }
   #tab-leads .ld-summary .sumcard.ld-src .l{font-size:11px;line-height:1.25}
   #tab-leads .ld-summary .sumcard.ld-src .v{font-size:20px}
-  #tab-leads .ld-summary .sumcard.ld-src .sub{font-size:11.5px;color:var(--muted);margin-top:4px;line-height:1.35;font-weight:600}
   #tab-leads .ld-src-comm{margin-top:10px;padding:9px 11px;border-radius:11px;background:rgba(0,0,0,.035);border:1px solid var(--line)}
   #tab-leads .ld-src-comm-top{display:flex;align-items:center;justify-content:space-between;gap:8px;flex-wrap:wrap}
   #tab-leads .ld-src-comm-lab{font-size:10.5px;font-weight:800;text-transform:uppercase;letter-spacing:.04em;color:var(--muted)}
@@ -164,6 +163,12 @@
   #tab-leads .ld-comm-pill.paid{background:#e8f5e9;color:#1b5e20;border:1px solid #a5d6a7}
   #tab-leads .ld-comm-pill.outstanding{background:#fff3e0;color:#9a6b00;border:1px solid #ffcc80}
   #tab-leads .ld-comm-pill.none{background:#f0f3f5;color:var(--muted);border:1px solid var(--line)}
+  #tab-leads .ld-src-meta{margin-top:8px;display:flex;flex-direction:column;gap:4px}
+  #tab-leads .ld-src-meta-row{display:flex;justify-content:space-between;align-items:baseline;gap:10px;font-size:12px;line-height:1.35}
+  #tab-leads .ld-src-meta-row .k{color:var(--muted);font-weight:650;min-width:0}
+  #tab-leads .ld-src-meta-row .v{font-weight:750;text-align:right;white-space:nowrap;font-variant-numeric:tabular-nums}
+  #tab-leads .ld-src-meta-row .v.money{font-weight:800}
+  #tab-leads .ld-src-meta-empty{font-size:12px;color:var(--muted);font-weight:600;line-height:1.35}
   #tab-leads .ld-type-table{margin-top:8px;border-top:1px solid var(--line);padding-top:8px;display:flex;flex-direction:column;gap:4px}
   #tab-leads .ld-type-row{display:grid;grid-template-columns:1fr auto auto;gap:8px 12px;align-items:baseline;font-size:12.5px;line-height:1.3}
   #tab-leads .ld-type-row .t{color:var(--ink,#1a1a1a);font-weight:650;min-width:0}
@@ -611,7 +616,7 @@
             </div>
             <div class="ld-src-comm-amt money" id="ldCapComm">€0</div>
           </div>
-          <div class="sub" id="ldCapSub">—</div>
+          <div class="ld-src-meta" id="ldCapSub"></div>
           <div id="ldCapTypes" class="ld-type-table"></div>
         </div>
         <div class="sumcard ld-src">
@@ -624,7 +629,7 @@
             </div>
             <div class="ld-src-comm-amt money" id="ldCbComm">€0</div>
           </div>
-          <div class="sub" id="ldCbSub">—</div>
+          <div class="ld-src-meta" id="ldCbSub"></div>
           <div id="ldCbTypes" class="ld-type-table"></div>
         </div>
         <div class="sumcard ld-src">
@@ -637,7 +642,7 @@
             </div>
             <div class="ld-src-comm-amt money" id="ldOsComm">€0</div>
           </div>
-          <div class="sub" id="ldOsSub">—</div>
+          <div class="ld-src-meta" id="ldOsSub"></div>
           <div class="ld-type-table" id="ldOsBreak" style="margin-top:8px">
             <div class="ld-type-row"><span class="t">Invoiced (white)</span><span class="n"></span><span class="m money" id="ldOsWhite">€0</span></div>
             <div class="ld-type-row"><span class="t">Owner pocket cash</span><span class="n" id="ldOsPocketN"></span><span class="m money" id="ldOsPocket">€0</span></div>
@@ -3127,6 +3132,12 @@ function renderLeads(){
   var capCommAll=capComm+(Number(capUpsell.comm)||0);
   var capExAll=capExVat+(Number(capUpsell.base)||0);
   var capIncomeAll=capTot+(Number(capUpsell.gross)||0);
+  function ldSrcMetaRow(label, valueHtml){
+    return '<div class="ld-src-meta-row"><span class="k">'+esc(label)+'</span><span class="v">'+valueHtml+'</span></div>';
+  }
+  function ldSrcMetaMoney(label, amt){
+    return ldSrcMetaRow(label, '<span class="money">'+money(amt)+'</span>');
+  }
   if(el("ldCap")) el("ldCap").textContent=money(capIncomeAll);
   if(el("ldCapComm")) el("ldCapComm").textContent=money(capCommAll);
   if(el("ldCapCommStatus")){
@@ -3135,14 +3146,15 @@ function renderLeads(){
     el("ldCapCommStatus").className="ld-comm-pill outstanding";
   }
   if(el("ldCapSub")){
-    var capBits=capN+"× deals · deal comm "+money(capComm);
-    if((capUpsell.n||0)>0||(Number(capUpsell.comm)||0)>0.009){
-      capBits+=" · upsells "+(capUpsell.n||0)+"× · upsell comm "+money(capUpsell.comm||0);
-    } else {
-      capBits+=" · upsells 0 · upsell comm €0";
-    }
-    capBits+=" · ex VAT "+money(capExAll)+" · net "+money(Math.max(0, capExAll-capCommAll));
-    el("ldCapSub").textContent=capBits;
+    var upN=capUpsell.n||0;
+    var upComm=Number(capUpsell.comm)||0;
+    el("ldCapSub").innerHTML=
+      ldSrcMetaRow("Deals", capN+"×")+
+      ldSrcMetaMoney("Deal commission", capComm)+
+      ldSrcMetaRow("Upsells", upN+"×")+
+      ldSrcMetaMoney("Upsell commission", upComm)+
+      ldSrcMetaMoney("Before VAT", capExAll)+
+      ldSrcMetaMoney("Net after commission", Math.max(0, capExAll-capCommAll));
   }
   if(el("ldCapTypes")){
     var typeHtml=formatTypeMixHTML(capTypes);
@@ -3150,9 +3162,6 @@ function renderLeads(){
       '<span class="t">Upsells / extensions</span>'+
       '<span class="n">'+(capUpsell.n||0)+'×</span>'+
       '<span class="m money">'+money0(capUpsell.gross||0)+'</span>'+
-    '</div>';
-    typeHtml+='<div class="meta" style="margin-top:4px;font-size:11.5px">Upsell comm <b class="money">'+money(capUpsell.comm||0)+'</b> · base ex VAT '+money(capUpsell.base||0)+
-      ((state.charters&&state.charters.length)?' · charges loaded '+(state.charters.length):' · no charges in memory')+
     '</div>';
     el("ldCapTypes").innerHTML=typeHtml;
   }
@@ -3164,8 +3173,10 @@ function renderLeads(){
     el("ldCbCommStatus").className="ld-comm-pill paid";
   }
   if(el("ldCbSub")){
-    el("ldCbSub").textContent=cbN+"× · ex VAT "+money(cbExVat)+
-      " · net "+money(Math.max(0, cbExVat-cbComm))+" · paid after platform deduction";
+    el("ldCbSub").innerHTML=
+      ldSrcMetaRow("Deals", cbN+"×")+
+      ldSrcMetaMoney("Before VAT", cbExVat)+
+      ldSrcMetaMoney("Net after commission", Math.max(0, cbExVat-cbComm));
   }
   if(el("ldCbTypes")) el("ldCbTypes").innerHTML=formatTypeMixHTML(cbTypes);
   if(el("ldOs")) el("ldOs").textContent=money(osTot);
@@ -3180,11 +3191,15 @@ function renderLeads(){
     }
   }
   if(el("ldOsSub")){
-    el("ldOsSub").textContent=osN
-      ?(osN+"× client total · ex VAT "+money(osExVat)+
-        " · net "+money(Math.max(0, osExVat-osComm))+
-        (osComm===0?" · 0% for now":""))
-      :"No confirmed owner-sourced income yet";
+    if(!osN){
+      el("ldOsSub").innerHTML='<div class="ld-src-meta-empty">No confirmed owner-sourced income yet</div>';
+    } else {
+      el("ldOsSub").innerHTML=
+        ldSrcMetaRow("Deals", osN+"×")+
+        ldSrcMetaMoney("Before VAT", osExVat)+
+        ldSrcMetaMoney("Net after commission", Math.max(0, osExVat-osComm))+
+        (osComm===0?ldSrcMetaRow("Rate", "0% for now"):"");
+    }
   }
   if(el("ldOsWhite")) el("ldOsWhite").textContent=money(osWhite);
   if(el("ldOsPocket")) el("ldOsPocket").textContent=money(osPocket);
