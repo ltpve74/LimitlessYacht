@@ -766,10 +766,13 @@ function rebuildSiteCalendarFromLeads(data, who, now) {
   return data.siteCalendar;
 }
 
-/** Payload guests get from /api/availability (pending → tentative/on hold). */
+/**
+ * Guest payload for public-availability blob.
+ * Sanitized: no names, ids, money, phones — only occupancy days.
+ * Written only from authenticated tracker saves (never from public endpoint).
+ */
 function publicAvailabilityPayload(data) {
   const leads = Array.isArray(data && data.leads) ? data.leads : [];
-  /* Always rebuild from live leads so pending→hold is never stale */
   const cal = buildSiteCalendarFromLeads(
     leads,
     "public",
@@ -778,13 +781,17 @@ function publicAvailabilityPayload(data) {
   const body = siteCalendarPublicPayload(cal, {
     note: "leads SOT · pending = on hold",
   });
-  body.source = "leads";
-  body.active = true;
-  body.leadCount = leads.length;
-  body.pendingHoldDays = (cal.tentative || []).length;
-  body.bookedDays = (cal.booked || []).length;
-  body.seededFrom = "leads";
-  return body;
+  /* Only fields the public function should ever see */
+  return {
+    booked: Array.isArray(body.booked) ? body.booked : [],
+    tentative: Array.isArray(body.tentative) ? body.tentative : [],
+    events: Array.isArray(body.events) ? body.events : [],
+    generatedAt: body.generatedAt || new Date().toISOString(),
+    seededFrom: "leads",
+    source: "leads",
+    active: true,
+    note: "leads SOT · pending = on hold",
+  };
 }
 
 async function publishPublicAvailability(store, data) {
@@ -793,7 +800,7 @@ async function publishPublicAvailability(store, data) {
     const body = publicAvailabilityPayload(data);
     await store.setJSON(PUBLIC_AVAILABILITY_KEY, body);
   } catch (_) {
-    /* non-fatal — availability can still rebuild from data.leads */
+    /* non-fatal — next save retries; site falls back to ICS */
   }
 }
 
