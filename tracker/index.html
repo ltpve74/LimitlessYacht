@@ -975,8 +975,8 @@ function renderOpsHub(){
   }
   var sc=siteCalendarMeta||{};
   var calDesc=sc.exists
-    ?((sc.active?"LIVE on website · ":"Seeded (not live) · ")+(sc.eventCount||0)+" trips · "+(sc.bookedCount||0)+" booked days")
-    :"Seed from manager ICS, then activate when ready";
+    ?((sc.active?"LIVE from leads · ":"Built · ")+(sc.eventCount||0)+" trips · "+(sc.bookedCount||0)+" booked · "+(sc.tentativeCount||0)+" hold")
+    :"Public calendar from leads (pending = on hold)";
   var tiles=[
     {id:"apa",ic:"📒",t:"APA",d:"Guest pot, spend ledger, shortfall charges"},
     {id:"diesel",ic:"⛽",t:"Diesel",d:"Bunker & sell by date (€/L each load)"},
@@ -993,8 +993,8 @@ function renderOpsHub(){
   }).join("");
 }
 /**
- * Captain: seed app-owned website calendar from manager ICS, activate when ready.
- * Until active, public /api/availability still serves live ICS (safe default).
+ * Captain: public website calendar from leads (SOT).
+ * Pending source → on hold; assigned sources → booked. Auto-activates on rebuild.
  */
 function openSiteCalendarSheet(){
   if(!isCaptain()) return;
@@ -1009,37 +1009,38 @@ function openSiteCalendarSheet(){
     var sample=(sc.sample||[]).slice(0,10);
     var h='<div class="sheethead"><h2>Site calendar</h2><button type="button" class="sheetx" id="sheetClose" aria-label="Close">×</button></div>';
     h+='<p style="margin:0 0 12px;font-size:13px;color:var(--muted);line-height:1.45">'+
-      'App-owned store for the <b>public website</b> calendar. Seed from the manager ICS (current trips). '+
-      'Website keeps using <b>live ICS</b> until you activate. Stews roster still refreshes from ICS separately.'+
+      '<b>Leads</b> are the source of truth for the public website calendar. '+
+      '<b>Pending source</b> → on hold (tentative). Captain / Click&amp;Boat / Owner → booked. '+
+      'Stews roster still uses the manager ICS separately.'+
     '</p>';
     if(busyMsg){
       h+='<div class="banner warn show" style="margin-bottom:12px">'+esc(busyMsg)+'</div>';
     } else if(sc.active){
       h+='<div class="banner show" style="margin-bottom:12px;background:rgba(46,125,50,.12);border-color:rgba(46,125,50,.35)">'+
-        '<b>Live on website</b> — guests see this store, not a live ICS scrape.</div>';
+        '<b>Live on website</b> — guests see leads (booked + on hold), not a live ICS scrape.</div>';
     } else if(sc.exists){
-      h+='<div class="banner warn show" style="margin-bottom:12px">Seeded but <b>not live</b> — website still uses manager ICS.</div>';
+      h+='<div class="banner warn show" style="margin-bottom:12px">Built but <b>not live</b> — website still uses manager ICS until activated.</div>';
     } else {
-      h+='<div class="banner warn show" style="margin-bottom:12px">Not seeded yet. Tap <b>Seed from ICS</b> first.</div>';
+      h+='<div class="banner warn show" style="margin-bottom:12px">Not built yet. Tap <b>Rebuild from leads</b>.</div>';
     }
     h+='<div class="apa-card" style="margin-bottom:12px">'+
       '<div class="meta">Status</div>'+
-      '<div style="margin-top:6px;font-size:15px;font-weight:700">'+(sc.exists?(sc.active?"Active on website":"Seeded · inactive"):"Empty")+'</div>'+
+      '<div style="margin-top:6px;font-size:15px;font-weight:700">'+(sc.exists?(sc.active?"Active on website (from leads)":"Built · inactive"):"Empty")+'</div>'+
       '<div class="meta" style="margin-top:10px">'+
         (sc.eventCount!=null?esc(String(sc.eventCount))+" trips":"—")+' · '+
         (sc.bookedCount!=null?esc(String(sc.bookedCount))+" booked days":"")+' · '+
         (sc.tentativeCount!=null?esc(String(sc.tentativeCount))+" on-hold days":"")+
       '</div>'+
-      '<div class="meta" style="margin-top:6px">Seeded '+esc(fmtWhen(sc.seededAt))+
+      '<div class="meta" style="margin-top:6px">Source '+(sc.seededFrom?esc(sc.seededFrom):"leads")+
+        ' · updated '+esc(fmtWhen(sc.updatedAt))+
         (sc.updatedBy?' · by '+esc(sc.updatedBy):'')+'</div>'+
-      (sc.updatedAt&&sc.updatedAt!==sc.seededAt?'<div class="meta">Updated '+esc(fmtWhen(sc.updatedAt))+'</div>':'')+
     '</div>';
     if(sample.length){
-      h+='<div class="sectitle" style="margin:0 0 8px">Upcoming booked days (sample)</div>'+
+      h+='<div class="sectitle" style="margin:0 0 8px">Upcoming blocked days (sample)</div>'+
         '<div class="meta" style="margin:0 0 14px;line-height:1.5">'+esc(sample.join(" · "))+'</div>';
     }
     h+='<div class="sheetbtns" style="flex-direction:column;gap:8px">'+
-      '<button type="button" class="btn" id="siteCalSeed"'+(busyMsg?" disabled":"")+'>Seed from manager ICS</button>'+
+      '<button type="button" class="btn" id="siteCalSeed"'+(busyMsg?" disabled":"")+'>Rebuild from leads (go live)</button>'+
       (sc.exists&&!sc.active?'<button type="button" class="btn" id="siteCalOn"'+(busyMsg?" disabled":"")+'>Activate on website</button>':'')+
       (sc.exists&&sc.active?'<button type="button" class="btn ghost" id="siteCalOff"'+(busyMsg?" disabled":"")+'>Deactivate (fall back to ICS)</button>':'')+
       '<button type="button" class="btn ghost" id="siteCalRefresh"'+(busyMsg?" disabled":"")+'>Refresh status</button>'+
@@ -1059,20 +1060,21 @@ function openSiteCalendarSheet(){
         });
       };
       if(el("siteCalSeed")) el("siteCalSeed").onclick=function(){
-        if(!window.confirm("Overwrite the app site calendar with a fresh snapshot from the manager ICS?\n\nWebsite stays on live ICS until you Activate.")) return;
-        paint(siteCalendarMeta, "Seeding from ICS…");
-        api("seedSiteCalendar").then(function(j){
+        if(!window.confirm("Rebuild the public website calendar from leads?\n\n• Pending source → on hold\n• Captain / Click&Boat / Owner → booked\n• Cancelled omitted\n\nThis goes live for guests (active).")) return;
+        paint(siteCalendarMeta, "Rebuilding from leads…");
+        api("rebuildSiteCalendar").then(function(j){
           paint(j.siteCalendar||null, "");
           if(curTab==="ops") renderOpsHub();
-          window.alert("Seeded "+((j.siteCalendar&&j.siteCalendar.eventCount)||0)+" trips · "+
-            ((j.siteCalendar&&j.siteCalendar.bookedCount)||0)+" booked days.\n\n"+
-            (j.siteCalendar&&j.siteCalendar.active?"Still ACTIVE on the website.":"Not live yet — Activate when ready."));
+          window.alert("Website calendar updated from leads.\n\n"+
+            ((j.siteCalendar&&j.siteCalendar.eventCount)||0)+" trips · "+
+            ((j.siteCalendar&&j.siteCalendar.bookedCount)||0)+" booked days · "+
+            ((j.siteCalendar&&j.siteCalendar.tentativeCount)||0)+" on hold.");
         }).catch(function(err){
-          paint(siteCalendarMeta, (err&&err.error)||(err&&err.body&&err.body.error)||"Seed failed");
+          paint(siteCalendarMeta, (err&&err.error)||(err&&err.body&&err.body.error)||"Rebuild failed");
         });
       };
       if(el("siteCalOn")) el("siteCalOn").onclick=function(){
-        if(!window.confirm("Activate app calendar on the LIVE website?\n\nGuests will see this store instead of a live ICS scrape.\nYou can deactivate anytime.")) return;
+        if(!window.confirm("Activate leads calendar on the LIVE website?")) return;
         paint(siteCalendarMeta, "Activating…");
         api("setSiteCalendarActive",{active:true}).then(function(j){
           paint(j.siteCalendar||null, "");
@@ -1082,7 +1084,7 @@ function openSiteCalendarSheet(){
         });
       };
       if(el("siteCalOff")) el("siteCalOff").onclick=function(){
-        if(!window.confirm("Deactivate app calendar?\n\nWebsite falls back to live manager ICS.")) return;
+        if(!window.confirm("Deactivate leads calendar?\n\nWebsite falls back to live manager ICS.")) return;
         paint(siteCalendarMeta, "Deactivating…");
         api("setSiteCalendarActive",{active:false}).then(function(j){
           paint(j.siteCalendar||null, "");
@@ -11331,6 +11333,7 @@ function saveSheet(type,rec){
       cashAmtUser:sp.split&&(cashForced>0||Number(sp.cashAmt)>0),
       cashSettled:sp.split?(!!(el("f_cashSettled")&&el("f_cashSettled").checked)):false,
       leadSource:leadSrc,
+      sourcePending:leadSrc==="pending",
       bookingStatus:bookingSt,
       cancelled:bookingSt==="cancelled",
       cancelReason:(rec&&rec.cancelReason)||"",
