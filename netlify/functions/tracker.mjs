@@ -1037,13 +1037,19 @@ function syncNewIcsLeads(data, events, who, now) {
     }
 
     if (known.has(ek)) {
-      /* Baselined calendar id with no lead — leave history alone */
+      /* Already seen (including deleted leads) — never re-create */
+      alreadyKnown++;
+      return;
+    }
+    /* Also refuse if a live lead already owns this key under another string form */
+    const bare = ek.indexOf("uid:") === 0 ? ek.slice(4) : ek;
+    if (known.has(bare) || known.has("uid:" + bare)) {
       known.add(ek);
       alreadyKnown++;
       return;
     }
 
-    /* Brand-new calendar event only */
+    /* Brand-new calendar event only — never re-import known history */
     const d = leadDatesFromIcsEvent(ev);
     const priced = d.priced;
     const name = d.name;
@@ -1784,6 +1790,35 @@ export default async (req, context) => {
     /* Protect free cash black: never let a save overwrite good cash with white net (€1.652,89) */
     if (coll === "leads") {
       next = protectLeadFreeCash(prev, next);
+      /*
+       * Never re-import deleted calendar links as "new" pending leads.
+       * Keep ICS uids of removed leads in icsLeadKnownKeys permanently.
+       */
+      if (!data.meta || typeof data.meta !== "object") data.meta = {};
+      const known = new Set(
+        Array.isArray(data.meta.icsLeadKnownKeys)
+          ? data.meta.icsLeadKnownKeys.map(String)
+          : []
+      );
+      const nextIds = new Set(
+        next.filter((l) => l && l.id).map((l) => String(l.id))
+      );
+      (prev || []).forEach((l) => {
+        if (!l || !l.id || nextIds.has(String(l.id))) return;
+        const k = String(l.calendarEventKey || l.calEventKey || "").trim();
+        if (k) known.add(k);
+        const u = String(l.calendarUid || "").trim();
+        if (u) known.add(u.indexOf("uid:") === 0 ? u : "uid:" + u);
+      });
+      /* Also remember keys still on remaining leads */
+      next.forEach((l) => {
+        if (!l) return;
+        const k = String(l.calendarEventKey || l.calEventKey || "").trim();
+        if (k) known.add(k);
+        const u = String(l.calendarUid || "").trim();
+        if (u) known.add(u.indexOf("uid:") === 0 ? u : "uid:" + u);
+      });
+      data.meta.icsLeadKnownKeys = Array.from(known);
     }
     const notices =
       coll === "apa" || coll === "diesel" || coll === "stewCalendar"
