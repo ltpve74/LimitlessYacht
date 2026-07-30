@@ -534,6 +534,11 @@ console.log("\n[Charge commission — explicit only]");
       return it.client !== "No flag";
     })
   );
+  ok("extAmt-only with captainComm counts", M.isChargeCaptainComm({ extAmt: 500, captainComm: true, amount: 0 }));
+  ok(
+    "extAmt-only summary n=1",
+    M.summarizeCaptainChargeCommissions([{ extAmt: 500, extSettle: "cash", captainComm: true, amount: 0, client: "Ext only" }]).n === 1
+  );
 }
 /* Same bill: APA spend + extension — commission only on extension */
 console.log("\n[APA charge + extension same bill]");
