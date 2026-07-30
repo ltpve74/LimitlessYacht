@@ -37,6 +37,7 @@ git config core.hooksPath .githooks          # one-time per clone
 | When does minification happen? | On commit to **`main`** only (publish step) |
 | Publish QA gate? | Pre-commit on **`main`**: minify → `scripts/publish-gate.py` (site tests + UX smoke + Lighthouse). CI: `.github/workflows/publish.yml` |
 | What goes live? | Push to **`main`** → Netlify deploys `limitlessyachtcharter.com` |
+| **Tracker changes?** | **Always publish to `main`** after the work (owner checks live). See `.agent/memory/tracker-always-push-live.md`. Do not leave tracker-only on `develop`. |
 | Preview branch? | **`develop`** + **`feature/**`** → GitHub Pages preview (last push wins). Push `develop` to restore integration preview. |
 | Analytics on preview? | **Off** — `js/analytics-env.js` sets `LY_OWNER_MODE` on `*.github.io`, localhost, Netlify branch deploys |
 | Analytics on production? | **On** — `limitlessyachtcharter.com` only (verified in publish gate) |
@@ -257,7 +258,8 @@ git push origin develop
 
 ## Publishing workflow (dev → production)
 
-Use this when the user asks to **go live** or **publish**.
+Use this when the user asks to **go live** or **publish**, and **always** after
+**tracker** work (`tracker/**` / tracker functions) without waiting to be asked.
 
 ```sh
 # 1. Ensure dev branch is committed and pushed
