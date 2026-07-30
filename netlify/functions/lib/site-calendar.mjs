@@ -40,15 +40,21 @@ export function leadBlockedDays(l) {
   return [start];
 }
 
-/** True when lead is awaiting captain source assignment → site on-hold. */
+/** True when lead is on-hold for the public site (not firm booked). */
 export function leadIsOnHold(l) {
   if (!l) return false;
   const src = constrainLeadSource(l.leadSource);
-  /* Source assignment wins: Click&Boat (Paul) / captain / owner = firm booked */
-  if (src !== "pending") return false;
-  if (l.sourcePending === false || l.sourcePending === "false" || l.sourcePending === 0)
-    return false;
-  return true;
+  /* Pending source → always on hold */
+  if (src === "pending") return true;
+  if (l.sourcePending === true || l.sourcePending === "true" || l.sourcePending === 1)
+    return true;
+  /*
+   * Source assigned but deal still open (tentative) → on hold until dealClosed.
+   * Explicit false only — undefined treated as closed (legacy / pre-migration).
+   */
+  if (l.dealClosed === false || l.dealClosed === "false" || l.dealClosed === 0)
+    return true;
+  return false;
 }
 
 /**

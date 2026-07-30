@@ -484,7 +484,7 @@
         <div class="sumcard ld-src"><div class="l">Luigi · Captain</div><div class="v money" id="ldCap">€0</div><div class="sub" id="ldCapSub">—</div><div id="ldCapTypes" class="ld-type-table"></div></div>
         <div class="sumcard ld-src"><div class="l">Paul · Click&amp;Boat</div><div class="v money" id="ldCb">€0</div><div class="sub" id="ldCbSub">—</div><div id="ldCbTypes" class="ld-type-table"></div></div>
       </div>
-      <div class="legend"><b>Done</b> / <b>Confirmed</b> include charter sales + captain extra-hour upsells. Your 15% on upsells (when marked) is under <b>Upsell benefit</b>. Pending source excluded. Owner days = notional only. <b>Make invoice</b> = PDF.</div>
+      <div class="legend"><b>Done</b> / <b>Confirmed</b> = <b>deal closed</b> only (auto when deposit Paid). Open deals can have Captain/Paul source but stay off money totals (tentative). Upsells from Charges included. Owner days = notional. <b>Make invoice</b> = PDF.</div>
       <div class="list" id="ldList"></div>
     </section>
 
@@ -800,6 +800,9 @@ function flushBootSaves(){
 function runPostLoadMaintenance(){
   if(DEMO) return;
   try{
+    if(canCommercial()){
+      try{ migrateLeadsDealClosed(); }catch(eMig){}
+    }
     if(canOps()){
       mergeDuplicateApaTrips();
       ensureAllLeadCashApa();
@@ -2085,13 +2088,107 @@ function leadListMoney(r){
   if(!r||leadIsCancelled(r)||leadSource(r)==="owner"||leadSource(r)==="pending") return 0;
   return leadHasSplit(r)?leadClientTotal(r):(Number(r.total)||Number(r.base)||Number(r.price)||0);
 }
-/** Closed commercial lead (source assigned — counts in money totals). */
+/**
+ * Deal closed vs open (tentative).
+ * Open = may have Captain/Paul source but not counted in money / firm calendar
+ * until closed. Auto-closes when deposit (or final) is Paid.
+ */
+function leadIsDealClosed(r){
+  if(!r) return false;
+  if(r.dealClosed===true||r.dealClosed==="true"||r.dealClosed===1) return true;
+  if(r.dealClosed===false||r.dealClosed==="false"||r.dealClosed===0) return false;
+  /* New form draft (no id yet) → open until closed */
+  if(!r.id) return false;
+  /* Undefined on saved lead: legacy — closed until migrate writes the flag */
+  return true;
+}
+/** Closed commercial lead for money totals (source + deal closed). */
 function leadIsClosedDeal(r){
   if(!r||leadIsCancelled(r)) return false;
   var src=leadSource(r);
   if(src==="pending") return false;
   if(src==="owner") return false; /* owner use — not charter income */
+  if(!leadIsDealClosed(r)) return false;
   return src==="captain"||src==="clickboat"||src==="other";
+}
+/** Fully issued/paid invoices already on the lead (skip migration invoice writes). */
+function leadIsFullyInvoiced(r){
+  if(!r) return false;
+  if(leadNeedsDepInv(r)){
+    var d=leadInvStatus(r.deps);
+    if(d!=="Paid"&&d!=="Issued") return false;
+  }
+  if(leadNeedsFinInv(r)){
+    var f=leadInvStatus(r.fins);
+    if(f!=="Paid"&&f!=="Issued") return false;
+  }
+  return true;
+}
+/**
+ * One-shot migrate existing leads: set dealClosed + light invoice defaults.
+ * Does not rewrite leads that already have dealClosed true/false.
+ */
+function migrateLeadsDealClosed(){
+  if(!canCommercial()||!state.leads||!state.leads.length) return false;
+  var today=leadTodayYmd();
+  var dirty=false;
+  state.leads.forEach(function(r){
+    if(!r||r.id==null) return;
+    if(r.dealClosed===true||r.dealClosed===false||r.dealClosed==="true"||r.dealClosed==="false"||r.dealClosed===0||r.dealClosed===1) return;
+    dirty=true;
+    if(leadIsCancelled(r)){
+      r.dealClosed=false;
+      return;
+    }
+    var src=leadSource(r);
+    if(src==="pending"){
+      r.dealClosed=false;
+      return;
+    }
+    /* Assigned source → closed by default (existing book) */
+    r.dealClosed=true;
+    if(leadIsFullyInvoiced(r)) return; /* already invoiced — leave statuses */
+
+    var start=String(r.start||r.cdate||"").slice(0,10);
+    var past=!start||start<=today;
+    var client=Number(r.total)||Number(r.base)||Number(r.price)||0;
+
+    if(src==="clickboat"){
+      if(past){
+        /* Past C&B: final invoice full amount paid */
+        if(!(Number(r.fin)>0.009)&&client>0) r.fin=Math.round(client*100)/100;
+        r.fins="Paid";
+        if(leadNeedsDepInv(r)&&leadInvStatus(r.deps)!=="Paid"){
+          if(!(Number(r.dep)>0.009)&&client>0){
+            var pct=Number(r.depPct)||50;
+            r.dep=Math.round(client*pct/100*100)/100;
+            if(!(Number(r.depPct)>0)) r.depPct=50;
+          }
+          r.deps="Paid";
+        }
+      } else {
+        /* Future C&B: closed + deposit paid */
+        if(!(Number(r.dep)>0.009)&&client>0){
+          var pct2=Number(r.depPct)||50;
+          r.dep=Math.round(client*pct2/100*100)/100;
+          if(!(Number(r.depPct)>0)) r.depPct=50;
+        }
+        r.deps="Paid";
+      }
+    } else {
+      /* Captain / other / owner: closed; mark invoices paid if past, deposit if future */
+      if(past){
+        if(leadNeedsDepInv(r)&&leadInvStatus(r.deps)==="Not issued") r.deps="Paid";
+        if(leadNeedsFinInv(r)&&leadInvStatus(r.fins)==="Not issued") r.fins="Paid";
+      } else {
+        if(leadNeedsDepInv(r)&&leadInvStatus(r.deps)==="Not issued") r.deps="Paid";
+      }
+    }
+  });
+  if(dirty&&!DEMO){
+    try{ save("leads"); }catch(e){}
+  }
+  return dirty;
 }
 /** Local today YYYY-MM-DD for done vs upcoming split. */
 function leadTodayYmd(){
@@ -2307,7 +2404,8 @@ function renderLeads(){
       srcPill+
       (cancelled?'<span class="pill p-red">Cancelled</span>':'')+
       (cancelled&&leadInvStatus(r.deps)==="Refunded"?'<span class="pill p-red">Deposit refunded</span>':'')+
-      (isPending?'<span class="pill p-amber">Not closed</span>':'')+
+      (isPending?'<span class="pill p-amber">Pending source</span>':'')+
+      (!isPending&&!isOwner&&!cancelled&&!leadIsDealClosed(r)?'<span class="pill p-amber">Open deal</span>':'')+
       (timing==="upcoming"?'<span class="pill p-blue">Upcoming · to cash</span>':'')+
       (timing==="done"?'<span class="pill p-green">Done</span>':'')+
       (isSplit?'<span class="pill p-black">Split</span>':'')+
@@ -2327,7 +2425,8 @@ function renderLeads(){
       '<div class="top"><div class="title">'+esc(r.name||"—")+'</div><div class="amt money">'+amtShow+'</div></div>'+
       '<div class="meta">'+metaBits+'</div>'+
       (cancelled||isOwner||isPending?"":leadSplitSummaryHTML(r))+
-      (isPending&&!cancelled?'<div class="notes" style="font-style:normal;color:var(--muted)">Pending source — assign Captain / Click&amp;Boat / Owner to close. Not in money totals.</div>':'')+
+      (isPending&&!cancelled?'<div class="notes" style="font-style:normal;color:var(--muted)">Pending source — assign Captain / Click&amp;Boat / Owner. Not in money totals.</div>':'')+
+      (!isPending&&!isOwner&&!cancelled&&!leadIsDealClosed(r)?'<div class="notes" style="font-style:normal;color:var(--muted)">Open deal — tentative. Not in money totals or firm calendar until <b>Deal closed</b> (auto when deposit Paid).</div>':'')+
       (isOwner&&!cancelled?'<div class="notes" style="font-style:normal;color:var(--muted)">Owner days — private use or owner guests. List-rate notional value only (not cash income). Toggle in Ops → Commissions if needed.</div>':'')+
       (isOwner||isPending?"":('<div class="invtags">'+
         (leadNeedsDepInv(r)?leadInvTag("Deposit",r.dep,r.depPct,r.deps,r.depInv):"")+
@@ -9578,8 +9677,10 @@ function stewEventKeyForLead(l){
 /** True when lead is still on-hold / unconfirmed — not on stew roster yet. */
 function leadIsPendingForRoster(l){
   if(!l) return true;
-  /* Assigned source wins even if sourcePending flag was left sticky */
-  return leadSource(l)==="pending";
+  if(leadSource(l)==="pending") return true;
+  /* Source set but deal still open (tentative) — not on roster */
+  if(!leadIsDealClosed(l)) return true;
+  return false;
 }
 /**
  * One stew-roster event from a commercial lead (SOT).
@@ -11742,6 +11843,11 @@ function openSheet(type,id){
     h+=fieldHTML("Lead name",'<input class="ctl" id="f_name" value="'+esc(r.name)+'" placeholder="e.g. Guest or company name">');
     h+=fieldHTML("Lead source (commission)",selLeadSourceField(leadSrcDef));
     h+='<p style="margin:-6px 0 12px;font-size:12.5px;color:var(--muted);line-height:1.4"><b>Captain</b> = website/direct → '+CAPTAIN_COMMISSION_PCT+'% before VAT. <b>Click&amp;Boat (Paul)</b> → '+CLICKBOAT_COMMISSION_PCT+'% before VAT. <b>Owner</b> = no commission (owner benefits). Change anytime.</p>';
+    var dealClosedDef=leadIsDealClosed(r);
+    if(leadSrcDef==="pending") dealClosedDef=false;
+    h+='<label class="checkrow" id="f_dealClosed_wrap"><input type="checkbox" id="f_dealClosed"'+(dealClosedDef?" checked":"")+'>'+
+      '<span><div class="ck">Deal closed</div>'+
+      '<div class="ch">Counts in money totals and as firm on the website. Leave off for tentative (source can be Captain/Paul already). Auto-ticks when deposit or final is <b>Paid</b>.</div></span></label>';
     /* Stable link to calendar ICS uid — survives date moves / on-hold */
     var calKeyNow=leadCalendarEventKey(r);
     var calOpts=[];
@@ -12231,6 +12337,11 @@ function saveSheet(type,rec){
       notes:el("f_notes").value.trim(), by:session.who,
       createdAt:(rec&&rec.createdAt)?rec.createdAt:new Date().toISOString(),
       updatedAt:new Date().toISOString() };
+    /* Deal closed: checkbox, or auto when deposit/final Paid; pending source forces open */
+    var wantClosed=!!(el("f_dealClosed")&&el("f_dealClosed").checked);
+    if(leadSrc==="pending") wantClosed=false;
+    if(deps==="Paid"||fins==="Paid") wantClosed=true;
+    o2.dealClosed=wantClosed;
     if(bookingSt==="cancelled"&&rec&&!leadIsCancelled(rec)){
       /* Manual status flip to cancelled without the button — still refund deposit if set */
       o2.cancelReason=o2.cancelReason||"manual";
@@ -12850,6 +12961,10 @@ function applyData(d, opts){
       state.leads=mergeLeadsById(state.leads, d.leads);
     } else {
       state.leads=d.leads;
+    }
+    /* One-shot dealClosed flag + light invoice defaults (idempotent) */
+    if(canCommercial()&&!fromPoll){
+      try{ migrateLeadsDealClosed(); }catch(eMig){}
     }
   }
   if(fromPoll&&localSaveIsFresh("charters")){
