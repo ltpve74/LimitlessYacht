@@ -541,6 +541,10 @@
         <div class="sumcard ld-src"><div class="l">Paul · Click&amp;Boat</div><div class="v money" id="ldCb">€0</div><div class="sub" id="ldCbSub">—</div><div id="ldCbTypes" class="ld-type-table"></div></div>
       </div>
       <div class="legend"><b>Yellow = unconfirmed</b> until Confirm. <b>Assigning a source does not confirm.</b> <b>Owner’s days</b> = no income · benefits (friend pays owner cash / private use) — manual confirm. <b>Owner-sourced</b> = business income (we invoice) · 0% commission for now — deposit Paid or Confirm. Captain / Paul as before. <b>Make invoice</b> = PDF.</div>
+      <div id="ldFindBar" style="margin:0 0 12px">
+        <input class="ctl" id="ldSearch" type="search" placeholder="Find lead — name, date (e.g. 6 Aug), source, notes…" autocomplete="off" style="width:100%">
+        <div class="meta" id="ldSearchMeta" style="margin-top:6px;display:none"></div>
+      </div>
       <div class="list" id="ldList"></div>
     </section>
 
@@ -2515,10 +2519,48 @@ function leadSplitSummaryHTML(r){
   '</div></div>';
   return h;
 }
+function leadSearchDateTokens(ymd){
+  var s=String(ymd||"").slice(0,10);
+  if(!/^\d{4}-\d{2}-\d{2}$/.test(s)) return [];
+  var y=s.slice(0,4), m=s.slice(5,7), d=s.slice(8,10);
+  var mi=parseInt(m,10), di=parseInt(d,10);
+  var months=["jan","feb","mar","apr","may","jun","jul","aug","sep","oct","nov","dec"];
+  var mon=months[mi-1]||"";
+  return [
+    s, y+"-"+m, m+"-"+d,
+    d+"/"+m+"/"+y, di+"/"+mi+"/"+y, d+"/"+m, di+"/"+mi,
+    di+" "+mon, d+" "+mon, mon+" "+di, mon+" "+d,
+    mon+" "+y, di+" "+mon+" "+y, d+" "+mon+" "+y,
+    mon, String(di), d
+  ];
+}
+function leadSearchHaystack(r){
+  if(!r) return "";
+  var bits=[
+    r.name, r.icsGuestName, r.notes, r.start, r.end, r.closed,
+    leadSource(r), leadSourceLabel(leadSource(r)),
+    r.by, r.depInv, r.finInv, r.calendarEventKey, r.calendarUid,
+    "owner days","owners days","owner-sourced","owner sourced","income"
+  ];
+  try{
+    if(r.start){ bits.push(fmtDate(r.start)); bits=bits.concat(leadSearchDateTokens(r.start)); }
+    if(r.end){ bits.push(fmtDate(r.end)); bits=bits.concat(leadSearchDateTokens(r.end)); }
+  }catch(e0){}
+  return bits.filter(Boolean).join(" ").toLowerCase();
+}
+function leadMatchesSearch(r, q){
+  q=String(q||"").trim().toLowerCase();
+  if(!q) return true;
+  var hay=leadSearchHaystack(r);
+  /* multi-token AND */
+  return q.split(/\s+/).every(function(tok){ return tok&&hay.indexOf(tok)>=0; });
+}
 function renderLeads(){
   sortLeads();
   var wrap=el("ldList"), html="";
   var pend=0, nPendSrc=0, nOpenDeal=0;
+  var searchQ=el("ldSearch")?String(el("ldSearch").value||""):"";
+  var nShown=0, nHidden=0;
   var ownVal=0, ownN=0;
   /* Done (sailed) vs confirmed upcoming (projected) — charters + captain upsells */
   var done={tot:0, charters:0, upsell:0, ex:0, comm:0, upsellComm:0, n:0, nUpsell:0};
@@ -2641,6 +2683,8 @@ function renderLeads(){
   /* re-open forEach for list paint only — leads already iterated above for stats */
   (state.leads||[]).forEach(function(r){
     if(!r) return;
+    if(!leadMatchesSearch(r, searchQ)){ nHidden++; return; }
+    nShown++;
     var cancelled=leadIsCancelled(r);
     var src=leadSource(r);
     var isOwner=src==="owner"; /* owner’s days — no income */
@@ -2731,9 +2775,15 @@ function renderLeads(){
     var cardCls="item";
     if(cancelled) cardCls+=" item--cancelled";
     if(isTentative) cardCls+=" item--tentative";
-    html+='<div class="'+cardCls+'" data-edit-ld="'+esc(r.id)+'">'+
+    var icsName=String(r.icsGuestName||"").trim();
+    var titleName=r.name||"—";
+    var titleSub="";
+    if(icsName&&icsName!==String(r.name||"").trim()){
+      titleSub='<div class="meta" style="margin-top:2px;font-size:12px">Calendar title: <b>'+esc(icsName)+'</b></div>';
+    }
+    html+='<div class="'+cardCls+'" data-edit-ld="'+esc(r.id)+'" data-ld-start="'+esc(String(r.start||"").slice(0,10))+'" data-ld-name="'+esc(String(r.name||"").toLowerCase())+'">'+
       statusBanner+
-      '<div class="top"><div class="title">'+esc(r.name||"—")+'</div><div class="amt money">'+amtShow+'</div></div>'+
+      '<div class="top"><div class="title">'+esc(titleName)+titleSub+'</div><div class="amt money">'+amtShow+'</div></div>'+
       '<div class="meta">'+metaBits+'</div>'+
       (cancelled||isOwner||isPending||isOpenDeal?"":leadSplitSummaryHTML(r))+
       (isOwner&&!cancelled?(dealClosed
@@ -2754,7 +2804,18 @@ function renderLeads(){
       '</div>'+
       '<span class="chev">✎</span></div>';
   });
-  wrap.innerHTML=html||emptyBox("🌐","No charters in the book yet","Tap + for a new lead, or Sync calendar dates.");
+  wrap.innerHTML=html||emptyBox("🌐",
+    searchQ?"No leads match “"+searchQ+"”":"No charters in the book yet",
+    searchQ?"Clear the find box, or try the date (e.g. 6 Aug / 2026-08-06). Sync calendar if it vanished.":"Tap + for a new lead, or Sync calendar dates.");
+  if(el("ldSearchMeta")){
+    if(searchQ){
+      el("ldSearchMeta").style.display="block";
+      el("ldSearchMeta").textContent="Showing "+nShown+" of "+((state.leads||[]).length)+" · "+nHidden+" hidden by find";
+    } else {
+      el("ldSearchMeta").style.display="none";
+      el("ldSearchMeta").textContent="";
+    }
+  }
   /* Snapshot: projected total + net (ex VAT − commissions) + done/proj + source cards */
   var allTot=done.tot+proj.tot;
   var allN=done.n+proj.n;
@@ -2863,8 +2924,24 @@ function renderLeads(){
         }).join("")+
       '</div>';
     }
-    importBar.innerHTML=pendHtml+
-      '<div class="legend" style="margin-bottom:8px">Leads stay linked to the calendar <b>event id</b>. On hold → dates follow the calendar. Confirmed → app asks before moving. New dates → pending source.</div>'+
+    var orphanBanner="";
+    if(window._ldIcsOrphans&&window._ldIcsOrphans.length){
+      var orph=window._ldIcsOrphans;
+      orphanBanner='<div class="apa-card" style="margin:0 0 12px;border:1.5px solid #E0A800;background:#FFF8E1">'+
+        '<div style="font-weight:800;color:#9a6b00">'+orph.length+' calendar charter'+(orph.length===1?"":"s")+' missing from the book</div>'+
+        '<div class="meta" style="margin:6px 0 10px">Still on the manager calendar, but no matching lead (deleted, or lost after a rename/save). Restore creates a new pending lead you can re-assign.</div>'+
+        orph.slice(0,8).map(function(o){
+          return '<div class="meta" style="margin-top:4px"><b>'+esc(o.name||"Charter")+'</b> · '+esc(fmtDate(o.start)||o.start||"?")+
+            (o.end&&o.end!==o.start?"–"+esc(fmtDate(o.end)||o.end):"")+
+            (o.summary?' · cal: '+esc(String(o.summary).slice(0,40)):'')+
+          '</div>';
+        }).join("")+
+        (orph.length>8?'<div class="meta">+ '+(orph.length-8)+' more</div>':'')+
+        '<button type="button" class="btn" id="ldRestoreOrphans" style="width:100%;margin-top:10px">Restore missing from calendar</button>'+
+      '</div>';
+    }
+    importBar.innerHTML=pendHtml+orphanBanner+
+      '<div class="legend" style="margin-bottom:8px">Leads stay linked to the calendar <b>event id</b>. Manager renames on the calendar update the guest name when the lead is still unconfirmed. Confirmed → app asks before moving dates. Use <b>Find</b> above the list (try the date, e.g. <code>6 Aug</code> or <code>2026-08-06</code>).</div>'+
       '<button type="button" class="btn ghost" id="ldSyncIcs" style="width:100%">Sync calendar dates</button>';
     if(el("ldOpenNextPend")) el("ldOpenNextPend").onclick=function(){ openNextPendingLead(); };
     if(el("ldResolveMoves")) el("ldResolveMoves").onclick=function(){
@@ -2883,6 +2960,29 @@ function renderLeads(){
         if(id&&typeof openSheet==="function") openSheet("lead", id);
       });
     });
+    if(el("ldRestoreOrphans")) el("ldRestoreOrphans").onclick=function(){
+      var list=window._ldIcsOrphans||[];
+      if(!list.length){ window.alert("Nothing to restore."); return; }
+      var keys=list.map(function(o){ return o.eventKey; }).filter(Boolean);
+      var preview=list.slice(0,6).map(function(o){
+        return "• "+(o.name||"Charter")+" · "+(fmtDate(o.start)||o.start||"?");
+      }).join("\n");
+      if(!window.confirm("Restore "+keys.length+" missing calendar charter"+(keys.length===1?"":"s")+" as new pending leads?\n\n"+preview+(list.length>6?"\n…":"")+"\n\nYou can re-assign source (Owner’s days / Owner-sourced / Captain / Paul) after restore.")) return;
+      var btnR=el("ldRestoreOrphans");
+      if(btnR){ btnR.disabled=true; btnR.textContent="Restoring…"; }
+      api("restoreIcsOrphans",{eventKeys:keys}).then(function(j){
+        if(j&&j.leads) state.leads=j.leads;
+        window._ldIcsOrphans=[];
+        if(isCaptain()) try{ persistStewCalendarSnapshot(); }catch(e0){}
+        sortLeads();
+        renderLeads();
+        window.alert("Restored "+(j&&j.restored||0)+" lead"+(j&&j.restored===1?"":"s")+".\n\nThey appear as unconfirmed · pending source — open each and set Owner-sourced (income) or Owner’s days.");
+        if(j&&j.restored>0) openNextPendingLead();
+      }).catch(function(err){
+        window.alert((err&&err.error)||(err&&err.body&&err.body.error)||"Restore failed");
+        if(btnR){ btnR.disabled=false; btnR.textContent="Restore missing from calendar"; }
+      });
+    };
     if(el("ldSyncIcs")) el("ldSyncIcs").onclick=function(){
       if(DEMO){ window.alert("Sync needs the live server."); return; }
       var btn=el("ldSyncIcs");
@@ -2891,6 +2991,8 @@ function renderLeads(){
         if(j.leads) state.leads=j.leads;
         if(isCaptain()) try{ persistStewCalendarSnapshot(); }catch(e0){}
         var moves=j.dateMoves||(j.stats&&j.stats.dateMoves)||[];
+        var orphans=j.orphans||(j.stats&&j.stats.orphans)||[];
+        window._ldIcsOrphans=orphans;
         return promptIcsDateMoves(moves).then(function(){
           sortLeads();
           renderLeads();
@@ -2899,19 +3001,36 @@ function renderLeads(){
             window.alert("Baseline set.\n\nRecorded "+(s.knownCount||0)+" existing calendar events.\nNo leads created (your history stays clean).\n\nFrom now on, only brand-new calendar dates become pending leads.");
           } else {
             var msg="Sync done.\n\nNew pending: "+(s.created||0)+
+              "\nGuest names updated from calendar: "+(s.namesUpdated||j.namesUpdated||0)+
               "\nDates auto-updated (on hold): "+(s.autoMoved||0)+
               "\nDate moves to confirm: "+(moves.length||0)+
+              "\nMissing from book (on calendar): "+(orphans.length||0)+
               "\nTotal leads: "+(s.totalLeads||(state.leads||[]).length);
             if(j.pushSent) msg+="\nPush sent: "+j.pushSent;
+            if(orphans.length){
+              msg+="\n\n→ Use “Restore missing from calendar” above the Sync button if a charter vanished.";
+            }
             window.alert(msg);
             if(s.created>0) openNextPendingLead();
+            else if(orphans.length&&el("ldRestoreOrphans")){
+              try{ el("ldRestoreOrphans").scrollIntoView({block:"center",behavior:"smooth"}); }catch(eSc){}
+            }
           }
         });
       }).catch(function(err){
         window.alert((err&&err.error)||(err&&err.body&&err.body.error)||"Sync failed");
-        if(btn){ btn.disabled=false; btn.textContent="Sync new calendar dates"; }
+        if(btn){ btn.disabled=false; btn.textContent="Sync calendar dates"; }
       });
     };
+  }
+  /* Find box — keep value across re-renders; filter live */
+  if(el("ldSearch")&&!el("ldSearch")._ldBound){
+    el("ldSearch")._ldBound=true;
+    var ldSearchTimer=null;
+    el("ldSearch").addEventListener("input",function(){
+      clearTimeout(ldSearchTimer);
+      ldSearchTimer=setTimeout(function(){ try{ renderLeads(); }catch(eF){} }, 120);
+    });
   }
   bindEdit(wrap,"data-edit-ld","lead");
   Array.prototype.forEach.call(wrap.querySelectorAll("[data-inv-lead]"),function(btn){
@@ -12296,10 +12415,13 @@ function syncFreshIcsLeadsQuiet(){
   return api("syncNewIcsLeads").then(function(j){
     if(j&&Array.isArray(j.leads)) state.leads=j.leads;
     var moves=j&&j.dateMoves||(j&&j.stats&&j.stats.dateMoves)||[];
+    var orphans=j&&j.orphans||(j&&j.stats&&j.stats.orphans)||[];
+    if(orphans.length) window._ldIcsOrphans=orphans;
     var chain=Promise.resolve(j);
     if(moves.length) chain=promptIcsDateMoves(moves).then(function(){ return j; });
     return chain.then(function(res){
-      if(j&&j.stats&&(j.stats.created>0||j.stats.autoMoved>0)&&curTab==="leads") renderLeads();
+      var s=j&&j.stats||{};
+      if(j&&(s.created>0||s.autoMoved>0||s.namesUpdated>0||orphans.length)&&curTab==="leads") renderLeads();
       return res;
     });
   }).catch(function(){ return null; });
