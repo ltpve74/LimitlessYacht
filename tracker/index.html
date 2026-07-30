@@ -2381,35 +2381,125 @@ function repairFalseStewCancels(){
   return dirty;
 }
 /**
- * Captain cancel (weather / mechanical / etc.): booking cancelled, deposit refunded,
- * free cash not on boat. Stew pay: opts.zeroPay true (default) clears day pay;
- * opts.keepPay / zeroPay:false keeps assignment so reduced pay can still be marked Paid from petty.
+ * What money is on the lead that cancel must refund (or void).
+ * Paid/Issued invoice lines → Refunded. Free cash already on boat → reverse from petty.
+ * Pure plan — does not mutate the lead.
+ */
+function leadCancelRefundPlan(r){
+  var plan={
+    dep:0, fin:0, apa:0, cash:0, white:0, total:0,
+    refundDep:false, refundFin:false, refundApa:false, reverseCash:false,
+    scope:"none", /* none | deposit | partial | full */
+    lines:[], /* human lines for confirm */
+    buttonLabel:"Cancel charter",
+    summaryLabel:""
+  };
+  if(!r) return plan;
+  function st(s){ return leadInvStatus(s); }
+  var depSt=st(r.deps), finSt=st(r.fins), apaSt=st(r.apas);
+  var depAmt=Math.round((Number(r.dep)||0)*100)/100;
+  var finAmt=Math.round((Number(r.fin)||0)*100)/100;
+  var apaAmt=Math.round((Number(r.apa)||0)*100)/100;
+  /* Refund any money paid by the guest, or issued invoices that must be voided/refunded */
+  if(depSt==="Paid"||depSt==="Issued"){
+    plan.refundDep=true;
+    plan.dep=depAmt;
+    plan.lines.push("Deposit "+(depSt==="Paid"?"paid":"issued")+" → Refunded"+(depAmt>0?" ("+money0(depAmt)+")":""));
+  }
+  if(finSt==="Paid"||finSt==="Issued"){
+    plan.refundFin=true;
+    plan.fin=finAmt;
+    plan.lines.push("Final "+(finSt==="Paid"?"paid":"issued")+" → Refunded"+(finAmt>0?" ("+money0(finAmt)+")":""));
+  }
+  if(apaSt==="Paid"||apaSt==="Issued"){
+    plan.refundApa=true;
+    plan.apa=apaAmt;
+    plan.lines.push("APA "+(apaSt==="Paid"?"paid":"issued")+" → Refunded"+(apaAmt>0?" ("+money0(apaAmt)+")":""));
+  }
+  /* Free cash black already marked received → reverse off boat / owner tracking */
+  var cashN=0;
+  try{ cashN=leadFreeCashAmt(r)||0; }catch(eC){ cashN=Number(r.cashAmt)||0; }
+  var cashRecv=false;
+  try{ cashRecv=!!leadFreeCashIsReceived(r); }catch(eR){ cashRecv=!!(r.cashSettled===true||r.cashSettled==="true"||r.cashSettled===1); }
+  if(cashN>0.009&&cashRecv){
+    plan.reverseCash=true;
+    plan.cash=Math.round(cashN*100)/100;
+    var dest="boat petty";
+    try{ if(leadCashDest(r)==="owner") dest="owner pocket"; }catch(eD){}
+    plan.lines.push("Free cash received → reverse from "+dest+" ("+money0(plan.cash)+")");
+  } else if(cashN>0.009){
+    plan.lines.push("Free cash was pending — will not be collected ("+money0(cashN)+")");
+  }
+  plan.white=Math.round((plan.dep+plan.fin+plan.apa)*100)/100;
+  plan.total=Math.round((plan.white+plan.cash)*100)/100;
+  var paidBits=(plan.refundDep?1:0)+(plan.refundFin?1:0)+(plan.refundApa?1:0);
+  if(plan.refundFin||(plan.refundDep&&plan.refundFin)||(plan.refundDep&&plan.refundApa)||plan.total>0.009&&paidBits>=2){
+    plan.scope="full";
+  } else if(plan.refundDep&&!plan.refundFin&&!plan.refundApa){
+    plan.scope="deposit";
+  } else if(paidBits>0||plan.reverseCash){
+    plan.scope="partial";
+  } else {
+    plan.scope="none";
+  }
+  /* Fully paid white = deposit+final both paid (or only final covering whole when no dep line) */
+  var depPaid=depSt==="Paid", finPaid=finSt==="Paid";
+  if((depPaid&&finPaid)||(finPaid&&!(depAmt>0.009))||(depPaid&&!(finAmt>0.009)&&finSt!=="Paid"&&finSt!=="Issued")){
+    if(plan.scope!=="none") plan.scope="full";
+  }
+  if(plan.scope==="full"){
+    plan.buttonLabel="Cancel charter — full refund";
+    plan.summaryLabel=plan.total>0?"Full refund "+money0(plan.total):"Full refund";
+  } else if(plan.scope==="deposit"){
+    plan.buttonLabel="Cancel charter — refund deposit";
+    plan.summaryLabel=plan.dep>0?"Deposit refund "+money0(plan.dep):"Deposit refund";
+  } else if(plan.scope==="partial"){
+    plan.buttonLabel="Cancel charter — refund payment";
+    plan.summaryLabel=plan.total>0?"Refund "+money0(plan.total):"Refund payment";
+  } else {
+    plan.buttonLabel="Cancel charter";
+    plan.summaryLabel="No payment to refund";
+  }
+  return plan;
+}
+/**
+ * Captain cancel (weather / mechanical / etc.): booking cancelled;
+ * refunds all Paid/Issued invoice lines (deposit + final + APA), not deposit only;
+ * free cash not collected / reversed off boat. Stew pay: opts.zeroPay / keepPay as before.
  */
 function cancelLeadCharter(lead, opts){
   opts=opts||{};
   if(!lead||!lead.id) return false;
   var reason=opts.reason||"weather-captain";
   var zeroPay=opts.zeroPay!==false&&opts.keepPay!==true;
+  var plan=leadCancelRefundPlan(lead);
   lead.bookingStatus="cancelled";
   lead.cancelled=true;
   lead.cancelReason=reason;
   lead.cancelledAt=new Date().toISOString();
   lead.cancelledBy=session.who||"Captain";
-  /* Deposit refund when it was issued or paid (captain decision / weather). */
-  var depSt=leadInvStatus(lead.deps);
-  if(depSt==="Paid"||depSt==="Issued"||(Number(lead.dep)||0)>0.009){
-    lead.deps="Refunded";
-  }
-  /* Final / APA no longer expected */
-  if(leadInvStatus(lead.fins)==="Not issued"){ /* keep */ }
-  else if(leadInvStatus(lead.fins)!=="Paid") lead.fins="Not issued";
-  if(leadInvStatus(lead.apas)==="Not issued"){ /* keep */ }
-  else if(leadInvStatus(lead.apas)!=="Paid") lead.apas="Not issued";
-  /* Free cash never collected for a cancelled charter */
+  lead.refundScope=plan.scope;
+  lead.refundTotal=plan.total;
+  lead.refundAt=lead.cancelledAt;
+  /* Refund every paid/issued commercial line — never leave Final as Paid on a cancelled charter */
+  if(plan.refundDep) lead.deps="Refunded";
+  if(plan.refundFin) lead.fins="Refunded";
+  else if(leadInvStatus(lead.fins)==="Not issued"){ /* keep unused final */ }
+  else if(leadInvStatus(lead.fins)!=="Refunded") lead.fins="Not issued";
+  if(plan.refundApa) lead.apas="Refunded";
+  else if(leadInvStatus(lead.apas)==="Not issued"){ /* keep */ }
+  else if(leadInvStatus(lead.apas)!=="Refunded") lead.apas="Not issued";
+  /* Free cash never collected / reverse if posted */
   lead.cashSettled=false;
   if(isCaptain()&&lead.id) expRemoveLeadCashIn(lead.id, true);
-  var noteBit="Cancelled ("+(reason==="weather-captain"?"bad weather — captain decision":reason)+")"+
-    (opts.note?": "+opts.note:"")+" · deposit refunded"+
+  var refundNote=plan.scope==="full"
+    ?("full refund "+(plan.total>0?money0(plan.total):"")+" — deposit"+
+      (plan.refundFin?" + final":"")+(plan.refundApa?" + APA":"")+(plan.reverseCash?" + free cash":""))
+    :(plan.scope==="deposit"
+      ?("deposit refunded"+(plan.dep>0?" "+money0(plan.dep):""))
+      :(plan.total>0?"refund "+money0(plan.total):"no payment to refund"));
+  var noteBit="Cancelled ("+(reason==="weather-captain"?"captain decision / mechanical or weather":reason)+")"+
+    (opts.note?": "+opts.note:"")+" · "+refundNote.trim()+
     (zeroPay?"":" · stew still due day pay (adjust on Stews / Expenses)");
   var prev=String(lead.notes||"").trim();
   if(prev&&prev.toLowerCase().indexOf("cancelled")<0) lead.notes=prev+"\n"+noteBit;
@@ -2420,7 +2510,7 @@ function cancelLeadCharter(lead, opts){
     save("leads");
     if(isCaptain()) saveExpPetty();
   }
-  return {lead:lead, stew:stew, zeroPay:zeroPay};
+  return {lead:lead, stew:stew, zeroPay:zeroPay, refund:plan};
 }
 /**
  * Charter date for list order (YYYY-MM-DD), newest first.
@@ -2976,7 +3066,15 @@ function renderLeads(){
       (ownerConfirmed?'<span class="pill p-green">Confirmed · owner’s days</span>':'')+
       srcPill+
       (cancelled?'<span class="pill p-red">Cancelled</span>':'')+
-      (cancelled&&leadInvStatus(r.deps)==="Refunded"?'<span class="pill p-red">Deposit refunded</span>':'')+
+      (cancelled&&(leadInvStatus(r.deps)==="Refunded"||leadInvStatus(r.fins)==="Refunded"||leadInvStatus(r.apas)==="Refunded")
+        ?('<span class="pill p-red">'+(
+            (leadInvStatus(r.deps)==="Refunded"&&leadInvStatus(r.fins)==="Refunded")||r.refundScope==="full"
+              ?"Fully refunded"
+              :(leadInvStatus(r.fins)==="Refunded"&&leadInvStatus(r.deps)!=="Refunded")
+                ?"Final refunded"
+                :"Deposit refunded"
+          )+(Number(r.refundTotal)>0?" · "+money0(r.refundTotal):"")+'</span>')
+        :'')+
       (timing==="upcoming"?'<span class="pill p-blue">Scheduled</span>':'')+
       (timing==="done"?'<span class="pill p-green">Realised</span>':'')+
       (isSplit?'<span class="pill p-black">Split</span>':'')+
@@ -3034,8 +3132,8 @@ function renderLeads(){
       })():'')+
       (isOwner||isPending?"":('<div class="invtags">'+
         (leadNeedsDepInv(r)?leadInvTag("Deposit",r.dep,r.depPct,r.deps,r.depInv):"")+
-        (leadNeedsFinInv(r)&&!cancelled?leadInvTag(finLabel,r.fin,"",r.fins,r.finInv):"")+
-        (showApa&&!cancelled?leadInvTag("APA",r.apa,r.apaPct,r.apas,r.apaInv):"")+
+        (leadNeedsFinInv(r)&&(cancelled?leadInvStatus(r.fins)==="Refunded":true)?leadInvTag(finLabel,r.fin,"",r.fins,r.finInv):"")+
+        (showApa&&(cancelled?leadInvStatus(r.apas)==="Refunded":true)?leadInvTag("APA",r.apa,r.apaPct,r.apas,r.apaInv):"")+
       '</div>'))+
       (r.notes?'<div class="notes">'+esc(r.notes)+'</div>':'')+
       '<div class="lead-actions">'+
@@ -12249,9 +12347,19 @@ function openStewAssign(eventKey){
       if(L){
         setLeadCalendarLink(L, ev.key, {syncDates:false});
         if(markCancelled){
+          /* Full refund statuses on the lead (do not re-enter cancelStewsForLead — we are already saving that assign) */
           L.bookingStatus="cancelled";
           L.cancelled=true;
-          if(leadInvStatus(L.deps)==="Paid"||leadInvStatus(L.deps)==="Issued") L.deps="Refunded";
+          L.cancelReason=L.cancelReason||"manual";
+          var rp=leadCancelRefundPlan(L);
+          if(rp.refundDep) L.deps="Refunded";
+          if(rp.refundFin) L.fins="Refunded";
+          if(rp.refundApa) L.apas="Refunded";
+          L.refundScope=rp.scope;
+          L.refundTotal=rp.total;
+          L.refundAt=new Date().toISOString();
+          L.cashSettled=false;
+          if(isCaptain()&&L.id) try{ expRemoveLeadCashIn(L.id, true); }catch(eCash){}
         }
         if(!DEMO) save("leads");
       }
@@ -13524,13 +13632,26 @@ function openSheet(type,id){
       '<option value="active"'+(bookSt!=="cancelled"?" selected":"")+'>Active</option>'+
       '<option value="cancelled"'+(bookSt==="cancelled"?" selected":"")+'>Cancelled</option>'+
     '</select>');
-    h+='<p style="margin:-6px 0 10px;font-size:12.5px;color:var(--muted);line-height:1.4">Mechanical / weather cancel: use <b>Cancel charter</b> — deposit <b>Refunded</b>, free cash off the boat. You’ll choose whether stew day pay is zeroed or kept (e.g. reduced €50 when she was already onboard).</p>';
+    var refundPlanPreview=rec?leadCancelRefundPlan(r):null;
+    h+='<p style="margin:-6px 0 10px;font-size:12.5px;color:var(--muted);line-height:1.4">Mechanical / weather cancel: marks the lead cancelled and refunds <b>every paid/issued line</b> (deposit <b>and</b> final if both were paid — not deposit only). Free cash is reversed off the boat if posted. Then choose whether stew day pay is zeroed or kept (e.g. reduced €50 when she was already onboard).</p>';
     if(rec&&bookSt!=="cancelled"){
-      h+='<button type="button" class="btn danger" id="sheetCancelCharter" style="width:100%;margin:0 0 14px">Cancel charter — refund deposit</button>';
+      h+='<button type="button" class="btn danger" id="sheetCancelCharter" style="width:100%;margin:0 0 14px">'+
+        esc(refundPlanPreview?refundPlanPreview.buttonLabel:"Cancel charter")+'</button>';
+      if(refundPlanPreview&&refundPlanPreview.lines.length){
+        h+='<div class="meta" style="margin:-6px 0 14px;line-height:1.4">Will refund: '+
+          esc(refundPlanPreview.lines.join(" · "))+
+          (refundPlanPreview.total>0?' · <b class="money">'+money(refundPlanPreview.total)+'</b> total':"")+
+        '</div>';
+      }
     }
     if(bookSt==="cancelled"){
+      var rfScope=r.refundScope||"";
+      var rfTot=Number(r.refundTotal)||0;
       h+='<div class="apa-card" style="margin:0 0 12px;padding:10px 12px;border:1.5px solid #f0b4b0;background:#fdeeee">'+
-        '<div style="font-weight:800;color:var(--danger)">Cancelled'+(r.cancelReason==="weather-captain"?" · bad weather (captain)":(r.cancelReason?" · "+esc(r.cancelReason):""))+'</div>'+
+        '<div style="font-weight:800;color:var(--danger)">Cancelled'+(r.cancelReason==="weather-captain"?" · captain decision":(r.cancelReason?" · "+esc(r.cancelReason):""))+
+          (rfScope==="full"?" · full refund":(rfScope==="deposit"?" · deposit refunded":(rfScope==="partial"?" · payment refunded":"")))+
+        '</div>'+
+        (rfTot>0?'<div class="meta" style="margin-top:4px">Refund total <b class="money">'+money(rfTot)+'</b> · deposit/final/APA set to Refunded as applicable · out of money totals</div>':'')+
         (r.cancelledAt?'<div class="meta" style="margin-top:4px">'+esc(String(r.cancelledAt).slice(0,16).replace("T"," "))+(r.cancelledBy?" · "+esc(r.cancelledBy):"")+'</div>':'')+
       '</div>';
     }
@@ -13623,12 +13744,15 @@ function openSheet(type,id){
   if(el("sheetCancelCharter")&&rec&&type==="lead"){
     el("sheetCancelCharter").addEventListener("click",function(){
       var name=rec.name||"this guest";
-      var dep=money0(rec.dep||0);
+      var plan=leadCancelRefundPlan(rec);
+      var bullets=["• Lead → Cancelled (out of income / commission totals)"];
+      if(plan.lines.length) plan.lines.forEach(function(ln){ bullets.push("• "+ln); });
+      else bullets.push("• No deposit/final/APA was paid or issued");
+      bullets.push("• Free cash not collected"+(plan.reverseCash?" (reversed if already on boat)":""));
+      if(plan.total>0.009) bullets.push("• Refund total to guest: "+money0(plan.total)+" (tracker records status — bank transfer is on you)");
       if(!window.confirm(
         "Cancel charter for "+name+"?\n\n"+
-        "• Lead → Cancelled\n"+
-        "• Deposit → Refunded ("+dep+")\n"+
-        "• Free cash removed from boat petty if posted\n\n"+
+        bullets.join("\n")+"\n\n"+
         "Continue?"
       )) return;
       /* Second step: stew was onboard (reduced pay) vs pure cancel (no pay) */
@@ -13652,8 +13776,14 @@ function openSheet(type,id){
         if(isCaptain()&&curTab==="commissions") renderCommissions();
         var n=res&&res.stew?res.stew.n:0;
         var zp=res&&res.zeroPay!==false;
+        var rf=res&&res.refund?res.refund:plan;
+        var refundMsg=rf.scope==="full"
+          ?("Full refund recorded"+(rf.total>0?" · "+money0(rf.total):"")+" (deposit"+(rf.refundFin?" + final":"")+(rf.refundApa?" + APA":"")+(rf.reverseCash?" + free cash":"")+" → Refunded).")
+          :(rf.scope==="deposit"
+            ?("Deposit marked Refunded"+(rf.dep>0?" · "+money0(rf.dep):"")+".")
+            :(rf.total>0?"Refund recorded · "+money0(rf.total)+".":"No payment lines to refund."));
         window.alert(
-          "Charter cancelled.\nDeposit marked Refunded.\n"+
+          "Charter cancelled.\n"+refundMsg+"\n"+
           (zp
             ?(n?("Stew pay cleared on "+n+" calendar day"+(n===1?"":"s")+"."):
               "No matching stew day found — open Stews and mark cancelled if needed.")
