@@ -675,6 +675,73 @@ console.log("\n[Expenses — reimbursement & petty (no description regex)]");
   ok("normalize keeps reimburseToId", n.expense.reimburseToId === "stew-toni");
 }
 
+/* ---- Petty cash on board (collapse crew dupes; floatPay only) ---- */
+console.log("\n[Petty cash — crew day-pay collapse & floatPay]");
+{
+  ok("Paid alone does NOT hit petty", !M.crewDayPayHitsPetty({
+    source: "stew", stewPayKind: "dayPay", stewId: "t1", date: "2026-07-30",
+    crewPayStatus: "Paid", paidFrom: "Petty cash", floatPay: false, amount: 150
+  }));
+  ok("floatPay true hits petty", M.crewDayPayHitsPetty({
+    source: "stew", stewPayKind: "dayPay", stewId: "t1", date: "2026-07-30",
+    crewPayStatus: "Paid", paidFrom: "Petty cash", floatPay: true, amount: 50
+  }));
+  ok("own money crew does not hit petty", !M.crewDayPayHitsPetty({
+    source: "stew", stewPayKind: "dayPay", stewId: "t1", date: "2026-07-30",
+    crewPayStatus: "Paid", paidFrom: "Own money", floatPay: true, amount: 50
+  }));
+  const finger = M.crewDayPayFinger({ stewId: "toni", date: "2026-07-30" });
+  ok("finger stew|date", finger === "toni|2026-07-30");
+  /* Two renames same Toni day: 150 phantom + 50 real — collapse to one, petty uses winner only */
+  const dupes = [
+    {
+      id: "old", linkId: "stew-day:uid:abc:toni", source: "stew", stewPayKind: "dayPay",
+      stewId: "toni", date: "2026-07-30", crewPayStatus: "Paid", paidFrom: "Petty cash",
+      floatPay: true, amount: 150, updatedAt: "2026-07-30T10:00:00.000Z"
+    },
+    {
+      id: "new", linkId: "stew-day:lead:xyz:toni", source: "stew", stewPayKind: "dayPay",
+      stewId: "toni", date: "2026-07-30", crewPayStatus: "Paid", paidFrom: "Petty cash",
+      floatPay: true, amount: 50, payStatusManual: true, updatedAt: "2026-07-30T18:00:00.000Z"
+    },
+    { id: "shop", category: "Provisions", payMethod: "Cash", paidFrom: "Petty cash", amount: 20 }
+  ];
+  const col = M.collapseCrewDayPayExpenses(dupes);
+  ok("collapse removes 1 crew dupe", col.collapsed === 1, "got " + col.collapsed);
+  ok("winner is newest manual €50", col.winnerByFinger["toni|2026-07-30"] && col.winnerByFinger["toni|2026-07-30"].id === "new");
+  const sum = M.summarizePettyCash({
+    pettyStart: 50,
+    cashIns: [],
+    expenses: dupes
+  });
+  /* start 50 − winner 50 (not 150+50) − shop 20 = −20 if both, or 50-50-20=-20 */
+  ok("petty does not double-count 150+50", near(sum.cashOut, 70), "cashOut " + sum.cashOut);
+  ok("petty = 50 − 70 = −20 without double 150", near(sum.pettyCash, -20), "got " + sum.pettyCash);
+  ok("nCrewPetty is 1", sum.nCrewPetty === 1, "got " + sum.nCrewPetty);
+  /* Toni only €50 from last €50 on board → petty 0 */
+  const toniOnly = M.summarizePettyCash({
+    pettyStart: 50,
+    cashIns: [],
+    expenses: [{
+      id: "toni50", source: "stew", stewPayKind: "dayPay", stewId: "toni", date: "2026-07-30",
+      crewPayStatus: "Paid", paidFrom: "Petty cash", floatPay: true, amount: 50
+    }]
+  });
+  ok("Toni €50 from €50 → petty 0", near(toniOnly.pettyCash, 0), "got " + toniOnly.pettyCash);
+  ok("Toni cashOut 50", near(toniOnly.cashOut, 50));
+  /* Prior paid does not move petty */
+  const prior = M.summarizePettyCash({
+    pettyStart: 50,
+    cashIns: [],
+    expenses: [{
+      id: "prior", source: "stew", stewPayKind: "dayPay", stewId: "toni", date: "2026-07-29",
+      crewPayStatus: "Paid", paidFrom: "Petty cash", floatPay: false, amount: 150
+    }]
+  });
+  ok("prior Paid leaves petty at 50", near(prior.pettyCash, 50), "got " + prior.pettyCash);
+  ok("prior cashOut 0", near(prior.cashOut, 0));
+}
+
 /* ---- Diesel: bunker + sticky active sell ---- */
 console.log("\n[Diesel — bunker buy + sticky active sell]");
 {
