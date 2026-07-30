@@ -801,7 +801,7 @@
 <div class="sheet" id="sheet"><div class="grip"></div><div id="sheetInner"></div></div>
 
 <!-- Domain models (money rules) — single source of truth; tests: node scripts/test-tracker-models.mjs -->
-<script src="/tracker/js/models.js?v=20260806-petty-v2"></script>
+<script src="/tracker/js/models.js?v=20260806-petty-v3"></script>
 <script>
 "use strict";
 var API = "/.netlify/functions/tracker";
@@ -9226,19 +9226,26 @@ function paintExpensesBody(){
   var outs=S.cashOutLines||[];
   h+='<div class="apa-card" style="margin-bottom:12px">'+
     '<div style="font-weight:800;margin-bottom:6px">Cash out · left petty</div>'+
-    '<div class="meta" style="margin-bottom:8px">These reduce <b>petty on board</b>. Total <b class="money">'+money(cashOut)+'</b>'+
+    '<div class="meta" style="margin-bottom:8px">These reduce <b>petty on board</b>. '+
+      'In <b class="money">'+money(cashInHand)+'</b> − out <b class="money">'+money(cashOut)+'</b> = petty <b class="money">'+money(pettyCash)+'</b>'+
       ((S.nCrewPaidLines||0)?' · '+S.nCrewPaidLines+' crew from petty':"")+
-      ((S.nSkippedDup||0)?' · '+S.nSkippedDup+' dupe line'+(S.nSkippedDup===1?"":"s")+' skipped':"")+
-    '. Tap a line to edit (crew: use <b>Prior / not this pot</b> if it should not hit petty).</div>';
+      ((S.nSkippedDup||0)?' · '+S.nSkippedDup+' dupe'+(S.nSkippedDup===1?"":"s")+' collapsed':"")+
+    '. Newest first. Tap a line to edit (crew: <b>Prior / not this pot</b> if cash did not leave petty).</div>';
   if(!outs.length){
     h+='<div class="meta">None this month — petty = start + cash in.</div>';
   } else {
     h+='<div class="list" style="margin:0">';
-    outs.slice().sort(function(a,b){ return (b.amount||0)-(a.amount||0); }).forEach(function(row){
+    outs.slice().forEach(function(row){
+      var dStr=row.date?String(row.date).slice(0,10):"";
+      var dLab="";
+      try{ dLab=dStr&&/^\d{4}-\d{2}-\d{2}$/.test(dStr)?fmtDate(dStr):dStr; }catch(eD){ dLab=dStr; }
       h+='<div class="item" style="padding:10px 12px"'+(row.id?' data-exp-id="'+esc(row.id)+'" role="button" tabindex="0"':'')+'>'+
         '<div class="top"><div class="title" style="font-size:14px">'+esc(row.label||row.kind||"Out")+'</div>'+
           '<div class="amt money" style="font-size:14px">−'+money0(row.amount)+'</div></div>'+
-        '<div class="meta"><span class="pill p-cash">'+esc(row.kind==="reimburse"?"Repay":(row.kind==="crew"?"Crew · petty":"Expense"))+'</span></div>'+
+        '<div class="meta">'+
+          (dLab?'<span>📅 '+esc(dLab)+'</span>':'')+
+          '<span class="pill p-cash">'+esc(row.kind==="reimburse"?"Repay":(row.kind==="crew"?"Crew · petty":"Expense"))+'</span>'+
+        '</div>'+
       '</div>';
     });
     h+='</div>';
