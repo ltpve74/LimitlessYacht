@@ -2009,28 +2009,44 @@ function isLeadCancelGhostKey(key){
   return String(key||"").indexOf("leadcancel:")===0;
 }
 /**
- * Apply cancelled flags on one stew assign for a lead (no day pay / tip).
+ * Apply cancelled flags on one stew assign for a lead (guest trip off).
+ * opts.zeroPay true  → clear day pay / tip (stew never due, or pure weather cancel).
+ * opts.zeroPay false → keep stew assignment + day rate so captain can pay reduced amount
+ *                      (e.g. Toni onboard while starter failed — guest refunded, stew still paid €50).
  */
 function markStewAssignCancelledForLead(asg, lead, opts){
   opts=opts||{};
   if(!asg||!lead) return false;
   if(asg.cancelOverride&&!opts.force) return false;
+  var zeroPay=opts.zeroPay!==false; /* default zero unless caller keeps pay */
+  if(opts.keepPay===true) zeroPay=false;
   asg.leadId=String(lead.id||"");
   asg.cancelled=true;
   asg.status="cancelled";
   asg.cancelOverride=false;
-  asg.payStatus="Unpaid";
-  asg.payStatusManual=true;
-  asg.tipPayStatus="Unpaid";
-  asg.tipTotal="";
-  asg.payEach=0;
   asg.cancelLeadId=String(lead.id||"");
   asg.cancelReason=lead.cancelReason||(leadInvStatus(lead.deps)==="Refunded"?"deposit-refunded":"manual");
   if(opts.summary) asg.summary=opts.summary;
   if(opts.start) asg.start=opts.start;
   if(opts.end) asg.end=opts.end;
-  if(!/no stew pay/i.test(String(asg.notes||""))){
-    asg.notes=((asg.notes?asg.notes+" · ":"")+"Cancelled with lead "+(lead.name||"")+" — no stew pay").trim();
+  /* Tips always off for cancelled guest trip */
+  asg.tipPayStatus="Unpaid";
+  asg.tipTotal="";
+  if(zeroPay){
+    asg.payStatus="Unpaid";
+    asg.payStatusManual=true;
+    asg.payEach=0;
+    if(!/no stew pay/i.test(String(asg.notes||""))){
+      asg.notes=((asg.notes?asg.notes+" · ":"")+"Cancelled with lead "+(lead.name||"")+" — no stew pay").trim();
+    }
+  } else {
+    /* Keep rate / who / unpaid-or-paid so reduced day pay can still hit petty */
+    var each=stewAssignDayPayAmount(asg);
+    if(each>0) asg.payEach=each;
+    if(!/guest refunded|stew still due/i.test(String(asg.notes||""))){
+      asg.notes=((asg.notes?asg.notes+" · ":"")+
+        "Cancelled with lead "+(lead.name||"")+" — guest refunded; stew still due day pay (adjust rate if reduced)").trim();
+    }
   }
   asg.updatedAt=new Date().toISOString();
   return true;
@@ -2039,10 +2055,15 @@ function markStewAssignCancelledForLead(asg, lead, opts){
  * Ensure a cancelled lead always has its own stew cancel row (even if ICS deleted).
  * Uses leadcancel:{lead.id} when no safe calendar key remains — never steals Oliver.
  */
-function ensureCancelledLeadStewGhost(lead){
+function ensureCancelledLeadStewGhost(lead, opts){
+  opts=opts||{};
   if(!isCaptain()||!lead||!lead.id||!leadIsCancelled(lead)) return false;
   if(!state.stewAssign) state.stewAssign=[];
   var lid=String(lead.id);
+  var markOpts={
+    zeroPay:opts.zeroPay!==false&&opts.keepPay!==true,
+    keepPay:opts.keepPay===true||opts.zeroPay===false
+  };
   /* Prefer an existing assign already correctly tied to this lead */
   var own=(state.stewAssign||[]).filter(function(a){
     if(!a||!a.eventKey) return false;
@@ -2057,6 +2078,8 @@ function ensureCancelledLeadStewGhost(lead){
   })[0];
   if(own){
     return markStewAssignCancelledForLead(own, lead, {
+      zeroPay:markOpts.zeroPay,
+      keepPay:markOpts.keepPay,
       summary:own.summary||lead.name||"Cancelled charter",
       start:own.start||lead.start||lead.cdate||"",
       end:own.end||lead.end||lead.start||lead.cdate||""
@@ -2098,6 +2121,8 @@ function ensureCancelledLeadStewGhost(lead){
     state.stewAssign.unshift(asg);
   }
   markStewAssignCancelledForLead(asg, lead, {
+    zeroPay:markOpts.zeroPay,
+    keepPay:markOpts.keepPay,
     summary:asg.summary||lead.name||"Cancelled charter",
     start:asg.start||String(lead.start||lead.cdate||"").slice(0,10),
     end:asg.end||String(lead.end||lead.start||lead.cdate||"").slice(0,10)
@@ -2110,15 +2135,18 @@ function ensureCancelledLeadStewGhost(lead){
   return true;
 }
 /**
- * Mark stew assigns for this lead cancelled — no day pay / tip due.
+ * Mark stew assigns for this lead cancelled (guest trip off).
+ * opts.zeroPay (default true) — clear day pay. false = keep assignment for reduced pay.
  * Identity (strict, no soft steal):
  *  1. stewAssign already linked to lead.id (name must match if title known)
  *  2. lead.calendarEventKey only if ICS title matches guest or event is gone
  *  3. Otherwise durable ghost leadcancel:{lead.id} (survives ICS delete)
  * Never cancel by name/date or “only assign left that day”.
  */
-function cancelStewsForLead(lead){
-  if(!isCaptain()||!lead) return {n:0, keys:[]};
+function cancelStewsForLead(lead, opts){
+  opts=opts||{};
+  var zeroPay=opts.zeroPay!==false&&opts.keepPay!==true;
+  if(!isCaptain()||!lead) return {n:0, keys:[], zeroPay:zeroPay};
   if(!state.stewAssign) state.stewAssign=[];
   var keys={}, dirty=false, touched=[];
   function takeKey(ek){ if(ek) keys[String(ek)]=1; }
@@ -2189,6 +2217,8 @@ function cancelStewsForLead(lead){
       state.stewAssign.unshift(asg);
     }
     if(markStewAssignCancelledForLead(asg, lead, {
+      zeroPay:zeroPay,
+      keepPay:!zeroPay,
       summary:asg.summary||(ev&&ev.summary)||lead.name||"Cancelled charter",
       start:asg.start||(ev&&ev.start)||String(lead.start||lead.cdate||"").slice(0,10),
       end:asg.end||(ev&&ev.end)||String(lead.end||lead.start||lead.cdate||"").slice(0,10)
@@ -2197,21 +2227,26 @@ function cancelStewsForLead(lead){
       dirty=true;
       touched.push(ek);
     }
-    /* Drop crew day-pay expense lines for this event */
-    if(state.expenses&&state.expenses.length){
-      var n0=state.expenses.length;
-      state.expenses=state.expenses.filter(function(e){
-        if(!e) return false;
-        if(e.source==="stew"&&String(e.stewEventKey)===String(ek)) return false;
-        if(e.linkId&&String(e.linkId).indexOf("stew-day:"+ek+":")===0) return false;
-        return true;
-      });
-      if(state.expenses.length!==n0) dirty=true;
+    if(zeroPay){
+      /* Drop crew day-pay expense lines only when no stew pay */
+      if(state.expenses&&state.expenses.length){
+        var n0=state.expenses.length;
+        state.expenses=state.expenses.filter(function(e){
+          if(!e) return false;
+          if(e.source==="stew"&&String(e.stewEventKey)===String(ek)) return false;
+          if(e.linkId&&String(e.linkId).indexOf("stew-day:"+ek+":")===0) return false;
+          return true;
+        });
+        if(state.expenses.length!==n0) dirty=true;
+      }
+    } else if(asg&&(asg.stewIds||[]).length){
+      /* Keep / refresh unpaid day-pay lines so captain can mark Paid €50 from petty */
+      try{ if(syncStewDayPayExpenses(asg)) dirty=true; }catch(eSync){}
     }
   });
   /* Always leave a cancelled stew row for this lead (ghost if ICS gone) */
   if(leadIsCancelled(lead)&&!touched.length){
-    if(ensureCancelledLeadStewGhost(lead)){
+    if(ensureCancelledLeadStewGhost(lead, {zeroPay:zeroPay, keepPay:!zeroPay})){
       dirty=true;
       touched.push(leadCancelGhostKey(lead));
     }
@@ -2222,7 +2257,7 @@ function cancelStewsForLead(lead){
         (String(a.cancelLeadId||"")===String(lead.id)||String(a.leadId||"")===String(lead.id)||
          String(a.eventKey)===leadCancelGhostKey(lead));
     });
-    if(!hasOwn&&ensureCancelledLeadStewGhost(lead)){
+    if(!hasOwn&&ensureCancelledLeadStewGhost(lead, {zeroPay:zeroPay, keepPay:!zeroPay})){
       dirty=true;
       touched.push(leadCancelGhostKey(lead));
     }
@@ -2234,7 +2269,7 @@ function cancelStewsForLead(lead){
       try{ save("leads"); }catch(e3){}
     }
   }
-  return {n:touched.length, keys:touched};
+  return {n:touched.length, keys:touched, zeroPay:zeroPay};
 }
 /** Guest name embedded in auto cancel notes: "Cancelled with lead Alvaro — no stew pay" */
 function guestNameFromStewCancelNote(notes){
@@ -2250,6 +2285,8 @@ function stripStewCancelNotes(notes){
   return String(notes||"")
     .replace(/\s*·?\s*Cancelled with lead[^·\n]*/gi,"")
     .replace(/\s*·?\s*Cancelled\s*[—\-\u2013]\s*no stew pay/gi,"")
+    .replace(/\s*·?\s*Cancelled\s*[—\-\u2013]\s*guest refunded[^·\n]*/gi,"")
+    .replace(/\s*·?\s*Cancelled\s*—\s*guest refunded[^·\n]*/gi,"")
     .replace(/^[\s·]+|[\s·]+$/g,"")
     .trim();
 }
@@ -2344,13 +2381,15 @@ function repairFalseStewCancels(){
   return dirty;
 }
 /**
- * Captain weather cancel (or similar): booking cancelled, deposit refunded,
- * free cash not on boat, stews zeroed for matching calendar days.
+ * Captain cancel (weather / mechanical / etc.): booking cancelled, deposit refunded,
+ * free cash not on boat. Stew pay: opts.zeroPay true (default) clears day pay;
+ * opts.keepPay / zeroPay:false keeps assignment so reduced pay can still be marked Paid from petty.
  */
 function cancelLeadCharter(lead, opts){
   opts=opts||{};
   if(!lead||!lead.id) return false;
   var reason=opts.reason||"weather-captain";
+  var zeroPay=opts.zeroPay!==false&&opts.keepPay!==true;
   lead.bookingStatus="cancelled";
   lead.cancelled=true;
   lead.cancelReason=reason;
@@ -2370,17 +2409,18 @@ function cancelLeadCharter(lead, opts){
   lead.cashSettled=false;
   if(isCaptain()&&lead.id) expRemoveLeadCashIn(lead.id, true);
   var noteBit="Cancelled ("+(reason==="weather-captain"?"bad weather — captain decision":reason)+")"+
-    (opts.note?": "+opts.note:"")+" · deposit refunded";
+    (opts.note?": "+opts.note:"")+" · deposit refunded"+
+    (zeroPay?"":" · stew still due day pay (adjust on Stews / Expenses)");
   var prev=String(lead.notes||"").trim();
   if(prev&&prev.toLowerCase().indexOf("cancelled")<0) lead.notes=prev+"\n"+noteBit;
   else if(!prev) lead.notes=noteBit;
   lead.updatedAt=new Date().toISOString();
-  var stew=cancelStewsForLead(lead);
+  var stew=cancelStewsForLead(lead, {zeroPay:zeroPay, keepPay:!zeroPay});
   if(!DEMO){
     save("leads");
     if(isCaptain()) saveExpPetty();
   }
-  return {lead:lead, stew:stew};
+  return {lead:lead, stew:stew, zeroPay:zeroPay};
 }
 /**
  * Charter date for list order (YYYY-MM-DD), newest first.
@@ -9542,8 +9582,8 @@ function openExpense(id, opts){
   if(fromStew){
     var unp=expIsCrewUnpaid(r);
     h+='<div class="banner warn show">'+(unp
-      ?'<b>Unpaid</b> crew day pay — not in cash out yet. Mark <b>Paid</b> here when you pay them (syncs to Stews), or on Stews (syncs here).'
-      :'Paid crew day pay — counts as cash out. Change status below if needed; Stews stays in sync.')+
+      ?'<b>Unpaid</b> crew day pay — not in cash out yet. Set amount if reduced (e.g. €50 after a cancel), mark <b>Paid</b>, choose <b>Petty cash</b> so the float drops.'
+      :'Paid crew day pay — counts as cash out when Paid from petty. Change amount/status if needed; Stews stays in sync.')+
       ' Tips stay on Stews only.</div>';
   } else if(reimburse){
     h+='<div class="banner warn show">Takes cash <b>from petty cash</b> (the envelope — e.g. part of guest free cash) to repay <b>'+esc(reimburseName)+'</b>. '+
@@ -9610,6 +9650,9 @@ function openExpense(id, opts){
     '</div>';
   }
   h+=fieldHTML("Amount (€)",moneyField("f_exp_amount", r.amount!=null&&r.amount!==""?r.amount:""));
+  if(fromStew){
+    h+='<p style="margin:-6px 0 12px;font-size:12px;color:var(--muted)">Editable for reduced pay (e.g. €50 after a cancelled charter). Syncs back to Stews day rate for this person.</p>';
+  }
   h+='<div class="field"><label>Receipt (photo or PDF)</label>'+
     '<input class="ctl" id="f_exp_photo" type="file" accept="image/*,application/pdf,.pdf">'+
     '<div id="f_exp_photo_prev" style="margin-top:8px">'+expReceiptPreviewHTML(r.receipt||"")+'</div>'+
@@ -9622,7 +9665,8 @@ function openExpense(id, opts){
   '</div>';
   el("sheetInner").innerHTML=h;
   if(fromStew){
-    ["f_exp_date","f_exp_vendor","f_exp_desc","f_exp_cat","f_exp_method","f_exp_amount"].forEach(function(fid){
+    /* Amount stays editable so captain can reduce pay after cancel; other fields stay linked to Stews */
+    ["f_exp_date","f_exp_vendor","f_exp_desc","f_exp_cat","f_exp_method"].forEach(function(fid){
       if(el(fid)) el(fid).disabled=true;
     });
   }
@@ -9687,11 +9731,24 @@ function openExpense(id, opts){
       if(pf==="Own money"&&el("f_exp_paidBy")) payerId=String(el("f_exp_paidBy").value||EXP_POCKET_CAPTAIN);
       else if(pf==="Own money") payerId=String(r.paidById||EXP_POCKET_CAPTAIN);
       var eventKey=r.stewEventKey||"";
+      var newAmt=apaNum(el("f_exp_amount")&&el("f_exp_amount").value);
+      if(!(newAmt>0)){ if(el("f_exp_amount")) el("f_exp_amount").focus(); return; }
+      /* Reduced pay (e.g. €50 after cancel): write back to stew assignment day rate */
       if(eventKey){
+        var asgPay=(state.stewAssign||[]).filter(function(a){return a&&String(a.eventKey)===String(eventKey);})[0];
+        if(asgPay){
+          asgPay.dayRate=newAmt;
+          asgPay.payUnits=1;
+          asgPay.payEach=newAmt;
+          asgPay.payStatusManual=true;
+          asgPay.updatedAt=new Date().toISOString();
+          /* Keep cancelled status if already cancelled — do not re-zero pay */
+        }
         expSetStewDayPayStatus(eventKey, crewPay, {paidFrom:crewPay==="Paid"?pf:"", paidById:crewPay==="Paid"&&pf==="Own money"?payerId:""});
-        /* Re-apply receipt on this stew’s line (sync may keep id) */
+        /* Re-apply amount + receipt on this stew’s line (sync may rewrite amount from assign) */
         state.expenses=(state.expenses||[]).map(function(e){
           if(e&&e.id===r.id){
+            e.amount=newAmt;
             e.receipt=receiptData;
             e.payStatusManual=true;
             if(crewPay==="Paid"){
@@ -9701,6 +9758,7 @@ function openExpense(id, opts){
             } else { e.floatPay=false; e.paidById=""; }
             e.updatedAt=new Date().toISOString();
           } else if(e&&e.source==="stew"&&e.stewPayKind==="dayPay"&&String(e.stewEventKey)===String(eventKey)&&String(e.stewId)===String(r.stewId)){
+            e.amount=newAmt;
             e.receipt=receiptData||e.receipt;
             e.payStatusManual=true;
             if(crewPay==="Paid"){
@@ -9714,6 +9772,7 @@ function openExpense(id, opts){
       } else {
         state.expenses=(state.expenses||[]).map(function(e){
           if(e&&e.id===r.id){
+            e.amount=newAmt;
             e.receipt=receiptData;
             e.crewPayStatus=crewPay;
             e.payStatusManual=true;
@@ -10260,11 +10319,17 @@ function ensureStewAssignFromCalendar(){
       &&apaNum(asg.dayRate)===keepRate&&apaNum(asg.payUnits||1)===keepUnits
       &&!!asg.cancelled===keepCancelled&&!!asg.cancelOverride===keepOverride
       &&String(asg.leadId||"")===String(keepLeadId)) return;
-    /* Cancelled charter: never revive pay or drop lead id when calendar auto-refreshes */
+    /* Cancelled guest trip: tips off; day pay kept when captain already set rate/manual pay (reduced e.g. €50) */
+    var keepPayEach=stewPayEach(keepRate, keepUnits);
     if(keepCancelled){
-      keepPay="Unpaid";
       keepTips="";
       keepTipPay="Unpaid";
+      if(!keepManual&&!(keepRate>0&&keepPayEach>0)){
+        keepPay="Unpaid";
+        keepPayEach=0;
+      } else if(asg&&apaNum(asg.payEach)>0){
+        keepPayEach=apaNum(asg.payEach);
+      }
     }
     var obj={
       id:(asg&&asg.id)||uid(),
@@ -10284,7 +10349,7 @@ function ensureStewAssignFromCalendar(){
       stewIds:ids,
       dayRate:keepRate,
       payUnits:keepUnits,
-      payEach:keepCancelled?0:stewPayEach(keepRate, keepUnits),
+      payEach:keepPayEach,
       rateBand:band.kind,
       payStatus:keepPay,
       payStatusManual:keepManual,
@@ -11964,15 +12029,21 @@ function openStewAssign(eventKey){
       '<button type="button" class="btn ghost" data-stew-rate="'+STEW_RATE_4H+'" style="width:auto;padding:8px 12px;font-size:12.5px">4h €'+STEW_RATE_4H+'</button>'+
       '<button type="button" class="btn ghost" data-stew-rate="'+STEW_RATE_6H+'" style="width:auto;padding:8px 12px;font-size:12.5px">6h+ €'+STEW_RATE_6H+'</button>'+
       '<button type="button" class="btn ghost" data-stew-rate="'+STEW_RATE_ON+'" style="width:auto;padding:8px 12px;font-size:12.5px">Overnight €'+STEW_RATE_ON+'</button>'+
+      '<button type="button" class="btn ghost" data-stew-rate="50" style="width:auto;padding:8px 12px;font-size:12.5px">Partial €50</button>'+
     '</div>';
     h+=fieldHTML("Day pay status",'<select class="ctl" id="f_stew_pay"><option value="Unpaid"'+(pay==="Unpaid"?" selected":"")+'>Unpaid</option><option value="Paid"'+(pay==="Paid"?" selected":"")+'>Paid</option></select>');
     var isAsgCancelled=!!(asg.cancelled||asg.status==="cancelled");
     h+='<label class="checkrow" style="margin:8px 0 12px"><input type="checkbox" id="f_stew_cancelled"'+(isAsgCancelled?" checked":"")+'>'+
-      '<span><div class="ck">Charter cancelled — no stew pay</div>'+
-      '<div class="ch">Use when the guest trip is off (weather etc.). Clears Toni/Laura pay for this calendar event only. Uncheck + Save to restore pay if this was cancelled by mistake (e.g. wrong lead pin).</div></span></label>';
+      '<span><div class="ck">Guest charter cancelled (refunded)</div>'+
+      '<div class="ch">Guest trip is off — deposit refunded on the lead. You can still set a <b>reduced day rate</b> (e.g. €50) and mark <b>Paid</b> from petty if the stew was onboard. Tick <b>No stew pay</b> below only when nobody is due money.</div></span></label>';
+    h+='<label class="checkrow" style="margin:0 0 12px"><input type="checkbox" id="f_stew_zero_pay"'+
+      (isAsgCancelled&&!(apaNum(asg.payEach)>0||apaNum(asg.dayRate)>0)?" checked":"")+
+      (isAsgCancelled?"":" disabled")+'>'+
+      '<span><div class="ck">No stew pay</div>'+
+      '<div class="ch">Zero day pay and remove the Expenses line. Leave off to pay a reduced amount from petty.</div></span></label>';
     if(isAsgCancelled){
-      h+='<div class="banner warn show" style="margin:0 0 12px">This row is cancelled'+(asg.cancelLeadId||asg.leadId?' (linked lead)':'')+
-        '. Uncheck <b>Charter cancelled</b> above and tap <b>Save assignment</b> to restore it — a mismatched lead will not re-cancel this charter.</div>';
+      h+='<div class="banner warn show" style="margin:0 0 12px">Guest charter cancelled'+(asg.cancelLeadId||asg.leadId?' (linked lead)':'')+
+        '. Day pay can still be set and marked Paid from petty. Uncheck <b>Guest charter cancelled</b> + Save to restore a mistaken cancel.</div>';
     }
     /* Link to commercial lead by stable id */
     var leadOpts=(state.leads||[]).slice().sort(function(a,b){
@@ -12044,6 +12115,8 @@ function openStewAssign(eventKey){
   Array.prototype.forEach.call(document.querySelectorAll("[data-stew-rate]"),function(btn){
     btn.addEventListener("click",function(){
       if(el("f_stew_rate")) el("f_stew_rate").value=btn.getAttribute("data-stew-rate");
+      if(el("f_stew_units")) el("f_stew_units").value="1";
+      if(el("f_stew_zero_pay")) el("f_stew_zero_pay").checked=false;
       refreshStewPayLive();
     });
   });
@@ -12055,13 +12128,19 @@ function openStewAssign(eventKey){
   if(el("f_stew_pay")) el("f_stew_pay").addEventListener("change", refreshStewPayLive);
   if(el("f_stew_tip")) el("f_stew_tip").addEventListener("input", refreshStewPayLive);
   if(el("f_stew_tip_pay")) el("f_stew_tip_pay").addEventListener("change", refreshStewPayLive);
+  if(el("f_stew_cancelled")) el("f_stew_cancelled").addEventListener("change",function(){
+    if(el("f_stew_zero_pay")){
+      el("f_stew_zero_pay").disabled=!el("f_stew_cancelled").checked;
+      if(!el("f_stew_cancelled").checked) el("f_stew_zero_pay").checked=false;
+    }
+  });
   if(captainMode) refreshStewPayLive();
   el("sheetSave").addEventListener("click",function(){
     var ids=[];
     Array.prototype.forEach.call(document.querySelectorAll("[data-stew-pick]"),function(inp){
       if(inp.checked) ids.push(inp.getAttribute("data-stew-pick"));
     });
-    var rate, units, each, tipTotal, tipPayStatus, tipShare, nowPaid, markCancelled, linkedLeadId, payFromPetty;
+    var rate, units, each, tipTotal, tipPayStatus, tipShare, nowPaid, markCancelled, zeroPay, linkedLeadId, payFromPetty;
     if(captainMode){
       var rateRaw=el("f_stew_rate")?el("f_stew_rate").value:"";
       rate=rateRaw===""?"":apaNum(rateRaw);
@@ -12074,9 +12153,11 @@ function openStewAssign(eventKey){
       tipShare=stewTipShare({tipTotal:tipTotal, stewIds:ids});
       nowPaid=(el("f_stew_pay")&&el("f_stew_pay").value==="Paid");
       markCancelled=!!(el("f_stew_cancelled")&&el("f_stew_cancelled").checked);
+      zeroPay=markCancelled&&!!(el("f_stew_zero_pay")&&el("f_stew_zero_pay").checked);
+      if(zeroPay){ each=0; rate=rate===""?"":0; nowPaid=false; }
       linkedLeadId=(el("f_stew_leadId")&&el("f_stew_leadId").value)||"";
-      /* Any intentional Save as Paid from this form = pay from petty (Stews has no Own-money toggle) */
-      payFromPetty=nowPaid&&!markCancelled;
+      /* Paid from petty even on cancelled charters when stew still due reduced pay */
+      payFromPetty=nowPaid&&!zeroPay;
     } else {
       /* Team: only change who is on the charter + notes — keep captain pay fields */
       rate=asg.dayRate!=null&&asg.dayRate!==""?asg.dayRate:ratePrefill;
@@ -12087,6 +12168,7 @@ function openStewAssign(eventKey){
       tipShare=stewTipShare({tipTotal:tipTotal, stewIds:ids});
       nowPaid=asg.payStatus==="Paid";
       markCancelled=!!(asg.cancelled||asg.status==="cancelled");
+      zeroPay=markCancelled&&!(each>0);
       linkedLeadId=asg.leadId||"";
       payFromPetty=false;
     }
@@ -12126,13 +12208,13 @@ function openStewAssign(eventKey){
       cancelLeadId:markCancelled?(linkedLeadId||asg.cancelLeadId||""):"",
       cancelReason:markCancelled?(asg.cancelReason||"manual"):"",
       stewIds:ids,
-      dayRate:rate,
+      dayRate:zeroPay?0:rate,
       payUnits:units,
-      payEach:markCancelled?0:each,
+      payEach:zeroPay?0:each,
       rateBand:band.kind,
-      payStatus:markCancelled?"Unpaid":(nowPaid?"Paid":"Unpaid"),
+      payStatus:(zeroPay||!nowPaid)?"Unpaid":"Paid",
       payStatusManual:captainMode?true:!!asg.payStatusManual,
-      /* Cash leaves petty when captain saves as Paid */
+      /* Cash leaves petty when captain saves as Paid (including reduced pay on cancelled) */
       _floatPayMark:captainMode&&payFromPetty,
       _floatPayFrom:captainMode&&payFromPetty?"Petty cash":"",
       tipTotal:markCancelled?"":tipTotal,
@@ -12144,8 +12226,15 @@ function openStewAssign(eventKey){
       /* Re-save in Stews clears expense dismissals so day-pay can reappear */
       dayPaySkip:captainMode?{}:(asg.dayPaySkip&&typeof asg.dayPaySkip==="object"?asg.dayPaySkip:{})
     };
-    if(markCancelled&&!/no stew pay/i.test(obj.notes)){
-      obj.notes=(obj.notes?obj.notes+" · ":"")+"Cancelled — no stew pay";
+    if(markCancelled){
+      notesOut=stripStewCancelNotes(notesOut);
+      if(zeroPay){
+        if(!/no stew pay/i.test(notesOut)) notesOut=(notesOut?notesOut+" · ":"")+"Cancelled — no stew pay";
+      } else {
+        if(!/guest refunded|stew still due|reduced/i.test(notesOut))
+          notesOut=(notesOut?notesOut+" · ":"")+"Cancelled — guest refunded; stew still due day pay";
+      }
+      obj.notes=notesOut;
     }
     if(!state.stewAssign) state.stewAssign=[];
     var found=false;
@@ -12170,7 +12259,7 @@ function openStewAssign(eventKey){
     showSheet(false); saveStewAssign();
     /* Day pay → Expenses ledger (captain only — team only updates who is on charter) */
     if(captainMode){
-      if(markCancelled){
+      if(zeroPay){
         if(state.expenses&&state.expenses.length){
           state.expenses=state.expenses.filter(function(e){
             if(!e) return false;
@@ -13435,7 +13524,7 @@ function openSheet(type,id){
       '<option value="active"'+(bookSt!=="cancelled"?" selected":"")+'>Active</option>'+
       '<option value="cancelled"'+(bookSt==="cancelled"?" selected":"")+'>Cancelled</option>'+
     '</select>');
-    h+='<p style="margin:-6px 0 10px;font-size:12.5px;color:var(--muted);line-height:1.4">Bad weather / captain cancel: use <b>Cancel charter</b> below — marks deposit <b>Refunded</b>, zeroes matching stew pay, clears free cash from the boat.</p>';
+    h+='<p style="margin:-6px 0 10px;font-size:12.5px;color:var(--muted);line-height:1.4">Mechanical / weather cancel: use <b>Cancel charter</b> — deposit <b>Refunded</b>, free cash off the boat. You’ll choose whether stew day pay is zeroed or kept (e.g. reduced €50 when she was already onboard).</p>';
     if(rec&&bookSt!=="cancelled"){
       h+='<button type="button" class="btn danger" id="sheetCancelCharter" style="width:100%;margin:0 0 14px">Cancel charter — refund deposit</button>';
     }
@@ -13537,27 +13626,41 @@ function openSheet(type,id){
       var dep=money0(rec.dep||0);
       if(!window.confirm(
         "Cancel charter for "+name+"?\n\n"+
-        "Captain decision / bad weather:\n"+
         "• Lead → Cancelled\n"+
         "• Deposit → Refunded ("+dep+")\n"+
-        "• Matching stew day(s) → no pay\n"+
         "• Free cash removed from boat petty if posted\n\n"+
         "Continue?"
       )) return;
+      /* Second step: stew was onboard (reduced pay) vs pure cancel (no pay) */
+      var keepStewPay=window.confirm(
+        "Was the stew already onboard / still due day pay?\n\n"+
+        "OK = keep stew assignment — set reduced rate (e.g. €50) on Stews or Expenses, then mark Paid from petty.\n\n"+
+        "Cancel = no stew pay for this charter."
+      );
       /* Prefer live calendar for stew match */
       var run=function(){
         var live=state.leads.filter(function(x){return x&&x.id===rec.id;})[0]||rec;
-        var res=cancelLeadCharter(live,{reason:"weather-captain"});
+        var res=cancelLeadCharter(live,{
+          reason:"weather-captain",
+          zeroPay:!keepStewPay,
+          keepPay:!!keepStewPay
+        });
         showSheet(false);
         renderLeads();
         if(isCaptain()&&curTab==="stews") renderStews({soft:false});
         if(isCaptain()&&curTab==="expenses") renderExpenses();
         if(isCaptain()&&curTab==="commissions") renderCommissions();
         var n=res&&res.stew?res.stew.n:0;
+        var zp=res&&res.zeroPay!==false;
         window.alert(
           "Charter cancelled.\nDeposit marked Refunded.\n"+
-          (n?("Stew pay cleared on "+n+" calendar day"+(n===1?"":"s")+"."):
-            "No matching stew calendar day found by guest name + date — open Stews and mark that day Cancelled if needed.")
+          (zp
+            ?(n?("Stew pay cleared on "+n+" calendar day"+(n===1?"":"s")+"."):
+              "No matching stew day found — open Stews and mark cancelled if needed.")
+            :(n
+              ?"Stew still due day pay on "+n+" day"+(n===1?"":"s")+". Open Stews → set rate (e.g. €50) → Paid, or Expenses → Paid from Petty cash."
+              :"Stew assignment not found — open Stews, assign Toni, set €50, mark Paid from petty.")
+          )
         );
       };
       if(isCaptain()&&typeof loadStewCalendar==="function"){
