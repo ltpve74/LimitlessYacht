@@ -1672,6 +1672,36 @@ export default async (req, context) => {
     if (data.log.length > LOG_CAP) data.log = data.log.slice(-LOG_CAP);
   }
 
+  /** Active stew names for team login dropdown (passcode-gated, minimal payload). */
+  if (action === "stewNames") {
+    if (role !== "team" && role !== "captain") {
+      return json({ error: "forbidden" }, 403);
+    }
+    const seen = new Set();
+    const names = [];
+    function addName(n) {
+      n = String(n || "").trim();
+      if (!n) return;
+      const k = n.toLowerCase();
+      if (seen.has(k)) return;
+      seen.add(k);
+      names.push(n);
+    }
+    (Array.isArray(data.stews) ? data.stews : []).forEach((s) => {
+      if (!s) return;
+      if (s.active === false || s.active === 0 || s.active === "false") return;
+      addName(s.name);
+    });
+    /* If every row is inactive/missing, still surface named people so login works */
+    if (!names.length) {
+      (Array.isArray(data.stews) ? data.stews : []).forEach((s) => {
+        if (s) addName(s.name);
+      });
+    }
+    names.sort((a, b) => a.localeCompare(b));
+    return json({ names, count: names.length });
+  }
+
   if (action === "load") {
     /*
      * Silent polls must stay cheap: do not rewrite the whole blob every 20s.
