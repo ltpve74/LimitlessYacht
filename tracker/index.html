@@ -598,8 +598,24 @@
     <section id="tab-security" class="hidden">
       <div class="banner" id="secBanner"></div>
       <div class="pushcard" id="pushCard">
-        <h3>Notifications</h3>
-        <p>Get an alert when an invoice is issued or paid — works best from the home-screen app (iPhone: Share → Add to Home Screen, then open Tracker from there).</p>
+        <h3>Home-screen app &amp; notifications</h3>
+        <p>Tracker works as an app on <b>Android</b> and <b>iPhone</b> (no App Store). Install once, then open from the home screen for full screen and better alerts.</p>
+        <div class="ip-steps" style="margin:10px 0 12px">
+          <b>Android (Chrome)</b>
+          <ol style="margin:6px 0 0;padding-left:1.2em">
+            <li>Open this page in <b>Chrome</b></li>
+            <li>Tap <b>⋮</b> (top right) → <b>Install app</b> or <b>Add to Home screen</b></li>
+            <li>Confirm <b>Install</b> / <b>Add</b></li>
+            <li>Open <b>Tracker</b> from the home screen (not the browser tab)</li>
+          </ol>
+          <b style="display:block;margin-top:10px">iPhone / iPad (Safari)</b>
+          <ol style="margin:6px 0 0;padding-left:1.2em">
+            <li>Open in <b>Safari</b> (not Chrome)</li>
+            <li>Tap <b>Share</b> → <b>Add to Home Screen</b> → <b>Add</b></li>
+            <li>Open <b>Tracker</b> from the home screen</li>
+          </ol>
+        </div>
+        <p style="margin:0 0 10px;font-size:13px;color:var(--muted);line-height:1.4">Alerts (invoice issued/paid, roster updates) work best after install. On Android Chrome may offer a one-tap install banner; use the steps above if you don’t see it.</p>
         <div class="st na" id="pushStatus">Checking…</div>
         <div class="row">
           <button type="button" class="btn" id="pushEnable">Enable alerts</button>
@@ -13614,13 +13630,15 @@ function buildInstallPromptHTML(){
       '<li>Tap <b>Add</b>, then open <b>Tracker</b> from your home screen</li>'+
       '</ol></div>';
   } else if(canNative){
-    steps='<div class="ip-steps">Install Limitless Tracker on this device for a full-screen app, faster access, and reliable notifications.</div>';
+    steps='<div class="ip-steps"><b>Android / Chrome</b><p style="margin:6px 0 0;font-size:13px;line-height:1.4">Tap <b>Install app</b> below for one-tap install. Or: Chrome <b>⋮</b> → <b>Install app</b> / <b>Add to Home screen</b>.</p></div>';
   } else if(isAndroidDevice()){
     steps='<div class="ip-steps"><b>On Android (Chrome)</b><ol>'+
-      '<li>Tap the <b>⋮</b> menu in Chrome</li>'+
-      '<li>Tap <b>Install app</b> or <b>Add to Home screen</b></li>'+
-      '<li>Open <b>Tracker</b> from your home screen next time</li>'+
-      '</ol></div>';
+      '<li>Open the tracker in <b>Chrome</b> (recommended)</li>'+
+      '<li>Tap the <b>⋮</b> menu (top right)</li>'+
+      '<li>Tap <b>Install app</b> or <b>Add to Home screen</b> / <b>Install Limitless Tracker</b></li>'+
+      '<li>Confirm, then open <b>Tracker</b> from your home screen</li>'+
+      '</ol>'+
+      '<p style="margin:8px 0 0;font-size:12.5px;line-height:1.4;color:var(--muted)">Samsung Internet: menu → <b>Add page to</b> → <b>Home screen</b>.</p></div>';
   } else {
     steps='<div class="ip-steps"><b>Install from the browser</b><ol>'+
       '<li>Open the browser menu (⋮ or ⋯)</li>'+
