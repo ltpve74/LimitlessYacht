@@ -1139,93 +1139,104 @@ REVIEWS_UI = {
 
 REVIEWS = [
     {
-        "author": "Oliver",
-        "date": "Juil. 2026",
+        "author": 'Joel',
+        "date": 'Juil. 2026',
         "rating": 5,
         "text": (
-            "Journée fantastique — c'était notre meilleure expérience en yacht. Nous sommes "
-            "100 % satisfaits et vous recommanderions à quiconque cherche à affréter un "
-            "yacht de luxe. Vous et Toni avez été fantastiques — notre meilleur jour du voyage."
+            "Nous avons passé trois jours incroyables à bord de Limitless à Majorque, "
+            "et l'expérience a dépassé toutes les attentes. Le capitaine Luigi a été "
+            "exceptionnel : professionnel, compétent, et il nous a toujours fait "
+            "sentir en sécurité tout en nous emmenant dans des endroits à couper le "
+            "souffle autour de l'île. Toni, notre hôtesse, a été tout aussi "
+            "fantastique — attentive, sympathique, et a veillé à ce que tout se "
+            "déroule sans accroc. Le service du début à la fin a été exceptionnel, et "
+            "la connaissance locale de l'équipage a rendu l'expérience encore plus "
+            "spéciale. Nous avons visité des lieux merveilleux, savouré chaque moment "
+            "à bord, et n'aurions pas pu rêver de meilleurs jours. Si vous envisagez "
+            "un charter à Majorque, je recommande le capitaine Luigi et Toni sans "
+            "hésitation. Merci à vous deux pour un voyage inoubliable !"
         ),
     },
     {
-        "author": "Joel",
-        "date": "Juil. 2026",
+        "author": 'Sebastien',
+        "date": 'Juil. 2026',
         "rating": 5,
         "text": (
-            "Nous avons passé trois jours incroyables à bord de Limitless à Majorque, et "
-            "l'expérience a dépassé toutes les attentes. Le capitaine Luigi a été "
-            "exceptionnel : professionnel, compétent, et il nous a toujours fait sentir en "
-            "sécurité tout en nous emmenant dans des endroits à couper le souffle autour de "
-            "l'île. Toni, notre hôtesse, a été tout aussi fantastique — attentive, "
-            "sympathique, et a veillé à ce que tout se déroule sans accroc. Le service du "
-            "début à la fin a été exceptionnel, et la connaissance locale de l'équipage a "
-            "rendu l'expérience encore plus spéciale. Nous avons visité des lieux "
-            "merveilleux, savouré chaque moment à bord, et n'aurions pas pu rêver de "
-            "meilleurs jours. Si vous envisagez un charter à Majorque, je recommande le "
-            "capitaine Luigi et Toni sans hésitation. Merci à vous deux pour un voyage "
-            "inoubliable !"
+            "Nous avons eu le plaisir de passer deux journées inoubliables à bord de "
+            "Limitless cet été à Palma de Majorque, et l'expérience a dépassé toutes "
+            "nos attentes. De l'accueil chaleureux du capitaine Luigi et de son "
+            "équipage au service impeccable tout au long de notre séjour, chaque "
+            "détail a été exécuté à la perfection. Notre groupe de 11 personnes a été "
+            "tellement impressionné que nous avons immédiatement recharter le yacht "
+            "la semaine suivante — une expérience qui n'a fait que confirmer la "
+            "constance et l'excellence du service. Si vous envisagez un charter à "
+            "Majorque, je recommande Limitless sans hésitation. Le capitaine Luigi, "
+            "Laura et toute l'équipe allient professionnalisme, souci du détail et "
+            "hospitalité sincère pour créer une expérience fluide et mémorable."
         ),
     },
     {
-        "author": "Sebastien",
-        "date": "Juil. 2026",
+        "author": 'Oliver',
+        "date": 'Juil. 2026',
         "rating": 5,
         "text": (
-            "Nous avons eu le plaisir de passer deux journées inoubliables à bord de Limitless "
-            "cet été à Palma de Majorque, et l'expérience a dépassé toutes nos attentes. De "
-            "l'accueil chaleureux du capitaine Luigi et de son équipage au service impeccable "
-            "tout au long de notre séjour, chaque détail a été exécuté à la perfection. Notre "
-            "groupe de 11 personnes a été tellement impressionné que nous avons immédiatement "
-            "recharter le yacht la semaine suivante — une expérience qui n'a fait que confirmer "
-            "la constance et l'excellence du service. Si vous envisagez un charter à Majorque, "
-            "je recommande Limitless sans hésitation. Le capitaine Luigi, Laura et toute "
-            "l'équipe allient professionnalisme, souci du détail et hospitalité sincère pour "
-            "créer une expérience fluide et mémorable."
+            "Luigi et Toni étaient formidables ! Le yacht était très beau et bien "
+            "entretenu, avec plein de jouets pour s'amuser dans la journée. Ils ont "
+            "aussi pu nous aider à organiser le catering à bord. C'était l'un des "
+            "meilleurs jours de notre voyage. Le capitaine Luigi connaît tous les "
+            "meilleurs spots pour nager et il nous a tous mis très à l'aise. Je "
+            "recommande vivement ce charter."
         ),
     },
     {
-        "author": "Leon",
-        "date": "Juil. 2026",
+        "author": 'Leon',
+        "date": 'Juil. 2026',
         "rating": 5,
         "text": (
-            "Super expérience ! Un très beau bateau, bien dimensionné, avec des jouets "
-            "sympas. Équipage très sympathique qui a fait du très bon travail à tous les "
-            "niveaux. Je recommande sans hésiter — je referai l'expérience !"
+            "Super expérience ! Un très beau bateau, bien dimensionné, avec des "
+            "jouets sympas. Équipage très sympathique qui a fait du très bon travail "
+            "à tous les niveaux. Je recommande sans hésiter — je referai l'expérience "
+            "!"
         ),
     },
     {
-        "author": "Maurice",
-        "date": "Juin 2026",
+        "author": 'Maurice',
+        "date": 'Juin 2026',
         "rating": 5,
         "text": (
-            "Une journée inoubliable — l’un des temps forts de notre séjour à Majorque. Le service de Luigi et Laura était absolument remarquable — nous nous sommes sentis incroyablement bien pris en charge tout au long de la journée. Tout était parfait : le bateau, l’ambiance, l’hospitalité et surtout la façon dont ils ont pris soin de nous. Des personnes formidables qui ont rendu cette expérience vraiment spéciale. Merci encore pour tout."
-        
+            "Une journée inoubliable — l’un des temps forts de notre séjour à "
+            "Majorque. Le service de Luigi et Laura était absolument remarquable — "
+            "nous nous sommes sentis incroyablement bien pris en charge tout au long "
+            "de la journée. Tout était parfait : le bateau, l’ambiance, l’hospitalité "
+            "et surtout la façon dont ils ont pris soin de nous. Des personnes "
+            "formidables qui ont rendu cette expérience vraiment spéciale. Merci "
+            "encore pour tout."
         ),
     },
     {
-        "author": "Andrew",
-        "date": "Juin 2026",
+        "author": 'Andrew',
+        "date": 'Juin 2026',
         "rating": 5,
         "text": (
-            "Magnifique bateau avec beaucoup d'espace pour nous huit. Luigi (skipper) et "
-            "Rebecca ont été d'un accueil exemplaire — ils ont fait toute la différence "
-            "pour la qualité et le plaisir de notre journée. Professionnels et attentionnés, "
-            "tout en restant détendus et conviviaux. Merci !"
+            "Magnifique bateau avec beaucoup d'espace pour nous huit. Luigi (skipper) "
+            "et Rebecca ont été d'un accueil exemplaire — ils ont fait toute la "
+            "différence pour la qualité et le plaisir de notre journée. "
+            "Professionnels et attentionnés, tout en restant détendus et conviviaux. "
+            "Merci !"
         ),
     },
     {
-        "author": "Tony",
-        "date": "Août 2025",
+        "author": 'Tony',
+        "date": 'Août 2025',
         "rating": 5,
         "text": (
-            "Notre groupe de six a passé une journée fantastique à bord de Limitless — "
-            "spacieux, confortable et impeccable. Paul a été très réactif et a organisé "
-            "notre charter en moins d'un jour. Une fois à bord, le capitaine Luigi s'est "
-            "révélé compétent et plein d'humour, traçant sans effort un bel itinéraire "
-            "avec plusieurs escales agréables. L'hôtesse attentive veillait à notre "
-            "confort — panier de crème solaire et serviettes, verres toujours pleins "
-            "où que nous soyons. Fortement recommandé !"
+            "Notre groupe de six a passé une journée fantastique à bord de Limitless "
+            "— spacieux, confortable et impeccable. Paul a été très réactif et a "
+            "organisé notre charter en moins d'un jour. Une fois à bord, le capitaine "
+            "Luigi s'est révélé compétent et plein d'humour, traçant sans effort un "
+            "bel itinéraire avec plusieurs escales agréables. L'hôtesse attentive "
+            "veillait à notre confort — panier de crème solaire et serviettes, verres "
+            "toujours pleins où que nous soyons. Fortement recommandé !"
         ),
     },
 ]

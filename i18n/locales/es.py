@@ -1148,91 +1148,103 @@ REVIEWS_UI = {
 
 REVIEWS = [
     {
-        "author": "Oliver",
-        "date": "Jul 2026",
+        "author": 'Joel',
+        "date": 'Jul 2026',
         "rating": 5,
         "text": (
-            "Día fantástico: esta ha sido nuestra mejor experiencia en un yate. Estamos "
-            "100% contentos y os recomendaríamos a cualquiera que busque fletar un yate "
-            "de lujo. Tú y Toni fuisteis fantásticos: el mejor día del viaje."
+            "Pasamos tres días increíbles a bordo de Limitless en Mallorca, y la "
+            "experiencia superó todas las expectativas. El capitán Luigi fue "
+            "excepcional: profesional, con gran conocimiento y siempre nos hizo "
+            "sentir seguros mientras nos llevaba a lugares verdaderamente "
+            "impresionantes alrededor de la isla. Toni, nuestra azafata, fue "
+            "igualmente fantástica: atenta, amable y se aseguró de que todo "
+            "funcionara a la perfección durante el viaje. El servicio de principio a "
+            "fin fue excepcional, y el conocimiento local de la tripulación hizo la "
+            "experiencia aún más especial. Visitamos lugares increíbles, disfrutamos "
+            "cada momento a bordo y no podríamos haber pedido unos días mejores. Si "
+            "está considerando un charter en Mallorca, recomiendo al capitán Luigi y "
+            "a Toni sin dudarlo. ¡Gracias a los dos por un viaje inolvidable!"
         ),
     },
     {
-        "author": "Joel",
-        "date": "Jul 2026",
+        "author": 'Sebastien',
+        "date": 'Jul 2026',
         "rating": 5,
         "text": (
-            "Pasamos tres días increíbles a bordo de Limitless en Mallorca, y la experiencia "
-            "superó todas las expectativas. El capitán Luigi fue excepcional: profesional, "
-            "con gran conocimiento y siempre nos hizo sentir seguros mientras nos llevaba a "
-            "lugares verdaderamente impresionantes alrededor de la isla. Toni, nuestra "
-            "azafata, fue igualmente fantástica: atenta, amable y se aseguró de que todo "
-            "funcionara a la perfección durante el viaje. El servicio de principio a fin fue "
-            "excepcional, y el conocimiento local de la tripulación hizo la experiencia aún "
-            "más especial. Visitamos lugares increíbles, disfrutamos cada momento a bordo y "
-            "no podríamos haber pedido unos días mejores. Si está considerando un charter en "
-            "Mallorca, recomiendo al capitán Luigi y a Toni sin dudarlo. ¡Gracias a los dos "
-            "por un viaje inolvidable!"
+            "Tuvimos el placer de pasar dos días inolvidables a bordo de Limitless "
+            "este verano en Palma de Mallorca, y la experiencia superó todas las "
+            "expectativas. Desde la cálida bienvenida del capitán Luigi y su "
+            "tripulación hasta el servicio impecable durante todo el viaje, cada "
+            "detalle se ejecutó a la perfección. Nuestro grupo de 11 quedó tan "
+            "impresionado que volvimos a charter el yate a la semana siguiente — una "
+            "experiencia que solo reforzó lo excepcional y constante que es el "
+            "servicio. Si está considerando un charter en Mallorca, recomiendo "
+            "Limitless sin dudarlo. El capitán Luigi, Laura y todo el equipo combinan "
+            "profesionalidad, atención al detalle y hospitalidad genuina para crear "
+            "una experiencia fluida e inolvidable."
         ),
     },
     {
-        "author": "Sebastien",
-        "date": "Jul 2026",
+        "author": 'Oliver',
+        "date": 'Jul 2026',
         "rating": 5,
         "text": (
-            "Tuvimos el placer de pasar dos días inolvidables a bordo de Limitless este verano "
-            "en Palma de Mallorca, y la experiencia superó todas las expectativas. Desde la "
-            "cálida bienvenida del capitán Luigi y su tripulación hasta el servicio impecable "
-            "durante todo el viaje, cada detalle se ejecutó a la perfección. Nuestro grupo de "
-            "11 quedó tan impresionado que volvimos a charter el yate a la semana siguiente — "
-            "una experiencia que solo reforzó lo excepcional y constante que es el servicio. Si "
-            "está considerando un charter en Mallorca, recomiendo Limitless sin dudarlo. El "
-            "capitán Luigi, Laura y todo el equipo combinan profesionalidad, atención al detalle "
-            "y hospitalidad genuina para crear una experiencia fluida e inolvidable."
+            "¡Luigi y Toni fueron increíbles! El yate estaba muy bonito y bien "
+            "cuidado, con un montón de juguetes para divertirse durante el día. "
+            "También nos ayudaron a coordinar el catering a bordo. Fue uno de los "
+            "mejores días de nuestro viaje. El capitán Luigi conoce los mejores "
+            "sitios para nadar y nos hizo sentir muy cómodos a todos. Recomiendo "
+            "totalmente este chárter."
         ),
     },
     {
-        "author": "Leon",
-        "date": "Jul 2026",
+        "author": 'Leon',
+        "date": 'Jul 2026',
         "rating": 5,
         "text": (
-            "¡Gran experiencia! Un barco muy bonito, con buen tamaño y juguetes geniales. "
-            "Tripulación muy amable que hizo un trabajo excelente en todo. Sin duda lo "
-            "recomiendo; lo repetiré."
+            "¡Gran experiencia! Un barco muy bonito, con buen tamaño y juguetes "
+            "geniales. Tripulación muy amable que hizo un trabajo excelente en todo. "
+            "Sin duda lo recomiendo; lo repetiré."
         ),
     },
     {
-        "author": "Maurice",
-        "date": "Jun 2026",
+        "author": 'Maurice',
+        "date": 'Jun 2026',
         "rating": 5,
         "text": (
-            "Un día inolvidable y sin duda uno de los momentos destacados de nuestra estancia en Mallorca. El servicio de Luigi y Laura fue absolutamente increíble — nos sentimos muy bien atendidos durante todo el viaje. Todo fue perfecto: el barco, el ambiente, la hospitalidad y, sobre todo, la forma en que cuidaron de nosotros. Personas maravillosas que hicieron que esta experiencia fuera realmente especial. Gracias de nuevo por todo."
-        
+            "Un día inolvidable y sin duda uno de los momentos destacados de nuestra "
+            "estancia en Mallorca. El servicio de Luigi y Laura fue absolutamente "
+            "increíble — nos sentimos muy bien atendidos durante todo el viaje. Todo "
+            "fue perfecto: el barco, el ambiente, la hospitalidad y, sobre todo, la "
+            "forma en que cuidaron de nosotros. Personas maravillosas que hicieron "
+            "que esta experiencia fuera realmente especial. Gracias de nuevo por "
+            "todo."
         ),
     },
     {
-        "author": "Andrew",
-        "date": "Jun 2026",
+        "author": 'Andrew',
+        "date": 'Jun 2026',
         "rating": 5,
         "text": (
-            "Barco precioso con mucho espacio para los ocho. Luigi (patrón) y Rebecca no "
-            "podían haber sido más acogedores: marcaron la diferencia en la calidad y el "
-            "disfrute del día. Profesionales y atentos, pero también relajados y "
-            "divertidos. ¡Gracias!"
+            "Barco precioso con mucho espacio para los ocho. Luigi (patrón) y Rebecca "
+            "no podían haber sido más acogedores: marcaron la diferencia en la "
+            "calidad y el disfrute del día. Profesionales y atentos, pero también "
+            "relajados y divertidos. ¡Gracias!"
         ),
     },
     {
-        "author": "Tony",
-        "date": "Ago 2025",
+        "author": 'Tony',
+        "date": 'Ago 2025',
         "rating": 5,
         "text": (
-            "Nuestro grupo de seis disfrutó de un día fantástico a bordo de Limitless: "
-            "espaciosa, cómoda e impecable. Paul respondió con gran rapidez y organizó el "
-            "charter con menos de un día de antelación. A bordo, el capitán Luigi resultó "
-            "experto y con buen humor, trazando sin esfuerzo un itinerario fluido con "
-            "varias paradas muy agradables. La azafata atenta nos cuidó en todo momento, "
-            "ya fuera con una cesta (muy bien surtida) de protector solar y toallas o "
-            "reponiendo nuestras bebidas donde estuviéramos. ¡Muy recomendable!"
+            "Nuestro grupo de seis disfrutó de un día fantástico a bordo de "
+            "Limitless: espaciosa, cómoda e impecable. Paul respondió con gran "
+            "rapidez y organizó el charter con menos de un día de antelación. A "
+            "bordo, el capitán Luigi resultó experto y con buen humor, trazando sin "
+            "esfuerzo un itinerario fluido con varias paradas muy agradables. La "
+            "azafata atenta nos cuidó en todo momento, ya fuera con una cesta (muy "
+            "bien surtida) de protector solar y toallas o reponiendo nuestras bebidas "
+            "donde estuviéramos. ¡Muy recomendable!"
         ),
     },
 ]

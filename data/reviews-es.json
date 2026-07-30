@@ -1,12 +1,6 @@
 {
   "reviews": [
     {
-      "author": "Oliver",
-      "date": "Jul 2026",
-      "rating": 5,
-      "text": "Día fantástico: esta ha sido nuestra mejor experiencia en un yate. Estamos 100% contentos y os recomendaríamos a cualquiera que busque fletar un yate de lujo. Tú y Toni fuisteis fantásticos: el mejor día del viaje."
-    },
-    {
       "author": "Joel",
       "date": "Jul 2026",
       "rating": 5,
@@ -17,6 +11,12 @@
       "date": "Jul 2026",
       "rating": 5,
       "text": "Tuvimos el placer de pasar dos días inolvidables a bordo de Limitless este verano en Palma de Mallorca, y la experiencia superó todas las expectativas. Desde la cálida bienvenida del capitán Luigi y su tripulación hasta el servicio impecable durante todo el viaje, cada detalle se ejecutó a la perfección. Nuestro grupo de 11 quedó tan impresionado que volvimos a charter el yate a la semana siguiente — una experiencia que solo reforzó lo excepcional y constante que es el servicio. Si está considerando un charter en Mallorca, recomiendo Limitless sin dudarlo. El capitán Luigi, Laura y todo el equipo combinan profesionalidad, atención al detalle y hospitalidad genuina para crear una experiencia fluida e inolvidable."
+    },
+    {
+      "author": "Oliver",
+      "date": "Jul 2026",
+      "rating": 5,
+      "text": "¡Luigi y Toni fueron increíbles! El yate estaba muy bonito y bien cuidado, con un montón de juguetes para divertirse durante el día. También nos ayudaron a coordinar el catering a bordo. Fue uno de los mejores días de nuestro viaje. El capitán Luigi conoce los mejores sitios para nadar y nos hizo sentir muy cómodos a todos. Recomiendo totalmente este chárter."
     },
     {
       "author": "Leon",
