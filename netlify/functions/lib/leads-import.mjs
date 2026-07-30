@@ -11,7 +11,8 @@ export const CHARTER_RATES = {
 export function constrainLeadSource(v) {
   var s = String(v || "")
     .toLowerCase()
-    .trim();
+    .trim()
+    .replace(/\s+/g, "-");
   if (!s) return "other";
   if (s === "pending" || s === "unassigned" || s === "assign") return "pending";
   if (s === "captain" || s === "cpt" || s === "website" || s === "web" || s === "direct")
@@ -26,7 +27,32 @@ export function constrainLeadSource(v) {
     s === "paul"
   )
     return "clickboat";
-  if (s === "owner" || s === "owners" || s === "owner-sourced") return "owner";
+  /* Owner-sourced commercial (income) — distinct from owner days */
+  if (
+    s === "ownersourced" ||
+    s === "owner-sourced" ||
+    s === "owner_sourced" ||
+    s === "owner-source" ||
+    s === "ownersource" ||
+    s === "owner-charter" ||
+    s === "owner_charter" ||
+    s === "ownercharter" ||
+    s === "owner-income" ||
+    s === "owner_income"
+  )
+    return "ownersourced";
+  if (
+    s === "owner" ||
+    s === "owners" ||
+    s === "owner-day" ||
+    s === "owner-days" ||
+    s === "ownerdays" ||
+    s === "owner_days" ||
+    s === "owner-use" ||
+    s === "owner_use" ||
+    s === "private"
+  )
+    return "owner";
   if (s === "other" || s === "agency" || s === "manager") return "other";
   return "other";
 }

@@ -1130,7 +1130,7 @@ function syncNewIcsLeads(data, events, who, now) {
       apa: 0,
       apas: "Not issued",
       notes:
-        "New from calendar · assign source (Captain / Click&Boat / Owner). " +
+        "New from calendar · assign source (Captain / Paul / Owner’s days / Owner-sourced). " +
         priced.label +
         (ev.summary ? " · cal: " + String(ev.summary).slice(0, 60) : ""),
       by: who || "Calendar sync",
@@ -2035,7 +2035,7 @@ export default async (req, context) => {
           title: "New calendar charter",
           body:
             stats.created === 1
-              ? "1 new trip needs source assignment (Captain / Click&Boat / Owner)"
+              ? "1 new trip needs source assignment (Captain / Paul / Owner’s days / Owner-sourced)"
               : stats.created + " new trips need source assignment",
           tag: "ics-pending-" + Date.now(),
           url: "/tracker/?tab=leads&pending=1",

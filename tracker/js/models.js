@@ -30,10 +30,13 @@
    * Charter book source (commission assignment):
    *  - captain = website or direct contact (15% commission)
    *  - clickboat = Paul / Click&Boat (21% before VAT)
-   *  - owner = owner use (no commission; track as owner benefits)
+   *  - owner = owner’s days / private guests (no income, no commission; owner benefits)
+   *  - ownersourced = owner-sourced commercial charter (income; commission 0 for now, may add later)
    *  - other = legacy / unknown (no commission)
    */
-  var LEAD_SOURCES = { pending: 1, captain: 1, clickboat: 1, owner: 1, other: 1 };
+  var LEAD_SOURCES = { pending: 1, captain: 1, clickboat: 1, owner: 1, ownersourced: 1, other: 1 };
+  /** Owner-sourced charters: income, no commission yet (raise when agreed). */
+  var OWNER_SOURCED_COMMISSION_PCT = 0;
   /**
    * Public charter fee table (VAT included “from” rates on the site).
    * High season = Jul–Aug (month index 6–7). Multi-day uses full-day rate × nights/days.
@@ -133,6 +136,7 @@
     if (src === "pending") return 0;
     if (src === "captain") return CAPTAIN_COMMISSION_PCT;
     if (src === "clickboat") return CLICKBOAT_COMMISSION_PCT;
+    if (src === "ownersourced") return OWNER_SOURCED_COMMISSION_PCT;
     return 0;
   }
 
@@ -145,8 +149,14 @@
     return leadSource(r) === "clickboat";
   }
 
+  /** True owner’s days / private guests — not business income. */
   function isOwnerLead(r) {
     return leadSource(r) === "owner";
+  }
+
+  /** Owner-sourced commercial charter — counts as income; commission may be 0 for now. */
+  function isOwnerSourcedLead(r) {
+    return leadSource(r) === "ownersourced";
   }
 
   /**
@@ -166,10 +176,10 @@
   }
 
   /**
-   * Owner-use trips: no commission. Count toward “owner benefits” only when
-   * the trip is confirmed (deal closed). Unconfirmed owner assignment stays
-   * out of the benefits total until the confirm tick. Legacy leads without
-   * dealClosed are treated as confirmed (see leadIsDealClosed).
+   * Owner’s days only (not owner-sourced income): no commission, not cash sales.
+   * Count toward “owner benefits” only when confirmed (deal closed).
+   * Unconfirmed owner assignment stays out of the benefits total until confirm.
+   * Legacy leads without dealClosed are treated as confirmed (see leadIsDealClosed).
    * ownerBenefitExclude === true → out of the benefits total (user toggled off).
    */
   function ownerBenefitIncluded(r) {
@@ -184,7 +194,8 @@
   function constrainLeadSource(v) {
     var s = String(v || "")
       .toLowerCase()
-      .trim();
+      .trim()
+      .replace(/\s+/g, "-");
     if (!s) return "other";
     if (s === "pending" || s === "unassigned" || s === "assign") return "pending";
     if (s === "captain" || s === "cpt" || s === "website" || s === "web" || s === "direct")
@@ -199,7 +210,32 @@
       s === "paul"
     )
       return "clickboat";
-    if (s === "owner" || s === "owners" || s === "owner-sourced") return "owner";
+    /* Owner-sourced commercial first — do not collapse into owner days */
+    if (
+      s === "ownersourced" ||
+      s === "owner-sourced" ||
+      s === "owner_sourced" ||
+      s === "owner-source" ||
+      s === "ownersource" ||
+      s === "owner-charter" ||
+      s === "owner_charter" ||
+      s === "ownercharter" ||
+      s === "owner-income" ||
+      s === "owner_income"
+    )
+      return "ownersourced";
+    if (
+      s === "owner" ||
+      s === "owners" ||
+      s === "owner-day" ||
+      s === "owner-days" ||
+      s === "ownerdays" ||
+      s === "owner_days" ||
+      s === "owner-use" ||
+      s === "owner_use" ||
+      s === "private"
+    )
+      return "owner";
     if (s === "other" || s === "agency" || s === "manager") return "other";
     return LEAD_SOURCES[s] ? s : "other";
   }
@@ -209,7 +245,8 @@
     if (s === "pending") return "Pending source";
     if (s === "captain") return "Captain";
     if (s === "clickboat") return "Click&Boat (Paul)";
-    if (s === "owner") return "Owner";
+    if (s === "owner") return "Owner’s days";
+    if (s === "ownersourced") return "Owner-sourced";
     return "Other";
   }
 
@@ -532,10 +569,11 @@
 
   /**
    * Lead commission breakdown (numbers only — UI formats strings).
-   * Rate from source: captain 15%, clickboat 21%, owner/other 0%.
+   * Rate from source: captain 15%, clickboat 21%, ownersourced 0% (for now), owner/other 0%.
    * Split: rate × white before VAT + rate × cash black.
    * Normal VAT-include: rate × (total÷1.21).
-   * Owner: total commission 0; base still = charter before VAT (owner benefit value).
+   * Owner’s days: total commission 0; base still = charter before VAT (owner benefit value).
+   * Owner-sourced: income line; commission 0 until OWNER_SOURCED_COMMISSION_PCT is raised.
    */
   function leadCommissionParts(r) {
     var ratePct = leadCommissionRatePct(r);
@@ -1380,6 +1418,7 @@
   var api = {
     CAPTAIN_COMMISSION_PCT: CAPTAIN_COMMISSION_PCT,
     CLICKBOAT_COMMISSION_PCT: CLICKBOAT_COMMISSION_PCT,
+    OWNER_SOURCED_COMMISSION_PCT: OWNER_SOURCED_COMMISSION_PCT,
     BILL_TYPES: Object.keys(BILL_TYPES),
     LEAD_SOURCES: Object.keys(LEAD_SOURCES),
     CHARTER_RATES: CHARTER_RATES,
@@ -1396,6 +1435,7 @@
     isCaptainLead: isCaptainLead,
     isClickboatLead: isClickboatLead,
     isOwnerLead: isOwnerLead,
+    isOwnerSourcedLead: isOwnerSourcedLead,
     leadIsDealClosed: leadIsDealClosed,
     leadEarnsCaptainCommission: leadEarnsCaptainCommission,
     leadEarnsCommission: leadEarnsCommission,
