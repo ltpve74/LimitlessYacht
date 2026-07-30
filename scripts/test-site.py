@@ -890,6 +890,13 @@ def check_html(r: Runner, rel: str, html: str) -> None:
         and re.search(r'\.cal-cell\.tentative\{[^}]*cursor:pointer', read_file('css/main.css') or '') is not None,
     )
     r.check(
+        'on-hold explanation shows only when a hold date is selected',
+        'id="calHoldNote"' in html
+        and 'function syncHoldNote' in html
+        and 'holdNoteEl.hidden' in html
+        and "tentative.has(selected[hi])" in html,
+    )
+    r.check(
         'date picker popup restored on main enquiry form',
         'class="form-date-icon"' in html
         and 'class="form-date-apply-btn"' in html
