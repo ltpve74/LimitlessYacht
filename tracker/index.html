@@ -801,7 +801,7 @@
 <div class="sheet" id="sheet"><div class="grip"></div><div id="sheetInner"></div></div>
 
 <!-- Domain models (money rules) — single source of truth; tests: node scripts/test-tracker-models.mjs -->
-<script src="/tracker/js/models.js?v=20260806-capupsell"></script>
+<script src="/tracker/js/models.js?v=20260806-petty-v2"></script>
 <script>
 "use strict";
 var API = "/.netlify/functions/tracker";
@@ -1106,6 +1106,8 @@ function flushBootSaves(){
  * Live ICS / calendar snapshot is loaded when Stews is opened (loadStewCalendar),
  * not on every captain login (that made multiuser feel slow).
  */
+/** Once per page session — re-running seed/clean on every tab painted thrashing petty. */
+var _expPostLoadDone=false;
 function runPostLoadMaintenance(){
   if(DEMO) return;
   try{
@@ -1125,13 +1127,22 @@ function runPostLoadMaintenance(){
       setTimeout(function(){
         try{ persistStewCalendarSnapshot(); }catch(eSnap){}
       }, 400);
-      try{ expCleanOrphanStewDayPayLines(); }catch(eCl0){}
-      /* Uses stewAssign already in state — no ICS round-trip */
-      try{ seedCurrentMonthStewCashExpenses(); }catch(e1){}
-      try{ expRestoreCrewFloatPayAfterWipe(); }catch(e2){}
-      try{ expNormalizeAllReimbursements(); }catch(e3){}
-      try{ syncAllChargeCashToPetty(); }catch(e4){}
-      if(curTab==="expenses") try{ renderExpenses(); }catch(e5){}
+      /*
+       * Expenses repair: once per session only.
+       * Collapse paid renames (fixes double cash-out), add missing unpaid lines,
+       * never re-invent floatPay. Avoids cash-out lines flickering on re-render.
+       */
+      if(!_expPostLoadDone){
+        _expPostLoadDone=true;
+        var expDirty=false;
+        try{ if(expCollapseCrewDayPayDuplicates()) expDirty=true; }catch(eCol){}
+        try{ if(expCleanOrphanStewDayPayLines()) expDirty=true; }catch(eCl0){}
+        try{ if(seedCurrentMonthStewCashExpenses()) expDirty=true; }catch(e1){}
+        try{ expRestoreCrewFloatPayAfterWipe(); }catch(e2){}
+        try{ if(expNormalizeAllReimbursements()) expDirty=true; }catch(e3){}
+        try{ if(syncAllChargeCashToPetty()) expDirty=true; }catch(e4){}
+        if(expDirty&&curTab==="expenses") try{ renderExpenses(); }catch(e5){}
+      }
       if(curTab==="charters") try{ renderCharters(); }catch(e6){}
       if(curTab==="leads") try{ renderLeads(); }catch(e7){}
       if(curTab==="stews") try{ renderStews({soft:true}); }catch(e8){}
@@ -7892,6 +7903,7 @@ function expIsCrewUnpaid(e){
  * Status "Paid" alone does not move cash — that can be prior/auto bookkeeping.
  */
 function expCrewPayHitsFloat(e){
+  if(LY_MODELS&&LY_MODELS.crewDayPayHitsPetty) return !!LY_MODELS.crewDayPayHitsPetty(e);
   if(!expIsCrewDayPayLine(e)) return false;
   if(e.crewPayStatus!=="Paid") return false;
   if(e.payMethod==="Credit Card") return false;
@@ -8182,99 +8194,83 @@ function expStewDayDedupeKey(e){
   return "id:"+e.id;
 }
 /**
- * Two separate numbers:
+ * Two separate numbers (model-backed):
  *
- * 1) pettyCash (actual cash on board)
+ * 1) pettyCash (actual cash on board) — LY_MODELS.summarizePettyCash
  *      = start + cash-in − money that left the boat
- *    Leaves only when:
- *      • expense logged as Cash + Petty cash, or
- *      • crew marked Paid via Petty cash (floatPay)
- *    Unpaid / prior Paid status alone never move cash.
+ *    Crew day-pay: only floatPay, after collapse one line per stew|date.
  *
- * 2) float books (can show “behind”)
+ * 2) float books (planning only)
  *      floatAfterPays = pettyCash − people still unpaid
- *      ownerCashIn   = max(0, peopleOwed − pettyCash)
- *      cashShort     = max(0, −pettyCash)  // books spent more than envelope (rare)
  */
 function expSettlementFigures(month){
   month=month||expDefaultMonth();
   var lines=expLinesForMonth(month);
-  var cashOut=0, cardOut=0, crewPaid=0, crewUnpaid=0, crewPrior=0, otherCash=0, ownMoneyExp=0, reimburseCap=0;
-  var seenStewLink={}, nCrewPaidLines=0, nSkippedDup=0, nDayPayLines=0;
-  var cashOutLines=[]; /* audit: every euro that left the envelope */
-  var pocketOutLines=[]; /* audit: every euro spent from someone’s pocket */
-  lines.forEach(function(e){
-    expNormalizeReimbursement(e);
+  lines.forEach(function(e){ expNormalizeReimbursement(e); });
+  var petty=expEnsurePetty(month);
+  var pettyStart=apaNum(petty.pettyStart);
+  var cashIns=expCashInLines(petty);
+  /* Model: petty on board (collapse crew dupes so numbers never double-count) */
+  var pettySum={ pettyCash:0, cashOut:0, cashOutLines:[], cashInTotal:0, cashInHand:0, crewPaidPetty:0, nCrewPetty:0, nCrewCollapsed:0, collapsedExpenses:lines };
+  try{
+    if(LY_MODELS&&LY_MODELS.summarizePettyCash){
+      pettySum=LY_MODELS.summarizePettyCash({
+        pettyStart:pettyStart,
+        cashIns:cashIns,
+        expenses:lines
+      });
+    }
+  }catch(ePetty){}
+  var cashOut=Number(pettySum.cashOut)||0;
+  var cashOutLines=pettySum.cashOutLines||[];
+  var cashInTotal=Number(pettySum.cashInTotal)!=null&&!isNaN(pettySum.cashInTotal)?Number(pettySum.cashInTotal):expCashInSum(petty);
+  var cashInHand=Number(pettySum.cashInHand)!=null&&!isNaN(pettySum.cashInHand)?Number(pettySum.cashInHand):Math.round((pettyStart+cashInTotal)*100)/100;
+  var pettyCash=Number(pettySum.pettyCash)!=null&&!isNaN(pettySum.pettyCash)?Number(pettySum.pettyCash):Math.round((cashInHand-cashOut)*100)/100;
+  var nSkippedDup=Number(pettySum.nCrewCollapsed)||0;
+  var nCrewPaidLines=Number(pettySum.nCrewPetty)||0;
+  var crewPaid=Number(pettySum.crewPaidPetty)||0;
+  /* Pocket / unpaid books — use collapsed crew set for day-pay counts */
+  var collapsed=pettySum.collapsedExpenses||lines;
+  var cardOut=0, crewUnpaid=0, crewPrior=0, otherCash=0, ownMoneyExp=0, reimburseCap=0;
+  var nDayPayLines=0;
+  var pocketOutLines=[];
+  collapsed.forEach(function(e){
+    if(!e) return;
     var a=apaNum(e.amount);
     if(expIsCrewDayPayLine(e)){
-      var lk=expStewDayDedupeKey(e);
-      if(seenStewLink[lk]){ nSkippedDup++; return; }
-      seenStewLink[lk]=1;
       nDayPayLines++;
-      if(e.crewPayStatus!=="Paid"){
-        crewUnpaid+=a;
-        return;
-      }
+      if(e.crewPayStatus!=="Paid"){ crewUnpaid+=a; return; }
       if(e.payMethod==="Credit Card"){ cardOut+=a; return; }
       if(e.paidFrom==="Own money"||expIsOwnMoneyLabel(e.paidFrom)){
         ownMoneyExp+=a;
         var crewPayerId=String(e.paidById||EXP_POCKET_CAPTAIN);
-        var crewPayer=expPocketPersonName(crewPayerId);
-        var crewWho=e.vendor||"Crew";
-        /* Treat day-pay own-money like a shop line for repay tracking */
         var crewAsOwn={id:e.id, amount:e.amount, paidFrom:"Own money", paidById:crewPayerId, date:e.date, category:"Crew Salaries"};
         var crewRepaidAmt=expOwnMoneyRepaidAmt(crewAsOwn, month);
-        var crewRepaid=crewRepaidAmt>=a-0.009;
         pocketOutLines.push({
-          kind:"crew",
-          whoId:crewPayerId,
-          who:crewPayer,
-          crewName:crewWho,
-          label:crewWho+" day pay",
-          amount:a, id:e.id,
-          repaid:crewRepaid,
-          repaidAmt:crewRepaidAmt
+          kind:"crew", whoId:crewPayerId, who:expPocketPersonName(crewPayerId),
+          crewName:e.vendor||"Crew", label:(e.vendor||"Crew")+" day pay",
+          amount:a, id:e.id, repaid:crewRepaidAmt>=a-0.009, repaidAmt:crewRepaidAmt
         });
         return;
       }
-      if(expCrewPayHitsFloat(e)){
-        cashOut+=a;
-        crewPaid+=a;
-        nCrewPaidLines++;
-        cashOutLines.push({kind:"crew", label:(e.vendor||"Crew")+" day pay", amount:a, id:e.id});
-      } else {
-        crewPrior+=a;
-      }
+      if(!expCrewPayHitsFloat(e)) crewPrior+=a;
       return;
     }
-    /* Model classification — no description heuristics */
     var cls=LY_MODELS&&LY_MODELS.classifyExpenseCash
       ?LY_MODELS.classifyExpenseCash(e)
       :{isReimbursement:expIsReimbursement(e), paidFrom:expPaidFromOwnMoney(e)?"own":(e.payMethod==="Credit Card"?"card":"petty"), hitsPettyCash:expExpenseHitsPetty(e), hitsOwnMoneyPocket:expPaidFromOwnMoney(e), ownMoneyPayerId:expPocketWhoId(e)||EXP_POCKET_CAPTAIN, clearsPocketFor:expReimburseWhoId(e)};
     if(cls.isReimbursement){
       if(cls.paidFrom==="card"){ cardOut+=a; return; }
-      if(cls.hitsPettyCash){
-        cashOut+=a;
-        reimburseCap+=a;
-        cashOutLines.push({
-          kind:"reimburse",
-          label:"Repaid "+expPocketPersonName(expReimburseWhoId(e))+(e.vendor?" · "+e.vendor:""),
-          amount:a, id:e.id
-        });
-      } else if(cls.paidFrom==="own"){
-        /* Captain/crew paid the person from personal cash — boat now owes the payer */
+      if(cls.hitsPettyCash) reimburseCap+=a;
+      else if(cls.paidFrom==="own"){
         ownMoneyExp+=a;
         var roWhoId=String(cls.ownMoneyPayerId||EXP_POCKET_CAPTAIN);
         var roAsOwn={id:e.id, amount:e.amount, paidFrom:"Own money", paidById:roWhoId, date:e.date, category:e.category||"Reimbursement"};
         var roRepaidAmt=expOwnMoneyRepaidAmt(roAsOwn, month);
         pocketOutLines.push({
-          kind:"reimburse-own",
-          whoId:roWhoId,
-          who:expPocketPersonName(roWhoId),
+          kind:"reimburse-own", whoId:roWhoId, who:expPocketPersonName(roWhoId),
           label:"Repaid "+expPocketPersonName(cls.clearsPocketFor||expReimburseWhoId(e))+(e.vendor?" · "+e.vendor:""),
-          amount:a, id:e.id,
-          repaid:roRepaidAmt>=a-0.009,
-          repaidAmt:roRepaidAmt
+          amount:a, id:e.id, repaid:roRepaidAmt>=a-0.009, repaidAmt:roRepaidAmt
         });
       }
       return;
@@ -8283,27 +8279,19 @@ function expSettlementFigures(month){
     if(cls.hitsOwnMoneyPocket){
       ownMoneyExp+=a;
       var whoId=String(cls.ownMoneyPayerId||expPocketWhoId(e)||EXP_POCKET_CAPTAIN);
-      /* Manual Crew Salaries (e.g. Laura day pay logged as expense) = day pay, not shop */
       var isCrewSal=expIsCrewSalariesCategory(e);
-      var crewWhoLabel=e.vendor||"Crew";
       pocketOutLines.push({
-        kind:isCrewSal?"crew":"shop",
-        whoId:whoId,
-        who:expPocketPersonName(whoId),
-        crewName:isCrewSal?crewWhoLabel:"",
+        kind:isCrewSal?"crew":"shop", whoId:whoId, who:expPocketPersonName(whoId),
+        crewName:isCrewSal?(e.vendor||"Crew"):"",
         label:isCrewSal
-          ?(crewWhoLabel+" day pay"+(e.description?" · "+String(e.description).slice(0,40):""))
+          ?((e.vendor||"Crew")+" day pay"+(e.description?" · "+String(e.description).slice(0,40):""))
           :((e.vendor||e.category||"Expense")+(e.description?" · "+String(e.description).slice(0,40):"")),
         amount:a, id:e.id,
-        repaid:expOwnMoneyIsRepaid(e, month),
-        repaidAmt:expOwnMoneyRepaidAmt(e, month)
+        repaid:expOwnMoneyIsRepaid(e, month), repaidAmt:expOwnMoneyRepaidAmt(e, month)
       });
       return;
     }
-    if(!cls.hitsPettyCash) return;
-    cashOut+=a;
-    otherCash+=a;
-    cashOutLines.push({kind:"expense", label:(e.vendor||e.category||"Expense"), amount:a, id:e.id});
+    if(cls.hitsPettyCash) otherCash+=a;
   });
   cashOut=Math.round(cashOut*100)/100;
   crewPaid=Math.round(crewPaid*100)/100;
@@ -8311,14 +8299,8 @@ function expSettlementFigures(month){
   otherCash=Math.round(otherCash*100)/100;
   reimburseCap=Math.round(reimburseCap*100)/100;
   ownMoneyExp=Math.round(ownMoneyExp*100)/100;
-  var petty=expEnsurePetty(month);
-  var pettyStart=apaNum(petty.pettyStart);
-  var cashInTotal=expCashInSum(petty);
-  var cashInHand=Math.round((pettyStart+cashInTotal)*100)/100;
   var pettyEntered=pettyStart>0||cashInTotal>0;
-  /* Actual cash in the envelope — not reduced by unpaid people */
-  var pettyCash=Math.round((cashInHand-cashOut)*100)/100;
-  var pettyOnboard=pettyCash; /* alias used across UI */
+  var pettyOnboard=pettyCash;
   var cashShort=0;
   if(pettyEntered&&pettyCash<0) cashShort=Math.round((-pettyCash)*100)/100;
   var freeFloat=pettyEntered&&pettyCash>0?pettyCash:0;
@@ -8329,7 +8311,6 @@ function expSettlementFigures(month){
   var boatOwes=cap.owed||0;
   var pocketOwed=pockets.total||0;
   var peopleOwed=Math.round((pocketOwed+oweCrew)*100)/100;
-  /* Float books: cash on board vs people still to pay (can be “behind”) */
   var floatAfterPays=Math.round((pettyCash-peopleOwed)*100)/100;
   var floatBehind=floatAfterPays<0?Math.round((-floatAfterPays)*100)/100:0;
   var ownerCashIn=Math.round(Math.max(0, peopleOwed-freeFloat)*100)/100;
@@ -8617,24 +8598,52 @@ function expResetInventedCrewFloatPay(){
  * blank description, orphan keys, and unpaid dupes for the same stew+day.
  * Tips are never stored on expense lines.
  */
+/**
+ * Hard-collapse crew day-pay: exactly one expense per stew|date (model score).
+ * Removes ghost renames that double-count petty. Idempotent.
+ */
+function expCollapseCrewDayPayDuplicates(){
+  if(!isCaptain()||!state.expenses||!state.expenses.length) return false;
+  if(!(LY_MODELS&&LY_MODELS.collapseCrewDayPayExpenses)) return false;
+  var col=LY_MODELS.collapseCrewDayPayExpenses(state.expenses);
+  if(!(col.collapsed>0)) return false;
+  var keep={};
+  (col.expenses||[]).forEach(function(e){ if(e&&e.id!=null) keep[String(e.id)]=1; });
+  var n0=state.expenses.length;
+  state.expenses=state.expenses.filter(function(e){
+    if(!e) return false;
+    if(!expIsCrewDayPayLine(e)) return true;
+    return !!keep[String(e.id)];
+  });
+  var dirty=state.expenses.length!==n0;
+  if(dirty&&!DEMO) saveExpenses();
+  return dirty;
+}
 function expCleanOrphanStewDayPayLines(){
   if(!isCaptain()||!state.expenses||!state.expenses.length) return false;
+  /* Always collapse first — paid renames with different linkIds were the −€250 bug */
+  var collapsed=false;
+  try{ collapsed=expCollapseCrewDayPayDuplicates(); }catch(eCol){}
   var assignKeys={};
   var liveLink={};
   var liveStewDate={};
   (state.stewAssign||[]).forEach(function(a){
     if(!a||!a.eventKey) return;
-    if(a.cancelled||a.status==="cancelled"||a.cancelGhost) return;
+    var cancelled=!!(a.cancelled||a.status==="cancelled"||a.cancelGhost);
     var ek=String(a.eventKey);
     assignKeys[ek]=1;
     var d=String(a.start||"").slice(0,10);
+    var each=0;
+    try{ each=stewAssignDayPayAmount(a); }catch(eA){}
     (a.stewIds||[]).forEach(function(sid){
       if(!sid) return;
       liveLink["stew-day:"+ek+":"+sid]=1;
-      if(d) liveStewDate[String(sid)+"|"+d]=1;
+      /* Cancelled trips with remaining pay still “live” for that finger */
+      if(d&&(!cancelled||each>0)) liveStewDate[String(sid)+"|"+d]=1;
     });
   });
   function dayPayLid(e){
+    if(LY_MODELS&&LY_MODELS.crewDayPayLinkId) return LY_MODELS.crewDayPayLinkId(e);
     if(!e) return "";
     if(e.linkId) return String(e.linkId);
     if(e.stewEventKey&&e.stewId) return "stew-day:"+e.stewEventKey+":"+e.stewId;
@@ -8643,204 +8652,104 @@ function expCleanOrphanStewDayPayLines(){
   function isUnpaidCrew(e){
     return String(e.crewPayStatus||"")!=="Paid"&&!e.floatPay;
   }
-  function scoreUnpaidDayPay(e){
-    var s=0;
-    if(String(e.description||"").trim()) s+=100;
-    var lid=dayPayLid(e);
-    if(lid&&liveLink[lid]) s+=40;
-    if(e.stewEventKey&&assignKeys[String(e.stewEventKey)]) s+=15;
-    if(e.source==="stew") s+=10;
-    s+=Math.min(40, Math.round((Number(e.amount)||0)/5));
-    return s;
-  }
-  /* Best unpaid line only per stewId|date — Paid history is never collapsed away */
-  var bestUnpaidId={};
-  var bestUnpaidScore={};
-  (state.expenses||[]).forEach(function(e){
-    if(!e||!expIsCrewDayPayLine(e)||!isUnpaidCrew(e)) return;
-    var sid=String(e.stewId||"");
-    var d=String(e.date||"").slice(0,10);
-    if(!sid||!d) return;
-    var k=sid+"|"+d;
-    var sc=scoreUnpaidDayPay(e);
-    if(bestUnpaidScore[k]==null||sc>bestUnpaidScore[k]){
-      bestUnpaidScore[k]=sc;
-      bestUnpaidId[k]=String(e.id);
-    }
-  });
   var n0=state.expenses.length;
   var seenLink={};
-  var seenPaidFinger={}; /* stew|date|amount for Paid exact dupes */
   state.expenses=state.expenses.filter(function(e){
     if(!e) return false;
     var desc=String(e.description||"").trim();
     var unpaid=isUnpaidCrew(e);
-    /*
-     * Any unpaid Crew Salaries with empty description is junk (manual or stew).
-     * Legitimate day-pay always has “Stewardess / day work — …”.
-     */
     if(unpaid&&expIsCrewSalariesCategory(e)&&!desc) return false;
     if(!expIsCrewDayPayLine(e)) return true;
     var lid=dayPayLid(e);
     if(lid){
-      if(seenLink[lid]) return false; /* exact linkId dupe */
+      if(seenLink[lid]) return false;
       seenLink[lid]=1;
     }
     var ek=String(e.stewEventKey||"");
     var sid=String(e.stewId||"");
     var d=String(e.date||"").slice(0,10);
-    /* Blank description on day-pay → drop unless Paid history with amount */
     if(!desc){
       if(unpaid) return false;
       if(!(Number(e.amount)>0)) return false;
     }
-    /* Orphan event key + unpaid → drop (Paid kept for history) */
     if(ek&&!assignKeys[ek]&&unpaid) return false;
-    /* Unpaid day-pay for a stew+day that has no live assign → drop */
     if(unpaid&&sid&&d&&!liveStewDate[sid+"|"+d]&&!(lid&&liveLink[lid])) return false;
-    /* Same stew + same day: keep only the best unpaid line */
-    if(unpaid&&sid&&d&&bestUnpaidId[sid+"|"+d]&&String(e.id)!==bestUnpaidId[sid+"|"+d]) return false;
-    /* Exact Paid dupes (same stew/day/amount) after reassign noise */
-    if(!unpaid&&sid&&d){
-      var pf=sid+"|"+d+"|"+String(Math.round((Number(e.amount)||0)*100));
-      if(seenPaidFinger[pf]) return false;
-      seenPaidFinger[pf]=1;
-    }
     return true;
   });
   var dirty=state.expenses.length!==n0;
   if(dirty&&!DEMO) saveExpenses();
-  return dirty;
+  return dirty||collapsed;
 }
 /**
- * Seed this month’s crew lines from Stews charters (Paid and Unpaid).
- * Unpaid = visible for accountability, not cash out. Tips never included.
+ * Additive seed only: create missing unpaid day-pay lines for this month.
+ * NEVER rewrites Paid / floatPay lines (that made cash-out flicker and invent −€250).
  */
 function seedCurrentMonthStewCashExpenses(){
   if(!isCaptain()) return false;
-  try{ expCleanOrphanStewDayPayLines(); }catch(eCl){}
+  try{ expCollapseCrewDayPayDuplicates(); }catch(e0){}
   var month=expDefaultMonth();
   var today=localTodayYmd();
   if(!state.expenses) state.expenses=[];
-  var prevByLink={};
+  /* Existing fingers — do not touch */
+  var haveFinger={};
   (state.expenses||[]).forEach(function(e){
-    if(e&&e.linkId) prevByLink[e.linkId]=e;
+    if(!e||!expIsCrewDayPayLine(e)) return;
+    var f=LY_MODELS&&LY_MODELS.crewDayPayFinger
+      ?LY_MODELS.crewDayPayFinger(e)
+      :(String(e.stewId||"")+"|"+String(e.date||"").slice(0,10));
+    if(f) haveFinger[f]=1;
   });
-  var wanted={};
-  var wantedFinger={}; /* stewId|date → preferred linkId (one day-pay per stew per day) */
-  function preferAssignKey(ek){
-    ek=String(ek||"");
-    if(ek.indexOf("lead:")===0) return 3;
-    if(ek.indexOf("uid:")===0) return 2;
-    return 1;
-  }
+  var added=0;
   (state.stewAssign||[]).forEach(function(asg){
     if(!asg||!asg.eventKey||expMonthKey(asg.start)!==month) return;
     var cancelled=!!(asg.cancelled||asg.status==="cancelled"||asg.cancelGhost);
-    /* Cancelled guest trips: still seed when reduced day pay remains due */
-    if(cancelled){
-      var eachC=stewAssignDayPayAmount(asg);
-      if(!(eachC>0)||!(asg.stewIds&&asg.stewIds.length)) return;
-    }
-    if(String(asg.start||"")>today) return;
     var each=stewAssignDayPayAmount(asg);
+    if(cancelled&&!(each>0)) return;
+    if(String(asg.start||"")>today) return;
     if(!(each>0)) return;
     var ids=(asg.stewIds||[]).filter(Boolean);
     if(!ids.length) return;
     var date=String(asg.start).slice(0,10);
     var summary=String(asg.summary||"").trim()||"Charter";
-    var crewPayStatus=asg.payStatus==="Paid"?"Paid":"Unpaid";
     ids.forEach(function(sid){
       if(expIsStewDayPaySkipped(asg.eventKey, sid)) return;
       var finger=String(sid)+"|"+date;
-      var linkId="stew-day:"+asg.eventKey+":"+sid;
-      /* One expense per stew per day — prefer lead: keys / higher day pay / Paid */
-      var prevLink=wantedFinger[finger];
-      if(prevLink&&wanted[prevLink]){
-        var prev=wanted[prevLink];
-        var prevScore=(prev.crewPayStatus==="Paid"?100:0)+preferAssignKey(prev.stewEventKey)*10+(Number(prev.amount)||0);
-        var nextScore=(crewPayStatus==="Paid"?100:0)+preferAssignKey(asg.eventKey)*10+each;
-        if(nextScore<=prevScore) return;
-        delete wanted[prevLink];
-      }
+      if(haveFinger[finger]) return; /* already have a line — never replace */
       var rec=stewById(sid);
-      var old=prevByLink[linkId];
-      /* Prefer a previous line for same stew+date if key renamed */
-      if(!old){
-        (state.expenses||[]).forEach(function(e){
-          if(e&&expIsCrewDayPayLine(e)&&String(e.stewId)===String(sid)&&String(e.date).slice(0,10)===date&&String(e.description||"").trim())
-            old=e;
-        });
-      }
-      var paidFrom=(old&&old.paidFrom==="Own money")?"Own money":"Petty cash";
-      var manualPaid=!!(old&&old.payStatusManual)||!!asg.payStatusManual;
-      /* Preserve existing floatPay only — never invent cash-out on seed */
-      var floatPay=false;
-      if(crewPayStatus==="Paid"&&paidFrom!=="Own money"&&old&&old.floatPay===true){
-        floatPay=true;
-      }
-      wantedFinger[finger]=linkId;
-      wanted[linkId]={
-        id:(old&&old.id)||uid(),
+      var linkId="stew-day:"+asg.eventKey+":"+sid;
+      var crewPayStatus=asg.payStatus==="Paid"?"Paid":"Unpaid";
+      /* New lines never invent floatPay — captain must mark Paid from petty */
+      state.expenses.unshift({
+        id:uid(),
         linkId:linkId,
         source:"stew",
         stewEventKey:asg.eventKey,
         stewId:String(sid),
         stewPayKind:"dayPay",
         crewPayStatus:crewPayStatus,
-        floatPay:floatPay,
-        payStatusManual:manualPaid,
+        floatPay:false,
+        payStatusManual:false,
         date:date,
-        vendor:(rec&&rec.name)||(old&&old.vendor)||"Stew",
+        vendor:(rec&&rec.name)||"Stew",
         description:"Stewardess / day work — "+summary+(cancelled?" (cancelled trip)":""),
         category:"Crew Salaries",
         payMethod:"Cash",
-        paidFrom:paidFrom,
+        paidFrom:"Petty cash",
         amount:each,
-        receipt:(old&&old.receipt)||"",
+        receipt:"",
         by:session.who||"Captain",
         updatedAt:new Date().toISOString()
-      };
+      });
+      haveFinger[finger]=1;
+      added++;
     });
   });
-  var beforeSig=JSON.stringify((state.expenses||[]).filter(function(e){
-    return e&&e.source==="stew"&&e.stewPayKind==="dayPay"&&expMonthKey(e.date)===month;
-  }).map(function(e){return [e.linkId,e.amount,e.vendor,e.date,e.crewPayStatus||"Paid",!!e.floatPay,e.paidFrom||"Petty cash"];}).sort());
-  /*
-   * Keep Paid orphan history; drop unpaid orphans that match a regenerated line
-   * (same stew + day), blank description, or duplicate link after key renames.
-   */
-  var rest=(state.expenses||[]).filter(function(e){
-    if(!e) return false;
-    var unpaid=String(e.crewPayStatus||"")!=="Paid"&&!e.floatPay;
-    var desc=String(e.description||"").trim();
-    /* Blank unpaid Crew Salaries never survive seed */
-    if(unpaid&&expIsCrewSalariesCategory(e)&&!desc) return false;
-    if(e.source==="stew"&&expMonthKey(e.date)===month){
-      if(e.stewPayKind==="dayPay"||e.stewEventKey||(e.linkId&&String(e.linkId).indexOf("stew-day:")===0)){
-        var lid=e.linkId||(e.stewEventKey&&e.stewId?("stew-day:"+e.stewEventKey+":"+e.stewId):"");
-        if(lid&&wanted[lid]) return false; /* replaced below */
-        var finger=String(e.stewId||"")+"|"+String(e.date||"").slice(0,10);
-        if(wantedFinger[finger]&&unpaid) return false;
-        if(!desc&&unpaid) return false;
-        return true;
-      }
-    }
-    return true;
-  });
-  var seeded=Object.keys(wanted).map(function(k){ return wanted[k]; });
-  state.expenses=seeded.concat(rest);
-  /* Final safety: one unpaid day-pay line per stew|date this month */
-  try{ expCleanOrphanStewDayPayLines(); }catch(eCl2){}
-  var afterSig=JSON.stringify((state.expenses||[]).filter(function(e){
-    return e&&e.source==="stew"&&e.stewPayKind==="dayPay"&&expMonthKey(e.date)===month;
-  }).map(function(e){return [e.linkId,e.amount,e.vendor,e.date,e.crewPayStatus||"Paid",!!e.floatPay,e.paidFrom||"Petty cash"];}).sort());
-  var changed=beforeSig!==afterSig;
-  if(changed){
+  if(added>0){
     expMonth=month;
     if(!DEMO) saveExpenses();
+    return true;
   }
-  return changed;
+  return false;
 }
 function syncAllStewDayPayExpenses(){
   if(!isCaptain()) return false;
