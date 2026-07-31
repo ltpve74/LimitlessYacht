@@ -2351,12 +2351,11 @@
       line-height:1.5
     }
     .cal-hold-note{
-      font-size:0.58rem;
-      line-height:1.5;
+      font-size:0.55rem;
+      line-height:1.55;
       margin:0.45rem 0 0;
-      padding:0.45rem 0.55rem;
-      color:#fff3d6;
-      font-weight:600;
+      color:#e8c070;
+      font-weight:500;
       opacity:1
     }
     .contact-cal-pair .availability-actions{
@@ -2504,10 +2503,9 @@
     box-shadow:inset 0 0 0 1px rgba(143,74,82,0.55)
   }
   .cal-cell.past.tentative{
-    background:repeating-linear-gradient(-45deg,#b86a12 0 3px,#5a3208 3px 6px);
-    color:rgba(255,220,150,0.72);
-    box-shadow:inset 0 0 0 2px rgba(200,120,30,.55);
-    opacity:.72
+    background:repeating-linear-gradient(-45deg,rgba(200,120,30,.28),rgba(200,120,30,.28) 3px,rgba(120,70,15,.2) 3px,rgba(120,70,15,.2) 6px);
+    color:rgba(232,190,120,0.72);
+    box-shadow:inset 0 0 0 1.5px rgba(200,120,30,.4)
   }
   .cal-cell.today:not(.selected)::after{
     content:'';
@@ -2526,62 +2524,25 @@
     font-weight:600;
     box-shadow:inset 0 0 0 1px rgba(0,0,0,.18)
   }
-  /* On hold: high-contrast amber hatch + glow + corner flag — unmistakably not free */
-  @keyframes cal-hold-pulse{
-    0%,100%{
-      box-shadow:inset 0 0 0 2.5px #ffb020,0 0 0 0 rgba(255,176,32,0),0 0 10px rgba(255,160,20,.35)
-    }
-    50%{
-      box-shadow:inset 0 0 0 2.5px #ffd060,0 0 0 3px rgba(255,176,32,.4),0 0 16px rgba(255,180,30,.55)
-    }
-  }
+  /* On hold: soft amber hatch + ring — distinct from free gold, still quiet */
   .cal-cell.tentative{
-    background:repeating-linear-gradient(-45deg,#ff9a1a 0 4px,#8a3f00 4px 8px);
-    color:#fff;
-    font-weight:700;
-    text-shadow:0 1px 1px rgba(0,0,0,.35);
+    background:repeating-linear-gradient(-45deg,rgba(232,150,40,.42),rgba(232,150,40,.42) 3px,rgba(140,80,12,.32) 3px,rgba(140,80,12,.32) 6px);
+    color:#f5e6c0;
+    font-weight:600;
     cursor:pointer;
     user-select:none;
     touch-action:manipulation;
     -webkit-tap-highlight-color:transparent;
-    box-shadow:inset 0 0 0 2.5px #ffb020,0 0 0 0 rgba(255,176,32,0),0 0 10px rgba(255,160,20,.35);
-    animation:cal-hold-pulse 2.2s ease-in-out infinite
-  }
-  .cal-cell.tentative::before{
-    content:'';
-    position:absolute;
-    top:0;
-    right:0;
-    width:0;
-    height:0;
-    border-style:solid;
-    border-width:0 11px 11px 0;
-    border-color:transparent #ffe08a transparent transparent;
-    border-top-right-radius:5px;
-    pointer-events:none;
-    z-index:1
+    box-shadow:inset 0 0 0 2px rgba(220,150,40,.85)
   }
   .cal-cell.tentative:hover:not(.selected){
-    background:repeating-linear-gradient(-45deg,#ffb020 0 4px,#a34c00 4px 8px);
-    color:#fff;
-    box-shadow:inset 0 0 0 2.5px #ffd060,0 0 0 2px rgba(255,200,60,.5),0 0 18px rgba(255,180,30,.6);
-    animation:none
+    background:repeating-linear-gradient(-45deg,rgba(240,165,50,.52),rgba(240,165,50,.52) 3px,rgba(160,90,18,.4) 3px,rgba(160,90,18,.4) 6px);
+    color:#fff8e8;
+    box-shadow:inset 0 0 0 2px #e8a838
   }
   .cal-cell.tentative:focus-visible{
-    outline:2px solid #ffd060;
-    outline-offset:2px
-  }
-  .cal-cell.tentative.selected,
-  .cal-cell.tentative.selected:hover{
-    animation:none
-  }
-  .cal-cell.tentative.selected::before,.cal-cell.tentative.selected:hover::before{
-    border-color:transparent rgba(10,22,40,.55) transparent transparent
-  }
-  @media (prefers-reduced-motion:reduce){
-    .cal-cell.tentative{
-      animation:none
-    }
+    outline:2px solid #e8a838;
+    outline-offset:1px
   }
   /* Available: clear open gold fill (distinct from on-hold hatch) */
   .cal-cell.free{
@@ -2721,26 +2682,16 @@
     background:#8f4a52
   }
   .leg-tentative{
-    background:repeating-linear-gradient(-45deg,#ff9a1a 0 3px,#8a3f00 3px 6px);
-    box-shadow:inset 0 0 0 1.5px #ffb020,0 0 6px rgba(255,160,20,.45)
-  }
-  .cal-legend > span:has(.leg-tentative){
-    color:#ffc84a;
-    font-weight:600
+    background:repeating-linear-gradient(-45deg,rgba(232,150,40,.7),rgba(232,150,40,.7) 2px,rgba(140,80,12,.55) 2px,rgba(140,80,12,.55) 4px);
+    box-shadow:inset 0 0 0 1px rgba(220,150,40,.8)
   }
   .cal-hold-note{
     margin:.55rem 0 0;
-    padding:.55rem .7rem;
-    font-size:.68rem;
-    letter-spacing:.03em;
-    line-height:1.55;
-    color:#fff3d6;
-    font-weight:600;
-    background:rgba(255,154,26,.14);
-    border:1px solid rgba(255,176,32,.55);
-    border-left:3px solid #ffb020;
-    border-radius:6px;
-    box-shadow:0 0 12px rgba(255,160,20,.15)
+    font-size:.62rem;
+    letter-spacing:.04em;
+    line-height:1.6;
+    color:#e8c070;
+    font-weight:500
   }
   @media (min-width:820px){
     .cal{
