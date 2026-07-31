@@ -1370,19 +1370,27 @@ function configureNavForRole(){
   });
 }
 function enterApp(){
-  el("gate").classList.add("hidden"); el("app").classList.remove("hidden");
-  var roleLabel=isTeam()?"Team":(isManager()?"Manager":"Captain");
-  el("meLabel").textContent=session.who+(session.who!==roleLabel?" · "+roleLabel:"")+(DEMO?" · demo":"");
-  el("demoNote").classList.toggle("hidden",!DEMO);
-  configureNavForRole();
+  /* Never throw out of enterApp — a paint bug must not leave the user stuck on the gate */
+  try{
+    if(el("gate")) el("gate").classList.add("hidden");
+    if(el("app")) el("app").classList.remove("hidden");
+  }catch(eGate){}
+  try{
+    var roleLabel=isTeam()?"Team":(isManager()?"Manager":"Captain");
+    if(el("meLabel")) el("meLabel").textContent=session.who+(session.who!==roleLabel?" · "+roleLabel:"")+(DEMO?" · demo":"");
+    if(el("demoNote")) el("demoNote").classList.toggle("hidden",!DEMO);
+  }catch(eLab){}
+  try{ configureNavForRole(); }catch(eNav){}
   /* Default landing: team → roster; manager/captain → leads (charges second) */
-  if(isTeam()){
-    if(curTab!=="stews"&&curTab!=="security") curTab="stews";
-  } else if(!isCaptain()&&isOpsTab(curTab)){
-    curTab="leads";
-  } else if(canCommercial()&&(isOpsTab(curTab)||!curTab)){
-    curTab="leads";
-  }
+  try{
+    if(isTeam()){
+      if(curTab!=="stews"&&curTab!=="security") curTab="stews";
+    } else if(!isCaptain()&&isOpsTab(curTab)){
+      curTab="leads";
+    } else if(canCommercial()&&(isOpsTab(curTab)||!curTab)){
+      curTab="leads";
+    }
+  }catch(eTab){ curTab="leads"; }
   /* Deep link from push: /tracker/?tab=leads&pending=1 */
   try{
     var q=new URLSearchParams(location.search||"");
@@ -1393,16 +1401,20 @@ function enterApp(){
   try{ switchTab(curTab); }catch(e0){ console&&console.error&&console.error("[tracker] switchTab",e0); }
   /* Always paint all visible data once — switchTab alone used to skip charges/leads */
   try{ renderAll(); }catch(e){ console&&console.error&&console.error("[tracker] renderAll",e); }
-  if(!DEMO){ startPolling(); initPushUI(); }
-  else { setPushStatus("na","Demo mode — notifications need the live app"); }
+  try{
+    if(!DEMO){ startPolling(); initPushUI(); }
+    else if(typeof setPushStatus==="function") setPushStatus("na","Demo mode — notifications need the live app");
+  }catch(ePush){}
   /* Prompt once logged in if not already running as home-screen app */
-  setTimeout(function(){ maybeShowInstallPrompt(); }, 600);
+  try{ setTimeout(function(){ maybeShowInstallPrompt(); }, 600); }catch(eInst){}
   try{
     var q2=new URLSearchParams(location.search||"");
     if(q2.get("pending")==="1"&&canCommercial()){
       setTimeout(function(){
-        if(curTab!=="leads") switchTab("leads");
-        openNextPendingLead();
+        try{
+          if(curTab!=="leads") switchTab("leads");
+          openNextPendingLead();
+        }catch(ePend){}
       }, 400);
     }
   }catch(eP){}
@@ -3368,6 +3380,7 @@ function leadMatchesSearch(r, q){
 function renderLeads(){
   sortLeads();
   var wrap=el("ldList"), html="";
+  if(!wrap) return;
   var pend=0, nPendSrc=0, nOpenDeal=0;
   var searchQ=el("ldSearch")?String(el("ldSearch").value||""):"";
   var nShown=0, nHidden=0;
@@ -15330,8 +15343,9 @@ function paintGateInstallFirst(){
   var panel=el("gateInstallFirst"), form=el("gateForm");
   if(!panel||!form) return;
   var show=shouldShowGateInstallFirst();
+  /* Always keep the passcode form available — install tip is optional, never blocks login */
   panel.classList.toggle("hidden",!show);
-  form.classList.toggle("hidden",!!show);
+  form.classList.remove("hidden");
   if(!show) return;
   var steps=el("gateInstallSteps");
   var nativeBtn=el("gateInstallNative");
@@ -15340,21 +15354,22 @@ function paintGateInstallFirst(){
       steps.innerHTML='<b>iPhone / iPad — Safari</b><ol>'+
         '<li>Tap <b>Share</b> <span aria-hidden="true">⬆️</span> at the bottom</li>'+
         '<li>Tap <b>Add to Home Screen</b></li>'+
-        '<li>Tap <b>Add</b>, then open <b>Tracker</b> from the home screen and sign in</li>'+
-        '</ol>';
+        '<li>Tap <b>Add</b>, then open <b>Tracker</b> from the home screen</li>'+
+        '</ol>'+
+        '<p style="margin:10px 0 0;font-size:12.5px;color:var(--muted);line-height:1.4">Or sign in below in this browser.</p>';
     } else if(isAndroidDevice()){
       steps.innerHTML='<b>Android — Chrome</b><ol>'+
         '<li>Tap <b>⋮</b> (top right)</li>'+
         '<li>Tap <b>Install app</b> or <b>Add to Home screen</b></li>'+
-        '<li>Confirm, open <b>Tracker</b> from the home screen, then sign in</li>'+
+        '<li>Open <b>Tracker</b> from the home screen</li>'+
         '</ol>'+
-        '<p style="margin:8px 0 0;font-size:12.5px;color:var(--muted);line-height:1.4">Samsung Internet: menu → <b>Add page to</b> → <b>Home screen</b>.</p>';
+        '<p style="margin:8px 0 0;font-size:12.5px;color:var(--muted);line-height:1.4">Or sign in below in this browser. Samsung: menu → <b>Add page to</b> → <b>Home screen</b>.</p>';
     } else {
-      steps.innerHTML='<b>Install this site as an app</b><ol>'+
+      steps.innerHTML='<b>Optional: install as an app</b><ol>'+
         '<li>Open the browser menu (⋮)</li>'+
         '<li><b>Install app</b> / <b>Add to Home screen</b></li>'+
-        '<li>Open from the home screen and sign in</li>'+
-        '</ol>';
+        '</ol>'+
+        '<p style="margin:10px 0 0;font-size:12.5px;color:var(--muted);line-height:1.4">Or sign in below in this browser.</p>';
     }
   }
   if(nativeBtn){
@@ -15362,6 +15377,9 @@ function paintGateInstallFirst(){
     nativeBtn.classList.toggle("hidden",!canNative);
     nativeBtn.textContent=canNative?"Install app":"Install app";
   }
+  /* “Continue in browser” just dismisses the tip permanently this session */
+  var browser=el("gateInstallBrowser");
+  if(browser) browser.textContent="Hide tip · sign in below";
 }
 function bindGateInstallFirst(){
   var browser=el("gateInstallBrowser"), nativeBtn=el("gateInstallNative");
@@ -15711,15 +15729,17 @@ function applyData(d, opts){
   } else if(!isCaptain()) state.expPetty=[];
   if(typeof d.pushEnabled==="boolean") pushMeta.server=d.pushEnabled;
   if(d.vapidPublicKey) pushMeta.vapidPublicKey=d.vapidPublicKey;
-  sortCharters();
-  sortLeads();
+  try{ sortCharters(); }catch(eSc){}
+  try{ sortLeads(); }catch(eSl){}
   /* Device pin: free cash black (e.g. Michael €1800) restored if server still has ≈€1653 */
-  var cashPinsRestored=restoreAllLeadCashPins();
+  var cashPinsRestored=false;
+  try{ cashPinsRestored=restoreAllLeadCashPins(); }catch(ePin){}
   /* Repair dep/fin/total in memory only — never auto-save from repair alone. */
-  repairLeadWhiteInvoices();
+  try{ repairLeadWhiteInvoices(); }catch(eRep){}
+  try{ sortLeads(); }catch(eSort){}
   if(cashPinsRestored&&!DEMO){
-    touchLocalSave("leads");
-    save("leads"); /* under BOOT_QUIET this only queues until after open */
+    try{ touchLocalSave("leads"); }catch(eT){}
+    try{ save("leads"); }catch(eS){} /* under BOOT_QUIET this only queues until after open */
   }
   /*
    * Gate open must stay fast. Heavy APA strip / stew seed / multi-save runs after
