@@ -318,27 +318,44 @@
   }
   .ld-book-sec .item{margin-bottom:10px}
   .ld-book-sec .item:last-child{margin-bottom:0}
-  /* Desktop: hold + lost sit together; confirmed is the full-width main book */
+  /* Hold + lost stay pinned under the app bar — no scrolling the whole book to reinstate */
   #ldList.list{
     display:block;
     grid-template-columns:none;
   }
   .ld-book-pipeline{
     display:grid;
-    gap:14px;
-    margin:0 0 18px;
+    gap:12px;
+    margin:0 0 14px;
+    padding:8px 0 10px;
+    position:sticky;
+    top:calc(env(safe-area-inset-top,0px) + 52px);
+    z-index:6;
+    background:var(--bg);
+    border-bottom:1px solid var(--line);
+    box-shadow:0 10px 18px -14px rgba(15,25,30,.45);
   }
   .ld-book-pipeline .ld-book-sec{margin:0}
+  /* Compact lists: scroll inside hold/lost, not the whole page */
+  .ld-book-pipeline .ld-book-sec{
+    max-height:min(34vh,280px);
+    overflow:auto;
+    -webkit-overflow-scrolling:touch;
+    padding-right:2px;
+  }
   @media(min-width:900px){
     .ld-book-pipeline{
       grid-template-columns:1fr 1fr;
       align-items:start;
+      gap:14px;
     }
     .ld-book-pipeline .ld-book-sec{
-      max-height:min(70vh,720px);
-      overflow:auto;
-      padding-right:2px;
+      max-height:min(38vh,320px);
     }
+  }
+  .ld-book-sec--confirmed{
+    /* Main book starts right under the sticky pipeline */
+    scroll-margin-top:calc(env(safe-area-inset-top,0px) + 60px);
   }
   .ld-book-sec--cancelled .item .lead-actions .btn[data-reinstate-lead],
   .ld-book-sec--cancelled .item button[data-reinstate-lead]{
@@ -721,7 +738,7 @@
           <div id="ldOsTypes" class="ld-type-table"></div>
         </div>
       </div>
-      <div class="legend"><b>Book layout:</b> top = <b>On hold</b> + <b>Lost</b> (side by side on desktop — reinstate if they get in touch). Below = <b>Confirmed book</b> (main list). Confirm moves a card into Confirmed. Assigning a source does <b>not</b> confirm.</div>
+      <div class="legend"><b>Book layout:</b> <b>On hold</b> + <b>Lost</b> stay pinned at the top (side by side on desktop) while you scroll the confirmed list — reinstate without hunting. Confirm moves a card into <b>Confirmed book</b>.</div>
       <div id="ldFindBar" style="margin:0 0 12px">
         <input class="ctl" id="ldSearch" type="search" placeholder="Find lead — name, date (e.g. 6 Aug), source, notes…" autocomplete="off" style="width:100%">
         <div class="meta" id="ldSearchMeta" style="margin-top:6px;display:none"></div>
