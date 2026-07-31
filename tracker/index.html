@@ -14493,9 +14493,11 @@ function delRec(type,id){
       }catch(e1){}
     }
   }
-  state[coll]=state[coll].filter(function(r){return r.id!==id;});
+  /* Strict string id match — loose !== can miss string vs number ids */
+  var idS=String(id);
+  state[coll]=state[coll].filter(function(r){return !r||String(r.id)!==idS;});
   /* So server merge does not re-attach this id from a concurrent restore */
-  if(coll==="leads"||coll==="charters") queueDeletedId(coll, id);
+  if(coll==="leads"||coll==="charters") voidDeletedId(coll, idS);
   if(coll==="charters"){
     renderCharters();
     if(wasApa&&canOps()){ refreshApaFromCharges(); save("charters"); }
@@ -14698,12 +14700,15 @@ el("sheetInner").addEventListener("change",function(){ recalcLead(); recalcCharg
 
 /* Explicit deletes for merge-safe full-array saves (server keeps missing ids otherwise). */
 var pendingDeletedIds={ leads:[], charters:[] };
+/** Queue an explicit delete so the next save sends deletedIds (server merge keeps other rows). */
 function voidDeletedId(coll, id){
   if((coll!=="leads"&&coll!=="charters")||id==null||id==="") return;
   var arr=pendingDeletedIds[coll]||(pendingDeletedIds[coll]=[]);
   var s=String(id);
   if(arr.indexOf(s)<0) arr.push(s);
 }
+/* Alias — older call sites / mental name “queue” */
+function queueDeletedId(coll, id){ voidDeletedId(coll, id); }
 function takeDeletedIds(coll){
   var arr=(pendingDeletedIds[coll]||[]).slice();
   pendingDeletedIds[coll]=[];
