@@ -318,6 +318,35 @@
   }
   .ld-book-sec .item{margin-bottom:10px}
   .ld-book-sec .item:last-child{margin-bottom:0}
+  /* Desktop: hold + lost sit together; confirmed is the full-width main book */
+  #ldList.list{
+    display:block;
+    grid-template-columns:none;
+  }
+  .ld-book-pipeline{
+    display:grid;
+    gap:14px;
+    margin:0 0 18px;
+  }
+  .ld-book-pipeline .ld-book-sec{margin:0}
+  @media(min-width:900px){
+    .ld-book-pipeline{
+      grid-template-columns:1fr 1fr;
+      align-items:start;
+    }
+    .ld-book-pipeline .ld-book-sec{
+      max-height:min(70vh,720px);
+      overflow:auto;
+      padding-right:2px;
+    }
+  }
+  .ld-book-sec--cancelled .item .lead-actions .btn[data-reinstate-lead],
+  .ld-book-sec--cancelled .item button[data-reinstate-lead]{
+    background:var(--brand);
+    color:#fff;
+    border-color:var(--brand);
+    font-weight:800;
+  }
   .ld-status-banner{
     display:block;font-size:11.5px;font-weight:800;letter-spacing:.03em;
     text-transform:uppercase;color:#7a5200;background:#FFE08A;
@@ -692,7 +721,7 @@
           <div id="ldOsTypes" class="ld-type-table"></div>
         </div>
       </div>
-      <div class="legend"><b>Book layout:</b> <b>On hold / tentative</b> → confirm moves the card to <b>Confirmed book</b>. <b>Cancelled</b> stays in its own grey archive (not in the main list). Assigning a source does <b>not</b> confirm. Owner’s days = no income · benefits. Owner-sourced = income · 0% commission for now.</div>
+      <div class="legend"><b>Book layout:</b> top = <b>On hold</b> + <b>Lost</b> (side by side on desktop — reinstate if they get in touch). Below = <b>Confirmed book</b> (main list). Confirm moves a card into Confirmed. Assigning a source does <b>not</b> confirm.</div>
       <div id="ldFindBar" style="margin:0 0 12px">
         <input class="ctl" id="ldSearch" type="search" placeholder="Find lead — name, date (e.g. 6 Aug), source, notes…" autocomplete="off" style="width:100%">
         <div class="meta" id="ldSearchMeta" style="margin-top:6px;display:none"></div>
@@ -3669,7 +3698,7 @@ function renderLeads(){
         (isPending&&!cancelled?'<button type="button" class="btn" data-edit-ld-btn="'+esc(r.id)+'">Assign source</button>':'')+
         (isOpenDeal?'<button type="button" class="btn" data-edit-ld-btn="'+esc(r.id)+'">'+(isOwner?"Confirm owner’s days":"Close deal / confirm")+'</button>':'')+
         (isTentative&&!cancelled?'<button type="button" class="btn danger" data-cancel-tentative="'+esc(r.id)+'">Cancel tentative</button>':'')+
-        (cancelled?'<button type="button" class="btn" data-reinstate-lead="'+esc(r.id)+'">Reinstate</button>':'')+
+        (cancelled?'<button type="button" class="btn" data-reinstate-lead="'+esc(r.id)+'">Reinstate · if they get in touch</button>':'')+
       '</div>'+
       '<span class="chev">✎</span></div>';
     if(cancelled) cancCards.push(cardHtml);
@@ -3693,15 +3722,26 @@ function renderLeads(){
   } else if(!nShown&&searchQ){
     html=emptyBox("🌐","No leads match “"+searchQ+"”","Clear the find box, or try the date (e.g. 6 Aug / 2026-08-06). Sync calendar if it vanished.");
   } else {
+    /* Pipeline first: hold + lost stay together (side-by-side on desktop). Confirmed is main book. */
     html=
-      ldBookSection(
-        "ld-book-sec--tentative",
-        "On hold · tentative",
-        "Not firm — assign source, then Confirm or deposit Paid. Stays here until confirmed.",
-        tentCards.length,
-        tentCards,
-        "No tentative holds right now."
-      )+
+      '<div class="ld-book-pipeline">'+
+        ldBookSection(
+          "ld-book-sec--tentative",
+          "On hold · tentative",
+          "Not firm — assign source, then Confirm or deposit Paid.",
+          tentCards.length,
+          tentCards,
+          "No tentative holds right now."
+        )+
+        ldBookSection(
+          "ld-book-sec--cancelled",
+          "Lost · cancelled",
+          "Greyed out · not deleted. Reinstate when they get in touch.",
+          cancCards.length,
+          cancCards,
+          "No lost / cancelled leads."
+        )+
+      '</div>'+
       ldBookSection(
         "ld-book-sec--confirmed",
         "Confirmed book",
@@ -3709,14 +3749,6 @@ function renderLeads(){
         confCards.length,
         confCards,
         "No confirmed charters yet — confirm a tentative deal to fill this list."
-      )+
-      ldBookSection(
-        "ld-book-sec--cancelled",
-        "Cancelled archive",
-        "Greyed out · not deleted. Reinstate if the trip comes back.",
-        cancCards.length,
-        cancCards,
-        "No cancelled leads."
       );
   }
   wrap.innerHTML=html;
