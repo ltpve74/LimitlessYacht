@@ -786,6 +786,7 @@ function stewCalendarRowsFromLeads(leads, stewAssign) {
   const rows = [];
   (Array.isArray(leads) ? leads : []).forEach((l) => {
     if (!l || !l.id) return;
+    /* Same cancel rules as public site calendar (respects explicit reinstate) */
     if (leadIsCancelledForSite(l)) return;
     /* Pending / on-hold: public calendar only — not on stew roster until source assigned */
     if (leadIsOnHold(l)) return;
@@ -1487,8 +1488,13 @@ function noticeMatchesSub(notice, sub) {
 function leadIsCancelledRow(lead) {
   /* Push notifications: treat explicit cancel flags only (not sticky Refunded). */
   if (!lead) return false;
-  if (lead.bookingStatus === "cancelled" || lead.cancelled === true) return true;
+  if (lead.bookingStatus === "cancelled") return true;
+  if (lead.cancelled === true || lead.cancelled === "true" || lead.cancelled === 1)
+    return true;
   if (lead.status === "Cancelled" || lead.status === "cancelled") return true;
+  /* Explicit reinstate — not cancelled even if notes still say “Cancelled…” */
+  if (lead.cancelled === false || lead.cancelled === "false" || lead.cancelled === 0)
+    return false;
   return false;
 }
 function stewIdsKey(asg) {
@@ -1564,6 +1570,27 @@ function buildNotices(coll, prevRows, nextRows, who, data) {
           title: "Charter cancelled",
           body: `${name}${when ? " · " + when : ""} (by ${who})`,
           tag: `lead-cancel-${lead.id}`,
+          url: "/tracker/",
+          to: "team_and_captain",
+        });
+      }
+      /* Cancelled → active again (reinstate / un-cancel) → team + captain */
+      if (old && wasCanc && !nowCanc) {
+        const hold =
+          lead.dealClosed === false ||
+          lead.dealClosed === "false" ||
+          lead.dealClosed === 0 ||
+          !lead.dealClosed;
+        const hasDay = /^\d{4}-\d{2}-\d{2}$/.test(
+          String(lead.start || lead.cdate || "").slice(0, 10)
+        );
+        notices.push({
+          title: "Charter reinstated",
+          body:
+            `${name}${when ? " · " + when : ""}` +
+            (hasDay && hold ? " · on hold again" : hasDay ? " · active" : " · no dates") +
+            ` (by ${who})`,
+          tag: `lead-reinstate-${lead.id}`,
           url: "/tracker/",
           to: "team_and_captain",
         });

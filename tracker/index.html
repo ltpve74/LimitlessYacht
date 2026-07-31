@@ -2711,6 +2711,8 @@ function reinstateLeadCharter(lead, opts){
    * Explicit active flags — leadBookingStatus must not re-grey via notes
    * still containing “Cancelled…” or a Refunded deposit from the prior cancel.
    */
+  var priorReason=String(live.cancelReason||"");
+  var priorRefund=Math.round((Number(live.refundTotal)||0)*100)/100;
   live.bookingStatus="active";
   live.cancelled=false;
   if(live.status==="Cancelled"||live.status==="cancelled") live.status="active";
@@ -2723,13 +2725,20 @@ function reinstateLeadCharter(lead, opts){
   /* Reinstated deals start open / on hold — captain confirms again when firm */
   live.dealClosed=false;
   /*
-   * Clear sticky Refunded invoice flags from the prior cancel. Those used to keep
-   * the public site calendar treating the lead as cancelled (hold never returned).
-   * Captain re-issues invoices if money is due again.
+   * Tentative cancel / no money refunded: put Refunded lines back to Not issued so
+   * site calendar and invoice UI stay clean. Real paid refunds keep Refunded history.
+   * Also clear sticky Refunded when it was only a cancel marker (hold never returned).
    */
-  if(String(live.deps||"")==="Refunded") live.deps="Not issued";
-  if(String(live.fins||"")==="Refunded") live.fins="Not issued";
-  if(String(live.apas||"")==="Refunded") live.apas="Not issued";
+  if(priorRefund<0.01||/tentative|hold-taken/i.test(priorReason)){
+    if(leadInvStatus(live.deps)==="Refunded") live.deps="Not issued";
+    if(leadInvStatus(live.fins)==="Refunded") live.fins="Not issued";
+    if(leadInvStatus(live.apas)==="Refunded") live.apas="Not issued";
+  } else {
+    /* Even with refund history, public calendar must not treat reinstate as cancelled */
+    if(String(live.deps||"")==="Refunded"&&(live.cancelled===false||live.cancelled==="false")){
+      /* keep Refunded for bookkeeping — site calendar uses cancelled=false */
+    }
+  }
   if(opts.clearDates){
     live.start="";
     live.end="";
@@ -2737,8 +2746,8 @@ function reinstateLeadCharter(lead, opts){
     live.days=0;
   } else {
     /*
-     * If the card lost start/end (legacy cancel, or clearDates then edit), try to
-     * reattach from the linked calendar event so reinstate can put the hold back.
+     * If the card lost start/end (legacy cancel), reattach from linked calendar
+     * event so reinstate can put the hold back on the public site calendar.
      */
     var hasStart=!!String(live.start||live.cdate||"").slice(0,10);
     if(!hasStart){
@@ -2751,6 +2760,14 @@ function reinstateLeadCharter(lead, opts){
           if(evEnd&&evEnd!==live.start) live.end=evEnd;
         }
       }catch(eDate){}
+    }
+    /* Ensure day count so multi-day hold range rebuilds correctly */
+    if(!(Number(live.days)>0)){
+      var s0=String(live.start||live.cdate||"").slice(0,10);
+      var e0=String(live.end||"").slice(0,10);
+      if(s0&&e0&&e0>s0&&typeof daysBetween==="function"){
+        try{ live.days=Math.max(1, daysBetween(s0,e0)||1); }catch(eD){ live.days=1; }
+      } else if(s0) live.days=1;
     }
   }
   var noteBit="Reinstated"+(opts.clearDates?" · no calendar dates (active, not on hold for a day)":" · dates on hold again")+
