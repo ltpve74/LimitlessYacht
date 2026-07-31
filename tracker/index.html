@@ -2549,14 +2549,22 @@ function leadCancelRefundPlan(r){
   return plan;
 }
 /**
- * Captain cancel (weather / mechanical / etc.): booking cancelled;
- * refunds all Paid/Issued invoice lines (deposit + final + APA), not deposit only;
- * free cash not collected / reversed off boat. Stew pay: opts.zeroPay / keepPay as before.
+ * Captain cancel (weather / mechanical / etc.): booking cancelled — never deletes the lead.
+ * Refunds Paid/Issued invoice lines when any; free cash reversed if posted.
+ * Unconfirmed / tentative: also clears charter dates so the calendar hold is freed
+ * (public site + card); lead stays greyed-out cancelled for the book.
+ * Stew pay: opts.zeroPay / keepPay as before.
  */
 function cancelLeadCharter(lead, opts){
   opts=opts||{};
   if(!lead||!lead.id) return false;
-  var reason=opts.reason||"weather-captain";
+  /* Capture before we flip cancelled (leadIsUnconfirmed treats cancelled as false) */
+  var wasUnconfirmed=false;
+  try{
+    if(leadSource(lead)==="pending") wasUnconfirmed=true;
+    else if(!leadIsDealClosed(lead)) wasUnconfirmed=true;
+  }catch(eU){}
+  var reason=opts.reason||(wasUnconfirmed?"tentative-dropped":"weather-captain");
   var zeroPay=opts.zeroPay!==false&&opts.keepPay!==true;
   var plan=leadCancelRefundPlan(lead);
   lead.bookingStatus="cancelled";
@@ -2564,6 +2572,7 @@ function cancelLeadCharter(lead, opts){
   lead.cancelReason=reason;
   lead.cancelledAt=new Date().toISOString();
   lead.cancelledBy=session.who||"Captain";
+  lead.dealClosed=false; /* cancelled is never a firm deal */
   lead.refundScope=plan.scope;
   lead.refundTotal=plan.total;
   lead.refundAt=lead.cancelledAt;
@@ -2578,25 +2587,147 @@ function cancelLeadCharter(lead, opts){
   /* Free cash never collected / reverse if posted */
   lead.cashSettled=false;
   if(isCaptain()&&lead.id) expRemoveLeadCashIn(lead.id, true);
+  /*
+   * Tentative / unconfirmed cancel: free the hold dates.
+   * Keep calendarEventKey so ICS sync does not re-import as a brand-new pending lead
+   * (server also skips cancelled leads). Dates cleared so the card no longer shows a day
+   * and public availability rebuild drops the hold.
+   */
+  var clearDates=opts.clearDates!=null?!!opts.clearDates:wasUnconfirmed;
+  var clearedStart="", clearedEnd="";
+  if(clearDates){
+    clearedStart=String(lead.start||lead.cdate||"").slice(0,10);
+    clearedEnd=String(lead.end||"").slice(0,10);
+    lead.start="";
+    lead.end="";
+    lead.cdate="";
+    lead.days=0;
+  }
   var refundNote=plan.scope==="full"
     ?("full refund "+(plan.total>0?money0(plan.total):"")+" — deposit"+
       (plan.refundFin?" + final":"")+(plan.refundApa?" + APA":"")+(plan.reverseCash?" + free cash":""))
     :(plan.scope==="deposit"
       ?("deposit refunded"+(plan.dep>0?" "+money0(plan.dep):""))
       :(plan.total>0?"refund "+money0(plan.total):"no payment to refund"));
-  var noteBit="Cancelled ("+(reason==="weather-captain"?"captain decision / mechanical or weather":reason)+")"+
-    (opts.note?": "+opts.note:"")+" · "+refundNote.trim()+
-    (zeroPay?"":" · stew still due day pay (adjust on Stews / Expenses)");
+  var noteBit;
+  if(wasUnconfirmed||reason==="tentative-dropped"){
+    noteBit="Cancelled tentative lead (kept greyed — not deleted)"+
+      (clearedStart?" · freed hold "+clearedStart+(clearedEnd&&clearedEnd!==clearedStart?"–"+clearedEnd:""):" · calendar hold released")+
+      (opts.note?": "+opts.note:"");
+  } else {
+    noteBit="Cancelled ("+(reason==="weather-captain"?"captain decision / mechanical or weather":reason)+")"+
+      (opts.note?": "+opts.note:"")+" · "+refundNote.trim()+
+      (zeroPay?"":" · stew still due day pay (adjust on Stews / Expenses)");
+  }
   var prev=String(lead.notes||"").trim();
   if(prev&&prev.toLowerCase().indexOf("cancelled")<0) lead.notes=prev+"\n"+noteBit;
   else if(!prev) lead.notes=noteBit;
   lead.updatedAt=new Date().toISOString();
-  var stew=cancelStewsForLead(lead, {zeroPay:zeroPay, keepPay:!zeroPay});
+  var stew={n:0};
+  if(!wasUnconfirmed||opts.forceStewCancel){
+    stew=cancelStewsForLead(lead, {zeroPay:zeroPay, keepPay:!zeroPay});
+  }
   if(!DEMO){
     save("leads");
     if(isCaptain()) saveExpPetty();
   }
-  return {lead:lead, stew:stew, zeroPay:zeroPay, refund:plan};
+  return {lead:lead, stew:stew, zeroPay:zeroPay, refund:plan, wasUnconfirmed:wasUnconfirmed, clearedDates:clearDates, clearedStart:clearedStart, clearedEnd:clearedEnd};
+}
+/**
+ * UI entry for cancel (sheet button or list “Cancel tentative”).
+ * Unconfirmed: one confirm, grey out, free hold dates, no delete, no stew prompts.
+ * Confirmed: existing refund + stew day-pay flow.
+ */
+function runCancelLeadFromUi(rec){
+  if(!rec||!rec.id) return;
+  var name=rec.name||"this guest";
+  var unconfirmed=false;
+  try{
+    if(leadSource(rec)==="pending") unconfirmed=true;
+    else if(!leadIsDealClosed(rec)) unconfirmed=true;
+  }catch(e0){}
+  if(leadIsCancelled(rec)){
+    window.alert("This lead is already cancelled.");
+    return;
+  }
+  if(unconfirmed){
+    var startD=String(rec.start||rec.cdate||"").slice(0,10);
+    var endD=String(rec.end||"").slice(0,10);
+    var dateBit=startD?(fmtDate(startD)+(endD&&endD!==startD?" – "+fmtDate(endD):"")):"(no date)";
+    if(!window.confirm(
+      "Cancel tentative lead for "+name+"?\n\n"+
+      "• Card stays in the book — greyed out (not deleted)\n"+
+      "• Hold dates cleared: "+dateBit+"\n"+
+      "• Public calendar hold released on save\n\n"+
+      "Continue?"
+    )) return;
+    var liveU=(state.leads||[]).filter(function(x){return x&&String(x.id)===String(rec.id);})[0]||rec;
+    var resU=cancelLeadCharter(liveU,{
+      reason:"tentative-dropped",
+      zeroPay:true,
+      clearDates:true
+    });
+    try{ showSheet(false); }catch(eS){}
+    renderLeads();
+    if(isCaptain()&&curTab==="stews") try{ renderStews({soft:false}); }catch(eSt){}
+    if(isCaptain()&&curTab==="commissions") try{ renderCommissions(); }catch(eC){}
+    var freed=resU&&resU.clearedStart
+      ?(resU.clearedStart+(resU.clearedEnd&&resU.clearedEnd!==resU.clearedStart?"–"+resU.clearedEnd:""))
+      :"hold released";
+    window.alert("Tentative lead cancelled.\n\nKept greyed in the book · dates cleared ("+freed+").\nNot deleted.");
+    return;
+  }
+  var plan=leadCancelRefundPlan(rec);
+  var bullets=["• Lead → Cancelled (out of income / commission totals) — not deleted"];
+  if(plan.lines.length) plan.lines.forEach(function(ln){ bullets.push("• "+ln); });
+  else bullets.push("• No deposit/final/APA was paid or issued");
+  bullets.push("• Free cash not collected"+(plan.reverseCash?" (reversed if already on boat)":""));
+  if(plan.total>0.009) bullets.push("• Refund total to guest: "+money0(plan.total)+" (tracker records status — bank transfer is on you)");
+  if(!window.confirm(
+    "Cancel charter for "+name+"?\n\n"+
+    bullets.join("\n")+"\n\n"+
+    "Continue?"
+  )) return;
+  var keepStewPay=window.confirm(
+    "Was the stew already onboard / still due day pay?\n\n"+
+    "OK = keep stew assignment — set reduced rate (e.g. €50) on Stews or Expenses, then mark Paid from petty.\n\n"+
+    "Cancel = no stew pay for this charter."
+  );
+  var run=function(){
+    var live=(state.leads||[]).filter(function(x){return x&&String(x.id)===String(rec.id);})[0]||rec;
+    var res=cancelLeadCharter(live,{
+      reason:"weather-captain",
+      zeroPay:!keepStewPay,
+      keepPay:!!keepStewPay,
+      clearDates:false
+    });
+    try{ showSheet(false); }catch(eS2){}
+    renderLeads();
+    if(isCaptain()&&curTab==="stews") try{ renderStews({soft:false}); }catch(eSt2){}
+    if(isCaptain()&&curTab==="expenses") try{ renderExpenses(); }catch(eE){}
+    if(isCaptain()&&curTab==="commissions") try{ renderCommissions(); }catch(eC2){}
+    var n=res&&res.stew?res.stew.n:0;
+    var zp=res&&res.zeroPay!==false;
+    var rf=res&&res.refund?res.refund:plan;
+    var refundMsg=rf.scope==="full"
+      ?("Full refund recorded"+(rf.total>0?" · "+money0(rf.total):"")+" (deposit"+(rf.refundFin?" + final":"")+(rf.refundApa?" + APA":"")+(rf.reverseCash?" + free cash":"")+" → Refunded).")
+      :(rf.scope==="deposit"
+        ?("Deposit marked Refunded"+(rf.dep>0?" · "+money0(rf.dep):"")+".")
+        :(rf.total>0?"Refund recorded · "+money0(rf.total)+".":"No payment lines to refund."));
+    window.alert(
+      "Charter cancelled (kept in book).\n"+refundMsg+"\n"+
+      (zp
+        ?(n?("Stew pay cleared on "+n+" calendar day"+(n===1?"":"s")+"."):
+          "No matching stew day found — open Stews and mark cancelled if needed.")
+        :(n
+          ?"Stew still due day pay on "+n+" day"+(n===1?"":"s")+". Open Stews → set rate (e.g. €50) → Paid, or Expenses → Paid from Petty cash."
+          :"Stew assignment not found — open Stews, assign Toni, set €50, mark Paid from petty.")
+      )
+    );
+  };
+  if(isCaptain()&&typeof loadStewCalendar==="function"){
+    loadStewCalendar(false).then(run).catch(run);
+  } else run();
 }
 /**
  * Charter date for list order (YYYY-MM-DD), newest first.
@@ -3236,12 +3367,23 @@ function renderLeads(){
         (cancelled||isOwner||isPending?"":'<button type="button" class="btn ghost" data-agr-lead="'+esc(r.id)+'">Agreement</button>')+
         (isPending&&!cancelled?'<button type="button" class="btn" data-edit-ld-btn="'+esc(r.id)+'">Assign source</button>':'')+
         (isOpenDeal?'<button type="button" class="btn" data-edit-ld-btn="'+esc(r.id)+'">'+(isOwner?"Confirm owner’s days":"Close deal / confirm")+'</button>':'')+
+        (isTentative&&!cancelled?'<button type="button" class="btn danger" data-cancel-tentative="'+esc(r.id)+'">Cancel tentative</button>':'')+
       '</div>'+
       '<span class="chev">✎</span></div>';
   });
   wrap.innerHTML=html||emptyBox("🌐",
     searchQ?"No leads match “"+searchQ+"”":"No charters in the book yet",
     searchQ?"Clear the find box, or try the date (e.g. 6 Aug / 2026-08-06). Sync calendar if it vanished.":"Tap + for a new lead, or Sync calendar dates.");
+  /* Cancel tentative from list card — stopPropagation so card edit does not open */
+  Array.prototype.forEach.call(wrap.querySelectorAll("[data-cancel-tentative]"),function(btn){
+    btn.addEventListener("click",function(ev){
+      ev.preventDefault();
+      ev.stopPropagation();
+      var id=btn.getAttribute("data-cancel-tentative");
+      var lead=(state.leads||[]).filter(function(x){return x&&String(x.id)===String(id);})[0];
+      if(lead) runCancelLeadFromUi(lead);
+    });
+  });
   if(el("ldSearchMeta")){
     if(searchQ){
       el("ldSearchMeta").style.display="block";
@@ -13739,11 +13881,16 @@ function openSheet(type,id){
       '<option value="cancelled"'+(bookSt==="cancelled"?" selected":"")+'>Cancelled</option>'+
     '</select>');
     var refundPlanPreview=rec?leadCancelRefundPlan(r):null;
-    h+='<p style="margin:-6px 0 10px;font-size:12.5px;color:var(--muted);line-height:1.4">Mechanical / weather cancel: marks the lead cancelled and refunds <b>every paid/issued line</b> (deposit <b>and</b> final if both were paid — not deposit only). Free cash is reversed off the boat if posted. Then choose whether stew day pay is zeroed or kept (e.g. reduced €50 when she was already onboard).</p>';
+    var isUnconfirmedLead=rec&&!leadIsCancelled(r)&&(leadSource(r)==="pending"||!leadIsDealClosed(r));
+    if(isUnconfirmedLead){
+      h+='<p style="margin:-6px 0 10px;font-size:12.5px;color:var(--muted);line-height:1.4">Tentative / unconfirmed: <b>Cancel tentative</b> greys the card out (does <b>not</b> delete) and <b>clears the hold dates</b> so the calendar is free again.</p>';
+    } else {
+      h+='<p style="margin:-6px 0 10px;font-size:12.5px;color:var(--muted);line-height:1.4">Mechanical / weather cancel: marks the lead cancelled and refunds <b>every paid/issued line</b> (deposit <b>and</b> final if both were paid — not deposit only). Free cash is reversed off the boat if posted. Then choose whether stew day pay is zeroed or kept (e.g. reduced €50 when she was already onboard).</p>';
+    }
     if(rec&&bookSt!=="cancelled"){
       h+='<button type="button" class="btn danger" id="sheetCancelCharter" style="width:100%;margin:0 0 14px">'+
-        esc(refundPlanPreview?refundPlanPreview.buttonLabel:"Cancel charter")+'</button>';
-      if(refundPlanPreview&&refundPlanPreview.lines.length){
+        esc(isUnconfirmedLead?"Cancel tentative — free calendar dates":(refundPlanPreview?refundPlanPreview.buttonLabel:"Cancel charter"))+'</button>';
+      if(!isUnconfirmedLead&&refundPlanPreview&&refundPlanPreview.lines.length){
         h+='<div class="meta" style="margin:-6px 0 14px;line-height:1.4">Will refund: '+
           esc(refundPlanPreview.lines.join(" · "))+
           (refundPlanPreview.total>0?' · <b class="money">'+money(refundPlanPreview.total)+'</b> total':"")+
@@ -13849,59 +13996,7 @@ function openSheet(type,id){
   }
   if(el("sheetCancelCharter")&&rec&&type==="lead"){
     el("sheetCancelCharter").addEventListener("click",function(){
-      var name=rec.name||"this guest";
-      var plan=leadCancelRefundPlan(rec);
-      var bullets=["• Lead → Cancelled (out of income / commission totals)"];
-      if(plan.lines.length) plan.lines.forEach(function(ln){ bullets.push("• "+ln); });
-      else bullets.push("• No deposit/final/APA was paid or issued");
-      bullets.push("• Free cash not collected"+(plan.reverseCash?" (reversed if already on boat)":""));
-      if(plan.total>0.009) bullets.push("• Refund total to guest: "+money0(plan.total)+" (tracker records status — bank transfer is on you)");
-      if(!window.confirm(
-        "Cancel charter for "+name+"?\n\n"+
-        bullets.join("\n")+"\n\n"+
-        "Continue?"
-      )) return;
-      /* Second step: stew was onboard (reduced pay) vs pure cancel (no pay) */
-      var keepStewPay=window.confirm(
-        "Was the stew already onboard / still due day pay?\n\n"+
-        "OK = keep stew assignment — set reduced rate (e.g. €50) on Stews or Expenses, then mark Paid from petty.\n\n"+
-        "Cancel = no stew pay for this charter."
-      );
-      /* Prefer live calendar for stew match */
-      var run=function(){
-        var live=state.leads.filter(function(x){return x&&x.id===rec.id;})[0]||rec;
-        var res=cancelLeadCharter(live,{
-          reason:"weather-captain",
-          zeroPay:!keepStewPay,
-          keepPay:!!keepStewPay
-        });
-        showSheet(false);
-        renderLeads();
-        if(isCaptain()&&curTab==="stews") renderStews({soft:false});
-        if(isCaptain()&&curTab==="expenses") renderExpenses();
-        if(isCaptain()&&curTab==="commissions") renderCommissions();
-        var n=res&&res.stew?res.stew.n:0;
-        var zp=res&&res.zeroPay!==false;
-        var rf=res&&res.refund?res.refund:plan;
-        var refundMsg=rf.scope==="full"
-          ?("Full refund recorded"+(rf.total>0?" · "+money0(rf.total):"")+" (deposit"+(rf.refundFin?" + final":"")+(rf.refundApa?" + APA":"")+(rf.reverseCash?" + free cash":"")+" → Refunded).")
-          :(rf.scope==="deposit"
-            ?("Deposit marked Refunded"+(rf.dep>0?" · "+money0(rf.dep):"")+".")
-            :(rf.total>0?"Refund recorded · "+money0(rf.total)+".":"No payment lines to refund."));
-        window.alert(
-          "Charter cancelled.\n"+refundMsg+"\n"+
-          (zp
-            ?(n?("Stew pay cleared on "+n+" calendar day"+(n===1?"":"s")+"."):
-              "No matching stew day found — open Stews and mark cancelled if needed.")
-            :(n
-              ?"Stew still due day pay on "+n+" day"+(n===1?"":"s")+". Open Stews → set rate (e.g. €50) → Paid, or Expenses → Paid from Petty cash."
-              :"Stew assignment not found — open Stews, assign Toni, set €50, mark Paid from petty.")
-          )
-        );
-      };
-      if(isCaptain()&&typeof loadStewCalendar==="function"){
-        loadStewCalendar(false).then(run).catch(run);
-      } else run();
+      runCancelLeadFromUi(rec);
     });
   }
   if(el("f_dur")){ el("f_dur").addEventListener("change",function(){
@@ -14373,8 +14468,18 @@ function saveSheet(type,rec){
       o2.cancelReason=o2.cancelReason||"manual";
       o2.cancelledAt=o2.cancelledAt||new Date().toISOString();
       o2.cancelledBy=o2.cancelledBy||(session.who||"Captain");
+      o2.dealClosed=false;
       if(deps==="Paid"||deps==="Issued") o2.deps="Refunded";
       o2.cashSettled=false;
+      /* Unconfirmed → free hold dates (same as Cancel tentative) */
+      var wasOpenSave=leadSource(rec)==="pending"||!leadIsDealClosed(rec);
+      if(wasOpenSave){
+        o2.start="";
+        o2.end="";
+        o2.cdate="";
+        o2.days=0;
+        o2.cancelReason=o2.cancelReason==="manual"?"tentative-dropped":o2.cancelReason;
+      }
     }
     if(bookingSt==="active"){
       o2.cancelled=false;
