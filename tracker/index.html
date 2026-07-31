@@ -1581,8 +1581,18 @@ function leadEffectiveDepFin(l){
 /** Charter booking status on a lead (active unless cancelled). */
 function leadBookingStatus(r){
   if(!r) return "active";
-  if(r.bookingStatus==="cancelled"||r.cancelled===true||r.status==="Cancelled"||r.status==="cancelled") return "cancelled";
-  /* Manual cancel path: deposit Refunded without using the Cancel button */
+  /* Explicit cancelled flags always win */
+  if(r.bookingStatus==="cancelled"||r.cancelled===true||r.cancelled==="true"||r.cancelled===1) return "cancelled";
+  if(r.status==="Cancelled"||r.status==="cancelled") return "cancelled";
+  /*
+   * Explicit reinstate: cancelled === false (boolean/string/0) must win over legacy
+   * heuristics. Notes still contain “Cancelled…” after reinstate, which used to
+   * keep the card grey even though bookingStatus was set back to active.
+   */
+  if(r.cancelled===false||r.cancelled==="false"||r.cancelled===0){
+    return "active";
+  }
+  /* Legacy paths when cancelled is unset: deposit Refunded or “cancelled” in notes */
   if(leadInvStatus(r.deps)==="Refunded") return "cancelled";
   if(/\bcancel+l?ed\b/i.test(String(r.notes||""))&&leadInvStatus(r.deps)!=="Paid") return "cancelled";
   return "active";
@@ -2681,8 +2691,10 @@ function reinstateLeadCharter(lead, opts){
   opts=opts||{};
   if(!lead||!lead.id) return {ok:false, reason:"missing"};
   if(!leadIsCancelled(lead)) return {ok:false, reason:"not-cancelled"};
+  /* Always mutate the row in state.leads (not a stale sheet copy) */
+  var live=(state.leads||[]).filter(function(x){return x&&String(x.id)===String(lead.id);})[0]||lead;
   if(opts.stealHolds){
-    var conf=opts.conflicts||leadDateConflictsFor(lead);
+    var conf=opts.conflicts||leadDateConflictsFor(live);
     (conf.hold||[]).forEach(function(row){
       var other=(state.leads||[]).filter(function(x){return x&&String(x.id)===String(row.id);})[0];
       if(!other||leadIsCancelled(other)) return;
@@ -2691,36 +2703,49 @@ function reinstateLeadCharter(lead, opts){
         reason:"hold-taken-by-reinstate",
         zeroPay:true,
         clearDates:false,
-        note:"Hold taken by reinstating "+(lead.name||"another lead")
+        note:"Hold taken by reinstating "+(live.name||"another lead")
       });
     });
   }
-  lead.bookingStatus="active";
-  lead.cancelled=false;
-  lead.cancelReason="";
-  lead.cancelledAt="";
-  lead.cancelledBy="";
-  lead.refundScope="";
-  lead.refundTotal=0;
-  lead.refundAt="";
+  /*
+   * Explicit active flags — leadBookingStatus must not re-grey via notes
+   * still containing “Cancelled…” or a Refunded deposit from the prior cancel.
+   */
+  live.bookingStatus="active";
+  live.cancelled=false;
+  if(live.status==="Cancelled"||live.status==="cancelled") live.status="active";
+  live.cancelReason="";
+  live.cancelledAt="";
+  live.cancelledBy="";
+  live.refundScope="";
+  live.refundTotal=0;
+  live.refundAt="";
   /* Reinstated deals start open / on hold — captain confirms again when firm */
-  lead.dealClosed=false;
+  live.dealClosed=false;
   if(opts.clearDates){
-    lead.start="";
-    lead.end="";
-    lead.cdate="";
-    lead.days=0;
+    live.start="";
+    live.end="";
+    live.cdate="";
+    live.days=0;
   }
   /* Refunded deposit from prior cancel: leave statuses; captain can re-issue if needed */
   var noteBit="Reinstated"+(opts.clearDates?" · no calendar dates (active, not on hold for a day)":" · dates on hold again")+
     (opts.stealHolds?" · took hold from other tentative lead(s)":"")+
     (opts.note?": "+opts.note:"");
-  var prev=String(lead.notes||"").trim();
-  if(prev) lead.notes=prev+"\n"+noteBit;
-  else lead.notes=noteBit;
-  lead.updatedAt=new Date().toISOString();
+  var prev=String(live.notes||"").trim();
+  if(prev) live.notes=prev+"\n"+noteBit;
+  else live.notes=noteBit;
+  live.updatedAt=new Date().toISOString();
+  /* Ensure array holds this object (if lead was a detached copy) */
+  if(state.leads){
+    var ix=-1;
+    for(var i=0;i<state.leads.length;i++){
+      if(state.leads[i]&&String(state.leads[i].id)===String(live.id)){ ix=i; break; }
+    }
+    if(ix>=0) state.leads[ix]=live;
+  }
   if(!DEMO) save("leads");
-  return {ok:true, lead:lead, clearDates:!!opts.clearDates, stealHolds:!!opts.stealHolds};
+  return {ok:true, lead:live, clearDates:!!opts.clearDates, stealHolds:!!opts.stealHolds};
 }
 /**
  * UI: reinstate grey cancelled card. If dates free → on hold again.
