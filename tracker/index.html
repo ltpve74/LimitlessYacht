@@ -318,44 +318,74 @@
   }
   .ld-book-sec .item{margin-bottom:10px}
   .ld-book-sec .item:last-child{margin-bottom:0}
-  /* Hold + lost stay pinned under the app bar — no scrolling the whole book to reinstate */
+  /* Live ledger: mobile = Hold|Lost|Confirmed tabs (one list); desktop = pipeline + confirmed */
   #ldList.list{
     display:block;
     grid-template-columns:none;
   }
-  .ld-book-pipeline{
-    display:grid;
-    gap:12px;
-    margin:0 0 14px;
-    padding:8px 0 10px;
-    position:sticky;
-    top:calc(env(safe-area-inset-top,0px) + 52px);
-    z-index:6;
-    background:var(--bg);
-    border-bottom:1px solid var(--line);
-    box-shadow:0 10px 18px -14px rgba(15,25,30,.45);
+  /* Permanent tab bar (outside #ldList so re-render does not steal the sticky control) */
+  #ldBookTabs{
+    display:none; /* shown only on mobile via JS + max-width media */
+    gap:6px;margin:0 0 10px;padding:6px;
+    position:sticky;top:calc(env(safe-area-inset-top,0px) + 50px);
+    z-index:8;background:var(--bg);
+    border:1px solid var(--line);border-radius:14px;
+    box-shadow:0 4px 14px rgba(15,25,30,.08);
+    -webkit-tap-highlight-color:transparent;
   }
-  .ld-book-pipeline .ld-book-sec{margin:0}
-  /* Compact lists: scroll inside hold/lost, not the whole page */
-  .ld-book-pipeline .ld-book-sec{
-    max-height:min(34vh,280px);
-    overflow:auto;
-    -webkit-overflow-scrolling:touch;
-    padding-right:2px;
+  #ldBookTabs.is-mobile-on{display:flex}
+  .ld-book-tab{
+    flex:1;min-width:0;display:flex;flex-direction:column;align-items:center;justify-content:center;
+    gap:2px;padding:12px 6px;min-height:48px;border-radius:11px;border:1.5px solid transparent;
+    background:transparent;color:var(--muted);font-weight:800;font-size:11px;
+    letter-spacing:.02em;text-transform:uppercase;line-height:1.15;cursor:pointer;
+  }
+  .ld-book-tab .n{
+    font-size:17px;font-weight:900;font-variant-numeric:tabular-nums;color:var(--ink);
+  }
+  .ld-book-tab.is-on{
+    background:var(--card);border-color:var(--brand2);color:var(--brand);
+    box-shadow:0 1px 4px rgba(31,78,95,.12);
+  }
+  .ld-book-tab.is-on .n{color:var(--brand)}
+  .ld-book-tab--hold.is-on{border-color:#E0A800;color:#7a5200;background:#FFF8E1}
+  .ld-book-tab--hold.is-on .n{color:#7a5200}
+  .ld-book-tab--lost.is-on{border-color:#f3b4ae;color:var(--danger);background:#fdeeee}
+  .ld-book-tab--lost.is-on .n{color:var(--danger)}
+  .ld-book-tab--conf.is-on{border-color:rgba(46,125,50,.4);color:#1b5e20;background:#eef8ef}
+  .ld-book-tab--conf.is-on .n{color:#1b5e20}
+  .ld-book-pipeline{display:none;margin:0}
+  .ld-book-mobile-pane{margin:0 0 8px}
+  .ld-book-mobile-pane .ld-book-sec{margin:0}
+  .ld-book-mobile-pane .ld-book-hd{display:none} /* tab already labels the list */
+  #ldJumpBook{display:none;width:100%;margin:0 0 10px;font-weight:800}
+  @media(max-width:899px){
+    #ldJumpBook.is-on{display:block}
+    /* Tighter money snapshot so the book is reachable without endless scroll */
+    #tab-leads .ld-summary{margin-bottom:8px}
+    #tab-leads .ld-snap-note{display:none}
+    #tab-leads .legend{font-size:12px;line-height:1.35;margin-bottom:8px}
   }
   @media(min-width:900px){
+    #ldBookTabs,#ldBookTabs.is-mobile-on{display:none!important}
+    #ldJumpBook,#ldJumpBook.is-on{display:none!important}
+    .ld-book-mobile-pane{display:none!important}
     .ld-book-pipeline{
+      display:grid;
       grid-template-columns:1fr 1fr;
       align-items:start;
       gap:14px;
+      margin:0 0 14px;
+      padding:8px 0 10px;
+      position:sticky;
+      top:calc(env(safe-area-inset-top,0px) + 52px);
+      z-index:6;
+      background:var(--bg);
+      border-bottom:1px solid var(--line);
+      box-shadow:0 10px 18px -14px rgba(15,25,30,.45);
     }
-    .ld-book-pipeline .ld-book-sec{
-      max-height:min(38vh,320px);
-    }
-  }
-  .ld-book-sec--confirmed{
-    /* Main book starts right under the sticky pipeline */
-    scroll-margin-top:calc(env(safe-area-inset-top,0px) + 60px);
+    .ld-book-pipeline .ld-book-sec{margin:0;max-height:min(38vh,320px);overflow:auto;-webkit-overflow-scrolling:touch;padding-right:2px}
+    .ld-book-sec--confirmed{display:block!important;scroll-margin-top:calc(env(safe-area-inset-top,0px) + 60px)}
   }
   .ld-book-sec--cancelled .item .lead-actions .btn[data-reinstate-lead],
   .ld-book-sec--cancelled .item button[data-reinstate-lead]{
@@ -738,10 +768,23 @@
           <div id="ldOsTypes" class="ld-type-table"></div>
         </div>
       </div>
-      <div class="legend"><b>Book layout:</b> <b>On hold</b> + <b>Lost</b> stay pinned at the top (side by side on desktop) while you scroll the confirmed list — reinstate without hunting. Confirm moves a card into <b>Confirmed book</b>.</div>
+      <div class="legend"><b>Live ledger:</b> phone = tabs <b>Hold · Lost · Confirmed</b> (one list at a time). Desktop = Hold|Lost side by side, Confirmed below. Confirm moves a card into Confirmed; reinstate brings Lost back to Hold.</div>
+      <button type="button" class="btn" id="ldJumpBook">↓ Open book · Hold · Lost · Confirmed</button>
       <div id="ldFindBar" style="margin:0 0 12px">
         <input class="ctl" id="ldSearch" type="search" placeholder="Find lead — name, date (e.g. 6 Aug), source, notes…" autocomplete="off" style="width:100%">
         <div class="meta" id="ldSearchMeta" style="margin-top:6px;display:none"></div>
+      </div>
+      <!-- Mobile-only sticky tabs (always in DOM; counts updated by renderLeads) -->
+      <div id="ldBookTabs" class="ld-book-tabs" role="tablist" aria-label="Lead ledger">
+        <button type="button" class="ld-book-tab ld-book-tab--hold" data-ld-book-view="hold" aria-selected="false">
+          <span class="n" id="ldTabNHold">0</span><span>Hold</span>
+        </button>
+        <button type="button" class="ld-book-tab ld-book-tab--lost" data-ld-book-view="lost" aria-selected="false">
+          <span class="n" id="ldTabNLost">0</span><span>Lost</span>
+        </button>
+        <button type="button" class="ld-book-tab ld-book-tab--conf" data-ld-book-view="confirmed" aria-selected="true">
+          <span class="n" id="ldTabNConf">0</span><span>Confirmed</span>
+        </button>
       </div>
       <div class="list" id="ldList"></div>
     </section>
@@ -2915,6 +2958,7 @@ function runReinstateLeadFromUi(rec){
     )) return;
     reinstateLeadCharter(live,{clearDates:true});
     try{ showSheet(false); }catch(e0){}
+    try{ setLdBookView("hold"); }catch(eV0){}
     renderLeads();
     window.alert("Lead reinstated (no date · not on hold).");
     return;
@@ -2930,6 +2974,7 @@ function runReinstateLeadFromUi(rec){
     )) return;
     reinstateLeadCharter(live,{clearDates:false});
     try{ showSheet(false); }catch(e1){}
+    try{ setLdBookView("hold"); }catch(eV1){}
     renderLeads();
     window.alert("Lead reinstated · "+dateBit+" is on hold again.");
     return;
@@ -2948,6 +2993,7 @@ function runReinstateLeadFromUi(rec){
   if(withoutDates){
     reinstateLeadCharter(live,{clearDates:true, conflicts:conf});
     try{ showSheet(false); }catch(e2){}
+    try{ setLdBookView("hold"); }catch(eV2){}
     renderLeads();
     window.alert("Lead reinstated without calendar dates.\nEdit the lead to pick a free day.");
     return;
@@ -2972,6 +3018,7 @@ function runReinstateLeadFromUi(rec){
     }
     reinstateLeadCharter(live,{clearDates:false, stealHolds:true, conflicts:conf});
     try{ showSheet(false); }catch(e3){}
+    try{ setLdBookView("hold"); }catch(eV3){}
     renderLeads();
     window.alert("Lead reinstated · took hold on "+dateBit+".\nOther tentative hold(s) cancelled (grey, dates kept).");
     return;
@@ -3012,13 +3059,14 @@ function runCancelLeadFromUi(rec){
       clearDates:false
     });
     try{ showSheet(false); }catch(eS){}
+    try{ setLdBookView("lost"); }catch(eV){}
     renderLeads();
     if(isCaptain()&&curTab==="stews") try{ renderStews({soft:false}); }catch(eSt){}
     if(isCaptain()&&curTab==="commissions") try{ renderCommissions(); }catch(eC){}
     var kept=resU&&resU.keptStart
       ?(resU.keptStart+(resU.keptEnd&&resU.keptEnd!==resU.keptStart?"–"+resU.keptEnd:""))
       :dateBit;
-    window.alert("Tentative lead cancelled.\n\nKept greyed in the book · date still on card ("+kept+").\nPublic hold released · not deleted.");
+    window.alert("Tentative lead cancelled.\n\nKept greyed in Lost · date still on card ("+kept+").\nPublic hold released · not deleted.");
     return;
   }
   var plan=leadCancelRefundPlan(rec);
@@ -3046,6 +3094,7 @@ function runCancelLeadFromUi(rec){
       clearDates:false
     });
     try{ showSheet(false); }catch(eS2){}
+    try{ setLdBookView("lost"); }catch(eV2){}
     renderLeads();
     if(isCaptain()&&curTab==="stews") try{ renderStews({soft:false}); }catch(eSt2){}
     if(isCaptain()&&curTab==="expenses") try{ renderExpenses(); }catch(eE){}
@@ -3099,6 +3148,94 @@ function leadBookBucket(r){
   if(leadIsCancelled(r)) return "cancelled";
   if(leadIsUnconfirmed(r)||leadSource(r)==="pending") return "tentative";
   return "confirmed";
+}
+var LD_BOOK_VIEW_KEY="tracker-ld-book-view";
+/** Mobile ledger tab: hold | lost | confirmed (default confirmed so book is always reachable) */
+function getLdBookView(){
+  try{
+    var v=String(safeGet(LD_BOOK_VIEW_KEY)||"confirmed");
+    if(v==="hold"||v==="lost"||v==="confirmed") return v;
+  }catch(e){}
+  return "confirmed";
+}
+function setLdBookView(v){
+  v=v==="hold"||v==="lost"?v:"confirmed";
+  try{ safeSet(LD_BOOK_VIEW_KEY, v); }catch(e){}
+  return v;
+}
+function isLdBookMobile(){
+  try{ return !!(window.matchMedia&&window.matchMedia("(max-width:899px)").matches); }
+  catch(e){ return true; }
+}
+/** Paint sticky Hold|Lost|Confirmed control (mobile only). */
+function syncLdBookTabsUi(nHold, nLost, nConf){
+  var mobile=isLdBookMobile();
+  var tabs=el("ldBookTabs");
+  var jump=el("ldJumpBook");
+  var view=getLdBookView();
+  if(tabs){
+    if(mobile) tabs.classList.add("is-mobile-on");
+    else tabs.classList.remove("is-mobile-on");
+    Array.prototype.forEach.call(tabs.querySelectorAll("[data-ld-book-view]"),function(btn){
+      var id=btn.getAttribute("data-ld-book-view")||"";
+      var on=id===view;
+      if(on) btn.classList.add("is-on"); else btn.classList.remove("is-on");
+      btn.setAttribute("aria-selected", on?"true":"false");
+    });
+  }
+  if(el("ldTabNHold")) el("ldTabNHold").textContent=String(nHold!=null?nHold:0);
+  if(el("ldTabNLost")) el("ldTabNLost").textContent=String(nLost!=null?nLost:0);
+  if(el("ldTabNConf")) el("ldTabNConf").textContent=String(nConf!=null?nConf:0);
+  if(jump){
+    if(mobile) jump.classList.add("is-on");
+    else jump.classList.remove("is-on");
+  }
+}
+function scrollLdBookIntoView(){
+  try{
+    var t=el("ldBookTabs")||el("ldFindBar")||el("ldList");
+    if(t&&t.scrollIntoView) t.scrollIntoView({behavior:"smooth", block:"start"});
+  }catch(e){}
+}
+var _ldBookTabsBound=false;
+function bindLdBookTabsOnce(){
+  if(_ldBookTabsBound) return;
+  _ldBookTabsBound=true;
+  var tabs=el("ldBookTabs");
+  if(tabs){
+    tabs.addEventListener("click",function(ev){
+      var btn=ev.target&&ev.target.closest?ev.target.closest("[data-ld-book-view]"):null;
+      if(!btn||!tabs.contains(btn)) return;
+      ev.preventDefault();
+      ev.stopPropagation();
+      setLdBookView(btn.getAttribute("data-ld-book-view")||"confirmed");
+      try{ renderLeads(); }catch(eV){}
+      try{
+        /* Keep sticky tabs in view after list swap */
+        var y=window.scrollY||0;
+        var rect=tabs.getBoundingClientRect();
+        if(rect.top<60||rect.top>120){
+          var target=y+rect.top-Math.max(56, (el("ldBookTabs")?0:0)+56);
+          window.scrollTo(0, Math.max(0, target));
+        }
+      }catch(eS){}
+    });
+  }
+  var jump=el("ldJumpBook");
+  if(jump){
+    jump.addEventListener("click",function(ev){
+      ev.preventDefault();
+      scrollLdBookIntoView();
+    });
+  }
+  try{
+    if(window.matchMedia){
+      var mq=window.matchMedia("(max-width:899px)");
+      var onMq=function(){ if(curTab==="leads") try{ renderLeads(); }catch(e){} };
+      if(mq.addEventListener) mq.addEventListener("change", onMq);
+      else if(mq.addListener) mq.addListener(onMq);
+    }
+  }catch(eMq){}
 }
 function sortLeads(){
   if(!state.leads||!state.leads.length) return;
@@ -3758,39 +3895,45 @@ function renderLeads(){
       body+
     '</div>';
   }
+  try{ bindLdBookTabsOnce(); }catch(eBind){}
   if(!nShown&&!searchQ){
     html=emptyBox("🌐","No charters in the book yet","Tap + for a new lead, or Sync calendar dates.");
+    try{ syncLdBookTabsUi(0,0,0); }catch(eT0){}
   } else if(!nShown&&searchQ){
     html=emptyBox("🌐","No leads match “"+searchQ+"”","Clear the find box, or try the date (e.g. 6 Aug / 2026-08-06). Sync calendar if it vanished.");
+    try{ syncLdBookTabsUi(0,0,0); }catch(eT1){}
   } else {
-    /* Pipeline first: hold + lost stay together (side-by-side on desktop). Confirmed is main book. */
-    html=
-      '<div class="ld-book-pipeline">'+
-        ldBookSection(
-          "ld-book-sec--tentative",
-          "On hold · tentative",
-          "Not firm — assign source, then Confirm or deposit Paid.",
-          tentCards.length,
-          tentCards,
-          "No tentative holds right now."
-        )+
-        ldBookSection(
-          "ld-book-sec--cancelled",
-          "Lost · cancelled",
-          "Greyed out · not deleted. Reinstate when they get in touch.",
-          cancCards.length,
-          cancCards,
-          "No lost / cancelled leads."
-        )+
-      '</div>'+
-      ldBookSection(
-        "ld-book-sec--confirmed",
-        "Confirmed book",
-        "Firm charters · money totals · main list. Cards move here when you confirm.",
-        confCards.length,
-        confCards,
-        "No confirmed charters yet — confirm a tentative deal to fill this list."
-      );
+    var view=getLdBookView();
+    var mobile=isLdBookMobile();
+    var secHold=ldBookSection(
+      "ld-book-sec--tentative",
+      "On hold · tentative",
+      "Not firm — assign source, then Confirm or deposit Paid.",
+      tentCards.length, tentCards, "No tentative holds right now."
+    );
+    var secLost=ldBookSection(
+      "ld-book-sec--cancelled",
+      "Lost · cancelled",
+      "Greyed out · not deleted. Reinstate when they get in touch.",
+      cancCards.length, cancCards, "No lost / cancelled leads."
+    );
+    var secConf=ldBookSection(
+      "ld-book-sec--confirmed",
+      "Confirmed book",
+      "Firm charters · money totals · main list. Cards move here when you confirm.",
+      confCards.length, confCards, "No confirmed charters yet — confirm a tentative deal to fill this list."
+    );
+    try{ syncLdBookTabsUi(tentCards.length, cancCards.length, confCards.length); }catch(eT2){}
+    if(mobile){
+      /* One list at a time — Confirmed is always one tap on the sticky tabs above */
+      var pane=view==="hold"?secHold:(view==="lost"?secLost:secConf);
+      html='<div class="ld-book-mobile-pane">'+pane+'</div>';
+    } else {
+      /* Desktop: hold|lost sticky pipeline, confirmed full width below */
+      html=
+        '<div class="ld-book-pipeline">'+secHold+secLost+'</div>'+
+        secConf;
+    }
   }
   wrap.innerHTML=html;
   /* Cancel tentative from list card — stopPropagation so card edit does not open */
@@ -14965,6 +15108,12 @@ function saveSheet(type,rec){
       /* cleared link */
       liveLead.calendarEventKey=""; liveLead.calendarUid="";
     }
+    /* Mobile ledger: land on the list this card now belongs to */
+    try{
+      if(leadIsCancelled(liveLead)||bookingSt==="cancelled") setLdBookView("lost");
+      else if(leadIsDealClosed(liveLead)) setLdBookView("confirmed");
+      else setLdBookView("hold");
+    }catch(eView){}
     renderLeads(); save("leads");
     /* Free cash stays on the lead — strip any −cash APA shell for this guest */
     if(canOps()) ensureLeadCashApa(liveLead);
