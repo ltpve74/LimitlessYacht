@@ -2633,6 +2633,186 @@ function cancelLeadCharter(lead, opts){
   return {lead:lead, stew:stew, zeroPay:zeroPay, refund:plan, wasUnconfirmed:wasUnconfirmed, keptStart:keptStart, keptEnd:keptEnd};
 }
 /**
+ * Days on other non-cancelled leads that overlap this lead’s charter dates.
+ * firm = confirmed dealClosed; hold = pending / unconfirmed (on-hold).
+ */
+function leadDateConflictsFor(lead){
+  var out={days:[], firm:[], hold:[]};
+  if(!lead) return out;
+  var days=[];
+  try{ days=leadBlockedDaysClient(lead)||[]; }catch(e0){ days=[]; }
+  out.days=days;
+  if(!days.length) return out;
+  var daySet={};
+  days.forEach(function(d){ if(d) daySet[String(d)]=true; });
+  (state.leads||[]).forEach(function(o){
+    if(!o||!o.id||String(o.id)===String(lead.id)) return;
+    if(leadIsCancelled(o)) return;
+    var od=[];
+    try{ od=leadBlockedDaysClient(o)||[]; }catch(e1){ od=[]; }
+    var hit=od.filter(function(d){ return daySet[String(d)]; });
+    if(!hit.length) return;
+    var row={
+      id:o.id,
+      name:String(o.name||"—").slice(0,60),
+      days:hit,
+      firm:!!leadIsDealClosed(o),
+      source:leadSource(o)
+    };
+    if(row.firm) out.firm.push(row);
+    else out.hold.push(row);
+  });
+  return out;
+}
+function leadConflictListText(rows){
+  if(!rows||!rows.length) return "";
+  return rows.map(function(r){
+    var d0=r.days&&r.days[0]?fmtDate(r.days[0]):"";
+    return "  · "+r.name+(d0?" · "+d0:"")+(r.firm?" (confirmed)":" (on hold)");
+  }).join("\n");
+}
+/**
+ * Reinstate a cancelled lead (grey → active).
+ * Default: unconfirmed on-hold with dates kept (public calendar hold returns).
+ * opts.clearDates — reinstate without calendar dates
+ * opts.stealHolds — cancel other tentative leads that overlap (never steals firm booked)
+ */
+function reinstateLeadCharter(lead, opts){
+  opts=opts||{};
+  if(!lead||!lead.id) return {ok:false, reason:"missing"};
+  if(!leadIsCancelled(lead)) return {ok:false, reason:"not-cancelled"};
+  if(opts.stealHolds){
+    var conf=opts.conflicts||leadDateConflictsFor(lead);
+    (conf.hold||[]).forEach(function(row){
+      var other=(state.leads||[]).filter(function(x){return x&&String(x.id)===String(row.id);})[0];
+      if(!other||leadIsCancelled(other)) return;
+      /* Other is unconfirmed hold — cancel as tentative so this lead can take the day */
+      cancelLeadCharter(other,{
+        reason:"hold-taken-by-reinstate",
+        zeroPay:true,
+        clearDates:false,
+        note:"Hold taken by reinstating "+(lead.name||"another lead")
+      });
+    });
+  }
+  lead.bookingStatus="active";
+  lead.cancelled=false;
+  lead.cancelReason="";
+  lead.cancelledAt="";
+  lead.cancelledBy="";
+  lead.refundScope="";
+  lead.refundTotal=0;
+  lead.refundAt="";
+  /* Reinstated deals start open / on hold — captain confirms again when firm */
+  lead.dealClosed=false;
+  if(opts.clearDates){
+    lead.start="";
+    lead.end="";
+    lead.cdate="";
+    lead.days=0;
+  }
+  /* Refunded deposit from prior cancel: leave statuses; captain can re-issue if needed */
+  var noteBit="Reinstated"+(opts.clearDates?" · no calendar dates (active, not on hold for a day)":" · dates on hold again")+
+    (opts.stealHolds?" · took hold from other tentative lead(s)":"")+
+    (opts.note?": "+opts.note:"");
+  var prev=String(lead.notes||"").trim();
+  if(prev) lead.notes=prev+"\n"+noteBit;
+  else lead.notes=noteBit;
+  lead.updatedAt=new Date().toISOString();
+  if(!DEMO) save("leads");
+  return {ok:true, lead:lead, clearDates:!!opts.clearDates, stealHolds:!!opts.stealHolds};
+}
+/**
+ * UI: reinstate grey cancelled card. If dates free → on hold again.
+ * If booked/held → notify and offer options.
+ */
+function runReinstateLeadFromUi(rec){
+  if(!rec||!rec.id) return;
+  var live=(state.leads||[]).filter(function(x){return x&&String(x.id)===String(rec.id);})[0]||rec;
+  if(!leadIsCancelled(live)){
+    window.alert("This lead is not cancelled.");
+    return;
+  }
+  var name=live.name||"this guest";
+  var startD=String(live.start||live.cdate||"").slice(0,10);
+  var endD=String(live.end||"").slice(0,10);
+  var dateBit=startD?(fmtDate(startD)+(endD&&endD!==startD?" – "+fmtDate(endD):"")):"(no date on card)";
+  var conf=leadDateConflictsFor(live);
+  var hasFirm=conf.firm&&conf.firm.length;
+  var hasHold=conf.hold&&conf.hold.length;
+  var hasConflict=hasFirm||hasHold;
+
+  if(!startD){
+    if(!window.confirm(
+      "Reinstate "+name+"?\n\n"+
+      "No charter date on the card — will become active/unconfirmed without a calendar hold.\n\n"+
+      "Continue?"
+    )) return;
+    reinstateLeadCharter(live,{clearDates:true});
+    try{ showSheet(false); }catch(e0){}
+    renderLeads();
+    window.alert("Lead reinstated (no date · not on hold).");
+    return;
+  }
+
+  if(!hasConflict){
+    if(!window.confirm(
+      "Reinstate "+name+"?\n\n"+
+      "• Card active again (not grey)\n"+
+      "• Date "+dateBit+" goes back on hold\n"+
+      "• Public calendar shows the hold again\n\n"+
+      "Continue?"
+    )) return;
+    reinstateLeadCharter(live,{clearDates:false});
+    try{ showSheet(false); }catch(e1){}
+    renderLeads();
+    window.alert("Lead reinstated · "+dateBit+" is on hold again.");
+    return;
+  }
+
+  /* Conflict — notify and offer options */
+  var msg="Cannot put "+name+" back on hold for "+dateBit+" — that day is already taken:\n\n";
+  if(hasFirm) msg+="Confirmed / booked:\n"+leadConflictListText(conf.firm)+"\n\n";
+  if(hasHold) msg+="Already on hold:\n"+leadConflictListText(conf.hold)+"\n\n";
+  msg+="Choose:\n"+
+    "• OK = reinstate WITHOUT the date (active, no hold)\n"+
+    (hasHold&&!hasFirm
+      ?"• Cancel = more options (take hold from tentative, or abort)\n"
+      :"• Cancel = abort (leave cancelled)\n");
+  var withoutDates=window.confirm(msg);
+  if(withoutDates){
+    reinstateLeadCharter(live,{clearDates:true, conflicts:conf});
+    try{ showSheet(false); }catch(e2){}
+    renderLeads();
+    window.alert("Lead reinstated without calendar dates.\nEdit the lead to pick a free day.");
+    return;
+  }
+  /* Cancel on first dialog */
+  if(hasFirm){
+    /* Firm booked — no steal option */
+    window.alert("Left cancelled. The day is firm-booked — free that charter first, or reinstate without a date.");
+    return;
+  }
+  /* Only holds — offer take-hold */
+  if(hasHold){
+    var take=window.confirm(
+      "Date "+dateBit+" is only on hold (not firm booked):\n\n"+
+      leadConflictListText(conf.hold)+"\n\n"+
+      "OK = take the hold (those tentative leads become cancelled grey cards)\n"+
+      "Cancel = abort (leave this lead cancelled)"
+    );
+    if(!take){
+      window.alert("Left cancelled.");
+      return;
+    }
+    reinstateLeadCharter(live,{clearDates:false, stealHolds:true, conflicts:conf});
+    try{ showSheet(false); }catch(e3){}
+    renderLeads();
+    window.alert("Lead reinstated · took hold on "+dateBit+".\nOther tentative hold(s) cancelled (grey, dates kept).");
+    return;
+  }
+}
+/**
  * UI entry for cancel (sheet button or list “Cancel tentative”).
  * Unconfirmed: one confirm, grey out, free hold dates, no delete, no stew prompts.
  * Confirmed: existing refund + stew day-pay flow.
@@ -3367,6 +3547,7 @@ function renderLeads(){
         (isPending&&!cancelled?'<button type="button" class="btn" data-edit-ld-btn="'+esc(r.id)+'">Assign source</button>':'')+
         (isOpenDeal?'<button type="button" class="btn" data-edit-ld-btn="'+esc(r.id)+'">'+(isOwner?"Confirm owner’s days":"Close deal / confirm")+'</button>':'')+
         (isTentative&&!cancelled?'<button type="button" class="btn danger" data-cancel-tentative="'+esc(r.id)+'">Cancel tentative</button>':'')+
+        (cancelled?'<button type="button" class="btn" data-reinstate-lead="'+esc(r.id)+'">Reinstate</button>':'')+
       '</div>'+
       '<span class="chev">✎</span></div>';
   });
@@ -3381,6 +3562,15 @@ function renderLeads(){
       var id=btn.getAttribute("data-cancel-tentative");
       var lead=(state.leads||[]).filter(function(x){return x&&String(x.id)===String(id);})[0];
       if(lead) runCancelLeadFromUi(lead);
+    });
+  });
+  Array.prototype.forEach.call(wrap.querySelectorAll("[data-reinstate-lead]"),function(btn){
+    btn.addEventListener("click",function(ev){
+      ev.preventDefault();
+      ev.stopPropagation();
+      var id=btn.getAttribute("data-reinstate-lead");
+      var lead=(state.leads||[]).filter(function(x){return x&&String(x.id)===String(id);})[0];
+      if(lead) runReinstateLeadFromUi(lead);
     });
   });
   if(el("ldSearchMeta")){
@@ -13905,6 +14095,8 @@ function openSheet(type,id){
         '</div>'+
         (rfTot>0?'<div class="meta" style="margin-top:4px">Refund total <b class="money">'+money(rfTot)+'</b> · deposit/final/APA set to Refunded as applicable · out of money totals</div>':'')+
         (r.cancelledAt?'<div class="meta" style="margin-top:4px">'+esc(String(r.cancelledAt).slice(0,16).replace("T"," "))+(r.cancelledBy?" · "+esc(r.cancelledBy):"")+'</div>':'')+
+        '<p style="margin:8px 0 0;font-size:12.5px;color:var(--muted);line-height:1.4">Reinstate to make the card active again. If the date is free it goes back on hold; if booked you get options.</p>'+
+        '<button type="button" class="btn" id="sheetReinstateLead" style="width:100%;margin:10px 0 0">Reinstate lead</button>'+
       '</div>';
     }
     h+=fieldHTML("Date closed",'<input class="ctl" id="f_closed" type="date" value="'+esc(r.closed||(!rec?leadTodayYmd():""))+'">');
@@ -13996,6 +14188,11 @@ function openSheet(type,id){
   if(el("sheetCancelCharter")&&rec&&type==="lead"){
     el("sheetCancelCharter").addEventListener("click",function(){
       runCancelLeadFromUi(rec);
+    });
+  }
+  if(el("sheetReinstateLead")&&rec&&type==="lead"){
+    el("sheetReinstateLead").addEventListener("click",function(){
+      runReinstateLeadFromUi(rec);
     });
   }
   if(el("f_dur")){ el("f_dur").addEventListener("change",function(){
