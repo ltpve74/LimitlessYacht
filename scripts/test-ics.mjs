@@ -13,6 +13,11 @@ const icsPath = join(root, "netlify/functions/lib/ics.mjs");
 const { parseIcs, expandEvent, siteCalendarPublicPayload } = await import(
   pathToFileURL(icsPath).href
 );
+const siteCalPath = join(root, "netlify/functions/lib/site-calendar.mjs");
+const {
+  buildSiteCalendarFromLeads,
+  leadIsCancelledForSite,
+} = await import(pathToFileURL(siteCalPath).href);
 
 let failed = 0;
 function ok(name, cond, detail) {
@@ -87,6 +92,67 @@ console.log("[siteCalendarPublicPayload]");
   ok("active flag", live.active === true);
   ok("booked copied", live.booked[0] === "2026-08-01");
   ok("seededAt kept", live.seededAt === "2026-07-30T00:00:00.000Z");
+}
+
+console.log("[site calendar from leads — reinstate]");
+{
+  const cancelled = {
+    id: "lead-renato",
+    name: "Renato",
+    start: "2026-08-02",
+    end: "2026-08-02",
+    leadSource: "pending",
+    bookingStatus: "cancelled",
+    cancelled: true,
+    deps: "Refunded",
+    dealClosed: false,
+  };
+  const calCancel = buildSiteCalendarFromLeads([cancelled], "test");
+  ok(
+    "cancelled lead omitted from public calendar",
+    calCancel.tentative.indexOf("2026-08-02") < 0 &&
+      calCancel.booked.indexOf("2026-08-02") < 0
+  );
+
+  const reinstated = {
+    id: "lead-renato",
+    name: "Renato",
+    start: "2026-08-02",
+    end: "2026-08-02",
+    leadSource: "pending",
+    bookingStatus: "active",
+    cancelled: false,
+    /* Sticky refund from prior cancel must not block reinstate hold */
+    deps: "Refunded",
+    dealClosed: false,
+  };
+  ok(
+    "reinstated lead not cancelled for site (even with Refunded deps)",
+    leadIsCancelledForSite(reinstated) === false
+  );
+  const calRe = buildSiteCalendarFromLeads([reinstated], "test");
+  ok(
+    "reinstated lead puts date back on hold",
+    calRe.tentative.indexOf("2026-08-02") >= 0,
+    "tentative=" + JSON.stringify(calRe.tentative)
+  );
+  ok(
+    "reinstated hold is not firm-booked",
+    calRe.booked.indexOf("2026-08-02") < 0
+  );
+
+  const activeRefundLegacy = {
+    id: "lead-old",
+    name: "Legacy",
+    start: "2026-09-01",
+    leadSource: "clickboat",
+    /* No explicit cancelled flag — Refunded alone still means off the calendar */
+    deps: "Refunded",
+  };
+  ok(
+    "legacy Refunded without reinstate flags still cancelled for site",
+    leadIsCancelledForSite(activeRefundLegacy) === true
+  );
 }
 
 if (failed) {

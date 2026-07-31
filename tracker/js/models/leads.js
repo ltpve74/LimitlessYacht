@@ -472,11 +472,24 @@ function leadOwnerPocketCashAmt(r) {
   return leadFreeCashAmt(r);
 }
 
-/** Cancelled commercial lead (display filters). Pure — no DOM. */
+/**
+ * Cancelled commercial lead (display filters). Pure — no DOM.
+ * Explicit reinstate (cancelled === false / bookingStatus active) wins over a
+ * sticky Refunded deposit left from a prior cancel — same rule as the site calendar.
+ */
 function leadIsCancelled(r) {
   if (!r) return true;
-  if (r.bookingStatus === "cancelled" || r.cancelled === true) return true;
+  if (
+    r.bookingStatus === "cancelled" ||
+    r.cancelled === true ||
+    r.cancelled === "true" ||
+    r.cancelled === 1
+  )
+    return true;
   if (r.status === "Cancelled" || r.status === "cancelled") return true;
+  if (r.cancelled === false || r.cancelled === "false" || r.cancelled === 0)
+    return false;
+  if (r.bookingStatus === "active") return false;
   if (String(r.deps || "") === "Refunded") return true;
   return false;
 }

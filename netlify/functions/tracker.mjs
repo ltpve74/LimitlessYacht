@@ -13,6 +13,7 @@ import * as LY from "./lib/leads-import.mjs";
 import {
   buildSiteCalendarFromLeads,
   leadBlockedDays as leadBlockedDaysShared,
+  leadIsCancelledForSite,
   leadIsOnHold,
 } from "./lib/site-calendar.mjs";
 
@@ -785,14 +786,7 @@ function stewCalendarRowsFromLeads(leads, stewAssign) {
   const rows = [];
   (Array.isArray(leads) ? leads : []).forEach((l) => {
     if (!l || !l.id) return;
-    if (
-      l.bookingStatus === "cancelled" ||
-      l.cancelled === true ||
-      l.status === "Cancelled" ||
-      l.status === "cancelled" ||
-      String(l.deps || "") === "Refunded"
-    )
-      return;
+    if (leadIsCancelledForSite(l)) return;
     /* Pending / on-hold: public calendar only — not on stew roster until source assigned */
     if (leadIsOnHold(l)) return;
     const days = leadBlockedDays(l);
@@ -1167,15 +1161,10 @@ function syncNewIcsLeads(data, events, who, now) {
       alreadyKnown++;
       /*
        * Cancelled lead stays in the book (greyed) but never re-gains hold dates
-       * from ICS. Captain cancel clears start/end for tentative drops; do not revive.
+       * from ICS. Explicit reinstate (cancelled === false) must allow ICS again —
+       * sticky Refunded alone must not keep skipping (same as site calendar).
        */
-      if (
-        L.bookingStatus === "cancelled" ||
-        L.cancelled === true ||
-        L.status === "Cancelled" ||
-        L.status === "cancelled" ||
-        String(L.deps || "") === "Refunded"
-      ) {
+      if (leadIsCancelledForSite(L)) {
         return;
       }
       const d = leadDatesFromIcsEvent(ev);
@@ -1252,15 +1241,7 @@ function syncNewIcsLeads(data, events, who, now) {
       if (d.start) {
         /* Soft hint: another lead already on this start date (possible duplicate) */
         const sameDay = (leads || []).filter(function (x) {
-          if (!x) return false;
-          if (
-            x.bookingStatus === "cancelled" ||
-            x.cancelled === true ||
-            x.status === "Cancelled" ||
-            x.status === "cancelled" ||
-            String(x.deps || "") === "Refunded"
-          )
-            return false;
+          if (!x || leadIsCancelledForSite(x)) return false;
           return String(x.start || x.cdate || "").slice(0, 10) === d.start;
         });
         orphans.push({
@@ -1504,6 +1485,7 @@ function noticeMatchesSub(notice, sub) {
   return true;
 }
 function leadIsCancelledRow(lead) {
+  /* Push notifications: treat explicit cancel flags only (not sticky Refunded). */
   if (!lead) return false;
   if (lead.bookingStatus === "cancelled" || lead.cancelled === true) return true;
   if (lead.status === "Cancelled" || lead.status === "cancelled") return true;

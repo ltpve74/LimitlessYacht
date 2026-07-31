@@ -2722,13 +2722,37 @@ function reinstateLeadCharter(lead, opts){
   live.refundAt="";
   /* Reinstated deals start open / on hold — captain confirms again when firm */
   live.dealClosed=false;
+  /*
+   * Clear sticky Refunded invoice flags from the prior cancel. Those used to keep
+   * the public site calendar treating the lead as cancelled (hold never returned).
+   * Captain re-issues invoices if money is due again.
+   */
+  if(String(live.deps||"")==="Refunded") live.deps="Not issued";
+  if(String(live.fins||"")==="Refunded") live.fins="Not issued";
+  if(String(live.apas||"")==="Refunded") live.apas="Not issued";
   if(opts.clearDates){
     live.start="";
     live.end="";
     live.cdate="";
     live.days=0;
+  } else {
+    /*
+     * If the card lost start/end (legacy cancel, or clearDates then edit), try to
+     * reattach from the linked calendar event so reinstate can put the hold back.
+     */
+    var hasStart=!!String(live.start||live.cdate||"").slice(0,10);
+    if(!hasStart){
+      try{
+        var ckR=leadCalendarEventKey(live);
+        var evR=ckR?calendarEventByKey(ckR):null;
+        if(evR&&evR.start){
+          live.start=String(evR.start).slice(0,10);
+          var evEnd=String(evR.end||"").slice(0,10);
+          if(evEnd&&evEnd!==live.start) live.end=evEnd;
+        }
+      }catch(eDate){}
+    }
   }
-  /* Refunded deposit from prior cancel: leave statuses; captain can re-issue if needed */
   var noteBit="Reinstated"+(opts.clearDates?" · no calendar dates (active, not on hold for a day)":" · dates on hold again")+
     (opts.stealHolds?" · took hold from other tentative lead(s)":"")+
     (opts.note?": "+opts.note:"");

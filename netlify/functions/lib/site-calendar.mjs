@@ -14,10 +14,27 @@ function addUtcDayYmd(ymd, n) {
   return yy + "-" + mm + "-" + dd;
 }
 
+/**
+ * Whether a lead is omitted from the public site calendar.
+ * Must match tracker leadBookingStatus: explicit reinstate (cancelled === false
+ * / bookingStatus active) wins over sticky Refunded deposit from a prior cancel.
+ * Otherwise reinstate greys off correctly in the app but the hold day never returns.
+ */
 export function leadIsCancelledForSite(l) {
   if (!l) return true;
-  if (l.bookingStatus === "cancelled" || l.cancelled === true) return true;
+  if (
+    l.bookingStatus === "cancelled" ||
+    l.cancelled === true ||
+    l.cancelled === "true" ||
+    l.cancelled === 1
+  )
+    return true;
   if (l.status === "Cancelled" || l.status === "cancelled") return true;
+  /* Explicit reinstate / active flags beat legacy refund heuristics */
+  if (l.cancelled === false || l.cancelled === "false" || l.cancelled === 0)
+    return false;
+  if (l.bookingStatus === "active") return false;
+  /* Legacy: refunded deposit with no explicit reinstate flag */
   if (String(l.deps || "") === "Refunded") return true;
   return false;
 }
