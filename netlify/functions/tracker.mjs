@@ -1165,6 +1165,19 @@ function syncNewIcsLeads(data, events, who, now) {
     if (L) {
       known.add(ek);
       alreadyKnown++;
+      /*
+       * Cancelled lead stays in the book (greyed) but never re-gains hold dates
+       * from ICS. Captain cancel clears start/end for tentative drops; do not revive.
+       */
+      if (
+        L.bookingStatus === "cancelled" ||
+        L.cancelled === true ||
+        L.status === "Cancelled" ||
+        L.status === "cancelled" ||
+        String(L.deps || "") === "Refunded"
+      ) {
+        return;
+      }
       const d = leadDatesFromIcsEvent(ev);
       if (!d.start) return;
 
