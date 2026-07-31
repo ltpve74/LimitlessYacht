@@ -3565,29 +3565,22 @@ function renderLeads(){
     nShown++;
     var cancelled=leadIsCancelled(r);
     var src=leadSource(r);
-    var isOwner=src==="owner"; /* owner’s days — no income */
-    var isOwnerSrc=src==="ownersourced"; /* owner-sourced commercial — income */
+    var isOwner=src==="owner";
+    var isOwnerSrc=src==="ownersourced";
     var isPending=src==="pending";
     var dealClosed=leadIsDealClosed(r);
-    /* Open/tentative = assigned source but not confirmed */
     var isOpenDeal=!isPending&&!cancelled&&!dealClosed;
     var isTentative=isPending||isOpenDeal;
-    var closed=leadIsClosedDeal(r); /* commercial money only */
+    var closed=leadIsClosedDeal(r);
     var ownerConfirmed=isOwner&&dealClosed&&!cancelled;
     var timing=closed?leadCharterTiming(r):"";
     var val=leadListMoney(r);
-    /* Invoices on commercial leads (incl. owner-sourced); not owner’s days / pending */
     var openN=(!isPending&&!isOwner&&!cancelled)?pendForLead(r):0;
     if(closed) pend+=openN;
 
     var showApa=!isOwner&&!isPending&&leadNeedsApaInv(r);
     var isSplit=!isOwner&&leadHasSplit(r);
     var finLabel="Final";
-    var srcPill=isPending?'':
-      (src==="captain"?'<span class="pill p-blue">Luigi · Captain</span>':
-        (src==="clickboat"?'<span class="pill p-amber">Paul · Click&amp;Boat</span>':
-          (src==="owner"?'<span class="pill p-own">Owner’s days</span>':
-            (src==="ownersourced"?'<span class="pill p-own">Owner-sourced · income</span>':'<span class="pill p-grey">Other</span>'))));
     var typeKey=leadCharterTypeKey(r);
     var typeLab=leadCharterTypeLabel(typeKey);
     var season=(LY_MODELS&&LY_MODELS.charterSeason)?LY_MODELS.charterSeason(r.start||r.cdate):"";
@@ -3598,47 +3591,80 @@ function renderLeads(){
     if(startD&&endD&&endD!==startD) dateLine=esc(fmtDate(startD))+" – "+esc(fmtDate(endD));
     else if(startD) dateLine=esc(fmtDate(startD));
     else dateLine="Date TBD";
+    var moneyAmt=isSplit?leadClientTotal(r):(Number(r.total)||Number(r.base)||Number(r.price)||0);
+    if(!(moneyAmt>0)&&isOwner){
+      try{ moneyAmt=leadOwnerNotional(r)||0; }catch(eN){ moneyAmt=0; }
+    }
+    var titleName=r.name||"—";
+    var cardCls="item";
+    if(cancelled) cardCls+=" item--cancelled";
+    if(isTentative) cardCls+=" item--tentative";
+    var cardHtml="";
+
+    /* —— Compact cards: hold + lost (date + projected price + actions only) —— */
+    if(cancelled||isTentative){
+      var statePill=cancelled
+        ?'<span class="pill p-red">Lost</span>'
+        :(isPending
+          ?'<span class="pill p-amber">Pending source</span>'
+          :(isOwner
+            ?'<span class="pill p-own">Owner’s days</span>'
+            :'<span class="pill p-amber">On hold</span>'));
+      var srcShort="";
+      if(!isPending&&!cancelled){
+        if(src==="captain") srcShort='<span class="pill p-blue">Captain</span>';
+        else if(src==="clickboat") srcShort='<span class="pill p-amber">Paul</span>';
+        else if(src==="ownersourced") srcShort='<span class="pill p-own">Owner-sourced</span>';
+        else if(src==="other") srcShort='<span class="pill p-grey">Other</span>';
+      }
+      var amtShow=moneyAmt>0
+        ?('<span class="money" style="font-size:16px;font-weight:800">'+money0(moneyAmt)+'</span>'+
+          (cancelled||isTentative?'<div style="font-size:10.5px;font-weight:700;color:var(--muted);margin-top:2px;text-align:right">'+(cancelled?"was projected":"projected")+'</div>':''))
+        :('<span style="font-size:12.5px;font-weight:800;color:var(--muted)">—</span>');
+      var metaBits=
+        '<span>📅 '+dateLine+'</span>'+
+        '<span class="pill p-grey">'+esc(typeLab)+'</span>'+
+        statePill+
+        srcShort;
+      var actions=
+        (isPending&&!cancelled?'<button type="button" class="btn" data-edit-ld-btn="'+esc(r.id)+'">Assign source</button>':'')+
+        (isOpenDeal?'<button type="button" class="btn" data-edit-ld-btn="'+esc(r.id)+'">'+(isOwner?"Confirm":"Confirm deal")+'</button>':'')+
+        (isTentative&&!cancelled?'<button type="button" class="btn danger" data-cancel-tentative="'+esc(r.id)+'">Cancel · lost</button>':'')+
+        (cancelled?'<button type="button" class="btn" data-reinstate-lead="'+esc(r.id)+'">Reinstate · if they get in touch</button>':'');
+      cardHtml='<div class="'+cardCls+'" data-edit-ld="'+esc(r.id)+'" data-ld-start="'+esc(String(r.start||"").slice(0,10))+'" data-ld-name="'+esc(String(r.name||"").toLowerCase())+'">'+
+        '<div class="top"><div class="title">'+esc(titleName)+'</div><div class="amt">'+amtShow+'</div></div>'+
+        '<div class="meta">'+metaBits+'</div>'+
+        (actions?'<div class="lead-actions">'+actions+'</div>':'')+
+        '<span class="chev">✎</span></div>';
+      if(cancelled) cancCards.push(cardHtml);
+      else tentCards.push(cardHtml);
+      return;
+    }
+
+    /* —— Confirmed book: full commercial detail —— */
+    var srcPill=
+      (src==="captain"?'<span class="pill p-blue">Luigi · Captain</span>':
+        (src==="clickboat"?'<span class="pill p-amber">Paul · Click&amp;Boat</span>':
+          (src==="owner"?'<span class="pill p-own">Owner’s days</span>':
+            (src==="ownersourced"?'<span class="pill p-own">Owner-sourced · income</span>':'<span class="pill p-grey">Other</span>'))));
     var rateBits=[];
     if(r.rate!=null&&r.rate!==""&&Number(r.rate)>0) rateBits.push(money0(r.rate)+"/day");
     if(Number(r.days)>1) rateBits.push(Math.round(Number(r.days))+" days");
     if(r.closed) rateBits.push("closed "+esc(fmtDate(r.closed)));
     var calKey=leadCalendarEventKey(r);
-    /* Status first so unconfirmed never looks like a firm booking */
     var statusBanner="";
-    if(cancelled){
-      statusBanner='<div class="ld-status-banner" style="background:#fde8e8;border-color:#f3b4ae;color:var(--danger)">Cancelled</div>';
-    } else if(isPending){
-      statusBanner='<div class="ld-status-banner"><b>Unconfirmed · tentative lead</b>'+
-        '<span class="ld-status-sub">Pending source — not a firm charter. Assign Captain / Paul / Owner’s days / Owner-sourced. Assigning does <b>not</b> confirm.</span></div>';
-    } else if(isOpenDeal&&isOwner){
-      statusBanner='<div class="ld-status-banner"><b>Unconfirmed · owner’s days</b>'+
-        '<span class="ld-status-sub">No income · owner benefit when confirmed. Tick <b>Confirm</b> when firm (friend pays owner cash / private use).</span></div>';
-    } else if(isOpenDeal&&isOwnerSrc){
-      statusBanner='<div class="ld-status-banner"><b>Unconfirmed · owner-sourced charter</b>'+
-        '<span class="ld-status-sub">Business income (we invoice). Confirm via deposit <b>Paid</b> or the Confirm tick. Counts in money totals once confirmed · no commission for now.</span></div>';
-    } else if(isOpenDeal){
-      statusBanner='<div class="ld-status-banner"><b>Unconfirmed · open deal</b>'+
-        '<span class="ld-status-sub">Source is set, but the deal is not closed. Not in money totals or firm calendar until confirmed — mark deposit <b>Paid</b>, or tick <b>Confirm</b> manually.</span></div>';
+    if(ownerConfirmed){
+      statusBanner='<div class="ld-status-banner" style="background:#eef8ef;border-color:rgba(46,125,50,.35);color:#1b5e20"><b>Confirmed · owner’s days</b></div>';
+    } else if(closed){
+      statusBanner='<div class="ld-status-banner" style="background:#eef8ef;border-color:rgba(46,125,50,.35);color:#1b5e20"><b>Confirmed · deal closed</b></div>';
     }
     var metaBits=
       '<span>📅 '+dateLine+'</span>'+
       '<span class="pill p-grey">'+esc(typeLab)+'</span>'+
       (seasonLab?'<span class="pill p-blue">'+esc(seasonLab)+'</span>':'')+
-      (isPending?'<span class="pill p-amber">Pending source</span>':'')+
-      (isOpenDeal?'<span class="pill p-amber">Tentative</span>':'')+
-      (closed?'<span class="pill p-green">Confirmed · deal closed</span>':'')+
-      (ownerConfirmed?'<span class="pill p-green">Confirmed · owner’s days</span>':'')+
+      (closed?'<span class="pill p-green">Confirmed</span>':'')+
+      (ownerConfirmed?'<span class="pill p-green">Owner’s days</span>':'')+
       srcPill+
-      (cancelled?'<span class="pill p-red">Cancelled</span>':'')+
-      (cancelled&&(leadInvStatus(r.deps)==="Refunded"||leadInvStatus(r.fins)==="Refunded"||leadInvStatus(r.apas)==="Refunded")
-        ?('<span class="pill p-red">'+(
-            (leadInvStatus(r.deps)==="Refunded"&&leadInvStatus(r.fins)==="Refunded")||r.refundScope==="full"
-              ?"Fully refunded"
-              :(leadInvStatus(r.fins)==="Refunded"&&leadInvStatus(r.deps)!=="Refunded")
-                ?"Final refunded"
-                :"Deposit refunded"
-          )+(Number(r.refundTotal)>0?" · "+money0(r.refundTotal):"")+'</span>')
-        :'')+
       (timing==="upcoming"?'<span class="pill p-blue">Scheduled</span>':'')+
       (timing==="done"?'<span class="pill p-green">Realised</span>':'')+
       (isSplit?'<span class="pill p-black">Split</span>':'')+
@@ -3650,34 +3676,26 @@ function renderLeads(){
       (isCaptain()&&closed&&isOwnerSrc?'<span class="pill p-own">Income · 0% commission</span>':'')+
       (isCaptain()&&ownerConfirmed?'<span class="pill p-own">No income · owner benefit</span>':'')+
       (openN>0?'<span class="pill p-amber">'+openN+' invoice'+(openN>1?'s':'')+' open</span>':'');
-    if(!isOwner&&!isPending&&!isSplit){
+    if(!isOwner&&!isSplit){
       var vatNote=vatModeLabel(r.vatMode);
       if(vatNote&&(Number(r.vatPct)||0)>0) vatNote+=" "+r.vatPct+"%";
       if(vatNote) metaBits+='<span>'+esc(vatNote)+'</span>';
     }
-    var moneyAmt=isSplit?leadClientTotal(r):(Number(r.total)||Number(r.base)||0);
-    var amtShow=cancelled||isOwner?"—":money0(moneyAmt);
-    if(isPending) amtShow='<span style="font-size:12.5px;font-weight:800;color:#9a6b00">Unconfirmed</span>';
-    else if(isOpenDeal&&isOwner) amtShow='<span style="font-size:12.5px;font-weight:800;color:#9a6b00">Owner’s days · tentative</span>';
-    else if(isOpenDeal) amtShow='<span style="font-size:12px;font-weight:800;color:#9a6b00;display:block;text-align:right">Tentative</span><span class="money" style="font-size:15px;opacity:.85">'+money0(moneyAmt)+'</span>';
-    var cardCls="item";
-    if(cancelled) cardCls+=" item--cancelled";
-    if(isTentative) cardCls+=" item--tentative";
+    var amtShow=isOwner?"—":money0(moneyAmt);
     var icsName=String(r.icsGuestName||"").trim();
-    var titleName=r.name||"—";
     var titleSub="";
     if(icsName&&icsName!==String(r.name||"").trim()){
       titleSub='<div class="meta" style="margin-top:2px;font-size:12px">Calendar title: <b>'+esc(icsName)+'</b></div>';
     }
-    var cardHtml='<div class="'+cardCls+'" data-edit-ld="'+esc(r.id)+'" data-ld-start="'+esc(String(r.start||"").slice(0,10))+'" data-ld-name="'+esc(String(r.name||"").toLowerCase())+'">'+
+    cardHtml='<div class="'+cardCls+'" data-edit-ld="'+esc(r.id)+'" data-ld-start="'+esc(String(r.start||"").slice(0,10))+'" data-ld-name="'+esc(String(r.name||"").toLowerCase())+'">'+
       statusBanner+
       '<div class="top"><div class="title">'+esc(titleName)+titleSub+'</div><div class="amt money">'+amtShow+'</div></div>'+
       '<div class="meta">'+metaBits+'</div>'+
-      (cancelled||isOwner||isPending||isOpenDeal?"":leadSplitSummaryHTML(r))+
-      (isOwner&&!cancelled?(dealClosed
-        ?'<div class="notes" style="font-style:normal;color:var(--muted)">Owner’s days — private use or friend pays the owner directly. No income, no commission — list-rate notional (owner benefits). Switch to <b>Owner-sourced</b> if we invoice the guest.</div>'
-        :'<div class="notes" style="font-style:normal;color:#9a6b00">Owner’s days assigned but not confirmed — tick <b>Confirm</b> when firm. Benefits count only after confirm.</div>'):'')+
-      (isOwnerSrc&&!cancelled&&dealClosed?(function(){
+      (isOwner?"":leadSplitSummaryHTML(r))+
+      (isOwner
+        ?'<div class="notes" style="font-style:normal;color:var(--muted)">Owner’s days — private use or friend pays the owner directly. No income, no commission — list-rate notional (owner benefits).</div>'
+        :'')+
+      (isOwnerSrc?(function(){
         var w=leadHasSplit(r)?(Number(r.invoiceTotal)>0?Number(r.invoiceTotal):(Number(r.invoiceNet)||0)):(Number(r.total)||0);
         var cash=leadHasSplit(r)?(leadFreeCashAmt(r)||0):0;
         var dest=leadCashDest(r);
@@ -3694,34 +3712,27 @@ function renderLeads(){
         bits+='. Commission 0% for now.';
         return '<div class="notes" style="font-style:normal;color:var(--muted)">'+bits+'</div>';
       })():'')+
-      (isOwner||isPending?"":('<div class="invtags">'+
+      (isOwner?"":('<div class="invtags">'+
         (function(){
           var df=leadEffectiveDepFin(r);
           var bits="";
           if(leadNeedsDepInv(r)) bits+=leadInvTag("Deposit",df.dep,r.depPct,r.deps,r.depInv);
           else if(leadDepNotRequested(r)) bits+=leadInvTag("Deposit",0,"","Not requested","");
           var finShow=df.fin;
-          if(finShow>0.009&&(cancelled?leadInvStatus(r.fins)==="Refunded":true))
-            bits+=leadInvTag(finLabel,finShow,"",r.fins,r.finInv);
-          if(showApa&&(cancelled?leadInvStatus(r.apas)==="Refunded":true))
-            bits+=leadInvTag("APA",r.apa,r.apaPct,r.apas,r.apaInv);
+          if(finShow>0.009) bits+=leadInvTag(finLabel,finShow,"",r.fins,r.finInv);
+          if(showApa) bits+=leadInvTag("APA",r.apa,r.apaPct,r.apas,r.apaInv);
           return bits;
         })()+
       '</div>'))+
       (r.notes?'<div class="notes">'+esc(r.notes)+'</div>':'')+
       '<div class="lead-actions">'+
-        (cancelled||isOwner||isPending||isOpenDeal?"":'<button type="button" class="btn" data-inv-lead="'+esc(r.id)+'">Make invoice</button>')+
-        (cancelled||isOwner||isPending?"":'<button type="button" class="btn ghost" data-agr-lead="'+esc(r.id)+'">Agreement</button>')+
-        (isPending&&!cancelled?'<button type="button" class="btn" data-edit-ld-btn="'+esc(r.id)+'">Assign source</button>':'')+
-        (isOpenDeal?'<button type="button" class="btn" data-edit-ld-btn="'+esc(r.id)+'">'+(isOwner?"Confirm owner’s days":"Close deal / confirm")+'</button>':'')+
-        (isTentative&&!cancelled?'<button type="button" class="btn danger" data-cancel-tentative="'+esc(r.id)+'">Cancel tentative</button>':'')+
-        (cancelled?'<button type="button" class="btn" data-reinstate-lead="'+esc(r.id)+'">Reinstate · if they get in touch</button>':'')+
+        (isOwner?"":'<button type="button" class="btn" data-inv-lead="'+esc(r.id)+'">Make invoice</button>')+
+        (isOwner?"":'<button type="button" class="btn ghost" data-agr-lead="'+esc(r.id)+'">Agreement</button>')+
       '</div>'+
       '<span class="chev">✎</span></div>';
-    if(cancelled) cancCards.push(cardHtml);
-    else if(isTentative) tentCards.push(cardHtml);
-    else confCards.push(cardHtml);
+    confCards.push(cardHtml);
   });
+
   function ldBookSection(cls, title, sub, count, cards, emptyMsg){
     var body=cards.length?cards.join(""):('<div class="ld-book-empty">'+esc(emptyMsg)+'</div>');
     return '<div class="ld-book-sec '+cls+'">'+
