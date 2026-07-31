@@ -277,6 +277,47 @@
   }
   .item.item--tentative .title{color:#6b4500}
   .item.item--tentative .amt{color:#9a6b00}
+  /* Leads book: pipeline sections (tentative → confirmed · cancelled archive) */
+  .ld-book-sec{margin:0 0 18px}
+  .ld-book-sec:last-child{margin-bottom:8px}
+  .ld-book-hd{
+    display:flex;align-items:baseline;justify-content:space-between;gap:10px;
+    margin:0 0 10px;padding:10px 12px;border-radius:12px;
+    border:1px solid var(--line);background:var(--card);
+  }
+  .ld-book-hd .ld-book-title{
+    font-size:13px;font-weight:900;letter-spacing:.04em;text-transform:uppercase;
+    color:var(--ink);line-height:1.25;
+  }
+  .ld-book-hd .ld-book-sub{
+    font-size:11.5px;font-weight:600;color:var(--muted);letter-spacing:0;text-transform:none;
+    margin-top:2px;line-height:1.35;
+  }
+  .ld-book-hd .ld-book-count{
+    flex-shrink:0;font-size:12px;font-weight:800;color:var(--muted);
+    background:var(--grey);padding:4px 10px;border-radius:999px;white-space:nowrap;
+  }
+  .ld-book-sec--tentative .ld-book-hd{
+    border-color:#E0A800;background:linear-gradient(180deg,#FFF8E1 0%,#fff 100%);
+  }
+  .ld-book-sec--tentative .ld-book-title{color:#7a5200}
+  .ld-book-sec--tentative .ld-book-count{background:#FFE08A;color:#7a5200}
+  .ld-book-sec--confirmed .ld-book-hd{
+    border-color:rgba(46,125,50,.28);background:linear-gradient(180deg,#eef8ef 0%,#fff 100%);
+  }
+  .ld-book-sec--confirmed .ld-book-title{color:#1b5e20}
+  .ld-book-sec--confirmed .ld-book-count{background:var(--green);color:var(--greenInk)}
+  .ld-book-sec--cancelled .ld-book-hd{
+    border-color:#f3b4ae;background:linear-gradient(180deg,#fdeeee 0%,#fff 100%);
+  }
+  .ld-book-sec--cancelled .ld-book-title{color:var(--danger)}
+  .ld-book-sec--cancelled .ld-book-count{background:#fde8e8;color:var(--danger)}
+  .ld-book-empty{
+    font-size:13px;color:var(--muted);padding:12px 14px;border-radius:12px;
+    border:1px dashed var(--line);background:rgba(255,255,255,.6);margin:0 0 4px;line-height:1.4;
+  }
+  .ld-book-sec .item{margin-bottom:10px}
+  .ld-book-sec .item:last-child{margin-bottom:0}
   .ld-status-banner{
     display:block;font-size:11.5px;font-weight:800;letter-spacing:.03em;
     text-transform:uppercase;color:#7a5200;background:#FFE08A;
@@ -651,7 +692,7 @@
           <div id="ldOsTypes" class="ld-type-table"></div>
         </div>
       </div>
-      <div class="legend"><b>Yellow = unconfirmed</b> until Confirm. <b>Assigning a source does not confirm.</b> <b>Owner’s days</b> = no income · benefits (friend pays owner cash / private use) — manual confirm. <b>Owner-sourced</b> = business income (we invoice) · 0% commission for now — deposit Paid or Confirm. Captain / Paul as before. <b>Make invoice</b> = PDF.</div>
+      <div class="legend"><b>Book layout:</b> <b>On hold / tentative</b> → confirm moves the card to <b>Confirmed book</b>. <b>Cancelled</b> stays in its own grey archive (not in the main list). Assigning a source does <b>not</b> confirm. Owner’s days = no income · benefits. Owner-sourced = income · 0% commission for now.</div>
       <div id="ldFindBar" style="margin:0 0 12px">
         <input class="ctl" id="ldSearch" type="search" placeholder="Find lead — name, date (e.g. 6 Aug), source, notes…" autocomplete="off" style="width:100%">
         <div class="meta" id="ldSearchMeta" style="margin-top:6px;display:none"></div>
@@ -2994,13 +3035,27 @@ function leadIsUnconfirmed(r){
   if(leadSource(r)==="pending") return true;
   return !leadIsDealClosed(r);
 }
+/** Book pipeline bucket for list layout: tentative | confirmed | cancelled */
+function leadBookBucket(r){
+  if(!r) return "confirmed";
+  if(leadIsCancelled(r)) return "cancelled";
+  if(leadIsUnconfirmed(r)||leadSource(r)==="pending") return "tentative";
+  return "confirmed";
+}
 function sortLeads(){
   if(!state.leads||!state.leads.length) return;
   state.leads.sort(function(a,b){
-    /* Unconfirmed first (pending source, then open/tentative deals) */
-    var ap=leadSource(a)==="pending"?0:(leadIsUnconfirmed(a)?1:2);
-    var bp=leadSource(b)==="pending"?0:(leadIsUnconfirmed(b)?1:2);
+    /* Book order: tentative → confirmed → cancelled archive */
+    var order={tentative:0, confirmed:1, cancelled:2};
+    var ap=order[leadBookBucket(a)]!=null?order[leadBookBucket(a)]:1;
+    var bp=order[leadBookBucket(b)]!=null?order[leadBookBucket(b)]:1;
     if(ap!==bp) return ap-bp;
+    /* Within tentative: pending source first, then open deals */
+    if(ap===0){
+      var as=leadSource(a)==="pending"?0:1;
+      var bs=leadSource(b)==="pending"?0:1;
+      if(as!==bs) return as-bs;
+    }
     var da=leadCharterKey(a), db=leadCharterKey(b);
     if(da&&db&&da!==db) return db<da?-1:1; /* newest charter date first */
     if(db&&!da) return 1;
@@ -3456,7 +3511,8 @@ function renderLeads(){
     if(timing==="upcoming") addUpsellBucket(proj, gross, exB, cm);
     else addUpsellBucket(done, gross, exB, cm);
   });
-  /* re-open forEach for list paint only — leads already iterated above for stats */
+  /* Book sections: paint cards into buckets (tentative / confirmed / cancelled) */
+  var tentCards=[], confCards=[], cancCards=[];
   (state.leads||[]).forEach(function(r){
     if(!r) return;
     if(!leadMatchesSearch(r, searchQ)){ nHidden++; return; }
@@ -3567,7 +3623,7 @@ function renderLeads(){
     if(icsName&&icsName!==String(r.name||"").trim()){
       titleSub='<div class="meta" style="margin-top:2px;font-size:12px">Calendar title: <b>'+esc(icsName)+'</b></div>';
     }
-    html+='<div class="'+cardCls+'" data-edit-ld="'+esc(r.id)+'" data-ld-start="'+esc(String(r.start||"").slice(0,10))+'" data-ld-name="'+esc(String(r.name||"").toLowerCase())+'">'+
+    var cardHtml='<div class="'+cardCls+'" data-edit-ld="'+esc(r.id)+'" data-ld-start="'+esc(String(r.start||"").slice(0,10))+'" data-ld-name="'+esc(String(r.name||"").toLowerCase())+'">'+
       statusBanner+
       '<div class="top"><div class="title">'+esc(titleName)+titleSub+'</div><div class="amt money">'+amtShow+'</div></div>'+
       '<div class="meta">'+metaBits+'</div>'+
@@ -3616,10 +3672,54 @@ function renderLeads(){
         (cancelled?'<button type="button" class="btn" data-reinstate-lead="'+esc(r.id)+'">Reinstate</button>':'')+
       '</div>'+
       '<span class="chev">✎</span></div>';
+    if(cancelled) cancCards.push(cardHtml);
+    else if(isTentative) tentCards.push(cardHtml);
+    else confCards.push(cardHtml);
   });
-  wrap.innerHTML=html||emptyBox("🌐",
-    searchQ?"No leads match “"+searchQ+"”":"No charters in the book yet",
-    searchQ?"Clear the find box, or try the date (e.g. 6 Aug / 2026-08-06). Sync calendar if it vanished.":"Tap + for a new lead, or Sync calendar dates.");
+  function ldBookSection(cls, title, sub, count, cards, emptyMsg){
+    var body=cards.length?cards.join(""):('<div class="ld-book-empty">'+esc(emptyMsg)+'</div>');
+    return '<div class="ld-book-sec '+cls+'">'+
+      '<div class="ld-book-hd">'+
+        '<div><div class="ld-book-title">'+esc(title)+'</div>'+
+        (sub?'<div class="ld-book-sub">'+esc(sub)+'</div>':'')+
+        '</div>'+
+        '<span class="ld-book-count">'+count+'</span>'+
+      '</div>'+
+      body+
+    '</div>';
+  }
+  if(!nShown&&!searchQ){
+    html=emptyBox("🌐","No charters in the book yet","Tap + for a new lead, or Sync calendar dates.");
+  } else if(!nShown&&searchQ){
+    html=emptyBox("🌐","No leads match “"+searchQ+"”","Clear the find box, or try the date (e.g. 6 Aug / 2026-08-06). Sync calendar if it vanished.");
+  } else {
+    html=
+      ldBookSection(
+        "ld-book-sec--tentative",
+        "On hold · tentative",
+        "Not firm — assign source, then Confirm or deposit Paid. Stays here until confirmed.",
+        tentCards.length,
+        tentCards,
+        "No tentative holds right now."
+      )+
+      ldBookSection(
+        "ld-book-sec--confirmed",
+        "Confirmed book",
+        "Firm charters · money totals · main list. Cards move here when you confirm.",
+        confCards.length,
+        confCards,
+        "No confirmed charters yet — confirm a tentative deal to fill this list."
+      )+
+      ldBookSection(
+        "ld-book-sec--cancelled",
+        "Cancelled archive",
+        "Greyed out · not deleted. Reinstate if the trip comes back.",
+        cancCards.length,
+        cancCards,
+        "No cancelled leads."
+      );
+  }
+  wrap.innerHTML=html;
   /* Cancel tentative from list card — stopPropagation so card edit does not open */
   Array.prototype.forEach.call(wrap.querySelectorAll("[data-cancel-tentative]"),function(btn){
     btn.addEventListener("click",function(ev){
