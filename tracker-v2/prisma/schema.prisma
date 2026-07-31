@@ -1,0 +1,185 @@
+// Yacht Ops Tracker v2 — multi-tenant schema skeleton
+// Money amounts: store as integer cents (EUR) to avoid float drift.
+// See docs/ARCHITECTURE.md
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+// ─── Tenancy ───────────────────────────────────────────────
+
+model Organisation {
+  id        String   @id @default(cuid())
+  name      String
+  slug      String   @unique
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  vessels     Vessel[]
+  memberships Membership[]
+  ledger      LedgerEvent[]
+}
+
+model Vessel {
+  id             String   @id @default(cuid())
+  organisationId String
+  name           String
+  /// Short code e.g. LIMITLESS
+  code           String
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+
+  organisation Organisation @relation(fields: [organisationId], references: [id], onDelete: Cascade)
+  leads        Lead[]
+  charges      Charge[]
+  ledger       LedgerEvent[]
+
+  @@unique([organisationId, code])
+  @@index([organisationId])
+}
+
+enum Role {
+  OWNER
+  CAPTAIN
+  MANAGER
+  STEWARD
+  VIEWER
+}
+
+model Membership {
+  id             String   @id @default(cuid())
+  organisationId String
+  /// Placeholder until Auth — email or stable external subject
+  userKey        String
+  role           Role     @default(CAPTAIN)
+  createdAt      DateTime @default(now())
+
+  organisation Organisation @relation(fields: [organisationId], references: [id], onDelete: Cascade)
+
+  @@unique([organisationId, userKey])
+  @@index([organisationId])
+}
+
+// ─── Leads (commercial charters) ───────────────────────────
+
+enum LeadSource {
+  PENDING
+  CAPTAIN
+  CLICKBOAT
+  OWNER_DAYS
+  OWNER_SOURCED
+  OTHER
+}
+
+enum InvoiceStatus {
+  NOT_ISSUED
+  ISSUED
+  PAID
+  REFUNDED
+}
+
+model Lead {
+  id             String         @id @default(cuid())
+  organisationId String
+  vesselId       String
+  name           String
+  source         LeadSource     @default(PENDING)
+  dealClosed     Boolean        @default(false)
+  cancelled      Boolean        @default(false)
+  cancelReason   String?
+  /// Charter start date (date-only stored as midnight UTC)
+  startDate      DateTime?      @db.Date
+  endDate        DateTime?      @db.Date
+  /// Quote total in cents (VAT handling in domain layer)
+  quoteCents     Int            @default(0)
+  depositCents   Int            @default(0)
+  finalCents     Int            @default(0)
+  depositStatus  InvoiceStatus  @default(NOT_ISSUED)
+  finalStatus    InvoiceStatus  @default(NOT_ISSUED)
+  /// Free cash black in cents (never auto “ex VAT”)
+  freeCashCents  Int            @default(0)
+  cashDest       String         @default("boat") // boat | owner
+  cashReceived   Boolean        @default(false)
+  notes          String?
+  refundScope    String?
+  refundCents    Int?
+  createdAt      DateTime       @default(now())
+  updatedAt      DateTime       @updatedAt
+
+  vessel Vessel @relation(fields: [vesselId], references: [id], onDelete: Cascade)
+
+  @@index([organisationId, vesselId])
+  @@index([vesselId, startDate])
+}
+
+// ─── Charges ───────────────────────────────────────────────
+
+enum BillType {
+  CASH
+  INVOICE
+  MIX
+}
+
+model Charge {
+  id             String   @id @default(cuid())
+  organisationId String
+  vesselId       String
+  client         String
+  date           DateTime @db.Date
+  amountCents    Int
+  billType       BillType @default(INVOICE)
+  cashCents      Int      @default(0)
+  captainComm    Boolean  @default(false)
+  extCents       Int      @default(0)
+  notes          String?
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+
+  vessel Vessel @relation(fields: [vesselId], references: [id], onDelete: Cascade)
+
+  @@index([organisationId, vesselId])
+  @@index([vesselId, date])
+}
+
+// ─── Cash ledger (petty / envelope truth) ──────────────────
+
+enum LedgerKind {
+  CASH_IN
+  CASH_OUT
+  ADJUSTMENT
+}
+
+enum LedgerEnvelope {
+  PETTY
+  OWN_POCKET
+  CARD
+  OWNER_POCKET
+}
+
+model LedgerEvent {
+  id             String          @id @default(cuid())
+  organisationId String
+  vesselId       String
+  kind           LedgerKind
+  envelope       LedgerEnvelope
+  /// Signed amount in cents: CASH_OUT should be positive out (domain normalises)
+  amountCents    Int
+  occurredAt     DateTime        @db.Date
+  sourceType     String
+  sourceId       String?
+  actorKey       String?
+  memo           String?
+  createdAt      DateTime        @default(now())
+
+  organisation Organisation @relation(fields: [organisationId], references: [id], onDelete: Cascade)
+  vessel       Vessel       @relation(fields: [vesselId], references: [id], onDelete: Cascade)
+
+  @@index([organisationId, vesselId, occurredAt])
+  @@index([vesselId, envelope, occurredAt])
+  @@index([sourceType, sourceId])
+}

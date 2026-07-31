@@ -812,9 +812,26 @@
 <script>
 "use strict";
 var API = "/.netlify/functions/tracker";
-/* Lead dep/fin/APA invoice status — no “request” step; PDF is made in-app.
+/* Lead dep/fin/APA invoice status — PDF is made in-app.
+   Not requested = no deposit invoice; final carries the full formal white / charter price.
+   Not issued = deposit/final still planned, just no PDF yet (amounts follow deposit %).
    Refunded = money returned (e.g. captain weather cancel → refund deposit). */
-var LEAD_STATUSES = ["Not issued","Issued","Paid","Refunded"];
+var LEAD_STATUSES = ["Not issued","Not requested","Issued","Paid","Refunded"];
+/** Deposit status options: value stored on lead.deps, label shown in the form. */
+var LEAD_DEP_STATUS_OPTS = [
+  {v:"Not issued", l:"Not issued — will invoice later"},
+  {v:"Not requested", l:"No deposit — full amount on final"},
+  {v:"Issued", l:"Issued"},
+  {v:"Paid", l:"Paid"},
+  {v:"Refunded", l:"Refunded"}
+];
+/** Final / APA: no “No deposit” option. */
+var LEAD_LINE_STATUS_OPTS = [
+  {v:"Not issued", l:"Not issued"},
+  {v:"Issued", l:"Issued"},
+  {v:"Paid", l:"Paid"},
+  {v:"Refunded", l:"Refunded"}
+];
 /** Lead booking lifecycle (separate from invoice status). */
 var LEAD_BOOKING_STATUSES = ["active","cancelled"];
 var EXPECTED_PEOPLE = 2;
@@ -1511,16 +1528,55 @@ function updateFab(){
 function pill(v){
   var c="p-grey";
   if(v==="Pending"||v==="Not issued") c="p-amber";
+  else if(v==="Not requested"||v==="Not needed") c="p-grey";
   else if(v==="Invoiced"||v==="Issued") c="p-blue";
   else if(v==="Paid") c="p-green";
   else if(v==="Refunded"||v==="Cancelled"||v==="cancelled") c="p-red";
   return '<span class="pill '+c+'">'+esc(v)+'</span>';
 }
-/** Normalize legacy “Not requested” / “Requested” → Not issued */
+/**
+ * Invoice line status.
+ * “Not requested” = deliberately no deposit (or APA) invoice — keep as its own status.
+ * Legacy “Requested” (old middle step) → Not issued.
+ */
 function leadInvStatus(s){
   s=String(s||"").trim();
-  if(s==="Issued"||s==="Paid"||s==="Refunded") return s;
+  if(s==="Issued"||s==="Paid"||s==="Refunded"||s==="Not requested") return s;
+  if(s==="Not needed"||s==="N/A") return "Not requested";
+  if(s==="Requested") return "Not issued";
   return "Not issued";
+}
+/**
+ * True when deposit is intentionally skipped — final must be the full formal amount.
+ * Accepts a status string or a lead-like object (checks deps + depPct).
+ * Deposit % = 0 also means no deposit (same money rule).
+ */
+function leadDepNotRequested(depsOrLead){
+  if(depsOrLead&&typeof depsOrLead==="object"){
+    if(leadInvStatus(depsOrLead.deps)==="Not requested") return true;
+    /* Explicit zero deposit % → no deposit line (even if status still “Not issued”) */
+    if(depsOrLead.depPct!==""&&depsOrLead.depPct!=null&&!(Number(depsOrLead.depPct)>0)) return true;
+    return false;
+  }
+  return leadInvStatus(depsOrLead)==="Not requested";
+}
+/**
+ * Effective deposit/final for display and invoices.
+ * No deposit (status or 0%) → dep=0, fin = full formal white (split) or full client total.
+ * Does not mutate the lead — save/recalc persist the same rule.
+ */
+function leadEffectiveDepFin(l){
+  if(!l) return {dep:0, fin:0};
+  if(leadDepNotRequested(l)){
+    var full=0;
+    if(leadHasSplit(l)) full=Math.round((Number(l.invoiceTotal)||0)*100)/100;
+    else full=Math.round((Number(l.total)||Number(l.price)||0)*100)/100;
+    return {dep:0, fin:full};
+  }
+  return {
+    dep:Math.round((Number(l.dep)||0)*100)/100,
+    fin:Math.round((Number(l.fin)||0)*100)/100
+  };
 }
 /** Charter booking status on a lead (active unless cancelled). */
 function leadBookingStatus(r){
@@ -1908,8 +1964,20 @@ function leadInvTag(label, amount, pct, status, invNo){
   return '<span class="invtag'+cls+'"><b>'+esc(label)+'</b> '+money0(amount)+pctS+' '+pill(st)+inv+'</span>';
 }
 /** Only count invoice lines that actually exist (€ > 0). Empty APA must not inflate “open”. */
-function leadNeedsDepInv(r){ return !!(r&&(Number(r.dep)||0)>0.009); }
-function leadNeedsFinInv(r){ return !!(r&&(Number(r.fin)||0)>0.009); }
+function leadNeedsDepInv(r){
+  if(!r) return false;
+  if(leadDepNotRequested(r)) return false;
+  return (Number(r.dep)||0)>0.009;
+}
+function leadNeedsFinInv(r){
+  if(!r) return false;
+  /* When deposit not requested / 0%, final is the full formal amount even if stored fin is stale */
+  if(leadDepNotRequested(r)){
+    var df=leadEffectiveDepFin(r);
+    return df.fin>0.009;
+  }
+  return (Number(r.fin)||0)>0.009;
+}
 function leadNeedsApaInv(r){
   if(!r) return false;
   return (Number(r.apaPct)||0)>0||(Number(r.apa)||0)>0.009;
@@ -3149,9 +3217,18 @@ function renderLeads(){
         return '<div class="notes" style="font-style:normal;color:var(--muted)">'+bits+'</div>';
       })():'')+
       (isOwner||isPending?"":('<div class="invtags">'+
-        (leadNeedsDepInv(r)?leadInvTag("Deposit",r.dep,r.depPct,r.deps,r.depInv):"")+
-        (leadNeedsFinInv(r)&&(cancelled?leadInvStatus(r.fins)==="Refunded":true)?leadInvTag(finLabel,r.fin,"",r.fins,r.finInv):"")+
-        (showApa&&(cancelled?leadInvStatus(r.apas)==="Refunded":true)?leadInvTag("APA",r.apa,r.apaPct,r.apas,r.apaInv):"")+
+        (function(){
+          var df=leadEffectiveDepFin(r);
+          var bits="";
+          if(leadNeedsDepInv(r)) bits+=leadInvTag("Deposit",df.dep,r.depPct,r.deps,r.depInv);
+          else if(leadDepNotRequested(r)) bits+=leadInvTag("Deposit",0,"","Not requested","");
+          var finShow=df.fin;
+          if(finShow>0.009&&(cancelled?leadInvStatus(r.fins)==="Refunded":true))
+            bits+=leadInvTag(finLabel,finShow,"",r.fins,r.finInv);
+          if(showApa&&(cancelled?leadInvStatus(r.apas)==="Refunded":true))
+            bits+=leadInvTag("APA",r.apa,r.apaPct,r.apas,r.apaInv);
+          return bits;
+        })()+
       '</div>'))+
       (r.notes?'<div class="notes">'+esc(r.notes)+'</div>':'')+
       '<div class="lead-actions">'+
@@ -3886,12 +3963,19 @@ function openLeadInvoiceSheet(id){
   if(!r) return;
   var showApa=(Number(r.apaPct)||0)>0||(Number(r.apa)||0)>0;
   var split=leadHasSplit(r);
-  var initialKind="dep";
+  var needDep=leadNeedsDepInv(r);
+  var finAmt=Number(r.fin)||0;
+  /* If deposit not requested / 0% but fin was still half (stale), invoice at full white/charter */
+  if(leadDepNotRequested(r)){
+    if(split) finAmt=Math.round((Number(r.invoiceTotal)||0)*100)/100;
+    else finAmt=Math.round((Number(r.total)||Number(r.price)||0)*100)/100;
+  }
+  var initialKind=needDep?"dep":"fin";
   var h='<div class="sheethead"><h2>Make invoice</h2><button type="button" class="sheetx" id="sheetClose" aria-label="Close">×</button></div>';
   h+='<p style="margin:0 0 12px;font-size:13px;color:var(--muted);line-height:1.45">Limitless Opportunities PDF for the accountant. <b>Formal invoice only</b> — cash settlement is never on an invoice. Numbers stay the same when you regenerate; a <b>new</b> type gets the next free number.</p>';
   h+='<div class="field"><label>Invoice type</label><select class="ctl" id="f_inv_kind">';
-  h+='<option value="dep">Deposit'+(r.depPct!=""&&r.depPct!=null?" "+r.depPct+"%":"")+' — '+money(r.dep)+'</option>';
-  h+='<option value="fin">Final — '+money(r.fin)+'</option>';
+  if(needDep) h+='<option value="dep">Deposit'+(r.depPct!=""&&r.depPct!=null?" "+r.depPct+"%":"")+' — '+money(r.dep)+'</option>';
+  h+='<option value="fin"'+(initialKind==="fin"?" selected":"")+'>Final — '+money(finAmt)+'</option>';
   if(showApa) h+='<option value="apa">APA'+(r.apaPct!=""&&r.apaPct!=null?" "+r.apaPct+"%":"")+' — '+money(r.apa)+'</option>';
   if(split&&Number(r.invoiceTotal)>0) h+='<option value="white">Full charter fee — '+money(r.invoiceTotal)+'</option>';
   /* Client total on a split includes cash — must never be a formal invoice line */
@@ -3899,6 +3983,7 @@ function openLeadInvoiceSheet(id){
   h+='<option value="custom">Custom amount…</option>';
   h+='</select></div>';
   if(split) h+='<p style="margin:-6px 0 12px;font-size:12.5px;color:var(--muted);line-height:1.4">Split deal: deposit, final, and full fee are the <b>invoiced</b> amounts only. Cash is settled off-invoice.</p>';
+  if(leadDepNotRequested(r)) h+='<p style="margin:-6px 0 12px;font-size:12.5px;color:var(--muted);line-height:1.4">Deposit <b>not requested</b> — final is the full formal white amount.</p>';
   h+='<div class="row2">'+
     fieldHTML("Invoice #",'<input class="ctl" id="f_inv_no" value="'+esc(invoiceNoForExisting(getLeadIssuedNo(r,initialKind)))+'" placeholder="e.g. 2026-025" autocomplete="off">')+
     fieldHTML("Date",'<input class="ctl" id="f_inv_date" type="date" value="'+esc(new Date().toISOString().slice(0,10))+'">')+
@@ -3923,7 +4008,7 @@ function openLeadInvoiceSheet(id){
 
   function grossForKind(kind){
     if(kind==="dep") return Number(r.dep)||0;
-    if(kind==="fin") return Number(r.fin)||0;
+    if(kind==="fin") return finAmt;
     if(kind==="apa") return Number(r.apa)||0;
     if(kind==="white") return Number(r.invoiceTotal)||((Number(r.invoiceNet)||0)+(Number(r.invoiceVat)||0))||0;
     /* Never put split client total (invoice + cash) on a formal PDF */
@@ -5365,6 +5450,7 @@ function ensureLeadCashApa(lead){
  *   total = white + cash (never quote÷1.21, never “suggested” cash).
  *   cashAmt is FREE — never overwrite it (user cash black e.g. €1800).
  *   Only recompute dep/fin from stored white total + dep %.
+ *   If deposit is Not requested → dep=0, fin=full white (entire formal charter).
  * Does not persist — caller must not auto-save (that re-wrote stale cash).
  */
 function repairLeadWhiteInvoices(){
@@ -5381,9 +5467,12 @@ function repairLeadWhiteInvoices(){
     }
     /* NEVER recompute or replace cashAmt — free amount only */
     var cash=Math.round((Number(l.cashAmt)||0)*100)/100;
-    var depPct=Number(l.depPct)||0;
-    var dep=Math.round(white*depPct/100*100)/100;
+    var noDep=leadDepNotRequested(l);
+    var depPct=noDep?0:(Number(l.depPct)||0);
+    var dep=noDep?0:Math.round(white*depPct/100*100)/100;
     var fin=Math.round((white-dep)*100)/100;
+    if(noDep&&leadInvStatus(l.deps)!=="Not requested"){ l.deps="Not requested"; dirty=true; }
+    if(noDep&&Math.abs((Number(l.depPct)||0)-0)>0.02){ l.depPct=0; dirty=true; }
     var wPay=leadWhiteClientPay(l);
     var tot=Math.round((wPay+cash)*100)/100;
     var ch=false;
@@ -12613,14 +12702,21 @@ function decField(id,val,ph){
   var v=val!=null&&val!==""?String(val):"";
   return '<input class="ctl" id="'+id+'" type="text" inputmode="decimal" enterkeyhint="next" autocomplete="off" autocapitalize="off" spellcheck="false" value="'+esc(v)+'" placeholder="'+esc(ph||"")+'">';
 }
-function selField(id,val){
+function selField(id,val,opts){
   var cur=leadInvStatus(val);
-  return '<select class="ctl" id="'+id+'">'+LEAD_STATUSES.map(function(s){return '<option'+(s===cur?' selected':'')+'>'+s+'</option>';}).join("")+'</select>';
+  var list=opts||LEAD_LINE_STATUS_OPTS;
+  return '<select class="ctl" id="'+id+'">'+list.map(function(o){
+    var v=typeof o==="string"?o:o.v;
+    var lab=typeof o==="string"?o:(o.l||o.v);
+    return '<option value="'+esc(v)+'"'+(v===cur?' selected':'')+'>'+esc(lab)+'</option>';
+  }).join("")+'</select>';
 }
 function leadInvBlock(title, pctId, pctVal, stId, stVal, invId, invVal, showPct){
   var h='<div class="sect">'+esc(title)+' invoice</div>';
-  if(showPct) h+='<div class="row2">'+fieldHTML(title+" %",pctField(pctId,pctVal))+fieldHTML("Status",selField(stId,stVal||"Not issued"))+'</div>';
-  else h+=fieldHTML("Status",selField(stId,stVal||"Not issued"));
+  /* Deposit gets “No deposit — full amount on final”; final/APA do not */
+  var stOpts=(stId==="f_deps")?LEAD_DEP_STATUS_OPTS:LEAD_LINE_STATUS_OPTS;
+  if(showPct) h+='<div class="row2">'+fieldHTML(title+" %",pctField(pctId,pctVal))+fieldHTML("Status",selField(stId,stVal||"Not issued",stOpts))+'</div>';
+  else h+=fieldHTML("Status",selField(stId,stVal||"Not issued",stOpts));
   h+=fieldHTML("Invoice #",'<input class="ctl" id="'+invId+'" value="'+esc(invVal||"")+'" placeholder="set when you issue the PDF">');
   return h;
 }
@@ -13380,23 +13476,27 @@ function selLeadSourceField(val){
  * Split: deposit + final = formal white PDF only (never free cash).
  * Free cash black stays on the lead (cashAmt) → boat petty when received.
  * APA pot is only prepaid guest spend (fuel/provisions) — not charter fee cash.
+ * If deposit is Not requested → dep=0 and fin = entire formal white / client total.
+ * depsStatus: optional raw status from form or lead.deps (4th arg).
  */
-function leadParts(sp, depPctRaw, apaPctRaw){
+function leadParts(sp, depPctRaw, apaPctRaw, depsStatus){
   var depPct=Number(depPctRaw)||0, apaPct=Number(apaPctRaw)||0;
   var client=sp.clientTotal;
   var apa=client*apaPct/100;
+  /* No deposit if status says so OR deposit % is 0 / blank */
+  var noDep=leadDepNotRequested(depsStatus)||!(depPct>0);
   if(sp.split){
     /* Deposit/final on formal white total (PDF), not swallowed net */
     var white=sp.invoiceTotal;
-    var dep=white*depPct/100;
+    var dep=noDep?0:(white*depPct/100);
     var fin=Math.round((white-dep)*100)/100;
     dep=Math.round(dep*100)/100;
     apa=Math.round(apa*100)/100;
-    return { dep:dep, fin:fin, apa:apa, white:white, whiteClient:sp.whiteClient!=null?sp.whiteClient:white, client:client, cash:sp.cashAmt, split:true };
+    return { dep:dep, fin:fin, apa:apa, white:white, whiteClient:sp.whiteClient!=null?sp.whiteClient:white, client:client, cash:sp.cashAmt, split:true, noDep:noDep };
   }
-  var dep2=Math.round(client*depPct/100*100)/100;
+  var dep2=noDep?0:Math.round(client*depPct/100*100)/100;
   var fin2=Math.round((client-dep2)*100)/100;
-  return { dep:dep2, fin:fin2, apa:Math.round(apa*100)/100, white:client, whiteClient:client, client:client, cash:0, split:false };
+  return { dep:dep2, fin:fin2, apa:Math.round(apa*100)/100, white:client, whiteClient:client, client:client, cash:0, split:false, noDep:noDep };
 }
 function leadVatOnTopFromForm(){
   if(el("f_splitVatTop")){
@@ -13459,7 +13559,8 @@ function recalcLead(){
     else whiteLabel.textContent="White invoice amount (€) — VAT included in this figure";
   }
   var depPct=apaNum(el("f_dep").value), apaPct=apaNum(el("f_apa").value);
-  var p=leadParts(sp, depPct, apaPct);
+  var depsSt=el("f_deps")?el("f_deps").value:"";
+  var p=leadParts(sp, depPct, apaPct, depsSt);
   var box=el("f_calc");
   if(!box) return;
   var head=dur==="multi"?(days+' day'+(days>1?'s':'')+' &times; '+money0(rate)):durLabel(dur);
@@ -13485,9 +13586,15 @@ function recalcLead(){
     html+='<div class="cl"><span>Free cash (on this lead · not APA)</span><b>'+money(sp.cashAmt)+'</b></div>';
     html+='<div class="cl hi"><span>Client pays (PDF + free cash)</span><b>'+money(p.client)+'</b></div>';
     html+='<div class="meta" style="margin-top:4px">Free cash is charter fee on the <b>lead</b>. Deposit/final = white PDF only. APA pot is only guest spend if you open one.</div>';
-    html+='<div class="cl split"><span>Deposit '+(depPct||0)+'% of formal white</span><b>'+money(p.dep)+'</b></div>'+
-      '<div class="cl"><span>Final (rest of formal white)</span><b>'+money(p.fin)+'</b></div>'+
-      '<div class="cl"><span>Free cash → petty when “on boat”</span><b>'+money(p.cash)+'</b></div>';
+    if(p.noDep){
+      html+='<div class="cl split"><span>Deposit not requested</span><b>'+money(0)+'</b></div>'+
+        '<div class="cl"><span>Final (full formal white)</span><b>'+money(p.fin)+'</b></div>'+
+        '<div class="cl"><span>Free cash → petty when “on boat”</span><b>'+money(p.cash)+'</b></div>';
+    } else {
+      html+='<div class="cl split"><span>Deposit '+(depPct||0)+'% of formal white</span><b>'+money(p.dep)+'</b></div>'+
+        '<div class="cl"><span>Final (rest of formal white)</span><b>'+money(p.fin)+'</b></div>'+
+        '<div class="cl"><span>Free cash → petty when “on boat”</span><b>'+money(p.cash)+'</b></div>';
+    }
   } else {
     html+='<div class="cl"><span>'+head+' (charter)</span><b>'+money(base)+'</b></div>';
     if(sp.full.vatMode!=="none"&&sp.full.vatPct>0){
@@ -13497,8 +13604,13 @@ function recalcLead(){
     } else {
       html+='<div class="cl hi"><span>Client total</span><b>'+money(p.client)+'</b></div>';
     }
-    html+='<div class="cl"><span>Deposit '+(depPct||0)+'%</span><b>'+money(p.dep)+'</b></div>'+
-      '<div class="cl"><span>Final balance</span><b>'+money(p.fin)+'</b></div>';
+    if(p.noDep){
+      html+='<div class="cl"><span>Deposit not requested</span><b>'+money(0)+'</b></div>'+
+        '<div class="cl"><span>Final (full charter)</span><b>'+money(p.fin)+'</b></div>';
+    } else {
+      html+='<div class="cl"><span>Deposit '+(depPct||0)+'%</span><b>'+money(p.dep)+'</b></div>'+
+        '<div class="cl"><span>Final balance</span><b>'+money(p.fin)+'</b></div>';
+    }
   }
   if(apaPct>0) html+='<div class="cl"><span>APA overnight '+apaPct+'%</span><b>'+money(p.apa)+'</b></div>';
   box.innerHTML=html;
@@ -13697,7 +13809,7 @@ function openSheet(type,id){
     '</div>';
     h+='<div class="calcbox" id="f_calc"></div>';
     h+='<div class="sect">Invoices (generate in app)</div>';
-    h+='<p style="margin:-4px 0 12px;font-size:12.5px;color:var(--muted);line-height:1.45">Use <b>Make invoice</b> to create the PDF (share/download). Status: Not issued → Issued → Paid → <b>Refunded</b>. <b>Split:</b> deposit/final = formal white only — cash never on a PDF.</p>';
+    h+='<p style="margin:-4px 0 12px;font-size:12.5px;color:var(--muted);line-height:1.45">Use <b>Make invoice</b> to create the PDF. <b>Not issued</b> = still plan a deposit (split by %). Choose deposit status <b>No deposit — full amount on final</b> (or set Deposit % to <b>0</b>) so final = entire white/charter. Cash never on a PDF.</p>';
     h+=leadInvBlock("Deposit","f_dep",r.depPct,"f_deps",r.deps,"f_depInv",r.depInv,true);
     h+=leadInvBlock("Final","","","f_fins",r.fins,"f_finInv",r.finInv,false);
     h+=leadInvBlock("APA (overnight)","f_apa",r.apaPct,"f_apas",r.apas,"f_apaInv",r.apaInv,true);
@@ -13853,7 +13965,26 @@ function openSheet(type,id){
       paintDealClosedUI();
     }
   }
-  if(el("f_deps")) el("f_deps").addEventListener("change",tryAutoConfirmFromPaid);
+  if(el("f_deps")) el("f_deps").addEventListener("change",function(){
+    tryAutoConfirmFromPaid();
+    /* No deposit → zero the % so pills never keep a stale 50% */
+    if(leadDepNotRequested(el("f_deps").value)){
+      if(el("f_dep")) el("f_dep").value="0";
+    } else if(el("f_dep")&&(el("f_dep").value===""||!(apaNum(el("f_dep").value)>0))){
+      /* Switched back to a real deposit line → restore default 50% */
+      el("f_dep").value="50";
+    }
+    recalcLead();
+  });
+  if(el("f_dep")) el("f_dep").addEventListener("input",function(){
+    /* Typing 0% → mark deposit as Not requested so status matches the split */
+    if(!(apaNum(el("f_dep").value)>0)){
+      if(el("f_deps")&&leadInvStatus(el("f_deps").value)==="Not issued") el("f_deps").value="Not requested";
+    } else if(el("f_deps")&&leadInvStatus(el("f_deps").value)==="Not requested"){
+      el("f_deps").value="Not issued";
+    }
+    recalcLead();
+  });
   if(el("f_fins")) el("f_fins").addEventListener("change",tryAutoConfirmFromPaid);
   if(el("f_whiteTotal")) el("f_whiteTotal").addEventListener("input",function(){
     /* White amount change updates prefill unless captain typed cash */
@@ -14168,8 +14299,15 @@ function saveSheet(type,rec){
     var m=sp.full;
     var depPct=el("f_dep").value===""?"":apaNum(el("f_dep").value);
     var apaPct=el("f_apa").value===""?"":apaNum(el("f_apa").value);
-    var parts=leadParts(sp, depPct, apaPct);
     var deps=leadInvStatus(el("f_deps").value), fins=leadInvStatus(el("f_fins").value), apas=leadInvStatus(el("f_apas").value);
+    /* No deposit (status or 0%) → final = entire formal white / charter; persist % as 0 */
+    if(leadDepNotRequested(deps)||!(Number(depPct)>0)){
+      deps="Not requested";
+      depPct=0;
+      if(el("f_dep")) el("f_dep").value="0";
+      if(el("f_deps")) el("f_deps").value="Not requested";
+    }
+    var parts=leadParts(sp, depPct, apaPct, deps);
     var leadSrcRaw=(el("f_leadSource")&&el("f_leadSource").value)||"other";
     var leadSrc=(LY_MODELS&&LY_MODELS.constrainLeadSource)?LY_MODELS.constrainLeadSource(leadSrcRaw):(leadSrcRaw==="captain"?"captain":"other");
     var bookingSt=(el("f_bookingStatus")&&el("f_bookingStatus").value)==="cancelled"?"cancelled":"active";
