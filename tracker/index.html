@@ -2551,8 +2551,8 @@ function leadCancelRefundPlan(r){
 /**
  * Captain cancel (weather / mechanical / etc.): booking cancelled — never deletes the lead.
  * Refunds Paid/Issued invoice lines when any; free cash reversed if posted.
- * Unconfirmed / tentative: also clears charter dates so the calendar hold is freed
- * (public site + card); lead stays greyed-out cancelled for the book.
+ * Unconfirmed / tentative: lead stays greyed-out with dates still on the card
+ * (public site hold drops because cancelled leads are omitted from site calendar).
  * Stew pay: opts.zeroPay / keepPay as before.
  */
 function cancelLeadCharter(lead, opts){
@@ -2588,16 +2588,14 @@ function cancelLeadCharter(lead, opts){
   lead.cashSettled=false;
   if(isCaptain()&&lead.id) expRemoveLeadCashIn(lead.id, true);
   /*
-   * Tentative / unconfirmed cancel: free the hold dates.
-   * Keep calendarEventKey so ICS sync does not re-import as a brand-new pending lead
-   * (server also skips cancelled leads). Dates cleared so the card no longer shows a day
-   * and public availability rebuild drops the hold.
+   * Keep charter dates on the card (greyed cancelled still shows the day).
+   * Public availability drops the hold because cancelled leads are omitted from
+   * site calendar rebuild. ICS sync skips cancelled so dates are not revived.
+   * opts.clearDates=true only if captain explicitly wants dates wiped.
    */
-  var clearDates=opts.clearDates!=null?!!opts.clearDates:wasUnconfirmed;
-  var clearedStart="", clearedEnd="";
-  if(clearDates){
-    clearedStart=String(lead.start||lead.cdate||"").slice(0,10);
-    clearedEnd=String(lead.end||"").slice(0,10);
+  var keptStart=String(lead.start||lead.cdate||"").slice(0,10);
+  var keptEnd=String(lead.end||"").slice(0,10);
+  if(opts.clearDates===true){
     lead.start="";
     lead.end="";
     lead.cdate="";
@@ -2611,8 +2609,9 @@ function cancelLeadCharter(lead, opts){
       :(plan.total>0?"refund "+money0(plan.total):"no payment to refund"));
   var noteBit;
   if(wasUnconfirmed||reason==="tentative-dropped"){
-    noteBit="Cancelled tentative lead (kept greyed — not deleted)"+
-      (clearedStart?" · freed hold "+clearedStart+(clearedEnd&&clearedEnd!==clearedStart?"–"+clearedEnd:""):" · calendar hold released")+
+    noteBit="Cancelled tentative lead (kept greyed — not deleted · dates kept on card"+
+      (keptStart?" · "+keptStart+(keptEnd&&keptEnd!==keptStart?"–"+keptEnd:""):"")+
+      " · public hold released)"+
       (opts.note?": "+opts.note:"");
   } else {
     noteBit="Cancelled ("+(reason==="weather-captain"?"captain decision / mechanical or weather":reason)+")"+
@@ -2631,7 +2630,7 @@ function cancelLeadCharter(lead, opts){
     save("leads");
     if(isCaptain()) saveExpPetty();
   }
-  return {lead:lead, stew:stew, zeroPay:zeroPay, refund:plan, wasUnconfirmed:wasUnconfirmed, clearedDates:clearDates, clearedStart:clearedStart, clearedEnd:clearedEnd};
+  return {lead:lead, stew:stew, zeroPay:zeroPay, refund:plan, wasUnconfirmed:wasUnconfirmed, keptStart:keptStart, keptEnd:keptEnd};
 }
 /**
  * UI entry for cancel (sheet button or list “Cancel tentative”).
@@ -2657,7 +2656,7 @@ function runCancelLeadFromUi(rec){
     if(!window.confirm(
       "Cancel tentative lead for "+name+"?\n\n"+
       "• Card stays in the book — greyed out (not deleted)\n"+
-      "• Hold dates cleared: "+dateBit+"\n"+
+      "• Date stays on the card: "+dateBit+"\n"+
       "• Public calendar hold released on save\n\n"+
       "Continue?"
     )) return;
@@ -2665,16 +2664,16 @@ function runCancelLeadFromUi(rec){
     var resU=cancelLeadCharter(liveU,{
       reason:"tentative-dropped",
       zeroPay:true,
-      clearDates:true
+      clearDates:false
     });
     try{ showSheet(false); }catch(eS){}
     renderLeads();
     if(isCaptain()&&curTab==="stews") try{ renderStews({soft:false}); }catch(eSt){}
     if(isCaptain()&&curTab==="commissions") try{ renderCommissions(); }catch(eC){}
-    var freed=resU&&resU.clearedStart
-      ?(resU.clearedStart+(resU.clearedEnd&&resU.clearedEnd!==resU.clearedStart?"–"+resU.clearedEnd:""))
-      :"hold released";
-    window.alert("Tentative lead cancelled.\n\nKept greyed in the book · dates cleared ("+freed+").\nNot deleted.");
+    var kept=resU&&resU.keptStart
+      ?(resU.keptStart+(resU.keptEnd&&resU.keptEnd!==resU.keptStart?"–"+resU.keptEnd:""))
+      :dateBit;
+    window.alert("Tentative lead cancelled.\n\nKept greyed in the book · date still on card ("+kept+").\nPublic hold released · not deleted.");
     return;
   }
   var plan=leadCancelRefundPlan(rec);
@@ -13883,13 +13882,13 @@ function openSheet(type,id){
     var refundPlanPreview=rec?leadCancelRefundPlan(r):null;
     var isUnconfirmedLead=rec&&!leadIsCancelled(r)&&(leadSource(r)==="pending"||!leadIsDealClosed(r));
     if(isUnconfirmedLead){
-      h+='<p style="margin:-6px 0 10px;font-size:12.5px;color:var(--muted);line-height:1.4">Tentative / unconfirmed: <b>Cancel tentative</b> greys the card out (does <b>not</b> delete) and <b>clears the hold dates</b> so the calendar is free again.</p>';
+      h+='<p style="margin:-6px 0 10px;font-size:12.5px;color:var(--muted);line-height:1.4">Tentative / unconfirmed: <b>Cancel tentative</b> greys the card out (does <b>not</b> delete), <b>keeps the date</b> on the card, and releases the public calendar hold.</p>';
     } else {
       h+='<p style="margin:-6px 0 10px;font-size:12.5px;color:var(--muted);line-height:1.4">Mechanical / weather cancel: marks the lead cancelled and refunds <b>every paid/issued line</b> (deposit <b>and</b> final if both were paid — not deposit only). Free cash is reversed off the boat if posted. Then choose whether stew day pay is zeroed or kept (e.g. reduced €50 when she was already onboard).</p>';
     }
     if(rec&&bookSt!=="cancelled"){
       h+='<button type="button" class="btn danger" id="sheetCancelCharter" style="width:100%;margin:0 0 14px">'+
-        esc(isUnconfirmedLead?"Cancel tentative — free calendar dates":(refundPlanPreview?refundPlanPreview.buttonLabel:"Cancel charter"))+'</button>';
+        esc(isUnconfirmedLead?"Cancel tentative — keep date, grey out":(refundPlanPreview?refundPlanPreview.buttonLabel:"Cancel charter"))+'</button>';
       if(!isUnconfirmedLead&&refundPlanPreview&&refundPlanPreview.lines.length){
         h+='<div class="meta" style="margin:-6px 0 14px;line-height:1.4">Will refund: '+
           esc(refundPlanPreview.lines.join(" · "))+
@@ -14471,15 +14470,9 @@ function saveSheet(type,rec){
       o2.dealClosed=false;
       if(deps==="Paid"||deps==="Issued") o2.deps="Refunded";
       o2.cashSettled=false;
-      /* Unconfirmed → free hold dates (same as Cancel tentative) */
+      /* Unconfirmed cancel: keep dates on the card (public hold still released) */
       var wasOpenSave=leadSource(rec)==="pending"||!leadIsDealClosed(rec);
-      if(wasOpenSave){
-        o2.start="";
-        o2.end="";
-        o2.cdate="";
-        o2.days=0;
-        o2.cancelReason=o2.cancelReason==="manual"?"tentative-dropped":o2.cancelReason;
-      }
+      if(wasOpenSave&&o2.cancelReason==="manual") o2.cancelReason="tentative-dropped";
     }
     if(bookingSt==="active"){
       o2.cancelled=false;
