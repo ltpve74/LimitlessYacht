@@ -9382,14 +9382,10 @@ function expStewDayDedupeKey(e){
   return "id:"+e.id;
 }
 /**
- * Two separate numbers (model-backed):
- *
- * 1) pettyCash (actual cash on board) — LY_MODELS.summarizePettyCash
- *      = start + cash-in − money that left the boat
- *    Crew day-pay: only floatPay, after collapse one line per stew|date.
- *
- * 2) float books (planning only)
- *      floatAfterPays = pettyCash − people still unpaid
+ * Petty cash = physical notes on board only:
+ *   start + cash-in lines − cash-out lines (explicit petty out / crew floatPay).
+ * "cashShort" = how much the envelope is overdrawn (only when petty < 0).
+ * People still unpaid (day pay / pocket) are separate liabilities — not petty cash.
  */
 function expSettlementFigures(month){
   month=month||expDefaultMonth();
@@ -10372,16 +10368,16 @@ function paintExpensesBody(){
   var pettyNeg=pettyEntered&&pettyCash<-0.009;
   var pettyPos=pettyEntered&&pettyCash>0.009;
   var pettyZero=pettyEntered&&!pettyNeg&&!pettyPos;
-  var booksBehind=pettyEntered&&floatAfterPays<-0.009;
-  var h='<div class="legend">Captain-only. <b>Petty cash</b> = actual cash on board (start + cash in − cash out). <b>Float books</b> = petty minus people still unpaid — a planning figure, not a second pile of notes.</div>';
+  var shortAmt=cashShort>0.009?cashShort:(pettyNeg?Math.round((-pettyCash)*100)/100:0);
+  var h='<div class="legend">Captain-only. <b>Petty cash</b> = physical notes on board. Only <b>cash in</b> and <b>cash out</b> change it. Day pay / pocket still owed is separate — not petty cash.</div>';
   h+='<div class="exp-month"><label class="meta" style="font-weight:700">Month</label>'+
     '<select class="ctl" id="expMonthSel">'+monthList.map(function(m){
       return '<option value="'+esc(m)+'"'+(m===expMonth?" selected":"")+'>'+esc(m)+'</option>';
     }).join("")+'</select>'+
     '<button type="button" class="btn ghost" id="expExport" style="width:auto;padding:10px 14px">Export CSV</button>'+
   '</div>';
-  /* Hero: PETTY CASH on board (actual cash) — never labelled "float" */
-  h+='<div class="exp-alert '+(pettyNeg?'owe':(pettyPos?'ok':'owe'))+'" style="margin-bottom:12px">'+
+  /* Hero: physical petty cash only */
+  h+='<div class="exp-alert '+(pettyNeg?'owe':(pettyPos?'ok':'ok'))+'" style="margin-bottom:12px">'+
     '<div style="font-weight:800">Petty cash · on board</div>'+
     '<div class="money" style="font-size:32px;font-weight:800;margin-top:6px;color:'+
       (pettyNeg?'var(--danger)':(pettyPos?'var(--greenInk,#1a5c48)':'inherit'))+'">'+
@@ -10389,70 +10385,54 @@ function paintExpensesBody(){
     '</div>'+
     '<div class="meta" style="margin-top:8px;line-height:1.5">'+
       (pettyEntered
-        ?('Start + cash in <b class="money">'+money(cashInHand)+'</b> − cash out <b class="money">'+money(cashOut)+'</b> = petty'+
-          (pettyNeg
-            ?' · <b>short by '+money(Math.abs(pettyCash))+'</b> — open Cash out below; a wrong crew “Paid from petty” line will do this'
-            :(pettyPos?' · physical cash in the envelope':' · empty (last euro paid out)')))
-        :'Set start / cash in below to open the envelope.')+
+        ?('Start + cash in <b class="money">'+money(cashInHand)+'</b> − cash out <b class="money">'+money(cashOut)+'</b>'+
+          (pettyPos?' · notes in the envelope':(pettyZero?' · empty':'')))
+        :'Set <b>start</b> and add <b>cash in</b> below. Petty only moves when you log cash in or cash out.')+
     '</div>'+
-    (pettyEntered
-      ?('<div class="meta" style="margin-top:8px;padding-top:8px;border-top:1px solid var(--line);line-height:1.45">'+
-        '<b>Float books</b> (not cash): petty '+money(pettyCash)+' − still owed '+money(peopleOwed)+
-        ' = <b class="money">'+(floatAfterPays<0?'−':'')+money(Math.abs(floatAfterPays))+'</b>'+
-        (booksBehind?' · behind on paper until unpaid day-pay is settled or marked prior':'')+
-      '</div>')
-      :'')+
   '</div>';
-  if(pettyNeg&&(S.nCrewPaidLines||0)>0){
+  /* Shortfall banner — only when envelope is overdrawn */
+  if(shortAmt>0.009){
     h+='<div class="exp-alert owe" style="margin-bottom:12px">'+
-      '<div style="font-weight:800;margin-bottom:6px">Petty is negative — check crew cash-outs</div>'+
-      '<div class="meta" style="line-height:1.45">'+
-        (S.nCrewPaidLines||0)+' crew line'+(S.nCrewPaidLines===1?"":"s")+' marked as cash leaving petty this month. '+
-        'Only mark <b>Paid from Petty cash</b> when notes actually left the envelope. '+
-        'Open a crew line → Paid from → <b>Prior / not this pot</b> if it was already settled outside petty (stops it counting as cash out).'+
+      '<div style="font-weight:800;margin-bottom:6px">Petty cash short</div>'+
+      '<div class="money" style="font-size:28px;font-weight:800;color:var(--danger)">−'+money(shortAmt)+'</div>'+
+      '<div class="meta" style="margin-top:8px;line-height:1.45">'+
+        'Cash out exceeded start + cash in by <b class="money">'+money(shortAmt)+'</b>. '+
+        'Review <b>Cash out</b> below — only mark crew as <b>Paid from Petty cash</b> when notes actually left the envelope. '+
+        'Use <b>Prior / not this pot</b> if pay was already settled outside petty.'+
       '</div></div>';
   }
   /* Owed list: people still unpaid — separate from petty on board */
-  if(owedPeople.length||pettyNeg){
-    h+='<div class="exp-alert '+(owedPeople.length||pettyNeg?'owe':'ok')+'" id="expBoatOwesCard" style="margin-bottom:12px">'+
-      '<div style="font-weight:800;margin-bottom:6px">'+
-        (pettyNeg&&owedPeople.length?'Still owed (and petty short)':(owedPeople.length?'Still owed':'Settled'))+
-      '</div>';
-    if(pettyNeg){
-      h+='<div class="meta" style="margin-bottom:8px">Petty cash is short by <b class="money">'+money(Math.abs(pettyCash))+
-        '</b> vs cash-in. That is the envelope math — not “float books”. Review Cash out. People still unpaid:</div>';
-    } else if(owedPeople.length){
-      h+='<div class="meta" style="margin-bottom:8px">Pay from petty when notes leave the boat. Pocket = shop on someone’s cash; day pay from Stews/Expenses.</div>';
-    }
-    if(!owedPeople.length){
-      h+='<div class="meta">No open pocket or day-pay balances.</div>';
-    } else {
-      owedPeople.forEach(function(row){
-        h+='<div style="display:flex;justify-content:space-between;align-items:center;gap:10px;margin-top:8px;padding-top:8px;border-top:1px solid var(--line)">'+
-          '<div><b>'+esc(row.name)+'</b> '+
-            '<span class="pill '+(row.kind==="crew"?'p-amber':'p-own')+'">'+(row.kind==="crew"?"Day pay":"Pocket")+'</span></div>'+
-          '<div style="display:flex;align-items:center;gap:8px">'+
-            '<b class="money">'+money(row.amount)+'</b>'+
-            (row.kind==="pocket"&&row.id
-              ?'<button type="button" class="btn" data-exp-reimburse="'+esc(row.id)+'" data-exp-reimburse-amt="'+esc(String(row.amount))+'" data-exp-reimburse-name="'+esc(row.name)+'" style="width:auto;padding:6px 10px;font-size:12px">Repay</button>'
-              :'')+
-          '</div></div>';
-      });
-      h+='<div class="meta" style="margin-top:10px;padding-top:8px;border-top:1px solid var(--line)">Total still owed <b class="money">'+money(peopleOwed)+'</b>'+
-        (pettyPos&&peopleOwed>0.009?' · petty on board covers '+(floatAfterPays>=0?'all remaining unpaid':'part — books behind '+money(floatBehind)):'')+
-      '</div>';
-    }
+  if(owedPeople.length){
+    h+='<div class="exp-alert owe" id="expBoatOwesCard" style="margin-bottom:12px">'+
+      '<div style="font-weight:800;margin-bottom:6px">Still owed (not petty cash)</div>'+
+      '<div class="meta" style="margin-bottom:8px">Unpaid day pay and pocket debts. Paying them from petty becomes cash out only when you mark it that way.</div>';
+    owedPeople.forEach(function(row){
+      h+='<div style="display:flex;justify-content:space-between;align-items:center;gap:10px;margin-top:8px;padding-top:8px;border-top:1px solid var(--line)">'+
+        '<div><b>'+esc(row.name)+'</b> '+
+          '<span class="pill '+(row.kind==="crew"?'p-amber':'p-own')+'">'+(row.kind==="crew"?"Day pay":"Pocket")+'</span></div>'+
+        '<div style="display:flex;align-items:center;gap:8px">'+
+          '<b class="money">'+money(row.amount)+'</b>'+
+          (row.kind==="pocket"&&row.id
+            ?'<button type="button" class="btn" data-exp-reimburse="'+esc(row.id)+'" data-exp-reimburse-amt="'+esc(String(row.amount))+'" data-exp-reimburse-name="'+esc(row.name)+'" style="width:auto;padding:6px 10px;font-size:12px">Repay</button>'
+            :'')+
+        '</div></div>';
+    });
+    h+='<div class="meta" style="margin-top:10px;padding-top:8px;border-top:1px solid var(--line)">Total still owed <b class="money">'+money(peopleOwed)+'</b></div>';
     h+='</div>';
-  } else if(pettyEntered){
-    h+='<div class="exp-alert ok" style="margin-bottom:12px"><b>All clear</b> — no open pocket or day-pay balances'+(pettyPos?' · '+money(pettyCash)+' petty on board':(pettyZero?' · petty empty':''))+'.</div>';
+  } else if(pettyEntered&&!shortAmt){
+    h+='<div class="exp-alert ok" style="margin-bottom:12px"><b>All clear</b> — no open day-pay or pocket debts'+(pettyPos?' · '+money(pettyCash)+' on board':(pettyZero?' · petty empty':''))+'.</div>';
   }
-  /* Compact strip — petty vs float books as separate cards */
+  /* Compact strip — physical envelope only (+ short only if short) */
   h+='<div class="exp-summary">'+
     '<div class="sumcard'+(pettyNeg?' sum-danger':(pettyPos?' sum-ok':''))+'"><div class="l">Petty on board</div><div class="v money">'+(pettyEntered?money(pettyCash):'—')+'</div></div>'+
     '<div class="sumcard"><div class="l">Cash in</div><div class="v money">'+money(cashInTotal)+'</div></div>'+
     '<div class="sumcard"><div class="l">Cash out</div><div class="v money">'+money(cashOut)+'</div></div>'+
-    '<div class="sumcard'+(peopleOwed>0?' sum-warn':'')+'"><div class="l">Still owed</div><div class="v money">'+money(peopleOwed)+'</div></div>'+
-    '<div class="sumcard'+(booksBehind?' sum-warn':'')+'"><div class="l">Float books</div><div class="v money">'+(pettyEntered?money(floatAfterPays):'—')+'</div></div>'+
+    (shortAmt>0.009
+      ?'<div class="sumcard sum-danger"><div class="l">Short by</div><div class="v money">'+money(shortAmt)+'</div></div>'
+      :'')+
+    (peopleOwed>0.009
+      ?'<div class="sumcard sum-warn"><div class="l">Still owed</div><div class="v money">'+money(peopleOwed)+'</div></div>'
+      :'')+
   '</div>';
   /* Cash in */
   var startFieldVal=(petty.startMode&&petty.startMode!=="none")||Math.abs(pettyStart)>0.009||petty.startManual===true
@@ -10501,17 +10481,16 @@ function paintExpensesBody(){
     h+='<div class="meta">'+cashIns.length+' line'+(cashIns.length===1?"":"s")+' · <b class="money">'+money(cashInTotal)+'</b></div>';
   }
   h+='</div>';
-  /* Cash out audit (petty only — every euro that left the envelope) */
+  /* Cash out audit — only lines that actually reduced physical petty */
   var outs=S.cashOutLines||[];
   h+='<div class="apa-card" style="margin-bottom:12px">'+
-    '<div style="font-weight:800;margin-bottom:6px">Cash out · left petty</div>'+
-    '<div class="meta" style="margin-bottom:8px">These reduce <b>petty on board</b>. '+
-      'In <b class="money">'+money(cashInHand)+'</b> − out <b class="money">'+money(cashOut)+'</b> = petty <b class="money">'+money(pettyCash)+'</b>'+
-      ((S.nCrewPaidLines||0)?' · '+S.nCrewPaidLines+' crew from petty':"")+
-      ((S.nSkippedDup||0)?' · '+S.nSkippedDup+' dupe'+(S.nSkippedDup===1?"":"s")+' collapsed':"")+
-    '. Newest first. Tap a line to edit (crew: <b>Prior / not this pot</b> if cash did not leave petty).</div>';
+    '<div style="font-weight:800;margin-bottom:6px">Cash out · left the envelope</div>'+
+    '<div class="meta" style="margin-bottom:8px">Only these lines subtract from <b>petty on board</b> (shop from petty, crew paid from petty). '+
+      'Paid day-pay marked <b>Prior / not this pot</b> or <b>Own money</b> does not touch petty. '+
+      'In <b class="money">'+money(cashInHand)+'</b> − out <b class="money">'+money(cashOut)+'</b> = petty <b class="money">'+money(pettyCash)+'</b>.'+
+    '</div>';
   if(!outs.length){
-    h+='<div class="meta">None this month — petty = start + cash in.</div>';
+    h+='<div class="meta">None this month — petty = start + cash in only.</div>';
   } else {
     h+='<div class="list" style="margin:0">';
     outs.slice().forEach(function(row){
