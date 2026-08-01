@@ -4232,22 +4232,25 @@ function renderLeads(){
       var btn=el("ldSyncIcs");
       if(btn){ btn.disabled=true; btn.textContent="Syncing…"; }
       api("syncNewIcsLeads").then(function(j){
-        if(j.leads) state.leads=j.leads;
-        if(isCaptain()) try{ persistStewCalendarSnapshot(); }catch(e0){}
+        adoptIcsSyncPayload(j);
         var moves=j.dateMoves||(j.stats&&j.stats.dateMoves)||[];
+        var times=j.timeMoves||(j.stats&&j.stats.timeMoves)||[];
         var orphans=j.orphans||(j.stats&&j.stats.orphans)||[];
         window._ldIcsOrphans=orphans;
-        return promptIcsDateMoves(moves).then(function(){
+        return promptIcsCalendarChanges(j).then(function(){
           sortLeads();
           renderLeads();
+          if(curTab==="stews") try{ paintStewChartersKeepScroll(); }catch(eS){}
           var s=j.stats||{};
+          if(btn){ btn.disabled=false; btn.textContent="Sync calendar dates"; }
           if(s.baselined){
             window.alert("Baseline set.\n\nRecorded "+(s.knownCount||0)+" existing calendar events.\nNo leads created (your history stays clean).\n\nFrom now on, only brand-new calendar dates become pending leads.");
           } else {
             var msg="Sync done.\n\nNew pending: "+(s.created||0)+
               "\nGuest names updated from calendar: "+(s.namesUpdated||j.namesUpdated||0)+
-              "\nDates auto-updated (on hold): "+(s.autoMoved||0)+
+              "\nDates/times auto-updated (on hold or empty clock): "+(s.autoMoved||0)+
               "\nDate moves to confirm: "+(moves.length||0)+
+              "\nTime moves to confirm: "+(times.length||0)+
               "\nMissing from book (choose Import or Ignore): "+(orphans.length||0)+
               "\nTotal leads: "+(s.totalLeads||(state.leads||[]).length);
             if(j.pushSent) msg+="\nPush sent: "+j.pushSent;
@@ -12299,18 +12302,51 @@ function renderStews(opts){
     '<div id="stewYearFilters" style="display:flex;flex-wrap:wrap;gap:6px;margin:0 0 10px"></div>'+
     '<div id="stewCalList"><div class="empty"><div class="big">⏳</div><div>'+esc(loadingMsg)+'</div></div></div>';
   if(el("stewRefreshCal")) el("stewRefreshCal").addEventListener("click",function(){
-    el("stewCalList").innerHTML='<div class="empty"><div class="big">⏳</div><div>'+(isTeam()?"Reloading roster…":"Refreshing calendar + publishing team roster…")+'</div></div>';
-    loadStewCalendar(true).then(function(){
-      /* Refresh does NOT restore/reassign crew — blob stewAssign stays as saved */
+    el("stewCalList").innerHTML='<div class="empty"><div class="big">⏳</div><div>'+(isTeam()?"Reloading roster…":"Refreshing calendar (checks date/time changes)…")+'</div></div>';
+    var afterPaint=function(){
       paintStewChartersKeepScroll();
       if(!stewMergedEvents().filter(function(ev){ return ev&&!stewIsOffEvent(ev); }).length){
         var w=el("stewCalList");
         if(w) w.innerHTML=emptyBox("📅",isTeam()?"No roster snapshot yet":"No charters loaded",
           isTeam()?"Ask the captain to tap Refresh roster once.":"Check connection and tap Refresh roster again.");
       }
-    }).catch(function(){
-      var w=el("stewCalList");
-      if(w) w.innerHTML=emptyBox("📅",isTeam()?"Could not reload roster":"Calendar refresh failed","Check connection and try again.");
+    };
+    if(isTeam()||!canCommercial()){
+      loadStewCalendar(true).then(afterPaint).catch(function(){
+        var w=el("stewCalList");
+        if(w) w.innerHTML=emptyBox("📅",isTeam()?"Could not reload roster":"Calendar refresh failed","Check connection and try again.");
+      });
+      return;
+    }
+    /*
+     * Captain: sync live ICS so date/time drifts (e.g. temporary entry times)
+     * surface as confirm prompts — never silent overwrite of clock times.
+     */
+    api("syncNewIcsLeads").then(function(j){
+      adoptIcsSyncPayload(j);
+      var moves=j.dateMoves||(j.stats&&j.stats.dateMoves)||[];
+      var times=j.timeMoves||(j.stats&&j.stats.timeMoves)||[];
+      return promptIcsCalendarChanges(j).then(function(){
+        return loadStewCalendar(true).then(function(){
+          afterPaint();
+          var s=j.stats||{};
+          var bits=[];
+          if(s.autoMoved) bits.push((s.autoMoved)+" auto date/time update(s)");
+          if(moves.length) bits.push(moves.length+" date change(s) reviewed");
+          if(times.length) bits.push(times.length+" time change(s) reviewed");
+          if(s.created) bits.push(s.created+" new pending lead(s)");
+          if(bits.length){
+            window.alert("Calendar refresh done.\n\n"+bits.join("\n"));
+          }
+        });
+      });
+    }).catch(function(err){
+      /* Fall back to roster snapshot only */
+      loadStewCalendar(true).then(afterPaint).catch(function(){
+        var w=el("stewCalList");
+        if(w) w.innerHTML=emptyBox("📅","Calendar refresh failed",
+          (err&&err.error)||"Check connection and try again.");
+      });
     });
   });
   if(el("stewRestoreCrew")) el("stewRestoreCrew").addEventListener("click",function(){
@@ -13667,6 +13703,18 @@ function leadCommissionRatePct(r){
   return isCaptainLead(r)?CAPTAIN_COMMISSION_PCT:(isClickboatLead(r)?CLICKBOAT_COMMISSION_PCT:0);
 }
 /** Confirm calendar date moves for confirmed (non-pending) leads. */
+function adoptIcsSyncPayload(j){
+  if(!j) return;
+  if(Array.isArray(j.leads)) state.leads=j.leads;
+  if(Array.isArray(j.stewAssign)) state.stewAssign=j.stewAssign;
+  if(Array.isArray(j.stewCalendar)){
+    state.stewCalendar=j.stewCalendar;
+    stewCalendarAt=new Date().toISOString();
+    stewCalendarBy=session.who||"Calendar sync";
+  }
+  try{ touchLocalSave("leads"); }catch(e0){}
+  try{ touchLocalSave("stewAssign"); }catch(e1){}
+}
 function promptIcsDateMoves(dateMoves){
   dateMoves=dateMoves||[];
   if(!dateMoves.length) return Promise.resolve(null);
@@ -13675,42 +13723,83 @@ function promptIcsDateMoves(dateMoves){
     if(!m||!m.leadId) return;
     var from=m.from+(m.fromEnd&&m.fromEnd!==m.from?"–"+m.fromEnd:"");
     var to=m.to+(m.toEnd&&m.toEnd!==m.to?"–"+m.toEnd:"");
+    var timeBit="";
+    if(m.fromTime||m.toTime){
+      timeBit="\nTime app: "+(m.fromTime||"—")+" → calendar: "+(m.toTime||"—");
+    }
     var ok=window.confirm(
       "Calendar moved a confirmed charter:\n\n"+
       (m.name||"Charter")+"\n"+
       "App: "+from+"\n"+
-      "Calendar: "+to+"\n\n"+
-      "Update the app to the new calendar date?\n\n"+
-      "OK = use calendar date · Cancel = keep app date"
+      "Calendar: "+to+timeBit+"\n\n"+
+      "Update the app to the new calendar date/time?\n\n"+
+      "OK = use calendar · Cancel = keep app"
     );
     if(ok) accepted.push(m.leadId); else rejected.push(m.leadId);
   });
   if(!accepted.length&&!rejected.length) return Promise.resolve(null);
   return api("applyIcsDateMoves",{accepted:accepted, rejected:rejected}).then(function(j){
-    if(j&&Array.isArray(j.leads)) state.leads=j.leads;
-    if(isCaptain()) try{ persistStewCalendarSnapshot(); }catch(e0){}
+    adoptIcsSyncPayload(j);
     if(curTab==="leads") renderLeads();
     if(curTab==="stews") try{ paintStewChartersKeepScroll(); }catch(e1){}
     return j;
   });
 }
 /**
+ * Same-day clock change (temp calendar entry often leaves wrong hours).
+ * OK = use calendar time · Cancel = keep app time on lead + roster.
+ */
+function promptIcsTimeMoves(timeMoves){
+  timeMoves=timeMoves||[];
+  if(!timeMoves.length) return Promise.resolve(null);
+  var accepted=[], rejected=[];
+  timeMoves.forEach(function(m){
+    if(!m||!m.leadId) return;
+    var day=m.date?(fmtDate(m.date)||m.date):"";
+    var ok=window.confirm(
+      "Calendar time changed for a charter:\n\n"+
+      (m.name||"Charter")+(day?" · "+day:"")+"\n"+
+      "App time: "+(m.from||"—")+"\n"+
+      "Calendar: "+(m.to||"—")+"\n\n"+
+      "Update the app (lead + roster) to the calendar time?\n\n"+
+      "OK = use calendar time · Cancel = keep app time"
+    );
+    if(ok) accepted.push(m.leadId); else rejected.push(m.leadId);
+  });
+  if(!accepted.length&&!rejected.length) return Promise.resolve(null);
+  return api("applyIcsTimeMoves",{accepted:accepted, rejected:rejected}).then(function(j){
+    adoptIcsSyncPayload(j);
+    if(curTab==="leads") renderLeads();
+    if(curTab==="stews") try{ paintStewChartersKeepScroll(); }catch(e1){}
+    return j;
+  });
+}
+/** Run date-move then time-move prompts after a calendar sync. */
+function promptIcsCalendarChanges(j){
+  var moves=(j&&j.dateMoves)||(j&&j.stats&&j.stats.dateMoves)||[];
+  var times=(j&&j.timeMoves)||(j&&j.stats&&j.stats.timeMoves)||[];
+  var chain=Promise.resolve(j);
+  if(moves.length) chain=chain.then(function(){ return promptIcsDateMoves(moves); }).then(function(){ return j; });
+  if(times.length) chain=chain.then(function(){ return promptIcsTimeMoves(times); }).then(function(){ return j; });
+  return chain;
+}
+/**
  * Explicit calendar sync only (Leads “Sync calendar dates”).
  * Brand-new ICS uids → pending leads. Known / deleted uids never re-import.
+ * Date/time conflicts prompt the captain before writing.
  */
 function syncFreshIcsLeadsQuiet(){
   if(DEMO||!canCommercial()) return Promise.resolve(null);
   return api("syncNewIcsLeads").then(function(j){
-    if(j&&Array.isArray(j.leads)) state.leads=j.leads;
-    var moves=j&&j.dateMoves||(j&&j.stats&&j.stats.dateMoves)||[];
+    adoptIcsSyncPayload(j);
     var orphans=j&&j.orphans||(j&&j.stats&&j.stats.orphans)||[];
     if(orphans.length) window._ldIcsOrphans=orphans;
-    var chain=Promise.resolve(j);
-    if(moves.length) chain=promptIcsDateMoves(moves).then(function(){ return j; });
-    return chain.then(function(res){
+    return promptIcsCalendarChanges(j).then(function(){
       var s=j&&j.stats||{};
-      if(j&&(s.created>0||s.autoMoved>0||s.namesUpdated>0||orphans.length)&&curTab==="leads") renderLeads();
-      return res;
+      if(j&&(s.created>0||s.autoMoved>0||s.namesUpdated>0||orphans.length||
+        (j.dateMoves&&j.dateMoves.length)||(j.timeMoves&&j.timeMoves.length))&&curTab==="leads") renderLeads();
+      if(curTab==="stews") try{ paintStewChartersKeepScroll(); }catch(eS){}
+      return j;
     });
   }).catch(function(){ return null; });
 }
