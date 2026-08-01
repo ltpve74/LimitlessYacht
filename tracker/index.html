@@ -719,7 +719,7 @@
               <div class="v money" id="ldCap">€0</div>
               <div class="ld-src-comm">
                 <div class="ld-src-comm-top">
-                  <span class="ld-src-comm-lab">Total commission</span>
+                  <span class="ld-src-comm-lab">Still to pay you</span>
                   <span class="ld-comm-pill outstanding" id="ldCapCommStatus">Outstanding</span>
                 </div>
                 <div class="ld-src-comm-amt money" id="ldCapComm">€0</div>
@@ -4149,6 +4149,8 @@ function renderLeads(){
   var capCommAll=capComm+(Number(capUpsell.comm)||0);
   var capExAll=capExVat+(Number(capUpsell.base)||0);
   var capIncomeAll=capTot+(Number(capUpsell.gross)||0);
+  /* Model: earned − paid from petty = still to pay (Leads + Commissions share this) */
+  var capCommBal=expCaptainCommissionBalance(capCommAll);
   function ldSrcMetaRow(label, valueHtml){
     return '<div class="ld-src-meta-row"><span class="k">'+esc(label)+'</span><span class="v">'+valueHtml+'</span></div>';
   }
@@ -4156,20 +4158,35 @@ function renderLeads(){
     return ldSrcMetaRow(label, '<span class="money">'+money(amt)+'</span>');
   }
   if(el("ldCap")) el("ldCap").textContent=money(capIncomeAll);
-  if(el("ldCapComm")) el("ldCapComm").textContent=money(capCommAll);
+  /* Big commission figure = still outstanding (left to pay yourself), not full earned */
+  if(el("ldCapComm")) el("ldCapComm").textContent=money(capCommBal.outstanding);
   if(el("ldCapCommStatus")){
-    /* Captain commissions are currently outstanding (paid later) */
-    el("ldCapCommStatus").textContent="Outstanding";
-    el("ldCapCommStatus").className="ld-comm-pill outstanding";
+    var st=capCommBal.status;
+    if(st==="paid"){
+      el("ldCapCommStatus").textContent="Paid";
+      el("ldCapCommStatus").className="ld-comm-pill paid";
+    } else if(st==="partial"){
+      el("ldCapCommStatus").textContent="Partial · left to pay";
+      el("ldCapCommStatus").className="ld-comm-pill outstanding";
+    } else if(st==="none"){
+      el("ldCapCommStatus").textContent="—";
+      el("ldCapCommStatus").className="ld-comm-pill";
+    } else {
+      el("ldCapCommStatus").textContent="Outstanding";
+      el("ldCapCommStatus").className="ld-comm-pill outstanding";
+    }
   }
   if(el("ldCapSub")){
     var upComm=Number(capUpsell.comm)||0;
-    /* No trip counts here — type mix at bottom of card already itemises n× */
     el("ldCapSub").innerHTML=
-      ldSrcMetaMoney("Deals commission", capComm)+
-      ldSrcMetaMoney("Upsell commission", upComm)+
+      ldSrcMetaMoney("Deals commission earned", capComm)+
+      ldSrcMetaMoney("Upsell commission earned", upComm)+
+      ldSrcMetaMoney("Total earned", capCommBal.earned)+
+      ldSrcMetaMoney("Paid from petty", capCommBal.paid)+
+      ldSrcMetaMoney("Still to pay you", capCommBal.outstanding)+
+      (capCommBal.overpaid>0.009?ldSrcMetaMoney("Over-drawn", capCommBal.overpaid):"")+
       ldSrcMetaMoney("Before VAT", capExAll)+
-      ldSrcMetaMoney("Net after commission", Math.max(0, capExAll-capCommAll));
+      ldSrcMetaMoney("Net after commission (deals)", Math.max(0, capExAll-capCommAll));
   }
   if(el("ldCapTypes")){
     var typeHtml=formatTypeMixHTML(capTypes);
@@ -15321,32 +15338,51 @@ function chargeCommissionParts(c){
   };
 }
 function chargeCommissionAmt(c){ return chargeCommissionParts(c).total; }
-/** Expense line = captain took commission cash from the boat envelope. */
+/** Expense line = captain took commission cash from the boat envelope (model). */
 function expIsCaptainCommission(e){
+  if(LY_MODELS&&LY_MODELS.isCaptainCommissionExpense) return !!LY_MODELS.isCaptainCommissionExpense(e);
   if(!e) return false;
   if(e.kind==="captainComm"||e.commPayout===true) return true;
   return /^captain commission$/i.test(String(e.category||""));
 }
-/** Sum of commission cash-outs from petty (not own money / card). */
-function expCaptainCommissionPaidTotal(){
-  var s=0;
+/**
+ * Captain commission ledger: earned − paid from petty = outstanding.
+ * Sole SOT via LY_MODELS.summarizeCaptainCommissionBalance.
+ */
+function expCaptainCommissionBalance(earned){
+  if(LY_MODELS&&LY_MODELS.summarizeCaptainCommissionBalance){
+    return LY_MODELS.summarizeCaptainCommissionBalance({
+      earned:earned,
+      expenses:state.expenses||[]
+    });
+  }
+  var paid=0;
   (state.expenses||[]).forEach(function(e){
     if(!expIsCaptainCommission(e)) return;
     if(String(e.payMethod||"")==="Credit Card") return;
     if(e.paidFrom==="Own money"||expIsOwnMoneyLabel(e.paidFrom)) return;
-    s+=apaNum(e.amount);
+    paid+=apaNum(e.amount);
   });
-  return Math.round(s*100)/100;
+  paid=Math.round(paid*100)/100;
+  var ern=Math.round(Math.max(0, apaNum(earned))*100)/100;
+  return {
+    earned:ern, paid:paid,
+    outstanding:Math.round(Math.max(0, ern-paid)*100)/100,
+    overpaid:paid>ern+0.009?Math.round((paid-ern)*100)/100:0,
+    status:ern<0.01&&paid<0.01?"none":(Math.max(0,ern-paid)<0.01?"paid":(paid>0.009?"partial":"outstanding")),
+    payouts:[], nPayouts:0
+  };
 }
-/** Recent commission draws, newest first. */
+/** Sum of commission cash-outs from petty (model). */
+function expCaptainCommissionPaidTotal(){
+  return expCaptainCommissionBalance(0).paid;
+}
+/** Recent commission draws, newest first (model). */
 function expCaptainCommissionPayouts(){
-  return (state.expenses||[]).filter(function(e){
-    return e&&expIsCaptainCommission(e);
-  }).slice().sort(function(a,b){
-    var da=String(b.date||""), db=String(a.date||"");
-    if(da!==db) return da.localeCompare(db);
-    return String(b.updatedAt||"").localeCompare(String(a.updatedAt||""));
-  });
+  if(LY_MODELS&&LY_MODELS.summarizeCaptainCommissionPaid){
+    return LY_MODELS.summarizeCaptainCommissionPaid(state.expenses||[]).payouts||[];
+  }
+  return (state.expenses||[]).filter(function(e){ return e&&expIsCaptainCommission(e); });
 }
 /**
  * Open expense sheet to draw captain commission from petty cash.
@@ -15508,9 +15544,10 @@ function renderCommissions(){
   }
 
   var captEarned=Math.round((captCom+extCom)*100)/100;
-  var captPaid=expCaptainCommissionPaidTotal();
-  var captOpen=Math.round(Math.max(0, captEarned-captPaid)*100)/100;
-  var captOverpaid=captPaid>captEarned+0.009?Math.round((captPaid-captEarned)*100)/100:0;
+  var captBal=expCaptainCommissionBalance(captEarned);
+  var captPaid=captBal.paid;
+  var captOpen=captBal.outstanding;
+  var captOverpaid=captBal.overpaid;
   var pettyNow=0;
   try{
     var Sp=expSettlementFigures(expDefaultMonth());
