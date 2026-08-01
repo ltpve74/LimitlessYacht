@@ -11150,8 +11150,8 @@ function paintExpensesBody(){
   var outs=S.cashOutLines||[];
   h+='<div class="apa-card" style="margin-bottom:12px">'+
     '<div style="font-weight:800;margin-bottom:6px">Cash out · left the envelope</div>'+
-    '<div class="meta" style="margin-bottom:8px">Only these lines subtract from <b>petty on board</b> (shop from petty, crew paid from petty). '+
-      'Paid day-pay marked <b>Prior / not this pot</b> or <b>Own money</b> does not touch petty. '+
+    '<div class="meta" style="margin-bottom:8px">Only these lines subtract from <b>petty on board</b>. '+
+      'Labels show <b>why</b> money left: your commission, pocket reimbursement, crew day pay, tip payout, or shop. '+
       'Physical available <b class="money">'+money(cashInHand)+'</b> − out <b class="money">'+money(cashOut)+'</b> → on board <b class="money">'+money(pettyCash)+'</b>'+
       (shortAmt>0.009?' · books short <b class="money">'+money(shortAmt)+'</b>':'')+
       '.'+
@@ -11164,15 +11164,28 @@ function paintExpensesBody(){
       var dStr=row.date?String(row.date).slice(0,10):"";
       var dLab="";
       try{ dLab=dStr&&/^\d{4}-\d{2}-\d{2}$/.test(dStr)?fmtDate(dStr):dStr; }catch(eD){ dLab=dStr; }
-      var pfLab=row.paidFrom==="own"?"Own pocket":"Petty";
+      var purpose=row.purpose||row.kind||"expense";
+      var purposeLab=row.purposeLabel||(
+        purpose==="commission"?"Your commission":
+        purpose==="reimburse"?"Reimbursement":
+        purpose==="daypay"||purpose==="crew"?"Crew day pay":
+        purpose==="tip-payout"||purpose==="tip"?"Crew tip payout":
+        "Boat expense");
+      var pillCls=
+        purpose==="commission"?"p-blue":
+        purpose==="reimburse"?"p-own":
+        purpose==="daypay"||purpose==="crew"?"p-amber":
+        purpose==="tip-payout"||purpose==="tip"?"p-cash":
+        "p-grey";
       h+='<div class="item" style="padding:10px 12px"'+(row.id?' data-exp-id="'+esc(row.id)+'" role="button" tabindex="0"':'')+'>'+
-        '<div class="top"><div class="title" style="font-size:14px">'+esc(row.label||row.kind||"Out")+'</div>'+
+        '<div class="top"><div class="title" style="font-size:14px">'+esc(row.label||purposeLab)+'</div>'+
           '<div class="amt money" style="font-size:14px">−'+money0(row.amount)+'</div></div>'+
         '<div class="meta">'+
           (dLab?'<span>📅 '+esc(dLab)+'</span>':'')+
-          '<span class="pill p-cash">'+esc(row.kind==="reimburse"?"Repay":(row.kind==="crew"?"Crew · petty":"Expense"))+'</span>'+
-          '<span class="pill p-grey">'+esc(pfLab)+'</span>'+
+          '<span class="pill '+pillCls+'">'+esc(purposeLab)+'</span>'+
+          '<span class="pill p-cash">Petty out</span>'+
         '</div>'+
+        (row.detail?'<div class="notes" style="font-style:normal;margin-top:4px;font-size:12.5px;color:var(--muted)">'+esc(row.detail)+'</div>':'')+
       '</div>';
     });
     h+='</div>';
@@ -11264,34 +11277,62 @@ function paintExpensesBody(){
         var fakeShop={id:e.id, amount:e.amount, paidFrom:"Own money", paidById:pocketWhoId, date:e.date, category:"Crew Salaries"};
         ownRepaid=expOwnMoneyIsRepaid(fakeShop, expMonth)||expOwnMoneyIsRepaid(Object.assign({},e,{paidFrom:"Own money", paidById:pocketWhoId}), expMonth);
       }
-      /* 2–3 complementary pills — never repeat “Paid” */
+      /* Purpose-first pills: what the money is for, then how it was funded */
       var pills=[];
       var showRepayBtn=false;
-      if(unpaid){
-        pills.push('<span class="pill p-amber">Unpaid</span>');
+      var isComm=expIsCaptainCommission(e);
+      var isTipPay=e.kind==="tipPayout"||e.stewPayKind==="tipPayout"||/^crew tip payout$/i.test(String(e.category||""));
+      var titleText=e.vendor||"—";
+      var purposeNote="";
+      if(isComm){
+        titleText=e.vendor&&!/^captain/i.test(e.vendor)?e.vendor:"Commission to you";
+        pills.push('<span class="pill p-blue">Your commission</span>');
+        pills.push('<span class="pill p-cash">From petty</span>');
+        purposeNote=e.description||"Captain commission draw from boat float";
+      } else if(isTipPay){
+        titleText=e.vendor||"Crew tip payout";
+        pills.push('<span class="pill p-cash">Tip payout</span>');
+        pills.push('<span class="pill p-cash">From petty</span>');
+        purposeNote=e.description||"Guest tip on bill → paid to crew from petty";
+      } else if(unpaid){
+        pills.push('<span class="pill p-amber">Unpaid day pay</span>');
+        if(isCrewDay) titleText=(e.vendor||"Crew")+" · day pay";
       } else if(crewPaidFromOwn){
-        pills.push('<span class="pill p-green">Paid</span>');
+        titleText=(e.vendor||"Crew")+" · day pay";
+        pills.push('<span class="pill p-blue">Day pay</span>');
         pills.push(ownRepaid
           ?'<span class="pill p-own-ok">Own money · '+esc(pocketName||"Captain")+'</span>'
           :'<span class="pill p-own">Own money · '+esc(pocketName||"Captain")+'</span>');
         if(ownRepaid) pills.push('<span class="pill p-green">Repaid</span>');
         else pills.push('<span class="pill p-amber">Awaiting repay</span>');
       } else if(prior){
+        titleText=(e.vendor||"Crew")+" · day pay";
+        pills.push('<span class="pill p-blue">Day pay</span>');
         pills.push('<span class="pill p-grey">Prior · not this float</span>');
       } else if(isReimb&&reimbFromPetty){
-        pills.push('<span class="pill p-cash">Petty cash</span>');
-        pills.push('<span class="pill p-green">Paid to '+esc(reimbName||"crew")+'</span>');
+        var toYou=String(expReimburseWhoId(e)||"")===EXP_POCKET_CAPTAIN||/^captain/i.test(reimbName||"");
+        titleText=toYou?"Repay you · pocket spend":("Repay "+(reimbName||"crew")+" · pocket");
+        pills.push('<span class="pill p-own">'+(toYou?"Reimbursement to you":"Reimbursement to crew")+'</span>');
+        pills.push('<span class="pill p-cash">From petty</span>');
+        purposeNote=e.vendor?("Original spend: "+e.vendor):(e.description||"");
       } else if(isReimb&&reimbFromOwn){
-        pills.push('<span class="pill p-green">Paid to '+esc(reimbName||"crew")+'</span>');
+        titleText="Repay "+(reimbName||"crew")+" · pocket";
+        pills.push('<span class="pill p-own">Reimbursement</span>');
         pills.push('<span class="pill p-own">'+esc(reimbPayer||"Captain")+' pocket</span>');
         pills.push('<span class="pill p-amber">Awaiting repay</span>');
       } else if(isReimb){
-        pills.push('<span class="pill p-cash">Petty cash</span>');
-        pills.push('<span class="pill p-green">Paid to '+esc(reimbName||"crew")+'</span>');
+        var toYou2=String(expReimburseWhoId(e)||"")===EXP_POCKET_CAPTAIN||/^captain/i.test(reimbName||"");
+        titleText=toYou2?"Repay you · pocket spend":("Repay "+(reimbName||"crew"));
+        pills.push('<span class="pill p-own">'+(toYou2?"Reimbursement to you":"Reimbursement")+'</span>');
+        pills.push('<span class="pill p-cash">From petty</span>');
       } else if(e.payMethod==="Credit Card"){
         pills.push('<span class="pill p-card">Card</span>');
+        if(e.category) pills.push('<span class="pill p-grey">'+esc(e.category)+'</span>');
       } else if(ownPay){
-        if(expIsCrewSalariesCategory(e)) pills.push('<span class="pill p-blue">Day pay</span>');
+        if(expIsCrewSalariesCategory(e)){
+          titleText=(e.vendor||"Crew")+" · day pay";
+          pills.push('<span class="pill p-blue">Day pay</span>');
+        } else if(e.category) pills.push('<span class="pill p-grey">'+esc(e.category)+'</span>');
         if(ownRepaid){
           pills.push('<span class="pill p-own-ok">Own money'+(pocketName?' · '+esc(pocketName):'')+'</span>');
           pills.push('<span class="pill p-green">Repaid</span>');
@@ -11305,17 +11346,21 @@ function paintExpensesBody(){
           showRepayBtn=true;
         }
       } else if(hitsFloat){
-        pills.push('<span class="pill p-green">Paid</span>');
-        pills.push('<span class="pill p-cash">Petty cash</span>');
+        titleText=(e.vendor||"Crew")+" · day pay";
+        pills.push('<span class="pill p-blue">Day pay</span>');
+        pills.push('<span class="pill p-cash">From petty</span>');
       } else if(isCrewDay){
+        titleText=(e.vendor||"Crew")+" · day pay";
+        pills.push('<span class="pill p-blue">Day pay</span>');
         pills.push('<span class="pill p-grey">Prior · not this float</span>');
       } else {
-        pills.push('<span class="pill p-cash">Petty cash</span>');
+        if(e.category) pills.push('<span class="pill p-grey">'+esc(e.category)+'</span>');
+        pills.push('<span class="pill p-cash">From petty</span>');
       }
       var bits=[];
       if(e.date) bits.push(fmtDate(e.date)||e.date);
-      if(e.category) bits.push(e.category);
-      if(e.source==="stew") bits.push("Stews");
+      if(e.category&&!isComm&&!isTipPay&&!isReimb&&!isCrewDay&&!hitsFloat) bits.push(e.category);
+      if(e.source==="stew"&&!isTipPay) bits.push("Stews");
       if(e.chargeTo==="apa"&&e.apaTripId){
         var apaG=(function(){ var t=(state.apa||[]).filter(function(x){return x&&String(x.id)===String(e.apaTripId);})[0]; return t&&t.guest?t.guest:"APA"; })();
         bits.push("APA · "+apaG);
@@ -11323,14 +11368,15 @@ function paintExpensesBody(){
       var cardCls="item apa-row";
       if(unpaid) cardCls+=" exp-unpaid";
       else if((ownPay&&!ownRepaid)||(isReimb&&reimbFromOwn)||(crewPaidFromOwn&&!ownRepaid)) cardCls+=" exp-own";
+      var descShow=purposeNote||e.description||"";
       h+='<div class="'+cardCls+'" data-exp-id="'+esc(e.id)+'" role="button" tabindex="0">'+
         '<div class="top">'+
           (expIsImageReceipt(e.receipt)?'<img class="exp-rcpt" src="'+e.receipt+'" alt="">':(expIsPdfReceipt(e.receipt)?'<span class="exp-rcpt" style="display:flex;align-items:center;justify-content:center;font-size:22px;background:#f0f3f5">📄</span>':''))+
           '<div style="flex:1;min-width:0">'+
-            '<div class="title">'+esc(e.vendor||"—")+'</div>'+
+            '<div class="title">'+esc(titleText)+'</div>'+
             '<div class="meta" style="margin-top:6px">'+pills.join("")+'</div>'+
             (bits.length?'<div class="meta" style="margin-top:4px;opacity:.9">'+esc(bits.join(" · "))+'</div>':'')+
-            (e.description?'<div class="notes" style="font-style:normal;margin-top:4px">'+esc(e.description)+'</div>':'')+
+            (descShow?'<div class="notes" style="font-style:normal;margin-top:4px">'+esc(descShow)+'</div>':'')+
             (showRepayBtn
               ?'<button type="button" class="btn" data-exp-repay="'+esc(e.id)+'" style="width:auto;margin-top:8px;padding:8px 12px;font-size:13px">Repay from petty '+money0(Math.max(0,apaNum(e.amount)-ownRepaidAmt))+'</button>'
               :'')+

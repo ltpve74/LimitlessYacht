@@ -444,23 +444,96 @@ function summarizePettyCash(opts) {
       if (!crewDayPayHitsPetty(e)) return;
       cashOut += a;
       crewPaidPetty += a;
-      nCrewPetty++;
       cashOutLines.push({
         kind: "crew",
-        label: (e.vendor || "Crew") + " day pay",
+        purpose: "daypay",
+        purposeLabel: "Crew day pay",
+        label: (e.vendor || "Crew") + " · day pay",
+        detail: e.description || "",
         amount: a,
         id: e.id,
         date: String(e.date || "").slice(0, 10),
         finger: crewDayPayFinger(e),
+      });
+      nCrewPetty++;
+      return;
+    }
+    /* On-bill tip payout from petty */
+    if (
+      e.kind === "tipPayout" ||
+      e.stewPayKind === "tipPayout" ||
+      /^crew tip payout$/i.test(String(e.category || ""))
+    ) {
+      if (expensePaidFrom(e) === "own" || expensePaidFrom(e) === "card") return;
+      cashOut += a;
+      cashOutLines.push({
+        kind: "tip",
+        purpose: "tip-payout",
+        purposeLabel: "Crew tip payout",
+        label: e.vendor || "Crew tips (on bill)",
+        detail: e.description || "Tips from guest bill → paid to crew from petty",
+        amount: a,
+        id: e.id,
+        date: String(e.date || "").slice(0, 10),
+      });
+      return;
+    }
+    /* Captain commission draw to self */
+    if (isCaptainCommissionExpense(e)) {
+      if (expensePaidFrom(e) === "own" || expensePaidFrom(e) === "card") return;
+      cashOut += a;
+      cashOutLines.push({
+        kind: "commission",
+        purpose: "commission",
+        purposeLabel: "Your commission",
+        label: "Commission to you",
+        detail: e.description || e.vendor || "Captain commission draw from boat float",
+        amount: a,
+        id: e.id,
+        date: String(e.date || "").slice(0, 10),
       });
       return;
     }
     var cls = classifyExpenseCash(e);
     if (!cls.hitsPettyCash) return;
     cashOut += a;
+    if (cls.isReimbursement) {
+      var who =
+        e.reimburseToId != null && String(e.reimburseToId) !== ""
+          ? String(e.reimburseToId)
+          : e.reimburseCaptain
+            ? EXP_POCKET_CAPTAIN
+            : "";
+      var whoLab =
+        who === EXP_POCKET_CAPTAIN || who === "captain" || !who
+          ? "you (pocket repay)"
+          : "crew pocket";
+      cashOutLines.push({
+        kind: "reimburse",
+        purpose: "reimburse",
+        purposeLabel:
+          who === EXP_POCKET_CAPTAIN || who === "captain" || !who
+            ? "Reimbursement to you"
+            : "Reimbursement to crew",
+        label:
+          who === EXP_POCKET_CAPTAIN || who === "captain" || !who
+            ? "Repay you · pocket spend"
+            : "Repay crew · pocket spend",
+        detail: e.vendor || e.description || e.category || "",
+        amount: a,
+        id: e.id,
+        date: String(e.date || "").slice(0, 10),
+        reimburseTo: who || EXP_POCKET_CAPTAIN,
+        whoLab: whoLab,
+      });
+      return;
+    }
     cashOutLines.push({
-      kind: cls.isReimbursement ? "reimburse" : "expense",
+      kind: "expense",
+      purpose: "shop",
+      purposeLabel: e.category || "Boat expense",
       label: e.vendor || e.category || "Expense",
+      detail: e.description || e.category || "",
       amount: a,
       id: e.id,
       date: String(e.date || "").slice(0, 10),
