@@ -319,13 +319,21 @@
   }
   .ld-book-sec--cancelled .ld-book-title{color:var(--danger)}
   .ld-book-sec--cancelled .ld-book-count{background:#fde8e8;color:var(--danger)}
+  .ld-book-subhd{
+    font-size:11.5px;font-weight:800;letter-spacing:.06em;text-transform:uppercase;
+    color:var(--muted);margin:14px 2px 8px;padding-top:10px;border-top:1px dashed var(--line);
+  }
+  .ld-book-subhd:first-child{margin-top:4px;padding-top:0;border-top:none}
+  .ld-book-subhd .ld-book-subn{
+    font-weight:800;color:var(--ink);letter-spacing:0;text-transform:none;margin-left:6px;
+  }
   .ld-book-empty{
     font-size:13px;color:var(--muted);padding:12px 14px;border-radius:12px;
     border:1px dashed var(--line);background:rgba(255,255,255,.6);margin:0 0 4px;line-height:1.4;
   }
   .ld-book-sec .item{margin-bottom:10px}
   .ld-book-sec .item:last-child{margin-bottom:0}
-  /* Live ledger: mobile = Hold|Lost|Confirmed tabs (one list); desktop = pipeline + confirmed */
+  /* Live ledger: mobile = Confirmed|Hold|Lost tabs; desktop = confirmed first, then hold|lost */
   #ldList.list{
     display:block;
     grid-template-columns:none;
@@ -740,21 +748,21 @@
           </div>
         </div>
       </div>
-      <div class="legend"><b>Live ledger:</b> phone = <b>Hold · Lost · Confirmed</b> tabs. Money above is a glance only — open <b>Money details</b> for cash &amp; sources.</div>
+      <div class="legend"><b>Live ledger:</b> phone = <b>Confirmed · Hold · Lost</b> tabs (default Confirmed). Lost splits dropped holds vs cancelled firm charters. Money above is a glance only — open <b>Money details</b> for cash &amp; sources.</div>
       <div id="ldFindBar" style="margin:0 0 12px">
         <input class="ctl" id="ldSearch" type="search" placeholder="Find lead — name, date (e.g. 6 Aug), source, notes…" autocomplete="off" style="width:100%">
         <div class="meta" id="ldSearchMeta" style="margin-top:6px;display:none"></div>
       </div>
       <!-- Mobile-only sticky tabs (always in DOM; counts updated by renderLeads) -->
       <div id="ldBookTabs" class="ld-book-tabs" role="tablist" aria-label="Lead ledger">
+        <button type="button" class="ld-book-tab ld-book-tab--conf" data-ld-book-view="confirmed" aria-selected="true">
+          <span class="n" id="ldTabNConf">0</span><span>Confirmed</span>
+        </button>
         <button type="button" class="ld-book-tab ld-book-tab--hold" data-ld-book-view="hold" aria-selected="false">
           <span class="n" id="ldTabNHold">0</span><span>Hold</span>
         </button>
         <button type="button" class="ld-book-tab ld-book-tab--lost" data-ld-book-view="lost" aria-selected="false">
           <span class="n" id="ldTabNLost">0</span><span>Lost</span>
-        </button>
-        <button type="button" class="ld-book-tab ld-book-tab--conf" data-ld-book-view="confirmed" aria-selected="true">
-          <span class="n" id="ldTabNConf">0</span><span>Confirmed</span>
         </button>
       </div>
       <div class="list" id="ldList"></div>
@@ -2660,6 +2668,8 @@ function cancelLeadCharter(lead, opts){
   lead.bookingStatus="cancelled";
   lead.cancelled=true;
   lead.cancelReason=reason;
+  /* Remember firm vs hold for Lost list (dealClosed is cleared below) */
+  lead.cancelWasConfirmed=!wasUnconfirmed;
   lead.cancelledAt=new Date().toISOString();
   lead.cancelledBy=session.who||"Captain";
   lead.dealClosed=false; /* cancelled is never a firm deal */
@@ -2797,6 +2807,7 @@ function reinstateLeadCharter(lead, opts){
   live.cancelled=false;
   if(live.status==="Cancelled"||live.status==="cancelled") live.status="active";
   live.cancelReason="";
+  live.cancelWasConfirmed="";
   live.cancelledAt="";
   live.cancelledBy="";
   live.refundScope="";
@@ -3087,6 +3098,34 @@ function leadBookBucket(r){
   if(leadIsUnconfirmed(r)||leadSource(r)==="pending") return "tentative";
   return "confirmed";
 }
+/**
+ * Lost list kind:
+ *  - "lost-hold" = never firm (dropped tentative / hold taken)
+ *  - "cancelled-charter" = was confirmed, then cancelled (weather, engine, captain, …)
+ */
+function leadLostKind(r){
+  if(!r||!leadIsCancelled(r)) return "";
+  if(r.cancelWasConfirmed===true||r.cancelWasConfirmed==="true"||r.cancelWasConfirmed===1) return "cancelled-charter";
+  if(r.cancelWasConfirmed===false||r.cancelWasConfirmed==="false"||r.cancelWasConfirmed===0) return "lost-hold";
+  var reason=String(r.cancelReason||"").toLowerCase();
+  if(reason==="tentative-dropped"||reason==="hold-taken-by-reinstate") return "lost-hold";
+  if(reason==="weather-captain"||/weather|engine|mechanical|captain|refund/.test(reason)) return "cancelled-charter";
+  var notes=String(r.notes||"");
+  if(/Cancelled tentative|dropped hold|public hold released/i.test(notes)) return "lost-hold";
+  if(/captain decision|mechanical|weather|full refund|deposit refunded/i.test(notes)) return "cancelled-charter";
+  if(r.refundScope&&r.refundScope!=="none"&&Number(r.refundTotal)>0) return "cancelled-charter";
+  return "lost-hold";
+}
+function leadCancelReasonLabel(r){
+  if(!r) return "Cancelled";
+  var reason=String(r.cancelReason||"");
+  if(reason==="weather-captain") return "Weather / mechanical / captain";
+  if(reason==="tentative-dropped") return "Dropped hold";
+  if(reason==="hold-taken-by-reinstate") return "Hold taken by another lead";
+  if(reason) return reason.replace(/[-_]/g," ");
+  if(leadLostKind(r)==="cancelled-charter") return "Cancelled charter";
+  return "Dropped hold";
+}
 var LD_BOOK_VIEW_KEY="tracker-ld-book-view";
 /** Mobile ledger tab: hold | lost | confirmed (default confirmed so book is always reachable) */
 function getLdBookView(){
@@ -3105,7 +3144,7 @@ function isLdBookMobile(){
   try{ return !!(window.matchMedia&&window.matchMedia("(max-width:899px)").matches); }
   catch(e){ return true; }
 }
-/** Paint sticky Hold|Lost|Confirmed control (mobile only). */
+/** Paint sticky Confirmed|Hold|Lost control (mobile only). */
 function syncLdBookTabsUi(nHold, nLost, nConf){
   var mobile=isLdBookMobile();
   var tabs=el("ldBookTabs");
@@ -3657,8 +3696,8 @@ function renderLeads(){
     if(timing==="upcoming") addUpsellBucket(proj, gross, exB, cm);
     else addUpsellBucket(done, gross, exB, cm);
   });
-  /* Book sections: paint cards into buckets (tentative / confirmed / cancelled) */
-  var tentCards=[], confCards=[], cancCards=[];
+  /* Book sections: paint cards into buckets (tentative / confirmed / lost-hold / cancelled-charter) */
+  var tentCards=[], confCards=[], cancHoldCards=[], cancCharterCards=[];
   (state.leads||[]).forEach(function(r){
     if(!r) return;
     if(!leadMatchesSearch(r, searchQ)){ nHidden++; return; }
@@ -3703,8 +3742,12 @@ function renderLeads(){
 
     /* —— Compact cards: hold + lost (date + projected price + actions only) —— */
     if(cancelled||isTentative){
+      var lostKind=cancelled?leadLostKind(r):"";
+      var reasonLab=cancelled?leadCancelReasonLabel(r):"";
       var statePill=cancelled
-        ?'<span class="pill p-red">Lost</span>'
+        ?(lostKind==="cancelled-charter"
+          ?'<span class="pill p-red">Cancelled charter</span>'
+          :'<span class="pill p-red">Lost hold</span>')
         :(isPending
           ?'<span class="pill p-amber">Pending source</span>'
           :(isOwner
@@ -3719,12 +3762,13 @@ function renderLeads(){
       }
       var amtShow=moneyAmt>0
         ?('<span class="money" style="font-size:16px;font-weight:800">'+money0(moneyAmt)+'</span>'+
-          (cancelled||isTentative?'<div style="font-size:10.5px;font-weight:700;color:var(--muted);margin-top:2px;text-align:right">'+(cancelled?"was projected":"projected")+'</div>':''))
+          (cancelled||isTentative?'<div style="font-size:10.5px;font-weight:700;color:var(--muted);margin-top:2px;text-align:right">'+(cancelled?(lostKind==="cancelled-charter"?"was booked":"was projected"):"projected")+'</div>':''))
         :('<span style="font-size:12.5px;font-weight:800;color:var(--muted)">—</span>');
       var metaBits=
         '<span>📅 '+dateLine+'</span>'+
         '<span class="pill p-grey">'+esc(typeLab)+'</span>'+
         statePill+
+        (cancelled&&reasonLab?'<span class="pill p-grey">'+esc(reasonLab)+'</span>':'')+
         srcShort;
       var actions=
         (isPending&&!cancelled?'<button type="button" class="btn" data-edit-ld-btn="'+esc(r.id)+'">Assign source</button>':'')+
@@ -3736,8 +3780,10 @@ function renderLeads(){
         '<div class="meta">'+metaBits+'</div>'+
         (actions?'<div class="lead-actions">'+actions+'</div>':'')+
         '<span class="chev">✎</span></div>';
-      if(cancelled) cancCards.push(cardHtml);
-      else tentCards.push(cardHtml);
+      if(cancelled){
+        if(lostKind==="cancelled-charter") cancCharterCards.push(cardHtml);
+        else cancHoldCards.push(cardHtml);
+      } else tentCards.push(cardHtml);
       return;
     }
 
@@ -3845,6 +3891,24 @@ function renderLeads(){
       body+
     '</div>';
   }
+  /** Lost pane: two kinds under one tab — dropped holds vs cancelled firm charters */
+  function ldBookLostSection(holdCards, charterCards){
+    var nH=holdCards.length, nC=charterCards.length, nTot=nH+nC;
+    var body="";
+    body+='<div class="ld-book-subhd">Dropped holds <span class="ld-book-subn">'+nH+'</span></div>';
+    body+='<div class="ld-book-sub" style="margin:-4px 0 8px;font-size:11.5px;color:var(--muted)">Never confirmed — went cold or cancelled while tentative.</div>';
+    body+=nH?holdCards.join(""):'<div class="ld-book-empty">No dropped holds.</div>';
+    body+='<div class="ld-book-subhd">Cancelled charters <span class="ld-book-subn">'+nC+'</span></div>';
+    body+='<div class="ld-book-sub" style="margin:-4px 0 8px;font-size:11.5px;color:var(--muted)">Were confirmed — weather, engine, captain decision, refunds, etc.</div>';
+    body+=nC?charterCards.join(""):'<div class="ld-book-empty">No cancelled firm charters.</div>';
+    return '<div class="ld-book-sec ld-book-sec--cancelled">'+
+      '<div class="ld-book-hd">'+
+        '<div><div class="ld-book-title">Lost</div>'+
+        '<div class="ld-book-sub">Greyed · not deleted · reinstate if they return</div></div>'+
+        '<span class="ld-book-count">'+nTot+'</span>'+
+      '</div>'+body+
+    '</div>';
+  }
   try{ bindLdBookTabsOnce(); }catch(eBind){}
   if(!nShown&&!searchQ){
     html=emptyBox("🌐","No charters in the book yet","Tap + for a new lead, or Sync calendar dates.");
@@ -3855,34 +3919,30 @@ function renderLeads(){
   } else {
     var view=getLdBookView();
     var mobile=isLdBookMobile();
-    var secHold=ldBookSection(
-      "ld-book-sec--tentative",
-      "On hold · tentative",
-      "Not firm — assign source, then Confirm or deposit Paid.",
-      tentCards.length, tentCards, "No tentative holds right now."
-    );
-    var secLost=ldBookSection(
-      "ld-book-sec--cancelled",
-      "Lost · cancelled",
-      "Greyed out · not deleted. Reinstate when they get in touch.",
-      cancCards.length, cancCards, "No lost / cancelled leads."
-    );
+    var nLost=cancHoldCards.length+cancCharterCards.length;
     var secConf=ldBookSection(
       "ld-book-sec--confirmed",
       "Confirmed book",
       "Firm charters · money totals · main list. Cards move here when you confirm.",
       confCards.length, confCards, "No confirmed charters yet — confirm a tentative deal to fill this list."
     );
-    try{ syncLdBookTabsUi(tentCards.length, cancCards.length, confCards.length); }catch(eT2){}
+    var secHold=ldBookSection(
+      "ld-book-sec--tentative",
+      "On hold · tentative",
+      "Not firm — assign source, then Confirm or deposit Paid.",
+      tentCards.length, tentCards, "No tentative holds right now."
+    );
+    var secLost=ldBookLostSection(cancHoldCards, cancCharterCards);
+    try{ syncLdBookTabsUi(tentCards.length, nLost, confCards.length); }catch(eT2){}
     if(mobile){
-      /* One list at a time — Confirmed is always one tap on the sticky tabs above */
+      /* Default / primary = Confirmed; Hold then Lost */
       var pane=view==="hold"?secHold:(view==="lost"?secLost:secConf);
       html='<div class="ld-book-mobile-pane">'+pane+'</div>';
     } else {
-      /* Desktop: hold|lost sticky pipeline, confirmed full width below */
+      /* Desktop: confirmed first, then hold | lost pipeline */
       html=
-        '<div class="ld-book-pipeline">'+secHold+secLost+'</div>'+
-        secConf;
+        secConf+
+        '<div class="ld-book-pipeline">'+secHold+secLost+'</div>';
     }
   }
   wrap.innerHTML=html;
