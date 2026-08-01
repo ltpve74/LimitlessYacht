@@ -296,13 +296,14 @@ function collapseCrewDayPayExpenses(expenses) {
  * @returns {{ changed: boolean, cleared: Array, envelope: number, expenses: Array }}
  */
 function clearCrewFloatPayOnEmptyEnvelope(expenses, pettyStart, cashIns) {
-  var start = round2(num(pettyStart));
+  /* Physical envelope only — poison negative start is not cash available */
+  var physicalStart = Math.max(0, round2(num(pettyStart)));
   var cashInTotal = 0;
   (Array.isArray(cashIns) ? cashIns : []).forEach(function (r) {
     if (r) cashInTotal += num(r.amount);
   });
   cashInTotal = round2(cashInTotal);
-  var envelope = round2(start + cashInTotal);
+  var envelope = round2(physicalStart + cashInTotal);
   var list = Array.isArray(expenses) ? expenses : [];
   if (envelope > 0.009) {
     return { changed: false, cleared: [], envelope: envelope, expenses: list };
@@ -325,18 +326,30 @@ function clearCrewFloatPayOnEmptyEnvelope(expenses, pettyStart, cashIns) {
 }
 
 /**
- * Pure petty cash on board.
- *   pettyCash = pettyStart + sum(cashIns) − sum(cashOut)
+ * Pure petty cash ledger.
+ *
+ * Physical notes cannot go negative (you cannot spend cash you do not have):
+ *   physicalStart = max(0, storedStart)   // negative start is poison books, not notes
+ *   cashInHand    = physicalStart + cashIns
+ *   booksBalance  = physicalStart + cashIns − cashOut   (diagnostic; may be negative)
+ *   pettyOnboard  = max(0, booksBalance)  // physical notes in the envelope
+ *   cashShort     = max(0, −booksBalance) // over-marked cash-outs / bad start residue
+ *
  * Cash out:
  *   - non-crew: expenseHitsPettyCash
  *   - crew day-pay: only floatPay (after collapse to one line per stew|date)
- * Never subtracts unpaid people (that is float books, not petty).
+ * Never subtracts unpaid people (that is float books / still-owed, not petty).
+ *
+ * Carry next month’s start from pettyOnboard (never from a negative booksBalance).
  *
  * @param {{ pettyStart?: number, cashIns?: Array, expenses?: Array }} opts
  */
 function summarizePettyCash(opts) {
   opts = opts || {};
-  var start = round2(num(opts.pettyStart));
+  var storedStart = round2(num(opts.pettyStart));
+  /* Physical start: notes only — never carry a negative “start” as cash */
+  var physicalStart = storedStart > 0 ? storedStart : 0;
+  var priorStartShort = storedStart < 0 ? round2(-storedStart) : 0;
   var cashIns = Array.isArray(opts.cashIns) ? opts.cashIns : [];
   var cashInTotal = 0;
   cashIns.forEach(function (r) {
@@ -344,7 +357,7 @@ function summarizePettyCash(opts) {
     cashInTotal += num(r.amount);
   });
   cashInTotal = round2(cashInTotal);
-  var cashInHand = round2(start + cashInTotal);
+  var cashInHand = round2(physicalStart + cashInTotal);
 
   var col = collapseCrewDayPayExpenses(opts.expenses || []);
   var expenses = col.expenses;
@@ -385,7 +398,12 @@ function summarizePettyCash(opts) {
   });
   cashOut = round2(cashOut);
   crewPaidPetty = round2(crewPaidPetty);
-  var pettyCash = round2(cashInHand - cashOut);
+  /* Month books from physical start (never use negative start as cash) */
+  var booksBalance = round2(cashInHand - cashOut);
+  var pettyOnboard = booksBalance > 0 ? booksBalance : 0;
+  var monthShort = booksBalance < 0 ? round2(-booksBalance) : 0;
+  /* Total short = this month over-mark + any poison negative start residue */
+  var cashShort = round2(monthShort + priorStartShort);
   /* Newest first for captain audit */
   cashOutLines.sort(function (a, b) {
     var da = String((a && a.date) || "");
@@ -394,13 +412,20 @@ function summarizePettyCash(opts) {
     return (Number(b && b.amount) || 0) - (Number(a && a.amount) || 0);
   });
   return {
-    pettyStart: start,
+    pettyStart: storedStart,
+    physicalStart: physicalStart,
+    priorStartShort: priorStartShort,
     cashInTotal: cashInTotal,
     cashInHand: cashInHand,
     cashOut: cashOut,
     cashOutLines: cashOutLines,
-    pettyCash: pettyCash,
-    pettyOnboard: pettyCash,
+    /* booksBalance: diagnostic (can be negative from over-marked outs this month) */
+    booksBalance: booksBalance,
+    /* Physical notes — never negative */
+    pettyCash: pettyOnboard,
+    pettyOnboard: pettyOnboard,
+    cashShort: cashShort,
+    monthShort: monthShort,
     crewPaidPetty: crewPaidPetty,
     nCrewPetty: nCrewPetty,
     nCrewCollapsed: col.collapsed,
