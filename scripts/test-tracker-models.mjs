@@ -808,6 +808,19 @@ console.log("\n[Petty cash — crew day-pay collapse & floatPay]");
   ok("real pot €50 keeps floatPay", keep.changed === false && real.floatPay === true);
   const realSum = M.summarizePettyCash({ pettyStart: 50, cashIns: [], expenses: [real] });
   ok("real pot ends at 0 after €50 out", near(realSum.pettyCash, 0), "got " + realSum.pettyCash);
+  /* Captain commission draws from petty reduce outstanding */
+  const draws = [
+    { id: "d1", category: "Captain commission", kind: "captainComm", payMethod: "Cash", paidFrom: "Petty cash", amount: 997, date: "2026-08-02" },
+    { id: "d2", category: "Captain commission", payMethod: "Cash", paidFrom: "Own money", amount: 100, date: "2026-08-01" } /* not from boat */
+  ];
+  const paidSum = M.summarizeCaptainCommissionPaid(draws);
+  ok("paid total is 997 (own money ignored)", near(paidSum.paid, 997), "got " + paidSum.paid);
+  const bal = M.summarizeCaptainCommissionBalance({ earned: 2500, expenses: draws });
+  ok("earned 2500", near(bal.earned, 2500));
+  ok("outstanding 2500−997", near(bal.outstanding, 1503), "got " + bal.outstanding);
+  ok("status partial", bal.status === "partial");
+  const balPaid = M.summarizeCaptainCommissionBalance({ earned: 997, expenses: draws });
+  ok("fully paid status", balPaid.status === "paid" && near(balPaid.outstanding, 0));
 }
 
 /* ---- Diesel: bunker + sticky active sell ---- */

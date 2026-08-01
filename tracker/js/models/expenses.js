@@ -285,6 +285,76 @@ function collapseCrewDayPayExpenses(expenses) {
 }
 
 /**
+ * Captain commission draw from the boat envelope (expense ledger).
+ * Category "Captain commission" / kind captainComm — cash + petty only counts as paid.
+ */
+function isCaptainCommissionExpense(e) {
+  if (!e) return false;
+  if (e.kind === "captainComm" || e.commPayout === true) return true;
+  return /^captain commission$/i.test(String(e.category || ""));
+}
+
+/**
+ * Sum of commission cash actually taken from petty (not card / own money).
+ * @param {Array} expenses
+ */
+function summarizeCaptainCommissionPaid(expenses) {
+  var paid = 0;
+  var payouts = [];
+  (Array.isArray(expenses) ? expenses : []).forEach(function (e) {
+    if (!isCaptainCommissionExpense(e)) return;
+    if (String(e.payMethod || "") === "Credit Card") return;
+    var pf = expensePaidFrom(e);
+    if (pf === "own" || pf === "card") return;
+    var a = round2(num(e.amount));
+    if (!(a > 0)) return;
+    paid = round2(paid + a);
+    payouts.push(e);
+  });
+  payouts.sort(function (a, b) {
+    var da = String((b && b.date) || "");
+    var db = String((a && a.date) || "");
+    if (da !== db) return da < db ? -1 : 1;
+    return String((b && b.updatedAt) || "").localeCompare(String((a && a.updatedAt) || ""));
+  });
+  return { paid: paid, payouts: payouts, n: payouts.length };
+}
+
+/**
+ * Captain commission balance for Leads / Commissions UI.
+ *   earned = deals + upsells (caller computes from leads/charges)
+ *   paid   = sum of petty commission draws
+ *   outstanding = max(0, earned − paid)
+ *
+ * @param {{ earned?: number, expenses?: Array }} opts
+ */
+function summarizeCaptainCommissionBalance(opts) {
+  opts = opts || {};
+  var earned = round2(Math.max(0, num(opts.earned)));
+  var paidSum = summarizeCaptainCommissionPaid(opts.expenses);
+  var paid = paidSum.paid;
+  var outstanding = round2(Math.max(0, earned - paid));
+  var overpaid = paid > earned + 0.009 ? round2(paid - earned) : 0;
+  var status =
+    earned < 0.01 && paid < 0.01
+      ? "none"
+      : outstanding < 0.01
+        ? "paid"
+        : paid > 0.009
+          ? "partial"
+          : "outstanding";
+  return {
+    earned: earned,
+    paid: paid,
+    outstanding: outstanding,
+    overpaid: overpaid,
+    status: status,
+    payouts: paidSum.payouts,
+    nPayouts: paidSum.n,
+  };
+}
+
+/**
  * Cash cannot leave an empty envelope.
  * When start + cash-in ≈ 0 (or negative), any crew floatPay is impossible books
  * invent (re-save used to set floatPay from Paid alone → petty 0 → −€250).
@@ -498,6 +568,9 @@ function summarizePettyCash(opts) {
     crewDayPayLineScore: crewDayPayLineScore,
     collapseCrewDayPayExpenses: collapseCrewDayPayExpenses,
     clearCrewFloatPayOnEmptyEnvelope: clearCrewFloatPayOnEmptyEnvelope,
-    summarizePettyCash: summarizePettyCash
+    summarizePettyCash: summarizePettyCash,
+    isCaptainCommissionExpense: isCaptainCommissionExpense,
+    summarizeCaptainCommissionPaid: summarizeCaptainCommissionPaid,
+    summarizeCaptainCommissionBalance: summarizeCaptainCommissionBalance
   };
 });
