@@ -9730,29 +9730,74 @@ function expSettlementFigures(month){
   };
 }
 /**
- * Open unpaid day-pay through focus month (roster is SOT — no Unpaid expense rows).
- * Includes prior months still unpaid (e.g. Laura €200 last month while viewing this month).
+ * Settled day-pay fingerprints from the expenses ledger (Paid lines).
+ * Used so open-owed never re-lists charters already paid on the books.
+ */
+function expCrewDayPaySettledSets(){
+  var byEventStew={}; /* eventKey|stewId */
+  var byFinger={}; /* stewId|date */
+  var byLink={}; /* stew-day:event:stew */
+  (state.expenses||[]).forEach(function(e){
+    if(!e||!expIsCrewDayPayLine(e)) return;
+    if(String(e.crewPayStatus||"")!=="Paid") return;
+    var sid=String(e.stewId||"");
+    var d=String(e.date||"").slice(0,10);
+    var ek=String(e.stewEventKey||"");
+    if(ek&&sid) byEventStew[ek+"|"+sid]=1;
+    if(sid&&d) byFinger[sid+"|"+d]=1;
+    var lid=e.linkId?String(e.linkId):"";
+    if(lid) byLink[lid]=1;
+    if(ek&&sid) byLink["stew-day:"+ek+":"+sid]=1;
+  });
+  return {byEventStew:byEventStew, byFinger:byFinger, byLink:byLink};
+}
+function expCrewDayPayIsSettled(asg, sid, settled){
+  if(!asg||!sid) return false;
+  if(asg.payStatus==="Paid") return true;
+  settled=settled||expCrewDayPaySettledSets();
+  var ek=String(asg.eventKey||"");
+  var d=String(asg.start||"").slice(0,10);
+  sid=String(sid);
+  if(ek&&settled.byEventStew[ek+"|"+sid]) return true;
+  if(d&&settled.byFinger[sid+"|"+d]) return true;
+  if(ek&&settled.byLink["stew-day:"+ek+":"+sid]) return true;
+  return false;
+}
+/**
+ * Open unpaid day-pay through focus month.
+ * Settled if assign is Paid OR a Paid day-pay expense exists for that stew/charter/day.
+ * One line per stew|date (dedupe lead:/uid: double assigns).
  */
 function expCollectOpenCrewDayPay(focusMonth){
   focusMonth=focusMonth||expDefaultMonth();
   var today=localTodayYmd();
-  var out=[];
+  var settled=expCrewDayPaySettledSets();
+  var best={}; /* finger stewId|date → row */
+  function scoreAsg(a){
+    var s=0;
+    if(String(a.eventKey||"").indexOf("lead:")===0) s+=40;
+    if(a.leadId) s+=20;
+    s+=Math.min(50, apaNum(a.payEach)||apaNum(a.dayRate)||0);
+    return s;
+  }
   (state.stewAssign||[]).forEach(function(asg){
     if(!asg||!asg.eventKey) return;
     if(asg.cancelled||asg.status==="cancelled"||asg.cancelGhost) return;
     if(asg.payStatus==="Paid") return;
     var start=String(asg.start||"").slice(0,10);
-    if(!start||start>today) return; /* future not due */
+    if(!start||start>today) return;
     var m=expMonthKey(start);
     if(m&&m>focusMonth) return;
     var ids=(asg.stewIds||[]).filter(Boolean);
     if(!ids.length) return;
     ids.forEach(function(sid){
       if(expIsStewDayPaySkipped(asg.eventKey, sid)) return;
+      if(expCrewDayPayIsSettled(asg, sid, settled)) return;
       var amt=stewDayPayForStew(asg, sid);
       if(!(amt>0)) return;
+      var finger=String(sid)+"|"+start;
       var nm=(stewById(sid)&&stewById(sid).name)||"Stew";
-      out.push({
+      var row={
         kind:"daypay",
         eventKey:String(asg.eventKey),
         stewId:String(sid),
@@ -9761,9 +9806,19 @@ function expCollectOpenCrewDayPay(focusMonth){
         amount:amt,
         date:start,
         month:m||"",
-        summary:asg.summary||"Charter"
-      });
+        summary:asg.summary||"Charter",
+        _score:scoreAsg(asg)
+      };
+      var prev=best[finger];
+      if(!prev||row._score>prev._score||(row._score===prev._score&&row.amount>prev.amount)){
+        best[finger]=row;
+      }
     });
+  });
+  var out=Object.keys(best).map(function(k){
+    var r=best[k];
+    delete r._score;
+    return r;
   });
   out.sort(function(a,b){
     var da=String(a.date||""), db=String(b.date||"");
@@ -9771,6 +9826,36 @@ function expCollectOpenCrewDayPay(focusMonth){
     return (b.amount||0)-(a.amount||0);
   });
   return out;
+}
+/**
+ * Align roster payStatus to Paid when expenses already show Paid for that charter
+ * (stops “still owed” resurrecting Toni/Laura after they were paid on the books).
+ */
+function expHealAssignPayStatusFromExpenses(){
+  if(!isCaptain()||!state.stewAssign||!state.expenses) return false;
+  var settled=expCrewDayPaySettledSets();
+  var dirty=false;
+  (state.stewAssign||[]).forEach(function(asg){
+    if(!asg||!asg.eventKey||asg.payStatus==="Paid") return;
+    if(asg.cancelled||asg.status==="cancelled") return;
+    var ids=(asg.stewIds||[]).filter(Boolean);
+    if(!ids.length) return;
+    var allSettled=ids.every(function(sid){
+      return expIsStewDayPaySkipped(asg.eventKey, sid)||expCrewDayPayIsSettled(asg, sid, settled)||!(stewDayPayForStew(asg, sid)>0);
+    });
+    var anySettled=ids.some(function(sid){ return expCrewDayPayIsSettled(asg, sid, settled); });
+    /* If every stew with pay is settled on expenses → mark assign Paid (books only; no floatPay invent) */
+    if(allSettled&&anySettled){
+      asg.payStatus="Paid";
+      asg.payStatusManual=true;
+      asg.updatedAt=new Date().toISOString();
+      dirty=true;
+    }
+  });
+  if(dirty&&!DEMO){
+    try{ saveStewAssign(); }catch(eS){}
+  }
+  return dirty;
 }
 /** Unpaid stew day pay still due through focus month (through today). Tips separate. */
 function expStewDayPayOwed(month){
@@ -10743,6 +10828,7 @@ function renderExpenses(){
   try{ expRepairImpossibleCrewFloatOnEmptyEnvelope(); }catch(eRep){}
   try{ expCollapseCrewDayPayDuplicates(); }catch(eCol){}
   try{ expStripUnpaidStewDayPayExpenses(); }catch(eStrip){}
+  try{ expHealAssignPayStatusFromExpenses(); }catch(eHealPay){}
   paintExpensesBody();
 }
 function paintExpensesBody(){
