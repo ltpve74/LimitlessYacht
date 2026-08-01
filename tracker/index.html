@@ -100,6 +100,11 @@
   .sumcard .v{font-size:21px;font-weight:800;margin-top:3px}
   #tab-charters .summary .sumcard{flex:1 1 calc(50% - 10px)}
   @media(min-width:620px){ #tab-charters .summary .sumcard{flex:1 1 calc(25% - 10px)} }
+  /* Stews season strip — same compact cards as Charges */
+  #tab-stews .stew-season-summary .sumcard{flex:1 1 calc(50% - 10px)}
+  @media(min-width:620px){ #tab-stews .stew-season-summary .sumcard{flex:1 1 calc(25% - 10px)} }
+  #tab-stews .sumcard.sum-warn .v{color:var(--amberDeep)}
+  #tab-stews .sumcard.sum-ok .v{color:var(--greenInk,#1a5c48)}
   /* Leads money: compact gross/net glimpse; long breakdown in collapsible details */
   #tab-leads .ld-summary{display:block;margin-bottom:10px;width:100%;box-sizing:border-box}
   #tab-leads .ld-summary .sumcard{min-width:0;flex:none;padding:12px 14px;box-sizing:border-box}
@@ -13089,43 +13094,58 @@ function paintStewCharters(){
       byStew[nm].pocket=pk;
     });
   }
-  html+='<div class="apa-card" style="margin-bottom:12px">'+
-    '<div class="meta" style="margin-bottom:6px">'+(showMoney?"Season accounting":"Season roster")+(stewYearFilter!=="all"?" · "+esc(stewYearFilter):"")+(showMoney?" · day pay · tips (not petty) · pocket":"")+'</div>'+
-    '<div style="display:flex;flex-wrap:wrap;gap:10px 16px;align-items:baseline">'+
-      '<div><span class="meta">Trips</span><div style="font-size:20px;font-weight:800">'+tripTotal+'</div></div>'+
-      '<div><span class="meta">Assigned</span><div style="font-size:20px;font-weight:800">'+tripWithStew+'</div></div>'+
-      '<div><span class="meta">Unassigned</span><div style="font-size:20px;font-weight:800'+(tripUnassigned>0?";color:var(--amberDeep)":"")+'">'+tripUnassigned+'</div></div>'+
-      '<div><span class="meta">Cancelled</span><div style="font-size:20px;font-weight:800'+(cancelledN>0?";color:var(--danger)":"")+'">'+cancelledN+'</div></div>'+
-      (showMoney?'<div><span class="meta">Billable days</span><div style="font-size:20px;font-weight:800">'+tripDays+'</div></div>':'')+
-      (showMoney&&unpaidSum>0?'<div><span class="meta">Day pay unpaid</span><div class="money" style="font-size:20px;font-weight:800;color:var(--amberDeep)">'+money0(unpaidSum)+'</div></div>':'')+
-      (showMoney&&paidSum>0?'<div><span class="meta">Day pay paid</span><div class="money" style="font-size:20px;font-weight:800">'+money0(paidSum)+'</div></div>':'')+
-      (showMoney&&upcomingSum>0?'<div><span class="meta">Day pay later</span><div class="money" style="font-size:18px;font-weight:700">'+money0(upcomingSum)+'</div></div>':'')+
-      (showMoney&&pocketSum>0?'<div><span class="meta">Pocket to reimburse</span><div class="money" style="font-size:20px;font-weight:800;color:var(--amberDeep)">'+money0(pocketSum)+'</div></div>':'')+
-      (showMoney&&(unpaidSum+tipStewUnpaidSum+tipCaptainUnpaid+pocketSum)>0?'<div><span class="meta">Still to pay (pay+tip+pocket)</span><div class="money" style="font-size:20px;font-weight:800;color:var(--amberDeep)">'+money0(unpaidSum+tipStewUnpaidSum+tipCaptainUnpaid+pocketSum)+'</div></div>':'')+
-    '</div>';
-  /* Tips ledger: year-end weight for you + each stew (never petty cash) */
-  if(showMoney&&tipGuestSum>0.009){
-    html+='<div style="margin-top:12px;border-top:1px solid var(--line);padding-top:10px">'+
-      '<div style="font-weight:800;margin-bottom:6px">Tips ledger <span class="meta" style="font-weight:600">(not petty cash)</span></div>'+
-      '<div style="display:flex;flex-wrap:wrap;gap:10px 16px;align-items:baseline">'+
-        '<div><span class="meta">Guests total</span><div class="money" style="font-size:20px;font-weight:800">'+money0(tipGuestSum)+'</div></div>'+
-        (tipGuestPaid>0?'<div><span class="meta">Paid</span><div class="money" style="font-size:18px;font-weight:700;color:var(--greenInk,#1a5c48)">'+money0(tipGuestPaid)+'</div></div>':'')+
-        (tipGuestUnpaid>0.009?'<div><span class="meta">Unpaid / open</span><div class="money" style="font-size:18px;font-weight:800;color:var(--amberDeep)">'+money0(tipGuestUnpaid)+'</div></div>':'')+
-        '<div><span class="meta">Your share (captain)</span><div class="money" style="font-size:18px;font-weight:800">'+money0(tipCaptainPaid+tipCaptainUnpaid)+
-          ((tipCaptainPaid>0||tipCaptainUnpaid>0)?' <span class="meta" style="font-weight:600">· paid '+money0(tipCaptainPaid)+(tipCaptainUnpaid>0?' · open '+money0(tipCaptainUnpaid):'')+'</span>':'')+
-        '</div></div>'+
-        '<div><span class="meta">Stews share</span><div class="money" style="font-size:18px;font-weight:800">'+money0(tipStewPaidSum+tipStewUnpaidSum)+
-          ((tipStewPaidSum>0||tipStewUnpaidSum>0)?' <span class="meta" style="font-weight:600">· paid '+money0(tipStewPaidSum)+(tipStewUnpaidSum>0?' · open '+money0(tipStewUnpaidSum):'')+'</span>':'')+
-        '</div></div>'+
-      '</div>'+
-      '<div class="meta" style="margin-top:8px;line-height:1.4">Equal split among captain + each stew. Use the year filter above for year-end tip weight. Tips never enter Expenses petty cash.</div>'+
-    '</div>';
-  }
-  /* Per-person breakdown — captain only */
+  var stillToPay=Math.round((unpaidSum+tipStewUnpaidSum+tipCaptainUnpaid+pocketSum)*100)/100;
+  var tipOpen=Math.round((tipGuestUnpaid)*100)/100;
+  /* Compact summary (like Charges) + expand for tips / per-person */
+  html+='<div class="summary stew-season-summary" style="margin-bottom:10px">'+
+    '<div class="sumcard"><div class="l">Trips</div><div class="v">'+tripTotal+'</div></div>'+
+    '<div class="sumcard"><div class="l">Assigned</div><div class="v">'+tripWithStew+'</div></div>'+
+    '<div class="sumcard'+(tripUnassigned>0?' sum-warn':'')+'"><div class="l">Unassigned</div><div class="v">'+tripUnassigned+'</div></div>'+
+    (showMoney
+      ?(
+        (unpaidSum>0.009?'<div class="sumcard sum-warn"><div class="l">Day pay unpaid</div><div class="v money">'+money0(unpaidSum)+'</div></div>':'')+
+        (stillToPay>0.009?'<div class="sumcard sum-warn"><div class="l">Still to pay</div><div class="v money">'+money0(stillToPay)+'</div></div>':
+          (paidSum>0?'<div class="sumcard sum-ok"><div class="l">Day pay paid</div><div class="v money">'+money0(paidSum)+'</div></div>':''))+
+        (tipGuestSum>0.009?'<div class="sumcard"><div class="l">Tips (guests)</div><div class="v money">'+money0(tipGuestSum)+'</div></div>':'')+
+        (tipOpen>0.009?'<div class="sumcard sum-warn"><div class="l">Tips open</div><div class="v money">'+money0(tipOpen)+'</div></div>':'')
+      )
+      :('<div class="sumcard'+(cancelledN>0?' sum-warn':'')+'"><div class="l">Cancelled</div><div class="v">'+cancelledN+'</div></div>'))+
+  '</div>';
   if(showMoney){
+    html+='<div style="margin:0 0 12px">'+
+      '<button type="button" class="btn ghost" id="stewSeasonMore" aria-expanded="false" style="width:auto;padding:8px 14px;font-size:13px">Season details ▾</button>'+
+      '<div id="stewSeasonDetails" hidden style="margin-top:10px">'+
+        '<div class="apa-card">'+
+          '<div class="meta" style="margin-bottom:8px">Season details'+(stewYearFilter!=="all"?" · "+esc(stewYearFilter):"")+' · day pay · tips (not petty) · pocket</div>'+
+          '<div style="display:flex;flex-wrap:wrap;gap:10px 16px;align-items:baseline;margin-bottom:4px">'+
+            '<div><span class="meta">Billable days</span><div style="font-size:18px;font-weight:800">'+tripDays+'</div></div>'+
+            (paidSum>0?'<div><span class="meta">Day pay paid</span><div class="money" style="font-size:18px;font-weight:800">'+money0(paidSum)+'</div></div>':'')+
+            (unpaidSum>0?'<div><span class="meta">Day pay unpaid</span><div class="money" style="font-size:18px;font-weight:800;color:var(--amberDeep)">'+money0(unpaidSum)+'</div></div>':'')+
+            (upcomingSum>0?'<div><span class="meta">Day pay later</span><div class="money" style="font-size:16px;font-weight:700">'+money0(upcomingSum)+'</div></div>':'')+
+            (pocketSum>0?'<div><span class="meta">Pocket to reimburse</span><div class="money" style="font-size:18px;font-weight:800;color:var(--amberDeep)">'+money0(pocketSum)+'</div></div>':'')+
+            (cancelledN>0?'<div><span class="meta">Cancelled</span><div style="font-size:18px;font-weight:800;color:var(--danger)">'+cancelledN+'</div></div>':'')+
+          '</div>';
+    if(tipGuestSum>0.009){
+      html+='<div style="margin-top:12px;border-top:1px solid var(--line);padding-top:10px">'+
+        '<div style="font-weight:800;margin-bottom:6px">Tips ledger <span class="meta" style="font-weight:600">(not petty cash)</span></div>'+
+        '<div style="display:flex;flex-wrap:wrap;gap:10px 16px;align-items:baseline">'+
+          '<div><span class="meta">Guests total</span><div class="money" style="font-size:18px;font-weight:800">'+money0(tipGuestSum)+'</div></div>'+
+          (tipGuestPaid>0?'<div><span class="meta">Paid</span><div class="money" style="font-size:16px;font-weight:700;color:var(--greenInk,#1a5c48)">'+money0(tipGuestPaid)+'</div></div>':'')+
+          (tipGuestUnpaid>0.009?'<div><span class="meta">Unpaid / open</span><div class="money" style="font-size:16px;font-weight:800;color:var(--amberDeep)">'+money0(tipGuestUnpaid)+'</div></div>':'')+
+          '<div><span class="meta">Your share (captain)</span><div class="money" style="font-size:16px;font-weight:800">'+money0(tipCaptainPaid+tipCaptainUnpaid)+
+            ((tipCaptainPaid>0||tipCaptainUnpaid>0)?' <span class="meta" style="font-weight:600">· paid '+money0(tipCaptainPaid)+(tipCaptainUnpaid>0?' · open '+money0(tipCaptainUnpaid):'')+'</span>':'')+
+          '</div></div>'+
+          '<div><span class="meta">Stews share</span><div class="money" style="font-size:16px;font-weight:800">'+money0(tipStewPaidSum+tipStewUnpaidSum)+
+            ((tipStewPaidSum>0||tipStewUnpaidSum>0)?' <span class="meta" style="font-weight:600">· paid '+money0(tipStewPaidSum)+(tipStewUnpaidSum>0?' · open '+money0(tipStewUnpaidSum):'')+'</span>':'')+
+          '</div></div>'+
+        '</div>'+
+        '<div class="meta" style="margin-top:8px;line-height:1.4">Equal split among captain + each stew. Year filter = year-end tip weight. Tips never enter petty cash.</div>'+
+      '</div>';
+    }
     var stewKeys=Object.keys(byStew).sort();
     if(stewKeys.length||tipCaptainPaid+tipCaptainUnpaid>0.009){
-      html+='<div style="margin-top:10px;border-top:1px solid var(--line);padding-top:8px">';
+      html+='<div style="margin-top:10px;border-top:1px solid var(--line);padding-top:8px">'+
+        '<div class="meta" style="margin-bottom:4px;font-weight:700">Per person</div>';
       if(tipCaptainPaid+tipCaptainUnpaid>0.009){
         html+='<div style="display:flex;flex-wrap:wrap;gap:6px 10px;align-items:center;margin-top:6px;font-size:13px;color:var(--muted)">'+
           '<span style="font-weight:700;color:var(--ink,#1a1a1a)">Captain (you)</span>'+
@@ -13149,12 +13169,9 @@ function paintStewCharters(){
         '</div>';
       });
       html+='</div>';
-    } else {
-      html+='<p style="margin:10px 0 0;font-size:12px;color:var(--muted)">Assign stews, rates and tips to build the season cost picture.</p>';
     }
+    html+='</div></div></div>';
   }
-  html+='</div>';
-  html+='<div class="list">';
   html+='<div class="list">';
   rosterRows.forEach(function(row){
     var ev=row.event;
@@ -13222,6 +13239,17 @@ function paintStewCharters(){
   });
   html+='</div>';
   wrap.innerHTML=html;
+  if(el("stewSeasonMore")&&el("stewSeasonDetails")){
+    el("stewSeasonMore").addEventListener("click",function(ev){
+      ev.preventDefault();
+      var panel=el("stewSeasonDetails");
+      var btn=el("stewSeasonMore");
+      var open=panel.hidden;
+      panel.hidden=!open;
+      btn.setAttribute("aria-expanded", open?"true":"false");
+      btn.textContent=open?"Season details ▴":"Season details ▾";
+    });
+  }
   Array.prototype.forEach.call(wrap.querySelectorAll("[data-assign-lead]"),function(btn){
     btn.addEventListener("click",function(ev){
       ev.preventDefault(); ev.stopPropagation();
