@@ -13094,7 +13094,8 @@ function paintStewCharters(){
       byStew[nm].pocket=pk;
     });
   }
-  var stillToPay=Math.round((unpaidSum+tipStewUnpaidSum+tipCaptainUnpaid+pocketSum)*100)/100;
+  /* Day pay / pocket only — tips never fold into a “still to pay” wage total */
+  var stillToPay=Math.round((unpaidSum+pocketSum)*100)/100;
   var tipOpen=Math.round((tipGuestUnpaid)*100)/100;
   /* Compact summary (like Charges) + expand for tips / per-person */
   html+='<div class="summary stew-season-summary" style="margin-bottom:10px">'+
@@ -13103,10 +13104,9 @@ function paintStewCharters(){
     '<div class="sumcard'+(tripUnassigned>0?' sum-warn':'')+'"><div class="l">Unassigned</div><div class="v">'+tripUnassigned+'</div></div>'+
     (showMoney
       ?(
-        (unpaidSum>0.009?'<div class="sumcard sum-warn"><div class="l">Day pay unpaid</div><div class="v money">'+money0(unpaidSum)+'</div></div>':'')+
-        (stillToPay>0.009?'<div class="sumcard sum-warn"><div class="l">Still to pay</div><div class="v money">'+money0(stillToPay)+'</div></div>':
+        (stillToPay>0.009?'<div class="sumcard sum-warn"><div class="l">Day pay due</div><div class="v money">'+money0(stillToPay)+'</div></div>':
           (paidSum>0?'<div class="sumcard sum-ok"><div class="l">Day pay paid</div><div class="v money">'+money0(paidSum)+'</div></div>':''))+
-        (tipGuestSum>0.009?'<div class="sumcard"><div class="l">Tips (guests)</div><div class="v money">'+money0(tipGuestSum)+'</div></div>':'')+
+        (tipGuestSum>0.009?'<div class="sumcard"><div class="l">Guest tips</div><div class="v money">'+money0(tipGuestSum)+'</div></div>':'')+
         (tipOpen>0.009?'<div class="sumcard sum-warn"><div class="l">Tips open</div><div class="v money">'+money0(tipOpen)+'</div></div>':'')
       )
       :('<div class="sumcard'+(cancelledN>0?' sum-warn':'')+'"><div class="l">Cancelled</div><div class="v">'+cancelledN+'</div></div>'))+
@@ -13155,15 +13155,18 @@ function paintStewCharters(){
         '</div>';
       }
       stewKeys.forEach(function(nm){
-        var b=byStew[nm], tot=b.paid+b.unpaid+b.tipPaid+b.tipUnpaid+(b.pocket||0);
+        var b=byStew[nm];
+        var dayTot=Math.round(((b.paid||0)+(b.unpaid||0))*100)/100;
+        var tipTot=Math.round(((b.tipPaid||0)+(b.tipUnpaid||0))*100)/100;
         html+='<div style="display:flex;flex-wrap:wrap;gap:6px 10px;align-items:center;margin-top:6px;font-size:13px;color:var(--muted)">'+
           '<span style="font-weight:700;color:var(--ink,#1a1a1a)">'+esc(nm)+'</span>'+
           (b.trips?'<span>· '+b.trips+' trip'+(b.trips===1?"":"s")+'</span>':'')+
-          (tot>0?'<span class="money" style="font-weight:800">'+money0(tot)+'</span>':'')+
-          (b.unpaid>0?'<span class="pill p-amber">Pay '+money0(b.unpaid)+'</span>':'')+
-          (b.paid>0?'<span class="pill p-green">Pay '+money0(b.paid)+'</span>':'')+
-          (b.tipUnpaid>0?'<span class="pill p-amber">Tip '+money0(b.tipUnpaid)+'</span>':'')+
-          (b.tipPaid>0?'<span class="pill p-green">Tip '+money0(b.tipPaid)+'</span>':'')+
+          (dayTot>0?'<span class="money" style="font-weight:800" title="Day pay only">'+money0(dayTot)+' day</span>':'')+
+          (b.unpaid>0?'<span class="pill p-amber">Day pay '+money0(b.unpaid)+'</span>':'')+
+          (b.paid>0?'<span class="pill p-green">Day paid '+money0(b.paid)+'</span>':'')+
+          (tipTot>0?'<span class="money" style="font-weight:700" title="Guest tips — not wages">'+money0(tipTot)+' tips</span>':'')+
+          (b.tipUnpaid>0?'<span class="pill p-amber">Tip open '+money0(b.tipUnpaid)+'</span>':'')+
+          (b.tipPaid>0?'<span class="pill p-green">Tip recv '+money0(b.tipPaid)+'</span>':'')+
           (b.pocket>0?'<span class="pill p-own">Pocket '+money0(b.pocket)+'</span>':'')+
           (b.upcoming>0?'<span class="pill p-grey">Later '+money0(b.upcoming)+'</span>':'')+
         '</div>';
@@ -13311,9 +13314,10 @@ function stewExpenseDayPayLine(asg, stewId){
   return hit;
 }
 /**
- * Money still due / already paid for one stew.
- * Dedupes duplicate stewAssign rows (lead: + uid: for same day) — that was
- * inflating Team “owe” (e.g. Laura €500 / Toni €900 from double counting).
+ * Day pay vs tips for one stew (never mixed into one “pay” total).
+ * Day pay = owner wages. Tips = guest gratuities (client money) — tracked for
+ * year-end, never treated as wages (so good tips never justify lower day rates).
+ * Dedupes duplicate stewAssign rows (lead: + uid: same day).
  */
 function stewPersonBalances(stewId){
   var unpaid=0, paid=0, nUnpaid=0, nPaid=0, tipUnpaid=0, tipPaid=0;
@@ -13352,7 +13356,10 @@ function stewPersonBalances(stewId){
     var expLine=stewExpenseDayPayLine(a, sid);
     var expPaid=!!(expLine&&String(expLine.crewPayStatus||"")==="Paid");
     var dayPaid=!!pay.paid||expPaid;
-    var dayAmt=pay.each>0?pay.each:(expLine?apaNum(expLine.amount):0);
+    /* Per-stew rate when set; else expense line; else equal split each */
+    var dayAmt=stewDayPayForStew(a, sid);
+    if(!(dayAmt>0)&&expLine) dayAmt=apaNum(expLine.amount);
+    if(!(dayAmt>0)) dayAmt=pay.each||0;
     if(dayAmt>0){
       if(dayPaid){ paid+=dayAmt; nPaid++; }
       else if(pay.unpaid||pay.due){ unpaid+=dayAmt; nUnpaid++; }
@@ -13368,11 +13375,16 @@ function stewPersonBalances(stewId){
   paid=Math.round(paid*100)/100;
   tipUnpaid=Math.round(tipUnpaid*100)/100;
   tipPaid=Math.round(tipPaid*100)/100;
+  /* payDue / dayPaySettled = wages (+ pocket) only — never include tips */
+  var payDue=Math.round((unpaid+pocket)*100)/100;
   return {
     unpaid:unpaid, paid:paid, nUnpaid:nUnpaid, nPaid:nPaid,
     tipUnpaid:tipUnpaid, tipPaid:tipPaid, pocket:pocket,
-    dueTotal:Math.round((unpaid+tipUnpaid+pocket)*100)/100,
-    allPaid:Math.round((paid+tipPaid)*100)/100
+    payDue:payDue,
+    dayPaySettled:!!(unpaid<=0&&pocket<=0&&paid>0),
+    /* legacy aliases kept for any callers that still expect them */
+    dueTotal:payDue,
+    allPaid:paid
   };
 }
 function paintStewTeam(){
@@ -13385,23 +13397,42 @@ function paintStewTeam(){
   var showMoney=isCaptain();
   var canEdit=isCaptain();
   var html='<div class="list">';
+  if(showMoney){
+    html+='<div class="legend" style="margin:0 0 10px;font-size:12px;line-height:1.4">'+
+      '<b>Day pay</b> = wages you set (owner). <b>Guest tips</b> = client gratuities — tracked for year-end, not wages, never petty. Good tips must not justify lower day rates.'+
+    '</div>';
+  }
   list.forEach(function(s){
-    var bal=showMoney?stewPersonBalances(s.id):{dueTotal:0,allPaid:0,unpaid:0,tipUnpaid:0,pocket:0,paid:0,tipPaid:0};
+    var bal=showMoney?stewPersonBalances(s.id):{payDue:0,unpaid:0,tipUnpaid:0,pocket:0,paid:0,tipPaid:0,dayPaySettled:false};
+    /* Hero figure = day pay owed (+ pocket) only — tips never in the big “owe” number */
+    var heroAmt=0, heroColor="", heroLabel="";
+    if(showMoney){
+      if(bal.payDue>0){ heroAmt=bal.payDue; heroColor="color:var(--amberDeep)"; heroLabel="day pay"; }
+      else if(bal.paid>0){ heroAmt=bal.paid; heroColor=""; heroLabel="day pay paid"; }
+    }
+    var tipBits="";
+    if(showMoney&&(bal.tipUnpaid>0||bal.tipPaid>0)){
+      tipBits='<div class="notes" style="font-style:normal;margin-top:4px;padding-top:4px;border-top:1px dashed var(--line)">'+
+        '<span style="font-weight:700;color:var(--muted)">Guest tips</span> '+
+        '<span class="meta">(clients — not wages)</span> · '+
+        (bal.tipUnpaid>0?'<span class="money" style="font-weight:800;color:var(--amberDeep)">'+money0(bal.tipUnpaid)+' open</span>':'')+
+        (bal.tipUnpaid>0&&bal.tipPaid>0?' · ':'')+
+        (bal.tipPaid>0?'<span class="money" style="font-weight:700">'+money0(bal.tipPaid)+' received</span>':'')+
+      '</div>';
+    }
     html+='<div class="item'+(canEdit?' apa-row':'')+'"'+(canEdit?' data-stew-person="'+esc(s.id)+'" role="button" tabindex="0"':'')+'>'+
       '<div class="top"><div class="title">'+esc(s.name||"—")+'</div>'+
-        (showMoney&&bal.dueTotal>0?'<div class="amt money" style="color:var(--amberDeep)">'+money0(bal.dueTotal)+'</div>':
-          (showMoney&&bal.allPaid>0?'<div class="amt money">'+money0(bal.allPaid)+'</div>':''))+
+        (heroAmt>0?'<div class="amt money" style="'+heroColor+'" title="'+esc(heroLabel)+'">'+money0(heroAmt)+'</div>':'')+
       '</div>'+
       '<div class="meta">'+(s.phone?'<span>📞 '+esc(s.phone)+'</span>':'')+
         (s.active===false?'<span class="pill p-grey">Inactive</span>':'<span class="pill p-green">Active</span>')+
         (showMoney&&bal.unpaid>0?'<span class="pill p-amber">Day pay due '+money0(bal.unpaid)+(bal.nUnpaid?' · '+bal.nUnpaid+' trip'+(bal.nUnpaid===1?"":"s"):'')+'</span>':'')+
-        (showMoney&&bal.tipUnpaid>0?'<span class="pill p-amber">Tip due '+money0(bal.tipUnpaid)+'</span>':'')+
-        (showMoney&&bal.pocket>0?'<span class="pill p-own">Pocket '+money0(bal.pocket)+'</span>':'')+
         (showMoney&&bal.paid>0?'<span class="pill p-green">Day pay paid '+money0(bal.paid)+'</span>':'')+
-        (showMoney&&bal.tipPaid>0?'<span class="pill p-green">Tip paid '+money0(bal.tipPaid)+'</span>':'')+
-        (showMoney&&bal.dueTotal<=0&&bal.allPaid>0?'<span class="pill p-green">Settled</span>':'')+
+        (showMoney&&bal.pocket>0?'<span class="pill p-own">Pocket '+money0(bal.pocket)+'</span>':'')+
+        (showMoney&&bal.dayPaySettled?'<span class="pill p-green">Day pay settled</span>':'')+
       '</div>'+
-      (showMoney&&bal.dueTotal>0?'<div class="notes" style="font-style:normal;color:var(--muted)">Still due = day pay + tips + pocket (one charter day counted once — mark Paid on Charters to clear day pay).</div>':'')+
+      tipBits+
+      (showMoney&&bal.unpaid>0?'<div class="notes" style="font-style:normal;color:var(--muted)">Day pay clears when you mark Paid on Charters (one charter day counted once).</div>':'')+
       (showMoney&&bal.pocket>0?'<div class="notes" style="font-style:normal">Own-money shop spends to reimburse (from Expenses)</div>':'')+
       (s.notes?'<div class="notes">'+esc(s.notes)+'</div>':'')+
       (canEdit?'<button type="button" class="apa-x" data-stew-del="'+esc(s.id)+'" aria-label="Delete">×</button><span class="chev">✎</span>':'')+
