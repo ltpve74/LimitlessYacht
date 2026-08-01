@@ -943,6 +943,41 @@ var LEAD_LINE_STATUS_OPTS = [
 ];
 /** Lead booking lifecycle (separate from invoice status). */
 var LEAD_BOOKING_STATUSES = ["active","cancelled"];
+/**
+ * Why a lead is in Lost. firm=true → “Cancelled charters (were confirmed)”.
+ * Editable anytime on a cancelled lead.
+ */
+var LEAD_CANCEL_REASON_OPTS = [
+  {v:"tentative-dropped", l:"Dropped hold (never confirmed)", firm:false},
+  {v:"hold-taken-by-reinstate", l:"Hold taken by another lead", firm:false},
+  {v:"guest-cancel", l:"Guest cancelled (was confirmed)", firm:true},
+  {v:"weather", l:"Weather", firm:true},
+  {v:"engine", l:"Engine / mechanical", firm:true},
+  {v:"weather-captain", l:"Captain decision (ops / other)", firm:true},
+  {v:"other", l:"Other / not specified", firm:true},
+  {v:"manual", l:"Manual status flip", firm:true}
+];
+function leadCancelReasonIsFirmCharter(reason){
+  var r=String(reason||"").toLowerCase();
+  if(r==="tentative-dropped"||r==="hold-taken-by-reinstate") return false;
+  for(var i=0;i<LEAD_CANCEL_REASON_OPTS.length;i++){
+    if(LEAD_CANCEL_REASON_OPTS[i].v===r) return !!LEAD_CANCEL_REASON_OPTS[i].firm;
+  }
+  if(/weather|engine|mechanical|captain|guest|refund|manual|other/.test(r)) return true;
+  return true;
+}
+function selCancelReasonField(cur){
+  cur=String(cur||"");
+  var known=false;
+  var opts=LEAD_CANCEL_REASON_OPTS.map(function(o){
+    if(o.v===cur) known=true;
+    return '<option value="'+esc(o.v)+'"'+(o.v===cur?" selected":"")+'>'+esc(o.l)+'</option>';
+  }).join("");
+  if(cur&&!known){
+    opts='<option value="'+esc(cur)+'" selected>'+esc(cur)+'</option>'+opts;
+  }
+  return '<select class="ctl" id="f_cancelReason">'+opts+'</select>';
+}
 var EXPECTED_PEOPLE = 2;
 var APA_EXP_CATS = ["Drinks & Bar","Dockage / Marina","Crew Tips","Miscellaneous","Fuel / Diesel","Food & Provisions"];
 var APA_PAID_BY = ["APA cash","Ship card","Guest card","Bank transfer"];
@@ -3105,11 +3140,14 @@ function leadBookBucket(r){
  */
 function leadLostKind(r){
   if(!r||!leadIsCancelled(r)) return "";
-  if(r.cancelWasConfirmed===true||r.cancelWasConfirmed==="true"||r.cancelWasConfirmed===1) return "cancelled-charter";
-  if(r.cancelWasConfirmed===false||r.cancelWasConfirmed==="false"||r.cancelWasConfirmed===0) return "lost-hold";
+  /* Explicit reason wins (captain can reclassify after the fact) */
   var reason=String(r.cancelReason||"").toLowerCase();
   if(reason==="tentative-dropped"||reason==="hold-taken-by-reinstate") return "lost-hold";
-  if(reason==="weather-captain"||/weather|engine|mechanical|captain|refund/.test(reason)) return "cancelled-charter";
+  if(reason==="weather"||reason==="engine"||reason==="guest-cancel"||reason==="weather-captain"||reason==="other"||reason==="manual")
+    return leadCancelReasonIsFirmCharter(reason)?"cancelled-charter":"lost-hold";
+  if(r.cancelWasConfirmed===true||r.cancelWasConfirmed==="true"||r.cancelWasConfirmed===1) return "cancelled-charter";
+  if(r.cancelWasConfirmed===false||r.cancelWasConfirmed==="false"||r.cancelWasConfirmed===0) return "lost-hold";
+  if(/weather|engine|mechanical|captain|guest|refund/.test(reason)&&reason) return "cancelled-charter";
   var notes=String(r.notes||"");
   if(/Cancelled tentative|dropped hold|public hold released/i.test(notes)) return "lost-hold";
   if(/captain decision|mechanical|weather|full refund|deposit refunded/i.test(notes)) return "cancelled-charter";
@@ -3119,9 +3157,10 @@ function leadLostKind(r){
 function leadCancelReasonLabel(r){
   if(!r) return "Cancelled";
   var reason=String(r.cancelReason||"");
+  for(var i=0;i<LEAD_CANCEL_REASON_OPTS.length;i++){
+    if(LEAD_CANCEL_REASON_OPTS[i].v===reason) return LEAD_CANCEL_REASON_OPTS[i].l;
+  }
   if(reason==="weather-captain") return "Weather / mechanical / captain";
-  if(reason==="tentative-dropped") return "Dropped hold";
-  if(reason==="hold-taken-by-reinstate") return "Hold taken by another lead";
   if(reason) return reason.replace(/[-_]/g," ");
   if(leadLostKind(r)==="cancelled-charter") return "Cancelled charter";
   return "Dropped hold";
@@ -14674,11 +14713,17 @@ function openSheet(type,id){
     if(bookSt==="cancelled"){
       var rfScope=r.refundScope||"";
       var rfTot=Number(r.refundTotal)||0;
+      var lostKindNow=leadLostKind(r);
+      var reasonCur=String(r.cancelReason||"")||(lostKindNow==="lost-hold"?"tentative-dropped":"weather-captain");
       h+='<div class="apa-card" style="margin:0 0 12px;padding:10px 12px;border:1.5px solid #f0b4b0;background:#fdeeee">'+
-        '<div style="font-weight:800;color:var(--danger)">Cancelled'+(r.cancelReason==="weather-captain"?" · captain decision":(r.cancelReason?" · "+esc(r.cancelReason):""))+
+        '<div style="font-weight:800;color:var(--danger)">'+
+          (lostKindNow==="cancelled-charter"?"Cancelled charter":"Lost hold")+
           (rfScope==="full"?" · full refund":(rfScope==="deposit"?" · deposit refunded":(rfScope==="partial"?" · payment refunded":"")))+
         '</div>'+
-        (rfTot>0?'<div class="meta" style="margin-top:4px">Refund total <b class="money">'+money(rfTot)+'</b> · deposit/final/APA set to Refunded as applicable · out of money totals</div>':'')+
+        '<div style="margin:10px 0 0">'+fieldHTML("Lost reason (editable anytime)",selCancelReasonField(reasonCur))+'</div>'+
+        '<p style="margin:6px 0 0;font-size:12.5px;color:var(--muted);line-height:1.4">'+
+          'Choose <b>Dropped hold</b> if they never confirmed, or a firm reason (weather, engine, guest cancel…) if the charter was booked. Saves with the rest of the lead — moves the card under the right Lost group.</p>'+
+        (rfTot>0?'<div class="meta" style="margin-top:8px">Refund total <b class="money">'+money(rfTot)+'</b> · deposit/final/APA set to Refunded as applicable · out of money totals</div>':'')+
         (r.cancelledAt?'<div class="meta" style="margin-top:4px">'+esc(String(r.cancelledAt).slice(0,16).replace("T"," "))+(r.cancelledBy?" · "+esc(r.cancelledBy):"")+'</div>':'')+
         '<p style="margin:8px 0 0;font-size:12.5px;color:var(--muted);line-height:1.4">Reinstate to make the card active again. If the date is free it goes back on hold; if booked you get options.</p>'+
         '<button type="button" class="btn" id="sheetReinstateLead" style="width:100%;margin:10px 0 0">Reinstate lead</button>'+
@@ -15210,7 +15255,18 @@ function saveSheet(type,rec){
       sourcePending:leadSrc==="pending",
       bookingStatus:bookingSt,
       cancelled:bookingSt==="cancelled",
-      cancelReason:(rec&&rec.cancelReason)||"",
+      cancelReason:(function(){
+        if(bookingSt!=="cancelled") return "";
+        var fromForm=el("f_cancelReason")?String(el("f_cancelReason").value||"").trim():"";
+        if(fromForm) return fromForm;
+        return (rec&&rec.cancelReason)||"other";
+      })(),
+      cancelWasConfirmed:(function(){
+        if(bookingSt!=="cancelled") return false;
+        var fromForm=el("f_cancelReason")?String(el("f_cancelReason").value||"").trim():"";
+        var reason=fromForm||(rec&&rec.cancelReason)||"other";
+        return leadCancelReasonIsFirmCharter(reason);
+      })(),
       cancelledAt:(rec&&rec.cancelledAt)||"",
       cancelledBy:(rec&&rec.cancelledBy)||"",
       calendarEventKey:(el("f_calendarEventKey")&&el("f_calendarEventKey").value)||(rec&&rec.calendarEventKey)||"",
@@ -15254,11 +15310,19 @@ function saveSheet(type,rec){
       o2.cashSettled=false;
       /* Unconfirmed cancel: keep dates on the card (public hold still released) */
       var wasOpenSave=leadSource(rec)==="pending"||!leadIsDealClosed(rec);
-      if(wasOpenSave&&o2.cancelReason==="manual") o2.cancelReason="tentative-dropped";
+      if(wasOpenSave&&(o2.cancelReason==="manual"||!o2.cancelReason)) o2.cancelReason="tentative-dropped";
+      o2.cancelWasConfirmed=leadCancelReasonIsFirmCharter(o2.cancelReason);
+    }
+    if(bookingSt==="cancelled"){
+      /* Allow reclassifying reason any time after cancel (Lost hold vs cancelled charter) */
+      o2.cancelWasConfirmed=leadCancelReasonIsFirmCharter(o2.cancelReason);
+      if(!o2.cancelledAt) o2.cancelledAt=new Date().toISOString();
+      if(!o2.cancelledBy) o2.cancelledBy=session.who||"Captain";
     }
     if(bookingSt==="active"){
       o2.cancelled=false;
       o2.cancelReason="";
+      o2.cancelWasConfirmed=false;
       o2.cancelledAt="";
       o2.cancelledBy="";
     }
