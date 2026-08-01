@@ -9263,36 +9263,49 @@ function expReimbursedToPerson(month, personId){
 }
 /**
  * How much of an own-money expense is already covered by reimbursement lines
- * (linked by reimbursesExpenseId, else FIFO pool for that person/month).
+ * (linked by reimbursesExpenseId any month, else FIFO unlinked pool for that person).
+ * Linked repay can be logged in a later month (e.g. July spend, August repay).
  */
 function expOwnMoneyRepaidAmt(e, month){
-  if(!e||!expPaidFromOwnMoney(e)) return 0;
+  if(!e) return 0;
+  /* Crew day-pay from own money uses paidFrom; shop uses expPaidFromOwnMoney */
+  var isOwn=expPaidFromOwnMoney(e)||(expIsCrewDayPayLine(e)&&(e.paidFrom==="Own money"||expIsOwnMoneyLabel(e.paidFrom)));
+  if(!isOwn) return 0;
   var need=apaNum(e.amount);
   if(!(need>0)) return 0;
   var linked=0;
   (state.expenses||[]).forEach(function(r){
     if(!r||!expIsReimbursement(r)) return;
     if(String(r.reimbursesExpenseId||"")!==String(e.id)) return;
-    if(month&&expMonthKey(r.date)!==month) return;
+    /* Any month — repay often lands in a later month */
     linked+=apaNum(r.amount);
   });
   linked=Math.round(linked*100)/100;
   if(linked>=need-0.009) return need;
-  /* FIFO fallback: person reimbursements without link consume own-money spends oldest first */
-  var who=expPocketWhoId(e)||EXP_POCKET_CAPTAIN;
-  var m=month||expMonthKey(e.date);
+  /* FIFO fallback: unlinked reimbursements for this person (all months through focus) */
+  var who=expPocketWhoId(e)||(e.paidById!=null&&String(e.paidById)!==""?String(e.paidById):EXP_POCKET_CAPTAIN);
+  var focus=month||expMonthKey(e.date)||expDefaultMonth();
   var pool=0;
-  expLinesForMonth(m).forEach(function(r){
+  (state.expenses||[]).forEach(function(r){
+    if(!r) return;
     expNormalizeReimbursement(r);
     if(!expIsReimbursement(r)) return;
     if(String(expReimburseWhoId(r)||"")!==String(who)) return;
-    if(r.reimbursesExpenseId) return; /* linked ones counted above only for their target */
+    if(r.reimbursesExpenseId) return;
+    var rm=expMonthKey(r.date);
+    if(rm&&focus&&rm>focus) return; /* don't use future-month repay for past view */
     pool+=apaNum(r.amount);
   });
   pool=Math.round(pool*100)/100;
-  /* Allocate pool to own-money lines of this person in date order */
-  var own=expLinesForMonth(m).filter(function(x){
-    return expPaidFromOwnMoney(x)&&String(expPocketWhoId(x)||"")===String(who);
+  var own=(state.expenses||[]).filter(function(x){
+    if(!x) return false;
+    var xo=expPaidFromOwnMoney(x)||(expIsCrewDayPayLine(x)&&(x.paidFrom==="Own money"||expIsOwnMoneyLabel(x.paidFrom)));
+    if(!xo) return false;
+    var xWho=expIsCrewDayPayLine(x)?String(x.paidById||EXP_POCKET_CAPTAIN):String(expPocketWhoId(x)||EXP_POCKET_CAPTAIN);
+    if(xWho!==String(who)) return false;
+    var xm=expMonthKey(x.date);
+    if(xm&&focus&&xm>focus) return false;
+    return true;
   }).sort(function(a,b){
     var c=String(a.date||"").localeCompare(String(b.date||""));
     if(c) return c;
@@ -9303,7 +9316,6 @@ function expOwnMoneyRepaidAmt(e, month){
   for(var i=0;i<own.length;i++){
     var x=own[i];
     var a=apaNum(x.amount);
-    /* skip portion already covered by direct links */
     var direct=0;
     (state.expenses||[]).forEach(function(r){
       if(r&&String(r.reimbursesExpenseId||"")===String(x.id)) direct+=apaNum(r.amount);
@@ -9318,10 +9330,67 @@ function expOwnMoneyRepaidAmt(e, month){
   return Math.round(Math.min(need, Math.max(linked, forThis))*100)/100;
 }
 function expOwnMoneyIsRepaid(e, month){
-  if(!expPaidFromOwnMoney(e)) return false;
+  var isOwn=e&&(expPaidFromOwnMoney(e)||(expIsCrewDayPayLine(e)&&(e.paidFrom==="Own money"||expIsOwnMoneyLabel(e.paidFrom))));
+  if(!isOwn) return false;
   var need=apaNum(e.amount);
   if(!(need>0)) return false;
   return expOwnMoneyRepaidAmt(e, month)>=need-0.009;
+}
+/**
+ * All open own-money / pocket spends (any month ≤ focus), not yet fully repaid.
+ * Used so July pocket still shows when viewing August — you can mark repaid now.
+ */
+function expCollectOpenPocketOuts(focusMonth){
+  focusMonth=focusMonth||expDefaultMonth();
+  var out=[];
+  (state.expenses||[]).forEach(function(e){
+    if(!e) return;
+    if(expIsReimbursement(e)) return;
+    var em=expMonthKey(e.date);
+    if(em&&em>focusMonth) return;
+    var whoId="", whoName="", label="", kind="shop";
+    if(expIsCrewDayPayLine(e)){
+      if(e.crewPayStatus!=="Paid") return;
+      if(!(e.paidFrom==="Own money"||expIsOwnMoneyLabel(e.paidFrom))) return;
+      whoId=String(e.paidById||EXP_POCKET_CAPTAIN);
+      whoName=expPocketPersonName(whoId);
+      label=(e.vendor||"Crew")+" day pay";
+      kind="crew";
+    } else if(expPaidFromOwnMoney(e)){
+      whoId=String(expPocketWhoId(e)||EXP_POCKET_CAPTAIN);
+      whoName=expPocketPersonName(whoId);
+      var isCrewSal=expIsCrewSalariesCategory(e);
+      kind=isCrewSal?"crew":"shop";
+      label=isCrewSal
+        ?((e.vendor||"Crew")+" day pay"+(e.description?" · "+String(e.description).slice(0,40):""))
+        :((e.vendor||e.category||"Expense")+(e.description?" · "+String(e.description).slice(0,40):""));
+    } else return;
+    var a=apaNum(e.amount);
+    if(!(a>0)) return;
+    var repaidAmt=expOwnMoneyRepaidAmt(e, focusMonth);
+    var remain=Math.round((a-repaidAmt)*100)/100;
+    if(remain<0.01) return;
+    out.push({
+      kind:kind,
+      whoId:whoId,
+      who:whoName,
+      crewName:kind==="crew"?(e.vendor||"Crew"):"",
+      label:label,
+      amount:remain,
+      fullAmount:a,
+      repaidAmt:repaidAmt,
+      repaid:false,
+      id:e.id,
+      date:String(e.date||"").slice(0,10),
+      month:em||""
+    });
+  });
+  out.sort(function(a,b){
+    var da=String(a.date||""), db=String(b.date||"");
+    if(da!==db) return db.localeCompare(da);
+    return (b.amount||0)-(a.amount||0);
+  });
+  return out;
 }
 /** One-shot: normalize all reimbursement rows in state (petty + flags). */
 function expNormalizeAllReimbursements(){
@@ -10502,12 +10571,60 @@ function paintExpensesBody(){
   var floatBehind=S.floatBehind!=null?S.floatBehind:(floatAfterPays<0?-floatAfterPays:0);
   var cashIns=expCashInLinesForPetty(petty); /* physical envelope only — no tips */
   var tipCashIns=S.tipCashIns||[];
-  /* Who is still owed (pocket + unpaid day pay) — for negative float / owed list */
+  /*
+   * Open pocket through this month (includes prior months still unpaid).
+   * Built first so Still owed + Outstanding pocket + summary all match.
+   */
+  var poutsAll=[];
+  try{ poutsAll=expCollectOpenPocketOuts(expMonth); }catch(ePo0){ poutsAll=S.pocketOutLines||[]; }
+  var pocketByEarly={};
+  poutsAll.forEach(function(r){
+    if(!r||!(apaNum(r.amount)>0.009)) return;
+    var whoId=String(r.whoId||EXP_POCKET_CAPTAIN);
+    if(!pocketByEarly[whoId]) pocketByEarly[whoId]={id:whoId, name:r.who||expPocketPersonName(whoId), owed:0, items:[]};
+    pocketByEarly[whoId].owed+=apaNum(r.amount);
+    pocketByEarly[whoId].items.push({
+      label:r.label||"Spend", amount:apaNum(r.amount), id:r.id, kind:r.kind||"shop",
+      date:String(r.date||"").slice(0,10), month:r.month||""
+    });
+  });
+  try{
+    (expPocketBalances(expMonth, petty).list||[]).forEach(function(row){
+      if(!row||!(row.owed>0.009)) return;
+      var id=String(row.id||"");
+      if(!pocketByEarly[id]) pocketByEarly[id]={id:id, name:row.name||expPocketPersonName(id), owed:0, items:[]};
+      if(row.owed>apaNum(pocketByEarly[id].owed)+0.009) pocketByEarly[id].owed=row.owed;
+    });
+  }catch(ePb0){}
+  var pocketGroups=Object.keys(pocketByEarly).map(function(k){ return pocketByEarly[k]; }).filter(function(g){
+    return g&&apaNum(g.owed)>0.009;
+  });
+  pocketGroups.forEach(function(g){
+    g.owed=Math.round(apaNum(g.owed)*100)/100;
+    g.items=(g.items||[]).slice().sort(function(a,b){
+      var da=String(a.date||""), db=String(b.date||"");
+      if(da!==db) return db.localeCompare(da);
+      return (b.amount||0)-(a.amount||0);
+    });
+    var itemSum=0;
+    g.items.forEach(function(it){ itemSum+=apaNum(it.amount); });
+    if(itemSum>g.owed+0.009) g.owed=Math.round(itemSum*100)/100;
+  });
+  pocketGroups.sort(function(a,b){
+    if(a.id===EXP_POCKET_CAPTAIN) return -1;
+    if(b.id===EXP_POCKET_CAPTAIN) return 1;
+    return (b.owed||0)-(a.owed||0);
+  });
+  var pocketOutTot=0;
+  pocketGroups.forEach(function(g){ pocketOutTot+=apaNum(g.owed); });
+  pocketOutTot=Math.round(pocketOutTot*100)/100;
+  /* Who is still owed (cross-month open pocket + unpaid day pay) */
   var owedPeople=[];
-  (pockets.list||[]).forEach(function(row){
-    if(row&&row.owed>0.009) owedPeople.push({name:row.name, amount:row.owed, kind:"pocket", id:row.id});
+  pocketGroups.forEach(function(g){
+    if(g&&g.owed>0.009) owedPeople.push({name:g.name, amount:g.owed, kind:"pocket", id:g.id});
   });
   if(oweCrew>0.009) owedPeople.push({name:"Crew day pay (unpaid)", amount:oweCrew, kind:"crew", id:""});
+  peopleOwed=Math.round((pocketOutTot+(oweCrew||0))*100)/100;
   /* Physical on board is never negative (model). Short is a separate books flag. */
   var shortAmt=apaNum(cashShort);
   var pettyPos=pettyEntered&&pettyCash>0.009;
@@ -10706,43 +10823,10 @@ function paintExpensesBody(){
     h+='</div>';
   }
   h+='</div>';
-  /*
-   * Outstanding pocket money out — only still-to-repay amounts, grouped by person.
-   * Fully repaid lines are omitted; people with zero balance are omitted.
-   */
-  var poutsAll=S.pocketOutLines||[];
-  var pocketGroups=[];
-  (pockets.list||[]).forEach(function(row){
-    if(!row||!(row.owed>0.009)) return;
-    var whoName=row.name||"Someone";
-    var whoId=String(row.id||"");
-    var items=[];
-    poutsAll.forEach(function(r){
-      if(!r||r.repaid) return;
-      var rId=String(r.whoId||"");
-      var rWho=String(r.who||"");
-      var match=rId&&whoId?rId===whoId:(rWho===whoName||rWho.toLowerCase()===whoName.toLowerCase());
-      if(!match) return;
-      var remain=apaNum(r.amount);
-      if(r.repaidAmt>0) remain=Math.max(0, remain-apaNum(r.repaidAmt));
-      if(remain<0.01) return;
-      items.push({label:r.label||"Spend", amount:remain, id:r.id, kind:r.kind||"shop", date:String(r.date||"").slice(0,10)});
-    });
-    /* Newest date first; same day → larger amount first */
-    items.sort(function(a,b){
-      var da=String(a.date||""), db=String(b.date||"");
-      if(da!==db) return db.localeCompare(da);
-      return (b.amount||0)-(a.amount||0);
-    });
-    pocketGroups.push({id:whoId, name:whoName, owed:row.owed, items:items});
-  });
-  pocketGroups.sort(function(a,b){ return (b.owed||0)-(a.owed||0); });
-  var pocketOutTot=0;
-  pocketGroups.forEach(function(g){ pocketOutTot+=apaNum(g.owed); });
-  pocketOutTot=Math.round(pocketOutTot*100)/100;
+  /* Outstanding pocket list (pocketGroups built above — cross-month open) */
   h+='<div class="apa-card" style="margin-bottom:12px" id="expOutstandingPocket">'+
     '<div style="font-weight:800;margin-bottom:6px">Outstanding pocket money out</div>'+
-    '<div class="meta" style="margin-bottom:8px">Still to be repaid (not yet settled). Grouped by person · lines newest first. Total <b class="money">'+money(pocketOutTot)+'</b>.</div>';
+    '<div class="meta" style="margin-bottom:8px">Still to be repaid through <b>'+esc(expMonth)+'</b> (includes earlier months). Newest first. Total <b class="money">'+money(pocketOutTot)+'</b>.</div>';
   if(!pocketGroups.length){
     h+='<div class="meta">Nothing outstanding — all pocket outs repaid.</div>';
   } else {
@@ -10767,18 +10851,20 @@ function paintExpensesBody(){
           var dStr=it.date?String(it.date).slice(0,10):"";
           var dLab="";
           try{ dLab=dStr&&/^\d{4}-\d{2}-\d{2}$/.test(dStr)?fmtDate(dStr):dStr; }catch(eD){ dLab=dStr; }
+          var priorMo=it.month&&it.month!==expMonth?'<span class="pill p-grey">'+esc(it.month)+'</span>':'';
           h+='<div class="item exp-own" style="padding:10px 12px"'+(it.id?' data-exp-id="'+esc(it.id)+'" role="button" tabindex="0"':'')+'>'+
             '<div class="top"><div class="title" style="font-size:13.5px">'+esc(it.label)+'</div>'+
               '<div class="amt money" style="font-size:13.5px">'+money0(it.amount)+'</div></div>'+
             '<div class="meta" style="margin-top:4px">'+
               (dLab?'<span>📅 '+esc(dLab)+'</span>':'')+
+              priorMo+
               kindPill+
             '</div>'+
           '</div>';
         });
         h+='</div>';
       } else {
-        h+='<div class="meta" style="margin-top:6px">Open balance (see Expenses for lines).</div>';
+        h+='<div class="meta" style="margin-top:6px">Open balance (own-money cash-in / see Expenses).</div>';
       }
       h+='</div>';
     });
