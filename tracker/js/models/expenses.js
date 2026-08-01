@@ -285,6 +285,46 @@ function collapseCrewDayPayExpenses(expenses) {
 }
 
 /**
+ * Cash cannot leave an empty envelope.
+ * When start + cash-in ≈ 0 (or negative), any crew floatPay is impossible books
+ * invent (re-save used to set floatPay from Paid alone → petty 0 → −€250).
+ * Clear floatPay; keep Paid status (prior / not this pot).
+ *
+ * @param {Array} expenses
+ * @param {number} pettyStart
+ * @param {Array} cashIns
+ * @returns {{ changed: boolean, cleared: Array, envelope: number, expenses: Array }}
+ */
+function clearCrewFloatPayOnEmptyEnvelope(expenses, pettyStart, cashIns) {
+  var start = round2(num(pettyStart));
+  var cashInTotal = 0;
+  (Array.isArray(cashIns) ? cashIns : []).forEach(function (r) {
+    if (r) cashInTotal += num(r.amount);
+  });
+  cashInTotal = round2(cashInTotal);
+  var envelope = round2(start + cashInTotal);
+  var list = Array.isArray(expenses) ? expenses : [];
+  if (envelope > 0.009) {
+    return { changed: false, cleared: [], envelope: envelope, expenses: list };
+  }
+  var cleared = [];
+  list.forEach(function (e) {
+    if (!isCrewDayPayExpense(e)) return;
+    if (String(e.crewPayStatus || "") !== "Paid") return;
+    if (expensePaidFrom(e) === "own" || expensePaidFrom(e) === "card") return;
+    if (e.floatPay !== true) return;
+    e.floatPay = false;
+    cleared.push(e);
+  });
+  return {
+    changed: cleared.length > 0,
+    cleared: cleared,
+    envelope: envelope,
+    expenses: list,
+  };
+}
+
+/**
  * Pure petty cash on board.
  *   pettyCash = pettyStart + sum(cashIns) − sum(cashOut)
  * Cash out:
@@ -385,6 +425,7 @@ function summarizePettyCash(opts) {
     crewDayPayHitsPetty: crewDayPayHitsPetty,
     crewDayPayLineScore: crewDayPayLineScore,
     collapseCrewDayPayExpenses: collapseCrewDayPayExpenses,
+    clearCrewFloatPayOnEmptyEnvelope: clearCrewFloatPayOnEmptyEnvelope,
     summarizePettyCash: summarizePettyCash
   };
 });

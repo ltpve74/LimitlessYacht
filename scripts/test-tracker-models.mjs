@@ -750,6 +750,32 @@ console.log("\n[Petty cash — crew day-pay collapse & floatPay]");
   });
   ok("prior Paid leaves petty at 50", near(prior.pettyCash, 50), "got " + prior.pettyCash);
   ok("prior cashOut 0", near(prior.cashOut, 0));
+  /*
+   * Invented floatPay on empty envelope (the −€250 overnight bug):
+   * start 0 + cash-in 0 + floatPay €250 → petty −250. Cash cannot leave empty pot → clear floatPay.
+   */
+  const overnight = {
+    id: "on1", source: "stew", stewPayKind: "dayPay", stewId: "laura", date: "2026-07-15",
+    crewPayStatus: "Paid", paidFrom: "Petty cash", floatPay: true, amount: 250
+  };
+  const beforeHeal = M.summarizePettyCash({ pettyStart: 0, cashIns: [], expenses: [overnight] });
+  ok("empty pot + floatPay €250 → petty −250 before heal", near(beforeHeal.pettyCash, -250), "got " + beforeHeal.pettyCash);
+  const heal = M.clearCrewFloatPayOnEmptyEnvelope([overnight], 0, []);
+  ok("heal clears floatPay on empty envelope", heal.changed === true);
+  ok("heal marks floatPay false", overnight.floatPay === false);
+  ok("Paid status kept (prior books)", overnight.crewPayStatus === "Paid");
+  const afterHeal = M.summarizePettyCash({ pettyStart: 0, cashIns: [], expenses: [overnight] });
+  ok("after heal empty pot closes at 0", near(afterHeal.pettyCash, 0), "got " + afterHeal.pettyCash);
+  ok("after heal cashOut 0", near(afterHeal.cashOut, 0));
+  /* Real pay from real pot: do NOT clear floatPay */
+  const real = {
+    id: "r1", source: "stew", stewPayKind: "dayPay", stewId: "toni", date: "2026-07-20",
+    crewPayStatus: "Paid", paidFrom: "Petty cash", floatPay: true, amount: 50
+  };
+  const keep = M.clearCrewFloatPayOnEmptyEnvelope([real], 50, []);
+  ok("real pot €50 keeps floatPay", keep.changed === false && real.floatPay === true);
+  const realSum = M.summarizePettyCash({ pettyStart: 50, cashIns: [], expenses: [real] });
+  ok("real pot ends at 0 after €50 out", near(realSum.pettyCash, 0), "got " + realSum.pettyCash);
 }
 
 /* ---- Diesel: bunker + sticky active sell ---- */

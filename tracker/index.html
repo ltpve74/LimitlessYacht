@@ -9836,59 +9836,143 @@ function stewDisplayName(tok, rec){
  * Set only when captain explicitly marks Paid from Petty cash.
  * NEVER invent from paidFrom/Paid alone (re-saves made petty jump 0 → −€250).
  *
- * Repair v4: when a month has empty envelope (start+cash-in ≈ 0) but crew
- * floatPay lines still subtract cash, clear those floatPay flags (impossible
- * cash-out from an empty pot — treat as prior / books only).
+ * Heal (idempotent, runs every Expenses open — no localStorage one-shot):
+ * 1. Oldest month first: if start+cash-in ≈ 0 but crew floatPay still subtracts,
+ *    clear floatPay (impossible cash-out; keep Paid as prior/books).
+ * 2. Recompute each month’s close after that clear.
+ * 3. Refresh startMode=carry months from the healed prior close so −€250 does
+ *    not keep poisoning “end of last month” / this month’s start.
+ *
+ * Root issue was: repair v4 set localStorage “done” even when it fixed nothing
+ * (or ran before data was ready), so invented floatPay stuck forever.
  */
 function expRepairImpossibleCrewFloatOnEmptyEnvelope(){
   if(!isCaptain()||!state.expenses) return false;
-  try{
-    if(localStorage.getItem("ly_exp_floatpay_repair_v4")==="1") return false;
-  }catch(eLs){}
-  var months={};
+  var monthsMap={};
   (state.expenses||[]).forEach(function(e){
     var m=expMonthKey(e&&e.date);
-    if(m) months[m]=1;
+    if(m) monthsMap[m]=1;
   });
   (state.expPetty||[]).forEach(function(p){
-    if(p&&p.month) months[String(p.month).slice(0,7)]=1;
+    if(p&&p.month) monthsMap[String(p.month).slice(0,7)]=1;
   });
-  var dirty=false;
-  Object.keys(months).forEach(function(month){
+  var months=Object.keys(monthsMap).sort(); /* oldest first — carry depends on prior close */
+  if(!months.length) return false;
+
+  var dirtyExp=false;
+  var dirtyPetty=false;
+  var closeBy={}; /* month → healed closing balance */
+
+  months.forEach(function(month){
     var p=expPettyFor(month);
+    var prev=expPrevMonthKey(month);
     var start=0;
+    var startKnown=false;
     if(p){
-      if(p.startMode==="manual"||p.startManual===true||p.startMode==="carry"||Math.abs(apaNum(p.pettyStart))>0.009){
+      if(p.startMode==="manual"||p.startManual===true){
         start=apaNum(p.pettyStart);
+        startKnown=true;
+      } else if(p.startMode==="carry"){
+        /* Prefer just-healed prior close over a stale stored −€250 */
+        if(prev&&closeBy[prev]!=null){ start=closeBy[prev]; startKnown=true; }
+        else{ start=apaNum(p.pettyStart); startKnown=true; }
+      } else if(Math.abs(apaNum(p.pettyStart))>0.009){
+        start=apaNum(p.pettyStart);
+        startKnown=true;
       }
     }
-    var cashIn=expCashInSum(p||{cashIns:[]});
-    var envelope=Math.round((start+cashIn)*100)/100;
-    if(envelope>0.009) return; /* pot had money — floatPay may be real */
+    if(!startKnown&&prev&&closeBy[prev]!=null){
+      start=closeBy[prev];
+      startKnown=true;
+    }
+
+    var cashIns=p?expCashInLinesForPetty(p):[];
     var lines=expLinesForMonth(month)||[];
-    var crewFloat=0;
-    var crewLines=[];
-    lines.forEach(function(e){
-      if(!e||!expIsCrewDayPayLine(e)) return;
-      if(e.crewPayStatus!=="Paid") return;
-      if(e.floatPay!==true) return;
-      if(e.paidFrom==="Own money"||expIsOwnMoneyLabel(e.paidFrom)) return;
-      crewFloat+=apaNum(e.amount);
-      crewLines.push(e);
-    });
-    if(!(crewFloat>0.009)) return;
-    /* Empty envelope + crew “cash out” → clear invented floatPay (prior books) */
-    crewLines.forEach(function(e){
-      e.floatPay=false;
-      e.updatedAt=new Date().toISOString();
-      dirty=true;
-    });
+
+    /* Clear impossible crew floatPay when envelope empty */
+    var cleared=null;
+    try{
+      if(LY_MODELS&&LY_MODELS.clearCrewFloatPayOnEmptyEnvelope){
+        cleared=LY_MODELS.clearCrewFloatPayOnEmptyEnvelope(lines, start, cashIns);
+      }
+    }catch(eClr){ cleared=null; }
+    if(cleared&&cleared.changed){
+      dirtyExp=true;
+      (cleared.cleared||[]).forEach(function(e){
+        if(e) e.updatedAt=new Date().toISOString();
+      });
+    } else {
+      /* Fallback without model module */
+      var envelope=Math.round((start+expCashInSum({cashIns:cashIns}))*100)/100;
+      if(!(envelope>0.009)){
+        lines.forEach(function(e){
+          if(!e||!expIsCrewDayPayLine(e)) return;
+          if(e.crewPayStatus!=="Paid") return;
+          if(e.floatPay!==true) return;
+          if(e.paidFrom==="Own money"||expIsOwnMoneyLabel(e.paidFrom)) return;
+          e.floatPay=false;
+          e.updatedAt=new Date().toISOString();
+          dirtyExp=true;
+        });
+      }
+    }
+
+    /* Closing balance after any floatPay clear */
+    var close=0;
+    try{
+      if(LY_MODELS&&LY_MODELS.summarizePettyCash){
+        var sum=LY_MODELS.summarizePettyCash({
+          pettyStart:start,
+          cashIns:cashIns,
+          expenses:lines.filter(function(e){ return e&&!expIsTipExpense(e); })
+        });
+        close=Math.round(Number(sum.pettyCash||0)*100)/100;
+      } else {
+        close=expPettyClosingBalance(month);
+        if(close==null) close=0;
+      }
+    }catch(eSum){
+      close=Math.round((start+expCashInSum({cashIns:cashIns}))*100)/100;
+    }
+    closeBy[month]=close;
   });
-  try{ localStorage.setItem("ly_exp_floatpay_repair_v4","1"); }catch(eLs2){}
-  if(dirty&&!DEMO) saveExpenses();
-  return dirty;
+
+  /* Refresh auto-carry starts from healed prior closes.
+   * Also un-poison legacy rows locked as startMode=manual without startManual
+   * (captain never tapped Save start) when start is a negative phantom carry. */
+  months.forEach(function(month){
+    var p=expPettyFor(month);
+    if(!p) return;
+    if(p.startManual===true) return; /* captain locked via Save start — leave alone */
+    var prev=expPrevMonthKey(month);
+    if(!prev||closeBy[prev]==null) return;
+    var next=Math.round(Number(closeBy[prev])*100)/100;
+    if(p.startMode==="carry"){
+      if(apaNum(p.pettyStart)!==next||p.carriedFrom!==prev){
+        p.pettyStart=next;
+        p.carriedFrom=prev;
+        p.updatedAt=new Date().toISOString();
+        dirtyPetty=true;
+      }
+      return;
+    }
+    if(p.startMode==="manual"&&apaNum(p.pettyStart)<-0.009){
+      p.pettyStart=next;
+      p.startMode="carry";
+      p.carriedFrom=prev;
+      p.updatedAt=new Date().toISOString();
+      dirtyPetty=true;
+    }
+  });
+
+  /* Drop the broken one-shot flag so a prior “done with nothing fixed” no longer blocks */
+  try{ localStorage.removeItem("ly_exp_floatpay_repair_v4"); }catch(eRm){}
+
+  if(dirtyExp&&!DEMO) saveExpenses();
+  if(dirtyPetty&&!DEMO) saveExpPetty();
+  return dirtyExp||dirtyPetty;
 }
-/** @deprecated name — kept for call sites; runs empty-envelope floatPay repair. */
+/** @deprecated name — kept for call sites; runs empty-envelope floatPay repair + carry refresh. */
 function expRestoreCrewFloatPayAfterWipe(){
   return expRepairImpossibleCrewFloatOnEmptyEnvelope();
 }
@@ -10429,13 +10513,20 @@ function paintExpensesBody(){
   '</div>';
   /* Shortfall banner — only when envelope is overdrawn */
   if(shortAmt>0.009){
+    var shortCrew=(S.cashOutLines||[]).filter(function(r){ return r&&r.kind==="crew"; });
+    var shortCrewAmt=0;
+    shortCrew.forEach(function(r){ shortCrewAmt+=apaNum(r.amount); });
+    shortCrewAmt=Math.round(shortCrewAmt*100)/100;
     h+='<div class="exp-alert owe" style="margin-bottom:12px">'+
       '<div style="font-weight:800;margin-bottom:6px">Petty cash short</div>'+
       '<div class="money" style="font-size:28px;font-weight:800;color:var(--danger)">−'+money(shortAmt)+'</div>'+
       '<div class="meta" style="margin-top:8px;line-height:1.45">'+
         'Cash out exceeded start + cash in by <b class="money">'+money(shortAmt)+'</b>. '+
-        'Review <b>Cash out</b> below — only mark crew as <b>Paid from Petty cash</b> when notes actually left the envelope. '+
-        'Use <b>Prior / not this pot</b> if pay was already settled outside petty.'+
+        (shortCrewAmt>0.009
+          ?('Crew day-pay from petty is <b class="money">'+money(shortCrewAmt)+'</b> — only mark <b>Paid from Petty cash</b> when notes actually left the envelope. ')
+          :'')+
+        'Review <b>Cash out</b> below. Use <b>Prior / not this pot</b> if pay was settled outside petty. '+
+        'Opening this screen heals empty-envelope invented crew floatPay (cannot cash-out from €0).'+
       '</div></div>';
   }
   /* Owed list: people still unpaid — separate from petty on board */
