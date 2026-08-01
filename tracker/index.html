@@ -9484,7 +9484,8 @@ function expSettlementFigures(month){
         pocketOutLines.push({
           kind:"crew", whoId:crewPayerId, who:expPocketPersonName(crewPayerId),
           crewName:e.vendor||"Crew", label:(e.vendor||"Crew")+" day pay",
-          amount:a, id:e.id, repaid:crewRepaidAmt>=a-0.009, repaidAmt:crewRepaidAmt
+          amount:a, id:e.id, date:String(e.date||"").slice(0,10),
+          repaid:crewRepaidAmt>=a-0.009, repaidAmt:crewRepaidAmt
         });
         return;
       }
@@ -9505,7 +9506,8 @@ function expSettlementFigures(month){
         pocketOutLines.push({
           kind:"reimburse-own", whoId:roWhoId, who:expPocketPersonName(roWhoId),
           label:"Repaid "+expPocketPersonName(cls.clearsPocketFor||expReimburseWhoId(e))+(e.vendor?" · "+e.vendor:""),
-          amount:a, id:e.id, repaid:roRepaidAmt>=a-0.009, repaidAmt:roRepaidAmt
+          amount:a, id:e.id, date:String(e.date||"").slice(0,10),
+          repaid:roRepaidAmt>=a-0.009, repaidAmt:roRepaidAmt
         });
       }
       return;
@@ -9521,7 +9523,7 @@ function expSettlementFigures(month){
         label:isCrewSal
           ?((e.vendor||"Crew")+" day pay"+(e.description?" · "+String(e.description).slice(0,40):""))
           :((e.vendor||e.category||"Expense")+(e.description?" · "+String(e.description).slice(0,40):"")),
-        amount:a, id:e.id,
+        amount:a, id:e.id, date:String(e.date||"").slice(0,10),
         repaid:expOwnMoneyIsRepaid(e, month), repaidAmt:expOwnMoneyRepaidAmt(e, month)
       });
       return;
@@ -10724,9 +10726,14 @@ function paintExpensesBody(){
       var remain=apaNum(r.amount);
       if(r.repaidAmt>0) remain=Math.max(0, remain-apaNum(r.repaidAmt));
       if(remain<0.01) return;
-      items.push({label:r.label||"Spend", amount:remain, id:r.id, kind:r.kind||"shop"});
+      items.push({label:r.label||"Spend", amount:remain, id:r.id, kind:r.kind||"shop", date:String(r.date||"").slice(0,10)});
     });
-    items.sort(function(a,b){ return (b.amount||0)-(a.amount||0); });
+    /* Newest date first; same day → larger amount first */
+    items.sort(function(a,b){
+      var da=String(a.date||""), db=String(b.date||"");
+      if(da!==db) return db.localeCompare(da);
+      return (b.amount||0)-(a.amount||0);
+    });
     pocketGroups.push({id:whoId, name:whoName, owed:row.owed, items:items});
   });
   pocketGroups.sort(function(a,b){ return (b.owed||0)-(a.owed||0); });
@@ -10735,7 +10742,7 @@ function paintExpensesBody(){
   pocketOutTot=Math.round(pocketOutTot*100)/100;
   h+='<div class="apa-card" style="margin-bottom:12px" id="expOutstandingPocket">'+
     '<div style="font-weight:800;margin-bottom:6px">Outstanding pocket money out</div>'+
-    '<div class="meta" style="margin-bottom:8px">Still to be repaid (not yet settled). Grouped by person. Total <b class="money">'+money(pocketOutTot)+'</b>.</div>';
+    '<div class="meta" style="margin-bottom:8px">Still to be repaid (not yet settled). Grouped by person · lines newest first. Total <b class="money">'+money(pocketOutTot)+'</b>.</div>';
   if(!pocketGroups.length){
     h+='<div class="meta">Nothing outstanding — all pocket outs repaid.</div>';
   } else {
@@ -10757,10 +10764,16 @@ function paintExpensesBody(){
             :(it.kind==="reimburse-own"
               ?'<span class="pill p-own">Paid for crew</span>'
               :'<span class="pill p-own">Shop</span>');
+          var dStr=it.date?String(it.date).slice(0,10):"";
+          var dLab="";
+          try{ dLab=dStr&&/^\d{4}-\d{2}-\d{2}$/.test(dStr)?fmtDate(dStr):dStr; }catch(eD){ dLab=dStr; }
           h+='<div class="item exp-own" style="padding:10px 12px"'+(it.id?' data-exp-id="'+esc(it.id)+'" role="button" tabindex="0"':'')+'>'+
             '<div class="top"><div class="title" style="font-size:13.5px">'+esc(it.label)+'</div>'+
               '<div class="amt money" style="font-size:13.5px">'+money0(it.amount)+'</div></div>'+
-            '<div class="meta" style="margin-top:4px">'+kindPill+'</div>'+
+            '<div class="meta" style="margin-top:4px">'+
+              (dLab?'<span>📅 '+esc(dLab)+'</span>':'')+
+              kindPill+
+            '</div>'+
           '</div>';
         });
         h+='</div>';
