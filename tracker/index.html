@@ -6317,6 +6317,135 @@ function findApaChargeForTrip(t){
   }
   return paid[0]||null;
 }
+/**
+ * Find the one charge this APA trip should use — never invent a second row.
+ * Order: chargeId → apaTripId link → single unpaid orphan for same guest (no live trip).
+ */
+function findReusableApaCharge(t){
+  if(!t) return null;
+  var ch=findApaPendingCharge(t)||findApaChargeForTrip(t);
+  if(ch) return ch;
+  if(t.chargeId){
+    var byPin=(state.charters||[]).filter(function(c){ return c&&String(c.id)===String(t.chargeId); })[0];
+    if(byPin&&!(typeof isTombstoned==="function"&&isTombstoned("charters", byPin.id))) return byPin;
+  }
+  var byTrip=(state.charters||[]).filter(function(c){
+    return c&&String(c.apaTripId||"")===String(t.id)&&!(typeof isTombstoned==="function"&&isTombstoned("charters", c.id));
+  });
+  if(byTrip.length){
+    byTrip=byTrip.slice().sort(function(a,b){
+      var sa=(chargePay(a)==="Paid"?1000:0)+(Number(a.amount)||0);
+      var sb=(chargePay(b)==="Paid"?1000:0)+(Number(b.amount)||0);
+      return sb-sa;
+    });
+    return byTrip[0];
+  }
+  /* One unpaid orphan APA charge for this guest (no trip / dead trip) — adopt, don't duplicate */
+  var g=normName(t.guest);
+  if(!g) return null;
+  var liveTripIds={};
+  (state.apa||[]).forEach(function(x){ if(x&&x.id) liveTripIds[String(x.id)]=1; });
+  var orphans=(state.charters||[]).filter(function(c){
+    if(!c||!isApaChargeRow(c)) return false;
+    if(typeof isTombstoned==="function"&&isTombstoned("charters", c.id)) return false;
+    if(chargePay(c)==="Paid") return false;
+    if(normName(c.client)!==g) return false;
+    var tid=String(c.apaTripId||"");
+    if(!tid) return true;
+    if(tid===String(t.id)) return true;
+    if(!liveTripIds[tid]) return true; /* trip deleted */
+    return false;
+  });
+  if(orphans.length===1) return orphans[0];
+  if(orphans.length>1){
+    orphans=orphans.slice().sort(function(a,b){ return (Number(b.amount)||0)-(Number(a.amount)||0); });
+    return orphans[0];
+  }
+  return null;
+}
+/**
+ * After user saves this APA: keep at most one shortfall charge for the trip.
+ * Tombstones extras (same trip id only — never by guest name across charters).
+ */
+function collapseChargesForApaTrip(t){
+  if(!t||!t.id||!state.charters) return false;
+  var list=(state.charters||[]).filter(function(c){
+    return c&&String(c.apaTripId||"")===String(t.id);
+  });
+  if(t.chargeId){
+    var pin=(state.charters||[]).filter(function(c){ return c&&String(c.id)===String(t.chargeId); })[0];
+    if(pin&&!list.some(function(c){ return c.id===pin.id; })) list.push(pin);
+  }
+  if(list.length<2) return false;
+  list=list.slice().sort(function(a,b){
+    var sa=(chargePay(a)==="Paid"?5000:0)+(a.moneyManual?3000:0)+(Number(a.amount)||0)*10+(a.inv?20:0);
+    var sb=(chargePay(b)==="Paid"?5000:0)+(b.moneyManual?3000:0)+(Number(b.amount)||0)*10+(b.inv?20:0);
+    return sb-sa;
+  });
+  var win=list[0];
+  var dirty=false;
+  list.slice(1).forEach(function(loser){
+    if(chargeIsLockedMoney(loser)&&!chargeIsLockedMoney(win)){
+      var tmp=win; win=loser; loser=tmp;
+    }
+    state.charters=(state.charters||[]).filter(function(x){ return !x||x.id!==loser.id; });
+    try{ voidDeletedId("charters", loser.id); }catch(e){}
+    dirty=true;
+  });
+  if(win){
+    win.apaTripId=t.id;
+    win.kind="apa";
+    t.chargeId=win.id;
+  }
+  return dirty;
+}
+/**
+ * Collapse unpaid APA charges for this guest that are not owned by another live trip.
+ * Fixes Danny×2 after an extra "Daniela" row was deleted and a second Danny was auto-created.
+ * Only call from explicit save/Sync of THIS pot — never from background jobs.
+ */
+function collapseOrphanApaChargesForGuest(t){
+  if(!t||!state.charters) return false;
+  var g=normName(t.guest);
+  if(!g) return false;
+  var otherLive={};
+  (state.apa||[]).forEach(function(x){
+    if(x&&x.id&&String(x.id)!==String(t.id)) otherLive[String(x.id)]=1;
+  });
+  var list=(state.charters||[]).filter(function(c){
+    if(!c||!isApaChargeRow(c)) return false;
+    if(typeof isTombstoned==="function"&&isTombstoned("charters", c.id)) return false;
+    if(normName(c.client)!==g) return false;
+    if(chargePay(c)==="Paid") return false; /* keep paid history */
+    var tid=String(c.apaTripId||"");
+    if(tid===String(t.id)) return true;
+    if(!tid) return true;
+    if(otherLive[tid]) return false; /* belongs to another pot */
+    return true; /* dead trip id */
+  });
+  if(list.length<2){
+    if(list.length===1){
+      list[0].apaTripId=t.id;
+      list[0].kind="apa";
+      t.chargeId=list[0].id;
+    }
+    return false;
+  }
+  list=list.slice().sort(function(a,b){
+    var sa=(a.moneyManual?3000:0)+(Number(a.amount)||0)*10+(String(a.apaTripId)===String(t.id)?100:0)+(a.inv?20:0);
+    var sb=(b.moneyManual?3000:0)+(Number(b.amount)||0)*10+(String(b.apaTripId)===String(t.id)?100:0)+(b.inv?20:0);
+    return sb-sa;
+  });
+  var win=list[0];
+  list.slice(1).forEach(function(loser){
+    state.charters=(state.charters||[]).filter(function(x){ return !x||x.id!==loser.id; });
+    try{ voidDeletedId("charters", loser.id); }catch(e){}
+  });
+  win.apaTripId=t.id;
+  win.kind="apa";
+  t.chargeId=win.id;
+  return true;
+}
 function removeApaLinkedCharges(t, onlyUnpaid){
   if(!t||!state.charters) return;
   var drop={};
@@ -6467,13 +6596,16 @@ function mergeDuplicateApaCharges(){
   return dirty;
 }
 /**
- * Link APA pot ↔ shortfall charge.
- * opts.force = true only from "Sync charge now" — may rewrite unlocked money.
- * Default: never rewrite notes/amount/client on an existing charge (stops flicker).
+ * Link APA pot ↔ shortfall charge for THIS trip only.
+ * opts.force — update unlocked money from ledger
+ * opts.allowCreate — may create one new row if none reusable (default false on save;
+ *                    true only for Sync charge now / new pot open)
+ * Never creates a second charge for the same trip (Danny×2 bug).
  */
 function syncApaToCharge(t, opts){
   opts=opts||{};
   var force=!!opts.force;
+  var allowCreate=!!opts.allowCreate;
   if(!t||!String(t.guest||"").trim()) return null;
   if(!state.charters) state.charters=[];
   /* Never re-pin lead free cash as −APA */
@@ -6482,15 +6614,18 @@ function syncApaToCharge(t, opts){
   if(t.chargeId&&typeof isTombstoned==="function"&&isTombstoned("charters", t.chargeId)) t.chargeId="";
   var lead=apaLinkedLead(t);
   var over=apaOverageAmount(t);
-  var ch=findApaPendingCharge(t)||findApaChargeForTrip(t);
+  /* Always collapse accidental same-trip duplicates first */
+  collapseChargesForApaTrip(t);
+  var ch=findReusableApaCharge(t);
   if(ch&&typeof isTombstoned==="function"&&isTombstoned("charters", ch.id)) ch=null;
-  /* Existing charge: hands off unless explicit force + unlocked */
+  /* Existing / reusable charge: pin; update money only when force + unlocked */
   if(ch){
-    if(!ch.apaTripId) ch.apaTripId=t.id;
-    if(ch.kind!=="apa") ch.kind="apa";
+    ch.apaTripId=t.id;
+    ch.kind="apa";
     t.chargeId=ch.id;
+    /* Do not rename client if captain already set a name (keep Danny / Daniela as typed) */
+    if(!String(ch.client||"").trim()) ch.client=t.guest;
     if(!force||chargeIsLockedMoney(ch)) return ch;
-    /* force path: update money only — never rewrite captain notes */
     if(over<=0){
       if(chargeExtAmt(ch)>0) applyApaChargeMoney(ch, 0);
       return ch;
@@ -6500,7 +6635,7 @@ function syncApaToCharge(t, opts){
     if(ch.invStatus!=="Issued"&&ch.invStatus!=="Not needed") ch.status=ch.payStatus;
     return ch;
   }
-  /* No linked charge */
+  /* No reusable charge */
   if(over<=0){
     if(t.suppressShortfallCharge) t.suppressShortfallCharge=false;
     t.chargeId="";
@@ -6523,7 +6658,12 @@ function syncApaToCharge(t, opts){
     t.suppressShortfallCharge=true;
     return keepPaid;
   }
-  /* Create once — notes set at create only, never auto-updated later */
+  /* Production: create only when explicitly allowed (Sync / new pot) — not on every expense save */
+  if(!allowCreate){
+    t.chargeId="";
+    return null;
+  }
+  /* Create once — notes set at create only */
   var date="";
   if(lead&&lead.start) date=lead.start;
   if(!date&&t.expenses&&t.expenses.length){
@@ -6983,10 +7123,19 @@ function saveApa(trip, opts){
     var snap=lead?{ apas:lead.apas, apa:Number(lead.apa)||0 }:null;
     syncCashReceivedFromCharges(t);
     /*
-     * User saved THIS APA → update/create only this trip's shortfall charge.
-     * Never touch other guests' charges. Respect suppressShortfallCharge + Paid/Issued.
+     * THIS trip only:
+     *  - always collapse same-trip duplicate charges
+     *  - update existing/reusable charge from ledger
+     *  - create a new charge only when allowCreate (Sync charge now / open new pot)
+     * Expense saves update money but never invent a second Danny row.
      */
-    syncApaToCharge(t, {force:opts.force!==false});
+    collapseChargesForApaTrip(t);
+    /* One unpaid shortfall per guest pot — drop orphan Danny×2 style rows */
+    collapseOrphanApaChargesForGuest(t);
+    syncApaToCharge(t, {
+      force:opts.force!==false,
+      allowCreate:!!opts.allowCreate
+    });
     lead=apaLinkedLead(t);
     if(lead&&snap&&(lead.apas!==snap.apas||Math.abs((Number(lead.apa)||0)-snap.apa)>0.005)) leadDirty=true;
   }
@@ -7154,7 +7303,8 @@ function startApaFromLead(leadId){
   t.dates=apaClientDates(l);
   t.captain="Luigi";
   state.apa.unshift(t);
-  syncApaToCharge(t);
+  /* New pot: may create first shortfall charge if already overspent */
+  syncApaToCharge(t, {force:true, allowCreate:true});
   save("apa"); save("charters");
   renderCharters();
   openApaDetail(t.id);
@@ -7383,9 +7533,9 @@ function apaBindBody(t){
   });
   if(el("apaEditTrip")) el("apaEditTrip").addEventListener("click",function(){ openApaTrip(t.id); });
   if(el("apaSyncCharge")) el("apaSyncCharge").addEventListener("click",function(){
-    /* Explicit: recreate/update shortfall money from ledger (only unlocked charges) */
+    /* Explicit: create/update THIS trip only; collapse orphan Danny×2 style dupes */
     t.suppressShortfallCharge=false;
-    saveApa(t, {force:true});
+    saveApa(t, {force:true, allowCreate:true, collapseOrphans:true});
   });
   if(el("apaDelTrip")) el("apaDelTrip").addEventListener("click",function(){ deleteApaTrip(t.id); });
   function apaRestampDieselLines(trip, forcePrice){
