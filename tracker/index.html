@@ -1011,7 +1011,8 @@ var stewCalendarBy="";
 var EXP_CATS=["Crew Salaries","Miscellaneous","Fuel Cars","Dockage / Marina","Provisions","Maintenance","Insurance","Captain reimbursement","Crew reimbursement","Other"];
 var EXP_METHODS=["Cash","Credit Card"];
 /** Where petty cash top-ups come from (own money = captain float top-up, boat owes captain). */
-var EXP_CASH_IN_SOURCES=["Own money","Charter income","Guest tips held","Bank / ATM","Owner float","Other"];
+/* Tips are NOT petty cash — stay on Stews only (never cash-in sources). */
+var EXP_CASH_IN_SOURCES=["Own money","Charter income","Bank / ATM","Owner float","Other"];
 /** Cash expense funded from boat float or someone’s pocket (reimburse later). */
 var EXP_PAID_FROM=["Petty cash","Own money"];
 /** Sentinel id for captain in paidById / reimburseToId. */
@@ -8760,14 +8761,14 @@ function expPettyClosingBalance(month, depth){
     if(prevClose!=null){ start=prevClose; startKnown=true; }
     else if(!hasActivity) return null;
   }
-  var cashIns=p?expCashInLines(p):[];
+  var cashIns=p?expCashInLinesForPetty(p):[];
   var pettySum=null;
   try{
     if(LY_MODELS&&LY_MODELS.summarizePettyCash){
       pettySum=LY_MODELS.summarizePettyCash({
         pettyStart:start,
         cashIns:cashIns,
-        expenses:lines||[]
+        expenses:(lines||[]).filter(function(e){ return e&&!expIsTipExpense(e); })
       });
     }
   }catch(eC){ pettySum=null; }
@@ -8856,10 +8857,30 @@ function expCashInLines(petty){
   if(!Array.isArray(petty.cashIns)) petty.cashIns=[];
   return petty.cashIns.slice();
 }
+/** Guest tips held / tip cash-ins — never part of physical petty envelope. */
+function expCashInIsTip(r){
+  if(!r) return false;
+  if(r.isTip===true||r.kind==="tip"||r.excludeFromPetty===true) return true;
+  var s=String(r.source||"");
+  if(/guest tips?\s*held/i.test(s)) return true;
+  if(/\btips?\b/i.test(s)&&!/own money|charter|bank|owner|atm|float/i.test(s)) return true;
+  return false;
+}
+/** Expense lines that are tips (APA “Crew Tips” etc.) — never petty in/out. */
+function expIsTipExpense(e){
+  if(!e) return false;
+  var cat=String(e.category||"");
+  if(/^crew tips$/i.test(cat)||/^tips$/i.test(cat)||/^gratuity$/i.test(cat)) return true;
+  if(/tip/i.test(cat)&&/crew|grat/i.test(cat)) return true;
+  return false;
+}
+/** Cash-in lines that count toward physical petty (tips excluded). */
+function expCashInLinesForPetty(petty){
+  return expCashInLines(petty).filter(function(r){ return r&&!expCashInIsTip(r); });
+}
 function expCashInSum(petty){
   var s=0;
-  if(!petty||!Array.isArray(petty.cashIns)) return 0;
-  petty.cashIns.forEach(function(r){ s+=apaNum(r&&r.amount); });
+  expCashInLinesForPetty(petty).forEach(function(r){ s+=apaNum(r&&r.amount); });
   return Math.round(s*100)/100;
 }
 /**
@@ -9110,7 +9131,11 @@ function expIsCrewPriorSettled(e){
  */
 function expExpenseHitsPetty(e){
   if(!e||expIsCrewDayPayLine(e)) return false;
-  if(LY_MODELS&&LY_MODELS.expenseHitsPettyCash) return LY_MODELS.expenseHitsPettyCash(e);
+  if(expIsTipExpense(e)) return false; /* tips stay on Stews / outside petty */
+  if(LY_MODELS&&LY_MODELS.expenseHitsPettyCash){
+    if(expIsTipExpense(e)) return false;
+    return LY_MODELS.expenseHitsPettyCash(e);
+  }
   if(e.payMethod==="Credit Card") return false;
   if(e.paidFrom==="Own money"||expIsOwnMoneyLabel(e.paidFrom)) return false;
   /* Explicit own-money already excluded; anything else cash is petty envelope */
@@ -9298,6 +9323,7 @@ function expNormalizeAllReimbursements(){
  */
 function expCountsAsPettyOut(e){
   if(!e) return false;
+  if(expIsTipExpense(e)) return false; /* tips never touch the envelope */
   if(expIsCrewDayPayLine(e)) return expCrewPayHitsFloat(e);
   return expExpenseHitsPetty(e);
 }
@@ -9393,15 +9419,18 @@ function expSettlementFigures(month){
   lines.forEach(function(e){ expNormalizeReimbursement(e); });
   var petty=expEnsurePetty(month);
   var pettyStart=apaNum(petty.pettyStart);
-  var cashIns=expCashInLines(petty);
+  var cashInsAll=expCashInLines(petty);
+  var cashIns=expCashInLinesForPetty(petty); /* tips excluded from envelope */
+  var tipCashIns=cashInsAll.filter(expCashInIsTip);
   /* Model: petty on board (collapse crew dupes so numbers never double-count) */
-  var pettySum={ pettyCash:0, cashOut:0, cashOutLines:[], cashInTotal:0, cashInHand:0, crewPaidPetty:0, nCrewPetty:0, nCrewCollapsed:0, collapsedExpenses:lines };
+  var linesForPetty=(lines||[]).filter(function(e){ return e&&!expIsTipExpense(e); });
+  var pettySum={ pettyCash:0, cashOut:0, cashOutLines:[], cashInTotal:0, cashInHand:0, crewPaidPetty:0, nCrewPetty:0, nCrewCollapsed:0, collapsedExpenses:linesForPetty };
   try{
     if(LY_MODELS&&LY_MODELS.summarizePettyCash){
       pettySum=LY_MODELS.summarizePettyCash({
         pettyStart:pettyStart,
         cashIns:cashIns,
-        expenses:lines
+        expenses:linesForPetty
       });
     }
   }catch(ePetty){}
@@ -9534,6 +9563,8 @@ function expSettlementFigures(month){
     nCrewPaidLines:nCrewPaidLines,
     nSkippedDup:nSkippedDup,
     nDayPayLines:nDayPayLines,
+    tipCashIns:tipCashIns||[],
+    tipCashInTotal:Math.round((tipCashIns||[]).reduce(function(s,r){ return s+apaNum(r&&r.amount); },0)*100)/100,
     petty:petty
   };
 }
@@ -10358,7 +10389,8 @@ function paintExpensesBody(){
   var peopleOwed=S.peopleOwed, ownerCashIn=S.ownerCashIn, freeFloat=S.freeFloat||0, reimburseCap=S.reimburseCap||0;
   var floatAfterPays=S.floatAfterPays!=null?S.floatAfterPays:Math.round((pettyCash-peopleOwed)*100)/100;
   var floatBehind=S.floatBehind!=null?S.floatBehind:(floatAfterPays<0?-floatAfterPays:0);
-  var cashIns=expCashInLines(petty);
+  var cashIns=expCashInLinesForPetty(petty); /* physical envelope only — no tips */
+  var tipCashIns=S.tipCashIns||[];
   /* Who is still owed (pocket + unpaid day pay) — for negative float / owed list */
   var owedPeople=[];
   (pockets.list||[]).forEach(function(row){
@@ -10369,7 +10401,7 @@ function paintExpensesBody(){
   var pettyPos=pettyEntered&&pettyCash>0.009;
   var pettyZero=pettyEntered&&!pettyNeg&&!pettyPos;
   var shortAmt=cashShort>0.009?cashShort:(pettyNeg?Math.round((-pettyCash)*100)/100:0);
-  var h='<div class="legend">Captain-only. <b>Petty cash</b> = physical notes on board. Only <b>cash in</b> and <b>cash out</b> change it. Day pay / pocket still owed is separate — not petty cash.</div>';
+  var h='<div class="legend">Captain-only. <b>Petty cash</b> = physical notes on board (cash in − cash out). <b>Tips</b> stay on Stews only — never in petty. Day pay / pocket still owed is separate.</div>';
   h+='<div class="exp-month"><label class="meta" style="font-weight:700">Month</label>'+
     '<select class="ctl" id="expMonthSel">'+monthList.map(function(m){
       return '<option value="'+esc(m)+'"'+(m===expMonth?" selected":"")+'>'+esc(m)+'</option>';
@@ -10455,7 +10487,7 @@ function paintExpensesBody(){
     '<button type="button" class="btn ghost" id="expPettySave" style="width:auto;margin-top:4px;padding:10px 14px">Save start</button>'+
     '<div class="apa-sect-h" style="margin:14px 0 8px"><h3 style="font-size:13px">Lines</h3>'+
       '<button type="button" class="btn" id="expCashInAdd" style="width:auto;padding:8px 12px;font-size:13px">Add cash in</button></div>'+
-    '<p class="meta" style="margin:0 0 8px">Lead free cash, charge cash, tips held, top-ups. Tap a line to edit.</p>';
+    '<p class="meta" style="margin:0 0 8px">Lead free cash, charge cash, top-ups. <b>Tips are not cash in</b> — track tips on Stews only.</p>';
   if(!cashIns.length){
     h+='<div class="meta" style="margin-bottom:8px">No cash-in lines yet.</div>';
   } else {
@@ -10465,7 +10497,6 @@ function paintExpensesBody(){
       var kindPill="";
       if(r.fromLeadId) kindPill='<span class="pill p-black">Lead free cash</span>';
       else if(r.fromChargeId) kindPill='<span class="pill p-cash">Charge cash</span>';
-      else if(/tip/i.test(String(r.source||""))) kindPill='<span class="pill p-amber">Tips</span>';
       else if(ownIn) kindPill='<span class="pill p-own">Top-up</span>';
       else kindPill='<span class="pill p-grey">Manual</span>';
       h+='<div class="item apa-row'+(ownIn?' exp-own':'')+'" data-cashin-id="'+esc(r.id)+'" role="button" tabindex="0" style="padding:12px">'+
@@ -10479,6 +10510,11 @@ function paintExpensesBody(){
     });
     h+='</div>';
     h+='<div class="meta">'+cashIns.length+' line'+(cashIns.length===1?"":"s")+' · <b class="money">'+money(cashInTotal)+'</b></div>';
+  }
+  if(tipCashIns.length){
+    h+='<div class="meta" style="margin-top:10px;padding-top:8px;border-top:1px solid var(--line);line-height:1.45">'+
+      tipCashIns.length+' old <b>tip</b> cash-in line'+(tipCashIns.length===1?"":"s")+' ('+money(S.tipCashInTotal||0)+') are <b>ignored for petty</b> — delete if leftover, or leave; tips belong on Stews.'+
+    '</div>';
   }
   h+='</div>';
   /* Cash out audit — only lines that actually reduced physical petty */
@@ -12148,11 +12184,10 @@ function stewPayStatusPill(pay){
   return "";
 }
 function stewTipStatusPill(pay){
+  /* Only highlight unpaid tips (rare) — paid tips stay quiet; tips never touch petty */
   if(!pay||!(pay.tipStewSide>0)) return "";
-  if(pay.tipPaid) return '<span class="pill p-green">Tip paid</span>';
-  if(pay.tipUpcoming) return '<span class="pill p-grey">Tip not due</span>';
   if(pay.tipUnpaid) return '<span class="pill p-amber">Tip unpaid</span>';
-  return '<span class="pill p-grey">Tip</span>';
+  return "";
 }
 function loadStewSeed(){
   /* Season seed is captain-only (used when merging live ICS into blob snapshot). */
@@ -13094,7 +13129,8 @@ function paintStewCharters(){
     } else if(showMoney&&each>0&&!isCanc){
       rightBits.push(money0(each)+" pay");
     }
-    if(showMoney&&pay.tipStewSide>0&&!isCanc) rightBits.push(money0(pay.tipStewSide)+" tip");
+    /* Tips: only surface when unpaid (rare) — never mix into petty */
+    if(showMoney&&pay.tipUnpaid&&!isCanc) rightBits.push("Tip unpaid "+money0(pay.tipStewSide||pay.tipTotal||0));
     var amtLabel=rightBits.join(" · ");
     var openKey=esc(ev.key||(asg&&asg.eventKey)||stewEventId(ev));
     html+='<div class="item'+(unassigned&&!past?' apa-row':'')+'" data-stew-ev="'+openKey+'" role="button" tabindex="0">'+
@@ -13104,7 +13140,7 @@ function paintStewCharters(){
       '<div class="meta"><span>📅 '+esc(fmtCalEventWhen(ev))+'</span>'+
         stewDurationPillHTML(ev, asg)+
         (showMoney&&rate>0&&!isCanc?'<span class="money">'+money0(rate)+' × '+units+'</span>':'')+
-        (showMoney&&pay.tipTotal>0&&!isCanc?'<span class="money">Tip '+money0(pay.tipTotal)+' → '+money0(pay.tipEach)+'/crew</span>':'')+
+        (showMoney&&pay.tipUnpaid&&!isCanc?'<span class="pill p-amber">Tip unpaid '+money0(pay.tipTotal)+'</span>':'')+
         (ev.leadSource==="pending"||ev.status==="tentative"?'<span class="pill p-amber">Pending source</span>':'')+
         (isCanc?'<span class="pill p-red">Cancelled</span>':'')+
         (past&&!isCanc?'<span class="pill p-grey">Past</span>':'')+
@@ -13121,8 +13157,7 @@ function paintStewCharters(){
           '<span class="stew-name">'+esc(nm)+'</span>'+
           (showMoney&&stewPayAmt>0?'<span class="money" style="font-weight:800;font-size:15px">Pay '+money0(stewPayAmt)+'</span>':'')+
           (showMoney?stewPayStatusPill(pay):'')+
-          (showMoney&&pay.tipEach>0?'<span class="money" style="font-weight:800;font-size:15px">Tip '+money0(pay.tipEach)+'</span>':'')+
-          (showMoney?stewTipStatusPill(pay):'')+
+          (showMoney&&pay.tipUnpaid?'<span class="pill p-amber">Tip unpaid</span>':'')+
         '</div>';
       });
     } else {
