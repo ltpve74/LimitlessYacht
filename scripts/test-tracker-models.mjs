@@ -724,9 +724,12 @@ console.log("\n[Petty cash — crew day-pay collapse & floatPay]");
     cashIns: [],
     expenses: dupes
   });
-  /* start 50 − winner 50 (not 150+50) − shop 20 = −20 if both, or 50-50-20=-20 */
+  /* start 50 − winner 50 − shop 20 = books −20; physical never negative */
   ok("petty does not double-count 150+50", near(sum.cashOut, 70), "cashOut " + sum.cashOut);
-  ok("petty = 50 − 70 = −20 without double 150", near(sum.pettyCash, -20), "got " + sum.pettyCash);
+  ok("physical on board floors at 0", near(sum.pettyOnboard, 0), "got " + sum.pettyOnboard);
+  ok("pettyCash alias is physical ≥ 0", near(sum.pettyCash, 0), "got " + sum.pettyCash);
+  ok("booksBalance is −20", near(sum.booksBalance, -20), "got " + sum.booksBalance);
+  ok("cashShort is 20 (separate from physical)", near(sum.cashShort, 20), "got " + sum.cashShort);
   ok("nCrewPetty is 1", sum.nCrewPetty === 1, "got " + sum.nCrewPetty);
   /* Toni only €50 from last €50 on board → petty 0 */
   const toniOnly = M.summarizePettyCash({
@@ -739,6 +742,7 @@ console.log("\n[Petty cash — crew day-pay collapse & floatPay]");
   });
   ok("Toni €50 from €50 → petty 0", near(toniOnly.pettyCash, 0), "got " + toniOnly.pettyCash);
   ok("Toni cashOut 50", near(toniOnly.cashOut, 50));
+  ok("Toni no short when exact", near(toniOnly.cashShort, 0), "got " + toniOnly.cashShort);
   /* Prior paid does not move petty */
   const prior = M.summarizePettyCash({
     pettyStart: 50,
@@ -752,20 +756,28 @@ console.log("\n[Petty cash — crew day-pay collapse & floatPay]");
   ok("prior cashOut 0", near(prior.cashOut, 0));
   /*
    * Invented floatPay on empty envelope (the −€250 overnight bug):
-   * start 0 + cash-in 0 + floatPay €250 → petty −250. Cash cannot leave empty pot → clear floatPay.
+   * physical on board = 0, books short = 250. Never show physical as −250.
    */
   const overnight = {
     id: "on1", source: "stew", stewPayKind: "dayPay", stewId: "laura", date: "2026-07-15",
     crewPayStatus: "Paid", paidFrom: "Petty cash", floatPay: true, amount: 250
   };
   const beforeHeal = M.summarizePettyCash({ pettyStart: 0, cashIns: [], expenses: [overnight] });
-  ok("empty pot + floatPay €250 → petty −250 before heal", near(beforeHeal.pettyCash, -250), "got " + beforeHeal.pettyCash);
+  ok("empty pot + floatPay: physical 0", near(beforeHeal.pettyOnboard, 0), "got " + beforeHeal.pettyOnboard);
+  ok("empty pot + floatPay: books short 250", near(beforeHeal.cashShort, 250), "got " + beforeHeal.cashShort);
+  ok("empty pot + floatPay: booksBalance −250", near(beforeHeal.booksBalance, -250), "got " + beforeHeal.booksBalance);
+  /* Poison negative start is residue short, not physical cash */
+  const poisonStart = M.summarizePettyCash({ pettyStart: -250, cashIns: [], expenses: [] });
+  ok("poison start −250 → physical 0", near(poisonStart.pettyOnboard, 0));
+  ok("poison start −250 → short 250", near(poisonStart.cashShort, 250), "got " + poisonStart.cashShort);
+  ok("poison start priorStartShort 250", near(poisonStart.priorStartShort, 250));
   const heal = M.clearCrewFloatPayOnEmptyEnvelope([overnight], 0, []);
   ok("heal clears floatPay on empty envelope", heal.changed === true);
   ok("heal marks floatPay false", overnight.floatPay === false);
   ok("Paid status kept (prior books)", overnight.crewPayStatus === "Paid");
   const afterHeal = M.summarizePettyCash({ pettyStart: 0, cashIns: [], expenses: [overnight] });
-  ok("after heal empty pot closes at 0", near(afterHeal.pettyCash, 0), "got " + afterHeal.pettyCash);
+  ok("after heal physical 0", near(afterHeal.pettyCash, 0), "got " + afterHeal.pettyCash);
+  ok("after heal short 0", near(afterHeal.cashShort, 0), "got " + afterHeal.cashShort);
   ok("after heal cashOut 0", near(afterHeal.cashOut, 0));
   /* Real pay from real pot: do NOT clear floatPay */
   const real = {

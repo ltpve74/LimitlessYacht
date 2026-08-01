@@ -8740,9 +8740,9 @@ function expPrevMonthKey(month){
   return y+"-"+String(mo).padStart(2,"0");
 }
 /**
- * Closing petty cash for a month (start + cash in − cash out).
- * Does not create rows. Walks prior months when start was never set so carry chains work.
- * Returns null only when this month and all priors in range have no petty/expense activity.
+ * Closing *physical* petty for a month (never negative — notes only).
+ * Used for auto-carry into next month. Does not create rows.
+ * Returns null only when this month and all priors have no petty/expense activity.
  */
 function expPettyClosingBalance(month, depth){
   depth=depth||0;
@@ -8766,6 +8766,8 @@ function expPettyClosingBalance(month, depth){
     if(prevClose!=null){ start=prevClose; startKnown=true; }
     else if(!hasActivity) return null;
   }
+  /* Carry never uses a negative start as physical notes */
+  if(start<0) start=0;
   var cashIns=p?expCashInLinesForPetty(p):[];
   var pettySum=null;
   try{
@@ -8777,8 +8779,11 @@ function expPettyClosingBalance(month, depth){
       });
     }
   }catch(eC){ pettySum=null; }
-  if(pettySum&&pettySum.pettyCash!=null&&!isNaN(Number(pettySum.pettyCash))){
-    return Math.round(Number(pettySum.pettyCash)*100)/100;
+  if(pettySum){
+    var onboard=pettySum.pettyOnboard!=null?pettySum.pettyOnboard:pettySum.pettyCash;
+    if(onboard!=null&&!isNaN(Number(onboard))){
+      return Math.max(0, Math.round(Number(onboard)*100)/100);
+    }
   }
   var cashInTotal=expCashInSum({cashIns:cashIns});
   var cashOut=0;
@@ -8786,11 +8791,11 @@ function expPettyClosingBalance(month, depth){
     if(!e) return;
     try{ if(expCountsAsPettyOut(e)) cashOut+=apaNum(e.amount); }catch(eO){}
   });
-  return Math.round((start+cashInTotal-cashOut)*100)/100;
+  return Math.max(0, Math.round((start+cashInTotal-cashOut)*100)/100);
 }
 /**
  * Ensure a petty row for the month. New / auto months take start from previous
- * month’s closing balance (positive or negative). Manual “Save start” locks the value.
+ * month’s *physical* close (never negative). Manual “Save start” locks the value.
  */
 function expEnsurePetty(month){
   if(!state.expPetty) state.expPetty=[];
@@ -8815,7 +8820,7 @@ function expEnsurePetty(month){
      */
     if(p.startMode==="carry"){
       if(carried!=null){
-        var next=Math.round(Number(carried)*100)/100;
+        var next=Math.max(0, Math.round(Number(carried)*100)/100); /* never carry negative */
         if(apaNum(p.pettyStart)!==next||p.carriedFrom!==prev){
           p.pettyStart=next;
           p.carriedFrom=prev;
@@ -8827,12 +8832,19 @@ function expEnsurePetty(month){
       var hasLines=(expLinesForMonth(month)||[]).length>0;
       var hasIns=(p.cashIns||[]).length>0;
       if(!hasLines&&!hasIns&&Math.abs(apaNum(p.pettyStart))<0.009&&carried!=null){
-        /* Empty shell for a new month → adopt prior close */
-        p.pettyStart=Math.round(Number(carried)*100)/100;
+        /* Empty shell for a new month → adopt prior physical close */
+        p.pettyStart=Math.max(0, Math.round(Number(carried)*100)/100);
         p.startMode="carry";
         p.carriedFrom=prev;
         p.updatedAt=new Date().toISOString();
         try{ if(isCaptain()&&!DEMO) saveExpPetty(); }catch(eSave3){}
+      } else if(apaNum(p.pettyStart)<-0.009){
+        /* Poison negative start without captain lock → heal to physical carry/0 */
+        p.pettyStart=carried!=null?Math.max(0, Math.round(Number(carried)*100)/100):0;
+        p.startMode=carried!=null?"carry":"none";
+        p.carriedFrom=carried!=null?prev:"";
+        p.updatedAt=new Date().toISOString();
+        try{ if(isCaptain()&&!DEMO) saveExpPetty(); }catch(eSave4){}
       } else if(Math.abs(apaNum(p.pettyStart))>0.009||hasLines||hasIns){
         p.startMode="manual"; /* legacy row with real activity — do not auto-rewrite */
       } else if(!p.startMode){
@@ -8841,7 +8853,7 @@ function expEnsurePetty(month){
     }
     return p;
   }
-  var start0=carried!=null?Math.round(Number(carried)*100)/100:0;
+  var start0=carried!=null?Math.max(0, Math.round(Number(carried)*100)/100):0;
   p={
     month:month,
     pettyStart:start0,
@@ -9413,10 +9425,10 @@ function expStewDayDedupeKey(e){
   return "id:"+e.id;
 }
 /**
- * Petty cash = physical notes on board only:
- *   start + cash-in lines − cash-out lines (explicit petty out / crew floatPay).
- * "cashShort" = how much the envelope is overdrawn (only when petty < 0).
- * People still unpaid (day pay / pocket) are separate liabilities — not petty cash.
+ * Month settlement view for Expenses UI.
+ * **Petty math is 100% LY_MODELS.summarizePettyCash** — index.html must not
+ * re-derive on-board / short / books (physical never negative; short is separate).
+ * This function only: load month rows → call model → attach pocket / unpaid people.
  */
 function expSettlementFigures(month){
   month=month||expDefaultMonth();
@@ -9427,23 +9439,27 @@ function expSettlementFigures(month){
   var cashInsAll=expCashInLines(petty);
   var cashIns=expCashInLinesForPetty(petty); /* tips excluded from envelope */
   var tipCashIns=cashInsAll.filter(expCashInIsTip);
-  /* Model: petty on board (collapse crew dupes so numbers never double-count) */
   var linesForPetty=(lines||[]).filter(function(e){ return e&&!expIsTipExpense(e); });
-  var pettySum={ pettyCash:0, cashOut:0, cashOutLines:[], cashInTotal:0, cashInHand:0, crewPaidPetty:0, nCrewPetty:0, nCrewCollapsed:0, collapsedExpenses:linesForPetty };
-  try{
-    if(LY_MODELS&&LY_MODELS.summarizePettyCash){
-      pettySum=LY_MODELS.summarizePettyCash({
-        pettyStart:pettyStart,
-        cashIns:cashIns,
-        expenses:linesForPetty
-      });
-    }
-  }catch(ePetty){}
+  if(!(LY_MODELS&&typeof LY_MODELS.summarizePettyCash==="function")){
+    throw new Error("LY_MODELS.summarizePettyCash missing — load tracker/js/models before paint");
+  }
+  /* Sole source of truth for envelope numbers */
+  var pettySum=LY_MODELS.summarizePettyCash({
+    pettyStart:pettyStart,
+    cashIns:cashIns,
+    expenses:linesForPetty
+  });
   var cashOut=Number(pettySum.cashOut)||0;
   var cashOutLines=pettySum.cashOutLines||[];
-  var cashInTotal=Number(pettySum.cashInTotal)!=null&&!isNaN(pettySum.cashInTotal)?Number(pettySum.cashInTotal):expCashInSum(petty);
-  var cashInHand=Number(pettySum.cashInHand)!=null&&!isNaN(pettySum.cashInHand)?Number(pettySum.cashInHand):Math.round((pettyStart+cashInTotal)*100)/100;
-  var pettyCash=Number(pettySum.pettyCash)!=null&&!isNaN(pettySum.pettyCash)?Number(pettySum.pettyCash):Math.round((cashInHand-cashOut)*100)/100;
+  var cashInTotal=Number(pettySum.cashInTotal)||0;
+  var physicalStart=Number(pettySum.physicalStart)||0;
+  var cashInHand=Number(pettySum.cashInHand)||0;
+  var booksBalance=Number(pettySum.booksBalance)||0;
+  var pettyOnboard=Number(pettySum.pettyOnboard)||0;
+  var pettyCash=pettyOnboard; /* alias: always physical ≥ 0 */
+  var monthShort=Number(pettySum.monthShort)||0;
+  var priorStartShort=Number(pettySum.priorStartShort)||0;
+  var cashShort=Number(pettySum.cashShort)||0;
   var nSkippedDup=Number(pettySum.nCrewCollapsed)||0;
   var nCrewPaidLines=Number(pettySum.nCrewPetty)||0;
   var crewPaid=Number(pettySum.crewPaidPetty)||0;
@@ -9511,22 +9527,19 @@ function expSettlementFigures(month){
     }
     if(cls.hitsPettyCash) otherCash+=a;
   });
-  cashOut=Math.round(cashOut*100)/100;
   crewPaid=Math.round(crewPaid*100)/100;
   crewPrior=Math.round(crewPrior*100)/100;
   otherCash=Math.round(otherCash*100)/100;
   reimburseCap=Math.round(reimburseCap*100)/100;
   ownMoneyExp=Math.round(ownMoneyExp*100)/100;
-  /* Entered when start was set (manual or carried, including €0 / negative) or cash came in */
+  /* Entered when start was set (manual or carried) or cash came in */
   var pettyEntered=
     (petty.startMode&&petty.startMode!=="none")||
     petty.startManual===true||
     Math.abs(pettyStart)>0.009||
-    cashInTotal>0.009;
-  var pettyOnboard=pettyCash;
-  var cashShort=0;
-  if(pettyEntered&&pettyCash<0) cashShort=Math.round((-pettyCash)*100)/100;
-  var freeFloat=pettyEntered&&pettyCash>0?pettyCash:0;
+    cashInTotal>0.009||
+    cashOut>0.009;
+  var freeFloat=pettyEntered&&pettyOnboard>0?pettyOnboard:0;
   var owed=expStewDayPayOwed(month);
   var oweCrew=Math.round((nDayPayLines>0?crewUnpaid:(owed.owe||0))*100)/100;
   var pockets=expPocketBalances(month, petty);
@@ -9534,7 +9547,8 @@ function expSettlementFigures(month){
   var boatOwes=cap.owed||0;
   var pocketOwed=pockets.total||0;
   var peopleOwed=Math.round((pocketOwed+oweCrew)*100)/100;
-  var floatAfterPays=Math.round((pettyCash-peopleOwed)*100)/100;
+  /* Still-owed people vs physical notes (not petty math — liability view) */
+  var floatAfterPays=Math.round((pettyOnboard-peopleOwed)*100)/100;
   var floatBehind=floatAfterPays<0?Math.round((-floatAfterPays)*100)/100:0;
   var ownerCashIn=Math.round(Math.max(0, peopleOwed-freeFloat)*100)/100;
   return {
@@ -9548,13 +9562,17 @@ function expSettlementFigures(month){
     reimburseCap:reimburseCap,
     ownMoneyExp:ownMoneyExp,
     pettyStart:pettyStart,
+    physicalStart:physicalStart,
     cashInTotal:cashInTotal,
     cashInHand:cashInHand,
     pettyEntered:pettyEntered,
-    pettyCash:pettyCash,
+    booksBalance:booksBalance,
+    pettyCash:pettyOnboard,
     pettyOnboard:pettyOnboard,
     freeFloat:freeFloat,
     cashShort:cashShort,
+    monthShort:monthShort,
+    priorStartShort:priorStartShort,
     floatAfterPays:floatAfterPays,
     floatBehind:floatBehind,
     oweCrew:oweCrew,
@@ -9917,51 +9935,51 @@ function expRepairImpossibleCrewFloatOnEmptyEnvelope(){
       }
     }
 
-    /* Closing balance after any floatPay clear */
+    /* Physical close only (model — never negative) */
     var close=0;
     try{
       if(LY_MODELS&&LY_MODELS.summarizePettyCash){
         var sum=LY_MODELS.summarizePettyCash({
-          pettyStart:start,
+          pettyStart:Math.max(0, start),
           cashIns:cashIns,
           expenses:lines.filter(function(e){ return e&&!expIsTipExpense(e); })
         });
-        close=Math.round(Number(sum.pettyCash||0)*100)/100;
+        close=Math.max(0, Math.round(Number(sum.pettyOnboard!=null?sum.pettyOnboard:sum.pettyCash||0)*100)/100);
       } else {
         close=expPettyClosingBalance(month);
         if(close==null) close=0;
+        close=Math.max(0, close);
       }
     }catch(eSum){
-      close=Math.round((start+expCashInSum({cashIns:cashIns}))*100)/100;
+      close=0;
     }
     closeBy[month]=close;
   });
 
-  /* Refresh auto-carry starts from healed prior closes.
-   * Also un-poison legacy rows locked as startMode=manual without startManual
-   * (captain never tapped Save start) when start is a negative phantom carry. */
+  /* Refresh starts from healed physical closes. Never leave a negative start
+   * unless captain explicitly locked via Save start (startManual). */
   months.forEach(function(month){
     var p=expPettyFor(month);
     if(!p) return;
-    if(p.startManual===true) return; /* captain locked via Save start — leave alone */
-    var prev=expPrevMonthKey(month);
-    if(!prev||closeBy[prev]==null) return;
-    var next=Math.round(Number(closeBy[prev])*100)/100;
-    if(p.startMode==="carry"){
-      if(apaNum(p.pettyStart)!==next||p.carriedFrom!==prev){
-        p.pettyStart=next;
-        p.carriedFrom=prev;
+    if(p.startManual===true){
+      /* Still clamp display poison: captain locked a negative by mistake → zero */
+      if(apaNum(p.pettyStart)<-0.009){
+        p.pettyStart=0;
         p.updatedAt=new Date().toISOString();
         dirtyPetty=true;
       }
       return;
     }
-    if(p.startMode==="manual"&&apaNum(p.pettyStart)<-0.009){
-      p.pettyStart=next;
-      p.startMode="carry";
-      p.carriedFrom=prev;
-      p.updatedAt=new Date().toISOString();
-      dirtyPetty=true;
+    var prev=expPrevMonthKey(month);
+    var next=prev&&closeBy[prev]!=null?Math.max(0, Math.round(Number(closeBy[prev])*100)/100):0;
+    if(p.startMode==="carry"||apaNum(p.pettyStart)<-0.009){
+      if(apaNum(p.pettyStart)!==next||p.carriedFrom!==prev||p.startMode!=="carry"){
+        p.pettyStart=next;
+        p.startMode=prev&&closeBy[prev]!=null?"carry":"none";
+        p.carriedFrom=p.startMode==="carry"?prev:"";
+        p.updatedAt=new Date().toISOString();
+        dirtyPetty=true;
+      }
     }
   });
 
@@ -10486,47 +10504,56 @@ function paintExpensesBody(){
     if(row&&row.owed>0.009) owedPeople.push({name:row.name, amount:row.owed, kind:"pocket", id:row.id});
   });
   if(oweCrew>0.009) owedPeople.push({name:"Crew day pay (unpaid)", amount:oweCrew, kind:"crew", id:""});
-  var pettyNeg=pettyEntered&&pettyCash<-0.009;
+  /* Physical on board is never negative (model). Short is a separate books flag. */
+  var shortAmt=apaNum(cashShort);
   var pettyPos=pettyEntered&&pettyCash>0.009;
-  var pettyZero=pettyEntered&&!pettyNeg&&!pettyPos;
-  var shortAmt=cashShort>0.009?cashShort:(pettyNeg?Math.round((-pettyCash)*100)/100:0);
-  var h='<div class="legend">Captain-only. <b>Petty cash</b> = physical notes on board (cash in − cash out). <b>Tips</b> stay on Stews only — never in petty. Day pay / pocket still owed is separate.</div>';
+  var pettyZero=pettyEntered&&!pettyPos;
+  var booksBalance=S.booksBalance!=null?Number(S.booksBalance):0;
+  var priorStartShort=apaNum(S.priorStartShort);
+  var monthShort=apaNum(S.monthShort);
+  var h='<div class="legend">Captain-only. <b>Petty on board</b> = physical notes (never negative). <b>Short</b> = books over-mark (separate — not “negative cash”). <b>Tips</b> on Stews only. Still-owed people are not petty.</div>';
   h+='<div class="exp-month"><label class="meta" style="font-weight:700">Month</label>'+
     '<select class="ctl" id="expMonthSel">'+monthList.map(function(m){
       return '<option value="'+esc(m)+'"'+(m===expMonth?" selected":"")+'>'+esc(m)+'</option>';
     }).join("")+'</select>'+
     '<button type="button" class="btn ghost" id="expExport" style="width:auto;padding:10px 14px">Export CSV</button>'+
   '</div>';
-  /* Hero: physical petty cash only */
-  h+='<div class="exp-alert '+(pettyNeg?'owe':(pettyPos?'ok':'ok'))+'" style="margin-bottom:12px">'+
+  /* Hero: physical notes only (model pettyOnboard ≥ 0) */
+  h+='<div class="exp-alert '+(pettyPos?'ok':'ok')+'" style="margin-bottom:12px">'+
     '<div style="font-weight:800">Petty cash · on board</div>'+
     '<div class="money" style="font-size:32px;font-weight:800;margin-top:6px;color:'+
-      (pettyNeg?'var(--danger)':(pettyPos?'var(--greenInk,#1a5c48)':'inherit'))+'">'+
-      (pettyEntered?(pettyNeg?'−':'')+money(Math.abs(pettyCash)):(pettyZero?money(0):'—'))+
+      (pettyPos?'var(--greenInk,#1a5c48)':'inherit')+'">'+
+      (pettyEntered?money(pettyCash):'—')+
     '</div>'+
     '<div class="meta" style="margin-top:8px;line-height:1.5">'+
       (pettyEntered
-        ?('Start + cash in <b class="money">'+money(cashInHand)+'</b> − cash out <b class="money">'+money(cashOut)+'</b>'+
-          (pettyPos?' · notes in the envelope':(pettyZero?' · empty':'')))
+        ?('Physical start <b class="money">'+money(S.physicalStart!=null?S.physicalStart:Math.max(0,pettyStart))+'</b>'+
+          ' + cash in <b class="money">'+money(cashInTotal)+'</b>'+
+          ' − cash out <b class="money">'+money(cashOut)+'</b>'+
+          (pettyPos?' · notes in the envelope':' · empty (cannot go below €0)'))
         :'Set <b>start</b> and add <b>cash in</b> below. Petty only moves when you log cash in or cash out.')+
     '</div>'+
   '</div>';
-  /* Shortfall banner — only when envelope is overdrawn */
+  /* Short = separate books number — never shown as “negative petty” */
   if(shortAmt>0.009){
     var shortCrew=(S.cashOutLines||[]).filter(function(r){ return r&&r.kind==="crew"; });
     var shortCrewAmt=0;
     shortCrew.forEach(function(r){ shortCrewAmt+=apaNum(r.amount); });
     shortCrewAmt=Math.round(shortCrewAmt*100)/100;
     h+='<div class="exp-alert owe" style="margin-bottom:12px">'+
-      '<div style="font-weight:800;margin-bottom:6px">Petty cash short</div>'+
+      '<div style="font-weight:800;margin-bottom:6px">Books short (not physical cash)</div>'+
       '<div class="money" style="font-size:28px;font-weight:800;color:var(--danger)">−'+money(shortAmt)+'</div>'+
       '<div class="meta" style="margin-top:8px;line-height:1.45">'+
-        'Cash out exceeded start + cash in by <b class="money">'+money(shortAmt)+'</b>. '+
+        'Physical petty stays <b class="money">'+money(pettyCash)+'</b>. '+
+        'This short is ledger over-mark only: '+
+        (priorStartShort>0.009?('poison start residue <b class="money">'+money(priorStartShort)+'</b>'+(monthShort>0.009?' + ':'')):'')+
+        (monthShort>0.009?('this month outs over available <b class="money">'+money(monthShort)+'</b>'):'')+
+        (priorStartShort<0.009&&monthShort<0.009?('books balance <b class="money">'+money(booksBalance)+'</b>'):'')+
+        '. '+
         (shortCrewAmt>0.009
-          ?('Crew day-pay from petty is <b class="money">'+money(shortCrewAmt)+'</b> — only mark <b>Paid from Petty cash</b> when notes actually left the envelope. ')
+          ?('Crew marked from petty: <b class="money">'+money(shortCrewAmt)+'</b> — use <b>Prior / not this pot</b> if cash did not leave the envelope. ')
           :'')+
-        'Review <b>Cash out</b> below. Use <b>Prior / not this pot</b> if pay was settled outside petty. '+
-        'Opening this screen heals empty-envelope invented crew floatPay (cannot cash-out from €0).'+
+        'Cash out list below is what the model counts.'+
       '</div></div>';
   }
   /* Owed list: people still unpaid — separate from petty on board */
@@ -10547,16 +10574,16 @@ function paintExpensesBody(){
     });
     h+='<div class="meta" style="margin-top:10px;padding-top:8px;border-top:1px solid var(--line)">Total still owed <b class="money">'+money(peopleOwed)+'</b></div>';
     h+='</div>';
-  } else if(pettyEntered&&!shortAmt){
+  } else if(pettyEntered&&!(shortAmt>0.009)){
     h+='<div class="exp-alert ok" style="margin-bottom:12px"><b>All clear</b> — no open day-pay or pocket debts'+(pettyPos?' · '+money(pettyCash)+' on board':(pettyZero?' · petty empty':''))+'.</div>';
   }
-  /* Compact strip — physical envelope only (+ short only if short) */
+  /* Compact strip — physical + short are separate cards */
   h+='<div class="exp-summary">'+
-    '<div class="sumcard'+(pettyNeg?' sum-danger':(pettyPos?' sum-ok':''))+'"><div class="l">Petty on board</div><div class="v money">'+(pettyEntered?money(pettyCash):'—')+'</div></div>'+
+    '<div class="sumcard'+(pettyPos?' sum-ok':'')+'"><div class="l">Petty on board</div><div class="v money">'+(pettyEntered?money(pettyCash):'—')+'</div></div>'+
     '<div class="sumcard"><div class="l">Cash in</div><div class="v money">'+money(cashInTotal)+'</div></div>'+
     '<div class="sumcard"><div class="l">Cash out</div><div class="v money">'+money(cashOut)+'</div></div>'+
     (shortAmt>0.009
-      ?'<div class="sumcard sum-danger"><div class="l">Short by</div><div class="v money">'+money(shortAmt)+'</div></div>'
+      ?'<div class="sumcard sum-danger"><div class="l">Books short</div><div class="v money">'+money(shortAmt)+'</div></div>'
       :'')+
     (peopleOwed>0.009
       ?'<div class="sumcard sum-warn"><div class="l">Still owed</div><div class="v money">'+money(peopleOwed)+'</div></div>'
@@ -10564,17 +10591,17 @@ function paintExpensesBody(){
   '</div>';
   /* Cash in */
   var startFieldVal=(petty.startMode&&petty.startMode!=="none")||Math.abs(pettyStart)>0.009||petty.startManual===true
-    ?pettyStart
+    ?Math.max(0, pettyStart) /* never show poison negative as editable start */
     :"";
   var startHint="";
   if(petty.startMode==="carry"&&petty.carriedFrom){
-    startHint='<div class="meta" style="margin:6px 0 0;line-height:1.45">Start <b>carried from '+esc(petty.carriedFrom)+'</b> close ('+
-      (pettyStart<0?"−":"")+money(Math.abs(pettyStart))+
-      '). Updates if that month changes. Tap <b>Save start</b> to lock a manual figure.</div>';
+    startHint='<div class="meta" style="margin:6px 0 0;line-height:1.45">Start <b>carried from '+esc(petty.carriedFrom)+'</b> physical close ('+
+      money(Math.max(0, pettyStart))+
+      '). Carry is never negative. Tap <b>Save start</b> to lock a manual figure.</div>';
   } else if(petty.startMode==="manual"||petty.startManual===true){
     startHint='<div class="meta" style="margin:6px 0 0">Start is <b>manual</b> (not auto-carried).</div>';
   } else {
-    startHint='<div class="meta" style="margin:6px 0 0">Set start, or it will take last month’s closing petty (even if negative) once prior data exists.</div>';
+    startHint='<div class="meta" style="margin:6px 0 0">Set start, or it takes last month’s <b>physical</b> close (never negative) once prior data exists.</div>';
   }
   h+='<div class="apa-card" style="margin-bottom:12px">'+
     '<div style="font-weight:800;margin-bottom:8px">Cash in · '+esc(expMonth)+'</div>'+
@@ -10619,7 +10646,9 @@ function paintExpensesBody(){
     '<div style="font-weight:800;margin-bottom:6px">Cash out · left the envelope</div>'+
     '<div class="meta" style="margin-bottom:8px">Only these lines subtract from <b>petty on board</b> (shop from petty, crew paid from petty). '+
       'Paid day-pay marked <b>Prior / not this pot</b> or <b>Own money</b> does not touch petty. '+
-      'In <b class="money">'+money(cashInHand)+'</b> − out <b class="money">'+money(cashOut)+'</b> = petty <b class="money">'+money(pettyCash)+'</b>.'+
+      'Physical available <b class="money">'+money(cashInHand)+'</b> − out <b class="money">'+money(cashOut)+'</b> → on board <b class="money">'+money(pettyCash)+'</b>'+
+      (shortAmt>0.009?' · books short <b class="money">'+money(shortAmt)+'</b>':'')+
+      '.'+
     '</div>';
   if(!outs.length){
     h+='<div class="meta">None this month — petty = start + cash in only.</div>';
