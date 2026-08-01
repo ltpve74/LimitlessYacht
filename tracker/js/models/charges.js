@@ -52,8 +52,15 @@ function chargeBillType(r) {
 function chargeCashPart(r) {
   var total = num(r.amount);
   var t = chargeBillType(r);
-  if (!(total > 0) || t === "invoice") return 0;
-  if (t === "cash") return total;
+  if (t === "invoice") return 0;
+  /* Cash-only: prefer cashPaid (actual received) over amount (may still hold ledger shortfall) */
+  if (t === "cash") {
+    var got = num(r.cashPaid);
+    if (!(got > 0) && num(r.cashAmt) > 0) got = num(r.cashAmt);
+    if (got > 0) return round2(got);
+    return total > 0 ? total : 0;
+  }
+  if (!(total > 0)) return 0;
   var cash = num(r.cashPaid);
   if (!(cash > 0) && num(r.cashAmt) > 0) cash = Math.min(total, num(r.cashAmt));
   if (!(cash > 0)) cash = 0;

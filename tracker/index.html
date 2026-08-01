@@ -1901,24 +1901,33 @@ function chargeNeedsInvoice(r){ return LY_MODELS?LY_MODELS.chargeNeedsInvoice(r)
 function chargeCashToBoat(r){
   if(!r||chargePay(r)!=="Paid") return 0;
   var total=apaNum(r.amount);
-  if(!(total>0)) return 0;
   var bt=chargeBillType(r);
   if(bt==="invoice") return 0; /* formal invoice / card — not boat envelope */
-  if(bt==="cash") return total;
+  /*
+   * Cash only: boat pot = cash actually received (cashPaid), not a stale ledger total.
+   * e.g. APA shortfall €664.95, guest paid €650 cash → petty gets €650.
+   */
+  if(bt==="cash"){
+    var got=apaNum(r.cashPaid);
+    if(!(got>0.009)) got=apaNum(r.cashAmt);
+    if(got>0.009) return Math.round(got*100)/100;
+    return total>0?total:0;
+  }
   if(bt==="mix"){
+    if(!(total>0)) total=apaNum(r.cashPaid)||apaNum(r.cashAmt)||0;
     var part=chargeCashPart(r);
-    if(part>0) return Math.min(part, total);
+    if(part>0) return Math.min(part, total>0?total:part);
     var explicit=apaNum(r.cashPaid);
-    return explicit>0?Math.min(explicit,total):0;
+    return explicit>0?Math.min(explicit,total>0?total:explicit):0;
   }
   /* Legacy rows without billType */
   var part2=chargeCashPart(r);
-  if(part2>0) return Math.min(part2, total);
+  if(part2>0) return Math.min(part2, total>0?total:part2);
   var m=chargePayMethod(r);
   var explicit2=apaNum(r.cashPaid);
   if(m==="Card") return 0;
-  if(m==="Split") return explicit2>0?Math.min(explicit2,total):0;
-  if(m==="Cash") return explicit2>0?Math.min(explicit2,total):total;
+  if(m==="Split") return explicit2>0?Math.min(explicit2,total>0?total:explicit2):0;
+  if(m==="Cash") return explicit2>0?Math.min(explicit2,total>0?total:explicit2):(total>0?total:0);
   return 0;
 }
 function payMethodPill(m){
@@ -13823,7 +13832,7 @@ function syncChargeCashToPetty(charge){
     date:date,
     source:"Charter income — "+client+(chargePayMethod(charge)==="Split"?" (part cash)":" (cash)"),
     amount:Math.round(cash*100)/100,
-    notes:"From Charges · "+money0(charge.amount)+" · "+chargePayMethod(charge),
+    notes:"From Charges · "+money0(cash)+" cash · "+chargePayMethod(charge),
     updatedAt:new Date().toISOString()
   };
   var found=false;
@@ -14723,22 +14732,28 @@ function openSheet(type,id){
     var commOn=rec?isChargeCaptainComm(r):(extADef>0);
     h+='<div class="sheethead"><h2>'+(rec?(isApaCh?"Edit APA charge":"Edit charge"):"New charter charge")+'</h2><button type="button" class="sheetx" id="sheetClose" aria-label="Close">×</button></div>';
     h+=fieldHTML("Client name",'<input class="ctl" id="f_client" value="'+esc(r.client)+'" placeholder="e.g. Smith family">');
+    /* Cash-only: show amount received (prefer cashPaid if captain already set a round figure) */
+    var amountShow=r.amount;
+    if(bt0==="cash"&&apaNum(r.cashPaid)>0) amountShow=r.cashPaid;
+    else if(bt0==="cash"&&apaNum(r.cashAmt)>0&&!(apaNum(r.amount)>0)) amountShow=r.cashAmt;
     h+='<div class="row2">'+fieldHTML("Charter date",'<input class="ctl" id="f_date" type="date" value="'+esc(r.date)+'">')+
-      fieldHTML(isApaCh?"Total (APA + ext) €":"Total amount (€)",moneyField("f_amount",r.amount))+'</div>';
+      fieldHTML(isApaCh?(bt0==="cash"?"Amount received (€)":"Total (APA + ext) €"):"Total amount (€)",moneyField("f_amount",amountShow))+'</div>';
     if(isApaCh){
-      h+='<p style="margin:-6px 0 10px;font-size:12.5px;color:var(--muted);line-height:1.4">APA ledger shortfall ≈ <b class="money">'+money(apaBaseShow)+'</b>. You can set <b>Settlement → Cash</b> and change <b>Total</b> to what they actually paid (e.g. €650 cash). That amount sticks and is not overwritten by the ledger.</p>';
+      h+='<p style="margin:-6px 0 10px;font-size:12.5px;color:var(--muted);line-height:1.4">APA ledger shortfall ≈ <b class="money">'+money(apaBaseShow)+'</b>. For cash: set <b>Settlement → Cash</b> and type what they paid (e.g. <b>650</b>) in Amount received / Cash part — that figure goes to petty cash, not the ledger total.</p>';
       h+='<input type="hidden" id="f_apaBaseAmt" value="'+esc(apaBaseShow)+'">';
     }
     h+=fieldHTML("Settlement",selBillTypeField(bt0));
     h+='<p style="margin:-6px 0 12px;font-size:12.5px;color:var(--muted);line-height:1.4">'+
-      '<b>Invoice</b> = formal PDF. <b>Cash</b> = cash only (edit Total / Cash part freely). <b>Mix</b> = both. Extra hours can suggest Mix — your Settlement choice wins.</p>';
+      '<b>Invoice</b> = formal PDF. <b>Cash</b> = cash only (Amount received = cash in boat pot). <b>Mix</b> = both.</p>';
     h+='<div class="calcbox" id="f_ch_calc"></div>';
     h+='<div class="row2">'+fieldHTML("Payment",selPayField(pay))+fieldHTML("Paid by",selPayMethodField(pm))+'</div>';
-    var cashDef=apaNum(r.cashPaid)>0?r.cashPaid:(bt0==="cash"?r.amount:(bt0==="mix"&&apaNum(r.cashAmt)>0?r.cashAmt:""));
+    var cashDef=apaNum(r.cashPaid)>0?r.cashPaid:(bt0==="cash"?amountShow:(bt0==="mix"&&apaNum(r.cashAmt)>0?r.cashAmt:""));
     h+='<div id="f_cashPaid_wrap" style="'+(bt0==="invoice"&&pm==="Card"?"display:none":"")+'">'+
-      fieldHTML("Cash part (€)",moneyField("f_cashPaid", cashDef))+
+      fieldHTML(bt0==="cash"?"Cash received (€)":"Cash part (€)",moneyField("f_cashPaid", cashDef))+
       '<p style="margin:-6px 0 12px;font-size:12px;color:var(--muted);line-height:1.4">'+
-        'For <b>Mix</b>: cash into boat pot; invoice part = total − cash. When <b>Paid</b>, cash updates Expenses → cash in.'+
+        (bt0==="cash"
+          ?'Cash only: this is what goes into <b>Expenses → cash in</b> when Payment is <b>Paid</b>.'
+          :'For <b>Mix</b>: cash into boat pot; invoice part = total − cash. When <b>Paid</b>, cash updates Expenses → cash in.')+
       '</p></div>';
     h+='<div id="f_inv_fields_wrap" style="'+(bt0==="cash"?"display:none":"")+'">'+
       '<div class="row2">'+fieldHTML("Invoice (manager)",selInvField(invSt=== "Not needed"?"Not issued":invSt))+fieldHTML("Invoice # (manager)",'<input class="ctl" id="f_inv" value="'+esc(r.inv)+'" placeholder="fill when issued">')+'</div>'+
@@ -15122,11 +15137,20 @@ function openSheet(type,id){
     if(el("f_amount")) el("f_amount").addEventListener("input",function(){
       el("f_amount").dataset.userSet="1";
       var bt=(el("f_billType")&&el("f_billType").value)||"invoice";
-      if(bt==="cash"&&el("f_cashPaid")&&!(el("f_cashPaid").dataset.userSet==="1")) el("f_cashPaid").value=el("f_amount").value;
+      /* Cash only: Total and Cash received stay the same figure */
+      if(bt==="cash"&&el("f_cashPaid")){
+        el("f_cashPaid").value=el("f_amount").value;
+        el("f_cashPaid").dataset.userSet="1";
+      }
       recalcCharge();
     });
     if(el("f_cashPaid")) el("f_cashPaid").addEventListener("input",function(){
       el("f_cashPaid").dataset.userSet="1";
+      var bt=(el("f_billType")&&el("f_billType").value)||"invoice";
+      if(bt==="cash"&&el("f_amount")){
+        el("f_amount").value=el("f_cashPaid").value;
+        el("f_amount").dataset.userSet="1";
+      }
       recalcCharge();
     });
     if(el("f_captainComm")) el("f_captainComm").addEventListener("change",recalcCharge);
@@ -15263,21 +15287,44 @@ function saveSheet(type,rec){
     if(billType!=="cash"&&billType!=="mix") billType="invoice";
     if(billType==="cash"){
       payMethod="Cash";
-      if(!(cashPaid>0)) cashPaid=gross;
+      /*
+       * Cash only = amount received is one number. Prefer Cash part when the
+       * captain typed a round figure there (e.g. €650) while Total still shows ledger €664.
+       */
+      var cashFieldSet=el("f_cashPaid")&&el("f_cashPaid").dataset.userSet==="1";
+      var amtFieldSet=el("f_amount")&&el("f_amount").dataset.userSet==="1";
+      if(cashPaid>0.009&&cashFieldSet&&(!amtFieldSet||Math.abs(cashPaid-gross)>0.009)){
+        gross=Math.round(cashPaid*100)/100;
+      } else if(gross>0.009&&amtFieldSet){
+        cashPaid=Math.round(gross*100)/100;
+      } else if(cashPaid>0.009&&(!(gross>0)||Math.abs(cashPaid-gross)>0.009)){
+        /* Cash part set lower than total → received = cash part (common cash deal) */
+        if(cashPaid<gross||!(gross>0)) gross=Math.round(cashPaid*100)/100;
+        else cashPaid=Math.round(gross*100)/100;
+      } else if(!(cashPaid>0)){
+        cashPaid=gross;
+      } else {
+        cashPaid=gross=Math.round((cashPaid>0?cashPaid:gross)*100)/100;
+      }
+      cashPaid=Math.round((gross)*100)/100;
       invStatus="Not needed";
+      moneyManual=true;
+      if(el("f_amount")) el("f_amount").value=String(gross);
+      if(el("f_cashPaid")) el("f_cashPaid").value=String(cashPaid);
     } else if(billType==="mix"){
       if(!(cashPaid>0)){ window.alert("Mix: enter the cash part (or set extension settlement to Cash)."); if(el("f_cashPaid")) el("f_cashPaid").focus(); return; }
       if(cashPaid>gross+0.009){ window.alert("Cash part cannot exceed the total."); if(el("f_cashPaid")) el("f_cashPaid").focus(); return; }
       if(cashPaid>=gross-0.009){ window.alert("Mix needs both a cash part and an invoice part. Use Cash only if everything is cash."); return; }
       payMethod="Split";
       if(invStatus==="Not needed") invStatus="Not issued";
+      moneyManual=true;
     } else {
       if(payMethod==="Cash") payMethod="Card";
       cashPaid=0;
       if(invStatus==="Not needed") invStatus="Not issued";
     }
-    if(cashPaid>gross) cashPaid=gross;
-    /* APA base for pot recovery = settled APA portion (total − extension) */
+    if(billType!=="cash"&&cashPaid>gross) cashPaid=gross;
+    /* APA base for pot recovery = settled amount (cash received for cash deals) */
     if(isApaRec){
       apaBase=Math.max(0, Math.round((gross-extAmt)*100)/100);
       if(!(apaBase>0)&&gross>0&&!(extAmt>0)) apaBase=gross;
@@ -15312,7 +15359,9 @@ function saveSheet(type,rec){
       extAmt:extAmt>0?extAmt:0,
       extSettle:extAmt>0?extSettle:"invoice",
       apaBaseAmt:isApaRec?apaBase:0,
-      moneyManual:!!moneyManual };
+      moneyManual:!!moneyManual,
+      /* Stamp so later APA force-sync never restores ledger € over cash received */
+      updatedAt:new Date().toISOString() };
     /* Keep APA linkage when editing payment / invoice status */
     if(rec){
       if(rec.kind==="apa"||rec.apaTripId){
@@ -15333,13 +15382,32 @@ function saveSheet(type,rec){
     }
     if(billType==="mix"||billType==="cash"){
       obj.cashDeal=true;
-      if(!(obj.cashAmt>0)&&cashPaid>0) obj.cashAmt=cashPaid;
-      if(billType==="cash"&&cashPaid>0) obj.cashAmt=cashPaid;
+      if(cashPaid>0) obj.cashAmt=cashPaid;
+      if(billType==="cash"){
+        obj.amount=gross;
+        obj.cashPaid=cashPaid;
+        obj.cashAmt=cashPaid;
+        obj.moneyManual=true;
+      }
     }
     if(!obj.client && !obj.amount){ el("f_client").focus(); return; }
-    upsert("charters",obj,rec); renderCharters(); save("charters");
-    /* Clear suppress so this charge stays linked; pin trip.chargeId */
-    /* Pin linked APA pot only — never walk/sync other charges */
+    upsert("charters",obj,rec);
+    /* Re-assert cash figures after upsert (guards against any residual rewrite) */
+    var stored=(state.charters||[]).filter(function(c){return c&&c.id===obj.id;})[0];
+    if(stored&&(obj.billType==="cash"||obj.moneyManual)){
+      stored.amount=obj.amount;
+      stored.billType=obj.billType;
+      stored.cashPaid=obj.cashPaid;
+      stored.cashAmt=obj.cashAmt;
+      stored.cashDeal=obj.cashDeal;
+      stored.payMethod=obj.payMethod;
+      stored.apaBaseAmt=obj.apaBaseAmt;
+      stored.moneyManual=true;
+      stored.net=obj.net; stored.vat=obj.vat; stored.vatPct=obj.vatPct; stored.vatMode=obj.vatMode;
+      stored.payStatus=obj.payStatus; stored.invStatus=obj.invStatus; stored.status=obj.status;
+    }
+    renderCharters(); save("charters");
+    /* Pin linked APA pot only — never walk/sync other charges or force ledger amount */
     if(obj.kind==="apa"||obj.apaTripId){
       (state.apa||[]).forEach(function(t){
         if(!t) return;
@@ -15350,7 +15418,7 @@ function saveSheet(type,rec){
       });
       save("apa");
     }
-    /* Boat float: cash portion of Paid charges → monthly cash in */
+    /* Boat float: cash received (cashPaid) when Paid → monthly cash in */
     if(isCaptain()){
       var saved=(state.charters||[]).filter(function(c){return c&&c.id===obj.id;})[0]||obj;
       syncChargeCashToPetty(saved);
