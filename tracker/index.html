@@ -9460,6 +9460,7 @@ function expSettlementFigures(month){
   var monthShort=Number(pettySum.monthShort)||0;
   var priorStartShort=Number(pettySum.priorStartShort)||0;
   var cashShort=Number(pettySum.cashShort)||0;
+  var shortLines=Array.isArray(pettySum.shortLines)?pettySum.shortLines:[];
   var nSkippedDup=Number(pettySum.nCrewCollapsed)||0;
   var nCrewPaidLines=Number(pettySum.nCrewPetty)||0;
   var crewPaid=Number(pettySum.crewPaidPetty)||0;
@@ -9573,6 +9574,7 @@ function expSettlementFigures(month){
     cashShort:cashShort,
     monthShort:monthShort,
     priorStartShort:priorStartShort,
+    shortLines:shortLines,
     floatAfterPays:floatAfterPays,
     floatBehind:floatBehind,
     oweCrew:oweCrew,
@@ -10534,27 +10536,57 @@ function paintExpensesBody(){
         :'Set <b>start</b> and add <b>cash in</b> below. Petty only moves when you log cash in or cash out.')+
     '</div>'+
   '</div>';
-  /* Short = separate books number — never shown as “negative petty” */
+  /* Short = separate books number — never shown as “negative petty”. Model lists sources. */
   if(shortAmt>0.009){
-    var shortCrew=(S.cashOutLines||[]).filter(function(r){ return r&&r.kind==="crew"; });
-    var shortCrewAmt=0;
-    shortCrew.forEach(function(r){ shortCrewAmt+=apaNum(r.amount); });
-    shortCrewAmt=Math.round(shortCrewAmt*100)/100;
-    h+='<div class="exp-alert owe" style="margin-bottom:12px">'+
+    var shortLines=S.shortLines||[];
+    h+='<div class="exp-alert owe" style="margin-bottom:12px" id="expBooksShortCard">'+
       '<div style="font-weight:800;margin-bottom:6px">Books short (not physical cash)</div>'+
       '<div class="money" style="font-size:28px;font-weight:800;color:var(--danger)">−'+money(shortAmt)+'</div>'+
       '<div class="meta" style="margin-top:8px;line-height:1.45">'+
-        'Physical petty stays <b class="money">'+money(pettyCash)+'</b>. '+
-        'This short is ledger over-mark only: '+
-        (priorStartShort>0.009?('poison start residue <b class="money">'+money(priorStartShort)+'</b>'+(monthShort>0.009?' + ':'')):'')+
-        (monthShort>0.009?('this month outs over available <b class="money">'+money(monthShort)+'</b>'):'')+
-        (priorStartShort<0.009&&monthShort<0.009?('books balance <b class="money">'+money(booksBalance)+'</b>'):'')+
-        '. '+
-        (shortCrewAmt>0.009
-          ?('Crew marked from petty: <b class="money">'+money(shortCrewAmt)+'</b> — use <b>Prior / not this pot</b> if cash did not leave the envelope. ')
+        'Physical on board stays <b class="money">'+money(pettyCash)+'</b>. '+
+        'Equation: physical start <b class="money">'+money(S.physicalStart!=null?S.physicalStart:0)+'</b>'+
+        ' + cash in <b class="money">'+money(cashInTotal)+'</b>'+
+        ' − cash out <b class="money">'+money(cashOut)+'</b>'+
+        ' → books <b class="money">'+(booksBalance<-0.009?"−"+money(Math.abs(booksBalance)):money(booksBalance))+'</b>.'+
+        (apaNum(pettyStart)<-0.009
+          ?(' Stored start field is still <b class="money">−'+money(Math.abs(pettyStart))+'</b> (poison — not notes).')
           :'')+
-        'Cash out list below is what the model counts.'+
+      '</div>';
+    if(shortLines.length){
+      h+='<div style="margin-top:12px;padding-top:10px;border-top:1px solid var(--line)">'+
+        '<div style="font-weight:800;font-size:13px;margin-bottom:8px">Where the short comes from</div>';
+      shortLines.forEach(function(row){
+        if(!row||!(apaNum(row.amount)>0.009)) return;
+        var kindLab=row.kind==="prior-start"?"Poison start"
+          :(row.kind==="crew"?"Crew · petty"
+          :(row.kind==="reimburse"?"Repay":"Expense"));
+        var kindPill=row.kind==="prior-start"?"p-red"
+          :(row.kind==="crew"?"p-amber":"p-cash");
+        var dStr=row.date?String(row.date).slice(0,10):"";
+        var dLab="";
+        try{ dLab=dStr&&/^\d{4}-\d{2}-\d{2}$/.test(dStr)?fmtDate(dStr):dStr; }catch(eD){ dLab=dStr; }
+        var detail="";
+        if(row.kind!=="prior-start"&&row.fullAmount!=null&&apaNum(row.fullAmount)>apaNum(row.amount)+0.009){
+          detail=' <span class="meta">(line '+money(row.fullAmount)+' · only '+money(row.covered||0)+' was in the envelope)</span>';
+        }
+        h+='<div style="display:flex;justify-content:space-between;align-items:flex-start;gap:10px;margin-top:8px'+(row.id?';cursor:pointer':'')+'"'+(row.id?' data-exp-id="'+esc(row.id)+'" role="button" tabindex="0"':'')+'>'+
+          '<div style="min-width:0">'+
+            '<div style="font-weight:700">'+esc(row.label||kindLab)+'</div>'+
+            '<div class="meta" style="margin-top:4px">'+
+              '<span class="pill '+kindPill+'">'+esc(kindLab)+'</span>'+
+              (dLab?'<span>📅 '+esc(dLab)+'</span>':'')+
+              detail+
+            '</div>'+
+          '</div>'+
+          '<b class="money" style="color:var(--danger);flex-shrink:0">−'+money0(row.amount)+'</b>'+
+        '</div>';
+      });
+      h+='<div class="meta" style="margin-top:10px;line-height:1.4">'+
+        'Tap a crew/expense line to open it. If cash never left the envelope, mark that day pay <b>Prior / not this pot</b> (clears floatPay). '+
+        'Poison start clears when you open Expenses (heal) or set start to physical €0 and Save start.'+
       '</div></div>';
+    }
+    h+='</div>';
   }
   /* Owed list: people still unpaid — separate from petty on board */
   if(owedPeople.length){
