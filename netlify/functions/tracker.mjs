@@ -250,7 +250,7 @@ function sheetJoelApaTrip() {
 /**
  * One-time install of the real spreadsheet APA trip (+ matching lead)
  * as the first live records. Does not overwrite if the trip already exists.
- * Charges for APA only appear when balance is negative (see ensureApaChargesLinked).
+ * Charges are created only by the client when the captain saves an APA.
  */
 function ensureSheetApaSeed(data) {
   if (!data.meta || typeof data.meta !== "object") data.meta = {};
@@ -488,194 +488,14 @@ function purgeLeadFreeCashCharges(data) {
 }
 
 /**
- * Pending shortfall charge when still overspent after paid charges.
- * Never deletes Paid charges (they restore APA balance).
+ * LEGACY (prototype): auto-created/rewrote APA shortfall charges on every
+ * load/save. That undid captain deletes and rewrote notes/amounts.
+ *
+ * Production rule: charges are written only by explicit client actions
+ * (save APA, edit/delete charge). Server stores what the client sent.
  */
-function ensureApaChargesLinked(data) {
-  if (!Array.isArray(data.apa)) return false;
-  if (!Array.isArray(data.charters)) data.charters = [];
-  let dirty = false;
-
-  /* Free cash is lead-only: strip −cash shells (e.g. Michael −€1800 with €0 APA) */
-  const keepApa = [];
-  for (const t of data.apa) {
-    if (!t) continue;
-    if (apaTripLooksLikeLeadCashShell(t)) {
-      if (stripLeadCashFromApaTrip(t)) dirty = true;
-      if (apaTripIsEmptyShell(t)) {
-        const drop = new Set(
-          tripLinkedCharges(data, t)
-            .filter((c) => !chargeIsPaid(c))
-            .map((c) => c.id)
-        );
-        if (drop.size) {
-          data.charters = data.charters.filter((c) => c && !drop.has(c.id));
-          dirty = true;
-        }
-        dirty = true;
-        continue; /* drop empty cash shell */
-      }
-    }
-    keepApa.push(t);
-  }
-  if (keepApa.length !== data.apa.length) {
-    data.apa = keepApa;
-    dirty = true;
-  }
-  if (purgeLeadFreeCashCharges(data)) dirty = true;
-
-  for (const t of data.apa) {
-    if (!t || !String(t.guest || "").trim()) continue;
-    if (syncCashReceivedFromCharges(data, t)) dirty = true;
-    const over = tripApaOverage(data, t);
-    const linked = tripLinkedCharges(data, t);
-    const pending = linked.filter((c) => !chargeIsPaid(c));
-    const paid = linked.filter((c) => chargeIsPaid(c));
-
-    if (over <= 0) {
-      if (pending.length) {
-        const drop = new Set(pending.map((c) => c.id));
-        data.charters = data.charters.filter((c) => c && !drop.has(c.id));
-        t.chargeId = paid[0] ? paid[0].id : "";
-        dirty = true;
-      }
-      continue;
-    }
-
-    let ch = pending[0] || null;
-    if (t.chargeId) {
-      const byId = pending.find((c) => c.id === t.chargeId);
-      if (byId) ch = byId;
-    }
-    /* Preserve same-bill extension (extAmt) so invoice can match card + APA spend */
-    const extAmt = Math.max(0, Math.round((Number(ch && ch.extAmt) || 0) * 100) / 100);
-    const extSettle =
-      ch && String(ch.extSettle || "").toLowerCase() === "cash" ? "cash" : "invoice";
-    const apaBase = over;
-    const total = Math.round((apaBase + extAmt) * 100) / 100;
-    let billType = "invoice";
-    let cashPaid = 0;
-    if (extAmt > 0 && extSettle === "cash") {
-      billType = apaBase > 0.009 ? "mix" : "cash";
-      cashPaid = extAmt;
-    }
-    const invPart = billType === "cash" ? 0 : Math.round((total - cashPaid) * 100) / 100;
-    const pct = billType === "cash" ? 0 : 21;
-    let net = 0;
-    let vat = 0;
-    let vatMode = billType === "cash" ? "none" : "include";
-    if (billType === "cash") {
-      net = total;
-      vat = 0;
-    } else if (billType === "mix") {
-      const invNet = invPart > 0 ? invPart / 1.21 : 0;
-      net = Math.round((cashPaid + invNet) * 100) / 100;
-      vat = Math.round((invPart - invNet) * 100) / 100;
-    } else {
-      net = total > 0 ? Math.round((total / 1.21) * 100) / 100 : 0;
-      vat = Math.round((total - net) * 100) / 100;
-    }
-    let note =
-      (t.dates ? "APA · " + t.dates + ". " : "") +
-      "APA shortfall (balance negative) — synced from APA ledger";
-    if (extAmt > 0) {
-      note +=
-        " · +" +
-        extAmt.toFixed(2) +
-        " ext (" +
-        (extSettle === "cash" ? "cash" : "on invoice") +
-        ")";
-    }
-
-    if (ch) {
-      if (t.chargeId !== ch.id) {
-        t.chargeId = ch.id;
-        dirty = true;
-      }
-      if (String(ch.apaTripId || "") !== String(t.id)) {
-        ch.apaTripId = t.id;
-        dirty = true;
-      }
-      /* Never rewrite Issued / Paid amounts (stops €3k → €33 clobber) */
-      if (chargeIsLockedMoney(ch)) {
-        if (!ch.notes || /^APA/i.test(ch.notes) || /synced from APA|shortfall/i.test(ch.notes)) {
-          ch.notes = note;
-          dirty = true;
-        }
-        continue;
-      }
-      const wantAmt = total;
-      if (
-        Math.abs((Number(ch.amount) || 0) - wantAmt) > 0.005 ||
-        ch.kind !== "apa" ||
-        Math.abs((Number(ch.apaBaseAmt) || 0) - apaBase) > 0.005
-      ) {
-        ch.client = t.guest;
-        ch.amount = wantAmt;
-        ch.apaBaseAmt = apaBase;
-        ch.extAmt = extAmt;
-        ch.extSettle = extAmt > 0 ? extSettle : "invoice";
-        ch.net = net;
-        ch.vat = vat;
-        ch.vatPct = pct;
-        ch.vatMode = vatMode;
-        ch.billType = billType;
-        ch.cashPaid = cashPaid;
-        ch.cashAmt = cashPaid > 0 ? cashPaid : 0;
-        ch.cashDeal = billType === "cash" || billType === "mix";
-        ch.kind = "apa";
-        ch.apaTripId = t.id;
-        if (billType === "cash") ch.payMethod = "Cash";
-        else if (billType === "mix") ch.payMethod = "Split";
-        else if (!ch.payMethod || ch.payMethod === "Cash" || ch.payMethod === "Split")
-          ch.payMethod = "Card";
-        if (ch.payStatus !== "Paid") ch.payStatus = "Pending";
-        if (ch.invStatus !== "Issued") {
-          ch.invStatus = billType === "cash" ? "Not needed" : "Not issued";
-          ch.status = ch.payStatus || "Pending";
-        }
-        if (!ch.notes || /^APA/i.test(ch.notes) || /synced from APA|shortfall|pot \(sent|Cash \(black\)|\+\s*[\d.]+ ext|not the full charter/i.test(ch.notes)) {
-          ch.notes = note;
-        }
-        dirty = true;
-      }
-      continue;
-    }
-
-    const id = t.id === SHEET_TRIP_ID ? SHEET_CHARGE_ID : "charge-apa-" + t.id;
-    /* Avoid clobbering an existing paid row with same id */
-    const idFree = !data.charters.some((c) => c && c.id === id);
-    ch = {
-      id: idFree ? id : "charge-apa-" + t.id + "-" + Date.now().toString(36),
-      kind: "apa",
-      apaTripId: t.id,
-      apaBaseAmt: apaBase,
-      extAmt: 0,
-      extSettle: "invoice",
-      cashDeal: false,
-      cashAmt: 0,
-      cashPaid: 0,
-      billType: "invoice",
-      date: t.id === SHEET_TRIP_ID ? "2026-07-17" : new Date().toISOString().slice(0, 10),
-      client: t.guest,
-      amount: total,
-      net,
-      vat,
-      vatPct: pct,
-      vatMode,
-      payStatus: "Pending",
-      payMethod: "Card",
-      invStatus: "Not issued",
-      status: "Pending",
-      inv: "",
-      notes: note,
-      by: t.by || "Captain",
-    };
-    data.charters.unshift(ch);
-    t.chargeId = ch.id;
-    dirty = true;
-  }
-  return dirty;
+function ensureApaChargesLinked(_data) {
+  return false;
 }
 
 async function loadData(store) {
@@ -2154,13 +1974,9 @@ export default async (req, context) => {
       addLog("login");
       dirty = true;
     }
-    /* Install real spreadsheet APA as first live records (once); link missing APA charges */
+    /* One-time Joel seed only — never auto-create/rewrite charges on load */
     if (ensureSheetApaSeed(data)) {
       addLog("seed sheet APA (Joel Freeland)");
-      dirty = true;
-    }
-    if (ensureApaChargesLinked(data)) {
-      addLog("link APA charges");
       dirty = true;
     }
     if (dirty) await saveData(store, data);
@@ -2334,10 +2150,7 @@ export default async (req, context) => {
     if (coll === "stews" || coll === "stewAssign") {
       syncStewLoginNamesMeta(data);
     }
-    /* Charters Paid/Pending → re-link APA shortfall + book cash (black) as received */
-    if (coll === "charters" || coll === "apa") {
-      if (ensureApaChargesLinked(data)) addLog("sync APA after " + coll);
-    }
+    /* Production: do not auto-link/rewrite APA charges after save — client is SOT */
     touchDevice();
     addLog(
       "save " +
