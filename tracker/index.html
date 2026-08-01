@@ -13747,7 +13747,7 @@ function paintStewCharters(){
       '<div class="meta"><span>📅 '+esc(fmtCalEventWhen(ev))+'</span>'+
         stewDurationPillHTML(ev, asg)+
         (showMoney&&rate>0&&!isCanc?'<span class="money">'+money0(rate)+' × '+units+'</span>':'')+
-        (showMoney&&!isCanc?stewTipStatusPill(pay):'')+
+        (showMoney&&!isCanc?stewTipStatusPill(pay, asg):'')+
         (ev.leadSource==="pending"||ev.status==="tentative"?'<span class="pill p-amber">Pending source</span>':'')+
         (isCanc?'<span class="pill p-red">Cancelled</span>':'')+
         (past&&!isCanc?'<span class="pill p-grey">Past</span>':'')+
