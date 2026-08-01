@@ -887,6 +887,207 @@ console.log("\n[Diesel — bunker buy + sticky active sell]");
   ok("next bunker source bunker", s.sellSource === "bunker");
 }
 
+/* ---- Pocket liabilities / own-money repay (Keepafloat foundation) ---- */
+console.log("\n[Pocket — own-money repay + open liabilities]");
+{
+  const CAP = M.EXP_POCKET_CAPTAIN || "captain";
+  const rebecca = {
+    id: "exp-rebecca-261",
+    date: "2026-07-15",
+    vendor: "Rebecca",
+    amount: 261,
+    source: "stew",
+    stewPayKind: "dayPay",
+    stewId: "s-reb",
+    stewEventKey: "uid:reb",
+    crewPayStatus: "Paid",
+    paidFrom: "Own money",
+    paidById: CAP,
+    floatPay: false,
+  };
+  const shop = {
+    id: "exp-shop-80",
+    date: "2026-07-10",
+    vendor: "Eroski",
+    amount: 80,
+    category: "Provisions",
+    payMethod: "Cash",
+    paidFrom: "Own money",
+    paidById: CAP,
+  };
+  ok("Rebecca day pay is own-money spend", M.isOwnMoneySpend(rebecca));
+  ok("shop is own-money spend", M.isOwnMoneySpend(shop));
+  ok("who is captain", M.ownMoneySpendWhoId(rebecca) === CAP);
+  ok("unrepaid = 0", M.ownMoneyRepaidAmt(rebecca, [rebecca, shop]) === 0);
+  ok("not repaid yet", !M.ownMoneyIsRepaid(rebecca, [rebecca, shop]));
+
+  /* Linked repay in later month */
+  const reimbLinked = {
+    id: "reimb-1",
+    date: "2026-08-02",
+    amount: 261,
+    category: "Captain reimbursement",
+    reimburseCaptain: true,
+    reimburseToId: CAP,
+    reimbursesExpenseId: "exp-rebecca-261",
+    paidFrom: "Petty cash",
+    payMethod: "Cash",
+  };
+  const ledger1 = [rebecca, shop, reimbLinked];
+  ok("linked repay covers 261", near(M.ownMoneyRepaidAmt(rebecca, ledger1), 261));
+  ok("Rebecca fully repaid via link", M.ownMoneyIsRepaid(rebecca, ledger1));
+  ok("shop still open", !M.ownMoneyIsRepaid(shop, ledger1));
+  const openAug = M.collectOpenPocketOuts(ledger1, "2026-08", {
+    personName: function () {
+      return "Captain";
+    },
+  });
+  ok("open pocket drops Rebecca after link", openAug.every(function (r) {
+    return r.id !== "exp-rebecca-261";
+  }));
+  ok("open pocket still has shop 80", openAug.some(function (r) {
+    return r.id === "exp-shop-80" && near(r.amount, 80);
+  }));
+
+  /* Unlinked FIFO: bulk repay captain covers oldest first */
+  const reimbFifo = {
+    id: "reimb-fifo",
+    date: "2026-08-05",
+    amount: 80,
+    category: "Captain reimbursement",
+    reimburseCaptain: true,
+    reimburseToId: CAP,
+    paidFrom: "Petty cash",
+    payMethod: "Cash",
+  };
+  const ledger2 = [shop, rebecca, reimbFifo]; /* shop 10 Jul, Rebecca 15 Jul — shop first */
+  ok("FIFO covers shop first", M.ownMoneyIsRepaid(shop, ledger2));
+  ok("FIFO does not cover Rebecca with only 80", !M.ownMoneyIsRepaid(rebecca, ledger2));
+  ok("FIFO partial for shop amount", near(M.ownMoneyRepaidAmt(shop, ledger2), 80));
+
+  /* Settled day-pay sets */
+  const paidExp = {
+    id: "pd1",
+    source: "stew",
+    stewPayKind: "dayPay",
+    stewId: "s1",
+    stewEventKey: "uid:a",
+    date: "2026-07-20",
+    crewPayStatus: "Paid",
+    amount: 200,
+    paidFrom: "Petty cash",
+    floatPay: true,
+    linkId: "stew-day:uid:a:s1",
+  };
+  const settled = M.buildCrewDayPaySettledSets([paidExp]);
+  ok("settled by event|stew", !!settled.byEventStew["uid:a|s1"]);
+  ok("settled by finger", !!settled.byFinger["s1|2026-07-20"]);
+  const asgOpen = {
+    eventKey: "uid:b",
+    start: "2026-07-21",
+    stewIds: ["s1"],
+    payStatus: "Unpaid",
+    payEach: 200,
+    summary: "Charter B",
+  };
+  const asgSettled = {
+    eventKey: "uid:a",
+    start: "2026-07-20",
+    stewIds: ["s1"],
+    payStatus: "Unpaid",
+    payEach: 200,
+  };
+  ok(
+    "expense Paid settles assign",
+    M.isCrewDayPaySettled(asgSettled, "s1", settled)
+  );
+  ok(
+    "other charter not settled",
+    !M.isCrewDayPaySettled(asgOpen, "s1", settled)
+  );
+  const openDay = M.collectOpenCrewDayPay([asgOpen, asgSettled], [paidExp], {
+    focusMonth: "2026-07",
+    today: "2026-07-31",
+    dayPayAmt: function (a) {
+      return Number(a.payEach) || 0;
+    },
+    personName: function () {
+      return "Toni";
+    },
+  });
+  ok("open day pay only unpaid charter", openDay.length === 1, "got " + openDay.length);
+  ok("open day pay is Charter B", openDay[0] && openDay[0].eventKey === "uid:b");
+
+  /* Settlement DTO */
+  const sett = M.summarizeMonthSettlement({
+    expenses: [
+      {
+        id: "crew-own",
+        date: "2026-07-15",
+        vendor: "Rebecca",
+        amount: 261,
+        source: "stew",
+        stewPayKind: "dayPay",
+        stewId: "s-reb",
+        crewPayStatus: "Paid",
+        paidFrom: "Own money",
+        paidById: CAP,
+        floatPay: false,
+      },
+      {
+        id: "petty-shop",
+        date: "2026-07-16",
+        vendor: "Fuel dock",
+        amount: 50,
+        category: "Fuel",
+        payMethod: "Cash",
+        paidFrom: "Petty cash",
+      },
+    ],
+    allExpenses: [
+      {
+        id: "crew-own",
+        date: "2026-07-15",
+        vendor: "Rebecca",
+        amount: 261,
+        source: "stew",
+        stewPayKind: "dayPay",
+        stewId: "s-reb",
+        crewPayStatus: "Paid",
+        paidFrom: "Own money",
+        paidById: CAP,
+      },
+      {
+        id: "reimb-aug",
+        date: "2026-08-01",
+        amount: 261,
+        category: "Captain reimbursement",
+        reimburseCaptain: true,
+        reimburseToId: CAP,
+        reimbursesExpenseId: "crew-own",
+        paidFrom: "Petty cash",
+        payMethod: "Cash",
+      },
+    ],
+    pettyStart: 500,
+    cashIns: [{ amount: 0 }],
+    openDayPay: [],
+    openTips: [],
+    personName: function () {
+      return "Captain";
+    },
+  });
+  ok("settlement petty out 50 only (own money not float)", near(sett.cashOut, 50));
+  ok("settlement own money exp 261", near(sett.ownMoneyExp, 261));
+  ok(
+    "settlement pocket line repaid via later month",
+    sett.pocketOutLines.some(function (p) {
+      return p.id === "crew-own" && p.repaid === true;
+    })
+  );
+  ok("settlement physical onboard 450", near(sett.pettyOnboard, 450));
+}
+
 /* ---- Stew roster status (assigned = resolvable crew) ---- */
 console.log("\n[Stew roster — assigned / unassigned / cancelled]");
 {
