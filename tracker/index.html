@@ -8406,9 +8406,74 @@ function expPettyFor(month){
   month=month||expMonth;
   return (state.expPetty||[]).filter(function(p){return p&&p.month===month;})[0]||null;
 }
+/** Previous calendar month key (YYYY-MM). */
+function expPrevMonthKey(month){
+  var m=String(month||"").slice(0,7);
+  if(!/^\d{4}-\d{2}$/.test(m)) return "";
+  var y=Number(m.slice(0,4)), mo=Number(m.slice(5,7));
+  mo-=1;
+  if(mo<1){ mo=12; y-=1; }
+  return y+"-"+String(mo).padStart(2,"0");
+}
+/**
+ * Closing petty cash for a month (start + cash in − cash out).
+ * Does not create rows. Walks prior months when start was never set so carry chains work.
+ * Returns null only when this month and all priors in range have no petty/expense activity.
+ */
+function expPettyClosingBalance(month, depth){
+  depth=depth||0;
+  if(!month||depth>36) return null;
+  var p=expPettyFor(month);
+  var lines=expLinesForMonth(month);
+  var hasActivity=!!(p||(lines&&lines.length));
+  var start=0;
+  var startKnown=false;
+  if(p){
+    if(p.startMode==="manual"||p.startManual===true||p.startMode==="carry"){
+      start=apaNum(p.pettyStart);
+      startKnown=true;
+    } else if(Math.abs(apaNum(p.pettyStart))>0.009){
+      start=apaNum(p.pettyStart);
+      startKnown=true;
+    }
+  }
+  if(!startKnown){
+    var prevClose=expPettyClosingBalance(expPrevMonthKey(month), depth+1);
+    if(prevClose!=null){ start=prevClose; startKnown=true; }
+    else if(!hasActivity) return null;
+  }
+  var cashIns=p?expCashInLines(p):[];
+  var pettySum=null;
+  try{
+    if(LY_MODELS&&LY_MODELS.summarizePettyCash){
+      pettySum=LY_MODELS.summarizePettyCash({
+        pettyStart:start,
+        cashIns:cashIns,
+        expenses:lines||[]
+      });
+    }
+  }catch(eC){ pettySum=null; }
+  if(pettySum&&pettySum.pettyCash!=null&&!isNaN(Number(pettySum.pettyCash))){
+    return Math.round(Number(pettySum.pettyCash)*100)/100;
+  }
+  var cashInTotal=expCashInSum({cashIns:cashIns});
+  var cashOut=0;
+  (lines||[]).forEach(function(e){
+    if(!e) return;
+    try{ if(expCountsAsPettyOut(e)) cashOut+=apaNum(e.amount); }catch(eO){}
+  });
+  return Math.round((start+cashInTotal-cashOut)*100)/100;
+}
+/**
+ * Ensure a petty row for the month. New / auto months take start from previous
+ * month’s closing balance (positive or negative). Manual “Save start” locks the value.
+ */
 function expEnsurePetty(month){
   if(!state.expPetty) state.expPetty=[];
+  month=month||expDefaultMonth();
   var p=expPettyFor(month);
+  var prev=expPrevMonthKey(month);
+  var carried=prev?expPettyClosingBalance(prev):null;
   if(p){
     if(!Array.isArray(p.cashIns)) p.cashIns=[];
     /* One-time: old single "pettyIn" total → a cash-in line so history is not lost */
@@ -8419,10 +8484,53 @@ function expEnsurePetty(month){
       });
       p.pettyIn=0;
     }
+    /*
+     * Refresh auto-carry only when this month is still in carry mode.
+     * Never overwrite a manual start or a legacy month that already has lines
+     * (those stay at whatever start was stored — usually locked as manual).
+     */
+    if(p.startMode==="carry"){
+      if(carried!=null){
+        var next=Math.round(Number(carried)*100)/100;
+        if(apaNum(p.pettyStart)!==next||p.carriedFrom!==prev){
+          p.pettyStart=next;
+          p.carriedFrom=prev;
+          p.updatedAt=new Date().toISOString();
+          try{ if(isCaptain()&&!DEMO) saveExpPetty(); }catch(eSave){}
+        }
+      }
+    } else if(p.startMode!=="manual"&&p.startManual!==true){
+      var hasLines=(expLinesForMonth(month)||[]).length>0;
+      var hasIns=(p.cashIns||[]).length>0;
+      if(!hasLines&&!hasIns&&Math.abs(apaNum(p.pettyStart))<0.009&&carried!=null){
+        /* Empty shell for a new month → adopt prior close */
+        p.pettyStart=Math.round(Number(carried)*100)/100;
+        p.startMode="carry";
+        p.carriedFrom=prev;
+        p.updatedAt=new Date().toISOString();
+        try{ if(isCaptain()&&!DEMO) saveExpPetty(); }catch(eSave3){}
+      } else if(Math.abs(apaNum(p.pettyStart))>0.009||hasLines||hasIns){
+        p.startMode="manual"; /* legacy row with real activity — do not auto-rewrite */
+      } else if(!p.startMode){
+        p.startMode="none";
+      }
+    }
     return p;
   }
-  p={month:month, pettyStart:0, pettyIn:0, cashIns:[], updatedAt:new Date().toISOString()};
+  var start0=carried!=null?Math.round(Number(carried)*100)/100:0;
+  p={
+    month:month,
+    pettyStart:start0,
+    startMode:carried!=null?"carry":"none",
+    carriedFrom:carried!=null?prev:"",
+    pettyIn:0,
+    cashIns:[],
+    updatedAt:new Date().toISOString()
+  };
   state.expPetty.push(p);
+  if(carried!=null){
+    try{ if(isCaptain()&&!DEMO) saveExpPetty(); }catch(eSave2){}
+  }
   return p;
 }
 function expCashInLines(petty){
@@ -9055,7 +9163,12 @@ function expSettlementFigures(month){
   otherCash=Math.round(otherCash*100)/100;
   reimburseCap=Math.round(reimburseCap*100)/100;
   ownMoneyExp=Math.round(ownMoneyExp*100)/100;
-  var pettyEntered=pettyStart>0||cashInTotal>0;
+  /* Entered when start was set (manual or carried, including €0 / negative) or cash came in */
+  var pettyEntered=
+    (petty.startMode&&petty.startMode!=="none")||
+    petty.startManual===true||
+    Math.abs(pettyStart)>0.009||
+    cashInTotal>0.009;
   var pettyOnboard=pettyCash;
   var cashShort=0;
   if(pettyEntered&&pettyCash<0) cashShort=Math.round((-pettyCash)*100)/100;
@@ -9939,9 +10052,23 @@ function paintExpensesBody(){
     '<div class="sumcard'+(booksBehind?' sum-warn':'')+'"><div class="l">Float books</div><div class="v money">'+(pettyEntered?money(floatAfterPays):'—')+'</div></div>'+
   '</div>';
   /* Cash in */
+  var startFieldVal=(petty.startMode&&petty.startMode!=="none")||Math.abs(pettyStart)>0.009||petty.startManual===true
+    ?pettyStart
+    :"";
+  var startHint="";
+  if(petty.startMode==="carry"&&petty.carriedFrom){
+    startHint='<div class="meta" style="margin:6px 0 0;line-height:1.45">Start <b>carried from '+esc(petty.carriedFrom)+'</b> close ('+
+      (pettyStart<0?"−":"")+money(Math.abs(pettyStart))+
+      '). Updates if that month changes. Tap <b>Save start</b> to lock a manual figure.</div>';
+  } else if(petty.startMode==="manual"||petty.startManual===true){
+    startHint='<div class="meta" style="margin:6px 0 0">Start is <b>manual</b> (not auto-carried).</div>';
+  } else {
+    startHint='<div class="meta" style="margin:6px 0 0">Set start, or it will take last month’s closing petty (even if negative) once prior data exists.</div>';
+  }
   h+='<div class="apa-card" style="margin-bottom:12px">'+
     '<div style="font-weight:800;margin-bottom:8px">Cash in · '+esc(expMonth)+'</div>'+
-    fieldHTML("Start on board (€)",moneyField("exp_petty_start", pettyStart||""))+
+    fieldHTML("Start on board (€)",moneyField("exp_petty_start", startFieldVal))+
+    startHint+
     '<button type="button" class="btn ghost" id="expPettySave" style="width:auto;margin-top:4px;padding:10px 14px">Save start</button>'+
     '<div class="apa-sect-h" style="margin:14px 0 8px"><h3 style="font-size:13px">Lines</h3>'+
       '<button type="button" class="btn" id="expCashInAdd" style="width:auto;padding:8px 12px;font-size:13px">Add cash in</button></div>'+
@@ -10229,6 +10356,9 @@ function paintExpensesBody(){
     var p=expEnsurePetty(expMonth);
     p.pettyStart=apaNum(el("exp_petty_start")&&el("exp_petty_start").value);
     p.pettyIn=0; /* total now derived from cashIns */
+    p.startMode="manual";
+    p.startManual=true;
+    p.carriedFrom="";
     p.updatedAt=new Date().toISOString();
     saveExpPetty();
     renderExpenses();
