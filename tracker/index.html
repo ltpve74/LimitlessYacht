@@ -9682,11 +9682,18 @@ function syncStewDayPayExpenses(asg, opts){
     else if(old&&old.paidFrom==="Petty cash") paidFrom="Petty cash";
     if(markFloat&&asg._floatPayFrom==="Own money") paidFrom="Own money";
     else if(markFloat&&asg._floatPayFrom==="Petty cash") paidFrom="Petty cash";
+    /*
+     * floatPay ONLY when:
+     *  - this save explicitly marks Paid from petty (_floatPayMark), or
+     *  - the previous expense line already had floatPay true.
+     * Never invent from paidFrom/isPaid alone (re-save of Paid assign made petty −€250).
+     */
     var floatPay=false;
     if(crewPayStatus==="Paid"&&paidFrom!=="Own money"){
       if(markFloat) floatPay=true;
       else if(old&&old.floatPay===true) floatPay=true;
-      else if(paidFrom==="Petty cash"&&isPaid) floatPay=true;
+    } else if(crewPayStatus==="Paid"&&paidFrom==="Own money"){
+      floatPay=false;
     }
     state.expenses.unshift({
       id:(old&&old.id)||uid(),
@@ -9793,45 +9800,68 @@ function stewDisplayName(tok, rec){
   return t.charAt(0).toUpperCase()+t.slice(1);
 }
 /**
- * NEVER bulk-clear floatPay. NEVER invent floatPay from stew assign
- * payStatusManual alone — captain saves always set that flag, so inventing
- * cash-out on every login made petty jump (e.g. €0 → −€1,250).
+ * floatPay = cash left the boat envelope for crew day-pay.
+ * Set only when captain explicitly marks Paid from Petty cash.
+ * NEVER invent from paidFrom/Paid alone (re-saves made petty jump 0 → −€250).
  *
- * floatPay means cash left the boat envelope. Set only when captain explicitly
- * marks Paid from Petty cash (Expenses or Stews pay flow with _floatPayMark).
- *
- * One-shot repair (once per browser): restore floatPay only on expense lines that
- * themselves have payStatusManual + Paid + Petty and still show floatPay false
- * (true wipe victims). Does not use stewAssign.payStatusManual.
+ * Repair v4: when a month has empty envelope (start+cash-in ≈ 0) but crew
+ * floatPay lines still subtract cash, clear those floatPay flags (impossible
+ * cash-out from an empty pot — treat as prior / books only).
  */
-function expRestoreCrewFloatPayAfterWipe(){
+function expRepairImpossibleCrewFloatOnEmptyEnvelope(){
   if(!isCaptain()||!state.expenses) return false;
   try{
-    if(localStorage.getItem("ly_exp_floatpay_restore_v3")==="1") return false;
+    if(localStorage.getItem("ly_exp_floatpay_repair_v4")==="1") return false;
   }catch(eLs){}
-  var dirty=false;
-  state.expenses.forEach(function(e){
-    if(!e||!expIsCrewDayPayLine(e)) return;
-    if(e.crewPayStatus!=="Paid") return;
-    if(e.payMethod==="Credit Card") return;
-    if(e.paidFrom==="Own money"||expIsOwnMoneyLabel(e.paidFrom)) return;
-    if(e.floatPay===true) return;
-    /* Expense-level manual mark only — never invent from assign.payStatusManual */
-    if(!e.payStatusManual) return;
-    var d=String(e.date||"").slice(0,10);
-    if(d&&d<STEW_PAID_BEFORE) return;
-    e.floatPay=true;
-    if(!e.paidFrom) e.paidFrom="Petty cash";
-    e.updatedAt=new Date().toISOString();
-    dirty=true;
+  var months={};
+  (state.expenses||[]).forEach(function(e){
+    var m=expMonthKey(e&&e.date);
+    if(m) months[m]=1;
   });
-  try{ localStorage.setItem("ly_exp_floatpay_restore_v3","1"); }catch(eLs2){}
+  (state.expPetty||[]).forEach(function(p){
+    if(p&&p.month) months[String(p.month).slice(0,7)]=1;
+  });
+  var dirty=false;
+  Object.keys(months).forEach(function(month){
+    var p=expPettyFor(month);
+    var start=0;
+    if(p){
+      if(p.startMode==="manual"||p.startManual===true||p.startMode==="carry"||Math.abs(apaNum(p.pettyStart))>0.009){
+        start=apaNum(p.pettyStart);
+      }
+    }
+    var cashIn=expCashInSum(p||{cashIns:[]});
+    var envelope=Math.round((start+cashIn)*100)/100;
+    if(envelope>0.009) return; /* pot had money — floatPay may be real */
+    var lines=expLinesForMonth(month)||[];
+    var crewFloat=0;
+    var crewLines=[];
+    lines.forEach(function(e){
+      if(!e||!expIsCrewDayPayLine(e)) return;
+      if(e.crewPayStatus!=="Paid") return;
+      if(e.floatPay!==true) return;
+      if(e.paidFrom==="Own money"||expIsOwnMoneyLabel(e.paidFrom)) return;
+      crewFloat+=apaNum(e.amount);
+      crewLines.push(e);
+    });
+    if(!(crewFloat>0.009)) return;
+    /* Empty envelope + crew “cash out” → clear invented floatPay (prior books) */
+    crewLines.forEach(function(e){
+      e.floatPay=false;
+      e.updatedAt=new Date().toISOString();
+      dirty=true;
+    });
+  });
+  try{ localStorage.setItem("ly_exp_floatpay_repair_v4","1"); }catch(eLs2){}
   if(dirty&&!DEMO) saveExpenses();
   return dirty;
 }
-/** @deprecated name — was a destructive wipe; now restores intentional pays. */
+/** @deprecated name — kept for call sites; runs empty-envelope floatPay repair. */
+function expRestoreCrewFloatPayAfterWipe(){
+  return expRepairImpossibleCrewFloatOnEmptyEnvelope();
+}
 function expResetInventedCrewFloatPay(){
-  return expRestoreCrewFloatPayAfterWipe();
+  return expRepairImpossibleCrewFloatOnEmptyEnvelope();
 }
 /**
  * Drop ghost stew day-pay expense lines after reassign / key renames:
@@ -10300,6 +10330,8 @@ function renderExpenses(){
    * Paint expenses from blob only. Do NOT auto-reassign stews from calendar titles
    * or seed day-pay lines on every Expenses open (that undid captain unassigns).
    */
+  try{ expRepairImpossibleCrewFloatOnEmptyEnvelope(); }catch(eRep){}
+  try{ expCollapseCrewDayPayDuplicates(); }catch(eCol){}
   paintExpensesBody();
 }
 function paintExpensesBody(){
@@ -13641,8 +13673,13 @@ function openStewAssign(eventKey){
       zeroPay=markCancelled&&!!(el("f_stew_zero_pay")&&el("f_stew_zero_pay").checked);
       if(zeroPay){ each=0; rate=rate===""?"":0; nowPaid=false; dayPayByStew={}; }
       linkedLeadId=(el("f_stew_leadId")&&el("f_stew_leadId").value)||"";
-      /* Paid from petty when captain chooses Petty cash (not own money) */
-      payFromPetty=nowPaid&&!zeroPay&&paidFromSel!=="Own money";
+      /*
+       * Only flag cash-out when newly marking Paid from petty, or switching
+       * Own money → Petty. Re-saving an already-Paid charter must not invent floatPay.
+       */
+      var wasPaidBefore=asg.payStatus==="Paid";
+      var wasFromOwn=asg.paidFrom==="Own money";
+      payFromPetty=nowPaid&&!zeroPay&&paidFromSel==="Petty cash"&&(!wasPaidBefore||wasFromOwn);
     } else {
       /* Team: only change who is on the charter + notes — keep captain pay fields */
       rate=asg.dayRate!=null&&asg.dayRate!==""?asg.dayRate:ratePrefill;
