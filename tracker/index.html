@@ -11116,24 +11116,22 @@ function paintExpensesBody(){
     '<button type="button" class="btn ghost" id="expPettySave" style="width:auto;margin-top:4px;padding:10px 14px">Save start</button>'+
     '<div class="apa-sect-h" style="margin:14px 0 8px"><h3 style="font-size:13px">Lines</h3>'+
       '<button type="button" class="btn" id="expCashInAdd" style="width:auto;padding:8px 12px;font-size:13px">Add cash in</button></div>'+
-    '<p class="meta" style="margin:0 0 8px">Lead free cash, charge cash, top-ups. <b>Tips are not cash in</b> — track tips on Stews only.</p>';
+    '<p class="meta" style="margin:0 0 8px"><b>Charter fee (cash)</b> = split free cash from the deal. <b>End of charter</b> = APA shortfall / extra hours / settlement cash from Charges. Top-ups are your own money. Tips are not cash in.</p>';
   if(!cashIns.length){
     h+='<div class="meta" style="margin-bottom:8px">No cash-in lines yet.</div>';
   } else {
     h+='<div class="list" style="margin-bottom:8px">';
     cashIns.slice().sort(function(a,b){ return String(b.date||"").localeCompare(String(a.date||"")); }).forEach(function(r){
       var ownIn=expCashInIsOwnMoney(r);
-      var kindPill="";
-      if(r.fromLeadId) kindPill='<span class="pill p-black">Lead free cash</span>';
-      else if(r.fromChargeId) kindPill='<span class="pill p-cash">Charge cash</span>';
-      else if(ownIn) kindPill='<span class="pill p-own">Top-up</span>';
-      else kindPill='<span class="pill p-grey">Manual</span>';
+      var d=expCashInDisplay(r);
       h+='<div class="item apa-row'+(ownIn?' exp-own':'')+'" data-cashin-id="'+esc(r.id)+'" role="button" tabindex="0" style="padding:12px">'+
-        '<div class="top"><div class="title" style="font-size:14.5px">'+esc(r.source||"Cash in")+' '+kindPill+'</div>'+
+        '<div class="top"><div class="title" style="font-size:14.5px">'+esc(d.title)+'</div>'+
           '<div class="amt money" style="font-size:15px">+'+money0(r.amount)+'</div></div>'+
-        '<div class="meta"><span>📅 '+esc(fmtDate(r.date)||r.date||"")+'</span>'+
-          (r.notes?'<span>'+esc(r.notes)+'</span>':'')+
+        '<div class="meta">'+
+          '<span class="pill '+esc(d.pillClass)+'">'+esc(d.purposeLabel)+'</span>'+
+          '<span>📅 '+esc(fmtDate(r.date)||r.date||"")+'</span>'+
         '</div>'+
+        (d.detail?'<div class="notes" style="font-style:normal;margin-top:4px;font-size:12.5px;color:var(--muted)">'+esc(d.detail)+'</div>':'')+
         '<button type="button" class="apa-x" data-cashin-del="'+esc(r.id)+'" aria-label="Delete">×</button>'+
         '<span class="chev">✎</span></div>';
     });
@@ -14916,8 +14914,87 @@ function selBillTypeField(val){
   }).join("")+'</select>';
 }
 /**
+ * Display labels for a petty cash-in line (leads free cash vs end-of-charter charges).
+ * Derived at paint time so older “Charter income” rows still show correctly.
+ */
+function expCashInDisplay(r){
+  if(!r) return { purpose:"manual", purposeLabel:"Manual", title:"Cash in", detail:"", pillClass:"p-grey" };
+  if(r.fromLeadId){
+    var L=(state.leads||[]).filter(function(x){ return x&&String(x.id)===String(r.fromLeadId); })[0];
+    var guest=(L&&L.name)?String(L.name).trim():"";
+    if(!guest){
+      var m=String(r.source||"").match(/—\s*(.+?)(?:\s*\(|$)/);
+      if(m) guest=m[1].trim();
+    }
+    if(!guest) guest="Guest";
+    return {
+      purpose:"charter-fee",
+      purposeLabel:"Charter fee (cash)",
+      title:"Charter fee · free cash · "+guest,
+      detail:r.notes||"Split charter fee cash · not on the invoice · on the boat",
+      pillClass:"p-black",
+      guest:guest
+    };
+  }
+  if(r.fromChargeId){
+    var c=(state.charters||[]).filter(function(x){ return x&&String(x.id)===String(r.fromChargeId); })[0];
+    var client=(c&&c.client)?String(c.client).trim():"";
+    if(!client){
+      var m2=String(r.source||"").match(/—\s*(.+?)(?:\s*\(|$)/);
+      if(m2) client=m2[1].trim();
+    }
+    if(!client) client="Guest";
+    var isApa=!!(c&&(c.kind==="apa"||c.apaTripId||c.cashDeal));
+    var ext=c?chargeExtAmt(c):0;
+    var hrs=c?chargeExtHours(c):0;
+    var isExt=!!(c&&(c.kind==="extension"||c.chargeKind==="extension"||hrs>0||ext>0));
+    var purposeLabel="End of charter · cash";
+    var title="End of charter · Cash settlement · "+client;
+    var detail=r.notes||"";
+    if(isApa&&ext>0.009){
+      purposeLabel="APA shortfall + extra time";
+      title="End of charter · APA shortfall + extra hours · "+client;
+      detail=detail||("Guest pot overspend + extra time · cash settled · "+money0(r.amount));
+    } else if(isApa){
+      purposeLabel="APA shortfall";
+      title="End of charter · APA shortfall · "+client;
+      detail=detail||("Guest pot overspend settled in cash · "+money0(r.amount));
+    } else if(isExt){
+      purposeLabel="Extra hours";
+      title="End of charter · Extra hours · "+client;
+      detail=detail||((hrs>0?(hrs===1?"1 hour":hrs+" hours"):"Extra charter time")+" · cash · "+money0(r.amount));
+    } else {
+      detail=detail||("End-of-charter charge settled in cash · "+money0(r.amount));
+    }
+    return {
+      purpose:"end-charter",
+      purposeLabel:purposeLabel,
+      title:title,
+      detail:detail,
+      pillClass:"p-cash",
+      guest:client
+    };
+  }
+  if(expCashInIsOwnMoney(r)){
+    return {
+      purpose:"topup",
+      purposeLabel:"Top-up (own money)",
+      title:r.source||"Own money top-up",
+      detail:r.notes||"Captain top-up into the envelope",
+      pillClass:"p-own"
+    };
+  }
+  return {
+    purpose:"manual",
+    purposeLabel:"Manual cash in",
+    title:r.source||"Cash in",
+    detail:r.notes||"",
+    pillClass:"p-grey"
+  };
+}
+/**
  * When a charge is Paid with cash (full or part), post that cash into monthly
- * petty cash-in (Charter income). Stable id so re-saves update the same line.
+ * petty cash-in. Stable id so re-saves update the same line.
  * Captain-only (expPetty is captain-only on the API).
  */
 function chargeCashInId(chargeId){ return "charge-cash:"+String(chargeId||""); }
@@ -14958,13 +15035,25 @@ function syncChargeCashToPetty(charge){
   if(!Array.isArray(p.cashIns)) p.cashIns=[];
   var cid=chargeCashInId(charge.id);
   var client=(charge.client||"Guest").trim();
+  var isApa=!!(charge.kind==="apa"||charge.apaTripId||charge.cashDeal);
+  var ext=chargeExtAmt(charge);
+  var hrs=chargeExtHours(charge);
+  var srcLab;
+  if(isApa&&ext>0.009) srcLab="End of charter · APA shortfall + extra hours — "+client;
+  else if(isApa) srcLab="End of charter · APA shortfall — "+client;
+  else if(charge.kind==="extension"||charge.chargeKind==="extension"||hrs>0||ext>0) srcLab="End of charter · Extra hours — "+client;
+  else srcLab="End of charter · Cash settlement — "+client;
+  var noteBits=["Charges", money0(cash)+" cash", chargePayMethod(charge)||chargeBillType(charge)||""];
+  if(isApa) noteBits.push("APA pot overspend");
+  if(hrs>0) noteBits.push(hrs===1?"1 extra hour":hrs+" extra hours");
   var row={
     id:cid,
     fromChargeId:String(charge.id),
+    kind:"end-charter",
     date:date,
-    source:"Charter income — "+client+(chargePayMethod(charge)==="Split"?" (part cash)":" (cash)"),
+    source:srcLab+(chargePayMethod(charge)==="Split"||chargeBillType(charge)==="mix"?" (part cash)":" (cash)"),
     amount:Math.round(cash*100)/100,
-    notes:"From Charges · "+money0(cash)+" cash · "+chargePayMethod(charge),
+    notes:noteBits.filter(Boolean).join(" · "),
     updatedAt:new Date().toISOString()
   };
   var found=false;
@@ -15052,10 +15141,11 @@ function syncLeadCashToPetty(lead){
   var row={
     id:cid,
     fromLeadId:String(lead.id),
+    kind:"charter-fee",
     date:date,
-    source:"Charter income — "+name+" (lead free cash)",
+    source:"Charter fee · free cash — "+name,
     amount:cash,
-    notes:"Split deal cash · not on invoice · "+money0(cash),
+    notes:"Split charter fee cash · not on the invoice · on the boat · "+money0(cash),
     updatedAt:new Date().toISOString()
   };
   var found=false;
