@@ -8379,9 +8379,28 @@ function expMonthKey(d){
   var s=String(d||"").slice(0,10);
   return s.length>=7?s.slice(0,7):"";
 }
-function expDefaultMonth(){
+/** Calendar month (YYYY-MM) — not preferred for the Expenses tab alone. */
+function expCalendarMonth(){
   var n=new Date();
   return n.getFullYear()+"-"+String(n.getMonth()+1).padStart(2,"0");
+}
+/**
+ * Month to open Expenses on: latest month that has lines (or petty float),
+ * else calendar month. Avoids “everything disappeared” on the 1st of a new month.
+ */
+function expDefaultMonth(){
+  var cal=expCalendarMonth();
+  var months={};
+  (state.expenses||[]).forEach(function(e){
+    var m=expMonthKey(e&&e.date);
+    if(m) months[m]=1;
+  });
+  (state.expPetty||[]).forEach(function(p){
+    if(p&&p.month) months[String(p.month).slice(0,7)]=1;
+  });
+  var list=Object.keys(months).sort().reverse();
+  if(list.length) return list[0];
+  return cal;
 }
 function expPettyFor(month){
   month=month||expMonth;
@@ -10052,7 +10071,20 @@ function paintExpensesBody(){
   h+='</div>';
   h+='<div class="apa-sect-h" style="margin-top:4px"><h3>Expenses</h3><button type="button" class="btn" id="expAdd">Add expense</button></div>';
   if(!lines.length){
-    h+=emptyBox("💶","No expenses this month","Tap + or Add expense. Stews charters (Paid and Unpaid) appear after calendar sync.");
+    var otherMonths=monthList.filter(function(m){ return m!==expMonth; });
+    var hasDataElsewhere=otherMonths.some(function(m){
+      return expLinesForMonth(m).length>0;
+    });
+    if(hasDataElsewhere){
+      h+='<div class="exp-alert ok" style="margin-bottom:12px">'+
+        '<div style="font-weight:800;margin-bottom:6px">This month is empty — your ledger is still here</div>'+
+        '<div class="meta" style="line-height:1.45">'+
+          'Showing <b>'+esc(expMonth)+'</b> (no lines yet). Use the <b>Month</b> menu above to open '+
+          esc(otherMonths.filter(function(m){ return expLinesForMonth(m).length>0; })[0]||otherMonths[0])+
+          ' or another month with expenses. Nothing was deleted.'+
+        '</div></div>';
+    }
+    h+=emptyBox("💶","No expenses this month","Tap + or Add expense. Stews charters (Paid and Unpaid) appear when you log them or mark day pay.");
   } else {
     h+='<div class="list">';
     lines.forEach(function(e){
