@@ -5,6 +5,7 @@
 - [No auto-push production](no-auto-push.md) — `main`/Netlify only when the user asks to go live
 - [Charter business model](charter-business-model.md) — day-charter boat, multi-day new in 2026, not weekly/APA
 - [Tracker domain models](tracker-domain-models.md) — money rules in tracker/js/models.js + test-tracker-models.mjs; no repeat calc
+- [Tracker v1 MVC blueprint](../briefs/tracker-v1-mvc-blueprint.md) — models + LY_CONTROLLERS + view; port contracts not HTML
 - [Be proactive with suggestions](be-proactive-with-suggestions.md) — surface obvious wins without being asked
 - [Screenshots off main](screenshots-off-main.md) — screenshots/ stays off main; don't restore/commit its deletions
 - [Publishing process](publishing-process.md) — develop→main flow; develop is meant to be behind main; publish is slow (QA gate), not broken; disregard other agents' branches

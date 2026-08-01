@@ -923,15 +923,17 @@
 <div class="scrim" id="scrim"></div>
 <div class="sheet" id="sheet"><div class="grip"></div><div id="sheetInner"></div></div>
 
-<!-- Domain models (money rules) — single source of truth; tests: node scripts/test-tracker-models.mjs -->
-<!-- LY_MODELS domain modules (order matters) — see tracker/js/models/README.md -->
-<script src="/tracker/js/models/util.js?v=20260806-pocket1"></script>
-<script src="/tracker/js/models/leads.js?v=20260806-pocket1"></script>
-<script src="/tracker/js/models/charges.js?v=20260806-pocket1"></script>
-<script src="/tracker/js/models/expenses.js?v=20260806-pocket1"></script>
-<script src="/tracker/js/models/diesel.js?v=20260806-pocket1"></script>
-<script src="/tracker/js/models/stews.js?v=20260806-pocket1"></script>
-<script src="/tracker/js/models/index.js?v=20260806-pocket1"></script>
+<!-- Domain models + controllers (MVC blueprint) — tests: node scripts/test-tracker-models.mjs -->
+<!-- LY_MODELS → LY_CONTROLLERS → view. See .agent/briefs/tracker-v1-mvc-blueprint.md -->
+<script src="/tracker/js/models/util.js?v=20260806-mvc1"></script>
+<script src="/tracker/js/models/leads.js?v=20260806-mvc1"></script>
+<script src="/tracker/js/models/charges.js?v=20260806-mvc1"></script>
+<script src="/tracker/js/models/expenses.js?v=20260806-mvc1"></script>
+<script src="/tracker/js/models/diesel.js?v=20260806-mvc1"></script>
+<script src="/tracker/js/models/stews.js?v=20260806-mvc1"></script>
+<script src="/tracker/js/models/index.js?v=20260806-mvc1"></script>
+<script src="/tracker/js/controllers/expenses.js?v=20260806-mvc1"></script>
+<script src="/tracker/js/controllers/index.js?v=20260806-mvc1"></script>
 <script>
 "use strict";
 var API = "/.netlify/functions/tracker";
@@ -9335,34 +9337,81 @@ function expReimbursedToPerson(month, personId){
   });
   return Math.round(s*100)/100;
 }
-/* ---- Own-money / pocket liabilities — pure logic in LY_MODELS (Keepafloat foundation) ---- */
+/* ---- Expenses MVC: view adapters → LY_CONTROLLERS.expenses → LY_MODELS ---- */
+function expCtrl(){
+  if(!(window.LY_CONTROLLERS&&LY_CONTROLLERS.expenses)){
+    throw new Error("LY_CONTROLLERS.expenses missing — load tracker/js/controllers before paint");
+  }
+  return LY_CONTROLLERS.expenses;
+}
+/** Snapshot + adapters for expenses controller (no math here). */
+function expControllerInput(month){
+  month=month||expDefaultMonth();
+  var tipRows=[];
+  (state.stewAssign||[]).forEach(function(asg){
+    if(!asg||!asg.eventKey) return;
+    if(asg.cancelled||asg.status==="cancelled"||asg.cancelGhost) return;
+    var tip=typeof stewTipShare==="function"?stewTipShare(asg):{each:0,captainShare:0,stewSide:0,nStews:0};
+    tipRows.push({
+      eventKey:String(asg.eventKey),
+      onBill:typeof stewTipIsOnBill==="function"?stewTipIsOnBill(asg):false,
+      paid:typeof stewTipPaid==="function"?stewTipPaid(asg):false,
+      amount:typeof stewTipTotal==="function"?stewTipTotal(asg):0,
+      date:String(asg.start||"").slice(0,10),
+      summary:asg.summary||"Charter",
+      tipEach:tip.each,
+      tipCaptain:tip.captainShare,
+      tipStewSide:tip.stewSide,
+      nStews:tip.nStews,
+      cancelled:false
+    });
+  });
+  return {
+    models:window.LY_MODELS,
+    month:month,
+    focusMonth:month,
+    expenses:state.expenses||[],
+    allExpenses:state.expenses||[],
+    stewAssign:state.stewAssign||[],
+    today:typeof localTodayYmd==="function"?localTodayYmd():new Date().toISOString().slice(0,10),
+    personName:expPocketPersonName,
+    dayPayAmt:function(asg, sid){ return typeof stewDayPayForStew==="function"?stewDayPayForStew(asg, sid):0; },
+    isSkipped:function(ek, sid){ return typeof expIsStewDayPaySkipped==="function"?expIsStewDayPaySkipped(ek, sid):false; },
+    tipRows:tipRows,
+    cashInIsTip:expCashInIsTip,
+    cashInIsOwnMoney:expCashInIsOwnMoney,
+    isTipExpense:expIsTipExpense
+  };
+}
 function expIsOwnMoneySpend(e){
   if(LY_MODELS&&LY_MODELS.isOwnMoneySpend) return !!LY_MODELS.isOwnMoneySpend(e);
-  if(!e) return false;
-  if(expIsReimbursement(e)) return false;
-  if(expIsCrewDayPayLine(e)){
-    if(e.crewPayStatus!=="Paid") return false;
-    return e.paidFrom==="Own money"||expIsOwnMoneyLabel(e.paidFrom);
-  }
-  return expPaidFromOwnMoney(e);
+  return false;
 }
 function expOwnMoneySpendWhoId(e){
   if(LY_MODELS&&LY_MODELS.ownMoneySpendWhoId) return LY_MODELS.ownMoneySpendWhoId(e)||EXP_POCKET_CAPTAIN;
-  if(!e) return EXP_POCKET_CAPTAIN;
-  return String(e.paidById||EXP_POCKET_CAPTAIN);
+  return EXP_POCKET_CAPTAIN;
 }
-/** @param month unused (legacy) — repay matches all months via full expenses ledger */
+/** @param month unused — repay uses full ledger via controller */
 function expOwnMoneyRepaidAmt(e, month){
-  if(LY_MODELS&&LY_MODELS.ownMoneyRepaidAmt) return LY_MODELS.ownMoneyRepaidAmt(e, state.expenses||[]);
-  return 0;
+  return expCtrl().ownMoneyRepaid({
+    models:LY_MODELS,
+    expense:e,
+    expenses:state.expenses||[]
+  });
 }
 function expOwnMoneyIsRepaid(e, month){
-  if(LY_MODELS&&LY_MODELS.ownMoneyIsRepaid) return !!LY_MODELS.ownMoneyIsRepaid(e, state.expenses||[]);
-  return expOwnMoneyRepaidAmt(e, month)>=apaNum(e&&e.amount)-0.009;
+  return expCtrl().ownMoneyIsRepaid({
+    models:LY_MODELS,
+    expense:e,
+    expenses:state.expenses||[]
+  });
 }
 function expOwnMoneyRepayNote(e){
-  if(!(LY_MODELS&&LY_MODELS.ownMoneyRepayHint)) return expOwnMoneyIsRepaid(e)? "Repaid from petty":"";
-  var hint=LY_MODELS.ownMoneyRepayHint(e, state.expenses||[]);
+  var hint=expCtrl().ownMoneyRepayHint({
+    models:LY_MODELS,
+    expense:e,
+    expenses:state.expenses||[]
+  });
   if(!hint) return expOwnMoneyIsRepaid(e)?"Repaid from petty":"";
   var d=String(hint.date||"").slice(0,10);
   var dLab="";
@@ -9370,13 +9419,8 @@ function expOwnMoneyRepayNote(e){
   return dLab?"Repaid from petty · "+dLab:"Repaid from petty";
 }
 function expCollectOpenPocketOuts(focusMonth){
-  focusMonth=focusMonth||expDefaultMonth();
-  if(LY_MODELS&&LY_MODELS.collectOpenPocketOuts){
-    return LY_MODELS.collectOpenPocketOuts(state.expenses||[], focusMonth, {
-      personName:expPocketPersonName
-    });
-  }
-  return [];
+  var inp=expControllerInput(focusMonth||expDefaultMonth());
+  return expCtrl().openPocketOuts(inp);
 }
 /** One-shot: normalize all reimbursement rows in state (petty + flags). */
 function expNormalizeAllReimbursements(){
@@ -9404,21 +9448,20 @@ function expIsCaptainReimburse(e){
   if(!expIsReimbursement(e)) return false;
   return expReimburseWhoId(e)===EXP_POCKET_CAPTAIN;
 }
-/**
- * Pocket balances for captain + each stew this month.
- * SOT: LY_MODELS.summarizePocketBalances
- */
+/** Pocket balances — controller → model. */
 function expPocketBalances(month, petty){
   if(!petty) petty=expPettyFor(month);
   var lines=expLinesForMonth(month);
   lines.forEach(function(e){ expNormalizeReimbursement(e); });
-  if(LY_MODELS&&LY_MODELS.summarizePocketBalances){
-    return LY_MODELS.summarizePocketBalances(lines, expCashInLines(petty), {
-      personName:expPocketPersonName,
-      cashInIsOwnMoney:expCashInIsOwnMoney
-    });
-  }
-  return {list:[], total:0, byId:{}, captain:{putIn:0, paidOut:0, reimbursed:0, owed:0, overpaid:0}};
+  return expCtrl().pocketBalances({
+    models:LY_MODELS,
+    month:month,
+    monthExpenses:lines,
+    expenses:state.expenses||[],
+    petty:petty,
+    personName:expPocketPersonName,
+    cashInIsOwnMoney:expCashInIsOwnMoney
+  });
 }
 function expCaptainOwed(month, petty){
   var c=expPocketBalances(month, petty).captain||{putIn:0, paidOut:0, reimbursed:0, owed:0, overpaid:0};
@@ -9432,38 +9475,17 @@ function expStewDayDedupeKey(e){
   return "id:"+e.id;
 }
 /**
- * Month settlement view for Expenses UI.
- * SOT: LY_MODELS.summarizeMonthSettlement (petty + pocket + open liabilities).
+ * Month settlement for Expenses UI — controller only (no local ledger math).
  */
 function expSettlementFigures(month){
   month=month||expDefaultMonth();
   var lines=expLinesForMonth(month);
   lines.forEach(function(e){ expNormalizeReimbursement(e); });
   var petty=expEnsurePetty(month);
-  var cashInsAll=expCashInLines(petty);
-  var cashIns=expCashInLinesForPetty(petty);
-  var owed=expStewDayPayOwed(month);
-  var openTips=expCollectOpenTipPayouts(month);
-  if(!(LY_MODELS&&typeof LY_MODELS.summarizeMonthSettlement==="function")){
-    throw new Error("LY_MODELS.summarizeMonthSettlement missing — load tracker/js/models before paint");
-  }
-  var fig=LY_MODELS.summarizeMonthSettlement({
-    expenses:lines,
-    allExpenses:state.expenses||[],
-    pettyStart:apaNum(petty.pettyStart),
-    cashIns:cashIns,
-    cashInsAll:cashInsAll,
-    cashInIsTip:expCashInIsTip,
-    cashInIsOwnMoney:expCashInIsOwnMoney,
-    isTipExpense:expIsTipExpense,
-    openDayPay:owed.items||[],
-    openTips:openTips,
-    personName:expPocketPersonName,
-    pettyStartMode:petty.startMode,
-    pettyStartManual:petty.startManual===true
-  });
-  fig.petty=petty;
-  return fig;
+  var inp=expControllerInput(month);
+  inp.monthExpenses=lines;
+  inp.petty=petty;
+  return expCtrl().monthSettlement(inp);
 }
 function expCrewDayPaySettledSets(){
   if(LY_MODELS&&LY_MODELS.buildCrewDayPaySettledSets){
@@ -9477,24 +9499,9 @@ function expCrewDayPayIsSettled(asg, sid, settled){
   }
   return false;
 }
-/**
- * Open unpaid day-pay through focus month — model SOT.
- */
+/** Open unpaid day-pay — controller → model. */
 function expCollectOpenCrewDayPay(focusMonth){
-  focusMonth=focusMonth||expDefaultMonth();
-  if(LY_MODELS&&LY_MODELS.collectOpenCrewDayPay){
-    return LY_MODELS.collectOpenCrewDayPay(state.stewAssign||[], state.expenses||[], {
-      focusMonth:focusMonth,
-      today:localTodayYmd(),
-      dayPayAmt:function(asg, sid){ return stewDayPayForStew(asg, sid); },
-      isSkipped:function(ek, sid){ return expIsStewDayPaySkipped(ek, sid); },
-      personName:function(sid){
-        var s=stewById(sid);
-        return (s&&s.name)||"Stew";
-      }
-    });
-  }
-  return [];
+  return expCtrl().openCrewDayPay(expControllerInput(focusMonth||expDefaultMonth()));
 }
 /**
  * Align roster payStatus to Paid when expenses already show Paid for that charter
@@ -9526,15 +9533,10 @@ function expHealAssignPayStatusFromExpenses(){
   }
   return dirty;
 }
-/** Unpaid stew day pay still due through focus month (through today). Tips separate. */
+/** Unpaid stew day pay still due through focus month. Tips separate. */
 function expStewDayPayOwed(month){
-  var lines=expCollectOpenCrewDayPay(month);
-  var owe=0, keys={};
-  lines.forEach(function(r){
-    owe+=apaNum(r.amount);
-    if(r.eventKey) keys[r.eventKey]=1;
-  });
-  return {owe:Math.round(owe*100)/100, trips:Object.keys(keys).length, lines:lines.length, items:lines};
+  var items=expCollectOpenCrewDayPay(month);
+  return expCtrl().dayPayOwedSummary(items);
 }
 /**
  * Tips guest put on card / final bill — boat owes crew (pay from petty when cash-rich).
@@ -9545,32 +9547,9 @@ function stewTipIsOnBill(asg){
   var s=String(asg.tipSource||asg.tipVia||"").toLowerCase();
   return s==="card"||s==="bill"||s==="invoice"||s==="onbill"||s==="on-bill"||s==="final";
 }
-/** Open tip liabilities (on-bill, unpaid, due) through focus month — model SOT. */
+/** Open tip liabilities — controller (tipRows built in expControllerInput). */
 function expCollectOpenTipPayouts(focusMonth){
-  focusMonth=focusMonth||expDefaultMonth();
-  var rows=[];
-  (state.stewAssign||[]).forEach(function(asg){
-    if(!asg||!asg.eventKey) return;
-    if(asg.cancelled||asg.status==="cancelled"||asg.cancelGhost) return;
-    var tip=stewTipShare(asg);
-    rows.push({
-      eventKey:String(asg.eventKey),
-      onBill:stewTipIsOnBill(asg),
-      paid:stewTipPaid(asg),
-      amount:stewTipTotal(asg),
-      date:String(asg.start||"").slice(0,10),
-      summary:asg.summary||"Charter",
-      tipEach:tip.each,
-      tipCaptain:tip.captainShare,
-      tipStewSide:tip.stewSide,
-      nStews:tip.nStews,
-      cancelled:false
-    });
-  });
-  if(LY_MODELS&&LY_MODELS.collectOpenTipPayouts){
-    return LY_MODELS.collectOpenTipPayouts(rows, {focusMonth:focusMonth, today:localTodayYmd()});
-  }
-  return [];
+  return expCtrl().openTipPayouts(expControllerInput(focusMonth||expDefaultMonth()));
 }
 function expOpenTipPayoutTotal(focusMonth){
   var s=0;

@@ -4,9 +4,11 @@
 
 **Tests:** `node scripts/test-tracker-models.mjs` (must stay green when changing money logic)
 
-**UI:** `tracker/index.html` loads models first and **wraps** them — do not re-implement commission, petty, own-money repay, or settlement math in the HTML.
+**UI:** `tracker/index.html` = **view only** for money.  
+**Controllers:** `tracker/js/controllers/*` → `window.LY_CONTROLLERS` (wire data → models, return DTOs).  
+**Blueprint:** `.agent/briefs/tracker-v1-mvc-blueprint.md` (option A — models + thin controllers, no framework rewrite in this repo).
 
-**Product note:** This v1 prototype is the working example for **Keepafloat** later. Keep domain pure and tested here; do **not** edit the separate Keepafloat repo from tracker tasks.
+**Product note:** Port **models + controller contracts** to Keepafloat later; do not edit Keepafloat from tracker tasks.
 
 ## Locked rules (do not “simplify” without updating tests)
 

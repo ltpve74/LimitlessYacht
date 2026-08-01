@@ -1,7 +1,8 @@
 # Tracker domain models (`LY_MODELS`)
 
 Pure money / roster rules — **no DOM**.  
-This is the **Keepafloat prototype foundation**: commercial product domain lives here first, then ports to Keepafloat (`src/domain/*`).
+**MVC blueprint:** models (here) → `tracker/js/controllers/*` → view (`index.html`).  
+See [`.agent/briefs/tracker-v1-mvc-blueprint.md`](../../../.agent/briefs/tracker-v1-mvc-blueprint.md).
 
 | File | Owns |
 |------|------|
@@ -12,6 +13,7 @@ This is the **Keepafloat prototype foundation**: commercial product domain lives
 | `diesel.js` | Bunker buy + sticky guest sell |
 | `stews.js` | Roster assigned / unassigned / cancelled |
 | `index.js` | Merges → `window.LY_MODELS` / `module.exports` |
+| *controllers/* | **Not models** — application services (`LY_CONTROLLERS`) that only call models |
 
 ## Expenses / pocket (Keepafloat cash foundation)
 
