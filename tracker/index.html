@@ -9566,9 +9566,9 @@ function expStewDayPayOwed(month){
     if(String(asg.start||"")>today) return;
     var ids=(asg.stewIds||[]).filter(Boolean);
     if(!ids.length) return;
-    var each=stewAssignDayPayAmount(asg);
-    if(!(each>0)) return;
-    owe+=each*ids.length;
+    var tot=stewDayPayTotalAll(asg);
+    if(!(tot>0)) return;
+    owe+=tot;
     nTrips++;
   });
   return {owe:owe, trips:nTrips, lines:0};
@@ -9588,6 +9588,41 @@ function stewAssignDayPayAmount(asg){
   return stewPayEach(stewDefaultRate(ev, null), stewPayUnits(ev, null));
 }
 /**
+ * Day pay for one stew on a charter.
+ * Prefer dayPayByStew[id] (per-person amount) so two stews can get different pay
+ * (e.g. full day + half day when extra guests need a second stew).
+ */
+function stewDayPayForStew(asg, stewId){
+  if(!asg||!stewId) return 0;
+  var map=asg.dayPayByStew&&typeof asg.dayPayByStew==="object"?asg.dayPayByStew:null;
+  if(map&&map[String(stewId)]!=null&&map[String(stewId)]!==""){
+    var n=apaNum(map[String(stewId)]);
+    if(n>=0) return Math.round(n*100)/100;
+  }
+  return Math.round(stewAssignDayPayAmount(asg)*100)/100;
+}
+/** Sum of day pay across all assigned stews (respects per-stew overrides). */
+function stewDayPayTotalAll(asg){
+  if(!asg) return 0;
+  var ids=(asg.stewIds||[]).filter(Boolean);
+  if(!ids.length) return 0;
+  var s=0;
+  ids.forEach(function(sid){ s+=stewDayPayForStew(asg, sid); });
+  return Math.round(s*100)/100;
+}
+/** Normalize dayPayByStew map from form / save (string keys, € amounts). */
+function stewNormalizeDayPayByStew(map, ids, defaultEach){
+  var out={};
+  var def=apaNum(defaultEach);
+  (ids||[]).forEach(function(sid){
+    if(!sid) return;
+    var k=String(sid);
+    var v=map&&map[k]!=null&&map[k]!==""?apaNum(map[k]):def;
+    if(v>=0) out[k]=Math.round(v*100)/100;
+  });
+  return out;
+}
+/**
  * When stew day pay is Paid → Crew Salaries / Cash lines (one per stew).
  * Tips are NEVER written here (captain-only in Stews).
  * opts.onlyMonth = "YYYY-MM" → only touch charters in that month (used for seed).
@@ -9601,7 +9636,7 @@ function syncStewDayPayExpenses(asg, opts){
   var month=expMonthKey(date);
   if(opts.onlyMonth&&month&&month!==opts.onlyMonth) return false;
   var isPaid=asg.payStatus==="Paid";
-  var each=stewAssignDayPayAmount(asg);
+  var defaultEach=stewAssignDayPayAmount(asg);
   var ids=(asg.stewIds||[]).filter(Boolean).filter(function(sid){
     return !expIsStewDayPaySkipped(asg.eventKey, sid);
   });
@@ -9617,7 +9652,8 @@ function syncStewDayPayExpenses(asg, opts){
   state.expenses=state.expenses.filter(function(e){
     return !(e&&e.source==="stew"&&e.stewPayKind==="dayPay"&&String(e.stewEventKey)===eventKey);
   });
-  if(!(each>0)||!ids.length||!date){
+  var anyAmt=ids.some(function(sid){ return stewDayPayForStew(asg, sid)>0; });
+  if(!anyAmt||!ids.length||!date){
     return before!=="[]";
   }
   /*
@@ -9629,17 +9665,28 @@ function syncStewDayPayExpenses(asg, opts){
   var crewPayStatus=isPaid?"Paid":"Unpaid";
   var summary=asg.summary||"Charter";
   var markFloat=!!asg._floatPayMark;
+  var paidFromDefault=asg._floatPayFrom==="Own money"?"Own money":(asg._floatPayFrom==="Petty cash"?"Petty cash":"");
   ids.forEach(function(sid){
+    var amt=stewDayPayForStew(asg, sid);
+    if(!(amt>0)&&!(defaultEach>0)) return;
+    if(!(amt>0)) amt=defaultEach;
     var name=(stewById(sid)&&stewById(sid).name)||"Stew";
     var linkId="stew-day:"+eventKey+":"+sid;
     var old=prevBySid[String(sid)]||prevBySid[linkId];
-    var paidFrom=(old&&old.paidFrom==="Own money")?"Own money":"Petty cash";
+    /* Per-stew paidFrom if set on map; else assign mark; else previous line */
+    var mapPf=asg.dayPayFromByStew&&asg.dayPayFromByStew[String(sid)];
+    var paidFrom="Petty cash";
+    if(mapPf==="Own money"||mapPf==="Petty cash") paidFrom=mapPf;
+    else if(paidFromDefault) paidFrom=paidFromDefault;
+    else if(old&&old.paidFrom==="Own money") paidFrom="Own money";
+    else if(old&&old.paidFrom==="Petty cash") paidFrom="Petty cash";
     if(markFloat&&asg._floatPayFrom==="Own money") paidFrom="Own money";
     else if(markFloat&&asg._floatPayFrom==="Petty cash") paidFrom="Petty cash";
     var floatPay=false;
     if(crewPayStatus==="Paid"&&paidFrom!=="Own money"){
       if(markFloat) floatPay=true;
       else if(old&&old.floatPay===true) floatPay=true;
+      else if(paidFrom==="Petty cash"&&isPaid) floatPay=true;
     }
     state.expenses.unshift({
       id:(old&&old.id)||uid(),
@@ -9657,7 +9704,7 @@ function syncStewDayPayExpenses(asg, opts){
       category:"Crew Salaries",
       payMethod:"Cash",
       paidFrom:paidFrom,
-      amount:each,
+      amount:amt,
       receipt:(old&&old.receipt)||"",
       by:session.who||"Captain",
       updatedAt:new Date().toISOString()
@@ -11638,6 +11685,8 @@ function ensureStewAssignFromCalendar(){
       dayRate:keepRate,
       payUnits:keepUnits,
       payEach:keepPayEach,
+      dayPayByStew:(asg&&asg.dayPayByStew&&typeof asg.dayPayByStew==="object")?asg.dayPayByStew:{},
+      paidFrom:(asg&&asg.paidFrom)||"",
       rateBand:band.kind,
       payStatus:keepPay,
       payStatusManual:keepManual,
@@ -12049,6 +12098,8 @@ function stewPayBreakdown(ev, asg){
   var units=stewPayUnits(ev, asg&&asg.payUnits);
   var each=cancelled?0:stewPayEach(rate, units);
   var nStews=asg&&asg.stewIds?asg.stewIds.filter(Boolean).length:0;
+  var totalAll=cancelled?0:(asg?stewDayPayTotalAll(asg):(each*Math.max(1, nStews||0)));
+  if(!cancelled&&!(totalAll>0)&&each>0) totalAll=each*Math.max(1, nStews||0);
   /* Cancelled charter (weather etc.): no pay, no tip due */
   if(cancelled){
     return {
@@ -12070,7 +12121,7 @@ function stewPayBreakdown(ev, asg){
   var tipUpcoming=!!(tip.stewSide>0&&!tipPaid&&!due);
   return {
     rate:rate, units:units, each:each,
-    totalAll:each*Math.max(1, nStews||0),
+    totalAll:totalAll,
     nStews:nStews, paid:!!paid, due:!!due, unpaid:unpaid, upcoming:upcoming, cancelled:false,
     tipTotal:tip.total, tipStewSide:tip.stewSide, tipEach:tip.each,
     tipPaid:!!tipPaid, tipUnpaid:tipUnpaid, tipUpcoming:tipUpcoming,
@@ -13023,8 +13074,15 @@ function paintStewCharters(){
     var rate=pay.rate;
     var each=pay.each;
     var units=pay.units;
+    var totalAll=pay.totalAll||0;
+    var sidList=(asg&&asg.stewIds)?asg.stewIds.filter(Boolean):[];
     var rightBits=[];
-    if(showMoney&&each>0&&!isCanc) rightBits.push(names.length>1?(money0(each)+" pay"):money0(each)+" pay");
+    if(showMoney&&totalAll>0&&!isCanc){
+      if(names.length>1) rightBits.push(money0(totalAll)+" pay total");
+      else rightBits.push(money0(totalAll||each)+" pay");
+    } else if(showMoney&&each>0&&!isCanc){
+      rightBits.push(money0(each)+" pay");
+    }
     if(showMoney&&pay.tipStewSide>0&&!isCanc) rightBits.push(money0(pay.tipStewSide)+" tip");
     var amtLabel=rightBits.join(" · ");
     var openKey=esc(ev.key||(asg&&asg.eventKey)||stewEventId(ev));
@@ -13045,10 +13103,12 @@ function paintStewCharters(){
     } else if(ev.leadId&&(ev.leadSource==="pending"||ev.status==="tentative")&&isCaptain()){
       html+='<div class="meta" style="margin-top:6px"><button type="button" class="btn" data-assign-lead="'+esc(ev.leadId)+'" style="width:auto;padding:8px 14px;font-size:13px">Assign source →</button></div>';
     } else if(names.length){
-      names.forEach(function(nm){
+      names.forEach(function(nm, ni){
+        var sid=sidList[ni];
+        var stewPayAmt=sid&&asg?stewDayPayForStew(asg, sid):(each||0);
         html+='<div class="stew-row">'+
           '<span class="stew-name">'+esc(nm)+'</span>'+
-          (showMoney&&each>0?'<span class="money" style="font-weight:800;font-size:15px">Pay '+money0(each)+'</span>':'')+
+          (showMoney&&stewPayAmt>0?'<span class="money" style="font-weight:800;font-size:15px">Pay '+money0(stewPayAmt)+'</span>':'')+
           (showMoney?stewPayStatusPill(pay):'')+
           (showMoney&&pay.tipEach>0?'<span class="money" style="font-weight:800;font-size:15px">Tip '+money0(pay.tipEach)+'</span>':'')+
           (showMoney?stewTipStatusPill(pay):'')+
@@ -13330,7 +13390,7 @@ function openStewAssign(eventKey){
   if(captainMode){
     h+='<div class="sectitle" style="margin:12px 0 8px">Day pay</div>';
     h+='<div class="row2">'+
-      fieldHTML("Day rate (€)",moneyField("f_stew_rate", ratePrefill))+
+      fieldHTML("Default day rate (€)",moneyField("f_stew_rate", ratePrefill))+
       fieldHTML("Days (billable)",'<input class="ctl" id="f_stew_units" type="number" min="1" step="1" inputmode="numeric" value="'+esc(String(unitsPrefill))+'">')+
     '</div>';
     h+='<div style="display:flex;gap:8px;flex-wrap:wrap;margin:-4px 0 12px">'+
@@ -13339,7 +13399,24 @@ function openStewAssign(eventKey){
       '<button type="button" class="btn ghost" data-stew-rate="'+STEW_RATE_ON+'" style="width:auto;padding:8px 12px;font-size:12.5px">Overnight €'+STEW_RATE_ON+'</button>'+
       '<button type="button" class="btn ghost" data-stew-rate="50" style="width:auto;padding:8px 12px;font-size:12.5px">Partial €50</button>'+
     '</div>';
+    h+='<p style="margin:-2px 0 10px;font-size:12px;color:var(--muted);line-height:1.4">Default rate × days fills each stew below. With <b>two stews</b> (extra guests), set a different amount per person.</p>';
+    h+='<div id="stewPerPayList" style="margin:0 0 12px"></div>';
     h+=fieldHTML("Day pay status",'<select class="ctl" id="f_stew_pay"><option value="Unpaid"'+(pay==="Unpaid"?" selected":"")+'>Unpaid</option><option value="Paid"'+(pay==="Paid"?" selected":"")+'>Paid</option></select>');
+    var paidFromPrefill=(asg._floatPayFrom==="Own money"||asg.paidFrom==="Own money")?"Own money":"Petty cash";
+    /* Infer from existing expense lines if any */
+    try{
+      var expPf=(state.expenses||[]).filter(function(e){return e&&e.source==="stew"&&e.stewPayKind==="dayPay"&&String(e.stewEventKey)===String(eventKey);})[0];
+      if(expPf&&expPf.paidFrom==="Own money") paidFromPrefill="Own money";
+      else if(expPf&&expPf.paidFrom==="Petty cash") paidFromPrefill="Petty cash";
+    }catch(ePf){}
+    h+='<div id="f_stew_paid_from_wrap" style="'+(pay==="Paid"?"":"display:none")+'">'+
+      fieldHTML("Paid from",
+        '<select class="ctl" id="f_stew_paid_from">'+
+          '<option value="Petty cash"'+(paidFromPrefill==="Petty cash"?" selected":"")+'>Petty cash (boat envelope)</option>'+
+          '<option value="Own money"'+(paidFromPrefill==="Own money"?" selected":"")+'>Own money (captain / me)</option>'+
+        '</select>')+
+      '<p style="margin:-6px 0 12px;font-size:12px;color:var(--muted);line-height:1.4">Petty cash → Expenses cash out. Own money → your pocket, not the envelope.</p>'+
+    '</div>';
     var isAsgCancelled=!!(asg.cancelled||asg.status==="cancelled");
     h+='<label class="checkrow" style="margin:8px 0 12px"><input type="checkbox" id="f_stew_cancelled"'+(isAsgCancelled?" checked":"")+'>'+
       '<span><div class="ck">Guest charter cancelled (refunded)</div>'+
@@ -13373,7 +13450,7 @@ function openStewAssign(eventKey){
     '</div>';
     h+='<p style="margin:-4px 0 12px;font-size:12px;color:var(--muted)">Tip is split <b>equally among all crew</b> (you + every assigned stew). One stew → 50% each. Two stews → three equal shares. You almost always have one.</p>';
     h+='<div class="apa-card" id="stewPayLive" style="margin-bottom:12px;background:rgba(201,168,76,.12)"></div>';
-    h+='<p style="margin:0 0 12px;font-size:12px;color:var(--muted)">Day pay = rate × days per stew. Suggested rate: <b>'+esc(band.label)+' · €'+band.rate+'/day</b>.</p>';
+    h+='<p style="margin:0 0 12px;font-size:12px;color:var(--muted)">Suggested band: <b>'+esc(band.label)+' · €'+band.rate+'/day</b>. Per-stew amounts override the default when different.</p>';
   } else {
     h+='<p style="margin:12px 0;font-size:12.5px;color:var(--muted);line-height:1.45">Tick who is working this charter. Day pay and tips are managed by the captain.</p>';
   }
@@ -13381,28 +13458,90 @@ function openStewAssign(eventKey){
   h+='<div class="sheetfoot"><button type="button" class="btn ghost" id="sheetCancel">Cancel</button><button type="button" class="btn" id="sheetSave">Save assignment</button></div>';
   el("sheetInner").innerHTML=h;
   var charterDue=stewCharterDayReached(ev, asg);
+  var dayPayByStewSaved=asg.dayPayByStew&&typeof asg.dayPayByStew==="object"?asg.dayPayByStew:{};
+  var perPayTouched={};
+  Object.keys(dayPayByStewSaved).forEach(function(k){ perPayTouched[k]=1; });
+  function defaultEachFromForm(){
+    var rate=el("f_stew_rate")?apaNum(el("f_stew_rate").value):0;
+    var units=el("f_stew_units")?Math.max(1, Math.round(apaNum(el("f_stew_units").value)||1)):1;
+    return stewPayEach(rate, units);
+  }
+  function selectedStewIds(){
+    var ids=[];
+    Array.prototype.forEach.call(document.querySelectorAll("[data-stew-pick]"),function(inp){
+      if(inp.checked) ids.push(inp.getAttribute("data-stew-pick"));
+    });
+    return ids;
+  }
+  function rebuildPerStewPayFields(forceDefault){
+    var wrap=el("stewPerPayList"); if(!wrap) return;
+    var ids=selectedStewIds();
+    var def=defaultEachFromForm();
+    if(!ids.length){
+      wrap.innerHTML='<p style="margin:0;font-size:12.5px;color:var(--muted)">Tick stews above to set each person’s day pay.</p>';
+      return;
+    }
+    var html='<div class="sectitle" style="margin:0 0 8px;font-size:13px">Day pay per stew</div>';
+    ids.forEach(function(sid){
+      var s=stewById(sid);
+      var name=(s&&s.name)||"Stew";
+      var saved=dayPayByStewSaved[String(sid)];
+      var val;
+      if(!forceDefault&&perPayTouched[String(sid)]&&saved!=null&&saved!=="") val=apaNum(saved);
+      else if(!forceDefault&&el("f_stew_pay_"+sid)) val=apaNum(el("f_stew_pay_"+sid).value);
+      else if(!forceDefault&&saved!=null&&saved!==""&&apaNum(saved)>=0) val=apaNum(saved);
+      else val=def;
+      html+='<div class="row2" style="margin-bottom:8px;align-items:end">'+
+        fieldHTML(esc(name)+' day pay (€)', moneyField("f_stew_pay_"+sid, val>0||val===0?val:""))+
+        '<div style="font-size:11.5px;color:var(--muted);padding-bottom:10px">Default '+money0(def)+'</div>'+
+      '</div>';
+    });
+    wrap.innerHTML=html;
+    ids.forEach(function(sid){
+      var inp=el("f_stew_pay_"+sid);
+      if(!inp) return;
+      inp.addEventListener("input",function(){
+        perPayTouched[String(sid)]=1;
+        dayPayByStewSaved[String(sid)]=apaNum(inp.value);
+        refreshStewPayLive();
+      });
+    });
+  }
+  function readDayPayByStewFromForm(ids, defEach){
+    var map={};
+    (ids||[]).forEach(function(sid){
+      var inp=el("f_stew_pay_"+sid);
+      if(inp&&inp.value!=="") map[String(sid)]=apaNum(inp.value);
+      else if(dayPayByStewSaved[String(sid)]!=null&&dayPayByStewSaved[String(sid)]!=="") map[String(sid)]=apaNum(dayPayByStewSaved[String(sid)]);
+      else map[String(sid)]=defEach;
+    });
+    return stewNormalizeDayPayByStew(map, ids, defEach);
+  }
   function refreshStewPayLive(){
     var box=el("stewPayLive"); if(!box) return;
     var rate=el("f_stew_rate")?apaNum(el("f_stew_rate").value):0;
     var units=el("f_stew_units")?Math.max(1, Math.round(apaNum(el("f_stew_units").value)||1)):1;
     var each=stewPayEach(rate, units);
     var tipTot=el("f_stew_tip")?apaNum(el("f_stew_tip").value):0;
-    var ids=[];
-    Array.prototype.forEach.call(document.querySelectorAll("[data-stew-pick]"),function(inp){
-      if(inp.checked) ids.push(inp.getAttribute("data-stew-pick"));
-    });
+    var ids=selectedStewIds();
+    var payMap=readDayPayByStewFromForm(ids, each);
     var paySel=el("f_stew_pay")&&el("f_stew_pay").value==="Paid"?"Paid":"Unpaid";
     var tipSel=el("f_stew_tip_pay")&&el("f_stew_tip_pay").value==="Paid"?"Paid":"Unpaid";
+    var paidFromSel=el("f_stew_paid_from")?el("f_stew_paid_from").value:"Petty cash";
+    if(el("f_stew_paid_from_wrap")) el("f_stew_paid_from_wrap").style.display=paySel==="Paid"?"":"none";
     var tipMock={tipTotal:tipTot>0?tipTot:"", stewIds:ids, tipPayStatus:tipSel};
     var tip=stewTipShare(tipMock);
-    var payLabel=paySel==="Paid"?"Paid":(charterDue?"Unpaid":"Not due yet");
+    var payLabel=paySel==="Paid"?("Paid · "+(paidFromSel==="Own money"?"own money":"petty")):(charterDue?"Unpaid":"Not due yet");
     var tipLabel=tipSel==="Paid"?"Paid":(charterDue?"Unpaid":"Not due yet");
-    var names=stewNames(ids);
+    var totalPay=0;
     var line="";
-    if(names.length){
-      line=names.map(function(n){
+    if(ids.length){
+      line=ids.map(function(sid){
+        var n=(stewById(sid)&&stewById(sid).name)||"Stew";
+        var payAmt=payMap[String(sid)]!=null?payMap[String(sid)]:each;
+        totalPay+=payAmt||0;
         var bits=[];
-        if(each>0) bits.push("Pay "+money0(each)+" · "+payLabel);
+        if(payAmt>0||payAmt===0) bits.push("Pay "+money0(payAmt)+" · "+payLabel);
         if(tip.each>0) bits.push("Tip "+money0(tip.each)+" · "+tipLabel);
         return '<div style="display:flex;justify-content:space-between;gap:12px;margin-top:6px;align-items:center;flex-wrap:wrap">'+
           '<span class="stew-name" style="font-size:17px">'+esc(n)+'</span>'+
@@ -13415,8 +13554,9 @@ function openStewAssign(eventKey){
       line+='<div class="meta" style="margin-top:10px">Guest tip <b class="money">'+money0(tip.total)+'</b> ÷ '+tip.crew+' crew → <b class="money">'+money0(tip.each)+'</b> each'+
         ' · stews total <b class="money">'+money0(tip.stewSide)+'</b> · you keep <b class="money">'+money0(tip.captainShare)+'</b></div>';
     }
-    box.innerHTML='<div class="meta">What the stew gets</div>'+
-      (each>0?'<div style="font-size:18px;font-weight:800;margin-top:4px" class="money">Day pay '+money0(each)+' <span style="font-size:12px;font-weight:600;color:var(--muted)">('+money0(rate)+' × '+units+')</span></div>':'')+
+    box.innerHTML='<div class="meta">What each stew gets</div>'+
+      (totalPay>0||ids.length>1?'<div style="font-size:18px;font-weight:800;margin-top:4px" class="money">Day pay total '+money0(totalPay)+'</div>':
+        (each>0?'<div style="font-size:18px;font-weight:800;margin-top:4px" class="money">Day pay '+money0(each)+' <span style="font-size:12px;font-weight:600;color:var(--muted)">('+money0(rate)+' × '+units+')</span></div>':''))+
       (tip.each>0?'<div style="font-size:18px;font-weight:800;margin-top:4px" class="money">Tip share '+money0(tip.each)+'</div>':'')+
       line;
   }
@@ -13425,17 +13565,51 @@ function openStewAssign(eventKey){
       if(el("f_stew_rate")) el("f_stew_rate").value=btn.getAttribute("data-stew-rate");
       if(el("f_stew_units")) el("f_stew_units").value="1";
       if(el("f_stew_zero_pay")) el("f_stew_zero_pay").checked=false;
+      /* Apply template to all unless captain already customized a stew */
+      rebuildPerStewPayFields(false);
+      selectedStewIds().forEach(function(sid){
+        if(!perPayTouched[String(sid)]&&el("f_stew_pay_"+sid)){
+          el("f_stew_pay_"+sid).value=String(defaultEachFromForm());
+          dayPayByStewSaved[String(sid)]=defaultEachFromForm();
+        }
+      });
       refreshStewPayLive();
     });
   });
   Array.prototype.forEach.call(document.querySelectorAll("[data-stew-pick]"),function(inp){
-    inp.addEventListener("change", refreshStewPayLive);
+    inp.addEventListener("change", function(){
+      rebuildPerStewPayFields(false);
+      refreshStewPayLive();
+    });
   });
-  if(el("f_stew_rate")) el("f_stew_rate").addEventListener("input", refreshStewPayLive);
-  if(el("f_stew_units")) el("f_stew_units").addEventListener("input", refreshStewPayLive);
+  if(el("f_stew_rate")) el("f_stew_rate").addEventListener("input",function(){
+    var def=defaultEachFromForm();
+    selectedStewIds().forEach(function(sid){
+      if(!perPayTouched[String(sid)]&&el("f_stew_pay_"+sid)){
+        el("f_stew_pay_"+sid).value=String(def);
+        dayPayByStewSaved[String(sid)]=def;
+      }
+    });
+    refreshStewPayLive();
+  });
+  if(el("f_stew_units")) el("f_stew_units").addEventListener("input",function(){
+    var def=defaultEachFromForm();
+    selectedStewIds().forEach(function(sid){
+      if(!perPayTouched[String(sid)]&&el("f_stew_pay_"+sid)){
+        el("f_stew_pay_"+sid).value=String(def);
+        dayPayByStewSaved[String(sid)]=def;
+      }
+    });
+    refreshStewPayLive();
+  });
   if(el("f_stew_pay")) el("f_stew_pay").addEventListener("change", refreshStewPayLive);
+  if(el("f_stew_paid_from")) el("f_stew_paid_from").addEventListener("change", refreshStewPayLive);
   if(el("f_stew_tip")) el("f_stew_tip").addEventListener("input", refreshStewPayLive);
   if(el("f_stew_tip_pay")) el("f_stew_tip_pay").addEventListener("change", refreshStewPayLive);
+  if(captainMode){
+    rebuildPerStewPayFields(false);
+    refreshStewPayLive();
+  }
   if(el("f_stew_cancelled")) el("f_stew_cancelled").addEventListener("change",function(){
     if(el("f_stew_zero_pay")){
       el("f_stew_zero_pay").disabled=!el("f_stew_cancelled").checked;
@@ -13448,33 +13622,38 @@ function openStewAssign(eventKey){
     Array.prototype.forEach.call(document.querySelectorAll("[data-stew-pick]"),function(inp){
       if(inp.checked) ids.push(inp.getAttribute("data-stew-pick"));
     });
-    var rate, units, each, tipTotal, tipPayStatus, tipShare, nowPaid, markCancelled, zeroPay, linkedLeadId, payFromPetty;
+    var rate, units, each, tipTotal, tipPayStatus, tipShare, nowPaid, markCancelled, zeroPay, linkedLeadId, payFromPetty, paidFromSel, dayPayByStew;
     if(captainMode){
       var rateRaw=el("f_stew_rate")?el("f_stew_rate").value:"";
       rate=rateRaw===""?"":apaNum(rateRaw);
       units=el("f_stew_units")?Math.max(1, Math.round(apaNum(el("f_stew_units").value)||1)):1;
       each=stewPayEach(rate, units);
+      dayPayByStew=readDayPayByStewFromForm(ids, each);
+      /* Keep payEach as default template; per-stew map is source of truth for amounts */
       var tipRaw=el("f_stew_tip")?el("f_stew_tip").value:"";
       tipTotal=tipRaw===""?"":apaNum(tipRaw);
       if(tipTotal!==""&&!(tipTotal>0)) tipTotal="";
       tipPayStatus=(el("f_stew_tip_pay")&&el("f_stew_tip_pay").value==="Paid")?"Paid":"Unpaid";
       tipShare=stewTipShare({tipTotal:tipTotal, stewIds:ids});
       nowPaid=(el("f_stew_pay")&&el("f_stew_pay").value==="Paid");
+      paidFromSel=(el("f_stew_paid_from")&&el("f_stew_paid_from").value==="Own money")?"Own money":"Petty cash";
       markCancelled=!!(el("f_stew_cancelled")&&el("f_stew_cancelled").checked);
       zeroPay=markCancelled&&!!(el("f_stew_zero_pay")&&el("f_stew_zero_pay").checked);
-      if(zeroPay){ each=0; rate=rate===""?"":0; nowPaid=false; }
+      if(zeroPay){ each=0; rate=rate===""?"":0; nowPaid=false; dayPayByStew={}; }
       linkedLeadId=(el("f_stew_leadId")&&el("f_stew_leadId").value)||"";
-      /* Paid from petty even on cancelled charters when stew still due reduced pay */
-      payFromPetty=nowPaid&&!zeroPay;
+      /* Paid from petty when captain chooses Petty cash (not own money) */
+      payFromPetty=nowPaid&&!zeroPay&&paidFromSel!=="Own money";
     } else {
       /* Team: only change who is on the charter + notes — keep captain pay fields */
       rate=asg.dayRate!=null&&asg.dayRate!==""?asg.dayRate:ratePrefill;
       units=asg.payUnits!=null&&asg.payUnits!==""&&apaNum(asg.payUnits)>0?Math.round(apaNum(asg.payUnits)):unitsPrefill;
       each=stewPayEach(rate, units);
+      dayPayByStew=asg.dayPayByStew&&typeof asg.dayPayByStew==="object"?asg.dayPayByStew:{};
       tipTotal=asg.tipTotal!=null&&asg.tipTotal!==""?asg.tipTotal:"";
       tipPayStatus=asg.tipPayStatus==="Paid"?"Paid":"Unpaid";
       tipShare=stewTipShare({tipTotal:tipTotal, stewIds:ids});
       nowPaid=asg.payStatus==="Paid";
+      paidFromSel=asg.paidFrom==="Own money"?"Own money":"Petty cash";
       markCancelled=!!(asg.cancelled||asg.status==="cancelled");
       zeroPay=markCancelled&&!(each>0);
       linkedLeadId=asg.leadId||"";
@@ -13519,12 +13698,14 @@ function openStewAssign(eventKey){
       dayRate:zeroPay?0:rate,
       payUnits:units,
       payEach:zeroPay?0:each,
+      dayPayByStew:zeroPay?{}:(dayPayByStew||{}),
       rateBand:band.kind,
       payStatus:(zeroPay||!nowPaid)?"Unpaid":"Paid",
       payStatusManual:captainMode?true:!!asg.payStatusManual,
-      /* Cash leaves petty when captain saves as Paid (including reduced pay on cancelled) */
+      paidFrom:captainMode&&nowPaid&&!zeroPay?paidFromSel:"",
+      /* Cash leaves petty when captain saves as Paid from Petty cash */
       _floatPayMark:captainMode&&payFromPetty,
-      _floatPayFrom:captainMode&&payFromPetty?"Petty cash":"",
+      _floatPayFrom:captainMode&&nowPaid&&!zeroPay?paidFromSel:"",
       tipTotal:markCancelled?"":tipTotal,
       tipStewShare:markCancelled?0:tipShare.stewSide,
       tipPayStatus:markCancelled?"Unpaid":tipPayStatus,
