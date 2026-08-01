@@ -5911,6 +5911,8 @@ function apaIsLinkedCharge(t,c){
 }
 function chargeIsLockedMoney(c){
   if(!c) return false;
+  /* User set settlement/amount in the charge sheet (e.g. cash €650 vs APA €664.95) */
+  if(c.moneyManual) return true;
   if(c.invStatus==="Issued") return true;
   if(chargePay(c)==="Paid") return true;
   return false;
@@ -6506,6 +6508,8 @@ function syncApaToCharge(t){
   var ch=findApaPendingCharge(t);
   /* Keep a charge if only extension remains (APA pot balanced) */
   if(over<=0){
+    /* Balanced pot: suppress no longer needed */
+    if(t.suppressShortfallCharge) t.suppressShortfallCharge=false;
     if(ch&&chargeExtAmt(ch)>0&&!chargeIsLockedMoney(ch)){
       applyApaChargeMoney(ch, 0);
       ch.kind="apa";
@@ -6536,6 +6540,29 @@ function syncApaToCharge(t){
     ?"APA shortfall / spend to invoice (not the full charter fee) — pot "+money0(x.basePot)+" · spent "+money0(x.spent)
     :"APA shortfall (overspend vs pot) — pot "+money0(x.basePot)+" · spent "+money0(x.spent);
   if(t.dates) note="APA · "+t.dates+". "+note;
+  /* Explicit delete of the shortfall charge — do not auto-recreate until suppress cleared */
+  if(!ch&&t.suppressShortfallCharge){
+    t.chargeId="";
+    return null;
+  }
+  /*
+   * Cash / manual settlement already Paid (e.g. €650 cash vs €664.95 ledger):
+   * do not open a second charge for the leftover pennies.
+   */
+  if(!ch&&over>0){
+    var paidManual=apaLinkedCharges(t).some(function(c){
+      if(chargePay(c)!=="Paid") return false;
+      if(c.moneyManual) return true;
+      var bt=typeof chargeBillType==="function"?chargeBillType(c):String(c.billType||"");
+      return bt==="cash"||bt==="mix"||!!c.cashDeal;
+    });
+    if(paidManual){
+      var keepPaid=findApaChargeForTrip(t);
+      t.chargeId=keepPaid?keepPaid.id:"";
+      t.suppressShortfallCharge=true;
+      return keepPaid;
+    }
+  }
   if(!ch){
     ch={
       id:uid(), kind:"apa", apaTripId:t.id, apaZeroPot:zeroPot,
@@ -6546,6 +6573,7 @@ function syncApaToCharge(t){
       extAmt:0, extSettle:"invoice", extHours:0, captainComm:false
     };
     state.charters.unshift(ch);
+    t.suppressShortfallCharge=false;
   }
   /* Always pin trip id — never share one charge across two Alvaro pots */
   ch.apaTripId=t.id;
@@ -7370,14 +7398,16 @@ function apaDieselHTML(t){
 function apaSetupHTML(t){
   var ch=findApaChargeForTrip(t);
   var over=apaOverageAmount(t);
+  var suppressed=!!t.suppressShortfallCharge&&over>0&&!ch;
   return '<div class="apa-card" style="margin-bottom:12px">'+
-    '<p style="margin:0 0 10px;font-size:13.5px;line-height:1.45;color:var(--muted)"><b>APA received can be €0.</b> Spend creates a <b>Charges</b> row for the amount still owed — use <b>Make invoice</b> there to generate the PDF. Mark charge <b>Paid</b> to restore balance.</p>'+
+    '<p style="margin:0 0 10px;font-size:13.5px;line-height:1.45;color:var(--muted)"><b>APA received can be €0.</b> Spend creates a <b>Charges</b> row for the amount still owed — use <b>Make invoice</b> there to generate the PDF. Mark charge <b>Paid</b> to restore balance. For cash deals: open the charge → Settlement <b>Cash</b> → enter amount paid.</p>'+
     (over&&ch&&chargePay(ch)!=="Paid"?'<p style="margin:0 0 12px;font-size:13px">Charge: <b>'+esc(ch.client)+'</b> · '+money(ch.amount)+(ch.inv?' · #'+esc(ch.inv):'')+'</p>':
+      suppressed?'<p style="margin:0 0 12px;font-size:13px;color:var(--muted)">Shortfall '+money(over)+' — charge was deleted. Tap <b>Sync charge now</b> to recreate.</p>':
       over?'<p style="margin:0 0 12px;font-size:13px;color:var(--danger)">To invoice '+money(over)+' — will create charge on save.</p>':
       (apaPaidCovered(t)>0?'<p style="margin:0 0 12px;font-size:13px;color:var(--greenInk)">Paid on Charges '+money(apaPaidCovered(t))+' is included in balance.</p>':
         '<p style="margin:0 0 12px;font-size:13px;color:var(--muted)">'+(apaHasPrepaid(t)?"Still in pot — no extra charge yet.":"No spend yet — add expenses or diesel to open a charge.")+'</p>'))+
     '<button type="button" class="btn" id="apaEditTrip">Edit trip / APA pot</button>'+
-    '<button type="button" class="btn ghost" id="apaSyncCharge" style="margin-top:10px">Sync charge now</button>'+
+    '<button type="button" class="btn ghost" id="apaSyncCharge" style="margin-top:10px">'+(suppressed?"Recreate shortfall charge":"Sync charge now")+'</button>'+
     '<button type="button" class="btn danger" id="apaDelTrip" style="margin-top:10px">Delete this trip</button>'+
   '</div>';
 }
@@ -7407,7 +7437,11 @@ function apaBindBody(t){
     });
   });
   if(el("apaEditTrip")) el("apaEditTrip").addEventListener("click",function(){ openApaTrip(t.id); });
-  if(el("apaSyncCharge")) el("apaSyncCharge").addEventListener("click",function(){ saveApa(t); });
+  if(el("apaSyncCharge")) el("apaSyncCharge").addEventListener("click",function(){
+    /* Explicit recreate after captain deleted the shortfall charge */
+    t.suppressShortfallCharge=false;
+    saveApa(t);
+  });
   if(el("apaDelTrip")) el("apaDelTrip").addEventListener("click",function(){ deleteApaTrip(t.id); });
   function apaRestampDieselLines(trip, forcePrice){
     (trip.diesel||[]).forEach(function(line){
@@ -14591,12 +14625,12 @@ function openSheet(type,id){
     h+='<div class="row2">'+fieldHTML("Charter date",'<input class="ctl" id="f_date" type="date" value="'+esc(r.date)+'">')+
       fieldHTML(isApaCh?"Total (APA + ext) €":"Total amount (€)",moneyField("f_amount",r.amount))+'</div>';
     if(isApaCh){
-      h+='<p style="margin:-6px 0 10px;font-size:12.5px;color:var(--muted);line-height:1.4">APA ledger part ≈ <b class="money">'+money(apaBaseShow)+'</b> (updates from Ops → APA). Total = APA + extension below so <b>one invoice can match the card payment</b>.</p>';
+      h+='<p style="margin:-6px 0 10px;font-size:12.5px;color:var(--muted);line-height:1.4">APA ledger shortfall ≈ <b class="money">'+money(apaBaseShow)+'</b>. You can set <b>Settlement → Cash</b> and change <b>Total</b> to what they actually paid (e.g. €650 cash). That amount sticks and is not overwritten by the ledger.</p>';
       h+='<input type="hidden" id="f_apaBaseAmt" value="'+esc(apaBaseShow)+'">';
     }
     h+=fieldHTML("Settlement",selBillTypeField(bt0));
     h+='<p style="margin:-6px 0 12px;font-size:12.5px;color:var(--muted);line-height:1.4">'+
-      '<b>Invoice</b> = formal PDF. <b>Cash</b> = cash only. <b>Mix</b> = both. Using “extra hours” below can set Mix automatically.</p>';
+      '<b>Invoice</b> = formal PDF. <b>Cash</b> = cash only (edit Total / Cash part freely). <b>Mix</b> = both. Extra hours can suggest Mix — your Settlement choice wins.</p>';
     h+='<div class="calcbox" id="f_ch_calc"></div>';
     h+='<div class="row2">'+fieldHTML("Payment",selPayField(pay))+fieldHTML("Paid by",selPayMethodField(pm))+'</div>';
     var cashDef=apaNum(r.cashPaid)>0?r.cashPaid:(bt0==="cash"?r.amount:(bt0==="mix"&&apaNum(r.cashAmt)>0?r.cashAmt:""));
@@ -14979,14 +15013,21 @@ function openSheet(type,id){
       }
       recalcCharge();
     }
-    if(el("f_billType")) el("f_billType").addEventListener("change",syncChargeBillUi);
+    if(el("f_billType")) el("f_billType").addEventListener("change",function(){
+      if(el("f_billType")) el("f_billType").dataset.userSet="1";
+      syncChargeBillUi();
+    });
     if(el("f_payMethod")) el("f_payMethod").addEventListener("change",syncChargeBillUi);
     if(el("f_amount")) el("f_amount").addEventListener("input",function(){
+      el("f_amount").dataset.userSet="1";
       var bt=(el("f_billType")&&el("f_billType").value)||"invoice";
-      if(bt==="cash"&&el("f_cashPaid")) el("f_cashPaid").value=el("f_amount").value;
+      if(bt==="cash"&&el("f_cashPaid")&&!(el("f_cashPaid").dataset.userSet==="1")) el("f_cashPaid").value=el("f_amount").value;
       recalcCharge();
     });
-    if(el("f_cashPaid")) el("f_cashPaid").addEventListener("input",recalcCharge);
+    if(el("f_cashPaid")) el("f_cashPaid").addEventListener("input",function(){
+      el("f_cashPaid").dataset.userSet="1";
+      recalcCharge();
+    });
     if(el("f_captainComm")) el("f_captainComm").addEventListener("change",recalcCharge);
     if(el("f_extHours")) el("f_extHours").addEventListener("input",recalcCharge);
     if(el("f_extAmt")) el("f_extAmt").addEventListener("input",recalcCharge);
@@ -15001,21 +15042,39 @@ function recalcCharge(){
   var extS=(el("f_extSettle")&&el("f_extSettle").value)==="cash"?"cash":"invoice";
   var apaBase=el("f_apaBaseAmt")?apaNum(el("f_apaBaseAmt").value):0;
   var hasApa=!!el("f_apaBaseAmt");
-  /* Same-bill extension drives total + settlement when APA-linked or ext amount set */
+  /*
+   * Do NOT force Settlement / amount from APA auto-math.
+   * Captain must be able to set Cash + a rounded amount (e.g. €650 cash vs €664.95 shortfall).
+   * Only auto-nudge total when extension € is set and total still matches prior auto (or empty).
+   */
   if(hasApa||extA>0){
     var built=chargeTotalsFromApaAndExt(hasApa?apaBase:Math.max(0,apaNum(el("f_amount")?el("f_amount").value:0)-extA), extA, extS);
-    if(hasApa||extA>0){
-      if(el("f_amount")) el("f_amount").value=String(built.amount);
-      if(el("f_billType")) el("f_billType").value=built.billType;
-      if(el("f_cashPaid")) el("f_cashPaid").value=built.cashPaid>0?String(built.cashPaid):"";
+    var amtEl=el("f_amount");
+    var curAmt=apaNum(amtEl?amtEl.value:0);
+    var manualBt=el("f_billType")&&(el("f_billType").dataset.userSet==="1");
+    var manualAmt=amtEl&&(amtEl.dataset.userSet==="1");
+    /* Extension-driven total only when amount not manually edited */
+    if(extA>0&&!manualAmt&&amtEl){
+      amtEl.value=String(built.amount);
+      curAmt=built.amount;
+    } else if(hasApa&&!(curAmt>0)&&amtEl&&built.amount>0){
+      amtEl.value=String(built.amount);
+      curAmt=built.amount;
+    }
+    /* Suggest Mix/Cash from extension settlement only if Settlement not user-touched */
+    if(extA>0&&!manualBt&&el("f_billType")){
+      el("f_billType").value=built.billType;
+      if(el("f_cashPaid")&&built.cashPaid>0&&!(el("f_cashPaid").dataset.userSet==="1")){
+        el("f_cashPaid").value=String(built.cashPaid);
+      }
       if(el("f_payMethod")){
         if(built.billType==="cash") el("f_payMethod").value="Cash";
         else if(built.billType==="mix") el("f_payMethod").value="Split";
-        else if(el("f_payMethod").value==="Cash"||el("f_payMethod").value==="Split") el("f_payMethod").value="Card";
       }
-      if(el("f_cashPaid_wrap")) el("f_cashPaid_wrap").style.display=built.billType==="invoice"?"none":"";
-      if(el("f_inv_fields_wrap")) el("f_inv_fields_wrap").style.display=built.billType==="cash"?"none":"";
     }
+    var btUi=(el("f_billType")&&el("f_billType").value)||"invoice";
+    if(el("f_cashPaid_wrap")) el("f_cashPaid_wrap").style.display=btUi==="invoice"?"none":"";
+    if(el("f_inv_fields_wrap")) el("f_inv_fields_wrap").style.display=btUi==="cash"?"none":"";
   }
   var gross=apaNum(el("f_amount")?el("f_amount").value:0);
   var bt=(el("f_billType")&&el("f_billType").value)||"invoice";
@@ -15082,6 +15141,7 @@ function saveSheet(type,rec){
     if(isApaRec&&!(apaBase>0)&&rec){
       apaBase=Number(rec.apaBaseAmt)>0?Number(rec.apaBaseAmt):Math.max(0,(Number(rec.amount)||0)-chargeExtAmt(rec));
     }
+    /* Form values win — never overwrite Cash / rounded amount with APA auto-math */
     var gross=apaNum(el("f_amount").value);
     var billType=(el("f_billType")&&el("f_billType").value)||"invoice";
     var payStatus=el("f_pay").value;
@@ -15089,15 +15149,16 @@ function saveSheet(type,rec){
     var pmRaw=(el("f_payMethod")&&el("f_payMethod").value)||"Card";
     var payMethod=pmRaw==="Cash"||pmRaw==="Split"?pmRaw:"Card";
     var cashPaid=apaNum(el("f_cashPaid")?el("f_cashPaid").value:0);
-    /* Rebuild totals from APA + extension when applicable */
-    if(isApaRec||extAmt>0){
-      var built=chargeTotalsFromApaAndExt(isApaRec?apaBase:Math.max(0,gross-extAmt), extAmt, extSettle);
-      gross=built.amount;
-      billType=built.billType;
-      cashPaid=built.cashPaid;
-      apaBase=built.apaBase;
-      if(el("f_amount")) el("f_amount").value=String(gross);
-    }
+    var autoBuilt=chargeTotalsFromApaAndExt(isApaRec?apaBase:Math.max(0,gross-extAmt), extAmt, extSettle);
+    /* Detect captain override (cash deal, rounded total, mix cash part, etc.) */
+    var moneyManual=!!(rec&&rec.moneyManual)||
+      (el("f_billType")&&el("f_billType").dataset.userSet==="1")||
+      (el("f_amount")&&el("f_amount").dataset.userSet==="1")||
+      (el("f_cashPaid")&&el("f_cashPaid").dataset.userSet==="1")||
+      (isApaRec&&(billType==="cash"||billType==="mix"))||
+      (Math.abs(gross-(autoBuilt.amount||0))>0.02)||
+      (Math.abs(cashPaid-(autoBuilt.cashPaid||0))>0.02)||
+      (billType!==(autoBuilt.billType||"invoice"));
     if(billType!=="cash"&&billType!=="mix") billType="invoice";
     if(billType==="cash"){
       payMethod="Cash";
@@ -15115,6 +15176,11 @@ function saveSheet(type,rec){
       if(invStatus==="Not needed") invStatus="Not issued";
     }
     if(cashPaid>gross) cashPaid=gross;
+    /* APA base for pot recovery = settled APA portion (total − extension) */
+    if(isApaRec){
+      apaBase=Math.max(0, Math.round((gross-extAmt)*100)/100);
+      if(!(apaBase>0)&&gross>0&&!(extAmt>0)) apaBase=gross;
+    }
     var invPart=billType==="cash"?0:Math.round((gross-cashPaid)*100)/100;
     var vatPct=billType==="cash"?0:21;
     var vatMode=billType==="cash"?"none":"include";
@@ -15144,7 +15210,8 @@ function saveSheet(type,rec){
       extHours:extHours>0?extHours:0,
       extAmt:extAmt>0?extAmt:0,
       extSettle:extAmt>0?extSettle:"invoice",
-      apaBaseAmt:isApaRec?apaBase:0 };
+      apaBaseAmt:isApaRec?apaBase:0,
+      moneyManual:!!moneyManual };
     /* Keep APA linkage when editing payment / invoice status */
     if(rec){
       if(rec.kind==="apa"||rec.apaTripId){
@@ -15164,19 +15231,49 @@ function saveSheet(type,rec){
       obj.kind="extension";
     }
     if(billType==="mix"||billType==="cash"){
+      obj.cashDeal=true;
       if(!(obj.cashAmt>0)&&cashPaid>0) obj.cashAmt=cashPaid;
+      if(billType==="cash"&&cashPaid>0) obj.cashAmt=cashPaid;
     }
     if(!obj.client && !obj.amount){ el("f_client").focus(); return; }
     upsert("charters",obj,rec); renderCharters(); save("charters");
+    /* Clear suppress so this charge stays linked; pin trip.chargeId */
+    if(obj.kind==="apa"||obj.apaTripId){
+      (state.apa||[]).forEach(function(t){
+        if(!t) return;
+        if((obj.apaTripId&&String(t.id)===String(obj.apaTripId))||String(t.chargeId)===String(obj.id)){
+          t.chargeId=obj.id;
+          t.suppressShortfallCharge=false;
+        }
+      });
+    }
     if(canOps()&&(obj.kind==="apa"||obj.apaTripId||(rec&&(rec.kind==="apa"||rec.apaTripId)))){
       refreshApaFromCharges();
-      /* Re-apply extension after APA sync (preserves ext on charge) */
+      /* Re-apply extension after APA sync — skipped when moneyManual / Paid / Issued */
       var linked=(state.charters||[]).filter(function(c){return c&&c.id===obj.id;})[0];
       if(linked){
+        /* Always re-pin user fields that refresh might have touched notes-only path */
+        if(obj.moneyManual||chargeIsLockedMoney(linked)){
+          linked.amount=obj.amount;
+          linked.billType=obj.billType;
+          linked.cashPaid=obj.cashPaid;
+          linked.cashAmt=obj.cashAmt;
+          linked.cashDeal=obj.cashDeal;
+          linked.payMethod=obj.payMethod;
+          linked.payStatus=obj.payStatus;
+          linked.invStatus=obj.invStatus;
+          linked.apaBaseAmt=obj.apaBaseAmt;
+          linked.moneyManual=true;
+          linked.net=obj.net; linked.vat=obj.vat; linked.vatPct=obj.vatPct; linked.vatMode=obj.vatMode;
+        } else {
+          linked.extAmt=obj.extAmt; linked.extSettle=obj.extSettle; linked.extHours=obj.extHours;
+          linked.captainComm=obj.captainComm;
+          if(obj.apaBaseAmt>0||obj.extAmt>0) applyApaChargeMoney(linked, Number(linked.apaBaseAmt)||obj.apaBaseAmt||0);
+        }
         linked.extAmt=obj.extAmt; linked.extSettle=obj.extSettle; linked.extHours=obj.extHours;
         linked.captainComm=obj.captainComm;
-        if(obj.apaBaseAmt>0||obj.extAmt>0) applyApaChargeMoney(linked, Number(linked.apaBaseAmt)||obj.apaBaseAmt||0);
         save("charters");
+        save("apa");
       }
     } else if(canOps()){
       refreshApaFromCharges();
@@ -15413,9 +15510,10 @@ function confirmDel(type,rec){
 function delRec(type,id){
   var coll=type==="charter"?"charters":"leads";
   var wasApa=false;
+  var gone=null;
   if(coll==="charters"){
-    var gone=(state.charters||[]).filter(function(r){return r.id===id;})[0];
-    wasApa=!!(gone&&(gone.kind==="apa"||gone.apaTripId));
+    gone=(state.charters||[]).filter(function(r){return r&&String(r.id)===String(id);})[0];
+    wasApa=!!(gone&&(gone.kind==="apa"||gone.apaTripId||isApaChargeRow(gone)));
     if(isCaptain()&&id){
       expRemoveChargeCashIn(id, true);
       saveExpPetty();
@@ -15445,12 +15543,32 @@ function delRec(type,id){
   }
   /* Strict string id match — loose !== can miss string vs number ids */
   var idS=String(id);
+  /* Before remove: unpin APA trips + suppress auto shortfall recreate (delete must stick) */
+  if(coll==="charters"&&wasApa&&gone){
+    var guestN=typeof normName==="function"?normName(gone.client||""):String(gone.client||"").toLowerCase();
+    (state.apa||[]).forEach(function(t){
+      if(!t) return;
+      var pin=String(t.chargeId||"")===idS;
+      var tripMatch=gone.apaTripId&&String(t.id)===String(gone.apaTripId);
+      var sameGuest=guestN&&typeof normName==="function"&&normName(t.guest)===guestN;
+      if(pin||tripMatch||sameGuest){
+        if(pin) t.chargeId="";
+        t.suppressShortfallCharge=true;
+        t.updatedAt=new Date().toISOString();
+      }
+    });
+  }
   state[coll]=state[coll].filter(function(r){return !r||String(r.id)!==idS;});
   /* So server merge does not re-attach this id from a concurrent restore */
   if(coll==="leads"||coll==="charters") voidDeletedId(coll, idS);
   if(coll==="charters"){
     renderCharters();
-    if(wasApa&&canOps()){ refreshApaFromCharges(); save("charters"); }
+    if(wasApa&&canOps()){
+      /* Refresh pot/cash bookkeeping — will not recreate while suppressShortfallCharge is set */
+      refreshApaFromCharges();
+      save("charters");
+      save("apa");
+    }
   } else renderLeads();
   save(coll); showSheet(false);
 }
