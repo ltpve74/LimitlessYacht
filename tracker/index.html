@@ -9335,51 +9335,53 @@ function expReimbursedToPerson(month, personId){
   });
   return Math.round(s*100)/100;
 }
+/** True if expense is own-money pocket (shop or crew day pay from own money). */
+function expIsOwnMoneySpend(e){
+  if(!e) return false;
+  if(expIsReimbursement(e)) return false;
+  if(expIsCrewDayPayLine(e)){
+    if(e.crewPayStatus!=="Paid") return false;
+    return e.paidFrom==="Own money"||expIsOwnMoneyLabel(e.paidFrom);
+  }
+  return expPaidFromOwnMoney(e);
+}
+/** Who is owed for an own-money spend (captain or stew). */
+function expOwnMoneySpendWhoId(e){
+  if(!e) return EXP_POCKET_CAPTAIN;
+  if(expIsCrewDayPayLine(e)) return String(e.paidById||EXP_POCKET_CAPTAIN);
+  return String(expPocketWhoId(e)||e.paidById||EXP_POCKET_CAPTAIN);
+}
 /**
- * How much of an own-money expense is already covered by reimbursement lines
- * (linked by reimbursesExpenseId any month, else FIFO unlinked pool for that person).
- * Linked repay can be logged in a later month (e.g. July spend, August repay).
+ * How much of an own-money expense is covered by reimbursements.
+ * Linked by reimbursesExpenseId OR FIFO unlinked pool for that person.
+ * Reimbursements in ANY month count (July spend can be repaid in August).
  */
 function expOwnMoneyRepaidAmt(e, month){
-  if(!e) return 0;
-  /* Crew day-pay from own money uses paidFrom; shop uses expPaidFromOwnMoney */
-  var isOwn=expPaidFromOwnMoney(e)||(expIsCrewDayPayLine(e)&&(e.paidFrom==="Own money"||expIsOwnMoneyLabel(e.paidFrom)));
-  if(!isOwn) return 0;
+  if(!expIsOwnMoneySpend(e)) return 0;
   var need=apaNum(e.amount);
   if(!(need>0)) return 0;
   var linked=0;
   (state.expenses||[]).forEach(function(r){
     if(!r||!expIsReimbursement(r)) return;
     if(String(r.reimbursesExpenseId||"")!==String(e.id)) return;
-    /* Any month — repay often lands in a later month */
     linked+=apaNum(r.amount);
   });
   linked=Math.round(linked*100)/100;
   if(linked>=need-0.009) return need;
-  /* FIFO fallback: unlinked reimbursements for this person (all months through focus) */
-  var who=expPocketWhoId(e)||(e.paidById!=null&&String(e.paidById)!==""?String(e.paidById):EXP_POCKET_CAPTAIN);
-  var focus=month||expMonthKey(e.date)||expDefaultMonth();
+  /* FIFO: unlinked reimbursements for this person — all months (no focus cutoff) */
+  var who=expOwnMoneySpendWhoId(e);
   var pool=0;
   (state.expenses||[]).forEach(function(r){
     if(!r) return;
     expNormalizeReimbursement(r);
     if(!expIsReimbursement(r)) return;
     if(String(expReimburseWhoId(r)||"")!==String(who)) return;
-    if(r.reimbursesExpenseId) return;
-    var rm=expMonthKey(r.date);
-    if(rm&&focus&&rm>focus) return; /* don't use future-month repay for past view */
+    if(r.reimbursesExpenseId) return; /* linked only for their target */
     pool+=apaNum(r.amount);
   });
   pool=Math.round(pool*100)/100;
   var own=(state.expenses||[]).filter(function(x){
-    if(!x) return false;
-    var xo=expPaidFromOwnMoney(x)||(expIsCrewDayPayLine(x)&&(x.paidFrom==="Own money"||expIsOwnMoneyLabel(x.paidFrom)));
-    if(!xo) return false;
-    var xWho=expIsCrewDayPayLine(x)?String(x.paidById||EXP_POCKET_CAPTAIN):String(expPocketWhoId(x)||EXP_POCKET_CAPTAIN);
-    if(xWho!==String(who)) return false;
-    var xm=expMonthKey(x.date);
-    if(xm&&focus&&xm>focus) return false;
-    return true;
+    return expIsOwnMoneySpend(x)&&String(expOwnMoneySpendWhoId(x))===String(who);
   }).sort(function(a,b){
     var c=String(a.date||"").localeCompare(String(b.date||""));
     if(c) return c;
@@ -9404,11 +9406,46 @@ function expOwnMoneyRepaidAmt(e, month){
   return Math.round(Math.min(need, Math.max(linked, forThis))*100)/100;
 }
 function expOwnMoneyIsRepaid(e, month){
-  var isOwn=e&&(expPaidFromOwnMoney(e)||(expIsCrewDayPayLine(e)&&(e.paidFrom==="Own money"||expIsOwnMoneyLabel(e.paidFrom))));
-  if(!isOwn) return false;
+  if(!expIsOwnMoneySpend(e)) return false;
   var need=apaNum(e.amount);
   if(!(need>0)) return false;
   return expOwnMoneyRepaidAmt(e, month)>=need-0.009;
+}
+/** Best reimbursement row that covers this own-money spend (for “Repaid · date” label). */
+function expOwnMoneyRepayNote(e){
+  if(!expIsOwnMoneySpend(e)||!expOwnMoneyIsRepaid(e)) return "";
+  var linked=[];
+  (state.expenses||[]).forEach(function(r){
+    if(r&&expIsReimbursement(r)&&String(r.reimbursesExpenseId||"")===String(e.id)) linked.push(r);
+  });
+  var pick=null;
+  if(linked.length){
+    linked.sort(function(a,b){ return String(b.date||"").localeCompare(String(a.date||"")); });
+    pick=linked[0];
+  } else {
+    /* Unlinked FIFO pool — use newest reimbursement to this person as the repay date hint */
+    var who=expOwnMoneySpendWhoId(e);
+    var unlinked=[];
+    (state.expenses||[]).forEach(function(r){
+      if(!r) return;
+      expNormalizeReimbursement(r);
+      if(!expIsReimbursement(r)) return;
+      if(String(expReimburseWhoId(r)||"")!==String(who)) return;
+      if(r.reimbursesExpenseId) return;
+      unlinked.push(r);
+    });
+    if(unlinked.length){
+      unlinked.sort(function(a,b){ return String(b.date||"").localeCompare(String(a.date||"")); });
+      pick=unlinked[0];
+    }
+  }
+  if(pick){
+    var d=String(pick.date||"").slice(0,10);
+    var dLab="";
+    try{ dLab=d&&/^\d{4}-\d{2}-\d{2}$/.test(d)?fmtDate(d):d; }catch(eD){ dLab=d; }
+    return dLab?"Repaid from petty · "+dLab:"Repaid from petty";
+  }
+  return "Repaid from petty";
 }
 /**
  * All open own-money / pocket spends (any month ≤ focus), not yet fully repaid.
@@ -11269,12 +11306,10 @@ function paintExpensesBody(){
       var reimbFromOwn=isReimb&&(e.paidFrom==="Own money"||expIsOwnMoneyLabel(e.paidFrom));
       var reimbName=isReimb?expPocketPersonName(expReimburseWhoId(e)):"";
       var reimbPayer=isReimb&&reimbFromOwn?expPocketPersonName(e.paidById||EXP_POCKET_CAPTAIN):"";
-      var ownRepaid=ownPay&&!isCrewDay?expOwnMoneyIsRepaid(e, expMonth):false;
-      var ownRepaidAmt=ownPay&&!isCrewDay?expOwnMoneyRepaidAmt(e, expMonth):0;
-      if(crewPaidFromOwn){
-        var fakeShop={id:e.id, amount:e.amount, paidFrom:"Own money", paidById:pocketWhoId, date:e.date, category:"Crew Salaries"};
-        ownRepaid=expOwnMoneyIsRepaid(fakeShop, expMonth)||expOwnMoneyIsRepaid(Object.assign({},e,{paidFrom:"Own money", paidById:pocketWhoId}), expMonth);
-      }
+      /* Own-money repay status (crew day pay + shop) — reimbursements any month count */
+      var ownRepaid=expIsOwnMoneySpend(e)?expOwnMoneyIsRepaid(e, expMonth):false;
+      var ownRepaidAmt=expIsOwnMoneySpend(e)?expOwnMoneyRepaidAmt(e, expMonth):0;
+      var ownRepayNote=ownRepaid?expOwnMoneyRepayNote(e):"";
       /* Purpose-first pills: what the money is for, then how it was funded */
       var pills=[];
       var showRepayBtn=false;
@@ -11299,10 +11334,20 @@ function paintExpensesBody(){
         titleText=(e.vendor||"Crew")+" · day pay";
         pills.push('<span class="pill p-blue">Day pay</span>');
         pills.push(ownRepaid
-          ?'<span class="pill p-own-ok">Own money · '+esc(pocketName||"Captain")+'</span>'
-          :'<span class="pill p-own">Own money · '+esc(pocketName||"Captain")+'</span>');
-        if(ownRepaid) pills.push('<span class="pill p-green">Repaid</span>');
-        else pills.push('<span class="pill p-amber">Awaiting repay</span>');
+          ?'<span class="pill p-own-ok">Own money · '+esc(pocketName||"you")+'</span>'
+          :'<span class="pill p-own">Own money · '+esc(pocketName||"you")+'</span>');
+        if(ownRepaid){
+          pills.push('<span class="pill p-green">Repaid</span>');
+          purposeNote=ownRepayNote||"Paid from your pocket · later repaid from petty";
+        } else if(ownRepaidAmt>0.009){
+          pills.push('<span class="pill p-amber">Part repaid '+money0(ownRepaidAmt)+'</span>');
+          purposeNote="Paid "+(e.vendor||"crew")+" from your pocket — boat still owes you "+money0(Math.max(0, apaNum(e.amount)-ownRepaidAmt));
+          showRepayBtn=true;
+        } else {
+          pills.push('<span class="pill p-amber">Awaiting repay</span>');
+          purposeNote="Paid "+(e.vendor||"crew")+" from your pocket — boat still owes you "+money0(Math.max(0, apaNum(e.amount)-ownRepaidAmt));
+          showRepayBtn=true;
+        }
       } else if(prior){
         titleText=(e.vendor||"Crew")+" · day pay";
         pills.push('<span class="pill p-blue">Day pay</span>');
@@ -11326,17 +11371,18 @@ function paintExpensesBody(){
       } else if(e.payMethod==="Credit Card"){
         pills.push('<span class="pill p-card">Card</span>');
         if(e.category) pills.push('<span class="pill p-grey">'+esc(e.category)+'</span>');
-      } else if(ownPay){
-        if(expIsCrewSalariesCategory(e)){
+      } else if(ownPay||expIsOwnMoneySpend(e)){
+        if(expIsCrewSalariesCategory(e)||expIsCrewDayPayLine(e)){
           titleText=(e.vendor||"Crew")+" · day pay";
           pills.push('<span class="pill p-blue">Day pay</span>');
         } else if(e.category) pills.push('<span class="pill p-grey">'+esc(e.category)+'</span>');
         if(ownRepaid){
           pills.push('<span class="pill p-own-ok">Own money'+(pocketName?' · '+esc(pocketName):'')+'</span>');
           pills.push('<span class="pill p-green">Repaid</span>');
+          purposeNote=ownRepayNote||purposeNote||e.description||"";
         } else if(ownRepaidAmt>0.009){
           pills.push('<span class="pill p-own">Own money'+(pocketName?' · '+esc(pocketName):'')+'</span>');
-          pills.push('<span class="pill p-amber">Part repaid</span>');
+          pills.push('<span class="pill p-amber">Part repaid '+money0(ownRepaidAmt)+'</span>');
           showRepayBtn=true;
         } else {
           pills.push('<span class="pill p-own">Own money'+(pocketName?' · '+esc(pocketName):'')+'</span>');
@@ -11409,11 +11455,12 @@ function paintExpensesBody(){
       ev.preventDefault(); ev.stopPropagation();
       var eid=btn.getAttribute("data-exp-repay");
       var src=(state.expenses||[]).filter(function(x){return x&&String(x.id)===String(eid);})[0];
-      if(!src||!expPaidFromOwnMoney(src)) return;
+      /* Crew day pay from pocket + shop own-money both repayable */
+      if(!src||!expIsOwnMoneySpend(src)) return;
       var already=expOwnMoneyRepaidAmt(src, expMonth);
       var due=Math.max(0, Math.round((apaNum(src.amount)-already)*100)/100);
       if(!(due>0.009)){ window.alert("Already fully repaid from petty."); return; }
-      var who=expPocketWhoId(src)||EXP_POCKET_CAPTAIN;
+      var who=expOwnMoneySpendWhoId(src)||EXP_POCKET_CAPTAIN;
       openExpense(null, {
         reimburse:true,
         amount:due,
