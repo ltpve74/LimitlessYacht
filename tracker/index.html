@@ -2017,19 +2017,7 @@ function chargeMoneySummaryHTML(r){
   return h;
 }
 function renderCharters(){
-  /* Collapse duplicate APA shortfall rows (e.g. Alvaro ×4) before paint — no re-render loop */
-  if(canOps()&&!DEMO&&!renderCharters._merging){
-    renderCharters._merging=true;
-    try{
-      var d0=purgeLeadFreeCashCharges();
-      var d1=relinkOrphanApaCharges();
-      var d2=mergeDuplicateApaCharges();
-      if(d0||d1||d2){
-        try{ save("charters"); save("apa"); }catch(e){}
-      }
-    }catch(e){}
-    renderCharters._merging=false;
-  }
+  /* Paint only — never merge/relink/purge/save on render (that rewrote notes & resurrected rows). */
   sortCharters();
   var wrap=el("chList"), tot=0, cashTot=0, invTot=0, pend=0, html="";
   state.charters.forEach(function(r){
@@ -6413,120 +6401,125 @@ function relinkOrphanApaCharges(){
   return dirty;
 }
 /**
- * One APA shortfall charge per trip, then one per guest name.
- * Multiple Alvaro rows (different trip ids / orphans) collapse to the strongest charge.
- * Do not sum amounts — keep winner € only (avoids inventing money).
+ * Collapse true duplicate APA charges for the *same trip id only*.
+ * Never merge by guest name (different days/charters must stay separate).
+ * Prefer explicit captain delete over auto-collapse.
  */
 function mergeDuplicateApaCharges(){
   if(!state.charters||!state.charters.length) return false;
   var dirty=false;
-  var byTrip={}, byGuest={};
+  var byTrip={};
   state.charters.forEach(function(c){
-    if(!isApaChargeRow(c)) return;
-    if(c.apaTripId){
-      var k=String(c.apaTripId);
-      if(!byTrip[k]) byTrip[k]=[];
-      byTrip[k].push(c);
-    }
-    var g=normName(c.client);
-    if(g){
-      if(!byGuest[g]) byGuest[g]=[];
-      byGuest[g].push(c);
-    }
+    if(!isApaChargeRow(c)||!c.apaTripId) return;
+    var k=String(c.apaTripId);
+    if(!byTrip[k]) byTrip[k]=[];
+    byTrip[k].push(c);
   });
   function score(c){
     var s=(Number(c.amount)||0)*10+(chargeExtAmt(c)>0?1000:0)+(c.captainComm?50:0)+(c.inv?20:0);
     if(chargePay(c)==="Paid") s+=5000;
     if(c.invStatus==="Issued") s+=2000;
+    if(c.moneyManual) s+=3000;
     if(c.kind==="apa") s+=5;
     return s;
   }
   function collapse(list){
     if(!list||list.length<2) return;
-    /* De-dupe list by id (same charge can appear in trip + guest groups) */
     var seen={}, uniq=[];
     list.forEach(function(c){
       if(!c||!c.id||seen[c.id]) return;
       seen[c.id]=1;
-      /* Still in state.charters? */
       if(!(state.charters||[]).some(function(x){ return x&&x.id===c.id; })) return;
       uniq.push(c);
     });
     if(uniq.length<2) return;
     uniq=uniq.slice().sort(function(a,b){ return score(b)-score(a); });
     var win=uniq[0];
-    var gName=normName(win.client);
     uniq.slice(1).forEach(function(loser){
+      if(chargeIsLockedMoney(loser)&&!chargeIsLockedMoney(win)){
+        /* Prefer locked loser as winner */
+        var tmp=win; win=loser; loser=tmp;
+      }
       if(chargeExtAmt(loser)>chargeExtAmt(win)){
         win.extAmt=loser.extAmt; win.extSettle=loser.extSettle; win.extHours=loser.extHours||win.extHours;
         win.captainComm=win.captainComm||loser.captainComm;
       }
       if(loser.inv&&!win.inv) win.inv=loser.inv;
-      if(chargePay(loser)==="Paid"&&chargePay(win)!=="Paid"){
-        win.payStatus="Paid";
-        win.status="Paid";
-      }
-      if(loser.invStatus==="Issued"&&win.invStatus!=="Issued"){
-        win.invStatus="Issued";
-      }
-      if(!win.apaTripId&&loser.apaTripId) win.apaTripId=loser.apaTripId;
-      win.kind="apa";
       state.charters=(state.charters||[]).filter(function(x){ return !x||x.id!==loser.id; });
+      try{ addTombstone("charters", loser.id); }catch(eT){}
       (state.apa||[]).forEach(function(t){
         if(!t) return;
         if(String(t.chargeId)===String(loser.id)) t.chargeId=win.id;
-        if(String(t.id)===String(loser.apaTripId)&&!t.chargeId) t.chargeId=win.id;
       });
       dirty=true;
     });
-    /* Pin winner to canonical APA pot for this guest when possible */
-    if(gName&&(state.apa||[]).length){
-      var trips=(state.apa||[]).filter(function(t){ return t&&normName(t.guest)===gName; });
-      if(trips.length){
-        trips=trips.slice().sort(function(a,b){ return apaTripCanonicalScore(b)-apaTripCanonicalScore(a); });
-        var trip=trips[0];
-        if(trip&&String(win.apaTripId||"")!==String(trip.id)){
-          win.apaTripId=trip.id;
-          dirty=true;
-        }
-        if(trip) trip.chargeId=win.id;
-      }
+    if(win.apaTripId){
+      (state.apa||[]).forEach(function(t){
+        if(t&&String(t.id)===String(win.apaTripId)) t.chargeId=win.id;
+      });
     }
   }
   Object.keys(byTrip).forEach(function(k){ collapse(byTrip[k]); });
-  /* Same guest, different trip ids → one charge (fixes Alvaro ×4) */
-  Object.keys(byGuest).forEach(function(k){ collapse(byGuest[k]); });
   return dirty;
 }
-function syncApaToCharge(t){
+/**
+ * Link APA pot ↔ shortfall charge.
+ * opts.force = true only from "Sync charge now" — may rewrite unlocked money.
+ * Default: never rewrite notes/amount/client on an existing charge (stops flicker).
+ */
+function syncApaToCharge(t, opts){
+  opts=opts||{};
+  var force=!!opts.force;
   if(!t||!String(t.guest||"").trim()) return null;
   if(!state.charters) state.charters=[];
   /* Never re-pin lead free cash as −APA */
   if(apaTripLooksLikeLeadCashShell(t)) stripLeadCashFromApaTrip(t);
+  /* Drop pointer to a charge the captain deleted */
+  if(t.chargeId&&typeof isTombstoned==="function"&&isTombstoned("charters", t.chargeId)) t.chargeId="";
   var lead=apaLinkedLead(t);
   var over=apaOverageAmount(t);
-  var ch=findApaPendingCharge(t);
-  /* Keep a charge if only extension remains (APA pot balanced) */
-  if(over<=0){
-    /* Balanced pot: suppress no longer needed */
-    if(t.suppressShortfallCharge) t.suppressShortfallCharge=false;
-    if(ch&&chargeExtAmt(ch)>0&&!chargeIsLockedMoney(ch)){
-      applyApaChargeMoney(ch, 0);
-      ch.kind="apa";
-      ch.apaTripId=t.id;
-      ch.client=t.guest||ch.client;
-      t.chargeId=ch.id;
+  var ch=findApaPendingCharge(t)||findApaChargeForTrip(t);
+  if(ch&&typeof isTombstoned==="function"&&isTombstoned("charters", ch.id)) ch=null;
+  /* Existing charge: hands off unless explicit force + unlocked */
+  if(ch){
+    if(!ch.apaTripId) ch.apaTripId=t.id;
+    if(ch.kind!=="apa") ch.kind="apa";
+    t.chargeId=ch.id;
+    if(!force||chargeIsLockedMoney(ch)) return ch;
+    /* force path: update money only — never rewrite captain notes */
+    if(over<=0){
+      if(chargeExtAmt(ch)>0) applyApaChargeMoney(ch, 0);
       return ch;
     }
-    if(ch&&chargeIsLockedMoney(ch)){
-      t.chargeId=ch.id;
-      return ch;
-    }
-    removeApaLinkedCharges(t, true);
-    var left=findApaChargeForTrip(t);
-    t.chargeId=left?left.id:"";
-    return left;
+    applyApaChargeMoney(ch, over);
+    if(ch.payStatus!=="Paid") ch.payStatus="Pending";
+    if(ch.invStatus!=="Issued"&&ch.invStatus!=="Not needed") ch.status=ch.payStatus;
+    return ch;
   }
+  /* No linked charge */
+  if(over<=0){
+    if(t.suppressShortfallCharge) t.suppressShortfallCharge=false;
+    t.chargeId="";
+    return null;
+  }
+  if(t.suppressShortfallCharge){
+    t.chargeId="";
+    return null;
+  }
+  /* Cash / manual settlement already Paid — do not open leftover shortfall */
+  var paidManual=apaLinkedCharges(t).some(function(c){
+    if(chargePay(c)!=="Paid") return false;
+    if(c.moneyManual) return true;
+    var bt=typeof chargeBillType==="function"?chargeBillType(c):String(c.billType||"");
+    return bt==="cash"||bt==="mix"||!!c.cashDeal;
+  });
+  if(paidManual){
+    var keepPaid=findApaChargeForTrip(t);
+    t.chargeId=keepPaid?keepPaid.id:"";
+    t.suppressShortfallCharge=true;
+    return keepPaid;
+  }
+  /* Create once — notes set at create only, never auto-updated later */
   var date="";
   if(lead&&lead.start) date=lead.start;
   if(!date&&t.expenses&&t.expenses.length){
@@ -6540,68 +6533,25 @@ function syncApaToCharge(t){
     ?"APA shortfall / spend to invoice (not the full charter fee) — pot "+money0(x.basePot)+" · spent "+money0(x.spent)
     :"APA shortfall (overspend vs pot) — pot "+money0(x.basePot)+" · spent "+money0(x.spent);
   if(t.dates) note="APA · "+t.dates+". "+note;
-  /* Explicit delete of the shortfall charge — do not auto-recreate until suppress cleared */
-  if(!ch&&t.suppressShortfallCharge){
-    t.chargeId="";
-    return null;
-  }
-  /*
-   * Cash / manual settlement already Paid (e.g. €650 cash vs €664.95 ledger):
-   * do not open a second charge for the leftover pennies.
-   */
-  if(!ch&&over>0){
-    var paidManual=apaLinkedCharges(t).some(function(c){
-      if(chargePay(c)!=="Paid") return false;
-      if(c.moneyManual) return true;
-      var bt=typeof chargeBillType==="function"?chargeBillType(c):String(c.billType||"");
-      return bt==="cash"||bt==="mix"||!!c.cashDeal;
-    });
-    if(paidManual){
-      var keepPaid=findApaChargeForTrip(t);
-      t.chargeId=keepPaid?keepPaid.id:"";
-      t.suppressShortfallCharge=true;
-      return keepPaid;
-    }
-  }
-  if(!ch){
-    ch={
-      id:uid(), kind:"apa", apaTripId:t.id, apaZeroPot:zeroPot,
-      date:date, client:t.guest,
-      payStatus:"Pending", payMethod:"Card",
-      invStatus:"Not issued", status:"Pending",
-      inv:"", notes:note, by:session.who||"Captain",
-      extAmt:0, extSettle:"invoice", extHours:0, captainComm:false
-    };
-    state.charters.unshift(ch);
-    t.suppressShortfallCharge=false;
-  }
-  /* Always pin trip id — never share one charge across two Alvaro pots */
-  ch.apaTripId=t.id;
-  ch.kind="apa";
-  ch.client=t.guest||ch.client;
-  ch.apaZeroPot=zeroPot;
-  if(!ch.date) ch.date=date;
-  if(chargeIsLockedMoney(ch)){
-    /* Issued/Paid: keep € amount; only refresh notes if still auto-text */
-    if(!ch.notes||/^APA/i.test(ch.notes)||/synced from APA|shortfall|invoice request/i.test(ch.notes)) ch.notes=note;
-    t.chargeId=ch.id;
-    return ch;
-  }
+  ch={
+    id:uid(), kind:"apa", apaTripId:t.id, apaZeroPot:zeroPot,
+    date:date, client:t.guest,
+    payStatus:"Pending", payMethod:"Card",
+    invStatus:"Not issued", status:"Pending",
+    inv:"", notes:note, by:session.who||"Captain",
+    extAmt:0, extSettle:"invoice", extHours:0, captainComm:false
+  };
   applyApaChargeMoney(ch, over);
-  if(chargeExtAmt(ch)>0){
-    note+=" · +"+money0(chargeExtAmt(ch))+" ext ("+(chargeExtSettle(ch)==="cash"?"cash":"on invoice")+")";
-  }
-  if(ch.payStatus!=="Paid") ch.payStatus="Pending";
-  if(ch.invStatus!=="Issued"&&ch.invStatus!=="Not needed"){
-    ch.status=ch.payStatus;
-  } else if(ch.invStatus==="Issued") ch.status="Invoiced";
-  if(!ch.notes||/^APA/i.test(ch.notes)||/synced from APA/i.test(ch.notes)||/shortfall/i.test(ch.notes)||/invoice request/i.test(ch.notes)||/pot \(sent/i.test(ch.notes)||/^Cash \(black\)/i.test(ch.notes)||/Cash black/i.test(ch.notes)||/Charter spend to invoice/i.test(ch.notes)||/\+\s*€/.test(ch.notes)||/ext \(cash\)|ext \(on invoice\)/i.test(ch.notes)||/not the full charter/i.test(ch.notes)) ch.notes=note;
-  ch.by=session.who||ch.by;
+  state.charters.unshift(ch);
+  t.suppressShortfallCharge=false;
   t.chargeId=ch.id;
   if(syncLeadApaInvoiceAmount(t, over)){ /* leads saved by caller */ }
   return ch;
 }
-/** After Charges payment status changes, recompute APA balance + charge row. */
+/**
+ * After Charges payment status changes: recompute APA pot bookkeeping only.
+ * Does not rewrite existing charge notes/amounts (use Sync charge now for that).
+ */
 function refreshApaFromCharges(){
   if(!canOps()||!state.apa||!state.apa.length) return;
   var leadDirty=false;
@@ -6609,9 +6559,9 @@ function refreshApaFromCharges(){
     t.updatedAt=new Date().toISOString();
     var lead=apaLinkedLead(t);
     var snap=lead?{ apas:lead.apas, apa:Number(lead.apa)||0 }:null;
-    /* Cash deal: Paid charge → book cash as APA received */
     syncCashReceivedFromCharges(t);
-    syncApaToCharge(t);
+    /* Pin only — no money/notes rewrite */
+    syncApaToCharge(t, {force:false});
     lead=apaLinkedLead(t);
     if(lead&&snap&&(lead.apas!==snap.apas||Math.abs((Number(lead.apa)||0)-snap.apa)>0.005)) leadDirty=true;
   });
@@ -7032,8 +6982,9 @@ function apaTotals(t){
   var pct=available>0?spent/available:0;
   return { expSum:expSum, prov:prov, dLit:dLit, dCost:dCost, cats:cats, spent:spent, basePot:basePot, paidCovered:paidCovered, available:available, bal:bal, pct:pct };
 }
-function saveApa(trip){
+function saveApa(trip, opts){
   if(!canOps()) return;
+  opts=opts||{};
   var t=trip||apaTrip();
   var leadDirty=false;
   if(t){
@@ -7041,7 +6992,8 @@ function saveApa(trip){
     var lead=apaLinkedLead(t);
     var snap=lead?{ apas:lead.apas, apa:Number(lead.apa)||0 }:null;
     syncCashReceivedFromCharges(t);
-    syncApaToCharge(t);
+    /* Default: pin/create only. force only from "Sync charge now". */
+    syncApaToCharge(t, {force:!!opts.force});
     lead=apaLinkedLead(t);
     if(lead&&snap&&(lead.apas!==snap.apas||Math.abs((Number(lead.apa)||0)-snap.apa)>0.005)) leadDirty=true;
   }
@@ -7438,9 +7390,9 @@ function apaBindBody(t){
   });
   if(el("apaEditTrip")) el("apaEditTrip").addEventListener("click",function(){ openApaTrip(t.id); });
   if(el("apaSyncCharge")) el("apaSyncCharge").addEventListener("click",function(){
-    /* Explicit recreate after captain deleted the shortfall charge */
+    /* Explicit: recreate/update shortfall money from ledger (only unlocked charges) */
     t.suppressShortfallCharge=false;
-    saveApa(t);
+    saveApa(t, {force:true});
   });
   if(el("apaDelTrip")) el("apaDelTrip").addEventListener("click",function(){ deleteApaTrip(t.id); });
   function apaRestampDieselLines(trip, forcePrice){
@@ -8700,22 +8652,26 @@ function mergeExpPetty(local, remote){
   Object.keys(by).sort().forEach(function(m){ out.push(by[m]); });
   return out;
 }
-/** Merge expense rows by id; newer updatedAt wins; local wins ties. */
-function mergeExpensesById(local, remote){
+/** Merge expense rows by id; newer updatedAt wins; local wins ties. coll = optional tombstone filter. */
+function mergeExpensesById(local, remote, coll){
   var by={};
   function take(e){
     if(!e||!e.id) return;
+    if(coll&&isTombstoned(coll, e.id)) return;
     var cur=by[e.id];
     if(!cur){ by[e.id]=e; return; }
     var ct=String(cur.updatedAt||"");
     var pt=String(e.updatedAt||"");
+    /* Strict newer only — equal ts keeps first (remote then local overlay wins) */
     if(pt>ct) by[e.id]=e;
-    else if(pt===ct) by[e.id]=e;
   }
   (remote||[]).forEach(take);
   (local||[]).forEach(take);
   var out=[];
-  Object.keys(by).forEach(function(k){ out.push(by[k]); });
+  Object.keys(by).forEach(function(k){
+    if(coll&&isTombstoned(coll, k)) return;
+    out.push(by[k]);
+  });
   return out;
 }
 /** After a local save, ignore poll overwrites for a short window. */
@@ -8724,8 +8680,8 @@ function touchLocalSave(coll){
   if(coll) lastLocalSaveAt[coll]=Date.now();
 }
 function localSaveIsFresh(coll, ms){
-  /* Leads need a long window — suggested cash race used to win after 15s */
-  if(ms==null) ms=(coll==="leads"?120000:15000);
+  /* Leads + charges + APA: long window so poll cannot resurrect deletes / thrash notes */
+  if(ms==null) ms=(coll==="leads"||coll==="charters"||coll==="apa"?120000:15000);
   var t=lastLocalSaveAt[coll]||0;
   return t>0&&(Date.now()-t)<ms;
 }
@@ -8853,17 +8809,19 @@ function mergeLeadPair(remote, local){
  */
 function mergeLeadsById(local, remote){
   var by={};
-  (remote||[]).forEach(function(l){ if(l&&l.id) by[l.id]=l; });
+  (remote||[]).forEach(function(l){
+    if(l&&l.id&&!isTombstoned("leads", l.id)) by[l.id]=l;
+  });
   (local||[]).forEach(function(l){
-    if(!l||!l.id) return;
+    if(!l||!l.id||isTombstoned("leads", l.id)) return;
     by[l.id]=by[l.id]?mergeLeadPair(by[l.id], l):l;
   });
   var out=[], seen={};
   (local||[]).forEach(function(l){
-    if(l&&l.id&&by[l.id]&&!seen[l.id]){ out.push(by[l.id]); seen[l.id]=1; }
+    if(l&&l.id&&by[l.id]&&!seen[l.id]&&!isTombstoned("leads", l.id)){ out.push(by[l.id]); seen[l.id]=1; }
   });
   (remote||[]).forEach(function(l){
-    if(l&&l.id&&by[l.id]&&!seen[l.id]){ out.push(by[l.id]); seen[l.id]=1; }
+    if(l&&l.id&&by[l.id]&&!seen[l.id]&&!isTombstoned("leads", l.id)){ out.push(by[l.id]); seen[l.id]=1; }
   });
   return out;
 }
@@ -15559,16 +15517,12 @@ function delRec(type,id){
     });
   }
   state[coll]=state[coll].filter(function(r){return !r||String(r.id)!==idS;});
-  /* So server merge does not re-attach this id from a concurrent restore */
+  /* So server merge / poll cannot re-attach this id */
   if(coll==="leads"||coll==="charters") voidDeletedId(coll, idS);
   if(coll==="charters"){
     renderCharters();
-    if(wasApa&&canOps()){
-      /* Refresh pot/cash bookkeeping — will not recreate while suppressShortfallCharge is set */
-      refreshApaFromCharges();
-      save("charters");
-      save("apa");
-    }
+    /* Do NOT refreshApaFromCharges here — that used to recreate rows and rewrite notes */
+    if(wasApa&&canOps()) save("apa");
   } else renderLeads();
   save(coll); showSheet(false);
 }
@@ -15768,12 +15722,43 @@ el("sheetInner").addEventListener("change",function(){ recalcLead(); recalcCharg
 
 /* Explicit deletes for merge-safe full-array saves (server keeps missing ids otherwise). */
 var pendingDeletedIds={ leads:[], charters:[] };
+/** Durable tombstones — poll/save merge must not resurrect deleted charges/leads. */
+var TOMBSTONE_KEY="ly_tracker_tombstones_v1";
+function loadTombstones(){
+  try{ return JSON.parse(safeGet(TOMBSTONE_KEY)||"{}")||{}; }catch(e){ return {}; }
+}
+function saveTombstones(map){
+  try{ safeSet(TOMBSTONE_KEY, JSON.stringify(map||{})); }catch(e){}
+}
+function addTombstone(coll, id){
+  if((coll!=="leads"&&coll!=="charters")||id==null||id==="") return;
+  var map=loadTombstones();
+  if(!map[coll]) map[coll]={};
+  map[coll][String(id)]=Date.now();
+  /* Cap per collection to avoid unbounded localStorage */
+  var ids=Object.keys(map[coll]);
+  if(ids.length>400){
+    ids.sort(function(a,b){ return (map[coll][a]||0)-(map[coll][b]||0); });
+    ids.slice(0, ids.length-300).forEach(function(k){ delete map[coll][k]; });
+  }
+  saveTombstones(map);
+}
+function isTombstoned(coll, id){
+  if(!coll||id==null||id==="") return false;
+  var map=loadTombstones();
+  return !!(map[coll]&&map[coll][String(id)]);
+}
+function filterTombstonedRows(coll, rows){
+  if(!Array.isArray(rows)) return [];
+  return rows.filter(function(r){ return r&&r.id!=null&&!isTombstoned(coll, r.id); });
+}
 /** Queue an explicit delete so the next save sends deletedIds (server merge keeps other rows). */
 function voidDeletedId(coll, id){
   if((coll!=="leads"&&coll!=="charters")||id==null||id==="") return;
   var arr=pendingDeletedIds[coll]||(pendingDeletedIds[coll]=[]);
   var s=String(id);
   if(arr.indexOf(s)<0) arr.push(s);
+  addTombstone(coll, s);
 }
 /* Alias — older call sites / mental name “queue” */
 function queueDeletedId(coll, id){ voidDeletedId(coll, id); }
@@ -15794,7 +15779,23 @@ function save(coll){
   /* Snapshot now so a concurrent poll cannot mutate the payload mid-flight */
   var rows=state[coll];
   try{ rows=JSON.parse(JSON.stringify(state[coll]||[])); }catch(e){ rows=state[coll]; }
+  if(coll==="leads"||coll==="charters"){
+    rows=filterTombstonedRows(coll, rows||[]);
+    /* Keep deletedIds even if already tombstoned (server must drop them) */
+  }
   var deletedIds=(coll==="leads"||coll==="charters")?takeDeletedIds(coll):[];
+  /* Always re-send recent tombstones with charters/leads saves so server drops them */
+  if(coll==="leads"||coll==="charters"){
+    try{
+      var map=loadTombstones();
+      var extra=Object.keys(map[coll]||{});
+      extra.forEach(function(id){
+        if(deletedIds.indexOf(id)<0) deletedIds.push(id);
+      });
+      /* Cap payload */
+      if(deletedIds.length>80) deletedIds=deletedIds.slice(-80);
+    }catch(eDel){}
+  }
   if(coll==="expenses"||coll==="expPetty"||coll==="stewAssign"||coll==="leads"||coll==="charters"||coll==="apa") touchLocalSave(coll);
   api("save",{collection:coll,rows:rows,deletedIds:deletedIds,pushEndpoint:pushMeta.endpoint||""}).then(function(j){
     /*
@@ -15802,8 +15803,9 @@ function save(coll){
      * (e.g. calendar restore on another tab). Adopt merged rows.
      */
     if(j&&Array.isArray(j.rows)&&(coll==="leads"||coll==="charters")){
-      if(coll==="leads") state.leads=j.rows;
-      else state.charters=j.rows;
+      var adopted=filterTombstonedRows(coll, j.rows);
+      if(coll==="leads") state.leads=adopted;
+      else state.charters=adopted;
       if(coll==="leads"&&curTab==="leads") try{ renderLeads(); }catch(eR){}
       if(coll==="charters"&&curTab==="charters") try{ renderCharters(); }catch(eC){}
     }
@@ -16194,6 +16196,7 @@ function applyData(d, opts){
     } else {
       state.leads=d.leads;
     }
+    if(Array.isArray(state.leads)) state.leads=filterTombstonedRows("leads", state.leads);
     /* Do NOT migrate/repair leads on load — blob is SOT; no boot-time writes */
   }
   if(fromPoll&&localSaveIsFresh("charters")){
@@ -16202,11 +16205,13 @@ function applyData(d, opts){
     if(canCommercial()&&!d.charters.length&&(state.charters||[]).length){
       /* keep local */
     } else if(fromPoll){
-      state.charters=mergeExpensesById(state.charters||[], d.charters||[]);
+      state.charters=mergeExpensesById(state.charters||[], d.charters||[], "charters");
     } else {
       state.charters=d.charters;
     }
   }
+  /* Always drop tombstoned charges (delete must stick across poll/boot) */
+  if(Array.isArray(state.charters)) state.charters=filterTombstonedRows("charters", state.charters);
   state.devices=d.devices||[]; state.log=d.log||[];
   if(canOps() && Array.isArray(d.apa)){
     if(fromPoll&&localSaveIsFresh("apa")){
