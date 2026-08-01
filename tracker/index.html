@@ -688,8 +688,9 @@
                 <span><em style="font-style:normal;color:var(--muted);font-weight:600">Before VAT (white / invoice base)</em><span class="m money" id="ldDoneEx">€0</span></span>
                 <span><em style="font-style:normal;color:var(--muted);font-weight:600">− Commissions</em><span class="m money" id="ldDoneComm">€0</span></span>
                 <span><em style="font-style:normal;color:var(--muted);font-weight:600">= White net</em><span class="m money" id="ldDoneWhiteNet">€0</span></span>
-                <span><em style="font-style:normal;color:var(--muted);font-weight:600">+ Free cash (no commission)</em><span class="m money" id="ldCashInNet">€0</span></span>
+                <span><em style="font-style:normal;color:var(--muted);font-weight:600">+ Free cash → boat (no commission)</em><span class="m money" id="ldCashInNet">€0</span></span>
                 <span style="margin-top:4px;padding-top:6px;border-top:1px solid var(--line)"><em style="font-style:normal;font-weight:800;color:var(--ink,#1a1a1a)">= Net so far</em><span class="m money" id="ldDoneNetDetail" style="font-weight:800">€0</span></span>
+                <span id="ldOwnerPocketNoteRow" style="display:none"><em style="font-style:normal;color:var(--muted);font-weight:600">Owner pocket cash (not in net)</em><span class="m money" id="ldOwnerPocketNote">€0</span></span>
               </div>
               <div class="hd" style="margin-top:14px">Gross components</div>
               <div class="lines">
@@ -698,12 +699,12 @@
                 <span><em style="font-style:normal;color:var(--muted);font-weight:600">· upsell commissions</em><span class="m money" id="ldDoneUpsellComm">€0</span></span>
               </div>
               <div class="ld-snap-cash" id="ldCashSnap" style="margin-top:12px">
-                <div class="k">Free cash in net · received on sailed deals</div>
+                <div class="k">Free cash · received on sailed deals</div>
                 <div class="big money" id="ldCashTot">€0</div>
-                <div class="s" id="ldCashSub">Full amount · no VAT strip · no commission · boat + owner pocket</div>
+                <div class="s" id="ldCashSub">Boat portion is in net full · owner pocket listed separately (not in big net)</div>
                 <div class="lines">
-                  <span><em style="font-style:normal;color:var(--muted);font-weight:600">→ Boat petty</em><span class="m money" id="ldCashBoat">€0</span></span>
-                  <span><em style="font-style:normal;color:var(--muted);font-weight:600">→ Owner pocket</em><span class="m money" id="ldCashOwner">€0</span></span>
+                  <span><em style="font-style:normal;color:var(--muted);font-weight:600">→ Boat petty (in net)</em><span class="m money" id="ldCashBoat">€0</span></span>
+                  <span><em style="font-style:normal;color:var(--muted);font-weight:600">→ Owner pocket (not in net)</em><span class="m money" id="ldCashOwner">€0</span></span>
                 </div>
                 <div class="ld-cash-items" id="ldCashItems"></div>
               </div>
@@ -711,7 +712,7 @@
                 <div class="ld-snap-row"><span class="k">Unconfirmed / tentative</span><span class="v" id="ldAwait">0</span><span class="s" id="ldAwaitSub">Not in money totals</span></div>
                 <div class="ld-snap-row"><span class="k">Owner days (notional)</span><span class="v money" id="ldOwn">€0</span><span class="s" id="ldOwnSub">List-rate · not cash</span></div>
               </div>
-              <div class="ld-snap-note">Glimpse = <b>realised confirmed commercial</b> only (past / today). <b>Net</b> = (before VAT − commissions on white) <b>+ free cash at full face value</b> (no deduction). Gross = client totals on those trips. Scheduled deals not included. Captain commission cash-out is Ops → Commissions → Pay from petty (does not change this net).</div>
+              <div class="ld-snap-note">Glimpse = <b>realised confirmed commercial</b> only (past / today). <b>Net</b> = (before VAT − commissions) <b>+ free cash to the boat</b> at full face value. <b>Owner pocket</b> free cash is income for the owner but <b>not</b> in the big net number. Gross = client totals. Scheduled deals not included.</div>
             </div>
             <div class="sumcard ld-src">
               <div class="l">Luigi · Captain</div>
@@ -4047,11 +4048,13 @@ function renderLeads(){
     if(it.dest==="owner"){ cashDone.owner=Math.round((cashDone.owner+c)*100)/100; cashDone.ownerN++; }
     else { cashDone.boat=Math.round((cashDone.boat+c)*100)/100; cashDone.boatN++; }
   });
-  /* White net = before VAT − commissions (cash already stripped from bases in model).
-   * Free cash is added at face value — no VAT strip, no commission (owner rule). */
+  /* White net = before VAT − commissions (cash stripped from bases in model).
+   * Big net adds only free cash → boat (full face). Owner pocket is shown, not in net. */
   var whiteNet=Math.round(Math.max(0, done.ex-done.comm)*100)/100;
-  var doneNet=Math.round((whiteNet+cashDone.total)*100)/100;
-  /* Glimpse: realised gross + net (white net + free cash) */
+  var cashBoat=Math.round(apaNum(cashDone.boat)*100)/100;
+  var cashOwner=Math.round(apaNum(cashDone.owner)*100)/100;
+  var doneNet=Math.round((whiteNet+cashBoat)*100)/100;
+  /* Glimpse: realised gross + net (white net + boat free cash only) */
   if(el("ldDoneTot")) el("ldDoneTot").textContent=money(done.tot);
   if(el("ldDoneNet")) el("ldDoneNet").textContent=money(doneNet);
   if(el("ldDoneSub")){
@@ -4060,29 +4063,37 @@ function renderLeads(){
       " · so far only (not scheduled)";
   }
   if(el("ldNetFormula")){
-    el("ldNetFormula").innerHTML=
+    var bits=
       'Net = (before VAT <b class="money">'+money(done.ex)+'</b> − commissions <b class="money">'+money(done.comm)+'</b>)'+
-      ' + free cash <b class="money">'+money(cashDone.total)+'</b> (full · no cut)'+
-      (cashDone.total>0.009||done.comm>0.009||done.ex>0.009
-        ?' → white <b class="money">'+money(whiteNet)+'</b> + cash = <b class="money">'+money(doneNet)+'</b>'
-        :'');
+      ' + boat free cash <b class="money">'+money(cashBoat)+'</b> (full · no cut)';
+    if(cashOwner>0.009){
+      bits+=' · owner pocket <b class="money">'+money(cashOwner)+'</b> <span style="font-weight:600">(not in this net)</span>';
+    }
+    if(cashBoat>0.009||done.comm>0.009||done.ex>0.009){
+      bits+=' → <b class="money">'+money(doneNet)+'</b>';
+    }
+    el("ldNetFormula").innerHTML=bits;
   }
   if(el("ldDoneCharters")) el("ldDoneCharters").textContent=money(done.charters);
   if(el("ldDoneUpsell")) el("ldDoneUpsell").textContent=money(done.upsell);
   if(el("ldDoneEx")) el("ldDoneEx").textContent=money(done.ex);
   if(el("ldDoneComm")) el("ldDoneComm").textContent=money(done.comm);
   if(el("ldDoneWhiteNet")) el("ldDoneWhiteNet").textContent=money(whiteNet);
-  if(el("ldCashInNet")) el("ldCashInNet").textContent=money(cashDone.total);
+  if(el("ldCashInNet")) el("ldCashInNet").textContent=money(cashBoat);
   if(el("ldDoneNetDetail")) el("ldDoneNetDetail").textContent=money(doneNet);
+  if(el("ldOwnerPocketNoteRow")){
+    el("ldOwnerPocketNoteRow").style.display=cashOwner>0.009?"":"none";
+  }
+  if(el("ldOwnerPocketNote")) el("ldOwnerPocketNote").textContent=money(cashOwner);
   if(el("ldDoneUpsellComm")) el("ldDoneUpsellComm").textContent=money(done.upsellComm);
-  /* Cash income — second stage (Money details); sailed-only for “so far” */
+  /* Cash income — second stage; boat in net, owner pocket labelled not-in-net */
   if(el("ldCashTot")) el("ldCashTot").textContent=money(cashDone.total||0);
-  if(el("ldCashBoat")) el("ldCashBoat").textContent=money(cashDone.boat||0);
-  if(el("ldCashOwner")) el("ldCashOwner").textContent=money(cashDone.owner||0);
+  if(el("ldCashBoat")) el("ldCashBoat").textContent=money(cashBoat);
+  if(el("ldCashOwner")) el("ldCashOwner").textContent=money(cashOwner);
   if(el("ldCashSub")){
     var cn=cashDone.n||0;
     el("ldCashSub").textContent=cn
-      ?(cn+" split deal"+(cn===1?"":"s")+" received · sailed/today · boat "+(cashDone.boatN||0)+" · owner pocket "+(cashDone.ownerN||0)+" · full amount in net")
+      ?(cn+" split deal"+(cn===1?"":"s")+" received · sailed/today · boat "+(cashDone.boatN||0)+" in net · owner pocket "+(cashDone.ownerN||0)+" not in big net")
       :"No free cash received on sailed split deals yet";
   }
   if(el("ldCashItems")){
@@ -4091,7 +4102,8 @@ function renderLeads(){
       el("ldCashItems").innerHTML='<div class="meta" style="margin-top:6px">Empty until a split lead has free cash marked received on a sailed/today charter.</div>';
     } else {
       el("ldCashItems").innerHTML=items.map(function(it){
-        var destLab=it.dest==="owner"?"Owner pocket · income off boat":"Boat petty";
+        var isOwn=it.dest==="owner";
+        var destLab=isOwn?"Owner pocket · not in big net":"Boat petty · in net";
         var dateLab="";
         try{ dateLab=it.start?fmtDate(it.start):""; }catch(eD){ dateLab=it.start||""; }
         return '<div class="ld-cash-item">'+
@@ -4099,7 +4111,6 @@ function renderLeads(){
           '<span class="am money">'+money(it.cash)+'</span>'+
           '<span class="meta">'+esc(dateLab)+(dateLab?" · ":"")+esc(destLab)+
             (it.source?' · '+esc(leadSourceLabel(it.source)):"")+
-            ' · in net full'+
           '</span>'+
         '</div>';
       }).join("");
