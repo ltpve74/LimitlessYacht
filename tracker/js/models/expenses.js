@@ -404,7 +404,53 @@ function summarizePettyCash(opts) {
   var monthShort = booksBalance < 0 ? round2(-booksBalance) : 0;
   /* Total short = this month over-mark + any poison negative start residue */
   var cashShort = round2(monthShort + priorStartShort);
-  /* Newest first for captain audit */
+
+  /*
+   * Where is the short from? (audit trail — pure, for UI)
+   * 1) priorStartShort: stored start was negative (poison carry, not notes)
+   * 2) cash-out lines in date order: first outs take real envelope; remainder is short
+   */
+  var shortLines = [];
+  if (priorStartShort > 0.009) {
+    shortLines.push({
+      kind: "prior-start",
+      label: "Stored start was −" + priorStartShort.toFixed(2).replace(/\.00$/, "") + " (not physical notes)",
+      amount: priorStartShort,
+      date: "",
+      id: "",
+    });
+  }
+  if (monthShort > 0.009 && cashOutLines.length) {
+    var chrono = cashOutLines.slice().sort(function (a, b) {
+      var da = String((a && a.date) || "");
+      var db = String((b && b.date) || "");
+      if (da !== db) return da < db ? -1 : 1;
+      return (Number(a && a.amount) || 0) - (Number(b && b.amount) || 0);
+    });
+    var remaining = cashInHand;
+    chrono.forEach(function (row) {
+      if (!row) return;
+      var a = round2(num(row.amount));
+      if (!(a > 0)) return;
+      var covered = remaining > 0 ? Math.min(a, remaining) : 0;
+      remaining = round2(remaining - covered);
+      var over = round2(a - covered);
+      if (over > 0.009) {
+        shortLines.push({
+          kind: row.kind || "expense",
+          label: row.label || "Cash out",
+          amount: over,
+          fullAmount: a,
+          covered: covered,
+          date: row.date || "",
+          id: row.id || "",
+          finger: row.finger || "",
+        });
+      }
+    });
+  }
+
+  /* Newest first for captain cash-out audit list */
   cashOutLines.sort(function (a, b) {
     var da = String((a && a.date) || "");
     var db = String((b && b.date) || "");
@@ -426,6 +472,7 @@ function summarizePettyCash(opts) {
     pettyOnboard: pettyOnboard,
     cashShort: cashShort,
     monthShort: monthShort,
+    shortLines: shortLines,
     crewPaidPetty: crewPaidPetty,
     nCrewPetty: nCrewPetty,
     nCrewCollapsed: col.collapsed,

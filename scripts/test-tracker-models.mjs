@@ -759,18 +759,38 @@ console.log("\n[Petty cash — crew day-pay collapse & floatPay]");
    * physical on board = 0, books short = 250. Never show physical as −250.
    */
   const overnight = {
-    id: "on1", source: "stew", stewPayKind: "dayPay", stewId: "laura", date: "2026-07-15",
-    crewPayStatus: "Paid", paidFrom: "Petty cash", floatPay: true, amount: 250
+    id: "on1", source: "stew", stewPayKind: "dayPay", stewId: "laura", vendor: "Laura",
+    date: "2026-07-15", crewPayStatus: "Paid", paidFrom: "Petty cash", floatPay: true, amount: 250
   };
   const beforeHeal = M.summarizePettyCash({ pettyStart: 0, cashIns: [], expenses: [overnight] });
   ok("empty pot + floatPay: physical 0", near(beforeHeal.pettyOnboard, 0), "got " + beforeHeal.pettyOnboard);
   ok("empty pot + floatPay: books short 250", near(beforeHeal.cashShort, 250), "got " + beforeHeal.cashShort);
   ok("empty pot + floatPay: booksBalance −250", near(beforeHeal.booksBalance, -250), "got " + beforeHeal.booksBalance);
+  ok("shortLines names crew day pay", beforeHeal.shortLines && beforeHeal.shortLines.length === 1
+    && beforeHeal.shortLines[0].kind === "crew"
+    && near(beforeHeal.shortLines[0].amount, 250));
+  ok("shortLines label has Laura", beforeHeal.shortLines[0].label && /Laura/i.test(beforeHeal.shortLines[0].label));
   /* Poison negative start is residue short, not physical cash */
   const poisonStart = M.summarizePettyCash({ pettyStart: -250, cashIns: [], expenses: [] });
   ok("poison start −250 → physical 0", near(poisonStart.pettyOnboard, 0));
   ok("poison start −250 → short 250", near(poisonStart.cashShort, 250), "got " + poisonStart.cashShort);
   ok("poison start priorStartShort 250", near(poisonStart.priorStartShort, 250));
+  ok("poison start shortLines prior-start", poisonStart.shortLines && poisonStart.shortLines[0]
+    && poisonStart.shortLines[0].kind === "prior-start"
+    && near(poisonStart.shortLines[0].amount, 250));
+  /* Partial cover: €50 start, €70 out → short €20 attributed to last out */
+  const partial = M.summarizePettyCash({
+    pettyStart: 50,
+    cashIns: [],
+    expenses: [
+      { id: "a", category: "Provisions", payMethod: "Cash", paidFrom: "Petty cash", amount: 40, date: "2026-07-01" },
+      { id: "b", category: "Provisions", payMethod: "Cash", paidFrom: "Petty cash", amount: 30, date: "2026-07-02" }
+    ]
+  });
+  ok("partial short 20", near(partial.cashShort, 20));
+  ok("partial short on second line only", partial.shortLines && partial.shortLines.length === 1
+    && partial.shortLines[0].id === "b" && near(partial.shortLines[0].amount, 20)
+    && near(partial.shortLines[0].covered, 10));
   const heal = M.clearCrewFloatPayOnEmptyEnvelope([overnight], 0, []);
   ok("heal clears floatPay on empty envelope", heal.changed === true);
   ok("heal marks floatPay false", overnight.floatPay === false);
