@@ -6325,9 +6325,13 @@ function removeApaLinkedCharges(t, onlyUnpaid){
     if(c.kind==="apa"||c.apaTripId===t.id||/synced from APA|shortfall/i.test(String(c.notes||""))) drop[c.id]=1;
   });
   if(!Object.keys(drop).length) return;
+  Object.keys(drop).forEach(function(id){
+    try{ voidDeletedId("charters", id); }catch(e){}
+  });
   state.charters=state.charters.filter(function(c){ return !drop[c.id]; });
   var keep=apaLinkedCharges(t)[0];
   t.chargeId=keep?keep.id:"";
+  if(!keep) t.suppressShortfallCharge=true;
 }
 /**
  * Create/update Charges row for amount still owed (Make invoice from Charges).
@@ -6549,25 +6553,11 @@ function syncApaToCharge(t, opts){
   return ch;
 }
 /**
- * After Charges payment status changes: recompute APA pot bookkeeping only.
- * Does not rewrite existing charge notes/amounts (use Sync charge now for that).
+ * Production: do not walk all APA pots / rewrite charges.
+ * Charge rows change only when the captain edits them or saves that APA trip.
  */
 function refreshApaFromCharges(){
-  if(!canOps()||!state.apa||!state.apa.length) return;
-  var leadDirty=false;
-  state.apa.forEach(function(t){
-    t.updatedAt=new Date().toISOString();
-    var lead=apaLinkedLead(t);
-    var snap=lead?{ apas:lead.apas, apa:Number(lead.apa)||0 }:null;
-    syncCashReceivedFromCharges(t);
-    /* Pin only — no money/notes rewrite */
-    syncApaToCharge(t, {force:false});
-    lead=apaLinkedLead(t);
-    if(lead&&snap&&(lead.apas!==snap.apas||Math.abs((Number(lead.apa)||0)-snap.apa)>0.005)) leadDirty=true;
-  });
-  save("apa");
-  if(leadDirty){ save("leads"); renderLeads(); }
-  renderApa();
+  /* no-op — kept so older call sites do not throw */
 }
 function deleteApaTrip(id){
   if(!canOps()||!id) return;
@@ -6992,8 +6982,11 @@ function saveApa(trip, opts){
     var lead=apaLinkedLead(t);
     var snap=lead?{ apas:lead.apas, apa:Number(lead.apa)||0 }:null;
     syncCashReceivedFromCharges(t);
-    /* Default: pin/create only. force only from "Sync charge now". */
-    syncApaToCharge(t, {force:!!opts.force});
+    /*
+     * User saved THIS APA → update/create only this trip's shortfall charge.
+     * Never touch other guests' charges. Respect suppressShortfallCharge + Paid/Issued.
+     */
+    syncApaToCharge(t, {force:opts.force!==false});
     lead=apaLinkedLead(t);
     if(lead&&snap&&(lead.apas!==snap.apas||Math.abs((Number(lead.apa)||0)-snap.apa)>0.005)) leadDirty=true;
   }
@@ -15196,6 +15189,7 @@ function saveSheet(type,rec){
     if(!obj.client && !obj.amount){ el("f_client").focus(); return; }
     upsert("charters",obj,rec); renderCharters(); save("charters");
     /* Clear suppress so this charge stays linked; pin trip.chargeId */
+    /* Pin linked APA pot only — never walk/sync other charges */
     if(obj.kind==="apa"||obj.apaTripId){
       (state.apa||[]).forEach(function(t){
         if(!t) return;
@@ -15204,38 +15198,7 @@ function saveSheet(type,rec){
           t.suppressShortfallCharge=false;
         }
       });
-    }
-    if(canOps()&&(obj.kind==="apa"||obj.apaTripId||(rec&&(rec.kind==="apa"||rec.apaTripId)))){
-      refreshApaFromCharges();
-      /* Re-apply extension after APA sync — skipped when moneyManual / Paid / Issued */
-      var linked=(state.charters||[]).filter(function(c){return c&&c.id===obj.id;})[0];
-      if(linked){
-        /* Always re-pin user fields that refresh might have touched notes-only path */
-        if(obj.moneyManual||chargeIsLockedMoney(linked)){
-          linked.amount=obj.amount;
-          linked.billType=obj.billType;
-          linked.cashPaid=obj.cashPaid;
-          linked.cashAmt=obj.cashAmt;
-          linked.cashDeal=obj.cashDeal;
-          linked.payMethod=obj.payMethod;
-          linked.payStatus=obj.payStatus;
-          linked.invStatus=obj.invStatus;
-          linked.apaBaseAmt=obj.apaBaseAmt;
-          linked.moneyManual=true;
-          linked.net=obj.net; linked.vat=obj.vat; linked.vatPct=obj.vatPct; linked.vatMode=obj.vatMode;
-        } else {
-          linked.extAmt=obj.extAmt; linked.extSettle=obj.extSettle; linked.extHours=obj.extHours;
-          linked.captainComm=obj.captainComm;
-          if(obj.apaBaseAmt>0||obj.extAmt>0) applyApaChargeMoney(linked, Number(linked.apaBaseAmt)||obj.apaBaseAmt||0);
-        }
-        linked.extAmt=obj.extAmt; linked.extSettle=obj.extSettle; linked.extHours=obj.extHours;
-        linked.captainComm=obj.captainComm;
-        save("charters");
-        save("apa");
-      }
-    } else if(canOps()){
-      refreshApaFromCharges();
-      save("charters");
+      save("apa");
     }
     /* Boat float: cash portion of Paid charges → monthly cash in */
     if(isCaptain()){
@@ -15469,9 +15432,10 @@ function delRec(type,id){
   var coll=type==="charter"?"charters":"leads";
   var wasApa=false;
   var gone=null;
+  var idS=String(id);
   if(coll==="charters"){
-    gone=(state.charters||[]).filter(function(r){return r&&String(r.id)===String(id);})[0];
-    wasApa=!!(gone&&(gone.kind==="apa"||gone.apaTripId||isApaChargeRow(gone)));
+    gone=(state.charters||[]).filter(function(r){return r&&String(r.id)===idS;})[0];
+    wasApa=!!(gone&&(gone.kind==="apa"||gone.apaTripId||(typeof isApaChargeRow==="function"&&isApaChargeRow(gone))));
     if(isCaptain()&&id){
       expRemoveChargeCashIn(id, true);
       saveExpPetty();
@@ -15483,7 +15447,7 @@ function delRec(type,id){
   }
   /* Remember calendar link so Sync never re-creates this ICS uid as a new lead */
   if(coll==="leads"){
-    var goneL=(state.leads||[]).filter(function(r){return r&&String(r.id)===String(id);})[0];
+    var goneL=(state.leads||[]).filter(function(r){return r&&String(r.id)===idS;})[0];
     if(goneL){
       try{
         var keys=[];
@@ -15499,31 +15463,26 @@ function delRec(type,id){
       }catch(e1){}
     }
   }
-  /* Strict string id match — loose !== can miss string vs number ids */
-  var idS=String(id);
-  /* Before remove: unpin APA trips + suppress auto shortfall recreate (delete must stick) */
-  if(coll==="charters"&&wasApa&&gone){
-    var guestN=typeof normName==="function"?normName(gone.client||""):String(gone.client||"").toLowerCase();
+  /* Unpin only the trip that pointed at this charge — never touch other pots by guest name */
+  if(coll==="charters"&&gone){
     (state.apa||[]).forEach(function(t){
       if(!t) return;
       var pin=String(t.chargeId||"")===idS;
       var tripMatch=gone.apaTripId&&String(t.id)===String(gone.apaTripId);
-      var sameGuest=guestN&&typeof normName==="function"&&normName(t.guest)===guestN;
-      if(pin||tripMatch||sameGuest){
-        if(pin) t.chargeId="";
+      if(pin||tripMatch){
+        t.chargeId="";
         t.suppressShortfallCharge=true;
         t.updatedAt=new Date().toISOString();
       }
     });
   }
   state[coll]=state[coll].filter(function(r){return !r||String(r.id)!==idS;});
-  /* So server merge / poll cannot re-attach this id */
   if(coll==="leads"||coll==="charters") voidDeletedId(coll, idS);
   if(coll==="charters"){
     renderCharters();
-    /* Do NOT refreshApaFromCharges here — that used to recreate rows and rewrite notes */
     if(wasApa&&canOps()) save("apa");
   } else renderLeads();
+  /* Single authoritative save — deletedIds + rows without this charge */
   save(coll); showSheet(false);
 }
 
@@ -16165,13 +16124,21 @@ function setTrust(id,val){
 
 /* -------- polling / data -------- */
 var pollTimer=null;
+/**
+ * Production: no background blob refresh.
+ * Prototype polling re-applied server data every 20s and fought local deletes/edits.
+ * Session is checked on the next user save/action instead.
+ */
 function startPolling(){
   if(pollTimer) return;
+  /* Optional light session ping only — never applyData / rewrite collections */
   pollTimer=setInterval(function(){
-    api("load",{silent:true}).then(function(d){ applyData(d,{fromPoll:true}); }).catch(function(err){
+    api("load",{silent:true, sessionOnly:true}).then(function(d){
+      if(d&&d.role) session.role=d.role;
+    }).catch(function(err){
       if(err&&err.code===401){ clearSession(); lockApp(); if(el("gateErr")) el("gateErr").textContent="Session expired — enter passcode."; }
     });
-  },20000);
+  },120000);
 }
 /**
  * Apply server data. opts.fromPoll = background refresh — do not re-seed or
