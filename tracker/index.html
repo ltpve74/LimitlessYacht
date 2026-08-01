@@ -5932,12 +5932,64 @@ function chargeApaBaseTowardPot(c){
   }
   return Math.max(0, Math.round(((Number(c&&c.amount)||0)-ext)*100)/100);
 }
+/**
+ * Paid cash APA shortfall (or cash deal / moneyManual) settles the pot in full.
+ * Cash deals exclude VAT — a rounded €650 cash is not “short” vs ledger €664.95.
+ */
+function isApaCashSettlementCharge(c){
+  if(!c||chargePay(c)!=="Paid") return false;
+  if(!(c.kind==="apa"||c.apaTripId||(typeof isApaChargeRow==="function"&&isApaChargeRow(c)))) return false;
+  var bt=typeof chargeBillType==="function"?chargeBillType(c):String(c.billType||"");
+  if(bt==="cash") return true;
+  if(c.moneyManual&&(bt==="cash"||bt==="mix"||c.cashDeal||c.payMethod==="Cash")) return true;
+  if(c.cashDeal&&(bt==="cash"||c.payMethod==="Cash")) return true;
+  return false;
+}
+function apaIsCashSettled(t){
+  if(!t) return false;
+  if(t.apaCashSettled===true||t.apaCashSettled==="true"||t.apaCashSettled===1) return true;
+  return apaLinkedCharges(t).some(isApaCashSettlementCharge);
+}
 function apaPaidCovered(t){
   var s=0;
   apaLinkedCharges(t).forEach(function(c){
     if(chargePay(c)==="Paid") s+=chargeApaBaseTowardPot(c);
   });
   return Math.round(s*100)/100;
+}
+/**
+ * Pin pot closed when captain marks APA shortfall Paid as cash.
+ * Clears residual “to invoice” and stops further shortfall charges.
+ */
+function applyApaCashSettlementFromCharge(ch){
+  if(!ch||!canOps()) return false;
+  if(!isApaCashSettlementCharge(ch)){
+    /* Un-pay / not cash: clear settled flag on linked trip if no other cash settlement remains */
+    var cleared=false;
+    (state.apa||[]).forEach(function(t){
+      if(!t) return;
+      var pin=String(t.chargeId||"")===String(ch.id)||(ch.apaTripId&&String(t.id)===String(ch.apaTripId));
+      if(!pin) return;
+      if(!apaLinkedCharges(t).some(isApaCashSettlementCharge)){
+        if(t.apaCashSettled){ t.apaCashSettled=false; t.apaCashSettledAmt=0; t.updatedAt=new Date().toISOString(); cleared=true; }
+      }
+    });
+    return cleared;
+  }
+  var dirty=false;
+  var amt=Math.round((apaNum(ch.cashPaid)||apaNum(ch.amount)||0)*100)/100;
+  (state.apa||[]).forEach(function(t){
+    if(!t) return;
+    var pin=String(t.chargeId||"")===String(ch.id)||(ch.apaTripId&&String(t.id)===String(ch.apaTripId));
+    if(!pin) return;
+    t.chargeId=ch.id;
+    t.apaCashSettled=true;
+    t.apaCashSettledAmt=amt;
+    t.suppressShortfallCharge=true;
+    t.updatedAt=new Date().toISOString();
+    dirty=true;
+  });
+  return dirty;
 }
 /** True when this pot was wrongly holding lead free cash as −APA. */
 function apaTripLooksLikeLeadCashShell(t){
@@ -5987,6 +6039,8 @@ function syncCashReceivedFromCharges(t){
  */
 function apaOverageAmount(t){
   if(!t) return 0;
+  /* Cash Paid shortfall closes the pot — no lingering ledger pennies */
+  if(apaIsCashSettled(t)) return 0;
   var x=apaTotals(t);
   return x.bal<0?Math.round((-x.bal)*100)/100:0;
 }
@@ -7115,11 +7169,23 @@ function apaTotals(t){
   var spent=expSum+prov+dCost;
   var basePot=(Number(t.apaSent)||0)+(Number(t.topUps)||0);
   var paidCovered=apaPaidCovered(t);
+  var cashSettled=apaIsCashSettled(t);
   /* Paid shortfall charges on Charges raise the pot (money recovered) */
   var available=basePot+paidCovered;
   var bal=available-spent;
+  /*
+   * Cash settlement (Paid cash on Charges): pot is closed.
+   * Residual ledger € (e.g. VAT not charged in cash €650 vs €664.95) is not “still owed”.
+   */
+  if(cashSettled&&bal<-0.009){
+    paidCovered=Math.round((paidCovered+(-bal))*100)/100;
+    available=basePot+paidCovered;
+    bal=0;
+  } else if(cashSettled&&bal<0){
+    bal=0;
+  }
   var pct=available>0?spent/available:0;
-  return { expSum:expSum, prov:prov, dLit:dLit, dCost:dCost, cats:cats, spent:spent, basePot:basePot, paidCovered:paidCovered, available:available, bal:bal, pct:pct };
+  return { expSum:expSum, prov:prov, dLit:dLit, dCost:dCost, cats:cats, spent:spent, basePot:basePot, paidCovered:paidCovered, available:available, bal:bal, pct:pct, cashSettled:cashSettled };
 }
 function saveApa(trip, opts){
   if(!canOps()) return;
@@ -7226,7 +7292,8 @@ function renderApaList(){
     var x=apaTotals(t);
     pot+=x.available; bal+=x.bal;
     var ch=findApaChargeForTrip(t);
-    var over=x.bal<0;
+    var over=x.bal<0&&!x.cashSettled;
+    var cashPaidPill=x.cashSettled||(ch&&isApaCashSettlementCharge(ch));
     html+='<div class="item apa-row" data-apa-open="'+esc(t.id)+'">'+
       '<div class="top"><div class="title">'+esc(t.guest||"Untitled")+'</div><div class="amt money"'+(over?' style="color:var(--danger)"':'')+'>'+money(x.bal)+'</div></div>'+
       '<div class="meta">'+
@@ -7234,7 +7301,8 @@ function renderApaList(){
         '<span>Pot '+money0(x.available)+'</span>'+
         '<span>Spent '+money0(x.spent)+'</span>'+
         (t.cashFromLead||Number(t.apaSent)<0?'<span class="pill p-black">Cash</span>':'')+
-        (over&&ch&&chargePay(ch)!=="Paid"?'<span class="pill p-over">'+(apaHasPrepaid(t)?"Owe ":"Invoice ")+money0(ch.amount)+'</span>':
+        (cashPaidPill?'<span class="pill p-green">Paid cash'+(t.apaCashSettledAmt?' '+money0(t.apaCashSettledAmt):(ch?(' '+money0(ch.cashPaid||ch.amount)):''))+'</span>':
+          over&&ch&&chargePay(ch)!=="Paid"?'<span class="pill p-over">'+(apaHasPrepaid(t)?"Owe ":"Invoice ")+money0(ch.amount)+'</span>':
           over?'<span class="pill p-over">'+(apaHasPrepaid(t)?"Owe ":"Invoice ")+money0(-x.bal)+'</span>':
           (x.paidCovered>0?'<span class="pill p-apa">Paid '+money0(x.paidCovered)+'</span>':
             (x.spent>0?'<span class="pill p-grey">Settled</span>':'<span class="pill p-grey">'+(apaHasPrepaid(t)?"In pot":(t.cashFromLead?"Cash pot":"No spend yet"))+'</span>')))+
@@ -7326,9 +7394,11 @@ function renderApaDetail(){
   var x=apaTotals(t);
   var ch=findApaChargeForTrip(t);
   if(head){
+    var settled=!!x.cashSettled||(ch&&isApaCashSettlementCharge(ch));
     head.innerHTML='<div class="title">'+esc(t.guest||"APA")+'</div>'+
       '<div class="meta"><span>'+esc(t.dates||"")+'</span><span>Pot '+money(x.available)+'</span><span>Left '+money(x.bal)+'</span>'+
-      (ch?'<span class="pill p-apa">Charge '+money0(ch.amount)+'</span>':'')+'</div>';
+      (settled?'<span class="pill p-green">Paid cash</span>':
+        (ch?'<span class="pill p-apa">Charge '+money0(ch.amount)+'</span>':''))+'</div>';
   }
   Array.prototype.forEach.call(document.querySelectorAll("#apaSubNav button"),function(b){
     b.classList.toggle("on", b.getAttribute("data-apasub")===apaSub);
@@ -7342,7 +7412,7 @@ function renderApaDetail(){
 }
 function apaOverviewHTML(t){
   var x=apaTotals(t);
-  var over=x.bal<0;
+  var over=x.bal<0&&!x.cashSettled;
   var pctShow=Math.min(100, Math.round(x.pct*1000)/10);
   var catRows=APA_DASH_CATS.map(function(c){
     var v=0;
@@ -7352,6 +7422,7 @@ function apaOverviewHTML(t){
     return '<tr><td>'+esc(c.label)+'</td><td class="money" style="text-align:right;font-weight:700">'+money(v)+'</td></tr>';
   }).join("");
   var ch=findApaChargeForTrip(t);
+  var cashSettled=!!x.cashSettled||(ch&&isApaCashSettlementCharge(ch));
   var linkBits="";
   if(t.linkKey||t.linkInvNo||t.linkInvLabel){
     linkBits='<div class="meta" style="margin-top:8px">'+
@@ -7360,7 +7431,13 @@ function apaOverviewHTML(t){
       (t.linkInvAmount?'<span class="money">'+money(t.linkInvAmount)+'</span>':'')+
     '</div>';
   }
-  if(over&&ch&&chargePay(ch)!=="Paid"){
+  if(cashSettled){
+    var cashAmt=t.apaCashSettledAmt||(ch?(ch.cashPaid||ch.amount):0)||x.paidCovered;
+    linkBits+='<div class="meta" style="margin-top:6px">'+
+      '<span class="pill p-green">Paid cash '+money(cashAmt)+'</span>'+
+      '<span class="pill p-apa">Pot closed · no further shortfall</span>'+
+    '</div>';
+  } else if(over&&ch&&chargePay(ch)!=="Paid"){
     linkBits+='<div class="meta" style="margin-top:6px">'+
       '<span class="pill p-over">Charges · '+(apaHasPrepaid(t)?"still owe ":"to invoice ")+money(ch.amount)+'</span>'+
       (ch.inv?'<span>#'+esc(ch.inv)+'</span>':'')+
@@ -7382,12 +7459,14 @@ function apaOverviewHTML(t){
       (!(recvVal>0)?'<div style="font-size:11.5px;color:var(--muted);margin-top:4px">Lead free cash is not APA</div>':'')+
     '</div>'+
     '<div class="apa-card"><div class="k">Top-ups</div><div class="n money">'+money(Number(t.topUps)||0)+'</div></div>'+
-    '<div class="apa-card"><div class="k">Paid on Charges</div><div class="n money">'+money(x.paidCovered)+'</div></div>'+
+    '<div class="apa-card"><div class="k">'+(cashSettled?"Settled (cash)":"Paid on Charges")+'</div><div class="n money">'+money(x.paidCovered)+'</div></div>'+
     '<div class="apa-card"><div class="k">To invoice</div><div class="n money"'+(over?' style="color:var(--danger)"':'')+'>'+money(over? -x.bal:0)+'</div></div>'+
     '<div class="apa-card"><div class="k">Spent</div><div class="n money">'+money(x.spent)+'</div></div>'+
     '<div class="apa-card bal'+(over?' warn':'')+' wide"><div class="k">Balance remaining</div><div class="n money">'+money(x.bal)+'</div>'+
       '<div class="apa-bar'+(over?' over':'')+'"><i style="width:'+Math.min(100,pctShow)+'%"></i></div>'+
-      '<div style="font-size:12px;color:var(--muted);margin-top:6px">'+(apaHasPrepaid(t)?pctShow+"% of funds spent · ":"No prepaid pot · ")+'pot + top-ups + paid charges − spend. Free cash stays on the lead.</div></div>'+
+      '<div style="font-size:12px;color:var(--muted);margin-top:6px">'+(cashSettled
+        ?"Cash shortfall paid on Charges — pot closed (VAT not charged in cash deals)."
+        :(apaHasPrepaid(t)?pctShow+"% of funds spent · ":"No prepaid pot · ")+'pot + top-ups + paid charges − spend. Free cash stays on the lead.')+'</div></div>'+
   '</div>'+
   '<div class="apa-card" style="margin-bottom:12px">'+
     '<div class="k" style="margin-bottom:8px">Trip</div>'+
@@ -7502,10 +7581,12 @@ function apaDieselHTML(t){
 function apaSetupHTML(t){
   var ch=findApaChargeForTrip(t);
   var over=apaOverageAmount(t);
-  var suppressed=!!t.suppressShortfallCharge&&over>0&&!ch;
+  var cashSettled=apaIsCashSettled(t)||(ch&&isApaCashSettlementCharge(ch));
+  var suppressed=!!t.suppressShortfallCharge&&over>0&&!ch&&!cashSettled;
   return '<div class="apa-card" style="margin-bottom:12px">'+
-    '<p style="margin:0 0 10px;font-size:13.5px;line-height:1.45;color:var(--muted)"><b>APA received can be €0.</b> Spend creates a <b>Charges</b> row for the amount still owed — use <b>Make invoice</b> there to generate the PDF. Mark charge <b>Paid</b> to restore balance. For cash deals: open the charge → Settlement <b>Cash</b> → enter amount paid.</p>'+
-    (over&&ch&&chargePay(ch)!=="Paid"?'<p style="margin:0 0 12px;font-size:13px">Charge: <b>'+esc(ch.client)+'</b> · '+money(ch.amount)+(ch.inv?' · #'+esc(ch.inv):'')+'</p>':
+    '<p style="margin:0 0 10px;font-size:13.5px;line-height:1.45;color:var(--muted)"><b>APA received can be €0.</b> Spend creates a <b>Charges</b> row for the amount still owed — use <b>Make invoice</b> there to generate the PDF. Mark charge <b>Paid</b> (cash or invoice) to close the pot. Cash deals: Settlement <b>Cash</b> + amount paid — residual vs ledger is not re-invoiced.</p>'+
+    (cashSettled?'<p style="margin:0 0 12px;font-size:13px;color:var(--greenInk)"><b>Paid cash</b> on Charges'+(t.apaCashSettledAmt?' · '+money(t.apaCashSettledAmt):'')+' — pot closed, no shortfall left.</p>':
+      over&&ch&&chargePay(ch)!=="Paid"?'<p style="margin:0 0 12px;font-size:13px">Charge: <b>'+esc(ch.client)+'</b> · '+money(ch.amount)+(ch.inv?' · #'+esc(ch.inv):'')+'</p>':
       suppressed?'<p style="margin:0 0 12px;font-size:13px;color:var(--muted)">Shortfall '+money(over)+' — charge was deleted. Tap <b>Sync charge now</b> to recreate.</p>':
       over?'<p style="margin:0 0 12px;font-size:13px;color:var(--danger)">To invoice '+money(over)+' — will create charge on save.</p>':
       (apaPaidCovered(t)>0?'<p style="margin:0 0 12px;font-size:13px;color:var(--greenInk)">Paid on Charges '+money(apaPaidCovered(t))+' is included in balance.</p>':
@@ -15407,16 +15488,18 @@ function saveSheet(type,rec){
       stored.payStatus=obj.payStatus; stored.invStatus=obj.invStatus; stored.status=obj.status;
     }
     renderCharters(); save("charters");
-    /* Pin linked APA pot only — never walk/sync other charges or force ledger amount */
+    /* Pin linked APA pot; if Paid cash → close pot (no lingering shortfall) */
     if(obj.kind==="apa"||obj.apaTripId){
+      var savedCh=(state.charters||[]).filter(function(c){return c&&c.id===obj.id;})[0]||obj;
       (state.apa||[]).forEach(function(t){
         if(!t) return;
         if((obj.apaTripId&&String(t.id)===String(obj.apaTripId))||String(t.chargeId)===String(obj.id)){
           t.chargeId=obj.id;
-          t.suppressShortfallCharge=false;
         }
       });
+      applyApaCashSettlementFromCharge(savedCh);
       save("apa");
+      if(curTab==="apa") try{ renderApa(); }catch(eA){}
     }
     /* Boat float: cash received (cashPaid) when Paid → monthly cash in */
     if(isCaptain()){
