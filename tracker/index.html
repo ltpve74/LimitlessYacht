@@ -704,7 +704,7 @@
                 <div class="ld-snap-row"><span class="k">Unconfirmed / tentative</span><span class="v" id="ldAwait">0</span><span class="s" id="ldAwaitSub">Not in money totals</span></div>
                 <div class="ld-snap-row"><span class="k">Owner days (notional)</span><span class="v money" id="ldOwn">€0</span><span class="s" id="ldOwnSub">List-rate · not cash</span></div>
               </div>
-              <div class="ld-snap-note">Glimpse = <b>realised confirmed commercial</b> only (past / today). Net = before VAT − commissions · free cash shown separately. No scheduled / projected totals here. Click&amp;Boat commissions paid after platform deduction; captain commissions currently outstanding.</div>
+              <div class="ld-snap-note">Glimpse = <b>realised confirmed commercial</b> only (past / today). Net = before VAT − commissions · free cash shown separately. No scheduled / projected totals here. Click&amp;Boat commissions paid after platform deduction; captain draws commission via Ops → Commissions → Pay from petty.</div>
             </div>
             <div class="sumcard ld-src">
               <div class="l">Luigi · Captain</div>
@@ -836,13 +836,14 @@
     <section id="tab-commissions" class="hidden">
       <button type="button" class="ops-back" data-ops-back>← Ops</button>
       <div class="summary">
-        <div class="sumcard"><div class="l">Captain 15% · outstanding</div><div class="v money" id="cmCaptTot">€0</div></div>
-        <div class="sumcard"><div class="l">Click&amp;Boat 21% · paid</div><div class="v money" id="cmCbTot">€0</div></div>
-        <div class="sumcard"><div class="l">Comm total (payable)</div><div class="v money" id="cmTot">€0</div></div>
+        <div class="sumcard"><div class="l">Captain earned</div><div class="v money" id="cmCaptTot">€0</div></div>
+        <div class="sumcard sum-ok"><div class="l">Paid from petty</div><div class="v money" id="cmCaptPaid">€0</div></div>
+        <div class="sumcard sum-warn"><div class="l">Still outstanding</div><div class="v money" id="cmCaptOpen">€0</div></div>
+        <div class="sumcard"><div class="l">Click&amp;Boat · paid</div><div class="v money" id="cmCbTot">€0</div></div>
         <div class="sumcard"><div class="l">Owner benefits · notional</div><div class="v money" id="cmOwnTot">€0</div></div>
         <div class="sumcard"><div class="l">Owner pocket · received</div><div class="v money" id="cmOwnPocket">€0</div></div>
       </div>
-      <div class="legend">Same rules as <b>Leads</b>: confirmed commercial deals only. <b>Captain</b> 15% (outstanding) + upsell charges · <b>Click&amp;Boat</b> 21% (paid after platform deduction) · <b>Owner-sourced</b> income, 0% commission · <b>Owner’s days</b> = notional benefits only (not commission). Untick a day to drop it from the benefits total.</div>
+      <div class="legend">Same rules as <b>Leads</b>: confirmed commercial deals only. <b>Captain</b> 15% + upsells — take cash via <b>Pay from petty</b> (reduces boat float). <b>Click&amp;Boat</b> 21% treated as paid after platform deduction. Owner-sourced / owner’s days as before.</div>
       <div class="list" id="cmList"></div>
     </section>
 
@@ -1013,7 +1014,7 @@ var stewCalendarAt=""; /* when captain last published ICS snapshot to blob */
 var stewCalendarBy="";
 
 /** Categories aligned with monthly expenses spreadsheet (+ common boat ones). */
-var EXP_CATS=["Crew Salaries","Miscellaneous","Fuel Cars","Dockage / Marina","Provisions","Maintenance","Insurance","Captain reimbursement","Crew reimbursement","Other"];
+var EXP_CATS=["Crew Salaries","Captain commission","Miscellaneous","Fuel Cars","Dockage / Marina","Provisions","Maintenance","Insurance","Captain reimbursement","Crew reimbursement","Other"];
 var EXP_METHODS=["Cash","Credit Card"];
 /** Where petty cash top-ups come from (own money = captain float top-up, boat owes captain). */
 /* Tips are NOT petty cash — stay on Stews only (never cash-in sources). */
@@ -11174,17 +11175,21 @@ function openExpense(id, opts){
   var rec=id?(state.expenses||[]).filter(function(e){return e&&e.id===id;})[0]:null;
   var fromStew=!!(rec&&rec.source==="stew");
   var reimburse=!!opts.reimburse&&!rec;
+  var commPayout=!!opts.commPayout&&!rec;
   var reimburseToId=opts.reimburseToId?String(opts.reimburseToId):EXP_POCKET_CAPTAIN;
   var reimburseName=opts.reimburseName||expPocketPersonName(reimburseToId);
   var reimburseCat=reimburseToId===EXP_POCKET_CAPTAIN?"Captain reimbursement":"Crew reimbursement";
   var reimbOf=opts.reimbursesExpenseId?String(opts.reimbursesExpenseId):"";
   var r=rec||{
     id:uid(), date:new Date().toISOString().slice(0,10),
-    vendor:reimburse?(reimburseName+(opts.vendorHint?" · "+opts.vendorHint:"")): "",
-    description:reimburse
-      ?("Repaid from petty cash → "+reimburseName+(opts.vendorHint?" ("+opts.vendorHint+")":"")+" · pocket spend")
-      :"",
-    category:reimburse?reimburseCat:"Miscellaneous",
+    vendor:commPayout?"Captain (me)"
+      :(reimburse?(reimburseName+(opts.vendorHint?" · "+opts.vendorHint:"")): ""),
+    description:commPayout
+      ?("Commission draw from boat float"+(opts.outstanding>0?" · up to "+money0(opts.outstanding)+" outstanding":""))
+      :(reimburse
+        ?("Repaid from petty cash → "+reimburseName+(opts.vendorHint?" ("+opts.vendorHint+")":"")+" · pocket spend")
+        :""),
+    category:commPayout?"Captain commission":(reimburse?reimburseCat:"Miscellaneous"),
     payMethod:"Cash",
     paidFrom:"Petty cash",
     paidById:"",
@@ -11194,8 +11199,10 @@ function openExpense(id, opts){
     reimbursesExpenseId:reimbOf,
     chargeTo:"boat",
     apaTripId:"",
-    amount:reimburse&&opts.amount>0?opts.amount:"",
-    receipt:"", source:"manual"
+    amount:(commPayout||reimburse)&&opts.amount>0?opts.amount:"",
+    receipt:"", source:"manual",
+    kind:commPayout?"captainComm":"",
+    commPayout:commPayout?true:undefined
   };
   if(r.paidFrom==null||r.paidFrom==="") r.paidFrom=expPaidFromOwnMoney(r)?"Own money":"Petty cash";
   if(r.chargeTo!=="apa") r.chargeTo="boat";
@@ -11209,7 +11216,7 @@ function openExpense(id, opts){
   var chargeToSel=r.chargeTo==="apa"?"apa":"boat";
   var pocketOpts=expPocketPeopleOptions();
   var apaOpts=expListApaPickerOptions();
-  var h='<div class="sheethead"><h2>'+(rec?(fromStew?"Crew salary (from Stews)":"Edit expense"):(reimburse?"Log reimbursement":"New expense"))+'</h2><button type="button" class="sheetx" id="sheetClose" aria-label="Close">×</button></div>';
+  var h='<div class="sheethead"><h2>'+(rec?(fromStew?"Crew salary (from Stews)":"Edit expense"):(commPayout?"Pay commission from petty":(reimburse?"Log reimbursement":"New expense")))+'</h2><button type="button" class="sheetx" id="sheetClose" aria-label="Close">×</button></div>';
   if(fromStew){
     var unp=expIsCrewUnpaid(r);
     var hitsPetty=expCrewPayHitsFloat(r);
@@ -11219,6 +11226,12 @@ function openExpense(id, opts){
         ?'Paid from <b>petty</b> — counts as cash out (reduces petty on board).'
         :'Paid on books but <b>not from this pot</b> (prior) — does not reduce petty. Switch to Petty cash only if cash actually left the boat.'))+
       ' Tips stay on Stews only.</div>';
+  } else if(commPayout||expIsCaptainCommission(r)){
+    h+='<div class="banner warn show">Takes notes <b>from petty cash on board</b> as <b>your commission</b>. '+
+      'Reduces the envelope (cash out). Partial draws are fine — rest stays outstanding on Commissions. '+
+      (opts.pettyAvail!=null?'Petty on board now ≈ <b class="money">'+money(opts.pettyAvail)+'</b>. ':'')+
+      (opts.outstanding>0?'Still owed to you ≈ <b class="money">'+money(opts.outstanding)+'</b>.':'')+
+      '</div>';
   } else if(reimburse){
     h+='<div class="banner warn show">Takes cash <b>from petty cash</b> (the envelope — e.g. part of guest free cash) to repay <b>'+esc(reimburseName)+'</b>. '+
       'This is a <b>cash out</b> line: Paid from → Petty cash. The original shop spend stays as Own money; this line shows it was repaid.</div>';
@@ -11227,8 +11240,8 @@ function openExpense(id, opts){
   h+=fieldHTML("Company / Store",'<input class="ctl" id="f_exp_vendor" value="'+esc(r.vendor||"")+'" placeholder="e.g. Eroski, Makro"'+(fromStew?" disabled":"")+'>');
   h+=fieldHTML("Description",'<input class="ctl" id="f_exp_desc" value="'+esc(r.description||"")+'" placeholder="e.g. Galley supplies"'+(fromStew?" disabled":"")+'>');
   h+='<div class="row2">'+
-    fieldHTML("Category",'<select class="ctl" id="f_exp_cat"'+(fromStew||reimburse?" disabled":"")+'>'+EXP_CATS.map(function(c){return '<option'+(c===(r.category||"")?" selected":"")+'>'+esc(c)+'</option>';}).join("")+'</select>')+
-    fieldHTML("Type",'<select class="ctl" id="f_exp_method"'+(fromStew?" disabled":"")+'>'+EXP_METHODS.map(function(c){return '<option'+(c===(r.payMethod||"")?" selected":"")+'>'+esc(c)+'</option>';}).join("")+'</select>')+
+    fieldHTML("Category",'<select class="ctl" id="f_exp_cat"'+(fromStew||reimburse||commPayout?" disabled":"")+'>'+EXP_CATS.map(function(c){return '<option'+(c===(r.category||"")?" selected":"")+'>'+esc(c)+'</option>';}).join("")+'</select>')+
+    fieldHTML("Type",'<select class="ctl" id="f_exp_method"'+(fromStew||commPayout?" disabled":"")+'>'+EXP_METHODS.map(function(c){return '<option'+(c===(r.payMethod||"")?" selected":"")+'>'+esc(c)+'</option>';}).join("")+'</select>')+
   '</div>';
   if(fromStew){
     var paySel=expIsCrewUnpaid(r)?"Unpaid":"Paid";
@@ -11239,7 +11252,7 @@ function openExpense(id, opts){
     h+='<p style="margin:-6px 0 12px;font-size:12px;color:var(--muted)">Applies to <b>all stews on this charter</b> (same as Stews). Tips stay on Stews only.</p>';
   }
   h+='<div id="f_exp_paidFrom_wrap">'+
-    fieldHTML("Paid from (cash only)",'<select class="ctl" id="f_exp_paidFrom"'+(reimburse?" disabled":"")+'>'+
+    fieldHTML("Paid from (cash only)",'<select class="ctl" id="f_exp_paidFrom"'+(reimburse||commPayout?" disabled":"")+'>'+
       (fromStew
         ?('<option value="Petty cash"'+(paidFromSel==="Petty cash"?" selected":"")+'>Petty cash (reduces on-board)</option>'+
           '<option value="Own money"'+(paidFromSel==="Own money"?" selected":"")+'>Own money (pocket)</option>'+
@@ -11272,7 +11285,7 @@ function openExpense(id, opts){
     '</div>';
   }
   /* Charge to boat vs APA pot */
-  if(!fromStew&&!reimburse){
+  if(!fromStew&&!reimburse&&!commPayout){
     h+='<div id="f_exp_charge_wrap">'+
       fieldHTML("Charge to",'<select class="ctl" id="f_exp_chargeTo">'+
         '<option value="boat"'+(chargeToSel==="boat"?" selected":"")+'>Boat (running costs)</option>'+
@@ -11476,7 +11489,7 @@ function openExpense(id, opts){
     if(!(amount>0)){ if(el("f_exp_amount")) el("f_exp_amount").focus(); return; }
     var method=(el("f_exp_method")&&el("f_exp_method").value)==="Credit Card"?"Credit Card":"Cash";
     var paidFrom=method==="Credit Card"?"":((el("f_exp_paidFrom")&&el("f_exp_paidFrom").value)==="Own money"?"Own money":"Petty cash");
-    var chargeTo=reimburse?"boat":((el("f_exp_chargeTo")&&el("f_exp_chargeTo").value)==="apa"?"apa":"boat");
+    var chargeTo=reimburse||commPayout?"boat":((el("f_exp_chargeTo")&&el("f_exp_chargeTo").value)==="apa"?"apa":"boat");
     var apaTripId="";
     if(chargeTo==="apa"){
       apaTripId=(el("f_exp_apaTrip")&&el("f_exp_apaTrip").value)||"";
@@ -11486,10 +11499,27 @@ function openExpense(id, opts){
         return;
       }
     }
-    var cat=reimburse?(reimburseToId===EXP_POCKET_CAPTAIN?"Captain reimbursement":"Crew reimbursement")
-      :((el("f_exp_cat")&&el("f_exp_cat").value)||"Miscellaneous");
+    var cat=commPayout?"Captain commission"
+      :(reimburse?(reimburseToId===EXP_POCKET_CAPTAIN?"Captain reimbursement":"Crew reimbursement")
+      :((el("f_exp_cat")&&el("f_exp_cat").value)||"Miscellaneous"));
+    if(commPayout||expIsCaptainCommission({category:cat, kind:r.kind, commPayout:r.commPayout})){
+      cat="Captain commission"; chargeTo="boat"; apaTripId=""; paidFrom="Petty cash"; method="Cash";
+    }
     var isReimbCat=cat==="Captain reimbursement"||cat==="Crew reimbursement"||cat==="Reimbursement";
     if(isReimbCat||reimburse){ chargeTo="boat"; apaTripId=""; paidFrom="Petty cash"; method="Cash"; }
+    /* Commission draw: warn if over envelope */
+    if((commPayout||cat==="Captain commission")&&paidFrom==="Petty cash"&&method==="Cash"){
+      var Scomm=expSettlementFigures(expMonthKey(date)||expDefaultMonth());
+      var alreadyComm=rec&&expIsCaptainCommission(rec)&&expExpenseHitsPetty(rec)?apaNum(rec.amount):0;
+      var pettyLeft=Math.round((apaNum(Scomm.pettyCash)+alreadyComm)*100)/100;
+      if(amount>pettyLeft+0.009){
+        if(!window.confirm(
+          "Petty on board is only "+money0(pettyLeft)+".\n"+
+          "Drawing "+money0(amount)+" would make petty "+money0(pettyLeft-amount)+".\n\n"+
+          "OK = still take it (books short).\nCancel = go back and lower the amount."
+        )) return;
+      }
+    }
     var paidById=EXP_POCKET_CAPTAIN;
     if(paidFrom==="Own money"&&el("f_exp_paidBy")){
       paidById=String(el("f_exp_paidBy").value||EXP_POCKET_CAPTAIN);
@@ -11522,6 +11552,8 @@ function openExpense(id, opts){
       source:rec&&rec.source==="apa"?"apa":(rec&&rec.source==="stew"?rec.source:"manual"),
       fromApaLineId:rec&&rec.fromApaLineId?rec.fromApaLineId:"",
       fromApaKind:rec&&rec.fromApaKind?rec.fromApaKind:"",
+      kind:commPayout||cat==="Captain commission"?"captainComm":(rec&&rec.kind?rec.kind:""),
+      commPayout:commPayout||cat==="Captain commission"?true:(rec&&rec.commPayout?true:undefined),
       by:session.who||"Captain", updatedAt:new Date().toISOString()
     };
     if(isReimbCat||reimburse) expNormalizeReimbursement(obj);
@@ -11533,7 +11565,8 @@ function openExpense(id, opts){
     showSheet(false);
     saveExpenses();
     expSyncExpenseToApaAndSave(obj);
-    renderExpenses();
+    if(curTab==="commissions") renderCommissions();
+    else renderExpenses();
     /* Pocket balances feed Stews “money owed” — refresh if that tab is open */
     if(typeof renderStews==="function"&&curTab==="stews") renderStews({soft:true});
   });
@@ -14953,6 +14986,55 @@ function chargeCommissionParts(c){
   };
 }
 function chargeCommissionAmt(c){ return chargeCommissionParts(c).total; }
+/** Expense line = captain took commission cash from the boat envelope. */
+function expIsCaptainCommission(e){
+  if(!e) return false;
+  if(e.kind==="captainComm"||e.commPayout===true) return true;
+  return /^captain commission$/i.test(String(e.category||""));
+}
+/** Sum of commission cash-outs from petty (not own money / card). */
+function expCaptainCommissionPaidTotal(){
+  var s=0;
+  (state.expenses||[]).forEach(function(e){
+    if(!expIsCaptainCommission(e)) return;
+    if(String(e.payMethod||"")==="Credit Card") return;
+    if(e.paidFrom==="Own money"||expIsOwnMoneyLabel(e.paidFrom)) return;
+    s+=apaNum(e.amount);
+  });
+  return Math.round(s*100)/100;
+}
+/** Recent commission draws, newest first. */
+function expCaptainCommissionPayouts(){
+  return (state.expenses||[]).filter(function(e){
+    return e&&expIsCaptainCommission(e);
+  }).slice().sort(function(a,b){
+    var da=String(b.date||""), db=String(a.date||"");
+    if(da!==db) return da.localeCompare(db);
+    return String(b.updatedAt||"").localeCompare(String(a.updatedAt||""));
+  });
+}
+/**
+ * Open expense sheet to draw captain commission from petty cash.
+ * amount = suggested draw (capped later on save if over envelope).
+ */
+function openCaptainCommPayout(amount){
+  if(!isCaptain()) return;
+  var open=Math.max(0, apaNum(amount));
+  var pettyNow=0;
+  try{
+    var S=expSettlementFigures(expDefaultMonth());
+    pettyNow=apaNum(S.pettyOnboard!=null?S.pettyOnboard:S.pettyCash);
+  }catch(eP){}
+  var suggest=open;
+  if(pettyNow>0.009&&suggest>pettyNow) suggest=pettyNow;
+  if(!(suggest>0.009)&&pettyNow>0.009) suggest=pettyNow;
+  openExpense(null, {
+    commPayout:true,
+    amount:suggest>0.009?Math.round(suggest*100)/100:"",
+    pettyAvail:pettyNow,
+    outstanding:open
+  });
+}
 function setOwnerBenefitExclude(leadId, exclude){
   if(!isCaptain()||!leadId) return;
   var L=(state.leads||[]).filter(function(x){return x&&String(x.id)===String(leadId);})[0];
@@ -15090,11 +15172,59 @@ function renderCommissions(){
     return h;
   }
 
+  var captEarned=Math.round((captCom+extCom)*100)/100;
+  var captPaid=expCaptainCommissionPaidTotal();
+  var captOpen=Math.round(Math.max(0, captEarned-captPaid)*100)/100;
+  var captOverpaid=captPaid>captEarned+0.009?Math.round((captPaid-captEarned)*100)/100:0;
+  var pettyNow=0;
+  try{
+    var Sp=expSettlementFigures(expDefaultMonth());
+    pettyNow=apaNum(Sp.pettyOnboard!=null?Sp.pettyOnboard:Sp.pettyCash);
+  }catch(ePettyCm){}
+  var payouts=expCaptainCommissionPayouts();
+
   var html="";
-  html+='<div class="apa-sect-h" style="margin-top:0"><h3>Captain · '+CAPTAIN_COMMISSION_PCT+'% · outstanding</h3></div>';
-  html+='<p style="margin:0 0 10px;font-size:12.5px;color:var(--muted);line-height:1.4">Confirmed captain deals only (same as Leads). Upsells/extensions from charges with <b>I get commission</b>. Currently all captain commission is <b>outstanding</b>.</p>';
+  /* Pay from petty — draw commission cash from the boat envelope */
+  html+='<div class="apa-card" style="margin-bottom:14px" id="cmPayCard">'+
+    '<div style="font-weight:800;margin-bottom:6px">Pay yourself from petty cash</div>'+
+    '<div class="meta" style="margin-bottom:10px;line-height:1.45">'+
+      'Earned on confirmed captain deals + upsells: <b class="money">'+money(captEarned)+'</b>. '+
+      'Already drawn from the envelope: <b class="money">'+money(captPaid)+'</b>. '+
+      (captOpen>0.009
+        ?('Still outstanding: <b class="money" style="color:var(--amberDeep)">'+money(captOpen)+'</b>.')
+        :(captEarned>0.009?'All earned commission drawn.':''))+
+      (captOverpaid>0.009?' <span style="color:var(--danger)">Drawn <b class="money">'+money(captOverpaid)+'</b> over earned.</span>':'')+
+      ' Petty on board (this month): <b class="money">'+money(pettyNow)+'</b>.'+
+    '</div>'+
+    '<button type="button" class="btn" id="cmPayFromPetty" style="width:auto;padding:10px 16px"'+
+      (pettyNow<0.01&&captOpen<0.01?' disabled':'')+
+    '>Pay from petty cash</button>'+
+    '<p class="meta" style="margin:8px 0 0;line-height:1.4">Partial draws OK — enter any amount up to petty on board. Logs an expense <b>Captain commission</b> · Cash · Petty (cash out).</p>';
+  if(payouts.length){
+    html+='<div style="margin-top:12px;padding-top:10px;border-top:1px solid var(--line)">'+
+      '<div class="meta" style="font-weight:700;margin-bottom:6px">Draws so far</div><div class="list" style="margin:0">';
+    payouts.forEach(function(e){
+      var dStr=String(e.date||"").slice(0,10);
+      var dLab="";
+      try{ dLab=dStr&&/^\d{4}-\d{2}-\d{2}$/.test(dStr)?fmtDate(dStr):dStr; }catch(eD){ dLab=dStr; }
+      html+='<div class="item" style="padding:10px 12px" data-exp-id="'+esc(e.id)+'" role="button" tabindex="0">'+
+        '<div class="top"><div class="title" style="font-size:14px">'+esc(e.description||e.vendor||"Commission draw")+'</div>'+
+          '<div class="amt money" style="font-size:14px">−'+money0(e.amount)+'</div></div>'+
+        '<div class="meta">'+(dLab?'<span>📅 '+esc(dLab)+'</span>':'')+
+          '<span class="pill p-cash">Petty</span><span class="pill p-green">Paid to you</span></div>'+
+      '</div>';
+    });
+    html+='</div></div>';
+  }
+  html+='</div>';
+
+  html+='<div class="apa-sect-h" style="margin-top:0"><h3>Captain · '+CAPTAIN_COMMISSION_PCT+'% · deals</h3></div>';
+  html+='<p style="margin:0 0 10px;font-size:12.5px;color:var(--muted);line-height:1.4">Confirmed captain deals only (same as Leads). Upsells/extensions from charges with <b>I get commission</b>. Use <b>Pay from petty cash</b> above to take cash when the boat has float.</p>';
   if(captItems.length||extItems.length){
-    captItems.forEach(function(it){ html+=leadCommCard(it,'<span class="pill p-blue">Captain</span><span class="pill p-amber">Outstanding</span>'); });
+    var openPill=captOpen>0.009
+      ?('<span class="pill p-amber">Open pool '+money0(captOpen)+'</span>')
+      :'<span class="pill p-green">Drawn</span>';
+    captItems.forEach(function(it){ html+=leadCommCard(it,'<span class="pill p-blue">Captain</span>'+openPill); });
     extItems.forEach(function(it){
       var c=it.rec, cp=it.p;
       html+='<div class="item" data-edit-ch="'+esc(c.id)+'">'+
@@ -15103,13 +15233,15 @@ function renderCommissions(){
           (c.date?'<span>📅 '+esc(fmtDate(c.date))+'</span>':'')+
           '<span class="pill p-amber">Upsell / extension</span>'+
           (cp.hours>0?'<span>+'+esc(String(cp.hours))+' h</span>':'')+
-          '<span class="pill p-amber">Outstanding</span>'+
+          openPill+
         '</div>'+
         '<div class="notes" style="font-style:normal;color:var(--muted)">'+esc(cp.detail)+'</div></div>';
     });
     html+='<div class="meta" style="margin:0 0 14px">Deal base '+money(captBase)+
       (extCom>0?" · upsell comm "+money(extCom):"")+
-      " · <b>total commission outstanding</b> <b class=\"money\">"+money(captCom+extCom)+"</b></div>";
+      " · earned <b class=\"money\">"+money(captEarned)+"</b>"+
+      " · paid <b class=\"money\">"+money(captPaid)+"</b>"+
+      " · still open <b class=\"money\">"+money(captOpen)+"</b></div>";
   } else {
     html+='<div class="meta" style="margin:0 0 14px">No confirmed captain deals yet.</div>';
   }
@@ -15231,12 +15363,14 @@ function renderCommissions(){
     html+='<div class="meta" style="margin:0 0 14px">Benefits total <b class="money">€0</b> until at least one owner’s day is confirmed.</div>';
   }
 
-  if(!captItems.length&&!cbItems.length&&!ownItems.length&&!ownTentItems.length&&!ownSrcItems.length&&!ownPocketItems.length&&!extItems.length){
+  if(!captItems.length&&!cbItems.length&&!ownItems.length&&!ownTentItems.length&&!ownSrcItems.length&&!ownPocketItems.length&&!extItems.length&&!payouts.length){
     html=emptyBox("💸","No commission lines yet",
       "Import calendar leads, set source to Captain / Click&amp;Boat / Owner’s days / Owner-sourced, confirm the deal, or mark extra hours with <b>I get commission</b>.");
   }
   wrap.innerHTML=html;
-  if(el("cmCaptTot")) el("cmCaptTot").textContent=money(captCom+extCom);
+  if(el("cmCaptTot")) el("cmCaptTot").textContent=money(captEarned);
+  if(el("cmCaptPaid")) el("cmCaptPaid").textContent=money(captPaid);
+  if(el("cmCaptOpen")) el("cmCaptOpen").textContent=money(captOpen);
   if(el("cmCbTot")) el("cmCbTot").textContent=money(cbCom);
   if(el("cmOwnTot")) el("cmOwnTot").textContent=money(ownVal);
   if(el("cmOwnPocket")) el("cmOwnPocket").textContent=money(ownPocketTot);
@@ -15245,6 +15379,17 @@ function renderCommissions(){
   if(el("cmCount")) el("cmCount").textContent=String(captItems.length);
   if(el("cmExt")) el("cmExt").textContent=String(extItems.length);
   if(el("cmBase")) el("cmBase").textContent=money(captBase+cbBase);
+
+  if(el("cmPayFromPetty")){
+    el("cmPayFromPetty").addEventListener("click",function(){
+      openCaptainCommPayout(captOpen>0.009?captOpen:pettyNow);
+    });
+  }
+  Array.prototype.forEach.call(wrap.querySelectorAll("[data-exp-id]"),function(x){
+    x.addEventListener("click",function(){
+      openExpense(x.getAttribute("data-exp-id"));
+    });
+  });
 
   Array.prototype.forEach.call(wrap.querySelectorAll("[data-own-benefit]"),function(lab){
     var inp=lab.querySelector("input[type=checkbox]");
