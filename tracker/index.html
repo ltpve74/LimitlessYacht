@@ -1227,51 +1227,19 @@ function flushBootSaves(){
   keys.forEach(function(c){ try{ save(c); }catch(e){} });
 }
 /**
- * Light post-login work only — never block first paint of charges/leads.
- * Live ICS / calendar snapshot is loaded when Stews is opened (loadStewCalendar),
- * not on every captain login (that made multiuser feel slow).
+ * After login: paint only. Blob (Netlify store) is the source of truth —
+ * never auto-heal, restore, seed, migrate, or re-assign on open.
+ * Legacy restore/heal helpers remain for explicit captain actions
+ * (e.g. Stews → “Restore crew data”).
  */
-/** Once per page session — re-running seed/clean on every tab painted thrashing petty. */
-var _expPostLoadDone=false;
 function runPostLoadMaintenance(){
   if(DEMO) return;
   try{
-    if(canCommercial()){
-      try{ migrateLeadsDealClosed(); }catch(eMig){}
-    }
-    if(canOps()){
-      mergeDuplicateApaTrips();
-      ensureAllLeadCashApa();
-    }
-    if(isCaptain()){
-      /* Recover crew/pay if leads-SOT rename or purge wiped links */
-      try{ runStewAssignFullRestore(); }catch(eRest){}
-      try{ healStewAssignsToLeads(); }catch(eHeal){}
-      try{ backupStewAssignLocal(); }catch(eBak){}
-      /* Snapshot for team after open (never block gate; never recurse into merged feed) */
-      setTimeout(function(){
-        try{ persistStewCalendarSnapshot(); }catch(eSnap){}
-      }, 400);
-      /*
-       * Expenses repair: once per session only.
-       * Collapse paid renames (fixes double cash-out), add missing unpaid lines,
-       * never re-invent floatPay. Avoids cash-out lines flickering on re-render.
-       */
-      if(!_expPostLoadDone){
-        _expPostLoadDone=true;
-        var expDirty=false;
-        try{ if(expCollapseCrewDayPayDuplicates()) expDirty=true; }catch(eCol){}
-        try{ if(expCleanOrphanStewDayPayLines()) expDirty=true; }catch(eCl0){}
-        try{ if(seedCurrentMonthStewCashExpenses()) expDirty=true; }catch(e1){}
-        try{ expRestoreCrewFloatPayAfterWipe(); }catch(e2){}
-        try{ if(expNormalizeAllReimbursements()) expDirty=true; }catch(e3){}
-        try{ if(syncAllChargeCashToPetty()) expDirty=true; }catch(e4){}
-        if(expDirty&&curTab==="expenses") try{ renderExpenses(); }catch(e5){}
-      }
-      if(curTab==="charters") try{ renderCharters(); }catch(e6){}
-      if(curTab==="leads") try{ renderLeads(); }catch(e7){}
-      if(curTab==="stews") try{ renderStews({soft:true}); }catch(e8){}
-    }
+    if(curTab==="charters"&&canCommercial()) try{ renderCharters(); }catch(e6){}
+    if(curTab==="leads"&&canCommercial()) try{ renderLeads(); }catch(e7){}
+    if(curTab==="stews"&&canRoster()) try{ renderStews({soft:true}); }catch(e8){}
+    if(curTab==="expenses"&&isCaptain()) try{ paintExpensesBody(); }catch(e9){}
+    if(curTab==="apa"&&canOps()) try{ renderApa(); }catch(e10){}
   }catch(e){ console&&console.error&&console.error("[tracker] post-load",e); }
 }
 var whoSel=el("whoSel");
@@ -1614,8 +1582,7 @@ function switchTab(t){
   if(t==="leads"&&canCommercial()) renderLeads();
   if(t==="ops") renderOpsHub();
   if(t==="apa"){
-    /* Collapse guest dup pots (e.g. Alvaro) + double Paid charges before paint */
-    try{ if(canOps()&&!DEMO) mergeDuplicateApaTrips(); }catch(e){}
+    /* Paint APA from blob only — no auto merge/save on tab open */
     renderApa();
   }
   if(t==="diesel") renderDiesel();
@@ -8083,7 +8050,12 @@ function renderDiesel(){
 }
 /* -------- Stews (captain only) — calendar + roster -------- */
 function saveStews(){ if(!canRoster()) return; save("stews"); }
-function saveStewAssign(){ if(!canRoster()) return; save("stewAssign"); }
+function saveStewAssign(){
+  if(!canRoster()) return;
+  save("stewAssign");
+  /* Keep local backup in sync with intentional edits (never use stale backup to undo unassigns) */
+  try{ backupStewAssignLocal(); }catch(eBak){}
+}
 function saveExpenses(){ if(!isCaptain()) return; save("expenses"); }
 /** linkId for a stew day-pay expense (or empty). */
 function expStewDayLinkId(e){
@@ -9818,16 +9790,10 @@ function renderExpenses(){
   if(!isCaptain()) return;
   var body=el("expBody"); if(!body) return;
   if(!expMonth) expMonth=expDefaultMonth();
-  /* Move any APA-tagged Provisions that landed on the Expenses tab → Provisions */
-  expFixMisplacedApaProvisions();
-  /* Calendar → Stews assigns → Expenses (Paid + Unpaid crew lines) */
-  loadStewCalendar(false).then(function(){
-    var a=ensureStewAssignFromCalendar();
-    var b=ensureStewAssignPaidBeforeCut();
-    if(a&&!DEMO) saveStewAssign();
-    var c=seedCurrentMonthStewCashExpenses();
-    if((a||b||c)&&curTab==="expenses") paintExpensesBody();
-  });
+  /*
+   * Paint expenses from blob only. Do NOT auto-reassign stews from calendar titles
+   * or seed day-pay lines on every Expenses open (that undid captain unassigns).
+   */
   paintExpensesBody();
 }
 function paintExpensesBody(){
@@ -10858,25 +10824,14 @@ function stewIsOffEvent(ev){
 var STEW_ASSIGN_BACKUP_KEY="ly_tracker_stewAssign_backup_v1";
 function backupStewAssignLocal(){
   try{
-    if(!state.stewAssign||!state.stewAssign.length) return;
-    var rich=(state.stewAssign||[]).filter(function(a){
-      return a&&a.eventKey&&((a.stewIds&&a.stewIds.length)||Number(a.dayRate)>0||Number(a.tipTotal)>0||a.payStatus==="Paid");
-    });
-    if(!rich.length) return;
-    var prev=null;
-    try{ prev=JSON.parse(safeGet(STEW_ASSIGN_BACKUP_KEY)||"null"); }catch(e0){ prev=null; }
-    /* Keep the richest backup (more crew rows / tip money) */
-    var prevScore=prev&&Array.isArray(prev.rows)?prev.rows.length:0;
-    var prevTips=0;
-    if(prev&&prev.rows) prev.rows.forEach(function(r){ prevTips+=Number(r.tipTotal)||0; prevTips+=Number(r.dayRate)||0; });
-    var score=rich.length;
-    var tips=0;
-    rich.forEach(function(r){ tips+=Number(r.tipTotal)||0; tips+=Number(r.dayRate)||0; });
-    if(prev&&(prevScore>score||(prevScore===score&&prevTips>tips))) return;
+    /* Always mirror current stewAssign (including empty crew). Preferring a
+     * “richer” older backup used to undo captain unassigns after reopen. */
+    if(!state.stewAssign) return;
     safeSet(STEW_ASSIGN_BACKUP_KEY, JSON.stringify({ at:new Date().toISOString(), rows:state.stewAssign }));
   }catch(e){}
 }
 function restoreStewAssignFromLocalBackup(){
+  /* Explicit Restore crew only — never run on open */
   if(!isCaptain()) return {ok:false, n:0};
   var data=null;
   try{ data=JSON.parse(safeGet(STEW_ASSIGN_BACKUP_KEY)||"null"); }catch(e){ data=null; }
@@ -10899,7 +10854,7 @@ function restoreStewAssignFromLocalBackup(){
     }
     var curCrew=(cur.stewIds&&cur.stewIds.length)?cur.stewIds.length:0;
     var curMoney=(Number(cur.dayRate)||0)+(Number(cur.tipTotal)||0);
-    /* Prefer backup when current lost crew or money */
+    /* Prefer backup when current lost crew or money (explicit restore only) */
     if(bakCrew>curCrew||(bakMoney>curMoney&&bakCrew>=curCrew)){
       if(bakCrew&&(!cur.stewIds||!cur.stewIds.length)) cur.stewIds=bak.stewIds.slice();
       if(Number(bak.dayRate)>0&&!(Number(cur.dayRate)>0)) cur.dayRate=bak.dayRate;
@@ -10920,7 +10875,7 @@ function restoreStewAssignFromLocalBackup(){
       n++;
     }
   });
-  if(n&&!DEMO){ saveStewAssign(); backupStewAssignLocal(); }
+  if(n&&!DEMO){ saveStewAssign(); }
   return {ok:true, n:n, at:data.at||""};
 }
 /**
@@ -11757,9 +11712,11 @@ function persistStewCalendarSnapshot(){
   save("stewCalendar");
 }
 /**
- * Load roster calendar:
- *  - Captain: live ICS (+ seed), purge ghosts, publish snapshot to blob
+ * Load roster calendar (read-only for stewAssign):
+ *  - Captain: live ICS (+ seed) for display; blob stewAssign is never rewritten here
  *  - Team: blob snapshot only (optional force = re-fetch from server)
+ * Explicit “Refresh roster” may publish stewCalendar snapshot for the team —
+ * still does not reassign crew.
  */
 function loadStewCalendar(force){
   if(isTeam()){
@@ -11780,15 +11737,14 @@ function loadStewCalendar(force){
   }
   if(!isCaptain()) return Promise.resolve([]);
   /*
-   * Roster list = leads only.
-   * Do NOT auto-import from ICS here (that re-created deleted leads when known
-   * keys were incomplete). New calendar dates → only via Leads “Sync calendar dates”.
+   * Roster list = leads + live calendar for labels only.
+   * Never heal/purge/restore stewAssign here — that re-attached crew after unassign.
+   * New calendar dates → only via Leads “Sync calendar dates”.
+   * Team snapshot: only on explicit force refresh (Refresh roster).
    */
   return Promise.all([loadStewSeed(), loadCalEvents(!!force)]).then(function(){
-    try{ healStewAssignsToLeads(); }catch(e0){}
-    purgeOrphanStewAssigns();
-    if(force||!(state.stewCalendar&&state.stewCalendar.length)||stewEventsFromLeads().length){
-      persistStewCalendarSnapshot();
+    if(force){
+      try{ persistStewCalendarSnapshot(); }catch(eSnap){}
     }
     return stewMergedEvents();
   });
@@ -12343,14 +12299,14 @@ function renderStews(opts){
     '<div id="stewYearFilters" style="display:flex;flex-wrap:wrap;gap:6px;margin:0 0 10px"></div>'+
     '<div id="stewCalList"><div class="empty"><div class="big">⏳</div><div>'+esc(loadingMsg)+'</div></div></div>';
   if(el("stewRefreshCal")) el("stewRefreshCal").addEventListener("click",function(){
-    el("stewCalList").innerHTML='<div class="empty"><div class="big">⏳</div><div>'+(isTeam()?"Reloading roster…":"Syncing new dates + publishing roster…")+'</div></div>';
+    el("stewCalList").innerHTML='<div class="empty"><div class="big">⏳</div><div>'+(isTeam()?"Reloading roster…":"Refreshing calendar + publishing team roster…")+'</div></div>';
     loadStewCalendar(true).then(function(){
-      try{ if(isCaptain()) runStewAssignFullRestore(); }catch(eR){}
+      /* Refresh does NOT restore/reassign crew — blob stewAssign stays as saved */
       paintStewChartersKeepScroll();
       if(!stewMergedEvents().filter(function(ev){ return ev&&!stewIsOffEvent(ev); }).length){
         var w=el("stewCalList");
         if(w) w.innerHTML=emptyBox("📅",isTeam()?"No roster snapshot yet":"No charters loaded",
-          isTeam()?"Ask the captain to tap Refresh calendar once.":"Check connection and tap Refresh calendar again.");
+          isTeam()?"Ask the captain to tap Refresh roster once.":"Check connection and tap Refresh roster again.");
       }
     }).catch(function(){
       var w=el("stewCalList");
@@ -12384,25 +12340,11 @@ function renderStews(opts){
 function paintStewCharters(){
   var wrap=el("stewCalList"); if(!wrap) return;
   var today=new Date().toISOString().slice(0,10);
-  /* Drop assigns for leftover deleted ICS days — keep cancelled-lead ghosts */
-  purgeOrphanStewAssigns();
-  ensureStewAssignFromCalendar();
-  ensureStewAssignPaidBeforeCut();
-  syncStewAssignsFromCalendar();
-  try{ backupStewAssignLocal(); }catch(eBak){}
-  /* Undo bad soft cancels (Alvaro note on Oliver) before re-applying real cancelled leads */
-  repairFalseStewCancels();
-  /* Cancelled leads → durable stew cancel row (leadcancel ghost if ICS deleted) */
-  syncCancelledLeadsToStews();
-  /* Drop any accidental assigns on "off" days (do not touch pay flags on real charters) */
-  var offKeys={};
-  stewMergedEvents().forEach(function(ev){ if(ev&&stewIsOffEvent(ev)&&ev.key) offKeys[ev.key]=1; });
-  if(Object.keys(offKeys).length&&state.stewAssign&&state.stewAssign.length){
-    var n0=state.stewAssign.length;
-    state.stewAssign=state.stewAssign.filter(function(a){ return !(a&&offKeys[a.eventKey]); });
-    if(state.stewAssign.length!==n0&&!DEMO) saveStewAssign();
-  }
-  /* Rebuild list after cancel ghosts are created */
+  /*
+   * Paint-only from blob stewAssign + calendar labels.
+   * Do NOT purge, auto-assign from calendar titles, restore crew, or save.
+   * Unassigns must stick until the captain edits again (or taps Restore crew).
+   */
   var all=stewMergedEvents().filter(function(ev){ return ev&&!stewIsOffEvent(ev); });
   var years=stewEventYears(all);
   var yf=el("stewYearFilters");
@@ -15354,7 +15296,7 @@ function save(coll){
     if(hint){ hint.textContent="Saved (demo — not stored)"; hint.className="savehint saved"; }
     return;
   }
-  if(BOOT_QUIET){ voidBootSave(coll); return; }
+  if(BOOT_QUIET){ queueBootSave(coll); return; }
   if(hint){ hint.textContent="Saving…"; hint.className="savehint saving"; }
   /* Snapshot now so a concurrent poll cannot mutate the payload mid-flight */
   var rows=state[coll];
@@ -15759,10 +15701,7 @@ function applyData(d, opts){
     } else {
       state.leads=d.leads;
     }
-    /* One-shot dealClosed flag + light invoice defaults (idempotent) */
-    if(canCommercial()&&!fromPoll){
-      try{ migrateLeadsDealClosed(); }catch(eMig){}
-    }
+    /* Do NOT migrate/repair leads on load — blob is SOT; no boot-time writes */
   }
   if(fromPoll&&localSaveIsFresh("charters")){
     /* keep local charges */
@@ -15841,20 +15780,10 @@ function applyData(d, opts){
     try{ save("leads"); }catch(eS){} /* under BOOT_QUIET this only queues until after open */
   }
   /*
-   * Gate open must stay fast. Heavy APA strip / stew seed / multi-save runs after
-   * enterApp via runPostLoadMaintenance (fromBoot). Polls skip that work too.
+   * Never auto-heal / seed / reassign after load or poll — blob is SOT.
+   * Captain can use explicit tools (Restore crew, Sync calendar dates, etc.).
    */
   if(!opts.fromBoot){
-    if(canOps()){
-      mergeDuplicateApaTrips();
-      ensureAllLeadCashApa();
-    }
-    if(isCaptain()&&!fromPoll){
-      ensureStewAssignPaidBeforeCut();
-      seedCurrentMonthStewCashExpenses();
-      expRestoreCrewFloatPayAfterWipe();
-      syncAllChargeCashToPetty();
-    }
     renderAll();
     if(!DEMO) refreshPushStatus();
   }
