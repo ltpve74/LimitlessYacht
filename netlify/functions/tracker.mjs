@@ -796,15 +796,25 @@ function stewCalendarRowsFromLeads(leads, stewAssign) {
     const end = days[days.length - 1] || start;
     const src = LY.constrainLeadSource(l.leadSource);
     const ek = assignKeyForLead(l, start);
+    /* Prefer clock times stored on stewAssign (captain-accepted calendar times) */
+    const asg = assigns.filter(
+      (a) =>
+        a &&
+        (String(a.leadId || "") === String(l.id) ||
+          (ek && String(a.eventKey || "") === ek))
+    )[0];
+    const st = String((asg && asg.startTime) || l.startTime || "").trim();
+    const et = String((asg && asg.endTime) || l.endTime || "").trim();
+    const timed = !!(st || et);
     rows.push({
       key: ek,
       uid: l.calendarUid || (ek.indexOf("uid:") === 0 ? ek.slice(4) : l.id),
       summary: l.name || "Charter",
       start: start,
       end: end,
-      startTime: "",
-      endTime: "",
-      allDay: true,
+      startTime: st,
+      endTime: et,
+      allDay: timed ? false : true,
       status: "booked",
       source: "lead",
       leadId: l.id,
@@ -962,6 +972,61 @@ function todayYmdMadrid(now) {
   return String(now || new Date().toISOString()).slice(0, 10);
 }
 
+/** HH:MM for compare/display (ICS may send HH:MM:SS). */
+function normClock(t) {
+  const s = String(t || "").trim();
+  if (!s) return "";
+  const m = s.match(/^(\d{1,2}):(\d{2})/);
+  if (!m) return s.slice(0, 5);
+  return String(m[1]).padStart(2, "0") + ":" + m[2];
+}
+
+function clockLabel(startTime, endTime, allDay) {
+  if (allDay || (!startTime && !endTime)) return "all day";
+  if (startTime && endTime) return startTime + "–" + endTime;
+  return startTime || endTime || "—";
+}
+
+/** Find stewAssign row for a lead (by leadId or calendar event key). */
+function stewAssignForLead(data, L) {
+  if (!L || !data) return null;
+  const assigns = Array.isArray(data.stewAssign) ? data.stewAssign : [];
+  const lid = String(L.id || "");
+  const ck = String(L.calendarEventKey || L.calEventKey || "").trim();
+  let hit = assigns.filter((a) => a && String(a.leadId || "") === lid)[0];
+  if (hit) return hit;
+  if (ck) {
+    hit = assigns.filter((a) => a && String(a.eventKey || "") === ck)[0];
+    if (hit) return hit;
+  }
+  return null;
+}
+
+/** Write accepted clock times onto lead + matching stewAssign. */
+function applyTimesToLeadAndAssign(data, L, times, now) {
+  if (!L || !times) return;
+  const st = normClock(times.startTime);
+  const et = normClock(times.endTime);
+  const allDay = times.allDay === true || (!st && !et);
+  L.startTime = allDay ? "" : st;
+  L.endTime = allDay ? "" : et;
+  L.allDay = allDay;
+  L.icsTimeConflict = false;
+  L.icsProposedStartTime = "";
+  L.icsProposedEndTime = "";
+  L.icsProposedAllDay = "";
+  L.updatedAt = now;
+  const asg = stewAssignForLead(data, L);
+  if (asg) {
+    asg.startTime = L.startTime;
+    asg.endTime = L.endTime;
+    asg.allDay = allDay;
+    if (times.start) asg.start = String(times.start).slice(0, 10);
+    if (times.end != null) asg.end = String(times.end || times.start || "").slice(0, 10);
+    asg.updatedAt = now;
+  }
+}
+
 function applyIcsDatesToLead(L, d, now, opts) {
   opts = opts || {};
   if (!L || !d || !d.start) return false;
@@ -991,6 +1056,15 @@ function applyIcsDatesToLead(L, d, now, opts) {
       L.name = d.name;
     }
   }
+  /* Optional clock times from ICS (when applying a confirmed move) */
+  if (d.startTime != null || d.endTime != null || d.allDay != null) {
+    const st = normClock(d.startTime);
+    const et = normClock(d.endTime);
+    const allDay = d.allDay === true || (!st && !et);
+    L.startTime = allDay ? "" : st;
+    L.endTime = allDay ? "" : et;
+    L.allDay = allDay;
+  }
   L.icsDateConflict = false;
   L.icsProposedStart = "";
   L.icsProposedEnd = "";
@@ -999,6 +1073,10 @@ function applyIcsDatesToLead(L, d, now, opts) {
   L.icsProposedPrice = "";
   L.icsProposedRate = "";
   L.icsProposedTotal = "";
+  L.icsTimeConflict = false;
+  L.icsProposedStartTime = "";
+  L.icsProposedEndTime = "";
+  L.icsProposedAllDay = "";
   L.updatedAt = now;
   return true;
 }
@@ -1123,6 +1201,7 @@ function syncNewIcsLeads(data, events, who, now) {
       namesUpdated: 0,
       orphans: [],
       dateMoves: [],
+      timeMoves: [],
       totalLeads: leads.length,
       knownCount: known.size,
     };
@@ -1134,6 +1213,7 @@ function syncNewIcsLeads(data, events, who, now) {
   let autoMoved = 0;
   let namesUpdated = 0;
   const dateMoves = [];
+  const timeMoves = []; /* same-day clock changes for captain confirm */
   const orphans = []; /* live on calendar, known key, but no lead in the book */
   const ignored = new Set(
     (Array.isArray(data.meta.icsLeadIgnoredKeys)
@@ -1186,7 +1266,22 @@ function syncNewIcsLeads(data, events, who, now) {
       const curE = String(L.end || "").slice(0, 10);
       const nextE = String(d.end || "").slice(0, 10);
       const dateChanged = d.start !== curS || nextE !== curE;
-      if (!dateChanged && L.start) return;
+
+      /* Clock times: lead fields, else stewAssign (roster often holds the times) */
+      const asg = stewAssignForLead({ stewAssign: data.stewAssign }, L);
+      const curST = normClock(L.startTime || (asg && asg.startTime) || "");
+      const curET = normClock(L.endTime || (asg && asg.endTime) || "");
+      const nextST = normClock(ev.startTime || "");
+      const nextET = normClock(ev.endTime || "");
+      const nextAllDay = !!(ev.allDay || (!nextST && !nextET));
+      const curAllDay = !curST && !curET;
+      const icsHasClock = !!(nextST || nextET);
+      const appHasClock = !!(curST || curET);
+      const timeChanged =
+        icsHasClock &&
+        (nextST !== curST || nextET !== curET || (curAllDay && icsHasClock));
+      /* ICS became all-day while app still has a clock (temp timed entry cleaned up) */
+      const clearedToAllDay = appHasClock && nextAllDay && !icsHasClock;
 
       const src = LY.constrainLeadSource(L.leadSource);
       const onHold =
@@ -1195,8 +1290,34 @@ function syncNewIcsLeads(data, events, who, now) {
         L.bookingStatus === "hold" ||
         String(L.status || "").toLowerCase() === "tentative";
 
+      if (!dateChanged && !timeChanged && !clearedToAllDay && L.start) {
+        return;
+      }
+
       if (onHold || !L.start) {
-        applyIcsDatesToLead(L, d, now, { updateName: true });
+        /* On hold / undated: adopt calendar date+time silently */
+        applyIcsDatesToLead(
+          L,
+          Object.assign({}, d, {
+            startTime: nextST,
+            endTime: nextET,
+            allDay: nextAllDay,
+          }),
+          now,
+          { updateName: true }
+        );
+        applyTimesToLeadAndAssign(
+          data,
+          L,
+          {
+            startTime: nextST,
+            endTime: nextET,
+            allDay: nextAllDay,
+            start: d.start,
+            end: d.end || d.start,
+          },
+          now
+        );
         autoMoved++;
       } else if (dateChanged) {
         /* Confirmed lead — do not move silently; stage proposal for captain confirm */
@@ -1208,6 +1329,12 @@ function syncNewIcsLeads(data, events, who, now) {
         L.icsProposedPrice = d.priced.price;
         L.icsProposedRate = d.priced.rate;
         L.icsProposedTotal = d.priced.total;
+        L.icsProposedStartTime = nextST;
+        L.icsProposedEndTime = nextET;
+        L.icsProposedAllDay = nextAllDay ? "1" : "0";
+        if (timeChanged || clearedToAllDay || icsHasClock) {
+          L.icsTimeConflict = true;
+        }
         L.updatedAt = now;
         dateMoves.push({
           leadId: L.id,
@@ -1216,8 +1343,48 @@ function syncNewIcsLeads(data, events, who, now) {
           to: d.start,
           fromEnd: curE,
           toEnd: nextE,
+          fromTime: clockLabel(curST, curET, curAllDay),
+          toTime: clockLabel(nextST, nextET, nextAllDay),
           eventKey: ek,
           label: d.priced.label || "",
+        });
+      } else if ((timeChanged || clearedToAllDay) && !appHasClock && icsHasClock) {
+        /* App never had a clock — fill from calendar without nagging */
+        applyTimesToLeadAndAssign(
+          data,
+          L,
+          {
+            startTime: nextST,
+            endTime: nextET,
+            allDay: nextAllDay,
+            start: d.start,
+            end: d.end || d.start,
+          },
+          now
+        );
+        autoMoved++;
+      } else if (timeChanged || clearedToAllDay) {
+        /*
+         * Same day, different clock — temporary calendar times often leave
+         * wrong roster hours. Captain chooses: use calendar or keep app.
+         */
+        L.icsTimeConflict = true;
+        L.icsProposedStartTime = nextST;
+        L.icsProposedEndTime = nextET;
+        L.icsProposedAllDay = nextAllDay ? "1" : "0";
+        L.updatedAt = now;
+        timeMoves.push({
+          leadId: L.id,
+          name: L.name || d.name || "Charter",
+          date: curS,
+          from: clockLabel(curST, curET, curAllDay),
+          to: clockLabel(nextST, nextET, nextAllDay),
+          fromStartTime: curST,
+          fromEndTime: curET,
+          toStartTime: nextST,
+          toEndTime: nextET,
+          toAllDay: nextAllDay,
+          eventKey: ek,
         });
       }
       return;
@@ -1289,6 +1456,7 @@ function syncNewIcsLeads(data, events, who, now) {
     namesUpdated,
     orphans,
     dateMoves,
+    timeMoves,
     totalLeads: leads.length,
     knownCount: known.size,
   };
@@ -1304,11 +1472,18 @@ function applyIcsDateMoveDecisions(data, acceptedIds, rejectedIds, who, now) {
     if (!L || !L.id || !L.icsDateConflict) return;
     const id = String(L.id);
     if (accept.has(id) && L.icsProposedStart) {
+      const allDay =
+        L.icsProposedAllDay === true ||
+        L.icsProposedAllDay === "1" ||
+        L.icsProposedAllDay === 1;
       applyIcsDatesToLead(
         L,
         {
           start: String(L.icsProposedStart).slice(0, 10),
           end: String(L.icsProposedEnd || "").slice(0, 10),
+          startTime: L.icsProposedStartTime || "",
+          endTime: L.icsProposedEndTime || "",
+          allDay: allDay,
           priced: {
             dur: L.icsProposedDur || L.dur,
             days: L.icsProposedDays || L.days || 1,
@@ -1320,6 +1495,18 @@ function applyIcsDateMoveDecisions(data, acceptedIds, rejectedIds, who, now) {
         now,
         {}
       );
+      applyTimesToLeadAndAssign(
+        data,
+        L,
+        {
+          startTime: L.startTime || "",
+          endTime: L.endTime || "",
+          allDay: !!L.allDay,
+          start: L.start,
+          end: L.end || L.start,
+        },
+        now
+      );
       applied++;
     } else if (reject.has(id)) {
       L.icsDateConflict = false;
@@ -1330,6 +1517,50 @@ function applyIcsDateMoveDecisions(data, acceptedIds, rejectedIds, who, now) {
       L.icsProposedPrice = "";
       L.icsProposedRate = "";
       L.icsProposedTotal = "";
+      L.icsTimeConflict = false;
+      L.icsProposedStartTime = "";
+      L.icsProposedEndTime = "";
+      L.icsProposedAllDay = "";
+      L.updatedAt = now;
+      dismissed++;
+    }
+  });
+  return { applied, dismissed };
+}
+
+/** Apply or dismiss staged same-day clock time moves. */
+function applyIcsTimeMoveDecisions(data, acceptedIds, rejectedIds, who, now) {
+  const accept = new Set((acceptedIds || []).map(String));
+  const reject = new Set((rejectedIds || []).map(String));
+  let applied = 0;
+  let dismissed = 0;
+  (data.leads || []).forEach((L) => {
+    if (!L || !L.id || !L.icsTimeConflict) return;
+    if (L.icsDateConflict) return; /* handled by date-move path */
+    const id = String(L.id);
+    if (accept.has(id)) {
+      const allDay =
+        L.icsProposedAllDay === true ||
+        L.icsProposedAllDay === "1" ||
+        L.icsProposedAllDay === 1;
+      applyTimesToLeadAndAssign(
+        data,
+        L,
+        {
+          startTime: L.icsProposedStartTime || "",
+          endTime: L.icsProposedEndTime || "",
+          allDay: allDay,
+          start: L.start,
+          end: L.end || L.start,
+        },
+        now
+      );
+      applied++;
+    } else if (reject.has(id)) {
+      L.icsTimeConflict = false;
+      L.icsProposedStartTime = "";
+      L.icsProposedEndTime = "";
+      L.icsProposedAllDay = "";
       L.updatedAt = now;
       dismissed++;
     }
@@ -2278,9 +2509,12 @@ export default async (req, context) => {
       ok: true,
       stats: stats,
       dateMoves: stats.dateMoves || [],
+      timeMoves: stats.timeMoves || [],
       orphans: stats.orphans || [],
       namesUpdated: stats.namesUpdated || 0,
       leads: data.leads,
+      stewAssign: data.stewAssign || [],
+      stewCalendar: data.stewCalendar || [],
       siteCalendar: siteCalendarSummary(data.siteCalendar),
       pushSent: pushResult.sent || 0,
       icsLeadBaselineAt: (data.meta && data.meta.icsLeadBaselineAt) || "",
@@ -2452,7 +2686,38 @@ export default async (req, context) => {
       ok: true,
       stats: dec,
       leads: data.leads,
+      stewAssign: data.stewAssign || [],
+      stewCalendar: data.stewCalendar || [],
       siteCalendar: siteCalendarSummary(data.siteCalendar),
+    });
+  }
+
+  if (action === "applyIcsTimeMoves") {
+    if (!canCommercial(who, role)) {
+      return json({ error: "Time moves are captain/manager only" }, 403);
+    }
+    touchDevice();
+    const dec = applyIcsTimeMoveDecisions(
+      data,
+      body.accepted || body.accept || [],
+      body.rejected || body.reject || [],
+      who,
+      now
+    );
+    data.stewCalendar = stewCalendarRowsFromLeads(data.leads, data.stewAssign);
+    if (!data.meta || typeof data.meta !== "object") data.meta = {};
+    data.meta.stewCalendarAt = now;
+    data.meta.stewCalendarBy = who || "Time move";
+    addLog(
+      "ICS time moves applied=" + dec.applied + " dismissed=" + dec.dismissed
+    );
+    await saveData(store, data);
+    return json({
+      ok: true,
+      stats: dec,
+      leads: data.leads,
+      stewAssign: data.stewAssign || [],
+      stewCalendar: data.stewCalendar || [],
     });
   }
 
