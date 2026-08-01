@@ -8935,12 +8935,17 @@ function expCashInIsTip(r){
   if(/\btips?\b/i.test(s)&&!/own money|charter|bank|owner|atm|float/i.test(s)) return true;
   return false;
 }
-/** Expense lines that are tips (APA “Crew Tips” etc.) — never petty in/out. */
+/**
+ * APA guest tip lines / old tip cash-ins — never petty.
+ * Crew tip *payouts* (kind tipPayout / category Crew tip payout) DO hit petty when paid.
+ */
 function expIsTipExpense(e){
   if(!e) return false;
+  if(e.kind==="tipPayout"||e.stewPayKind==="tipPayout") return false;
   var cat=String(e.category||"");
+  if(/^crew tip payout$/i.test(cat)) return false;
   if(/^crew tips$/i.test(cat)||/^tips$/i.test(cat)||/^gratuity$/i.test(cat)) return true;
-  if(/tip/i.test(cat)&&/crew|grat/i.test(cat)) return true;
+  if(/tip/i.test(cat)&&/crew|grat/i.test(cat)&&!/payout/i.test(cat)) return true;
   return false;
 }
 /** Cash-in lines that count toward physical petty (tips excluded). */
@@ -9664,13 +9669,18 @@ function expSettlementFigures(month){
     cashInTotal>0.009||
     cashOut>0.009;
   var freeFloat=pettyEntered&&pettyOnboard>0?pettyOnboard:0;
+  /* Always roster open day-pay (cross-month) — do not prefer month-only unpaid expense lines */
   var owed=expStewDayPayOwed(month);
-  var oweCrew=Math.round((nDayPayLines>0?crewUnpaid:(owed.owe||0))*100)/100;
+  var oweCrew=Math.round((owed.owe||0)*100)/100;
+  var openTips=expCollectOpenTipPayouts(month);
+  var oweTips=0;
+  openTips.forEach(function(t){ oweTips+=apaNum(t.amount); });
+  oweTips=Math.round(oweTips*100)/100;
   var pockets=expPocketBalances(month, petty);
   var cap=pockets.captain||{putIn:0, paidOut:0, reimbursed:0, owed:0};
   var boatOwes=cap.owed||0;
   var pocketOwed=pockets.total||0;
-  var peopleOwed=Math.round((pocketOwed+oweCrew)*100)/100;
+  var peopleOwed=Math.round((pocketOwed+oweCrew+oweTips)*100)/100;
   /* Still-owed people vs physical notes (not petty math — liability view) */
   var floatAfterPays=Math.round((pettyOnboard-peopleOwed)*100)/100;
   var floatBehind=floatAfterPays<0?Math.round((-floatAfterPays)*100)/100:0;
@@ -9701,6 +9711,9 @@ function expSettlementFigures(month){
     floatAfterPays:floatAfterPays,
     floatBehind:floatBehind,
     oweCrew:oweCrew,
+    openDayPay:owed.items||[],
+    openTips:openTips,
+    oweTips:oweTips,
     cap:cap,
     pockets:pockets,
     pocketOwed:pocketOwed,
@@ -9716,37 +9729,153 @@ function expSettlementFigures(month){
     petty:petty
   };
 }
-/** Unpaid stew day pay still due for a month (through today). Tips excluded. */
-function expStewDayPayOwed(month){
+/**
+ * Open unpaid day-pay through focus month (roster is SOT — no Unpaid expense rows).
+ * Includes prior months still unpaid (e.g. Laura €200 last month while viewing this month).
+ */
+function expCollectOpenCrewDayPay(focusMonth){
+  focusMonth=focusMonth||expDefaultMonth();
   var today=localTodayYmd();
-  var owe=0, nTrips=0, nLines=0;
-  /* Prefer ledger unpaid rows if present (full picture) */
-  (state.expenses||[]).forEach(function(e){
-    if(!e||expMonthKey(e.date)!==month||!expIsCrewUnpaid(e)) return;
-    if(String(e.date||"")>today) return;
-    var a=apaNum(e.amount);
-    if(a>0){ owe+=a; nLines++; }
-  });
-  if(nLines){
-    var keys={};
-    (state.expenses||[]).forEach(function(e){
-      if(e&&expIsCrewUnpaid(e)&&expMonthKey(e.date)===month) keys[e.stewEventKey||e.linkId]=1;
-    });
-    nTrips=Object.keys(keys).length;
-    return {owe:owe, trips:nTrips, lines:nLines};
-  }
+  var out=[];
   (state.stewAssign||[]).forEach(function(asg){
-    if(!asg||expMonthKey(asg.start)!==month) return;
+    if(!asg||!asg.eventKey) return;
+    if(asg.cancelled||asg.status==="cancelled"||asg.cancelGhost) return;
     if(asg.payStatus==="Paid") return;
-    if(String(asg.start||"")>today) return;
+    var start=String(asg.start||"").slice(0,10);
+    if(!start||start>today) return; /* future not due */
+    var m=expMonthKey(start);
+    if(m&&m>focusMonth) return;
     var ids=(asg.stewIds||[]).filter(Boolean);
     if(!ids.length) return;
-    var tot=stewDayPayTotalAll(asg);
-    if(!(tot>0)) return;
-    owe+=tot;
-    nTrips++;
+    ids.forEach(function(sid){
+      if(expIsStewDayPaySkipped(asg.eventKey, sid)) return;
+      var amt=stewDayPayForStew(asg, sid);
+      if(!(amt>0)) return;
+      var nm=(stewById(sid)&&stewById(sid).name)||"Stew";
+      out.push({
+        kind:"daypay",
+        eventKey:String(asg.eventKey),
+        stewId:String(sid),
+        name:nm,
+        label:nm+" day pay",
+        amount:amt,
+        date:start,
+        month:m||"",
+        summary:asg.summary||"Charter"
+      });
+    });
   });
-  return {owe:owe, trips:nTrips, lines:0};
+  out.sort(function(a,b){
+    var da=String(a.date||""), db=String(b.date||"");
+    if(da!==db) return db.localeCompare(da);
+    return (b.amount||0)-(a.amount||0);
+  });
+  return out;
+}
+/** Unpaid stew day pay still due through focus month (through today). Tips separate. */
+function expStewDayPayOwed(month){
+  var lines=expCollectOpenCrewDayPay(month);
+  var owe=0, keys={};
+  lines.forEach(function(r){
+    owe+=apaNum(r.amount);
+    if(r.eventKey) keys[r.eventKey]=1;
+  });
+  return {owe:Math.round(owe*100)/100, trips:Object.keys(keys).length, lines:lines.length, items:lines};
+}
+/**
+ * Tips guest put on card / final bill — boat owes crew (pay from petty when cash-rich).
+ * Guest cash tips (tipSource cash/empty) are never a boat liability.
+ */
+function stewTipIsOnBill(asg){
+  if(!asg) return false;
+  var s=String(asg.tipSource||asg.tipVia||"").toLowerCase();
+  return s==="card"||s==="bill"||s==="invoice"||s==="onbill"||s==="on-bill"||s==="final";
+}
+/** Open tip liabilities (on-bill, unpaid, due) through focus month. */
+function expCollectOpenTipPayouts(focusMonth){
+  focusMonth=focusMonth||expDefaultMonth();
+  var today=localTodayYmd();
+  var out=[];
+  (state.stewAssign||[]).forEach(function(asg){
+    if(!asg||!asg.eventKey) return;
+    if(asg.cancelled||asg.status==="cancelled"||asg.cancelGhost) return;
+    if(!stewTipIsOnBill(asg)) return;
+    if(stewTipPaid(asg)) return;
+    var tot=stewTipTotal(asg);
+    if(!(tot>0)) return;
+    var start=String(asg.start||"").slice(0,10);
+    if(!start||start>today) return;
+    var m=expMonthKey(start);
+    if(m&&m>focusMonth) return;
+    var tip=stewTipShare(asg);
+    out.push({
+      kind:"tip",
+      eventKey:String(asg.eventKey),
+      label:"Tips on bill · "+(asg.summary||"Charter"),
+      amount:tot,
+      date:start,
+      month:m||"",
+      tipEach:tip.each,
+      tipCaptain:tip.captainShare,
+      tipStewSide:tip.stewSide,
+      nStews:tip.nStews,
+      summary:asg.summary||"Charter"
+    });
+  });
+  out.sort(function(a,b){
+    var da=String(a.date||""), db=String(b.date||"");
+    if(da!==db) return db.localeCompare(da);
+    return (b.amount||0)-(a.amount||0);
+  });
+  return out;
+}
+function expOpenTipPayoutTotal(focusMonth){
+  var s=0;
+  expCollectOpenTipPayouts(focusMonth).forEach(function(r){ s+=apaNum(r.amount); });
+  return Math.round(s*100)/100;
+}
+/**
+ * When on-bill tips are marked Paid, cash leaves petty (one expense line).
+ * Cash tips never create this line (guest cash went direct).
+ */
+function syncStewTipPayoutExpense(asg){
+  if(!isCaptain()||!asg||!asg.eventKey) return false;
+  if(!state.expenses) state.expenses=[];
+  var ek=String(asg.eventKey);
+  var linkId="stew-tip:"+ek;
+  var before=state.expenses.some(function(e){ return e&&String(e.linkId||"")===linkId; });
+  state.expenses=state.expenses.filter(function(e){
+    return !(e&&(String(e.linkId||"")===linkId||(e.kind==="tipPayout"&&String(e.stewEventKey||"")===ek)));
+  });
+  var tot=stewTipTotal(asg);
+  var paid=stewTipPaid(asg);
+  var onBill=stewTipIsOnBill(asg);
+  if(!(paid&&onBill&&tot>0)){
+    return before; /* removed ghosts or nothing to write */
+  }
+  var date=String(asg.start||"").slice(0,10)||localTodayYmd();
+  var tip=stewTipShare(asg);
+  state.expenses.unshift({
+    id:uid(),
+    linkId:linkId,
+    source:"stew",
+    kind:"tipPayout",
+    stewEventKey:ek,
+    stewPayKind:"tipPayout",
+    date:date,
+    vendor:"Crew tips (on bill)",
+    description:"Tip payout from petty · "+(asg.summary||"Charter")+
+      " · guest tip "+money0(tot)+" (you "+money0(tip.captainShare)+
+      (tip.nStews?" · stews "+money0(tip.stewSide):"")+")",
+    category:"Crew tip payout",
+    payMethod:"Cash",
+    paidFrom:"Petty cash",
+    amount:tot,
+    receipt:"",
+    by:session.who||"Captain",
+    updatedAt:new Date().toISOString()
+  });
+  return true;
 }
 function stewAssignDayPayAmount(asg){
   if(!asg) return 0;
@@ -10693,13 +10822,42 @@ function paintExpensesBody(){
   var pocketOutTot=0;
   pocketGroups.forEach(function(g){ pocketOutTot+=apaNum(g.owed); });
   pocketOutTot=Math.round(pocketOutTot*100)/100;
-  /* Who is still owed (cross-month open pocket + unpaid day pay) */
+  /* Who is still owed: pocket + open day pay (any prior month) + on-bill tips */
+  var openDayPay=S.openDayPay||[];
+  try{ if(!openDayPay.length) openDayPay=expCollectOpenCrewDayPay(expMonth); }catch(eDp){}
+  var openTips=S.openTips||[];
+  try{ if(!openTips.length) openTips=expCollectOpenTipPayouts(expMonth); }catch(eTp){}
+  var oweTips=apaNum(S.oweTips);
+  if(!(oweTips>0)&&openTips.length){
+    openTips.forEach(function(t){ oweTips+=apaNum(t.amount); });
+    oweTips=Math.round(oweTips*100)/100;
+  }
+  /* Rebuild crew day-pay total from open list (cross-month) */
+  oweCrew=0;
+  openDayPay.forEach(function(r){ oweCrew+=apaNum(r.amount); });
+  oweCrew=Math.round(oweCrew*100)/100;
   var owedPeople=[];
   pocketGroups.forEach(function(g){
-    if(g&&g.owed>0.009) owedPeople.push({name:g.name, amount:g.owed, kind:"pocket", id:g.id});
+    if(g&&g.owed>0.009) owedPeople.push({name:g.name, amount:g.owed, kind:"pocket", id:g.id, items:g.items||[]});
   });
-  if(oweCrew>0.009) owedPeople.push({name:"Crew day pay (unpaid)", amount:oweCrew, kind:"crew", id:""});
-  peopleOwed=Math.round((pocketOutTot+(oweCrew||0))*100)/100;
+  /* Group day pay by person for still-owed */
+  var dayPayBy={};
+  openDayPay.forEach(function(r){
+    if(!r||!(apaNum(r.amount)>0.009)) return;
+    var k=String(r.stewId||r.name||"crew");
+    if(!dayPayBy[k]) dayPayBy[k]={name:r.name||"Stew", amount:0, items:[], kind:"crew"};
+    dayPayBy[k].amount+=apaNum(r.amount);
+    dayPayBy[k].items.push(r);
+  });
+  Object.keys(dayPayBy).forEach(function(k){
+    var g=dayPayBy[k];
+    g.amount=Math.round(g.amount*100)/100;
+    if(g.amount>0.009) owedPeople.push({name:g.name, amount:g.amount, kind:"crew", id:"", items:g.items});
+  });
+  if(oweTips>0.009){
+    owedPeople.push({name:"Tips on card / final bill", amount:oweTips, kind:"tip", id:"", items:openTips});
+  }
+  peopleOwed=Math.round((pocketOutTot+oweCrew+oweTips)*100)/100;
   /* Physical on board is never negative (model). Short is a separate books flag. */
   var shortAmt=apaNum(cashShort);
   var pettyPos=pettyEntered&&pettyCash>0.009;
@@ -10707,7 +10865,7 @@ function paintExpensesBody(){
   var booksBalance=S.booksBalance!=null?Number(S.booksBalance):0;
   var priorStartShort=apaNum(S.priorStartShort);
   var monthShort=apaNum(S.monthShort);
-  var h='<div class="legend">Captain-only. <b>Petty on board</b> = physical notes (never negative). <b>Short</b> = books over-mark (separate — not “negative cash”). <b>Tips</b> on Stews only. Still-owed people are not petty.</div>';
+  var h='<div class="legend">Captain-only. <b>Petty on board</b> = physical notes (never negative). <b>Short</b> = books over-mark. Day pay &amp; on-bill tips show as still owed until paid (tips on card → pay from petty when cash-rich). Guest cash tips never enter petty.</div>';
   h+='<div class="exp-month"><label class="meta" style="font-weight:700">Month</label>'+
     '<select class="ctl" id="expMonthSel">'+monthList.map(function(m){
       return '<option value="'+esc(m)+'"'+(m===expMonth?" selected":"")+'>'+esc(m)+'</option>';
@@ -10782,23 +10940,42 @@ function paintExpensesBody(){
     }
     h+='</div>';
   }
-  /* Owed list: people still unpaid — separate from petty on board */
+  /* Owed list: pocket + day pay (cross-month) + on-bill tips — separate from physical petty */
   if(owedPeople.length){
     h+='<div class="exp-alert owe" id="expBoatOwesCard" style="margin-bottom:12px">'+
-      '<div style="font-weight:800;margin-bottom:6px">Still owed (not petty cash)</div>'+
-      '<div class="meta" style="margin-bottom:8px">Unpaid day pay and pocket debts. Paying them from petty becomes cash out only when you mark it that way.</div>';
+      '<div style="font-weight:800;margin-bottom:6px">Still owed (not on-board cash yet)</div>'+
+      '<div class="meta" style="margin-bottom:8px">Open day pay (incl. prior months), pocket reimbursements, and tips guests put on the card/bill. Pay day pay / tips from Stews when cash-rich — that becomes petty cash out.</div>';
     owedPeople.forEach(function(row){
-      h+='<div style="display:flex;justify-content:space-between;align-items:center;gap:10px;margin-top:8px;padding-top:8px;border-top:1px solid var(--line)">'+
-        '<div><b>'+esc(row.name)+'</b> '+
-          '<span class="pill '+(row.kind==="crew"?'p-amber':'p-own')+'">'+(row.kind==="crew"?"Day pay":"Pocket")+'</span></div>'+
-        '<div style="display:flex;align-items:center;gap:8px">'+
-          '<b class="money">'+money(row.amount)+'</b>'+
-          (row.kind==="pocket"&&row.id
-            ?'<button type="button" class="btn" data-exp-reimburse="'+esc(row.id)+'" data-exp-reimburse-amt="'+esc(String(row.amount))+'" data-exp-reimburse-name="'+esc(row.name)+'" style="width:auto;padding:6px 10px;font-size:12px">Repay</button>'
-            :'')+
-        '</div></div>';
+      var kindPill=row.kind==="crew"?'p-amber':(row.kind==="tip"?'p-cash':'p-own');
+      var kindLab=row.kind==="crew"?"Day pay":(row.kind==="tip"?"Tips on bill":"Pocket");
+      h+='<div style="margin-top:10px;padding-top:10px;border-top:1px solid var(--line)">'+
+        '<div style="display:flex;justify-content:space-between;align-items:center;gap:10px;flex-wrap:wrap">'+
+          '<div><b>'+esc(row.name)+'</b> <span class="pill '+kindPill+'">'+esc(kindLab)+'</span></div>'+
+          '<div style="display:flex;align-items:center;gap:8px">'+
+            '<b class="money">'+money(row.amount)+'</b>'+
+            (row.kind==="pocket"&&row.id
+              ?'<button type="button" class="btn" data-exp-reimburse="'+esc(row.id)+'" data-exp-reimburse-amt="'+esc(String(row.amount))+'" data-exp-reimburse-name="'+esc(row.name)+'" style="width:auto;padding:6px 10px;font-size:12px">Repay</button>'
+              :'')+
+          '</div></div>';
+      if(row.items&&row.items.length){
+        row.items.forEach(function(it){
+          var dStr=String(it.date||"").slice(0,10);
+          var dLab="";
+          try{ dLab=dStr&&/^\d{4}-\d{2}-\d{2}$/.test(dStr)?fmtDate(dStr):dStr; }catch(eD){ dLab=dStr; }
+          var prior=it.month&&it.month!==expMonth?'<span class="pill p-grey">'+esc(it.month)+'</span>':'';
+          h+='<div class="meta" style="margin-top:6px;display:flex;justify-content:space-between;gap:8px;flex-wrap:wrap">'+
+            '<span>'+(dLab?'📅 '+esc(dLab)+' · ':'')+esc(it.label||it.summary||"")+' '+prior+'</span>'+
+            '<span class="money" style="font-weight:700">'+money0(it.amount)+'</span>'+
+          '</div>';
+        });
+      }
+      h+='</div>';
     });
-    h+='<div class="meta" style="margin-top:10px;padding-top:8px;border-top:1px solid var(--line)">Total still owed <b class="money">'+money(peopleOwed)+'</b></div>';
+    h+='<div class="meta" style="margin-top:10px;padding-top:8px;border-top:1px solid var(--line)">Total still owed <b class="money">'+money(peopleOwed)+'</b>'+
+      (oweCrew>0.009?' · day pay '+money(oweCrew):'')+
+      (oweTips>0.009?' · tips on bill '+money(oweTips):'')+
+      (pocketOutTot>0.009?' · pocket '+money(pocketOutTot):'')+
+    '</div>';
     h+='</div>';
   } else if(pettyEntered&&!(shortAmt>0.009)){
     h+='<div class="exp-alert ok" style="margin-bottom:12px"><b>All clear</b> — no open day-pay or pocket debts'+(pettyPos?' · '+money(pettyCash)+' on board':(pettyZero?' · petty empty':''))+'.</div>';
@@ -12552,11 +12729,12 @@ function stewPayStatusPill(pay){
  * Tips ledger (Stews only — never petty cash).
  * Paid tips register for year-end weight; unpaid tips are highlighted (rare).
  */
-function stewTipStatusPill(pay){
+function stewTipStatusPill(pay, asg){
   if(!pay||!(pay.tipTotal>0)) return "";
-  if(pay.tipUnpaid) return '<span class="pill p-amber">Tip unpaid '+money0(pay.tipTotal)+'</span>';
-  if(pay.tipPaid) return '<span class="pill p-green">Tip paid '+money0(pay.tipTotal)+'</span>';
-  if(pay.tipUpcoming) return '<span class="pill p-grey">Tip '+money0(pay.tipTotal)+'</span>';
+  var onBill=asg?stewTipIsOnBill(asg):false;
+  if(pay.tipUnpaid) return '<span class="pill p-amber">'+(onBill?"Tip on bill unpaid ":"Tip unpaid ")+money0(pay.tipTotal)+'</span>';
+  if(pay.tipPaid) return '<span class="pill p-green">'+(onBill?"Tip paid from petty ":"Tip paid ")+money0(pay.tipTotal)+'</span>';
+  if(pay.tipUpcoming) return '<span class="pill p-grey">'+(onBill?"Tip on bill ":"Tip ")+money0(pay.tipTotal)+'</span>';
   return "";
 }
 function loadStewSeed(){
@@ -13958,11 +14136,21 @@ function openStewAssign(eventKey){
         }).join("")+
       '</select>');
     h+='<div class="sectitle" style="margin:16px 0 8px">Tip (guest gratuity)</div>';
+    var tipSrc=String(asg.tipSource||asg.tipVia||"cash").toLowerCase();
+    if(tipSrc==="bill"||tipSrc==="invoice"||tipSrc==="onbill"||tipSrc==="on-bill"||tipSrc==="final") tipSrc="card";
+    if(tipSrc!=="card") tipSrc="cash";
     h+='<div class="row2">'+
-      fieldHTML("Total tip received (€)",moneyField("f_stew_tip", tipPrefill))+
-      fieldHTML("Tip pay status",'<select class="ctl" id="f_stew_tip_pay"><option value="Unpaid"'+(tipPay==="Unpaid"?" selected":"")+'>Unpaid</option><option value="Paid"'+(tipPay==="Paid"?" selected":"")+'>Paid</option></select>')+
+      fieldHTML("Total tip (€)",moneyField("f_stew_tip", tipPrefill))+
+      fieldHTML("How guest paid tip",'<select class="ctl" id="f_stew_tip_src">'+
+        '<option value="cash"'+(tipSrc==="cash"?" selected":"")+'>Cash to crew (never petty)</option>'+
+        '<option value="card"'+(tipSrc==="card"?" selected":"")+'>On card / final bill (pay crew from petty later)</option>'+
+      '</select>')+
     '</div>';
-    h+='<p style="margin:-4px 0 12px;font-size:12px;color:var(--muted)">Tip is split <b>equally among all crew</b> (you + every assigned stew). One stew → 50% each. Two stews → three equal shares. You almost always have one.</p>';
+    h+='<div class="row2">'+
+      fieldHTML("Tip pay-out to crew",'<select class="ctl" id="f_stew_tip_pay"><option value="Unpaid"'+(tipPay==="Unpaid"?" selected":"")+'>Unpaid (still owe crew)</option><option value="Paid"'+(tipPay==="Paid"?" selected":"")+'>Paid out</option></select>')+
+      '<div></div>'+
+    '</div>';
+    h+='<p style="margin:-4px 0 12px;font-size:12px;color:var(--muted);line-height:1.4">Split <b>equally</b> (you + each stew). <b>Cash tips</b> = guest handed notes — not boat money. <b>On card/bill</b> = guest paid tip with the charter; boat owes crew until you mark Paid out (then <b>petty cash out</b> when cash-rich).</p>';
     h+='<div class="apa-card" id="stewPayLive" style="margin-bottom:12px;background:rgba(201,168,76,.12)"></div>';
     h+='<p style="margin:0 0 12px;font-size:12px;color:var(--muted)">Suggested band: <b>'+esc(band.label)+' · €'+band.rate+'/day</b>. Per-stew amounts override the default when different.</p>';
   } else {
@@ -14041,12 +14229,15 @@ function openStewAssign(eventKey){
     var payMap=readDayPayByStewFromForm(ids, each);
     var paySel=el("f_stew_pay")&&el("f_stew_pay").value==="Paid"?"Paid":"Unpaid";
     var tipSel=el("f_stew_tip_pay")&&el("f_stew_tip_pay").value==="Paid"?"Paid":"Unpaid";
+    var tipSrcSel=el("f_stew_tip_src")&&el("f_stew_tip_src").value==="card"?"card":"cash";
     var paidFromSel=el("f_stew_paid_from")?el("f_stew_paid_from").value:"Petty cash";
     if(el("f_stew_paid_from_wrap")) el("f_stew_paid_from_wrap").style.display=paySel==="Paid"?"":"none";
-    var tipMock={tipTotal:tipTot>0?tipTot:"", stewIds:ids, tipPayStatus:tipSel};
+    var tipMock={tipTotal:tipTot>0?tipTot:"", stewIds:ids, tipPayStatus:tipSel, tipSource:tipSrcSel};
     var tip=stewTipShare(tipMock);
     var payLabel=paySel==="Paid"?("Paid · "+(paidFromSel==="Own money"?"own money":"petty")):(charterDue?"Unpaid":"Not due yet");
-    var tipLabel=tipSel==="Paid"?"Paid":(charterDue?"Unpaid":"Not due yet");
+    var tipLabel=tipSel==="Paid"
+      ?(tipSrcSel==="card"?"Paid out · petty":"Paid · guest cash")
+      :(tipSrcSel==="card"?(charterDue?"Owed · on bill":"On bill · not due"):(charterDue?"Unpaid · cash tip":"Cash tip · not due"));
     var totalPay=0;
     var line="";
     if(ids.length){
@@ -14120,6 +14311,7 @@ function openStewAssign(eventKey){
   if(el("f_stew_paid_from")) el("f_stew_paid_from").addEventListener("change", refreshStewPayLive);
   if(el("f_stew_tip")) el("f_stew_tip").addEventListener("input", refreshStewPayLive);
   if(el("f_stew_tip_pay")) el("f_stew_tip_pay").addEventListener("change", refreshStewPayLive);
+  if(el("f_stew_tip_src")) el("f_stew_tip_src").addEventListener("change", refreshStewPayLive);
   if(captainMode){
     rebuildPerStewPayFields(false);
     refreshStewPayLive();
@@ -14136,7 +14328,7 @@ function openStewAssign(eventKey){
     Array.prototype.forEach.call(document.querySelectorAll("[data-stew-pick]"),function(inp){
       if(inp.checked) ids.push(inp.getAttribute("data-stew-pick"));
     });
-    var rate, units, each, tipTotal, tipPayStatus, tipShare, nowPaid, markCancelled, zeroPay, linkedLeadId, payFromPetty, paidFromSel, dayPayByStew;
+    var rate, units, each, tipTotal, tipPayStatus, tipSource, tipShare, nowPaid, markCancelled, zeroPay, linkedLeadId, payFromPetty, paidFromSel, dayPayByStew;
     if(captainMode){
       var rateRaw=el("f_stew_rate")?el("f_stew_rate").value:"";
       rate=rateRaw===""?"":apaNum(rateRaw);
@@ -14148,12 +14340,13 @@ function openStewAssign(eventKey){
       tipTotal=tipRaw===""?"":apaNum(tipRaw);
       if(tipTotal!==""&&!(tipTotal>0)) tipTotal="";
       tipPayStatus=(el("f_stew_tip_pay")&&el("f_stew_tip_pay").value==="Paid")?"Paid":"Unpaid";
+      tipSource=(el("f_stew_tip_src")&&el("f_stew_tip_src").value==="card")?"card":"cash";
       tipShare=stewTipShare({tipTotal:tipTotal, stewIds:ids});
       nowPaid=(el("f_stew_pay")&&el("f_stew_pay").value==="Paid");
       paidFromSel=(el("f_stew_paid_from")&&el("f_stew_paid_from").value==="Own money")?"Own money":"Petty cash";
       markCancelled=!!(el("f_stew_cancelled")&&el("f_stew_cancelled").checked);
       zeroPay=markCancelled&&!!(el("f_stew_zero_pay")&&el("f_stew_zero_pay").checked);
-      if(zeroPay){ each=0; rate=rate===""?"":0; nowPaid=false; dayPayByStew={}; }
+      if(zeroPay){ each=0; rate=rate===""?"":0; nowPaid=false; dayPayByStew={}; tipTotal=""; tipPayStatus="Unpaid"; }
       linkedLeadId=(el("f_stew_leadId")&&el("f_stew_leadId").value)||"";
       /*
        * Only flag cash-out when newly marking Paid from petty, or switching
@@ -14170,6 +14363,7 @@ function openStewAssign(eventKey){
       dayPayByStew=asg.dayPayByStew&&typeof asg.dayPayByStew==="object"?asg.dayPayByStew:{};
       tipTotal=asg.tipTotal!=null&&asg.tipTotal!==""?asg.tipTotal:"";
       tipPayStatus=asg.tipPayStatus==="Paid"?"Paid":"Unpaid";
+      tipSource=stewTipIsOnBill(asg)?"card":"cash";
       tipShare=stewTipShare({tipTotal:tipTotal, stewIds:ids});
       nowPaid=asg.payStatus==="Paid";
       paidFromSel=asg.paidFrom==="Own money"?"Own money":"Petty cash";
@@ -14226,6 +14420,7 @@ function openStewAssign(eventKey){
       _floatPayMark:captainMode&&payFromPetty,
       _floatPayFrom:captainMode&&nowPaid&&!zeroPay?paidFromSel:"",
       tipTotal:markCancelled?"":tipTotal,
+      tipSource:markCancelled?"cash":(tipSource||"cash"),
       tipStewShare:markCancelled?0:tipShare.stewSide,
       tipPayStatus:markCancelled?"Unpaid":tipPayStatus,
       notes:notesOut,
@@ -14275,26 +14470,29 @@ function openStewAssign(eventKey){
       }
     }
     showSheet(false); saveStewAssign();
-    /* Day pay → Expenses only when Paid (or zero-pay wipe). Assign alone = roster only. */
+    /* Day pay → Expenses only when Paid. On-bill tips → tip payout expense when tip Paid. */
     if(captainMode){
+      var expDirty=false;
       if(zeroPay){
         if(state.expenses&&state.expenses.length){
           state.expenses=state.expenses.filter(function(e){
             if(!e) return false;
             if(e.source==="stew"&&String(e.stewEventKey)===String(ev.key)) return false;
             if(e.linkId&&String(e.linkId).indexOf("stew-day:"+ev.key+":")===0) return false;
+            if(e.linkId&&String(e.linkId)==="stew-tip:"+ev.key) return false;
             return true;
           });
+          expDirty=true;
         }
-        saveExpenses();
-      } else if(obj.payStatus==="Paid"||(state.expenses||[]).some(function(e){
-          return e&&e.source==="stew"&&e.stewPayKind==="dayPay"&&String(e.stewEventKey)===String(ev.key);
-        })){
-        /* Paid → write lines; or still have ghost lines → sync strips if no longer Paid */
-        syncStewDayPayExpenses(obj);
-        saveExpenses();
+      } else {
+        if(obj.payStatus==="Paid"||(state.expenses||[]).some(function(e){
+            return e&&e.source==="stew"&&e.stewPayKind==="dayPay"&&String(e.stewEventKey)===String(ev.key);
+          })){
+          if(syncStewDayPayExpenses(obj)) expDirty=true;
+        }
+        if(syncStewTipPayoutExpense(obj)) expDirty=true;
       }
-      /* Unpaid assign with no prior expense lines: do nothing */
+      if(expDirty||zeroPay) saveExpenses();
     }
     delete obj._floatPayMark;
     delete obj._floatPayFrom;
