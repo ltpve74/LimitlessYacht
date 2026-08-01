@@ -2462,7 +2462,7 @@ function cancelStewsForLead(lead, opts){
         if(state.expenses.length!==n0) dirty=true;
       }
     } else if(asg&&(asg.stewIds||[]).length){
-      /* Keep / refresh unpaid day-pay lines so captain can mark Paid €50 from petty */
+      /* Only refresh expense lines when Paid (assignment alone must not create ledger rows) */
       try{ if(syncStewDayPayExpenses(asg)) dirty=true; }catch(eSync){}
     }
   });
@@ -9746,7 +9746,9 @@ function stewNormalizeDayPayByStew(map, ids, defaultEach){
   return out;
 }
 /**
- * When stew day pay is Paid → Crew Salaries / Cash lines (one per stew).
+ * Day-pay expense lines exist ONLY when the charter is marked Paid.
+ * Assign / unassign / save roster must NOT create Unpaid expense rows
+ * (that left future-dated Vicky/Laura ghosts in Expenses).
  * Tips are NEVER written here (captain-only in Stews).
  * opts.onlyMonth = "YYYY-MM" → only touch charters in that month (used for seed).
  */
@@ -9772,9 +9774,17 @@ function syncStewDayPayExpenses(asg, opts){
   var before=JSON.stringify((state.expenses||[]).filter(function(e){
     return e&&e.source==="stew"&&e.stewPayKind==="dayPay"&&String(e.stewEventKey)===eventKey;
   }).map(function(e){ return [e.stewId,e.amount,e.date,e.vendor,e.crewPayStatus,!!e.floatPay,e.paidFrom||"Petty cash"]; }));
+  /* Always drop existing day-pay lines for this charter first */
   state.expenses=state.expenses.filter(function(e){
     return !(e&&e.source==="stew"&&e.stewPayKind==="dayPay"&&String(e.stewEventKey)===eventKey);
   });
+  /*
+   * Not Paid → leave expenses empty for this charter (assignment is roster only).
+   * Paid → recreate Crew Salaries lines (one per stew).
+   */
+  if(!isPaid){
+    return before!=="[]";
+  }
   var anyAmt=ids.some(function(sid){ return stewDayPayForStew(asg, sid)>0; });
   if(!anyAmt||!ids.length||!date){
     return before!=="[]";
@@ -9785,7 +9795,6 @@ function syncStewDayPayExpenses(asg, opts){
    * or the existing line already had floatPay. Never invent from payStatusManual
    * alone — captain Save always sets that flag and was double-counting cash out.
    */
-  var crewPayStatus=isPaid?"Paid":"Unpaid";
   var summary=asg.summary||"Charter";
   var markFloat=!!asg._floatPayMark;
   var paidFromDefault=asg._floatPayFrom==="Own money"?"Own money":(asg._floatPayFrom==="Petty cash"?"Petty cash":"");
@@ -9809,14 +9818,12 @@ function syncStewDayPayExpenses(asg, opts){
      * floatPay ONLY when:
      *  - this save explicitly marks Paid from petty (_floatPayMark), or
      *  - the previous expense line already had floatPay true.
-     * Never invent from paidFrom/isPaid alone (re-save of Paid assign made petty −€250).
+     * Never invent from paidFrom alone (re-save of Paid assign made petty −€250).
      */
     var floatPay=false;
-    if(crewPayStatus==="Paid"&&paidFrom!=="Own money"){
+    if(paidFrom!=="Own money"){
       if(markFloat) floatPay=true;
       else if(old&&old.floatPay===true) floatPay=true;
-    } else if(crewPayStatus==="Paid"&&paidFrom==="Own money"){
-      floatPay=false;
     }
     state.expenses.unshift({
       id:(old&&old.id)||uid(),
@@ -9825,7 +9832,7 @@ function syncStewDayPayExpenses(asg, opts){
       stewEventKey:eventKey,
       stewId:String(sid),
       stewPayKind:"dayPay",
-      crewPayStatus:crewPayStatus,
+      crewPayStatus:"Paid",
       floatPay:floatPay,
       payStatusManual:!!asg.payStatusManual,
       date:date,
@@ -9844,6 +9851,22 @@ function syncStewDayPayExpenses(asg, opts){
     return e&&e.source==="stew"&&e.stewPayKind==="dayPay"&&String(e.stewEventKey)===eventKey;
   }).map(function(e){ return [e.stewId,e.amount,e.date,e.vendor,e.crewPayStatus,!!e.floatPay,e.paidFrom||"Petty cash"]; }));
   return before!==after;
+}
+/**
+ * Drop Unpaid stew day-pay expense ghosts (assignment must not leave ledger rows).
+ * Paid lines kept. Idempotent; saves when dirty.
+ */
+function expStripUnpaidStewDayPayExpenses(){
+  if(!isCaptain()||!state.expenses||!state.expenses.length) return false;
+  var n0=state.expenses.length;
+  state.expenses=state.expenses.filter(function(e){
+    if(!e||!expIsCrewDayPayLine(e)) return true;
+    if(String(e.crewPayStatus||"")==="Paid") return true;
+    return false; /* Unpaid day-pay — remove */
+  });
+  var dirty=state.expenses.length!==n0;
+  if(dirty&&!DEMO) saveExpenses();
+  return dirty;
 }
 /**
  * Mark charter day-pay Paid/Unpaid from Expenses (or Stews).
@@ -10158,8 +10181,9 @@ function expCleanOrphanStewDayPayLines(){
   return dirty||collapsed;
 }
 /**
- * Additive seed only: create missing unpaid day-pay lines for this month.
- * NEVER rewrites Paid / floatPay lines (that made cash-out flicker and invent −€250).
+ * Additive seed: missing day-pay lines only for Paid assigns (this month, not future).
+ * NEVER creates Unpaid rows — assignment is roster-only until marked Paid.
+ * NEVER rewrites existing Paid / floatPay lines.
  */
 function seedCurrentMonthStewCashExpenses(){
   if(!isCaptain()) return false;
@@ -10167,7 +10191,6 @@ function seedCurrentMonthStewCashExpenses(){
   var month=expDefaultMonth();
   var today=localTodayYmd();
   if(!state.expenses) state.expenses=[];
-  /* Existing fingers — do not touch */
   var haveFinger={};
   (state.expenses||[]).forEach(function(e){
     if(!e||!expIsCrewDayPayLine(e)) return;
@@ -10179,10 +10202,11 @@ function seedCurrentMonthStewCashExpenses(){
   var added=0;
   (state.stewAssign||[]).forEach(function(asg){
     if(!asg||!asg.eventKey||expMonthKey(asg.start)!==month) return;
+    if(asg.payStatus!=="Paid") return; /* only Paid → expense */
     var cancelled=!!(asg.cancelled||asg.status==="cancelled"||asg.cancelGhost);
     var each=stewAssignDayPayAmount(asg);
     if(cancelled&&!(each>0)) return;
-    if(String(asg.start||"")>today) return;
+    if(String(asg.start||"")>today) return; /* future dates not in expenses yet */
     if(!(each>0)) return;
     var ids=(asg.stewIds||[]).filter(Boolean);
     if(!ids.length) return;
@@ -10191,11 +10215,9 @@ function seedCurrentMonthStewCashExpenses(){
     ids.forEach(function(sid){
       if(expIsStewDayPaySkipped(asg.eventKey, sid)) return;
       var finger=String(sid)+"|"+date;
-      if(haveFinger[finger]) return; /* already have a line — never replace */
+      if(haveFinger[finger]) return;
       var rec=stewById(sid);
       var linkId="stew-day:"+asg.eventKey+":"+sid;
-      var crewPayStatus=asg.payStatus==="Paid"?"Paid":"Unpaid";
-      /* New lines never invent floatPay — captain must mark Paid from petty */
       state.expenses.unshift({
         id:uid(),
         linkId:linkId,
@@ -10203,9 +10225,9 @@ function seedCurrentMonthStewCashExpenses(){
         stewEventKey:asg.eventKey,
         stewId:String(sid),
         stewPayKind:"dayPay",
-        crewPayStatus:crewPayStatus,
+        crewPayStatus:"Paid",
         floatPay:false,
-        payStatusManual:false,
+        payStatusManual:!!asg.payStatusManual,
         date:date,
         vendor:(rec&&rec.name)||"Stew",
         description:"Stewardess / day work — "+summary+(cancelled?" (cancelled trip)":""),
@@ -10539,6 +10561,7 @@ function renderExpenses(){
    */
   try{ expRepairImpossibleCrewFloatOnEmptyEnvelope(); }catch(eRep){}
   try{ expCollapseCrewDayPayDuplicates(); }catch(eCol){}
+  try{ expStripUnpaidStewDayPayExpenses(); }catch(eStrip){}
   paintExpensesBody();
 }
 function paintExpensesBody(){
@@ -14168,7 +14191,7 @@ function openStewAssign(eventKey){
       }
     }
     showSheet(false); saveStewAssign();
-    /* Day pay → Expenses ledger (captain only — team only updates who is on charter) */
+    /* Day pay → Expenses only when Paid (or zero-pay wipe). Assign alone = roster only. */
     if(captainMode){
       if(zeroPay){
         if(state.expenses&&state.expenses.length){
@@ -14180,10 +14203,14 @@ function openStewAssign(eventKey){
           });
         }
         saveExpenses();
-      } else {
+      } else if(obj.payStatus==="Paid"||(state.expenses||[]).some(function(e){
+          return e&&e.source==="stew"&&e.stewPayKind==="dayPay"&&String(e.stewEventKey)===String(ev.key);
+        })){
+        /* Paid → write lines; or still have ghost lines → sync strips if no longer Paid */
         syncStewDayPayExpenses(obj);
         saveExpenses();
       }
+      /* Unpaid assign with no prior expense lines: do nothing */
     }
     delete obj._floatPayMark;
     delete obj._floatPayFrom;
