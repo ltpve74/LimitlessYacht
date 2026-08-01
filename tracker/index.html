@@ -676,24 +676,31 @@
             </div>
           </div>
           <div class="ld-glimpse-sub" id="ldDoneSub">0 sailed trips · confirmed past / today only</div>
+          <div class="ld-glimpse-net-formula" id="ldNetFormula" style="margin-top:8px;font-size:11.5px;color:var(--muted);line-height:1.45;font-weight:600"></div>
           <button type="button" class="btn ghost ld-money-toggle" id="ldMoneyToggle" aria-expanded="false" aria-controls="ldMoneyDetails">Money details ▾</button>
         </div>
         <!-- Long finance: sources, cash, breakdown — second stage -->
         <div class="ld-money-details" id="ldMoneyDetails" hidden>
           <div class="ld-money-details-inner">
             <div class="ld-detail-block">
-              <div class="hd">Realised breakdown · so far</div>
+              <div class="hd">How net is built · so far</div>
+              <div class="lines" id="ldNetCompose">
+                <span><em style="font-style:normal;color:var(--muted);font-weight:600">Before VAT (white / invoice base)</em><span class="m money" id="ldDoneEx">€0</span></span>
+                <span><em style="font-style:normal;color:var(--muted);font-weight:600">− Commissions</em><span class="m money" id="ldDoneComm">€0</span></span>
+                <span><em style="font-style:normal;color:var(--muted);font-weight:600">= White net</em><span class="m money" id="ldDoneWhiteNet">€0</span></span>
+                <span><em style="font-style:normal;color:var(--muted);font-weight:600">+ Free cash (no commission)</em><span class="m money" id="ldCashInNet">€0</span></span>
+                <span style="margin-top:4px;padding-top:6px;border-top:1px solid var(--line)"><em style="font-style:normal;font-weight:800;color:var(--ink,#1a1a1a)">= Net so far</em><span class="m money" id="ldDoneNetDetail" style="font-weight:800">€0</span></span>
+              </div>
+              <div class="hd" style="margin-top:14px">Gross components</div>
               <div class="lines">
-                <span><em style="font-style:normal;color:var(--muted);font-weight:600">Charters</em><span class="m money" id="ldDoneCharters">€0</span></span>
+                <span><em style="font-style:normal;color:var(--muted);font-weight:600">Charters (client totals)</em><span class="m money" id="ldDoneCharters">€0</span></span>
                 <span><em style="font-style:normal;color:var(--muted);font-weight:600">Captain upsells</em><span class="m money" id="ldDoneUpsell">€0</span></span>
-                <span><em style="font-style:normal;color:var(--muted);font-weight:600">Before VAT</em><span class="m money" id="ldDoneEx">€0</span></span>
-                <span><em style="font-style:normal;color:var(--muted);font-weight:600">Commissions</em><span class="m money" id="ldDoneComm">€0</span></span>
-                <span><em style="font-style:normal;color:var(--muted);font-weight:600">· of which upsells</em><span class="m money" id="ldDoneUpsellComm">€0</span></span>
+                <span><em style="font-style:normal;color:var(--muted);font-weight:600">· upsell commissions</em><span class="m money" id="ldDoneUpsellComm">€0</span></span>
               </div>
               <div class="ld-snap-cash" id="ldCashSnap" style="margin-top:12px">
-                <div class="k">Cash income · split deals received</div>
+                <div class="k">Free cash in net · received on sailed deals</div>
                 <div class="big money" id="ldCashTot">€0</div>
-                <div class="s" id="ldCashSub">Boat petty + owner pocket · not charges</div>
+                <div class="s" id="ldCashSub">Full amount · no VAT strip · no commission · boat + owner pocket</div>
                 <div class="lines">
                   <span><em style="font-style:normal;color:var(--muted);font-weight:600">→ Boat petty</em><span class="m money" id="ldCashBoat">€0</span></span>
                   <span><em style="font-style:normal;color:var(--muted);font-weight:600">→ Owner pocket</em><span class="m money" id="ldCashOwner">€0</span></span>
@@ -704,7 +711,7 @@
                 <div class="ld-snap-row"><span class="k">Unconfirmed / tentative</span><span class="v" id="ldAwait">0</span><span class="s" id="ldAwaitSub">Not in money totals</span></div>
                 <div class="ld-snap-row"><span class="k">Owner days (notional)</span><span class="v money" id="ldOwn">€0</span><span class="s" id="ldOwnSub">List-rate · not cash</span></div>
               </div>
-              <div class="ld-snap-note">Glimpse = <b>realised confirmed commercial</b> only (past / today). Net = before VAT − commissions · free cash shown separately. No scheduled / projected totals here. Click&amp;Boat commissions paid after platform deduction; captain draws commission via Ops → Commissions → Pay from petty.</div>
+              <div class="ld-snap-note">Glimpse = <b>realised confirmed commercial</b> only (past / today). <b>Net</b> = (before VAT − commissions on white) <b>+ free cash at full face value</b> (no deduction). Gross = client totals on those trips. Scheduled deals not included. Captain commission cash-out is Ops → Commissions → Pay from petty (does not change this net).</div>
             </div>
             <div class="sumcard ld-src">
               <div class="l">Luigi · Captain</div>
@@ -4017,39 +4024,71 @@ function renderLeads(){
       el("ldSearchMeta").textContent="";
     }
   }
-  /* Glimpse: realised gross + net only (no scheduled / projected totals) */
-  if(el("ldDoneTot")) el("ldDoneTot").textContent=money(done.tot);
-  if(el("ldDoneNet")) el("ldDoneNet").textContent=money(Math.max(0, done.ex-done.comm));
-  if(el("ldDoneSub")){
-    el("ldDoneSub").textContent=done.n+" sailed trip"+(done.n===1?"":"s")+
-      (done.nUpsell?" · "+done.nUpsell+" upsell"+(done.nUpsell===1?"":"s"):"")+
-      " · so far only (not scheduled)";
-  }
-  if(el("ldDoneCharters")) el("ldDoneCharters").textContent=money(done.charters);
-  if(el("ldDoneUpsell")) el("ldDoneUpsell").textContent=money(done.upsell);
-  if(el("ldDoneEx")) el("ldDoneEx").textContent=money(done.ex);
-  if(el("ldDoneComm")) el("ldDoneComm").textContent=money(done.comm);
-  if(el("ldDoneUpsellComm")) el("ldDoneUpsellComm").textContent=money(done.upsellComm);
-  /* Cash income — second stage (Money details) */
+  /*
+   * Free cash in net: full face value, no commission (model rule).
+   * Restrict to sailed / today deals so glimpse matches “so far only”.
+   */
   var cashSum={ total:0, boat:0, owner:0, boatN:0, ownerN:0, n:0, items:[] };
   try{
     if(LY_MODELS&&LY_MODELS.summarizeLeadCashIncome){
       cashSum=LY_MODELS.summarizeLeadCashIncome(state.leads||[]);
     }
   }catch(eCash){}
-  if(el("ldCashTot")) el("ldCashTot").textContent=money(cashSum.total||0);
-  if(el("ldCashBoat")) el("ldCashBoat").textContent=money(cashSum.boat||0);
-  if(el("ldCashOwner")) el("ldCashOwner").textContent=money(cashSum.owner||0);
+  var cashDone={ total:0, boat:0, owner:0, boatN:0, ownerN:0, n:0, items:[] };
+  (cashSum.items||[]).forEach(function(it){
+    if(!it) return;
+    var L=(state.leads||[]).filter(function(x){ return x&&String(x.id)===String(it.id); })[0];
+    if(L&&leadCharterTiming(L)==="upcoming") return; /* scheduled — not in “so far” */
+    var c=apaNum(it.cash);
+    if(!(c>0.009)) return;
+    cashDone.items.push(it);
+    cashDone.n++;
+    cashDone.total=Math.round((cashDone.total+c)*100)/100;
+    if(it.dest==="owner"){ cashDone.owner=Math.round((cashDone.owner+c)*100)/100; cashDone.ownerN++; }
+    else { cashDone.boat=Math.round((cashDone.boat+c)*100)/100; cashDone.boatN++; }
+  });
+  /* White net = before VAT − commissions (cash already stripped from bases in model).
+   * Free cash is added at face value — no VAT strip, no commission (owner rule). */
+  var whiteNet=Math.round(Math.max(0, done.ex-done.comm)*100)/100;
+  var doneNet=Math.round((whiteNet+cashDone.total)*100)/100;
+  /* Glimpse: realised gross + net (white net + free cash) */
+  if(el("ldDoneTot")) el("ldDoneTot").textContent=money(done.tot);
+  if(el("ldDoneNet")) el("ldDoneNet").textContent=money(doneNet);
+  if(el("ldDoneSub")){
+    el("ldDoneSub").textContent=done.n+" sailed trip"+(done.n===1?"":"s")+
+      (done.nUpsell?" · "+done.nUpsell+" upsell"+(done.nUpsell===1?"":"s"):"")+
+      " · so far only (not scheduled)";
+  }
+  if(el("ldNetFormula")){
+    el("ldNetFormula").innerHTML=
+      'Net = (before VAT <b class="money">'+money(done.ex)+'</b> − commissions <b class="money">'+money(done.comm)+'</b>)'+
+      ' + free cash <b class="money">'+money(cashDone.total)+'</b> (full · no cut)'+
+      (cashDone.total>0.009||done.comm>0.009||done.ex>0.009
+        ?' → white <b class="money">'+money(whiteNet)+'</b> + cash = <b class="money">'+money(doneNet)+'</b>'
+        :'');
+  }
+  if(el("ldDoneCharters")) el("ldDoneCharters").textContent=money(done.charters);
+  if(el("ldDoneUpsell")) el("ldDoneUpsell").textContent=money(done.upsell);
+  if(el("ldDoneEx")) el("ldDoneEx").textContent=money(done.ex);
+  if(el("ldDoneComm")) el("ldDoneComm").textContent=money(done.comm);
+  if(el("ldDoneWhiteNet")) el("ldDoneWhiteNet").textContent=money(whiteNet);
+  if(el("ldCashInNet")) el("ldCashInNet").textContent=money(cashDone.total);
+  if(el("ldDoneNetDetail")) el("ldDoneNetDetail").textContent=money(doneNet);
+  if(el("ldDoneUpsellComm")) el("ldDoneUpsellComm").textContent=money(done.upsellComm);
+  /* Cash income — second stage (Money details); sailed-only for “so far” */
+  if(el("ldCashTot")) el("ldCashTot").textContent=money(cashDone.total||0);
+  if(el("ldCashBoat")) el("ldCashBoat").textContent=money(cashDone.boat||0);
+  if(el("ldCashOwner")) el("ldCashOwner").textContent=money(cashDone.owner||0);
   if(el("ldCashSub")){
-    var cn=cashSum.n||0;
+    var cn=cashDone.n||0;
     el("ldCashSub").textContent=cn
-      ?(cn+" split deal"+(cn===1?"":"s")+" received · boat "+(cashSum.boatN||0)+" · owner pocket "+(cashSum.ownerN||0))
-      :"No free cash received on split leads yet";
+      ?(cn+" split deal"+(cn===1?"":"s")+" received · sailed/today · boat "+(cashDone.boatN||0)+" · owner pocket "+(cashDone.ownerN||0)+" · full amount in net")
+      :"No free cash received on sailed split deals yet";
   }
   if(el("ldCashItems")){
-    var items=cashSum.items||[];
+    var items=cashDone.items||[];
     if(!items.length){
-      el("ldCashItems").innerHTML='<div class="meta" style="margin-top:6px">Empty until a split lead has free cash marked received.</div>';
+      el("ldCashItems").innerHTML='<div class="meta" style="margin-top:6px">Empty until a split lead has free cash marked received on a sailed/today charter.</div>';
     } else {
       el("ldCashItems").innerHTML=items.map(function(it){
         var destLab=it.dest==="owner"?"Owner pocket · income off boat":"Boat petty";
@@ -4060,6 +4099,7 @@ function renderLeads(){
           '<span class="am money">'+money(it.cash)+'</span>'+
           '<span class="meta">'+esc(dateLab)+(dateLab?" · ":"")+esc(destLab)+
             (it.source?' · '+esc(leadSourceLabel(it.source)):"")+
+            ' · in net full'+
           '</span>'+
         '</div>';
       }).join("");
