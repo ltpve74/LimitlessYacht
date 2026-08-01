@@ -50,6 +50,8 @@ function checkTrackerHtmlSyntax() {
     "tracker/js/models/diesel.js",
     "tracker/js/models/stews.js",
     "tracker/js/models/index.js",
+    "tracker/js/controllers/expenses.js",
+    "tracker/js/controllers/index.js",
   ];
   for (const rel of modelFiles) {
     const chk = spawnSync(process.execPath, ["--check", join(root, rel)], { encoding: "utf8" });
@@ -58,6 +60,7 @@ function checkTrackerHtmlSyntax() {
 }
 
 checkTrackerHtmlSyntax();
+const C = require(join(root, "tracker/js/controllers/index.js"));
 function near(a, b, eps) {
   eps = eps == null ? 0.02 : eps;
   return Math.abs(Number(a) - Number(b)) <= eps;
@@ -885,6 +888,88 @@ console.log("\n[Diesel — bunker buy + sticky active sell]");
   s = M.dieselApplyBunker(s, 1.7, null).settings;
   ok("next bunker resets sell to suggested", near(M.dieselActiveSell(s), 1.8));
   ok("next bunker source bunker", s.sellSource === "bunker");
+}
+
+/* ---- Controllers (MVC blueprint — no formulas, wire models only) ---- */
+console.log("\n[Controllers — expenses monthSettlement]");
+{
+  ok("LY_CONTROLLERS.expenses present", !!(C && C.expenses && C.expenses.monthSettlement));
+  const CAP = M.EXP_POCKET_CAPTAIN || "captain";
+  const fig = C.expenses.monthSettlement({
+    models: M,
+    month: "2026-07",
+    allExpenses: [
+      {
+        id: "crew-own",
+        date: "2026-07-15",
+        vendor: "Rebecca",
+        amount: 261,
+        source: "stew",
+        stewPayKind: "dayPay",
+        stewId: "s-reb",
+        crewPayStatus: "Paid",
+        paidFrom: "Own money",
+        paidById: CAP,
+        floatPay: false,
+      },
+      {
+        id: "petty-shop",
+        date: "2026-07-16",
+        vendor: "Fuel dock",
+        amount: 50,
+        category: "Fuel",
+        payMethod: "Cash",
+        paidFrom: "Petty cash",
+      },
+      {
+        id: "reimb-aug",
+        date: "2026-08-01",
+        amount: 261,
+        category: "Captain reimbursement",
+        reimburseCaptain: true,
+        reimburseToId: CAP,
+        reimbursesExpenseId: "crew-own",
+        paidFrom: "Petty cash",
+        payMethod: "Cash",
+      },
+    ],
+    petty: { pettyStart: 500, cashIns: [], startMode: "manual", startManual: true },
+    stewAssign: [],
+    today: "2026-07-31",
+    personName: function () {
+      return "Captain";
+    },
+  });
+  ok("controller petty out 50", near(fig.cashOut, 50));
+  ok("controller own money 261", near(fig.ownMoneyExp, 261));
+  ok(
+    "controller marks Rebecca repaid via later reimburse",
+    (fig.pocketOutLines || []).some(function (p) {
+      return p.id === "crew-own" && p.repaid === true;
+    })
+  );
+  ok("controller onboard 450", near(fig.pettyOnboard, 450));
+  const open = C.expenses.openPocketOuts({
+    models: M,
+    month: "2026-08",
+    expenses: [
+      {
+        id: "shop",
+        date: "2026-07-10",
+        amount: 80,
+        category: "Provisions",
+        paidFrom: "Own money",
+        paidById: CAP,
+        payMethod: "Cash",
+      },
+    ],
+    personName: function () {
+      return "Captain";
+    },
+  });
+  ok("controller open pocket has shop", open.some(function (r) {
+    return r.id === "shop" && near(r.amount, 80);
+  }));
 }
 
 /* ---- Pocket liabilities / own-money repay (Keepafloat foundation) ---- */
