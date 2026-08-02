@@ -401,20 +401,29 @@ function clearCrewFloatPayOnEmptyEnvelope(expenses, pettyStart, cashIns) {
  * Pure petty cash ledger.
  *
  * Physical notes cannot go negative (you cannot spend cash you do not have):
- *   physicalStart = max(0, storedStart)   // negative start is poison books, not notes
- *   cashInHand    = physicalStart + cashIns
- *   booksBalance  = physicalStart + cashIns − cashOut   (diagnostic; may be negative)
- *   pettyOnboard  = max(0, booksBalance)  // physical notes in the envelope
- *   cashShort     = max(0, −booksBalance) // over-marked cash-outs / bad start residue
+ *   physicalStart = max(0, storedStart)   // negative start is not notes
+ *   priorShort    = max(0, −storedStart) + broughtForwardShort
+ *                   // boat hole from prior month (books short / boat owed)
+ *   available     = physicalStart + cashIns
+ *   priorSettled  = min(available, priorShort)  // first cash pays the hole
+ *   cashInHand    = available − priorSettled    // notes left after settling prior debt
+ *   booksBalance  = cashInHand − cashOut        // diagnostic; may be negative
+ *   pettyOnboard  = max(0, booksBalance)        // physical notes in the envelope
+ *   cashShort     = max(0, −booksBalance) + prior remain
+ *
+ * When last month finished empty but boat was short €110, that €110 is brought
+ * forward. New cash-in pays it first and leaves less on board (500 in → 390 free
+ * if 110 was brought forward). Open people debts (pocket / day-pay) stay separate
+ * until paid — freeFloat = onboard − peopleOwed.
  *
  * Cash out:
  *   - non-crew: expenseHitsPettyCash
  *   - crew day-pay: only floatPay (after collapse to one line per stew|date)
  * Never subtracts unpaid people (that is float books / still-owed, not petty).
  *
- * Carry next month’s start from pettyOnboard (never from a negative booksBalance).
+ * Carry next month: physical = pettyOnboard; short = residual cashShort.
  *
- * @param {{ pettyStart?: number, cashIns?: Array, expenses?: Array }} opts
+ * @param {{ pettyStart?: number, broughtForwardShort?: number, cashIns?: Array, expenses?: Array }} opts
  */
 /**
  * Cash-in already counted on the boat ledger as free cash → boat or charges paid cash.
@@ -517,9 +526,12 @@ function collectPettyCashInsFromMonths(expPetty) {
 function summarizePettyCash(opts) {
   opts = opts || {};
   var storedStart = round2(num(opts.pettyStart));
-  /* Physical start: notes only — never carry a negative “start” as cash */
+  /* Physical start: notes only — never treat a negative “start” as cash */
   var physicalStart = storedStart > 0 ? storedStart : 0;
-  var priorStartShort = storedStart < 0 ? round2(-storedStart) : 0;
+  var priorFromStart = storedStart < 0 ? round2(-storedStart) : 0;
+  var broughtForwardShort = round2(Math.max(0, num(opts.broughtForwardShort)));
+  /* Boat hole from prior month: negative stored start and/or explicit carry */
+  var priorStartShort = round2(priorFromStart + broughtForwardShort);
   var cashIns = Array.isArray(opts.cashIns) ? opts.cashIns : [];
   var cashInTotal = 0;
   cashIns.forEach(function (r) {
@@ -527,7 +539,15 @@ function summarizePettyCash(opts) {
     cashInTotal += num(r.amount);
   });
   cashInTotal = round2(cashInTotal);
+  /*
+   * Envelope before outs = physical start + cash-in.
+   * First claim on that envelope is brought-forward boat short (prior hole).
+   * Example: short €110 + cash-in €500 → €110 paid as prior settle, €390 left
+   * for this month’s expense outs / on board.
+   */
   var cashInHand = round2(physicalStart + cashInTotal);
+  var priorSettled = round2(Math.min(cashInHand, priorStartShort));
+  var priorRemain = round2(priorStartShort - priorSettled);
 
   var col = collapseCrewDayPayExpenses(opts.expenses || []);
   var expenses = col.expenses;
@@ -535,6 +555,25 @@ function summarizePettyCash(opts) {
   var cashOutLines = [];
   var crewPaidPetty = 0;
   var nCrewPetty = 0;
+
+  /* Virtual cash-out: prior boat short settled from this month’s cash first */
+  if (priorSettled > 0.009) {
+    cashOut += priorSettled;
+    cashOutLines.push({
+      kind: "prior-short",
+      purpose: "prior-short",
+      purposeLabel: "Brought forward · boat short",
+      label: "Brought forward · boat owed / books short",
+      detail:
+        "Prior month left the boat short " +
+        priorStartShort.toFixed(2).replace(/\.00$/, "") +
+        " — paid from this month’s cash first",
+      amount: priorSettled,
+      id: "",
+      date: "",
+      virtual: true,
+    });
+  }
 
   expenses.forEach(function (e) {
     if (!e) return;
@@ -641,30 +680,38 @@ function summarizePettyCash(opts) {
   });
   cashOut = round2(cashOut);
   crewPaidPetty = round2(crewPaidPetty);
-  /* Month books from physical start (never use negative start as cash) */
+  /* start + cash-in − (prior settle + expense outs) */
   var booksBalance = round2(cashInHand - cashOut);
   var pettyOnboard = booksBalance > 0 ? booksBalance : 0;
   var monthShort = booksBalance < 0 ? round2(-booksBalance) : 0;
-  /* Total short = this month over-mark + any poison negative start residue */
-  var cashShort = round2(monthShort + priorStartShort);
+  /* Residual prior short not yet covered by cash + this month over-mark */
+  var cashShort = round2(monthShort + priorRemain);
 
   /*
    * Where is the short from? (audit trail — pure, for UI)
-   * 1) priorStartShort: stored start was negative (poison carry, not notes)
-   * 2) cash-out lines in date order: first outs take real envelope; remainder is short
+   * 1) priorRemain: brought-forward boat short not yet covered by cash-in
+   * 2) cash-out lines in date order: prior settle claims first, then expenses
    */
   var shortLines = [];
-  if (priorStartShort > 0.009) {
+  if (priorRemain > 0.009) {
     shortLines.push({
       kind: "prior-start",
-      label: "Stored start was −" + priorStartShort.toFixed(2).replace(/\.00$/, "") + " (not physical notes)",
-      amount: priorStartShort,
+      label:
+        "Brought forward boat short −" +
+        priorRemain.toFixed(2).replace(/\.00$/, "") +
+        " (not yet covered by cash-in)",
+      amount: priorRemain,
+      fullAmount: priorStartShort,
+      covered: priorSettled,
       date: "",
       id: "",
     });
   }
   if (monthShort > 0.009 && cashOutLines.length) {
     var chrono = cashOutLines.slice().sort(function (a, b) {
+      /* Prior-short claims the envelope first */
+      if (a && a.virtual && !(b && b.virtual)) return -1;
+      if (b && b.virtual && !(a && a.virtual)) return 1;
       var da = String((a && a.date) || "");
       var db = String((b && b.date) || "");
       if (da !== db) return da < db ? -1 : 1;
@@ -678,6 +725,8 @@ function summarizePettyCash(opts) {
       var covered = remaining > 0 ? Math.min(a, remaining) : 0;
       remaining = round2(remaining - covered);
       var over = round2(a - covered);
+      /* Prior-short residual is already in priorRemain shortLines — skip dupe */
+      if (row.virtual) return;
       if (over > 0.009) {
         shortLines.push({
           kind: row.kind || "expense",
@@ -693,8 +742,10 @@ function summarizePettyCash(opts) {
     });
   }
 
-  /* Newest first for captain cash-out audit list */
+  /* Newest first for captain cash-out audit list; virtual prior-short stays on top */
   cashOutLines.sort(function (a, b) {
+    if (a && a.virtual && !(b && b.virtual)) return -1;
+    if (b && b.virtual && !(a && a.virtual)) return 1;
     var da = String((a && a.date) || "");
     var db = String((b && b.date) || "");
     if (da !== db) return db < da ? -1 : 1;
@@ -703,7 +754,10 @@ function summarizePettyCash(opts) {
   return {
     pettyStart: storedStart,
     physicalStart: physicalStart,
+    broughtForwardShort: broughtForwardShort,
     priorStartShort: priorStartShort,
+    priorSettled: priorSettled,
+    priorRemain: priorRemain,
     cashInTotal: cashInTotal,
     cashInHand: cashInHand,
     cashOut: cashOut,
@@ -1396,6 +1450,7 @@ function summarizeOpenTipOwedByPerson(openTips) {
  *   expenses: Array,           // month lines
  *   allExpenses?: Array,       // full ledger for repay matching
  *   pettyStart: number,
+ *   broughtForwardShort?: number, // prior month boat short carried into this month
  *   cashIns: Array,            // envelope cash-ins (tips excluded)
  *   cashInsAll?: Array,        // including tips
  *   cashInIsTip?: function,
@@ -1439,6 +1494,7 @@ function summarizeMonthSettlement(opts) {
   });
   var pettySum = summarizePettyCash({
     pettyStart: opts.pettyStart,
+    broughtForwardShort: opts.broughtForwardShort,
     cashIns: cashIns,
     expenses: linesForPetty,
   });
@@ -1593,6 +1649,9 @@ function summarizeMonthSettlement(opts) {
     ownMoneyExp: round2(ownMoneyExp),
     pettyStart: pettyStart,
     physicalStart: Number(pettySum.physicalStart) || 0,
+    broughtForwardShort: Number(pettySum.broughtForwardShort) || 0,
+    priorSettled: Number(pettySum.priorSettled) || 0,
+    priorRemain: Number(pettySum.priorRemain) || 0,
     cashInTotal: cashInTotal,
     cashInHand: Number(pettySum.cashInHand) || 0,
     pettyEntered: pettyEntered,

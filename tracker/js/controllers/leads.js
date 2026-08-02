@@ -129,10 +129,17 @@
         : pettyRow && pettyRow.pettyStart != null
           ? pettyRow.pettyStart
           : 0;
+    var broughtForwardShort =
+      input.broughtForwardShort != null
+        ? input.broughtForwardShort
+        : pettyRow && pettyRow.broughtForwardShort != null
+          ? pettyRow.broughtForwardShort
+          : 0;
 
     var pettySum = models.summarizePettyCash
       ? models.summarizePettyCash({
           pettyStart: pettyStart,
+          broughtForwardShort: broughtForwardShort,
           cashIns: cashIns,
           expenses: monthExpenses,
         })

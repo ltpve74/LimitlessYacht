@@ -787,6 +787,41 @@ console.log("\n[Petty cash — crew day-pay collapse & floatPay]");
   ok("poison start shortLines prior-start", poisonStart.shortLines && poisonStart.shortLines[0]
     && poisonStart.shortLines[0].kind === "prior-start"
     && near(poisonStart.shortLines[0].amount, 250));
+  /*
+   * Brought-forward boat short: last month empty but boat owed €110.
+   * New cash-in pays the hole first and leaves less on board.
+   */
+  const brought = M.summarizePettyCash({
+    pettyStart: 0,
+    broughtForwardShort: 110,
+    cashIns: [{ id: "in1", amount: 500, date: "2026-08-01" }],
+    expenses: []
+  });
+  ok("brought-forward €110 + cash-in €500 → onboard 390", near(brought.pettyOnboard, 390), "got " + brought.pettyOnboard);
+  ok("brought-forward priorSettled 110", near(brought.priorSettled, 110), "got " + brought.priorSettled);
+  ok("brought-forward short residual 0", near(brought.cashShort, 0), "got " + brought.cashShort);
+  ok("brought-forward cashOut includes prior settle", near(brought.cashOut, 110), "got " + brought.cashOut);
+  ok("brought-forward virtual cash-out line", brought.cashOutLines && brought.cashOutLines.some(function (r) {
+    return r && r.virtual && near(r.amount, 110);
+  }));
+  /* Negative start with cash-in also absorbs the hole */
+  const poisonPaid = M.summarizePettyCash({
+    pettyStart: -110,
+    cashIns: [{ id: "in2", amount: 200, date: "2026-08-02" }],
+    expenses: []
+  });
+  ok("poison −110 + cash 200 → onboard 90", near(poisonPaid.pettyOnboard, 90), "got " + poisonPaid.pettyOnboard);
+  ok("poison −110 + cash 200 → short 0", near(poisonPaid.cashShort, 0), "got " + poisonPaid.cashShort);
+  /* Partial cover of brought-forward short */
+  const partialPrior = M.summarizePettyCash({
+    pettyStart: 0,
+    broughtForwardShort: 110,
+    cashIns: [{ id: "in3", amount: 40, date: "2026-08-03" }],
+    expenses: []
+  });
+  ok("partial prior cover onboard 0", near(partialPrior.pettyOnboard, 0));
+  ok("partial prior remain short 70", near(partialPrior.cashShort, 70), "got " + partialPrior.cashShort);
+  ok("partial prior settled 40", near(partialPrior.priorSettled, 40));
   /* Partial cover: €50 start, €70 out → short €20 attributed to last out */
   const partial = M.summarizePettyCash({
     pettyStart: 50,

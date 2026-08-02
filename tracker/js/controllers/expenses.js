@@ -165,6 +165,10 @@
       expenses: expenses,
       allExpenses: allExpenses,
       pettyStart: petty.pettyStart != null ? petty.pettyStart : input.pettyStart,
+      broughtForwardShort:
+        petty.broughtForwardShort != null
+          ? petty.broughtForwardShort
+          : input.broughtForwardShort,
       cashIns: cashIns,
       cashInsAll: cashInsAll,
       cashInIsTip: cashInIsTip,
