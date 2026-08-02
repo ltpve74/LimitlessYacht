@@ -76,6 +76,44 @@ console.log("━━━━━━━━━━━━━━━━━━━━━━�
 console.log("  Tracker domain models (locked rules)");
 console.log("━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n");
 
+/* ---- Ops today board (day grouping) ---- */
+console.log("[Ops — today board]");
+{
+  ok("ymdTouchesDay same day", M.ymdTouchesDay("2026-08-03", "2026-08-03", "2026-08-03"));
+  ok("ymdTouchesDay multi mid", M.ymdTouchesDay("2026-08-04", "2026-08-03", "2026-08-05"));
+  ok("ymdTouchesDay outside false", !M.ymdTouchesDay("2026-08-10", "2026-08-03", "2026-08-05"));
+  const board = M.collectTodayOpsBoard({
+    today: "2026-08-03",
+    leads: [
+      { id: "L1", name: "Joel", start: "2026-08-03", end: "2026-08-03", dealClosed: true, amount: 4000 },
+      { id: "L2", name: "Future", start: "2026-08-10", dealClosed: true },
+      { id: "L3", name: "Hold", start: "2026-08-03", dealClosed: false },
+    ],
+    charges: [
+      { id: "C1", client: "Joel", date: "2026-08-03", amount: 200, payStatus: "Pending" },
+      { id: "C2", client: "Other", date: "2026-07-01", amount: 50 },
+    ],
+    apa: [
+      { id: "A1", guest: "Joel", start: "2026-08-03", end: "2026-08-03", apaSent: 500 },
+      { id: "A2", guest: "Skip", start: "2026-08-01", end: "2026-08-01" },
+    ],
+    stews: [
+      { eventKey: "ek1", summary: "Joel charter", start: "2026-08-03", end: "2026-08-03", stewIds: ["toni"], payStatus: "Unpaid" },
+      { eventKey: "ek2", summary: "Off", start: "2026-08-03", off: true },
+      { eventKey: "ek3", summary: "Tomorrow", start: "2026-08-04", stewIds: ["laura"] },
+    ],
+    leadIsCancelled: function () { return false; },
+    stewIsOff: function (a) { return !!(a && a.off); },
+  });
+  ok("today board n = 5 (2 leads + 1 charge + 1 apa + 1 stew)", board.n === 5, "got " + board.n);
+  ok("today board 2 leads", board.leads.length === 2, "got " + board.leads.length);
+  ok("today board hold is tentative", board.leads.some(function (x) { return x.id === "L3" && x.status === "tentative"; }));
+  ok("today board 1 charge", board.charges.length === 1 && board.charges[0].id === "C1");
+  ok("today board 1 apa", board.apa.length === 1 && board.apa[0].id === "A1");
+  ok("today board 1 stew (off skipped)", board.stews.length === 1 && board.stews[0].eventKey === "ek1");
+  ok("today board groups 4 keys", board.groups && board.groups.length === 4);
+}
+
 /* ---- Commission: VAT-included total (Joel) ---- */
 console.log("[Commission — VAT included]");
 {

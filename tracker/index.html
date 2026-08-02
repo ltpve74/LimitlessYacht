@@ -475,6 +475,30 @@
   .ops-back{display:inline-flex;align-items:center;gap:6px;font-weight:700;font-size:13.5px;color:var(--brand);
             padding:8px 0 12px;background:none;border:none;cursor:pointer}
   .ops-back:active{opacity:.75}
+  /* Ops · Today board */
+  .ops-today{margin:0 0 16px}
+  .ops-today-hd{
+    display:flex;align-items:baseline;justify-content:space-between;gap:10px;flex-wrap:wrap;
+    margin:0 0 10px;
+  }
+  .ops-today-hd h2{margin:0;font-size:17px;font-weight:900;letter-spacing:.01em}
+  .ops-today-hd .ops-today-sub{font-size:12.5px;font-weight:600;color:var(--muted)}
+  .ops-today-group{margin:0 0 12px}
+  .ops-today-group:last-child{margin-bottom:0}
+  .ops-today-ghd{
+    display:flex;align-items:center;gap:8px;margin:0 0 8px;padding:0 2px;
+    font-size:12px;font-weight:800;letter-spacing:.04em;text-transform:uppercase;color:var(--muted);
+  }
+  .ops-today-ghd .n{
+    font-variant-numeric:tabular-nums;background:var(--grey);color:var(--ink);
+    padding:2px 8px;border-radius:999px;font-size:11px;font-weight:900;
+  }
+  .ops-today .item{margin-bottom:8px;cursor:pointer}
+  .ops-today .item:last-child{margin-bottom:0}
+  .ops-today-empty{
+    font-size:13px;color:var(--muted);padding:14px 14px;border-radius:14px;
+    border:1px dashed var(--line);background:rgba(255,255,255,.65);line-height:1.4;
+  }
 
   /* modal sheet — anchored to visual viewport (iOS/PWA-safe); scrolls as one unit */
   .scrim{position:fixed;inset:0;background:rgba(15,25,30,.5);z-index:200;display:none;opacity:0;transition:opacity .2s}
@@ -871,7 +895,9 @@
 
     <!-- OPS HUB (captain only — keeps bottom nav to 4 slots) -->
     <section id="tab-ops" class="hidden">
-      <div class="legend">Captain ops tools. Manager: Charges &amp; Leads. Team: Roster only. Pick a section below.</div>
+      <div class="legend">Captain ops tools. <b>Today</b> groups this day’s lead, APA, charge and stew cards for quick open. Manager: Charges &amp; Leads. Team: Roster only.</div>
+      <div id="opsToday" class="ops-today" aria-label="Today on the boat"></div>
+      <div class="sectitle" style="margin:4px 0 0">All ops</div>
       <div class="ops-grid" id="opsGrid"></div>
     </section>
 
@@ -939,7 +965,7 @@
 
 <!-- Domain models + controllers (MVC blueprint) — tests: node scripts/test-tracker-models.mjs -->
 <!-- LY_MODELS → LY_CONTROLLERS → view. See .agent/briefs/tracker-v1-mvc-blueprint.md -->
-<script src="/tracker/js/models/util.js?v=20260807-apacash1"></script>
+<script src="/tracker/js/models/util.js?v=20260803-opstoday1"></script>
 <script src="/tracker/js/models/leads.js?v=20260807-apacash1"></script>
 <script src="/tracker/js/models/charges.js?v=20260807-apacash1"></script>
 <script src="/tracker/js/models/expenses.js?v=20260807-apacash1"></script>
@@ -1616,12 +1642,170 @@ document.addEventListener("click",function(ev){
     switchTab(tile.getAttribute("data-ops-go"));
   }
 });
+/**
+ * Build today’s Ops board (leads · APA · charges · stews).
+ * Pure grouping via LY_MODELS.collectTodayOpsBoard; view only paints + opens.
+ */
+function buildOpsTodayBoard(){
+  var today=typeof localTodayYmd==="function"?localTodayYmd():new Date().toISOString().slice(0,10);
+  var apaRows=(state.apa||[]).map(function(t){
+    if(!t) return null;
+    var start="";
+    try{ start=typeof apaTripCharterKey==="function"?apaTripCharterKey(t):""; }catch(eK){ start=""; }
+    if(!start) start=String(t.start||"").slice(0,10);
+    var end=String(t.end||"").slice(0,10);
+    if(!end){
+      try{
+        var lead=typeof apaLinkedLead==="function"?apaLinkedLead(t):null;
+        if(lead&&lead.end) end=String(lead.end).slice(0,10);
+      }catch(eL){}
+    }
+    if(!end) end=start;
+    return {
+      id:t.id,
+      guest:t.guest||t.name||t.client||"",
+      name:t.name||"",
+      client:t.client||"",
+      dates:t.dates||"",
+      start:start,
+      end:end,
+      charterStart:start,
+      charterEnd:end,
+      apaSent:t.apaSent
+    };
+  }).filter(Boolean);
+  if(LY_MODELS&&typeof LY_MODELS.collectTodayOpsBoard==="function"){
+    return LY_MODELS.collectTodayOpsBoard({
+      today:today,
+      leads:state.leads||[],
+      charges:state.charters||[],
+      apa:apaRows,
+      stews:state.stewAssign||[],
+      leadIsCancelled:typeof leadIsCancelled==="function"?leadIsCancelled:null,
+      leadIsDealClosed:typeof leadIsDealClosed==="function"?leadIsDealClosed:(LY_MODELS.leadIsDealClosed||null),
+      stewIsOff:typeof stewIsOffEvent==="function"?function(a){ return stewIsOffEvent(a); }:null
+    });
+  }
+  /* Fallback: empty board if model not loaded */
+  return { today:today, n:0, leads:[], charges:[], apa:[], stews:[], groups:[
+    {key:"lead",label:"Leads",ic:"🌐",items:[]},
+    {key:"apa",label:"APA",ic:"📒",items:[]},
+    {key:"charge",label:"Charges",ic:"🧾",items:[]},
+    {key:"stew",label:"Stews",ic:"👩‍✈️",items:[]}
+  ]};
+}
+function opsTodayStatusPill(row){
+  var s=String((row&&row.status)||"");
+  if(s==="cancelled") return '<span class="pill p-red">Cancelled</span>';
+  if(s==="tentative") return '<span class="pill p-amber">On hold</span>';
+  if(s==="confirmed") return '<span class="pill p-green">Confirmed</span>';
+  if(s==="paid") return '<span class="pill p-green">Paid</span>';
+  if(s==="pending") return '<span class="pill p-amber">Pending</span>';
+  if(s==="unassigned") return '<span class="pill p-amber">Unassigned</span>';
+  if(s==="assigned") return '<span class="pill p-green">Crew set</span>';
+  if(s==="apa") return '<span class="pill p-apa">APA</span>';
+  return s?'<span class="pill p-grey">'+esc(s)+'</span>':"";
+}
+function renderOpsToday(){
+  var wrap=el("opsToday"); if(!wrap) return;
+  if(!isCaptain()){ wrap.innerHTML=""; return; }
+  var board=buildOpsTodayBoard();
+  var dateLab="";
+  try{
+    dateLab=typeof fmtDate==="function"?fmtDate(board.today):board.today;
+  }catch(eD){ dateLab=board.today; }
+  var h='<div class="ops-today-hd">'+
+    '<h2>Today · '+esc(dateLab||board.today)+'</h2>'+
+    '<span class="ops-today-sub">'+(board.n
+      ?board.n+" item"+(board.n===1?"":"s")+" on the water today"
+      :"Nothing dated today")+'</span>'+
+  '</div>';
+  if(!board.n){
+    h+='<div class="ops-today-empty">No lead, APA, charge or stew charter touches <b>'+esc(dateLab||board.today)+'</b>. Multi-day trips show on every day they cover.</div>';
+    wrap.innerHTML=h;
+    return;
+  }
+  (board.groups||[]).forEach(function(g){
+    if(!g||!(g.items&&g.items.length)) return;
+    h+='<div class="ops-today-group" data-ops-today-group="'+esc(g.key)+'">'+
+      '<div class="ops-today-ghd">'+
+        '<span aria-hidden="true">'+(g.ic||"")+'</span> '+esc(g.label)+
+        ' <span class="n">'+g.items.length+'</span>'+
+      '</div><div class="list">';
+    g.items.forEach(function(row){
+      if(!row) return;
+      var openAttr="";
+      if(row.kind==="lead") openAttr='data-ops-today-open="lead" data-id="'+esc(row.id)+'"';
+      else if(row.kind==="charge") openAttr='data-ops-today-open="charge" data-id="'+esc(row.id)+'"';
+      else if(row.kind==="apa") openAttr='data-ops-today-open="apa" data-id="'+esc(row.id)+'"';
+      else if(row.kind==="stew") openAttr='data-ops-today-open="stew" data-id="'+esc(row.eventKey||row.id)+'"';
+      var range="";
+      try{
+        if(row.start&&row.end&&row.end!==row.start){
+          range=(fmtDate(row.start)||row.start)+" → "+(fmtDate(row.end)||row.end);
+        } else if(row.start){
+          range=fmtDate(row.start)||row.start;
+        }
+      }catch(eR){ range=row.start||""; }
+      h+='<div class="item" '+openAttr+' role="button" tabindex="0">'+
+        '<div class="top">'+
+          '<div class="title">'+esc(row.title||"—")+'</div>'+
+          (row.amount>0.009?'<div class="amt money">'+money0(row.amount)+'</div>':'')+
+        '</div>'+
+        '<div class="meta">'+
+          (range?'<span>📅 '+esc(range)+'</span>':'')+
+          opsTodayStatusPill(row)+
+          (row.subtitle?'<span>'+esc(row.subtitle)+'</span>':'')+
+        '</div>'+
+        '<span class="chev">→</span>'+
+      '</div>';
+    });
+    h+='</div></div>';
+  });
+  wrap.innerHTML=h;
+  Array.prototype.forEach.call(wrap.querySelectorAll("[data-ops-today-open]"),function(node){
+    var go=function(){
+      var kind=node.getAttribute("data-ops-today-open");
+      var id=node.getAttribute("data-id");
+      if(!kind||!id) return;
+      if(kind==="lead"){
+        if(typeof openSheet==="function") openSheet("lead", id);
+        return;
+      }
+      if(kind==="charge"){
+        if(typeof openSheet==="function") openSheet("charter", id);
+        return;
+      }
+      if(kind==="apa"){
+        switchTab("apa");
+        if(typeof openApaDetail==="function") openApaDetail(id);
+        return;
+      }
+      if(kind==="stew"){
+        switchTab("stews");
+        if(typeof openStewAssign==="function"){
+          /* open after roster paints */
+          setTimeout(function(){ try{ openStewAssign(id); }catch(eS){} }, 60);
+        }
+      }
+    };
+    node.addEventListener("click",function(ev){
+      ev.preventDefault();
+      go();
+    });
+    node.addEventListener("keydown",function(ev){
+      if(ev.key==="Enter"||ev.key===" "){ ev.preventDefault(); go(); }
+    });
+  });
+}
 function renderOpsHub(){
   var grid=el("opsGrid"); if(!grid) return;
   if(!isCaptain()){
     grid.innerHTML='<div class="empty"><div class="big">⚓</div><div>Ops is captain-only.</div></div>';
+    if(el("opsToday")) el("opsToday").innerHTML="";
     return;
   }
+  try{ renderOpsToday(); }catch(eT){ if(el("opsToday")) el("opsToday").innerHTML=""; }
   /* Site calendar ops removed — public site updates automatically from leads */
   var tiles=[
     {id:"apa",ic:"📒",t:"APA",d:"Guest pot, spend ledger, shortfall charges"},
