@@ -66,6 +66,11 @@
               return models.chargeBillType(x);
             }
           : null,
+        chargePayMethod: models.chargePayMethod
+          ? function (x) {
+              return models.chargePayMethod(x);
+            }
+          : null,
         isApaChargeRow: isApaChargeRow,
       }),
       isApa: isApa,
