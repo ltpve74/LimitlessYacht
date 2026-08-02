@@ -1514,6 +1514,34 @@ function mergeCollectionPreserveMissing(prevRows, nextRows, deletedIds) {
   return { rows: out, preserved, deleted: del.size };
 }
 
+/**
+ * Durable APA pot deletes (server SOT).
+ * Stale concurrent saves must not resurrect a deleted pot's diesel/spend.
+ * meta.apaDeletedIds accumulates explicit client deletes.
+ */
+function apaDeletedIdSet(data) {
+  if (!data.meta || typeof data.meta !== "object") data.meta = {};
+  return new Set(
+    (Array.isArray(data.meta.apaDeletedIds) ? data.meta.apaDeletedIds : []).map(String)
+  );
+}
+function rememberApaDeletedIds(data, extraIds) {
+  const set = apaDeletedIdSet(data);
+  (Array.isArray(extraIds) ? extraIds : []).forEach((id) => {
+    if (id != null && id !== "") set.add(String(id));
+  });
+  const arr = Array.from(set);
+  data.meta.apaDeletedIds = arr.length > 300 ? arr.slice(-300) : arr;
+  return set;
+}
+function filterApaDeletedRows(data, rows) {
+  const set = apaDeletedIdSet(data);
+  if (!set.size) return Array.isArray(rows) ? rows : [];
+  return (Array.isArray(rows) ? rows : []).filter(
+    (r) => r && r.id != null && !set.has(String(r.id))
+  );
+}
+
 /** Role of a push subscriber from who label / stored role. */
 function pushSubRole(sub) {
   const r = String((sub && sub.role) || "")
@@ -2005,7 +2033,8 @@ export default async (req, context) => {
       out.leads = [];
     }
     if (captain) {
-      out.apa = Array.isArray(data.apa) ? data.apa : [];
+      /* Never ship tombstoned pots — prevents Roman diesel reappearing after delete */
+      out.apa = filterApaDeletedRows(data, data.apa);
       out.diesel = Array.isArray(data.diesel) ? data.diesel : [];
       out.expenses = Array.isArray(data.expenses) ? data.expenses : [];
       out.expPetty = Array.isArray(data.expPetty) ? data.expPetty : [];
@@ -2075,19 +2104,29 @@ export default async (req, context) => {
     let next = Array.isArray(body.rows) ? body.rows.slice(0, 5000) : [];
     let mergeInfo = { preserved: 0, deleted: 0 };
     /*
-     * Leads + charters + APA: never wipe rows the client simply didn't have
+     * Leads + charters: never wipe rows the client simply didn't have
      * (restored calendar lead, concurrent device). Explicit deletes only
      * via body.deletedIds. Other collections still full-replace.
-     * APA pots must tombstone deletes so diesel/spend cannot resurrect on
-     * a new pot for the same charter.
+     *
+     * APA: merge + durable meta.apaDeletedIds so a stale concurrent save
+     * cannot resurrect a deleted pot (diesel/spend ghost on Roman recreate).
      */
-    if (coll === "leads" || coll === "charters" || coll === "apa") {
+    if (coll === "leads" || coll === "charters") {
       mergeInfo = mergeCollectionPreserveMissing(
         prev,
         next,
         body.deletedIds || body.deleted || []
       );
       next = mergeInfo.rows;
+    }
+    if (coll === "apa") {
+      const permanent = rememberApaDeletedIds(data, body.deletedIds || body.deleted || []);
+      mergeInfo = mergeCollectionPreserveMissing(prev, next, Array.from(permanent));
+      next = (mergeInfo.rows || []).filter(
+        (r) => r && r.id != null && !permanent.has(String(r.id))
+      );
+      /* Keep store clean */
+      data.apa = next;
     }
     /* Protect free cash black: never let a save overwrite good cash with white net (€1.652,89) */
     if (coll === "leads") {

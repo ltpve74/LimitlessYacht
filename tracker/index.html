@@ -925,20 +925,20 @@
 
 <!-- Domain models + controllers (MVC blueprint) — tests: node scripts/test-tracker-models.mjs -->
 <!-- LY_MODELS → LY_CONTROLLERS → view. See .agent/briefs/tracker-v1-mvc-blueprint.md -->
-<script src="/tracker/js/models/util.js?v=20260807-apa-mvc"></script>
-<script src="/tracker/js/models/leads.js?v=20260807-apa-mvc"></script>
-<script src="/tracker/js/models/charges.js?v=20260807-apa-mvc"></script>
-<script src="/tracker/js/models/expenses.js?v=20260807-apa-mvc"></script>
-<script src="/tracker/js/models/diesel.js?v=20260807-apa-mvc"></script>
-<script src="/tracker/js/models/stews.js?v=20260807-apa-mvc"></script>
-<script src="/tracker/js/models/apa.js?v=20260807-apa-mvc"></script>
-<script src="/tracker/js/models/index.js?v=20260807-apa-mvc"></script>
-<script src="/tracker/js/controllers/expenses.js?v=20260807-apa-mvc"></script>
-<script src="/tracker/js/controllers/charges.js?v=20260807-apa-mvc"></script>
-<script src="/tracker/js/controllers/leads.js?v=20260807-apa-mvc"></script>
-<script src="/tracker/js/controllers/apa.js?v=20260807-apa-mvc"></script>
-<script src="/tracker/js/controllers/stews.js?v=20260807-apa-mvc"></script>
-<script src="/tracker/js/controllers/index.js?v=20260807-apa-mvc"></script>
+<script src="/tracker/js/models/util.js?v=20260807-apa-del2"></script>
+<script src="/tracker/js/models/leads.js?v=20260807-apa-del2"></script>
+<script src="/tracker/js/models/charges.js?v=20260807-apa-del2"></script>
+<script src="/tracker/js/models/expenses.js?v=20260807-apa-del2"></script>
+<script src="/tracker/js/models/diesel.js?v=20260807-apa-del2"></script>
+<script src="/tracker/js/models/stews.js?v=20260807-apa-del2"></script>
+<script src="/tracker/js/models/apa.js?v=20260807-apa-del2"></script>
+<script src="/tracker/js/models/index.js?v=20260807-apa-del2"></script>
+<script src="/tracker/js/controllers/expenses.js?v=20260807-apa-del2"></script>
+<script src="/tracker/js/controllers/charges.js?v=20260807-apa-del2"></script>
+<script src="/tracker/js/controllers/leads.js?v=20260807-apa-del2"></script>
+<script src="/tracker/js/controllers/apa.js?v=20260807-apa-del2"></script>
+<script src="/tracker/js/controllers/stews.js?v=20260807-apa-del2"></script>
+<script src="/tracker/js/controllers/index.js?v=20260807-apa-del2"></script>
 <script>
 "use strict";
 var API = "/.netlify/functions/tracker";
@@ -5848,21 +5848,30 @@ function isApaCashSettlementCharge(c){
     return !!LY_MODELS.isApaCashSettlementCharge(c, {
       chargeIsPaid:function(x){ return chargePay(x)==="Paid"; },
       chargeBillType:chargeBillType,
+      chargePayMethod:chargePayMethod,
       isApaChargeRow:typeof isApaChargeRow==="function"?isApaChargeRow:null
     });
   }
   if(!c||chargePay(c)!=="Paid") return false;
   if(!(c.kind==="apa"||c.apaTripId||(typeof isApaChargeRow==="function"&&isApaChargeRow(c)))) return false;
   var bt=chargeBillType(c);
+  var payM=chargePayMethod(c);
   if(bt==="cash") return true;
-  if(c.moneyManual&&(bt==="cash"||bt==="mix"||c.cashDeal||c.payMethod==="Cash")) return true;
-  if(c.cashDeal&&(bt==="cash"||c.payMethod==="Cash")) return true;
+  if(payM==="Cash") return true;
+  if(c.cashDeal) return true;
+  if(c.moneyManual&&(bt==="mix"||bt==="cash"||payM==="Cash"||apaNum(c.cashPaid)>0)) return true;
   return false;
 }
 function apaIsCashSettled(t){
   if(!t) return false;
   if(t.apaCashSettled===true||t.apaCashSettled==="true"||t.apaCashSettled===1) return true;
-  return apaLinkedCharges(t).some(isApaCashSettlementCharge);
+  if(apaLinkedCharges(t).some(isApaCashSettlementCharge)) return true;
+  /* Controller pick may find Paid cash by guest when pin/link drifted */
+  try{
+    var ch=findApaChargeForTrip(t);
+    if(ch&&isApaCashSettlementCharge(ch)) return true;
+  }catch(e){}
+  return false;
 }
 function apaPaidCovered(t){
   if(LY_MODELS&&LY_MODELS.summarizeApaPaidCovered){
@@ -7078,6 +7087,18 @@ function openApaDetail(id){
   activeApaId=id;
   apaView="detail";
   apaSub="overview";
+  /*
+   * Apply guest charge collapse write plan when opening a pot (same plan as save).
+   * Pins Paid cash (Danny) and drops unpaid twin shortfalls without inventing rules in the view.
+   */
+  var t=(state.apa||[]).filter(function(x){return x&&String(x.id)===String(id);})[0];
+  if(t&&canOps()&&window.LY_CONTROLLERS&&LY_CONTROLLERS.apa&&LY_CONTROLLERS.apa.planGuestChargeCollapse){
+    var plan=LY_CONTROLLERS.apa.planGuestChargeCollapse(apaControllerSnapshot({ trip:t }));
+    if(plan&&((plan.dropChargeIds&&plan.dropChargeIds.length)||(plan.tripPatch&&plan.tripPatch.apaCashSettled)||(plan.chargePatches&&plan.chargePatches.length))){
+      applyApaWritePlan(t, plan);
+      save("apa"); save("charters");
+    }
+  }
   renderApa();
 }
 function renderApa(){

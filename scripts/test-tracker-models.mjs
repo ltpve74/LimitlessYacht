@@ -1050,6 +1050,48 @@ console.log("\n[APA — charge pick + delete/start plans]");
     force: true,
   });
   ok("cash settlement never creates/updates unpaid twin", syncCash.action === "pin_paid_manual");
+  /* Danny case: billType still invoice (shortfall default) but Paid + payMethod Cash */
+  ok(
+    "Paid + Cash method is cash settlement even when billType invoice",
+    M.isApaCashSettlementCharge(
+      {
+        kind: "apa",
+        payStatus: "Paid",
+        billType: "invoice",
+        payMethod: "Cash",
+        amount: 650,
+        cashPaid: 650,
+      },
+      {
+        chargeIsPaid: function (c) {
+          return c.payStatus === "Paid";
+        },
+        chargeBillType: function (c) {
+          return c.billType || "invoice";
+        },
+        chargePayMethod: function (c) {
+          return c.payMethod || "Card";
+        },
+      }
+    )
+  );
+  ok(
+    "Paid + invoice + Card is NOT cash settlement",
+    !M.isApaCashSettlementCharge(
+      { kind: "apa", payStatus: "Paid", billType: "invoice", payMethod: "Card", amount: 650 },
+      {
+        chargeIsPaid: function (c) {
+          return c.payStatus === "Paid";
+        },
+        chargeBillType: function (c) {
+          return "invoice";
+        },
+        chargePayMethod: function (c) {
+          return "Card";
+        },
+      }
+    )
+  );
   const emptyPick = M.pickApaCharge({
     tripId: "new",
     guestKey: "roman",
