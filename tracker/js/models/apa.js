@@ -121,10 +121,118 @@
     return round2(num(t && t.apaSent) + num(t && t.topUps));
   }
 
+  /** Engine litres: port + starboard, legacy engineL fallback. */
+  function apaEngineLitres(r) {
+    if (!r) return 0;
+    var port = num(r.enginePortL);
+    var stbd = num(r.engineStbdL);
+    if (port > 0 || stbd > 0) return port + stbd;
+    return num(r.engineL);
+  }
+
+  /**
+   * One APA diesel line → litres + cost.
+   * Freeze ledger €: manual cost → stored amount → litres × line/trip rate.
+   * Never re-prices historical lines from a later bunker.
+   *
+   * @param {{ genBurn?: number, dieselPrice?: number }} tripCtx
+   * @param {object} row diesel log line
+   */
+  function apaDieselLineCalc(tripCtx, row) {
+    tripCtx = tripCtx || {};
+    var port = num(row && row.enginePortL);
+    var stbd = num(row && row.engineStbdL);
+    var eng = apaEngineLitres(row);
+    var hrs = num(row && row.genHrs);
+    var burn = num(tripCtx.genBurn);
+    if (!(burn > 0)) burn = 6;
+    var genL = hrs * burn;
+    var lit = eng + genL;
+    var manual = num(row && row.cost);
+    var stored = num(row && row.amount);
+    var price = num(row && row.price);
+    if (!(price > 0)) price = num(tripCtx.dieselPrice);
+    var cost = 0;
+    if (manual > 0) cost = manual;
+    else if (stored > 0) cost = stored;
+    else if (lit > 0 && price > 0) cost = lit * price;
+    cost = round2(cost);
+    if (lit > 0 && cost > 0 && !(price > 0)) price = Math.round((cost / lit) * 10000) / 10000;
+    else if (lit > 0 && stored > 0) price = Math.round((stored / lit) * 10000) / 10000;
+    return {
+      genL: round2(genL),
+      lit: round2(lit),
+      cost: cost,
+      price: price,
+      burn: burn,
+      eng: eng,
+      port: port,
+      stbd: stbd,
+    };
+  }
+
+  /**
+   * Sum APA base recovered from Paid shortfall charges.
+   * @param {Array} linkedCharges charge rows already filtered as linked to the trip
+   * @param {{ chargeIsPaid?: function, chargeApaBaseTowardPot?: function }} helpers
+   */
+  function summarizeApaPaidCovered(linkedCharges, helpers) {
+    helpers = helpers || {};
+    var isPaid =
+      typeof helpers.chargeIsPaid === "function"
+        ? helpers.chargeIsPaid
+        : function (c) {
+            return c && (c.payStatus === "Paid" || c.status === "Paid");
+          };
+    var baseToward =
+      typeof helpers.chargeApaBaseTowardPot === "function"
+        ? helpers.chargeApaBaseTowardPot
+        : function (c) {
+            return Math.max(0, num(c && c.apaBaseAmt) || num(c && c.amount));
+          };
+    var s = 0;
+    (Array.isArray(linkedCharges) ? linkedCharges : []).forEach(function (c) {
+      if (!c || !isPaid(c)) return;
+      s += baseToward(c);
+    });
+    return round2(s);
+  }
+
+  /**
+   * Paid cash APA shortfall settles the pot (no residual ledger pennies as “owed”).
+   */
+  function isApaCashSettlementCharge(c, opts) {
+    opts = opts || {};
+    if (!c) return false;
+    var isPaid =
+      typeof opts.chargeIsPaid === "function"
+        ? opts.chargeIsPaid(c)
+        : c.payStatus === "Paid" || c.status === "Paid" || c.status === "Pending";
+    if (!isPaid) return false;
+    var isApa =
+      c.kind === "apa" ||
+      !!(c.apaTripId) ||
+      (opts.isApaChargeRow && opts.isApaChargeRow(c));
+    if (!isApa) return false;
+    var bt =
+      typeof opts.chargeBillType === "function"
+        ? opts.chargeBillType(c)
+        : String(c.billType || "").toLowerCase();
+    if (bt === "cash") return true;
+    if (c.moneyManual && (bt === "cash" || bt === "mix" || c.cashDeal || c.payMethod === "Cash"))
+      return true;
+    if (c.cashDeal && (bt === "cash" || c.payMethod === "Cash")) return true;
+    return false;
+  }
+
   return {
     APA_EXP_CATS: APA_EXP_CATS,
     summarizeApaTripTotals: summarizeApaTripTotals,
     apaHasPrepaid: apaHasPrepaid,
     apaDueAmount: apaDueAmount,
+    apaEngineLitres: apaEngineLitres,
+    apaDieselLineCalc: apaDieselLineCalc,
+    summarizeApaPaidCovered: summarizeApaPaidCovered,
+    isApaCashSettlementCharge: isApaCashSettlementCharge,
   };
 });

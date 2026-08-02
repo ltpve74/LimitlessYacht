@@ -1013,6 +1013,94 @@ console.log("\n[Stews — tip on bill + day pay]");
     "day pay by stew map",
     near(M.stewDayPayForStew({ dayPayByStew: { s1: 180 }, payEach: 200 }, "s1"), 180)
   );
+  const share = M.stewTipShare({ tipTotal: 90, stewIds: ["s1"] });
+  ok("tip share 1 stew → each 45", near(share.each, 45));
+  ok("tip share captain 45", near(share.captainShare, 45));
+  ok("tip share stew side 45", near(share.stewSide, 45));
+  const share2 = M.stewTipShare({ tipTotal: 90, stewIds: ["s1", "s2"] });
+  ok("tip share 2 stews → 3-way", near(share2.each, 30));
+}
+
+/* ---- APA diesel line + paid covered ---- */
+console.log("\n[APA — diesel line + paid covered]");
+{
+  const line = M.apaDieselLineCalc(
+    { genBurn: 6, dieselPrice: 1.8 },
+    { enginePortL: 10, engineStbdL: 10, genHrs: 1 }
+  );
+  ok("diesel lit eng+gen = 26", near(line.lit, 26));
+  ok("diesel cost = lit×price", near(line.cost, 26 * 1.8));
+  const frozen = M.apaDieselLineCalc(
+    { genBurn: 6, dieselPrice: 9.99 },
+    { engineL: 10, amount: 20 }
+  );
+  ok("stored amount freezes cost", near(frozen.cost, 20));
+  const paid = M.summarizeApaPaidCovered(
+    [
+      { payStatus: "Paid", apaBaseAmt: 100, amount: 150 },
+      { payStatus: "Unpaid", apaBaseAmt: 50 },
+    ],
+    {
+      chargeIsPaid: function (c) {
+        return c.payStatus === "Paid";
+      },
+      chargeApaBaseTowardPot: function (c) {
+        return Number(c.apaBaseAmt) || 0;
+      },
+    }
+  );
+  ok("paid covered only Paid bases", near(paid, 100));
+  ok(
+    "cash settlement charge",
+    M.isApaCashSettlementCharge(
+      { kind: "apa", payStatus: "Paid", billType: "cash" },
+      {
+        chargeIsPaid: function () {
+          return true;
+        },
+        chargeBillType: function () {
+          return "cash";
+        },
+      }
+    )
+  );
+}
+
+/* ---- Leads money dashboard ---- */
+console.log("\n[Leads — money dashboard]");
+{
+  const dash = M.summarizeLeadsMoneyDashboard({
+    today: "2026-08-01",
+    leads: [
+      {
+        id: "A",
+        name: "Sailed",
+        start: "2026-07-10",
+        source: "captain",
+        captainLead: true,
+        dealClosed: true,
+        total: 2000,
+        vatMode: "include",
+        vatPct: 21,
+      },
+      {
+        id: "B",
+        name: "Future",
+        start: "2026-12-01",
+        source: "captain",
+        captainLead: true,
+        dealClosed: true,
+        total: 3000,
+        vatMode: "include",
+        vatPct: 21,
+      },
+    ],
+    charters: [],
+  });
+  ok("dashboard done n=1", dash.done.n === 1, "got " + dash.done.n);
+  ok("dashboard proj n=1", dash.proj.n === 1, "got " + dash.proj.n);
+  ok("dashboard captain realised n=1", dash.captain.n === 1);
+  ok("type key 8h default", M.leadCharterTypeKey({ dur: "day" }) === "8h");
 }
 
 /* ---- Controllers (MVC blueprint — no formulas, wire models only) ---- */

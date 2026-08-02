@@ -144,12 +144,11 @@ LY_CONTROLLERS.stews.tipLiabilityRows({ assigns })
 |------|-------|------------|-----------|
 | Expenses settlement / pocket | ✅ | ✅ | ✅ |
 | Charges cash/VAT | ✅ | ✅ | ✅ |
-| Leads realised glimpse | ✅ | ✅ | ✅ |
-| APA pot totals | ✅ | ✅ | ✅ |
-| Stews tip/day-pay amounts | ✅ | ✅ | ✅ (partial) |
-| Diesel | ✅ | — | wrappers |
-| Stews tip *share* math | ⏳ optional | — | still UI |
-| APA diesel *rate* calc | diesel model | inject | UI adapter |
+| Leads realised glimpse + **money dashboard** | ✅ | ✅ `moneyDashboard` | ✅ |
+| APA pot totals + diesel line + paid covered | ✅ | ✅ | ✅ |
+| Stews tip/day-pay + **tip share** | ✅ | ✅ | ✅ |
+| Diesel bunker/sell | ✅ | — | wrappers |
+| APA diesel *active rate lookup* | diesel model | view injects price | thin |
 | Write paths (sync charge, seed expenses) | — | later | orchestration in view |
 
 ---

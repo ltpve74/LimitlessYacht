@@ -44,6 +44,11 @@
     return M(input).stewTipPaid(input.assign || input.asg);
   }
 
+  function tipShare(input) {
+    input = input || {};
+    return M(input).stewTipShare(input.assign || input.asg);
+  }
+
   /**
    * Normalize assigns into open-tip tipRows for expenses.collectOpenTipPayouts.
    */
@@ -54,6 +59,7 @@
     (input.assigns || input.stewAssign || []).forEach(function (asg) {
       if (!asg || !asg.eventKey) return;
       if (asg.cancelled || asg.status === "cancelled" || asg.cancelGhost) return;
+      var share = models.stewTipShare(asg);
       rows.push({
         eventKey: String(asg.eventKey),
         onBill: models.stewTipIsOnBill(asg),
@@ -61,6 +67,10 @@
         amount: models.stewTipTotal(asg),
         date: String(asg.start || "").slice(0, 10),
         summary: asg.summary || "Charter",
+        tipEach: share.each,
+        tipCaptain: share.captainShare,
+        tipStewSide: share.stewSide,
+        nStews: share.nStews,
         cancelled: false,
       });
     });
@@ -73,6 +83,7 @@
     tipIsOnBill: tipIsOnBill,
     tipTotal: tipTotal,
     tipPaid: tipPaid,
+    tipShare: tipShare,
     tipLiabilityRows: tipLiabilityRows,
   };
 });
