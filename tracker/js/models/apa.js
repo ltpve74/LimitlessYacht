@@ -275,18 +275,24 @@
 
   /**
    * Paid cash APA shortfall settles the pot (no residual ledger pennies as “owed”).
-   * Default path requires explicit Paid — never treat Pending as paid.
+   * Requires explicit payStatus/status Paid — never treat Pending as paid.
    *
-   * Important: shortfall rows are created with billType "invoice". Captain may later
-   * mark Paid + Cash (€650) without changing billType — still cash settlement.
+   * Cash received may differ from ledger (loose change, e.g. €650 for €664.95) —
+   * that still fully settles the pot. Do not re-open shortfall for the difference.
+   *
+   * Shortfall rows start as billType "invoice"; Paid + Cash still counts as cash settlement.
    */
   function isApaCashSettlementCharge(c, opts) {
     opts = opts || {};
     if (!c) return false;
-    var isPaid =
-      typeof opts.chargeIsPaid === "function"
-        ? opts.chargeIsPaid(c)
-        : c.payStatus === "Paid" || c.status === "Paid";
+    var isPaid;
+    if (typeof opts.chargeIsPaid === "function") {
+      isPaid = !!opts.chargeIsPaid(c);
+    } else if (c.payStatus != null && String(c.payStatus) !== "") {
+      isPaid = String(c.payStatus) === "Paid";
+    } else {
+      isPaid = String(c.status || "") === "Paid";
+    }
     if (!isPaid) return false;
     var isApa =
       c.kind === "apa" ||
