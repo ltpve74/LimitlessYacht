@@ -301,6 +301,190 @@ function stewTipShare(asg) {
   };
 }
 
+/**
+ * Pure plan: expense lines for a Paid charter day-pay sync.
+ * View removes old event lines and inserts returned rows. Never invents floatPay
+ * from Paid alone — only markFloat or previous floatPay.
+ *
+ * @param {{
+ *   asg: object,
+ *   previousLines?: Array,
+ *   stewName?: function(sid): string,
+ *   defaultEach?: number,
+ *   dayPayAmt?: function(asg, sid): number,
+ *   isSkipped?: function(eventKey, sid): boolean,
+ *   nowIso?: string,
+ *   who?: string,
+ *   newId?: function(): string
+ * }} input
+ * @returns {{ eventKey: string, lines: Array, clearOnly: boolean }}
+ */
+function planStewDayPayExpenseLines(input) {
+  input = input || {};
+  var asg = input.asg;
+  if (!asg || !asg.eventKey) return { eventKey: "", lines: [], clearOnly: true };
+  var eventKey = String(asg.eventKey);
+  if (String(asg.payStatus || "") !== "Paid") {
+    return { eventKey: eventKey, lines: [], clearOnly: true };
+  }
+  var date = String(asg.start || "").slice(0, 10) || "";
+  var isSkipped =
+    typeof input.isSkipped === "function"
+      ? input.isSkipped
+      : function () {
+          return false;
+        };
+  var dayPayAmt =
+    typeof input.dayPayAmt === "function"
+      ? input.dayPayAmt
+      : function (a, sid) {
+          return stewDayPayForStew(a, sid);
+        };
+  var stewName =
+    typeof input.stewName === "function"
+      ? input.stewName
+      : function () {
+          return "Stew";
+        };
+  var defaultEach = Number(input.defaultEach) || 0;
+  var ids = (asg.stewIds || []).filter(Boolean).filter(function (sid) {
+    return !isSkipped(asg.eventKey, sid);
+  });
+  var anyAmt = ids.some(function (sid) {
+    return dayPayAmt(asg, sid) > 0;
+  });
+  if (!anyAmt || !ids.length || !date) {
+    return { eventKey: eventKey, lines: [], clearOnly: true };
+  }
+  var prevBySid = {};
+  (Array.isArray(input.previousLines) ? input.previousLines : []).forEach(function (e) {
+    if (!e) return;
+    prevBySid[String(e.stewId || e.linkId || "")] = e;
+  });
+  var markFloat = !!asg._floatPayMark;
+  var paidFromDefault =
+    asg._floatPayFrom === "Own money"
+      ? "Own money"
+      : asg._floatPayFrom === "Petty cash"
+        ? "Petty cash"
+        : "";
+  var summary = asg.summary || "Charter";
+  var nowIso = input.nowIso || new Date().toISOString();
+  var who = input.who || "Captain";
+  var newId =
+    typeof input.newId === "function"
+      ? input.newId
+      : function () {
+          return "id-" + Date.now() + "-" + Math.round(Math.random() * 1e6);
+        };
+  var lines = [];
+  ids.forEach(function (sid) {
+    var amt = dayPayAmt(asg, sid);
+    if (!(amt > 0) && !(defaultEach > 0)) return;
+    if (!(amt > 0)) amt = defaultEach;
+    var linkId = "stew-day:" + eventKey + ":" + sid;
+    var old = prevBySid[String(sid)] || prevBySid[linkId];
+    var mapPf = asg.dayPayFromByStew && asg.dayPayFromByStew[String(sid)];
+    var paidFrom = "Petty cash";
+    if (mapPf === "Own money" || mapPf === "Petty cash") paidFrom = mapPf;
+    else if (paidFromDefault) paidFrom = paidFromDefault;
+    else if (old && old.paidFrom === "Own money") paidFrom = "Own money";
+    else if (old && old.paidFrom === "Petty cash") paidFrom = "Petty cash";
+    if (markFloat && asg._floatPayFrom === "Own money") paidFrom = "Own money";
+    else if (markFloat && asg._floatPayFrom === "Petty cash") paidFrom = "Petty cash";
+    var floatPay = false;
+    if (paidFrom !== "Own money") {
+      if (markFloat) floatPay = true;
+      else if (old && old.floatPay === true) floatPay = true;
+    }
+    lines.push({
+      id: (old && old.id) || newId(),
+      linkId: linkId,
+      source: "stew",
+      stewEventKey: eventKey,
+      stewId: String(sid),
+      stewPayKind: "dayPay",
+      crewPayStatus: "Paid",
+      floatPay: floatPay,
+      payStatusManual: !!asg.payStatusManual,
+      date: date,
+      vendor: stewName(sid),
+      description: "Stewardess / day work — " + summary,
+      category: "Crew Salaries",
+      payMethod: "Cash",
+      paidFrom: paidFrom,
+      amount: amt,
+      receipt: (old && old.receipt) || "",
+      by: who,
+      updatedAt: nowIso,
+    });
+  });
+  return { eventKey: eventKey, lines: lines, clearOnly: false };
+}
+
+/**
+ * Pure plan: tip payout expense when on-bill tips are Paid.
+ * @returns {{ linkId: string, eventKey: string, line: object|null, remove: boolean }}
+ */
+function planStewTipPayoutExpense(input) {
+  input = input || {};
+  var asg = input.asg;
+  if (!asg || !asg.eventKey) {
+    return { linkId: "", eventKey: "", line: null, remove: false };
+  }
+  var ek = String(asg.eventKey);
+  var linkId = "stew-tip:" + ek;
+  var tot = stewTipTotal(asg);
+  var paid = stewTipPaid(asg);
+  var onBill = stewTipIsOnBill(asg);
+  if (!(paid && onBill && tot > 0)) {
+    return { linkId: linkId, eventKey: ek, line: null, remove: true };
+  }
+  var tip = stewTipShare(asg);
+  var date = String(asg.start || "").slice(0, 10) || input.today || "";
+  var nowIso = input.nowIso || new Date().toISOString();
+  var who = input.who || "Captain";
+  var newId =
+    typeof input.newId === "function"
+      ? input.newId
+      : function () {
+          return "id-" + Date.now() + "-" + Math.round(Math.random() * 1e6);
+        };
+  var moneyLabel =
+    typeof input.formatMoney === "function"
+      ? input.formatMoney
+      : function (n) {
+          return "€" + Math.round(Number(n) || 0);
+        };
+  var line = {
+    id: newId(),
+    linkId: linkId,
+    source: "stew",
+    kind: "tipPayout",
+    stewEventKey: ek,
+    stewPayKind: "tipPayout",
+    date: date,
+    vendor: "Crew tips (on bill)",
+    description:
+      "Tip payout from petty · " +
+      (asg.summary || "Charter") +
+      " · guest tip " +
+      moneyLabel(tot) +
+      " (you " +
+      moneyLabel(tip.captainShare) +
+      (tip.nStews ? " · stews " + moneyLabel(tip.stewSide) : "") +
+      ")",
+    category: "Crew tip payout",
+    payMethod: "Cash",
+    paidFrom: "Petty cash",
+    amount: tot,
+    receipt: "",
+    by: who,
+    updatedAt: nowIso,
+  };
+  return { linkId: linkId, eventKey: ek, line: line, remove: true };
+}
+
 
   return {
     stewEventId: stewEventId,
@@ -321,6 +505,8 @@ function stewTipShare(asg) {
     stewTipPaid: stewTipPaid,
     stewTipShare: stewTipShare,
     stewDayPayForStew: stewDayPayForStew,
-    stewDayPayTotalAll: stewDayPayTotalAll
+    stewDayPayTotalAll: stewDayPayTotalAll,
+    planStewDayPayExpenseLines: planStewDayPayExpenseLines,
+    planStewTipPayoutExpense: planStewTipPayoutExpense
   };
 });

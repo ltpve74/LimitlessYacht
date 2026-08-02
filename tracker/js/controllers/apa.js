@@ -103,10 +103,25 @@
     });
   }
 
+  /**
+   * Decide shortfall charge action for a pot (pure). View still mutates state.
+   */
+  function planShortfallSync(input) {
+    input = input || {};
+    return M(input).planApaShortfallSync(input);
+  }
+
+  function shortfallChargeFields(input) {
+    input = input || {};
+    return M(input).planApaShortfallChargeFields(input.overage, input.tripMeta || {});
+  }
+
   return {
     dieselLine: dieselLine,
     tripTotals: tripTotals,
     overageAmount: overageAmount,
     paidCovered: paidCovered,
+    planShortfallSync: planShortfallSync,
+    shortfallChargeFields: shortfallChargeFields,
   };
 });

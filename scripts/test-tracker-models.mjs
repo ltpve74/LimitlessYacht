@@ -1103,6 +1103,78 @@ console.log("\n[Leads — money dashboard]");
   ok("type key 8h default", M.leadCharterTypeKey({ dur: "day" }) === "8h");
 }
 
+/* ---- Write plans (pure intents for view apply) ---- */
+console.log("\n[Write plans — stew expenses + APA shortfall decision]");
+{
+  const unpaid = M.planStewDayPayExpenseLines({
+    asg: { eventKey: "uid:a", payStatus: "Unpaid", start: "2026-07-01", stewIds: ["s1"] },
+  });
+  ok("unpaid day pay → clear only", unpaid.clearOnly && unpaid.lines.length === 0);
+  const paid = M.planStewDayPayExpenseLines({
+    asg: {
+      eventKey: "uid:a",
+      payStatus: "Paid",
+      start: "2026-07-01",
+      stewIds: ["s1"],
+      summary: "Charter",
+      _floatPayMark: true,
+      _floatPayFrom: "Petty cash",
+    },
+    dayPayAmt: function () {
+      return 200;
+    },
+    stewName: function () {
+      return "Toni";
+    },
+    newId: function () {
+      return "e1";
+    },
+  });
+  ok("paid day pay → 1 line", paid.lines.length === 1);
+  ok("floatPay true when mark from petty", paid.lines[0].floatPay === true);
+  ok("amount 200", near(paid.lines[0].amount, 200));
+  const tipNo = M.planStewTipPayoutExpense({
+    asg: { eventKey: "uid:a", tipTotal: 50, tipSource: "cash", tipPayStatus: "Paid" },
+  });
+  ok("cash tip paid → remove only", tipNo.line === null && tipNo.remove === true);
+  const tipYes = M.planStewTipPayoutExpense({
+    asg: {
+      eventKey: "uid:a",
+      tipTotal: 90,
+      tipSource: "card",
+      tipPayStatus: "Paid",
+      start: "2026-07-01",
+      stewIds: ["s1"],
+      summary: "Day",
+    },
+    newId: function () {
+      return "t1";
+    },
+    formatMoney: function (n) {
+      return "€" + n;
+    },
+  });
+  ok("on-bill tip paid → line amount 90", tipYes.line && near(tipYes.line.amount, 90));
+  ok("tip category Crew tip payout", tipYes.line && tipYes.line.category === "Crew tip payout");
+  ok(
+    "APA sync skip without create",
+    M.planApaShortfallSync({ overage: 100, hasReusable: false, allowCreate: false }).action === "skip"
+  );
+  ok(
+    "APA sync create when allowed",
+    M.planApaShortfallSync({ overage: 100, hasReusable: false, allowCreate: true }).action === "create"
+  );
+  ok(
+    "APA sync pin locked charge",
+    M.planApaShortfallSync({ overage: 50, hasReusable: true, force: true, chargeLocked: true }).action === "pin"
+  );
+  ok(
+    "APA sync update unlocked",
+    M.planApaShortfallSync({ overage: 50, hasReusable: true, force: true, chargeLocked: false }).action ===
+      "update"
+  );
+}
+
 /* ---- Controllers (MVC blueprint — no formulas, wire models only) ---- */
 console.log("\n[Controllers — expenses + charges + leads + apa + stews]");
 {
@@ -1111,6 +1183,8 @@ console.log("\n[Controllers — expenses + charges + leads + apa + stews]");
   ok("LY_CONTROLLERS.leads present", !!(C && C.leads && C.leads.realisedGlimpse));
   ok("LY_CONTROLLERS.apa present", !!(C && C.apa && C.apa.tripTotals));
   ok("LY_CONTROLLERS.stews present", !!(C && C.stews && C.stews.tipIsOnBill));
+  ok("write plan day pay on controller", !!(C.stews.planDayPayExpenseSync));
+  ok("write plan APA shortfall on controller", !!(C.apa.planShortfallSync));
   ok(
     "ctrl charge cash to boat",
     near(C.charges.cashToBoat({ models: M, charge: { amount: 100, billType: "cash", payStatus: "Paid", cashPaid: 100 } }), 100)

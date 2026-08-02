@@ -225,6 +225,54 @@
     return false;
   }
 
+/**
+ * Pure decision for APA shortfall charge sync (no DOM / state).
+ *
+ * @param {{
+ *   overage: number,
+ *   hasReusable: boolean,
+ *   allowCreate: boolean,
+ *   suppressShortfall: boolean,
+ *   paidManual: boolean,
+ *   force: boolean,
+ *   chargeLocked: boolean
+ * }} input
+ * @returns {{ action: string, reason?: string }}
+ *   pin | update | create | clear | skip | skip_locked
+ */
+function planApaShortfallSync(input) {
+  input = input || {};
+  var over = Number(input.overage) || 0;
+  if (input.hasReusable) {
+    if (!input.force || input.chargeLocked) return { action: "pin", reason: "locked_or_no_force" };
+    if (over <= 0) return { action: "update_zero_base", reason: "no_overage" };
+    return { action: "update", reason: "overage" };
+  }
+  if (over <= 0) return { action: "clear", reason: "no_overage" };
+  if (input.suppressShortfall) return { action: "clear", reason: "suppress" };
+  if (input.paidManual) return { action: "pin_paid_manual", reason: "cash_settled" };
+  if (!input.allowCreate) return { action: "skip", reason: "no_create" };
+  return { action: "create", reason: "overage_allowed" };
+}
+
+/**
+ * Build charge money fields for APA shortfall amount (apa base toward pot).
+ * Does not invent bill type beyond invoice default for shortfall.
+ */
+function planApaShortfallChargeFields(over, tripMeta) {
+  tripMeta = tripMeta || {};
+  var amt = Math.max(0, Math.round((Number(over) || 0) * 100) / 100);
+  return {
+    amount: amt,
+    apaBaseAmt: amt,
+    extAmt: 0,
+    billType: "invoice",
+    kind: "apa",
+    apaTripId: tripMeta.tripId || "",
+    apaZeroPot: !!tripMeta.zeroPot,
+  };
+}
+
   return {
     APA_EXP_CATS: APA_EXP_CATS,
     summarizeApaTripTotals: summarizeApaTripTotals,
@@ -234,5 +282,7 @@
     apaDieselLineCalc: apaDieselLineCalc,
     summarizeApaPaidCovered: summarizeApaPaidCovered,
     isApaCashSettlementCharge: isApaCashSettlementCharge,
+    planApaShortfallSync: planApaShortfallSync,
+    planApaShortfallChargeFields: planApaShortfallChargeFields,
   };
 });
