@@ -338,7 +338,7 @@
   }
   .ld-book-sec .item{margin-bottom:10px}
   .ld-book-sec .item:last-child{margin-bottom:0}
-  /* Live ledger: mobile = Confirmed|Hold|Lost tabs; desktop = confirmed first, then hold|lost */
+  /* Live ledger: mobile = Confirmed|Hold|Lost tabs; desktop = hold|lost first (needs attention), then confirmed */
   #ldList.list{
     display:block;
     grid-template-columns:none;
@@ -3871,10 +3871,10 @@ function renderLeads(){
       var pane=view==="hold"?secHold:(view==="lost"?secLost:secConf);
       html='<div class="ld-book-mobile-pane">'+pane+'</div>';
     } else {
-      /* Desktop: confirmed first, then hold | lost pipeline */
+      /* Desktop: on-hold / tentatives (+ lost) at top — needs attention first; confirmed book below */
       html=
-        secConf+
-        '<div class="ld-book-pipeline">'+secHold+secLost+'</div>';
+        '<div class="ld-book-pipeline">'+secHold+secLost+'</div>'+
+        secConf;
     }
   }
   wrap.innerHTML=html;
