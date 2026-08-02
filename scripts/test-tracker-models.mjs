@@ -1173,6 +1173,21 @@ console.log("\n[Write plans — stew expenses + APA shortfall decision]");
     M.planApaShortfallSync({ overage: 50, hasReusable: true, force: true, chargeLocked: false }).action ===
       "update"
   );
+  /* Zero-pot diesel spend: first charge must be creatable when allowCreate (saveApa first-shortfall) */
+  ok(
+    "zero-pot overspend create when allowCreate",
+    M.planApaShortfallSync({
+      overage: 180,
+      hasReusable: false,
+      allowCreate: true,
+      suppressShortfall: false,
+      paidManual: false,
+    }).action === "create"
+  );
+  ok(
+    "zero-pot still skip without allowCreate (no Danny×2 from jobs)",
+    M.planApaShortfallSync({ overage: 180, hasReusable: false, allowCreate: false }).action === "skip"
+  );
 }
 
 /* ---- Controllers (MVC blueprint — no formulas, wire models only) ---- */

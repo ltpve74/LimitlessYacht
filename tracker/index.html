@@ -925,20 +925,20 @@
 
 <!-- Domain models + controllers (MVC blueprint) — tests: node scripts/test-tracker-models.mjs -->
 <!-- LY_MODELS → LY_CONTROLLERS → view. See .agent/briefs/tracker-v1-mvc-blueprint.md -->
-<script src="/tracker/js/models/util.js?v=20260806-mvc4"></script>
-<script src="/tracker/js/models/leads.js?v=20260806-mvc4"></script>
-<script src="/tracker/js/models/charges.js?v=20260806-mvc4"></script>
-<script src="/tracker/js/models/expenses.js?v=20260806-mvc4"></script>
-<script src="/tracker/js/models/diesel.js?v=20260806-mvc4"></script>
-<script src="/tracker/js/models/stews.js?v=20260806-mvc4"></script>
-<script src="/tracker/js/models/apa.js?v=20260806-mvc4"></script>
-<script src="/tracker/js/models/index.js?v=20260806-mvc4"></script>
-<script src="/tracker/js/controllers/expenses.js?v=20260806-mvc4"></script>
-<script src="/tracker/js/controllers/charges.js?v=20260806-mvc4"></script>
-<script src="/tracker/js/controllers/leads.js?v=20260806-mvc4"></script>
-<script src="/tracker/js/controllers/apa.js?v=20260806-mvc4"></script>
-<script src="/tracker/js/controllers/stews.js?v=20260806-mvc4"></script>
-<script src="/tracker/js/controllers/index.js?v=20260806-mvc4"></script>
+<script src="/tracker/js/models/util.js?v=20260806-mvc5"></script>
+<script src="/tracker/js/models/leads.js?v=20260806-mvc5"></script>
+<script src="/tracker/js/models/charges.js?v=20260806-mvc5"></script>
+<script src="/tracker/js/models/expenses.js?v=20260806-mvc5"></script>
+<script src="/tracker/js/models/diesel.js?v=20260806-mvc5"></script>
+<script src="/tracker/js/models/stews.js?v=20260806-mvc5"></script>
+<script src="/tracker/js/models/apa.js?v=20260806-mvc5"></script>
+<script src="/tracker/js/models/index.js?v=20260806-mvc5"></script>
+<script src="/tracker/js/controllers/expenses.js?v=20260806-mvc5"></script>
+<script src="/tracker/js/controllers/charges.js?v=20260806-mvc5"></script>
+<script src="/tracker/js/controllers/leads.js?v=20260806-mvc5"></script>
+<script src="/tracker/js/controllers/apa.js?v=20260806-mvc5"></script>
+<script src="/tracker/js/controllers/stews.js?v=20260806-mvc5"></script>
+<script src="/tracker/js/controllers/index.js?v=20260806-mvc5"></script>
 <script>
 "use strict";
 var API = "/.netlify/functions/tracker";
@@ -7143,9 +7143,18 @@ function saveApa(trip, opts){
     collapseChargesForApaTrip(t);
     /* One unpaid shortfall per guest pot — drop orphan Danny×2 style rows */
     collapseOrphanApaChargesForGuest(t);
+    /*
+     * First shortfall charge: create on save when pot is overspent and no charge
+     * exists yet (matches overview “charge on save” + zero-APA diesel/spend).
+     * Never create a second row — allowCreate only when findReusable is empty.
+     * Explicit Sync still passes allowCreate:true (recreate after suppress).
+     */
+    var overNow=apaOverageAmount(t);
+    var hasReusable=!!findReusableApaCharge(t);
+    var firstShortfall=!hasReusable&&overNow>0.009&&!t.suppressShortfallCharge;
     syncApaToCharge(t, {
       force:opts.force!==false,
-      allowCreate:!!opts.allowCreate
+      allowCreate:!!opts.allowCreate||firstShortfall
     });
     lead=apaLinkedLead(t);
     if(lead&&snap&&(lead.apas!==snap.apas||Math.abs((Number(lead.apa)||0)-snap.apa)>0.005)) leadDirty=true;

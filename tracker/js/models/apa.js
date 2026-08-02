@@ -251,6 +251,10 @@ function planApaShortfallSync(input) {
   if (over <= 0) return { action: "clear", reason: "no_overage" };
   if (input.suppressShortfall) return { action: "clear", reason: "suppress" };
   if (input.paidManual) return { action: "pin_paid_manual", reason: "cash_settled" };
+  /*
+   * Create first shortfall when allowCreate (Sync, new pot, or saveApa first-overspend).
+   * Without allowCreate we skip — never Danny×2 from background jobs.
+   */
   if (!input.allowCreate) return { action: "skip", reason: "no_create" };
   return { action: "create", reason: "overage_allowed" };
 }
