@@ -1676,15 +1676,24 @@ console.log("\n[Stews — tip on bill + day pay]");
     "day pay by stew map",
     near(M.stewDayPayForStew({ dayPayByStew: { s1: 180 }, payEach: 200 }, "s1"), 180)
   );
-  const share = M.stewTipShare({ tipTotal: 90, stewIds: ["s1"] });
-  ok("tip share 1 stew → each 45", near(share.each, 45));
-  ok("tip share captain 45", near(share.captainShare, 45));
-  ok("tip share stew side 45", near(share.stewSide, 45));
-  const share2 = M.stewTipShare({ tipTotal: 90, stewIds: ["s1", "s2"] });
-  ok("tip share 2 stews → 3-way", near(share2.each, 30));
-  /* Per-person tip pay: captain and Laura separately */
+  /* Cash tip: full amount to crew (no VAT) */
+  const share = M.stewTipShare({ tipTotal: 90, stewIds: ["s1"], tipSource: "cash" });
+  ok("cash tip share 1 stew → each 45", near(share.each, 45));
+  ok("cash tip captain 45", near(share.captainShare, 45));
+  ok("cash tip stew side 45", near(share.stewSide, 45));
+  ok("cash tip no VAT", near(share.vat || 0, 0));
+  const share2 = M.stewTipShare({ tipTotal: 90, stewIds: ["s1", "s2"], tipSource: "cash" });
+  ok("cash tip 2 stews → 3-way", near(share2.each, 30));
+  /* On card: guest €121 VAT-inc → pool €100 after 21% → split 50/50 */
+  const cardTip = M.stewTipShare({ tipTotal: 121, stewIds: ["laura"], tipSource: "card" });
+  ok("card tip gross 121", near(cardTip.gross, 121));
+  ok("card tip pool after VAT 100", near(cardTip.pool, 100));
+  ok("card tip VAT 21", near(cardTip.vat, 21));
+  ok("card tip each 50", near(cardTip.each, 50));
+  ok("card tip captain 50", near(cardTip.captainShare, 50));
+  /* Per-person tip pay: captain and Laura separately (card, after VAT) */
   const partial = {
-    tipTotal: 100,
+    tipTotal: 121,
     stewIds: ["laura"],
     tipPayStatus: "Partial",
     tipPaidBy: { captain: true },
@@ -1694,8 +1703,8 @@ console.log("\n[Stews — tip on bill + day pay]");
   ok("Laura not paid", M.stewTipStewPaid(partial, "laura") === false);
   ok("not all tip paid", M.stewTipPaid(partial) === false);
   const partialShare = M.stewTipShare(partial);
-  ok("partial open is Laura 50", near(partialShare.openTotal, 50));
-  ok("partial paid is captain 50", near(partialShare.paidTotal, 50));
+  ok("partial open is Laura 50 (after VAT)", near(partialShare.openTotal, 50));
+  ok("partial paid is captain 50 (after VAT)", near(partialShare.paidTotal, 50));
   const payPlan = M.planTipPaidByFields({
     captain: true,
     byStew: { laura: true },
@@ -1715,9 +1724,9 @@ console.log("\n[Stews — tip on bill + day pay]");
     },
   });
   ok("on-bill partial → 1 expense line (captain)", expLines.lines && expLines.lines.length === 1);
-  ok("expense is captain share 50", expLines.lines[0] && near(expLines.lines[0].amount, 50));
+  ok("expense is captain share 50 after VAT", expLines.lines[0] && near(expLines.lines[0].amount, 50));
   const bothPaid = {
-    tipTotal: 100,
+    tipTotal: 121,
     stewIds: ["laura"],
     tipPayStatus: "Paid",
     tipPaidBy: { captain: true, laura: true },
@@ -1733,6 +1742,10 @@ console.log("\n[Stews — tip on bill + day pay]");
     },
   });
   ok("both paid → 2 expense lines", expBoth.lines && expBoth.lines.length === 2);
+  const expBothSum = (expBoth.lines || []).reduce(function (s, ln) {
+    return s + (ln && ln.amount ? ln.amount : 0);
+  }, 0);
+  ok("both paid sum after VAT 100 not 121", near(expBothSum, 100));
   /* Open tips → who is owed (Captain + Laura) */
   const openTips = M.collectOpenTipPayouts(
     [
@@ -2228,7 +2241,7 @@ console.log("\n[Write plans — stew expenses + APA shortfall decision]");
   const tipYes = M.planStewTipPayoutExpense({
     asg: {
       eventKey: "uid:a",
-      tipTotal: 90,
+      tipTotal: 121,
       tipSource: "card",
       tipPayStatus: "Paid",
       start: "2026-07-01",
@@ -2249,7 +2262,7 @@ console.log("\n[Write plans — stew expenses + APA shortfall decision]");
     return s + (ln && ln.amount ? ln.amount : 0);
   }, 0);
   ok("on-bill tip paid → 2 person lines", tipYes.lines && tipYes.lines.length === 2);
-  ok("on-bill tip paid → line amount 90", near(tipYesSum, 90));
+  ok("on-bill tip paid → after VAT pool 100", near(tipYesSum, 100));
   ok("tip category Crew tip payout", tipYes.lines[0] && tipYes.lines[0].category === "Crew tip payout");
   ok(
     "APA sync skip without create",
