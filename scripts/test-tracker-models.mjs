@@ -911,6 +911,14 @@ console.log("\n[Charges — cashToBoat / VAT]");
     "unpaid cash → 0",
     M.chargeCashToBoat({ amount: 100, billType: "cash", payStatus: "Unpaid" }) === 0
   );
+  ok(
+    "Pending cash charge is NOT cash-to-boat (explicit Paid only)",
+    M.chargeCashToBoat({ amount: 5000, billType: "cash", payStatus: "Pending", cashPaid: 5000 }) === 0
+  );
+  ok(
+    "status Pending without payStatus is NOT cash-to-boat",
+    M.chargeCashToBoat({ amount: 5000, billType: "cash", status: "Pending" }) === 0
+  );
   const vat = M.chargeVatParts({ amount: 121, billType: "invoice", vatPct: 21, payMethod: "Card" });
   ok("invoice VAT net ≈ 100", near(vat.net, 100, 0.05));
   ok("invoice VAT ≈ 21", near(vat.vat, 21, 0.05));
@@ -1262,6 +1270,154 @@ console.log("\n[Cash — boat ledger composition]");
   ok("dashboard charges cash in ledger", near(dash.cashLedger.chargesCashBoat, 100));
   ok("dashboard expense out in ledger", near(dash.cashLedger.expensePettyOut, 40));
   ok("dashboard petty in in ledger", near(dash.cashLedger.pettyCashIn, 25));
+  /* Auto-synced lead/charge cash-ins must not double-count with free cash + charges */
+  ok("auto-synced lead cash-in detected", M.isAutoSyncedEnvelopeCashIn({ fromLeadId: "L1", amount: 1800 }));
+  ok("auto-synced charge cash-in detected", M.isAutoSyncedEnvelopeCashIn({ fromChargeId: "c1", kind: "end-charter" }));
+  ok("manual top-up not auto-synced", !M.isAutoSyncedEnvelopeCashIn({ id: "x", amount: 50, note: "ATM" }));
+  const noDouble = C.leads.moneyDashboard({
+    models: M,
+    leads: [
+      {
+        id: "L-boat",
+        name: "Boat free",
+        start: "2026-08-01",
+        source: "captain",
+        captainLead: true,
+        dealClosed: true,
+        split: true,
+        invoiceTotal: 2000,
+        cashAmt: 1800,
+        cashSettled: true,
+        cashDest: "boat",
+        fins: "Paid",
+      },
+      {
+        id: "L-own",
+        name: "Owner free",
+        start: "2026-08-02",
+        source: "ownersourced",
+        dealClosed: true,
+        split: true,
+        invoiceTotal: 1000,
+        cashAmt: 500,
+        cashSettled: true,
+        cashDest: "owner",
+        fins: "Paid",
+      },
+    ],
+    charters: [
+      { id: "c1", payStatus: "Paid", billType: "cash", amount: 650, cashPaid: 650, client: "Danny", date: "2026-08-01" },
+      { id: "c-pend", payStatus: "Pending", billType: "cash", amount: 400, cashPaid: 400, client: "Future", date: "2026-08-10" },
+    ],
+    expenses: [
+      {
+        id: "toni-today",
+        date: "2026-08-07",
+        amount: 200,
+        category: "Crew Salaries",
+        vendor: "Toni",
+        crewPayStatus: "Unpaid",
+        source: "stew",
+        stewId: "toni",
+        stewEventKey: "evt1",
+        paidFrom: "Petty cash",
+      },
+      {
+        id: "shop",
+        date: "2026-08-03",
+        amount: 40,
+        category: "Provisions",
+        paidFrom: "Petty cash",
+        payMethod: "Cash",
+        vendor: "Shop",
+      },
+    ],
+    expPetty: [
+      {
+        month: "2026-08",
+        cashIns: [
+          { id: "lead-cash:L-boat", fromLeadId: "L-boat", kind: "charter-fee", amount: 1800, date: "2026-08-01" },
+          { id: "charge-cash:c1", fromChargeId: "c1", kind: "end-charter", amount: 650, date: "2026-08-01" },
+          { id: "manual", amount: 25, date: "2026-08-01", note: "Float top-up" },
+        ],
+      },
+    ],
+    today: "2026-08-10",
+    cashInIsTip: function () {
+      return false;
+    },
+  });
+  ok("no double-count: free boat 1800", near(noDouble.cashLedger.freeCashBoat, 1800));
+  ok("owner pocket free cash not in boat free", near(noDouble.cashLedger.freeCashOwner, 500));
+  ok("owner free cash not in boatIn", near(noDouble.cashLedger.boatIn, 1800 + 650 + 25));
+  ok("charges only explicit Paid (no Pending 400)", near(noDouble.cashLedger.chargesCashBoat, 650));
+  ok("petty in = manual only (not lead/charge mirror)", near(noDouble.cashLedger.pettyCashIn, 25));
+  ok("boat out excludes unpaid Toni", near(noDouble.cashLedger.expensePettyOut, 40));
+  ok(
+    "boat net no double / no owner / no Toni",
+    near(noDouble.cashLedger.boatNet, 1800 + 650 + 25 - 40)
+  );
+  /* Unpaid Toni day-pay must not hit petty outs */
+  const unpaidCrew = M.summarizePettyCash({
+    pettyStart: 0,
+    cashIns: [],
+    expenses: [
+      {
+        id: "toni-today",
+        date: "2026-08-07",
+        amount: 200,
+        category: "Crew Salaries",
+        vendor: "Toni",
+        crewPayStatus: "Unpaid",
+        source: "stew",
+        stewId: "toni",
+        stewEventKey: "evt1",
+        paidFrom: "Petty cash",
+      },
+    ],
+  });
+  ok("unpaid crew day-pay cashOut 0", unpaidCrew.cashOut === 0);
+  ok("unpaid crew not in cashOutLines", (unpaidCrew.cashOutLines || []).length === 0);
+  const paidCrewNoFloat = M.summarizePettyCash({
+    pettyStart: 0,
+    cashIns: [],
+    expenses: [
+      {
+        id: "toni-paid",
+        date: "2026-08-01",
+        amount: 200,
+        category: "Crew Salaries",
+        vendor: "Toni",
+        crewPayStatus: "Paid",
+        floatPay: false,
+        source: "stew",
+        stewId: "toni",
+        stewEventKey: "evt0",
+        paidFrom: "Petty cash",
+      },
+    ],
+  });
+  ok("Paid crew without floatPay cashOut 0", paidCrewNoFloat.cashOut === 0);
+  const paidCrewFloat = M.summarizePettyCash({
+    pettyStart: 0,
+    cashIns: [],
+    expenses: [
+      {
+        id: "toni-float",
+        date: "2026-08-01",
+        amount: 200,
+        category: "Crew Salaries",
+        vendor: "Toni",
+        crewPayStatus: "Paid",
+        floatPay: true,
+        source: "stew",
+        stewId: "toni",
+        stewEventKey: "evt2",
+        paidFrom: "Petty cash",
+      },
+    ],
+  });
+  ok("Paid + floatPay crew hits petty", near(paidCrewFloat.cashOut, 200));
 }
 
 /* ---- Leads realised glimpse ---- */

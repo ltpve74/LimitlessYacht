@@ -179,6 +179,8 @@ function isCrewDayPayExpense(e) {
   if (e.stewPayKind === "dayPay") return true;
   if (e.source === "stew" && (e.stewEventKey || e.stewId)) return true;
   if (e.linkId != null && String(e.linkId).indexOf("stew-day:") === 0) return true;
+  /* Category Crew Salaries = crew day-pay (Stews lines often only set category) */
+  if (/^crew salaries$/i.test(String(e.category || ""))) return true;
   return false;
 }
 
@@ -415,8 +417,28 @@ function clearCrewFloatPayOnEmptyEnvelope(expenses, pettyStart, cashIns) {
  * @param {{ pettyStart?: number, cashIns?: Array, expenses?: Array }} opts
  */
 /**
+ * Cash-in already counted on the boat ledger as free cash → boat or charges paid cash.
+ * These rows are mirrored into expPetty for the Expenses envelope only — summing them
+ * again with freeCashBoat + chargesCashBoat double-counts (e.g. “cash in €9300”).
+ *
+ * True for: fromLeadId / lead-cash:*, fromChargeId / charge-cash:*,
+ * kind charter-fee | end-charter.
+ * Manual top-ups (ATM, bank, captain float) return false.
+ */
+function isAutoSyncedEnvelopeCashIn(r) {
+  if (!r) return false;
+  if (r.fromLeadId != null && String(r.fromLeadId) !== "") return true;
+  if (r.fromChargeId != null && String(r.fromChargeId) !== "") return true;
+  var kind = String(r.kind || "").toLowerCase();
+  if (kind === "charter-fee" || kind === "end-charter") return true;
+  var id = String(r.id || "");
+  if (id.indexOf("lead-cash:") === 0 || id.indexOf("charge-cash:") === 0) return true;
+  return false;
+}
+
+/**
  * Flatten + sum petty cash-in rows (envelope top-ups).
- * Controller supplies skip() for tips / own-money if needed.
+ * Controller supplies skip() for tips / auto-synced lead-charge rows if needed.
  *
  * @param {Array} cashIns
  * @param {{ skip?: function }} [opts]
@@ -464,15 +486,20 @@ function collectPettyCashInsFromMonths(expPetty) {
   (Array.isArray(expPetty) ? expPetty : []).forEach(function (p) {
     if (!p) return;
     var mon = String(p.month || "").slice(0, 7);
-    (Array.isArray(p.cashIns) ? p.cashIns : []).forEach(function (r) {
-      if (!r) return;
-      var row = Object.assign({}, r);
-      if (!row.month && mon) row.month = mon;
-      if (!row.date && mon) row.date = mon + "-01";
-      out.push(row);
-    });
-    /* Legacy single pettyIn on month row */
-    if ((!p.cashIns || !p.cashIns.length) && num(p.pettyIn) > 0.009) {
+    var lines = Array.isArray(p.cashIns) ? p.cashIns.filter(Boolean) : [];
+    if (lines.length) {
+      /* Prefer explicit cashIns — do not also add pettyIn (would double-count) */
+      lines.forEach(function (r) {
+        if (!r) return;
+        var row = Object.assign({}, r);
+        if (!row.month && mon) row.month = mon;
+        if (!row.date && mon) row.date = mon + "-01";
+        out.push(row);
+      });
+      return;
+    }
+    /* Legacy single pettyIn only when there are no cashIns lines */
+    if (num(p.pettyIn) > 0.009) {
       out.push({
         id: "pettyIn:" + mon,
         amount: num(p.pettyIn),
@@ -1394,6 +1421,7 @@ function summarizeMonthSettlement(opts) {
     collapseCrewDayPayExpenses: collapseCrewDayPayExpenses,
     clearCrewFloatPayOnEmptyEnvelope: clearCrewFloatPayOnEmptyEnvelope,
     summarizePettyCash: summarizePettyCash,
+    isAutoSyncedEnvelopeCashIn: isAutoSyncedEnvelopeCashIn,
     summarizePettyCashInRows: summarizePettyCashInRows,
     collectPettyCashInsFromMonths: collectPettyCashInsFromMonths,
     isCaptainCommissionExpense: isCaptainCommissionExpense,

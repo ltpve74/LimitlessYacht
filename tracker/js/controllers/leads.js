@@ -74,13 +74,29 @@
         : function () {
             return false;
           };
+    var isAutoSynced =
+      typeof models.isAutoSyncedEnvelopeCashIn === "function"
+        ? models.isAutoSyncedEnvelopeCashIn
+        : function (r) {
+            if (!r) return false;
+            if (r.fromLeadId != null && String(r.fromLeadId) !== "") return true;
+            if (r.fromChargeId != null && String(r.fromChargeId) !== "") return true;
+            var k = String(r.kind || "").toLowerCase();
+            return k === "charter-fee" || k === "end-charter";
+          };
     var flatIns = models.collectPettyCashInsFromMonths
       ? models.collectPettyCashInsFromMonths(input.expPetty || [])
       : [];
+    /*
+     * Petty cash-ins on the boat ledger = manual float top-ups only.
+     * Lead free cash and charge cash are already freeCashBoat / chargesCashBoat
+     * (and mirrored into expPetty for Expenses — do not count twice).
+     * Tips and owner-pocket free cash never belong here.
+     */
     var pettyIn = models.summarizePettyCashInRows
       ? models.summarizePettyCashInRows(flatIns, {
           skip: function (r) {
-            return cashInIsTip(r);
+            return cashInIsTip(r) || isAutoSynced(r);
           },
         })
       : { total: 0, n: 0, items: [] };
