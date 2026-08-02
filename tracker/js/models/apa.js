@@ -202,6 +202,7 @@
 
   /**
    * Paid cash APA shortfall settles the pot (no residual ledger pennies as “owed”).
+   * Default path requires explicit Paid — never treat Pending as paid.
    */
   function isApaCashSettlementCharge(c, opts) {
     opts = opts || {};
@@ -209,7 +210,7 @@
     var isPaid =
       typeof opts.chargeIsPaid === "function"
         ? opts.chargeIsPaid(c)
-        : c.payStatus === "Paid" || c.status === "Paid" || c.status === "Pending";
+        : c.payStatus === "Paid" || c.status === "Paid";
     if (!isPaid) return false;
     var isApa =
       c.kind === "apa" ||
@@ -227,57 +228,342 @@
     return false;
   }
 
-/**
- * Pure decision for APA shortfall charge sync (no DOM / state).
- *
- * @param {{
- *   overage: number,
- *   hasReusable: boolean,
- *   allowCreate: boolean,
- *   suppressShortfall: boolean,
- *   paidManual: boolean,
- *   force: boolean,
- *   chargeLocked: boolean
- * }} input
- * @returns {{ action: string, reason?: string }}
- *   pin | update | create | clear | skip | skip_locked
- */
-function planApaShortfallSync(input) {
-  input = input || {};
-  var over = Number(input.overage) || 0;
-  if (input.hasReusable) {
-    if (!input.force || input.chargeLocked) return { action: "pin", reason: "locked_or_no_force" };
-    if (over <= 0) return { action: "update_zero_base", reason: "no_overage" };
-    return { action: "update", reason: "overage" };
+  function chargeCashAmt(c) {
+    var a = num(c && c.cashPaid);
+    if (a > 0) return a;
+    return num(c && c.amount);
   }
-  if (over <= 0) return { action: "clear", reason: "no_overage" };
-  if (input.suppressShortfall) return { action: "clear", reason: "suppress" };
-  if (input.paidManual) return { action: "pin_paid_manual", reason: "cash_settled" };
-  /*
-   * Create first shortfall when allowCreate (Sync, new pot, or saveApa first-overspend).
-   * Without allowCreate we skip — never Danny×2 from background jobs.
-   */
-  if (!input.allowCreate) return { action: "skip", reason: "no_create" };
-  return { action: "create", reason: "overage_allowed" };
-}
 
-/**
- * Build charge money fields for APA shortfall amount (apa base toward pot).
- * Does not invent bill type beyond invoice default for shortfall.
- */
-function planApaShortfallChargeFields(over, tripMeta) {
-  tripMeta = tripMeta || {};
-  var amt = Math.max(0, Math.round((Number(over) || 0) * 100) / 100);
-  return {
-    amount: amt,
-    apaBaseAmt: amt,
-    extAmt: 0,
-    billType: "invoice",
-    kind: "apa",
-    apaTripId: tripMeta.tripId || "",
-    apaZeroPot: !!tripMeta.zeroPot,
-  };
-}
+  /**
+   * Pure charge pick for an APA pot (display or reusable pin).
+   * Priority: paid cash settlement → unpaid shortfall → other paid → orphan unpaid
+   * (orphans only when pot is not empty shell).
+   *
+   * Charges must be pre-flagged by the controller/view adapter:
+   *   { id, apaTripId, clientKey, isPaid, isCashSettlement, isApa, amount, cashPaid,
+   *     moneyManual, hasInv, locked }
+   *
+   * @returns {{ chargeId: string|null, reason: string }}
+   */
+  function pickApaCharge(input) {
+    input = input || {};
+    var tripId = String(input.tripId || "");
+    var pinId = input.chargeId != null ? String(input.chargeId) : "";
+    var guestKey = String(input.guestKey || "");
+    var live = input.liveTripIds || {};
+    var potEmpty = !!input.potEmpty;
+    var purpose = input.purpose === "display" ? "display" : "reusable";
+    var rows = Array.isArray(input.charges) ? input.charges.filter(Boolean) : [];
+
+    function score(c) {
+      var s = 0;
+      if (c.isCashSettlement) s += 50000;
+      if (c.isPaid) s += 10000;
+      if (c.locked || c.moneyManual) s += 3000;
+      if (c.hasInv) s += 20;
+      s += chargeCashAmt(c) * 10;
+      if (pinId && String(c.id) === pinId) s += 500;
+      if (tripId && String(c.apaTripId || "") === tripId) s += 100;
+      return s;
+    }
+
+    function byId(id) {
+      if (!id) return null;
+      for (var i = 0; i < rows.length; i++) {
+        if (rows[i] && String(rows[i].id) === String(id)) return rows[i];
+      }
+      return null;
+    }
+
+    /* 1) Cash settlement for this pot (linked / pin / guest not owned by other live pot) */
+    var cash = rows
+      .filter(function (c) {
+        if (!c || !c.isCashSettlement || !c.isApa) return false;
+        if (pinId && String(c.id) === pinId) return true;
+        if (tripId && String(c.apaTripId || "") === tripId) return true;
+        if (!guestKey || String(c.clientKey || "") !== guestKey) return false;
+        var tid = String(c.apaTripId || "");
+        if (tid && tid !== tripId && live[tid]) return false;
+        return true;
+      })
+      .sort(function (a, b) {
+        return score(b) - score(a);
+      });
+    if (cash.length) return { chargeId: String(cash[0].id), reason: "cash_settlement" };
+
+    /* 2) Linked unpaid shortfall */
+    var unpaid = rows
+      .filter(function (c) {
+        if (!c || !c.isApa || c.isPaid) return false;
+        if (pinId && String(c.id) === pinId) return true;
+        return tripId && String(c.apaTripId || "") === tripId;
+      })
+      .sort(function (a, b) {
+        return score(b) - score(a);
+      });
+    if (unpaid.length) return { chargeId: String(unpaid[0].id), reason: "linked_unpaid" };
+
+    /* 3) Explicit pin (any status) */
+    var pinned = byId(pinId);
+    if (pinned && pinned.isApa) return { chargeId: String(pinned.id), reason: "charge_pin" };
+
+    /* 4) Any linked paid / unpaid by trip id */
+    var linked = rows
+      .filter(function (c) {
+        return c && c.isApa && tripId && String(c.apaTripId || "") === tripId;
+      })
+      .sort(function (a, b) {
+        return score(b) - score(a);
+      });
+    if (linked.length) return { chargeId: String(linked[0].id), reason: "linked_trip" };
+
+    /* 5) Display may stop here; reusable may adopt one unpaid orphan */
+    if (purpose === "display") return { chargeId: null, reason: "none" };
+    if (potEmpty) return { chargeId: null, reason: "empty_shell_no_orphan" };
+
+    var orphans = rows
+      .filter(function (c) {
+        if (!c || !c.isApa || c.isPaid) return false;
+        if (guestKey && String(c.clientKey || "") !== guestKey) return false;
+        var tid = String(c.apaTripId || "");
+        if (!tid) return true;
+        if (tid === tripId) return true;
+        if (!live[tid]) return true;
+        return false;
+      })
+      .sort(function (a, b) {
+        return score(b) - score(a);
+      });
+    if (orphans.length) return { chargeId: String(orphans[0].id), reason: "orphan_unpaid" };
+    return { chargeId: null, reason: "none" };
+  }
+
+  /**
+   * Write plan: collapse guest APA charges when saving pot t.
+   * If a paid cash settlement exists → pin it, drop unpaid ghosts for that guest.
+   * Else collapse unpaid orphans to one winner.
+   *
+   * @returns {{
+   *   tripPatch: object,
+   *   chargePatches: Array<{id:string, apaTripId?:string, kind?:string}>,
+   *   dropChargeIds: string[]
+   * }}
+   */
+  function planApaGuestChargeCollapse(input) {
+    input = input || {};
+    var tripId = String(input.tripId || "");
+    var guestKey = String(input.guestKey || "");
+    var liveOther = input.otherLiveTripIds || {};
+    var rows = Array.isArray(input.charges) ? input.charges.filter(Boolean) : [];
+    var plan = { tripPatch: {}, chargePatches: [], dropChargeIds: [] };
+    if (!tripId || !guestKey) return plan;
+
+    var cashPick = pickApaCharge({
+      tripId: tripId,
+      chargeId: input.chargeId,
+      guestKey: guestKey,
+      liveTripIds: Object.assign({}, liveOther, (function () {
+        var o = {};
+        o[tripId] = 1;
+        return o;
+      })()),
+      potEmpty: false,
+      purpose: "display",
+      charges: rows,
+    });
+    var cash =
+      cashPick.chargeId &&
+      rows.filter(function (c) {
+        return c && String(c.id) === String(cashPick.chargeId) && c.isCashSettlement;
+      })[0];
+
+    if (cash) {
+      plan.tripPatch = {
+        chargeId: String(cash.id),
+        apaCashSettled: true,
+        apaCashSettledAmt: round2(chargeCashAmt(cash)),
+        suppressShortfallCharge: true,
+      };
+      plan.chargePatches.push({ id: String(cash.id), apaTripId: tripId, kind: "apa" });
+      rows.forEach(function (c) {
+        if (!c || !c.isApa) return;
+        if (String(c.id) === String(cash.id)) return;
+        if (String(c.clientKey || "") !== guestKey) return;
+        if (c.isPaid) return;
+        var tid = String(c.apaTripId || "");
+        if (tid && liveOther[tid]) return;
+        plan.dropChargeIds.push(String(c.id));
+      });
+      return plan;
+    }
+
+    var unpaid = rows
+      .filter(function (c) {
+        if (!c || !c.isApa || c.isPaid) return false;
+        if (String(c.clientKey || "") !== guestKey) return false;
+        var tid = String(c.apaTripId || "");
+        if (tid === tripId) return true;
+        if (!tid) return true;
+        if (liveOther[tid]) return false;
+        return true;
+      })
+      .sort(function (a, b) {
+        var sa =
+          (a.moneyManual ? 3000 : 0) +
+          num(a.amount) * 10 +
+          (String(a.apaTripId) === tripId ? 100 : 0) +
+          (a.hasInv ? 20 : 0);
+        var sb =
+          (b.moneyManual ? 3000 : 0) +
+          num(b.amount) * 10 +
+          (String(b.apaTripId) === tripId ? 100 : 0) +
+          (b.hasInv ? 20 : 0);
+        return sb - sa;
+      });
+    if (!unpaid.length) return plan;
+    var win = unpaid[0];
+    plan.tripPatch = { chargeId: String(win.id) };
+    plan.chargePatches.push({ id: String(win.id), apaTripId: tripId, kind: "apa" });
+    unpaid.slice(1).forEach(function (c) {
+      plan.dropChargeIds.push(String(c.id));
+    });
+    return plan;
+  }
+
+  /**
+   * Write plan: delete APA pot (hard).
+   * Drops pot-owned monthly mirrors; unlinks user-tagged monthly; drops linked
+   * shortfall charges + unpaid guest orphans not owned by another live pot.
+   *
+   * @returns {{
+   *   tombstoneTripId: string,
+   *   dropChargeIds: string[],
+   *   dropExpenseIds: string[],
+   *   unlinkExpenseIds: string[],
+   *   tripSuppressShortfall: boolean
+   * }}
+   */
+  function planApaTripDelete(input) {
+    input = input || {};
+    var tripId = String(input.tripId || "");
+    var guestKey = String(input.guestKey || "");
+    var liveOther = input.otherLiveTripIds || {};
+    var lineIds = input.lineIds || {};
+    var lineExpenseIds = input.lineExpenseIds || {};
+    var charges = Array.isArray(input.charges) ? input.charges : [];
+    var expenses = Array.isArray(input.expenses) ? input.expenses : [];
+    var onlyUnpaidCharges = !!input.onlyUnpaidCharges;
+    var plan = {
+      tombstoneTripId: tripId,
+      dropChargeIds: [],
+      dropExpenseIds: [],
+      unlinkExpenseIds: [],
+      tripSuppressShortfall: true,
+    };
+    if (!tripId) return plan;
+
+    charges.forEach(function (c) {
+      if (!c || !c.id || !c.isApa) return;
+      var cid = String(c.id);
+      var linked =
+        String(c.apaTripId || "") === tripId ||
+        (input.chargeId && String(c.id) === String(input.chargeId));
+      if (linked) {
+        if (onlyUnpaidCharges && c.isPaid) return;
+        plan.dropChargeIds.push(cid);
+        return;
+      }
+      /* Unpaid orphan for same guest (not owned by another live pot) */
+      if (c.isPaid) return;
+      if (guestKey && String(c.clientKey || "") !== guestKey) return;
+      var tid = String(c.apaTripId || "");
+      if (tid && liveOther[tid]) return;
+      plan.dropChargeIds.push(cid);
+    });
+
+    expenses.forEach(function (e) {
+      if (!e || !e.id) return;
+      var eid = String(e.id);
+      var fromLine = e.fromApaLineId ? String(e.fromApaLineId) : "";
+      var onTrip = String(e.apaTripId || "") === tripId;
+      var isMirror = e.source === "apa" || !!fromLine;
+      if (isMirror && (onTrip || (fromLine && lineIds[fromLine]) || lineExpenseIds[eid])) {
+        plan.dropExpenseIds.push(eid);
+        return;
+      }
+      if (onTrip) plan.unlinkExpenseIds.push(eid);
+    });
+
+    return plan;
+  }
+
+  /**
+   * Write plan: start empty pot for guest — drop unpaid orphans not on a live pot.
+   */
+  function planApaStartEmptyPot(input) {
+    input = input || {};
+    var guestKey = String(input.guestKey || "");
+    var keepTripId = input.keepTripId != null ? String(input.keepTripId) : "";
+    var live = Object.assign({}, input.liveTripIds || {});
+    if (keepTripId) live[keepTripId] = 1;
+    var plan = { dropChargeIds: [], emptyLedger: true };
+    if (!guestKey) return plan;
+    (Array.isArray(input.charges) ? input.charges : []).forEach(function (c) {
+      if (!c || !c.id || !c.isApa || c.isPaid) return;
+      if (String(c.clientKey || "") !== guestKey) return;
+      var tid = String(c.apaTripId || "");
+      if (tid && live[tid]) return;
+      plan.dropChargeIds.push(String(c.id));
+    });
+    return plan;
+  }
+
+  /**
+   * Pure decision for APA shortfall charge sync (no DOM / state).
+   *
+   * @returns {{ action: string, reason?: string }}
+   *   pin | update | create | clear | skip | skip_locked | pin_paid_manual | update_zero_base
+   */
+  function planApaShortfallSync(input) {
+    input = input || {};
+    var over = Number(input.overage) || 0;
+    /* Paid cash settlement closes the pot — never create/update an unpaid twin */
+    if (input.hasCashSettlement || input.paidManual) {
+      if (input.hasReusable) return { action: "pin_paid_manual", reason: "cash_settled" };
+      return { action: "pin_paid_manual", reason: "cash_settled_no_row" };
+    }
+    if (input.hasReusable) {
+      if (!input.force || input.chargeLocked) return { action: "pin", reason: "locked_or_no_force" };
+      if (over <= 0) return { action: "update_zero_base", reason: "no_overage" };
+      return { action: "update", reason: "overage" };
+    }
+    if (over <= 0) return { action: "clear", reason: "no_overage" };
+    if (input.suppressShortfall) return { action: "clear", reason: "suppress" };
+    /*
+     * Create first shortfall when allowCreate (Sync, new pot, or saveApa first-overspend).
+     * Without allowCreate we skip — never Danny×2 from background jobs.
+     */
+    if (!input.allowCreate) return { action: "skip", reason: "no_create" };
+    return { action: "create", reason: "overage_allowed" };
+  }
+
+  /**
+   * Build charge money fields for APA shortfall amount (apa base toward pot).
+   * Does not invent bill type beyond invoice default for shortfall.
+   */
+  function planApaShortfallChargeFields(over, tripMeta) {
+    tripMeta = tripMeta || {};
+    var amt = Math.max(0, Math.round((Number(over) || 0) * 100) / 100);
+    return {
+      amount: amt,
+      apaBaseAmt: amt,
+      extAmt: 0,
+      billType: "invoice",
+      kind: "apa",
+      apaTripId: tripMeta.tripId || "",
+      apaZeroPot: !!tripMeta.zeroPot,
+    };
+  }
 
   return {
     APA_EXP_CATS: APA_EXP_CATS,
@@ -288,6 +574,10 @@ function planApaShortfallChargeFields(over, tripMeta) {
     apaDieselLineCalc: apaDieselLineCalc,
     summarizeApaPaidCovered: summarizeApaPaidCovered,
     isApaCashSettlementCharge: isApaCashSettlementCharge,
+    pickApaCharge: pickApaCharge,
+    planApaGuestChargeCollapse: planApaGuestChargeCollapse,
+    planApaTripDelete: planApaTripDelete,
+    planApaStartEmptyPot: planApaStartEmptyPot,
     planApaShortfallSync: planApaShortfallSync,
     planApaShortfallChargeFields: planApaShortfallChargeFields,
   };
