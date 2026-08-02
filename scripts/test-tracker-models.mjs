@@ -922,6 +922,54 @@ console.log("\n[Charges — cashToBoat / VAT]");
   const vat = M.chargeVatParts({ amount: 121, billType: "invoice", vatPct: 21, payMethod: "Card" });
   ok("invoice VAT net ≈ 100", near(vat.net, 100, 0.05));
   ok("invoice VAT ≈ 21", near(vat.vat, 21, 0.05));
+  /* Rounded-up cash (750 for 748 ledger) — common real payment */
+  const planUp = M.planChargeCashSettlementFields({
+    amount: 748,
+    cashPaid: 750,
+    billType: "cash",
+    payMethod: "Cash",
+    payStatus: "Paid",
+    amountUserSet: true,
+    cashUserSet: true,
+  });
+  ok("748/750 plan keeps ledger 748", near(planUp.amount, 748));
+  ok("748/750 plan keeps cash 750", near(planUp.cashPaid, 750));
+  ok(
+    "boat pot gets 750 not 748",
+    near(
+      M.chargeCashToBoat({
+        payStatus: "Paid",
+        billType: "cash",
+        amount: 748,
+        cashPaid: 750,
+        payMethod: "Cash",
+      }),
+      750
+    )
+  );
+  const invPaidCash = M.planChargeCashSettlementFields({
+    amount: 748,
+    cashPaid: 750,
+    billType: "invoice",
+    payMethod: "Cash",
+    payStatus: "Paid",
+    amountUserSet: true,
+    cashUserSet: true,
+  });
+  ok("invoice+Paid Cash becomes cash settlement", invPaidCash.billType === "cash");
+  ok(
+    "invoice billType + Cash method still posts 750 to boat",
+    near(
+      M.chargeCashToBoat({
+        payStatus: "Paid",
+        billType: "invoice",
+        amount: 748,
+        cashPaid: 750,
+        payMethod: "Cash",
+      }),
+      750
+    )
+  );
 }
 
 /* ---- APA pot totals (model) ---- */

@@ -49,22 +49,43 @@ function chargeBillType(r) {
   return "invoice";
 }
 
+/**
+ * Actual cash notes received (may differ from ledger amount — e.g. €750 cash for €748 shortfall).
+ * Prefer cashPaid / cashAmt; never invent for pure invoice+card.
+ */
+function chargeCashReceived(r) {
+  if (!r) return 0;
+  var got = num(r.cashPaid);
+  if (!(got > 0.009)) got = num(r.cashAmt);
+  if (got > 0.009) return round2(got);
+  var bt = chargeBillType(r);
+  var m = chargePayMethod(r);
+  if (bt === "cash" || m === "Cash") {
+    var tot = num(r.amount);
+    return tot > 0 ? round2(tot) : 0;
+  }
+  return 0;
+}
+
 function chargeCashPart(r) {
   var total = num(r.amount);
   var t = chargeBillType(r);
-  if (t === "invoice") return 0;
-  /* Cash-only: prefer cashPaid (actual received) over amount (may still hold ledger shortfall) */
-  if (t === "cash") {
-    var got = num(r.cashPaid);
-    if (!(got > 0) && num(r.cashAmt) > 0) got = num(r.cashAmt);
-    if (got > 0) return round2(got);
-    return total > 0 ? total : 0;
+  var m = chargePayMethod(r);
+  /* Invoice + Card: no cash slice */
+  if (t === "invoice" && m !== "Cash" && m !== "Split") return 0;
+  /* Cash-only / Paid cash: actual notes received (may be higher or lower than ledger) */
+  if (t === "cash" || m === "Cash") {
+    var got = chargeCashReceived(r);
+    if (got > 0.009) return got;
+    return total > 0 ? round2(total) : 0;
   }
   if (!(total > 0)) return 0;
   var cash = num(r.cashPaid);
   if (!(cash > 0) && num(r.cashAmt) > 0) cash = Math.min(total, num(r.cashAmt));
   if (!(cash > 0)) cash = 0;
-  return Math.min(total, round2(cash));
+  /* Mix: cash part is the cash slice (may equal cash received; cap only if clearly partial) */
+  if (t === "mix") return round2(Math.min(cash, total > 0 ? total : cash));
+  return round2(cash);
 }
 
 function chargeInvoicePart(r) {
@@ -325,8 +346,9 @@ function chargeIsExplicitlyPaid(r) {
 
 /**
  * Cash that enters the boat pot from this charge when Paid.
- * Strict: only the cash settlement slice — never full invoice/card total.
- * Requires explicit Paid (not legacy Pending default).
+ * Uses actual cash received (cashPaid) — may be €750 for a €748 ledger shortfall.
+ * Requires explicit Paid. Invoice+Card never moves boat cash.
+ * Invoice + Paid by Cash still posts cash (common APA shortfall path).
  *
  * @param {object} r charge row
  * @returns {number}
@@ -335,29 +357,108 @@ function chargeCashToBoat(r) {
   if (!r || !chargeIsExplicitlyPaid(r)) return 0;
   var total = num(r.amount);
   var bt = chargeBillType(r);
-  if (bt === "invoice") return 0;
+  var m = chargePayMethod(r);
+  if (bt === "invoice" && m !== "Cash" && m !== "Split") return 0;
+  if (bt === "cash" || m === "Cash") {
+    var got = chargeCashReceived(r);
+    if (got > 0.009) return got;
+    return total > 0 ? round2(total) : 0;
+  }
+  if (bt === "mix" || m === "Split") {
+    var part = chargeCashPart(r);
+    if (part > 0.009) return round2(part);
+    var explicit = num(r.cashPaid);
+    return explicit > 0 ? round2(explicit) : 0;
+  }
+  return 0;
+}
+
+/**
+ * Normalize cash settlement fields for save (pure).
+ * Ledger amount and cash received may differ (748 vs 750).
+ *
+ * @param {{
+ *   amount?: number,
+ *   cashPaid?: number,
+ *   billType?: string,
+ *   payMethod?: string,
+ *   payStatus?: string,
+ *   amountUserSet?: boolean,
+ *   cashUserSet?: boolean
+ * }} input
+ * @returns {{
+ *   amount: number,
+ *   cashPaid: number,
+ *   billType: string,
+ *   payMethod: string,
+ *   moneyManual: boolean,
+ *   invStatusHint?: string
+ * }}
+ */
+function planChargeCashSettlementFields(input) {
+  input = input || {};
+  var gross = round2(Math.max(0, num(input.amount)));
+  var cash = round2(Math.max(0, num(input.cashPaid)));
+  var bt = constrainBillType(input.billType);
+  var payM = String(input.payMethod || "");
+  if (payM !== "Cash" && payM !== "Split" && payM !== "Card") payM = "Card";
+  var amtSet = !!input.amountUserSet;
+  var cashSet = !!input.cashUserSet;
+  var paid = String(input.payStatus || "") === "Paid";
+
+  /* Paid + Cash on an invoice row → treat as cash settlement for the boat */
+  if (bt === "invoice" && payM === "Cash" && paid) {
+    bt = "cash";
+  }
+  if (bt !== "cash" && bt !== "mix") bt = "invoice";
+
   if (bt === "cash") {
-    var got = num(r.cashPaid);
-    if (!(got > 0.009)) got = num(r.cashAmt);
-    if (got > 0.009) return round2(got);
-    return total > 0 ? total : 0;
+    payM = "Cash";
+    if (cash > 0.009 && gross > 0.009 && cashSet && amtSet) {
+      /* both typed — keep both (750 cash for 748 ledger) */
+    } else if (cash > 0.009 && cashSet && !amtSet) {
+      gross = cash;
+    } else if (gross > 0.009 && amtSet && !cashSet) {
+      cash = gross;
+    } else if (cash > 0.009 && (!(gross > 0) || Math.abs(cash - gross) > 0.009)) {
+      if (!(gross > 0)) gross = cash;
+      else if (!cashSet && amtSet) cash = gross;
+      else if (cashSet && !amtSet) gross = cash;
+      /* if both ambiguous, keep both as entered */
+    } else if (!(cash > 0) && gross > 0) {
+      cash = gross;
+    } else if (cash > 0 && !(gross > 0)) {
+      gross = cash;
+    }
+    return {
+      amount: round2(gross),
+      cashPaid: round2(cash),
+      billType: "cash",
+      payMethod: "Cash",
+      moneyManual: true,
+      invStatusHint: "Not needed",
+    };
   }
   if (bt === "mix") {
-    if (!(total > 0)) total = num(r.cashPaid) || num(r.cashAmt) || 0;
-    var part = chargeCashPart(r);
-    if (part > 0) return round2(Math.min(part, total > 0 ? total : part));
-    var explicit = num(r.cashPaid);
-    return explicit > 0 ? round2(Math.min(explicit, total > 0 ? total : explicit)) : 0;
+    payM = "Split";
+    if (!(cash > 0.009)) cash = 0;
+    /* Mix cash part usually ≤ total; allow slight over only if user forced cash */
+    if (cash > gross + 0.009 && !cashSet) cash = gross;
+    return {
+      amount: round2(gross),
+      cashPaid: round2(cash),
+      billType: "mix",
+      payMethod: "Split",
+      moneyManual: true,
+    };
   }
-  var part2 = chargeCashPart(r);
-  if (part2 > 0) return round2(Math.min(part2, total > 0 ? total : part2));
-  var m = chargePayMethod(r);
-  var explicit2 = num(r.cashPaid);
-  if (m === "Card") return 0;
-  if (m === "Split") return explicit2 > 0 ? round2(Math.min(explicit2, total > 0 ? total : explicit2)) : 0;
-  if (m === "Cash")
-    return explicit2 > 0 ? round2(Math.min(explicit2, total > 0 ? total : explicit2)) : total > 0 ? total : 0;
-  return 0;
+  return {
+    amount: round2(gross),
+    cashPaid: 0,
+    billType: "invoice",
+    payMethod: payM === "Cash" ? "Card" : payM,
+    moneyManual: false,
+  };
 }
 
 /**
@@ -445,6 +546,7 @@ function summarizeChargeCashToBoat(charters) {
   return {
     chargePayMethod: chargePayMethod,
     chargeBillType: chargeBillType,
+    chargeCashReceived: chargeCashReceived,
     chargeCashPart: chargeCashPart,
     chargeInvoicePart: chargeInvoicePart,
     chargeNeedsInvoice: chargeNeedsInvoice,
@@ -460,6 +562,7 @@ function summarizeChargeCashToBoat(charters) {
     chargeIsPaid: chargeIsPaid,
     chargeIsExplicitlyPaid: chargeIsExplicitlyPaid,
     chargeCashToBoat: chargeCashToBoat,
+    planChargeCashSettlementFields: planChargeCashSettlementFields,
     chargeVatParts: chargeVatParts,
     chargeUpsellGross: chargeUpsellGross,
     summarizeChargeCashToBoat: summarizeChargeCashToBoat
