@@ -1396,6 +1396,95 @@ console.log("\n[Cash — boat ledger = Expenses petty]");
     ],
   });
   ok("Paid + floatPay crew hits petty", near(paidCrewFloat.cashOut, 200));
+  /* €8 shop from petty must reduce onboard (450 → 442) */
+  const eight = M.summarizePettyCash({
+    pettyStart: 450,
+    cashIns: [],
+    expenses: [
+      {
+        id: "coffee-8",
+        date: "2026-08-02",
+        amount: 8,
+        category: "Miscellaneous",
+        vendor: "Cafe",
+        paidFrom: "Petty cash",
+        payMethod: "Cash",
+      },
+    ],
+  });
+  ok("€8 petty out counts", near(eight.cashOut, 8));
+  ok("€8 reduces 450 → 442 on board", near(eight.pettyOnboard, 442));
+  /* Toni ghost Paid without float / manual must not settle */
+  ok(
+    "bare Paid day-pay not explicit",
+    !M.crewDayPayIsExplicitlyPaid({
+      category: "Crew Salaries",
+      crewPayStatus: "Paid",
+      floatPay: false,
+      source: "stew",
+      stewId: "toni",
+    })
+  );
+  ok(
+    "floatPay Paid is explicit",
+    M.crewDayPayIsExplicitlyPaid({
+      category: "Crew Salaries",
+      crewPayStatus: "Paid",
+      floatPay: true,
+      source: "stew",
+      stewId: "toni",
+    })
+  );
+  const unpark = M.planUnparkDayPayNotFromFloat({
+    today: "2026-08-02",
+    assigns: [
+      {
+        eventKey: "evt-toni-today",
+        start: "2026-08-02",
+        payStatus: "Paid",
+        payStatusManual: true,
+        stewIds: ["toni"],
+      },
+    ],
+    expenses: [
+      {
+        id: "toni-ghost",
+        date: "2026-08-02",
+        amount: 150,
+        category: "Crew Salaries",
+        vendor: "Toni",
+        crewPayStatus: "Paid",
+        floatPay: false,
+        payStatusManual: true,
+        source: "stew",
+        stewId: "toni",
+        stewEventKey: "evt-toni-today",
+        stewPayKind: "dayPay",
+      },
+    ],
+  });
+  ok("unpark today Paid without float", unpark.changed === true);
+  ok("unpark sets Unpaid", unpark.assignPatches[0] && unpark.assignPatches[0].payStatus === "Unpaid");
+  ok("unpark drops ghost expense", unpark.dropExpenseIds.indexOf("toni-ghost") >= 0);
+  const keepFloat = M.planUnparkDayPayNotFromFloat({
+    today: "2026-08-02",
+    assigns: [{ eventKey: "evt-ok", start: "2026-08-02", payStatus: "Paid", stewIds: ["toni"] }],
+    expenses: [
+      {
+        id: "toni-real",
+        date: "2026-08-02",
+        amount: 150,
+        category: "Crew Salaries",
+        crewPayStatus: "Paid",
+        floatPay: true,
+        source: "stew",
+        stewId: "toni",
+        stewEventKey: "evt-ok",
+        stewPayKind: "dayPay",
+      },
+    ],
+  });
+  ok("real floatPay Paid not unparked", keepFloat.changed === false);
 }
 
 /* ---- Leads realised glimpse ---- */

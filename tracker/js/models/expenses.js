@@ -993,7 +993,20 @@ function summarizePocketBalances(expenses, cashIns, opts) {
 }
 
 /**
- * Settled day-pay fingerprints from Paid expense lines.
+ * Captain actually settled this day-pay line (not a ghost Paid row).
+ * True when Paid AND (floatPay from petty OR payStatusManual / Prior).
+ * Bare Paid without either is noise from heal/sync and must not park the charter.
+ */
+function crewDayPayIsExplicitlyPaid(e) {
+  if (!e || !isCrewDayPayExpense(e)) return false;
+  if (String(e.crewPayStatus || "") !== "Paid") return false;
+  if (e.floatPay === true) return true;
+  if (e.payStatusManual === true) return true;
+  return false;
+}
+
+/**
+ * Settled day-pay fingerprints from **explicit** Paid expense lines only.
  * Used so open-owed never re-lists charters already paid on the books.
  */
 function buildCrewDayPaySettledSets(expenses) {
@@ -1001,8 +1014,7 @@ function buildCrewDayPaySettledSets(expenses) {
   var byFinger = {};
   var byLink = {};
   (Array.isArray(expenses) ? expenses : []).forEach(function (e) {
-    if (!e || !isCrewDayPayExpense(e)) return;
-    if (String(e.crewPayStatus || "") !== "Paid") return;
+    if (!crewDayPayIsExplicitlyPaid(e)) return;
     var sid = String(e.stewId || "");
     var d = String(e.date || "").slice(0, 10);
     var ek = String(e.stewEventKey || "");
@@ -1017,7 +1029,8 @@ function buildCrewDayPaySettledSets(expenses) {
 
 function isCrewDayPaySettled(asg, sid, settled) {
   if (!asg || !sid) return false;
-  if (String(asg.payStatus || "") === "Paid") return true;
+  /* Assign Paid only when captain-manual (Prior or Stews mark) — not bare ghost Paid */
+  if (String(asg.payStatus || "") === "Paid" && asg.payStatusManual === true) return true;
   settled = settled || { byEventStew: {}, byFinger: {}, byLink: {} };
   var ek = String(asg.eventKey || "");
   var d = String(asg.start || "").slice(0, 10);
@@ -1026,6 +1039,79 @@ function isCrewDayPaySettled(asg, sid, settled) {
   if (d && settled.byFinger[sid + "|" + d]) return true;
   if (ek && settled.byLink["stew-day:" + ek + ":" + sid]) return true;
   return false;
+}
+
+/**
+ * Pure plan: unpark day-pay marked Paid without cash leaving the float
+ * for charters from today onward (Toni “parked Paid” before the trip).
+ *
+ * Keeps lines that actually hit petty (floatPay). Drops ghost expense rows and
+ * sets assign → Unpaid so open-owed / Stews show unpaid until captain pays.
+ *
+ * @param {{ assigns?: Array, expenses?: Array, today?: string }} input
+ * @returns {{ changed: boolean, assignPatches: Array, dropExpenseIds: Array }}
+ */
+function planUnparkDayPayNotFromFloat(input) {
+  input = input || {};
+  var today = String(input.today || "").slice(0, 10);
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(today)) {
+    return { changed: false, assignPatches: [], dropExpenseIds: [] };
+  }
+  var assigns = Array.isArray(input.assigns) ? input.assigns : [];
+  var expenses = Array.isArray(input.expenses) ? input.expenses : [];
+  var assignPatches = [];
+  var dropExpenseIds = [];
+  var dropSet = {};
+
+  assigns.forEach(function (asg) {
+    if (!asg || !asg.eventKey) return;
+    var start = String(asg.start || "").slice(0, 10);
+    if (!start || start < today) return;
+    if (String(asg.payStatus || "") !== "Paid") return;
+
+    var ek = String(asg.eventKey);
+    var lines = [];
+    expenses.forEach(function (e) {
+      if (!e || !isCrewDayPayExpense(e)) return;
+      if (String(e.stewEventKey || "") !== ek) return;
+      lines.push(e);
+    });
+    var hasFloatPay = lines.some(function (e) {
+      return String(e.crewPayStatus || "") === "Paid" && e.floatPay === true;
+    });
+    if (hasFloatPay) return;
+
+    assignPatches.push({
+      eventKey: ek,
+      payStatus: "Unpaid",
+      payStatusManual: true,
+    });
+    lines.forEach(function (e) {
+      if (e && e.id != null && !dropSet[String(e.id)]) {
+        dropSet[String(e.id)] = 1;
+        dropExpenseIds.push(String(e.id));
+      }
+    });
+  });
+
+  /* Also drop bare Paid day-pay ghosts (no manual, no float) from today+ even without assign */
+  expenses.forEach(function (e) {
+    if (!e || !isCrewDayPayExpense(e)) return;
+    if (String(e.crewPayStatus || "") !== "Paid") return;
+    if (e.floatPay === true || e.payStatusManual === true) return;
+    var d = String(e.date || "").slice(0, 10);
+    if (!d || d < today) return;
+    if (e.id != null && !dropSet[String(e.id)]) {
+      dropSet[String(e.id)] = 1;
+      dropExpenseIds.push(String(e.id));
+    }
+  });
+
+  return {
+    changed: assignPatches.length > 0 || dropExpenseIds.length > 0,
+    assignPatches: assignPatches,
+    dropExpenseIds: dropExpenseIds,
+  };
 }
 
 /**
@@ -1437,8 +1523,10 @@ function summarizeMonthSettlement(opts) {
     ownMoneyRepayHint: ownMoneyRepayHint,
     collectOpenPocketOuts: collectOpenPocketOuts,
     summarizePocketBalances: summarizePocketBalances,
+    crewDayPayIsExplicitlyPaid: crewDayPayIsExplicitlyPaid,
     buildCrewDayPaySettledSets: buildCrewDayPaySettledSets,
     isCrewDayPaySettled: isCrewDayPaySettled,
+    planUnparkDayPayNotFromFloat: planUnparkDayPayNotFromFloat,
     collectOpenCrewDayPay: collectOpenCrewDayPay,
     collectOpenTipPayouts: collectOpenTipPayouts,
     summarizeMonthSettlement: summarizeMonthSettlement,
