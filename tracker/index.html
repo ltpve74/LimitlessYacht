@@ -939,21 +939,21 @@
 
 <!-- Domain models + controllers (MVC blueprint) — tests: node scripts/test-tracker-models.mjs -->
 <!-- LY_MODELS → LY_CONTROLLERS → view. See .agent/briefs/tracker-v1-mvc-blueprint.md -->
-<script src="/tracker/js/models/util.js?v=20260807-tippay1"></script>
-<script src="/tracker/js/models/leads.js?v=20260807-tippay1"></script>
-<script src="/tracker/js/models/charges.js?v=20260807-tippay1"></script>
-<script src="/tracker/js/models/expenses.js?v=20260807-tippay1"></script>
-<script src="/tracker/js/models/cash.js?v=20260807-tippay1"></script>
-<script src="/tracker/js/models/diesel.js?v=20260807-tippay1"></script>
-<script src="/tracker/js/models/stews.js?v=20260807-tippay1"></script>
-<script src="/tracker/js/models/apa.js?v=20260807-tippay1"></script>
-<script src="/tracker/js/models/index.js?v=20260807-tippay1"></script>
-<script src="/tracker/js/controllers/expenses.js?v=20260807-tippay1"></script>
-<script src="/tracker/js/controllers/charges.js?v=20260807-tippay1"></script>
-<script src="/tracker/js/controllers/leads.js?v=20260807-tippay1"></script>
-<script src="/tracker/js/controllers/apa.js?v=20260807-tippay1"></script>
-<script src="/tracker/js/controllers/stews.js?v=20260807-tippay1"></script>
-<script src="/tracker/js/controllers/index.js?v=20260807-tippay1"></script>
+<script src="/tracker/js/models/util.js?v=20260807-tippay2"></script>
+<script src="/tracker/js/models/leads.js?v=20260807-tippay2"></script>
+<script src="/tracker/js/models/charges.js?v=20260807-tippay2"></script>
+<script src="/tracker/js/models/expenses.js?v=20260807-tippay2"></script>
+<script src="/tracker/js/models/cash.js?v=20260807-tippay2"></script>
+<script src="/tracker/js/models/diesel.js?v=20260807-tippay2"></script>
+<script src="/tracker/js/models/stews.js?v=20260807-tippay2"></script>
+<script src="/tracker/js/models/apa.js?v=20260807-tippay2"></script>
+<script src="/tracker/js/models/index.js?v=20260807-tippay2"></script>
+<script src="/tracker/js/controllers/expenses.js?v=20260807-tippay2"></script>
+<script src="/tracker/js/controllers/charges.js?v=20260807-tippay2"></script>
+<script src="/tracker/js/controllers/leads.js?v=20260807-tippay2"></script>
+<script src="/tracker/js/controllers/apa.js?v=20260807-tippay2"></script>
+<script src="/tracker/js/controllers/stews.js?v=20260807-tippay2"></script>
+<script src="/tracker/js/controllers/index.js?v=20260807-tippay2"></script>
 <script>
 "use strict";
 var API = "/.netlify/functions/tracker";
@@ -12494,13 +12494,28 @@ function stewTipTotal(asg){
 }
 function stewTipShare(asg){
   if(LY_MODELS&&LY_MODELS.stewTipShare) return LY_MODELS.stewTipShare(asg);
+  /* Fallback must still honour tipPaidBy / Partial (keep in sync with models/stews.js) */
   var tot=stewTipTotal(asg);
-  if(!(tot>0)) return {total:0, stewSide:0, each:0, nStews:0, crew:0, captainShare:0};
-  var n=asg&&asg.stewIds?asg.stewIds.filter(Boolean).length:0;
+  if(!(tot>0)) return {total:0, stewSide:0, each:0, nStews:0, crew:0, captainShare:0, captainPaid:false, captainOpen:0, stewOpen:0, openTotal:0, paidTotal:0, allPaid:false, anyUnpaid:false, anyPaid:false, stewPaidBy:{}};
+  var ids=asg&&asg.stewIds?asg.stewIds.filter(Boolean):[];
+  var n=ids.length;
   var crew=1+n;
   var each=n>0?Math.round((tot/crew)*100)/100:0;
   var stewSide=Math.round(each*n*100)/100;
-  return {total:tot, stewSide:stewSide, each:each, nStews:n, crew:crew, captainShare:Math.round((tot-stewSide)*100)/100};
+  var captainShare=n>0?Math.round((tot-stewSide)*100)/100:tot;
+  var map=(asg&&asg.tipPaidBy&&typeof asg.tipPaidBy==="object")?asg.tipPaidBy:{};
+  var legacyAll=(asg.tipPayStatus==="Paid"||asg.tipPaid===true)&&!Object.keys(map).length;
+  var capPaid=legacyAll||map.captain===true||map.captain==="true"||map.captain===1||((asg.tipPayStatus==="Paid"||asg.tipPaid===true)&&!Object.keys(map).length);
+  var stewPaidBy={}, stewOpen=0, stewPaidAmt=0;
+  ids.forEach(function(sid){
+    var p=legacyAll||map[String(sid)]===true||map[String(sid)]==="true"||map[String(sid)]===1||((asg.tipPayStatus==="Paid"||asg.tipPaid===true)&&!Object.keys(map).length);
+    stewPaidBy[String(sid)]=!!p;
+    if(p) stewPaidAmt=Math.round((stewPaidAmt+each)*100)/100;
+    else stewOpen=Math.round((stewOpen+each)*100)/100;
+  });
+  var captainOpen=capPaid?0:captainShare;
+  var openTotal=Math.round((captainOpen+stewOpen)*100)/100;
+  return {total:tot, stewSide:stewSide, each:each, nStews:n, crew:n>0?crew:1, captainShare:captainShare, captainPaid:!!capPaid, captainOpen:captainOpen, stewOpen:stewOpen, openTotal:openTotal, paidTotal:Math.round((tot-openTotal)*100)/100, allPaid:openTotal<0.009, anyUnpaid:openTotal>0.009, anyPaid:(tot-openTotal)>0.009, stewPaidBy:stewPaidBy};
 }
 function stewTipPaid(asg){
   if(LY_MODELS&&LY_MODELS.stewTipPaid) return !!LY_MODELS.stewTipPaid(asg);
@@ -13999,7 +14014,7 @@ function openStewAssign(eventKey){
   (asg.stewIds||[]).forEach(function(id){ selected[id]=1; });
   var team=(state.stews||[]).filter(function(s){ return s&&s.active!==false; });
   var pay=asg.payStatus==="Paid"?"Paid":"Unpaid";
-  var tipPay=asg.tipPayStatus==="Paid"?"Paid":"Unpaid";
+  var tipPay=asg.tipPayStatus==="Paid"?"Paid":(asg.tipPayStatus==="Partial"?"Partial":"Unpaid");
   var h='<div class="sheethead"><h2>Assign stews</h2><button type="button" class="sheetx" id="sheetClose" aria-label="Close">×</button></div>';
   h+='<div class="apa-card" style="margin-bottom:12px">'+
     '<div style="font-weight:800;font-size:16px">'+esc(ev.summary||"Charter")+'</div>'+
@@ -14187,14 +14202,33 @@ function openStewAssign(eventKey){
     };
   }
   function planTipPayFromForm(ids){
-    var raw=readTipPaidByFromForm(ids);
+    /* Read every tip-pay checkbox in the sheet (not only selected stews) */
+    var byStew={};
+    Array.prototype.forEach.call(document.querySelectorAll("[data-tip-pay-stew]"),function(inp){
+      if(!inp||!inp.checked) return;
+      var sid=inp.getAttribute("data-tip-pay-stew")||(inp.id||"").replace(/^f_stew_tip_pay_/,"");
+      if(sid) byStew[String(sid)]=true;
+    });
+    (ids||[]).forEach(function(sid){
+      var inp=el("f_stew_tip_pay_"+sid);
+      if(inp&&inp.checked) byStew[String(sid)]=true;
+    });
+    var raw={
+      captain:!!(el("f_stew_tip_pay_captain")&&el("f_stew_tip_pay_captain").checked),
+      byStew:byStew,
+      stewIds:ids||[]
+    };
     if(LY_MODELS&&LY_MODELS.planTipPaidByFields){
       return LY_MODELS.planTipPaidByFields(raw);
     }
     var map={};
     if(raw.captain) map.captain=true;
     Object.keys(raw.byStew||{}).forEach(function(k){ if(raw.byStew[k]) map[k]=true; });
-    var nPaid=Object.keys(map).length;
+    var nPaid=(raw.captain?1:0)+Object.keys(raw.byStew||{}).filter(function(k){ return !!raw.byStew[k]; }).length;
+    /* nPaid count: captain + each paid stew (not map size — map keys may be only paid) */
+    var nStewPaid=0;
+    (ids||[]).forEach(function(sid){ if(raw.byStew[String(sid)]) nStewPaid++; });
+    nPaid=(raw.captain?1:0)+nStewPaid;
     var nTot=1+(ids||[]).length;
     return { tipPaidBy:map, tipPayStatus:nPaid<=0?"Unpaid":(nPaid>=nTot?"Paid":"Partial"), nPaid:nPaid, nTot:nTot };
   }
@@ -14404,8 +14438,14 @@ function openStewAssign(eventKey){
       tipTotal=tipRaw===""?"":apaNum(tipRaw);
       if(tipTotal!==""&&!(tipTotal>0)) tipTotal="";
       var tipPlanSave=planTipPayFromForm(ids);
-      tipPaidBy=tipPlanSave.tipPaidBy||{};
+      tipPaidBy=Object.assign({}, tipPlanSave.tipPaidBy||{});
       tipPayStatus=tipPlanSave.tipPayStatus||"Unpaid";
+      /* Always store explicit tipPaidBy so model shares update after save */
+      if(tipTotal&&tipPayStatus==="Paid"){
+        tipPaidBy.captain=true;
+        (ids||[]).forEach(function(sid){ tipPaidBy[String(sid)]=true; });
+      }
+      if(tipTotal&&tipPayStatus==="Unpaid") tipPaidBy={};
       tipSource=(el("f_stew_tip_src")&&el("f_stew_tip_src").value==="card")?"card":"cash";
       tipShare=stewTipShare({tipTotal:tipTotal, stewIds:ids, tipPayStatus:tipPayStatus, tipPaidBy:tipPaidBy});
       nowPaid=(el("f_stew_pay")&&el("f_stew_pay").value==="Paid");
@@ -14488,15 +14528,18 @@ function openStewAssign(eventKey){
       _floatPayFrom:captainMode&&nowPaid&&!zeroPay?paidFromSel:"",
       tipTotal:markCancelled?"":tipTotal,
       tipSource:markCancelled?"cash":(tipSource||"cash"),
-      tipStewShare:markCancelled?0:tipShare.stewSide,
+      tipStewShare:markCancelled?0:(tipShare&&tipShare.stewSide)||0,
       tipPayStatus:markCancelled?"Unpaid":tipPayStatus,
-      tipPaidBy:markCancelled?{}:(tipPaidBy&&typeof tipPaidBy==="object"?tipPaidBy:{}),
+      tipPaidBy:markCancelled?{}:(tipPaidBy&&typeof tipPaidBy==="object"?Object.assign({}, tipPaidBy):{}),
       notes:notesOut,
       updatedAt:new Date().toISOString(),
       by:session.who||(captainMode?"Captain":"Team"),
       /* Re-save in Stews clears expense dismissals so day-pay can reappear */
       dayPaySkip:captainMode?{}:(asg.dayPaySkip&&typeof asg.dayPaySkip==="object"?asg.dayPaySkip:{})
     };
+    /* Keep the existing assign’s stable eventKey (lead:… vs uid:…) so tipPaidBy lands on the row the roster reads */
+    if(asg&&asg.eventKey) obj.eventKey=String(asg.eventKey);
+    else if(ev&&ev.key) obj.eventKey=String(ev.key);
     if(markCancelled){
       notesOut=stripStewCancelNotes(notesOut);
       if(zeroPay){
@@ -14506,12 +14549,32 @@ function openStewAssign(eventKey){
           notesOut=(notesOut?notesOut+" · ":"")+"Cancelled — guest refunded; stew still due day pay";
       }
       obj.notes=notesOut;
+      obj.tipPayStatus="Unpaid";
+      obj.tipPaidBy={};
     }
     if(!state.stewAssign) state.stewAssign=[];
     var found=false;
+    var matchKeys=[obj.eventKey, ev&&ev.key, asg&&asg.eventKey, eventKey].filter(Boolean).map(String);
+    var leadMatch=String(obj.leadId||asg.leadId||"").trim();
     state.stewAssign=state.stewAssign.map(function(a){
-      if(a&&a.eventKey===obj.eventKey){ found=true; return obj; }
-      return a;
+      if(!a||!a.eventKey) return a;
+      var hit=matchKeys.some(function(k){
+        if(String(a.eventKey)===String(k)) return true;
+        if(LY_MODELS&&LY_MODELS.stewKeysMatch) return LY_MODELS.stewKeysMatch(a.eventKey, k);
+        return false;
+      });
+      if(!hit&&leadMatch&&a.leadId&&String(a.leadId)===leadMatch) hit=true;
+      if(!hit) return a;
+      found=true;
+      /* Preserve this row’s eventKey/id; write tip pay onto every duplicate for this charter */
+      return Object.assign({}, obj, {
+        id:a.id||obj.id,
+        eventKey:a.eventKey,
+        tipPayStatus:obj.tipPayStatus,
+        tipPaidBy:Object.assign({}, obj.tipPaidBy||{}),
+        tipTotal:obj.tipTotal,
+        tipSource:obj.tipSource
+      });
     });
     if(!found) state.stewAssign.unshift(obj);
     /* Pin reverse link on the lead (captain only) */
@@ -14539,34 +14602,43 @@ function openStewAssign(eventKey){
     }
     showSheet(false); saveStewAssign();
     /* Day pay → Expenses only when Paid. On-bill tips → tip payout expense when tip Paid. */
+    /* Prefer the live state row (tipPaidBy just written) for expense sync + paint */
+    var liveAsg=assignForEvent(obj.eventKey)||assignForEvent(ev&&ev.key)||obj;
+    if(liveAsg&&obj.tipPaidBy){
+      liveAsg.tipPaidBy=Object.assign({}, obj.tipPaidBy);
+      liveAsg.tipPayStatus=obj.tipPayStatus;
+      liveAsg.tipTotal=obj.tipTotal;
+      liveAsg.tipSource=obj.tipSource;
+    }
     if(captainMode){
       var expDirty=false;
+      var ekSync=String((liveAsg&&liveAsg.eventKey)||obj.eventKey||(ev&&ev.key)||"");
       if(zeroPay){
         if(state.expenses&&state.expenses.length){
           state.expenses=state.expenses.filter(function(e){
             if(!e) return false;
-            if(e.source==="stew"&&String(e.stewEventKey)===String(ev.key)) return false;
-            if(e.linkId&&String(e.linkId).indexOf("stew-day:"+ev.key+":")===0) return false;
-            if(e.linkId&&String(e.linkId)==="stew-tip:"+ev.key) return false;
+            if(e.source==="stew"&&String(e.stewEventKey)===ekSync) return false;
+            if(e.linkId&&String(e.linkId).indexOf("stew-day:"+ekSync+":")===0) return false;
+            if(e.linkId&&(String(e.linkId)===("stew-tip:"+ekSync)||String(e.linkId).indexOf("stew-tip:"+ekSync+":")===0)) return false;
             return true;
           });
           expDirty=true;
         }
       } else {
         if(obj.payStatus==="Paid"||(state.expenses||[]).some(function(e){
-            return e&&e.source==="stew"&&e.stewPayKind==="dayPay"&&String(e.stewEventKey)===String(ev.key);
+            return e&&e.source==="stew"&&e.stewPayKind==="dayPay"&&String(e.stewEventKey)===ekSync;
           })){
-          if(syncStewDayPayExpenses(obj)) expDirty=true;
+          if(syncStewDayPayExpenses(liveAsg)) expDirty=true;
         }
-        if(syncStewTipPayoutExpense(obj)) expDirty=true;
+        if(syncStewTipPayoutExpense(liveAsg)) expDirty=true;
       }
       if(expDirty||zeroPay) saveExpenses();
     }
     delete obj._floatPayMark;
     delete obj._floatPayFrom;
-    /* In-place list refresh — do not rebuild tab (that jumped scroll to top) */
+    /* Full charters repaint so tip sections / model shares refresh (soft path can miss tipPaidBy) */
     if(stewSub==="charters"&&el("stewCalList")) paintStewChartersKeepScroll();
-    else renderStews({soft:true});
+    else renderStews({soft:false});
   });
   el("sheetCancel").addEventListener("click",function(){ showSheet(false); });
   el("sheetClose").addEventListener("click",function(){ showSheet(false); });
