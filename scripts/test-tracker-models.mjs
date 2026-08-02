@@ -1535,6 +1535,64 @@ console.log("\n[Cash — boat ledger = Expenses petty]");
   ok("real floatPay Paid not unparked", keepFloat.changed === false);
 }
 
+
+/* ---- Leads — cash-only full charter fee ---- */
+console.log("\n[Leads — cash-only charter]");
+{
+  const cashBoat = {
+    id: "L-cash",
+    name: "All cash boat",
+    start: "2026-08-02",
+    captainLead: true,
+    dealClosed: true,
+    cashOnly: true,
+    dealPayType: "cash",
+    cashAmt: 3000,
+    cashAmtUser: true,
+    cashDest: "boat",
+    cashSettled: true,
+    fins: "Paid",
+    total: 3000,
+    base: 3000,
+  };
+  const cashOwner = {
+    id: "L-own-cash",
+    name: "All cash owner",
+    start: "2026-08-02",
+    leadSource: "ownersourced",
+    dealClosed: true,
+    cashOnly: true,
+    dealPayType: "cash",
+    cashAmt: 2800,
+    cashAmtUser: true,
+    cashDest: "owner",
+    cashSettled: true,
+    fins: "Paid",
+    total: 2800,
+  };
+  ok("cash only is cash fee", M.leadIsCashOnlyDeal(cashBoat) === true);
+  ok("cash only not split", M.leadHasSplit(cashBoat) === false);
+  ok("cash only has cash fee", M.leadHasCashFee(cashBoat) === true);
+  ok("deal pay type cash", M.leadDealPayType(cashBoat) === "cash");
+  ok("cash only free cash 3000", near(M.leadFreeCashAmt(cashBoat), 3000));
+  ok("cash only client total 3000", near(M.leadClientTotal(cashBoat), 3000));
+  ok("cash only list money 3000", near(M.leadListMoney(cashBoat), 3000));
+  ok("cash only received", M.leadFreeCashIsReceived(cashBoat) === true);
+  ok("cash only on boat", M.leadFreeCashIsOnBoat(cashBoat) === true);
+  ok("cash only owner pocket", near(M.leadOwnerPocketCashAmt(cashOwner), 2800));
+  ok("cash only not on boat when owner", M.leadFreeCashIsOnBoat(cashOwner) === false);
+  const sum = M.summarizeLeadCashIncome([cashBoat, cashOwner]);
+  ok("cash income boat 3000", near(sum.boat, 3000));
+  ok("cash income owner 2800", near(sum.owner, 2800));
+  const comm = M.leadCommissionParts(cashBoat);
+  ok("cash only commission base 3000", near(comm.base, 3000));
+  ok("cash only cashBlack 3000", near(comm.cashBlack, 3000));
+  ok("cash only white 0", near(comm.whiteBeforeVat, 0));
+  ok("cash only 15% comm", near(comm.total, 450));
+  const pending = Object.assign({}, cashBoat, { cashSettled: false, fins: "Not issued" });
+  ok("cash only pending not received", M.leadFreeCashIsReceived(pending) === false);
+}
+
 /* ---- Leads realised glimpse ---- */
 console.log("\n[Leads — realised cash + glimpse]");
 {
