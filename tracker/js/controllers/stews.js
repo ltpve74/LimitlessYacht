@@ -55,11 +55,16 @@
   function tipLiabilityRows(input) {
     input = input || {};
     var models = M(input);
+    var stews = input.stews || [];
     var rows = [];
     (input.assigns || input.stewAssign || []).forEach(function (asg) {
       if (!asg || !asg.eventKey) return;
       if (asg.cancelled || asg.status === "cancelled" || asg.cancelGhost) return;
       var share = models.stewTipShare(asg);
+      var names =
+        typeof models.stewNames === "function"
+          ? models.stewNames(stews, asg.stewIds)
+          : [];
       rows.push({
         eventKey: String(asg.eventKey),
         onBill: models.stewTipIsOnBill(asg),
@@ -71,6 +76,8 @@
         tipCaptain: share.captainShare,
         tipStewSide: share.stewSide,
         nStews: share.nStews,
+        stewNames: names || [],
+        stewIds: (asg.stewIds || []).filter(Boolean).map(String),
         cancelled: false,
       });
     });

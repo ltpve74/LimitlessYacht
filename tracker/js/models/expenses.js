@@ -1211,7 +1211,7 @@ function collectOpenCrewDayPay(assigns, expenses, opts) {
 /**
  * Tips on card/bill still unpaid — boat liability.
  *
- * @param {Array} tipRows pre-normalized [{eventKey, tipSource, tipPaid, tipTotal, start, summary, tipEach, tipCaptain, tipStewSide, nStews, cancelled?}]
+ * @param {Array} tipRows pre-normalized [{eventKey, tipSource, tipPaid, tipTotal, start, summary, tipEach, tipCaptain, tipStewSide, nStews, stewNames?, cancelled?}]
  * @param {{ focusMonth: string, today: string }} opts
  */
 function collectOpenTipPayouts(tipRows, opts) {
@@ -1230,6 +1230,41 @@ function collectOpenTipPayouts(tipRows, opts) {
     if (!start || start > today) return;
     var m = expenseMonthKey(start);
     if (m && focusMonth && m > focusMonth) return;
+    var names = Array.isArray(row.stewNames)
+      ? row.stewNames.map(function (n) {
+          return String(n || "").trim();
+        }).filter(Boolean)
+      : [];
+    var tipEach = num(row.tipEach);
+    var tipCaptain = num(row.tipCaptain);
+    var tipStewSide = num(row.tipStewSide);
+    /* Who is owed this tip (equal split captain + each stew) */
+    var shares = [];
+    if (tipCaptain > 0.009) {
+      shares.push({ who: "Captain", whoKey: "captain", amount: round2(tipCaptain), role: "captain" });
+    }
+    names.forEach(function (nm) {
+      if (tipEach > 0.009) {
+        shares.push({
+          who: nm,
+          whoKey: "stew:" + nm.toLowerCase(),
+          amount: round2(tipEach),
+          role: "stew",
+        });
+      }
+    });
+    /* Fallback when names missing but stew side known */
+    if (!names.length && tipStewSide > 0.009 && tipEach > 0.009) {
+      var nEst = Math.max(1, Math.round(tipStewSide / tipEach) || num(row.nStews) || 1);
+      for (var i = 0; i < nEst; i++) {
+        shares.push({
+          who: nEst === 1 ? "Stew" : "Stew " + (i + 1),
+          whoKey: "stew:#" + i,
+          amount: round2(tipEach),
+          role: "stew",
+        });
+      }
+    }
     out.push({
       kind: "tip",
       eventKey: String(row.eventKey),
@@ -1237,10 +1272,12 @@ function collectOpenTipPayouts(tipRows, opts) {
       amount: tot,
       date: start,
       month: m || "",
-      tipEach: num(row.tipEach),
-      tipCaptain: num(row.tipCaptain),
-      tipStewSide: num(row.tipStewSide),
-      nStews: num(row.nStews),
+      tipEach: tipEach,
+      tipCaptain: tipCaptain,
+      tipStewSide: tipStewSide,
+      nStews: num(row.nStews) || names.length,
+      stewNames: names,
+      shares: shares,
       summary: row.summary || "Charter",
     });
   });
@@ -1251,6 +1288,72 @@ function collectOpenTipPayouts(tipRows, opts) {
     return (b.amount || 0) - (a.amount || 0);
   });
   return out;
+}
+
+/**
+ * Group open tip payouts by who is still owed (Captain, Laura, …).
+ * Total of person rows may exceed charter guest total if rounded shares —
+ * person amounts use each share; charter items list the share for that person.
+ *
+ * @param {Array} openTips from collectOpenTipPayouts
+ * @returns {{ total, people: Array<{name, whoKey, amount, role, items}> }}
+ */
+function summarizeOpenTipOwedByPerson(openTips) {
+  var by = {};
+  (Array.isArray(openTips) ? openTips : []).forEach(function (t) {
+    if (!t) return;
+    var shares = Array.isArray(t.shares) ? t.shares : [];
+    if (!shares.length) {
+      /* Legacy open tip without shares — keep one anonymous line */
+      var key = "tip:all";
+      if (!by[key]) by[key] = { name: "Tips on bill", whoKey: key, amount: 0, role: "mixed", items: [] };
+      by[key].amount = round2(by[key].amount + num(t.amount));
+      by[key].items.push({
+        date: t.date,
+        month: t.month,
+        label: t.label || t.summary || "Charter",
+        amount: num(t.amount),
+        eventKey: t.eventKey,
+        summary: t.summary,
+      });
+      return;
+    }
+    shares.forEach(function (sh) {
+      if (!sh || !(num(sh.amount) > 0.009)) return;
+      var k = String(sh.whoKey || sh.who || "unknown");
+      if (!by[k]) {
+        by[k] = {
+          name: String(sh.who || "Crew"),
+          whoKey: k,
+          amount: 0,
+          role: sh.role || (k === "captain" ? "captain" : "stew"),
+          items: [],
+        };
+      }
+      by[k].amount = round2(by[k].amount + num(sh.amount));
+      by[k].items.push({
+        date: t.date,
+        month: t.month,
+        label: (t.summary || "Charter") + " · tip share",
+        amount: round2(num(sh.amount)),
+        eventKey: t.eventKey,
+        summary: t.summary,
+      });
+    });
+  });
+  var people = Object.keys(by).map(function (k) {
+    return by[k];
+  });
+  people.sort(function (a, b) {
+    if (a.role === "captain" && b.role !== "captain") return -1;
+    if (b.role === "captain" && a.role !== "captain") return 1;
+    return String(a.name || "").localeCompare(String(b.name || ""));
+  });
+  var total = 0;
+  people.forEach(function (p) {
+    total = round2(total + num(p.amount));
+  });
+  return { total: total, people: people, n: people.length };
 }
 
 /**
@@ -1530,6 +1633,7 @@ function summarizeMonthSettlement(opts) {
     planUnparkDayPayNotFromFloat: planUnparkDayPayNotFromFloat,
     collectOpenCrewDayPay: collectOpenCrewDayPay,
     collectOpenTipPayouts: collectOpenTipPayouts,
+    summarizeOpenTipOwedByPerson: summarizeOpenTipOwedByPerson,
     summarizeMonthSettlement: summarizeMonthSettlement,
     /** Sum cash-in lines that count toward petty (caller already filtered tips). */
     sumCashInAmounts: function (rows) {
