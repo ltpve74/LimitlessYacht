@@ -939,21 +939,21 @@
 
 <!-- Domain models + controllers (MVC blueprint) — tests: node scripts/test-tracker-models.mjs -->
 <!-- LY_MODELS → LY_CONTROLLERS → view. See .agent/briefs/tracker-v1-mvc-blueprint.md -->
-<script src="/tracker/js/models/util.js?v=20260807-tipsowe1"></script>
-<script src="/tracker/js/models/leads.js?v=20260807-tipsowe1"></script>
-<script src="/tracker/js/models/charges.js?v=20260807-tipsowe1"></script>
-<script src="/tracker/js/models/expenses.js?v=20260807-tipsowe1"></script>
-<script src="/tracker/js/models/cash.js?v=20260807-tipsowe1"></script>
-<script src="/tracker/js/models/diesel.js?v=20260807-tipsowe1"></script>
-<script src="/tracker/js/models/stews.js?v=20260807-tipsowe1"></script>
-<script src="/tracker/js/models/apa.js?v=20260807-tipsowe1"></script>
-<script src="/tracker/js/models/index.js?v=20260807-tipsowe1"></script>
-<script src="/tracker/js/controllers/expenses.js?v=20260807-tipsowe1"></script>
-<script src="/tracker/js/controllers/charges.js?v=20260807-tipsowe1"></script>
-<script src="/tracker/js/controllers/leads.js?v=20260807-tipsowe1"></script>
-<script src="/tracker/js/controllers/apa.js?v=20260807-tipsowe1"></script>
-<script src="/tracker/js/controllers/stews.js?v=20260807-tipsowe1"></script>
-<script src="/tracker/js/controllers/index.js?v=20260807-tipsowe1"></script>
+<script src="/tracker/js/models/util.js?v=20260807-tippay1"></script>
+<script src="/tracker/js/models/leads.js?v=20260807-tippay1"></script>
+<script src="/tracker/js/models/charges.js?v=20260807-tippay1"></script>
+<script src="/tracker/js/models/expenses.js?v=20260807-tippay1"></script>
+<script src="/tracker/js/models/cash.js?v=20260807-tippay1"></script>
+<script src="/tracker/js/models/diesel.js?v=20260807-tippay1"></script>
+<script src="/tracker/js/models/stews.js?v=20260807-tippay1"></script>
+<script src="/tracker/js/models/apa.js?v=20260807-tippay1"></script>
+<script src="/tracker/js/models/index.js?v=20260807-tippay1"></script>
+<script src="/tracker/js/controllers/expenses.js?v=20260807-tippay1"></script>
+<script src="/tracker/js/controllers/charges.js?v=20260807-tippay1"></script>
+<script src="/tracker/js/controllers/leads.js?v=20260807-tippay1"></script>
+<script src="/tracker/js/controllers/apa.js?v=20260807-tippay1"></script>
+<script src="/tracker/js/controllers/stews.js?v=20260807-tippay1"></script>
+<script src="/tracker/js/controllers/index.js?v=20260807-tippay1"></script>
 <script>
 "use strict";
 var API = "/.netlify/functions/tracker";
@@ -9590,16 +9590,25 @@ function expOpenTipPayoutTotal(focusMonth){
   return Math.round(s*100)/100;
 }
 /**
- * When on-bill tips are marked Paid, cash leaves petty (one expense line).
- * Cash tips never create this line (guest cash went direct).
+ * On-bill tip shares marked Paid → petty cash-out lines (one per person).
+ * Captain and each stew can be paid independently. Cash tips never create lines.
  */
 function syncStewTipPayoutExpense(asg){
   if(!isCaptain()||!asg||!asg.eventKey) return false;
   if(!state.expenses) state.expenses=[];
   var ek=String(asg.eventKey);
-  var linkId="stew-tip:"+ek;
-  var before=state.expenses.some(function(e){ return e&&String(e.linkId||"")===linkId; });
+  var linkPrefix="stew-tip:"+ek;
+  var before=state.expenses.some(function(e){
+    if(!e) return false;
+    if(e.kind==="tipPayout"&&String(e.stewEventKey||"")===ek) return true;
+    var lid=String(e.linkId||"");
+    return lid===linkPrefix||lid.indexOf(linkPrefix+":")===0;
+  });
   var plan;
+  var stewNameFn=function(sid){
+    var s=typeof stewById==="function"?stewById(sid):null;
+    return (s&&s.name)||"Stew";
+  };
   if(window.LY_CONTROLLERS&&LY_CONTROLLERS.stews&&LY_CONTROLLERS.stews.planTipPayoutExpenseSync){
     plan=LY_CONTROLLERS.stews.planTipPayoutExpenseSync({
       models:LY_MODELS,
@@ -9608,27 +9617,38 @@ function syncStewTipPayoutExpense(asg){
       nowIso:new Date().toISOString(),
       who:session.who||"Captain",
       newId:uid,
-      formatMoney:money0
+      formatMoney:money0,
+      stewName:stewNameFn
     });
   } else if(LY_MODELS&&LY_MODELS.planStewTipPayoutExpense){
     plan=LY_MODELS.planStewTipPayoutExpense({
       asg:asg, today:localTodayYmd(), nowIso:new Date().toISOString(),
-      who:session.who||"Captain", newId:uid, formatMoney:money0
+      who:session.who||"Captain", newId:uid, formatMoney:money0, stewName:stewNameFn
     });
   }
   if(plan){
     state.expenses=state.expenses.filter(function(e){
-      return !(e&&(String(e.linkId||"")===plan.linkId||(e.kind==="tipPayout"&&String(e.stewEventKey||"")===ek)));
+      if(!e) return false;
+      if(e.kind==="tipPayout"&&String(e.stewEventKey||"")===ek) return false;
+      var lid=String(e.linkId||"");
+      if(lid===linkPrefix||lid.indexOf(linkPrefix+":")===0) return false;
+      if(plan.linkId&&lid===String(plan.linkId)) return false;
+      return true;
     });
-    if(plan.line){ state.expenses.unshift(plan.line); return true; }
+    var lines=Array.isArray(plan.lines)?plan.lines:(plan.line?[plan.line]:[]);
+    if(lines.length){
+      lines.slice().reverse().forEach(function(ln){ if(ln) state.expenses.unshift(ln); });
+      return true;
+    }
     return before;
   }
-  /* Fallback if models missing */
   state.expenses=state.expenses.filter(function(e){
-    return !(e&&(String(e.linkId||"")===linkId||(e.kind==="tipPayout"&&String(e.stewEventKey||"")===ek)));
+    if(!e) return true;
+    if(e.kind==="tipPayout"&&String(e.stewEventKey||"")===ek) return false;
+    var lid=String(e.linkId||"");
+    return !(lid===linkPrefix||lid.indexOf(linkPrefix+":")===0);
   });
-  if(!(stewTipPaid(asg)&&stewTipIsOnBill(asg)&&stewTipTotal(asg)>0)) return before;
-  return false;
+  return before;
 }
 function stewAssignDayPayAmount(asg){
   if(!asg) return 0;
@@ -12486,6 +12506,14 @@ function stewTipPaid(asg){
   if(LY_MODELS&&LY_MODELS.stewTipPaid) return !!LY_MODELS.stewTipPaid(asg);
   return !!(asg&&asg.tipPayStatus==="Paid");
 }
+function stewTipCaptainPaid(asg){
+  if(LY_MODELS&&LY_MODELS.stewTipCaptainPaid) return !!LY_MODELS.stewTipCaptainPaid(asg);
+  return stewTipPaid(asg);
+}
+function stewTipStewPaid(asg, stewId){
+  if(LY_MODELS&&LY_MODELS.stewTipStewPaid) return !!LY_MODELS.stewTipStewPaid(asg, stewId);
+  return stewTipPaid(asg);
+}
 /** Unpaid / "we owe" only from charter start day (local) onward — not for future dates. */
 function stewCharterDayReached(ev, asg){
   var d=stewAssignStartDate(asg, ev);
@@ -12519,16 +12547,22 @@ function stewPayBreakdown(ev, asg){
   var unpaid=!!(!paid&&due);
   var upcoming=!!(!paid&&!due);
   var tip=stewTipShare(asg);
-  var tipPaid=stewTipPaid(asg);
-  var tipUnpaid=!!(tip.total>0&&!tipPaid&&due);
-  var tipUpcoming=!!(tip.total>0&&!tipPaid&&!due);
+  var tipAllPaid=stewTipPaid(asg)||!!(tip.allPaid);
+  var tipAnyOpen=!!(tip.total>0&&(tip.anyUnpaid!=null?tip.anyUnpaid:!tipAllPaid));
+  var tipUnpaid=!!(tipAnyOpen&&due);
+  var tipUpcoming=!!(tip.total>0&&tipAnyOpen&&!due);
+  var tipPartial=!!(tip.anyPaid&&tipAnyOpen);
   return {
     rate:rate, units:units, each:each,
     totalAll:totalAll,
     nStews:nStews, paid:!!paid, due:!!due, unpaid:unpaid, upcoming:upcoming, cancelled:false,
     tipTotal:tip.total, tipStewSide:tip.stewSide, tipEach:tip.each,
     tipCaptainShare:tip.captainShare, tipCrew:tip.crew,
-    tipPaid:!!tipPaid, tipUnpaid:tipUnpaid, tipUpcoming:tipUpcoming,
+    tipCaptainPaid:!!tip.captainPaid,
+    tipOpenTotal:tip.openTotal!=null?tip.openTotal:(tipUnpaid?tip.total:0),
+    tipPaidTotal:tip.paidTotal!=null?tip.paidTotal:(tipAllPaid?tip.total:0),
+    tipStewPaidBy:tip.stewPaidBy||{},
+    tipPaid:!!tipAllPaid, tipUnpaid:tipUnpaid, tipUpcoming:tipUpcoming, tipPartial:tipPartial,
     unitLabel:units===1?"day":"days"
   };
 }
@@ -12547,7 +12581,11 @@ function stewPayStatusPill(pay){
 function stewTipStatusPill(pay, asg){
   if(!pay||!(pay.tipTotal>0)) return "";
   var onBill=asg?stewTipIsOnBill(asg):false;
-  if(pay.tipUnpaid) return '<span class="pill p-amber">'+(onBill?"Tip on bill unpaid ":"Tip unpaid ")+money0(pay.tipTotal)+'</span>';
+  var open=pay.tipOpenTotal!=null?pay.tipOpenTotal:(pay.tipUnpaid?pay.tipTotal:0);
+  if(pay.tipPartial&&open>0.009){
+    return '<span class="pill p-amber">'+(onBill?"Tip part open ":"Tip part open ")+money0(open)+'</span>';
+  }
+  if(pay.tipUnpaid) return '<span class="pill p-amber">'+(onBill?"Tip on bill unpaid ":"Tip unpaid ")+money0(open>0.009?open:pay.tipTotal)+'</span>';
   if(pay.tipPaid) return '<span class="pill p-green">'+(onBill?"Tip paid from petty ":"Tip paid ")+money0(pay.tipTotal)+'</span>';
   if(pay.tipUpcoming) return '<span class="pill p-grey">'+(onBill?"Tip on bill ":"Tip ")+money0(pay.tipTotal)+'</span>';
   return "";
@@ -13377,7 +13415,7 @@ function paintStewCharters(){
    * UI must not re-count assigned/unassigned — that drifts from the model.
    */
   var unpaidSum=0, paidSum=0, upcomingSum=0, tripDays=0, byStew={};
-  /* Tips ledger (Stews only — never petty): guest total, captain share, stew shares */
+  /* Tips ledger (Stews only — never petty): guest total, captain/stew shares (per-person paid) */
   var tipGuestSum=0, tipGuestPaid=0, tipGuestUnpaid=0;
   var tipStewPaidSum=0, tipStewUnpaidSum=0, tipCaptainPaid=0, tipCaptainUnpaid=0;
   var pocketSum=0;
@@ -13405,17 +13443,19 @@ function paintStewCharters(){
     tripDays+=pay0.units||0;
     if(pay0.tipTotal>0){
       tipGuestSum+=pay0.tipTotal;
-      var capShare=pay0.tipCaptainShare!=null?pay0.tipCaptainShare:stewTipShare(asg0).captainShare;
-      var stewSide=pay0.tipStewSide||0;
-      if(pay0.tipPaid){
-        tipGuestPaid+=pay0.tipTotal;
-        tipStewPaidSum+=stewSide;
-        tipCaptainPaid+=capShare;
-      } else {
-        tipGuestUnpaid+=pay0.tipTotal;
-        tipStewUnpaidSum+=stewSide;
-        tipCaptainUnpaid+=capShare;
-      }
+      var tipS=stewTipShare(asg0||{});
+      var capShare=tipS.captainShare!=null?tipS.captainShare:pay0.tipCaptainShare;
+      if(tipS.captainPaid) tipCaptainPaid+=capShare;
+      else tipCaptainUnpaid+=capShare;
+      tipGuestPaid+=tipS.paidTotal!=null?tipS.paidTotal:(pay0.tipPaid?pay0.tipTotal:0);
+      tipGuestUnpaid+=tipS.openTotal!=null?tipS.openTotal:(pay0.tipPaid?0:pay0.tipTotal);
+      var sidListTip=(asg0&&asg0.stewIds)?asg0.stewIds.filter(Boolean):[];
+      sidListTip.forEach(function(sid){
+        var ea=tipS.each||0;
+        if(!(ea>0)) return;
+        if(stewTipStewPaid(asg0, sid)) tipStewPaidSum+=ea;
+        else tipStewUnpaidSum+=ea;
+      });
     }
     if(!showMoney) return;
     var sidList0=(asg0&&asg0.stewIds)?asg0.stewIds.filter(Boolean):[];
@@ -13429,7 +13469,8 @@ function paintStewCharters(){
         else if(pay0.upcoming){ byStew[nm].upcoming+=stewPayAmt; upcomingSum+=stewPayAmt; }
       }
       if(pay0.tipEach>0){
-        if(pay0.tipPaid) byStew[nm].tipPaid+=pay0.tipEach;
+        var sidN=sidList0[ni];
+        if(sidN&&stewTipStewPaid(asg0, sidN)) byStew[nm].tipPaid+=pay0.tipEach;
         else byStew[nm].tipUnpaid+=pay0.tipEach;
       }
     });
@@ -13447,7 +13488,8 @@ function paintStewCharters(){
   }
   /* Day pay / pocket only — tips never fold into a “still to pay” wage total */
   var stillToPay=Math.round((unpaidSum+pocketSum)*100)/100;
-  var tipOpen=Math.round((tipGuestUnpaid)*100)/100;
+  var tipOpen=Math.round((tipCaptainUnpaid+tipStewUnpaidSum)*100)/100;
+  if(!(tipOpen>0)&&tipGuestUnpaid>0) tipOpen=Math.round(tipGuestUnpaid*100)/100;
   /* Compact summary (like Charges) + expand for tips / per-person */
   html+='<div class="summary stew-season-summary" style="margin-bottom:10px">'+
     '<div class="sumcard"><div class="l">Trips</div><div class="v">'+tripTotal+'</div></div>'+
@@ -13575,38 +13617,45 @@ function paintStewCharters(){
     } else if(ev.leadId&&(ev.leadSource==="pending"||ev.status==="tentative")&&isCaptain()){
       card+='<div class="meta" style="margin-top:6px"><button type="button" class="btn" data-assign-lead="'+esc(ev.leadId)+'" style="width:auto;padding:8px 14px;font-size:13px">Assign source →</button></div>';
     } else if(names.length||(showMoney&&pay.tipTotal>0)){
-      /* Who is owed tips — captain + each stew, clearly named */
+      /* Who is owed tips — captain + each stew (per-person paid) */
       if(showMoney&&pay.tipTotal>0&&!isCanc){
-        var tipStatusLab=pay.tipUnpaid?"unpaid":(pay.tipPaid?"paid":"open");
-        var tipColor=pay.tipUnpaid?";color:var(--amberDeep)":(pay.tipPaid?";color:var(--greenInk,#1a5c48)":"");
+        var tipStatusLab=pay.tipPaid?"all paid":(pay.tipPartial?"part paid":(pay.tipUnpaid?"unpaid":"open"));
+        var tipColor=(pay.tipUnpaid||pay.tipPartial)?";color:var(--amberDeep)":(pay.tipPaid?";color:var(--greenInk,#1a5c48)":"");
         var tipWhoBits=[];
         if(pay.tipCaptainShare>0.009){
-          tipWhoBits.push("Captain (you) "+money0(pay.tipCaptainShare));
+          tipWhoBits.push("Captain (you) "+money0(pay.tipCaptainShare)+(pay.tipCaptainPaid?" ✓":" open"));
         }
-        names.forEach(function(nm){
-          if(pay.tipEach>0.009) tipWhoBits.push(nm+" "+money0(pay.tipEach));
+        names.forEach(function(nm, ni){
+          if(!(pay.tipEach>0.009)) return;
+          var sid0=sidList[ni];
+          var sp=sid0?!!(pay.tipStewPaidBy&&pay.tipStewPaidBy[String(sid0)]):!!pay.tipPaid;
+          tipWhoBits.push(nm+" "+money0(pay.tipEach)+(sp?" ✓":" open"));
         });
         if(tipWhoBits.length){
           card+='<div class="meta" style="margin-top:6px;line-height:1.45;font-weight:700'+tipColor+'">'+
             'Tips '+esc(tipStatusLab)+' · guest '+money0(pay.tipTotal)+
-            '<div style="font-weight:600;margin-top:2px">Owe · '+esc(tipWhoBits.join(" · "))+'</div>'+
+            (pay.tipOpenTotal>0.009?' · still open '+money0(pay.tipOpenTotal):'')+
+            '<div style="font-weight:600;margin-top:2px">'+esc(tipWhoBits.join(" · "))+'</div>'+
           '</div>';
         }
       }
       names.forEach(function(nm, ni){
         var sid=sidList[ni];
         var stewPayAmt=sid&&asg?stewDayPayForStew(asg, sid):(each||0);
+        var stewTipOk=sid?!!(pay.tipStewPaidBy&&pay.tipStewPaidBy[String(sid)]):!!pay.tipPaid;
+        var stewTipOpen=pay.tipEach>0&&!stewTipOk;
         card+='<div class="stew-row">'+
           '<span class="stew-name">'+esc(nm)+'</span>'+
           (showMoney&&stewPayAmt>0?'<span class="money" style="font-weight:800;font-size:15px">Pay '+money0(stewPayAmt)+'</span>':'')+
           (showMoney?stewPayStatusPill(pay):'')+
-          (showMoney&&pay.tipEach>0?'<span class="money" style="font-weight:800;font-size:14px'+(pay.tipUnpaid?';color:var(--amberDeep)':'')+'" title="This person’s tip share">Tip '+money0(pay.tipEach)+(pay.tipUnpaid?' unpaid':(pay.tipPaid?' paid':''))+'</span>':'')+
+          (showMoney&&pay.tipEach>0?'<span class="money" style="font-weight:800;font-size:14px'+(stewTipOpen?';color:var(--amberDeep)':'')+'" title="This person’s tip share">Tip '+money0(pay.tipEach)+(stewTipOpen?' unpaid':' paid')+'</span>':'')+
         '</div>';
       });
       if(showMoney&&pay.tipCaptainShare>0.009&&!isCanc){
+        var capOpen=!pay.tipCaptainPaid;
         card+='<div class="stew-row">'+
           '<span class="stew-name">Captain (you)</span>'+
-          '<span class="money" style="font-weight:800;font-size:14px'+(pay.tipUnpaid?';color:var(--amberDeep)':'')+'" title="Captain tip share">Tip '+money0(pay.tipCaptainShare)+(pay.tipUnpaid?' unpaid':(pay.tipPaid?' paid':''))+'</span>'+
+          '<span class="money" style="font-weight:800;font-size:14px'+(capOpen?';color:var(--amberDeep)':'')+'" title="Captain tip share">Tip '+money0(pay.tipCaptainShare)+(capOpen?' unpaid':' paid')+'</span>'+
         '</div>';
       }
       if(!names.length&&!(showMoney&&pay.tipTotal>0)){
@@ -13790,8 +13839,12 @@ function stewPersonBalances(stewId){
       /* upcoming (future charter) — not owed yet */
     }
     if(pay.tipEach>0){
-      if(pay.tipPaid) tipPaid+=pay.tipEach;
-      else if(pay.tipUnpaid) tipUnpaid+=pay.tipEach;
+      var stewTipOk=stewTipStewPaid(a, sid);
+      if(stewTipOk) tipPaid+=pay.tipEach;
+      else if(pay.tipUnpaid||pay.tipPartial||pay.tipUpcoming||pay.tipAnyOpen||!pay.tipPaid){
+        /* Due open share for this stew (not captain) */
+        if(stewCharterDayReached({start:a.start}, a)||pay.tipUnpaid||pay.tipPartial) tipUnpaid+=pay.tipEach;
+      }
     }
   });
   var pocket=stewPocketOwed(sid);
@@ -14034,11 +14087,25 @@ function openStewAssign(eventKey){
         '<option value="card"'+(tipSrc==="card"?" selected":"")+'>On card / final bill (pay crew from petty later)</option>'+
       '</select>')+
     '</div>';
-    h+='<div class="row2">'+
-      fieldHTML("Tip pay-out to crew",'<select class="ctl" id="f_stew_tip_pay"><option value="Unpaid"'+(tipPay==="Unpaid"?" selected":"")+'>Unpaid (still owe crew)</option><option value="Paid"'+(tipPay==="Paid"?" selected":"")+'>Paid out</option></select>')+
-      '<div></div>'+
+    /* Per-person tip pay: captain + each stew (can settle Laura without you, or vice versa) */
+    var tipPaidBySaved=asg.tipPaidBy&&typeof asg.tipPaidBy==="object"?asg.tipPaidBy:{};
+    var tipLegacyAll=tipPay==="Paid"&&!Object.keys(tipPaidBySaved).length;
+    var tipCapPaidInit=tipLegacyAll||tipPaidBySaved.captain===true||tipPaidBySaved.captain==="true"||tipPaidBySaved.captain===1;
+    h+='<div id="f_stew_tip_pay_wrap" style="margin:0 0 8px">'+
+      '<div class="sectitle" style="margin:0 0 6px;font-size:13px">Pay tip shares</div>'+
+      '<p style="margin:0 0 8px;font-size:12px;color:var(--muted);line-height:1.4">Tick <b>each person</b> when you have paid their share (you and Laura separately). On card/bill tips leave petty when ticked.</p>'+
+      '<label class="checkrow" style="margin:0 0 6px"><input type="checkbox" id="f_stew_tip_pay_captain"'+(tipCapPaidInit?" checked":"")+'>'+
+        '<span><div class="ck">Captain (you) — tip share paid</div>'+
+        '<div class="ch" id="f_stew_tip_cap_amt">Your equal share of the guest tip</div></span></label>'+
+      '<div id="f_stew_tip_pay_stews"></div>'+
+      '<div style="display:flex;flex-wrap:wrap;gap:8px;margin:8px 0 0">'+
+        '<button type="button" class="btn ghost" id="f_stew_tip_pay_all" style="width:auto;padding:8px 12px;font-size:12.5px">Pay all shares</button>'+
+        '<button type="button" class="btn ghost" id="f_stew_tip_pay_none" style="width:auto;padding:8px 12px;font-size:12.5px">Clear all</button>'+
+      '</div>'+
+      /* Hidden legacy field kept for live summary + older code paths */
+      '<input type="hidden" id="f_stew_tip_pay" value="'+esc(tipPay)+'">'+
     '</div>';
-    h+='<p style="margin:-4px 0 12px;font-size:12px;color:var(--muted);line-height:1.4">Split <b>equally</b> (you + each stew). <b>Cash tips</b> = guest handed notes — not boat money. <b>On card/bill</b> = guest paid tip with the charter; boat owes crew until you mark Paid out (then <b>petty cash out</b> when cash-rich).</p>';
+    h+='<p style="margin:0 0 12px;font-size:12px;color:var(--muted);line-height:1.4">Split <b>equally</b> (you + each stew). <b>Cash tips</b> = guest handed notes — not boat money. <b>On card/bill</b> = guest paid tip with the charter; each share you tick becomes <b>petty cash out</b>.</p>';
     h+='<div class="apa-card" id="stewPayLive" style="margin-bottom:12px;background:rgba(201,168,76,.12)"></div>';
     h+='<p style="margin:0 0 12px;font-size:12px;color:var(--muted)">Suggested band: <b>'+esc(band.label)+' · €'+band.rate+'/day</b>. Per-stew amounts override the default when different.</p>';
   } else {
@@ -14107,6 +14174,71 @@ function openStewAssign(eventKey){
     });
     return stewNormalizeDayPayByStew(map, ids, defEach);
   }
+  function readTipPaidByFromForm(ids){
+    var byStew={};
+    (ids||[]).forEach(function(sid){
+      var inp=el("f_stew_tip_pay_"+sid);
+      if(inp&&inp.checked) byStew[String(sid)]=true;
+    });
+    return {
+      captain:!!(el("f_stew_tip_pay_captain")&&el("f_stew_tip_pay_captain").checked),
+      byStew:byStew,
+      stewIds:ids||[]
+    };
+  }
+  function planTipPayFromForm(ids){
+    var raw=readTipPaidByFromForm(ids);
+    if(LY_MODELS&&LY_MODELS.planTipPaidByFields){
+      return LY_MODELS.planTipPaidByFields(raw);
+    }
+    var map={};
+    if(raw.captain) map.captain=true;
+    Object.keys(raw.byStew||{}).forEach(function(k){ if(raw.byStew[k]) map[k]=true; });
+    var nPaid=Object.keys(map).length;
+    var nTot=1+(ids||[]).length;
+    return { tipPaidBy:map, tipPayStatus:nPaid<=0?"Unpaid":(nPaid>=nTot?"Paid":"Partial"), nPaid:nPaid, nTot:nTot };
+  }
+  function syncTipPayHidden(ids){
+    var plan=planTipPayFromForm(ids||selectedStewIds());
+    if(el("f_stew_tip_pay")) el("f_stew_tip_pay").value=plan.tipPayStatus||"Unpaid";
+    return plan;
+  }
+  function rebuildTipPayStewChecks(){
+    var wrap=el("f_stew_tip_pay_stews"); if(!wrap) return;
+    var ids=selectedStewIds();
+    var tipTot=el("f_stew_tip")?apaNum(el("f_stew_tip").value):0;
+    var tip=stewTipShare({tipTotal:tipTot>0?tipTot:"", stewIds:ids});
+    if(el("f_stew_tip_cap_amt")){
+      el("f_stew_tip_cap_amt").textContent=tip.captainShare>0
+        ?("Your share "+money0(tip.captainShare)+(tip.crew>1?" · equal split of "+money0(tip.total):""))
+        :"Your equal share of the guest tip";
+    }
+    if(!ids.length){
+      wrap.innerHTML='<p style="margin:4px 0 0;font-size:12.5px;color:var(--muted)">Tick stews above to pay their tip shares.</p>';
+      return;
+    }
+    var html="";
+    ids.forEach(function(sid){
+      var s=stewById(sid);
+      var name=(s&&s.name)||"Stew";
+      var was=false;
+      if(tipLegacyAll) was=true;
+      else if(tipPaidBySaved[String(sid)]===true||tipPaidBySaved[String(sid)]==="true"||tipPaidBySaved[String(sid)]===1) was=true;
+      var prev=el("f_stew_tip_pay_"+sid);
+      if(prev) was=!!prev.checked;
+      html+='<label class="checkrow" style="margin:0 0 6px"><input type="checkbox" id="f_stew_tip_pay_'+esc(sid)+'" data-tip-pay-stew="'+esc(sid)+'"'+(was?" checked":"")+'>'+
+        '<span><div class="ck">'+esc(name)+' — tip share paid</div>'+
+        '<div class="ch">'+(tip.each>0?("Share "+money0(tip.each)):"Share of guest tip")+'</div></span></label>';
+    });
+    wrap.innerHTML=html;
+    Array.prototype.forEach.call(wrap.querySelectorAll("[data-tip-pay-stew]"),function(inp){
+      inp.addEventListener("change",function(){
+        tipPaidBySaved[String(inp.getAttribute("data-tip-pay-stew"))]=!!inp.checked;
+        syncTipPayHidden(selectedStewIds());
+        refreshStewPayLive();
+      });
+    });
+  }
   function refreshStewPayLive(){
     var box=el("stewPayLive"); if(!box) return;
     var rate=el("f_stew_rate")?apaNum(el("f_stew_rate").value):0;
@@ -14116,16 +14248,19 @@ function openStewAssign(eventKey){
     var ids=selectedStewIds();
     var payMap=readDayPayByStewFromForm(ids, each);
     var paySel=el("f_stew_pay")&&el("f_stew_pay").value==="Paid"?"Paid":"Unpaid";
-    var tipSel=el("f_stew_tip_pay")&&el("f_stew_tip_pay").value==="Paid"?"Paid":"Unpaid";
+    var tipPlan=syncTipPayHidden(ids);
     var tipSrcSel=el("f_stew_tip_src")&&el("f_stew_tip_src").value==="card"?"card":"cash";
     var paidFromSel=el("f_stew_paid_from")?el("f_stew_paid_from").value:"Petty cash";
     if(el("f_stew_paid_from_wrap")) el("f_stew_paid_from_wrap").style.display=paySel==="Paid"?"":"none";
-    var tipMock={tipTotal:tipTot>0?tipTot:"", stewIds:ids, tipPayStatus:tipSel, tipSource:tipSrcSel};
+    var tipMock={
+      tipTotal:tipTot>0?tipTot:"",
+      stewIds:ids,
+      tipPayStatus:tipPlan.tipPayStatus,
+      tipPaidBy:tipPlan.tipPaidBy,
+      tipSource:tipSrcSel
+    };
     var tip=stewTipShare(tipMock);
     var payLabel=paySel==="Paid"?("Paid · "+(paidFromSel==="Own money"?"own money":"petty")):(charterDue?"Unpaid":"Not due yet");
-    var tipLabel=tipSel==="Paid"
-      ?(tipSrcSel==="card"?"Paid out · petty":"Paid · guest cash")
-      :(tipSrcSel==="card"?(charterDue?"Owed · on bill":"On bill · not due"):(charterDue?"Unpaid · cash tip":"Cash tip · not due"));
     var totalPay=0;
     var line="";
     if(ids.length){
@@ -14135,7 +14270,10 @@ function openStewAssign(eventKey){
         totalPay+=payAmt||0;
         var bits=[];
         if(payAmt>0||payAmt===0) bits.push("Pay "+money0(payAmt)+" · "+payLabel);
-        if(tip.each>0) bits.push("Tip "+money0(tip.each)+" · "+tipLabel);
+        if(tip.each>0){
+          var stewTipOk=!!(tip.stewPaidBy&&tip.stewPaidBy[String(sid)]);
+          bits.push("Tip "+money0(tip.each)+" · "+(stewTipOk?"paid":(tipSrcSel==="card"?"open · on bill":"open · cash")));
+        }
         return '<div style="display:flex;justify-content:space-between;gap:12px;margin-top:6px;align-items:center;flex-wrap:wrap">'+
           '<span class="stew-name" style="font-size:17px">'+esc(n)+'</span>'+
           '<span class="money" style="font-weight:800;font-size:13.5px">'+esc(bits.join(" · ")||"—")+'</span></div>';
@@ -14144,13 +14282,18 @@ function openStewAssign(eventKey){
       line='<div class="meta">Assign a stew to see their pay + tip share.</div>';
     }
     if(tip.total>0){
-      line+='<div class="meta" style="margin-top:10px">Guest tip <b class="money">'+money0(tip.total)+'</b> ÷ '+tip.crew+' crew → <b class="money">'+money0(tip.each)+'</b> each'+
-        ' · stews total <b class="money">'+money0(tip.stewSide)+'</b> · you keep <b class="money">'+money0(tip.captainShare)+'</b></div>';
+      var capOk=!!tip.captainPaid;
+      line+='<div style="display:flex;justify-content:space-between;gap:12px;margin-top:8px;align-items:center;flex-wrap:wrap">'+
+        '<span class="stew-name" style="font-size:17px">Captain (you)</span>'+
+        '<span class="money" style="font-weight:800;font-size:13.5px">Tip '+money0(tip.captainShare)+' · '+(capOk?"paid":(tipSrcSel==="card"?"open · on bill":"open · cash"))+'</span></div>';
+      line+='<div class="meta" style="margin-top:10px">Guest tip <b class="money">'+money0(tip.total)+'</b> ÷ '+tip.crew+' crew → <b class="money">'+money0(tip.nStews?tip.each:tip.captainShare)+'</b> each share'+
+        (tip.openTotal>0.009?' · <b style="color:var(--amberDeep)">still open '+money0(tip.openTotal)+'</b>':' · all tip shares paid')+
+        '</div>';
     }
-    box.innerHTML='<div class="meta">What each stew gets</div>'+
+    box.innerHTML='<div class="meta">What each person gets</div>'+
       (totalPay>0||ids.length>1?'<div style="font-size:18px;font-weight:800;margin-top:4px" class="money">Day pay total '+money0(totalPay)+'</div>':
         (each>0?'<div style="font-size:18px;font-weight:800;margin-top:4px" class="money">Day pay '+money0(each)+' <span style="font-size:12px;font-weight:600;color:var(--muted)">('+money0(rate)+' × '+units+')</span></div>':''))+
-      (tip.each>0?'<div style="font-size:18px;font-weight:800;margin-top:4px" class="money">Tip share '+money0(tip.each)+'</div>':'')+
+      (tip.each>0||tip.captainShare>0?'<div style="font-size:18px;font-weight:800;margin-top:4px" class="money">Tip share '+(tip.nStews?money0(tip.each):money0(tip.captainShare))+'</div>':'')+
       line;
   }
   Array.prototype.forEach.call(document.querySelectorAll("[data-stew-rate]"),function(btn){
@@ -14172,6 +14315,7 @@ function openStewAssign(eventKey){
   Array.prototype.forEach.call(document.querySelectorAll("[data-stew-pick]"),function(inp){
     inp.addEventListener("change", function(){
       rebuildPerStewPayFields(false);
+      rebuildTipPayStewChecks();
       refreshStewPayLive();
     });
   });
@@ -14197,11 +14341,43 @@ function openStewAssign(eventKey){
   });
   if(el("f_stew_pay")) el("f_stew_pay").addEventListener("change", refreshStewPayLive);
   if(el("f_stew_paid_from")) el("f_stew_paid_from").addEventListener("change", refreshStewPayLive);
-  if(el("f_stew_tip")) el("f_stew_tip").addEventListener("input", refreshStewPayLive);
-  if(el("f_stew_tip_pay")) el("f_stew_tip_pay").addEventListener("change", refreshStewPayLive);
+  if(el("f_stew_tip")) el("f_stew_tip").addEventListener("input",function(){
+    rebuildTipPayStewChecks();
+    refreshStewPayLive();
+  });
+  if(el("f_stew_tip_pay_captain")) el("f_stew_tip_pay_captain").addEventListener("change",function(){
+    tipPaidBySaved.captain=!!el("f_stew_tip_pay_captain").checked;
+    syncTipPayHidden(selectedStewIds());
+    refreshStewPayLive();
+  });
+  if(el("f_stew_tip_pay_all")) el("f_stew_tip_pay_all").addEventListener("click",function(ev){
+    ev.preventDefault();
+    if(el("f_stew_tip_pay_captain")) el("f_stew_tip_pay_captain").checked=true;
+    tipPaidBySaved.captain=true;
+    selectedStewIds().forEach(function(sid){
+      tipPaidBySaved[String(sid)]=true;
+      var inp=el("f_stew_tip_pay_"+sid);
+      if(inp) inp.checked=true;
+    });
+    syncTipPayHidden(selectedStewIds());
+    refreshStewPayLive();
+  });
+  if(el("f_stew_tip_pay_none")) el("f_stew_tip_pay_none").addEventListener("click",function(ev){
+    ev.preventDefault();
+    if(el("f_stew_tip_pay_captain")) el("f_stew_tip_pay_captain").checked=false;
+    tipPaidBySaved={};
+    tipLegacyAll=false;
+    selectedStewIds().forEach(function(sid){
+      var inp=el("f_stew_tip_pay_"+sid);
+      if(inp) inp.checked=false;
+    });
+    syncTipPayHidden(selectedStewIds());
+    refreshStewPayLive();
+  });
   if(el("f_stew_tip_src")) el("f_stew_tip_src").addEventListener("change", refreshStewPayLive);
   if(captainMode){
     rebuildPerStewPayFields(false);
+    rebuildTipPayStewChecks();
     refreshStewPayLive();
   }
   if(el("f_stew_cancelled")) el("f_stew_cancelled").addEventListener("change",function(){
@@ -14216,7 +14392,7 @@ function openStewAssign(eventKey){
     Array.prototype.forEach.call(document.querySelectorAll("[data-stew-pick]"),function(inp){
       if(inp.checked) ids.push(inp.getAttribute("data-stew-pick"));
     });
-    var rate, units, each, tipTotal, tipPayStatus, tipSource, tipShare, nowPaid, markCancelled, zeroPay, linkedLeadId, payFromPetty, paidFromSel, dayPayByStew;
+    var rate, units, each, tipTotal, tipPayStatus, tipSource, tipShare, tipPaidBy, nowPaid, markCancelled, zeroPay, linkedLeadId, payFromPetty, paidFromSel, dayPayByStew;
     if(captainMode){
       var rateRaw=el("f_stew_rate")?el("f_stew_rate").value:"";
       rate=rateRaw===""?"":apaNum(rateRaw);
@@ -14227,14 +14403,16 @@ function openStewAssign(eventKey){
       var tipRaw=el("f_stew_tip")?el("f_stew_tip").value:"";
       tipTotal=tipRaw===""?"":apaNum(tipRaw);
       if(tipTotal!==""&&!(tipTotal>0)) tipTotal="";
-      tipPayStatus=(el("f_stew_tip_pay")&&el("f_stew_tip_pay").value==="Paid")?"Paid":"Unpaid";
+      var tipPlanSave=planTipPayFromForm(ids);
+      tipPaidBy=tipPlanSave.tipPaidBy||{};
+      tipPayStatus=tipPlanSave.tipPayStatus||"Unpaid";
       tipSource=(el("f_stew_tip_src")&&el("f_stew_tip_src").value==="card")?"card":"cash";
-      tipShare=stewTipShare({tipTotal:tipTotal, stewIds:ids});
+      tipShare=stewTipShare({tipTotal:tipTotal, stewIds:ids, tipPayStatus:tipPayStatus, tipPaidBy:tipPaidBy});
       nowPaid=(el("f_stew_pay")&&el("f_stew_pay").value==="Paid");
       paidFromSel=(el("f_stew_paid_from")&&el("f_stew_paid_from").value==="Own money")?"Own money":"Petty cash";
       markCancelled=!!(el("f_stew_cancelled")&&el("f_stew_cancelled").checked);
       zeroPay=markCancelled&&!!(el("f_stew_zero_pay")&&el("f_stew_zero_pay").checked);
-      if(zeroPay){ each=0; rate=rate===""?"":0; nowPaid=false; dayPayByStew={}; tipTotal=""; tipPayStatus="Unpaid"; }
+      if(zeroPay){ each=0; rate=rate===""?"":0; nowPaid=false; dayPayByStew={}; tipTotal=""; tipPayStatus="Unpaid"; tipPaidBy={}; }
       linkedLeadId=(el("f_stew_leadId")&&el("f_stew_leadId").value)||"";
       /*
        * Only flag cash-out when newly marking Paid from petty, or switching
@@ -14250,9 +14428,10 @@ function openStewAssign(eventKey){
       each=stewPayEach(rate, units);
       dayPayByStew=asg.dayPayByStew&&typeof asg.dayPayByStew==="object"?asg.dayPayByStew:{};
       tipTotal=asg.tipTotal!=null&&asg.tipTotal!==""?asg.tipTotal:"";
-      tipPayStatus=asg.tipPayStatus==="Paid"?"Paid":"Unpaid";
+      tipPayStatus=asg.tipPayStatus==="Paid"?"Paid":(asg.tipPayStatus==="Partial"?"Partial":"Unpaid");
+      tipPaidBy=asg.tipPaidBy&&typeof asg.tipPaidBy==="object"?asg.tipPaidBy:{};
       tipSource=stewTipIsOnBill(asg)?"card":"cash";
-      tipShare=stewTipShare({tipTotal:tipTotal, stewIds:ids});
+      tipShare=stewTipShare({tipTotal:tipTotal, stewIds:ids, tipPayStatus:tipPayStatus, tipPaidBy:tipPaidBy});
       nowPaid=asg.payStatus==="Paid";
       paidFromSel=asg.paidFrom==="Own money"?"Own money":"Petty cash";
       markCancelled=!!(asg.cancelled||asg.status==="cancelled");
@@ -14311,6 +14490,7 @@ function openStewAssign(eventKey){
       tipSource:markCancelled?"cash":(tipSource||"cash"),
       tipStewShare:markCancelled?0:tipShare.stewSide,
       tipPayStatus:markCancelled?"Unpaid":tipPayStatus,
+      tipPaidBy:markCancelled?{}:(tipPaidBy&&typeof tipPaidBy==="object"?tipPaidBy:{}),
       notes:notesOut,
       updatedAt:new Date().toISOString(),
       by:session.who||(captainMode?"Captain":"Team"),

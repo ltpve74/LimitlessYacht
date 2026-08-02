@@ -1235,26 +1235,51 @@ function collectOpenTipPayouts(tipRows, opts) {
           return String(n || "").trim();
         }).filter(Boolean)
       : [];
+    var ids = Array.isArray(row.stewIds) ? row.stewIds.map(String) : [];
     var tipEach = num(row.tipEach);
     var tipCaptain = num(row.tipCaptain);
     var tipStewSide = num(row.tipStewSide);
-    /* Who is owed this tip (equal split captain + each stew) */
+    var capPaid = row.captainPaid === true || row.captainPaid === "true" || row.captainPaid === 1;
+    var stewPaidBy =
+      row.stewPaidBy && typeof row.stewPaidBy === "object" ? row.stewPaidBy : {};
+    /* Only unpaid shares (captain / Laura paid separately) */
     var shares = [];
-    if (tipCaptain > 0.009) {
+    if (tipCaptain > 0.009 && !capPaid) {
       shares.push({ who: "Captain", whoKey: "captain", amount: round2(tipCaptain), role: "captain" });
     }
-    names.forEach(function (nm) {
-      if (tipEach > 0.009) {
+    if (ids.length) {
+      ids.forEach(function (sid, idx) {
+        var paid =
+          stewPaidBy[sid] === true ||
+          stewPaidBy[sid] === "true" ||
+          stewPaidBy[sid] === 1;
+        if (paid) return;
+        if (!(tipEach > 0.009)) return;
+        var nm = names[idx] || "Stew";
+        shares.push({
+          who: nm,
+          whoKey: "stew:" + String(sid),
+          amount: round2(tipEach),
+          role: "stew",
+          stewId: String(sid),
+        });
+      });
+    } else {
+      names.forEach(function (nm, idx) {
+        if (!(tipEach > 0.009)) return;
         shares.push({
           who: nm,
           whoKey: "stew:" + nm.toLowerCase(),
           amount: round2(tipEach),
           role: "stew",
         });
-      }
-    });
+      });
+    }
     /* Fallback when names missing but stew side known */
-    if (!names.length && tipStewSide > 0.009 && tipEach > 0.009) {
+    if (!shares.length && !capPaid && tipCaptain > 0.009) {
+      shares.push({ who: "Captain", whoKey: "captain", amount: round2(tipCaptain), role: "captain" });
+    }
+    if (!names.length && !ids.length && tipStewSide > 0.009 && tipEach > 0.009 && !row.paid) {
       var nEst = Math.max(1, Math.round(tipStewSide / tipEach) || num(row.nStews) || 1);
       for (var i = 0; i < nEst; i++) {
         shares.push({
@@ -1265,18 +1290,25 @@ function collectOpenTipPayouts(tipRows, opts) {
         });
       }
     }
+    var openAmt = 0;
+    shares.forEach(function (sh) {
+      openAmt = round2(openAmt + num(sh.amount));
+    });
+    if (!(openAmt > 0.009)) return; /* all person shares already paid */
     out.push({
       kind: "tip",
       eventKey: String(row.eventKey),
       label: "Tips on bill · " + (row.summary || "Charter"),
-      amount: tot,
+      amount: openAmt,
+      guestTotal: tot,
       date: start,
       month: m || "",
       tipEach: tipEach,
       tipCaptain: tipCaptain,
       tipStewSide: tipStewSide,
-      nStews: num(row.nStews) || names.length,
+      nStews: num(row.nStews) || names.length || ids.length,
       stewNames: names,
+      stewIds: ids,
       shares: shares,
       summary: row.summary || "Charter",
     });

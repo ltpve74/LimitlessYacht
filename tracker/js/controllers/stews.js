@@ -65,19 +65,30 @@
         typeof models.stewNames === "function"
           ? models.stewNames(stews, asg.stewIds)
           : [];
+      var ids = (asg.stewIds || []).filter(Boolean).map(String);
+      var stewPaidBy = {};
+      ids.forEach(function (sid) {
+        stewPaidBy[sid] = models.stewTipStewPaid
+          ? !!models.stewTipStewPaid(asg, sid)
+          : !!(share.stewPaidBy && share.stewPaidBy[sid]);
+      });
       rows.push({
         eventKey: String(asg.eventKey),
         onBill: models.stewTipIsOnBill(asg),
+        /* Whole tip fully paid (every share) */
         paid: models.stewTipPaid(asg),
         amount: models.stewTipTotal(asg),
+        openAmount: share.openTotal != null ? share.openTotal : models.stewTipTotal(asg),
         date: String(asg.start || "").slice(0, 10),
         summary: asg.summary || "Charter",
         tipEach: share.each,
         tipCaptain: share.captainShare,
         tipStewSide: share.stewSide,
         nStews: share.nStews,
+        captainPaid: !!share.captainPaid,
+        stewPaidBy: stewPaidBy,
         stewNames: names || [],
-        stewIds: (asg.stewIds || []).filter(Boolean).map(String),
+        stewIds: ids,
         cancelled: false,
       });
     });

@@ -247,9 +247,96 @@ function stewTipTotal(asg) {
   return 0;
 }
 
+/**
+ * tipPaidBy map: { captain: true, "<stewId>": true }.
+ * Empty / missing with tipPayStatus Paid = legacy “everyone paid”.
+ */
+function stewTipPaidByMap(asg) {
+  if (!asg || !asg.tipPaidBy || typeof asg.tipPaidBy !== "object") return {};
+  return asg.tipPaidBy;
+}
+
+function stewTipFlagTrue(v) {
+  return v === true || v === "true" || v === 1 || v === "1" || v === "Paid";
+}
+
+/** Legacy single switch: whole tip marked Paid with no per-person map. */
+function stewTipLegacyAllPaid(asg) {
+  if (!asg) return false;
+  if (!(asg.tipPayStatus === "Paid" || asg.tipPaid === true)) return false;
+  var map = stewTipPaidByMap(asg);
+  return !Object.keys(map).length;
+}
+
+/** Captain’s tip share paid. */
+function stewTipCaptainPaid(asg) {
+  if (!asg) return false;
+  if (stewTipLegacyAllPaid(asg)) return true;
+  if (asg.tipPayStatus === "Paid" || asg.tipPaid === true) {
+    var m = stewTipPaidByMap(asg);
+    if (!Object.keys(m).length) return true;
+  }
+  return stewTipFlagTrue(stewTipPaidByMap(asg).captain);
+}
+
+/** One stew’s tip share paid. */
+function stewTipStewPaid(asg, stewId) {
+  if (!asg || !stewId) return false;
+  if (stewTipLegacyAllPaid(asg)) return true;
+  if (asg.tipPayStatus === "Paid" || asg.tipPaid === true) {
+    var m0 = stewTipPaidByMap(asg);
+    if (!Object.keys(m0).length) return true;
+  }
+  return stewTipFlagTrue(stewTipPaidByMap(asg)[String(stewId)]);
+}
+
+/**
+ * True when every tip share is paid (captain + each assigned stew).
+ * Partial per-person pay → false until all ticked.
+ */
 function stewTipPaid(asg) {
   if (!asg) return false;
-  return asg.tipPayStatus === "Paid" || asg.tipPaid === true;
+  var tot = stewTipTotal(asg);
+  if (!(tot > 0)) return asg.tipPayStatus === "Paid" || asg.tipPaid === true;
+  if (stewTipLegacyAllPaid(asg)) return true;
+  if (!stewTipCaptainPaid(asg)) return false;
+  var ids = (asg.stewIds || []).filter(Boolean);
+  for (var i = 0; i < ids.length; i++) {
+    if (!stewTipStewPaid(asg, ids[i])) return false;
+  }
+  /* No stews: captain-only share */
+  return true;
+}
+
+/** Any share still open. */
+function stewTipAnyUnpaid(asg) {
+  var tot = stewTipTotal(asg);
+  if (!(tot > 0)) return false;
+  return !stewTipPaid(asg);
+}
+
+/**
+ * Build tipPaidBy + tipPayStatus from per-person flags (pure).
+ * @param {{ captain?: boolean, byStew?: object, stewIds?: Array }} input
+ */
+function planTipPaidByFields(input) {
+  input = input || {};
+  var ids = (input.stewIds || []).filter(Boolean).map(String);
+  var byStew = input.byStew && typeof input.byStew === "object" ? input.byStew : {};
+  var map = {};
+  var cap = !!input.captain;
+  if (cap) map.captain = true;
+  var nPaid = cap ? 1 : 0;
+  var nTot = 1 + ids.length;
+  ids.forEach(function (sid) {
+    if (stewTipFlagTrue(byStew[sid]) || stewTipFlagTrue(byStew[String(sid)])) {
+      map[sid] = true;
+      nPaid++;
+    }
+  });
+  var tipPayStatus = nPaid <= 0 ? "Unpaid" : nPaid >= nTot ? "Paid" : "Partial";
+  /* When fully paid keep map for clarity; legacy readers still see tipPayStatus Paid */
+  return { tipPaidBy: map, tipPayStatus: tipPayStatus, nPaid: nPaid, nTot: nTot };
 }
 
 /**
@@ -282,22 +369,69 @@ function stewDayPayTotalAll(asg) {
 /**
  * Guest tip split equally among all crew on the trip: captain + every assigned stew.
  * 1 stew → 2 shares (50% each). 2 stews → 3 shares (~33% each).
+ * Includes per-person paid / open amounts when asg has tipPaidBy / tipPayStatus.
  */
 function stewTipShare(asg) {
   var tot = stewTipTotal(asg);
-  if (!(tot > 0)) return { total: 0, stewSide: 0, each: 0, nStews: 0, crew: 0, captainShare: 0 };
-  var n = asg && asg.stewIds ? asg.stewIds.filter(Boolean).length : 0;
+  if (!(tot > 0)) {
+    return {
+      total: 0,
+      stewSide: 0,
+      each: 0,
+      nStews: 0,
+      crew: 0,
+      captainShare: 0,
+      captainPaid: false,
+      captainOpen: 0,
+      stewOpen: 0,
+      openTotal: 0,
+      paidTotal: 0,
+      allPaid: false,
+      anyUnpaid: false,
+      anyPaid: false,
+      stewPaidBy: {},
+    };
+  }
+  var ids = asg && asg.stewIds ? asg.stewIds.filter(Boolean) : [];
+  var n = ids.length;
   var crew = 1 + n;
   var each = n > 0 ? Math.round((tot / crew) * 100) / 100 : 0;
+  /* No stews: whole tip is captain’s */
+  if (n === 0) {
+    each = 0;
+  }
   var stewSide = Math.round(each * n * 100) / 100;
-  var captainShare = Math.round((tot - stewSide) * 100) / 100;
+  var captainShare = n > 0 ? Math.round((tot - stewSide) * 100) / 100 : tot;
+  var capPaid = stewTipCaptainPaid(asg);
+  var stewPaidBy = {};
+  var stewOpen = 0;
+  var stewPaidAmt = 0;
+  ids.forEach(function (sid) {
+    var p = stewTipStewPaid(asg, sid);
+    stewPaidBy[String(sid)] = p;
+    if (p) stewPaidAmt = Math.round((stewPaidAmt + each) * 100) / 100;
+    else stewOpen = Math.round((stewOpen + each) * 100) / 100;
+  });
+  var captainOpen = capPaid ? 0 : captainShare;
+  var openTotal = Math.round((captainOpen + stewOpen) * 100) / 100;
+  var paidTotal = Math.round((tot - openTotal) * 100) / 100;
+  var allPaid = openTotal < 0.009;
   return {
     total: tot,
     stewSide: stewSide,
     each: each,
     nStews: n,
-    crew: crew,
+    crew: n > 0 ? crew : 1,
     captainShare: captainShare,
+    captainPaid: capPaid,
+    captainOpen: captainOpen,
+    stewOpen: stewOpen,
+    openTotal: openTotal,
+    paidTotal: paidTotal,
+    allPaid: allPaid,
+    anyUnpaid: openTotal > 0.009,
+    anyPaid: paidTotal > 0.009,
+    stewPaidBy: stewPaidBy,
   };
 }
 
@@ -423,23 +557,31 @@ function planStewDayPayExpenseLines(input) {
 }
 
 /**
- * Pure plan: tip payout expense when on-bill tips are Paid.
- * @returns {{ linkId: string, eventKey: string, line: object|null, remove: boolean }}
+ * Pure plan: on-bill tip payout expense lines for shares already paid.
+ * One line per person (captain / each stew) so Laura and you can be paid separately.
+ * Removes legacy single stew-tip:ek line and per-person lines for this event.
+ *
+ * @returns {{
+ *   eventKey: string,
+ *   linkPrefix: string,
+ *   lines: Array,
+ *   remove: boolean,
+ *   linkId: string,
+ *   line: object|null
+ * }}
+ * linkId/line kept for older callers (first line or null).
  */
 function planStewTipPayoutExpense(input) {
   input = input || {};
   var asg = input.asg;
   if (!asg || !asg.eventKey) {
-    return { linkId: "", eventKey: "", line: null, remove: false };
+    return { linkId: "", eventKey: "", line: null, lines: [], remove: false, linkPrefix: "" };
   }
   var ek = String(asg.eventKey);
-  var linkId = "stew-tip:" + ek;
+  var linkPrefix = "stew-tip:" + ek;
+  var linkId = linkPrefix;
   var tot = stewTipTotal(asg);
-  var paid = stewTipPaid(asg);
   var onBill = stewTipIsOnBill(asg);
-  if (!(paid && onBill && tot > 0)) {
-    return { linkId: linkId, eventKey: ek, line: null, remove: true };
-  }
   var tip = stewTipShare(asg);
   var date = String(asg.start || "").slice(0, 10) || input.today || "";
   var nowIso = input.nowIso || new Date().toISOString();
@@ -456,33 +598,71 @@ function planStewTipPayoutExpense(input) {
       : function (n) {
           return "€" + Math.round(Number(n) || 0);
         };
-  var line = {
-    id: newId(),
+  var stewName =
+    typeof input.stewName === "function"
+      ? input.stewName
+      : function () {
+          return "Stew";
+        };
+  if (!(onBill && tot > 0)) {
+    return {
+      linkId: linkId,
+      eventKey: ek,
+      line: null,
+      lines: [],
+      remove: true,
+      linkPrefix: linkPrefix,
+    };
+  }
+  var lines = [];
+  function pushLine(whoKey, label, amount) {
+    if (!(amount > 0.009)) return;
+    lines.push({
+      id: newId(),
+      linkId: linkPrefix + ":" + whoKey,
+      source: "stew",
+      kind: "tipPayout",
+      stewEventKey: ek,
+      stewPayKind: "tipPayout",
+      tipWhoKey: whoKey,
+      date: date,
+      vendor: label,
+      description:
+        "Tip payout from petty · " +
+        (asg.summary || "Charter") +
+        " · " +
+        label +
+        " · " +
+        moneyLabel(amount) +
+        " (guest tip " +
+        moneyLabel(tot) +
+        ")",
+      category: "Crew tip payout",
+      payMethod: "Cash",
+      paidFrom: "Petty cash",
+      amount: Math.round(amount * 100) / 100,
+      receipt: "",
+      by: who,
+      updatedAt: nowIso,
+    });
+  }
+  if (tip.captainPaid && tip.captainShare > 0.009) {
+    pushLine("captain", "Captain tip", tip.captainShare);
+  }
+  (asg.stewIds || []).filter(Boolean).forEach(function (sid) {
+    if (!stewTipStewPaid(asg, sid)) return;
+    if (!(tip.each > 0.009)) return;
+    var nm = stewName(sid) || "Stew";
+    pushLine(String(sid), nm + " tip", tip.each);
+  });
+  return {
     linkId: linkId,
-    source: "stew",
-    kind: "tipPayout",
-    stewEventKey: ek,
-    stewPayKind: "tipPayout",
-    date: date,
-    vendor: "Crew tips (on bill)",
-    description:
-      "Tip payout from petty · " +
-      (asg.summary || "Charter") +
-      " · guest tip " +
-      moneyLabel(tot) +
-      " (you " +
-      moneyLabel(tip.captainShare) +
-      (tip.nStews ? " · stews " + moneyLabel(tip.stewSide) : "") +
-      ")",
-    category: "Crew tip payout",
-    payMethod: "Cash",
-    paidFrom: "Petty cash",
-    amount: tot,
-    receipt: "",
-    by: who,
-    updatedAt: nowIso,
+    eventKey: ek,
+    line: lines.length ? lines[0] : null,
+    lines: lines,
+    remove: true,
+    linkPrefix: linkPrefix,
   };
-  return { linkId: linkId, eventKey: ek, line: line, remove: true };
 }
 
 
@@ -503,6 +683,12 @@ function planStewTipPayoutExpense(input) {
     stewTipIsOnBill: stewTipIsOnBill,
     stewTipTotal: stewTipTotal,
     stewTipPaid: stewTipPaid,
+    stewTipPaidByMap: stewTipPaidByMap,
+    stewTipCaptainPaid: stewTipCaptainPaid,
+    stewTipStewPaid: stewTipStewPaid,
+    stewTipAnyUnpaid: stewTipAnyUnpaid,
+    stewTipLegacyAllPaid: stewTipLegacyAllPaid,
+    planTipPaidByFields: planTipPaidByFields,
     stewTipShare: stewTipShare,
     stewDayPayForStew: stewDayPayForStew,
     stewDayPayTotalAll: stewDayPayTotalAll,

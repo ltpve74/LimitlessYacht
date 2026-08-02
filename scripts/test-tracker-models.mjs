@@ -1682,6 +1682,57 @@ console.log("\n[Stews — tip on bill + day pay]");
   ok("tip share stew side 45", near(share.stewSide, 45));
   const share2 = M.stewTipShare({ tipTotal: 90, stewIds: ["s1", "s2"] });
   ok("tip share 2 stews → 3-way", near(share2.each, 30));
+  /* Per-person tip pay: captain and Laura separately */
+  const partial = {
+    tipTotal: 100,
+    stewIds: ["laura"],
+    tipPayStatus: "Partial",
+    tipPaidBy: { captain: true },
+    tipSource: "card",
+  };
+  ok("captain paid alone", M.stewTipCaptainPaid(partial) === true);
+  ok("Laura not paid", M.stewTipStewPaid(partial, "laura") === false);
+  ok("not all tip paid", M.stewTipPaid(partial) === false);
+  const partialShare = M.stewTipShare(partial);
+  ok("partial open is Laura 50", near(partialShare.openTotal, 50));
+  ok("partial paid is captain 50", near(partialShare.paidTotal, 50));
+  const payPlan = M.planTipPaidByFields({
+    captain: true,
+    byStew: { laura: true },
+    stewIds: ["laura"],
+  });
+  ok("pay both → tipPayStatus Paid", payPlan.tipPayStatus === "Paid");
+  const payCapOnly = M.planTipPaidByFields({
+    captain: true,
+    byStew: {},
+    stewIds: ["laura"],
+  });
+  ok("pay captain only → Partial", payCapOnly.tipPayStatus === "Partial");
+  const expLines = M.planStewTipPayoutExpense({
+    asg: Object.assign({}, partial, { eventKey: "ev1", summary: "Trip", start: "2026-08-01" }),
+    stewName: function () {
+      return "Laura";
+    },
+  });
+  ok("on-bill partial → 1 expense line (captain)", expLines.lines && expLines.lines.length === 1);
+  ok("expense is captain share 50", expLines.lines[0] && near(expLines.lines[0].amount, 50));
+  const bothPaid = {
+    tipTotal: 100,
+    stewIds: ["laura"],
+    tipPayStatus: "Paid",
+    tipPaidBy: { captain: true, laura: true },
+    tipSource: "card",
+    eventKey: "ev2",
+    summary: "Trip",
+    start: "2026-08-01",
+  };
+  const expBoth = M.planStewTipPayoutExpense({
+    asg: bothPaid,
+    stewName: function () {
+      return "Laura";
+    },
+  });
+  ok("both paid → 2 expense lines", expBoth.lines && expBoth.lines.length === 2);
   /* Open tips → who is owed (Captain + Laura) */
   const openTips = M.collectOpenTipPayouts(
     [
@@ -1697,6 +1748,9 @@ console.log("\n[Stews — tip on bill + day pay]");
         tipStewSide: 50,
         nStews: 1,
         stewNames: ["Laura"],
+        stewIds: ["laura"],
+        captainPaid: false,
+        stewPaidBy: {},
       },
       {
         eventKey: "ev-paid",
@@ -1707,23 +1761,49 @@ console.log("\n[Stews — tip on bill + day pay]");
         tipEach: 40,
         tipCaptain: 40,
         stewNames: ["Laura"],
+        stewIds: ["laura"],
+        captainPaid: true,
+        stewPaidBy: { laura: true },
+      },
+      {
+        eventKey: "ev-partial",
+        onBill: true,
+        paid: false,
+        amount: 100,
+        date: "2026-08-01",
+        summary: "Partial",
+        tipEach: 50,
+        tipCaptain: 50,
+        tipStewSide: 50,
+        nStews: 1,
+        stewNames: ["Laura"],
+        stewIds: ["laura"],
+        captainPaid: true,
+        stewPaidBy: { laura: false },
       },
     ],
     { focusMonth: "2026-08", today: "2026-08-02" }
   );
-  ok("open tip n=1 (paid excluded)", openTips.length === 1);
-  ok("open tip has captain+Laura shares", openTips[0].shares && openTips[0].shares.length === 2);
+  ok("open tip n=2 (full unpaid + partial)", openTips.length === 2);
+  const fullOpen = openTips.find(function (t) {
+    return t.eventKey === "ev-tip";
+  });
+  ok("full open has captain+Laura shares", fullOpen && fullOpen.shares && fullOpen.shares.length === 2);
+  const partOpen = openTips.find(function (t) {
+    return t.eventKey === "ev-partial";
+  });
+  ok("partial open only Laura", partOpen && partOpen.shares && partOpen.shares.length === 1);
+  ok("partial open amount 50", partOpen && near(partOpen.amount, 50));
   const byWho = M.summarizeOpenTipOwedByPerson(openTips);
   ok("tip by person n=2", byWho.n === 2);
-  ok("tip by person total 100", near(byWho.total, 100));
   const cap = byWho.people.find(function (p) {
     return p.whoKey === "captain";
   });
   const laura = byWho.people.find(function (p) {
     return /laura/i.test(p.name || "");
   });
-  ok("owe captain 50", cap && near(cap.amount, 50));
-  ok("owe Laura 50", laura && near(laura.amount, 50));
+  ok("owe captain 50 (only full trip)", cap && near(cap.amount, 50));
+  ok("owe Laura 100 (full + partial)", laura && near(laura.amount, 100));
   ok("captain listed first", byWho.people[0] && byWho.people[0].role === "captain");
 }
 
@@ -2161,9 +2241,16 @@ console.log("\n[Write plans — stew expenses + APA shortfall decision]");
     formatMoney: function (n) {
       return "€" + n;
     },
+    stewName: function () {
+      return "Stew";
+    },
   });
-  ok("on-bill tip paid → line amount 90", tipYes.line && near(tipYes.line.amount, 90));
-  ok("tip category Crew tip payout", tipYes.line && tipYes.line.category === "Crew tip payout");
+  const tipYesSum = (tipYes.lines || []).reduce(function (s, ln) {
+    return s + (ln && ln.amount ? ln.amount : 0);
+  }, 0);
+  ok("on-bill tip paid → 2 person lines", tipYes.lines && tipYes.lines.length === 2);
+  ok("on-bill tip paid → line amount 90", near(tipYesSum, 90));
+  ok("tip category Crew tip payout", tipYes.lines[0] && tipYes.lines[0].category === "Crew tip payout");
   ok(
     "APA sync skip without create",
     M.planApaShortfallSync({ overage: 100, hasReusable: false, allowCreate: false }).action === "skip"
