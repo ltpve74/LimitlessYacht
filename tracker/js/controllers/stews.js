@@ -77,13 +77,17 @@
         onBill: models.stewTipIsOnBill(asg),
         /* Whole tip fully paid (every share) */
         paid: models.stewTipPaid(asg),
-        amount: models.stewTipTotal(asg),
+        /* Guest gross; shares (tipEach / tipCaptain) are after VAT for card tips */
+        amount: share.pool != null ? share.pool : models.stewTipTotal(asg),
+        guestGross: share.gross != null ? share.gross : models.stewTipTotal(asg),
         openAmount: share.openTotal != null ? share.openTotal : models.stewTipTotal(asg),
         date: String(asg.start || "").slice(0, 10),
         summary: asg.summary || "Charter",
         tipEach: share.each,
         tipCaptain: share.captainShare,
         tipStewSide: share.stewSide,
+        tipVat: share.vat || 0,
+        tipPool: share.pool != null ? share.pool : share.each,
         nStews: share.nStews,
         captainPaid: !!share.captainPaid,
         stewPaidBy: stewPaidBy,

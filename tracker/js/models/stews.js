@@ -248,6 +248,45 @@ function stewTipTotal(asg) {
 }
 
 /**
+ * VAT % for on-card / bill tips (guest total is VAT-inclusive).
+ * Default 21 (ES). tipVatPct: 0 = no VAT strip. Cash tips ignore this.
+ */
+function stewTipVatPct(asg) {
+  if (!asg) return 21;
+  if (asg.tipVatPct === 0 || asg.tipVatPct === "0") return 0;
+  if (asg.tipVatPct != null && asg.tipVatPct !== "") {
+    var p = Number(asg.tipVatPct);
+    if (isFinite(p) && p >= 0) return p;
+  }
+  return 21;
+}
+
+/**
+ * Amount crew may share.
+ *  - Cash tip: full guest tip (no VAT).
+ *  - On card/bill: guest total is VAT-inclusive → pool = gross ÷ (1+vat%).
+ *
+ * @returns {{ gross, net, vat, vatPct, pool, onBill }}
+ */
+function stewTipDistributable(asg) {
+  var gross = stewTipTotal(asg);
+  if (!(gross > 0)) {
+    return { gross: 0, net: 0, vat: 0, vatPct: 0, pool: 0, onBill: false };
+  }
+  var onBill = stewTipIsOnBill(asg);
+  if (!onBill) {
+    return { gross: gross, net: gross, vat: 0, vatPct: 0, pool: gross, onBill: false };
+  }
+  var pct = stewTipVatPct(asg);
+  if (!(pct > 0)) {
+    return { gross: gross, net: gross, vat: 0, vatPct: 0, pool: gross, onBill: true };
+  }
+  var net = Math.round((gross / (1 + pct / 100)) * 100) / 100;
+  var vat = Math.round((gross - net) * 100) / 100;
+  return { gross: gross, net: net, vat: vat, vatPct: pct, pool: net, onBill: true };
+}
+
+/**
  * tipPaidBy map: { captain: true, "<stewId>": true }.
  * Empty / missing with tipPayStatus Paid = legacy “everyone paid”.
  */
@@ -369,13 +408,27 @@ function stewDayPayTotalAll(asg) {
 /**
  * Guest tip split equally among all crew on the trip: captain + every assigned stew.
  * 1 stew → 2 shares (50% each). 2 stews → 3 shares (~33% each).
+ *
+ * Pool for shares:
+ *  - Cash tip → full guest tip (no VAT)
+ *  - On card/bill → after VAT (gross ÷ 1.21 by default)
+ *
+ * `total` = guest tip entered (gross). `pool` / `net` = amount actually split to crew.
  * Includes per-person paid / open amounts when asg has tipPaidBy / tipPayStatus.
  */
 function stewTipShare(asg) {
-  var tot = stewTipTotal(asg);
-  if (!(tot > 0)) {
+  var dist = stewTipDistributable(asg);
+  var tot = dist.gross;
+  var pool = dist.pool;
+  if (!(tot > 0) || !(pool > 0)) {
     return {
-      total: 0,
+      total: tot || 0,
+      gross: tot || 0,
+      pool: 0,
+      net: 0,
+      vat: dist.vat || 0,
+      vatPct: dist.vatPct || 0,
+      onBill: !!dist.onBill,
       stewSide: 0,
       each: 0,
       nStews: 0,
@@ -395,13 +448,14 @@ function stewTipShare(asg) {
   var ids = asg && asg.stewIds ? asg.stewIds.filter(Boolean) : [];
   var n = ids.length;
   var crew = 1 + n;
-  var each = n > 0 ? Math.round((tot / crew) * 100) / 100 : 0;
-  /* No stews: whole tip is captain’s */
+  /* Split after-VAT pool (card) or full cash tip */
+  var each = n > 0 ? Math.round((pool / crew) * 100) / 100 : 0;
+  /* No stews: whole pool is captain’s */
   if (n === 0) {
     each = 0;
   }
   var stewSide = Math.round(each * n * 100) / 100;
-  var captainShare = n > 0 ? Math.round((tot - stewSide) * 100) / 100 : tot;
+  var captainShare = n > 0 ? Math.round((pool - stewSide) * 100) / 100 : pool;
   var capPaid = stewTipCaptainPaid(asg);
   var stewPaidBy = {};
   var stewOpen = 0;
@@ -414,10 +468,16 @@ function stewTipShare(asg) {
   });
   var captainOpen = capPaid ? 0 : captainShare;
   var openTotal = Math.round((captainOpen + stewOpen) * 100) / 100;
-  var paidTotal = Math.round((tot - openTotal) * 100) / 100;
+  var paidTotal = Math.round((pool - openTotal) * 100) / 100;
   var allPaid = openTotal < 0.009;
   return {
     total: tot,
+    gross: tot,
+    pool: pool,
+    net: dist.net,
+    vat: dist.vat,
+    vatPct: dist.vatPct,
+    onBill: !!dist.onBill,
     stewSide: stewSide,
     each: each,
     nStews: n,
@@ -636,6 +696,9 @@ function planStewTipPayoutExpense(input) {
         moneyLabel(amount) +
         " (guest tip " +
         moneyLabel(tot) +
+        (tip.onBill && tip.vat > 0.009
+          ? " · after VAT " + moneyLabel(tip.pool)
+          : "") +
         ")",
       category: "Crew tip payout",
       payMethod: "Cash",
@@ -682,6 +745,8 @@ function planStewTipPayoutExpense(input) {
     stewRosterSummary: stewRosterSummary,
     stewTipIsOnBill: stewTipIsOnBill,
     stewTipTotal: stewTipTotal,
+    stewTipVatPct: stewTipVatPct,
+    stewTipDistributable: stewTipDistributable,
     stewTipPaid: stewTipPaid,
     stewTipPaidByMap: stewTipPaidByMap,
     stewTipCaptainPaid: stewTipCaptainPaid,

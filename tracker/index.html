@@ -939,21 +939,21 @@
 
 <!-- Domain models + controllers (MVC blueprint) — tests: node scripts/test-tracker-models.mjs -->
 <!-- LY_MODELS → LY_CONTROLLERS → view. See .agent/briefs/tracker-v1-mvc-blueprint.md -->
-<script src="/tracker/js/models/util.js?v=20260807-tippay2"></script>
-<script src="/tracker/js/models/leads.js?v=20260807-tippay2"></script>
-<script src="/tracker/js/models/charges.js?v=20260807-tippay2"></script>
-<script src="/tracker/js/models/expenses.js?v=20260807-tippay2"></script>
-<script src="/tracker/js/models/cash.js?v=20260807-tippay2"></script>
-<script src="/tracker/js/models/diesel.js?v=20260807-tippay2"></script>
-<script src="/tracker/js/models/stews.js?v=20260807-tippay2"></script>
-<script src="/tracker/js/models/apa.js?v=20260807-tippay2"></script>
-<script src="/tracker/js/models/index.js?v=20260807-tippay2"></script>
-<script src="/tracker/js/controllers/expenses.js?v=20260807-tippay2"></script>
-<script src="/tracker/js/controllers/charges.js?v=20260807-tippay2"></script>
-<script src="/tracker/js/controllers/leads.js?v=20260807-tippay2"></script>
-<script src="/tracker/js/controllers/apa.js?v=20260807-tippay2"></script>
-<script src="/tracker/js/controllers/stews.js?v=20260807-tippay2"></script>
-<script src="/tracker/js/controllers/index.js?v=20260807-tippay2"></script>
+<script src="/tracker/js/models/util.js?v=20260807-tipvat1"></script>
+<script src="/tracker/js/models/leads.js?v=20260807-tipvat1"></script>
+<script src="/tracker/js/models/charges.js?v=20260807-tipvat1"></script>
+<script src="/tracker/js/models/expenses.js?v=20260807-tipvat1"></script>
+<script src="/tracker/js/models/cash.js?v=20260807-tipvat1"></script>
+<script src="/tracker/js/models/diesel.js?v=20260807-tipvat1"></script>
+<script src="/tracker/js/models/stews.js?v=20260807-tipvat1"></script>
+<script src="/tracker/js/models/apa.js?v=20260807-tipvat1"></script>
+<script src="/tracker/js/models/index.js?v=20260807-tipvat1"></script>
+<script src="/tracker/js/controllers/expenses.js?v=20260807-tipvat1"></script>
+<script src="/tracker/js/controllers/charges.js?v=20260807-tipvat1"></script>
+<script src="/tracker/js/controllers/leads.js?v=20260807-tipvat1"></script>
+<script src="/tracker/js/controllers/apa.js?v=20260807-tipvat1"></script>
+<script src="/tracker/js/controllers/stews.js?v=20260807-tipvat1"></script>
+<script src="/tracker/js/controllers/index.js?v=20260807-tipvat1"></script>
 <script>
 "use strict";
 var API = "/.netlify/functions/tracker";
@@ -12494,28 +12494,31 @@ function stewTipTotal(asg){
 }
 function stewTipShare(asg){
   if(LY_MODELS&&LY_MODELS.stewTipShare) return LY_MODELS.stewTipShare(asg);
-  /* Fallback must still honour tipPaidBy / Partial (keep in sync with models/stews.js) */
+  /* Fallback: card tips split after VAT; cash tips full (sync with models/stews.js) */
   var tot=stewTipTotal(asg);
-  if(!(tot>0)) return {total:0, stewSide:0, each:0, nStews:0, crew:0, captainShare:0, captainPaid:false, captainOpen:0, stewOpen:0, openTotal:0, paidTotal:0, allPaid:false, anyUnpaid:false, anyPaid:false, stewPaidBy:{}};
+  if(!(tot>0)) return {total:0, gross:0, pool:0, net:0, vat:0, vatPct:0, onBill:false, stewSide:0, each:0, nStews:0, crew:0, captainShare:0, captainPaid:false, captainOpen:0, stewOpen:0, openTotal:0, paidTotal:0, allPaid:false, anyUnpaid:false, anyPaid:false, stewPaidBy:{}};
+  var onBill=stewTipIsOnBill(asg);
+  var vatPct=onBill?21:0;
+  var pool=onBill&&vatPct>0?Math.round((tot/(1+vatPct/100))*100)/100:tot;
+  var vat=Math.round((tot-pool)*100)/100;
   var ids=asg&&asg.stewIds?asg.stewIds.filter(Boolean):[];
   var n=ids.length;
   var crew=1+n;
-  var each=n>0?Math.round((tot/crew)*100)/100:0;
+  var each=n>0?Math.round((pool/crew)*100)/100:0;
   var stewSide=Math.round(each*n*100)/100;
-  var captainShare=n>0?Math.round((tot-stewSide)*100)/100:tot;
+  var captainShare=n>0?Math.round((pool-stewSide)*100)/100:pool;
   var map=(asg&&asg.tipPaidBy&&typeof asg.tipPaidBy==="object")?asg.tipPaidBy:{};
   var legacyAll=(asg.tipPayStatus==="Paid"||asg.tipPaid===true)&&!Object.keys(map).length;
   var capPaid=legacyAll||map.captain===true||map.captain==="true"||map.captain===1||((asg.tipPayStatus==="Paid"||asg.tipPaid===true)&&!Object.keys(map).length);
-  var stewPaidBy={}, stewOpen=0, stewPaidAmt=0;
+  var stewPaidBy={}, stewOpen=0;
   ids.forEach(function(sid){
     var p=legacyAll||map[String(sid)]===true||map[String(sid)]==="true"||map[String(sid)]===1||((asg.tipPayStatus==="Paid"||asg.tipPaid===true)&&!Object.keys(map).length);
     stewPaidBy[String(sid)]=!!p;
-    if(p) stewPaidAmt=Math.round((stewPaidAmt+each)*100)/100;
-    else stewOpen=Math.round((stewOpen+each)*100)/100;
+    if(!p) stewOpen=Math.round((stewOpen+each)*100)/100;
   });
   var captainOpen=capPaid?0:captainShare;
   var openTotal=Math.round((captainOpen+stewOpen)*100)/100;
-  return {total:tot, stewSide:stewSide, each:each, nStews:n, crew:n>0?crew:1, captainShare:captainShare, captainPaid:!!capPaid, captainOpen:captainOpen, stewOpen:stewOpen, openTotal:openTotal, paidTotal:Math.round((tot-openTotal)*100)/100, allPaid:openTotal<0.009, anyUnpaid:openTotal>0.009, anyPaid:(tot-openTotal)>0.009, stewPaidBy:stewPaidBy};
+  return {total:tot, gross:tot, pool:pool, net:pool, vat:vat, vatPct:vatPct, onBill:onBill, stewSide:stewSide, each:each, nStews:n, crew:n>0?crew:1, captainShare:captainShare, captainPaid:!!capPaid, captainOpen:captainOpen, stewOpen:stewOpen, openTotal:openTotal, paidTotal:Math.round((pool-openTotal)*100)/100, allPaid:openTotal<0.009, anyUnpaid:openTotal>0.009, anyPaid:(pool-openTotal)>0.009, stewPaidBy:stewPaidBy};
 }
 function stewTipPaid(asg){
   if(LY_MODELS&&LY_MODELS.stewTipPaid) return !!LY_MODELS.stewTipPaid(asg);
@@ -13547,7 +13550,7 @@ function paintStewCharters(){
             ((tipStewPaidSum>0||tipStewUnpaidSum>0)?' <span class="meta" style="font-weight:600">· paid '+money0(tipStewPaidSum)+(tipStewUnpaidSum>0?' · <b style="color:var(--amberDeep)">still owe stews '+money0(tipStewUnpaidSum)+'</b>':'')+'</span>':'')+
           '</div></div>'+
         '</div>'+
-        '<div class="meta" style="margin-top:8px;line-height:1.4">Equal split among captain + each stew. Open tip charters stay in <b>Tips still owed</b> above until marked Paid. Tips never enter petty cash.</div>'+
+        '<div class="meta" style="margin-top:8px;line-height:1.4">Equal split among captain + each stew. <b>Card tips</b> split after VAT; cash tips full amount. Open tip charters stay in <b>Tips still owed</b> until marked Paid. Tip <i>payout</i> from petty is not guest tip income.</div>'+
       '</div>';
     }
     var stewKeys=Object.keys(byStew).sort();
@@ -14120,7 +14123,7 @@ function openStewAssign(eventKey){
       /* Hidden legacy field kept for live summary + older code paths */
       '<input type="hidden" id="f_stew_tip_pay" value="'+esc(tipPay)+'">'+
     '</div>';
-    h+='<p style="margin:0 0 12px;font-size:12px;color:var(--muted);line-height:1.4">Split <b>equally</b> (you + each stew). <b>Cash tips</b> = guest handed notes — not boat money. <b>On card/bill</b> = guest paid tip with the charter; each share you tick becomes <b>petty cash out</b>.</p>';
+    h+='<p style="margin:0 0 12px;font-size:12px;color:var(--muted);line-height:1.4">Split <b>equally</b> (you + each stew). <b>Cash tips</b> = full amount to crew (no VAT). <b>On card/bill</b> = guest total is VAT-inclusive; crew shares are <b>after VAT</b> (÷1.21), then each share you tick becomes <b>petty cash out</b>.</p>';
     h+='<div class="apa-card" id="stewPayLive" style="margin-bottom:12px;background:rgba(201,168,76,.12)"></div>';
     h+='<p style="margin:0 0 12px;font-size:12px;color:var(--muted)">Suggested band: <b>'+esc(band.label)+' · €'+band.rate+'/day</b>. Per-stew amounts override the default when different.</p>';
   } else {
@@ -14243,8 +14246,11 @@ function openStewAssign(eventKey){
     var tipTot=el("f_stew_tip")?apaNum(el("f_stew_tip").value):0;
     var tip=stewTipShare({tipTotal:tipTot>0?tipTot:"", stewIds:ids});
     if(el("f_stew_tip_cap_amt")){
+      var poolLab=tip.pool!=null&&tip.onBill&&tip.vat>0.009
+        ?("after VAT "+money0(tip.pool)+" of guest "+money0(tip.total||tip.gross||0))
+        :money0(tip.pool!=null?tip.pool:tip.total);
       el("f_stew_tip_cap_amt").textContent=tip.captainShare>0
-        ?("Your share "+money0(tip.captainShare)+(tip.crew>1?" · equal split of "+money0(tip.total):""))
+        ?("Your share "+money0(tip.captainShare)+(tip.crew>1?" · equal split of "+poolLab:""))
         :"Your equal share of the guest tip";
     }
     if(!ids.length){
@@ -14262,7 +14268,7 @@ function openStewAssign(eventKey){
       if(prev) was=!!prev.checked;
       html+='<label class="checkrow" style="margin:0 0 6px"><input type="checkbox" id="f_stew_tip_pay_'+esc(sid)+'" data-tip-pay-stew="'+esc(sid)+'"'+(was?" checked":"")+'>'+
         '<span><div class="ck">'+esc(name)+' — tip share paid</div>'+
-        '<div class="ch">'+(tip.each>0?("Share "+money0(tip.each)):"Share of guest tip")+'</div></span></label>';
+        '<div class="ch">'+(tip.each>0?("Share "+money0(tip.each)+(tip.onBill&&tip.vat>0.009?" after VAT":"")):"Share of guest tip")+'</div></span></label>';
     });
     wrap.innerHTML=html;
     Array.prototype.forEach.call(wrap.querySelectorAll("[data-tip-pay-stew]"),function(inp){
@@ -14320,7 +14326,11 @@ function openStewAssign(eventKey){
       line+='<div style="display:flex;justify-content:space-between;gap:12px;margin-top:8px;align-items:center;flex-wrap:wrap">'+
         '<span class="stew-name" style="font-size:17px">Captain (you)</span>'+
         '<span class="money" style="font-weight:800;font-size:13.5px">Tip '+money0(tip.captainShare)+' · '+(capOk?"paid":(tipSrcSel==="card"?"open · on bill":"open · cash"))+'</span></div>';
-      line+='<div class="meta" style="margin-top:10px">Guest tip <b class="money">'+money0(tip.total)+'</b> ÷ '+tip.crew+' crew → <b class="money">'+money0(tip.nStews?tip.each:tip.captainShare)+'</b> each share'+
+      var poolBit=tip.onBill&&tip.vat>0.009
+        ?('Guest tip <b class="money">'+money0(tip.total)+'</b> − VAT <b class="money">'+money0(tip.vat)+'</b> → pool <b class="money">'+money0(tip.pool)+'</b>')
+        :('Guest tip <b class="money">'+money0(tip.total)+'</b>');
+      line+='<div class="meta" style="margin-top:10px">'+poolBit+' ÷ '+tip.crew+' crew → <b class="money">'+money0(tip.nStews?tip.each:tip.captainShare)+'</b> each share'+
+        (tip.onBill&&tip.vat>0.009?' <span style="color:var(--muted)">(after VAT)</span>':'')+
         (tip.openTotal>0.009?' · <b style="color:var(--amberDeep)">still open '+money0(tip.openTotal)+'</b>':' · all tip shares paid')+
         '</div>';
     }
