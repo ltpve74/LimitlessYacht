@@ -1674,8 +1674,9 @@ function buildOpsTodayBoard(){
       apaSent:t.apaSent
     };
   }).filter(Boolean);
+  var board;
   if(LY_MODELS&&typeof LY_MODELS.collectTodayOpsBoard==="function"){
-    return LY_MODELS.collectTodayOpsBoard({
+    board=LY_MODELS.collectTodayOpsBoard({
       today:today,
       leads:state.leads||[],
       charges:state.charters||[],
@@ -1685,14 +1686,64 @@ function buildOpsTodayBoard(){
       leadIsDealClosed:typeof leadIsDealClosed==="function"?leadIsDealClosed:(LY_MODELS.leadIsDealClosed||null),
       stewIsOff:typeof stewIsOffEvent==="function"?function(a){ return stewIsOffEvent(a); }:null
     });
+  } else {
+    board={ today:today, n:0, leads:[], charges:[], apa:[], stews:[], groups:[
+      {key:"lead",label:"Leads",ic:"🌐",items:[]},
+      {key:"apa",label:"APA",ic:"📒",items:[]},
+      {key:"charge",label:"Charges",ic:"🧾",items:[]},
+      {key:"stew",label:"Stews",ic:"👩‍✈️",items:[]}
+    ]};
   }
-  /* Fallback: empty board if model not loaded */
-  return { today:today, n:0, leads:[], charges:[], apa:[], stews:[], groups:[
-    {key:"lead",label:"Leads",ic:"🌐",items:[]},
-    {key:"apa",label:"APA",ic:"📒",items:[]},
-    {key:"charge",label:"Charges",ic:"🧾",items:[]},
-    {key:"stew",label:"Stews",ic:"👩‍✈️",items:[]}
-  ]};
+  /* Enrich leads with APA link; build start-APA rows for today’s leads without a pot */
+  var apaPending=[];
+  (board.leads||[]).forEach(function(row){
+    if(!row||!row.id) return;
+    var lead=(state.leads||[]).filter(function(x){ return x&&String(x.id)===String(row.id); })[0];
+    if(!lead) return;
+    var existing=typeof findApaTripForLead==="function"?findApaTripForLead(lead):null;
+    row.apaId=existing?String(existing.id):"";
+    row.hasApa=!!existing;
+    row.canStartApa=!existing&&row.status!=="cancelled";
+    if(row.canStartApa){
+      var pot=0;
+      try{
+        if(window.LY_CONTROLLERS&&LY_CONTROLLERS.apa&&LY_CONTROLLERS.apa.leadListDisplayAmount){
+          pot=LY_CONTROLLERS.apa.leadListDisplayAmount({ models:LY_MODELS, lead:lead })||0;
+        } else if(LY_MODELS&&LY_MODELS.leadApaListDisplayAmount){
+          pot=LY_MODELS.leadApaListDisplayAmount(lead.apa, lead.apas)||0;
+        } else if((lead.apas==="Issued"||lead.apas==="Paid")&&Number(lead.apa)>0){
+          pot=Number(lead.apa)||0;
+        }
+      }catch(eP){ pot=0; }
+      apaPending.push({
+        kind:"apa-start",
+        id:String(lead.id),
+        leadId:String(lead.id),
+        title:String(lead.name||row.title||"Lead").trim()||"Lead",
+        start:row.start,
+        end:row.end,
+        status:pot>0?"apa-due":"apa-start",
+        subtitle:pot>0?"Prepaid APA · start ledger":"No prepaid · start ledger (€0 ok)",
+        amount:pot,
+        canStartApa:true
+      });
+    }
+  });
+  board.apaPending=apaPending;
+  /* Rebuild groups so APA section includes start-from-lead cards */
+  board.groups=(board.groups||[]).map(function(g){
+    if(!g||g.key!=="apa") return g;
+    var items=(g.items||[]).slice();
+    apaPending.forEach(function(p){ items.push(p); });
+    return {
+      key:g.key,
+      label:g.label,
+      ic:g.ic,
+      items:items
+    };
+  });
+  board.n=(board.leads||[]).length+(board.charges||[]).length+(board.apa||[]).length+(board.stews||[]).length+apaPending.length;
+  return board;
 }
 function opsTodayStatusPill(row){
   var s=String((row&&row.status)||"");
@@ -1704,7 +1755,20 @@ function opsTodayStatusPill(row){
   if(s==="unassigned") return '<span class="pill p-amber">Unassigned</span>';
   if(s==="assigned") return '<span class="pill p-green">Crew set</span>';
   if(s==="apa") return '<span class="pill p-apa">APA</span>';
+  if(s==="apa-due") return '<span class="pill p-amber">APA due · start</span>';
+  if(s==="apa-start") return '<span class="pill p-amber">Start APA</span>';
   return s?'<span class="pill p-grey">'+esc(s)+'</span>':"";
+}
+/** Start APA pot from Today board (lead link or walk-in dated today). */
+function opsTodayStartApaFromLead(leadId){
+  if(!canOps()||!leadId) return;
+  switchTab("apa");
+  if(typeof startApaFromLead==="function") startApaFromLead(leadId);
+}
+function opsTodayNewWalkInApa(ymd){
+  if(!canOps()) return;
+  var day=String(ymd||(typeof localTodayYmd==="function"?localTodayYmd():"")).slice(0,10);
+  if(typeof openApaTrip==="function") openApaTrip(null, { start:day, end:day });
 }
 function renderOpsToday(){
   var wrap=el("opsToday"); if(!wrap) return;
@@ -1715,30 +1779,59 @@ function renderOpsToday(){
     dateLab=typeof fmtDate==="function"?fmtDate(board.today):board.today;
   }catch(eD){ dateLab=board.today; }
   var h='<div class="ops-today-hd">'+
-    '<h2>Today · '+esc(dateLab||board.today)+'</h2>'+
-    '<span class="ops-today-sub">'+(board.n
-      ?board.n+" item"+(board.n===1?"":"s")+" on the water today"
-      :"Nothing dated today")+'</span>'+
+    '<div>'+
+      '<h2>Today · '+esc(dateLab||board.today)+'</h2>'+
+      '<span class="ops-today-sub">'+(board.n
+        ?board.n+" item"+(board.n===1?"":"s")+" on the water today"
+        :"Nothing dated today")+'</span>'+
+    '</div>'+
+    '<button type="button" class="btn" id="opsTodayNewApa" style="width:auto;padding:10px 14px;font-size:13px;flex-shrink:0">+ APA</button>'+
   '</div>';
   if(!board.n){
-    h+='<div class="ops-today-empty">No lead, APA, charge or stew charter touches <b>'+esc(dateLab||board.today)+'</b>. Multi-day trips show on every day they cover.</div>';
+    h+='<div class="ops-today-empty">No lead, APA, charge or stew charter touches <b>'+esc(dateLab||board.today)+'</b>. Multi-day trips show on every day they cover. Tap <b>+ APA</b> for a walk-in pot today.</div>';
     wrap.innerHTML=h;
+    if(el("opsTodayNewApa")) el("opsTodayNewApa").addEventListener("click",function(ev){
+      ev.preventDefault();
+      opsTodayNewWalkInApa(board.today);
+    });
     return;
   }
   (board.groups||[]).forEach(function(g){
-    if(!g||!(g.items&&g.items.length)) return;
+    if(!g) return;
+    /* Always show APA group when there is anything today — even if only “start from lead” */
+    if(!(g.items&&g.items.length)&&g.key!=="apa") return;
+    if(!(g.items&&g.items.length)&&g.key==="apa"){
+      /* still paint empty APA with create affordance below if other groups exist */
+    }
+    if(!(g.items&&g.items.length)) return;
     h+='<div class="ops-today-group" data-ops-today-group="'+esc(g.key)+'">'+
       '<div class="ops-today-ghd">'+
         '<span aria-hidden="true">'+(g.ic||"")+'</span> '+esc(g.label)+
         ' <span class="n">'+g.items.length+'</span>'+
+        (g.key==="apa"
+          ?'<button type="button" class="btn ghost" data-ops-today-new-apa="1" style="width:auto;margin-left:auto;padding:6px 10px;font-size:12px;text-transform:none;letter-spacing:0">+ New pot</button>'
+          :'')+
       '</div><div class="list">';
     g.items.forEach(function(row){
       if(!row) return;
       var openAttr="";
-      if(row.kind==="lead") openAttr='data-ops-today-open="lead" data-id="'+esc(row.id)+'"';
-      else if(row.kind==="charge") openAttr='data-ops-today-open="charge" data-id="'+esc(row.id)+'"';
-      else if(row.kind==="apa") openAttr='data-ops-today-open="apa" data-id="'+esc(row.id)+'"';
-      else if(row.kind==="stew") openAttr='data-ops-today-open="stew" data-id="'+esc(row.eventKey||row.id)+'"';
+      var extraBtns="";
+      if(row.kind==="lead"){
+        openAttr='data-ops-today-open="lead" data-id="'+esc(row.id)+'"';
+        if(row.canStartApa){
+          extraBtns='<button type="button" class="btn" data-ops-today-start-apa="'+esc(row.id)+'" style="width:auto;padding:6px 10px;font-size:12px;margin-top:8px">Start APA</button>';
+        } else if(row.hasApa&&row.apaId){
+          extraBtns='<button type="button" class="btn ghost" data-ops-today-open="apa" data-id="'+esc(row.apaId)+'" style="width:auto;padding:6px 10px;font-size:12px;margin-top:8px">Open APA</button>';
+        }
+      } else if(row.kind==="charge"){
+        openAttr='data-ops-today-open="charge" data-id="'+esc(row.id)+'"';
+      } else if(row.kind==="apa"){
+        openAttr='data-ops-today-open="apa" data-id="'+esc(row.id)+'"';
+      } else if(row.kind==="apa-start"){
+        openAttr='data-ops-today-start-apa="'+esc(row.leadId||row.id)+'"';
+      } else if(row.kind==="stew"){
+        openAttr='data-ops-today-open="stew" data-id="'+esc(row.eventKey||row.id)+'"';
+      }
       var range="";
       try{
         if(row.start&&row.end&&row.end!==row.start){
@@ -1747,7 +1840,8 @@ function renderOpsToday(){
           range=fmtDate(row.start)||row.start;
         }
       }catch(eR){ range=row.start||""; }
-      h+='<div class="item" '+openAttr+' role="button" tabindex="0">'+
+      var dashed=row.kind==="apa-start"?' style="border-style:dashed"':'';
+      h+='<div class="item" '+openAttr+' role="button" tabindex="0"'+dashed+'>'+
         '<div class="top">'+
           '<div class="title">'+esc(row.title||"—")+'</div>'+
           (row.amount>0.009?'<div class="amt money">'+money0(row.amount)+'</div>':'')+
@@ -1756,13 +1850,34 @@ function renderOpsToday(){
           (range?'<span>📅 '+esc(range)+'</span>':'')+
           opsTodayStatusPill(row)+
           (row.subtitle?'<span>'+esc(row.subtitle)+'</span>':'')+
+          (row.hasApa?'<span class="pill p-apa">Has APA</span>':'')+
         '</div>'+
-        '<span class="chev">→</span>'+
+        extraBtns+
+        '<span class="chev">'+(row.kind==="apa-start"?"+":"→")+'</span>'+
       '</div>';
     });
     h+='</div></div>';
   });
   wrap.innerHTML=h;
+  if(el("opsTodayNewApa")) el("opsTodayNewApa").addEventListener("click",function(ev){
+    ev.preventDefault();
+    opsTodayNewWalkInApa(board.today);
+  });
+  Array.prototype.forEach.call(wrap.querySelectorAll("[data-ops-today-new-apa]"),function(btn){
+    btn.addEventListener("click",function(ev){
+      ev.preventDefault();
+      ev.stopPropagation();
+      opsTodayNewWalkInApa(board.today);
+    });
+  });
+  Array.prototype.forEach.call(wrap.querySelectorAll("[data-ops-today-start-apa]"),function(node){
+    node.addEventListener("click",function(ev){
+      ev.preventDefault();
+      ev.stopPropagation();
+      var lid=node.getAttribute("data-ops-today-start-apa");
+      if(lid) opsTodayStartApaFromLead(lid);
+    });
+  });
   Array.prototype.forEach.call(wrap.querySelectorAll("[data-ops-today-open]"),function(node){
     var go=function(){
       var kind=node.getAttribute("data-ops-today-open");
@@ -1784,12 +1899,24 @@ function renderOpsToday(){
       if(kind==="stew"){
         switchTab("stews");
         if(typeof openStewAssign==="function"){
-          /* open after roster paints */
           setTimeout(function(){ try{ openStewAssign(id); }catch(eS){} }, 60);
         }
       }
     };
     node.addEventListener("click",function(ev){
+      if(ev.target.closest&&(ev.target.closest("[data-ops-today-start-apa]")||ev.target.closest("[data-ops-today-new-apa]"))) return;
+      /* Nested open-apa button on lead card */
+      if(ev.target.closest&&ev.target.closest("button[data-ops-today-open]")){
+        var b=ev.target.closest("button[data-ops-today-open]");
+        if(b!==node){
+          ev.preventDefault();
+          ev.stopPropagation();
+          var k=b.getAttribute("data-ops-today-open");
+          var i=b.getAttribute("data-id");
+          if(k==="apa"&&i){ switchTab("apa"); if(typeof openApaDetail==="function") openApaDetail(i); }
+          return;
+        }
+      }
       ev.preventDefault();
       go();
     });
@@ -7892,7 +8019,8 @@ function apaBindBody(t){
     saveApa(saved||t);
   });
 }
-function openApaTrip(id){
+function openApaTrip(id, opts){
+  opts=opts||{};
   var rec=id?state.apa.filter(function(t){return t.id===id;})[0]:null;
   var r=rec||emptyApaTrip();
   var isNew=!rec;
@@ -7901,7 +8029,7 @@ function openApaTrip(id){
   if(isNew){
     h+='<p style="margin:0 0 12px;font-size:12.5px;color:var(--muted);line-height:1.45">'+
       'For a <b>walk-in / external charter</b> (not a website lead). '+
-      'Website leads already have a <b>Start APA</b> card on the APA list — use that instead. '+
+      'Website leads: use <b>Start APA</b> on Ops → Today or the APA list. '+
       '<b>APA sent can be €0</b>; spend creates a Charges invoice from this pot (not the other way around).'+
     '</p>';
   } else if(fromLead){
@@ -7917,8 +8045,12 @@ function openApaTrip(id){
   /* Native date pickers (calendar on phone/desktop) */
   var parsedDates=apaParseTripDates(r.dates||"");
   if(!parsedDates.start&&r.start) parsedDates={start:String(r.start).slice(0,10), end:String(r.end||r.start).slice(0,10)};
-  var defStart=parsedDates.start||(isNew?localYmdOffset(1):"");
-  var defEnd=parsedDates.end||defStart;
+  var prefStart=String(opts.start||"").slice(0,10);
+  var prefEnd=String(opts.end||opts.start||"").slice(0,10);
+  if(prefStart&&!/^\d{4}-\d{2}-\d{2}$/.test(prefStart)) prefStart="";
+  if(prefEnd&&!/^\d{4}-\d{2}-\d{2}$/.test(prefEnd)) prefEnd=prefStart;
+  var defStart=parsedDates.start||(isNew?(prefStart||localYmdOffset(1)):"");
+  var defEnd=parsedDates.end||(isNew&&prefEnd?prefEnd:defStart);
   h+='<div class="row2">'+
     fieldHTML("Charter start",'<input class="ctl" id="f_date_start" type="date" value="'+esc(defStart)+'">')+
     fieldHTML("Charter end",'<input class="ctl" id="f_date_end" type="date" value="'+esc(defEnd)+'">')+
