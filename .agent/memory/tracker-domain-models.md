@@ -78,12 +78,12 @@ Example locked: APA pot delete → model pure `planApaLeadAfterPotDelete({ leadA
 | `charges.js` | bill type, upsell commission, cash-to-boat |
 | `expenses.js` | petty, reimbursement, day-pay, pocket, month settlement |
 | `apa.js` | pot totals, diesel line freeze, charge pick, shortfall/delete/start write plans |
-| `cash.js` | **compose** boat cash ledger (plain in/out numbers only — no foreign imports) |
+| `cash.js` | DTO only: shape Expenses petty numbers for Leads paint (no second formula) |
 | `diesel.js` | bunker + sticky sell |
 | `stews.js` | roster status, tips |
 | `util.js` | `num` / `round2` only |
 
-**Leads money + cash:** `LY_CONTROLLERS.leads.moneyDashboard` pulls leads free cash, `summarizeChargeCashToBoat`, expense petty outs (`summarizePettyCash`), petty cash-ins → `summarizeBoatCashLedger`. View only paints `dash.cashLedger`.
+**Leads boat cash = Expenses petty (locked):** `LY_CONTROLLERS.leads.boatCashLedger` calls **`summarizePettyCash`** with the same month, start, cash-ins (tips excluded), and expenses Expenses uses. `cash.js` only maps those fields to a paint DTO. **Never** re-add free cash + charges + top-ups as a parallel total (that drifted vs Expenses). Free cash boat/owner stays on the income/glimpse panel only.
 
 ## Settlement entry points (Expenses UI)
 

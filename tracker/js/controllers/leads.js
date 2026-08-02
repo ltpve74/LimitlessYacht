@@ -4,8 +4,8 @@
  * Assembles multi-domain snapshots (leads, charges, expenses/petty) into
  * pure model inputs. Returns DTOs only — no DOM.
  *
- * Cross-domain cash: leads free cash + charges cash-to-boat + expense petty
- * outs + petty cash-ins → models.summarizeBoatCashLedger (cash.js).
+ * Boat cash: reuses Expenses petty envelope (summarizePettyCash) — same
+ * cash in / cash out / on board. Does NOT re-add free cash + charges.
  */
 (function (root, factory) {
   "use strict";
@@ -48,25 +48,33 @@
     return M(input).leadCharterTiming(input.lead || input.row || input, input.today);
   }
 
+  function monthKey(d) {
+    var s = String(d || "").slice(0, 7);
+    return /^\d{4}-\d{2}$/.test(s) ? s : "";
+  }
+
   /**
-   * Boat cash ledger for Leads money details.
-   * Controller pulls each domain; cash model only composes plain numbers.
+   * Boat cash ledger for Leads = Expenses petty envelope for the focus month.
+   * Single source of truth: models.summarizePettyCash (same as Expenses).
    *
    * @param {{
    *   models?,
-   *   leads, charters, expenses, expPetty,
+   *   leads, expenses, expPetty,
+   *   month?: string,          // YYYY-MM — same month Expenses shows
+   *   pettyStart?: number,     // resolved start (carry/manual) for that month
    *   today?: string,
-   *   cashInIsTip?: function
+   *   cashInIsTip?: function,
+   *   isTipExpense?: function
    * }} input
    */
   function boatCashLedger(input) {
     input = input || {};
     var models = M(input);
     var today = input.today || "";
-    var freeCash = models.summarizeLeadCashIncomeRealised(input.leads || [], today);
-    var chargesCash = models.summarizeChargeCashToBoat
-      ? models.summarizeChargeCashToBoat(input.charters || [])
-      : { total: 0, n: 0, items: [] };
+    var month = String(input.month || "").slice(0, 7);
+    if (!/^\d{4}-\d{2}$/.test(month)) {
+      month = String(today || "").slice(0, 7);
+    }
 
     var cashInIsTip =
       typeof input.cashInIsTip === "function"
@@ -74,54 +82,98 @@
         : function () {
             return false;
           };
-    var isAutoSynced =
-      typeof models.isAutoSyncedEnvelopeCashIn === "function"
-        ? models.isAutoSyncedEnvelopeCashIn
-        : function (r) {
-            if (!r) return false;
-            if (r.fromLeadId != null && String(r.fromLeadId) !== "") return true;
-            if (r.fromChargeId != null && String(r.fromChargeId) !== "") return true;
-            var k = String(r.kind || "").toLowerCase();
-            return k === "charter-fee" || k === "end-charter";
+    var isTipExpense =
+      typeof input.isTipExpense === "function"
+        ? input.isTipExpense
+        : function () {
+            return false;
           };
-    var flatIns = models.collectPettyCashInsFromMonths
-      ? models.collectPettyCashInsFromMonths(input.expPetty || [])
-      : [];
-    /*
-     * Petty cash-ins on the boat ledger = manual float top-ups only.
-     * Lead free cash and charge cash are already freeCashBoat / chargesCashBoat
-     * (and mirrored into expPetty for Expenses — do not count twice).
-     * Tips and owner-pocket free cash never belong here.
-     */
-    var pettyIn = models.summarizePettyCashInRows
-      ? models.summarizePettyCashInRows(flatIns, {
-          skip: function (r) {
-            return cashInIsTip(r) || isAutoSynced(r);
-          },
-        })
-      : { total: 0, n: 0, items: [] };
 
-    /* All expense cash outs that hit petty (all months) */
-    var pettySum = models.summarizePettyCash({
-      pettyStart: 0,
-      cashIns: [],
-      expenses: input.expenses || [],
+    /* Month petty row (same bag Expenses uses) */
+    var pettyRow = null;
+    (Array.isArray(input.expPetty) ? input.expPetty : []).forEach(function (p) {
+      if (p && String(p.month || "").slice(0, 7) === month) pettyRow = p;
     });
 
+    var rawIns = pettyRow && Array.isArray(pettyRow.cashIns) ? pettyRow.cashIns.filter(Boolean) : [];
+    /* Legacy single pettyIn when no cashIns lines */
+    if (!rawIns.length && pettyRow && Number(pettyRow.pettyIn) > 0.009) {
+      rawIns = [
+        {
+          id: "pettyIn:" + month,
+          amount: Number(pettyRow.pettyIn),
+          date: month + "-01",
+          month: month,
+          note: "Cash in (month total)",
+        },
+      ];
+    }
+    var cashIns = rawIns.filter(function (r) {
+      return r && !cashInIsTip(r);
+    });
+
+    var monthExpenses = (Array.isArray(input.expenses) ? input.expenses : []).filter(function (e) {
+      if (!e || isTipExpense(e)) return false;
+      if (!month) return true;
+      var em = models.expenseMonthKey ? models.expenseMonthKey(e.date) : monthKey(e.date);
+      return em === month;
+    });
+
+    /*
+     * Start: prefer caller-resolved (expEnsurePetty / carry). Else stored row.
+     * Same physical-floor as summarizePettyCash (negative start → 0 notes).
+     */
+    var pettyStart =
+      input.pettyStart != null
+        ? input.pettyStart
+        : pettyRow && pettyRow.pettyStart != null
+          ? pettyRow.pettyStart
+          : 0;
+
+    var pettySum = models.summarizePettyCash
+      ? models.summarizePettyCash({
+          pettyStart: pettyStart,
+          cashIns: cashIns,
+          expenses: monthExpenses,
+        })
+      : {
+          cashInTotal: 0,
+          cashOut: 0,
+          cashOutLines: [],
+          cashInHand: 0,
+          pettyOnboard: 0,
+          physicalStart: 0,
+          pettyStart: 0,
+          cashShort: 0,
+        };
+
+    var inItems = models.summarizePettyCashInRows
+      ? models.summarizePettyCashInRows(cashIns)
+      : { total: pettySum.cashInTotal || 0, n: 0, items: [] };
+
+    /* Free cash income (sailed) — label only; not mixed into boat envelope */
+    var freeCash = models.summarizeLeadCashIncomeRealised
+      ? models.summarizeLeadCashIncomeRealised(input.leads || [], today)
+      : { boat: 0, owner: 0, items: [], n: 0, boatN: 0, ownerN: 0 };
+
     return models.summarizeBoatCashLedger({
+      month: month,
+      petty: pettySum,
+      cashInTotal: pettySum.cashInTotal,
+      cashOut: pettySum.cashOut,
+      cashOutLines: pettySum.cashOutLines,
+      cashInHand: pettySum.cashInHand,
+      pettyOnboard: pettySum.pettyOnboard,
+      physicalStart: pettySum.physicalStart,
+      pettyStart: pettySum.pettyStart,
+      cashShort: pettySum.cashShort,
+      pettyCashInItems: inItems.items,
       freeCashBoat: freeCash.boat,
       freeCashOwner: freeCash.owner,
       freeCashItems: freeCash.items,
       freeCashN: freeCash.n,
       freeCashBoatN: freeCash.boatN,
       freeCashOwnerN: freeCash.ownerN,
-      chargesCashBoat: chargesCash.total,
-      chargesCashItems: chargesCash.items,
-      chargesCashN: chargesCash.n,
-      pettyCashIn: pettyIn.total,
-      pettyCashInItems: pettyIn.items,
-      expensePettyOut: pettySum.cashOut,
-      expenseOutItems: pettySum.cashOutLines || [],
     });
   }
 
