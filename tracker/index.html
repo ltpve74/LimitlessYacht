@@ -446,7 +446,7 @@
   .fab{position:fixed;right:16px;bottom:calc(86px + var(--safe-b));width:58px;height:58px;border-radius:29px;background:var(--brand);color:#fff;font-size:30px;line-height:56px;text-align:center;box-shadow:0 6px 18px rgba(31,78,95,.45);z-index:20}
   .fab:active{transform:scale(.94)}
 
-  /* bottom nav — keep to ~4 primary slots (ops tools live under Ops hub) */
+  /* bottom nav — captain: Today · Leads · Charges · Ops · Security (ops tools under Ops hub) */
   .bnav{position:fixed;left:0;right:0;bottom:0;background:#fff;border-top:1px solid var(--line);
         display:flex;gap:8px;padding:8px 10px calc(8px + var(--safe-b));z-index:25;
         box-shadow:0 -6px 20px rgba(23,36,43,.08);max-width:760px;margin:0 auto}
@@ -475,15 +475,15 @@
   .ops-back{display:inline-flex;align-items:center;gap:6px;font-weight:700;font-size:13.5px;color:var(--brand);
             padding:8px 0 12px;background:none;border:none;cursor:pointer}
   .ops-back:active{opacity:.75}
-  /* Ops · Today board */
-  .ops-today{margin:0 0 16px}
+  /* Today board (own bottom-nav tab — captain day run) */
+  .ops-today{margin:0 0 8px}
   .ops-today-hd{
-    display:flex;align-items:baseline;justify-content:space-between;gap:10px;flex-wrap:wrap;
-    margin:0 0 10px;
+    display:flex;align-items:flex-start;justify-content:space-between;gap:10px;flex-wrap:wrap;
+    margin:0 0 12px;
   }
-  .ops-today-hd h2{margin:0;font-size:17px;font-weight:900;letter-spacing:.01em}
-  .ops-today-hd .ops-today-sub{font-size:12.5px;font-weight:600;color:var(--muted)}
-  .ops-today-group{margin:0 0 12px}
+  .ops-today-hd h2{margin:0;font-size:18px;font-weight:900;letter-spacing:.01em}
+  .ops-today-hd .ops-today-sub{display:block;margin-top:3px;font-size:12.5px;font-weight:600;color:var(--muted)}
+  .ops-today-group{margin:0 0 14px}
   .ops-today-group:last-child{margin-bottom:0}
   .ops-today-ghd{
     display:flex;align-items:center;gap:8px;margin:0 0 8px;padding:0 2px;
@@ -893,11 +893,15 @@
       <div class="list" id="cmList"></div>
     </section>
 
-    <!-- OPS HUB (captain only — keeps bottom nav to 4 slots) -->
-    <section id="tab-ops" class="hidden">
-      <div class="legend">Captain ops tools. <b>Today</b> groups this day’s lead, APA, charge and stew cards for quick open. Manager: Charges &amp; Leads. Team: Roster only.</div>
+    <!-- TODAY (captain — day run: lead · APA · charge · stew) -->
+    <section id="tab-today" class="hidden">
+      <div class="legend">Day board — everything on the water today. Start APA, open lead / charge / crew from here.</div>
       <div id="opsToday" class="ops-today" aria-label="Today on the boat"></div>
-      <div class="sectitle" style="margin:4px 0 0">All ops</div>
+    </section>
+
+    <!-- OPS HUB (captain only — APA / Diesel / Stews / Expenses / Commissions) -->
+    <section id="tab-ops" class="hidden">
+      <div class="legend">Captain tools. Day run lives under <b>Today</b>. Manager: Charges &amp; Leads. Team: Roster only.</div>
       <div class="ops-grid" id="opsGrid"></div>
     </section>
 
@@ -948,6 +952,7 @@
   <button class="fab" id="fab" aria-label="Add">+</button>
 
   <nav class="bnav" aria-label="Main">
+    <button type="button" data-nav="today" id="navToday" class="hidden"><span class="ic">☀️</span>Today<span class="badge hidden" id="todayBadge">0</span></button>
     <button type="button" data-nav="leads" id="navLeads" class="active"><span class="ic">🌐</span>Leads</button>
     <button type="button" data-nav="charters" id="navCharters"><span class="ic">🧾</span>Charges</button>
     <button type="button" data-nav="ops" id="navOps" class="hidden"><span class="ic">⚓</span>Ops</button>
@@ -1341,11 +1346,13 @@ function flushBootSaves(){
 function runPostLoadMaintenance(){
   if(DEMO) return;
   try{
+    if(curTab==="today"&&isCaptain()) try{ renderTodayTab(); }catch(e5){}
     if(curTab==="charters"&&canCommercial()) try{ renderCharters(); }catch(e6){}
     if(curTab==="leads"&&canCommercial()) try{ renderLeads(); }catch(e7){}
     if(curTab==="stews"&&canRoster()) try{ renderStews({soft:true}); }catch(e8){}
     if(curTab==="expenses"&&isCaptain()) try{ paintExpensesBody(); }catch(e9){}
     if(curTab==="apa"&&canOps()) try{ renderApa(); }catch(e10){}
+    if(isCaptain()) try{ syncTodayNavBadge(); }catch(e11){}
   }catch(e){ console&&console.error&&console.error("[tracker] post-load",e); }
 }
 var whoSel=el("whoSel");
@@ -1447,6 +1454,7 @@ el("gateForm").addEventListener("submit",function(ev){
 });
 function configureNavForRole(){
   var cap=isCaptain(), mgr=isManager(), team=isTeam();
+  if(el("navToday")) el("navToday").classList.toggle("hidden", !cap);
   if(el("navCharters")) el("navCharters").classList.toggle("hidden", !canCommercial());
   if(el("navLeads")) el("navLeads").classList.toggle("hidden", !canCommercial());
   if(el("navOps")) el("navOps").classList.toggle("hidden", !cap);
@@ -1456,6 +1464,49 @@ function configureNavForRole(){
     if(b.id==="stewOpsBack") return;
     b.classList.toggle("hidden", team);
   });
+  try{ syncTodayNavBadge(); }catch(eB){}
+}
+/**
+ * Captain is “on charter” today when a non-cancelled lead or roster trip
+ * touches today’s date (holds count — day-of management).
+ */
+function captainHasCharterToday(){
+  if(!isCaptain()) return false;
+  try{
+    var board=typeof buildOpsTodayBoard==="function"?buildOpsTodayBoard():null;
+    if(!board) return false;
+    var leadN=0;
+    (board.leads||[]).forEach(function(r){
+      if(r&&r.status!=="cancelled") leadN++;
+    });
+    if(leadN>0) return true;
+    if((board.stews||[]).length>0) return true;
+    return false;
+  }catch(e){ return false; }
+}
+/** Default tab after login (no deep-link). */
+function defaultLandingTab(){
+  if(isTeam()) return "stews";
+  if(isCaptain()&&captainHasCharterToday()) return "today";
+  if(canCommercial()) return "leads";
+  if(isCaptain()) return "ops";
+  return "security";
+}
+function syncTodayNavBadge(){
+  var badge=el("todayBadge");
+  if(!badge) return;
+  if(!isCaptain()){ badge.classList.add("hidden"); return; }
+  var n=0;
+  try{
+    var board=typeof buildOpsTodayBoard==="function"?buildOpsTodayBoard():null;
+    n=board&&board.n?Number(board.n)||0:0;
+  }catch(e){ n=0; }
+  if(n>0){
+    badge.textContent=n>9?"9+":String(n);
+    badge.classList.remove("hidden");
+  } else {
+    badge.classList.add("hidden");
+  }
 }
 function enterApp(){
   /* Never throw out of enterApp — a paint bug must not leave the user stuck on the gate */
@@ -1469,22 +1520,33 @@ function enterApp(){
     if(el("demoNote")) el("demoNote").classList.toggle("hidden",!DEMO);
   }catch(eLab){}
   try{ configureNavForRole(); }catch(eNav){}
-  /* Default landing: team → roster; manager/captain → leads (charges second) */
+  /*
+   * Default landing:
+   *  - team → roster
+   *  - captain on a charter day → Today
+   *  - captain off-charter / manager → Leads
+   */
   try{
     if(isTeam()){
       if(curTab!=="stews"&&curTab!=="security") curTab="stews";
-    } else if(!isCaptain()&&isOpsTab(curTab)){
+    } else if(!isCaptain()&&(isOpsTab(curTab)||curTab==="today")){
       curTab="leads";
+    } else if(isCaptain()&&(isOpsTab(curTab)||curTab==="today"||!curTab||curTab==="leads"||curTab==="charters")){
+      /* Fresh login / generic commercial tabs → charter-day aware default */
+      curTab=defaultLandingTab();
     } else if(canCommercial()&&(isOpsTab(curTab)||!curTab)){
       curTab="leads";
     }
-  }catch(eTab){ curTab="leads"; }
-  /* Deep link from push: /tracker/?tab=leads&pending=1 */
+  }catch(eTab){ curTab=defaultLandingTab(); }
+  /* Deep link from push: /tracker/?tab=leads&pending=1 or tab=today */
   try{
     var q=new URLSearchParams(location.search||"");
     var tabQ=q.get("tab");
-    if(tabQ==="leads"&&canCommercial()) curTab="leads";
+    if(tabQ==="today"&&isCaptain()) curTab="today";
+    else if(tabQ==="leads"&&canCommercial()) curTab="leads";
+    else if(tabQ==="ops"&&isCaptain()) curTab="ops";
     else if(tabQ==="stews"&&canRoster()) curTab="stews";
+    else if(tabQ==="charters"&&canCommercial()) curTab="charters";
   }catch(eQ){}
   try{ switchTab(curTab); }catch(e0){ console&&console.error&&console.error("[tracker] switchTab",e0); }
   /* Always paint all visible data once — switchTab alone used to skip charges/leads */
@@ -1609,7 +1671,7 @@ function tryAutoLogin(){
 }
 
 /* -------- tabs / nav -------- */
-/** Bottom nav: charges | leads | ops | roster(team) | security. Ops children under Ops hub. */
+/** Bottom nav: today | leads | charges | ops | roster(team) | security. Ops children under Ops hub. */
 var OPS_CHILD={apa:1,diesel:1,stews:1,expenses:1,commissions:1};
 function isOpsTab(t){
   if(t==="ops") return true;
@@ -1617,6 +1679,7 @@ function isOpsTab(t){
   return !!OPS_CHILD[t];
 }
 function navSlotForTab(t){
+  if(t==="today") return "today";
   if(t==="stews"&&isTeam()) return "stews";
   if(isOpsTab(t)) return "ops";
   if(t==="leads") return "leads";
@@ -1627,6 +1690,7 @@ function navSlotForTab(t){
 Array.prototype.forEach.call(document.querySelectorAll(".bnav button"),function(b){
   b.addEventListener("click",function(){
     var nav=b.getAttribute("data-nav");
+    if(nav==="today"){ if(isCaptain()) switchTab("today"); return; }
     if(nav==="ops"){ switchTab("ops"); return; }
     if(nav==="stews"&&!canRoster()) return;
     if((nav==="charters"||nav==="leads")&&!canCommercial()) return;
@@ -1925,14 +1989,20 @@ function renderOpsToday(){
     });
   });
 }
-function renderOpsHub(){
-  var grid=el("opsGrid"); if(!grid) return;
+function renderTodayTab(){
   if(!isCaptain()){
-    grid.innerHTML='<div class="empty"><div class="big">⚓</div><div>Ops is captain-only.</div></div>';
     if(el("opsToday")) el("opsToday").innerHTML="";
     return;
   }
   try{ renderOpsToday(); }catch(eT){ if(el("opsToday")) el("opsToday").innerHTML=""; }
+  try{ syncTodayNavBadge(); }catch(eB){}
+}
+function renderOpsHub(){
+  var grid=el("opsGrid"); if(!grid) return;
+  if(!isCaptain()){
+    grid.innerHTML='<div class="empty"><div class="big">⚓</div><div>Ops is captain-only.</div></div>';
+    return;
+  }
   /* Site calendar ops removed — public site updates automatically from leads */
   var tiles=[
     {id:"apa",ic:"📒",t:"APA",d:"Guest pot, spend ledger, shortfall charges"},
@@ -1951,6 +2021,7 @@ function renderOpsHub(){
 function switchTab(t){
   if(t==="stews"&&!canRoster()) return;
   if((t==="charters"||t==="leads")&&!canCommercial()&&t!=="security") return;
+  if(t==="today"&&!isCaptain()) return;
   if(isOpsTab(t)&&t!=="ops"&&!isCaptain()&&!(t==="stews"&&isTeam())) return;
   if(t==="ops"&&!isCaptain()) return;
   curTab=t;
@@ -1966,9 +2037,11 @@ function switchTab(t){
   el("tab-stews").classList.toggle("hidden",t!=="stews");
   if(el("tab-expenses")) el("tab-expenses").classList.toggle("hidden",t!=="expenses");
   if(el("tab-commissions")) el("tab-commissions").classList.toggle("hidden",t!=="commissions");
+  if(el("tab-today")) el("tab-today").classList.toggle("hidden",t!=="today");
   if(el("tab-ops")) el("tab-ops").classList.toggle("hidden",t!=="ops");
   el("tab-security").classList.toggle("hidden",t!=="security");
   updateFab();
+  if(t==="today"&&isCaptain()) renderTodayTab();
   if(t==="charters"&&canCommercial()) renderCharters();
   if(t==="leads"&&canCommercial()) renderLeads();
   if(t==="ops") renderOpsHub();
@@ -1984,7 +2057,7 @@ function switchTab(t){
 }
 function updateFab(){
   var hide=false;
-  if(curTab==="security"||curTab==="ops"||curTab==="commissions") hide=true;
+  if(curTab==="security"||curTab==="ops"||curTab==="commissions"||curTab==="today") hide=true;
   else if(curTab==="apa"){
     if(apaView==="list") hide=false; /* + new trip */
     else hide=(apaSub==="overview"||apaSub==="setup"||!activeApaId);
@@ -2208,6 +2281,8 @@ function renderAll(){
   if(canCommercial()){ safe(renderCharters); safe(renderLeads); }
   safe(renderSecurity);
   if(isCaptain()){
+    if(curTab==="today") safe(renderTodayTab);
+    else safe(syncTodayNavBadge);
     safe(renderApa); safe(renderDiesel);
     if(curTab==="expenses") safe(renderExpenses);
     if(curTab==="commissions") safe(renderCommissions);
