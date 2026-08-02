@@ -133,11 +133,19 @@
   }
 
   /**
+   * Reconstruct-only guest €/L when trip/line rate is missing.
+   * Same figure as diesel.DIESEL_LEGACY_FALLBACK_SELL — fuel must never be free.
+   */
+  var APA_DIESEL_FALLBACK_PRICE = 1.75;
+
+  /**
    * One APA diesel line → litres + cost.
    * Freeze ledger €: manual cost → stored amount → litres × line/trip rate.
-   * Never re-prices historical lines from a later bunker.
+   * Never re-prices historical lines that already store amount/cost.
+   * If litres exist but rate is missing/0, use fallbackPrice (or 1.75) so
+   * pot spend and shortfall charges still move money.
    *
-   * @param {{ genBurn?: number, dieselPrice?: number }} tripCtx
+   * @param {{ genBurn?: number, dieselPrice?: number, fallbackPrice?: number }} tripCtx
    * @param {object} row diesel log line
    */
   function apaDieselLineCalc(tripCtx, row) {
@@ -152,15 +160,25 @@
     var lit = eng + genL;
     var manual = num(row && row.cost);
     var stored = num(row && row.amount);
-    var price = num(row && row.price);
+    /* Line unitPrice first, then row.price alias, then trip rate */
+    var price = num(row && row.unitPrice);
+    if (!(price > 0)) price = num(row && row.price);
     if (!(price > 0)) price = num(tripCtx.dieselPrice);
+    var fallback = num(tripCtx.fallbackPrice);
+    if (!(fallback > 0)) fallback = APA_DIESEL_FALLBACK_PRICE;
+    var usedFallback = false;
+    if (!(price > 0) && lit > 0 && !(manual > 0) && !(stored > 0)) {
+      price = fallback;
+      usedFallback = true;
+    }
     var cost = 0;
     if (manual > 0) cost = manual;
     else if (stored > 0) cost = stored;
     else if (lit > 0 && price > 0) cost = lit * price;
     cost = round2(cost);
     if (lit > 0 && cost > 0 && !(price > 0)) price = Math.round((cost / lit) * 10000) / 10000;
-    else if (lit > 0 && stored > 0) price = Math.round((stored / lit) * 10000) / 10000;
+    else if (lit > 0 && stored > 0 && !(num(row && row.unitPrice) > 0))
+      price = Math.round((stored / lit) * 10000) / 10000;
     return {
       genL: round2(genL),
       lit: round2(lit),
@@ -170,6 +188,61 @@
       eng: eng,
       port: port,
       stbd: stbd,
+      usedFallback: usedFallback,
+    };
+  }
+
+  /**
+   * Pure plan: freeze diesel consumption onto a durable ledger line.
+   * Ensures amount + unitPrice are set so pot totals always include fuel €.
+   *
+   * @param {{
+   *   tripCtx?: { genBurn?: number, dieselPrice?: number, fallbackPrice?: number },
+   *   row?: object,
+   *   id?: string,
+   *   date?: string,
+   *   notes?: string
+   * }} input
+   * @returns {{
+   *   ok: boolean,
+   *   reason?: string,
+   *   line?: object,
+   *   calc?: object,
+   *   pinTripPrice?: number
+   * }}
+   */
+  function planApaDieselConsumptionLine(input) {
+    input = input || {};
+    var row = Object.assign({}, input.row || {});
+    var tripCtx = input.tripCtx || {};
+    var calc = apaDieselLineCalc(tripCtx, row);
+    if (!(calc.lit > 0.0009) && !(calc.cost > 0.009)) {
+      return { ok: false, reason: "empty", calc: calc };
+    }
+    if (!(calc.cost > 0.009) && calc.lit > 0.0009) {
+      /* Should not happen after fallback — refuse free fuel */
+      return { ok: false, reason: "no_price", calc: calc };
+    }
+    var line = {
+      id: input.id != null ? String(input.id) : row.id != null ? String(row.id) : "",
+      date: String(input.date || row.date || "").slice(0, 10),
+      enginePortL: calc.port > 0 ? calc.port : row.enginePortL != null && row.enginePortL !== "" ? row.enginePortL : "",
+      engineStbdL: calc.stbd > 0 ? calc.stbd : row.engineStbdL != null && row.engineStbdL !== "" ? row.engineStbdL : "",
+      engineL: calc.eng > 0 ? calc.eng : "",
+      genHrs: calc.genL > 0 || num(row.genHrs) > 0 ? num(row.genHrs) || round2(calc.genL / (calc.burn || 6)) : "",
+      cost: num(row.cost) > 0 ? round2(num(row.cost)) : "",
+      amount: calc.cost,
+      unitPrice: calc.price,
+      notes: input.notes != null ? String(input.notes) : row.notes != null ? String(row.notes) : "",
+    };
+    if (!(num(line.genHrs) > 0)) line.genHrs = "";
+    var pinTripPrice = 0;
+    if (!(num(tripCtx.dieselPrice) > 0) && calc.price > 0) pinTripPrice = calc.price;
+    return {
+      ok: true,
+      line: line,
+      calc: calc,
+      pinTripPrice: pinTripPrice,
     };
   }
 
@@ -655,11 +728,13 @@
 
   return {
     APA_EXP_CATS: APA_EXP_CATS,
+    APA_DIESEL_FALLBACK_PRICE: APA_DIESEL_FALLBACK_PRICE,
     summarizeApaTripTotals: summarizeApaTripTotals,
     apaHasPrepaid: apaHasPrepaid,
     apaDueAmount: apaDueAmount,
     apaEngineLitres: apaEngineLitres,
     apaDieselLineCalc: apaDieselLineCalc,
+    planApaDieselConsumptionLine: planApaDieselConsumptionLine,
     summarizeApaPaidCovered: summarizeApaPaidCovered,
     isApaCashSettlementCharge: isApaCashSettlementCharge,
     leadApaIsPrepaid: leadApaIsPrepaid,

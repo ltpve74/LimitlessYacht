@@ -145,10 +145,78 @@
         : input.dieselPrice != null
           ? input.dieselPrice
           : t.dieselPrice;
+    var nPrice = Number(price) || 0;
+    var fallback =
+      models.DIESEL_LEGACY_FALLBACK_SELL ||
+      models.APA_DIESEL_FALLBACK_PRICE ||
+      1.75;
+    if (!(nPrice > 0)) {
+      if (typeof models.dieselSuggestedSell === "function" && models.DIESEL_DEFAULT_BUY) {
+        nPrice = models.dieselSuggestedSell(models.DIESEL_DEFAULT_BUY) || fallback;
+      } else {
+        nPrice = fallback;
+      }
+    }
     return models.apaDieselLineCalc(
-      { genBurn: genBurn, dieselPrice: price },
+      { genBurn: genBurn, dieselPrice: nPrice, fallbackPrice: fallback },
       input.row || input.line || {}
     );
+  }
+
+  /**
+   * Freeze a diesel consumption draft into a durable line (amount + unitPrice).
+   * View applies returned line onto trip.diesel and may pin trip.dieselPrice.
+   */
+  function planDieselConsumption(input) {
+    input = input || {};
+    var models = M(input);
+    var t = input.trip || {};
+    var row = input.row || input.draft || {};
+    var linePrice =
+      input.linePrice != null
+        ? input.linePrice
+        : input.dieselPrice != null
+          ? input.dieselPrice
+          : t.dieselPrice;
+    var fallback =
+      models.DIESEL_LEGACY_FALLBACK_SELL ||
+      models.APA_DIESEL_FALLBACK_PRICE ||
+      1.75;
+    var nPrice = Number(linePrice) || 0;
+    if (!(nPrice > 0) && typeof models.dieselSuggestedSell === "function" && models.DIESEL_DEFAULT_BUY) {
+      nPrice = models.dieselSuggestedSell(models.DIESEL_DEFAULT_BUY) || fallback;
+    }
+    if (!(nPrice > 0)) nPrice = fallback;
+    if (typeof models.planApaDieselConsumptionLine !== "function") {
+      var calc = dieselLine({
+        models: models,
+        trip: t,
+        row: row,
+        linePrice: nPrice,
+        dieselPrice: nPrice,
+      });
+      return {
+        ok: calc.cost > 0.009 || calc.lit > 0.0009,
+        line: Object.assign({}, row, {
+          amount: calc.cost,
+          unitPrice: calc.price,
+          engineL: calc.eng,
+        }),
+        calc: calc,
+        pinTripPrice: !(Number(t.dieselPrice) > 0) && calc.price > 0 ? calc.price : 0,
+      };
+    }
+    return models.planApaDieselConsumptionLine({
+      tripCtx: {
+        genBurn: t.genBurn != null ? t.genBurn : 6,
+        dieselPrice: nPrice,
+        fallbackPrice: fallback,
+      },
+      row: row,
+      id: input.id || row.id,
+      date: input.date || row.date,
+      notes: input.notes != null ? input.notes : row.notes,
+    });
   }
 
   function tripTotals(input) {
@@ -536,6 +604,7 @@
     guestKey: guestKey,
     isApaChargeRow: isApaChargeRow,
     dieselLine: dieselLine,
+    planDieselConsumption: planDieselConsumption,
     tripTotals: tripTotals,
     overageAmount: overageAmount,
     paidCovered: paidCovered,

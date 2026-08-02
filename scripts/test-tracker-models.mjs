@@ -1571,6 +1571,21 @@ console.log("\n[APA — diesel line + paid covered]");
     { engineL: 10, amount: 20 }
   );
   ok("stored amount freezes cost", near(frozen.cost, 20));
+  /* Missing rate must NOT zero the pot (today’s bug: diesel → €0 money) */
+  const noRate = M.apaDieselLineCalc({ genBurn: 6, dieselPrice: 0 }, { enginePortL: 40, engineStbdL: 40 });
+  ok("missing rate still has litres", near(noRate.lit, 80));
+  ok("missing rate uses fallback price > 0", noRate.price > 0);
+  ok("missing rate still costs money", noRate.cost > 0.009, "got " + noRate.cost);
+  ok("missing rate usedFallback", noRate.usedFallback === true);
+  const planD = M.planApaDieselConsumptionLine({
+    tripCtx: { genBurn: 6, dieselPrice: 0 },
+    row: { enginePortL: 40, engineStbdL: 40, genHrs: 2, date: "2026-08-02" },
+    id: "d1",
+  });
+  ok("plan diesel ok", planD.ok === true);
+  ok("plan diesel freezes amount", planD.line && planD.line.amount > 0.009);
+  ok("plan diesel freezes unitPrice", planD.line && planD.line.unitPrice > 0);
+  ok("plan pins trip price when missing", planD.pinTripPrice > 0);
   const paid = M.summarizeApaPaidCovered(
     [
       { payStatus: "Paid", apaBaseAmt: 100, amount: 150 },
@@ -1600,6 +1615,293 @@ console.log("\n[APA — diesel line + paid covered]");
       }
     )
   );
+}
+
+/* ---- Fundamental money transactions (locked end-to-end) ---- */
+console.log("\n[Transactions — fundamental money paths]");
+{
+  const dieselCalc = function (t, r) {
+    return M.apaDieselLineCalc(
+      {
+        genBurn: t.genBurn || 6,
+        dieselPrice: t.dieselPrice,
+        fallbackPrice: M.APA_DIESEL_FALLBACK_PRICE || 1.75,
+      },
+      r
+    );
+  };
+
+  /* 1) Zero-pot APA + diesel consumption → spent + overage + shortfall create */
+  const tripDiesel = {
+    id: "apa-d",
+    guest: "Diesel Guest",
+    apaSent: 0,
+    topUps: 0,
+    genBurn: 6,
+    dieselPrice: 1.85,
+    expenses: [],
+    provisions: [],
+    diesel: [
+      {
+        id: "d1",
+        date: "2026-08-02",
+        enginePortL: 40,
+        engineStbdL: 40,
+        genHrs: 2,
+        amount: 170.2,
+        unitPrice: 1.85,
+      },
+    ],
+  };
+  const totD = C.apa.tripTotals({
+    models: M,
+    trip: tripDiesel,
+    paidCovered: 0,
+    cashSettled: false,
+    dieselCalc: dieselCalc,
+  });
+  ok("tx diesel spent > 0", totD.spent > 0.009, "got " + totD.spent);
+  ok("tx diesel dCost matches line", near(totD.dCost, 170.2));
+  ok("tx diesel overage = spent on zero pot", near(totD.overage, totD.spent));
+  const saveD = C.apa.planSaveTrip({
+    models: M,
+    trip: tripDiesel,
+    charges: [],
+    force: true,
+    allowCreate: true,
+    firstShortfall: true,
+    paidCovered: 0,
+    cashSettled: false,
+    overage: totD.overage,
+    dieselCalc: dieselCalc,
+  });
+  ok("tx diesel shortfall creates charge", saveD.shortfall && saveD.shortfall.action === "create");
+  ok(
+    "tx diesel charge amount = overage",
+    saveD.shortfall &&
+      saveD.shortfall.moneyFields &&
+      near(saveD.shortfall.moneyFields.amount, totD.overage)
+  );
+
+  /* 2) Missing trip dieselPrice still produces money (fallback) */
+  const tripNoPrice = {
+    id: "apa-np",
+    guest: "No Price",
+    apaSent: 0,
+    dieselPrice: 0,
+    genBurn: 6,
+    expenses: [],
+    provisions: [],
+    diesel: [{ id: "d2", enginePortL: 50, engineStbdL: 50, genHrs: 0 }],
+  };
+  const totNP = C.apa.tripTotals({
+    models: M,
+    trip: tripNoPrice,
+    paidCovered: 0,
+    cashSettled: false,
+    dieselCalc: dieselCalc,
+  });
+  ok("tx no-price diesel still spends", totNP.spent > 0.009, "got " + totNP.spent);
+  ok("tx no-price dLit = 100", near(totNP.dLit, 100));
+
+  /* 3) Prepaid pot + diesel reduces balance, no overage if within pot */
+  const tripPre = {
+    id: "apa-p",
+    guest: "Prepaid",
+    apaSent: 500,
+    topUps: 0,
+    dieselPrice: 2,
+    genBurn: 6,
+    expenses: [],
+    provisions: [],
+    diesel: [{ id: "d3", engineL: 50, amount: 100, unitPrice: 2 }],
+  };
+  const totP = C.apa.tripTotals({
+    models: M,
+    trip: tripPre,
+    paidCovered: 0,
+    cashSettled: false,
+    dieselCalc: dieselCalc,
+  });
+  ok("tx prepaid bal 400", near(totP.bal, 400));
+  ok("tx prepaid overage 0", near(totP.overage, 0));
+
+  /* 4) Expense + provision + diesel all in spent */
+  const tripAll = {
+    id: "apa-a",
+    guest: "All",
+    apaSent: 1000,
+    expenses: [{ amount: 100, category: "Dockage / Marina" }],
+    provisions: [{ amount: 50 }],
+    diesel: [{ engineL: 10, amount: 20, unitPrice: 2 }],
+    dieselPrice: 2,
+    genBurn: 6,
+  };
+  const totA = C.apa.tripTotals({
+    models: M,
+    trip: tripAll,
+    paidCovered: 0,
+    cashSettled: false,
+    dieselCalc: dieselCalc,
+  });
+  ok("tx all spent = 100+50+20", near(totA.spent, 170));
+  ok("tx all bal = 830", near(totA.bal, 830));
+
+  /* 5) Cash settlement zeros residual overage */
+  const totCash = C.apa.tripTotals({
+    models: M,
+    trip: {
+      id: "apa-c",
+      apaSent: 0,
+      expenses: [{ amount: 200, category: "Miscellaneous" }],
+      provisions: [],
+      diesel: [],
+    },
+    paidCovered: 0,
+    cashSettled: true,
+    dieselCalc: dieselCalc,
+  });
+  ok("tx cash settled overage 0", near(totCash.overage, 0));
+  ok("tx cash settled bal 0", near(totCash.bal, 0));
+
+  /* 6) Charge cash-to-boat (explicit Paid only) */
+  ok(
+    "tx charge cash Paid → boat",
+    near(
+      M.chargeCashToBoat({
+        payStatus: "Paid",
+        billType: "cash",
+        amount: 650,
+        cashPaid: 650,
+      }),
+      650
+    )
+  );
+  ok(
+    "tx charge Pending → 0 boat",
+    near(
+      M.chargeCashToBoat({
+        payStatus: "Pending",
+        billType: "cash",
+        amount: 650,
+        cashPaid: 650,
+      }),
+      0
+    )
+  );
+
+  /* 7) Free cash boat vs owner pocket */
+  const free = M.summarizeLeadCashIncome([
+    {
+      id: "L1",
+      name: "Boat",
+      start: "2026-07-01",
+      captainLead: true,
+      dealClosed: true,
+      split: true,
+      invoiceTotal: 1000,
+      cashAmt: 400,
+      cashSettled: true,
+      cashDest: "boat",
+      fins: "Paid",
+    },
+    {
+      id: "L2",
+      name: "Owner",
+      start: "2026-07-02",
+      leadSource: "ownersourced",
+      dealClosed: true,
+      split: true,
+      invoiceTotal: 1000,
+      cashAmt: 300,
+      cashSettled: true,
+      cashDest: "owner",
+      fins: "Paid",
+    },
+  ]);
+  ok("tx free cash boat 400", near(free.boat, 400));
+  ok("tx free cash owner 300", near(free.owner, 300));
+
+  /* 8) Petty envelope: start + ins − outs */
+  const petty = M.summarizePettyCash({
+    pettyStart: 100,
+    cashIns: [{ amount: 50 }],
+    expenses: [
+      {
+        amount: 8,
+        category: "Miscellaneous",
+        paidFrom: "Petty cash",
+        payMethod: "Cash",
+        date: "2026-08-01",
+      },
+      {
+        amount: 200,
+        category: "Crew Salaries",
+        vendor: "Toni",
+        crewPayStatus: "Unpaid",
+        source: "stew",
+        stewId: "toni",
+        floatPay: false,
+      },
+    ],
+  });
+  ok("tx petty cashOut €8 only", near(petty.cashOut, 8));
+  ok("tx petty onboard 142", near(petty.pettyOnboard, 142));
+
+  /* 9) Crew Paid + floatPay hits petty; Paid alone does not */
+  ok(
+    "tx crew floatPay hits",
+    near(
+      M.summarizePettyCash({
+        pettyStart: 200,
+        cashIns: [],
+        expenses: [
+          {
+            amount: 150,
+            category: "Crew Salaries",
+            crewPayStatus: "Paid",
+            floatPay: true,
+            source: "stew",
+            stewId: "t",
+            date: "2026-08-01",
+          },
+        ],
+      }).cashOut,
+      150
+    )
+  );
+  ok(
+    "tx crew Paid no float 0",
+    near(
+      M.summarizePettyCash({
+        pettyStart: 200,
+        cashIns: [],
+        expenses: [
+          {
+            amount: 150,
+            category: "Crew Salaries",
+            crewPayStatus: "Paid",
+            floatPay: false,
+            source: "stew",
+            stewId: "t",
+            date: "2026-08-01",
+          },
+        ],
+      }).cashOut,
+      0
+    )
+  );
+
+  /* 10) Controller diesel plan freezes money with zero trip rate */
+  const dslCtrl = C.apa.planDieselConsumption({
+    models: M,
+    trip: { dieselPrice: 0, genBurn: 6 },
+    row: { enginePortL: 10, engineStbdL: 10, genHrs: 1, date: "2026-08-02" },
+    id: "dx",
+  });
+  ok("tx ctrl diesel plan ok", dslCtrl.ok === true);
+  ok("tx ctrl diesel amount > 0", dslCtrl.line && dslCtrl.line.amount > 0.009);
+  ok("tx ctrl diesel unitPrice > 0", dslCtrl.line && dslCtrl.line.unitPrice > 0);
 }
 
 /* ---- Leads money dashboard ---- */
