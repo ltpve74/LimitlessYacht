@@ -1682,6 +1682,49 @@ console.log("\n[Stews — tip on bill + day pay]");
   ok("tip share stew side 45", near(share.stewSide, 45));
   const share2 = M.stewTipShare({ tipTotal: 90, stewIds: ["s1", "s2"] });
   ok("tip share 2 stews → 3-way", near(share2.each, 30));
+  /* Open tips → who is owed (Captain + Laura) */
+  const openTips = M.collectOpenTipPayouts(
+    [
+      {
+        eventKey: "ev-tip",
+        onBill: true,
+        paid: false,
+        amount: 100,
+        date: "2026-08-01",
+        summary: "Day charter Laura",
+        tipEach: 50,
+        tipCaptain: 50,
+        tipStewSide: 50,
+        nStews: 1,
+        stewNames: ["Laura"],
+      },
+      {
+        eventKey: "ev-paid",
+        onBill: true,
+        paid: true,
+        amount: 80,
+        date: "2026-08-01",
+        tipEach: 40,
+        tipCaptain: 40,
+        stewNames: ["Laura"],
+      },
+    ],
+    { focusMonth: "2026-08", today: "2026-08-02" }
+  );
+  ok("open tip n=1 (paid excluded)", openTips.length === 1);
+  ok("open tip has captain+Laura shares", openTips[0].shares && openTips[0].shares.length === 2);
+  const byWho = M.summarizeOpenTipOwedByPerson(openTips);
+  ok("tip by person n=2", byWho.n === 2);
+  ok("tip by person total 100", near(byWho.total, 100));
+  const cap = byWho.people.find(function (p) {
+    return p.whoKey === "captain";
+  });
+  const laura = byWho.people.find(function (p) {
+    return /laura/i.test(p.name || "");
+  });
+  ok("owe captain 50", cap && near(cap.amount, 50));
+  ok("owe Laura 50", laura && near(laura.amount, 50));
+  ok("captain listed first", byWho.people[0] && byWho.people[0].role === "captain");
 }
 
 /* ---- APA diesel line + paid covered ---- */
