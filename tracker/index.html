@@ -939,21 +939,21 @@
 
 <!-- Domain models + controllers (MVC blueprint) — tests: node scripts/test-tracker-models.mjs -->
 <!-- LY_MODELS → LY_CONTROLLERS → view. See .agent/briefs/tracker-v1-mvc-blueprint.md -->
-<script src="/tracker/js/models/util.js?v=20260807-cashpay1"></script>
-<script src="/tracker/js/models/leads.js?v=20260807-cashpay1"></script>
-<script src="/tracker/js/models/charges.js?v=20260807-cashpay1"></script>
-<script src="/tracker/js/models/expenses.js?v=20260807-cashpay1"></script>
-<script src="/tracker/js/models/cash.js?v=20260807-cashpay1"></script>
-<script src="/tracker/js/models/diesel.js?v=20260807-cashpay1"></script>
-<script src="/tracker/js/models/stews.js?v=20260807-cashpay1"></script>
-<script src="/tracker/js/models/apa.js?v=20260807-cashpay1"></script>
-<script src="/tracker/js/models/index.js?v=20260807-cashpay1"></script>
-<script src="/tracker/js/controllers/expenses.js?v=20260807-cashpay1"></script>
-<script src="/tracker/js/controllers/charges.js?v=20260807-cashpay1"></script>
-<script src="/tracker/js/controllers/leads.js?v=20260807-cashpay1"></script>
-<script src="/tracker/js/controllers/apa.js?v=20260807-cashpay1"></script>
-<script src="/tracker/js/controllers/stews.js?v=20260807-cashpay1"></script>
-<script src="/tracker/js/controllers/index.js?v=20260807-cashpay1"></script>
+<script src="/tracker/js/models/util.js?v=20260807-leadcash1"></script>
+<script src="/tracker/js/models/leads.js?v=20260807-leadcash1"></script>
+<script src="/tracker/js/models/charges.js?v=20260807-leadcash1"></script>
+<script src="/tracker/js/models/expenses.js?v=20260807-leadcash1"></script>
+<script src="/tracker/js/models/cash.js?v=20260807-leadcash1"></script>
+<script src="/tracker/js/models/diesel.js?v=20260807-leadcash1"></script>
+<script src="/tracker/js/models/stews.js?v=20260807-leadcash1"></script>
+<script src="/tracker/js/models/apa.js?v=20260807-leadcash1"></script>
+<script src="/tracker/js/models/index.js?v=20260807-leadcash1"></script>
+<script src="/tracker/js/controllers/expenses.js?v=20260807-leadcash1"></script>
+<script src="/tracker/js/controllers/charges.js?v=20260807-leadcash1"></script>
+<script src="/tracker/js/controllers/leads.js?v=20260807-leadcash1"></script>
+<script src="/tracker/js/controllers/apa.js?v=20260807-leadcash1"></script>
+<script src="/tracker/js/controllers/stews.js?v=20260807-leadcash1"></script>
+<script src="/tracker/js/controllers/index.js?v=20260807-leadcash1"></script>
 <script>
 "use strict";
 var API = "/.netlify/functions/tracker";
@@ -3468,7 +3468,22 @@ function leadCharterTiming(r){
 }
 /** Compact split money block — quote → base → white PDF → cash (logical order). */
 function leadSplitSummaryHTML(r){
-  if(!r||!leadHasSplit(r)) return "";
+  if(!r) return "";
+  var cashOnly=!!(LY_MODELS&&LY_MODELS.leadIsCashOnlyDeal&&LY_MODELS.leadIsCashOnlyDeal(r));
+  if(!cashOnly&&!leadHasSplit(r)) return "";
+  if(cashOnly){
+    var cashN=leadFreeCashAmt(r)||Number(r.cashAmt)||Number(r.total)||0;
+    var dest=leadCashDest(r);
+    var received=leadFreeCashIsReceived(r);
+    var cashWhere=dest==="owner"?"owner pocket":"boat petty";
+    var cashState=!received?"not received yet":(dest==="owner"?"received → owner pocket":"received → boat petty");
+    return '<div class="lead-split">'+
+      '<div class="ls-row">'+
+        '<span class="ls-k">Cash only</span><span class="ls-v money">'+money0(cashN)+'</span>'+
+        '<span class="ls-k">→ '+esc(cashWhere)+'</span><span class="ls-v">'+esc(cashState)+'</span>'+
+      '</div>'+
+      '<div class="ls-note">Whole charter fee cash · no formal invoice · not APA pot</div></div>';
+  }
   var invN=Number(r.invoiceNet)||0;
   var invT=Number(r.invoiceTotal)!=null&&r.invoiceTotal!==""?Number(r.invoiceTotal):(invN+(Number(r.invoiceVat)||0));
   var dealN=Number(r.dealNet)||leadDealBase(r)||0;
@@ -3729,8 +3744,9 @@ function renderLeads(){
       (timing==="upcoming"?'<span class="pill p-blue">Scheduled</span>':'')+
       (timing==="done"?'<span class="pill p-green">Realised</span>':'')+
       (isSplit?'<span class="pill p-black">Split</span>':'')+
-      (isSplit&&leadCashDest(r)==="owner"?'<span class="pill p-own">'+(leadOwnerPocketCashAmt(r)>0?"Cash → owner pocket":"Cash → owner (pending)")+'</span>':'')+
-      (isSplit&&leadCashDest(r)==="boat"&&leadFreeCashIsOnBoat(r)?'<span class="pill p-green">Cash → boat</span>':'')+
+      ((isSplit||(LY_MODELS&&LY_MODELS.leadIsCashOnlyDeal&&LY_MODELS.leadIsCashOnlyDeal(r)))&&leadCashDest(r)==="owner"?'<span class="pill p-own">'+(leadOwnerPocketCashAmt(r)>0?"Cash → owner pocket":"Cash → owner (pending)")+'</span>':'')+
+      ((isSplit||(LY_MODELS&&LY_MODELS.leadIsCashOnlyDeal&&LY_MODELS.leadIsCashOnlyDeal(r)))&&leadCashDest(r)==="boat"&&leadFreeCashIsOnBoat(r)?'<span class="pill p-green">Cash → boat</span>':'')+
+      ((LY_MODELS&&LY_MODELS.leadIsCashOnlyDeal&&LY_MODELS.leadIsCashOnlyDeal(r))?'<span class="pill p-black">Cash only</span>':'')+
       (rateBits.length?'<span>'+rateBits.join(" · ")+'</span>':'')+
       (calKey?'<span class="pill p-grey">Cal linked</span>':'')+
       (isCaptain()&&closed&&leadCommissionRatePct(r)>0?'<span class="pill p-green">Comm '+money(leadCommissionAmt(r))+' ('+leadCommissionRatePct(r)+'%)</span>':'')+
@@ -14671,6 +14687,10 @@ function syncChargeCashToPetty(charge){
 }
 /* -------- Lead free cash → boat petty cash OR owner pocket -------- */
 function leadCashInId(leadId){ return "lead-cash:"+String(leadId||""); }
+function leadIsCashOnlyDeal(l){
+  if(LY_MODELS&&LY_MODELS.leadIsCashOnlyDeal) return !!LY_MODELS.leadIsCashOnlyDeal(l);
+  return !!(l&&(l.cashOnly===true||l.dealPayType==="cash"));
+}
 function leadCashDest(l){
   if(LY_MODELS&&LY_MODELS.leadCashDest) return LY_MODELS.leadCashDest(l);
   var s=String((l&&l.cashDest)||"").toLowerCase();
@@ -14743,7 +14763,7 @@ function syncLeadCashToPetty(lead){
     fromLeadId:String(lead.id),
     kind:"charter-fee",
     date:date,
-    source:"Charter fee · free cash — "+name,
+    source:(leadIsCashOnlyDeal&&leadIsCashOnlyDeal(lead)?"Charter fee · cash only — ":"Charter fee · free cash — ")+name,
     amount:cash,
     notes:"Split charter fee cash · not on the invoice · on the boat · "+money0(cash),
     updatedAt:new Date().toISOString()
@@ -15584,8 +15604,16 @@ function recalcLead(){
   var mode=el("f_vatMode")?el("f_vatMode").value:"include";
   var pctRaw=el("f_vatPct")?el("f_vatPct").value:"";
   if(el("f_vatPct")) el("f_vatPct").disabled=(mode==="none");
-  var splitOn=el("f_split")?el("f_split").checked:false;
+  var dealPay=(el("f_dealPay")&&el("f_dealPay").value)||"invoice";
+  var splitOn=dealPay==="split";
+  var cashOnlyOn=dealPay==="cash";
   if(el("f_splitwrap")) el("f_splitwrap").classList.toggle("hidden",!splitOn);
+  if(el("f_cashOnlyWrap")) el("f_cashOnlyWrap").classList.toggle("hidden",!cashOnlyOn);
+  /* Cash-only: prefill fee from quote when empty */
+  if(cashOnlyOn&&el("f_cashOnlyAmt")&&!apaNum(el("f_cashOnlyAmt").value)){
+    var q=base>0?base:0;
+    if(q>0) el("f_cashOnlyAmt").value=String(q);
+  }
   var whiteRaw=el("f_whiteTotal")?el("f_whiteTotal").value:"";
   var cashRaw=el("f_cashBlack")?el("f_cashBlack").value:"";
   var legNet=el("f_invoiceNet")?el("f_invoiceNet").value:"";
@@ -15732,7 +15760,9 @@ function openSheet(type,id){
     var ldur=r.dur||"8h";
     var vMode=r.vatMode||(rec?"none":"include");
     var vPct=(r.vatPct!=null&&r.vatPct!=="")?r.vatPct:(vMode==="none"?"":"21");
-    var splitOn=!!(r.split||r.splitCash);
+    var dealPayType=(LY_MODELS&&LY_MODELS.leadDealPayType)?LY_MODELS.leadDealPayType(r):(r.cashOnly||r.dealPayType==="cash"?"cash":(r.split||r.splitCash?"split":"invoice"));
+    var splitOn=dealPayType==="split";
+    var cashOnlyOn=dealPayType==="cash";
     var whiteVatModeDef=r.whiteVatMode||"";
     if(!whiteVatModeDef){
       if(r.invoiceTotal&&r.invoiceNet&&Math.abs(Number(r.invoiceTotal)-Number(r.invoiceNet))>0.5){
@@ -15839,10 +15869,36 @@ function openSheet(type,id){
     h+='<div id="f_durfields">'+durFieldsHTML(ldur,r)+'</div>';
     h+='<div class="row2">'+fieldHTML("VAT on charter quote",vatModeField(vMode))+fieldHTML("VAT %",pctField("f_vatPct",vPct))+'</div>';
     h+='<p style="margin:-6px 0 12px;font-size:12.5px;color:var(--muted);line-height:1.4">Charter quote for the deal base. For <b>€4,000 without VAT</b> use quote <b>€4,000</b> and VAT = <b>No VAT</b> (or “included” only if 4k already has VAT). Split cash uses this base to suggest free cash.</p>';
-    h+='<label class="checkrow"><input type="checkbox" id="f_split"'+(splitOn?" checked":"")+'>'+
-      '<span><div class="ck">Split cash deal (white + black)</div>'+
-      '<div class="ch">Formal white invoice + free cash <b>on this lead</b> (charter fee — not the APA pot). Deposit/final = white only. Tick “cash on boat” → Expenses petty.</div></span></label>';
-    h+='<div id="f_splitwrap"'+(splitOn?"":" class=\"hidden\"")+'>'+
+    h+=fieldHTML("Deal payment",'<select class="ctl" id="f_dealPay">'+
+      '<option value="invoice"'+(dealPayType==="invoice"?" selected":"")+'>Invoice only (card / formal PDF)</option>'+
+      '<option value="split"'+(dealPayType==="split"?" selected":"")+'>Split · white invoice + free cash</option>'+
+      '<option value="cash"'+(dealPayType==="cash"?" selected":"")+'>Cash only (whole charter fee)</option>'+
+    '</select>');
+    h+='<p style="margin:-6px 0 12px;font-size:12.5px;color:var(--muted);line-height:1.4">'+
+      '<b>Invoice only</b> = full formal PDF. <b>Split</b> = white PDF + free cash black. <b>Cash only</b> = entire fee cash — boat petty or owner pocket (same as split cash routing).</p>';
+    /* Cash-only block */
+    h+='<div id="f_cashOnlyWrap"'+(cashOnlyOn?"":' class="hidden"')+'>'+
+      fieldHTML("Cash fee (€)",moneyField("f_cashOnlyAmt", cashDef||(r.total||r.price||r.base||"")))+
+      '<p style="margin:-6px 0 10px;font-size:12.5px;color:var(--muted);line-height:1.4">Whole charter fee in cash (no formal invoice). Prefills from the quote price — edit if they paid a round figure.</p>'+
+      (function(){
+        var dest=leadCashDest(r);
+        var cashOn=false;
+        if(r.cashSettled===true||r.cashSettled==="true"||r.cashSettled===1) cashOn=true;
+        else if(r.cashSettled===false||r.cashSettled==="false"||r.cashSettled===0) cashOn=false;
+        else cashOn=!!(rec&&(r.fins==="Paid"||r.cashOnly));
+        return fieldHTML("Cash goes to",
+          '<select class="ctl" id="f_cashOnlyDest">'+
+            '<option value="boat"'+(dest!=="owner"?" selected":"")+'>Boat · petty cash envelope</option>'+
+            '<option value="owner"'+(dest==="owner"?" selected":"")+'>Owner’s pocket (still business income)</option>'+
+          '</select>')+
+          '<p style="margin:-6px 0 10px;font-size:12.5px;color:var(--muted);line-height:1.4"><b>Boat</b> → Expenses petty when received. <b>Owner’s pocket</b> → owner stats only (not boat float).</p>'+
+          '<label class="checkrow"><input type="checkbox" id="f_cashOnlySettled"'+(cashOn?" checked":"")+'>'+
+          '<span><div class="ck">Cash received</div>'+
+          '<div class="ch">Tick when the cash is actually in hand. Marks the deal cash as settled.</div></span></label>';
+      })()+
+    '</div>';
+    /* Split white+black block */
+    h+='<div id="f_splitwrap"'+(splitOn?"":' class="hidden"')+'>'+
       '<div class="apa-card" style="margin:0 0 12px;padding:10px 12px">'+
         '<div class="meta">Deal base (cash guide)</div>'+
         '<div class="money" style="font-size:18px;font-weight:800" id="f_dealNetShow">'+money(0)+'</div>'+
@@ -15938,8 +15994,14 @@ function openSheet(type,id){
   }); }
   /* Existing saved cash: keep it until captain changes swallow/charge or taps Use suggested */
   if(el("f_cashBlack")&&apaNum(el("f_cashBlack").value)>0) el("f_cashBlack").dataset.userEdited="1";
-  if(el("f_split")){ el("f_split").addEventListener("change",function(){
-    if(el("f_cashBlack")&&el("f_split").checked){ el("f_cashBlack").dataset.userEdited=""; el("f_cashBlack").dataset.forcePrefill="1"; }
+  if(el("f_dealPay")){ el("f_dealPay").addEventListener("change",function(){
+    var mode=el("f_dealPay").value||"invoice";
+    if(mode==="split"&&el("f_cashBlack")){ el("f_cashBlack").dataset.userEdited=""; el("f_cashBlack").dataset.forcePrefill="1"; }
+    if(mode==="cash"&&el("f_cashOnlyAmt")&&!apaNum(el("f_cashOnlyAmt").value)){
+      var p=el("f_price")?apaNum(el("f_price").value):0;
+      if(!(p>0)&&el("f_rate")&&el("f_start")) p=apaNum(el("f_rate").value);
+      if(p>0) el("f_cashOnlyAmt").value=String(p);
+    }
     recalcLead();
   }); }
   function paintDealClosedUI(){
@@ -16409,9 +16471,14 @@ function saveSheet(type,rec){
     else { price=apaNum(el("f_price").value); base=price; rate=price; days=1; }
     var vatMode=el("f_vatMode")?el("f_vatMode").value:"include";
     var vatPctIn=el("f_vatPct")?el("f_vatPct").value:"";
-    var splitOn=el("f_split")?el("f_split").checked:false;
+    var dealPay=(el("f_dealPay")&&el("f_dealPay").value)||"invoice";
+    if(LY_MODELS&&LY_MODELS.constrainDealPayType) dealPay=LY_MODELS.constrainDealPayType(dealPay);
+    var splitOn=dealPay==="split";
+    var cashOnlyOn=dealPay==="cash";
     var whiteIn=el("f_whiteTotal")?el("f_whiteTotal").value:"";
-    var cashIn=el("f_cashBlack")?el("f_cashBlack").value:"";
+    var cashIn=cashOnlyOn
+      ?(el("f_cashOnlyAmt")?el("f_cashOnlyAmt").value:"")
+      :(el("f_cashBlack")?el("f_cashBlack").value:"");
     var legNetIn=el("f_invoiceNet")?el("f_invoiceNet").value:"";
     var whiteVatMode=el("f_whiteVatMode")?el("f_whiteVatMode").value:"include";
     var vatOnTop=leadVatOnTopFromForm();
@@ -16419,6 +16486,19 @@ function saveSheet(type,rec){
     /* Free cash black from the field only — never fall back to suggested ex-VAT */
     var cashForced=apaNum(cashIn);
     var sp=leadSplit(quoteBase, vatMode, vatPctIn, splitOn, whiteIn, cashForced>0?cashForced:cashIn, legNetIn, "", vatOnTop, whiteVatMode);
+    if(cashOnlyOn){
+      var fee=cashForced>0?cashForced:quoteBase;
+      fee=Math.round(Number(fee||0)*100)/100;
+      if(!(fee>0)) fee=Math.round(Number(quoteBase||0)*100)/100;
+      sp={
+        split:false, cashOnly:true,
+        full:{net:fee,vat:0,total:fee,vatMode:"none",vatPct:0},
+        invoiceNet:0, invoiceTotal:0, cash:fee, cashAmt:fee,
+        white:{net:0,vat:0,total:0}, clientTotal:fee, dealNet:fee,
+        quoteGross:fee, quoteVat:0, vatOnTop:false, suggestedCash:fee,
+        bookedTotal:fee, whiteClient:0, finalPrice:fee
+      };
+    }
     if(sp.split&&cashForced>0){
       sp.cashAmt=cashForced;
       sp.cash=cashForced;
@@ -16439,6 +16519,13 @@ function saveSheet(type,rec){
       if(el("f_deps")) el("f_deps").value="Not requested";
     }
     var parts=leadParts(sp, depPct, apaPct, deps);
+    if(cashOnlyOn){
+      deps="Not requested";
+      depPct=0;
+      var feeTot=Math.round(Number(sp.cashAmt||sp.clientTotal||0)*100)/100;
+      parts={dep:0, fin:0, apa:parts.apa||0, client:feeTot};
+      if(el("f_cashOnlySettled")&&el("f_cashOnlySettled").checked) fins="Paid";
+    }
     var leadSrcRaw=(el("f_leadSource")&&el("f_leadSource").value)||"other";
     var leadSrc=(LY_MODELS&&LY_MODELS.constrainLeadSource)?LY_MODELS.constrainLeadSource(leadSrcRaw):(leadSrcRaw==="captain"?"captain":"other");
     var bookingSt=(el("f_bookingStatus")&&el("f_bookingStatus").value)==="cancelled"?"cancelled":"active";
@@ -16453,14 +16540,20 @@ function saveSheet(type,rec){
       splitVatOnTop:sp.split?!!sp.vatOnTop:false,
       whiteVatMode:sp.split?(sp.whiteVatMode||whiteVatMode):"",
       invoiceNet:sp.split?sp.invoiceNet:0, invoiceVat:sp.split?sp.white.vat:0, invoiceTotal:sp.split?sp.invoiceTotal:parts.client,
-      cashAmt:sp.split?(cashForced>0?cashForced:sp.cashAmt):0,
-      cashAmtUser:sp.split&&(cashForced>0||Number(sp.cashAmt)>0),
-      cashDest:sp.split?(function(){
-        var d=el("f_cashDest")?el("f_cashDest").value:"boat";
+      cashAmt:(cashOnlyOn||sp.split)?(cashForced>0?cashForced:(sp.split?sp.cashAmt:0)):0,
+      cashAmtUser:(cashOnlyOn||sp.split)&&(cashForced>0||Number(sp.cashAmt)>0),
+      cashOnly:!!cashOnlyOn,
+      dealPayType:cashOnlyOn?"cash":(sp.split?"split":"invoice"),
+      cashDest:(cashOnlyOn||sp.split)?(function(){
+        var d=cashOnlyOn
+          ?(el("f_cashOnlyDest")?el("f_cashOnlyDest").value:"boat")
+          :(el("f_cashDest")?el("f_cashDest").value:"boat");
         if(LY_MODELS&&LY_MODELS.constrainCashDest) return LY_MODELS.constrainCashDest(d);
         return d==="owner"?"owner":"boat";
       })():"boat",
-      cashSettled:sp.split?(!!(el("f_cashSettled")&&el("f_cashSettled").checked)):false,
+      cashSettled:(cashOnlyOn||sp.split)?(!!(cashOnlyOn
+        ?(el("f_cashOnlySettled")&&el("f_cashOnlySettled").checked)
+        :(el("f_cashSettled")&&el("f_cashSettled").checked))):false,
       leadSource:leadSrc,
       sourcePending:leadSrc==="pending",
       bookingStatus:bookingSt,

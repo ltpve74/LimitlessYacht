@@ -43,6 +43,8 @@ var CHARTER_RATES = {
 };
 
 function leadHasSplit(r) {
+  /* White PDF + free cash black — not full cash-only deals */
+  if (leadIsCashOnlyDeal(r)) return false;
   return !!(
     r &&
     (r.split || r.splitCash) &&
@@ -53,6 +55,44 @@ function leadHasSplit(r) {
       r.split ||
       r.splitCash)
   );
+}
+
+/**
+ * Entire charter fee is cash (no formal white invoice).
+ * Uses the same cashDest / cashSettled plumbing as split free cash.
+ */
+function leadIsCashOnlyDeal(r) {
+  if (!r) return false;
+  if (r.dealPayType === "cash" || r.cashOnly === true || r.cashOnly === "true" || r.cashOnly === 1)
+    return true;
+  return false;
+}
+
+/** Split free cash OR full-cash charter fee (any cash component on the lead). */
+function leadHasCashFee(r) {
+  return !!(r && (leadIsCashOnlyDeal(r) || leadHasSplit(r)));
+}
+
+/**
+ * How the lead is settled commercially:
+ *  - invoice = formal invoice only
+ *  - split   = white PDF + free cash black
+ *  - cash    = entire fee cash (boat petty or owner pocket)
+ */
+function leadDealPayType(r) {
+  if (leadIsCashOnlyDeal(r)) return "cash";
+  if (leadHasSplit(r)) return "split";
+  return "invoice";
+}
+
+function constrainDealPayType(v) {
+  var s = String(v || "")
+    .toLowerCase()
+    .trim();
+  if (s === "cash" || s === "cash-only" || s === "cash_only" || s === "allcash" || s === "all-cash")
+    return "cash";
+  if (s === "split" || s === "split-cash" || s === "white+black") return "split";
+  return "invoice";
 }
 
 function leadSource(r) {
@@ -423,7 +463,13 @@ function leadFreeCashAmt(l, pin) {
     if (!(cash > 0) || cashAmtLooksSuggested(l) || Math.abs(cash - pin) > 0.02) return pin;
   }
   if (cashAmtLooksSuggested(l)) return 0;
-  return cash > 0 ? cash : 0;
+  if (cash > 0) return cash;
+  /* Cash-only charter: whole fee is cash when cashAmt not yet stored */
+  if (leadIsCashOnlyDeal(l)) {
+    var tot = round2(num(l.total) || num(l.base) || num(l.price) || 0);
+    return tot > 0 ? tot : 0;
+  }
+  return 0;
 }
 
 /**
@@ -449,16 +495,20 @@ function leadCashDest(r) {
 }
 
 /**
- * Free cash received (settled). Same gate for boat envelope and owner pocket:
+ * Free cash / cash-only fee received (settled).
+ * Same gate for boat envelope and owner pocket:
  * explicit cashSettled, or final Paid (unless cashSettled explicitly false).
+ * Applies to split free cash and full cash-only charters.
  */
 function leadFreeCashIsReceived(r) {
-  if (!r || !leadHasSplit(r)) return false;
+  if (!r || !leadHasCashFee(r)) return false;
   var cash = leadFreeCashAmt(r);
   if (!(cash > 0.009)) return false;
   if (r.cashSettled === false || r.cashSettled === "false" || r.cashSettled === 0)
     return false;
   if (r.cashSettled === true || r.cashSettled === "true" || r.cashSettled === 1) return true;
+  /* Cash-only: final Paid or deal closed + settled flag path */
+  if (leadIsCashOnlyDeal(r) && String(r.fins || "") === "Paid") return true;
   return String(r.fins || "") === "Paid";
 }
 
@@ -495,7 +545,8 @@ function leadIsCancelled(r) {
 }
 
 /**
- * Display-only summary of free cash income already on leads (split deals only).
+ * Display-only summary of free cash income already on leads
+ * (split free cash + full cash-only charters).
  * - Only cash marked received (cashSettled or final Paid)
  * - boat = petty envelope · owner = owner’s pocket (still income)
  * - Does not include Charges / final-charge cash — leads only
@@ -512,7 +563,7 @@ function summarizeLeadCashIncome(leads) {
   var items = [];
   (Array.isArray(leads) ? leads : []).forEach(function (r) {
     if (!r || leadIsCancelled(r)) return;
-    if (!leadHasSplit(r)) return;
+    if (!leadHasCashFee(r)) return;
     var cash = leadFreeCashAmt(r);
     if (!(cash > 0.009)) return;
     if (!leadFreeCashIsReceived(r)) return;
@@ -645,7 +696,7 @@ function leadListMoney(r) {
   if (!r || leadIsCancelled(r)) return 0;
   var src = leadSource(r);
   if (src === "owner" || src === "pending") return 0;
-  if (leadHasSplit(r)) return leadClientTotal(r);
+  if (leadHasCashFee(r)) return leadClientTotal(r);
   return num(r.total) || num(r.base) || num(r.price) || 0;
 }
 
@@ -915,7 +966,7 @@ function summarizeLeadsMoneyDashboard(opts) {
       os.comm = round2(os.comm + commFull);
       bumpType(os.types, tk, val, exVatFull);
       osWhite = round2(osWhite + whiteInvoiceAmt(r));
-      if (leadHasSplit(r)) {
+      if (leadHasCashFee(r)) {
         var cashN = leadFreeCashAmt(r) || num(r.cashAmt);
         if (cashN > 0.009) {
           if (leadCashDest(r) === "owner") {
@@ -1026,11 +1077,18 @@ function sanitizeLeadCash(l, pin) {
 }
 
 /**
- * Client total for split = formal white (PDF) + free cash when cash is set;
- * else theoretical final (B or B+V). Prefer stored cash + invoice total when present.
+ * Client total:
+ *  - cash-only = cash fee (whole charter)
+ *  - split = formal white (PDF) + free cash when cash is set
+ *  - else quote total
  */
 function leadClientTotal(l) {
   if (!l) return 0;
+  if (leadIsCashOnlyDeal(l)) {
+    var cOnly = leadFreeCashAmt(l);
+    if (cOnly > 0) return cOnly;
+    return round2(num(l.total) || num(l.base) || num(l.price));
+  }
   if (!leadHasSplit(l)) return round2(num(l.total) || num(l.base) || num(l.price));
   var cash = round2(num(l.cashAmt));
   if (cash > 0 && !l.cashAmtUser) {
@@ -1043,6 +1101,7 @@ function leadClientTotal(l) {
   }
   var whitePay = leadWhiteClientPay(l);
   if (cash > 0 && whitePay > 0) return round2(whitePay + cash);
+  if (cash > 0 && !(whitePay > 0)) return cash;
   return leadSplitFinalPrice(l);
 }
 
@@ -1112,6 +1171,26 @@ function leadCommissionParts(r) {
   if (!r) return empty;
   var pct = commissionVatPct(r);
   var mode = String(r.vatMode || "include").toLowerCase();
+  /* Full cash-only charter: commission on cash fee (no white) */
+  if (leadIsCashOnlyDeal(r)) {
+    var cashOnly = leadFreeCashAmt(r);
+    if (!(cashOnly > 0)) cashOnly = leadCommissionGrossAmount(r);
+    var cashOnlyComm = round2(cashOnly * pctRate);
+    return {
+      split: true,
+      cashOnly: true,
+      whiteBeforeVat: 0,
+      cashBlack: cashOnly,
+      base: cashOnly,
+      whiteComm: 0,
+      cashComm: cashOnlyComm,
+      total: cashOnlyComm,
+      gross: cashOnly,
+      ratePct: ratePct,
+      source: src,
+    };
+  }
+
   var isSplit = !!(
     r.split === true ||
     r.splitCash === true ||
@@ -1199,6 +1278,10 @@ function leadCommissionAmt(r) {
     OWNER_SOURCED_COMMISSION_PCT: OWNER_SOURCED_COMMISSION_PCT,
     CHARTER_RATES: CHARTER_RATES,
     leadHasSplit: leadHasSplit,
+    leadIsCashOnlyDeal: leadIsCashOnlyDeal,
+    leadHasCashFee: leadHasCashFee,
+    leadDealPayType: leadDealPayType,
+    constrainDealPayType: constrainDealPayType,
     leadSource: leadSource,
     isCaptainLead: isCaptainLead,
     leadEarnsCaptainCommission: leadEarnsCaptainCommission,
