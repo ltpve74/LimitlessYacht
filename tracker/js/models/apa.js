@@ -503,11 +503,30 @@
       if (onTrip) plan.unlinkExpenseIds.push(eid);
     });
 
+    var leadPatch = planApaLeadAfterPotDelete({
+      apaSent: input.apaSent,
+      topUps: input.topUps,
+      leadApa: input.leadApa,
+      leadApas: input.leadApas,
+    });
+    if (leadPatch) plan.leadPatch = leadPatch;
+
     return plan;
   }
 
   /**
+   * Lead overnight APA is prepaid only when Issued/Paid.
+   * Otherwise lead.apa may hold shortfall-to-invoice (syncLeadApaInvoiceAmount) —
+   * that must NEVER seed pot.apaSent as “APA received”.
+   */
+  function leadApaIsPrepaid(apasStatus) {
+    var s = String(apasStatus || "").trim();
+    return s === "Issued" || s === "Paid";
+  }
+
+  /**
    * Write plan: start empty pot for guest — drop unpaid orphans not on a live pot.
+   * When starting from a lead, seed apaSent only from true prepaid APA.
    */
   function planApaStartEmptyPot(input) {
     input = input || {};
@@ -515,7 +534,24 @@
     var keepTripId = input.keepTripId != null ? String(input.keepTripId) : "";
     var live = Object.assign({}, input.liveTripIds || {});
     if (keepTripId) live[keepTripId] = 1;
-    var plan = { dropChargeIds: [], emptyLedger: true };
+    var prepaid = leadApaIsPrepaid(input.leadApas);
+    var leadApa = round2(num(input.leadApa));
+    var plan = {
+      dropChargeIds: [],
+      emptyLedger: true,
+      /* Pot seed — never treat shortfall-to-invoice as prepaid received */
+      potSeed: {
+        apaSent: prepaid && leadApa > 0 ? leadApa : 0,
+        topUps: 0,
+        linkInvAmount: prepaid && leadApa > 0 ? leadApa : 0,
+        linkInvNo: prepaid ? String(input.leadApaInv || "") : "",
+        linkInvLabel: prepaid ? String(input.leadApaLabel || "APA") : "",
+        chargeId: "",
+        suppressShortfallCharge: false,
+        apaCashSettled: false,
+        apaCashSettledAmt: 0,
+      },
+    };
     if (!guestKey) return plan;
     (Array.isArray(input.charges) ? input.charges : []).forEach(function (c) {
       if (!c || !c.id || !c.isApa || c.isPaid) return;
@@ -525,6 +561,39 @@
       plan.dropChargeIds.push(String(c.id));
     });
     return plan;
+  }
+
+  /**
+   * When deleting a zero-prepaid pot, clear lead.apa shortfall tracking so a
+   * recreated pot does not show previous spend as “APA received”.
+   * Issued/Paid lead APA is left alone.
+   */
+  function planApaLeadAfterPotDelete(input) {
+    input = input || {};
+    if (leadApaIsPrepaid(input.leadApas)) return null;
+    var potPrepaid = num(input.apaSent) + num(input.topUps) > 0;
+    if (potPrepaid) return null;
+    /* Zero-prepaid pot: lead.apa was spend-to-invoice, not cash received */
+    if (!(num(input.leadApa) > 0)) return null;
+    return { apa: 0, apas: "Not issued" };
+  }
+
+  /**
+   * Linked lead without Issued/Paid APA: pot must not show lead shortfall € as
+   * APA received (Roman €460 bug). Clear mistaken apaSent/linkInvAmount.
+   */
+  function planApaSanitizeLinkedPotSeed(input) {
+    input = input || {};
+    if (!input.leadLinked) return null;
+    if (leadApaIsPrepaid(input.leadApas)) return null;
+    if (!(num(input.apaSent) > 0) && !(num(input.linkInvAmount) > 0)) return null;
+    return {
+      tripPatch: {
+        apaSent: 0,
+        linkInvAmount: 0,
+        linkInvNo: "",
+      },
+    };
   }
 
   /**
@@ -583,10 +652,13 @@
     apaDieselLineCalc: apaDieselLineCalc,
     summarizeApaPaidCovered: summarizeApaPaidCovered,
     isApaCashSettlementCharge: isApaCashSettlementCharge,
+    leadApaIsPrepaid: leadApaIsPrepaid,
     pickApaCharge: pickApaCharge,
     planApaGuestChargeCollapse: planApaGuestChargeCollapse,
     planApaTripDelete: planApaTripDelete,
     planApaStartEmptyPot: planApaStartEmptyPot,
+    planApaLeadAfterPotDelete: planApaLeadAfterPotDelete,
+    planApaSanitizeLinkedPotSeed: planApaSanitizeLinkedPotSeed,
     planApaShortfallSync: planApaShortfallSync,
     planApaShortfallChargeFields: planApaShortfallChargeFields,
   };

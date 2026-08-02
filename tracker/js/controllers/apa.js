@@ -474,18 +474,41 @@
       lineExpenseIds: lineExpenseIds,
       charges: dtos,
       expenses: expenses,
+      apaSent: trip.apaSent,
+      topUps: trip.topUps,
+      leadApa: input.leadApa,
+      leadApas: input.leadApas,
     });
   }
 
   function planStartEmptyPot(input) {
     input = input || {};
     var models = M(input);
+    var lead = input.lead || {};
     var dtos = mapCharges(input.charges, models, input.tombstonedChargeIds || {});
     return models.planApaStartEmptyPot({
-      guestKey: input.guestKey || guestKey(input.guest),
+      guestKey: input.guestKey || guestKey(input.guest || lead.name),
       keepTripId: input.keepTripId,
       liveTripIds: input.liveTripIds || liveTripIds(input.trips, null, input.tombstonedTripIds),
       charges: dtos,
+      leadApa: lead.apa != null ? lead.apa : input.leadApa,
+      leadApas: lead.apas != null ? lead.apas : input.leadApas,
+      leadApaInv: lead.apaInv != null ? lead.apaInv : input.leadApaInv,
+      leadApaLabel: input.leadApaLabel || "APA",
+    });
+  }
+
+  /** Fix pot that already has shortfall € mis-seeded as apaSent. */
+  function planSanitizeLinkedPotSeed(input) {
+    input = input || {};
+    var models = M(input);
+    var trip = input.trip || {};
+    var lead = input.lead || {};
+    return models.planApaSanitizeLinkedPotSeed({
+      leadLinked: !!(input.leadLinked || lead.id || /^lead:/.test(String(trip.clientKey || ""))),
+      leadApas: lead.apas != null ? lead.apas : input.leadApas,
+      apaSent: trip.apaSent,
+      linkInvAmount: trip.linkInvAmount,
     });
   }
 
@@ -511,6 +534,7 @@
     planSaveTrip: planSaveTrip,
     planTripDelete: planTripDelete,
     planStartEmptyPot: planStartEmptyPot,
+    planSanitizeLinkedPotSeed: planSanitizeLinkedPotSeed,
     planShortfallSync: planShortfallSync,
     shortfallChargeFields: shortfallChargeFields,
   };
