@@ -314,14 +314,25 @@ function chargeIsPaid(r) {
 }
 
 /**
+ * Explicit Paid only — for boat cash ledger / cash-to-boat.
+ * Never treats Pending or bare status defaults as paid (that inflated cash-in).
+ */
+function chargeIsExplicitlyPaid(r) {
+  if (!r) return false;
+  if (r.payStatus != null && String(r.payStatus) !== "") return String(r.payStatus) === "Paid";
+  return String(r.status || "") === "Paid";
+}
+
+/**
  * Cash that enters the boat pot from this charge when Paid.
  * Strict: only the cash settlement slice — never full invoice/card total.
+ * Requires explicit Paid (not legacy Pending default).
  *
  * @param {object} r charge row
  * @returns {number}
  */
 function chargeCashToBoat(r) {
-  if (!r || !chargeIsPaid(r)) return 0;
+  if (!r || !chargeIsExplicitlyPaid(r)) return 0;
   var total = num(r.amount);
   var bt = chargeBillType(r);
   if (bt === "invoice") return 0;
@@ -447,6 +458,7 @@ function summarizeChargeCashToBoat(charters) {
     chargeCommissionAmt: chargeCommissionAmt,
     summarizeCaptainChargeCommissions: summarizeCaptainChargeCommissions,
     chargeIsPaid: chargeIsPaid,
+    chargeIsExplicitlyPaid: chargeIsExplicitlyPaid,
     chargeCashToBoat: chargeCashToBoat,
     chargeVatParts: chargeVatParts,
     chargeUpsellGross: chargeUpsellGross,

@@ -28,6 +28,14 @@
   /**
    * Compose boat cash in/out for Leads money details.
    *
+   * Boat cash only — never owner pocket free cash.
+   *
+   * Boat envelope IN (no double-count):
+   *   free cash → boat  +  charges paid cash  +  manual petty top-ups
+   * Controller must NOT pass auto-synced lead/charge cash-ins as pettyCashIn
+   * (those mirror freeCashBoat / chargesCashBoat into expPetty for Expenses).
+   * Boat OUT: expenses that left petty (crew day-pay only when Paid+floatPay).
+   *
    * @param {{
    *   freeCashBoat?: number,
    *   freeCashOwner?: number,
@@ -46,23 +54,30 @@
    */
   function summarizeBoatCashLedger(input) {
     input = input || {};
+    /* Owner pocket free cash is reported but NEVER in boatIn / boatNet */
     var freeBoat = round2(Math.max(0, num(input.freeCashBoat)));
     var freeOwner = round2(Math.max(0, num(input.freeCashOwner)));
     var chargesBoat = round2(Math.max(0, num(input.chargesCashBoat)));
     var pettyIn = round2(Math.max(0, num(input.pettyCashIn)));
     var expOut = round2(Math.max(0, num(input.expensePettyOut)));
 
+    /* Free cash items: boat only (strip owner pocket from boat ledger lists) */
+    var freeItemsAll = Array.isArray(input.freeCashItems) ? input.freeCashItems : [];
+    var freeBoatItems = freeItemsAll.filter(function (it) {
+      return it && it.dest !== "owner";
+    });
+
     var boatIn = round2(freeBoat + chargesBoat + pettyIn);
     var boatOut = expOut;
     var boatNet = round2(boatIn - boatOut);
 
     return {
-      /* Free cash (leads split) */
+      /* Free cash (leads split) — owner kept for free-cash panel only */
       freeCashBoat: freeBoat,
       freeCashOwner: freeOwner,
       freeCashTotal: round2(freeBoat + freeOwner),
-      freeCashItems: Array.isArray(input.freeCashItems) ? input.freeCashItems : [],
-      freeCashN: num(input.freeCashN),
+      freeCashItems: freeBoatItems,
+      freeCashN: freeBoatItems.length,
       freeCashBoatN: num(input.freeCashBoatN),
       freeCashOwnerN: num(input.freeCashOwnerN),
       /* Charges paid cash/mix → boat */
@@ -75,7 +90,7 @@
       /* Expenses that left petty */
       expensePettyOut: expOut,
       expenseOutItems: Array.isArray(input.expenseOutItems) ? input.expenseOutItems : [],
-      /* Boat totals */
+      /* Boat totals — owner pocket excluded */
       boatIn: boatIn,
       boatOut: boatOut,
       boatNet: boatNet,
