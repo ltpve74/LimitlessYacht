@@ -149,7 +149,8 @@ LY_CONTROLLERS.stews.tipLiabilityRows({ assigns })
 | Stews tip/day-pay + **tip share** | ✅ | ✅ | ✅ |
 | Diesel bunker/sell | ✅ | — | wrappers |
 | APA diesel *active rate lookup* | diesel model | view injects price | thin |
-| Write paths (sync charge, seed expenses) | — | later | orchestration in view |
+| **Write plans** (day-pay lines, tip payout, APA shortfall decision) | ✅ pure planners | ✅ | view applies to `state` + save |
+| Collapse dup charges / tombstones | — | — | still view (I/O) |
 
 ---
 

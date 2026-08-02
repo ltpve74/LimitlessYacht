@@ -925,20 +925,20 @@
 
 <!-- Domain models + controllers (MVC blueprint) — tests: node scripts/test-tracker-models.mjs -->
 <!-- LY_MODELS → LY_CONTROLLERS → view. See .agent/briefs/tracker-v1-mvc-blueprint.md -->
-<script src="/tracker/js/models/util.js?v=20260806-mvc3"></script>
-<script src="/tracker/js/models/leads.js?v=20260806-mvc3"></script>
-<script src="/tracker/js/models/charges.js?v=20260806-mvc3"></script>
-<script src="/tracker/js/models/expenses.js?v=20260806-mvc3"></script>
-<script src="/tracker/js/models/diesel.js?v=20260806-mvc3"></script>
-<script src="/tracker/js/models/stews.js?v=20260806-mvc3"></script>
-<script src="/tracker/js/models/apa.js?v=20260806-mvc3"></script>
-<script src="/tracker/js/models/index.js?v=20260806-mvc3"></script>
-<script src="/tracker/js/controllers/expenses.js?v=20260806-mvc3"></script>
-<script src="/tracker/js/controllers/charges.js?v=20260806-mvc3"></script>
-<script src="/tracker/js/controllers/leads.js?v=20260806-mvc3"></script>
-<script src="/tracker/js/controllers/apa.js?v=20260806-mvc3"></script>
-<script src="/tracker/js/controllers/stews.js?v=20260806-mvc3"></script>
-<script src="/tracker/js/controllers/index.js?v=20260806-mvc3"></script>
+<script src="/tracker/js/models/util.js?v=20260806-mvc4"></script>
+<script src="/tracker/js/models/leads.js?v=20260806-mvc4"></script>
+<script src="/tracker/js/models/charges.js?v=20260806-mvc4"></script>
+<script src="/tracker/js/models/expenses.js?v=20260806-mvc4"></script>
+<script src="/tracker/js/models/diesel.js?v=20260806-mvc4"></script>
+<script src="/tracker/js/models/stews.js?v=20260806-mvc4"></script>
+<script src="/tracker/js/models/apa.js?v=20260806-mvc4"></script>
+<script src="/tracker/js/models/index.js?v=20260806-mvc4"></script>
+<script src="/tracker/js/controllers/expenses.js?v=20260806-mvc4"></script>
+<script src="/tracker/js/controllers/charges.js?v=20260806-mvc4"></script>
+<script src="/tracker/js/controllers/leads.js?v=20260806-mvc4"></script>
+<script src="/tracker/js/controllers/apa.js?v=20260806-mvc4"></script>
+<script src="/tracker/js/controllers/stews.js?v=20260806-mvc4"></script>
+<script src="/tracker/js/controllers/index.js?v=20260806-mvc4"></script>
 <script>
 "use strict";
 var API = "/.netlify/functions/tracker";
@@ -6600,62 +6600,76 @@ function syncApaToCharge(t, opts){
   var allowCreate=!!opts.allowCreate;
   if(!t||!String(t.guest||"").trim()) return null;
   if(!state.charters) state.charters=[];
-  /* Never re-pin lead free cash as −APA */
   if(apaTripLooksLikeLeadCashShell(t)) stripLeadCashFromApaTrip(t);
-  /* Drop pointer to a charge the captain deleted */
   if(t.chargeId&&typeof isTombstoned==="function"&&isTombstoned("charters", t.chargeId)) t.chargeId="";
   var lead=apaLinkedLead(t);
   var over=apaOverageAmount(t);
-  /* Always collapse accidental same-trip duplicates first */
   collapseChargesForApaTrip(t);
   var ch=findReusableApaCharge(t);
   if(ch&&typeof isTombstoned==="function"&&isTombstoned("charters", ch.id)) ch=null;
-  /* Existing / reusable charge: pin; update money only when force + unlocked */
-  if(ch){
+  var paidManual=apaLinkedCharges(t).some(function(c){
+    if(chargePay(c)!=="Paid") return false;
+    if(c.moneyManual) return true;
+    var bt=chargeBillType(c);
+    return bt==="cash"||bt==="mix"||!!c.cashDeal;
+  });
+  var decision={ action: ch?"pin":"skip" };
+  if(window.LY_CONTROLLERS&&LY_CONTROLLERS.apa&&LY_CONTROLLERS.apa.planShortfallSync){
+    decision=LY_CONTROLLERS.apa.planShortfallSync({
+      models:LY_MODELS,
+      overage:over,
+      hasReusable:!!ch,
+      allowCreate:allowCreate,
+      suppressShortfall:!!t.suppressShortfallCharge,
+      paidManual:paidManual,
+      force:force,
+      chargeLocked:ch?chargeIsLockedMoney(ch):false
+    });
+  } else if(LY_MODELS&&LY_MODELS.planApaShortfallSync){
+    decision=LY_MODELS.planApaShortfallSync({
+      overage:over, hasReusable:!!ch, allowCreate:allowCreate,
+      suppressShortfall:!!t.suppressShortfallCharge, paidManual:paidManual,
+      force:force, chargeLocked:ch?chargeIsLockedMoney(ch):false
+    });
+  }
+  var act=decision.action||"";
+  if(ch&&(act==="pin"||act==="skip_locked")){
     ch.apaTripId=t.id;
     ch.kind="apa";
     t.chargeId=ch.id;
-    /* Do not rename client if captain already set a name (keep Danny / Daniela as typed) */
     if(!String(ch.client||"").trim()) ch.client=t.guest;
-    if(!force||chargeIsLockedMoney(ch)) return ch;
-    if(over<=0){
-      if(chargeExtAmt(ch)>0) applyApaChargeMoney(ch, 0);
-      return ch;
-    }
+    return ch;
+  }
+  if(ch&&act==="update_zero_base"){
+    ch.apaTripId=t.id; ch.kind="apa"; t.chargeId=ch.id;
+    if(!String(ch.client||"").trim()) ch.client=t.guest;
+    if(chargeExtAmt(ch)>0) applyApaChargeMoney(ch, 0);
+    return ch;
+  }
+  if(ch&&act==="update"){
+    ch.apaTripId=t.id; ch.kind="apa"; t.chargeId=ch.id;
+    if(!String(ch.client||"").trim()) ch.client=t.guest;
     applyApaChargeMoney(ch, over);
     if(ch.payStatus!=="Paid") ch.payStatus="Pending";
     if(ch.invStatus!=="Issued"&&ch.invStatus!=="Not needed") ch.status=ch.payStatus;
     return ch;
   }
-  /* No reusable charge */
-  if(over<=0){
-    if(t.suppressShortfallCharge) t.suppressShortfallCharge=false;
+  if(act==="clear"){
+    if(over<=0&&t.suppressShortfallCharge) t.suppressShortfallCharge=false;
     t.chargeId="";
     return null;
   }
-  if(t.suppressShortfallCharge){
-    t.chargeId="";
-    return null;
-  }
-  /* Cash / manual settlement already Paid — do not open leftover shortfall */
-  var paidManual=apaLinkedCharges(t).some(function(c){
-    if(chargePay(c)!=="Paid") return false;
-    if(c.moneyManual) return true;
-    var bt=typeof chargeBillType==="function"?chargeBillType(c):String(c.billType||"");
-    return bt==="cash"||bt==="mix"||!!c.cashDeal;
-  });
-  if(paidManual){
+  if(act==="pin_paid_manual"){
     var keepPaid=findApaChargeForTrip(t);
     t.chargeId=keepPaid?keepPaid.id:"";
     t.suppressShortfallCharge=true;
     return keepPaid;
   }
-  /* Production: create only when explicitly allowed (Sync / new pot) — not on every expense save */
-  if(!allowCreate){
+  if(act!=="create"){
     t.chargeId="";
     return null;
   }
-  /* Create once — notes set at create only */
+  /* create */
   var date="";
   if(lead&&lead.start) date=lead.start;
   if(!date&&t.expenses&&t.expenses.length){
@@ -8817,8 +8831,10 @@ function expCashInLinesForPetty(petty){
   return expCashInLines(petty).filter(function(r){ return r&&!expCashInIsTip(r); });
 }
 function expCashInSum(petty){
+  var rows=expCashInLinesForPetty(petty);
+  if(LY_MODELS&&LY_MODELS.sumCashInAmounts) return LY_MODELS.sumCashInAmounts(rows);
   var s=0;
-  expCashInLinesForPetty(petty).forEach(function(r){ s+=apaNum(r&&r.amount); });
+  rows.forEach(function(r){ s+=apaNum(r&&r.amount); });
   return Math.round(s*100)/100;
 }
 /**
@@ -9411,38 +9427,36 @@ function syncStewTipPayoutExpense(asg){
   var ek=String(asg.eventKey);
   var linkId="stew-tip:"+ek;
   var before=state.expenses.some(function(e){ return e&&String(e.linkId||"")===linkId; });
+  var plan;
+  if(window.LY_CONTROLLERS&&LY_CONTROLLERS.stews&&LY_CONTROLLERS.stews.planTipPayoutExpenseSync){
+    plan=LY_CONTROLLERS.stews.planTipPayoutExpenseSync({
+      models:LY_MODELS,
+      asg:asg,
+      today:localTodayYmd(),
+      nowIso:new Date().toISOString(),
+      who:session.who||"Captain",
+      newId:uid,
+      formatMoney:money0
+    });
+  } else if(LY_MODELS&&LY_MODELS.planStewTipPayoutExpense){
+    plan=LY_MODELS.planStewTipPayoutExpense({
+      asg:asg, today:localTodayYmd(), nowIso:new Date().toISOString(),
+      who:session.who||"Captain", newId:uid, formatMoney:money0
+    });
+  }
+  if(plan){
+    state.expenses=state.expenses.filter(function(e){
+      return !(e&&(String(e.linkId||"")===plan.linkId||(e.kind==="tipPayout"&&String(e.stewEventKey||"")===ek)));
+    });
+    if(plan.line){ state.expenses.unshift(plan.line); return true; }
+    return before;
+  }
+  /* Fallback if models missing */
   state.expenses=state.expenses.filter(function(e){
     return !(e&&(String(e.linkId||"")===linkId||(e.kind==="tipPayout"&&String(e.stewEventKey||"")===ek)));
   });
-  var tot=stewTipTotal(asg);
-  var paid=stewTipPaid(asg);
-  var onBill=stewTipIsOnBill(asg);
-  if(!(paid&&onBill&&tot>0)){
-    return before; /* removed ghosts or nothing to write */
-  }
-  var date=String(asg.start||"").slice(0,10)||localTodayYmd();
-  var tip=stewTipShare(asg);
-  state.expenses.unshift({
-    id:uid(),
-    linkId:linkId,
-    source:"stew",
-    kind:"tipPayout",
-    stewEventKey:ek,
-    stewPayKind:"tipPayout",
-    date:date,
-    vendor:"Crew tips (on bill)",
-    description:"Tip payout from petty · "+(asg.summary||"Charter")+
-      " · guest tip "+money0(tot)+" (you "+money0(tip.captainShare)+
-      (tip.nStews?" · stews "+money0(tip.stewSide):"")+")",
-    category:"Crew tip payout",
-    payMethod:"Cash",
-    paidFrom:"Petty cash",
-    amount:tot,
-    receipt:"",
-    by:session.who||"Captain",
-    updatedAt:new Date().toISOString()
-  });
-  return true;
+  if(!(stewTipPaid(asg)&&stewTipIsOnBill(asg)&&stewTipTotal(asg)>0)) return before;
+  return false;
 }
 function stewAssignDayPayAmount(asg){
   if(!asg) return 0;
@@ -9518,97 +9532,46 @@ function syncStewDayPayExpenses(asg, opts){
   var date=String(asg.start||"").slice(0,10)||"";
   var month=expMonthKey(date);
   if(opts.onlyMonth&&month&&month!==opts.onlyMonth) return false;
-  var isPaid=asg.payStatus==="Paid";
-  var defaultEach=stewAssignDayPayAmount(asg);
-  var ids=(asg.stewIds||[]).filter(Boolean).filter(function(sid){
-    return !expIsStewDayPaySkipped(asg.eventKey, sid);
-  });
-  var prevBySid={};
-  (state.expenses||[]).forEach(function(e){
-    if(e&&e.source==="stew"&&e.stewPayKind==="dayPay"&&String(e.stewEventKey)===eventKey){
-      prevBySid[String(e.stewId||e.linkId||"")]=e;
-    }
-  });
-  var before=JSON.stringify((state.expenses||[]).filter(function(e){
+  var beforeSnap=JSON.stringify((state.expenses||[]).filter(function(e){
     return e&&e.source==="stew"&&e.stewPayKind==="dayPay"&&String(e.stewEventKey)===eventKey;
   }).map(function(e){ return [e.stewId,e.amount,e.date,e.vendor,e.crewPayStatus,!!e.floatPay,e.paidFrom||"Petty cash"]; }));
+  var prevLines=(state.expenses||[]).filter(function(e){
+    return e&&e.source==="stew"&&e.stewPayKind==="dayPay"&&String(e.stewEventKey)===eventKey;
+  });
+  var plan;
+  if(window.LY_CONTROLLERS&&LY_CONTROLLERS.stews&&LY_CONTROLLERS.stews.planDayPayExpenseSync){
+    plan=LY_CONTROLLERS.stews.planDayPayExpenseSync({
+      models:LY_MODELS,
+      asg:asg,
+      previousLines:prevLines,
+      defaultEach:stewAssignDayPayAmount(asg),
+      dayPayAmt:function(a, sid){ return stewDayPayForStew(a, sid); },
+      isSkipped:function(ek, sid){ return expIsStewDayPaySkipped(ek, sid); },
+      stewName:function(sid){ var s=stewById(sid); return (s&&s.name)||"Stew"; },
+      nowIso:new Date().toISOString(),
+      who:session.who||"Captain",
+      newId:uid
+    });
+  } else if(LY_MODELS&&LY_MODELS.planStewDayPayExpenseLines){
+    plan=LY_MODELS.planStewDayPayExpenseLines({
+      asg:asg, previousLines:prevLines, defaultEach:stewAssignDayPayAmount(asg),
+      dayPayAmt:function(a, sid){ return stewDayPayForStew(a, sid); },
+      isSkipped:function(ek, sid){ return expIsStewDayPaySkipped(ek, sid); },
+      stewName:function(sid){ var s=stewById(sid); return (s&&s.name)||"Stew"; },
+      nowIso:new Date().toISOString(), who:session.who||"Captain", newId:uid
+    });
+  }
   /* Always drop existing day-pay lines for this charter first */
   state.expenses=state.expenses.filter(function(e){
     return !(e&&e.source==="stew"&&e.stewPayKind==="dayPay"&&String(e.stewEventKey)===eventKey);
   });
-  /*
-   * Not Paid → leave expenses empty for this charter (assignment is roster only).
-   * Paid → recreate Crew Salaries lines (one per stew).
-   */
-  if(!isPaid){
-    return before!=="[]";
+  if(plan&&plan.lines&&plan.lines.length){
+    plan.lines.forEach(function(line){ state.expenses.unshift(line); });
   }
-  var anyAmt=ids.some(function(sid){ return stewDayPayForStew(asg, sid)>0; });
-  if(!anyAmt||!ids.length||!date){
-    return before!=="[]";
-  }
-  /*
-   * floatPay = cash left the envelope (Paid via Petty cash).
-   * Set ONLY when captain explicitly marks Paid from petty (_floatPayMark),
-   * or the existing line already had floatPay. Never invent from payStatusManual
-   * alone — captain Save always sets that flag and was double-counting cash out.
-   */
-  var summary=asg.summary||"Charter";
-  var markFloat=!!asg._floatPayMark;
-  var paidFromDefault=asg._floatPayFrom==="Own money"?"Own money":(asg._floatPayFrom==="Petty cash"?"Petty cash":"");
-  ids.forEach(function(sid){
-    var amt=stewDayPayForStew(asg, sid);
-    if(!(amt>0)&&!(defaultEach>0)) return;
-    if(!(amt>0)) amt=defaultEach;
-    var name=(stewById(sid)&&stewById(sid).name)||"Stew";
-    var linkId="stew-day:"+eventKey+":"+sid;
-    var old=prevBySid[String(sid)]||prevBySid[linkId];
-    /* Per-stew paidFrom if set on map; else assign mark; else previous line */
-    var mapPf=asg.dayPayFromByStew&&asg.dayPayFromByStew[String(sid)];
-    var paidFrom="Petty cash";
-    if(mapPf==="Own money"||mapPf==="Petty cash") paidFrom=mapPf;
-    else if(paidFromDefault) paidFrom=paidFromDefault;
-    else if(old&&old.paidFrom==="Own money") paidFrom="Own money";
-    else if(old&&old.paidFrom==="Petty cash") paidFrom="Petty cash";
-    if(markFloat&&asg._floatPayFrom==="Own money") paidFrom="Own money";
-    else if(markFloat&&asg._floatPayFrom==="Petty cash") paidFrom="Petty cash";
-    /*
-     * floatPay ONLY when:
-     *  - this save explicitly marks Paid from petty (_floatPayMark), or
-     *  - the previous expense line already had floatPay true.
-     * Never invent from paidFrom alone (re-save of Paid assign made petty −€250).
-     */
-    var floatPay=false;
-    if(paidFrom!=="Own money"){
-      if(markFloat) floatPay=true;
-      else if(old&&old.floatPay===true) floatPay=true;
-    }
-    state.expenses.unshift({
-      id:(old&&old.id)||uid(),
-      linkId:linkId,
-      source:"stew",
-      stewEventKey:eventKey,
-      stewId:String(sid),
-      stewPayKind:"dayPay",
-      crewPayStatus:"Paid",
-      floatPay:floatPay,
-      payStatusManual:!!asg.payStatusManual,
-      date:date,
-      vendor:name,
-      description:"Stewardess / day work — "+summary,
-      category:"Crew Salaries",
-      payMethod:"Cash",
-      paidFrom:paidFrom,
-      amount:amt,
-      receipt:(old&&old.receipt)||"",
-      by:session.who||"Captain",
-      updatedAt:new Date().toISOString()
-    });
-  });
   var after=JSON.stringify((state.expenses||[]).filter(function(e){
     return e&&e.source==="stew"&&e.stewPayKind==="dayPay"&&String(e.stewEventKey)===eventKey;
   }).map(function(e){ return [e.stewId,e.amount,e.date,e.vendor,e.crewPayStatus,!!e.floatPay,e.paidFrom||"Petty cash"]; }));
-  return before!==after;
+  return beforeSnap!==after;
 }
 /**
  * Drop Unpaid stew day-pay expense ghosts (assignment must not leave ledger rows).

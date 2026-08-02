@@ -1339,6 +1339,14 @@ function summarizeMonthSettlement(opts) {
     isCrewDayPaySettled: isCrewDayPaySettled,
     collectOpenCrewDayPay: collectOpenCrewDayPay,
     collectOpenTipPayouts: collectOpenTipPayouts,
-    summarizeMonthSettlement: summarizeMonthSettlement
+    summarizeMonthSettlement: summarizeMonthSettlement,
+    /** Sum cash-in lines that count toward petty (caller already filtered tips). */
+    sumCashInAmounts: function (rows) {
+      var s = 0;
+      (Array.isArray(rows) ? rows : []).forEach(function (r) {
+        if (r) s += num(r.amount);
+      });
+      return round2(s);
+    }
   };
 });

@@ -77,6 +77,22 @@
     return rows;
   }
 
+  /**
+   * Plan day-pay expense rows for a Paid assign (view applies to state.expenses).
+   */
+  function planDayPayExpenseSync(input) {
+    input = input || {};
+    return M(input).planStewDayPayExpenseLines(input);
+  }
+
+  /**
+   * Plan tip payout expense create/remove (view applies).
+   */
+  function planTipPayoutExpenseSync(input) {
+    input = input || {};
+    return M(input).planStewTipPayoutExpense(input);
+  }
+
   return {
     dayPayForStew: dayPayForStew,
     dayPayTotal: dayPayTotal,
@@ -85,5 +101,7 @@
     tipPaid: tipPaid,
     tipShare: tipShare,
     tipLiabilityRows: tipLiabilityRows,
+    planDayPayExpenseSync: planDayPayExpenseSync,
+    planTipPayoutExpenseSync: planTipPayoutExpenseSync,
   };
 });
