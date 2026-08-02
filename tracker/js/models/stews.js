@@ -279,6 +279,28 @@ function stewDayPayTotalAll(asg) {
   return Math.round(s * 100) / 100;
 }
 
+/**
+ * Guest tip split equally among all crew on the trip: captain + every assigned stew.
+ * 1 stew → 2 shares (50% each). 2 stews → 3 shares (~33% each).
+ */
+function stewTipShare(asg) {
+  var tot = stewTipTotal(asg);
+  if (!(tot > 0)) return { total: 0, stewSide: 0, each: 0, nStews: 0, crew: 0, captainShare: 0 };
+  var n = asg && asg.stewIds ? asg.stewIds.filter(Boolean).length : 0;
+  var crew = 1 + n;
+  var each = n > 0 ? Math.round((tot / crew) * 100) / 100 : 0;
+  var stewSide = Math.round(each * n * 100) / 100;
+  var captainShare = Math.round((tot - stewSide) * 100) / 100;
+  return {
+    total: tot,
+    stewSide: stewSide,
+    each: each,
+    nStews: n,
+    crew: crew,
+    captainShare: captainShare,
+  };
+}
+
 
   return {
     stewEventId: stewEventId,
@@ -297,6 +319,7 @@ function stewDayPayTotalAll(asg) {
     stewTipIsOnBill: stewTipIsOnBill,
     stewTipTotal: stewTipTotal,
     stewTipPaid: stewTipPaid,
+    stewTipShare: stewTipShare,
     stewDayPayForStew: stewDayPayForStew,
     stewDayPayTotalAll: stewDayPayTotalAll
   };

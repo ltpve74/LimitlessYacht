@@ -51,9 +51,35 @@
     return M(input).leadCharterTiming(input.lead || input.row || input, input.today);
   }
 
+  /**
+   * Full Leads money dashboard DTO (done/proj/source cards) + realised glimpse.
+   */
+  function moneyDashboard(input) {
+    input = input || {};
+    var models = M(input);
+    var dash = models.summarizeLeadsMoneyDashboard({
+      leads: input.leads || [],
+      charters: input.charters || [],
+      today: input.today || "",
+      chargeUpsellGross: models.chargeUpsellGross,
+      chargeCommissionParts: models.chargeCommissionParts,
+      isChargeCaptainComm: models.isChargeCaptainComm,
+      chargeExtHours: models.chargeExtHours,
+      chargeExtAmt: models.chargeExtAmt,
+    });
+    var glimpse = models.summarizeRealisedNetGlimpse({
+      whiteEx: dash.done.ex,
+      whiteComm: dash.done.comm,
+      cashRealised: models.summarizeLeadCashIncomeRealised(input.leads || [], input.today || ""),
+    });
+    dash.glimpse = glimpse;
+    return dash;
+  }
+
   return {
     realisedGlimpse: realisedGlimpse,
     listMoney: listMoney,
     charterTiming: charterTiming,
+    moneyDashboard: moneyDashboard,
   };
 });

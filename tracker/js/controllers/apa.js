@@ -29,25 +29,63 @@
    *   dieselCalc?: function(trip, row): {lit, cost}
    * }} input
    */
+  function dieselLine(input) {
+    input = input || {};
+    var models = M(input);
+    var t = input.trip || {};
+    var genBurn = t.genBurn != null ? t.genBurn : 6;
+    var price =
+      input.linePrice != null
+        ? input.linePrice
+        : input.dieselPrice != null
+          ? input.dieselPrice
+          : t.dieselPrice;
+    return models.apaDieselLineCalc(
+      { genBurn: genBurn, dieselPrice: price },
+      input.row || input.line || {}
+    );
+  }
+
   function tripTotals(input) {
     input = input || {};
     var models = M(input);
     var t = input.trip || {};
     var dieselLines = input.dieselLines;
-    if (!dieselLines && typeof input.dieselCalc === "function") {
+    if (!dieselLines) {
       dieselLines = (t.diesel || []).map(function (r) {
-        return input.dieselCalc(t, r) || { lit: 0, cost: 0 };
+        if (typeof input.dieselCalc === "function") return input.dieselCalc(t, r) || { lit: 0, cost: 0 };
+        return dieselLine({ models: models, trip: t, row: r });
       });
     }
-    dieselLines = dieselLines || [];
+    var paidCovered = input.paidCovered;
+    if (paidCovered == null && input.linkedCharges) {
+      paidCovered = models.summarizeApaPaidCovered(input.linkedCharges, {
+        chargeIsPaid: models.chargeIsPaid,
+        chargeApaBaseTowardPot: models.chargeApaBaseTowardPot,
+      });
+    }
+    if (paidCovered == null) paidCovered = 0;
+    var cashSettled = input.cashSettled;
+    if (cashSettled == null && input.linkedCharges) {
+      cashSettled =
+        t.apaCashSettled === true ||
+        t.apaCashSettled === "true" ||
+        t.apaCashSettled === 1 ||
+        (input.linkedCharges || []).some(function (c) {
+          return models.isApaCashSettlementCharge(c, {
+            chargeIsPaid: models.chargeIsPaid,
+            chargeBillType: models.chargeBillType,
+          });
+        });
+    }
     return models.summarizeApaTripTotals({
       apaSent: t.apaSent,
       topUps: t.topUps,
       expenses: t.expenses || [],
       provisions: t.provisions || [],
       dieselLines: dieselLines,
-      paidCovered: input.paidCovered != null ? input.paidCovered : 0,
-      cashSettled: input.cashSettled != null ? input.cashSettled : false,
+      paidCovered: paidCovered,
+      cashSettled: !!cashSettled,
     });
   }
 
@@ -56,8 +94,19 @@
     return tot.overage != null ? tot.overage : tot.bal < 0 ? Math.round(-tot.bal * 100) / 100 : 0;
   }
 
+  function paidCovered(input) {
+    input = input || {};
+    var models = M(input);
+    return models.summarizeApaPaidCovered(input.linkedCharges || [], {
+      chargeIsPaid: models.chargeIsPaid,
+      chargeApaBaseTowardPot: models.chargeApaBaseTowardPot,
+    });
+  }
+
   return {
+    dieselLine: dieselLine,
     tripTotals: tripTotals,
     overageAmount: overageAmount,
+    paidCovered: paidCovered,
   };
 });

@@ -925,20 +925,20 @@
 
 <!-- Domain models + controllers (MVC blueprint) — tests: node scripts/test-tracker-models.mjs -->
 <!-- LY_MODELS → LY_CONTROLLERS → view. See .agent/briefs/tracker-v1-mvc-blueprint.md -->
-<script src="/tracker/js/models/util.js?v=20260806-mvc2"></script>
-<script src="/tracker/js/models/leads.js?v=20260806-mvc2"></script>
-<script src="/tracker/js/models/charges.js?v=20260806-mvc2"></script>
-<script src="/tracker/js/models/expenses.js?v=20260806-mvc2"></script>
-<script src="/tracker/js/models/diesel.js?v=20260806-mvc2"></script>
-<script src="/tracker/js/models/stews.js?v=20260806-mvc2"></script>
-<script src="/tracker/js/models/apa.js?v=20260806-mvc2"></script>
-<script src="/tracker/js/models/index.js?v=20260806-mvc2"></script>
-<script src="/tracker/js/controllers/expenses.js?v=20260806-mvc2"></script>
-<script src="/tracker/js/controllers/charges.js?v=20260806-mvc2"></script>
-<script src="/tracker/js/controllers/leads.js?v=20260806-mvc2"></script>
-<script src="/tracker/js/controllers/apa.js?v=20260806-mvc2"></script>
-<script src="/tracker/js/controllers/stews.js?v=20260806-mvc2"></script>
-<script src="/tracker/js/controllers/index.js?v=20260806-mvc2"></script>
+<script src="/tracker/js/models/util.js?v=20260806-mvc3"></script>
+<script src="/tracker/js/models/leads.js?v=20260806-mvc3"></script>
+<script src="/tracker/js/models/charges.js?v=20260806-mvc3"></script>
+<script src="/tracker/js/models/expenses.js?v=20260806-mvc3"></script>
+<script src="/tracker/js/models/diesel.js?v=20260806-mvc3"></script>
+<script src="/tracker/js/models/stews.js?v=20260806-mvc3"></script>
+<script src="/tracker/js/models/apa.js?v=20260806-mvc3"></script>
+<script src="/tracker/js/models/index.js?v=20260806-mvc3"></script>
+<script src="/tracker/js/controllers/expenses.js?v=20260806-mvc3"></script>
+<script src="/tracker/js/controllers/charges.js?v=20260806-mvc3"></script>
+<script src="/tracker/js/controllers/leads.js?v=20260806-mvc3"></script>
+<script src="/tracker/js/controllers/apa.js?v=20260806-mvc3"></script>
+<script src="/tracker/js/controllers/stews.js?v=20260806-mvc3"></script>
+<script src="/tracker/js/controllers/index.js?v=20260806-mvc3"></script>
 <script>
 "use strict";
 var API = "/.netlify/functions/tracker";
@@ -3290,6 +3290,7 @@ function scrollLeadIntoView(id){
 }
 /** Charter length bucket for stats / list. */
 function leadCharterTypeKey(r){
+  if(LY_MODELS&&LY_MODELS.leadCharterTypeKey) return LY_MODELS.leadCharterTypeKey(r);
   if(!r) return "day";
   var d=String(r.dur||"").toLowerCase().trim();
   var days=Math.max(1, Math.round(Number(r.days)||0)||1);
@@ -3520,73 +3521,48 @@ function renderLeads(){
   sortLeads();
   var wrap=el("ldList"), html="";
   if(!wrap) return;
-  var pend=0, nPendSrc=0, nOpenDeal=0;
+  var pend=0;
   var searchQ=el("ldSearch")?String(el("ldSearch").value||""):"";
   var nShown=0, nHidden=0;
-  var ownVal=0, ownN=0;
-  /* Done (sailed) vs confirmed upcoming (projected) — charters + captain upsells */
-  var done={tot:0, charters:0, upsell:0, ex:0, comm:0, upsellComm:0, n:0, nUpsell:0};
-  var proj={tot:0, charters:0, upsell:0, ex:0, comm:0, upsellComm:0, n:0, nUpsell:0};
-  var capTot=0, capExVat=0, capN=0, capComm=0;
-  var capUpsellLocal={ n:0, gross:0, base:0, comm:0 };
-  var cbTot=0, cbExVat=0, cbN=0, cbComm=0;
-  var osTot=0, osExVat=0, osN=0, osComm=0;
-  var osWhite=0, osPocket=0, osBoat=0, osCashPend=0;
-  var capTypes={}, cbTypes={}, osTypes={};
-  function leadWhiteInvoiceAmt(r){
-    if(!r) return 0;
-    if(leadHasSplit(r)){
-      if(Number(r.invoiceTotal)>0) return Math.round(Number(r.invoiceTotal)*100)/100;
-      if(LY_MODELS&&LY_MODELS.leadWhiteClientPay) return Math.round((Number(LY_MODELS.leadWhiteClientPay(r))||0)*100)/100;
-      return Math.round((Number(r.invoiceNet)||0)*100)/100;
+  /* Money dashboard: model via controller (done/proj/source cards/owner benefits) */
+  var dash={
+    done:{tot:0, charters:0, upsell:0, ex:0, comm:0, upsellComm:0, n:0, nUpsell:0},
+    proj:{tot:0, charters:0, upsell:0, ex:0, comm:0, upsellComm:0, n:0, nUpsell:0},
+    ownVal:0, ownN:0, nPendSrc:0, nOpenDeal:0,
+    captain:{tot:0, exVat:0, n:0, comm:0, types:{}},
+    clickboat:{tot:0, exVat:0, n:0, comm:0, types:{}},
+    ownersourced:{tot:0, exVat:0, n:0, comm:0, types:{}},
+    osWhite:0, osPocket:0, osBoat:0, osCashPend:0,
+    capUpsell:{n:0, gross:0, base:0, comm:0}
+  };
+  try{
+    if(window.LY_CONTROLLERS&&LY_CONTROLLERS.leads&&LY_CONTROLLERS.leads.moneyDashboard){
+      dash=LY_CONTROLLERS.leads.moneyDashboard({
+        models:LY_MODELS,
+        leads:state.leads||[],
+        charters:state.charters||[],
+        today:leadTodayYmd()
+      });
     }
-    return Math.round((Number(r.total)||Number(r.base)||Number(r.price)||0)*100)/100;
-  }
-  function bumpType(map, k, val, exVat){
-    if(!map[k]) map[k]={n:0, val:0, exVat:0};
-    map[k].n++;
-    map[k].val+=Number(val)||0;
-    map[k].exVat+=Number(exVat)||0;
-  }
-  function leadExVatBase(r){
-    if(LY_MODELS&&LY_MODELS.leadCommissionBase) return Number(LY_MODELS.leadCommissionBase(r))||0;
-    return Number(leadDealBase(r))||0;
-  }
-  /** Projected-net before VAT excluding free cash (model). */
-  function leadExVatBaseExCash(r){
-    if(LY_MODELS&&LY_MODELS.leadProjectedNetParts) return Number(LY_MODELS.leadProjectedNetParts(r).ex)||0;
-    if(leadHasSplit(r)){
-      var p=leadCommissionParts(r);
-      return Number(p.whiteBeforeVat)||0;
-    }
-    return leadExVatBase(r);
-  }
-  /** Projected-net commission excluding free-cash slice (model). */
-  function leadCommissionAmtExCash(r){
-    if(LY_MODELS&&LY_MODELS.leadProjectedNetParts) return Number(LY_MODELS.leadProjectedNetParts(r).comm)||0;
-    if(leadHasSplit(r)){
-      var p2=leadCommissionParts(r);
-      return Number(p2.whiteComm)||0;
-    }
-    return leadCommissionAmt(r)||0;
-  }
+  }catch(eDash){}
+  var done=dash.done||{};
+  var proj=dash.proj||{};
+  var ownVal=dash.ownVal||0, ownN=dash.ownN||0;
+  var nPendSrc=dash.nPendSrc||0, nOpenDeal=dash.nOpenDeal||0;
+  var capTot=(dash.captain&&dash.captain.tot)||0, capExVat=(dash.captain&&dash.captain.exVat)||0;
+  var capN=(dash.captain&&dash.captain.n)||0, capComm=(dash.captain&&dash.captain.comm)||0;
+  var capUpsellLocal=dash.capUpsell||{ n:0, gross:0, base:0, comm:0 };
+  var cbTot=(dash.clickboat&&dash.clickboat.tot)||0, cbExVat=(dash.clickboat&&dash.clickboat.exVat)||0;
+  var cbN=(dash.clickboat&&dash.clickboat.n)||0, cbComm=(dash.clickboat&&dash.clickboat.comm)||0;
+  var osTot=(dash.ownersourced&&dash.ownersourced.tot)||0, osExVat=(dash.ownersourced&&dash.ownersourced.exVat)||0;
+  var osN=(dash.ownersourced&&dash.ownersourced.n)||0, osComm=(dash.ownersourced&&dash.ownersourced.comm)||0;
+  var osWhite=dash.osWhite||0, osPocket=dash.osPocket||0, osBoat=dash.osBoat||0, osCashPend=dash.osCashPend||0;
+  var capTypes=(dash.captain&&dash.captain.types)||{};
+  var cbTypes=(dash.clickboat&&dash.clickboat.types)||{};
+  var osTypes=(dash.ownersourced&&dash.ownersourced.types)||{};
   function leadOwnerNotional(r){
     if(LY_MODELS&&LY_MODELS.leadOwnerBenefitValue) return Number(LY_MODELS.leadOwnerBenefitValue(r))||0;
-    return leadExVatBase(r);
-  }
-  /** Client € for extra hours (upsell income). */
-  function chargeUpsellGross(c){
-    if(!c) return 0;
-    var ext=typeof chargeExtAmt==="function"?chargeExtAmt(c):0;
-    if(ext>0) return ext;
-    var kind=String(c.kind||c.chargeKind||"").toLowerCase();
-    if(kind==="extension"||kind==="extra"||kind==="upsell") return Math.max(0, Number(c.amount)||0);
     return 0;
-  }
-  function chargeTiming(c){
-    var d=String((c&&c.date)||"").slice(0,10);
-    if(!/^\d{4}-\d{2}-\d{2}$/.test(d)) return "done";
-    return d>leadTodayYmd()?"upcoming":"done";
   }
   function formatTypeMixHTML(map){
     var order=["4h","6h","8h","multi"], keys=[];
@@ -3606,112 +3582,6 @@ function renderLeads(){
     });
     return h;
   }
-  function addCharterBucket(b, val, exVat, comm){
-    b.charters+=val; b.tot+=val; b.ex+=exVat; b.comm+=comm; b.n++;
-  }
-  function addUpsellBucket(b, gross, exVat, comm){
-    if(!(gross>0)&&!(comm>0)) return;
-    b.upsell+=gross; b.tot+=gross; b.ex+=exVat; b.comm+=comm; b.upsellComm+=comm; b.nUpsell++;
-  }
-  (state.leads||[]).forEach(function(r){
-    if(!r) return;
-    var cancelled=leadIsCancelled(r);
-    var src=leadSource(r);
-    var isOwner=src==="owner"; /* owner’s days only */
-    var isPending=src==="pending";
-    if(isPending&&!cancelled) nPendSrc++;
-    /* Assigned but not confirmed — commercial or owner days */
-    if(!isPending&&!cancelled&&!leadIsDealClosed(r)) nOpenDeal++;
-    /* Owner’s days — notional only when confirmed (ownerBenefitIncluded gates dealClosed) */
-    if(isOwner&&!cancelled&&ownerBenefitIncluded(r)){
-      var ov=leadOwnerNotional(r);
-      if(ov>0){ ownVal+=ov; ownN++; }
-    }
-    var closed=leadIsClosedDeal(r);
-    var timing=closed?leadCharterTiming(r):"";
-    var val=leadListMoney(r);
-    /* Projected net / Before VAT / Comm lines: free cash excluded (shown in cash income) */
-    var exVat=closed?leadExVatBaseExCash(r):0;
-    var comm=closed?(leadCommissionAmtExCash(r)||0):0;
-    /* Source cards still use full commission base (incl. cash) for commission story */
-    var exVatFull=closed?leadExVatBase(r):0;
-    var commFull=closed?(leadCommissionAmt(r)||0):0;
-    if(closed){
-      if(timing==="upcoming") addCharterBucket(proj, val, exVat, comm);
-      else addCharterBucket(done, val, exVat, comm);
-      /* Source cards / money details = realised so far only (no scheduled) */
-      if(timing!=="upcoming"){
-        var tk=leadCharterTypeKey(r);
-        if(src==="captain"){
-          capTot+=val; capExVat+=exVatFull; capN++;
-          capComm+=commFull;
-          bumpType(capTypes, tk, val, exVatFull);
-        } else if(src==="clickboat"){
-          cbTot+=val; cbExVat+=exVatFull; cbN++;
-          cbComm+=commFull;
-          bumpType(cbTypes, tk, val, exVatFull);
-        } else if(src==="ownersourced"){
-          osTot+=val; osExVat+=exVatFull; osN++;
-          osComm+=commFull;
-          bumpType(osTypes, tk, val, exVatFull);
-          /* Split income story: formal invoice vs cash (boat vs owner pocket by destination) */
-          var wAmt=leadWhiteInvoiceAmt(r);
-          osWhite+=wAmt;
-          if(leadHasSplit(r)){
-            var cashN=leadFreeCashAmt(r)||Number(r.cashAmt)||0;
-            if(cashN>0.009){
-              if(leadCashDest(r)==="owner"){
-                osPocket+=cashN; /* income in owner’s pocket (received or pending) */
-                if(!leadFreeCashIsReceived(r)) osCashPend+=cashN;
-              } else {
-                osBoat+=cashN;
-                if(!leadFreeCashIsReceived(r)) osCashPend+=cashN;
-              }
-            }
-          }
-        }
-      }
-    }
-  });
-  /* Captain extra-hour upsells from Charges (income + 15% when captainComm) */
-  (state.charters||[]).forEach(function(c){
-    if(!c) return;
-    var chargeWhen=chargeTiming(c);
-    /* Captain card: realised charges only (so far) */
-    var cpAll={base:0, total:0, gross:0};
-    if(chargeWhen!=="upcoming"&&typeof chargeCommissionParts==="function"&&isChargeCaptainComm(c)){
-      cpAll=chargeCommissionParts(c)||cpAll;
-      var cmAll=Number(cpAll.total)||0;
-      var baseAll=Number(cpAll.base)||0;
-      var grossAll=Number(cpAll.gross)||0;
-      if(cmAll>0.009||baseAll>0.009){
-        capUpsellLocal.n++;
-        capUpsellLocal.comm+=cmAll;
-        capUpsellLocal.base+=baseAll;
-        capUpsellLocal.gross+=grossAll>0?grossAll:(Number(c.amount)||0);
-      }
-    }
-    var gross=chargeUpsellGross(c);
-    var hrs=typeof chargeExtHours==="function"?chargeExtHours(c):0;
-    var kind=String(c.kind||c.chargeKind||"").toLowerCase();
-    var isUpsell=gross>0||hrs>0||kind==="extension"||kind==="extra"||kind==="upsell";
-    if(!isUpsell) return;
-    if(!(gross>0)&&Number(c.amount)>0&&(kind==="extension"||kind==="extra"||kind==="upsell"||hrs>0)&&!(Number(c.apaBaseAmt)>0)){
-      gross=Math.max(0, Number(c.amount)||0);
-    }
-    if(!(gross>0)) return;
-    var cp={base:0, total:0};
-    if(typeof chargeCommissionParts==="function"&&isChargeCaptainComm(c)){
-      cp=chargeCommissionParts(c)||cp;
-      /* Prefer extension-slice base when present */
-      if(chargeExtAmt(c)>0&&cp.base>0){ /* ok */ }
-    }
-    var exB=Number(cp.base)>0?Number(cp.base):gross;
-    var cm=Number(cp.total)||0;
-    var timing=chargeTiming(c);
-    if(timing==="upcoming") addUpsellBucket(proj, gross, exB, cm);
-    else addUpsellBucket(done, gross, exB, cm);
-  });
   /* Book sections: paint cards into buckets (tentative / confirmed / lost-hold / cancelled-charter) */
   var tentCards=[], confCards=[], cancHoldCards=[], cancCharterCards=[];
   (state.leads||[]).forEach(function(r){
@@ -3990,12 +3860,10 @@ function renderLeads(){
       el("ldSearchMeta").textContent="";
     }
   }
-  /*
-   * Free cash + big net: controller → models (realised only; boat cash in net, owner pocket not).
-   */
-  var glimpse={ whiteNet:0, cashBoat:0, cashOwner:0, doneNet:0, cashTotal:0, cashN:0, cashBoatN:0, cashOwnerN:0, cashItems:[] };
-  try{
-    if(window.LY_CONTROLLERS&&LY_CONTROLLERS.leads){
+  /* Big net from dashboard glimpse (already realised-only) */
+  var glimpse=dash.glimpse||{};
+  if(!glimpse.doneNet&&window.LY_CONTROLLERS&&LY_CONTROLLERS.leads){
+    try{
       glimpse=LY_CONTROLLERS.leads.realisedGlimpse({
         models:LY_MODELS,
         leads:state.leads||[],
@@ -4003,8 +3871,8 @@ function renderLeads(){
         whiteEx:done.ex,
         whiteComm:done.comm
       });
-    }
-  }catch(eCash){}
+    }catch(eCash){}
+  }
   var cashDone={
     total:glimpse.cashTotal||0,
     boat:glimpse.cashBoat||0,
@@ -4014,7 +3882,7 @@ function renderLeads(){
     n:glimpse.cashN||0,
     items:glimpse.cashItems||[]
   };
-  var whiteNet=glimpse.whiteNet!=null?glimpse.whiteNet:Math.round(Math.max(0, done.ex-done.comm)*100)/100;
+  var whiteNet=glimpse.whiteNet!=null?glimpse.whiteNet:Math.round(Math.max(0, (done.ex||0)-(done.comm||0))*100)/100;
   var cashBoat=glimpse.cashBoat||0;
   var cashOwner=glimpse.cashOwner||0;
   var doneNet=glimpse.doneNet!=null?glimpse.doneNet:Math.round((whiteNet+cashBoat)*100)/100;
@@ -5976,9 +5844,16 @@ function chargeApaBaseTowardPot(c){
  * Cash deals exclude VAT — a rounded €650 cash is not “short” vs ledger €664.95.
  */
 function isApaCashSettlementCharge(c){
+  if(LY_MODELS&&LY_MODELS.isApaCashSettlementCharge){
+    return !!LY_MODELS.isApaCashSettlementCharge(c, {
+      chargeIsPaid:function(x){ return chargePay(x)==="Paid"; },
+      chargeBillType:chargeBillType,
+      isApaChargeRow:typeof isApaChargeRow==="function"?isApaChargeRow:null
+    });
+  }
   if(!c||chargePay(c)!=="Paid") return false;
   if(!(c.kind==="apa"||c.apaTripId||(typeof isApaChargeRow==="function"&&isApaChargeRow(c)))) return false;
-  var bt=typeof chargeBillType==="function"?chargeBillType(c):String(c.billType||"");
+  var bt=chargeBillType(c);
   if(bt==="cash") return true;
   if(c.moneyManual&&(bt==="cash"||bt==="mix"||c.cashDeal||c.payMethod==="Cash")) return true;
   if(c.cashDeal&&(bt==="cash"||c.payMethod==="Cash")) return true;
@@ -5990,6 +5865,12 @@ function apaIsCashSettled(t){
   return apaLinkedCharges(t).some(isApaCashSettlementCharge);
 }
 function apaPaidCovered(t){
+  if(LY_MODELS&&LY_MODELS.summarizeApaPaidCovered){
+    return LY_MODELS.summarizeApaPaidCovered(apaLinkedCharges(t), {
+      chargeIsPaid:function(c){ return chargePay(c)==="Paid"; },
+      chargeApaBaseTowardPot:chargeApaBaseTowardPot
+    });
+  }
   var s=0;
   apaLinkedCharges(t).forEach(function(c){
     if(chargePay(c)==="Paid") s+=chargeApaBaseTowardPot(c);
@@ -7166,23 +7047,28 @@ function apaEngineLitres(r){
   return apaNum(r.engineL);
 }
 function apaDieselCalc(t,r){
-  var port=apaNum(r&&r.enginePortL), stbd=apaNum(r&&r.engineStbdL);
+  /* Line price still resolved in view (active bunker / trip rate); litres+cost freeze in model */
+  var price=apaDieselPriceForLine(t, r);
+  if(window.LY_CONTROLLERS&&LY_CONTROLLERS.apa){
+    return LY_CONTROLLERS.apa.dieselLine({
+      models:LY_MODELS,
+      trip:t,
+      row:r,
+      linePrice:price,
+      dieselPrice:price
+    });
+  }
+  if(LY_MODELS&&LY_MODELS.apaDieselLineCalc){
+    return LY_MODELS.apaDieselLineCalc({ genBurn:apaGenBurn(t), dieselPrice:price }, r);
+  }
   var eng=apaEngineLitres(r), hrs=apaNum(r&&r.genHrs);
   var burn=apaGenBurn(t);
   var genL=hrs*burn;
   var lit=eng+genL;
-  /* Freeze ledger € always: manual cost → stored amount → litres × rate.
-     Never re-price historical lines from a later bunker guess (that made 1.75 → 1.70 and left fake leftover pot). */
   var manual=apaNum(r&&r.cost);
   var stored=apaNum(r&&r.amount);
-  var price=apaDieselPriceForLine(t, r);
-  var cost=0;
-  if(manual>0) cost=manual;
-  else if(stored>0) cost=stored;
-  else if(lit>0) cost=lit*price;
-  if(lit>0&&cost>0&&!(price>0)) price=Math.round((cost/lit)*10000)/10000;
-  else if(lit>0&&stored>0) price=Math.round((stored/lit)*10000)/10000;
-  return { genL:genL, lit:lit, cost:cost, price:price, burn:burn, eng:eng, port:port, stbd:stbd };
+  var cost=manual>0?manual:(stored>0?stored:(lit>0?lit*price:0));
+  return { genL:genL, lit:lit, cost:cost, price:price, burn:burn, eng:eng, port:apaNum(r&&r.enginePortL), stbd:apaNum(r&&r.engineStbdL) };
 }
 /** Always write ledger lines onto the trip in state.apa (not a stale copy). */
 function apaMutateTrip(tripId, mutator){
@@ -12406,14 +12292,14 @@ function stewTipTotal(asg){
   return n>0?n:0;
 }
 function stewTipShare(asg){
+  if(LY_MODELS&&LY_MODELS.stewTipShare) return LY_MODELS.stewTipShare(asg);
   var tot=stewTipTotal(asg);
   if(!(tot>0)) return {total:0, stewSide:0, each:0, nStews:0, crew:0, captainShare:0};
   var n=asg&&asg.stewIds?asg.stewIds.filter(Boolean).length:0;
-  var crew=1+n; /* captain + stews */
+  var crew=1+n;
   var each=n>0?Math.round((tot/crew)*100)/100:0;
   var stewSide=Math.round(each*n*100)/100;
-  var captainShare=Math.round((tot-stewSide)*100)/100;
-  return {total:tot, stewSide:stewSide, each:each, nStews:n, crew:crew, captainShare:captainShare};
+  return {total:tot, stewSide:stewSide, each:each, nStews:n, crew:crew, captainShare:Math.round((tot-stewSide)*100)/100};
 }
 function stewTipPaid(asg){
   if(LY_MODELS&&LY_MODELS.stewTipPaid) return !!LY_MODELS.stewTipPaid(asg);

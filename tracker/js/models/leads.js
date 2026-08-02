@@ -739,6 +739,253 @@ function summarizeRealisedNetGlimpse(opts) {
   };
 }
 
+/** Charter length bucket for stats: multi | 4h | 6h | 8h */
+function leadCharterTypeKey(r) {
+  if (!r) return "day";
+  var d = String(r.dur || "").toLowerCase().trim();
+  var days = Math.max(1, Math.round(Number(r.days) || 0) || 1);
+  var multi =
+    d === "multi" ||
+    (r.end && r.start && String(r.end).slice(0, 10) > String(r.start).slice(0, 10)) ||
+    days > 1;
+  if (multi) return "multi";
+  if (d === "4h") return "4h";
+  if (d === "6h") return "6h";
+  if (d === "8h") return "8h";
+  if (d === "day") return "8h";
+  return d || "8h";
+}
+
+function emptyMoneyBucket() {
+  return { tot: 0, charters: 0, upsell: 0, ex: 0, comm: 0, upsellComm: 0, n: 0, nUpsell: 0 };
+}
+
+function emptySourceCard() {
+  return { tot: 0, exVat: 0, n: 0, comm: 0, types: {} };
+}
+
+/**
+ * Leads dashboard money rollup (done vs projected + source cards + owner benefits).
+ * Pure — no DOM. Upsell charges use charge helpers injected via opts when available.
+ *
+ * @param {{
+ *   leads: Array,
+ *   charters?: Array,
+ *   today: string,
+ *   chargeUpsellGross?: function,
+ *   chargeCommissionParts?: function,
+ *   isChargeCaptainComm?: function,
+ *   chargeExtHours?: function,
+ *   chargeExtAmt?: function
+ * }} opts
+ */
+function summarizeLeadsMoneyDashboard(opts) {
+  opts = opts || {};
+  var today = String(opts.today || "").slice(0, 10);
+  var leads = Array.isArray(opts.leads) ? opts.leads : [];
+  var charters = Array.isArray(opts.charters) ? opts.charters : [];
+  var done = emptyMoneyBucket();
+  var proj = emptyMoneyBucket();
+  var ownVal = 0;
+  var ownN = 0;
+  var nPendSrc = 0;
+  var nOpenDeal = 0;
+  var cap = emptySourceCard();
+  var cb = emptySourceCard();
+  var os = emptySourceCard();
+  var osWhite = 0;
+  var osPocket = 0;
+  var osBoat = 0;
+  var osCashPend = 0;
+  var capUpsell = { n: 0, gross: 0, base: 0, comm: 0 };
+
+  function bumpType(map, k, val, exVat) {
+    if (!map[k]) map[k] = { n: 0, val: 0, exVat: 0 };
+    map[k].n++;
+    map[k].val = round2(map[k].val + (Number(val) || 0));
+    map[k].exVat = round2(map[k].exVat + (Number(exVat) || 0));
+  }
+  function addCharter(b, val, exVat, comm) {
+    b.charters = round2(b.charters + val);
+    b.tot = round2(b.tot + val);
+    b.ex = round2(b.ex + exVat);
+    b.comm = round2(b.comm + comm);
+    b.n++;
+  }
+  function addUpsell(b, gross, exVat, comm) {
+    if (!(gross > 0) && !(comm > 0)) return;
+    b.upsell = round2(b.upsell + gross);
+    b.tot = round2(b.tot + gross);
+    b.ex = round2(b.ex + exVat);
+    b.comm = round2(b.comm + comm);
+    b.upsellComm = round2(b.upsellComm + comm);
+    b.nUpsell++;
+  }
+  function isClosedCommercial(r) {
+    if (!r || leadIsCancelled(r)) return false;
+    var src = leadSource(r);
+    if (src === "pending" || src === "owner") return false;
+    if (!leadIsDealClosed(r)) return false;
+    return src === "captain" || src === "clickboat" || src === "ownersourced" || src === "other";
+  }
+  function whiteInvoiceAmt(r) {
+    if (!r) return 0;
+    if (leadHasSplit(r)) {
+      if (num(r.invoiceTotal) > 0) return round2(num(r.invoiceTotal));
+      return round2(leadWhiteClientPay(r));
+    }
+    return round2(num(r.total) || num(r.base) || num(r.price));
+  }
+  function chargeTiming(c) {
+    var d = String((c && c.date) || "").slice(0, 10);
+    if (!/^\d{4}-\d{2}-\d{2}$/.test(d)) return "done";
+    return d > today ? "upcoming" : "done";
+  }
+  var upsellGrossFn =
+    typeof opts.chargeUpsellGross === "function"
+      ? opts.chargeUpsellGross
+      : function (c) {
+          return num(c && c.extAmt) || 0;
+        };
+  var commPartsFn =
+    typeof opts.chargeCommissionParts === "function" ? opts.chargeCommissionParts : null;
+  var isCapCommFn =
+    typeof opts.isChargeCaptainComm === "function"
+      ? opts.isChargeCaptainComm
+      : function () {
+          return false;
+        };
+  var extHrsFn =
+    typeof opts.chargeExtHours === "function"
+      ? opts.chargeExtHours
+      : function () {
+          return 0;
+        };
+  var extAmtFn =
+    typeof opts.chargeExtAmt === "function"
+      ? opts.chargeExtAmt
+      : function (c) {
+          return num(c && c.extAmt);
+        };
+
+  leads.forEach(function (r) {
+    if (!r) return;
+    var cancelled = leadIsCancelled(r);
+    var src = leadSource(r);
+    var isOwner = src === "owner";
+    var isPending = src === "pending";
+    if (isPending && !cancelled) nPendSrc++;
+    if (!isPending && !cancelled && !leadIsDealClosed(r)) nOpenDeal++;
+    if (isOwner && !cancelled && ownerBenefitIncluded(r)) {
+      var ov = leadOwnerBenefitValue(r);
+      if (ov > 0) {
+        ownVal = round2(ownVal + ov);
+        ownN++;
+      }
+    }
+    var closed = isClosedCommercial(r);
+    if (!closed) return;
+    var timing = leadCharterTiming(r, today);
+    var val = leadListMoney(r);
+    var parts = leadProjectedNetParts(r);
+    var exVat = parts.ex;
+    var comm = parts.comm;
+    var exVatFull = leadCommissionBase(r);
+    var commFull = leadCommissionAmt(r);
+    if (timing === "upcoming") addCharter(proj, val, exVat, comm);
+    else addCharter(done, val, exVat, comm);
+    if (timing === "upcoming") return;
+    var tk = leadCharterTypeKey(r);
+    if (src === "captain") {
+      cap.tot = round2(cap.tot + val);
+      cap.exVat = round2(cap.exVat + exVatFull);
+      cap.n++;
+      cap.comm = round2(cap.comm + commFull);
+      bumpType(cap.types, tk, val, exVatFull);
+    } else if (src === "clickboat") {
+      cb.tot = round2(cb.tot + val);
+      cb.exVat = round2(cb.exVat + exVatFull);
+      cb.n++;
+      cb.comm = round2(cb.comm + commFull);
+      bumpType(cb.types, tk, val, exVatFull);
+    } else if (src === "ownersourced") {
+      os.tot = round2(os.tot + val);
+      os.exVat = round2(os.exVat + exVatFull);
+      os.n++;
+      os.comm = round2(os.comm + commFull);
+      bumpType(os.types, tk, val, exVatFull);
+      osWhite = round2(osWhite + whiteInvoiceAmt(r));
+      if (leadHasSplit(r)) {
+        var cashN = leadFreeCashAmt(r) || num(r.cashAmt);
+        if (cashN > 0.009) {
+          if (leadCashDest(r) === "owner") {
+            osPocket = round2(osPocket + cashN);
+            if (!leadFreeCashIsReceived(r)) osCashPend = round2(osCashPend + cashN);
+          } else {
+            osBoat = round2(osBoat + cashN);
+            if (!leadFreeCashIsReceived(r)) osCashPend = round2(osCashPend + cashN);
+          }
+        }
+      }
+    }
+  });
+
+  charters.forEach(function (c) {
+    if (!c) return;
+    var chargeWhen = chargeTiming(c);
+    if (chargeWhen !== "upcoming" && isCapCommFn(c) && commPartsFn) {
+      var cpAll = commPartsFn(c) || { base: 0, total: 0, gross: 0 };
+      var cmAll = num(cpAll.total);
+      var baseAll = num(cpAll.base);
+      var grossAll = num(cpAll.gross);
+      if (cmAll > 0.009 || baseAll > 0.009) {
+        capUpsell.n++;
+        capUpsell.comm = round2(capUpsell.comm + cmAll);
+        capUpsell.base = round2(capUpsell.base + baseAll);
+        capUpsell.gross = round2(capUpsell.gross + (grossAll > 0 ? grossAll : num(c.amount)));
+      }
+    }
+    var gross = upsellGrossFn(c);
+    var hrs = extHrsFn(c);
+    var kind = String(c.kind || c.chargeKind || "").toLowerCase();
+    var isUpsell =
+      gross > 0 || hrs > 0 || kind === "extension" || kind === "extra" || kind === "upsell";
+    if (!isUpsell) return;
+    if (
+      !(gross > 0) &&
+      num(c.amount) > 0 &&
+      (kind === "extension" || kind === "extra" || kind === "upsell" || hrs > 0) &&
+      !(num(c.apaBaseAmt) > 0)
+    ) {
+      gross = Math.max(0, num(c.amount));
+    }
+    if (!(gross > 0)) return;
+    var cp = { base: 0, total: 0 };
+    if (isCapCommFn(c) && commPartsFn) cp = commPartsFn(c) || cp;
+    var exB = num(cp.base) > 0 ? num(cp.base) : gross;
+    var cm = num(cp.total);
+    if (chargeWhen === "upcoming") addUpsell(proj, gross, exB, cm);
+    else addUpsell(done, gross, exB, cm);
+  });
+
+  return {
+    done: done,
+    proj: proj,
+    ownVal: ownVal,
+    ownN: ownN,
+    nPendSrc: nPendSrc,
+    nOpenDeal: nOpenDeal,
+    captain: cap,
+    clickboat: cb,
+    ownersourced: os,
+    osWhite: osWhite,
+    osPocket: osPocket,
+    osBoat: osBoat,
+    osCashPend: osCashPend,
+    capUpsell: capUpsell,
+  };
+}
+
 function summarizeTotalNetIncome(projectedNet, leads) {
   var cash = summarizeLeadCashIncome(leads);
   var proj = round2(Number(projectedNet) || 0);
@@ -988,7 +1235,9 @@ function leadCommissionAmt(r) {
     summarizeLeadCashIncomeRealised: summarizeLeadCashIncomeRealised,
     leadListMoney: leadListMoney,
     leadCharterTiming: leadCharterTiming,
+    leadCharterTypeKey: leadCharterTypeKey,
     summarizeRealisedNetGlimpse: summarizeRealisedNetGlimpse,
+    summarizeLeadsMoneyDashboard: summarizeLeadsMoneyDashboard,
     leadIsClosedCommercialIncome: leadIsClosedCommercialIncome,
     leadProjectedNetParts: leadProjectedNetParts,
     summarizeProjectedNetExCash: summarizeProjectedNetExCash,
