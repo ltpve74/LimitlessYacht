@@ -438,6 +438,8 @@ function leadSplitFinalPrice(l) {
 }
 
 function cashAmtLooksSuggested(l) {
+  /* Cash-only fee is the whole charter price — never the split “suggested free cash” trap */
+  if (leadIsCashOnlyDeal(l)) return false;
   var cash = num(l && l.cashAmt);
   if (!(cash > 0)) return false;
   var sug = leadSuggestedCashAmt(l);
@@ -455,20 +457,24 @@ function cashAmtLooksSuggested(l) {
 /**
  * Free cash black for ops/APA — never returns the auto ex-VAT figure (€1.652,89).
  * pin (optional device pin) wins when stored cash is missing or looks suggested.
+ * Cash-only: whole fee is cash (cashAmt, else total/base/price) — never zeroed as “suggested”.
  */
 function leadFreeCashAmt(l, pin) {
   pin = round2(num(pin));
+  /* Full cash charter: amount is the fee, not free-cash-vs-white suggestion math */
+  if (leadIsCashOnlyDeal(l)) {
+    var cashOnly = round2(num(l && l.cashAmt));
+    if (pin > 0 && (!(cashOnly > 0) || Math.abs(cashOnly - pin) > 0.02)) return pin;
+    if (cashOnly > 0) return cashOnly;
+    var totOnly = round2(num(l.total) || num(l.base) || num(l.price) || 0);
+    return totOnly > 0 ? totOnly : 0;
+  }
   var cash = round2(num(l && l.cashAmt));
   if (pin > 0 && !cashAmtLooksSuggested(Object.assign({}, l || {}, { cashAmt: pin }))) {
     if (!(cash > 0) || cashAmtLooksSuggested(l) || Math.abs(cash - pin) > 0.02) return pin;
   }
   if (cashAmtLooksSuggested(l)) return 0;
   if (cash > 0) return cash;
-  /* Cash-only charter: whole fee is cash when cashAmt not yet stored */
-  if (leadIsCashOnlyDeal(l)) {
-    var tot = round2(num(l.total) || num(l.base) || num(l.price) || 0);
-    return tot > 0 ? tot : 0;
-  }
   return 0;
 }
 
@@ -496,20 +502,29 @@ function leadCashDest(r) {
 
 /**
  * Free cash / cash-only fee received (settled).
- * Same gate for boat envelope and owner pocket:
- * explicit cashSettled, or final Paid (unless cashSettled explicitly false).
- * Applies to split free cash and full cash-only charters.
+ *
+ * Cash-only: no separate white final — tick “Cash received” OR Final = Paid.
+ * Explicit cashSettled:false must NOT block Final=Paid (form always writes the
+ * boolean; otherwise Paid final never posts € to boat petty).
+ *
+ * Split free cash: explicit cashSettled:false still wins (white can be Paid
+ * while free cash is not yet in hand). Else cashSettled true or Final Paid.
  */
 function leadFreeCashIsReceived(r) {
   if (!r || !leadHasCashFee(r)) return false;
   var cash = leadFreeCashAmt(r);
   if (!(cash > 0.009)) return false;
-  if (r.cashSettled === false || r.cashSettled === "false" || r.cashSettled === 0)
-    return false;
-  if (r.cashSettled === true || r.cashSettled === "true" || r.cashSettled === 1) return true;
-  /* Cash-only: final Paid or deal closed + settled flag path */
-  if (leadIsCashOnlyDeal(r) && String(r.fins || "") === "Paid") return true;
-  return String(r.fins || "") === "Paid";
+  var settledTrue =
+    r.cashSettled === true || r.cashSettled === "true" || r.cashSettled === 1;
+  var settledFalse =
+    r.cashSettled === false || r.cashSettled === "false" || r.cashSettled === 0;
+  var finalPaid = String(r.fins || "") === "Paid";
+  if (leadIsCashOnlyDeal(r)) {
+    return settledTrue || finalPaid;
+  }
+  if (settledFalse) return false;
+  if (settledTrue) return true;
+  return finalPaid;
 }
 
 function leadFreeCashIsOnBoat(r) {

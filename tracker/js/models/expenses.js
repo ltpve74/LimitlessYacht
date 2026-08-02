@@ -422,7 +422,7 @@ function clearCrewFloatPayOnEmptyEnvelope(expenses, pettyStart, cashIns) {
  * again with freeCashBoat + chargesCashBoat double-counts (e.g. “cash in €9300”).
  *
  * True for: fromLeadId / lead-cash:*, fromChargeId / charge-cash:*,
- * kind charter-fee | end-charter.
+ * kind charter-fee | charter-fee-cash | end-charter.
  * Manual top-ups (ATM, bank, captain float) return false.
  */
 function isAutoSyncedEnvelopeCashIn(r) {
@@ -430,7 +430,8 @@ function isAutoSyncedEnvelopeCashIn(r) {
   if (r.fromLeadId != null && String(r.fromLeadId) !== "") return true;
   if (r.fromChargeId != null && String(r.fromChargeId) !== "") return true;
   var kind = String(r.kind || "").toLowerCase();
-  if (kind === "charter-fee" || kind === "end-charter") return true;
+  if (kind === "charter-fee" || kind === "charter-fee-cash" || kind === "end-charter")
+    return true;
   var id = String(r.id || "");
   if (id.indexOf("lead-cash:") === 0 || id.indexOf("charge-cash:") === 0) return true;
   return false;

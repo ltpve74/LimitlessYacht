@@ -1591,6 +1591,27 @@ console.log("\n[Leads — cash-only charter]");
   ok("cash only 15% comm", near(comm.total, 450));
   const pending = Object.assign({}, cashBoat, { cashSettled: false, fins: "Not issued" });
   ok("cash only pending not received", M.leadFreeCashIsReceived(pending) === false);
+  /* Form always writes cashSettled boolean — Final Paid must still count for cash-only */
+  const settledFalseButPaid = Object.assign({}, cashBoat, {
+    cashSettled: false,
+    fins: "Paid",
+    cashAmt: 2000,
+    total: 2000,
+    base: 2000,
+    /* Legacy pollution: fee stored as invoiceTotal (pre-fix save path) */
+    invoiceTotal: 2000,
+    invoiceNet: 0,
+    vatMode: "include",
+    vatPct: 21,
+  });
+  ok("cash only Final Paid beats cashSettled false", M.leadFreeCashIsReceived(settledFalseButPaid) === true);
+  ok("cash only on boat with Paid+false settled", M.leadFreeCashIsOnBoat(settledFalseButPaid) === true);
+  ok("cash only free cash 2000 with invoiceTotal pollution", near(M.leadFreeCashAmt(settledFalseButPaid), 2000));
+  ok("cash only never looks suggested", M.cashAmtLooksSuggested(settledFalseButPaid) === false);
+  ok(
+    "auto envelope cash-in kind charter-fee-cash",
+    M.isAutoSyncedEnvelopeCashIn({ kind: "charter-fee-cash", amount: 2000 }) === true
+  );
 }
 
 /* ---- Leads realised glimpse ---- */
