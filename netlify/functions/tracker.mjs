@@ -2075,11 +2075,13 @@ export default async (req, context) => {
     let next = Array.isArray(body.rows) ? body.rows.slice(0, 5000) : [];
     let mergeInfo = { preserved: 0, deleted: 0 };
     /*
-     * Leads + charters: never wipe rows the client simply didn't have
+     * Leads + charters + APA: never wipe rows the client simply didn't have
      * (restored calendar lead, concurrent device). Explicit deletes only
      * via body.deletedIds. Other collections still full-replace.
+     * APA pots must tombstone deletes so diesel/spend cannot resurrect on
+     * a new pot for the same charter.
      */
-    if (coll === "leads" || coll === "charters") {
+    if (coll === "leads" || coll === "charters" || coll === "apa") {
       mergeInfo = mergeCollectionPreserveMissing(
         prev,
         next,
@@ -2171,7 +2173,7 @@ export default async (req, context) => {
       preserved: mergeInfo.preserved || 0,
       /* Echo so client can refresh if we kept rows it didn't send */
       rows:
-        coll === "leads" || coll === "charters"
+        coll === "leads" || coll === "charters" || coll === "apa"
           ? data[coll]
           : undefined,
     });

@@ -72,12 +72,14 @@
     });
     dLit = round2(dLit);
     dCost = round2(dCost);
+    var fuelExp = byCat["Fuel / Diesel"] || 0;
     var cats = {
       "Drinks & Bar": byCat["Drinks & Bar"] || 0,
       "Dockage / Marina": byCat["Dockage / Marina"] || 0,
       "Crew Tips": byCat["Crew Tips"] || 0,
-      Miscellaneous:
-        (byCat["Miscellaneous"] || 0) + (byCat["Fuel / Diesel"] || 0) + (byCat["Food & Provisions"] || 0),
+      "Fuel / Diesel": fuelExp,
+      "Food & Provisions": byCat["Food & Provisions"] || 0,
+      Miscellaneous: byCat["Miscellaneous"] || 0,
     };
     var spent = round2(expSum + prov + dCost);
     var basePot = round2(num(input.apaSent) + num(input.topUps));
