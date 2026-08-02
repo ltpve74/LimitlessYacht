@@ -564,18 +564,28 @@
   }
 
   /**
-   * When deleting a zero-prepaid pot, clear lead.apa shortfall tracking so a
-   * recreated pot does not show previous spend as “APA received”.
-   * Issued/Paid lead APA is left alone.
+   * When deleting a pot whose lead APA is not Issued/Paid, clear lead.apa.
+   * That field is used for shortfall-to-invoice tracking and was showing €460
+   * on the dashed “Start ledger” card after delete.
+   * Issued/Paid prepaid APA on the lead is left alone.
+   *
+   * Note: do NOT gate on pot.apaSent — a mis-seeded pot can have apaSent>0
+   * while the lead is still “Not issued” (Roman bug).
    */
   function planApaLeadAfterPotDelete(input) {
     input = input || {};
     if (leadApaIsPrepaid(input.leadApas)) return null;
-    var potPrepaid = num(input.apaSent) + num(input.topUps) > 0;
-    if (potPrepaid) return null;
-    /* Zero-prepaid pot: lead.apa was spend-to-invoice, not cash received */
     if (!(num(input.leadApa) > 0)) return null;
     return { apa: 0, apas: "Not issued" };
+  }
+
+  /**
+   * Amount to show on “Start ledger” dashed card for a lead.
+   * Only Issued/Paid prepaid APA — never shortfall-to-invoice residue.
+   */
+  function leadApaListDisplayAmount(leadApa, leadApas) {
+    if (!leadApaIsPrepaid(leadApas)) return 0;
+    return round2(num(leadApa));
   }
 
   /**
@@ -653,6 +663,7 @@
     summarizeApaPaidCovered: summarizeApaPaidCovered,
     isApaCashSettlementCharge: isApaCashSettlementCharge,
     leadApaIsPrepaid: leadApaIsPrepaid,
+    leadApaListDisplayAmount: leadApaListDisplayAmount,
     pickApaCharge: pickApaCharge,
     planApaGuestChargeCollapse: planApaGuestChargeCollapse,
     planApaTripDelete: planApaTripDelete,
