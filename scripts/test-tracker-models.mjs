@@ -1139,6 +1139,16 @@ console.log("\n[APA — charge pick + delete/start plans]");
     "delete does not clear Issued prepaid lead",
     M.planApaLeadAfterPotDelete({ apaSent: 0, leadApa: 2400, leadApas: "Issued" }) == null
   );
+  /* Mis-seeded pot apaSent>0 must still clear Not-issued lead.apa on delete */
+  const leadClearMisSeed = M.planApaLeadAfterPotDelete({
+    apaSent: 460,
+    topUps: 0,
+    leadApa: 460,
+    leadApas: "Not issued",
+  });
+  ok("delete clears lead even when pot apaSent mis-seeded", leadClearMisSeed && leadClearMisSeed.apa === 0);
+  ok("list display €0 for Not issued shortfall", M.leadApaListDisplayAmount(460, "Not issued") === 0);
+  ok("list display prepaid for Issued", near(M.leadApaListDisplayAmount(2400, "Issued"), 2400));
 }
 
 /* ---- APA controller write plans ---- */

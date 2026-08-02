@@ -512,6 +512,17 @@
     });
   }
 
+  /** Dashed Start-ledger card amount (prepaid only). */
+  function leadListDisplayAmount(input) {
+    input = input || {};
+    var models = M(input);
+    var lead = input.lead || {};
+    return models.leadApaListDisplayAmount(
+      lead.apa != null ? lead.apa : input.leadApa,
+      lead.apas != null ? lead.apas : input.leadApas
+    );
+  }
+
   function planShortfallSync(input) {
     return M(input).planApaShortfallSync(input || {});
   }
@@ -535,6 +546,7 @@
     planTripDelete: planTripDelete,
     planStartEmptyPot: planStartEmptyPot,
     planSanitizeLinkedPotSeed: planSanitizeLinkedPotSeed,
+    leadListDisplayAmount: leadListDisplayAmount,
     planShortfallSync: planShortfallSync,
     shortfallChargeFields: shortfallChargeFields,
   };
