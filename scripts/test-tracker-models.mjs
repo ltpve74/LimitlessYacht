@@ -1211,21 +1211,26 @@ console.log("\n[APA — controller planSaveTrip]");
   );
 }
 
-/* ---- Boat cash ledger (compose) ---- */
-console.log("\n[Cash — boat ledger composition]");
+/* ---- Boat cash ledger = Expenses summarizePettyCash (no second formula) ---- */
+console.log("\n[Cash — boat ledger = Expenses petty]");
 {
+  /* DTO only maps petty — does not re-add free/charges */
   const led = M.summarizeBoatCashLedger({
+    cashInTotal: 2475,
+    cashOut: 40,
+    pettyOnboard: 2535,
+    physicalStart: 100,
+    cashInHand: 2575,
     freeCashBoat: 1800,
     freeCashOwner: 500,
-    chargesCashBoat: 650,
-    pettyCashIn: 200,
-    expensePettyOut: 400,
-    expenseOutItems: [{ label: "Makro", amount: 400, kind: "expense" }],
+    cashOutLines: [{ label: "Shop", amount: 40 }],
   });
-  ok("boat in = free boat + charges + petty in", near(led.boatIn, 1800 + 650 + 200));
-  ok("boat out = expenses", near(led.boatOut, 400));
-  ok("boat net", near(led.boatNet, 1800 + 650 + 200 - 400));
-  ok("owner free cash not in boat in", near(led.freeCashOwner, 500));
+  ok("boat in = Expenses cashInTotal", near(led.boatIn, 2475));
+  ok("boat out = Expenses cashOut", near(led.boatOut, 40));
+  ok("boat net = on board", near(led.boatNet, 2535));
+  ok("owner free cash reported but not in boat math", near(led.freeCashOwner, 500));
+  ok("source is expenses-petty", led.source === "expenses-petty");
+
   const ins = M.summarizePettyCashInRows(
     [
       { id: "1", amount: 100, note: "Top up" },
@@ -1243,45 +1248,51 @@ console.log("\n[Cash — boat ledger composition]");
     { month: "2026-08", cashIns: [{ id: "a", amount: 80, date: "2026-08-02" }] },
   ]);
   ok("collect petty cash-ins from months", flat.length === 1 && near(flat[0].amount, 80));
+
+  /* Same cashIns + expenses → Leads ledger matches summarizePettyCash */
+  const cashInsMonth = [
+    { id: "lead-cash:L-boat", fromLeadId: "L-boat", kind: "charter-fee", amount: 1800, date: "2026-08-01" },
+    { id: "charge-cash:c1", fromChargeId: "c1", kind: "end-charter", amount: 650, date: "2026-08-01" },
+    { id: "manual", amount: 25, date: "2026-08-01", note: "Float top-up" },
+    { id: "extra100", amount: 100, date: "2026-08-05", note: "Bank draw" },
+  ];
+  const expMonth = [
+    {
+      id: "toni-today",
+      date: "2026-08-07",
+      amount: 200,
+      category: "Crew Salaries",
+      vendor: "Toni",
+      crewPayStatus: "Unpaid",
+      source: "stew",
+      stewId: "toni",
+      stewEventKey: "evt1",
+      paidFrom: "Petty cash",
+    },
+    {
+      id: "shop",
+      date: "2026-08-03",
+      amount: 40,
+      category: "Provisions",
+      paidFrom: "Petty cash",
+      payMethod: "Cash",
+      vendor: "Shop",
+    },
+  ];
+  const expPetty = M.summarizePettyCash({
+    pettyStart: 100,
+    cashIns: cashInsMonth,
+    expenses: expMonth,
+  });
   const dash = C.leads.moneyDashboard({
     models: M,
-    leads: [],
-    charters: [
-      { id: "c1", payStatus: "Paid", billType: "cash", amount: 100, cashPaid: 100, client: "X", date: "2026-08-01" },
-    ],
-    expenses: [
-      {
-        id: "e1",
-        date: "2026-08-03",
-        amount: 40,
-        category: "Provisions",
-        paidFrom: "Petty cash",
-        payMethod: "Cash",
-        vendor: "Shop",
-      },
-    ],
-    expPetty: [{ month: "2026-08", cashIns: [{ id: "ci1", amount: 25, date: "2026-08-01", note: "Float" }] }],
-    today: "2026-08-10",
-    cashInIsTip: function () {
-      return false;
-    },
-  });
-  ok("dashboard has cashLedger", !!dash.cashLedger);
-  ok("dashboard charges cash in ledger", near(dash.cashLedger.chargesCashBoat, 100));
-  ok("dashboard expense out in ledger", near(dash.cashLedger.expensePettyOut, 40));
-  ok("dashboard petty in in ledger", near(dash.cashLedger.pettyCashIn, 25));
-  /* Auto-synced lead/charge cash-ins must not double-count with free cash + charges */
-  ok("auto-synced lead cash-in detected", M.isAutoSyncedEnvelopeCashIn({ fromLeadId: "L1", amount: 1800 }));
-  ok("auto-synced charge cash-in detected", M.isAutoSyncedEnvelopeCashIn({ fromChargeId: "c1", kind: "end-charter" }));
-  ok("manual top-up not auto-synced", !M.isAutoSyncedEnvelopeCashIn({ id: "x", amount: 50, note: "ATM" }));
-  const noDouble = C.leads.moneyDashboard({
-    models: M,
+    month: "2026-08",
+    pettyStart: 100,
     leads: [
       {
         id: "L-boat",
         name: "Boat free",
         start: "2026-08-01",
-        source: "captain",
         captainLead: true,
         dealClosed: true,
         split: true,
@@ -1295,7 +1306,7 @@ console.log("\n[Cash — boat ledger composition]");
         id: "L-own",
         name: "Owner free",
         start: "2026-08-02",
-        source: "ownersourced",
+        leadSource: "ownersourced",
         dealClosed: true,
         split: true,
         invoiceTotal: 1000,
@@ -1305,58 +1316,25 @@ console.log("\n[Cash — boat ledger composition]");
         fins: "Paid",
       },
     ],
-    charters: [
-      { id: "c1", payStatus: "Paid", billType: "cash", amount: 650, cashPaid: 650, client: "Danny", date: "2026-08-01" },
-      { id: "c-pend", payStatus: "Pending", billType: "cash", amount: 400, cashPaid: 400, client: "Future", date: "2026-08-10" },
-    ],
-    expenses: [
-      {
-        id: "toni-today",
-        date: "2026-08-07",
-        amount: 200,
-        category: "Crew Salaries",
-        vendor: "Toni",
-        crewPayStatus: "Unpaid",
-        source: "stew",
-        stewId: "toni",
-        stewEventKey: "evt1",
-        paidFrom: "Petty cash",
-      },
-      {
-        id: "shop",
-        date: "2026-08-03",
-        amount: 40,
-        category: "Provisions",
-        paidFrom: "Petty cash",
-        payMethod: "Cash",
-        vendor: "Shop",
-      },
-    ],
-    expPetty: [
-      {
-        month: "2026-08",
-        cashIns: [
-          { id: "lead-cash:L-boat", fromLeadId: "L-boat", kind: "charter-fee", amount: 1800, date: "2026-08-01" },
-          { id: "charge-cash:c1", fromChargeId: "c1", kind: "end-charter", amount: 650, date: "2026-08-01" },
-          { id: "manual", amount: 25, date: "2026-08-01", note: "Float top-up" },
-        ],
-      },
-    ],
+    charters: [],
+    expenses: expMonth,
+    expPetty: [{ month: "2026-08", cashIns: cashInsMonth, pettyStart: 100 }],
     today: "2026-08-10",
     cashInIsTip: function () {
       return false;
     },
   });
-  ok("no double-count: free boat 1800", near(noDouble.cashLedger.freeCashBoat, 1800));
-  ok("owner pocket free cash not in boat free", near(noDouble.cashLedger.freeCashOwner, 500));
-  ok("owner free cash not in boatIn", near(noDouble.cashLedger.boatIn, 1800 + 650 + 25));
-  ok("charges only explicit Paid (no Pending 400)", near(noDouble.cashLedger.chargesCashBoat, 650));
-  ok("petty in = manual only (not lead/charge mirror)", near(noDouble.cashLedger.pettyCashIn, 25));
-  ok("boat out excludes unpaid Toni", near(noDouble.cashLedger.expensePettyOut, 40));
-  ok(
-    "boat net no double / no owner / no Toni",
-    near(noDouble.cashLedger.boatNet, 1800 + 650 + 25 - 40)
-  );
+  ok("dashboard has cashLedger", !!dash.cashLedger);
+  ok("leads cash in = Expenses cashInTotal", near(dash.cashLedger.cashInTotal, expPetty.cashInTotal));
+  ok("leads cash out = Expenses cashOut", near(dash.cashLedger.cashOut, expPetty.cashOut));
+  ok("leads on board = Expenses pettyOnboard", near(dash.cashLedger.boatNet, expPetty.pettyOnboard));
+  ok("cash in includes all envelope lines (incl €100)", near(dash.cashLedger.cashInTotal, 1800 + 650 + 25 + 100));
+  ok("cash out excludes unpaid Toni", near(dash.cashLedger.cashOut, 40));
+  ok("physical start 100", near(dash.cashLedger.physicalStart, 100));
+  ok("on board = start + in − out", near(dash.cashLedger.boatNet, 100 + 2575 - 40));
+  ok("owner pocket free cash not added to boatIn", near(dash.cashLedger.freeCashOwner, 500));
+  ok("boatIn is cashIn not free+owner", !near(dash.cashLedger.boatIn, 1800 + 500));
+
   /* Unpaid Toni day-pay must not hit petty outs */
   const unpaidCrew = M.summarizePettyCash({
     pettyStart: 0,

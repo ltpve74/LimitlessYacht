@@ -1,13 +1,15 @@
 /**
- * LY_MODELS · cash (boat cash ledger composition)
+ * LY_MODELS · cash (boat envelope DTO for Leads)
  * Pure domain — no DOM, no state, no sideways domain imports.
  *
- * Other domains produce plain numbers/item lists (leads free cash, charge
- * cash-to-boat, expense petty outs, petty cash-ins). This module composes
- * them into one boat cash picture for the Leads money panel.
+ * Boat cash numbers MUST match Expenses. They come from
+ * models.summarizePettyCash (via controller), not a second formula
+ * that re-adds free cash / charges / top-ups (that drifted €100+).
  *
- * @see tracker/js/models/README.md
- * @see .agent/memory/tracker-domain-models.md (cross-model route = controller)
+ * This module only shapes a plain DTO for paint. It does not invent €.
+ *
+ * @see tracker/js/models/expenses.js summarizePettyCash
+ * @see .agent/memory/tracker-domain-models.md
  */
 (function (root, factory) {
   "use strict";
@@ -26,53 +28,119 @@
   var round2 = util.round2;
 
   /**
-   * Compose boat cash in/out for Leads money details.
+   * Boat envelope for Leads money details — Expenses numbers only.
    *
-   * Boat cash only — never owner pocket free cash.
-   *
-   * Boat envelope IN (no double-count):
-   *   free cash → boat  +  charges paid cash  +  manual petty top-ups
-   * Controller must NOT pass auto-synced lead/charge cash-ins as pettyCashIn
-   * (those mirror freeCashBoat / chargesCashBoat into expPetty for Expenses).
-   * Boat OUT: expenses that left petty (crew day-pay only when Paid+floatPay).
+   * Prefer input.petty (or cashInTotal / cashOut / pettyOnboard from
+   * summarizePettyCash). Owner pocket free cash is reported for the
+   * income panel only — never added to boatIn / boatNet.
    *
    * @param {{
+   *   petty?: {
+   *     cashInTotal?: number,
+   *     cashOut?: number,
+   *     cashOutLines?: Array,
+   *     cashInHand?: number,
+   *     pettyOnboard?: number,
+   *     pettyCash?: number,
+   *     pettyStart?: number,
+   *     physicalStart?: number,
+   *     cashShort?: number
+   *   },
+   *   cashInTotal?: number,
+   *   cashOut?: number,
+   *   cashOutLines?: Array,
+   *   cashInHand?: number,
+   *   pettyOnboard?: number,
+   *   pettyStart?: number,
+   *   physicalStart?: number,
+   *   cashShort?: number,
+   *   pettyCashInItems?: Array,
    *   freeCashBoat?: number,
    *   freeCashOwner?: number,
    *   freeCashItems?: Array,
    *   freeCashN?: number,
    *   freeCashBoatN?: number,
    *   freeCashOwnerN?: number,
-   *   chargesCashBoat?: number,
-   *   chargesCashItems?: Array,
-   *   chargesCashN?: number,
-   *   pettyCashIn?: number,
-   *   pettyCashInItems?: Array,
-   *   expensePettyOut?: number,
-   *   expenseOutItems?: Array
-   * }} input  Plain aggregates from other domains (via controller)
+   *   month?: string
+   * }} input
    */
   function summarizeBoatCashLedger(input) {
     input = input || {};
-    /* Owner pocket free cash is reported but NEVER in boatIn / boatNet */
+    var p = input.petty || {};
+
+    var cashIn = round2(Math.max(0, num(p.cashInTotal != null ? p.cashInTotal : input.cashInTotal)));
+    var cashOut = round2(Math.max(0, num(p.cashOut != null ? p.cashOut : input.cashOut)));
+    var physicalStart = round2(
+      Math.max(
+        0,
+        num(
+          p.physicalStart != null
+            ? p.physicalStart
+            : input.physicalStart != null
+              ? input.physicalStart
+              : p.pettyStart != null
+                ? p.pettyStart
+                : input.pettyStart
+        )
+      )
+    );
+    var cashInHand = round2(
+      num(
+        p.cashInHand != null
+          ? p.cashInHand
+          : input.cashInHand != null
+            ? input.cashInHand
+            : physicalStart + cashIn
+      )
+    );
+    var onboardRaw =
+      p.pettyOnboard != null
+        ? p.pettyOnboard
+        : p.pettyCash != null
+          ? p.pettyCash
+          : input.pettyOnboard != null
+            ? input.pettyOnboard
+            : cashInHand - cashOut;
+    var onboard = round2(Math.max(0, num(onboardRaw)));
+    var cashShort = round2(Math.max(0, num(p.cashShort != null ? p.cashShort : input.cashShort)));
+
+    var outLines = Array.isArray(p.cashOutLines)
+      ? p.cashOutLines
+      : Array.isArray(input.cashOutLines)
+        ? input.cashOutLines
+        : Array.isArray(input.expenseOutItems)
+          ? input.expenseOutItems
+          : [];
+    var inItems = Array.isArray(input.pettyCashInItems) ? input.pettyCashInItems : [];
+
+    /* Free cash income (leads) — display only; not used in boat math */
     var freeBoat = round2(Math.max(0, num(input.freeCashBoat)));
     var freeOwner = round2(Math.max(0, num(input.freeCashOwner)));
-    var chargesBoat = round2(Math.max(0, num(input.chargesCashBoat)));
-    var pettyIn = round2(Math.max(0, num(input.pettyCashIn)));
-    var expOut = round2(Math.max(0, num(input.expensePettyOut)));
-
-    /* Free cash items: boat only (strip owner pocket from boat ledger lists) */
     var freeItemsAll = Array.isArray(input.freeCashItems) ? input.freeCashItems : [];
     var freeBoatItems = freeItemsAll.filter(function (it) {
       return it && it.dest !== "owner";
     });
 
-    var boatIn = round2(freeBoat + chargesBoat + pettyIn);
-    var boatOut = expOut;
-    var boatNet = round2(boatIn - boatOut);
-
     return {
-      /* Free cash (leads split) — owner kept for free-cash panel only */
+      /* Same field names Expenses settlement uses */
+      month: input.month ? String(input.month).slice(0, 7) : "",
+      cashInTotal: cashIn,
+      cashOut: cashOut,
+      cashInHand: cashInHand,
+      pettyStart: round2(num(p.pettyStart != null ? p.pettyStart : input.pettyStart)),
+      physicalStart: physicalStart,
+      pettyOnboard: onboard,
+      pettyCash: onboard,
+      cashShort: cashShort,
+      /* Leads paint aliases (= Expenses cards) */
+      boatIn: cashIn,
+      boatOut: cashOut,
+      boatNet: onboard,
+      expensePettyOut: cashOut,
+      expenseOutItems: outLines,
+      pettyCashIn: cashIn,
+      pettyCashInItems: inItems,
+      /* Free cash income note (owner never in boat) */
       freeCashBoat: freeBoat,
       freeCashOwner: freeOwner,
       freeCashTotal: round2(freeBoat + freeOwner),
@@ -80,20 +148,11 @@
       freeCashN: freeBoatItems.length,
       freeCashBoatN: num(input.freeCashBoatN),
       freeCashOwnerN: num(input.freeCashOwnerN),
-      /* Charges paid cash/mix → boat */
-      chargesCashBoat: chargesBoat,
-      chargesCashItems: Array.isArray(input.chargesCashItems) ? input.chargesCashItems : [],
-      chargesCashN: num(input.chargesCashN),
-      /* Petty envelope cash-ins (not tips) */
-      pettyCashIn: pettyIn,
-      pettyCashInItems: Array.isArray(input.pettyCashInItems) ? input.pettyCashInItems : [],
-      /* Expenses that left petty */
-      expensePettyOut: expOut,
-      expenseOutItems: Array.isArray(input.expenseOutItems) ? input.expenseOutItems : [],
-      /* Boat totals — owner pocket excluded */
-      boatIn: boatIn,
-      boatOut: boatOut,
-      boatNet: boatNet,
+      /* Legacy empty — do not re-derive from charges/leads */
+      chargesCashBoat: 0,
+      chargesCashItems: [],
+      chargesCashN: 0,
+      source: "expenses-petty",
     };
   }
 

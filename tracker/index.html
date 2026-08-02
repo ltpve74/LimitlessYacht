@@ -708,25 +708,25 @@
                 </div>
                 <div class="ld-cash-items" id="ldCashItems"></div>
               </div>
-              <!-- Boat cash ledger: free cash + charges cash + petty ins − expense outs (controller DTO) -->
+              <!-- Boat cash = Expenses petty envelope (same summarizePettyCash numbers) -->
               <div class="ld-snap-cash" id="ldBoatCashSnap" style="margin-top:14px">
-                <div class="k">Boat cash · envelope (no owner pocket)</div>
+                <div class="k">Boat cash · same as Expenses</div>
                 <div class="big money" id="ldBoatCashNet">€0</div>
-                <div class="s" id="ldBoatCashSub">Boat float only · owner pocket excluded · crew day-pay only when Paid from float</div>
+                <div class="s" id="ldBoatCashSub">Petty on board · same month as Expenses · not a second calculation</div>
                 <div class="lines">
-                  <span><em style="font-style:normal;color:var(--muted);font-weight:600">+ Free cash → boat</em><span class="m money" id="ldBoatCashFree">€0</span></span>
-                  <span><em style="font-style:normal;color:var(--muted);font-weight:600">+ Charges paid cash</em><span class="m money" id="ldBoatCashCharges">€0</span></span>
-                  <span><em style="font-style:normal;color:var(--muted);font-weight:600">+ Manual float top-ups</em><span class="m money" id="ldBoatCashIns">€0</span></span>
-                  <span><em style="font-style:normal;color:var(--muted);font-weight:600">− Expenses from petty</em><span class="m money" id="ldBoatCashExp">€0</span></span>
-                  <span style="margin-top:4px;padding-top:6px;border-top:1px solid var(--line)"><em style="font-style:normal;font-weight:800">= Boat cash net</em><span class="m money" id="ldBoatCashNetLine" style="font-weight:800">€0</span></span>
+                  <span><em style="font-style:normal;color:var(--muted);font-weight:600">Start (notes)</em><span class="m money" id="ldBoatCashStart">€0</span></span>
+                  <span><em style="font-style:normal;color:var(--muted);font-weight:600">+ Cash in</em><span class="m money" id="ldBoatCashIns">€0</span></span>
+                  <span><em style="font-style:normal;color:var(--muted);font-weight:600">− Cash out</em><span class="m money" id="ldBoatCashExp">€0</span></span>
+                  <span style="margin-top:4px;padding-top:6px;border-top:1px solid var(--line)"><em style="font-style:normal;font-weight:800">= On board</em><span class="m money" id="ldBoatCashNetLine" style="font-weight:800">€0</span></span>
                 </div>
+                <div class="ld-cash-items" id="ldBoatCashInItems"></div>
                 <div class="ld-cash-items" id="ldBoatCashExpItems"></div>
               </div>
               <div class="ld-snap-foot">
                 <div class="ld-snap-row"><span class="k">Unconfirmed / tentative</span><span class="v" id="ldAwait">0</span><span class="s" id="ldAwaitSub">Not in money totals</span></div>
                 <div class="ld-snap-row"><span class="k">Owner days (notional)</span><span class="v money" id="ldOwn">€0</span><span class="s" id="ldOwnSub">List-rate · not cash</span></div>
               </div>
-              <div class="ld-snap-note">Glimpse net = white (before VAT − commissions) <b>+ free cash to the boat</b> only. <b>Boat cash</b> = free cash → boat + charges paid cash + manual float top-ups − expenses from petty. Owner pocket free cash and auto-synced mirrors of free/charge cash are never double-counted. Crew day-pay only counts when Paid from float.</div>
+              <div class="ld-snap-note">Glimpse net = white (before VAT − commissions) <b>+ free cash to the boat</b> only. <b>Boat cash</b> uses the same Expenses petty figures (start + cash in − cash out = on board) for the current Expenses month — not a second formula. Owner pocket free cash stays out of both nets.</div>
             </div>
             <div class="sumcard ld-src">
               <div class="l">Luigi · Captain</div>
@@ -939,21 +939,21 @@
 
 <!-- Domain models + controllers (MVC blueprint) — tests: node scripts/test-tracker-models.mjs -->
 <!-- LY_MODELS → LY_CONTROLLERS → view. See .agent/briefs/tracker-v1-mvc-blueprint.md -->
-<script src="/tracker/js/models/util.js?v=20260807-cash3"></script>
-<script src="/tracker/js/models/leads.js?v=20260807-cash3"></script>
-<script src="/tracker/js/models/charges.js?v=20260807-cash3"></script>
-<script src="/tracker/js/models/expenses.js?v=20260807-cash3"></script>
-<script src="/tracker/js/models/cash.js?v=20260807-cash3"></script>
-<script src="/tracker/js/models/diesel.js?v=20260807-cash3"></script>
-<script src="/tracker/js/models/stews.js?v=20260807-cash3"></script>
-<script src="/tracker/js/models/apa.js?v=20260807-cash3"></script>
-<script src="/tracker/js/models/index.js?v=20260807-cash3"></script>
-<script src="/tracker/js/controllers/expenses.js?v=20260807-cash3"></script>
-<script src="/tracker/js/controllers/charges.js?v=20260807-cash3"></script>
-<script src="/tracker/js/controllers/leads.js?v=20260807-cash3"></script>
-<script src="/tracker/js/controllers/apa.js?v=20260807-cash3"></script>
-<script src="/tracker/js/controllers/stews.js?v=20260807-cash3"></script>
-<script src="/tracker/js/controllers/index.js?v=20260807-cash3"></script>
+<script src="/tracker/js/models/util.js?v=20260807-cash4"></script>
+<script src="/tracker/js/models/leads.js?v=20260807-cash4"></script>
+<script src="/tracker/js/models/charges.js?v=20260807-cash4"></script>
+<script src="/tracker/js/models/expenses.js?v=20260807-cash4"></script>
+<script src="/tracker/js/models/cash.js?v=20260807-cash4"></script>
+<script src="/tracker/js/models/diesel.js?v=20260807-cash4"></script>
+<script src="/tracker/js/models/stews.js?v=20260807-cash4"></script>
+<script src="/tracker/js/models/apa.js?v=20260807-cash4"></script>
+<script src="/tracker/js/models/index.js?v=20260807-cash4"></script>
+<script src="/tracker/js/controllers/expenses.js?v=20260807-cash4"></script>
+<script src="/tracker/js/controllers/charges.js?v=20260807-cash4"></script>
+<script src="/tracker/js/controllers/leads.js?v=20260807-cash4"></script>
+<script src="/tracker/js/controllers/apa.js?v=20260807-cash4"></script>
+<script src="/tracker/js/controllers/stews.js?v=20260807-cash4"></script>
+<script src="/tracker/js/controllers/index.js?v=20260807-cash4"></script>
 <script>
 "use strict";
 var API = "/.netlify/functions/tracker";
@@ -3552,14 +3552,21 @@ function renderLeads(){
   };
   try{
     if(window.LY_CONTROLLERS&&LY_CONTROLLERS.leads&&LY_CONTROLLERS.leads.moneyDashboard){
+      /* Boat cash = same month + same petty start Expenses uses (no second formula) */
+      var expMon=typeof expDefaultMonth==="function"?expDefaultMonth():String(leadTodayYmd()||"").slice(0,7);
+      var expPettyRow=null;
+      try{ expPettyRow=typeof expEnsurePetty==="function"?expEnsurePetty(expMon):null; }catch(eP){ expPettyRow=null; }
       dash=LY_CONTROLLERS.leads.moneyDashboard({
         models:LY_MODELS,
         leads:state.leads||[],
         charters:state.charters||[],
         expenses:state.expenses||[],
         expPetty:state.expPetty||[],
+        month:expMon,
+        pettyStart:expPettyRow&&expPettyRow.pettyStart!=null?expPettyRow.pettyStart:0,
         today:leadTodayYmd(),
-        cashInIsTip:typeof expCashInIsTip==="function"?expCashInIsTip:null
+        cashInIsTip:typeof expCashInIsTip==="function"?expCashInIsTip:null,
+        isTipExpense:typeof expIsTipExpense==="function"?expIsTipExpense:null
       });
     }
   }catch(eDash){}
@@ -3966,28 +3973,51 @@ function renderLeads(){
       }).join("");
     }
   }
-  /* Boat cash ledger DTO from controller (expenses + charges + free cash) */
+  /* Boat cash = Expenses petty (same summarizePettyCash) */
   var boatCash=dash.cashLedger||{};
-  if(el("ldBoatCashNet")) el("ldBoatCashNet").textContent=money(boatCash.boatNet||0);
-  if(el("ldBoatCashNetLine")) el("ldBoatCashNetLine").textContent=money(boatCash.boatNet||0);
-  if(el("ldBoatCashFree")) el("ldBoatCashFree").textContent=money(boatCash.freeCashBoat||0);
-  if(el("ldBoatCashCharges")) el("ldBoatCashCharges").textContent=money(boatCash.chargesCashBoat||0);
-  if(el("ldBoatCashIns")) el("ldBoatCashIns").textContent=money(boatCash.pettyCashIn||0);
-  if(el("ldBoatCashExp")) el("ldBoatCashExp").textContent=money(boatCash.expensePettyOut||0);
+  if(el("ldBoatCashNet")) el("ldBoatCashNet").textContent=money(boatCash.boatNet!=null?boatCash.boatNet:boatCash.pettyOnboard||0);
+  if(el("ldBoatCashNetLine")) el("ldBoatCashNetLine").textContent=money(boatCash.boatNet!=null?boatCash.boatNet:boatCash.pettyOnboard||0);
+  if(el("ldBoatCashStart")) el("ldBoatCashStart").textContent=money(boatCash.physicalStart!=null?boatCash.physicalStart:boatCash.pettyStart||0);
+  if(el("ldBoatCashIns")) el("ldBoatCashIns").textContent=money(boatCash.cashInTotal!=null?boatCash.cashInTotal:boatCash.pettyCashIn||0);
+  if(el("ldBoatCashExp")) el("ldBoatCashExp").textContent=money(boatCash.cashOut!=null?boatCash.cashOut:boatCash.expensePettyOut||0);
   if(el("ldBoatCashSub")){
-    var bi=boatCash.boatIn||0, bo=boatCash.boatOut||0;
+    var monLab=boatCash.month||"";
+    var bi=boatCash.cashInTotal!=null?boatCash.cashInTotal:boatCash.boatIn||0;
+    var bo=boatCash.cashOut!=null?boatCash.cashOut:boatCash.boatOut||0;
+    var ob=boatCash.boatNet!=null?boatCash.boatNet:boatCash.pettyOnboard||0;
     el("ldBoatCashSub").textContent=
-      "In "+money(bi)+" · out "+money(bo)+" · boat only (no owner pocket) · free cash + paid charges + manual top-ups − petty outs";
+      (monLab?monLab+" · ":"")+"cash in "+money(bi)+" · cash out "+money(bo)+" · on board "+money(ob)+" · same as Expenses";
+  }
+  if(el("ldBoatCashInItems")){
+    var inItems=(boatCash.pettyCashInItems||[]).slice(0,8);
+    if(!inItems.length){
+      el("ldBoatCashInItems").innerHTML="";
+    } else {
+      el("ldBoatCashInItems").innerHTML=
+        '<div class="meta" style="margin-top:8px;font-weight:700">Cash in (envelope)</div>'+
+        inItems.map(function(it){
+          var dateLab="";
+          try{ dateLab=it.date?fmtDate(it.date):""; }catch(eI){ dateLab=it.date||""; }
+          return '<div class="ld-cash-item">'+
+            '<span class="nm">'+esc(it.label||"Cash in")+'</span>'+
+            '<span class="am money">'+money(it.amount)+'</span>'+
+            '<span class="meta">'+esc(dateLab)+'</span>'+
+          '</div>';
+        }).join("")+
+        ((boatCash.pettyCashInItems||[]).length>8
+          ?'<div class="meta" style="margin-top:4px">+'+(boatCash.pettyCashInItems.length-8)+' more in Expenses</div>'
+          :"");
+    }
   }
   if(el("ldBoatCashExpItems")){
     var expItems=(boatCash.expenseOutItems||[]).slice(0,12);
-    if(!expItems.length&&!(boatCash.expensePettyOut>0.009)){
-      el("ldBoatCashExpItems").innerHTML='<div class="meta" style="margin-top:6px">No petty expenses yet.</div>';
+    if(!expItems.length&&!(boatCash.cashOut>0.009||boatCash.expensePettyOut>0.009)){
+      el("ldBoatCashExpItems").innerHTML='<div class="meta" style="margin-top:6px">No petty cash-outs this month.</div>';
     } else if(!expItems.length){
       el("ldBoatCashExpItems").innerHTML="";
     } else {
       el("ldBoatCashExpItems").innerHTML=
-        '<div class="meta" style="margin-top:8px;font-weight:700">Recent expenses from petty</div>'+
+        '<div class="meta" style="margin-top:8px;font-weight:700">Cash out (from petty)</div>'+
         expItems.map(function(it){
           var dateLab="";
           try{ dateLab=it.date?fmtDate(it.date):""; }catch(eE){ dateLab=it.date||""; }
