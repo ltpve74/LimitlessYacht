@@ -939,21 +939,21 @@
 
 <!-- Domain models + controllers (MVC blueprint) — tests: node scripts/test-tracker-models.mjs -->
 <!-- LY_MODELS → LY_CONTROLLERS → view. See .agent/briefs/tracker-v1-mvc-blueprint.md -->
-<script src="/tracker/js/models/util.js?v=20260807-leadcash1"></script>
-<script src="/tracker/js/models/leads.js?v=20260807-leadcash1"></script>
-<script src="/tracker/js/models/charges.js?v=20260807-leadcash1"></script>
-<script src="/tracker/js/models/expenses.js?v=20260807-leadcash1"></script>
-<script src="/tracker/js/models/cash.js?v=20260807-leadcash1"></script>
-<script src="/tracker/js/models/diesel.js?v=20260807-leadcash1"></script>
-<script src="/tracker/js/models/stews.js?v=20260807-leadcash1"></script>
-<script src="/tracker/js/models/apa.js?v=20260807-leadcash1"></script>
-<script src="/tracker/js/models/index.js?v=20260807-leadcash1"></script>
-<script src="/tracker/js/controllers/expenses.js?v=20260807-leadcash1"></script>
-<script src="/tracker/js/controllers/charges.js?v=20260807-leadcash1"></script>
-<script src="/tracker/js/controllers/leads.js?v=20260807-leadcash1"></script>
-<script src="/tracker/js/controllers/apa.js?v=20260807-leadcash1"></script>
-<script src="/tracker/js/controllers/stews.js?v=20260807-leadcash1"></script>
-<script src="/tracker/js/controllers/index.js?v=20260807-leadcash1"></script>
+<script src="/tracker/js/models/util.js?v=20260807-leadcash2"></script>
+<script src="/tracker/js/models/leads.js?v=20260807-leadcash2"></script>
+<script src="/tracker/js/models/charges.js?v=20260807-leadcash2"></script>
+<script src="/tracker/js/models/expenses.js?v=20260807-leadcash2"></script>
+<script src="/tracker/js/models/cash.js?v=20260807-leadcash2"></script>
+<script src="/tracker/js/models/diesel.js?v=20260807-leadcash2"></script>
+<script src="/tracker/js/models/stews.js?v=20260807-leadcash2"></script>
+<script src="/tracker/js/models/apa.js?v=20260807-leadcash2"></script>
+<script src="/tracker/js/models/index.js?v=20260807-leadcash2"></script>
+<script src="/tracker/js/controllers/expenses.js?v=20260807-leadcash2"></script>
+<script src="/tracker/js/controllers/charges.js?v=20260807-leadcash2"></script>
+<script src="/tracker/js/controllers/leads.js?v=20260807-leadcash2"></script>
+<script src="/tracker/js/controllers/apa.js?v=20260807-leadcash2"></script>
+<script src="/tracker/js/controllers/stews.js?v=20260807-leadcash2"></script>
+<script src="/tracker/js/controllers/index.js?v=20260807-leadcash2"></script>
 <script>
 "use strict";
 var API = "/.netlify/functions/tracker";
@@ -1889,9 +1889,10 @@ function syncCancelledLeadsToStews(){
 }
 function renderAll(){
   function safe(fn){ try{ fn(); }catch(e){ console&&console.error&&console.error(e); } }
-  /* Captain: unpark ghost Paid day-pay (today/future, no float) before money paint */
+  /* Captain: unpark ghost Paid day-pay; re-sync lead/charge cash → petty */
   if(isCaptain()){
     try{ expUnparkDayPayNotFromFloat(); }catch(eU){}
+    try{ syncAllChargeCashToPetty(); }catch(eS){}
   }
   if(canCommercial()){ safe(renderCharters); safe(renderLeads); }
   safe(renderSecurity);
@@ -10444,6 +10445,7 @@ function renderExpenses(){
    * Paint expenses from blob only. Do NOT auto-reassign stews from calendar titles
    * or seed day-pay lines on every Expenses open (that undid captain unassigns).
    */
+  try{ syncAllChargeCashToPetty(); }catch(eSync){}
   try{ expRepairImpossibleCrewFloatOnEmptyEnvelope(); }catch(eRep){}
   try{ expCollapseCrewDayPayDuplicates(); }catch(eCol){}
   /* Unpark ghost Paid (today/future, no floatPay) before heal can re-stick */
@@ -14698,8 +14700,10 @@ function leadCashDest(l){
 }
 function leadFreeCashIsReceived(l){
   if(LY_MODELS&&LY_MODELS.leadFreeCashIsReceived) return !!LY_MODELS.leadFreeCashIsReceived(l);
-  if(!l||!leadHasSplit(l)) return false;
+  var hasFee=leadHasSplit(l)||leadIsCashOnlyDeal(l);
+  if(!l||!hasFee) return false;
   var cash=leadFreeCashAmt(l)||Number(l.cashAmt)||0;
+  if(!(cash>0.009)&&leadIsCashOnlyDeal(l)) cash=Number(l.total||l.base||l.price||0);
   if(!(cash>0.009)) return false;
   if(l.cashSettled===false||l.cashSettled==="false"||l.cashSettled===0) return false;
   if(l.cashSettled===true||l.cashSettled==="true"||l.cashSettled===1) return true;
@@ -14747,36 +14751,45 @@ function expRemoveLeadCashIn(leadId, skipSave){
  */
 function syncLeadCashToPetty(lead){
   if(!isCaptain()||!lead||!lead.id) return false;
-  var cash=leadFreeCashAmt(lead)||Number(lead.cashAmt)||0;
-  if(!(cash>0.009)||!leadFreeCashIsOnBoat(lead)){
-    return expRemoveLeadCashIn(lead.id, true);
+  /* Prefer live state row (save may pass a draft) */
+  var live=(state.leads||[]).filter(function(x){ return x&&String(x.id)===String(lead.id); })[0]||lead;
+  var cash=leadFreeCashAmt(live)||Number(live.cashAmt)||0;
+  if(!(cash>0.009)&&leadIsCashOnlyDeal(live)) cash=Number(live.total||live.base||live.price||0);
+  if(!(cash>0.009)||!leadFreeCashIsOnBoat(live)){
+    return expRemoveLeadCashIn(live.id, true);
   }
   cash=Math.round(cash*100)/100;
-  var date=String(lead.start||lead.cdate||lead.closed||"").slice(0,10)||localTodayYmd();
+  var date=String(live.start||live.cdate||live.closed||"").slice(0,10)||localTodayYmd();
   var month=expMonthKey(date)||expDefaultMonth();
   var p=expEnsurePetty(month);
   if(!Array.isArray(p.cashIns)) p.cashIns=[];
-  var cid=leadCashInId(lead.id);
-  var name=(lead.name||"Guest").trim();
+  var cid=leadCashInId(live.id);
+  var name=(live.name||"Guest").trim();
+  var cashOnly=leadIsCashOnlyDeal(live);
   var row={
     id:cid,
-    fromLeadId:String(lead.id),
-    kind:"charter-fee",
+    fromLeadId:String(live.id),
+    kind:cashOnly?"charter-fee-cash":"charter-fee",
     date:date,
-    source:(leadIsCashOnlyDeal&&leadIsCashOnlyDeal(lead)?"Charter fee · cash only — ":"Charter fee · free cash — ")+name,
+    source:(cashOnly?"Charter fee · cash only — ":"Charter fee · free cash — ")+name,
     amount:cash,
-    notes:"Split charter fee cash · not on the invoice · on the boat · "+money0(cash),
+    notes:(cashOnly?"Cash-only charter fee · on the boat · ":"Split charter fee cash · not on the invoice · on the boat · ")+money0(cash),
     updatedAt:new Date().toISOString()
   };
-  var found=false;
+  var found=false, changed=false;
   p.cashIns=p.cashIns.map(function(r){
-    if(r&&(String(r.id)===cid||String(r.fromLeadId||"")===String(lead.id))){
+    if(r&&(String(r.id)===cid||String(r.fromLeadId||"")===String(live.id))){
       found=true;
-      return row;
+      if(Math.abs(Number(r.amount||0)-cash)>0.009||String(r.date||"").slice(0,10)!==String(row.date||"")||String(r.source||"")!==String(row.source||"")){
+        changed=true;
+        return row;
+      }
+      return r;
     }
     return r;
   });
-  if(!found) p.cashIns.unshift(row);
+  if(!found){ p.cashIns.unshift(row); changed=true; }
+  if(!changed) return false;
   p.pettyIn=expCashInSum(p);
   p.updatedAt=new Date().toISOString();
   return true;
@@ -16540,8 +16553,16 @@ function saveSheet(type,rec){
       splitVatOnTop:sp.split?!!sp.vatOnTop:false,
       whiteVatMode:sp.split?(sp.whiteVatMode||whiteVatMode):"",
       invoiceNet:sp.split?sp.invoiceNet:0, invoiceVat:sp.split?sp.white.vat:0, invoiceTotal:sp.split?sp.invoiceTotal:parts.client,
-      cashAmt:(cashOnlyOn||sp.split)?(cashForced>0?cashForced:(sp.split?sp.cashAmt:0)):0,
-      cashAmtUser:(cashOnlyOn||sp.split)&&(cashForced>0||Number(sp.cashAmt)>0),
+      cashAmt:(function(){
+        if(cashOnlyOn){
+          var fee=cashForced>0?cashForced:Number(sp.cashAmt||sp.clientTotal||0);
+          if(!(fee>0)) fee=Number(quoteBase||0);
+          return Math.round(fee*100)/100;
+        }
+        if(sp.split) return cashForced>0?cashForced:Number(sp.cashAmt||0);
+        return 0;
+      })(),
+      cashAmtUser:!!(cashOnlyOn||sp.split)&&(cashForced>0||Number(sp.cashAmt||0)>0||Number(quoteBase||0)>0),
       cashOnly:!!cashOnlyOn,
       dealPayType:cashOnlyOn?"cash":(sp.split?"split":"invoice"),
       cashDest:(cashOnlyOn||sp.split)?(function(){
@@ -16693,8 +16714,8 @@ function saveSheet(type,rec){
       if(isCaptain()){ expRemoveLeadCashIn(liveLead.id, true); saveExpPetty(); }
       if(isCaptain()&&curTab==="stews") renderStews({soft:false});
     }
-    /* Split free cash → boat petty cash when received / Paid (not when cancelled) */
-    if(isCaptain()&&sp.split&&bookingSt!=="cancelled"){
+    /* Split free cash OR cash-only charter → boat petty when received (not cancelled) */
+    if(isCaptain()&&(sp.split||cashOnlyOn||o2.cashOnly||o2.dealPayType==="cash")&&bookingSt!=="cancelled"){
       if(syncLeadCashToPetty(o2)) saveExpPetty();
       if(curTab==="expenses") renderExpenses();
     } else if(isCaptain()&&bookingSt==="cancelled"){
