@@ -47,6 +47,7 @@ function checkTrackerHtmlSyntax() {
     "tracker/js/models/leads.js",
     "tracker/js/models/charges.js",
     "tracker/js/models/expenses.js",
+    "tracker/js/models/cash.js",
     "tracker/js/models/diesel.js",
     "tracker/js/models/stews.js",
     "tracker/js/models/apa.js",
@@ -1200,6 +1201,67 @@ console.log("\n[APA — controller planSaveTrip]");
     "ctrl shortfall is cash pin not create",
     plan.shortfall.action === "pin_paid_manual" || plan.shortfall.action === "pin"
   );
+}
+
+/* ---- Boat cash ledger (compose) ---- */
+console.log("\n[Cash — boat ledger composition]");
+{
+  const led = M.summarizeBoatCashLedger({
+    freeCashBoat: 1800,
+    freeCashOwner: 500,
+    chargesCashBoat: 650,
+    pettyCashIn: 200,
+    expensePettyOut: 400,
+    expenseOutItems: [{ label: "Makro", amount: 400, kind: "expense" }],
+  });
+  ok("boat in = free boat + charges + petty in", near(led.boatIn, 1800 + 650 + 200));
+  ok("boat out = expenses", near(led.boatOut, 400));
+  ok("boat net", near(led.boatNet, 1800 + 650 + 200 - 400));
+  ok("owner free cash not in boat in", near(led.freeCashOwner, 500));
+  const ins = M.summarizePettyCashInRows(
+    [
+      { id: "1", amount: 100, note: "Top up" },
+      { id: "2", amount: 50, note: "Tip guest", tip: true },
+    ],
+    {
+      skip: function (r) {
+        return !!r.tip;
+      },
+    }
+  );
+  ok("petty cash-in skips tip rows", near(ins.total, 100));
+  ok("petty cash-in n=1", ins.n === 1);
+  const flat = M.collectPettyCashInsFromMonths([
+    { month: "2026-08", cashIns: [{ id: "a", amount: 80, date: "2026-08-02" }] },
+  ]);
+  ok("collect petty cash-ins from months", flat.length === 1 && near(flat[0].amount, 80));
+  const dash = C.leads.moneyDashboard({
+    models: M,
+    leads: [],
+    charters: [
+      { id: "c1", payStatus: "Paid", billType: "cash", amount: 100, cashPaid: 100, client: "X", date: "2026-08-01" },
+    ],
+    expenses: [
+      {
+        id: "e1",
+        date: "2026-08-03",
+        amount: 40,
+        category: "Provisions",
+        paidFrom: "Petty cash",
+        payMethod: "Cash",
+        vendor: "Shop",
+      },
+    ],
+    expPetty: [{ month: "2026-08", cashIns: [{ id: "ci1", amount: 25, date: "2026-08-01", note: "Float" }] }],
+    today: "2026-08-10",
+    cashInIsTip: function () {
+      return false;
+    },
+  });
+  ok("dashboard has cashLedger", !!dash.cashLedger);
+  ok("dashboard charges cash in ledger", near(dash.cashLedger.chargesCashBoat, 100));
+  ok("dashboard expense out in ledger", near(dash.cashLedger.expensePettyOut, 40));
+  ok("dashboard petty in in ledger", near(dash.cashLedger.pettyCashIn, 25));
 }
 
 /* ---- Leads realised glimpse ---- */
