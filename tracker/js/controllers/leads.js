@@ -1,6 +1,11 @@
 /**
  * LY_CONTROLLERS.leads — Leads dashboard application service.
- * Assembles realised glimpse (white net + boat free cash). No DOM.
+ *
+ * Assembles multi-domain snapshots (leads, charges, expenses/petty) into
+ * pure model inputs. Returns DTOs only — no DOM.
+ *
+ * Cross-domain cash: leads free cash + charges cash-to-boat + expense petty
+ * outs + petty cash-ins → models.summarizeBoatCashLedger (cash.js).
  */
 (function (root, factory) {
   "use strict";
@@ -21,14 +26,6 @@
 
   /**
    * Realised free cash (sailed/today only) + white net glimpse.
-   *
-   * @param {{
-   *   models?,
-   *   leads: Array,
-   *   today: string,
-   *   whiteEx: number,   // before VAT (cash-free bases), realised
-   *   whiteComm: number  // commissions, realised
-   * }} input
    */
   function realisedGlimpse(input) {
     input = input || {};
@@ -52,7 +49,68 @@
   }
 
   /**
-   * Full Leads money dashboard DTO (done/proj/source cards) + realised glimpse.
+   * Boat cash ledger for Leads money details.
+   * Controller pulls each domain; cash model only composes plain numbers.
+   *
+   * @param {{
+   *   models?,
+   *   leads, charters, expenses, expPetty,
+   *   today?: string,
+   *   cashInIsTip?: function
+   * }} input
+   */
+  function boatCashLedger(input) {
+    input = input || {};
+    var models = M(input);
+    var today = input.today || "";
+    var freeCash = models.summarizeLeadCashIncomeRealised(input.leads || [], today);
+    var chargesCash = models.summarizeChargeCashToBoat
+      ? models.summarizeChargeCashToBoat(input.charters || [])
+      : { total: 0, n: 0, items: [] };
+
+    var cashInIsTip =
+      typeof input.cashInIsTip === "function"
+        ? input.cashInIsTip
+        : function () {
+            return false;
+          };
+    var flatIns = models.collectPettyCashInsFromMonths
+      ? models.collectPettyCashInsFromMonths(input.expPetty || [])
+      : [];
+    var pettyIn = models.summarizePettyCashInRows
+      ? models.summarizePettyCashInRows(flatIns, {
+          skip: function (r) {
+            return cashInIsTip(r);
+          },
+        })
+      : { total: 0, n: 0, items: [] };
+
+    /* All expense cash outs that hit petty (all months) */
+    var pettySum = models.summarizePettyCash({
+      pettyStart: 0,
+      cashIns: [],
+      expenses: input.expenses || [],
+    });
+
+    return models.summarizeBoatCashLedger({
+      freeCashBoat: freeCash.boat,
+      freeCashOwner: freeCash.owner,
+      freeCashItems: freeCash.items,
+      freeCashN: freeCash.n,
+      freeCashBoatN: freeCash.boatN,
+      freeCashOwnerN: freeCash.ownerN,
+      chargesCashBoat: chargesCash.total,
+      chargesCashItems: chargesCash.items,
+      chargesCashN: chargesCash.n,
+      pettyCashIn: pettyIn.total,
+      pettyCashInItems: pettyIn.items,
+      expensePettyOut: pettySum.cashOut,
+      expenseOutItems: pettySum.cashOutLines || [],
+    });
+  }
+
+  /**
+   * Full Leads money dashboard DTO + realised glimpse + boat cash ledger.
    */
   function moneyDashboard(input) {
     input = input || {};
@@ -67,12 +125,14 @@
       chargeExtHours: models.chargeExtHours,
       chargeExtAmt: models.chargeExtAmt,
     });
+    var freeCash = models.summarizeLeadCashIncomeRealised(input.leads || [], input.today || "");
     var glimpse = models.summarizeRealisedNetGlimpse({
       whiteEx: dash.done.ex,
       whiteComm: dash.done.comm,
-      cashRealised: models.summarizeLeadCashIncomeRealised(input.leads || [], input.today || ""),
+      cashRealised: freeCash,
     });
     dash.glimpse = glimpse;
+    dash.cashLedger = boatCashLedger(input);
     return dash;
   }
 
@@ -80,6 +140,7 @@
     realisedGlimpse: realisedGlimpse,
     listMoney: listMoney,
     charterTiming: charterTiming,
+    boatCashLedger: boatCashLedger,
     moneyDashboard: moneyDashboard,
   };
 });

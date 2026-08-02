@@ -414,6 +414,78 @@ function clearCrewFloatPayOnEmptyEnvelope(expenses, pettyStart, cashIns) {
  *
  * @param {{ pettyStart?: number, cashIns?: Array, expenses?: Array }} opts
  */
+/**
+ * Flatten + sum petty cash-in rows (envelope top-ups).
+ * Controller supplies skip() for tips / own-money if needed.
+ *
+ * @param {Array} cashIns
+ * @param {{ skip?: function }} [opts]
+ * @returns {{ total, n, items }}
+ */
+function summarizePettyCashInRows(cashIns, opts) {
+  opts = opts || {};
+  var skip = typeof opts.skip === "function" ? opts.skip : function () {
+    return false;
+  };
+  var total = 0;
+  var items = [];
+  (Array.isArray(cashIns) ? cashIns : []).forEach(function (r) {
+    if (!r || skip(r)) return;
+    var a = round2(num(r.amount));
+    if (!(a > 0.009)) return;
+    total = round2(total + a);
+    items.push({
+      id: r.id != null ? String(r.id) : "",
+      amount: a,
+      date: String(r.date || "").slice(0, 10),
+      label: String(r.note || r.notes || r.source || r.label || "Cash in").trim() || "Cash in",
+      kind: "cash-in",
+      month: r.month ? String(r.month).slice(0, 7) : String(r.date || "").slice(0, 7),
+    });
+  });
+  items.sort(function (a, b) {
+    var da = String(a.date || ""),
+      db = String(b.date || "");
+    if (da && db && da !== db) return db < da ? -1 : 1;
+    return (b.amount || 0) - (a.amount || 0);
+  });
+  return { total: total, n: items.length, items: items };
+}
+
+/**
+ * Collect cashIn rows from expPetty month records (nested cashIns arrays).
+ * Pure — no DOM.
+ *
+ * @param {Array} expPetty  [{ month, cashIns: [...] }, ...]
+ * @returns {Array}
+ */
+function collectPettyCashInsFromMonths(expPetty) {
+  var out = [];
+  (Array.isArray(expPetty) ? expPetty : []).forEach(function (p) {
+    if (!p) return;
+    var mon = String(p.month || "").slice(0, 7);
+    (Array.isArray(p.cashIns) ? p.cashIns : []).forEach(function (r) {
+      if (!r) return;
+      var row = Object.assign({}, r);
+      if (!row.month && mon) row.month = mon;
+      if (!row.date && mon) row.date = mon + "-01";
+      out.push(row);
+    });
+    /* Legacy single pettyIn on month row */
+    if ((!p.cashIns || !p.cashIns.length) && num(p.pettyIn) > 0.009) {
+      out.push({
+        id: "pettyIn:" + mon,
+        amount: num(p.pettyIn),
+        date: mon ? mon + "-01" : "",
+        month: mon,
+        note: "Cash in (month total)",
+        source: "pettyIn",
+      });
+    }
+  });
+  return out;
+}
+
 function summarizePettyCash(opts) {
   opts = opts || {};
   var storedStart = round2(num(opts.pettyStart));
@@ -1322,6 +1394,8 @@ function summarizeMonthSettlement(opts) {
     collapseCrewDayPayExpenses: collapseCrewDayPayExpenses,
     clearCrewFloatPayOnEmptyEnvelope: clearCrewFloatPayOnEmptyEnvelope,
     summarizePettyCash: summarizePettyCash,
+    summarizePettyCashInRows: summarizePettyCashInRows,
+    collectPettyCashInsFromMonths: collectPettyCashInsFromMonths,
     isCaptainCommissionExpense: isCaptainCommissionExpense,
     summarizeCaptainCommissionPaid: summarizeCaptainCommissionPaid,
     summarizeCaptainCommissionBalance: summarizeCaptainCommissionBalance,

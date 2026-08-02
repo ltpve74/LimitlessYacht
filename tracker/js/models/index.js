@@ -2,10 +2,11 @@
  * LY_MODELS composition — merges domain modules.
  *
  * Browser (tracker/index.html) load order:
- *   util → leads → charges → expenses → diesel → stews → apa → index
+ *   util → leads → charges → expenses → cash → diesel → stews → apa → index
  * Node: require("tracker/js/models.js")
  *
  * Boundaries: no sideways domain imports (only util; charges may read leads.CAPTAIN_COMMISSION_PCT).
+ * Cross-domain composition → controllers (e.g. leads.moneyDashboard + cash ledger).
  */
 (function (root, factory) {
   "use strict";
@@ -22,12 +23,13 @@
   var leads = isNode ? require("./leads.js") : parts.leads;
   var charges = isNode ? require("./charges.js") : parts.charges;
   var expenses = isNode ? require("./expenses.js") : parts.expenses;
+  var cash = isNode ? require("./cash.js") : parts.cash;
   var diesel = isNode ? require("./diesel.js") : parts.diesel;
   var stews = isNode ? require("./stews.js") : parts.stews;
   var apa = isNode ? require("./apa.js") : parts.apa;
-  if (!util || !leads || !charges || !expenses || !diesel || !stews || !apa) {
+  if (!util || !leads || !charges || !expenses || !cash || !diesel || !stews || !apa) {
     throw new Error(
-      "LY_MODELS parts missing — load models/{util,leads,charges,expenses,diesel,stews,apa}.js before index.js"
+      "LY_MODELS parts missing — load models/{util,leads,charges,expenses,cash,diesel,stews,apa}.js before index.js"
     );
   }
   function assign(target, src) {
@@ -41,6 +43,7 @@
   assign(api, leads);
   assign(api, charges);
   assign(api, expenses);
+  assign(api, cash);
   assign(api, diesel);
   assign(api, stews);
   assign(api, apa);
