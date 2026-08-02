@@ -925,20 +925,20 @@
 
 <!-- Domain models + controllers (MVC blueprint) — tests: node scripts/test-tracker-models.mjs -->
 <!-- LY_MODELS → LY_CONTROLLERS → view. See .agent/briefs/tracker-v1-mvc-blueprint.md -->
-<script src="/tracker/js/models/util.js?v=20260806-mvc5"></script>
-<script src="/tracker/js/models/leads.js?v=20260806-mvc5"></script>
-<script src="/tracker/js/models/charges.js?v=20260806-mvc5"></script>
-<script src="/tracker/js/models/expenses.js?v=20260806-mvc5"></script>
-<script src="/tracker/js/models/diesel.js?v=20260806-mvc5"></script>
-<script src="/tracker/js/models/stews.js?v=20260806-mvc5"></script>
-<script src="/tracker/js/models/apa.js?v=20260806-mvc5"></script>
-<script src="/tracker/js/models/index.js?v=20260806-mvc5"></script>
-<script src="/tracker/js/controllers/expenses.js?v=20260806-mvc5"></script>
-<script src="/tracker/js/controllers/charges.js?v=20260806-mvc5"></script>
-<script src="/tracker/js/controllers/leads.js?v=20260806-mvc5"></script>
-<script src="/tracker/js/controllers/apa.js?v=20260806-mvc5"></script>
-<script src="/tracker/js/controllers/stews.js?v=20260806-mvc5"></script>
-<script src="/tracker/js/controllers/index.js?v=20260806-mvc5"></script>
+<script src="/tracker/js/models/util.js?v=20260807-apa-ghost"></script>
+<script src="/tracker/js/models/leads.js?v=20260807-apa-ghost"></script>
+<script src="/tracker/js/models/charges.js?v=20260807-apa-ghost"></script>
+<script src="/tracker/js/models/expenses.js?v=20260807-apa-ghost"></script>
+<script src="/tracker/js/models/diesel.js?v=20260807-apa-ghost"></script>
+<script src="/tracker/js/models/stews.js?v=20260807-apa-ghost"></script>
+<script src="/tracker/js/models/apa.js?v=20260807-apa-ghost"></script>
+<script src="/tracker/js/models/index.js?v=20260807-apa-ghost"></script>
+<script src="/tracker/js/controllers/expenses.js?v=20260807-apa-ghost"></script>
+<script src="/tracker/js/controllers/charges.js?v=20260807-apa-ghost"></script>
+<script src="/tracker/js/controllers/leads.js?v=20260807-apa-ghost"></script>
+<script src="/tracker/js/controllers/apa.js?v=20260807-apa-ghost"></script>
+<script src="/tracker/js/controllers/stews.js?v=20260807-apa-ghost"></script>
+<script src="/tracker/js/controllers/index.js?v=20260807-apa-ghost"></script>
 <script>
 "use strict";
 var API = "/.netlify/functions/tracker";
@@ -6023,7 +6023,8 @@ function findApaTripsForLead(lead){
   var key="lead:"+lead.id;
   var name=normName(lead.name);
   return state.apa.filter(function(t){
-    if(!t) return false;
+    if(!t||!t.id) return false;
+    if(typeof isTombstoned==="function"&&isTombstoned("apa", t.id)) return false;
     if(t.clientKey===key||String(t.linkSourceId||"")===String(lead.id)) return true;
     if(name&&normName(t.guest)===name) return true;
     return false;
@@ -6332,11 +6333,18 @@ function findReusableApaCharge(t){
     });
     return byTrip[0];
   }
-  /* One unpaid orphan APA charge for this guest (no trip / dead trip) — adopt, don't duplicate */
+  /* One unpaid orphan APA charge for this guest (no trip / dead trip) — adopt, don't duplicate.
+     Skip when THIS pot has no spend yet: orphans are almost always residue from a deleted pot
+     (ghost € amount + empty diesel/provisions itemisation). Fresh pots start clean. */
+  try{
+    if(typeof apaTripIsEmptyShell==="function"&&apaTripIsEmptyShell(t)) return null;
+  }catch(eEmpty){}
   var g=normName(t.guest);
   if(!g) return null;
   var liveTripIds={};
-  (state.apa||[]).forEach(function(x){ if(x&&x.id) liveTripIds[String(x.id)]=1; });
+  (state.apa||[]).forEach(function(x){
+    if(x&&x.id&&!(typeof isTombstoned==="function"&&isTombstoned("apa", x.id))) liveTripIds[String(x.id)]=1;
+  });
   var orphans=(state.charters||[]).filter(function(c){
     if(!c||!isApaChargeRow(c)) return false;
     if(typeof isTombstoned==="function"&&isTombstoned("charters", c.id)) return false;
@@ -6643,7 +6651,9 @@ function syncApaToCharge(t, opts){
   if(ch&&act==="update_zero_base"){
     ch.apaTripId=t.id; ch.kind="apa"; t.chargeId=ch.id;
     if(!String(ch.client||"").trim()) ch.client=t.guest;
-    if(chargeExtAmt(ch)>0) applyApaChargeMoney(ch, 0);
+    /* Always clear shortfall € when pot has no overage — orphan residual from a
+       deleted pot must not stick as a phantom €460 with empty itemisation. */
+    if(!chargeIsLockedMoney(ch)) applyApaChargeMoney(ch, 0);
     return ch;
   }
   if(ch&&act==="update"){
@@ -6705,27 +6715,69 @@ function syncApaToCharge(t, opts){
 function refreshApaFromCharges(){
   /* no-op — kept so older call sites do not throw */
 }
+/**
+ * On pot delete: remove APA-sourced monthly mirrors (they only exist for this
+ * pot) and unlink user-created monthly lines that were tagged to the pot.
+ * Never leave Fuel/Provisions mirrors floating — they rehydrate a new pot
+ * for the same charter via guest/name match or re-tag.
+ */
+function purgeMonthlyExpensesForDeletedApaTrip(trip){
+  if(!trip||!trip.id||!isCaptain()||!state.expenses) return false;
+  var tripId=String(trip.id);
+  var lineIds={};
+  var expenseIds={};
+  function markLines(arr){
+    (arr||[]).forEach(function(x){
+      if(!x) return;
+      if(x.id) lineIds[String(x.id)]=1;
+      if(x.expenseId) expenseIds[String(x.expenseId)]=1;
+      if(x.fromExpenseId) expenseIds[String(x.fromExpenseId)]=1;
+    });
+  }
+  markLines(trip.expenses);
+  markLines(trip.provisions);
+  /* diesel consumption is pot-only (no monthly mirror) — still mark ids for safety */
+  markLines(trip.diesel);
+  markLines(trip.dieselLoads);
+  var dirty=false;
+  var next=[];
+  (state.expenses||[]).forEach(function(e){
+    if(!e) return;
+    var eid=String(e.id||"");
+    var fromLine=e.fromApaLineId?String(e.fromApaLineId):"";
+    var onTrip=String(e.apaTripId||"")===tripId;
+    var isApaMirror=e.source==="apa"||!!fromLine;
+    /* Drop pot-owned mirrors entirely (diesel/provisions/expenses posted from APA) */
+    if(isApaMirror&&(onTrip||(fromLine&&lineIds[fromLine])||(eid&&expenseIds[eid]))){
+      dirty=true;
+      return;
+    }
+    /* User-created monthly line that was only tagged to this pot → boat again */
+    if(onTrip){
+      e.apaTripId="";
+      e.chargeTo="boat";
+      e.updatedAt=new Date().toISOString();
+      dirty=true;
+    }
+    next.push(e);
+  });
+  if(dirty) state.expenses=next;
+  return dirty;
+}
 function deleteApaTrip(id){
   if(!canOps()||!id) return;
   var t=(state.apa||[]).filter(function(x){return x.id===id;})[0];
   if(!t) return;
   if(!window.confirm("Delete APA trip for "+(t.guest||"this charter")+"?\n\nAll expenses, provisions, diesel loads and consumption are removed. Any linked shortfall charges are removed too.")) return;
   removeApaLinkedCharges(t, false);
-  state.apa=state.apa.filter(function(x){return x.id!==id;});
+  /* Hard-delete pot: tombstone + deletedIds so save/merge cannot resurrect diesel/spend */
+  try{ voidDeletedId("apa", id); }catch(eVoid){}
+  var expDirty=purgeMonthlyExpensesForDeletedApaTrip(t);
+  state.apa=(state.apa||[]).filter(function(x){return !x||x.id!==id;});
+  /* Belt: drop any other pots already tombstoned */
+  if(Array.isArray(state.apa)) state.apa=filterTombstonedRows("apa", state.apa);
   if(activeApaId===id){ activeApaId=null; apaView="list"; }
-  /* Monthly expenses tagged to this pot become boat-running again */
-  if(isCaptain()&&state.expenses){
-    var expDirty=false;
-    state.expenses.forEach(function(e){
-      if(e&&String(e.apaTripId||"")===String(id)){
-        e.apaTripId="";
-        e.chargeTo="boat";
-        e.updatedAt=new Date().toISOString();
-        expDirty=true;
-      }
-    });
-    if(expDirty) saveExpenses();
-  }
+  if(expDirty) saveExpenses();
   save("apa"); save("charters");
   renderCharters(); renderApa();
   if(curTab==="expenses") renderExpenses();
@@ -7302,12 +7354,44 @@ function renderApaList(){
     x.addEventListener("click",function(){ startApaFromLead(x.getAttribute("data-apa-from-lead")); });
   });
 }
+/**
+ * Drop unpaid APA shortfall charges for this guest that point at a deleted pot
+ * (or no pot). Used when starting a fresh ledger so residual € (e.g. 460 diesel)
+ * cannot pin onto an empty pot with zero itemisation.
+ */
+function dropOrphanUnpaidApaChargesForGuest(guestName, keepTripId){
+  if(!canOps()||!state.charters) return false;
+  var g=normName(guestName);
+  if(!g) return false;
+  var live={};
+  (state.apa||[]).forEach(function(x){
+    if(x&&x.id&&!(typeof isTombstoned==="function"&&isTombstoned("apa", x.id))) live[String(x.id)]=1;
+  });
+  if(keepTripId) live[String(keepTripId)]=1;
+  var dirty=false;
+  state.charters=(state.charters||[]).filter(function(c){
+    if(!c||!isApaChargeRow(c)) return true;
+    if(typeof isTombstoned==="function"&&isTombstoned("charters", c.id)) return false;
+    if(chargePay(c)==="Paid") return true;
+    if(normName(c.client)!==g) return true;
+    var tid=String(c.apaTripId||"");
+    if(tid&&live[tid]) return true;
+    /* Orphan / dead-trip unpaid shortfall — remove */
+    try{ voidDeletedId("charters", c.id); }catch(eD){}
+    dirty=true;
+    return false;
+  });
+  return dirty;
+}
 function startApaFromLead(leadId){
   var l=(state.leads||[]).filter(function(x){return x.id===leadId;})[0];
   if(!l) return;
+  /* Drop any tombstoned ghosts before "reuse existing" check */
+  if(Array.isArray(state.apa)) state.apa=filterTombstonedRows("apa", state.apa);
   /* Never open a second pot for the same lead/guest */
   var existing=findApaTripForLead(l);
   if(existing){
+    /* Existing live pot only — never rehydrate deleted pot lines */
     openApaDetail(existing.id);
     return;
   }
@@ -7324,6 +7408,15 @@ function startApaFromLead(leadId){
   t.apaSent=Number(l.apa)||0;
   t.dates=apaClientDates(l);
   t.captain="Luigi";
+  /* Explicit empty ledger — never copy diesel/provisions from a deleted pot */
+  t.expenses=[];
+  t.provisions=[];
+  t.diesel=[];
+  t.dieselLoads=[];
+  t.chargeId="";
+  t.suppressShortfallCharge=false;
+  /* Clear residual shortfall charges from a previously deleted pot for this guest */
+  dropOrphanUnpaidApaChargesForGuest(t.guest, t.id);
   state.apa.unshift(t);
   /* New pot: may create first shortfall charge if already overspent */
   syncApaToCharge(t, {force:true, allowCreate:true});
@@ -7361,9 +7454,12 @@ function apaOverviewHTML(t){
   var pctShow=Math.min(100, Math.round(x.pct*1000)/10);
   var catRows=APA_DASH_CATS.map(function(c){
     var v=0;
-    if(c.key==="fuel") v=x.dCost;
-    else if(c.key==="food") v=x.prov;
-    else v=x.cats[c.label]||0;
+    if(c.key==="fuel"){
+      /* Diesel tab consumption + any Fuel / Diesel expense lines */
+      v=(Number(x.dCost)||0)+(x.cats&&Number(x.cats["Fuel / Diesel"])||0);
+    } else if(c.key==="food"){
+      v=(Number(x.prov)||0)+(x.cats&&Number(x.cats["Food & Provisions"])||0);
+    } else v=x.cats[c.label]||0;
     return '<tr><td>'+esc(c.label)+'</td><td class="money" style="text-align:right;font-weight:700">'+money(v)+'</td></tr>';
   }).join("");
   var ch=findApaChargeForTrip(t);
@@ -16713,8 +16809,9 @@ el("sheetInner").addEventListener("input",function(){ recalcLead(); recalcCharge
 el("sheetInner").addEventListener("change",function(){ recalcLead(); recalcCharge(); });
 
 /* Explicit deletes for merge-safe full-array saves (server keeps missing ids otherwise). */
-var pendingDeletedIds={ leads:[], charters:[] };
-/** Durable tombstones — poll/save merge must not resurrect deleted charges/leads. */
+var pendingDeletedIds={ leads:[], charters:[], apa:[] };
+var TOMBSTONE_COLLS={ leads:1, charters:1, apa:1 };
+/** Durable tombstones — poll/save merge must not resurrect deleted charges/leads/APA pots. */
 var TOMBSTONE_KEY="ly_tracker_tombstones_v1";
 function loadTombstones(){
   try{ return JSON.parse(safeGet(TOMBSTONE_KEY)||"{}")||{}; }catch(e){ return {}; }
@@ -16723,7 +16820,7 @@ function saveTombstones(map){
   try{ safeSet(TOMBSTONE_KEY, JSON.stringify(map||{})); }catch(e){}
 }
 function addTombstone(coll, id){
-  if((coll!=="leads"&&coll!=="charters")||id==null||id==="") return;
+  if(!TOMBSTONE_COLLS[coll]||id==null||id==="") return;
   var map=loadTombstones();
   if(!map[coll]) map[coll]={};
   map[coll][String(id)]=Date.now();
@@ -16746,7 +16843,7 @@ function filterTombstonedRows(coll, rows){
 }
 /** Queue an explicit delete so the next save sends deletedIds (server merge keeps other rows). */
 function voidDeletedId(coll, id){
-  if((coll!=="leads"&&coll!=="charters")||id==null||id==="") return;
+  if(!TOMBSTONE_COLLS[coll]||id==null||id==="") return;
   var arr=pendingDeletedIds[coll]||(pendingDeletedIds[coll]=[]);
   var s=String(id);
   if(arr.indexOf(s)<0) arr.push(s);
@@ -16771,13 +16868,13 @@ function save(coll){
   /* Snapshot now so a concurrent poll cannot mutate the payload mid-flight */
   var rows=state[coll];
   try{ rows=JSON.parse(JSON.stringify(state[coll]||[])); }catch(e){ rows=state[coll]; }
-  if(coll==="leads"||coll==="charters"){
+  if(coll==="leads"||coll==="charters"||coll==="apa"){
     rows=filterTombstonedRows(coll, rows||[]);
     /* Keep deletedIds even if already tombstoned (server must drop them) */
   }
-  var deletedIds=(coll==="leads"||coll==="charters")?takeDeletedIds(coll):[];
-  /* Always re-send recent tombstones with charters/leads saves so server drops them */
-  if(coll==="leads"||coll==="charters"){
+  var deletedIds=(coll==="leads"||coll==="charters"||coll==="apa")?takeDeletedIds(coll):[];
+  /* Always re-send recent tombstones so server drops deleted pots/charges/leads */
+  if(coll==="leads"||coll==="charters"||coll==="apa"){
     try{
       var map=loadTombstones();
       var extra=Object.keys(map[coll]||{});
@@ -16794,12 +16891,14 @@ function save(coll){
      * Server may have preserved leads/charters this client never had
      * (e.g. calendar restore on another tab). Adopt merged rows.
      */
-    if(j&&Array.isArray(j.rows)&&(coll==="leads"||coll==="charters")){
+    if(j&&Array.isArray(j.rows)&&(coll==="leads"||coll==="charters"||coll==="apa")){
       var adopted=filterTombstonedRows(coll, j.rows);
       if(coll==="leads") state.leads=adopted;
-      else state.charters=adopted;
+      else if(coll==="charters") state.charters=adopted;
+      else if(coll==="apa") state.apa=adopted;
       if(coll==="leads"&&curTab==="leads") try{ renderLeads(); }catch(eR){}
       if(coll==="charters"&&curTab==="charters") try{ renderCharters(); }catch(eC){}
+      if(coll==="apa"&&curTab==="apa") try{ renderApa(); }catch(eA){}
     }
     if(coll==="expenses"||coll==="expPetty"||coll==="stewAssign"||coll==="leads"||coll==="charters"||coll==="apa") touchLocalSave(coll);
     if(hint){
@@ -17217,10 +17316,11 @@ function applyData(d, opts){
     if(fromPoll&&localSaveIsFresh("apa")){
       /* keep local APA pots while save settles */
     } else if(fromPoll){
-      state.apa=mergeExpensesById(state.apa||[], d.apa);
+      state.apa=mergeExpensesById(state.apa||[], d.apa, "apa");
     } else {
       state.apa=d.apa;
     }
+    if(Array.isArray(state.apa)) state.apa=filterTombstonedRows("apa", state.apa);
   } else if(!canOps()) state.apa=[];
   if(canOps() && Array.isArray(d.diesel)) state.diesel=d.diesel;
   else if(!canOps()) state.diesel=[];
