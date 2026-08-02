@@ -925,20 +925,20 @@
 
 <!-- Domain models + controllers (MVC blueprint) — tests: node scripts/test-tracker-models.mjs -->
 <!-- LY_MODELS → LY_CONTROLLERS → view. See .agent/briefs/tracker-v1-mvc-blueprint.md -->
-<script src="/tracker/js/models/util.js?v=20260807-apa-del2"></script>
-<script src="/tracker/js/models/leads.js?v=20260807-apa-del2"></script>
-<script src="/tracker/js/models/charges.js?v=20260807-apa-del2"></script>
-<script src="/tracker/js/models/expenses.js?v=20260807-apa-del2"></script>
-<script src="/tracker/js/models/diesel.js?v=20260807-apa-del2"></script>
-<script src="/tracker/js/models/stews.js?v=20260807-apa-del2"></script>
-<script src="/tracker/js/models/apa.js?v=20260807-apa-del2"></script>
-<script src="/tracker/js/models/index.js?v=20260807-apa-del2"></script>
-<script src="/tracker/js/controllers/expenses.js?v=20260807-apa-del2"></script>
-<script src="/tracker/js/controllers/charges.js?v=20260807-apa-del2"></script>
-<script src="/tracker/js/controllers/leads.js?v=20260807-apa-del2"></script>
-<script src="/tracker/js/controllers/apa.js?v=20260807-apa-del2"></script>
-<script src="/tracker/js/controllers/stews.js?v=20260807-apa-del2"></script>
-<script src="/tracker/js/controllers/index.js?v=20260807-apa-del2"></script>
+<script src="/tracker/js/models/util.js?v=20260807-apa-seed"></script>
+<script src="/tracker/js/models/leads.js?v=20260807-apa-seed"></script>
+<script src="/tracker/js/models/charges.js?v=20260807-apa-seed"></script>
+<script src="/tracker/js/models/expenses.js?v=20260807-apa-seed"></script>
+<script src="/tracker/js/models/diesel.js?v=20260807-apa-seed"></script>
+<script src="/tracker/js/models/stews.js?v=20260807-apa-seed"></script>
+<script src="/tracker/js/models/apa.js?v=20260807-apa-seed"></script>
+<script src="/tracker/js/models/index.js?v=20260807-apa-seed"></script>
+<script src="/tracker/js/controllers/expenses.js?v=20260807-apa-seed"></script>
+<script src="/tracker/js/controllers/charges.js?v=20260807-apa-seed"></script>
+<script src="/tracker/js/controllers/leads.js?v=20260807-apa-seed"></script>
+<script src="/tracker/js/controllers/apa.js?v=20260807-apa-seed"></script>
+<script src="/tracker/js/controllers/stews.js?v=20260807-apa-seed"></script>
+<script src="/tracker/js/controllers/index.js?v=20260807-apa-seed"></script>
 <script>
 "use strict";
 var API = "/.netlify/functions/tracker";
@@ -6649,9 +6649,20 @@ function deleteApaTrip(id){
   var t=(state.apa||[]).filter(function(x){return x.id===id;})[0];
   if(!t) return;
   if(!window.confirm("Delete APA trip for "+(t.guest||"this charter")+"?\n\nAll expenses, provisions, diesel loads and consumption are removed. Any linked shortfall charges are removed too.")) return;
+  var lead=apaLinkedLead(t);
   if(window.LY_CONTROLLERS&&LY_CONTROLLERS.apa&&LY_CONTROLLERS.apa.planTripDelete){
-    var plan=LY_CONTROLLERS.apa.planTripDelete(apaControllerSnapshot({ trip:t }));
+    var plan=LY_CONTROLLERS.apa.planTripDelete(apaControllerSnapshot({
+      trip:t,
+      leadApa:lead?lead.apa:0,
+      leadApas:lead?lead.apas:""
+    }));
     applyApaWritePlan(t, plan);
+    /* Clear shortfall-to-invoice on lead so recreate does not seed “APA received” */
+    if(plan.leadPatch&&lead){
+      if(plan.leadPatch.apa!=null) lead.apa=plan.leadPatch.apa;
+      if(plan.leadPatch.apas!=null) lead.apas=plan.leadPatch.apas;
+      save("leads");
+    }
   } else {
     removeApaLinkedCharges(t, false);
   }
@@ -7087,17 +7098,27 @@ function openApaDetail(id){
   activeApaId=id;
   apaView="detail";
   apaSub="overview";
-  /*
-   * Apply guest charge collapse write plan when opening a pot (same plan as save).
-   * Pins Paid cash (Danny) and drops unpaid twin shortfalls without inventing rules in the view.
-   */
   var t=(state.apa||[]).filter(function(x){return x&&String(x.id)===String(id);})[0];
-  if(t&&canOps()&&window.LY_CONTROLLERS&&LY_CONTROLLERS.apa&&LY_CONTROLLERS.apa.planGuestChargeCollapse){
-    var plan=LY_CONTROLLERS.apa.planGuestChargeCollapse(apaControllerSnapshot({ trip:t }));
-    if(plan&&((plan.dropChargeIds&&plan.dropChargeIds.length)||(plan.tripPatch&&plan.tripPatch.apaCashSettled)||(plan.chargePatches&&plan.chargePatches.length))){
-      applyApaWritePlan(t, plan);
-      save("apa"); save("charters");
+  if(t&&canOps()&&window.LY_CONTROLLERS&&LY_CONTROLLERS.apa){
+    var dirtyOpen=false;
+    var lead=apaLinkedLead(t);
+    /* Clear shortfall € mis-seeded as APA received (Roman) */
+    if(LY_CONTROLLERS.apa.planSanitizeLinkedPotSeed){
+      var seedPlan=LY_CONTROLLERS.apa.planSanitizeLinkedPotSeed(apaControllerSnapshot({ trip:t, lead:lead||{} }));
+      if(seedPlan&&seedPlan.tripPatch){
+        applyApaWritePlan(t, seedPlan);
+        dirtyOpen=true;
+      }
     }
+    /* Pins Paid cash; drops unpaid twin shortfalls (same plan as save) */
+    if(LY_CONTROLLERS.apa.planGuestChargeCollapse){
+      var plan=LY_CONTROLLERS.apa.planGuestChargeCollapse(apaControllerSnapshot({ trip:t }));
+      if(plan&&((plan.dropChargeIds&&plan.dropChargeIds.length)||(plan.tripPatch&&Object.keys(plan.tripPatch).length)||(plan.chargePatches&&plan.chargePatches.length))){
+        applyApaWritePlan(t, plan);
+        dirtyOpen=true;
+      }
+    }
+    if(dirtyOpen){ save("apa"); save("charters"); }
   }
   renderApa();
 }
@@ -7247,19 +7268,20 @@ function startApaFromLead(leadId){
   t.linkSource="lead";
   t.linkSourceId=l.id;
   t.linkInvKind="apas";
-  t.linkInvNo=l.apaInv||"";
-  t.linkInvLabel="APA";
-  t.linkInvAmount=Number(l.apa)||0;
-  t.apaSent=Number(l.apa)||0;
   t.dates=apaClientDates(l);
   t.captain="Luigi";
   t.expenses=[]; t.provisions=[]; t.diesel=[]; t.dieselLoads=[];
-  t.chargeId="";
-  t.suppressShortfallCharge=false;
+  /* Controller seeds apaSent only from Issued/Paid prepaid — never shortfall-to-invoice */
   if(window.LY_CONTROLLERS&&LY_CONTROLLERS.apa&&LY_CONTROLLERS.apa.planStartEmptyPot){
-    applyApaWritePlan(t, LY_CONTROLLERS.apa.planStartEmptyPot(apaControllerSnapshot({
-      guest:t.guest, keepTripId:t.id
-    })));
+    var startPlan=LY_CONTROLLERS.apa.planStartEmptyPot(apaControllerSnapshot({
+      guest:t.guest, keepTripId:t.id, lead:l
+    }));
+    applyApaWritePlan(t, startPlan);
+    if(startPlan.potSeed){
+      Object.keys(startPlan.potSeed).forEach(function(k){ t[k]=startPlan.potSeed[k]; });
+    }
+  } else {
+    t.linkInvNo=""; t.linkInvLabel=""; t.linkInvAmount=0; t.apaSent=0; t.chargeId="";
   }
   state.apa.unshift(t);
   syncApaToCharge(t, {force:true, allowCreate:true});

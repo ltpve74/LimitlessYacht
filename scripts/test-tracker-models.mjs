@@ -1109,6 +1109,36 @@ console.log("\n[APA — charge pick + delete/start plans]");
     liveTripIds: { new: 1 },
   });
   ok("empty pot does not adopt orphan", emptyPick.chargeId == null);
+  /* Shortfall-to-invoice on lead must not seed APA received */
+  ok("Not issued lead APA is not prepaid", !M.leadApaIsPrepaid("Not issued"));
+  ok("Issued lead APA is prepaid", M.leadApaIsPrepaid("Issued"));
+  const startSeed = M.planApaStartEmptyPot({
+    guestKey: "roman",
+    keepTripId: "new",
+    leadApa: 460,
+    leadApas: "Not issued",
+    charges: [],
+  });
+  ok("start potSeed apaSent 0 when lead APA is shortfall tracking", startSeed.potSeed.apaSent === 0);
+  ok("start potSeed linkInvAmount 0 when not prepaid", startSeed.potSeed.linkInvAmount === 0);
+  const startPrepaid = M.planApaStartEmptyPot({
+    guestKey: "joel",
+    leadApa: 2400,
+    leadApas: "Issued",
+    charges: [],
+  });
+  ok("start potSeed apaSent from Issued prepaid", near(startPrepaid.potSeed.apaSent, 2400));
+  const leadAfterDel = M.planApaLeadAfterPotDelete({
+    apaSent: 0,
+    topUps: 0,
+    leadApa: 460,
+    leadApas: "Not issued",
+  });
+  ok("delete zero-prepaid pot clears lead.apa shortfall", leadAfterDel && leadAfterDel.apa === 0);
+  ok(
+    "delete does not clear Issued prepaid lead",
+    M.planApaLeadAfterPotDelete({ apaSent: 0, leadApa: 2400, leadApas: "Issued" }) == null
+  );
 }
 
 /* ---- APA controller write plans ---- */
