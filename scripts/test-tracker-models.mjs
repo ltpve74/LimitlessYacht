@@ -949,6 +949,175 @@ console.log("\n[APA — pot totals]");
   });
   ok("cash settled closes residual overage", cashClosed.overage === 0);
   ok("cash settled bal 0", cashClosed.bal === 0);
+  const fuel = M.summarizeApaTripTotals({
+    expenses: [{ amount: 460, category: "Fuel / Diesel" }],
+    provisions: [],
+    dieselLines: [],
+  });
+  ok("Fuel expense in Fuel cat not Misc", near(fuel.cats["Fuel / Diesel"], 460));
+  ok("Fuel expense not in Misc", near(fuel.cats.Miscellaneous || 0, 0));
+}
+
+/* ---- APA charge pick + write plans (domain) ---- */
+console.log("\n[APA — charge pick + delete/start plans]");
+{
+  const charges = [
+    {
+      id: "paid-cash",
+      apaTripId: "trip-d",
+      clientKey: "danny",
+      isPaid: true,
+      isCashSettlement: true,
+      isApa: true,
+      amount: 650,
+      cashPaid: 650,
+      moneyManual: true,
+      locked: true,
+    },
+    {
+      id: "ghost-unpaid",
+      apaTripId: "trip-d",
+      clientKey: "danny",
+      isPaid: false,
+      isCashSettlement: false,
+      isApa: true,
+      amount: 460,
+      cashPaid: 0,
+    },
+  ];
+  const pickDisp = M.pickApaCharge({
+    tripId: "trip-d",
+    guestKey: "danny",
+    purpose: "display",
+    charges,
+    liveTripIds: { "trip-d": 1 },
+  });
+  ok("display prefers paid cash over unpaid ghost", pickDisp.chargeId === "paid-cash");
+  const collapse = M.planApaGuestChargeCollapse({
+    tripId: "trip-d",
+    guestKey: "danny",
+    charges,
+    otherLiveTripIds: {},
+  });
+  ok("collapse pins paid cash", collapse.tripPatch.chargeId === "paid-cash");
+  ok("collapse drops unpaid ghost", collapse.dropChargeIds.indexOf("ghost-unpaid") >= 0);
+  ok("collapse sets apaCashSettled", collapse.tripPatch.apaCashSettled === true);
+  const del = M.planApaTripDelete({
+    tripId: "trip-r",
+    guestKey: "roman",
+    charges: [
+      {
+        id: "roman-unpaid",
+        apaTripId: "trip-r",
+        clientKey: "roman",
+        isPaid: false,
+        isApa: true,
+        amount: 460,
+      },
+    ],
+    expenses: [
+      { id: "e1", apaTripId: "trip-r", source: "apa", fromApaLineId: "line1" },
+      { id: "e2", apaTripId: "trip-r", source: "manual" },
+    ],
+    lineIds: { line1: 1 },
+    lineExpenseIds: {},
+    otherLiveTripIds: {},
+  });
+  ok("delete drops pot shortfall charge", del.dropChargeIds.indexOf("roman-unpaid") >= 0);
+  ok("delete drops apa mirror expense", del.dropExpenseIds.indexOf("e1") >= 0);
+  ok("delete unlinks user monthly", del.unlinkExpenseIds.indexOf("e2") >= 0);
+  const start = M.planApaStartEmptyPot({
+    guestKey: "roman",
+    keepTripId: "new-trip",
+    liveTripIds: { "new-trip": 1 },
+    charges: [
+      {
+        id: "orphan-460",
+        apaTripId: "dead-trip",
+        clientKey: "roman",
+        isPaid: false,
+        isApa: true,
+        amount: 460,
+      },
+    ],
+  });
+  ok("start empty drops orphan unpaid", start.dropChargeIds.indexOf("orphan-460") >= 0);
+  const syncCash = M.planApaShortfallSync({
+    overage: 100,
+    hasReusable: true,
+    hasCashSettlement: true,
+    allowCreate: true,
+    force: true,
+  });
+  ok("cash settlement never creates/updates unpaid twin", syncCash.action === "pin_paid_manual");
+  const emptyPick = M.pickApaCharge({
+    tripId: "new",
+    guestKey: "roman",
+    potEmpty: true,
+    purpose: "reusable",
+    charges: [
+      {
+        id: "orphan",
+        clientKey: "roman",
+        isPaid: false,
+        isApa: true,
+        amount: 460,
+      },
+    ],
+    liveTripIds: { new: 1 },
+  });
+  ok("empty pot does not adopt orphan", emptyPick.chargeId == null);
+}
+
+/* ---- APA controller write plans ---- */
+console.log("\n[APA — controller planSaveTrip]");
+{
+  const C = require(join(root, "tracker/js/controllers/apa.js"));
+  const trip = {
+    id: "trip-d",
+    guest: "Danny",
+    chargeId: "ghost-unpaid",
+    apaSent: 0,
+    expenses: [{ amount: 100 }],
+    provisions: [],
+    diesel: [],
+  };
+  const charges = [
+    {
+      id: "paid-cash",
+      kind: "apa",
+      apaTripId: "trip-d",
+      client: "Danny",
+      payStatus: "Paid",
+      billType: "cash",
+      amount: 650,
+      cashPaid: 650,
+      moneyManual: true,
+    },
+    {
+      id: "ghost-unpaid",
+      kind: "apa",
+      apaTripId: "trip-d",
+      client: "Danny",
+      payStatus: "Pending",
+      billType: "invoice",
+      amount: 460,
+    },
+  ];
+  const plan = C.planSaveTrip({
+    models: M,
+    trip,
+    charges,
+    trips: [trip],
+    force: true,
+    allowCreate: false,
+  });
+  ok("ctrl save drops unpaid ghost", plan.dropChargeIds.indexOf("ghost-unpaid") >= 0);
+  ok("ctrl save pins paid cash", plan.tripPatch.chargeId === "paid-cash");
+  ok(
+    "ctrl shortfall is cash pin not create",
+    plan.shortfall.action === "pin_paid_manual" || plan.shortfall.action === "pin"
+  );
 }
 
 /* ---- Leads realised glimpse ---- */
