@@ -925,15 +925,20 @@
 
 <!-- Domain models + controllers (MVC blueprint) — tests: node scripts/test-tracker-models.mjs -->
 <!-- LY_MODELS → LY_CONTROLLERS → view. See .agent/briefs/tracker-v1-mvc-blueprint.md -->
-<script src="/tracker/js/models/util.js?v=20260806-mvc1"></script>
-<script src="/tracker/js/models/leads.js?v=20260806-mvc1"></script>
-<script src="/tracker/js/models/charges.js?v=20260806-mvc1"></script>
-<script src="/tracker/js/models/expenses.js?v=20260806-mvc1"></script>
-<script src="/tracker/js/models/diesel.js?v=20260806-mvc1"></script>
-<script src="/tracker/js/models/stews.js?v=20260806-mvc1"></script>
-<script src="/tracker/js/models/index.js?v=20260806-mvc1"></script>
-<script src="/tracker/js/controllers/expenses.js?v=20260806-mvc1"></script>
-<script src="/tracker/js/controllers/index.js?v=20260806-mvc1"></script>
+<script src="/tracker/js/models/util.js?v=20260806-mvc2"></script>
+<script src="/tracker/js/models/leads.js?v=20260806-mvc2"></script>
+<script src="/tracker/js/models/charges.js?v=20260806-mvc2"></script>
+<script src="/tracker/js/models/expenses.js?v=20260806-mvc2"></script>
+<script src="/tracker/js/models/diesel.js?v=20260806-mvc2"></script>
+<script src="/tracker/js/models/stews.js?v=20260806-mvc2"></script>
+<script src="/tracker/js/models/apa.js?v=20260806-mvc2"></script>
+<script src="/tracker/js/models/index.js?v=20260806-mvc2"></script>
+<script src="/tracker/js/controllers/expenses.js?v=20260806-mvc2"></script>
+<script src="/tracker/js/controllers/charges.js?v=20260806-mvc2"></script>
+<script src="/tracker/js/controllers/leads.js?v=20260806-mvc2"></script>
+<script src="/tracker/js/controllers/apa.js?v=20260806-mvc2"></script>
+<script src="/tracker/js/controllers/stews.js?v=20260806-mvc2"></script>
+<script src="/tracker/js/controllers/index.js?v=20260806-mvc2"></script>
 <script>
 "use strict";
 var API = "/.netlify/functions/tracker";
@@ -1882,6 +1887,12 @@ function renderAll(){
 
 /** Charges: payment defaults Paid; invStatus is what the manager tracks. */
 function chargePay(r){
+  if(LY_MODELS&&LY_MODELS.chargeIsPaid){
+    /* Return display status string compatible with existing UI */
+    if(r&&r.payStatus) return r.payStatus;
+    if(LY_MODELS.chargeIsPaid(r)) return "Paid";
+    return r&&r.status?r.status:"Paid";
+  }
   if(r.payStatus) return r.payStatus;
   if(r.status==="Pending") return "Paid";
   if(r.status==="Invoiced"||r.status==="Paid") return "Paid";
@@ -1896,56 +1907,21 @@ function chargeInv(r){
   if(r.status==="Pending") return "Not issued";
   return r.inv?"Issued":"Not issued";
 }
-/** How the guest paid the charge: Card (default), Cash, or Split (part cash). */
+/** How the guest paid the charge — model SOT. */
 function chargePayMethod(r){
-  var m=r&&r.payMethod?String(r.payMethod):"";
-  if(m==="Cash"||m==="Card"||m==="Split") return m;
-  if(r&&apaNum(r.cashPaid)>0&&apaNum(r.cashPaid)<apaNum(r.amount)-0.009) return "Split";
-  /* Infer from notes for older rows */
-  if(r&&/cash/i.test(String(r.notes||""))&&!/card/i.test(String(r.notes||""))) return "Cash";
-  return "Card";
+  return LY_MODELS?LY_MODELS.chargePayMethod(r):"Card";
 }
-/** Bill type / cash-invoice split — models (cash | invoice | mix). */
+/** Bill type / cash-invoice split — models. */
 function chargeBillType(r){ return LY_MODELS?LY_MODELS.chargeBillType(r):"invoice"; }
 function chargeCashPart(r){ return LY_MODELS?LY_MODELS.chargeCashPart(r):0; }
 function chargeInvoicePart(r){ return LY_MODELS?LY_MODELS.chargeInvoicePart(r):0; }
 function chargeNeedsInvoice(r){ return LY_MODELS?LY_MODELS.chargeNeedsInvoice(r):false; }
-/**
- * Cash that entered the boat pot from this charge (when Paid).
- * Strict: only the cash settlement slice — never the full invoice total.
- * (A Paid invoice/card charge must not inflate petty cash.)
- */
+/** Cash into boat pot — model via controller. */
 function chargeCashToBoat(r){
-  if(!r||chargePay(r)!=="Paid") return 0;
-  var total=apaNum(r.amount);
-  var bt=chargeBillType(r);
-  if(bt==="invoice") return 0; /* formal invoice / card — not boat envelope */
-  /*
-   * Cash only: boat pot = cash actually received (cashPaid), not a stale ledger total.
-   * e.g. APA shortfall €664.95, guest paid €650 cash → petty gets €650.
-   */
-  if(bt==="cash"){
-    var got=apaNum(r.cashPaid);
-    if(!(got>0.009)) got=apaNum(r.cashAmt);
-    if(got>0.009) return Math.round(got*100)/100;
-    return total>0?total:0;
+  if(window.LY_CONTROLLERS&&LY_CONTROLLERS.charges){
+    return LY_CONTROLLERS.charges.cashToBoat({models:LY_MODELS, charge:r});
   }
-  if(bt==="mix"){
-    if(!(total>0)) total=apaNum(r.cashPaid)||apaNum(r.cashAmt)||0;
-    var part=chargeCashPart(r);
-    if(part>0) return Math.min(part, total>0?total:part);
-    var explicit=apaNum(r.cashPaid);
-    return explicit>0?Math.min(explicit,total>0?total:explicit):0;
-  }
-  /* Legacy rows without billType */
-  var part2=chargeCashPart(r);
-  if(part2>0) return Math.min(part2, total>0?total:part2);
-  var m=chargePayMethod(r);
-  var explicit2=apaNum(r.cashPaid);
-  if(m==="Card") return 0;
-  if(m==="Split") return explicit2>0?Math.min(explicit2,total>0?total:explicit2):0;
-  if(m==="Cash") return explicit2>0?Math.min(explicit2,total>0?total:explicit2):(total>0?total:0);
-  return 0;
+  return LY_MODELS&&LY_MODELS.chargeCashToBoat?LY_MODELS.chargeCashToBoat(r):0;
 }
 function payMethodPill(m){
   if(m==="Cash") return '<span class="pill p-cash">Cash</span>';
@@ -1959,24 +1935,10 @@ function billTypePill(r){
   return '<span class="pill p-card">Invoice</span>';
 }
 function chargeVat(r){
-  var inv=chargeInvoicePart(r);
-  var cash=chargeCashPart(r);
-  var gross=apaNum(r.amount);
-  /* VAT only applies to the invoice portion */
-  var base=inv>0.009?inv:((chargeBillType(r)==="cash")?0:gross);
-  var pct=(r.vatPct!=null&&r.vatPct!=="")?Number(r.vatPct):21;
-  if(chargeBillType(r)==="cash"||r.vatMode==="none"){
-    return { net:gross, vat:0, pct:0, gross:gross, inv:inv, cash:cash };
+  if(window.LY_CONTROLLERS&&LY_CONTROLLERS.charges){
+    return LY_CONTROLLERS.charges.vatParts({models:LY_MODELS, charge:r});
   }
-  if(r.vat!=null&&r.net!=null&&inv<=0.009){
-    return { net:Number(r.net)||0, vat:Number(r.vat)||0, pct:pct, gross:gross, inv:inv, cash:cash };
-  }
-  if(inv>0.009){
-    var sp=invoiceSplitGross(inv, pct);
-    return { net:Math.round((cash+sp.net)*100)/100, vat:sp.vat, pct:sp.pct, gross:gross, inv:inv, cash:cash };
-  }
-  var net=pct>0?gross/(1+pct/100):gross;
-  return { net:net, vat:gross-net, pct:pct, gross:gross, inv:inv, cash:cash };
+  return LY_MODELS&&LY_MODELS.chargeVatParts?LY_MODELS.chargeVatParts(r):{net:0,vat:0,pct:0,gross:0,inv:0,cash:0};
 }
 /** ISO YYYY-MM-DD; empty dates sort last when listing latest-first. */
 function chargeDateKey(r){ return (r&&r.date)||""; }
@@ -3348,11 +3310,11 @@ function leadCharterTypeLabel(k){
     day:"Day charter"
   })[k]||k||"Charter";
 }
-/** Money on list / totals for a lead (client total). */
+/** Money on list / totals for a lead — model SOT. */
 function leadListMoney(r){
+  if(LY_MODELS&&LY_MODELS.leadListMoney) return LY_MODELS.leadListMoney(r);
   if(!r||leadIsCancelled(r)) return 0;
   var src=leadSource(r);
-  /* Owner’s days = no income; pending = not assigned yet */
   if(src==="owner"||src==="pending") return 0;
   return leadHasSplit(r)?leadClientTotal(r):(Number(r.total)||Number(r.base)||Number(r.price)||0);
 }
@@ -3477,8 +3439,9 @@ function leadTodayYmd(){
  */
 function leadCharterTiming(r){
   if(!leadIsClosedDeal(r)) return "";
+  if(LY_MODELS&&LY_MODELS.leadCharterTiming) return LY_MODELS.leadCharterTiming(r, leadTodayYmd());
   var start=String(r.start||r.cdate||"").slice(0,10);
-  if(!/^\d{4}-\d{2}-\d{2}$/.test(start)) return "done"; /* no date → treat as done/historical */
+  if(!/^\d{4}-\d{2}-\d{2}$/.test(start)) return "done";
   var today=leadTodayYmd();
   if(start>today) return "upcoming";
   return "done";
@@ -4028,34 +3991,33 @@ function renderLeads(){
     }
   }
   /*
-   * Free cash in net: full face value, no commission (model rule).
-   * Restrict to sailed / today deals so glimpse matches “so far only”.
+   * Free cash + big net: controller → models (realised only; boat cash in net, owner pocket not).
    */
-  var cashSum={ total:0, boat:0, owner:0, boatN:0, ownerN:0, n:0, items:[] };
+  var glimpse={ whiteNet:0, cashBoat:0, cashOwner:0, doneNet:0, cashTotal:0, cashN:0, cashBoatN:0, cashOwnerN:0, cashItems:[] };
   try{
-    if(LY_MODELS&&LY_MODELS.summarizeLeadCashIncome){
-      cashSum=LY_MODELS.summarizeLeadCashIncome(state.leads||[]);
+    if(window.LY_CONTROLLERS&&LY_CONTROLLERS.leads){
+      glimpse=LY_CONTROLLERS.leads.realisedGlimpse({
+        models:LY_MODELS,
+        leads:state.leads||[],
+        today:leadTodayYmd(),
+        whiteEx:done.ex,
+        whiteComm:done.comm
+      });
     }
   }catch(eCash){}
-  var cashDone={ total:0, boat:0, owner:0, boatN:0, ownerN:0, n:0, items:[] };
-  (cashSum.items||[]).forEach(function(it){
-    if(!it) return;
-    var L=(state.leads||[]).filter(function(x){ return x&&String(x.id)===String(it.id); })[0];
-    if(L&&leadCharterTiming(L)==="upcoming") return; /* scheduled — not in “so far” */
-    var c=apaNum(it.cash);
-    if(!(c>0.009)) return;
-    cashDone.items.push(it);
-    cashDone.n++;
-    cashDone.total=Math.round((cashDone.total+c)*100)/100;
-    if(it.dest==="owner"){ cashDone.owner=Math.round((cashDone.owner+c)*100)/100; cashDone.ownerN++; }
-    else { cashDone.boat=Math.round((cashDone.boat+c)*100)/100; cashDone.boatN++; }
-  });
-  /* White net = before VAT − commissions (cash stripped from bases in model).
-   * Big net adds only free cash → boat (full face). Owner pocket is shown, not in net. */
-  var whiteNet=Math.round(Math.max(0, done.ex-done.comm)*100)/100;
-  var cashBoat=Math.round(apaNum(cashDone.boat)*100)/100;
-  var cashOwner=Math.round(apaNum(cashDone.owner)*100)/100;
-  var doneNet=Math.round((whiteNet+cashBoat)*100)/100;
+  var cashDone={
+    total:glimpse.cashTotal||0,
+    boat:glimpse.cashBoat||0,
+    owner:glimpse.cashOwner||0,
+    boatN:glimpse.cashBoatN||0,
+    ownerN:glimpse.cashOwnerN||0,
+    n:glimpse.cashN||0,
+    items:glimpse.cashItems||[]
+  };
+  var whiteNet=glimpse.whiteNet!=null?glimpse.whiteNet:Math.round(Math.max(0, done.ex-done.comm)*100)/100;
+  var cashBoat=glimpse.cashBoat||0;
+  var cashOwner=glimpse.cashOwner||0;
+  var doneNet=glimpse.doneNet!=null?glimpse.doneNet:Math.round((whiteNet+cashBoat)*100)/100;
   /* Glimpse: realised gross + net (white net + boat free cash only) */
   if(el("ldDoneTot")) el("ldDoneTot").textContent=money(done.tot);
   if(el("ldDoneNet")) el("ldDoneNet").textContent=money(doneNet);
@@ -4745,14 +4707,14 @@ function apaInvoiceLinesNet(lines, vatPct){
     };
   });
 }
-/** gross = VAT-inclusive total; returns {net, vat, gross, pct} */
+/** gross = VAT-inclusive total; returns {net, vat, gross, pct} — model SOT */
 function invoiceSplitGross(gross, pct){
+  if(LY_MODELS&&LY_MODELS.invoiceSplitGross) return LY_MODELS.invoiceSplitGross(gross, pct);
   pct=pct==null||pct===""?21:Number(pct)||0;
   gross=Number(gross)||0;
   if(pct<=0) return {net:gross, vat:0, gross:gross, pct:0};
   var net=gross/(1+pct/100);
-  var vat=gross-net;
-  return {net:net, vat:vat, gross:gross, pct:pct};
+  return {net:net, vat:gross-net, gross:gross, pct:pct};
 }
 function fmtInvMoney(n){
   n=Number(n)||0;
@@ -6116,12 +6078,21 @@ function syncCashReceivedFromCharges(t){
  */
 function apaOverageAmount(t){
   if(!t) return 0;
-  /* Cash Paid shortfall closes the pot — no lingering ledger pennies */
+  if(window.LY_CONTROLLERS&&LY_CONTROLLERS.apa){
+    return LY_CONTROLLERS.apa.overageAmount({
+      models:LY_MODELS,
+      trip:t,
+      paidCovered:apaPaidCovered(t),
+      cashSettled:apaIsCashSettled(t),
+      dieselCalc:function(trip, row){ return apaDieselCalc(trip, row); }
+    });
+  }
   if(apaIsCashSettled(t)) return 0;
   var x=apaTotals(t);
   return x.bal<0?Math.round((-x.bal)*100)/100:0;
 }
 function apaHasPrepaid(t){
+  if(LY_MODELS&&LY_MODELS.apaHasPrepaid) return LY_MODELS.apaHasPrepaid(t);
   return ((Number(t&&t.apaSent)||0)+(Number(t&&t.topUps)||0))>0;
 }
 /** Linked lead, if any. */
@@ -7227,42 +7198,30 @@ function apaMutateTrip(tripId, mutator){
 }
 function apaTotals(t){
   t=apaEnsureArrays(t);
-  var expSum=0, byCat={};
-  APA_EXP_CATS.forEach(function(c){ byCat[c]=0; });
-  t.expenses.forEach(function(e){
-    var a=Number(e.amount)||0; expSum+=a;
-    if(byCat[e.category]!=null) byCat[e.category]+=a; else byCat["Miscellaneous"]=(byCat["Miscellaneous"]||0)+a;
-  });
-  var prov=t.provisions.reduce(function(s,p){return s+(Number(p.amount)||0);},0);
+  if(window.LY_CONTROLLERS&&LY_CONTROLLERS.apa){
+    return LY_CONTROLLERS.apa.tripTotals({
+      models:LY_MODELS,
+      trip:t,
+      paidCovered:apaPaidCovered(t),
+      cashSettled:apaIsCashSettled(t),
+      dieselCalc:function(trip, row){ return apaDieselCalc(trip, row); }
+    });
+  }
+  /* Fallback if controllers not loaded */
+  var expSum=0;
+  (t.expenses||[]).forEach(function(e){ expSum+=(Number(e.amount)||0); });
+  var prov=(t.provisions||[]).reduce(function(s,p){return s+(Number(p.amount)||0);},0);
   var dLit=0, dCost=0;
-  t.diesel.forEach(function(r){ var x=apaDieselCalc(t,r); dLit+=x.lit; dCost+=x.cost; });
-  var cats={
-    "Drinks & Bar":byCat["Drinks & Bar"]||0,
-    "Dockage / Marina":byCat["Dockage / Marina"]||0,
-    "Crew Tips":byCat["Crew Tips"]||0,
-    "Miscellaneous":(byCat["Miscellaneous"]||0)+(byCat["Fuel / Diesel"]||0)+(byCat["Food & Provisions"]||0)
-  };
-  /* Match Excel: total receipts = all expense lines + provisions + diesel cost */
+  (t.diesel||[]).forEach(function(r){ var x=apaDieselCalc(t,r); dLit+=x.lit; dCost+=x.cost; });
   var spent=expSum+prov+dCost;
   var basePot=(Number(t.apaSent)||0)+(Number(t.topUps)||0);
   var paidCovered=apaPaidCovered(t);
   var cashSettled=apaIsCashSettled(t);
-  /* Paid shortfall charges on Charges raise the pot (money recovered) */
   var available=basePot+paidCovered;
   var bal=available-spent;
-  /*
-   * Cash settlement (Paid cash on Charges): pot is closed.
-   * Residual ledger € (e.g. VAT not charged in cash €650 vs €664.95) is not “still owed”.
-   */
-  if(cashSettled&&bal<-0.009){
-    paidCovered=Math.round((paidCovered+(-bal))*100)/100;
-    available=basePot+paidCovered;
-    bal=0;
-  } else if(cashSettled&&bal<0){
-    bal=0;
-  }
-  var pct=available>0?spent/available:0;
-  return { expSum:expSum, prov:prov, dLit:dLit, dCost:dCost, cats:cats, spent:spent, basePot:basePot, paidCovered:paidCovered, available:available, bal:bal, pct:pct, cashSettled:cashSettled };
+  if(cashSettled&&bal<-0.009){ paidCovered=Math.round((paidCovered+(-bal))*100)/100; available=basePot+paidCovered; bal=0; }
+  else if(cashSettled&&bal<0) bal=0;
+  return { expSum:expSum, prov:prov, dLit:dLit, dCost:dCost, cats:{}, spent:spent, basePot:basePot, paidCovered:paidCovered, available:available, bal:bal, pct:available>0?spent/available:0, cashSettled:cashSettled };
 }
 function saveApa(trip, opts){
   if(!canOps()) return;
@@ -9347,25 +9306,24 @@ function expCtrl(){
 /** Snapshot + adapters for expenses controller (no math here). */
 function expControllerInput(month){
   month=month||expDefaultMonth();
-  var tipRows=[];
-  (state.stewAssign||[]).forEach(function(asg){
-    if(!asg||!asg.eventKey) return;
-    if(asg.cancelled||asg.status==="cancelled"||asg.cancelGhost) return;
-    var tip=typeof stewTipShare==="function"?stewTipShare(asg):{each:0,captainShare:0,stewSide:0,nStews:0};
-    tipRows.push({
-      eventKey:String(asg.eventKey),
-      onBill:typeof stewTipIsOnBill==="function"?stewTipIsOnBill(asg):false,
-      paid:typeof stewTipPaid==="function"?stewTipPaid(asg):false,
-      amount:typeof stewTipTotal==="function"?stewTipTotal(asg):0,
-      date:String(asg.start||"").slice(0,10),
-      summary:asg.summary||"Charter",
-      tipEach:tip.each,
-      tipCaptain:tip.captainShare,
-      tipStewSide:tip.stewSide,
-      nStews:tip.nStews,
-      cancelled:false
+  var tipRows;
+  if(window.LY_CONTROLLERS&&LY_CONTROLLERS.stews){
+    tipRows=LY_CONTROLLERS.stews.tipLiabilityRows({
+      models:LY_MODELS,
+      assigns:state.stewAssign||[]
     });
-  });
+    tipRows=tipRows.map(function(row){
+      var asg=(state.stewAssign||[]).filter(function(a){return a&&String(a.eventKey)===String(row.eventKey);})[0];
+      var tip=asg&&typeof stewTipShare==="function"?stewTipShare(asg):{};
+      row.tipEach=tip.each||0;
+      row.tipCaptain=tip.captainShare||0;
+      row.tipStewSide=tip.stewSide||0;
+      row.nStews=tip.nStews||0;
+      return row;
+    });
+  } else {
+    tipRows=[];
+  }
   return {
     models:window.LY_MODELS,
     month:month,
@@ -9543,6 +9501,7 @@ function expStewDayPayOwed(month){
  * Guest cash tips (tipSource cash/empty) are never a boat liability.
  */
 function stewTipIsOnBill(asg){
+  if(LY_MODELS&&LY_MODELS.stewTipIsOnBill) return !!LY_MODELS.stewTipIsOnBill(asg);
   if(!asg) return false;
   var s=String(asg.tipSource||asg.tipVia||"").toLowerCase();
   return s==="card"||s==="bill"||s==="invoice"||s==="onbill"||s==="on-bill"||s==="final";
@@ -9619,6 +9578,11 @@ function stewAssignDayPayAmount(asg){
  * (e.g. full day + half day when extra guests need a second stew).
  */
 function stewDayPayForStew(asg, stewId){
+  if(LY_MODELS&&LY_MODELS.stewDayPayForStew){
+    var m=LY_MODELS.stewDayPayForStew(asg, stewId);
+    /* Model may not know stewAssignDayPayAmount fallback for empty map — keep UI units fallback */
+    if(m>0||(asg&&asg.dayPayByStew&&asg.dayPayByStew[String(stewId)]!=null)) return m;
+  }
   if(!asg||!stewId) return 0;
   var map=asg.dayPayByStew&&typeof asg.dayPayByStew==="object"?asg.dayPayByStew:null;
   if(map&&map[String(stewId)]!=null&&map[String(stewId)]!==""){
@@ -9629,11 +9593,16 @@ function stewDayPayForStew(asg, stewId){
 }
 /** Sum of day pay across all assigned stews (respects per-stew overrides). */
 function stewDayPayTotalAll(asg){
+  if(LY_MODELS&&LY_MODELS.stewDayPayTotalAll){
+    var ids=(asg&&asg.stewIds)||[];
+    var hasMap=asg&&asg.dayPayByStew&&typeof asg.dayPayByStew==="object";
+    if(hasMap||!ids.length) return LY_MODELS.stewDayPayTotalAll(asg);
+  }
   if(!asg) return 0;
-  var ids=(asg.stewIds||[]).filter(Boolean);
-  if(!ids.length) return 0;
+  var ids2=(asg.stewIds||[]).filter(Boolean);
+  if(!ids2.length) return 0;
   var s=0;
-  ids.forEach(function(sid){ s+=stewDayPayForStew(asg, sid); });
+  ids2.forEach(function(sid){ s+=stewDayPayForStew(asg, sid); });
   return Math.round(s*100)/100;
 }
 /** Normalize dayPayByStew map from form / save (string keys, € amounts). */
@@ -12431,6 +12400,7 @@ function stewPayEach(rate, units){
  * 1 stew → 2 shares (50% each). 2 stews → 3 shares (~33% each). Usually one stew.
  */
 function stewTipTotal(asg){
+  if(LY_MODELS&&LY_MODELS.stewTipTotal) return LY_MODELS.stewTipTotal(asg);
   if(!asg||asg.tipTotal==null||asg.tipTotal==="") return 0;
   var n=apaNum(asg.tipTotal);
   return n>0?n:0;
@@ -12446,6 +12416,7 @@ function stewTipShare(asg){
   return {total:tot, stewSide:stewSide, each:each, nStews:n, crew:crew, captainShare:captainShare};
 }
 function stewTipPaid(asg){
+  if(LY_MODELS&&LY_MODELS.stewTipPaid) return !!LY_MODELS.stewTipPaid(asg);
   return !!(asg&&asg.tipPayStatus==="Paid");
 }
 /** Unpaid / "we owe" only from charter start day (local) onward — not for future dates. */

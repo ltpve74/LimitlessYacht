@@ -1,137 +1,187 @@
-# Tracker v1 — MVC blueprint (option A)
+# Tracker v1 — MVC blueprint (Keepafloat port map)
 
-**Status:** locked pattern for the live prototype (2026-08)  
-**Goal:** Cheap, clear separation so Keepafloat / a real framework can port **domain + controller contracts**, not HTML soup.  
-**Out of scope:** Rewriting UI in React/Next inside this repo; editing Keepafloat.
+**Status:** active foundation (2026-08)  
+**Live tool:** `tracker/` on Netlify — **do not big-bang rewrite**  
+**Commercial product:** Keepafloat (separate repo) — port **contracts**, not HTML  
+**Safe restore:** tags `backup/tracker-safe-2026-08-02-*`, branches `backup/pre-full-mvc-*`
 
 ---
 
-## Layers
+## 1. Layers (locked)
 
 ```
-┌─────────────────────────────────────────────────────────────┐
-│  VIEW        tracker/index.html  (DOM, paint, forms only)   │
-│       ↓                                                     │
-│  CONTROLLER  tracker/js/controllers/*  (wire data → model)  │
-│       ↓                                                     │
-│  MODEL       tracker/js/models/*  (pure money rules)        │
-│       ↓                                                     │
-│  STORE       Netlify Blobs via tracker API  (persistence)   │
-└─────────────────────────────────────────────────────────────┘
+┌──────────────────────────────────────────────────────────────┐
+│  VIEW         tracker/index.html                             │
+│               DOM, forms, format money(), call controllers   │
+│       ↓                                                      │
+│  CONTROLLER   tracker/js/controllers/*  → LY_CONTROLLERS     │
+│               Snapshot in → LY_MODELS → DTO out              │
+│               No € formulas. No document.                    │
+│       ↓                                                      │
+│  MODEL        tracker/js/models/*       → LY_MODELS          │
+│               Pure money / roster rules. No DOM / state.     │
+│       ↓                                                      │
+│  STORE        Netlify Blobs (tracker API)                    │
+└──────────────────────────────────────────────────────────────┘
 ```
 
 | Layer | May | Must not |
 |-------|-----|----------|
-| **Model** | Pure functions; money; DTOs | DOM, `state`, `fetch`, side effects |
-| **Controller** | Read snapshot → call model → return DTO; orchestrate multi-model; prepare save payloads | Invent € formulas; touch DOM |
-| **View** | Event handlers, HTML, format `money()`, call controller | Re-implement balances / repay / commission |
-| **Store** | Load/save blobs | Business rules |
+| **Model** | Pure functions, DTOs, tests | DOM, `state`, `fetch`, side effects |
+| **Controller** | Assemble inputs, call models, return DTOs | Invent commission/FIFO/petty math |
+| **View** | Paint DTOs, collect forms, save blobs | Parallel ledger formulas |
+| **Store** | Load/save | Business rules |
 
 ---
 
-## Naming & entry points
+## 2. Browser load order
 
-| Browser global | Node | Role |
-|----------------|------|------|
-| `window.LY_MODELS` | `require("tracker/js/models.js")` | Domain |
-| `window.LY_CONTROLLERS` | `require("tracker/js/controllers")` (optional) | Application services |
+```
+models/util → leads → charges → expenses → diesel → stews → apa → index
+controllers/expenses → charges → leads → apa → stews → index
+inline view (index.html)
+```
 
-**Script order in `tracker/index.html`:**
-
-1. `models/{util,leads,charges,expenses,diesel,stews,index}.js`  
-2. `controllers/{expenses,index}.js`  
-3. Inline view code  
+**Node:** `require("tracker/js/models.js")` then `require("tracker/js/controllers/index.js")`  
+**Tests:** `node scripts/test-tracker-models.mjs`
 
 ---
 
-## Controller contract (port target)
+## 3. Domain map (port these modules 1:1)
 
-Controllers accept a **plain input object** (no globals required in Node tests):
+| Domain | Model file | Controller | Owns |
+|--------|------------|------------|------|
+| **util** | `util.js` | — | `num`, `round2`, `moneyFromBase`, `invoiceSplitGross` |
+| **leads** | `leads.js` | `controllers/leads.js` | source, free cash, commission, projected net, **realised glimpse** |
+| **charges** | `charges.js` | `controllers/charges.js` | bill type, cash-to-boat, VAT parts, upsell commission |
+| **expenses** | `expenses.js` | `controllers/expenses.js` | petty, pocket repay, open day-pay/tips, month settlement |
+| **apa** | `apa.js` | `controllers/apa.js` | pot totals, overage (diesel costs injected) |
+| **diesel** | `diesel.js` | — (thin wrappers) | bunker + sticky sell |
+| **stews** | `stews.js` | `controllers/stews.js` | roster status, tip on-bill, day-pay amounts |
+
+### Forbidden cross-wires
+
+- Diesel must not mutate APA pots  
+- APA must not invent petty lines (charges cash-in is separate)  
+- UI must not re-derive FIFO / petty short / commission %  
+- Controllers must not re-implement model math  
+
+---
+
+## 4. Controller contracts (Keepafloat Server Action shape)
+
+### Expenses
 
 ```js
 LY_CONTROLLERS.expenses.monthSettlement({
-  models: LY_MODELS,           // optional if global present
-  month: "2026-07",
-  expenses: [...],             // full or month-scoped as documented
-  allExpenses: [...],          // full ledger for cross-month repay
-  petty: { pettyStart, cashIns, startMode, startManual },
-  stewAssign: [...],
-  stews: [...],
-  today: "2026-08-02",
-  // adapters (view supplies; controller does not invent stew pay math if injected)
-  personName: (id) => "...",
-  dayPayAmt: (asg, sid) => number,
-  isSkipped: (eventKey, sid) => boolean,
-  tipRows: [...],              // pre-normalized tip liability rows OR built inside with adapters
-  cashInIsTip / cashInIsOwnMoney / isTipExpense
-});
-// → settlement DTO from LY_MODELS.summarizeMonthSettlement + open liabilities
+  models, month, allExpenses, monthExpenses?, petty,
+  stewAssign, today, personName, dayPayAmt, isSkipped,
+  tipRows, cashInIsTip, cashInIsOwnMoney, isTipExpense
+})
+// → summarizeMonthSettlement DTO + open liabilities
+
+LY_CONTROLLERS.expenses.openPocketOuts({ expenses, month, personName })
+LY_CONTROLLERS.expenses.ownMoneyRepaid({ expense, expenses })
 ```
 
-When Keepafloat (or Next) lands:
+### Charges
 
-- **Model** → `src/domain/*` (same pure functions)  
-- **Controller** → Server Action / route handler (authz + load + call domain + save)  
-- **View** → React that only receives DTOs  
+```js
+LY_CONTROLLERS.charges.cashToBoat({ charge })
+LY_CONTROLLERS.charges.vatParts({ charge })
+LY_CONTROLLERS.charges.summarizeCashToBoat({ charters })
+LY_CONTROLLERS.charges.captainUpsellCommissions({ charters })
+```
 
-Do **not** port `index.html` paint loops; port **these contracts**.
+### Leads
 
----
+```js
+LY_CONTROLLERS.leads.realisedGlimpse({
+  leads, today, whiteEx, whiteComm
+})
+// → { whiteNet, cashBoat, cashOwner, doneNet, cashItems, ... }
+// Rule: doneNet = whiteNet + boat free cash only (owner pocket shown, not in net)
+```
 
-## Reference domain: Expenses (done first)
+### APA
 
-| View helper (thin) | Controller | Model |
-|--------------------|------------|--------|
-| `expSettlementFigures` | `expenses.monthSettlement` | `summarizeMonthSettlement` + open day pay / tips |
-| `expCollectOpenPocketOuts` | `expenses.openPocketOuts` | `collectOpenPocketOuts` |
-| `expOwnMoneyRepaidAmt` | `expenses.ownMoneyRepaid` | `ownMoneyRepaidAmt` |
-| `expPocketBalances` | `expenses.pocketBalances` | `summarizePocketBalances` |
+```js
+LY_CONTROLLERS.apa.tripTotals({
+  trip, paidCovered, cashSettled,
+  dieselLines? | dieselCalc(trip, row)
+})
+// → { spent, available, bal, overage, cashSettled, ... }
+```
 
-**Rule:** If paint needs a number, it asks the controller (or a one-line wrapper that only calls the controller). No FIFO / petty / open-day-pay loops in the view.
+### Stews
 
----
-
-## Migration checklist (remaining domains)
-
-Move next, in this order (each: model tests → controller → thin view):
-
-1. ~~Expenses settlement / pocket~~ (blueprint path)  
-2. **Charges** — `chargeCashToBoat`, cash-in sync amounts  
-3. **Leads glimpse** — realised net + boat cash only (filter upcoming in controller)  
-4. **APA** — pot balance / still owed  
-5. **Stews** — day-pay expense sync (side-effect orchestration in controller; amounts from model)  
-6. **Diesel** — already mostly model; controller only if multi-step  
-
----
-
-## Tests
-
-| Suite | Command |
-|-------|---------|
-| Domain | `node scripts/test-tracker-models.mjs` |
-| Controllers | included in same suite under `[Controllers]` |
-
-Adding a money rule:
-
-1. Model + domain test  
-2. Controller calls model (no new formula)  
-3. View paints DTO only  
+```js
+LY_CONTROLLERS.stews.dayPayForStew({ assign, stewId })
+LY_CONTROLLERS.stews.tipLiabilityRows({ assigns })
+// Tip share split (equal among captain+crews) may stay view-adjacent until modelized
+```
 
 ---
 
-## Forbidden shortcuts
+## 5. Locked money rules (do not “simplify”)
 
-- New `apaNum` business loops inside `paint*` / `render*`  
-- Copy-paste commission % or FIFO into a form handler  
-- Controller that re-implements model math “just this once”  
-- Big-bang React rewrite before models + controllers are green for money tabs  
+1. Free cash black = user amount; never auto-suggested ex-VAT  
+2. Commission VAT-included: base = total ÷ 1.21  
+3. Split commission: 15% white-before-VAT + 15% cash black  
+4. Charge commission only if `captainComm === true`  
+5. Petty physical ≥ 0; short is separate  
+6. Own-money repay: linked id **or** FIFO unlinked; **any month**  
+7. Charge cash-to-boat: Paid + cash/mix slice only; invoice → €0  
+8. Leads big net: white net + **boat** free cash; owner pocket not in big net  
+9. APA cash-settled pot: residual ledger pennies → overage 0  
+10. Tips on card/bill = boat liability; guest cash tips = not  
 
 ---
 
-## Success criteria for “good blueprint”
+## 6. Migration status
 
-- [x] Documented MVC layers and script order  
-- [x] `LY_CONTROLLERS.expenses` for settlement / pocket  
-- [ ] Charges + leads glimpse behind controllers  
-- [ ] No trusted ledger number computed only in HTML  
-- [ ] Keepafloat port = domain + controller ports, not HTML archaeology  
+| Area | Model | Controller | View thin |
+|------|-------|------------|-----------|
+| Expenses settlement / pocket | ✅ | ✅ | ✅ |
+| Charges cash/VAT | ✅ | ✅ | ✅ |
+| Leads realised glimpse | ✅ | ✅ | ✅ |
+| APA pot totals | ✅ | ✅ | ✅ |
+| Stews tip/day-pay amounts | ✅ | ✅ | ✅ (partial) |
+| Diesel | ✅ | — | wrappers |
+| Stews tip *share* math | ⏳ optional | — | still UI |
+| APA diesel *rate* calc | diesel model | inject | UI adapter |
+| Write paths (sync charge, seed expenses) | — | later | orchestration in view |
+
+---
+
+## 7. How to add a rule
+
+1. **Model** pure function + test in `test-tracker-models.mjs`  
+2. **Controller** one-liner that calls model (no new arithmetic)  
+3. **View** replace local formula with controller/model call  
+4. Update this checklist  
+
+---
+
+## 8. Keepafloat mapping
+
+| v1 | Keepafloat |
+|----|------------|
+| `LY_MODELS.*` | `src/domain/*` TypeScript |
+| `LY_CONTROLLERS.*` | Server Actions / route handlers |
+| `index.html` paint | React components (DTO props only) |
+| Blobs | Prisma / Neon |
+| Single vessel | `organisationId` + `vesselId` on every money row |
+
+**Never** port `index.html` paint loops. Port models + controller contracts + tests.
+
+---
+
+## 9. Success criteria
+
+- [x] Layered folder structure + load order  
+- [x] Expenses / charges / leads glimpse / APA / stews money via models  
+- [x] Controllers for each ops domain  
+- [x] Domain + controller tests green  
+- [ ] No trusted ledger € computed only in HTML (remaining: tip share, diesel line burn UI, some APA link orchestration)  
+- [ ] Keepafloat can implement Server Action from controller signatures alone  

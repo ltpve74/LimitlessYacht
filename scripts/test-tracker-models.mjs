@@ -49,8 +49,13 @@ function checkTrackerHtmlSyntax() {
     "tracker/js/models/expenses.js",
     "tracker/js/models/diesel.js",
     "tracker/js/models/stews.js",
+    "tracker/js/models/apa.js",
     "tracker/js/models/index.js",
     "tracker/js/controllers/expenses.js",
+    "tracker/js/controllers/charges.js",
+    "tracker/js/controllers/leads.js",
+    "tracker/js/controllers/apa.js",
+    "tracker/js/controllers/stews.js",
     "tracker/js/controllers/index.js",
   ];
   for (const rel of modelFiles) {
@@ -890,10 +895,153 @@ console.log("\n[Diesel — bunker buy + sticky active sell]");
   ok("next bunker source bunker", s.sellSource === "bunker");
 }
 
+/* ---- Charges cash-to-boat + VAT (model) ---- */
+console.log("\n[Charges — cashToBoat / VAT]");
+{
+  ok(
+    "invoice Paid → €0 boat",
+    M.chargeCashToBoat({ amount: 500, billType: "invoice", payStatus: "Paid" }) === 0
+  );
+  ok(
+    "cash Paid uses cashPaid 650 not amount 665",
+    near(M.chargeCashToBoat({ amount: 664.95, billType: "cash", payStatus: "Paid", cashPaid: 650 }), 650)
+  );
+  ok(
+    "unpaid cash → 0",
+    M.chargeCashToBoat({ amount: 100, billType: "cash", payStatus: "Unpaid" }) === 0
+  );
+  const vat = M.chargeVatParts({ amount: 121, billType: "invoice", vatPct: 21, payMethod: "Card" });
+  ok("invoice VAT net ≈ 100", near(vat.net, 100, 0.05));
+  ok("invoice VAT ≈ 21", near(vat.vat, 21, 0.05));
+}
+
+/* ---- APA pot totals (model) ---- */
+console.log("\n[APA — pot totals]");
+{
+  const tot = M.summarizeApaTripTotals({
+    apaSent: 1000,
+    topUps: 0,
+    expenses: [{ amount: 200, category: "Drinks & Bar" }],
+    provisions: [{ amount: 100 }],
+    dieselLines: [{ lit: 10, cost: 50 }],
+    paidCovered: 0,
+    cashSettled: false,
+  });
+  ok("APA spent 350", near(tot.spent, 350));
+  ok("APA bal 650", near(tot.bal, 650));
+  ok("APA overage 0", tot.overage === 0);
+  const short = M.summarizeApaTripTotals({
+    apaSent: 0,
+    expenses: [{ amount: 400, category: "Miscellaneous" }],
+    provisions: [],
+    dieselLines: [],
+    paidCovered: 0,
+    cashSettled: false,
+  });
+  ok("APA overage when short", near(short.overage, 400));
+  const cashClosed = M.summarizeApaTripTotals({
+    apaSent: 0,
+    expenses: [{ amount: 400, category: "Miscellaneous" }],
+    provisions: [],
+    dieselLines: [],
+    paidCovered: 350,
+    cashSettled: true,
+  });
+  ok("cash settled closes residual overage", cashClosed.overage === 0);
+  ok("cash settled bal 0", cashClosed.bal === 0);
+}
+
+/* ---- Leads realised glimpse ---- */
+console.log("\n[Leads — realised cash + glimpse]");
+{
+  const leads = [
+    {
+      id: "L1",
+      name: "Past",
+      start: "2026-07-01",
+      source: "captain",
+      captainLead: true,
+      dealClosed: true,
+      split: true,
+      invoiceTotal: 2000,
+      invoiceNet: 1652.89,
+      cashAmt: 1800,
+      cashSettled: true,
+      cashDest: "boat",
+    },
+    {
+      id: "L2",
+      name: "Future",
+      start: "2026-12-01",
+      source: "captain",
+      captainLead: true,
+      dealClosed: true,
+      split: true,
+      invoiceTotal: 2000,
+      invoiceNet: 1652.89,
+      cashAmt: 1900,
+      cashSettled: true,
+      cashDest: "boat",
+    },
+  ];
+  const cashAll = M.summarizeLeadCashIncome(leads);
+  const cashReal = M.summarizeLeadCashIncomeRealised(leads, "2026-08-01");
+  ok("all cash includes both received splits", cashAll.n === 2, "got " + cashAll.n);
+  ok(
+    "realised cash excludes future charter",
+    cashReal.n === 1 && cashReal.items[0] && cashReal.items[0].id === "L1",
+    "n=" + cashReal.n
+  );
+  const g = M.summarizeRealisedNetGlimpse({
+    whiteEx: 1000,
+    whiteComm: 150,
+    cashRealised: { boat: 500, owner: 200, total: 700, n: 2, boatN: 1, ownerN: 1, items: [] },
+  });
+  ok("glimpse whiteNet 850", near(g.whiteNet, 850));
+  ok("glimpse doneNet = white + boat only", near(g.doneNet, 1350));
+  ok("owner pocket not in doneNet", near(g.cashOwner, 200));
+}
+
+/* ---- Stews tip / day pay ---- */
+console.log("\n[Stews — tip on bill + day pay]");
+{
+  ok("tip on card is on bill", M.stewTipIsOnBill({ tipSource: "card" }));
+  ok("tip cash not on bill", !M.stewTipIsOnBill({ tipSource: "cash" }));
+  ok("tip total", near(M.stewTipTotal({ tipTotal: 90 }), 90));
+  ok("tip paid", M.stewTipPaid({ tipPayStatus: "Paid" }));
+  ok(
+    "day pay by stew map",
+    near(M.stewDayPayForStew({ dayPayByStew: { s1: 180 }, payEach: 200 }, "s1"), 180)
+  );
+}
+
 /* ---- Controllers (MVC blueprint — no formulas, wire models only) ---- */
-console.log("\n[Controllers — expenses monthSettlement]");
+console.log("\n[Controllers — expenses + charges + leads + apa + stews]");
 {
   ok("LY_CONTROLLERS.expenses present", !!(C && C.expenses && C.expenses.monthSettlement));
+  ok("LY_CONTROLLERS.charges present", !!(C && C.charges && C.charges.cashToBoat));
+  ok("LY_CONTROLLERS.leads present", !!(C && C.leads && C.leads.realisedGlimpse));
+  ok("LY_CONTROLLERS.apa present", !!(C && C.apa && C.apa.tripTotals));
+  ok("LY_CONTROLLERS.stews present", !!(C && C.stews && C.stews.tipIsOnBill));
+  ok(
+    "ctrl charge cash to boat",
+    near(C.charges.cashToBoat({ models: M, charge: { amount: 100, billType: "cash", payStatus: "Paid", cashPaid: 100 } }), 100)
+  );
+  const apaC = C.apa.tripTotals({
+    models: M,
+    trip: {
+      apaSent: 500,
+      topUps: 0,
+      expenses: [{ amount: 100, category: "Drinks & Bar" }],
+      provisions: [],
+      diesel: [],
+    },
+    paidCovered: 0,
+    cashSettled: false,
+    dieselLines: [],
+  });
+  ok("ctrl APA bal 400", near(apaC.bal, 400));
+
   const CAP = M.EXP_POCKET_CAPTAIN || "captain";
   const fig = C.expenses.monthSettlement({
     models: M,

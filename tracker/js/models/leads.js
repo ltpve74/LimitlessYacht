@@ -638,6 +638,107 @@ function summarizeProjectedNetExCash(leads, opts) {
  * @param {number} projectedNet
  * @param {Array} leads
  */
+/**
+ * Client € on list / totals (0 for owner days + pending).
+ */
+function leadListMoney(r) {
+  if (!r || leadIsCancelled(r)) return 0;
+  var src = leadSource(r);
+  if (src === "owner" || src === "pending") return 0;
+  if (leadHasSplit(r)) return leadClientTotal(r);
+  return num(r.total) || num(r.base) || num(r.price) || 0;
+}
+
+/**
+ * Charter timing relative to today: "upcoming" | "done".
+ * @param {object} r lead
+ * @param {string} [todayYmd] YYYY-MM-DD
+ */
+function leadCharterTiming(r, todayYmd) {
+  var start = String((r && (r.start || r.cdate)) || "").slice(0, 10);
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(start)) return "done";
+  var today = String(todayYmd || "").slice(0, 10);
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(today)) return "done";
+  return start > today ? "upcoming" : "done";
+}
+
+/**
+ * Free cash income limited to sailed/today deals (not scheduled).
+ * Same shape as summarizeLeadCashIncome.
+ *
+ * @param {Array} leads
+ * @param {string} todayYmd
+ */
+function summarizeLeadCashIncomeRealised(leads, todayYmd) {
+  var all = summarizeLeadCashIncome(leads);
+  var boat = 0;
+  var owner = 0;
+  var boatN = 0;
+  var ownerN = 0;
+  var items = [];
+  (all.items || []).forEach(function (it) {
+    if (!it) return;
+    var L = null;
+    (Array.isArray(leads) ? leads : []).forEach(function (x) {
+      if (x && String(x.id) === String(it.id)) L = x;
+    });
+    if (L && leadCharterTiming(L, todayYmd) === "upcoming") return;
+    var c = num(it.cash);
+    if (!(c > 0.009)) return;
+    items.push(it);
+    if (it.dest === "owner") {
+      owner = round2(owner + c);
+      ownerN++;
+    } else {
+      boat = round2(boat + c);
+      boatN++;
+    }
+  });
+  return {
+    total: round2(boat + owner),
+    boat: boat,
+    owner: owner,
+    boatN: boatN,
+    ownerN: ownerN,
+    n: boatN + ownerN,
+    items: items,
+  };
+}
+
+/**
+ * Realised “so far” white net + boat free cash (big net on Leads).
+ * Owner pocket cash is reported but not included in doneNet.
+ *
+ * @param {{
+ *   whiteEx?: number,
+ *   whiteComm?: number,
+ *   cashRealised?: { boat?: number, owner?: number, total?: number, n?: number, boatN?: number, ownerN?: number, items?: Array }
+ * }} opts
+ */
+function summarizeRealisedNetGlimpse(opts) {
+  opts = opts || {};
+  var ex = round2(Math.max(0, num(opts.whiteEx)));
+  var comm = round2(Math.max(0, num(opts.whiteComm)));
+  var whiteNet = round2(Math.max(0, ex - comm));
+  var cash = opts.cashRealised || {};
+  var cashBoat = round2(num(cash.boat));
+  var cashOwner = round2(num(cash.owner));
+  var doneNet = round2(whiteNet + cashBoat);
+  return {
+    whiteEx: ex,
+    whiteComm: comm,
+    whiteNet: whiteNet,
+    cashBoat: cashBoat,
+    cashOwner: cashOwner,
+    cashTotal: round2(num(cash.total) || cashBoat + cashOwner),
+    cashN: num(cash.n),
+    cashBoatN: num(cash.boatN),
+    cashOwnerN: num(cash.ownerN),
+    cashItems: cash.items || [],
+    doneNet: doneNet,
+  };
+}
+
 function summarizeTotalNetIncome(projectedNet, leads) {
   var cash = summarizeLeadCashIncome(leads);
   var proj = round2(Number(projectedNet) || 0);
@@ -884,6 +985,10 @@ function leadCommissionAmt(r) {
     leadOwnerPocketCashAmt: leadOwnerPocketCashAmt,
     leadIsCancelled: leadIsCancelled,
     summarizeLeadCashIncome: summarizeLeadCashIncome,
+    summarizeLeadCashIncomeRealised: summarizeLeadCashIncomeRealised,
+    leadListMoney: leadListMoney,
+    leadCharterTiming: leadCharterTiming,
+    summarizeRealisedNetGlimpse: summarizeRealisedNetGlimpse,
     leadIsClosedCommercialIncome: leadIsClosedCommercialIncome,
     leadProjectedNetParts: leadProjectedNetParts,
     summarizeProjectedNetExCash: summarizeProjectedNetExCash,

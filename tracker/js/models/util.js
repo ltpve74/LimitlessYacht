@@ -69,9 +69,25 @@ function moneyFromBase(base, vatMode, vatPctRaw) {
 }
 
 
+/**
+ * Split a VAT-inclusive gross into net + VAT.
+ * @param {number} gross
+ * @param {number} [pct] default 21
+ * @returns {{ net, vat, gross, pct }}
+ */
+function invoiceSplitGross(gross, pct) {
+  pct = pct == null || pct === "" ? 21 : Number(pct) || 0;
+  gross = Number(gross) || 0;
+  if (pct <= 0) return { net: gross, vat: 0, gross: gross, pct: 0 };
+  var net = gross / (1 + pct / 100);
+  var vat = gross - net;
+  return { net: net, vat: vat, gross: gross, pct: pct };
+}
+
   return {
     num: num,
     round2: round2,
-    moneyFromBase: moneyFromBase
+    moneyFromBase: moneyFromBase,
+    invoiceSplitGross: invoiceSplitGross
   };
 });

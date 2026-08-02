@@ -301,6 +301,135 @@ function summarizeCaptainChargeCommissions(charters) {
   return { n: n, gross: gross, base: base, comm: comm, items: items };
 }
 
+/**
+ * Payment status for cash/envelope rules.
+ * Defaults Paid for legacy rows without payStatus (Pending / Invoiced / Paid status).
+ */
+function chargeIsPaid(r) {
+  if (!r) return false;
+  if (r.payStatus) return String(r.payStatus) === "Paid";
+  if (r.status === "Pending") return true;
+  if (r.status === "Invoiced" || r.status === "Paid") return true;
+  return String(r.status || "Paid") === "Paid" || !r.status;
+}
+
+/**
+ * Cash that enters the boat pot from this charge when Paid.
+ * Strict: only the cash settlement slice — never full invoice/card total.
+ *
+ * @param {object} r charge row
+ * @returns {number}
+ */
+function chargeCashToBoat(r) {
+  if (!r || !chargeIsPaid(r)) return 0;
+  var total = num(r.amount);
+  var bt = chargeBillType(r);
+  if (bt === "invoice") return 0;
+  if (bt === "cash") {
+    var got = num(r.cashPaid);
+    if (!(got > 0.009)) got = num(r.cashAmt);
+    if (got > 0.009) return round2(got);
+    return total > 0 ? total : 0;
+  }
+  if (bt === "mix") {
+    if (!(total > 0)) total = num(r.cashPaid) || num(r.cashAmt) || 0;
+    var part = chargeCashPart(r);
+    if (part > 0) return round2(Math.min(part, total > 0 ? total : part));
+    var explicit = num(r.cashPaid);
+    return explicit > 0 ? round2(Math.min(explicit, total > 0 ? total : explicit)) : 0;
+  }
+  var part2 = chargeCashPart(r);
+  if (part2 > 0) return round2(Math.min(part2, total > 0 ? total : part2));
+  var m = chargePayMethod(r);
+  var explicit2 = num(r.cashPaid);
+  if (m === "Card") return 0;
+  if (m === "Split") return explicit2 > 0 ? round2(Math.min(explicit2, total > 0 ? total : explicit2)) : 0;
+  if (m === "Cash")
+    return explicit2 > 0 ? round2(Math.min(explicit2, total > 0 ? total : explicit2)) : total > 0 ? total : 0;
+  return 0;
+}
+
+/**
+ * VAT breakdown for display / invoice lines.
+ * VAT applies only to the invoice portion.
+ *
+ * @param {object} r
+ * @returns {{ net, vat, pct, gross, inv, cash }}
+ */
+function chargeVatParts(r) {
+  var inv = chargeInvoicePart(r);
+  var cash = chargeCashPart(r);
+  var gross = num(r.amount);
+  var pct = r && r.vatPct != null && r.vatPct !== "" ? Number(r.vatPct) : 21;
+  var bt = chargeBillType(r);
+  if (bt === "cash" || (r && r.vatMode === "none")) {
+    return { net: gross, vat: 0, pct: 0, gross: gross, inv: inv, cash: cash };
+  }
+  if (r && r.vat != null && r.net != null && inv <= 0.009) {
+    return {
+      net: Number(r.net) || 0,
+      vat: Number(r.vat) || 0,
+      pct: pct,
+      gross: gross,
+      inv: inv,
+      cash: cash,
+    };
+  }
+  var splitFn = util.invoiceSplitGross;
+  if (inv > 0.009 && typeof splitFn === "function") {
+    var sp = splitFn(inv, pct);
+    return {
+      net: round2(cash + sp.net),
+      vat: sp.vat,
+      pct: sp.pct,
+      gross: gross,
+      inv: inv,
+      cash: cash,
+    };
+  }
+  if (inv > 0.009) {
+    var netInv = pct > 0 ? inv / (1 + pct / 100) : inv;
+    return {
+      net: round2(cash + netInv),
+      vat: inv - netInv,
+      pct: pct,
+      gross: gross,
+      inv: inv,
+      cash: cash,
+    };
+  }
+  var net = pct > 0 ? gross / (1 + pct / 100) : gross;
+  return { net: net, vat: gross - net, pct: pct, gross: gross, inv: inv, cash: cash };
+}
+
+/** Extra-hours / upsell gross for income rollups. */
+function chargeUpsellGross(c) {
+  if (!c) return 0;
+  var ext = chargeExtAmt(c);
+  if (ext > 0) return ext;
+  var kind = String(c.kind || c.chargeKind || "").toLowerCase();
+  if (kind === "extension" || kind === "extra" || kind === "upsell") return Math.max(0, num(c.amount));
+  return 0;
+}
+
+/**
+ * Sum cash-to-boat for Paid charges (petty cash-in auto lines).
+ * @param {Array} charters
+ * @returns {{ total, n, items }}
+ */
+function summarizeChargeCashToBoat(charters) {
+  var total = 0;
+  var items = [];
+  (Array.isArray(charters) ? charters : []).forEach(function (c) {
+    if (!c) return;
+    var a = chargeCashToBoat(c);
+    if (!(a > 0.009)) return;
+    total = round2(total + a);
+    items.push({ id: c.id, amount: a, date: String(c.date || "").slice(0, 10), client: c.client || "" });
+  });
+  return { total: total, n: items.length, items: items };
+}
+
 
   return {
     chargePayMethod: chargePayMethod,
@@ -316,6 +445,11 @@ function summarizeCaptainChargeCommissions(charters) {
     chargeTotalsFromApaAndExt: chargeTotalsFromApaAndExt,
     chargeCommissionParts: chargeCommissionParts,
     chargeCommissionAmt: chargeCommissionAmt,
-    summarizeCaptainChargeCommissions: summarizeCaptainChargeCommissions
+    summarizeCaptainChargeCommissions: summarizeCaptainChargeCommissions,
+    chargeIsPaid: chargeIsPaid,
+    chargeCashToBoat: chargeCashToBoat,
+    chargeVatParts: chargeVatParts,
+    chargeUpsellGross: chargeUpsellGross,
+    summarizeChargeCashToBoat: summarizeChargeCashToBoat
   };
 });

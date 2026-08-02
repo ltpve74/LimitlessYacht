@@ -4,16 +4,18 @@ Application services between the view (`tracker/index.html`) and pure domain (`L
 
 | File | Domain |
 |------|--------|
-| `expenses.js` | Month settlement, pocket, open day-pay / tips wiring |
-| `index.js` | Merges → `window.LY_CONTROLLERS` |
+| `expenses.js` | Month settlement, pocket, open day-pay / tips |
+| `charges.js` | Cash-to-boat, VAT parts, upsell commission sums |
+| `leads.js` | Realised net glimpse (white + boat free cash) |
+| `apa.js` | Pot totals / overage |
+| `stews.js` | Day-pay / tip liability row builders |
+| `index.js` | → `window.LY_CONTROLLERS` |
 
 ## Rules
 
 1. **No money formulas** — call `LY_MODELS.*` only.
-2. **No DOM** — no `document`, no `el()`, no paint.
-3. **Inputs are plain objects** so Node tests and a future Server Action can call the same API.
-4. **Side effects** (save roster, write expense rows) stay in the view or a later write-controller; this layer is read-model first.
+2. **No DOM**.
+3. **Plain input objects** (portable to Keepafloat Server Actions).
+4. **Write/side effects** stay in the view until a write-controller is added.
 
-## Blueprint
-
-See [`.agent/briefs/tracker-v1-mvc-blueprint.md`](../../../.agent/briefs/tracker-v1-mvc-blueprint.md).
+Blueprint: [`.agent/briefs/tracker-v1-mvc-blueprint.md`](../../../.agent/briefs/tracker-v1-mvc-blueprint.md).
