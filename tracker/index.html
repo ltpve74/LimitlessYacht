@@ -939,21 +939,21 @@
 
 <!-- Domain models + controllers (MVC blueprint) — tests: node scripts/test-tracker-models.mjs -->
 <!-- LY_MODELS → LY_CONTROLLERS → view. See .agent/briefs/tracker-v1-mvc-blueprint.md -->
-<script src="/tracker/js/models/util.js?v=20260807-tipvat1"></script>
-<script src="/tracker/js/models/leads.js?v=20260807-tipvat1"></script>
-<script src="/tracker/js/models/charges.js?v=20260807-tipvat1"></script>
-<script src="/tracker/js/models/expenses.js?v=20260807-tipvat1"></script>
-<script src="/tracker/js/models/cash.js?v=20260807-tipvat1"></script>
-<script src="/tracker/js/models/diesel.js?v=20260807-tipvat1"></script>
-<script src="/tracker/js/models/stews.js?v=20260807-tipvat1"></script>
-<script src="/tracker/js/models/apa.js?v=20260807-tipvat1"></script>
-<script src="/tracker/js/models/index.js?v=20260807-tipvat1"></script>
-<script src="/tracker/js/controllers/expenses.js?v=20260807-tipvat1"></script>
-<script src="/tracker/js/controllers/charges.js?v=20260807-tipvat1"></script>
-<script src="/tracker/js/controllers/leads.js?v=20260807-tipvat1"></script>
-<script src="/tracker/js/controllers/apa.js?v=20260807-tipvat1"></script>
-<script src="/tracker/js/controllers/stews.js?v=20260807-tipvat1"></script>
-<script src="/tracker/js/controllers/index.js?v=20260807-tipvat1"></script>
+<script src="/tracker/js/models/util.js?v=20260807-apacash1"></script>
+<script src="/tracker/js/models/leads.js?v=20260807-apacash1"></script>
+<script src="/tracker/js/models/charges.js?v=20260807-apacash1"></script>
+<script src="/tracker/js/models/expenses.js?v=20260807-apacash1"></script>
+<script src="/tracker/js/models/cash.js?v=20260807-apacash1"></script>
+<script src="/tracker/js/models/diesel.js?v=20260807-apacash1"></script>
+<script src="/tracker/js/models/stews.js?v=20260807-apacash1"></script>
+<script src="/tracker/js/models/apa.js?v=20260807-apacash1"></script>
+<script src="/tracker/js/models/index.js?v=20260807-apacash1"></script>
+<script src="/tracker/js/controllers/expenses.js?v=20260807-apacash1"></script>
+<script src="/tracker/js/controllers/charges.js?v=20260807-apacash1"></script>
+<script src="/tracker/js/controllers/leads.js?v=20260807-apacash1"></script>
+<script src="/tracker/js/controllers/apa.js?v=20260807-apacash1"></script>
+<script src="/tracker/js/controllers/stews.js?v=20260807-apacash1"></script>
+<script src="/tracker/js/controllers/index.js?v=20260807-apacash1"></script>
 <script>
 "use strict";
 var API = "/.netlify/functions/tracker";
@@ -5951,7 +5951,12 @@ function chargeApaBaseTowardPot(c){
 function isApaCashSettlementCharge(c){
   if(LY_MODELS&&LY_MODELS.isApaCashSettlementCharge){
     return !!LY_MODELS.isApaCashSettlementCharge(c, {
-      chargeIsPaid:function(x){ return chargePay(x)==="Paid"; },
+      /* Explicit Paid only — never treat default/Pending as paid for pot close */
+      chargeIsPaid:function(x){
+        if(!x) return false;
+        if(x.payStatus!=null&&String(x.payStatus)!=="") return String(x.payStatus)==="Paid";
+        return String(x.status||"")==="Paid";
+      },
       chargeBillType:chargeBillType,
       chargePayMethod:chargePayMethod,
       isApaChargeRow:typeof isApaChargeRow==="function"?isApaChargeRow:null
@@ -16645,6 +16650,7 @@ function recalcCharge(){
     if(cash>0.009&&gross>0.009&&Math.abs(cash-gross)>0.009){
       var diffR=Math.round((cash-gross)*100)/100;
       html+='<div class="cl"><span>vs ledger</span><b>'+(diffR>0?"+":"")+money(diffR)+'</b></div>';
+      html+='<div class="meta" style="margin-top:4px;line-height:1.4">Loose change is fine — when <b>Payment = Paid</b>, the APA pot closes in full (ledger stays '+money(gross)+').</div>';
     }
   } else if(bt==="mix"){
     html+='<div class="cl"><span>Cash part</span><b>'+money(cash)+'</b></div>'+
@@ -16762,10 +16768,17 @@ function saveSheet(type,rec){
         if(invStatus==="Not needed") invStatus="Not issued";
       }
     }
-    /* APA base for pot recovery = settled amount (cash received for cash deals) */
+    /* APA pot recovery = ledger shortfall base (not cash notes — loose change OK) */
     if(isApaRec){
       apaBase=Math.max(0, Math.round((gross-extAmt)*100)/100);
       if(!(apaBase>0)&&gross>0&&!(extAmt>0)) apaBase=gross;
+      /* Prefer stored ledger base when captain only changed cash received */
+      if(rec&&Number(rec.apaBaseAmt)>0&&billType==="cash"&&cashPaid>0&&Math.abs(cashPaid-gross)>0.009){
+        var prevBase=Math.round(Number(rec.apaBaseAmt)*100)/100;
+        if(prevBase>apaBase+0.009&&Math.abs(prevBase-(gross-extAmt))>0.5){
+          /* keep form gross as ledger; pot closes via cash settlement regardless of cashPaid */
+        } else if(prevBase>0&&!(apaBase>0)) apaBase=prevBase;
+      }
     }
     var invPart=billType==="cash"?0:Math.round((gross-cashPaid)*100)/100;
     var vatPct=billType==="cash"?0:21;
@@ -16828,11 +16841,24 @@ function saveSheet(type,rec){
         obj.moneyManual=true;
       }
     }
+    /*
+     * APA cash Paid: always money-manual + close pot. Cash notes may differ from
+     * ledger (loose change) — still fully paid, no residual shortfall twin.
+     */
+    if(isApaRec&&(billType==="cash"||payMethod==="Cash")&&payStatus==="Paid"){
+      obj.moneyManual=true;
+      obj.cashDeal=true;
+      obj.payMethod="Cash";
+      obj.billType=billType==="mix"?"mix":"cash";
+      if(obj.billType==="cash") obj.invStatus="Not needed";
+      if(!(obj.cashPaid>0.009)&&gross>0.009) obj.cashPaid=gross;
+      if(obj.cashPaid>0) obj.cashAmt=obj.cashPaid;
+    }
     if(!obj.client && !obj.amount){ el("f_client").focus(); return; }
     upsert("charters",obj,rec);
     /* Re-assert cash figures after upsert (guards against any residual rewrite) */
     var stored=(state.charters||[]).filter(function(c){return c&&c.id===obj.id;})[0];
-    if(stored&&(obj.billType==="cash"||obj.moneyManual)){
+    if(stored&&(obj.billType==="cash"||obj.moneyManual||(isApaRec&&payStatus==="Paid"&&payMethod==="Cash"))){
       stored.amount=obj.amount;
       stored.billType=obj.billType;
       stored.cashPaid=obj.cashPaid;
@@ -16845,7 +16871,7 @@ function saveSheet(type,rec){
       stored.payStatus=obj.payStatus; stored.invStatus=obj.invStatus; stored.status=obj.status;
     }
     renderCharters(); save("charters");
-    /* Pin linked APA pot; if Paid cash → close pot (no lingering shortfall) */
+    /* Pin linked APA pot; if Paid cash → close pot (no lingering shortfall / loose change) */
     if(obj.kind==="apa"||obj.apaTripId){
       var savedCh=(state.charters||[]).filter(function(c){return c&&c.id===obj.id;})[0]||obj;
       (state.apa||[]).forEach(function(t){
@@ -16855,6 +16881,19 @@ function saveSheet(type,rec){
         }
       });
       applyApaCashSettlementFromCharge(savedCh);
+      /* Force pot closed when Paid cash even if helper missed (loose change path) */
+      if(String(savedCh.payStatus||"")==="Paid"&&(savedCh.billType==="cash"||savedCh.payMethod==="Cash"||savedCh.cashDeal)){
+        (state.apa||[]).forEach(function(t){
+          if(!t) return;
+          var pin=String(t.chargeId||"")===String(savedCh.id)||(savedCh.apaTripId&&String(t.id)===String(savedCh.apaTripId));
+          if(!pin) return;
+          t.chargeId=savedCh.id;
+          t.apaCashSettled=true;
+          t.apaCashSettledAmt=Math.round((apaNum(savedCh.cashPaid)||apaNum(savedCh.amount)||0)*100)/100;
+          t.suppressShortfallCharge=true;
+          t.updatedAt=new Date().toISOString();
+        });
+      }
       save("apa");
       if(curTab==="apa") try{ renderApa(); }catch(eA){}
     }

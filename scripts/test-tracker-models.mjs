@@ -970,6 +970,44 @@ console.log("\n[Charges — cashToBoat / VAT]");
       750
     )
   );
+  /* Loose change: cash slightly under ledger still cash (not mix) and settles APA pot */
+  const loose = {
+    kind: "apa",
+    apaTripId: "t-loose",
+    amount: 664.95,
+    apaBaseAmt: 664.95,
+    cashPaid: 650,
+    billType: "cash",
+    payMethod: "Cash",
+    payStatus: "Paid",
+    cashDeal: true,
+    moneyManual: true,
+  };
+  ok("loose change still billType cash", M.chargeBillType(loose) === "cash");
+  ok("loose change still payMethod Cash", M.chargePayMethod(loose) === "Cash");
+  ok("loose change is APA cash settlement", M.isApaCashSettlementCharge(loose) === true);
+  ok(
+    "loose change pot recovery is ledger base not cash",
+    near(M.chargeApaBaseTowardPot(loose), 664.95)
+  );
+  ok("loose change boat gets cash notes 650", near(M.chargeCashToBoat(loose), 650));
+  const looseTot = M.summarizeApaTripTotals({
+    apaSent: 0,
+    topUps: 0,
+    expenses: [{ amount: 664.95, category: "Miscellaneous" }],
+    provisions: [],
+    dieselLines: [],
+    paidCovered: M.chargeApaBaseTowardPot(loose),
+    cashSettled: M.isApaCashSettlementCharge(loose),
+  });
+  ok("loose change cash settled overage 0", looseTot.overage === 0);
+  ok("loose change cash settled bal 0", looseTot.bal === 0);
+  ok(
+    "Pending cash is NOT pot settlement",
+    M.isApaCashSettlementCharge(
+      Object.assign({}, loose, { payStatus: "Pending", status: "Pending" })
+    ) === false
+  );
 }
 
 /* ---- APA pot totals (model) ---- */

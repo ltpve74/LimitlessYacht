@@ -27,7 +27,11 @@
 function chargePayMethod(r) {
   var m = r && r.payMethod ? String(r.payMethod) : "";
   if (m === "Cash" || m === "Card" || m === "Split") return m;
-  if (r && num(r.cashPaid) > 0 && num(r.cashPaid) < num(r.amount) - 0.009) return "Split";
+  /* Explicit cash settlement — cash may differ from ledger (loose change); not Split */
+  var bt = r && r.billType ? String(r.billType).toLowerCase() : "";
+  if (bt === "cash" || r.cashDeal === true) return "Cash";
+  if (r && num(r.cashPaid) > 0 && num(r.amount) > 0 && num(r.cashPaid) < num(r.amount) - 0.009)
+    return "Split";
   if (r && /cash/i.test(String(r.notes || "")) && !/card/i.test(String(r.notes || ""))) return "Cash";
   return "Card";
 }
@@ -35,13 +39,16 @@ function chargePayMethod(r) {
 function chargeBillType(r) {
   if (!r) return "invoice";
   var bt = constrainBillType(r.billType);
+  /* Explicit billType wins — cash settlement may have cashPaid ≠ amount (loose change) */
   if (r.billType && BILL_TYPES[String(r.billType).toLowerCase()]) return bt;
   var tot = num(r.amount),
     cashP = num(r.cashPaid),
     free = num(r.cashAmt);
   if (r.cashDeal || r.vatMode === "none") {
     if (free > 0 && tot > free + 0.02) return "mix";
-    if (cashP > 0 && cashP < tot - 0.009) return "mix";
+    /* Do not demote pure cashDeal to mix just because cash ≠ ledger (change) */
+    if (r.cashDeal && (chargePayMethod(r) === "Cash" || r.vatMode === "none")) return "cash";
+    if (cashP > 0 && cashP < tot - 0.009 && !r.cashDeal) return "mix";
     if (chargePayMethod(r) === "Cash" || r.vatMode === "none") return "cash";
   }
   if (chargePayMethod(r) === "Cash") return "cash";
@@ -154,15 +161,21 @@ function chargeExtSettle(c) {
  * Slice of a paid APA charge that restores the pot (shortfall only).
  * Extra charter hours (extAmt) are never pot money — counting them
  * made settled APAs show a fake positive “remaining”.
+ *
+ * Cash settlement: pot recovery uses the ledger APA base, not cash notes
+ * (guest may pay €650 cash for a €664.95 ledger — loose change does not
+ * leave a residual shortfall on the pot).
  */
 function chargeApaBaseTowardPot(c) {
   if (!c) return 0;
   var ext = chargeExtAmt(c);
+  var base = 0;
   if (c.apaBaseAmt != null && c.apaBaseAmt !== "") {
     var b = round2(num(c.apaBaseAmt));
-    if (b >= 0) return b;
+    if (b >= 0) base = b;
   }
-  return Math.max(0, round2(num(c.amount) - ext));
+  if (!(base > 0)) base = Math.max(0, round2(num(c.amount) - ext));
+  return base;
 }
 
 function chargeTotalsFromApaAndExt(apaBase, extAmt, extSettle) {
