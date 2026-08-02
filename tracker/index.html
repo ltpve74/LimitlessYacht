@@ -939,21 +939,21 @@
 
 <!-- Domain models + controllers (MVC blueprint) — tests: node scripts/test-tracker-models.mjs -->
 <!-- LY_MODELS → LY_CONTROLLERS → view. See .agent/briefs/tracker-v1-mvc-blueprint.md -->
-<script src="/tracker/js/models/util.js?v=20260807-cash5"></script>
-<script src="/tracker/js/models/leads.js?v=20260807-cash5"></script>
-<script src="/tracker/js/models/charges.js?v=20260807-cash5"></script>
-<script src="/tracker/js/models/expenses.js?v=20260807-cash5"></script>
-<script src="/tracker/js/models/cash.js?v=20260807-cash5"></script>
-<script src="/tracker/js/models/diesel.js?v=20260807-cash5"></script>
-<script src="/tracker/js/models/stews.js?v=20260807-cash5"></script>
-<script src="/tracker/js/models/apa.js?v=20260807-cash5"></script>
-<script src="/tracker/js/models/index.js?v=20260807-cash5"></script>
-<script src="/tracker/js/controllers/expenses.js?v=20260807-cash5"></script>
-<script src="/tracker/js/controllers/charges.js?v=20260807-cash5"></script>
-<script src="/tracker/js/controllers/leads.js?v=20260807-cash5"></script>
-<script src="/tracker/js/controllers/apa.js?v=20260807-cash5"></script>
-<script src="/tracker/js/controllers/stews.js?v=20260807-cash5"></script>
-<script src="/tracker/js/controllers/index.js?v=20260807-cash5"></script>
+<script src="/tracker/js/models/util.js?v=20260807-tx1"></script>
+<script src="/tracker/js/models/leads.js?v=20260807-tx1"></script>
+<script src="/tracker/js/models/charges.js?v=20260807-tx1"></script>
+<script src="/tracker/js/models/expenses.js?v=20260807-tx1"></script>
+<script src="/tracker/js/models/cash.js?v=20260807-tx1"></script>
+<script src="/tracker/js/models/diesel.js?v=20260807-tx1"></script>
+<script src="/tracker/js/models/stews.js?v=20260807-tx1"></script>
+<script src="/tracker/js/models/apa.js?v=20260807-tx1"></script>
+<script src="/tracker/js/models/index.js?v=20260807-tx1"></script>
+<script src="/tracker/js/controllers/expenses.js?v=20260807-tx1"></script>
+<script src="/tracker/js/controllers/charges.js?v=20260807-tx1"></script>
+<script src="/tracker/js/controllers/leads.js?v=20260807-tx1"></script>
+<script src="/tracker/js/controllers/apa.js?v=20260807-tx1"></script>
+<script src="/tracker/js/controllers/stews.js?v=20260807-tx1"></script>
+<script src="/tracker/js/controllers/index.js?v=20260807-tx1"></script>
 <script>
 "use strict";
 var API = "/.netlify/functions/tracker";
@@ -7107,8 +7107,10 @@ function apaEngineLitres(r){
   return apaNum(r.engineL);
 }
 function apaDieselCalc(t,r){
-  /* Line price still resolved in view (active bunker / trip rate); litres+cost freeze in model */
+  /* Line price still resolved in view (active bunker / trip rate); litres+cost freeze in model.
+   * Missing rate falls back inside model/controller so fuel is never free. */
   var price=apaDieselPriceForLine(t, r);
+  if(!(price>0)) price=dieselAutoGuestRate(t, r)||DIESEL_LEGACY_SELL||DIESEL_DEFAULT_SELL||1.75;
   if(window.LY_CONTROLLERS&&LY_CONTROLLERS.apa){
     return LY_CONTROLLERS.apa.dieselLine({
       models:LY_MODELS,
@@ -7119,7 +7121,11 @@ function apaDieselCalc(t,r){
     });
   }
   if(LY_MODELS&&LY_MODELS.apaDieselLineCalc){
-    return LY_MODELS.apaDieselLineCalc({ genBurn:apaGenBurn(t), dieselPrice:price }, r);
+    return LY_MODELS.apaDieselLineCalc({
+      genBurn:apaGenBurn(t),
+      dieselPrice:price,
+      fallbackPrice:(LY_MODELS.DIESEL_LEGACY_FALLBACK_SELL||LY_MODELS.APA_DIESEL_FALLBACK_PRICE||1.75)
+    }, r);
   }
   var eng=apaEngineLitres(r), hrs=apaNum(r&&r.genHrs);
   var burn=apaGenBurn(t);
@@ -7937,14 +7943,38 @@ function openApaLine(kind,id){
       if(!(obj.genHrs>0)) obj.genHrs="";
       obj.cost=apaNum(el("f_dsl_cost")?el("f_dsl_cost").value:0);
       if(!obj.cost) obj.cost="";
-      var preview=apaDieselCalc(t,obj);
-      if(preview.cost<=0&&!preview.eng&&!obj.genHrs){
-        if(el("f_engine_port")) el("f_engine_port").focus();
-        return;
+      /* Controller/model freeze amount+unitPrice — never save free fuel (missing rate → fallback) */
+      var dslPlan=null;
+      if(window.LY_CONTROLLERS&&LY_CONTROLLERS.apa&&LY_CONTROLLERS.apa.planDieselConsumption){
+        dslPlan=LY_CONTROLLERS.apa.planDieselConsumption({
+          models:LY_MODELS,
+          trip:t,
+          row:obj,
+          id:obj.id,
+          date:obj.date,
+          notes:obj.notes,
+          linePrice:apaDieselPriceForLine(t, obj)
+        });
       }
-      obj.unitPrice=preview.price;
-      if(!obj.cost) obj.amount=Math.round(preview.cost*100)/100;
-      else obj.amount=obj.cost;
+      if(dslPlan&&dslPlan.ok&&dslPlan.line){
+        obj=Object.assign({}, obj, dslPlan.line);
+        if(!(apaNum(obj.amount)>0)&&!(apaNum(obj.engineL)>0)&&!(apaNum(obj.genHrs)>0)){
+          if(el("f_engine_port")) el("f_engine_port").focus();
+          return;
+        }
+      } else {
+        var preview=apaDieselCalc(t,obj);
+        if(preview.cost<=0&&!preview.eng&&!obj.genHrs){
+          if(el("f_engine_port")) el("f_engine_port").focus();
+          return;
+        }
+        if(preview.cost<=0&&preview.lit>0){
+          window.alert("Fuel rate is missing — set €/L on Trip fuel, then save consumption again.");
+          return;
+        }
+        obj.unitPrice=preview.price;
+        obj.amount=Math.round(preview.cost*100)/100;
+      }
     }
     var saved=apaMutateTrip(tripId,function(trip){
       var key=kind==="expense"?"expenses":(kind==="provision"?"provisions":"diesel");
@@ -7959,6 +7989,10 @@ function openApaLine(kind,id){
         trip[key]=next;
       } else {
         trip[key]=[obj].concat(arr);
+      }
+      /* First fuel line pins trip rate when pot had none (so totals stay non-zero) */
+      if(kind==="diesel"&&!(Number(trip.dieselPrice)>0)&&apaNum(obj.unitPrice)>0){
+        trip.dieselPrice=apaNum(obj.unitPrice);
       }
       if(needsReceipt&&isCaptain()&&!obj.fromExpenseId){
         apaSyncLineToMonthly(trip, obj, kind);
