@@ -223,6 +223,62 @@ function stewRosterSummary(events, assigns, stews) {
   };
 }
 
+/**
+ * Guest tip on card / final bill — boat liability when unpaid.
+ * Cash tips (guest → crew direct) are never boat liability.
+ */
+function stewTipIsOnBill(asg) {
+  if (!asg) return false;
+  var s = String(asg.tipSource || asg.tipVia || "").toLowerCase();
+  return (
+    s === "card" ||
+    s === "bill" ||
+    s === "invoice" ||
+    s === "onbill" ||
+    s === "on-bill" ||
+    s === "final"
+  );
+}
+
+function stewTipTotal(asg) {
+  if (!asg) return 0;
+  var t = Number(asg.tipTotal);
+  if (isFinite(t) && t >= 0) return Math.round(t * 100) / 100;
+  return 0;
+}
+
+function stewTipPaid(asg) {
+  if (!asg) return false;
+  return asg.tipPayStatus === "Paid" || asg.tipPaid === true;
+}
+
+/**
+ * Day pay for one stew on an assignment.
+ * Prefers dayPayByStew[id]; else payEach / dayRate.
+ */
+function stewDayPayForStew(asg, stewId) {
+  if (!asg || !stewId) return 0;
+  var map = asg.dayPayByStew && typeof asg.dayPayByStew === "object" ? asg.dayPayByStew : null;
+  if (map && map[String(stewId)] != null && map[String(stewId)] !== "") {
+    var n = Number(map[String(stewId)]);
+    if (isFinite(n) && n >= 0) return Math.round(n * 100) / 100;
+  }
+  var each = Number(asg.payEach);
+  if (!(isFinite(each) && each >= 0)) each = Number(asg.dayRate) || 0;
+  return Math.round((each || 0) * 100) / 100;
+}
+
+function stewDayPayTotalAll(asg) {
+  if (!asg) return 0;
+  var ids = (asg.stewIds || []).filter(Boolean);
+  if (!ids.length) return 0;
+  var s = 0;
+  ids.forEach(function (sid) {
+    s += stewDayPayForStew(asg, sid);
+  });
+  return Math.round(s * 100) / 100;
+}
+
 
   return {
     stewEventId: stewEventId,
@@ -237,6 +293,11 @@ function stewRosterSummary(events, assigns, stews) {
     findAssignForEvent: findAssignForEvent,
     stewRosterStatus: stewRosterStatus,
     stewRosterRow: stewRosterRow,
-    stewRosterSummary: stewRosterSummary
+    stewRosterSummary: stewRosterSummary,
+    stewTipIsOnBill: stewTipIsOnBill,
+    stewTipTotal: stewTipTotal,
+    stewTipPaid: stewTipPaid,
+    stewDayPayForStew: stewDayPayForStew,
+    stewDayPayTotalAll: stewDayPayTotalAll
   };
 });

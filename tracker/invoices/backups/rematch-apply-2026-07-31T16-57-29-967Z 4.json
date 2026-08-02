@@ -1,0 +1,292 @@
+{
+  "plan": [
+    {
+      "name": "herny's guest hen do",
+      "start": "2026-05-17",
+      "before": 3000,
+      "after": 1200,
+      "inv": "2026-006",
+      "client": "Jürgen Krasemann",
+      "why": "fee",
+      "score": 50,
+      "changed": true
+    },
+    {
+      "name": "Mathew Forman",
+      "start": "2026-05-24",
+      "before": 2200,
+      "after": 2200,
+      "inv": "2026-009",
+      "client": "Matthew Forman",
+      "why": "fee",
+      "score": 83,
+      "changed": false
+    },
+    {
+      "name": "guido",
+      "start": "2026-05-26",
+      "before": 3000,
+      "after": 2420,
+      "inv": "2026-003",
+      "client": "Guido Korn",
+      "why": "fee",
+      "score": 154,
+      "changed": true
+    },
+    {
+      "name": "joechen schaefer",
+      "start": "2026-05-29",
+      "before": 3000,
+      "after": 1815,
+      "inv": "2026-010",
+      "client": "Roman Travnik",
+      "why": "fee",
+      "score": 50,
+      "changed": true
+    },
+    {
+      "name": "eric king",
+      "start": "2026-05-29",
+      "before": 750,
+      "after": 750,
+      "inv": "2026-013",
+      "client": "Eric King",
+      "why": "fee",
+      "score": 46,
+      "changed": false
+    },
+    {
+      "name": "Charter Luisa",
+      "start": "2026-05-30",
+      "before": 1500,
+      "after": 1500,
+      "inv": "2026-007",
+      "client": "Preach Media GmbH",
+      "why": "fee",
+      "score": 50,
+      "changed": false
+    },
+    {
+      "name": "Andrew",
+      "start": "2026-06-18",
+      "before": 1900,
+      "after": 1900,
+      "inv": "2026-018",
+      "client": "Yacht Support Group SL",
+      "why": "ysg",
+      "score": 34,
+      "changed": false
+    },
+    {
+      "name": "Maurice",
+      "start": "2026-06-20",
+      "before": 2200,
+      "after": 2200,
+      "inv": "2026-018",
+      "client": "Yacht Support Group SL",
+      "why": "ysg",
+      "score": 34,
+      "changed": false
+    },
+    {
+      "name": "Sebastián stew Laura",
+      "start": "2026-06-26",
+      "before": 1500,
+      "after": 1500,
+      "inv": "2026-022",
+      "client": "Sebastien Jonqua",
+      "why": "fee",
+      "score": 86,
+      "changed": false
+    },
+    {
+      "name": "Danilo Caffaro",
+      "start": "2026-07-04",
+      "before": 5381.29,
+      "after": 5381.29,
+      "inv": "2026-026",
+      "client": "Yacht Support Group SL",
+      "why": "ysg",
+      "score": 34,
+      "changed": false
+    },
+    {
+      "name": "Leon stew Laura",
+      "start": "2026-07-10",
+      "before": 1277.28,
+      "after": 1277.28,
+      "inv": "2026-026",
+      "client": "Yacht Support Group SL",
+      "why": "ysg",
+      "score": 34,
+      "changed": false
+    },
+    {
+      "name": "Jörg stew Laura",
+      "start": "2026-07-11",
+      "before": 1210,
+      "after": 1210,
+      "inv": "2026-024",
+      "client": "Jörg Thüner",
+      "why": "fee",
+      "score": 84,
+      "changed": false
+    },
+    {
+      "name": "Sebastien stew Vicky",
+      "start": "2026-07-16",
+      "before": 1800,
+      "after": 1800,
+      "inv": "2026-021",
+      "client": "Search Solution Consulting GmbH",
+      "why": "fee",
+      "score": 50,
+      "changed": false
+    },
+    {
+      "name": "Joel Freeland",
+      "start": "2026-07-17",
+      "before": 12350,
+      "after": 12350,
+      "inv": "023+017",
+      "changed": false,
+      "protected": true
+    },
+    {
+      "name": "Arthur",
+      "start": "2026-07-20",
+      "before": 1490.16,
+      "after": 1490.16,
+      "inv": "2026-026",
+      "client": "Yacht Support Group SL",
+      "why": "ysg",
+      "score": 34,
+      "changed": false
+    },
+    {
+      "name": "Mohammed",
+      "start": "2026-07-22",
+      "before": 2838.41,
+      "after": 2838.41,
+      "inv": "2026-026",
+      "client": "Yacht Support Group SL",
+      "why": "ysg",
+      "score": 34,
+      "changed": false
+    },
+    {
+      "name": "Michael Hollman",
+      "start": "2026-07-25",
+      "before": 2000,
+      "after": 2000,
+      "inv": "2026-017",
+      "client": "Michael Hollmann",
+      "why": "fee",
+      "score": 60,
+      "changed": false
+    },
+    {
+      "name": "Danny",
+      "start": "2026-08-01",
+      "before": 1210,
+      "after": 1210,
+      "inv": "2026-015",
+      "client": "Daniela Heckendorf",
+      "why": "fee",
+      "score": 50,
+      "changed": false
+    },
+    {
+      "name": "Jurgen",
+      "start": "2026-08-18",
+      "before": 1200,
+      "after": 9950,
+      "inv": "2026-017",
+      "client": "Joel Freeland",
+      "why": "fee",
+      "score": 70,
+      "changed": true
+    },
+    {
+      "name": "Henry",
+      "start": "2026-08-24",
+      "before": 6000,
+      "after": 6000,
+      "inv": "2026-015",
+      "client": "Henry Kalkmann",
+      "why": "fee",
+      "score": 84,
+      "changed": false
+    },
+    {
+      "name": "sebastian",
+      "start": "2026-09-07",
+      "before": 12000,
+      "after": 2125,
+      "inv": "2026-004",
+      "client": "Sebastien Jonqua",
+      "why": "fee",
+      "score": 51,
+      "changed": true
+    }
+  ],
+  "changes": [
+    {
+      "name": "herny's guest hen do",
+      "start": "2026-05-17",
+      "before": 3000,
+      "after": 1200,
+      "inv": "2026-006",
+      "client": "Jürgen Krasemann",
+      "why": "fee",
+      "score": 50,
+      "changed": true
+    },
+    {
+      "name": "guido",
+      "start": "2026-05-26",
+      "before": 3000,
+      "after": 2420,
+      "inv": "2026-003",
+      "client": "Guido Korn",
+      "why": "fee",
+      "score": 154,
+      "changed": true
+    },
+    {
+      "name": "joechen schaefer",
+      "start": "2026-05-29",
+      "before": 3000,
+      "after": 1815,
+      "inv": "2026-010",
+      "client": "Roman Travnik",
+      "why": "fee",
+      "score": 50,
+      "changed": true
+    },
+    {
+      "name": "Jurgen",
+      "start": "2026-08-18",
+      "before": 1200,
+      "after": 9950,
+      "inv": "2026-017",
+      "client": "Joel Freeland",
+      "why": "fee",
+      "score": 70,
+      "changed": true
+    },
+    {
+      "name": "sebastian",
+      "start": "2026-09-07",
+      "before": 12000,
+      "after": 2125,
+      "inv": "2026-004",
+      "client": "Sebastien Jonqua",
+      "why": "fee",
+      "score": 51,
+      "changed": true
+    }
+  ],
+  "fails": [],
+  "backup": "tracker-blob-backup-before-rematch-2026-07-31T16-57-29-967Z.json"
+}

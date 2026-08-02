@@ -6,14 +6,15 @@ See [`.agent/briefs/tracker-v1-mvc-blueprint.md`](../../../.agent/briefs/tracker
 
 | File | Owns |
 |------|------|
-| `util.js` | `num`, `round2`, `moneyFromBase` |
-| `leads.js` | Sources, free cash, commission, projected net, charter rates |
-| `charges.js` | Bill type, captain upsell commission |
-| `expenses.js` | Petty cash, reimbursement, crew day-pay, **pocket liabilities**, month settlement |
+| `util.js` | `num`, `round2`, `moneyFromBase`, `invoiceSplitGross` |
+| `leads.js` | Sources, free cash, commission, projected net, realised glimpse helpers |
+| `charges.js` | Bill type, cash-to-boat, VAT parts, captain upsell commission |
+| `expenses.js` | Petty cash, reimbursement, crew day-pay, pocket liabilities, month settlement |
+| `apa.js` | Guest pot totals / overage (diesel costs injected) |
 | `diesel.js` | Bunker buy + sticky guest sell |
-| `stews.js` | Roster assigned / unassigned / cancelled |
+| `stews.js` | Roster, tip on-bill, day-pay amounts |
 | `index.js` | Merges → `window.LY_MODELS` / `module.exports` |
-| *controllers/* | **Not models** — application services (`LY_CONTROLLERS`) that only call models |
+| *controllers/* | Application services (`LY_CONTROLLERS`) — no formulas |
 
 ## Expenses / pocket (Keepafloat cash foundation)
 
