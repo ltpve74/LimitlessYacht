@@ -747,25 +747,44 @@ console.log("\n[Petty cash — crew day-pay collapse & floatPay]");
     source: "stew", stewPayKind: "dayPay", stewId: "t1", date: "2026-07-30",
     crewPayStatus: "Paid", paidFrom: "Own money", floatPay: true, amount: 50
   }));
-  const finger = M.crewDayPayFinger({ stewId: "toni", date: "2026-07-30" });
-  ok("finger stew|date", finger === "toni|2026-07-30");
-  /* Two renames same Toni day: 150 phantom + 50 real — collapse to one, petty uses winner only */
+  const finger = M.crewDayPayFinger({ stewId: "toni", stewEventKey: "uid:abc", date: "2026-07-30" });
+  ok("finger stew|eventKey", finger === "toni|uid:abc");
+  const fingerDate = M.crewDayPayFinger({ stewId: "toni", date: "2026-07-30" });
+  ok("finger stew|date fallback", fingerDate === "toni|2026-07-30");
+  /* Two renames same charter (same eventKey): 150 phantom + 50 real — collapse to one */
   const dupes = [
     {
       id: "old", linkId: "stew-day:uid:abc:toni", source: "stew", stewPayKind: "dayPay",
-      stewId: "toni", date: "2026-07-30", crewPayStatus: "Paid", paidFrom: "Petty cash",
+      stewId: "toni", stewEventKey: "uid:abc", date: "2026-07-30", crewPayStatus: "Paid", paidFrom: "Petty cash",
       floatPay: true, amount: 150, updatedAt: "2026-07-30T10:00:00.000Z"
     },
     {
-      id: "new", linkId: "stew-day:lead:xyz:toni", source: "stew", stewPayKind: "dayPay",
-      stewId: "toni", date: "2026-07-30", crewPayStatus: "Paid", paidFrom: "Petty cash",
+      id: "new", linkId: "stew-day:uid:abc:toni", source: "stew", stewPayKind: "dayPay",
+      stewId: "toni", stewEventKey: "uid:abc", date: "2026-07-30", crewPayStatus: "Paid", paidFrom: "Petty cash",
       floatPay: true, amount: 50, payStatusManual: true, updatedAt: "2026-07-30T18:00:00.000Z"
     },
     { id: "shop", category: "Provisions", payMethod: "Cash", paidFrom: "Petty cash", amount: 20 }
   ];
   const col = M.collapseCrewDayPayExpenses(dupes);
   ok("collapse removes 1 crew dupe", col.collapsed === 1, "got " + col.collapsed);
-  ok("winner is newest manual €50", col.winnerByFinger["toni|2026-07-30"] && col.winnerByFinger["toni|2026-07-30"].id === "new");
+  ok("winner is newest manual €50", col.winnerByFinger["toni|uid:abc"] && col.winnerByFinger["toni|uid:abc"].id === "new");
+  /* Two different charters same stew same pay-date must BOTH hit petty */
+  const twoCharters = [
+    {
+      id: "diego", linkId: "stew-day:uid:diego:laura", source: "stew", stewPayKind: "dayPay",
+      stewId: "laura", stewEventKey: "uid:diego", date: "2026-08-03",
+      crewPayStatus: "Paid", paidFrom: "Petty cash", floatPay: true, amount: 200
+    },
+    {
+      id: "dominik", linkId: "stew-day:uid:dominik:laura", source: "stew", stewPayKind: "dayPay",
+      stewId: "laura", stewEventKey: "uid:dominik", date: "2026-08-03",
+      crewPayStatus: "Paid", paidFrom: "Petty cash", floatPay: true, amount: 200
+    }
+  ];
+  const col2 = M.collapseCrewDayPayExpenses(twoCharters);
+  ok("two charters same day not collapsed", col2.collapsed === 0, "got " + col2.collapsed);
+  const sum2 = M.summarizePettyCash({ pettyStart: 500, cashIns: [], expenses: twoCharters });
+  ok("two charters both hit petty 400", near(sum2.cashOut, 400), "cashOut " + sum2.cashOut);
   const sum = M.summarizePettyCash({
     pettyStart: 50,
     cashIns: [],
