@@ -1097,21 +1097,18 @@ function isCrewDayPaySettled(asg, sid, settled) {
 }
 
 /**
- * Pure plan: unpark day-pay marked Paid without cash leaving the float
- * for charters from today onward (Toni “parked Paid” before the trip).
+ * Pure plan: unpark day-pay marked Paid without cash leaving the float.
+ * Covers past + future ghosts (e.g. Laura/Diego “Paid” card while still owed).
  *
- * Keeps lines that actually hit petty (floatPay). Drops ghost expense rows and
- * sets assign → Unpaid so open-owed / Stews show unpaid until captain pays.
+ * Keeps lines that actually hit petty (floatPay) or captain-marked Prior
+ * (payStatusManual without float). Drops bare ghost expense rows and sets
+ * assign → Unpaid so open-owed / Stews show unpaid until captain pays.
  *
  * @param {{ assigns?: Array, expenses?: Array, today?: string }} input
  * @returns {{ changed: boolean, assignPatches: Array, dropExpenseIds: Array }}
  */
 function planUnparkDayPayNotFromFloat(input) {
   input = input || {};
-  var today = String(input.today || "").slice(0, 10);
-  if (!/^\d{4}-\d{2}-\d{2}$/.test(today)) {
-    return { changed: false, assignPatches: [], dropExpenseIds: [] };
-  }
   var assigns = Array.isArray(input.assigns) ? input.assigns : [];
   var expenses = Array.isArray(input.expenses) ? input.expenses : [];
   var assignPatches = [];
@@ -1120,9 +1117,9 @@ function planUnparkDayPayNotFromFloat(input) {
 
   assigns.forEach(function (asg) {
     if (!asg || !asg.eventKey) return;
-    var start = String(asg.start || "").slice(0, 10);
-    if (!start || start < today) return;
     if (String(asg.payStatus || "") !== "Paid") return;
+    /* Explicit Prior / manual settle without float is intentional — leave alone */
+    if (asg.payStatusManual === true) return;
 
     var ek = String(asg.eventKey);
     var lines = [];
@@ -1149,13 +1146,11 @@ function planUnparkDayPayNotFromFloat(input) {
     });
   });
 
-  /* Also drop bare Paid day-pay ghosts (no manual, no float) from today+ even without assign */
+  /* Bare Paid day-pay ghosts (no manual, no float) — any date */
   expenses.forEach(function (e) {
     if (!e || !isCrewDayPayExpense(e)) return;
     if (String(e.crewPayStatus || "") !== "Paid") return;
     if (e.floatPay === true || e.payStatusManual === true) return;
-    var d = String(e.date || "").slice(0, 10);
-    if (!d || d < today) return;
     if (e.id != null && !dropSet[String(e.id)]) {
       dropSet[String(e.id)] = 1;
       dropExpenseIds.push(String(e.id));
@@ -1216,7 +1211,11 @@ function collectOpenCrewDayPay(assigns, expenses, opts) {
   (Array.isArray(assigns) ? assigns : []).forEach(function (asg) {
     if (!asg || !asg.eventKey) return;
     if (asg.cancelled || asg.status === "cancelled" || asg.cancelGhost) return;
-    if (String(asg.payStatus || "") === "Paid") return;
+    /*
+     * Do NOT skip bare payStatus "Paid" here — ghost Paid (no payStatusManual,
+     * no floatPay expense) must still list as open until captain really settles.
+     * Explicit settlement = isCrewDayPaySettled (manual Prior or floatPay line).
+     */
     var start = String(asg.start || "").slice(0, 10);
     if (!start || start > today) return;
     var m = expenseMonthKey(start);
