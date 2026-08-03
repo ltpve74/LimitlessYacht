@@ -1,0 +1,242 @@
+{
+  "pulledAt": "2026-08-03T14:11:00Z",
+  "status": "APPLIED to live blob 2026-08-03 \u2014 verified",
+  "captainTruth": {
+    "augustBroughtForward": -110,
+    "julyOpenOnly": [
+      {
+        "what": "Laura day pay",
+        "amount": 200,
+        "charter": "diego 2026-07-14"
+      },
+      {
+        "what": "Laura tip (card)",
+        "amount": 100,
+        "charter": "diego 2026-07-14",
+        "note": "captain tip share already marked; stew share open"
+      }
+    ],
+    "rules": [
+      "No on-load money heals",
+      "Data fixes: dry-run \u2192 captain check \u2192 single DB write",
+      "Fix root code so re-mark Paid cannot re-hit petty"
+    ]
+  },
+  "analysis": {
+    "duplicateExpenseRows": 0,
+    "problem": "Not duplicate rows. Re-mark Paid + prior bulk mess set floatPay=true on many July day-pays (\u20ac2900 hits petty). July broughtForwardShort=2500 and Aug BF=1160 are wrong vs captain Aug \u2212\u20ac110.",
+    "liveNow": {
+      "julyFloatPayCrewTotal": 2900,
+      "julyBroughtForwardShort": 2500,
+      "augustBroughtForwardShort": 1160,
+      "julyCashIn": 1800,
+      "diegoAssignDuplicates": 2
+    },
+    "diegoAssigns": [
+      {
+        "eventKey": "lead:4b87f890-80cb-4716-a14d-55454ad6f683",
+        "payStatus": "Paid",
+        "note": "GHOST \u2014 Paid, no dayPayByStew, tip Unpaid. This is the false 'already paid' the captain saw."
+      },
+      {
+        "eventKey": "uid:016E512A-8799-4B66-955C-C3EFD87F39E7",
+        "payStatus": "Unpaid",
+        "dayPay": 200,
+        "tipTotal": 200,
+        "tipPayStatus": "Partial",
+        "tipPaidBy": {
+          "captain": true
+        },
+        "tipSource": "card",
+        "tipStewShare": 100,
+        "note": "REAL row \u2014 keep; Laura day pay still open; Laura tip \u20ac100 open"
+      }
+    ]
+  },
+  "proposedDbChanges": {
+    "step1_expenses_clearInventedFloatPay": {
+      "action": "For every crew day-pay expense with floatPay===true: set floatPay=false, keep crewPayStatus=Paid, keep payStatusManual=true",
+      "scope": "All months in expenses (May\u2013Aug day-pay lines currently floatPay true)",
+      "julyIdsAndAmounts": [
+        {
+          "id": "2f0d3ea1-fcb1-49f8-9be3-f0b8455cdba9",
+          "date": "2026-07-03",
+          "vendor": "Becks",
+          "amount": 200,
+          "remadeToday": true
+        },
+        {
+          "id": "b4552559-a34a-42f4-9fb2-007e51c6b460",
+          "date": "2026-07-04",
+          "vendor": "Toni",
+          "amount": 500,
+          "remadeToday": true
+        },
+        {
+          "id": "c4bde93f-1517-4cda-944f-6f2a1fd2bfdc",
+          "date": "2026-07-08",
+          "vendor": "Laura",
+          "amount": 200,
+          "remadeToday": true
+        },
+        {
+          "id": "088c00b2-4951-4e00-87c1-2b8493409ced",
+          "date": "2026-07-10",
+          "vendor": "Laura",
+          "amount": 150,
+          "remadeToday": true
+        },
+        {
+          "id": "5726544e-ff2a-40d4-8828-6f0c9eedf731",
+          "date": "2026-07-11",
+          "vendor": "Laura",
+          "amount": 200,
+          "remadeToday": false
+        },
+        {
+          "id": "123a1954-b1cb-4c51-98a4-4fe41f79246a",
+          "date": "2026-07-16",
+          "vendor": "Vicky",
+          "amount": 200,
+          "remadeToday": true
+        },
+        {
+          "id": "e5428ad4-06af-4e41-9fdb-9dac79d38516",
+          "date": "2026-07-17",
+          "vendor": "Toni",
+          "amount": 750,
+          "remadeToday": false
+        },
+        {
+          "id": "8ad7a306-f93d-4433-9c15-d1d0fe98268a",
+          "date": "2026-07-20",
+          "vendor": "Vicky",
+          "amount": 200,
+          "remadeToday": false
+        },
+        {
+          "id": "434b8588-20f1-4a30-bc64-62550bd4b684",
+          "date": "2026-07-22",
+          "vendor": "Vicky",
+          "amount": 200,
+          "remadeToday": false
+        },
+        {
+          "id": "5e334205-b8d4-479c-93a9-ff0658f81088",
+          "date": "2026-07-24",
+          "vendor": "Toni",
+          "amount": 250,
+          "remadeToday": false
+        },
+        {
+          "id": "b288380c-e78a-4808-9025-dfb634cf13b5",
+          "date": "2026-07-30",
+          "vendor": "Toni",
+          "amount": 50,
+          "remadeToday": false
+        }
+      ],
+      "augustFloatAlsoClearUnlessCaptainSaysTheyPaidFromThisEnvelope": [
+        {
+          "id": "5f841320-c58a-4254-a299-c1e89bff3d7a",
+          "date": "2026-08-01",
+          "vendor": "Vicky",
+          "amount": 250
+        },
+        {
+          "id": "94247ea1-30c1-4b4a-9d47-9962c686192c",
+          "date": "2026-08-01",
+          "vendor": "Janine",
+          "amount": 200
+        },
+        {
+          "id": "6f445c19-69aa-4b3e-a385-53b6e1b9eea8",
+          "date": "2026-08-02",
+          "vendor": "Toni",
+          "amount": 200
+        }
+      ],
+      "effect": "Stops crew day-pay re-subtracting from petty. Status stays Paid so Stews stay in Paid group."
+    },
+    "step2_expPetty_restoreAugustShort110": {
+      "july": {
+        "month": "2026-07",
+        "set": {
+          "pettyStart": 0,
+          "broughtForwardShort": 0,
+          "startMode": "manual"
+        },
+        "was": {
+          "pettyStart": 0,
+          "broughtForwardShort": 2500,
+          "startMode": "manual"
+        }
+      },
+      "august": {
+        "month": "2026-08",
+        "set": {
+          "pettyStart": 0,
+          "broughtForwardShort": 110,
+          "startMode": "manual"
+        },
+        "was": {
+          "pettyStart": 0,
+          "broughtForwardShort": 1160,
+          "startMode": "carry"
+        },
+        "note": "Captain: Aug brought forward was \u2212\u20ac110 (boat short \u20ac110). Model stores short as positive broughtForwardShort=110."
+      }
+    },
+    "step3_stewAssign_diegoGhost": {
+      "dropOrNeutralize": {
+        "eventKey": "lead:4b87f890-80cb-4716-a14d-55454ad6f683",
+        "action": "REMOVE this assign row (ghost Paid duplicate for diego 2026-07-14)",
+        "reason": "False 'already paid' without dayPay; real work is on uid:016E512A-\u2026"
+      },
+      "keep": {
+        "eventKey": "uid:016E512A-8799-4B66-955C-C3EFD87F39E7",
+        "payStatus": "Unpaid",
+        "dayPay": 200,
+        "tip": "Partial captain paid; Laura \u20ac100 card open"
+      }
+    },
+    "step4_stewAssign_toni12Paid": {
+      "eventKey": "uid:44FD4862-2717-406F-8A6F-E8BCE2F97CC3",
+      "date": "2026-07-12",
+      "summary": "click and boat - stew Toni",
+      "liveNow": {
+        "payStatus": "Unpaid",
+        "dayPayByStew": null
+      },
+      "set": {
+        "payStatus": "Paid",
+        "payStatusManual": true,
+        "note": "Captain: Toni 12 is paid. Do NOT set floatPay / do NOT invent petty hit \u2014 already settled."
+      },
+      "expense": {
+        "action": "If no day-pay expense exists (current live: none), either leave books-only Paid on assign only, OR insert one Paid line with floatPay=false, paidFrom prior/books \u2014 prefer assign-only unless UI needs an expense row",
+        "floatPay": false
+      }
+    }
+  },
+  "openAfterFix": [
+    "Laura Diego 2026-07-14 day pay \u20ac200 Unpaid",
+    "Laura Diego tip \u20ac100 card outstanding",
+    "Laura Dominik 2026-08-03 Unpaid \u20ac200"
+  ],
+  "codeRootCauseToFixAfterData": [
+    "expSetStewDayPayStatus / mark Paid always sets floatPay=true for Petty cash \u2014 re-mark re-hits envelope",
+    "Any remaining load/open heals that rewrite expenses or expPetty must stay off",
+    "Prefer explicit 'Pay from petty now' vs 'Already paid (books only)' so Paid \u2260 floatPay"
+  ],
+  "writeMethod": "POST tracker API save collection expenses then expPetty then stewAssign \u2014 only after captain OK. Backup blob taken at /tmp/tracker-live-backup-before-fix-*.json",
+  "applied": {
+    "floatPayCleared": 14,
+    "julyBF": 0,
+    "augustBF": 110,
+    "augustStartManual": true,
+    "diegoGhostDropped": true,
+    "toni12Paid": true,
+    "codeRootCause": "removed load heals on Expenses/renderAll; Stews re-save no longer re-hits petty when already Paid"
+  }
+}

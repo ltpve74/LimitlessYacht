@@ -20,4 +20,5 @@
 - [../briefs/tracker-v2-architecture.md](../briefs/tracker-v2-architecture.md) — parallel v2 (Next.js MVC + Postgres); v1 stays live
 - [tracker-split-cash-on-lead.md](tracker-split-cash-on-lead.md) — free cash on lead, not APA
 - [tracker-floatpay-wipe-bug.md](tracker-floatpay-wipe-bug.md) — petty cash “reverted” after crew pay: floatPay wipe bug + restore
+- [tracker-no-load-heals-db-dryrun.md](tracker-no-load-heals-db-dryrun.md) — **never** load-time money heals; small data fixes = dry-run then DB write; Aug BF was −€110; July open was Laura €200 + tip €100 card only
 - [../briefs/tracker-charter-identity.md](../briefs/tracker-charter-identity.md) — lead.id + ICS uid as source of truth (not date/name)
