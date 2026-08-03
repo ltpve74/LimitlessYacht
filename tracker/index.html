@@ -11328,10 +11328,33 @@ function expCashPdfFileName(month){
   return "Limitless-cash-expenses-"+String(month||"").slice(0,7)+".pdf";
 }
 /**
+ * Strip personal captain-app wording from export/PDF labels.
+ * Stored rows may still say "Captain (me)" / "Commission to you" from the app UI.
+ * Manager/owner PDF must stay third-person.
+ */
+function expPdfPublicLabel(s){
+  var t=String(s==null?"":s);
+  if(!t) return "";
+  t=t.replace(/\bCaptain\s*\(\s*me\s*\)/gi,"Captain");
+  t=t.replace(/\bCaptain\s*\(\s*you\s*\)/gi,"Captain");
+  t=t.replace(/\(\s*me\s*\)/gi,"");
+  t=t.replace(/\(\s*you\s*\)/gi,"");
+  t=t.replace(/\bCommission to you\b/gi,"Captain commission");
+  t=t.replace(/\bReimbursement to you\b/gi,"Captain reimbursement");
+  t=t.replace(/\bRepay you\b/gi,"Repay captain");
+  t=t.replace(/\bPaid to you\b/gi,"Paid to captain");
+  t=t.replace(/\bstill owe you\b/gi,"still owed to captain");
+  t=t.replace(/\byour (share|pocket|commission)\b/gi,function(_,w){
+    return "captain "+String(w||"").toLowerCase();
+  });
+  t=t.replace(/\s{2,}/g," ").replace(/\s+([,.;:])/g,"$1").trim();
+  return t;
+}
+/**
  * Helvetica/WinAnsi only — strip bullets, smart dashes, odd unicode that crash pdf-lib.
  */
 function expPdfSafeText(s){
-  var t=String(s==null?"":s);
+  var t=expPdfPublicLabel(s);
   t=t.replace(/\u20AC/g,"EUR ");
   t=t.replace(/[\u2013\u2014\u2212\u2010]/g,"-");
   t=t.replace(/[\u2018\u2019\u201A\u2032]/g,"'");
@@ -12573,12 +12596,12 @@ function openExpense(id, opts){
   var reimbOf=opts.reimbursesExpenseId?String(opts.reimbursesExpenseId):"";
   var r=rec||{
     id:uid(), date:new Date().toISOString().slice(0,10),
-    vendor:commPayout?"Captain (me)"
+    vendor:commPayout?"Captain"
       :(reimburse?(reimburseName+(opts.vendorHint?" · "+opts.vendorHint:"")): ""),
     description:commPayout
       ?("Commission draw from boat float"+(opts.outstanding>0?" · up to "+money0(opts.outstanding)+" outstanding":""))
       :(reimburse
-        ?("Repaid from petty cash → "+reimburseName+(opts.vendorHint?" ("+opts.vendorHint+")":"")+" · pocket spend")
+        ?("Repaid from petty cash to "+reimburseName+(opts.vendorHint?" ("+opts.vendorHint+")":"")+" · pocket spend")
         :""),
     category:commPayout?"Captain commission":(reimburse?reimburseCat:"Miscellaneous"),
     payMethod:"Cash",
@@ -12874,6 +12897,9 @@ function openExpense(id, opts){
     }
     var date=(el("f_exp_date")&&el("f_exp_date").value)||"";
     var vendor=(el("f_exp_vendor")&&el("f_exp_vendor").value||"").trim();
+    /* Never store personal app labels on expense rows (exports / manager PDF). */
+    if(/^captain\s*\(\s*me\s*\)$/i.test(vendor)||/^captain\s*\(\s*you\s*\)$/i.test(vendor)) vendor="Captain";
+    vendor=vendor.replace(/\s*\(\s*me\s*\)\s*/gi," ").replace(/\s*\(\s*you\s*\)\s*/gi," ").replace(/\s{2,}/g," ").trim();
     var amount=apaNum(el("f_exp_amount")&&el("f_exp_amount").value);
     if(!date){ if(el("f_exp_date")) el("f_exp_date").focus(); return; }
     if(!vendor){ if(el("f_exp_vendor")) el("f_exp_vendor").focus(); return; }
