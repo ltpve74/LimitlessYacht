@@ -2273,10 +2273,12 @@ function syncCancelledLeadsToStews(){
 }
 function renderAll(){
   function safe(fn){ try{ fn(); }catch(e){ console&&console.error&&console.error(e); } }
-  /* Captain: unpark ghost Paid day-pay; re-sync lead/charge cash → petty */
+  /*
+   * Paint only. Do NOT unpark / heal / rewrite money on every render —
+   * those writes to the shared blob caused false unpaid stews and petty re-hits.
+   * Lead/charge cash → petty mirror is still needed for the envelope display.
+   */
   if(isCaptain()){
-    /* Only unpark today/future ghosts — never rewrite past Paid history */
-    try{ expUnparkDayPayNotFromFloat(); }catch(eU){}
     try{ syncAllChargeCashToPetty(); }catch(eS){}
   }
   if(canCommercial()){ safe(renderCharters); safe(renderLeads); }
@@ -10243,6 +10245,25 @@ function expSetStewDayPayStatus(eventKey, payStatus, opts){
   opts=opts||{};
   var status=payStatus==="Paid"?"Paid":"Unpaid";
   var asg=(state.stewAssign||[]).filter(function(a){return a&&String(a.eventKey)===String(eventKey);})[0]||null;
+  var wasPaid=!!(asg&&String(asg.payStatus||"")==="Paid");
+  var wasFromOwn=!!(asg&&asg.paidFrom==="Own money");
+  var pfMark=opts.paidFrom==="Own money"?"Own money":(opts.paidFrom==="Petty cash"||opts.paidFrom===""||opts.paidFrom==null?"Petty cash":String(opts.paidFrom||"Petty cash"));
+  if(opts.paidFrom==="Own money") pfMark="Own money";
+  else if(opts.booksOnly||opts.prior) pfMark="Petty cash";
+  var payerMark=opts.paidById?String(opts.paidById):EXP_POCKET_CAPTAIN;
+  /*
+   * floatPay = cash leaves the envelope NOW.
+   * Only when: Unpaid→Paid from Petty, or Own→Petty, or opts.hitPetty/forceFloat.
+   * Never re-hit on re-save of an already-Paid charter (that re-subtracted petty
+   * after expense rows were wiped). Prior/booksOnly never sets floatPay.
+   */
+  var hitPetty=false;
+  if(status==="Paid"&&pfMark!=="Own money"&&!opts.booksOnly&&!opts.prior){
+    if(opts.hitPetty===true||opts.forceFloat===true) hitPetty=true;
+    else if(!wasPaid) hitPetty=true;
+    else if(wasFromOwn) hitPetty=true;
+    else hitPetty=false;
+  }
   if(!asg){
     /* Assignment missing — still flip expense lines if present */
     var any=false;
@@ -10251,9 +10272,10 @@ function expSetStewDayPayStatus(eventKey, payStatus, opts){
         e.crewPayStatus=status;
         e.payStatusManual=true;
         if(status==="Paid"){
-          var pf0=opts.paidFrom==="Own money"?"Own money":"Petty cash";
-          if(opts.paidFrom) e.paidFrom=pf0;
-          e.floatPay=e.paidFrom!=="Own money";
+          if(opts.paidFrom) e.paidFrom=pfMark;
+          if(opts.booksOnly||opts.prior) e.floatPay=false;
+          else if(hitPetty) e.floatPay=pfMark!=="Own money";
+          /* else preserve existing floatPay */
           e.paidById=e.paidFrom==="Own money"?String(opts.paidById||EXP_POCKET_CAPTAIN):"";
         } else {
           e.floatPay=false;
@@ -10267,10 +10289,7 @@ function expSetStewDayPayStatus(eventKey, payStatus, opts){
   }
   asg.payStatus=status;
   asg.payStatusManual=true;
-  /* Explicit mark Paid via Petty cash → money leaves the envelope (always, not only Unpaid→Paid) */
-  var pfMark=opts.paidFrom==="Own money"?"Own money":"Petty cash";
-  var payerMark=opts.paidById?String(opts.paidById):EXP_POCKET_CAPTAIN;
-  asg._floatPayMark=status==="Paid"&&pfMark!=="Own money";
+  asg._floatPayMark=hitPetty;
   asg._floatPayFrom=status==="Paid"?pfMark:"";
   if(status!=="Paid"){ asg._floatPayMark=false; asg._floatPayFrom=""; }
   asg.updatedAt=new Date().toISOString();
@@ -10278,9 +10297,11 @@ function expSetStewDayPayStatus(eventKey, payStatus, opts){
   if(status==="Paid"){
     (state.expenses||[]).forEach(function(e){
       if(e&&e.source==="stew"&&e.stewPayKind==="dayPay"&&String(e.stewEventKey)===String(eventKey)){
-        e.paidFrom=pfMark;
-        e.floatPay=pfMark!=="Own money";
-        e.paidById=pfMark==="Own money"?payerMark:"";
+        if(opts.paidFrom||hitPetty||opts.booksOnly||opts.prior) e.paidFrom=pfMark;
+        if(opts.booksOnly||opts.prior) e.floatPay=false;
+        else if(hitPetty) e.floatPay=pfMark!=="Own money";
+        /* else keep e.floatPay as-is (already settled books) */
+        e.paidById=e.paidFrom==="Own money"?payerMark:"";
         e.payStatusManual=true;
         e.updatedAt=new Date().toISOString();
       }
@@ -10950,16 +10971,12 @@ function renderExpenses(){
   var body=el("expBody"); if(!body) return;
   if(!expMonth) expMonth=expDefaultMonth();
   /*
-   * Paint expenses from blob only. Do NOT auto-reassign stews from calendar titles
-   * or seed day-pay lines on every Expenses open (that undid captain unassigns).
+   * Paint from blob only. No on-open money heals (floatPay repair, unpark,
+   * collapse-save, strip, assign heal) — those rewrote the shared store and
+   * re-hit petty / undid captain work. Data fixes: dry-run → DB write only.
+   * Cash-in mirror is display plumbing, not a crew-pay heal.
    */
   try{ syncAllChargeCashToPetty(); }catch(eSync){}
-  try{ expRepairImpossibleCrewFloatOnEmptyEnvelope(); }catch(eRep){}
-  try{ expCollapseCrewDayPayDuplicates(); }catch(eCol){}
-  /* Unpark today/future ghosts only — never rewrite past Paid history */
-  try{ expUnparkDayPayNotFromFloat(); }catch(eUn){}
-  try{ expStripUnpaidStewDayPayExpenses(); }catch(eStrip){}
-  try{ expHealAssignPayStatusFromExpenses(); }catch(eHealPay){}
   paintExpensesBody();
 }
 function paintExpensesBody(){
@@ -15092,25 +15109,17 @@ function openStewAssign(eventKey){
       }
       linkedLeadId=(el("f_stew_leadId")&&el("f_stew_leadId").value)||"";
       /*
-       * Cash leaves petty when:
-       *  - newly marking Paid from petty, or
-       *  - switching Own money → Petty, or
-       *  - already “Paid” on the card but no floatPay line yet (ghost Paid —
-       *    Laura/Diego style: green card, money never left, still owed).
-       * Re-saving a true petty settle (floatPay already set) does not re-invent.
+       * Cash leaves petty ONLY when:
+       *  - newly marking Unpaid → Paid from petty, or
+       *  - switching Own money → Petty cash.
+       * Do NOT treat “Paid but no floatPay expense” as pay-from-petty — after
+       * expense wipe that re-subtracted every re-saved day from the envelope.
+       * Ghost “green Paid still owed”: set Unpaid first, then Paid from petty.
+       * Books-only settle: Expenses → Prior / not this pot.
        */
       var wasPaidBefore=asg.payStatus==="Paid";
       var wasFromOwn=asg.paidFrom==="Own money";
-      var hasFloatPayLine=false;
-      try{
-        var ekFloat=String(asg.eventKey||eventKey||"");
-        hasFloatPayLine=(state.expenses||[]).some(function(e){
-          return e&&e.source==="stew"&&e.stewPayKind==="dayPay"&&
-            String(e.stewEventKey||"")===ekFloat&&e.floatPay===true&&
-            String(e.crewPayStatus||"")==="Paid";
-        });
-      }catch(eFl){ hasFloatPayLine=false; }
-      payFromPetty=!noneNeeded&&nowPaid&&!zeroPay&&paidFromSel==="Petty cash"&&(!wasPaidBefore||wasFromOwn||!hasFloatPayLine);
+      payFromPetty=!noneNeeded&&nowPaid&&!zeroPay&&paidFromSel==="Petty cash"&&(!wasPaidBefore||wasFromOwn);
     } else {
       /* Team: only change who is on the charter + notes — keep captain pay fields */
       rate=asg.dayRate!=null&&asg.dayRate!==""?asg.dayRate:ratePrefill;
