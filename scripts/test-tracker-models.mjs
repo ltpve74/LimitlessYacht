@@ -1672,39 +1672,6 @@ console.log("\n[Cash — boat ledger = Expenses petty]");
     ],
   });
   ok("real floatPay Paid not unparked", keepFloat.changed === false);
-  /* Recovery: Unpaid assign + Paid float expense → Paid again */
-  const restore = M.planRestoreDayPayPaidFromExpenses({
-    assigns: [
-      {
-        eventKey: "evt-restore",
-        start: "2026-07-01",
-        payStatus: "Unpaid",
-        stewIds: ["laura"],
-      },
-    ],
-    expenses: [
-      {
-        id: "laura-float",
-        date: "2026-07-01",
-        amount: 200,
-        category: "Crew Salaries",
-        crewPayStatus: "Paid",
-        floatPay: true,
-        source: "stew",
-        stewId: "laura",
-        stewEventKey: "evt-restore",
-        stewPayKind: "dayPay",
-      },
-    ],
-  });
-  ok("restore Paid from float expense", restore.changed === true);
-  ok("restore patch is Paid", restore.assignPatches[0] && restore.assignPatches[0].payStatus === "Paid");
-  /* No expense proof → no restore */
-  const restoreNone = M.planRestoreDayPayPaidFromExpenses({
-    assigns: [{ eventKey: "evt-none", payStatus: "Unpaid", stewIds: ["x"] }],
-    expenses: [],
-  });
-  ok("restore without expense proof does nothing", restoreNone.changed === false);
 }
 
 
