@@ -682,8 +682,17 @@ function planStewTipPayoutExpense(input) {
   var tot = stewTipTotal(asg);
   var onBill = stewTipIsOnBill(asg);
   var tip = stewTipShare(asg);
-  var date = String(asg.start || "").slice(0, 10) || input.today || "";
+  var charterDate = String(asg.start || "").slice(0, 10) || "";
   var nowIso = input.nowIso || new Date().toISOString();
+  /*
+   * Tip payout from petty leaves the envelope on pay day — not charter day.
+   * Paying a July on-bill tip in August must hit August petty (same as day-pay).
+   */
+  var payDate =
+    String(input.payDate || input.today || nowIso || "")
+      .slice(0, 10) || "";
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(payDate)) payDate = charterDate;
+  var date = payDate || charterDate;
   var who = input.who || "Captain";
   var newId =
     typeof input.newId === "function"
@@ -716,6 +725,21 @@ function planStewTipPayoutExpense(input) {
   var lines = [];
   function pushLine(whoKey, label, amount) {
     if (!(amount > 0.009)) return;
+    var desc =
+      "Tip payout from petty · " +
+      (asg.summary || "Charter") +
+      " · " +
+      label +
+      " · " +
+      moneyLabel(amount) +
+      " (guest tip " +
+      moneyLabel(tot) +
+      (tip.onBill && tip.vat > 0.009
+        ? " · after VAT " + moneyLabel(tip.pool)
+        : "") +
+      ")";
+    if (charterDate && date && date !== charterDate)
+      desc = desc + " · charter " + charterDate;
     lines.push({
       id: newId(),
       linkId: linkPrefix + ":" + whoKey,
@@ -726,19 +750,7 @@ function planStewTipPayoutExpense(input) {
       tipWhoKey: whoKey,
       date: date,
       vendor: label,
-      description:
-        "Tip payout from petty · " +
-        (asg.summary || "Charter") +
-        " · " +
-        label +
-        " · " +
-        moneyLabel(amount) +
-        " (guest tip " +
-        moneyLabel(tot) +
-        (tip.onBill && tip.vat > 0.009
-          ? " · after VAT " + moneyLabel(tip.pool)
-          : "") +
-        ")",
+      description: desc,
       category: "Crew tip payout",
       payMethod: "Cash",
       paidFrom: "Petty cash",

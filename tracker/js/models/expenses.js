@@ -176,6 +176,11 @@ function classifyExpenseCash(e, opts) {
  */
 function isCrewDayPayExpense(e) {
   if (!e) return false;
+  /* Tip payouts are source=stew but must NOT be treated as day-pay (would skip
+   * the tip cash-out branch because floatPay is unset → never hit petty). */
+  if (e.stewPayKind === "tipPayout" || e.kind === "tipPayout") return false;
+  if (e.linkId != null && String(e.linkId).indexOf("stew-tip:") === 0) return false;
+  if (/^crew tip payout$/i.test(String(e.category || ""))) return false;
   if (e.stewPayKind === "dayPay") return true;
   if (e.source === "stew" && (e.stewEventKey || e.stewId)) return true;
   if (e.linkId != null && String(e.linkId).indexOf("stew-day:") === 0) return true;
