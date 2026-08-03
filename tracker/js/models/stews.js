@@ -535,7 +535,9 @@ function planStewDayPayExpenseLines(input) {
   if (String(asg.payStatus || "") !== "Paid") {
     return { eventKey: eventKey, lines: [], clearOnly: true };
   }
-  var date = String(asg.start || "").slice(0, 10) || "";
+  /* Charter day (roster). Cash-out month uses payDate when floatPay hits petty. */
+  var charterDate = String(asg.start || "").slice(0, 10) || "";
+  var date = charterDate;
   var isSkipped =
     typeof input.isSkipped === "function"
       ? input.isSkipped
@@ -561,7 +563,7 @@ function planStewDayPayExpenseLines(input) {
   var anyAmt = ids.some(function (sid) {
     return dayPayAmt(asg, sid) > 0;
   });
-  if (!anyAmt || !ids.length || !date) {
+  if (!anyAmt || !ids.length || !charterDate) {
     return { eventKey: eventKey, lines: [], clearOnly: true };
   }
   var prevBySid = {};
@@ -578,6 +580,15 @@ function planStewDayPayExpenseLines(input) {
         : "";
   var summary = asg.summary || "Charter";
   var nowIso = input.nowIso || new Date().toISOString();
+  /*
+   * When cash leaves the envelope now (floatPay mark), expense date = pay day
+   * so Expenses / petty for the current month move. Charter date stays on the
+   * assign + description (paying a July day in August must hit August petty).
+   */
+  var payDate =
+    String(input.payDate || nowIso || "")
+      .slice(0, 10) || "";
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(payDate)) payDate = charterDate;
   var who = input.who || "Captain";
   var newId =
     typeof input.newId === "function"
@@ -605,6 +616,20 @@ function planStewDayPayExpenseLines(input) {
       if (markFloat) floatPay = true;
       else if (old && old.floatPay === true) floatPay = true;
     }
+    /*
+     * Date for the expense row:
+     *  - newly hitting petty (markFloat) → pay day (this month’s envelope)
+     *  - re-save keeping floatPay → keep prior expense date if set
+     *  - books-only / no float → charter day
+     */
+    var lineDate = charterDate;
+    if (markFloat && floatPay) lineDate = payDate;
+    else if (floatPay && old && String(old.date || "").slice(0, 10))
+      lineDate = String(old.date).slice(0, 10);
+    else if (floatPay) lineDate = payDate;
+    var desc = "Stewardess / day work — " + summary;
+    if (floatPay && lineDate !== charterDate && charterDate)
+      desc = desc + " · charter " + charterDate;
     lines.push({
       id: (old && old.id) || newId(),
       linkId: linkId,
@@ -615,9 +640,9 @@ function planStewDayPayExpenseLines(input) {
       crewPayStatus: "Paid",
       floatPay: floatPay,
       payStatusManual: !!asg.payStatusManual,
-      date: date,
+      date: lineDate,
       vendor: stewName(sid),
-      description: "Stewardess / day work — " + summary,
+      description: desc,
       category: "Crew Salaries",
       payMethod: "Cash",
       paidFrom: paidFrom,

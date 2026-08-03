@@ -2373,6 +2373,40 @@ console.log("\n[Write plans — stew expenses + APA shortfall decision]");
   ok("paid day pay → 1 line", paid.lines.length === 1);
   ok("floatPay true when mark from petty", paid.lines[0].floatPay === true);
   ok("amount 200", near(paid.lines[0].amount, 200));
+  /* Cash left today → expense date is pay day (not charter day) so current petty moves */
+  const paidToday = M.planStewDayPayExpenseLines({
+    asg: {
+      eventKey: "uid:diego",
+      payStatus: "Paid",
+      start: "2026-07-14",
+      stewIds: ["laura"],
+      summary: "diego",
+      _floatPayMark: true,
+      _floatPayFrom: "Petty cash",
+      payStatusManual: true,
+    },
+    dayPayAmt: function () {
+      return 200;
+    },
+    stewName: function () {
+      return "Laura";
+    },
+    nowIso: "2026-08-03T14:40:00.000Z",
+    payDate: "2026-08-03",
+    newId: function () {
+      return "laura-pay";
+    },
+  });
+  ok(
+    "floatPay pay date is today not charter",
+    paidToday.lines[0] && paidToday.lines[0].date === "2026-08-03",
+    "got " + (paidToday.lines[0] && paidToday.lines[0].date)
+  );
+  ok(
+    "description keeps charter day",
+    paidToday.lines[0] && /charter 2026-07-14/.test(String(paidToday.lines[0].description || "")),
+    "got " + (paidToday.lines[0] && paidToday.lines[0].description)
+  );
   const tipNo = M.planStewTipPayoutExpense({
     asg: { eventKey: "uid:a", tipTotal: 50, tipSource: "cash", tipPayStatus: "Paid" },
   });
