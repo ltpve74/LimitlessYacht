@@ -2275,8 +2275,6 @@ function renderAll(){
   function safe(fn){ try{ fn(); }catch(e){ console&&console.error&&console.error(e); } }
   /* Captain: unpark ghost Paid day-pay; re-sync lead/charge cash → petty */
   if(isCaptain()){
-    /* Restore Paid from remaining expense proof first (undo mistaken bulk unpark) */
-    try{ expRestoreDayPayPaidFromExpenses(); }catch(eR){}
     /* Only unpark today/future ghosts — never rewrite past Paid history */
     try{ expUnparkDayPayNotFromFloat(); }catch(eU){}
     try{ syncAllChargeCashToPetty(); }catch(eS){}
@@ -10019,36 +10017,6 @@ function expUnparkDayPayNotFromFloat(){
   }
   return true;
 }
-/**
- * After mistaken bulk unpark: restore assign Paid only when Paid day-pay
- * expense lines still prove it (floatPay or payStatusManual). One-shot save.
- */
-function expRestoreDayPayPaidFromExpenses(){
-  if(!isCaptain()||!state.stewAssign) return false;
-  if(!(LY_MODELS&&LY_MODELS.planRestoreDayPayPaidFromExpenses)) return false;
-  var plan=LY_MODELS.planRestoreDayPayPaidFromExpenses({
-    assigns:state.stewAssign||[],
-    expenses:state.expenses||[]
-  });
-  if(!plan||!plan.changed) return false;
-  var byKey={};
-  (plan.assignPatches||[]).forEach(function(p){ if(p&&p.eventKey) byKey[String(p.eventKey)]=p; });
-  var n=0;
-  (state.stewAssign||[]).forEach(function(asg){
-    if(!asg||!asg.eventKey) return;
-    var p=byKey[String(asg.eventKey)];
-    if(!p) return;
-    asg.payStatus="Paid";
-    asg.payStatusManual=true;
-    if(p.paidFrom) asg.paidFrom=p.paidFrom;
-    asg.updatedAt=new Date().toISOString();
-    n++;
-  });
-  if(n&&!DEMO){
-    try{ saveStewAssign(); }catch(eA){}
-  }
-  return n>0;
-}
 /** Unpaid stew day pay still due through focus month. Tips separate. */
 function expStewDayPayOwed(month){
   var items=expCollectOpenCrewDayPay(month);
@@ -10988,8 +10956,6 @@ function renderExpenses(){
   try{ syncAllChargeCashToPetty(); }catch(eSync){}
   try{ expRepairImpossibleCrewFloatOnEmptyEnvelope(); }catch(eRep){}
   try{ expCollapseCrewDayPayDuplicates(); }catch(eCol){}
-  /* Restore Paid where expense proof still exists (undo bulk unpark damage) */
-  try{ expRestoreDayPayPaidFromExpenses(); }catch(eRest){}
   /* Unpark today/future ghosts only — never rewrite past Paid history */
   try{ expUnparkDayPayNotFromFloat(); }catch(eUn){}
   try{ expStripUnpaidStewDayPayExpenses(); }catch(eStrip){}

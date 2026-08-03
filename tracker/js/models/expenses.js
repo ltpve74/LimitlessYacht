@@ -1172,48 +1172,6 @@ function planUnparkDayPayNotFromFloat(input) {
 }
 
 /**
- * Recovery plan: re-mark stew assigns Paid when expenses still prove settlement
- * (floatPay or explicit payStatusManual on a Paid day-pay line).
- * Used after a mistaken bulk unpark — never invents Paid without expense evidence.
- *
- * @param {{ assigns?: Array, expenses?: Array }} input
- * @returns {{ changed: boolean, assignPatches: Array }}
- */
-function planRestoreDayPayPaidFromExpenses(input) {
-  input = input || {};
-  var assigns = Array.isArray(input.assigns) ? input.assigns : [];
-  var expenses = Array.isArray(input.expenses) ? input.expenses : [];
-  var assignPatches = [];
-  assigns.forEach(function (asg) {
-    if (!asg || !asg.eventKey) return;
-    if (asg.cancelled || asg.status === "cancelled") return;
-    if (String(asg.payStatus || "") === "Paid") return;
-    var ek = String(asg.eventKey);
-    var proved = false;
-    var hasFloat = false;
-    expenses.forEach(function (e) {
-      if (!e || !isCrewDayPayExpense(e)) return;
-      if (String(e.stewEventKey || "") !== ek) return;
-      if (String(e.crewPayStatus || "") !== "Paid") return;
-      if (e.floatPay === true) {
-        proved = true;
-        hasFloat = true;
-      } else if (e.payStatusManual === true) {
-        proved = true;
-      }
-    });
-    if (!proved) return;
-    assignPatches.push({
-      eventKey: ek,
-      payStatus: "Paid",
-      payStatusManual: true,
-      paidFrom: hasFloat ? "Petty cash" : asg.paidFrom || "",
-    });
-  });
-  return { changed: assignPatches.length > 0, assignPatches: assignPatches };
-}
-
-/**
  * Open unpaid day-pay through focus month.
  *
  * @param {Array} assigns stewAssign rows
@@ -1766,7 +1724,6 @@ function summarizeMonthSettlement(opts) {
     buildCrewDayPaySettledSets: buildCrewDayPaySettledSets,
     isCrewDayPaySettled: isCrewDayPaySettled,
     planUnparkDayPayNotFromFloat: planUnparkDayPayNotFromFloat,
-    planRestoreDayPayPaidFromExpenses: planRestoreDayPayPaidFromExpenses,
     collectOpenCrewDayPay: collectOpenCrewDayPay,
     collectOpenTipPayouts: collectOpenTipPayouts,
     summarizeOpenTipOwedByPerson: summarizeOpenTipOwedByPerson,
