@@ -11036,14 +11036,117 @@ function expMonthLabel(month){
   return (names[mi]||p[1])+" "+p[0];
 }
 /**
+ * Classify a cash expense line for the manager/owner PDF.
+ * Reimbursement = pot → pocket (not a shop spend). Own money = captain/crew pocket spend.
+ */
+function expCashReportLineKind(e){
+  if(!e) return "petty";
+  if(expIsReimbursement(e)) return "reimburse";
+  if(e.kind==="captainComm"||e.commPayout||String(e.category||"")==="Captain commission") return "commission";
+  if(e.kind==="tipPayout"||e.stewPayKind==="tipPayout") return "tipPayout";
+  if(expIsCrewDayPayLine(e)){
+    if(expPaidFromOwnMoney(e)||expIsOwnMoneySpend(e)) return "ownMoney";
+    return "crewDayPay";
+  }
+  if(expIsOwnMoneySpend(e)||expPaidFromOwnMoney(e)) return "ownMoney";
+  return "petty";
+}
+/** Friendly category labels for PDF (manager/owner). */
+function expCashReportCategoryLabel(e, kind){
+  kind=kind||expCashReportLineKind(e);
+  if(kind==="reimburse"){
+    var whoId=String(expReimburseWhoId(e)||EXP_POCKET_CAPTAIN);
+    var who=expPocketPersonName(whoId)||"Captain";
+    if(whoId===EXP_POCKET_CAPTAIN||/^captain/i.test(who)) return "Repay captain pocket";
+    return "Repay pocket · "+who;
+  }
+  if(kind==="commission") return "Captain commission";
+  if(kind==="tipPayout") return "Tip payout";
+  if(kind==="ownMoney"){
+    var pId=String(expOwnMoneySpendWhoId(e)||expPocketWhoId(e)||EXP_POCKET_CAPTAIN);
+    var pName=expPocketPersonName(pId)||"Captain";
+    if(pId===EXP_POCKET_CAPTAIN||/^captain/i.test(pName)) return "Captain cash (own money)";
+    return "Pocket spend · "+pName;
+  }
+  if(kind==="crewDayPay") return "Crew day pay";
+  return String(e&&e.category||"Other").trim()||"Other";
+}
+/**
+ * What a reimbursement is repaying — linked spend, else short FIFO note.
+ * Returns array of { date, vendor, amount, month, priorMonth }.
+ */
+function expCashReportReimburseCovers(reimb, allExpenses){
+  var out=[];
+  if(!reimb||!expIsReimbursement(reimb)) return out;
+  var all=Array.isArray(allExpenses)?allExpenses:(state.expenses||[]);
+  var linkId=reimb.reimbursesExpenseId!=null?String(reimb.reimbursesExpenseId):"";
+  if(linkId){
+    for(var i=0;i<all.length;i++){
+      var src=all[i];
+      if(!src||String(src.id||"")!==linkId) continue;
+      var sm=expMonthKey(src.date);
+      out.push({
+        id:String(src.id||""),
+        date:String(src.date||"").slice(0,10),
+        vendor:String(src.vendor||src.description||"Pocket spend").trim()||"Pocket spend",
+        description:String(src.description||"").trim(),
+        amount:Math.round(apaNum(src.amount)*100)/100,
+        month:sm,
+        priorMonth:sm&&sm!==expMonthKey(reimb.date)
+      });
+      return out;
+    }
+  }
+  /* Unlinked: list own-money spends for this person that this repay can cover (FIFO display). */
+  var who=String(expReimburseWhoId(reimb)||EXP_POCKET_CAPTAIN);
+  var need=Math.round(apaNum(reimb.amount)*100)/100;
+  var own=all.filter(function(x){
+    return x&&expIsOwnMoneySpend(x)&&String(expOwnMoneySpendWhoId(x)||EXP_POCKET_CAPTAIN)===who;
+  }).sort(function(a,b){
+    var c=String(a.date||"").localeCompare(String(b.date||""));
+    if(c) return c;
+    return String(a.id||"").localeCompare(String(b.id||""));
+  });
+  var left=need;
+  own.forEach(function(x){
+    if(left<0.01) return;
+    var a=Math.round(apaNum(x.amount)*100)/100;
+    var direct=0;
+    all.forEach(function(r){
+      if(r&&expIsReimbursement(r)&&String(r.reimbursesExpenseId||"")===String(x.id||"")) direct+=apaNum(r.amount);
+    });
+    direct=Math.round(direct*100)/100;
+    var remain=Math.max(0, a-direct);
+    if(remain<0.01) return;
+    var take=Math.min(remain, left);
+    var sm=expMonthKey(x.date);
+    out.push({
+      id:String(x.id||""),
+      date:String(x.date||"").slice(0,10),
+      vendor:String(x.vendor||x.description||"Pocket spend").trim()||"Pocket spend",
+      description:String(x.description||"").trim(),
+      amount:Math.round(take*100)/100,
+      month:sm,
+      priorMonth:sm&&sm!==expMonthKey(reimb.date)
+    });
+    left=Math.round((left-take)*100)/100;
+  });
+  return out;
+}
+/**
  * Cash-only pack for manager/owner PDF (no credit-card lines).
  * Pure view helper — does not write state.
+ *
+ * Reimbursement rows are pot→pocket (why boat paid captain/crew back).
+ * Captain cash expenses are own-money pocket spends (often prior months) —
+ * listed in pocketSpends so the PDF answers “where are the capt cash expenses?”.
  */
 function expCashReportForMonth(month){
   month=String(month||expMonth||expDefaultMonth()).slice(0,7);
   var S=expSettlementFigures(month);
   var petty=expPettyFor(month);
   var cashIns=expCashInLinesForPetty(petty)||[];
+  var all=state.expenses||[];
   var lines=(expLinesForMonth(month)||[]).filter(expIsCashExpenseLine).slice().sort(function(a,b){
     var c=String(a.date||"").localeCompare(String(b.date||""));
     if(c) return c;
@@ -11051,26 +11154,62 @@ function expCashReportForMonth(month){
   });
   var totalCash=0;
   var byCat={};
+  var reimburseTot=0;
+  var ownMoneyInMonthTot=0;
   var rows=lines.map(function(e){
     var amt=apaNum(e.amount);
     totalCash+=amt;
-    var cat=String(e.category||"Other").trim()||"Other";
-    byCat[cat]=(byCat[cat]||0)+amt;
-    var from=expPaidFromOwnMoney(e)?"Own money":"Petty cash";
+    var kind=expCashReportLineKind(e);
+    var catLabel=expCashReportCategoryLabel(e, kind);
+    var rawCat=String(e.category||"Other").trim()||"Other";
+    /* Group chart: keep raw category but make reimbursements readable */
+    var chartCat=kind==="reimburse"?catLabel:rawCat;
+    byCat[chartCat]=(byCat[chartCat]||0)+amt;
+    var whoName="";
+    if(kind==="reimburse") whoName=expPocketPersonName(expReimburseWhoId(e))||"Captain";
+    else if(kind==="ownMoney") whoName=expPocketPersonName(expOwnMoneySpendWhoId(e)||expPocketWhoId(e))||"Captain";
+    var from="Petty cash";
+    if(kind==="ownMoney"){
+      from=(whoName&&!/^captain/i.test(whoName))?("Pocket · "+whoName):"Captain pocket";
+    } else if(expPaidFromOwnMoney(e)){
+      from="Own money";
+    }
     if(e.kind==="tipPayout"||e.stewPayKind==="tipPayout") from="Petty cash";
-    if(e.kind==="captainComm"||e.commPayout) from="Petty cash";
-    if(expIsCrewDayPayLine(e)&&expCrewPayHitsFloat(e)) from="Petty cash";
+    if(kind==="commission") from="Petty cash";
+    if(kind==="crewDayPay") from="Petty cash";
+    if(kind==="reimburse") from="Petty cash";
+    var covers=kind==="reimburse"?expCashReportReimburseCovers(e, all):[];
+    var coverNote="";
+    if(covers.length){
+      coverNote=covers.map(function(c){
+        var a=(Number(c.amount)||0).toLocaleString("en-GB",{minimumFractionDigits:2,maximumFractionDigits:2});
+        return c.vendor+(c.date?" "+c.date:"")+" EUR "+a+(c.priorMonth?" (prior month)":"");
+      }).join("; ");
+    } else if(kind==="reimburse"){
+      coverNote="Repays captain/crew pocket spends (own money) - see Pocket spends section";
+    }
+    if(kind==="reimburse") reimburseTot+=amt;
+    if(kind==="ownMoney") ownMoneyInMonthTot+=amt;
     return {
+      id:String(e.id||""),
       date:String(e.date||"").slice(0,10),
-      vendor:String(e.vendor||"").trim()||"—",
+      vendor:String(e.vendor||"").trim()||"-",
       description:String(e.description||"").trim(),
-      category:cat,
+      category:catLabel,
+      rawCategory:rawCat,
+      kind:kind,
       paidFrom:from,
       amount:Math.round(amt*100)/100,
-      chargeTo:e.chargeTo==="apa"?"APA":"Boat"
+      chargeTo:e.chargeTo==="apa"?"APA":"Boat",
+      who:whoName,
+      covers:covers,
+      coverNote:coverNote,
+      hitsPetty:kind!=="ownMoney"
     };
   });
   totalCash=Math.round(totalCash*100)/100;
+  reimburseTot=Math.round(reimburseTot*100)/100;
+  ownMoneyInMonthTot=Math.round(ownMoneyInMonthTot*100)/100;
   var cats=Object.keys(byCat).sort(function(a,b){ return byCat[b]-byCat[a]; }).map(function(k){
     return { category:k, amount:Math.round(byCat[k]*100)/100 };
   });
@@ -11084,6 +11223,76 @@ function expCashReportForMonth(month){
   var cashInTot=0;
   ins.forEach(function(r){ cashInTot+=r.amount; });
   cashInTot=Math.round(cashInTot*100)/100;
+
+  /*
+   * Pocket spends (captain/crew cash expenses from own money).
+   * Include: spends in this month, OR prior-month spends covered by this month's reimbursements.
+   * These answer “where are the captain cash expenses?” when reimbursements appear without
+   * matching shop lines in the same month.
+   */
+  var coveredIds={};
+  rows.forEach(function(r){
+    if(r.kind!=="reimburse"||!r.covers) return;
+    r.covers.forEach(function(c){ if(c.id) coveredIds[c.id]=1; });
+  });
+  /* whoId → true if this month has a reimbursement to them */
+  var reimbWhoThisMonth={};
+  lines.forEach(function(re){
+    if(!expIsReimbursement(re)) return;
+    reimbWhoThisMonth[String(expReimburseWhoId(re)||EXP_POCKET_CAPTAIN)]=true;
+  });
+  var pocketSpends=[];
+  var pocketSpendTot=0;
+  all.forEach(function(e){
+    if(!e||!expIsOwnMoneySpend(e)) return;
+    if(String(e.payMethod||"")==="Credit Card") return;
+    var em=expMonthKey(e.date);
+    var inMonth=em===month;
+    var coveredNow=!!coveredIds[String(e.id||"")];
+    var whoId=String(expOwnMoneySpendWhoId(e)||EXP_POCKET_CAPTAIN);
+    var reimbWhoMatch=!!reimbWhoThisMonth[whoId];
+    var repaid=false;
+    try{ repaid=expOwnMoneyIsRepaid(e, month); }catch(eR){ repaid=false; }
+    /* In-month spends, spends linked to this month's reimburse, or prior spends repaid while this month repays same person */
+    var include=inMonth||coveredNow||(repaid&&reimbWhoMatch&&em&&em<=month);
+    if(!include) return;
+    var amt=Math.round(apaNum(e.amount)*100)/100;
+    if(!(amt>0.009)) return;
+    pocketSpendTot+=amt;
+    var pName=expPocketPersonName(whoId)||"Captain";
+    var isCap=whoId===EXP_POCKET_CAPTAIN||/^captain/i.test(pName);
+    var repayNote="";
+    try{ repayNote=expOwnMoneyRepayNote(e)||""; }catch(eN){ repayNote=""; }
+    var repaidAmt=0;
+    try{ repaidAmt=expOwnMoneyRepaidAmt(e, month); }catch(eA){ repaidAmt=0; }
+    pocketSpends.push({
+      id:String(e.id||""),
+      date:String(e.date||"").slice(0,10),
+      month:em,
+      priorMonth:!inMonth,
+      vendor:String(e.vendor||"").trim()||"-",
+      description:String(e.description||"").trim(),
+      category:String(e.category||(expIsCrewDayPayLine(e)?"Crew Salaries":"Other")).trim()||"Other",
+      who:pName,
+      isCaptain:isCap,
+      amount:amt,
+      repaid:!!repaid||repaidAmt>=amt-0.009,
+      repaidAmt:Math.round(repaidAmt*100)/100,
+      repayNote:repayNote,
+      coveredByThisMonth:coveredNow||(repaid&&reimbWhoMatch)
+    });
+  });
+  pocketSpends.sort(function(a,b){
+    var c=String(a.date||"").localeCompare(String(b.date||""));
+    if(c) return c;
+    return String(a.vendor||"").localeCompare(String(b.vendor||""));
+  });
+  pocketSpendTot=Math.round(pocketSpendTot*100)/100;
+  var captainPocketSpends=pocketSpends.filter(function(p){ return p.isCaptain; });
+  var captainPocketTot=0;
+  captainPocketSpends.forEach(function(p){ captainPocketTot+=p.amount; });
+  captainPocketTot=Math.round(captainPocketTot*100)/100;
+
   return {
     month:month,
     monthLabel:expMonthLabel(month),
@@ -11098,6 +11307,12 @@ function expCashReportForMonth(month){
     cashIns:ins,
     lines:rows,
     totalCashExpenses:totalCash,
+    reimburseTotal:reimburseTot,
+    ownMoneyInMonthTotal:ownMoneyInMonthTot,
+    pocketSpends:pocketSpends,
+    pocketSpendTotal:pocketSpendTot,
+    captainPocketSpends:captainPocketSpends,
+    captainPocketTotal:captainPocketTot,
     byCategory:cats,
     cardExcluded:true
   };
@@ -11292,11 +11507,19 @@ function buildExpensesCashPdf(month){
         }
 
         /* Expense table */
-        sectionTitle("Cash expenses");
+        sectionTitle("Cash expenses this month");
+        var reimbNote=(report.reimburseTotal>0.009)
+          ?("   |   Pocket repayments  "+expPdfMoney(report.reimburseTotal))
+          :"";
         drawTextRaw(
           report.lines.length+" line"+(report.lines.length===1?"":"s")+
-          "   |   Total  "+expPdfMoney(report.totalCashExpenses),
+          "   |   Total  "+expPdfMoney(report.totalCashExpenses)+reimbNote,
           margin, y, 8, false, muted
+        );
+        y-=10;
+        drawTextRaw(
+          "Repay captain pocket = boat envelope pays captain back (not a shop bill). Shop bills paid from pocket are in Pocket spends below.",
+          margin, y, 7.5, false, muted, contentW
         );
         y-=12;
 
@@ -11326,10 +11549,12 @@ function buildExpensesCashPdf(month){
           y-=28;
         } else {
           report.lines.forEach(function(r, idx){
-            ensure(rowH+4);
+            var hasCover=!!(r.kind==="reimburse"&&r.coverNote);
+            var thisH=hasCover?rowH+11:rowH;
+            ensure(thisH+4);
             if(y<56){ newPage(false); tableHead(); }
             if(idx%2===0){
-              page.drawRectangle({x:margin, y:y-4, width:contentW, height:rowH, color:zebra});
+              page.drawRectangle({x:margin, y:y-4-(hasCover?11:0), width:contentW, height:thisH, color:zebra});
             }
             var d=r.date?fmtDate(r.date):"-";
             drawTextRaw(d, colDate, y, 8, false, muted, 48);
@@ -11337,11 +11562,19 @@ function buildExpensesCashPdf(month){
             if(r.description&&r.description!==r.vendor){
               vend=r.vendor+" - "+r.description;
             }
+            if(r.kind==="reimburse"&&(!r.vendor||r.vendor==="-"||r.vendor==="—")){
+              vend=r.who?("Repay "+r.who):"Repay pocket";
+            }
+            var catColor=r.kind==="reimburse"?navySoft:muted;
             drawTextRaw(vend, colVendor, y, 8, false, ink, colCat-colVendor-8);
-            drawTextRaw(r.category, colCat, y, 7.5, false, muted, colFrom-colCat-6);
+            drawTextRaw(r.category, colCat, y, 7.5, false, catColor, colFrom-colCat-6);
             drawTextRaw(r.paidFrom, colFrom, y, 7.5, false, muted, 72);
             drawRight(expPdfMoney(r.amount), colAmtR, y, 8, true, ink);
             y-=rowH;
+            if(hasCover){
+              drawTextRaw("Why: covers "+r.coverNote, colVendor, y+2, 7, false, navySoft, contentW-colVendor+margin-12);
+              y-=11;
+            }
           });
           /* Total bar */
           ensure(24);
@@ -11350,6 +11583,76 @@ function buildExpensesCashPdf(month){
           drawTextRaw("TOTAL CASH EXPENSES", colVendor, y, 9, true, white);
           drawRight(expPdfMoney(report.totalCashExpenses), colAmtR, y, 10, true, gold);
           y-=28;
+        }
+
+        /*
+         * Captain / crew pocket spends (own money) — the actual cash expenses that
+         * reimbursements repay. Often dated in a prior month.
+         */
+        var pocketList=report.pocketSpends||[];
+        sectionTitle("Captain cash expenses (own money / pocket)");
+        if(!pocketList.length){
+          ensure(28);
+          page.drawRectangle({x:margin, y:y-8, width:contentW, height:32, color:zebra});
+          drawTextRaw("No captain/crew pocket spends linked to this month.", margin+12, y+6, 8.5, false, muted);
+          drawTextRaw("If you see a pocket repayment above, the original spend may be missing a link.", margin+12, y-6, 7.5, false, muted);
+          y-=36;
+        } else {
+          ensure(28);
+          drawTextRaw(
+            "Paid from captain/crew pocket (not the boat envelope). Boat owes them until repaid from petty.",
+            margin, y, 7.5, false, muted, contentW
+          );
+          y-=11;
+          var capTot=report.captainPocketTotal||0;
+          var allTot=report.pocketSpendTotal||0;
+          drawTextRaw(
+            pocketList.length+" spend"+(pocketList.length===1?"":"s")+
+            "   |   Captain  "+expPdfMoney(capTot)+
+            (allTot>capTot+0.009?("   |   All pockets  "+expPdfMoney(allTot)):"")+
+            (report.reimburseTotal>0.009?("   |   Repaid this month from petty  "+expPdfMoney(report.reimburseTotal)):""),
+            margin, y, 8, false, muted, contentW
+          );
+          y-=12;
+
+          function pocketHead(){
+            ensure(22);
+            page.drawRectangle({x:margin, y:y-5, width:contentW, height:18, color:navySoft});
+            drawTextRaw("DATE", colDate, y, 7.5, true, gold);
+            drawTextRaw("WHAT WAS BOUGHT / PAID", colVendor, y, 7.5, true, gold);
+            drawTextRaw("WHO", colCat, y, 7.5, true, gold);
+            drawTextRaw("STATUS", colFrom, y, 7.5, true, gold);
+            drawRight("AMOUNT", colAmtR, y, 7.5, true, gold);
+            y-=18;
+          }
+          pocketHead();
+          pocketList.forEach(function(p, idx){
+            ensure(rowH+4);
+            if(y<56){ newPage(false); pocketHead(); }
+            if(idx%2===0){
+              page.drawRectangle({x:margin, y:y-4, width:contentW, height:rowH, color:zebra});
+            }
+            var pd=p.date?fmtDate(p.date):"-";
+            if(p.priorMonth) pd=pd+" *";
+            drawTextRaw(pd, colDate, y, 8, false, muted, 52);
+            var what=p.vendor||"-";
+            if(p.description&&p.description!==p.vendor) what=p.vendor+" - "+p.description;
+            if(p.category&&p.category!=="Other"&&what.indexOf(p.category)<0){
+              what=what+" ["+p.category+"]";
+            }
+            drawTextRaw(what, colVendor, y, 8, false, ink, colCat-colVendor-8);
+            drawTextRaw(p.who||"Captain", colCat, y, 7.5, false, muted, colFrom-colCat-6);
+            var st=p.repaid||p.coveredByThisMonth?"Repaid from petty":"Still owed";
+            drawTextRaw(st, colFrom, y, 7.5, false, p.repaid||p.coveredByThisMonth?greenInk:muted, 72);
+            drawRight(expPdfMoney(p.amount), colAmtR, y, 8, true, ink);
+            y-=rowH;
+          });
+          ensure(18);
+          if(pocketList.some(function(p){ return p.priorMonth; })){
+            drawTextRaw("* Prior month - original pocket spend (repaid from petty this month).", margin, y, 7.5, false, muted, contentW);
+            y-=12;
+          }
+          y-=6;
         }
 
         /* Category breakdown as neat chips/rows */
@@ -11371,10 +11674,13 @@ function buildExpensesCashPdf(month){
         }
 
         /* Notes box */
-        ensure(70);
+        ensure(100);
         y-=4;
         sectionTitle("Notes");
         var notes=[
+          "Captain reimbursement / Repay captain pocket = cash LEFT the boat envelope to repay the captain (or crew).",
+          "Captain cash expenses = paid from pocket (own money). They do not reduce the envelope when spent; they create boat-owes-you.",
+          "Often the pocket spend is in a prior month and the repayment is this month - both appear so the why is clear.",
           "Credit card / ship card purchases are excluded from this report.",
           "Cash tips from guests never enter the boat envelope; only card-tip payouts from petty appear as cash out.",
           "Day pay and tip payouts hit petty only when marked paid from petty cash."
