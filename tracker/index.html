@@ -11009,6 +11009,327 @@ function expExportMonthCsv(month){
   document.body.appendChild(a); a.click();
   setTimeout(function(){ try{ document.body.removeChild(a); URL.revokeObjectURL(a.href); }catch(e){} }, 800);
 }
+/** True when line is cash (boat petty / own pocket cash) — not ship credit card. */
+function expIsCashExpenseLine(e){
+  if(!e) return false;
+  if(String(e.payMethod||"")==="Credit Card") return false;
+  /* Unpaid day-pay liabilities are not cash out yet */
+  if(typeof expIsCrewUnpaid==="function"&&expIsCrewUnpaid(e)) return false;
+  return true;
+}
+/** Month label e.g. 2026-08 → August 2026 */
+function expMonthLabel(month){
+  var m=String(month||"").slice(0,7);
+  var p=m.split("-");
+  if(p.length!==2) return m||"Month";
+  var names=["January","February","March","April","May","June","July","August","September","October","November","December"];
+  var mi=parseInt(p[1],10)-1;
+  return (names[mi]||p[1])+" "+p[0];
+}
+/**
+ * Cash-only pack for manager/owner PDF (no credit-card lines).
+ * Pure view helper — does not write state.
+ */
+function expCashReportForMonth(month){
+  month=String(month||expMonth||expDefaultMonth()).slice(0,7);
+  var S=expSettlementFigures(month);
+  var petty=expPettyFor(month);
+  var cashIns=expCashInLinesForPetty(petty)||[];
+  var lines=(expLinesForMonth(month)||[]).filter(expIsCashExpenseLine).slice().sort(function(a,b){
+    var c=String(a.date||"").localeCompare(String(b.date||""));
+    if(c) return c;
+    return String(a.vendor||"").localeCompare(String(b.vendor||""));
+  });
+  var totalCash=0;
+  var byCat={};
+  var rows=lines.map(function(e){
+    var amt=apaNum(e.amount);
+    totalCash+=amt;
+    var cat=String(e.category||"Other").trim()||"Other";
+    byCat[cat]=(byCat[cat]||0)+amt;
+    var from=expPaidFromOwnMoney(e)?"Own money":"Petty cash";
+    if(e.kind==="tipPayout"||e.stewPayKind==="tipPayout") from="Petty cash";
+    if(e.kind==="captainComm"||e.commPayout) from="Petty cash";
+    if(expIsCrewDayPayLine(e)&&expCrewPayHitsFloat(e)) from="Petty cash";
+    return {
+      date:String(e.date||"").slice(0,10),
+      vendor:String(e.vendor||"").trim()||"—",
+      description:String(e.description||"").trim(),
+      category:cat,
+      paidFrom:from,
+      amount:Math.round(amt*100)/100,
+      chargeTo:e.chargeTo==="apa"?"APA":"Boat"
+    };
+  });
+  totalCash=Math.round(totalCash*100)/100;
+  var cats=Object.keys(byCat).sort(function(a,b){ return byCat[b]-byCat[a]; }).map(function(k){
+    return { category:k, amount:Math.round(byCat[k]*100)/100 };
+  });
+  var ins=cashIns.map(function(r){
+    return {
+      date:String(r.date||"").slice(0,10),
+      label:String(r.source||r.notes||r.note||r.label||"Cash in").trim()||"Cash in",
+      amount:Math.round(apaNum(r.amount)*100)/100
+    };
+  }).filter(function(r){ return r.amount>0.009; });
+  var cashInTot=0;
+  ins.forEach(function(r){ cashInTot+=r.amount; });
+  cashInTot=Math.round(cashInTot*100)/100;
+  return {
+    month:month,
+    monthLabel:expMonthLabel(month),
+    generatedAt:new Date().toISOString(),
+    pettyStart:Math.round(Math.max(0, apaNum(S.physicalStart!=null?S.physicalStart:S.pettyStart))*100)/100,
+    broughtForwardShort:Math.round(Math.max(0, apaNum(S.broughtForwardShort||S.priorStartShort))*100)/100,
+    priorSettled:Math.round(Math.max(0, apaNum(S.priorSettled))*100)/100,
+    cashInTotal:cashInTot>0.009?cashInTot:Math.round(apaNum(S.cashInTotal)*100)/100,
+    cashOut:Math.round(apaNum(S.cashOut)*100)/100,
+    pettyOnboard:Math.round(Math.max(0, apaNum(S.pettyOnboard!=null?S.pettyOnboard:S.pettyCash))*100)/100,
+    cashShort:Math.round(Math.max(0, apaNum(S.cashShort))*100)/100,
+    cashIns:ins,
+    lines:rows,
+    totalCashExpenses:totalCash,
+    byCategory:cats,
+    cardExcluded:true
+  };
+}
+function expPdfMoney(n){
+  var x=Math.round((Number(n)||0)*100)/100;
+  var neg=x<0;
+  x=Math.abs(x);
+  var s=x.toLocaleString("en-GB",{minimumFractionDigits:2,maximumFractionDigits:2});
+  return (neg?"-":"")+"EUR "+s;
+}
+function expCashPdfFileName(month){
+  return "Limitless-cash-expenses-"+String(month||"").slice(0,7)+".pdf";
+}
+/**
+ * Manager/owner PDF: cash expenses only (no credit card).
+ * Multi-page A4 via pdf-lib.
+ */
+function buildExpensesCashPdf(month){
+  var report=expCashReportForMonth(month);
+  return loadPdfLib().then(function(PDFLib){
+    var PDFDocument=PDFLib.PDFDocument, rgb=PDFLib.rgb, StandardFonts=PDFLib.StandardFonts;
+    return PDFDocument.create().then(function(doc){
+      return Promise.all([
+        doc.embedFont(StandardFonts.Helvetica),
+        doc.embedFont(StandardFonts.HelveticaBold)
+      ]).then(function(res){
+        var font=res[0], fontBold=res[1];
+        var W=595.28, H=841.89, margin=42;
+        var black=rgb(0.1,0.1,0.12);
+        var grey=rgb(0.4,0.42,0.45);
+        var lineCol=rgb(0.85,0.87,0.9);
+        var headBg=rgb(0.95,0.96,0.97);
+        var navy=rgb(0.08,0.16,0.32);
+        var page=null, y=0, pageNo=0;
+        function newPage(){
+          page=doc.addPage([W, H]);
+          pageNo++;
+          y=H-margin;
+          return page;
+        }
+        function ensure(space){
+          if(y-space<margin+28){
+            footer();
+            newPage();
+            headerMini();
+          }
+        }
+        function drawText(t, x, yy, size, bold, color, maxW){
+          var f=bold?fontBold:font;
+          var str=String(t==null?"":t);
+          if(maxW){
+            while(str.length>3&&f.widthOfTextAtSize(str, size)>maxW) str=str.slice(0,-2);
+            if(str!==String(t||"")&&str.length) str=str.slice(0,-1)+"...";
+          }
+          page.drawText(str, {x:x, y:yy, size:size, font:f, color:color||black});
+          return f.widthOfTextAtSize(str, size);
+        }
+        function drawRight(t, rightX, yy, size, bold, color){
+          var f=bold?fontBold:font;
+          var str=String(t==null?"":t);
+          var w=f.widthOfTextAtSize(str, size);
+          page.drawText(str, {x:rightX-w, y:yy, size:size, font:f, color:color||black});
+        }
+        function footer(){
+          if(!page) return;
+          page.drawText("M/Y Limitless · Cash expenses only · No credit card · Page "+pageNo,
+            {x:margin, y:22, size:8, font:font, color:grey});
+          page.drawText("Confidential — manager / owner",
+            {x:W-margin-140, y:22, size:8, font:font, color:grey});
+        }
+        function headerMini(){
+          drawText("M/Y Limitless · Cash expenses · "+report.monthLabel, margin, y, 10, true, navy);
+          y-=18;
+        }
+        function hrule(){
+          page.drawLine({start:{x:margin,y:y}, end:{x:W-margin,y:y}, thickness:0.6, color:lineCol});
+          y-=10;
+        }
+
+        newPage();
+        /* Title block */
+        drawText("M/Y LIMITLESS", margin, y, 11, true, navy);
+        y-=16;
+        drawText("Monthly cash expenses report", margin, y, 18, true, black);
+        y-=16;
+        drawText(report.monthLabel, margin, y, 12, true, grey);
+        y-=14;
+        drawText("For manager & owner · Cash only (credit card excluded)", margin, y, 9, false, grey);
+        y-=12;
+        var gen="";
+        try{ gen=new Date(report.generatedAt).toLocaleString("en-GB",{day:"2-digit",month:"short",year:"numeric",hour:"2-digit",minute:"2-digit"}); }catch(eG){ gen=report.generatedAt; }
+        drawText("Generated "+gen, margin, y, 8, false, grey);
+        y-=16;
+        hrule();
+
+        /* Petty summary */
+        drawText("Boat cash (petty envelope)", margin, y, 11, true, black);
+        y-=14;
+        function sumRow(lab, val, bold){
+          ensure(14);
+          drawText(lab, margin, y, 9, !!bold, grey);
+          drawRight(expPdfMoney(val), W-margin, y, 9, !!bold, black);
+          y-=13;
+        }
+        sumRow("Physical start", report.pettyStart);
+        sumRow("Cash in", report.cashInTotal);
+        if(report.priorSettled>0.009) sumRow("Brought-forward short paid", report.priorSettled);
+        sumRow("Cash out (envelope)", report.cashOut);
+        sumRow("On board (end of month)", report.pettyOnboard, true);
+        if(report.cashShort>0.009) sumRow("Books short", report.cashShort, true);
+        y-=6;
+        hrule();
+
+        /* Cash in detail */
+        if(report.cashIns&&report.cashIns.length){
+          ensure(40);
+          drawText("Cash in detail", margin, y, 11, true, black);
+          y-=14;
+          report.cashIns.forEach(function(r){
+            ensure(12);
+            var d=r.date?fmtDate(r.date):"";
+            drawText((d?d+"  ":"")+r.label, margin, y, 8.5, false, black, W-margin-margin-70);
+            drawRight(expPdfMoney(r.amount), W-margin, y, 8.5, false, black);
+            y-=12;
+          });
+          y-=6;
+          hrule();
+        }
+
+        /* Expense table */
+        ensure(50);
+        drawText("Cash expenses (no card)", margin, y, 11, true, black);
+        y-=6;
+        drawText(report.lines.length+" line"+(report.lines.length===1?"":"s")+" · total "+expPdfMoney(report.totalCashExpenses),
+          margin, y-8, 8.5, false, grey);
+        y-=22;
+
+        var colDate=margin;
+        var colVendor=margin+52;
+        var colCat=margin+200;
+        var colFrom=margin+300;
+        var colAmt=W-margin;
+        function tableHead(){
+          ensure(28);
+          page.drawRectangle({x:margin-2, y:y-4, width:W-2*margin+4, height:16, color:headBg});
+          drawText("Date", colDate, y, 8, true, grey);
+          drawText("Vendor / description", colVendor, y, 8, true, grey);
+          drawText("Category", colCat, y, 8, true, grey);
+          drawText("From", colFrom, y, 8, true, grey);
+          drawRight("Amount", colAmt, y, 8, true, grey);
+          y-=16;
+        }
+        tableHead();
+        if(!report.lines.length){
+          drawText("No cash expenses this month.", margin, y, 9, false, grey);
+          y-=14;
+        } else {
+          report.lines.forEach(function(r, idx){
+            ensure(28);
+            if(y<margin+40){ footer(); newPage(); headerMini(); tableHead(); }
+            var d=r.date?fmtDate(r.date):"—";
+            drawText(d, colDate, y, 8, false, black);
+            var vend=r.vendor;
+            if(r.description&&r.description!==r.vendor){
+              vend=r.vendor+(r.description?" — "+r.description:"");
+            }
+            drawText(vend, colVendor, y, 8, false, black, colCat-colVendor-6);
+            drawText(r.category, colCat, y, 7.5, false, grey, colFrom-colCat-4);
+            drawText(r.paidFrom, colFrom, y, 7.5, false, grey, 70);
+            drawRight(expPdfMoney(r.amount), colAmt, y, 8, false, black);
+            y-=11;
+            if(idx%5===4){
+              page.drawLine({start:{x:margin,y:y+4}, end:{x:W-margin,y:y+4}, thickness:0.3, color:lineCol});
+            }
+          });
+          y-=8;
+          ensure(18);
+          page.drawLine({start:{x:margin,y:y+6}, end:{x:W-margin,y:y+6}, thickness:0.8, color:black});
+          drawText("Total cash expenses", colVendor, y-4, 9, true, black);
+          drawRight(expPdfMoney(report.totalCashExpenses), colAmt, y-4, 9, true, black);
+          y-=20;
+        }
+
+        /* By category */
+        if(report.byCategory&&report.byCategory.length){
+          ensure(40);
+          hrule();
+          drawText("By category", margin, y, 11, true, black);
+          y-=14;
+          report.byCategory.forEach(function(c){
+            ensure(12);
+            drawText(c.category, margin, y, 8.5, false, black, W-margin-margin-80);
+            drawRight(expPdfMoney(c.amount), W-margin, y, 8.5, false, black);
+            y-=12;
+          });
+        }
+
+        y-=10;
+        ensure(36);
+        hrule();
+        drawText("Notes", margin, y, 9, true, black);
+        y-=12;
+        drawText("• Credit card / ship card purchases are excluded from this report.", margin, y, 8, false, grey, W-2*margin);
+        y-=11;
+        drawText("• Cash tips from guests never enter the boat envelope; only card-tip payouts from petty appear as cash out.", margin, y, 8, false, grey, W-2*margin);
+        y-=11;
+        drawText("• Day pay and tip payouts hit petty only when marked paid from petty cash.", margin, y, 8, false, grey, W-2*margin);
+
+        footer();
+        return doc.save().then(function(bytes){
+          return new Blob([bytes], {type:"application/pdf"});
+        });
+      });
+    });
+  });
+}
+function expExportMonthCashPdf(month){
+  month=String(month||expMonth||expDefaultMonth()).slice(0,7);
+  var name=expCashPdfFileName(month);
+  var btn=el("expExportPdf");
+  if(btn){ btn.disabled=true; btn.textContent="Building PDF…"; }
+  return buildExpensesCashPdf(month).then(function(blob){
+    var p={
+      fileName:name,
+      shareTitle:"Limitless cash expenses "+expMonthLabel(month),
+      shareText:"M/Y Limitless · cash expenses only (no card) · "+expMonthLabel(month)
+    };
+    return sharePdfBlob(blob, p).then(function(how){
+      if(how==="download"){ /* already downloaded */ }
+      return how;
+    }).catch(function(){
+      downloadBlob(blob, name);
+    });
+  }).catch(function(err){
+    console&&console.error&&console.error(err);
+    window.alert("Could not build PDF — check connection and try again.");
+  }).then(function(){
+    if(btn){ btn.disabled=false; btn.textContent="Export PDF"; }
+  });
+}
 function renderExpenses(){
   if(!isCaptain()) return;
   var body=el("expBody"); if(!body) return;
@@ -11171,6 +11492,7 @@ function paintExpensesBody(){
       return '<option value="'+esc(m)+'"'+(m===expMonth?" selected":"")+'>'+esc(m)+'</option>';
     }).join("")+'</select>'+
     '<button type="button" class="btn ghost" id="expExport" style="width:auto;padding:10px 14px">Export CSV</button>'+
+    '<button type="button" class="btn" id="expExportPdf" style="width:auto;padding:10px 14px" title="Cash only — no credit card. For manager & owner.">Export PDF</button>'+
   '</div>';
   /* Hero: physical notes only (model pettyOnboard ≥ 0) */
   var priorSettledAmt=apaNum(S.priorSettled);
@@ -11649,6 +11971,7 @@ function paintExpensesBody(){
     renderExpenses();
   });
   if(el("expExport")) el("expExport").addEventListener("click",function(){ expExportMonthCsv(expMonth); });
+  if(el("expExportPdf")) el("expExportPdf").addEventListener("click",function(){ expExportMonthCashPdf(expMonth); });
   if(el("expAdd")) el("expAdd").addEventListener("click",function(){ openExpense(null); });
   Array.prototype.forEach.call(body.querySelectorAll("[data-exp-reimburse]"),function(btn){
     btn.addEventListener("click",function(ev){
