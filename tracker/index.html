@@ -9983,8 +9983,9 @@ function expHealAssignPayStatusFromExpenses(){
   return dirty;
 }
 /**
- * Unpark Toni/etc. day-pay parked Paid for today/future without cash leaving float.
+ * Unpark ghost day-pay “Paid” without cash leaving float (any date).
  * Model plan only; apply + save here. Run before heal so ghosts cannot re-stick.
+ * After this, Stews/Expenses show Unpaid until captain marks Paid from Petty.
  */
 function expUnparkDayPayNotFromFloat(){
   if(!isCaptain()||!state.stewAssign) return false;
@@ -13069,8 +13070,24 @@ function stewPayBreakdown(ev, asg){
       unitLabel:units===1?"day":"days"
     };
   }
-  /* Respect saved payStatus only — never force Paid for pre-17/07 */
-  var paid=asg&&asg.payStatus==="Paid";
+  /*
+   * Day pay “Paid” only when really settled: payStatusManual (Prior or captain
+   * mark) or a floatPay expense line. Bare payStatus Paid (ghost heal/sync) is
+   * treated as unpaid so Laura-still-owed cannot hide behind a green card.
+   */
+  var paid=false;
+  if(asg&&asg.payStatus==="Paid"){
+    if(asg.payStatusManual===true) paid=true;
+    else if(LY_MODELS&&LY_MODELS.buildCrewDayPaySettledSets&&LY_MODELS.isCrewDayPaySettled){
+      try{
+        var settledDay=LY_MODELS.buildCrewDayPaySettledSets(state.expenses||[]);
+        var sidsPaid=(asg.stewIds||[]).filter(Boolean);
+        paid=sidsPaid.length>0&&sidsPaid.every(function(sid){
+          return LY_MODELS.isCrewDayPaySettled(asg, sid, settledDay);
+        });
+      }catch(ePay){ paid=false; }
+    }
+  }
   var due=stewCharterDayReached(ev, asg);
   /* Future trips: not unpaid yet. From charter day: unpaid until you mark Paid. */
   var unpaid=!!(!paid&&due);
@@ -13790,6 +13807,10 @@ function paintStewChartersKeepScroll(){
 function renderStews(opts){
   if(!canRoster()) return;
   opts=opts||{};
+  /* Captain: unpark ghost Paid (card green, no cash left) so still-owed matches */
+  if(isCaptain()){
+    try{ expUnparkDayPayNotFromFloat(); }catch(eU){}
+  }
   Array.prototype.forEach.call(document.querySelectorAll("#stewSubNav button"),function(b){
     b.classList.toggle("on", b.getAttribute("data-stewsub")===stewSub);
   });
@@ -14976,12 +14997,25 @@ function openStewAssign(eventKey){
       if(zeroPay){ each=0; rate=rate===""?"":0; nowPaid=false; dayPayByStew={}; tipTotal=""; tipPayStatus="Unpaid"; tipPaidBy={}; }
       linkedLeadId=(el("f_stew_leadId")&&el("f_stew_leadId").value)||"";
       /*
-       * Only flag cash-out when newly marking Paid from petty, or switching
-       * Own money → Petty. Re-saving an already-Paid charter must not invent floatPay.
+       * Cash leaves petty when:
+       *  - newly marking Paid from petty, or
+       *  - switching Own money → Petty, or
+       *  - already “Paid” on the card but no floatPay line yet (ghost Paid —
+       *    Laura/Diego style: green card, money never left, still owed).
+       * Re-saving a true petty settle (floatPay already set) does not re-invent.
        */
       var wasPaidBefore=asg.payStatus==="Paid";
       var wasFromOwn=asg.paidFrom==="Own money";
-      payFromPetty=nowPaid&&!zeroPay&&paidFromSel==="Petty cash"&&(!wasPaidBefore||wasFromOwn);
+      var hasFloatPayLine=false;
+      try{
+        var ekFloat=String(asg.eventKey||eventKey||"");
+        hasFloatPayLine=(state.expenses||[]).some(function(e){
+          return e&&e.source==="stew"&&e.stewPayKind==="dayPay"&&
+            String(e.stewEventKey||"")===ekFloat&&e.floatPay===true&&
+            String(e.crewPayStatus||"")==="Paid";
+        });
+      }catch(eFl){ hasFloatPayLine=false; }
+      payFromPetty=nowPaid&&!zeroPay&&paidFromSel==="Petty cash"&&(!wasPaidBefore||wasFromOwn||!hasFloatPayLine);
     } else {
       /* Team: only change who is on the charter + notes — keep captain pay fields */
       rate=asg.dayRate!=null&&asg.dayRate!==""?asg.dayRate:ratePrefill;

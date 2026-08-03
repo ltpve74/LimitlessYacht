@@ -1594,27 +1594,28 @@ console.log("\n[Cash — boat ledger = Expenses petty]");
       stewId: "toni",
     })
   );
+  /* Ghost Paid (no manual, no float) — any date, incl. past Laura/Diego style */
   const unpark = M.planUnparkDayPayNotFromFloat({
     today: "2026-08-02",
     assigns: [
       {
         eventKey: "evt-toni-today",
-        start: "2026-08-02",
+        start: "2026-07-20",
         payStatus: "Paid",
-        payStatusManual: true,
+        payStatusManual: false,
         stewIds: ["toni"],
       },
     ],
     expenses: [
       {
         id: "toni-ghost",
-        date: "2026-08-02",
+        date: "2026-07-20",
         amount: 150,
         category: "Crew Salaries",
         vendor: "Toni",
         crewPayStatus: "Paid",
         floatPay: false,
-        payStatusManual: true,
+        payStatusManual: false,
         source: "stew",
         stewId: "toni",
         stewEventKey: "evt-toni-today",
@@ -1622,9 +1623,38 @@ console.log("\n[Cash — boat ledger = Expenses petty]");
       },
     ],
   });
-  ok("unpark today Paid without float", unpark.changed === true);
+  ok("unpark past ghost Paid without float", unpark.changed === true);
   ok("unpark sets Unpaid", unpark.assignPatches[0] && unpark.assignPatches[0].payStatus === "Unpaid");
   ok("unpark drops ghost expense", unpark.dropExpenseIds.indexOf("toni-ghost") >= 0);
+  /* Explicit Prior (manual Paid, no float) must stay settled — not unparked */
+  const keepPrior = M.planUnparkDayPayNotFromFloat({
+    today: "2026-08-02",
+    assigns: [
+      {
+        eventKey: "evt-prior",
+        start: "2026-07-10",
+        payStatus: "Paid",
+        payStatusManual: true,
+        stewIds: ["laura"],
+      },
+    ],
+    expenses: [
+      {
+        id: "laura-prior",
+        date: "2026-07-10",
+        amount: 200,
+        category: "Crew Salaries",
+        crewPayStatus: "Paid",
+        floatPay: false,
+        payStatusManual: true,
+        source: "stew",
+        stewId: "laura",
+        stewEventKey: "evt-prior",
+        stewPayKind: "dayPay",
+      },
+    ],
+  });
+  ok("manual Prior Paid not unparked", keepPrior.changed === false);
   const keepFloat = M.planUnparkDayPayNotFromFloat({
     today: "2026-08-02",
     assigns: [{ eventKey: "evt-ok", start: "2026-08-02", payStatus: "Paid", stewIds: ["toni"] }],
@@ -1644,6 +1674,62 @@ console.log("\n[Cash — boat ledger = Expenses petty]");
     ],
   });
   ok("real floatPay Paid not unparked", keepFloat.changed === false);
+  /* Ghost Paid charter still lists as open day-pay until really settled */
+  const openGhost = M.collectOpenCrewDayPay(
+    [
+      {
+        eventKey: "evt-diego-laura",
+        start: "2026-07-15",
+        payStatus: "Paid",
+        payStatusManual: false,
+        stewIds: ["laura", "diego"],
+        payEach: 200,
+      },
+    ],
+    [],
+    {
+      today: "2026-08-02",
+      focusMonth: "2026-08",
+      dayPayAmt: function () {
+        return 200;
+      },
+      personName: function (id) {
+        return id === "laura" ? "Laura" : "Diego";
+      },
+    }
+  );
+  ok("ghost Paid still open day-pay", openGhost.length === 2, "got " + openGhost.length);
+  ok(
+    "ghost Paid open includes Laura 200",
+    openGhost.some(function (r) {
+      return r.stewId === "laura" && near(r.amount, 200);
+    })
+  );
+  /* Explicit Prior (manual) is not open */
+  const openPrior = M.collectOpenCrewDayPay(
+    [
+      {
+        eventKey: "evt-prior2",
+        start: "2026-07-15",
+        payStatus: "Paid",
+        payStatusManual: true,
+        stewIds: ["laura"],
+        payEach: 200,
+      },
+    ],
+    [],
+    {
+      today: "2026-08-02",
+      focusMonth: "2026-08",
+      dayPayAmt: function () {
+        return 200;
+      },
+      personName: function () {
+        return "Laura";
+      },
+    }
+  );
+  ok("manual Prior Paid not in open day-pay", openPrior.length === 0, "got " + openPrior.length);
 }
 
 
