@@ -1594,28 +1594,27 @@ console.log("\n[Cash — boat ledger = Expenses petty]");
       stewId: "toni",
     })
   );
-  /* Ghost Paid (no manual, no float) — any date, incl. past Laura/Diego style */
   const unpark = M.planUnparkDayPayNotFromFloat({
     today: "2026-08-02",
     assigns: [
       {
         eventKey: "evt-toni-today",
-        start: "2026-07-20",
+        start: "2026-08-02",
         payStatus: "Paid",
-        payStatusManual: false,
+        payStatusManual: true,
         stewIds: ["toni"],
       },
     ],
     expenses: [
       {
         id: "toni-ghost",
-        date: "2026-07-20",
+        date: "2026-08-02",
         amount: 150,
         category: "Crew Salaries",
         vendor: "Toni",
         crewPayStatus: "Paid",
         floatPay: false,
-        payStatusManual: false,
+        payStatusManual: true,
         source: "stew",
         stewId: "toni",
         stewEventKey: "evt-toni-today",
@@ -1623,38 +1622,37 @@ console.log("\n[Cash — boat ledger = Expenses petty]");
       },
     ],
   });
-  ok("unpark past ghost Paid without float", unpark.changed === true);
+  ok("unpark today Paid without float", unpark.changed === true);
   ok("unpark sets Unpaid", unpark.assignPatches[0] && unpark.assignPatches[0].payStatus === "Unpaid");
   ok("unpark drops ghost expense", unpark.dropExpenseIds.indexOf("toni-ghost") >= 0);
-  /* Explicit Prior (manual Paid, no float) must stay settled — not unparked */
-  const keepPrior = M.planUnparkDayPayNotFromFloat({
+  /* Past Paid must never bulk-unpark */
+  const unparkPast = M.planUnparkDayPayNotFromFloat({
     today: "2026-08-02",
     assigns: [
       {
-        eventKey: "evt-prior",
-        start: "2026-07-10",
+        eventKey: "evt-past",
+        start: "2026-07-15",
         payStatus: "Paid",
-        payStatusManual: true,
+        payStatusManual: false,
         stewIds: ["laura"],
       },
     ],
     expenses: [
       {
-        id: "laura-prior",
-        date: "2026-07-10",
+        id: "laura-past",
+        date: "2026-07-15",
         amount: 200,
         category: "Crew Salaries",
         crewPayStatus: "Paid",
         floatPay: false,
-        payStatusManual: true,
         source: "stew",
         stewId: "laura",
-        stewEventKey: "evt-prior",
+        stewEventKey: "evt-past",
         stewPayKind: "dayPay",
       },
     ],
   });
-  ok("manual Prior Paid not unparked", keepPrior.changed === false);
+  ok("past Paid not bulk-unparked", unparkPast.changed === false);
   const keepFloat = M.planUnparkDayPayNotFromFloat({
     today: "2026-08-02",
     assigns: [{ eventKey: "evt-ok", start: "2026-08-02", payStatus: "Paid", stewIds: ["toni"] }],
@@ -1674,62 +1672,39 @@ console.log("\n[Cash — boat ledger = Expenses petty]");
     ],
   });
   ok("real floatPay Paid not unparked", keepFloat.changed === false);
-  /* Ghost Paid charter still lists as open day-pay until really settled */
-  const openGhost = M.collectOpenCrewDayPay(
-    [
+  /* Recovery: Unpaid assign + Paid float expense → Paid again */
+  const restore = M.planRestoreDayPayPaidFromExpenses({
+    assigns: [
       {
-        eventKey: "evt-diego-laura",
-        start: "2026-07-15",
-        payStatus: "Paid",
-        payStatusManual: false,
-        stewIds: ["laura", "diego"],
-        payEach: 200,
-      },
-    ],
-    [],
-    {
-      today: "2026-08-02",
-      focusMonth: "2026-08",
-      dayPayAmt: function () {
-        return 200;
-      },
-      personName: function (id) {
-        return id === "laura" ? "Laura" : "Diego";
-      },
-    }
-  );
-  ok("ghost Paid still open day-pay", openGhost.length === 2, "got " + openGhost.length);
-  ok(
-    "ghost Paid open includes Laura 200",
-    openGhost.some(function (r) {
-      return r.stewId === "laura" && near(r.amount, 200);
-    })
-  );
-  /* Explicit Prior (manual) is not open */
-  const openPrior = M.collectOpenCrewDayPay(
-    [
-      {
-        eventKey: "evt-prior2",
-        start: "2026-07-15",
-        payStatus: "Paid",
-        payStatusManual: true,
+        eventKey: "evt-restore",
+        start: "2026-07-01",
+        payStatus: "Unpaid",
         stewIds: ["laura"],
-        payEach: 200,
       },
     ],
-    [],
-    {
-      today: "2026-08-02",
-      focusMonth: "2026-08",
-      dayPayAmt: function () {
-        return 200;
+    expenses: [
+      {
+        id: "laura-float",
+        date: "2026-07-01",
+        amount: 200,
+        category: "Crew Salaries",
+        crewPayStatus: "Paid",
+        floatPay: true,
+        source: "stew",
+        stewId: "laura",
+        stewEventKey: "evt-restore",
+        stewPayKind: "dayPay",
       },
-      personName: function () {
-        return "Laura";
-      },
-    }
-  );
-  ok("manual Prior Paid not in open day-pay", openPrior.length === 0, "got " + openPrior.length);
+    ],
+  });
+  ok("restore Paid from float expense", restore.changed === true);
+  ok("restore patch is Paid", restore.assignPatches[0] && restore.assignPatches[0].payStatus === "Paid");
+  /* No expense proof → no restore */
+  const restoreNone = M.planRestoreDayPayPaidFromExpenses({
+    assigns: [{ eventKey: "evt-none", payStatus: "Unpaid", stewIds: ["x"] }],
+    expenses: [],
+  });
+  ok("restore without expense proof does nothing", restoreNone.changed === false);
 }
 
 

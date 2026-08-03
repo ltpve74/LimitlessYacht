@@ -2275,6 +2275,9 @@ function renderAll(){
   function safe(fn){ try{ fn(); }catch(e){ console&&console.error&&console.error(e); } }
   /* Captain: unpark ghost Paid day-pay; re-sync lead/charge cash → petty */
   if(isCaptain()){
+    /* Restore Paid from remaining expense proof first (undo mistaken bulk unpark) */
+    try{ expRestoreDayPayPaidFromExpenses(); }catch(eR){}
+    /* Only unpark today/future ghosts — never rewrite past Paid history */
     try{ expUnparkDayPayNotFromFloat(); }catch(eU){}
     try{ syncAllChargeCashToPetty(); }catch(eS){}
   }
@@ -9983,9 +9986,8 @@ function expHealAssignPayStatusFromExpenses(){
   return dirty;
 }
 /**
- * Unpark ghost day-pay “Paid” without cash leaving float (any date).
- * Model plan only; apply + save here. Run before heal so ghosts cannot re-stick.
- * After this, Stews/Expenses show Unpaid until captain marks Paid from Petty.
+ * Unpark day-pay “Paid” without cash leaving float — today/future only.
+ * Model plan only; apply + save. Never bulk-touch past Paid history.
  */
 function expUnparkDayPayNotFromFloat(){
   if(!isCaptain()||!state.stewAssign) return false;
@@ -10016,6 +10018,36 @@ function expUnparkDayPayNotFromFloat(){
     try{ if(Object.keys(drop).length) saveExpenses(); }catch(eE){}
   }
   return true;
+}
+/**
+ * After mistaken bulk unpark: restore assign Paid only when Paid day-pay
+ * expense lines still prove it (floatPay or payStatusManual). One-shot save.
+ */
+function expRestoreDayPayPaidFromExpenses(){
+  if(!isCaptain()||!state.stewAssign) return false;
+  if(!(LY_MODELS&&LY_MODELS.planRestoreDayPayPaidFromExpenses)) return false;
+  var plan=LY_MODELS.planRestoreDayPayPaidFromExpenses({
+    assigns:state.stewAssign||[],
+    expenses:state.expenses||[]
+  });
+  if(!plan||!plan.changed) return false;
+  var byKey={};
+  (plan.assignPatches||[]).forEach(function(p){ if(p&&p.eventKey) byKey[String(p.eventKey)]=p; });
+  var n=0;
+  (state.stewAssign||[]).forEach(function(asg){
+    if(!asg||!asg.eventKey) return;
+    var p=byKey[String(asg.eventKey)];
+    if(!p) return;
+    asg.payStatus="Paid";
+    asg.payStatusManual=true;
+    if(p.paidFrom) asg.paidFrom=p.paidFrom;
+    asg.updatedAt=new Date().toISOString();
+    n++;
+  });
+  if(n&&!DEMO){
+    try{ saveStewAssign(); }catch(eA){}
+  }
+  return n>0;
 }
 /** Unpaid stew day pay still due through focus month. Tips separate. */
 function expStewDayPayOwed(month){
@@ -10956,7 +10988,9 @@ function renderExpenses(){
   try{ syncAllChargeCashToPetty(); }catch(eSync){}
   try{ expRepairImpossibleCrewFloatOnEmptyEnvelope(); }catch(eRep){}
   try{ expCollapseCrewDayPayDuplicates(); }catch(eCol){}
-  /* Unpark ghost Paid (today/future, no floatPay) before heal can re-stick */
+  /* Restore Paid where expense proof still exists (undo bulk unpark damage) */
+  try{ expRestoreDayPayPaidFromExpenses(); }catch(eRest){}
+  /* Unpark today/future ghosts only — never rewrite past Paid history */
   try{ expUnparkDayPayNotFromFloat(); }catch(eUn){}
   try{ expStripUnpaidStewDayPayExpenses(); }catch(eStrip){}
   try{ expHealAssignPayStatusFromExpenses(); }catch(eHealPay){}
@@ -13070,24 +13104,8 @@ function stewPayBreakdown(ev, asg){
       unitLabel:units===1?"day":"days"
     };
   }
-  /*
-   * Day pay “Paid” only when really settled: payStatusManual (Prior or captain
-   * mark) or a floatPay expense line. Bare payStatus Paid (ghost heal/sync) is
-   * treated as unpaid so Laura-still-owed cannot hide behind a green card.
-   */
-  var paid=false;
-  if(asg&&asg.payStatus==="Paid"){
-    if(asg.payStatusManual===true) paid=true;
-    else if(LY_MODELS&&LY_MODELS.buildCrewDayPaySettledSets&&LY_MODELS.isCrewDayPaySettled){
-      try{
-        var settledDay=LY_MODELS.buildCrewDayPaySettledSets(state.expenses||[]);
-        var sidsPaid=(asg.stewIds||[]).filter(Boolean);
-        paid=sidsPaid.length>0&&sidsPaid.every(function(sid){
-          return LY_MODELS.isCrewDayPaySettled(asg, sid, settledDay);
-        });
-      }catch(ePay){ paid=false; }
-    }
-  }
+  /* Respect saved payStatus only — never force Paid for pre-17/07 */
+  var paid=asg&&asg.payStatus==="Paid";
   var due=stewCharterDayReached(ev, asg);
   /* Future trips: not unpaid yet. From charter day: unpaid until you mark Paid. */
   var unpaid=!!(!paid&&due);
@@ -13807,10 +13825,6 @@ function paintStewChartersKeepScroll(){
 function renderStews(opts){
   if(!canRoster()) return;
   opts=opts||{};
-  /* Captain: unpark ghost Paid (card green, no cash left) so still-owed matches */
-  if(isCaptain()){
-    try{ expUnparkDayPayNotFromFloat(); }catch(eU){}
-  }
   Array.prototype.forEach.call(document.querySelectorAll("#stewSubNav button"),function(b){
     b.classList.toggle("on", b.getAttribute("data-stewsub")===stewSub);
   });
