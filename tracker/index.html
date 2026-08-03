@@ -11135,7 +11135,7 @@ function expPdfSafeText(s){
 }
 /**
  * Manager/owner PDF: cash expenses only (no credit card).
- * Multi-page A4 via pdf-lib. Text is WinAnsi-safe for StandardFonts.
+ * Polished A4 layout (navy/gold brand accents). WinAnsi-safe text.
  */
 function buildExpensesCashPdf(month){
   var report=expCashReportForMonth(month);
@@ -11148,42 +11148,54 @@ function buildExpensesCashPdf(month){
         doc.embedFont(StandardFonts.HelveticaBold)
       ]).then(function(res){
         var font=res[0], fontBold=res[1];
-        var W=595.28, H=841.89, margin=42;
-        var black=rgb(0.1,0.1,0.12);
-        var grey=rgb(0.4,0.42,0.45);
-        var lineCol=rgb(0.85,0.87,0.9);
-        var headBg=rgb(0.95,0.96,0.97);
-        var navy=rgb(0.08,0.16,0.32);
+        var W=595.28, H=841.89;
+        var margin=40;
+        var contentW=W-margin*2;
+        /* Brand-ish palette (site navy + gold) */
+        var navy=rgb(0.06,0.14,0.28);
+        var navySoft=rgb(0.12,0.22,0.40);
+        var gold=rgb(0.79,0.66,0.30); /* ~#c9a84c */
+        var goldSoft=rgb(0.96,0.93,0.84);
+        var ink=rgb(0.12,0.13,0.15);
+        var muted=rgb(0.42,0.45,0.50);
+        var lineCol=rgb(0.88,0.90,0.92);
+        var zebra=rgb(0.97,0.98,0.99);
+        var white=rgb(1,1,1);
+        var greenInk=rgb(0.10,0.36,0.28);
+        var greenBg=rgb(0.91,0.96,0.93);
         var page=null, y=0, pageNo=0;
-        function newPage(){
+
+        function newPage(isFirst){
           page=doc.addPage([W, H]);
           pageNo++;
-          y=H-margin;
+          /* Top navy bar */
+          page.drawRectangle({x:0, y:H-28, width:W, height:28, color:navy});
+          page.drawRectangle({x:0, y:H-32, width:W, height:4, color:gold});
+          drawTextRaw("M/Y LIMITLESS", margin, H-19, 9, true, white);
+          drawTextRaw("Cash report", W-margin-70, H-19, 9, false, goldSoft);
+          /* Footer band */
+          page.drawRectangle({x:0, y:0, width:W, height:32, color:navy});
+          page.drawRectangle({x:0, y:32, width:W, height:2, color:gold});
+          drawTextRaw("Cash only  |  No credit card  |  Confidential - manager / owner", margin, 12, 7.5, false, goldSoft);
+          drawTextRaw("Page "+pageNo, W-margin-40, 12, 7.5, true, white);
+          y=isFirst?H-48:H-52;
           return page;
         }
-        function ensure(space){
-          if(y-space<margin+28){
-            footer();
-            newPage();
-            headerMini();
-          }
-        }
-        function drawText(t, x, yy, size, bold, color, maxW){
+        function drawTextRaw(t, x, yy, size, bold, color, maxW){
           var f=bold?fontBold:font;
           var str=expPdfSafeText(t);
           if(!str) return 0;
           if(maxW){
             while(str.length>3&&f.widthOfTextAtSize(str, size)>maxW) str=str.slice(0,-2);
-            if(str!==expPdfSafeText(t)&&str.length) str=str.slice(0,-1)+"...";
+            if(str.length&&str!==expPdfSafeText(t)) str=str.slice(0,-1)+"...";
           }
           try{
-            page.drawText(str, {x:x, y:yy, size:size, font:f, color:color||black});
+            page.drawText(str, {x:x, y:yy, size:size, font:f, color:color||ink});
           }catch(eDraw){
-            /* last resort: ASCII only */
             str=str.replace(/[^\x20-\x7E]/g,"?");
-            if(str) page.drawText(str, {x:x, y:yy, size:size, font:f, color:color||black});
+            if(str) page.drawText(str, {x:x, y:yy, size:size, font:f, color:color||ink});
           }
-          return f.widthOfTextAtSize(str, size);
+          return f.widthOfTextAtSize(str||"", size);
         }
         function drawRight(t, rightX, yy, size, bold, color){
           var f=bold?fontBold:font;
@@ -11191,157 +11203,191 @@ function buildExpensesCashPdf(month){
           if(!str) return;
           var w=f.widthOfTextAtSize(str, size);
           try{
-            page.drawText(str, {x:rightX-w, y:yy, size:size, font:f, color:color||black});
+            page.drawText(str, {x:rightX-w, y:yy, size:size, font:f, color:color||ink});
           }catch(eR){
             str=str.replace(/[^\x20-\x7E]/g,"?");
             w=f.widthOfTextAtSize(str, size);
-            if(str) page.drawText(str, {x:rightX-w, y:yy, size:size, font:f, color:color||black});
+            if(str) page.drawText(str, {x:rightX-w, y:yy, size:size, font:f, color:color||ink});
           }
         }
-        function footer(){
-          if(!page) return;
-          drawText("M/Y Limitless - Cash expenses only - No credit card - Page "+pageNo, margin, 22, 8, false, grey);
-          drawText("Confidential - manager / owner", W-margin-150, 22, 8, false, grey);
+        function ensure(space){
+          if(y-space<48){
+            newPage(false);
+            /* continuation strip */
+            page.drawRectangle({x:margin, y:y-4, width:contentW, height:18, color:goldSoft});
+            drawTextRaw("Continued  -  "+report.monthLabel+"  -  cash expenses", margin+8, y+1, 8, true, navy);
+            y-=28;
+          }
         }
-        function headerMini(){
-          drawText("M/Y Limitless - Cash expenses - "+report.monthLabel, margin, y, 10, true, navy);
-          y-=18;
+        function sectionTitle(label){
+          ensure(28);
+          drawTextRaw(label.toUpperCase(), margin, y, 9, true, navy);
+          y-=4;
+          page.drawRectangle({x:margin, y:y, width:36, height:2.5, color:gold});
+          y-=14;
         }
-        function hrule(){
-          page.drawLine({start:{x:margin,y:y}, end:{x:W-margin,y:y}, thickness:0.6, color:lineCol});
-          y-=10;
+        function kpiCard(x, cardW, label, value, emphasize){
+          var cardH=48;
+          var bg=emphasize?greenBg:zebra;
+          var border=emphasize?rgb(0.70,0.86,0.76):lineCol;
+          page.drawRectangle({x:x, y:y-cardH+8, width:cardW, height:cardH, color:bg, borderColor:border, borderWidth:0.8});
+          drawTextRaw(label, x+10, y-6, 7.5, true, muted);
+          drawTextRaw(value, x+10, y-28, emphasize?12:11, true, emphasize?greenInk:ink);
         }
 
-        newPage();
-        /* Title block */
-        drawText("M/Y LIMITLESS", margin, y, 11, true, navy);
-        y-=16;
-        drawText("Monthly cash expenses report", margin, y, 18, true, black);
-        y-=16;
-        drawText(report.monthLabel, margin, y, 12, true, grey);
+        newPage(true);
+
+        /* Hero title */
+        drawTextRaw("Monthly cash expenses", margin, y, 20, true, navy);
+        y-=18;
+        drawTextRaw(report.monthLabel, margin, y, 13, true, gold);
         y-=14;
-        drawText("For manager & owner - Cash only (credit card excluded)", margin, y, 9, false, grey);
-        y-=12;
         var gen="";
-        try{ gen=new Date(report.generatedAt).toLocaleString("en-GB",{day:"2-digit",month:"short",year:"numeric",hour:"2-digit",minute:"2-digit"}); }catch(eG){ gen=String(report.generatedAt||""); }
-        drawText("Generated "+gen, margin, y, 8, false, grey);
-        y-=16;
-        hrule();
+        try{
+          gen=new Date(report.generatedAt).toLocaleString("en-GB",{
+            day:"2-digit", month:"short", year:"numeric", hour:"2-digit", minute:"2-digit"
+          });
+        }catch(eG){ gen=String(report.generatedAt||""); }
+        drawTextRaw("Prepared for manager & owner  |  Generated "+gen, margin, y, 8, false, muted);
+        /* Cash-only badge */
+        var badge="CASH ONLY";
+        var bw=fontBold.widthOfTextAtSize(badge, 8)+16;
+        page.drawRectangle({x:W-margin-bw, y:y-4, width:bw, height:16, color:navy});
+        drawTextRaw(badge, W-margin-bw+8, y, 8, true, gold);
+        y-=22;
 
-        /* Petty summary */
-        drawText("Boat cash (petty envelope)", margin, y, 11, true, black);
-        y-=14;
-        function sumRow(lab, val, bold){
-          ensure(14);
-          drawText(lab, margin, y, 9, !!bold, grey);
-          drawRight(expPdfMoney(val), W-margin, y, 9, !!bold, black);
-          y-=13;
+        /* KPI row */
+        sectionTitle("Envelope summary");
+        var gap=8;
+        var cardW=(contentW-gap*3)/4;
+        kpiCard(margin, cardW, "START", expPdfMoney(report.pettyStart), false);
+        kpiCard(margin+cardW+gap, cardW, "CASH IN", expPdfMoney(report.cashInTotal), false);
+        kpiCard(margin+(cardW+gap)*2, cardW, "CASH OUT", expPdfMoney(report.cashOut), false);
+        kpiCard(margin+(cardW+gap)*3, cardW, "ON BOARD", expPdfMoney(report.pettyOnboard), true);
+        y-=52;
+        if(report.priorSettled>0.009||report.cashShort>0.009){
+          ensure(16);
+          var extra=[];
+          if(report.priorSettled>0.009) extra.push("Brought-forward short paid: "+expPdfMoney(report.priorSettled));
+          if(report.cashShort>0.009) extra.push("Books short: "+expPdfMoney(report.cashShort));
+          drawTextRaw(extra.join("   |   "), margin, y, 8, false, muted);
+          y-=14;
         }
-        sumRow("Physical start", report.pettyStart);
-        sumRow("Cash in", report.cashInTotal);
-        if(report.priorSettled>0.009) sumRow("Brought-forward short paid", report.priorSettled);
-        sumRow("Cash out (envelope)", report.cashOut);
-        sumRow("On board (end of month)", report.pettyOnboard, true);
-        if(report.cashShort>0.009) sumRow("Books short", report.cashShort, true);
-        y-=6;
-        hrule();
 
         /* Cash in detail */
         if(report.cashIns&&report.cashIns.length){
-          ensure(40);
-          drawText("Cash in detail", margin, y, 11, true, black);
-          y-=14;
-          report.cashIns.forEach(function(r){
-            ensure(12);
+          sectionTitle("Cash in");
+          report.cashIns.forEach(function(r, idx){
+            ensure(16);
+            if(idx%2===0){
+              page.drawRectangle({x:margin, y:y-4, width:contentW, height:14, color:zebra});
+            }
             var d=r.date?fmtDate(r.date):"";
-            drawText((d?d+"  ":"")+r.label, margin, y, 8.5, false, black, W-margin-margin-70);
-            drawRight(expPdfMoney(r.amount), W-margin, y, 8.5, false, black);
-            y-=12;
+            drawTextRaw(d||"-", margin+6, y, 8.5, false, muted, 52);
+            drawTextRaw(r.label, margin+58, y, 8.5, false, ink, contentW-140);
+            drawRight(expPdfMoney(r.amount), W-margin-6, y, 8.5, true, ink);
+            y-=15;
           });
           y-=6;
-          hrule();
         }
 
         /* Expense table */
-        ensure(50);
-        drawText("Cash expenses (no card)", margin, y, 11, true, black);
-        y-=6;
-        drawText(report.lines.length+" line"+(report.lines.length===1?"":"s")+" - total "+expPdfMoney(report.totalCashExpenses),
-          margin, y-8, 8.5, false, grey);
-        y-=22;
+        sectionTitle("Cash expenses");
+        drawTextRaw(
+          report.lines.length+" line"+(report.lines.length===1?"":"s")+
+          "   |   Total  "+expPdfMoney(report.totalCashExpenses),
+          margin, y, 8, false, muted
+        );
+        y-=12;
 
-        var colDate=margin;
-        var colVendor=margin+52;
-        var colCat=margin+200;
-        var colFrom=margin+300;
-        var colAmt=W-margin;
+        var colDate=margin+6;
+        var colVendor=margin+54;
+        var colCat=margin+248;
+        var colFrom=margin+348;
+        var colAmtR=W-margin-6;
+        var rowH=15;
+
         function tableHead(){
-          ensure(28);
-          page.drawRectangle({x:margin-2, y:y-4, width:W-2*margin+4, height:16, color:headBg});
-          drawText("Date", colDate, y, 8, true, grey);
-          drawText("Vendor / description", colVendor, y, 8, true, grey);
-          drawText("Category", colCat, y, 8, true, grey);
-          drawText("From", colFrom, y, 8, true, grey);
-          drawRight("Amount", colAmt, y, 8, true, grey);
-          y-=16;
+          ensure(22);
+          page.drawRectangle({x:margin, y:y-5, width:contentW, height:18, color:navy});
+          drawTextRaw("DATE", colDate, y, 7.5, true, gold);
+          drawTextRaw("VENDOR / DESCRIPTION", colVendor, y, 7.5, true, gold);
+          drawTextRaw("CATEGORY", colCat, y, 7.5, true, gold);
+          drawTextRaw("FROM", colFrom, y, 7.5, true, gold);
+          drawRight("AMOUNT", colAmtR, y, 7.5, true, gold);
+          y-=18;
         }
         tableHead();
+
         if(!report.lines.length){
-          drawText("No cash expenses this month.", margin, y, 9, false, grey);
-          y-=14;
+          ensure(20);
+          page.drawRectangle({x:margin, y:y-8, width:contentW, height:28, color:zebra});
+          drawTextRaw("No cash expenses this month.", margin+12, y+2, 9, false, muted);
+          y-=28;
         } else {
           report.lines.forEach(function(r, idx){
-            ensure(28);
-            if(y<margin+40){ footer(); newPage(); headerMini(); tableHead(); }
+            ensure(rowH+4);
+            if(y<56){ newPage(false); tableHead(); }
+            if(idx%2===0){
+              page.drawRectangle({x:margin, y:y-4, width:contentW, height:rowH, color:zebra});
+            }
             var d=r.date?fmtDate(r.date):"-";
-            drawText(d, colDate, y, 8, false, black);
-            var vend=r.vendor;
+            drawTextRaw(d, colDate, y, 8, false, muted, 48);
+            var vend=r.vendor||"-";
             if(r.description&&r.description!==r.vendor){
-              vend=r.vendor+(r.description?" - "+r.description:"");
+              vend=r.vendor+" - "+r.description;
             }
-            drawText(vend, colVendor, y, 8, false, black, colCat-colVendor-6);
-            drawText(r.category, colCat, y, 7.5, false, grey, colFrom-colCat-4);
-            drawText(r.paidFrom, colFrom, y, 7.5, false, grey, 70);
-            drawRight(expPdfMoney(r.amount), colAmt, y, 8, false, black);
-            y-=11;
-            if(idx%5===4){
-              page.drawLine({start:{x:margin,y:y+4}, end:{x:W-margin,y:y+4}, thickness:0.3, color:lineCol});
-            }
+            drawTextRaw(vend, colVendor, y, 8, false, ink, colCat-colVendor-8);
+            drawTextRaw(r.category, colCat, y, 7.5, false, muted, colFrom-colCat-6);
+            drawTextRaw(r.paidFrom, colFrom, y, 7.5, false, muted, 72);
+            drawRight(expPdfMoney(r.amount), colAmtR, y, 8, true, ink);
+            y-=rowH;
           });
-          y-=8;
-          ensure(18);
-          page.drawLine({start:{x:margin,y:y+6}, end:{x:W-margin,y:y+6}, thickness:0.8, color:black});
-          drawText("Total cash expenses", colVendor, y-4, 9, true, black);
-          drawRight(expPdfMoney(report.totalCashExpenses), colAmt, y-4, 9, true, black);
-          y-=20;
+          /* Total bar */
+          ensure(24);
+          y-=4;
+          page.drawRectangle({x:margin, y:y-6, width:contentW, height:22, color:navy});
+          drawTextRaw("TOTAL CASH EXPENSES", colVendor, y, 9, true, white);
+          drawRight(expPdfMoney(report.totalCashExpenses), colAmtR, y, 10, true, gold);
+          y-=28;
         }
 
-        /* By category */
+        /* Category breakdown as neat chips/rows */
         if(report.byCategory&&report.byCategory.length){
-          ensure(40);
-          hrule();
-          drawText("By category", margin, y, 11, true, black);
-          y-=14;
+          sectionTitle("By category");
+          var maxCat=0;
+          report.byCategory.forEach(function(c){ if(c.amount>maxCat) maxCat=c.amount; });
           report.byCategory.forEach(function(c){
-            ensure(12);
-            drawText(c.category, margin, y, 8.5, false, black, W-margin-margin-80);
-            drawRight(expPdfMoney(c.amount), W-margin, y, 8.5, false, black);
-            y-=12;
+            ensure(18);
+            var barMax=contentW-160;
+            var barW=maxCat>0?(c.amount/maxCat)*barMax:0;
+            if(barW<2&&c.amount>0) barW=2;
+            page.drawRectangle({x:margin, y:y-2, width:barMax, height:8, color:zebra});
+            if(barW>0) page.drawRectangle({x:margin, y:y-2, width:barW, height:8, color:gold});
+            drawTextRaw(c.category, margin, y+10, 8, false, ink, contentW-100);
+            drawRight(expPdfMoney(c.amount), W-margin, y+10, 8, true, ink);
+            y-=22;
           });
         }
 
-        y-=10;
-        ensure(36);
-        hrule();
-        drawText("Notes", margin, y, 9, true, black);
-        y-=12;
-        drawText("- Credit card / ship card purchases are excluded from this report.", margin, y, 8, false, grey, W-2*margin);
-        y-=11;
-        drawText("- Cash tips from guests never enter the boat envelope; only card-tip payouts from petty appear as cash out.", margin, y, 8, false, grey, W-2*margin);
-        y-=11;
-        drawText("- Day pay and tip payouts hit petty only when marked paid from petty cash.", margin, y, 8, false, grey, W-2*margin);
+        /* Notes box */
+        ensure(70);
+        y-=4;
+        sectionTitle("Notes");
+        var notes=[
+          "Credit card / ship card purchases are excluded from this report.",
+          "Cash tips from guests never enter the boat envelope; only card-tip payouts from petty appear as cash out.",
+          "Day pay and tip payouts hit petty only when marked paid from petty cash."
+        ];
+        page.drawRectangle({
+          x:margin, y:y-notes.length*13-10, width:contentW, height:notes.length*13+16,
+          color:goldSoft, borderColor:gold, borderWidth:0.6
+        });
+        notes.forEach(function(n, i){
+          drawTextRaw("-  "+n, margin+10, y-4-i*13, 7.5, false, navySoft, contentW-24);
+        });
+        y-=notes.length*13+24;
 
-        footer();
         return doc.save().then(function(bytes){
           return new Blob([bytes], {type:"application/pdf"});
         });
