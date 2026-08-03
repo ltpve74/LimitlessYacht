@@ -11155,6 +11155,8 @@ function expCashReportForMonth(month){
   var totalCash=0;
   var byCat={};
   var reimburseTot=0;
+  var reimburseCaptainTot=0;
+  var reimburseCrewTot=0;
   var ownMoneyInMonthTot=0;
   var rows=lines.map(function(e){
     var amt=apaNum(e.amount);
@@ -11166,8 +11168,11 @@ function expCashReportForMonth(month){
     var chartCat=kind==="reimburse"?catLabel:rawCat;
     byCat[chartCat]=(byCat[chartCat]||0)+amt;
     var whoName="";
-    if(kind==="reimburse") whoName=expPocketPersonName(expReimburseWhoId(e))||"Captain";
-    else if(kind==="ownMoney") whoName=expPocketPersonName(expOwnMoneySpendWhoId(e)||expPocketWhoId(e))||"Captain";
+    var reimbWhoId="";
+    if(kind==="reimburse"){
+      reimbWhoId=String(expReimburseWhoId(e)||EXP_POCKET_CAPTAIN);
+      whoName=expPocketPersonName(reimbWhoId)||"Captain";
+    } else if(kind==="ownMoney") whoName=expPocketPersonName(expOwnMoneySpendWhoId(e)||expPocketWhoId(e))||"Captain";
     var from="Petty cash";
     if(kind==="ownMoney"){
       from=(whoName&&!/^captain/i.test(whoName))?("Pocket · "+whoName):"Captain pocket";
@@ -11188,7 +11193,12 @@ function expCashReportForMonth(month){
     } else if(kind==="reimburse"){
       coverNote="Repays captain/crew pocket spends (own money) - see Pocket spends section below";
     }
-    if(kind==="reimburse") reimburseTot+=amt;
+    if(kind==="reimburse"){
+      reimburseTot+=amt;
+      var toCap=reimbWhoId===EXP_POCKET_CAPTAIN||/^captain/i.test(whoName||"");
+      if(toCap) reimburseCaptainTot+=amt;
+      else reimburseCrewTot+=amt;
+    }
     if(kind==="ownMoney") ownMoneyInMonthTot+=amt;
     return {
       id:String(e.id||""),
@@ -11209,6 +11219,8 @@ function expCashReportForMonth(month){
   });
   totalCash=Math.round(totalCash*100)/100;
   reimburseTot=Math.round(reimburseTot*100)/100;
+  reimburseCaptainTot=Math.round(reimburseCaptainTot*100)/100;
+  reimburseCrewTot=Math.round(reimburseCrewTot*100)/100;
   ownMoneyInMonthTot=Math.round(ownMoneyInMonthTot*100)/100;
   var cats=Object.keys(byCat).sort(function(a,b){ return byCat[b]-byCat[a]; }).map(function(k){
     return { category:k, amount:Math.round(byCat[k]*100)/100 };
@@ -11289,9 +11301,19 @@ function expCashReportForMonth(month){
   });
   pocketSpendTot=Math.round(pocketSpendTot*100)/100;
   var captainPocketSpends=pocketSpends.filter(function(p){ return p.isCaptain; });
+  var crewPocketSpends=pocketSpends.filter(function(p){ return !p.isCaptain; });
   var captainPocketTot=0;
   captainPocketSpends.forEach(function(p){ captainPocketTot+=p.amount; });
   captainPocketTot=Math.round(captainPocketTot*100)/100;
+  var crewPocketTot=0;
+  crewPocketSpends.forEach(function(p){ crewPocketTot+=p.amount; });
+  crewPocketTot=Math.round(crewPocketTot*100)/100;
+  /* How much of the listed captain spends is marked repaid (any month). */
+  var captainPocketRepaidListed=0;
+  captainPocketSpends.forEach(function(p){
+    captainPocketRepaidListed+=Math.min(p.amount, p.repaidAmt||(p.repaid?p.amount:0));
+  });
+  captainPocketRepaidListed=Math.round(captainPocketRepaidListed*100)/100;
 
   return {
     month:month,
@@ -11308,11 +11330,16 @@ function expCashReportForMonth(month){
     lines:rows,
     totalCashExpenses:totalCash,
     reimburseTotal:reimburseTot,
+    reimburseCaptainTotal:reimburseCaptainTot,
+    reimburseCrewTotal:reimburseCrewTot,
     ownMoneyInMonthTotal:ownMoneyInMonthTot,
     pocketSpends:pocketSpends,
     pocketSpendTotal:pocketSpendTot,
     captainPocketSpends:captainPocketSpends,
     captainPocketTotal:captainPocketTot,
+    captainPocketRepaidListed:captainPocketRepaidListed,
+    crewPocketSpends:crewPocketSpends,
+    crewPocketTotal:crewPocketTot,
     byCategory:cats,
     cardExcluded:true
   };
@@ -11671,48 +11698,77 @@ function buildExpensesCashPdf(month){
           y-=48;
         }
 
-        /* Pocket spends */
-        var pocketList=report.pocketSpends||[];
+        /*
+         * Pocket spends vs repayments — keep captain and crew separate.
+         * "Captain pocket spends" = own-money spends listed (may include prior months).
+         * "Repaid to captain this month" = petty out on Captain reimbursement lines only.
+         * Those two are not the same pot and need not match.
+         */
+        var capList=report.captainPocketSpends||[];
+        var crewList=report.crewPocketSpends||[];
+        var capTot=report.captainPocketTotal||0;
+        var capRepay=report.reimburseCaptainTotal!=null?report.reimburseCaptainTotal:0;
+        var crewRepay=report.reimburseCrewTotal||0;
         sectionTitle("Captain cash (own money)");
-        if(!pocketList.length){
-          ensure(56);
-          page.drawRectangle({x:margin, y:y-44, width:contentW, height:52, color:zebra});
-          drawWrapped("No pocket spends linked to this month.", margin+12, y-6, 12, false, muted, contentW-24, 15);
-          y-=28;
-          drawWrapped("A repayment above may lack a link on the original spend.", margin+12, y-6, 11, false, muted, contentW-24, 14);
-          y-=48;
-        } else {
-          ensure(40);
+        ensure(72);
+        drawWrapped(
+          "Pocket spend = paid from captain pocket (envelope unchanged). Repay = cash left petty this month to the captain.",
+          margin, y, 11, false, muted, contentW, 14
+        );
+        y-=28;
+        drawWrapped("Captain pocket spends listed  "+expPdfMoney(capTot), margin, y, 12, true, ink, contentW, 15);
+        y-=18;
+        drawWrapped("Repaid to captain this month  "+expPdfMoney(capRepay), margin, y, 12, true, ink, contentW, 15);
+        y-=18;
+        if(Math.abs(capTot-capRepay)>0.02){
           drawWrapped(
-            "Paid from captain or crew pocket. Does not reduce the envelope when spent. Boat liability until repaid from petty.",
-            margin, y, 11, false, muted, contentW, 14
+            "These differ on purpose: spends are the shop/day-pay lines (any month listed below); repay is only petty-cash reimbursements dated this month. Prior spends or unlinked repay change the gap.",
+            margin, y, 10, false, muted, contentW, 13
           );
-          y-=28;
-          var capTot=report.captainPocketTotal||0;
-          drawWrapped("Captain total "+expPdfMoney(capTot), margin, y, 12, true, ink, contentW, 15);
+          y-=36;
+        }
+        if(crewRepay>0.009){
+          drawWrapped("Also repaid to crew this month  "+expPdfMoney(crewRepay)+" (not in captain total above)", margin, y, 11, false, muted, contentW, 14);
           y-=18;
-          if(report.reimburseTotal>0.009){
-            drawWrapped("Repaid this month "+expPdfMoney(report.reimburseTotal), margin, y, 11, false, muted, contentW, 14);
-            y-=18;
-          }
+        }
 
-          pocketList.forEach(function(p, idx){
-            var what=p.vendor||"-";
-            if(p.description&&p.description!==p.vendor) what=p.vendor+" - "+p.description;
-            if(p.category&&p.category!=="Other"&&what.indexOf(p.category)<0){
-              what=what+" ["+p.category+"]";
-            }
-            var pd=p.date?fmtDate(p.date):"-";
-            if(p.priorMonth) pd=pd+" · prior month";
-            var st=p.repaid||p.coveredByThisMonth?"Repaid from petty":"Open · still owed";
-            drawPhoneCard({
-              title:what,
-              amount:expPdfMoney(p.amount),
-              metaLines:[pd, p.who||"Captain", st],
-              zebra:idx%2===0,
-              accent:greenInk
+        if(!capList.length&&!crewList.length){
+          ensure(48);
+          page.drawRectangle({x:margin, y:y-36, width:contentW, height:44, color:zebra});
+          drawWrapped("No pocket spends linked for this month.", margin+12, y-6, 12, false, muted, contentW-24, 15);
+          y-=52;
+        } else {
+          function drawPocketCards(list){
+            list.forEach(function(p, idx){
+              var what=p.vendor||"-";
+              if(p.description&&p.description!==p.vendor) what=p.vendor+" - "+p.description;
+              if(p.category&&p.category!=="Other"&&what.indexOf(p.category)<0){
+                what=what+" ["+p.category+"]";
+              }
+              var pd=p.date?fmtDate(p.date):"-";
+              if(p.priorMonth) pd=pd+" · prior month";
+              var st=p.repaid||p.coveredByThisMonth?"Repaid from petty":"Open · still owed";
+              drawPhoneCard({
+                title:what,
+                amount:expPdfMoney(p.amount),
+                metaLines:[pd, p.who||"Captain", st],
+                zebra:idx%2===0,
+                accent:p.isCaptain?greenInk:gold
+              });
             });
-          });
+          }
+          if(capList.length){
+            ensure(24);
+            drawWrapped("Captain pocket lines", margin, y, 11, true, navy, contentW, 14);
+            y-=16;
+            drawPocketCards(capList);
+          }
+          if(crewList.length){
+            ensure(28);
+            drawWrapped("Crew pocket lines  "+expPdfMoney(report.crewPocketTotal||0), margin, y, 11, true, navy, contentW, 14);
+            y-=16;
+            drawPocketCards(crewList);
+          }
         }
 
         /* By category */
