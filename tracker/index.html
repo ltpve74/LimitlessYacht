@@ -5488,17 +5488,26 @@ function invoicePdfFileName(p){
 }
 function loadPdfLib(){
   if(window.PDFLib) return Promise.resolve(window.PDFLib);
-  return new Promise(function(resolve,reject){
-    var s=document.createElement("script");
-    s.src="/tracker/lib/pdf-lib.min.js";
-    s.async=true;
-    s.onload=function(){
-      if(window.PDFLib) resolve(window.PDFLib);
-      else reject(new Error("PDF library missing"));
-    };
-    s.onerror=function(){ reject(new Error("Could not load PDF library")); };
-    document.head.appendChild(s);
-  });
+  var candidates=[
+    "/tracker/lib/pdf-lib.min.js",
+    "lib/pdf-lib.min.js",
+    "./lib/pdf-lib.min.js"
+  ];
+  function tryLoad(i){
+    if(i>=candidates.length) return Promise.reject(new Error("Could not load PDF library"));
+    return new Promise(function(resolve,reject){
+      var s=document.createElement("script");
+      s.src=candidates[i];
+      s.async=true;
+      s.onload=function(){
+        if(window.PDFLib) resolve(window.PDFLib);
+        else tryLoad(i+1).then(resolve,reject);
+      };
+      s.onerror=function(){ tryLoad(i+1).then(resolve,reject); };
+      document.head.appendChild(s);
+    });
+  }
+  return tryLoad(0);
 }
 function downloadBlob(blob, name){
   var url=URL.createObjectURL(blob);
@@ -11104,12 +11113,34 @@ function expCashPdfFileName(month){
   return "Limitless-cash-expenses-"+String(month||"").slice(0,7)+".pdf";
 }
 /**
+ * Helvetica/WinAnsi only — strip bullets, smart dashes, odd unicode that crash pdf-lib.
+ */
+function expPdfSafeText(s){
+  var t=String(s==null?"":s);
+  t=t.replace(/\u20AC/g,"EUR ");
+  t=t.replace(/[\u2013\u2014\u2212\u2010]/g,"-");
+  t=t.replace(/[\u2018\u2019\u201A\u2032]/g,"'");
+  t=t.replace(/[\u201C\u201D\u2033]/g,'"');
+  t=t.replace(/\u2026/g,"...");
+  t=t.replace(/[\u00B7\u2022\u2023\u2043\u2219\u25CF\u25E6]/g,"-");
+  t=t.replace(/[\u00A0\u202F\u2007\u2009]/g," ");
+  t=t.replace(/[^\x09\x0A\x0D\x20-\x7E]/g,function(ch){
+    try{
+      var n=ch.normalize("NFD").replace(/[\u0300-\u036f]/g,"");
+      if(/^[\x20-\x7E]$/.test(n)) return n;
+    }catch(eN){}
+    return "?";
+  });
+  return t;
+}
+/**
  * Manager/owner PDF: cash expenses only (no credit card).
- * Multi-page A4 via pdf-lib.
+ * Multi-page A4 via pdf-lib. Text is WinAnsi-safe for StandardFonts.
  */
 function buildExpensesCashPdf(month){
   var report=expCashReportForMonth(month);
   return loadPdfLib().then(function(PDFLib){
+    if(!PDFLib||!PDFLib.PDFDocument) throw new Error("PDF library not available");
     var PDFDocument=PDFLib.PDFDocument, rgb=PDFLib.rgb, StandardFonts=PDFLib.StandardFonts;
     return PDFDocument.create().then(function(doc){
       return Promise.all([
@@ -11139,29 +11170,41 @@ function buildExpensesCashPdf(month){
         }
         function drawText(t, x, yy, size, bold, color, maxW){
           var f=bold?fontBold:font;
-          var str=String(t==null?"":t);
+          var str=expPdfSafeText(t);
+          if(!str) return 0;
           if(maxW){
             while(str.length>3&&f.widthOfTextAtSize(str, size)>maxW) str=str.slice(0,-2);
-            if(str!==String(t||"")&&str.length) str=str.slice(0,-1)+"...";
+            if(str!==expPdfSafeText(t)&&str.length) str=str.slice(0,-1)+"...";
           }
-          page.drawText(str, {x:x, y:yy, size:size, font:f, color:color||black});
+          try{
+            page.drawText(str, {x:x, y:yy, size:size, font:f, color:color||black});
+          }catch(eDraw){
+            /* last resort: ASCII only */
+            str=str.replace(/[^\x20-\x7E]/g,"?");
+            if(str) page.drawText(str, {x:x, y:yy, size:size, font:f, color:color||black});
+          }
           return f.widthOfTextAtSize(str, size);
         }
         function drawRight(t, rightX, yy, size, bold, color){
           var f=bold?fontBold:font;
-          var str=String(t==null?"":t);
+          var str=expPdfSafeText(t);
+          if(!str) return;
           var w=f.widthOfTextAtSize(str, size);
-          page.drawText(str, {x:rightX-w, y:yy, size:size, font:f, color:color||black});
+          try{
+            page.drawText(str, {x:rightX-w, y:yy, size:size, font:f, color:color||black});
+          }catch(eR){
+            str=str.replace(/[^\x20-\x7E]/g,"?");
+            w=f.widthOfTextAtSize(str, size);
+            if(str) page.drawText(str, {x:rightX-w, y:yy, size:size, font:f, color:color||black});
+          }
         }
         function footer(){
           if(!page) return;
-          page.drawText("M/Y Limitless · Cash expenses only · No credit card · Page "+pageNo,
-            {x:margin, y:22, size:8, font:font, color:grey});
-          page.drawText("Confidential — manager / owner",
-            {x:W-margin-140, y:22, size:8, font:font, color:grey});
+          drawText("M/Y Limitless - Cash expenses only - No credit card - Page "+pageNo, margin, 22, 8, false, grey);
+          drawText("Confidential - manager / owner", W-margin-150, 22, 8, false, grey);
         }
         function headerMini(){
-          drawText("M/Y Limitless · Cash expenses · "+report.monthLabel, margin, y, 10, true, navy);
+          drawText("M/Y Limitless - Cash expenses - "+report.monthLabel, margin, y, 10, true, navy);
           y-=18;
         }
         function hrule(){
@@ -11177,10 +11220,10 @@ function buildExpensesCashPdf(month){
         y-=16;
         drawText(report.monthLabel, margin, y, 12, true, grey);
         y-=14;
-        drawText("For manager & owner · Cash only (credit card excluded)", margin, y, 9, false, grey);
+        drawText("For manager & owner - Cash only (credit card excluded)", margin, y, 9, false, grey);
         y-=12;
         var gen="";
-        try{ gen=new Date(report.generatedAt).toLocaleString("en-GB",{day:"2-digit",month:"short",year:"numeric",hour:"2-digit",minute:"2-digit"}); }catch(eG){ gen=report.generatedAt; }
+        try{ gen=new Date(report.generatedAt).toLocaleString("en-GB",{day:"2-digit",month:"short",year:"numeric",hour:"2-digit",minute:"2-digit"}); }catch(eG){ gen=String(report.generatedAt||""); }
         drawText("Generated "+gen, margin, y, 8, false, grey);
         y-=16;
         hrule();
@@ -11223,7 +11266,7 @@ function buildExpensesCashPdf(month){
         ensure(50);
         drawText("Cash expenses (no card)", margin, y, 11, true, black);
         y-=6;
-        drawText(report.lines.length+" line"+(report.lines.length===1?"":"s")+" · total "+expPdfMoney(report.totalCashExpenses),
+        drawText(report.lines.length+" line"+(report.lines.length===1?"":"s")+" - total "+expPdfMoney(report.totalCashExpenses),
           margin, y-8, 8.5, false, grey);
         y-=22;
 
@@ -11250,11 +11293,11 @@ function buildExpensesCashPdf(month){
           report.lines.forEach(function(r, idx){
             ensure(28);
             if(y<margin+40){ footer(); newPage(); headerMini(); tableHead(); }
-            var d=r.date?fmtDate(r.date):"—";
+            var d=r.date?fmtDate(r.date):"-";
             drawText(d, colDate, y, 8, false, black);
             var vend=r.vendor;
             if(r.description&&r.description!==r.vendor){
-              vend=r.vendor+(r.description?" — "+r.description:"");
+              vend=r.vendor+(r.description?" - "+r.description:"");
             }
             drawText(vend, colVendor, y, 8, false, black, colCat-colVendor-6);
             drawText(r.category, colCat, y, 7.5, false, grey, colFrom-colCat-4);
@@ -11292,11 +11335,11 @@ function buildExpensesCashPdf(month){
         hrule();
         drawText("Notes", margin, y, 9, true, black);
         y-=12;
-        drawText("• Credit card / ship card purchases are excluded from this report.", margin, y, 8, false, grey, W-2*margin);
+        drawText("- Credit card / ship card purchases are excluded from this report.", margin, y, 8, false, grey, W-2*margin);
         y-=11;
-        drawText("• Cash tips from guests never enter the boat envelope; only card-tip payouts from petty appear as cash out.", margin, y, 8, false, grey, W-2*margin);
+        drawText("- Cash tips from guests never enter the boat envelope; only card-tip payouts from petty appear as cash out.", margin, y, 8, false, grey, W-2*margin);
         y-=11;
-        drawText("• Day pay and tip payouts hit petty only when marked paid from petty cash.", margin, y, 8, false, grey, W-2*margin);
+        drawText("- Day pay and tip payouts hit petty only when marked paid from petty cash.", margin, y, 8, false, grey, W-2*margin);
 
         footer();
         return doc.save().then(function(bytes){
@@ -11312,20 +11355,23 @@ function expExportMonthCashPdf(month){
   var btn=el("expExportPdf");
   if(btn){ btn.disabled=true; btn.textContent="Building PDF…"; }
   return buildExpensesCashPdf(month).then(function(blob){
+    if(!blob) throw new Error("Empty PDF");
+    /* Prefer download — most reliable for email/WhatsApp attach */
+    try{ downloadBlob(blob, name); }catch(eDl){}
     var p={
       fileName:name,
       shareTitle:"Limitless cash expenses "+expMonthLabel(month),
-      shareText:"M/Y Limitless · cash expenses only (no card) · "+expMonthLabel(month)
+      shareText:"M/Y Limitless - cash expenses only (no card) - "+expMonthLabel(month)
     };
-    return sharePdfBlob(blob, p).then(function(how){
-      if(how==="download"){ /* already downloaded */ }
-      return how;
-    }).catch(function(){
-      downloadBlob(blob, name);
-    });
+    /* Optional share after download (phones); ignore cancel */
+    try{
+      sharePdfBlob(blob, p).catch(function(){});
+    }catch(eSh){}
+    return blob;
   }).catch(function(err){
-    console&&console.error&&console.error(err);
-    window.alert("Could not build PDF — check connection and try again.");
+    console&&console.error&&console.error("[expenses pdf]", err);
+    var msg=(err&&err.message)?String(err.message):"unknown error";
+    window.alert("Could not build PDF.\n\n"+msg+"\n\nIf this keeps failing, try Export CSV or hard-refresh the app.");
   }).then(function(){
     if(btn){ btn.disabled=false; btn.textContent="Export PDF"; }
   });
