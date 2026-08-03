@@ -14201,14 +14201,50 @@ function paintStewCharters(){
     card+='<span class="chev">✎</span></div>';
     return card;
   }
-  var tipOweRows=[], dayOweRows=[], restRows=[];
+  /*
+   * List groups (paint only — no data heal):
+   *   Unpaid → open tip and/or day pay (action first)
+   *   Paid   → day pay marked Paid, nothing open
+   *   Past   → past dates not unpaid/paid above (cancelled, unassigned, …)
+   *   Future → start after today
+   */
+  var unpaidRows=[], paidRows=[], pastRows=[], futureRows=[];
+  function rowStartYmd(row){
+    var ev=row&&row.event, asg=row&&row.assign;
+    var d=String((asg&&asg.start)||(ev&&ev.start)||"").slice(0,10);
+    return /^\d{4}-\d{2}-\d{2}$/.test(d)?d:"";
+  }
+  function rowEndYmd(row){
+    var ev=row&&row.event, asg=row&&row.assign;
+    var d=String((asg&&asg.end)||(ev&&ev.end)||(asg&&asg.start)||(ev&&ev.start)||"").slice(0,10);
+    return /^\d{4}-\d{2}-\d{2}$/.test(d)?d:"";
+  }
   rosterRows.forEach(function(row){
-    if(row.status==="cancelled"){ restRows.push(row); return; }
+    var start=rowStartYmd(row);
+    var end=rowEndYmd(row)||start;
+    var isFuture=!!(start&&start>today);
+    var isPast=!!(end&&end<today);
     var pay=stewPayBreakdown(row.event, row.assign||{});
-    if(showMoney&&pay.tipUnpaid){ tipOweRows.push(row); return; }
-    if(showMoney&&pay.unpaid){ dayOweRows.push(row); return; }
-    restRows.push(row);
+    var isCanc=row.status==="cancelled"||pay.cancelled;
+    var moneyOpen=showMoney&&!isCanc&&(!!pay.tipUnpaid||!!pay.unpaid);
+    var moneyPaid=showMoney&&!isCanc&&!!pay.paid&&!pay.tipUnpaid;
+    if(moneyOpen){ unpaidRows.push(row); return; }
+    if(isFuture){ futureRows.push(row); return; }
+    if(moneyPaid){ paidRows.push(row); return; }
+    /* Past / cancelled / unassigned / no pay set */
+    if(isPast||isCanc||!isFuture) pastRows.push(row);
+    else futureRows.push(row);
   });
+  function sortByDateDesc(a, b){
+    return String(rowStartYmd(b)||"").localeCompare(String(rowStartYmd(a)||""));
+  }
+  function sortByDateAsc(a, b){
+    return String(rowStartYmd(a)||"").localeCompare(String(rowStartYmd(b)||""));
+  }
+  unpaidRows.sort(sortByDateDesc);
+  paidRows.sort(sortByDateDesc);
+  pastRows.sort(sortByDateDesc);
+  futureRows.sort(sortByDateAsc);
   function paintSection(title, sub, rows, tone){
     if(!rows||!rows.length) return "";
     var s='<div class="apa-sect-h" style="margin:14px 0 8px"><h3 style="font-size:14px">'+esc(title)+'</h3></div>';
@@ -14218,31 +14254,38 @@ function paintStewCharters(){
     s+='</div>';
     return s;
   }
-  if(showMoney&&(tipOweRows.length||dayOweRows.length)){
-    if(tipOweRows.length){
-      var tipWhoHint="Each card shows who is still owed (Captain + stew shares). Mark tip <b>Paid</b> on the charter when you settle.";
-      html+=paintSection(
-        "Tips still owed · "+tipOweRows.length,
-        tipWhoHint+(tipOpen>0.009?" Guest total open <b class=\"money\">"+money0(tipOpen)+"</b>.":""),
-        tipOweRows,
-        "owe"
-      );
-    }
-    if(dayOweRows.length){
-      html+=paintSection(
-        "Day pay still owed · "+dayOweRows.length,
-        "Wages not yet marked Paid. Stays here until you pay from Stews / petty.",
-        dayOweRows,
-        "owe"
-      );
-    }
-    if(restRows.length){
-      html+=paintSection("Other charters · "+restRows.length, "Paid, upcoming, unassigned, or no open tip/day-pay.", restRows, "");
+  if(showMoney){
+    html+=paintSection(
+      "Unpaid · "+unpaidRows.length,
+      "Open day pay and/or tips — settle here. Newest first.",
+      unpaidRows,
+      "owe"
+    );
+    html+=paintSection(
+      "Paid · "+paidRows.length,
+      "Day pay marked Paid and no open tip on the card.",
+      paidRows,
+      ""
+    );
+    html+=paintSection(
+      "Past · "+pastRows.length,
+      "Earlier dates — cancelled, unassigned, or no open pay.",
+      pastRows,
+      ""
+    );
+    html+=paintSection(
+      "Future · "+futureRows.length,
+      "Upcoming charters (not due yet).",
+      futureRows,
+      ""
+    );
+    if(!unpaidRows.length&&!paidRows.length&&!pastRows.length&&!futureRows.length){
+      html+='<div class="list"><div class="empty"><div class="big">📅</div><div>No charters in this filter.</div></div></div>';
     }
   } else {
-    html+='<div class="list">';
-    rosterRows.forEach(function(row){ html+=paintStewCharterCard(row); });
-    html+='</div>';
+    /* Team: past / future only (no money buckets) */
+    html+=paintSection("Future · "+futureRows.length, "Upcoming charters.", futureRows, "");
+    html+=paintSection("Past · "+(pastRows.length+paidRows.length+unpaidRows.length), "Earlier charters.", pastRows.concat(paidRows, unpaidRows).sort(sortByDateDesc), "");
   }
   wrap.innerHTML=html;
   if(el("stewSeasonMore")&&el("stewSeasonDetails")){
