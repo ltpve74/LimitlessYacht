@@ -189,13 +189,34 @@ function isCrewDayPayExpense(e) {
   return false;
 }
 
-/** Stable person+day key for crew day-pay (linkId alone is not enough — renames create dupes). */
+/**
+ * Stable key for crew day-pay collapse.
+ * Prefer stewId|eventKey so two charters on the same calendar day (or same
+ * pay-date stamp) both hit petty — sid|date wrongly collapsed Laura’s Diego
+ * pay-on-3-Aug with Dominik 3-Aug into one line.
+ * Renames of the *same* charter keep the same eventKey (or same stew-day link
+ * prefix) so they still collapse.
+ */
 function crewDayPayFinger(e) {
   if (!e) return "";
   var sid = e.stewId != null && String(e.stewId) !== "" ? String(e.stewId) : "";
+  var ek = e.stewEventKey != null && String(e.stewEventKey) !== "" ? String(e.stewEventKey) : "";
+  if (sid && ek) return sid + "|" + ek;
+  var lid = e.linkId != null && String(e.linkId) !== "" ? String(e.linkId) : "";
+  if (lid.indexOf("stew-day:") === 0) {
+    /* stew-day:<eventKey>:<stewId> — eventKey may contain colons (uid:…) */
+    var rest = lid.slice("stew-day:".length);
+    var last = rest.lastIndexOf(":");
+    if (last > 0) {
+      var ek2 = rest.slice(0, last);
+      var sid2 = rest.slice(last + 1);
+      if (sid2 && ek2) return sid2 + "|" + ek2;
+    }
+    return "link:" + lid;
+  }
   var d = String(e.date || "").slice(0, 10);
   if (sid && /^\d{4}-\d{2}-\d{2}$/.test(d)) return sid + "|" + d;
-  if (e.linkId != null && String(e.linkId) !== "") return "link:" + String(e.linkId);
+  if (lid) return "link:" + lid;
   if (e.id != null) return "id:" + String(e.id);
   return "";
 }
