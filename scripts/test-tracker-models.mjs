@@ -2407,6 +2407,53 @@ console.log("\n[Write plans — stew expenses + APA shortfall decision]");
     paidToday.lines[0] && /charter 2026-07-14/.test(String(paidToday.lines[0].description || "")),
     "got " + (paidToday.lines[0] && paidToday.lines[0].description)
   );
+  /* On-bill tip payout date = pay day; must hit petty (not misread as day-pay) */
+  const tipPayDate = M.planStewTipPayoutExpense({
+    asg: {
+      eventKey: "uid:diego",
+      tipTotal: 200,
+      tipSource: "card",
+      tipPayStatus: "Paid",
+      start: "2026-07-14",
+      stewIds: ["laura"],
+      summary: "diego",
+      tipPaidBy: { captain: true, laura: true },
+    },
+    nowIso: "2026-08-03T14:46:00.000Z",
+    payDate: "2026-08-03",
+    newId: function () {
+      return "tip-" + Math.random();
+    },
+    stewName: function () {
+      return "Laura";
+    },
+  });
+  ok(
+    "tip payout uses pay date not charter",
+    tipPayDate.lines &&
+      tipPayDate.lines.length >= 1 &&
+      tipPayDate.lines.every(function (ln) {
+        return ln && ln.date === "2026-08-03";
+      }),
+    "got " + (tipPayDate.lines && tipPayDate.lines.map(function (l) { return l.date; }))
+  );
+  ok(
+    "tip payout is not crew day-pay",
+    tipPayDate.lines &&
+      tipPayDate.lines.every(function (ln) {
+        return !M.isCrewDayPayExpense(ln);
+      })
+  );
+  const tipPetty = M.summarizePettyCash({
+    pettyStart: 200,
+    cashIns: [],
+    expenses: tipPayDate.lines || [],
+  });
+  ok(
+    "tip payout hits petty cash out",
+    tipPetty.cashOut > 100,
+    "got " + tipPetty.cashOut
+  );
   const tipNo = M.planStewTipPayoutExpense({
     asg: { eventKey: "uid:a", tipTotal: 50, tipSource: "cash", tipPayStatus: "Paid" },
   });
