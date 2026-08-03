@@ -599,6 +599,49 @@
   .apa-sect-h{display:flex;align-items:center;justify-content:space-between;gap:10px;margin:16px 0 10px}
   .apa-sect-h h3{margin:0;font-size:14px;font-weight:800}
   .apa-sect-h .btn{width:auto;padding:10px 14px;font-size:13px;flex:0 0 auto}
+  /* Stews roster groups — same clear labeled headers as Leads captain book */
+  .stew-list-sec{margin:0 0 18px}
+  .stew-list-sec:last-child{margin-bottom:8px}
+  .stew-list-sec .list{margin:0}
+  .stew-list-sec .item{margin-bottom:10px}
+  .stew-list-sec .item:last-child{margin-bottom:0}
+  .stew-list-hd{
+    display:flex;align-items:baseline;justify-content:space-between;gap:10px;
+    margin:0 0 10px;padding:10px 12px;border-radius:12px;
+    border:1px solid var(--line);background:var(--card);
+  }
+  .stew-list-hd .stew-list-title{
+    font-size:13px;font-weight:900;letter-spacing:.04em;text-transform:uppercase;
+    color:var(--ink);line-height:1.25;
+  }
+  .stew-list-hd .stew-list-sub{
+    font-size:11.5px;font-weight:600;color:var(--muted);letter-spacing:0;text-transform:none;
+    margin-top:2px;line-height:1.35;
+  }
+  .stew-list-hd .stew-list-count{
+    flex-shrink:0;font-size:12px;font-weight:800;color:var(--muted);
+    background:var(--grey);padding:4px 10px;border-radius:999px;white-space:nowrap;
+  }
+  .stew-list-sec--unpaid .stew-list-hd{
+    border-color:#E0A800;background:linear-gradient(180deg,#FFF8E1 0%,#fff 100%);
+  }
+  .stew-list-sec--unpaid .stew-list-title{color:#7a5200}
+  .stew-list-sec--unpaid .stew-list-count{background:#FFE08A;color:#7a5200}
+  .stew-list-sec--future .stew-list-hd{
+    border-color:rgba(25,118,210,.28);background:linear-gradient(180deg,#eef5fc 0%,#fff 100%);
+  }
+  .stew-list-sec--future .stew-list-title{color:#0d47a1}
+  .stew-list-sec--future .stew-list-count{background:#d6e8fa;color:#0d47a1}
+  .stew-list-sec--past .stew-list-hd{
+    border-color:rgba(46,125,50,.28);background:linear-gradient(180deg,#eef8ef 0%,#fff 100%);
+  }
+  .stew-list-sec--past .stew-list-title{color:#1b5e20}
+  .stew-list-sec--past .stew-list-count{background:var(--green);color:var(--greenInk)}
+  .stew-list-sec--none .stew-list-hd{
+    border-color:#d0d5da;background:linear-gradient(180deg,#f3f5f7 0%,#fff 100%);
+  }
+  .stew-list-sec--none .stew-list-title{color:#4a5560}
+  .stew-list-sec--none .stew-list-count{background:var(--grey);color:var(--greyInk)}
   .apa-fuel-note{font-size:12.5px;color:var(--muted);line-height:1.45;margin:-2px 2px 12px}
   .diesel-pick{display:flex;flex-direction:column;gap:10px;margin:4px 0 8px}
   .diesel-pick .btn{text-align:left;padding:14px 16px}
@@ -14278,61 +14321,72 @@ function paintStewCharters(){
   function sortByDateDesc(a, b){
     return String(rowStartYmd(b)||"").localeCompare(String(rowStartYmd(a)||""));
   }
-  function sortByDateAsc(a, b){
-    return String(rowStartYmd(a)||"").localeCompare(String(rowStartYmd(b)||""));
-  }
+  /* All groups newest-first (descending start date) */
   unpaidRows.sort(sortByDateDesc);
   pastRows.sort(sortByDateDesc);
   cancelledNoPayRows.sort(sortByDateDesc);
-  futureRows.sort(sortByDateAsc);
+  futureRows.sort(sortByDateDesc);
+  /**
+   * Group header like Leads captain book: uppercase title + sub + count pill.
+   * tone: unpaid | future | past | none
+   */
   function paintSection(title, sub, rows, tone){
     if(!rows||!rows.length) return "";
-    var s='<div class="apa-sect-h" style="margin:14px 0 8px"><h3 style="font-size:14px">'+esc(title)+'</h3></div>';
-    if(sub) s+='<div class="meta" style="margin:-4px 0 8px;line-height:1.45'+(tone==="owe"?";color:var(--amberDeep);font-weight:600":"")+'">'+sub+'</div>';
-    s+='<div class="list" style="margin-bottom:4px">';
+    var cls="stew-list-sec";
+    if(tone==="unpaid"||tone==="owe") cls+=" stew-list-sec--unpaid";
+    else if(tone==="future") cls+=" stew-list-sec--future";
+    else if(tone==="past") cls+=" stew-list-sec--past";
+    else if(tone==="none"||tone==="cancelled") cls+=" stew-list-sec--none";
+    var s='<div class="'+cls+'" data-stew-group="'+esc(tone||"")+'">'+
+      '<div class="stew-list-hd">'+
+        '<div><div class="stew-list-title">'+esc(title)+'</div>'+
+        (sub?'<div class="stew-list-sub">'+esc(sub)+'</div>':'')+
+        '</div>'+
+        '<span class="stew-list-count">'+rows.length+'</span>'+
+      '</div>'+
+      '<div class="list">';
     rows.forEach(function(r){ s+=paintStewCharterCard(r); });
-    s+='</div>';
+    s+='</div></div>';
     return s;
   }
   if(showMoney){
     html+=paintSection(
-      "Unpaid · "+unpaidRows.length,
+      "Unpaid",
       "Open day pay and/or tips — settle here. Newest first.",
       unpaidRows,
-      "owe"
+      "unpaid"
     );
     html+=paintSection(
-      "Future · "+futureRows.length,
-      "Upcoming charters.",
+      "Future",
+      "Upcoming charters. Newest first.",
       futureRows,
-      ""
+      "future"
     );
     html+=paintSection(
-      "Past · "+pastRows.length,
-      "Today and earlier — pay settled or roster only.",
+      "Past",
+      "Today and earlier — pay settled or roster only. Newest first.",
       pastRows,
-      ""
+      "past"
     );
     html+=paintSection(
-      "Cancelled or no pay · "+cancelledNoPayRows.length,
-      "Cancelled charters, no stew needed, or no day pay due.",
+      "Cancelled or no pay",
+      "Cancelled charters, no stew needed, or no day pay due. Newest first.",
       cancelledNoPayRows,
-      ""
+      "none"
     );
     if(!unpaidRows.length&&!futureRows.length&&!pastRows.length&&!cancelledNoPayRows.length){
       html+='<div class="list"><div class="empty"><div class="big">📅</div><div>No charters in this filter.</div></div></div>';
     }
   } else {
-    /* Team: same order without money unpaid bucket */
-    html+=paintSection("Future · "+futureRows.length, "Upcoming charters.", futureRows, "");
-    html+=paintSection("Past · "+pastRows.length, "Today and earlier.", pastRows, "");
+    /* Team: same labeled groups without money Unpaid bucket */
+    html+=paintSection("Future", "Upcoming charters. Newest first.", futureRows, "future");
+    html+=paintSection("Past", "Today and earlier. Newest first.", pastRows, "past");
     html+=paintSection(
-      "Cancelled or no pay · "+cancelledNoPayRows.length,
-      "Cancelled charters or no stew needed.",
+      "Cancelled or no pay",
+      "Cancelled charters or no stew needed. Newest first.",
       cancelledNoPayRows,
-      ""
+      "none"
     );
-    /* Unpaid open money only on captain view — still show those rows under past/future for team */
   }
   wrap.innerHTML=html;
   if(el("stewSeasonMore")&&el("stewSeasonDetails")){
