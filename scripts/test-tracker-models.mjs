@@ -2775,7 +2775,32 @@ console.log("\n[Stew roster — assigned / unassigned / cancelled]");
   ok("assigned 2 (A+B)", sum.assigned === 2, "got " + sum.assigned);
   ok("unassigned 1 (C dead id)", sum.unassigned === 1, "got " + sum.unassigned);
   ok("cancelled 1", sum.cancelled === 1, "got " + sum.cancelled);
-  ok("A+U+C = trips", sum.assigned + sum.unassigned + sum.cancelled === sum.trips);
+  ok("A+U+C = trips", sum.assigned + sum.unassigned + sum.cancelled + (sum.none||0) === sum.trips);
+  /* No stew needed (friends day) */
+  const noneAsg = {
+    eventKey: "uid:friends",
+    start: "2026-07-25",
+    summary: "Friends day",
+    stewIds: [],
+    noStewNeeded: true,
+  };
+  ok("noStewNeeded flag", M.stewAssignNoStewNeeded(noneAsg));
+  ok(
+    "status none for friends day",
+    M.stewRosterStatus(
+      { key: "uid:friends", start: "2026-07-25", summary: "Friends day" },
+      noneAsg,
+      stews
+    ) === "none"
+  );
+  const sumNone = M.stewRosterSummary(
+    [{ key: "uid:friends", start: "2026-07-25", summary: "Friends day" }],
+    [noneAsg],
+    stews
+  );
+  ok("none count 1", sumNone.none === 1, "got " + sumNone.none);
+  ok("none is not unassigned", sumNone.unassigned === 0);
+  ok("none + others = trips", sumNone.assigned + sumNone.unassigned + sumNone.cancelled + sumNone.none === sumNone.trips);
   ok(
     "find assign bare key for uid:b event",
     M.findAssignForEvent(assigns, events[1]) && M.findAssignForEvent(assigns, events[1]).stewIds[0] === "s2"

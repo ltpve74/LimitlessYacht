@@ -21,9 +21,10 @@
  *  2. Assigned  = at least one stewId that resolves to a name on the roster
  *                 (raw stewIds length alone is NOT enough — deleted roster people
  *                 must count as unassigned in the UI and in totals)
- *  3. Unassigned = not cancelled and not assigned
- *  4. Always: trips = assigned + unassigned + cancelled
- *  5. Event↔assign match: exact eventKey, uid: / bare uid, then unique start+summary
+ *  3. None     = captain marked noStewNeeded (friends / no crew required)
+ *  4. Unassigned = not cancelled, not none, and not assigned
+ *  5. Always: trips = assigned + unassigned + cancelled + none
+ *  6. Event↔assign match: exact eventKey, uid: / bare uid, then unique start+summary
  */
 
 /** Stable event id for matching (prefer uid: form). */
@@ -166,18 +167,26 @@ function findAssignForEvent(assigns, ev) {
 }
 
 /**
+ * Captain explicitly needs no stew (friends / private day).
+ */
+function stewAssignNoStewNeeded(asg) {
+  return !!(asg && (asg.noStewNeeded === true || asg.noStewNeeded === "true" || asg.noStewNeeded === 1));
+}
+
+/**
  * One charter status for roster totals / list cards (identical rules).
- * @returns {"cancelled"|"assigned"|"unassigned"}
+ * @returns {"cancelled"|"assigned"|"none"|"unassigned"}
  */
 function stewRosterStatus(ev, asg, stews) {
   if (stewEventIsCancelled(ev, asg)) return "cancelled";
   if (stewAssignHasCrew(asg, stews)) return "assigned";
+  if (stewAssignNoStewNeeded(asg)) return "none";
   return "unassigned";
 }
 
 /**
  * Per-event row used for both summary counts and list paint.
- * status is the single source of truth for assigned/unassigned/cancelled.
+ * status is the single source of truth for assigned/unassigned/cancelled/none.
  */
 function stewRosterRow(ev, assigns, stews) {
   var asg = findAssignForEvent(assigns, ev);
@@ -185,7 +194,9 @@ function stewRosterRow(ev, assigns, stews) {
   var status = stewRosterStatus(ev, asg, stews);
   /* Force status from names so counts never disagree with what the card shows */
   if (status !== "cancelled") {
-    status = names.length > 0 ? "assigned" : "unassigned";
+    if (names.length > 0) status = "assigned";
+    else if (stewAssignNoStewNeeded(asg)) status = "none";
+    else status = "unassigned";
   }
   return {
     event: ev,
@@ -197,13 +208,14 @@ function stewRosterRow(ev, assigns, stews) {
 
 /**
  * Aggregate roster summary for a list of charter events.
- * Off days are skipped. Always: trips === assigned + unassigned + cancelled.
+ * Off days are skipped. Always: trips === assigned + unassigned + cancelled + none.
  */
 function stewRosterSummary(events, assigns, stews) {
   var trips = 0;
   var assigned = 0;
   var unassigned = 0;
   var cancelled = 0;
+  var none = 0;
   var rows = [];
   (events || []).forEach(function (ev) {
     if (!ev || !ev.start || stewIsOffEvent(ev)) return;
@@ -212,6 +224,7 @@ function stewRosterSummary(events, assigns, stews) {
     rows.push(row);
     if (row.status === "cancelled") cancelled++;
     else if (row.status === "assigned") assigned++;
+    else if (row.status === "none") none++;
     else unassigned++;
   });
   return {
@@ -219,6 +232,7 @@ function stewRosterSummary(events, assigns, stews) {
     assigned: assigned,
     unassigned: unassigned,
     cancelled: cancelled,
+    none: none,
     rows: rows,
   };
 }
@@ -737,6 +751,7 @@ function planStewTipPayoutExpense(input) {
     stewById: stewById,
     stewNames: stewNames,
     stewAssignHasCrew: stewAssignHasCrew,
+    stewAssignNoStewNeeded: stewAssignNoStewNeeded,
     stewEventIsCancelled: stewEventIsCancelled,
     findAssignByEventKey: findAssignByEventKey,
     findAssignForEvent: findAssignForEvent,
