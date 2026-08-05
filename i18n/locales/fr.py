@@ -8,6 +8,8 @@ MONTHS = [
 DOW = ["lun.", "mar.", "mer.", "jeu.", "ven.", "sam.", "dim."]
 
 PAIRS = [
+    ('“Laura and Luigi did a very great job — communication before the trip was excellent.”<span class="hero-pull-attr"> — Dominik, Aug 2026</span>',
+     '« Laura et Luigi ont fait un très beau travail — la communication avant le voyage était excellente. »<span class="hero-pull-attr"> — Dominik, août 2026</span>'),
     ('“So impressed we chartered again the following week.”<span class="hero-pull-attr"> — Sebastien, group of 11, Jul 2026</span>',
      '« Tellement impressionnés que nous avons recharter la semaine suivante. »<span class="hero-pull-attr"> — Sebastien, groupe de 11, juil. 2026</span>'),
     ('“One of the highlights of our stay in Mallorca.”<span class="hero-pull-attr"> — Maurice, Jun 2026</span>',
