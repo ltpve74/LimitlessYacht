@@ -1,6 +1,12 @@
 {
   "reviews": [
     {
+      "author": "Dominik",
+      "date": "Aug 2026",
+      "rating": 5,
+      "text": "We had a great time on board. Laura the Hostess and Luigi the Skipper did a very great job. We had a very lovely day on board. The communication before the trip with Paul & Luigi was excellent. Luigi really went the extra mile to accommodate special requests before the trip Thank you Laura and Luigi for having us! 🙏🏻"
+    },
+    {
       "author": "Joel",
       "date": "Jul 2026",
       "rating": 5,
@@ -35,12 +41,6 @@
       "date": "Jun 2026",
       "rating": 5,
       "text": "Lovely boat with lots of room for the 8 of us. Luigi (skipper) and Rebecca could not have been more welcoming and they made the difference to the quality and enjoyment of our day. Professional, thoughtful but also relaxed and fun. Thanks"
-    },
-    {
-      "author": "Tony",
-      "date": "Aug 2025",
-      "rating": 5,
-      "text": "Our group of six had a fantastic day on Limitless, which was spacious, comfortable, and spotless. Paul was highly responsive and organized our charter with less than a day's notice. Once on board, we found Captain Luigi to be both knowledgeable and humorous, and he seamlessly mapped out a smooth itinerary with several fun stops. Throughout the charter, the attentive stewardess made sure we were well taken care of, whether it was bringing us a (very well-stocked) basket of sunscreen and towels or keeping our drinks topped off and bringing them to us wherever we went. Highly recommend!"
     }
   ]
 }

@@ -1152,6 +1152,18 @@ REVIEWS_UI = {
 
 REVIEWS = [
     {
+        "author": 'Dominik',
+        "date": 'Ago 2026',
+        "rating": 5,
+        "text": (
+            "Lo pasamos genial a bordo. Laura (azafata) y Luigi (patrón) hicieron "
+            "un trabajo excelente. Fue un día precioso en el barco. La "
+            "comunicación antes del viaje con Paul y Luigi fue excelente. Luigi "
+            "se esforzó de verdad por atender peticiones especiales antes del "
+            "viaje. ¡Gracias Laura y Luigi por recibirnos!"
+        ),
+    },
+    {
         "author": 'Joel',
         "date": 'Jul 2026',
         "rating": 5,
@@ -1234,21 +1246,6 @@ REVIEWS = [
             "no podían haber sido más acogedores: marcaron la diferencia en la "
             "calidad y el disfrute del día. Profesionales y atentos, pero también "
             "relajados y divertidos. ¡Gracias!"
-        ),
-    },
-    {
-        "author": 'Tony',
-        "date": 'Ago 2025',
-        "rating": 5,
-        "text": (
-            "Nuestro grupo de seis disfrutó de un día fantástico a bordo de "
-            "Limitless: espaciosa, cómoda e impecable. Paul respondió con gran "
-            "rapidez y organizó el charter con menos de un día de antelación. A "
-            "bordo, el capitán Luigi resultó experto y con buen humor, trazando sin "
-            "esfuerzo un itinerario fluido con varias paradas muy agradables. La "
-            "azafata atenta nos cuidó en todo momento, ya fuera con una cesta (muy "
-            "bien surtida) de protector solar y toallas o reponiendo nuestras bebidas "
-            "donde estuviéramos. ¡Muy recomendable!"
         ),
     },
 ]
