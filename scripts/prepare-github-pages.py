@@ -78,7 +78,14 @@ def copy_and_rewrite(base: str) -> None:
         dest = OUT / rel
         dest.parent.mkdir(parents=True, exist_ok=True)
 
-        if src.suffix.lower() in text_ext:
+        # Reviews / i18n JSON are data payloads — copy byte-identical.
+        # Path rewriting is only for HTML/CSS/JS that embed root-absolute URLs.
+        # (Rewriting JSON can corrupt guest text and confuses cache debugging.)
+        if src.suffix.lower() == '.json' and (
+            rel.parts[0] == 'data' or 'reviews' in src.name
+        ):
+            shutil.copy2(src, dest)
+        elif src.suffix.lower() in text_ext:
             raw = src.read_text(encoding='utf-8')
             dest.write_text(rewrite_text(raw, base), encoding='utf-8')
         else:

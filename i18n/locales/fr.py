@@ -8,6 +8,8 @@ MONTHS = [
 DOW = ["lun.", "mar.", "mer.", "jeu.", "ven.", "sam.", "dim."]
 
 PAIRS = [
+    ('“Laura and Luigi did a very great job — communication before the trip was excellent.”<span class="hero-pull-attr"> — Dominik, Aug 2026</span>',
+     '« Laura et Luigi ont fait un très beau travail — la communication avant le voyage était excellente. »<span class="hero-pull-attr"> — Dominik, août 2026</span>'),
     ('“So impressed we chartered again the following week.”<span class="hero-pull-attr"> — Sebastien, group of 11, Jul 2026</span>',
      '« Tellement impressionnés que nous avons recharter la semaine suivante. »<span class="hero-pull-attr"> — Sebastien, groupe de 11, juil. 2026</span>'),
     ('“One of the highlights of our stay in Mallorca.”<span class="hero-pull-attr"> — Maurice, Jun 2026</span>',
@@ -1240,6 +1242,20 @@ REVIEWS = [
             "différence pour la qualité et le plaisir de notre journée. "
             "Professionnels et attentionnés, tout en restant détendus et conviviaux. "
             "Merci !"
+        ),
+    },
+    {
+        "author": 'Tony',
+        "date": 'Août 2025',
+        "rating": 5,
+        "text": (
+            "Notre groupe de six a passé une journée fantastique à bord de Limitless "
+            "— spacieux, confortable et impeccable. Paul a été très réactif et a "
+            "organisé notre charter en moins d'un jour. Une fois à bord, le capitaine "
+            "Luigi s'est révélé compétent et plein d'humour, traçant sans effort un "
+            "bel itinéraire avec plusieurs escales agréables. L'hôtesse attentive "
+            "veillait à notre confort — panier de crème solaire et serviettes, verres "
+            "toujours pleins où que nous soyons. Fortement recommandé !"
         ),
     },
 ]
