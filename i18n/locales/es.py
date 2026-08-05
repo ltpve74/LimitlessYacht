@@ -1250,6 +1250,21 @@ REVIEWS = [
             "relajados y divertidos. ¡Gracias!"
         ),
     },
+    {
+        "author": 'Tony',
+        "date": 'Ago 2025',
+        "rating": 5,
+        "text": (
+            "Nuestro grupo de seis disfrutó de un día fantástico a bordo de "
+            "Limitless: espaciosa, cómoda e impecable. Paul respondió con gran "
+            "rapidez y organizó el charter con menos de un día de antelación. A "
+            "bordo, el capitán Luigi resultó experto y con buen humor, trazando sin "
+            "esfuerzo un itinerario fluido con varias paradas muy agradables. La "
+            "azafata atenta nos cuidó en todo momento, ya fuera con una cesta (muy "
+            "bien surtida) de protector solar y toallas o reponiendo nuestras bebidas "
+            "donde estuviéramos. ¡Muy recomendable!"
+        ),
+    },
 ]
 
 LEGAL_PAIRS = [
