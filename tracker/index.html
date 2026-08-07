@@ -9888,7 +9888,16 @@ function expControllerInput(month){
 }
 function expIsOwnMoneySpend(e){
   if(LY_MODELS&&LY_MODELS.isOwnMoneySpend) return !!LY_MODELS.isOwnMoneySpend(e);
-  return false;
+  /* Fallback: Paid crew day-pay from Own money / paidById, or non-crew own */
+  if(!e||expIsReimbursement(e)) return false;
+  if(expIsCrewDayPayLine(e)){
+    if(String(e.crewPayStatus||"")!=="Paid") return false;
+    if(e.floatPay===true) return false;
+    if(e.paidFrom==="Own money"||expIsOwnMoneyLabel(e.paidFrom)) return true;
+    if(e.paidById!=null&&String(e.paidById)!=="") return true;
+    return false;
+  }
+  return expPaidFromOwnMoney(e);
 }
 function expOwnMoneySpendWhoId(e){
   if(LY_MODELS&&LY_MODELS.ownMoneySpendWhoId) return LY_MODELS.ownMoneySpendWhoId(e)||EXP_POCKET_CAPTAIN;
@@ -12793,15 +12802,25 @@ function openExpense(id, opts){
         if(!e) return;
         e.amount=newAmt;
         e.payStatusManual=true;
+        e.crewPayStatus=crewPay==="Paid"?"Paid":"Unpaid";
         if(crewPay==="Paid"){
           if(isPrior){
             e.paidFrom="Petty cash";
             e.floatPay=false; /* paid on books, cash did not leave this pot */
             e.paidById="";
+          } else if(pf==="Own money"){
+            e.paidFrom="Own money";
+            e.floatPay=false;
+            e.paidById=payerId||EXP_POCKET_CAPTAIN;
+            /* Pay day = today so pocket list for this month shows it */
+            try{
+              var todayPay=localTodayYmd();
+              if(todayPay) e.date=todayPay;
+            }catch(eD){}
           } else {
-            e.paidFrom=pf;
-            e.floatPay=pf!=="Own money";
-            e.paidById=pf==="Own money"?payerId:"";
+            e.paidFrom="Petty cash";
+            e.floatPay=true;
+            e.paidById="";
           }
         } else {
           e.floatPay=false;
@@ -12809,35 +12828,43 @@ function openExpense(id, opts){
         }
         e.updatedAt=new Date().toISOString();
       }
-      /* Reduced pay (e.g. €50 after cancel): write back to stew assignment day rate */
+      function matchCrewLine(e){
+        if(!e) return false;
+        if(e.id&&r.id&&String(e.id)===String(r.id)) return true;
+        if(e.source==="stew"&&e.stewPayKind==="dayPay"&&eventKey&&
+          String(e.stewEventKey)===String(eventKey)&&
+          r.stewId&&String(e.stewId)===String(r.stewId)) return true;
+        return false;
+      }
+      /* Reduced pay (e.g. €50 after cancel): write back to stew assignment */
       if(eventKey){
         var asgPay=(state.stewAssign||[]).filter(function(a){return a&&String(a.eventKey)===String(eventKey);})[0];
         if(asgPay){
           asgPay.dayRate=newAmt;
           asgPay.payUnits=1;
           asgPay.payEach=newAmt;
+          asgPay.payStatus=crewPay==="Paid"?"Paid":"Unpaid";
           asgPay.payStatusManual=true;
+          /* Persist paidFrom on assign so Stews re-open matches Expenses */
+          if(crewPay==="Paid"&&!isPrior) asgPay.paidFrom=pf;
+          else asgPay.paidFrom="";
           asgPay.updatedAt=new Date().toISOString();
         }
-        /* Prior: set Paid without floatPay mark so sync does not invent cash-out */
+        /*
+         * Write flags on the expense row directly (source of truth for pocket / petty).
+         * Do not rely on sync rebuild alone — that previously dropped Own money to Prior.
+         */
         if(isPrior){
           if(asgPay){
             asgPay.payStatus="Paid";
             asgPay._floatPayMark=false;
             asgPay._floatPayFrom="";
+            asgPay.paidFrom="";
             syncStewDayPayExpenses(asgPay);
             delete asgPay._floatPayMark;
             delete asgPay._floatPayFrom;
           }
-          state.expenses=(state.expenses||[]).map(function(e){
-            if(e&&e.id===r.id){ e.crewPayStatus="Paid"; applyCrewPayFlags(e); e.receipt=receiptData; }
-            else if(e&&e.source==="stew"&&e.stewPayKind==="dayPay"&&String(e.stewEventKey)===String(eventKey)&&String(e.stewId)===String(r.stewId)){
-              e.crewPayStatus="Paid"; applyCrewPayFlags(e); e.receipt=receiptData||e.receipt;
-            }
-            return e;
-          });
         } else {
-          /* forceFloat when captain re-asserts Petty after floatPay was wiped (Laura-style revert) */
           var needRestoreFloat=crewPay==="Paid"&&pf==="Petty cash"&&!expCrewPayHitsFloat(r);
           expSetStewDayPayStatus(eventKey, crewPay, {
             paidFrom:crewPay==="Paid"?pf:"",
@@ -12845,23 +12872,46 @@ function openExpense(id, opts){
             stewId:r.stewId?String(r.stewId):"",
             forceFloat:needRestoreFloat
           });
-          state.expenses=(state.expenses||[]).map(function(e){
-            if(e&&e.id===r.id){ applyCrewPayFlags(e); e.receipt=receiptData; }
-            else if(e&&e.source==="stew"&&e.stewPayKind==="dayPay"&&String(e.stewEventKey)===String(eventKey)&&String(e.stewId)===String(r.stewId)){
-              applyCrewPayFlags(e); e.receipt=receiptData||e.receipt;
-            }
-            return e;
-          });
         }
-      } else {
-        state.expenses=(state.expenses||[]).map(function(e){
-          if(e&&e.id===r.id){
-            e.crewPayStatus=crewPay;
-            applyCrewPayFlags(e);
-            e.receipt=receiptData;
-          }
-          return e;
-        });
+      }
+      var foundLine=false;
+      state.expenses=(state.expenses||[]).map(function(e){
+        if(!matchCrewLine(e)) return e;
+        foundLine=true;
+        applyCrewPayFlags(e);
+        e.receipt=receiptData||e.receipt||"";
+        return e;
+      });
+      /* Sync rebuild may have dropped the row — recreate so Own money / Petty is never lost */
+      if(!foundLine&&crewPay==="Paid"&&eventKey){
+        var line={
+          id:r.id||uid(),
+          linkId:r.linkId||("stew-day:"+eventKey+":"+(r.stewId||"")),
+          source:"stew",
+          stewEventKey:eventKey,
+          stewId:r.stewId?String(r.stewId):"",
+          stewPayKind:"dayPay",
+          crewPayStatus:"Paid",
+          floatPay:false,
+          payStatusManual:true,
+          date:r.date||localTodayYmd(),
+          vendor:r.vendor||"Stew",
+          description:r.description||"Stewardess / day work",
+          category:"Crew Salaries",
+          payMethod:"Cash",
+          paidFrom:isPrior?"Petty cash":pf,
+          paidById:(!isPrior&&pf==="Own money")?(payerId||EXP_POCKET_CAPTAIN):"",
+          amount:newAmt,
+          receipt:receiptData||"",
+          by:session.who||"Captain",
+          updatedAt:new Date().toISOString()
+        };
+        if(!isPrior&&pf==="Petty cash") line.floatPay=true;
+        if(!isPrior&&pf==="Own money"){
+          try{ line.date=localTodayYmd()||line.date; }catch(eT){}
+        }
+        if(!state.expenses) state.expenses=[];
+        state.expenses.unshift(line);
       }
       showSheet(false);
       saveStewAssign();
@@ -16107,7 +16157,43 @@ function openStewAssign(eventKey){
         if(obj.payStatus==="Paid"||(state.expenses||[]).some(function(e){
             return e&&e.source==="stew"&&e.stewPayKind==="dayPay"&&String(e.stewEventKey)===ekSync;
           })){
-          if(syncStewDayPayExpenses(liveAsg)) expDirty=true;
+          /* Copy mark flags onto the live assign row the sync planner reads */
+          if(liveAsg&&obj.payStatus==="Paid"){
+            liveAsg.payStatus="Paid";
+            liveAsg.payStatusManual=true;
+            liveAsg.paidFrom=obj.paidFrom||"";
+            liveAsg._floatPayMark=!!obj._floatPayMark;
+            liveAsg._floatPayFrom=obj._floatPayFrom||"";
+            liveAsg._floatPayPayerId=obj._floatPayPayerId||"";
+          }
+          if(syncStewDayPayExpenses(liveAsg||obj)) expDirty=true;
+          /* Last write: Own money / Petty flags on expense rows (sync must not leave Prior) */
+          if(obj.payStatus==="Paid"&&obj.paidFrom==="Own money"){
+            (state.expenses||[]).forEach(function(e){
+              if(!e||e.source!=="stew"||e.stewPayKind!=="dayPay") return;
+              if(String(e.stewEventKey)!==ekSync) return;
+              e.paidFrom="Own money";
+              e.floatPay=false;
+              e.paidById=obj._floatPayPayerId||EXP_POCKET_CAPTAIN;
+              e.payStatusManual=true;
+              e.crewPayStatus="Paid";
+              try{ e.date=localTodayYmd()||e.date; }catch(eDt){}
+              e.updatedAt=new Date().toISOString();
+              expDirty=true;
+            });
+          } else if(obj.payStatus==="Paid"&&obj.paidFrom==="Petty cash"&&obj._floatPayMark){
+            (state.expenses||[]).forEach(function(e){
+              if(!e||e.source!=="stew"||e.stewPayKind!=="dayPay") return;
+              if(String(e.stewEventKey)!==ekSync) return;
+              e.paidFrom="Petty cash";
+              e.floatPay=true;
+              e.paidById="";
+              e.payStatusManual=true;
+              e.crewPayStatus="Paid";
+              e.updatedAt=new Date().toISOString();
+              expDirty=true;
+            });
+          }
         }
         if(syncStewTipPayoutExpense(liveAsg)) expDirty=true;
       }
@@ -16116,6 +16202,11 @@ function openStewAssign(eventKey){
     delete obj._floatPayMark;
     delete obj._floatPayFrom;
     delete obj._floatPayPayerId;
+    if(liveAsg){
+      delete liveAsg._floatPayMark;
+      delete liveAsg._floatPayFrom;
+      delete liveAsg._floatPayPayerId;
+    }
     /* Full charters repaint so tip sections / model shares refresh (soft path can miss tipPaidBy) */
     if(stewSub==="charters"&&el("stewCalList")) paintStewChartersKeepScroll();
     else renderStews({soft:false});

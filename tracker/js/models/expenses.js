@@ -61,10 +61,26 @@ function expensePaidFromLooksOwn(label) {
 /**
  * Paid-from envelope: petty | own | card.
  * Own (capt pocket / crew pocket / paidById) NEVER counts as petty out.
+ *
+ * Crew day-pay is special:
+ *  - floatPay true → petty (cash left the boat)
+ *  - Own money label OR paidById with Paid + not floatPay → own (captain pocket)
+ *  - Paid without float and without own → books-only “Prior” (still classed petty,
+ *    but crewDayPayHitsPetty is false so it never leaves the envelope)
  */
 function expensePaidFrom(e) {
   if (!e) return "petty";
   if (String(e.payMethod || "") === "Credit Card") return "card";
+  if (isCrewDayPayExpense(e)) {
+    if (String(e.crewPayStatus || "") !== "Paid") return "petty";
+    var pc = String(e.paidFrom || "").trim();
+    /* Own money label always wins (even if floatPay was left true by a bad write) */
+    if (expensePaidFromLooksOwn(pc)) return "own";
+    if (e.floatPay === true) return "petty";
+    /* paidById is written for Own money marks — pocket even if label stuck as Petty */
+    if (e.paidById != null && String(e.paidById) !== "") return "own";
+    return "petty";
+  }
   var p = String(e.paidFrom || "").trim();
   if (expensePaidFromLooksOwn(p)) return "own";
   if (p === "Petty cash" || /^petty\b/i.test(p)) return "petty";
