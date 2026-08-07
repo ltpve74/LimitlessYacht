@@ -866,8 +866,11 @@ function ownMoneySpendWhoId(e) {
 
 /**
  * How much of an own-money expense is covered by reimbursements.
- * Linked by reimbursesExpenseId OR FIFO unlinked pool for that person.
- * Reimbursements in ANY month count (July spend can be repaid in August).
+ *
+ * 1) Linked by reimbursesExpenseId (always counts).
+ * 2) Unlinked FIFO for that person — but a reimbursement may only cover
+ *    spends dated on or before the reimbursement date.
+ *    (July bulk repay can close July Vicky; it cannot pre-pay August Arianna.)
  *
  * @param {object} e own-money expense
  * @param {Array} expenses full ledger (all months)
@@ -886,32 +889,32 @@ function ownMoneyRepaidAmt(e, expenses) {
   linked = round2(linked);
   if (linked >= need - 0.009) return need;
 
-  /*
-   * Crew day-pay from own pocket: ONLY reimbursements linked to this expense id.
-   * Unlinked “Captain reimbursement” FIFO used to mark new day-pay (e.g. Arianna
-   * €200) as already repaid whenever any older repay-to-captain sat in the pool —
-   * Outstanding pocket then showed €0 with no real link to this pay.
-   */
-  if (isCrewDayPayExpense(e) || String(e.category || "") === "Crew Salaries") {
-    return Math.min(need, linked);
-  }
-
   var who = ownMoneySpendWhoId(e);
-  var pool = 0;
+  var spendDate = String(e.date || "").slice(0, 10);
+
+  /*
+   * Build unlinked reimbursement pool as dated buckets (oldest first).
+   * Missing date → treat as far-future so legacy undated lines can still cover.
+   */
+  var reimbs = [];
   list.forEach(function (r) {
     if (!r || !isExpenseReimbursement(r)) return;
     if (String(expenseReimburseWhoId(r) || "") !== String(who)) return;
-    if (r.reimbursesExpenseId) return;
-    pool += num(r.amount);
+    if (r.reimbursesExpenseId) return; /* linked already handled per expense */
+    var a = round2(num(r.amount));
+    if (!(a > 0)) return;
+    var rd = String(r.date || "").slice(0, 10);
+    if (!/^\d{4}-\d{2}-\d{2}$/.test(rd)) rd = "9999-12-31";
+    reimbs.push({ date: rd, left: a });
   });
-  pool = round2(pool);
+  reimbs.sort(function (a, b) {
+    return String(a.date).localeCompare(String(b.date));
+  });
 
-  /* FIFO unlinked pool only against shop / non-crew own-money spends */
+  /* All own-money spends for this person, oldest first (shop + crew day-pay) */
   var own = list
     .filter(function (x) {
-      if (!isOwnMoneySpend(x) || String(ownMoneySpendWhoId(x)) !== String(who)) return false;
-      if (isCrewDayPayExpense(x) || String(x.category || "") === "Crew Salaries") return false;
-      return true;
+      return isOwnMoneySpend(x) && String(ownMoneySpendWhoId(x)) === String(who);
     })
     .sort(function (a, b) {
       var c = String(a.date || "").localeCompare(String(b.date || ""));
@@ -919,22 +922,35 @@ function ownMoneyRepaidAmt(e, expenses) {
       return String(a.id || "").localeCompare(String(b.id || ""));
     });
 
-  var left = pool;
   var forThis = 0;
   for (var i = 0; i < own.length; i++) {
     var x = own[i];
     var a = round2(num(x.amount));
     var direct = 0;
     list.forEach(function (r) {
-      if (r && String(r.reimbursesExpenseId || "") === String(x.id)) direct += num(r.amount);
+      if (r && isExpenseReimbursement(r) && String(r.reimbursesExpenseId || "") === String(x.id))
+        direct += num(r.amount);
     });
     direct = round2(direct);
     var remain = Math.max(0, a - direct);
+    var sd = String(x.date || "").slice(0, 10);
+    if (!/^\d{4}-\d{2}-\d{2}$/.test(sd)) sd = "0000-01-01";
+
+    /* Draw from unlinked reimbursements dated on or after this spend */
+    var got = 0;
+    for (var j = 0; j < reimbs.length && remain - got > 0.009; j++) {
+      if (reimbs[j].date < sd) continue; /* repay before spend cannot cover it */
+      var take = Math.min(reimbs[j].left, remain - got);
+      if (take > 0.009) {
+        reimbs[j].left = round2(reimbs[j].left - take);
+        got = round2(got + take);
+      }
+    }
+
     if (String(x.id) === String(e.id)) {
-      forThis = Math.min(remain, left) + direct;
+      forThis = round2(got + direct);
       break;
     }
-    left = Math.max(0, left - remain);
   }
   return round2(Math.min(need, Math.max(linked, forThis)));
 }
