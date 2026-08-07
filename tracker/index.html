@@ -3703,6 +3703,52 @@ function leadBookBucket(r){
   return "confirmed";
 }
 /**
+ * Clear source wording for list cards (not generic “deal closed”).
+ * captain | clickboat | owner | ownersourced | pending | other
+ */
+function leadSourceShortLabel(src){
+  var s=typeof constrainLeadSource==="function"?constrainLeadSource(src):String(src||"").toLowerCase();
+  if(s==="captain") return "Captain";
+  if(s==="clickboat") return "Click&Boat";
+  if(s==="owner") return "Owner’s day";
+  if(s==="ownersourced") return "Owner-sourced";
+  if(s==="pending") return "Pending source";
+  return "Other";
+}
+/** Full source line for confirmed banners / compact pills */
+function leadSourceCardLabel(src){
+  var s=typeof constrainLeadSource==="function"?constrainLeadSource(src):String(src||"").toLowerCase();
+  if(s==="captain") return "Captain sourced";
+  if(s==="clickboat") return "Click&Boat (Paul)";
+  if(s==="owner") return "Owner’s day";
+  if(s==="ownersourced") return "Owner-sourced";
+  if(s==="pending") return "Pending source";
+  return "Other source";
+}
+/** Coloured pill for commercial source — primary identity on lead cards */
+function leadSourcePillHTML(src, opts){
+  opts=opts||{};
+  var s=typeof constrainLeadSource==="function"?constrainLeadSource(src):String(src||"").toLowerCase();
+  var long=!!opts.long;
+  var lab=long?leadSourceCardLabel(s):leadSourceShortLabel(s);
+  if(s==="captain") return '<span class="pill p-blue">'+esc(lab)+'</span>';
+  if(s==="clickboat") return '<span class="pill p-amber">'+esc(lab)+'</span>';
+  if(s==="owner") return '<span class="pill p-own">'+esc(lab)+'</span>';
+  if(s==="ownersourced") return '<span class="pill p-own">'+esc(lab)+'</span>';
+  if(s==="pending") return '<span class="pill p-amber">'+esc(lab)+'</span>';
+  return '<span class="pill p-grey">'+esc(lab)+'</span>';
+}
+/** Status banner for confirmed book — source first, not “deal closed” */
+function leadConfirmedBannerHTML(src){
+  var s=typeof constrainLeadSource==="function"?constrainLeadSource(src):String(src||"").toLowerCase();
+  var lab=leadSourceCardLabel(s);
+  var bg="#eef8ef", bd="rgba(46,125,50,.35)", fg="#1b5e20";
+  if(s==="clickboat"){ bg="#FFF8E1"; bd="#E0A800"; fg="#7a5200"; }
+  else if(s==="captain"){ bg="#e8f0fe"; bd="#90caf9"; fg="#0d47a1"; }
+  else if(s==="owner"||s==="ownersourced"){ bg="#fff8e8"; bd="#e8d4a8"; fg="#7a5200"; }
+  return '<div class="ld-status-banner" style="background:'+bg+';border-color:'+bd+';color:'+fg+'"><b>'+esc(lab)+'</b> · confirmed</div>';
+}
+/**
  * Lost list kind:
  *  - "lost-hold" = never firm (dropped tentative / hold taken)
  *  - "cancelled-charter" = was confirmed, then cancelled (weather, engine, captain, …)
@@ -4292,17 +4338,8 @@ function renderLeads(){
           ?'<span class="pill p-red">Cancelled charter</span>'
           :'<span class="pill p-red">Lost hold</span>')
         :(isPending
-          ?'<span class="pill p-amber">Pending source</span>'
-          :(isOwner
-            ?'<span class="pill p-own">Owner’s days</span>'
-            :'<span class="pill p-amber">On hold</span>'));
-      var srcShort="";
-      if(!isPending&&!cancelled){
-        if(src==="captain") srcShort='<span class="pill p-blue">Captain</span>';
-        else if(src==="clickboat") srcShort='<span class="pill p-amber">Paul</span>';
-        else if(src==="ownersourced") srcShort='<span class="pill p-own">Owner-sourced</span>';
-        else if(src==="other") srcShort='<span class="pill p-grey">Other</span>';
-      }
+          ?leadSourcePillHTML("pending")
+          :(leadSourcePillHTML(src,{long:true})+'<span class="pill p-amber">Not confirmed</span>'));
       var amtShow=moneyAmt>0
         ?('<span class="money" style="font-size:16px;font-weight:800">'+money0(moneyAmt)+'</span>'+
           (cancelled||isTentative?'<div style="font-size:10.5px;font-weight:700;color:var(--muted);margin-top:2px;text-align:right">'+(cancelled?(lostKind==="cancelled-charter"?"was booked":"was projected"):"projected")+'</div>':''))
@@ -4311,8 +4348,7 @@ function renderLeads(){
         '<span>📅 '+dateLine+'</span>'+
         '<span class="pill p-grey">'+esc(typeLab)+'</span>'+
         statePill+
-        (cancelled&&reasonLab?'<span class="pill p-grey">'+esc(reasonLab)+'</span>':'')+
-        srcShort;
+        (cancelled&&reasonLab?'<span class="pill p-grey">'+esc(reasonLab)+'</span>':'');
       var actions=
         (isPending&&!cancelled?'<button type="button" class="btn" data-edit-ld-btn="'+esc(r.id)+'">Assign source</button>':'')+
         (isOpenDeal?'<button type="button" class="btn" data-edit-ld-btn="'+esc(r.id)+'">'+(isOwner?"Confirm":"Confirm deal")+'</button>':'')+
@@ -4330,30 +4366,19 @@ function renderLeads(){
       return;
     }
 
-    /* —— Confirmed book: full commercial detail —— */
-    var srcPill=
-      (src==="captain"?'<span class="pill p-blue">Luigi · Captain</span>':
-        (src==="clickboat"?'<span class="pill p-amber">Paul · Click&amp;Boat</span>':
-          (src==="owner"?'<span class="pill p-own">Owner’s days</span>':
-            (src==="ownersourced"?'<span class="pill p-own">Owner-sourced · income</span>':'<span class="pill p-grey">Other</span>'))));
+    /* —— Confirmed book: source is the primary label (not “deal closed”) —— */
+    var srcPill=leadSourcePillHTML(src,{long:true});
     var rateBits=[];
     if(r.rate!=null&&r.rate!==""&&Number(r.rate)>0) rateBits.push(money0(r.rate)+"/day");
     if(Number(r.days)>1) rateBits.push(Math.round(Number(r.days))+" days");
     if(r.closed) rateBits.push("closed "+esc(fmtDate(r.closed)));
     var calKey=leadCalendarEventKey(r);
-    var statusBanner="";
-    if(ownerConfirmed){
-      statusBanner='<div class="ld-status-banner" style="background:#eef8ef;border-color:rgba(46,125,50,.35);color:#1b5e20"><b>Confirmed · owner’s days</b></div>';
-    } else if(closed){
-      statusBanner='<div class="ld-status-banner" style="background:#eef8ef;border-color:rgba(46,125,50,.35);color:#1b5e20"><b>Confirmed · deal closed</b></div>';
-    }
+    var statusBanner=closed?leadConfirmedBannerHTML(src):"";
     var metaBits=
       '<span>📅 '+dateLine+'</span>'+
+      srcPill+
       '<span class="pill p-grey">'+esc(typeLab)+'</span>'+
       (seasonLab?'<span class="pill p-blue">'+esc(seasonLab)+'</span>':'')+
-      (closed?'<span class="pill p-green">Confirmed</span>':'')+
-      (ownerConfirmed?'<span class="pill p-green">Owner’s days</span>':'')+
-      srcPill+
       (timing==="upcoming"?'<span class="pill p-blue">Scheduled</span>':'')+
       (timing==="done"?'<span class="pill p-green">Realised</span>':'')+
       (isSplit?'<span class="pill p-black">Split</span>':'')+
@@ -4362,9 +4387,10 @@ function renderLeads(){
       ((LY_MODELS&&LY_MODELS.leadIsCashOnlyDeal&&LY_MODELS.leadIsCashOnlyDeal(r))?'<span class="pill p-black">Cash only</span>':'')+
       (rateBits.length?'<span>'+rateBits.join(" · ")+'</span>':'')+
       (calKey?'<span class="pill p-grey">Cal linked</span>':'')+
-      (isCaptain()&&closed&&leadCommissionRatePct(r)>0?'<span class="pill p-green">Comm '+money(leadCommissionAmt(r))+' ('+leadCommissionRatePct(r)+'%)</span>':'')+
+      (isCaptain()&&closed&&src==="captain"&&leadCommissionRatePct(r)>0?'<span class="pill p-green">Comm '+money(leadCommissionAmt(r))+' ('+leadCommissionRatePct(r)+'%)</span>':'')+
+      (isCaptain()&&closed&&src==="clickboat"&&leadCommissionRatePct(r)>0?'<span class="pill p-amber">Paul comm '+money(leadCommissionAmt(r))+' ('+leadCommissionRatePct(r)+'%)</span>':'')+
       (isCaptain()&&closed&&isOwnerSrc?'<span class="pill p-own">Income · 0% commission</span>':'')+
-      (isCaptain()&&ownerConfirmed?'<span class="pill p-own">No income · owner benefit</span>':'')+
+      (isCaptain()&&ownerConfirmed?'<span class="pill p-own">No boat income · owner benefit</span>':'')+
       (openN>0?'<span class="pill p-amber">'+openN+' invoice'+(openN>1?'s':'')+' open</span>':'');
     if(!isOwner&&!isSplit){
       var vatNote=vatModeLabel(r.vatMode);
