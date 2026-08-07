@@ -886,6 +886,16 @@ function ownMoneyRepaidAmt(e, expenses) {
   linked = round2(linked);
   if (linked >= need - 0.009) return need;
 
+  /*
+   * Crew day-pay from own pocket: ONLY reimbursements linked to this expense id.
+   * Unlinked “Captain reimbursement” FIFO used to mark new day-pay (e.g. Arianna
+   * €200) as already repaid whenever any older repay-to-captain sat in the pool —
+   * Outstanding pocket then showed €0 with no real link to this pay.
+   */
+  if (isCrewDayPayExpense(e) || String(e.category || "") === "Crew Salaries") {
+    return Math.min(need, linked);
+  }
+
   var who = ownMoneySpendWhoId(e);
   var pool = 0;
   list.forEach(function (r) {
@@ -896,9 +906,12 @@ function ownMoneyRepaidAmt(e, expenses) {
   });
   pool = round2(pool);
 
+  /* FIFO unlinked pool only against shop / non-crew own-money spends */
   var own = list
     .filter(function (x) {
-      return isOwnMoneySpend(x) && String(ownMoneySpendWhoId(x)) === String(who);
+      if (!isOwnMoneySpend(x) || String(ownMoneySpendWhoId(x)) !== String(who)) return false;
+      if (isCrewDayPayExpense(x) || String(x.category || "") === "Crew Salaries") return false;
+      return true;
     })
     .sort(function (a, b) {
       var c = String(a.date || "").localeCompare(String(b.date || ""));
