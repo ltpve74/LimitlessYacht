@@ -15122,8 +15122,8 @@ function paintStewCharters(){
   /*
    * List groups (paint only — no data heal), order:
    *   1. Unpaid — open tip and/or day pay (action first)
-   *   2. Future — start after today
-   *   3. Past — today & earlier, pay settled / roster only
+   *   2. Future — today + later (soonest first: today → tomorrow → …)
+   *   3. Past — before today, pay settled / roster only
    *   4. Cancelled or no pay — cancelled charter, no stew needed, zero pay
    */
   var unpaidRows=[], futureRows=[], pastRows=[], cancelledNoPayRows=[];
@@ -15140,7 +15140,8 @@ function paintStewCharters(){
   rosterRows.forEach(function(row){
     var start=rowStartYmd(row);
     var end=rowEndYmd(row)||start;
-    var isFuture=!!(start&&start>today);
+    /* Today counts as future so the working list starts with “now” then tomorrow… */
+    var isFuture=!!(start&&start>=today);
     var pay=stewPayBreakdown(row.event, row.assign||{});
     var isCanc=row.status==="cancelled"||pay.cancelled;
     /* Open day pay / tip (incl. cancelled with stew still due) → Unpaid first */
@@ -15153,11 +15154,14 @@ function paintStewCharters(){
   function sortByDateDesc(a, b){
     return String(rowStartYmd(b)||"").localeCompare(String(rowStartYmd(a)||""));
   }
-  /* All groups newest-first (descending start date) */
+  function sortByDateAsc(a, b){
+    return String(rowStartYmd(a)||"").localeCompare(String(rowStartYmd(b)||""));
+  }
+  /* Unpaid / past / cancelled: newest first. Future: soonest first (today → later). */
   unpaidRows.sort(sortByDateDesc);
   pastRows.sort(sortByDateDesc);
   cancelledNoPayRows.sort(sortByDateDesc);
-  futureRows.sort(sortByDateDesc);
+  futureRows.sort(sortByDateAsc);
   /**
    * Group header like Leads captain book: uppercase title + sub + count pill.
    * tone: unpaid | future | past | none
@@ -15190,13 +15194,13 @@ function paintStewCharters(){
     );
     html+=paintSection(
       "Future",
-      "Upcoming charters. Newest first.",
+      "Today and upcoming. Soonest first.",
       futureRows,
       "future"
     );
     html+=paintSection(
       "Past",
-      "Today and earlier — pay settled or roster only. Newest first.",
+      "Earlier charters — pay settled or roster only. Newest first.",
       pastRows,
       "past"
     );
@@ -15211,8 +15215,8 @@ function paintStewCharters(){
     }
   } else {
     /* Team: same labeled groups without money Unpaid bucket */
-    html+=paintSection("Future", "Upcoming charters. Newest first.", futureRows, "future");
-    html+=paintSection("Past", "Today and earlier. Newest first.", pastRows, "past");
+    html+=paintSection("Future", "Today and upcoming. Soonest first.", futureRows, "future");
+    html+=paintSection("Past", "Earlier charters. Newest first.", pastRows, "past");
     html+=paintSection(
       "Cancelled or no pay",
       "Cancelled charters or no stew needed. Newest first.",
