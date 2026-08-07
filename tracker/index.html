@@ -14579,11 +14579,38 @@ function purgeOrphanStewAssigns(){
   return dirty;
 }
 /**
- * Full list for Stews UI: calendar feed + cancelled commercial ghosts only.
- * When leads drive the roster, do NOT re-inject crew-orphan assign rows —
- * that doubled trips (lead row + old ICS uid row) and inflated Unassigned.
- * Ghosts (leadcancel:* / cancelled assigns) stay visible after ICS delete.
+ * Commercial source for a Stews roster row (captain + team).
+ * Prefer event.leadSource (lead feed / published stewCalendar); captain may
+ * resolve from the linked lead when the snapshot is thin.
  */
+function stewEventLeadSource(ev){
+  if(!ev) return "";
+  var raw=ev.leadSource!=null&&ev.leadSource!==""?ev.leadSource:"";
+  if(!raw&&ev.leadId){
+    try{
+      var L=(state.leads||[]).filter(function(x){return x&&String(x.id)===String(ev.leadId);})[0];
+      if(L) raw=leadSource(L);
+    }catch(e0){}
+  }
+  if(!raw) return "";
+  return typeof constrainLeadSource==="function"?constrainLeadSource(raw):String(raw).toLowerCase();
+}
+/**
+ * Source pill on every roster card — Click&Boat / Captain / Owner’s days /
+ * Owner-sourced (same meaning as Leads).
+ */
+function stewSourcePillHTML(ev){
+  var src=stewEventLeadSource(ev);
+  if(!src) return "";
+  if(src==="pending") return '<span class="pill p-amber">Pending source</span>';
+  if(src==="captain") return '<span class="pill p-blue">Captain</span>';
+  if(src==="clickboat") return '<span class="pill p-amber">Click&amp;Boat</span>';
+  if(src==="owner") return '<span class="pill p-own">Owner’s days</span>';
+  if(src==="ownersourced") return '<span class="pill p-own">Owner-sourced</span>';
+  if(src==="other") return '<span class="pill p-grey">Other</span>';
+  var lab=typeof leadSourceLabel==="function"?leadSourceLabel(src):src;
+  return lab?'<span class="pill p-grey">'+esc(lab)+'</span>':"";
+}
 /**
  * Inclusive YYYY-MM-DD days covered by a roster/calendar row (multi-day safe).
  * Prefer explicit days[]; else walk start→end (capped).
@@ -15095,9 +15122,9 @@ function paintStewCharters(){
       '</div>'+
       '<div class="meta"><span>📅 '+esc(fmtCalEventWhen(ev))+'</span>'+
         stewDurationPillHTML(ev, asg)+
+        stewSourcePillHTML(ev)+
         (showMoney&&rate>0&&!isCanc?'<span class="money">'+money0(rate)+' × '+units+'</span>':'')+
         (showMoney&&!isCanc?stewTipStatusPill(pay, asg):'')+
-        (ev.leadSource==="pending"||ev.status==="tentative"?'<span class="pill p-amber">Pending source</span>':'')+
         (isCanc?'<span class="pill p-red">Cancelled</span>':'')+
         (pay.noStewNeeded&&!isCanc?'<span class="pill p-grey">No stew needed</span>':'')+
         (past&&!isCanc?'<span class="pill p-grey">Past</span>':'')+
