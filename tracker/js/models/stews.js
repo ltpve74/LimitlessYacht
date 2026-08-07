@@ -655,7 +655,8 @@ function planStewDayPayExpenseLines(input) {
     var floatPay = false;
     if (paidFrom === "Own money") {
       floatPay = false;
-      if (applyMark && asg._floatPayFrom === "Own money") paidById = payerDefault;
+      if (applyMark && (asg._floatPayFrom === "Own money" || asg.paidFrom === "Own money"))
+        paidById = payerDefault;
       else if (!paidById) paidById = payerDefault;
     } else if (applyMark && markFloat) {
       floatPay = true;
@@ -671,16 +672,25 @@ function planStewDayPayExpenseLines(input) {
     /*
      * Date for the expense row:
      *  - newly hitting petty (markFloat) → pay day (this month’s envelope)
+     *  - Own money mark → pay day so “paid today” lands in this month’s pocket list
      *  - re-save keeping floatPay → keep prior expense date if set
      *  - books-only / no float → charter day
      */
     var lineDate = charterDate;
     if (markFloat && floatPay && applyMark) lineDate = payDate;
+    else if (
+      paidFrom === "Own money" &&
+      applyMark &&
+      (asg._floatPayFrom === "Own money" || asg.paidFrom === "Own money")
+    )
+      lineDate = payDate || charterDate;
     else if (floatPay && old && String(old.date || "").slice(0, 10))
       lineDate = String(old.date).slice(0, 10);
     else if (floatPay) lineDate = payDate;
+    else if (paidFrom === "Own money" && old && String(old.date || "").slice(0, 10))
+      lineDate = String(old.date).slice(0, 10);
     var desc = "Stewardess / day work — " + summary;
-    if (floatPay && lineDate !== charterDate && charterDate)
+    if ((floatPay || paidFrom === "Own money") && lineDate !== charterDate && charterDate)
       desc = desc + " · charter " + charterDate;
     lines.push({
       id: (old && old.id) || newId(),
