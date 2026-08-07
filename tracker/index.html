@@ -14584,22 +14584,53 @@ function purgeOrphanStewAssigns(){
  * that doubled trips (lead row + old ICS uid row) and inflated Unassigned.
  * Ghosts (leadcancel:* / cancelled assigns) stay visible after ICS delete.
  */
+/**
+ * Inclusive YYYY-MM-DD days covered by a roster/calendar row (multi-day safe).
+ * Prefer explicit days[]; else walk start→end (capped).
+ */
+function stewEventCoveredDays(ev){
+  if(!ev) return [];
+  if(Array.isArray(ev.days)&&ev.days.length){
+    return ev.days.map(function(d){ return String(d||"").slice(0,10); })
+      .filter(function(d){ return /^\d{4}-\d{2}-\d{2}$/.test(d); });
+  }
+  var s=String(ev.start||"").slice(0,10);
+  if(!/^\d{4}-\d{2}-\d{2}$/.test(s)) return [];
+  var e=String(ev.end||s).slice(0,10);
+  if(!/^\d{4}-\d{2}-\d{2}$/.test(e)||e<s) e=s;
+  function addD(ymd, n){
+    var p=ymd.split("-").map(Number);
+    var dt=new Date(Date.UTC(p[0], p[1]-1, p[2]+(n||0)));
+    return dt.getUTCFullYear()+"-"+String(dt.getUTCMonth()+1).padStart(2,"0")+"-"+String(dt.getUTCDate()).padStart(2,"0");
+  }
+  var out=[], d=s;
+  while(d<=e){
+    out.push(d);
+    d=addD(d, 1);
+    if(out.length>60) break;
+  }
+  return out;
+}
 function stewMergedEvents(){
   var list=stewCalendarFeedEvents();
   var leadsSot=false;
   try{ leadsSot=stewEventsFromLeads().length>0; }catch(e0){ leadsSot=false; }
+  /*
+   * Curated feed = confirmed leads (captain) or captain-published stewCalendar (team).
+   * Never re-inject raw crew-orphan assigns onto a curated list — that re-created
+   * ghost cards like “henry - stew Vicky” 14–15 next to real Guido 13–14 after Toni
+   * assigned on a leftover ICS uid with no commercial lead.
+   */
+  var curatedFeed=leadsSot||isTeam()||list.length>0;
   var seen={};
-  var startLead={}; /* start day → count of lead-sourced events */
+  var coveredDays={}; /* any day already on a feed card */
   list.forEach(function(ev){
     if(ev&&ev.key) seen[String(ev.key)]=1;
     if(ev){
       var id=stewEventId(ev);
       if(id) seen[String(id)]=1;
       if(ev.leadId) seen["leadid:"+String(ev.leadId)]=1;
-      if(ev.source==="lead"&&ev.start){
-        var sd=String(ev.start).slice(0,10);
-        startLead[sd]=(startLead[sd]||0)+1;
-      }
+      stewEventCoveredDays(ev).forEach(function(d){ coveredDays[d]=1; });
     }
   });
   (state.stewAssign||[]).forEach(function(a){
@@ -14609,17 +14640,21 @@ function stewMergedEvents(){
     if(a.leadId&&seen["leadid:"+String(a.leadId)]) return;
     var isCancel=a.cancelled||a.status==="cancelled"||isLeadCancelGhostKey(k)||a.cancelGhost;
     /*
-     * Under leads SOT: only cancel ghosts. Crew is matched onto lead rows via
-     * leadId / eventKey heal — injecting orphans made Unassigned 5 instead of 3.
+     * Curated feed: only cancel ghosts. Crew is matched onto lead/blob rows via
+     * leadId / eventKey — injecting orphans made extra Unassigned/Future cards.
      */
     if(!isCancel){
-      if(leadsSot) return;
+      if(curatedFeed) return;
       if(!(a.stewIds&&a.stewIds.length)) return;
     }
     if(stewIsOffEvent&&stewIsOffEvent(a)) return;
     var st=String(a.start||"").slice(0,10);
-    /* Same-day lead already on the list → do not add a second card */
-    if(!isCancel&&startLead[st]) return;
+    /* Any overlap with a feed multi-day trip → do not add a second card */
+    if(!isCancel){
+      var aDays=stewEventCoveredDays(a);
+      if(aDays.some(function(d){ return coveredDays[d]; })) return;
+      if(coveredDays[st]) return;
+    }
     list.push({
       key:k,
       summary:a.summary||(isCancel?"Cancelled charter":"Charter"),
@@ -14635,6 +14670,7 @@ function stewMergedEvents(){
     });
     seen[k]=1;
     if(a.leadId) seen["leadid:"+String(a.leadId)]=1;
+    stewEventCoveredDays({start:a.start, end:a.end||a.start}).forEach(function(d){ coveredDays[d]=1; });
   });
   /* Final pass: one card per leadId (prefer source=lead) */
   list=stewDedupeRosterEvents(list);
@@ -14653,7 +14689,7 @@ function stewDedupeRosterEvents(list){
     if(ra!==rb) return ra-rb;
     return 0;
   });
-  var out=[], seenKey={}, seenLead={}, seenStartSum={};
+  var out=[], seenKey={}, seenLead={}, seenStartSum={}, coveredDays={};
   sorted.forEach(function(ev){
     if(!ev||!ev.start) return;
     var k=String(ev.key||"");
@@ -14663,13 +14699,23 @@ function stewDedupeRosterEvents(list){
     var st=String(ev.start).slice(0,10);
     var sum=String(ev.summary||"").trim().toLowerCase();
     var ss=st+"|"+sum;
+    var days=stewEventCoveredDays(ev);
+    var overlaps=days.some(function(d){ return coveredDays[d]; });
     if(sum&&seenStartSum[ss]&&ev.source==="assign-crew-orphan") return;
-    /* Orphan with no title under a day that already has a lead card */
-    if(ev.source==="assign-crew-orphan"&&seenKey["__leadstart:"+st]) return;
+    /* Orphan under any day already covered by a real lead/blob card */
+    if(ev.source==="assign-crew-orphan"&&(overlaps||coveredDays[st]||seenKey["__leadstart:"+st])) return;
     if(k) seenKey[k]=1;
     if(lid) seenLead[lid]=1;
     if(sum) seenStartSum[ss]=1;
-    if(ev.source==="lead") seenKey["__leadstart:"+st]=1;
+    if(ev.source==="lead"||ev.source==="blob"){
+      seenKey["__leadstart:"+st]=1;
+      days.forEach(function(d){
+        coveredDays[d]=1;
+        seenKey["__leadstart:"+d]=1;
+      });
+    } else {
+      days.forEach(function(d){ coveredDays[d]=1; });
+    }
     out.push(ev);
   });
   return out;
