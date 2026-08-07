@@ -350,6 +350,12 @@
   .ld-book-future-hint,.ld-book-past-hint{
     margin:6px 0 10px;padding:0 4px;font-size:11.5px;font-weight:600;color:var(--muted);line-height:1.35;
   }
+  /* Title line: calendar desc · source */
+  .item .title .ld-title-src{font-weight:800;font-size:.92em;white-space:nowrap}
+  .item .title .ld-title-src--captain{color:#0d47a1}
+  .item .title .ld-title-src--clickboat{color:#9a6b00}
+  .item .title .ld-title-src--owner{color:#7a5200}
+  .item .title .ld-title-src--pending{color:var(--amberDeep,#b8860b)}
   .ld-book-empty{
     font-size:13px;color:var(--muted);padding:12px 14px;border-radius:12px;
     border:1px dashed var(--line);background:rgba(255,255,255,.6);margin:0 0 4px;line-height:1.4;
@@ -3708,7 +3714,7 @@ function leadBookBucket(r){
  */
 function leadSourceShortLabel(src){
   var s=typeof constrainLeadSource==="function"?constrainLeadSource(src):String(src||"").toLowerCase();
-  if(s==="captain") return "Captain";
+  if(s==="captain") return "Captain sourced";
   if(s==="clickboat") return "Click&Boat";
   if(s==="owner") return "Owner’s day";
   if(s==="ownersourced") return "Owner-sourced";
@@ -3738,15 +3744,27 @@ function leadSourcePillHTML(src, opts){
   if(s==="pending") return '<span class="pill p-amber">'+esc(lab)+'</span>';
   return '<span class="pill p-grey">'+esc(lab)+'</span>';
 }
-/** Status banner for confirmed book — source first, not “deal closed” */
-function leadConfirmedBannerHTML(src){
+/**
+ * Lead card title = calendar description + charter source.
+ * e.g. “Guido · Owner’s day”, “Nancy · Click&Boat”
+ */
+function leadCardCalTitle(r){
+  if(!r) return "—";
+  var ics=String(r.icsGuestName||"").trim();
+  var name=String(r.name||"").trim();
+  /* Prefer live calendar title; fall back to lead name */
+  return ics||name||"—";
+}
+function leadCardTitleHTML(r, src){
+  var cal=leadCardCalTitle(r);
   var s=typeof constrainLeadSource==="function"?constrainLeadSource(src):String(src||"").toLowerCase();
-  var lab=leadSourceCardLabel(s);
-  var bg="#eef8ef", bd="rgba(46,125,50,.35)", fg="#1b5e20";
-  if(s==="clickboat"){ bg="#FFF8E1"; bd="#E0A800"; fg="#7a5200"; }
-  else if(s==="captain"){ bg="#e8f0fe"; bd="#90caf9"; fg="#0d47a1"; }
-  else if(s==="owner"||s==="ownersourced"){ bg="#fff8e8"; bd="#e8d4a8"; fg="#7a5200"; }
-  return '<div class="ld-status-banner" style="background:'+bg+';border-color:'+bd+';color:'+fg+'"><b>'+esc(lab)+'</b> · confirmed</div>';
+  var srcLab=s==="pending"?"Pending source":leadSourceShortLabel(s);
+  var srcCls="ld-title-src";
+  if(s==="captain") srcCls+=" ld-title-src--captain";
+  else if(s==="clickboat") srcCls+=" ld-title-src--clickboat";
+  else if(s==="owner"||s==="ownersourced") srcCls+=" ld-title-src--owner";
+  else if(s==="pending") srcCls+=" ld-title-src--pending";
+  return esc(cal)+' <span class="'+srcCls+'">· '+esc(srcLab)+'</span>';
 }
 /**
  * Lost list kind:
@@ -4323,7 +4341,8 @@ function renderLeads(){
     if(!(moneyAmt>0)&&isOwner){
       try{ moneyAmt=leadOwnerNotional(r)||0; }catch(eN){ moneyAmt=0; }
     }
-    var titleName=r.name||"—";
+    /* Title = calendar description · charter source (always) */
+    var titleHtml=leadCardTitleHTML(r, isPending?"pending":src);
     var cardCls="item";
     if(cancelled) cardCls+=" item--cancelled";
     if(isTentative) cardCls+=" item--tentative";
@@ -4337,9 +4356,7 @@ function renderLeads(){
         ?(lostKind==="cancelled-charter"
           ?'<span class="pill p-red">Cancelled charter</span>'
           :'<span class="pill p-red">Lost hold</span>')
-        :(isPending
-          ?leadSourcePillHTML("pending")
-          :(leadSourcePillHTML(src,{long:true})+'<span class="pill p-amber">Not confirmed</span>'));
+        :'<span class="pill p-amber">Not confirmed</span>';
       var amtShow=moneyAmt>0
         ?('<span class="money" style="font-size:16px;font-weight:800">'+money0(moneyAmt)+'</span>'+
           (cancelled||isTentative?'<div style="font-size:10.5px;font-weight:700;color:var(--muted);margin-top:2px;text-align:right">'+(cancelled?(lostKind==="cancelled-charter"?"was booked":"was projected"):"projected")+'</div>':''))
@@ -4355,7 +4372,7 @@ function renderLeads(){
         (isTentative&&!cancelled?'<button type="button" class="btn danger" data-cancel-tentative="'+esc(r.id)+'">Cancel · lost</button>':'')+
         (cancelled?'<button type="button" class="btn" data-reinstate-lead="'+esc(r.id)+'">Reinstate · if they get in touch</button>':'');
       cardHtml='<div class="'+cardCls+'" data-edit-ld="'+esc(r.id)+'" data-ld-start="'+esc(String(r.start||"").slice(0,10))+'" data-ld-name="'+esc(String(r.name||"").toLowerCase())+'">'+
-        '<div class="top"><div class="title">'+esc(titleName)+'</div><div class="amt">'+amtShow+'</div></div>'+
+        '<div class="top"><div class="title">'+titleHtml+'</div><div class="amt">'+amtShow+'</div></div>'+
         '<div class="meta">'+metaBits+'</div>'+
         (actions?'<div class="lead-actions">'+actions+'</div>':'')+
         '<span class="chev">✎</span></div>';
@@ -4366,17 +4383,14 @@ function renderLeads(){
       return;
     }
 
-    /* —— Confirmed book: source is the primary label (not “deal closed”) —— */
-    var srcPill=leadSourcePillHTML(src,{long:true});
+    /* —— Confirmed book: title already has calendar desc · source —— */
     var rateBits=[];
     if(r.rate!=null&&r.rate!==""&&Number(r.rate)>0) rateBits.push(money0(r.rate)+"/day");
     if(Number(r.days)>1) rateBits.push(Math.round(Number(r.days))+" days");
     if(r.closed) rateBits.push("closed "+esc(fmtDate(r.closed)));
     var calKey=leadCalendarEventKey(r);
-    var statusBanner=closed?leadConfirmedBannerHTML(src):"";
     var metaBits=
       '<span>📅 '+dateLine+'</span>'+
-      srcPill+
       '<span class="pill p-grey">'+esc(typeLab)+'</span>'+
       (seasonLab?'<span class="pill p-blue">'+esc(seasonLab)+'</span>':'')+
       (timing==="upcoming"?'<span class="pill p-blue">Scheduled</span>':'')+
@@ -4398,14 +4412,8 @@ function renderLeads(){
       if(vatNote) metaBits+='<span>'+esc(vatNote)+'</span>';
     }
     var amtShow=isOwner?"—":money0(moneyAmt);
-    var icsName=String(r.icsGuestName||"").trim();
-    var titleSub="";
-    if(icsName&&icsName!==String(r.name||"").trim()){
-      titleSub='<div class="meta" style="margin-top:2px;font-size:12px">Calendar title: <b>'+esc(icsName)+'</b></div>';
-    }
     cardHtml='<div class="'+cardCls+'" data-edit-ld="'+esc(r.id)+'" data-ld-start="'+esc(String(r.start||"").slice(0,10))+'" data-ld-name="'+esc(String(r.name||"").toLowerCase())+'">'+
-      statusBanner+
-      '<div class="top"><div class="title">'+esc(titleName)+titleSub+'</div><div class="amt money">'+amtShow+'</div></div>'+
+      '<div class="top"><div class="title">'+titleHtml+'</div><div class="amt money">'+amtShow+'</div></div>'+
       '<div class="meta">'+metaBits+'</div>'+
       (isOwner?"":leadSplitSummaryHTML(r))+
       (isOwner
