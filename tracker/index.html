@@ -332,6 +332,24 @@
   .ld-book-subhd .ld-book-subn{
     font-weight:800;color:var(--ink);letter-spacing:0;text-transform:none;margin-left:6px;
   }
+  /* Confirmed book: Future (soonest first) + Past (newest first) — same idea as Stews */
+  .ld-book-subhd--future{
+    margin-top:6px;padding:10px 12px;border:1px solid #b3d4f0;border-radius:12px;
+    background:#eef5fc;color:#0d47a1;border-top:1px solid #b3d4f0;
+  }
+  .ld-book-subhd--future .ld-book-subn{
+    color:#0d47a1;background:#d6e8fa;padding:2px 8px;border-radius:999px;margin-left:8px;
+  }
+  .ld-book-subhd--past{
+    margin-top:16px;padding:10px 12px;border:1px solid var(--line);border-radius:12px;
+    background:#f5f7f8;color:var(--muted);
+  }
+  .ld-book-subhd--past .ld-book-subn{
+    background:var(--grey);padding:2px 8px;border-radius:999px;margin-left:8px;
+  }
+  .ld-book-future-hint,.ld-book-past-hint{
+    margin:6px 0 10px;padding:0 4px;font-size:11.5px;font-weight:600;color:var(--muted);line-height:1.35;
+  }
   .ld-book-empty{
     font-size:13px;color:var(--muted);padding:12px 14px;border-radius:12px;
     border:1px dashed var(--line);background:rgba(255,255,255,.6);margin:0 0 4px;line-height:1.4;
@@ -3813,8 +3831,26 @@ function bindLdBookTabsOnce(){
     }
   }catch(eMq){}
 }
+/** Charter end day (inclusive) for book Future/Past split. */
+function leadBookEndYmd(r){
+  var s=String((r&&(r.start||r.cdate))||"").slice(0,10);
+  var e=String((r&&r.end)||"").slice(0,10);
+  if(/^\d{4}-\d{2}-\d{2}$/.test(e)) return e;
+  return /^\d{4}-\d{2}-\d{2}$/.test(s)?s:"";
+}
+/**
+ * Future = still on/after today (multi-day mid-trip counts as future).
+ * Matches Stews: today + tomorrow… first; past separately.
+ */
+function leadBookIsFuture(r, todayYmd){
+  var today=String(todayYmd||(typeof leadTodayYmd==="function"?leadTodayYmd():"")||"").slice(0,10);
+  var end=leadBookEndYmd(r);
+  if(!end||!/^\d{4}-\d{2}-\d{2}$/.test(today)) return false;
+  return end>=today;
+}
 function sortLeads(){
   if(!state.leads||!state.leads.length) return;
+  var today=typeof leadTodayYmd==="function"?leadTodayYmd():"";
   state.leads.sort(function(a,b){
     /* Book order: tentative → confirmed → cancelled archive */
     var order={tentative:0, confirmed:1, cancelled:2};
@@ -3826,6 +3862,26 @@ function sortLeads(){
       var as=leadSource(a)==="pending"?0:1;
       var bs=leadSource(b)==="pending"?0:1;
       if(as!==bs) return as-bs;
+    }
+    /* Confirmed: future soonest-first, then past newest-first (same as Stews) */
+    if(ap===1){
+      var af=leadBookIsFuture(a, today)?0:1;
+      var bf=leadBookIsFuture(b, today)?0:1;
+      if(af!==bf) return af-bf;
+      var da=String(leadCharterKey(a)||"").slice(0,10);
+      var db=String(leadCharterKey(b)||"").slice(0,10);
+      if(af===0){
+        /* Future: today → tomorrow → later */
+        if(da&&db&&da!==db) return da<db?-1:1;
+      } else {
+        /* Past: newest first */
+        if(da&&db&&da!==db) return db<da?-1:1;
+      }
+      if(db&&!da) return 1;
+      if(da&&!db) return -1;
+      var ca=String((a&&a.closed)||""), cb=String((b&&b.closed)||"");
+      if(ca&&cb&&ca!==cb) return cb<ca?-1:1;
+      return String((b&&b.createdAt)||"").localeCompare(String((a&&a.createdAt)||""));
     }
     var da=leadCharterKey(a), db=leadCharterKey(b);
     if(da&&db&&da!==db) return db<da?-1:1; /* newest charter date first */
@@ -4364,11 +4420,17 @@ function renderLeads(){
         (isOwner?"":'<button type="button" class="btn ghost" data-agr-lead="'+esc(r.id)+'">Agreement</button>')+
       '</div>'+
       '<span class="chev">✎</span></div>';
-    confCards.push(cardHtml);
+    confCards.push({
+      html:cardHtml,
+      start:String(r.start||r.cdate||"").slice(0,10),
+      end:String(r.end||r.start||r.cdate||"").slice(0,10)
+    });
   });
 
   function ldBookSection(cls, title, sub, count, cards, emptyMsg){
-    var body=cards.length?cards.join(""):('<div class="ld-book-empty">'+esc(emptyMsg)+'</div>');
+    /* cards may be HTML strings or {html} rows */
+    var htmls=(cards||[]).map(function(c){ return typeof c==="string"?c:(c&&c.html)||""; }).filter(Boolean);
+    var body=htmls.length?htmls.join(""):('<div class="ld-book-empty">'+esc(emptyMsg)+'</div>');
     return '<div class="ld-book-sec '+cls+'">'+
       '<div class="ld-book-hd">'+
         '<div><div class="ld-book-title">'+esc(title)+'</div>'+
@@ -4377,6 +4439,51 @@ function renderLeads(){
         '<span class="ld-book-count">'+count+'</span>'+
       '</div>'+
       body+
+    '</div>';
+  }
+  /**
+   * Confirmed book: Future (today → later) then Past (newest first) — Stews-style.
+   * cards = [{html,start,end}, …]
+   */
+  function ldBookConfirmedSection(cards){
+    var today=typeof leadTodayYmd==="function"?leadTodayYmd():"";
+    var future=[], past=[];
+    (cards||[]).forEach(function(c){
+      if(!c) return;
+      var start=String(c.start||"").slice(0,10);
+      var end=String(c.end||start||"").slice(0,10)||start;
+      var isFut=false;
+      if(/^\d{4}-\d{2}-\d{2}$/.test(today)&&/^\d{4}-\d{2}-\d{2}$/.test(end)){
+        isFut=end>=today;
+      } else if(/^\d{4}-\d{2}-\d{2}$/.test(today)&&/^\d{4}-\d{2}-\d{2}$/.test(start)){
+        isFut=start>=today;
+      }
+      if(isFut) future.push(c); else past.push(c);
+    });
+    future.sort(function(a,b){
+      var sa=String(a.start||""), sb=String(b.start||"");
+      if(sa&&sb&&sa!==sb) return sa<sb?-1:1;
+      return 0;
+    });
+    past.sort(function(a,b){
+      var sa=String(a.start||""), sb=String(b.start||"");
+      if(sa&&sb&&sa!==sb) return sb<sa?-1:1;
+      return 0;
+    });
+    var nTot=future.length+past.length;
+    var body="";
+    body+='<div class="ld-book-subhd ld-book-subhd--future">Future <span class="ld-book-subn">'+future.length+'</span></div>';
+    body+='<div class="ld-book-future-hint">Today first, then tomorrow and later. Multi-day trips stay here until the last day.</div>';
+    body+=future.length?future.map(function(c){return c.html;}).join(""):'<div class="ld-book-empty">No upcoming confirmed charters.</div>';
+    body+='<div class="ld-book-subhd ld-book-subhd--past">Past <span class="ld-book-subn">'+past.length+'</span></div>';
+    body+='<div class="ld-book-past-hint">Earlier charters · newest first.</div>';
+    body+=past.length?past.map(function(c){return c.html;}).join(""):'<div class="ld-book-empty">No past confirmed charters yet.</div>';
+    return '<div class="ld-book-sec ld-book-sec--confirmed">'+
+      '<div class="ld-book-hd">'+
+        '<div><div class="ld-book-title">Confirmed book</div>'+
+        '<div class="ld-book-sub">Firm charters · Future soonest-first · Past newest-first</div></div>'+
+        '<span class="ld-book-count">'+nTot+'</span>'+
+      '</div>'+body+
     '</div>';
   }
   /** Lost pane: two kinds under one tab — dropped holds vs cancelled firm charters */
@@ -4408,12 +4515,15 @@ function renderLeads(){
     var view=getLdBookView();
     var mobile=isLdBookMobile();
     var nLost=cancHoldCards.length+cancCharterCards.length;
-    var secConf=ldBookSection(
-      "ld-book-sec--confirmed",
-      "Confirmed book",
-      "Firm charters · money totals · main list. Cards move here when you confirm.",
-      confCards.length, confCards, "No confirmed charters yet — confirm a tentative deal to fill this list."
-    );
+    var nConf=confCards.length;
+    var secConf=nConf
+      ?ldBookConfirmedSection(confCards)
+      :ldBookSection(
+        "ld-book-sec--confirmed",
+        "Confirmed book",
+        "Firm charters · Future soonest-first · Past newest-first",
+        0, [], "No confirmed charters yet — confirm a tentative deal to fill this list."
+      );
     var secHold=ldBookSection(
       "ld-book-sec--tentative",
       "On hold · tentative",
@@ -4421,7 +4531,7 @@ function renderLeads(){
       tentCards.length, tentCards, "No tentative holds right now."
     );
     var secLost=ldBookLostSection(cancHoldCards, cancCharterCards);
-    try{ syncLdBookTabsUi(tentCards.length, nLost, confCards.length); }catch(eT2){}
+    try{ syncLdBookTabsUi(tentCards.length, nLost, nConf); }catch(eT2){}
     if(mobile){
       /* Default / primary = Confirmed; Hold then Lost */
       var pane=view==="hold"?secHold:(view==="lost"?secLost:secConf);
