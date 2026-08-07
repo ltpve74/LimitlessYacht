@@ -495,6 +495,16 @@
   }
   .ops-today .item{margin-bottom:8px;cursor:pointer}
   .ops-today .item:last-child{margin-bottom:0}
+  /* Charter clock — high-contrast so the day run is scannable */
+  .ops-today-clock{
+    display:inline-flex;align-items:center;gap:4px;
+    font-size:15px;font-weight:900;letter-spacing:.01em;font-variant-numeric:tabular-nums;
+    color:#0d47a1;background:#d6e8fa;border:1.5px solid #90caf9;
+    padding:4px 10px;border-radius:10px;line-height:1.2;white-space:nowrap;flex-shrink:0;
+  }
+  .ops-today-clock .ops-today-clock-ic{font-size:13px;line-height:1}
+  .ops-today .top{align-items:flex-start;gap:10px}
+  .ops-today .top .ops-today-right{display:flex;flex-direction:column;align-items:flex-end;gap:4px;flex-shrink:0}
   .ops-today-empty{
     font-size:13px;color:var(--muted);padding:14px 14px;border-radius:14px;
     border:1px dashed var(--line);background:rgba(255,255,255,.65);line-height:1.4;
@@ -1013,7 +1023,7 @@
 
 <!-- Domain models + controllers (MVC blueprint) — tests: node scripts/test-tracker-models.mjs -->
 <!-- LY_MODELS → LY_CONTROLLERS → view. See .agent/briefs/tracker-v1-mvc-blueprint.md -->
-<script src="/tracker/js/models/util.js?v=20260803-opstoday1"></script>
+<script src="/tracker/js/models/util.js?v=20260808-todayclock1"></script>
 <script src="/tracker/js/models/leads.js?v=20260807-apacash1"></script>
 <script src="/tracker/js/models/charges.js?v=20260807-apacash1"></script>
 <script src="/tracker/js/models/expenses.js?v=20260807-apacash1"></script>
@@ -1837,6 +1847,74 @@ function buildOpsTodayBoard(){
     }
   });
   board.apaPending=apaPending;
+  /*
+   * Fill clock times for the day run: lead fields, then matching stewAssign,
+   * then calendar event when the assign has no clock yet.
+   */
+  function fillOpsTodayClock(row){
+    if(!row) return;
+    var st=String(row.startTime||"").trim();
+    var et=String(row.endTime||"").trim();
+    if(st||et){ row.startTime=st; row.endTime=et; return; }
+    var lead=null, asg=null, ev=null;
+    if(row.kind==="lead"&&row.id){
+      lead=(state.leads||[]).filter(function(x){return x&&String(x.id)===String(row.id);})[0]||null;
+      if(lead){
+        st=String(lead.startTime||"").trim();
+        et=String(lead.endTime||"").trim();
+        if(st||et){ row.startTime=st; row.endTime=et; return; }
+        try{
+          var ck=typeof leadCalendarEventKey==="function"?leadCalendarEventKey(lead):"";
+          if(ck&&typeof assignForEvent==="function") asg=assignForEvent(ck);
+          if(!asg){
+            asg=(state.stewAssign||[]).filter(function(a){
+              return a&&String(a.leadId||"")===String(lead.id);
+            })[0]||null;
+          }
+        }catch(eA){}
+      }
+    } else if(row.kind==="stew"){
+      try{
+        if(row.eventKey&&typeof assignForEvent==="function") asg=assignForEvent(row.eventKey);
+        if(!asg){
+          asg=(state.stewAssign||[]).filter(function(a){
+            return a&&String(a.eventKey||"")===String(row.eventKey||row.id||"");
+          })[0]||null;
+        }
+        if(asg&&asg.leadId){
+          lead=(state.leads||[]).filter(function(x){return x&&String(x.id)===String(asg.leadId);})[0]||null;
+        }
+      }catch(eS){}
+    }
+    if(asg){
+      st=String(asg.startTime||"").trim();
+      et=String(asg.endTime||"").trim();
+      if(st||et){ row.startTime=st; row.endTime=et; return; }
+    }
+    if(lead){
+      st=String(lead.startTime||"").trim();
+      et=String(lead.endTime||"").trim();
+      if(st||et){ row.startTime=st; row.endTime=et; return; }
+    }
+    try{
+      if(row.eventKey&&typeof calendarEventByKey==="function") ev=calendarEventByKey(row.eventKey);
+      if(!ev&&lead&&typeof leadCalendarEventKey==="function"){
+        var k2=leadCalendarEventKey(lead);
+        if(k2) ev=calendarEventByKey(k2);
+      }
+      if(ev){
+        st=String(ev.startTime||"").trim();
+        et=String(ev.endTime||"").trim();
+        if(st||et){ row.startTime=st; row.endTime=et; }
+      }
+    }catch(eC){}
+  }
+  (board.leads||[]).forEach(fillOpsTodayClock);
+  (board.stews||[]).forEach(fillOpsTodayClock);
+  (board.groups||[]).forEach(function(g){
+    if(!g||!g.items) return;
+    if(g.key==="lead"||g.key==="stew") g.items.forEach(fillOpsTodayClock);
+  });
   /* Rebuild groups so APA section includes start-from-lead cards */
   board.groups=(board.groups||[]).map(function(g){
     if(!g||g.key!=="apa") return g;
@@ -1851,6 +1929,23 @@ function buildOpsTodayBoard(){
   });
   board.n=(board.leads||[]).length+(board.charges||[]).length+(board.apa||[]).length+(board.stews||[]).length+apaPending.length;
   return board;
+}
+/** Clock label for Today board (HH:MM or HH:MM–HH:MM). Empty if unknown / all-day. */
+function opsTodayTimeLabel(row){
+  if(!row) return "";
+  var st=String(row.startTime||"").trim();
+  var et=String(row.endTime||"").trim();
+  /* Normalise "9:00" → keep as stored; strip seconds if present */
+  function clip(t){
+    t=String(t||"").trim();
+    if(!t) return "";
+    var m=t.match(/^(\d{1,2}:\d{2})/);
+    return m?m[1]:t;
+  }
+  st=clip(st); et=clip(et);
+  if(!st&&!et) return "";
+  if(st&&et&&st!==et) return st+"–"+et;
+  return st||et;
 }
 function opsTodayStatusPill(row){
   var s=String((row&&row.status)||"");
@@ -1947,11 +2042,15 @@ function renderOpsToday(){
           range=fmtDate(row.start)||row.start;
         }
       }catch(eR){ range=row.start||""; }
+      var timeLab=opsTodayTimeLabel(row);
       var dashed=row.kind==="apa-start"?' style="border-style:dashed"':'';
       h+='<div class="item" '+openAttr+' role="button" tabindex="0"'+dashed+'>'+
         '<div class="top">'+
           '<div class="title">'+esc(row.title||"—")+'</div>'+
-          (row.amount>0.009?'<div class="amt money">'+money0(row.amount)+'</div>':'')+
+          '<div class="ops-today-right">'+
+            (timeLab?'<span class="ops-today-clock" title="Charter time"><span class="ops-today-clock-ic" aria-hidden="true">🕐</span>'+esc(timeLab)+'</span>':'')+
+            (row.amount>0.009?'<div class="amt money">'+money0(row.amount)+'</div>':'')+
+          '</div>'+
         '</div>'+
         '<div class="meta">'+
           (range?'<span>📅 '+esc(range)+'</span>':'')+
