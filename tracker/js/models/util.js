@@ -157,6 +157,9 @@ function collectTodayOpsBoard(opts) {
       title: String(r.name || r.icsGuestName || "Lead").trim() || "Lead",
       start: start,
       end: end,
+      startTime: String(r.startTime || "").trim(),
+      endTime: String(r.endTime || "").trim(),
+      allDay: !!(r.allDay === true || r.allDay === "true" || r.allDay === 1),
       status: cancelled ? "cancelled" : tentative ? "tentative" : "confirmed",
       subtitle: String(r.dur || r.type || r.leadSource || r.source || "").trim(),
       amount: Number(r.amount) || Number(r.price) || Number(r.total) || 0,
@@ -224,6 +227,9 @@ function collectTodayOpsBoard(opts) {
       title: String(a.summary || a.guest || "Charter").trim() || "Charter",
       start: start,
       end: end,
+      startTime: String(a.startTime || "").trim(),
+      endTime: String(a.endTime || "").trim(),
+      allDay: !!(a.allDay === true || a.allDay === "true" || a.allDay === 1),
       status: cancelled
         ? "cancelled"
         : nCrew
@@ -241,6 +247,10 @@ function collectTodayOpsBoard(opts) {
     var sa = String(a.start || ""),
       sb = String(b.start || "");
     if (sa !== sb) return sa < sb ? -1 : 1;
+    /* Same day: earlier clock first (blank times last) */
+    var ta = String(a.startTime || "99:99");
+    var tb = String(b.startTime || "99:99");
+    if (ta !== tb) return ta < tb ? -1 : 1;
     return String(a.title || "").localeCompare(String(b.title || ""));
   }
   leads.sort(byStart);
