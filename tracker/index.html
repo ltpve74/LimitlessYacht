@@ -13468,7 +13468,16 @@ function ensureStewAssignFromCalendar(){
     var keepLeadId=(asg&&asg.leadId)||"";
     var keepCancelLead=keepCancelled?((asg&&asg.cancelLeadId)||""):"";
     var keepCancelReason=keepCancelled?((asg&&asg.cancelReason)||""):"";
-    if(asg&&prevKey===idsKey&&asg.payStatus===keepPay
+    /* Never wipe existing crew — only fill empty / add title tokens (same as rebuild) */
+    var finalIds=ids;
+    if(asg&&asg.stewIds&&asg.stewIds.length){
+      finalIds=asg.stewIds.slice();
+      ids.forEach(function(id){
+        if(finalIds.map(String).indexOf(String(id))<0) finalIds.push(id);
+      });
+    }
+    var finalKey=finalIds.map(String).sort().join(",");
+    if(asg&&prevKey===finalKey&&asg.payStatus===keepPay
       &&apaNum(asg.dayRate)===keepRate&&apaNum(asg.payUnits||1)===keepUnits
       &&!!asg.cancelled===keepCancelled&&!!asg.cancelOverride===keepOverride
       &&String(asg.leadId||"")===String(keepLeadId)) return;
@@ -13499,7 +13508,7 @@ function ensureStewAssignFromCalendar(){
       cancelReason:keepCancelReason,
       leadId:keepLeadId,
       cancelLeadId:keepCancelLead,
-      stewIds:ids,
+      stewIds:finalIds,
       dayRate:keepRate,
       payUnits:keepUnits,
       payEach:keepPayEach,
@@ -19074,11 +19083,16 @@ function save(coll){
      * Server may have preserved leads/charters this client never had
      * (e.g. calendar restore on another tab). Adopt merged rows.
      */
-    if(j&&Array.isArray(j.rows)&&(coll==="leads"||coll==="charters"||coll==="apa")){
-      var adopted=filterTombstonedRows(coll, j.rows);
+    if(j&&Array.isArray(j.rows)&&(coll==="leads"||coll==="charters"||coll==="apa"||coll==="stewAssign")){
+      var adopted=coll==="stewAssign"?j.rows:filterTombstonedRows(coll, j.rows);
       if(coll==="leads") state.leads=adopted;
       else if(coll==="charters") state.charters=adopted;
       else if(coll==="apa") state.apa=adopted;
+      else if(coll==="stewAssign"){
+        state.stewAssign=adopted;
+        try{ backupStewAssignLocal(); }catch(eBak){}
+        if(curTab==="stews") try{ paintStewChartersKeepScroll(); }catch(eSt){}
+      }
       if(coll==="leads"&&curTab==="leads") try{ renderLeads(); }catch(eR){}
       if(coll==="charters"&&curTab==="charters") try{ renderCharters(); }catch(eC){}
       if(coll==="apa"&&curTab==="apa") try{ renderApa(); }catch(eA){}

@@ -1515,6 +1515,97 @@ function mergeCollectionPreserveMissing(prevRows, nextRows, deletedIds) {
 }
 
 /**
+ * stewAssign identity key — eventKey is stable across devices; id can diverge
+ * when two clients seed the same charter independently.
+ */
+function stewAssignMergeKey(r) {
+  if (!r) return "";
+  const ek = String(r.eventKey || "").trim();
+  if (ek) return "ek:" + ek;
+  if (r.id != null && r.id !== "") return "id:" + String(r.id);
+  return "";
+}
+
+function stewAssignCrewCount(r) {
+  if (!r || !Array.isArray(r.stewIds)) return 0;
+  return r.stewIds.filter(Boolean).length;
+}
+
+function stewAssignNoStewFlag(r) {
+  return !!(r && (r.noStewNeeded === true || r.noStewNeeded === "true" || r.noStewNeeded === 1));
+}
+
+/**
+ * Concurrent stewAssign saves used to full-replace the whole array.
+ * Classic race: Laura self-assigns (push fires) → captain still has an older
+ * in-memory list → any stewAssign save from captain wipes Laura.
+ *
+ * Rules:
+ *  1. Rows only on the server (client never loaded them) are preserved.
+ *  2. Same eventKey/id: newer updatedAt wins (last-write-wins per row).
+ *  3. Equal/missing timestamps: do not drop crew unless client set noStewNeeded.
+ *  4. Keep server id when keys match so expense links stay stable.
+ */
+function mergeStewAssignCollection(prevRows, nextRows) {
+  const prev = Array.isArray(prevRows) ? prevRows : [];
+  const next = Array.isArray(nextRows) ? nextRows : [];
+  const byKey = new Map();
+  let preserved = 0;
+  let keptServer = 0;
+
+  prev.forEach((r) => {
+    const k = stewAssignMergeKey(r);
+    if (!k) return;
+    byKey.set(k, r);
+  });
+
+  const nextKeys = new Set();
+  next.forEach((r) => {
+    const k = stewAssignMergeKey(r);
+    if (!k) return;
+    nextKeys.add(k);
+    const old = byKey.get(k);
+    if (!old) {
+      byKey.set(k, r);
+      return;
+    }
+    const ot = String(old.updatedAt || "");
+    const nt = String(r.updatedAt || "");
+    /* Client older than server → never overwrite (stale full-array race) */
+    if (ot && nt && nt < ot) {
+      keptServer++;
+      return;
+    }
+    /*
+     * Same timestamp (or missing): refuse to wipe crew with an empty list
+     * unless captain marked “no stew needed” (intentional clear).
+     */
+    if ((!nt || !ot || nt === ot) && stewAssignCrewCount(r) === 0 && stewAssignCrewCount(old) > 0 && !stewAssignNoStewFlag(r)) {
+      keptServer++;
+      return;
+    }
+    byKey.set(
+      k,
+      Object.assign({}, r, {
+        id: old.id || r.id,
+        eventKey: old.eventKey || r.eventKey,
+      })
+    );
+  });
+
+  prev.forEach((r) => {
+    const k = stewAssignMergeKey(r);
+    if (k && !nextKeys.has(k)) preserved++;
+  });
+
+  return {
+    rows: Array.from(byKey.values()),
+    preserved: preserved + keptServer,
+    deleted: 0,
+  };
+}
+
+/**
  * Durable APA pot deletes (server SOT).
  * Stale concurrent saves must not resurrect a deleted pot's diesel/spend.
  * meta.apaDeletedIds accumulates explicit client deletes.
@@ -2106,10 +2197,15 @@ export default async (req, context) => {
     /*
      * Leads + charters: never wipe rows the client simply didn't have
      * (restored calendar lead, concurrent device). Explicit deletes only
-     * via body.deletedIds. Other collections still full-replace.
+     * via body.deletedIds.
+     *
+     * stewAssign: same class of race (team self-assign vs captain open tab)
+     * but keyed by eventKey + last-write-wins per row — see mergeStewAssignCollection.
      *
      * APA: merge + durable meta.apaDeletedIds so a stale concurrent save
      * cannot resurrect a deleted pot (diesel/spend ghost on Roman recreate).
+     *
+     * Other collections still full-replace.
      */
     if (coll === "leads" || coll === "charters") {
       mergeInfo = mergeCollectionPreserveMissing(
@@ -2117,6 +2213,10 @@ export default async (req, context) => {
         next,
         body.deletedIds || body.deleted || []
       );
+      next = mergeInfo.rows;
+    }
+    if (coll === "stewAssign") {
+      mergeInfo = mergeStewAssignCollection(prev, next);
       next = mergeInfo.rows;
     }
     if (coll === "apa") {
@@ -2212,7 +2312,7 @@ export default async (req, context) => {
       preserved: mergeInfo.preserved || 0,
       /* Echo so client can refresh if we kept rows it didn't send */
       rows:
-        coll === "leads" || coll === "charters" || coll === "apa"
+        coll === "leads" || coll === "charters" || coll === "apa" || coll === "stewAssign"
           ? data[coll]
           : undefined,
     });
