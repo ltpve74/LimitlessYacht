@@ -1,7 +1,7 @@
 {
   "source": "charters report/Limitless Availability.ics",
-  "generatedNote": "Seed of season charters for Stews accounting. Live ICS merges on top (same UID wins).",
-  "eventCount": 38,
+  "generatedNote": "Seed of season charters for Stews accounting. Live ICS merges on top (same UID wins). Removed ghost uid A2B1E01C (henry-stew-Vicky 14-15 overlapping Guido 13-14).",
+  "eventCount": 37,
   "events": [
     {
       "key": "uid:CAB64B27-C114-4843-BBE4-146C767A5397",
@@ -201,7 +201,7 @@
     {
       "key": "uid:A4A37F25-FBAF-490D-8897-31C6AA844407",
       "uid": "A4A37F25-FBAF-490D-8897-31C6AA844407",
-      "summary": "Sebastián stew Laura",
+      "summary": "Sebasti\u00e1n stew Laura",
       "start": "2026-06-26",
       "end": "2026-06-26",
       "startTime": "12:00",
@@ -231,7 +231,7 @@
     {
       "key": "uid:65F37A45-E4CF-42E4-9A9F-46596CF97FE7",
       "uid": "65F37A45-E4CF-42E4-9A9F-46596CF97FE7",
-      "summary": "Henry’s daughter stew Rebecca -paid by daughter",
+      "summary": "Henry\u2019s daughter stew Rebecca -paid by daughter",
       "start": "2026-07-03",
       "end": "2026-07-03",
       "startTime": "15:00",
@@ -292,7 +292,7 @@
     {
       "key": "uid:62AFC493-BBED-4B29-9321-4AA8EC9B9C31",
       "uid": "62AFC493-BBED-4B29-9321-4AA8EC9B9C31",
-      "summary": "Jörg stew Laura",
+      "summary": "J\u00f6rg stew Laura",
       "start": "2026-07-11",
       "end": "2026-07-11",
       "startTime": "11:00",
@@ -513,21 +513,7 @@
       "allDay": true,
       "status": "booked",
       "days": [
-        "2026-08-13"
-      ],
-      "source": "seed"
-    },
-    {
-      "key": "uid:A2B1E01C-EAA0-47EE-81DA-7660B74927EA",
-      "uid": "A2B1E01C-EAA0-47EE-81DA-7660B74927EA",
-      "summary": "henry - stew Vicky",
-      "start": "2026-08-14",
-      "end": "2026-08-15",
-      "startTime": "",
-      "endTime": "",
-      "allDay": true,
-      "status": "booked",
-      "days": [
+        "2026-08-13",
         "2026-08-14"
       ],
       "source": "seed"
