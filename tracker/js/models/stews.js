@@ -567,17 +567,51 @@ function planStewDayPayExpenseLines(input) {
     return { eventKey: eventKey, lines: [], clearOnly: true };
   }
   var prevBySid = {};
+  var prevByFinger = {};
   (Array.isArray(input.previousLines) ? input.previousLines : []).forEach(function (e) {
     if (!e) return;
-    prevBySid[String(e.stewId || e.linkId || "")] = e;
+    if (e.stewId != null && String(e.stewId) !== "") prevBySid[String(e.stewId)] = e;
+    if (e.linkId) prevBySid[String(e.linkId)] = e;
+    var f =
+      e.stewId != null && String(e.stewId) !== "" && String(e.date || "").slice(0, 10)
+        ? String(e.stewId) + "|" + String(e.date).slice(0, 10)
+        : "";
+    if (f) {
+      var cur = prevByFinger[f];
+      if (!cur) prevByFinger[f] = e;
+      else {
+        var score = function (x) {
+          var s = 0;
+          if (x && x.floatPay === true) s += 100;
+          if (x && String(x.paidFrom || "") === "Own money") s += 80;
+          if (x && x.paidById) s += 10;
+          if (x && x.payStatusManual) s += 5;
+          return s;
+        };
+        if (score(e) >= score(cur)) prevByFinger[f] = e;
+      }
+    }
   });
   var markFloat = !!asg._floatPayMark;
+  /* Explicit source even when Own money (markFloat is false for pocket pays) */
   var paidFromDefault =
     asg._floatPayFrom === "Own money"
       ? "Own money"
       : asg._floatPayFrom === "Petty cash"
         ? "Petty cash"
-        : "";
+        : asg.paidFrom === "Own money"
+          ? "Own money"
+          : asg.paidFrom === "Petty cash"
+            ? "Petty cash"
+            : "";
+  var payerDefault =
+    asg._floatPayPayerId != null && String(asg._floatPayPayerId) !== ""
+      ? String(asg._floatPayPayerId)
+      : "captain";
+  var onlySid =
+    asg._floatPayOnlySid != null && String(asg._floatPayOnlySid) !== ""
+      ? String(asg._floatPayOnlySid)
+      : "";
   var summary = asg.summary || "Charter";
   var nowIso = input.nowIso || new Date().toISOString();
   /*
@@ -602,19 +636,37 @@ function planStewDayPayExpenseLines(input) {
     if (!(amt > 0) && !(defaultEach > 0)) return;
     if (!(amt > 0)) amt = defaultEach;
     var linkId = "stew-day:" + eventKey + ":" + sid;
-    var old = prevBySid[String(sid)] || prevBySid[linkId];
+    var finger = String(sid) + "|" + charterDate;
+    var old = prevBySid[String(sid)] || prevBySid[linkId] || prevByFinger[finger] || null;
+    var applyMark = !onlySid || String(sid) === onlySid;
     var mapPf = asg.dayPayFromByStew && asg.dayPayFromByStew[String(sid)];
     var paidFrom = "Petty cash";
+    var paidById = "";
+    if (old) {
+      if (String(old.paidFrom || "") === "Own money") paidFrom = "Own money";
+      else if (String(old.paidFrom || "") === "Petty cash") paidFrom = "Petty cash";
+      if (old.paidById != null && String(old.paidById) !== "") paidById = String(old.paidById);
+    }
     if (mapPf === "Own money" || mapPf === "Petty cash") paidFrom = mapPf;
-    else if (paidFromDefault) paidFrom = paidFromDefault;
-    else if (old && old.paidFrom === "Own money") paidFrom = "Own money";
-    else if (old && old.paidFrom === "Petty cash") paidFrom = "Petty cash";
-    if (markFloat && asg._floatPayFrom === "Own money") paidFrom = "Own money";
-    else if (markFloat && asg._floatPayFrom === "Petty cash") paidFrom = "Petty cash";
+    else if (applyMark && paidFromDefault) paidFrom = paidFromDefault;
+    /* Explicit mark always wins for the target stew (Own money does not need markFloat) */
+    if (applyMark && asg._floatPayFrom === "Own money") paidFrom = "Own money";
+    else if (applyMark && (markFloat || asg._floatPayFrom === "Petty cash")) paidFrom = "Petty cash";
     var floatPay = false;
-    if (paidFrom !== "Own money") {
-      if (markFloat) floatPay = true;
-      else if (old && old.floatPay === true) floatPay = true;
+    if (paidFrom === "Own money") {
+      floatPay = false;
+      if (applyMark && asg._floatPayFrom === "Own money") paidById = payerDefault;
+      else if (!paidById) paidById = payerDefault;
+    } else if (applyMark && markFloat) {
+      floatPay = true;
+      paidById = "";
+    } else if (old && old.floatPay === true) {
+      /* PRESERVE prior cash-out — re-sync must not put notes back on board */
+      floatPay = true;
+      paidById = "";
+    } else {
+      floatPay = false;
+      paidById = "";
     }
     /*
      * Date for the expense row:
@@ -623,7 +675,7 @@ function planStewDayPayExpenseLines(input) {
      *  - books-only / no float → charter day
      */
     var lineDate = charterDate;
-    if (markFloat && floatPay) lineDate = payDate;
+    if (markFloat && floatPay && applyMark) lineDate = payDate;
     else if (floatPay && old && String(old.date || "").slice(0, 10))
       lineDate = String(old.date).slice(0, 10);
     else if (floatPay) lineDate = payDate;
@@ -639,13 +691,14 @@ function planStewDayPayExpenseLines(input) {
       stewPayKind: "dayPay",
       crewPayStatus: "Paid",
       floatPay: floatPay,
-      payStatusManual: !!asg.payStatusManual,
+      payStatusManual: !!asg.payStatusManual || !!(old && old.payStatusManual) || (applyMark && !!paidFromDefault),
       date: lineDate,
       vendor: stewName(sid),
       description: desc,
       category: "Crew Salaries",
       payMethod: "Cash",
       paidFrom: paidFrom,
+      paidById: paidById || "",
       amount: amt,
       receipt: (old && old.receipt) || "",
       by: who,

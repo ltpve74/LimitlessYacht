@@ -393,7 +393,8 @@ function summarizeCaptainCommissionBalance(opts) {
  * @param {Array} cashIns
  * @returns {{ changed: boolean, cleared: Array, envelope: number, expenses: Array }}
  */
-function clearCrewFloatPayOnEmptyEnvelope(expenses, pettyStart, cashIns) {
+function clearCrewFloatPayOnEmptyEnvelope(expenses, pettyStart, cashIns, opts) {
+  opts = opts || {};
   /* Physical envelope only — poison negative start is not cash available */
   var physicalStart = Math.max(0, round2(num(pettyStart)));
   var cashInTotal = 0;
@@ -412,6 +413,9 @@ function clearCrewFloatPayOnEmptyEnvelope(expenses, pettyStart, cashIns) {
     if (String(e.crewPayStatus || "") !== "Paid") return;
     if (expensePaidFrom(e) === "own" || expensePaidFrom(e) === "card") return;
     if (e.floatPay !== true) return;
+    /* Never wipe captain-marked pays (payStatusManual) — empty start often means
+     * cash-ins not loaded yet; clearing floatPay put cash back on board wrongly. */
+    if (opts.keepManual !== false && e.payStatusManual === true) return;
     e.floatPay = false;
     cleared.push(e);
   });
