@@ -1545,15 +1545,38 @@ function stewAssignNoStewFlag(r) {
  *  2. Same eventKey/id: newer updatedAt wins (last-write-wins per row).
  *  3. Equal/missing timestamps: do not drop crew unless client set noStewNeeded.
  *  4. Keep server id when keys match so expense links stay stable.
+ *  5. Explicit deletedIds / deletedEventKeys drop server rows (DB cleanup / purge).
  */
-function mergeStewAssignCollection(prevRows, nextRows) {
+function mergeStewAssignCollection(prevRows, nextRows, deletedIds, deletedEventKeys) {
   const prev = Array.isArray(prevRows) ? prevRows : [];
   const next = Array.isArray(nextRows) ? nextRows : [];
+  const delIds = new Set(
+    (Array.isArray(deletedIds) ? deletedIds : []).map((x) => String(x)).filter(Boolean)
+  );
+  const delKeys = new Set(
+    (Array.isArray(deletedEventKeys) ? deletedEventKeys : [])
+      .map((x) => String(x).trim())
+      .filter(Boolean)
+  );
+  function isDeleted(r) {
+    if (!r) return true;
+    if (r.id != null && r.id !== "" && delIds.has(String(r.id))) return true;
+    const ek = String(r.eventKey || "").trim();
+    if (ek && delKeys.has(ek)) return true;
+    if (ek && delKeys.has(ek.replace(/^uid:/i, ""))) return true;
+    if (ek && delKeys.has(ek.indexOf("uid:") === 0 ? ek : "uid:" + ek)) return true;
+    return false;
+  }
   const byKey = new Map();
   let preserved = 0;
   let keptServer = 0;
+  let deleted = 0;
 
   prev.forEach((r) => {
+    if (isDeleted(r)) {
+      deleted++;
+      return;
+    }
     const k = stewAssignMergeKey(r);
     if (!k) return;
     byKey.set(k, r);
@@ -1561,6 +1584,7 @@ function mergeStewAssignCollection(prevRows, nextRows) {
 
   const nextKeys = new Set();
   next.forEach((r) => {
+    if (isDeleted(r)) return;
     const k = stewAssignMergeKey(r);
     if (!k) return;
     nextKeys.add(k);
@@ -1594,6 +1618,7 @@ function mergeStewAssignCollection(prevRows, nextRows) {
   });
 
   prev.forEach((r) => {
+    if (isDeleted(r)) return;
     const k = stewAssignMergeKey(r);
     if (k && !nextKeys.has(k)) preserved++;
   });
@@ -1601,7 +1626,7 @@ function mergeStewAssignCollection(prevRows, nextRows) {
   return {
     rows: Array.from(byKey.values()),
     preserved: preserved + keptServer,
-    deleted: 0,
+    deleted,
   };
 }
 
@@ -2216,7 +2241,12 @@ export default async (req, context) => {
       next = mergeInfo.rows;
     }
     if (coll === "stewAssign") {
-      mergeInfo = mergeStewAssignCollection(prev, next);
+      mergeInfo = mergeStewAssignCollection(
+        prev,
+        next,
+        body.deletedIds || body.deleted || [],
+        body.deletedEventKeys || body.deletedKeys || []
+      );
       next = mergeInfo.rows;
     }
     if (coll === "apa") {
