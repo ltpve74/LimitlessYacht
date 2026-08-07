@@ -948,7 +948,7 @@
 
     <!-- TODAY (captain — day run: lead · APA · charge · stew) -->
     <section id="tab-today" class="hidden">
-      <div class="legend">Day board — charters on the water today. APA pots open automatically for diesel; walk-in pot if no lead.</div>
+      <div class="legend">Day board — charters today. One APA pot lives on the lead card; extra pots (or walk-ins) list separately.</div>
       <div id="opsToday" class="ops-today" aria-label="Today on the boat"></div>
     </section>
 
@@ -1811,17 +1811,50 @@ function buildOpsTodayBoard(){
       {key:"stew",label:"Stews",ic:"👩‍✈️",items:[]}
     ]};
   }
-  /* Link leads → existing APA pots only (pots auto-start for today — no dashed Start cards) */
+  /*
+   * Link leads → APA pot(s). One pot: only on the lead card (hide under APA).
+   * Multiple pots (e.g. Nancy): keep all in APA list so each ledger is reachable.
+   * Walk-in pots (no today-lead link) always stay in the APA list.
+   */
+  var hideApaIds={}; /* single primary pot already covered by a lead card */
   (board.leads||[]).forEach(function(row){
     if(!row||!row.id) return;
     var lead=(state.leads||[]).filter(function(x){ return x&&String(x.id)===String(row.id); })[0];
     if(!lead) return;
-    var existing=typeof findApaTripForLead==="function"?findApaTripForLead(lead):null;
-    row.apaId=existing?String(existing.id):"";
-    row.hasApa=!!existing;
+    var pots=[];
+    try{
+      pots=(typeof findApaTripsForLead==="function"?findApaTripsForLead(lead):[])||[];
+    }catch(eP){ pots=[]; }
+    pots=pots.slice().sort(function(a,b){
+      var sa=typeof apaTripCanonicalScore==="function"?apaTripCanonicalScore(a):0;
+      var sb=typeof apaTripCanonicalScore==="function"?apaTripCanonicalScore(b):0;
+      return sb-sa;
+    });
+    row.apaCount=pots.length;
+    row.apaIds=pots.map(function(t){ return t&&t.id?String(t.id):""; }).filter(Boolean);
+    row.apaId=row.apaIds[0]||"";
+    row.hasApa=row.apaIds.length>0;
     row.canStartApa=false;
+    /* One pot only → lead card is enough; don’t list it again under APA */
+    if(pots.length===1&&pots[0]&&pots[0].id){
+      hideApaIds[String(pots[0].id)]=true;
+    }
   });
   board.apaPending=[];
+  function keepTodayApaRow(row){
+    if(!row||!row.id) return false;
+    return !hideApaIds[String(row.id)];
+  }
+  board.apa=(board.apa||[]).filter(keepTodayApaRow);
+  board.groups=(board.groups||[]).map(function(g){
+    if(!g||g.key!=="apa") return g;
+    return {
+      key:g.key,
+      label:g.label,
+      ic:g.ic,
+      items:(g.items||[]).filter(keepTodayApaRow)
+    };
+  });
   /*
    * Fill clock times for the day run: lead fields, then matching stewAssign,
    * then calendar event when the assign has no clock yet.
@@ -1893,6 +1926,18 @@ function buildOpsTodayBoard(){
   board.n=(board.leads||[]).length+(board.charges||[]).length+(board.apa||[]).length+(board.stews||[]).length;
   return board;
 }
+/** Extra APA pot for a lead that already has one (Nancy multi-ledger). */
+function createAdditionalApaPotForLead(leadId){
+  var l=(state.leads||[]).filter(function(x){return x&&String(x.id)===String(leadId);})[0];
+  if(!l) return null;
+  var n=(typeof findApaTripsForLead==="function"?findApaTripsForLead(l):[]).length;
+  var res=createApaPotForLead(l, {forceNew:true, potLabel:n>0?("Pot "+(n+1)):""});
+  if(res&&res.created&&!DEMO){
+    try{ save("apa"); }catch(eA){}
+    try{ save("charters"); }catch(eC){}
+  }
+  return res;
+}
 /** Clock label for Today board (HH:MM or HH:MM–HH:MM). Empty if unknown / all-day. */
 function opsTodayTimeLabel(row){
   if(!row) return "";
@@ -1963,7 +2008,8 @@ function renderOpsToday(){
   }
   (board.groups||[]).forEach(function(g){
     if(!g||!(g.items&&g.items.length)) return;
-    var label=g.key==="apa"?"APA pots":g.label;
+    /* APA group only when multi-pot trips or walk-ins remain after hide-single filter */
+    var label=g.key==="apa"?"Extra APA pots":g.label;
     h+='<div class="ops-today-group" data-ops-today-group="'+esc(g.key)+'">'+
       '<div class="ops-today-ghd">'+
         '<span aria-hidden="true">'+(g.ic||"")+'</span> '+esc(label)+
@@ -1972,10 +2018,15 @@ function renderOpsToday(){
     g.items.forEach(function(row){
       if(!row||row.kind==="apa-start") return;
       var openAttr="";
+      var extraBtns="";
       if(row.kind==="lead"){
-        /* Day run: open pot when it exists (diesel / spend) */
+        /* Day run: open primary pot (diesel). Multi-pot extras listed under Extra APA. */
         if(row.hasApa&&row.apaId) openAttr='data-ops-today-open="apa" data-id="'+esc(row.apaId)+'"';
         else openAttr='data-ops-today-open="lead" data-id="'+esc(row.id)+'"';
+        /* Multi-ledger (Nancy etc.): add another pot linked to this lead */
+        if(row.hasApa){
+          extraBtns='<button type="button" class="btn ghost" data-ops-today-add-apa="'+esc(row.id)+'" style="width:auto;padding:6px 10px;font-size:12px;margin-top:8px">+ Another pot</button>';
+        }
       } else if(row.kind==="charge"){
         openAttr='data-ops-today-open="charge" data-id="'+esc(row.id)+'"';
       } else if(row.kind==="apa"){
@@ -1992,6 +2043,12 @@ function renderOpsToday(){
         }
       }catch(eR){ range=row.start||""; }
       var timeLab=opsTodayTimeLabel(row);
+      var apaPill="";
+      if(row.kind==="lead"&&row.hasApa){
+        apaPill=row.apaCount>1
+          ?'<span class="pill p-apa">APA ×'+row.apaCount+'</span>'
+          :'<span class="pill p-apa">APA</span>';
+      }
       h+='<div class="item" '+openAttr+' role="button" tabindex="0">'+
         '<div class="top">'+
           '<div class="title">'+esc(row.title||"—")+'</div>'+
@@ -2004,8 +2061,9 @@ function renderOpsToday(){
           (range?'<span>📅 '+esc(range)+'</span>':'')+
           opsTodayStatusPill(row)+
           (row.subtitle?'<span>'+esc(row.subtitle)+'</span>':'')+
-          (row.kind==="lead"&&row.hasApa?'<span class="pill p-apa">APA</span>':'')+
+          apaPill+
         '</div>'+
+        extraBtns+
         '<span class="chev">→</span>'+
       '</div>';
     });
@@ -2015,6 +2073,19 @@ function renderOpsToday(){
   if(el("opsTodayNewApa")) el("opsTodayNewApa").addEventListener("click",function(ev){
     ev.preventDefault();
     opsTodayNewWalkInApa(board.today);
+  });
+  Array.prototype.forEach.call(wrap.querySelectorAll("[data-ops-today-add-apa]"),function(btn){
+    btn.addEventListener("click",function(ev){
+      ev.preventDefault();
+      ev.stopPropagation();
+      var lid=btn.getAttribute("data-ops-today-add-apa");
+      if(!lid) return;
+      var res=createAdditionalApaPotForLead(lid);
+      if(res&&res.trip){
+        switchTab("apa");
+        if(typeof openApaDetail==="function") openApaDetail(res.trip.id);
+      }
+    });
   });
   Array.prototype.forEach.call(wrap.querySelectorAll("[data-ops-today-open]"),function(node){
     var go=function(){
@@ -7867,13 +7938,22 @@ function renderApaList(){
 /**
  * Create (or return existing) APA pot for a lead. Silent = no sheet open / no full re-render.
  * Used by manual Start APA and by Today auto-start on charter day.
+ * forceNew: true → always add another pot (multi-ledger / Nancy-style).
  */
 function createApaPotForLead(lead, opts){
   opts=opts||{};
   if(!lead||!lead.id) return null;
   if(Array.isArray(state.apa)) state.apa=filterTombstonedRows("apa", state.apa);
-  var existing=findApaTripForLead(lead);
-  if(existing) return { trip:existing, created:false };
+  if(!opts.forceNew){
+    var existingList=typeof findApaTripsForLead==="function"?findApaTripsForLead(lead):[];
+    if(existingList&&existingList.length){
+      var best=existingList.slice().sort(function(a,b){
+        return (typeof apaTripCanonicalScore==="function"?apaTripCanonicalScore(b):0)
+          -(typeof apaTripCanonicalScore==="function"?apaTripCanonicalScore(a):0);
+      })[0];
+      return { trip:best, created:false };
+    }
+  }
   var t=emptyApaTrip();
   t.guest=lead.name||"";
   t.clientKey="lead:"+lead.id;
@@ -7887,8 +7967,11 @@ function createApaPotForLead(lead, opts){
   t.autoStartedOn=typeof localTodayYmd==="function"?localTodayYmd():new Date().toISOString().slice(0,10);
   t.by=session.who||"Captain";
   t.updatedAt=new Date().toISOString();
-  /* Controller seeds apaSent only from Issued/Paid prepaid — never shortfall-to-invoice */
-  if(window.LY_CONTROLLERS&&LY_CONTROLLERS.apa&&LY_CONTROLLERS.apa.planStartEmptyPot){
+  if(opts.potLabel) t.notes=String(opts.potLabel);
+  if(opts.forceNew) t.extraPot=true;
+  /* Controller seeds apaSent only from Issued/Paid prepaid — never shortfall-to-invoice.
+     Extra pots start at €0 even if lead has prepaid (prepaid already on primary). */
+  if(!opts.forceNew&&window.LY_CONTROLLERS&&LY_CONTROLLERS.apa&&LY_CONTROLLERS.apa.planStartEmptyPot){
     var startPlan=LY_CONTROLLERS.apa.planStartEmptyPot(apaControllerSnapshot({
       guest:t.guest, keepTripId:t.id, lead:lead
     }));
