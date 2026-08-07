@@ -12085,10 +12085,18 @@ function paintExpensesBody(){
   /* Compact strip — physical + short + free after people */
   var freeAfterOwed=Math.round((Math.max(0, pettyCash)-peopleOwed)*100)/100;
   if(freeAfterOwed<0) freeAfterOwed=0;
+  /* Captain pocket still open (own-money day-pay / shops not yet repaid from petty) */
+  var captPocketOpen=0;
+  pocketGroups.forEach(function(g){
+    if(g&&String(g.id)===String(EXP_POCKET_CAPTAIN)) captPocketOpen=apaNum(g.owed);
+  });
   h+='<div class="exp-summary">'+
     '<div class="sumcard'+(pettyPos?' sum-ok':'')+'"><div class="l">Petty on board</div><div class="v money">'+(pettyEntered?money(pettyCash):'—')+'</div></div>'+
     '<div class="sumcard"><div class="l">Cash in</div><div class="v money">'+money(cashInTotal)+'</div></div>'+
     '<div class="sumcard"><div class="l">Cash out</div><div class="v money">'+money(cashOut)+'</div></div>'+
+    (captPocketOpen>0.009
+      ?'<div class="sumcard sum-warn"><div class="l">Your pocket · boat owes you</div><div class="v money">'+money(captPocketOpen)+'</div></div>'
+      :'')+
     (shortAmt>0.009
       ?'<div class="sumcard sum-danger"><div class="l">Books short</div><div class="v money">'+money(shortAmt)+'</div></div>'
       :'')+
@@ -12099,6 +12107,12 @@ function paintExpensesBody(){
       ?'<div class="sumcard'+(freeAfterOwed>0.009?' sum-ok':'')+'"><div class="l">Free after owed</div><div class="v money">'+money(freeAfterOwed)+'</div></div>'
       :'')+
   '</div>';
+  if(captPocketOpen>0.009){
+    h+='<div class="meta" style="margin:-6px 2px 12px;line-height:1.4">'+
+      '<b>Own money</b> does not reduce petty on board — it means <b>the boat owes you</b> until you tap <b>Repay</b> from petty. '+
+      'See <b>Outstanding pocket money out</b> below for Arianna / shop lines.'+
+    '</div>';
+  }
   /* Cash in */
   var startFieldVal=(petty.startMode&&petty.startMode!=="none")||Math.abs(pettyStart)>0.009||petty.startManual===true
     ?Math.max(0, pettyStart) /* never show poison negative as editable start */
