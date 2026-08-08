@@ -101,10 +101,14 @@ export function charterPriceFromEvent(ev) {
   var table = CHARTER_RATES[season] || CHARTER_RATES.low;
   var days = charterCalendarDays(start, end, !!ev.allDay, ev.days);
   var sum = String(ev.summary || "");
+  /* Real clock span wins when present — stale "6h" in the title must not
+   * keep pricing/duration at 6 after the manager moved the event to 12–20. */
   var hours = hoursBetweenTimes(ev.startTime, ev.endTime);
-  if (/\b4\s*h(our)?s?\b/i.test(sum) || /\bhalf[-\s]?day\b/i.test(sum)) hours = 4;
-  else if (/\b6\s*h(our)?s?\b/i.test(sum)) hours = 6;
-  else if (/\b8\s*h(our)?s?\b/i.test(sum) || /\bfull[-\s]?day\b/i.test(sum)) hours = 8;
+  if (hours == null) {
+    if (/\b4\s*h(our)?s?\b/i.test(sum) || /\bhalf[-\s]?day\b/i.test(sum)) hours = 4;
+    else if (/\b6\s*h(our)?s?\b/i.test(sum)) hours = 6;
+    else if (/\b8\s*h(our)?s?\b/i.test(sum) || /\bfull[-\s]?day\b/i.test(sum)) hours = 8;
+  }
 
   var multi =
     days > 1 || /\b(overnight|overnights?|multi[-\s]?day|nights?)\b/i.test(sum);

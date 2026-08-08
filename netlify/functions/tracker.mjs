@@ -834,6 +834,25 @@ function stewAssignForLead(data, L) {
   return null;
 }
 
+/**
+ * Infer day-charter dur band (4h/6h/8h) from a clock span.
+ * Returns "" when multi / unknown / all-day.
+ */
+function durFromClockTimes(startTime, endTime, startYmd, endYmd) {
+  const st = normClock(startTime);
+  const et = normClock(endTime);
+  if (!st || !et) return "";
+  const priced = LY.charterPriceFromEvent({
+    start: String(startYmd || "").slice(0, 10) || "2026-01-01",
+    end: String(endYmd || startYmd || "").slice(0, 10),
+    startTime: st,
+    endTime: et,
+    summary: "", /* clock only — ignore stale title */
+  });
+  if (!priced || !priced.dur || priced.dur === "multi") return "";
+  return priced.dur;
+}
+
 /** Write accepted clock times onto lead + matching stewAssign. */
 function applyTimesToLeadAndAssign(data, L, times, now) {
   if (!L || !times) return;
@@ -843,10 +862,28 @@ function applyTimesToLeadAndAssign(data, L, times, now) {
   L.startTime = allDay ? "" : st;
   L.endTime = allDay ? "" : et;
   L.allDay = allDay;
+  /*
+   * Duration must follow the real clock. Time-only ICS applies used to leave
+   * lead.dur stuck (e.g. 6h while calendar is 12:00–20:00 → 8h).
+   * Only rewrite day-charter bands — multi-day stays on its date span.
+   */
+  const curDur = String(L.dur || "")
+    .toLowerCase()
+    .trim();
+  if (!allDay && st && et && curDur !== "multi") {
+    const fromClock = durFromClockTimes(
+      st,
+      et,
+      L.start || times.start,
+      L.end || times.end || L.start || times.start
+    );
+    if (fromClock) L.dur = fromClock;
+  }
   L.icsTimeConflict = false;
   L.icsProposedStartTime = "";
   L.icsProposedEndTime = "";
   L.icsProposedAllDay = "";
+  L.icsProposedDur = "";
   L.updatedAt = now;
   const asg = stewAssignForLead(data, L);
   if (asg) {
@@ -1123,6 +1160,35 @@ function syncNewIcsLeads(data, events, who, now) {
         String(L.status || "").toLowerCase() === "tentative";
 
       if (!dateChanged && !timeChanged && !clearedToAllDay && L.start) {
+        /*
+         * Times already match but duration may still be stale (e.g. lead.dur
+         * left at 6h after an earlier time-only sync that only wrote clocks).
+         * Heal silently — only expand/fill the band, never shrink a longer
+         * sold product just because the calendar window is shorter (12–18 on
+         * an 8h deal is common). Extension 6h→8h when clock is 12–20 is the
+         * case we must fix.
+         */
+        if (icsHasClock && nextST && nextET) {
+          const curDur = String(L.dur || "")
+            .toLowerCase()
+            .trim();
+          if (curDur !== "multi") {
+            const fromClock = durFromClockTimes(
+              nextST,
+              nextET,
+              d.start || L.start,
+              d.end || L.end || d.start || L.start
+            );
+            const bandH = { "4h": 4, "6h": 6, "8h": 8 };
+            const curH = bandH[curDur] || 0;
+            const nextH = bandH[fromClock] || 0;
+            if (fromClock && fromClock !== curDur && nextH > curH) {
+              L.dur = fromClock;
+              L.updatedAt = now;
+              autoMoved++;
+            }
+          }
+        }
         return;
       }
 
@@ -1199,11 +1265,25 @@ function syncNewIcsLeads(data, events, who, now) {
         /*
          * Same day, different clock — temporary calendar times often leave
          * wrong roster hours. Captain chooses: use calendar or keep app.
+         * Stage proposed dur so accept also rewrites the hours band.
          */
         L.icsTimeConflict = true;
         L.icsProposedStartTime = nextST;
         L.icsProposedEndTime = nextET;
         L.icsProposedAllDay = nextAllDay ? "1" : "0";
+        if (!nextAllDay && nextST && nextET) {
+          L.icsProposedDur =
+            durFromClockTimes(
+              nextST,
+              nextET,
+              d.start || L.start,
+              d.end || L.end || d.start || L.start
+            ) ||
+            (d.priced && d.priced.dur) ||
+            "";
+        } else {
+          L.icsProposedDur = (d.priced && d.priced.dur) || "";
+        }
         L.updatedAt = now;
         timeMoves.push({
           leadId: L.id,
@@ -1216,6 +1296,7 @@ function syncNewIcsLeads(data, events, who, now) {
           toStartTime: nextST,
           toEndTime: nextET,
           toAllDay: nextAllDay,
+          proposedDur: L.icsProposedDur || "",
           eventKey: ek,
         });
       }
