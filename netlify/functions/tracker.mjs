@@ -2206,9 +2206,13 @@ export default async (req, context) => {
       out.expenses = Array.isArray(data.expenses) ? data.expenses : [];
       out.expPetty = Array.isArray(data.expPetty) ? data.expPetty : [];
     } else {
-      out.apa = null;
       out.expenses = null;
       out.expPetty = null;
+      /*
+       * Manager needs APA pots for the Diesel tank ledger only (trip fuel is
+       * virtual from apa.diesel). UI still blocks APA tab / saves for manager.
+       */
+      out.apa = dieselOk ? filterApaDeletedRows(data, data.apa) : null;
     }
     if (dieselOk) {
       out.diesel = Array.isArray(data.diesel) ? data.diesel : [];
