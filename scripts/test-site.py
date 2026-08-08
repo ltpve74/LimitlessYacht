@@ -309,6 +309,19 @@ def check_html(r: Runner, rel: str, html: str) -> None:
 
     r.check('.form-col-wa WhatsApp button inside form column', 'form-col-wa' in html)
 
+    # WhatsApp soft-conversion system (floating CTA + booked-date capture)
+    r.check('ly-wa-softconvert script present', 'id="ly-wa-softconvert"' in html)
+    r.check(
+        'soft-conversion fires owner-gated Clarity events via LY_clarityEvent',
+        'window.LY_clarityEvent' in html
+        and all(e in html for e in ('ly_wa_fab_click', 'ly_cal_booked_tap',
+            'ly_cal_booked_whatsapp', 'ly_cal_show_open_dates')),
+    )
+    r.check(
+        'soft-conversion only intercepts booked (not on-hold/free) dates',
+        "classList.contains(\"booked\")" in html,
+    )
+
     # Contact form
     form_tag_m = re.search(r'<form\b[^>]*id="contactForm"[^>]*>', html)
     form_tag = form_tag_m.group(0) if form_tag_m else ''
