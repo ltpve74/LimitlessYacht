@@ -7547,6 +7547,8 @@ function deleteApaTrip(id){
   save("apa"); save("charters");
   renderCharters(); renderApa();
   if(curTab==="expenses") renderExpenses();
+  /* Whole pot gone → all its fuel must leave Diesel Used / tank */
+  refreshDieselBoardFromApa();
 }
 function deleteApaLine(kind,lineId){
   var t=apaTrip(); if(!t||!lineId) return;
@@ -7580,6 +7582,7 @@ function deleteApaLine(kind,lineId){
   } else {
     if(!window.confirm("Delete this "+label+" entry?")) return;
   }
+  var isFuel=kind==="diesel"||kind==="dieselLoad";
   var saved=apaMutateTrip(t.id,function(trip){
     if(kind==="expense") trip.expenses=trip.expenses.filter(function(x){return String(x.id)!==String(lineId);});
     else if(kind==="provision") trip.provisions=trip.provisions.filter(function(x){return String(x.id)!==String(lineId);});
@@ -7588,6 +7591,8 @@ function deleteApaLine(kind,lineId){
   });
   /* force re-sync shortfall amount (or remove charge when spend/overage is gone) */
   if(saved) saveApa(saved, {force:true});
+  /* Belt: fuel delete must update Diesel board even if saveApa early-returned */
+  else if(isFuel) refreshDieselBoardFromApa();
 }
 /** Clients from leads + charges (for APA guest picker). */
 function listApaClients(){
@@ -8000,7 +8005,8 @@ function saveApa(trip, opts){
   if(leadDirty){ save("leads"); renderLeads(); }
   renderCharters();
   renderApa();
-  if(curTab==="diesel") renderDiesel();
+  /* APA fuel drives Diesel “Used (APA)” + est. on board — always re-sync, not only on Diesel tab */
+  refreshDieselBoardFromApa();
   refreshTodayAfterMoneyChange();
 }
 function openApaDetail(id, opts){
@@ -9143,25 +9149,48 @@ function dieselSettings(){
     row:s
   };
 }
+/**
+ * True for diesel-log rows that mirror APA trip fuel.
+ * APA use is always computed live from pots — these rows must not also hit the tank.
+ */
+function dieselIsApaMirrorLogRow(r){
+  if(!r) return false;
+  if(r.kind==="apa"||r.source==="apa") return true;
+  if(r.apaTripId||r.apaLineId) return true;
+  var id=String(r.id||"");
+  return id.indexOf("apa:")===0||id.indexOf("apa-dsl:")===0;
+}
 function dieselLogEntries(){
   dieselEnsure();
-  return state.diesel.filter(function(r){ return r&&r.kind&&r.kind!=="settings"; });
+  return state.diesel.filter(function(r){
+    if(!r||!r.kind||r.kind==="settings") return false;
+    /* Live APA consumption comes from dieselApaEvents only — drop ghost mirrors */
+    if(dieselIsApaMirrorLogRow(r)) return false;
+    return true;
+  });
 }
-/** APA trip consumption rows as virtual ledger events (read-only). Price = that trip’s sell €/L. */
+/**
+ * APA trip consumption as live ledger events (source of truth for Used / on-board).
+ * Always rebuilt from current state.apa.diesel — deleting a pot fuel line drops it here.
+ */
 function dieselApaEvents(){
   var out=[];
   (state.apa||[]).forEach(function(t){
-    if(!t) return;
+    if(!t||!t.id) return;
+    /* Tombstoned / deleted pots must not still burn tank litres */
+    if(typeof isTombstoned==="function"&&isTombstoned("apa", t.id)) return;
     apaEnsureArrays(t);
     var tripSell=apaDieselPrice(t);
     (t.diesel||[]).forEach(function(r){
+      if(!r) return;
+      if(!r.id) r.id=uid();
       var c=apaDieselCalc(t,r);
       if(c.lit<=0) return;
       /* Prefer rate used for the cost calc (manual cost → effective €/L) */
       var unit=c.price;
       if(c.cost>0&&c.lit>0&&apaNum(r.cost)>0) unit=Math.round((c.cost/c.lit)*10000)/10000;
       out.push({
-        id:"apa:"+t.id+":"+(r.id||""),
+        id:"apa:"+t.id+":"+r.id,
         date:r.date||"",
         kind:"apa",
         litres:c.lit,
@@ -9175,6 +9204,26 @@ function dieselApaEvents(){
     });
   });
   return out;
+}
+/**
+ * After APA fuel add/edit/delete: strip any stored APA-mirror log rows and
+ * re-paint the Diesel board so Est. on board / Used (APA) match the pot.
+ */
+function refreshDieselBoardFromApa(){
+  if(!canOps()) return;
+  try{
+    dieselEnsure();
+    var before=(state.diesel||[]).length;
+    state.diesel=(state.diesel||[]).filter(function(r){
+      if(!r) return false;
+      if(r.kind==="settings") return true;
+      return !dieselIsApaMirrorLogRow(r);
+    });
+    if((state.diesel||[]).length!==before){
+      try{ save("diesel"); }catch(eS){}
+    }
+  }catch(eP){}
+  try{ renderDiesel(); }catch(eR){}
 }
 function dieselKindOrder(k){
   if(k==="level") return 0;
