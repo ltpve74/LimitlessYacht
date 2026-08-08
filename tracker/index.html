@@ -226,6 +226,18 @@
   .exp-alert.short{background:#fdeeee;border:1.5px solid #f0b4b0;color:var(--danger)}
   .exp-alert.owe{background:#FFE8A3;border:1.5px solid #E0A800;color:var(--amberInk)}
   .exp-alert.ok{background:#eef8f1;border:1.5px solid #b8e0c4;color:#1a5c48}
+  /* Quiet chips on Expenses landing (paid boat short, compact still-owed) */
+  .exp-quiet{display:flex;align-items:center;justify-content:space-between;gap:10px;flex-wrap:wrap;
+    padding:8px 12px;margin:0 0 10px;border-radius:12px;font-size:13px;font-weight:600;
+    background:var(--card,#fff);border:1px solid var(--line);color:var(--muted)}
+  .exp-quiet .money{font-weight:800;color:var(--ink)}
+  .exp-quiet.paid{background:#f3f7f4;border-color:#cfe3d5;color:#3d6b55}
+  .exp-quiet.paid .money{color:#1a5c48}
+  .exp-quiet.open{background:#fff9eb;border-color:#f0d78a;color:var(--amberInk)}
+  .exp-owed-row{display:flex;justify-content:space-between;align-items:center;gap:10px;
+    padding:8px 0;border-top:1px solid var(--line);font-size:13.5px}
+  .exp-owed-row:first-of-type{border-top:none;padding-top:2px}
+  .exp-owed-row .exp-owed-name{font-weight:700;color:var(--ink)}
   /* Expenses stats: wrap in a 2-col grid (global .summary is single-row flex and overflows) */
   .exp-summary{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:14px;width:100%;max-width:100%;box-sizing:border-box}
   .exp-summary .sumcard{min-width:0;flex:none;padding:12px 12px;box-sizing:border-box}
@@ -12496,178 +12508,107 @@ function paintExpensesBody(){
   var booksBalance=S.booksBalance!=null?Number(S.booksBalance):0;
   var priorStartShort=apaNum(S.priorStartShort);
   var monthShort=apaNum(S.monthShort);
-  var h='<div class="legend">Captain-only. <b>Petty on board</b> = physical notes (never negative). <b>Brought-forward short</b> = last month’s boat hole — first cash-in pays it and reduces on board. <b>Still owed</b> = people (pocket / day pay / tips) until you repay. Free after still-owed = on board − people. Guest cash tips never enter petty.</div>';
+  var priorSettledAmt=apaNum(S.priorSettled);
+  var priorRemainAmt=apaNum(S.priorRemain);
+  var broughtFwdAmt=Math.max(apaNum(S.broughtForwardShort), apaNum(petty&&petty.broughtForwardShort), apaNum(S.priorStartShort));
+  var boatShortPaid=broughtFwdAmt>0.009&&priorSettledAmt>0.009&&!(priorRemainAmt>0.009);
+  var boatShortOpen=broughtFwdAmt>0.009&&priorRemainAmt>0.009;
+  /* Landing: numbers first, minimal copy */
+  var h='<div class="exp-landing">';
   h+='<div class="exp-month"><label class="meta" style="font-weight:700">Month</label>'+
     '<select class="ctl" id="expMonthSel">'+monthList.map(function(m){
       return '<option value="'+esc(m)+'"'+(m===expMonth?" selected":"")+'>'+esc(m)+'</option>';
     }).join("")+'</select>'+
-    '<button type="button" class="btn ghost" id="expExport" style="width:auto;padding:10px 14px">Export CSV</button>'+
-    '<button type="button" class="btn" id="expExportPdf" style="width:auto;padding:10px 14px" title="Cash only — no credit card. For manager & owner.">Export PDF</button>'+
+    '<button type="button" class="btn ghost" id="expExport" style="width:auto;padding:10px 14px">CSV</button>'+
+    '<button type="button" class="btn" id="expExportPdf" style="width:auto;padding:10px 14px" title="Cash only PDF">PDF</button>'+
   '</div>';
-  /* Hero: physical notes only (model pettyOnboard ≥ 0) */
-  var priorSettledAmt=apaNum(S.priorSettled);
-  var broughtFwdAmt=Math.max(apaNum(S.broughtForwardShort), apaNum(petty&&petty.broughtForwardShort), apaNum(S.priorStartShort));
-  h+='<div class="exp-alert '+(pettyPos?'ok':'ok')+'" style="margin-bottom:12px">'+
-    '<div style="font-weight:800">Petty cash · on board</div>'+
-    '<div class="money" style="font-size:32px;font-weight:800;margin-top:6px;color:'+
+  /* Hero: physical notes only */
+  h+='<div class="exp-alert ok" style="margin-bottom:10px">'+
+    '<div style="font-weight:800">On board</div>'+
+    '<div class="money" style="font-size:32px;font-weight:800;margin-top:4px;color:'+
       (pettyPos?'var(--greenInk,#1a5c48)':'inherit')+'">'+
       (pettyEntered?money(pettyCash):'—')+
     '</div>'+
-    '<div class="meta" style="margin-top:8px;line-height:1.5">'+
-      (pettyEntered
-        ?('Physical start <b class="money">'+money(S.physicalStart!=null?S.physicalStart:Math.max(0,pettyStart))+'</b>'+
-          ' + cash in <b class="money">'+money(cashInTotal)+'</b>'+
-          (priorSettledAmt>0.009?' − brought-forward short paid <b class="money">'+money(priorSettledAmt)+'</b>':'')+
-          ' − cash out <b class="money">'+money(Math.max(0, cashOut-priorSettledAmt))+'</b>'+
-          (pettyPos?' · notes in the envelope':' · empty (cannot go below €0)'))
-        :'Set <b>start</b> and add <b>cash in</b> below. Petty only moves when you log cash in or cash out.')+
-    '</div>'+
+    (pettyEntered
+      ?'<div class="meta" style="margin-top:6px">'+
+          money(S.physicalStart!=null?S.physicalStart:Math.max(0,pettyStart))+
+          ' start · +'+money(cashInTotal)+' in · −'+money(Math.max(0, cashOut-priorSettledAmt))+' out'+
+          (priorSettledAmt>0.009?' · −'+money(priorSettledAmt)+' short paid':'')+
+        '</div>'
+      :'<div class="meta" style="margin-top:6px">Set start + cash in below</div>')+
   '</div>';
-  /* Brought-forward boat short (prior month hole) — paid from first cash-in */
-  if(broughtFwdAmt>0.009||priorSettledAmt>0.009||apaNum(S.priorRemain)>0.009){
-    h+='<div class="exp-alert owe" style="margin-bottom:12px" id="expBroughtForwardCard">'+
-      '<div style="font-weight:800;margin-bottom:6px">Brought forward · boat short</div>'+
-      '<div class="money" style="font-size:24px;font-weight:800;color:var(--danger)">−'+
-        money(Math.max(broughtFwdAmt, apaNum(S.priorStartShort)||0))+
-      '</div>'+
-      '<div class="meta" style="margin-top:8px;line-height:1.45">'+
-        'Last month finished with no (or not enough) cash while the boat was short on the books. '+
-        'That hole carries into this month. <b>New cash-in pays it first</b> and reduces petty on board.'+
-        (priorSettledAmt>0.009
-          ?(' Already paid from this month’s cash: <b class="money">'+money(priorSettledAmt)+'</b>.')
-          :'')+
-        (apaNum(S.priorRemain)>0.009
-          ?(' Still to cover with cash-in: <b class="money">'+money(S.priorRemain)+'</b>.')
-          :(priorSettledAmt>0.009?' Hole closed this month.':''))+
-      '</div>'+
-    '</div>';
+  /*
+   * Boat short at month open — quiet when already paid from cash-in.
+   * Only open remain uses a stronger chip.
+   */
+  if(boatShortPaid||boatShortOpen||(broughtFwdAmt>0.009&&priorSettledAmt>0.009)){
+    if(boatShortPaid||(priorSettledAmt>0.009&&!(priorRemainAmt>0.009))){
+      h+='<div class="exp-quiet paid" id="expBroughtForwardCard">'+
+        '<span>Boat short (start of month) <span class="pill p-green" style="margin-left:6px">Paid</span></span>'+
+        '<span class="money">−'+money(priorSettledAmt>0.009?priorSettledAmt:broughtFwdAmt)+'</span>'+
+      '</div>';
+    } else {
+      h+='<div class="exp-quiet open" id="expBroughtForwardCard">'+
+        '<span>Boat short left</span>'+
+        '<span class="money">−'+money(priorRemainAmt>0.009?priorRemainAmt:broughtFwdAmt)+'</span>'+
+      '</div>';
+    }
   }
-  /* Short = separate books number — never shown as “negative petty”. Model lists sources. */
+  /* Books short — compact, only if still open */
   if(shortAmt>0.009){
     var shortLines=S.shortLines||[];
-    h+='<div class="exp-alert owe" style="margin-bottom:12px" id="expBooksShortCard">'+
-      '<div style="font-weight:800;margin-bottom:6px">Books short (not physical cash)</div>'+
-      '<div class="money" style="font-size:28px;font-weight:800;color:var(--danger)">−'+money(shortAmt)+'</div>'+
-      '<div class="meta" style="margin-top:8px;line-height:1.45">'+
-        'Physical on board stays <b class="money">'+money(pettyCash)+'</b>. '+
-        'Equation: physical start <b class="money">'+money(S.physicalStart!=null?S.physicalStart:0)+'</b>'+
-        ' + cash in <b class="money">'+money(cashInTotal)+'</b>'+
-        ' − cash out <b class="money">'+money(cashOut)+'</b>'+
-        ' → books <b class="money">'+(booksBalance<-0.009?"−"+money(Math.abs(booksBalance)):money(booksBalance))+'</b>.'+
-        (apaNum(pettyStart)<-0.009
-          ?(' Stored start field is still <b class="money">−'+money(Math.abs(pettyStart))+'</b> (poison — not notes).')
-          :'')+
+    h+='<div class="exp-alert short" style="margin-bottom:10px;padding:10px 12px" id="expBooksShortCard">'+
+      '<div style="display:flex;justify-content:space-between;align-items:center;gap:10px">'+
+        '<span style="font-weight:800">Books short</span>'+
+        '<b class="money" style="color:var(--danger)">−'+money(shortAmt)+'</b>'+
       '</div>';
     if(shortLines.length){
-      h+='<div style="margin-top:12px;padding-top:10px;border-top:1px solid var(--line)">'+
-        '<div style="font-weight:800;font-size:13px;margin-bottom:8px">Where the short comes from</div>';
-      shortLines.forEach(function(row){
+      shortLines.slice(0,4).forEach(function(row){
         if(!row||!(apaNum(row.amount)>0.009)) return;
-        var kindLab=row.kind==="prior-start"?"Poison start"
-          :(row.kind==="crew"?"Crew · petty"
-          :(row.kind==="reimburse"?"Repay":"Expense"));
-        var kindPill=row.kind==="prior-start"?"p-red"
-          :(row.kind==="crew"?"p-amber":"p-cash");
-        var dStr=row.date?String(row.date).slice(0,10):"";
-        var dLab="";
-        try{ dLab=dStr&&/^\d{4}-\d{2}-\d{2}$/.test(dStr)?fmtDate(dStr):dStr; }catch(eD){ dLab=dStr; }
-        var detail="";
-        if(row.kind!=="prior-start"&&row.fullAmount!=null&&apaNum(row.fullAmount)>apaNum(row.amount)+0.009){
-          detail=' <span class="meta">(line '+money(row.fullAmount)+' · only '+money(row.covered||0)+' was in the envelope)</span>';
-        }
-        h+='<div style="display:flex;justify-content:space-between;align-items:flex-start;gap:10px;margin-top:8px'+(row.id?';cursor:pointer':'')+'"'+(row.id?' data-exp-id="'+esc(row.id)+'" role="button" tabindex="0"':'')+'>'+
-          '<div style="min-width:0">'+
-            '<div style="font-weight:700">'+esc(row.label||kindLab)+'</div>'+
-            '<div class="meta" style="margin-top:4px">'+
-              '<span class="pill '+kindPill+'">'+esc(kindLab)+'</span>'+
-              (dLab?'<span>📅 '+esc(dLab)+'</span>':'')+
-              detail+
-            '</div>'+
-          '</div>'+
-          '<b class="money" style="color:var(--danger);flex-shrink:0">−'+money0(row.amount)+'</b>'+
-        '</div>';
+        h+='<div class="meta" style="margin-top:6px;display:flex;justify-content:space-between;gap:8px">'+
+          '<span>'+esc(row.label||"Short")+'</span>'+
+          '<span class="money">−'+money0(row.amount)+'</span></div>';
       });
-      h+='<div class="meta" style="margin-top:10px;line-height:1.4">'+
-        'Tap a crew/expense line to open it. If cash never left the envelope, mark that day pay <b>Prior / not this pot</b> (clears floatPay). '+
-        'Poison start clears when you open Expenses (heal) or set start to physical €0 and Save start.'+
-      '</div></div>';
     }
     h+='</div>';
   }
-  /* Owed list: pocket + day pay (cross-month) + on-bill tips — separate from physical petty */
+  /* Still owed — one line per person, no long explanations */
   if(owedPeople.length){
-    h+='<div class="exp-alert owe" id="expBoatOwesCard" style="margin-bottom:12px">'+
-      '<div style="font-weight:800;margin-bottom:6px">Still owed (not on-board cash yet)</div>'+
-      '<div class="meta" style="margin-bottom:8px">Open day pay (incl. prior months), pocket reimbursements, and <b>on-bill tips by person</b> (Captain / Laura / …). Pay day pay &amp; tips from <b>Stews</b> when cash-rich — tip payout becomes petty cash out.</div>';
+    h+='<div class="exp-alert owe" id="expBoatOwesCard" style="margin-bottom:10px;padding:10px 12px">'+
+      '<div style="display:flex;justify-content:space-between;align-items:baseline;gap:10px;margin-bottom:4px">'+
+        '<span style="font-weight:800">Still owed</span>'+
+        '<b class="money">'+money(peopleOwed)+'</b>'+
+      '</div>';
     owedPeople.forEach(function(row){
       var kindPill=row.kind==="crew"?'p-amber':(row.kind==="tip"?'p-cash':'p-own');
-      var kindLab=row.kind==="crew"?"Day pay"
-        :(row.kind==="tip"
-          ?(row.tipRole==="captain"?"Tips · your share":"Tips · still owed")
-          :"Pocket");
-      h+='<div style="margin-top:10px;padding-top:10px;border-top:1px solid var(--line)">'+
-        '<div style="display:flex;justify-content:space-between;align-items:center;gap:10px;flex-wrap:wrap">'+
-          '<div><b>'+esc(row.name)+'</b> <span class="pill '+kindPill+'">'+esc(kindLab)+'</span></div>'+
-          '<div style="display:flex;align-items:center;gap:8px">'+
-            '<b class="money">'+money(row.amount)+'</b>'+
-            (row.kind==="pocket"&&row.id
-              ?'<button type="button" class="btn" data-exp-reimburse="'+esc(row.id)+'" data-exp-reimburse-amt="'+esc(String(row.amount))+'" data-exp-reimburse-name="'+esc(row.name)+'" style="width:auto;padding:6px 10px;font-size:12px">Repay</button>'
-              :'')+
-            (row.kind==="tip"&&isCaptain()
-              ?'<span class="meta" style="font-size:12px">Pay from Stews</span>'
-              :'')+
-          '</div></div>';
-      if(row.items&&row.items.length){
-        row.items.forEach(function(it){
-          var dStr=String(it.date||"").slice(0,10);
-          var dLab="";
-          try{ dLab=dStr&&/^\d{4}-\d{2}-\d{2}$/.test(dStr)?fmtDate(dStr):dStr; }catch(eD){ dLab=dStr; }
-          var prior=it.month&&it.month!==expMonth?'<span class="pill p-grey">'+esc(it.month)+'</span>':'';
-          /* Tip item: show share amount + who when available */
-          var shareBits=[];
-          if(row.kind==="tip"&&it.shares&&it.shares.length){
-            it.shares.forEach(function(sh){
-              if(sh&&apaNum(sh.amount)>0.009) shareBits.push((sh.who||"?")+": "+money0(sh.amount));
-            });
-          } else if(row.kind==="tip"&&(apaNum(it.tipCaptain)>0||apaNum(it.tipEach)>0)){
-            if(apaNum(it.tipCaptain)>0) shareBits.push("Captain: "+money0(it.tipCaptain));
-            (it.stewNames||[]).forEach(function(nm){
-              if(apaNum(it.tipEach)>0) shareBits.push(nm+": "+money0(it.tipEach));
-            });
-          }
-          h+='<div class="meta" style="margin-top:6px;display:flex;justify-content:space-between;gap:8px;flex-wrap:wrap">'+
-            '<span>'+(dLab?'📅 '+esc(dLab)+' · ':'')+esc(it.label||it.summary||"")+' '+prior+
-              (shareBits.length?' <span style="display:block;margin-top:2px;color:var(--amberDeep);font-weight:600">Owe · '+esc(shareBits.join(" · "))+'</span>':'')+
-            '</span>'+
-            '<span class="money" style="font-weight:700">'+money0(it.amount)+'</span>'+
-          '</div>';
-        });
-      }
-      h+='</div>';
+      var kindLab=row.kind==="crew"?"Day pay":(row.kind==="tip"?"Tips":"Pocket");
+      var n=row.name||"—";
+      if(n==="Captain (you)") n="Captain";
+      h+='<div class="exp-owed-row">'+
+        '<span><span class="exp-owed-name">'+esc(n)+'</span> <span class="pill '+kindPill+'">'+esc(kindLab)+'</span></span>'+
+        '<span style="display:flex;align-items:center;gap:8px">'+
+          '<b class="money">'+money(row.amount)+'</b>'+
+          (row.kind==="pocket"&&row.id
+            ?'<button type="button" class="btn" data-exp-reimburse="'+esc(row.id)+'" data-exp-reimburse-amt="'+esc(String(row.amount))+'" data-exp-reimburse-name="'+esc(row.name)+'" style="width:auto;padding:5px 10px;font-size:12px">Repay</button>'
+            :'')+
+        '</span>'+
+      '</div>';
     });
-    h+='<div class="meta" style="margin-top:10px;padding-top:8px;border-top:1px solid var(--line)">Total still owed <b class="money">'+money(peopleOwed)+'</b>'+
-      (oweCrew>0.009?' · day pay '+money(oweCrew):'')+
-      (oweTips>0.009?' · tips on bill '+money(oweTips):'')+
-      (pocketOutTot>0.009?' · pocket '+money(pocketOutTot):'')+
-    '</div>';
     h+='</div>';
-  } else if(pettyEntered&&!(shortAmt>0.009)){
-    h+='<div class="exp-alert ok" style="margin-bottom:12px"><b>All clear</b> — no open day-pay or pocket debts'+(pettyPos?' · '+money(pettyCash)+' on board':(pettyZero?' · petty empty':''))+'.</div>';
   }
-  /* Compact strip — physical + short + free after people */
+  /* Compact strip */
   var freeAfterOwed=Math.round((Math.max(0, pettyCash)-peopleOwed)*100)/100;
   if(freeAfterOwed<0) freeAfterOwed=0;
-  /* Captain pocket still open (own-money day-pay / shops not yet repaid from petty) */
   var captPocketOpen=0;
   pocketGroups.forEach(function(g){
     if(g&&String(g.id)===String(EXP_POCKET_CAPTAIN)) captPocketOpen=apaNum(g.owed);
   });
   h+='<div class="exp-summary">'+
-    '<div class="sumcard'+(pettyPos?' sum-ok':'')+'"><div class="l">Petty on board</div><div class="v money">'+(pettyEntered?money(pettyCash):'—')+'</div></div>'+
+    '<div class="sumcard'+(pettyPos?' sum-ok':'')+'"><div class="l">On board</div><div class="v money">'+(pettyEntered?money(pettyCash):'—')+'</div></div>'+
     '<div class="sumcard"><div class="l">Cash in</div><div class="v money">'+money(cashInTotal)+'</div></div>'+
     '<div class="sumcard"><div class="l">Cash out</div><div class="v money">'+money(cashOut)+'</div></div>'+
     (captPocketOpen>0.009
-      ?'<div class="sumcard sum-warn"><div class="l">Your pocket · boat owes you</div><div class="v money">'+money(captPocketOpen)+'</div></div>'
+      ?'<div class="sumcard sum-warn"><div class="l">Your pocket</div><div class="v money">'+money(captPocketOpen)+'</div></div>'
       :'')+
     (shortAmt>0.009
       ?'<div class="sumcard sum-danger"><div class="l">Books short</div><div class="v money">'+money(shortAmt)+'</div></div>'
@@ -12679,29 +12620,16 @@ function paintExpensesBody(){
       ?'<div class="sumcard'+(freeAfterOwed>0.009?' sum-ok':'')+'"><div class="l">Free after owed</div><div class="v money">'+money(freeAfterOwed)+'</div></div>'
       :'')+
   '</div>';
-  if(captPocketOpen>0.009){
-    h+='<div class="meta" style="margin:-6px 2px 12px;line-height:1.4">'+
-      '<b>Own money</b> does not reduce petty on board — it means <b>the boat owes you</b> until you tap <b>Repay</b> from petty. '+
-      'See <b>Outstanding pocket money out</b> below for Arianna / shop lines.'+
-    '</div>';
-  }
+  h+='</div>'; /* .exp-landing */
   /* Cash in */
   var startFieldVal=(petty.startMode&&petty.startMode!=="none")||Math.abs(pettyStart)>0.009||petty.startManual===true
     ?Math.max(0, pettyStart) /* never show poison negative as editable start */
     :"";
   var startHint="";
   if(petty.startMode==="carry"&&petty.carriedFrom){
-    startHint='<div class="meta" style="margin:6px 0 0;line-height:1.45">Start <b>carried from '+esc(petty.carriedFrom)+'</b> physical close ('+
-      money(Math.max(0, pettyStart))+
-      ')'+
-      (broughtFwdAmt>0.009?' · boat short brought forward <b class="money">−'+money(broughtFwdAmt)+'</b> (paid from first cash-in)':'')+
-      '. Tap <b>Save start</b> to lock a manual figure.</div>';
+    startHint='<div class="meta" style="margin:6px 0 0">From '+esc(petty.carriedFrom)+' · '+money(Math.max(0, pettyStart))+'</div>';
   } else if(petty.startMode==="manual"||petty.startManual===true){
-    startHint='<div class="meta" style="margin:6px 0 0">Start is <b>manual</b> (not auto-carried)'+
-      (broughtFwdAmt>0.009?' · boat short brought forward <b class="money">−'+money(broughtFwdAmt)+'</b>':'')+
-      '.</div>';
-  } else {
-    startHint='<div class="meta" style="margin:6px 0 0">Set start, or it takes last month’s <b>physical</b> close (never negative). Prior boat short carries separately and is paid from first cash-in.</div>';
+    startHint='<div class="meta" style="margin:6px 0 0">Manual start</div>';
   }
   h+='<div class="apa-card" style="margin-bottom:12px">'+
     '<div style="font-weight:800;margin-bottom:8px">Cash in · '+esc(expMonth)+'</div>'+
@@ -12709,10 +12637,9 @@ function paintExpensesBody(){
     startHint+
     '<button type="button" class="btn ghost" id="expPettySave" style="width:auto;margin-top:4px;padding:10px 14px">Save start</button>'+
     '<div class="apa-sect-h" style="margin:14px 0 8px"><h3 style="font-size:13px">Lines</h3>'+
-      '<button type="button" class="btn" id="expCashInAdd" style="width:auto;padding:8px 12px;font-size:13px">Add cash in</button></div>'+
-    '<p class="meta" style="margin:0 0 8px"><b>Charter fee (cash)</b> = split free cash from the deal. <b>End of charter</b> = APA shortfall / extra hours / settlement cash from Charges. Top-ups are your own money. Tips are not cash in.</p>';
+      '<button type="button" class="btn" id="expCashInAdd" style="width:auto;padding:8px 12px;font-size:13px">Add cash in</button></div>';
   if(!cashIns.length){
-    h+='<div class="meta" style="margin-bottom:8px">No cash-in lines yet.</div>';
+    h+='<div class="meta" style="margin-bottom:8px">None yet</div>';
   } else {
     h+='<div class="list" style="margin-bottom:8px">';
     cashIns.slice().sort(function(a,b){ return String(b.date||"").localeCompare(String(a.date||"")); }).forEach(function(r){
@@ -12730,26 +12657,18 @@ function paintExpensesBody(){
         '<span class="chev">✎</span></div>';
     });
     h+='</div>';
-    h+='<div class="meta">'+cashIns.length+' line'+(cashIns.length===1?"":"s")+' · <b class="money">'+money(cashInTotal)+'</b></div>';
+    h+='<div class="meta">'+cashIns.length+' · <b class="money">'+money(cashInTotal)+'</b></div>';
   }
   if(tipCashIns.length){
-    h+='<div class="meta" style="margin-top:10px;padding-top:8px;border-top:1px solid var(--line);line-height:1.45">'+
-      tipCashIns.length+' old <b>tip</b> cash-in line'+(tipCashIns.length===1?"":"s")+' ('+money(S.tipCashInTotal||0)+') are <b>ignored for petty</b> — delete if leftover, or leave; tips belong on Stews.'+
-    '</div>';
+    h+='<div class="meta" style="margin-top:8px">'+tipCashIns.length+' tip line'+(tipCashIns.length===1?"":"s")+' ignored for petty</div>';
   }
   h+='</div>';
-  /* Cash out audit — only lines that actually reduced physical petty */
-  var outs=S.cashOutLines||[];
+  /* Cash out audit — skip virtual prior-short (shown as quiet chip above) */
+  var outs=(S.cashOutLines||[]).filter(function(row){ return row&&!row.virtual; });
   h+='<div class="apa-card" style="margin-bottom:12px">'+
-    '<div style="font-weight:800;margin-bottom:6px">Cash out · left the envelope</div>'+
-    '<div class="meta" style="margin-bottom:8px">Only these lines subtract from <b>petty on board</b>. '+
-      'Labels show <b>why</b> money left: your commission, pocket reimbursement, crew day pay, tip payout, or shop. '+
-      'Physical available <b class="money">'+money(cashInHand)+'</b> − out <b class="money">'+money(cashOut)+'</b> → on board <b class="money">'+money(pettyCash)+'</b>'+
-      (shortAmt>0.009?' · books short <b class="money">'+money(shortAmt)+'</b>':'')+
-      '.'+
-    '</div>';
+    '<div style="font-weight:800;margin-bottom:8px">Cash out · '+money(cashOut)+'</div>';
   if(!outs.length){
-    h+='<div class="meta">None this month — petty = start + cash in only.</div>';
+    h+='<div class="meta">None this month</div>';
   } else {
     h+='<div class="list" style="margin:0">';
     outs.slice().forEach(function(row){
@@ -12758,11 +12677,11 @@ function paintExpensesBody(){
       try{ dLab=dStr&&/^\d{4}-\d{2}-\d{2}$/.test(dStr)?fmtDate(dStr):dStr; }catch(eD){ dLab=dStr; }
       var purpose=row.purpose||row.kind||"expense";
       var purposeLab=row.purposeLabel||(
-        purpose==="commission"?"Your commission":
-        purpose==="reimburse"?"Reimbursement":
-        purpose==="daypay"||purpose==="crew"?"Crew day pay":
-        purpose==="tip-payout"||purpose==="tip"?"Crew tip payout":
-        "Boat expense");
+        purpose==="commission"?"Commission":
+        purpose==="reimburse"?"Repay":
+        purpose==="daypay"||purpose==="crew"?"Day pay":
+        purpose==="tip-payout"||purpose==="tip"?"Tips":
+        "Expense");
       var pillCls=
         purpose==="commission"?"p-blue":
         purpose==="reimburse"?"p-own":
@@ -12775,20 +12694,20 @@ function paintExpensesBody(){
         '<div class="meta">'+
           (dLab?'<span>📅 '+esc(dLab)+'</span>':'')+
           '<span class="pill '+pillCls+'">'+esc(purposeLab)+'</span>'+
-          '<span class="pill p-cash">Petty out</span>'+
         '</div>'+
-        (row.detail?'<div class="notes" style="font-style:normal;margin-top:4px;font-size:12.5px;color:var(--muted)">'+esc(row.detail)+'</div>':'')+
       '</div>';
     });
     h+='</div>';
   }
   h+='</div>';
-  /* Outstanding pocket list (pocketGroups built above — cross-month open) */
+  /* Outstanding pocket (compact) */
   h+='<div class="apa-card" style="margin-bottom:12px" id="expOutstandingPocket">'+
-    '<div style="font-weight:800;margin-bottom:6px">Outstanding pocket money out</div>'+
-    '<div class="meta" style="margin-bottom:8px">Still to be repaid through <b>'+esc(expMonth)+'</b> (includes earlier months). Newest first. Total <b class="money">'+money(pocketOutTot)+'</b>.</div>';
+    '<div style="display:flex;justify-content:space-between;align-items:baseline;gap:10px;margin-bottom:6px">'+
+      '<span style="font-weight:800">Pocket out</span>'+
+      '<b class="money">'+money(pocketOutTot)+'</b>'+
+    '</div>';
   if(!pocketGroups.length){
-    h+='<div class="meta">Nothing outstanding — all pocket outs repaid.</div>';
+    h+='<div class="meta">None</div>';
   } else {
     pocketGroups.forEach(function(g){
       h+='<div style="margin-top:12px;padding-top:12px;border-top:1px solid var(--line)">'+
