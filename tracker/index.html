@@ -7452,15 +7452,17 @@ function applyApaShortfallPlan(t, shortfall){
     if(!String(ch.client||"").trim()) ch.client=t.guest;
     return ch;
   }
-  /* Unpaid shortfall with no overage left (deleted last diesel) — drop Charges row */
+  /* Unpaid shortfall with no overage left (deleted last diesel) — drop Charges row.
+   * Also used for owner’s days: drop unpaid guest shortfall while fuel stays on pot. */
   if(act==="remove"){
     if(ch&&!chargeIsLockedMoney(ch)){
       try{ voidDeletedId("charters", ch.id); }catch(eR){}
       state.charters=(state.charters||[]).filter(function(c){ return !c||String(c.id)!==String(ch.id); });
     }
     t.chargeId="";
-    /* Spend cleared by captain — not a “deleted charge while still owing” suppress */
+    /* Spend cleared → allow future shortfall. Still owing (owner days) → suppress auto-recreate. */
     if(over<=0) t.suppressShortfallCharge=false;
+    else if(shortfall.reason==="owner_days_unpaid") t.suppressShortfallCharge=true;
     try{ syncLeadApaInvoiceAmount(t, 0); }catch(eL){}
     return null;
   }
@@ -7542,9 +7544,11 @@ function syncApaToCharge(t, opts){
   }
   var plan=LY_CONTROLLERS.apa.planSaveTrip(apaControllerSnapshot({
     trip:t,
+    lead:apaLinkedLead(t),
     force:opts.force!==false,
     allowCreate:!!opts.allowCreate,
     firstShortfall:!!opts.firstShortfall,
+    allowOwnerShortfall:!!opts.allowOwnerShortfall,
     paidCovered:apaPaidCovered(t),
     cashSettled:apaIsCashSettled(t),
     overage:apaOverageAmount(t)
@@ -9221,6 +9225,42 @@ function dieselLogEntries(){
   });
 }
 /**
+ * Whether APA pot fuel should count as guest-charged money in Diesel.
+ * Litres always burn the tank; money (out value / last charged) only when the
+ * shortfall is Paid — owner’s days are generally not guest-invoiced.
+ */
+function apaFuelMoneyStatus(t){
+  var out={ ownerDays:false, paid:false, moneyCounts:false, label:"APA", payStatus:"" };
+  if(!t) return out;
+  var lead=null;
+  try{ lead=apaLinkedLead(t); }catch(eL){}
+  if(lead&&typeof isOwnerLead==="function"&&isOwnerLead(lead)){
+    out.ownerDays=true;
+    out.label="Owner";
+    out.payStatus="owner";
+    out.moneyCounts=false;
+    return out;
+  }
+  if(lead&&LY_MODELS&&LY_MODELS.isOwnerLead&&LY_MODELS.isOwnerLead(lead)){
+    out.ownerDays=true;
+    out.label="Owner";
+    out.payStatus="owner";
+    out.moneyCounts=false;
+    return out;
+  }
+  var ch=null;
+  try{ ch=findApaChargeForTrip(t); }catch(eC){}
+  var paid=false;
+  if(ch&&typeof chargePay==="function"&&chargePay(ch)==="Paid") paid=true;
+  else if(ch&&(ch.payStatus==="Paid"||ch.status==="Paid")) paid=true;
+  try{ if(apaIsCashSettled(t)) paid=true; }catch(eS){}
+  out.paid=paid;
+  out.moneyCounts=paid;
+  out.payStatus=paid?"Paid":(ch?"Unpaid":"No charge");
+  out.label=paid?"APA · Paid":(ch?"APA · Unpaid":"APA");
+  return out;
+}
+/**
  * APA trip consumption as live ledger events (source of truth for Used / on-board).
  * Always rebuilt from current state.apa.diesel — deleting a pot fuel line drops it here.
  */
@@ -9232,6 +9272,7 @@ function dieselApaEvents(){
     if(typeof isTombstoned==="function"&&isTombstoned("apa", t.id)) return;
     apaEnsureArrays(t);
     var tripSell=apaDieselPrice(t);
+    var moneySt=apaFuelMoneyStatus(t);
     (t.diesel||[]).forEach(function(r){
       if(!r) return;
       if(!r.id) r.id=uid();
@@ -9250,7 +9291,11 @@ function dieselApaEvents(){
         notes:r.notes||"",
         source:"apa",
         price:unit>0?unit:tripSell,
-        lineEuro:c.cost
+        lineEuro:c.cost,
+        moneyCounts:!!moneySt.moneyCounts,
+        ownerDays:!!moneySt.ownerDays,
+        payStatus:moneySt.payStatus||"",
+        payLabel:moneySt.label||"APA"
       });
     });
   });
@@ -9350,26 +9395,42 @@ function dieselLedger(){
       /* Prefer trip’s stored rate (history). Fall back to walk active sell */
       var ap=ev.price!=null&&ev.price>0?ev.price:walkSell;
       var euro=ev.lineEuro!=null&&ev.lineEuro>0?ev.lineEuro:litA*ap;
-      apaSellVal+=euro;
+      /*
+       * Money only when guest shortfall is Paid. Owner’s days / unpaid charges
+       * still burn litres but must not inflate Out value or “Last charged”.
+       */
+      var moneyOk=ev.moneyCounts===true;
+      if(moneyOk){
+        apaSellVal+=euro;
+        lastApaSellP=ap;
+      }
       ev._unitPrice=ap;
-      lastApaSellP=ap;
       lineEuro=Math.round(euro*100)/100;
+      ev._moneyCounts=moneyOk;
+      ev._payLabel=ev.payLabel||(moneyOk?"APA · Paid":(ev.ownerDays?"Owner":"APA · Unpaid"));
     }
     timeline.push({
       id:ev.id, date:ev.date, kind:ev.kind, litres:apaLit(apaNum(ev.litres)),
       onboard:ev.hasOnboard||ev.kind==="level"?apaLit(apaNum(ev.onboard)):null,
       tankAfter:tank==null?null:apaLit(tank),
       notes:ev.notes||"", guest:ev.guest||"", tripId:ev.tripId||"",
-      source:ev.source||"log", unitPrice:ev._unitPrice, lineEuro:lineEuro, raw:ev.raw
+      source:ev.source||"log", unitPrice:ev._unitPrice, lineEuro:lineEuro, raw:ev.raw,
+      moneyCounts:ev._moneyCounts, payLabel:ev._payLabel||"", ownerDays:!!ev.ownerDays
     });
   });
   var outL=sold+apaUsed;
   var avgBuy=bought>0?Math.round((buyCost/bought)*1000)/1000:null;
   var outVal=sellVal+apaSellVal;
-  var avgSellOut=outL>0?Math.round((outVal/outL)*1000)/1000:null;
+  /* Avg out uses charged money only over litres that had money (sells + paid APA) */
+  var chargedL=sold;
+  events.forEach(function(ev){
+    if(ev.kind==="apa"&&ev.moneyCounts===true) chargedL+=apaNum(ev.litres);
+  });
+  var avgSellOut=chargedL>0?Math.round((outVal/chargedL)*1000)/1000:null;
   return {
     /* Defaults for NEW rows only — not “the price for the whole period” */
     defaultBuy:st.buyPrice, defaultSell:st.sellPrice,
+    /* Last charged = last paid guest sell, else last paid APA — never unpaid/owner */
     lastBuyPrice:lastBuyP, lastSellPrice:lastSellP!=null?lastSellP:lastApaSellP,
     avgBuyPrice:avgBuy, avgSellPrice:avgSellOut,
     buyPrice:st.buyPrice, sellPrice:st.sellPrice, /* keep for older callers */
@@ -9408,7 +9469,7 @@ function renderDiesel(){
     '<div class="sumcard"><div class="l">Est. on board</div><div class="v"'+(warn?' style="color:var(--danger)"':'')+'>'+(tankKnown?esc(String(L.tank))+" L":"—")+'</div></div>'+
     '<div class="sumcard"><div class="l">Used (APA)</div><div class="v">'+esc(String(L.apaUsed))+' L</div></div>'+
   '</div>'+
-  '<div class="legend">After each <b>bunker</b>, set the <b>sale price</b> (default pump + €'+esc(String(DIESEL_MARKUP))+'). That rate applies to all later sells until you change it or bunker again. Raise it anytime when the market moves. Past log lines keep their own €/L.</div>'+
+  '<div class="legend">After each <b>bunker</b>, set the <b>sale price</b> (default pump + €'+esc(String(DIESEL_MARKUP))+'). That rate applies to all later sells until you change it or bunker again. APA fuel always burns the tank; <b>Out value / Last charged</b> only count guest shortfalls marked <b>Paid</b> — owner’s days and unpaid charges are “not charged”.</div>'+
   '<div class="exp-alert ok" style="margin-bottom:12px">'+
     '<div style="font-weight:800;margin-bottom:4px">Active sale price</div>'+
     '<div class="money" style="font-size:28px;font-weight:800;margin-top:4px">€'+esc(String(activeSell))+'<span style="font-size:15px;font-weight:600"> / L</span></div>'+
@@ -9465,11 +9526,16 @@ function renderDiesel(){
         if(row.unitPrice!=null) meta+='<span class="money">@ €'+esc(String(row.unitPrice))+'/L</span>';
         if(row.lineEuro!=null) meta+='<span class="money">'+money(row.lineEuro)+'</span>';
       } else {
-        title="APA · "+(row.guest||"trip"); amt="−"+esc(String(row.litres))+" L"; pillC="p-apa"; pillT="APA";
-        meta='<span class="pill '+pillC+'">'+pillT+'</span><span>'+esc(fmtDate(row.date))+'</span>';
+        title="APA · "+(row.guest||"trip"); amt="−"+esc(String(row.litres))+" L";
+        var payLab=row.payLabel||(row.moneyCounts?"APA · Paid":(row.ownerDays?"Owner":"APA · Unpaid"));
+        pillC=row.moneyCounts?"p-apa":(row.ownerDays?"p-own":"p-grey");
+        pillT=payLab;
+        meta='<span class="pill '+pillC+'">'+esc(pillT)+'</span><span>'+esc(fmtDate(row.date))+'</span>';
         if(row.tankAfter!=null) meta+='<span>→ '+esc(String(row.tankAfter))+' L</span>';
         if(row.unitPrice!=null) meta+='<span class="money">@ €'+esc(String(row.unitPrice))+'/L</span>';
-        if(row.lineEuro!=null) meta+='<span class="money">'+money(row.lineEuro)+'</span>';
+        /* Show € only when guest-charged; otherwise label so unpaid isn’t “paid” */
+        if(row.moneyCounts&&row.lineEuro!=null) meta+='<span class="money">'+money(row.lineEuro)+'</span>';
+        else if(row.lineEuro!=null&&row.lineEuro>0) meta+='<span class="meta">'+(row.ownerDays?"owner use · not charged":"not charged")+' · '+money(row.lineEuro)+'</span>';
       }
       var editable=row.source==="log";
       html+='<div class="item'+(editable?' apa-row':'')+'"'+(editable?' data-diesel-edit="'+esc(row.id)+'" role="button" tabindex="0"':'')+'>'+
@@ -20066,6 +20132,7 @@ function enablePush(){
   if(!pushMeta.server||!pushMeta.vapidPublicKey){ setPushStatus("na","Push not configured on server"); return; }
   if(!pushSupported()){ setPushStatus("na","Notifications not supported here"); return; }
   setPushStatus("na","Requesting permission…");
+  try{ wirePushRefreshListener(); }catch(eWr){}
   navigator.serviceWorker.register("/tracker/sw.js",{scope:"/tracker/"})
     .then(function(){ return navigator.serviceWorker.ready; })
     .then(function(reg){
@@ -20153,13 +20220,61 @@ function setTrust(id,val){
 
 /* -------- polling / data -------- */
 var pollTimer=null;
+var softRefreshTimer=null;
+var softRefreshInFlight=false;
+/**
+ * Soft reload after a push notification (or SW message) so open apps catch up.
+ * Uses fromPoll merges so a mid-edit device is not wiped by a concurrent save.
+ */
+function softRefreshFromServer(opts){
+  opts=opts||{};
+  if(DEMO||!session||!session.pass) return;
+  if(el("app")&&el("app").classList.contains("hidden")) return;
+  if(softRefreshTimer) clearTimeout(softRefreshTimer);
+  softRefreshTimer=setTimeout(function(){
+    softRefreshTimer=null;
+    if(softRefreshInFlight) return;
+    softRefreshInFlight=true;
+    api("load",{silent:true}).then(function(d){
+      softRefreshInFlight=false;
+      if(!d) return;
+      try{ applyData(d,{fromPoll:true}); }catch(eA){}
+      var hint=el("saveHint");
+      if(hint){
+        hint.textContent="Updated · change from another device";
+        hint.className="savehint saved";
+        setTimeout(function(){
+          if(hint&&hint.textContent&&hint.textContent.indexOf("Updated")===0){
+            hint.textContent="";
+            hint.className="savehint";
+          }
+        },2800);
+      }
+    }).catch(function(err){
+      softRefreshInFlight=false;
+      if(err&&err.code===401){ clearSession(); lockApp(); if(el("gateErr")) el("gateErr").textContent="Session expired — enter passcode."; }
+    });
+  }, Math.max(200, Number(opts.delay)||450));
+}
+function wirePushRefreshListener(){
+  if(!navigator.serviceWorker||navigator.serviceWorker.__lyRefreshWired) return;
+  navigator.serviceWorker.__lyRefreshWired=true;
+  navigator.serviceWorker.addEventListener("message",function(ev){
+    var m=(ev&&ev.data)||{};
+    if(m.type==="tracker-data-changed"||m.type==="tracker-push"){
+      softRefreshFromServer({reason:m.reason||m.type});
+    }
+  });
+}
 /**
  * Production: no background blob refresh.
  * Prototype polling re-applied server data every 20s and fought local deletes/edits.
  * Session is checked on the next user save/action instead.
+ * Push notifications trigger softRefreshFromServer via the service worker.
  */
 function startPolling(){
   if(pollTimer) return;
+  try{ wirePushRefreshListener(); }catch(eW){}
   /* Optional light session ping only — never applyData / rewrite collections */
   pollTimer=setInterval(function(){
     api("load",{silent:true, sessionOnly:true}).then(function(d){

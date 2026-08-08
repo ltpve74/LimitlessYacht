@@ -465,15 +465,23 @@
     var force = input.force !== false;
     var allowCreate = !!input.allowCreate;
     var hasReusable = !!chId;
+    var lead = input.lead || null;
+    var ownerDays =
+      input.ownerDays === true ||
+      !!(models.isOwnerLead && lead && models.isOwnerLead(lead));
     /*
      * First overspend on save (diesel/expense): open a shortfall charge.
      * If user deleted the charge (suppress), still recreate when caller
      * passes allowCreate (line save / Sync) — not from silent background jobs.
+     * Owner’s days: never auto-open a guest shortfall for APA diesel.
      */
-    if (!hasReusable && over > 0.009 && !hasCash) {
+    if (!hasReusable && over > 0.009 && !hasCash && !ownerDays) {
       if (!trip.suppressShortfallCharge) {
         allowCreate = allowCreate || !!input.firstShortfall;
       }
+    }
+    if (ownerDays && !input.allowOwnerShortfall) {
+      allowCreate = false;
     }
 
     var decision = models.planApaShortfallSync({
@@ -485,6 +493,9 @@
       hasCashSettlement: hasCash,
       force: force,
       chargeLocked: chDto ? !!chDto.locked : false,
+      ownerDays: ownerDays,
+      allowOwnerShortfall: !!input.allowOwnerShortfall,
+      chargeIsPaid: !!(chDto && chDto.isPaid),
     });
 
     var shortfall = {

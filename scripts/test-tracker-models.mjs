@@ -2603,6 +2603,47 @@ console.log("\n[Write plans — stew expenses + APA shortfall decision]");
       chargeLocked: true,
     }).action === "pin"
   );
+  /* Owner’s days: APA diesel generally not guest-invoiced */
+  ok(
+    "owner days: no auto-create shortfall",
+    M.planApaShortfallSync({
+      overage: 1448,
+      hasReusable: false,
+      allowCreate: true,
+      ownerDays: true,
+    }).action === "skip"
+  );
+  ok(
+    "owner days: drop unpaid shortfall",
+    M.planApaShortfallSync({
+      overage: 1448,
+      hasReusable: true,
+      force: true,
+      chargeLocked: false,
+      ownerDays: true,
+      chargeIsPaid: false,
+    }).action === "remove"
+  );
+  ok(
+    "owner days: keep paid shortfall if already Paid",
+    M.planApaShortfallSync({
+      overage: 1448,
+      hasReusable: true,
+      force: true,
+      ownerDays: true,
+      chargeIsPaid: true,
+    }).action === "pin"
+  );
+  ok(
+    "owner days: allowOwnerShortfall can still create",
+    M.planApaShortfallSync({
+      overage: 1448,
+      hasReusable: false,
+      allowCreate: true,
+      ownerDays: true,
+      allowOwnerShortfall: true,
+    }).action === "create"
+  );
 }
 
 /* ---- Controllers (MVC blueprint — no formulas, wire models only) ---- */

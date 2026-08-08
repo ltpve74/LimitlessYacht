@@ -702,6 +702,18 @@
       if (input.hasReusable) return { action: "pin_paid_manual", reason: "cash_settled" };
       return { action: "pin_paid_manual", reason: "cash_settled_no_row" };
     }
+    /*
+     * Owner’s days: APA diesel/spend is generally not guest-invoiced.
+     * Drop any unpaid shortfall so Diesel does not treat owner fuel as “charged”.
+     * Explicit Sync with allowOwnerShortfall can still force a charge if needed.
+     */
+    if (input.ownerDays && !input.allowOwnerShortfall) {
+      if (input.hasReusable && !input.chargeIsPaid) {
+        return { action: "remove", reason: "owner_days_unpaid" };
+      }
+      if (input.hasReusable) return { action: "pin", reason: "owner_days_paid_keep" };
+      return { action: "skip", reason: "owner_days" };
+    }
     if (input.hasReusable) {
       if (!input.force || input.chargeLocked) return { action: "pin", reason: "locked_or_no_force" };
       /* Spend gone (deleted diesel/expense) → drop unpaid shortfall, don’t leave €0 ghost */
