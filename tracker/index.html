@@ -6825,13 +6825,19 @@ function apaLinkedLead(t){
  */
 function syncLeadApaInvoiceAmount(t, billable){
   var lead=apaLinkedLead(t);
-  if(!lead||!(billable>0)) return false;
+  if(!lead) return false;
+  /* billable may be 0 when diesel/spend is deleted and shortfall is gone */
+  var amt=Math.max(0, Math.round((Number(billable)||0)*100)/100);
   if(t.cashFromLead||Number(t.apaSent)<0) return false;
   if(leadInvStatus(lead.apas)==="Issued"||leadInvStatus(lead.apas)==="Paid") return false;
   if(apaHasPrepaid(t)) return false;
-  if(Math.abs((Number(lead.apa)||0)-billable)>0.005){
-    lead.apa=billable;
-    if(leadInvStatus(lead.apas)!=="Not issued") lead.apas="Not issued";
+  if(Math.abs((Number(lead.apa)||0)-amt)>0.005){
+    lead.apa=amt;
+    if(amt<=0){
+      if(leadInvStatus(lead.apas)!=="Not issued") lead.apas="Not issued";
+    } else if(leadInvStatus(lead.apas)!=="Not issued"){
+      lead.apas="Not issued";
+    }
     return true;
   }
   return false;
@@ -7369,8 +7375,18 @@ function mergeDuplicateApaCharges(){
   Object.keys(byTrip).forEach(function(k){ collapse(byTrip[k]); });
   return dirty;
 }
+/** Shortfall charge notes — always match current pot spend (refresh on diesel delete). */
+function apaShortfallChargeNote(t, zeroPot){
+  var x=apaTotals(t);
+  var note=zeroPot
+    ?"APA shortfall / spend to invoice (not the full charter fee) — pot "+money0(x.basePot)+" · spent "+money0(x.spent)
+    :"APA shortfall (overspend vs pot) — pot "+money0(x.basePot)+" · spent "+money0(x.spent);
+  if(t&&t.dates) note="APA · "+t.dates+". "+note;
+  return note;
+}
 /**
- * Apply controller shortfall action (create/update/pin) — no decision logic here.
+ * Apply controller shortfall action (create/update/pin/remove) — no decision logic here.
+ * Diesel/expense deletes must re-run this so the Charges row tracks current overage.
  */
 function applyApaShortfallPlan(t, shortfall){
   if(!t||!shortfall) return null;
@@ -7379,23 +7395,44 @@ function applyApaShortfallPlan(t, shortfall){
     ?(state.charters||[]).filter(function(c){ return c&&String(c.id)===String(shortfall.chargeId); })[0]
     :null;
   var over=Number(shortfall.overage)||0;
+  var zeroPot=shortfall.zeroPot!=null?!!shortfall.zeroPot:!apaHasPrepaid(t);
   if(ch&&(act==="pin"||act==="skip_locked")){
     ch.apaTripId=t.id; ch.kind="apa"; t.chargeId=ch.id;
     if(!String(ch.client||"").trim()) ch.client=t.guest;
     return ch;
   }
+  /* Unpaid shortfall with no overage left (deleted last diesel) — drop Charges row */
+  if(act==="remove"){
+    if(ch&&!chargeIsLockedMoney(ch)){
+      try{ voidDeletedId("charters", ch.id); }catch(eR){}
+      state.charters=(state.charters||[]).filter(function(c){ return !c||String(c.id)!==String(ch.id); });
+    }
+    t.chargeId="";
+    /* Spend cleared by captain — not a “deleted charge while still owing” suppress */
+    if(over<=0) t.suppressShortfallCharge=false;
+    try{ syncLeadApaInvoiceAmount(t, 0); }catch(eL){}
+    return null;
+  }
   if(ch&&act==="update_zero_base"){
     ch.apaTripId=t.id; ch.kind="apa"; t.chargeId=ch.id;
     if(!String(ch.client||"").trim()) ch.client=t.guest;
-    if(!chargeIsLockedMoney(ch)) applyApaChargeMoney(ch, 0);
+    if(!chargeIsLockedMoney(ch)){
+      applyApaChargeMoney(ch, 0);
+      ch.notes=apaShortfallChargeNote(t, zeroPot);
+    }
     return ch;
   }
   if(ch&&act==="update"){
     ch.apaTripId=t.id; ch.kind="apa"; t.chargeId=ch.id;
     if(!String(ch.client||"").trim()) ch.client=t.guest;
-    applyApaChargeMoney(ch, over);
+    if(!chargeIsLockedMoney(ch)){
+      applyApaChargeMoney(ch, over);
+      ch.notes=apaShortfallChargeNote(t, zeroPot);
+      ch.apaZeroPot=zeroPot;
+    }
     if(ch.payStatus!=="Paid") ch.payStatus="Pending";
     if(ch.invStatus!=="Issued"&&ch.invStatus!=="Not needed") ch.status=ch.payStatus;
+    try{ syncLeadApaInvoiceAmount(t, over); }catch(eU){}
     return ch;
   }
   if(act==="clear"){
@@ -7422,12 +7459,7 @@ function applyApaShortfallPlan(t, shortfall){
     if(sorted[0]&&sorted[0].date) date=sorted[0].date;
   }
   if(!date) date=new Date().toISOString().slice(0,10);
-  var x=apaTotals(t);
-  var zeroPot=shortfall.zeroPot!=null?!!shortfall.zeroPot:!apaHasPrepaid(t);
-  var note=zeroPot
-    ?"APA shortfall / spend to invoice (not the full charter fee) — pot "+money0(x.basePot)+" · spent "+money0(x.spent)
-    :"APA shortfall (overspend vs pot) — pot "+money0(x.basePot)+" · spent "+money0(x.spent);
-  if(t.dates) note="APA · "+t.dates+". "+note;
+  var note=apaShortfallChargeNote(t, zeroPot);
   ch={
     id:uid(), kind:"apa", apaTripId:t.id, apaZeroPot:zeroPot,
     date:date, client:t.guest||shortfall.guest||"",
@@ -7554,7 +7586,8 @@ function deleteApaLine(kind,lineId){
     else if(kind==="dieselLoad") trip.dieselLoads=trip.dieselLoads.filter(function(x){return String(x.id)!==String(lineId);});
     else trip.diesel=trip.diesel.filter(function(x){return String(x.id)!==String(lineId);});
   });
-  if(saved) saveApa(saved);
+  /* force re-sync shortfall amount (or remove charge when spend/overage is gone) */
+  if(saved) saveApa(saved, {force:true});
 }
 /** Clients from leads + charges (for APA guest picker). */
 function listApaClients(){
@@ -8974,8 +9007,8 @@ function openApaLine(kind,id){
     });
     showSheet(false);
     if(isCaptain()) saveExpenses();
-    /* Line removed — update/clear shortfall amount (no force-create needed) */
-    if(saved) saveApa(saved);
+    /* Line removed — re-sync shortfall amount or drop charge if nothing left to invoice */
+    if(saved) saveApa(saved, {force:true});
     if(curTab==="expenses") renderExpenses();
   });
   showSheet(true);

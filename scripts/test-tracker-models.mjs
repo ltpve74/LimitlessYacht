@@ -2554,6 +2554,34 @@ console.log("\n[Write plans — stew expenses + APA shortfall decision]");
       suppressShortfall: true,
     }).action === "create"
   );
+  /* Diesel line deleted: reduce / clear shortfall charge */
+  ok(
+    "has charge + lower overage → update",
+    M.planApaShortfallSync({
+      overage: 100,
+      hasReusable: true,
+      force: true,
+      chargeLocked: false,
+    }).action === "update"
+  );
+  ok(
+    "has charge + zero overage → remove (not €0 ghost)",
+    M.planApaShortfallSync({
+      overage: 0,
+      hasReusable: true,
+      force: true,
+      chargeLocked: false,
+    }).action === "remove"
+  );
+  ok(
+    "locked charge + zero overage → pin (keep Issued/Paid)",
+    M.planApaShortfallSync({
+      overage: 0,
+      hasReusable: true,
+      force: true,
+      chargeLocked: true,
+    }).action === "pin"
+  );
 }
 
 /* ---- Controllers (MVC blueprint — no formulas, wire models only) ---- */

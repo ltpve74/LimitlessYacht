@@ -689,7 +689,10 @@
    * Pure decision for APA shortfall charge sync (no DOM / state).
    *
    * @returns {{ action: string, reason?: string }}
-   *   pin | update | create | clear | skip | skip_locked | pin_paid_manual | update_zero_base
+   *   pin | update | create | clear | remove | skip | skip_locked | pin_paid_manual | update_zero_base
+   *
+   * remove = unpaid shortfall with no overage left (e.g. diesel line deleted) — drop the Charges row.
+   * update_zero_base kept for callers that only want amount→0 without delete.
    */
   function planApaShortfallSync(input) {
     input = input || {};
@@ -701,7 +704,8 @@
     }
     if (input.hasReusable) {
       if (!input.force || input.chargeLocked) return { action: "pin", reason: "locked_or_no_force" };
-      if (over <= 0) return { action: "update_zero_base", reason: "no_overage" };
+      /* Spend gone (deleted diesel/expense) → drop unpaid shortfall, don’t leave €0 ghost */
+      if (over <= 0) return { action: "remove", reason: "no_overage" };
       return { action: "update", reason: "overage" };
     }
     if (over <= 0) return { action: "clear", reason: "no_overage" };
