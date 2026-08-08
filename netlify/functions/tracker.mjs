@@ -1748,15 +1748,24 @@ function buildNotices(coll, prevRows, nextRows, who, data) {
       const when = fmtLeadWhen(lead);
       const wasCanc = old ? leadIsCancelledRow(old) : false;
       const nowCanc = leadIsCancelledRow(lead);
+      const newStart = String(lead.start || lead.cdate || "").slice(0, 10);
+      const hasDay = /^\d{4}-\d{2}-\d{2}$/.test(newStart);
+      const oldStart = old
+        ? String(old.start || old.cdate || "").slice(0, 10)
+        : "";
+      const oldHadDay = /^\d{4}-\d{2}-\d{2}$/.test(oldStart);
 
-      /* New commercial charter → notify stews (team) */
+      /*
+       * New charter with a date → everyone (captain / manager / team).
+       * Stews open Unassigned first so crew can be set.
+       */
       if (!old && !nowCanc) {
         notices.push({
-          title: "New charter",
+          title: hasDay ? "New charter · needs crew" : "New charter",
           body: `${name}${when ? " · " + when : ""}`,
           tag: `lead-new-${lead.id}`,
-          url: "/tracker/",
-          to: "team",
+          url: "/tracker/?tab=stews",
+          to: "all",
         });
       }
       /* Lead cancelled → team + captain */
@@ -1769,25 +1778,35 @@ function buildNotices(coll, prevRows, nextRows, who, data) {
           to: "team_and_captain",
         });
       }
-      /* Cancelled → active again (reinstate / un-cancel) → team + captain */
+      /* Cancelled → active again (reinstate / un-cancel) → everyone */
       if (old && wasCanc && !nowCanc) {
         const hold =
           lead.dealClosed === false ||
           lead.dealClosed === "false" ||
           lead.dealClosed === 0 ||
           !lead.dealClosed;
-        const hasDay = /^\d{4}-\d{2}-\d{2}$/.test(
-          String(lead.start || lead.cdate || "").slice(0, 10)
-        );
         notices.push({
-          title: "Charter reinstated",
+          title: hasDay ? "Charter reinstated · needs crew" : "Charter reinstated",
           body:
             `${name}${when ? " · " + when : ""}` +
             (hasDay && hold ? " · on hold again" : hasDay ? " · active" : " · no dates") +
             ` (by ${who})`,
           tag: `lead-reinstate-${lead.id}`,
-          url: "/tracker/",
-          to: "team_and_captain",
+          url: "/tracker/?tab=stews",
+          to: "all",
+        });
+      }
+      /*
+       * Date first set or changed on an existing lead → notify all roles
+       * so crew can be assigned for the new day.
+       */
+      if (old && !nowCanc && hasDay && (!oldHadDay || oldStart !== newStart)) {
+        notices.push({
+          title: oldHadDay ? "Charter date changed · check crew" : "Charter dated · needs crew",
+          body: `${name}${when ? " · " + when : ""} (by ${who})`,
+          tag: `lead-date-${lead.id}-${newStart}`,
+          url: "/tracker/?tab=stews",
+          to: "all",
         });
       }
 
@@ -1877,6 +1896,10 @@ function buildNotices(coll, prevRows, nextRows, who, data) {
       const label = `${summary}${when ? " · " + when : ""}`;
       const nowCanc = stewIsCancelledRow(asg);
       const wasCanc = old ? stewIsCancelledRow(old) : false;
+      const noStew =
+        asg.noStewNeeded === true ||
+        asg.noStewNeeded === "true" ||
+        asg.noStewNeeded === 1;
 
       if (old && nowCanc && !wasCanc) {
         notices.push({
@@ -1892,10 +1915,26 @@ function buildNotices(coll, prevRows, nextRows, who, data) {
 
       const oldIds = old ? stewIdsKey(old) : "";
       const newIds = stewIdsKey(asg);
-      if (oldIds === newIds) continue;
-
       const names = stewNamesFromRoster(stews, asg.stewIds);
       const n = names.length || (Array.isArray(asg.stewIds) ? asg.stewIds.filter(Boolean).length : 0);
+
+      /*
+       * Brand-new roster day with no crew yet → everyone (captain/manager/team).
+       * Also when a new empty assign row is created from calendar / leads.
+       */
+      if (!old && !noStew && !n) {
+        notices.push({
+          title: "Unassigned charter · needs crew",
+          body: label,
+          tag: `stew-need-${key}`,
+          url: "/tracker/?tab=stews",
+          to: "all",
+        });
+        continue;
+      }
+
+      if (oldIds === newIds) continue;
+
       const whoList =
         names.length > 0
           ? names.join(", ")
@@ -1913,7 +1952,7 @@ function buildNotices(coll, prevRows, nextRows, who, data) {
       let title;
       let body;
       if (!n) {
-        title = "Stews cleared";
+        title = "Stews cleared · needs crew";
         body = `${label} · no stew (by ${who})`;
       } else if (addedNames.length && oldIds) {
         title = addedNames.length === 1 ? "Stew assigned" : "Stews assigned";
@@ -1929,8 +1968,8 @@ function buildNotices(coll, prevRows, nextRows, who, data) {
         title,
         body,
         tag: `stew-asg-${key}-${newIds || "none"}`,
-        url: "/tracker/",
-        to: "team_and_captain",
+        url: "/tracker/?tab=stews",
+        to: n ? "team_and_captain" : "all",
       });
     }
   }

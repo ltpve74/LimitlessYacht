@@ -706,6 +706,18 @@
   }
   .stew-list-sec--none .stew-list-title{color:#4a5560}
   .stew-list-sec--none .stew-list-count{background:var(--grey);color:var(--greyInk)}
+  /* Unassigned charters — top of list, hard to miss for captain + team */
+  .stew-list-sec--unassigned .stew-list-hd{
+    border-color:#E0A800;background:linear-gradient(180deg,#FFF3C4 0%,#fff8e8 100%);
+  }
+  .stew-list-sec--unassigned .stew-list-title{color:#7a5200}
+  .stew-list-sec--unassigned .stew-list-count{background:#FFE08A;color:#7a5200;font-weight:900}
+  .item.stew-unassigned{
+    border:2px solid #E0A800 !important;
+    background:linear-gradient(180deg,#FFFBF0 0%,#fff 55%) !important;
+    box-shadow:0 0 0 1px rgba(224,168,0,.15);
+  }
+  .item.stew-unassigned .title{font-weight:900}
   .apa-fuel-note{font-size:12.5px;color:var(--muted);line-height:1.45;margin:-2px 2px 12px}
   .diesel-pick{display:flex;flex-direction:column;gap:10px;margin:4px 0 8px}
   .diesel-pick .btn{text-align:left;padding:14px 16px}
@@ -15661,18 +15673,20 @@ function paintStewCharters(){
     }
     var amtLabel=rightBits.join(" · ");
     var openKey=esc(ev.key||(asg&&asg.eventKey)||stewEventId(ev));
-    var card='<div class="item'+(unassigned&&!past?' apa-row':'')+(pay.tipUnpaid?' stew-tip-owe':'')+'" data-stew-ev="'+openKey+'" role="button" tabindex="0">'+
+    var needsCrew=unassigned&&!isCanc&&!pay.noStewNeeded;
+    var card='<div class="item'+(needsCrew?' stew-unassigned apa-row':'')+(unassigned&&!past&&!needsCrew?' apa-row':'')+(pay.tipUnpaid?' stew-tip-owe':'')+'" data-stew-ev="'+openKey+'" role="button" tabindex="0">'+
       '<div class="top"><div class="title">'+esc(ev.summary||"Charter")+'</div>'+
         (amtLabel?'<div class="amt money" style="font-size:14px;text-align:right">'+esc(amtLabel)+'</div>':'')+
       '</div>'+
       '<div class="meta"><span>📅 '+esc(fmtCalEventWhen(ev))+'</span>'+
         stewDurationPillHTML(ev, asg)+
         stewSourcePillHTML(ev)+
+        (needsCrew?'<span class="pill p-amber">Unassigned</span>':'')+
         (showMoney&&rate>0&&!isCanc?'<span class="money">'+money0(rate)+' × '+units+'</span>':'')+
         (showMoney&&!isCanc?stewTipStatusPill(pay, asg):'')+
         (isCanc?'<span class="pill p-red">Cancelled</span>':'')+
         (pay.noStewNeeded&&!isCanc?'<span class="pill p-grey">No stew needed</span>':'')+
-        (past&&!isCanc?'<span class="pill p-grey">Past</span>':'')+
+        (past&&!isCanc&&!needsCrew?'<span class="pill p-grey">Past</span>':'')+
       '</div>';
     if(isCanc){
       card+='<div class="meta" style="margin-top:4px"><span class="pill p-red">'+(showMoney?"No stew pay — charter cancelled":"Cancelled")+'</span></div>';
@@ -15681,6 +15695,8 @@ function paintStewCharters(){
         '<span class="meta">Friends / private day — no day pay</span></div>';
     } else if(ev.leadId&&(ev.leadSource==="pending"||ev.status==="tentative")&&isCaptain()){
       card+='<div class="meta" style="margin-top:6px"><button type="button" class="btn" data-assign-lead="'+esc(ev.leadId)+'" style="width:auto;padding:8px 14px;font-size:13px">Assign source →</button></div>';
+    } else if(needsCrew){
+      card+='<div class="meta" style="margin-top:6px;font-weight:800;color:#7a5200">Needs crew — tap to assign</div>';
     } else if(names.length||(showMoney&&pay.tipTotal>0)){
       /* Who is owed tips — captain + each stew (per-person paid) */
       if(showMoney&&pay.tipTotal>0&&!isCanc){
@@ -15739,12 +15755,13 @@ function paintStewCharters(){
   }
   /*
    * List groups (paint only — no data heal), order:
-   *   1. Unpaid — open tip and/or day pay (action first)
-   *   2. Future — today + later (soonest first: today → tomorrow → …)
+   *   0. Unassigned — needs crew (today + future first; past unassigned too)
+   *   1. Unpaid — open tip and/or day pay (captain money view)
+   *   2. Future — today + later with crew already set
    *   3. Past — before today, pay settled / roster only
-   *   4. Cancelled or no pay — cancelled charter, no stew needed, zero pay
+   *   4. Cancelled or no pay
    */
-  var unpaidRows=[], futureRows=[], pastRows=[], cancelledNoPayRows=[];
+  var unassignedRows=[], unpaidRows=[], futureRows=[], pastRows=[], cancelledNoPayRows=[];
   function rowStartYmd(row){
     var ev=row&&row.event, asg=row&&row.assign;
     var d=String((asg&&asg.start)||(ev&&ev.start)||"").slice(0,10);
@@ -15762,7 +15779,10 @@ function paintStewCharters(){
     var isFuture=!!(start&&start>=today);
     var pay=stewPayBreakdown(row.event, row.assign||{});
     var isCanc=row.status==="cancelled"||pay.cancelled;
-    /* Open day pay / tip (incl. cancelled with stew still due) → Unpaid first */
+    var needsCrew=!isCanc&&!pay.noStewNeeded&&row.status==="unassigned";
+    /* Unassigned always pinned at top (all roles) until crew is set */
+    if(needsCrew){ unassignedRows.push(row); return; }
+    /* Open day pay / tip (incl. cancelled with stew still due) → Unpaid */
     var moneyOpen=showMoney&&!pay.noStewNeeded&&(!!pay.tipUnpaid||!!pay.unpaid);
     if(moneyOpen){ unpaidRows.push(row); return; }
     if(isCanc||pay.noStewNeeded){ cancelledNoPayRows.push(row); return; }
@@ -15775,19 +15795,21 @@ function paintStewCharters(){
   function sortByDateAsc(a, b){
     return String(rowStartYmd(a)||"").localeCompare(String(rowStartYmd(b)||""));
   }
-  /* Unpaid / past / cancelled: newest first. Future: soonest first (today → later). */
+  /* Unassigned + future: soonest first. Unpaid / past / cancelled: newest first. */
+  unassignedRows.sort(sortByDateAsc);
   unpaidRows.sort(sortByDateDesc);
   pastRows.sort(sortByDateDesc);
   cancelledNoPayRows.sort(sortByDateDesc);
   futureRows.sort(sortByDateAsc);
   /**
    * Group header like Leads captain book: uppercase title + sub + count pill.
-   * tone: unpaid | future | past | none
+   * tone: unassigned | unpaid | future | past | none
    */
   function paintSection(title, sub, rows, tone){
     if(!rows||!rows.length) return "";
     var cls="stew-list-sec";
-    if(tone==="unpaid"||tone==="owe") cls+=" stew-list-sec--unpaid";
+    if(tone==="unassigned") cls+=" stew-list-sec--unassigned";
+    else if(tone==="unpaid"||tone==="owe") cls+=" stew-list-sec--unpaid";
     else if(tone==="future") cls+=" stew-list-sec--future";
     else if(tone==="past") cls+=" stew-list-sec--past";
     else if(tone==="none"||tone==="cancelled") cls+=" stew-list-sec--none";
@@ -15803,44 +15825,54 @@ function paintStewCharters(){
     s+='</div></div>';
     return s;
   }
+  /* Everyone sees Unassigned first — team and captain */
+  html+=paintSection(
+    "Unassigned",
+    "Needs crew. Tap to assign or mark no stew needed. Soonest first.",
+    unassignedRows,
+    "unassigned"
+  );
   if(showMoney){
     html+=paintSection(
       "Unpaid",
-      "Open day pay and/or tips — settle here. Newest first.",
+      "Open day pay and/or tips. Newest first.",
       unpaidRows,
       "unpaid"
     );
     html+=paintSection(
       "Future",
-      "Today and upcoming. Soonest first.",
+      "Today and later · crew set. Soonest first.",
       futureRows,
       "future"
     );
     html+=paintSection(
       "Past",
-      "Earlier charters — pay settled or roster only. Newest first.",
+      "Earlier charters. Newest first.",
       pastRows,
       "past"
     );
     html+=paintSection(
       "Cancelled or no pay",
-      "Cancelled charters, no stew needed, or no day pay due. Newest first.",
+      "Cancelled, no stew needed, or no day pay.",
       cancelledNoPayRows,
       "none"
     );
-    if(!unpaidRows.length&&!futureRows.length&&!pastRows.length&&!cancelledNoPayRows.length){
+    if(!unassignedRows.length&&!unpaidRows.length&&!futureRows.length&&!pastRows.length&&!cancelledNoPayRows.length){
       html+='<div class="list"><div class="empty"><div class="big">📅</div><div>No charters in this filter.</div></div></div>';
     }
   } else {
-    /* Team: same labeled groups without money Unpaid bucket */
-    html+=paintSection("Future", "Today and upcoming. Soonest first.", futureRows, "future");
+    /* Team: Unassigned already painted; then future/past without money Unpaid */
+    html+=paintSection("Future", "Today and later · crew set. Soonest first.", futureRows, "future");
     html+=paintSection("Past", "Earlier charters. Newest first.", pastRows, "past");
     html+=paintSection(
       "Cancelled or no pay",
-      "Cancelled charters or no stew needed. Newest first.",
+      "Cancelled or no stew needed.",
       cancelledNoPayRows,
       "none"
     );
+    if(!unassignedRows.length&&!futureRows.length&&!pastRows.length&&!cancelledNoPayRows.length){
+      html+='<div class="list"><div class="empty"><div class="big">📅</div><div>No charters in this filter.</div></div></div>';
+    }
   }
   wrap.innerHTML=html;
   if(el("stewSeasonMore")&&el("stewSeasonDetails")){
