@@ -321,6 +321,13 @@ def check_html(r: Runner, rel: str, html: str) -> None:
         'soft-conversion only intercepts booked (not on-hold/free) dates',
         "classList.contains(\"booked\")" in html,
     )
+    r.check(
+        'WA FAB hides on hero and animates in after scroll past',
+        'watchFab' in html
+        and '.ly-wa-fab.is-in' in html
+        and 'IntersectionObserver' in html
+        and 'opacity:0' in html,
+    )
 
     # Contact form
     form_tag_m = re.search(r'<form\b[^>]*id="contactForm"[^>]*>', html)
