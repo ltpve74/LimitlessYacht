@@ -18256,6 +18256,9 @@ function cashRound50Up(n){
 function leadCashFieldUserEdited(){
   return !!(el("f_cashBlack")&&el("f_cashBlack").dataset.userEdited==="1");
 }
+function leadCashOnlyFieldUserEdited(){
+  return !!(el("f_cashOnlyAmt")&&el("f_cashOnlyAmt").dataset.userEdited==="1");
+}
 function leadPrefillCashFromSuggested(exactSug, force){
   if(!el("f_cashBlack")) return;
   var pre=cashRound50Up(exactSug);
@@ -18278,8 +18281,12 @@ function recalcLead(){
   var cashOnlyOn=dealPay==="cash";
   if(el("f_splitwrap")) el("f_splitwrap").classList.toggle("hidden",!splitOn);
   if(el("f_cashOnlyWrap")) el("f_cashOnlyWrap").classList.toggle("hidden",!cashOnlyOn);
-  /* Cash-only: prefill fee from quote when empty */
-  if(cashOnlyOn&&el("f_cashOnlyAmt")&&!apaNum(el("f_cashOnlyAmt").value)){
+  /*
+   * Cash-only: prefill fee from quote only when empty AND the captain has not
+   * touched the field. Clearing the field used to immediately re-inject the
+   * quote price on every input (sheet-wide recalc) — blocked intentional edits.
+   */
+  if(cashOnlyOn&&el("f_cashOnlyAmt")&&!apaNum(el("f_cashOnlyAmt").value)&&!leadCashOnlyFieldUserEdited()){
     var q=base>0?base:0;
     if(q>0) el("f_cashOnlyAmt").value=String(q);
   }
@@ -18663,16 +18670,25 @@ function openSheet(type,id){
   }); }
   /* Existing saved cash: keep it until captain changes swallow/charge or taps Use suggested */
   if(el("f_cashBlack")&&apaNum(el("f_cashBlack").value)>0) el("f_cashBlack").dataset.userEdited="1";
+  /* Existing cash-only fee: treat as user-owned so clear/edit is not re-overwritten */
+  if(el("f_cashOnlyAmt")&&apaNum(el("f_cashOnlyAmt").value)>0) el("f_cashOnlyAmt").dataset.userEdited="1";
   if(el("f_dealPay")){ el("f_dealPay").addEventListener("change",function(){
     var mode=el("f_dealPay").value||"invoice";
     if(mode==="split"&&el("f_cashBlack")){ el("f_cashBlack").dataset.userEdited=""; el("f_cashBlack").dataset.forcePrefill="1"; }
-    if(mode==="cash"&&el("f_cashOnlyAmt")&&!apaNum(el("f_cashOnlyAmt").value)){
-      var p=el("f_price")?apaNum(el("f_price").value):0;
-      if(!(p>0)&&el("f_rate")&&el("f_start")) p=apaNum(el("f_rate").value);
-      if(p>0) el("f_cashOnlyAmt").value=String(p);
+    if(mode==="cash"&&el("f_cashOnlyAmt")){
+      /* Switching into cash-only: allow one auto-prefill when still empty */
+      if(!apaNum(el("f_cashOnlyAmt").value)){
+        el("f_cashOnlyAmt").dataset.userEdited="";
+        var p=el("f_price")?apaNum(el("f_price").value):0;
+        if(!(p>0)&&el("f_rate")&&el("f_start")) p=apaNum(el("f_rate").value);
+        if(p>0) el("f_cashOnlyAmt").value=String(p);
+      }
     }
     recalcLead();
   }); }
+  if(el("f_cashOnlyAmt")) el("f_cashOnlyAmt").addEventListener("input",function(){
+    el("f_cashOnlyAmt").dataset.userEdited="1";
+  });
   function paintDealClosedUI(){
     if(!el("f_dealClosed")) return;
     var on=!!el("f_dealClosed").checked;
