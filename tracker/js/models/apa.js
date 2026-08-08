@@ -705,7 +705,15 @@
       return { action: "update", reason: "overage" };
     }
     if (over <= 0) return { action: "clear", reason: "no_overage" };
-    if (input.suppressShortfall) return { action: "clear", reason: "suppress" };
+    /*
+     * suppress = user deleted the shortfall charge. Keep it gone until they
+     * explicitly recreate (Sync / allowCreate) or first-overspend path with
+     * allowCreate. Without allowCreate we clear (no row) so incidental saves
+     * do not Danny×2 — never auto-create while suppressed.
+     */
+    if (input.suppressShortfall && !input.allowCreate) {
+      return { action: "clear", reason: "suppress" };
+    }
     /*
      * Create first shortfall when allowCreate (Sync, new pot, or saveApa first-overspend).
      * Without allowCreate we skip — never Danny×2 from background jobs.

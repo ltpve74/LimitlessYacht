@@ -2535,6 +2535,25 @@ console.log("\n[Write plans — stew expenses + APA shortfall decision]");
     "zero-pot still skip without allowCreate (no Danny×2 from jobs)",
     M.planApaShortfallSync({ overage: 180, hasReusable: false, allowCreate: false }).action === "skip"
   );
+  /* After captain deletes shortfall charge, suppress stays until Sync / diesel save (allowCreate) */
+  ok(
+    "suppress blocks recreate without allowCreate",
+    M.planApaShortfallSync({
+      overage: 180,
+      hasReusable: false,
+      allowCreate: false,
+      suppressShortfall: true,
+    }).action === "clear"
+  );
+  ok(
+    "suppress + allowCreate recreates (diesel after delete)",
+    M.planApaShortfallSync({
+      overage: 180,
+      hasReusable: false,
+      allowCreate: true,
+      suppressShortfall: true,
+    }).action === "create"
+  );
 }
 
 /* ---- Controllers (MVC blueprint — no formulas, wire models only) ---- */

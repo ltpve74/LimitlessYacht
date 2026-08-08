@@ -7926,6 +7926,17 @@ function apaTotals(t){
   else if(cashSettled&&bal<0) bal=0;
   return { expSum:expSum, prov:prov, dLit:dLit, dCost:dCost, cats:{}, spent:spent, basePot:basePot, paidCovered:paidCovered, available:available, bal:bal, pct:available>0?spent/available:0, cashSettled:cashSettled };
 }
+/**
+ * Refresh captain Today board when visible (or just the nav badge).
+ * Charge/APA saves and deletes must not leave a stale Today card.
+ */
+function refreshTodayAfterMoneyChange(){
+  if(!isCaptain()) return;
+  try{
+    if(curTab==="today") renderTodayTab();
+    else syncTodayNavBadge();
+  }catch(eT){}
+}
 function saveApa(trip, opts){
   if(!canOps()) return;
   opts=opts||{};
@@ -7936,6 +7947,12 @@ function saveApa(trip, opts){
     var lead=apaLinkedLead(t);
     var snap=lead?{ apas:lead.apas, apa:Number(lead.apa)||0 }:null;
     syncCashReceivedFromCharges(t);
+    /*
+     * Line saves (diesel/expense) pass allowCreate so a shortfall re-opens after
+     * the captain deleted the previous charge (suppressShortfallCharge).
+     * firstShortfall still covers the first overspend when not suppressed.
+     */
+    if(opts.allowCreate) t.suppressShortfallCharge=false;
     /* Controller owns collapse + shortfall decision; view only applies */
     syncApaToCharge(t, {
       force:opts.force!==false,
@@ -7951,6 +7968,7 @@ function saveApa(trip, opts){
   renderCharters();
   renderApa();
   if(curTab==="diesel") renderDiesel();
+  refreshTodayAfterMoneyChange();
 }
 function openApaDetail(id, opts){
   opts=opts||{};
@@ -8615,7 +8633,8 @@ function apaBindBody(t){
       }
     });
     if(!saved){ window.alert("Could not save — trip not found."); return; }
-    saveApa(saved);
+    /* Diesel spend re-opens shortfall after a deleted charge */
+    saveApa(saved, {allowCreate:true});
   });
 }
 function openApaTrip(id, opts){
@@ -8939,7 +8958,8 @@ function openApaLine(kind,id){
     if(!saved){ window.alert("Could not save — trip not found. Go back and open the trip again."); return; }
     showSheet(false);
     if(isCaptain()&&needsReceipt&&!obj.fromExpenseId) saveExpenses();
-    saveApa(saved);
+    /* allowCreate: diesel/expense after deleting shortfall must open a new charge */
+    saveApa(saved, {allowCreate:true});
     if(curTab==="expenses") renderExpenses();
   });
   el("sheetCancel").addEventListener("click",function(){ showSheet(false); });
@@ -8954,6 +8974,7 @@ function openApaLine(kind,id){
     });
     showSheet(false);
     if(isCaptain()) saveExpenses();
+    /* Line removed — update/clear shortfall amount (no force-create needed) */
     if(saved) saveApa(saved);
     if(curTab==="expenses") renderExpenses();
   });
@@ -19338,6 +19359,7 @@ function delRec(type,id){
       var tripMatch=gone.apaTripId&&String(t.id)===String(gone.apaTripId);
       if(pin||tripMatch){
         t.chargeId="";
+        /* Keep deleted until Sync or next diesel/expense save (allowCreate) */
         t.suppressShortfallCharge=true;
         t.updatedAt=new Date().toISOString();
       }
@@ -19351,6 +19373,8 @@ function delRec(type,id){
   } else renderLeads();
   /* Single authoritative save — deletedIds + rows without this charge */
   save(coll); showSheet(false);
+  /* Today lists charges from state — re-paint so deleted shortfall disappears immediately */
+  if(coll==="charters") refreshTodayAfterMoneyChange();
 }
 
 var sheetGen=0;
