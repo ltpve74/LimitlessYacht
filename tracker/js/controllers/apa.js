@@ -465,8 +465,15 @@
     var force = input.force !== false;
     var allowCreate = !!input.allowCreate;
     var hasReusable = !!chId;
-    if (!hasReusable && over > 0.009 && !trip.suppressShortfallCharge && !hasCash) {
-      allowCreate = allowCreate || !!input.firstShortfall;
+    /*
+     * First overspend on save (diesel/expense): open a shortfall charge.
+     * If user deleted the charge (suppress), still recreate when caller
+     * passes allowCreate (line save / Sync) — not from silent background jobs.
+     */
+    if (!hasReusable && over > 0.009 && !hasCash) {
+      if (!trip.suppressShortfallCharge) {
+        allowCreate = allowCreate || !!input.firstShortfall;
+      }
     }
 
     var decision = models.planApaShortfallSync({
