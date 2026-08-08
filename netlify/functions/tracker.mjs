@@ -85,13 +85,25 @@ function roleOf(who, bodyRole) {
   if (/^team\b/i.test(String(who || "").trim())) return "team";
   return "other";
 }
-/** Ops (APA + vessel diesel): captain only. Manager = charges/leads. Team = roster. */
+/** APA: captain only. Diesel: captain + manager. */
 function canOps(who, role) {
   return (role || roleOf(who)) === "captain" || isCaptain(who);
 }
+/** Vessel diesel — captain and manager. */
+function canDiesel(who, role) {
+  var r = role || roleOf(who);
+  return r === "captain" || r === "manager" || isCaptain(who) || isManager(who);
+}
+/** Roster (stews + assign) — captain, manager, team. */
 function canRoster(who, role) {
   var r = role || roleOf(who);
-  return r === "captain" || r === "team" || isCaptain(who);
+  return (
+    r === "captain" ||
+    r === "manager" ||
+    r === "team" ||
+    isCaptain(who) ||
+    isManager(who)
+  );
 }
 function canCommercial(who, role) {
   var r = role || roleOf(who);
@@ -2173,12 +2185,13 @@ export default async (req, context) => {
     };
     /*
      * Payload by role. Captain always gets the full store (who-label is trusted).
-     * Manager: commercial only. Team: roster snapshot only.
+     * Manager: commercial + diesel + roster. Team: roster snapshot only.
      * Never send empty [] for captain commercial — that wiped the UI after role bugs.
      */
     const captain = role === "captain" || isCaptain(who);
     const commercial = captain || role === "manager" || isManager(who);
-    const roster = captain || role === "team";
+    const dieselOk = canDiesel(who, role);
+    const roster = canRoster(who, role);
 
     if (commercial) {
       out.charters = Array.isArray(data.charters) ? data.charters : [];
@@ -2190,14 +2203,17 @@ export default async (req, context) => {
     if (captain) {
       /* Never ship tombstoned pots — prevents Roman diesel reappearing after delete */
       out.apa = filterApaDeletedRows(data, data.apa);
-      out.diesel = Array.isArray(data.diesel) ? data.diesel : [];
       out.expenses = Array.isArray(data.expenses) ? data.expenses : [];
       out.expPetty = Array.isArray(data.expPetty) ? data.expPetty : [];
     } else {
       out.apa = null;
-      out.diesel = null;
       out.expenses = null;
       out.expPetty = null;
+    }
+    if (dieselOk) {
+      out.diesel = Array.isArray(data.diesel) ? data.diesel : [];
+    } else {
+      out.diesel = null;
     }
     if (roster) {
       out.stews = Array.isArray(data.stews) ? data.stews : [];
@@ -2242,15 +2258,18 @@ export default async (req, context) => {
     if ((coll === "charters" || coll === "leads") && !canCommercial(who, role)) {
       return json({ error: "Charges and leads are captain/manager only" }, 403);
     }
-    if ((coll === "apa" || coll === "diesel") && !canOps(who, role)) {
-      return json({ error: coll === "diesel" ? "Diesel is captain only" : "APA is captain only" }, 403);
+    if (coll === "apa" && !canOps(who, role)) {
+      return json({ error: "APA is captain only" }, 403);
+    }
+    if (coll === "diesel" && !canDiesel(who, role)) {
+      return json({ error: "Diesel is captain/manager only" }, 403);
     }
     /* Live ICS snapshot: captain only. Team assigns stews but cannot refresh the feed. */
     if (coll === "stewCalendar" && !(role === "captain" || isCaptain(who))) {
       return json({ error: "Calendar refresh is captain-only" }, 403);
     }
     if ((coll === "stews" || coll === "stewAssign") && !canRoster(who, role)) {
-      return json({ error: "Roster is captain/team only" }, 403);
+      return json({ error: "Roster is captain/manager/team only" }, 403);
     }
     if ((coll === "expenses" || coll === "expPetty") && !(role === "captain" || isCaptain(who))) {
       return json({ error: "Expenses are captain-only" }, 403);

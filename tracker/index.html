@@ -1214,7 +1214,7 @@ var DIESEL_LEGACY_SELL=(window.LY_MODELS&&LY_MODELS.DIESEL_LEGACY_FALLBACK_SELL)
 var DIESEL_DEFAULT_SELL=Math.round((DIESEL_DEFAULT_BUY+DIESEL_MARKUP)*100)/100; /* e.g. 1.84 after 1.74 bunker */
 var DIESEL_PREV_SELL_HIGH=2.20; /* obsolete early default to scrub */
 var SESSION_KEY="limitless_tracker_session";
-/** Roles: captain (full) · manager (charges+leads) · team (roster only). */
+/** Roles: captain (full) · manager (charges+leads+diesel+stews) · team (roster). */
 function sessionRole(){
   /* Who-label wins for Captain/Manager so a stale session.role never demotes them */
   if(/^captain\b/i.test(String(session.who||"").trim())) return "captain";
@@ -1227,10 +1227,14 @@ function sessionRole(){
 function isCaptain(){ return sessionRole()==="captain"; }
 function isManager(){ return sessionRole()==="manager"; }
 function isTeam(){ return sessionRole()==="team"; }
-/** Ops (APA, Diesel, Expenses, commissions) — captain only. */
+/** APA / Expenses / Commissions — captain only. */
 function canOps(){ return isCaptain(); }
-/** Roster (stews + assignments) — captain and team. */
-function canRoster(){ return isCaptain()||isTeam(); }
+/** Vessel diesel tab — captain and manager. */
+function canDiesel(){ return isCaptain()||isManager(); }
+/** Roster (stews + assignments) — captain, manager, and team. */
+function canRoster(){ return isCaptain()||isManager()||isTeam(); }
+/** Ops hub (tiles) — captain full; manager sees Diesel + Stews only. */
+function canOpsHub(){ return isCaptain()||isManager(); }
 /** Charges + leads — captain and manager. */
 function canCommercial(){ return isCaptain()||isManager(); }
 /** Captain commission % — locked in tracker/js/models.js */
@@ -1576,7 +1580,9 @@ function configureNavForRole(){
   if(el("navToday")) el("navToday").classList.toggle("hidden", !cap);
   if(el("navCharters")) el("navCharters").classList.toggle("hidden", !canCommercial());
   if(el("navLeads")) el("navLeads").classList.toggle("hidden", !canCommercial());
-  if(el("navOps")) el("navOps").classList.toggle("hidden", !cap);
+  /* Ops hub: captain (full) + manager (diesel + stews) */
+  if(el("navOps")) el("navOps").classList.toggle("hidden", !canOpsHub());
+  /* Team uses top-level Roster; captain/manager open Stews from Ops */
   if(el("navRoster")) el("navRoster").classList.toggle("hidden", !team);
   if(el("stewOpsBack")) el("stewOpsBack").classList.toggle("hidden", team);
   Array.prototype.forEach.call(document.querySelectorAll("[data-ops-back]"),function(b){
@@ -1648,12 +1654,15 @@ function enterApp(){
   try{
     if(isTeam()){
       if(curTab!=="stews"&&curTab!=="security") curTab="stews";
-    } else if(!isCaptain()&&(isOpsTab(curTab)||curTab==="today")){
+    } else if(isManager()&&(curTab==="today"||curTab==="apa"||curTab==="expenses"||curTab==="commissions")){
+      /* Manager may keep diesel/stews/ops; kick off captain-only tabs */
+      curTab="leads";
+    } else if(!isCaptain()&&!isManager()&&(isOpsTab(curTab)||curTab==="today")){
       curTab="leads";
     } else if(isCaptain()&&(isOpsTab(curTab)||curTab==="today"||!curTab||curTab==="leads"||curTab==="charters")){
       /* Fresh login / generic commercial tabs → charter-day aware default */
       curTab=defaultLandingTab();
-    } else if(canCommercial()&&(isOpsTab(curTab)||!curTab)){
+    } else if(canCommercial()&&!curTab){
       curTab="leads";
     }
   }catch(eTab){ curTab=defaultLandingTab(); }
@@ -1663,7 +1672,8 @@ function enterApp(){
     var tabQ=q.get("tab");
     if(tabQ==="today"&&isCaptain()) curTab="today";
     else if(tabQ==="leads"&&canCommercial()) curTab="leads";
-    else if(tabQ==="ops"&&isCaptain()) curTab="ops";
+    else if(tabQ==="ops"&&canOpsHub()) curTab="ops";
+    else if(tabQ==="diesel"&&canDiesel()) curTab="diesel";
     else if(tabQ==="stews"&&canRoster()) curTab="stews";
     else if(tabQ==="charters"&&canCommercial()) curTab="charters";
   }catch(eQ){}
@@ -2212,18 +2222,22 @@ function renderTodayTab(){
 }
 function renderOpsHub(){
   var grid=el("opsGrid"); if(!grid) return;
-  if(!isCaptain()){
-    grid.innerHTML='<div class="empty"><div class="big">⚓</div><div>Ops is captain-only.</div></div>';
+  if(!canOpsHub()){
+    grid.innerHTML='<div class="empty"><div class="big">⚓</div><div>Ops is not available for this login.</div></div>';
     return;
   }
   /* Site calendar ops removed — public site updates automatically from leads */
   var tiles=[
-    {id:"apa",ic:"📒",t:"APA",d:"Guest pot, spend ledger, shortfall charges"},
+    {id:"apa",ic:"📒",t:"APA",d:"Guest pot, spend ledger, shortfall charges", capOnly:true},
     {id:"diesel",ic:"⛽",t:"Diesel",d:"Bunker & sell by date (€/L each load)"},
     {id:"stews",ic:"👩‍✈️",t:"Stews",d:"Confirmed charters only · day pay & tips"},
-    {id:"expenses",ic:"💶",t:"Expenses",d:"Monthly boat ledger + export for manager"},
-    {id:"commissions",ic:"💸",t:"Commissions",d:"Captain "+CAPTAIN_COMMISSION_PCT+"% · Paul "+CLICKBOAT_COMMISSION_PCT+"% · Owner-sourced · Owner’s days"}
+    {id:"expenses",ic:"💶",t:"Expenses",d:"Monthly boat ledger + export for manager", capOnly:true},
+    {id:"commissions",ic:"💸",t:"Commissions",d:"Captain "+CAPTAIN_COMMISSION_PCT+"% · Paul "+CLICKBOAT_COMMISSION_PCT+"% · Owner-sourced · Owner’s days", capOnly:true}
   ];
+  /* Manager: Diesel + Stews only (not APA / Expenses / Commissions) */
+  if(isManager()&&!isCaptain()){
+    tiles=tiles.filter(function(x){ return !x.capOnly; });
+  }
   grid.innerHTML=tiles.map(function(x){
     return '<button type="button" class="ops-tile" data-ops-go="'+esc(x.id)+'">'+
       '<span class="ops-ic" aria-hidden="true">'+x.ic+'</span>'+
@@ -2233,10 +2247,15 @@ function renderOpsHub(){
 }
 function switchTab(t){
   if(t==="stews"&&!canRoster()) return;
+  if(t==="diesel"&&!canDiesel()) return;
   if((t==="charters"||t==="leads")&&!canCommercial()&&t!=="security") return;
   if(t==="today"&&!isCaptain()) return;
-  if(isOpsTab(t)&&t!=="ops"&&!isCaptain()&&!(t==="stews"&&isTeam())) return;
-  if(t==="ops"&&!isCaptain()) return;
+  if((t==="apa"||t==="expenses"||t==="commissions")&&!isCaptain()) return;
+  if(t==="ops"&&!canOpsHub()) return;
+  /* Team may open stews as top-level; others use ops children only if allowed above */
+  if(isOpsTab(t)&&t!=="ops"&&t!=="diesel"&&t!=="stews"&&!isCaptain()) return;
+  if(t==="stews"&&isTeam()){ /* ok */ }
+  else if(t==="stews"&&!canRoster()) return;
   curTab=t;
   if(t==="apa") apaView="list";
   var slot=navSlotForTab(t);
@@ -2262,10 +2281,10 @@ function switchTab(t){
     /* Paint APA from blob only — no auto merge/save on tab open */
     renderApa();
   }
-  if(t==="diesel") renderDiesel();
-  if(t==="stews") renderStews();
-  if(t==="expenses") renderExpenses();
-  if(t==="commissions") renderCommissions();
+  if(t==="diesel"&&canDiesel()) renderDiesel();
+  if(t==="stews"&&canRoster()) renderStews();
+  if(t==="expenses"&&isCaptain()) renderExpenses();
+  if(t==="commissions"&&isCaptain()) renderCommissions();
   if(t==="security") renderSecurity();
 }
 function updateFab(){
@@ -2500,10 +2519,11 @@ function renderAll(){
   if(isCaptain()){
     if(curTab==="today") safe(renderTodayTab);
     else safe(syncTodayNavBadge);
-    safe(renderApa); safe(renderDiesel);
+    safe(renderApa);
     if(curTab==="expenses") safe(renderExpenses);
     if(curTab==="commissions") safe(renderCommissions);
   }
+  if(canDiesel()) safe(renderDiesel);
   /* Only paint Stews when that tab is open — avoid full roster rebuild on every boot */
   if(canRoster()&&curTab==="stews") safe(function(){ renderStews({soft:true}); });
 }
@@ -9358,13 +9378,13 @@ function dieselLedger(){
   };
 }
 function saveDiesel(){
-  if(!canOps()) return;
+  if(!canDiesel()) return;
   dieselEnsure();
   save("diesel");
   renderDiesel();
 }
 function renderDiesel(){
-  if(!canOps()) return;
+  if(!canDiesel()) return;
   var wrap=el("dieselBody");
   if(!wrap) return;
   /* Always keep body fresh so switching tab shows current APA-linked figures */
@@ -20176,8 +20196,8 @@ function applyData(d, opts){
     }
     if(Array.isArray(state.apa)) state.apa=filterTombstonedRows("apa", state.apa);
   } else if(!canOps()) state.apa=[];
-  if(canOps() && Array.isArray(d.diesel)) state.diesel=d.diesel;
-  else if(!canOps()) state.diesel=[];
+  if(canDiesel() && Array.isArray(d.diesel)) state.diesel=d.diesel;
+  else if(!canDiesel()) state.diesel=[];
   if(canRoster() && Array.isArray(d.stews)){
     state.stews=d.stews;
     try{
