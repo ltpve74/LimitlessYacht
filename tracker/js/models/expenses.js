@@ -629,6 +629,15 @@ function summarizePettyCash(opts) {
       if (!crewDayPayHitsPetty(e)) return;
       cashOut += a;
       crewPaidPetty += a;
+      /* charterDate = roster day; date may be later pay day (when cash left pot) */
+      var chDate =
+        e.charterDate != null && String(e.charterDate).slice(0, 10)
+          ? String(e.charterDate).slice(0, 10)
+          : "";
+      if (!chDate && e.description) {
+        var mCh = String(e.description).match(/charter\s+(\d{4}-\d{2}-\d{2})/i);
+        if (mCh) chDate = mCh[1];
+      }
       cashOutLines.push({
         kind: "crew",
         purpose: "daypay",
@@ -638,6 +647,7 @@ function summarizePettyCash(opts) {
         amount: a,
         id: e.id,
         date: String(e.date || "").slice(0, 10),
+        charterDate: chDate,
         finger: crewDayPayFinger(e),
       });
       nCrewPetty++;

@@ -703,6 +703,8 @@ function planStewDayPayExpenseLines(input) {
       floatPay: floatPay,
       payStatusManual: !!asg.payStatusManual || !!(old && old.payStatusManual) || (applyMark && !!paidFromDefault),
       date: lineDate,
+      /* Roster day (always). date may be pay day when cash left petty later. */
+      charterDate: charterDate,
       vendor: stewName(sid),
       description: desc,
       category: "Crew Salaries",

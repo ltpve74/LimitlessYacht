@@ -12688,13 +12688,42 @@ function paintExpensesBody(){
         purpose==="daypay"||purpose==="crew"?"p-amber":
         purpose==="tip-payout"||purpose==="tip"?"p-cash":
         "p-grey";
+      /* Day pay: date on the line is often the *pay* day (cash left pot), not the charter day */
+      var charterStr=row.charterDate?String(row.charterDate).slice(0,10):"";
+      if(!charterStr&&row.id){
+        try{
+          var expLive=(state.expenses||[]).filter(function(x){ return x&&String(x.id)===String(row.id); })[0];
+          if(expLive&&expLive.charterDate) charterStr=String(expLive.charterDate).slice(0,10);
+          else if(expLive&&expLive.description){
+            var mC=String(expLive.description).match(/charter\s+(\d{4}-\d{2}-\d{2})/i);
+            if(mC) charterStr=mC[1];
+          }
+          if(expLive&&expLive.stewEventKey&&!charterStr){
+            var asgLive=typeof assignForEvent==="function"?assignForEvent(expLive.stewEventKey):null;
+            if(asgLive&&asgLive.start) charterStr=String(asgLive.start).slice(0,10);
+          }
+        }catch(eCh){}
+      }
+      var charterLab="";
+      if(charterStr&&charterStr!==dStr){
+        try{ charterLab=fmtDate(charterStr)||charterStr; }catch(eCL){ charterLab=charterStr; }
+      }
+      var dateBits="";
+      if(charterLab){
+        dateBits='<span>🚤 charter '+esc(charterLab)+'</span>'+(dLab?'<span>paid '+esc(dLab)+'</span>':'');
+      } else if(dLab){
+        dateBits='<span>📅 '+esc(dLab)+'</span>';
+      }
       h+='<div class="item" style="padding:10px 12px"'+(row.id?' data-exp-id="'+esc(row.id)+'" role="button" tabindex="0"':'')+'>'+
         '<div class="top"><div class="title" style="font-size:14px">'+esc(row.label||purposeLab)+'</div>'+
           '<div class="amt money" style="font-size:14px">−'+money0(row.amount)+'</div></div>'+
         '<div class="meta">'+
-          (dLab?'<span>📅 '+esc(dLab)+'</span>':'')+
+          dateBits+
           '<span class="pill '+pillCls+'">'+esc(purposeLab)+'</span>'+
         '</div>'+
+        (row.detail&&(purpose==="daypay"||purpose==="crew")
+          ?'<div class="notes" style="font-style:normal;margin-top:4px;font-size:12.5px;color:var(--muted)">'+esc(row.detail)+'</div>'
+          :'')+
       '</div>';
     });
     h+='</div>';
@@ -12878,7 +12907,32 @@ function paintExpensesBody(){
         pills.push('<span class="pill p-cash">From petty</span>');
       }
       var bits=[];
-      if(e.date) bits.push(fmtDate(e.date)||e.date);
+      /* Day pay: prefer charter day; if paid later from petty, show both */
+      if(isCrewDay||hitsFloat){
+        var chBit="";
+        if(e.charterDate) chBit=String(e.charterDate).slice(0,10);
+        else if(e.description){
+          var mCh2=String(e.description).match(/charter\s+(\d{4}-\d{2}-\d{2})/i);
+          if(mCh2) chBit=mCh2[1];
+        }
+        if(!chBit&&e.stewEventKey){
+          try{
+            var asgCh=typeof assignForEvent==="function"?assignForEvent(e.stewEventKey):null;
+            if(asgCh&&asgCh.start) chBit=String(asgCh.start).slice(0,10);
+          }catch(eAs){}
+        }
+        var payBit=e.date?String(e.date).slice(0,10):"";
+        if(chBit&&payBit&&chBit!==payBit){
+          bits.push("charter "+(fmtDate(chBit)||chBit));
+          bits.push("paid "+(fmtDate(payBit)||payBit));
+        } else if(chBit){
+          bits.push(fmtDate(chBit)||chBit);
+        } else if(payBit){
+          bits.push(fmtDate(payBit)||payBit);
+        }
+      } else if(e.date){
+        bits.push(fmtDate(e.date)||e.date);
+      }
       if(e.category&&!isComm&&!isTipPay&&!isReimb&&!isCrewDay&&!hitsFloat) bits.push(e.category);
       if(e.source==="stew"&&!isTipPay) bits.push("Stews");
       if(e.chargeTo==="apa"&&e.apaTripId){
