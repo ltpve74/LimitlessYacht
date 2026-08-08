@@ -20186,16 +20186,21 @@ function applyData(d, opts){
   /* Always drop tombstoned charges (delete must stick across poll/boot) */
   if(Array.isArray(state.charters)) state.charters=filterTombstonedRows("charters", state.charters);
   state.devices=d.devices||[]; state.log=d.log||[];
-  if(canOps() && Array.isArray(d.apa)){
-    if(fromPoll&&localSaveIsFresh("apa")){
-      /* keep local APA pots while save settles */
-    } else if(fromPoll){
+  /*
+   * APA pots: captain full access. Manager also loads them read-only so Diesel
+   * “Used (APA)” / est. on board include trip fuel (without APA the tank is
+   * bunkers only and looks thousands of litres high).
+   */
+  if((canOps()||canDiesel()) && Array.isArray(d.apa)){
+    if(fromPoll&&localSaveIsFresh("apa")&&canOps()){
+      /* keep local APA pots while save settles (captain edits only) */
+    } else if(fromPoll&&canOps()){
       state.apa=mergeExpensesById(state.apa||[], d.apa, "apa");
     } else {
       state.apa=d.apa;
     }
     if(Array.isArray(state.apa)) state.apa=filterTombstonedRows("apa", state.apa);
-  } else if(!canOps()) state.apa=[];
+  } else if(!canOps()&&!canDiesel()) state.apa=[];
   if(canDiesel() && Array.isArray(d.diesel)) state.diesel=d.diesel;
   else if(!canDiesel()) state.diesel=[];
   if(canRoster() && Array.isArray(d.stews)){
