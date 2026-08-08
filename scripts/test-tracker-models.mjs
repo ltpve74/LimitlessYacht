@@ -462,6 +462,27 @@ console.log("\n[Charter price from event]");
   });
   ok("Jul high season", highFull.season === "high");
   ok("8h high €4000", highFull.dur === "8h" && highFull.total === 4000, JSON.stringify(highFull));
+  /* Clock wins over stale title (12–20 is 8h even if title still says 6h) */
+  const clockBeatsTitle = M.charterPriceFromEvent({
+    start: "2026-08-08",
+    end: "2026-08-08",
+    startTime: "12:00",
+    endTime: "20:00",
+    summary: "Henry 6h charter NA",
+  });
+  ok(
+    "12–20 clock → 8h despite 6h in title",
+    clockBeatsTitle.dur === "8h",
+    JSON.stringify(clockBeatsTitle)
+  );
+  /* Title hours only when no clock (all-day / missing times) */
+  const titleOnly = M.charterPriceFromEvent({
+    start: "2026-05-10",
+    end: "2026-05-10",
+    allDay: true,
+    summary: "Guest 6h hold",
+  });
+  ok("all-day title 6h", titleOnly.dur === "6h", JSON.stringify(titleOnly));
   const multi = M.charterPriceFromEvent({
     start: "2026-07-17",
     end: "2026-07-20",

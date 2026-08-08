@@ -2705,7 +2705,14 @@ function rangeStr(r){
 function leadMeta(r){
   var isMulti=(r.dur==="multi")||(!r.dur&&(r.end||(Number(r.days)||0)>1));
   if(isMulti){ var rng=rangeStr(r), rt=(Number(r.rate)||0)?money0(r.rate)+'/day':''; return '⛵ '+esc(rng)+(rt?' · '+rt:''); }
-  return '🕐 '+esc(durLabel(r.dur))+(r.start?' · '+esc(fmtDate(r.start)):(r.cdate?' · '+esc(fmtDate(r.cdate)):''));
+  /* Day charter: show duration + clock (when known) + date — manager/all commercial */
+  var st=String(r.startTime||"").trim();
+  var et=String(r.endTime||"").trim();
+  var clock="";
+  if(st&&et) clock=st+"–"+et;
+  else if(st||et) clock=st||et;
+  else if(r.allDay) clock="all day";
+  return '🕐 '+esc(durLabel(r.dur))+(clock?' · '+esc(clock):'')+(r.start?' · '+esc(fmtDate(r.start)):(r.cdate?' · '+esc(fmtDate(r.cdate)):''));
 }
 function vatModeLabel(m){ return m==="add"?"+ VAT":(m==="include"?"inc. VAT":""); }
 function leadInvTag(label, amount, pct, status, invNo){
