@@ -1641,6 +1641,14 @@ def check_html(r: Runner, rel: str, html: str) -> None:
 
     # Structured data + social share (OG / WhatsApp / Twitter use same hero as #hero)
     r.check('schema.org JSON-LD present', 'application/ld+json' in html)
+    r.check(
+        'Product schema has offers (GSC snippet requirement)',
+        '"@type": "AggregateOffer"' in html and '"priceCurrency": "EUR"' in html,
+    )
+    r.check(
+        'Product schema has aggregateRating',
+        '"@type": "AggregateRating"' in html and '"ratingValue":' in html,
+    )
     if rel == 'index.html':
         r.check(
             'social share image matches live hero (maiora_20s_18)',
@@ -1737,6 +1745,19 @@ def check_localized_reviews(r: Runner) -> None:
 
     en_texts = {item.get('text', '') for item in en_reviews}
     r.check('English reviews.json is non-empty', len(en_reviews) > 0)
+    en_index = read_file('index.html')
+    if en_index is not None:
+        r.check(
+            f'Product aggregateRating reviewCount matches reviews.json ({len(en_reviews)})',
+            f'"reviewCount": "{len(en_reviews)}"' in en_index,
+        )
+        _ar = [float(x.get('rating', 0)) for x in en_reviews if x.get('rating') is not None]
+        if _ar:
+            _avg = f'{sum(_ar)/len(_ar):.1f}'
+            r.check(
+                f'Product aggregateRating ratingValue matches reviews avg ({_avg})',
+                f'"ratingValue": "{_avg}"' in en_index,
+            )
 
     for code, rel_path in LOCALE_REVIEW_FILES.items():
         raw = read_file(rel_path)
