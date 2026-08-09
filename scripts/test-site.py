@@ -714,9 +714,11 @@ def check_html(r: Runner, rel: str, html: str) -> None:
             r'class="ly-prog-preview"[^>]*decoding="async"[^>]*loading="eager"',
             html,
         ) is not None
-        and '.ly-prog-wrap--hero.ly-prog-preview{z-index:0;opacity:1;transform:scale(1.06)}' in re.sub(
+        and ('.ly-prog-wrap--hero.ly-prog-preview{z-index:0;opacity:1;transform:none}' in re.sub(
             r'\s+', '', html[html.find('id="critical-css"'):html.find('</style>', html.find('id="critical-css"'))]
-        )
+        ) or '.ly-prog-wrap--hero .ly-prog-preview{z-index:0;opacity:1;transform:none}' in re.sub(
+            r'\s+', '', html[html.find('id="critical-css"'):html.find('</style>', html.find('id="critical-css"'))]
+        ))
         and 'filter:blur(8px)' not in (read_file('css/layout.css') or '')
         and 'GaussianBlur' in (read_file('scripts/build_preview_images.py') or '')
         and 'LY_stemFromMasterUrl' in html
@@ -1760,22 +1762,26 @@ def check_hero_legibility_cascade(r: Runner) -> None:
     """Critical + unlayered main.css lock must agree so async CSS does not flash weaker type.
 
     Minify strips CSS comments, so do not require comment markers — require the
-    unlayered pull-quote rules to appear *after* the last @layer site block.
+    unlayered pull-quote / paint rules to appear *after* the last @layer site block.
     """
     main = read_file('css/main.css') or ''
     index = read_file('index.html') or ''
     layer_at = main.rfind('@layer site{')
     # Prefer readable-source comment anchor when present; else last clamp rule
-    lock_at = main.rfind('Unlayered hero legibility lock')
+    lock_at = max(
+        main.rfind('Unlayered hero paint lock'),
+        main.rfind('Unlayered hero legibility lock'),
+    )
     clamp_at = main.rfind('.hero-pull-quote{font-size:clamp(.82rem')
     anchor = lock_at if lock_at > layer_at else clamp_at
     tail = main[anchor:] if anchor >= 0 else ''
     r.check(
-        'main.css ends with unlayered hero legibility lock (beats @layer site flash)',
+        'main.css ends with unlayered hero paint lock (beats @layer site flash)',
         layer_at >= 0
         and anchor > layer_at
         and '.hero-pull-quote{font-size:clamp(.82rem' in tail
-        and 'color:#f5f0e8' in tail,
+        and 'color:#f5f0e8' in tail
+        and 'object-position:50% 46%' in tail,
     )
     crit_m = re.search(r'<style id="critical-css">(.*?)</style>', index, re.S)
     crit = crit_m.group(1) if crit_m else ''
@@ -1786,6 +1792,15 @@ def check_hero_legibility_cascade(r: Runner) -> None:
         and 'color:#f5f0e8' in crit
         and 'font-weight:500' in crit
         and 'text-shadow:01px2pxrgba(0,0,0,.95)' in crit_flat,
+    )
+    nt_js = read_file('js/net-tier.js') or ''
+    # Minify may strip comments — require kick only after LY_loadMainCss is defined,
+    # and not immediately after layout-css finish (old cascade flash path).
+    r.check(
+        'progressive hero waits for main.css (no mid-cascade crossfade)',
+        'LY_kickProgressiveAfterReveal' in nt_js
+        and nt_js.find('LY_kickProgressiveAfterReveal') > nt_js.rfind('LY_loadMainCss')
+        and 'LY_kickProgressiveAfterReveal(); softFrame(revealMain)' not in nt_js.replace(' ', ''),
     )
 
 
