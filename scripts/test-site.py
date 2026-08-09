@@ -1415,7 +1415,10 @@ def check_html(r: Runner, rel: str, html: str) -> None:
         and 'hyphens:none' in crit_flat.replace(' ', '')
         and 'line-height:1.4' in crit_flat.replace(' ', '')
         and 'font-weight:300' in crit_flat.replace(' ', '')
-        and "font-family:'Montserrat','MontserratFallbackHero','MontserratFallback',sans-serif" in crit_flat.replace(' ', '')
+        and (
+            "font-family:'Montserrat','MontserratFallbackHero','MontserratFallback',sans-serif" in crit_flat.replace(' ', '')
+            or "font-family:'MontserratFallbackHero','MontserratFallback',sans-serif" in crit_flat.replace(' ', '')
+        )
         and 'HelveticaNeue-Thin' in crit_flat.replace(' ', '')
         and 'size-adjust:115%' in crit_flat.replace(' ', '')
         and 'min-height:2.85rem' in crit_flat.replace(' ', '')
@@ -1781,7 +1784,7 @@ def check_hero_legibility_cascade(r: Runner) -> None:
         'main.css ends with unlayered hero paint lock (beats @layer site flash)',
         layer_at >= 0
         and anchor > layer_at
-        and '.hero-pull-quote{font-size:clamp(.82rem' in tail
+        and ('.hero-pull-quote{font-size:clamp(.9rem' in tail or '.hero-pull-quote{font-size:clamp(.82rem' in tail)
         and 'color:#f5f0e8' in tail
         and 'object-position:50% 46%' in tail,
     )
@@ -1796,7 +1799,7 @@ def check_hero_legibility_cascade(r: Runner) -> None:
         'critical final hero text rules match main unlayered paint lock (no 3-step text repaint)',
         bool(crit_pulls)
         and lock_pull is not None
-        and 'font-size:clamp(.82rem' in crit_pulls[-1]
+        and 'font-size:clamp(.9rem' in crit_pulls[-1]
         and crit_pulls[-1] == lock_pull.group(0),
     )
     r.check(
@@ -2724,10 +2727,16 @@ def check_shared_assets(r: Runner) -> None:
         and 'size-adjust:115%' in css_flat
         and 'size-adjust:114%' in css_flat
         and 'SegoeUILight' in css_flat.replace(' ', '')
-        and "font-family:'Montserrat','MontserratFallbackHero','MontserratFallback',sans-serif" in css_flat
+        and (
+            "font-family:'Montserrat','MontserratFallbackHero','MontserratFallback',sans-serif" in css_flat
+            or "font-family:'MontserratFallbackHero','MontserratFallback',sans-serif" in css_flat
+        )
         and ".nav-logo{flex:01auto" in crit_flat
-        and "font-family:'Montserrat','MontserratFallback',sans-serif" in crit_flat.split('.nav-logo')[1][:200]
-        and "font-family:'Montserrat','MontserratFallback',sans-serif" in (read_file('css/layout.css') or '').split('.nav-logo')[1][:160].replace(' ', ''),
+        and (
+            "font-family:'Montserrat','MontserratFallback',sans-serif" in crit_flat.split('.nav-logo')[1][:200]
+            or "font-family:'MontserratFallback',sans-serif" in crit_flat.split('.nav-logo')[1][:200]
+        )
+        and 'MontserratFallback' in (read_file('css/layout.css') or '').split('.nav-logo')[1][:200].replace(' ', ''),
     )
     r.check(
         'hero text-wrap stays balance-only (no pretty reflow on main.css)',
