@@ -1773,14 +1773,21 @@ def check_hero_legibility_cascade(r: Runner) -> None:
         'hero type locked in critical #hero rules (system font, main cannot restyle)',
         'ly-hero-type-lock' in crit
         and '#hero.hero-value{' in crit_flat
-        and 'max-width:28rem!important' in crit_flat
+        and 'max-width:26rem!important' in crit_flat
         and 'min-height:3.3em!important' in crit_flat
         and "font-family:'MontserratFallback'" in crit_flat
         and 'ly-hero-type-lock' in main
         and '#hero.hero-value{font-size:1rem!important' in main_flat
-        and 'max-width:28rem!important' in main_flat
+        and 'max-width:26rem!important' in main_flat
         # Real Montserrat face must not override hero title after font load
-        and 'html.ly-font-ready .hero-title' not in main.replace(' ', ''),
+        and 'html.ly-font-ready .hero-title' not in main.replace(' ', '')
+        # main @layer site must not re-size hero title with vw/vh (causes 3-step cascade jump)
+        and 'font-size:clamp(3.5rem,9vw,8rem)' not in main_flat
+        and 'font-size:clamp(2.85rem,7.2vh,5.75rem)' not in main_flat
+        and 'font-size:var(--hero-cinema-title)' not in main_flat
+        # critical lock uses rem, never vw
+        and 'font-size:4.75rem!important' in crit_flat
+        and 'font-size:clamp(3.5rem,9vw' not in crit_flat,
     )
     r.check(
         'critical CSS locks hero pull-quote contrast before sheets load',

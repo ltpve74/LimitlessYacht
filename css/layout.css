@@ -1278,18 +1278,11 @@
       padding:0.8rem 1rem;
       min-height:3.8rem
     }
-    .hero-eyebrow{
-      font-size:.52rem;
-      margin-bottom:0.4rem;
-      letter-spacing:.05em
-    }
     .eyebrow-stars{
       letter-spacing:.04em
     }
-    .hero-title{/* type locked in critical #hero */}
-    .hero-sub{/* type locked in critical #hero */}
+    /* hero type + rates type locked in critical #hero — layout only */
     .hero-rates{
-      font-size:.62rem;
       margin-bottom:0.8rem
     }
     #hero .hero-actions{
