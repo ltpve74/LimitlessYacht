@@ -1357,7 +1357,10 @@ def check_html(r: Runner, rel: str, html: str) -> None:
         'critical CSS includes hero legibility scrims before main.css',
         '.hero-content::before' in crit_flat
         and '.hero-content::after' in crit_flat
-        and 'text-shadow:01px2pxrgba(0,0,0,.9)' in crit_flat
+        and (
+            'text-shadow:01px2pxrgba(0,0,0,.9)' in crit_flat
+            or 'text-shadow:01px2pxrgba(0,0,0,.95)' in crit_flat
+        )
         and (
             '#hero.hero-actions.btn-ghost{background:rgba(10,22,40,.28)' in crit_flat
             or '#hero.hero-actions.btn-ghost{background:rgba(10,22,40,.52)' in crit_flat

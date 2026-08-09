@@ -1593,13 +1593,14 @@
     --ly-css-tail:1
   }
   .hero-pull-quote{
-    font-size:.74rem;
+    font-size:clamp(.82rem,2.4vw,.94rem);
     font-style:italic;
-    color:rgba(245,240,232,.85);
+    font-weight:500;
+    color:#f5f0e8;
     letter-spacing:.01em;
     line-height:1.55;
     margin-top:.65rem;
-    text-shadow:0 1px 6px rgba(10,22,40,.7);
+    text-shadow:0 1px 2px rgba(0,0,0,.95),0 2px 12px rgba(10,22,40,.92),0 0 28px rgba(10,22,40,.55);
     max-width:36rem;
     width:100%
   }
@@ -1627,7 +1628,9 @@
   }
   .hero-pull-attr{
     font-style:normal;
-    color:rgba(245,240,232,.65)
+    font-weight:500;
+    color:rgba(245,240,232,.92);
+    letter-spacing:.03em
   }
   .hero-pull-link{
     color:inherit;
@@ -1637,8 +1640,10 @@
   }
   .hero-rates-note{
     font-size:.8em;
-    opacity:.72;
-    letter-spacing:.04em
+    opacity:.92;
+    letter-spacing:.04em;
+    color:rgba(245,240,232,.95);
+    text-shadow:0 1px 2px rgba(0,0,0,.75)
   }
   .hero-pull-link:hover{
     color:var(--gold-light);
