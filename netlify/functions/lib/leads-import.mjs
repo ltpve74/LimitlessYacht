@@ -15,6 +15,18 @@ export function constrainLeadSource(v) {
     .replace(/\s+/g, "-");
   if (!s) return "other";
   if (s === "pending" || s === "unassigned" || s === "assign") return "pending";
+  if (
+    s === "dayoff" ||
+    s === "day-off" ||
+    s === "day_off" ||
+    s === "off" ||
+    s === "off-day" ||
+    s === "off_day" ||
+    s === "closed" ||
+    s === "vessel-off" ||
+    s === "vessel_off"
+  )
+    return "dayoff";
   if (s === "captain" || s === "cpt" || s === "website" || s === "web" || s === "direct")
     return "captain";
   if (
@@ -55,6 +67,23 @@ export function constrainLeadSource(v) {
     return "owner";
   if (s === "other" || s === "agency" || s === "manager") return "other";
   return "other";
+}
+
+export function leadIsDayOff(r) {
+  if (!r) return false;
+  if (r.dayOff === true || r.dayOff === "true" || r.dayOff === 1) return true;
+  if (String(r.leadKind || r.kind || "").toLowerCase() === "dayoff") return true;
+  return constrainLeadSource(r.leadSource) === "dayoff";
+}
+
+export function dayOffLabelFromSummary(summary) {
+  var s = String(summary || "").trim();
+  if (!s || /^\s*off\s*$/i.test(s)) return "Day off";
+  var m = s.match(/^\s*off\s*[-–—:]\s*(.+)$/i);
+  if (m && m[1]) return ("Day off — " + String(m[1]).trim()).slice(0, 80);
+  if (/^\s*day\s*off\b/i.test(s)) return s.slice(0, 80);
+  if (isIcsOffSummary(s)) return ("Day off — " + s.replace(/^\s*off\s*/i, "").trim()).slice(0, 80);
+  return "Day off";
 }
 
 export function charterSeason(ymd) {
@@ -158,5 +187,7 @@ export function isIcsOffSummary(summary) {
   var s = String(summary || "").trim();
   if (/^\s*off\s*$/i.test(s)) return true;
   if (/^\s*off\s*[-–—:].+/i.test(s)) return true;
+  if (/^\s*day\s*off\b/i.test(s)) return true;
+  if (/^\s*closed\b/i.test(s) && !/\bcharter\b/i.test(s)) return true;
   return false;
 }
