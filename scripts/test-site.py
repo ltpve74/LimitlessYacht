@@ -1771,12 +1771,13 @@ def check_hero_legibility_cascade(r: Runner) -> None:
     main_flat = re.sub(r'\s+', '', main)
     r.check(
         'hero type locked in critical #hero rules (system font, main cannot restyle)',
-        'ly-hero-type-lock' in crit
+        # Durable marker survives minify (comments are stripped on main)
+        '--ly-hero-type-lock:1' in crit_flat
         and '#hero.hero-value{' in crit_flat
         and 'max-width:26rem!important' in crit_flat
         and 'min-height:3.3em!important' in crit_flat
         and "font-family:'MontserratFallback'" in crit_flat
-        and 'ly-hero-type-lock' in main
+        and '--ly-hero-type-lock:1' in main_flat
         and '#hero.hero-value{font-size:1rem!important' in main_flat
         and 'max-width:26rem!important' in main_flat
         # Real Montserrat face must not override hero title after font load
