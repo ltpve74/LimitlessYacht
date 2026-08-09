@@ -234,6 +234,20 @@ ok("ownersourced", M.constrainLeadSource("ownersourced") === "ownersourced");
 ok("owner-sourced not owner days", M.constrainLeadSource("owner-sourced") !== "owner");
 ok("pending source", M.constrainLeadSource("pending") === "pending");
 ok("pending rate 0", M.leadCommissionRatePct({ leadSource: "pending" }) === 0);
+ok("dayoff source", M.constrainLeadSource("dayoff") === "dayoff");
+ok("off → dayoff", M.constrainLeadSource("off") === "dayoff");
+ok("day off is dayoff", !!M.leadIsDayOff({ leadSource: "dayoff", start: "2026-08-10" }));
+ok("day off flag", !!M.leadIsDayOff({ dayOff: true, name: "Day off" }));
+ok(
+  "day off not commercial income",
+  !M.leadIsClosedCommercialIncome({ leadSource: "dayoff", dealClosed: true, total: 0, id: "x" })
+);
+ok("day off rate 0", M.leadCommissionRatePct({ leadSource: "dayoff" }) === 0);
+ok("ICS Off title", !!M.isIcsOffSummary("Off — maintenance"));
+ok(
+  "day off label",
+  M.dayOffLabelFromSummary("Off — engine service") === "Day off — engine service"
+);
 ok("isCaptainLead", M.isCaptainLead({ leadSource: "captain" }));
 ok("not captain", !M.isCaptainLead({ leadSource: "other" }));
 ok("clickboat no captain-only flag", !M.leadEarnsCaptainCommission({ leadSource: "clickboat" }));

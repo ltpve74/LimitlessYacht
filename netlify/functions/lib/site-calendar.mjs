@@ -61,6 +61,15 @@ export function leadBlockedDays(l) {
 export function leadIsOnHold(l) {
   if (!l) return false;
   const src = constrainLeadSource(l.leadSource);
+  /* Day off / vessel closed → always firm closed (booked), never hold */
+  if (
+    src === "dayoff" ||
+    l.dayOff === true ||
+    l.dayOff === "true" ||
+    l.dayOff === 1 ||
+    String(l.leadKind || l.kind || "").toLowerCase() === "dayoff"
+  )
+    return false;
   /* Pending source → always on hold */
   if (src === "pending") return true;
   if (l.sourcePending === true || l.sourcePending === "true" || l.sourcePending === 1)
@@ -91,8 +100,14 @@ export function buildSiteCalendarFromLeads(leads, who, now) {
     if (!days.length) return;
 
     const src = constrainLeadSource(l.leadSource);
-    const onHold = leadIsOnHold(l);
-    const status = onHold ? "tentative" : "booked";
+    const isOff =
+      src === "dayoff" ||
+      l.dayOff === true ||
+      l.dayOff === "true" ||
+      l.dayOff === 1 ||
+      String(l.leadKind || l.kind || "").toLowerCase() === "dayoff";
+    const onHold = !isOff && leadIsOnHold(l);
+    const status = isOff ? "booked" : onHold ? "tentative" : "booked";
     const target = onHold ? tentative : booked;
     days.forEach((d) => target.add(d));
 
@@ -102,13 +117,14 @@ export function buildSiteCalendarFromLeads(leads, who, now) {
     events.push({
       key: l.calendarEventKey || "lead:" + l.id,
       uid: l.calendarUid || l.id,
-      summary: l.name || "Charter",
+      summary: isOff ? l.name || "Day off" : l.name || "Charter",
       start: start,
       end: days.length > 1 ? endExclusive : start,
       startTime: "",
       endTime: "",
       allDay: true,
       status: status,
+      dayOff: !!isOff,
       days: days.slice(),
       leadId: l.id,
       leadSource: src,
@@ -128,6 +144,6 @@ export function buildSiteCalendarFromLeads(leads, who, now) {
     seededFrom: "leads",
     updatedAt: ts,
     updatedBy: who || "system",
-    note: "From leads · pending source = on hold · firm = booked",
+    note: "From leads · pending = hold · firm/day-off = booked (closed)",
   };
 }

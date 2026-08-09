@@ -950,8 +950,93 @@ function applyIcsDatesToLead(L, d, now, opts) {
   return true;
 }
 
+/**
+ * Day off / vessel closed from ICS “Off” title.
+ * Blocks public calendar as firm booked; zero money (no earnings, no cost).
+ */
+function buildDayOffLeadFromIcsEvent(ev, ek, who, now) {
+  const start = String((ev && ev.start) || "").slice(0, 10);
+  if (!start) return null;
+  let end = String((ev && ev.end) || "").slice(0, 10);
+  /* All-day exclusive end: DTEND next day → inclusive last charter day in app */
+  let days = 1;
+  if (end && end > start) {
+    if (ev && ev.allDay) {
+      const a = new Date(start + "T12:00:00Z");
+      const b = new Date(end + "T12:00:00Z");
+      const diff = Math.round((b - a) / 86400000);
+      days = Math.max(1, diff);
+      end = days > 1 ? addUtcDayYmd(start, days - 1) : "";
+    } else {
+      const a = new Date(start + "T12:00:00Z");
+      const b = new Date(end + "T12:00:00Z");
+      days = Math.max(1, Math.round((b - a) / 86400000) + 1);
+    }
+  } else {
+    end = "";
+  }
+  const name =
+    (LY.dayOffLabelFromSummary && LY.dayOffLabelFromSummary(ev && ev.summary)) ||
+    "Day off";
+  const id =
+    "lead-off-" +
+    String(ek)
+      .replace(/^uid:/, "")
+      .replace(/[^a-zA-Z0-9_-]+/g, "-")
+      .slice(0, 48) +
+    "-" +
+    start;
+  const entered = todayYmdMadrid(now);
+  return {
+    id: id,
+    closed: entered,
+    name: name,
+    icsGuestName: name,
+    dayOff: true,
+    leadKind: "dayoff",
+    dur: days > 1 ? "multi" : "8h",
+    start: start,
+    end: days > 1 ? end : "",
+    rate: 0,
+    price: 0,
+    days: days,
+    base: 0,
+    net: 0,
+    vat: 0,
+    total: 0,
+    vatMode: "none",
+    vatPct: 0,
+    split: false,
+    leadSource: "dayoff",
+    sourcePending: false,
+    dealClosed: true,
+    bookingStatus: "active",
+    cancelled: false,
+    calendarEventKey: ek,
+    calendarUid: ek.indexOf("uid:") === 0 ? ek.slice(4) : ek,
+    depPct: 0,
+    dep: 0,
+    deps: "Not requested",
+    fin: 0,
+    fins: "Not requested",
+    apaPct: "",
+    apa: 0,
+    apas: "Not issued",
+    notes:
+      "Day off · vessel closed · no earnings · " +
+      (ev && ev.summary ? String(ev.summary).slice(0, 80) : "Off"),
+    by: who || "Calendar sync",
+    createdAt: now,
+    updatedAt: now,
+    icsFresh: true,
+  };
+}
+
 /** Build a new pending lead from an ICS event (shared by fresh import + restore). */
 function buildPendingLeadFromIcsEvent(ev, ek, who, now) {
+  if (LY.isIcsOffSummary(ev && ev.summary)) {
+    return buildDayOffLeadFromIcsEvent(ev, ek, who, now);
+  }
   const d = leadDatesFromIcsEvent(ev);
   if (!d.start) return null;
   const priced = d.priced;
@@ -1048,7 +1133,7 @@ function syncNewIcsLeads(data, events, who, now) {
   const feedKeys = [];
   (events || []).forEach((ev) => {
     if (!ev || !ev.start) return;
-    if (LY.isIcsOffSummary(ev.summary)) return;
+    /* Off days become day-off leads (closed calendar) — include in known keys */
     const ek = leadKeyFromEvent(ev);
     if (!ek) return;
     feedKeys.push(ek);
@@ -1093,10 +1178,7 @@ function syncNewIcsLeads(data, events, who, now) {
 
   (events || []).forEach((ev) => {
     if (!ev || !ev.start) return;
-    if (LY.isIcsOffSummary(ev.summary)) {
-      skippedOff++;
-      return;
-    }
+    const isOff = LY.isIcsOffSummary(ev.summary);
     const ek = leadKeyFromEvent(ev);
     if (!ek) return;
 
@@ -1115,6 +1197,37 @@ function syncNewIcsLeads(data, events, who, now) {
        * sticky Refunded alone must not keep skipping (same as site calendar).
        */
       if (leadIsCancelledForSite(L)) {
+        return;
+      }
+      /* Calendar title is Off → keep/upgrade lead as day off (closed, zero money) */
+      if (isOff) {
+        const off = buildDayOffLeadFromIcsEvent(ev, ek, who, now);
+        if (off) {
+          L.dayOff = true;
+          L.leadKind = "dayoff";
+          L.leadSource = "dayoff";
+          L.sourcePending = false;
+          L.dealClosed = true;
+          L.name = off.name;
+          L.icsGuestName = off.name;
+          L.start = off.start;
+          L.end = off.end || "";
+          L.dur = off.dur;
+          L.days = off.days;
+          L.rate = 0;
+          L.price = 0;
+          L.base = 0;
+          L.net = 0;
+          L.vat = 0;
+          L.total = 0;
+          L.dep = 0;
+          L.fin = 0;
+          L.apa = 0;
+          L.deps = "Not requested";
+          L.fins = "Not requested";
+          L.updatedAt = now;
+          autoMoved++;
+        }
         return;
       }
       const d = leadDatesFromIcsEvent(ev);

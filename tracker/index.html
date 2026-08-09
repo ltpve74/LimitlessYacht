@@ -3769,6 +3769,7 @@ function leadSourceShortLabel(src){
   if(s==="clickboat") return "Click&Boat";
   if(s==="owner") return "Owner’s day";
   if(s==="ownersourced") return "Owner-sourced";
+  if(s==="dayoff") return "Day off";
   if(s==="pending") return "Pending source";
   return "Other";
 }
@@ -3779,6 +3780,7 @@ function leadSourceCardLabel(src){
   if(s==="clickboat") return "Click&Boat (Paul)";
   if(s==="owner") return "Owner’s day";
   if(s==="ownersourced") return "Owner-sourced";
+  if(s==="dayoff") return "Day off (closed)";
   if(s==="pending") return "Pending source";
   return "Other source";
 }
@@ -3792,6 +3794,7 @@ function leadSourcePillHTML(src, opts){
   if(s==="clickboat") return '<span class="pill p-amber">'+esc(lab)+'</span>';
   if(s==="owner") return '<span class="pill p-own">'+esc(lab)+'</span>';
   if(s==="ownersourced") return '<span class="pill p-own">'+esc(lab)+'</span>';
+  if(s==="dayoff") return '<span class="pill p-grey">'+esc(lab)+'</span>';
   if(s==="pending") return '<span class="pill p-amber">'+esc(lab)+'</span>';
   return '<span class="pill p-grey">'+esc(lab)+'</span>';
 }
@@ -4085,12 +4088,22 @@ function leadIsDealClosed(r){
 /** Closed commercial lead for money totals (source + deal closed). */
 function leadIsClosedDeal(r){
   if(!r||leadIsCancelled(r)) return false;
+  if(typeof leadIsDayOff==="function"&&leadIsDayOff(r)) return false;
+  if(LY_MODELS&&LY_MODELS.leadIsDayOff&&LY_MODELS.leadIsDayOff(r)) return false;
   var src=leadSource(r);
   if(src==="pending") return false;
   if(src==="owner") return false; /* owner’s days — not charter income */
+  if(src==="dayoff") return false; /* vessel closed — no earnings */
   if(!leadIsDealClosed(r)) return false;
   /* Income sources: captain, Paul, owner-sourced (friend invoiced by us), other */
   return src==="captain"||src==="clickboat"||src==="ownersourced"||src==="other";
+}
+function leadIsDayOff(r){
+  if(LY_MODELS&&LY_MODELS.leadIsDayOff) return LY_MODELS.leadIsDayOff(r);
+  if(!r) return false;
+  if(r.dayOff===true||r.dayOff==="true"||r.dayOff===1) return true;
+  if(String(r.leadKind||r.kind||"").toLowerCase()==="dayoff") return true;
+  return leadSource(r)==="dayoff";
 }
 /** Fully issued/paid invoices already on the lead (skip migration invoice writes). */
 function leadIsFullyInvoiced(r){
@@ -4362,21 +4375,22 @@ function renderLeads(){
     nShown++;
     var cancelled=leadIsCancelled(r);
     var src=leadSource(r);
+    var isDayOff=leadIsDayOff(r)||src==="dayoff";
     var isOwner=src==="owner";
     var isOwnerSrc=src==="ownersourced";
     var isPending=src==="pending";
     var dealClosed=leadIsDealClosed(r);
-    var isOpenDeal=!isPending&&!cancelled&&!dealClosed;
-    var isTentative=isPending||isOpenDeal;
+    var isOpenDeal=!isPending&&!isDayOff&&!cancelled&&!dealClosed;
+    var isTentative=!isDayOff&&(isPending||isOpenDeal);
     var closed=leadIsClosedDeal(r);
     var ownerConfirmed=isOwner&&dealClosed&&!cancelled;
     var timing=closed?leadCharterTiming(r):"";
-    var val=leadListMoney(r);
-    var openN=(!isPending&&!isOwner&&!cancelled)?pendForLead(r):0;
+    var val=isDayOff?0:leadListMoney(r);
+    var openN=(!isPending&&!isOwner&&!isDayOff&&!cancelled)?pendForLead(r):0;
     if(closed) pend+=openN;
 
-    var showApa=!isOwner&&!isPending&&leadNeedsApaInv(r);
-    var isSplit=!isOwner&&leadHasSplit(r);
+    var showApa=!isOwner&&!isPending&&!isDayOff&&leadNeedsApaInv(r);
+    var isSplit=!isOwner&&!isDayOff&&leadHasSplit(r);
     var finLabel="Final";
     var typeKey=leadCharterTypeKey(r);
     var typeLab=leadCharterTypeLabel(typeKey);
@@ -4398,6 +4412,27 @@ function renderLeads(){
     if(cancelled) cardCls+=" item--cancelled";
     if(isTentative) cardCls+=" item--tentative";
     var cardHtml="";
+
+    /* —— Day off: vessel closed, zero money, firm on public calendar —— */
+    if(isDayOff&&!cancelled){
+      cardHtml='<div class="'+cardCls+'" data-edit-ld="'+esc(r.id)+'" data-ld-start="'+esc(String(r.start||"").slice(0,10))+'" data-ld-name="'+esc(String(r.name||"").toLowerCase())+'">'+
+        '<div class="top"><div class="title">'+titleHtml+'</div><div class="amt">—</div></div>'+
+        '<div class="meta">'+
+          '<span>📅 '+dateLine+'</span>'+
+          '<span class="pill p-grey">Day off</span>'+
+          '<span class="pill p-grey">Closed on calendar</span>'+
+          '<span class="pill p-grey">No earnings</span>'+
+        '</div>'+
+        '<div class="notes" style="font-style:normal;color:var(--muted)">Vessel closed — blocks the public calendar as a firm date. No charter fee, no commission, no APA.</div>'+
+        '<span class="chev">✎</span></div>';
+      confCards.push({
+        html:cardHtml,
+        start:String(r.start||r.cdate||"").slice(0,10),
+        end:String(r.end||r.start||r.cdate||"").slice(0,10),
+        dayOff:true
+      });
+      return;
+    }
 
     /* —— Compact cards: hold + lost (date + projected price + actions only) —— */
     if(cancelled||isTentative){
@@ -18384,13 +18419,14 @@ function renderCommissions(){
 }
 function selLeadSourceField(val){
   var v=(LY_MODELS&&LY_MODELS.constrainLeadSource)?LY_MODELS.constrainLeadSource(val):String(val||"other");
-  if(v!=="pending"&&v!=="captain"&&v!=="clickboat"&&v!=="owner"&&v!=="ownersourced"&&v!=="other") v="other";
+  if(v!=="pending"&&v!=="captain"&&v!=="clickboat"&&v!=="owner"&&v!=="ownersourced"&&v!=="dayoff"&&v!=="other") v="other";
   return '<select class="ctl" id="f_leadSource">'+
     '<option value="pending"'+(v==="pending"?" selected":"")+'>Pending source (assign me)</option>'+
     '<option value="captain"'+(v==="captain"?" selected":"")+'>Captain (website / direct — '+CAPTAIN_COMMISSION_PCT+'%)</option>'+
     '<option value="clickboat"'+(v==="clickboat"?" selected":"")+'>Click&amp;Boat (Paul — '+CLICKBOAT_COMMISSION_PCT+'%)</option>'+
     '<option value="owner"'+(v==="owner"?" selected":"")+'>Owner’s days (no income · benefits)</option>'+
     '<option value="ownersourced"'+(v==="ownersourced"?" selected":"")+'>Owner-sourced (income · 0% commission for now)</option>'+
+    '<option value="dayoff"'+(v==="dayoff"?" selected":"")+'>Day off (vessel closed · no earnings)</option>'+
     '<option value="other"'+(v==="other"?" selected":"")+'>Other (no commission)</option>'+
   '</select>';
 }
@@ -19431,11 +19467,24 @@ function saveSheet(type,rec){
     }
     var leadSrcRaw=(el("f_leadSource")&&el("f_leadSource").value)||"other";
     var leadSrc=(LY_MODELS&&LY_MODELS.constrainLeadSource)?LY_MODELS.constrainLeadSource(leadSrcRaw):(leadSrcRaw==="captain"?"captain":"other");
+    var isDayOffSave=leadSrc==="dayoff";
     var bookingSt=(el("f_bookingStatus")&&el("f_bookingStatus").value)==="cancelled"?"cancelled":"active";
     var closedIn=el("f_closed")?el("f_closed").value:"";
-    var o2={ id:rec?rec.id:uid(), closed:closedIn, name:el("f_name").value.trim(),
-      dur:dur, start:start, end:end, rate:rate, price:price, days:days,
-      base:quoteBase, net:sp.split?sp.dealNet:(cashOnlyOn?parts.client:m.net), vat:sp.split?sp.white.vat:(cashOnlyOn?0:m.vat), total:parts.client,
+    /* Day off: zero money, firm closed calendar day */
+    if(isDayOffSave){
+      quoteBase=0; rate=0; price=0; days=days||1;
+      sp={split:false, dealNet:0, cashAmt:0, clientTotal:0, full:{net:0,vat:0,total:0,vatMode:"none",vatPct:0}, white:{vat:0}, invoiceNet:0, invoiceTotal:0, vatOnTop:false, whiteVatMode:""};
+      m={net:0,vat:0,total:0,vatMode:"none",vatPct:0};
+      parts={dep:0,fin:0,apa:0,client:0,white:0,whiteClient:0,cash:0,split:false,noDep:true};
+      deps="Not requested"; fins="Not requested"; depPct=0; apaPct=0;
+      cashOnlyOn=false;
+      if(!el("f_name").value.trim()){ /* default title */
+        try{ el("f_name").value="Day off"; }catch(eN){}
+      }
+    }
+    var o2={ id:rec?rec.id:uid(), closed:closedIn, name:el("f_name").value.trim()||(isDayOffSave?"Day off":""),
+      dur:isDayOffSave?(days>1?"multi":"8h"):dur, start:start, end:end, rate:isDayOffSave?0:rate, price:isDayOffSave?0:price, days:days,
+      base:isDayOffSave?0:quoteBase, net:isDayOffSave?0:(sp.split?sp.dealNet:(cashOnlyOn?parts.client:m.net)), vat:isDayOffSave?0:(sp.split?sp.white.vat:(cashOnlyOn?0:m.vat)), total:isDayOffSave?0:parts.client,
       vatMode:cashOnlyOn?"none":(sp.split?(vatMode||"include"):m.vatMode),
       vatPct:cashOnlyOn?"":((sp.split?(vatMode||"include"):m.vatMode)==="none"?"":(sp.split?(vatPctIn||m.vatPct):m.vatPct)),
       split:sp.split, splitCash:sp.split,
@@ -19465,6 +19514,8 @@ function saveSheet(type,rec){
       })():"boat",
       cashSettled:cashOnlyOn?!!cashOnlySettled:(sp.split?!!(el("f_cashSettled")&&el("f_cashSettled").checked):false),
       leadSource:leadSrc,
+      dayOff:!!isDayOffSave,
+      leadKind:isDayOffSave?"dayoff":(rec&&rec.leadKind)||"",
       sourcePending:leadSrc==="pending",
       bookingStatus:bookingSt,
       cancelled:bookingSt==="cancelled",
@@ -19498,6 +19549,7 @@ function saveSheet(type,rec){
     var wasClosed=!!(rec&&leadIsDealClosed(rec));
     var wantClosed=!!(el("f_dealClosed")&&el("f_dealClosed").checked);
     if(leadSrc==="pending") wantClosed=false;
+    else if(isDayOffSave||leadSrc==="dayoff") wantClosed=true; /* day off always firm closed on calendar */
     else if(leadSrc!=="owner"&&(deps==="Paid"||fins==="Paid")) wantClosed=true;
     o2.dealClosed=wantClosed;
     /*

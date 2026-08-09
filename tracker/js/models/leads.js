@@ -28,9 +28,10 @@ var BILL_TYPES = { cash: 1, invoice: 1, mix: 1 };
  *  - clickboat = Paul / Click&Boat (21% before VAT)
  *  - owner = owner’s days / private guests (no income, no commission; owner benefits)
  *  - ownersourced = owner-sourced commercial charter (income; commission 0 for now, may add later)
+ *  - dayoff = vessel closed / day off (blocks calendar; no income, no cost)
  *  - other = legacy / unknown (no commission)
  */
-var LEAD_SOURCES = { pending: 1, captain: 1, clickboat: 1, owner: 1, ownersourced: 1, other: 1 };
+var LEAD_SOURCES = { pending: 1, captain: 1, clickboat: 1, owner: 1, ownersourced: 1, dayoff: 1, other: 1 };
 /** Owner-sourced charters: income, no commission yet (raise when agreed). */
 var OWNER_SOURCED_COMMISSION_PCT = 0;
 /**
@@ -95,8 +96,25 @@ function constrainDealPayType(v) {
   return "invoice";
 }
 
+/**
+ * Vessel closed / day off — no charter fee, no commission, blocks public calendar.
+ * Flag dayOff / leadKind, or leadSource "dayoff".
+ */
+function leadIsDayOff(r) {
+  if (!r) return false;
+  if (r.dayOff === true || r.dayOff === "true" || r.dayOff === 1) return true;
+  if (String(r.leadKind || r.kind || "").toLowerCase() === "dayoff") return true;
+  var src = String(r.leadSource || "")
+    .toLowerCase()
+    .trim()
+    .replace(/\s+/g, "-");
+  if (src === "dayoff" || src === "day-off" || src === "off" || src === "closed") return true;
+  return false;
+}
+
 function leadSource(r) {
   if (!r) return "other";
+  if (leadIsDayOff(r)) return "dayoff";
   if (r.captainLead === true) return "captain";
   /* Empty / missing source = captain (legacy book before ICS import) */
   if (r.leadSource == null || r.leadSource === "") return "captain";
@@ -115,7 +133,7 @@ function leadEarnsCaptainCommission(r) {
 /** Commission rate % for this lead’s source (0 = none). */
 function leadCommissionRatePct(r) {
   var src = leadSource(r);
-  if (src === "pending") return 0;
+  if (src === "pending" || src === "dayoff") return 0;
   if (src === "captain") return CAPTAIN_COMMISSION_PCT;
   if (src === "clickboat") return CLICKBOAT_COMMISSION_PCT;
   if (src === "ownersourced") return OWNER_SOURCED_COMMISSION_PCT;
@@ -180,6 +198,18 @@ function constrainLeadSource(v) {
     .replace(/\s+/g, "-");
   if (!s) return "other";
   if (s === "pending" || s === "unassigned" || s === "assign") return "pending";
+  if (
+    s === "dayoff" ||
+    s === "day-off" ||
+    s === "day_off" ||
+    s === "off" ||
+    s === "off-day" ||
+    s === "off_day" ||
+    s === "closed" ||
+    s === "vessel-off" ||
+    s === "vessel_off"
+  )
+    return "dayoff";
   if (s === "captain" || s === "cpt" || s === "website" || s === "web" || s === "direct")
     return "captain";
   if (
@@ -229,7 +259,18 @@ function leadSourceLabel(src) {
   if (s === "clickboat") return "Click&Boat (Paul)";
   if (s === "owner") return "Owner’s days";
   if (s === "ownersourced") return "Owner-sourced";
+  if (s === "dayoff") return "Day off (closed)";
   return "Other";
+}
+
+/** Label for ICS “Off” / “Off — reason” titles. */
+function dayOffLabelFromSummary(summary) {
+  var s = String(summary || "").trim();
+  if (!s || /^\s*off\s*$/i.test(s)) return "Day off";
+  var m = s.match(/^\s*off\s*[-–—:]\s*(.+)$/i);
+  if (m && m[1]) return ("Day off — " + String(m[1]).trim()).slice(0, 80);
+  if (isIcsOffSummary(s)) return ("Day off — " + s.replace(/^\s*off\s*/i, "").trim()).slice(0, 80);
+  return "Day off";
 }
 
 /** high = Jul–Aug; low = rest of year (site season rules). */
@@ -344,6 +385,8 @@ function isIcsOffSummary(summary) {
   var s = String(summary || "").trim();
   if (/^\s*off\s*$/i.test(s)) return true;
   if (/^\s*off\s*[-–—:].+/i.test(s)) return true;
+  if (/^\s*day\s*off\b/i.test(s)) return true;
+  if (/^\s*closed\b/i.test(s) && !/\bcharter\b/i.test(s)) return true;
   return false;
 }
 
@@ -626,8 +669,9 @@ function summarizeLeadCashIncome(leads) {
  */
 function leadIsClosedCommercialIncome(r) {
   if (!r || leadIsCancelled(r)) return false;
+  if (leadIsDayOff(r)) return false;
   var src = leadSource(r);
-  if (src === "pending" || src === "owner") return false;
+  if (src === "pending" || src === "owner" || src === "dayoff") return false;
   if (!leadIsDealClosed(r)) return false;
   return (
     src === "captain" ||
@@ -1319,6 +1363,8 @@ function leadCommissionAmt(r) {
     charterPriceFromEvent: charterPriceFromEvent,
     guestNameFromIcsSummary: guestNameFromIcsSummary,
     isIcsOffSummary: isIcsOffSummary,
+    dayOffLabelFromSummary: dayOffLabelFromSummary,
+    leadIsDayOff: leadIsDayOff,
     constrainBillType: constrainBillType,
     leadSplitVatSwallowed: leadSplitVatSwallowed,
     leadWhiteClientPay: leadWhiteClientPay,
