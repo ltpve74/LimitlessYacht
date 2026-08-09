@@ -1357,7 +1357,10 @@ def check_html(r: Runner, rel: str, html: str) -> None:
         'critical CSS includes hero legibility scrims before main.css',
         '.hero-content::before' in crit_flat
         and '.hero-content::after' in crit_flat
-        and 'text-shadow:01px2pxrgba(0,0,0,.9)' in crit_flat
+        and (
+            'text-shadow:01px2pxrgba(0,0,0,.9)' in crit_flat
+            or 'text-shadow:01px2pxrgba(0,0,0,.95)' in crit_flat
+        )
         and (
             '#hero.hero-actions.btn-ghost{background:rgba(10,22,40,.28)' in crit_flat
             or '#hero.hero-actions.btn-ghost{background:rgba(10,22,40,.52)' in crit_flat
@@ -1750,6 +1753,40 @@ def check_locale_parity(r: Runner, pages: dict[str, str]) -> None:
             not missing and not extra,
             f'missing={sorted(missing)} extra={sorted(extra)}' if missing or extra else '',
         )
+
+
+
+def check_hero_legibility_cascade(r: Runner) -> None:
+    """Critical + unlayered main.css lock must agree so async CSS does not flash weaker type.
+
+    Minify strips CSS comments, so do not require comment markers — require the
+    unlayered pull-quote rules to appear *after* the last @layer site block.
+    """
+    main = read_file('css/main.css') or ''
+    index = read_file('index.html') or ''
+    layer_at = main.rfind('@layer site{')
+    # Prefer readable-source comment anchor when present; else last clamp rule
+    lock_at = main.rfind('Unlayered hero legibility lock')
+    clamp_at = main.rfind('.hero-pull-quote{font-size:clamp(.82rem')
+    anchor = lock_at if lock_at > layer_at else clamp_at
+    tail = main[anchor:] if anchor >= 0 else ''
+    r.check(
+        'main.css ends with unlayered hero legibility lock (beats @layer site flash)',
+        layer_at >= 0
+        and anchor > layer_at
+        and '.hero-pull-quote{font-size:clamp(.82rem' in tail
+        and 'color:#f5f0e8' in tail,
+    )
+    crit_m = re.search(r'<style id="critical-css">(.*?)</style>', index, re.S)
+    crit = crit_m.group(1) if crit_m else ''
+    crit_flat = re.sub(r'\s+', '', crit)
+    r.check(
+        'critical CSS locks hero pull-quote contrast before sheets load',
+        '.hero-pull-quote{' in crit
+        and 'color:#f5f0e8' in crit
+        and 'font-weight:500' in crit
+        and 'text-shadow:01px2pxrgba(0,0,0,.95)' in crit_flat,
+    )
 
 
 def check_localized_reviews(r: Runner) -> None:
@@ -3885,6 +3922,7 @@ def main() -> None:
         check_legal(r, rel, html)
 
     print('\n[localized reviews]')
+    check_hero_legibility_cascade(r)
     check_localized_reviews(r)
 
     print('\n[locale modules]')

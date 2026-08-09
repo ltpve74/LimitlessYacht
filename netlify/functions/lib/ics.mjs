@@ -35,6 +35,8 @@ export function parseIcs(ics) {
           key: eventKey(cur),
           uid: cur.uid || "",
           summary: decodeIcsText(cur.summary || "Charter"),
+          description: decodeIcsText(cur.description || ""),
+          location: decodeIcsText(cur.location || ""),
           start: cur.start,
           end: cur.end || cur.start,
           startTime: cur.startTime || "",
@@ -69,6 +71,10 @@ export function parseIcs(ics) {
       cur.status = val.toUpperCase();
     } else if (name === "SUMMARY") {
       cur.summary = val;
+    } else if (name === "DESCRIPTION") {
+      cur.description = cur.description ? cur.description + " " + val : val;
+    } else if (name === "LOCATION") {
+      cur.location = val;
     } else if (name === "UID") {
       // Keep first UID (event); ignore nested VALARM UIDs
       if (!cur.uid) cur.uid = val;

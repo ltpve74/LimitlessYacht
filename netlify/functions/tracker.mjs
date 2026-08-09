@@ -1085,12 +1085,23 @@ function buildPendingLeadFromIcsEvent(ev, ek, who, now) {
     "-" +
     String(d.start || "").slice(0, 10);
   const entered = todayYmdMadrid(now);
+  const phone =
+    (LY.extractPhoneFromIcsEvent && LY.extractPhoneFromIcsEvent(ev)) ||
+    (LY.extractPhoneFromText &&
+      LY.extractPhoneFromText(
+        [ev && ev.summary, ev && ev.description, ev && ev.location]
+          .filter(Boolean)
+          .join(" ")
+      )) ||
+    "";
   return {
     id: id,
     /* Date closed field = day entered/imported until the deal is really closed */
     closed: entered,
     name: name,
     icsGuestName: name !== "Charter guest" ? name : "",
+    phone: phone || "",
+    phoneFromIcs: !!phone,
     dur: priced.dur,
     start: d.start,
     end: d.end || "",
@@ -1277,6 +1288,21 @@ function syncNewIcsLeads(data, events, who, now) {
           L.updatedAt = now;
         }
         L.icsGuestName = d.name;
+      }
+      /* Fill empty phone from calendar title/description — never overwrite manual */
+      if (!(String(L.phone || "").trim())) {
+        const ph =
+          (LY.extractPhoneFromIcsEvent && LY.extractPhoneFromIcsEvent(ev)) ||
+          (LY.extractPhoneFromText &&
+            LY.extractPhoneFromText(
+              [ev.summary, ev.description, ev.location].filter(Boolean).join(" ")
+            )) ||
+          "";
+        if (ph) {
+          L.phone = ph;
+          L.phoneFromIcs = true;
+          L.updatedAt = now;
+        }
       }
 
       const curS = String(L.start || "").slice(0, 10);

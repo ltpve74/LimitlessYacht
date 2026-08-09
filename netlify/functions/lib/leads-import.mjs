@@ -183,6 +183,79 @@ export function guestNameFromIcsSummary(summary) {
   return s.slice(0, 80);
 }
 
+/**
+ * Digits for wa.me / api.whatsapp.com (country code, no +).
+ * Default country ES (+34) for bare 9-digit Spanish mobiles (6xx / 7xx).
+ */
+export function phoneToWaDigits(phone, defaultCc) {
+  var cc = String(defaultCc || "34").replace(/\D/g, "") || "34";
+  var d = String(phone || "").replace(/\D/g, "");
+  if (!d) return "";
+  if (d.indexOf("00") === 0) d = d.slice(2);
+  /* Spanish mobile without country code */
+  if (d.length === 9 && /^[67]/.test(d)) d = cc + d;
+  /* Too short / too long for E.164 */
+  if (d.length < 8 || d.length > 15) return "";
+  return d;
+}
+
+/** Display form with leading + when we have usable digits. */
+export function formatPhoneDisplay(phone, defaultCc) {
+  var d = phoneToWaDigits(phone, defaultCc);
+  if (!d) return String(phone || "").trim();
+  return "+" + d;
+}
+
+/**
+ * Pull a guest mobile from free text (calendar title, description, notes).
+ * Prefers +country / tel: / labelled numbers; then ES 9-digit mobiles.
+ * Returns display string with + or "" if none found.
+ */
+export function extractPhoneFromText(text, defaultCc) {
+  var s = String(text || "");
+  if (!s.trim()) return "";
+  /* Strip common date/time noise that can look numeric */
+  s = s.replace(/\b\d{1,2}[./-]\d{1,2}[./-]\d{2,4}\b/g, " ");
+  s = s.replace(/\b\d{1,2}:\d{2}\b/g, " ");
+  s = s.replace(/€\s*[\d.,]+/g, " ");
+
+  var raw = "";
+  var tel = s.match(/tel:\s*([+\d][\d\s().-]{6,20}\d)/i);
+  if (tel) raw = tel[1];
+  if (!raw) {
+    var labeled = s.match(
+      /(?:whats?app|wa|móvil|movil|mobile|phone|tel(?:éfono|efono)?|cell|handy)\s*[:.]?\s*([+\d][\d\s()./-]{7,20}\d)/i
+    );
+    if (labeled) raw = labeled[1];
+  }
+  if (!raw) {
+    var plus = s.match(/\+\s?\d(?:[\s()./-]?\d){7,14}/);
+    if (plus) raw = plus[0];
+  }
+  if (!raw) {
+    var intl00 = s.match(/\b00\s?\d(?:[\s()./-]?\d){8,14}/);
+    if (intl00) raw = intl00[0];
+  }
+  if (!raw) {
+    /* Spanish mobile 6xx/7xx xxx xxx (with optional spaces/dashes) */
+    var es = s.match(/(?<![\d+])([67]\d{2}[\s./-]?\d{3}[\s./-]?\d{3})(?!\d)/);
+    if (es) raw = es[1];
+  }
+  if (!raw) return "";
+  var digits = phoneToWaDigits(raw, defaultCc);
+  if (!digits) return "";
+  return formatPhoneDisplay(digits, defaultCc);
+}
+
+/** Combined ICS blob for phone scrape. */
+export function extractPhoneFromIcsEvent(ev, defaultCc) {
+  if (!ev) return "";
+  var blob = [ev.summary, ev.description, ev.location, ev.organizer, ev.organizerCn]
+    .filter(Boolean)
+    .join(" ");
+  return extractPhoneFromText(blob, defaultCc);
+}
+
 export function isIcsOffSummary(summary) {
   var s = String(summary || "").trim();
   if (/^\s*off\s*$/i.test(s)) return true;
