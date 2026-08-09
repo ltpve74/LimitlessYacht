@@ -2710,7 +2710,14 @@ function rangeStr(r){
 }
 function leadMeta(r){
   var isMulti=(r.dur==="multi")||(!r.dur&&(r.end||(Number(r.days)||0)>1));
-  if(isMulti){ var rng=rangeStr(r), rt=(Number(r.rate)||0)?money0(r.rate)+'/day':''; return '⛵ '+esc(rng)+(rt?' · '+rt:''); }
+  if(isMulti){
+    var rng=rangeStr(r);
+    var pkg=Number(r.price)||Number(r.base)||0;
+    var daysN=Math.max(1, Math.round(Number(r.days)||0)||1);
+    var avg=(Number(r.rate)>0)?Number(r.rate):(pkg>0&&daysN>0?pkg/daysN:0);
+    var rt=avg>0?('≈ '+money0(avg)+'/day'):'';
+    return '⛵ '+esc(rng)+(rt?' · '+rt:'')+(pkg>0?' · package '+money0(pkg):'');
+  }
   /* Day charter: show duration + clock (when known) + date — manager/all commercial */
   var st=String(r.startTime||"").trim();
   var et=String(r.endTime||"").trim();
@@ -4477,8 +4484,16 @@ function renderLeads(){
 
     /* —— Confirmed book: title already has calendar desc · source —— */
     var rateBits=[];
-    if(r.rate!=null&&r.rate!==""&&Number(r.rate)>0) rateBits.push(money0(r.rate)+"/day");
-    if(Number(r.days)>1) rateBits.push(Math.round(Number(r.days))+" days");
+    if((r.dur==="multi"||Number(r.days)>1)&&(Number(r.price)>0||Number(r.base)>0)){
+      var multiPkg=Number(r.price)||Number(r.base)||0;
+      rateBits.push("package "+money0(multiPkg));
+      if(Number(r.days)>1) rateBits.push(Math.round(Number(r.days))+" days");
+      var avgDay=Number(r.rate)>0?Number(r.rate):(multiPkg/Math.max(1,Math.round(Number(r.days)||1)));
+      if(avgDay>0) rateBits.push("≈ "+money0(avgDay)+"/day");
+    } else {
+      if(r.rate!=null&&r.rate!==""&&Number(r.rate)>0) rateBits.push(money0(r.rate)+"/day");
+      if(Number(r.days)>1) rateBits.push(Math.round(Number(r.days))+" days");
+    }
     if(r.closed) rateBits.push("closed "+esc(fmtDate(r.closed)));
     var calKey=leadCalendarEventKey(r);
     var metaBits=
@@ -17783,13 +17798,57 @@ function pctField(id,val){
 function daysBetween(s,e){ if(!s) return 1; if(!e||e===s) return 1; var d1=new Date(s),d2=new Date(e); if(isNaN(d1)||isNaN(d2)) return 1; var diff=Math.round((d2-d1)/86400000); return diff>=0?diff+1:1; }
 function durLabel(d){ return {"4h":"4 hours","6h":"6 hours","8h":"8 hours","multi":"Multi-day"}[d]||d||"Day charter"; }
 function durField(val){ var o=[["4h","4 hours"],["6h","6 hours"],["8h","8 hours"],["multi","Multi-day (overnight)"]]; return '<select class="ctl" id="f_dur">'+o.map(function(p){return '<option value="'+p[0]+'"'+(p[0]===val?' selected':'')+'>'+p[1]+'</option>';}).join("")+'</select>'; }
+/**
+ * Multi-day package total (as quoted). Prefer stored package/base/price;
+ * fall back to rate × days for older multi rows that only had a daily rate.
+ * Mixed packages (full + half overnight) are never forced to rate × days.
+ */
+function leadMultiPackageTotal(r){
+  r=r||{};
+  var pkg=apaNum(r.price);
+  if(pkg>0) return Math.round(pkg*100)/100;
+  var base=apaNum(r.base);
+  if(base>0) return Math.round(base*100)/100;
+  var tot=apaNum(r.total);
+  if(tot>0&&!leadHasSplit(r)) return Math.round(tot*100)/100;
+  var rate=apaNum(r.rate);
+  var days=Math.max(1, Math.round(apaNum(r.days)||daysBetween(r.start,r.end)||1));
+  if(rate>0) return Math.round(rate*days*100)/100;
+  return "";
+}
 function durFieldsHTML(dur,r){
+  r=r||{};
   if(dur==="multi"){
-    return '<div class="row2">'+fieldHTML("Start date",'<input class="ctl" id="f_start" type="date" value="'+esc(r.start||"")+'">')+fieldHTML("End date",'<input class="ctl" id="f_end" type="date" value="'+esc(r.end||"")+'">')+'</div>'+fieldHTML("Daily rate (as quoted)",moneyField("f_rate",r.rate));
+    var pkg=leadMultiPackageTotal(r);
+    var daysHint=Math.max(1, Math.round(apaNum(r.days)||daysBetween(r.start,r.end)||1));
+    var avg=pkg>0&&daysHint>0?Math.round((pkg/daysHint)*100)/100:"";
+    return '<div class="row2">'+
+      fieldHTML("Start date",'<input class="ctl" id="f_start" type="date" value="'+esc(r.start||"")+'">')+
+      fieldHTML("End date",'<input class="ctl" id="f_end" type="date" value="'+esc(r.end||"")+'">')+
+    '</div>'+
+    fieldHTML("Package total (as quoted)",moneyField("f_price", pkg!==""?pkg:(r.price!=null&&r.price!==""?r.price:"")))+
+    '<p id="f_multi_pkg_hint" style="margin:-6px 0 12px;font-size:12.5px;color:var(--muted);line-height:1.4">'+
+      'Whole trip price (e.g. full day + half day overnight = one package). Not forced to daily rate × days.'+
+      (avg>0?' Currently ≈ <b class="money">'+money0(avg)+'</b>/day over <b>'+daysHint+'</b> calendar day'+(daysHint===1?"":"s")+'.':'')+
+    '</p>'+
+    /* Hidden daily rate kept for legacy draft collect / any old scripts */
+    '<input type="hidden" id="f_rate" value="'+esc(r.rate!=null&&r.rate!==""?r.rate:(avg||""))+'">';
   }
   return fieldHTML("Charter date",'<input class="ctl" id="f_start" type="date" value="'+esc(r.start||"")+'">')+fieldHTML("Charter price (as quoted)",moneyField("f_price",(r.price!=null&&r.price!=="")?r.price:(r.rate||"")));
 }
-function collectLeadDraft(){ return { start:el("f_start")?el("f_start").value:"", end:el("f_end")?el("f_end").value:"", rate:el("f_rate")?el("f_rate").value:"", price:el("f_price")?el("f_price").value:"" }; }
+function collectLeadDraft(){
+  var start=el("f_start")?el("f_start").value:"";
+  var end=el("f_end")?el("f_end").value:"";
+  var price=el("f_price")?el("f_price").value:"";
+  var rate=el("f_rate")?el("f_rate").value:"";
+  /* When multi form only has package, keep rate as average for draft carry */
+  if(el("f_dur")&&el("f_dur").value==="multi"){
+    var days=daysBetween(start,end);
+    var pkg=apaNum(price);
+    if(pkg>0&&days>0) rate=String(Math.round((pkg/days)*100)/100);
+  }
+  return { start:start, end:end, rate:rate, price:price, days:daysBetween(start,end), base:apaNum(price)||"" };
+}
 function vatModeField(val){
   var o=[["include","VAT included in price"],["add","Add VAT on top"],["none","No VAT"]];
   return '<select class="ctl" id="f_vatMode">'+o.map(function(p){return '<option value="'+p[0]+'"'+(p[0]===(val||"include")?' selected':'')+'>'+p[1]+'</option>';}).join("")+'</select>';
@@ -18563,8 +18622,23 @@ function leadPrefillCashFromSuggested(exactSug, force){
 function recalcLead(){
   if(!el("f_dur")) return;
   var dur=el("f_dur").value, rate, days, base;
-  if(dur==="multi"){ rate=apaNum(el("f_rate")?el("f_rate").value:0); days=daysBetween(el("f_start")?el("f_start").value:"", el("f_end")?el("f_end").value:""); base=rate*days; }
-  else { base=apaNum(el("f_price")?el("f_price").value:0); rate=base; days=1; }
+  if(dur==="multi"){
+    days=daysBetween(el("f_start")?el("f_start").value:"", el("f_end")?el("f_end").value:"");
+    /* Package total is the source of truth (mixed full+half, custom quotes) */
+    base=apaNum(el("f_price")?el("f_price").value:0);
+    if(!(base>0)){
+      /* Legacy: only daily rate filled */
+      rate=apaNum(el("f_rate")?el("f_rate").value:0);
+      if(rate>0) base=rate*days;
+    }
+    rate=days>0&&base>0?Math.round((base/days)*100)/100:apaNum(el("f_rate")?el("f_rate").value:0);
+    if(el("f_rate")) el("f_rate").value=rate>0?String(rate):"";
+    if(el("f_multi_pkg_hint")&&base>0&&days>0){
+      el("f_multi_pkg_hint").innerHTML=
+        'Whole trip price (e.g. full day + half day overnight = one package). Not forced to daily rate × days. '+
+        'Currently ≈ <b class="money">'+money0(rate)+'</b>/day over <b>'+days+'</b> calendar day'+(days===1?"":"s")+".";
+    }
+  } else { base=apaNum(el("f_price")?el("f_price").value:0); rate=base; days=1; }
   var mode=el("f_vatMode")?el("f_vatMode").value:"include";
   var pctRaw=el("f_vatPct")?el("f_vatPct").value:"";
   if(el("f_vatPct")) el("f_vatPct").disabled=(mode==="none");
@@ -18612,7 +18686,9 @@ function recalcLead(){
   var p=leadParts(sp, depPct, apaPct, depsSt);
   var box=el("f_calc");
   if(!box) return;
-  var head=dur==="multi"?(days+' day'+(days>1?'s':'')+' &times; '+money0(rate)):durLabel(dur);
+  var head=dur==="multi"
+    ?(days+' day'+(days>1?'s':'')+' package'+(rate>0?' · ≈ '+money0(rate)+'/day':''))
+    :durLabel(dur);
   var html="";
   if(sp.split){
     var B=sp.dealNet, T=sp.invoiceTotal, W=sp.invoiceNet, V=sp.whiteVatAmt!=null?sp.whiteVatAmt:sp.white.vat;
@@ -18955,8 +19031,13 @@ function openSheet(type,id){
   }
   if(el("f_dur")){ el("f_dur").addEventListener("change",function(){
     var draft=collectLeadDraft(), dur=el("f_dur").value;
+    /* Switching into multi: carry day charter price into package total */
+    if(dur==="multi"){
+      var carry=apaNum(draft.price)||apaNum(draft.rate)||apaNum(draft.base)||"";
+      if(carry>0){ draft.price=carry; draft.base=carry; }
+    }
     el("f_durfields").innerHTML=durFieldsHTML(dur,draft);
-    if(dur!=="multi" && el("f_dep").value==="") el("f_dep").value="50";
+    if(dur!=="multi" && el("f_dep")&&el("f_dep").value==="") el("f_dep").value="50";
     if(el("f_cashBlack")&&!leadCashFieldUserEdited()) el("f_cashBlack").dataset.forcePrefill="1";
     recalcLead();
   }); }
@@ -18972,7 +19053,12 @@ function openSheet(type,id){
       if(!apaNum(el("f_cashOnlyAmt").value)){
         el("f_cashOnlyAmt").dataset.userEdited="";
         var p=el("f_price")?apaNum(el("f_price").value):0;
-        if(!(p>0)&&el("f_rate")&&el("f_start")) p=apaNum(el("f_rate").value);
+        if(!(p>0)&&el("f_rate")){
+          var d=el("f_dur")&&el("f_dur").value==="multi"
+            ?daysBetween(el("f_start")?el("f_start").value:"", el("f_end")?el("f_end").value:"")
+            :1;
+          p=apaNum(el("f_rate").value)*(d>0?d:1);
+        }
         if(p>0) el("f_cashOnlyAmt").value=String(p);
       }
     }
@@ -19478,8 +19564,17 @@ function saveSheet(type,rec){
     var start=el("f_start")?el("f_start").value:"";
     var end=(dur==="multi"&&el("f_end"))?el("f_end").value:"";
     var rate, days, base, price="";
-    if(dur==="multi"){ rate=apaNum(el("f_rate").value); days=daysBetween(start,end); base=rate*days; }
-    else { price=apaNum(el("f_price").value); base=price; rate=price; days=1; }
+    if(dur==="multi"){
+      days=daysBetween(start,end);
+      /* Package total is source of truth (full+half overnight, custom quotes) */
+      price=apaNum(el("f_price")?el("f_price").value:0);
+      base=price;
+      if(!(base>0)){
+        rate=apaNum(el("f_rate")?el("f_rate").value:0);
+        if(rate>0){ base=rate*days; price=base; }
+      }
+      rate=days>0&&base>0?Math.round((base/days)*100)/100:apaNum(el("f_rate")?el("f_rate").value:0);
+    } else { price=apaNum(el("f_price").value); base=price; rate=price; days=1; }
     var vatMode=el("f_vatMode")?el("f_vatMode").value:"include";
     var vatPctIn=el("f_vatPct")?el("f_vatPct").value:"";
     var dealPay=(el("f_dealPay")&&el("f_dealPay").value)||"invoice";
