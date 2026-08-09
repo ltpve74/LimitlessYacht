@@ -1755,6 +1755,30 @@ def check_locale_parity(r: Runner, pages: dict[str, str]) -> None:
         )
 
 
+
+def check_hero_legibility_cascade(r: Runner) -> None:
+    """Critical + unlayered main.css lock must agree so async CSS does not flash weaker type."""
+    main = read_file('css/main.css') or ''
+    index = read_file('index.html') or ''
+    r.check(
+        'main.css ends with unlayered hero legibility lock (beats @layer site flash)',
+        'Unlayered hero legibility lock' in main
+        and main.rfind('Unlayered hero legibility lock') > main.rfind('@layer site{')
+        and '.hero-pull-quote{font-size:clamp(.82rem' in main[main.rfind('Unlayered hero legibility lock'):]
+        and 'color:#f5f0e8' in main[main.rfind('Unlayered hero legibility lock'):],
+    )
+    crit_m = re.search(r'<style id="critical-css">(.*?)</style>', index, re.S)
+    crit = crit_m.group(1) if crit_m else ''
+    r.check(
+        'critical CSS locks hero pull-quote contrast before sheets load',
+        'ly-hero-legibility' in crit
+        and '.hero-pull-quote{' in crit
+        and 'color:#f5f0e8' in crit
+        and 'font-weight:500' in crit
+        and 'text-shadow:01px2pxrgba(0,0,0,.95)' in re.sub(r'\s+', '', crit),
+    )
+
+
 def check_localized_reviews(r: Runner) -> None:
     en_raw = read_file('data/reviews.json')
     if en_raw is None:
@@ -3888,6 +3912,7 @@ def main() -> None:
         check_legal(r, rel, html)
 
     print('\n[localized reviews]')
+    check_hero_legibility_cascade(r)
     check_localized_reviews(r)
 
     print('\n[locale modules]')
