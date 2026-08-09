@@ -1805,6 +1805,28 @@ def check_hero_legibility_cascade(r: Runner) -> None:
         and 'revealMain(); if (g.LY_kickProgressiveAfterReveal)' in nt_js.replace('\n', ' '),
     )
 
+    r.check(
+        'critical progressive hero wrap is unlayered (not trapped in @layer layout)',
+        # @layer layout nav hide must close before .ly-prog-wrap--hero position:absolute
+        re.search(
+            r'@layer\s+layout\s*\{\s*@media\s*\(\s*min-width:\s*769px\s*\)\s*\{\s*nav\s*\{[^}]*opacity:\s*0[^}]*\}\s*\}\s*\}'
+            r'\s*\.ly-prog-wrap--hero\s*\{[^}]*position:\s*absolute',
+            crit_flat,
+        ) is not None
+        or (
+            # minified may drop spaces differently — structure: layer closes then prog absolute
+            '}}}.ly-prog-wrap--hero{position:absolute' in crit_flat
+            or '}}}.ly-prog-wrap--hero{position:absolute' in re.sub(r'\s+', '', crit)
+        ),
+    )
+    r.check(
+        'critical progressive hero keeps skip-preview + sharp-visible opacity rules',
+        'ly-prog-skip-preview' in crit
+        and 'ly-prog-sharp-ready.ly-prog-sharp-visible' in crit_flat.replace(' ', '')
+        and '.ly-prog-wrap--hero{position:absolute' in crit_flat,
+    )
+
+
 
 def check_localized_reviews(r: Runner) -> None:
     en_raw = read_file('data/reviews.json')
