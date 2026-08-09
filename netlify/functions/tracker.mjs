@@ -921,14 +921,38 @@ function applyIcsDatesToLead(L, d, now, opts) {
   if (d.priced) {
     L.dur = d.priced.dur;
     L.days = d.priced.days;
-    L.rate = d.priced.rate;
-    L.price = d.priced.price;
-    L.base = d.priced.total;
-    L.total = d.priced.total;
-    L.net = d.priced.total / 1.21;
-    L.vat = d.priced.total - L.net;
-    L.dep = Math.round(d.priced.total * 0.5 * 100) / 100;
-    L.fin = Math.round(d.priced.total * 0.5 * 100) / 100;
+    /*
+     * Package total (price/base) is captain-owned once set to a custom quote
+     * (e.g. full day + half day overnight = €6000). Do not wipe it back to
+     * list rate × days on every ICS date touch.
+     */
+    const listTotal = Number(d.priced.total) || Number(d.priced.price) || 0;
+    const curPkg = Number(L.price) || Number(L.base) || Number(L.total) || 0;
+    const keepMoney =
+      opts.keepMoney === true ||
+      (curPkg > 0 &&
+        listTotal > 0 &&
+        Math.abs(curPkg - listTotal) > 0.5);
+    if (keepMoney) {
+      const days = Math.max(1, Number(d.priced.days) || Number(L.days) || 1);
+      L.price = curPkg;
+      L.base = curPkg;
+      L.total = curPkg;
+      L.rate = Math.round((curPkg / days) * 100) / 100;
+      L.net = curPkg / 1.21;
+      L.vat = curPkg - L.net;
+      L.dep = Math.round(curPkg * 0.5 * 100) / 100;
+      L.fin = Math.round(curPkg * 0.5 * 100) / 100;
+    } else {
+      L.rate = d.priced.rate;
+      L.price = d.priced.price;
+      L.base = d.priced.total;
+      L.total = d.priced.total;
+      L.net = d.priced.total / 1.21;
+      L.vat = d.priced.total - L.net;
+      L.dep = Math.round(d.priced.total * 0.5 * 100) / 100;
+      L.fin = Math.round(d.priced.total * 0.5 * 100) / 100;
+    }
   }
   if (d.name && d.name !== "Charter guest") {
     L.icsGuestName = d.name;
