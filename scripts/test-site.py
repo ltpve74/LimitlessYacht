@@ -1788,6 +1788,17 @@ def check_hero_legibility_cascade(r: Runner) -> None:
     crit_m = re.search(r'<style id="critical-css">(.*?)</style>', index, re.S)
     crit = crit_m.group(1) if crit_m else ''
     crit_flat = re.sub(r'\s+', '', crit)
+    # Full pull-quote rule (incl. font-size) must be last in critical AND first in paint lock
+    crit_pulls = re.findall(r'\.hero-pull-quote\{[^}]+\}', crit)
+    lock_tail = main[max(main.rfind('paint lock'), main.rfind('@layer site{')):]
+    lock_pull = re.search(r'\.hero-pull-quote\{[^}]+\}', lock_tail)
+    r.check(
+        'critical final hero text rules match main unlayered paint lock (no 3-step text repaint)',
+        bool(crit_pulls)
+        and lock_pull is not None
+        and 'font-size:clamp(.82rem' in crit_pulls[-1]
+        and crit_pulls[-1] == lock_pull.group(0),
+    )
     r.check(
         'critical CSS locks hero pull-quote contrast before sheets load',
         '.hero-pull-quote{' in crit

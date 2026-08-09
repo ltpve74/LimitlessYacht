@@ -163,22 +163,21 @@
     font-size:clamp(.86rem,1.6vw,1rem);
     letter-spacing:.08em;
     line-height:1.7;
-    color:var(--white);
+    color:#fff;
     font-weight:500;
-    text-shadow:0 1px 2px rgba(0,0,0,0.95),0 2px 14px rgba(10,22,40,0.92),0 0 32px rgba(10,22,40,0.6);
-    opacity:1;
-    text-wrap:balance
+    text-wrap:balance;
+    text-shadow:0 1px 2px rgba(0,0,0,.95),0 2px 14px rgba(10,22,40,.92);
+    opacity:1
   }
   .hero-pull-quote{
     font-size:clamp(.82rem,2.4vw,.94rem);
     font-style:italic;
     font-weight:500;
-    color:#f5f0e8;
-    letter-spacing:.01em;
     line-height:1.55;
     margin-top:.65rem;
-    text-shadow:0 1px 2px rgba(0,0,0,.95),0 2px 12px rgba(10,22,40,.92),0 0 28px rgba(10,22,40,.55);
-    max-width:36rem;
+    color:#f5f0e8;
+    letter-spacing:.01em;
+    text-shadow:0 1px 2px rgba(0,0,0,.95),0 2px 14px rgba(10,22,40,.92);
     width:100%
   }
   .hero-pull-attr{
@@ -4117,25 +4116,5 @@
   display:block;
   margin-top:.12rem
 }
-
-/* Unlayered hero paint lock - final hero look; critical + main must match to avoid refresh flash */
-.hero-pull-quote{font-size:clamp(.82rem,2.4vw,.94rem);font-style:italic;font-weight:500;line-height:1.55;margin-top:.65rem;color:#f5f0e8;text-shadow:0 1px 2px rgba(0,0,0,.95),0 2px 12px rgba(10,22,40,.92),0 0 28px rgba(10,22,40,.55);max-width:36rem;width:100%}
-.hero-pull-attr{font-style:normal;font-weight:500;color:rgba(245,240,232,.92);letter-spacing:.03em}
-.hero-sub{font-size:clamp(.86rem,1.6vw,1rem);letter-spacing:.08em;line-height:1.7;color:#fff;font-weight:500;text-shadow:0 1px 2px rgba(0,0,0,.95),0 2px 14px rgba(10,22,40,.9),0 0 32px rgba(10,22,40,.55)}
-.hero-value{color:#f5f0e8;font-weight:500;font-style:normal;text-shadow:0 1px 2px rgba(0,0,0,.95),0 2px 14px rgba(10,22,40,.92),0 0 28px rgba(10,22,40,.55)}
-.hero-rates-note{opacity:.95;color:rgba(245,240,232,.96);text-shadow:0 1px 2px rgba(0,0,0,.75)}
-.ly-prog-wrap--hero .ly-prog-preview,.ly-prog-wrap--hero .hero-bg.ly-prog-sharp{object-position:50% 46%;transform:none}
-.ly-prog-wrap--hero .ly-prog-preview{transform:none}
-.ly-prog-wrap--hero .hero-bg.ly-prog-sharp{transform:none;animation:none}
-.ly-prog-wrap--hero.ly-prog-sharp-ready.ly-prog-sharp-visible .hero-bg.ly-prog-sharp{animation:none;transform:none}
-@media(max-width:768px){
-.hero-overlay{background:linear-gradient(180deg,rgba(10,22,40,.42) 0%,transparent 15%),linear-gradient(0deg,rgba(10,22,40,.52) 0%,transparent 34%)}
-.hero-bg,.ly-prog-wrap--hero .ly-prog-preview,.ly-prog-wrap--hero .hero-bg.ly-prog-sharp{object-position:50% 46%}
-.hero-content::before{height:min(28%,9.5rem);background:linear-gradient(180deg,rgba(10,22,40,.9) 0%,rgba(10,22,40,.24) 68%,transparent 100%)}
-.hero-content::after{height:min(48%,14.5rem);background:linear-gradient(0deg,rgba(10,22,40,.98) 0%,rgba(10,22,40,.78) 36%,rgba(10,22,40,.38) 68%,transparent 100%)}
-}
-@media(min-width:769px){
-.hero-pull-quote{font-size:clamp(.9rem,1.2vw,1.02rem);line-height:1.6;margin-top:.85rem;max-width:38rem}
-.hero-sub{font-size:clamp(.95rem,1.55vw,1.12rem);margin-top:1.35rem}
-.hero-value{font-size:clamp(.92rem,1.4vw,1.05rem)}
-}
+/* Unlayered hero paint lock - text rules match critical ly-hero-legibility exactly */
+.hero-pull-quote{font-size:clamp(.82rem,2.4vw,.94rem);font-style:italic;font-weight:500;line-height:1.55;margin-top:.65rem;color:#f5f0e8;letter-spacing:.01em;text-shadow:0 1px 2px rgba(0,0,0,.95),0 2px 14px rgba(10,22,40,.92);width:100%}.hero-pull-attr{font-style:normal;font-weight:500;color:rgba(245,240,232,.92);letter-spacing:.03em}.hero-sub{margin-top:1.1rem;font-size:clamp(.86rem,1.6vw,1rem);letter-spacing:.08em;line-height:1.7;color:#fff;font-weight:500;text-wrap:balance;text-shadow:0 1px 2px rgba(0,0,0,.95),0 2px 14px rgba(10,22,40,.92)}.hero-value{font-size:clamp(.82rem,1.5vw,.95rem);letter-spacing:.02em;line-height:1.65;color:#f5f0e8;font-weight:500;font-style:normal;text-shadow:0 1px 2px rgba(0,0,0,.95),0 2px 14px rgba(10,22,40,.92)}.ly-prog-wrap--hero .ly-prog-preview,.ly-prog-wrap--hero .hero-bg.ly-prog-sharp{object-position:50% 46%;transform:none}.ly-prog-wrap--hero .hero-bg.ly-prog-sharp{animation:none}@media(max-width:768px){.hero-overlay{background:linear-gradient(180deg,rgba(10,22,40,.42) 0%,transparent 15%),linear-gradient(0deg,rgba(10,22,40,.52) 0%,transparent 34%)}.hero-bg,.ly-prog-wrap--hero .ly-prog-preview,.ly-prog-wrap--hero .hero-bg.ly-prog-sharp{object-position:50% 46%}.hero-content::before{height:min(28%,9.5rem);background:linear-gradient(180deg,rgba(10,22,40,.9) 0%,rgba(10,22,40,.24) 68%,transparent 100%)}.hero-content::after{height:min(48%,14.5rem);background:linear-gradient(0deg,rgba(10,22,40,.98) 0%,rgba(10,22,40,.78) 36%,rgba(10,22,40,.38) 68%,transparent 100%)}}
