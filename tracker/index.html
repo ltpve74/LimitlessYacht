@@ -1200,9 +1200,11 @@ var EXP_METHODS=["Cash","Credit Card"];
 /* Tips are NOT petty cash — stay on Stews only (never cash-in sources). */
 var EXP_CASH_IN_SOURCES=["Own money","Charter income","Bank / ATM","Owner float","Other"];
 /** Cash expense funded from boat float or someone’s pocket (reimburse later). */
-var EXP_PAID_FROM=["Petty cash","Own money"];
+var EXP_PAID_FROM=["Petty cash","Own money","Owner money"];
 /** Sentinel id for captain in paidById / reimburseToId. */
 var EXP_POCKET_CAPTAIN="captain";
+/** Owner paid crew from personal funds (not boat, not captain pocket). */
+var EXP_POCKET_OWNER=(window.LY_MODELS&&LY_MODELS.EXP_POCKET_OWNER)||"owner";
 /** Monthly expense charge target: boat running vs a charter APA pot. */
 var EXP_CHARGE_TO=["boat","apa"];
 var pushMeta={ server:false, vapidPublicKey:"", endpoint:"" };
@@ -9839,6 +9841,7 @@ function expMapPaidByToApa(e){
 function expApaNotesFromMonthly(e){
   var notes=(e&&e.description||"").trim();
   if(e&&e.payMethod==="Credit Card") notes=(notes?notes+" · ":"")+"Card";
+  else if(e&&(e.paidFrom==="Owner money"||String(e.paidById||"")==="owner")) notes=(notes?notes+" · ":"")+"Owner money";
   else if(e&&expPaidFromOwnMoney(e)) notes=(notes?notes+" · ":"")+"Own money"+(expPocketWhoId(e)?" · "+expPocketPersonName(expPocketWhoId(e)):"");
   else notes=(notes?notes+" · ":"")+"Petty cash";
   return (notes?notes+" · ":"")+"from monthly Expenses";
@@ -10542,12 +10545,20 @@ function expIsCrewUnpaid(e){
  * Sole switch: e.floatPay === true (set only when captain marks Paid via Petty cash).
  * Status "Paid" alone does not move cash — that can be prior/auto bookkeeping.
  */
+function expIsOwnerMoneyPaid(e){
+  if(!e) return false;
+  if(LY_MODELS&&LY_MODELS.expensePaidFrom) return LY_MODELS.expensePaidFrom(e)==="owner";
+  if(e.paidFrom==="Owner money"||String(e.paidById||"")==="owner"||String(e.paidById||"")===EXP_POCKET_OWNER) return true;
+  if(LY_MODELS&&LY_MODELS.expensePaidFromLooksOwner) return !!LY_MODELS.expensePaidFromLooksOwner(e.paidFrom);
+  return false;
+}
 function expCrewPayHitsFloat(e){
   if(LY_MODELS&&LY_MODELS.crewDayPayHitsPetty) return !!LY_MODELS.crewDayPayHitsPetty(e);
   if(!expIsCrewDayPayLine(e)) return false;
   if(e.crewPayStatus!=="Paid") return false;
   if(e.payMethod==="Credit Card") return false;
   if(e.paidFrom==="Own money"||expIsOwnMoneyLabel(e.paidFrom)) return false;
+  if(expIsOwnerMoneyPaid(e)) return false;
   return e.floatPay===true;
 }
 /** Paid on the books but cash did not leave this pot (prior / not marked via petty). */
@@ -10556,6 +10567,7 @@ function expIsCrewPriorSettled(e){
   if(e.crewPayStatus!=="Paid") return false;
   if(e.payMethod==="Credit Card") return false;
   if(e.paidFrom==="Own money"||expIsOwnMoneyLabel(e.paidFrom)) return false;
+  if(expIsOwnerMoneyPaid(e)) return false;
   return e.floatPay!==true;
 }
 /**
@@ -10581,11 +10593,12 @@ function expIsOwnMoneyLabel(s){
   if(!t) return false;
   if(s&&typeof s==="object") return false;
   if(/^petty\b/i.test(t)) return false;
+  if(/^owner\s*(money|pocket)/i.test(t)||/^owner'?s?\s*(money|pocket)/i.test(t)) return false;
   if(/^own money\b/i.test(t)||/\bown money\b/i.test(t)) return true;
   if(/^(my|captain'?s?|capt\.?)\s+(money|pocket|personal)/i.test(t)) return true;
   if(/^captain\b/i.test(t)||/^capt\.?\b/i.test(t)) return true;
   if(/^personal\b/i.test(t)||/^from me\b/i.test(t)||/^captain pocket\b/i.test(t)) return true;
-  if(/\bpocket\b/i.test(t)&&!/\bpetty\b/i.test(t)) return true;
+  if(/\bpocket\b/i.test(t)&&!/\bpetty\b/i.test(t)&&!/\bowner\b/i.test(t)) return true;
   return false;
 }
 function expCashInIsOwnMoney(r){
@@ -10615,6 +10628,7 @@ function expPocketPeopleOptions(){
 }
 function expPocketPersonName(id){
   if(!id||String(id)===EXP_POCKET_CAPTAIN) return "Captain";
+  if(String(id)===EXP_POCKET_OWNER||String(id)==="owner") return "Owner";
   var s=typeof stewById==="function"?stewById(id):null;
   if(s&&s.name) return s.name;
   return "Crew";
@@ -11151,30 +11165,33 @@ function expSetStewDayPayStatus(eventKey, payStatus, opts){
   var onlySid=opts.stewId?String(opts.stewId):"";
   var asg=(state.stewAssign||[]).filter(function(a){return a&&String(a.eventKey)===String(eventKey);})[0]||null;
   var wasPaid=!!(asg&&String(asg.payStatus||"")==="Paid");
-  var wasFromOwn=!!(asg&&asg.paidFrom==="Own money");
-  /* Infer Own money from existing expense lines when assign.paidFrom was never stored */
+  var wasFromOwn=!!(asg&&(asg.paidFrom==="Own money"||asg.paidFrom==="Owner money"||asg._floatPayPayerId==="owner"));
+  /* Infer non-petty from existing expense lines when assign.paidFrom was never stored */
   if(!wasFromOwn&&asg){
     (state.expenses||[]).some(function(e){
       if(!e||e.source!=="stew"||e.stewPayKind!=="dayPay") return false;
       if(String(e.stewEventKey)!==String(eventKey)) return false;
       if(onlySid&&String(e.stewId)!==onlySid) return false;
-      if(e.paidFrom==="Own money"||expIsOwnMoneyLabel(e.paidFrom)){ wasFromOwn=true; return true; }
+      if(e.paidFrom==="Own money"||expIsOwnMoneyLabel(e.paidFrom)||e.paidFrom==="Owner money"||String(e.paidById||"")==="owner"){ wasFromOwn=true; return true; }
       return false;
     });
   }
-  var pfMark=opts.paidFrom==="Own money"?"Own money":(opts.paidFrom==="Petty cash"||opts.paidFrom===""||opts.paidFrom==null?"Petty cash":String(opts.paidFrom||"Petty cash"));
+  var pfMark="Petty cash";
   if(opts.paidFrom==="Own money") pfMark="Own money";
+  else if(opts.paidFrom==="Owner money") pfMark="Owner money";
   else if(opts.booksOnly||opts.prior) pfMark="Petty cash";
-  var payerMark=opts.paidById?String(opts.paidById):EXP_POCKET_CAPTAIN;
+  else if(opts.paidFrom==="Petty cash"||opts.paidFrom===""||opts.paidFrom==null) pfMark="Petty cash";
+  else pfMark=String(opts.paidFrom||"Petty cash");
+  var payerMark=opts.paidById?String(opts.paidById):(pfMark==="Owner money"?EXP_POCKET_OWNER:EXP_POCKET_CAPTAIN);
   /*
    * floatPay = cash leaves the envelope NOW.
-   * Only when: Unpaid→Paid from Petty, or Own→Petty, or opts.hitPetty/forceFloat.
+   * Only when: Unpaid→Paid from Petty, or Own/Owner→Petty, or opts.hitPetty/forceFloat.
    * Never re-hit on re-save of an already-Paid charter (that re-subtracted petty
    * after expense rows were wiped). Prior/booksOnly never sets floatPay.
    * forceFloat: captain re-asserts Petty after floatPay was wiped (restore).
    */
   var hitPetty=false;
-  if(status==="Paid"&&pfMark!=="Own money"&&!opts.booksOnly&&!opts.prior){
+  if(status==="Paid"&&pfMark!=="Own money"&&pfMark!=="Owner money"&&!opts.booksOnly&&!opts.prior){
     if(opts.hitPetty===true||opts.forceFloat===true) hitPetty=true;
     else if(!wasPaid) hitPetty=true;
     else if(wasFromOwn) hitPetty=true;
@@ -11186,6 +11203,15 @@ function expSetStewDayPayStatus(eventKey, payStatus, opts){
     if(onlySid&&String(e.stewId)!==onlySid) return false;
     return true;
   }
+  function applyPaidFromToExpense(e){
+    if(opts.paidFrom||opts.booksOnly||opts.prior||hitPetty||pfMark==="Own money"||pfMark==="Owner money") e.paidFrom=pfMark;
+    if(opts.booksOnly||opts.prior) e.floatPay=false;
+    else if(hitPetty) e.floatPay=!(pfMark==="Own money"||pfMark==="Owner money");
+    else if(pfMark==="Own money"||pfMark==="Owner money") e.floatPay=false;
+    if(e.paidFrom==="Owner money") e.paidById=EXP_POCKET_OWNER;
+    else if(e.paidFrom==="Own money") e.paidById=String(opts.paidById||payerMark||EXP_POCKET_CAPTAIN);
+    else e.paidById="";
+  }
   if(!asg){
     /* Assignment missing — still flip expense lines if present */
     var any=false;
@@ -11193,14 +11219,8 @@ function expSetStewDayPayStatus(eventKey, payStatus, opts){
       if(!touchLine(e)) return;
       e.crewPayStatus=status;
       e.payStatusManual=true;
-      if(status==="Paid"){
-        if(opts.paidFrom||opts.booksOnly||opts.prior||hitPetty) e.paidFrom=pfMark;
-        if(opts.booksOnly||opts.prior) e.floatPay=false;
-        else if(hitPetty) e.floatPay=pfMark!=="Own money";
-        else if(pfMark==="Own money") e.floatPay=false;
-        /* else preserve existing floatPay */
-        e.paidById=e.paidFrom==="Own money"?String(opts.paidById||EXP_POCKET_CAPTAIN):"";
-      } else {
+      if(status==="Paid") applyPaidFromToExpense(e);
+      else {
         e.floatPay=false;
         e.paidById="";
       }
@@ -11216,7 +11236,7 @@ function expSetStewDayPayStatus(eventKey, payStatus, opts){
   else if(status!=="Paid") asg.paidFrom="";
   asg._floatPayMark=hitPetty;
   asg._floatPayFrom=status==="Paid"?pfMark:"";
-  asg._floatPayPayerId=status==="Paid"&&pfMark==="Own money"?payerMark:"";
+  asg._floatPayPayerId=status==="Paid"&&(pfMark==="Own money"||pfMark==="Owner money")?payerMark:"";
   asg._floatPayOnlySid=onlySid||"";
   if(status!=="Paid"){ asg._floatPayMark=false; asg._floatPayFrom=""; asg._floatPayPayerId=""; asg._floatPayOnlySid=""; }
   asg.updatedAt=new Date().toISOString();
@@ -11224,12 +11244,7 @@ function expSetStewDayPayStatus(eventKey, payStatus, opts){
   if(status==="Paid"){
     (state.expenses||[]).forEach(function(e){
       if(!touchLine(e)) return;
-      if(opts.paidFrom||hitPetty||opts.booksOnly||opts.prior||pfMark==="Own money") e.paidFrom=pfMark;
-      if(opts.booksOnly||opts.prior) e.floatPay=false;
-      else if(hitPetty) e.floatPay=pfMark!=="Own money";
-      else if(pfMark==="Own money") e.floatPay=false;
-      /* else keep e.floatPay as-is (already settled books) */
-      e.paidById=e.paidFrom==="Own money"?payerMark:"";
+      applyPaidFromToExpense(e);
       e.payStatusManual=true;
       e.updatedAt=new Date().toISOString();
     });
@@ -11357,7 +11372,7 @@ function expRepairImpossibleCrewFloatOnEmptyEnvelope(){
           if(e.crewPayStatus!=="Paid") return;
           if(e.floatPay!==true) return;
           if(e.payStatusManual===true) return; /* captain mark — keep cash-out */
-          if(e.paidFrom==="Own money"||expIsOwnMoneyLabel(e.paidFrom)) return;
+          if(e.paidFrom==="Own money"||expIsOwnMoneyLabel(e.paidFrom)||expIsOwnerMoneyPaid(e)) return;
           e.floatPay=false;
           e.updatedAt=new Date().toISOString();
           dirtyExp=true;
@@ -13062,6 +13077,7 @@ function paintExpensesBody(){
       var prior=expIsCrewPriorSettled(e);
       var hitsFloat=expCrewPayHitsFloat(e);
       var crewPaidFromOwn=isCrewDay&&!unpaid&&(e.paidFrom==="Own money"||expIsOwnMoneyLabel(e.paidFrom));
+      var crewPaidFromOwner=isCrewDay&&!unpaid&&expIsOwnerMoneyPaid(e);
       var ownPay=expPaidFromOwnMoney(e)||crewPaidFromOwn;
       var pocketWhoId=e.paidById!=null&&String(e.paidById)!==""?String(e.paidById):EXP_POCKET_CAPTAIN;
       var pocketName=ownPay||crewPaidFromOwn?expPocketPersonName(pocketWhoId):"";
@@ -13094,6 +13110,11 @@ function paintExpensesBody(){
       } else if(unpaid){
         pills.push('<span class="pill p-amber">Unpaid day pay</span>');
         if(isCrewDay) titleText=(e.vendor||"Crew")+" · day pay";
+      } else if(crewPaidFromOwner){
+        titleText=(e.vendor||"Crew")+" · day pay";
+        pills.push('<span class="pill p-blue">Day pay</span>');
+        pills.push('<span class="pill p-grey">Owner money</span>');
+        purposeNote="Owner paid "+(e.vendor||"crew")+" out of pocket — not petty, not your pocket claim";
       } else if(crewPaidFromOwn){
         titleText=(e.vendor||"Crew")+" · day pay";
         pills.push('<span class="pill p-blue">Day pay</span>');
@@ -13416,13 +13437,13 @@ function openExpense(id, opts){
     kind:commPayout?"captainComm":"",
     commPayout:commPayout?true:undefined
   };
-  if(r.paidFrom==null||r.paidFrom==="") r.paidFrom=expPaidFromOwnMoney(r)?"Own money":"Petty cash";
+  if(r.paidFrom==null||r.paidFrom==="") r.paidFrom=expIsOwnerMoneyPaid(r)?"Owner money":(expPaidFromOwnMoney(r)?"Own money":"Petty cash");
   if(r.chargeTo!=="apa") r.chargeTo="boat";
   if(!r.paidById) r.paidById=expPocketWhoId(r)||EXP_POCKET_CAPTAIN;
   if(expIsReimbursement(r)&&!r.reimburseToId) r.reimburseToId=expReimburseWhoId(r)||EXP_POCKET_CAPTAIN;
-  var paidFromSel=r.paidFrom==="Own money"?"Own money":"Petty cash";
+  var paidFromSel=expIsOwnerMoneyPaid(r)||r.paidFrom==="Owner money"?"Owner money":(r.paidFrom==="Own money"?"Own money":"Petty cash");
   /* Crew: Prior = Paid on books but cash did not leave this month’s petty envelope */
-  if(fromStew&&r.crewPayStatus==="Paid"&&!expCrewPayHitsFloat(r)&&paidFromSel!=="Own money"){
+  if(fromStew&&r.crewPayStatus==="Paid"&&!expCrewPayHitsFloat(r)&&paidFromSel!=="Own money"&&paidFromSel!=="Owner money"){
     paidFromSel="Prior";
   }
   var chargeToSel=r.chargeTo==="apa"?"apa":"boat";
@@ -13432,11 +13453,17 @@ function openExpense(id, opts){
   if(fromStew){
     var unp=expIsCrewUnpaid(r);
     var hitsPetty=expCrewPayHitsFloat(r);
+    var fromOwner=paidFromSel==="Owner money";
+    var fromOwn=paidFromSel==="Own money";
     h+='<div class="banner warn show">'+(unp
       ?'<b>Unpaid</b> crew day pay — not cash out yet. Set amount if reduced (e.g. €50 after a cancel), mark <b>Paid</b>, choose <b>Petty cash</b> only if notes left the envelope (petty drops).'
       :(hitsPetty
         ?'Paid from <b>petty</b> — counts as cash out (reduces petty on board).'
-        :'Paid on books but <b>not from this pot</b> (prior) — does not reduce petty. Switch to Petty cash only if cash actually left the boat.'))+
+        :(fromOwner
+          ?'Paid by <b>owner</b> out of pocket (e.g. owner’s day) — not petty, not your pocket claim.'
+          :(fromOwn
+            ?'Paid from <b>own money</b> (pocket) — not petty. Boat may owe you until reimbursed.'
+            :'Paid on books but <b>not from this pot</b> (prior) — does not reduce petty. Switch to Petty cash only if cash actually left the boat.'))))+
       ' Tips stay on Stews only.</div>';
   } else if(commPayout||expIsCaptainCommission(r)){
     h+='<div class="banner warn show">Takes notes <b>from petty cash on board</b> as <b>your commission</b>. '+
@@ -13467,7 +13494,8 @@ function openExpense(id, opts){
     fieldHTML("Paid from (cash only)",'<select class="ctl" id="f_exp_paidFrom"'+(reimburse||commPayout?" disabled":"")+'>'+
       (fromStew
         ?('<option value="Petty cash"'+(paidFromSel==="Petty cash"?" selected":"")+'>Petty cash (reduces on-board)</option>'+
-          '<option value="Own money"'+(paidFromSel==="Own money"?" selected":"")+'>Own money (pocket)</option>'+
+          '<option value="Own money"'+(paidFromSel==="Own money"?" selected":"")+'>Own money (captain / me)</option>'+
+          '<option value="Owner money"'+(paidFromSel==="Owner money"?" selected":"")+'>Owner money (owner paid crew)</option>'+
           '<option value="Prior"'+(paidFromSel==="Prior"?" selected":"")+'>Prior / not this pot (no petty change)</option>')
         :EXP_PAID_FROM.map(function(c){return '<option'+(c===paidFromSel?" selected":"")+'>'+esc(c)+'</option>';}).join(""))+
     '</select>')+
@@ -13481,8 +13509,8 @@ function openExpense(id, opts){
     '</div>'+
     '<p id="f_exp_paidFrom_hint" style="margin:-6px 0 12px;font-size:12px;color:var(--muted)">'+
       (fromStew
-        ?'<b>Petty cash</b> = notes left the envelope (petty drops). <b>Own money</b> = paid from pocket. <b>Prior / not this pot</b> = already settled elsewhere — does not change petty.'
-        :'<b>Petty cash</b> = left the boat envelope. <b>Own money</b> = captain or crew pocket — pick who below.')+
+        ?'<b>Petty</b> = notes left the envelope. <b>Own money</b> = your pocket. <b>Owner money</b> = owner paid crew (e.g. owner’s day). <b>Prior</b> = settled elsewhere — no petty change.'
+        :'<b>Petty cash</b> = left the boat envelope. <b>Own money</b> = captain or crew pocket — pick who below. <b>Owner money</b> = owner paid (not your pocket claim).')+
     '</p>'+
   '</div>';
   if(!fromStew){
@@ -13594,10 +13622,11 @@ function openExpense(id, opts){
     if(fromStew){
       var pfRaw=(el("f_exp_paidFrom")&&el("f_exp_paidFrom").value)||"Petty cash";
       var isPrior=pfRaw==="Prior"||pfRaw==="Prior / not this pot";
-      var pf=pfRaw==="Own money"?"Own money":"Petty cash";
+      var pf=pfRaw==="Owner money"?"Owner money":(pfRaw==="Own money"?"Own money":"Petty cash");
       var crewPay=(el("f_exp_crew_pay")&&el("f_exp_crew_pay").value)==="Paid"?"Paid":"Unpaid";
       var payerId=EXP_POCKET_CAPTAIN;
-      if(pf==="Own money"&&el("f_exp_paidBy")) payerId=String(el("f_exp_paidBy").value||EXP_POCKET_CAPTAIN);
+      if(pf==="Owner money") payerId=EXP_POCKET_OWNER;
+      else if(pf==="Own money"&&el("f_exp_paidBy")) payerId=String(el("f_exp_paidBy").value||EXP_POCKET_CAPTAIN);
       else if(pf==="Own money") payerId=String(r.paidById||EXP_POCKET_CAPTAIN);
       var eventKey=r.stewEventKey||"";
       var newAmt=apaNum(el("f_exp_amount")&&el("f_exp_amount").value);
@@ -13626,6 +13655,14 @@ function openExpense(id, opts){
             e.paidFrom="Petty cash";
             e.floatPay=false; /* paid on books, cash did not leave this pot */
             e.paidById="";
+          } else if(pf==="Owner money"){
+            e.paidFrom="Owner money";
+            e.floatPay=false;
+            e.paidById=EXP_POCKET_OWNER;
+            try{
+              var todayOwnr=localTodayYmd();
+              if(todayOwnr) e.date=todayOwnr;
+            }catch(eO){}
           } else if(pf==="Own money"){
             e.paidFrom="Own money";
             e.floatPay=false;
@@ -13686,7 +13723,7 @@ function openExpense(id, opts){
           var needRestoreFloat=crewPay==="Paid"&&pf==="Petty cash"&&!expCrewPayHitsFloat(r);
           expSetStewDayPayStatus(eventKey, crewPay, {
             paidFrom:crewPay==="Paid"?pf:"",
-            paidById:crewPay==="Paid"&&pf==="Own money"?payerId:"",
+            paidById:crewPay==="Paid"?(pf==="Owner money"?EXP_POCKET_OWNER:(pf==="Own money"?payerId:"")):"",
             stewId:r.stewId?String(r.stewId):"",
             forceFloat:needRestoreFloat
           });
@@ -13700,7 +13737,7 @@ function openExpense(id, opts){
         e.receipt=receiptData||e.receipt||"";
         return e;
       });
-      /* Sync rebuild may have dropped the row — recreate so Own money / Petty is never lost */
+      /* Sync rebuild may have dropped the row — recreate so Own/Owner money / Petty is never lost */
       if(!foundLine&&crewPay==="Paid"&&eventKey){
         var line={
           id:r.id||uid(),
@@ -13718,14 +13755,14 @@ function openExpense(id, opts){
           category:"Crew Salaries",
           payMethod:"Cash",
           paidFrom:isPrior?"Petty cash":pf,
-          paidById:(!isPrior&&pf==="Own money")?(payerId||EXP_POCKET_CAPTAIN):"",
+          paidById:(!isPrior&&pf==="Owner money")?EXP_POCKET_OWNER:((!isPrior&&pf==="Own money")?(payerId||EXP_POCKET_CAPTAIN):""),
           amount:newAmt,
           receipt:receiptData||"",
           by:session.who||"Captain",
           updatedAt:new Date().toISOString()
         };
         if(!isPrior&&pf==="Petty cash") line.floatPay=true;
-        if(!isPrior&&pf==="Own money"){
+        if(!isPrior&&(pf==="Own money"||pf==="Owner money")){
           try{ line.date=localTodayYmd()||line.date; }catch(eT){}
         }
         if(!state.expenses) state.expenses=[];
@@ -13748,7 +13785,8 @@ function openExpense(id, opts){
     if(!vendor){ if(el("f_exp_vendor")) el("f_exp_vendor").focus(); return; }
     if(!(amount>0)){ if(el("f_exp_amount")) el("f_exp_amount").focus(); return; }
     var method=(el("f_exp_method")&&el("f_exp_method").value)==="Credit Card"?"Credit Card":"Cash";
-    var paidFrom=method==="Credit Card"?"":((el("f_exp_paidFrom")&&el("f_exp_paidFrom").value)==="Own money"?"Own money":"Petty cash");
+    var paidFromRaw=method==="Credit Card"?"":((el("f_exp_paidFrom")&&el("f_exp_paidFrom").value)||"Petty cash");
+    var paidFrom=method==="Credit Card"?"":(paidFromRaw==="Owner money"?"Owner money":(paidFromRaw==="Own money"?"Own money":"Petty cash"));
     var chargeTo=reimburse||commPayout?"boat":((el("f_exp_chargeTo")&&el("f_exp_chargeTo").value)==="apa"?"apa":"boat");
     var apaTripId="";
     if(chargeTo==="apa"){
@@ -13781,7 +13819,9 @@ function openExpense(id, opts){
       }
     }
     var paidById=EXP_POCKET_CAPTAIN;
-    if(paidFrom==="Own money"&&el("f_exp_paidBy")){
+    if(paidFrom==="Owner money"){
+      paidById=EXP_POCKET_OWNER;
+    } else if(paidFrom==="Own money"&&el("f_exp_paidBy")){
       paidById=String(el("f_exp_paidBy").value||EXP_POCKET_CAPTAIN);
     } else if(paidFrom==="Own money"){
       paidById=String(r.paidById||EXP_POCKET_CAPTAIN);
@@ -16469,20 +16509,26 @@ function openStewAssign(eventKey){
     h+='<p style="margin:-2px 0 10px;font-size:12px;color:var(--muted);line-height:1.4">Default rate × days fills each stew below. With <b>two stews</b> (extra guests), set a different amount per person.</p>';
     h+='<div id="stewPerPayList" style="margin:0 0 12px"></div>';
     h+=fieldHTML("Day pay status",'<select class="ctl" id="f_stew_pay"><option value="Unpaid"'+(pay==="Unpaid"?" selected":"")+'>Unpaid</option><option value="Paid"'+(pay==="Paid"?" selected":"")+'>Paid</option></select>');
-    var paidFromPrefill=(asg._floatPayFrom==="Own money"||asg.paidFrom==="Own money")?"Own money":"Petty cash";
+    var paidFromPrefill="Petty cash";
+    if(asg._floatPayFrom==="Owner money"||asg.paidFrom==="Owner money"||asg._floatPayPayerId==="owner") paidFromPrefill="Owner money";
+    else if(asg._floatPayFrom==="Own money"||asg.paidFrom==="Own money") paidFromPrefill="Own money";
     /* Infer from existing expense lines if any */
     try{
       var expPf=(state.expenses||[]).filter(function(e){return e&&e.source==="stew"&&e.stewPayKind==="dayPay"&&String(e.stewEventKey)===String(eventKey);})[0];
-      if(expPf&&expPf.paidFrom==="Own money") paidFromPrefill="Own money";
-      else if(expPf&&expPf.paidFrom==="Petty cash") paidFromPrefill="Petty cash";
+      if(expPf){
+        if(expPf.paidFrom==="Owner money"||String(expPf.paidById||"")==="owner") paidFromPrefill="Owner money";
+        else if(expPf.paidFrom==="Own money") paidFromPrefill="Own money";
+        else if(expPf.paidFrom==="Petty cash") paidFromPrefill="Petty cash";
+      }
     }catch(ePf){}
     h+='<div id="f_stew_paid_from_wrap" style="'+(pay==="Paid"?"":"display:none")+'">'+
       fieldHTML("Paid from",
         '<select class="ctl" id="f_stew_paid_from">'+
           '<option value="Petty cash"'+(paidFromPrefill==="Petty cash"?" selected":"")+'>Petty cash (boat envelope)</option>'+
           '<option value="Own money"'+(paidFromPrefill==="Own money"?" selected":"")+'>Own money (captain / me)</option>'+
+          '<option value="Owner money"'+(paidFromPrefill==="Owner money"?" selected":"")+'>Owner money (owner paid crew)</option>'+
         '</select>')+
-      '<p style="margin:-6px 0 12px;font-size:12px;color:var(--muted);line-height:1.4">Petty cash → Expenses cash out. Own money → your pocket, not the envelope.</p>'+
+      '<p style="margin:-6px 0 12px;font-size:12px;color:var(--muted);line-height:1.4"><b>Petty</b> → boat envelope cash out. <b>Own money</b> → your pocket (repay later). <b>Owner money</b> → owner paid out of pocket (e.g. owner’s day) — not petty, not your pocket claim.</p>'+
     '</div>';
     var isAsgCancelled=!!(asg.cancelled||asg.status==="cancelled");
     h+='<label class="checkrow" style="margin:8px 0 12px"><input type="checkbox" id="f_stew_cancelled"'+(isAsgCancelled?" checked":"")+'>'+
@@ -16744,7 +16790,7 @@ function openStewAssign(eventKey){
       tipSource:tipSrcSel
     };
     var tip=stewTipShare(tipMock);
-    var payLabel=paySel==="Paid"?("Paid · "+(paidFromSel==="Own money"?"own money":"petty")):(charterDue?"Unpaid":"Not due yet");
+    var payLabel=paySel==="Paid"?("Paid · "+(paidFromSel==="Owner money"?"owner money":(paidFromSel==="Own money"?"own money":"petty"))):(charterDue?"Unpaid":"Not due yet");
     var totalPay=0;
     var line="";
     if(ids.length){
@@ -16906,7 +16952,12 @@ function openStewAssign(eventKey){
       tipSource=(el("f_stew_tip_src")&&el("f_stew_tip_src").value==="card")?"card":"cash";
       tipShare=stewTipShare({tipTotal:tipTotal, stewIds:ids, tipPayStatus:tipPayStatus, tipPaidBy:tipPaidBy});
       nowPaid=(el("f_stew_pay")&&el("f_stew_pay").value==="Paid");
-      paidFromSel=(el("f_stew_paid_from")&&el("f_stew_paid_from").value==="Own money")?"Own money":"Petty cash";
+      paidFromSel=(function(){
+        var v=el("f_stew_paid_from")?String(el("f_stew_paid_from").value||""):"";
+        if(v==="Own money") return "Own money";
+        if(v==="Owner money") return "Owner money";
+        return "Petty cash";
+      })();
       markCancelled=!!(el("f_stew_cancelled")&&el("f_stew_cancelled").checked);
       zeroPay=markCancelled&&!!(el("f_stew_zero_pay")&&el("f_stew_zero_pay").checked);
       if(zeroPay){ each=0; rate=rate===""?"":0; nowPaid=false; dayPayByStew={}; tipTotal=""; tipPayStatus="Unpaid"; tipPaidBy={}; }
@@ -16920,15 +16971,15 @@ function openStewAssign(eventKey){
       /*
        * Cash leaves petty ONLY when:
        *  - newly marking Unpaid → Paid from petty, or
-       *  - switching Own money → Petty cash.
+       *  - switching Own/Owner money → Petty cash.
        * Do NOT treat “Paid but no floatPay expense” as pay-from-petty — after
        * expense wipe that re-subtracted every re-saved day from the envelope.
        * Ghost “green Paid still owed”: set Unpaid first, then Paid from petty.
        * Books-only settle: Expenses → Prior / not this pot.
        */
       var wasPaidBefore=asg.payStatus==="Paid";
-      var wasFromOwn=asg.paidFrom==="Own money";
-      payFromPetty=!noneNeeded&&nowPaid&&!zeroPay&&paidFromSel==="Petty cash"&&(!wasPaidBefore||wasFromOwn);
+      var wasFromNonPetty=asg.paidFrom==="Own money"||asg.paidFrom==="Owner money"||asg._floatPayPayerId==="owner";
+      payFromPetty=!noneNeeded&&nowPaid&&!zeroPay&&paidFromSel==="Petty cash"&&(!wasPaidBefore||wasFromNonPetty);
     } else {
       /* Team: only change who is on the charter + notes — keep captain pay fields */
       rate=asg.dayRate!=null&&asg.dayRate!==""?asg.dayRate:ratePrefill;
@@ -16941,7 +16992,7 @@ function openStewAssign(eventKey){
       tipSource=stewTipIsOnBill(asg)?"card":"cash";
       tipShare=stewTipShare({tipTotal:tipTotal, stewIds:ids, tipPayStatus:tipPayStatus, tipPaidBy:tipPaidBy});
       nowPaid=asg.payStatus==="Paid";
-      paidFromSel=asg.paidFrom==="Own money"?"Own money":"Petty cash";
+      paidFromSel=asg.paidFrom==="Own money"?"Own money":(asg.paidFrom==="Owner money"?"Owner money":"Petty cash");
       markCancelled=!!(asg.cancelled||asg.status==="cancelled");
       zeroPay=markCancelled&&!(each>0);
       linkedLeadId=asg.leadId||"";
@@ -16996,7 +17047,9 @@ function openStewAssign(eventKey){
       /* Cash leaves petty when captain saves as Paid from Petty cash */
       _floatPayMark:captainMode&&payFromPetty&&!noneNeeded,
       _floatPayFrom:captainMode&&nowPaid&&!zeroPay&&!noneNeeded?paidFromSel:"",
-      _floatPayPayerId:captainMode&&nowPaid&&!zeroPay&&!noneNeeded&&paidFromSel==="Own money"?EXP_POCKET_CAPTAIN:"",
+      _floatPayPayerId:captainMode&&nowPaid&&!zeroPay&&!noneNeeded
+        ?(paidFromSel==="Own money"?EXP_POCKET_CAPTAIN:(paidFromSel==="Owner money"?EXP_POCKET_OWNER:""))
+        :"",
       tipTotal:markCancelled||noneNeeded?"":tipTotal,
       tipSource:markCancelled||noneNeeded?"cash":(tipSource||"cash"),
       tipStewShare:markCancelled||noneNeeded?0:(tipShare&&tipShare.stewSide)||0,

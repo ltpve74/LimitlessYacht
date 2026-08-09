@@ -593,21 +593,25 @@ function planStewDayPayExpenseLines(input) {
     }
   });
   var markFloat = !!asg._floatPayMark;
-  /* Explicit source even when Own money (markFloat is false for pocket pays) */
+  /* Explicit source even when Own/Owner money (markFloat is false for non-petty pays) */
+  function normalizeDayPayFrom(v) {
+    var s = String(v || "").trim();
+    if (s === "Own money") return "Own money";
+    if (s === "Owner money" || s === "Owner’s money" || s === "Owner's money") return "Owner money";
+    if (/^owner\s*(money|pocket)/i.test(s)) return "Owner money";
+    if (s === "Petty cash" || /^petty\b/i.test(s)) return "Petty cash";
+    return "";
+  }
   var paidFromDefault =
-    asg._floatPayFrom === "Own money"
-      ? "Own money"
-      : asg._floatPayFrom === "Petty cash"
-        ? "Petty cash"
-        : asg.paidFrom === "Own money"
-          ? "Own money"
-          : asg.paidFrom === "Petty cash"
-            ? "Petty cash"
-            : "";
+    normalizeDayPayFrom(asg._floatPayFrom) ||
+    normalizeDayPayFrom(asg.paidFrom) ||
+    "";
   var payerDefault =
     asg._floatPayPayerId != null && String(asg._floatPayPayerId) !== ""
       ? String(asg._floatPayPayerId)
-      : "captain";
+      : paidFromDefault === "Owner money"
+        ? "owner"
+        : "captain";
   var onlySid =
     asg._floatPayOnlySid != null && String(asg._floatPayOnlySid) !== ""
       ? String(asg._floatPayOnlySid)
@@ -643,21 +647,30 @@ function planStewDayPayExpenseLines(input) {
     var paidFrom = "Petty cash";
     var paidById = "";
     if (old) {
-      if (String(old.paidFrom || "") === "Own money") paidFrom = "Own money";
-      else if (String(old.paidFrom || "") === "Petty cash") paidFrom = "Petty cash";
+      var oldPf = normalizeDayPayFrom(old.paidFrom) || String(old.paidFrom || "");
+      if (oldPf === "Own money" || oldPf === "Owner money" || oldPf === "Petty cash") paidFrom = oldPf;
       if (old.paidById != null && String(old.paidById) !== "") paidById = String(old.paidById);
     }
-    if (mapPf === "Own money" || mapPf === "Petty cash") paidFrom = mapPf;
+    var mapNorm = normalizeDayPayFrom(mapPf);
+    if (mapNorm) paidFrom = mapNorm;
     else if (applyMark && paidFromDefault) paidFrom = paidFromDefault;
-    /* Explicit mark always wins for the target stew (Own money does not need markFloat) */
-    if (applyMark && asg._floatPayFrom === "Own money") paidFrom = "Own money";
+    /* Explicit mark always wins for the target stew (non-petty does not need markFloat) */
+    if (applyMark && normalizeDayPayFrom(asg._floatPayFrom) === "Owner money")
+      paidFrom = "Owner money";
+    else if (applyMark && asg._floatPayFrom === "Own money") paidFrom = "Own money";
     else if (applyMark && (markFloat || asg._floatPayFrom === "Petty cash")) paidFrom = "Petty cash";
     var floatPay = false;
-    if (paidFrom === "Own money") {
+    if (paidFrom === "Owner money") {
       floatPay = false;
-      if (applyMark && (asg._floatPayFrom === "Own money" || asg.paidFrom === "Own money"))
-        paidById = payerDefault;
-      else if (!paidById) paidById = payerDefault;
+      paidById = "owner";
+    } else if (paidFrom === "Own money") {
+      floatPay = false;
+      if (
+        applyMark &&
+        (asg._floatPayFrom === "Own money" || asg.paidFrom === "Own money" || paidFromDefault === "Own money")
+      )
+        paidById = payerDefault === "owner" ? "captain" : payerDefault;
+      else if (!paidById || paidById === "owner") paidById = "captain";
     } else if (applyMark && markFloat) {
       floatPay = true;
       paidById = "";
@@ -672,25 +685,36 @@ function planStewDayPayExpenseLines(input) {
     /*
      * Date for the expense row:
      *  - newly hitting petty (markFloat) → pay day (this month’s envelope)
-     *  - Own money mark → pay day so “paid today” lands in this month’s pocket list
+     *  - Own / Owner money mark → pay day so “paid today” lands in this month’s books
      *  - re-save keeping floatPay → keep prior expense date if set
      *  - books-only / no float → charter day
      */
     var lineDate = charterDate;
     if (markFloat && floatPay && applyMark) lineDate = payDate;
     else if (
-      paidFrom === "Own money" &&
+      (paidFrom === "Own money" || paidFrom === "Owner money") &&
       applyMark &&
-      (asg._floatPayFrom === "Own money" || asg.paidFrom === "Own money")
+      (normalizeDayPayFrom(asg._floatPayFrom) === paidFrom ||
+        normalizeDayPayFrom(asg.paidFrom) === paidFrom ||
+        paidFromDefault === paidFrom)
     )
       lineDate = payDate || charterDate;
     else if (floatPay && old && String(old.date || "").slice(0, 10))
       lineDate = String(old.date).slice(0, 10);
     else if (floatPay) lineDate = payDate;
-    else if (paidFrom === "Own money" && old && String(old.date || "").slice(0, 10))
+    else if (
+      (paidFrom === "Own money" || paidFrom === "Owner money") &&
+      old &&
+      String(old.date || "").slice(0, 10)
+    )
       lineDate = String(old.date).slice(0, 10);
     var desc = "Stewardess / day work — " + summary;
-    if ((floatPay || paidFrom === "Own money") && lineDate !== charterDate && charterDate)
+    if (paidFrom === "Owner money") desc = desc + " · paid by owner";
+    if (
+      (floatPay || paidFrom === "Own money" || paidFrom === "Owner money") &&
+      lineDate !== charterDate &&
+      charterDate
+    )
       desc = desc + " · charter " + charterDate;
     lines.push({
       id: (old && old.id) || newId(),
