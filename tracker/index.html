@@ -9304,12 +9304,18 @@ function dieselLogEntries(){
 /**
  * How APA pot fuel hits the Diesel ledger.
  * - Litres always burn the tank.
- * - Guest: money in Out value / margin only when shortfall is Paid.
- * - Owner’s days: not guest-invoiced, but bunker-cost € still counts in Out
- *   value + margin (owner fuel must not vanish). Does not set “Last charged”.
+ * - Guest Paid shortfall → recovered money (Out value).
+ * - Owner’s days → not paid: bunker-cost is an expense / deficit (subtracted
+ *   from margin), never “out value”. Does not set “Last charged”.
+ * - Unpaid guest APA → litres only (not recovered, not owner expense).
  */
 function apaFuelMoneyStatus(t){
-  var out={ ownerDays:false, paid:false, moneyCounts:false, guestCharged:false, label:"APA", payStatus:"" };
+  var out={
+    ownerDays:false, paid:false,
+    moneyCounts:false, /* guest recovered → out value */
+    ownerExpense:false, /* owner unpaid → deficit at bunker cost */
+    guestCharged:false, label:"APA", payStatus:""
+  };
   if(!t) return out;
   var lead=null;
   try{ lead=apaLinkedLead(t); }catch(eL){}
@@ -9320,10 +9326,10 @@ function apaFuelMoneyStatus(t){
   }catch(eO){}
   if(isOwn){
     out.ownerDays=true;
-    out.label="Owner · bunker";
+    out.label="Owner · deficit";
     out.payStatus="owner";
-    /* Costed at last bunker — include in diesel out value / margin */
-    out.moneyCounts=true;
+    out.moneyCounts=false;
+    out.ownerExpense=true;
     out.guestCharged=false;
     return out;
   }
@@ -9336,6 +9342,7 @@ function apaFuelMoneyStatus(t){
   out.paid=paid;
   out.moneyCounts=paid;
   out.guestCharged=paid;
+  out.ownerExpense=false;
   out.payStatus=paid?"Paid":(ch?"Unpaid":"No charge");
   out.label=paid?"APA · Paid":(ch?"APA · Unpaid":"APA");
   return out;
@@ -9373,6 +9380,7 @@ function dieselApaEvents(){
         price:unit>0?unit:tripSell,
         lineEuro:c.cost,
         moneyCounts:!!moneySt.moneyCounts,
+        ownerExpense:!!moneySt.ownerExpense,
         guestCharged:!!moneySt.guestCharged,
         ownerDays:!!moneySt.ownerDays,
         payStatus:moneySt.payStatus||"",
@@ -9474,32 +9482,32 @@ function dieselLedger(){
       var litA=apaNum(ev.litres);
       if(tank!=null) tank-=litA;
       apaUsed+=litA;
-      /* Prefer trip’s stored rate (history). Fall back to walk active sell / bunker */
-      var ap=ev.price!=null&&ev.price>0?ev.price:(ev.ownerDays?walkBuy:walkSell);
+      /* Prefer trip’s stored rate (history). Owner → bunker/walk buy; guest → walk sell */
+      var ap=ev.price!=null&&ev.price>0?ev.price:(ev.ownerDays||ev.ownerExpense?walkBuy:walkSell);
       var euro=ev.lineEuro!=null&&ev.lineEuro>0?ev.lineEuro:litA*ap;
       /*
-       * moneyCounts: Paid guest shortfall OR owner’s days at bunker cost.
-       * Owner € enters Out value + margin so fuel cost is not free.
-       * guestCharged only: updates “Last charged” (never owner / unpaid).
+       * Paid guest → recovered (Out value).
+       * Owner unpaid → expense/deficit at bunker (subtract from margin), NOT out value.
+       * Unpaid guest → litres only.
        */
-      var moneyOk=ev.moneyCounts===true;
-      /* Guest charged → Last charged rate; owner bunker never sets guest rate */
-      var guestOk=!ev.ownerDays&&(ev.guestCharged===true||(moneyOk&&ev.guestCharged!==false));
+      var moneyOk=ev.moneyCounts===true&&!ev.ownerDays&&!ev.ownerExpense;
+      var isOwnerExp=!!(ev.ownerExpense||ev.ownerDays);
+      var guestOk=moneyOk&&(ev.guestCharged===true||ev.guestCharged!==false);
       if(moneyOk){
         apaSellVal+=euro;
-        if(ev.ownerDays){
-          ownerUsed+=litA;
-          ownerCost+=euro;
-        } else {
-          guestApaVal+=euro;
-        }
+        guestApaVal+=euro;
         if(guestOk) lastApaSellP=ap;
+      }
+      if(isOwnerExp&&euro>0){
+        ownerUsed+=litA;
+        ownerCost+=euro;
       }
       ev._unitPrice=ap;
       lineEuro=Math.round(euro*100)/100;
       ev._moneyCounts=moneyOk;
-      ev._guestCharged=guestOk;
-      ev._payLabel=ev.payLabel||(ev.ownerDays?"Owner · bunker":(moneyOk?"APA · Paid":"APA · Unpaid"));
+      ev._ownerExpense=isOwnerExp;
+      ev._guestCharged=!!guestOk;
+      ev._payLabel=ev.payLabel||(isOwnerExp?"Owner · deficit":(moneyOk?"APA · Paid":"APA · Unpaid"));
     }
     timeline.push({
       id:ev.id, date:ev.date, kind:ev.kind, litres:apaLit(apaNum(ev.litres)),
@@ -9507,22 +9515,28 @@ function dieselLedger(){
       tankAfter:tank==null?null:apaLit(tank),
       notes:ev.notes||"", guest:ev.guest||"", tripId:ev.tripId||"",
       source:ev.source||"log", unitPrice:ev._unitPrice, lineEuro:lineEuro, raw:ev.raw,
-      moneyCounts:ev._moneyCounts, guestCharged:ev._guestCharged, payLabel:ev._payLabel||"", ownerDays:!!ev.ownerDays
+      moneyCounts:ev._moneyCounts, ownerExpense:ev._ownerExpense, guestCharged:ev._guestCharged,
+      payLabel:ev._payLabel||"", ownerDays:!!ev.ownerDays
     });
   });
   var outL=sold+apaUsed;
   var avgBuy=bought>0?Math.round((buyCost/bought)*1000)/1000:null;
+  /* Out value = money recovered only (sells + paid guest APA) — not owner */
   var outVal=sellVal+apaSellVal;
-  /* Avg out over litres that carried money (sells + paid guest APA + owner bunker cost) */
   var valuedL=sold;
   events.forEach(function(ev){
-    if(ev.kind==="apa"&&ev.moneyCounts===true) valuedL+=apaNum(ev.litres);
+    if(ev.kind==="apa"&&ev.moneyCounts===true&&!ev.ownerDays&&!ev.ownerExpense) valuedL+=apaNum(ev.litres);
   });
   var avgSellOut=valuedL>0?Math.round((outVal/valuedL)*1000)/1000:null;
+  /*
+   * Margin: recovered − bunker purchases − owner unpaid fuel (deficit).
+   * Owner did not pay → that bunker-cost expense is subtracted, not treated as out value.
+   */
+  var margin=Math.round((outVal-buyCost-ownerCost)*100)/100;
   return {
     /* Defaults for NEW rows only — not “the price for the whole period” */
     defaultBuy:st.buyPrice, defaultSell:st.sellPrice,
-    /* Last charged = last guest sell / paid guest APA — never owner bunker or unpaid */
+    /* Last charged = last guest sell / paid guest APA — never owner */
     lastBuyPrice:lastBuyP, lastSellPrice:lastSellP!=null?lastSellP:lastApaSellP,
     avgBuyPrice:avgBuy, avgSellPrice:avgSellOut,
     buyPrice:st.buyPrice, sellPrice:st.sellPrice, /* keep for older callers */
@@ -9536,7 +9550,7 @@ function dieselLedger(){
     sellVal:Math.round(sellVal*100)/100,
     apaSellVal:Math.round(apaSellVal*100)/100,
     outVal:Math.round(outVal*100)/100,
-    margin:Math.round((outVal-buyCost)*100)/100,
+    margin:margin,
     timeline:timeline, events:events
   };
 }
@@ -9563,9 +9577,9 @@ function renderDiesel(){
   var html='<div class="summary">'+
     '<div class="sumcard"><div class="l">Est. on board</div><div class="v"'+(warn?' style="color:var(--danger)"':'')+'>'+(tankKnown?esc(String(L.tank))+" L":"—")+'</div></div>'+
     '<div class="sumcard"><div class="l">Used (APA)</div><div class="v">'+esc(String(L.apaUsed))+' L</div></div>'+
-    (L.ownerUsed>0?'<div class="sumcard"><div class="l">Owner use (bunker)</div><div class="v">'+esc(String(L.ownerUsed))+' L</div><div class="s money">'+money(L.ownerCost)+'</div></div>':'')+
+    (L.ownerUsed>0?'<div class="sumcard"><div class="l">Owner deficit (unpaid)</div><div class="v" style="color:var(--danger)">−'+esc(String(L.ownerUsed))+' L</div><div class="s money" style="color:var(--danger)">−'+money(L.ownerCost)+'</div></div>':'')+
   '</div>'+
-  '<div class="legend">After each <b>bunker</b>, set the <b>sale price</b> (default pump + €'+esc(String(DIESEL_MARKUP))+'). APA fuel always burns the tank. <b>Out value / margin</b> include: guest sells, <b>Paid</b> guest APA, and <b>owner’s days at last bunker cost</b> (not free). Unpaid guest APA is litres only. <b>Last charged</b> is guest rate only.</div>'+
+  '<div class="legend">After each <b>bunker</b>, set the <b>sale price</b> (default pump + €'+esc(String(DIESEL_MARKUP))+'). APA always burns the tank. <b>Out value</b> = guest sells + <b>Paid</b> guest APA only. <b>Owner’s days</b> at last bunker are an unpaid <b>deficit</b> (subtracted from margin), not recovered out value. Unpaid guest APA = litres only. <b>Last charged</b> = guest rate only.</div>'+
   '<div class="exp-alert ok" style="margin-bottom:12px">'+
     '<div style="font-weight:800;margin-bottom:4px">Active sale price</div>'+
     '<div class="money" style="font-size:28px;font-weight:800;margin-top:4px">€'+esc(String(activeSell))+'<span style="font-size:15px;font-weight:600"> / L</span></div>'+
@@ -9592,9 +9606,10 @@ function renderDiesel(){
     '<div class="apa-card"><div class="k">Out (sell + APA)</div><div class="n">'+esc(String(L.out))+' L</div></div>'+
     '<div class="apa-card"><div class="k">Buy cost</div><div class="n money">'+money(L.buyCost)+'</div></div>'+
     '<div class="apa-card"><div class="k">Out value</div><div class="n money">'+money(L.outVal)+'</div></div>'+
-    '<div class="apa-card wide bal'+(L.margin<0?' warn':'')+'"><div class="k">Margin (out value − buy cost)</div><div class="n money">'+money(L.margin)+'</div>'+
-      '<div style="font-size:12px;color:var(--muted);margin-top:6px">Each line’s own €/L · APA '+esc(String(L.apaUsed))+' L · sold '+esc(String(L.sold))+' L'+
-        (L.ownerCost>0?' · owner bunker cost '+money(L.ownerCost)+' ('+esc(String(L.ownerUsed))+' L)':'')+
+    '<div class="apa-card wide bal'+(L.margin<0?' warn':'')+'"><div class="k">Margin (out − buy − owner deficit)</div><div class="n money">'+money(L.margin)+'</div>'+
+      '<div style="font-size:12px;color:var(--muted);margin-top:6px">'+
+        money(L.outVal)+' out − '+money(L.buyCost)+' buy'+(L.ownerCost>0?' − '+money(L.ownerCost)+' owner unpaid':'')+
+        ' · APA '+esc(String(L.apaUsed))+' L · sold '+esc(String(L.sold))+' L'+
         (L.guestApaVal>0?' · guest APA paid '+money(L.guestApaVal):'')+
       '</div></div>'+
   '</div>'+
@@ -9626,14 +9641,15 @@ function renderDiesel(){
         if(row.lineEuro!=null) meta+='<span class="money">'+money(row.lineEuro)+'</span>';
       } else {
         title="APA · "+(row.guest||"trip"); amt="−"+esc(String(row.litres))+" L";
-        var payLab=row.payLabel||(row.ownerDays?"Owner · bunker":(row.moneyCounts?"APA · Paid":"APA · Unpaid"));
-        pillC=row.ownerDays?"p-own":(row.moneyCounts?"p-apa":"p-grey");
+        var isOwnExp=!!(row.ownerExpense||row.ownerDays);
+        var payLab=row.payLabel||(isOwnExp?"Owner · deficit":(row.moneyCounts?"APA · Paid":"APA · Unpaid"));
+        pillC=isOwnExp?"p-own":(row.moneyCounts?"p-apa":"p-grey");
         pillT=payLab;
         meta='<span class="pill '+pillC+'">'+esc(pillT)+'</span><span>'+esc(fmtDate(row.date))+'</span>';
         if(row.tankAfter!=null) meta+='<span>→ '+esc(String(row.tankAfter))+' L</span>';
         if(row.unitPrice!=null) meta+='<span class="money">@ €'+esc(String(row.unitPrice))+'/L</span>';
-        /* Money when in ledger (paid guest or owner bunker cost); unpaid guest = not charged */
-        if(row.moneyCounts&&row.lineEuro!=null) meta+='<span class="money">'+money(row.lineEuro)+'</span>';
+        if(isOwnExp&&row.lineEuro!=null) meta+='<span class="money" style="color:var(--danger)">−'+money(row.lineEuro)+'</span>';
+        else if(row.moneyCounts&&row.lineEuro!=null) meta+='<span class="money">'+money(row.lineEuro)+'</span>';
         else if(row.lineEuro!=null&&row.lineEuro>0) meta+='<span class="meta">not charged · '+money(row.lineEuro)+'</span>';
       }
       var editable=row.source==="log";
