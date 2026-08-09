@@ -714,11 +714,9 @@ def check_html(r: Runner, rel: str, html: str) -> None:
             r'class="ly-prog-preview"[^>]*decoding="async"[^>]*loading="eager"',
             html,
         ) is not None
-        and ('.ly-prog-wrap--hero.ly-prog-preview{z-index:0;opacity:1;transform:none}' in re.sub(
+        and 'transform:scale(1.06)' in re.sub(
             r'\s+', '', html[html.find('id="critical-css"'):html.find('</style>', html.find('id="critical-css"'))]
-        ) or '.ly-prog-wrap--hero .ly-prog-preview{z-index:0;opacity:1;transform:none}' in re.sub(
-            r'\s+', '', html[html.find('id="critical-css"'):html.find('</style>', html.find('id="critical-css"'))]
-        ))
+        )
         and 'filter:blur(8px)' not in (read_file('css/layout.css') or '')
         and 'GaussianBlur' in (read_file('scripts/build_preview_images.py') or '')
         and 'LY_stemFromMasterUrl' in html
@@ -1442,13 +1440,13 @@ def check_html(r: Runner, rel: str, html: str) -> None:
     )
     r.check(
         'critical CSS reserves hero child layout before main.css',
-        '.hero-eyebrow{' in crit_flat
-        and '.hero-rates{' in crit_flat
+        ('.hero-eyebrow{' in crit_flat or '#hero.hero-eyebrow' in crit_flat)
+        and ('.hero-rates{' in crit_flat or '#hero.hero-rates' in crit_flat)
         and '.hero-actions{' in crit_flat
         and '.btn-primary{' in crit_flat
         and (
             '.hero-eyebrow,.hero-sub,.hero-rates' in crit_flat.replace(' ', '')
-            or '#hero :is(.hero-eyebrow' in crit_css
+            or '#hero.hero-eyebrow' in crit_flat
         )
         and 'opacity:1' in crit_flat,
     )
@@ -1764,56 +1762,30 @@ def check_locale_parity(r: Runner, pages: dict[str, str]) -> None:
 
 
 def check_hero_legibility_cascade(r: Runner) -> None:
-    """Critical + unlayered main.css lock must agree so async CSS does not flash weaker type.
-
-    Minify strips CSS comments, so do not require comment markers — require the
-    unlayered pull-quote / paint rules to appear *after* the last @layer site block.
-    """
+    """Hero type is owned by inline #hero !important rules; main must not restyle it."""
     main = read_file('css/main.css') or ''
     index = read_file('index.html') or ''
-    layer_at = main.rfind('@layer site{')
-    # Prefer readable-source comment anchor when present; else last clamp rule
-    lock_at = max(
-        main.rfind('Unlayered hero paint lock'),
-        main.rfind('Unlayered hero legibility lock'),
-    )
-    clamp_at = main.rfind('.hero-pull-quote{font-size:clamp(.82rem')
-    anchor = lock_at if lock_at > layer_at else clamp_at
-    tail = main[anchor:] if anchor >= 0 else ''
-    r.check(
-        'main.css ends with unlayered hero paint lock (beats @layer site flash)',
-        layer_at >= 0
-        and anchor > layer_at
-        and ('.hero-pull-quote{font-size:clamp(.9rem' in tail or '.hero-pull-quote{font-size:clamp(.82rem' in tail)
-        and 'color:#f5f0e8' in tail
-        and 'object-position:50% 46%' in tail,
-    )
     crit_m = re.search(r'<style id="critical-css">(.*?)</style>', index, re.S)
     crit = crit_m.group(1) if crit_m else ''
     crit_flat = re.sub(r'\s+', '', crit)
-    # Full pull-quote rule (incl. font-size) must be last in critical AND first in paint lock
-    crit_pulls = re.findall(r'\.hero-pull-quote\{[^}]+\}', crit)
-    # Minify strips the paint-lock comment — use the LAST full desktop pull-quote rule in main.css
-    main_pulls = re.findall(r'\.hero-pull-quote\{[^}]+\}', main)
-    desk_pulls = [p for p in main_pulls if 'clamp(.9rem' in p or 'clamp(.9rem' in p.replace(' ', '')]
-    if not desk_pulls:
-        desk_pulls = [p for p in main_pulls if 'font-size:clamp' in p]
-    lock_pull_text = desk_pulls[-1] if desk_pulls else None
-    def _flat(s: str) -> str:
-        return re.sub(r"\s+", "", s)
+    main_flat = re.sub(r'\s+', '', main)
     r.check(
-        'critical final hero text rules match main unlayered paint lock (no 3-step text repaint)',
-        bool(crit_pulls)
-        and lock_pull_text is not None
-        and 'font-size:clamp(.9rem' in _flat(crit_pulls[-1])
-        and _flat(crit_pulls[-1]) == _flat(lock_pull_text),
+        'hero type locked in critical #hero rules (system font, main cannot restyle)',
+        '#hero.hero-value{' in crit_flat
+        and 'max-width:28rem!important' in crit_flat
+        and 'min-height:3.3em!important' in crit_flat
+        and "font-family:'MontserratFallback" in crit_flat
+        and '#hero.hero-value{font-size:1rem!important' in main_flat
+        and 'max-width:28rem!important' in main_flat
+        # Real Montserrat must not swap hero title after font load
+        and 'html.ly-font-ready.hero-title' not in main_flat
+        and 'html.ly-font-ready .hero-title' not in main.replace(' ', ''),
     )
     r.check(
         'critical CSS locks hero pull-quote contrast before sheets load',
-        '.hero-pull-quote{' in crit
-        and 'color:#f5f0e8' in crit
-        and 'font-weight:500' in crit
-        and 'text-shadow:01px2pxrgba(0,0,0,.95)' in crit_flat,
+        '#hero.hero-pull-quote{' in crit_flat
+        and 'color:#f5f0e8' in crit_flat
+        and 'font-weight:500' in crit_flat,
     )
     nt_js = read_file('js/net-tier.js') or ''
     r.check(
