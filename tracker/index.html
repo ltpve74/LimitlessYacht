@@ -4283,10 +4283,99 @@ function leadSearchDateTokens(ymd){
     mon, String(di), d
   ];
 }
+/** Digits for wa.me (country code, no +). Bare ES 9-digit 6xx/7xx → +34. */
+function leadPhoneToWaDigits(phone){
+  var d=String(phone||"").replace(/\D/g,"");
+  if(!d) return "";
+  if(d.indexOf("00")===0) d=d.slice(2);
+  if(d.length===9&&/^[67]/.test(d)) d="34"+d;
+  if(d.length<8||d.length>15) return "";
+  return d;
+}
+function leadPhoneDisplay(phone){
+  var d=leadPhoneToWaDigits(phone);
+  if(!d) return String(phone||"").trim();
+  return "+"+d;
+}
+/**
+ * Best-effort phone scrape from free text (calendar title/notes).
+ * Same idea as server extractPhoneFromText — ES default country.
+ */
+function leadExtractPhoneFromText(text){
+  var s=String(text||"");
+  if(!s.trim()) return "";
+  s=s.replace(/\b\d{1,2}[./-]\d{1,2}[./-]\d{2,4}\b/g," ");
+  s=s.replace(/\b\d{1,2}:\d{2}\b/g," ");
+  s=s.replace(/€\s*[\d.,]+/g," ");
+  var raw="";
+  var tel=s.match(/tel:\s*([+\d][\d\s().-]{6,20}\d)/i);
+  if(tel) raw=tel[1];
+  if(!raw){
+    var labeled=s.match(/(?:whats?app|wa|móvil|movil|mobile|phone|tel(?:éfono|efono)?|cell|handy)\s*[:.]?\s*([+\d][\d\s()./-]{7,20}\d)/i);
+    if(labeled) raw=labeled[1];
+  }
+  if(!raw){
+    var plus=s.match(/\+\s?\d(?:[\s()./-]?\d){7,14}/);
+    if(plus) raw=plus[0];
+  }
+  if(!raw){
+    var intl00=s.match(/\b00\s?\d(?:[\s()./-]?\d){8,14}/);
+    if(intl00) raw=intl00[0];
+  }
+  if(!raw){
+    var es=s.match(/(?:^|[^\d+])([67]\d{2}[\s./-]?\d{3}[\s./-]?\d{3})(?!\d)/);
+    if(es) raw=es[1];
+  }
+  if(!raw) return "";
+  return leadPhoneDisplay(raw);
+}
+function leadPhoneOf(r){
+  if(!r) return "";
+  var p=String(r.phone||r.whatsapp||r.mobile||"").trim();
+  if(p) return p;
+  /* Opportunistic: scrape notes / calendar title when field empty */
+  p=leadExtractPhoneFromText([r.notes,r.icsGuestName,r.name].filter(Boolean).join(" "));
+  return p||"";
+}
+function leadWhatsAppUrl(phone, prefillText){
+  var d=leadPhoneToWaDigits(phone);
+  if(!d) return "";
+  var url="https://wa.me/"+d;
+  if(prefillText&&String(prefillText).trim())
+    url+="?text="+encodeURIComponent(String(prefillText).trim());
+  return url;
+}
+function leadWhatsAppPrefill(r){
+  if(!r) return "";
+  var name=String(r.name||"").trim();
+  var start=r.start||r.cdate||"";
+  var end=r.end||"";
+  var when="";
+  try{
+    if(start&&end&&end!==start) when=(fmtDate(start)||start)+" – "+(fmtDate(end)||end);
+    else if(start) when=fmtDate(start)||start;
+  }catch(eW){ when=start||""; }
+  var bits=["Hi"];
+  if(name&&!/^charter guest$/i.test(name)) bits[0]="Hi "+name.split(/\s+/)[0];
+  bits.push("— following up on Limitless");
+  if(when) bits.push("("+when+")");
+  bits.push(".");
+  return bits.join(" ").replace(/\s+/g," ").trim();
+}
+/** Button/link HTML — only when phone resolves to wa.me digits. */
+function leadWhatsAppBtnHTML(r, opts){
+  opts=opts||{};
+  var phone=leadPhoneOf(r);
+  var url=leadWhatsAppUrl(phone, opts.prefill!==false?leadWhatsAppPrefill(r):"");
+  if(!url) return "";
+  var lab=opts.label||"WhatsApp";
+  var cls=opts.cls||"btn";
+  return '<a class="'+cls+'" href="'+esc(url)+'" target="_blank" rel="noopener" data-lead-wa="1" style="'+(opts.style||"")+'" onclick="event.stopPropagation()">'+esc(lab)+'</a>';
+}
 function leadSearchHaystack(r){
   if(!r) return "";
   var bits=[
-    r.name, r.icsGuestName, r.notes, r.start, r.end, r.closed,
+    r.name, r.icsGuestName, r.phone, r.whatsapp, r.notes, r.start, r.end, r.closed,
     leadSource(r), leadSourceLabel(leadSource(r)),
     r.by, r.depInv, r.finInv, r.calendarEventKey, r.calendarUid,
     "owner days","owners days","owner-sourced","owner sourced","income"
@@ -4465,14 +4554,18 @@ function renderLeads(){
         '<span class="pill p-grey">'+esc(typeLab)+'</span>'+
         statePill+
         (cancelled&&reasonLab?'<span class="pill p-grey">'+esc(reasonLab)+'</span>':'');
+      var waBtn=leadWhatsAppBtnHTML(r,{cls:"btn ghost",label:"WhatsApp"});
       var actions=
+        (waBtn||"")+
         (isPending&&!cancelled?'<button type="button" class="btn" data-edit-ld-btn="'+esc(r.id)+'">Assign source</button>':'')+
         (isOpenDeal?'<button type="button" class="btn" data-edit-ld-btn="'+esc(r.id)+'">'+(isOwner?"Confirm":"Confirm deal")+'</button>':'')+
         (isTentative&&!cancelled?'<button type="button" class="btn danger" data-cancel-tentative="'+esc(r.id)+'">Cancel · lost</button>':'')+
         (cancelled?'<button type="button" class="btn" data-reinstate-lead="'+esc(r.id)+'">Reinstate · if they get in touch</button>':'');
       cardHtml='<div class="'+cardCls+'" data-edit-ld="'+esc(r.id)+'" data-ld-start="'+esc(String(r.start||"").slice(0,10))+'" data-ld-name="'+esc(String(r.name||"").toLowerCase())+'">'+
         '<div class="top"><div class="title">'+titleHtml+'</div><div class="amt">'+amtShow+'</div></div>'+
-        '<div class="meta">'+metaBits+'</div>'+
+        '<div class="meta">'+metaBits+
+          (leadPhoneOf(r)?'<span class="pill p-green">📱 WhatsApp</span>':'')+
+        '</div>'+
         (actions?'<div class="lead-actions">'+actions+'</div>':'')+
         '<span class="chev">✎</span></div>';
       if(cancelled){
@@ -4557,6 +4650,7 @@ function renderLeads(){
       '</div>'))+
       (r.notes?'<div class="notes">'+esc(r.notes)+'</div>':'')+
       '<div class="lead-actions">'+
+        (leadWhatsAppBtnHTML(r,{cls:"btn ghost",label:"WhatsApp"})||"")+
         (isOwner?"":'<button type="button" class="btn" data-inv-lead="'+esc(r.id)+'">Make invoice</button>')+
         (isOwner?"":'<button type="button" class="btn ghost" data-agr-lead="'+esc(r.id)+'">Agreement</button>')+
       '</div>'+
@@ -18833,6 +18927,28 @@ function openSheet(type,id){
       '</div>';
     }
     h+=fieldHTML("Lead name",'<input class="ctl" id="f_name" value="'+esc(r.name)+'" placeholder="e.g. Guest or company name">');
+    /* Phone → WhatsApp deep link (wa.me). Empty on old leads until you type it or calendar has a number. */
+    var phonePrefill=String(r.phone||"").trim();
+    if(!phonePrefill){
+      phonePrefill=leadExtractPhoneFromText([r.notes,r.icsGuestName,r.name].filter(Boolean).join(" "));
+      try{
+        var calKeyPh=leadCalendarEventKey(r);
+        if(calKeyPh&&typeof stewMergedEvents==="function"){
+          var evPh=(stewMergedEvents()||[]).filter(function(ev){return ev&&String(ev.key)===String(calKeyPh);})[0];
+          if(evPh){
+            var fromCal=leadExtractPhoneFromText([evPh.summary,evPh.description,evPh.location].filter(Boolean).join(" "));
+            if(fromCal) phonePrefill=fromCal;
+          }
+        }
+      }catch(ePh){}
+    }
+    var waUrlLive=leadWhatsAppUrl(phonePrefill, leadWhatsAppPrefill(r));
+    h+=fieldHTML("Phone / WhatsApp",
+      '<div style="display:flex;gap:8px;align-items:stretch;flex-wrap:wrap">'+
+        '<input class="ctl" id="f_phone" value="'+esc(phonePrefill)+'" placeholder="+34 6XX XXX XXX" inputmode="tel" autocomplete="tel" style="flex:1;min-width:140px">'+
+        '<a class="btn" id="f_phone_wa" href="'+(waUrlLive?esc(waUrlLive):"#")+'" target="_blank" rel="noopener" style="flex:0 0 auto;padding:10px 14px;text-decoration:none;display:'+(waUrlLive?"":"none")+'">WhatsApp</a>'+
+      '</div>');
+    h+='<p style="margin:-6px 0 12px;font-size:12.5px;color:var(--muted);line-height:1.4">International number with country code (e.g. <b>+34…</b>). Opens the existing WhatsApp chat on your phone. Calendar titles/descriptions with a number are scraped on import when empty.</p>';
     h+=fieldHTML("Lead source",selLeadSourceField(leadSrcDef));
     h+='<p style="margin:-6px 0 12px;font-size:12.5px;color:var(--muted);line-height:1.4">'+
       '<b>Captain</b> → '+CAPTAIN_COMMISSION_PCT+'% · <b>Paul</b> → '+CLICKBOAT_COMMISSION_PCT+'%. '+
@@ -19182,6 +19298,40 @@ function openSheet(type,id){
   });
   if(el("f_start")) el("f_start").addEventListener("change",recalcLead);
   if(el("f_end")) el("f_end").addEventListener("change",recalcLead);
+  /* Live WhatsApp button next to phone field */
+  function syncLeadPhoneWaBtn(){
+    var btn=el("f_phone_wa");
+    var inp=el("f_phone");
+    if(!btn||!inp) return;
+    var draft={
+      name:el("f_name")?el("f_name").value:"",
+      start:el("f_start")?el("f_start").value:"",
+      end:el("f_end")?el("f_end").value:"",
+      phone:inp.value
+    };
+    var url=leadWhatsAppUrl(inp.value, leadWhatsAppPrefill(draft));
+    if(url){
+      btn.href=url;
+      btn.style.display="";
+      btn.removeAttribute("aria-disabled");
+    } else {
+      btn.href="#";
+      btn.style.display="none";
+    }
+  }
+  if(el("f_phone")){
+    el("f_phone").addEventListener("input",syncLeadPhoneWaBtn);
+    el("f_phone").addEventListener("change",syncLeadPhoneWaBtn);
+    syncLeadPhoneWaBtn();
+  }
+  if(el("f_phone_wa")){
+    el("f_phone_wa").addEventListener("click",function(ev){
+      if(!el("f_phone")||!leadPhoneToWaDigits(el("f_phone").value)){
+        ev.preventDefault();
+        if(el("f_phone")) el("f_phone").focus();
+      }
+    });
+  }
   if(el("f_vatPct")) el("f_vatPct").addEventListener("input",function(){
     if(el("f_cashBlack")&&!leadCashFieldUserEdited()) el("f_cashBlack").dataset.forcePrefill="1";
     recalcLead();
@@ -19652,7 +19802,11 @@ function saveSheet(type,rec){
         try{ el("f_name").value="Day off"; }catch(eN){}
       }
     }
+    var phoneSave=(el("f_phone")&&el("f_phone").value||"").trim();
+    if(phoneSave) phoneSave=leadPhoneDisplay(phoneSave)||phoneSave;
     var o2={ id:rec?rec.id:uid(), closed:closedIn, name:el("f_name").value.trim()||(isDayOffSave?"Day off":""),
+      phone:isDayOffSave?"":phoneSave,
+      phoneFromIcs:isDayOffSave?false:(!!(rec&&rec.phoneFromIcs)&&phoneSave===(rec.phone||"")?true:false),
       dur:isDayOffSave?(days>1?"multi":"8h"):dur, start:start, end:end, rate:isDayOffSave?0:rate, price:isDayOffSave?0:price, days:days,
       base:isDayOffSave?0:quoteBase, net:isDayOffSave?0:(sp.split?sp.dealNet:(cashOnlyOn?parts.client:m.net)), vat:isDayOffSave?0:(sp.split?sp.white.vat:(cashOnlyOn?0:m.vat)), total:isDayOffSave?0:parts.client,
       vatMode:cashOnlyOn?"none":(sp.split?(vatMode||"include"):m.vatMode),
