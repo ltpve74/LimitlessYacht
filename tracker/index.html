@@ -2434,7 +2434,11 @@ function setLeadCalendarLink(lead, eventKey, opts){
     if(ev.end&&String(ev.end).slice(0,10)!==String(ev.start).slice(0,10)) lead.end=String(ev.end).slice(0,10);
     else if(lead.dur!=="multi") lead.end="";
   }
-  /* Reverse-link stew assign so pay follows the id, not the title */
+  /* Reverse-link stew assign so pay follows the id, not the title.
+   * Day off / vessel closed never creates a stew roster assign. */
+  if(typeof leadIsDayOff==="function"&&leadIsDayOff(lead)) return true;
+  if(leadSource(lead)==="dayoff") return true;
+  if(ev&&stewIsOffEvent(ev)) return true;
   if(!state.stewAssign) state.stewAssign=[];
   var asg=assignForEvent(key);
   if(!asg&&ev){
@@ -13952,13 +13956,26 @@ function stewFindInRoster(token){
   }
   return null;
 }
-/** Calendar "off" days — not charters; never show or assign on Stews. */
+/** Calendar "off" / day-off leads — not charters; never show or assign on Stews. */
 function stewIsOffEvent(ev){
   if(LY_MODELS&&LY_MODELS.stewIsOffEvent) return LY_MODELS.stewIsOffEvent(ev);
-  var s=String((ev&&ev.summary)||"").trim();
+  if(!ev) return false;
+  if(ev.dayOff===true||ev.dayOff==="true"||ev.dayOff===1) return true;
+  if(String(ev.leadKind||ev.kind||"").toLowerCase()==="dayoff") return true;
+  var src=String(ev.leadSource||"").toLowerCase();
+  if(src==="dayoff"||src==="day-off"||src==="off") return true;
+  if(ev.leadId&&typeof leadIsDayOff==="function"){
+    try{
+      var L=(state.leads||[]).filter(function(x){return x&&String(x.id)===String(ev.leadId);})[0];
+      if(L&&leadIsDayOff(L)) return true;
+    }catch(e0){}
+  }
+  var s=String(ev.summary||"").trim();
   if(!s) return false;
   if(/^\s*off\s*$/i.test(s)) return true;
   if(/^\s*off\s*[-–—:].+/i.test(s)) return true;
+  if(/^\s*day\s*off\b/i.test(s)) return true;
+  if(LY_MODELS&&LY_MODELS.isIcsOffSummary&&LY_MODELS.isIcsOffSummary(s)) return true;
   return false;
 }
 /**
@@ -15055,6 +15072,9 @@ function leadIsPendingForRoster(l){
  */
 function stewEventFromLead(l){
   if(!l||!l.id||leadIsCancelled(l)) return null;
+  /* Day off = vessel closed for public calendar only — never a stew roster card */
+  if(typeof leadIsDayOff==="function"&&leadIsDayOff(l)) return null;
+  if(leadSource(l)==="dayoff") return null;
   if(leadIsPendingForRoster(l)) return null;
   var days=leadBlockedDaysClient(l);
   if(!days.length) return null;
@@ -15142,6 +15162,8 @@ function stewEventsFromLeads(){
 function stewRosterEventIsConfirmed(ev){
   if(!ev||!ev.start) return false;
   if(stewIsOffEvent&&stewIsOffEvent(ev)) return false;
+  if(String(ev.leadSource||"").toLowerCase()==="dayoff") return false;
+  if(ev.dayOff===true||ev.dayOff==="true"||ev.dayOff===1) return false;
   if(ev.cancelled||String(ev.status||"").toLowerCase()==="cancelled") return true; /* cancel ghosts OK */
   if(String(ev.status||"").toLowerCase()==="tentative") return false;
   if(ev.leadSource==="pending") return false;

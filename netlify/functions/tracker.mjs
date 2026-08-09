@@ -620,6 +620,17 @@ function stewCalendarRowsFromLeads(leads, stewAssign) {
     if (!l || !l.id) return;
     /* Same cancel rules as public site calendar (respects explicit reinstate) */
     if (leadIsCancelledForSite(l)) return;
+    /* Day off / vessel closed — blocks public calendar only, never stew roster */
+    if (LY.leadIsDayOff && LY.leadIsDayOff(l)) return;
+    const src0 = LY.constrainLeadSource(l.leadSource);
+    if (
+      src0 === "dayoff" ||
+      l.dayOff === true ||
+      l.dayOff === "true" ||
+      l.dayOff === 1 ||
+      String(l.leadKind || l.kind || "").toLowerCase() === "dayoff"
+    )
+      return;
     /* Pending / on-hold: public calendar only — not on stew roster until source assigned */
     if (leadIsOnHold(l)) return;
     const days = leadBlockedDays(l);
