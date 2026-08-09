@@ -1294,7 +1294,7 @@ def check_html(r: Runner, rel: str, html: str) -> None:
         and '.hero-bottom.hero-sub' in crit_flat.replace(' ', ''),
     )
     r.check(
-        'layout.css load adds ly-main-ready; main.css enhances without blocking reveal',
+        'main.css load adds ly-main-ready (single below-fold reveal after full styles)',
         (html.count("classList.add('ly-main-ready')") >= 1 or "classList.add('ly-main-ready')" in net_tier)
         and "l.rel='stylesheet'" in net_tier.replace(' ', '')
         and 'LY_LAYOUT_CSS_HREF' in html
@@ -1313,19 +1313,24 @@ def check_html(r: Runner, rel: str, html: str) -> None:
             net_tier,
         )
         is not None
+        # Reveal only after main.css (layout-only reveal caused full-page restyle repaint)
+        and 'Keep FOUC hide until main.css' in net_tier
+        and net_tier.find("softFrame(function () { revealMain();") > net_tier.rfind('g.LY_loadMainCss')
+        # Failsafe may call softFrame(revealMain) only behind a long timeout, not on layout apply
         and re.search(
-            r'function finishLayoutCss\(cb\) \{[\s\S]{0,900}LY_scheduleMainCss',
+            r'function finishLayoutCss\(cb\) \{[\s\S]{0,280}softFrame\(revealMain\)',
             net_tier,
         )
-        is not None,
+        is None,
     )
     r.check(
         'reveal is rAF-independent (hidden-tab safe): softFrame falls back to setTimeout',
         'function softFrame(fn)' in net_tier
         and re.search(r'function softFrame\(fn\)[\s\S]{0,220}?setTimeout\(go', net_tier)
         is not None
-        and 'softFrame(revealMain)' in net_tier
-        and "classList.add('ly-main-ready')" in net_tier,
+        and 'softFrame(function' in net_tier
+        and "classList.add('ly-main-ready')" in net_tier
+        and 'revealMain()' in net_tier,
     )
     r.check(
         'hash funnel landing re-syncs after main.css (scroll-margin + ly-past-hero)',
@@ -1793,11 +1798,13 @@ def check_hero_legibility_cascade(r: Runner) -> None:
         and 'font-weight:500' in crit
         and 'text-shadow:01px2pxrgba(0,0,0,.95)' in crit_flat,
     )
+    nt_js = read_file('js/net-tier.js') or ''
     r.check(
         'progressive hero waits for main.css (no mid-cascade crossfade)',
-        'Progressive hero waits for main.css' in (read_file('js/net-tier.js') or '')
-        and (read_file('js/net-tier.js') or '').find('LY_kickProgressiveAfterReveal')
-            > (read_file('js/net-tier.js') or '').rfind('LY_loadMainCss'),
+        'LY_kickProgressiveAfterReveal' in nt_js
+        and nt_js.find('LY_kickProgressiveAfterReveal') > nt_js.rfind('g.LY_loadMainCss')
+        # Primary kick is paired with revealMain in main.css finish, not layout finish
+        and 'revealMain(); if (g.LY_kickProgressiveAfterReveal)' in nt_js.replace('\n', ' '),
     )
 
 
