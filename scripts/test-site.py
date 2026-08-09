@@ -1293,10 +1293,11 @@ def check_html(r: Runner, rel: str, html: str) -> None:
         and 'display:grid;grid-template-rows:auto1frauto' in crit_flat.replace(' ', '')
         and '.hero-bottom.hero-sub' in crit_flat.replace(' ', ''),
     )
+    net_flat = re.sub(r'\s+', '', net_tier)
     r.check(
         'main.css load adds ly-main-ready (single below-fold reveal after full styles)',
         (html.count("classList.add('ly-main-ready')") >= 1 or "classList.add('ly-main-ready')" in net_tier)
-        and "l.rel='stylesheet'" in net_tier.replace(' ', '')
+        and "l.rel='stylesheet'" in net_flat
         and 'LY_LAYOUT_CSS_HREF' in html
         and 'LY_MAIN_CSS_HREF' in html
         and 'requestAnimationFrame' in (html + net_tier)
@@ -1313,15 +1314,11 @@ def check_html(r: Runner, rel: str, html: str) -> None:
             net_tier,
         )
         is not None
-        # Reveal only after main.css (layout-only reveal caused full-page restyle repaint)
-        and 'Keep FOUC hide until main.css' in net_tier
-        and net_tier.find("softFrame(function () { revealMain();") > net_tier.rfind('g.LY_loadMainCss')
-        # Failsafe may call softFrame(revealMain) only behind a long timeout, not on layout apply
-        and re.search(
-            r'function finishLayoutCss\(cb\) \{[\s\S]{0,280}softFrame\(revealMain\)',
-            net_tier,
-        )
-        is None,
+        # Primary reveal is softFrame(function(){revealMain()...}) inside LY_loadMainCss finish
+        and 'softFrame(function(){revealMain();' in net_flat
+        and net_flat.find('softFrame(function(){revealMain();') > net_flat.rfind('g.LY_loadMainCss=function')
+        # Must not reveal immediately when layout finishes (no softFrame(revealMain) at all)
+        and 'softFrame(revealMain)' not in net_flat,
     )
     r.check(
         'reveal is rAF-independent (hidden-tab safe): softFrame falls back to setTimeout',
