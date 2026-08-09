@@ -578,6 +578,13 @@
     position:relative;
     overflow:hidden
   }
+  /* Hero wrap must stay absolute (fills #hero). Relative base collapses it to width:0. */
+  .ly-prog-wrap--hero{
+    position:absolute;
+    inset:0;
+    overflow:hidden;
+    background:transparent
+  }
   .destination-card>.ly-prog-wrap,.gallery-item>.ly-prog-wrap,.about-image-wrap>.ly-prog-wrap{
     position:absolute;
     inset:0
