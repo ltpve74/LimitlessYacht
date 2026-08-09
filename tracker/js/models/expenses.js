@@ -25,6 +25,8 @@ var EXP_REIMBURSE_CATS = {
   Reimbursement: 1,
 };
 var EXP_POCKET_CAPTAIN = "captain";
+/** Owner paid crew from personal funds — not boat petty, not captain pocket. */
+var EXP_POCKET_OWNER = "owner";
 
 /**
  * Reimbursement = boat (or captain) repays someone for a pocket spend.
@@ -50,11 +52,23 @@ function expensePaidFromLooksOwn(label) {
   var p = String(label || "").trim();
   if (!p) return false;
   if (/^petty\b/i.test(p) || p === "Petty cash") return false;
+  /* Owner money is its own class — not captain/crew pocket liability */
+  if (expensePaidFromLooksOwner(p)) return false;
   if (p === "Own money" || /^own money\b/i.test(p) || /\bown money\b/i.test(p)) return true;
   if (/^(my|captain'?s?|capt\.?)\s+(money|pocket|personal)/i.test(p)) return true;
   if (/^captain\b/i.test(p) || /^capt\.?\b/i.test(p)) return true;
   if (/^personal\b/i.test(p) || /^from me\b/i.test(p) || /^captain pocket\b/i.test(p)) return true;
-  if (/\bpocket\b/i.test(p) && !/\bpetty\b/i.test(p)) return true;
+  if (/\bpocket\b/i.test(p) && !/\bpetty\b/i.test(p) && !/\bowner\b/i.test(p)) return true;
+  return false;
+}
+
+/** Owner paid from personal funds (not boat, not captain pocket). */
+function expensePaidFromLooksOwner(label) {
+  var p = String(label || "").trim();
+  if (!p) return false;
+  if (p === "Owner money" || p === "Owner’s money" || p === "Owner's money") return true;
+  if (/^owner\s*(money|pocket|paid|pay)\b/i.test(p)) return true;
+  if (/^owner'?s?\s*(money|pocket)\b/i.test(p)) return true;
   return false;
 }
 
@@ -74,6 +88,9 @@ function expensePaidFrom(e) {
   if (isCrewDayPayExpense(e)) {
     if (String(e.crewPayStatus || "") !== "Paid") return "petty";
     var pc = String(e.paidFrom || "").trim();
+    if (expensePaidFromLooksOwner(pc)) return "owner";
+    if (String(e.paidById || "") === EXP_POCKET_OWNER || String(e.paidById || "") === "owner")
+      return "owner";
     /* Own money label always wins (even if floatPay was left true by a bad write) */
     if (expensePaidFromLooksOwn(pc)) return "own";
     if (e.floatPay === true) return "petty";
@@ -82,6 +99,9 @@ function expensePaidFrom(e) {
     return "petty";
   }
   var p = String(e.paidFrom || "").trim();
+  if (expensePaidFromLooksOwner(p)) return "owner";
+  if (String(e.paidById || "") === EXP_POCKET_OWNER || String(e.paidById || "") === "owner")
+    return "owner";
   if (expensePaidFromLooksOwn(p)) return "own";
   if (p === "Petty cash" || /^petty\b/i.test(p)) return "petty";
   if (e.paidById != null && String(e.paidById) !== "") return "own";
@@ -100,11 +120,12 @@ function expenseHitsPettyCash(e, opts) {
   if (!e) return false;
   if (opts.isCrewDayPay) {
     if (e.crewPayStatus !== "Paid") return false;
-    if (expensePaidFrom(e) === "own" || expensePaidFrom(e) === "card") return false;
+    var pfCrew = expensePaidFrom(e);
+    if (pfCrew === "own" || pfCrew === "owner" || pfCrew === "card") return false;
     return e.floatPay === true;
   }
   var pf = expensePaidFrom(e);
-  if (pf === "card" || pf === "own") return false;
+  if (pf === "card" || pf === "own" || pf === "owner") return false;
   if (isExpenseReimbursement(e)) return pf === "petty";
   return true;
 }
@@ -162,7 +183,7 @@ function classifyExpenseCash(e, opts) {
   return {
     amount: a,
     isReimbursement: reimb,
-    paidFrom: pf, /* petty | own | card */
+    paidFrom: pf, /* petty | own | owner | card */
     hitsPettyCash: hitsPetty,
     hitsOwnMoneyPocket: !reimb && pf === "own",
     /* Reimburse recipient always gets pocket credit when row is a reimbursement */
@@ -251,7 +272,8 @@ function crewDayPayLinkId(e) {
 function crewDayPayHitsPetty(e) {
   if (!isCrewDayPayExpense(e)) return false;
   if (String(e.crewPayStatus || "") !== "Paid") return false;
-  if (expensePaidFrom(e) === "own" || expensePaidFrom(e) === "card") return false;
+  var pf = expensePaidFrom(e);
+  if (pf === "own" || pf === "owner" || pf === "card") return false;
   return e.floatPay === true;
 }
 
@@ -860,6 +882,8 @@ function expenseReimburseWhoId(e) {
  */
 function isOwnMoneySpend(e) {
   if (!e || isExpenseReimbursement(e)) return false;
+  /* Owner money is not captain/crew pocket liability */
+  if (expensePaidFrom(e) === "owner") return false;
   if (isCrewDayPayExpense(e)) {
     if (String(e.crewPayStatus || "") !== "Paid") return false;
     return expensePaidFrom(e) === "own";
@@ -1775,6 +1799,8 @@ function summarizeMonthSettlement(opts) {
   return {
     EXP_REIMBURSE_CATS: EXP_REIMBURSE_CATS,
     EXP_POCKET_CAPTAIN: EXP_POCKET_CAPTAIN,
+    EXP_POCKET_OWNER: EXP_POCKET_OWNER,
+    expensePaidFromLooksOwner: expensePaidFromLooksOwner,
     isExpenseReimbursement: isExpenseReimbursement,
     expensePaidFromLooksOwn: expensePaidFromLooksOwn,
     expensePaidFrom: expensePaidFrom,

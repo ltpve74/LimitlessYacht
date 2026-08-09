@@ -1,6 +1,12 @@
 {
   "reviews": [
     {
+      "author": "Simon",
+      "date": "Ago 2026",
+      "rating": 5,
+      "text": "Qué experiencia tan excepcional. El barco es impresionante; no puedo valorarlo lo suficiente. Luigi (patrón) y Laura (anfitriona) fueron super amables y relajados y se aseguraron de que lo pasáramos genial. Paul, a través de quien reservé, también fue de gran ayuda. Los recomiendo muchísimo."
+    },
+    {
       "author": "Dominik",
       "date": "Ago 2026",
       "rating": 5,

@@ -2461,6 +2461,62 @@ console.log("\n[Write plans — stew expenses + APA shortfall decision]");
     paidToday.lines[0] && /charter 2026-07-14/.test(String(paidToday.lines[0].description || "")),
     "got " + (paidToday.lines[0] && paidToday.lines[0].description)
   );
+  /* Owner paid crew out of pocket (owner’s day) — not petty, not captain pocket */
+  const ownerPaid = M.planStewDayPayExpenseLines({
+    asg: {
+      eventKey: "uid:owner-day",
+      payStatus: "Paid",
+      start: "2026-08-08",
+      stewIds: ["laura"],
+      summary: "Owner day",
+      payStatusManual: true,
+      paidFrom: "Owner money",
+      _floatPayMark: false,
+      _floatPayFrom: "Owner money",
+      _floatPayPayerId: "owner",
+    },
+    dayPayAmt: function () {
+      return 200;
+    },
+    stewName: function () {
+      return "Laura";
+    },
+    nowIso: "2026-08-09T12:00:00.000Z",
+    payDate: "2026-08-09",
+    newId: function () {
+      return "laura-owner-pay";
+    },
+  });
+  ok("owner money day pay → 1 line", ownerPaid.lines.length === 1);
+  ok("owner money paidFrom", ownerPaid.lines[0] && ownerPaid.lines[0].paidFrom === "Owner money");
+  ok("owner money paidById owner", ownerPaid.lines[0] && ownerPaid.lines[0].paidById === "owner");
+  ok("owner money floatPay false", ownerPaid.lines[0] && ownerPaid.lines[0].floatPay === false);
+  ok(
+    "owner money does not hit petty",
+    ownerPaid.lines[0] && M.crewDayPayHitsPetty(ownerPaid.lines[0]) === false
+  );
+  ok(
+    "owner money expensePaidFrom class",
+    ownerPaid.lines[0] && M.expensePaidFrom(ownerPaid.lines[0]) === "owner"
+  );
+  ok(
+    "owner money is not own-money spend (no captain pocket claim)",
+    ownerPaid.lines[0] && M.isOwnMoneySpend(ownerPaid.lines[0]) === false
+  );
+  ok(
+    "owner money desc notes paid by owner",
+    ownerPaid.lines[0] && /paid by owner/i.test(String(ownerPaid.lines[0].description || "")),
+    "got " + (ownerPaid.lines[0] && ownerPaid.lines[0].description)
+  );
+  ok(
+    "EXP_POCKET_OWNER exported",
+    M.EXP_POCKET_OWNER === "owner"
+  );
+  ok(
+    "looksOwner accepts Owner money",
+    M.expensePaidFromLooksOwner("Owner money") === true &&
+      M.expensePaidFromLooksOwn("Owner money") === false
+  );
   /* On-bill tip payout date = pay day; must hit petty (not misread as day-pay) */
   const tipPayDate = M.planStewTipPayoutExpense({
     asg: {
