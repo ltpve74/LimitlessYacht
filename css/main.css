@@ -3579,19 +3579,8 @@
   .enquiry-price [hidden]{
     display:none!important
   }
-  .hero-value{
-    margin-top:0;
-    max-width:32rem;
-    font-size:clamp(.82rem,1.5vw,.95rem);
-    letter-spacing:.02em;
-    line-height:1.65;
-    color:#f5f0e8;
-    font-weight:500;
-    font-style:normal;
-    text-shadow:0 1px 2px rgba(0,0,0,.95),0 2px 14px rgba(10,22,40,.92),0 0 28px rgba(10,22,40,.55);
-    opacity:1;
-    text-wrap:balance
-  }
+  /* hero-value type owned by #hero critical lock */
+  .hero-value{margin-top:0}
   .hero-trust{
     margin-top:0;
     font-size:.65rem;
@@ -4085,5 +4074,6 @@
   display:block;
   margin-top:.12rem
 }
-/* Unlayered hero paint lock - text rules match critical ly-hero-legibility exactly */
-.hero-pull-quote{font-size:clamp(.9rem,1.2vw,1.02rem);font-style:italic;font-weight:500;line-height:1.6;margin-top:.85rem;color:#f5f0e8;letter-spacing:.01em;text-shadow:0 1px 2px rgba(0,0,0,.95),0 2px 14px rgba(10,22,40,.92);max-width:38rem;width:100%}.hero-pull-attr{font-style:normal;font-weight:500;color:rgba(245,240,232,.92);letter-spacing:.03em}.hero-sub{margin-top:1.35rem;font-size:clamp(.95rem,1.55vw,1.12rem);letter-spacing:.08em;line-height:1.65;color:#fff;font-weight:500;text-wrap:balance;text-shadow:0 1px 2px rgba(0,0,0,.95),0 2px 14px rgba(10,22,40,.92)}.hero-value{font-size:clamp(.92rem,1.4vw,1.05rem);letter-spacing:.02em;line-height:1.7;color:#f5f0e8;font-weight:500;font-style:normal;max-width:36rem;text-shadow:0 1px 2px rgba(0,0,0,.95),0 2px 14px rgba(10,22,40,.92)}html.ly-font-ready .hero-title,html.ly-font-ready .nav-logo{font-family:'Montserrat','Montserrat Fallback Hero','Montserrat Fallback',sans-serif}html.ly-font-ready body{font-family:'Montserrat','Montserrat Fallback',sans-serif}.ly-prog-wrap--hero .ly-prog-preview,.ly-prog-wrap--hero .hero-bg.ly-prog-sharp{object-position:50% 46%;transform:none}.ly-prog-wrap--hero .hero-bg.ly-prog-sharp{animation:none}@media(max-width:768px){.hero-overlay{background:linear-gradient(180deg,rgba(10,22,40,.42) 0%,transparent 15%),linear-gradient(0deg,rgba(10,22,40,.52) 0%,transparent 34%)}.hero-bg,.ly-prog-wrap--hero .ly-prog-preview,.ly-prog-wrap--hero .hero-bg.ly-prog-sharp{object-position:50% 46%}.hero-content::before{height:min(28%,9.5rem);background:linear-gradient(180deg,rgba(10,22,40,.9) 0%,rgba(10,22,40,.24) 68%,transparent 100%)}.hero-content::after{height:min(48%,14.5rem);background:linear-gradient(0deg,rgba(10,22,40,.98) 0%,rgba(10,22,40,.78) 36%,rgba(10,22,40,.38) 68%,transparent 100%)}}
+
+.ly-prog-wrap--hero .ly-prog-preview,.ly-prog-wrap--hero .hero-bg.ly-prog-sharp{object-position:50% 46%;transform:none}.ly-prog-wrap--hero .hero-bg.ly-prog-sharp{animation:none}@media(max-width:768px){.hero-overlay{background:linear-gradient(180deg,rgba(10,22,40,.42) 0%,transparent 15%),linear-gradient(0deg,rgba(10,22,40,.52) 0%,transparent 34%)}.hero-bg,.ly-prog-wrap--hero .ly-prog-preview,.ly-prog-wrap--hero .hero-bg.ly-prog-sharp{object-position:50% 46%}}
+/*ly-hero-type-lock*/#hero .hero-title,#hero .hero-title em,#hero .hero-sub,#hero .hero-value,#hero .hero-pull-quote,#hero .hero-pull-attr,#hero .hero-eyebrow,#hero .hero-eyebrow a,#hero .hero-rates{font-family:'Montserrat Fallback Hero','Montserrat Fallback',sans-serif!important;font-synthesis:none!important}#hero .hero-title{font-size:clamp(3.5rem,9vw,8rem)!important;font-weight:300!important;line-height:1!important;letter-spacing:.06em!important;color:#fff!important;text-shadow:0 1px 2px rgba(0,0,0,.95)!important}#hero .hero-title em{font-style:normal!important;color:#e2c47a!important}#hero .hero-eyebrow,#hero .hero-eyebrow a{font-size:.72rem!important;font-weight:500!important;letter-spacing:.32em!important;text-transform:uppercase!important;color:#e2c47a!important}#hero .hero-sub{font-size:clamp(.95rem,1.55vw,1.12rem)!important;font-weight:500!important;letter-spacing:.08em!important;line-height:1.65!important;color:#fff!important;margin-top:1.35rem!important;text-shadow:0 1px 2px rgba(0,0,0,.95)!important}#hero .hero-value{font-size:1rem!important;font-weight:500!important;font-style:normal!important;letter-spacing:.02em!important;line-height:1.65!important;color:#f5f0e8!important;max-width:28rem!important;width:100%!important;margin:0 auto!important;min-height:3.3em!important;text-align:center!important;text-shadow:0 1px 2px rgba(0,0,0,.95)!important}#hero .hero-pull-quote{font-size:clamp(.9rem,1.2vw,1.02rem)!important;font-style:italic!important;font-weight:500!important;line-height:1.6!important;margin-top:.85rem!important;color:#f5f0e8!important;max-width:38rem!important;text-shadow:0 1px 2px rgba(0,0,0,.95)!important}#hero .hero-pull-attr{font-style:normal!important;color:rgba(245,240,232,.92)!important}#hero .hero-rates{font-size:clamp(.78rem,1.3vw,.9rem)!important;font-weight:500!important;color:rgba(255,255,255,.96)!important}@media(max-width:768px){#hero .hero-title{font-size:clamp(2.2rem,12vw,3.35rem)!important;line-height:1.04!important}#hero .hero-eyebrow,#hero .hero-eyebrow a{font-size:clamp(.52rem,2.9vw,.64rem)!important;letter-spacing:.05em!important}#hero .hero-value,#hero .hero-sub{display:none!important}#hero .hero-rates{font-size:clamp(.46rem,2.6vw,.6rem)!important}}/*ly-hero-type-lock-end*/
