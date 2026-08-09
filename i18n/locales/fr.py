@@ -8,6 +8,8 @@ MONTHS = [
 DOW = ["lun.", "mar.", "mer.", "jeu.", "ven.", "sam.", "dim."]
 
 PAIRS = [
+    ('“The boat is mind blowing — Luigi and Laura made sure we had a great time.”<span class="hero-pull-attr"> — Simon, Aug 2026</span>',
+     '« Le bateau est à couper le souffle — Luigi et Laura ont veillé à ce que l’on passe un excellent moment. »<span class="hero-pull-attr"> — Simon, août 2026</span>'),
     ('“Laura and Luigi did a very great job — communication before the trip was excellent.”<span class="hero-pull-attr"> — Dominik, Aug 2026</span>',
      '« Laura et Luigi ont fait un très beau travail — la communication avant le voyage était excellente. »<span class="hero-pull-attr"> — Dominik, août 2026</span>'),
     ('“So impressed we chartered again the following week.”<span class="hero-pull-attr"> — Sebastien, group of 11, Jul 2026</span>',
@@ -1144,6 +1146,18 @@ REVIEWS_UI = {
 }
 
 REVIEWS = [
+    {
+        "author": 'Simon',
+        "date": 'Août 2026',
+        "rating": 5,
+        "text": (
+            "Quelle expérience exceptionnelle. Le bateau est à couper le souffle — je "
+            "ne peux pas le noter assez haut. Luigi (skipper) et Laura (hôtesse) "
+            "étaient super amicaux et décontractés et ont veillé à ce que l'on passe "
+            "un excellent moment. Paul, par qui j'ai réservé, a également été très "
+            "serviable. Je recommande vivement cette équipe."
+        ),
+    },
     {
         "author": 'Dominik',
         "date": 'Août 2026',

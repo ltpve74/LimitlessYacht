@@ -32,7 +32,7 @@ UA = "LimitlessYacht/1.0 (+https://limitlessyachtcharter.com)"
 
 # Guest reviews added/edited on-site — never dropped on sync.
 # Kept on sync even if missing from live C&B scrape (older / curated guests).
-MANUAL_AUTHORS = frozenset({"Joel", "Sebastien", "Maurice", "Tony"})
+MANUAL_AUTHORS = frozenset({"Joel", "Sebastien", "Maurice", "Tony", "Andrew"})
 
 MONTHS = (
     "Jan", "Feb", "Mar", "Apr", "May", "Jun",
