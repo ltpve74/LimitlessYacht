@@ -6137,12 +6137,10 @@ function openLeadInvoiceSheet(id){
         ?"Please note: the charter date on our calendar will be closed once deposit payment confirmation is received."
         :""
     };
-    /* Always keep billing details on the lead so the next PDF is complete */
+    /* Persist Bill To edits so the next invoice / lead form keeps the invoice guest */
     var billDirty=false;
     if(payload.billAddr!==String(r.billToAddr||"")){ r.billToAddr=payload.billAddr; billDirty=true; }
-    if(payload.billName&&payload.billName!==String(r.billToName||"")&&payload.billName!==String(r.name||"")){
-      r.billToName=payload.billName; billDirty=true;
-    } else if(payload.billName&&!r.billToName&&payload.billName!==String(r.name||"")){
+    if(payload.billName&&payload.billName!==String(r.billToName||"")){
       r.billToName=payload.billName; billDirty=true;
     }
     if(el("f_inv_save")&&el("f_inv_save").checked){
@@ -6355,11 +6353,14 @@ function openChargeInvoiceSheet(id){
       paymentNote:byCard?"Paid by card at end of charter":"",
       kind:"charge", source:"charge", chargeId:c.id
     };
+    /* Always keep Bill To name/address for the next invoice, even if # save is off */
+    var chargeDirty=false;
+    if(payload.billName&&payload.billName!==String(c.client||"")){ c.client=payload.billName; chargeDirty=true; }
+    if(payload.billAddr!==String(c.billToAddr||"")){ c.billToAddr=payload.billAddr; chargeDirty=true; }
     if(el("f_inv_save")&&el("f_inv_save").checked){
       c.inv=invNo;
       c.invStatus="Issued";
       c.status="Invoiced";
-      c.billToAddr=payload.billAddr;
       c.invoiceItemised=itemiseOn();
       if(byCard){
         c.payMethod="Card";
@@ -6367,9 +6368,12 @@ function openChargeInvoiceSheet(id){
         /* Issued invoice that was paid by card */
         c.status="Invoiced";
       }
+      chargeDirty=true;
+    }
+    if(chargeDirty){
       state.charters=(state.charters||[]).map(function(x){ return String(x.id)===String(c.id)?c:x; });
       save("charters");
-      renderCharters();
+      try{ renderCharters(); }catch(eCh){}
     }
     createAndOfferInvoicePdf(payload);
   });
@@ -19418,8 +19422,9 @@ function openSheet(type,id,opts){
         '<input class="ctl" id="f_phone" value="'+esc(phonePrefill)+'" placeholder="+34 …" inputmode="tel" autocomplete="tel">'+
         '<a class="btn" id="f_phone_wa" href="'+(waUrlLive?esc(waUrlLive):"#")+'" target="_blank" rel="noopener" style="display:'+(waUrlLive?"":"none")+'">WA</a>'+
       '</div>');
-    h+=fieldHTML("Bill to",
-      '<input class="ctl" id="f_billToName" value="'+esc(r.billToName||r.name||"")+'" placeholder="Legal name on invoice" autocomplete="organization">');
+    /* Bill-to starts as guest name; captain can override for the formal invoice later */
+    h+=fieldHTML("Bill to (invoice)",
+      '<input class="ctl" id="f_billToName" value="'+esc(r.billToName||r.name||"")+'" placeholder="Defaults to guest name" autocomplete="organization">');
     h+=fieldHTML("Address / tax ID",
       '<textarea class="ctl" id="f_billToAddr" rows="2" placeholder="Street, city, country · VAT / NIF">'+esc(r.billToAddr||"")+'</textarea>');
     h+=fieldHTML("Invoice email",
@@ -19794,6 +19799,45 @@ function openSheet(type,id,opts){
         if(el("f_phone")) el("f_phone").focus();
       }
     });
+  }
+  /* Guest name → bill-to autofill until invoice name is manually customised */
+  function leadBillToIsCustom(){
+    var bill=el("f_billToName");
+    if(!bill) return false;
+    if(bill.dataset.userEdited==="1") return true;
+    var stored=rec?String(rec.billToName||"").trim():"";
+    var nm=String((rec&&rec.name)||"").trim();
+    /* Saved invoice name that differs from guest name = custom (keep it) */
+    return !!(stored&&stored!==nm);
+  }
+  function syncBillToFromGuestName(){
+    var nameEl=el("f_name"), bill=el("f_billToName");
+    if(!nameEl||!bill) return;
+    if(bill.dataset.userEdited==="1") return;
+    bill.value=nameEl.value;
+  }
+  if(el("f_billToName")){
+    if(leadBillToIsCustom()) el("f_billToName").dataset.userEdited="1";
+    el("f_billToName").addEventListener("input",function(){
+      el("f_billToName").dataset.userEdited="1";
+    });
+    el("f_billToName").addEventListener("change",function(){
+      el("f_billToName").dataset.userEdited="1";
+    });
+  }
+  if(el("f_name")){
+    el("f_name").addEventListener("input",function(){
+      syncBillToFromGuestName();
+      syncLeadPhoneWaBtn();
+    });
+    el("f_name").addEventListener("change",function(){
+      syncBillToFromGuestName();
+      syncLeadPhoneWaBtn();
+    });
+    /* New lead / empty bill-to: seed from guest name once */
+    if(el("f_billToName")&&!String(el("f_billToName").value||"").trim()&&String(el("f_name").value||"").trim()){
+      syncBillToFromGuestName();
+    }
   }
   if(el("f_vatPct")) el("f_vatPct").addEventListener("input",function(){
     if(el("f_cashBlack")&&!leadCashFieldUserEdited()) el("f_cashBlack").dataset.forcePrefill="1";
@@ -20267,11 +20311,13 @@ function saveSheet(type,rec){
     }
     var phoneSave=(el("f_phone")&&el("f_phone").value||"").trim();
     if(phoneSave) phoneSave=leadPhoneDisplay(phoneSave)||phoneSave;
+    var guestNameSave=el("f_name").value.trim()||(isDayOffSave?"Day off":"");
     var billToNameSave=isDayOffSave?"":(el("f_billToName")&&el("f_billToName").value||"").trim();
+    /* Blank bill-to → fall back to guest name so invoices always have a name */
+    if(!isDayOffSave&&!billToNameSave&&guestNameSave) billToNameSave=guestNameSave;
     var billToAddrSave=isDayOffSave?"":(el("f_billToAddr")&&el("f_billToAddr").value||"").trim();
     var billToEmailSave=isDayOffSave?"":(el("f_billToEmail")&&el("f_billToEmail").value||"").trim();
-    /* If invoice name left blank, keep empty so PDF falls back to lead name */
-    var o2={ id:rec?rec.id:uid(), closed:closedIn, name:el("f_name").value.trim()||(isDayOffSave?"Day off":""),
+    var o2={ id:rec?rec.id:uid(), closed:closedIn, name:guestNameSave,
       phone:isDayOffSave?"":phoneSave,
       phoneFromIcs:isDayOffSave?false:(!!(rec&&rec.phoneFromIcs)&&phoneSave===(rec.phone||"")?true:false),
       billToName:billToNameSave,
