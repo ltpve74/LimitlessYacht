@@ -511,68 +511,91 @@
   .ops-back{display:inline-flex;align-items:center;gap:6px;font-weight:700;font-size:13.5px;color:var(--brand);
             padding:8px 0 12px;background:none;border:none;cursor:pointer}
   .ops-back:active{opacity:.75}
-  /* Ops calendar — leads SOT (same occupancy as public site); never overflow viewport */
-  #opsCalRoot,#tab-calendar{width:100%;max-width:100%;box-sizing:border-box;overflow-x:hidden}
-  .ops-cal-nav{display:flex;align-items:center;justify-content:space-between;gap:6px;margin:0 0 10px;
-    width:100%;max-width:100%;box-sizing:border-box}
-  .ops-cal-nav .ops-cal-title{font-size:16px;font-weight:800;color:var(--ink);text-align:center;flex:1;min-width:0;
+  /* Ops calendar — one phone screen: grid + day list, no page scroll */
+  body.ops-cal-mode{overflow:hidden}
+  body.ops-cal-mode main{
+    padding:6px 10px calc(70px + var(--safe-b));
+    overflow:hidden;
+    display:flex;flex-direction:column;
+    min-height:0;
+    /* fill space under sticky appbar */
+    height:calc(100dvh - env(safe-area-inset-top,0px) - 52px);
+    max-height:calc(100svh - env(safe-area-inset-top,0px) - 52px);
+  }
+  body.ops-cal-mode #tab-calendar{
+    display:flex!important;flex-direction:column;flex:1;min-height:0;overflow:hidden;
+    width:100%;max-width:100%;
+  }
+  body.ops-cal-mode #tab-calendar.hidden{display:none!important}
+  body.ops-cal-mode #tab-calendar .ops-back{
+    flex:0 0 auto;padding:2px 0 6px;margin:0;font-size:12.5px;
+  }
+  #opsCalRoot{
+    flex:1;min-height:0;display:flex;flex-direction:column;gap:0;
+    width:100%;max-width:100%;box-sizing:border-box;overflow:hidden;
+  }
+  .ops-cal-nav{display:flex;align-items:center;gap:4px;margin:0 0 4px;flex:0 0 auto;width:100%}
+  .ops-cal-nav .ops-cal-title{font-size:14px;font-weight:800;color:var(--ink);text-align:center;flex:1;min-width:0;
     overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
-  .ops-cal-nav button{flex:0 0 auto;min-width:40px;padding:9px 11px;font-weight:800;font-size:16px;
-    border-radius:12px;border:1.5px solid var(--line);background:var(--card);color:var(--ink)}
+  .ops-cal-nav button{flex:0 0 auto;min-width:36px;height:34px;padding:0 8px;font-weight:800;font-size:15px;
+    border-radius:10px;border:1.5px solid var(--line);background:var(--card);color:var(--ink);line-height:1}
   .ops-cal-nav button:active{border-color:var(--brand2);background:#f7fafb}
-  .ops-cal-legend{display:flex;flex-wrap:wrap;gap:8px 12px;margin:0 0 10px;font-size:11.5px;font-weight:650;color:var(--muted);
+  .ops-cal-nav .ops-cal-add{min-width:0;padding:0 10px;font-size:12px;font-weight:800}
+  .ops-cal-wrap{flex:0 0 auto;width:100%;max-width:100%}
+  .ops-cal-grid{display:grid;grid-template-columns:repeat(7,minmax(0,1fr));gap:2px;
     width:100%;max-width:100%;box-sizing:border-box}
-  .ops-cal-legend span{display:inline-flex;align-items:center;gap:5px}
-  .ops-cal-sw{width:11px;height:11px;border-radius:3px;display:inline-block;border:1px solid rgba(0,0,0,.08);flex-shrink:0}
-  .ops-cal-sw.booked{background:#c8e6c9}
-  .ops-cal-sw.hold{background:#ffe082}
-  .ops-cal-sw.dayoff{background:#cfd8dc}
-  .ops-cal-sw.today{box-shadow:inset 0 0 0 2px var(--brand)}
-  .ops-cal-grid{display:grid;grid-template-columns:repeat(7,minmax(0,1fr));gap:3px;margin:0 0 12px;
-    width:100%;max-width:100%;box-sizing:border-box}
-  .ops-cal-dow{text-align:center;font-size:10.5px;font-weight:800;color:var(--muted);padding:2px 0;letter-spacing:.03em;
-    min-width:0;overflow:hidden}
-  .ops-cal-cell{width:100%;min-width:0;min-height:0;aspect-ratio:1;max-height:3.25rem;border-radius:9px;border:1.5px solid transparent;
+  .ops-cal-dow{text-align:center;font-size:9.5px;font-weight:800;color:var(--muted);padding:0 0 1px;
+    min-width:0;line-height:1.1}
+  .ops-cal-cell{width:100%;min-width:0;height:clamp(28px,7.2vw,36px);border-radius:7px;border:1.5px solid transparent;
     background:var(--card);display:flex;flex-direction:column;align-items:center;justify-content:center;
-    gap:1px;padding:2px 1px;font-size:12px;font-weight:700;color:var(--ink);position:relative;
+    gap:0;padding:0;font-size:11.5px;font-weight:700;color:var(--ink);
     box-sizing:border-box;overflow:hidden}
-  .ops-cal-cell.out{opacity:.32;font-weight:500;pointer-events:none}
+  .ops-cal-cell.out{opacity:.28;font-weight:500;pointer-events:none}
   .ops-cal-cell.booked{background:#e8f5e9;border-color:#a5d6a7;color:#1b5e20}
   .ops-cal-cell.hold{background:#fff8e1;border-color:#ffe082;color:#7a5200}
   .ops-cal-cell.dayoff{background:#eceff1;border-color:#b0bec5;color:#455a64}
   .ops-cal-cell.mix{background:linear-gradient(135deg,#e8f5e9 50%,#fff8e1 50%);border-color:#a5d6a7;color:#1b5e20}
-  .ops-cal-cell.today{box-shadow:inset 0 0 0 2px var(--brand)}
-  .ops-cal-cell.sel{border-color:var(--brand);box-shadow:0 0 0 2px rgba(31,78,95,.3)}
-  .ops-cal-cell .ops-cal-d{font-size:12.5px;line-height:1.1}
-  .ops-cal-cell .ops-cal-dots{display:flex;gap:2px;min-height:4px;justify-content:center}
-  .ops-cal-cell .ops-cal-dot{width:4px;height:4px;border-radius:50%;background:currentColor;opacity:.75;flex-shrink:0}
-  .ops-cal-daypanel{background:var(--card);border:1.5px solid var(--line);border-radius:14px;padding:12px;
-    margin:0 0 12px;width:100%;max-width:100%;box-sizing:border-box;overflow:hidden}
-  .ops-cal-dayhd{display:flex;align-items:flex-start;justify-content:space-between;gap:8px;margin:0 0 10px;flex-wrap:wrap}
-  .ops-cal-dayhd h3{margin:0;font-size:15px;font-weight:800;min-width:0;flex:1;line-height:1.25}
-  .ops-cal-dayhd .ops-cal-daycount{font-size:12px;font-weight:700;color:var(--muted);white-space:nowrap}
-  .ops-cal-actions{display:flex;flex-wrap:wrap;gap:8px;margin:0 0 12px;width:100%;box-sizing:border-box}
-  .ops-cal-actions .btn{flex:1 1 auto;min-width:calc(50% - 4px);padding:10px 12px;font-size:13px;font-weight:750;
-    box-sizing:border-box;text-align:center}
-  .ops-cal-empty{font-size:13px;color:var(--muted);font-weight:550;line-height:1.45;padding:4px 0 2px}
-  .ops-cal-card{border:1.5px solid var(--line);border-radius:12px;padding:11px 12px;margin:0 0 8px;
-    background:#fafbfc;width:100%;max-width:100%;box-sizing:border-box;overflow:hidden}
-  .ops-cal-card:last-child{margin-bottom:0}
-  .ops-cal-card-top{display:flex;align-items:flex-start;justify-content:space-between;gap:10px}
-  .ops-cal-card-name{font-weight:800;font-size:15px;color:var(--ink);line-height:1.25;min-width:0;
-    overflow-wrap:anywhere;word-break:break-word}
-  .ops-cal-card-amt{font-weight:900;font-size:15px;font-variant-numeric:tabular-nums;color:var(--ink);
-    white-space:nowrap;flex-shrink:0}
-  .ops-cal-card-amt.muted{color:var(--muted);font-weight:700;font-size:13px}
-  .ops-cal-card-pills{display:flex;flex-wrap:wrap;gap:5px;margin:7px 0 0}
-  .ops-cal-card-facts{display:grid;grid-template-columns:1fr 1fr;gap:6px 10px;margin:9px 0 0;
-    font-size:12.5px;line-height:1.35;width:100%;box-sizing:border-box}
-  .ops-cal-fact{min-width:0}
-  .ops-cal-fact .k{display:block;font-size:10.5px;font-weight:800;letter-spacing:.04em;text-transform:uppercase;
-    color:var(--muted);margin-bottom:1px}
-  .ops-cal-fact .v{font-weight:700;color:var(--ink);overflow-wrap:anywhere}
-  .ops-cal-card-foot{display:flex;justify-content:flex-end;margin-top:10px}
-  .ops-cal-card-foot .btn{padding:8px 14px;font-size:12.5px;width:auto}
+  .ops-cal-cell.today{box-shadow:inset 0 0 0 1.5px var(--brand)}
+  .ops-cal-cell.sel{border-color:var(--brand);box-shadow:0 0 0 2px rgba(31,78,95,.28)}
+  .ops-cal-cell .ops-cal-d{font-size:11.5px;line-height:1;font-weight:800}
+  .ops-cal-cell .ops-cal-dots{display:flex;gap:1.5px;height:3px;justify-content:center;margin-top:1px}
+  .ops-cal-cell .ops-cal-dot{width:3px;height:3px;border-radius:50%;background:currentColor;opacity:.8;flex-shrink:0}
+  .ops-cal-daypanel{flex:1 1 auto;min-height:0;display:flex;flex-direction:column;
+    background:var(--card);border:1.5px solid var(--line);border-radius:12px;padding:8px 8px 6px;
+    margin:6px 0 0;width:100%;max-width:100%;box-sizing:border-box;overflow:hidden}
+  .ops-cal-dayhd{display:flex;align-items:center;justify-content:space-between;gap:6px;margin:0 0 6px;flex:0 0 auto}
+  .ops-cal-dayhd h3{margin:0;font-size:13px;font-weight:800;min-width:0;flex:1;line-height:1.2;
+    overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+  .ops-cal-dayhd .ops-cal-daycount{font-size:11px;font-weight:700;color:var(--muted);white-space:nowrap}
+  .ops-cal-list{flex:1 1 auto;min-height:0;overflow:hidden;display:flex;flex-direction:column;gap:4px}
+  .ops-cal-empty{font-size:12px;color:var(--muted);font-weight:600;line-height:1.3;padding:6px 2px}
+  /* One dense row per charter — fits multiple without page scroll */
+  .ops-cal-row{
+    display:grid;
+    grid-template-columns:minmax(0,1fr) auto auto;
+    align-items:center;gap:6px 8px;
+    padding:7px 8px;border-radius:10px;border:1px solid var(--line);background:#fafbfc;
+    width:100%;box-sizing:border-box;min-height:0;flex:0 0 auto;
+  }
+  .ops-cal-row .ops-cal-name{
+    font-weight:800;font-size:13px;color:var(--ink);line-height:1.15;min-width:0;
+    overflow:hidden;text-overflow:ellipsis;white-space:nowrap;
+  }
+  .ops-cal-row .ops-cal-sub{
+    grid-column:1 / -1;font-size:11px;font-weight:650;color:var(--muted);line-height:1.2;
+    overflow:hidden;text-overflow:ellipsis;white-space:nowrap;margin-top:-2px;
+  }
+  .ops-cal-row .ops-cal-amt{
+    font-weight:900;font-size:13px;font-variant-numeric:tabular-nums;color:var(--ink);white-space:nowrap;
+  }
+  .ops-cal-row .ops-cal-amt.muted{color:var(--muted);font-weight:700;font-size:12px}
+  .ops-cal-row .ops-cal-open{
+    padding:6px 9px;font-size:11.5px;font-weight:800;width:auto;border-radius:8px;
+    border:1.5px solid var(--line);background:#fff;color:var(--brand);flex-shrink:0;
+  }
+  .ops-cal-row.hold{background:#fffdf5;border-color:#ffe082}
+  .ops-cal-row.booked{background:#f4fbf5;border-color:#c8e6c9}
+  .ops-cal-row.dayoff{background:#f5f6f7;border-color:#cfd8dc}
   /* Today board (own bottom-nav tab — captain day run) */
   .ops-today{margin:0 0 8px}
   .ops-today-hd{
@@ -1086,10 +1109,9 @@
       <div class="ops-grid" id="opsGrid"></div>
     </section>
 
-    <!-- OPS CALENDAR — leads occupancy (matches public site booked / hold) -->
+    <!-- OPS CALENDAR — one-screen month + day detail -->
     <section id="tab-calendar" class="hidden">
       <button type="button" class="ops-back" data-ops-back>← Ops</button>
-      <div class="legend">Boat calendar from <b>Leads</b> — same occupancy the public site uses. <b>Green</b> = firm / day off · <b>Amber</b> = on hold · tap a day for details.</div>
       <div id="opsCalRoot"></div>
     </section>
 
@@ -2483,14 +2505,12 @@ function renderOpsCalendar(){
     '<button type="button" id="opsCalPrev" aria-label="Previous month">‹</button>'+
     '<div class="ops-cal-title">'+esc(opsCalMonthLabel(opsCalYm))+'</div>'+
     '<button type="button" id="opsCalNext" aria-label="Next month">›</button>'+
+    (canAdd
+      ?'<button type="button" class="ops-cal-add" id="opsCalAddHold" title="Add hold">+</button>'+
+       '<button type="button" class="ops-cal-add" id="opsCalAddOff" title="Day off">Off</button>'
+      :"")+
   '</div>';
-  h+='<div class="ops-cal-legend">'+
-    '<span><i class="ops-cal-sw booked"></i>Firm</span>'+
-    '<span><i class="ops-cal-sw hold"></i>Hold</span>'+
-    '<span><i class="ops-cal-sw dayoff"></i>Day off</span>'+
-    '<span><i class="ops-cal-sw today"></i>Today</span>'+
-  '</div>';
-  h+='<div class="ops-cal-grid" role="grid" aria-label="Month calendar">';
+  h+='<div class="ops-cal-wrap"><div class="ops-cal-grid" role="grid" aria-label="Month">';
   ["M","T","W","T","F","S","S"].forEach(function(d){
     h+='<div class="ops-cal-dow">'+d+'</div>';
   });
@@ -2515,14 +2535,13 @@ function renderOpsCalendar(){
     var nDots=Math.min(3, ents.length);
     var dots="";
     for(var di=0;di<nDots;di++) dots+='<span class="ops-cal-dot"></span>';
-    h+='<button type="button" class="'+cls+'" data-ops-cal-day="'+esc(c.ymd)+'" aria-label="'+esc(c.ymd+(ents.length?" · "+ents.length+" item"+(ents.length===1?"":"s"):" · free"))+'">'+
+    h+='<button type="button" class="'+cls+'" data-ops-cal-day="'+esc(c.ymd)+'" aria-label="'+esc(c.ymd)+'">'+
       '<span class="ops-cal-d">'+c.day+'</span>'+
       (dots?'<span class="ops-cal-dots">'+dots+'</span>':'')+
     '</button>';
   });
-  h+='</div>';
+  h+='</div></div>';
 
-  /* Day detail */
   var sel=opsCalSel||today;
   var selEnts=byDay[sel]||[];
   var selLab="";
@@ -2530,58 +2549,37 @@ function renderOpsCalendar(){
   h+='<div class="ops-cal-daypanel">';
   h+='<div class="ops-cal-dayhd">'+
     '<h3>'+esc(selLab)+'</h3>'+
-    '<span class="ops-cal-daycount">'+(selEnts.length?selEnts.length+" on this day":"Free")+'</span>'+
+    '<span class="ops-cal-daycount">'+(selEnts.length?String(selEnts.length):"Free")+'</span>'+
   '</div>';
-  if(canAdd){
-    h+='<div class="ops-cal-actions">'+
-      '<button type="button" class="btn" id="opsCalAddHold">+ Add hold / charter</button>'+
-      '<button type="button" class="btn ghost" id="opsCalAddOff">+ Day off</button>'+
-    '</div>';
-  }
+  h+='<div class="ops-cal-list">';
   if(!selEnts.length){
-    h+='<div class="ops-cal-empty">Nothing booked or on hold for this day.'+(canAdd?" Use the buttons above to add a date.":"")+'</div>';
+    h+='<div class="ops-cal-empty">Free'+(canAdd?" · + hold or Off":"")+'</div>';
   } else {
-    selEnts.forEach(function(e){
+    /* Cap visible rows so the panel stays one-screen (tap Open for full lead) */
+    var maxRows=4;
+    selEnts.slice(0, maxRows).forEach(function(e){
       var L=e.lead;
       var name=leadCardCalTitle(L)||L.name||"Charter";
-      var kindLab=e.kind==="hold"?"On hold":(e.kind==="dayoff"?"Day off":"Booked");
-      var pill=e.kind==="hold"?'<span class="pill p-amber">'+kindLab+'</span>'
-        :(e.kind==="dayoff"?'<span class="pill p-grey">'+kindLab+'</span>'
-        :'<span class="pill p-green">'+kindLab+'</span>');
       var hoursLab=leadCalHoursLabel(L);
       var amt=leadCalAmountLabel(L);
-      var range="";
-      try{
-        var days=leadBlockedDaysClient(L)||[];
-        if(days.length>1) range=fmtDate(days[0])+" – "+fmtDate(days[days.length-1]);
-        else if(L.start&&L.end&&String(L.end).slice(0,10)!==String(L.start).slice(0,10))
-          range=fmtDate(L.start)+" – "+fmtDate(L.end);
-        else range=fmtDate(L.start||sel)||sel;
-      }catch(eR){ range=sel; }
       var srcLab="";
       try{ srcLab=leadSourceShortLabel(leadSource(L)); }catch(eS){}
-      h+='<div class="ops-cal-card">'+
-        '<div class="ops-cal-card-top">'+
-          '<div class="ops-cal-card-name">'+esc(name)+'</div>'+
-          '<div class="ops-cal-card-amt'+(amt.muted?" muted":"")+'">'+esc(amt.text)+
-            (amt.note?'<div style="font-size:10px;font-weight:700;color:var(--muted);text-align:right;margin-top:1px">'+esc(amt.note)+'</div>':'')+
-          '</div>'+
-        '</div>'+
-        '<div class="ops-cal-card-pills">'+pill+
-          (srcLab?' <span class="pill p-grey">'+esc(srcLab)+'</span>':'')+
-        '</div>'+
-        '<div class="ops-cal-card-facts">'+
-          '<div class="ops-cal-fact"><span class="k">Hours / type</span><span class="v">'+esc(hoursLab)+'</span></div>'+
-          '<div class="ops-cal-fact"><span class="k">Dates</span><span class="v">'+esc(range)+'</span></div>'+
-        '</div>'+
+      var kindTag=e.kind==="hold"?"Hold":(e.kind==="dayoff"?"Off":"Firm");
+      var sub=[kindTag, hoursLab, srcLab].filter(Boolean).join(" · ");
+      h+='<div class="ops-cal-row '+esc(e.kind)+'">'+
+        '<div class="ops-cal-name">'+esc(name)+'</div>'+
+        '<div class="ops-cal-amt'+(amt.muted?" muted":"")+'">'+esc(amt.text)+'</div>'+
         (canCommercial()&&L.id
-          ?'<div class="ops-cal-card-foot"><button type="button" class="btn ghost" data-ops-cal-lead="'+esc(L.id)+'">Open lead</button></div>'
-          :"")+
+          ?'<button type="button" class="ops-cal-open" data-ops-cal-lead="'+esc(L.id)+'">Open</button>'
+          :'<span></span>')+
+        '<div class="ops-cal-sub">'+esc(sub)+'</div>'+
       '</div>';
     });
+    if(selEnts.length>maxRows){
+      h+='<div class="ops-cal-empty">+ '+(selEnts.length-maxRows)+' more · open Leads</div>';
+    }
   }
-  h+='</div>';
-  h+='<p class="meta" style="margin:0 0 8px;line-height:1.4;max-width:100%">Matches the public site calendar. Add holds or day off here; edit a lead for price, source, and confirm.</p>';
+  h+='</div></div>';
 
   root.innerHTML=h;
 
@@ -2646,6 +2644,8 @@ function switchTab(t){
   if(el("tab-ops")) el("tab-ops").classList.toggle("hidden",t!=="ops");
   if(el("tab-calendar")) el("tab-calendar").classList.toggle("hidden",t!=="calendar");
   el("tab-security").classList.toggle("hidden",t!=="security");
+  /* One-screen calendar: lock page scroll + fill height under app bar */
+  try{ document.body.classList.toggle("ops-cal-mode", t==="calendar"); }catch(eCalM){}
   updateFab();
   if(t==="today"&&isCaptain()) renderTodayTab();
   if(t==="charters"&&canCommercial()) renderCharters();
