@@ -289,6 +289,36 @@
   .ch-money .ls-v.inv{color:#1a3a6b}
   .sheet .sect{font-size:12px;font-weight:700;color:var(--muted);text-transform:uppercase;letter-spacing:.04em;margin:14px 0 10px;padding-top:4px;border-top:1px solid var(--line)}
   .sheet .sect:first-of-type{border-top:none;margin-top:6px}
+  /* Lead edit sheet — dense production layout (less prototype chrome) */
+  .sheet.sheet--lead{padding-left:16px;padding-right:16px}
+  .sheet.sheet--lead .field{margin-bottom:10px}
+  .sheet.sheet--lead .field label{margin-bottom:4px;font-size:11px}
+  .sheet.sheet--lead .ctl{padding:11px 12px;border-radius:10px;font-size:15px}
+  .sheet.sheet--lead select.ctl{background-position:right 12px center}
+  .sheet.sheet--lead textarea.ctl{min-height:52px;padding:10px 12px}
+  .sheet.sheet--lead .row2{gap:10px}
+  .sheet.sheet--lead .sect{margin:16px 0 8px;padding-top:12px}
+  .sheet.sheet--lead .sect:first-of-type{margin-top:4px;padding-top:0}
+  .sheet.sheet--lead .calcbox{margin-bottom:10px;padding:9px 12px}
+  .sheet.sheet--lead .checkrow{padding:10px 12px;margin-bottom:10px;border-radius:10px}
+  .sheet.sheet--lead .checkrow.compact .ch{display:none}
+  .sheet.sheet--lead .checkrow.compact{align-items:center}
+  .sheet.sheet--lead .phone-row{display:flex;gap:8px;align-items:stretch}
+  .sheet.sheet--lead .phone-row .ctl{flex:1;min-width:0}
+  .sheet.sheet--lead .phone-row .btn{flex:0 0 auto;padding:10px 12px;text-decoration:none;align-self:stretch;display:inline-flex;align-items:center}
+  .sheet.sheet--lead .inv-line{margin:0 0 10px;padding:10px 11px;border:1px solid var(--line);border-radius:10px;background:#fafbfc}
+  .sheet.sheet--lead .inv-line .inv-line-hd{font-size:12px;font-weight:800;color:var(--ink);margin:0 0 8px;letter-spacing:.02em}
+  .sheet.sheet--lead .inv-line .field{margin-bottom:8px}
+  .sheet.sheet--lead .inv-line .field:last-child{margin-bottom:0}
+  .sheet.sheet--lead .alert-banner{margin:0 0 10px;padding:9px 11px;border-radius:10px;font-size:12.5px;line-height:1.35}
+  .sheet.sheet--lead .alert-banner.warn{border:1px solid #f0d48a;background:#fffbf0;color:#6b4500}
+  .sheet.sheet--lead .alert-banner.danger{border:1px solid #f0b4b0;background:#fdeeee}
+  .sheet.sheet--lead .alert-banner .ab-title{font-weight:800;margin:0 0 4px}
+  .sheet.sheet--lead .meta-tight{margin:0 0 10px;font-size:12px;color:var(--muted);line-height:1.35}
+  .sheet.sheet--lead .split-guide{margin:0 0 10px;padding:8px 10px;border-radius:10px;background:#f5f8f9;border:1px solid var(--line)}
+  .sheet.sheet--lead .split-guide .money{font-size:17px;font-weight:800}
+  .sheet.sheet--lead .cash-suggest{display:flex;flex-wrap:wrap;align-items:center;gap:6px 8px;margin:-2px 0 10px;font-size:12px;color:var(--muted)}
+  .sheet.sheet--lead .cash-suggest .btn{width:auto;padding:5px 10px;font-size:12px}
   .pill{display:inline-block;padding:3px 10px;border-radius:20px;font-size:11.5px;font-weight:700;white-space:nowrap}
   .p-grey{background:var(--grey);color:var(--greyInk)}
   .p-amber{background:var(--amber);color:var(--amberInk);font-weight:800;border:1px solid #E0A800}
@@ -17997,12 +18027,13 @@ function selField(id,val,opts){
   }).join("")+'</select>';
 }
 function leadInvBlock(title, pctId, pctVal, stId, stVal, invId, invVal, showPct){
-  var h='<div class="sect">'+esc(title)+' invoice</div>';
-  /* Deposit gets “No deposit — full amount on final”; final/APA do not */
+  /* Compact card per line — no repeated “invoice” sect headers */
+  var h='<div class="inv-line"><div class="inv-line-hd">'+esc(title)+'</div>';
   var stOpts=(stId==="f_deps")?LEAD_DEP_STATUS_OPTS:LEAD_LINE_STATUS_OPTS;
-  if(showPct) h+='<div class="row2">'+fieldHTML(title+" %",pctField(pctId,pctVal))+fieldHTML("Status",selField(stId,stVal||"Not issued",stOpts))+'</div>';
+  if(showPct) h+='<div class="row2">'+fieldHTML("%",pctField(pctId,pctVal))+fieldHTML("Status",selField(stId,stVal||"Not issued",stOpts))+'</div>';
   else h+=fieldHTML("Status",selField(stId,stVal||"Not issued",stOpts));
-  h+=fieldHTML("Invoice #",'<input class="ctl" id="'+invId+'" value="'+esc(invVal||"")+'" placeholder="set when you issue the PDF">');
+  h+=fieldHTML("Invoice #",'<input class="ctl" id="'+invId+'" value="'+esc(invVal||"")+'" placeholder="when issued">');
+  h+='</div>';
   return h;
 }
 function selPayField(val){ var o=["Paid","Pending"]; return '<select class="ctl" id="f_pay">'+o.map(function(s){return '<option'+(s===val?' selected':'')+'>'+s+'</option>';}).join("")+'</select>'; }
@@ -18361,15 +18392,12 @@ function durFieldsHTML(dur,r){
       fieldHTML("Start date",'<input class="ctl" id="f_start" type="date" value="'+esc(r.start||"")+'">')+
       fieldHTML("End date",'<input class="ctl" id="f_end" type="date" value="'+esc(r.end||"")+'">')+
     '</div>'+
-    fieldHTML("Package total (as quoted)",moneyField("f_price", pkg!==""?pkg:(r.price!=null&&r.price!==""?r.price:"")))+
-    '<p id="f_multi_pkg_hint" style="margin:-6px 0 12px;font-size:12.5px;color:var(--muted);line-height:1.4">'+
-      'Whole trip price (e.g. full day + half day overnight = one package). Not forced to daily rate × days.'+
-      (avg>0?' Currently ≈ <b class="money">'+money0(avg)+'</b>/day over <b>'+daysHint+'</b> calendar day'+(daysHint===1?"":"s")+'.':'')+
-    '</p>'+
+    fieldHTML("Package total",moneyField("f_price", pkg!==""?pkg:(r.price!=null&&r.price!==""?r.price:"")))+
+    '<div id="f_multi_pkg_hint" class="meta-tight">'+(avg>0?'≈ <b class="money">'+money0(avg)+'</b>/day · '+daysHint+' day'+(daysHint===1?"":"s"):"Whole-trip package price")+'</div>'+
     /* Hidden daily rate kept for legacy draft collect / any old scripts */
     '<input type="hidden" id="f_rate" value="'+esc(r.rate!=null&&r.rate!==""?r.rate:(avg||""))+'">';
   }
-  return fieldHTML("Charter date",'<input class="ctl" id="f_start" type="date" value="'+esc(r.start||"")+'">')+fieldHTML("Charter price (as quoted)",moneyField("f_price",(r.price!=null&&r.price!=="")?r.price:(r.rate||"")));
+  return fieldHTML("Charter date",'<input class="ctl" id="f_start" type="date" value="'+esc(r.start||"")+'">')+fieldHTML("Charter price",moneyField("f_price",(r.price!=null&&r.price!=="")?r.price:(r.rate||"")));
 }
 function collectLeadDraft(){
   var start=el("f_start")?el("f_start").value:"";
@@ -19364,13 +19392,12 @@ function openSheet(type,id,opts){
     var leadSrcDef=leadSource(r);
     h+='<div class="sheethead"><h2>'+(rec?"Edit lead":"New lead")+'</h2><button type="button" class="sheetx" id="sheetClose" aria-label="Close">×</button></div>';
     if(rec&&leadHasSplit(r)&&(cashAmtLooksSuggested(r)||(Number(r.cashAmt)>0&&!(freeCashShow>0)))){
-      h+='<div class="apa-card" style="margin:0 0 12px;padding:10px 12px;border:1.5px solid #f0d48a;background:#fffbf0">'+
-        '<div style="font-weight:800;color:#9a6b00">Stored cash was the white net (€'+money(Number(r.cashAmt)||0)+' = amount÷1.21) — not free cash black</div>'+
-        '<div class="meta" style="margin-top:4px">Enter free cash e.g. <b>€1,800</b> and Save. Do not use “Use suggested”.</div>'+
-      '</div>';
+      h+='<div class="alert-banner warn"><div class="ab-title">Stored cash was white net (€'+money(Number(r.cashAmt)||0)+')</div>Enter free cash black and Save — don’t use “Use suggested”.</div>';
     }
-    h+=fieldHTML("Lead name",'<input class="ctl" id="f_name" value="'+esc(r.name)+'" placeholder="e.g. Guest or company name">');
-    /* Phone → WhatsApp deep link (wa.me). Empty on old leads until you type it or calendar has a number. */
+
+    /* —— Guest —— */
+    h+='<div class="sect">Guest</div>';
+    h+=fieldHTML("Name",'<input class="ctl" id="f_name" value="'+esc(r.name)+'" placeholder="Guest or company" autocomplete="name">');
     var phonePrefill=String(r.phone||"").trim();
     if(!phonePrefill){
       phonePrefill=leadExtractPhoneFromText([r.notes,r.icsGuestName,r.name].filter(Boolean).join(" "));
@@ -19386,72 +19413,60 @@ function openSheet(type,id,opts){
       }catch(ePh){}
     }
     var waUrlLive=leadWhatsAppUrl(phonePrefill, leadWhatsAppPrefill(r));
-    h+=fieldHTML("Phone / WhatsApp",
-      '<div style="display:flex;gap:8px;align-items:stretch;flex-wrap:wrap">'+
-        '<input class="ctl" id="f_phone" value="'+esc(phonePrefill)+'" placeholder="+34 6XX XXX XXX" inputmode="tel" autocomplete="tel" style="flex:1;min-width:140px">'+
-        '<a class="btn" id="f_phone_wa" href="'+(waUrlLive?esc(waUrlLive):"#")+'" target="_blank" rel="noopener" style="flex:0 0 auto;padding:10px 14px;text-decoration:none;display:'+(waUrlLive?"":"none")+'">WhatsApp</a>'+
+    h+=fieldHTML("Phone",
+      '<div class="phone-row">'+
+        '<input class="ctl" id="f_phone" value="'+esc(phonePrefill)+'" placeholder="+34 …" inputmode="tel" autocomplete="tel">'+
+        '<a class="btn" id="f_phone_wa" href="'+(waUrlLive?esc(waUrlLive):"#")+'" target="_blank" rel="noopener" style="display:'+(waUrlLive?"":"none")+'">WA</a>'+
       '</div>');
-    h+='<p style="margin:-6px 0 12px;font-size:12.5px;color:var(--muted);line-height:1.4">International number with country code (e.g. <b>+34…</b>). Opens the existing WhatsApp chat on your phone. Calendar titles/descriptions with a number are scraped on import when empty.</p>';
-    /* Billing block for formal invoices (deposit / final / APA PDFs) */
-    h+=fieldHTML("Invoice name (Bill To)",
-      '<input class="ctl" id="f_billToName" value="'+esc(r.billToName||r.name||"")+'" placeholder="Legal name on the invoice (defaults to lead name)" autocomplete="organization">');
-    h+=fieldHTML("Invoice address / tax ID",
-      '<textarea class="ctl" id="f_billToAddr" rows="3" placeholder="Street, postcode, city, country&#10;VAT / NIF / CIF if company…">'+esc(r.billToAddr||"")+'</textarea>');
-    h+='<p style="margin:-6px 0 12px;font-size:12.5px;color:var(--muted);line-height:1.4">Used on <b>Make invoice</b> PDFs (deposit, final, APA). Fill when the deal closes so the client can pay from a complete invoice.</p>';
-    h+=fieldHTML("Invoice email (optional)",
-      '<input class="ctl" id="f_billToEmail" type="email" value="'+esc(r.billToEmail||"")+'" placeholder="accounts@… or guest email" autocomplete="email" inputmode="email">');
-    h+=fieldHTML("Lead source",selLeadSourceField(leadSrcDef));
-    h+='<p style="margin:-6px 0 12px;font-size:12.5px;color:var(--muted);line-height:1.4">'+
-      '<b>Captain</b> → '+CAPTAIN_COMMISSION_PCT+'% · <b>Paul</b> → '+CLICKBOAT_COMMISSION_PCT+'%. '+
-      '<b>Owner’s days</b> = no income (private / friend pays owner cash) · owner benefits. '+
-      '<b>Owner-sourced</b> = we invoice · counts as income · 0% commission for now. '+
-      '<b>Assigning a source does not confirm</b> the trip.</p>';
-    /* New lead / pending always start unconfirmed. Owner never inherits accidental "closed". */
+    h+=fieldHTML("Bill to",
+      '<input class="ctl" id="f_billToName" value="'+esc(r.billToName||r.name||"")+'" placeholder="Legal name on invoice" autocomplete="organization">');
+    h+=fieldHTML("Address / tax ID",
+      '<textarea class="ctl" id="f_billToAddr" rows="2" placeholder="Street, city, country · VAT / NIF">'+esc(r.billToAddr||"")+'</textarea>');
+    h+=fieldHTML("Invoice email",
+      '<input class="ctl" id="f_billToEmail" type="email" value="'+esc(r.billToEmail||"")+'" placeholder="optional" autocomplete="email" inputmode="email">');
+
+    /* —— Status —— */
+    h+='<div class="sect">Status</div>';
+    h+=fieldHTML("Source",selLeadSourceField(leadSrcDef));
     var dealClosedDef=leadIsDealClosed(r);
     if(!rec||leadSrcDef==="pending") dealClosedDef=false;
-    h+='<label class="checkrow" id="f_dealClosed_wrap" style="border:1.5px solid '+(dealClosedDef?"rgba(46,125,50,.35)":"#E0A800")+';background:'+(dealClosedDef?"rgba(46,125,50,.06)":"#FFF8E1")+';border-radius:12px;padding:12px 12px;margin:0 0 12px">'+
+    h+='<label class="checkrow compact" id="f_dealClosed_wrap" style="border:1.5px solid '+(dealClosedDef?"rgba(46,125,50,.35)":"#E0A800")+';background:'+(dealClosedDef?"rgba(46,125,50,.06)":"#FFF8E1")+'">'+
       '<input type="checkbox" id="f_dealClosed"'+(dealClosedDef?" checked":"")+'>'+
       '<span><div class="ck">'+(dealClosedDef?"Confirmed · deal closed":"Unconfirmed · tentative")+'</div>'+
-      '<div class="ch" id="f_dealClosed_help"><b>Off</b> = yellow / tentative — not firm on the calendar. '+
-      '<b>On</b> = confirmed. <b>Commercial</b> (Captain / Paul / Owner-sourced / Other): auto-ticks when deposit or final is <b>Paid</b>, or tick here. '+
-      '<b>Owner’s days:</b> manual tick only. Past confirmed deals stay as they were.</div></span></label>';
-    /* Stable link to calendar ICS uid — survives date moves / on-hold */
+      '<div class="ch" id="f_dealClosed_help"></div></span></label>';
     var calKeyNow=leadCalendarEventKey(r);
     var calOpts=[];
     try{
       calOpts=(stewMergedEvents()||[]).filter(function(ev){ return ev&&ev.key&&!stewIsOffEvent(ev); })
         .slice(0,80);
     }catch(eCalOpts){ calOpts=[]; }
-    h+=fieldHTML("Calendar charter (stable id)",
+    h+=fieldHTML("Calendar link",
       '<select class="ctl" id="f_calendarEventKey">'+
         '<option value="">— Not linked —</option>'+
         calOpts.map(function(ev){
-          var lab=(fmtDate(ev.start)||ev.start)+" · "+(ev.summary||"Charter")+(ev.status==="tentative"?" (on hold)":"");
+          var lab=(fmtDate(ev.start)||ev.start)+" · "+(ev.summary||"Charter")+(ev.status==="tentative"?" (hold)":"");
           return '<option value="'+esc(ev.key)+'"'+(calKeyNow===ev.key?" selected":"")+'>'+esc(lab)+'</option>';
         }).join("")+
         (calKeyNow&&!calOpts.some(function(e){return e.key===calKeyNow;})
-          ?'<option value="'+esc(calKeyNow)+'" selected>Linked (not in feed): '+esc(calKeyNow)+'</option>':'')+
+          ?'<option value="'+esc(calKeyNow)+'" selected>Linked (offline): '+esc(calKeyNow)+'</option>':'')+
       '</select>');
-    h+='<p style="margin:-6px 0 12px;font-size:12.5px;color:var(--muted);line-height:1.4">Links this lead to the calendar event’s <b>ICS uid</b> (not the date). Moving the day or putting it on hold keeps stews + cancel in sync. Lead id: <code style="font-size:11px">'+(rec?esc(r.id):"new on save")+'</code></p>';
     var bookSt=leadBookingStatus(r);
-    h+=fieldHTML("Charter status",'<select class="ctl" id="f_bookingStatus">'+
-      '<option value="active"'+(bookSt!=="cancelled"?" selected":"")+'>Active</option>'+
-      '<option value="cancelled"'+(bookSt==="cancelled"?" selected":"")+'>Cancelled</option>'+
-    '</select>');
+    h+='<div class="row2">'+
+      fieldHTML("Booking",'<select class="ctl" id="f_bookingStatus">'+
+        '<option value="active"'+(bookSt!=="cancelled"?" selected":"")+'>Active</option>'+
+        '<option value="cancelled"'+(bookSt==="cancelled"?" selected":"")+'>Cancelled</option>'+
+      '</select>')+
+      fieldHTML("Closed",'<input class="ctl" id="f_closed" type="date" value="'+esc(r.closed||(!rec?leadTodayYmd():""))+'">')+
+    '</div>';
     var refundPlanPreview=rec?leadCancelRefundPlan(r):null;
     var isUnconfirmedLead=rec&&!leadIsCancelled(r)&&(leadSource(r)==="pending"||!leadIsDealClosed(r));
-    if(isUnconfirmedLead){
-      h+='<p style="margin:-6px 0 10px;font-size:12.5px;color:var(--muted);line-height:1.4">Tentative / unconfirmed: <b>Cancel tentative</b> greys the card out (does <b>not</b> delete), <b>keeps the date</b> on the card, and releases the public calendar hold.</p>';
-    } else {
-      h+='<p style="margin:-6px 0 10px;font-size:12.5px;color:var(--muted);line-height:1.4">Mechanical / weather cancel: marks the lead cancelled and refunds <b>every paid/issued line</b> (deposit <b>and</b> final if both were paid — not deposit only). Free cash is reversed off the boat if posted. Then choose whether stew day pay is zeroed or kept (e.g. reduced €50 when she was already onboard).</p>';
-    }
     if(rec&&bookSt!=="cancelled"){
-      h+='<button type="button" class="btn danger" id="sheetCancelCharter" style="width:100%;margin:0 0 14px">'+
-        esc(isUnconfirmedLead?"Cancel tentative — keep date, grey out":(refundPlanPreview?refundPlanPreview.buttonLabel:"Cancel charter"))+'</button>';
+      h+='<button type="button" class="btn danger" id="sheetCancelCharter" style="width:100%;margin:0 0 10px">'+
+        esc(isUnconfirmedLead?"Cancel tentative":(refundPlanPreview?refundPlanPreview.buttonLabel:"Cancel charter"))+'</button>';
       if(!isUnconfirmedLead&&refundPlanPreview&&refundPlanPreview.lines.length){
-        h+='<div class="meta" style="margin:-6px 0 14px;line-height:1.4">Will refund: '+
+        h+='<div class="meta-tight">Refund: '+
           esc(refundPlanPreview.lines.join(" · "))+
-          (refundPlanPreview.total>0?' · <b class="money">'+money(refundPlanPreview.total)+'</b> total':"")+
+          (refundPlanPreview.total>0?' · <b class="money">'+money(refundPlanPreview.total)+'</b>':"")+
         '</div>';
       }
     }
@@ -19460,99 +19475,94 @@ function openSheet(type,id,opts){
       var rfTot=Number(r.refundTotal)||0;
       var lostKindNow=leadLostKind(r);
       var reasonCur=String(r.cancelReason||"")||(lostKindNow==="lost-hold"?"tentative-dropped":"weather-captain");
-      h+='<div class="apa-card" style="margin:0 0 12px;padding:10px 12px;border:1.5px solid #f0b4b0;background:#fdeeee">'+
-        '<div style="font-weight:800;color:var(--danger)">'+
+      h+='<div class="alert-banner danger">'+
+        '<div class="ab-title" style="color:var(--danger)">'+
           (lostKindNow==="cancelled-charter"?"Cancelled charter":"Lost hold")+
           (rfScope==="full"?" · full refund":(rfScope==="deposit"?" · deposit refunded":(rfScope==="partial"?" · payment refunded":"")))+
         '</div>'+
-        '<div style="margin:10px 0 0">'+fieldHTML("Lost reason (editable anytime)",selCancelReasonField(reasonCur))+'</div>'+
-        '<p style="margin:6px 0 0;font-size:12.5px;color:var(--muted);line-height:1.4">'+
-          'Choose <b>Dropped hold</b> if they never confirmed, or a firm reason (weather, engine, guest cancel…) if the charter was booked. Saves with the rest of the lead — moves the card under the right Lost group.</p>'+
-        (rfTot>0?'<div class="meta" style="margin-top:8px">Refund total <b class="money">'+money(rfTot)+'</b> · deposit/final/APA set to Refunded as applicable · out of money totals</div>':'')+
-        (r.cancelledAt?'<div class="meta" style="margin-top:4px">'+esc(String(r.cancelledAt).slice(0,16).replace("T"," "))+(r.cancelledBy?" · "+esc(r.cancelledBy):"")+'</div>':'')+
-        '<p style="margin:8px 0 0;font-size:12.5px;color:var(--muted);line-height:1.4">Reinstate to make the card active again. If the date is free it goes back on hold; if booked you get options.</p>'+
-        '<button type="button" class="btn" id="sheetReinstateLead" style="width:100%;margin:10px 0 0">Reinstate lead</button>'+
+        fieldHTML("Reason",selCancelReasonField(reasonCur))+
+        (rfTot>0?'<div class="meta-tight" style="margin-top:6px">Refund <b class="money">'+money(rfTot)+'</b></div>':'')+
+        (r.cancelledAt?'<div class="meta-tight" style="margin-top:2px">'+esc(String(r.cancelledAt).slice(0,16).replace("T"," "))+(r.cancelledBy?" · "+esc(r.cancelledBy):"")+'</div>':'')+
+        '<button type="button" class="btn" id="sheetReinstateLead" style="width:100%;margin:8px 0 0">Reinstate</button>'+
       '</div>';
     }
-    h+=fieldHTML("Date closed",'<input class="ctl" id="f_closed" type="date" value="'+esc(r.closed||(!rec?leadTodayYmd():""))+'">');
-    h+='<p style="margin:-6px 0 12px;font-size:12.5px;color:var(--muted);line-height:1.4">Entered/imported day while open. When the deal is <b>confirmed</b> (deposit Paid or Confirm tick), this becomes the real close date.</p>';
+
+    /* —— Trip —— */
+    h+='<div class="sect">Trip</div>';
     h+=fieldHTML("Duration",durField(ldur));
     h+='<div id="f_durfields">'+durFieldsHTML(ldur,r)+'</div>';
-    h+='<div class="row2">'+fieldHTML("VAT on charter quote",vatModeField(vMode))+fieldHTML("VAT %",pctField("f_vatPct",vPct))+'</div>';
-    h+='<p style="margin:-6px 0 12px;font-size:12.5px;color:var(--muted);line-height:1.4">Charter quote for the deal base. For <b>€4,000 without VAT</b> use quote <b>€4,000</b> and VAT = <b>No VAT</b> (or “included” only if 4k already has VAT). Split cash uses this base to suggest free cash.</p>';
-    h+=fieldHTML("Deal payment",'<select class="ctl" id="f_dealPay">'+
-      '<option value="invoice"'+(dealPayType==="invoice"?" selected":"")+'>Invoice only (card / formal PDF)</option>'+
-      '<option value="split"'+(dealPayType==="split"?" selected":"")+'>Split · white invoice + free cash</option>'+
-      '<option value="cash"'+(dealPayType==="cash"?" selected":"")+'>Cash only (whole charter fee)</option>'+
+
+    /* —— Money —— */
+    h+='<div class="sect">Money</div>';
+    h+='<div class="row2">'+fieldHTML("Quote VAT",vatModeField(vMode))+fieldHTML("VAT %",pctField("f_vatPct",vPct))+'</div>';
+    h+=fieldHTML("Payment",'<select class="ctl" id="f_dealPay">'+
+      '<option value="invoice"'+(dealPayType==="invoice"?" selected":"")+'>Invoice only</option>'+
+      '<option value="split"'+(dealPayType==="split"?" selected":"")+'>Split · white + free cash</option>'+
+      '<option value="cash"'+(dealPayType==="cash"?" selected":"")+'>Cash only</option>'+
     '</select>');
-    h+='<p style="margin:-6px 0 12px;font-size:12.5px;color:var(--muted);line-height:1.4">'+
-      '<b>Invoice only</b> = full formal PDF. <b>Split</b> = white PDF + free cash black. <b>Cash only</b> = entire fee cash — boat petty or owner pocket (same as split cash routing).</p>';
     /* Cash-only block */
     h+='<div id="f_cashOnlyWrap"'+(cashOnlyOn?"":' class="hidden"')+'>'+
-      fieldHTML("Cash fee (€)",moneyField("f_cashOnlyAmt", cashDef||(r.total||r.price||r.base||"")))+
-      '<p style="margin:-6px 0 10px;font-size:12.5px;color:var(--muted);line-height:1.4">Whole charter fee in cash (no formal invoice). Prefills from the quote price — edit if they paid a round figure.</p>'+
+      fieldHTML("Cash fee",moneyField("f_cashOnlyAmt", cashDef||(r.total||r.price||r.base||"")))+
       (function(){
         var dest=leadCashDest(r);
         var cashOn=false;
         if(r.cashSettled===true||r.cashSettled==="true"||r.cashSettled===1) cashOn=true;
         else if(r.cashSettled===false||r.cashSettled==="false"||r.cashSettled===0) cashOn=false;
         else cashOn=!!(rec&&(r.fins==="Paid"||r.cashOnly));
-        return fieldHTML("Cash goes to",
+        return fieldHTML("Cash to",
           '<select class="ctl" id="f_cashOnlyDest">'+
-            '<option value="boat"'+(dest!=="owner"?" selected":"")+'>Boat · petty cash envelope</option>'+
-            '<option value="owner"'+(dest==="owner"?" selected":"")+'>Owner’s pocket (still business income)</option>'+
+            '<option value="boat"'+(dest!=="owner"?" selected":"")+'>Boat · petty</option>'+
+            '<option value="owner"'+(dest==="owner"?" selected":"")+'>Owner’s pocket</option>'+
           '</select>')+
-          '<p style="margin:-6px 0 10px;font-size:12.5px;color:var(--muted);line-height:1.4"><b>Boat</b> → Expenses petty when received. <b>Owner’s pocket</b> → owner stats only (not boat float).</p>'+
-          '<label class="checkrow"><input type="checkbox" id="f_cashOnlySettled"'+(cashOn?" checked":"")+'>'+
-          '<span><div class="ck">Cash received</div>'+
-          '<div class="ch">Tick when the cash is actually in hand. Marks the deal cash as settled.</div></span></label>';
+          '<label class="checkrow compact"><input type="checkbox" id="f_cashOnlySettled"'+(cashOn?" checked":"")+'>'+
+          '<span><div class="ck">Cash received</div><div class="ch"></div></span></label>';
       })()+
     '</div>';
     /* Split white+black block */
     h+='<div id="f_splitwrap"'+(splitOn?"":' class="hidden"')+'>'+
-      '<div class="apa-card" style="margin:0 0 12px;padding:10px 12px">'+
-        '<div class="meta">Deal base (cash guide)</div>'+
-        '<div class="money" style="font-size:18px;font-weight:800" id="f_dealNetShow">'+money(0)+'</div>'+
-        '<div class="meta" style="margin-top:4px">Suggested cash ≈ this − what the guest pays on white. Client total = guest white + cash.</div>'+
+      '<div class="split-guide">'+
+        '<div class="meta" style="font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.03em;color:var(--muted)">Deal base</div>'+
+        '<div class="money" id="f_dealNetShow">'+money(0)+'</div>'+
       '</div>'+
-      '<div class="field"><label id="f_whiteAmtLabel">White invoice amount (€)</label>'+moneyField("f_whiteTotal", whiteDef)+'</div>'+
-      fieldHTML("White invoice VAT",'<select class="ctl" id="f_whiteVatMode">'+
-        '<option value="include"'+(whiteVatModeDef==="include"?" selected":"")+'>VAT included in amount above</option>'+
-        '<option value="add"'+(whiteVatModeDef==="add"?" selected":"")+'>Add VAT on top of amount (e.g. type 1000 → PDF 1210)</option>'+
-        '<option value="none"'+(whiteVatModeDef==="none"?" selected":"")+'>No VAT on white</option>'+
+      '<div class="field"><label id="f_whiteAmtLabel">White invoice €</label>'+moneyField("f_whiteTotal", whiteDef)+'</div>'+
+      fieldHTML("White VAT",'<select class="ctl" id="f_whiteVatMode">'+
+        '<option value="include"'+(whiteVatModeDef==="include"?" selected":"")+'>Included in amount</option>'+
+        '<option value="add"'+(whiteVatModeDef==="add"?" selected":"")+'>Add on top</option>'+
+        '<option value="none"'+(whiteVatModeDef==="none"?" selected":"")+'>No VAT</option>'+
       '</select>')+
-      fieldHTML("Small invoice VAT (broker deal)",'<select class="ctl" id="f_splitVatTop">'+
-        '<option value="0"'+(!vatTopDef?" selected":"")+'>Swallow — final = deal base B; cash = B − invoice total</option>'+
-        '<option value="1"'+(vatTopDef?" selected":"")+'>Charge — final = B + invoice VAT; cash = B − invoice net</option>'+
+      fieldHTML("VAT vs cash",'<select class="ctl" id="f_splitVatTop">'+
+        '<option value="0"'+(!vatTopDef?" selected":"")+'>Swallow VAT (cash = B − inv total)</option>'+
+        '<option value="1"'+(vatTopDef?" selected":"")+'>Charge VAT (cash = B − inv net)</option>'+
       '</select>')+
-      '<p style="margin:-6px 0 10px;font-size:12.5px;color:var(--muted);line-height:1.4">Example: quote €4,000 inc. VAT → B ≈ €3,305.79. Invoice €1,000+VAT → PDF €1,210. <b>Charge</b>: final ≈ €3,515.79, cash ≈ €2,305.79. <b>Swallow</b>: final ≈ €3,305.79, cash ≈ €2,095.79.</p>'+
-      fieldHTML("Cash black (no VAT)",moneyField("f_cashBlack", cashDef))+
-      '<p style="margin:-6px 0 8px;font-size:12.5px;color:var(--muted);line-height:1.4">Prefills when you pick swallow/charge (exact cash rounded <b>up to €50</b>). Editable anytime. Guide: <b id="f_suggestCash">—</b> · <button type="button" class="btn ghost" id="f_useSuggestCash" style="width:auto;padding:6px 10px;font-size:12px">Use suggested</button></p>'+
+      fieldHTML("Cash black",moneyField("f_cashBlack", cashDef))+
+      '<div class="cash-suggest">Guide <b id="f_suggestCash">—</b> <button type="button" class="btn ghost" id="f_useSuggestCash">Use</button></div>'+
       (function(){
         var dest=leadCashDest(r);
         var cashOn=false;
         if(r.cashSettled===true||r.cashSettled==="true"||r.cashSettled===1) cashOn=true;
         else if(r.cashSettled===false||r.cashSettled==="false"||r.cashSettled===0) cashOn=false;
         else cashOn=!!(rec&&r.fins==="Paid");
-        return fieldHTML("Cash goes to",
+        return fieldHTML("Cash to",
           '<select class="ctl" id="f_cashDest">'+
-            '<option value="boat"'+(dest!=="owner"?" selected":"")+'>Boat · petty cash envelope</option>'+
-            '<option value="owner"'+(dest==="owner"?" selected":"")+'>Owner’s pocket (still business income)</option>'+
+            '<option value="boat"'+(dest!=="owner"?" selected":"")+'>Boat · petty</option>'+
+            '<option value="owner"'+(dest==="owner"?" selected":"")+'>Owner’s pocket</option>'+
           '</select>')+
-          '<p style="margin:-6px 0 10px;font-size:12.5px;color:var(--muted);line-height:1.4"><b>Boat</b> → Expenses petty when received. <b>Owner’s pocket</b> → tracked for owner stats (does not hit the boat float). Either way the cash is part of client total / business generated.</p>'+
-          '<label class="checkrow" id="f_cashSettled_wrap"><input type="checkbox" id="f_cashSettled"'+(cashOn?" checked":"")+'>'+
+          '<label class="checkrow compact" id="f_cashSettled_wrap"><input type="checkbox" id="f_cashSettled"'+(cashOn?" checked":"")+'>'+
           '<span><div class="ck">Cash received</div>'+
-          '<div class="ch" id="f_cashSettled_help">Tick when the free cash is actually in hand. Final → <b>Paid</b> also marks received (deposit Paid alone does not).</div></span></label>';
+          '<div class="ch" id="f_cashSettled_help"></div></span></label>';
       })()+
       '<input type="hidden" id="f_invoiceNet" value="'+esc(r.invoiceNet!=null&&r.invoiceNet!==""?r.invoiceNet:"")+'">'+
     '</div>';
     h+='<div class="calcbox" id="f_calc"></div>';
-    h+='<div class="sect">Invoices (generate in app)</div>';
-    h+='<p style="margin:-4px 0 12px;font-size:12.5px;color:var(--muted);line-height:1.45">Use <b>Make invoice</b> to create the PDF. <b>Not issued</b> = still plan a deposit (split by %). Choose deposit status <b>No deposit — full amount on final</b> (or set Deposit % to <b>0</b>) so final = entire white/charter. Cash never on a PDF.</p>';
+
+    /* —— Invoices —— */
+    h+='<div class="sect">Invoices</div>';
     h+=leadInvBlock("Deposit","f_dep",r.depPct,"f_deps",r.deps,"f_depInv",r.depInv,true);
     h+=leadInvBlock("Final","","","f_fins",r.fins,"f_finInv",r.finInv,false);
-    h+=leadInvBlock("APA (overnight)","f_apa",r.apaPct,"f_apas",r.apas,"f_apaInv",r.apaInv,true);
-    h+=fieldHTML("Notes",'<textarea class="ctl" id="f_notes" placeholder="optional">'+esc(r.notes)+'</textarea>');
+    h+=leadInvBlock("APA","f_apa",r.apaPct,"f_apas",r.apas,"f_apaInv",r.apaInv,true);
+
+    h+='<div class="sect">Notes</div>';
+    h+='<div class="field"><textarea class="ctl" id="f_notes" placeholder="Optional">'+esc(r.notes||"")+'</textarea></div>';
   }
   if(rec){
     h+='<div class="sheetbtns">';
@@ -19567,6 +19577,8 @@ function openSheet(type,id,opts){
   }
   h+='<div class="sheetfoot"><button type="button" class="btn ghost" id="sheetCancel">Cancel</button><button type="button" class="btn" id="sheetSave">'+(rec?"Save":"Add")+'</button></div>';
   inner.innerHTML=h;
+  /* Dense lead layout only — other sheets keep default spacing */
+  if(el("sheet")) el("sheet").classList.toggle("sheet--lead", type==="lead");
   el("sheetSave").addEventListener("click",function(){ saveSheet(type,rec); });
   el("sheetCancel").addEventListener("click",function(){ showSheet(false); });
   el("sheetClose").addEventListener("click",function(){ showSheet(false); });
@@ -20619,6 +20631,7 @@ function showSheet(on){
   } else {
     document.body.classList.remove("sheet-open");
     document.body.style.top="";
+    sh.classList.remove("sheet--lead");
     var y=bodyScrollLockY!=null?bodyScrollLockY:stewPageScrollY();
     bodyScrollLockY=null;
     clearSheetPin(sh);
