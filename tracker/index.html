@@ -4375,7 +4375,8 @@ function leadWhatsAppBtnHTML(r, opts){
 function leadSearchHaystack(r){
   if(!r) return "";
   var bits=[
-    r.name, r.icsGuestName, r.phone, r.whatsapp, r.notes, r.start, r.end, r.closed,
+    r.name, r.icsGuestName, r.phone, r.whatsapp, r.billToName, r.billToAddr, r.billToEmail,
+    r.notes, r.start, r.end, r.closed,
     leadSource(r), leadSourceLabel(leadSource(r)),
     r.by, r.depInv, r.finInv, r.calendarEventKey, r.calendarUid,
     "owner days","owners days","owner-sourced","owner sourced","income"
@@ -5631,8 +5632,10 @@ function openLeadInvoiceSheet(id){
     fieldHTML("Date",'<input class="ctl" id="f_inv_date" type="date" value="'+esc(new Date().toISOString().slice(0,10))+'">')+
   '</div>';
   h+='<p id="f_inv_no_hint" style="margin:-8px 0 12px;font-size:12px;color:var(--muted)"></p>';
-  h+=fieldHTML("Bill To (name)",'<input class="ctl" id="f_inv_name" value="'+esc(r.name||"")+'">');
-  h+=fieldHTML("Bill To (address / tax ID)",'<textarea class="ctl" id="f_inv_addr" placeholder="Street, city, country, VAT ID…">'+(r.billToAddr?esc(r.billToAddr):"")+'</textarea>');
+  h+=fieldHTML("Bill To (name)",'<input class="ctl" id="f_inv_name" value="'+esc(r.billToName||r.name||"")+'">');
+  h+=fieldHTML("Bill To (address / tax ID)",'<textarea class="ctl" id="f_inv_addr" rows="3" placeholder="Street, city, country, VAT ID…">'+(r.billToAddr?esc(r.billToAddr):"")+'</textarea>');
+  if(r.billToEmail) h+='<p style="margin:-6px 0 12px;font-size:12.5px;color:var(--muted);line-height:1.4">Invoice email on lead: <b>'+esc(r.billToEmail)+'</b> (copy into Mail / WhatsApp when sending the PDF).</p>';
+  else if(!r.billToAddr) h+='<p style="margin:-6px 0 12px;font-size:12.5px;color:var(--amberDeep,#9a6b00);line-height:1.4">No billing address on this lead yet — add street / city / tax ID above (saved on the lead when you create the PDF), or edit the lead first.</p>';
   h+=fieldHTML("Description (on PDF)",'<input class="ctl" id="f_inv_desc" value="'+esc(leadInvoiceDesc(r,initialKind))+'">');
   h+='<div class="row2">'+
     fieldHTML("Period",'<input class="ctl" id="f_inv_period" value="'+esc(leadInvoicePeriod(r))+'" placeholder="optional">')+
@@ -5717,7 +5720,7 @@ function openLeadInvoiceSheet(id){
     var payload={
       invNo:invNo,
       date:el("f_inv_date").value||new Date().toISOString().slice(0,10),
-      billName:(el("f_inv_name").value||"").trim()||(r.name||""),
+      billName:(el("f_inv_name").value||"").trim()||(r.billToName||r.name||""),
       billAddr:(el("f_inv_addr").value||"").trim(),
       desc:invoiceClientSafeText((el("f_inv_desc").value||"").trim()||leadInvoiceDesc(r, kind)),
       invType:typeLab,
@@ -5726,13 +5729,30 @@ function openLeadInvoiceSheet(id){
       net:sp.net, vat:sp.vat, gross:sp.gross, pct:sp.pct,
       kind:kind, source:"lead", leadId:r.id
     };
+    /* Always keep billing details on the lead so the next PDF is complete */
+    var billDirty=false;
+    if(payload.billAddr!==String(r.billToAddr||"")){ r.billToAddr=payload.billAddr; billDirty=true; }
+    if(payload.billName&&payload.billName!==String(r.billToName||"")&&payload.billName!==String(r.name||"")){
+      r.billToName=payload.billName; billDirty=true;
+    } else if(payload.billName&&!r.billToName&&payload.billName!==String(r.name||"")){
+      r.billToName=payload.billName; billDirty=true;
+    }
     if(el("f_inv_save")&&el("f_inv_save").checked){
       setLeadIssuedNo(r, kind, invNo);
-      r.billToAddr=payload.billAddr;
+      billDirty=true;
+    }
+    if(billDirty){
       r.updatedAt=new Date().toISOString();
       state.leads=(state.leads||[]).map(function(x){ return String(x.id)===String(r.id)?r:x; });
       save("leads");
-      renderLeads();
+      try{ renderLeads(); }catch(eL){}
+    }
+    if(!payload.billAddr){
+      if(!window.confirm(
+        "No billing address on this invoice.\n\n"+
+        "OK = create PDF without address (you can edit the lead and regenerate).\n"+
+        "Cancel = go back and fill Bill To address."
+      )) return;
     }
     createAndOfferInvoicePdf(payload);
   });
@@ -6383,7 +6403,7 @@ function agreementPayloadFromLead(r){
   var special=AGREEMENT_DEFAULTS.specialTerms;
   return {
     agreeDate:r.closed||today,
-    charterer:r.name||"",
+    charterer:r.billToName||r.name||"",
     chartererAddr:r.billToAddr||"",
     operator:AGREEMENT_DEFAULTS.operator,
     vesselName:AGREEMENT_DEFAULTS.vesselName,
@@ -18949,6 +18969,14 @@ function openSheet(type,id){
         '<a class="btn" id="f_phone_wa" href="'+(waUrlLive?esc(waUrlLive):"#")+'" target="_blank" rel="noopener" style="flex:0 0 auto;padding:10px 14px;text-decoration:none;display:'+(waUrlLive?"":"none")+'">WhatsApp</a>'+
       '</div>');
     h+='<p style="margin:-6px 0 12px;font-size:12.5px;color:var(--muted);line-height:1.4">International number with country code (e.g. <b>+34…</b>). Opens the existing WhatsApp chat on your phone. Calendar titles/descriptions with a number are scraped on import when empty.</p>';
+    /* Billing block for formal invoices (deposit / final / APA PDFs) */
+    h+=fieldHTML("Invoice name (Bill To)",
+      '<input class="ctl" id="f_billToName" value="'+esc(r.billToName||r.name||"")+'" placeholder="Legal name on the invoice (defaults to lead name)" autocomplete="organization">');
+    h+=fieldHTML("Invoice address / tax ID",
+      '<textarea class="ctl" id="f_billToAddr" rows="3" placeholder="Street, postcode, city, country&#10;VAT / NIF / CIF if company…">'+esc(r.billToAddr||"")+'</textarea>');
+    h+='<p style="margin:-6px 0 12px;font-size:12.5px;color:var(--muted);line-height:1.4">Used on <b>Make invoice</b> PDFs (deposit, final, APA). Fill when the deal closes so the client can pay from a complete invoice.</p>';
+    h+=fieldHTML("Invoice email (optional)",
+      '<input class="ctl" id="f_billToEmail" type="email" value="'+esc(r.billToEmail||"")+'" placeholder="accounts@… or guest email" autocomplete="email" inputmode="email">');
     h+=fieldHTML("Lead source",selLeadSourceField(leadSrcDef));
     h+='<p style="margin:-6px 0 12px;font-size:12.5px;color:var(--muted);line-height:1.4">'+
       '<b>Captain</b> → '+CAPTAIN_COMMISSION_PCT+'% · <b>Paul</b> → '+CLICKBOAT_COMMISSION_PCT+'%. '+
@@ -19804,9 +19832,16 @@ function saveSheet(type,rec){
     }
     var phoneSave=(el("f_phone")&&el("f_phone").value||"").trim();
     if(phoneSave) phoneSave=leadPhoneDisplay(phoneSave)||phoneSave;
+    var billToNameSave=isDayOffSave?"":(el("f_billToName")&&el("f_billToName").value||"").trim();
+    var billToAddrSave=isDayOffSave?"":(el("f_billToAddr")&&el("f_billToAddr").value||"").trim();
+    var billToEmailSave=isDayOffSave?"":(el("f_billToEmail")&&el("f_billToEmail").value||"").trim();
+    /* If invoice name left blank, keep empty so PDF falls back to lead name */
     var o2={ id:rec?rec.id:uid(), closed:closedIn, name:el("f_name").value.trim()||(isDayOffSave?"Day off":""),
       phone:isDayOffSave?"":phoneSave,
       phoneFromIcs:isDayOffSave?false:(!!(rec&&rec.phoneFromIcs)&&phoneSave===(rec.phone||"")?true:false),
+      billToName:billToNameSave,
+      billToAddr:billToAddrSave,
+      billToEmail:billToEmailSave,
       dur:isDayOffSave?(days>1?"multi":"8h"):dur, start:start, end:end, rate:isDayOffSave?0:rate, price:isDayOffSave?0:price, days:days,
       base:isDayOffSave?0:quoteBase, net:isDayOffSave?0:(sp.split?sp.dealNet:(cashOnlyOn?parts.client:m.net)), vat:isDayOffSave?0:(sp.split?sp.white.vat:(cashOnlyOn?0:m.vat)), total:isDayOffSave?0:parts.client,
       vatMode:cashOnlyOn?"none":(sp.split?(vatMode||"include"):m.vatMode),
