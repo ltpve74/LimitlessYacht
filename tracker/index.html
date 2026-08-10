@@ -5727,7 +5727,11 @@ function openLeadInvoiceSheet(id){
       period:(el("f_inv_period")?el("f_inv_period").value:"").trim(),
       rate:(el("f_inv_rate")?el("f_inv_rate").value:"").trim(),
       net:sp.net, vat:sp.vat, gross:sp.gross, pct:sp.pct,
-      kind:kind, source:"lead", leadId:r.id
+      kind:kind, source:"lead", leadId:r.id,
+      /* Deposit only — client-facing booking notice on the PDF */
+      depositCalendarNote:kind==="dep"
+        ?"Please note: the charter date on our calendar will be closed once deposit payment confirmation is received."
+        :""
     };
     /* Always keep billing details on the lead so the next PDF is complete */
     var billDirty=false;
@@ -6150,6 +6154,49 @@ function buildYsgInvoicePdf(p){
           var payTxt=p.paymentNote||"Paid by card at end of charter";
           drawCenter(payTxt, y, 11, true, black);
           y-=22;
+        }
+
+        /*
+         * Deposit invoices: clear booking notice for the client.
+         * Calendar stay is firm only after deposit payment is confirmed.
+         */
+        var isDepInv=p.kind==="dep"||/^deposit\b/i.test(String(p.invType||""));
+        var depNotice=p.depositCalendarNote||(isDepInv
+          ?"Please note: the charter date on our calendar will be closed once deposit payment confirmation is received."
+          :"");
+        if(depNotice){
+          y-=4;
+          function wrapNotice(text, maxW, size){
+            var words=String(text||"").split(/\s+/).filter(Boolean);
+            var lines=[], cur="";
+            words.forEach(function(w){
+              var tryLine=cur?cur+" "+w:w;
+              if(font.widthOfTextAtSize(tryLine, size)<=maxW) cur=tryLine;
+              else { if(cur) lines.push(cur); cur=w; }
+            });
+            if(cur) lines.push(cur);
+            return lines;
+          }
+          var noticeLines=wrapNotice(depNotice, W-margin*2-16, 9.5);
+          var noticeH=noticeLines.length*12+16;
+          /* Keep above company footer (~legalY+company block) */
+          var noticeFloor=42+30+6*12+36;
+          if(y-noticeH<noticeFloor) y=noticeFloor+noticeH;
+          page.drawRectangle({
+            x:margin,
+            y:y-noticeH+10,
+            width:tableW,
+            height:noticeH,
+            color:rgb(0.97,0.97,0.94),
+            borderColor:rgb(0.75,0.75,0.7),
+            borderWidth:0.6
+          });
+          var ny=y-6;
+          noticeLines.forEach(function(line){
+            drawCenter(line, ny, 9.5, false, black);
+            ny-=12;
+          });
+          y=y-noticeH-14;
         }
 
         drawCenter("Thank you for your business!", y, 12, false, black, true);
