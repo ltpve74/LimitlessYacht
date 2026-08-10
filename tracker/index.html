@@ -2451,7 +2451,11 @@ function opsCalCellKind(entries){
 /** Hours / duration line for calendar cards. */
 function leadCalHoursLabel(l){
   if(!l) return "—";
-  if(typeof leadIsDayOff==="function"&&leadIsDayOff(l)) return "Closed · day off";
+  if(typeof leadIsDayOff==="function"&&leadIsDayOff(l)){
+    var nOff=1;
+    try{ nOff=Math.max(1,(leadBlockedDaysClient(l)||[]).length||Number(l.days)||1); }catch(eOff){ nOff=Math.max(1,Number(l.days)||1); }
+    return nOff>1?("Closed · "+nOff+" days"):"Closed · day off";
+  }
   var typeKey=typeof leadCharterTypeKey==="function"?leadCharterTypeKey(l):String(l.dur||"8h");
   var typeLab=typeof leadCharterTypeLabel==="function"?leadCharterTypeLabel(typeKey):(l.dur||"Day");
   var st=String(l.startTime||"").trim();
@@ -2484,32 +2488,167 @@ function leadCalAmountLabel(l){
   if(!(amt>0)) amt=Number(l.total)||Number(l.base)||Number(l.price)||0;
   return amt>0?{text:money0(amt), muted:false}:{text:"—", muted:true};
 }
+/**
+ * Simplified day-off form (Ops calendar + edit).
+ * Only reason + date range — multi-day for maintenance blocks the calendar each day.
+ */
+function openDayOffSheet(id, opts){
+  opts=opts||{};
+  if(!canCommercial()) return;
+  var rec=null;
+  if(id){
+    rec=(state.leads||[]).filter(function(r){ return r&&String(r.id)===String(id); })[0]||null;
+  }
+  var todayY=typeof leadTodayYmd==="function"?leadTodayYmd():(typeof localTodayYmd==="function"?localTodayYmd():new Date().toISOString().slice(0,10));
+  var start0=String((rec&&(rec.start||rec.cdate))||opts.start||todayY).slice(0,10);
+  if(!/^\d{4}-\d{2}-\d{2}$/.test(start0)) start0=todayY;
+  var end0=String((rec&&rec.end)||opts.end||"").slice(0,10);
+  if(!/^\d{4}-\d{2}-\d{2}$/.test(end0)||end0<start0) end0=start0;
+  var reason0=rec?String(rec.name||"").trim():"";
+  if(/^day off$/i.test(reason0)) reason0="";
+
+  var h='<div class="sheethead"><h2>'+(rec?"Edit day off":"Day off")+'</h2><button type="button" class="sheetx" id="sheetClose" aria-label="Close">×</button></div>';
+  h+=fieldHTML("Reason",'<input class="ctl" id="f_off_reason" value="'+esc(reason0)+'" placeholder="e.g. Engine service, antifouling" autocomplete="off" autofocus>');
+  h+='<div class="row2">'+
+    fieldHTML("From",'<input class="ctl" id="f_off_start" type="date" value="'+esc(start0)+'">')+
+    fieldHTML("To",'<input class="ctl" id="f_off_end" type="date" value="'+esc(end0)+'">')+
+  '</div>';
+  h+='<div class="meta-tight" id="f_off_span_hint" style="margin-top:-2px"></div>';
+  if(rec){
+    h+='<div class="sheetbtns"><button type="button" class="btn danger" id="sheetDel">Delete</button></div>';
+  }
+  h+='<div class="sheetfoot"><button type="button" class="btn ghost" id="sheetCancel">Cancel</button><button type="button" class="btn" id="sheetSave">'+(rec?"Save":"Add day off")+'</button></div>';
+  el("sheetInner").innerHTML=h;
+  if(el("sheet")) el("sheet").classList.add("sheet--lead");
+
+  function paintOffSpan(){
+    var s=el("f_off_start")?el("f_off_start").value:"";
+    var e=el("f_off_end")?el("f_off_end").value:"";
+    var hint=el("f_off_span_hint");
+    if(!hint) return;
+    if(!s){ hint.textContent=""; return; }
+    if(e&&e<s){
+      hint.innerHTML='<span style="color:var(--danger)">“To” is before “From” — will use From only.</span>';
+      return;
+    }
+    var n=daysBetween(s, e||s);
+    hint.textContent=n>1?(n+" days closed on the calendar"):"1 day closed on the calendar";
+  }
+  if(el("f_off_start")) el("f_off_start").addEventListener("change",function(){
+    var s=el("f_off_start").value, e=el("f_off_end")?el("f_off_end").value:"";
+    if(e&&s&&e<s&&el("f_off_end")) el("f_off_end").value=s;
+    paintOffSpan();
+  });
+  if(el("f_off_end")) el("f_off_end").addEventListener("change",paintOffSpan);
+  paintOffSpan();
+
+  function saveDayOff(){
+    var reason=(el("f_off_reason")&&el("f_off_reason").value||"").trim()||"Day off";
+    var start=(el("f_off_start")&&el("f_off_start").value||"").slice(0,10);
+    var end=(el("f_off_end")&&el("f_off_end").value||"").slice(0,10);
+    if(!/^\d{4}-\d{2}-\d{2}$/.test(start)){
+      if(el("f_off_start")) el("f_off_start").focus();
+      return;
+    }
+    if(!/^\d{4}-\d{2}-\d{2}$/.test(end)||end<start) end=start;
+    var days=daysBetween(start, end);
+    var multi=days>1;
+    var nowIso=new Date().toISOString();
+    var o={
+      id:rec?rec.id:uid(),
+      closed:(rec&&rec.closed)||todayY,
+      name:reason,
+      phone:"",
+      phoneFromIcs:false,
+      billToName:"",
+      billToAddr:"",
+      billToEmail:"",
+      dur:multi?"multi":"8h",
+      start:start,
+      end:multi?end:"",
+      days:days,
+      rate:0, price:0, base:0, net:0, vat:0, total:0,
+      vatMode:"none", vatPct:0,
+      split:false, splitCash:false,
+      dealNet:0, splitVatOnTop:false, whiteVatMode:"",
+      invoiceNet:0, invoiceVat:0, invoiceTotal:0,
+      cashAmt:0, cashAmtUser:false, cashOnly:false, dealPayType:"invoice",
+      cashDest:"boat", cashSettled:false,
+      leadSource:"dayoff",
+      dayOff:true,
+      leadKind:"dayoff",
+      sourcePending:false,
+      dealClosed:true,
+      bookingStatus:"active",
+      cancelled:false,
+      cancelReason:"",
+      cancelWasConfirmed:false,
+      cancelledAt:"",
+      cancelledBy:"",
+      calendarEventKey:(rec&&(rec.calendarEventKey||rec.calEventKey))||"",
+      calendarUid:(rec&&rec.calendarUid)||"",
+      depPct:0, dep:0, deps:"Not requested", depInv:"",
+      fin:0, fins:"Not requested", finInv:"",
+      apaPct:"", apa:0, apas:"Not issued", apaInv:"",
+      notes:reason,
+      by:session.who,
+      createdAt:(rec&&rec.createdAt)||nowIso,
+      updatedAt:nowIso
+    };
+    if(rec&&rec.icsGuestName) o.icsGuestName=rec.icsGuestName;
+    if(rec){
+      state.leads=(state.leads||[]).map(function(x){ return String(x.id)===String(rec.id)?o:x; });
+    } else {
+      state.leads=(state.leads||[]).concat([o]);
+    }
+    save("leads");
+    try{ if(typeof renderLeads==="function") renderLeads(); }catch(eL){}
+    try{ if(typeof renderOpsCalendar==="function") renderOpsCalendar(); }catch(eC){}
+    try{ if(typeof renderAll==="function") renderAll(); }catch(eA){}
+    showSheet(false);
+  }
+
+  el("sheetSave").addEventListener("click",saveDayOff);
+  el("sheetCancel").addEventListener("click",function(){ showSheet(false); });
+  el("sheetClose").addEventListener("click",function(){ showSheet(false); });
+  if(rec&&el("sheetDel")){
+    el("sheetDel").addEventListener("click",function(){
+      confirmDel("lead", rec);
+    });
+  }
+  showSheet(true);
+  try{ if(el("f_off_reason")) el("f_off_reason").focus(); }catch(eF){}
+}
 /** Open new lead form prefilled for a calendar day (captain + manager). */
 function openLeadFromCalendarDay(ymd, kind){
   if(!canCommercial()) return;
   ymd=String(ymd||"").slice(0,10);
   if(!/^\d{4}-\d{2}-\d{2}$/.test(ymd)) return;
   kind=kind==="dayoff"?"dayoff":"hold";
+  if(kind==="dayoff"){
+    openDayOffSheet(null, {start:ymd, end:ymd});
+    return;
+  }
   var todayY=typeof leadTodayYmd==="function"?leadTodayYmd():(typeof localTodayYmd==="function"?localTodayYmd():new Date().toISOString().slice(0,10));
   var prefill={
     closed:todayY,
-    name:kind==="dayoff"?"Day off":"",
-    dur:kind==="dayoff"?"8h":"8h",
+    name:"",
+    dur:"8h",
     start:ymd,
     end:ymd,
     days:1,
     rate:"",
     price:"",
-    vatMode:kind==="dayoff"?"none":"include",
-    vatPct:kind==="dayoff"?"":"21",
-    leadSource:kind==="dayoff"?"dayoff":"pending",
-    dealClosed:kind==="dayoff"?true:false,
-    dayOff:kind==="dayoff"?true:false,
-    deps:kind==="dayoff"?"Not requested":"Not issued",
-    fins:kind==="dayoff"?"Not requested":"Not issued",
+    vatMode:"include",
+    vatPct:"21",
+    leadSource:"pending",
+    dealClosed:false,
+    dayOff:false,
+    deps:"Not issued",
+    fins:"Not issued",
     apas:"Not issued",
-    depPct:kind==="dayoff"?0:"50",
-    notes:kind==="dayoff"?"Added from Ops calendar":"Hold added from Ops calendar"
+    depPct:"50",
+    notes:"Hold added from Ops calendar"
   };
   openSheet("lead", null, {prefill:prefill});
 }
@@ -19310,6 +19449,21 @@ function recalcLead(){
 
 function openSheet(type,id,opts){
   opts=opts||{};
+  /* Day off → short form (reason + dates), not full lead sheet */
+  if(type==="lead"){
+    var recOff=id?(state.leads||[]).filter(function(r){return r&&String(r.id)===String(id);})[0]:null;
+    var preOff=opts.prefill&&typeof opts.prefill==="object"?opts.prefill:{};
+    var wantOff=false;
+    if(recOff&&typeof leadIsDayOff==="function"&&leadIsDayOff(recOff)) wantOff=true;
+    else if(preOff.dayOff||preOff.leadSource==="dayoff"||preOff.leadKind==="dayoff") wantOff=true;
+    if(wantOff){
+      openDayOffSheet(id||null, {
+        start:preOff.start||(recOff&&(recOff.start||recOff.cdate))||"",
+        end:preOff.end||(recOff&&recOff.end)||""
+      });
+      return;
+    }
+  }
   var rec=null;
   if(id){ rec=(type==="charter"?state.charters:state.leads).filter(function(r){return r.id===id;})[0]; }
   var inner=el("sheetInner"), h="", r;
