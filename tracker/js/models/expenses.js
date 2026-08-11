@@ -1156,6 +1156,360 @@ function summarizePocketBalances(expenses, cashIns, opts) {
   };
 }
 
+/* ---------- Petty month open / close (pure carry — no writes) ---------- */
+
+/**
+ * Previous calendar month key (YYYY-MM).
+ * @param {string} month
+ * @returns {string}
+ */
+function prevCalendarMonthKey(month) {
+  var m = String(month || "").slice(0, 7);
+  if (!/^\d{4}-\d{2}$/.test(m)) return "";
+  var y = Number(m.slice(0, 4));
+  var mo = Number(m.slice(5, 7));
+  mo -= 1;
+  if (mo < 1) {
+    mo = 12;
+    y -= 1;
+  }
+  return y + "-" + String(mo).padStart(2, "0");
+}
+
+function findPettyRow(expPettyList, month) {
+  month = String(month || "").slice(0, 7);
+  var rows = Array.isArray(expPettyList) ? expPettyList : [];
+  for (var i = 0; i < rows.length; i++) {
+    var p = rows[i];
+    if (p && String(p.month || "").slice(0, 7) === month) return p;
+  }
+  return null;
+}
+
+/**
+ * Pure close for one month once open inputs are known.
+ * @returns {{ onboard: number, short: number, sum: object }}
+ */
+function summarizePettyMonthClose(opts) {
+  var sum = summarizePettyCash(opts || {});
+  return {
+    onboard: round2(Math.max(0, num(sum.pettyOnboard != null ? sum.pettyOnboard : sum.pettyCash))),
+    short: round2(Math.max(0, num(sum.cashShort))),
+    sum: sum,
+  };
+}
+
+/**
+ * Resolve petty *open* fields for a month (pure).
+ *
+ * Carry rules (commercial foundation — computed, not healed on load):
+ *  - prior close physical onboard → this month pettyStart
+ *  - prior residual cashShort → this month broughtForwardShort
+ *  - startMode=manual / startManual locks stored physical start
+ *  - BF short may still inherit from prior when stored BF is empty
+ *  - negative stored start is poison → physical 0 + short
+ *
+ * Never mutates rows. Never persists. Controllers/view may display; only an
+ * explicit captain save or one-shot DB op may write.
+ *
+ * @param {string} month YYYY-MM
+ * @param {Array} expPettyList
+ * @param {Array} expenses all expenses
+ * @param {{ depth?: number, isTipExpense?: function, cashInIsTip?: function }} opts
+ */
+function resolvePettyMonthOpen(month, expPettyList, expenses, opts) {
+  opts = opts || {};
+  month = String(month || "").slice(0, 7);
+  var depth = opts.depth || 0;
+  var empty = {
+    month: month,
+    pettyStart: 0,
+    broughtForwardShort: 0,
+    startMode: "none",
+    carriedFrom: "",
+    cashIns: [],
+    row: null,
+    source: "empty",
+  };
+  if (!/^\d{4}-\d{2}$/.test(month) || depth > 36) return empty;
+
+  var row = findPettyRow(expPettyList, month);
+  var cashInsRaw = row && Array.isArray(row.cashIns) ? row.cashIns.slice() : [];
+  var cashIns = cashInsRaw;
+  if (typeof opts.cashInIsTip === "function") {
+    cashIns = cashInsRaw.filter(function (r) {
+      return r && !opts.cashInIsTip(r);
+    });
+  }
+
+  var prev = prevCalendarMonthKey(month);
+  var priorClose = null;
+  if (prev) {
+    priorClose = resolvePettyMonthClose(prev, expPettyList, expenses, {
+      depth: depth + 1,
+      isTipExpense: opts.isTipExpense,
+      cashInIsTip: opts.cashInIsTip,
+    });
+    if (priorClose && priorClose.empty) priorClose = null;
+  }
+
+  var isManual = !!(row && (row.startMode === "manual" || row.startManual === true));
+  var isCarry = !!(row && row.startMode === "carry");
+  var storedStart = row ? num(row.pettyStart) : 0;
+  var storedBf = row ? Math.max(0, round2(num(row.broughtForwardShort))) : 0;
+  var hasLines = false;
+  (Array.isArray(expenses) ? expenses : []).forEach(function (e) {
+    if (!e) return;
+    if (expenseMonthKey(e.date) !== month) return;
+    if (typeof opts.isTipExpense === "function" && opts.isTipExpense(e)) return;
+    hasLines = true;
+  });
+  var hasIns = cashInsRaw.length > 0;
+
+  var pettyStart = 0;
+  var brought = 0;
+  var startMode = "none";
+  var carriedFrom = "";
+  var source = "empty";
+
+  if (isManual) {
+    if (storedStart < -0.009) {
+      pettyStart = 0;
+      brought = round2(Math.abs(storedStart) + storedBf);
+      if (!(brought > 0.009) && priorClose) brought = priorClose.short;
+      source = "manual-poison";
+    } else {
+      pettyStart = round2(Math.max(0, storedStart));
+      brought = storedBf;
+      if (!(brought > 0.009) && priorClose && priorClose.short > 0.009) {
+        brought = priorClose.short;
+        source = "manual+priorShort";
+      } else {
+        source = "manual";
+      }
+    }
+    startMode = "manual";
+  } else if (isCarry) {
+    if (priorClose) {
+      pettyStart = priorClose.onboard;
+      brought = priorClose.short;
+      startMode = "carry";
+      carriedFrom = prev;
+      source = "carry";
+    } else {
+      pettyStart = round2(Math.max(0, storedStart));
+      brought = storedBf;
+      startMode = "carry";
+      carriedFrom = row.carriedFrom || "";
+      source = "carry-stored";
+    }
+  } else if (storedStart < -0.009) {
+    var poison = Math.abs(storedStart);
+    if (priorClose) {
+      pettyStart = priorClose.onboard;
+      brought = round2(poison + Math.max(0, priorClose.short));
+      startMode = "carry";
+      carriedFrom = prev;
+    } else {
+      pettyStart = 0;
+      brought = round2(poison + storedBf);
+      startMode = "none";
+    }
+    source = "poison-normalized";
+  } else if (Math.abs(storedStart) > 0.009 || hasLines || hasIns) {
+    /* Legacy row with real activity — treat start as locked for display */
+    pettyStart = round2(Math.max(0, storedStart));
+    brought = storedBf;
+    if (!(brought > 0.009) && priorClose && priorClose.short > 0.009) {
+      brought = priorClose.short;
+      source = "legacy+priorShort";
+    } else {
+      source = "legacy";
+    }
+    startMode = row && row.startMode ? String(row.startMode) : "manual";
+  } else if (priorClose) {
+    pettyStart = priorClose.onboard;
+    brought = priorClose.short;
+    startMode = "carry";
+    carriedFrom = prev;
+    source = "carry-new";
+  } else {
+    source = "empty";
+  }
+
+  return {
+    month: month,
+    pettyStart: round2(Math.max(0, pettyStart)),
+    broughtForwardShort: round2(Math.max(0, brought)),
+    startMode: startMode,
+    carriedFrom: carriedFrom,
+    cashIns: cashIns,
+    cashInsAll: cashInsRaw,
+    row: row,
+    source: source,
+    priorMonth: prev,
+    priorOnboard: priorClose ? priorClose.onboard : null,
+    priorShort: priorClose ? priorClose.short : null,
+  };
+}
+
+/**
+ * Resolve petty month close (pure walk). empty=true when month and priors have no activity.
+ */
+function resolvePettyMonthClose(month, expPettyList, expenses, opts) {
+  opts = opts || {};
+  month = String(month || "").slice(0, 7);
+  var depth = opts.depth || 0;
+  if (!/^\d{4}-\d{2}$/.test(month) || depth > 36) {
+    return { month: month, onboard: 0, short: 0, empty: true, open: null, sum: null };
+  }
+  var row = findPettyRow(expPettyList, month);
+  var lines = [];
+  (Array.isArray(expenses) ? expenses : []).forEach(function (e) {
+    if (!e) return;
+    if (expenseMonthKey(e.date) !== month) return;
+    if (typeof opts.isTipExpense === "function" && opts.isTipExpense(e)) return;
+    lines.push(e);
+  });
+  var hasActivity = !!(row || lines.length);
+  if (!hasActivity) {
+    var prev0 = prevCalendarMonthKey(month);
+    if (!prev0) {
+      return { month: month, onboard: 0, short: 0, empty: true, open: null, sum: null };
+    }
+    var priorOnly = resolvePettyMonthClose(prev0, expPettyList, expenses, {
+      depth: depth + 1,
+      isTipExpense: opts.isTipExpense,
+      cashInIsTip: opts.cashInIsTip,
+    });
+    if (priorOnly && !priorOnly.empty) {
+      /* No local activity: close equals prior close (nothing changed) */
+      return {
+        month: month,
+        onboard: priorOnly.onboard,
+        short: priorOnly.short,
+        empty: false,
+        open: null,
+        sum: null,
+        passthrough: true,
+      };
+    }
+    return { month: month, onboard: 0, short: 0, empty: true, open: null, sum: null };
+  }
+
+  var open = resolvePettyMonthOpen(month, expPettyList, expenses, opts);
+  var closed = summarizePettyMonthClose({
+    pettyStart: open.pettyStart,
+    broughtForwardShort: open.broughtForwardShort,
+    cashIns: open.cashIns,
+    expenses: lines,
+  });
+  return {
+    month: month,
+    onboard: closed.onboard,
+    short: closed.short,
+    empty: false,
+    open: open,
+    sum: closed.sum,
+  };
+}
+
+/**
+ * Plan store patches to materialize pure carry into expPetty rows.
+ * For explicit DB/ops only — never from load or paint.
+ *
+ * @returns {{ patches: Array<{month, fields}>, n: number }}
+ */
+function planPettyCarryMaterialize(expPettyList, expenses, months, opts) {
+  opts = opts || {};
+  var list = Array.isArray(months) ? months.slice() : [];
+  if (!list.length) {
+    var seen = {};
+    (Array.isArray(expPettyList) ? expPettyList : []).forEach(function (p) {
+      if (p && p.month) seen[String(p.month).slice(0, 7)] = 1;
+    });
+    (Array.isArray(expenses) ? expenses : []).forEach(function (e) {
+      var m = expenseMonthKey(e && e.date);
+      if (m) seen[m] = 1;
+    });
+    list = Object.keys(seen).sort();
+  }
+  var patches = [];
+  list.forEach(function (month) {
+    var open = resolvePettyMonthOpen(month, expPettyList, expenses, opts);
+    if (!open || open.source === "empty") return;
+    if (open.startMode === "manual" && open.source === "manual") {
+      /* Manual lock: only patch BF if inheriting prior short and stored empty */
+      var rowM = open.row;
+      if (
+        rowM &&
+        !(Math.max(0, num(rowM.broughtForwardShort)) > 0.009) &&
+        open.broughtForwardShort > 0.009
+      ) {
+        patches.push({
+          month: month,
+          fields: { broughtForwardShort: open.broughtForwardShort },
+          reason: "manual-inherit-prior-short",
+        });
+      }
+      return;
+    }
+    var row = open.row;
+    var need =
+      !row ||
+      round2(Math.max(0, num(row.pettyStart))) !== open.pettyStart ||
+      round2(Math.max(0, num(row.broughtForwardShort))) !== open.broughtForwardShort ||
+      String(row.startMode || "") !== open.startMode ||
+      String(row.carriedFrom || "") !== String(open.carriedFrom || "");
+    if (!need) return;
+    patches.push({
+      month: month,
+      fields: {
+        pettyStart: open.pettyStart,
+        broughtForwardShort: open.broughtForwardShort,
+        startMode: open.startMode,
+        carriedFrom: open.carriedFrom || "",
+      },
+      reason: open.source,
+      create: !row,
+    });
+  });
+  return { patches: patches, n: patches.length };
+}
+
+/**
+ * Non-mutating plan: which crew floatPay lines would clear on empty envelope.
+ * Prefer this for ops/dry-run. clearCrewFloatPayOnEmptyEnvelope mutates (legacy).
+ */
+function planClearCrewFloatPayOnEmptyEnvelope(expenses, pettyStart, cashIns, opts) {
+  opts = opts || {};
+  var physicalStart = Math.max(0, round2(num(pettyStart)));
+  var cashInTotal = 0;
+  (Array.isArray(cashIns) ? cashIns : []).forEach(function (r) {
+    if (r) cashInTotal += num(r.amount);
+  });
+  cashInTotal = round2(cashInTotal);
+  var envelope = round2(physicalStart + cashInTotal);
+  var list = Array.isArray(expenses) ? expenses : [];
+  if (envelope > 0.009) {
+    return { changed: false, clearIds: [], envelope: envelope };
+  }
+  var clearIds = [];
+  list.forEach(function (e) {
+    if (!isCrewDayPayExpense(e)) return;
+    if (String(e.crewPayStatus || "") !== "Paid") return;
+    if (expensePaidFrom(e) === "own" || expensePaidFrom(e) === "card") return;
+    if (e.floatPay !== true) return;
+    if (opts.keepManual !== false && e.payStatusManual === true) return;
+    if (e.id != null) clearIds.push(String(e.id));
+  });
+  return {
+    changed: clearIds.length > 0,
+    clearIds: clearIds,
+    envelope: envelope,
+  };
+}
+
 /**
  * Captain pocket month bridge (pure) — month-to-month carry for reports/UI.
  *
@@ -1966,7 +2320,13 @@ function summarizeMonthSettlement(opts) {
     crewDayPayLineScore: crewDayPayLineScore,
     collapseCrewDayPayExpenses: collapseCrewDayPayExpenses,
     clearCrewFloatPayOnEmptyEnvelope: clearCrewFloatPayOnEmptyEnvelope,
+    planClearCrewFloatPayOnEmptyEnvelope: planClearCrewFloatPayOnEmptyEnvelope,
     summarizePettyCash: summarizePettyCash,
+    summarizePettyMonthClose: summarizePettyMonthClose,
+    prevCalendarMonthKey: prevCalendarMonthKey,
+    resolvePettyMonthOpen: resolvePettyMonthOpen,
+    resolvePettyMonthClose: resolvePettyMonthClose,
+    planPettyCarryMaterialize: planPettyCarryMaterialize,
     isAutoSyncedEnvelopeCashIn: isAutoSyncedEnvelopeCashIn,
     summarizePettyCashInRows: summarizePettyCashInRows,
     collectPettyCashInsFromMonths: collectPettyCashInsFromMonths,

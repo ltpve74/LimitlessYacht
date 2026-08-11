@@ -268,6 +268,72 @@
     return dto;
   }
 
+  /**
+   * Petty month open fields (carry rules) — pure model, no writes.
+   * View may paint; only explicit captain save / DB op persists.
+   */
+  function pettyMonthOpen(input) {
+    input = input || {};
+    var models = M(input);
+    if (!models.resolvePettyMonthOpen) {
+      return {
+        month: input.month || "",
+        pettyStart: 0,
+        broughtForwardShort: 0,
+        startMode: "none",
+        carriedFrom: "",
+        cashIns: [],
+        source: "empty",
+      };
+    }
+    return models.resolvePettyMonthOpen(
+      input.month || input.focusMonth || "",
+      input.expPetty || input.pettyRows || [],
+      input.expenses || input.allExpenses || [],
+      {
+        isTipExpense: input.isTipExpense,
+        cashInIsTip: input.cashInIsTip,
+      }
+    );
+  }
+
+  /** Petty month close (onboard + residual short) — pure. */
+  function pettyMonthClose(input) {
+    input = input || {};
+    var models = M(input);
+    if (!models.resolvePettyMonthClose) {
+      return { month: input.month || "", onboard: 0, short: 0, empty: true };
+    }
+    return models.resolvePettyMonthClose(
+      input.month || input.focusMonth || "",
+      input.expPetty || input.pettyRows || [],
+      input.expenses || input.allExpenses || [],
+      {
+        isTipExpense: input.isTipExpense,
+        cashInIsTip: input.cashInIsTip,
+      }
+    );
+  }
+
+  /**
+   * Plan of expPetty field patches to materialize carry — ops/DB only.
+   * Never auto-apply from paint/load.
+   */
+  function planPettyCarryMaterialize(input) {
+    input = input || {};
+    var models = M(input);
+    if (!models.planPettyCarryMaterialize) return { patches: [], n: 0 };
+    return models.planPettyCarryMaterialize(
+      input.expPetty || input.pettyRows || [],
+      input.expenses || input.allExpenses || [],
+      input.months,
+      {
+        isTipExpense: input.isTipExpense,
+        cashInIsTip: input.cashInIsTip,
+      }
+    );
+  }
+
   return {
     monthSettlement: monthSettlement,
     openPocketOuts: openPocketOuts,
@@ -279,5 +345,8 @@
     ownMoneyRepayHint: ownMoneyRepayHint,
     pocketBalances: pocketBalances,
     captainPocketMonthBridge: captainPocketMonthBridge,
+    pettyMonthOpen: pettyMonthOpen,
+    pettyMonthClose: pettyMonthClose,
+    planPettyCarryMaterialize: planPettyCarryMaterialize,
   };
 });

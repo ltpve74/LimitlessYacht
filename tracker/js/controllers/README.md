@@ -4,7 +4,7 @@ Application services between the view (`tracker/index.html`) and pure domain (`L
 
 | File | Domain |
 |------|--------|
-| `expenses.js` | Month settlement, pocket, open day-pay / tips |
+| `expenses.js` | Month settlement, pocket bridge, petty open/close carry, open day-pay / tips |
 | `charges.js` | Cash-to-boat, VAT parts, upsell commission sums |
 | `leads.js` | Realised net glimpse (white + boat free cash) |
 | `apa.js` | Pot totals / overage |
