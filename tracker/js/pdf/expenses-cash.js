@@ -376,9 +376,45 @@
         });
         gap(14);
 
-        /* —— 1) PETTY CASH snapshot —— */
-        sectionHead("1 · PETTY CASH");
-        noteLine("Boat envelope cash for " + periodLab + " only.", muted);
+        /* —— 1) CASH INCOME first (what guests paid onto the boat) —— */
+        sectionHead("1 · CASH INCOME");
+        noteLine(
+          "Cash that came onto the boat in " +
+            periodLab +
+            " — charter free cash, cash-only fees, and cash end-of-charter amounts. Matches what guests paid in cash.",
+          muted
+        );
+        gap(10);
+        kvRow("Total cash in", pdfMoney(cashIn), {
+          big: true,
+          boldLab: true,
+          bg: greenBg,
+          labColor: greenInk,
+          valColor: greenInk,
+        });
+        if ((report.cashIns || []).length) {
+          gap(10);
+          noteLine("Income lines (with date):", navy);
+          gap(6);
+          var cashInRows = (report.cashIns || []).slice().sort(function (a, b) {
+            return String((a && a.date) || "").localeCompare(String((b && b.date) || ""));
+          });
+          cashInRows.forEach(function (r, idx) {
+            var when = r.date ? fmtDate(r.date) : "Date not recorded";
+            var lab = (r.label || "Cash in").replace(/\s+/g, " ").trim();
+            lineItem(when + " · " + lab, r.amount, "Cash onto the boat", idx, greenInk);
+          });
+        } else if (!(cashIn > 0.009)) {
+          gap(8);
+          noteLine("No cash income recorded on the boat for this month.", muted);
+        }
+
+        /* —— 2) PETTY CASH position (after income) —— */
+        sectionHead("2 · PETTY CASH");
+        noteLine(
+          "Boat envelope for " + periodLab + " — income first (above), then what left the envelope.",
+          muted
+        );
         gap(8);
         kvRow("Cash in", pdfMoney(cashIn), {
           big: true,
@@ -404,9 +440,9 @@
           valColor: onBoard > 0.009 ? greenInk : amberInk,
         });
 
-        /* —— 2) PETTY SHORT — who & why (not mixed with commission) —— */
+        /* —— 3) PETTY SHORT — who & why (not mixed with commission) —— */
         if (boatShort > 0.009) {
-          sectionHead("2 · PETTY CASH SHORT");
+          sectionHead("3 · PETTY CASH SHORT");
           noteLine(
             "At the end of " +
               periodLab +
@@ -449,7 +485,7 @@
 
         /* —— 3) CAPTAIN-SOURCED BUSINESS — completed only, then settlement status —— */
         if (hasCommStory) {
-          sectionHead("3 · CAPTAIN-SOURCED BUSINESS");
+          sectionHead("4 · CAPTAIN-SOURCED BUSINESS");
           noteLine(
             "Only charters that have already taken place up until " +
               (asOfYmd ? fmtDate(asOfYmd) : "this date") +
@@ -599,7 +635,7 @@
               (PS.broughtForward || 0) > 0.009 ||
               (PS.openLines || []).length))
         ) {
-          sectionHead("4 · CAPTAIN OUT OF POCKET");
+          sectionHead("5 · CAPTAIN OUT OF POCKET");
           noteLine(
             "Money the captain put in from own pocket (crew / shops). Separate from captain-sourced business. A repay only covers spends on or before that repay date.",
             muted
@@ -731,8 +767,68 @@
           }
         }
 
-        /* —— Detail sections —— */
-        sectionHead("5 · PETTY CASH DETAIL");
+        /* —— Cash out breakdown (expenses after income) —— */
+        var tipOut = B.tipPayout || 0;
+        var bucketRows = [
+          { lab: "Crew day rates", val: B.crewDayPay || 0 },
+          {
+            lab: "Commission paid on business generated",
+            val: B.commission || 0,
+          },
+          { lab: "Reimbursement of captain out-of-pocket", val: B.reimburseCaptain || 0 },
+          { lab: "Reimbursement of crew out-of-pocket", val: B.reimburseCrew || 0 },
+          {
+            lab: "Card tips paid to crew (before VAT)",
+            val: tipOut,
+          },
+          { lab: "Other", val: B.otherPetty || 0 },
+        ].filter(function (r) {
+          return r.val > 0.009;
+        });
+        if (bucketRows.length || cashOut > 0.009) {
+          sectionHead("6 · WHERE THE CASH WENT");
+          noteLine(
+            "Cash that left the boat envelope this month (after income above). Commission paid settles amounts earned on captain-sourced business (see section 4).",
+            muted
+          );
+          gap(10);
+          bucketRows.forEach(function (r, i) {
+            if (i) gap(8);
+            kvRow(r.lab, pdfMoney(r.val), { boldLab: true });
+          });
+          if (tipOut > 0.009) {
+            gap(10);
+            noteLine(
+              "Card tips: charged on the guest's card (tip total includes VAT). Amount paid out to crew from petty is the tip before VAT — the VAT portion is not distributed as crew tip.",
+              muted
+            );
+            /* Dated tip payout lines when present on cash-out detail */
+            var tipLines = (report.cashOutLines || []).filter(function (r) {
+              return r && (r.kind === "tip" || r.purpose === "tip-payout");
+            });
+            if (tipLines.length) {
+              gap(8);
+              noteLine("Tip payouts (with date):", navy);
+              gap(6);
+              tipLines
+                .slice()
+                .sort(function (a, b) {
+                  return String((a && a.date) || "").localeCompare(String((b && b.date) || ""));
+                })
+                .forEach(function (r, idx) {
+                  var when = r.date ? fmtDate(r.date) : "Date not recorded";
+                  var lab = (r.label || "Crew tip").replace(/\s+/g, " ").trim();
+                  var sub =
+                    "Charged on card · paid to crew before VAT" +
+                    (r.detail ? " · " + String(r.detail).slice(0, 60) : "");
+                  lineItem(when + " · " + lab, r.amount, sub, idx, greenInk);
+                });
+            }
+          }
+        }
+
+        /* Envelope math (compact) — income already detailed in section 1 */
+        sectionHead("7 · ENVELOPE RECONCILIATION");
         kvRow("Start", pdfMoney(start));
         gap(6);
         kvRow("Cash in", pdfMoney(cashIn));
@@ -750,42 +846,6 @@
           valColor: onBoard > 0.009 ? greenInk : amberInk,
           boldLab: true,
         });
-
-        if ((report.cashIns || []).length) {
-          gap(14);
-          noteLine("Cash in lines", navy);
-          gap(6);
-          (report.cashIns || []).forEach(function (r, idx) {
-            lineItem(r.label || "Cash in", r.amount, r.date ? fmtDate(r.date) : "", idx, greenInk);
-          });
-        }
-
-        /* Cash out buckets only if something left pot */
-        var bucketRows = [
-          { lab: "Crew day rates", val: B.crewDayPay || 0 },
-          {
-            lab: "Commission paid on business generated",
-            val: B.commission || 0,
-          },
-          { lab: "Reimbursement of captain out-of-pocket", val: B.reimburseCaptain || 0 },
-          { lab: "Reimbursement of crew out-of-pocket", val: B.reimburseCrew || 0 },
-          { lab: "Tip payouts", val: B.tipPayout || 0 },
-          { lab: "Other", val: B.otherPetty || 0 },
-        ].filter(function (r) {
-          return r.val > 0.009;
-        });
-        if (bucketRows.length) {
-          sectionHead("6 · WHERE THE CASH WENT");
-          noteLine(
-            "Cash that left the boat envelope this month. Commission paid is settlement of amounts earned on captain-sourced business (see section 3).",
-            muted
-          );
-          gap(10);
-          bucketRows.forEach(function (r, i) {
-            if (i) gap(8);
-            kvRow(r.lab, pdfMoney(r.val), { boldLab: true });
-          });
-        }
 
         /* Crew — petty first; covered cash ≠ marked floatPay when short */
         var potCrewCovered =
@@ -817,7 +877,7 @@
           capCrew > 0.009 ||
           ownerCrew > 0.009
         ) {
-          sectionHead("7 · CREW");
+          sectionHead("8 · CREW");
           function crewOwnerLine(r, idx, accent) {
             /* Model ownerTitle/ownerDetail: overnight / long day / day + guest + dates */
             var title = r.ownerTitle || r.vendor || "Crew";
@@ -860,7 +920,7 @@
             });
             if (potCrewShort > 0.009) {
               gap(10);
-              kvRow("Crew short (see section 2)", pdfMoney(potCrewShort), {
+              kvRow("Crew short (see section 3)", pdfMoney(potCrewShort), {
                 big: true,
                 bg: redBg,
                 labColor: redInk,
