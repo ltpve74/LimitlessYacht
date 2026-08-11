@@ -166,17 +166,22 @@
     if (pocketStory && input.monthLabel) pocketStory.monthLabel = input.monthLabel;
 
     /*
-     * Captain business: charter START date only (never booking/closed date).
-     * Future charters (start after report month) excluded.
+     * Captain business: charter START day only (never booking/closed date).
+     * Day-cap asOf = min(today, last day of report month):
+     *  - unstarted charters later this month stay OUT (even if confirmed)
+     *  - future months always OUT
      */
+    var asOfYmd = models.commissionBizAsOfDay
+      ? models.commissionBizAsOfDay(month, input.asOfYmd || input.todayYmd || "")
+      : "";
     function mergeBiz(scope) {
       var leadBiz =
         models.summarizeCaptainLeadBizAsOf
-          ? models.summarizeCaptainLeadBizAsOf(input.leads || [], month, scope)
+          ? models.summarizeCaptainLeadBizAsOf(input.leads || [], month, scope, asOfYmd)
           : { n: 0, gross: 0, base: 0, comm: 0, items: [] };
       var chBiz =
         models.summarizeCaptainChargeBizAsOf
-          ? models.summarizeCaptainChargeBizAsOf(input.charters || [], month, scope)
+          ? models.summarizeCaptainChargeBizAsOf(input.charters || [], month, scope, asOfYmd)
           : { n: 0, gross: 0, base: 0, comm: 0, items: [] };
       var items = (leadBiz.items || []).concat(chBiz.items || []);
       items.sort(function (a, b) {
@@ -188,6 +193,7 @@
         base: Math.round(((leadBiz.base || 0) + (chBiz.base || 0)) * 100) / 100,
         comm: Math.round(((leadBiz.comm || 0) + (chBiz.comm || 0)) * 100) / 100,
         items: items,
+        asOfYmd: asOfYmd || leadBiz.asOfYmd || chBiz.asOfYmd || "",
       };
     }
     /* Prefer model; optional input.bizMonth only if models missing */
@@ -195,17 +201,33 @@
       models.summarizeCaptainLeadBizAsOf || models.summarizeCaptainChargeBizAsOf
         ? mergeBiz("month")
         : input.bizMonth || { n: 0, gross: 0, base: 0, comm: 0, items: [] };
+    /* Cumulative captain-sourced business that has already started (through asOf) */
     var bizThrough =
       models.summarizeCaptainLeadBizAsOf || models.summarizeCaptainChargeBizAsOf
         ? mergeBiz("through")
         : input.bizThrough || { n: 0, gross: 0, base: 0, comm: 0, items: [] };
 
+    /* Paid draws only on/before asOf day when dates exist */
+    var paidExpenses = through;
+    if (asOfYmd && /^\d{4}-\d{2}-\d{2}$/.test(asOfYmd)) {
+      paidExpenses = (through || []).filter(function (e) {
+        if (!e) return false;
+        var d = String(e.date || "").slice(0, 10);
+        if (/^\d{4}-\d{2}-\d{2}$/.test(d) && d > asOfYmd) return false;
+        return true;
+      });
+    }
     var commBal = models.summarizeCaptainCommissionBalance
       ? models.summarizeCaptainCommissionBalance({
           earned: bizThrough.comm || 0,
-          expenses: through,
+          expenses: paidExpenses,
         })
-      : { earned: bizThrough.comm || 0, paid: 0, outstanding: bizThrough.comm || 0 };
+      : {
+          earned: bizThrough.comm || 0,
+          paid: 0,
+          outstanding: bizThrough.comm || 0,
+          status: (bizThrough.comm || 0) > 0.009 ? "outstanding" : "none",
+        };
 
     var cashInRows = cashIns.map(function (r) {
       return {
@@ -294,11 +316,13 @@
       /* Captain pocket — model bridge as-of month end */
       pocketStory: pocketStory,
 
-      /* Commission — earned from biz DTO; paid/outstanding from model on through ledger */
+      /* Commission — earned on completed charters only (asOf day cap); paid from petty */
       commissionEarned: commBal.earned != null ? commBal.earned : bizThrough.comm || 0,
       commissionPaidAll: commBal.paid != null ? commBal.paid : 0,
       commissionOpen: commBal.outstanding != null ? commBal.outstanding : 0,
+      commissionStatus: commBal.status || "none",
       commissionPaidThisMonth: outBuckets.commission || 0,
+      bizAsOfYmd: asOfYmd || bizThrough.asOfYmd || "",
       bizMonthGross: bizMonth.gross || 0,
       bizMonthBase: bizMonth.base || 0,
       bizMonthComm: bizMonth.comm || 0,

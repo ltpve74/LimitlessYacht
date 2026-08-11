@@ -310,29 +310,40 @@
         otherShortAmt = Math.round(otherShortAmt * 100) / 100;
         var outSum =
           Math.round((boatShort + Math.max(0, pocketOpen) + commOpen) * 100) / 100;
-        var commMonth = Number(report.bizMonthComm) || 0;
-        var commThrough = Number(report.commissionEarned != null ? report.commissionEarned : report.bizThroughComm) || 0;
-        var commPrior =
-          commThrough > commMonth + 0.009
-            ? Math.round((commThrough - commMonth) * 100) / 100
-            : 0;
-
-        var bizN = Number(report.bizMonthN != null ? report.bizMonthN : report.bizThroughN) || 0;
-        var bizGross = Number(report.bizMonthGross != null ? report.bizMonthGross : report.bizThroughGross) || 0;
-        var bizBase = Number(report.bizMonthBase != null ? report.bizMonthBase : report.bizThroughBase) || 0;
-        var bizComm = Number(report.bizMonthComm != null ? report.bizMonthComm : report.bizThroughComm) || 0;
-        if (!(bizComm > 0.009) && commThrough > 0.009) bizComm = commThrough;
-        if (!(bizGross > 0.009) && (report.bizThroughGross || 0) > 0.009) {
-          bizN = Number(report.bizThroughN) || bizN;
-          bizGross = Number(report.bizThroughGross) || 0;
-          bizBase = Number(report.bizThroughBase) || 0;
-          bizComm = Number(report.bizThroughComm) || bizComm;
+        /*
+         * Captain-sourced business = cumulative completed charters only
+         * (through asOf day). Never month-only (misses prior paid work) and
+         * never unstarted future charters still inside the report month.
+         */
+        var asOfYmd = String(report.bizAsOfYmd || "").slice(0, 10);
+        var bizN = Number(report.bizThroughN) || 0;
+        var bizGross = Number(report.bizThroughGross) || 0;
+        var bizBase = Number(report.bizThroughBase) || 0;
+        var bizComm = Number(
+          report.commissionEarned != null ? report.commissionEarned : report.bizThroughComm
+        ) || 0;
+        var commStatus = String(report.commissionStatus || "").toLowerCase();
+        if (!commStatus) {
+          if (!(bizComm > 0.009) && !(commOpen > 0.009) && !(report.commissionPaidAll > 0.009))
+            commStatus = "none";
+          else if (commOpen < 0.01) commStatus = "paid";
+          else if ((report.commissionPaidAll || 0) > 0.009) commStatus = "partial";
+          else commStatus = "outstanding";
         }
+        var commStatusLabel =
+          commStatus === "paid"
+            ? "Fully paid"
+            : commStatus === "partial"
+              ? "Partly paid"
+              : commStatus === "outstanding"
+                ? "Unpaid"
+                : "None";
         var hasCommStory =
           bizComm > 0.009 ||
           (report.commissionPaidThisMonth || 0) > 0.009 ||
           commOpen > 0.009 ||
-          (report.commissionEarned || 0) > 0.009;
+          (report.commissionPaidAll || 0) > 0.009 ||
+          bizN > 0;
 
         /* —— Header —— */
         push(52, function (y) {
@@ -436,20 +447,20 @@
           noteLine("Carries into the next month until cash covers the hole.", redInk);
         }
 
-        /* —— 3) CAPTAIN-SOURCED BUSINESS — revenue first, then captain share —— */
+        /* —— 3) CAPTAIN-SOURCED BUSINESS — completed only, then settlement status —— */
         if (hasCommStory) {
           sectionHead("3 · CAPTAIN-SOURCED BUSINESS");
           noteLine(
-            "Charters the captain brought in up until the end of " +
-              periodLab +
-              ". Future bookings are not included. Captain share = 15% of the amount BEFORE VAT.",
+            "Only charters that have already taken place up until " +
+              (asOfYmd ? fmtDate(asOfYmd) : "this date") +
+              ". Confirmed future charters are excluded until they run — figures reflect money-generating activity that has happened, not the forward book. Commission = 15% of the amount BEFORE VAT.",
             muted
           );
           gap(12);
-          noteLine("Business up until this date:", navy);
+          noteLine("Business completed to date:", navy);
           gap(8);
           if (bizN > 0) {
-            kvRow("Charters up until this date", String(bizN), {
+            kvRow("Charters completed to date", String(bizN), {
               big: true,
               boldLab: true,
               bg: slateBg,
@@ -475,11 +486,11 @@
           });
           gap(10);
           noteLine(
-            "Captain share on that business = 15% of the amount before VAT.",
+            "Commission on that completed business = 15% of the amount before VAT.",
             navy
           );
           gap(8);
-          kvRow("Captain share (15% before VAT)", pdfMoney(bizComm || commThrough), {
+          kvRow("Commission earned (15% before VAT)", pdfMoney(bizComm), {
             big: true,
             boldLab: true,
             bg: goldSoft,
@@ -487,25 +498,37 @@
             valColor: navy,
           });
           gap(10);
-          if (bizGross > 0.009 && (bizComm || commThrough) > 0.009) {
+          if (bizGross > 0.009 && bizComm > 0.009) {
             noteLine(
-              "Read it this way: captain-sourced business brought in about " +
+              "Read it this way: completed captain-sourced charters brought in about " +
                 pdfMoney(bizGross) +
-                " gross. Captain share on that is " +
-                pdfMoney(bizComm || commThrough) +
-                " (15% before VAT) — pay for business generated, not a random bill.",
+                " gross. Commission on that work is " +
+                pdfMoney(bizComm) +
+                " (15% before VAT).",
               muted
             );
             gap(10);
           }
-          /* Paid vs open — clear when money has left petty and what is still due */
+          /* Settlement status: paid / partly paid / unpaid */
           var paidMonth = Number(report.commissionPaidThisMonth) || 0;
           var paidAll = Number(report.commissionPaidAll) || 0;
           var paidPrior =
             paidAll > paidMonth + 0.009
               ? Math.round((paidAll - paidMonth) * 100) / 100
               : 0;
-          noteLine("Paid from petty cash (up until this date):", navy);
+          var statusBg =
+            commStatus === "paid" ? greenBg : commStatus === "partial" ? amberBg : redBg;
+          var statusInk =
+            commStatus === "paid" ? greenInk : commStatus === "partial" ? amberInk : redInk;
+          kvRow("Settlement status", commStatusLabel, {
+            big: true,
+            boldLab: true,
+            bg: statusBg,
+            labColor: statusInk,
+            valColor: statusInk,
+          });
+          gap(10);
+          noteLine("Paid from petty cash (to date):", navy);
           gap(8);
           if (paidMonth > 0.009) {
             kvRow("Paid in " + periodLab, pdfMoney(paidMonth), {
@@ -520,51 +543,40 @@
             kvRow("Paid in earlier months", pdfMoney(paidPrior));
             gap(6);
           }
-          kvRow("Total paid up until this date", pdfMoney(paidAll), {
+          kvRow("Total paid to date", pdfMoney(paidAll), { boldLab: true });
+          gap(8);
+          kvRow("Still outstanding", pdfMoney(commOpen), {
+            big: true,
+            bg: commOpen > 0.009 ? amberBg : greenBg,
+            labColor: commOpen > 0.009 ? amberInk : greenInk,
+            valColor: commOpen > 0.009 ? amberInk : greenInk,
             boldLab: true,
           });
           if (commOpen > 0.009) {
-            gap(12);
-            kvRow("Still outstanding (up until this date)", pdfMoney(commOpen), {
-              big: true,
-              bg: amberBg,
-              labColor: amberInk,
-              valColor: amberInk,
-              boldLab: true,
-            });
             gap(6);
             if (paidAll > 0.009) {
               noteLine(
-                "Why still open: captain share earned on the business above is " +
-                  pdfMoney(bizComm || commThrough) +
+                "Partly settled: commission earned on completed business is " +
+                  pdfMoney(bizComm) +
                   "; " +
                   pdfMoney(paidAll) +
-                  " has already left petty. Difference " +
+                  " has already been paid from petty. Balance " +
                   pdfMoney(commOpen) +
-                  " not yet paid from petty by the end of " +
-                  periodLab +
-                  ".",
+                  " remains unpaid.",
                 amberInk
               );
             } else {
               noteLine(
-                "Why still open: none of the captain share on the business above had left petty by the end of " +
-                  periodLab +
-                  ". Not marked paid in this report.",
+                "Unpaid: commission earned on the completed business above has not yet been paid from petty.",
                 amberInk
               );
             }
-          } else if (paidAll > 0.009 && (bizComm || commThrough) > 0.009) {
-            gap(10);
-            kvRow("Outstanding up until this date", pdfMoney(0), {
-              big: true,
-              bg: greenBg,
-              labColor: greenInk,
-              valColor: greenInk,
-              boldLab: true,
-            });
+          } else if (paidAll > 0.009 && bizComm > 0.009) {
             gap(6);
-            noteLine("Captain share fully covered from petty up until this date.", greenInk);
+            noteLine(
+              "Fully paid: commission on completed business to date has been settled from petty.",
+              greenInk
+            );
           }
         }
 

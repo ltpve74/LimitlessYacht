@@ -337,25 +337,34 @@ function summarizeCaptainChargeCommissions(charters) {
 
 /**
  * Captain upsell commissions as-of a report month (pure).
- * Charge date month must be in scope — future charge dates excluded.
+ * Charge date must be in scope — future charge dates excluded.
+ * Optional asOfYmd day-cap: charge date after that day is out (unstarted).
  * scope "month" | "through"
+ *
+ * @param {Array} charters
+ * @param {string} month YYYY-MM
+ * @param {"month"|"through"} scope
+ * @param {string} [asOfYmd] YYYY-MM-DD
  */
-function summarizeCaptainChargeBizAsOf(charters, month, scope) {
+function summarizeCaptainChargeBizAsOf(charters, month, scope, asOfYmd) {
   scope = scope === "through" ? "through" : "month";
   month = String(month || "").slice(0, 7);
+  var asOf = String(asOfYmd || "").slice(0, 10);
   var gross = 0;
   var base = 0;
   var comm = 0;
   var n = 0;
   var items = [];
   if (!/^\d{4}-\d{2}$/.test(month)) {
-    return { n: 0, gross: 0, base: 0, comm: 0, items: [] };
+    return { n: 0, gross: 0, base: 0, comm: 0, items: [], asOfYmd: asOf };
   }
   (Array.isArray(charters) ? charters : []).forEach(function (c) {
     if (!isChargeCaptainComm(c)) return;
-    var dm = String((c && c.date) || "").slice(0, 7);
+    var day = String((c && c.date) || "").slice(0, 10);
+    var dm = day.slice(0, 7);
     if (!/^\d{4}-\d{2}$/.test(dm)) return;
-    if (dm > month) return; /* future */
+    if (dm > month) return; /* future month */
+    if (/^\d{4}-\d{2}-\d{2}$/.test(asOf) && day && day > asOf) return; /* not yet */
     if (scope === "month" && dm !== month) return;
     if (scope === "through" && dm > month) return;
     var p = chargeCommissionParts(c);
@@ -368,14 +377,14 @@ function summarizeCaptainChargeBizAsOf(charters, month, scope) {
       kind: "charge",
       id: c.id != null ? String(c.id) : "",
       name: String(c.client || "Upsell").trim() || "Upsell",
-      start: String(c.date || "").slice(0, 10),
+      start: day,
       end: "",
       gross: round2(num(p.gross)),
       base: round2(num(p.base)),
       comm: round2(num(p.total)),
     });
   });
-  return { n: n, gross: gross, base: base, comm: comm, items: items };
+  return { n: n, gross: gross, base: base, comm: comm, items: items, asOfYmd: asOf };
 }
 
 /**
