@@ -113,16 +113,14 @@ function expensePaidFrom(e) {
 /**
  * Physical cash left the boat envelope?
  * Own money / captain pocket / paidById → never.
- * Crew day-pay → only floatPay === true and not own.
+ * Crew day-pay → only floatPay === true (never bare Paid + Petty label).
  */
 function expenseHitsPettyCash(e, opts) {
   opts = opts || {};
   if (!e) return false;
-  if (opts.isCrewDayPay) {
-    if (e.crewPayStatus !== "Paid") return false;
-    var pfCrew = expensePaidFrom(e);
-    if (pfCrew === "own" || pfCrew === "owner" || pfCrew === "card") return false;
-    return e.floatPay === true;
+  /* Crew day-pay: sole switch is floatPay via crewDayPayHitsPetty */
+  if (opts.isCrewDayPay || isCrewDayPayExpense(e)) {
+    return crewDayPayHitsPetty(e);
   }
   var pf = expensePaidFrom(e);
   if (pf === "card" || pf === "own" || pf === "owner") return false;
