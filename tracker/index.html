@@ -13373,7 +13373,7 @@ function buildExpensesCashPdf(month){
         /* Cash out buckets — boat pot only (must sum toward cashOut) */
         sectionHead("CASH OUT  ·  "+expPdfMoney(cashOut));
         [
-          {lab:"Captain commission", val:B.commission||0},
+          {lab:"Captain commission (from pot)", val:B.commission||0},
           {lab:"Crew day pay (boat pot)", val:B.crewDayPay||0},
           {lab:"Repay captain pocket", val:B.reimburseCaptain||0},
           {lab:"Repay crew pocket", val:B.reimburseCrew||0},
@@ -13382,90 +13382,6 @@ function buildExpensesCashPdf(month){
         ].filter(function(r){ return r.val>0.009; }).forEach(function(r){
           kvRow(r.lab, expPdfMoney(r.val));
         });
-
-        /* Commission + business generated */
-        sectionHead("CAPTAIN COMMISSION");
-        if((report.bizMonthGross||0)>0.009||(report.bizMonthComm||0)>0.009){
-          kvRow("Business generated (gross) · this month", expPdfMoney(report.bizMonthGross||0), {boldLab:true});
-          if((report.bizMonthBase||0)>0.009&&Math.abs((report.bizMonthBase||0)-(report.bizMonthGross||0))>0.5){
-            kvRow("Commission base (ex VAT) · this month", expPdfMoney(report.bizMonthBase||0));
-          }
-          kvRow("Commission on that business · this month", expPdfMoney(report.bizMonthComm||0));
-          if(report.bizMonthN) kvRow("Deals / upsells counted", String(report.bizMonthN));
-        }
-        if((report.bizThroughGross||report.bizAllGross||0)>0.009){
-          kvRow("Business generated (gross) · through end of month", expPdfMoney(report.bizThroughGross||report.bizAllGross||0));
-          if((report.bizThroughBase||report.bizAllBase||0)>0.009&&Math.abs((report.bizThroughBase||report.bizAllBase||0)-(report.bizThroughGross||report.bizAllGross||0))>0.5){
-            kvRow("Commission base (ex VAT) · through end of month", expPdfMoney(report.bizThroughBase||report.bizAllBase||0));
-          }
-          kvRow("Commission earned · through end of month", expPdfMoney(report.commissionEarned||report.bizThroughComm||report.bizAllComm||0));
-        }
-        kvRow("Paid from boat this month", expPdfMoney(report.commissionPaidThisMonth||0), {boldLab:true});
-        kvRow("Paid from boat · through end of month", expPdfMoney(report.commissionPaidAll||0));
-        if((report.commissionOpen||0)>0.009){
-          kvRow("Commission outstanding · end of month", expPdfMoney(report.commissionOpen), {bg:amberBg, labColor:amberInk, valColor:amberInk, boldLab:true});
-        }
-        (report.commissionLines||[]).forEach(function(r, idx){
-          lineItem(r.description||r.vendor||"Commission draw", r.amount, r.date?fmtDate(r.date):"", idx, gold);
-        });
-
-        /* Captain pocket — month bridge (prior short → this month → repay) */
-        sectionHead("CAPTAIN POCKET");
-        var PS=report.pocketStory||null;
-        if(PS){
-          kvRow("Open from prior months (carried in)", expPdfMoney(PS.broughtForward||0),
-            (PS.broughtForward||0)>0.009?{bg:amberBg, labColor:amberInk, valColor:amberInk, boldLab:true}:null);
-          kvRow("Fronted this month", expPdfMoney(PS.monthSpend||0), {boldLab:true});
-          if((PS.stewMonth||0)>0.009) kvRow("  of which stew day rates", expPdfMoney(PS.stewMonth));
-          if((PS.shopMonth||0)>0.009) kvRow("  of which shops / other", expPdfMoney(PS.shopMonth));
-          kvRow("Repaid from boat pot this month", expPdfMoney(PS.monthRepay||0));
-          if((PS.repayToPrior||0)>0.009) kvRow("  clears prior pocket short", expPdfMoney(PS.repayToPrior));
-          if((PS.repayToThis||0)>0.009) kvRow("  covers this month", expPdfMoney(PS.repayToThis));
-          kvRow("Still open (end of month)", expPdfMoney(PS.closingOpen||0),
-            (PS.closingOpen||0)>0.009
-              ?{big:true, bg:amberBg, labColor:amberInk, valColor:amberInk, boldLab:true}
-              :{big:true, bg:greenBg, labColor:greenInk, valColor:greenInk, boldLab:true});
-          if((PS.priorLines||[]).length){
-            push(16, function(y){ drawText("Prior months (still open at start)", margin+2, y-2, 9, true, muted); });
-            (PS.priorLines||[]).forEach(function(p, idx){
-              var what=p.vendor||"Spend";
-              if(p.description&&p.description!==p.vendor) what=p.vendor+" - "+p.description;
-              var tag=p.isLongDay?"Stew long day":(p.isStew?"Stew day rate":"Shop");
-              var sub=[p.date?fmtDate(p.date):"", "prior", tag].filter(Boolean).join(" · ");
-              lineItem(what, p.amount, sub, idx, amberInk);
-            });
-          }
-          if((PS.monthLines||[]).length){
-            push(16, function(y){ drawText("Fronted this month", margin+2, y-2, 9, true, muted); });
-            (PS.monthLines||[]).forEach(function(p, idx){
-              var what=p.vendor||"Spend";
-              if(p.description&&p.description!==p.vendor) what=p.vendor+" - "+p.description;
-              var tag=p.isLongDay?"Stew long day":(p.isStew?"Stew day rate":"Shop");
-              var sub=[p.date?fmtDate(p.date):"", tag].filter(Boolean).join(" · ");
-              lineItem(what, p.amount, sub, idx, p.isStew?gold:greenInk);
-            });
-          }
-          if((PS.monthRepayLines||[]).length){
-            push(16, function(y){ drawText("Repaid from pot this month", margin+2, y-2, 9, true, muted); });
-            (PS.monthRepayLines||[]).forEach(function(p, idx){
-              lineItem(p.description||p.vendor||"Repay captain", p.amount, p.date?fmtDate(p.date):"", idx, greenInk);
-            });
-          }
-        } else {
-          kvRow("Fronted (listed)", expPdfMoney(capTot));
-          kvRow("Repaid this month", expPdfMoney(capRepay));
-          kvRow("Still owed", expPdfMoney(capOpen),
-            capOpen>0.009
-              ?{big:true, bg:amberBg, labColor:amberInk, valColor:amberInk, boldLab:true}
-              :{big:true, bg:greenBg, labColor:greenInk, valColor:greenInk, boldLab:true});
-          capList.forEach(function(p, idx){
-            var what=p.vendor||"Spend";
-            if(p.description&&p.description!==p.vendor) what=p.vendor+" - "+p.description;
-            var st=p.repaid||p.coveredByThisMonth?"Repaid":"Open";
-            var sub=[p.date?fmtDate(p.date):"", p.priorMonth?"prior":"", st].filter(Boolean).join(" · ");
-            lineItem(what, p.amount, sub, idx, p.repaid||p.coveredByThisMonth?greenInk:amberInk);
-          });
-        }
 
         /* Crew — split by who paid (pot vs captain vs books). Totals must not confuse cash-out. */
         var crewTot=report.crewPaidTotal||0;
@@ -13510,15 +13426,6 @@ function buildExpensesCashPdf(month){
           }
         }
 
-        /* Outstanding at end of report month (pocket story is as-of month close) */
-        var pocketOpenEnd=PS&&PS.closingOpen!=null?PS.closingOpen:capOpen;
-        if(pocketOpenEnd>0.009||(report.commissionOpen||0)>0.009||report.cashShort>0.009){
-          sectionHead("OUTSTANDING · END OF MONTH");
-          if(pocketOpenEnd>0.009) kvRow("Captain pocket", expPdfMoney(pocketOpenEnd));
-          if((report.commissionOpen||0)>0.009) kvRow("Captain commission", expPdfMoney(report.commissionOpen));
-          if(report.cashShort>0.009) kvRow("Books short", expPdfMoney(report.cashShort));
-        }
-
         /* Full cash-out — only lines that hit the boat pot */
         sectionHead("CASH OUT DETAIL");
         var potLines=(report.lines||[]).filter(function(r){
@@ -13541,8 +13448,113 @@ function buildExpensesCashPdf(month){
           });
         }
 
+        /*
+         * Captain sections last — as-of end of report month only.
+         * July: pocket still open (repay in August must not clear July).
+         */
+        var PS=report.pocketStory||null;
+        sectionHead("CAPTAIN POCKET  ·  END OF MONTH");
+        if(PS){
+          if((PS.broughtForward||0)>0.009){
+            kvRow("Open from prior months (carried in)", expPdfMoney(PS.broughtForward||0),
+              {bg:amberBg, labColor:amberInk, valColor:amberInk, boldLab:true});
+          }
+          kvRow("Fronted this month (captain cash)", expPdfMoney(PS.monthSpend||0), {boldLab:true});
+          if((PS.stewMonth||0)>0.009) kvRow("  of which stew day rates", expPdfMoney(PS.stewMonth));
+          if((PS.shopMonth||0)>0.009) kvRow("  of which shops / other", expPdfMoney(PS.shopMonth));
+          kvRow("Repaid from boat pot this month", expPdfMoney(PS.monthRepay||0));
+          if((PS.repayToPrior||0)>0.009) kvRow("  clears prior pocket short", expPdfMoney(PS.repayToPrior));
+          if((PS.repayToThis||0)>0.009) kvRow("  covers this month", expPdfMoney(PS.repayToThis));
+          if((PS.monthRepay||0)<0.01&&(PS.closingOpen||0)>0.009){
+            push(16, function(y){
+              drawText("No pot repay in this month — captain still out of pocket at month end.", margin+2, y-4, 8, false, amberInk, contentW);
+            });
+          }
+          kvRow("Still open (end of "+(report.monthLabel||"month")+")", expPdfMoney(PS.closingOpen||0),
+            (PS.closingOpen||0)>0.009
+              ?{big:true, bg:amberBg, labColor:amberInk, valColor:amberInk, boldLab:true}
+              :{big:true, bg:greenBg, labColor:greenInk, valColor:greenInk, boldLab:true});
+          if((PS.priorLines||[]).length){
+            push(16, function(y){ drawText("Prior months (still open at start)", margin+2, y-2, 9, true, muted); });
+            (PS.priorLines||[]).forEach(function(p, idx){
+              var what=p.vendor||"Spend";
+              if(p.description&&p.description!==p.vendor) what=p.vendor+" - "+p.description;
+              var tag=p.isLongDay?"Stew long day":(p.isStew?"Stew day rate":"Shop");
+              var sub=[p.date?fmtDate(p.date):"", "prior", tag].filter(Boolean).join(" · ");
+              lineItem(what, p.amount, sub, idx, amberInk);
+            });
+          }
+          if((PS.monthLines||[]).length){
+            push(16, function(y){ drawText("Fronted this month", margin+2, y-2, 9, true, muted); });
+            (PS.monthLines||[]).forEach(function(p, idx){
+              var what=p.vendor||"Spend";
+              if(p.description&&p.description!==p.vendor) what=p.vendor+" - "+p.description;
+              var tag=p.isLongDay?"Stew long day":(p.isStew?"Stew day rate":"Shop");
+              var openTag=(PS.monthRepay||0)<0.01?"open at month end":"";
+              var sub=[p.date?fmtDate(p.date):"", tag, openTag].filter(Boolean).join(" · ");
+              lineItem(what, p.amount, sub, idx, p.isStew?gold:amberInk);
+            });
+          }
+          if((PS.monthRepayLines||[]).length){
+            push(16, function(y){ drawText("Repaid from pot this month", margin+2, y-2, 9, true, muted); });
+            (PS.monthRepayLines||[]).forEach(function(p, idx){
+              lineItem(p.description||p.vendor||"Repay captain", p.amount, p.date?fmtDate(p.date):"", idx, greenInk);
+            });
+          }
+        } else {
+          kvRow("Fronted (listed)", expPdfMoney(capTot));
+          kvRow("Repaid this month", expPdfMoney(capRepay));
+          kvRow("Still owed (end of month)", expPdfMoney(capOpen),
+            capOpen>0.009
+              ?{big:true, bg:amberBg, labColor:amberInk, valColor:amberInk, boldLab:true}
+              :{big:true, bg:greenBg, labColor:greenInk, valColor:greenInk, boldLab:true});
+          capList.forEach(function(p, idx){
+            var what=p.vendor||"Spend";
+            if(p.description&&p.description!==p.vendor) what=p.vendor+" - "+p.description;
+            var st=p.repaid||p.coveredByThisMonth?"Repaid":"Open at month end";
+            var sub=[p.date?fmtDate(p.date):"", p.priorMonth?"prior":"", st].filter(Boolean).join(" · ");
+            lineItem(what, p.amount, sub, idx, p.repaid||p.coveredByThisMonth?greenInk:amberInk);
+          });
+        }
+
+        /* Commission + business generated (end of report) */
+        sectionHead("CAPTAIN COMMISSION  ·  END OF MONTH");
+        if((report.bizMonthGross||0)>0.009||(report.bizMonthComm||0)>0.009){
+          kvRow("Business generated (gross) · this month", expPdfMoney(report.bizMonthGross||0), {boldLab:true});
+          if((report.bizMonthBase||0)>0.009&&Math.abs((report.bizMonthBase||0)-(report.bizMonthGross||0))>0.5){
+            kvRow("Commission base (ex VAT) · this month", expPdfMoney(report.bizMonthBase||0));
+          }
+          kvRow("Commission on that business · this month", expPdfMoney(report.bizMonthComm||0));
+          if(report.bizMonthN) kvRow("Deals / upsells counted", String(report.bizMonthN));
+        }
+        if((report.bizThroughGross||report.bizAllGross||0)>0.009){
+          kvRow("Business generated (gross) · through end of month", expPdfMoney(report.bizThroughGross||report.bizAllGross||0));
+          if((report.bizThroughBase||report.bizAllBase||0)>0.009&&Math.abs((report.bizThroughBase||report.bizAllBase||0)-(report.bizThroughGross||report.bizAllGross||0))>0.5){
+            kvRow("Commission base (ex VAT) · through end of month", expPdfMoney(report.bizThroughBase||report.bizAllBase||0));
+          }
+          kvRow("Commission earned · through end of month", expPdfMoney(report.commissionEarned||report.bizThroughComm||report.bizAllComm||0));
+        }
+        kvRow("Paid from boat this month", expPdfMoney(report.commissionPaidThisMonth||0), {boldLab:true});
+        kvRow("Paid from boat · through end of month", expPdfMoney(report.commissionPaidAll||0));
+        if((report.commissionOpen||0)>0.009){
+          kvRow("Commission outstanding · end of month", expPdfMoney(report.commissionOpen), {bg:amberBg, labColor:amberInk, valColor:amberInk, boldLab:true});
+        }
+        (report.commissionLines||[]).forEach(function(r, idx){
+          lineItem(r.description||r.vendor||"Commission draw", r.amount, r.date?fmtDate(r.date):"", idx, gold);
+        });
+
+        /* Outstanding summary last */
+        var pocketOpenEnd=PS&&PS.closingOpen!=null?PS.closingOpen:capOpen;
+        if(pocketOpenEnd>0.009||(report.commissionOpen||0)>0.009||report.cashShort>0.009){
+          sectionHead("OUTSTANDING · END OF MONTH");
+          if(pocketOpenEnd>0.009) kvRow("Captain pocket (still out of pocket)", expPdfMoney(pocketOpenEnd),
+            {bg:amberBg, labColor:amberInk, valColor:amberInk, boldLab:true});
+          if((report.commissionOpen||0)>0.009) kvRow("Captain commission", expPdfMoney(report.commissionOpen));
+          if(report.cashShort>0.009) kvRow("Books short", expPdfMoney(report.cashShort));
+        }
+
         push(22, function(y){
-          drawText("Cash only · card excluded · Limitless", margin, y-8, 8, false, muted);
+          drawText("Cash only · card excluded · as-of end of month · Limitless", margin, y-8, 8, false, muted);
         });
 
         var totalH=14;
