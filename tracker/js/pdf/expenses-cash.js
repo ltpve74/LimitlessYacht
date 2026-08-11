@@ -549,12 +549,37 @@
           });
         }
 
-        /* Crew — pot first, compact; other funds only as short notes */
-        var potCrew = crew.fromBoatPot != null ? crew.fromBoatPot : B.crewDayPay || 0;
+        /* Crew — petty first; covered cash ≠ marked floatPay when short */
+        var potCrewCovered =
+          report.crewFromPotCovered != null
+            ? report.crewFromPotCovered
+            : crew.fromBoatPotCovered != null
+              ? crew.fromBoatPotCovered
+              : B.crewDayPay || 0;
+        var potCrewMarked =
+          report.crewFromPotMarked != null
+            ? report.crewFromPotMarked
+            : crew.fromBoatPotMarked != null
+              ? crew.fromBoatPotMarked
+              : crew.fromBoatPot != null
+                ? crew.fromBoatPot
+                : potCrewCovered;
+        var potCrewShort =
+          report.crewFromPotShort != null
+            ? report.crewFromPotShort
+            : crew.fromBoatPotShort || 0;
+        var potCrew = potCrewCovered;
         var capCrew = crew.fromCaptain || 0;
         var booksCrew = crew.booksOnly || 0;
         var ownerCrew = crew.fromOwner || 0;
-        if (potCrew > 0.009 || capCrew > 0.009 || booksCrew > 0.009 || ownerCrew > 0.009) {
+        if (
+          potCrewCovered > 0.009 ||
+          potCrewMarked > 0.009 ||
+          potCrewShort > 0.009 ||
+          capCrew > 0.009 ||
+          booksCrew > 0.009 ||
+          ownerCrew > 0.009
+        ) {
           sectionHead("CREW");
           function crewOwnerLine(r, idx, accent) {
             /* Model ownerTitle/ownerDetail: overnight / long day / day + guest + dates */
@@ -589,15 +614,53 @@
             }
             lineItem(title, r.amount, detail, idx, accent);
           }
-          if (potCrew > 0.009) {
-            kvRow("Paid from petty cash", pdfMoney(potCrew), {
+          if (potCrewCovered > 0.009 || potCrewMarked > 0.009) {
+            kvRow("Paid from petty cash (cash covered)", pdfMoney(potCrewCovered), {
               big: true,
               bg: greenBg,
               labColor: greenInk,
               valColor: greenInk,
               boldLab: true,
             });
+            if (potCrewShort > 0.009) {
+              gap(4);
+              kvRow("Crew short — marked petty, no cash left", pdfMoney(potCrewShort), {
+                big: true,
+                bg: redBg,
+                labColor: redInk,
+                valColor: redInk,
+                boldLab: true,
+              });
+              noteLine(
+                "Lines total " +
+                  pdfMoney(potCrewMarked) +
+                  " marked from petty, but cash in only covered " +
+                  pdfMoney(potCrewCovered) +
+                  ". Extra " +
+                  pdfMoney(potCrewShort) +
+                  " is books short (see outstanding).",
+                redInk
+              );
+              gap(4);
+              /* Point at the crew short line(s) */
+              (report.shortLines || []).forEach(function (s, idx) {
+                if (s.kind !== "crew" && s.kind !== "daypay") return;
+                var subBits = [];
+                if (s.date) subBits.push(fmtDate(s.date));
+                subBits.push(
+                  "line " +
+                    pdfMoney(s.fullAmount || s.amount) +
+                    " · petty covered " +
+                    pdfMoney(s.covered || 0) +
+                    " · short " +
+                    pdfMoney(s.amount)
+                );
+                lineItem(s.label || "Crew", s.amount, subBits.join(" · "), idx, redInk);
+              });
+            }
             gap(6);
+            noteLine("Crew lines (full amounts as booked):", navy);
+            gap(4);
             (crew.potLines || []).forEach(function (r, idx) {
               crewOwnerLine(r, idx, greenInk);
             });
