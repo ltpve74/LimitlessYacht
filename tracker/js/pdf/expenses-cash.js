@@ -702,8 +702,17 @@
           }
           if (booksCrew > 0.009) {
             gap(6);
-            kvRow("On books only (not petty cash)", pdfMoney(booksCrew), { boldLab: true });
-            noteLine("Marked paid on books — cash did not leave petty cash.", muted);
+            kvRow("Already marked paid (not from boat cash)", pdfMoney(booksCrew), {
+              boldLab: true,
+            });
+            noteLine(
+              "Day rates marked Paid in the tracker, but no cash left petty cash for these. Not a short and not captain pocket — just not a boat-pot payment.",
+              muted
+            );
+            gap(4);
+            (crew.booksLines || []).forEach(function (r, idx) {
+              crewOwnerLine(r, idx, muted);
+            });
           }
         }
 
