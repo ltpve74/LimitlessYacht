@@ -182,6 +182,21 @@
       return r && !r.virtual;
     });
 
+    /* Who / which pot lines the short sits on (model shortLines) */
+    var shortLines = Array.isArray(pettySum.shortLines)
+      ? pettySum.shortLines.map(function (s) {
+          return {
+            kind: s.kind || "",
+            label: s.label || "Cash out",
+            amount: s.amount || 0,
+            fullAmount: s.fullAmount != null ? s.fullAmount : s.amount || 0,
+            covered: s.covered != null ? s.covered : 0,
+            date: s.date || "",
+            id: s.id || "",
+          };
+        })
+      : [];
+
     return {
       month: month,
       monthLabel: input.monthLabel || month,
@@ -198,6 +213,7 @@
       cashOut: pettySum.cashOut || 0,
       pettyOnboard: Math.max(0, pettySum.pettyOnboard != null ? pettySum.pettyOnboard : pettySum.pettyCash || 0),
       cashShort: Math.max(0, pettySum.cashShort || 0),
+      shortLines: shortLines,
       cashOutLines: potDetailLines,
 
       /* Cash-out buckets — model (crew = fromBoatPot only) */

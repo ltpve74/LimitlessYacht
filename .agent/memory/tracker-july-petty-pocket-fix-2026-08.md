@@ -27,6 +27,19 @@ Reconstruction targets (captain records):
 
 Verified target after write: July onboard **0** / short **110**; August onboard **~18.56** after priorSettled **110**.
 
+## July short €110 attribution (model shortLines)
+
+Cash in Michael **€1800**; pot crew floatPay **€1850** + Toni reimburse **€60** = out **€1910**.  
+Short is **boat pot books short** (not captain pocket fronted):
+
+| Line | Covered by pot | Short |
+|------|----------------|-------|
+| Toni day pay €250 (Oliver, 24 Jul) | €200 | **€50** |
+| Toni pocket repay €60 (26 Jul) | €0 | **€60** |
+| **Total** | | **€110** |
+
+August `broughtForwardShort: 110` so first cash-in settles the hole (not a load heal).
+
 ## Captain pocket (data)
 
 July own-money **€758.88** (stew €450 incl. Vicky long day €250 + shop €308.88).  

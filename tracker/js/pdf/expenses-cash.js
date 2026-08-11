@@ -348,8 +348,33 @@
               valColor: redInk,
               boldLab: true,
             });
-            noteLine("Unpaid. Not settled by anyone yet — still a hole in the boat pot.", redInk);
+            noteLine(
+              "Pot cash-outs marked beyond cash available. Not captain pocket — books short on the boat pot. Carries into next month.",
+              redInk
+            );
             gap(6);
+            var shorts = report.shortLines || [];
+            if (shorts.length) {
+              noteLine("Where the short sits (who / which line):", navy);
+              gap(4);
+              shorts.forEach(function (s, idx) {
+                var title = s.label || "Cash out";
+                var subBits = [];
+                if (s.date) subBits.push(fmtDate(s.date));
+                if (s.fullAmount > 0.009 && Math.abs((s.fullAmount || 0) - (s.amount || 0)) > 0.009) {
+                  subBits.push(
+                    "of " +
+                      pdfMoney(s.fullAmount) +
+                      " line · pot only covered " +
+                      pdfMoney(s.covered || 0)
+                  );
+                } else {
+                  subBits.push("not covered by pot cash");
+                }
+                lineItem(title, s.amount, subBits.join(" · "), idx, redInk);
+              });
+              gap(6);
+            }
           }
           if (pocketOpen > 0.009) {
             kvRow("Captain pocket", pdfMoney(pocketOpen), {
@@ -401,7 +426,7 @@
             valColor: redInk,
             boldLab: true,
           });
-          noteLine("Unpaid — carried as outstanding, not cleared.", redInk);
+          noteLine("See OUTSTANDING for who / which lines. Carries to next month.", redInk);
         }
 
         if ((report.cashIns || []).length) {
