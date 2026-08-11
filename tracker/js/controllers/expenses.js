@@ -198,21 +198,27 @@
     input = input || {};
     var models = M(input);
     if (!models.ownMoneyRepaidAmt) return 0;
-    return models.ownMoneyRepaidAmt(input.expense, input.expenses || input.allExpenses || []);
+    var opts = {};
+    if (input.throughMonth) opts.throughMonth = input.throughMonth;
+    return models.ownMoneyRepaidAmt(input.expense, input.expenses || input.allExpenses || [], opts);
   }
 
   function ownMoneyIsRepaid(input) {
     input = input || {};
     var models = M(input);
     if (!models.ownMoneyIsRepaid) return false;
-    return !!models.ownMoneyIsRepaid(input.expense, input.expenses || input.allExpenses || []);
+    var opts = {};
+    if (input.throughMonth) opts.throughMonth = input.throughMonth;
+    return !!models.ownMoneyIsRepaid(input.expense, input.expenses || input.allExpenses || [], opts);
   }
 
   function ownMoneyRepayHint(input) {
     input = input || {};
     var models = M(input);
     if (!models.ownMoneyRepayHint) return null;
-    return models.ownMoneyRepayHint(input.expense, input.expenses || input.allExpenses || []);
+    var opts = {};
+    if (input.throughMonth) opts.throughMonth = input.throughMonth;
+    return models.ownMoneyRepayHint(input.expense, input.expenses || input.allExpenses || [], opts);
   }
 
   function pocketBalances(input) {

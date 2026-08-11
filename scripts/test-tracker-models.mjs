@@ -2938,6 +2938,47 @@ console.log("\n[Pocket — own-money repay + open liabilities]");
     ok("Aug bridge still open 200 (new stew)", near(bridgeAug.closingOpen, 200));
   }
 
+  /* Month as-of: July report must ignore August repay / future ledger */
+  {
+    const julSpend = {
+      id: "asof-j",
+      date: "2026-07-20",
+      amount: 100,
+      paidFrom: "Own money",
+      category: "Provisions",
+      vendor: "Shop",
+    };
+    const augRepayAsOf = {
+      id: "asof-r",
+      date: "2026-08-05",
+      amount: 100,
+      category: "Captain reimbursement",
+      reimburseCaptain: true,
+      paidFrom: "Petty cash",
+    };
+    const ledgerAsOf = [julSpend, augRepayAsOf];
+    ok(
+      "full ledger: July spend repaid in Aug",
+      M.ownMoneyIsRepaid(julSpend, ledgerAsOf)
+    );
+    ok(
+      "through July: July spend NOT repaid yet",
+      !M.ownMoneyIsRepaid(julSpend, ledgerAsOf, { throughMonth: "2026-07" })
+    );
+    ok(
+      "through July repaid amt 0",
+      near(M.ownMoneyRepaidAmt(julSpend, ledgerAsOf, { throughMonth: "2026-07" }), 0)
+    );
+    ok(
+      "through Aug repaid amt 100",
+      near(M.ownMoneyRepaidAmt(julSpend, ledgerAsOf, { throughMonth: "2026-08" }), 100)
+    );
+    const filt = M.filterLedgerThroughMonth(ledgerAsOf, "2026-07");
+    ok("filter through July keeps 1 row", filt.length === 1 && filt[0].id === "asof-j");
+    ok("isOnOrBeforeMonth July ok", M.isOnOrBeforeMonth("2026-07-31", "2026-07"));
+    ok("isOnOrBeforeMonth Aug after July false", !M.isOnOrBeforeMonth("2026-08-01", "2026-07"));
+  }
+
   /* Petty month open/close carry — pure, no mutation of rows */
   {
     const crewFloat = {

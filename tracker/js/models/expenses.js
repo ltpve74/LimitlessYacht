@@ -867,6 +867,38 @@ function expenseMonthKey(d) {
   return /^\d{4}-\d{2}$/.test(s) ? s : "";
 }
 
+/**
+ * True when a date (or YYYY-MM) is on or before the end of throughMonth.
+ * Missing/invalid date → false when throughMonth is set (do not invent future).
+ * Month reports must never include later-month money.
+ */
+function isOnOrBeforeMonth(dateOrMonth, throughMonth) {
+  var through = String(throughMonth || "").slice(0, 7);
+  if (!/^\d{4}-\d{2}$/.test(through)) return true;
+  var m = expenseMonthKey(dateOrMonth);
+  if (!m) {
+    var s = String(dateOrMonth || "").slice(0, 7);
+    m = /^\d{4}-\d{2}$/.test(s) ? s : "";
+  }
+  if (!m) return false;
+  return m <= through;
+}
+
+/**
+ * Ledger rows with date month ≤ throughMonth (pure).
+ * Used for month PDFs / as-of reports so August money never appears on July.
+ */
+function filterLedgerThroughMonth(rows, throughMonth) {
+  var through = String(throughMonth || "").slice(0, 7);
+  if (!/^\d{4}-\d{2}$/.test(through)) {
+    return Array.isArray(rows) ? rows.slice() : [];
+  }
+  return (Array.isArray(rows) ? rows : []).filter(function (r) {
+    if (!r) return false;
+    return isOnOrBeforeMonth(r.date != null ? r.date : r.month, through);
+  });
+}
+
 /** Who a reimbursement pays back. */
 function expenseReimburseWhoId(e) {
   if (!e) return EXP_POCKET_CAPTAIN;
@@ -908,12 +940,18 @@ function ownMoneySpendWhoId(e) {
  *
  * @param {object} e own-money expense
  * @param {Array} expenses full ledger (all months)
+ * @param {{ throughMonth?: string }} [opts] if throughMonth (YYYY-MM), ignore later reimbursements/spends
  */
-function ownMoneyRepaidAmt(e, expenses) {
+function ownMoneyRepaidAmt(e, expenses, opts) {
   if (!isOwnMoneySpend(e)) return 0;
   var need = round2(num(e.amount));
   if (!(need > 0)) return 0;
+  opts = opts || {};
+  var through = opts.throughMonth ? String(opts.throughMonth).slice(0, 7) : "";
   var list = Array.isArray(expenses) ? expenses : [];
+  if (/^\d{4}-\d{2}$/.test(through)) {
+    list = filterLedgerThroughMonth(list, through);
+  }
   var linked = 0;
   list.forEach(function (r) {
     if (!r || !isExpenseReimbursement(r)) return;
@@ -989,20 +1027,26 @@ function ownMoneyRepaidAmt(e, expenses) {
   return round2(Math.min(need, Math.max(linked, forThis)));
 }
 
-function ownMoneyIsRepaid(e, expenses) {
+function ownMoneyIsRepaid(e, expenses, opts) {
   if (!isOwnMoneySpend(e)) return false;
   var need = round2(num(e.amount));
   if (!(need > 0)) return false;
-  return ownMoneyRepaidAmt(e, expenses) >= need - 0.009;
+  return ownMoneyRepaidAmt(e, expenses, opts) >= need - 0.009;
 }
 
 /**
  * Best reimbursing row for display (linked preferred, else newest unlinked to who).
  * Returns { date, amount, id } or null — UI formats the date string.
+ * @param {{ throughMonth?: string }} [opts]
  */
-function ownMoneyRepayHint(e, expenses) {
-  if (!isOwnMoneySpend(e) || !ownMoneyIsRepaid(e, expenses)) return null;
+function ownMoneyRepayHint(e, expenses, opts) {
+  if (!isOwnMoneySpend(e) || !ownMoneyIsRepaid(e, expenses, opts)) return null;
+  opts = opts || {};
+  var through = opts.throughMonth ? String(opts.throughMonth).slice(0, 7) : "";
   var list = Array.isArray(expenses) ? expenses : [];
+  if (/^\d{4}-\d{2}$/.test(through)) {
+    list = filterLedgerThroughMonth(list, through);
+  }
   var linked = [];
   list.forEach(function (r) {
     if (r && isExpenseReimbursement(r) && String(r.reimbursesExpenseId || "") === String(e.id)) linked.push(r);
@@ -2335,6 +2379,8 @@ function summarizeMonthSettlement(opts) {
     summarizeCaptainCommissionBalance: summarizeCaptainCommissionBalance,
     /* Pocket / liabilities (Keepafloat foundation) */
     expenseMonthKey: expenseMonthKey,
+    isOnOrBeforeMonth: isOnOrBeforeMonth,
+    filterLedgerThroughMonth: filterLedgerThroughMonth,
     expenseReimburseWhoId: expenseReimburseWhoId,
     isOwnMoneySpend: isOwnMoneySpend,
     ownMoneySpendWhoId: ownMoneySpendWhoId,
