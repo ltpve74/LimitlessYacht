@@ -689,10 +689,13 @@
 
         /* Cash out buckets only if something left pot */
         var bucketRows = [
-          { lab: "Crew day pay", val: B.crewDayPay || 0 },
-          { lab: "Captain share (from petty)", val: B.commission || 0 },
-          { lab: "Repay captain pocket", val: B.reimburseCaptain || 0 },
-          { lab: "Repay crew pocket", val: B.reimburseCrew || 0 },
+          { lab: "Crew day rates", val: B.crewDayPay || 0 },
+          {
+            lab: "Commission paid on business generated",
+            val: B.commission || 0,
+          },
+          { lab: "Reimbursement of captain out-of-pocket", val: B.reimburseCaptain || 0 },
+          { lab: "Reimbursement of crew out-of-pocket", val: B.reimburseCrew || 0 },
           { lab: "Tip payouts", val: B.tipPayout || 0 },
           { lab: "Other", val: B.otherPetty || 0 },
         ].filter(function (r) {
@@ -700,6 +703,11 @@
         });
         if (bucketRows.length) {
           sectionHead("6 · WHERE THE CASH WENT");
+          noteLine(
+            "Cash that left the boat envelope this month. Commission paid is settlement of amounts earned on captain-sourced business (see section 3).",
+            muted
+          );
+          gap(10);
           bucketRows.forEach(function (r, i) {
             if (i) gap(8);
             kvRow(r.lab, pdfMoney(r.val), { boldLab: true });
