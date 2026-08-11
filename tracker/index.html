@@ -12933,6 +12933,47 @@ function expCashReportForMonth(month){
     captainPocketRepaidListed+=Math.min(p.amount, p.repaidAmt||(p.repaid?p.amount:0));
   });
   captainPocketRepaidListed=Math.round(captainPocketRepaidListed*100)/100;
+  var captainPocketOpen=0;
+  captainPocketSpends.forEach(function(p){
+    var open=Math.max(0, (p.amount||0)-Math.min(p.amount||0, p.repaidAmt||(p.repaid?p.amount:0)));
+    captainPocketOpen+=open;
+  });
+  captainPocketOpen=Math.round(captainPocketOpen*100)/100;
+
+  /* Cash-out buckets for owner story (petty hits only — not own-money shop lines) */
+  var outBuckets={
+    commission:0, crewDayPay:0, reimburseCaptain:0, reimburseCrew:0,
+    tipPayout:0, otherPetty:0
+  };
+  var commissionLines=[];
+  var crewLines=[];
+  rows.forEach(function(r){
+    if(!r||r.kind==="ownMoney") return; /* own money did not leave the boat pot */
+    var a=apaNum(r.amount);
+    if(r.kind==="commission"){ outBuckets.commission+=a; commissionLines.push(r); }
+    else if(r.kind==="crewDayPay"){ outBuckets.crewDayPay+=a; crewLines.push(r); }
+    else if(r.kind==="reimburse"){
+      var toCap=r.who&&/^captain/i.test(r.who)||!r.who;
+      if(toCap) outBuckets.reimburseCaptain+=a;
+      else outBuckets.reimburseCrew+=a;
+    }
+    else if(r.kind==="tipPayout") outBuckets.tipPayout+=a;
+    else outBuckets.otherPetty+=a;
+  });
+  Object.keys(outBuckets).forEach(function(k){
+    outBuckets[k]=Math.round(outBuckets[k]*100)/100;
+  });
+
+  /* Commission context — business generated (leads + upsells) for the story */
+  var commBal=null;
+  try{
+    if(typeof expCaptainCommissionBalance==="function") commBal=expCaptainCommissionBalance();
+  }catch(eCb){ commBal=null; }
+  var commissionEarned=commBal&&commBal.earned!=null?Math.round(apaNum(commBal.earned)*100)/100:0;
+  var commissionPaidAll=commBal&&commBal.paid!=null?Math.round(apaNum(commBal.paid)*100)/100:0;
+  var commissionOpen=commBal&&commBal.outstanding!=null?Math.round(apaNum(commBal.outstanding)*100)/100:
+    Math.max(0, Math.round((commissionEarned-commissionPaidAll)*100)/100);
+  var commissionPaidThisMonth=outBuckets.commission;
 
   return {
     month:month,
@@ -12957,9 +12998,17 @@ function expCashReportForMonth(month){
     captainPocketSpends:captainPocketSpends,
     captainPocketTotal:captainPocketTot,
     captainPocketRepaidListed:captainPocketRepaidListed,
+    captainPocketOpen:captainPocketOpen,
     crewPocketSpends:crewPocketSpends,
     crewPocketTotal:crewPocketTot,
     byCategory:cats,
+    outBuckets:outBuckets,
+    commissionLines:commissionLines,
+    crewLines:crewLines,
+    commissionEarned:commissionEarned,
+    commissionPaidAll:commissionPaidAll,
+    commissionPaidThisMonth:commissionPaidThisMonth,
+    commissionOpen:commissionOpen,
     cardExcluded:true
   };
 }
@@ -13018,11 +13067,9 @@ function expPdfSafeText(s){
   return t;
 }
 /**
- * Manager/owner cash PDF — one continuous phone-width scroll.
- *
- * No multi-page flip: height fits content (like a long phone screen).
- * Fit-to-width on iOS/Android → readable type, vertical scroll only.
- * Dense list rows (not bulky cards). Neutral third-person copy.
+ * Owner cash PDF v2 — phone-width scroll, plain English story.
+ * Cash envelope only (no card). Answers: where cash came from, where it went,
+ * captain fronted money, commission vs business, what is still owed.
  */
 function buildExpensesCashPdf(month){
   var report=expCashReportForMonth(month);
@@ -13039,17 +13086,22 @@ function buildExpensesCashPdf(month){
         var margin=14;
         var contentW=W-margin*2;
         var navy=rgb(0.06,0.14,0.28);
-        var navySoft=rgb(0.12,0.22,0.40);
         var gold=rgb(0.79,0.66,0.30);
         var goldSoft=rgb(0.96,0.93,0.84);
         var ink=rgb(0.12,0.13,0.15);
         var muted=rgb(0.42,0.45,0.50);
-        var lineCol=rgb(0.88,0.90,0.92);
         var zebra=rgb(0.97,0.98,0.99);
         var white=rgb(1,1,1);
         var greenInk=rgb(0.10,0.36,0.28);
         var greenBg=rgb(0.91,0.96,0.93);
+        var amberBg=rgb(1,0.97,0.90);
+        var amberInk=rgb(0.55,0.35,0.05);
         var page=null;
+        var B=report.outBuckets||{};
+        var cashIn=report.cashInTotal||0;
+        var cashOut=report.cashOut||0;
+        var onBoard=report.pettyOnboard||0;
+        var start=report.pettyStart||0;
 
         function wrapLines(t, size, bold, maxW){
           var f=bold?fontBold:font;
@@ -13105,9 +13157,44 @@ function buildExpensesCashPdf(month){
           return lines.length*lineH;
         }
 
-        /* ---- Build a linear list of rows (measure first, one tall page) ---- */
         var items=[];
         function push(h, drawFn){ items.push({ h:h, draw:drawFn }); }
+        function sectionHead(title){
+          push(22, function(y){
+            drawText(title, margin, y-4, 10, true, navy);
+            page.drawRectangle({x:margin, y:y-8, width:32, height:2, color:gold});
+          });
+        }
+        function kvRow(lab, val, opts){
+          opts=opts||{};
+          var h=opts.big?28:22;
+          push(h, function(y){
+            if(opts.bg) page.drawRectangle({x:margin, y:y-h+6, width:contentW, height:h-2, color:opts.bg});
+            drawText(lab, margin+(opts.bg?8:2), y-(opts.big?6:2), opts.big?11:10, !!opts.boldLab, opts.labColor||muted, contentW-110);
+            drawRight(val, W-margin-(opts.bg?8:2), y-(opts.big?6:2), opts.big?13:11, true, opts.valColor||ink);
+          });
+        }
+        function lineItem(title, amount, sub, idx, accent){
+          var titleW=contentW-96;
+          var titleLines=wrapLines(title, 11, true, titleW);
+          var subH=sub?measureWrap(sub, 9, false, contentW-14, 11):0;
+          var h=12+titleLines.length*14+subH+10;
+          push(h, function(y){
+            if(idx%2===0) page.drawRectangle({x:margin, y:y-h+6, width:contentW, height:h-2, color:zebra});
+            if(accent) page.drawRectangle({x:margin, y:y-h+6, width:3, height:h-2, color:accent});
+            var x0=margin+(accent?8:6);
+            var ty=y-4;
+            titleLines.forEach(function(ln, i){ drawText(ln, x0, ty-i*14, 11, true, ink, titleW); });
+            drawRight(expPdfMoney(amount), W-margin-6, ty, 12, true, ink);
+            if(sub) drawWrap(sub, x0, ty-titleLines.length*14-2, 9, false, muted, contentW-14, 11);
+          });
+        }
+        function bodyPara(text){
+          var h=measureWrap(text, 10, false, contentW, 13)+10;
+          push(h, function(y){
+            drawWrap(text, margin, y-2, 10, false, ink, contentW, 13);
+          });
+        }
 
         var gen="";
         try{
@@ -13116,201 +13203,188 @@ function buildExpensesCashPdf(month){
           });
         }catch(eG){ gen=""; }
 
-        /* Title */
-        push(52, function(y){
-          page.drawRectangle({x:0, y:y-40, width:W, height:52, color:navy});
-          page.drawRectangle({x:0, y:y-43, width:W, height:3, color:gold});
+        /* ===== Header ===== */
+        push(56, function(y){
+          page.drawRectangle({x:0, y:y-44, width:W, height:56, color:navy});
+          page.drawRectangle({x:0, y:y-47, width:W, height:3, color:gold});
           drawText("M/Y LIMITLESS", margin, y-16, 9, true, white);
-          drawText("Cash only", W-margin-52, y-16, 9, false, goldSoft);
-          drawText(report.monthLabel, margin, y-34, 14, true, gold);
+          drawText("Cash only  ·  no card", W-margin-108, y-16, 8, false, goldSoft);
+          drawText("Boat cash report", margin, y-34, 15, true, gold);
+        });
+        push(36, function(y){
+          drawText(report.monthLabel, margin, y-12, 12, true, navy);
+          drawText("For owner  ·  "+gen, margin, y-26, 9, false, muted, contentW);
         });
 
-        push(28, function(y){
-          drawText("Manager / owner  ·  "+gen, margin, y-14, 9, false, muted, contentW);
-        });
+        /* ===== 1. The simple answer ===== */
+        sectionHead("1. THE SIMPLE ANSWER");
+        var story=
+          "Cash into the boat this month: "+expPdfMoney(cashIn)+". "+
+          "Cash out of the boat: "+expPdfMoney(cashOut)+". "+
+          "Cash left on board: "+expPdfMoney(onBoard)+". "+
+          "Most of the cash did not stay as a pile of notes. "+
+          "It paid crew day rates, repaid money the captain had already spent for the boat, "+
+          "and paid the captain's cash commission on business generated.";
+        bodyPara(story);
+        if(cashIn>1000&&(B.commission||0)>cashIn*0.3){
+          bodyPara(
+            "Why pay the captain from the boat (or later from the owner) when so much cash came in? "+
+            "Because that cash was guest money that already had jobs: crew, reimbursements, and the captain's agreed commission share. "+
+            "It is not a free float for owner drawings until those jobs are paid."
+          );
+        }
 
-        /* Big summary — money first */
-        var sumRows=[
-          { lab:"On board", val:expPdfMoney(report.pettyOnboard), big:true },
-          { lab:"Cash in", val:expPdfMoney(report.cashInTotal) },
-          { lab:"Cash out", val:expPdfMoney(report.cashOut) },
-          { lab:"Start", val:expPdfMoney(report.pettyStart) }
-        ];
-        if(report.priorSettled>0.009) sumRows.push({ lab:"Prior short paid", val:expPdfMoney(report.priorSettled) });
-        if(report.cashShort>0.009) sumRows.push({ lab:"Books short", val:expPdfMoney(report.cashShort) });
-        var sumH=18+sumRows.length*28+10;
-        push(sumH, function(y){
-          drawText("SUMMARY", margin, y-2, 10, true, navy);
-          page.drawRectangle({x:margin, y:y-6, width:28, height:2, color:gold});
-          var yy=y-22;
-          sumRows.forEach(function(r, i){
-            if(i===0){
-              page.drawRectangle({x:margin, y:yy-18, width:contentW, height:26, color:greenBg});
-              drawText(r.lab, margin+8, yy-2, 10, true, greenInk);
-              drawRight(r.val, W-margin-8, yy-2, 13, true, greenInk);
-              yy-=30;
-            } else {
-              drawText(r.lab, margin+2, yy, 11, false, muted);
-              drawRight(r.val, W-margin-2, yy, 12, true, ink);
-              yy-=26;
-            }
-          });
-        });
+        /* ===== Snapshot ===== */
+        sectionHead("2. ENVELOPE SNAPSHOT");
+        kvRow("Start (notes on board)", expPdfMoney(start));
+        kvRow("Cash in", expPdfMoney(cashIn));
+        kvRow("Cash out", expPdfMoney(cashOut));
+        if(report.priorSettled>0.009) kvRow("Prior short paid first", expPdfMoney(report.priorSettled));
+        kvRow("Left on board now", expPdfMoney(onBoard), {big:true, bg:greenBg, labColor:greenInk, valColor:greenInk, boldLab:true});
+        if(report.cashShort>0.009){
+          kvRow("Books short (still owed by books)", expPdfMoney(report.cashShort), {bg:amberBg, labColor:amberInk, valColor:amberInk, boldLab:true});
+        }
 
-        /* Cash in — compact */
+        /* ===== Cash in detail ===== */
+        sectionHead("3. CASH INTO THE BOAT  ·  "+expPdfMoney(cashIn));
         var ins=report.cashIns||[];
-        if(ins.length){
-          push(22, function(y){
-            drawText("CASH IN  ·  "+expPdfMoney(report.cashInTotal), margin, y-4, 10, true, navy);
-            page.drawRectangle({x:margin, y:y-8, width:28, height:2, color:gold});
-          });
+        if(!ins.length){
+          push(24, function(y){ drawText("No cash-in lines this month.", margin+4, y-8, 10, false, muted); });
+        } else {
           ins.forEach(function(r, idx){
-            var title=r.label||"Cash in";
-            var sub=(r.date?fmtDate(r.date):"");
-            var titleLines=wrapLines(title, 11, true, contentW-100);
-            var h=14+titleLines.length*14+(sub?12:0)+8;
-            push(h, function(y){
-              if(idx%2===0) page.drawRectangle({x:margin, y:y-h+6, width:contentW, height:h-2, color:zebra});
-              var ty=y-4;
-              titleLines.forEach(function(ln, i){ drawText(ln, margin+6, ty-i*14, 11, true, ink, contentW-100); });
-              drawRight(expPdfMoney(r.amount), W-margin-6, ty, 12, true, ink);
-              if(sub) drawText(sub, margin+6, ty-titleLines.length*14-2, 9, false, muted);
-            });
+            lineItem(r.label||"Cash in", r.amount, r.date?fmtDate(r.date):"", idx, greenInk);
+          });
+        }
+        bodyPara("These are guest charter fees and end-of-charter cash settlements that went into the boat envelope (petty cash). Credit-card income is not shown here.");
+
+        /* ===== Where cash went (buckets first) ===== */
+        sectionHead("4. WHERE THE CASH WENT");
+        bodyPara("Same cash, split by reason. This is why a large cash-in does not mean the same amount is still sitting on the boat.");
+        var bucketRows=[
+          {lab:"Captain commission (from boat cash)", val:B.commission||0},
+          {lab:"Crew day pay (from boat cash)", val:B.crewDayPay||0},
+          {lab:"Repaid captain (he had fronted for the boat)", val:B.reimburseCaptain||0},
+          {lab:"Repaid crew pockets", val:B.reimburseCrew||0},
+          {lab:"Tip payouts from boat cash", val:B.tipPayout||0},
+          {lab:"Other boat cash spends", val:B.otherPetty||0}
+        ].filter(function(r){ return r.val>0.009; });
+        bucketRows.forEach(function(r){ kvRow(r.lab, expPdfMoney(r.val)); });
+        kvRow("Total cash out of boat", expPdfMoney(cashOut), {big:true, bg:navy, labColor:white, valColor:gold, boldLab:true});
+
+        /* ===== Commission / business ===== */
+        sectionHead("5. CAPTAIN COMMISSION  ·  BUSINESS CASH SHARE");
+        bodyPara(
+          "The captain earns a cash commission on charter business generated (agreed %). "+
+          "When that commission is taken from the boat envelope, it is a cost of the business — "+
+          "not an unexplained drain. Figures below are from the tracker commission ledger."
+        );
+        if(report.commissionEarned>0.009){
+          kvRow("Commission earned (all open deals in tracker)", expPdfMoney(report.commissionEarned));
+          kvRow("Commission already paid (all time in books)", expPdfMoney(report.commissionPaidAll));
+          kvRow("Commission still outstanding", expPdfMoney(report.commissionOpen),
+            report.commissionOpen>0.009?{bg:amberBg, labColor:amberInk, valColor:amberInk, boldLab:true}:null);
+        }
+        kvRow("Paid from boat cash this month", expPdfMoney(report.commissionPaidThisMonth||0), {boldLab:true});
+        var commLines=report.commissionLines||[];
+        if(commLines.length){
+          bodyPara("This month's commission draws from the envelope:");
+          commLines.forEach(function(r, idx){
+            var t=r.description||r.vendor||"Captain commission";
+            lineItem(t, r.amount, r.date?fmtDate(r.date):"", idx, gold);
           });
         }
 
-        /* Money out — one compact row each */
-        var lines=report.lines||[];
-        push(22, function(y){
-          drawText("MONEY OUT  ·  "+expPdfMoney(report.totalCashExpenses), margin, y-4, 10, true, navy);
-          page.drawRectangle({x:margin, y:y-8, width:28, height:2, color:gold});
-        });
-        if(!lines.length){
-          push(28, function(y){ drawText("No cash out this month.", margin+4, y-10, 11, false, muted); });
+        /* ===== Captain fronted when boat had no cash ===== */
+        sectionHead("6. CAPTAIN FRONTED FOR THE BOAT");
+        bodyPara(
+          "When the boat envelope had no (or not enough) cash, the captain paid shops or crew from his own pocket. "+
+          "Those spends are business costs. When cash later came into the boat, the envelope repaid him. "+
+          "That repayment is not 'double pay' — it is returning money he already laid out."
+        );
+        var capList=report.captainPocketSpends||[];
+        var capTot=report.captainPocketTotal||0;
+        var capRepay=report.reimburseCaptainTotal||0;
+        var capOpen=report.captainPocketOpen!=null?report.captainPocketOpen:Math.max(0, capTot-capRepay);
+        kvRow("Captain pocket spends (listed)", expPdfMoney(capTot));
+        kvRow("Repaid to captain from boat this month", expPdfMoney(capRepay));
+        kvRow("Still owed to captain (open pocket)", expPdfMoney(capOpen),
+          capOpen>0.009?{big:true, bg:amberBg, labColor:amberInk, valColor:amberInk, boldLab:true}:
+          {big:true, bg:greenBg, labColor:greenInk, valColor:greenInk, boldLab:true});
+        if(capList.length){
+          bodyPara("What the captain paid from his pocket (and status):");
+          capList.forEach(function(p, idx){
+            var what=p.vendor||"Spend";
+            if(p.description&&p.description!==p.vendor) what=p.vendor+" - "+p.description;
+            var st=p.repaid||p.coveredByThisMonth?"REPAID":"STILL OWED";
+            var sub=(p.date?fmtDate(p.date):"")+(p.priorMonth?" · prior month":"")+" · "+st;
+            lineItem(what, p.amount, sub, idx, p.repaid||p.coveredByThisMonth?greenInk:amberInk);
+          });
         } else {
-          lines.forEach(function(r, idx){
+          push(22, function(y){ drawText("No captain pocket spends linked this month.", margin+4, y-8, 10, false, muted); });
+        }
+
+        /* ===== Crew day pay from pot ===== */
+        if((B.crewDayPay||0)>0.009){
+          sectionHead("7. CREW DAY PAY FROM BOAT CASH  ·  "+expPdfMoney(B.crewDayPay));
+          bodyPara("Stewardess day rates paid from the boat envelope (not from owner private account, and not card).");
+          (report.crewLines||[]).forEach(function(r, idx){
+            var t=r.vendor||"Crew";
+            if(r.description) t=t+" - "+r.description;
+            lineItem(t, r.amount, r.date?fmtDate(r.date):"", idx, null);
+          });
+        }
+
+        /* ===== Still owed summary ===== */
+        sectionHead("8. MONEY STILL OWED — CLEAR VIEW");
+        var owedBits=[];
+        if(capOpen>0.009) owedBits.push("Captain pocket still open: "+expPdfMoney(capOpen)+" (boat or owner still owes the captain for money he fronted).");
+        if((report.commissionOpen||0)>0.009) owedBits.push("Captain commission still outstanding: "+expPdfMoney(report.commissionOpen)+" (earned on business, not yet drawn).");
+        if(report.cashShort>0.009) owedBits.push("Envelope books short: "+expPdfMoney(report.cashShort)+".");
+        if(!owedBits.length){
+          bodyPara("No open captain pocket or commission short flagged for this snapshot. On-board cash is "+expPdfMoney(onBoard)+".");
+        } else {
+          owedBits.forEach(function(t){ bodyPara(t); });
+        }
+
+        /* ===== Full cash-out list (compact) ===== */
+        sectionHead("9. FULL CASH-OUT LIST");
+        bodyPara("Every cash movement out of the envelope this month (card excluded). Own-money shop lines that never touched the pot are only in section 6.");
+        var potLines=(report.lines||[]).filter(function(r){ return r&&r.kind!=="ownMoney"; });
+        if(!potLines.length){
+          push(22, function(y){ drawText("No cash out of the pot this month.", margin+4, y-8, 10, false, muted); });
+        } else {
+          potLines.forEach(function(r, idx){
             var vend=r.vendor||"-";
             if(r.description&&r.description!==r.vendor) vend=r.vendor+" - "+r.description;
-            if(r.kind==="reimburse"&&(!r.vendor||r.vendor==="-"||r.vendor==="—")){
-              vend=r.who?("Repay "+r.who):"Repay pocket";
-            }
+            if(r.kind==="reimburse") vend=r.who?("Repay "+r.who+" pocket"):"Repay pocket";
             var bits=[];
             if(r.date) bits.push(fmtDate(r.date));
             if(r.category) bits.push(r.category);
-            if(r.paidFrom) bits.push(r.paidFrom);
-            var sub=bits.join("  ·  ");
-            if(r.kind==="reimburse"&&r.coverNote) sub+=(sub?"  ·  ":"")+"Covers: "+r.coverNote;
-            var titleW=contentW-96;
-            var titleLines=wrapLines(vend, 11, true, titleW);
-            var subH=sub?measureWrap(sub, 9, false, contentW-12, 11):0;
-            var h=12+titleLines.length*14+subH+10;
-            var isRepay=r.kind==="reimburse";
-            push(h, function(y){
-              if(idx%2===0) page.drawRectangle({x:margin, y:y-h+6, width:contentW, height:h-2, color:zebra});
-              if(isRepay) page.drawRectangle({x:margin, y:y-h+6, width:3, height:h-2, color:gold});
-              var x0=margin+(isRepay?8:6);
-              var ty=y-4;
-              titleLines.forEach(function(ln, i){ drawText(ln, x0, ty-i*14, 11, true, ink, titleW); });
-              drawRight(expPdfMoney(r.amount), W-margin-6, ty, 12, true, ink);
-              if(sub) drawWrap(sub, x0, ty-titleLines.length*14-2, 9, false, muted, contentW-12, 11);
-            });
-          });
-          push(32, function(y){
-            page.drawRectangle({x:margin, y:y-26, width:contentW, height:28, color:navy});
-            drawText("Total out", margin+8, y-10, 11, true, white);
-            drawRight(expPdfMoney(report.totalCashExpenses), W-margin-8, y-10, 12, true, gold);
+            if(r.kind==="reimburse"&&r.coverNote) bits.push("Covers: "+r.coverNote);
+            lineItem(vend, r.amount, bits.join(" · "), idx, r.kind==="reimburse"?gold:(r.kind==="commission"?navy:null));
           });
         }
 
-        /* Pocket — short summary + compact lines */
-        var capList=report.captainPocketSpends||[];
-        var crewList=report.crewPocketSpends||[];
-        var capTot=report.captainPocketTotal||0;
-        var capRepay=report.reimburseCaptainTotal!=null?report.reimburseCaptainTotal:0;
-        var crewRepay=report.reimburseCrewTotal||0;
-        var allPocket=capList.concat(crewList);
+        /* ===== Key ===== */
+        sectionHead("KEY (PLAIN WORDS)");
+        bodyPara("Cash in = notes that entered the boat envelope from guests.");
+        bodyPara("Cash out = notes that left that same envelope.");
+        bodyPara("Captain fronted = captain paid with his own money when the boat had none; later repaid from the envelope.");
+        bodyPara("Commission = captain's agreed share of cash business — paid from envelope when drawn.");
+        bodyPara("This PDF never includes credit-card spends.");
 
-        push(22, function(y){
-          drawText("POCKET (OWN MONEY)", margin, y-4, 10, true, navy);
-          page.drawRectangle({x:margin, y:y-8, width:28, height:2, color:gold});
-        });
-        push(48, function(y){
-          drawText("Captain spends listed", margin+2, y-2, 10, false, muted);
-          drawRight(expPdfMoney(capTot), W-margin-2, y-2, 11, true, ink);
-          drawText("Repaid to captain (this month)", margin+2, y-18, 10, false, muted);
-          drawRight(expPdfMoney(capRepay), W-margin-2, y-18, 11, true, ink);
-          if(crewRepay>0.009){
-            drawText("Repaid to crew (this month)", margin+2, y-34, 10, false, muted);
-            drawRight(expPdfMoney(crewRepay), W-margin-2, y-34, 11, true, ink);
-          }
-        });
-        if(Math.abs(capTot-capRepay)>0.02){
-          var note="Spends = shop/day-pay from pocket (any month below). Repay = petty to captain this month only.";
-          var nh=measureWrap(note, 9, false, contentW, 11)+8;
-          push(nh, function(y){
-            drawWrap(note, margin+2, y-2, 9, false, muted, contentW, 11);
-          });
-        }
-        if(!allPocket.length){
-          push(24, function(y){ drawText("No pocket spends linked.", margin+4, y-8, 10, false, muted); });
-        } else {
-          allPocket.forEach(function(p, idx){
-            var what=p.vendor||"-";
-            if(p.description&&p.description!==p.vendor) what=p.vendor+" - "+p.description;
-            var bits=[];
-            if(p.date) bits.push(fmtDate(p.date)+(p.priorMonth?" prior":""));
-            bits.push(p.who||"Captain");
-            bits.push(p.repaid||p.coveredByThisMonth?"Repaid":"Open");
-            var sub=bits.join("  ·  ");
-            var titleLines=wrapLines(what, 11, true, contentW-96);
-            var h=12+titleLines.length*14+12+8;
-            push(h, function(y){
-              if(idx%2===0) page.drawRectangle({x:margin, y:y-h+6, width:contentW, height:h-2, color:zebra});
-              page.drawRectangle({x:margin, y:y-h+6, width:3, height:h-2, color:p.isCaptain?greenInk:gold});
-              var ty=y-4;
-              titleLines.forEach(function(ln, i){ drawText(ln, margin+8, ty-i*14, 11, true, ink, contentW-96); });
-              drawRight(expPdfMoney(p.amount), W-margin-6, ty, 12, true, ink);
-              drawText(sub, margin+8, ty-titleLines.length*14-2, 9, false, muted, contentW-16);
-            });
-          });
-        }
-
-        /* Category totals — one line each */
-        var cats=report.byCategory||[];
-        if(cats.length){
-          push(22, function(y){
-            drawText("BY CATEGORY", margin, y-4, 10, true, navy);
-            page.drawRectangle({x:margin, y:y-8, width:28, height:2, color:gold});
-          });
-          cats.forEach(function(c, idx){
-            push(22, function(y){
-              if(idx%2===0) page.drawRectangle({x:margin, y:y-16, width:contentW, height:20, color:zebra});
-              drawText(c.category, margin+4, y-4, 10, false, ink, contentW-100);
-              drawRight(expPdfMoney(c.amount), W-margin-4, y-4, 11, true, ink);
-            });
-          });
-        }
-
-        /* Tiny key — 2 lines only */
-        push(40, function(y){
-          drawText("KEY", margin, y-2, 9, true, muted);
-          drawWrap("Repay = petty paid back to pocket. Own money = paid from pocket (not envelope). Card excluded.", margin, y-16, 9, false, muted, contentW, 11);
+        push(24, function(y){
+          drawText("Limitless  ·  confidential  ·  owner copy", margin, y-8, 8, false, muted);
         });
 
-        push(20, function(y){
-          drawText("Limitless  ·  confidential", margin, y-6, 8, false, muted);
-        });
-
-        /* One page, height = content (scroll on phone, no page flips) */
         var totalH=16;
         items.forEach(function(it){ totalH+=it.h; });
         totalH+=16;
-        /* PDF practical max page dimension ~14400pt */
         var H=Math.min(Math.max(Math.ceil(totalH), 500), 14000);
         page=doc.addPage([W, H]);
         var y=H-12;
         items.forEach(function(it){
-          if(y-it.h<8) return; /* safety if capped */
+          if(y-it.h<8) return;
           it.draw(y);
           y-=it.h;
         });
