@@ -336,6 +336,49 @@ function summarizeCaptainChargeCommissions(charters) {
 }
 
 /**
+ * Captain upsell commissions as-of a report month (pure).
+ * Charge date month must be in scope — future charge dates excluded.
+ * scope "month" | "through"
+ */
+function summarizeCaptainChargeBizAsOf(charters, month, scope) {
+  scope = scope === "through" ? "through" : "month";
+  month = String(month || "").slice(0, 7);
+  var gross = 0;
+  var base = 0;
+  var comm = 0;
+  var n = 0;
+  var items = [];
+  if (!/^\d{4}-\d{2}$/.test(month)) {
+    return { n: 0, gross: 0, base: 0, comm: 0, items: [] };
+  }
+  (Array.isArray(charters) ? charters : []).forEach(function (c) {
+    if (!isChargeCaptainComm(c)) return;
+    var dm = String((c && c.date) || "").slice(0, 7);
+    if (!/^\d{4}-\d{2}$/.test(dm)) return;
+    if (dm > month) return; /* future */
+    if (scope === "month" && dm !== month) return;
+    if (scope === "through" && dm > month) return;
+    var p = chargeCommissionParts(c);
+    if (!p || !(num(p.total) > 0.009 || num(p.gross) > 0.009)) return;
+    n++;
+    gross = round2(gross + num(p.gross));
+    base = round2(base + num(p.base));
+    comm = round2(comm + num(p.total));
+    items.push({
+      kind: "charge",
+      id: c.id != null ? String(c.id) : "",
+      name: String(c.client || "Upsell").trim() || "Upsell",
+      start: String(c.date || "").slice(0, 10),
+      end: "",
+      gross: round2(num(p.gross)),
+      base: round2(num(p.base)),
+      comm: round2(num(p.total)),
+    });
+  });
+  return { n: n, gross: gross, base: base, comm: comm, items: items };
+}
+
+/**
  * Payment status for cash/envelope rules.
  * Defaults Paid for legacy rows without payStatus (Pending / Invoiced / Paid status).
  */
@@ -572,6 +615,7 @@ function summarizeChargeCashToBoat(charters) {
     chargeCommissionParts: chargeCommissionParts,
     chargeCommissionAmt: chargeCommissionAmt,
     summarizeCaptainChargeCommissions: summarizeCaptainChargeCommissions,
+    summarizeCaptainChargeBizAsOf: summarizeCaptainChargeBizAsOf,
     chargeIsPaid: chargeIsPaid,
     chargeIsExplicitlyPaid: chargeIsExplicitlyPaid,
     chargeCashToBoat: chargeCashToBoat,
