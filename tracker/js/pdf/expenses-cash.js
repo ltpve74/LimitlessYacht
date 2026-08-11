@@ -569,12 +569,17 @@
         }
 
         /* —— 4) CAPTAIN OUT OF POCKET —— */
-        if (pocketOpen > 0.009 || (PS && ((PS.monthSpend || 0) > 0.009 || (PS.monthRepay || 0) > 0.009))) {
+        if (
+          pocketOpen > 0.009 ||
+          (PS &&
+            ((PS.monthSpend || 0) > 0.009 ||
+              (PS.monthRepay || 0) > 0.009 ||
+              (PS.broughtForward || 0) > 0.009 ||
+              (PS.openLines || []).length))
+        ) {
           sectionHead("4 · CAPTAIN OUT OF POCKET");
           noteLine(
-            "Money the captain put in from own pocket in " +
-              periodLab +
-              " (crew / shops). Separate from captain-sourced business share.",
+            "Money the captain put in from own pocket (crew / shops). Separate from captain-sourced business share. A repay only covers spends on or before that repay date.",
             muted
           );
           gap(10);
@@ -588,34 +593,67 @@
               });
               gap(6);
             }
-            kvRow("Fronted in " + periodLab, pdfMoney(PS.monthSpend || 0), {
-              big: true,
-              boldLab: true,
-            });
-            if ((PS.stewMonth || 0) > 0.009) {
-              gap(6);
-              kvRow("  Stew day rates", pdfMoney(PS.stewMonth));
+            if ((PS.monthSpend || 0) > 0.009) {
+              kvRow("Fronted in " + periodLab, pdfMoney(PS.monthSpend || 0), {
+                big: true,
+                boldLab: true,
+              });
+              if ((PS.stewMonth || 0) > 0.009) {
+                gap(6);
+                kvRow("  Stew day rates", pdfMoney(PS.stewMonth));
+              }
+              if ((PS.shopMonth || 0) > 0.009) {
+                gap(6);
+                kvRow("  Shops / other", pdfMoney(PS.shopMonth));
+              }
+              gap(8);
             }
-            if ((PS.shopMonth || 0) > 0.009) {
-              gap(6);
-              kvRow("  Shops / other", pdfMoney(PS.shopMonth));
+            if ((PS.monthRepay || 0) > 0.009) {
+              kvRow("Repaid from petty in " + periodLab, pdfMoney(PS.monthRepay || 0), {
+                bg: greenBg,
+                labColor: greenInk,
+                valColor: greenInk,
+                boldLab: true,
+              });
+              gap(8);
             }
-            gap(8);
-            kvRow("Repaid from petty in " + periodLab, pdfMoney(PS.monthRepay || 0));
-            gap(10);
-            kvRow("Still open at month end", pdfMoney(PS.closingOpen || 0), {
+            kvRow("Still open up until this date", pdfMoney(PS.closingOpen || 0), {
               big: true,
               bg: (PS.closingOpen || 0) > 0.009 ? amberBg : greenBg,
               labColor: (PS.closingOpen || 0) > 0.009 ? amberInk : greenInk,
               valColor: (PS.closingOpen || 0) > 0.009 ? amberInk : greenInk,
               boldLab: true,
             });
-            if ((PS.closingOpen || 0) > 0.009) {
+            var openPocket = PS.openLines || [];
+            if (openPocket.length) {
+              gap(10);
+              noteLine("Still open — who / what:", navy);
+              gap(6);
+              openPocket.forEach(function (r, idx) {
+                var bits = [];
+                if (r.date) bits.push(fmtDate(r.date));
+                if (r.isStew) bits.push(r.isLongDay ? "long day" : "day rate");
+                else if (r.description) bits.push(String(r.description).slice(0, 48));
+                if (r.charterDate) bits.push("charter " + fmtDate(r.charterDate));
+                if ((r.month || "") < (report.month || "")) bits.push("from " + (r.month || "prior"));
+                bits.push("own money — not repaid from petty yet");
+                lineItem(
+                  r.vendor || (r.isStew ? "Crew" : "Spend"),
+                  r.remainOpen != null ? r.remainOpen : r.amount,
+                  bits.join(" · "),
+                  idx,
+                  amberInk
+                );
+              });
+            } else if ((PS.closingOpen || 0) > 0.009) {
               gap(6);
               noteLine(
-                "Not repaid from petty by the end of " + periodLab + ".",
+                "Not fully repaid from petty by the end of " + periodLab + ".",
                 amberInk
               );
+            } else if ((PS.monthRepay || 0) > 0.009) {
+              gap(6);
+              noteLine("Pocket cleared up until this date.", greenInk);
             }
           }
         }
