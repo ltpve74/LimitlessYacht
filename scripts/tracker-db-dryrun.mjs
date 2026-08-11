@@ -7,42 +7,30 @@
  * Usage:
  *   TRACKER_PASSCODE=… node scripts/tracker-db-dryrun.mjs
  *   TRACKER_PASSCODE=… node scripts/tracker-db-dryrun.mjs --apply-july-aug-2026
+ *   TRACKER_PASSCODE=… node scripts/tracker-db-backup.mjs   # backup only
  *
  * Default: load live blob, print July/Aug petty + pocket bridge + plan patches.
- * --apply-july-aug-2026: one-shot reconstruction (floatPay pot lines + Aug BF 110).
+ * --apply-july-aug-2026: backup → one-shot reconstruction (floatPay pot + Aug BF 110).
+ *
+ * Save shape: collection + rows only (never coll/data — empty wipe).
+ * Every apply path runs backupLive() first and refuses empty expenses saves.
  */
 import { createRequire } from "module";
+import {
+  loadLive,
+  backupLive,
+  saveCollection,
+} from "./lib/tracker-db-io.mjs";
+
 const require = createRequire(import.meta.url);
 const M = require("../tracker/js/models.js");
 
-const API = process.env.TRACKER_API || "https://limitlessyachtcharter.com/api/tracker";
 const PASS = process.env.TRACKER_PASSCODE || "";
-const WHO = process.env.TRACKER_WHO || "Captain";
 const APPLY = process.argv.includes("--apply-july-aug-2026");
 
 if (!PASS) {
   console.error("Set TRACKER_PASSCODE (captain). No passcode → refuse (no silent heals).");
   process.exit(2);
-}
-
-async function api(body) {
-  const res = await fetch(API, {
-    method: "POST",
-    headers: {
-      "Content-Type": "application/json",
-      "x-tracker-pass": PASS,
-    },
-    body: JSON.stringify(Object.assign({ who: WHO, role: "captain" }, body)),
-  });
-  const text = await res.text();
-  let data;
-  try {
-    data = JSON.parse(text);
-  } catch (e) {
-    throw new Error("Bad JSON " + res.status + ": " + text.slice(0, 200));
-  }
-  if (!res.ok) throw new Error((data && data.error) || res.statusText);
-  return data;
 }
 
 function near(a, b, eps) {
@@ -56,9 +44,11 @@ function monthLines(expenses, mon) {
 }
 
 function pettyFor(rows, mon) {
-  return (rows || []).find(function (p) {
-    return p && String(p.month || "").slice(0, 7) === mon;
-  }) || null;
+  return (
+    (rows || []).find(function (p) {
+      return p && String(p.month || "").slice(0, 7) === mon;
+    }) || null
+  );
 }
 
 /** Known reconstruction targets from captain records (2026-07 / 2026-08). */
@@ -120,8 +110,23 @@ function printSettlement(label, mon, expenses, expPetty) {
   const close = M.resolvePettyMonthClose(mon, expPetty, expenses, {});
   const bridge = M.summarizeCaptainPocketMonthBridge(expenses, mon);
   console.log("\n=== " + label + " (" + mon + ") ===");
-  console.log("  open: start", open.pettyStart, "BF short", open.broughtForwardShort, "mode", open.startMode, "src", open.source);
-  console.log("  close: onboard", close.onboard, "short", close.short, close.empty ? "(empty)" : "");
+  console.log(
+    "  open: start",
+    open.pettyStart,
+    "BF short",
+    open.broughtForwardShort,
+    "mode",
+    open.startMode,
+    "src",
+    open.source
+  );
+  console.log(
+    "  close: onboard",
+    close.onboard,
+    "short",
+    close.short,
+    close.empty ? "(empty)" : ""
+  );
   console.log(
     "  pocket bridge: BF",
     bridge.broughtForward,
@@ -137,8 +142,8 @@ function printSettlement(label, mon, expenses, expPetty) {
 }
 
 async function main() {
-  console.log("Loading tracker blob from", API, "…");
-  const data = await api({ action: "load" });
+  console.log("Loading tracker blob…");
+  const data = await loadLive();
   const expenses = Array.isArray(data.expenses) ? data.expenses : [];
   const expPetty = Array.isArray(data.expPetty) ? data.expPetty : [];
   console.log("Loaded expenses", expenses.length, "expPetty months", expPetty.length);
@@ -153,7 +158,10 @@ async function main() {
       "  expense",
       p.label,
       p.id || "—",
-      p.error || (p.need ? "NEED " + JSON.stringify(p.before) + " → " + JSON.stringify(p.after) : "ok")
+      p.error ||
+        (p.need
+          ? "NEED " + JSON.stringify(p.before) + " → " + JSON.stringify(p.after)
+          : "ok")
     );
   });
   plan.expPetty.forEach(function (p) {
@@ -166,13 +174,16 @@ async function main() {
   });
 
   const carryPlan = M.planPettyCarryMaterialize(expPetty, expenses, null, {});
-  console.log("\n=== Pure carry materialize plan (not auto-applied) n=" + carryPlan.n + " ===");
+  console.log(
+    "\n=== Pure carry materialize plan (not auto-applied) n=" + carryPlan.n + " ==="
+  );
   carryPlan.patches.slice(0, 12).forEach(function (p) {
     console.log(" ", p.month, p.reason, p.fields);
   });
 
   if (!APPLY) {
     console.log("\nDry-run only. To apply known reconstruction: --apply-july-aug-2026");
+    console.log("Backup only (no write): node scripts/tracker-db-backup.mjs [label]");
     return;
   }
 
@@ -186,6 +197,11 @@ async function main() {
     console.log("\nNothing to apply — data already matches reconstruction targets.");
     return;
   }
+
+  /* ── mandatory backup before any live write ── */
+  console.log("\n=== BACKUP (required before apply) ===");
+  const { backup } = await backupLive("pre-apply-july-aug-2026", { data: data });
+  const backupDir = backup.dir;
 
   let nextExpenses = expenses.slice();
   needExp.forEach(function (p) {
@@ -226,17 +242,17 @@ async function main() {
 
   if (needExp.length) {
     console.log("\nSaving expenses (" + needExp.length + " floatPay patches)…");
-    await api({ action: "save", collection: "expenses", rows: nextExpenses });
+    await saveCollection("expenses", nextExpenses, { backupDir: backupDir });
   }
   if (needPetty.length) {
     console.log("Saving expPetty (BF short patches)…");
-    await api({ action: "save", collection: "expPetty", rows: nextPetty });
+    await saveCollection("expPetty", nextPetty, { backupDir: backupDir });
   }
 
-  const verify = await api({ action: "load" });
+  const verify = await loadLive();
   printSettlement("July (after)", "2026-07", verify.expenses, verify.expPetty);
   printSettlement("August (after)", "2026-08", verify.expenses, verify.expPetty);
-  console.log("\nApply complete.");
+  console.log("\nApply complete. Backup kept at:", backupDir);
 }
 
 main().catch(function (err) {

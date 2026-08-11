@@ -40,5 +40,8 @@ node_modules/
 # Local spreadsheet companion for the invoice tracker — never deploy
 tracker/*.xlsx
 tracker/*.xls
+
+# Live tracker blob snapshots (backup-before-write). Never commit or deploy.
+.tracker-backups/
 # tracker/examples/ is develop-only reference (monthly expenses sample etc.) —
 # tracked on develop for agents, stripped on main + .netlifyignore (never public).

@@ -59,7 +59,16 @@ Captain repaid **€958.88** on 1 Aug (€950 + €8.88). Airiana (€200, 7 Aug
 
 ### API save note (do not wipe)
 
-Tracker save expects **`collection` + `rows`**, not `coll` / `data`. Wrong shape full-replaces with `[]`. Dry-run script fixed. Keep `/tmp/tracker-fix-expenses.json` style backups before write.
+Tracker save expects **`collection` + `rows`**, not `coll` / `data`. Wrong shape full-replaces with `[]`.
+
+**Backup before every direct DB write** (owner rule after 2026-08-12 wipe):
+
+```sh
+TRACKER_PASSCODE=… node scripts/tracker-db-backup.mjs pre-my-change
+# or import { backupLive, saveCollection } from './scripts/lib/tracker-db-io.mjs'
+```
+
+Snapshots: `.tracker-backups/` (gitignored). Apply paths in `tracker-db-dryrun.mjs` call `backupLive` automatically and refuse empty `expenses` saves.
 
 ### Earlier snapshot (pre-Arthur reclass)
 
