@@ -321,7 +321,7 @@
           drawText("Expense report", margin, y - 34, 16, true, gold);
         });
         gap(10);
-        /* Period highlight — owner sees which month at once */
+        /* Period only — do NOT mix with "generated today" (confuses the owner) */
         push(36, function (y) {
           page.drawRectangle({
             x: margin,
@@ -331,7 +331,7 @@
             color: goldSoft,
           });
           drawText(periodLab, margin + 10, y - 12, 14, true, navy);
-          drawText("As of end of month" + (gen ? "  ·  " + gen : ""), margin + 10, y - 26, 9, false, muted, contentW - 20);
+          drawText("Figures as of the last day of this month", margin + 10, y - 26, 9, false, muted, contentW - 20);
         });
         gap(12);
 
@@ -362,7 +362,7 @@
           noteLine("Carries into next month until cash covers the hole.", redInk);
         }
 
-        /* —— 2) STILL OUTSTANDING (itemised) —— */
+        /* —— 2) STILL OUTSTANDING: outline first (3 lines), then detail —— */
         sectionHead("2 · STILL OUTSTANDING");
         noteLine(periodNote, muted);
         gap(6);
@@ -375,6 +375,40 @@
             boldLab: true,
           });
         } else {
+          /* Outline — all three buckets visible immediately */
+          noteLine("Outline (end of " + periodLab + "):", navy);
+          gap(6);
+          if (boatShort > 0.009) {
+            kvRow("Petty cash short (crew / other)", pdfMoney(boatShort), {
+              big: true,
+              bg: redBg,
+              labColor: redInk,
+              valColor: redInk,
+              boldLab: true,
+            });
+            gap(4);
+          }
+          if (commOpen > 0.009) {
+            kvRow("Captain commission — OUTSTANDING", pdfMoney(commOpen), {
+              big: true,
+              bg: amberBg,
+              labColor: amberInk,
+              valColor: amberInk,
+              boldLab: true,
+            });
+            gap(4);
+          }
+          if (pocketOpen > 0.009) {
+            kvRow("Captain out of pocket — OUTSTANDING", pdfMoney(pocketOpen), {
+              big: true,
+              bg: amberBg,
+              labColor: amberInk,
+              valColor: amberInk,
+              boldLab: true,
+            });
+            gap(4);
+          }
+          gap(4);
           kvRow("Total still outstanding", pdfMoney(outSum), {
             big: true,
             bg: redBg,
@@ -382,8 +416,10 @@
             valColor: redInk,
             boldLab: true,
           });
-          gap(10);
-          noteLine("Itemised:", navy);
+          gap(12);
+
+          /* Detail under the outline */
+          noteLine("Detail:", navy);
           gap(6);
 
           /* Crew pay (petty short on crew lines) */
@@ -426,23 +462,22 @@
               var subBits = [];
               if (s.date) subBits.push(fmtDate(s.date));
               subBits.push("not covered by petty cash");
-              lineItem(s.label || "Pot out", s.amount, subBits.join(" · "), idx, redInk);
+              lineItem(s.label || "Petty out", s.amount, subBits.join(" · "), idx, redInk);
             });
             gap(8);
           }
 
-          /* Captain commission — outstanding, period clear */
+          /* Captain commission detail */
           if (commOpen > 0.009) {
-            kvRow("Captain commission — OUTSTANDING", pdfMoney(commOpen), {
-              big: true,
+            kvRow("Captain commission — detail", pdfMoney(commOpen), {
+              boldLab: true,
               bg: amberBg,
               labColor: amberInk,
               valColor: amberInk,
-              boldLab: true,
             });
             if (commPrior > 0.009) {
               noteLine(
-                "Not only this month: includes prior charters through end of " +
+                "Includes prior charters through end of " +
                   periodLab +
                   " (this month " +
                   pdfMoney(commMonth) +
@@ -453,9 +488,7 @@
               );
             } else {
               noteLine(
-                "Outstanding for charters in " +
-                  periodLab +
-                  " only — not paid from petty cash in this period.",
+                "For charters in " + periodLab + " — not paid from petty cash in this period.",
                 amberInk
               );
             }
@@ -468,17 +501,16 @@
             gap(8);
           }
 
-          /* Captain out of pocket */
+          /* Captain out of pocket detail */
           if (pocketOpen > 0.009) {
-            kvRow("Captain out of pocket — OUTSTANDING", pdfMoney(pocketOpen), {
-              big: true,
+            kvRow("Captain out of pocket — detail", pdfMoney(pocketOpen), {
+              boldLab: true,
               bg: amberBg,
               labColor: amberInk,
               valColor: amberInk,
-              boldLab: true,
             });
             noteLine(
-              "Captain fronted cash in " +
+              "Fronted in " +
                 periodLab +
                 " (and any prior still open). Not repaid from petty cash by month end.",
               amberInk
