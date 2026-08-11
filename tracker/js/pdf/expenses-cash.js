@@ -587,14 +587,14 @@
             : crew.fromBoatPotShort || 0;
         var potCrew = potCrewCovered;
         var capCrew = crew.fromCaptain || 0;
-        var booksCrew = crew.booksOnly || 0;
         var ownerCrew = crew.fromOwner || 0;
+        /* booksOnly (Paid, no floatPay) is a pre–Owner-money recording quirk —
+         * do not show on the owner PDF (July etc.). */
         if (
           potCrewCovered > 0.009 ||
           potCrewMarked > 0.009 ||
           potCrewShort > 0.009 ||
           capCrew > 0.009 ||
-          booksCrew > 0.009 ||
           ownerCrew > 0.009
         ) {
           sectionHead("CREW");
@@ -699,18 +699,8 @@
           if (ownerCrew > 0.009) {
             gap(6);
             kvRow("Paid by owner", pdfMoney(ownerCrew), { boldLab: true });
-          }
-          if (booksCrew > 0.009) {
-            gap(6);
-            kvRow("Already marked paid (not from boat cash)", pdfMoney(booksCrew), {
-              boldLab: true,
-            });
-            noteLine(
-              "Day rates marked Paid in the tracker, but no cash left petty cash for these. Not a short and not captain pocket — just not a boat-pot payment.",
-              muted
-            );
             gap(4);
-            (crew.booksLines || []).forEach(function (r, idx) {
+            (crew.ownerLines || []).forEach(function (r, idx) {
               crewOwnerLine(r, idx, muted);
             });
           }
