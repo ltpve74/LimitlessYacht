@@ -279,19 +279,8 @@
           });
         }
 
-        var gen = "";
-        try {
-          gen = new Date(report.generatedAt).toLocaleString("en-GB", {
-            day: "2-digit",
-            month: "short",
-            year: "numeric",
-          });
-        } catch (eG) {
-          gen = "";
-        }
-
+        /* One period label only — never "generated today" (confuses the owner). */
         var periodLab = report.monthLabel || report.month || "";
-        var periodNote = "Period: " + periodLab + "  ·  figures as of end of that month";
         /* Outstanding split (model DTO only) */
         var shorts = report.shortLines || [];
         var crewShortAmt = 0;
@@ -321,23 +310,21 @@
           drawText("Expense report", margin, y - 34, 16, true, gold);
         });
         gap(10);
-        /* Period only — do NOT mix with "generated today" (confuses the owner) */
-        push(36, function (y) {
+        /* Month banner only — no second date line (no "as of", no today). */
+        push(28, function (y) {
           page.drawRectangle({
             x: margin,
-            y: y - 30,
+            y: y - 22,
             width: contentW,
-            height: 32,
+            height: 24,
             color: goldSoft,
           });
-          drawText(periodLab, margin + 10, y - 12, 14, true, navy);
-          drawText("Figures as of the last day of this month", margin + 10, y - 26, 9, false, muted, contentW - 20);
+          drawText(periodLab, margin + 10, y - 16, 14, true, navy);
         });
         gap(12);
 
         /* —— 1) PETTY CASH at a glance —— */
         sectionHead("1 · PETTY CASH");
-        noteLine(periodNote, muted);
         gap(6);
         kvRow("Cash in", pdfMoney(cashIn), { big: true, boldLab: true, bg: greenBg, labColor: greenInk, valColor: greenInk });
         gap(4);
@@ -364,7 +351,6 @@
 
         /* —— 2) STILL OUTSTANDING: outline first (3 lines), then detail —— */
         sectionHead("2 · STILL OUTSTANDING");
-        noteLine(periodNote, muted);
         gap(6);
         if (!hasOutstanding) {
           kvRow("Nothing outstanding", pdfMoney(0), {
@@ -533,7 +519,6 @@
 
         /* —— Petty cash detail —— */
         sectionHead("PETTY CASH · DETAIL");
-        noteLine(periodNote, muted);
         gap(6);
         kvRow("Start", pdfMoney(start));
         gap(2);
@@ -813,7 +798,14 @@
 
         gap(16);
         push(20, function (y) {
-          drawText("Cash only  ·  as of end of month  ·  Limitless", margin, y - 6, 8, false, muted);
+          drawText(
+            "Cash only  ·  " + (periodLab || "month") + "  ·  Limitless",
+            margin,
+            y - 6,
+            8,
+            false,
+            muted
+          );
         });
         gap(12);
 
