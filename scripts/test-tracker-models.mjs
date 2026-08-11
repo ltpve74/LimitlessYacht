@@ -453,6 +453,59 @@ ok("label owner-sourced", M.leadSourceLabel("ownersourced") === "Owner-sourced")
   ok("deal closed explicit false", !M.leadIsDealClosed({ id: "b", dealClosed: false }));
   ok("deal closed legacy undefined = closed", M.leadIsDealClosed({ id: "c" }));
   ok("deal closed new draft = open", !M.leadIsDealClosed({ dealClosed: undefined }));
+
+  /* Commission biz as-of day — unstarted future charters stay out */
+  {
+    ok(
+      "asOf mid-month is today not month-end",
+      M.commissionBizAsOfDay("2026-08", "2026-08-12") === "2026-08-12"
+    );
+    ok(
+      "asOf past month freezes at month-end",
+      M.commissionBizAsOfDay("2026-07", "2026-08-12") === "2026-07-31"
+    );
+    const past = { id: "p", start: "2026-08-06", name: "Past" };
+    const future = { id: "f", start: "2026-08-21", name: "Aoife" };
+    ok(
+      "completed charter in through+asOf",
+      M.leadInCommissionBizScope(past, "2026-08", "through", "2026-08-12")
+    );
+    ok(
+      "unstarted future charter out of through+asOf",
+      !M.leadInCommissionBizScope(future, "2026-08", "through", "2026-08-12")
+    );
+    const biz = M.summarizeCaptainLeadBizAsOf(
+      [
+        {
+          id: "p",
+          start: "2026-07-25",
+          name: "Hollman",
+          leadSource: "captain",
+          dealClosed: true,
+          price: 2000,
+          rate: 2000,
+          vatMode: "include",
+          vatPct: 21,
+        },
+        {
+          id: "f",
+          start: "2026-08-21",
+          name: "Aoife",
+          leadSource: "captain",
+          dealClosed: true,
+          price: 6000,
+          rate: 6000,
+          vatMode: "include",
+          vatPct: 21,
+        },
+      ],
+      "2026-08",
+      "through",
+      "2026-08-12"
+    );
+    ok("asOf biz n excludes future Aoife", biz.n === 1, "n=" + biz.n);
+    ok("asOf biz name is past only", biz.items[0] && biz.items[0].name === "Hollman");
+  }
 }
 
 /* ---- Seasonal charter pricing ---- */

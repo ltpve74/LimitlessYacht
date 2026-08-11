@@ -181,26 +181,78 @@ function leadCharterStartMonth(r) {
   return /^\d{4}-\d{2}$/.test(st) ? st : "";
 }
 
+/** Charter start day YYYY-MM-DD — never booking/closed date. */
+function leadCharterStartDay(r) {
+  var d = String((r && (r.start || r.cdate)) || "").slice(0, 10);
+  return /^\d{4}-\d{2}-\d{2}$/.test(d) ? d : "";
+}
+
+/**
+ * Cap for “has this charter already happened?” on a month report.
+ * min(today, last day of report month) — never includes later months,
+ * and never includes later days still inside the report month.
+ *
+ * @param {string} month YYYY-MM
+ * @param {string} [todayYmd] optional fixed “today” (tests)
+ * @returns {string} YYYY-MM-DD
+ */
+function commissionBizAsOfDay(month, todayYmd) {
+  month = String(month || "").slice(0, 7);
+  if (!/^\d{4}-\d{2}$/.test(month)) return "";
+  var y = parseInt(month.slice(0, 4), 10);
+  var m = parseInt(month.slice(5, 7), 10);
+  var last = new Date(y, m, 0).getDate();
+  var monthEnd = month + "-" + (last < 10 ? "0" : "") + last;
+  var today = String(todayYmd || "").slice(0, 10);
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(today)) {
+    try {
+      var d = new Date();
+      var ty = d.getFullYear();
+      var tm = d.getMonth() + 1;
+      var td = d.getDate();
+      today =
+        ty +
+        "-" +
+        (tm < 10 ? "0" : "") +
+        tm +
+        "-" +
+        (td < 10 ? "0" : "") +
+        td;
+    } catch (eT) {
+      today = monthEnd;
+    }
+  }
+  return today < monthEnd ? today : monthEnd;
+}
+
 /**
  * Whether a lead’s commission belongs in a month cash report (pure).
  *
  * scope "month"   = charter activity in that month (start/end/span)
  * scope "through" = charter start on or before end of that month
  *
- * Future charters (start month > report month) are NEVER included — even if
- * booked/closed earlier. Booking/closed date is not used.
+ * Future charters are NEVER included:
+ *  - start month > report month, or
+ *  - start day > asOfYmd (optional day cap — unstarted charters this month stay out)
+ *
+ * Booking/closed date is not used.
  *
  * @param {object} r lead
  * @param {string} month YYYY-MM
  * @param {"month"|"through"} scope
+ * @param {string} [asOfYmd] YYYY-MM-DD — only charters started on/before this day
  */
-function leadInCommissionBizScope(r, month, scope) {
+function leadInCommissionBizScope(r, month, scope, asOfYmd) {
   month = String(month || "").slice(0, 7);
   if (!r || !/^\d{4}-\d{2}$/.test(month)) return false;
   var st = leadCharterStartMonth(r);
   if (!st) return false;
-  /* Future charter — out of this report */
+  /* Future charter month — out of this report */
   if (st > month) return false;
+  var startDay = leadCharterStartDay(r);
+  var asOf = String(asOfYmd || "").slice(0, 10);
+  /* Unstarted charter (even if confirmed) — out until the day has begun */
+  if (/^\d{4}-\d{2}-\d{2}$/.test(asOf) && startDay && startDay > asOf) return false;
   if (scope === "through") return st <= month;
   /* month: start in month, end in month, or multi spanning month */
   var en = String(r.end || "").slice(0, 7);
@@ -212,11 +264,17 @@ function leadInCommissionBizScope(r, month, scope) {
 
 /**
  * Captain-earning business for cash PDF (leads only — charges composed in controller).
- * @returns {{ n, gross, base, comm, items: Array }}
+ * @param {Array} leads
+ * @param {string} month YYYY-MM
+ * @param {"month"|"through"} scope
+ * @param {string} [asOfYmd] YYYY-MM-DD day cap
+ * @returns {{ n, gross, base, comm, items: Array, asOfYmd: string }}
  */
-function summarizeCaptainLeadBizAsOf(leads, month, scope) {
+function summarizeCaptainLeadBizAsOf(leads, month, scope, asOfYmd) {
   scope = scope === "through" ? "through" : "month";
   month = String(month || "").slice(0, 7);
+  var asOf = String(asOfYmd || "").slice(0, 10);
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(asOf)) asOf = commissionBizAsOfDay(month);
   var gross = 0;
   var base = 0;
   var comm = 0;
@@ -226,7 +284,7 @@ function summarizeCaptainLeadBizAsOf(leads, month, scope) {
     if (!r || leadIsCancelled(r) || leadIsDayOff(r)) return;
     if (!leadEarnsCaptainCommission(r)) return;
     if (!leadIsDealClosed(r)) return;
-    if (!leadInCommissionBizScope(r, month, scope)) return;
+    if (!leadInCommissionBizScope(r, month, scope, asOf)) return;
     var p = leadCommissionParts(r);
     if (!p || !(num(p.total) > 0.009 || num(p.gross) > 0.009 || num(p.base) > 0.009)) return;
     n++;
@@ -244,7 +302,7 @@ function summarizeCaptainLeadBizAsOf(leads, month, scope) {
       comm: round2(num(p.total)),
     });
   });
-  return { n: n, gross: gross, base: base, comm: comm, items: items };
+  return { n: n, gross: gross, base: base, comm: comm, items: items, asOfYmd: asOf };
 }
 
 /**
@@ -1427,6 +1485,8 @@ function leadCommissionAmt(r) {
     isOwnerSourcedLead: isOwnerSourcedLead,
     leadIsDealClosed: leadIsDealClosed,
     leadCharterStartMonth: leadCharterStartMonth,
+    leadCharterStartDay: leadCharterStartDay,
+    commissionBizAsOfDay: commissionBizAsOfDay,
     leadInCommissionBizScope: leadInCommissionBizScope,
     summarizeCaptainLeadBizAsOf: summarizeCaptainLeadBizAsOf,
     ownerBenefitIncluded: ownerBenefitIncluded,
