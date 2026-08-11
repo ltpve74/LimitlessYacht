@@ -290,6 +290,28 @@
           gen = "";
         }
 
+        var periodLab = report.monthLabel || report.month || "";
+        var periodNote = "Period: " + periodLab + "  ·  figures as of end of that month";
+        /* Outstanding split (model DTO only) */
+        var shorts = report.shortLines || [];
+        var crewShortAmt = 0;
+        var otherShortAmt = 0;
+        shorts.forEach(function (s) {
+          var a = Number(s.amount) || 0;
+          if (s.kind === "crew" || s.kind === "daypay") crewShortAmt += a;
+          else otherShortAmt += a;
+        });
+        crewShortAmt = Math.round(crewShortAmt * 100) / 100;
+        otherShortAmt = Math.round(otherShortAmt * 100) / 100;
+        var outSum =
+          Math.round((boatShort + Math.max(0, pocketOpen) + commOpen) * 100) / 100;
+        var commMonth = Number(report.bizMonthComm) || 0;
+        var commThrough = Number(report.commissionEarned != null ? report.commissionEarned : report.bizThroughComm) || 0;
+        var commPrior =
+          commThrough > commMonth + 0.009
+            ? Math.round((commThrough - commMonth) * 100) / 100
+            : 0;
+
         /* —— Header —— */
         push(52, function (y) {
           page.drawRectangle({ x: 0, y: y - 42, width: W, height: 52, color: navy });
@@ -298,108 +320,189 @@
           drawText("Cash only", W - margin - 56, y - 16, 9, false, goldSoft);
           drawText("Expense report", margin, y - 34, 16, true, gold);
         });
-        gap(8);
-        push(30, function (y) {
-          drawText(report.monthLabel || report.month, margin, y - 8, 14, true, navy);
-          drawText(gen ? "As of end of month  ·  " + gen : "As of end of month", margin, y - 24, 9, false, muted, contentW);
+        gap(10);
+        /* Period highlight — owner sees which month at once */
+        push(36, function (y) {
+          page.drawRectangle({
+            x: margin,
+            y: y - 30,
+            width: contentW,
+            height: 32,
+            color: goldSoft,
+          });
+          drawText(periodLab, margin + 10, y - 12, 14, true, navy);
+          drawText("As of end of month" + (gen ? "  ·  " + gen : ""), margin + 10, y - 26, 9, false, muted, contentW - 20);
         });
         gap(12);
 
-        /* —— Snapshot (3 big numbers) —— */
-        sectionHead("AT A GLANCE");
-        kvRow("On board", pdfMoney(onBoard), {
+        /* —— 1) BOAT POT at a glance —— */
+        sectionHead("1 · BOAT POT");
+        noteLine(periodNote, muted);
+        gap(6);
+        kvRow("Cash in", pdfMoney(cashIn), { big: true, boldLab: true, bg: greenBg, labColor: greenInk, valColor: greenInk });
+        gap(4);
+        kvRow("Cash out", pdfMoney(cashOut), { big: true, boldLab: true });
+        gap(4);
+        kvRow("On board (end of month)", pdfMoney(onBoard), {
           big: true,
           bg: onBoard > 0.009 ? greenBg : amberBg,
           labColor: onBoard > 0.009 ? greenInk : amberInk,
           valColor: onBoard > 0.009 ? greenInk : amberInk,
           boldLab: true,
         });
-        gap(4);
-        kvRow("Cash out this month", pdfMoney(cashOut), { big: true, boldLab: true });
-        gap(4);
-        if (hasOutstanding) {
-          var outSum =
-            Math.round((boatShort + Math.max(0, pocketOpen) + commOpen) * 100) / 100;
-          kvRow("Still outstanding (total)", pdfMoney(outSum), {
+        if (boatShort > 0.009) {
+          gap(4);
+          kvRow("Boat pot short — OUTSTANDING", pdfMoney(boatShort), {
             big: true,
             bg: redBg,
             labColor: redInk,
             valColor: redInk,
             boldLab: true,
           });
-        } else {
-          kvRow("Outstanding", "None", {
+          noteLine("Carries into next month until cash covers the hole.", redInk);
+        }
+
+        /* —— 2) STILL OUTSTANDING (itemised) —— */
+        sectionHead("2 · STILL OUTSTANDING");
+        noteLine(periodNote, muted);
+        gap(6);
+        if (!hasOutstanding) {
+          kvRow("Nothing outstanding", pdfMoney(0), {
             big: true,
             bg: greenBg,
             labColor: greenInk,
             valColor: greenInk,
             boldLab: true,
           });
-        }
+        } else {
+          kvRow("Total still outstanding", pdfMoney(outSum), {
+            big: true,
+            bg: redBg,
+            labColor: redInk,
+            valColor: redInk,
+            boldLab: true,
+          });
+          gap(10);
+          noteLine("Itemised:", navy);
+          gap(6);
 
-        /* —— Outstanding first (action items) —— */
-        if (hasOutstanding) {
-          sectionHead("OUTSTANDING");
-          if (boatShort > 0.009) {
-            kvRow("Boat pot short", pdfMoney(boatShort), {
-              big: true,
+          /* Crew pay (pot short on crew lines) */
+          if (crewShortAmt > 0.009 || (boatShort > 0.009 && shorts.some(function (s) { return s.kind === "crew"; }))) {
+            kvRow("Crew pay (pot short)", pdfMoney(crewShortAmt > 0.009 ? crewShortAmt : 0), {
+              boldLab: true,
               bg: redBg,
               labColor: redInk,
               valColor: redInk,
-              boldLab: true,
             });
-            noteLine(
-              "Pot cash-outs marked beyond cash available. Not captain pocket — books short on the boat pot. Carries into next month.",
-              redInk
-            );
-            gap(6);
-            var shorts = report.shortLines || [];
-            if (shorts.length) {
-              noteLine("Where the short sits (who / which line):", navy);
-              gap(4);
-              shorts.forEach(function (s, idx) {
-                var title = s.label || "Cash out";
-                var subBits = [];
-                if (s.date) subBits.push(fmtDate(s.date));
-                if (s.fullAmount > 0.009 && Math.abs((s.fullAmount || 0) - (s.amount || 0)) > 0.009) {
-                  subBits.push(
-                    "of " +
-                      pdfMoney(s.fullAmount) +
-                      " line · pot only covered " +
-                      pdfMoney(s.covered || 0)
-                  );
-                } else {
-                  subBits.push("not covered by pot cash");
-                }
-                lineItem(title, s.amount, subBits.join(" · "), idx, redInk);
-              });
-              gap(6);
-            }
+            noteLine("Crew lines marked from pot beyond cash in " + periodLab + ".", redInk);
+            gap(4);
+            shorts.forEach(function (s, idx) {
+              if (s.kind !== "crew" && s.kind !== "daypay") return;
+              var subBits = [];
+              if (s.date) subBits.push(fmtDate(s.date));
+              if (s.fullAmount > 0.009 && Math.abs((s.fullAmount || 0) - (s.amount || 0)) > 0.009) {
+                subBits.push(
+                  "of " + pdfMoney(s.fullAmount) + "  ·  pot covered " + pdfMoney(s.covered || 0)
+                );
+              } else {
+                subBits.push("not covered by pot cash");
+              }
+              lineItem(s.label || "Crew", s.amount, subBits.join(" · "), idx, redInk);
+            });
+            gap(8);
           }
-          if (pocketOpen > 0.009) {
-            kvRow("Captain pocket", pdfMoney(pocketOpen), {
+
+          /* Other pot short (e.g. crew pocket repay) */
+          if (otherShortAmt > 0.009) {
+            kvRow("Other pot short", pdfMoney(otherShortAmt), {
+              boldLab: true,
+              bg: redBg,
+              labColor: redInk,
+              valColor: redInk,
+            });
+            gap(4);
+            shorts.forEach(function (s, idx) {
+              if (s.kind === "crew" || s.kind === "daypay") return;
+              var subBits = [];
+              if (s.date) subBits.push(fmtDate(s.date));
+              subBits.push("not covered by pot cash");
+              lineItem(s.label || "Pot out", s.amount, subBits.join(" · "), idx, redInk);
+            });
+            gap(8);
+          }
+
+          /* Captain commission — outstanding, period clear */
+          if (commOpen > 0.009) {
+            kvRow("Captain commission — OUTSTANDING", pdfMoney(commOpen), {
               big: true,
               bg: amberBg,
               labColor: amberInk,
               valColor: amberInk,
               boldLab: true,
             });
-            noteLine("Captain still out of pocket at month end (not repaid from pot this month).", amberInk);
-            gap(6);
+            if (commPrior > 0.009) {
+              noteLine(
+                "Not only this month: includes prior charters through end of " +
+                  periodLab +
+                  " (this month " +
+                  pdfMoney(commMonth) +
+                  " + earlier " +
+                  pdfMoney(commPrior) +
+                  ").",
+                amberInk
+              );
+            } else {
+              noteLine(
+                "Outstanding for charters in " +
+                  periodLab +
+                  " only — not paid from the boat pot in this period.",
+                amberInk
+              );
+            }
+            gap(4);
+            kvRow("  Earned (through end of " + periodLab + ")", pdfMoney(commThrough));
+            gap(2);
+            kvRow("  Paid from pot (through end of " + periodLab + ")", pdfMoney(report.commissionPaidAll || 0));
+            gap(2);
+            kvRow("  Paid from pot this month", pdfMoney(report.commissionPaidThisMonth || 0));
+            gap(8);
           }
-          if (commOpen > 0.009) {
-            kvRow("Captain commission", pdfMoney(commOpen), {
+
+          /* Captain out of pocket */
+          if (pocketOpen > 0.009) {
+            kvRow("Captain out of pocket — OUTSTANDING", pdfMoney(pocketOpen), {
+              big: true,
               bg: amberBg,
               labColor: amberInk,
               valColor: amberInk,
               boldLab: true,
             });
+            noteLine(
+              "Captain fronted cash in " +
+                periodLab +
+                " (and any prior still open). Not repaid from pot by month end.",
+              amberInk
+            );
             gap(4);
+            if (PS) {
+              if ((PS.monthSpend || 0) > 0.009) {
+                kvRow("  Fronted in " + periodLab, pdfMoney(PS.monthSpend || 0));
+                gap(2);
+              }
+              if ((PS.broughtForward || 0) > 0.009) {
+                kvRow("  Still open from before " + periodLab, pdfMoney(PS.broughtForward || 0));
+                gap(2);
+              }
+              kvRow("  Repaid from pot in " + periodLab, pdfMoney(PS.monthRepay || 0));
+            }
+            gap(8);
           }
         }
 
-        /* —— Pot story —— */
-        sectionHead("BOAT POT");
+        /* —— Pot detail (same numbers, more lines) —— */
+        sectionHead("BOAT POT · DETAIL");
+        noteLine(periodNote, muted);
+        gap(6);
         kvRow("Start", pdfMoney(start));
         gap(2);
         kvRow("Cash in", pdfMoney(cashIn));
@@ -417,21 +520,10 @@
           valColor: onBoard > 0.009 ? greenInk : amberInk,
           boldLab: true,
         });
-        if (boatShort > 0.009) {
-          gap(4);
-          kvRow("Boat pot short (outstanding)", pdfMoney(boatShort), {
-            big: true,
-            bg: redBg,
-            labColor: redInk,
-            valColor: redInk,
-            boldLab: true,
-          });
-          noteLine("See OUTSTANDING for who / which lines. Carries to next month.", redInk);
-        }
 
         if ((report.cashIns || []).length) {
           gap(8);
-          noteLine("Cash in", navy);
+          noteLine("Cash in lines", navy);
           gap(4);
           (report.cashIns || []).forEach(function (r, idx) {
             lineItem(r.label || "Cash in", r.amount, r.date ? fmtDate(r.date) : "", idx, greenInk);
