@@ -2938,6 +2938,57 @@ console.log("\n[Pocket — own-money repay + open liabilities]");
     ok("Aug bridge still open 200 (new stew)", near(bridgeAug.closingOpen, 200));
   }
 
+  /* Crew pay month DTO — fund buckets in model only */
+  {
+    const pot = {
+      id: "c1",
+      date: "2026-07-04",
+      amount: 500,
+      source: "stew",
+      stewPayKind: "dayPay",
+      stewId: "t1",
+      crewPayStatus: "Paid",
+      floatPay: true,
+      paidFrom: "Petty cash",
+      vendor: "Toni",
+    };
+    const cap = {
+      id: "c2",
+      date: "2026-07-25",
+      amount: 250,
+      source: "stew",
+      stewPayKind: "dayPay",
+      stewId: "v1",
+      crewPayStatus: "Paid",
+      floatPay: false,
+      paidFrom: "Own money",
+      vendor: "Vicky",
+    };
+    const books = {
+      id: "c3",
+      date: "2026-07-03",
+      amount: 200,
+      source: "stew",
+      stewPayKind: "dayPay",
+      stewId: "b1",
+      crewPayStatus: "Paid",
+      floatPay: false,
+      paidFrom: "Petty cash",
+      vendor: "Becks",
+    };
+    const crewM = M.summarizeCrewPayMonth([pot, cap, books], "2026-07");
+    ok("crew fund pot", M.crewDayPayFundSource(pot) === "pot");
+    ok("crew fund captain", M.crewDayPayFundSource(cap) === "captain");
+    ok("crew fund books", M.crewDayPayFundSource(books) === "books");
+    ok("crew fromBoatPot 500", near(crewM.fromBoatPot, 500));
+    ok("crew fromCaptain 250", near(crewM.fromCaptain, 250));
+    ok("crew booksOnly 200", near(crewM.booksOnly, 200));
+    ok("crew paidTotal 950 (not cash-out)", near(crewM.paidTotal, 950));
+    ok("crew potLines n=1", crewM.potLines.length === 1);
+    const buckets = M.summarizePettyCashOutBuckets([pot, cap, books]);
+    ok("bucket crew day pay = pot only 500", near(buckets.crewDayPay, 500));
+  }
+
   /* Month as-of: July report must ignore August repay / future ledger */
   {
     const julSpend = {
