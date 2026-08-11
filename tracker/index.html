@@ -11476,28 +11476,34 @@ function expOwnMoneySpendWhoId(e){
   if(LY_MODELS&&LY_MODELS.ownMoneySpendWhoId) return LY_MODELS.ownMoneySpendWhoId(e)||EXP_POCKET_CAPTAIN;
   return EXP_POCKET_CAPTAIN;
 }
-/** @param month unused — repay uses full ledger via controller */
+/**
+ * @param month optional YYYY-MM — when set, only reimbursements on/before that month count
+ *              (month PDF / as-of: July report must not see August repay).
+ */
 function expOwnMoneyRepaidAmt(e, month){
   return expCtrl().ownMoneyRepaid({
     models:LY_MODELS,
     expense:e,
-    expenses:state.expenses||[]
+    expenses:state.expenses||[],
+    throughMonth:month||""
   });
 }
 function expOwnMoneyIsRepaid(e, month){
   return expCtrl().ownMoneyIsRepaid({
     models:LY_MODELS,
     expense:e,
-    expenses:state.expenses||[]
+    expenses:state.expenses||[],
+    throughMonth:month||""
   });
 }
-function expOwnMoneyRepayNote(e){
+function expOwnMoneyRepayNote(e, month){
   var hint=expCtrl().ownMoneyRepayHint({
     models:LY_MODELS,
     expense:e,
-    expenses:state.expenses||[]
+    expenses:state.expenses||[],
+    throughMonth:month||""
   });
-  if(!hint) return expOwnMoneyIsRepaid(e)?"Repaid from petty":"";
+  if(!hint) return expOwnMoneyIsRepaid(e, month)?"Repaid from petty":"";
   var d=String(hint.date||"").slice(0,10);
   var dLab="";
   try{ dLab=d&&/^\d{4}-\d{2}-\d{2}$/.test(d)?fmtDate(d):d; }catch(eD){ dLab=d; }
@@ -12669,11 +12675,35 @@ function expCashReportReimburseCovers(reimb, allExpenses){
  */
 function expCashReportForMonth(month){
   month=String(month||expMonth||expDefaultMonth()).slice(0,7);
+  /*
+   * Month PDF is as-of end of that month. No dates / money after the month.
+   * Ledger for repay + commission “through end” is filtered here (model helper).
+   */
+  var allRaw=state.expenses||[];
+  var all=allRaw;
+  try{
+    if(LY_MODELS&&LY_MODELS.filterLedgerThroughMonth){
+      all=LY_MODELS.filterLedgerThroughMonth(allRaw, month);
+    } else {
+      all=allRaw.filter(function(e){
+        var m=expMonthKey(e&&e.date);
+        return !m||m<=month;
+      });
+    }
+  }catch(eF){ all=allRaw; }
   var S=expSettlementFigures(month);
   var petty=expPettyFor(month);
-  var cashIns=expCashInLinesForPetty(petty)||[];
-  var all=state.expenses||[];
-  var lines=(expLinesForMonth(month)||[]).filter(expIsCashExpenseLine).slice().sort(function(a,b){
+  var cashIns=(expCashInLinesForPetty(petty)||[]).filter(function(r){
+    if(!r) return false;
+    var dm=String(r.date||"").slice(0,7);
+    if(/^\d{4}-\d{2}$/.test(dm)&&dm>month) return false;
+    return true;
+  });
+  var lines=(expLinesForMonth(month)||[]).filter(expIsCashExpenseLine).filter(function(e){
+    /* Double-guard: no line dated after the report month */
+    var m=expMonthKey(e&&e.date);
+    return !m||m<=month;
+  }).slice().sort(function(a,b){
     var c=String(a.date||"").localeCompare(String(b.date||""));
     if(c) return c;
     return String(a.vendor||"").localeCompare(String(b.vendor||""));
@@ -12764,9 +12794,10 @@ function expCashReportForMonth(month){
 
   /*
    * Pocket spends (captain/crew cash expenses from own money).
+   * As-of end of report month only (all already filtered through month).
    * Include: spends in this month, OR prior-month spends covered by this month's reimbursements.
-   * These answer “where are the captain cash expenses?” when reimbursements appear without
-   * matching shop lines in the same month.
+   * Repay status uses only reimbursements dated on/before this month — August repay
+   * must not mark July spends “repaid” on a July report.
    */
   var coveredIds={};
   rows.forEach(function(r){
@@ -12785,6 +12816,7 @@ function expCashReportForMonth(month){
     if(!e||!expIsOwnMoneySpend(e)) return;
     if(String(e.payMethod||"")==="Credit Card") return;
     var em=expMonthKey(e.date);
+    if(em&&em>month) return; /* future of report month — never */
     var inMonth=em===month;
     var coveredNow=!!coveredIds[String(e.id||"")];
     var whoId=String(expOwnMoneySpendWhoId(e)||EXP_POCKET_CAPTAIN);
@@ -12800,7 +12832,7 @@ function expCashReportForMonth(month){
     var pName=expPocketPersonName(whoId)||"Captain";
     var isCap=whoId===EXP_POCKET_CAPTAIN||/^captain/i.test(pName);
     var repayNote="";
-    try{ repayNote=expOwnMoneyRepayNote(e)||""; }catch(eN){ repayNote=""; }
+    try{ repayNote=expOwnMoneyRepayNote(e, month)||""; }catch(eN){ repayNote=""; }
     var repaidAmt=0;
     try{ repaidAmt=expOwnMoneyRepaidAmt(e, month); }catch(eA){ repaidAmt=0; }
     pocketSpends.push({
@@ -12872,8 +12904,11 @@ function expCashReportForMonth(month){
   });
 
   /*
-   * Commission + business generated (gross / base) for captain-earning deals.
-   * Month filter = charter date touches this month; also full season-to-date totals.
+   * Commission + business generated for captain-earning deals.
+   * scope:
+   *   "month"   = charter touches this report month only
+   *   "through" = started on/before end of report month (no future months)
+   * Never use unbounded “all time” on a month PDF.
    */
   function leadTouchesMonth(r, mon){
     if(!r||!mon) return false;
@@ -12890,10 +12925,37 @@ function expCashReportForMonth(month){
     if(st&&en&&st<=mon&&en>=mon) return true;
     return false;
   }
+  function leadOnOrBeforeMonth(r, mon){
+    if(!r||!mon) return false;
+    var st=String(r.start||r.cdate||"").slice(0,7);
+    if(/^\d{4}-\d{2}$/.test(st)&&st<=mon) return true;
+    /* multi with end in past relative to mon but missing start */
+    var en=String(r.end||"").slice(0,7);
+    if(/^\d{4}-\d{2}$/.test(en)&&en<=mon) return true;
+    try{
+      var days=typeof leadBlockedDaysClient==="function"?leadBlockedDaysClient(r):[];
+      if(days&&days.length){
+        for(var di=0;di<days.length;di++){
+          var dm=String(days[di]||"").slice(0,7);
+          if(/^\d{4}-\d{2}$/.test(dm)&&dm<=mon) return true;
+        }
+      }
+    }catch(eD2){}
+    return false;
+  }
   function chargeTouchesMonth(c, mon){
     return c&&String(c.date||"").slice(0,7)===mon;
   }
-  function sumCaptainBiz(filterMonth){
+  function chargeOnOrBeforeMonth(c, mon){
+    if(!c||!mon) return false;
+    var dm=String(c.date||"").slice(0,7);
+    return /^\d{4}-\d{2}$/.test(dm)&&dm<=mon;
+  }
+  function sumCaptainBiz(scope){
+    /* scope: { kind:"month"|"through", month } */
+    scope=scope||{};
+    var mon=scope.month||"";
+    var kind=scope.kind||"month";
     var gross=0, base=0, comm=0, n=0;
     (state.leads||[]).forEach(function(r){
       if(!r) return;
@@ -12906,7 +12968,11 @@ function expCashReportForMonth(month){
       }catch(eE){ earns=false; }
       if(!earns) return;
       try{ if(typeof leadIsDealClosed==="function"&&!leadIsDealClosed(r)) return; }catch(eCl){}
-      if(filterMonth&&!leadTouchesMonth(r, filterMonth)) return;
+      if(kind==="through"){
+        if(!leadOnOrBeforeMonth(r, mon)) return;
+      } else if(kind==="month"){
+        if(!leadTouchesMonth(r, mon)) return;
+      }
       var p=typeof leadCommissionParts==="function"?leadCommissionParts(r):null;
       if(!p||!(apaNum(p.total)>0.009||apaNum(p.gross)>0.009||apaNum(p.base)>0.009)) return;
       n++;
@@ -12919,7 +12985,11 @@ function expCashReportForMonth(month){
       var on=false;
       try{ on=typeof isChargeCaptainComm==="function"?isChargeCaptainComm(c):!!c.captainComm; }catch(eCh){ on=!!c.captainComm; }
       if(!on) return;
-      if(filterMonth&&!chargeTouchesMonth(c, filterMonth)) return;
+      if(kind==="through"){
+        if(!chargeOnOrBeforeMonth(c, mon)) return;
+      } else if(kind==="month"){
+        if(!chargeTouchesMonth(c, mon)) return;
+      }
       var cp=typeof chargeCommissionParts==="function"?chargeCommissionParts(c):null;
       if(!cp||!(apaNum(cp.total)>0.009||apaNum(cp.gross)>0.009)) return;
       n++;
@@ -12934,13 +13004,21 @@ function expCashReportForMonth(month){
       comm:Math.round(comm*100)/100
     };
   }
-  var bizMonth=sumCaptainBiz(month);
-  var bizAll=sumCaptainBiz(null);
+  var bizMonth=sumCaptainBiz({ kind:"month", month:month });
+  /* Through end of report month — not future months after this report */
+  var bizThrough=sumCaptainBiz({ kind:"through", month:month });
   var commBal=null;
   try{
-    if(typeof expCaptainCommissionBalance==="function") commBal=expCaptainCommissionBalance(bizAll.comm);
+    if(LY_MODELS&&LY_MODELS.summarizeCaptainCommissionBalance){
+      commBal=LY_MODELS.summarizeCaptainCommissionBalance({
+        earned:bizThrough.comm,
+        expenses:all /* already through month */
+      });
+    } else if(typeof expCaptainCommissionBalance==="function"){
+      commBal=expCaptainCommissionBalance(bizThrough.comm);
+    }
   }catch(eCb){ commBal=null; }
-  var commissionEarned=commBal&&commBal.earned!=null?Math.round(apaNum(commBal.earned)*100)/100:bizAll.comm;
+  var commissionEarned=commBal&&commBal.earned!=null?Math.round(apaNum(commBal.earned)*100)/100:bizThrough.comm;
   var commissionPaidAll=commBal&&commBal.paid!=null?Math.round(apaNum(commBal.paid)*100)/100:0;
   var commissionOpen=commBal&&commBal.outstanding!=null?Math.round(apaNum(commBal.outstanding)*100)/100:
     Math.max(0, Math.round((commissionEarned-commissionPaidAll)*100)/100);
@@ -12984,10 +13062,16 @@ function expCashReportForMonth(month){
     bizMonthBase:bizMonth.base,
     bizMonthComm:bizMonth.comm,
     bizMonthN:bizMonth.n,
-    bizAllGross:bizAll.gross,
-    bizAllBase:bizAll.base,
-    bizAllComm:bizAll.comm,
-    bizAllN:bizAll.n,
+    /* through end of report month (not unbounded season / future) */
+    bizAllGross:bizThrough.gross,
+    bizAllBase:bizThrough.base,
+    bizAllComm:bizThrough.comm,
+    bizAllN:bizThrough.n,
+    bizThroughGross:bizThrough.gross,
+    bizThroughBase:bizThrough.base,
+    bizThroughComm:bizThrough.comm,
+    bizThroughN:bizThrough.n,
+    asOfMonth:month,
     pocketStory:typeof expCaptainPocketMonthStory==="function"?expCaptainPocketMonthStory(month):null,
     cardExcluded:true
   };
@@ -13238,17 +13322,17 @@ function buildExpensesCashPdf(month){
           kvRow("Commission on that business · this month", expPdfMoney(report.bizMonthComm||0));
           if(report.bizMonthN) kvRow("Deals / upsells counted", String(report.bizMonthN));
         }
-        if((report.bizAllGross||0)>0.009){
-          kvRow("Business generated (gross) · season to date", expPdfMoney(report.bizAllGross||0));
-          if((report.bizAllBase||0)>0.009&&Math.abs((report.bizAllBase||0)-(report.bizAllGross||0))>0.5){
-            kvRow("Commission base (ex VAT) · season to date", expPdfMoney(report.bizAllBase||0));
+        if((report.bizThroughGross||report.bizAllGross||0)>0.009){
+          kvRow("Business generated (gross) · through end of month", expPdfMoney(report.bizThroughGross||report.bizAllGross||0));
+          if((report.bizThroughBase||report.bizAllBase||0)>0.009&&Math.abs((report.bizThroughBase||report.bizAllBase||0)-(report.bizThroughGross||report.bizAllGross||0))>0.5){
+            kvRow("Commission base (ex VAT) · through end of month", expPdfMoney(report.bizThroughBase||report.bizAllBase||0));
           }
-          kvRow("Commission earned · season to date", expPdfMoney(report.commissionEarned||report.bizAllComm||0));
+          kvRow("Commission earned · through end of month", expPdfMoney(report.commissionEarned||report.bizThroughComm||report.bizAllComm||0));
         }
         kvRow("Paid from boat this month", expPdfMoney(report.commissionPaidThisMonth||0), {boldLab:true});
-        kvRow("Paid from boat · all time", expPdfMoney(report.commissionPaidAll||0));
+        kvRow("Paid from boat · through end of month", expPdfMoney(report.commissionPaidAll||0));
         if((report.commissionOpen||0)>0.009){
-          kvRow("Commission outstanding", expPdfMoney(report.commissionOpen), {bg:amberBg, labColor:amberInk, valColor:amberInk, boldLab:true});
+          kvRow("Commission outstanding · end of month", expPdfMoney(report.commissionOpen), {bg:amberBg, labColor:amberInk, valColor:amberInk, boldLab:true});
         }
         (report.commissionLines||[]).forEach(function(r, idx){
           lineItem(r.description||r.vendor||"Commission draw", r.amount, r.date?fmtDate(r.date):"", idx, gold);
@@ -13322,10 +13406,11 @@ function buildExpensesCashPdf(month){
           });
         }
 
-        /* Outstanding summary — one block, no essays */
-        if(capOpen>0.009||(report.commissionOpen||0)>0.009||report.cashShort>0.009){
-          sectionHead("OUTSTANDING");
-          if(capOpen>0.009) kvRow("Captain pocket", expPdfMoney(capOpen));
+        /* Outstanding at end of report month (pocket story is as-of month close) */
+        var pocketOpenEnd=PS&&PS.closingOpen!=null?PS.closingOpen:capOpen;
+        if(pocketOpenEnd>0.009||(report.commissionOpen||0)>0.009||report.cashShort>0.009){
+          sectionHead("OUTSTANDING · END OF MONTH");
+          if(pocketOpenEnd>0.009) kvRow("Captain pocket", expPdfMoney(pocketOpenEnd));
           if((report.commissionOpen||0)>0.009) kvRow("Captain commission", expPdfMoney(report.commissionOpen));
           if(report.cashShort>0.009) kvRow("Books short", expPdfMoney(report.cashShort));
         }
