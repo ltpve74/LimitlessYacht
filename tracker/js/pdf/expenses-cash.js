@@ -601,44 +601,102 @@
         ) {
           sectionHead("4 · CAPTAIN OUT OF POCKET");
           noteLine(
-            "Money the captain put in from own pocket (crew / shops). Separate from captain-sourced business share. A repay only covers spends on or before that repay date.",
+            "Money the captain put in from own pocket (crew / shops). Separate from captain-sourced business. A repay only covers spends on or before that repay date.",
             muted
           );
           gap(10);
           if (PS) {
+            function pocketLineTitle(r) {
+              var when = r.date ? fmtDate(r.date) : "Date not recorded";
+              var who = r.vendor || (r.isStew ? "Crew" : "Spend");
+              return when + " · " + who;
+            }
+            function pocketLineSub(r, mode) {
+              var bits = [];
+              if (r.isStew) bits.push(r.isLongDay ? "Long day rate" : "Day rate");
+              else if (r.description) bits.push(String(r.description).slice(0, 52));
+              if (r.charterDate) bits.push("charter " + fmtDate(r.charterDate));
+              if (mode === "prior") bits.push("open from before " + periodLab);
+              if (mode === "open") bits.push("own money — not repaid from petty yet");
+              if (mode === "fronted") bits.push("fronted from own money");
+              if (mode === "repaid") bits.push("repaid from boat petty cash");
+              return bits.join(" · ");
+            }
+
+            /* Prior balance with concrete spend dates */
             if ((PS.broughtForward || 0) > 0.009) {
-              kvRow("Still open from before " + periodLab, pdfMoney(PS.broughtForward), {
+              kvRow("Open from before " + periodLab, pdfMoney(PS.broughtForward), {
+                big: true,
                 bg: amberBg,
                 labColor: amberInk,
                 valColor: amberInk,
                 boldLab: true,
               });
+              gap(8);
+              noteLine("Brought forward (with date):", navy);
               gap(6);
+              var priorOpenRows = (PS.priorLines || []).filter(function (r) {
+                return (r.remainOpenAtMonthStart != null ? r.remainOpenAtMonthStart : r.amount) > 0.009;
+              });
+              if (!priorOpenRows.length) priorOpenRows = PS.priorLines || [];
+              priorOpenRows.forEach(function (r, idx) {
+                var amt =
+                  r.remainOpenAtMonthStart != null ? r.remainOpenAtMonthStart : r.amount;
+                lineItem(pocketLineTitle(r), amt, pocketLineSub(r, "prior"), idx, amberInk);
+              });
+              gap(12);
             }
-            if ((PS.monthSpend || 0) > 0.009) {
+
+            /* Fronted this period — each spend dated */
+            if ((PS.monthSpend || 0) > 0.009 || (PS.monthLines || []).length) {
               kvRow("Fronted in " + periodLab, pdfMoney(PS.monthSpend || 0), {
                 big: true,
                 boldLab: true,
               });
-              if ((PS.stewMonth || 0) > 0.009) {
-                gap(6);
-                kvRow("  Stew day rates", pdfMoney(PS.stewMonth));
-              }
-              if ((PS.shopMonth || 0) > 0.009) {
-                gap(6);
-                kvRow("  Shops / other", pdfMoney(PS.shopMonth));
-              }
               gap(8);
+              noteLine("Fronted from own money (with date):", navy);
+              gap(6);
+              (PS.monthLines || []).forEach(function (r, idx) {
+                lineItem(pocketLineTitle(r), r.amount, pocketLineSub(r, "fronted"), idx, amberInk);
+              });
+              gap(12);
             }
-            if ((PS.monthRepay || 0) > 0.009) {
+
+            /* Repayments — concrete dates from ledger */
+            if ((PS.monthRepay || 0) > 0.009 || (PS.monthRepayLines || []).length) {
               kvRow("Repaid from petty in " + periodLab, pdfMoney(PS.monthRepay || 0), {
+                big: true,
                 bg: greenBg,
                 labColor: greenInk,
                 valColor: greenInk,
                 boldLab: true,
               });
               gap(8);
+              noteLine("Repayments from petty cash (with date):", navy);
+              gap(6);
+              var repayRows = (PS.monthRepayLines || []).slice().sort(function (a, b) {
+                return String((a && a.date) || "").localeCompare(String((b && b.date) || ""));
+              });
+              if (repayRows.length) {
+                repayRows.forEach(function (r, idx) {
+                  var when = r.date ? fmtDate(r.date) : "Date not recorded";
+                  lineItem(
+                    "Repaid " + when,
+                    r.amount,
+                    pocketLineSub(r, "repaid") || "Repaid from boat petty cash",
+                    idx,
+                    greenInk
+                  );
+                });
+              } else {
+                noteLine(
+                  "Total repaid is on the ledger, but individual repayment dates were not found.",
+                  muted
+                );
+              }
+              gap(12);
             }
+
             kvRow("Still open up until this date", pdfMoney(PS.closingOpen || 0), {
               big: true,
               bg: (PS.closingOpen || 0) > 0.009 ? amberBg : greenBg,
@@ -649,20 +707,13 @@
             var openPocket = PS.openLines || [];
             if (openPocket.length) {
               gap(10);
-              noteLine("Still open — who / what:", navy);
+              noteLine("Still open (with date):", navy);
               gap(6);
               openPocket.forEach(function (r, idx) {
-                var bits = [];
-                if (r.date) bits.push(fmtDate(r.date));
-                if (r.isStew) bits.push(r.isLongDay ? "long day" : "day rate");
-                else if (r.description) bits.push(String(r.description).slice(0, 48));
-                if (r.charterDate) bits.push("charter " + fmtDate(r.charterDate));
-                if ((r.month || "") < (report.month || "")) bits.push("from " + (r.month || "prior"));
-                bits.push("own money — not repaid from petty yet");
                 lineItem(
-                  r.vendor || (r.isStew ? "Crew" : "Spend"),
+                  pocketLineTitle(r),
                   r.remainOpen != null ? r.remainOpen : r.amount,
-                  bits.join(" · "),
+                  pocketLineSub(r, "open"),
                   idx,
                   amberInk
                 );
