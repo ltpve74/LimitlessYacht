@@ -316,6 +316,29 @@
          * never unstarted future charters still inside the report month.
          */
         var asOfYmd = String(report.bizAsOfYmd || "").slice(0, 10);
+        var reportYm = String(report.month || "").slice(0, 7);
+        var monthEndYmd = "";
+        if (/^\d{4}-\d{2}$/.test(reportYm)) {
+          var _y = parseInt(reportYm.slice(0, 4), 10);
+          var _m = parseInt(reportYm.slice(5, 7), 10);
+          var _last = new Date(_y, _m, 0).getDate();
+          monthEndYmd = reportYm + "-" + (_last < 10 ? "0" : "") + _last;
+        }
+        /*
+         * Interim = report built before the last day of the month (or as-of before month end).
+         * Closed = as-of is last day of month or later → “at month end” wording.
+         */
+        var isMonthClosedReport =
+          !!(monthEndYmd && asOfYmd && /^\d{4}-\d{2}-\d{2}$/.test(asOfYmd) && asOfYmd >= monthEndYmd);
+        var onBoardLabel = isMonthClosedReport ? "On board at month end" : "Currently on board";
+        var shortLabel = isMonthClosedReport ? "Short at month end" : "Short as of now";
+        var bannerSub = isMonthClosedReport
+          ? "Position at the END of this month  ·  not a live balance today"
+          : asOfYmd && /^\d{4}-\d{2}-\d{2}$/.test(asOfYmd)
+            ? "Interim position as of " +
+              fmtDate(asOfYmd) +
+              "  ·  month still in progress"
+            : "Interim position  ·  month still in progress";
         var bizN = Number(report.bizThroughN) || 0;
         var bizGross = Number(report.bizThroughGross) || 0;
         var bizBase = Number(report.bizThroughBase) || 0;
@@ -354,7 +377,7 @@
           drawText("Month cash report", margin, y - 34, 16, true, gold);
         });
         gap(10);
-        /* Period banner — owner must see THIS is the month, closed at month end */
+        /* Period banner — interim vs closed month end */
         push(48, function (y) {
           page.drawRectangle({
             x: margin,
@@ -364,15 +387,7 @@
             color: goldSoft,
           });
           drawText(periodLab, margin + 12, y - 16, 16, true, navy);
-          drawText(
-            "Position at the END of this month  ·  not a live balance today",
-            margin + 12,
-            y - 34,
-            10,
-            false,
-            muted,
-            contentW - 24
-          );
+          drawText(bannerSub, margin + 12, y - 34, 10, false, muted, contentW - 24);
         });
         gap(14);
 
@@ -432,7 +447,7 @@
           valColor: slateInk,
         });
         gap(6);
-        kvRow("On board at month end", pdfMoney(onBoard), {
+        kvRow(onBoardLabel, pdfMoney(onBoard), {
           big: true,
           boldLab: true,
           bg: onBoard > 0.009 ? greenBg : amberBg,
@@ -444,13 +459,17 @@
         if (boatShort > 0.009) {
           sectionHead("3 · PETTY CASH SHORT");
           noteLine(
-            "At the end of " +
-              periodLab +
-              " the envelope was short. Cash in did not cover every line marked from petty. Not paid later in this report — that is next month.",
+            isMonthClosedReport
+              ? "At the end of " +
+                  periodLab +
+                  " the envelope was short. Cash in did not cover every line marked from petty. Not paid later in this report — that is next month."
+              : "As of " +
+                  (asOfYmd ? fmtDate(asOfYmd) : "now") +
+                  " the envelope is short. Cash in has not covered every line marked from petty.",
             muted
           );
           gap(10);
-          kvRow("Short at month end", pdfMoney(boatShort), {
+          kvRow(shortLabel, pdfMoney(boatShort), {
             big: true,
             bg: redBg,
             labColor: redInk,
@@ -839,7 +858,7 @@
           kvRow("Prior short taken from cash-in", pdfMoney(report.priorSettled));
         }
         gap(10);
-        kvRow("On board at month end", pdfMoney(onBoard), {
+        kvRow(onBoardLabel, pdfMoney(onBoard), {
           big: true,
           bg: onBoard > 0.009 ? greenBg : amberBg,
           labColor: onBoard > 0.009 ? greenInk : amberInk,
