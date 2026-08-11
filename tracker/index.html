@@ -12568,18 +12568,32 @@ function expMonthLabel(month){
   return (names[mi]||p[1])+" "+p[0];
 }
 /**
+ * Where a Paid crew day-pay was funded (PDF / owner report).
+ *  pot     = floatPay / cash left the boat envelope
+ *  captain = Own money (captain pocket)
+ *  books   = marked Paid + Petty label but floatPay false (not this pot cash-out)
+ */
+function expCrewDayPayFundSource(e){
+  if(!e||!expIsCrewDayPayLine(e)) return "";
+  if(String(e.crewPayStatus||"")!=="Paid") return "unpaid";
+  try{
+    if(typeof expCrewPayHitsFloat==="function"?expCrewPayHitsFloat(e):e.floatPay===true) return "pot";
+  }catch(eH){ if(e.floatPay===true) return "pot"; }
+  if(expIsOwnMoneySpend(e)||expPaidFromOwnMoney(e)||String(e.paidFrom||"")==="Own money") return "captain";
+  if(typeof expIsOwnerMoneyPaid==="function"&&expIsOwnerMoneyPaid(e)) return "owner";
+  return "books";
+}
+/**
  * Classify a cash expense line for the manager/owner PDF.
  * Reimbursement = pot → pocket (not a shop spend). Own money = captain/crew pocket spend.
+ * Crew day-pay is always kind crewDayPay — fund source is separate (pot / captain / books).
  */
 function expCashReportLineKind(e){
   if(!e) return "petty";
   if(expIsReimbursement(e)) return "reimburse";
   if(e.kind==="captainComm"||e.commPayout||String(e.category||"")==="Captain commission") return "commission";
   if(e.kind==="tipPayout"||e.stewPayKind==="tipPayout") return "tipPayout";
-  if(expIsCrewDayPayLine(e)){
-    if(expPaidFromOwnMoney(e)||expIsOwnMoneySpend(e)) return "ownMoney";
-    return "crewDayPay";
-  }
+  if(expIsCrewDayPayLine(e)) return "crewDayPay";
   if(expIsOwnMoneySpend(e)||expPaidFromOwnMoney(e)) return "ownMoney";
   return "petty";
 }
@@ -12594,13 +12608,20 @@ function expCashReportCategoryLabel(e, kind){
   }
   if(kind==="commission") return "Captain commission";
   if(kind==="tipPayout") return "Tip payout";
+  if(kind==="crewDayPay"){
+    var src=expCrewDayPayFundSource(e);
+    if(src==="pot") return "Crew day pay · boat pot";
+    if(src==="captain") return "Crew day pay · captain pocket";
+    if(src==="owner") return "Crew day pay · owner";
+    if(src==="books") return "Crew day pay · on books (not this pot)";
+    return "Crew day pay";
+  }
   if(kind==="ownMoney"){
     var pId=String(expOwnMoneySpendWhoId(e)||expPocketWhoId(e)||EXP_POCKET_CAPTAIN);
     var pName=expPocketPersonName(pId)||"Captain";
     if(pId===EXP_POCKET_CAPTAIN||/^captain/i.test(pName)) return "Captain cash (own money)";
     return "Pocket spend · "+pName;
   }
-  if(kind==="crewDayPay") return "Crew day pay";
   return String(e&&e.category||"Other").trim()||"Other";
 }
 /**
@@ -12737,7 +12758,15 @@ function expCashReportForMonth(month){
     }
     if(e.kind==="tipPayout"||e.stewPayKind==="tipPayout") from="Petty cash";
     if(kind==="commission") from="Petty cash";
-    if(kind==="crewDayPay") from="Petty cash";
+    var crewFund="";
+    if(kind==="crewDayPay"){
+      crewFund=expCrewDayPayFundSource(e);
+      if(crewFund==="pot") from="Boat pot";
+      else if(crewFund==="captain") from="Captain pocket";
+      else if(crewFund==="owner") from="Owner money";
+      else if(crewFund==="books") from="On books (not this pot)";
+      else from="Crew pay";
+    }
     if(kind==="reimburse") from="Petty cash";
     var covers=kind==="reimburse"?expCashReportReimburseCovers(e, all):[];
     var coverNote="";
@@ -12756,6 +12785,9 @@ function expCashReportForMonth(month){
       else reimburseCrewTot+=amt;
     }
     if(kind==="ownMoney") ownMoneyInMonthTot+=amt;
+    var hitsPetty=false;
+    if(kind==="crewDayPay") hitsPetty=crewFund==="pot";
+    else if(kind!=="ownMoney") hitsPetty=true;
     return {
       id:String(e.id||""),
       date:String(e.date||"").slice(0,10),
@@ -12764,13 +12796,14 @@ function expCashReportForMonth(month){
       category:catLabel,
       rawCategory:rawCat,
       kind:kind,
+      crewFund:crewFund,
       paidFrom:from,
       amount:Math.round(amt*100)/100,
       chargeTo:e.chargeTo==="apa"?"APA":"Boat",
       who:whoName,
       covers:covers,
       coverNote:coverNote,
-      hitsPetty:kind!=="ownMoney"
+      hitsPetty:hitsPetty
     };
   });
   totalCash=Math.round(totalCash*100)/100;
@@ -12879,18 +12912,41 @@ function expCashReportForMonth(month){
   });
   captainPocketOpen=Math.round(captainPocketOpen*100)/100;
 
-  /* Cash-out buckets for owner story (petty hits only — not own-money shop lines) */
+  /*
+   * Cash-out buckets = money that left the boat pot only.
+   * Crew day-pay is split: pot (floatPay) vs captain pocket vs books-only.
+   * CASH OUT total must reconcile; do not put books/captain crew into pot out.
+   */
   var outBuckets={
     commission:0, crewDayPay:0, reimburseCaptain:0, reimburseCrew:0,
     tipPayout:0, otherPetty:0
   };
   var commissionLines=[];
-  var crewLines=[];
+  var crewLinesPot=[];
+  var crewLinesCaptain=[];
+  var crewLinesBooks=[];
+  var crewFromPot=0, crewFromCaptain=0, crewFromBooks=0, crewFromOwner=0;
   rows.forEach(function(r){
-    if(!r||r.kind==="ownMoney") return; /* own money did not leave the boat pot */
+    if(!r) return;
     var a=apaNum(r.amount);
+    if(r.kind==="crewDayPay"){
+      if(r.crewFund==="pot"){
+        outBuckets.crewDayPay+=a;
+        crewFromPot+=a;
+        crewLinesPot.push(r);
+      } else if(r.crewFund==="captain"){
+        crewFromCaptain+=a;
+        crewLinesCaptain.push(r);
+      } else if(r.crewFund==="owner"){
+        crewFromOwner+=a;
+      } else {
+        crewFromBooks+=a;
+        crewLinesBooks.push(r);
+      }
+      return;
+    }
+    if(r.kind==="ownMoney") return; /* pocket spend, not pot cash-out */
     if(r.kind==="commission"){ outBuckets.commission+=a; commissionLines.push(r); }
-    else if(r.kind==="crewDayPay"){ outBuckets.crewDayPay+=a; crewLines.push(r); }
     else if(r.kind==="reimburse"){
       var toCap=r.who&&/^captain/i.test(r.who)||!r.who;
       if(toCap) outBuckets.reimburseCaptain+=a;
@@ -12902,6 +12958,13 @@ function expCashReportForMonth(month){
   Object.keys(outBuckets).forEach(function(k){
     outBuckets[k]=Math.round(outBuckets[k]*100)/100;
   });
+  crewFromPot=Math.round(crewFromPot*100)/100;
+  crewFromCaptain=Math.round(crewFromCaptain*100)/100;
+  crewFromBooks=Math.round(crewFromBooks*100)/100;
+  crewFromOwner=Math.round(crewFromOwner*100)/100;
+  var crewPaidTotal=Math.round((crewFromPot+crewFromCaptain+crewFromBooks+crewFromOwner)*100)/100;
+  /* legacy alias: crewLines = pot only (matches cash-out) */
+  var crewLines=crewLinesPot;
 
   /*
    * Commission + business generated for captain-earning deals.
@@ -13054,6 +13117,14 @@ function expCashReportForMonth(month){
     outBuckets:outBuckets,
     commissionLines:commissionLines,
     crewLines:crewLines,
+    crewLinesPot:crewLinesPot,
+    crewLinesCaptain:crewLinesCaptain,
+    crewLinesBooks:crewLinesBooks,
+    crewFromPot:crewFromPot,
+    crewFromCaptain:crewFromCaptain,
+    crewFromBooks:crewFromBooks,
+    crewFromOwner:crewFromOwner,
+    crewPaidTotal:crewPaidTotal,
     commissionEarned:commissionEarned,
     commissionPaidAll:commissionPaidAll,
     commissionPaidThisMonth:commissionPaidThisMonth,
@@ -13299,11 +13370,11 @@ function buildExpensesCashPdf(month){
           });
         }
 
-        /* Cash out buckets */
+        /* Cash out buckets — boat pot only (must sum toward cashOut) */
         sectionHead("CASH OUT  ·  "+expPdfMoney(cashOut));
         [
           {lab:"Captain commission", val:B.commission||0},
-          {lab:"Crew day pay", val:B.crewDayPay||0},
+          {lab:"Crew day pay (boat pot)", val:B.crewDayPay||0},
           {lab:"Repay captain pocket", val:B.reimburseCaptain||0},
           {lab:"Repay crew pocket", val:B.reimburseCrew||0},
           {lab:"Tip payouts", val:B.tipPayout||0},
@@ -13396,14 +13467,47 @@ function buildExpensesCashPdf(month){
           });
         }
 
-        /* Crew */
-        if((B.crewDayPay||0)>0.009){
-          sectionHead("CREW DAY PAY  ·  "+expPdfMoney(B.crewDayPay));
-          (report.crewLines||[]).forEach(function(r, idx){
-            var t=r.vendor||"Crew";
-            if(r.description) t=t+" - "+r.description;
-            lineItem(t, r.amount, r.date?fmtDate(r.date):"", idx, null);
-          });
+        /* Crew — split by who paid (pot vs captain vs books). Totals must not confuse cash-out. */
+        var crewTot=report.crewPaidTotal||0;
+        var potCrew=report.crewFromPot!=null?report.crewFromPot:(B.crewDayPay||0);
+        var capCrew=report.crewFromCaptain||0;
+        var booksCrew=report.crewFromBooks||0;
+        var ownerCrew=report.crewFromOwner||0;
+        if(crewTot>0.009||potCrew>0.009||capCrew>0.009||booksCrew>0.009){
+          sectionHead("CREW DAY PAY  ·  "+expPdfMoney(crewTot||potCrew));
+          if(potCrew>0.009){
+            kvRow("From boat pot (cash left envelope)", expPdfMoney(potCrew), {boldLab:true, bg:greenBg, labColor:greenInk, valColor:greenInk});
+            (report.crewLinesPot||report.crewLines||[]).forEach(function(r, idx){
+              var t=r.vendor||"Crew";
+              if(r.description) t=t+" - "+r.description;
+              var sub=[r.date?fmtDate(r.date):"","Boat pot"].filter(Boolean).join(" · ");
+              lineItem(t, r.amount, sub, idx, greenInk);
+            });
+          }
+          if(capCrew>0.009){
+            kvRow("Paid by captain (own money / pocket)", expPdfMoney(capCrew), {boldLab:true, bg:amberBg, labColor:amberInk, valColor:amberInk});
+            (report.crewLinesCaptain||[]).forEach(function(r, idx){
+              var t=r.vendor||"Crew";
+              if(r.description) t=t+" - "+r.description;
+              var sub=[r.date?fmtDate(r.date):"","Captain pocket — not boat cash-out"].filter(Boolean).join(" · ");
+              lineItem(t, r.amount, sub, idx, amberInk);
+            });
+          }
+          if(ownerCrew>0.009){
+            kvRow("Paid by owner", expPdfMoney(ownerCrew), {boldLab:true});
+          }
+          if(booksCrew>0.009){
+            kvRow("On books only (not this pot cash-out)", expPdfMoney(booksCrew), {boldLab:true});
+            (report.crewLinesBooks||[]).forEach(function(r, idx){
+              var t=r.vendor||"Crew";
+              if(r.description) t=t+" - "+r.description;
+              var sub=[r.date?fmtDate(r.date):"","Paid on books — cash did not leave this pot"].filter(Boolean).join(" · ");
+              lineItem(t, r.amount, sub, idx, muted);
+            });
+          }
+          if(crewTot>0.009&&(potCrew>0.009||capCrew>0.009||booksCrew>0.009)){
+            kvRow("Total crew paid this month", expPdfMoney(crewTot), {boldLab:true});
+          }
         }
 
         /* Outstanding at end of report month (pocket story is as-of month close) */
@@ -13415,9 +13519,13 @@ function buildExpensesCashPdf(month){
           if(report.cashShort>0.009) kvRow("Books short", expPdfMoney(report.cashShort));
         }
 
-        /* Full cash-out */
+        /* Full cash-out — only lines that hit the boat pot */
         sectionHead("CASH OUT DETAIL");
-        var potLines=(report.lines||[]).filter(function(r){ return r&&r.kind!=="ownMoney"; });
+        var potLines=(report.lines||[]).filter(function(r){
+          if(!r||r.kind==="ownMoney") return false;
+          if(r.kind==="crewDayPay") return r.crewFund==="pot"||r.hitsPetty===true;
+          return r.hitsPetty!==false;
+        });
         if(!potLines.length){
           push(18, function(y){ drawText("None", margin+4, y-6, 10, false, muted); });
         } else {
