@@ -510,12 +510,13 @@
             gap(10);
           }
           /* Settlement status: paid / partly paid / unpaid */
-          var paidMonth = Number(report.commissionPaidThisMonth) || 0;
           var paidAll = Number(report.commissionPaidAll) || 0;
-          var paidPrior =
-            paidAll > paidMonth + 0.009
-              ? Math.round((paidAll - paidMonth) * 100) / 100
-              : 0;
+          var payoutRows = Array.isArray(report.commissionPayouts)
+            ? report.commissionPayouts.slice()
+            : [];
+          payoutRows.sort(function (a, b) {
+            return String((a && a.date) || "").localeCompare(String((b && b.date) || ""));
+          });
           var statusBg =
             commStatus === "paid" ? greenBg : commStatus === "partial" ? amberBg : redBg;
           var statusInk =
@@ -528,22 +529,31 @@
             valColor: statusInk,
           });
           gap(10);
-          noteLine("Paid from petty cash (to date):", navy);
+          noteLine("Payments from petty cash (with date):", navy);
           gap(8);
-          if (paidMonth > 0.009) {
-            kvRow("Paid in " + periodLab, pdfMoney(paidMonth), {
-              bg: greenBg,
-              labColor: greenInk,
-              valColor: greenInk,
-              boldLab: true,
+          if (payoutRows.length) {
+            payoutRows.forEach(function (p, idx) {
+              var when = p.date ? fmtDate(p.date) : "Date not recorded";
+              var lab = "Paid " + when;
+              lineItem(lab, p.amount || 0, "Commission paid from boat petty cash", idx, greenInk);
             });
-            gap(6);
+            gap(10);
+          } else if (paidAll > 0.009) {
+            noteLine(
+              "Total paid is on the ledger, but individual payment dates were not found.",
+              muted
+            );
+            gap(8);
+          } else {
+            noteLine("No commission payments from petty cash yet.", muted);
+            gap(8);
           }
-          if (paidPrior > 0.009) {
-            kvRow("Paid in earlier months", pdfMoney(paidPrior));
-            gap(6);
-          }
-          kvRow("Total paid to date", pdfMoney(paidAll), { boldLab: true });
+          kvRow("Total paid to date", pdfMoney(paidAll), {
+            boldLab: true,
+            bg: paidAll > 0.009 ? greenBg : undefined,
+            labColor: paidAll > 0.009 ? greenInk : undefined,
+            valColor: paidAll > 0.009 ? greenInk : undefined,
+          });
           gap(8);
           kvRow("Still outstanding", pdfMoney(commOpen), {
             big: true,
