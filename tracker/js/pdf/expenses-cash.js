@@ -436,20 +436,20 @@
           noteLine("Carries into the next month until cash covers the hole.", redInk);
         }
 
-        /* —— 3) CAPTAIN COMMISSION — business story first (owner must get this) —— */
+        /* —— 3) CAPTAIN-SOURCED BUSINESS — revenue first, then captain share —— */
         if (hasCommStory) {
-          sectionHead("3 · CAPTAIN COMMISSION");
+          sectionHead("3 · CAPTAIN-SOURCED BUSINESS");
           noteLine(
-            "This is how the captain is paid on charters that ran in " +
+            "Charters the captain brought in up until the end of " +
               periodLab +
-              ". Commission = 15% of the amount BEFORE VAT. Future bookings are not included.",
+              ". Future bookings are not included. Captain share = 15% of the amount BEFORE VAT.",
             muted
           );
           gap(12);
-          noteLine("Business generated (boat revenue):", navy);
+          noteLine("Business up until this date:", navy);
           gap(8);
           if (bizN > 0) {
-            kvRow("Charters in " + periodLab, String(bizN), {
+            kvRow("Charters up until this date", String(bizN), {
               big: true,
               boldLab: true,
               bg: slateBg,
@@ -475,11 +475,11 @@
           });
           gap(10);
           noteLine(
-            "Captain share = 15% of the amount before VAT on that business.",
+            "Captain share on that business = 15% of the amount before VAT.",
             navy
           );
           gap(8);
-          kvRow("Captain commission (15% before VAT)", pdfMoney(bizComm || commThrough), {
+          kvRow("Captain share (15% before VAT)", pdfMoney(bizComm || commThrough), {
             big: true,
             boldLab: true,
             bg: goldSoft,
@@ -489,24 +489,43 @@
           gap(10);
           if (bizGross > 0.009 && (bizComm || commThrough) > 0.009) {
             noteLine(
-              "Read it this way: the boat took in about " +
+              "Read it this way: captain-sourced business brought in about " +
                 pdfMoney(bizGross) +
-                " gross. Captain commission on that is " +
+                " gross. Captain share on that is " +
                 pdfMoney(bizComm || commThrough) +
                 " (15% before VAT) — pay for business generated, not a random bill.",
               muted
             );
             gap(10);
           }
-          kvRow("Already paid from petty in " + periodLab, pdfMoney(report.commissionPaidThisMonth || 0));
-          gap(6);
-          kvRow(
-            "Paid from petty through end of " + periodLab,
-            pdfMoney(report.commissionPaidAll || 0)
-          );
+          /* Paid vs open — clear when money has left petty and what is still due */
+          var paidMonth = Number(report.commissionPaidThisMonth) || 0;
+          var paidAll = Number(report.commissionPaidAll) || 0;
+          var paidPrior =
+            paidAll > paidMonth + 0.009
+              ? Math.round((paidAll - paidMonth) * 100) / 100
+              : 0;
+          noteLine("Paid from petty cash (up until this date):", navy);
+          gap(8);
+          if (paidMonth > 0.009) {
+            kvRow("Paid in " + periodLab, pdfMoney(paidMonth), {
+              bg: greenBg,
+              labColor: greenInk,
+              valColor: greenInk,
+              boldLab: true,
+            });
+            gap(6);
+          }
+          if (paidPrior > 0.009) {
+            kvRow("Paid in earlier months", pdfMoney(paidPrior));
+            gap(6);
+          }
+          kvRow("Total paid up until this date", pdfMoney(paidAll), {
+            boldLab: true,
+          });
           if (commOpen > 0.009) {
             gap(12);
-            kvRow("Not yet paid from petty (open at month end)", pdfMoney(commOpen), {
+            kvRow("Still outstanding (up until this date)", pdfMoney(commOpen), {
               big: true,
               bg: amberBg,
               labColor: amberInk,
@@ -514,12 +533,38 @@
               boldLab: true,
             });
             gap(6);
-            noteLine(
-              "Still open at the end of " +
-                periodLab +
-                " because it was not paid from petty that month. It is earned commission on the business above — not marked paid here.",
-              amberInk
-            );
+            if (paidAll > 0.009) {
+              noteLine(
+                "Why still open: captain share earned on the business above is " +
+                  pdfMoney(bizComm || commThrough) +
+                  "; " +
+                  pdfMoney(paidAll) +
+                  " has already left petty. Difference " +
+                  pdfMoney(commOpen) +
+                  " not yet paid from petty by the end of " +
+                  periodLab +
+                  ".",
+                amberInk
+              );
+            } else {
+              noteLine(
+                "Why still open: none of the captain share on the business above had left petty by the end of " +
+                  periodLab +
+                  ". Not marked paid in this report.",
+                amberInk
+              );
+            }
+          } else if (paidAll > 0.009 && (bizComm || commThrough) > 0.009) {
+            gap(10);
+            kvRow("Outstanding up until this date", pdfMoney(0), {
+              big: true,
+              bg: greenBg,
+              labColor: greenInk,
+              valColor: greenInk,
+              boldLab: true,
+            });
+            gap(6);
+            noteLine("Captain share fully covered from petty up until this date.", greenInk);
           }
         }
 
@@ -529,7 +574,7 @@
           noteLine(
             "Money the captain put in from own pocket in " +
               periodLab +
-              " (crew / shops). Separate from commission.",
+              " (crew / shops). Separate from captain-sourced business share.",
             muted
           );
           gap(10);
@@ -607,7 +652,7 @@
         /* Cash out buckets only if something left pot */
         var bucketRows = [
           { lab: "Crew day pay", val: B.crewDayPay || 0 },
-          { lab: "Captain commission", val: B.commission || 0 },
+          { lab: "Captain share (from petty)", val: B.commission || 0 },
           { lab: "Repay captain pocket", val: B.reimburseCaptain || 0 },
           { lab: "Repay crew pocket", val: B.reimburseCrew || 0 },
           { lab: "Tip payouts", val: B.tipPayout || 0 },
