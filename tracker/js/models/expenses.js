@@ -278,6 +278,223 @@ function crewDayPayHitsPetty(e) {
 }
 
 /**
+ * Who funded a crew day-pay line (pure).
+ *  pot      = floatPay — cash left boat envelope (counts in petty cashOut)
+ *  captain  = Own money — captain pocket
+ *  owner    = Owner money
+ *  books    = Paid + Petty label but no floatPay (not this pot cash-out)
+ *  unpaid   = not Paid
+ *  card     = credit card
+ *  ""       = not a crew day-pay line
+ */
+function crewDayPayFundSource(e) {
+  if (!isCrewDayPayExpense(e)) return "";
+  if (String(e.crewPayStatus || "") !== "Paid") return "unpaid";
+  if (String(e.payMethod || "") === "Credit Card") return "card";
+  if (crewDayPayHitsPetty(e)) return "pot";
+  var pf = expensePaidFrom(e);
+  if (pf === "own") return "captain";
+  if (pf === "owner") return "owner";
+  return "books";
+}
+
+/**
+ * Month crew day-pay DTO — all fund math lives here (not the view).
+ *
+ * paidTotal     = sum of Paid crew day rates in month (what stews received)
+ * fromBoatPot   = paid from pot (floatPay) — equals petty crew cash-out
+ * fromCaptain   = paid from captain pocket
+ * fromOwner     = paid from owner
+ * booksOnly     = Paid on books, not pot/captain/owner cash path
+ * unpaidTotal   = Unpaid day rates in month
+ *
+ * Do NOT treat paidTotal as boat cash-out. Cash-out crew = fromBoatPot only.
+ *
+ * @param {Array} expenses full or month-scoped
+ * @param {string} month YYYY-MM
+ * @returns {object}
+ */
+function summarizeCrewPayMonth(expenses, month) {
+  month = String(month || "").slice(0, 7);
+  var empty = {
+    month: month,
+    paidTotal: 0,
+    unpaidTotal: 0,
+    fromBoatPot: 0,
+    fromCaptain: 0,
+    fromOwner: 0,
+    booksOnly: 0,
+    cardTotal: 0,
+    nPaid: 0,
+    nUnpaid: 0,
+    lines: [],
+    potLines: [],
+    captainLines: [],
+    ownerLines: [],
+    booksLines: [],
+  };
+  if (!/^\d{4}-\d{2}$/.test(month)) return empty;
+
+  var paidTotal = 0;
+  var unpaidTotal = 0;
+  var fromBoatPot = 0;
+  var fromCaptain = 0;
+  var fromOwner = 0;
+  var booksOnly = 0;
+  var cardTotal = 0;
+  var nPaid = 0;
+  var nUnpaid = 0;
+  var lines = [];
+  var potLines = [];
+  var captainLines = [];
+  var ownerLines = [];
+  var booksLines = [];
+
+  (Array.isArray(expenses) ? expenses : []).forEach(function (e) {
+    if (!e || !isCrewDayPayExpense(e)) return;
+    if (expenseMonthKey(e.date) !== month) return;
+    var a = round2(num(e.amount));
+    if (!(a > 0.009)) return;
+    var fund = crewDayPayFundSource(e);
+    var row = {
+      id: String(e.id || ""),
+      date: String(e.date || "").slice(0, 10),
+      vendor: String(e.vendor || "Crew").trim() || "Crew",
+      description: String(e.description || "").trim(),
+      amount: a,
+      fund: fund,
+      stewId: e.stewId != null ? String(e.stewId) : "",
+      floatPay: e.floatPay === true,
+      paidFrom: String(e.paidFrom || ""),
+      crewPayStatus: String(e.crewPayStatus || ""),
+    };
+    lines.push(row);
+    if (fund === "unpaid") {
+      unpaidTotal = round2(unpaidTotal + a);
+      nUnpaid++;
+      return;
+    }
+    if (fund === "card") {
+      cardTotal = round2(cardTotal + a);
+      nPaid++;
+      paidTotal = round2(paidTotal + a);
+      return;
+    }
+    nPaid++;
+    paidTotal = round2(paidTotal + a);
+    if (fund === "pot") {
+      fromBoatPot = round2(fromBoatPot + a);
+      potLines.push(row);
+    } else if (fund === "captain") {
+      fromCaptain = round2(fromCaptain + a);
+      captainLines.push(row);
+    } else if (fund === "owner") {
+      fromOwner = round2(fromOwner + a);
+      ownerLines.push(row);
+    } else {
+      booksOnly = round2(booksOnly + a);
+      booksLines.push(row);
+    }
+  });
+
+  function byDate(a, b) {
+    return String(a.date || "").localeCompare(String(b.date || ""));
+  }
+  lines.sort(byDate);
+  potLines.sort(byDate);
+  captainLines.sort(byDate);
+  ownerLines.sort(byDate);
+  booksLines.sort(byDate);
+
+  return {
+    month: month,
+    paidTotal: paidTotal,
+    unpaidTotal: unpaidTotal,
+    fromBoatPot: fromBoatPot,
+    fromCaptain: fromCaptain,
+    fromOwner: fromOwner,
+    booksOnly: booksOnly,
+    cardTotal: cardTotal,
+    nPaid: nPaid,
+    nUnpaid: nUnpaid,
+    lines: lines,
+    potLines: potLines,
+    captainLines: captainLines,
+    ownerLines: ownerLines,
+    booksLines: booksLines,
+  };
+}
+
+/**
+ * Petty cash-out buckets for a month (pure) — only money that left the boat pot.
+ * Crew day-pay bucket = floatPay only (fromBoatPot), never captain/books.
+ *
+ * @param {Array} monthExpenses lines for the report month
+ * @returns {{ commission, crewDayPay, reimburseCaptain, reimburseCrew, tipPayout, otherPetty, commissionLines }}
+ */
+function summarizePettyCashOutBuckets(monthExpenses) {
+  var b = {
+    commission: 0,
+    crewDayPay: 0,
+    reimburseCaptain: 0,
+    reimburseCrew: 0,
+    tipPayout: 0,
+    otherPetty: 0,
+  };
+  var commissionLines = [];
+  (Array.isArray(monthExpenses) ? monthExpenses : []).forEach(function (e) {
+    if (!e) return;
+    var a = round2(num(e.amount));
+    if (!(a > 0.009)) return;
+    if (isCrewDayPayExpense(e)) {
+      if (crewDayPayHitsPetty(e)) b.crewDayPay = round2(b.crewDayPay + a);
+      return;
+    }
+    if (isCaptainCommissionExpense(e)) {
+      if (expensePaidFrom(e) === "own" || expensePaidFrom(e) === "card") return;
+      if (String(e.payMethod || "") === "Credit Card") return;
+      b.commission = round2(b.commission + a);
+      commissionLines.push({
+        id: String(e.id || ""),
+        date: String(e.date || "").slice(0, 10),
+        vendor: String(e.vendor || "Commission").trim() || "Commission",
+        description: String(e.description || "").trim(),
+        amount: a,
+      });
+      return;
+    }
+    if (isExpenseReimbursement(e)) {
+      if (!expenseHitsPettyCash(e)) return;
+      var who = expenseReimburseWhoId(e);
+      if (who === EXP_POCKET_CAPTAIN || who === "captain") {
+        b.reimburseCaptain = round2(b.reimburseCaptain + a);
+      } else {
+        b.reimburseCrew = round2(b.reimburseCrew + a);
+      }
+      return;
+    }
+    if (e.kind === "tipPayout" || e.stewPayKind === "tipPayout" || /^crew tip payout$/i.test(String(e.category || ""))) {
+      if (expenseHitsPettyCash(e) || expensePaidFrom(e) === "petty") {
+        b.tipPayout = round2(b.tipPayout + a);
+      }
+      return;
+    }
+    if (expenseHitsPettyCash(e)) {
+      b.otherPetty = round2(b.otherPetty + a);
+    }
+  });
+  return {
+    commission: b.commission,
+    crewDayPay: b.crewDayPay,
+    reimburseCaptain: b.reimburseCaptain,
+    reimburseCrew: b.reimburseCrew,
+    tipPayout: b.tipPayout,
+    otherPetty: b.otherPetty,
+    commissionLines: commissionLines,
+  };
+}
+
+/**
  * Score for picking the single surviving crew day-pay line per finger.
  * Prefer: Paid + floatPay (real petty) → Paid → Unpaid; then newest updatedAt;
  * then payStatusManual; then amount (stable, not always higher — use updatedAt first).
@@ -2361,6 +2578,9 @@ function summarizeMonthSettlement(opts) {
     crewDayPayFinger: crewDayPayFinger,
     crewDayPayLinkId: crewDayPayLinkId,
     crewDayPayHitsPetty: crewDayPayHitsPetty,
+    crewDayPayFundSource: crewDayPayFundSource,
+    summarizeCrewPayMonth: summarizeCrewPayMonth,
+    summarizePettyCashOutBuckets: summarizePettyCashOutBuckets,
     crewDayPayLineScore: crewDayPayLineScore,
     collapseCrewDayPayExpenses: collapseCrewDayPayExpenses,
     clearCrewFloatPayOnEmptyEnvelope: clearCrewFloatPayOnEmptyEnvelope,

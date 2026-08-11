@@ -25,6 +25,9 @@ See [`.agent/briefs/tracker-v1-mvc-blueprint.md`](../../../.agent/briefs/tracker
 | `planPettyCarryMaterialize` | Explicit store patches for ops/DB only |
 | `planClearCrewFloatPayOnEmptyEnvelope` | Dry-run floatPay clear plan (no mutate) |
 | `summarizeCaptainPocketMonthBridge` | Captain pocket prior short → repay → open |
+| `summarizeCrewPayMonth` | Month crew day-pay by fund (pot / captain / books) |
+| `summarizePettyCashOutBuckets` | Pot cash-out buckets (crew = floatPay only) |
+| `crewDayPayFundSource` | pot \| captain \| owner \| books \| unpaid |
 | `isOwnMoneySpend` / `ownMoneyRepaidAmt` / `ownMoneyIsRepaid` | Pocket spend + cross-month repay (linked + FIFO) |
 | `collectOpenPocketOuts` | Still-owed pocket through focus month |
 | `summarizePocketBalances` | putIn + paidOut − reimbursed |
