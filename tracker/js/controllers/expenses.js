@@ -232,6 +232,42 @@
     });
   }
 
+  /**
+   * Captain pocket month bridge DTO (carry prior short → this month → repay).
+   * Pure model; no writes. View paints only.
+   */
+  function captainPocketMonthBridge(input) {
+    input = input || {};
+    var models = M(input);
+    if (!models.summarizeCaptainPocketMonthBridge) {
+      return {
+        month: input.month || "",
+        broughtForward: 0,
+        monthSpend: 0,
+        monthRepay: 0,
+        monthNet: 0,
+        closingOpen: 0,
+        stewMonth: 0,
+        shopMonth: 0,
+        stewPrior: 0,
+        shopPrior: 0,
+        repayToPrior: 0,
+        repayToThis: 0,
+        priorLines: [],
+        monthLines: [],
+        monthRepayLines: [],
+      };
+    }
+    var month = input.month || input.focusMonth || "";
+    var all = input.expenses || input.allExpenses || [];
+    var dto = models.summarizeCaptainPocketMonthBridge(all, month);
+    /* Optional display labels only (not money rules) */
+    if (models.expenseMonthKey || month) {
+      dto.monthLabel = input.monthLabel || month;
+    }
+    return dto;
+  }
+
   return {
     monthSettlement: monthSettlement,
     openPocketOuts: openPocketOuts,
@@ -242,5 +278,6 @@
     ownMoneyIsRepaid: ownMoneyIsRepaid,
     ownMoneyRepayHint: ownMoneyRepayHint,
     pocketBalances: pocketBalances,
+    captainPocketMonthBridge: captainPocketMonthBridge,
   };
 });

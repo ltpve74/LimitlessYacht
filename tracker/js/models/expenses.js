@@ -1157,6 +1157,158 @@ function summarizePocketBalances(expenses, cashIns, opts) {
 }
 
 /**
+ * Captain pocket month bridge (pure) — month-to-month carry for reports/UI.
+ *
+ * Rules (no DOM, no writes):
+ *  - Spend = isOwnMoneySpend by captain (not card).
+ *  - Repay = reimbursement that clears captain pocket.
+ *  - broughtForward = max(0, prior-month spends − prior-month repays) [month key of date].
+ *  - monthSpend / monthRepay = lines with date month === focus month.
+ *  - closingOpen = max(0, all spends through month − all repays through month).
+ *  - repayToPrior / repayToThis = this month's repay applied first to prior short, then this month.
+ *  - Stew day rate = crew day-pay expense or category Crew Salaries; long day if amount ≥ 249.99.
+ *
+ * @param {Array} expenses all expenses (not month-scoped only)
+ * @param {string} month YYYY-MM
+ * @returns {object} DTO for paint / PDF
+ */
+function summarizeCaptainPocketMonthBridge(expenses, month) {
+  month = String(month || "").slice(0, 7);
+  if (!/^\d{4}-\d{2}$/.test(month)) {
+    return {
+      month: month,
+      broughtForward: 0,
+      monthSpend: 0,
+      monthRepay: 0,
+      monthNet: 0,
+      closingOpen: 0,
+      stewMonth: 0,
+      shopMonth: 0,
+      stewPrior: 0,
+      shopPrior: 0,
+      repayToPrior: 0,
+      repayToThis: 0,
+      priorLines: [],
+      monthLines: [],
+      monthRepayLines: [],
+    };
+  }
+  function monOf(e) {
+    return expenseMonthKey(e && e.date) || String((e && e.date) || "").slice(0, 7);
+  }
+  function isCapOwn(e) {
+    if (!isOwnMoneySpend(e)) return false;
+    if (String(e.payMethod || "") === "Credit Card") return false;
+    var w = String(ownMoneySpendWhoId(e) || EXP_POCKET_CAPTAIN);
+    return w === EXP_POCKET_CAPTAIN || w === "captain";
+  }
+  function isCapRepay(e) {
+    if (!isExpenseReimbursement(e)) return false;
+    return expenseReimburseWhoId(e) === EXP_POCKET_CAPTAIN;
+  }
+  function isStewDay(e) {
+    return isCrewDayPayExpense(e) || /^crew salaries$/i.test(String((e && e.category) || ""));
+  }
+  var spends = [];
+  var repays = [];
+  (Array.isArray(expenses) ? expenses : []).forEach(function (e) {
+    if (!e) return;
+    if (isCapOwn(e)) spends.push(e);
+    if (isCapRepay(e)) repays.push(e);
+  });
+  spends.sort(function (a, b) {
+    return String(a.date || "").localeCompare(String(b.date || ""));
+  });
+  repays.sort(function (a, b) {
+    return String(a.date || "").localeCompare(String(b.date || ""));
+  });
+
+  var priorSpend = 0;
+  var monthSpend = 0;
+  var priorRepay = 0;
+  var monthRepay = 0;
+  var priorLines = [];
+  var monthLines = [];
+  var monthRepayLines = [];
+  var stewMonth = 0;
+  var shopMonth = 0;
+  var stewPrior = 0;
+  var shopPrior = 0;
+
+  spends.forEach(function (e) {
+    var em = monOf(e);
+    var a = round2(num(e.amount));
+    if (!(a > 0.009)) return;
+    var stew = isStewDay(e);
+    var row = {
+      id: String(e.id || ""),
+      date: String(e.date || "").slice(0, 10),
+      month: em,
+      amount: a,
+      vendor: String(e.vendor || e.description || "Spend").trim() || "Spend",
+      description: String(e.description || "").trim(),
+      isStew: stew,
+      isLongDay: !!(stew && a >= 249.99),
+      charterDate: String(e.charterDate || "").slice(0, 10),
+    };
+    if (em && em < month) {
+      priorSpend = round2(priorSpend + a);
+      priorLines.push(row);
+      if (stew) stewPrior = round2(stewPrior + a);
+      else shopPrior = round2(shopPrior + a);
+    } else if (em === month) {
+      monthSpend = round2(monthSpend + a);
+      monthLines.push(row);
+      if (stew) stewMonth = round2(stewMonth + a);
+      else shopMonth = round2(shopMonth + a);
+    }
+  });
+
+  repays.forEach(function (e) {
+    var em = monOf(e);
+    var a = round2(num(e.amount));
+    if (!(a > 0.009)) return;
+    if (em && em < month) priorRepay = round2(priorRepay + a);
+    else if (em === month) {
+      monthRepay = round2(monthRepay + a);
+      monthRepayLines.push({
+        id: String(e.id || ""),
+        date: String(e.date || "").slice(0, 10),
+        amount: a,
+        vendor: String(e.vendor || "Captain").trim() || "Captain",
+        description: String(e.description || "").trim(),
+      });
+    }
+  });
+
+  var broughtForward = round2(Math.max(0, priorSpend - priorRepay));
+  var monthNet = round2(monthSpend - monthRepay);
+  var closingOpen = round2(
+    Math.max(0, priorSpend + monthSpend - (priorRepay + monthRepay))
+  );
+  var repayToPrior = round2(Math.min(monthRepay, broughtForward));
+  var repayToThis = round2(Math.max(0, monthRepay - repayToPrior));
+
+  return {
+    month: month,
+    broughtForward: broughtForward,
+    monthSpend: monthSpend,
+    monthRepay: monthRepay,
+    monthNet: monthNet,
+    closingOpen: closingOpen,
+    stewMonth: stewMonth,
+    shopMonth: shopMonth,
+    stewPrior: stewPrior,
+    shopPrior: shopPrior,
+    repayToPrior: repayToPrior,
+    repayToThis: repayToThis,
+    priorLines: priorLines,
+    monthLines: monthLines,
+    monthRepayLines: monthRepayLines,
+  };
+}
+
+/**
  * Captain actually settled this day-pay line (not a ghost Paid row).
  * True when Paid AND (floatPay from petty OR payStatusManual / Prior).
  * Bare Paid without either is noise from heal/sync and must not park the charter.
@@ -1831,6 +1983,7 @@ function summarizeMonthSettlement(opts) {
     ownMoneyRepayHint: ownMoneyRepayHint,
     collectOpenPocketOuts: collectOpenPocketOuts,
     summarizePocketBalances: summarizePocketBalances,
+    summarizeCaptainPocketMonthBridge: summarizeCaptainPocketMonthBridge,
     crewDayPayIsExplicitlyPaid: crewDayPayIsExplicitlyPaid,
     buildCrewDayPaySettledSets: buildCrewDayPaySettledSets,
     isCrewDayPaySettled: isCrewDayPaySettled,
