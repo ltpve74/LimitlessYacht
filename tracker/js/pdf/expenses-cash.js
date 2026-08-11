@@ -402,7 +402,7 @@
               if (s.date) subBits.push(fmtDate(s.date));
               if (s.fullAmount > 0.009 && Math.abs((s.fullAmount || 0) - (s.amount || 0)) > 0.009) {
                 subBits.push(
-                  "of " + pdfMoney(s.fullAmount) + "  ·  pot covered " + pdfMoney(s.covered || 0)
+                  "of " + pdfMoney(s.fullAmount) + "  ·  petty cash covered " + pdfMoney(s.covered || 0)
                 );
               } else {
                 subBits.push("not covered by petty cash");
@@ -622,8 +622,8 @@
           }
           if (booksCrew > 0.009) {
             gap(6);
-            kvRow("On books only (not pot)", pdfMoney(booksCrew), { boldLab: true });
-            noteLine("Marked paid on books — cash did not leave this pot.", muted);
+            kvRow("On books only (not petty cash)", pdfMoney(booksCrew), { boldLab: true });
+            noteLine("Marked paid on books — cash did not leave petty cash.", muted);
           }
         }
 
