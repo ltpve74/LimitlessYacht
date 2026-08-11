@@ -335,8 +335,8 @@
         });
         gap(12);
 
-        /* —— 1) BOAT POT at a glance —— */
-        sectionHead("1 · BOAT POT");
+        /* —— 1) PETTY CASH at a glance —— */
+        sectionHead("1 · PETTY CASH");
         noteLine(periodNote, muted);
         gap(6);
         kvRow("Cash in", pdfMoney(cashIn), { big: true, boldLab: true, bg: greenBg, labColor: greenInk, valColor: greenInk });
@@ -352,7 +352,7 @@
         });
         if (boatShort > 0.009) {
           gap(4);
-          kvRow("Boat pot short — OUTSTANDING", pdfMoney(boatShort), {
+          kvRow("Petty cash short — OUTSTANDING", pdfMoney(boatShort), {
             big: true,
             bg: redBg,
             labColor: redInk,
@@ -386,15 +386,15 @@
           noteLine("Itemised:", navy);
           gap(6);
 
-          /* Crew pay (pot short on crew lines) */
+          /* Crew pay (petty short on crew lines) */
           if (crewShortAmt > 0.009 || (boatShort > 0.009 && shorts.some(function (s) { return s.kind === "crew"; }))) {
-            kvRow("Crew pay (pot short)", pdfMoney(crewShortAmt > 0.009 ? crewShortAmt : 0), {
+            kvRow("Crew pay (petty cash short)", pdfMoney(crewShortAmt > 0.009 ? crewShortAmt : 0), {
               boldLab: true,
               bg: redBg,
               labColor: redInk,
               valColor: redInk,
             });
-            noteLine("Crew lines marked from pot beyond cash in " + periodLab + ".", redInk);
+            noteLine("Crew lines marked from petty cash beyond cash in " + periodLab + ".", redInk);
             gap(4);
             shorts.forEach(function (s, idx) {
               if (s.kind !== "crew" && s.kind !== "daypay") return;
@@ -405,16 +405,16 @@
                   "of " + pdfMoney(s.fullAmount) + "  ·  pot covered " + pdfMoney(s.covered || 0)
                 );
               } else {
-                subBits.push("not covered by pot cash");
+                subBits.push("not covered by petty cash");
               }
               lineItem(s.label || "Crew", s.amount, subBits.join(" · "), idx, redInk);
             });
             gap(8);
           }
 
-          /* Other pot short (e.g. crew pocket repay) */
+          /* Other petty cash short (e.g. crew pocket repay) */
           if (otherShortAmt > 0.009) {
-            kvRow("Other pot short", pdfMoney(otherShortAmt), {
+            kvRow("Other petty cash short", pdfMoney(otherShortAmt), {
               boldLab: true,
               bg: redBg,
               labColor: redInk,
@@ -425,7 +425,7 @@
               if (s.kind === "crew" || s.kind === "daypay") return;
               var subBits = [];
               if (s.date) subBits.push(fmtDate(s.date));
-              subBits.push("not covered by pot cash");
+              subBits.push("not covered by petty cash");
               lineItem(s.label || "Pot out", s.amount, subBits.join(" · "), idx, redInk);
             });
             gap(8);
@@ -455,16 +455,16 @@
               noteLine(
                 "Outstanding for charters in " +
                   periodLab +
-                  " only — not paid from the boat pot in this period.",
+                  " only — not paid from petty cash in this period.",
                 amberInk
               );
             }
             gap(4);
             kvRow("  Earned (through end of " + periodLab + ")", pdfMoney(commThrough));
             gap(2);
-            kvRow("  Paid from pot (through end of " + periodLab + ")", pdfMoney(report.commissionPaidAll || 0));
+            kvRow("  Paid from petty cash (through end of " + periodLab + ")", pdfMoney(report.commissionPaidAll || 0));
             gap(2);
-            kvRow("  Paid from pot this month", pdfMoney(report.commissionPaidThisMonth || 0));
+            kvRow("  Paid from petty cash this month", pdfMoney(report.commissionPaidThisMonth || 0));
             gap(8);
           }
 
@@ -480,7 +480,7 @@
             noteLine(
               "Captain fronted cash in " +
                 periodLab +
-                " (and any prior still open). Not repaid from pot by month end.",
+                " (and any prior still open). Not repaid from petty cash by month end.",
               amberInk
             );
             gap(4);
@@ -493,14 +493,14 @@
                 kvRow("  Still open from before " + periodLab, pdfMoney(PS.broughtForward || 0));
                 gap(2);
               }
-              kvRow("  Repaid from pot in " + periodLab, pdfMoney(PS.monthRepay || 0));
+              kvRow("  Repaid from petty cash in " + periodLab, pdfMoney(PS.monthRepay || 0));
             }
             gap(8);
           }
         }
 
-        /* —— Pot detail (same numbers, more lines) —— */
-        sectionHead("BOAT POT · DETAIL");
+        /* —— Petty cash detail —— */
+        sectionHead("PETTY CASH · DETAIL");
         noteLine(periodNote, muted);
         gap(6);
         kvRow("Start", pdfMoney(start));
@@ -590,7 +590,7 @@
             lineItem(title, r.amount, detail, idx, accent);
           }
           if (potCrew > 0.009) {
-            kvRow("Paid from boat pot", pdfMoney(potCrew), {
+            kvRow("Paid from petty cash", pdfMoney(potCrew), {
               big: true,
               bg: greenBg,
               labColor: greenInk,
@@ -649,7 +649,7 @@
             kvRow("  Shops / other", pdfMoney(PS.shopMonth));
           }
           gap(4);
-          kvRow("Repaid from pot this month", pdfMoney(PS.monthRepay || 0));
+          kvRow("Repaid from petty cash this month", pdfMoney(PS.monthRepay || 0));
           gap(6);
           kvRow("Still open end of month", pdfMoney(PS.closingOpen || 0), {
             big: true,
@@ -702,9 +702,9 @@
             kvRow("Commission earned through end of month", pdfMoney(report.commissionEarned || report.bizThroughComm || 0));
             gap(2);
           }
-          kvRow("Paid from pot this month", pdfMoney(report.commissionPaidThisMonth || 0));
+          kvRow("Paid from petty cash this month", pdfMoney(report.commissionPaidThisMonth || 0));
           gap(2);
-          kvRow("Paid from pot through end of month", pdfMoney(report.commissionPaidAll || 0));
+          kvRow("Paid from petty cash through end of month", pdfMoney(report.commissionPaidAll || 0));
           if (commOpen > 0.009) {
             gap(4);
             kvRow("Still outstanding (through end of month)", pdfMoney(commOpen), {
