@@ -42,8 +42,28 @@ August `broughtForwardShort: 110` so first cash-in settles the hole (not a load 
 
 ## Captain pocket (data)
 
-July own-money **€758.88** (stew €450 incl. Vicky long day €250 + shop €308.88).  
-August captain repay **€958.88** = July **758.88** + Airiana **200**.
+### Resolved €200 gap (2026-08-12)
+
+Captain repaid **€958.88** on 1 Aug (€950 + €8.88). Airiana (€200, 7 Aug) is **later** and stays open.
+
+**Missing line:** Vicky · **Arthur** · 2026-07-20 · €200 was **books-only** (Paid + Petty label, `floatPay: false`) while pot was empty. Captain confirmed Vicky was not left hanging → reclass to Own money.
+
+| Field | Value |
+|-------|--------|
+| id | `8ad7a306-f93d-4433-9c15-d1d0fe98268a` |
+| paidFrom | `Own money` |
+| floatPay | `false` |
+| paidById | `captain` |
+
+**After reclass:** July pocket open **€958.88** (stew €650 + shop/linen €308.88) = Aug repay **€958.88** → prior fully covered; Airiana still **€200 open**.
+
+### API save note (do not wipe)
+
+Tracker save expects **`collection` + `rows`**, not `coll` / `data`. Wrong shape full-replaces with `[]`. Dry-run script fixed. Keep `/tmp/tracker-fix-expenses.json` style backups before write.
+
+### Earlier snapshot (pre-Arthur reclass)
+
+July own-money was **€758.88** (stew €450 + shop €308.88) before Arthur reclass.
 
 ## Forbidden
 

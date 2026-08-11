@@ -226,11 +226,11 @@ async function main() {
 
   if (needExp.length) {
     console.log("\nSaving expenses (" + needExp.length + " floatPay patches)…");
-    await api({ action: "save", coll: "expenses", data: nextExpenses });
+    await api({ action: "save", collection: "expenses", rows: nextExpenses });
   }
   if (needPetty.length) {
     console.log("Saving expPetty (BF short patches)…");
-    await api({ action: "save", coll: "expPetty", data: nextPetty });
+    await api({ action: "save", collection: "expPetty", rows: nextPetty });
   }
 
   const verify = await api({ action: "load" });
