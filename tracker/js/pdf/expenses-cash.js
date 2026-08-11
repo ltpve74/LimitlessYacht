@@ -574,7 +574,7 @@
           noteLine("No captain pocket activity this month.", muted);
         }
 
-        /* Commission — short */
+        /* Commission — charter month only (no future bookings) */
         if (
           (report.bizMonthComm || 0) > 0.009 ||
           (report.commissionPaidThisMonth || 0) > 0.009 ||
@@ -582,16 +582,40 @@
           (report.commissionEarned || 0) > 0.009
         ) {
           sectionHead("CAPTAIN COMMISSION");
+          noteLine("Only charters in this month (or started earlier). Future bookings excluded.", muted);
+          gap(4);
           if ((report.bizMonthGross || 0) > 0.009) {
             kvRow("Business generated (this month)", pdfMoney(report.bizMonthGross || 0));
             gap(2);
             kvRow("Commission on that", pdfMoney(report.bizMonthComm || 0), { boldLab: true });
             gap(4);
           }
+          /* List deals counted — owner can see no future charter slipped in */
+          var dealItems = report.bizMonthItems || [];
+          if (dealItems.length) {
+            noteLine("Charters counted:", navy);
+            gap(4);
+            dealItems.forEach(function (it, idx) {
+              var title = (it.name || "Guest") + (it.kind === "charge" ? " · upsell" : "");
+              var sub = it.start
+                ? it.end && it.end !== it.start
+                  ? fmtDate(it.start) + " to " + fmtDate(it.end)
+                  : fmtDate(it.start)
+                : "";
+              lineItem(title, it.comm || 0, sub, idx, gold);
+            });
+            gap(6);
+          }
+          if ((report.bizThroughComm || 0) > 0.009 && Math.abs((report.bizThroughComm || 0) - (report.bizMonthComm || 0)) > 0.5) {
+            kvRow("Commission earned through end of month", pdfMoney(report.commissionEarned || report.bizThroughComm || 0));
+            gap(2);
+          }
           kvRow("Paid from pot this month", pdfMoney(report.commissionPaidThisMonth || 0));
+          gap(2);
+          kvRow("Paid from pot through end of month", pdfMoney(report.commissionPaidAll || 0));
           if (commOpen > 0.009) {
             gap(4);
-            kvRow("Still outstanding", pdfMoney(commOpen), {
+            kvRow("Still outstanding (through end of month)", pdfMoney(commOpen), {
               bg: amberBg,
               labColor: amberInk,
               valColor: amberInk,

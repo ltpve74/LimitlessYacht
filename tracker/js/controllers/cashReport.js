@@ -148,8 +148,40 @@
       : null;
     if (pocketStory && input.monthLabel) pocketStory.monthLabel = input.monthLabel;
 
-    var bizMonth = input.bizMonth || { n: 0, gross: 0, base: 0, comm: 0 };
-    var bizThrough = input.bizThrough || { n: 0, gross: 0, base: 0, comm: 0 };
+    /*
+     * Captain business: charter START date only (never booking/closed date).
+     * Future charters (start after report month) excluded.
+     */
+    function mergeBiz(scope) {
+      var leadBiz =
+        models.summarizeCaptainLeadBizAsOf
+          ? models.summarizeCaptainLeadBizAsOf(input.leads || [], month, scope)
+          : { n: 0, gross: 0, base: 0, comm: 0, items: [] };
+      var chBiz =
+        models.summarizeCaptainChargeBizAsOf
+          ? models.summarizeCaptainChargeBizAsOf(input.charters || [], month, scope)
+          : { n: 0, gross: 0, base: 0, comm: 0, items: [] };
+      var items = (leadBiz.items || []).concat(chBiz.items || []);
+      items.sort(function (a, b) {
+        return String(a.start || "").localeCompare(String(b.start || ""));
+      });
+      return {
+        n: (leadBiz.n || 0) + (chBiz.n || 0),
+        gross: Math.round(((leadBiz.gross || 0) + (chBiz.gross || 0)) * 100) / 100,
+        base: Math.round(((leadBiz.base || 0) + (chBiz.base || 0)) * 100) / 100,
+        comm: Math.round(((leadBiz.comm || 0) + (chBiz.comm || 0)) * 100) / 100,
+        items: items,
+      };
+    }
+    /* Prefer model; optional input.bizMonth only if models missing */
+    var bizMonth =
+      models.summarizeCaptainLeadBizAsOf || models.summarizeCaptainChargeBizAsOf
+        ? mergeBiz("month")
+        : input.bizMonth || { n: 0, gross: 0, base: 0, comm: 0, items: [] };
+    var bizThrough =
+      models.summarizeCaptainLeadBizAsOf || models.summarizeCaptainChargeBizAsOf
+        ? mergeBiz("through")
+        : input.bizThrough || { n: 0, gross: 0, base: 0, comm: 0, items: [] };
 
     var commBal = models.summarizeCaptainCommissionBalance
       ? models.summarizeCaptainCommissionBalance({
@@ -251,10 +283,12 @@
       bizMonthBase: bizMonth.base || 0,
       bizMonthComm: bizMonth.comm || 0,
       bizMonthN: bizMonth.n || 0,
+      bizMonthItems: bizMonth.items || [],
       bizThroughGross: bizThrough.gross || 0,
       bizThroughBase: bizThrough.base || 0,
       bizThroughComm: bizThrough.comm || 0,
       bizThroughN: bizThrough.n || 0,
+      bizThroughItems: bizThrough.items || [],
       bizAllGross: bizThrough.gross || 0,
       bizAllBase: bizThrough.base || 0,
       bizAllComm: bizThrough.comm || 0,

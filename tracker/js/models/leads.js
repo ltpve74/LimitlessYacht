@@ -175,6 +175,78 @@ function leadIsDealClosed(r) {
   return true;
 }
 
+/** Charter start month YYYY-MM — never use booking/closed date. */
+function leadCharterStartMonth(r) {
+  var st = String((r && (r.start || r.cdate)) || "").slice(0, 7);
+  return /^\d{4}-\d{2}$/.test(st) ? st : "";
+}
+
+/**
+ * Whether a lead’s commission belongs in a month cash report (pure).
+ *
+ * scope "month"   = charter activity in that month (start/end/span)
+ * scope "through" = charter start on or before end of that month
+ *
+ * Future charters (start month > report month) are NEVER included — even if
+ * booked/closed earlier. Booking/closed date is not used.
+ *
+ * @param {object} r lead
+ * @param {string} month YYYY-MM
+ * @param {"month"|"through"} scope
+ */
+function leadInCommissionBizScope(r, month, scope) {
+  month = String(month || "").slice(0, 7);
+  if (!r || !/^\d{4}-\d{2}$/.test(month)) return false;
+  var st = leadCharterStartMonth(r);
+  if (!st) return false;
+  /* Future charter — out of this report */
+  if (st > month) return false;
+  if (scope === "through") return st <= month;
+  /* month: start in month, end in month, or multi spanning month */
+  var en = String(r.end || "").slice(0, 7);
+  if (st === month) return true;
+  if (en === month) return true;
+  if (en && /^\d{4}-\d{2}$/.test(en) && st < month && en >= month) return true;
+  return false;
+}
+
+/**
+ * Captain-earning business for cash PDF (leads only — charges composed in controller).
+ * @returns {{ n, gross, base, comm, items: Array }}
+ */
+function summarizeCaptainLeadBizAsOf(leads, month, scope) {
+  scope = scope === "through" ? "through" : "month";
+  month = String(month || "").slice(0, 7);
+  var gross = 0;
+  var base = 0;
+  var comm = 0;
+  var n = 0;
+  var items = [];
+  (Array.isArray(leads) ? leads : []).forEach(function (r) {
+    if (!r || leadIsCancelled(r) || leadIsDayOff(r)) return;
+    if (!leadEarnsCaptainCommission(r)) return;
+    if (!leadIsDealClosed(r)) return;
+    if (!leadInCommissionBizScope(r, month, scope)) return;
+    var p = leadCommissionParts(r);
+    if (!p || !(num(p.total) > 0.009 || num(p.gross) > 0.009 || num(p.base) > 0.009)) return;
+    n++;
+    gross = round2(gross + num(p.gross));
+    base = round2(base + num(p.base));
+    comm = round2(comm + num(p.total));
+    items.push({
+      kind: "lead",
+      id: String(r.id || ""),
+      name: String(r.name || "Guest").trim() || "Guest",
+      start: String(r.start || r.cdate || "").slice(0, 10),
+      end: String(r.end || "").slice(0, 10),
+      gross: round2(num(p.gross)),
+      base: round2(num(p.base)),
+      comm: round2(num(p.total)),
+    });
+  });
+  return { n: n, gross: gross, base: base, comm: comm, items: items };
+}
+
 /**
  * Owner’s days only (not owner-sourced income): no commission, not cash sales.
  * Count toward “owner benefits” only when confirmed (deal closed).
@@ -1354,6 +1426,9 @@ function leadCommissionAmt(r) {
     isOwnerLead: isOwnerLead,
     isOwnerSourcedLead: isOwnerSourcedLead,
     leadIsDealClosed: leadIsDealClosed,
+    leadCharterStartMonth: leadCharterStartMonth,
+    leadInCommissionBizScope: leadInCommissionBizScope,
+    summarizeCaptainLeadBizAsOf: summarizeCaptainLeadBizAsOf,
     ownerBenefitIncluded: ownerBenefitIncluded,
     constrainLeadSource: constrainLeadSource,
     leadSourceLabel: leadSourceLabel,
