@@ -2873,6 +2873,71 @@ console.log("\n[Pocket — own-money repay + open liabilities]");
   ok("linked repay covers 261", near(M.ownMoneyRepaidAmt(rebecca, ledger1), 261));
   ok("Rebecca fully repaid via link", M.ownMoneyIsRepaid(rebecca, ledger1));
   ok("shop still open", !M.ownMoneyIsRepaid(shop, ledger1));
+
+  /* Captain pocket month bridge — prior short carries; repay clears prior first */
+  {
+    const julyStew = {
+      id: "j-stew",
+      date: "2026-07-25",
+      amount: 250,
+      paidFrom: "Own money",
+      category: "Crew Salaries",
+      vendor: "Vicky",
+      crewPayStatus: "Paid",
+      stewPayKind: "dayPay",
+      stewId: "v1",
+    };
+    const julyShop = {
+      id: "j-shop",
+      date: "2026-07-18",
+      amount: 100,
+      paidFrom: "Own money",
+      category: "Provisions",
+      vendor: "Shop",
+    };
+    const augRepay = {
+      id: "a-repay",
+      date: "2026-08-01",
+      amount: 350,
+      category: "Captain reimbursement",
+      vendor: "Captain",
+      reimbursesExpenseId: "",
+      reimburseCaptain: true,
+      paidFrom: "Petty cash",
+    };
+    const augStew = {
+      id: "a-stew",
+      date: "2026-08-07",
+      amount: 200,
+      paidFrom: "Own money",
+      category: "Crew Salaries",
+      vendor: "Airiana",
+      crewPayStatus: "Paid",
+      stewPayKind: "dayPay",
+      stewId: "a1",
+    };
+    const bridgeJul = M.summarizeCaptainPocketMonthBridge(
+      [julyStew, julyShop, augRepay, augStew],
+      "2026-07"
+    );
+    ok("July bridge month spend 350", near(bridgeJul.monthSpend, 350));
+    ok("July bridge stew 250", near(bridgeJul.stewMonth, 250));
+    ok("July bridge shop 100", near(bridgeJul.shopMonth, 100));
+    ok("July bridge no repay", near(bridgeJul.monthRepay, 0));
+    ok("July bridge closing open 350", near(bridgeJul.closingOpen, 350));
+    ok("July bridge BF 0", near(bridgeJul.broughtForward, 0));
+    const bridgeAug = M.summarizeCaptainPocketMonthBridge(
+      [julyStew, julyShop, augRepay, augStew],
+      "2026-08"
+    );
+    ok("Aug bridge BF 350 from July", near(bridgeAug.broughtForward, 350));
+    ok("Aug bridge month spend 200", near(bridgeAug.monthSpend, 200));
+    ok("Aug bridge repay 350", near(bridgeAug.monthRepay, 350));
+    ok("Aug bridge repay clears prior first", near(bridgeAug.repayToPrior, 350));
+    ok("Aug bridge repay to this 0", near(bridgeAug.repayToThis, 0));
+    ok("Aug bridge still open 200 (new stew)", near(bridgeAug.closingOpen, 200));
+  }
+
   const openAug = M.collectOpenPocketOuts(ledger1, "2026-08", {
     personName: function () {
       return "Captain";

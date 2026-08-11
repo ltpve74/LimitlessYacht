@@ -11514,6 +11514,34 @@ function expCollectOpenPocketOuts(focusMonth){
   var inp=expControllerInput(focusMonth||expDefaultMonth());
   return expCtrl().openPocketOuts(inp);
 }
+/**
+ * Captain pocket month bridge — view wrapper only.
+ * Money rules live in LY_MODELS.summarizeCaptainPocketMonthBridge
+ * via LY_CONTROLLERS.expenses.captainPocketMonthBridge.
+ */
+function expCaptainPocketMonthStory(month){
+  month=String(month||expMonth||expDefaultMonth()).slice(0,7);
+  var dto=null;
+  try{
+    dto=expCtrl().captainPocketMonthBridge({
+      models:LY_MODELS,
+      month:month,
+      expenses:state.expenses||[],
+      monthLabel:expMonthLabel(month)
+    });
+  }catch(e){ dto=null; }
+  if(!dto){
+    return {
+      month:month, monthLabel:expMonthLabel(month),
+      broughtForward:0, monthSpend:0, monthRepay:0, monthNet:0, closingOpen:0,
+      stewMonth:0, shopMonth:0, stewPrior:0, shopPrior:0,
+      repayToPrior:0, repayToThis:0,
+      priorLines:[], monthLines:[], monthRepayLines:[]
+    };
+  }
+  if(!dto.monthLabel) dto.monthLabel=expMonthLabel(month);
+  return dto;
+}
 /** One-shot: normalize all reimbursement rows in state (petty + flags). */
 function expNormalizeAllReimbursements(){
   if(!isCaptain()||!state.expenses) return false;
@@ -13081,6 +13109,7 @@ function expCashReportForMonth(month){
     bizAllBase:bizAll.base,
     bizAllComm:bizAll.comm,
     bizAllN:bizAll.n,
+    pocketStory:typeof expCaptainPocketMonthStory==="function"?expCaptainPocketMonthStory(month):null,
     cardExcluded:true
   };
 }
@@ -13346,21 +13375,63 @@ function buildExpensesCashPdf(month){
           lineItem(r.description||r.vendor||"Commission draw", r.amount, r.date?fmtDate(r.date):"", idx, gold);
         });
 
-        /* Captain fronted / pocket */
-        sectionHead("CAPTAIN POCKET (FRONTED)");
-        kvRow("Fronted (listed)", expPdfMoney(capTot));
-        kvRow("Repaid this month", expPdfMoney(capRepay));
-        kvRow("Still owed", expPdfMoney(capOpen),
-          capOpen>0.009
-            ?{big:true, bg:amberBg, labColor:amberInk, valColor:amberInk, boldLab:true}
-            :{big:true, bg:greenBg, labColor:greenInk, valColor:greenInk, boldLab:true});
-        capList.forEach(function(p, idx){
-          var what=p.vendor||"Spend";
-          if(p.description&&p.description!==p.vendor) what=p.vendor+" - "+p.description;
-          var st=p.repaid||p.coveredByThisMonth?"Repaid":"Open";
-          var sub=[p.date?fmtDate(p.date):"", p.priorMonth?"prior":"", st].filter(Boolean).join(" · ");
-          lineItem(what, p.amount, sub, idx, p.repaid||p.coveredByThisMonth?greenInk:amberInk);
-        });
+        /* Captain pocket — month bridge (prior short → this month → repay) */
+        sectionHead("CAPTAIN POCKET");
+        var PS=report.pocketStory||null;
+        if(PS){
+          kvRow("Open from prior months (carried in)", expPdfMoney(PS.broughtForward||0),
+            (PS.broughtForward||0)>0.009?{bg:amberBg, labColor:amberInk, valColor:amberInk, boldLab:true}:null);
+          kvRow("Fronted this month", expPdfMoney(PS.monthSpend||0), {boldLab:true});
+          if((PS.stewMonth||0)>0.009) kvRow("  of which stew day rates", expPdfMoney(PS.stewMonth));
+          if((PS.shopMonth||0)>0.009) kvRow("  of which shops / other", expPdfMoney(PS.shopMonth));
+          kvRow("Repaid from boat pot this month", expPdfMoney(PS.monthRepay||0));
+          if((PS.repayToPrior||0)>0.009) kvRow("  clears prior pocket short", expPdfMoney(PS.repayToPrior));
+          if((PS.repayToThis||0)>0.009) kvRow("  covers this month", expPdfMoney(PS.repayToThis));
+          kvRow("Still open (end of month)", expPdfMoney(PS.closingOpen||0),
+            (PS.closingOpen||0)>0.009
+              ?{big:true, bg:amberBg, labColor:amberInk, valColor:amberInk, boldLab:true}
+              :{big:true, bg:greenBg, labColor:greenInk, valColor:greenInk, boldLab:true});
+          if((PS.priorLines||[]).length){
+            push(16, function(y){ drawText("Prior months (still open at start)", margin+2, y-2, 9, true, muted); });
+            (PS.priorLines||[]).forEach(function(p, idx){
+              var what=p.vendor||"Spend";
+              if(p.description&&p.description!==p.vendor) what=p.vendor+" - "+p.description;
+              var tag=p.isLongDay?"Stew long day":(p.isStew?"Stew day rate":"Shop");
+              var sub=[p.date?fmtDate(p.date):"", "prior", tag].filter(Boolean).join(" · ");
+              lineItem(what, p.amount, sub, idx, amberInk);
+            });
+          }
+          if((PS.monthLines||[]).length){
+            push(16, function(y){ drawText("Fronted this month", margin+2, y-2, 9, true, muted); });
+            (PS.monthLines||[]).forEach(function(p, idx){
+              var what=p.vendor||"Spend";
+              if(p.description&&p.description!==p.vendor) what=p.vendor+" - "+p.description;
+              var tag=p.isLongDay?"Stew long day":(p.isStew?"Stew day rate":"Shop");
+              var sub=[p.date?fmtDate(p.date):"", tag].filter(Boolean).join(" · ");
+              lineItem(what, p.amount, sub, idx, p.isStew?gold:greenInk);
+            });
+          }
+          if((PS.monthRepayLines||[]).length){
+            push(16, function(y){ drawText("Repaid from pot this month", margin+2, y-2, 9, true, muted); });
+            (PS.monthRepayLines||[]).forEach(function(p, idx){
+              lineItem(p.description||p.vendor||"Repay captain", p.amount, p.date?fmtDate(p.date):"", idx, greenInk);
+            });
+          }
+        } else {
+          kvRow("Fronted (listed)", expPdfMoney(capTot));
+          kvRow("Repaid this month", expPdfMoney(capRepay));
+          kvRow("Still owed", expPdfMoney(capOpen),
+            capOpen>0.009
+              ?{big:true, bg:amberBg, labColor:amberInk, valColor:amberInk, boldLab:true}
+              :{big:true, bg:greenBg, labColor:greenInk, valColor:greenInk, boldLab:true});
+          capList.forEach(function(p, idx){
+            var what=p.vendor||"Spend";
+            if(p.description&&p.description!==p.vendor) what=p.vendor+" - "+p.description;
+            var st=p.repaid||p.coveredByThisMonth?"Repaid":"Open";
+            var sub=[p.date?fmtDate(p.date):"", p.priorMonth?"prior":"", st].filter(Boolean).join(" · ");
+            lineItem(what, p.amount, sub, idx, p.repaid||p.coveredByThisMonth?greenInk:amberInk);
+          });
+        }
 
         /* Crew */
         if((B.crewDayPay||0)>0.009){
@@ -13825,10 +13896,77 @@ function paintExpensesBody(){
     h+='</div>';
   }
   h+='</div>';
+  /* Captain pocket month bridge — prior short carried in, this month fronted, repaid, open */
+  var pockStory=null;
+  try{ pockStory=expCaptainPocketMonthStory(expMonth); }catch(ePs){ pockStory=null; }
+  if(pockStory&&(pockStory.broughtForward>0.009||pockStory.monthSpend>0.009||pockStory.monthRepay>0.009||pockStory.closingOpen>0.009)){
+    h+='<div class="apa-card" style="margin-bottom:12px;border:1.5px solid #f0d48a;background:linear-gradient(180deg,#fffbf0 0%,#fff 55%)" id="expCaptainPocketBridge">'+
+      '<div style="font-weight:900;margin-bottom:8px;font-size:14px">Captain pocket · month bridge</div>'+
+      '<div class="meta" style="margin:0 0 10px;line-height:1.4">You fronted cash to run the boat; pot may repay later. Prior short carries into this month.</div>'+
+      '<div class="exp-summary" style="margin:0 0 10px">'+
+        '<div class="sumcard'+(pockStory.broughtForward>0.009?' sum-warn':'')+'"><div class="l">From prior months</div><div class="v money">'+money(pockStory.broughtForward)+'</div></div>'+
+        '<div class="sumcard"><div class="l">Fronted this month</div><div class="v money">'+money(pockStory.monthSpend)+'</div></div>'+
+        '<div class="sumcard'+(pockStory.monthRepay>0.009?' sum-ok':'')+'"><div class="l">Repaid from pot this month</div><div class="v money">'+money(pockStory.monthRepay)+'</div></div>'+
+        '<div class="sumcard'+(pockStory.closingOpen>0.009?' sum-warn':' sum-ok')+'"><div class="l">Still open (end of month)</div><div class="v money">'+money(pockStory.closingOpen)+'</div></div>'+
+      '</div>';
+    if(pockStory.monthSpend>0.009){
+      h+='<div class="meta" style="margin:0 0 6px"><b>This month fronted</b> · stew day rates <b class="money">'+money(pockStory.stewMonth)+'</b>'+
+        (pockStory.shopMonth>0.009?' · shops/other <b class="money">'+money(pockStory.shopMonth)+'</b>':'')+
+      '</div>';
+      h+='<div class="list" style="margin:0 0 10px">';
+      (pockStory.monthLines||[]).forEach(function(it){
+        var dLab=""; try{ dLab=it.date?fmtDate(it.date):""; }catch(eD){ dLab=it.date||""; }
+        var title=it.vendor||"Spend";
+        if(it.description&&it.description!==it.vendor) title=it.vendor+" · "+it.description;
+        h+='<div class="item" style="padding:10px 12px"'+(it.id?' data-exp-id="'+esc(it.id)+'" role="button" tabindex="0"':'')+'>'+
+          '<div class="top"><div class="title" style="font-size:13.5px">'+esc(title)+'</div>'+
+            '<div class="amt money" style="font-size:14px">'+money0(it.amount)+'</div></div>'+
+          '<div class="meta">'+
+            (dLab?'<span>📅 '+esc(dLab)+'</span>':'')+
+            '<span class="pill '+(it.isStew?'p-amber':'p-own')+'">'+(it.isLongDay?'Stew · long day':(it.isStew?'Stew day rate':'Shop / other'))+'</span>'+
+          '</div></div>';
+      });
+      h+='</div>';
+    }
+    if(pockStory.broughtForward>0.009){
+      h+='<div class="meta" style="margin:0 0 6px"><b>Carried from prior months</b> · still open at start of '+esc(expMonth)+'</div>';
+      h+='<div class="list" style="margin:0 0 10px">';
+      (pockStory.priorLines||[]).forEach(function(it){
+        var dLab=""; try{ dLab=it.date?fmtDate(it.date):""; }catch(eD2){ dLab=it.date||""; }
+        var title=it.vendor||"Spend";
+        if(it.description&&it.description!==it.vendor) title=it.vendor+" · "+it.description;
+        h+='<div class="item" style="padding:10px 12px;opacity:.95"'+(it.id?' data-exp-id="'+esc(it.id)+'" role="button" tabindex="0"':'')+'>'+
+          '<div class="top"><div class="title" style="font-size:13.5px">'+esc(title)+'</div>'+
+            '<div class="amt money" style="font-size:14px">'+money0(it.amount)+'</div></div>'+
+          '<div class="meta">'+
+            (dLab?'<span>📅 '+esc(dLab)+'</span>':'')+
+            '<span class="pill p-amber">Prior month</span>'+
+            '<span class="pill '+(it.isStew?'p-amber':'p-own')+'">'+(it.isLongDay?'Stew · long day':(it.isStew?'Stew day rate':'Shop / other'))+'</span>'+
+          '</div></div>';
+      });
+      h+='</div>';
+    }
+    if(pockStory.monthRepay>0.009){
+      h+='<div class="meta" style="margin:0 0 6px"><b>Repaid from boat pot this month</b>';
+      if(pockStory.repayToPrior>0.009) h+=' · of which <b class="money">'+money(pockStory.repayToPrior)+'</b> clears prior short';
+      if(pockStory.repayToThis>0.009) h+=' · <b class="money">'+money(pockStory.repayToThis)+'</b> this month';
+      h+='</div>';
+      h+='<div class="list" style="margin:0 0 4px">';
+      (pockStory.monthRepayLines||[]).forEach(function(it){
+        var dLab=""; try{ dLab=it.date?fmtDate(it.date):""; }catch(eD3){ dLab=it.date||""; }
+        h+='<div class="item" style="padding:10px 12px"'+(it.id?' data-exp-id="'+esc(it.id)+'" role="button" tabindex="0"':'')+'>'+
+          '<div class="top"><div class="title" style="font-size:13.5px">'+esc(it.description||it.vendor||"Repay captain")+
+            '</div><div class="amt money" style="font-size:14px">+'+money0(it.amount)+'</div></div>'+
+          '<div class="meta">'+(dLab?'<span>📅 '+esc(dLab)+'</span>':'')+'<span class="pill p-green">Pot → captain pocket</span></div></div>';
+      });
+      h+='</div>';
+    }
+    h+='</div>';
+  }
   /* Outstanding pocket (compact) */
   h+='<div class="apa-card" style="margin-bottom:12px" id="expOutstandingPocket">'+
     '<div style="display:flex;justify-content:space-between;align-items:baseline;gap:10px;margin-bottom:6px">'+
-      '<span style="font-weight:800">Pocket out</span>'+
+      '<span style="font-weight:800">Pocket out (open)</span>'+
       '<b class="money">'+money(pocketOutTot)+'</b>'+
     '</div>';
   if(!pocketGroups.length){
