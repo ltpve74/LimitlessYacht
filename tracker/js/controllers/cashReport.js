@@ -322,6 +322,26 @@
       commissionOpen: commBal.outstanding != null ? commBal.outstanding : 0,
       commissionStatus: commBal.status || "none",
       commissionPaidThisMonth: outBuckets.commission || 0,
+      /* Concrete payout rows (date + amount) for the owner PDF */
+      commissionPayouts: (function () {
+        var rows = [];
+        (commBal.payouts || []).forEach(function (e) {
+          if (!e) return;
+          var a = Math.round((Number(e.amount) || 0) * 100) / 100;
+          if (!(a > 0.009)) return;
+          rows.push({
+            date: String(e.date || "").slice(0, 10),
+            amount: a,
+            label: String(e.description || e.vendor || "Commission paid from petty").trim() ||
+              "Commission paid from petty",
+            id: e.id != null ? String(e.id) : "",
+          });
+        });
+        rows.sort(function (a, b) {
+          return String(a.date || "").localeCompare(String(b.date || ""));
+        });
+        return rows;
+      })(),
       bizAsOfYmd: asOfYmd || bizThrough.asOfYmd || "",
       bizMonthGross: bizMonth.gross || 0,
       bizMonthBase: bizMonth.base || 0,
