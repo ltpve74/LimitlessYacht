@@ -464,6 +464,39 @@
         var ownerCrew = crew.fromOwner || 0;
         if (potCrew > 0.009 || capCrew > 0.009 || booksCrew > 0.009 || ownerCrew > 0.009) {
           sectionHead("CREW");
+          function crewOwnerLine(r, idx, accent) {
+            /* Model ownerTitle/ownerDetail: overnight / long day / day + guest + dates */
+            var title = r.ownerTitle || r.vendor || "Crew";
+            var detail = r.ownerDetail || "";
+            if (!detail) {
+              var bits = [];
+              if (r.tierLabel) bits.push(r.tierLabel);
+              if (r.guest) bits.push(r.guest);
+              if (r.charterStart && r.charterEnd && r.charterEnd !== r.charterStart) {
+                bits.push(fmtDate(r.charterStart) + " to " + fmtDate(r.charterEnd));
+              } else if (r.date || r.charterStart) {
+                bits.push(fmtDate(r.charterStart || r.date));
+              }
+              detail = bits.join(" · ");
+            } else if (r.charterStart && r.charterEnd && r.charterEnd !== r.charterStart) {
+              /* Prefer span already in ownerDetail; ensure readable dates */
+              detail = detail
+                .replace(
+                  /(\d{4}-\d{2}-\d{2})\s+to\s+(\d{4}-\d{2}-\d{2})/,
+                  function (_, a, b) {
+                    return fmtDate(a) + " to " + fmtDate(b);
+                  }
+                )
+                .replace(/\b(\d{4}-\d{2}-\d{2})\b/g, function (m) {
+                  return fmtDate(m);
+                });
+            } else {
+              detail = detail.replace(/\b(\d{4}-\d{2}-\d{2})\b/g, function (m) {
+                return fmtDate(m);
+              });
+            }
+            lineItem(title, r.amount, detail, idx, accent);
+          }
           if (potCrew > 0.009) {
             kvRow("Paid from boat pot", pdfMoney(potCrew), {
               big: true,
@@ -474,8 +507,7 @@
             });
             gap(6);
             (crew.potLines || []).forEach(function (r, idx) {
-              var t = r.vendor || "Crew";
-              lineItem(t, r.amount, r.date ? fmtDate(r.date) : "", idx, greenInk);
+              crewOwnerLine(r, idx, greenInk);
             });
           }
           if (capCrew > 0.009) {
@@ -489,7 +521,7 @@
             noteLine("Not boat cash-out — shows under captain pocket.", amberInk);
             gap(4);
             (crew.captainLines || []).forEach(function (r, idx) {
-              lineItem(r.vendor || "Crew", r.amount, r.date ? fmtDate(r.date) : "", idx, amberInk);
+              crewOwnerLine(r, idx, amberInk);
             });
           }
           if (ownerCrew > 0.009) {

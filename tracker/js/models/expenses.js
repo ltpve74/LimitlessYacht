@@ -297,6 +297,157 @@ function crewDayPayFundSource(e) {
 }
 
 /**
+ * Guest name from crew day-pay description (pure).
+ * e.g. "Stewardess / day work — Joel Freeland" → "Joel Freeland"
+ */
+function crewPayGuestFromDescription(desc) {
+  var s = String(desc || "").trim();
+  if (!s) return "";
+  var m = s.match(/[—–-]\s*(.+)$/);
+  if (!m) return "";
+  var g = m[1]
+    .replace(/\s*-\s*stew\s+\w+\s*$/i, "")
+    .replace(/\s*stew\s+\w+\s*$/i, "")
+    .replace(/\s*-\s*stew\s*$/i, "")
+    .trim();
+  return g;
+}
+
+/**
+ * Owner-facing justification for a crew day-pay line (pure).
+ * Overnight / multi-day vs extended/long day vs day charter — so the owner
+ * sees why Toni €750 or €250 is not a plain day rate.
+ *
+ * @param {object} e expense
+ * @param {Array} [leads] optional leads for start/end/days
+ * @returns {object}
+ */
+function crewPayOwnerJustification(e, leads) {
+  var a = round2(num(e && e.amount));
+  var vendor = String((e && e.vendor) || "Crew").trim() || "Crew";
+  var desc = String((e && e.description) || "").trim();
+  var guest = crewPayGuestFromDescription(desc);
+  var list = Array.isArray(leads) ? leads : [];
+  var lead = null;
+  var ek = String((e && e.stewEventKey) || "");
+  if (ek.indexOf("lead:") === 0) {
+    var lid = ek.slice(5);
+    for (var i = 0; i < list.length; i++) {
+      if (list[i] && String(list[i].id) === lid) {
+        lead = list[i];
+        break;
+      }
+    }
+  }
+  var expDay = String((e && e.charterDate) || (e && e.date) || "").slice(0, 10);
+  if (!lead && guest) {
+    var gLow = guest.toLowerCase().replace(/\s+/g, " ").trim();
+    var expMon = expenseMonthKey(expDay || (e && e.date) || "");
+    var best = null;
+    var bestScore = 0;
+    for (var j = 0; j < list.length; j++) {
+      if (!list[j]) continue;
+      var ln = String(list[j].name || "")
+        .toLowerCase()
+        .replace(/\s+/g, " ")
+        .trim();
+      if (!ln) continue;
+      var lStartDay = String(list[j].start || list[j].cdate || "").slice(0, 10);
+      var lEndDay = String(list[j].end || lStartDay || "").slice(0, 10);
+      var lStart = lStartDay.slice(0, 7);
+      if (expMon && lStart && lStart !== expMon) continue;
+      /* Guest name match must cover the crew charter day when we know it */
+      if (
+        expDay &&
+        /^\d{4}-\d{2}-\d{2}$/.test(expDay) &&
+        lStartDay &&
+        /^\d{4}-\d{2}-\d{2}$/.test(lStartDay)
+      ) {
+        if (expDay < lStartDay) continue;
+        if (lEndDay && /^\d{4}-\d{2}-\d{2}$/.test(lEndDay) && expDay > lEndDay) continue;
+      }
+      var score = 0;
+      if (ln === gLow) score = 100;
+      else if (ln.indexOf(gLow) === 0 || gLow.indexOf(ln) === 0) score = 80;
+      else if (gLow.length >= 4 && ln.indexOf(gLow) >= 0) score = 60;
+      else if (gLow.length >= 4 && ln.indexOf(gLow.slice(0, Math.min(8, gLow.length))) >= 0)
+        score = 40;
+      else continue;
+      if (score > bestScore) {
+        bestScore = score;
+        best = list[j];
+      }
+    }
+    lead = best;
+  }
+  /*
+   * Dates: expense charter day is source of truth for day charters.
+   * Lead start/end used when multi-day overnight (expand the range).
+   */
+  var start = expDay;
+  var end = "";
+  var days = 0;
+  var dur = String((lead && lead.dur) || "").toLowerCase();
+  var leadDays = Number(lead && lead.days) || 0;
+  var leadStart = String((lead && (lead.start || lead.cdate)) || "").slice(0, 10);
+  var leadEnd = String((lead && lead.end) || "").slice(0, 10);
+  var leadMulti =
+    leadDays >= 2 ||
+    (leadStart && leadEnd && leadEnd > leadStart) ||
+    dur === "multi" ||
+    /multi|overnight|night/.test(dur);
+  if (lead && leadMulti) {
+    start = leadStart || start;
+    end = leadEnd && leadEnd !== start ? leadEnd : "";
+    days = leadDays;
+  }
+  if (end && end < start) end = "";
+  if (!days && start && end && /^\d{4}-\d{2}-\d{2}$/.test(start) && /^\d{4}-\d{2}-\d{2}$/.test(end)) {
+    var t0 = Date.parse(start + "T12:00:00Z");
+    var t1 = Date.parse(end + "T12:00:00Z");
+    if (isFinite(t0) && isFinite(t1) && t1 >= t0) {
+      days = Math.round((t1 - t0) / 86400000) + 1;
+    }
+  }
+  var multi =
+    days >= 2 ||
+    (end && start && end > start) ||
+    leadMulti ||
+    a >= 450;
+  var longDay = !multi && a >= 249.99;
+  var tier = "day";
+  var tierLabel = "Day charter";
+  if (multi) {
+    tier = "overnight";
+    var nDays = days >= 2 ? days : end && start && end > start ? 2 : 2;
+    tierLabel =
+      nDays >= 3
+        ? "Overnight charter · " + nDays + " days"
+        : "Overnight charter · 2 days";
+  } else if (longDay) {
+    tier = "long-day";
+    tierLabel = "Extended charter / long day";
+  }
+  if (lead && lead.name && !guest) guest = String(lead.name).trim();
+  var dateSpan = start;
+  if (end && end !== start) dateSpan = start + " to " + end;
+  var ownerTitle = vendor + " · " + tierLabel;
+  var ownerDetail = [guest, dateSpan].filter(Boolean).join(" · ");
+  return {
+    guest: guest,
+    charterStart: start,
+    charterEnd: end,
+    days: days || (multi ? 2 : 1),
+    tier: tier,
+    tierLabel: tierLabel,
+    isOvernight: tier === "overnight",
+    isLongDay: tier === "long-day",
+    ownerTitle: ownerTitle,
+    ownerDetail: ownerDetail,
+  };
+}
+
+/**
  * Month crew day-pay DTO — all fund math lives here (not the view).
  *
  * paidTotal     = sum of Paid crew day rates in month (what stews received)
@@ -310,10 +461,13 @@ function crewDayPayFundSource(e) {
  *
  * @param {Array} expenses full or month-scoped
  * @param {string} month YYYY-MM
+ * @param {{ leads?: Array }} [opts] leads for overnight date ranges / guest
  * @returns {object}
  */
-function summarizeCrewPayMonth(expenses, month) {
+function summarizeCrewPayMonth(expenses, month, opts) {
+  opts = opts || {};
   month = String(month || "").slice(0, 7);
+  var leads = Array.isArray(opts.leads) ? opts.leads : [];
   var empty = {
     month: month,
     paidTotal: 0,
@@ -354,17 +508,30 @@ function summarizeCrewPayMonth(expenses, month) {
     var a = round2(num(e.amount));
     if (!(a > 0.009)) return;
     var fund = crewDayPayFundSource(e);
+    var just = crewPayOwnerJustification(e, leads);
     var row = {
       id: String(e.id || ""),
       date: String(e.date || "").slice(0, 10),
+      charterDate: String(e.charterDate || e.date || "").slice(0, 10),
       vendor: String(e.vendor || "Crew").trim() || "Crew",
       description: String(e.description || "").trim(),
       amount: a,
       fund: fund,
       stewId: e.stewId != null ? String(e.stewId) : "",
+      stewEventKey: e.stewEventKey != null ? String(e.stewEventKey) : "",
       floatPay: e.floatPay === true,
       paidFrom: String(e.paidFrom || ""),
       crewPayStatus: String(e.crewPayStatus || ""),
+      guest: just.guest,
+      charterStart: just.charterStart,
+      charterEnd: just.charterEnd,
+      days: just.days,
+      tier: just.tier,
+      tierLabel: just.tierLabel,
+      isOvernight: just.isOvernight,
+      isLongDay: just.isLongDay,
+      ownerTitle: just.ownerTitle,
+      ownerDetail: just.ownerDetail,
     };
     lines.push(row);
     if (fund === "unpaid") {
@@ -2577,6 +2744,8 @@ function summarizeMonthSettlement(opts) {
     crewDayPayLinkId: crewDayPayLinkId,
     crewDayPayHitsPetty: crewDayPayHitsPetty,
     crewDayPayFundSource: crewDayPayFundSource,
+    crewPayGuestFromDescription: crewPayGuestFromDescription,
+    crewPayOwnerJustification: crewPayOwnerJustification,
     summarizeCrewPayMonth: summarizeCrewPayMonth,
     summarizePettyCashOutBuckets: summarizePettyCashOutBuckets,
     crewDayPayLineScore: crewDayPayLineScore,

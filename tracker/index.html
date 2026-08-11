@@ -1213,20 +1213,20 @@
 <script src="/tracker/js/models/util.js?v=20260808-todayclock1"></script>
 <script src="/tracker/js/models/leads.js?v=20260807-apacash1"></script>
 <script src="/tracker/js/models/charges.js?v=20260807-apacash1"></script>
-<script src="/tracker/js/models/expenses.js?v=20260811-cashpdf1"></script>
+<script src="/tracker/js/models/expenses.js?v=20260811-crewlabel1"></script>
 <script src="/tracker/js/models/cash.js?v=20260807-apacash1"></script>
 <script src="/tracker/js/models/diesel.js?v=20260807-apacash1"></script>
 <script src="/tracker/js/models/stews.js?v=20260807-apacash1"></script>
 <script src="/tracker/js/models/apa.js?v=20260807-apacash1"></script>
 <script src="/tracker/js/models/index.js?v=20260807-apacash1"></script>
 <script src="/tracker/js/controllers/expenses.js?v=20260811-cashpdf1"></script>
-<script src="/tracker/js/controllers/cashReport.js?v=20260811-cashpdf3"></script>
+<script src="/tracker/js/controllers/cashReport.js?v=20260811-crewlabel1"></script>
 <script src="/tracker/js/controllers/charges.js?v=20260811-cashpdf1"></script>
 <script src="/tracker/js/controllers/leads.js?v=20260811-cashpdf1"></script>
 <script src="/tracker/js/controllers/apa.js?v=20260811-cashpdf1"></script>
 <script src="/tracker/js/controllers/stews.js?v=20260811-cashpdf1"></script>
 <script src="/tracker/js/controllers/index.js?v=20260811-cashpdf1"></script>
-<script src="/tracker/js/pdf/expenses-cash.js?v=20260811-cashpdf3"></script>
+<script src="/tracker/js/pdf/expenses-cash.js?v=20260811-crewlabel1"></script>
 <script>
 "use strict";
 var API = "/.netlify/functions/tracker";
@@ -12777,6 +12777,7 @@ function expCashReportForMonth(month){
     monthLabel:expMonthLabel(month),
     expenses:state.expenses||[],
     expPetty:state.expPetty||[],
+    leads:state.leads||[],
     isTipExpense:expIsTipExpense,
     cashInIsTip:expCashInIsTip,
     bizMonth:expCaptainBizForCashReport(month, "month"),

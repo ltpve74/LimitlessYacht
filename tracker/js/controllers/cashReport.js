@@ -116,7 +116,7 @@
     });
 
     var crew = models.summarizeCrewPayMonth
-      ? models.summarizeCrewPayMonth(allRaw, month)
+      ? models.summarizeCrewPayMonth(allRaw, month, { leads: input.leads || [] })
       : {
           paidTotal: 0,
           fromBoatPot: 0,
