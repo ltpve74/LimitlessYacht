@@ -1942,10 +1942,10 @@ function planClearCrewFloatPayOnEmptyEnvelope(expenses, pettyStart, cashIns, opt
  * Rules (no DOM, no writes):
  *  - Spend = isOwnMoneySpend by captain (not card).
  *  - Repay = reimbursement that clears captain pocket.
- *  - broughtForward = max(0, prior-month spends − prior-month repays) [month key of date].
- *  - monthSpend / monthRepay = lines with date month === focus month.
- *  - closingOpen = max(0, all spends through month − all repays through month).
- *  - repayToPrior / repayToThis = this month's repay applied first to prior short, then this month.
+ *  - monthSpend / monthRepay = lines with date month === focus month (cash movement).
+ *  - broughtForward / closingOpen use date-aware ownMoneyRepaidAmt (same as open pocket):
+ *      a repay dated before a spend cannot cover that spend (no pre-pay of future pocket).
+ *  - repayToPrior / repayToThis = how much prior vs this-month open was closed by month end.
  *  - Stew day rate = crew day-pay expense or category Crew Salaries; long day if amount ≥ 249.99.
  *
  * @param {Array} expenses all expenses (not month-scoped only)
@@ -1971,6 +1971,7 @@ function summarizeCaptainPocketMonthBridge(expenses, month) {
       priorLines: [],
       monthLines: [],
       monthRepayLines: [],
+      openLines: [],
     };
   }
   function monOf(e) {
@@ -2061,13 +2062,75 @@ function summarizeCaptainPocketMonthBridge(expenses, month) {
     }
   });
 
-  var broughtForward = round2(Math.max(0, priorSpend - priorRepay));
+  /* Prior calendar month key (for BF as-of end of that month) */
+  function prevMonthKey(ym) {
+    var p = String(ym || "").slice(0, 7).split("-");
+    if (p.length !== 2) return "";
+    var y = parseInt(p[0], 10);
+    var m = parseInt(p[1], 10);
+    if (!y || !m) return "";
+    if (m === 1) return y - 1 + "-12";
+    return y + "-" + String(m - 1).padStart(2, "0");
+  }
+  var prevM = prevMonthKey(month);
+
+  /**
+   * Open remain on one spend as-of end of throughMonth (date-aware FIFO).
+   * Attach remainOpen on line rows for PDF / UI.
+   */
+  function remainOn(e, throughMonth) {
+    var need = round2(num(e.amount));
+    if (!(need > 0.009)) return 0;
+    var paid = ownMoneyRepaidAmt(e, expenses, throughMonth ? { throughMonth: throughMonth } : {});
+    return round2(Math.max(0, need - paid));
+  }
+
+  var broughtForward = 0;
+  priorLines.forEach(function (row) {
+    var e = spends.find(function (s) {
+      return String(s.id || "") === String(row.id || "");
+    });
+    var rem = e ? remainOn(e, prevM) : row.amount;
+    row.remainOpenAtMonthStart = rem;
+    row.repaidAmt = round2(Math.max(0, (row.amount || 0) - rem));
+    broughtForward = round2(broughtForward + rem);
+  });
+
+  var openPriorAtEnd = 0;
+  priorLines.forEach(function (row) {
+    var e = spends.find(function (s) {
+      return String(s.id || "") === String(row.id || "");
+    });
+    var rem = e ? remainOn(e, month) : 0;
+    row.remainOpen = rem;
+    openPriorAtEnd = round2(openPriorAtEnd + rem);
+  });
+
+  var openThisAtEnd = 0;
+  monthLines.forEach(function (row) {
+    var e = spends.find(function (s) {
+      return String(s.id || "") === String(row.id || "");
+    });
+    var rem = e ? remainOn(e, month) : row.amount;
+    row.remainOpen = rem;
+    row.repaidAmt = round2(Math.max(0, (row.amount || 0) - rem));
+    openThisAtEnd = round2(openThisAtEnd + rem);
+  });
+
+  var closingOpen = round2(openPriorAtEnd + openThisAtEnd);
   var monthNet = round2(monthSpend - monthRepay);
-  var closingOpen = round2(
-    Math.max(0, priorSpend + monthSpend - (priorRepay + monthRepay))
-  );
-  var repayToPrior = round2(Math.min(monthRepay, broughtForward));
-  var repayToThis = round2(Math.max(0, monthRepay - repayToPrior));
+  /* How much prior vs this-month open was closed by end of focus month */
+  var repayToPrior = round2(Math.max(0, broughtForward - openPriorAtEnd));
+  var repayToThis = round2(Math.max(0, monthSpend - openThisAtEnd));
+
+  /* Lines still open at month end — for owner PDF */
+  var openLines = [];
+  priorLines.forEach(function (row) {
+    if ((row.remainOpen || 0) > 0.009) openLines.push(row);
+  });
+  monthLines.forEach(function (row) {
+    if ((row.remainOpen || 0) > 0.009) openLines.push(row);
+  });
 
   return {
     month: month,
@@ -2085,6 +2148,7 @@ function summarizeCaptainPocketMonthBridge(expenses, month) {
     priorLines: priorLines,
     monthLines: monthLines,
     monthRepayLines: monthRepayLines,
+    openLines: openLines,
   };
 }
 

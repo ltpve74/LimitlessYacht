@@ -2936,6 +2936,56 @@ console.log("\n[Pocket — own-money repay + open liabilities]");
     ok("Aug bridge repay clears prior first", near(bridgeAug.repayToPrior, 350));
     ok("Aug bridge repay to this 0", near(bridgeAug.repayToThis, 0));
     ok("Aug bridge still open 200 (new stew)", near(bridgeAug.closingOpen, 200));
+    ok("Aug bridge openLines has Airiana", (bridgeAug.openLines || []).length === 1);
+    ok(
+      "Aug bridge openLines amount 200",
+      near((bridgeAug.openLines && bridgeAug.openLines[0] && bridgeAug.openLines[0].remainOpen) || 0, 200)
+    );
+  }
+
+  /* Excess early repay cannot pre-pay a later pocket spend (live Aug 2026 case) */
+  {
+    const july = {
+      id: "j-vicky",
+      date: "2026-07-25",
+      amount: 250,
+      paidFrom: "Own money",
+      paidById: "captain",
+      category: "Crew Salaries",
+      vendor: "Vicky",
+      crewPayStatus: "Paid",
+      stewPayKind: "dayPay",
+      stewId: "v1",
+    };
+    const earlyBulk = {
+      id: "a-bulk",
+      date: "2026-08-01",
+      amount: 450, /* more than July 250 — leftover must NOT clear Aug 7 */
+      category: "Captain reimbursement",
+      vendor: "Captain",
+      reimburseCaptain: true,
+      paidFrom: "Petty cash",
+    };
+    const laterStew = {
+      id: "a-ari",
+      date: "2026-08-07",
+      amount: 200,
+      paidFrom: "Own money",
+      paidById: "captain",
+      category: "Crew Salaries",
+      vendor: "Airiana",
+      crewPayStatus: "Paid",
+      stewPayKind: "dayPay",
+      stewId: "a1",
+      description: "Thomas · charter 2026-08-06",
+    };
+    const b = M.summarizeCaptainPocketMonthBridge([july, earlyBulk, laterStew], "2026-08");
+    ok("excess early repay BF was 250", near(b.broughtForward, 250));
+    ok("excess early repay does not wipe later spend", near(b.closingOpen, 200));
+    ok("excess early repay to this month 0", near(b.repayToThis, 0));
+    ok("Airiana still open in openLines", (b.openLines || []).some(function (r) {
+      return near(r.remainOpen, 200) && /Airiana/i.test(String(r.vendor || ""));
+    }));
   }
 
   /* Crew pay month DTO — fund buckets in model only */
