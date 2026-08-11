@@ -317,31 +317,58 @@
             ? Math.round((commThrough - commMonth) * 100) / 100
             : 0;
 
+        var bizN = Number(report.bizMonthN != null ? report.bizMonthN : report.bizThroughN) || 0;
+        var bizGross = Number(report.bizMonthGross != null ? report.bizMonthGross : report.bizThroughGross) || 0;
+        var bizBase = Number(report.bizMonthBase != null ? report.bizMonthBase : report.bizThroughBase) || 0;
+        var bizComm = Number(report.bizMonthComm != null ? report.bizMonthComm : report.bizThroughComm) || 0;
+        if (!(bizComm > 0.009) && commThrough > 0.009) bizComm = commThrough;
+        if (!(bizGross > 0.009) && (report.bizThroughGross || 0) > 0.009) {
+          bizN = Number(report.bizThroughN) || bizN;
+          bizGross = Number(report.bizThroughGross) || 0;
+          bizBase = Number(report.bizThroughBase) || 0;
+          bizComm = Number(report.bizThroughComm) || bizComm;
+        }
+        var hasCommStory =
+          bizComm > 0.009 ||
+          (report.commissionPaidThisMonth || 0) > 0.009 ||
+          commOpen > 0.009 ||
+          (report.commissionEarned || 0) > 0.009;
+
         /* —— Header —— */
         push(52, function (y) {
           page.drawRectangle({ x: 0, y: y - 42, width: W, height: 52, color: navy });
           page.drawRectangle({ x: 0, y: y - 45, width: W, height: 3, color: gold });
           drawText("M/Y LIMITLESS", margin, y - 16, 10, true, white);
           drawText("Cash only", W - margin - 56, y - 16, 9, false, goldSoft);
-          drawText("Expense report", margin, y - 34, 16, true, gold);
+          drawText("Month cash report", margin, y - 34, 16, true, gold);
         });
         gap(10);
-        /* Month banner only — no second date line (no "as of", no today). */
-        push(28, function (y) {
+        /* Period banner — owner must see THIS is the month, closed at month end */
+        push(48, function (y) {
           page.drawRectangle({
             x: margin,
-            y: y - 22,
+            y: y - 42,
             width: contentW,
-            height: 24,
+            height: 44,
             color: goldSoft,
           });
-          drawText(periodLab, margin + 10, y - 16, 14, true, navy);
+          drawText(periodLab, margin + 12, y - 16, 16, true, navy);
+          drawText(
+            "Position at the END of this month  ·  not a live balance today",
+            margin + 12,
+            y - 34,
+            10,
+            false,
+            muted,
+            contentW - 24
+          );
         });
-        gap(12);
+        gap(14);
 
-        /* —— 1) PETTY CASH at a glance — three equal snapshot rows —— */
+        /* —— 1) PETTY CASH snapshot —— */
         sectionHead("1 · PETTY CASH");
-        /* Same size / band style for all three so nothing looks like a leftover line */
+        noteLine("Boat envelope cash for " + periodLab + " only.", muted);
+        gap(8);
         kvRow("Cash in", pdfMoney(cashIn), {
           big: true,
           boldLab: true,
@@ -358,129 +385,198 @@
           valColor: slateInk,
         });
         gap(6);
-        kvRow("On board", pdfMoney(onBoard), {
+        kvRow("On board at month end", pdfMoney(onBoard), {
           big: true,
           boldLab: true,
           bg: onBoard > 0.009 ? greenBg : amberBg,
           labColor: onBoard > 0.009 ? greenInk : amberInk,
           valColor: onBoard > 0.009 ? greenInk : amberInk,
         });
+
+        /* —— 2) PETTY SHORT — who & why (not mixed with commission) —— */
         if (boatShort > 0.009) {
-          gap(14);
-          kvRow("Petty cash short — OUTSTANDING", pdfMoney(boatShort), {
+          sectionHead("2 · PETTY CASH SHORT");
+          noteLine(
+            "At the end of " +
+              periodLab +
+              " the envelope was short. Cash in did not cover every line marked from petty. Not paid later in this report — that is next month.",
+            muted
+          );
+          gap(10);
+          kvRow("Short at month end", pdfMoney(boatShort), {
             big: true,
             bg: redBg,
             labColor: redInk,
             valColor: redInk,
             boldLab: true,
           });
+          gap(8);
+          noteLine("Who / why:", navy);
           gap(6);
-          noteLine("Carries into next month until cash covers the hole.", redInk);
+          shorts.forEach(function (s, idx) {
+            var subBits = [];
+            if (s.date) subBits.push(fmtDate(s.date));
+            if (s.kind === "crew" || s.kind === "daypay") {
+              if (s.fullAmount > 0.009 && Math.abs((s.fullAmount || 0) - (s.amount || 0)) > 0.009) {
+                subBits.push(
+                  "day rate " +
+                    pdfMoney(s.fullAmount) +
+                    "  ·  petty covered " +
+                    pdfMoney(s.covered || 0)
+                );
+              } else {
+                subBits.push("crew day pay not covered by petty");
+              }
+            } else {
+              subBits.push("not covered by petty");
+            }
+            lineItem(s.label || "Petty line", s.amount, subBits.join(" · "), idx, redInk);
+          });
+          gap(8);
+          noteLine("Carries into the next month until cash covers the hole.", redInk);
         }
 
-        /* —— 2) STILL OUTSTANDING — big numbers only, then short detail —— */
-        sectionHead("2 · STILL OUTSTANDING");
-        if (!hasOutstanding) {
-          kvRow("Nothing outstanding", pdfMoney(0), {
+        /* —— 3) CAPTAIN COMMISSION — business story first (owner must get this) —— */
+        if (hasCommStory) {
+          sectionHead("3 · CAPTAIN COMMISSION");
+          noteLine(
+            "This is how the captain is paid on charters that ran in " +
+              periodLab +
+              ". Commission = 15% of the amount BEFORE VAT. Future bookings are not included.",
+            muted
+          );
+          gap(12);
+          noteLine("Business generated (boat revenue):", navy);
+          gap(8);
+          if (bizN > 0) {
+            kvRow("Charters in " + periodLab, String(bizN), {
+              big: true,
+              boldLab: true,
+              bg: slateBg,
+              labColor: slateInk,
+              valColor: slateInk,
+            });
+            gap(6);
+          }
+          kvRow("Total gross (client prices)", pdfMoney(bizGross), {
             big: true,
+            boldLab: true,
             bg: greenBg,
             labColor: greenInk,
             valColor: greenInk,
-            boldLab: true,
           });
-        } else {
-          if (boatShort > 0.009) {
-            kvRow("Petty cash short", pdfMoney(boatShort), {
-              big: true,
-              bg: redBg,
-              labColor: redInk,
-              valColor: redInk,
-              boldLab: true,
-            });
-            gap(8);
-          }
-          if (commOpen > 0.009) {
-            kvRow("Captain commission", pdfMoney(commOpen), {
-              big: true,
-              bg: amberBg,
-              labColor: amberInk,
-              valColor: amberInk,
-              boldLab: true,
-            });
-            gap(8);
-          }
-          if (pocketOpen > 0.009) {
-            kvRow("Captain out of pocket", pdfMoney(pocketOpen), {
-              big: true,
-              bg: amberBg,
-              labColor: amberInk,
-              valColor: amberInk,
-              boldLab: true,
-            });
-            gap(8);
-          }
-          kvRow("Total still outstanding", pdfMoney(outSum), {
+          gap(6);
+          kvRow("Amount before VAT", pdfMoney(bizBase), {
             big: true,
-            bg: redBg,
-            labColor: redInk,
-            valColor: redInk,
             boldLab: true,
+            bg: slateBg,
+            labColor: slateInk,
+            valColor: slateInk,
           });
-
-          /* Short detail blocks — only when there is something to explain */
-          if (crewShortAmt > 0.009 || (boatShort > 0.009 && shorts.some(function (s) { return s.kind === "crew"; }))) {
-            gap(16);
-            noteLine("Crew short — who:", navy);
-            gap(6);
-            shorts.forEach(function (s, idx) {
-              if (s.kind !== "crew" && s.kind !== "daypay") return;
-              var subBits = [];
-              if (s.date) subBits.push(fmtDate(s.date));
-              if (s.fullAmount > 0.009 && Math.abs((s.fullAmount || 0) - (s.amount || 0)) > 0.009) {
-                subBits.push(
-                  "of " + pdfMoney(s.fullAmount) + "  ·  petty covered " + pdfMoney(s.covered || 0)
-                );
-              }
-              lineItem(s.label || "Crew", s.amount, subBits.join(" · "), idx, redInk);
-            });
+          gap(10);
+          noteLine(
+            "Captain share = 15% of the amount before VAT on that business.",
+            navy
+          );
+          gap(8);
+          kvRow("Captain commission (15% before VAT)", pdfMoney(bizComm || commThrough), {
+            big: true,
+            boldLab: true,
+            bg: goldSoft,
+            labColor: navy,
+            valColor: navy,
+          });
+          gap(10);
+          if (bizGross > 0.009 && (bizComm || commThrough) > 0.009) {
+            noteLine(
+              "Read it this way: the boat took in about " +
+                pdfMoney(bizGross) +
+                " gross. Captain commission on that is " +
+                pdfMoney(bizComm || commThrough) +
+                " (15% before VAT) — pay for business generated, not a random bill.",
+              muted
+            );
+            gap(10);
           }
-          if (otherShortAmt > 0.009) {
-            gap(16);
-            noteLine("Other petty short:", navy);
-            gap(6);
-            shorts.forEach(function (s, idx) {
-              if (s.kind === "crew" || s.kind === "daypay") return;
-              lineItem(s.label || "Petty out", s.amount, s.date ? fmtDate(s.date) : "", idx, redInk);
-            });
-          }
+          kvRow("Already paid from petty in " + periodLab, pdfMoney(report.commissionPaidThisMonth || 0));
+          gap(6);
+          kvRow(
+            "Paid from petty through end of " + periodLab,
+            pdfMoney(report.commissionPaidAll || 0)
+          );
           if (commOpen > 0.009) {
-            gap(16);
-            noteLine("Commission — earned vs paid:", navy);
+            gap(12);
+            kvRow("Not yet paid from petty (open at month end)", pdfMoney(commOpen), {
+              big: true,
+              bg: amberBg,
+              labColor: amberInk,
+              valColor: amberInk,
+              boldLab: true,
+            });
             gap(6);
-            kvRow("Earned (through end of " + periodLab + ")", pdfMoney(commThrough));
-            gap(6);
-            kvRow("Paid from petty (through end of " + periodLab + ")", pdfMoney(report.commissionPaidAll || 0));
-            gap(6);
-            kvRow("Paid from petty this month", pdfMoney(report.commissionPaidThisMonth || 0));
-          }
-          if (pocketOpen > 0.009 && PS) {
-            gap(16);
-            noteLine("Out of pocket — this month:", navy);
-            gap(6);
-            if ((PS.monthSpend || 0) > 0.009) {
-              kvRow("Fronted in " + periodLab, pdfMoney(PS.monthSpend || 0));
-              gap(6);
-            }
-            if ((PS.broughtForward || 0) > 0.009) {
-              kvRow("Still open from before " + periodLab, pdfMoney(PS.broughtForward || 0));
-              gap(6);
-            }
-            kvRow("Repaid from petty in " + periodLab, pdfMoney(PS.monthRepay || 0));
+            noteLine(
+              "Still open at the end of " +
+                periodLab +
+                " because it was not paid from petty that month. It is earned commission on the business above — not marked paid here.",
+              amberInk
+            );
           }
         }
 
-        /* —— 3) Petty cash detail —— */
-        sectionHead("3 · PETTY CASH DETAIL");
+        /* —— 4) CAPTAIN OUT OF POCKET —— */
+        if (pocketOpen > 0.009 || (PS && ((PS.monthSpend || 0) > 0.009 || (PS.monthRepay || 0) > 0.009))) {
+          sectionHead("4 · CAPTAIN OUT OF POCKET");
+          noteLine(
+            "Money the captain put in from own pocket in " +
+              periodLab +
+              " (crew / shops). Separate from commission.",
+            muted
+          );
+          gap(10);
+          if (PS) {
+            if ((PS.broughtForward || 0) > 0.009) {
+              kvRow("Still open from before " + periodLab, pdfMoney(PS.broughtForward), {
+                bg: amberBg,
+                labColor: amberInk,
+                valColor: amberInk,
+                boldLab: true,
+              });
+              gap(6);
+            }
+            kvRow("Fronted in " + periodLab, pdfMoney(PS.monthSpend || 0), {
+              big: true,
+              boldLab: true,
+            });
+            if ((PS.stewMonth || 0) > 0.009) {
+              gap(6);
+              kvRow("  Stew day rates", pdfMoney(PS.stewMonth));
+            }
+            if ((PS.shopMonth || 0) > 0.009) {
+              gap(6);
+              kvRow("  Shops / other", pdfMoney(PS.shopMonth));
+            }
+            gap(8);
+            kvRow("Repaid from petty in " + periodLab, pdfMoney(PS.monthRepay || 0));
+            gap(10);
+            kvRow("Still open at month end", pdfMoney(PS.closingOpen || 0), {
+              big: true,
+              bg: (PS.closingOpen || 0) > 0.009 ? amberBg : greenBg,
+              labColor: (PS.closingOpen || 0) > 0.009 ? amberInk : greenInk,
+              valColor: (PS.closingOpen || 0) > 0.009 ? amberInk : greenInk,
+              boldLab: true,
+            });
+            if ((PS.closingOpen || 0) > 0.009) {
+              gap(6);
+              noteLine(
+                "Not repaid from petty by the end of " + periodLab + ".",
+                amberInk
+              );
+            }
+          }
+        }
+
+        /* —— Detail sections —— */
+        sectionHead("5 · PETTY CASH DETAIL");
         kvRow("Start", pdfMoney(start));
         gap(6);
         kvRow("Cash in", pdfMoney(cashIn));
@@ -491,7 +587,7 @@
           kvRow("Prior short taken from cash-in", pdfMoney(report.priorSettled));
         }
         gap(10);
-        kvRow("On board (end of month)", pdfMoney(onBoard), {
+        kvRow("On board at month end", pdfMoney(onBoard), {
           big: true,
           bg: onBoard > 0.009 ? greenBg : amberBg,
           labColor: onBoard > 0.009 ? greenInk : amberInk,
@@ -520,7 +616,7 @@
           return r.val > 0.009;
         });
         if (bucketRows.length) {
-          sectionHead("4 · WHERE THE CASH WENT");
+          sectionHead("6 · WHERE THE CASH WENT");
           bucketRows.forEach(function (r, i) {
             if (i) gap(8);
             kvRow(r.lab, pdfMoney(r.val), { boldLab: true });
@@ -557,7 +653,7 @@
           capCrew > 0.009 ||
           ownerCrew > 0.009
         ) {
-          sectionHead("5 · CREW");
+          sectionHead("7 · CREW");
           function crewOwnerLine(r, idx, accent) {
             /* Model ownerTitle/ownerDetail: overnight / long day / day + guest + dates */
             var title = r.ownerTitle || r.vendor || "Crew";
@@ -600,7 +696,7 @@
             });
             if (potCrewShort > 0.009) {
               gap(10);
-              kvRow("Crew short (see outstanding)", pdfMoney(potCrewShort), {
+              kvRow("Crew short (see section 2)", pdfMoney(potCrewShort), {
                 big: true,
                 bg: redBg,
                 labColor: redInk,
@@ -637,93 +733,6 @@
             gap(6);
             (crew.ownerLines || []).forEach(function (r, idx) {
               crewOwnerLine(r, idx, muted);
-            });
-          }
-        }
-
-        /* Captain pocket */
-        sectionHead("6 · CAPTAIN POCKET");
-        if (PS && ((PS.monthSpend || 0) > 0.009 || (PS.closingOpen || 0) > 0.009 || (PS.broughtForward || 0) > 0.009)) {
-          if ((PS.broughtForward || 0) > 0.009) {
-            kvRow("Open from prior months", pdfMoney(PS.broughtForward), {
-              big: true,
-              bg: amberBg,
-              labColor: amberInk,
-              valColor: amberInk,
-              boldLab: true,
-            });
-            gap(8);
-          }
-          kvRow("Fronted this month", pdfMoney(PS.monthSpend || 0), { big: true, boldLab: true });
-          if ((PS.stewMonth || 0) > 0.009) {
-            gap(6);
-            kvRow("  Stew day rates", pdfMoney(PS.stewMonth));
-          }
-          if ((PS.shopMonth || 0) > 0.009) {
-            gap(6);
-            kvRow("  Shops / other", pdfMoney(PS.shopMonth));
-          }
-          gap(10);
-          kvRow("Repaid from petty cash this month", pdfMoney(PS.monthRepay || 0));
-          gap(10);
-          kvRow("Still open end of month", pdfMoney(PS.closingOpen || 0), {
-            big: true,
-            bg: (PS.closingOpen || 0) > 0.009 ? amberBg : greenBg,
-            labColor: (PS.closingOpen || 0) > 0.009 ? amberInk : greenInk,
-            valColor: (PS.closingOpen || 0) > 0.009 ? amberInk : greenInk,
-            boldLab: true,
-          });
-          if ((PS.monthRepay || 0) < 0.01 && (PS.closingOpen || 0) > 0.009) {
-            gap(6);
-            noteLine("Not repaid this month — still outstanding.", amberInk);
-          }
-        } else {
-          noteLine("No captain pocket activity this month.", muted);
-        }
-
-        /* Commission — totals only (no charter name list) */
-        if (
-          (report.bizMonthComm || 0) > 0.009 ||
-          (report.commissionPaidThisMonth || 0) > 0.009 ||
-          commOpen > 0.009 ||
-          (report.commissionEarned || 0) > 0.009
-        ) {
-          sectionHead("7 · CAPTAIN COMMISSION");
-          noteLine("15% of amount before VAT. Future bookings excluded.", muted);
-          gap(10);
-          if ((report.bizMonthGross || 0) > 0.009 || (report.bizMonthBase || 0) > 0.009) {
-            kvRow("Gross amount (this month)", pdfMoney(report.bizMonthGross || 0));
-            gap(8);
-            kvRow("Amount before VAT", pdfMoney(report.bizMonthBase || 0));
-            gap(8);
-            kvRow("Commission (15% before VAT)", pdfMoney(report.bizMonthComm || 0), {
-              big: true,
-              boldLab: true,
-              bg: goldSoft,
-            });
-            gap(12);
-          }
-          if (
-            (report.bizThroughComm || 0) > 0.009 &&
-            Math.abs((report.bizThroughComm || 0) - (report.bizMonthComm || 0)) > 0.5
-          ) {
-            kvRow(
-              "Commission earned through end of month",
-              pdfMoney(report.commissionEarned || report.bizThroughComm || 0)
-            );
-            gap(8);
-          }
-          kvRow("Paid from petty cash this month", pdfMoney(report.commissionPaidThisMonth || 0));
-          gap(8);
-          kvRow("Paid from petty cash through end of month", pdfMoney(report.commissionPaidAll || 0));
-          if (commOpen > 0.009) {
-            gap(10);
-            kvRow("Still outstanding", pdfMoney(commOpen), {
-              big: true,
-              bg: amberBg,
-              labColor: amberInk,
-              valColor: amberInk,
-              boldLab: true,
             });
           }
         }
