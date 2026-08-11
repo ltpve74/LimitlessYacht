@@ -114,6 +114,8 @@
         var amberInk = rgb(0.55, 0.35, 0.05);
         var redInk = rgb(0.55, 0.12, 0.1);
         var redBg = rgb(1, 0.94, 0.93);
+        var slateBg = rgb(0.93, 0.94, 0.97);
+        var slateInk = rgb(0.18, 0.22, 0.32);
         var page = null;
         var B = report.outBuckets || {};
         var cashIn = report.cashInTotal || 0;
@@ -337,8 +339,9 @@
         });
         gap(12);
 
-        /* —— 1) PETTY CASH at a glance —— */
+        /* —— 1) PETTY CASH at a glance — three equal snapshot rows —— */
         sectionHead("1 · PETTY CASH");
+        /* Same size / band style for all three so nothing looks like a leftover line */
         kvRow("Cash in", pdfMoney(cashIn), {
           big: true,
           boldLab: true,
@@ -346,18 +349,24 @@
           labColor: greenInk,
           valColor: greenInk,
         });
-        gap(8);
-        kvRow("Cash out", pdfMoney(cashOut), { big: true, boldLab: true });
-        gap(8);
-        kvRow("On board (end of month)", pdfMoney(onBoard), {
+        gap(6);
+        kvRow("Cash out", pdfMoney(cashOut), {
           big: true,
+          boldLab: true,
+          bg: slateBg,
+          labColor: slateInk,
+          valColor: slateInk,
+        });
+        gap(6);
+        kvRow("On board", pdfMoney(onBoard), {
+          big: true,
+          boldLab: true,
           bg: onBoard > 0.009 ? greenBg : amberBg,
           labColor: onBoard > 0.009 ? greenInk : amberInk,
           valColor: onBoard > 0.009 ? greenInk : amberInk,
-          boldLab: true,
         });
         if (boatShort > 0.009) {
-          gap(8);
+          gap(14);
           kvRow("Petty cash short — OUTSTANDING", pdfMoney(boatShort), {
             big: true,
             bg: redBg,
@@ -365,7 +374,7 @@
             valColor: redInk,
             boldLab: true,
           });
-          gap(4);
+          gap(6);
           noteLine("Carries into next month until cash covers the hole.", redInk);
         }
 
