@@ -140,8 +140,25 @@
           commissionLines: [],
         };
 
-    /* Prefer model pot crew from crew DTO (same rule as buckets) */
-    outBuckets.crewDayPay = crew.fromBoatPot;
+    /*
+     * Crew marked floatPay may exceed cash in hand (books short).
+     * Covered = marked − crew portion of petty shortLines (model).
+     */
+    var crewPotShort = 0;
+    (Array.isArray(pettySum.shortLines) ? pettySum.shortLines : []).forEach(function (s) {
+      if (!s) return;
+      if (s.kind === "crew" || s.kind === "daypay") {
+        crewPotShort += Number(s.amount) || 0;
+      }
+    });
+    crewPotShort = Math.round(crewPotShort * 100) / 100;
+    var crewPotMarked = crew.fromBoatPot || 0;
+    var crewPotCovered = Math.round(Math.max(0, crewPotMarked - crewPotShort) * 100) / 100;
+    crew.fromBoatPotMarked = crewPotMarked;
+    crew.fromBoatPotCovered = crewPotCovered;
+    crew.fromBoatPotShort = crewPotShort;
+    /* Cash-out bucket = cash that actually left for crew (covered), not over-mark */
+    outBuckets.crewDayPay = crewPotCovered;
 
     var pocketStory = models.summarizeCaptainPocketMonthBridge
       ? models.summarizeCaptainPocketMonthBridge(allRaw, month)
@@ -261,7 +278,10 @@
 
       /* Crew — model summarizeCrewPayMonth (no frontend sums) */
       crew: crew,
-      crewFromPot: crew.fromBoatPot,
+      crewFromPot: crew.fromBoatPotCovered != null ? crew.fromBoatPotCovered : crew.fromBoatPot,
+      crewFromPotMarked: crew.fromBoatPotMarked != null ? crew.fromBoatPotMarked : crew.fromBoatPot,
+      crewFromPotCovered: crew.fromBoatPotCovered != null ? crew.fromBoatPotCovered : crew.fromBoatPot,
+      crewFromPotShort: crew.fromBoatPotShort || 0,
       crewFromCaptain: crew.fromCaptain,
       crewFromOwner: crew.fromOwner,
       crewFromBooks: crew.booksOnly,
