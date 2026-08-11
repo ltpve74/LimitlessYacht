@@ -10,10 +10,12 @@
 
 ## Do instead
 
-1. **Dry-run first** — pull live blob, list exact field changes (ids, before → after, € impact on petty).
+1. **Dry-run first** — `TRACKER_PASSCODE=… node scripts/tracker-db-dryrun.mjs`  
+   (pull live blob, list exact field changes, July/Aug settlement, pure carry plan).
 2. **Captain reviews** the dry-run.
-3. **Apply once on the database** (API/blob write of only the collections needed) — not via app load hooks.
-4. **Fix the root code path** that created the bad write so it cannot recur (e.g. re-mark Paid must not re-set `floatPay` and re-hit the envelope).
+3. **Apply once on the database** — e.g. `--apply-july-aug-2026` or a one-shot API save of only the collections needed — **not** via app load hooks.
+4. **Rules in models/controllers** — carry / pocket / floatPay math never re-invented in `index.html` paint.
+5. **Fix the root code path** that created the bad write so it cannot recur (e.g. re-mark Paid must not re-set `floatPay` and re-hit the envelope).
 
 ## Known-good petty snapshot (captain)
 

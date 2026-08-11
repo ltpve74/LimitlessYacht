@@ -10830,13 +10830,35 @@ function expPettyClosingBalance(month, depth){
   return pack?pack.onboard:null;
 }
 /**
- * Closing pack: physical on board + residual books short to bring forward.
- * When last month ends empty but short €110 (boat owed / over-mark), next month
- * gets broughtForwardShort=110 so first cash-in pays that hole first.
+ * Closing pack: physical on board + residual books short.
+ * Delegates to pure model resolvePettyMonthClose when available.
  */
 function expPettyClosingPack(month, depth){
   depth=depth||0;
   if(!month||depth>36) return null;
+  try{
+    if(window.LY_CONTROLLERS&&LY_CONTROLLERS.expenses&&LY_CONTROLLERS.expenses.pettyMonthClose){
+      var c=LY_CONTROLLERS.expenses.pettyMonthClose({
+        models:LY_MODELS,
+        month:month,
+        expPetty:state.expPetty||[],
+        expenses:state.expenses||[],
+        isTipExpense:expIsTipExpense,
+        cashInIsTip:expCashInIsTip
+      });
+      if(c&&!c.empty) return { onboard:c.onboard, short:c.short };
+      if(c&&c.empty) return null;
+    }
+    if(LY_MODELS&&LY_MODELS.resolvePettyMonthClose){
+      var c2=LY_MODELS.resolvePettyMonthClose(month, state.expPetty||[], state.expenses||[], {
+        isTipExpense:expIsTipExpense,
+        cashInIsTip:expCashInIsTip
+      });
+      if(c2&&!c2.empty) return { onboard:c2.onboard, short:c2.short };
+      if(c2&&c2.empty) return null;
+    }
+  }catch(eC0){}
+  /* Fallback only if models missing */
   var p=expPettyFor(month);
   var lines=expLinesForMonth(month);
   var hasActivity=!!(p||(lines&&lines.length));
@@ -10861,7 +10883,6 @@ function expPettyClosingPack(month, depth){
       startKnown=true;
     } else if(!hasActivity) return null;
   }
-  /* Physical start never negative — short is carried separately */
   if(start<0){
     brought=Math.round((brought+Math.abs(start))*100)/100;
     start=0;
@@ -10886,17 +10907,7 @@ function expPettyClosingPack(month, depth){
       short:Math.max(0, Math.round(Number(short||0)*100)/100)
     };
   }
-  var cashInTotal=expCashInSum({cashIns:cashIns});
-  var cashOut=0;
-  (lines||[]).forEach(function(e){
-    if(!e) return;
-    try{ if(expCountsAsPettyOut(e)) cashOut+=apaNum(e.amount); }catch(eO){}
-  });
-  var books=Math.round((start+cashInTotal-cashOut-brought)*100)/100;
-  return {
-    onboard:Math.max(0, books),
-    short:books<0?Math.abs(books):0
-  };
+  return null;
 }
 /** Residual books short at month close (boat hole to bring forward). */
 function expPettyClosingShort(month){
@@ -10904,34 +10915,46 @@ function expPettyClosingShort(month){
   return pack?pack.short:0;
 }
 /**
- * Ensure a petty row for the month. New / auto months take:
- *   - physical start from prior month’s on-board close (never negative)
- *   - broughtForwardShort from prior month’s residual books short (boat owed)
- * Manual “Save start” locks the physical start only.
+ * Resolve petty open fields via model (pure carry rules). No writes.
+ */
+function expResolvePettyOpen(month){
+  month=month||expDefaultMonth();
+  try{
+    if(window.LY_CONTROLLERS&&LY_CONTROLLERS.expenses&&LY_CONTROLLERS.expenses.pettyMonthOpen){
+      return LY_CONTROLLERS.expenses.pettyMonthOpen({
+        models:LY_MODELS,
+        month:month,
+        expPetty:state.expPetty||[],
+        expenses:state.expenses||[],
+        isTipExpense:expIsTipExpense,
+        cashInIsTip:expCashInIsTip
+      });
+    }
+    if(LY_MODELS&&LY_MODELS.resolvePettyMonthOpen){
+      return LY_MODELS.resolvePettyMonthOpen(month, state.expPetty||[], state.expenses||[], {
+        isTipExpense:expIsTipExpense,
+        cashInIsTip:expCashInIsTip
+      });
+    }
+  }catch(eR){}
+  return null;
+}
+/**
+ * Ensure a local petty row exists for editing (cash-in / Save start).
+ *
+ * Carry rules live in LY_MODELS.resolvePettyMonthOpen — applied in memory for
+ * display. This function NEVER auto-saves to the blob (no load/paint heal).
+ * Persist only via explicit captain actions (saveExpPetty from Save start /
+ * cash-in / etc.) or a one-shot DB op.
  */
 function expEnsurePetty(month){
   if(!state.expPetty) state.expPetty=[];
   month=month||expDefaultMonth();
   var p=expPettyFor(month);
-  var prev=expPrevMonthKey(month);
-  var prevPack=prev?expPettyClosingPack(prev):null;
-  var carried=prevPack?prevPack.onboard:null;
-  var carriedShort=prevPack?prevPack.short:0;
-  function applyCarryFields(row, phys, shortAmt, fromMon){
-    if(!row) return false;
-    var dirty=false;
-    var nextPhys=phys!=null?Math.max(0, Math.round(Number(phys)*100)/100):0;
-    var nextShort=Math.max(0, Math.round(Number(shortAmt||0)*100)/100);
-    if(apaNum(row.pettyStart)!==nextPhys){ row.pettyStart=nextPhys; dirty=true; }
-    if(apaNum(row.broughtForwardShort)!==nextShort){ row.broughtForwardShort=nextShort; dirty=true; }
-    if(row.carriedFrom!==fromMon){ row.carriedFrom=fromMon||""; dirty=true; }
-    if(row.startMode!=="carry"){ row.startMode="carry"; dirty=true; }
-    if(dirty) row.updatedAt=new Date().toISOString();
-    return dirty;
-  }
+  var open=expResolvePettyOpen(month);
   if(p){
     if(!Array.isArray(p.cashIns)) p.cashIns=[];
-    /* One-time: old single "pettyIn" total → a cash-in line so history is not lost */
+    /* Local shape only: old pettyIn total → a cash-in line (not a money heal) */
     if((!p.cashIns.length)&&apaNum(p.pettyIn)>0){
       p.cashIns.push({
         id:uid(), date:(month||expDefaultMonth())+"-01",
@@ -10940,68 +10963,38 @@ function expEnsurePetty(month){
       p.pettyIn=0;
     }
     /*
-     * Refresh auto-carry only when this month is still in carry mode.
-     * Never overwrite a manual start or a legacy month that already has lines
-     * (those stay at whatever start was stored — usually locked as manual).
-     * Brought-forward short always refreshes on carry months (boat owed hole).
+     * Overlay pure carry for display/settlement when not captain-locked manual.
+     * In-memory only — never saveExpPetty here.
      */
-    if(p.startMode==="carry"){
-      if(prevPack){
-        if(applyCarryFields(p, carried, carriedShort, prev)){
-          try{ if(isCaptain()&&!DEMO) saveExpPetty(); }catch(eSave){}
-        }
+    if(open&&open.startMode!=="manual"&&p.startManual!==true){
+      if(open.startMode==="carry"||p.startMode==="carry"||!(Math.abs(apaNum(p.pettyStart))>0.009)){
+        p.pettyStart=open.pettyStart;
+        p.broughtForwardShort=open.broughtForwardShort;
+        p.startMode=open.startMode||p.startMode||"carry";
+        p.carriedFrom=open.carriedFrom||"";
+      } else if(!(apaNum(p.broughtForwardShort)>0.009)&&open.broughtForwardShort>0.009){
+        p.broughtForwardShort=open.broughtForwardShort;
       }
-    } else if(p.startMode!=="manual"&&p.startManual!==true){
-      var hasLines=(expLinesForMonth(month)||[]).length>0;
-      var hasIns=(p.cashIns||[]).length>0;
-      if(!hasLines&&!hasIns&&Math.abs(apaNum(p.pettyStart))<0.009&&prevPack){
-        /* Empty shell for a new month → adopt prior physical close + short */
-        if(applyCarryFields(p, carried, carriedShort, prev)){
-          try{ if(isCaptain()&&!DEMO) saveExpPetty(); }catch(eSave3){}
-        }
-      } else if(apaNum(p.pettyStart)<-0.009){
-        /* Poison negative start without captain lock → physical 0 + short carry */
-        var poisonShort=Math.abs(apaNum(p.pettyStart))+Math.max(0, carriedShort||0);
-        p.pettyStart=prevPack?Math.max(0, Math.round(Number(carried)*100)/100):0;
-        p.broughtForwardShort=Math.round(poisonShort*100)/100;
-        p.startMode=prevPack?"carry":"none";
-        p.carriedFrom=prevPack?prev:"";
-        p.updatedAt=new Date().toISOString();
-        try{ if(isCaptain()&&!DEMO) saveExpPetty(); }catch(eSave4){}
-      } else if(Math.abs(apaNum(p.pettyStart))>0.009||hasLines||hasIns){
-        p.startMode="manual"; /* legacy row with real activity — do not auto-rewrite */
-        /* Still adopt prior short if empty and not set (boat owed carry) */
-        if(!(apaNum(p.broughtForwardShort)>0.009)&&carriedShort>0.009){
-          p.broughtForwardShort=carriedShort;
-          p.updatedAt=new Date().toISOString();
-          try{ if(isCaptain()&&!DEMO) saveExpPetty(); }catch(eSave5){}
-        }
-      } else if(!p.startMode){
-        p.startMode="none";
-      }
-    } else if((p.startMode==="manual"||p.startManual===true)&&!(apaNum(p.broughtForwardShort)>0.009)&&carriedShort>0.009){
-      /* Manual physical start can still inherit prior boat short once */
-      p.broughtForwardShort=carriedShort;
-      p.updatedAt=new Date().toISOString();
-      try{ if(isCaptain()&&!DEMO) saveExpPetty(); }catch(eSave6){}
+    } else if(open&&(p.startMode==="manual"||p.startManual===true)&&!(apaNum(p.broughtForwardShort)>0.009)&&open.broughtForwardShort>0.009){
+      /* Manual physical start may still show prior boat short (display) */
+      p.broughtForwardShort=open.broughtForwardShort;
     }
     return p;
   }
-  var start0=carried!=null?Math.max(0, Math.round(Number(carried)*100)/100):0;
+  var start0=open?open.pettyStart:0;
+  var short0=open?open.broughtForwardShort:0;
   p={
     month:month,
     pettyStart:start0,
-    broughtForwardShort:Math.max(0, Math.round(Number(carriedShort||0)*100)/100),
-    startMode:prevPack?"carry":"none",
-    carriedFrom:prevPack?prev:"",
+    broughtForwardShort:short0,
+    startMode:open&&open.startMode?open.startMode:(open&&open.priorOnboard!=null?"carry":"none"),
+    carriedFrom:open&&open.carriedFrom?open.carriedFrom:"",
     pettyIn:0,
     cashIns:[],
     updatedAt:new Date().toISOString()
   };
   state.expPetty.push(p);
-  if(prevPack){
-    try{ if(isCaptain()&&!DEMO) saveExpPetty(); }catch(eSave2){}
-  }
+  /* No auto-save — row is local until captain explicitly saves */
   return p;
 }
 function expCashInLines(petty){
@@ -11542,14 +11535,17 @@ function expCaptainPocketMonthStory(month){
   if(!dto.monthLabel) dto.monthLabel=expMonthLabel(month);
   return dto;
 }
-/** One-shot: normalize all reimbursement rows in state (petty + flags). */
+/**
+ * In-memory shape normalize for paint only — never saveExpenses from here.
+ * Persisting reimbursement flags is an explicit edit/save, not a load heal.
+ */
 function expNormalizeAllReimbursements(){
   if(!isCaptain()||!state.expenses) return false;
   var dirty=false;
   state.expenses.forEach(function(e){
     if(expNormalizeReimbursement(e)) dirty=true;
   });
-  if(dirty&&!DEMO) saveExpenses();
+  /* Do not saveExpenses here — paint-time shape only, never a load heal */
   return dirty;
 }
 /**
@@ -12026,186 +12022,69 @@ function stewDisplayName(tok, rec){
   return t.charAt(0).toUpperCase()+t.slice(1);
 }
 /**
- * floatPay = cash left the boat envelope for crew day-pay.
- * Set only when captain explicitly marks Paid from Petty cash.
- * NEVER invent from paidFrom/Paid alone (re-saves made petty jump 0 → −€250).
+ * Dry-run only: plan empty-envelope floatPay clears + carry materialize.
+ * NEVER mutates or saves. Data fixes are explicit DB ops (see
+ * .agent/memory/tracker-no-load-heals-db-dryrun.md).
  *
- * Heal (idempotent, runs every Expenses open — no localStorage one-shot):
- * 1. Oldest month first: if start+cash-in ≈ 0 but crew floatPay still subtracts,
- *    clear floatPay (impossible cash-out; keep Paid as prior/books).
- * 2. Recompute each month’s close after that clear.
- * 3. Refresh startMode=carry months from the healed prior close so −€250 does
- *    not keep poisoning “end of last month” / this month’s start.
- *
- * Root issue was: repair v4 set localStorage “done” even when it fixed nothing
- * (or ran before data was ready), so invented floatPay stuck forever.
+ * @returns {{ floatPayClearIds: string[], pettyPatches: Array, n: number }}
+ */
+function expPlanMoneyRepairs(){
+  var floatPayClearIds=[];
+  var pettyPatches=[];
+  try{
+    if(LY_MODELS&&LY_MODELS.planPettyCarryMaterialize){
+      var mat=LY_MODELS.planPettyCarryMaterialize(
+        state.expPetty||[],
+        state.expenses||[],
+        null,
+        { isTipExpense:expIsTipExpense, cashInIsTip:expCashInIsTip }
+      );
+      pettyPatches=mat.patches||[];
+    }
+  }catch(eM){}
+  try{
+    var monthsMap={};
+    (state.expenses||[]).forEach(function(e){
+      var m=expMonthKey(e&&e.date);
+      if(m) monthsMap[m]=1;
+    });
+    (state.expPetty||[]).forEach(function(p){
+      if(p&&p.month) monthsMap[String(p.month).slice(0,7)]=1;
+    });
+    Object.keys(monthsMap).sort().forEach(function(month){
+      var open=expResolvePettyOpen(month);
+      if(!open) return;
+      var lines=expLinesForMonth(month)||[];
+      var cashIns=open.cashIns||[];
+      if(LY_MODELS&&LY_MODELS.planClearCrewFloatPayOnEmptyEnvelope){
+        var plan=LY_MODELS.planClearCrewFloatPayOnEmptyEnvelope(
+          lines, open.pettyStart, cashIns, { keepManual:true }
+        );
+        (plan.clearIds||[]).forEach(function(id){ floatPayClearIds.push(id); });
+      }
+    });
+  }catch(eP){}
+  return {
+    floatPayClearIds:floatPayClearIds,
+    pettyPatches:pettyPatches,
+    n:floatPayClearIds.length+pettyPatches.length
+  };
+}
+/**
+ * @deprecated — no longer heals or saves. Returns false. Use expPlanMoneyRepairs
+ * + explicit DB write. Kept so old call sites cannot rewrite the blob on open.
  */
 function expRepairImpossibleCrewFloatOnEmptyEnvelope(){
-  if(!isCaptain()||!state.expenses) return false;
-  var monthsMap={};
-  (state.expenses||[]).forEach(function(e){
-    var m=expMonthKey(e&&e.date);
-    if(m) monthsMap[m]=1;
-  });
-  (state.expPetty||[]).forEach(function(p){
-    if(p&&p.month) monthsMap[String(p.month).slice(0,7)]=1;
-  });
-  var months=Object.keys(monthsMap).sort(); /* oldest first — carry depends on prior close */
-  if(!months.length) return false;
-
-  var dirtyExp=false;
-  var dirtyPetty=false;
-  var closeBy={}; /* month → { onboard, short } healed close */
-
-  months.forEach(function(month){
-    var p=expPettyFor(month);
-    var prev=expPrevMonthKey(month);
-    var start=0;
-    var brought=0;
-    var startKnown=false;
-    if(p){
-      if(p.startMode==="manual"||p.startManual===true){
-        start=apaNum(p.pettyStart);
-        brought=Math.max(0, apaNum(p.broughtForwardShort));
-        startKnown=true;
-      } else if(p.startMode==="carry"){
-        /* Prefer just-healed prior close over a stale stored −€250 */
-        if(prev&&closeBy[prev]){
-          start=closeBy[prev].onboard;
-          brought=closeBy[prev].short;
-          startKnown=true;
-        } else {
-          start=apaNum(p.pettyStart);
-          brought=Math.max(0, apaNum(p.broughtForwardShort));
-          startKnown=true;
-        }
-      } else if(Math.abs(apaNum(p.pettyStart))>0.009){
-        start=apaNum(p.pettyStart);
-        brought=Math.max(0, apaNum(p.broughtForwardShort));
-        startKnown=true;
-      }
-    }
-    if(!startKnown&&prev&&closeBy[prev]){
-      start=closeBy[prev].onboard;
-      brought=closeBy[prev].short;
-      startKnown=true;
-    }
-    if(start<0){
-      brought=Math.round((brought+Math.abs(start))*100)/100;
-      start=0;
-    }
-
-    var cashIns=p?expCashInLinesForPetty(p):[];
-    var lines=expLinesForMonth(month)||[];
-
-    /*
-     * Clear impossible crew floatPay when envelope empty — but NEVER wipe
-     * captain-marked pays (payStatusManual). That destroyed Laura-style
-     * floatPay after a correct petty drop when start/cash-in had not loaded yet.
-     */
-    var cleared=null;
-    try{
-      if(LY_MODELS&&LY_MODELS.clearCrewFloatPayOnEmptyEnvelope){
-        cleared=LY_MODELS.clearCrewFloatPayOnEmptyEnvelope(lines, start, cashIns, {keepManual:true});
-      }
-    }catch(eClr){ cleared=null; }
-    if(cleared&&cleared.changed){
-      dirtyExp=true;
-      (cleared.cleared||[]).forEach(function(e){
-        if(e) e.updatedAt=new Date().toISOString();
-      });
-    } else {
-      /* Fallback without model module */
-      var envelope=Math.round((start+expCashInSum({cashIns:cashIns}))*100)/100;
-      if(!(envelope>0.009)){
-        lines.forEach(function(e){
-          if(!e||!expIsCrewDayPayLine(e)) return;
-          if(e.crewPayStatus!=="Paid") return;
-          if(e.floatPay!==true) return;
-          if(e.payStatusManual===true) return; /* captain mark — keep cash-out */
-          if(e.paidFrom==="Own money"||expIsOwnMoneyLabel(e.paidFrom)||expIsOwnerMoneyPaid(e)) return;
-          e.floatPay=false;
-          e.updatedAt=new Date().toISOString();
-          dirtyExp=true;
-        });
-      }
-    }
-
-    /* Physical close + residual short (model) */
-    var close=0;
-    var closeShort=0;
-    try{
-      if(LY_MODELS&&LY_MODELS.summarizePettyCash){
-        var sum=LY_MODELS.summarizePettyCash({
-          pettyStart:Math.max(0, start),
-          broughtForwardShort:brought,
-          cashIns:cashIns,
-          expenses:lines.filter(function(e){ return e&&!expIsTipExpense(e); })
-        });
-        close=Math.max(0, Math.round(Number(sum.pettyOnboard!=null?sum.pettyOnboard:sum.pettyCash||0)*100)/100);
-        closeShort=Math.max(0, Math.round(Number(sum.cashShort||0)*100)/100);
-      } else {
-        var pack=expPettyClosingPack(month);
-        close=pack?pack.onboard:0;
-        closeShort=pack?pack.short:0;
-      }
-    }catch(eSum){
-      close=0;
-      closeShort=0;
-    }
-    closeBy[month]={ onboard:close, short:closeShort };
-  });
-
-  /* Refresh starts + brought-forward short from healed closes.
-   * Never leave a negative physical start unless captain locked Save start. */
-  months.forEach(function(month){
-    var p=expPettyFor(month);
-    if(!p) return;
-    if(p.startManual===true){
-      /* Still clamp display poison: captain locked a negative by mistake → short */
-      if(apaNum(p.pettyStart)<-0.009){
-        var poison=Math.abs(apaNum(p.pettyStart));
-        p.broughtForwardShort=Math.round((Math.max(0, apaNum(p.broughtForwardShort))+poison)*100)/100;
-        p.pettyStart=0;
-        p.updatedAt=new Date().toISOString();
-        dirtyPetty=true;
-      }
-      return;
-    }
-    var prev=expPrevMonthKey(month);
-    var nextPack=prev&&closeBy[prev]?closeBy[prev]:null;
-    var next=nextPack?Math.max(0, Math.round(Number(nextPack.onboard)*100)/100):0;
-    var nextShort=nextPack?Math.max(0, Math.round(Number(nextPack.short)*100)/100):0;
-    if(p.startMode==="carry"||apaNum(p.pettyStart)<-0.009){
-      if(apaNum(p.pettyStart)!==next||apaNum(p.broughtForwardShort)!==nextShort||p.carriedFrom!==prev||p.startMode!=="carry"){
-        p.pettyStart=next;
-        p.broughtForwardShort=nextShort;
-        p.startMode=nextPack?"carry":"none";
-        p.carriedFrom=p.startMode==="carry"?prev:"";
-        p.updatedAt=new Date().toISOString();
-        dirtyPetty=true;
-      }
-    } else if(nextShort>0.009&&!(apaNum(p.broughtForwardShort)>0.009)){
-      /* Adopt prior boat short even on non-carry months once */
-      p.broughtForwardShort=nextShort;
-      p.updatedAt=new Date().toISOString();
-      dirtyPetty=true;
-    }
-  });
-
-  /* Drop the broken one-shot flag so a prior “done with nothing fixed” no longer blocks */
   try{ localStorage.removeItem("ly_exp_floatpay_repair_v4"); }catch(eRm){}
-
-  if(dirtyExp&&!DEMO) saveExpenses();
-  if(dirtyPetty&&!DEMO) saveExpPetty();
-  return dirtyExp||dirtyPetty;
+  return false;
 }
-/** @deprecated name — kept for call sites; runs empty-envelope floatPay repair + carry refresh. */
+/** @deprecated — no-op (never wipe/restore floatPay on load). */
 function expRestoreCrewFloatPayAfterWipe(){
-  return expRepairImpossibleCrewFloatOnEmptyEnvelope();
+  return false;
 }
+/** @deprecated — no-op. */
 function expResetInventedCrewFloatPay(){
-  return expRepairImpossibleCrewFloatOnEmptyEnvelope();
+  return false;
 }
 /**
  * Drop ghost stew day-pay expense lines after reassign / key renames:

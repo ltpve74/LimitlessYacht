@@ -2938,6 +2938,63 @@ console.log("\n[Pocket — own-money repay + open liabilities]");
     ok("Aug bridge still open 200 (new stew)", near(bridgeAug.closingOpen, 200));
   }
 
+  /* Petty month open/close carry — pure, no mutation of rows */
+  {
+    const crewFloat = {
+      id: "crew-fp",
+      date: "2026-07-20",
+      amount: 110,
+      source: "stew",
+      stewPayKind: "dayPay",
+      stewId: "t1",
+      crewPayStatus: "Paid",
+      floatPay: true,
+      paidFrom: "Petty cash",
+      vendor: "Toni",
+    };
+    const pettyRows = [
+      {
+        month: "2026-07",
+        pettyStart: 0,
+        broughtForwardShort: 0,
+        startMode: "manual",
+        startManual: true,
+        cashIns: [{ id: "ci1", amount: 100, source: "ATM", date: "2026-07-01" }],
+      },
+      {
+        month: "2026-08",
+        pettyStart: 0,
+        broughtForwardShort: 0,
+        startMode: "carry",
+        cashIns: [{ id: "ci2", amount: 500, source: "Cash in", date: "2026-08-01" }],
+      },
+    ];
+    const snap = JSON.stringify(pettyRows);
+    const julClose = M.resolvePettyMonthClose("2026-07", pettyRows, [crewFloat], {});
+    ok("July close onboard 0 after float 110 on 100 in", near(julClose.onboard, 0));
+    ok("July close short 10 (100 in − 110 out)", near(julClose.short, 10));
+    const augOpen = M.resolvePettyMonthOpen("2026-08", pettyRows, [crewFloat], {});
+    ok("Aug open start from July onboard 0", near(augOpen.pettyStart, 0));
+    ok("Aug open BF short from July residual", near(augOpen.broughtForwardShort, 10));
+    ok("Aug open source carry", augOpen.source === "carry" || augOpen.startMode === "carry");
+    const augClose = M.resolvePettyMonthClose("2026-08", pettyRows, [crewFloat], {});
+    /* 500 cash-in, BF 10 settled first → 490 onboard, no outs in Aug */
+    ok("Aug close onboard 490 after BF settle", near(augClose.onboard, 490));
+    ok("Aug close short 0", near(augClose.short, 0));
+    ok("petty rows not mutated by resolve", JSON.stringify(pettyRows) === snap);
+    const planClear = M.planClearCrewFloatPayOnEmptyEnvelope(
+      [crewFloat],
+      0,
+      [],
+      { keepManual: true }
+    );
+    ok("plan clear floatPay on empty env", planClear.changed && planClear.clearIds.indexOf("crew-fp") >= 0);
+    const planMat = M.planPettyCarryMaterialize(pettyRows, [crewFloat], ["2026-08"], {});
+    ok("plan materialize has Aug patch", planMat.n >= 1 && planMat.patches.some(function (p) {
+      return p.month === "2026-08" && near(p.fields.broughtForwardShort, 10);
+    }));
+  }
+
   const openAug = M.collectOpenPocketOuts(ledger1, "2026-08", {
     personName: function () {
       return "Captain";

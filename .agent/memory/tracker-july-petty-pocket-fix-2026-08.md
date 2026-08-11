@@ -1,25 +1,46 @@
 # July/August petty + pocket reconstruction (2026-08)
 
+## Architecture (locked)
+
+| Concern | Where |
+|---------|--------|
+| Month-to-month **petty** carry (start + BF short) | `LY_MODELS.resolvePettyMonthOpen` / `Close` |
+| Captain **pocket** bridge (prior short → repay) | `LY_MODELS.summarizeCaptainPocketMonthBridge` |
+| DTO for view | `LY_CONTROLLERS.expenses.pettyMonthOpen` / `captainPocketMonthBridge` |
+| Paint | `tracker/index.html` — display only |
+| DB reconstruction | **Separate explicit write** — never load heal |
+
 ## Explicit DB write only (no load heal)
 
-Applied once via authenticated tracker API `save` (not on open/render):
+Tool: `scripts/tracker-db-dryrun.mjs`
+
+```sh
+TRACKER_PASSCODE=… node scripts/tracker-db-dryrun.mjs              # dry-run
+TRACKER_PASSCODE=… node scripts/tracker-db-dryrun.mjs --apply-july-aug-2026
+```
+
+Reconstruction targets (captain records):
 
 1. **expenses** — `floatPay: true` on five July crew lines paid from pot after Hollman €1800:
-   - Toni €750 Joel, Toni €500 Danilo, Toni €250 Oliver, Laura €200 Sebastien, Laura €150 Leon
-2. **expPetty 2026-08** — `broughtForwardShort: 110` (restores wiped July short)
+   - Toni €750 / €500 / €250, Laura €200 / €150
+2. **expPetty 2026-08** — `broughtForwardShort: 110` (July residual boat short)
 
-Verified after write: July onboard **0** / short **110**; August onboard **18.56** / priorSettled **110**.
+Verified target after write: July onboard **0** / short **110**; August onboard **~18.56** after priorSettled **110**.
 
-## Captain pocket (already correct in data)
+## Captain pocket (data)
 
 July own-money **€758.88** (stew €450 incl. Vicky long day €250 + shop €308.88).  
-No captain reimburse in July. August captain repay **€958.88** = July **758.88** + Airiana **200**.
+August captain repay **€958.88** = July **758.88** + Airiana **200**.
 
-## Code architecture (not paint hacks)
+## Forbidden
 
-- **Model:** `LY_MODELS.summarizeCaptainPocketMonthBridge(expenses, month)` — pure carry rules.
-- **Controller:** `LY_CONTROLLERS.expenses.captainPocketMonthBridge(input)`.
-- **View:** thin wrapper `expCaptainPocketMonthStory` → paint DTO only.
-- **Tests:** locked in `scripts/test-tracker-models.mjs`.
+- No auto-heal / floatPay wipe / carry refresh **save** on Expenses open or boot.
+- No money formulas invented in `index.html` paint.
+- `expEnsurePetty` may create a **local** row for editing; it must **not** `saveExpPetty` by itself.
+- Use `expPlanMoneyRepairs()` (plan only) or the dry-run script for ops.
 
-Do **not** re-clear floatPay on open. Do **not** invent load-time money heals.
+## Related
+
+- [tracker-no-load-heals-db-dryrun.md](tracker-no-load-heals-db-dryrun.md)
+- [tracker-floatpay-wipe-bug.md](tracker-floatpay-wipe-bug.md)
+- Blueprint: `.agent/briefs/tracker-v1-mvc-blueprint.md`
