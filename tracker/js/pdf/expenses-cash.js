@@ -645,7 +645,7 @@
           }
         }
 
-        /* —— 4) CAPTAIN OUT OF POCKET —— */
+        /* —— 5) CAPTAIN OUT OF POCKET —— */
         if (
           pocketOpen > 0.009 ||
           (PS &&
@@ -655,79 +655,128 @@
               (PS.openLines || []).length))
         ) {
           sectionHead("5 · CAPTAIN OUT OF POCKET");
-          noteLine(
-            "Money the captain put in from own pocket (crew / shops). Separate from captain-sourced business. A repay only covers spends on or before that repay date.",
-            muted
-          );
-          gap(10);
           if (PS) {
             function pocketLineTitle(r) {
               var when = r.date ? fmtDate(r.date) : "Date not recorded";
               var who = r.vendor || (r.isStew ? "Crew" : "Spend");
               return when + " · " + who;
             }
-            function pocketLineSub(r, mode) {
+            function pocketLineDetail(r) {
               var bits = [];
               if (r.isStew) bits.push(r.isLongDay ? "Long day rate" : "Day rate");
-              else if (r.description) bits.push(String(r.description).slice(0, 52));
+              else if (r.description) bits.push(String(r.description).slice(0, 48));
               if (r.charterDate) bits.push("charter " + fmtDate(r.charterDate));
-              if (mode === "prior") bits.push("open from before " + periodLab);
-              if (mode === "open") bits.push("own money — not repaid from petty yet");
-              if (mode === "fronted") bits.push("fronted from own money");
-              if (mode === "repaid") bits.push("repaid from boat petty cash");
               return bits.join(" · ");
             }
 
-            /* Prior balance with concrete spend dates */
-            if ((PS.broughtForward || 0) > 0.009) {
-              kvRow("Open from before " + periodLab, pdfMoney(PS.broughtForward), {
-                big: true,
-                bg: amberBg,
-                labColor: amberInk,
-                valColor: amberInk,
-                boldLab: true,
-              });
+            var priorRows = PS.priorLines || [];
+            var monthRows = PS.monthLines || [];
+            var allFrontRows = priorRows.concat(monthRows);
+            var totalFronted = 0;
+            allFrontRows.forEach(function (r) {
+              totalFronted += Number(r.amount) || 0;
+            });
+            totalFronted = Math.round(totalFronted * 100) / 100;
+            var stillOpenAmt = Number(PS.closingOpen) || 0;
+            var settledAmt = Math.round(Math.max(0, totalFronted - stillOpenAmt) * 100) / 100;
+            var repaidThisPeriod = Number(PS.monthRepay) || 0;
+            var bfOpen = Number(PS.broughtForward) || 0;
+            var frontedThis = Number(PS.monthSpend) || 0;
+
+            noteLine(
+              "Captain advances from personal funds when boat cash is not yet on hand (crew day rates, provisions, essentials). Separate from captain-sourced business commission. The boat envelope should hold enough free cash to clear open advances promptly — that keeps day-to-day operations running without interruption.",
+              muted
+            );
+            gap(12);
+
+            /* Snapshot: fronted / settled / still open — owner must see the scale */
+            noteLine("At a glance:", navy);
+            gap(8);
+            kvRow("Total advanced by captain (own money)", pdfMoney(totalFronted), {
+              big: true,
+              boldLab: true,
+              bg: slateBg,
+              labColor: slateInk,
+              valColor: slateInk,
+            });
+            gap(6);
+            if (bfOpen > 0.009 || frontedThis > 0.009) {
+              if (bfOpen > 0.009) {
+                kvRow("  Of which open from before " + periodLab, pdfMoney(bfOpen));
+                gap(4);
+              }
+              if (frontedThis > 0.009) {
+                kvRow("  Of which fronted in " + periodLab, pdfMoney(frontedThis));
+                gap(4);
+              }
+            }
+            gap(6);
+            kvRow("Settled from boat petty cash", pdfMoney(settledAmt), {
+              big: true,
+              boldLab: true,
+              bg: greenBg,
+              labColor: greenInk,
+              valColor: greenInk,
+            });
+            gap(6);
+            kvRow("Still due to captain", pdfMoney(stillOpenAmt), {
+              big: true,
+              boldLab: true,
+              bg: stillOpenAmt > 0.009 ? amberBg : greenBg,
+              labColor: stillOpenAmt > 0.009 ? amberInk : greenInk,
+              valColor: stillOpenAmt > 0.009 ? amberInk : greenInk,
+            });
+            if (stillOpenAmt > 0.009) {
               gap(8);
-              noteLine("Brought forward (with date):", navy);
+              noteLine(
+                "Open advances are money already spent for the boat. Clearing them from petty when cash comes in keeps the operation funded without personal float.",
+                amberInk
+              );
+            } else if (settledAmt > 0.009) {
+              gap(8);
+              noteLine(
+                "All listed advances have been settled from boat petty cash.",
+                greenInk
+              );
+            }
+            gap(14);
+
+            /* SETTLED lines — clear REPAID status */
+            var settledRows = allFrontRows.filter(function (r) {
+              var rem = r.remainOpen != null ? Number(r.remainOpen) : Number(r.amount) || 0;
+              return rem < 0.01 && (Number(r.amount) || 0) > 0.009;
+            });
+            if (settledRows.length) {
+              noteLine("Settled — repaid from boat petty (with date):", navy);
               gap(6);
-              var priorOpenRows = (PS.priorLines || []).filter(function (r) {
-                return (r.remainOpenAtMonthStart != null ? r.remainOpenAtMonthStart : r.amount) > 0.009;
-              });
-              if (!priorOpenRows.length) priorOpenRows = PS.priorLines || [];
-              priorOpenRows.forEach(function (r, idx) {
-                var amt =
-                  r.remainOpenAtMonthStart != null ? r.remainOpenAtMonthStart : r.amount;
-                lineItem(pocketLineTitle(r), amt, pocketLineSub(r, "prior"), idx, amberInk);
+              settledRows.forEach(function (r, idx) {
+                var sub = [pocketLineDetail(r), "STATUS: REPAID from boat petty"].filter(Boolean).join(" · ");
+                lineItem(pocketLineTitle(r), r.amount, sub, idx, greenInk);
               });
               gap(12);
             }
 
-            /* Fronted this period — each spend dated */
-            if ((PS.monthSpend || 0) > 0.009 || (PS.monthLines || []).length) {
-              kvRow("Fronted in " + periodLab, pdfMoney(PS.monthSpend || 0), {
-                big: true,
-                boldLab: true,
-              });
-              gap(8);
-              noteLine("Fronted from own money (with date):", navy);
+            /* STILL OPEN — clear UNPAID status */
+            var openPocket = PS.openLines || [];
+            if (openPocket.length) {
+              noteLine("Still open — not yet repaid (with date):", navy);
               gap(6);
-              (PS.monthLines || []).forEach(function (r, idx) {
-                lineItem(pocketLineTitle(r), r.amount, pocketLineSub(r, "fronted"), idx, amberInk);
+              openPocket.forEach(function (r, idx) {
+                var openAmt = r.remainOpen != null ? r.remainOpen : r.amount;
+                var sub = [
+                  pocketLineDetail(r),
+                  "STATUS: OPEN — due to captain from boat petty",
+                ]
+                  .filter(Boolean)
+                  .join(" · ");
+                lineItem(pocketLineTitle(r), openAmt, sub, idx, amberInk);
               });
               gap(12);
             }
 
-            /* Repayments — concrete dates from ledger */
-            if ((PS.monthRepay || 0) > 0.009 || (PS.monthRepayLines || []).length) {
-              kvRow("Repaid from petty in " + periodLab, pdfMoney(PS.monthRepay || 0), {
-                big: true,
-                bg: greenBg,
-                labColor: greenInk,
-                valColor: greenInk,
-                boldLab: true,
-              });
-              gap(8);
-              noteLine("Repayments from petty cash (with date):", navy);
+            /* How boat cash repaid (dates) */
+            if (repaidThisPeriod > 0.009 || (PS.monthRepayLines || []).length) {
+              noteLine("Boat petty repayments (with date):", navy);
               gap(6);
               var repayRows = (PS.monthRepayLines || []).slice().sort(function (a, b) {
                 return String((a && a.date) || "").localeCompare(String((b && b.date) || ""));
@@ -738,51 +787,34 @@
                   lineItem(
                     "Repaid " + when,
                     r.amount,
-                    pocketLineSub(r, "repaid") || "Repaid from boat petty cash",
+                    "From boat petty cash to captain",
                     idx,
                     greenInk
                   );
                 });
               } else {
-                noteLine(
-                  "Total repaid is on the ledger, but individual repayment dates were not found.",
-                  muted
-                );
+                kvRow("Repaid from petty in " + periodLab, pdfMoney(repaidThisPeriod), {
+                  bg: greenBg,
+                  labColor: greenInk,
+                  valColor: greenInk,
+                  boldLab: true,
+                });
               }
-              gap(12);
+              gap(8);
             }
 
-            kvRow("Still open up until this date", pdfMoney(PS.closingOpen || 0), {
-              big: true,
-              bg: (PS.closingOpen || 0) > 0.009 ? amberBg : greenBg,
-              labColor: (PS.closingOpen || 0) > 0.009 ? amberInk : greenInk,
-              valColor: (PS.closingOpen || 0) > 0.009 ? amberInk : greenInk,
-              boldLab: true,
-            });
-            var openPocket = PS.openLines || [];
-            if (openPocket.length) {
-              gap(10);
-              noteLine("Still open (with date):", navy);
-              gap(6);
-              openPocket.forEach(function (r, idx) {
-                lineItem(
-                  pocketLineTitle(r),
-                  r.remainOpen != null ? r.remainOpen : r.amount,
-                  pocketLineSub(r, "open"),
-                  idx,
-                  amberInk
-                );
-              });
-            } else if ((PS.closingOpen || 0) > 0.009) {
-              gap(6);
-              noteLine(
-                "Not fully repaid from petty by the end of " + periodLab + ".",
-                amberInk
-              );
-            } else if ((PS.monthRepay || 0) > 0.009) {
-              gap(6);
-              noteLine("Pocket cleared up until this date.", greenInk);
-            }
+            /* Closing line */
+            kvRow(
+              stillOpenAmt > 0.009 ? "Balance still due to captain" : "Balance due to captain",
+              pdfMoney(stillOpenAmt),
+              {
+                big: true,
+                bg: stillOpenAmt > 0.009 ? amberBg : greenBg,
+                labColor: stillOpenAmt > 0.009 ? amberInk : greenInk,
+                valColor: stillOpenAmt > 0.009 ? amberInk : greenInk,
+                boldLab: true,
+              }
+            );
           }
         }
 
