@@ -1,8 +1,8 @@
 /**
  * LY_PDF.expensesCash — build cash expense PDF from a report DTO.
  *
- * Paint only. No money formulas. DTO comes from LY_CONTROLLERS.cashReport.monthReport
- * (models only for €).
+ * Paint only. No money formulas. DTO from LY_CONTROLLERS.cashReport.monthReport.
+ * Layout: open, scannable — snapshot first, outstanding next, detail later.
  */
 (function (root, factory) {
   "use strict";
@@ -97,8 +97,9 @@
       ]).then(function (res) {
         var font = res[0];
         var fontBold = res[1];
-        var W = 390;
-        var margin = 14;
+        /* Slightly wider + generous margins — less crammed */
+        var W = 420;
+        var margin = 22;
         var contentW = W - margin * 2;
         var navy = rgb(0.06, 0.14, 0.28);
         var gold = rgb(0.79, 0.66, 0.3);
@@ -111,6 +112,8 @@
         var greenBg = rgb(0.91, 0.96, 0.93);
         var amberBg = rgb(1, 0.97, 0.9);
         var amberInk = rgb(0.55, 0.35, 0.05);
+        var redInk = rgb(0.55, 0.12, 0.1);
+        var redBg = rgb(1, 0.94, 0.93);
         var page = null;
         var B = report.outBuckets || {};
         var cashIn = report.cashInTotal || 0;
@@ -119,6 +122,10 @@
         var start = report.pettyStart || 0;
         var crew = report.crew || {};
         var PS = report.pocketStory || null;
+        var boatShort = Math.max(0, Number(report.cashShort) || 0);
+        var pocketOpen = PS && PS.closingOpen != null ? Number(PS.closingOpen) : 0;
+        var commOpen = Math.max(0, Number(report.commissionOpen) || 0);
+        var hasOutstanding = boatShort > 0.009 || pocketOpen > 0.009 || commOpen > 0.009;
 
         function wrapLines(t, size, bold, maxW) {
           var f = bold ? fontBold : font;
@@ -145,7 +152,7 @@
           return lines.length ? lines : [""];
         }
         function measureWrap(t, size, bold, maxW, lineH) {
-          return wrapLines(t, size, bold, maxW).length * (lineH || size + 4);
+          return wrapLines(t, size, bold, maxW).length * (lineH || size + 5);
         }
         function drawText(t, x, yy, size, bold, color, maxW) {
           var f = bold ? fontBold : font;
@@ -172,7 +179,7 @@
           } catch (e) {}
         }
         function drawWrap(t, x, yy, size, bold, color, maxW, lineH) {
-          lineH = lineH || size + 4;
+          lineH = lineH || size + 5;
           var lines = wrapLines(t, size, bold, maxW);
           lines.forEach(function (ln, i) {
             drawText(ln, x, yy - i * lineH, size, bold, color);
@@ -184,36 +191,91 @@
         function push(h, drawFn) {
           items.push({ h: h, draw: drawFn });
         }
+        function gap(px) {
+          push(px || 14, function () {});
+        }
         function sectionHead(title) {
-          push(20, function (y) {
-            drawText(title, margin, y - 4, 10, true, navy);
-            page.drawRectangle({ x: margin, y: y - 8, width: 28, height: 2, color: gold });
+          gap(10);
+          push(26, function (y) {
+            drawText(title, margin, y - 6, 11, true, navy);
+            page.drawRectangle({ x: margin, y: y - 12, width: 36, height: 2.5, color: gold });
           });
+          gap(6);
         }
         function kvRow(lab, val, o) {
           o = o || {};
-          var h = o.big ? 26 : 20;
+          var h = o.big ? 32 : 24;
           push(h, function (y) {
-            if (o.bg) page.drawRectangle({ x: margin, y: y - h + 5, width: contentW, height: h - 1, color: o.bg });
-            drawText(lab, margin + (o.bg ? 7 : 2), y - (o.big ? 5 : 2), o.big ? 11 : 10, !!o.boldLab, o.labColor || muted, contentW - 108);
-            drawRight(val, W - margin - (o.bg ? 7 : 2), y - (o.big ? 5 : 2), o.big ? 12 : 11, true, o.valColor || ink);
+            if (o.bg) {
+              page.drawRectangle({
+                x: margin,
+                y: y - h + 6,
+                width: contentW,
+                height: h - 2,
+                color: o.bg,
+              });
+            }
+            drawText(
+              lab,
+              margin + (o.bg ? 10 : 2),
+              y - (o.big ? 8 : 5),
+              o.big ? 12 : 11,
+              !!o.boldLab,
+              o.labColor || muted,
+              contentW - 120
+            );
+            drawRight(
+              val,
+              W - margin - (o.bg ? 10 : 2),
+              y - (o.big ? 8 : 5),
+              o.big ? 14 : 12,
+              true,
+              o.valColor || ink
+            );
+          });
+        }
+        function noteLine(t, color) {
+          var lines = wrapLines(t, 9, false, contentW - 8);
+          var h = 8 + lines.length * 12;
+          push(h, function (y) {
+            lines.forEach(function (ln, i) {
+              drawText(ln, margin + 4, y - 4 - i * 12, 9, false, color || muted, contentW - 8);
+            });
           });
         }
         function lineItem(title, amount, sub, idx, accent) {
-          var titleW = contentW - 92;
+          var titleW = contentW - 100;
           var titleLines = wrapLines(title, 10, true, titleW);
-          var subH = sub ? measureWrap(sub, 8, false, contentW - 12, 10) : 0;
-          var h = 10 + titleLines.length * 12 + subH + 8;
+          var subH = sub ? measureWrap(sub, 9, false, contentW - 16, 11) : 0;
+          var h = 14 + titleLines.length * 13 + subH + 10;
           push(h, function (y) {
-            if (idx % 2 === 0) page.drawRectangle({ x: margin, y: y - h + 5, width: contentW, height: h - 1, color: zebra });
-            if (accent) page.drawRectangle({ x: margin, y: y - h + 5, width: 3, height: h - 1, color: accent });
-            var x0 = margin + (accent ? 7 : 5);
-            var ty = y - 3;
+            if (idx % 2 === 0) {
+              page.drawRectangle({
+                x: margin,
+                y: y - h + 6,
+                width: contentW,
+                height: h - 2,
+                color: zebra,
+              });
+            }
+            if (accent) {
+              page.drawRectangle({
+                x: margin,
+                y: y - h + 6,
+                width: 3,
+                height: h - 2,
+                color: accent,
+              });
+            }
+            var x0 = margin + (accent ? 10 : 8);
+            var ty = y - 4;
             titleLines.forEach(function (ln, i) {
-              drawText(ln, x0, ty - i * 12, 10, true, ink, titleW);
+              drawText(ln, x0, ty - i * 13, 10, true, ink, titleW);
             });
-            drawRight(pdfMoney(amount), W - margin - 5, ty, 11, true, ink);
-            if (sub) drawWrap(sub, x0, ty - titleLines.length * 12 - 1, 8, false, muted, contentW - 12, 10);
+            drawRight(pdfMoney(amount), W - margin - 8, ty, 12, true, ink);
+            if (sub) {
+              drawWrap(sub, x0, ty - titleLines.length * 13 - 2, 9, false, muted, contentW - 16, 11);
+            }
           });
         }
 
@@ -223,231 +285,280 @@
             day: "2-digit",
             month: "short",
             year: "numeric",
-            hour: "2-digit",
-            minute: "2-digit",
           });
         } catch (eG) {
           gen = "";
         }
 
-        /* Header */
-        push(48, function (y) {
-          page.drawRectangle({ x: 0, y: y - 38, width: W, height: 48, color: navy });
-          page.drawRectangle({ x: 0, y: y - 41, width: W, height: 3, color: gold });
-          drawText("M/Y LIMITLESS", margin, y - 14, 9, true, white);
-          drawText("Cash only", W - margin - 48, y - 14, 8, false, goldSoft);
-          drawText("Expense report", margin, y - 30, 14, true, gold);
+        /* —— Header —— */
+        push(52, function (y) {
+          page.drawRectangle({ x: 0, y: y - 42, width: W, height: 52, color: navy });
+          page.drawRectangle({ x: 0, y: y - 45, width: W, height: 3, color: gold });
+          drawText("M/Y LIMITLESS", margin, y - 16, 10, true, white);
+          drawText("Cash only", W - margin - 56, y - 16, 9, false, goldSoft);
+          drawText("Expense report", margin, y - 34, 16, true, gold);
         });
-        push(28, function (y) {
-          drawText(report.monthLabel || report.month, margin, y - 10, 12, true, navy);
-          drawText(gen, margin, y - 22, 8, false, muted, contentW);
+        gap(8);
+        push(30, function (y) {
+          drawText(report.monthLabel || report.month, margin, y - 8, 14, true, navy);
+          drawText(gen ? "As of end of month  ·  " + gen : "As of end of month", margin, y - 24, 9, false, muted, contentW);
         });
+        gap(12);
 
-        /* Totals — boat pot from model */
-        sectionHead("TOTALS");
-        kvRow("Start", pdfMoney(start));
-        kvRow("Cash in", pdfMoney(cashIn));
-        kvRow("Cash out", pdfMoney(cashOut));
-        if ((report.priorSettled || 0) > 0.009) kvRow("Prior short settled", pdfMoney(report.priorSettled));
-        kvRow("On board", pdfMoney(onBoard), { big: true, bg: greenBg, labColor: greenInk, valColor: greenInk, boldLab: true });
-        if ((report.cashShort || 0) > 0.009) {
-          kvRow("Books short", pdfMoney(report.cashShort), { bg: amberBg, labColor: amberInk, valColor: amberInk, boldLab: true });
-        }
-
-        sectionHead("CASH IN  ·  " + pdfMoney(cashIn));
-        var ins = report.cashIns || [];
-        if (!ins.length) {
-          push(18, function (y) {
-            drawText("None", margin + 4, y - 6, 10, false, muted);
+        /* —— Snapshot (3 big numbers) —— */
+        sectionHead("AT A GLANCE");
+        kvRow("On board", pdfMoney(onBoard), {
+          big: true,
+          bg: onBoard > 0.009 ? greenBg : amberBg,
+          labColor: onBoard > 0.009 ? greenInk : amberInk,
+          valColor: onBoard > 0.009 ? greenInk : amberInk,
+          boldLab: true,
+        });
+        gap(4);
+        kvRow("Cash out this month", pdfMoney(cashOut), { big: true, boldLab: true });
+        gap(4);
+        if (hasOutstanding) {
+          var outSum =
+            Math.round((boatShort + Math.max(0, pocketOpen) + commOpen) * 100) / 100;
+          kvRow("Still outstanding (total)", pdfMoney(outSum), {
+            big: true,
+            bg: redBg,
+            labColor: redInk,
+            valColor: redInk,
+            boldLab: true,
           });
         } else {
-          ins.forEach(function (r, idx) {
+          kvRow("Outstanding", "None", {
+            big: true,
+            bg: greenBg,
+            labColor: greenInk,
+            valColor: greenInk,
+            boldLab: true,
+          });
+        }
+
+        /* —— Outstanding first (action items) —— */
+        if (hasOutstanding) {
+          sectionHead("OUTSTANDING");
+          if (boatShort > 0.009) {
+            kvRow("Boat pot short", pdfMoney(boatShort), {
+              big: true,
+              bg: redBg,
+              labColor: redInk,
+              valColor: redInk,
+              boldLab: true,
+            });
+            noteLine("Unpaid. Not settled by anyone yet — still a hole in the boat pot.", redInk);
+            gap(6);
+          }
+          if (pocketOpen > 0.009) {
+            kvRow("Captain pocket", pdfMoney(pocketOpen), {
+              big: true,
+              bg: amberBg,
+              labColor: amberInk,
+              valColor: amberInk,
+              boldLab: true,
+            });
+            noteLine("Captain still out of pocket at month end (not repaid from pot this month).", amberInk);
+            gap(6);
+          }
+          if (commOpen > 0.009) {
+            kvRow("Captain commission", pdfMoney(commOpen), {
+              bg: amberBg,
+              labColor: amberInk,
+              valColor: amberInk,
+              boldLab: true,
+            });
+            gap(4);
+          }
+        }
+
+        /* —— Pot story —— */
+        sectionHead("BOAT POT");
+        kvRow("Start", pdfMoney(start));
+        gap(2);
+        kvRow("Cash in", pdfMoney(cashIn));
+        gap(2);
+        kvRow("Cash out", pdfMoney(cashOut));
+        if ((report.priorSettled || 0) > 0.009) {
+          gap(2);
+          kvRow("Prior short taken from cash-in", pdfMoney(report.priorSettled));
+        }
+        gap(4);
+        kvRow("On board (end of month)", pdfMoney(onBoard), {
+          big: true,
+          bg: onBoard > 0.009 ? greenBg : amberBg,
+          labColor: onBoard > 0.009 ? greenInk : amberInk,
+          valColor: onBoard > 0.009 ? greenInk : amberInk,
+          boldLab: true,
+        });
+        if (boatShort > 0.009) {
+          gap(4);
+          kvRow("Boat pot short (outstanding)", pdfMoney(boatShort), {
+            big: true,
+            bg: redBg,
+            labColor: redInk,
+            valColor: redInk,
+            boldLab: true,
+          });
+          noteLine("Unpaid — carried as outstanding, not cleared.", redInk);
+        }
+
+        if ((report.cashIns || []).length) {
+          gap(8);
+          noteLine("Cash in", navy);
+          gap(4);
+          (report.cashIns || []).forEach(function (r, idx) {
             lineItem(r.label || "Cash in", r.amount, r.date ? fmtDate(r.date) : "", idx, greenInk);
           });
         }
 
-        sectionHead("CASH OUT  ·  " + pdfMoney(cashOut));
-        [
-          { lab: "Captain commission (from pot)", val: B.commission || 0 },
-          { lab: "Crew day pay (boat pot)", val: B.crewDayPay || 0 },
+        /* Cash out buckets only if something left pot */
+        var bucketRows = [
+          { lab: "Crew day pay", val: B.crewDayPay || 0 },
+          { lab: "Captain commission", val: B.commission || 0 },
           { lab: "Repay captain pocket", val: B.reimburseCaptain || 0 },
           { lab: "Repay crew pocket", val: B.reimburseCrew || 0 },
           { lab: "Tip payouts", val: B.tipPayout || 0 },
           { lab: "Other", val: B.otherPetty || 0 },
-        ]
-          .filter(function (r) {
-            return r.val > 0.009;
-          })
-          .forEach(function (r) {
-            kvRow(r.lab, pdfMoney(r.val));
+        ].filter(function (r) {
+          return r.val > 0.009;
+        });
+        if (bucketRows.length) {
+          sectionHead("WHERE THE CASH WENT");
+          bucketRows.forEach(function (r, i) {
+            if (i) gap(2);
+            kvRow(r.lab, pdfMoney(r.val), { boldLab: true });
           });
+        }
 
-        /*
-         * Crew — model buckets only. Section total = boat pot crew (matches cash-out).
-         * Captain / books shown separately; never sum into a fake cash headline.
-         */
+        /* Crew — pot first, compact; other funds only as short notes */
         var potCrew = crew.fromBoatPot != null ? crew.fromBoatPot : B.crewDayPay || 0;
         var capCrew = crew.fromCaptain || 0;
         var booksCrew = crew.booksOnly || 0;
         var ownerCrew = crew.fromOwner || 0;
         if (potCrew > 0.009 || capCrew > 0.009 || booksCrew > 0.009 || ownerCrew > 0.009) {
-          sectionHead("CREW DAY PAY  ·  BOAT POT  " + pdfMoney(potCrew));
+          sectionHead("CREW");
           if (potCrew > 0.009) {
-            kvRow("From boat pot (cash left envelope)", pdfMoney(potCrew), {
-              boldLab: true,
+            kvRow("Paid from boat pot", pdfMoney(potCrew), {
+              big: true,
               bg: greenBg,
               labColor: greenInk,
               valColor: greenInk,
+              boldLab: true,
             });
-            (crew.potLines || report.crewLinesPot || []).forEach(function (r, idx) {
+            gap(6);
+            (crew.potLines || []).forEach(function (r, idx) {
               var t = r.vendor || "Crew";
-              if (r.description) t = t + " - " + r.description;
-              lineItem(t, r.amount, [r.date ? fmtDate(r.date) : "", "Boat pot"].filter(Boolean).join(" · "), idx, greenInk);
+              lineItem(t, r.amount, r.date ? fmtDate(r.date) : "", idx, greenInk);
             });
           }
           if (capCrew > 0.009) {
-            kvRow("Paid by captain (own money) — not boat cash-out", pdfMoney(capCrew), {
-              boldLab: true,
+            gap(8);
+            kvRow("Paid by captain (own money)", pdfMoney(capCrew), {
               bg: amberBg,
               labColor: amberInk,
               valColor: amberInk,
+              boldLab: true,
             });
+            noteLine("Not boat cash-out — shows under captain pocket.", amberInk);
+            gap(4);
             (crew.captainLines || []).forEach(function (r, idx) {
-              var t = r.vendor || "Crew";
-              if (r.description) t = t + " - " + r.description;
-              lineItem(t, r.amount, [r.date ? fmtDate(r.date) : "", "Captain pocket"].filter(Boolean).join(" · "), idx, amberInk);
+              lineItem(r.vendor || "Crew", r.amount, r.date ? fmtDate(r.date) : "", idx, amberInk);
             });
           }
           if (ownerCrew > 0.009) {
-            kvRow("Paid by owner — not boat cash-out", pdfMoney(ownerCrew), { boldLab: true });
+            gap(6);
+            kvRow("Paid by owner", pdfMoney(ownerCrew), { boldLab: true });
           }
           if (booksCrew > 0.009) {
-            kvRow("On books only — not boat cash-out", pdfMoney(booksCrew), { boldLab: true });
-            (crew.booksLines || []).forEach(function (r, idx) {
-              var t = r.vendor || "Crew";
-              if (r.description) t = t + " - " + r.description;
-              lineItem(t, r.amount, [r.date ? fmtDate(r.date) : "", "Books only"].filter(Boolean).join(" · "), idx, muted);
-            });
+            gap(6);
+            kvRow("On books only (not pot)", pdfMoney(booksCrew), { boldLab: true });
+            noteLine("Marked paid on books — cash did not leave this pot.", muted);
           }
         }
 
-        sectionHead("CASH OUT DETAIL");
-        var potLines = report.cashOutLines || [];
-        if (!potLines.length) {
-          push(18, function (y) {
-            drawText("None", margin + 4, y - 6, 10, false, muted);
-          });
-        } else {
-          potLines.forEach(function (r, idx) {
-            var vend = r.label || r.vendor || "-";
-            if (r.detail) vend = vend + " - " + r.detail;
-            var bits = [];
-            if (r.date) bits.push(fmtDate(r.date));
-            if (r.purposeLabel) bits.push(r.purposeLabel);
-            lineItem(vend, r.amount, bits.join(" · "), idx, r.kind === "commission" ? gold : null);
-          });
-        }
-
-        /* Captain pocket last — model bridge as-of month end */
-        sectionHead("CAPTAIN POCKET  ·  END OF MONTH");
-        if (PS) {
+        /* Captain pocket */
+        sectionHead("CAPTAIN POCKET");
+        if (PS && ((PS.monthSpend || 0) > 0.009 || (PS.closingOpen || 0) > 0.009 || (PS.broughtForward || 0) > 0.009)) {
           if ((PS.broughtForward || 0) > 0.009) {
-            kvRow("Open from prior months (carried in)", pdfMoney(PS.broughtForward), {
+            kvRow("Open from prior months", pdfMoney(PS.broughtForward), {
               bg: amberBg,
               labColor: amberInk,
               valColor: amberInk,
               boldLab: true,
             });
+            gap(4);
           }
-          kvRow("Fronted this month (captain cash)", pdfMoney(PS.monthSpend || 0), { boldLab: true });
-          if ((PS.stewMonth || 0) > 0.009) kvRow("  of which stew day rates", pdfMoney(PS.stewMonth));
-          if ((PS.shopMonth || 0) > 0.009) kvRow("  of which shops / other", pdfMoney(PS.shopMonth));
-          kvRow("Repaid from boat pot this month", pdfMoney(PS.monthRepay || 0));
-          if ((PS.monthRepay || 0) < 0.01 && (PS.closingOpen || 0) > 0.009) {
-            push(16, function (y) {
-              drawText(
-                "No pot repay in this month — captain still out of pocket at month end.",
-                margin + 2,
-                y - 4,
-                8,
-                false,
-                amberInk,
-                contentW
-              );
-            });
+          kvRow("Fronted this month", pdfMoney(PS.monthSpend || 0), { boldLab: true });
+          if ((PS.stewMonth || 0) > 0.009) {
+            gap(2);
+            kvRow("  Stew day rates", pdfMoney(PS.stewMonth));
           }
-          kvRow(
-            "Still open (end of " + (report.monthLabel || "month") + ")",
-            pdfMoney(PS.closingOpen || 0),
-            (PS.closingOpen || 0) > 0.009
-              ? { big: true, bg: amberBg, labColor: amberInk, valColor: amberInk, boldLab: true }
-              : { big: true, bg: greenBg, labColor: greenInk, valColor: greenInk, boldLab: true }
-          );
-          if ((PS.monthLines || []).length) {
-            push(16, function (y) {
-              drawText("Fronted this month", margin + 2, y - 2, 9, true, muted);
-            });
-            (PS.monthLines || []).forEach(function (p, idx) {
-              var what = p.vendor || "Spend";
-              if (p.description && p.description !== p.vendor) what = p.vendor + " - " + p.description;
-              var tag = p.isLongDay ? "Stew long day" : p.isStew ? "Stew day rate" : "Shop";
-              lineItem(what, p.amount, [p.date ? fmtDate(p.date) : "", tag].filter(Boolean).join(" · "), idx, amberInk);
-            });
+          if ((PS.shopMonth || 0) > 0.009) {
+            gap(2);
+            kvRow("  Shops / other", pdfMoney(PS.shopMonth));
           }
-        } else {
-          push(18, function (y) {
-            drawText("No pocket activity", margin + 4, y - 6, 10, false, muted);
-          });
-        }
-
-        sectionHead("CAPTAIN COMMISSION  ·  END OF MONTH");
-        if ((report.bizMonthGross || 0) > 0.009 || (report.bizMonthComm || 0) > 0.009) {
-          kvRow("Business generated (gross) · this month", pdfMoney(report.bizMonthGross || 0), { boldLab: true });
-          kvRow("Commission on that business · this month", pdfMoney(report.bizMonthComm || 0));
-        }
-        if ((report.bizThroughGross || 0) > 0.009) {
-          kvRow("Business generated (gross) · through end of month", pdfMoney(report.bizThroughGross || 0));
-          kvRow("Commission earned · through end of month", pdfMoney(report.commissionEarned || 0));
-        }
-        kvRow("Paid from boat this month", pdfMoney(report.commissionPaidThisMonth || 0), { boldLab: true });
-        kvRow("Paid from boat · through end of month", pdfMoney(report.commissionPaidAll || 0));
-        if ((report.commissionOpen || 0) > 0.009) {
-          kvRow("Commission outstanding · end of month", pdfMoney(report.commissionOpen), {
-            bg: amberBg,
-            labColor: amberInk,
-            valColor: amberInk,
+          gap(4);
+          kvRow("Repaid from pot this month", pdfMoney(PS.monthRepay || 0));
+          gap(6);
+          kvRow("Still open end of month", pdfMoney(PS.closingOpen || 0), {
+            big: true,
+            bg: (PS.closingOpen || 0) > 0.009 ? amberBg : greenBg,
+            labColor: (PS.closingOpen || 0) > 0.009 ? amberInk : greenInk,
+            valColor: (PS.closingOpen || 0) > 0.009 ? amberInk : greenInk,
             boldLab: true,
           });
+          if ((PS.monthRepay || 0) < 0.01 && (PS.closingOpen || 0) > 0.009) {
+            gap(4);
+            noteLine("Not repaid this month — still outstanding.", amberInk);
+          }
+        } else {
+          noteLine("No captain pocket activity this month.", muted);
         }
 
-        var pocketOpenEnd = PS && PS.closingOpen != null ? PS.closingOpen : 0;
-        if (pocketOpenEnd > 0.009 || (report.commissionOpen || 0) > 0.009 || (report.cashShort || 0) > 0.009) {
-          sectionHead("OUTSTANDING · END OF MONTH");
-          if (pocketOpenEnd > 0.009) {
-            kvRow("Captain pocket (still out of pocket)", pdfMoney(pocketOpenEnd), {
+        /* Commission — short */
+        if (
+          (report.bizMonthComm || 0) > 0.009 ||
+          (report.commissionPaidThisMonth || 0) > 0.009 ||
+          commOpen > 0.009 ||
+          (report.commissionEarned || 0) > 0.009
+        ) {
+          sectionHead("CAPTAIN COMMISSION");
+          if ((report.bizMonthGross || 0) > 0.009) {
+            kvRow("Business generated (this month)", pdfMoney(report.bizMonthGross || 0));
+            gap(2);
+            kvRow("Commission on that", pdfMoney(report.bizMonthComm || 0), { boldLab: true });
+            gap(4);
+          }
+          kvRow("Paid from pot this month", pdfMoney(report.commissionPaidThisMonth || 0));
+          if (commOpen > 0.009) {
+            gap(4);
+            kvRow("Still outstanding", pdfMoney(commOpen), {
               bg: amberBg,
               labColor: amberInk,
               valColor: amberInk,
               boldLab: true,
             });
           }
-          if ((report.commissionOpen || 0) > 0.009) kvRow("Captain commission", pdfMoney(report.commissionOpen));
-          if ((report.cashShort || 0) > 0.009) kvRow("Books short", pdfMoney(report.cashShort));
         }
 
-        push(22, function (y) {
-          drawText("Cash only · card excluded · as-of end of month · Limitless", margin, y - 8, 8, false, muted);
+        gap(16);
+        push(20, function (y) {
+          drawText("Cash only  ·  as of end of month  ·  Limitless", margin, y - 6, 8, false, muted);
         });
+        gap(12);
 
-        var totalH = 14;
+        var totalH = 20;
         items.forEach(function (it) {
           totalH += it.h;
         });
-        totalH += 14;
-        var H = Math.min(Math.max(Math.ceil(totalH), 480), 14000);
+        totalH += 20;
+        var H = Math.min(Math.max(Math.ceil(totalH), 520), 16000);
         page = doc.addPage([W, H]);
-        var y = H - 10;
+        var y = H - 16;
         items.forEach(function (it) {
+          if (y - it.h < 8) return;
           it.draw(y);
           y -= it.h;
         });
