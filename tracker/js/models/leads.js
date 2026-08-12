@@ -1230,9 +1230,27 @@ function summarizeLeadsMoneyDashboard(opts) {
     else addUpsell(done, gross, exB, cm);
   });
 
+  /* Full confirmed book = to-date (sailed) + projected (future confirmed) */
+  var booked = {
+    tot: round2((done.tot || 0) + (proj.tot || 0)),
+    charters: round2((done.charters || 0) + (proj.charters || 0)),
+    upsell: round2((done.upsell || 0) + (proj.upsell || 0)),
+    ex: round2((done.ex || 0) + (proj.ex || 0)),
+    comm: round2((done.comm || 0) + (proj.comm || 0)),
+    upsellComm: round2((done.upsellComm || 0) + (proj.upsellComm || 0)),
+    n: (done.n || 0) + (proj.n || 0),
+    nUpsell: (done.nUpsell || 0) + (proj.nUpsell || 0),
+    /* White net only (before VAT − commissions); free cash is never in this total */
+    whiteNet: round2(
+      Math.max(0, (done.ex || 0) - (done.comm || 0)) +
+        Math.max(0, (proj.ex || 0) - (proj.comm || 0))
+    ),
+  };
+
   return {
     done: done,
     proj: proj,
+    booked: booked,
     ownVal: ownVal,
     ownN: ownN,
     nPendSrc: nPendSrc,
