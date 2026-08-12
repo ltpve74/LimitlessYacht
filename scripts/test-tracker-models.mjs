@@ -254,7 +254,7 @@ ok("clickboat no captain-only flag", !M.leadEarnsCaptainCommission({ leadSource:
 ok("owner no captain-only flag", !M.leadEarnsCaptainCommission({ leadSource: "owner" }));
 ok("ownersourced no captain-only flag", !M.leadEarnsCaptainCommission({ leadSource: "ownersourced" }));
 ok("captain earns captain flag", M.leadEarnsCaptainCommission({ leadSource: "captain" }));
-ok("clickboat rate 21%", M.leadCommissionRatePct({ leadSource: "clickboat" }) === 21);
+ok("clickboat rate 24%", M.leadCommissionRatePct({ leadSource: "clickboat" }) === 24);
 ok("captain rate 15%", M.leadCommissionRatePct({ leadSource: "captain" }) === 15);
 ok("owner rate 0%", M.leadCommissionRatePct({ leadSource: "owner" }) === 0);
 ok("ownersourced rate 0% for now", M.leadCommissionRatePct({ leadSource: "ownersourced" }) === 0);
@@ -276,7 +276,7 @@ ok("label owner-sourced", M.leadSourceLabel("ownersourced") === "Owner-sourced")
   });
   const base = 4000 / 1.21;
   ok("clickboat base before VAT", Math.abs(cb.base - base) < 0.05, "got " + cb.base);
-  ok("clickboat 21% of base", Math.abs(cb.total - base * 0.21) < 0.05, "got " + cb.total);
+  ok("clickboat 24% of base", Math.abs(cb.total - base * 0.24) < 0.05, "got " + cb.total);
   const own = M.leadCommissionParts({
     leadSource: "owner",
     total: 4000,
