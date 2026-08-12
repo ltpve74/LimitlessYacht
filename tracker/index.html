@@ -148,6 +148,19 @@
   #tab-leads .ld-glimpse-proj-note{
     font-size:11px;color:rgba(13,71,161,.72);font-weight:600;margin-top:6px;line-height:1.35;
   }
+  #tab-leads .ld-glimpse-booked{
+    margin-top:10px;padding:10px 11px;border-radius:12px;
+    background:rgba(0,0,0,.03);border:1px solid var(--line);
+  }
+  #tab-leads .ld-glimpse-booked-hd{
+    display:flex;align-items:center;justify-content:space-between;gap:8px;flex-wrap:wrap;
+    font-size:10.5px;font-weight:800;text-transform:uppercase;letter-spacing:.05em;
+    color:var(--muted);margin:0 0 6px;
+  }
+  #tab-leads .ld-glimpse-booked .ld-glimpse-metric .big{font-size:19px}
+  #tab-leads .ld-glimpse-booked-note{
+    font-size:11px;color:var(--muted);font-weight:600;margin-top:6px;line-height:1.35;
+  }
   #tab-leads .ld-src-scope-lab{
     font-size:10px;font-weight:800;text-transform:uppercase;letter-spacing:.04em;
     color:var(--muted);margin:0 0 2px;
@@ -988,6 +1001,24 @@
             </div>
             <div class="ld-glimpse-sub" id="ldProjSub" style="color:rgba(13,71,161,.75)">0 confirmed future trips</div>
             <div class="ld-glimpse-proj-note" id="ldProjNote">Confirmed future charters only · not in Net so far · free cash not counted until received</div>
+          </div>
+          <div class="ld-glimpse-booked" id="ldBookedBlock">
+            <div class="ld-glimpse-booked-hd">
+              <span>Total booked · to date + future</span>
+              <span class="ld-glimpse-proj-pill" style="background:rgba(0,0,0,.06);color:var(--muted);border-color:var(--line)">Sum</span>
+            </div>
+            <div class="ld-glimpse-row">
+              <div class="ld-glimpse-metric">
+                <div class="k">Gross total</div>
+                <div class="big money" id="ldBookedTot">€0</div>
+              </div>
+              <div class="ld-glimpse-metric">
+                <div class="k">White net total</div>
+                <div class="big money" id="ldBookedNet">€0</div>
+              </div>
+            </div>
+            <div class="ld-glimpse-sub" id="ldBookedSub">0 confirmed trips (sailed + future)</div>
+            <div class="ld-glimpse-booked-note" id="ldBookedNote">Sum of business to date + projected future · white net = before VAT − commissions · free cash only in Net so far when received</div>
           </div>
           <button type="button" class="btn ghost ld-money-toggle" id="ldMoneyToggle" aria-expanded="false" aria-controls="ldMoneyDetails">Money details ▾</button>
         </div>
@@ -5019,10 +5050,11 @@ function renderLeads(){
   var dash={
     done:{tot:0, charters:0, upsell:0, ex:0, comm:0, upsellComm:0, n:0, nUpsell:0},
     proj:{tot:0, charters:0, upsell:0, ex:0, comm:0, upsellComm:0, n:0, nUpsell:0},
+    booked:{tot:0, charters:0, upsell:0, ex:0, comm:0, upsellComm:0, n:0, nUpsell:0, whiteNet:0},
     ownVal:0, ownN:0, nPendSrc:0, nOpenDeal:0,
-    captain:{tot:0, exVat:0, n:0, comm:0, types:{}},
-    clickboat:{tot:0, exVat:0, n:0, comm:0, types:{}},
-    ownersourced:{tot:0, exVat:0, n:0, comm:0, types:{}},
+    captain:{tot:0, exVat:0, n:0, comm:0, types:{}, proj:{tot:0, exVat:0, n:0, comm:0, types:{}}},
+    clickboat:{tot:0, exVat:0, n:0, comm:0, types:{}, proj:{tot:0, exVat:0, n:0, comm:0, types:{}}},
+    ownersourced:{tot:0, exVat:0, n:0, comm:0, types:{}, proj:{tot:0, exVat:0, n:0, comm:0, types:{}}},
     osWhite:0, osPocket:0, osBoat:0, osCashPend:0,
     capUpsell:{n:0, gross:0, base:0, comm:0}
   };
@@ -5487,6 +5519,25 @@ function renderLeads(){
   }
   if(el("ldProjBlock")){
     el("ldProjBlock").style.opacity=projN||(proj.tot>0.009)?"":"0.85";
+  }
+  /* Total booked = to date + future projection (model booked DTO) */
+  var booked=dash.booked||{};
+  var bookedTot=booked.tot!=null?booked.tot:Math.round(((done.tot||0)+(proj.tot||0))*100)/100;
+  var bookedWhite=booked.whiteNet!=null?booked.whiteNet:
+    Math.round((Math.max(0,(done.ex||0)-(done.comm||0))+Math.max(0,(proj.ex||0)-(proj.comm||0)))*100)/100;
+  var bookedN=booked.n!=null?booked.n:((done.n||0)+projN);
+  if(el("ldBookedTot")) el("ldBookedTot").textContent=money(bookedTot);
+  if(el("ldBookedNet")) el("ldBookedNet").textContent=money(bookedWhite);
+  if(el("ldBookedSub")){
+    el("ldBookedSub").textContent=bookedN
+      ?(bookedN+" confirmed trip"+(bookedN===1?"":"s")+
+        " · "+(done.n||0)+" sailed + "+projN+" future"+
+        ((booked.nUpsell||0)?" · "+booked.nUpsell+" upsells":""))
+      :"No confirmed commercial charters yet";
+  }
+  if(el("ldBookedNote")){
+    el("ldBookedNote").textContent=
+      "Gross total = so far + projected future · White net total = (before VAT − commissions) on the full confirmed book · Net so far still includes boat free cash only when received";
   }
   if(el("ldDoneCharters")) el("ldDoneCharters").textContent=money(done.charters);
   if(el("ldDoneUpsell")) el("ldDoneUpsell").textContent=money(done.upsell);
