@@ -19,13 +19,13 @@
   var moneyFromBase = util.moneyFromBase;
 
 var CAPTAIN_COMMISSION_PCT = 15;
-/** Click&Boat (Paul): 21% of charter fee before VAT. */
-var CLICKBOAT_COMMISSION_PCT = 21;
+/** Click&Boat (Paul): 24% of charter fee before VAT (platform rate). */
+var CLICKBOAT_COMMISSION_PCT = 24;
 var BILL_TYPES = { cash: 1, invoice: 1, mix: 1 };
 /**
  * Charter book source (commission assignment):
  *  - captain = website or direct contact (15% commission)
- *  - clickboat = Paul / Click&Boat (21% before VAT)
+ *  - clickboat = Paul / Click&Boat (24% before VAT)
  *  - owner = owner’s days / private guests (no income, no commission; owner benefits)
  *  - ownersourced = owner-sourced commercial charter (income; commission 0 for now, may add later)
  *  - dayoff = vessel closed / day off (blocks calendar; no income, no cost)
@@ -1339,7 +1339,7 @@ function leadCommissionWhiteBeforeVat(r) {
 
 /**
  * Lead commission breakdown (numbers only — UI formats strings).
- * Rate from source: captain 15%, clickboat 21%, ownersourced 0% (for now), owner/other 0%.
+ * Rate from source: captain 15%, clickboat 24%, ownersourced 0% (for now), owner/other 0%.
  * Split: rate × white before VAT + rate × cash black.
  * Normal VAT-include: rate × (total÷1.21).
  * Owner’s days: total commission 0; base still = charter before VAT (owner benefit value).

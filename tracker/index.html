@@ -1123,7 +1123,7 @@
         <div class="sumcard"><div class="l">Owner benefits · notional</div><div class="v money" id="cmOwnTot">€0</div></div>
         <div class="sumcard"><div class="l">Owner pocket · received</div><div class="v money" id="cmOwnPocket">€0</div></div>
       </div>
-      <div class="legend">Same rules as <b>Leads</b>: confirmed commercial deals only. <b>Captain</b> 15% + upsells — take cash via <b>Pay from petty</b> (reduces boat float). <b>Click&amp;Boat</b> 21% treated as paid after platform deduction. Owner-sourced / owner’s days as before.</div>
+      <div class="legend">Same rules as <b>Leads</b>: confirmed commercial deals only. <b>Captain</b> 15% + upsells — take cash via <b>Pay from petty</b> (reduces boat float). <b>Click&amp;Boat</b> 24% treated as paid after platform deduction. Owner-sourced / owner’s days as before.</div>
       <div class="list" id="cmList"></div>
     </section>
 
@@ -1364,7 +1364,7 @@ function canOpsHub(){ return isCaptain()||isManager(); }
 function canCommercial(){ return isCaptain()||isManager(); }
 /** Captain commission % — locked in tracker/js/models.js */
 var CAPTAIN_COMMISSION_PCT=(window.LY_MODELS&&LY_MODELS.CAPTAIN_COMMISSION_PCT)||15;
-var CLICKBOAT_COMMISSION_PCT=(window.LY_MODELS&&LY_MODELS.CLICKBOAT_COMMISSION_PCT)||21;
+var CLICKBOAT_COMMISSION_PCT=(window.LY_MODELS&&LY_MODELS.CLICKBOAT_COMMISSION_PCT)||24;
 if(!window.LY_MODELS){
   console.error("[tracker] LY_MODELS missing — load /tracker/js/models/*.js then index.js");
 }
