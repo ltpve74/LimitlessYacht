@@ -1005,7 +1005,35 @@ function emptyMoneyBucket() {
 }
 
 function emptySourceCard() {
-  return { tot: 0, exVat: 0, n: 0, comm: 0, types: {} };
+  return {
+    tot: 0,
+    exVat: 0,
+    n: 0,
+    comm: 0,
+    types: {},
+    /* Confirmed future (start > today) — projection only, not in tot/n/comm */
+    proj: { tot: 0, exVat: 0, n: 0, comm: 0, types: {} },
+  };
+}
+
+/** Bump a source card’s to-date fields or its proj sub-bucket. */
+function bumpSourceCard(card, val, exVatFull, commFull, typeKey, isProj) {
+  if (!card) return;
+  var t = isProj ? card.proj : card;
+  if (!t) return;
+  if (!t.types) t.types = {};
+  t.tot = round2(t.tot + (Number(val) || 0));
+  t.exVat = round2(t.exVat + (Number(exVatFull) || 0));
+  t.n++;
+  t.comm = round2(t.comm + (Number(commFull) || 0));
+  if (typeKey) {
+    if (!t.types[typeKey]) t.types[typeKey] = { n: 0, val: 0, exVat: 0 };
+    t.types[typeKey].n++;
+    t.types[typeKey].val = round2(t.types[typeKey].val + (Number(val) || 0));
+    t.types[typeKey].exVat = round2(
+      t.types[typeKey].exVat + (Number(exVatFull) || 0)
+    );
+  }
 }
 
 /**
@@ -1130,34 +1158,24 @@ function summarizeLeadsMoneyDashboard(opts) {
     var closed = isClosedCommercial(r);
     if (!closed) return;
     var timing = leadCharterTiming(r, today);
+    var isUpcoming = timing === "upcoming";
     var val = leadListMoney(r);
     var parts = leadProjectedNetParts(r);
     var exVat = parts.ex;
     var comm = parts.comm;
     var exVatFull = leadCommissionBase(r);
     var commFull = leadCommissionAmt(r);
-    if (timing === "upcoming") addCharter(proj, val, exVat, comm);
+    if (isUpcoming) addCharter(proj, val, exVat, comm);
     else addCharter(done, val, exVat, comm);
-    if (timing === "upcoming") return;
     var tk = leadCharterTypeKey(r);
     if (src === "captain") {
-      cap.tot = round2(cap.tot + val);
-      cap.exVat = round2(cap.exVat + exVatFull);
-      cap.n++;
-      cap.comm = round2(cap.comm + commFull);
-      bumpType(cap.types, tk, val, exVatFull);
+      bumpSourceCard(cap, val, exVatFull, commFull, tk, isUpcoming);
     } else if (src === "clickboat") {
-      cb.tot = round2(cb.tot + val);
-      cb.exVat = round2(cb.exVat + exVatFull);
-      cb.n++;
-      cb.comm = round2(cb.comm + commFull);
-      bumpType(cb.types, tk, val, exVatFull);
+      bumpSourceCard(cb, val, exVatFull, commFull, tk, isUpcoming);
     } else if (src === "ownersourced") {
-      os.tot = round2(os.tot + val);
-      os.exVat = round2(os.exVat + exVatFull);
-      os.n++;
-      os.comm = round2(os.comm + commFull);
-      bumpType(os.types, tk, val, exVatFull);
+      bumpSourceCard(os, val, exVatFull, commFull, tk, isUpcoming);
+      /* Cash / white split breakdown stays to-date only (realised-ish) */
+      if (isUpcoming) return;
       osWhite = round2(osWhite + whiteInvoiceAmt(r));
       if (leadHasCashFee(r)) {
         var cashN = leadFreeCashAmt(r) || num(r.cashAmt);

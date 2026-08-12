@@ -2447,6 +2447,42 @@ console.log("\n[Leads — money dashboard]");
   ok("dashboard done n=1", dash.done.n === 1, "got " + dash.done.n);
   ok("dashboard proj n=1", dash.proj.n === 1, "got " + dash.proj.n);
   ok("dashboard captain realised n=1", dash.captain.n === 1);
+  ok("dashboard captain proj n=1", dash.captain.proj && dash.captain.proj.n === 1, "got " + (dash.captain.proj && dash.captain.proj.n));
+  ok("dashboard captain proj not in to-date tot", Math.abs(dash.captain.tot - 2000) < 0.05 || dash.captain.n === 1);
+  const dashCb = M.summarizeLeadsMoneyDashboard({
+    today: "2026-08-01",
+    leads: [
+      {
+        id: "cb-past",
+        name: "Past CB",
+        start: "2026-07-15",
+        leadSource: "clickboat",
+        dealClosed: true,
+        total: 4000,
+        vatMode: "include",
+        vatPct: 21,
+      },
+      {
+        id: "cb-future",
+        name: "Future CB",
+        start: "2026-09-01",
+        leadSource: "clickboat",
+        dealClosed: true,
+        total: 4000,
+        vatMode: "include",
+        vatPct: 21,
+      },
+    ],
+    charters: [],
+  });
+  ok("clickboat to-date n=1", dashCb.clickboat.n === 1);
+  ok("clickboat proj n=1", dashCb.clickboat.proj && dashCb.clickboat.proj.n === 1);
+  ok(
+    "clickboat proj comm uses 24%",
+    dashCb.clickboat.proj &&
+      Math.abs(dashCb.clickboat.proj.comm - (4000 / 1.21) * 0.24) < 0.05,
+    "got " + (dashCb.clickboat.proj && dashCb.clickboat.proj.comm)
+  );
   ok("type key 8h default", M.leadCharterTypeKey({ dur: "day" }) === "8h");
 }
 

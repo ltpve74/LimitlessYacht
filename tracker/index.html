@@ -126,6 +126,41 @@
   #tab-leads .ld-glimpse .ld-glimpse-sub{
     font-size:11.5px;color:var(--muted);font-weight:600;margin-top:6px;line-height:1.35;
   }
+  #tab-leads .ld-glimpse-hd{
+    font-size:10.5px;font-weight:800;text-transform:uppercase;letter-spacing:.05em;
+    color:var(--muted);margin:0 0 6px;
+  }
+  #tab-leads .ld-glimpse-proj{
+    margin-top:10px;padding-top:10px;border-top:1px dashed rgba(25,90,160,.35);
+  }
+  #tab-leads .ld-glimpse-proj-hd{
+    display:flex;align-items:center;justify-content:space-between;gap:8px;flex-wrap:wrap;
+    font-size:10.5px;font-weight:800;text-transform:uppercase;letter-spacing:.05em;
+    color:rgba(13,71,161,.95);margin:0 0 6px;
+  }
+  #tab-leads .ld-glimpse-proj-pill{
+    display:inline-block;font-size:10px;font-weight:800;letter-spacing:.04em;text-transform:uppercase;
+    padding:2px 8px;border-radius:999px;background:rgba(25,90,160,.1);color:#0d47a1;
+    border:1px solid rgba(25,90,160,.28);
+  }
+  #tab-leads .ld-glimpse-proj .ld-glimpse-metric .k{color:rgba(13,71,161,.8)}
+  #tab-leads .ld-glimpse-proj .ld-glimpse-metric .big{color:#0d47a1;font-size:19px}
+  #tab-leads .ld-glimpse-proj-note{
+    font-size:11px;color:rgba(13,71,161,.72);font-weight:600;margin-top:6px;line-height:1.35;
+  }
+  #tab-leads .ld-src-scope-lab{
+    font-size:10px;font-weight:800;text-transform:uppercase;letter-spacing:.04em;
+    color:var(--muted);margin:0 0 2px;
+  }
+  #tab-leads .ld-src-proj{
+    margin-top:10px;padding:9px 11px;border-radius:11px;
+    background:rgba(25,90,160,.06);border:1px dashed rgba(25,90,160,.32);
+  }
+  #tab-leads .ld-src-proj-hd{
+    font-size:10px;font-weight:800;text-transform:uppercase;letter-spacing:.04em;
+    color:rgba(13,71,161,.95);margin:0 0 6px;display:flex;align-items:center;gap:6px;flex-wrap:wrap;
+  }
+  #tab-leads .ld-src-proj .ld-src-meta-row .k{color:rgba(13,71,161,.75)}
   #tab-leads .ld-money-toggle{
     width:100%;margin-top:8px;padding:9px 12px;font-size:12.5px;font-weight:800;
     border-radius:11px;
@@ -921,8 +956,9 @@
     <!-- LEADS (default landing) -->
     <section id="tab-leads">
       <div class="ld-summary" id="ldSummary">
-        <!-- Always-on glimpse: realised gross + net only (no projected) -->
+        <!-- Always-on: business to date + projection for confirmed future -->
         <div class="ld-glimpse" id="ldSnap">
+          <div class="ld-glimpse-hd">Business to date</div>
           <div class="ld-glimpse-row">
             <div class="ld-glimpse-metric">
               <div class="k">Gross so far</div>
@@ -935,6 +971,24 @@
           </div>
           <div class="ld-glimpse-sub" id="ldDoneSub">0 sailed trips · confirmed past / today only</div>
           <div class="ld-glimpse-net-formula" id="ldNetFormula" style="margin-top:8px;font-size:11.5px;color:var(--muted);line-height:1.45;font-weight:600"></div>
+          <div class="ld-glimpse-proj" id="ldProjBlock">
+            <div class="ld-glimpse-proj-hd">
+              <span>Projected business</span>
+              <span class="ld-glimpse-proj-pill">Projection</span>
+            </div>
+            <div class="ld-glimpse-row">
+              <div class="ld-glimpse-metric">
+                <div class="k">Gross projected</div>
+                <div class="big money" id="ldProjTot">€0</div>
+              </div>
+              <div class="ld-glimpse-metric">
+                <div class="k">White net projected</div>
+                <div class="big money" id="ldProjNet">€0</div>
+              </div>
+            </div>
+            <div class="ld-glimpse-sub" id="ldProjSub" style="color:rgba(13,71,161,.75)">0 confirmed future trips</div>
+            <div class="ld-glimpse-proj-note" id="ldProjNote">Confirmed future charters only · not in Net so far · free cash not counted until received</div>
+          </div>
           <button type="button" class="btn ghost ld-money-toggle" id="ldMoneyToggle" aria-expanded="false" aria-controls="ldMoneyDetails">Money details ▾</button>
         </div>
         <!-- Long finance: sources, cash, breakdown — second stage -->
@@ -988,6 +1042,7 @@
             </div>
             <div class="sumcard ld-src">
               <div class="l">Luigi · Captain</div>
+              <div class="ld-src-scope-lab">Business to date</div>
               <div class="v money" id="ldCap">€0</div>
               <div class="ld-src-comm">
                 <div class="ld-src-comm-top">
@@ -998,22 +1053,32 @@
               </div>
               <div class="ld-src-meta" id="ldCapSub"></div>
               <div id="ldCapTypes" class="ld-type-table"></div>
+              <div class="ld-src-proj" id="ldCapProj" hidden>
+                <div class="ld-src-proj-hd"><span>Projection · confirmed future</span><span class="ld-glimpse-proj-pill">Projection</span></div>
+                <div class="ld-src-meta" id="ldCapProjMeta"></div>
+              </div>
             </div>
             <div class="sumcard ld-src">
               <div class="l">Paul · Click&amp;Boat</div>
+              <div class="ld-src-scope-lab">Business to date</div>
               <div class="v money" id="ldCb">€0</div>
               <div class="ld-src-comm">
                 <div class="ld-src-comm-top">
-                  <span class="ld-src-comm-lab">Total commission</span>
+                  <span class="ld-src-comm-lab">Commission to date</span>
                   <span class="ld-comm-pill paid" id="ldCbCommStatus">Paid</span>
                 </div>
                 <div class="ld-src-comm-amt money" id="ldCbComm">€0</div>
               </div>
               <div class="ld-src-meta" id="ldCbSub"></div>
               <div id="ldCbTypes" class="ld-type-table"></div>
+              <div class="ld-src-proj" id="ldCbProj" hidden>
+                <div class="ld-src-proj-hd"><span>Projection · confirmed future</span><span class="ld-glimpse-proj-pill">Projection</span></div>
+                <div class="ld-src-meta" id="ldCbProjMeta"></div>
+              </div>
             </div>
             <div class="sumcard ld-src">
               <div class="l">Owner-sourced · income</div>
+              <div class="ld-src-scope-lab">Business to date</div>
               <div class="v money" id="ldOs">€0</div>
               <div class="ld-src-comm">
                 <div class="ld-src-comm-top">
@@ -1029,6 +1094,10 @@
                 <div class="ld-type-row"><span class="t">Boat cash</span><span class="n" id="ldOsBoatN"></span><span class="m money" id="ldOsBoat">€0</span></div>
               </div>
               <div id="ldOsTypes" class="ld-type-table"></div>
+              <div class="ld-src-proj" id="ldOsProj" hidden>
+                <div class="ld-src-proj-hd"><span>Projection · confirmed future</span><span class="ld-glimpse-proj-pill">Projection</span></div>
+                <div class="ld-src-meta" id="ldOsProjMeta"></div>
+              </div>
             </div>
           </div>
         </div>
@@ -5379,13 +5448,13 @@ function renderLeads(){
   var cashBoat=glimpse.cashBoat||0;
   var cashOwner=glimpse.cashOwner||0;
   var doneNet=glimpse.doneNet!=null?glimpse.doneNet:Math.round((whiteNet+cashBoat)*100)/100;
-  /* Glimpse: realised gross + net (white net + boat free cash only) */
+  /* Glimpse: business to date (realised) + projection (confirmed future) */
   if(el("ldDoneTot")) el("ldDoneTot").textContent=money(done.tot);
   if(el("ldDoneNet")) el("ldDoneNet").textContent=money(doneNet);
   if(el("ldDoneSub")){
     el("ldDoneSub").textContent=done.n+" sailed trip"+(done.n===1?"":"s")+
       (done.nUpsell?" · "+done.nUpsell+" upsell"+(done.nUpsell===1?"":"s"):"")+
-      " · so far only (not scheduled)";
+      " · past / today only";
   }
   if(el("ldNetFormula")){
     var bits=
@@ -5398,6 +5467,26 @@ function renderLeads(){
       bits+=' → <b class="money">'+money(doneNet)+'</b>';
     }
     el("ldNetFormula").innerHTML=bits;
+  }
+  /* Projection: confirmed future only — white net, no free cash until received */
+  var projWhiteNet=Math.round(Math.max(0, (proj.ex||0)-(proj.comm||0))*100)/100;
+  var projN=proj.n||0;
+  if(el("ldProjTot")) el("ldProjTot").textContent=money(proj.tot||0);
+  if(el("ldProjNet")) el("ldProjNet").textContent=money(projWhiteNet);
+  if(el("ldProjSub")){
+    el("ldProjSub").textContent=projN
+      ?(projN+" confirmed future trip"+(projN===1?"":"s")+
+        (proj.nUpsell?" · "+proj.nUpsell+" scheduled upsell"+(proj.nUpsell===1?"":"s"):"")+
+        " · not sailed yet")
+      :"No confirmed future charters in the book";
+  }
+  if(el("ldProjNote")){
+    el("ldProjNote").textContent=projN
+      ?"Projection only · confirmed future charters · not in Net so far · free cash not counted until received"
+      :"When you confirm future charters, their gross and white net (before VAT − commissions) appear here as a projection.";
+  }
+  if(el("ldProjBlock")){
+    el("ldProjBlock").style.opacity=projN||(proj.tot>0.009)?"":"0.85";
   }
   if(el("ldDoneCharters")) el("ldDoneCharters").textContent=money(done.charters);
   if(el("ldDoneUpsell")) el("ldDoneUpsell").textContent=money(done.upsell);
@@ -5541,6 +5630,24 @@ function renderLeads(){
   function ldSrcMetaMoney(label, amt){
     return ldSrcMetaRow(label, '<span class="money">'+money(amt)+'</span>');
   }
+  function ldSrcPaintProj(blockId, metaId, srcCard){
+    var block=el(blockId), meta=el(metaId);
+    if(!block||!meta) return;
+    var p=(srcCard&&srcCard.proj)||{ tot:0, exVat:0, n:0, comm:0 };
+    var n=p.n||0;
+    if(!(n>0)&&!(p.tot>0.009)){
+      block.hidden=true;
+      meta.innerHTML="";
+      return;
+    }
+    block.hidden=false;
+    meta.innerHTML=
+      ldSrcMetaMoney("Gross projected", p.tot||0)+
+      ldSrcMetaMoney("Before VAT projected", p.exVat||0)+
+      ldSrcMetaMoney("Commission projected", p.comm||0)+
+      ldSrcMetaMoney("White net projected", Math.max(0, (p.exVat||0)-(p.comm||0)))+
+      ldSrcMetaRow("Trips (future confirmed)", String(n)+" · not in totals above");
+  }
   if(el("ldCap")) el("ldCap").textContent=money(capIncomeAll);
   /* Big commission figure = still outstanding (left to pay yourself), not full earned */
   if(el("ldCapComm")) el("ldCapComm").textContent=money(capCommBal.outstanding);
@@ -5594,6 +5701,8 @@ function renderLeads(){
       ldSrcMetaMoney("Net after commission", Math.max(0, cbExVat-cbComm));
   }
   if(el("ldCbTypes")) el("ldCbTypes").innerHTML=formatTypeMixHTML(cbTypes);
+  ldSrcPaintProj("ldCapProj", "ldCapProjMeta", dash.captain);
+  ldSrcPaintProj("ldCbProj", "ldCbProjMeta", dash.clickboat);
   if(el("ldOs")) el("ldOs").textContent=money(osTot);
   if(el("ldOsComm")) el("ldOsComm").textContent=money(osComm);
   if(el("ldOsCommStatus")){
@@ -5635,6 +5744,7 @@ function renderLeads(){
     } else if(note){ note.style.display="none"; }
   }
   if(el("ldOsTypes")) el("ldOsTypes").innerHTML=formatTypeMixHTML(osTypes);
+  ldSrcPaintProj("ldOsProj", "ldOsProjMeta", dash.ownersourced);
   Array.prototype.forEach.call(wrap.querySelectorAll("[data-edit-ld-btn]"),function(btn){
     btn.addEventListener("click",function(ev){
       ev.preventDefault(); ev.stopPropagation();
