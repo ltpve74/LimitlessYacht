@@ -161,51 +161,58 @@
   #tab-leads .ld-glimpse-booked-note{
     font-size:11px;color:var(--muted);font-weight:600;margin-top:6px;line-height:1.35;
   }
-  /* Source cards — compact matrix (to date | projected | booked) */
+  /* Source cards — stacked bands (no multi-col table: avoids money collision) */
   #tab-leads .ld-summary .sumcard.ld-src{
-    padding:11px 12px;display:flex;flex-direction:column;gap:8px;min-width:0;
+    padding:12px 14px;display:flex;flex-direction:column;gap:0;min-width:0;overflow:hidden;
   }
   #tab-leads .ld-src-head{
-    display:flex;align-items:center;justify-content:space-between;gap:8px;min-width:0;
+    display:flex;align-items:center;justify-content:space-between;gap:10px;min-width:0;margin-bottom:8px;
   }
   #tab-leads .ld-src-head .l{
-    font-size:12px;font-weight:800;line-height:1.2;margin:0;min-width:0;
+    font-size:13px;font-weight:800;line-height:1.25;margin:0;min-width:0;
+    overflow:hidden;text-overflow:ellipsis;white-space:nowrap;
   }
   #tab-leads .ld-src-highlight{
-    display:flex;align-items:baseline;justify-content:space-between;gap:8px;
-    padding:7px 9px;border-radius:10px;background:rgba(0,0,0,.035);border:1px solid var(--line);
+    display:flex;align-items:center;justify-content:space-between;gap:12px;
+    padding:8px 10px;border-radius:10px;background:rgba(0,0,0,.035);border:1px solid var(--line);
+    margin-bottom:4px;min-width:0;
   }
   #tab-leads .ld-src-highlight .k{
-    font-size:10.5px;font-weight:750;color:var(--muted);text-transform:uppercase;letter-spacing:.03em;
+    font-size:11px;font-weight:750;color:var(--muted);flex:1 1 auto;min-width:0;
+    line-height:1.25;
   }
   #tab-leads .ld-src-highlight .v{
-    font-size:17px;font-weight:800;font-variant-numeric:tabular-nums;line-height:1.1;
+    font-size:18px;font-weight:800;font-variant-numeric:tabular-nums;line-height:1.15;
+    flex:0 0 auto;white-space:nowrap;
   }
-  #tab-leads .ld-src-matrix{
-    width:100%;border-collapse:collapse;table-layout:fixed;font-size:11.5px;
+  #tab-leads .ld-src-bands{display:flex;flex-direction:column;gap:0;min-width:0}
+  #tab-leads .ld-src-band{
+    padding:8px 0;border-top:1px solid var(--line);min-width:0;
   }
-  #tab-leads .ld-src-matrix th,
-  #tab-leads .ld-src-matrix td{
-    padding:4px 3px;text-align:right;vertical-align:baseline;
-    font-variant-numeric:tabular-nums;line-height:1.25;
+  #tab-leads .ld-src-band:first-child{border-top:0;padding-top:6px}
+  #tab-leads .ld-src-band-title{
+    font-size:10px;font-weight:800;text-transform:uppercase;letter-spacing:.04em;
+    color:var(--muted);margin:0 0 5px;line-height:1.2;
   }
-  #tab-leads .ld-src-matrix th:first-child,
-  #tab-leads .ld-src-matrix td:first-child{
-    text-align:left;color:var(--muted);font-weight:650;width:22%;
+  #tab-leads .ld-src-band--proj .ld-src-band-title{color:rgba(13,71,161,.95)}
+  #tab-leads .ld-src-band--proj .ld-src-kv .v{color:#0d47a1}
+  #tab-leads .ld-src-band--booked .ld-src-band-title{color:var(--ink,#1a1a1a)}
+  #tab-leads .ld-src-kv{
+    display:flex;justify-content:space-between;align-items:baseline;gap:12px;
+    font-size:12.5px;line-height:1.5;min-width:0;
   }
-  #tab-leads .ld-src-matrix thead th{
-    font-size:9.5px;font-weight:800;text-transform:uppercase;letter-spacing:.03em;
-    color:var(--muted);border-bottom:1px solid var(--line);padding-bottom:5px;
+  #tab-leads .ld-src-kv .k{
+    color:var(--muted);font-weight:600;flex:0 1 auto;min-width:0;
   }
-  #tab-leads .ld-src-matrix thead th.ld-col-proj{color:rgba(13,71,161,.9)}
-  #tab-leads .ld-src-matrix tbody td{font-weight:750}
-  #tab-leads .ld-src-matrix tbody td.ld-col-proj{color:#0d47a1;font-weight:800}
-  #tab-leads .ld-src-matrix tbody td.ld-col-booked{font-weight:800}
-  #tab-leads .ld-src-matrix tbody tr.ld-src-trips td{
-    font-size:10.5px;font-weight:650;color:var(--muted);padding-top:5px;
+  #tab-leads .ld-src-kv .v{
+    font-weight:800;font-variant-numeric:tabular-nums;text-align:right;
+    flex:0 0 auto;white-space:nowrap;max-width:100%;
   }
+  #tab-leads .ld-src-kv--soft .v{font-weight:700;color:var(--muted);font-size:12px}
   #tab-leads .ld-src-foot{
-    font-size:11px;color:var(--muted);font-weight:600;line-height:1.35;
+    font-size:11px;color:var(--muted);font-weight:600;line-height:1.4;margin-top:8px;
+    padding-top:8px;border-top:1px dashed var(--line);
+    overflow-wrap:anywhere;word-break:break-word;
   }
   #tab-leads .ld-src-foot:empty{display:none}
   #tab-leads .ld-money-toggle{
@@ -219,25 +226,21 @@
   #tab-leads .ld-money-details-inner{
     display:grid;grid-template-columns:1fr;gap:10px;
   }
-  /* Phone: source cards stack full width */
-  @media(max-width:719px){
-    #tab-leads .ld-src-matrix{font-size:11px}
-    #tab-leads .ld-src-highlight .v{font-size:16px}
+  /* Phone / narrow tablet: one card per row (full width → numbers have room) */
+  @media(max-width:899px){
+    #tab-leads .ld-money-details-inner{grid-template-columns:1fr}
+    #tab-leads .ld-src-highlight .v{font-size:17px}
   }
-  /* Tablet+: 3 source columns; finance block full width above */
-  @media(min-width:720px){
+  /* Wide tablet / desktop: 3 source columns only when each card is wide enough */
+  @media(min-width:900px){
     #tab-leads .ld-money-details-inner{grid-template-columns:1fr 1fr 1fr;gap:12px;align-items:start}
     #tab-leads .ld-money-details-inner .ld-detail-block{grid-column:1/-1}
     #tab-leads .ld-money-details-inner .ld-src{grid-column:auto;min-width:0}
-    #tab-leads .ld-summary .sumcard.ld-src{padding:12px 12px}
-    #tab-leads .ld-src-matrix th,
-    #tab-leads .ld-src-matrix td{padding:5px 4px}
   }
-  /* Wide desktop: a bit more air, still compact */
   @media(min-width:1100px){
     #tab-leads .ld-money-details-inner{gap:14px}
-    #tab-leads .ld-src-matrix{font-size:12px}
-    #tab-leads .ld-src-highlight .v{font-size:18px}
+    #tab-leads .ld-src-kv{font-size:13px}
+    #tab-leads .ld-src-highlight .v{font-size:19px}
   }
   #tab-leads .ld-detail-block{
     padding:12px 14px;border-radius:14px;background:var(--card);
@@ -1114,36 +1117,26 @@
                 <span class="k">Still to pay you</span>
                 <span class="v money" id="ldCapComm">€0</span>
               </div>
-              <table class="ld-src-matrix" aria-label="Captain book">
-                <thead>
-                  <tr>
-                    <th scope="col"></th>
-                    <th scope="col">To date</th>
-                    <th scope="col" class="ld-col-proj">Projected</th>
-                    <th scope="col">Booked</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  <tr>
-                    <td>Gross</td>
-                    <td class="money" id="ldCap">€0</td>
-                    <td class="money ld-col-proj" id="ldCapProjTot">€0</td>
-                    <td class="money ld-col-booked" id="ldCapBookedTot">€0</td>
-                  </tr>
-                  <tr>
-                    <td>White net</td>
-                    <td class="money" id="ldCapNetToDate">€0</td>
-                    <td class="money ld-col-proj" id="ldCapProjNet">€0</td>
-                    <td class="money ld-col-booked" id="ldCapBookedNet">€0</td>
-                  </tr>
-                  <tr class="ld-src-trips">
-                    <td>Trips</td>
-                    <td id="ldCapN">0</td>
-                    <td class="ld-col-proj" id="ldCapProjN">0</td>
-                    <td id="ldCapBookedN">0</td>
-                  </tr>
-                </tbody>
-              </table>
+              <div class="ld-src-bands" aria-label="Captain book">
+                <div class="ld-src-band">
+                  <div class="ld-src-band-title">To date</div>
+                  <div class="ld-src-kv"><span class="k">Gross</span><span class="v money" id="ldCap">€0</span></div>
+                  <div class="ld-src-kv"><span class="k">White net</span><span class="v money" id="ldCapNetToDate">€0</span></div>
+                  <div class="ld-src-kv ld-src-kv--soft"><span class="k">Trips</span><span class="v" id="ldCapN">0</span></div>
+                </div>
+                <div class="ld-src-band ld-src-band--proj">
+                  <div class="ld-src-band-title">Projected · future</div>
+                  <div class="ld-src-kv"><span class="k">Gross</span><span class="v money" id="ldCapProjTot">€0</span></div>
+                  <div class="ld-src-kv"><span class="k">White net</span><span class="v money" id="ldCapProjNet">€0</span></div>
+                  <div class="ld-src-kv ld-src-kv--soft"><span class="k">Trips</span><span class="v" id="ldCapProjN">0</span></div>
+                </div>
+                <div class="ld-src-band ld-src-band--booked">
+                  <div class="ld-src-band-title">Booked total · to date + future</div>
+                  <div class="ld-src-kv"><span class="k">Gross</span><span class="v money" id="ldCapBookedTot">€0</span></div>
+                  <div class="ld-src-kv"><span class="k">White net</span><span class="v money" id="ldCapBookedNet">€0</span></div>
+                  <div class="ld-src-kv ld-src-kv--soft"><span class="k">Trips</span><span class="v" id="ldCapBookedN">0</span></div>
+                </div>
+              </div>
               <div class="ld-src-foot" id="ldCapFoot"></div>
             </div>
             <div class="sumcard ld-src">
@@ -1155,36 +1148,26 @@
                 <span class="k">Commission to date</span>
                 <span class="v money" id="ldCbComm">€0</span>
               </div>
-              <table class="ld-src-matrix" aria-label="Click and Boat book">
-                <thead>
-                  <tr>
-                    <th scope="col"></th>
-                    <th scope="col">To date</th>
-                    <th scope="col" class="ld-col-proj">Projected</th>
-                    <th scope="col">Booked</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  <tr>
-                    <td>Gross</td>
-                    <td class="money" id="ldCb">€0</td>
-                    <td class="money ld-col-proj" id="ldCbProjTot">€0</td>
-                    <td class="money ld-col-booked" id="ldCbBookedTot">€0</td>
-                  </tr>
-                  <tr>
-                    <td>White net</td>
-                    <td class="money" id="ldCbNetToDate">€0</td>
-                    <td class="money ld-col-proj" id="ldCbProjNet">€0</td>
-                    <td class="money ld-col-booked" id="ldCbBookedNet">€0</td>
-                  </tr>
-                  <tr class="ld-src-trips">
-                    <td>Trips</td>
-                    <td id="ldCbN">0</td>
-                    <td class="ld-col-proj" id="ldCbProjN">0</td>
-                    <td id="ldCbBookedN">0</td>
-                  </tr>
-                </tbody>
-              </table>
+              <div class="ld-src-bands" aria-label="Click and Boat book">
+                <div class="ld-src-band">
+                  <div class="ld-src-band-title">To date</div>
+                  <div class="ld-src-kv"><span class="k">Gross</span><span class="v money" id="ldCb">€0</span></div>
+                  <div class="ld-src-kv"><span class="k">White net</span><span class="v money" id="ldCbNetToDate">€0</span></div>
+                  <div class="ld-src-kv ld-src-kv--soft"><span class="k">Trips</span><span class="v" id="ldCbN">0</span></div>
+                </div>
+                <div class="ld-src-band ld-src-band--proj">
+                  <div class="ld-src-band-title">Projected · future</div>
+                  <div class="ld-src-kv"><span class="k">Gross</span><span class="v money" id="ldCbProjTot">€0</span></div>
+                  <div class="ld-src-kv"><span class="k">White net</span><span class="v money" id="ldCbProjNet">€0</span></div>
+                  <div class="ld-src-kv ld-src-kv--soft"><span class="k">Trips</span><span class="v" id="ldCbProjN">0</span></div>
+                </div>
+                <div class="ld-src-band ld-src-band--booked">
+                  <div class="ld-src-band-title">Booked total · to date + future</div>
+                  <div class="ld-src-kv"><span class="k">Gross</span><span class="v money" id="ldCbBookedTot">€0</span></div>
+                  <div class="ld-src-kv"><span class="k">White net</span><span class="v money" id="ldCbBookedNet">€0</span></div>
+                  <div class="ld-src-kv ld-src-kv--soft"><span class="k">Trips</span><span class="v" id="ldCbBookedN">0</span></div>
+                </div>
+              </div>
               <div class="ld-src-foot" id="ldCbFoot"></div>
             </div>
             <div class="sumcard ld-src">
@@ -1196,36 +1179,26 @@
                 <span class="k">Commission</span>
                 <span class="v money" id="ldOsComm">€0</span>
               </div>
-              <table class="ld-src-matrix" aria-label="Owner-sourced book">
-                <thead>
-                  <tr>
-                    <th scope="col"></th>
-                    <th scope="col">To date</th>
-                    <th scope="col" class="ld-col-proj">Projected</th>
-                    <th scope="col">Booked</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  <tr>
-                    <td>Gross</td>
-                    <td class="money" id="ldOs">€0</td>
-                    <td class="money ld-col-proj" id="ldOsProjTot">€0</td>
-                    <td class="money ld-col-booked" id="ldOsBookedTot">€0</td>
-                  </tr>
-                  <tr>
-                    <td>White net</td>
-                    <td class="money" id="ldOsNetToDate">€0</td>
-                    <td class="money ld-col-proj" id="ldOsProjNet">€0</td>
-                    <td class="money ld-col-booked" id="ldOsBookedNet">€0</td>
-                  </tr>
-                  <tr class="ld-src-trips">
-                    <td>Trips</td>
-                    <td id="ldOsN">0</td>
-                    <td class="ld-col-proj" id="ldOsProjN">0</td>
-                    <td id="ldOsBookedN">0</td>
-                  </tr>
-                </tbody>
-              </table>
+              <div class="ld-src-bands" aria-label="Owner-sourced book">
+                <div class="ld-src-band">
+                  <div class="ld-src-band-title">To date</div>
+                  <div class="ld-src-kv"><span class="k">Gross</span><span class="v money" id="ldOs">€0</span></div>
+                  <div class="ld-src-kv"><span class="k">White net</span><span class="v money" id="ldOsNetToDate">€0</span></div>
+                  <div class="ld-src-kv ld-src-kv--soft"><span class="k">Trips</span><span class="v" id="ldOsN">0</span></div>
+                </div>
+                <div class="ld-src-band ld-src-band--proj">
+                  <div class="ld-src-band-title">Projected · future</div>
+                  <div class="ld-src-kv"><span class="k">Gross</span><span class="v money" id="ldOsProjTot">€0</span></div>
+                  <div class="ld-src-kv"><span class="k">White net</span><span class="v money" id="ldOsProjNet">€0</span></div>
+                  <div class="ld-src-kv ld-src-kv--soft"><span class="k">Trips</span><span class="v" id="ldOsProjN">0</span></div>
+                </div>
+                <div class="ld-src-band ld-src-band--booked">
+                  <div class="ld-src-band-title">Booked total · to date + future</div>
+                  <div class="ld-src-kv"><span class="k">Gross</span><span class="v money" id="ldOsBookedTot">€0</span></div>
+                  <div class="ld-src-kv"><span class="k">White net</span><span class="v money" id="ldOsBookedNet">€0</span></div>
+                  <div class="ld-src-kv ld-src-kv--soft"><span class="k">Trips</span><span class="v" id="ldOsBookedN">0</span></div>
+                </div>
+              </div>
               <div class="ld-src-foot" id="ldOsFoot"></div>
             </div>
           </div>
