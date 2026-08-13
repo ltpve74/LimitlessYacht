@@ -2498,6 +2498,25 @@ console.log("\n[Leads — money dashboard]");
             Math.max(0, dashCb.proj.ex - dashCb.proj.comm))
       ) < 0.05
   );
+  ok("clickboat source booked n=2", dashCb.clickboat.booked && dashCb.clickboat.booked.n === 2);
+  ok(
+    "clickboat source booked tot",
+    dashCb.clickboat.booked &&
+      Math.abs(
+        dashCb.clickboat.booked.tot -
+          (dashCb.clickboat.tot + dashCb.clickboat.proj.tot)
+      ) < 0.05
+  );
+  ok(
+    "clickboat source booked whiteNet",
+    dashCb.clickboat.booked &&
+      Math.abs(
+        dashCb.clickboat.booked.whiteNet -
+          (Math.max(0, dashCb.clickboat.exVat - dashCb.clickboat.comm) +
+            Math.max(0, dashCb.clickboat.proj.exVat - dashCb.clickboat.proj.comm))
+      ) < 0.05
+  );
+  ok("captain source booked n=2", dash.captain.booked && dash.captain.booked.n === 2);
   ok("type key 8h default", M.leadCharterTypeKey({ dur: "day" }) === "8h");
 }
 
