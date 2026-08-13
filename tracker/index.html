@@ -293,6 +293,63 @@
   .item .amt{font-weight:800;font-size:16px;white-space:nowrap}
   .item .meta{color:var(--muted);font-size:13px;margin-top:5px;display:flex;flex-wrap:wrap;gap:4px 10px;align-items:center}
   .item .notes{color:var(--muted);font-size:12.5px;margin-top:8px;font-style:italic}
+  /* Lead cards: date/time first so mobile scan is instant */
+  #tab-leads .item.ld-lead-card{padding-top:12px;padding-bottom:12px}
+  #tab-leads .ld-lead-when{
+    display:flex;flex-direction:column;align-items:stretch;gap:6px;margin:0 0 8px;min-width:0;
+  }
+  #tab-leads .ld-lead-when-hero{
+    display:flex;flex-wrap:wrap;align-items:center;gap:6px 10px;min-width:0;
+  }
+  #tab-leads .ld-lead-date{
+    font-size:19px;font-weight:900;letter-spacing:-.02em;line-height:1.15;
+    font-variant-numeric:tabular-nums;color:var(--ink,#1a1a1a);
+  }
+  #tab-leads .ld-lead-clock{
+    display:inline-flex;align-items:center;gap:5px;
+    font-size:15px;font-weight:900;letter-spacing:.01em;font-variant-numeric:tabular-nums;
+    color:#0a3d8f;background:#cfe4fb;border:1.5px solid #64b5f6;
+    padding:5px 10px;border-radius:10px;line-height:1.2;white-space:nowrap;flex-shrink:0;
+  }
+  #tab-leads .ld-lead-clock .ld-lead-clock-ic{font-size:14px;line-height:1;opacity:.9}
+  #tab-leads .ld-lead-when-pills{display:flex;flex-wrap:wrap;gap:4px;align-items:center}
+  #tab-leads .ld-lead-main{
+    display:flex;align-items:flex-start;justify-content:space-between;gap:10px;min-width:0;
+  }
+  #tab-leads .ld-lead-main .title{
+    font-size:14.5px;font-weight:700;flex:1;min-width:0;line-height:1.3;word-break:break-word;
+  }
+  #tab-leads .ld-lead-main .amt{
+    font-size:17.5px;font-weight:900;flex-shrink:0;white-space:nowrap;line-height:1.2;text-align:right;
+  }
+  #tab-leads .ld-lead-main .amt .ld-amt-hint{
+    display:block;font-size:10px;font-weight:700;color:var(--muted);margin-top:2px;
+  }
+  #tab-leads .item.ld-lead-card .meta{margin-top:7px;font-size:12px;gap:4px 8px}
+  /* Phone: date + charter clock dominate the card */
+  @media(max-width:640px){
+    #tab-leads .item.ld-lead-card{padding:12px 12px 14px}
+    #tab-leads .ld-lead-when{
+      gap:8px;margin:0 0 10px;padding:10px 12px;
+      background:linear-gradient(180deg,#e8f2fc 0%,#f4f8fd 100%);
+      border:1.5px solid #9ec9f0;border-radius:14px;
+    }
+    #tab-leads .ld-lead-when-hero{gap:8px 12px}
+    #tab-leads .ld-lead-date{
+      font-size:24px;letter-spacing:-.025em;line-height:1.1;flex:1 1 auto;min-width:0;
+    }
+    #tab-leads .ld-lead-clock{
+      font-size:18px;padding:7px 12px;border-radius:12px;border-width:2px;
+      background:#b8daf9;border-color:#42a5f5;color:#063a8a;
+    }
+    #tab-leads .ld-lead-clock .ld-lead-clock-ic{font-size:16px}
+    #tab-leads .ld-lead-when-pills .pill{font-size:11.5px;padding:3px 8px}
+    #tab-leads .ld-lead-main{align-items:center;margin-top:2px}
+    #tab-leads .ld-lead-main .amt{font-size:20px;letter-spacing:-.01em}
+    #tab-leads .ld-lead-main .amt .ld-amt-hint{font-size:10.5px}
+    #tab-leads .ld-lead-main .title{font-size:14.5px;font-weight:700}
+    #tab-leads .item.ld-lead-card .meta{margin-top:8px;font-size:11.5px;opacity:.92}
+  }
   .item .stew-name{font-size:16.5px;font-weight:800;color:var(--brand);letter-spacing:.01em;line-height:1.25}
   .item .stew-row{margin-top:8px;display:flex;flex-wrap:wrap;gap:6px 12px;align-items:center}
   .exp-rcpt{width:56px;height:56px;border-radius:10px;object-fit:cover;border:1px solid var(--line);background:#f0f3f5;flex-shrink:0}
@@ -4549,6 +4606,80 @@ function leadCardTitleHTML(r, src){
   else if(s==="pending") srcCls+=" ld-title-src--pending";
   return esc(cal)+' <span class="'+srcCls+'">· '+esc(srcLab)+'</span>';
 }
+/** Charter date line for lead cards (DD/MM/YYYY · multi ranges). */
+function leadCardDateLine(r){
+  if(!r) return "Date TBD";
+  var startD=String(r.start||r.cdate||"").slice(0,10);
+  var endD=String(r.end||"").slice(0,10);
+  if(startD&&endD&&endD!==startD) return fmtDate(startD)+" – "+fmtDate(endD);
+  if(startD) return fmtDate(startD);
+  return "Date TBD";
+}
+/** Clock window when known (HH:MM–HH:MM). Lead fields first, then linked calendar. */
+function leadCardClockLabel(r){
+  if(!r) return "";
+  function clip(t){
+    t=String(t||"").trim();
+    if(!t) return "";
+    var m=t.match(/^(\d{1,2}:\d{2})/);
+    return m?m[1]:t;
+  }
+  function fmtPair(st, et){
+    st=clip(st); et=clip(et);
+    if(st&&et&&st!==et) return st+"–"+et;
+    if(st||et) return st||et;
+    return "";
+  }
+  var direct=fmtPair(r.startTime, r.endTime);
+  if(direct) return direct;
+  try{
+    if(typeof stewRealClockTimes==="function"){
+      var real=stewRealClockTimes(null, null, r);
+      if(real){
+        var fromCal=fmtPair(real.startTime, real.endTime);
+        if(fromCal) return fromCal;
+      }
+    }
+  }catch(eC){}
+  try{
+    var ck=typeof leadCalendarEventKey==="function"?leadCalendarEventKey(r):"";
+    if(ck&&typeof calendarEventByKey==="function"){
+      var ice=calendarEventByKey(ck);
+      if(ice){
+        var fromIce=fmtPair(ice.startTime, ice.endTime);
+        if(fromIce) return fromIce;
+        if(ice.allDay) return "All day";
+      }
+    }
+  }catch(eI){}
+  if(r.allDay) return "All day";
+  /* Day charter with known length but no clock yet — still useful at a glance */
+  var dur=String(r.dur||"").toLowerCase().trim();
+  if(dur==="4h"||dur==="6h"||dur==="8h") return dur;
+  return "";
+}
+/**
+ * Prominent when-block: big date + clock + key pills (type / status).
+ * Put first on lead cards so mobile scan is date → money → guest.
+ */
+function leadCardWhenHTML(r, extraPillsHtml){
+  var dateLab=leadCardDateLine(r);
+  var clock=leadCardClockLabel(r);
+  var typeKey=typeof leadCharterTypeKey==="function"?leadCharterTypeKey(r):"";
+  var typeLab=typeof leadCharterTypeLabel==="function"?leadCharterTypeLabel(typeKey):"";
+  /* Avoid duplicating duration in the type pill when clock already shows 4h/6h/8h */
+  var typeInClock=!!(clock&&/^(4h|6h|8h)$/i.test(String(clock).trim()));
+  return '<div class="ld-lead-when">'+
+    '<div class="ld-lead-when-hero">'+
+      '<div class="ld-lead-date">'+esc(dateLab)+'</div>'+
+      (clock?'<span class="ld-lead-clock" title="Charter time"><span class="ld-lead-clock-ic" aria-hidden="true">🕐</span> '+esc(clock)+'</span>':'')+
+    '</div>'+
+    '<div class="ld-lead-when-pills">'+
+      (typeLab&&!typeInClock?'<span class="pill p-grey">'+esc(typeLab)+'</span>':'')+
+      (extraPillsHtml||'')+
+    '</div>'+
+  '</div>';
+}
 /**
  * Lost list kind:
  *  - "lost-hold" = never firm (dropped tentative / hold taken)
@@ -5216,33 +5347,25 @@ function renderLeads(){
     var typeLab=leadCharterTypeLabel(typeKey);
     var season=(LY_MODELS&&LY_MODELS.charterSeason)?LY_MODELS.charterSeason(r.start||r.cdate):"";
     var seasonLab=season==="high"?"High season":(season==="low"?"Low season":"");
-    var startD=r.start||r.cdate||"";
-    var endD=r.end||"";
-    var dateLine="";
-    if(startD&&endD&&endD!==startD) dateLine=esc(fmtDate(startD))+" – "+esc(fmtDate(endD));
-    else if(startD) dateLine=esc(fmtDate(startD));
-    else dateLine="Date TBD";
     var moneyAmt=isSplit?leadClientTotal(r):(Number(r.total)||Number(r.base)||Number(r.price)||0);
     if(!(moneyAmt>0)&&isOwner){
       try{ moneyAmt=leadOwnerNotional(r)||0; }catch(eN){ moneyAmt=0; }
     }
     /* Title = calendar description · charter source (always) */
     var titleHtml=leadCardTitleHTML(r, isPending?"pending":src);
-    var cardCls="item";
+    var cardCls="item ld-lead-card";
     if(cancelled) cardCls+=" item--cancelled";
     if(isTentative) cardCls+=" item--tentative";
     var cardHtml="";
+    var whenStatusPills="";
 
     /* —— Day off: vessel closed, zero money, firm on public calendar —— */
     if(isDayOff&&!cancelled){
+      whenStatusPills='<span class="pill p-grey">Day off</span><span class="pill p-grey">Closed on calendar</span>';
       cardHtml='<div class="'+cardCls+'" data-edit-ld="'+esc(r.id)+'" data-ld-start="'+esc(String(r.start||"").slice(0,10))+'" data-ld-name="'+esc(String(r.name||"").toLowerCase())+'">'+
-        '<div class="top"><div class="title">'+titleHtml+'</div><div class="amt">—</div></div>'+
-        '<div class="meta">'+
-          '<span>📅 '+dateLine+'</span>'+
-          '<span class="pill p-grey">Day off</span>'+
-          '<span class="pill p-grey">Closed on calendar</span>'+
-          '<span class="pill p-grey">No earnings</span>'+
-        '</div>'+
+        leadCardWhenHTML(r, whenStatusPills)+
+        '<div class="ld-lead-main"><div class="title">'+titleHtml+'</div><div class="amt">—</div></div>'+
+        '<div class="meta"><span class="pill p-grey">No earnings</span></div>'+
         '<div class="notes" style="font-style:normal;color:var(--muted)">Vessel closed — blocks the public calendar as a firm date. No charter fee, no commission, no APA.</div>'+
         '<span class="chev">✎</span></div>';
       confCards.push({
@@ -5264,14 +5387,12 @@ function renderLeads(){
           :'<span class="pill p-red">Lost hold</span>')
         :'<span class="pill p-amber">Not confirmed</span>';
       var amtShow=moneyAmt>0
-        ?('<span class="money" style="font-size:16px;font-weight:800">'+money0(moneyAmt)+'</span>'+
-          (cancelled||isTentative?'<div style="font-size:10.5px;font-weight:700;color:var(--muted);margin-top:2px;text-align:right">'+(cancelled?(lostKind==="cancelled-charter"?"was booked":"was projected"):"projected")+'</div>':''))
-        :('<span style="font-size:12.5px;font-weight:800;color:var(--muted)">—</span>');
+        ?('<span class="money">'+money0(moneyAmt)+'</span>'+
+          '<span class="ld-amt-hint">'+(cancelled?(lostKind==="cancelled-charter"?"was booked":"was projected"):"projected")+'</span>')
+        :('<span style="font-size:13px;font-weight:800;color:var(--muted)">—</span>');
+      whenStatusPills=statePill+(cancelled&&reasonLab?'<span class="pill p-grey">'+esc(reasonLab)+'</span>':'');
       var metaBits=
-        '<span>📅 '+dateLine+'</span>'+
-        '<span class="pill p-grey">'+esc(typeLab)+'</span>'+
-        statePill+
-        (cancelled&&reasonLab?'<span class="pill p-grey">'+esc(reasonLab)+'</span>':'');
+        (leadPhoneOf(r)?'<span class="pill p-green">📱 WhatsApp</span>':'');
       var waBtn=leadWhatsAppBtnHTML(r,{cls:"btn ghost",label:"WhatsApp"});
       var actions=
         (waBtn||"")+
@@ -5280,10 +5401,9 @@ function renderLeads(){
         (isTentative&&!cancelled?'<button type="button" class="btn danger" data-cancel-tentative="'+esc(r.id)+'">Cancel · lost</button>':'')+
         (cancelled?'<button type="button" class="btn" data-reinstate-lead="'+esc(r.id)+'">Reinstate · if they get in touch</button>':'');
       cardHtml='<div class="'+cardCls+'" data-edit-ld="'+esc(r.id)+'" data-ld-start="'+esc(String(r.start||"").slice(0,10))+'" data-ld-name="'+esc(String(r.name||"").toLowerCase())+'">'+
-        '<div class="top"><div class="title">'+titleHtml+'</div><div class="amt">'+amtShow+'</div></div>'+
-        '<div class="meta">'+metaBits+
-          (leadPhoneOf(r)?'<span class="pill p-green">📱 WhatsApp</span>':'')+
-        '</div>'+
+        leadCardWhenHTML(r, whenStatusPills)+
+        '<div class="ld-lead-main"><div class="title">'+titleHtml+'</div><div class="amt">'+amtShow+'</div></div>'+
+        (metaBits?'<div class="meta">'+metaBits+'</div>':'')+
         (actions?'<div class="lead-actions">'+actions+'</div>':'')+
         '<span class="chev">✎</span></div>';
       if(cancelled){
@@ -5293,7 +5413,7 @@ function renderLeads(){
       return;
     }
 
-    /* —— Confirmed book: title already has calendar desc · source —— */
+    /* —— Confirmed book: date/time first, then guest + price —— */
     var rateBits=[];
     if((r.dur==="multi"||Number(r.days)>1)&&(Number(r.price)>0||Number(r.base)>0)){
       var multiPkg=Number(r.price)||Number(r.base)||0;
@@ -5307,12 +5427,11 @@ function renderLeads(){
     }
     if(r.closed) rateBits.push("closed "+esc(fmtDate(r.closed)));
     var calKey=leadCalendarEventKey(r);
-    var metaBits=
-      '<span>📅 '+dateLine+'</span>'+
-      '<span class="pill p-grey">'+esc(typeLab)+'</span>'+
+    whenStatusPills=
       (seasonLab?'<span class="pill p-blue">'+esc(seasonLab)+'</span>':'')+
       (timing==="upcoming"?'<span class="pill p-blue">Scheduled</span>':'')+
-      (timing==="done"?'<span class="pill p-green">Realised</span>':'')+
+      (timing==="done"?'<span class="pill p-green">Realised</span>':'');
+    var metaBits=
       (isSplit?'<span class="pill p-black">Split</span>':'')+
       ((isSplit||(LY_MODELS&&LY_MODELS.leadIsCashOnlyDeal&&LY_MODELS.leadIsCashOnlyDeal(r)))&&leadCashDest(r)==="owner"?'<span class="pill p-own">'+(leadOwnerPocketCashAmt(r)>0?"Cash → owner pocket":"Cash → owner (pending)")+'</span>':'')+
       ((isSplit||(LY_MODELS&&LY_MODELS.leadIsCashOnlyDeal&&LY_MODELS.leadIsCashOnlyDeal(r)))&&leadCashDest(r)==="boat"&&leadFreeCashIsOnBoat(r)?'<span class="pill p-green">Cash → boat</span>':'')+
@@ -5331,8 +5450,9 @@ function renderLeads(){
     }
     var amtShow=isOwner?"—":money0(moneyAmt);
     cardHtml='<div class="'+cardCls+'" data-edit-ld="'+esc(r.id)+'" data-ld-start="'+esc(String(r.start||"").slice(0,10))+'" data-ld-name="'+esc(String(r.name||"").toLowerCase())+'">'+
-      '<div class="top"><div class="title">'+titleHtml+'</div><div class="amt money">'+amtShow+'</div></div>'+
-      '<div class="meta">'+metaBits+'</div>'+
+      leadCardWhenHTML(r, whenStatusPills)+
+      '<div class="ld-lead-main"><div class="title">'+titleHtml+'</div><div class="amt money">'+amtShow+'</div></div>'+
+      (metaBits?'<div class="meta">'+metaBits+'</div>':'')+
       (isOwner?"":leadSplitSummaryHTML(r))+
       (isOwner
         ?'<div class="notes" style="font-style:normal;color:var(--muted)">Owner’s days — private use or friend pays the owner directly. No income, no commission — list-rate notional (owner benefits).</div>'
