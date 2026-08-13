@@ -171,9 +171,25 @@
   }
   #tab-leads .ld-src-proj-hd{
     font-size:10px;font-weight:800;text-transform:uppercase;letter-spacing:.04em;
-    color:rgba(13,71,161,.95);margin:0 0 6px;display:flex;align-items:center;gap:6px;flex-wrap:wrap;
+    color:rgba(13,71,161,.95);margin:0 0 6px;display:flex;align-items:center;justify-content:space-between;gap:6px;flex-wrap:wrap;
   }
   #tab-leads .ld-src-proj .ld-src-meta-row .k{color:rgba(13,71,161,.75)}
+  #tab-leads .ld-src-booked{
+    margin-top:8px;padding:9px 11px;border-radius:11px;
+    background:rgba(0,0,0,.03);border:1px solid var(--line);
+  }
+  #tab-leads .ld-src-booked-hd{
+    font-size:10px;font-weight:800;text-transform:uppercase;letter-spacing:.04em;
+    color:var(--muted);margin:0 0 6px;display:flex;align-items:center;justify-content:space-between;gap:6px;flex-wrap:wrap;
+  }
+  #tab-leads .ld-src-booked .ld-src-meta-row .k{color:var(--muted)}
+  #tab-leads .ld-src-band-row{
+    display:grid;grid-template-columns:1fr 1fr;gap:6px 12px;margin-top:4px;
+  }
+  #tab-leads .ld-src-band-row .m{font-weight:800;font-variant-numeric:tabular-nums;font-size:15px}
+  #tab-leads .ld-src-band-row .k{font-size:10px;font-weight:750;text-transform:uppercase;letter-spacing:.03em;color:var(--muted)}
+  #tab-leads .ld-src-proj .ld-src-band-row .k{color:rgba(13,71,161,.75)}
+  #tab-leads .ld-src-proj .ld-src-band-row .m{color:#0d47a1}
   #tab-leads .ld-money-toggle{
     width:100%;margin-top:8px;padding:9px 12px;font-size:12.5px;font-weight:800;
     border-radius:11px;
@@ -1084,9 +1100,21 @@
               </div>
               <div class="ld-src-meta" id="ldCapSub"></div>
               <div id="ldCapTypes" class="ld-type-table"></div>
-              <div class="ld-src-proj" id="ldCapProj" hidden>
-                <div class="ld-src-proj-hd"><span>Projection · confirmed future</span><span class="ld-glimpse-proj-pill">Projection</span></div>
-                <div class="ld-src-meta" id="ldCapProjMeta"></div>
+              <div class="ld-src-proj" id="ldCapProj">
+                <div class="ld-src-proj-hd"><span>Projected business</span><span class="ld-glimpse-proj-pill">Projection</span></div>
+                <div class="ld-src-band-row">
+                  <div><div class="k">Gross projected</div><div class="m money" id="ldCapProjTot">€0</div></div>
+                  <div><div class="k">White net projected</div><div class="m money" id="ldCapProjNet">€0</div></div>
+                </div>
+                <div class="ld-src-meta" id="ldCapProjMeta" style="margin-top:6px"></div>
+              </div>
+              <div class="ld-src-booked" id="ldCapBooked">
+                <div class="ld-src-booked-hd"><span>Total booked · to date + future</span><span class="ld-glimpse-proj-pill" style="background:rgba(0,0,0,.06);color:var(--muted);border-color:var(--line)">Sum</span></div>
+                <div class="ld-src-band-row">
+                  <div><div class="k">Gross total</div><div class="m money" id="ldCapBookedTot">€0</div></div>
+                  <div><div class="k">White net total</div><div class="m money" id="ldCapBookedNet">€0</div></div>
+                </div>
+                <div class="ld-src-meta" id="ldCapBookedMeta" style="margin-top:6px"></div>
               </div>
             </div>
             <div class="sumcard ld-src">
@@ -1102,9 +1130,21 @@
               </div>
               <div class="ld-src-meta" id="ldCbSub"></div>
               <div id="ldCbTypes" class="ld-type-table"></div>
-              <div class="ld-src-proj" id="ldCbProj" hidden>
-                <div class="ld-src-proj-hd"><span>Projection · confirmed future</span><span class="ld-glimpse-proj-pill">Projection</span></div>
-                <div class="ld-src-meta" id="ldCbProjMeta"></div>
+              <div class="ld-src-proj" id="ldCbProj">
+                <div class="ld-src-proj-hd"><span>Projected business</span><span class="ld-glimpse-proj-pill">Projection</span></div>
+                <div class="ld-src-band-row">
+                  <div><div class="k">Gross projected</div><div class="m money" id="ldCbProjTot">€0</div></div>
+                  <div><div class="k">White net projected</div><div class="m money" id="ldCbProjNet">€0</div></div>
+                </div>
+                <div class="ld-src-meta" id="ldCbProjMeta" style="margin-top:6px"></div>
+              </div>
+              <div class="ld-src-booked" id="ldCbBooked">
+                <div class="ld-src-booked-hd"><span>Total booked · to date + future</span><span class="ld-glimpse-proj-pill" style="background:rgba(0,0,0,.06);color:var(--muted);border-color:var(--line)">Sum</span></div>
+                <div class="ld-src-band-row">
+                  <div><div class="k">Gross total</div><div class="m money" id="ldCbBookedTot">€0</div></div>
+                  <div><div class="k">White net total</div><div class="m money" id="ldCbBookedNet">€0</div></div>
+                </div>
+                <div class="ld-src-meta" id="ldCbBookedMeta" style="margin-top:6px"></div>
               </div>
             </div>
             <div class="sumcard ld-src">
@@ -1125,9 +1165,21 @@
                 <div class="ld-type-row"><span class="t">Boat cash</span><span class="n" id="ldOsBoatN"></span><span class="m money" id="ldOsBoat">€0</span></div>
               </div>
               <div id="ldOsTypes" class="ld-type-table"></div>
-              <div class="ld-src-proj" id="ldOsProj" hidden>
-                <div class="ld-src-proj-hd"><span>Projection · confirmed future</span><span class="ld-glimpse-proj-pill">Projection</span></div>
-                <div class="ld-src-meta" id="ldOsProjMeta"></div>
+              <div class="ld-src-proj" id="ldOsProj">
+                <div class="ld-src-proj-hd"><span>Projected business</span><span class="ld-glimpse-proj-pill">Projection</span></div>
+                <div class="ld-src-band-row">
+                  <div><div class="k">Gross projected</div><div class="m money" id="ldOsProjTot">€0</div></div>
+                  <div><div class="k">White net projected</div><div class="m money" id="ldOsProjNet">€0</div></div>
+                </div>
+                <div class="ld-src-meta" id="ldOsProjMeta" style="margin-top:6px"></div>
+              </div>
+              <div class="ld-src-booked" id="ldOsBooked">
+                <div class="ld-src-booked-hd"><span>Total booked · to date + future</span><span class="ld-glimpse-proj-pill" style="background:rgba(0,0,0,.06);color:var(--muted);border-color:var(--line)">Sum</span></div>
+                <div class="ld-src-band-row">
+                  <div><div class="k">Gross total</div><div class="m money" id="ldOsBookedTot">€0</div></div>
+                  <div><div class="k">White net total</div><div class="m money" id="ldOsBookedNet">€0</div></div>
+                </div>
+                <div class="ld-src-meta" id="ldOsBookedMeta" style="margin-top:6px"></div>
               </div>
             </div>
           </div>
@@ -5681,23 +5733,46 @@ function renderLeads(){
   function ldSrcMetaMoney(label, amt){
     return ldSrcMetaRow(label, '<span class="money">'+money(amt)+'</span>');
   }
-  function ldSrcPaintProj(blockId, metaId, srcCard){
-    var block=el(blockId), meta=el(metaId);
-    if(!block||!meta) return;
+  /**
+   * Per-source bands: projected future + total booked (to date + future).
+   * Totals come from model srcCard.proj / srcCard.booked (MVC).
+   * @param {string} prefix e.g. "ldCap" | "ldCb" | "ldOs"
+   * @param {object} srcCard dashboard captain|clickboat|ownersourced
+   * @param {{ hideComm?: boolean }} [opts]
+   */
+  function ldSrcPaintBands(prefix, srcCard, opts){
+    opts=opts||{};
     var p=(srcCard&&srcCard.proj)||{ tot:0, exVat:0, n:0, comm:0 };
-    var n=p.n||0;
-    if(!(n>0)&&!(p.tot>0.009)){
-      block.hidden=true;
-      meta.innerHTML="";
-      return;
+    var b=(srcCard&&srcCard.booked)||null;
+    if(!b){
+      b={
+        tot:(srcCard&&srcCard.tot||0)+(p.tot||0),
+        exVat:(srcCard&&srcCard.exVat||0)+(p.exVat||0),
+        n:(srcCard&&srcCard.n||0)+(p.n||0),
+        comm:(srcCard&&srcCard.comm||0)+(p.comm||0),
+        whiteNet:Math.max(0,((srcCard&&srcCard.exVat)||0)-((srcCard&&srcCard.comm)||0))+Math.max(0,(p.exVat||0)-(p.comm||0))
+      };
     }
-    block.hidden=false;
-    meta.innerHTML=
-      ldSrcMetaMoney("Gross projected", p.tot||0)+
-      ldSrcMetaMoney("Before VAT projected", p.exVat||0)+
-      ldSrcMetaMoney("Commission projected", p.comm||0)+
-      ldSrcMetaMoney("White net projected", Math.max(0, (p.exVat||0)-(p.comm||0)))+
-      ldSrcMetaRow("Trips (future confirmed)", String(n)+" · not in totals above");
+    var pWhite=Math.max(0, (p.exVat||0)-(p.comm||0));
+    var pN=p.n||0;
+    if(el(prefix+"ProjTot")) el(prefix+"ProjTot").textContent=money(p.tot||0);
+    if(el(prefix+"ProjNet")) el(prefix+"ProjNet").textContent=money(pWhite);
+    if(el(prefix+"ProjMeta")){
+      el(prefix+"ProjMeta").innerHTML=
+        (opts.hideComm?"":ldSrcMetaMoney("Commission projected", p.comm||0))+
+        ldSrcMetaRow("Future trips", pN?(pN+" confirmed · not sailed"):"None scheduled");
+    }
+    if(el(prefix+"Proj")){
+      el(prefix+"Proj").style.opacity=pN||(p.tot>0.009)?"":"0.82";
+    }
+    if(el(prefix+"BookedTot")) el(prefix+"BookedTot").textContent=money(b.tot||0);
+    if(el(prefix+"BookedNet")) el(prefix+"BookedNet").textContent=money(b.whiteNet!=null?b.whiteNet:pWhite);
+    if(el(prefix+"BookedMeta")){
+      var toN=srcCard&&srcCard.n||0;
+      el(prefix+"BookedMeta").innerHTML=
+        (opts.hideComm?"":ldSrcMetaMoney("Commission total (book)", b.comm||0))+
+        ldSrcMetaRow("Trips", (b.n||0)+" confirmed · "+toN+" sailed + "+pN+" future");
+    }
   }
   if(el("ldCap")) el("ldCap").textContent=money(capIncomeAll);
   /* Big commission figure = still outstanding (left to pay yourself), not full earned */
@@ -5752,8 +5827,8 @@ function renderLeads(){
       ldSrcMetaMoney("Net after commission", Math.max(0, cbExVat-cbComm));
   }
   if(el("ldCbTypes")) el("ldCbTypes").innerHTML=formatTypeMixHTML(cbTypes);
-  ldSrcPaintProj("ldCapProj", "ldCapProjMeta", dash.captain);
-  ldSrcPaintProj("ldCbProj", "ldCbProjMeta", dash.clickboat);
+  ldSrcPaintBands("ldCap", dash.captain);
+  ldSrcPaintBands("ldCb", dash.clickboat);
   if(el("ldOs")) el("ldOs").textContent=money(osTot);
   if(el("ldOsComm")) el("ldOsComm").textContent=money(osComm);
   if(el("ldOsCommStatus")){
@@ -5795,7 +5870,7 @@ function renderLeads(){
     } else if(note){ note.style.display="none"; }
   }
   if(el("ldOsTypes")) el("ldOsTypes").innerHTML=formatTypeMixHTML(osTypes);
-  ldSrcPaintProj("ldOsProj", "ldOsProjMeta", dash.ownersourced);
+  ldSrcPaintBands("ldOs", dash.ownersourced, { hideComm: !(osComm>0.009)&&!((dash.ownersourced&&dash.ownersourced.proj&&dash.ownersourced.proj.comm)>0.009) });
   Array.prototype.forEach.call(wrap.querySelectorAll("[data-edit-ld-btn]"),function(btn){
     btn.addEventListener("click",function(ev){
       ev.preventDefault(); ev.stopPropagation();

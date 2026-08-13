@@ -1037,6 +1037,27 @@ function bumpSourceCard(card, val, exVatFull, commFull, typeKey, isProj) {
 }
 
 /**
+ * Attach booked = to-date + projected future (white net = before VAT − commissions).
+ * Mutates card; pure relative to inputs already on the card.
+ */
+function finalizeSourceBooked(card) {
+  if (!card) return card;
+  if (!card.proj) card.proj = { tot: 0, exVat: 0, n: 0, comm: 0, types: {} };
+  var p = card.proj;
+  card.booked = {
+    tot: round2((card.tot || 0) + (p.tot || 0)),
+    exVat: round2((card.exVat || 0) + (p.exVat || 0)),
+    n: (card.n || 0) + (p.n || 0),
+    comm: round2((card.comm || 0) + (p.comm || 0)),
+    whiteNet: round2(
+      Math.max(0, (card.exVat || 0) - (card.comm || 0)) +
+        Math.max(0, (p.exVat || 0) - (p.comm || 0))
+    ),
+  };
+  return card;
+}
+
+/**
  * Leads dashboard money rollup (done vs projected + source cards + owner benefits).
  * Pure — no DOM. Upsell charges use charge helpers injected via opts when available.
  *
@@ -1246,6 +1267,10 @@ function summarizeLeadsMoneyDashboard(opts) {
         Math.max(0, (proj.ex || 0) - (proj.comm || 0))
     ),
   };
+
+  finalizeSourceBooked(cap);
+  finalizeSourceBooked(cb);
+  finalizeSourceBooked(os);
 
   return {
     done: done,
