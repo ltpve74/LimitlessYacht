@@ -699,7 +699,24 @@ function buildChargesExportRows(charters, opts) {
 }
 
 /**
- * CSV text for charges export (UTF-8, Excel-friendly header).
+ * Plain money text for CSV (CSV has no cell formats — only display text).
+ * es-ES style: €1.234,56
+ * @param {number} n
+ * @returns {string}
+ */
+function chargeExportMoneyText(n) {
+  var v = round2(num(n));
+  var neg = v < 0;
+  var abs = Math.abs(v);
+  var parts = abs.toFixed(2).split(".");
+  var intPart = parts[0].replace(/\B(?=(\d{3})+(?!\d))/g, ".");
+  var s = "€" + intPart + "," + parts[1];
+  return neg ? "-" + s : s;
+}
+
+/**
+ * CSV text for charges export (UTF-8).
+ * Amount columns use € display text (CSV cannot store Excel currency formats).
  * Columns: Date, Name, Amount, Paid by, Status, Cash amount, Card amount, Type, Notes
  * @param {Array} charters
  * @param {{ asOfYmd?: string }} [opts]
@@ -718,11 +735,11 @@ function chargesExportCsv(charters, opts) {
       [
         cell(r.date),
         cell(r.name),
-        cell(r.amount),
+        cell(chargeExportMoneyText(r.amount)),
         cell(r.paidBy),
         cell(r.status),
-        cell(r.cashAmount),
-        cell(r.cardAmount),
+        cell(chargeExportMoneyText(r.cashAmount)),
+        cell(chargeExportMoneyText(r.cardAmount)),
         cell(r.kind),
         cell(r.notes),
       ].join(",")
@@ -734,11 +751,11 @@ function chargesExportCsv(charters, opts) {
       [
         cell(""),
         cell("TOTAL"),
-        cell(pack.total),
+        cell(chargeExportMoneyText(pack.total)),
         cell(""),
         cell(pack.n + " charges"),
-        cell(pack.cashTotal),
-        cell(pack.cardTotal),
+        cell(chargeExportMoneyText(pack.cashTotal)),
+        cell(chargeExportMoneyText(pack.cardTotal)),
         cell(""),
         cell(""),
       ].join(",")
@@ -749,6 +766,141 @@ function chargesExportCsv(charters, opts) {
   return {
     csv: lines.join("\n"),
     fileName: "Limitless-charges-" + stamp + ".csv",
+    n: pack.n,
+    total: pack.total,
+    cashTotal: pack.cashTotal,
+    cardTotal: pack.cardTotal,
+    rows: pack.rows,
+  };
+}
+
+/**
+ * Escape text for SpreadsheetML (Excel 2003 XML — opens in Excel/Numbers with real € format).
+ * @param {string} s
+ */
+function chargeExportXmlEsc(s) {
+  return String(s == null ? ""
+    : s)
+    .replace(/&/g, "&amp;")
+    .replace(/</g, "&lt;")
+    .replace(/>/g, "&gt;")
+    .replace(/"/g, "&quot;");
+}
+
+/**
+ * Excel SpreadsheetML export — amount columns are true numbers + € currency format.
+ * CSV cannot do that; this file can. Opens in Excel, Numbers, Google Sheets (upload).
+ * @param {Array} charters
+ * @param {{ asOfYmd?: string }} [opts]
+ * @returns {{ xml: string, fileName: string, mime: string, n: number, total: number, rows: Array }}
+ */
+function chargesExportExcelXml(charters, opts) {
+  var pack = buildChargesExportRows(charters, opts);
+  var asOf = pack.asOf || "";
+  var stamp = asOf || "all";
+  /* ss:Format currency — Excel shows €1,234.56 (or locale equivalent) */
+  var currencyFmt = chargeExportXmlEsc('€#,##0.00');
+  var xml = [];
+  xml.push('<?xml version="1.0" encoding="UTF-8"?>');
+  xml.push('<?mso-application progid="Excel.Sheet"?>');
+  xml.push(
+    '<Workbook xmlns="urn:schemas-microsoft-com:office:spreadsheet" ' +
+      'xmlns:o="urn:schemas-microsoft-com:office:office" ' +
+      'xmlns:x="urn:schemas-microsoft-com:office:excel" ' +
+      'xmlns:ss="urn:schemas-microsoft-com:office:spreadsheet" ' +
+      'xmlns:html="http://www.w3.org/TR/REC-html40">'
+  );
+  xml.push("<Styles>");
+  xml.push('<Style ss:ID="Default" ss:Name="Normal"><Font ss:FontName="Calibri" ss:Size="11"/></Style>');
+  xml.push(
+    '<Style ss:ID="Header"><Font ss:FontName="Calibri" ss:Size="11" ss:Bold="1"/>' +
+      '<Interior ss:Color="#E8EEF5" ss:Pattern="Solid"/></Style>'
+  );
+  xml.push(
+    '<Style ss:ID="Money"><NumberFormat ss:Format="' +
+      currencyFmt +
+      '"/><Font ss:FontName="Calibri" ss:Size="11"/></Style>'
+  );
+  xml.push(
+    '<Style ss:ID="MoneyBold"><NumberFormat ss:Format="' +
+      currencyFmt +
+      '"/><Font ss:FontName="Calibri" ss:Size="11" ss:Bold="1"/></Style>'
+  );
+  xml.push(
+    '<Style ss:ID="TotalLabel"><Font ss:FontName="Calibri" ss:Size="11" ss:Bold="1"/>' +
+      '<Interior ss:Color="#FFF3CD" ss:Pattern="Solid"/></Style>'
+  );
+  xml.push("</Styles>");
+  xml.push('<Worksheet ss:Name="Charges">');
+  xml.push(
+    '<Table ss:ExpandedColumnCount="9" ss:ExpandedRowCount="' +
+      (pack.n + 2) +
+      '" x:FullColumns="1" x:FullRows="1">'
+  );
+  /* Column widths (approximate) */
+  [72, 140, 90, 70, 90, 90, 90, 100, 160].forEach(function (w) {
+    xml.push('<Column ss:AutoFitWidth="0" ss:Width="' + w + '"/>');
+  });
+  function textCell(v, style) {
+    return (
+      '<Cell' +
+      (style ? ' ss:StyleID="' + style + '"' : "") +
+      '><Data ss:Type="String">' +
+      chargeExportXmlEsc(v) +
+      "</Data></Cell>"
+    );
+  }
+  function numCell(v, style) {
+    var n = round2(num(v));
+    return (
+      '<Cell' +
+      (style ? ' ss:StyleID="' + style + '"' : ' ss:StyleID="Money"') +
+      '><Data ss:Type="Number">' +
+      n +
+      "</Data></Cell>"
+    );
+  }
+  /* Header */
+  xml.push("<Row>");
+  ["Date", "Name", "Amount", "Paid by", "Status", "Cash amount", "Card amount", "Type", "Notes"].forEach(
+    function (h) {
+      xml.push(textCell(h, "Header"));
+    }
+  );
+  xml.push("</Row>");
+  pack.rows.forEach(function (r) {
+    xml.push("<Row>");
+    xml.push(textCell(r.date || ""));
+    xml.push(textCell(r.name || ""));
+    xml.push(numCell(r.amount, "Money"));
+    xml.push(textCell(r.paidBy || ""));
+    xml.push(textCell(r.status || ""));
+    xml.push(numCell(r.cashAmount, "Money"));
+    xml.push(numCell(r.cardAmount, "Money"));
+    xml.push(textCell(r.kind || ""));
+    xml.push(textCell(r.notes || ""));
+    xml.push("</Row>");
+  });
+  if (pack.n > 0) {
+    xml.push("<Row>");
+    xml.push(textCell("", "TotalLabel"));
+    xml.push(textCell("TOTAL", "TotalLabel"));
+    xml.push(numCell(pack.total, "MoneyBold"));
+    xml.push(textCell("", "TotalLabel"));
+    xml.push(textCell(pack.n + " charges", "TotalLabel"));
+    xml.push(numCell(pack.cashTotal, "MoneyBold"));
+    xml.push(numCell(pack.cardTotal, "MoneyBold"));
+    xml.push(textCell("", "TotalLabel"));
+    xml.push(textCell("", "TotalLabel"));
+    xml.push("</Row>");
+  }
+  xml.push("</Table>");
+  xml.push("</Worksheet>");
+  xml.push("</Workbook>");
+  return {
+    xml: xml.join(""),
+    fileName: "Limitless-charges-" + stamp + ".xls",
+    mime: "application/vnd.ms-excel",
     n: pack.n,
     total: pack.total,
     cashTotal: pack.cashTotal,
@@ -783,7 +935,9 @@ function chargesExportCsv(charters, opts) {
     summarizeChargeCashToBoat: summarizeChargeCashToBoat,
     chargeExportKindLabel: chargeExportKindLabel,
     chargeExportPaidBy: chargeExportPaidBy,
+    chargeExportMoneyText: chargeExportMoneyText,
     buildChargesExportRows: buildChargesExportRows,
     chargesExportCsv: chargesExportCsv,
+    chargesExportExcelXml: chargesExportExcelXml,
   };
 });

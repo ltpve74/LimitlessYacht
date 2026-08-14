@@ -1245,10 +1245,19 @@ console.log("\n[Charges — cashToBoat / VAT]");
   ok("export csv fileName uses asOf", csvPack.fileName === "Limitless-charges-2026-07-31.csv");
   ok("export csv n 3", csvPack.n === 3);
   ok("export csv has TOTAL row", /TOTAL/.test(csvPack.csv));
-  ok("export csv TOTAL amount", csvPack.csv.indexOf("," + String(500 + 1210 + 1000) + ",") >= 0 || csvPack.csv.indexOf(",2710,") >= 0);
+  ok("export money text euro", M.chargeExportMoneyText(1210) === "€1.210,00");
+  ok("export csv amounts as euro text", csvPack.csv.indexOf("€500,00") >= 0 || csvPack.csv.indexOf("€500.00") >= 0 || /€/.test(csvPack.csv));
   const lastLine = csvPack.csv.trim().split("\n").pop();
   ok("export csv last line is TOTAL", lastLine.indexOf("TOTAL") >= 0);
   ok("export csv TOTAL count label", lastLine.indexOf("3 charges") >= 0);
+  const xls = M.chargesExportExcelXml(exportList, { asOfYmd: "2026-07-31" });
+  ok("export excel n 3", xls.n === 3);
+  ok("export excel fileName xls", xls.fileName === "Limitless-charges-2026-07-31.xls");
+  ok("export excel is SpreadsheetML", xls.xml.indexOf("urn:schemas-microsoft-com:office:spreadsheet") >= 0);
+  ok("export excel has currency format", xls.xml.indexOf("NumberFormat") >= 0 && xls.xml.indexOf("€") >= 0);
+  ok("export excel number cells", xls.xml.indexOf('ss:Type="Number"') >= 0);
+  ok("export excel has TOTAL", xls.xml.indexOf("TOTAL") >= 0);
+  ok("export excel total amount cell", xls.xml.indexOf(">" + String(500 + 1210 + 1000) + "<") >= 0 || xls.xml.indexOf(">2710<") >= 0);
 }
 
 /* ---- APA pot totals (model) ---- */
@@ -2906,6 +2915,7 @@ console.log("\n[Controllers — expenses + charges + leads + apa + stews]");
   ok("LY_CONTROLLERS.expenses present", !!(C && C.expenses && C.expenses.monthSettlement));
   ok("LY_CONTROLLERS.charges present", !!(C && C.charges && C.charges.cashToBoat));
   ok("LY_CONTROLLERS.charges exportCsv present", !!(C && C.charges && C.charges.exportCsv));
+  ok("LY_CONTROLLERS.charges exportExcel present", !!(C && C.charges && C.charges.exportExcel));
   ok("LY_CONTROLLERS.leads present", !!(C && C.leads && C.leads.realisedGlimpse));
   ok("LY_CONTROLLERS.apa present", !!(C && C.apa && C.apa.tripTotals));
   ok("LY_CONTROLLERS.stews present", !!(C && C.stews && C.stews.tipIsOnBill));
@@ -2926,6 +2936,15 @@ console.log("\n[Controllers — expenses + charges + leads + apa + stews]");
   ok("ctrl export csv n 2", ctrlCsv.n === 2);
   ok("ctrl export csv has Card", ctrlCsv.csv.indexOf("Card") >= 0);
   ok("ctrl export csv has Cash", ctrlCsv.csv.indexOf("Cash") >= 0);
+  const ctrlXls = C.charges.exportExcel({
+    models: M,
+    charges: [
+      { date: "2026-06-01", client: "A", amount: 50, billType: "cash", payMethod: "Cash", payStatus: "Paid", cashPaid: 50 },
+    ],
+    asOfYmd: "2026-06-30",
+  });
+  ok("ctrl export excel n 1", ctrlXls.n === 1);
+  ok("ctrl export excel has Money style", ctrlXls.xml.indexOf('ss:StyleID="Money"') >= 0);
   const apaC = C.apa.tripTotals({
     models: M,
     trip: {

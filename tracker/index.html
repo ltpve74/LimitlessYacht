@@ -1289,10 +1289,11 @@
         <div class="sumcard"><div class="l">To invoice</div><div class="v money" id="chInvTot">€0</div></div>
         <div class="sumcard"><div class="l">Invoices to issue</div><div class="v" id="chPending">0</div></div>
       </div>
-      <div class="exp-month" style="margin:0 0 10px;justify-content:flex-end">
-        <button type="button" class="btn ghost" id="chExportCsv" style="width:auto;padding:10px 14px" title="Download all charges to date as spreadsheet (CSV)">Export CSV</button>
+      <div class="exp-month" style="margin:0 0 10px;justify-content:flex-end;gap:8px">
+        <button type="button" class="btn" id="chExportExcel" style="width:auto;padding:10px 14px" title="Excel with € currency format on amount columns">Export Excel</button>
+        <button type="button" class="btn ghost" id="chExportCsv" style="width:auto;padding:10px 14px" title="CSV — amounts shown as € text (CSV cannot store currency formats)">Export CSV</button>
       </div>
-      <div class="legend">Each charge is <b>Cash only</b>, <b>Invoice only</b>, or <b>Mix</b> — the card shows cash vs invoice/card clearly. APA shortfall = pot overspend (not full charter). Extra hours can sit on the same bill. <b>Export CSV</b> = date, name, amount, card/cash (opens in Excel / Numbers).</div>
+      <div class="legend">Each charge is <b>Cash only</b>, <b>Invoice only</b>, or <b>Mix</b> — the card shows cash vs invoice/card clearly. APA shortfall = pot overspend (not full charter). Extra hours can sit on the same bill. <b>Export Excel</b> = real € currency columns (preferred). <b>CSV</b> = same data with € as text.</div>
       <div class="list" id="chList"></div>
     </section>
 
@@ -3429,18 +3430,21 @@ function chargeMoneySummaryHTML(r){
   h+='</div>';
   return h;
 }
-/**
- * Export all charges through today as CSV (Excel / Numbers).
- * Columns: Date, Name, Amount, Paid by (Cash/Card/Mix), Status, cash/card splits, type, notes.
- */
-function chExportCsvToDate(){
-  var asOf="";
+/** Today YYYY-MM-DD for charge exports (local calendar). */
+function chExportAsOfYmd(){
   try{
-    asOf=(typeof localTodayYmd==="function"?localTodayYmd():"")||
+    return (typeof localTodayYmd==="function"?localTodayYmd():"")||
       (new Date().toISOString().slice(0,10));
   }catch(eA){
-    asOf=new Date().toISOString().slice(0,10);
+    return new Date().toISOString().slice(0,10);
   }
+}
+/**
+ * Export all charges through today as CSV.
+ * Amounts as € text — CSV has no real cell currency format (use Export Excel for that).
+ */
+function chExportCsvToDate(){
+  var asOf=chExportAsOfYmd();
   var pack=null;
   try{
     if(window.LY_CONTROLLERS&&LY_CONTROLLERS.charges&&LY_CONTROLLERS.charges.exportCsv){
@@ -3464,9 +3468,50 @@ function chExportCsvToDate(){
     window.alert("No charges to export through "+asOf+".");
     return;
   }
-  /* BOM so Excel opens UTF-8 cleanly (names, € if present later) */
+  /* BOM so Excel opens UTF-8 cleanly (€ amounts) */
   var blob=new Blob(["\uFEFF"+pack.csv],{type:"text/csv;charset=utf-8"});
   var name=pack.fileName||("Limitless-charges-"+asOf+".csv");
+  if(typeof downloadBlob==="function") downloadBlob(blob, name);
+  else{
+    var a=document.createElement("a");
+    a.href=URL.createObjectURL(blob);
+    a.download=name;
+    document.body.appendChild(a); a.click();
+    setTimeout(function(){ try{ document.body.removeChild(a); URL.revokeObjectURL(a.href); }catch(e){} }, 800);
+  }
+}
+/**
+ * Export all charges through today as Excel (.xls SpreadsheetML).
+ * Amount / cash / card columns are real numbers with € currency format.
+ */
+function chExportExcelToDate(){
+  var asOf=chExportAsOfYmd();
+  var pack=null;
+  try{
+    if(window.LY_CONTROLLERS&&LY_CONTROLLERS.charges&&LY_CONTROLLERS.charges.exportExcel){
+      pack=LY_CONTROLLERS.charges.exportExcel({
+        models:typeof LY_MODELS!=="undefined"?LY_MODELS:null,
+        charges:state.charters||[],
+        asOfYmd:asOf
+      });
+    }else if(typeof LY_MODELS!=="undefined"&&LY_MODELS.chargesExportExcelXml){
+      pack=LY_MODELS.chargesExportExcelXml(state.charters||[],{asOfYmd:asOf});
+    }
+  }catch(eX){
+    window.alert("Could not build Excel export.\n\n"+(eX&&eX.message?eX.message:eX));
+    return;
+  }
+  if(!pack||!pack.xml){
+    window.alert("Could not build Excel export.");
+    return;
+  }
+  if(!(pack.n>0)){
+    window.alert("No charges to export through "+asOf+".");
+    return;
+  }
+  var mime=pack.mime||"application/vnd.ms-excel";
+  var blob=new Blob([pack.xml],{type:mime});
+  var name=pack.fileName||("Limitless-charges-"+asOf+".xls");
   if(typeof downloadBlob==="function") downloadBlob(blob, name);
   else{
     var a=document.createElement("a");
@@ -3529,6 +3574,14 @@ function renderCharters(){
     expBtn.addEventListener("click",function(ev){
       ev.preventDefault();
       chExportCsvToDate();
+    });
+  }
+  var xlsBtn=el("chExportExcel");
+  if(xlsBtn&&!xlsBtn._lyBound){
+    xlsBtn._lyBound=1;
+    xlsBtn.addEventListener("click",function(ev){
+      ev.preventDefault();
+      chExportExcelToDate();
     });
   }
 }
