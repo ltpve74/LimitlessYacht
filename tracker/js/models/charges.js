@@ -229,12 +229,40 @@ function chargeTotalsFromApaAndExt(apaBase, extAmt, extSettle) {
  * Extra charter hours:
  *   Prefer same charge as APA (extAmt + extSettle) so one invoice matches the card payment.
  *   Commission only on the extension slice when extAmt is set (not on APA spend).
- *   Cash ext → 15% of full ext €; invoice ext → 15% before VAT.
+ *   Cash ext → rate% of full ext €; invoice ext → rate% before VAT.
+ *   Default rate = CAPTAIN_COMMISSION_PCT (10%); per-charge captainCommPct or forcePct override.
+ * @param {object} c charge
+ * @param {number|object} [forceOrOpts] force % for preview, or { forceCaptainPct }
  */
-function chargeCommissionParts(c) {
-  var empty = { base: 0, total: 0, gross: 0, hours: 0, billType: "invoice", mode: "" };
+function chargeCommissionParts(c, forceOrOpts) {
+  var empty = {
+    base: 0,
+    total: 0,
+    gross: 0,
+    hours: 0,
+    billType: "invoice",
+    mode: "",
+    ratePct: CAPTAIN_COMMISSION_PCT,
+  };
   if (!c || !isChargeCaptainComm(c)) return empty;
-  var pctRate = CAPTAIN_COMMISSION_PCT / 100;
+  var forcePct = null;
+  if (forceOrOpts != null && typeof forceOrOpts === "object") {
+    forcePct = forceOrOpts.forceCaptainPct;
+  } else if (forceOrOpts != null) {
+    forcePct = forceOrOpts;
+  }
+  var ratePct = CAPTAIN_COMMISSION_PCT;
+  if (leads && typeof leads.parseCaptainCommPct === "function") {
+    var forced = leads.parseCaptainCommPct(forcePct);
+    if (forced != null) ratePct = forced;
+    else {
+      var stamped = leads.parseCaptainCommPct(c.captainCommPct);
+      if (stamped != null) ratePct = stamped;
+    }
+  } else if (forcePct != null && Number(forcePct) > 0) {
+    ratePct = Number(forcePct);
+  }
+  var pctRate = ratePct / 100;
   var hours = chargeExtHours(c);
   var extA = chargeExtAmt(c);
   var base = 0;
@@ -259,6 +287,7 @@ function chargeCommissionParts(c) {
       hours: hours,
       billType: bt,
       mode: mode,
+      ratePct: ratePct,
     };
   }
 
@@ -289,11 +318,12 @@ function chargeCommissionParts(c) {
     hours: hours,
     billType: bt,
     mode: mode,
+    ratePct: ratePct,
   };
 }
 
-function chargeCommissionAmt(c) {
-  return chargeCommissionParts(c).total;
+function chargeCommissionAmt(c, forceOrOpts) {
+  return chargeCommissionParts(c, forceOrOpts).total;
 }
 
 /**
