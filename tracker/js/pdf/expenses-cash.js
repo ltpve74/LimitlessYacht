@@ -1031,6 +1031,7 @@
               crewOwnerLine(r, idx, muted);
             });
           }
+          /* Guest-paid crew is intentional off-envelope — do not list on owner cash PDF. */
         }
 
         gap(28);
