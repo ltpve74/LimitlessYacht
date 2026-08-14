@@ -18520,6 +18520,84 @@ function leadMultiPackageTotal(r){
   if(rate>0) return Math.round(rate*days*100)/100;
   return "";
 }
+/** HH:MM for lead form / save (empty if blank or invalid). */
+function leadNormClock(t){
+  t=String(t==null?"":t).trim();
+  if(!t) return "";
+  var m=t.match(/^(\d{1,2}):(\d{2})/);
+  if(!m) return "";
+  var h=Math.min(23, Math.max(0, parseInt(m[1],10)||0));
+  var min=Math.min(59, Math.max(0, parseInt(m[2],10)||0));
+  return (h<10?"0":"")+h+":"+(min<10?"0":"")+min;
+}
+/** End clock from start + duration pill (4h/6h/8h). Same calendar day, cap 23:59. */
+function leadEndFromStartAndDur(st, dur){
+  st=leadNormClock(st);
+  if(!st) return "";
+  var hours={ "4h":4, "6h":6, "8h":8 }[String(dur||"").toLowerCase()];
+  if(!(hours>0)) return "";
+  var p=st.split(":");
+  var h=(parseInt(p[0],10)||0)+hours;
+  var min=parseInt(p[1],10)||0;
+  if(h>23){ h=23; min=59; }
+  return (h<10?"0":"")+h+":"+(min<10?"0":"")+min;
+}
+/**
+ * Prefill form clocks: lead fields first, then calendar / assign.
+ * @returns {{ startTime: string, endTime: string, allDay: boolean }}
+ */
+function leadFormClockDefaults(r){
+  r=r||{};
+  var st=leadNormClock(r.startTime);
+  var et=leadNormClock(r.endTime);
+  if(st||et) return { startTime:st, endTime:et, allDay:false };
+  try{
+    if(typeof stewRealClockTimes==="function"){
+      var real=stewRealClockTimes(null, null, r);
+      if(real){
+        st=leadNormClock(real.startTime);
+        et=leadNormClock(real.endTime);
+        if(st||et) return { startTime:st, endTime:et, allDay:false };
+        if(real.allDay) return { startTime:"", endTime:"", allDay:true };
+      }
+    }
+  }catch(eR){}
+  try{
+    var ck=typeof leadCalendarEventKey==="function"?leadCalendarEventKey(r):"";
+    if(ck&&typeof calendarEventByKey==="function"){
+      var ice=calendarEventByKey(ck);
+      if(ice){
+        st=leadNormClock(ice.startTime);
+        et=leadNormClock(ice.endTime);
+        if(st||et) return { startTime:st, endTime:et, allDay:false };
+        if(ice.allDay) return { startTime:"", endTime:"", allDay:true };
+      }
+    }
+  }catch(eI){}
+  if(r.allDay) return { startTime:"", endTime:"", allDay:true };
+  return { startTime:"", endTime:"", allDay:false };
+}
+/** Time row under trip dates — editable start/end clock. */
+function leadTimeFieldsHTML(r, dur){
+  r=r||{};
+  var clk=leadFormClockDefaults(r);
+  /* Day charter with length but no clock yet: leave empty for captain to set */
+  var st=clk.startTime;
+  var et=clk.endTime;
+  var allDay=!!clk.allDay&&!st&&!et;
+  var hint=dur==="multi"
+    ? "Boarding / return times (optional)"
+    : "Charter window — shown on cards and Today";
+  return '<div class="row2" id="f_time_row">'+
+    fieldHTML("Start time",'<input class="ctl" id="f_startTime" type="time" value="'+esc(st)+'" step="300"'+(allDay?" disabled":"")+'>')+
+    fieldHTML("End time",'<input class="ctl" id="f_endTime" type="time" value="'+esc(et)+'" step="300"'+(allDay?" disabled":"")+'>')+
+  '</div>'+
+  '<label class="checkrow compact" id="f_allDay_wrap" style="margin:0 0 8px">'+
+    '<input type="checkbox" id="f_allDay"'+(allDay?" checked":"")+'>'+
+    '<span><div class="ck">All day · no clock</div>'+
+    '<div class="ch">'+esc(hint)+'. Change duration (4h/6h/8h) to auto-suggest end from start.</div></span>'+
+  '</label>';
+}
 function durFieldsHTML(dur,r){
   r=r||{};
   if(dur==="multi"){
@@ -18530,25 +18608,111 @@ function durFieldsHTML(dur,r){
       fieldHTML("Start date",'<input class="ctl" id="f_start" type="date" value="'+esc(r.start||"")+'">')+
       fieldHTML("End date",'<input class="ctl" id="f_end" type="date" value="'+esc(r.end||"")+'">')+
     '</div>'+
+    leadTimeFieldsHTML(r, dur)+
     fieldHTML("Package total",moneyField("f_price", pkg!==""?pkg:(r.price!=null&&r.price!==""?r.price:"")))+
     '<div id="f_multi_pkg_hint" class="meta-tight">'+(avg>0?'≈ <b class="money">'+money0(avg)+'</b>/day · '+daysHint+' day'+(daysHint===1?"":"s"):"Whole-trip package price")+'</div>'+
     /* Hidden daily rate kept for legacy draft collect / any old scripts */
     '<input type="hidden" id="f_rate" value="'+esc(r.rate!=null&&r.rate!==""?r.rate:(avg||""))+'">';
   }
-  return fieldHTML("Charter date",'<input class="ctl" id="f_start" type="date" value="'+esc(r.start||"")+'">')+fieldHTML("Charter price",moneyField("f_price",(r.price!=null&&r.price!=="")?r.price:(r.rate||"")));
+  return fieldHTML("Charter date",'<input class="ctl" id="f_start" type="date" value="'+esc(r.start||"")+'">')+
+    leadTimeFieldsHTML(r, dur)+
+    fieldHTML("Charter price",moneyField("f_price",(r.price!=null&&r.price!=="")?r.price:(r.rate||"")));
 }
 function collectLeadDraft(){
   var start=el("f_start")?el("f_start").value:"";
   var end=el("f_end")?el("f_end").value:"";
   var price=el("f_price")?el("f_price").value:"";
   var rate=el("f_rate")?el("f_rate").value:"";
+  var st=el("f_startTime")?leadNormClock(el("f_startTime").value):"";
+  var et=el("f_endTime")?leadNormClock(el("f_endTime").value):"";
+  var allDay=!!(el("f_allDay")&&el("f_allDay").checked);
+  if(allDay){ st=""; et=""; }
   /* When multi form only has package, keep rate as average for draft carry */
   if(el("f_dur")&&el("f_dur").value==="multi"){
     var days=daysBetween(start,end);
     var pkg=apaNum(price);
     if(pkg>0&&days>0) rate=String(Math.round((pkg/days)*100)/100);
   }
-  return { start:start, end:end, rate:rate, price:price, days:daysBetween(start,end), base:apaNum(price)||"" };
+  return {
+    start:start, end:end, rate:rate, price:price,
+    days:daysBetween(start,end), base:apaNum(price)||"",
+    startTime:st, endTime:et, allDay:allDay
+  };
+}
+/** Wire start/end time + all-day on the lead sheet (re-bind after duration swap). */
+function bindLeadTimeFields(){
+  function paintAllDay(){
+    var on=!!(el("f_allDay")&&el("f_allDay").checked);
+    if(el("f_startTime")) el("f_startTime").disabled=on;
+    if(el("f_endTime")) el("f_endTime").disabled=on;
+    if(on){
+      if(el("f_startTime")) el("f_startTime").value="";
+      if(el("f_endTime")) el("f_endTime").value="";
+    }
+  }
+  function suggestEndFromStart(){
+    if(el("f_allDay")&&el("f_allDay").checked) return;
+    var st=el("f_startTime")?leadNormClock(el("f_startTime").value):"";
+    if(!st) return;
+    var dur=el("f_dur")?el("f_dur").value:"";
+    var sug=leadEndFromStartAndDur(st, dur);
+    if(!sug||!el("f_endTime")) return;
+    var cur=leadNormClock(el("f_endTime").value);
+    /* Fill empty end, or replace if it still matches a previous auto window */
+    if(!cur||el("f_endTime").dataset.autoEnd==="1"){
+      el("f_endTime").value=sug;
+      el("f_endTime").dataset.autoEnd="1";
+    }
+  }
+  if(el("f_allDay")){
+    el("f_allDay").addEventListener("change",paintAllDay);
+    paintAllDay();
+  }
+  if(el("f_startTime")){
+    el("f_startTime").addEventListener("change",suggestEndFromStart);
+    el("f_startTime").addEventListener("input",function(){
+      /* While typing start, keep auto end in sync if still auto */
+      if(el("f_endTime")&&el("f_endTime").dataset.autoEnd==="1") suggestEndFromStart();
+    });
+  }
+  if(el("f_endTime")){
+    el("f_endTime").addEventListener("change",function(){
+      el("f_endTime").dataset.autoEnd="";
+    });
+    el("f_endTime").addEventListener("input",function(){
+      el("f_endTime").dataset.autoEnd="";
+    });
+    /* Mark prefilled end as auto when it matches duration math */
+    var st0=el("f_startTime")?leadNormClock(el("f_startTime").value):"";
+    var et0=leadNormClock(el("f_endTime").value);
+    var dur0=el("f_dur")?el("f_dur").value:"";
+    if(st0&&et0&&et0===leadEndFromStartAndDur(st0, dur0)) el("f_endTime").dataset.autoEnd="1";
+  }
+}
+/** Push lead clock onto stew assigns linked by leadId (Today / roster). */
+function syncLeadTimesToStewAssigns(lead){
+  if(!lead||!lead.id||!state.stewAssign) return false;
+  var st=leadNormClock(lead.startTime);
+  var et=leadNormClock(lead.endTime);
+  var allDay=!!(lead.allDay&&!st&&!et);
+  var dirty=false;
+  state.stewAssign.forEach(function(a){
+    if(!a) return;
+    if(String(a.leadId||"")!==String(lead.id)) return;
+    if(a.cancelled||a.status==="cancelled") return;
+    var ns=st, ne=et, na=allDay;
+    if((a.startTime||"")!==ns||(a.endTime||"")!==ne||!!a.allDay!==na){
+      a.startTime=ns;
+      a.endTime=ne;
+      a.allDay=na;
+      a.updatedAt=new Date().toISOString();
+      dirty=true;
+    }
+  });
+  if(dirty&&typeof saveStewAssign==="function"&&!DEMO){
+    try{ saveStewAssign(); }catch(eS){}
+  }
+  return dirty;
 }
 function vatModeField(val){
   var o=[["include","VAT included in price"],["add","Add VAT on top"],["none","No VAT"]];
@@ -19769,11 +19933,28 @@ function openSheet(type,id,opts){
       var carry=apaNum(draft.price)||apaNum(draft.rate)||apaNum(draft.base)||"";
       if(carry>0){ draft.price=carry; draft.base=carry; }
     }
+    /* Day length change: refresh suggested end from start when end was auto/empty */
+    if(dur!=="multi"&&draft.startTime&&!draft.allDay){
+      var sug=leadEndFromStartAndDur(draft.startTime, dur);
+      if(sug&&(!draft.endTime||draft.endTime===leadEndFromStartAndDur(draft.startTime,"4h")||
+          draft.endTime===leadEndFromStartAndDur(draft.startTime,"6h")||
+          draft.endTime===leadEndFromStartAndDur(draft.startTime,"8h"))){
+        draft.endTime=sug;
+      }
+    }
     el("f_durfields").innerHTML=durFieldsHTML(dur,draft);
+    if(typeof bindLeadTimeFields==="function") bindLeadTimeFields();
+    if(el("f_start")) el("f_start").addEventListener("change",recalcLead);
+    if(el("f_end")) el("f_end").addEventListener("change",recalcLead);
+    if(el("f_price")) el("f_price").addEventListener("input",function(){
+      if(el("f_cashBlack")&&!leadCashFieldUserEdited()) el("f_cashBlack").dataset.forcePrefill="1";
+      recalcLead();
+    });
     if(dur!=="multi" && el("f_dep")&&el("f_dep").value==="") el("f_dep").value="50";
     if(el("f_cashBlack")&&!leadCashFieldUserEdited()) el("f_cashBlack").dataset.forcePrefill="1";
     recalcLead();
   }); }
+  if(typeof bindLeadTimeFields==="function") bindLeadTimeFields();
   /* Existing saved cash: keep it until captain changes swallow/charge or taps Use suggested */
   if(el("f_cashBlack")&&apaNum(el("f_cashBlack").value)>0) el("f_cashBlack").dataset.userEdited="1";
   /* Existing cash-only fee: treat as user-owned so clear/edit is not re-overwritten */
@@ -20466,13 +20647,24 @@ function saveSheet(type,rec){
     if(!isDayOffSave&&!billToNameSave&&guestNameSave) billToNameSave=guestNameSave;
     var billToAddrSave=isDayOffSave?"":(el("f_billToAddr")&&el("f_billToAddr").value||"").trim();
     var billToEmailSave=isDayOffSave?"":(el("f_billToEmail")&&el("f_billToEmail").value||"").trim();
+    var startTimeSave="", endTimeSave="", allDaySave=false;
+    if(isDayOffSave){
+      startTimeSave=""; endTimeSave=""; allDaySave=true;
+    } else {
+      allDaySave=!!(el("f_allDay")&&el("f_allDay").checked);
+      startTimeSave=allDaySave?"":leadNormClock(el("f_startTime")?el("f_startTime").value:"");
+      endTimeSave=allDaySave?"":leadNormClock(el("f_endTime")?el("f_endTime").value:"");
+      if(startTimeSave||endTimeSave) allDaySave=false;
+    }
     var o2={ id:rec?rec.id:uid(), closed:closedIn, name:guestNameSave,
       phone:isDayOffSave?"":phoneSave,
       phoneFromIcs:isDayOffSave?false:(!!(rec&&rec.phoneFromIcs)&&phoneSave===(rec.phone||"")?true:false),
       billToName:billToNameSave,
       billToAddr:billToAddrSave,
       billToEmail:billToEmailSave,
-      dur:isDayOffSave?(days>1?"multi":"8h"):dur, start:start, end:end, rate:isDayOffSave?0:rate, price:isDayOffSave?0:price, days:days,
+      dur:isDayOffSave?(days>1?"multi":"8h"):dur, start:start, end:end,
+      startTime:startTimeSave, endTime:endTimeSave, allDay:!!allDaySave,
+      rate:isDayOffSave?0:rate, price:isDayOffSave?0:price, days:days,
       base:isDayOffSave?0:quoteBase, net:isDayOffSave?0:(sp.split?sp.dealNet:(cashOnlyOn?parts.client:m.net)), vat:isDayOffSave?0:(sp.split?sp.white.vat:(cashOnlyOn?0:m.vat)), total:isDayOffSave?0:parts.client,
       vatMode:cashOnlyOn?"none":(sp.split?(vatMode||"include"):m.vatMode),
       vatPct:cashOnlyOn?"":((sp.split?(vatMode||"include"):m.vatMode)==="none"?"":(sp.split?(vatPctIn||m.vatPct):m.vatPct)),
@@ -20633,6 +20825,8 @@ function saveSheet(type,rec){
       /* cleared link */
       liveLead.calendarEventKey=""; liveLead.calendarUid="";
     }
+    /* Keep roster / Today clocks in step with lead times */
+    try{ syncLeadTimesToStewAssigns(liveLead); }catch(eSyncT){}
     /* Mobile ledger: land on the list this card now belongs to */
     try{
       if(leadIsCancelled(liveLead)||bookingSt==="cancelled") setLdBookView("lost");
