@@ -2483,7 +2483,11 @@ function collectOpenCrewDayPay(assigns, expenses, opts) {
     if (asg.cancelled || asg.status === "cancelled" || asg.cancelGhost) return;
     if (String(asg.payStatus || "") === "Paid") return;
     var start = String(asg.start || "").slice(0, 10);
-    if (!start || start > today) return;
+    var end = String(asg.end || asg.start || "").slice(0, 10);
+    if (!end || !/^\d{4}-\d{2}-\d{2}$/.test(end)) end = start;
+    /* Only after charter finished (last day before today) — not today or future */
+    if (!end || end >= today) return;
+    if (!start) start = end;
     var m = expenseMonthKey(start);
     if (m && focusMonth && m > focusMonth) return;
     var ids = (asg.stewIds || []).filter(Boolean);

@@ -3558,6 +3558,51 @@ console.log("\n[Pocket — own-money repay + open liabilities]");
   });
   ok("open day pay only unpaid charter", openDay.length === 1, "got " + openDay.length);
   ok("open day pay is Charter B", openDay[0] && openDay[0].eventKey === "uid:b");
+  /* Tomorrow / not-finished charter must not appear as unpaid today */
+  const asgTomorrow = {
+    eventKey: "uid:future",
+    start: "2026-08-01",
+    end: "2026-08-01",
+    stewIds: ["s1"],
+    payStatus: "Unpaid",
+    payEach: 200,
+    summary: "Tomorrow",
+  };
+  const openNotYet = M.collectOpenCrewDayPay([asgTomorrow, asgOpen], [], {
+    focusMonth: "2026-07",
+    today: "2026-07-31",
+    dayPayAmt: function (a) {
+      return Number(a.payEach) || 0;
+    },
+    personName: function () {
+      return "Toni";
+    },
+  });
+  ok("open day pay skips tomorrow", openNotYet.every(function (r) {
+    return r.eventKey !== "uid:future";
+  }));
+  ok("open day pay still has past unpaid", openNotYet.some(function (r) {
+    return r.eventKey === "uid:b";
+  }));
+  /* Same-day charter: not finished until day after */
+  const asgToday = {
+    eventKey: "uid:today",
+    start: "2026-07-31",
+    stewIds: ["s1"],
+    payStatus: "Unpaid",
+    payEach: 200,
+  };
+  const openToday = M.collectOpenCrewDayPay([asgToday], [], {
+    focusMonth: "2026-07",
+    today: "2026-07-31",
+    dayPayAmt: function (a) {
+      return 200;
+    },
+    personName: function () {
+      return "Toni";
+    },
+  });
+  ok("open day pay skips unfinished today", openToday.length === 0);
 
   /* Settlement DTO */
   const sett = M.summarizeMonthSettlement({
