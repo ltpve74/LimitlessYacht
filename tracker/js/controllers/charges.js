@@ -52,11 +52,23 @@
 
   /**
    * CSV payload for download (Date, Name, Amount, Paid by, …).
+   * Amounts as € text — CSV has no real currency cell format.
    * @param {{ charges?: Array, charters?: Array, asOfYmd?: string, models?: object }} input
    */
   function exportCsv(input) {
     input = input || {};
     return M(input).chargesExportCsv(input.charters || input.charges || [], {
+      asOfYmd: input.asOfYmd,
+    });
+  }
+
+  /**
+   * Excel SpreadsheetML — real number cells + € currency format.
+   * @param {{ charges?: Array, charters?: Array, asOfYmd?: string, models?: object }} input
+   */
+  function exportExcel(input) {
+    input = input || {};
+    return M(input).chargesExportExcelXml(input.charters || input.charges || [], {
       asOfYmd: input.asOfYmd,
     });
   }
@@ -68,5 +80,6 @@
     captainUpsellCommissions: captainUpsellCommissions,
     exportRows: exportRows,
     exportCsv: exportCsv,
+    exportExcel: exportExcel,
   };
 });
