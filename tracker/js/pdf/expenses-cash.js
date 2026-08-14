@@ -508,7 +508,7 @@
           noteLine(
             "Only charters that have already taken place up until " +
               (asOfYmd ? fmtDate(asOfYmd) : "this date") +
-              ". Confirmed future charters are excluded until they run — figures reflect money-generating activity that has happened, not the forward book. Commission = 15% of the amount BEFORE VAT.",
+              ". Confirmed future charters are excluded until they run — figures reflect money-generating activity that has happened, not the forward book. Commission = agreed captain % of the amount BEFORE VAT (default 10%; per-trip stamp may differ).",
             muted
           );
           gap(12);
@@ -541,11 +541,11 @@
           });
           gap(10);
           noteLine(
-            "Commission on that completed business = 15% of the amount before VAT.",
+            "Commission on that completed business = agreed captain % of the amount before VAT (default 10%).",
             navy
           );
           gap(8);
-          kvRow("Commission earned (15% before VAT)", pdfMoney(bizComm), {
+          kvRow("Commission earned (before VAT × agreed %)", pdfMoney(bizComm), {
             big: true,
             boldLab: true,
             bg: goldSoft,
@@ -559,7 +559,7 @@
                 pdfMoney(bizGross) +
                 " gross. Commission on that work is " +
                 pdfMoney(bizComm) +
-                " (15% before VAT).",
+                " (agreed % before VAT).",
               muted
             );
             gap(10);

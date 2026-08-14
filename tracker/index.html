@@ -1355,7 +1355,7 @@
         <div class="sumcard"><div class="l">Owner benefits · notional</div><div class="v money" id="cmOwnTot">€0</div></div>
         <div class="sumcard"><div class="l">Owner pocket · received</div><div class="v money" id="cmOwnPocket">€0</div></div>
       </div>
-      <div class="legend">Same rules as <b>Leads</b>: confirmed commercial deals only. <b>Captain</b> 15% + upsells — take cash via <b>Pay from petty</b> (reduces boat float). <b>Click&amp;Boat</b> 24% treated as paid after platform deduction. Owner-sourced / owner’s days as before.</div>
+      <div class="legend">Same rules as <b>Leads</b>: confirmed commercial deals only. <b>Captain</b> agreed <span id="cmLegendPct">10</span>% + upsells (toggle below to preview 15%) — take cash via <b>Pay from petty</b> (reduces boat float). <b>Click&amp;Boat</b> 24% treated as paid after platform deduction. Owner-sourced / owner’s days as before.</div>
       <div class="list" id="cmList"></div>
     </section>
 
@@ -1594,9 +1594,22 @@ function canRoster(){ return isCaptain()||isManager()||isTeam(); }
 function canOpsHub(){ return isCaptain()||isManager(); }
 /** Charges + leads — captain and manager. */
 function canCommercial(){ return isCaptain()||isManager(); }
-/** Captain commission % — locked in tracker/js/models.js */
-var CAPTAIN_COMMISSION_PCT=(window.LY_MODELS&&LY_MODELS.CAPTAIN_COMMISSION_PCT)||15;
+/** Captain commission % — locked in tracker/js/models/leads.js (agreed book = 10%, target preview = 15%). */
+var CAPTAIN_COMMISSION_PCT=(window.LY_MODELS&&LY_MODELS.CAPTAIN_COMMISSION_PCT)||10;
+var CAPTAIN_COMMISSION_TARGET_PCT=(window.LY_MODELS&&LY_MODELS.CAPTAIN_COMMISSION_TARGET_PCT)||15;
 var CLICKBOAT_COMMISSION_PCT=(window.LY_MODELS&&LY_MODELS.CLICKBOAT_COMMISSION_PCT)||24;
+/** Commissions tab: show target % for what-if (local only; pay from petty stays on agreed book rates). */
+var CM_PREVIEW_LS_KEY="ly_capt_comm_preview_pct";
+function captCommPreviewOn(){
+  try{ return safeGet(CM_PREVIEW_LS_KEY)==="1"||safeGet(CM_PREVIEW_LS_KEY)==="15"; }catch(e){ return false; }
+}
+function setCaptCommPreview(on){
+  try{ if(on) safeSet(CM_PREVIEW_LS_KEY,"1"); else safeDel(CM_PREVIEW_LS_KEY); }catch(e){}
+}
+/** Force rate for display when previewing target; null = agreed/stamped book rates. */
+function captCommForcePct(){
+  return captCommPreviewOn()?CAPTAIN_COMMISSION_TARGET_PCT:null;
+}
 if(!window.LY_MODELS){
   console.error("[tracker] LY_MODELS missing — load /tracker/js/models/*.js then index.js");
 }
@@ -2591,7 +2604,7 @@ function renderOpsHub(){
     {id:"diesel",ic:"⛽",t:"Diesel",d:"Bunker & sell by date (€/L each load)"},
     {id:"stews",ic:"👩‍✈️",t:"Stews",d:"Confirmed charters only · day pay & tips"},
     {id:"expenses",ic:"💶",t:"Expenses",d:"Monthly boat ledger + export for manager", capOnly:true},
-    {id:"commissions",ic:"💸",t:"Commissions",d:"Captain "+CAPTAIN_COMMISSION_PCT+"% · Paul "+CLICKBOAT_COMMISSION_PCT+"% · Owner-sourced · Owner’s days", capOnly:true}
+    {id:"commissions",ic:"💸",t:"Commissions",d:"Captain "+CAPTAIN_COMMISSION_PCT+"% (preview "+CAPTAIN_COMMISSION_TARGET_PCT+"%) · Paul "+CLICKBOAT_COMMISSION_PCT+"% · Owner-sourced · Owner’s days", capOnly:true}
   ];
   /* Manager: Calendar + Diesel + Stews (not APA / Expenses / Commissions) */
   if(isManager()&&!isCaptain()){
@@ -19204,8 +19217,13 @@ function syncFreshIcsLeadsQuiet(){
 function ownerBenefitIncluded(r){ return LY_MODELS&&LY_MODELS.ownerBenefitIncluded?LY_MODELS.ownerBenefitIncluded(r):false; }
 function leadCommissionVatPct(r){ return LY_MODELS?LY_MODELS.commissionVatPct(r):21; }
 function leadCommissionWhiteBeforeVat(r){ return LY_MODELS?LY_MODELS.leadCommissionWhiteBeforeVat(r):0; }
-function leadCommissionParts(r){
-  var p=LY_MODELS?LY_MODELS.leadCommissionParts(r):{split:false,whiteBeforeVat:0,cashBlack:0,base:0,whiteComm:0,cashComm:0,total:0,gross:0,ratePct:0,source:"other"};
+/**
+ * @param {object} r lead
+ * @param {number|null} [forcePct] when set (e.g. 15 preview), force captain rate; omit for book rates
+ */
+function leadCommissionParts(r, forcePct){
+  var force=forcePct!=null?forcePct:null;
+  var p=LY_MODELS?LY_MODELS.leadCommissionParts(r, force):{split:false,whiteBeforeVat:0,cashBlack:0,base:0,whiteComm:0,cashComm:0,total:0,gross:0,ratePct:0,source:"other"};
   var rate=p.ratePct!=null?p.ratePct:CAPTAIN_COMMISSION_PCT;
   /* UI-only detail strings */
   if(p.split){
@@ -19228,18 +19246,24 @@ function leadCommissionGross(r){ return leadCommissionParts(r).gross; }
 function leadCommissionAmt(r){ return leadCommissionParts(r).total; }
 function isChargeCaptainComm(c){ return LY_MODELS?LY_MODELS.isChargeCaptainComm(c):false; }
 function chargeExtHours(c){ return LY_MODELS?LY_MODELS.chargeExtHours(c):0; }
-function chargeCommissionParts(c){
-  var p=LY_MODELS?LY_MODELS.chargeCommissionParts(c):{base:0,total:0,gross:0,hours:0,mode:""};
-  var empty={base:0,total:0,gross:0,detail:"",hours:0,mode:"",client:"",date:"",id:"",source:"charge",charge:c};
+/**
+ * @param {object} c charge
+ * @param {number|null} [forcePct] preview force rate
+ */
+function chargeCommissionParts(c, forcePct){
+  var force=forcePct!=null?forcePct:null;
+  var p=LY_MODELS?LY_MODELS.chargeCommissionParts(c, force):{base:0,total:0,gross:0,hours:0,mode:"",ratePct:CAPTAIN_COMMISSION_PCT};
+  var empty={base:0,total:0,gross:0,detail:"",hours:0,mode:"",ratePct:CAPTAIN_COMMISSION_PCT,client:"",date:"",id:"",source:"charge",charge:c};
   if(!(p.total>0)&&!(p.base>0)) return empty;
+  var rate=p.ratePct!=null?p.ratePct:CAPTAIN_COMMISSION_PCT;
   var bt=chargeBillType(c);
   var mode=p.mode||(bt==="cash"||(c&&c.vatMode==="none")?"cash":(bt==="mix"?"mix":"invoice"));
   var detail="";
-  if(mode==="cash") detail=money(p.gross)+" cash (no VAT) × "+CAPTAIN_COMMISSION_PCT+"% = "+money(p.total);
-  else if(mode==="mix") detail="Mix base "+money(p.base)+" (cash full + invoice ex VAT) × "+CAPTAIN_COMMISSION_PCT+"% = "+money(p.total);
-  else detail=money(p.gross)+" invoice → before VAT "+money(p.base)+" × "+CAPTAIN_COMMISSION_PCT+"% = "+money(p.total);
+  if(mode==="cash") detail=money(p.gross)+" cash (no VAT) × "+rate+"% = "+money(p.total);
+  else if(mode==="mix") detail="Mix base "+money(p.base)+" (cash full + invoice ex VAT) × "+rate+"% = "+money(p.total);
+  else detail=money(p.gross)+" invoice → before VAT "+money(p.base)+" × "+rate+"% = "+money(p.total);
   return {
-    base:p.base, total:p.total, gross:p.gross, detail:detail, hours:p.hours, mode:mode,
+    base:p.base, total:p.total, gross:p.gross, detail:detail, hours:p.hours, mode:mode, ratePct:rate,
     client:(c&&c.client)||"", date:(c&&c.date)||"", id:(c&&c.id)||"",
     source:"charge", charge:c
   };
@@ -19334,15 +19358,24 @@ function renderCommissions(){
    *  - owner’s days benefits = ownerBenefitIncluded only (confirmed + not toggled off)
    *  - unconfirmed owner days listed separately, never inflate benefits total
    *  - captain upsells = charges with captainComm (same as Leads captain card)
+   * Preview toggle forces CAPTAIN_COMMISSION_TARGET_PCT for display only;
+   * pay-from-petty always uses agreed book rates (default 10% + per-lead stamps).
    */
+  var previewOn=captCommPreviewOn();
+  var forceDisp=previewOn?CAPTAIN_COMMISSION_TARGET_PCT:null;
   var captItems=[], cbItems=[], ownItems=[], ownTentItems=[], ownSrcItems=[], extItems=[];
+  var captBookCom=0, extBookCom=0;
   (state.leads||[]).forEach(function(r){
     if(!r||leadIsCancelled(r)) return;
     var src=leadSource(r);
-    var p=leadCommissionParts(r);
-    var row={sort:String(r.closed||r.start||""), title:r.name||"—", total:p.total, base:p.base, p:p, kind:"lead", rec:r, src:src};
+    var p=leadCommissionParts(r, forceDisp);
+    var pBook=previewOn?leadCommissionParts(r, null):p;
+    var row={sort:String(r.closed||r.start||""), title:r.name||"—", total:p.total, base:p.base, p:p, pBook:pBook, kind:"lead", rec:r, src:src};
     if(src==="captain"){
-      if(leadIsClosedDeal(r)) captItems.push(row);
+      if(leadIsClosedDeal(r)){
+        captItems.push(row);
+        captBookCom+=pBook.total||0;
+      }
     } else if(src==="clickboat"){
       if(leadIsClosedDeal(r)) cbItems.push(row);
     } else if(src==="owner"){
@@ -19354,13 +19387,15 @@ function renderCommissions(){
   });
   (state.charters||[]).forEach(function(c){
     if(!isChargeCaptainComm(c)) return;
-    var p=chargeCommissionParts(c);
-    if(!(p.total>0.009)&&!(p.base>0.009)) return;
+    var p=chargeCommissionParts(c, forceDisp);
+    var pBook=previewOn?chargeCommissionParts(c, null):p;
+    if(!(p.total>0.009)&&!(p.base>0.009)&&!(pBook.total>0.009)&&!(pBook.base>0.009)) return;
     extItems.push({
       sort:String(c.date||""),
       title:c.client||"Extension",
-      total:p.total, base:p.base, p:p, kind:"extension", rec:c
+      total:p.total, base:p.base, p:p, pBook:pBook, kind:"extension", rec:c
     });
+    extBookCom+=pBook.total||0;
   });
   function bySort(a,b){
     if(a.sort&&b.sort&&a.sort!==b.sort) return b.sort<a.sort?-1:1;
@@ -19450,8 +19485,10 @@ function renderCommissions(){
     return h;
   }
 
-  var captEarned=Math.round((captCom+extCom)*100)/100;
-  var captBal=expCaptainCommissionBalance(captEarned);
+  var captEarnedDisp=Math.round((captCom+extCom)*100)/100;
+  var captEarnedBook=Math.round((captBookCom+extBookCom)*100)/100;
+  /* Pay / outstanding always on agreed book rates — never preview inflation */
+  var captBal=expCaptainCommissionBalance(captEarnedBook);
   var captPaid=captBal.paid;
   var captOpen=captBal.outstanding;
   var captOverpaid=captBal.overpaid;
@@ -19463,15 +19500,48 @@ function renderCommissions(){
   var payouts=expCaptainCommissionPayouts();
 
   var html="";
-  /* Pay from petty — draw commission cash from the boat envelope */
+  /* Rate toggle — agreed book vs target preview */
+  html+='<div class="apa-card" style="margin-bottom:12px" id="cmRateToggleCard">'+
+    '<div style="font-weight:800;margin-bottom:6px">Captain commission rate</div>'+
+    '<div class="meta" style="margin-bottom:10px;line-height:1.45">'+
+      'Agreed book default is <b>'+CAPTAIN_COMMISSION_PCT+'%</b>. Toggle to preview <b>'+CAPTAIN_COMMISSION_TARGET_PCT+'%</b> (what you wanted) and see how much less the current deal pays. Per-trip rate on each lead can stamp 10 or 15 later when new trips renegotiate.'+
+    '</div>'+
+    '<div style="display:flex;flex-wrap:wrap;gap:8px;align-items:center">'+
+      '<button type="button" class="btn'+(previewOn?' ghost':'')+'" id="cmRateAgreed" style="width:auto;padding:8px 14px">Agreed '+CAPTAIN_COMMISSION_PCT+'%</button>'+
+      '<button type="button" class="btn'+(previewOn?'':' ghost')+'" id="cmRatePreview" style="width:auto;padding:8px 14px">Preview '+CAPTAIN_COMMISSION_TARGET_PCT+'%</button>'+
+    '</div>';
+  if(previewOn){
+    var less=Math.round((captEarnedDisp-captEarnedBook)*100)/100;
+    html+='<div class="meta" style="margin-top:10px;padding:8px 10px;border-radius:8px;background:rgba(201,168,76,.12);line-height:1.45">'+
+      '<b>Preview only</b> — lines below use '+CAPTAIN_COMMISSION_TARGET_PCT+'%. '+
+      'At agreed '+CAPTAIN_COMMISSION_PCT+'% you earn <b class="money">'+money(captEarnedBook)+'</b>'+
+      (less>0.009?' · <b class="money" style="color:var(--amberDeep)">'+money(less)+' less</b> than this preview':'')+
+      '. Pay from petty always uses agreed book rates.'+
+    '</div>';
+  } else if(captEarnedBook>0.009){
+    var at15=0;
+    captItems.forEach(function(it){ at15+=(leadCommissionParts(it.rec, CAPTAIN_COMMISSION_TARGET_PCT).total||0); });
+    extItems.forEach(function(it){ at15+=(chargeCommissionParts(it.rec, CAPTAIN_COMMISSION_TARGET_PCT).total||0); });
+    at15=Math.round(at15*100)/100;
+    var gap=Math.round((at15-captEarnedBook)*100)/100;
+    if(gap>0.009){
+      html+='<div class="meta" style="margin-top:10px;line-height:1.45;color:var(--muted)">'+
+        'At '+CAPTAIN_COMMISSION_TARGET_PCT+'% you would earn <b class="money">'+money(at15)+'</b> · '+
+        'you are getting <b class="money" style="color:var(--amberDeep)">'+money(gap)+' less</b> under the '+CAPTAIN_COMMISSION_PCT+'% agreement.'+
+      '</div>';
+    }
+  }
+  html+='</div>';
+
+  /* Pay from petty — draw commission cash from the boat envelope (book rates) */
   html+='<div class="apa-card" style="margin-bottom:14px" id="cmPayCard">'+
     '<div style="font-weight:800;margin-bottom:6px">Pay yourself from petty cash</div>'+
     '<div class="meta" style="margin-bottom:10px;line-height:1.45">'+
-      'Earned on confirmed captain deals + upsells: <b class="money">'+money(captEarned)+'</b>. '+
+      'Earned on agreed book rates (confirmed captain deals + upsells): <b class="money">'+money(captEarnedBook)+'</b>. '+
       'Already drawn from the envelope: <b class="money">'+money(captPaid)+'</b>. '+
       (captOpen>0.009
         ?('Still outstanding: <b class="money" style="color:var(--amberDeep)">'+money(captOpen)+'</b>.')
-        :(captEarned>0.009?'All earned commission drawn.':''))+
+        :(captEarnedBook>0.009?'All earned commission drawn.':''))+
       (captOverpaid>0.009?' <span style="color:var(--danger)">Drawn <b class="money">'+money(captOverpaid)+'</b> over earned.</span>':'')+
       ' Petty on board (this month): <b class="money">'+money(pettyNow)+'</b>.'+
     '</div>'+
@@ -19497,13 +19567,19 @@ function renderCommissions(){
   }
   html+='</div>';
 
-  html+='<div class="apa-sect-h" style="margin-top:0"><h3>Captain · '+CAPTAIN_COMMISSION_PCT+'% · deals</h3></div>';
-  html+='<p style="margin:0 0 10px;font-size:12.5px;color:var(--muted);line-height:1.4">Confirmed captain deals only (same as Leads). Upsells/extensions from charges with <b>I get commission</b>. Use <b>Pay from petty cash</b> above to take cash when the boat has float.</p>';
+  var rateHead=previewOn
+    ?('Captain · preview '+CAPTAIN_COMMISSION_TARGET_PCT+'% · deals')
+    :('Captain · '+CAPTAIN_COMMISSION_PCT+'% agreed · deals');
+  html+='<div class="apa-sect-h" style="margin-top:0"><h3>'+rateHead+'</h3></div>';
+  html+='<p style="margin:0 0 10px;font-size:12.5px;color:var(--muted);line-height:1.4">Confirmed captain deals only (same as Leads). Upsells/extensions from charges with <b>I get commission</b>. Use <b>Pay from petty cash</b> above to take cash when the boat has float'+(previewOn?' (always at agreed rates)':'')+'.</p>';
   if(captItems.length||extItems.length){
     var openPill=captOpen>0.009
       ?('<span class="pill p-amber">Open pool '+money0(captOpen)+'</span>')
       :'<span class="pill p-green">Drawn</span>';
-    captItems.forEach(function(it){ html+=leadCommCard(it,'<span class="pill p-blue">Captain</span>'+openPill); });
+    captItems.forEach(function(it){
+      var ratePill='<span class="pill p-blue">Captain '+((it.p&&it.p.ratePct)!=null?it.p.ratePct:CAPTAIN_COMMISSION_PCT)+'%</span>';
+      html+=leadCommCard(it, ratePill+openPill);
+    });
     extItems.forEach(function(it){
       var c=it.rec, cp=it.p;
       html+='<div class="item" data-edit-ch="'+esc(c.id)+'">'+
@@ -19511,6 +19587,7 @@ function renderCommissions(){
         '<div class="meta">'+
           (c.date?'<span>📅 '+esc(fmtDate(c.date))+'</span>':'')+
           '<span class="pill p-amber">Upsell / extension</span>'+
+          '<span class="pill p-blue">'+(cp.ratePct!=null?cp.ratePct:CAPTAIN_COMMISSION_PCT)+'%</span>'+
           (cp.hours>0?'<span>+'+esc(String(cp.hours))+' h</span>':'')+
           openPill+
         '</div>'+
@@ -19518,7 +19595,8 @@ function renderCommissions(){
     });
     html+='<div class="meta" style="margin:0 0 14px">Deal base '+money(captBase)+
       (extCom>0?" · upsell comm "+money(extCom):"")+
-      " · earned <b class=\"money\">"+money(captEarned)+"</b>"+
+      " · shown <b class=\"money\">"+money(captEarnedDisp)+"</b>"+
+      (previewOn?' · book earned <b class="money">'+money(captEarnedBook)+'</b>':'')+
       " · paid <b class=\"money\">"+money(captPaid)+"</b>"+
       " · still open <b class=\"money\">"+money(captOpen)+"</b></div>";
   } else {
@@ -19647,18 +19725,32 @@ function renderCommissions(){
       "Import calendar leads, set source to Captain / Click&amp;Boat / Owner’s days / Owner-sourced, confirm the deal, or mark extra hours with <b>I get commission</b>.");
   }
   wrap.innerHTML=html;
-  if(el("cmCaptTot")) el("cmCaptTot").textContent=money(captEarned);
+  /* Sumcards: earned = display rate; paid/open always book */
+  if(el("cmCaptTot")) el("cmCaptTot").textContent=money(captEarnedDisp);
   if(el("cmCaptPaid")) el("cmCaptPaid").textContent=money(captPaid);
   if(el("cmCaptOpen")) el("cmCaptOpen").textContent=money(captOpen);
   if(el("cmCbTot")) el("cmCbTot").textContent=money(cbCom);
   if(el("cmOwnTot")) el("cmOwnTot").textContent=money(ownVal);
   if(el("cmOwnPocket")) el("cmOwnPocket").textContent=money(ownPocketTot);
   if(el("cmTot")) el("cmTot").textContent=money(comTot);
+  if(el("cmLegendPct")) el("cmLegendPct").textContent=String(previewOn?CAPTAIN_COMMISSION_TARGET_PCT:CAPTAIN_COMMISSION_PCT);
   /* legacy ids if still present */
   if(el("cmCount")) el("cmCount").textContent=String(captItems.length);
   if(el("cmExt")) el("cmExt").textContent=String(extItems.length);
   if(el("cmBase")) el("cmBase").textContent=money(captBase+cbBase);
 
+  if(el("cmRateAgreed")){
+    el("cmRateAgreed").addEventListener("click",function(){
+      setCaptCommPreview(false);
+      renderCommissions();
+    });
+  }
+  if(el("cmRatePreview")){
+    el("cmRatePreview").addEventListener("click",function(){
+      setCaptCommPreview(true);
+      renderCommissions();
+    });
+  }
   if(el("cmPayFromPetty")){
     el("cmPayFromPetty").addEventListener("click",function(){
       openCaptainCommPayout(captOpen>0.009?captOpen:pettyNow);
@@ -19688,12 +19780,22 @@ function selLeadSourceField(val){
   if(v!=="pending"&&v!=="captain"&&v!=="clickboat"&&v!=="owner"&&v!=="ownersourced"&&v!=="dayoff"&&v!=="other") v="other";
   return '<select class="ctl" id="f_leadSource">'+
     '<option value="pending"'+(v==="pending"?" selected":"")+'>Pending source (assign me)</option>'+
-    '<option value="captain"'+(v==="captain"?" selected":"")+'>Captain (website / direct — '+CAPTAIN_COMMISSION_PCT+'%)</option>'+
+    '<option value="captain"'+(v==="captain"?" selected":"")+'>Captain (website / direct — '+CAPTAIN_COMMISSION_PCT+'% default)</option>'+
     '<option value="clickboat"'+(v==="clickboat"?" selected":"")+'>Click&amp;Boat (Paul — '+CLICKBOAT_COMMISSION_PCT+'%)</option>'+
     '<option value="owner"'+(v==="owner"?" selected":"")+'>Owner’s days (no income · benefits)</option>'+
     '<option value="ownersourced"'+(v==="ownersourced"?" selected":"")+'>Owner-sourced (income · 0% commission for now)</option>'+
     '<option value="dayoff"'+(v==="dayoff"?" selected":"")+'>Day off (vessel closed · no earnings)</option>'+
     '<option value="other"'+(v==="other"?" selected":"")+'>Other (no commission)</option>'+
+  '</select>';
+}
+/** Per-trip captain commission stamp (10 agreed / 15 new deal). Hidden unless source = captain. */
+function selCaptainCommPctField(val){
+  var n=(LY_MODELS&&LY_MODELS.parseCaptainCommPct)?LY_MODELS.parseCaptainCommPct(val):Number(val);
+  if(!(n>0)) n=CAPTAIN_COMMISSION_PCT;
+  if(n!==CAPTAIN_COMMISSION_TARGET_PCT&&n!==CAPTAIN_COMMISSION_PCT) n=CAPTAIN_COMMISSION_PCT;
+  return '<select class="ctl" id="f_captainCommPct">'+
+    '<option value="'+CAPTAIN_COMMISSION_PCT+'"'+(n===CAPTAIN_COMMISSION_PCT?" selected":"")+'>'+CAPTAIN_COMMISSION_PCT+'% — agreed book</option>'+
+    '<option value="'+CAPTAIN_COMMISSION_TARGET_PCT+'"'+(n===CAPTAIN_COMMISSION_TARGET_PCT?" selected":"")+'>'+CAPTAIN_COMMISSION_TARGET_PCT+'% — new deal target</option>'+
   '</select>';
 }
 /**
@@ -19945,7 +20047,7 @@ function openSheet(type,id,opts){
     '</select></div>';
     h+='<label class="checkrow"><input type="checkbox" id="f_captainComm"'+(commOn?" checked":"")+'>'+
       '<span><div class="ck">I get commission on the extension</div>'+
-      '<div class="ch">'+CAPTAIN_COMMISSION_PCT+'% of the <b>extension €</b> only (not APA spend). Cash ext → full amount; on invoice → before VAT. e.g. €500 cash → €75.</div></span></label>';
+      '<div class="ch">'+CAPTAIN_COMMISSION_PCT+'% of the <b>extension €</b> only (not APA spend). Cash ext → full amount; on invoice → before VAT. e.g. €500 cash → €'+(Math.round(500*CAPTAIN_COMMISSION_PCT)/100)+'.</div></span></label>';
     h+=fieldHTML("Notes",'<textarea class="ctl" id="f_notes" placeholder="e.g. APA spend + 1h extension @ €500">'+esc(r.notes||"")+'</textarea>');
   } else {
     var leadDefaults={closed:"",name:"",dur:"8h",start:"",end:"",rate:"",price:"",vatMode:"include",vatPct:"21",split:false,dealNet:"",invoiceNet:"",invoiceTotal:"",cashAmt:"",leadSource:"captain",dealClosed:false,splitVatOnTop:true,deps:"Not issued",fins:"Not issued",apas:"Not issued",depPct:"50",apaPct:"",depInv:"",finInv:"",apaInv:"",notes:"",phone:"",billToName:"",billToAddr:"",billToEmail:""};
@@ -20013,6 +20115,13 @@ function openSheet(type,id,opts){
     /* —— Status —— */
     h+='<div class="sect">Status</div>';
     h+=fieldHTML("Source",selLeadSourceField(leadSrcDef));
+    var captPctDef=(LY_MODELS&&LY_MODELS.leadCaptainBookRatePct)
+      ?LY_MODELS.leadCaptainBookRatePct(r)
+      :(Number(r.captainCommPct)>0?Number(r.captainCommPct):CAPTAIN_COMMISSION_PCT);
+    h+='<div id="f_captainCommPct_wrap"'+(leadSrcDef==="captain"?"":' style="display:none"')+'>'+
+      fieldHTML("Captain commission %",selCaptainCommPctField(captPctDef))+
+      '<div class="meta" style="margin:-4px 0 10px;line-height:1.4">Stamp this trip so early book can stay at '+CAPTAIN_COMMISSION_PCT+'% while later trips move to '+CAPTAIN_COMMISSION_TARGET_PCT+'%.</div>'+
+    '</div>';
     var dealClosedDef=leadIsDealClosed(r);
     if(!rec||leadSrcDef==="pending") dealClosedDef=false;
     h+='<label class="checkrow compact" id="f_dealClosed_wrap" style="border:1.5px solid '+(dealClosedDef?"rgba(46,125,50,.35)":"#E0A800")+';background:'+(dealClosedDef?"rgba(46,125,50,.06)":"#FFF8E1")+'">'+
@@ -20275,6 +20384,9 @@ function openSheet(type,id,opts){
   if(el("f_leadSource")){
     el("f_leadSource").addEventListener("change",function(){
       var src=(el("f_leadSource").value)||"";
+      if(el("f_captainCommPct_wrap")){
+        el("f_captainCommPct_wrap").style.display=src==="captain"?"":"none";
+      }
       if(el("f_dealClosed")){
         if(src==="pending") el("f_dealClosed").checked=false;
         /* Never force confirm on when assigning Captain/Paul/Owner */
@@ -20585,7 +20697,8 @@ function recalcCharge(){
     };
     var cp=chargeCommissionParts(draft);
     var baseLab=cp.mode==="cash"?"Ext cash (no VAT)":(cp.mode==="mix"?"Mix base":"Ext before VAT");
-    html+='<div class="cl hi"><span>Your commission ('+CAPTAIN_COMMISSION_PCT+'%)</span><b>'+money(cp.total)+'</b></div>'+
+    var cRate=cp.ratePct!=null?cp.ratePct:CAPTAIN_COMMISSION_PCT;
+    html+='<div class="cl hi"><span>Your commission ('+cRate+'%)</span><b>'+money(cp.total)+'</b></div>'+
       '<div class="meta" style="margin-top:2px">'+baseLab+' '+money(cp.base)+(cp.hours>0?" · +"+cp.hours+" h":"")+(extA>0?" · extension only":"")+'</div>';
   }
   box.innerHTML=html;
@@ -20962,6 +21075,13 @@ function saveSheet(type,rec){
       })():"boat",
       cashSettled:cashOnlyOn?!!cashOnlySettled:(sp.split?!!(el("f_cashSettled")&&el("f_cashSettled").checked):false),
       leadSource:leadSrc,
+      captainCommPct:(function(){
+        if(leadSrc!=="captain") return "";
+        var raw=el("f_captainCommPct")?el("f_captainCommPct").value:"";
+        var n=(LY_MODELS&&LY_MODELS.parseCaptainCommPct)?LY_MODELS.parseCaptainCommPct(raw):Number(raw);
+        if(!(n>0)) n=(rec&&Number(rec.captainCommPct)>0)?Number(rec.captainCommPct):CAPTAIN_COMMISSION_PCT;
+        return n;
+      })(),
       dayOff:!!isDayOffSave,
       leadKind:isDayOffSave?"dayoff":(rec&&rec.leadKind)||"",
       sourcePending:leadSrc==="pending",

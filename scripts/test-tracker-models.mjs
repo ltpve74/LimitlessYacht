@@ -120,8 +120,9 @@ console.log("[Commission — VAT included]");
   const joel = { total: 12000, base: 12000, net: 9917.36, vatMode: "include", vatPct: 21 };
   const p = M.leadCommissionParts(joel);
   ok("Joel base ≈ 12000/1.21", near(p.base, 12000 / 1.21, 0.05), "got " + p.base);
-  ok("Joel commission ≈ 1487.60", near(p.total, (12000 / 1.21) * 0.15, 0.05), "got " + p.total);
+  ok("Joel commission ≈ 991.74 at 10%", near(p.total, (12000 / 1.21) * 0.1, 0.05), "got " + p.total);
   ok("Joel commission is NOT 1800", !near(p.total, 1800, 1), "got " + p.total);
+  ok("Joel at 15% preview ≈ 1487.60", near(M.leadCommissionParts(joel, 15).total, (12000 / 1.21) * 0.15, 0.05));
 }
 {
   const noPct = { total: 12000, vatMode: "include", vatPct: 0 };
@@ -152,9 +153,10 @@ console.log("\n[Commission — split white + cash]");
   ok("split is split", p.split === true);
   ok("white before VAT ≈ 1652.89", near(p.whiteBeforeVat, whiteNet, 0.05), "got " + p.whiteBeforeVat);
   ok("cash black 1800", near(p.cashBlack, 1800));
-  ok("white comm 15%", near(p.whiteComm, whiteNet * 0.15, 0.05));
-  ok("cash comm 15% of 1800", near(p.cashComm, 270, 0.02));
+  ok("white comm 10%", near(p.whiteComm, whiteNet * 0.1, 0.05));
+  ok("cash comm 10% of 1800", near(p.cashComm, 180, 0.02));
   ok("total = white comm + cash comm", near(p.total, p.whiteComm + p.cashComm, 0.02));
+  ok("split at 15% force", near(M.leadCommissionParts(lead, 15).cashComm, 270, 0.02));
 }
 
 /* ---- Free cash black ---- */
@@ -255,7 +257,12 @@ ok("owner no captain-only flag", !M.leadEarnsCaptainCommission({ leadSource: "ow
 ok("ownersourced no captain-only flag", !M.leadEarnsCaptainCommission({ leadSource: "ownersourced" }));
 ok("captain earns captain flag", M.leadEarnsCaptainCommission({ leadSource: "captain" }));
 ok("clickboat rate 24%", M.leadCommissionRatePct({ leadSource: "clickboat" }) === 24);
-ok("captain rate 15%", M.leadCommissionRatePct({ leadSource: "captain" }) === 15);
+ok("captain default rate 10%", M.leadCommissionRatePct({ leadSource: "captain" }) === 10);
+ok("captain book constant 10", M.CAPTAIN_COMMISSION_PCT === 10);
+ok("captain target constant 15", M.CAPTAIN_COMMISSION_TARGET_PCT === 15);
+ok("captain stamp 15%", M.leadCommissionRatePct({ leadSource: "captain", captainCommPct: 15 }) === 15);
+ok("captain force preview 15%", M.leadCommissionRatePct({ leadSource: "captain" }, 15) === 15);
+ok("stamp ignored when force 10", M.leadCommissionRatePct({ leadSource: "captain", captainCommPct: 15 }, 10) === 10);
 ok("owner rate 0%", M.leadCommissionRatePct({ leadSource: "owner" }) === 0);
 ok("ownersourced rate 0% for now", M.leadCommissionRatePct({ leadSource: "ownersourced" }) === 0);
 ok("clickboat earns commission", M.leadEarnsCommission({ leadSource: "clickboat" }));
@@ -591,7 +598,8 @@ console.log("\n[Charge commission — explicit only]");
   };
   const p = M.chargeCommissionParts(oliver);
   ok("extension with flag: base strips VAT", near(p.base, 1050 / 1.21, 0.05), "got " + p.base);
-  ok("extension commission ~130.17", near(p.total, (1050 / 1.21) * 0.15, 0.05), "got " + p.total);
+  ok("extension commission ~86.78 at 10%", near(p.total, (1050 / 1.21) * 0.1, 0.05), "got " + p.total);
+  ok("extension at 15% force", near(M.chargeCommissionParts(oliver, 15).total, (1050 / 1.21) * 0.15, 0.05));
   ok("hours from field", p.hours === 3);
 }
 {
@@ -621,8 +629,9 @@ console.log("\n[Charge commission — explicit only]");
   };
   const p = M.chargeCommissionParts(cashH);
   ok("€500 cash: base is full 500 (no VAT)", near(p.base, 500), "got " + p.base);
-  ok("€500 cash: commission €75", near(p.total, 75), "got " + p.total);
+  ok("€500 cash: commission €50 at 10%", near(p.total, 50), "got " + p.total);
   ok("€500 cash: mode cash", p.mode === "cash");
+  ok("€500 cash: 15% force €75", near(M.chargeCommissionParts(cashH, 15).total, 75));
 }
 {
   const invH = {
@@ -636,7 +645,7 @@ console.log("\n[Charge commission — explicit only]");
   };
   const p = M.chargeCommissionParts(invH);
   ok("€500 invoice: base before VAT ≈ 413.22", near(p.base, 500 / 1.21, 0.05), "got " + p.base);
-  ok("€500 invoice: commission ≈ 61.98", near(p.total, (500 / 1.21) * 0.15, 0.05), "got " + p.total);
+  ok("€500 invoice: commission ≈ 41.32 at 10%", near(p.total, (500 / 1.21) * 0.1, 0.05), "got " + p.total);
   ok("€500 invoice: mode invoice", p.mode === "invoice");
 }
 {
@@ -669,8 +678,8 @@ console.log("\n[Charge commission — explicit only]");
   ]);
   ok("captain upsell sum n=2", sum.n === 2);
   ok(
-    "captain upsell comm cash+inv",
-    near(sum.comm, 75 + (500 / 1.21) * 0.15, 0.05),
+    "captain upsell comm cash+inv at 10%",
+    near(sum.comm, 50 + (500 / 1.21) * 0.1, 0.05),
     "got " + sum.comm
   );
   ok(
@@ -714,7 +723,8 @@ console.log("\n[APA charge + extension same bill]");
   const p = M.chargeCommissionParts(ch);
   ok("same-bill inv: commission only on €500", near(p.gross, 500));
   ok("same-bill inv: base before VAT", near(p.base, 500 / 1.21, 0.05));
-  ok("same-bill inv: not 15% of 1300", !near(p.total, (1300 / 1.21) * 0.15, 1));
+  ok("same-bill inv: not 10% of 1300", !near(p.total, (1300 / 1.21) * 0.1, 1));
+  ok("same-bill inv: 10% of ext only", near(p.total, (500 / 1.21) * 0.1, 0.05));
 }
 {
   const ch = {
@@ -729,7 +739,7 @@ console.log("\n[APA charge + extension same bill]");
   };
   const p = M.chargeCommissionParts(ch);
   ok("same-bill cash ext: base 500", near(p.base, 500));
-  ok("same-bill cash ext: comm €75", near(p.total, 75));
+  ok("same-bill cash ext: comm €50 at 10%", near(p.total, 50));
 }
 
 console.log("\n[APA paid → pot: base only, not extension]");
@@ -1904,7 +1914,8 @@ console.log("\n[Leads — cash-only charter]");
   ok("cash only commission base 3000", near(comm.base, 3000));
   ok("cash only cashBlack 3000", near(comm.cashBlack, 3000));
   ok("cash only white 0", near(comm.whiteBeforeVat, 0));
-  ok("cash only 15% comm", near(comm.total, 450));
+  ok("cash only 10% comm", near(comm.total, 300));
+  ok("cash only 15% force", near(M.leadCommissionParts(cashBoat, 15).total, 450));
   const pending = Object.assign({}, cashBoat, { cashSettled: false, fins: "Not issued" });
   ok("cash only pending not received", M.leadFreeCashIsReceived(pending) === false);
   /* Form always writes cashSettled boolean — Final Paid must still count for cash-only */

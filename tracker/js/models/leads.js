@@ -18,13 +18,20 @@
   var round2 = util.round2;
   var moneyFromBase = util.moneyFromBase;
 
-var CAPTAIN_COMMISSION_PCT = 15;
+/**
+ * Captain commission (website / direct).
+ * Agreed book default = 10%. Target / preview = 15% (negotiation ask).
+ * Per-lead `captainCommPct` stamps a trip so early book can stay at 10
+ * while later trips move to 15 without a global flip.
+ */
+var CAPTAIN_COMMISSION_PCT = 10;
+var CAPTAIN_COMMISSION_TARGET_PCT = 15;
 /** Click&Boat (Paul): 24% of charter fee before VAT (platform rate). */
 var CLICKBOAT_COMMISSION_PCT = 24;
 var BILL_TYPES = { cash: 1, invoice: 1, mix: 1 };
 /**
  * Charter book source (commission assignment):
- *  - captain = website or direct contact (15% commission)
+ *  - captain = website or direct contact (default CAPTAIN_COMMISSION_PCT; per-lead stamp optional)
  *  - clickboat = Paul / Click&Boat (24% before VAT)
  *  - owner = owner’s days / private guests (no income, no commission; owner benefits)
  *  - ownersourced = owner-sourced commercial charter (income; commission 0 for now, may add later)
@@ -125,16 +132,49 @@ function isCaptainLead(r) {
   return leadSource(r) === "captain";
 }
 
-/** Captain’s own 15% deals (website / direct). */
+/** Captain’s own deals (website / direct) — rate from stamp or book default. */
 function leadEarnsCaptainCommission(r) {
   return isCaptainLead(r);
 }
 
-/** Commission rate % for this lead’s source (0 = none). */
-function leadCommissionRatePct(r) {
+/**
+ * Parse a captain commission % (10 or 15 bookends, or any 0–100 for tests).
+ * Returns null when unset / invalid.
+ */
+function parseCaptainCommPct(v) {
+  if (v == null || v === "") return null;
+  var n = num(v);
+  if (!(n > 0) || n > 100) return null;
+  return round2(n);
+}
+
+/**
+ * Book rate for a captain lead: stamped `captainCommPct` wins, else default 10%.
+ * `forcePct` (preview) overrides stamp + default when provided.
+ */
+function leadCaptainBookRatePct(r, forcePct) {
+  var forced = parseCaptainCommPct(forcePct);
+  if (forced != null) return forced;
+  var stamped = r ? parseCaptainCommPct(r.captainCommPct) : null;
+  if (stamped != null) return stamped;
+  return CAPTAIN_COMMISSION_PCT;
+}
+
+/**
+ * Commission rate % for this lead’s source (0 = none).
+ * @param {object} r lead
+ * @param {number|object} [forceOrOpts] force captain % (preview) or { forceCaptainPct }
+ */
+function leadCommissionRatePct(r, forceOrOpts) {
+  var forcePct = null;
+  if (forceOrOpts != null && typeof forceOrOpts === "object") {
+    forcePct = forceOrOpts.forceCaptainPct;
+  } else if (forceOrOpts != null) {
+    forcePct = forceOrOpts;
+  }
   var src = leadSource(r);
   if (src === "pending" || src === "dayoff") return 0;
-  if (src === "captain") return CAPTAIN_COMMISSION_PCT;
+  if (src === "captain") return leadCaptainBookRatePct(r, forcePct);
   if (src === "clickboat") return CLICKBOAT_COMMISSION_PCT;
   if (src === "ownersourced") return OWNER_SOURCED_COMMISSION_PCT;
   return 0;
@@ -1400,14 +1440,17 @@ function leadCommissionWhiteBeforeVat(r) {
 
 /**
  * Lead commission breakdown (numbers only — UI formats strings).
- * Rate from source: captain 15%, clickboat 24%, ownersourced 0% (for now), owner/other 0%.
+ * Rate from source: captain default 10% (or per-lead stamp / force preview),
+ * clickboat 24%, ownersourced 0% (for now), owner/other 0%.
  * Split: rate × white before VAT + rate × cash black.
  * Normal VAT-include: rate × (total÷1.21).
  * Owner’s days: total commission 0; base still = charter before VAT (owner benefit value).
  * Owner-sourced: income line; commission 0 until OWNER_SOURCED_COMMISSION_PCT is raised.
+ * @param {object} r lead
+ * @param {number|object} [forceOrOpts] force captain % for what-if preview
  */
-function leadCommissionParts(r) {
-  var ratePct = leadCommissionRatePct(r);
+function leadCommissionParts(r, forceOrOpts) {
+  var ratePct = leadCommissionRatePct(r, forceOrOpts);
   var pctRate = ratePct / 100;
   var src = leadSource(r);
   var empty = {
@@ -1526,6 +1569,7 @@ function leadCommissionAmt(r) {
 
   return {
     CAPTAIN_COMMISSION_PCT: CAPTAIN_COMMISSION_PCT,
+    CAPTAIN_COMMISSION_TARGET_PCT: CAPTAIN_COMMISSION_TARGET_PCT,
     CLICKBOAT_COMMISSION_PCT: CLICKBOAT_COMMISSION_PCT,
     BILL_TYPES: BILL_TYPES,
     LEAD_SOURCES: LEAD_SOURCES,
@@ -1539,6 +1583,8 @@ function leadCommissionAmt(r) {
     leadSource: leadSource,
     isCaptainLead: isCaptainLead,
     leadEarnsCaptainCommission: leadEarnsCaptainCommission,
+    parseCaptainCommPct: parseCaptainCommPct,
+    leadCaptainBookRatePct: leadCaptainBookRatePct,
     leadCommissionRatePct: leadCommissionRatePct,
     leadEarnsCommission: leadEarnsCommission,
     isClickboatLead: isClickboatLead,
