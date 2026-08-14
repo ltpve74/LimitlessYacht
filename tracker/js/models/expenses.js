@@ -73,12 +73,26 @@ function expensePaidFromLooksOwner(label) {
 }
 
 /**
- * Paid-from envelope: petty | own | card.
+ * Guest paid crew directly (owner-sourced deal: guest settles stew).
+ * Not boat cash, not captain pocket, not owner pocket claim.
+ */
+function expensePaidFromLooksGuest(label) {
+  var p = String(label || "").trim();
+  if (!p) return false;
+  if (p === "Guest" || p === "Guest money" || p === "Guest paid" || p === "Guest paid crew") return true;
+  if (/^guest\b/i.test(p)) return true;
+  return false;
+}
+
+/**
+ * Paid-from envelope: petty | own | owner | guest | card.
  * Own (capt pocket / crew pocket / paidById) NEVER counts as petty out.
+ * Guest = cash guest→crew (outside boat envelope).
  *
  * Crew day-pay is special:
- *  - floatPay true → petty (cash left the boat)
+ *  - floatPay true → petty (cash left the boat) — or guest top-up from petty
  *  - Own money label OR paidById with Paid + not floatPay → own (captain pocket)
+ *  - Guest → guest paid (optional top-up own/petty separate)
  *  - Paid without float and without own → books-only “Prior” (still classed petty,
  *    but crewDayPayHitsPetty is false so it never leaves the envelope)
  */
@@ -88,6 +102,7 @@ function expensePaidFrom(e) {
   if (isCrewDayPayExpense(e)) {
     if (String(e.crewPayStatus || "") !== "Paid") return "petty";
     var pc = String(e.paidFrom || "").trim();
+    if (expensePaidFromLooksGuest(pc)) return "guest";
     if (expensePaidFromLooksOwner(pc)) return "owner";
     if (String(e.paidById || "") === EXP_POCKET_OWNER || String(e.paidById || "") === "owner")
       return "owner";
@@ -99,6 +114,7 @@ function expensePaidFrom(e) {
     return "petty";
   }
   var p = String(e.paidFrom || "").trim();
+  if (expensePaidFromLooksGuest(p)) return "guest";
   if (expensePaidFromLooksOwner(p)) return "owner";
   if (String(e.paidById || "") === EXP_POCKET_OWNER || String(e.paidById || "") === "owner")
     return "owner";
@@ -123,7 +139,7 @@ function expenseHitsPettyCash(e, opts) {
     return crewDayPayHitsPetty(e);
   }
   var pf = expensePaidFrom(e);
-  if (pf === "card" || pf === "own" || pf === "owner") return false;
+  if (pf === "card" || pf === "own" || pf === "owner" || pf === "guest") return false;
   if (isExpenseReimbursement(e)) return pf === "petty";
   return true;
 }
@@ -178,12 +194,15 @@ function classifyExpenseCash(e, opts) {
   var reimb = isExpenseReimbursement(e);
   var pf = expensePaidFrom(e);
   var hitsPetty = expenseHitsPettyCash(e, opts);
+  var ownSpend = !reimb && isOwnMoneySpend(e);
+  var ownAmt = ownSpend ? ownMoneySpendAmount(e) : 0;
   return {
     amount: a,
     isReimbursement: reimb,
-    paidFrom: pf, /* petty | own | owner | card */
+    paidFrom: pf, /* petty | own | owner | guest | card */
     hitsPettyCash: hitsPetty,
-    hitsOwnMoneyPocket: !reimb && pf === "own",
+    hitsOwnMoneyPocket: ownSpend,
+    ownMoneyAmount: ownAmt,
     /* Reimburse recipient always gets pocket credit when row is a reimbursement */
     clearsPocketFor:
       reimb && e
@@ -197,7 +216,7 @@ function classifyExpenseCash(e, opts) {
         ? e.paidById != null && String(e.paidById) !== ""
           ? String(e.paidById)
           : EXP_POCKET_CAPTAIN
-        : !reimb && pf === "own"
+        : ownSpend
           ? e.paidById != null && String(e.paidById) !== ""
             ? String(e.paidById)
             : EXP_POCKET_CAPTAIN
@@ -264,15 +283,55 @@ function crewDayPayLinkId(e) {
 }
 
 /**
+ * Guest shortfall top-up on a guest-paid crew line (pure).
+ * @returns {{ guestPaid: number, topUp: number, topUpFrom: string }}
+ */
+function crewDayPayGuestSplit(e) {
+  var empty = { guestPaid: 0, topUp: 0, topUpFrom: "" };
+  if (!e || expensePaidFrom(e) !== "guest") return empty;
+  var total = round2(num(e.amount));
+  var guestPaid = e.guestPaidAmt != null && e.guestPaidAmt !== "" ? round2(num(e.guestPaidAmt)) : total;
+  if (guestPaid < 0) guestPaid = 0;
+  if (guestPaid > total) guestPaid = total;
+  var topUp = e.topUpAmt != null && e.topUpAmt !== "" ? round2(num(e.topUpAmt)) : round2(total - guestPaid);
+  if (topUp < 0) topUp = 0;
+  if (topUp > total) topUp = total;
+  var tf = String(e.topUpFrom || "").trim();
+  if (tf === "Own money" || expensePaidFromLooksOwn(tf)) tf = "Own money";
+  else if (tf === "Petty cash" || /^petty\b/i.test(tf)) tf = "Petty cash";
+  else if (!(topUp > 0.009)) tf = "";
+  else tf = tf || "Own money";
+  return { guestPaid: guestPaid, topUp: topUp, topUpFrom: tf };
+}
+
+/**
  * Cash left the boat for this crew day-pay only when floatPay === true.
  * Paid status alone never moves petty (prior books / auto status).
+ * Guest primary: only a Petty top-up (shortfall you cover from the envelope) hits pot.
  */
 function crewDayPayHitsPetty(e) {
   if (!isCrewDayPayExpense(e)) return false;
   if (String(e.crewPayStatus || "") !== "Paid") return false;
   var pf = expensePaidFrom(e);
   if (pf === "own" || pf === "owner" || pf === "card") return false;
+  if (pf === "guest") {
+    var g = crewDayPayGuestSplit(e);
+    return g.topUpFrom === "Petty cash" && g.topUp > 0.009 && e.floatPay === true;
+  }
   return e.floatPay === true;
+}
+
+/**
+ * € that actually left the boat envelope for this crew day-pay line.
+ * Guest+petty top-up → top-up only; normal pot pay → full amount.
+ */
+function crewDayPayPettyOutAmount(e) {
+  if (!crewDayPayHitsPetty(e)) return 0;
+  if (expensePaidFrom(e) === "guest") {
+    var g = crewDayPayGuestSplit(e);
+    return g.topUp > 0.009 ? g.topUp : 0;
+  }
+  return round2(num(e.amount));
 }
 
 /**
@@ -280,6 +339,7 @@ function crewDayPayHitsPetty(e) {
  *  pot      = floatPay — cash left boat envelope (counts in petty cashOut)
  *  captain  = Own money — captain pocket
  *  owner    = Owner money
+ *  guest    = guest paid crew (outside boat) — optional top-up separate
  *  books    = Paid + Petty label but no floatPay (not this pot cash-out)
  *  unpaid   = not Paid
  *  card     = credit card
@@ -289,8 +349,9 @@ function crewDayPayFundSource(e) {
   if (!isCrewDayPayExpense(e)) return "";
   if (String(e.crewPayStatus || "") !== "Paid") return "unpaid";
   if (String(e.payMethod || "") === "Credit Card") return "card";
-  if (crewDayPayHitsPetty(e)) return "pot";
   var pf = expensePaidFrom(e);
+  if (pf === "guest") return "guest";
+  if (crewDayPayHitsPetty(e)) return "pot";
   if (pf === "own") return "captain";
   if (pf === "owner") return "owner";
   return "books";
@@ -454,6 +515,7 @@ function crewPayOwnerJustification(e, leads) {
  * fromBoatPot   = paid from pot (floatPay) — equals petty crew cash-out
  * fromCaptain   = paid from captain pocket
  * fromOwner     = paid from owner
+ * fromGuest     = guest paid crew directly (not boat cash — quiet on owner PDF)
  * booksOnly     = Paid on books, not pot/captain/owner cash path
  * unpaidTotal   = Unpaid day rates in month
  *
@@ -475,6 +537,7 @@ function summarizeCrewPayMonth(expenses, month, opts) {
     fromBoatPot: 0,
     fromCaptain: 0,
     fromOwner: 0,
+    fromGuest: 0,
     booksOnly: 0,
     cardTotal: 0,
     nPaid: 0,
@@ -483,6 +546,7 @@ function summarizeCrewPayMonth(expenses, month, opts) {
     potLines: [],
     captainLines: [],
     ownerLines: [],
+    guestLines: [],
     booksLines: [],
   };
   if (!/^\d{4}-\d{2}$/.test(month)) return empty;
@@ -492,6 +556,7 @@ function summarizeCrewPayMonth(expenses, month, opts) {
   var fromBoatPot = 0;
   var fromCaptain = 0;
   var fromOwner = 0;
+  var fromGuest = 0;
   var booksOnly = 0;
   var cardTotal = 0;
   var nPaid = 0;
@@ -500,6 +565,7 @@ function summarizeCrewPayMonth(expenses, month, opts) {
   var potLines = [];
   var captainLines = [];
   var ownerLines = [];
+  var guestLines = [];
   var booksLines = [];
 
   (Array.isArray(expenses) ? expenses : []).forEach(function (e) {
@@ -509,6 +575,7 @@ function summarizeCrewPayMonth(expenses, month, opts) {
     if (!(a > 0.009)) return;
     var fund = crewDayPayFundSource(e);
     var just = crewPayOwnerJustification(e, leads);
+    var split = fund === "guest" ? crewDayPayGuestSplit(e) : null;
     var row = {
       id: String(e.id || ""),
       date: String(e.date || "").slice(0, 10),
@@ -522,6 +589,9 @@ function summarizeCrewPayMonth(expenses, month, opts) {
       floatPay: e.floatPay === true,
       paidFrom: String(e.paidFrom || ""),
       crewPayStatus: String(e.crewPayStatus || ""),
+      guestPaid: split ? split.guestPaid : 0,
+      topUp: split ? split.topUp : 0,
+      topUpFrom: split ? split.topUpFrom : "",
       guest: just.guest,
       charterStart: just.charterStart,
       charterEnd: just.charterEnd,
@@ -547,8 +617,34 @@ function summarizeCrewPayMonth(expenses, month, opts) {
     }
     nPaid++;
     paidTotal = round2(paidTotal + a);
-    if (fund === "pot") {
-      fromBoatPot = round2(fromBoatPot + a);
+    if (fund === "guest") {
+      /* Guest portion outside boat; top-up may hit pot or captain pocket */
+      var gPay = split && split.guestPaid > 0.009 ? split.guestPaid : a;
+      fromGuest = round2(fromGuest + gPay);
+      guestLines.push(row);
+      if (split && split.topUp > 0.009) {
+        if (split.topUpFrom === "Petty cash" && e.floatPay === true) {
+          fromBoatPot = round2(fromBoatPot + split.topUp);
+          potLines.push(
+            Object.assign({}, row, {
+              amount: split.topUp,
+              fund: "pot",
+              ownerDetail: (row.ownerDetail ? row.ownerDetail + " · " : "") + "balance",
+            })
+          );
+        } else if (split.topUpFrom === "Own money") {
+          fromCaptain = round2(fromCaptain + split.topUp);
+          captainLines.push(
+            Object.assign({}, row, {
+              amount: split.topUp,
+              fund: "captain",
+              ownerDetail: (row.ownerDetail ? row.ownerDetail + " · " : "") + "balance",
+            })
+          );
+        }
+      }
+    } else if (fund === "pot") {
+      fromBoatPot = round2(fromBoatPot + (crewDayPayPettyOutAmount(e) || a));
       potLines.push(row);
     } else if (fund === "captain") {
       fromCaptain = round2(fromCaptain + a);
@@ -569,6 +665,7 @@ function summarizeCrewPayMonth(expenses, month, opts) {
   potLines.sort(byDate);
   captainLines.sort(byDate);
   ownerLines.sort(byDate);
+  guestLines.sort(byDate);
   booksLines.sort(byDate);
 
   return {
@@ -578,6 +675,7 @@ function summarizeCrewPayMonth(expenses, month, opts) {
     fromBoatPot: fromBoatPot,
     fromCaptain: fromCaptain,
     fromOwner: fromOwner,
+    fromGuest: fromGuest,
     booksOnly: booksOnly,
     cardTotal: cardTotal,
     nPaid: nPaid,
@@ -586,6 +684,7 @@ function summarizeCrewPayMonth(expenses, month, opts) {
     potLines: potLines,
     captainLines: captainLines,
     ownerLines: ownerLines,
+    guestLines: guestLines,
     booksLines: booksLines,
   };
 }
@@ -612,7 +711,10 @@ function summarizePettyCashOutBuckets(monthExpenses) {
     var a = round2(num(e.amount));
     if (!(a > 0.009)) return;
     if (isCrewDayPayExpense(e)) {
-      if (crewDayPayHitsPetty(e)) b.crewDayPay = round2(b.crewDayPay + a);
+      if (crewDayPayHitsPetty(e)) {
+        var out = crewDayPayPettyOutAmount(e);
+        if (out > 0.009) b.crewDayPay = round2(b.crewDayPay + out);
+      }
       return;
     }
     if (isCaptainCommissionExpense(e)) {
@@ -1031,6 +1133,9 @@ function summarizePettyCash(opts) {
     if (!(a > 0)) return;
     if (isCrewDayPayExpense(e)) {
       if (!crewDayPayHitsPetty(e)) return;
+      var outAmt = crewDayPayPettyOutAmount(e);
+      if (!(outAmt > 0.009)) return;
+      a = outAmt;
       cashOut += a;
       crewPaidPetty += a;
       /* charterDate = roster day; date may be later pay day (when cash left pot) */
@@ -1300,9 +1405,24 @@ function isOwnMoneySpend(e) {
   if (expensePaidFrom(e) === "owner") return false;
   if (isCrewDayPayExpense(e)) {
     if (String(e.crewPayStatus || "") !== "Paid") return false;
-    return expensePaidFrom(e) === "own";
+    if (expensePaidFrom(e) === "own") return true;
+    /* Guest shortfall top-up from own pocket only (not full guest amount) */
+    if (expensePaidFrom(e) === "guest") {
+      var g = crewDayPayGuestSplit(e);
+      return g.topUpFrom === "Own money" && g.topUp > 0.009;
+    }
+    return false;
   }
   return expensePaidFrom(e) === "own";
+}
+
+/** € of own-money spend (guest top-up uses top-up only). */
+function ownMoneySpendAmount(e) {
+  if (!isOwnMoneySpend(e)) return 0;
+  if (isCrewDayPayExpense(e) && expensePaidFrom(e) === "guest") {
+    return crewDayPayGuestSplit(e).topUp;
+  }
+  return round2(num(e.amount));
 }
 
 /** Who is owed for an own-money spend (captain or stew). */
@@ -1326,7 +1446,7 @@ function ownMoneySpendWhoId(e) {
  */
 function ownMoneyRepaidAmt(e, expenses, opts) {
   if (!isOwnMoneySpend(e)) return 0;
-  var need = round2(num(e.amount));
+  var need = ownMoneySpendAmount(e);
   if (!(need > 0)) return 0;
   opts = opts || {};
   var through = opts.throughMonth ? String(opts.throughMonth).slice(0, 7) : "";
@@ -1379,7 +1499,7 @@ function ownMoneyRepaidAmt(e, expenses, opts) {
   var forThis = 0;
   for (var i = 0; i < own.length; i++) {
     var x = own[i];
-    var a = round2(num(x.amount));
+    var a = ownMoneySpendAmount(x);
     var direct = 0;
     list.forEach(function (r) {
       if (r && isExpenseReimbursement(r) && String(r.reimbursesExpenseId || "") === String(x.id))
@@ -1411,7 +1531,7 @@ function ownMoneyRepaidAmt(e, expenses, opts) {
 
 function ownMoneyIsRepaid(e, expenses, opts) {
   if (!isOwnMoneySpend(e)) return false;
-  var need = round2(num(e.amount));
+  var need = ownMoneySpendAmount(e);
   if (!(need > 0)) return false;
   return ownMoneyRepaidAmt(e, expenses, opts) >= need - 0.009;
 }
@@ -1475,7 +1595,7 @@ function collectOpenPocketOuts(expenses, focusMonth, opts) {
     var em = expenseMonthKey(e.date);
     if (em && focusMonth && em > focusMonth) return;
     if (!isOwnMoneySpend(e)) return;
-    var a = round2(num(e.amount));
+    var a = ownMoneySpendAmount(e);
     if (!(a > 0)) return;
     var repaidAmt = ownMoneyRepaidAmt(e, expenses);
     var remain = round2(a - repaidAmt);
@@ -1552,8 +1672,9 @@ function summarizePocketBalances(expenses, cashIns, opts) {
       }
       return;
     }
-    if (cls.hitsOwnMoneyPocket || (isCrewDayPayExpense(e) && expensePaidFrom(e) === "own" && String(e.crewPayStatus || "") === "Paid")) {
-      ensure(cls.ownMoneyPayerId || ownMoneySpendWhoId(e) || EXP_POCKET_CAPTAIN).paidOut += num(e.amount);
+    if (cls.hitsOwnMoneyPocket || isOwnMoneySpend(e)) {
+      ensure(cls.ownMoneyPayerId || ownMoneySpendWhoId(e) || EXP_POCKET_CAPTAIN).paidOut +=
+        cls.ownMoneyAmount > 0 ? cls.ownMoneyAmount : ownMoneySpendAmount(e) || num(e.amount);
     }
   });
   var list = [];
@@ -2797,6 +2918,7 @@ function summarizeMonthSettlement(opts) {
     EXP_POCKET_CAPTAIN: EXP_POCKET_CAPTAIN,
     EXP_POCKET_OWNER: EXP_POCKET_OWNER,
     expensePaidFromLooksOwner: expensePaidFromLooksOwner,
+    expensePaidFromLooksGuest: expensePaidFromLooksGuest,
     isExpenseReimbursement: isExpenseReimbursement,
     expensePaidFromLooksOwn: expensePaidFromLooksOwn,
     expensePaidFrom: expensePaidFrom,
@@ -2806,7 +2928,9 @@ function summarizeMonthSettlement(opts) {
     isCrewDayPayExpense: isCrewDayPayExpense,
     crewDayPayFinger: crewDayPayFinger,
     crewDayPayLinkId: crewDayPayLinkId,
+    crewDayPayGuestSplit: crewDayPayGuestSplit,
     crewDayPayHitsPetty: crewDayPayHitsPetty,
+    crewDayPayPettyOutAmount: crewDayPayPettyOutAmount,
     crewDayPayFundSource: crewDayPayFundSource,
     crewPayGuestFromDescription: crewPayGuestFromDescription,
     crewPayOwnerJustification: crewPayOwnerJustification,
@@ -2834,6 +2958,7 @@ function summarizeMonthSettlement(opts) {
     filterLedgerThroughMonth: filterLedgerThroughMonth,
     expenseReimburseWhoId: expenseReimburseWhoId,
     isOwnMoneySpend: isOwnMoneySpend,
+    ownMoneySpendAmount: ownMoneySpendAmount,
     ownMoneySpendWhoId: ownMoneySpendWhoId,
     ownMoneyRepaidAmt: ownMoneyRepaidAmt,
     ownMoneyIsRepaid: ownMoneyIsRepaid,

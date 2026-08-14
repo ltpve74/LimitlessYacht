@@ -599,6 +599,8 @@ function planStewDayPayExpenseLines(input) {
     if (s === "Own money") return "Own money";
     if (s === "Owner money" || s === "Owner’s money" || s === "Owner's money") return "Owner money";
     if (/^owner\s*(money|pocket)/i.test(s)) return "Owner money";
+    if (s === "Guest" || s === "Guest money" || s === "Guest paid" || s === "Guest paid crew" || /^guest\b/i.test(s))
+      return "Guest";
     if (s === "Petty cash" || /^petty\b/i.test(s)) return "Petty cash";
     return "";
   }
@@ -648,7 +650,8 @@ function planStewDayPayExpenseLines(input) {
     var paidById = "";
     if (old) {
       var oldPf = normalizeDayPayFrom(old.paidFrom) || String(old.paidFrom || "");
-      if (oldPf === "Own money" || oldPf === "Owner money" || oldPf === "Petty cash") paidFrom = oldPf;
+      if (oldPf === "Own money" || oldPf === "Owner money" || oldPf === "Petty cash" || oldPf === "Guest")
+        paidFrom = oldPf;
       if (old.paidById != null && String(old.paidById) !== "") paidById = String(old.paidById);
     }
     var mapNorm = normalizeDayPayFrom(mapPf);
@@ -657,10 +660,52 @@ function planStewDayPayExpenseLines(input) {
     /* Explicit mark always wins for the target stew (non-petty does not need markFloat) */
     if (applyMark && normalizeDayPayFrom(asg._floatPayFrom) === "Owner money")
       paidFrom = "Owner money";
+    else if (applyMark && normalizeDayPayFrom(asg._floatPayFrom) === "Guest") paidFrom = "Guest";
     else if (applyMark && asg._floatPayFrom === "Own money") paidFrom = "Own money";
     else if (applyMark && (markFloat || asg._floatPayFrom === "Petty cash")) paidFrom = "Petty cash";
     var floatPay = false;
-    if (paidFrom === "Owner money") {
+    var guestPaidAmt = null;
+    var topUpAmt = 0;
+    var topUpFrom = "";
+    if (paidFrom === "Guest") {
+      /* Guest paid crew; optional shortfall top-up from own pocket or petty */
+      floatPay = false;
+      paidById = "";
+      var gMap =
+        asg.dayPayGuestByStew && asg.dayPayGuestByStew[String(sid)] != null
+          ? Number(asg.dayPayGuestByStew[String(sid)])
+          : NaN;
+      var gDef =
+        asg.guestPaidAmt != null && asg.guestPaidAmt !== "" ? Number(asg.guestPaidAmt) : NaN;
+      guestPaidAmt = !isNaN(gMap) && gMap >= 0 ? gMap : !isNaN(gDef) && gDef >= 0 ? gDef : amt;
+      if (guestPaidAmt > amt) guestPaidAmt = amt;
+      if (guestPaidAmt < 0) guestPaidAmt = 0;
+      topUpAmt = Math.round((amt - guestPaidAmt) * 100) / 100;
+      if (topUpAmt < 0.009) topUpAmt = 0;
+      topUpFrom = String(asg.topUpFrom || (old && old.topUpFrom) || "").trim();
+      if (topUpAmt > 0.009) {
+        if (topUpFrom === "Petty cash" || /^petty\b/i.test(topUpFrom)) {
+          topUpFrom = "Petty cash";
+          floatPay = !!(applyMark && markFloat) || !!(old && old.floatPay === true && old.topUpFrom === "Petty cash");
+          if (applyMark && markFloat) floatPay = true;
+        } else {
+          topUpFrom = "Own money";
+          floatPay = false;
+          paidById =
+            applyMark && asg._floatPayPayerId
+              ? String(asg._floatPayPayerId)
+              : (old && old.paidById) || "captain";
+          if (paidById === "owner") paidById = "captain";
+        }
+      } else topUpFrom = "";
+      if (old && paidFrom === "Guest" && old.guestPaidAmt != null && !applyMark) {
+        guestPaidAmt = Number(old.guestPaidAmt);
+        topUpAmt = Number(old.topUpAmt) || 0;
+        topUpFrom = String(old.topUpFrom || "");
+        floatPay = old.floatPay === true;
+        paidById = old.paidById || paidById;
+      }
+    } else if (paidFrom === "Owner money") {
       floatPay = false;
       paidById = "owner";
     } else if (paidFrom === "Own money") {
@@ -692,7 +737,7 @@ function planStewDayPayExpenseLines(input) {
     var lineDate = charterDate;
     if (markFloat && floatPay && applyMark) lineDate = payDate;
     else if (
-      (paidFrom === "Own money" || paidFrom === "Owner money") &&
+      (paidFrom === "Own money" || paidFrom === "Owner money" || paidFrom === "Guest") &&
       applyMark &&
       (normalizeDayPayFrom(asg._floatPayFrom) === paidFrom ||
         normalizeDayPayFrom(asg.paidFrom) === paidFrom ||
@@ -703,20 +748,21 @@ function planStewDayPayExpenseLines(input) {
       lineDate = String(old.date).slice(0, 10);
     else if (floatPay) lineDate = payDate;
     else if (
-      (paidFrom === "Own money" || paidFrom === "Owner money") &&
+      (paidFrom === "Own money" || paidFrom === "Owner money" || paidFrom === "Guest") &&
       old &&
       String(old.date || "").slice(0, 10)
     )
       lineDate = String(old.date).slice(0, 10);
     var desc = "Stewardess / day work — " + summary;
     if (paidFrom === "Owner money") desc = desc + " · paid by owner";
+    /* Guest: keep description neutral (cash report stays quiet) */
     if (
-      (floatPay || paidFrom === "Own money" || paidFrom === "Owner money") &&
+      (floatPay || paidFrom === "Own money" || paidFrom === "Owner money" || paidFrom === "Guest") &&
       lineDate !== charterDate &&
       charterDate
     )
       desc = desc + " · charter " + charterDate;
-    lines.push({
+    var line = {
       id: (old && old.id) || newId(),
       linkId: linkId,
       source: "stew",
@@ -739,7 +785,13 @@ function planStewDayPayExpenseLines(input) {
       receipt: (old && old.receipt) || "",
       by: who,
       updatedAt: nowIso,
-    });
+    };
+    if (paidFrom === "Guest") {
+      line.guestPaidAmt = guestPaidAmt != null ? guestPaidAmt : amt;
+      line.topUpAmt = topUpAmt > 0.009 ? topUpAmt : 0;
+      line.topUpFrom = topUpFrom || "";
+    }
+    lines.push(line);
   });
   return { eventKey: eventKey, lines: lines, clearOnly: false };
 }

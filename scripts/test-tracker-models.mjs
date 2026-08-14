@@ -2710,6 +2710,77 @@ console.log("\n[Write plans — stew expenses + APA shortfall decision]");
     M.expensePaidFromLooksOwner("Owner money") === true &&
       M.expensePaidFromLooksOwn("Owner money") === false
   );
+  /* Guest paid crew + €50 shortfall top-up from own money (stew still gets full rate) */
+  {
+    const guestLine = {
+      id: "g1",
+      source: "stew",
+      stewPayKind: "dayPay",
+      stewEventKey: "ek-g",
+      stewId: "s1",
+      crewPayStatus: "Paid",
+      amount: 250,
+      guestPaidAmt: 200,
+      topUpAmt: 50,
+      topUpFrom: "Own money",
+      paidFrom: "Guest",
+      paidById: "captain",
+      floatPay: false,
+      date: "2026-08-10",
+      vendor: "Laura",
+      description: "Stewardess / day work — Guest X",
+      category: "Crew Salaries",
+      payMethod: "Cash",
+    };
+    ok("guest paid fund source guest", M.crewDayPayFundSource(guestLine) === "guest");
+    ok("guest paid does not hit full petty", M.crewDayPayHitsPetty(guestLine) === false);
+    ok("guest own top-up is own-money spend", M.isOwnMoneySpend(guestLine) === true);
+    ok("guest own top-up amount is 50 not 250", near(M.ownMoneySpendAmount(guestLine), 50));
+    const split = M.crewDayPayGuestSplit(guestLine);
+    ok("guest split guest 200", near(split.guestPaid, 200));
+    ok("guest split topUp 50", near(split.topUp, 50));
+    const sum = M.summarizeCrewPayMonth([guestLine], "2026-08", {});
+    ok("guest month fromGuest 200", near(sum.fromGuest, 200));
+    ok("guest month fromCaptain top-up 50", near(sum.fromCaptain, 50));
+    ok("guest month pot 0", near(sum.fromBoatPot, 0));
+    const guestPetty = Object.assign({}, guestLine, {
+      topUpFrom: "Petty cash",
+      floatPay: true,
+      paidById: "",
+    });
+    ok("guest petty top-up hits petty", M.crewDayPayHitsPetty(guestPetty) === true);
+    ok("guest petty out is 50", near(M.crewDayPayPettyOutAmount(guestPetty), 50));
+    const planGuest = M.planStewDayPayExpenseLines({
+      asg: {
+        eventKey: "ek-g2",
+        payStatus: "Paid",
+        paidFrom: "Guest",
+        guestPaidAmt: 200,
+        topUpFrom: "Own money",
+        stewIds: ["laura"],
+        dayPayByStew: { laura: 250 },
+        start: "2026-08-10",
+        summary: "Guest deal",
+        _floatPayFrom: "Guest",
+        _floatPayMark: false,
+        _floatPayPayerId: "captain",
+      },
+      dayPayAmt: function (a, sid) {
+        return 250;
+      },
+      stewName: function () {
+        return "Laura";
+      },
+      nowIso: "2026-08-10T12:00:00.000Z",
+      newId: function () {
+        return "gline";
+      },
+    });
+    ok("guest plan line n 1", planGuest.lines.length === 1);
+    ok("guest plan paidFrom Guest", planGuest.lines[0] && planGuest.lines[0].paidFrom === "Guest");
+    ok("guest plan guestPaid 200", planGuest.lines[0] && near(planGuest.lines[0].guestPaidAmt, 200));
+    ok("guest plan topUp 50", planGuest.lines[0] && near(planGuest.lines[0].topUpAmt, 50));
+  }
   /* On-bill tip payout date = pay day; must hit petty (not misread as day-pay) */
   const tipPayDate = M.planStewTipPayoutExpense({
     asg: {
