@@ -2780,6 +2780,61 @@ console.log("\n[Write plans — stew expenses + APA shortfall decision]");
     ok("guest plan paidFrom Guest", planGuest.lines[0] && planGuest.lines[0].paidFrom === "Guest");
     ok("guest plan guestPaid 200", planGuest.lines[0] && near(planGuest.lines[0].guestPaidAmt, 200));
     ok("guest plan topUp 50", planGuest.lines[0] && near(planGuest.lines[0].topUpAmt, 50));
+    /* Boss €400 + you front €50 (Owner money split) */
+    const bossLine = {
+      id: "b1",
+      source: "stew",
+      stewPayKind: "dayPay",
+      stewEventKey: "ek-b",
+      stewId: "airi",
+      crewPayStatus: "Paid",
+      amount: 450,
+      guestPaidAmt: 400,
+      topUpAmt: 50,
+      topUpFrom: "Own money",
+      paidFrom: "Owner money",
+      paidById: "captain",
+      floatPay: false,
+      date: "2026-08-12",
+      vendor: "Airi",
+      category: "Crew Salaries",
+      payMethod: "Cash",
+    };
+    ok("boss split fund owner", M.crewDayPayFundSource(bossLine) === "owner");
+    ok("boss split is own-money top-up", M.isOwnMoneySpend(bossLine) === true);
+    ok("boss front amount 50", near(M.ownMoneySpendAmount(bossLine), 50));
+    const bossSum = M.summarizeCrewPayMonth([bossLine], "2026-08", {});
+    ok("boss month fromOwner 400", near(bossSum.fromOwner, 400));
+    ok("boss month fromCaptain 50", near(bossSum.fromCaptain, 50));
+    const planBoss = M.planStewDayPayExpenseLines({
+      asg: {
+        eventKey: "ek-b2",
+        payStatus: "Paid",
+        paidFrom: "Owner money",
+        guestPaidAmt: 400,
+        topUpFrom: "Own money",
+        stewIds: ["airi"],
+        dayPayByStew: { airi: 450 },
+        start: "2026-08-12",
+        summary: "Boss guest",
+        _floatPayFrom: "Owner money",
+        _floatPayMark: false,
+        _floatPayPayerId: "captain",
+      },
+      dayPayAmt: function () {
+        return 450;
+      },
+      stewName: function () {
+        return "Airi";
+      },
+      nowIso: "2026-08-12T12:00:00.000Z",
+      newId: function () {
+        return "bline";
+      },
+    });
+    ok("boss plan paidFrom Owner", planBoss.lines[0] && planBoss.lines[0].paidFrom === "Owner money");
+    ok("boss plan primary 400", planBoss.lines[0] && near(planBoss.lines[0].guestPaidAmt, 400));
+    ok("boss plan topUp 50", planBoss.lines[0] && near(planBoss.lines[0].topUpAmt, 50));
   }
   /* On-bill tip payout date = pay day; must hit petty (not misread as day-pay) */
   const tipPayDate = M.planStewTipPayoutExpense({

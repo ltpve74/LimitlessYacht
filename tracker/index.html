@@ -12391,7 +12391,7 @@ function expSetStewDayPayStatus(eventKey, payStatus, opts){
    */
   var hitPetty=false;
   if(status==="Paid"&&!opts.booksOnly&&!opts.prior){
-    if(pfMark==="Guest"&&topUpFromOpt==="Petty cash"){
+    if((pfMark==="Guest"||pfMark==="Owner money")&&topUpFromOpt==="Petty cash"&&guestPaidOpt!=null){
       if(opts.hitPetty===true||opts.forceFloat===true) hitPetty=true;
       else if(!wasPaid) hitPetty=true;
       else hitPetty=false;
@@ -12411,7 +12411,7 @@ function expSetStewDayPayStatus(eventKey, payStatus, opts){
   function applyPaidFromToExpense(e){
     if(opts.paidFrom||opts.booksOnly||opts.prior||hitPetty||pfMark==="Own money"||pfMark==="Owner money"||pfMark==="Guest") e.paidFrom=pfMark;
     if(opts.booksOnly||opts.prior) e.floatPay=false;
-    else if(pfMark==="Guest"){
+    else if(pfMark==="Guest"||(pfMark==="Owner money"&&guestPaidOpt!=null)){
       var total=apaNum(e.amount);
       var gPay=guestPaidOpt!=null?guestPaidOpt:total;
       if(gPay>total) gPay=total;
@@ -12422,20 +12422,23 @@ function expSetStewDayPayStatus(eventKey, payStatus, opts){
       e.topUpFrom=top>0.009?topUpFromOpt:"";
       if(top>0.009&&topUpFromOpt==="Petty cash"&&hitPetty){
         e.floatPay=true;
-        e.paidById="";
+        e.paidById=pfMark==="Owner money"?EXP_POCKET_OWNER:"";
       } else if(top>0.009&&topUpFromOpt==="Own money"){
         e.floatPay=false;
         e.paidById=String(opts.paidById||payerMark||EXP_POCKET_CAPTAIN);
         if(e.paidById==="owner") e.paidById=EXP_POCKET_CAPTAIN;
       } else {
         e.floatPay=false;
-        e.paidById="";
+        e.paidById=pfMark==="Owner money"?EXP_POCKET_OWNER:"";
       }
     } else if(hitPetty) e.floatPay=!(pfMark==="Own money"||pfMark==="Owner money"||pfMark==="Guest");
-    else if(pfMark==="Own money"||pfMark==="Owner money") e.floatPay=false;
-    if(e.paidFrom==="Owner money") e.paidById=EXP_POCKET_OWNER;
+    else if(pfMark==="Own money"||pfMark==="Owner money"){
+      e.floatPay=false;
+      e.guestPaidAmt=""; e.topUpAmt=0; e.topUpFrom="";
+    }
+    if(e.paidFrom==="Owner money"&&!(e.topUpAmt>0.009&&e.topUpFrom==="Own money")) e.paidById=e.paidById||EXP_POCKET_OWNER;
     else if(e.paidFrom==="Own money") e.paidById=String(opts.paidById||payerMark||EXP_POCKET_CAPTAIN);
-    else if(e.paidFrom!=="Guest") e.paidById="";
+    else if(e.paidFrom!=="Guest"&&!(e.paidFrom==="Owner money"&&e.topUpAmt>0.009)) e.paidById=e.paidById||"";
   }
   if(!asg){
     /* Assignment missing — still flip expense lines if present */
@@ -12459,7 +12462,7 @@ function expSetStewDayPayStatus(eventKey, payStatus, opts){
   /* Persist paidFrom on the assign so re-open Stews / wasFromOwn stay correct */
   if(status==="Paid"&&!opts.booksOnly&&!opts.prior){
     asg.paidFrom=pfMark;
-    if(pfMark==="Guest"){
+    if(pfMark==="Guest"||pfMark==="Owner money"){
       asg.guestPaidAmt=guestPaidOpt;
       asg.topUpFrom=topUpFromOpt||"";
     } else {
@@ -12473,7 +12476,11 @@ function expSetStewDayPayStatus(eventKey, payStatus, opts){
   }
   asg._floatPayMark=hitPetty;
   asg._floatPayFrom=status==="Paid"?pfMark:"";
-  asg._floatPayPayerId=status==="Paid"&&(pfMark==="Own money"||pfMark==="Owner money"||(pfMark==="Guest"&&topUpFromOpt==="Own money"))?payerMark:"";
+  asg._floatPayPayerId=status==="Paid"&&(
+    pfMark==="Own money"||
+    (pfMark==="Owner money"&&!(guestPaidOpt!=null&&topUpFromOpt==="Own money")&&!(guestPaidOpt!=null))||
+    ((pfMark==="Guest"||pfMark==="Owner money")&&topUpFromOpt==="Own money")
+  )?payerMark:(status==="Paid"&&pfMark==="Owner money"?EXP_POCKET_OWNER:"");
   asg._floatPayOnlySid=onlySid||"";
   if(status!=="Paid"){ asg._floatPayMark=false; asg._floatPayFrom=""; asg._floatPayPayerId=""; asg._floatPayOnlySid=""; }
   asg.updatedAt=new Date().toISOString();
@@ -14275,14 +14282,14 @@ function openExpense(id, opts){
           '<option value="Prior"'+(paidFromSel==="Prior"?" selected":"")+'>Prior / not this pot (no petty change)</option>')
         :EXP_PAID_FROM.map(function(c){return '<option'+(c===paidFromSel?" selected":"")+'>'+esc(c)+'</option>';}).join(""))+
     '</select>')+
-    '<div id="f_exp_guest_wrap" style="'+(fromStew&&paidFromSel==="Guest"?"":"display:none")+'">'+
-      fieldHTML("Guest paid (€)",moneyField("f_exp_guest_paid", r.guestPaidAmt!=null&&r.guestPaidAmt!==""?r.guestPaidAmt:""))+
-      fieldHTML("If short · top-up from",
+    '<div id="f_exp_guest_wrap" style="'+(fromStew&&(paidFromSel==="Guest"||paidFromSel==="Owner money")?"":"display:none")+'">'+
+      fieldHTML(paidFromSel==="Owner money"?"Boss / owner paid (€)":"Guest paid (€)",moneyField("f_exp_guest_paid", r.guestPaidAmt!=null&&r.guestPaidAmt!==""?r.guestPaidAmt:""))+
+      fieldHTML("You front the rest from",
         '<select class="ctl" id="f_exp_topup_from">'+
-          '<option value="Own money"'+(String(r.topUpFrom||"Own money")!=="Petty cash"?" selected":"")+'>Own money (you)</option>'+
+          '<option value="Own money"'+(String(r.topUpFrom||"Own money")!=="Petty cash"?" selected":"")+'>Own money (front for boat)</option>'+
           '<option value="Petty cash"'+(String(r.topUpFrom||"")==="Petty cash"?" selected":"")+'>Petty cash</option>'+
         '</select>')+
-      '<p style="margin:-6px 0 12px;font-size:12px;color:var(--muted)">Amount above is what the stew is owed. Guest paid can be less — top-up covers the shortfall only.</p>'+
+      '<p style="margin:-6px 0 12px;font-size:12px;color:var(--muted)">Amount above is full stew due. Boss/guest paid can be less (e.g. 400 of 450) — you front the shortfall.</p>'+
     '</div>'+
     '<div id="f_exp_paidBy_wrap" style="'+(paidFromSel==="Own money"&&!reimburse?"":"display:none")+'">'+
       fieldHTML("Who paid (pocket)",'<select class="ctl" id="f_exp_paidBy">'+
@@ -14368,7 +14375,7 @@ function openExpense(id, opts){
       byWrap.style.display=(!reimburse&&method!=="Credit Card"&&pf==="Own money"&&(!fromStew||crewPay==="Paid"))?"":"none";
     }
     var gWrap=el("f_exp_guest_wrap");
-    if(gWrap) gWrap.style.display=(fromStew&&crewPay==="Paid"&&pf==="Guest")?"":"none";
+    if(gWrap) gWrap.style.display=(fromStew&&crewPay==="Paid"&&(pf==="Guest"||pf==="Owner money"))?"":"none";
   }
   function syncReimburseVis(){
     var wrap=el("f_exp_reimburseTo_wrap");
@@ -14462,8 +14469,8 @@ function openExpense(id, opts){
               var todayPay=localTodayYmd();
               if(todayPay) e.date=todayPay;
             }catch(eD){}
-          } else if(pf==="Guest"){
-            e.paidFrom="Guest";
+          } else if(pf==="Guest"||(pf==="Owner money"&&guestPaidIn!=="")){
+            e.paidFrom=pf;
             var gPay=guestPaidIn!==""?apaNum(guestPaidIn):newAmt;
             if(gPay>newAmt) gPay=newAmt;
             if(gPay<0) gPay=0;
@@ -14473,13 +14480,13 @@ function openExpense(id, opts){
             e.topUpFrom=top>0.009?topUpFromIn:"";
             if(top>0.009&&topUpFromIn==="Petty cash"){
               e.floatPay=true;
-              e.paidById="";
+              e.paidById=pf==="Owner money"?EXP_POCKET_OWNER:"";
             } else if(top>0.009&&topUpFromIn==="Own money"){
               e.floatPay=false;
               e.paidById=payerId||EXP_POCKET_CAPTAIN;
             } else {
               e.floatPay=false;
-              e.paidById="";
+              e.paidById=pf==="Owner money"?EXP_POCKET_OWNER:"";
             }
             try{
               var todayG=localTodayYmd();
@@ -14518,7 +14525,7 @@ function openExpense(id, opts){
           /* Persist paidFrom on assign so Stews re-open matches Expenses */
           if(crewPay==="Paid"&&!isPrior){
             asgPay.paidFrom=pf;
-            if(pf==="Guest"){
+            if(pf==="Guest"||(pf==="Owner money"&&guestPaidIn!=="")){
               asgPay.guestPaidAmt=guestPaidIn!==""?apaNum(guestPaidIn):"";
               asgPay.topUpFrom=topUpFromIn;
             } else {
@@ -14547,14 +14554,18 @@ function openExpense(id, opts){
             delete asgPay._floatPayFrom;
           }
         } else {
-          var needRestoreFloat=crewPay==="Paid"&&(pf==="Petty cash"||(pf==="Guest"&&topUpFromIn==="Petty cash"))&&!expCrewPayHitsFloat(r);
+          var needRestoreFloat=crewPay==="Paid"&&(pf==="Petty cash"||((pf==="Guest"||pf==="Owner money")&&topUpFromIn==="Petty cash"&&guestPaidIn!==""))&&!expCrewPayHitsFloat(r);
           expSetStewDayPayStatus(eventKey, crewPay, {
             paidFrom:crewPay==="Paid"?pf:"",
-            paidById:crewPay==="Paid"?(pf==="Owner money"?EXP_POCKET_OWNER:(pf==="Own money"||(pf==="Guest"&&topUpFromIn==="Own money")?payerId:"")):"",
+            paidById:crewPay==="Paid"?(
+              pf==="Own money"||((pf==="Guest"||pf==="Owner money")&&topUpFromIn==="Own money"&&guestPaidIn!=="")
+                ?payerId
+                :(pf==="Owner money"?EXP_POCKET_OWNER:"")
+            ):"",
             stewId:r.stewId?String(r.stewId):"",
             forceFloat:needRestoreFloat,
-            guestPaidAmt:pf==="Guest"?(guestPaidIn!==""?apaNum(guestPaidIn):newAmt):undefined,
-            topUpFrom:pf==="Guest"?topUpFromIn:undefined
+            guestPaidAmt:(pf==="Guest"||pf==="Owner money")&&guestPaidIn!==""?apaNum(guestPaidIn):(pf==="Guest"?newAmt:undefined),
+            topUpFrom:(pf==="Guest"||(pf==="Owner money"&&guestPaidIn!==""))?topUpFromIn:undefined
           });
         }
       }
@@ -17362,24 +17373,33 @@ function openStewAssign(eventKey){
       }
     }catch(ePf){}
     if(guestPaidPrefill===""&&pay==="Paid") guestPaidPrefill=""; /* leave blank = full amount */
+    var showSplit=paidFromPrefill==="Guest"||paidFromPrefill==="Owner money";
     h+='<div id="f_stew_paid_from_wrap" style="'+(pay==="Paid"?"":"display:none")+'">'+
       fieldHTML("Paid from",
         '<select class="ctl" id="f_stew_paid_from">'+
           '<option value="Petty cash"'+(paidFromPrefill==="Petty cash"?" selected":"")+'>Petty cash (boat envelope)</option>'+
-          '<option value="Own money"'+(paidFromPrefill==="Own money"?" selected":"")+'>Own money (captain / me)</option>'+
-          '<option value="Owner money"'+(paidFromPrefill==="Owner money"?" selected":"")+'>Owner money (owner paid crew)</option>'+
-          '<option value="Guest"'+(paidFromPrefill==="Guest"?" selected":"")+'>Guest paid crew</option>'+
+          '<option value="Own money"'+(paidFromPrefill==="Own money"?" selected":"")+'>Own money (you paid full amount)</option>'+
+          '<option value="Owner money"'+(paidFromPrefill==="Owner money"?" selected":"")+'>Boss / owner paid (can split + top-up)</option>'+
+          '<option value="Guest"'+(paidFromPrefill==="Guest"?" selected":"")+'>Guest paid crew (can split + top-up)</option>'+
         '</select>')+
-      '<div id="f_stew_guest_wrap" style="'+(paidFromPrefill==="Guest"?"":"display:none")+'">'+
-        fieldHTML("Guest paid (€)",moneyField("f_stew_guest_paid", guestPaidPrefill))+
-        fieldHTML("If guest short · top-up from",
+      '<div id="f_stew_guest_wrap" style="'+(showSplit?"":"display:none")+'">'+
+        '<div class="sectitle" style="margin:4px 0 8px;font-size:13px">Split · who paid how much</div>'+
+        fieldHTML('<span id="f_stew_primary_lab">'+(paidFromPrefill==="Owner money"?"Boss / owner paid (€)":"Guest paid (€)")+'</span>',
+          moneyField("f_stew_guest_paid", guestPaidPrefill))+
+        fieldHTML("You front the rest from",
           '<select class="ctl" id="f_stew_topup_from">'+
-            '<option value="Own money"'+(topUpFromPrefill!=="Petty cash"?" selected":"")+'>Own money (you make stew whole)</option>'+
+            '<option value="Own money"'+(topUpFromPrefill!=="Petty cash"?" selected":"")+'>Own money (front for the boat)</option>'+
             '<option value="Petty cash"'+(topUpFromPrefill==="Petty cash"?" selected":"")+'>Petty cash (boat envelope)</option>'+
           '</select>')+
-        '<p style="margin:-6px 0 12px;font-size:12px;color:var(--muted);line-height:1.4">Day rate above is what the stew is owed. Guest paid can be less — shortfall is covered from top-up so you keep your word. Guest share is off the boat books; only the top-up hits petty/pocket.</p>'+
+        '<p id="f_stew_split_hint" style="margin:-6px 0 12px;font-size:12px;color:var(--muted);line-height:1.4">'+
+          '<b>Example:</b> stew owed <b>€450</b> → boss paid <b>€400</b> → you front <b>€50</b> from own money. '+
+          'Day rate / per-stew amount = full owed. Leave “boss paid” blank = they paid the full amount.'+
+        '</p>'+
       '</div>'+
-      '<p id="f_stew_paid_from_hint" style="margin:-6px 0 12px;font-size:12px;color:var(--muted);line-height:1.4"><b>Petty</b> → boat envelope. <b>Own money</b> → your pocket. <b>Owner money</b> → owner paid. <b>Guest</b> → guest paid crew (deal) — quiet on cash PDF.</p>'+
+      '<p id="f_stew_paid_from_hint" style="margin:-6px 0 12px;font-size:12px;color:var(--muted);line-height:1.4">'+
+        '<b>Petty</b> = full pay from boat. <b>Own money</b> = you paid full. '+
+        '<b>Boss / owner</b> or <b>Guest</b> = set how much they paid; shortfall = you front (own or petty). Boss/guest share stays quiet on cash PDF.'+
+      '</p>'+
     '</div>';
     var isAsgCancelled=!!(asg.cancelled||asg.status==="cancelled");
     h+='<label class="checkrow" style="margin:8px 0 12px"><input type="checkbox" id="f_stew_cancelled"'+(isAsgCancelled?" checked":"")+'>'+
@@ -17633,7 +17653,9 @@ function openStewAssign(eventKey){
     var tipSrcSel=el("f_stew_tip_src")&&el("f_stew_tip_src").value==="card"?"card":"cash";
     var paidFromSel=el("f_stew_paid_from")?el("f_stew_paid_from").value:"Petty cash";
     if(el("f_stew_paid_from_wrap")) el("f_stew_paid_from_wrap").style.display=paySel==="Paid"?"":"none";
-    if(el("f_stew_guest_wrap")) el("f_stew_guest_wrap").style.display=(paySel==="Paid"&&paidFromSel==="Guest")?"":"none";
+    var showSplitLive=paySel==="Paid"&&(paidFromSel==="Guest"||paidFromSel==="Owner money");
+    if(el("f_stew_guest_wrap")) el("f_stew_guest_wrap").style.display=showSplitLive?"":"none";
+    if(el("f_stew_primary_lab")) el("f_stew_primary_lab").textContent=paidFromSel==="Owner money"?"Boss / owner paid (€)":"Guest paid (€)";
     var tipMock={
       tipTotal:tipTot>0?tipTot:"",
       stewIds:ids,
@@ -17642,7 +17664,7 @@ function openStewAssign(eventKey){
       tipSource:tipSrcSel
     };
     var tip=stewTipShare(tipMock);
-    var payLabel=paySel==="Paid"?("Paid · "+(paidFromSel==="Owner money"?"owner money":(paidFromSel==="Guest"?"guest":(paidFromSel==="Own money"?"own money":"petty")))):(charterDue?"Unpaid":"Not due yet");
+    var payLabel=paySel==="Paid"?("Paid · "+(paidFromSel==="Owner money"?"boss/owner":(paidFromSel==="Guest"?"guest":(paidFromSel==="Own money"?"own money":"petty")))):(charterDue?"Unpaid":"Not due yet");
     var totalPay=0;
     var line="";
     if(ids.length){
@@ -17662,6 +17684,29 @@ function openStewAssign(eventKey){
       }).join("");
     } else {
       line='<div class="meta">Assign a stew to see their pay + tip share.</div>';
+    }
+    if(paySel==="Paid"&&showSplitLive&&totalPay>0){
+      var gPaidLive=el("f_stew_guest_paid")?apaNum(el("f_stew_guest_paid").value):0;
+      if(gPaidLive>0&&totalPay>gPaidLive+0.009){
+        var front=Math.round((totalPay-gPaidLive)*100)/100;
+        payLabel="Paid · boss/guest "+money0(gPaidLive)+" + you front "+money0(front);
+        /* Refresh per-stew lines with clearer label */
+        if(ids.length){
+          line=ids.map(function(sid){
+            var n=(stewById(sid)&&stewById(sid).name)||"Stew";
+            var payAmt=payMap[String(sid)]!=null?payMap[String(sid)]:each;
+            var bits=[];
+            if(payAmt>0||payAmt===0) bits.push("Pay "+money0(payAmt)+" · "+payLabel);
+            if(tip.each>0){
+              var stewTipOk=!!(tip.stewPaidBy&&tip.stewPaidBy[String(sid)]);
+              bits.push("Tip "+money0(tip.each)+" · "+(stewTipOk?"paid":(tipSrcSel==="card"?"open · on bill":"open · cash")));
+            }
+            return '<div style="display:flex;justify-content:space-between;gap:12px;margin-top:6px;align-items:center;flex-wrap:wrap">'+
+              '<span class="stew-name" style="font-size:17px">'+esc(n)+'</span>'+
+              '<span class="money" style="font-weight:800;font-size:13.5px">'+esc(bits.join(" · ")||"—")+'</span></div>';
+          }).join("");
+        }
+      }
     }
     if(tip.total>0){
       var capOk=!!tip.captainPaid;
@@ -17842,11 +17887,12 @@ function openStewAssign(eventKey){
       var wasFromNonPetty=asg.paidFrom==="Own money"||asg.paidFrom==="Owner money"||asg.paidFrom==="Guest"||asg._floatPayPayerId==="owner";
       payFromPetty=!noneNeeded&&nowPaid&&!zeroPay&&(
         (paidFromSel==="Petty cash"&&(!wasPaidBefore||wasFromNonPetty))||
-        (paidFromSel==="Guest"&&topUpFromSel==="Petty cash"&&!wasPaidBefore)
+        ((paidFromSel==="Guest"||paidFromSel==="Owner money")&&topUpFromSel==="Petty cash"&&!wasPaidBefore)
       );
-      /* Stash guest fields for plan/sync */
-      asg.guestPaidAmt=paidFromSel==="Guest"?(guestPaidSel!==""?apaNum(guestPaidSel):""):"";
-      asg.topUpFrom=paidFromSel==="Guest"?topUpFromSel:"";
+      /* Stash primary+top-up fields for plan/sync (Guest or Boss/owner split) */
+      var splitSrc=paidFromSel==="Guest"||paidFromSel==="Owner money";
+      asg.guestPaidAmt=splitSrc&&guestPaidSel!==""?apaNum(guestPaidSel):(splitSrc?"":"");
+      asg.topUpFrom=splitSrc?topUpFromSel:"";
     } else {
       /* Team: only change who is on the charter + notes — keep captain pay fields */
       rate=asg.dayRate!=null&&asg.dayRate!==""?asg.dayRate:ratePrefill;
@@ -17911,19 +17957,20 @@ function openStewAssign(eventKey){
       payStatus:noneNeeded?"Paid":((zeroPay||!nowPaid)?"Unpaid":"Paid"),
       payStatusManual:captainMode?true:!!asg.payStatusManual,
       paidFrom:captainMode&&nowPaid&&!zeroPay&&!noneNeeded?paidFromSel:"",
-      guestPaidAmt:captainMode&&nowPaid&&!zeroPay&&!noneNeeded&&paidFromSel==="Guest"
+      guestPaidAmt:captainMode&&nowPaid&&!zeroPay&&!noneNeeded&&(paidFromSel==="Guest"||paidFromSel==="Owner money")
         ?(typeof guestPaidSel!=="undefined"&&guestPaidSel!==""?apaNum(guestPaidSel):(asg.guestPaidAmt!=null?asg.guestPaidAmt:""))
         :"",
-      topUpFrom:captainMode&&nowPaid&&!zeroPay&&!noneNeeded&&paidFromSel==="Guest"
+      topUpFrom:captainMode&&nowPaid&&!zeroPay&&!noneNeeded&&(paidFromSel==="Guest"||paidFromSel==="Owner money")
         ?(typeof topUpFromSel!=="undefined"?topUpFromSel:(asg.topUpFrom||"Own money"))
         :"",
       /* Cash leaves petty when captain saves as Paid from Petty cash */
       _floatPayMark:captainMode&&payFromPetty&&!noneNeeded,
       _floatPayFrom:captainMode&&nowPaid&&!zeroPay&&!noneNeeded?paidFromSel:"",
       _floatPayPayerId:captainMode&&nowPaid&&!zeroPay&&!noneNeeded
-        ?(paidFromSel==="Own money"||(paidFromSel==="Guest"&&(typeof topUpFromSel!=="undefined"?topUpFromSel:asg.topUpFrom)==="Own money")
+        ?(paidFromSel==="Own money"||
+          ((paidFromSel==="Guest"||paidFromSel==="Owner money")&&(typeof topUpFromSel!=="undefined"?topUpFromSel:asg.topUpFrom)==="Own money")
           ?EXP_POCKET_CAPTAIN
-          :(paidFromSel==="Owner money"?EXP_POCKET_OWNER:""))
+          :(paidFromSel==="Owner money"&&!(typeof guestPaidSel!=="undefined"&&guestPaidSel!=="")?EXP_POCKET_OWNER:""))
         :"",
       tipTotal:markCancelled||noneNeeded?"":tipTotal,
       tipSource:markCancelled||noneNeeded?"cash":(tipSource||"cash"),
