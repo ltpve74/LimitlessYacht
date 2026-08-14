@@ -18530,17 +18530,33 @@ function leadNormClock(t){
   var min=Math.min(59, Math.max(0, parseInt(m[2],10)||0));
   return (h<10?"0":"")+h+":"+(min<10?"0":"")+min;
 }
+/** Hours (fractional) between two HH:MM clocks same day; null if invalid / end ≤ start. */
+function leadHoursBetweenClocks(st, et){
+  st=leadNormClock(st); et=leadNormClock(et);
+  if(!st||!et) return null;
+  var a=st.split(":"), b=et.split(":");
+  var sm=(parseInt(a[0],10)||0)*60+(parseInt(a[1],10)||0);
+  var em=(parseInt(b[0],10)||0)*60+(parseInt(b[1],10)||0);
+  var d=em-sm;
+  if(!(d>0)) return null;
+  return d/60;
+}
+/** Add hours (may be fractional, e.g. 5.5) to HH:MM; same day, cap 23:59. */
+function leadAddHoursToClock(st, hours){
+  st=leadNormClock(st);
+  if(!st||!(hours>0)) return "";
+  var p=st.split(":");
+  var total=(parseInt(p[0],10)||0)*60+(parseInt(p[1],10)||0)+Math.round(Number(hours)*60);
+  if(total>23*60+59) total=23*60+59;
+  if(total<0) total=0;
+  var h=Math.floor(total/60), m=total%60;
+  return (h<10?"0":"")+h+":"+(m<10?"0":"")+m;
+}
 /** End clock from start + duration pill (4h/6h/8h). Same calendar day, cap 23:59. */
 function leadEndFromStartAndDur(st, dur){
-  st=leadNormClock(st);
-  if(!st) return "";
   var hours={ "4h":4, "6h":6, "8h":8 }[String(dur||"").toLowerCase()];
   if(!(hours>0)) return "";
-  var p=st.split(":");
-  var h=(parseInt(p[0],10)||0)+hours;
-  var min=parseInt(p[1],10)||0;
-  if(h>23){ h=23; min=59; }
-  return (h<10?"0":"")+h+":"+(min<10?"0":"")+min;
+  return leadAddHoursToClock(st, hours);
 }
 /**
  * Prefill form clocks: lead fields first, then calendar / assign.
@@ -18639,7 +18655,10 @@ function collectLeadDraft(){
     startTime:st, endTime:et, allDay:allDay
   };
 }
-/** Wire start/end time + all-day on the lead sheet (re-bind after duration swap). */
+/**
+ * Wire start/end time + all-day on the lead sheet (re-bind after duration swap).
+ * Changing start keeps the same length (hours) and shifts end; end stays freely editable.
+ */
 function bindLeadTimeFields(){
   function paintAllDay(){
     var on=!!(el("f_allDay")&&el("f_allDay").checked);
@@ -18650,44 +18669,68 @@ function bindLeadTimeFields(){
       if(el("f_endTime")) el("f_endTime").value="";
     }
   }
-  function suggestEndFromStart(){
-    if(el("f_allDay")&&el("f_allDay").checked) return;
-    var st=el("f_startTime")?leadNormClock(el("f_startTime").value):"";
-    if(!st) return;
-    var dur=el("f_dur")?el("f_dur").value:"";
-    var sug=leadEndFromStartAndDur(st, dur);
-    if(!sug||!el("f_endTime")) return;
-    var cur=leadNormClock(el("f_endTime").value);
-    /* Fill empty end, or replace if it still matches a previous auto window */
-    if(!cur||el("f_endTime").dataset.autoEnd==="1"){
-      el("f_endTime").value=sug;
-      el("f_endTime").dataset.autoEnd="1";
+  /** Snapshot window length (hours) from start→end, else duration pill. */
+  function captureSpanHours(){
+    if(!el("f_startTime")) return;
+    var st=leadNormClock(el("f_startTime").value);
+    var et=el("f_endTime")?leadNormClock(el("f_endTime").value):"";
+    var hours=leadHoursBetweenClocks(st, et);
+    if(!(hours>0)){
+      var dur=el("f_dur")?el("f_dur").value:"";
+      var pill={ "4h":4, "6h":6, "8h":8 }[String(dur||"").toLowerCase()];
+      if(pill>0) hours=pill;
     }
+    el("f_startTime").dataset.spanHours=hours>0?String(hours):"";
+    el("f_startTime").dataset.prevStart=st;
+  }
+  /** Apply frozen span: end = newStart + spanHours. End remains manually editable after. */
+  function applySpanToEnd(newStart){
+    if(el("f_allDay")&&el("f_allDay").checked) return;
+    if(!el("f_endTime")||!el("f_startTime")) return;
+    newStart=leadNormClock(newStart);
+    if(!newStart) return;
+    var hours=Number(el("f_startTime").dataset.spanHours);
+    if(!(hours>0)){
+      captureSpanHours();
+      hours=Number(el("f_startTime").dataset.spanHours);
+    }
+    if(!(hours>0)) return;
+    var nextEnd=leadAddHoursToClock(newStart, hours);
+    if(nextEnd) el("f_endTime").value=nextEnd;
   }
   if(el("f_allDay")){
     el("f_allDay").addEventListener("change",paintAllDay);
     paintAllDay();
   }
   if(el("f_startTime")){
-    el("f_startTime").addEventListener("change",suggestEndFromStart);
+    /* Freeze length before start moves (focus / pointer) */
+    el("f_startTime").addEventListener("focus",captureSpanHours);
+    el("f_startTime").addEventListener("pointerdown",captureSpanHours);
+    el("f_startTime").addEventListener("change",function(){
+      var next=leadNormClock(el("f_startTime").value);
+      applySpanToEnd(next);
+      /* After settle, re-capture so next edit uses the same length */
+      captureSpanHours();
+    });
     el("f_startTime").addEventListener("input",function(){
-      /* While typing start, keep auto end in sync if still auto */
-      if(el("f_endTime")&&el("f_endTime").dataset.autoEnd==="1") suggestEndFromStart();
+      var next=leadNormClock(el("f_startTime").value);
+      if(next) applySpanToEnd(next);
     });
   }
   if(el("f_endTime")){
-    el("f_endTime").addEventListener("change",function(){
-      el("f_endTime").dataset.autoEnd="";
-    });
+    /* Custom end is allowed — updates the span for the next start shift */
+    el("f_endTime").addEventListener("change",captureSpanHours);
     el("f_endTime").addEventListener("input",function(){
-      el("f_endTime").dataset.autoEnd="";
+      /* While editing end, refresh span from current start→end */
+      if(el("f_startTime")){
+        var st=leadNormClock(el("f_startTime").value);
+        var et=leadNormClock(el("f_endTime").value);
+        var h=leadHoursBetweenClocks(st, et);
+        if(h>0) el("f_startTime").dataset.spanHours=String(h);
+      }
     });
-    /* Mark prefilled end as auto when it matches duration math */
-    var st0=el("f_startTime")?leadNormClock(el("f_startTime").value):"";
-    var et0=leadNormClock(el("f_endTime").value);
-    var dur0=el("f_dur")?el("f_dur").value:"";
-    if(st0&&et0&&et0===leadEndFromStartAndDur(st0, dur0)) el("f_endTime").dataset.autoEnd="1";
   }
+  captureSpanHours();
 }
 /** Push lead clock onto stew assigns linked by leadId (Today / roster). */
 function syncLeadTimesToStewAssigns(lead){
