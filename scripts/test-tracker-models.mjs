@@ -1244,6 +1244,11 @@ console.log("\n[Charges — cashToBoat / VAT]");
   ok("export csv escapes comma name", csvPack.csv.indexOf('"Mix Guest, Jr."') >= 0);
   ok("export csv fileName uses asOf", csvPack.fileName === "Limitless-charges-2026-07-31.csv");
   ok("export csv n 3", csvPack.n === 3);
+  ok("export csv has TOTAL row", /TOTAL/.test(csvPack.csv));
+  ok("export csv TOTAL amount", csvPack.csv.indexOf("," + String(500 + 1210 + 1000) + ",") >= 0 || csvPack.csv.indexOf(",2710,") >= 0);
+  const lastLine = csvPack.csv.trim().split("\n").pop();
+  ok("export csv last line is TOTAL", lastLine.indexOf("TOTAL") >= 0);
+  ok("export csv TOTAL count label", lastLine.indexOf("3 charges") >= 0);
 }
 
 /* ---- APA pot totals (model) ---- */

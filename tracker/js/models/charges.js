@@ -728,6 +728,22 @@ function chargesExportCsv(charters, opts) {
       ].join(",")
     );
   });
+  /* Totals row after all records — Amount + cash/card splits */
+  if (pack.n > 0) {
+    lines.push(
+      [
+        cell(""),
+        cell("TOTAL"),
+        cell(pack.total),
+        cell(""),
+        cell(pack.n + " charges"),
+        cell(pack.cashTotal),
+        cell(pack.cardTotal),
+        cell(""),
+        cell(""),
+      ].join(",")
+    );
+  }
   var asOf = pack.asOf || "";
   var stamp = asOf || "all";
   return {
