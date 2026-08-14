@@ -283,17 +283,29 @@ function crewDayPayLinkId(e) {
 }
 
 /**
- * Guest shortfall top-up on a guest-paid crew line (pure).
- * @returns {{ guestPaid: number, topUp: number, topUpFrom: string }}
+ * Split day-pay: primary source (guest/boss) paid X, optional top-up for shortfall.
+ * Uses guestPaidAmt as the primary amount (historical field name).
+ * Works for paidFrom Guest or Owner money.
+ * @returns {{ primary: string, primaryPaid: number, topUp: number, topUpFrom: string } | empty}
  */
-function crewDayPayGuestSplit(e) {
-  var empty = { guestPaid: 0, topUp: 0, topUpFrom: "" };
-  if (!e || expensePaidFrom(e) !== "guest") return empty;
+function crewDayPayPrimarySplit(e) {
+  var empty = { primary: "", primaryPaid: 0, topUp: 0, topUpFrom: "", guestPaid: 0 };
+  if (!e) return empty;
+  var pf = expensePaidFrom(e);
+  if (pf !== "guest" && pf !== "owner") return empty;
+  /* Owner without explicit primary amount and no top-up = full owner (legacy) */
+  var hasSplit =
+    (e.guestPaidAmt != null && e.guestPaidAmt !== "") ||
+    (e.topUpAmt != null && num(e.topUpAmt) > 0.009) ||
+    (e.topUpFrom != null && String(e.topUpFrom).trim() !== "");
+  if (pf === "owner" && !hasSplit) return empty;
   var total = round2(num(e.amount));
-  var guestPaid = e.guestPaidAmt != null && e.guestPaidAmt !== "" ? round2(num(e.guestPaidAmt)) : total;
-  if (guestPaid < 0) guestPaid = 0;
-  if (guestPaid > total) guestPaid = total;
-  var topUp = e.topUpAmt != null && e.topUpAmt !== "" ? round2(num(e.topUpAmt)) : round2(total - guestPaid);
+  var primaryPaid =
+    e.guestPaidAmt != null && e.guestPaidAmt !== "" ? round2(num(e.guestPaidAmt)) : total;
+  if (primaryPaid < 0) primaryPaid = 0;
+  if (primaryPaid > total) primaryPaid = total;
+  var topUp =
+    e.topUpAmt != null && e.topUpAmt !== "" ? round2(num(e.topUpAmt)) : round2(total - primaryPaid);
   if (topUp < 0) topUp = 0;
   if (topUp > total) topUp = total;
   var tf = String(e.topUpFrom || "").trim();
@@ -301,21 +313,34 @@ function crewDayPayGuestSplit(e) {
   else if (tf === "Petty cash" || /^petty\b/i.test(tf)) tf = "Petty cash";
   else if (!(topUp > 0.009)) tf = "";
   else tf = tf || "Own money";
-  return { guestPaid: guestPaid, topUp: topUp, topUpFrom: tf };
+  return {
+    primary: pf,
+    primaryPaid: primaryPaid,
+    topUp: topUp,
+    topUpFrom: tf,
+    guestPaid: primaryPaid /* alias for older callers */,
+  };
+}
+/** @deprecated name — use crewDayPayPrimarySplit */
+function crewDayPayGuestSplit(e) {
+  var s = crewDayPayPrimarySplit(e);
+  if (!s.primary) return { guestPaid: 0, topUp: 0, topUpFrom: "" };
+  return { guestPaid: s.primaryPaid, topUp: s.topUp, topUpFrom: s.topUpFrom };
 }
 
 /**
  * Cash left the boat for this crew day-pay only when floatPay === true.
  * Paid status alone never moves petty (prior books / auto status).
- * Guest primary: only a Petty top-up (shortfall you cover from the envelope) hits pot.
+ * Guest/owner primary: only a Petty top-up (shortfall you cover) hits pot.
  */
 function crewDayPayHitsPetty(e) {
   if (!isCrewDayPayExpense(e)) return false;
   if (String(e.crewPayStatus || "") !== "Paid") return false;
   var pf = expensePaidFrom(e);
-  if (pf === "own" || pf === "owner" || pf === "card") return false;
-  if (pf === "guest") {
-    var g = crewDayPayGuestSplit(e);
+  if (pf === "own" || pf === "card") return false;
+  if (pf === "guest" || pf === "owner") {
+    var g = crewDayPayPrimarySplit(e);
+    if (!g.primary && pf === "owner") return false; /* full owner, no pot */
     return g.topUpFrom === "Petty cash" && g.topUp > 0.009 && e.floatPay === true;
   }
   return e.floatPay === true;
@@ -323,12 +348,13 @@ function crewDayPayHitsPetty(e) {
 
 /**
  * € that actually left the boat envelope for this crew day-pay line.
- * Guest+petty top-up → top-up only; normal pot pay → full amount.
+ * Primary guest/owner + petty top-up → top-up only; normal pot pay → full amount.
  */
 function crewDayPayPettyOutAmount(e) {
   if (!crewDayPayHitsPetty(e)) return 0;
-  if (expensePaidFrom(e) === "guest") {
-    var g = crewDayPayGuestSplit(e);
+  var pf = expensePaidFrom(e);
+  if (pf === "guest" || pf === "owner") {
+    var g = crewDayPayPrimarySplit(e);
     return g.topUp > 0.009 ? g.topUp : 0;
   }
   return round2(num(e.amount));
@@ -351,9 +377,10 @@ function crewDayPayFundSource(e) {
   if (String(e.payMethod || "") === "Credit Card") return "card";
   var pf = expensePaidFrom(e);
   if (pf === "guest") return "guest";
+  /* Owner with split top-up still classifies as owner primary (top-up counted separately) */
+  if (pf === "owner") return "owner";
   if (crewDayPayHitsPetty(e)) return "pot";
   if (pf === "own") return "captain";
-  if (pf === "owner") return "owner";
   return "books";
 }
 
@@ -575,7 +602,8 @@ function summarizeCrewPayMonth(expenses, month, opts) {
     if (!(a > 0.009)) return;
     var fund = crewDayPayFundSource(e);
     var just = crewPayOwnerJustification(e, leads);
-    var split = fund === "guest" ? crewDayPayGuestSplit(e) : null;
+    var split = crewDayPayPrimarySplit(e);
+    var hasSplit = !!(split && split.primary && (split.topUp > 0.009 || fund === "guest"));
     var row = {
       id: String(e.id || ""),
       date: String(e.date || "").slice(0, 10),
@@ -589,7 +617,7 @@ function summarizeCrewPayMonth(expenses, month, opts) {
       floatPay: e.floatPay === true,
       paidFrom: String(e.paidFrom || ""),
       crewPayStatus: String(e.crewPayStatus || ""),
-      guestPaid: split ? split.guestPaid : 0,
+      guestPaid: split ? split.primaryPaid : 0,
       topUp: split ? split.topUp : 0,
       topUpFrom: split ? split.topUpFrom : "",
       guest: just.guest,
@@ -617,11 +645,16 @@ function summarizeCrewPayMonth(expenses, month, opts) {
     }
     nPaid++;
     paidTotal = round2(paidTotal + a);
-    if (fund === "guest") {
-      /* Guest portion outside boat; top-up may hit pot or captain pocket */
-      var gPay = split && split.guestPaid > 0.009 ? split.guestPaid : a;
-      fromGuest = round2(fromGuest + gPay);
-      guestLines.push(row);
+    if (fund === "guest" || (fund === "owner" && hasSplit)) {
+      /* Primary outside boat; top-up may hit pot or captain pocket */
+      var pPay = split && split.primaryPaid > 0.009 ? split.primaryPaid : a;
+      if (fund === "guest") {
+        fromGuest = round2(fromGuest + pPay);
+        guestLines.push(row);
+      } else {
+        fromOwner = round2(fromOwner + pPay);
+        ownerLines.push(row);
+      }
       if (split && split.topUp > 0.009) {
         if (split.topUpFrom === "Petty cash" && e.floatPay === true) {
           fromBoatPot = round2(fromBoatPot + split.topUp);
@@ -1401,26 +1434,30 @@ function expenseReimburseWhoId(e) {
  */
 function isOwnMoneySpend(e) {
   if (!e || isExpenseReimbursement(e)) return false;
-  /* Owner money is not captain/crew pocket liability */
-  if (expensePaidFrom(e) === "owner") return false;
   if (isCrewDayPayExpense(e)) {
     if (String(e.crewPayStatus || "") !== "Paid") return false;
-    if (expensePaidFrom(e) === "own") return true;
-    /* Guest shortfall top-up from own pocket only (not full guest amount) */
-    if (expensePaidFrom(e) === "guest") {
-      var g = crewDayPayGuestSplit(e);
+    var pf0 = expensePaidFrom(e);
+    if (pf0 === "own") return true;
+    /* Guest/boss shortfall top-up from own pocket only (not full primary amount) */
+    if (pf0 === "guest" || pf0 === "owner") {
+      var g = crewDayPayPrimarySplit(e);
       return g.topUpFrom === "Own money" && g.topUp > 0.009;
     }
     return false;
   }
+  /* Owner money is not captain/crew pocket liability (non-crew) */
+  if (expensePaidFrom(e) === "owner") return false;
   return expensePaidFrom(e) === "own";
 }
 
-/** € of own-money spend (guest top-up uses top-up only). */
+/** € of own-money spend (guest/boss top-up uses top-up only). */
 function ownMoneySpendAmount(e) {
   if (!isOwnMoneySpend(e)) return 0;
-  if (isCrewDayPayExpense(e) && expensePaidFrom(e) === "guest") {
-    return crewDayPayGuestSplit(e).topUp;
+  if (isCrewDayPayExpense(e)) {
+    var pf1 = expensePaidFrom(e);
+    if (pf1 === "guest" || pf1 === "owner") {
+      return crewDayPayPrimarySplit(e).topUp;
+    }
   }
   return round2(num(e.amount));
 }
@@ -2929,6 +2966,7 @@ function summarizeMonthSettlement(opts) {
     crewDayPayFinger: crewDayPayFinger,
     crewDayPayLinkId: crewDayPayLinkId,
     crewDayPayGuestSplit: crewDayPayGuestSplit,
+    crewDayPayPrimarySplit: crewDayPayPrimarySplit,
     crewDayPayHitsPetty: crewDayPayHitsPetty,
     crewDayPayPettyOutAmount: crewDayPayPettyOutAmount,
     crewDayPayFundSource: crewDayPayFundSource,
