@@ -14761,6 +14761,23 @@ function stewAssignStartDate(asg, ev){
   if(asg&&asg.start) return String(asg.start).slice(0,10);
   return "";
 }
+/** Last day of the charter (end, else start). */
+function stewAssignEndDate(asg, ev){
+  var e="";
+  if(asg&&asg.end) e=String(asg.end).slice(0,10);
+  if((!e||!/^\d{4}-\d{2}-\d{2}$/.test(e))&&ev&&ev.end) e=String(ev.end).slice(0,10);
+  if(!e||!/^\d{4}-\d{2}-\d{2}$/.test(e)) e=stewAssignStartDate(asg, ev);
+  return e||"";
+}
+/** Local calendar today YYYY-MM-DD (not UTC — avoids wrong “unpaid tomorrow”). */
+function stewLocalTodayYmd(){
+  try{
+    if(typeof localTodayYmd==="function") return localTodayYmd();
+  }catch(e){}
+  var today=new Date();
+  var y=today.getFullYear(), m=String(today.getMonth()+1).padStart(2,"0"), day=String(today.getDate()).padStart(2,"0");
+  return y+"-"+m+"-"+day;
+}
 function stewIsPaidBeforeCut(asg, ev){
   var d=stewAssignStartDate(asg, ev);
   return !!(d&&d<STEW_PAID_BEFORE);
@@ -15636,13 +15653,15 @@ function stewTipStewPaid(asg, stewId){
   if(LY_MODELS&&LY_MODELS.stewTipStewPaid) return !!LY_MODELS.stewTipStewPaid(asg, stewId);
   return stewTipPaid(asg);
 }
-/** Unpaid / "we owe" only from charter start day (local) onward — not for future dates. */
+/**
+ * Day pay / tip "due" only after the charter has finished (last day is before today).
+ * Today and future trips stay "not due yet" — avoids tomorrow (and today's unfinished) in Unpaid.
+ */
 function stewCharterDayReached(ev, asg){
-  var d=stewAssignStartDate(asg, ev);
-  if(!d) return false;
-  var today=new Date();
-  var y=today.getFullYear(), m=String(today.getMonth()+1).padStart(2,"0"), day=String(today.getDate()).padStart(2,"0");
-  return d<=(y+"-"+m+"-"+day);
+  var end=stewAssignEndDate(asg, ev);
+  if(!end||!/^\d{4}-\d{2}-\d{2}$/.test(end)) return false;
+  var today=stewLocalTodayYmd();
+  return end<today;
 }
 function stewPayBreakdown(ev, asg){
   var cancelled=!!(asg&&(asg.cancelled||asg.status==="cancelled"));
@@ -15679,7 +15698,7 @@ function stewPayBreakdown(ev, asg){
   /* Respect saved payStatus only — never force Paid for pre-17/07 */
   var paid=asg&&asg.payStatus==="Paid";
   var due=stewCharterDayReached(ev, asg);
-  /* Future trips: not unpaid yet. From charter day: unpaid until you mark Paid. */
+  /* Not finished yet (today / future): not unpaid. After last charter day: unpaid until Paid. */
   var unpaid=!!(!paid&&due);
   var upcoming=!!(!paid&&!due);
   var tip=stewTipShare(asg);
@@ -16575,7 +16594,8 @@ function renderStews(opts){
 }
 function paintStewCharters(){
   var wrap=el("stewCalList"); if(!wrap) return;
-  var today=new Date().toISOString().slice(0,10);
+  /* Local date — must match stewCharterDayReached (not UTC midnight flip). */
+  var today=stewLocalTodayYmd();
   /*
    * Paint-only from blob stewAssign + calendar labels.
    * Do NOT purge, auto-assign from calendar titles, restore crew, or save.
@@ -16920,18 +16940,18 @@ function paintStewCharters(){
   rosterRows.forEach(function(row){
     var start=rowStartYmd(row);
     var end=rowEndYmd(row)||start;
-    /* Today counts as future so the working list starts with “now” then tomorrow… */
-    var isFuture=!!(start&&start>=today);
+    /* Not finished yet (end >= today) → Future. Only strictly past end days can be Unpaid. */
+    var notFinished=!!(end&&end>=today);
     var pay=stewPayBreakdown(row.event, row.assign||{});
     var isCanc=row.status==="cancelled"||pay.cancelled;
     var needsCrew=!isCanc&&!pay.noStewNeeded&&row.status==="unassigned";
     /* Unassigned always pinned at top (all roles) until crew is set */
     if(needsCrew){ unassignedRows.push(row); return; }
-    /* Open day pay / tip (incl. cancelled with stew still due) → Unpaid */
+    /* Open day pay / tip only after charter finished (pay.unpaid/tipUnpaid already gated) */
     var moneyOpen=showMoney&&!pay.noStewNeeded&&(!!pay.tipUnpaid||!!pay.unpaid);
     if(moneyOpen){ unpaidRows.push(row); return; }
     if(isCanc||pay.noStewNeeded){ cancelledNoPayRows.push(row); return; }
-    if(isFuture){ futureRows.push(row); return; }
+    if(notFinished){ futureRows.push(row); return; }
     pastRows.push(row);
   });
   function sortByDateDesc(a, b){
@@ -16980,13 +17000,13 @@ function paintStewCharters(){
   if(showMoney){
     html+=paintSection(
       "Unpaid",
-      "Open day pay and/or tips. Newest first.",
+      "Charter finished · day pay and/or tips still open. Newest first.",
       unpaidRows,
       "unpaid"
     );
     html+=paintSection(
-      "Future",
-      "Today and later · crew set. Soonest first.",
+      "Upcoming",
+      "Today and later (not finished yet) · crew set. Pay not due until after the charter. Soonest first.",
       futureRows,
       "future"
     );
