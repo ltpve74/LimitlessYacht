@@ -607,6 +607,139 @@ function summarizeChargeCashToBoat(charters) {
   return { total: total, n: items.length, items: items };
 }
 
+/**
+ * Kind label for spreadsheet / list export (not money logic).
+ * @param {object} c
+ * @returns {string}
+ */
+function chargeExportKindLabel(c) {
+  if (!c) return "Charge";
+  if (c.kind === "apa" || c.apaTripId) return "APA shortfall";
+  var ext = chargeExtAmt(c);
+  if (ext > 0.009 || isChargeCaptainComm(c)) return "Extension";
+  var k = String(c.kind || c.chargeKind || "").toLowerCase();
+  if (k === "extension" || k === "extra" || k === "upsell") return "Extension";
+  return "Charge";
+}
+
+/**
+ * Settlement label for spreadsheet: Cash / Card / Mix.
+ * Maps bill type + pay method into the language the owner uses.
+ * @param {object} c
+ * @returns {string} "Cash" | "Card" | "Mix"
+ */
+function chargeExportPaidBy(c) {
+  if (!c) return "Card";
+  var m = chargePayMethod(c);
+  if (m === "Cash") return "Cash";
+  if (m === "Split") return "Mix";
+  var bt = chargeBillType(c);
+  if (bt === "cash") return "Cash";
+  if (bt === "mix") return "Mix";
+  return "Card";
+}
+
+/**
+ * Flat rows for spreadsheet export of charges (to date).
+ * Pure — no DOM. Sort oldest → newest for manager books.
+ *
+ * @param {Array} charters
+ * @param {{ asOfYmd?: string }} [opts] asOfYmd YYYY-MM-DD — exclude dates after (default: include all)
+ * @returns {{ rows: Array, n: number, total: number, cashTotal: number, cardTotal: number, asOf: string }}
+ */
+function buildChargesExportRows(charters, opts) {
+  opts = opts || {};
+  var asOf = opts.asOfYmd != null ? String(opts.asOfYmd).slice(0, 10) : "";
+  var rows = [];
+  var total = 0;
+  var cashTotal = 0;
+  var cardTotal = 0;
+  (Array.isArray(charters) ? charters : []).forEach(function (c) {
+    if (!c) return;
+    var date = String(c.date || "").slice(0, 10);
+    if (asOf && date && date > asOf) return;
+    var amount = round2(num(c.amount));
+    var cashP = chargeCashPart(c);
+    var invP = chargeInvoicePart(c);
+    var paidBy = chargeExportPaidBy(c);
+    var paid = chargeIsPaid(c);
+    rows.push({
+      id: c.id || "",
+      date: date,
+      name: String(c.client || "").trim() || "—",
+      amount: amount,
+      paidBy: paidBy,
+      status: paid ? "Paid" : "Pending",
+      settlement: chargeBillType(c) === "cash" ? "Cash only" : chargeBillType(c) === "mix" ? "Mix" : "Invoice only",
+      cashAmount: round2(cashP),
+      cardAmount: round2(invP),
+      kind: chargeExportKindLabel(c),
+      notes: String(c.notes || "").trim(),
+    });
+    total = round2(total + amount);
+    cashTotal = round2(cashTotal + cashP);
+    cardTotal = round2(cardTotal + invP);
+  });
+  rows.sort(function (a, b) {
+    var da = String(a.date || "");
+    var db = String(b.date || "");
+    if (da && db && da !== db) return da < db ? -1 : 1;
+    if (da && !db) return -1;
+    if (db && !da) return 1;
+    return String(a.name || "").localeCompare(String(b.name || ""));
+  });
+  return {
+    rows: rows,
+    n: rows.length,
+    total: total,
+    cashTotal: cashTotal,
+    cardTotal: cardTotal,
+    asOf: asOf || "",
+  };
+}
+
+/**
+ * CSV text for charges export (UTF-8, Excel-friendly header).
+ * Columns: Date, Name, Amount, Paid by, Status, Cash amount, Card amount, Type, Notes
+ * @param {Array} charters
+ * @param {{ asOfYmd?: string }} [opts]
+ * @returns {{ csv: string, fileName: string, n: number, total: number }}
+ */
+function chargesExportCsv(charters, opts) {
+  var pack = buildChargesExportRows(charters, opts);
+  function cell(v) {
+    var s = String(v == null ? "" : v);
+    if (/[",\n\r]/.test(s)) return '"' + s.replace(/"/g, '""') + '"';
+    return s;
+  }
+  var lines = ["Date,Name,Amount,Paid by,Status,Cash amount,Card amount,Type,Notes"];
+  pack.rows.forEach(function (r) {
+    lines.push(
+      [
+        cell(r.date),
+        cell(r.name),
+        cell(r.amount),
+        cell(r.paidBy),
+        cell(r.status),
+        cell(r.cashAmount),
+        cell(r.cardAmount),
+        cell(r.kind),
+        cell(r.notes),
+      ].join(",")
+    );
+  });
+  var asOf = pack.asOf || "";
+  var stamp = asOf || "all";
+  return {
+    csv: lines.join("\n"),
+    fileName: "Limitless-charges-" + stamp + ".csv",
+    n: pack.n,
+    total: pack.total,
+    cashTotal: pack.cashTotal,
+    cardTotal: pack.cardTotal,
+    rows: pack.rows,
+  };
+}
 
   return {
     chargePayMethod: chargePayMethod,
@@ -631,6 +764,10 @@ function summarizeChargeCashToBoat(charters) {
     planChargeCashSettlementFields: planChargeCashSettlementFields,
     chargeVatParts: chargeVatParts,
     chargeUpsellGross: chargeUpsellGross,
-    summarizeChargeCashToBoat: summarizeChargeCashToBoat
+    summarizeChargeCashToBoat: summarizeChargeCashToBoat,
+    chargeExportKindLabel: chargeExportKindLabel,
+    chargeExportPaidBy: chargeExportPaidBy,
+    buildChargesExportRows: buildChargesExportRows,
+    chargesExportCsv: chargesExportCsv,
   };
 });

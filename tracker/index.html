@@ -1289,7 +1289,10 @@
         <div class="sumcard"><div class="l">To invoice</div><div class="v money" id="chInvTot">€0</div></div>
         <div class="sumcard"><div class="l">Invoices to issue</div><div class="v" id="chPending">0</div></div>
       </div>
-      <div class="legend">Each charge is <b>Cash only</b>, <b>Invoice only</b>, or <b>Mix</b> — the card shows cash vs invoice/card clearly. APA shortfall = pot overspend (not full charter). Extra hours can sit on the same bill.</div>
+      <div class="exp-month" style="margin:0 0 10px;justify-content:flex-end">
+        <button type="button" class="btn ghost" id="chExportCsv" style="width:auto;padding:10px 14px" title="Download all charges to date as spreadsheet (CSV)">Export CSV</button>
+      </div>
+      <div class="legend">Each charge is <b>Cash only</b>, <b>Invoice only</b>, or <b>Mix</b> — the card shows cash vs invoice/card clearly. APA shortfall = pot overspend (not full charter). Extra hours can sit on the same bill. <b>Export CSV</b> = date, name, amount, card/cash (opens in Excel / Numbers).</div>
       <div class="list" id="chList"></div>
     </section>
 
@@ -3426,6 +3429,53 @@ function chargeMoneySummaryHTML(r){
   h+='</div>';
   return h;
 }
+/**
+ * Export all charges through today as CSV (Excel / Numbers).
+ * Columns: Date, Name, Amount, Paid by (Cash/Card/Mix), Status, cash/card splits, type, notes.
+ */
+function chExportCsvToDate(){
+  var asOf="";
+  try{
+    asOf=(typeof localTodayYmd==="function"?localTodayYmd():"")||
+      (new Date().toISOString().slice(0,10));
+  }catch(eA){
+    asOf=new Date().toISOString().slice(0,10);
+  }
+  var pack=null;
+  try{
+    if(window.LY_CONTROLLERS&&LY_CONTROLLERS.charges&&LY_CONTROLLERS.charges.exportCsv){
+      pack=LY_CONTROLLERS.charges.exportCsv({
+        models:typeof LY_MODELS!=="undefined"?LY_MODELS:null,
+        charges:state.charters||[],
+        asOfYmd:asOf
+      });
+    }else if(typeof LY_MODELS!=="undefined"&&LY_MODELS.chargesExportCsv){
+      pack=LY_MODELS.chargesExportCsv(state.charters||[],{asOfYmd:asOf});
+    }
+  }catch(eX){
+    window.alert("Could not build charges export.\n\n"+(eX&&eX.message?eX.message:eX));
+    return;
+  }
+  if(!pack||!pack.csv){
+    window.alert("Could not build charges export.");
+    return;
+  }
+  if(!(pack.n>0)){
+    window.alert("No charges to export through "+asOf+".");
+    return;
+  }
+  /* BOM so Excel opens UTF-8 cleanly (names, € if present later) */
+  var blob=new Blob(["\uFEFF"+pack.csv],{type:"text/csv;charset=utf-8"});
+  var name=pack.fileName||("Limitless-charges-"+asOf+".csv");
+  if(typeof downloadBlob==="function") downloadBlob(blob, name);
+  else{
+    var a=document.createElement("a");
+    a.href=URL.createObjectURL(blob);
+    a.download=name;
+    document.body.appendChild(a); a.click();
+    setTimeout(function(){ try{ document.body.removeChild(a); URL.revokeObjectURL(a.href); }catch(e){} }, 800);
+  }
+}
 function renderCharters(){
   /* Paint only — never merge/relink/purge/save on render (that rewrote notes & resurrected rows). */
   sortCharters();
@@ -3473,6 +3523,14 @@ function renderCharters(){
       openChargeInvoiceSheet(btn.getAttribute("data-inv-ch"));
     });
   });
+  var expBtn=el("chExportCsv");
+  if(expBtn&&!expBtn._lyBound){
+    expBtn._lyBound=1;
+    expBtn.addEventListener("click",function(ev){
+      ev.preventDefault();
+      chExportCsvToDate();
+    });
+  }
 }
 function rangeStr(r){
   var s=r.start||r.cdate||"", e=r.end||"", out="";

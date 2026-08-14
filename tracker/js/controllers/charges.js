@@ -39,10 +39,34 @@
     return M(input).summarizeCaptainChargeCommissions(input.charters || input.charges || []);
   }
 
+  /**
+   * Spreadsheet rows for all charges (optionally through asOfYmd).
+   * @param {{ charges?: Array, charters?: Array, asOfYmd?: string, models?: object }} input
+   */
+  function exportRows(input) {
+    input = input || {};
+    return M(input).buildChargesExportRows(input.charters || input.charges || [], {
+      asOfYmd: input.asOfYmd,
+    });
+  }
+
+  /**
+   * CSV payload for download (Date, Name, Amount, Paid by, …).
+   * @param {{ charges?: Array, charters?: Array, asOfYmd?: string, models?: object }} input
+   */
+  function exportCsv(input) {
+    input = input || {};
+    return M(input).chargesExportCsv(input.charters || input.charges || [], {
+      asOfYmd: input.asOfYmd,
+    });
+  }
+
   return {
     cashToBoat: cashToBoat,
     vatParts: vatParts,
     summarizeCashToBoat: summarizeCashToBoat,
     captainUpsellCommissions: captainUpsellCommissions,
+    exportRows: exportRows,
+    exportCsv: exportCsv,
   };
 });

@@ -1188,6 +1188,62 @@ console.log("\n[Charges — cashToBoat / VAT]");
       Object.assign({}, loose, { payStatus: "Pending", status: "Pending" })
     ) === false
   );
+
+  /* Spreadsheet export — date, name, amount, card/cash */
+  const exportList = [
+    {
+      id: "c-cash",
+      date: "2026-07-10",
+      client: "Cash Guest",
+      amount: 500,
+      billType: "cash",
+      payMethod: "Cash",
+      payStatus: "Paid",
+      cashPaid: 500,
+    },
+    {
+      id: "c-card",
+      date: "2026-07-12",
+      client: "Card Guest",
+      amount: 1210,
+      billType: "invoice",
+      payMethod: "Card",
+      payStatus: "Paid",
+    },
+    {
+      id: "c-future",
+      date: "2099-01-01",
+      client: "Future",
+      amount: 100,
+      billType: "invoice",
+      payMethod: "Card",
+      payStatus: "Pending",
+    },
+    {
+      id: "c-mix",
+      date: "2026-07-11",
+      client: "Mix Guest, Jr.",
+      amount: 1000,
+      billType: "mix",
+      payMethod: "Split",
+      cashPaid: 400,
+      payStatus: "Paid",
+    },
+  ];
+  const expPack = M.buildChargesExportRows(exportList, { asOfYmd: "2026-07-31" });
+  ok("export n excludes future", expPack.n === 3);
+  ok("export oldest first", expPack.rows[0].name === "Cash Guest");
+  ok("export cash paidBy", expPack.rows[0].paidBy === "Cash");
+  ok("export mix paidBy", expPack.rows[1].paidBy === "Mix");
+  ok("export card paidBy", expPack.rows[2].paidBy === "Card");
+  ok("export mix cash slice 400", near(expPack.rows[1].cashAmount, 400));
+  ok("export mix card slice 600", near(expPack.rows[1].cardAmount, 600));
+  ok("export total amount sum", near(expPack.total, 500 + 1210 + 1000));
+  const csvPack = M.chargesExportCsv(exportList, { asOfYmd: "2026-07-31" });
+  ok("export csv has header", csvPack.csv.indexOf("Date,Name,Amount,Paid by") === 0);
+  ok("export csv escapes comma name", csvPack.csv.indexOf('"Mix Guest, Jr."') >= 0);
+  ok("export csv fileName uses asOf", csvPack.fileName === "Limitless-charges-2026-07-31.csv");
+  ok("export csv n 3", csvPack.n === 3);
 }
 
 /* ---- APA pot totals (model) ---- */
@@ -2844,6 +2900,7 @@ console.log("\n[Controllers — expenses + charges + leads + apa + stews]");
 {
   ok("LY_CONTROLLERS.expenses present", !!(C && C.expenses && C.expenses.monthSettlement));
   ok("LY_CONTROLLERS.charges present", !!(C && C.charges && C.charges.cashToBoat));
+  ok("LY_CONTROLLERS.charges exportCsv present", !!(C && C.charges && C.charges.exportCsv));
   ok("LY_CONTROLLERS.leads present", !!(C && C.leads && C.leads.realisedGlimpse));
   ok("LY_CONTROLLERS.apa present", !!(C && C.apa && C.apa.tripTotals));
   ok("LY_CONTROLLERS.stews present", !!(C && C.stews && C.stews.tipIsOnBill));
@@ -2853,6 +2910,17 @@ console.log("\n[Controllers — expenses + charges + leads + apa + stews]");
     "ctrl charge cash to boat",
     near(C.charges.cashToBoat({ models: M, charge: { amount: 100, billType: "cash", payStatus: "Paid", cashPaid: 100 } }), 100)
   );
+  const ctrlCsv = C.charges.exportCsv({
+    models: M,
+    charges: [
+      { date: "2026-06-01", client: "A", amount: 50, billType: "cash", payMethod: "Cash", payStatus: "Paid", cashPaid: 50 },
+      { date: "2026-06-02", client: "B", amount: 100, billType: "invoice", payMethod: "Card", payStatus: "Paid" },
+    ],
+    asOfYmd: "2026-06-30",
+  });
+  ok("ctrl export csv n 2", ctrlCsv.n === 2);
+  ok("ctrl export csv has Card", ctrlCsv.csv.indexOf("Card") >= 0);
+  ok("ctrl export csv has Cash", ctrlCsv.csv.indexOf("Cash") >= 0);
   const apaC = C.apa.tripTotals({
     models: M,
     trip: {
