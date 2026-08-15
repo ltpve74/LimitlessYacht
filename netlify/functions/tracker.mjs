@@ -1959,6 +1959,34 @@ function leadIsCancelledRow(lead) {
     return false;
   return false;
 }
+/**
+ * Day off / vessel closed — never a stew crew job.
+ * Mirrors stew roster filters (not public calendar).
+ */
+function leadIsDayOffRow(lead) {
+  if (!lead) return false;
+  if (lead.dayOff === true || lead.dayOff === "true" || lead.dayOff === 1) return true;
+  if (String(lead.leadKind || lead.kind || "").toLowerCase() === "dayoff") return true;
+  const src = String(lead.leadSource || "")
+    .toLowerCase()
+    .trim()
+    .replace(/\s+/g, "-");
+  return src === "dayoff" || src === "day-off" || src === "off" || src === "closed";
+}
+/**
+ * Firm charter for stew push: source assigned + deal closed (not hold/pending).
+ * Stews must not hear about every open lead the captain is talking to.
+ * Uses leadIsOnHold (pending source OR dealClosed false); legacy undefined = firm.
+ */
+function leadIsFirmForCrewNotify(lead) {
+  if (!lead || leadIsCancelledRow(lead) || leadIsDayOffRow(lead)) return false;
+  if (leadIsOnHold(lead)) return false;
+  return true;
+}
+/** Audience for crew-relevant lead notices: team only when firm. */
+function leadCrewNoticeTo(lead) {
+  return leadIsFirmForCrewNotify(lead) ? "all" : "commercial";
+}
 function stewIdsKey(asg) {
   return (asg && Array.isArray(asg.stewIds) ? asg.stewIds : [])
     .map(String)
@@ -1999,6 +2027,10 @@ function stewNamesFromRoster(stews, ids) {
  * Build human notifications from a collection save.
  * notice.to targets push audience (team / captain / all / …).
  * data: full store (optional) — used to resolve stew names on assign.
+ *
+ * Stew (team) policy: only firm confirmed charters — not every open lead
+ * the captain is talking to. Holds/pending → commercial (captain+manager) only.
+ * Confirming a hold fires “Charter confirmed · needs crew” for everyone.
  */
 function buildNotices(coll, prevRows, nextRows, who, data) {
   const prev = Array.isArray(prevRows) ? prevRows : [];
@@ -2015,6 +2047,8 @@ function buildNotices(coll, prevRows, nextRows, who, data) {
       const when = fmtLeadWhen(lead);
       const wasCanc = old ? leadIsCancelledRow(old) : false;
       const nowCanc = leadIsCancelledRow(lead);
+      const firm = !nowCanc && leadIsFirmForCrewNotify(lead);
+      const wasFirm = !!(old && !wasCanc && leadIsFirmForCrewNotify(old));
       const newStart = String(lead.start || lead.cdate || "").slice(0, 10);
       const hasDay = /^\d{4}-\d{2}-\d{2}$/.test(newStart);
       const oldStart = old
@@ -2023,57 +2057,85 @@ function buildNotices(coll, prevRows, nextRows, who, data) {
       const oldHadDay = /^\d{4}-\d{2}-\d{2}$/.test(oldStart);
 
       /*
-       * New charter with a date → everyone (captain / manager / team).
-       * Stews open Unassigned first so crew can be set.
+       * New lead: stews only when already firm (confirmed + source).
+       * Holds stay captain/manager only — not “every lead I’m talking to”.
        */
       if (!old && !nowCanc) {
-        notices.push({
-          title: hasDay ? "New charter · needs crew" : "New charter",
-          body: `${name}${when ? " · " + when : ""}`,
-          tag: `lead-new-${lead.id}`,
-          url: "/tracker/?tab=stews",
-          to: "all",
-        });
+        if (firm) {
+          notices.push({
+            title: hasDay ? "Confirmed charter · needs crew" : "Confirmed charter",
+            body: `${name}${when ? " · " + when : ""}`,
+            tag: `lead-new-${lead.id}`,
+            url: "/tracker/?tab=stews",
+            to: "all",
+          });
+        } else if (!leadIsDayOffRow(lead)) {
+          notices.push({
+            title: hasDay ? "New lead (hold)" : "New lead",
+            body: `${name}${when ? " · " + when : ""} · not confirmed yet`,
+            tag: `lead-new-hold-${lead.id}`,
+            url: "/tracker/?tab=leads",
+            to: "commercial",
+          });
+        }
       }
-      /* Lead cancelled → team + captain */
+      /* Lead cancelled → team only if it was a firm charter */
       if (old && nowCanc && !wasCanc) {
         notices.push({
           title: "Charter cancelled",
           body: `${name}${when ? " · " + when : ""} (by ${who})`,
           tag: `lead-cancel-${lead.id}`,
           url: "/tracker/",
-          to: "team_and_captain",
+          to: wasFirm ? "team_and_captain" : "commercial",
         });
       }
-      /* Cancelled → active again (reinstate / un-cancel) → everyone */
+      /* Cancelled → active again (reinstate / un-cancel) */
       if (old && wasCanc && !nowCanc) {
-        const hold =
-          lead.dealClosed === false ||
-          lead.dealClosed === "false" ||
-          lead.dealClosed === 0 ||
-          !lead.dealClosed;
+        const hold = !firm;
         notices.push({
-          title: hasDay ? "Charter reinstated · needs crew" : "Charter reinstated",
+          title: firm
+            ? hasDay
+              ? "Charter reinstated · needs crew"
+              : "Charter reinstated"
+            : "Charter reinstated (hold)",
           body:
             `${name}${when ? " · " + when : ""}` +
-            (hasDay && hold ? " · on hold again" : hasDay ? " · active" : " · no dates") +
+            (hasDay && hold ? " · on hold again" : hasDay ? " · confirmed" : " · no dates") +
             ` (by ${who})`,
           tag: `lead-reinstate-${lead.id}`,
+          url: firm ? "/tracker/?tab=stews" : "/tracker/?tab=leads",
+          to: firm ? "all" : "commercial",
+        });
+      }
+      /*
+       * Hold → confirmed (the moment stews should first hear about the trip).
+       * Skip if brand-new (already covered by lead-new firm notice).
+       */
+      if (old && !nowCanc && firm && !wasFirm && !wasCanc) {
+        notices.push({
+          title: hasDay ? "Charter confirmed · needs crew" : "Charter confirmed",
+          body: `${name}${when ? " · " + when : ""} (by ${who})`,
+          tag: `lead-confirm-${lead.id}`,
           url: "/tracker/?tab=stews",
           to: "all",
         });
       }
       /*
-       * Date first set or changed on an existing lead → notify all roles
-       * so crew can be assigned for the new day.
+       * Date first set or changed — stews only when firm; holds = commercial.
        */
       if (old && !nowCanc && hasDay && (!oldHadDay || oldStart !== newStart)) {
         notices.push({
-          title: oldHadDay ? "Charter date changed · check crew" : "Charter dated · needs crew",
+          title: firm
+            ? oldHadDay
+              ? "Charter date changed · check crew"
+              : "Charter dated · needs crew"
+            : oldHadDay
+              ? "Hold date changed"
+              : "Hold dated",
           body: `${name}${when ? " · " + when : ""} (by ${who})`,
           tag: `lead-date-${lead.id}-${newStart}`,
-          url: "/tracker/?tab=stews",
-          to: "all",
+          url: firm ? "/tracker/?tab=stews" : "/tracker/?tab=leads",
+          to: leadCrewNoticeTo(lead),
         });
       }
 
@@ -2151,6 +2213,21 @@ function buildNotices(coll, prevRows, nextRows, who, data) {
 
   /* Roster: assignment changes + charter cancel on stew assign */
   if (coll === "stewAssign") {
+    const leadList = data && Array.isArray(data.leads) ? data.leads : [];
+    const leadById = new Map(
+      leadList.filter((l) => l && l.id != null).map((l) => [String(l.id), l])
+    );
+    function assignLinkedLead(asg) {
+      const lid = asg && (asg.leadId || asg.cancelLeadId);
+      return lid != null ? leadById.get(String(lid)) || null : null;
+    }
+    /** Empty “needs crew” blasts: only for firm linked leads (or unlinked legacy days). */
+    function assignNeedsCrewAudience(asg) {
+      const L = assignLinkedLead(asg);
+      if (!L) return "all";
+      return leadIsFirmForCrewNotify(L) ? "all" : "commercial";
+    }
+
     const prevByKey = new Map(
       prev.filter((a) => a && a.eventKey).map((a) => [String(a.eventKey), a])
     );
@@ -2167,6 +2244,8 @@ function buildNotices(coll, prevRows, nextRows, who, data) {
         asg.noStewNeeded === true ||
         asg.noStewNeeded === "true" ||
         asg.noStewNeeded === 1;
+      const linked = assignLinkedLead(asg);
+      const linkedFirm = linked ? leadIsFirmForCrewNotify(linked) : true;
 
       if (old && nowCanc && !wasCanc) {
         notices.push({
@@ -2174,7 +2253,7 @@ function buildNotices(coll, prevRows, nextRows, who, data) {
           body: `${label} (by ${who})`,
           tag: `stew-cancel-${key}`,
           url: "/tracker/",
-          to: "team_and_captain",
+          to: linked && !linkedFirm ? "commercial" : "team_and_captain",
         });
         continue; /* skip assign spam on the same save */
       }
@@ -2186,17 +2265,29 @@ function buildNotices(coll, prevRows, nextRows, who, data) {
       const n = names.length || (Array.isArray(asg.stewIds) ? asg.stewIds.filter(Boolean).length : 0);
 
       /*
-       * Brand-new roster day with no crew yet → everyone (captain/manager/team).
-       * Also when a new empty assign row is created from calendar / leads.
+       * Brand-new roster day with no crew yet.
+       * Stews only when the linked lead is firm (confirmed); holds → commercial.
        */
       if (!old && !noStew && !n) {
-        notices.push({
-          title: "Unassigned charter · needs crew",
-          body: label,
-          tag: `stew-need-${key}`,
-          url: "/tracker/?tab=stews",
-          to: "all",
-        });
+        const to = assignNeedsCrewAudience(asg);
+        if (to === "commercial" && linked && !linkedFirm) {
+          /* Skip stew spam for hold roster stubs — commercial still gets a soft note */
+          notices.push({
+            title: "Unassigned hold · not confirmed",
+            body: label,
+            tag: `stew-need-hold-${key}`,
+            url: "/tracker/?tab=leads",
+            to: "commercial",
+          });
+        } else {
+          notices.push({
+            title: "Unassigned charter · needs crew",
+            body: label,
+            tag: `stew-need-${key}`,
+            url: "/tracker/?tab=stews",
+            to: to,
+          });
+        }
         continue;
       }
 
@@ -2231,12 +2322,18 @@ function buildNotices(coll, prevRows, nextRows, who, data) {
         title = n === 1 ? "Stew assigned" : "Stews assigned";
         body = `${label} · ${whoList} (by ${who})`;
       }
+      /* Actual assign/clear always reaches team when crew is involved; empty clear on hold stays commercial */
+      const toAsg = n
+        ? "team_and_captain"
+        : linked && !linkedFirm
+          ? "commercial"
+          : "all";
       notices.push({
         title,
         body,
         tag: `stew-asg-${key}-${newIds || "none"}`,
         url: "/tracker/?tab=stews",
-        to: n ? "team_and_captain" : "all",
+        to: toAsg,
       });
     }
   }
