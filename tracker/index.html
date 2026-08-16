@@ -8507,6 +8507,100 @@ function findApaChargeForTrip(t){
   if(!pick||!pick.chargeId) return null;
   return (state.charters||[]).filter(function(c){ return c&&String(c.id)===String(pick.chargeId); })[0]||null;
 }
+/** Open the Charges sheet for this APA pot’s shortfall row. */
+function openApaLinkedChargeSheet(t){
+  if(!t||!canOps()) return false;
+  var ch=findApaChargeForTrip(t);
+  if(!ch||!ch.id) return false;
+  try{
+    if(typeof openSheet==="function") openSheet("charter", ch.id);
+  }catch(eO){ return false; }
+  return true;
+}
+/**
+ * Create or re-sync the shortfall charge (clears suppress after a delete).
+ * @param {object} t APA trip
+ * @param {{open?:boolean}} [opts] open the charge sheet when done
+ */
+function createOrSyncApaShortfallCharge(t, opts){
+  opts=opts||{};
+  if(!t||!canOps()) return null;
+  t.suppressShortfallCharge=false;
+  saveApa(t, { force:true, allowCreate:true, collapseOrphans:true });
+  var ch=findApaChargeForTrip(t);
+  if(opts.open!==false&&ch&&ch.id){
+    try{
+      if(typeof openSheet==="function") openSheet("charter", ch.id);
+    }catch(eOpen){}
+  }
+  return ch;
+}
+/** Status + CTAs for APA ↔ Charges (shared by Overview + Setup). */
+function apaChargeActionsHTML(t){
+  if(!t) return "";
+  var x=apaTotals(t);
+  var ch=findApaChargeForTrip(t);
+  var over=apaOverageAmount(t);
+  var cashSettled=!!x.cashSettled||(ch&&isApaCashSettlementCharge(ch));
+  var suppressed=!!t.suppressShortfallCharge&&over>0.009&&!ch&&!cashSettled;
+  var body="";
+  if(ch){
+    body+='<p style="margin:0 0 10px;font-size:13.5px;line-height:1.45">'+
+      'Linked charge <b>'+esc(ch.client||t.guest||"APA")+'</b> · <b class="money">'+money(ch.amount)+'</b>'+
+      (ch.inv?' · #'+esc(ch.inv):'')+
+      ' · '+esc(chargePay(ch)||"Pending")+
+      (chargeInv(ch)==="Issued"?" · invoice issued":"")+
+    '</p>';
+    body+='<button type="button" class="btn" id="apaOpenCharge" style="width:100%">Open charge</button>';
+    if(over>0.009&&chargePay(ch)!=="Paid"&&!chargeIsLockedMoney(ch)){
+      body+='<button type="button" class="btn ghost" id="apaSyncCharge" style="width:100%;margin-top:8px">Update charge amount</button>';
+    }
+  } else if(cashSettled){
+    body+='<p style="margin:0 0 0;font-size:13px;color:var(--greenInk);line-height:1.45">Pot closed with cash settlement — no open shortfall charge.</p>';
+  } else if(over>0.009){
+    body+='<p style="margin:0 0 10px;font-size:13.5px;line-height:1.45;color:var(--danger)">'+
+      (apaHasPrepaid(t)?"Shortfall ":"To invoice ")+
+      '<b class="money">'+money(over)+'</b>'+
+      (suppressed
+        ?" — charge was deleted (or missing). Create one to bill the guest."
+        :" — no Charges row yet. Create one to Make invoice or take cash.")+
+    '</p>';
+    body+='<button type="button" class="btn" id="apaCreateCharge" style="width:100%">Create shortfall charge</button>';
+  } else if(x.spent>0.009){
+    body+='<p style="margin:0;font-size:13px;color:var(--muted);line-height:1.45">Spend is covered by the pot'+(x.paidCovered>0.009?" / paid charges":"")+' — nothing left to invoice.</p>';
+  } else {
+    body+='<p style="margin:0;font-size:13px;color:var(--muted);line-height:1.45">No spend yet — when the pot goes over, create a shortfall charge here.</p>';
+  }
+  return '<div class="apa-card" style="margin-bottom:12px" id="apaChargeCard">'+
+    '<div class="k" style="margin-bottom:8px">Charges · shortfall</div>'+
+    body+
+  '</div>';
+}
+function bindApaChargeActions(t){
+  if(el("apaOpenCharge")){
+    el("apaOpenCharge").addEventListener("click",function(ev){
+      ev.preventDefault();
+      if(!openApaLinkedChargeSheet(t)){
+        try{ alert("Charge not found — try Create shortfall charge."); }catch(eA){}
+      }
+    });
+  }
+  if(el("apaCreateCharge")){
+    el("apaCreateCharge").addEventListener("click",function(ev){
+      ev.preventDefault();
+      var ch=createOrSyncApaShortfallCharge(t, { open:true });
+      if(!ch){
+        try{ alert("Could not create a charge — check pot spend and try again."); }catch(eA){}
+      }
+    });
+  }
+  if(el("apaSyncCharge")){
+    el("apaSyncCharge").addEventListener("click",function(ev){
+      ev.preventDefault();
+      createOrSyncApaShortfallCharge(t, { open:true });
+    });
+  }
+}
 function findReusableApaCharge(t){
   if(!t||!window.LY_CONTROLLERS||!LY_CONTROLLERS.apa) return findApaChargeForTrip(t);
   var pick=LY_CONTROLLERS.apa.pickCharge(apaControllerSnapshot({ trip:t, purpose:"reusable" }));
@@ -9491,11 +9585,18 @@ function renderApaList(){
         (t.cashFromLead||Number(t.apaSent)<0?'<span class="pill p-black">Cash</span>':'')+
         (cashPaidPill?'<span class="pill p-green">Paid cash'+(t.apaCashSettledAmt?' '+money0(t.apaCashSettledAmt):(ch?(' '+money0(ch.cashPaid||ch.amount)):''))+'</span>':
           over&&ch&&chargePay(ch)!=="Paid"?'<span class="pill p-over">'+(apaHasPrepaid(t)?"Owe ":"Invoice ")+money0(ch.amount)+'</span>':
-          over?'<span class="pill p-over">'+(apaHasPrepaid(t)?"Owe ":"Invoice ")+money0(-x.bal)+'</span>':
+          over?'<span class="pill p-over">'+(apaHasPrepaid(t)?"Owe ":"Invoice ")+money0(-x.bal)+' · no charge</span>':
           (x.paidCovered>0?'<span class="pill p-apa">Paid '+money0(x.paidCovered)+'</span>':
             (x.spent>0?'<span class="pill p-grey">Settled</span>':'<span class="pill p-grey">'+(apaHasPrepaid(t)?"In pot":(t.cashFromLead?"Cash pot":"No spend yet"))+'</span>')))+
         (t.linkInvNo?'<span class="pill p-blue">APA inv #'+esc(t.linkInvNo)+'</span>':'')+
       '</div>'+
+      ((ch||over)?(
+        '<div class="lead-actions" style="margin-top:8px">'+
+          (ch
+            ?'<button type="button" class="btn ghost" data-apa-open-charge="'+esc(t.id)+'" style="width:auto;padding:8px 12px;font-size:12px">Open charge</button>'
+            :'<button type="button" class="btn" data-apa-create-charge="'+esc(t.id)+'" style="width:auto;padding:8px 12px;font-size:12px">Create charge</button>')+
+        '</div>'
+      ):'')+
       '<div class="apa-bar'+(over?' over':'')+'" style="margin-top:10px"><i style="width:'+Math.min(100,Math.round((x.pct||0)*1000)/10)+'%"></i></div>'+
       (t.notes?'<div class="notes">'+esc(t.notes)+'</div>':'')+
       '<button type="button" class="apa-x" data-apa-del-trip="'+esc(t.id)+'" aria-label="Delete trip">×</button></div>';
@@ -9539,8 +9640,26 @@ function renderApaList(){
   if(el("apaSumBal")) el("apaSumBal").textContent=money(bal);
   Array.prototype.forEach.call(wrap.querySelectorAll("[data-apa-open]"),function(x){
     x.addEventListener("click",function(ev){
-      if(ev.target.closest&&ev.target.closest("[data-apa-del-trip]")) return;
+      if(ev.target.closest&&(ev.target.closest("[data-apa-del-trip]")||ev.target.closest("[data-apa-open-charge]")||ev.target.closest("[data-apa-create-charge]"))) return;
       openApaDetail(x.getAttribute("data-apa-open"));
+    });
+  });
+  Array.prototype.forEach.call(wrap.querySelectorAll("[data-apa-open-charge]"),function(btn){
+    btn.addEventListener("click",function(ev){
+      ev.preventDefault(); ev.stopPropagation();
+      var id=btn.getAttribute("data-apa-open-charge");
+      var trip=(state.apa||[]).filter(function(x){ return x&&String(x.id)===String(id); })[0];
+      if(trip&&!openApaLinkedChargeSheet(trip)){
+        try{ alert("Charge not found — use Create charge."); }catch(eA){}
+      }
+    });
+  });
+  Array.prototype.forEach.call(wrap.querySelectorAll("[data-apa-create-charge]"),function(btn){
+    btn.addEventListener("click",function(ev){
+      ev.preventDefault(); ev.stopPropagation();
+      var id=btn.getAttribute("data-apa-create-charge");
+      var trip=(state.apa||[]).filter(function(x){ return x&&String(x.id)===String(id); })[0];
+      if(trip) createOrSyncApaShortfallCharge(trip, { open:true });
     });
   });
   Array.prototype.forEach.call(wrap.querySelectorAll("[data-apa-del-trip]"),function(x){
@@ -9720,11 +9839,11 @@ function apaOverviewHTML(t){
       pill(chargeInv(ch)==="Issued"?"Invoice issued":"Invoice open")+
     '</div>';
   } else if(over){
-    linkBits+='<div class="meta" style="margin-top:6px"><span class="pill p-over">'+(apaHasPrepaid(t)?"Shortfall ":"To invoice ")+money(-x.bal)+' — charge on save</span></div>';
+    linkBits+='<div class="meta" style="margin-top:6px"><span class="pill p-over">'+(apaHasPrepaid(t)?"Shortfall ":"To invoice ")+money(-x.bal)+' — no charge yet</span></div>';
   } else if(x.paidCovered>0){
     linkBits+='<div class="meta" style="margin-top:6px"><span class="pill p-apa">Invoiced spend paid '+money(x.paidCovered)+' · balance restored</span></div>';
   } else if(!apaHasPrepaid(t)){
-    linkBits+='<div class="meta" style="margin-top:6px"><span class="pill p-grey">No prepaid APA — log spend → Charges → Make invoice</span></div>';
+    linkBits+='<div class="meta" style="margin-top:6px"><span class="pill p-grey">No prepaid APA — log spend → create charge below</span></div>';
   } else {
     linkBits+='<div class="meta" style="margin-top:6px"><span class="pill p-grey">In pot — charge only if you overspend</span></div>';
   }
@@ -9743,6 +9862,7 @@ function apaOverviewHTML(t){
         ?"Cash shortfall paid on Charges — pot closed (VAT not charged in cash deals)."
         :(apaHasPrepaid(t)?pctShow+"% of funds spent · ":"No prepaid pot · ")+'pot + top-ups + paid charges − spend. Free cash stays on the lead.')+'</div></div>'+
   '</div>'+
+  apaChargeActionsHTML(t)+
   '<div class="apa-card" style="margin-bottom:12px">'+
     '<div class="k" style="margin-bottom:8px">Trip</div>'+
     '<div style="font-weight:700">'+esc(t.guest||"—")+'</div>'+
@@ -9884,20 +10004,10 @@ function apaDieselHTML(t){
   return html;
 }
 function apaSetupHTML(t){
-  var ch=findApaChargeForTrip(t);
-  var over=apaOverageAmount(t);
-  var cashSettled=apaIsCashSettled(t)||(ch&&isApaCashSettlementCharge(ch));
-  var suppressed=!!t.suppressShortfallCharge&&over>0&&!ch&&!cashSettled;
-  return '<div class="apa-card" style="margin-bottom:12px">'+
-    '<p style="margin:0 0 10px;font-size:13.5px;line-height:1.45;color:var(--muted)"><b>APA received can be €0.</b> Spend creates a <b>Charges</b> row for the amount still owed — use <b>Make invoice</b> there to generate the PDF. Mark charge <b>Paid</b> (cash or invoice) to close the pot. Cash deals: Settlement <b>Cash</b> + amount paid — residual vs ledger is not re-invoiced.</p>'+
-    (cashSettled?'<p style="margin:0 0 12px;font-size:13px;color:var(--greenInk)"><b>Paid cash</b> on Charges'+(t.apaCashSettledAmt?' · '+money(t.apaCashSettledAmt):'')+' — pot closed, no shortfall left.</p>':
-      over&&ch&&chargePay(ch)!=="Paid"?'<p style="margin:0 0 12px;font-size:13px">Charge: <b>'+esc(ch.client)+'</b> · '+money(ch.amount)+(ch.inv?' · #'+esc(ch.inv):'')+'</p>':
-      suppressed?'<p style="margin:0 0 12px;font-size:13px;color:var(--muted)">Shortfall '+money(over)+' — charge was deleted. Tap <b>Sync charge now</b> to recreate.</p>':
-      over?'<p style="margin:0 0 12px;font-size:13px;color:var(--danger)">To invoice '+money(over)+' — will create charge on save.</p>':
-      (apaPaidCovered(t)>0?'<p style="margin:0 0 12px;font-size:13px;color:var(--greenInk)">Paid on Charges '+money(apaPaidCovered(t))+' is included in balance.</p>':
-        '<p style="margin:0 0 12px;font-size:13px;color:var(--muted)">'+(apaHasPrepaid(t)?"Still in pot — no extra charge yet.":"No spend yet — add expenses or diesel to open a charge.")+'</p>'))+
+  return apaChargeActionsHTML(t)+
+  '<div class="apa-card" style="margin-bottom:12px">'+
+    '<p style="margin:0 0 10px;font-size:13.5px;line-height:1.45;color:var(--muted)"><b>APA received can be €0.</b> Spend that exceeds the pot needs a <b>Charges</b> shortfall row — open it from Overview/Setup, then <b>Make invoice</b> or mark <b>Paid</b>. If you deleted the charge, use <b>Create shortfall charge</b> to put it back.</p>'+
     '<button type="button" class="btn" id="apaEditTrip">Edit trip / APA pot</button>'+
-    '<button type="button" class="btn ghost" id="apaSyncCharge" style="margin-top:10px">'+(suppressed?"Recreate shortfall charge":"Sync charge now")+'</button>'+
     '<button type="button" class="btn danger" id="apaDelTrip" style="margin-top:10px">Delete this trip</button>'+
   '</div>';
 }
@@ -9927,11 +10037,7 @@ function apaBindBody(t){
     });
   });
   if(el("apaEditTrip")) el("apaEditTrip").addEventListener("click",function(){ openApaTrip(t.id); });
-  if(el("apaSyncCharge")) el("apaSyncCharge").addEventListener("click",function(){
-    /* Explicit: create/update THIS trip only; collapse orphan Danny×2 style dupes */
-    t.suppressShortfallCharge=false;
-    saveApa(t, {force:true, allowCreate:true, collapseOrphans:true});
-  });
+  try{ bindApaChargeActions(t); }catch(eChAct){}
   if(el("apaDelTrip")) el("apaDelTrip").addEventListener("click",function(){ deleteApaTrip(t.id); });
   function apaRestampDieselLines(trip, forcePrice){
     (trip.diesel||[]).forEach(function(line){
