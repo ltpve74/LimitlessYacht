@@ -953,7 +953,10 @@ def check_html(r: Runner, rel: str, html: str) -> None:
         and "destId === 'avail-cal' || destId === 'availability'" in html
         and 'window.innerWidth <= 640 && window.scrollY <= 56' in html
         and "keepHash === 'avail-cal'" in html
-        and 'LY_hashLockUntil = Date.now() + 4000' in html,
+        and 'LY_hashLockUntil = Date.now() + 4000' in html
+        and "if (href.slice(1) === 'hero') return" in html
+        and "destId === 'hero'" in html
+        and 'window.scrollTo(0, 0)' in html,
     )
 
     _hero_css = (read_file('css/layout.css') or '') + (read_file('css/main.css') or '')
