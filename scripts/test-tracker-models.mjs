@@ -146,6 +146,117 @@ console.log("[Ops — today board]");
   );
 }
 
+/* ---- Unpaid charge after charter end (Today / Leads highlight) ---- */
+console.log("[Charges — unpaid due after end]");
+{
+  ok("parseClockMinutes 18:00", M.parseClockMinutes("18:00") === 18 * 60);
+  ok("parseClockMinutes bad null", M.parseClockMinutes("nope") == null);
+  const endMs = M.charterEndLocalMs("2026-08-03", "18:00");
+  ok("charterEndLocalMs with clock", typeof endMs === "number" && endMs > 0);
+  const eodMs = M.charterEndLocalMs("2026-08-03", "");
+  ok("charterEndLocalMs end of day after 18:00", eodMs > endMs);
+
+  const beforeEnd = endMs - 60 * 1000;
+  const afterEnd = endMs + 60 * 1000;
+  ok(
+    "isPastCharterEnd false before clock",
+    !M.isPastCharterEnd({ date: "2026-08-03", endTime: "18:00", nowMs: beforeEnd })
+  );
+  ok(
+    "isPastCharterEnd true after clock",
+    M.isPastCharterEnd({ date: "2026-08-03", endTime: "18:00", nowMs: afterEnd })
+  );
+  ok(
+    "isPastCharterEnd multi-day uses end date",
+    M.isPastCharterEnd({
+      date: "2026-08-01",
+      end: "2026-08-03",
+      endTime: "18:00",
+      nowMs: afterEnd,
+    })
+  );
+
+  const unpaidC = {
+    id: "C-due",
+    client: "Joel",
+    date: "2026-08-03",
+    amount: 200,
+    payStatus: "Pending",
+  };
+  const paidC = {
+    id: "C-paid",
+    client: "Joel",
+    date: "2026-08-03",
+    amount: 200,
+    payStatus: "Paid",
+  };
+  const leadsJoel = [
+    {
+      id: "L1",
+      name: "Joel",
+      start: "2026-08-03",
+      end: "2026-08-03",
+      endTime: "18:00",
+      dealClosed: true,
+    },
+  ];
+  ok(
+    "chargeIsUnpaidDue false before end",
+    !M.chargeIsUnpaidDue(unpaidC, { leads: leadsJoel, nowMs: beforeEnd })
+  );
+  ok(
+    "chargeIsUnpaidDue true after end",
+    M.chargeIsUnpaidDue(unpaidC, { leads: leadsJoel, nowMs: afterEnd })
+  );
+  ok(
+    "chargeIsUnpaidDue false when Paid",
+    !M.chargeIsUnpaidDue(paidC, { leads: leadsJoel, nowMs: afterEnd })
+  );
+
+  const boardBefore = M.collectTodayOpsBoard({
+    today: "2026-08-03",
+    nowMs: beforeEnd,
+    leads: leadsJoel,
+    charges: [unpaidC],
+  });
+  ok(
+    "today board charge pending before end",
+    boardBefore.charges[0] && boardBefore.charges[0].status === "pending",
+    "got " + (boardBefore.charges[0] && boardBefore.charges[0].status)
+  );
+  ok(
+    "today board charge not unpaidDue before end",
+    boardBefore.charges[0] && boardBefore.charges[0].unpaidDue === false
+  );
+
+  const boardAfter = M.collectTodayOpsBoard({
+    today: "2026-08-03",
+    nowMs: afterEnd,
+    leads: leadsJoel,
+    charges: [unpaidC, paidC],
+  });
+  const dueRow = (boardAfter.charges || []).filter(function (x) {
+    return x.id === "C-due";
+  })[0];
+  const paidRow = (boardAfter.charges || []).filter(function (x) {
+    return x.id === "C-paid";
+  })[0];
+  ok(
+    "today board unpaid-due after end",
+    dueRow && dueRow.status === "unpaid-due" && dueRow.unpaidDue === true,
+    "got " + (dueRow && dueRow.status)
+  );
+  ok(
+    "today board paid stays paid after end",
+    paidRow && paidRow.status === "paid"
+  );
+  ok(
+    "today board charge inherits lead endTime",
+    dueRow && dueRow.endTime === "18:00",
+    "got " + (dueRow && dueRow.endTime)
+  );
+}
+
 /* ---- Commission: VAT-included total (Joel) ---- */
 console.log("[Commission — VAT included]");
 {
