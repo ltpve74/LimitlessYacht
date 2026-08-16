@@ -895,9 +895,59 @@
   .item.item--cancelled{opacity:0.72}
   .item.item--cancelled .title{text-decoration:line-through;text-decoration-thickness:1px}
   /* APA (captain + manager) */
-  .apa-sub{display:flex;gap:6px;overflow-x:auto;-webkit-overflow-scrolling:touch;margin:0 0 12px;padding-bottom:2px}
-  .apa-sub button{flex:0 0 auto;padding:8px 12px;border-radius:999px;border:1.5px solid var(--line);background:#fff;color:var(--muted);font-size:12.5px;font-weight:700}
+  .apa-sub{display:flex;gap:6px;overflow-x:auto;-webkit-overflow-scrolling:touch;margin:0 0 12px;padding:6px;position:sticky;top:calc(env(safe-area-inset-top,0px) + 50px);z-index:7;background:var(--bg);border:1px solid var(--line);border-radius:14px;box-shadow:0 4px 12px rgba(15,25,30,.06)}
+  .apa-sub button{flex:0 0 auto;padding:10px 14px;min-height:42px;border-radius:999px;border:1.5px solid var(--line);background:#fff;color:var(--muted);font-size:12.5px;font-weight:700}
   .apa-sub button.on{background:var(--brand);color:#fff;border-color:var(--brand)}
+  /* APA / Charges day filters (sticky, same idea as Leads book tabs) */
+  .apa-filter-tabs,.ch-filter-tabs{
+    display:flex;flex-wrap:wrap;gap:6px;margin:0 0 12px;padding:6px;
+    position:sticky;top:calc(env(safe-area-inset-top,0px) + 50px);z-index:8;
+    background:var(--bg);border:1px solid var(--line);border-radius:14px;
+    box-shadow:0 4px 14px rgba(15,25,30,.08);
+  }
+  .apa-filter-tabs button,.ch-filter-tabs button{
+    flex:1 1 auto;min-width:4.2rem;padding:10px 8px;min-height:46px;border-radius:11px;
+    border:1.5px solid transparent;background:transparent;color:var(--muted);
+    font-size:11px;font-weight:800;text-transform:uppercase;letter-spacing:.02em;
+    display:flex;flex-direction:column;align-items:center;justify-content:center;gap:2px;cursor:pointer;
+  }
+  .apa-filter-tabs button .n,.ch-filter-tabs button .n{
+    font-size:15px;font-weight:900;font-variant-numeric:tabular-nums;color:var(--ink);
+  }
+  .apa-filter-tabs button.is-on,.ch-filter-tabs button.is-on{
+    background:var(--card);border-color:var(--brand2);color:var(--brand);box-shadow:0 1px 4px rgba(31,78,95,.1);
+  }
+  .apa-filter-tabs button.is-on .n,.ch-filter-tabs button.is-on .n{color:var(--brand)}
+  .apa-filter-tabs button.apa-f-unpaid.is-on{border-color:#E0A800;background:#FFF8E1;color:#7a5200}
+  .apa-filter-tabs button.apa-f-unpaid.is-on .n{color:#9a6b00}
+  .apa-filter-tabs button.apa-f-yday.is-on,.ch-filter-tabs button.ch-f-yday.is-on{border-color:#90caf9;background:#eef5fc;color:#0d47a1}
+  .apa-filter-tabs button.apa-f-yday.is-on .n,.ch-filter-tabs button.ch-f-yday.is-on .n{color:#0d47a1}
+  .ch-filter-tabs button.ch-f-unpaid.is-on{border-color:#E0A800;background:#FFF8E1;color:#7a5200}
+  .ch-filter-tabs button.ch-f-unpaid.is-on .n{color:#9a6b00}
+  .item.apa-row.apa-unpaid{
+    border:2px solid #E0A800;background:linear-gradient(180deg,#FFF8E1 0%,#fff 55%);
+    box-shadow:0 2px 10px rgba(224,168,0,.18);
+  }
+  .item.apa-row.apa-unpaid .title{color:#6b4500}
+  .item.apa-row.apa-unpaid .amt{color:#b45309}
+  .item.ch-unpaid{
+    border:1.5px solid #ffcc80;background:linear-gradient(180deg,#fffaf0 0%,#fff 60%);
+  }
+  .item.ch-yday{
+    border-left:4px solid #42a5f5;
+  }
+  .apa-catchup-banner{
+    margin:0 0 12px;padding:12px 14px;border-radius:14px;
+    background:#eef5fc;border:1px solid #90caf9;color:#0d47a1;
+    font-size:13px;font-weight:650;line-height:1.4;
+  }
+  .apa-catchup-banner b{font-weight:900}
+  .apa-detail-head.apa-detail-unpaid{
+    padding:12px 14px;border-radius:14px;margin-bottom:12px;
+    border:2px solid #E0A800;background:linear-gradient(180deg,#FFF8E1 0%,#fff 70%);
+  }
+  .apa-detail-actions{display:flex;flex-wrap:wrap;gap:8px;margin-top:10px}
+  .apa-detail-actions .btn{width:auto;padding:10px 14px;font-size:13px}
   .apa-tripbar{display:flex;gap:8px;align-items:center;margin-bottom:12px}
   .apa-tripbar select{flex:1}
   .apa-tripbar .btn{width:auto;padding:12px 14px;flex:0 0 auto}
@@ -908,6 +958,11 @@
   .apa-card.bal .n{color:var(--greenInk)}
   .apa-card.bal.warn .n{color:var(--danger)}
   .apa-card.wide{grid-column:1/-1}
+  @media(min-width:900px){
+    .apa-filter-tabs button,.ch-filter-tabs button{flex-direction:row;gap:8px;padding:12px 14px;font-size:12px}
+    .apa-filter-tabs button .n,.ch-filter-tabs button .n{font-size:17px}
+    .apa-sub{top:calc(env(safe-area-inset-top,0px) + 56px)}
+  }
   /* APA trip fuel — primary day-run entry (always used) */
   .apa-diesel-quick{
     background:linear-gradient(180deg,#e8f2fb 0%,#fff 48%);
@@ -1328,7 +1383,14 @@
         <button type="button" class="btn" id="chExportExcel" style="width:auto;padding:10px 14px" title="Excel with € currency format on amount columns">Export Excel</button>
         <button type="button" class="btn ghost" id="chExportCsv" style="width:auto;padding:10px 14px" title="CSV — amounts shown as € text (CSV cannot store currency formats)">Export CSV</button>
       </div>
-      <div class="legend">Each charge is <b>Cash only</b>, <b>Invoice only</b>, or <b>Mix</b> — the card shows cash vs invoice/card clearly. APA shortfall = pot overspend (not full charter). Extra hours can sit on the same bill. <b>Export Excel</b> = real € currency columns (preferred). <b>CSV</b> = same data with € as text.</div>
+      <div class="legend">Filter <b>Yesterday</b> for catch-up after a busy day. APA shortfall = pot overspend. <b>Export Excel</b> preferred for € currency columns.</div>
+      <div id="chFilterTabs" class="ch-filter-tabs" role="tablist" aria-label="Charges filter">
+        <button type="button" class="ch-f-yday is-on" data-ch-filter="yesterday" aria-selected="true"><span class="n" id="chTabNYday">0</span><span>Yesterday</span></button>
+        <button type="button" class="ch-f-today" data-ch-filter="today" aria-selected="false"><span class="n" id="chTabNToday">0</span><span>Today</span></button>
+        <button type="button" class="ch-f-unpaid" data-ch-filter="unpaid" aria-selected="false"><span class="n" id="chTabNUnpaid">0</span><span>Unpaid</span></button>
+        <button type="button" data-ch-filter="all" aria-selected="false"><span class="n" id="chTabNAll">0</span><span>All</span></button>
+      </div>
+      <div id="chCatchupBanner" class="apa-catchup-banner hidden"></div>
       <div class="list" id="chList"></div>
     </section>
 
@@ -1337,21 +1399,30 @@
       <button type="button" class="ops-back" data-ops-back>← Ops</button>
       <div id="apaListWrap">
         <div class="summary">
+          <div class="sumcard sum-warn"><div class="l">Not paid yet</div><div class="v" id="apaSumUnpaid">0</div></div>
+          <div class="sumcard"><div class="l">Still to invoice</div><div class="v money" id="apaSumOwe">€0</div></div>
           <div class="sumcard"><div class="l">APA pots</div><div class="v money" id="apaSumPot">€0</div></div>
           <div class="sumcard"><div class="l">Balance left</div><div class="v money" id="apaSumBal">€0</div></div>
         </div>
-        <div class="legend">Captain only. Log spend even with <b>€0 prepaid APA</b> — expenses / diesel create a <b>Charges</b> row for the amount still owed (Make invoice from Charges). Prepaid pot only reduces what is still owed. Vessel fuel: <b>Diesel</b> tab.</div>
+        <div class="legend">Highlight = <b>not paid yet</b> (shortfall / unpaid charge). Use <b>Yesterday</b> to catch up diesel &amp; spend after a busy day.</div>
+        <div id="apaFilterTabs" class="apa-filter-tabs" role="tablist" aria-label="APA filter">
+          <button type="button" class="apa-f-unpaid is-on" data-apa-filter="unpaid" aria-selected="true"><span class="n" id="apaTabNUnpaid">0</span><span>Unpaid</span></button>
+          <button type="button" class="apa-f-yday" data-apa-filter="yesterday" aria-selected="false"><span class="n" id="apaTabNYday">0</span><span>Yesterday</span></button>
+          <button type="button" data-apa-filter="today" aria-selected="false"><span class="n" id="apaTabNToday">0</span><span>Today</span></button>
+          <button type="button" data-apa-filter="all" aria-selected="false"><span class="n" id="apaTabNAll">0</span><span>All</span></button>
+        </div>
+        <div id="apaCatchupBanner" class="apa-catchup-banner hidden"></div>
         <div class="list" id="apaList"></div>
       </div>
       <div id="apaDetailWrap" class="hidden">
         <button type="button" class="apa-back" id="apaBack">← All APA</button>
         <div class="apa-detail-head" id="apaDetailHead"></div>
         <div class="apa-sub" id="apaSubNav">
-          <button type="button" data-apasub="diesel" class="on">Trip fuel</button>
-          <button type="button" data-apasub="overview">Overview</button>
-          <button type="button" data-apasub="provisions">Provisions</button>
+          <button type="button" data-apasub="overview" class="on">Overview</button>
+          <button type="button" data-apasub="diesel">Trip fuel</button>
           <button type="button" data-apasub="expenses">Expenses</button>
-          <button type="button" data-apasub="setup">Trip setup</button>
+          <button type="button" data-apasub="provisions">Provisions</button>
+          <button type="button" data-apasub="setup">Setup</button>
         </div>
         <div id="apaBody"></div>
       </div>
@@ -1573,7 +1644,9 @@ function safeGet(k){ try{ return localStorage.getItem(k); }catch(e){ return memS
 function safeSet(k,v){ try{ localStorage.setItem(k,v); }catch(e){ memStore[k]=v; } }
 function safeDel(k){ try{ localStorage.removeItem(k); }catch(e){} try{ delete memStore[k]; }catch(e2){} }
 
-var DEMO=false, curTab="leads", apaSub="diesel", activeApaId=null, apaView="list";
+var DEMO=false, curTab="leads", apaSub="overview", activeApaId=null, apaView="list";
+var apaListFilter="unpaid"; /* unpaid | yesterday | today | all */
+var chListFilter="yesterday"; /* yesterday | today | unpaid | all — catch-up default */
 var stewSub="charters"; /* charters | team */
 var expMonth=""; /* YYYY-MM — empty until first render */
 var calEvents=[], calEventsAt=0, calEventsLoading=false, calEventsGeneratedAt="", calEventsPromise=null;
@@ -3575,11 +3648,91 @@ function chExportExcelToDate(){
     setTimeout(function(){ try{ document.body.removeChild(a); URL.revokeObjectURL(a.href); }catch(e){} }, 800);
   }
 }
+var CH_FILTER_KEY="tracker-ch-filter";
+function getChListFilter(){
+  try{
+    var v=String(safeGet(CH_FILTER_KEY)||chListFilter||"yesterday");
+    if(v==="yesterday"||v==="today"||v==="unpaid"||v==="all") return v;
+  }catch(e){}
+  return chListFilter||"yesterday";
+}
+function setChListFilter(v){
+  if(v!=="yesterday"&&v!=="today"&&v!=="unpaid"&&v!=="all") v="yesterday";
+  chListFilter=v;
+  try{ safeSet(CH_FILTER_KEY, v); }catch(e){}
+  return v;
+}
+function chargeMatchesFilter(r, filter, today, yday){
+  if(!r) return false;
+  filter=filter||"all";
+  var d=String(r.date||"").slice(0,10);
+  var unpaid=chargePay(r)!=="Paid";
+  if(filter==="yesterday") return d===yday;
+  if(filter==="today") return d===today;
+  if(filter==="unpaid") return unpaid;
+  return true;
+}
+var _chFilterBound=false;
+function bindChFilterTabsOnce(){
+  if(_chFilterBound) return;
+  _chFilterBound=true;
+  var tabs=el("chFilterTabs");
+  if(!tabs) return;
+  tabs.addEventListener("click",function(ev){
+    var btn=ev.target&&ev.target.closest?ev.target.closest("[data-ch-filter]"):null;
+    if(!btn||!tabs.contains(btn)) return;
+    ev.preventDefault();
+    setChListFilter(btn.getAttribute("data-ch-filter")||"yesterday");
+    try{ renderCharters(); }catch(eR){}
+  });
+}
 function renderCharters(){
   /* Paint only — never merge/relink/purge/save on render (that rewrote notes & resurrected rows). */
   sortCharters();
+  try{ bindChFilterTabsOnce(); }catch(eB){}
   var wrap=el("chList"), tot=0, cashTot=0, invTot=0, pend=0, html="";
-  state.charters.forEach(function(r){
+  var filter=getChListFilter();
+  var today=localTodayYmd(), yday=localYesterdayYmd();
+  var nY=0, nT=0, nU=0, nAll=0, nShown=0;
+  (state.charters||[]).forEach(function(r){
+    if(!r) return;
+    nAll++;
+    var d=String(r.date||"").slice(0,10);
+    if(d===yday) nY++;
+    if(d===today) nT++;
+    if(chargePay(r)!=="Paid") nU++;
+  });
+  if(el("chTabNYday")) el("chTabNYday").textContent=String(nY);
+  if(el("chTabNToday")) el("chTabNToday").textContent=String(nT);
+  if(el("chTabNUnpaid")) el("chTabNUnpaid").textContent=String(nU);
+  if(el("chTabNAll")) el("chTabNAll").textContent=String(nAll);
+  var tabs=el("chFilterTabs");
+  if(tabs){
+    Array.prototype.forEach.call(tabs.querySelectorAll("[data-ch-filter]"),function(btn){
+      var on=(btn.getAttribute("data-ch-filter")||"")===(filter);
+      if(on) btn.classList.add("is-on"); else btn.classList.remove("is-on");
+      btn.setAttribute("aria-selected", on?"true":"false");
+    });
+  }
+  var ban=el("chCatchupBanner");
+  if(ban){
+    if(filter==="yesterday"){
+      ban.classList.remove("hidden");
+      ban.innerHTML="<b>Catch-up · yesterday "+esc(fmtDate(yday))+"</b> — charges from the day you were busy. Open a card to edit, or + to add one dated yesterday.";
+    } else if(filter==="today"){
+      ban.classList.remove("hidden");
+      ban.innerHTML="<b>Today "+esc(fmtDate(today))+"</b> — only charges dated today.";
+    } else if(filter==="unpaid"){
+      ban.classList.remove("hidden");
+      ban.innerHTML="<b>Unpaid charges</b> — pending cash/invoice. APA shortfalls that still need paying show here.";
+    } else {
+      ban.classList.add("hidden");
+      ban.innerHTML="";
+    }
+  }
+  (state.charters||[]).forEach(function(r){
+    if(!chargeMatchesFilter(r, filter, today, yday)) return;
+    nShown++;
     tot+=Number(r.amount)||0;
     var cashP=chargeCashPart(r), invP=chargeInvoicePart(r);
     cashTot+=cashP; invTot+=invP;
@@ -3596,12 +3749,16 @@ function renderCharters(){
     var settlePill=bt==="cash"
       ?'<span class="pill p-cash">Cash</span>'
       :(bt==="mix"?'<span class="pill p-amber">Mix</span>':'<span class="pill p-card">Invoice</span>');
-    html+='<div class="item" data-edit-ch="'+esc(r.id)+'">'+
+    var d=String(r.date||"").slice(0,10);
+    var cls="item"+(pay!=="Paid"?" ch-unpaid":"")+(d===yday?" ch-yday":"");
+    html+='<div class="'+cls+'" data-edit-ch="'+esc(r.id)+'">'+
       '<div class="top"><div class="title">'+esc(r.client||"—")+'</div><div class="amt money">'+money0(r.amount)+'</div></div>'+
       '<div class="meta">'+
         (r.date?'<span>'+esc(fmtDate(r.date))+'</span>':'')+
+        (d===yday?'<span class="pill p-blue">Yesterday</span>':'')+
+        (d===today?'<span class="pill p-green">Today</span>':'')+
         kindPill+settlePill+
-        (pay==="Paid"?'<span class="pill p-green">Paid</span>':'<span class="pill p-amber">Pending</span>')+
+        (pay==="Paid"?'<span class="pill p-green">Paid</span>':'<span class="pill p-amber">Not paid</span>')+
       '</div>'+
       chargeMoneySummaryHTML(r)+
       (r.notes?'<div class="notes">'+esc(r.notes)+'</div>':'')+
@@ -3610,7 +3767,14 @@ function renderCharters(){
         :'')+
       '<span class="chev">✎</span></div>';
   });
-  wrap.innerHTML=html||emptyBox("🧾","No charter charges yet","Tap + to add the first one.");
+  var emptyMsg=filter==="yesterday"
+    ?emptyBox("🧾","No charges dated yesterday","Tap + to add a charge for "+fmtDate(yday)+", or switch to All.")
+    :(filter==="today"
+      ?emptyBox("🧾","No charges dated today","Tap + to add one, or open Yesterday for catch-up.")
+      :(filter==="unpaid"
+        ?emptyBox("🧾","No unpaid charges","Everything pending is paid — or check All.")
+        :emptyBox("🧾","No charter charges yet","Tap + to add the first one.")));
+  wrap.innerHTML=html||emptyMsg;
   if(el("chTot")) el("chTot").textContent=money(tot);
   if(el("chCashTot")) el("chCashTot").textContent=money(cashTot);
   if(el("chInvTot")) el("chInvTot").textContent=money(invTot);
@@ -9536,8 +9700,13 @@ function openApaDetail(id, opts){
   opts=opts||{};
   activeApaId=id;
   apaView="detail";
-  /* Trip fuel is the day-run default (always used); pass sub to open another tab */
-  apaSub=opts.sub||"diesel";
+  /*
+   * Default tab: Overview when catching up / unpaid (see charge + status first).
+   * Explicit sub wins; diesel still one tap away for fuel log.
+   */
+  if(opts.sub) apaSub=opts.sub;
+  else if(opts.fromUnpaid||opts.catchup||apaListFilter==="unpaid"||apaListFilter==="yesterday") apaSub="overview";
+  else apaSub="overview";
   var t=(state.apa||[]).filter(function(x){return x&&String(x.id)===String(id);})[0];
   /* Heal rates when not pinned: guest → vessel sell; owner’s days → last bunker buy */
   if(t&&!t.dieselPricePinned){
@@ -9654,83 +9823,245 @@ function sortApaTrips(trips){
     return String(b.updatedAt||"").localeCompare(String(a.updatedAt||""));
   });
 }
+var APA_FILTER_KEY="tracker-apa-filter";
+function getApaListFilter(){
+  try{
+    var v=String(safeGet(APA_FILTER_KEY)||apaListFilter||"unpaid");
+    if(v==="unpaid"||v==="yesterday"||v==="today"||v==="all") return v;
+  }catch(e){}
+  return apaListFilter||"unpaid";
+}
+function setApaListFilter(v){
+  if(v!=="unpaid"&&v!=="yesterday"&&v!=="today"&&v!=="all") v="unpaid";
+  apaListFilter=v;
+  try{ safeSet(APA_FILTER_KEY, v); }catch(e){}
+  return v;
+}
+/** Shortfall not settled — highlight + Unpaid filter. */
+function apaTripIsUnpaid(t, x, ch){
+  if(!t) return false;
+  x=x||apaTotals(t);
+  ch=ch!==undefined?ch:findApaChargeForTrip(t);
+  if(x.cashSettled||(ch&&isApaCashSettlementCharge(ch))) return false;
+  if(x.bal<-0.009) return true;
+  if(ch&&chargePay(ch)!=="Paid") return true;
+  return false;
+}
+/** Charter day, spend day, or charge date matches ymd. */
+function apaTripTouchesDay(t, ymd){
+  if(!t||!ymd) return false;
+  ymd=String(ymd).slice(0,10);
+  var start=apaTripCharterKey(t);
+  var end="";
+  try{
+    var lead=apaLinkedLead(t);
+    if(lead) end=String(lead.end||lead.start||lead.cdate||"").slice(0,10);
+  }catch(eL){}
+  if(!end){
+    try{
+      var parsed=apaParseTripDates(t.dates||"");
+      if(parsed&&parsed.end) end=parsed.end;
+      else if(parsed&&parsed.start) end=parsed.start;
+    }catch(eP){}
+  }
+  if(!end) end=start;
+  if(start&&end&&start<=ymd&&ymd<=end) return true;
+  if(start===ymd) return true;
+  function lineDay(arr){
+    return (arr||[]).some(function(row){ return row&&String(row.date||"").slice(0,10)===ymd; });
+  }
+  if(lineDay(t.expenses)||lineDay(t.provisions)||lineDay(t.diesel)||lineDay(t.dieselLoads)) return true;
+  try{
+    var ch=findApaChargeForTrip(t);
+    if(ch&&String(ch.date||"").slice(0,10)===ymd) return true;
+  }catch(eC){}
+  return false;
+}
+var _apaFilterBound=false;
+function bindApaFilterTabsOnce(){
+  if(_apaFilterBound) return;
+  _apaFilterBound=true;
+  var tabs=el("apaFilterTabs");
+  if(!tabs) return;
+  tabs.addEventListener("click",function(ev){
+    var btn=ev.target&&ev.target.closest?ev.target.closest("[data-apa-filter]"):null;
+    if(!btn||!tabs.contains(btn)) return;
+    ev.preventDefault();
+    setApaListFilter(btn.getAttribute("data-apa-filter")||"unpaid");
+    try{ renderApaList(); }catch(eR){}
+  });
+}
 function renderApaList(){
   var wrap=el("apaList");
   if(!wrap) return;
+  try{ bindApaFilterTabsOnce(); }catch(eB){}
   var pot=0, bal=0, html="";
-  var trips=sortApaTrips(state.apa);
+  var filter=getApaListFilter();
+  var today=localTodayYmd(), yday=localYesterdayYmd();
+  var tripsAll=sortApaTrips(state.apa);
+  var nUnpaid=0, nY=0, nT=0, oweTot=0;
+  tripsAll.forEach(function(t){
+    var x=apaTotals(t);
+    var ch=findApaChargeForTrip(t);
+    pot+=x.available; bal+=x.bal;
+    if(apaTripIsUnpaid(t, x, ch)){
+      nUnpaid++;
+      if(x.bal<-0.009) oweTot+=(-x.bal);
+      else if(ch&&chargePay(ch)!=="Paid") oweTot+=(Number(ch.amount)||0);
+    }
+    if(apaTripTouchesDay(t, yday)) nY++;
+    if(apaTripTouchesDay(t, today)) nT++;
+  });
+  if(el("apaTabNUnpaid")) el("apaTabNUnpaid").textContent=String(nUnpaid);
+  if(el("apaTabNYday")) el("apaTabNYday").textContent=String(nY);
+  if(el("apaTabNToday")) el("apaTabNToday").textContent=String(nT);
+  if(el("apaTabNAll")) el("apaTabNAll").textContent=String(tripsAll.length);
+  if(el("apaSumUnpaid")) el("apaSumUnpaid").textContent=String(nUnpaid);
+  if(el("apaSumOwe")) el("apaSumOwe").textContent=money(oweTot);
+  if(el("apaSumPot")) el("apaSumPot").textContent=money(pot);
+  if(el("apaSumBal")) el("apaSumBal").textContent=money(bal);
+  var tabs=el("apaFilterTabs");
+  if(tabs){
+    Array.prototype.forEach.call(tabs.querySelectorAll("[data-apa-filter]"),function(btn){
+      var on=(btn.getAttribute("data-apa-filter")||"")===(filter);
+      if(on) btn.classList.add("is-on"); else btn.classList.remove("is-on");
+      btn.setAttribute("aria-selected", on?"true":"false");
+    });
+  }
+  var ban=el("apaCatchupBanner");
+  if(ban){
+    if(filter==="yesterday"){
+      ban.classList.remove("hidden");
+      ban.innerHTML="<b>Catch-up · yesterday "+esc(fmtDate(yday))+"</b> — pots with charter or spend that day. Open one, log fuel/expenses (date defaults to yesterday), settle the charge.";
+    } else if(filter==="today"){
+      ban.classList.remove("hidden");
+      ban.innerHTML="<b>Today "+esc(fmtDate(today))+"</b> — pots for charters/spend today.";
+    } else if(filter==="unpaid"){
+      ban.classList.remove("hidden");
+      ban.innerHTML="<b>Not paid yet</b> — shortfall still open or charge unpaid. Gold border = needs action.";
+    } else {
+      ban.classList.add("hidden");
+      ban.innerHTML="";
+    }
+  }
+
+  /* Unpaid first when showing all / unpaid */
+  var trips=tripsAll.slice().filter(function(t){
+    if(filter==="unpaid") return apaTripIsUnpaid(t);
+    if(filter==="yesterday") return apaTripTouchesDay(t, yday);
+    if(filter==="today") return apaTripTouchesDay(t, today);
+    return true;
+  });
+  if(filter==="all"||filter==="unpaid"){
+    trips.sort(function(a,b){
+      var ua=apaTripIsUnpaid(a)?0:1, ub=apaTripIsUnpaid(b)?0:1;
+      if(ua!==ub) return ua-ub;
+      var da=apaTripCharterKey(a), db=apaTripCharterKey(b);
+      if(da&&db&&da!==db) return db<da?-1:1;
+      return 0;
+    });
+  }
+
   trips.forEach(function(t){
     var x=apaTotals(t);
-    pot+=x.available; bal+=x.bal;
     var ch=findApaChargeForTrip(t);
     var over=x.bal<0&&!x.cashSettled;
+    var unpaid=apaTripIsUnpaid(t, x, ch);
     var cashPaidPill=x.cashSettled||(ch&&isApaCashSettlementCharge(ch));
-    html+='<div class="item apa-row" data-apa-open="'+esc(t.id)+'">'+
-      '<div class="top"><div class="title">'+esc(t.guest||"Untitled")+'</div><div class="amt money"'+(over?' style="color:var(--danger)"':'')+'>'+money(x.bal)+'</div></div>'+
+    var yTouch=apaTripTouchesDay(t, yday);
+    html+='<div class="item apa-row'+(unpaid?" apa-unpaid":"")+'" data-apa-open="'+esc(t.id)+'">'+
+      '<div class="top"><div class="title">'+esc(t.guest||"Untitled")+
+        (unpaid?' <span class="pill p-amber">Not paid</span>':'')+
+      '</div><div class="amt money"'+(over||unpaid?' style="color:var(--danger)"':'')+'>'+money(x.bal)+'</div></div>'+
       '<div class="meta">'+
         (t.dates?'<span>'+esc(t.dates)+'</span>':'')+
+        (yTouch?'<span class="pill p-blue">Yday</span>':'')+
+        (apaTripTouchesDay(t, today)?'<span class="pill p-green">Today</span>':'')+
         '<span>Pot '+money0(x.available)+'</span>'+
         '<span>Spent '+money0(x.spent)+'</span>'+
         (t.cashFromLead||Number(t.apaSent)<0?'<span class="pill p-black">Cash</span>':'')+
         (cashPaidPill?'<span class="pill p-green">Paid cash'+(t.apaCashSettledAmt?' '+money0(t.apaCashSettledAmt):(ch?(' '+money0(ch.cashPaid||ch.amount)):''))+'</span>':
           over&&ch&&chargePay(ch)!=="Paid"?'<span class="pill p-over">'+(apaHasPrepaid(t)?"Owe ":"Invoice ")+money0(ch.amount)+'</span>':
           over?'<span class="pill p-over">'+(apaHasPrepaid(t)?"Owe ":"Invoice ")+money0(-x.bal)+' · no charge</span>':
+          (ch&&chargePay(ch)!=="Paid"?'<span class="pill p-amber">Charge unpaid '+money0(ch.amount)+'</span>':
           (x.paidCovered>0?'<span class="pill p-apa">Paid '+money0(x.paidCovered)+'</span>':
-            (x.spent>0?'<span class="pill p-grey">Settled</span>':'<span class="pill p-grey">'+(apaHasPrepaid(t)?"In pot":(t.cashFromLead?"Cash pot":"No spend yet"))+'</span>')))+
+            (x.spent>0?'<span class="pill p-grey">Settled</span>':'<span class="pill p-grey">'+(apaHasPrepaid(t)?"In pot":(t.cashFromLead?"Cash pot":"No spend yet"))+'</span>'))))+
         (t.linkInvNo?'<span class="pill p-blue">APA inv #'+esc(t.linkInvNo)+'</span>':'')+
       '</div>'+
-      ((ch||over)?(
+      ((ch||over||unpaid)?(
         '<div class="lead-actions" style="margin-top:8px">'+
           (ch
-            ?'<button type="button" class="btn ghost" data-apa-open-charge="'+esc(t.id)+'" style="width:auto;padding:8px 12px;font-size:12px">Open charge</button>'
-            :'<button type="button" class="btn" data-apa-create-charge="'+esc(t.id)+'" style="width:auto;padding:8px 12px;font-size:12px">Create charge</button>')+
+            ?'<button type="button" class="btn" data-apa-open-charge="'+esc(t.id)+'" style="width:auto;padding:8px 12px;font-size:12px">Open charge</button>'
+            :(over?'<button type="button" class="btn" data-apa-create-charge="'+esc(t.id)+'" style="width:auto;padding:8px 12px;font-size:12px">Create charge</button>':''))+
         '</div>'
       ):'')+
       '<div class="apa-bar'+(over?' over':'')+'" style="margin-top:10px"><i style="width:'+Math.min(100,Math.round((x.pct||0)*1000)/10)+'%"></i></div>'+
       (t.notes?'<div class="notes">'+esc(t.notes)+'</div>':'')+
       '<button type="button" class="apa-x" data-apa-del-trip="'+esc(t.id)+'" aria-label="Delete trip">×</button></div>';
   });
-  /* Leads without an APA ledger yet (with or without prepaid APA) */
-  var pending=[];
-  (state.leads||[]).forEach(function(l){
-    if(!l||!l.name) return;
-    var has=state.apa.some(function(t){
-      return t.linkSourceId===l.id||t.clientKey==="lead:"+l.id||normName(t.guest)===normName(l.name);
+
+  /* Leads without an APA ledger — only on All (or when unpaid list empty and all empty) */
+  if(filter==="all"||(filter==="unpaid"&&!trips.length)||filter==="today"||filter==="yesterday"){
+    var pending=[];
+    (state.leads||[]).forEach(function(l){
+      if(!l||!l.name) return;
+      if(typeof leadIsCancelled==="function"&&leadIsCancelled(l)) return;
+      var has=state.apa.some(function(t){
+        return t.linkSourceId===l.id||t.clientKey==="lead:"+l.id||normName(t.guest)===normName(l.name);
+      });
+      if(has) return;
+      if(filter==="today"||filter==="yesterday"){
+        var day=filter==="today"?today:yday;
+        var ls=String(l.start||l.cdate||"").slice(0,10);
+        var le=String(l.end||l.start||l.cdate||"").slice(0,10)||ls;
+        if(!(ls&&le&&ls<=day&&day<=le)) return;
+      }
+      pending.push(l);
     });
-    if(!has) pending.push(l);
-  });
-  pending.sort(function(a,b){
-    var da=a.start||a.cdate||a.closed||"", db=b.start||b.cdate||b.closed||"";
-    if(da&&db&&da!==db) return db<da?-1:1;
-    if(db&&!da) return 1;
-    if(da&&!db) return -1;
-    return 0;
-  });
-  pending.forEach(function(l){
-    /* Only Issued/Paid prepaid shows € — never shortfall residue on lead.apa */
-    var pot=0;
-    if(window.LY_CONTROLLERS&&LY_CONTROLLERS.apa&&LY_CONTROLLERS.apa.leadListDisplayAmount){
-      pot=LY_CONTROLLERS.apa.leadListDisplayAmount({ models:LY_MODELS, lead:l })||0;
-    } else if(LY_MODELS&&LY_MODELS.leadApaListDisplayAmount){
-      pot=LY_MODELS.leadApaListDisplayAmount(l.apa, l.apas)||0;
-    } else if((l.apas==="Issued"||l.apas==="Paid")&&Number(l.apa)>0){
-      pot=Number(l.apa)||0;
+    pending.sort(function(a,b){
+      var da=a.start||a.cdate||a.closed||"", db=b.start||b.cdate||b.closed||"";
+      if(da&&db&&da!==db) return db<da?-1:1;
+      if(db&&!da) return 1;
+      if(da&&!db) return -1;
+      return 0;
+    });
+    if(pending.length&&(filter==="all"||filter==="today"||filter==="yesterday")){
+      html+='<div class="apa-sect-h"><h3>Start ledger</h3><span style="font-size:12px;color:var(--muted);font-weight:600">No pot yet</span></div>';
     }
-    var hasPrepaid=pot>0;
-    html+='<div class="item" data-apa-from-lead="'+esc(l.id)+'" style="border-style:dashed">'+
-      '<div class="top"><div class="title">'+esc(l.name||"—")+'</div><div class="amt money">'+(pot?money0(pot):"€0")+'</div></div>'+
-      '<div class="meta"><span class="pill p-amber">'+(hasPrepaid?"APA due — start ledger":"Start ledger (no prepaid APA)")+'</span>'+
-        (hasPrepaid&&l.apaInv?'<span>#'+esc(l.apaInv)+'</span>':'')+
-        (rangeStr(l)?'<span>'+esc(rangeStr(l))+'</span>':'')+'</div>'+
-      '<span class="chev">+</span></div>';
-  });
-  wrap.innerHTML=html||emptyBox("⛽","No APA ledgers yet","Tap + to add a trip (APA received can be €0). Log spend → shortfall charge on Charges → Make invoice.");
-  if(el("apaSumPot")) el("apaSumPot").textContent=money(pot);
-  if(el("apaSumBal")) el("apaSumBal").textContent=money(bal);
+    pending.forEach(function(l){
+      var pot0=0;
+      if(window.LY_CONTROLLERS&&LY_CONTROLLERS.apa&&LY_CONTROLLERS.apa.leadListDisplayAmount){
+        pot0=LY_CONTROLLERS.apa.leadListDisplayAmount({ models:LY_MODELS, lead:l })||0;
+      } else if(LY_MODELS&&LY_MODELS.leadApaListDisplayAmount){
+        pot0=LY_MODELS.leadApaListDisplayAmount(l.apa, l.apas)||0;
+      } else if((l.apas==="Issued"||l.apas==="Paid")&&Number(l.apa)>0){
+        pot0=Number(l.apa)||0;
+      }
+      var hasPrepaid=pot0>0;
+      html+='<div class="item" data-apa-from-lead="'+esc(l.id)+'" style="border-style:dashed">'+
+        '<div class="top"><div class="title">'+esc(l.name||"—")+'</div><div class="amt money">'+(pot0?money0(pot0):"€0")+'</div></div>'+
+        '<div class="meta"><span class="pill p-amber">'+(hasPrepaid?"APA due — start ledger":"Start ledger (no prepaid APA)")+'</span>'+
+          (hasPrepaid&&l.apaInv?'<span>#'+esc(l.apaInv)+'</span>':'')+
+          (rangeStr(l)?'<span>'+esc(rangeStr(l))+'</span>':'')+'</div>'+
+        '<span class="chev">+</span></div>';
+    });
+  }
+
+  var emptyHint=filter==="unpaid"
+    ?emptyBox("⛽","Nothing unpaid","All pots settled — switch to Yesterday or All.")
+    :(filter==="yesterday"
+      ?emptyBox("⛽","No APA for yesterday","No pot touched "+fmtDate(yday)+". Try All, or start a ledger from a lead.")
+      :(filter==="today"
+        ?emptyBox("⛽","No APA for today","No pot for today yet.")
+        :emptyBox("⛽","No APA ledgers yet","Tap + to add a trip (APA received can be €0).")));
+  wrap.innerHTML=html||emptyHint;
   Array.prototype.forEach.call(wrap.querySelectorAll("[data-apa-open]"),function(x){
     x.addEventListener("click",function(ev){
       if(ev.target.closest&&(ev.target.closest("[data-apa-del-trip]")||ev.target.closest("[data-apa-open-charge]")||ev.target.closest("[data-apa-create-charge]"))) return;
-      openApaDetail(x.getAttribute("data-apa-open"));
+      openApaDetail(x.getAttribute("data-apa-open"), {
+        fromUnpaid:getApaListFilter()==="unpaid",
+        catchup:getApaListFilter()==="yesterday"
+      });
     });
   });
   Array.prototype.forEach.call(wrap.querySelectorAll("[data-apa-open-charge]"),function(btn){
@@ -9877,12 +10208,27 @@ function renderApaDetail(){
   apaEnsureArrays(t);
   var x=apaTotals(t);
   var ch=findApaChargeForTrip(t);
+  var unpaid=apaTripIsUnpaid(t, x, ch);
+  var settled=!!x.cashSettled||(ch&&isApaCashSettlementCharge(ch));
+  var over=x.bal<-0.009&&!settled;
   if(head){
-    var settled=!!x.cashSettled||(ch&&isApaCashSettlementCharge(ch));
-    head.innerHTML='<div class="title">'+esc(t.guest||"APA")+'</div>'+
+    if(unpaid) head.classList.add("apa-detail-unpaid"); else head.classList.remove("apa-detail-unpaid");
+    var acts="";
+    if(ch){
+      acts+='<button type="button" class="btn" id="apaHeadOpenCharge">Open charge'+(chargePay(ch)!=="Paid"?" · unpaid":"")+'</button>';
+    } else if(over){
+      acts+='<button type="button" class="btn" id="apaHeadCreateCharge">Create shortfall charge</button>';
+    }
+    acts+='<button type="button" class="btn ghost" id="apaHeadFuel">Log fuel</button>';
+    head.innerHTML='<div class="title">'+esc(t.guest||"APA")+
+      (unpaid?' <span class="pill p-amber">Not paid yet</span>':'')+
+    '</div>'+
       '<div class="meta"><span>'+esc(t.dates||"")+'</span><span>Pot '+money(x.available)+'</span><span>Left '+money(x.bal)+'</span>'+
       (settled?'<span class="pill p-green">Paid cash</span>':
-        (ch?'<span class="pill p-apa">Charge '+money0(ch.amount)+'</span>':''))+'</div>';
+        (ch?(chargePay(ch)!=="Paid"?'<span class="pill p-over">Charge unpaid '+money0(ch.amount)+'</span>':'<span class="pill p-apa">Charge '+money0(ch.amount)+'</span>'):
+          (over?'<span class="pill p-over">Owe '+money0(-x.bal)+'</span>':'')))+
+      '</div>'+
+      (acts?'<div class="apa-detail-actions">'+acts+'</div>':'');
   }
   Array.prototype.forEach.call(document.querySelectorAll("#apaSubNav button"),function(b){
     b.classList.toggle("on", b.getAttribute("data-apasub")===apaSub);
@@ -9893,6 +10239,27 @@ function renderApaDetail(){
   else if(apaSub==="diesel") body.innerHTML=apaDieselHTML(t);
   else if(apaSub==="setup") body.innerHTML=apaSetupHTML(t);
   apaBindBody(t);
+  if(el("apaHeadOpenCharge")){
+    el("apaHeadOpenCharge").addEventListener("click",function(ev){
+      ev.preventDefault();
+      openApaLinkedChargeSheet(t);
+    });
+  }
+  if(el("apaHeadCreateCharge")){
+    el("apaHeadCreateCharge").addEventListener("click",function(ev){
+      ev.preventDefault();
+      var res=createOrSyncApaShortfallCharge(t, { open:true });
+      if(!res||!res.ok){ try{ alert(apaCreateChargeFailMessage(res)); }catch(eA){} }
+    });
+  }
+  if(el("apaHeadFuel")){
+    el("apaHeadFuel").addEventListener("click",function(ev){
+      ev.preventDefault();
+      apaSub="diesel";
+      renderApaDetail();
+      try{ var q=el("apa_q_port"); if(q) q.focus(); }catch(eF){}
+    });
+  }
 }
 function apaOverviewHTML(t){
   var x=apaTotals(t);
@@ -10041,7 +10408,7 @@ function apaDieselHTML(t){
         '</div>'+
         '<div class="apa-dq-rate"><small>€ / L</small>€'+esc(String(price))+'</div>'+
       '</div>'+
-      fieldHTML("Date",'<input class="ctl" id="apa_q_date" type="date" value="'+esc(today)+'">')+
+      fieldHTML("Date",'<input class="ctl" id="apa_q_date" type="date" value="'+esc(typeof apaCatchupDefaultDate==="function"?apaCatchupDefaultDate():today)+'">')+
       '<div class="row2">'+
         fieldHTML("Port engine (L)",decField("apa_q_port","","e.g. 60"))+
         fieldHTML("Starboard (L)",decField("apa_q_stbd","","e.g. 60"))+
@@ -12753,6 +13120,23 @@ function expSetStewDayPayStatus(eventKey, payStatus, opts){
 function localTodayYmd(){
   var n=new Date();
   return n.getFullYear()+"-"+String(n.getMonth()+1).padStart(2,"0")+"-"+String(n.getDate()).padStart(2,"0");
+}
+/** Shift a YYYY-MM-DD by whole days (local calendar). */
+function localYmdShift(ymd, days){
+  var s=String(ymd||localTodayYmd()).slice(0,10);
+  var p=s.split("-");
+  if(p.length!==3) return localTodayYmd();
+  var d=new Date(Number(p[0]), Number(p[1])-1, Number(p[2]));
+  if(isNaN(d.getTime())) return localTodayYmd();
+  d.setDate(d.getDate()+(Number(days)||0));
+  return d.getFullYear()+"-"+String(d.getMonth()+1).padStart(2,"0")+"-"+String(d.getDate()).padStart(2,"0");
+}
+function localYesterdayYmd(){ return localYmdShift(localTodayYmd(), -1); }
+/** Default date for APA diesel / expense catch-up (yesterday filter → yesterday). */
+function apaCatchupDefaultDate(){
+  if(apaListFilter==="yesterday") return localYesterdayYmd();
+  if(apaListFilter==="today") return localTodayYmd();
+  return localTodayYmd();
 }
 function stewDisplayName(tok, rec){
   if(rec&&rec.name) return rec.name;
@@ -20225,7 +20609,16 @@ function openSheet(type,id,opts){
   if(id){ rec=(type==="charter"?state.charters:state.leads).filter(function(r){return r.id===id;})[0]; }
   var inner=el("sheetInner"), h="", r;
   if(type==="charter"){
-    r=rec||{date:"",client:"",amount:"",payStatus:"Paid",payMethod:"Card",billType:"invoice",invStatus:"Not issued",vatMode:"include",vatPct:21,inv:"",notes:""};
+    /* Catch-up: new charge inherits Yesterday/Today filter date when empty */
+    var defChDate="";
+    if(!rec){
+      var chf=typeof getChListFilter==="function"?getChListFilter():chListFilter;
+      if(chf==="yesterday") defChDate=localYesterdayYmd();
+      else if(chf==="today") defChDate=localTodayYmd();
+      else defChDate=localTodayYmd();
+    }
+    r=rec||{date:defChDate,client:"",amount:"",payStatus:"Paid",payMethod:"Card",billType:"invoice",invStatus:"Not issued",vatMode:"include",vatPct:21,inv:"",notes:""};
+    if(!rec&&!r.date) r.date=defChDate;
     var pay=rec?chargePay(r):"Paid", invSt=rec?chargeInv(r):"Not issued";
     var bt0=rec?chargeBillType(r):(r.cashDeal?"cash":"invoice");
     var pm=rec?chargePayMethod(r):(bt0==="cash"?"Cash":(bt0==="mix"?"Split":"Card"));
@@ -20241,7 +20634,7 @@ function openSheet(type,id,opts){
     var amountShow=r.amount;
     if(bt0==="cash"&&!(apaNum(r.amount)>0)&&apaNum(r.cashPaid)>0) amountShow=r.cashPaid;
     else if(bt0==="cash"&&!(apaNum(r.amount)>0)&&apaNum(r.cashAmt)>0) amountShow=r.cashAmt;
-    h+='<div class="row2">'+fieldHTML("Charter date",'<input class="ctl" id="f_date" type="date" value="'+esc(r.date)+'">')+
+    h+='<div class="row2">'+fieldHTML("Charter date",'<input class="ctl" id="f_date" type="date" value="'+esc(r.date||defChDate)+'">')+
       fieldHTML(isApaCh?"Ledger / shortfall (€)":"Total amount (€)",moneyField("f_amount",amountShow))+'</div>';
     if(isApaCh){
       h+='<p style="margin:-6px 0 10px;font-size:12.5px;color:var(--muted);line-height:1.4">APA ledger shortfall ≈ <b class="money">'+money(apaBaseShow)+'</b>. For cash: <b>Settlement → Cash</b>, <b>Payment → Paid</b>, type what they handed you in <b>Cash received</b> (e.g. <b>750</b> for a <b>748</b> ledger — rounding is fine).</p>';
