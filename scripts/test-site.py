@@ -348,7 +348,7 @@ def check_html(r: Runner, rel: str, html: str) -> None:
     )
     r.check(
         'email fallback mailto lives under the calendar WhatsApp',
-        html.count('class="email-fallback-link"') == 1
+        html.count('class="email-fallback-link"') >= 1
         and 'mailto:info@limitlessyachtcharter.com' in html
         and 'id="calMailtoLink"' in html
         and 'ly_email_click' in html,
@@ -878,17 +878,18 @@ def check_html(r: Runner, rel: str, html: str) -> None:
     # Availability calendar
     r.check('id="availCal" calendar widget exists', 'id="availCal"' in html)
     r.check(
-        'calendar supports adjacent date range selection',
-        'function buildContiguousRange' in html
+        'calendar supports multi-date toggle selection',
+        'function toggleDate' in html
+        and 'selected.filter(function(k){ return k !== date; })' in html
         and 'id="calSelection"' in html
         and 'id="calWaBtn"' in html
         and 'durOptMultiDay' not in html
         and 'value="multi-day">Multi-Day' not in html
-        and 'selected.length === 1' in html
         and 'preferred_date_end_btn' not in html
         and 'class="form-field form-end-date"' not in html
         and 'data-selected=' in html
-        and "node.closest('.cal-cell[data-date]')" in html,
+        and "node.closest('.cal-cell[data-date]')" in html
+        and 'function isContiguousList' in html,
     )
     r.check(
         'on-hold dates are selectable for enquiry (booked still blocked)',  # DECISION (see DECISIONS.md — do not weaken to pass)
@@ -2502,11 +2503,23 @@ def check_shared_assets(r: Runner) -> None:
         'sticky WhatsApp CTA surfaces when calendar dates are selected',
         'id="calStickyCta"' in index_html
         and 'function syncStickyCta' in index_html
-        and 'data-label-one="Enquire on WhatsApp for {date}"' in index_html
+        and 'Enquire about these dates' in index_html
         and 'ly_cal_sticky_whatsapp' in index_html
+        and 'id="calStickySummary"' in index_html
+        and 'id="calStickyClear"' in index_html
         and css is not None
         and '.cal-sticky-cta' in css
         and '--ly-cookie-h' in css,
+    )
+    r.check(
+        'booked date recovery uses sticky chips, not a popup',
+        'function showBookedRecovery' in index_html
+        and 'LY_showBookedRecovery' in index_html
+        and 'cal-alt-chip' in index_html
+        and 'data-booked="true"' in index_html
+        and 'if(window.LY_showBookedRecovery)returntrue' in index_html.replace(' ', '')
+        and 'ly_cal_booked_alt_shown' in index_html
+        and 'ly_cal_booked_alt_select' in index_html,
     )
     r.check(
         'bottom chrome offsets keep cookie banner clear of calendar/sticky CTA',
@@ -2883,7 +2896,14 @@ def check_shared_assets(r: Runner) -> None:
         and 'ly_charters_rates_view' in index_html
         and 'ly_cal_entry' in index_html
         and "LY_setCalEntry('cta')" in index_html
-        and "lySetCalEntry('scroll')" in index_html,
+        and "lySetCalEntry('scroll')" in index_html
+        and 'ly_cal_bar_shown' in index_html
+        and 'ly_cal_booked_alt_shown' in index_html
+        and 'ly_cal_booked_alt_select' in index_html
+        and 'ly_cal_booked_softprompt' in index_html
+        and "tag('set', 'ly_cal_dates_count'" in index_html
+        and "'2-3'" in index_html
+        and "'8+'" in index_html,
     )
     r.check(
         'hero fires section view on load and skips enquire section event',
