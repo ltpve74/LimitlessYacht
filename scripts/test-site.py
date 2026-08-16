@@ -1345,6 +1345,7 @@ def check_html(r: Runner, rel: str, html: str) -> None:
             or '#hero.hero-actions.btn-ghost,#hero.hero-avail-cta{background:rgba(10,22,40,.28)' in crit_flat
             or '#hero.hero-actions.btn-ghost{background:rgba(10,22,40,.52)' in crit_flat
             or '#hero.hero-actions.btn-ghost,#hero.hero-avail-cta{background:rgba(10,22,40,.52)' in crit_flat
+            or '#hero.hero-actions.btn-ghost,#hero.hero-avail-cta{background:rgba(10,22,40,.55)' in crit_flat
         )
         and 'border:1pxsolidtransparent' in crit_flat.replace(' ', ''),
     )
