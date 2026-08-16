@@ -81,7 +81,6 @@ BOOKING_SECTION_IDS = (
     "#reviews",
     "#amenities",
     "#specs",
-    ".enquire-section",
 )
 
 CONSENT_CLEAR_INIT = (
@@ -182,9 +181,7 @@ def expect_mobile_menu_closed(page) -> None:
 
 
 def expected_mobile_quote_href(page) -> str:
-    return page.evaluate(
-        "() => (window.LY_enquireQuoteHref ? window.LY_enquireQuoteHref() : '#enquire-form')"
-    )
+    return "#avail-cal"
 
 
 def assert_mobile_nav_hrefs(page, scenario: str, issues: IssueCollector) -> None:
@@ -333,24 +330,21 @@ def scenario_home_desktop(page, base: str, issues: IssueCollector) -> None:
     page.locator("#dest-lb-cta").click()
     page.wait_for_function(
         "() => {"
-        "  const el = document.getElementById('contactForm');"
+        "  const el = document.getElementById('avail-cal') || document.getElementById('availCal');"
         "  if (!el) return false;"
         "  const t = el.getBoundingClientRect().top;"
-        "  return location.hash === '#enquire-land' && t >= 0 && t <= 420;"
+        "  return (location.hash === '#avail-cal' || location.hash === '#availability') && t >= -20 && t <= 420;"
         "}",
         timeout=8000,
     )
-    form_top = page.evaluate(
+    cal_top = page.evaluate(
         "() => {"
-        "  const el = document.getElementById('contactForm');"
+        "  const el = document.getElementById('avail-cal') || document.getElementById('availCal');"
         "  return el ? el.getBoundingClientRect().top : -1;"
         "}"
     )
-    if form_top < 0 or form_top > 420:
-        issues.add(f"{name}: enquire CTA landed with form top at {form_top:.0f}px")
-    focused = page.evaluate("document.activeElement && document.activeElement.id")
-    if focused != "email":
-        issues.add(f"{name}: enquire CTA should focus the email field on desktop")
+    if cal_top < -20 or cal_top > 420:
+        issues.add(f"{name}: dest CTA landed with calendar top at {cal_top:.0f}px")
 
     page.locator("#availability").scroll_into_view_if_needed()
     wait_for_calendar(page)
@@ -615,16 +609,14 @@ def scenario_home_ipad_wide(page, base: str, issues: IssueCollector) -> None:
 
 
 def assert_enquire_quote_landing(page, scenario: str, issues: IssueCollector) -> None:
-    href = page.evaluate(
-        "() => (window.LY_enquireQuoteHref ? window.LY_enquireQuoteHref() : '#enquire-form')"
-    )
+    href = "#avail-cal"
     open_mobile_menu(page)
     quote = page.locator("#mobileNav a.mobile-nav-cta")
     if quote.count() == 0:
         issues.add(f"{scenario}: missing mobile Get Quote link")
         return
     if quote.first.get_attribute("href") != href:
-        issues.add(f"{scenario}: mobile Get Quote href out of sync with LY_enquireQuoteHref")
+        issues.add(f"{scenario}: mobile Get Quote href is {quote.first.get_attribute('href')!r}, expected {href!r}")
         return
     quote.first.click()
     page.wait_for_function(
@@ -633,19 +625,10 @@ def assert_enquire_quote_landing(page, scenario: str, issues: IssueCollector) ->
     )
     page.wait_for_function(
         "() => {"
-        "  const label = document.querySelector('.enquire-section .section-label');"
-        "  const submit = document.getElementById('submitBtn');"
-        "  if (!label || !submit) return false;"
-        "  const vh = window.visualViewport ? visualViewport.height : innerHeight;"
-        "  const lr = label.getBoundingClientRect();"
-        "  const sr = submit.getBoundingClientRect();"
-        "  if (window.LY_enquireSectionFitsViewport && window.LY_enquireSectionFitsViewport()) {"
-        "    return lr.top >= 36 && sr.bottom <= vh + 2;"
-        "  }"
-        "  const title = document.querySelector('.enquire-section .section-title');"
-        "  if (!title) return false;"
-        "  const tt = title.getBoundingClientRect().top;"
-        "  return lr.top >= 36 && lr.top <= 130 && tt > lr.top;"
+        "  const cal = document.getElementById('availCal') || document.getElementById('avail-cal');"
+        "  if (!cal) return false;"
+        "  const t = cal.getBoundingClientRect().top;"
+        "  return t >= -20 && t <= 220;"
         "}",
         timeout=8000,
     )
@@ -670,16 +653,6 @@ def scenario_home_large_phone_tall(page, base: str, issues: IssueCollector) -> N
     page.goto(base + "/", wait_until="domcontentloaded", timeout=60000)
     page.wait_for_timeout(800)
 
-    fits = page.evaluate(
-        "() => !!(window.LY_enquireSectionFitsViewport && window.LY_enquireSectionFitsViewport())"
-    )
-    if not fits:
-        issues.add(f"{name}: expected enquire section to fit tall large-phone viewport")
-    href = page.evaluate(
-        "() => (window.LY_enquireQuoteHref ? window.LY_enquireQuoteHref() : '')"
-    )
-    if href != "#enquire":
-        issues.add(f"{name}: expected #enquire landing when section fits, got {href!r}")
     assert_enquire_quote_landing(page, name, issues)
 
 
@@ -998,14 +971,11 @@ def scenario_booking_funnel_mobile(page, base: str, issues: IssueCollector) -> N
     else:
         issues.add(f"{name}: hero primary CTA missing on mobile")
 
-    page.locator(".enquire-section").scroll_into_view_if_needed()
+    page.locator("#availability").scroll_into_view_if_needed()
     page.wait_for_timeout(300)
-    # Mobile CSS hides column WhatsApp buttons — dispatch still exercises click handlers.
-    page.locator(".enquire-section .contact-info .whatsapp-btn").first.dispatch_event("click")
-    page.wait_for_timeout(400)
-
-    page.locator("#contactForm").scroll_into_view_if_needed()
-    page.locator("#email").fill("test@example.com")
+    mail = page.locator("#availability .email-fallback-link")
+    if mail.count() == 0:
+        issues.add(f"{name}: missing email fallback under calendar WhatsApp")
 
 
 def scenario_locales_mobile(page, base: str, issues: IssueCollector) -> None:
