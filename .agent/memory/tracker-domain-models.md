@@ -62,7 +62,7 @@ Example locked: APA pot delete → model pure `planApaLeadAfterPotDelete({ leadA
 
 1. **Free cash black** — user amount (e.g. €1800); never auto-replace with suggested ex-VAT (~€1653).
 2. **Commission VAT included** — base = total ÷ 1.21 (missing/0 vatPct still 21%).
-3. **Commission split** — 15% × white before VAT + 15% × cash black.
+3. **Commission split** — captain 15% × white before VAT + 15% × cash black; Click&Boat (Paul) **24%** before VAT (`CLICKBOAT_COMMISSION_PCT`).
 4. **Charge commission** — only when `captainComm === true` (checkbox); no notes inference.
 5. **Bill types** — `cash` | `invoice` | `mix` only (`constrainBillType`).
 6. **Petty physical ≥ 0** — `summarizePettyCash`; short is separate (`cashShort` / `shortLines`).

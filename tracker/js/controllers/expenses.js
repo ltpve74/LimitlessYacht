@@ -198,21 +198,27 @@
     input = input || {};
     var models = M(input);
     if (!models.ownMoneyRepaidAmt) return 0;
-    return models.ownMoneyRepaidAmt(input.expense, input.expenses || input.allExpenses || []);
+    var opts = {};
+    if (input.throughMonth) opts.throughMonth = input.throughMonth;
+    return models.ownMoneyRepaidAmt(input.expense, input.expenses || input.allExpenses || [], opts);
   }
 
   function ownMoneyIsRepaid(input) {
     input = input || {};
     var models = M(input);
     if (!models.ownMoneyIsRepaid) return false;
-    return !!models.ownMoneyIsRepaid(input.expense, input.expenses || input.allExpenses || []);
+    var opts = {};
+    if (input.throughMonth) opts.throughMonth = input.throughMonth;
+    return !!models.ownMoneyIsRepaid(input.expense, input.expenses || input.allExpenses || [], opts);
   }
 
   function ownMoneyRepayHint(input) {
     input = input || {};
     var models = M(input);
     if (!models.ownMoneyRepayHint) return null;
-    return models.ownMoneyRepayHint(input.expense, input.expenses || input.allExpenses || []);
+    var opts = {};
+    if (input.throughMonth) opts.throughMonth = input.throughMonth;
+    return models.ownMoneyRepayHint(input.expense, input.expenses || input.allExpenses || [], opts);
   }
 
   function pocketBalances(input) {
@@ -232,6 +238,108 @@
     });
   }
 
+  /**
+   * Captain pocket month bridge DTO (carry prior short → this month → repay).
+   * Pure model; no writes. View paints only.
+   */
+  function captainPocketMonthBridge(input) {
+    input = input || {};
+    var models = M(input);
+    if (!models.summarizeCaptainPocketMonthBridge) {
+      return {
+        month: input.month || "",
+        broughtForward: 0,
+        monthSpend: 0,
+        monthRepay: 0,
+        monthNet: 0,
+        closingOpen: 0,
+        stewMonth: 0,
+        shopMonth: 0,
+        stewPrior: 0,
+        shopPrior: 0,
+        repayToPrior: 0,
+        repayToThis: 0,
+        priorLines: [],
+        monthLines: [],
+        monthRepayLines: [],
+      };
+    }
+    var month = input.month || input.focusMonth || "";
+    var all = input.expenses || input.allExpenses || [];
+    var dto = models.summarizeCaptainPocketMonthBridge(all, month);
+    /* Optional display labels only (not money rules) */
+    if (models.expenseMonthKey || month) {
+      dto.monthLabel = input.monthLabel || month;
+    }
+    return dto;
+  }
+
+  /**
+   * Petty month open fields (carry rules) — pure model, no writes.
+   * View may paint; only explicit captain save / DB op persists.
+   */
+  function pettyMonthOpen(input) {
+    input = input || {};
+    var models = M(input);
+    if (!models.resolvePettyMonthOpen) {
+      return {
+        month: input.month || "",
+        pettyStart: 0,
+        broughtForwardShort: 0,
+        startMode: "none",
+        carriedFrom: "",
+        cashIns: [],
+        source: "empty",
+      };
+    }
+    return models.resolvePettyMonthOpen(
+      input.month || input.focusMonth || "",
+      input.expPetty || input.pettyRows || [],
+      input.expenses || input.allExpenses || [],
+      {
+        isTipExpense: input.isTipExpense,
+        cashInIsTip: input.cashInIsTip,
+      }
+    );
+  }
+
+  /** Petty month close (onboard + residual short) — pure. */
+  function pettyMonthClose(input) {
+    input = input || {};
+    var models = M(input);
+    if (!models.resolvePettyMonthClose) {
+      return { month: input.month || "", onboard: 0, short: 0, empty: true };
+    }
+    return models.resolvePettyMonthClose(
+      input.month || input.focusMonth || "",
+      input.expPetty || input.pettyRows || [],
+      input.expenses || input.allExpenses || [],
+      {
+        isTipExpense: input.isTipExpense,
+        cashInIsTip: input.cashInIsTip,
+      }
+    );
+  }
+
+  /**
+   * Plan of expPetty field patches to materialize carry — ops/DB only.
+   * Never auto-apply from paint/load.
+   */
+  function planPettyCarryMaterialize(input) {
+    input = input || {};
+    var models = M(input);
+    if (!models.planPettyCarryMaterialize) return { patches: [], n: 0 };
+    return models.planPettyCarryMaterialize(
+      input.expPetty || input.pettyRows || [],
+      input.expenses || input.allExpenses || [],
+      input.months,
+      {
+        isTipExpense: input.isTipExpense,
+        cashInIsTip: input.cashInIsTip,
+      }
+    );
+  }
+
   return {
     monthSettlement: monthSettlement,
     openPocketOuts: openPocketOuts,
@@ -242,5 +350,9 @@
     ownMoneyIsRepaid: ownMoneyIsRepaid,
     ownMoneyRepayHint: ownMoneyRepayHint,
     pocketBalances: pocketBalances,
+    captainPocketMonthBridge: captainPocketMonthBridge,
+    pettyMonthOpen: pettyMonthOpen,
+    pettyMonthClose: pettyMonthClose,
+    planPettyCarryMaterialize: planPettyCarryMaterialize,
   };
 });

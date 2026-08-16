@@ -10,10 +10,25 @@
 
 ## Do instead
 
-1. **Dry-run first** — pull live blob, list exact field changes (ids, before → after, € impact on petty).
+1. **Dry-run first** — `TRACKER_PASSCODE=… node scripts/tracker-db-dryrun.mjs`  
+   (pull live blob, list exact field changes, July/Aug settlement, pure carry plan).
 2. **Captain reviews** the dry-run.
-3. **Apply once on the database** (API/blob write of only the collections needed) — not via app load hooks.
-4. **Fix the root code path** that created the bad write so it cannot recur (e.g. re-mark Paid must not re-set `floatPay` and re-hit the envelope).
+3. **Backup before any write** (mandatory):
+   - `TRACKER_PASSCODE=… node scripts/tracker-db-backup.mjs [label]`
+   - or any apply path that calls `backupLive()` in `scripts/lib/tracker-db-io.mjs`
+   - Snapshots land in **`.tracker-backups/<stamp>-<label>/`** (gitignored; override with `TRACKER_BACKUP_DIR`)
+   - Files: `expenses.json`, `expPetty.json`, `full-money.json`, `manifest.json`
+4. **Apply once on the database** — e.g. `--apply-july-aug-2026` or `saveCollection()` — **not** via app load hooks.  
+   Dry-run apply already backups first. Ad-hoc agent scripts **must** call `backupLive` then `saveCollection({ backupDir })`.
+5. **Rules in models/controllers** — carry / pocket / floatPay math never re-invented in `index.html` paint.
+6. **Fix the root code path** that created the bad write so it cannot recur (e.g. re-mark Paid must not re-set `floatPay` and re-hit the envelope).
+
+## Save API shape (wipe guard)
+
+- Correct: `{ action: "save", collection: "expenses"|"expPetty"|…, rows: [...] }`
+- Wrong: `coll` / `data` → server treats rows as missing → **full-replaces with `[]`**
+- `saveCollection()` refuses `expenses=[]` unless `allowEmptyRows: true`
+- `writeBackup()` refuses empty expenses snapshot (looks wiped)
 
 ## Known-good petty snapshot (captain)
 

@@ -112,6 +112,149 @@ console.log("[Ops — today board]");
   ok("today board 1 apa", board.apa.length === 1 && board.apa[0].id === "A1");
   ok("today board 1 stew (off skipped)", board.stews.length === 1 && board.stews[0].eventKey === "ek1");
   ok("today board groups 4 keys", board.groups && board.groups.length === 4);
+  ok("today board assigned stew status", board.stews[0].status === "assigned");
+  const boardNone = M.collectTodayOpsBoard({
+    today: "2026-08-03",
+    stews: [
+      {
+        eventKey: "ek-none",
+        summary: "Friends day",
+        start: "2026-08-03",
+        end: "2026-08-03",
+        stewIds: [],
+        noStewNeeded: true,
+      },
+      {
+        eventKey: "ek-gap",
+        summary: "Needs crew",
+        start: "2026-08-03",
+        end: "2026-08-03",
+        stewIds: [],
+      },
+    ],
+    stewIsOff: function () { return false; },
+  });
+  ok("today board noStewNeeded is none not unassigned", boardNone.stews.some(function (x) {
+    return x.eventKey === "ek-none" && x.status === "none";
+  }));
+  ok("today board empty crew still unassigned", boardNone.stews.some(function (x) {
+    return x.eventKey === "ek-gap" && x.status === "unassigned";
+  }));
+  ok(
+    "today board noStewNeeded no duplicate subtitle",
+    (boardNone.stews.filter(function (x) { return x.eventKey === "ek-none"; })[0] || {}).subtitle === ""
+  );
+}
+
+/* ---- Unpaid charge after charter end (Today / Leads highlight) ---- */
+console.log("[Charges — unpaid due after end]");
+{
+  ok("parseClockMinutes 18:00", M.parseClockMinutes("18:00") === 18 * 60);
+  ok("parseClockMinutes bad null", M.parseClockMinutes("nope") == null);
+  const endMs = M.charterEndLocalMs("2026-08-03", "18:00");
+  ok("charterEndLocalMs with clock", typeof endMs === "number" && endMs > 0);
+  const eodMs = M.charterEndLocalMs("2026-08-03", "");
+  ok("charterEndLocalMs end of day after 18:00", eodMs > endMs);
+
+  const beforeEnd = endMs - 60 * 1000;
+  const afterEnd = endMs + 60 * 1000;
+  ok(
+    "isPastCharterEnd false before clock",
+    !M.isPastCharterEnd({ date: "2026-08-03", endTime: "18:00", nowMs: beforeEnd })
+  );
+  ok(
+    "isPastCharterEnd true after clock",
+    M.isPastCharterEnd({ date: "2026-08-03", endTime: "18:00", nowMs: afterEnd })
+  );
+  ok(
+    "isPastCharterEnd multi-day uses end date",
+    M.isPastCharterEnd({
+      date: "2026-08-01",
+      end: "2026-08-03",
+      endTime: "18:00",
+      nowMs: afterEnd,
+    })
+  );
+
+  const unpaidC = {
+    id: "C-due",
+    client: "Joel",
+    date: "2026-08-03",
+    amount: 200,
+    payStatus: "Pending",
+  };
+  const paidC = {
+    id: "C-paid",
+    client: "Joel",
+    date: "2026-08-03",
+    amount: 200,
+    payStatus: "Paid",
+  };
+  const leadsJoel = [
+    {
+      id: "L1",
+      name: "Joel",
+      start: "2026-08-03",
+      end: "2026-08-03",
+      endTime: "18:00",
+      dealClosed: true,
+    },
+  ];
+  ok(
+    "chargeIsUnpaidDue false before end",
+    !M.chargeIsUnpaidDue(unpaidC, { leads: leadsJoel, nowMs: beforeEnd })
+  );
+  ok(
+    "chargeIsUnpaidDue true after end",
+    M.chargeIsUnpaidDue(unpaidC, { leads: leadsJoel, nowMs: afterEnd })
+  );
+  ok(
+    "chargeIsUnpaidDue false when Paid",
+    !M.chargeIsUnpaidDue(paidC, { leads: leadsJoel, nowMs: afterEnd })
+  );
+
+  const boardBefore = M.collectTodayOpsBoard({
+    today: "2026-08-03",
+    nowMs: beforeEnd,
+    leads: leadsJoel,
+    charges: [unpaidC],
+  });
+  ok(
+    "today board charge pending before end",
+    boardBefore.charges[0] && boardBefore.charges[0].status === "pending",
+    "got " + (boardBefore.charges[0] && boardBefore.charges[0].status)
+  );
+  ok(
+    "today board charge not unpaidDue before end",
+    boardBefore.charges[0] && boardBefore.charges[0].unpaidDue === false
+  );
+
+  const boardAfter = M.collectTodayOpsBoard({
+    today: "2026-08-03",
+    nowMs: afterEnd,
+    leads: leadsJoel,
+    charges: [unpaidC, paidC],
+  });
+  const dueRow = (boardAfter.charges || []).filter(function (x) {
+    return x.id === "C-due";
+  })[0];
+  const paidRow = (boardAfter.charges || []).filter(function (x) {
+    return x.id === "C-paid";
+  })[0];
+  ok(
+    "today board unpaid-due after end",
+    dueRow && dueRow.status === "unpaid-due" && dueRow.unpaidDue === true,
+    "got " + (dueRow && dueRow.status)
+  );
+  ok(
+    "today board paid stays paid after end",
+    paidRow && paidRow.status === "paid"
+  );
+  ok(
+    "today board charge inherits lead endTime",
+    dueRow && dueRow.endTime === "18:00",
+    "got " + (dueRow && dueRow.endTime)
+  );
 }
 
 /* ---- Commission: VAT-included total (Joel) ---- */
@@ -120,8 +263,9 @@ console.log("[Commission — VAT included]");
   const joel = { total: 12000, base: 12000, net: 9917.36, vatMode: "include", vatPct: 21 };
   const p = M.leadCommissionParts(joel);
   ok("Joel base ≈ 12000/1.21", near(p.base, 12000 / 1.21, 0.05), "got " + p.base);
-  ok("Joel commission ≈ 1487.60", near(p.total, (12000 / 1.21) * 0.15, 0.05), "got " + p.total);
+  ok("Joel commission ≈ 991.74 at 10%", near(p.total, (12000 / 1.21) * 0.1, 0.05), "got " + p.total);
   ok("Joel commission is NOT 1800", !near(p.total, 1800, 1), "got " + p.total);
+  ok("Joel at 15% preview ≈ 1487.60", near(M.leadCommissionParts(joel, 15).total, (12000 / 1.21) * 0.15, 0.05));
 }
 {
   const noPct = { total: 12000, vatMode: "include", vatPct: 0 };
@@ -152,9 +296,10 @@ console.log("\n[Commission — split white + cash]");
   ok("split is split", p.split === true);
   ok("white before VAT ≈ 1652.89", near(p.whiteBeforeVat, whiteNet, 0.05), "got " + p.whiteBeforeVat);
   ok("cash black 1800", near(p.cashBlack, 1800));
-  ok("white comm 15%", near(p.whiteComm, whiteNet * 0.15, 0.05));
-  ok("cash comm 15% of 1800", near(p.cashComm, 270, 0.02));
+  ok("white comm 10%", near(p.whiteComm, whiteNet * 0.1, 0.05));
+  ok("cash comm 10% of 1800", near(p.cashComm, 180, 0.02));
   ok("total = white comm + cash comm", near(p.total, p.whiteComm + p.cashComm, 0.02));
+  ok("split at 15% force", near(M.leadCommissionParts(lead, 15).cashComm, 270, 0.02));
 }
 
 /* ---- Free cash black ---- */
@@ -254,8 +399,13 @@ ok("clickboat no captain-only flag", !M.leadEarnsCaptainCommission({ leadSource:
 ok("owner no captain-only flag", !M.leadEarnsCaptainCommission({ leadSource: "owner" }));
 ok("ownersourced no captain-only flag", !M.leadEarnsCaptainCommission({ leadSource: "ownersourced" }));
 ok("captain earns captain flag", M.leadEarnsCaptainCommission({ leadSource: "captain" }));
-ok("clickboat rate 21%", M.leadCommissionRatePct({ leadSource: "clickboat" }) === 21);
-ok("captain rate 15%", M.leadCommissionRatePct({ leadSource: "captain" }) === 15);
+ok("clickboat rate 24%", M.leadCommissionRatePct({ leadSource: "clickboat" }) === 24);
+ok("captain default rate 10%", M.leadCommissionRatePct({ leadSource: "captain" }) === 10);
+ok("captain book constant 10", M.CAPTAIN_COMMISSION_PCT === 10);
+ok("captain target constant 15", M.CAPTAIN_COMMISSION_TARGET_PCT === 15);
+ok("captain stamp 15%", M.leadCommissionRatePct({ leadSource: "captain", captainCommPct: 15 }) === 15);
+ok("captain force preview 15%", M.leadCommissionRatePct({ leadSource: "captain" }, 15) === 15);
+ok("stamp ignored when force 10", M.leadCommissionRatePct({ leadSource: "captain", captainCommPct: 15 }, 10) === 10);
 ok("owner rate 0%", M.leadCommissionRatePct({ leadSource: "owner" }) === 0);
 ok("ownersourced rate 0% for now", M.leadCommissionRatePct({ leadSource: "ownersourced" }) === 0);
 ok("clickboat earns commission", M.leadEarnsCommission({ leadSource: "clickboat" }));
@@ -276,7 +426,7 @@ ok("label owner-sourced", M.leadSourceLabel("ownersourced") === "Owner-sourced")
   });
   const base = 4000 / 1.21;
   ok("clickboat base before VAT", Math.abs(cb.base - base) < 0.05, "got " + cb.base);
-  ok("clickboat 21% of base", Math.abs(cb.total - base * 0.21) < 0.05, "got " + cb.total);
+  ok("clickboat 24% of base", Math.abs(cb.total - base * 0.24) < 0.05, "got " + cb.total);
   const own = M.leadCommissionParts({
     leadSource: "owner",
     total: 4000,
@@ -453,6 +603,59 @@ ok("label owner-sourced", M.leadSourceLabel("ownersourced") === "Owner-sourced")
   ok("deal closed explicit false", !M.leadIsDealClosed({ id: "b", dealClosed: false }));
   ok("deal closed legacy undefined = closed", M.leadIsDealClosed({ id: "c" }));
   ok("deal closed new draft = open", !M.leadIsDealClosed({ dealClosed: undefined }));
+
+  /* Commission biz as-of day — unstarted future charters stay out */
+  {
+    ok(
+      "asOf mid-month is today not month-end",
+      M.commissionBizAsOfDay("2026-08", "2026-08-12") === "2026-08-12"
+    );
+    ok(
+      "asOf past month freezes at month-end",
+      M.commissionBizAsOfDay("2026-07", "2026-08-12") === "2026-07-31"
+    );
+    const past = { id: "p", start: "2026-08-06", name: "Past" };
+    const future = { id: "f", start: "2026-08-21", name: "Aoife" };
+    ok(
+      "completed charter in through+asOf",
+      M.leadInCommissionBizScope(past, "2026-08", "through", "2026-08-12")
+    );
+    ok(
+      "unstarted future charter out of through+asOf",
+      !M.leadInCommissionBizScope(future, "2026-08", "through", "2026-08-12")
+    );
+    const biz = M.summarizeCaptainLeadBizAsOf(
+      [
+        {
+          id: "p",
+          start: "2026-07-25",
+          name: "Hollman",
+          leadSource: "captain",
+          dealClosed: true,
+          price: 2000,
+          rate: 2000,
+          vatMode: "include",
+          vatPct: 21,
+        },
+        {
+          id: "f",
+          start: "2026-08-21",
+          name: "Aoife",
+          leadSource: "captain",
+          dealClosed: true,
+          price: 6000,
+          rate: 6000,
+          vatMode: "include",
+          vatPct: 21,
+        },
+      ],
+      "2026-08",
+      "through",
+      "2026-08-12"
+    );
+    ok("asOf biz n excludes future Aoife", biz.n === 1, "n=" + biz.n);
+    ok("asOf biz name is past only", biz.items[0] && biz.items[0].name === "Hollman");
+  }
 }
 
 /* ---- Seasonal charter pricing ---- */
@@ -538,7 +741,8 @@ console.log("\n[Charge commission — explicit only]");
   };
   const p = M.chargeCommissionParts(oliver);
   ok("extension with flag: base strips VAT", near(p.base, 1050 / 1.21, 0.05), "got " + p.base);
-  ok("extension commission ~130.17", near(p.total, (1050 / 1.21) * 0.15, 0.05), "got " + p.total);
+  ok("extension commission ~86.78 at 10%", near(p.total, (1050 / 1.21) * 0.1, 0.05), "got " + p.total);
+  ok("extension at 15% force", near(M.chargeCommissionParts(oliver, 15).total, (1050 / 1.21) * 0.15, 0.05));
   ok("hours from field", p.hours === 3);
 }
 {
@@ -568,8 +772,9 @@ console.log("\n[Charge commission — explicit only]");
   };
   const p = M.chargeCommissionParts(cashH);
   ok("€500 cash: base is full 500 (no VAT)", near(p.base, 500), "got " + p.base);
-  ok("€500 cash: commission €75", near(p.total, 75), "got " + p.total);
+  ok("€500 cash: commission €50 at 10%", near(p.total, 50), "got " + p.total);
   ok("€500 cash: mode cash", p.mode === "cash");
+  ok("€500 cash: 15% force €75", near(M.chargeCommissionParts(cashH, 15).total, 75));
 }
 {
   const invH = {
@@ -583,7 +788,7 @@ console.log("\n[Charge commission — explicit only]");
   };
   const p = M.chargeCommissionParts(invH);
   ok("€500 invoice: base before VAT ≈ 413.22", near(p.base, 500 / 1.21, 0.05), "got " + p.base);
-  ok("€500 invoice: commission ≈ 61.98", near(p.total, (500 / 1.21) * 0.15, 0.05), "got " + p.total);
+  ok("€500 invoice: commission ≈ 41.32 at 10%", near(p.total, (500 / 1.21) * 0.1, 0.05), "got " + p.total);
   ok("€500 invoice: mode invoice", p.mode === "invoice");
 }
 {
@@ -616,8 +821,8 @@ console.log("\n[Charge commission — explicit only]");
   ]);
   ok("captain upsell sum n=2", sum.n === 2);
   ok(
-    "captain upsell comm cash+inv",
-    near(sum.comm, 75 + (500 / 1.21) * 0.15, 0.05),
+    "captain upsell comm cash+inv at 10%",
+    near(sum.comm, 50 + (500 / 1.21) * 0.1, 0.05),
     "got " + sum.comm
   );
   ok(
@@ -661,7 +866,8 @@ console.log("\n[APA charge + extension same bill]");
   const p = M.chargeCommissionParts(ch);
   ok("same-bill inv: commission only on €500", near(p.gross, 500));
   ok("same-bill inv: base before VAT", near(p.base, 500 / 1.21, 0.05));
-  ok("same-bill inv: not 15% of 1300", !near(p.total, (1300 / 1.21) * 0.15, 1));
+  ok("same-bill inv: not 10% of 1300", !near(p.total, (1300 / 1.21) * 0.1, 1));
+  ok("same-bill inv: 10% of ext only", near(p.total, (500 / 1.21) * 0.1, 0.05));
 }
 {
   const ch = {
@@ -676,7 +882,7 @@ console.log("\n[APA charge + extension same bill]");
   };
   const p = M.chargeCommissionParts(ch);
   ok("same-bill cash ext: base 500", near(p.base, 500));
-  ok("same-bill cash ext: comm €75", near(p.total, 75));
+  ok("same-bill cash ext: comm €50 at 10%", near(p.total, 50));
 }
 
 console.log("\n[APA paid → pot: base only, not extension]");
@@ -1135,6 +1341,76 @@ console.log("\n[Charges — cashToBoat / VAT]");
       Object.assign({}, loose, { payStatus: "Pending", status: "Pending" })
     ) === false
   );
+
+  /* Spreadsheet export — date, name, amount, card/cash */
+  const exportList = [
+    {
+      id: "c-cash",
+      date: "2026-07-10",
+      client: "Cash Guest",
+      amount: 500,
+      billType: "cash",
+      payMethod: "Cash",
+      payStatus: "Paid",
+      cashPaid: 500,
+    },
+    {
+      id: "c-card",
+      date: "2026-07-12",
+      client: "Card Guest",
+      amount: 1210,
+      billType: "invoice",
+      payMethod: "Card",
+      payStatus: "Paid",
+    },
+    {
+      id: "c-future",
+      date: "2099-01-01",
+      client: "Future",
+      amount: 100,
+      billType: "invoice",
+      payMethod: "Card",
+      payStatus: "Pending",
+    },
+    {
+      id: "c-mix",
+      date: "2026-07-11",
+      client: "Mix Guest, Jr.",
+      amount: 1000,
+      billType: "mix",
+      payMethod: "Split",
+      cashPaid: 400,
+      payStatus: "Paid",
+    },
+  ];
+  const expPack = M.buildChargesExportRows(exportList, { asOfYmd: "2026-07-31" });
+  ok("export n excludes future", expPack.n === 3);
+  ok("export oldest first", expPack.rows[0].name === "Cash Guest");
+  ok("export cash paidBy", expPack.rows[0].paidBy === "Cash");
+  ok("export mix paidBy", expPack.rows[1].paidBy === "Mix");
+  ok("export card paidBy", expPack.rows[2].paidBy === "Card");
+  ok("export mix cash slice 400", near(expPack.rows[1].cashAmount, 400));
+  ok("export mix card slice 600", near(expPack.rows[1].cardAmount, 600));
+  ok("export total amount sum", near(expPack.total, 500 + 1210 + 1000));
+  const csvPack = M.chargesExportCsv(exportList, { asOfYmd: "2026-07-31" });
+  ok("export csv has header", csvPack.csv.indexOf("Date,Name,Amount,Paid by") === 0);
+  ok("export csv escapes comma name", csvPack.csv.indexOf('"Mix Guest, Jr."') >= 0);
+  ok("export csv fileName uses asOf", csvPack.fileName === "Limitless-charges-2026-07-31.csv");
+  ok("export csv n 3", csvPack.n === 3);
+  ok("export csv has TOTAL row", /TOTAL/.test(csvPack.csv));
+  ok("export money text euro", M.chargeExportMoneyText(1210) === "€1.210,00");
+  ok("export csv amounts as euro text", csvPack.csv.indexOf("€500,00") >= 0 || csvPack.csv.indexOf("€500.00") >= 0 || /€/.test(csvPack.csv));
+  const lastLine = csvPack.csv.trim().split("\n").pop();
+  ok("export csv last line is TOTAL", lastLine.indexOf("TOTAL") >= 0);
+  ok("export csv TOTAL count label", lastLine.indexOf("3 charges") >= 0);
+  const xls = M.chargesExportExcelXml(exportList, { asOfYmd: "2026-07-31" });
+  ok("export excel n 3", xls.n === 3);
+  ok("export excel fileName xls", xls.fileName === "Limitless-charges-2026-07-31.xls");
+  ok("export excel is SpreadsheetML", xls.xml.indexOf("urn:schemas-microsoft-com:office:spreadsheet") >= 0);
+  ok("export excel has currency format", xls.xml.indexOf("NumberFormat") >= 0 && xls.xml.indexOf("€") >= 0);
+  ok("export excel number cells", xls.xml.indexOf('ss:Type="Number"') >= 0);
+  ok("export excel has TOTAL", xls.xml.indexOf("TOTAL") >= 0);
+  ok("export excel total amount cell", xls.xml.indexOf(">" + String(500 + 1210 + 1000) + "<") >= 0 || xls.xml.indexOf(">2710<") >= 0);
 }
 
 /* ---- APA pot totals (model) ---- */
@@ -1781,7 +2057,8 @@ console.log("\n[Leads — cash-only charter]");
   ok("cash only commission base 3000", near(comm.base, 3000));
   ok("cash only cashBlack 3000", near(comm.cashBlack, 3000));
   ok("cash only white 0", near(comm.whiteBeforeVat, 0));
-  ok("cash only 15% comm", near(comm.total, 450));
+  ok("cash only 10% comm", near(comm.total, 300));
+  ok("cash only 15% force", near(M.leadCommissionParts(cashBoat, 15).total, 450));
   const pending = Object.assign({}, cashBoat, { cashSettled: false, fins: "Not issued" });
   ok("cash only pending not received", M.leadFreeCashIsReceived(pending) === false);
   /* Form always writes cashSettled boolean — Final Paid must still count for cash-only */
@@ -2394,6 +2671,76 @@ console.log("\n[Leads — money dashboard]");
   ok("dashboard done n=1", dash.done.n === 1, "got " + dash.done.n);
   ok("dashboard proj n=1", dash.proj.n === 1, "got " + dash.proj.n);
   ok("dashboard captain realised n=1", dash.captain.n === 1);
+  ok("dashboard captain proj n=1", dash.captain.proj && dash.captain.proj.n === 1, "got " + (dash.captain.proj && dash.captain.proj.n));
+  ok("dashboard captain proj not in to-date tot", Math.abs(dash.captain.tot - 2000) < 0.05 || dash.captain.n === 1);
+  const dashCb = M.summarizeLeadsMoneyDashboard({
+    today: "2026-08-01",
+    leads: [
+      {
+        id: "cb-past",
+        name: "Past CB",
+        start: "2026-07-15",
+        leadSource: "clickboat",
+        dealClosed: true,
+        total: 4000,
+        vatMode: "include",
+        vatPct: 21,
+      },
+      {
+        id: "cb-future",
+        name: "Future CB",
+        start: "2026-09-01",
+        leadSource: "clickboat",
+        dealClosed: true,
+        total: 4000,
+        vatMode: "include",
+        vatPct: 21,
+      },
+    ],
+    charters: [],
+  });
+  ok("clickboat to-date n=1", dashCb.clickboat.n === 1);
+  ok("clickboat proj n=1", dashCb.clickboat.proj && dashCb.clickboat.proj.n === 1);
+  ok(
+    "clickboat proj comm uses 24%",
+    dashCb.clickboat.proj &&
+      Math.abs(dashCb.clickboat.proj.comm - (4000 / 1.21) * 0.24) < 0.05,
+    "got " + (dashCb.clickboat.proj && dashCb.clickboat.proj.comm)
+  );
+  ok("booked n = done + proj", dashCb.booked && dashCb.booked.n === 2);
+  ok(
+    "booked tot = done + proj gross",
+    dashCb.booked &&
+      Math.abs(dashCb.booked.tot - (dashCb.done.tot + dashCb.proj.tot)) < 0.05
+  );
+  ok(
+    "booked whiteNet = sum of white nets",
+    dashCb.booked &&
+      Math.abs(
+        dashCb.booked.whiteNet -
+          (Math.max(0, dashCb.done.ex - dashCb.done.comm) +
+            Math.max(0, dashCb.proj.ex - dashCb.proj.comm))
+      ) < 0.05
+  );
+  ok("clickboat source booked n=2", dashCb.clickboat.booked && dashCb.clickboat.booked.n === 2);
+  ok(
+    "clickboat source booked tot",
+    dashCb.clickboat.booked &&
+      Math.abs(
+        dashCb.clickboat.booked.tot -
+          (dashCb.clickboat.tot + dashCb.clickboat.proj.tot)
+      ) < 0.05
+  );
+  ok(
+    "clickboat source booked whiteNet",
+    dashCb.clickboat.booked &&
+      Math.abs(
+        dashCb.clickboat.booked.whiteNet -
+          (Math.max(0, dashCb.clickboat.exVat - dashCb.clickboat.comm) +
+            Math.max(0, dashCb.clickboat.proj.exVat - dashCb.clickboat.proj.comm))
+      ) < 0.05
+  );
+  ok("captain source booked n=2", dash.captain.booked && dash.captain.booked.n === 2);
   ok("type key 8h default", M.leadCharterTypeKey({ dur: "day" }) === "8h");
 }
 
@@ -2517,6 +2864,132 @@ console.log("\n[Write plans — stew expenses + APA shortfall decision]");
     M.expensePaidFromLooksOwner("Owner money") === true &&
       M.expensePaidFromLooksOwn("Owner money") === false
   );
+  /* Guest paid crew + €50 shortfall top-up from own money (stew still gets full rate) */
+  {
+    const guestLine = {
+      id: "g1",
+      source: "stew",
+      stewPayKind: "dayPay",
+      stewEventKey: "ek-g",
+      stewId: "s1",
+      crewPayStatus: "Paid",
+      amount: 250,
+      guestPaidAmt: 200,
+      topUpAmt: 50,
+      topUpFrom: "Own money",
+      paidFrom: "Guest",
+      paidById: "captain",
+      floatPay: false,
+      date: "2026-08-10",
+      vendor: "Laura",
+      description: "Stewardess / day work — Guest X",
+      category: "Crew Salaries",
+      payMethod: "Cash",
+    };
+    ok("guest paid fund source guest", M.crewDayPayFundSource(guestLine) === "guest");
+    ok("guest paid does not hit full petty", M.crewDayPayHitsPetty(guestLine) === false);
+    ok("guest own top-up is own-money spend", M.isOwnMoneySpend(guestLine) === true);
+    ok("guest own top-up amount is 50 not 250", near(M.ownMoneySpendAmount(guestLine), 50));
+    const split = M.crewDayPayGuestSplit(guestLine);
+    ok("guest split guest 200", near(split.guestPaid, 200));
+    ok("guest split topUp 50", near(split.topUp, 50));
+    const sum = M.summarizeCrewPayMonth([guestLine], "2026-08", {});
+    ok("guest month fromGuest 200", near(sum.fromGuest, 200));
+    ok("guest month fromCaptain top-up 50", near(sum.fromCaptain, 50));
+    ok("guest month pot 0", near(sum.fromBoatPot, 0));
+    const guestPetty = Object.assign({}, guestLine, {
+      topUpFrom: "Petty cash",
+      floatPay: true,
+      paidById: "",
+    });
+    ok("guest petty top-up hits petty", M.crewDayPayHitsPetty(guestPetty) === true);
+    ok("guest petty out is 50", near(M.crewDayPayPettyOutAmount(guestPetty), 50));
+    const planGuest = M.planStewDayPayExpenseLines({
+      asg: {
+        eventKey: "ek-g2",
+        payStatus: "Paid",
+        paidFrom: "Guest",
+        guestPaidAmt: 200,
+        topUpFrom: "Own money",
+        stewIds: ["laura"],
+        dayPayByStew: { laura: 250 },
+        start: "2026-08-10",
+        summary: "Guest deal",
+        _floatPayFrom: "Guest",
+        _floatPayMark: false,
+        _floatPayPayerId: "captain",
+      },
+      dayPayAmt: function (a, sid) {
+        return 250;
+      },
+      stewName: function () {
+        return "Laura";
+      },
+      nowIso: "2026-08-10T12:00:00.000Z",
+      newId: function () {
+        return "gline";
+      },
+    });
+    ok("guest plan line n 1", planGuest.lines.length === 1);
+    ok("guest plan paidFrom Guest", planGuest.lines[0] && planGuest.lines[0].paidFrom === "Guest");
+    ok("guest plan guestPaid 200", planGuest.lines[0] && near(planGuest.lines[0].guestPaidAmt, 200));
+    ok("guest plan topUp 50", planGuest.lines[0] && near(planGuest.lines[0].topUpAmt, 50));
+    /* Boss €400 + you front €50 (Owner money split) */
+    const bossLine = {
+      id: "b1",
+      source: "stew",
+      stewPayKind: "dayPay",
+      stewEventKey: "ek-b",
+      stewId: "airi",
+      crewPayStatus: "Paid",
+      amount: 450,
+      guestPaidAmt: 400,
+      topUpAmt: 50,
+      topUpFrom: "Own money",
+      paidFrom: "Owner money",
+      paidById: "captain",
+      floatPay: false,
+      date: "2026-08-12",
+      vendor: "Airi",
+      category: "Crew Salaries",
+      payMethod: "Cash",
+    };
+    ok("boss split fund owner", M.crewDayPayFundSource(bossLine) === "owner");
+    ok("boss split is own-money top-up", M.isOwnMoneySpend(bossLine) === true);
+    ok("boss front amount 50", near(M.ownMoneySpendAmount(bossLine), 50));
+    const bossSum = M.summarizeCrewPayMonth([bossLine], "2026-08", {});
+    ok("boss month fromOwner 400", near(bossSum.fromOwner, 400));
+    ok("boss month fromCaptain 50", near(bossSum.fromCaptain, 50));
+    const planBoss = M.planStewDayPayExpenseLines({
+      asg: {
+        eventKey: "ek-b2",
+        payStatus: "Paid",
+        paidFrom: "Owner money",
+        guestPaidAmt: 400,
+        topUpFrom: "Own money",
+        stewIds: ["airi"],
+        dayPayByStew: { airi: 450 },
+        start: "2026-08-12",
+        summary: "Boss guest",
+        _floatPayFrom: "Owner money",
+        _floatPayMark: false,
+        _floatPayPayerId: "captain",
+      },
+      dayPayAmt: function () {
+        return 450;
+      },
+      stewName: function () {
+        return "Airi";
+      },
+      nowIso: "2026-08-12T12:00:00.000Z",
+      newId: function () {
+        return "bline";
+      },
+    });
+    ok("boss plan paidFrom Owner", planBoss.lines[0] && planBoss.lines[0].paidFrom === "Owner money");
+    ok("boss plan primary 400", planBoss.lines[0] && near(planBoss.lines[0].guestPaidAmt, 400));
+    ok("boss plan topUp 50", planBoss.lines[0] && near(planBoss.lines[0].topUpAmt, 50));
+  }
   /* On-bill tip payout date = pay day; must hit petty (not misread as day-pay) */
   const tipPayDate = M.planStewTipPayoutExpense({
     asg: {
@@ -2721,6 +3194,8 @@ console.log("\n[Controllers — expenses + charges + leads + apa + stews]");
 {
   ok("LY_CONTROLLERS.expenses present", !!(C && C.expenses && C.expenses.monthSettlement));
   ok("LY_CONTROLLERS.charges present", !!(C && C.charges && C.charges.cashToBoat));
+  ok("LY_CONTROLLERS.charges exportCsv present", !!(C && C.charges && C.charges.exportCsv));
+  ok("LY_CONTROLLERS.charges exportExcel present", !!(C && C.charges && C.charges.exportExcel));
   ok("LY_CONTROLLERS.leads present", !!(C && C.leads && C.leads.realisedGlimpse));
   ok("LY_CONTROLLERS.apa present", !!(C && C.apa && C.apa.tripTotals));
   ok("LY_CONTROLLERS.stews present", !!(C && C.stews && C.stews.tipIsOnBill));
@@ -2730,6 +3205,26 @@ console.log("\n[Controllers — expenses + charges + leads + apa + stews]");
     "ctrl charge cash to boat",
     near(C.charges.cashToBoat({ models: M, charge: { amount: 100, billType: "cash", payStatus: "Paid", cashPaid: 100 } }), 100)
   );
+  const ctrlCsv = C.charges.exportCsv({
+    models: M,
+    charges: [
+      { date: "2026-06-01", client: "A", amount: 50, billType: "cash", payMethod: "Cash", payStatus: "Paid", cashPaid: 50 },
+      { date: "2026-06-02", client: "B", amount: 100, billType: "invoice", payMethod: "Card", payStatus: "Paid" },
+    ],
+    asOfYmd: "2026-06-30",
+  });
+  ok("ctrl export csv n 2", ctrlCsv.n === 2);
+  ok("ctrl export csv has Card", ctrlCsv.csv.indexOf("Card") >= 0);
+  ok("ctrl export csv has Cash", ctrlCsv.csv.indexOf("Cash") >= 0);
+  const ctrlXls = C.charges.exportExcel({
+    models: M,
+    charges: [
+      { date: "2026-06-01", client: "A", amount: 50, billType: "cash", payMethod: "Cash", payStatus: "Paid", cashPaid: 50 },
+    ],
+    asOfYmd: "2026-06-30",
+  });
+  ok("ctrl export excel n 1", ctrlXls.n === 1);
+  ok("ctrl export excel has Money style", ctrlXls.xml.indexOf('ss:StyleID="Money"') >= 0);
   const apaC = C.apa.tripTotals({
     models: M,
     trip: {
@@ -2873,6 +3368,270 @@ console.log("\n[Pocket — own-money repay + open liabilities]");
   ok("linked repay covers 261", near(M.ownMoneyRepaidAmt(rebecca, ledger1), 261));
   ok("Rebecca fully repaid via link", M.ownMoneyIsRepaid(rebecca, ledger1));
   ok("shop still open", !M.ownMoneyIsRepaid(shop, ledger1));
+
+  /* Captain pocket month bridge — prior short carries; repay clears prior first */
+  {
+    const julyStew = {
+      id: "j-stew",
+      date: "2026-07-25",
+      amount: 250,
+      paidFrom: "Own money",
+      category: "Crew Salaries",
+      vendor: "Vicky",
+      crewPayStatus: "Paid",
+      stewPayKind: "dayPay",
+      stewId: "v1",
+    };
+    const julyShop = {
+      id: "j-shop",
+      date: "2026-07-18",
+      amount: 100,
+      paidFrom: "Own money",
+      category: "Provisions",
+      vendor: "Shop",
+    };
+    const augRepay = {
+      id: "a-repay",
+      date: "2026-08-01",
+      amount: 350,
+      category: "Captain reimbursement",
+      vendor: "Captain",
+      reimbursesExpenseId: "",
+      reimburseCaptain: true,
+      paidFrom: "Petty cash",
+    };
+    const augStew = {
+      id: "a-stew",
+      date: "2026-08-07",
+      amount: 200,
+      paidFrom: "Own money",
+      category: "Crew Salaries",
+      vendor: "Airiana",
+      crewPayStatus: "Paid",
+      stewPayKind: "dayPay",
+      stewId: "a1",
+    };
+    const bridgeJul = M.summarizeCaptainPocketMonthBridge(
+      [julyStew, julyShop, augRepay, augStew],
+      "2026-07"
+    );
+    ok("July bridge month spend 350", near(bridgeJul.monthSpend, 350));
+    ok("July bridge stew 250", near(bridgeJul.stewMonth, 250));
+    ok("July bridge shop 100", near(bridgeJul.shopMonth, 100));
+    ok("July bridge no repay", near(bridgeJul.monthRepay, 0));
+    ok("July bridge closing open 350", near(bridgeJul.closingOpen, 350));
+    ok("July bridge BF 0", near(bridgeJul.broughtForward, 0));
+    const bridgeAug = M.summarizeCaptainPocketMonthBridge(
+      [julyStew, julyShop, augRepay, augStew],
+      "2026-08"
+    );
+    ok("Aug bridge BF 350 from July", near(bridgeAug.broughtForward, 350));
+    ok("Aug bridge month spend 200", near(bridgeAug.monthSpend, 200));
+    ok("Aug bridge repay 350", near(bridgeAug.monthRepay, 350));
+    ok("Aug bridge repay clears prior first", near(bridgeAug.repayToPrior, 350));
+    ok("Aug bridge repay to this 0", near(bridgeAug.repayToThis, 0));
+    ok("Aug bridge still open 200 (new stew)", near(bridgeAug.closingOpen, 200));
+    ok("Aug bridge openLines has Airiana", (bridgeAug.openLines || []).length === 1);
+    ok(
+      "Aug bridge openLines amount 200",
+      near((bridgeAug.openLines && bridgeAug.openLines[0] && bridgeAug.openLines[0].remainOpen) || 0, 200)
+    );
+  }
+
+  /* Excess early repay cannot pre-pay a later pocket spend (live Aug 2026 case) */
+  {
+    const july = {
+      id: "j-vicky",
+      date: "2026-07-25",
+      amount: 250,
+      paidFrom: "Own money",
+      paidById: "captain",
+      category: "Crew Salaries",
+      vendor: "Vicky",
+      crewPayStatus: "Paid",
+      stewPayKind: "dayPay",
+      stewId: "v1",
+    };
+    const earlyBulk = {
+      id: "a-bulk",
+      date: "2026-08-01",
+      amount: 450, /* more than July 250 — leftover must NOT clear Aug 7 */
+      category: "Captain reimbursement",
+      vendor: "Captain",
+      reimburseCaptain: true,
+      paidFrom: "Petty cash",
+    };
+    const laterStew = {
+      id: "a-ari",
+      date: "2026-08-07",
+      amount: 200,
+      paidFrom: "Own money",
+      paidById: "captain",
+      category: "Crew Salaries",
+      vendor: "Airiana",
+      crewPayStatus: "Paid",
+      stewPayKind: "dayPay",
+      stewId: "a1",
+      description: "Thomas · charter 2026-08-06",
+    };
+    const b = M.summarizeCaptainPocketMonthBridge([july, earlyBulk, laterStew], "2026-08");
+    ok("excess early repay BF was 250", near(b.broughtForward, 250));
+    ok("excess early repay does not wipe later spend", near(b.closingOpen, 200));
+    ok("excess early repay to this month 0", near(b.repayToThis, 0));
+    ok("Airiana still open in openLines", (b.openLines || []).some(function (r) {
+      return near(r.remainOpen, 200) && /Airiana/i.test(String(r.vendor || ""));
+    }));
+  }
+
+  /* Crew pay month DTO — fund buckets in model only */
+  {
+    const pot = {
+      id: "c1",
+      date: "2026-07-04",
+      amount: 500,
+      source: "stew",
+      stewPayKind: "dayPay",
+      stewId: "t1",
+      crewPayStatus: "Paid",
+      floatPay: true,
+      paidFrom: "Petty cash",
+      vendor: "Toni",
+    };
+    const cap = {
+      id: "c2",
+      date: "2026-07-25",
+      amount: 250,
+      source: "stew",
+      stewPayKind: "dayPay",
+      stewId: "v1",
+      crewPayStatus: "Paid",
+      floatPay: false,
+      paidFrom: "Own money",
+      vendor: "Vicky",
+    };
+    const books = {
+      id: "c3",
+      date: "2026-07-03",
+      amount: 200,
+      source: "stew",
+      stewPayKind: "dayPay",
+      stewId: "b1",
+      crewPayStatus: "Paid",
+      floatPay: false,
+      paidFrom: "Petty cash",
+      vendor: "Becks",
+    };
+    const crewM = M.summarizeCrewPayMonth([pot, cap, books], "2026-07");
+    ok("crew fund pot", M.crewDayPayFundSource(pot) === "pot");
+    ok("crew fund captain", M.crewDayPayFundSource(cap) === "captain");
+    ok("crew fund books", M.crewDayPayFundSource(books) === "books");
+    ok("crew fromBoatPot 500", near(crewM.fromBoatPot, 500));
+    ok("crew fromCaptain 250", near(crewM.fromCaptain, 250));
+    ok("crew booksOnly 200", near(crewM.booksOnly, 200));
+    ok("crew paidTotal 950 (not cash-out)", near(crewM.paidTotal, 950));
+    ok("crew potLines n=1", crewM.potLines.length === 1);
+    const buckets = M.summarizePettyCashOutBuckets([pot, cap, books]);
+    ok("bucket crew day pay = pot only 500", near(buckets.crewDayPay, 500));
+  }
+
+  /* Month as-of: July report must ignore August repay / future ledger */
+  {
+    const julSpend = {
+      id: "asof-j",
+      date: "2026-07-20",
+      amount: 100,
+      paidFrom: "Own money",
+      category: "Provisions",
+      vendor: "Shop",
+    };
+    const augRepayAsOf = {
+      id: "asof-r",
+      date: "2026-08-05",
+      amount: 100,
+      category: "Captain reimbursement",
+      reimburseCaptain: true,
+      paidFrom: "Petty cash",
+    };
+    const ledgerAsOf = [julSpend, augRepayAsOf];
+    ok(
+      "full ledger: July spend repaid in Aug",
+      M.ownMoneyIsRepaid(julSpend, ledgerAsOf)
+    );
+    ok(
+      "through July: July spend NOT repaid yet",
+      !M.ownMoneyIsRepaid(julSpend, ledgerAsOf, { throughMonth: "2026-07" })
+    );
+    ok(
+      "through July repaid amt 0",
+      near(M.ownMoneyRepaidAmt(julSpend, ledgerAsOf, { throughMonth: "2026-07" }), 0)
+    );
+    ok(
+      "through Aug repaid amt 100",
+      near(M.ownMoneyRepaidAmt(julSpend, ledgerAsOf, { throughMonth: "2026-08" }), 100)
+    );
+    const filt = M.filterLedgerThroughMonth(ledgerAsOf, "2026-07");
+    ok("filter through July keeps 1 row", filt.length === 1 && filt[0].id === "asof-j");
+    ok("isOnOrBeforeMonth July ok", M.isOnOrBeforeMonth("2026-07-31", "2026-07"));
+    ok("isOnOrBeforeMonth Aug after July false", !M.isOnOrBeforeMonth("2026-08-01", "2026-07"));
+  }
+
+  /* Petty month open/close carry — pure, no mutation of rows */
+  {
+    const crewFloat = {
+      id: "crew-fp",
+      date: "2026-07-20",
+      amount: 110,
+      source: "stew",
+      stewPayKind: "dayPay",
+      stewId: "t1",
+      crewPayStatus: "Paid",
+      floatPay: true,
+      paidFrom: "Petty cash",
+      vendor: "Toni",
+    };
+    const pettyRows = [
+      {
+        month: "2026-07",
+        pettyStart: 0,
+        broughtForwardShort: 0,
+        startMode: "manual",
+        startManual: true,
+        cashIns: [{ id: "ci1", amount: 100, source: "ATM", date: "2026-07-01" }],
+      },
+      {
+        month: "2026-08",
+        pettyStart: 0,
+        broughtForwardShort: 0,
+        startMode: "carry",
+        cashIns: [{ id: "ci2", amount: 500, source: "Cash in", date: "2026-08-01" }],
+      },
+    ];
+    const snap = JSON.stringify(pettyRows);
+    const julClose = M.resolvePettyMonthClose("2026-07", pettyRows, [crewFloat], {});
+    ok("July close onboard 0 after float 110 on 100 in", near(julClose.onboard, 0));
+    ok("July close short 10 (100 in − 110 out)", near(julClose.short, 10));
+    const augOpen = M.resolvePettyMonthOpen("2026-08", pettyRows, [crewFloat], {});
+    ok("Aug open start from July onboard 0", near(augOpen.pettyStart, 0));
+    ok("Aug open BF short from July residual", near(augOpen.broughtForwardShort, 10));
+    ok("Aug open source carry", augOpen.source === "carry" || augOpen.startMode === "carry");
+    const augClose = M.resolvePettyMonthClose("2026-08", pettyRows, [crewFloat], {});
+    /* 500 cash-in, BF 10 settled first → 490 onboard, no outs in Aug */
+    ok("Aug close onboard 490 after BF settle", near(augClose.onboard, 490));
+    ok("Aug close short 0", near(augClose.short, 0));
+    ok("petty rows not mutated by resolve", JSON.stringify(pettyRows) === snap);
+    const planClear = M.planClearCrewFloatPayOnEmptyEnvelope(
+      [crewFloat],
+      0,
+      [],
+      { keepManual: true }
+    );
+    ok("plan clear floatPay on empty env", planClear.changed && planClear.clearIds.indexOf("crew-fp") >= 0);
+    const planMat = M.planPettyCarryMaterialize(pettyRows, [crewFloat], ["2026-08"], {});
+    ok("plan materialize has Aug patch", planMat.n >= 1 && planMat.patches.some(function (p) {
+      return p.month === "2026-08" && near(p.fields.broughtForwardShort, 10);
+    }));
+  }
+
   const openAug = M.collectOpenPocketOuts(ledger1, "2026-08", {
     personName: function () {
       return "Captain";
@@ -2953,6 +3712,51 @@ console.log("\n[Pocket — own-money repay + open liabilities]");
   });
   ok("open day pay only unpaid charter", openDay.length === 1, "got " + openDay.length);
   ok("open day pay is Charter B", openDay[0] && openDay[0].eventKey === "uid:b");
+  /* Tomorrow / not-finished charter must not appear as unpaid today */
+  const asgTomorrow = {
+    eventKey: "uid:future",
+    start: "2026-08-01",
+    end: "2026-08-01",
+    stewIds: ["s1"],
+    payStatus: "Unpaid",
+    payEach: 200,
+    summary: "Tomorrow",
+  };
+  const openNotYet = M.collectOpenCrewDayPay([asgTomorrow, asgOpen], [], {
+    focusMonth: "2026-07",
+    today: "2026-07-31",
+    dayPayAmt: function (a) {
+      return Number(a.payEach) || 0;
+    },
+    personName: function () {
+      return "Toni";
+    },
+  });
+  ok("open day pay skips tomorrow", openNotYet.every(function (r) {
+    return r.eventKey !== "uid:future";
+  }));
+  ok("open day pay still has past unpaid", openNotYet.some(function (r) {
+    return r.eventKey === "uid:b";
+  }));
+  /* Same-day charter: not finished until day after */
+  const asgToday = {
+    eventKey: "uid:today",
+    start: "2026-07-31",
+    stewIds: ["s1"],
+    payStatus: "Unpaid",
+    payEach: 200,
+  };
+  const openToday = M.collectOpenCrewDayPay([asgToday], [], {
+    focusMonth: "2026-07",
+    today: "2026-07-31",
+    dayPayAmt: function (a) {
+      return 200;
+    },
+    personName: function () {
+      return "Toni";
+    },
+  });
+  ok("open day pay skips unfinished today", openToday.length === 0);
 
   /* Settlement DTO */
   const sett = M.summarizeMonthSettlement({

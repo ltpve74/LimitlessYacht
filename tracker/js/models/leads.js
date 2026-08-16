@@ -18,14 +18,21 @@
   var round2 = util.round2;
   var moneyFromBase = util.moneyFromBase;
 
-var CAPTAIN_COMMISSION_PCT = 15;
-/** Click&Boat (Paul): 21% of charter fee before VAT. */
-var CLICKBOAT_COMMISSION_PCT = 21;
+/**
+ * Captain commission (website / direct).
+ * Agreed book default = 10%. Target / preview = 15% (negotiation ask).
+ * Per-lead `captainCommPct` stamps a trip so early book can stay at 10
+ * while later trips move to 15 without a global flip.
+ */
+var CAPTAIN_COMMISSION_PCT = 10;
+var CAPTAIN_COMMISSION_TARGET_PCT = 15;
+/** Click&Boat (Paul): 24% of charter fee before VAT (platform rate). */
+var CLICKBOAT_COMMISSION_PCT = 24;
 var BILL_TYPES = { cash: 1, invoice: 1, mix: 1 };
 /**
  * Charter book source (commission assignment):
- *  - captain = website or direct contact (15% commission)
- *  - clickboat = Paul / Click&Boat (21% before VAT)
+ *  - captain = website or direct contact (default CAPTAIN_COMMISSION_PCT; per-lead stamp optional)
+ *  - clickboat = Paul / Click&Boat (24% before VAT)
  *  - owner = owner’s days / private guests (no income, no commission; owner benefits)
  *  - ownersourced = owner-sourced commercial charter (income; commission 0 for now, may add later)
  *  - dayoff = vessel closed / day off (blocks calendar; no income, no cost)
@@ -125,16 +132,49 @@ function isCaptainLead(r) {
   return leadSource(r) === "captain";
 }
 
-/** Captain’s own 15% deals (website / direct). */
+/** Captain’s own deals (website / direct) — rate from stamp or book default. */
 function leadEarnsCaptainCommission(r) {
   return isCaptainLead(r);
 }
 
-/** Commission rate % for this lead’s source (0 = none). */
-function leadCommissionRatePct(r) {
+/**
+ * Parse a captain commission % (10 or 15 bookends, or any 0–100 for tests).
+ * Returns null when unset / invalid.
+ */
+function parseCaptainCommPct(v) {
+  if (v == null || v === "") return null;
+  var n = num(v);
+  if (!(n > 0) || n > 100) return null;
+  return round2(n);
+}
+
+/**
+ * Book rate for a captain lead: stamped `captainCommPct` wins, else default 10%.
+ * `forcePct` (preview) overrides stamp + default when provided.
+ */
+function leadCaptainBookRatePct(r, forcePct) {
+  var forced = parseCaptainCommPct(forcePct);
+  if (forced != null) return forced;
+  var stamped = r ? parseCaptainCommPct(r.captainCommPct) : null;
+  if (stamped != null) return stamped;
+  return CAPTAIN_COMMISSION_PCT;
+}
+
+/**
+ * Commission rate % for this lead’s source (0 = none).
+ * @param {object} r lead
+ * @param {number|object} [forceOrOpts] force captain % (preview) or { forceCaptainPct }
+ */
+function leadCommissionRatePct(r, forceOrOpts) {
+  var forcePct = null;
+  if (forceOrOpts != null && typeof forceOrOpts === "object") {
+    forcePct = forceOrOpts.forceCaptainPct;
+  } else if (forceOrOpts != null) {
+    forcePct = forceOrOpts;
+  }
   var src = leadSource(r);
   if (src === "pending" || src === "dayoff") return 0;
-  if (src === "captain") return CAPTAIN_COMMISSION_PCT;
+  if (src === "captain") return leadCaptainBookRatePct(r, forcePct);
   if (src === "clickboat") return CLICKBOAT_COMMISSION_PCT;
   if (src === "ownersourced") return OWNER_SOURCED_COMMISSION_PCT;
   return 0;
@@ -173,6 +213,136 @@ function leadIsDealClosed(r) {
   if (r.dealClosed === false || r.dealClosed === "false" || r.dealClosed === 0) return false;
   if (!r.id) return false;
   return true;
+}
+
+/** Charter start month YYYY-MM — never use booking/closed date. */
+function leadCharterStartMonth(r) {
+  var st = String((r && (r.start || r.cdate)) || "").slice(0, 7);
+  return /^\d{4}-\d{2}$/.test(st) ? st : "";
+}
+
+/** Charter start day YYYY-MM-DD — never booking/closed date. */
+function leadCharterStartDay(r) {
+  var d = String((r && (r.start || r.cdate)) || "").slice(0, 10);
+  return /^\d{4}-\d{2}-\d{2}$/.test(d) ? d : "";
+}
+
+/**
+ * Cap for “has this charter already happened?” on a month report.
+ * min(today, last day of report month) — never includes later months,
+ * and never includes later days still inside the report month.
+ *
+ * @param {string} month YYYY-MM
+ * @param {string} [todayYmd] optional fixed “today” (tests)
+ * @returns {string} YYYY-MM-DD
+ */
+function commissionBizAsOfDay(month, todayYmd) {
+  month = String(month || "").slice(0, 7);
+  if (!/^\d{4}-\d{2}$/.test(month)) return "";
+  var y = parseInt(month.slice(0, 4), 10);
+  var m = parseInt(month.slice(5, 7), 10);
+  var last = new Date(y, m, 0).getDate();
+  var monthEnd = month + "-" + (last < 10 ? "0" : "") + last;
+  var today = String(todayYmd || "").slice(0, 10);
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(today)) {
+    try {
+      var d = new Date();
+      var ty = d.getFullYear();
+      var tm = d.getMonth() + 1;
+      var td = d.getDate();
+      today =
+        ty +
+        "-" +
+        (tm < 10 ? "0" : "") +
+        tm +
+        "-" +
+        (td < 10 ? "0" : "") +
+        td;
+    } catch (eT) {
+      today = monthEnd;
+    }
+  }
+  return today < monthEnd ? today : monthEnd;
+}
+
+/**
+ * Whether a lead’s commission belongs in a month cash report (pure).
+ *
+ * scope "month"   = charter activity in that month (start/end/span)
+ * scope "through" = charter start on or before end of that month
+ *
+ * Future charters are NEVER included:
+ *  - start month > report month, or
+ *  - start day > asOfYmd (optional day cap — unstarted charters this month stay out)
+ *
+ * Booking/closed date is not used.
+ *
+ * @param {object} r lead
+ * @param {string} month YYYY-MM
+ * @param {"month"|"through"} scope
+ * @param {string} [asOfYmd] YYYY-MM-DD — only charters started on/before this day
+ */
+function leadInCommissionBizScope(r, month, scope, asOfYmd) {
+  month = String(month || "").slice(0, 7);
+  if (!r || !/^\d{4}-\d{2}$/.test(month)) return false;
+  var st = leadCharterStartMonth(r);
+  if (!st) return false;
+  /* Future charter month — out of this report */
+  if (st > month) return false;
+  var startDay = leadCharterStartDay(r);
+  var asOf = String(asOfYmd || "").slice(0, 10);
+  /* Unstarted charter (even if confirmed) — out until the day has begun */
+  if (/^\d{4}-\d{2}-\d{2}$/.test(asOf) && startDay && startDay > asOf) return false;
+  if (scope === "through") return st <= month;
+  /* month: start in month, end in month, or multi spanning month */
+  var en = String(r.end || "").slice(0, 7);
+  if (st === month) return true;
+  if (en === month) return true;
+  if (en && /^\d{4}-\d{2}$/.test(en) && st < month && en >= month) return true;
+  return false;
+}
+
+/**
+ * Captain-earning business for cash PDF (leads only — charges composed in controller).
+ * @param {Array} leads
+ * @param {string} month YYYY-MM
+ * @param {"month"|"through"} scope
+ * @param {string} [asOfYmd] YYYY-MM-DD day cap
+ * @returns {{ n, gross, base, comm, items: Array, asOfYmd: string }}
+ */
+function summarizeCaptainLeadBizAsOf(leads, month, scope, asOfYmd) {
+  scope = scope === "through" ? "through" : "month";
+  month = String(month || "").slice(0, 7);
+  var asOf = String(asOfYmd || "").slice(0, 10);
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(asOf)) asOf = commissionBizAsOfDay(month);
+  var gross = 0;
+  var base = 0;
+  var comm = 0;
+  var n = 0;
+  var items = [];
+  (Array.isArray(leads) ? leads : []).forEach(function (r) {
+    if (!r || leadIsCancelled(r) || leadIsDayOff(r)) return;
+    if (!leadEarnsCaptainCommission(r)) return;
+    if (!leadIsDealClosed(r)) return;
+    if (!leadInCommissionBizScope(r, month, scope, asOf)) return;
+    var p = leadCommissionParts(r);
+    if (!p || !(num(p.total) > 0.009 || num(p.gross) > 0.009 || num(p.base) > 0.009)) return;
+    n++;
+    gross = round2(gross + num(p.gross));
+    base = round2(base + num(p.base));
+    comm = round2(comm + num(p.total));
+    items.push({
+      kind: "lead",
+      id: String(r.id || ""),
+      name: String(r.name || "Guest").trim() || "Guest",
+      start: String(r.start || r.cdate || "").slice(0, 10),
+      end: String(r.end || "").slice(0, 10),
+      gross: round2(num(p.gross)),
+      base: round2(num(p.base)),
+      comm: round2(num(p.total)),
+    });
+  });
+  return { n: n, gross: gross, base: base, comm: comm, items: items, asOfYmd: asOf };
 }
 
 /**
@@ -875,7 +1045,56 @@ function emptyMoneyBucket() {
 }
 
 function emptySourceCard() {
-  return { tot: 0, exVat: 0, n: 0, comm: 0, types: {} };
+  return {
+    tot: 0,
+    exVat: 0,
+    n: 0,
+    comm: 0,
+    types: {},
+    /* Confirmed future (start > today) — projection only, not in tot/n/comm */
+    proj: { tot: 0, exVat: 0, n: 0, comm: 0, types: {} },
+  };
+}
+
+/** Bump a source card’s to-date fields or its proj sub-bucket. */
+function bumpSourceCard(card, val, exVatFull, commFull, typeKey, isProj) {
+  if (!card) return;
+  var t = isProj ? card.proj : card;
+  if (!t) return;
+  if (!t.types) t.types = {};
+  t.tot = round2(t.tot + (Number(val) || 0));
+  t.exVat = round2(t.exVat + (Number(exVatFull) || 0));
+  t.n++;
+  t.comm = round2(t.comm + (Number(commFull) || 0));
+  if (typeKey) {
+    if (!t.types[typeKey]) t.types[typeKey] = { n: 0, val: 0, exVat: 0 };
+    t.types[typeKey].n++;
+    t.types[typeKey].val = round2(t.types[typeKey].val + (Number(val) || 0));
+    t.types[typeKey].exVat = round2(
+      t.types[typeKey].exVat + (Number(exVatFull) || 0)
+    );
+  }
+}
+
+/**
+ * Attach booked = to-date + projected future (white net = before VAT − commissions).
+ * Mutates card; pure relative to inputs already on the card.
+ */
+function finalizeSourceBooked(card) {
+  if (!card) return card;
+  if (!card.proj) card.proj = { tot: 0, exVat: 0, n: 0, comm: 0, types: {} };
+  var p = card.proj;
+  card.booked = {
+    tot: round2((card.tot || 0) + (p.tot || 0)),
+    exVat: round2((card.exVat || 0) + (p.exVat || 0)),
+    n: (card.n || 0) + (p.n || 0),
+    comm: round2((card.comm || 0) + (p.comm || 0)),
+    whiteNet: round2(
+      Math.max(0, (card.exVat || 0) - (card.comm || 0)) +
+        Math.max(0, (p.exVat || 0) - (p.comm || 0))
+    ),
+  };
+  return card;
 }
 
 /**
@@ -1000,34 +1219,24 @@ function summarizeLeadsMoneyDashboard(opts) {
     var closed = isClosedCommercial(r);
     if (!closed) return;
     var timing = leadCharterTiming(r, today);
+    var isUpcoming = timing === "upcoming";
     var val = leadListMoney(r);
     var parts = leadProjectedNetParts(r);
     var exVat = parts.ex;
     var comm = parts.comm;
     var exVatFull = leadCommissionBase(r);
     var commFull = leadCommissionAmt(r);
-    if (timing === "upcoming") addCharter(proj, val, exVat, comm);
+    if (isUpcoming) addCharter(proj, val, exVat, comm);
     else addCharter(done, val, exVat, comm);
-    if (timing === "upcoming") return;
     var tk = leadCharterTypeKey(r);
     if (src === "captain") {
-      cap.tot = round2(cap.tot + val);
-      cap.exVat = round2(cap.exVat + exVatFull);
-      cap.n++;
-      cap.comm = round2(cap.comm + commFull);
-      bumpType(cap.types, tk, val, exVatFull);
+      bumpSourceCard(cap, val, exVatFull, commFull, tk, isUpcoming);
     } else if (src === "clickboat") {
-      cb.tot = round2(cb.tot + val);
-      cb.exVat = round2(cb.exVat + exVatFull);
-      cb.n++;
-      cb.comm = round2(cb.comm + commFull);
-      bumpType(cb.types, tk, val, exVatFull);
+      bumpSourceCard(cb, val, exVatFull, commFull, tk, isUpcoming);
     } else if (src === "ownersourced") {
-      os.tot = round2(os.tot + val);
-      os.exVat = round2(os.exVat + exVatFull);
-      os.n++;
-      os.comm = round2(os.comm + commFull);
-      bumpType(os.types, tk, val, exVatFull);
+      bumpSourceCard(os, val, exVatFull, commFull, tk, isUpcoming);
+      /* Cash / white split breakdown stays to-date only (realised-ish) */
+      if (isUpcoming) return;
       osWhite = round2(osWhite + whiteInvoiceAmt(r));
       if (leadHasCashFee(r)) {
         var cashN = leadFreeCashAmt(r) || num(r.cashAmt);
@@ -1082,9 +1291,31 @@ function summarizeLeadsMoneyDashboard(opts) {
     else addUpsell(done, gross, exB, cm);
   });
 
+  /* Full confirmed book = to-date (sailed) + projected (future confirmed) */
+  var booked = {
+    tot: round2((done.tot || 0) + (proj.tot || 0)),
+    charters: round2((done.charters || 0) + (proj.charters || 0)),
+    upsell: round2((done.upsell || 0) + (proj.upsell || 0)),
+    ex: round2((done.ex || 0) + (proj.ex || 0)),
+    comm: round2((done.comm || 0) + (proj.comm || 0)),
+    upsellComm: round2((done.upsellComm || 0) + (proj.upsellComm || 0)),
+    n: (done.n || 0) + (proj.n || 0),
+    nUpsell: (done.nUpsell || 0) + (proj.nUpsell || 0),
+    /* White net only (before VAT − commissions); free cash is never in this total */
+    whiteNet: round2(
+      Math.max(0, (done.ex || 0) - (done.comm || 0)) +
+        Math.max(0, (proj.ex || 0) - (proj.comm || 0))
+    ),
+  };
+
+  finalizeSourceBooked(cap);
+  finalizeSourceBooked(cb);
+  finalizeSourceBooked(os);
+
   return {
     done: done,
     proj: proj,
+    booked: booked,
     ownVal: ownVal,
     ownN: ownN,
     nPendSrc: nPendSrc,
@@ -1209,14 +1440,17 @@ function leadCommissionWhiteBeforeVat(r) {
 
 /**
  * Lead commission breakdown (numbers only — UI formats strings).
- * Rate from source: captain 15%, clickboat 21%, ownersourced 0% (for now), owner/other 0%.
+ * Rate from source: captain default 10% (or per-lead stamp / force preview),
+ * clickboat 24%, ownersourced 0% (for now), owner/other 0%.
  * Split: rate × white before VAT + rate × cash black.
  * Normal VAT-include: rate × (total÷1.21).
  * Owner’s days: total commission 0; base still = charter before VAT (owner benefit value).
  * Owner-sourced: income line; commission 0 until OWNER_SOURCED_COMMISSION_PCT is raised.
+ * @param {object} r lead
+ * @param {number|object} [forceOrOpts] force captain % for what-if preview
  */
-function leadCommissionParts(r) {
-  var ratePct = leadCommissionRatePct(r);
+function leadCommissionParts(r, forceOrOpts) {
+  var ratePct = leadCommissionRatePct(r, forceOrOpts);
   var pctRate = ratePct / 100;
   var src = leadSource(r);
   var empty = {
@@ -1335,6 +1569,7 @@ function leadCommissionAmt(r) {
 
   return {
     CAPTAIN_COMMISSION_PCT: CAPTAIN_COMMISSION_PCT,
+    CAPTAIN_COMMISSION_TARGET_PCT: CAPTAIN_COMMISSION_TARGET_PCT,
     CLICKBOAT_COMMISSION_PCT: CLICKBOAT_COMMISSION_PCT,
     BILL_TYPES: BILL_TYPES,
     LEAD_SOURCES: LEAD_SOURCES,
@@ -1348,12 +1583,19 @@ function leadCommissionAmt(r) {
     leadSource: leadSource,
     isCaptainLead: isCaptainLead,
     leadEarnsCaptainCommission: leadEarnsCaptainCommission,
+    parseCaptainCommPct: parseCaptainCommPct,
+    leadCaptainBookRatePct: leadCaptainBookRatePct,
     leadCommissionRatePct: leadCommissionRatePct,
     leadEarnsCommission: leadEarnsCommission,
     isClickboatLead: isClickboatLead,
     isOwnerLead: isOwnerLead,
     isOwnerSourcedLead: isOwnerSourcedLead,
     leadIsDealClosed: leadIsDealClosed,
+    leadCharterStartMonth: leadCharterStartMonth,
+    leadCharterStartDay: leadCharterStartDay,
+    commissionBizAsOfDay: commissionBizAsOfDay,
+    leadInCommissionBizScope: leadInCommissionBizScope,
+    summarizeCaptainLeadBizAsOf: summarizeCaptainLeadBizAsOf,
     ownerBenefitIncluded: ownerBenefitIncluded,
     constrainLeadSource: constrainLeadSource,
     leadSourceLabel: leadSourceLabel,

@@ -229,12 +229,40 @@ function chargeTotalsFromApaAndExt(apaBase, extAmt, extSettle) {
  * Extra charter hours:
  *   Prefer same charge as APA (extAmt + extSettle) so one invoice matches the card payment.
  *   Commission only on the extension slice when extAmt is set (not on APA spend).
- *   Cash ext → 15% of full ext €; invoice ext → 15% before VAT.
+ *   Cash ext → rate% of full ext €; invoice ext → rate% before VAT.
+ *   Default rate = CAPTAIN_COMMISSION_PCT (10%); per-charge captainCommPct or forcePct override.
+ * @param {object} c charge
+ * @param {number|object} [forceOrOpts] force % for preview, or { forceCaptainPct }
  */
-function chargeCommissionParts(c) {
-  var empty = { base: 0, total: 0, gross: 0, hours: 0, billType: "invoice", mode: "" };
+function chargeCommissionParts(c, forceOrOpts) {
+  var empty = {
+    base: 0,
+    total: 0,
+    gross: 0,
+    hours: 0,
+    billType: "invoice",
+    mode: "",
+    ratePct: CAPTAIN_COMMISSION_PCT,
+  };
   if (!c || !isChargeCaptainComm(c)) return empty;
-  var pctRate = CAPTAIN_COMMISSION_PCT / 100;
+  var forcePct = null;
+  if (forceOrOpts != null && typeof forceOrOpts === "object") {
+    forcePct = forceOrOpts.forceCaptainPct;
+  } else if (forceOrOpts != null) {
+    forcePct = forceOrOpts;
+  }
+  var ratePct = CAPTAIN_COMMISSION_PCT;
+  if (leads && typeof leads.parseCaptainCommPct === "function") {
+    var forced = leads.parseCaptainCommPct(forcePct);
+    if (forced != null) ratePct = forced;
+    else {
+      var stamped = leads.parseCaptainCommPct(c.captainCommPct);
+      if (stamped != null) ratePct = stamped;
+    }
+  } else if (forcePct != null && Number(forcePct) > 0) {
+    ratePct = Number(forcePct);
+  }
+  var pctRate = ratePct / 100;
   var hours = chargeExtHours(c);
   var extA = chargeExtAmt(c);
   var base = 0;
@@ -259,6 +287,7 @@ function chargeCommissionParts(c) {
       hours: hours,
       billType: bt,
       mode: mode,
+      ratePct: ratePct,
     };
   }
 
@@ -289,11 +318,12 @@ function chargeCommissionParts(c) {
     hours: hours,
     billType: bt,
     mode: mode,
+    ratePct: ratePct,
   };
 }
 
-function chargeCommissionAmt(c) {
-  return chargeCommissionParts(c).total;
+function chargeCommissionAmt(c, forceOrOpts) {
+  return chargeCommissionParts(c, forceOrOpts).total;
 }
 
 /**
@@ -333,6 +363,58 @@ function summarizeCaptainChargeCommissions(charters) {
     return String(b.client || "").localeCompare(String(a.client || ""));
   });
   return { n: n, gross: gross, base: base, comm: comm, items: items };
+}
+
+/**
+ * Captain upsell commissions as-of a report month (pure).
+ * Charge date must be in scope — future charge dates excluded.
+ * Optional asOfYmd day-cap: charge date after that day is out (unstarted).
+ * scope "month" | "through"
+ *
+ * @param {Array} charters
+ * @param {string} month YYYY-MM
+ * @param {"month"|"through"} scope
+ * @param {string} [asOfYmd] YYYY-MM-DD
+ */
+function summarizeCaptainChargeBizAsOf(charters, month, scope, asOfYmd) {
+  scope = scope === "through" ? "through" : "month";
+  month = String(month || "").slice(0, 7);
+  var asOf = String(asOfYmd || "").slice(0, 10);
+  var gross = 0;
+  var base = 0;
+  var comm = 0;
+  var n = 0;
+  var items = [];
+  if (!/^\d{4}-\d{2}$/.test(month)) {
+    return { n: 0, gross: 0, base: 0, comm: 0, items: [], asOfYmd: asOf };
+  }
+  (Array.isArray(charters) ? charters : []).forEach(function (c) {
+    if (!isChargeCaptainComm(c)) return;
+    var day = String((c && c.date) || "").slice(0, 10);
+    var dm = day.slice(0, 7);
+    if (!/^\d{4}-\d{2}$/.test(dm)) return;
+    if (dm > month) return; /* future month */
+    if (/^\d{4}-\d{2}-\d{2}$/.test(asOf) && day && day > asOf) return; /* not yet */
+    if (scope === "month" && dm !== month) return;
+    if (scope === "through" && dm > month) return;
+    var p = chargeCommissionParts(c);
+    if (!p || !(num(p.total) > 0.009 || num(p.gross) > 0.009)) return;
+    n++;
+    gross = round2(gross + num(p.gross));
+    base = round2(base + num(p.base));
+    comm = round2(comm + num(p.total));
+    items.push({
+      kind: "charge",
+      id: c.id != null ? String(c.id) : "",
+      name: String(c.client || "Upsell").trim() || "Upsell",
+      start: day,
+      end: "",
+      gross: round2(num(p.gross)),
+      base: round2(num(p.base)),
+      comm: round2(num(p.total)),
+    });
+  });
+  return { n: n, gross: gross, base: base, comm: comm, items: items, asOfYmd: asOf };
 }
 
 /**
@@ -555,6 +637,307 @@ function summarizeChargeCashToBoat(charters) {
   return { total: total, n: items.length, items: items };
 }
 
+/**
+ * Kind label for spreadsheet / list export (not money logic).
+ * @param {object} c
+ * @returns {string}
+ */
+function chargeExportKindLabel(c) {
+  if (!c) return "Charge";
+  if (c.kind === "apa" || c.apaTripId) return "APA shortfall";
+  var ext = chargeExtAmt(c);
+  if (ext > 0.009 || isChargeCaptainComm(c)) return "Extension";
+  var k = String(c.kind || c.chargeKind || "").toLowerCase();
+  if (k === "extension" || k === "extra" || k === "upsell") return "Extension";
+  return "Charge";
+}
+
+/**
+ * Settlement label for spreadsheet: Cash / Card / Mix.
+ * Maps bill type + pay method into the language the owner uses.
+ * @param {object} c
+ * @returns {string} "Cash" | "Card" | "Mix"
+ */
+function chargeExportPaidBy(c) {
+  if (!c) return "Card";
+  var m = chargePayMethod(c);
+  if (m === "Cash") return "Cash";
+  if (m === "Split") return "Mix";
+  var bt = chargeBillType(c);
+  if (bt === "cash") return "Cash";
+  if (bt === "mix") return "Mix";
+  return "Card";
+}
+
+/**
+ * Flat rows for spreadsheet export of charges (to date).
+ * Pure — no DOM. Sort oldest → newest for manager books.
+ *
+ * @param {Array} charters
+ * @param {{ asOfYmd?: string }} [opts] asOfYmd YYYY-MM-DD — exclude dates after (default: include all)
+ * @returns {{ rows: Array, n: number, total: number, cashTotal: number, cardTotal: number, asOf: string }}
+ */
+function buildChargesExportRows(charters, opts) {
+  opts = opts || {};
+  var asOf = opts.asOfYmd != null ? String(opts.asOfYmd).slice(0, 10) : "";
+  var rows = [];
+  var total = 0;
+  var cashTotal = 0;
+  var cardTotal = 0;
+  (Array.isArray(charters) ? charters : []).forEach(function (c) {
+    if (!c) return;
+    var date = String(c.date || "").slice(0, 10);
+    if (asOf && date && date > asOf) return;
+    var amount = round2(num(c.amount));
+    var cashP = chargeCashPart(c);
+    var invP = chargeInvoicePart(c);
+    var paidBy = chargeExportPaidBy(c);
+    var paid = chargeIsPaid(c);
+    rows.push({
+      id: c.id || "",
+      date: date,
+      name: String(c.client || "").trim() || "—",
+      amount: amount,
+      paidBy: paidBy,
+      status: paid ? "Paid" : "Pending",
+      settlement: chargeBillType(c) === "cash" ? "Cash only" : chargeBillType(c) === "mix" ? "Mix" : "Invoice only",
+      cashAmount: round2(cashP),
+      cardAmount: round2(invP),
+      kind: chargeExportKindLabel(c),
+      notes: String(c.notes || "").trim(),
+    });
+    total = round2(total + amount);
+    cashTotal = round2(cashTotal + cashP);
+    cardTotal = round2(cardTotal + invP);
+  });
+  rows.sort(function (a, b) {
+    var da = String(a.date || "");
+    var db = String(b.date || "");
+    if (da && db && da !== db) return da < db ? -1 : 1;
+    if (da && !db) return -1;
+    if (db && !da) return 1;
+    return String(a.name || "").localeCompare(String(b.name || ""));
+  });
+  return {
+    rows: rows,
+    n: rows.length,
+    total: total,
+    cashTotal: cashTotal,
+    cardTotal: cardTotal,
+    asOf: asOf || "",
+  };
+}
+
+/**
+ * Plain money text for CSV (CSV has no cell formats — only display text).
+ * es-ES style: €1.234,56
+ * @param {number} n
+ * @returns {string}
+ */
+function chargeExportMoneyText(n) {
+  var v = round2(num(n));
+  var neg = v < 0;
+  var abs = Math.abs(v);
+  var parts = abs.toFixed(2).split(".");
+  var intPart = parts[0].replace(/\B(?=(\d{3})+(?!\d))/g, ".");
+  var s = "€" + intPart + "," + parts[1];
+  return neg ? "-" + s : s;
+}
+
+/**
+ * CSV text for charges export (UTF-8).
+ * Amount columns use € display text (CSV cannot store Excel currency formats).
+ * Columns: Date, Name, Amount, Paid by, Status, Cash amount, Card amount, Type, Notes
+ * @param {Array} charters
+ * @param {{ asOfYmd?: string }} [opts]
+ * @returns {{ csv: string, fileName: string, n: number, total: number }}
+ */
+function chargesExportCsv(charters, opts) {
+  var pack = buildChargesExportRows(charters, opts);
+  function cell(v) {
+    var s = String(v == null ? "" : v);
+    if (/[",\n\r]/.test(s)) return '"' + s.replace(/"/g, '""') + '"';
+    return s;
+  }
+  var lines = ["Date,Name,Amount,Paid by,Status,Cash amount,Card amount,Type,Notes"];
+  pack.rows.forEach(function (r) {
+    lines.push(
+      [
+        cell(r.date),
+        cell(r.name),
+        cell(chargeExportMoneyText(r.amount)),
+        cell(r.paidBy),
+        cell(r.status),
+        cell(chargeExportMoneyText(r.cashAmount)),
+        cell(chargeExportMoneyText(r.cardAmount)),
+        cell(r.kind),
+        cell(r.notes),
+      ].join(",")
+    );
+  });
+  /* Totals row after all records — Amount + cash/card splits */
+  if (pack.n > 0) {
+    lines.push(
+      [
+        cell(""),
+        cell("TOTAL"),
+        cell(chargeExportMoneyText(pack.total)),
+        cell(""),
+        cell(pack.n + " charges"),
+        cell(chargeExportMoneyText(pack.cashTotal)),
+        cell(chargeExportMoneyText(pack.cardTotal)),
+        cell(""),
+        cell(""),
+      ].join(",")
+    );
+  }
+  var asOf = pack.asOf || "";
+  var stamp = asOf || "all";
+  return {
+    csv: lines.join("\n"),
+    fileName: "Limitless-charges-" + stamp + ".csv",
+    n: pack.n,
+    total: pack.total,
+    cashTotal: pack.cashTotal,
+    cardTotal: pack.cardTotal,
+    rows: pack.rows,
+  };
+}
+
+/**
+ * Escape text for SpreadsheetML (Excel 2003 XML — opens in Excel/Numbers with real € format).
+ * @param {string} s
+ */
+function chargeExportXmlEsc(s) {
+  return String(s == null ? ""
+    : s)
+    .replace(/&/g, "&amp;")
+    .replace(/</g, "&lt;")
+    .replace(/>/g, "&gt;")
+    .replace(/"/g, "&quot;");
+}
+
+/**
+ * Excel SpreadsheetML export — amount columns are true numbers + € currency format.
+ * CSV cannot do that; this file can. Opens in Excel, Numbers, Google Sheets (upload).
+ * @param {Array} charters
+ * @param {{ asOfYmd?: string }} [opts]
+ * @returns {{ xml: string, fileName: string, mime: string, n: number, total: number, rows: Array }}
+ */
+function chargesExportExcelXml(charters, opts) {
+  var pack = buildChargesExportRows(charters, opts);
+  var asOf = pack.asOf || "";
+  var stamp = asOf || "all";
+  /* ss:Format currency — Excel shows €1,234.56 (or locale equivalent) */
+  var currencyFmt = chargeExportXmlEsc('€#,##0.00');
+  var xml = [];
+  xml.push('<?xml version="1.0" encoding="UTF-8"?>');
+  xml.push('<?mso-application progid="Excel.Sheet"?>');
+  xml.push(
+    '<Workbook xmlns="urn:schemas-microsoft-com:office:spreadsheet" ' +
+      'xmlns:o="urn:schemas-microsoft-com:office:office" ' +
+      'xmlns:x="urn:schemas-microsoft-com:office:excel" ' +
+      'xmlns:ss="urn:schemas-microsoft-com:office:spreadsheet" ' +
+      'xmlns:html="http://www.w3.org/TR/REC-html40">'
+  );
+  xml.push("<Styles>");
+  xml.push('<Style ss:ID="Default" ss:Name="Normal"><Font ss:FontName="Calibri" ss:Size="11"/></Style>');
+  xml.push(
+    '<Style ss:ID="Header"><Font ss:FontName="Calibri" ss:Size="11" ss:Bold="1"/>' +
+      '<Interior ss:Color="#E8EEF5" ss:Pattern="Solid"/></Style>'
+  );
+  xml.push(
+    '<Style ss:ID="Money"><NumberFormat ss:Format="' +
+      currencyFmt +
+      '"/><Font ss:FontName="Calibri" ss:Size="11"/></Style>'
+  );
+  xml.push(
+    '<Style ss:ID="MoneyBold"><NumberFormat ss:Format="' +
+      currencyFmt +
+      '"/><Font ss:FontName="Calibri" ss:Size="11" ss:Bold="1"/></Style>'
+  );
+  xml.push(
+    '<Style ss:ID="TotalLabel"><Font ss:FontName="Calibri" ss:Size="11" ss:Bold="1"/>' +
+      '<Interior ss:Color="#FFF3CD" ss:Pattern="Solid"/></Style>'
+  );
+  xml.push("</Styles>");
+  xml.push('<Worksheet ss:Name="Charges">');
+  xml.push(
+    '<Table ss:ExpandedColumnCount="9" ss:ExpandedRowCount="' +
+      (pack.n + 2) +
+      '" x:FullColumns="1" x:FullRows="1">'
+  );
+  /* Column widths (approximate) */
+  [72, 140, 90, 70, 90, 90, 90, 100, 160].forEach(function (w) {
+    xml.push('<Column ss:AutoFitWidth="0" ss:Width="' + w + '"/>');
+  });
+  function textCell(v, style) {
+    return (
+      '<Cell' +
+      (style ? ' ss:StyleID="' + style + '"' : "") +
+      '><Data ss:Type="String">' +
+      chargeExportXmlEsc(v) +
+      "</Data></Cell>"
+    );
+  }
+  function numCell(v, style) {
+    var n = round2(num(v));
+    return (
+      '<Cell' +
+      (style ? ' ss:StyleID="' + style + '"' : ' ss:StyleID="Money"') +
+      '><Data ss:Type="Number">' +
+      n +
+      "</Data></Cell>"
+    );
+  }
+  /* Header */
+  xml.push("<Row>");
+  ["Date", "Name", "Amount", "Paid by", "Status", "Cash amount", "Card amount", "Type", "Notes"].forEach(
+    function (h) {
+      xml.push(textCell(h, "Header"));
+    }
+  );
+  xml.push("</Row>");
+  pack.rows.forEach(function (r) {
+    xml.push("<Row>");
+    xml.push(textCell(r.date || ""));
+    xml.push(textCell(r.name || ""));
+    xml.push(numCell(r.amount, "Money"));
+    xml.push(textCell(r.paidBy || ""));
+    xml.push(textCell(r.status || ""));
+    xml.push(numCell(r.cashAmount, "Money"));
+    xml.push(numCell(r.cardAmount, "Money"));
+    xml.push(textCell(r.kind || ""));
+    xml.push(textCell(r.notes || ""));
+    xml.push("</Row>");
+  });
+  if (pack.n > 0) {
+    xml.push("<Row>");
+    xml.push(textCell("", "TotalLabel"));
+    xml.push(textCell("TOTAL", "TotalLabel"));
+    xml.push(numCell(pack.total, "MoneyBold"));
+    xml.push(textCell("", "TotalLabel"));
+    xml.push(textCell(pack.n + " charges", "TotalLabel"));
+    xml.push(numCell(pack.cashTotal, "MoneyBold"));
+    xml.push(numCell(pack.cardTotal, "MoneyBold"));
+    xml.push(textCell("", "TotalLabel"));
+    xml.push(textCell("", "TotalLabel"));
+    xml.push("</Row>");
+  }
+  xml.push("</Table>");
+  xml.push("</Worksheet>");
+  xml.push("</Workbook>");
+  return {
+    xml: xml.join(""),
+    fileName: "Limitless-charges-" + stamp + ".xls",
+    mime: "application/vnd.ms-excel",
+    n: pack.n,
+    total: pack.total,
+    cashTotal: pack.cashTotal,
+    cardTotal: pack.cardTotal,
+    rows: pack.rows,
+  };
+}
 
   return {
     chargePayMethod: chargePayMethod,
@@ -572,12 +955,19 @@ function summarizeChargeCashToBoat(charters) {
     chargeCommissionParts: chargeCommissionParts,
     chargeCommissionAmt: chargeCommissionAmt,
     summarizeCaptainChargeCommissions: summarizeCaptainChargeCommissions,
+    summarizeCaptainChargeBizAsOf: summarizeCaptainChargeBizAsOf,
     chargeIsPaid: chargeIsPaid,
     chargeIsExplicitlyPaid: chargeIsExplicitlyPaid,
     chargeCashToBoat: chargeCashToBoat,
     planChargeCashSettlementFields: planChargeCashSettlementFields,
     chargeVatParts: chargeVatParts,
     chargeUpsellGross: chargeUpsellGross,
-    summarizeChargeCashToBoat: summarizeChargeCashToBoat
+    summarizeChargeCashToBoat: summarizeChargeCashToBoat,
+    chargeExportKindLabel: chargeExportKindLabel,
+    chargeExportPaidBy: chargeExportPaidBy,
+    chargeExportMoneyText: chargeExportMoneyText,
+    buildChargesExportRows: buildChargesExportRows,
+    chargesExportCsv: chargesExportCsv,
+    chargesExportExcelXml: chargesExportExcelXml,
   };
 });
