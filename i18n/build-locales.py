@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Generate localized index.html and legal.html from English sources."""
+"""Generate localized index.html, legal.html, and landing pages from English sources."""
 
 from __future__ import annotations
 
@@ -110,7 +110,7 @@ def apply_pairs(html: str, pairs: list[tuple[str, str]]) -> str:
 
 
 def patch_html_lang(html: str, lang: str) -> str:
-    return re.sub(r"<html lang=\"[^\"]+\">", f'<html lang="{lang}">', html, count=1)
+    return re.sub(r'(<html\b[^>]*\blang=")[^"]+"', rf'\g<1>{lang}"', html, count=1)
 
 
 def patch_netlify_form(html: str, code: str) -> str:
@@ -251,6 +251,8 @@ def build_legal(locale_mod) -> str:
 
 
 def main() -> None:
+    from render_landings import render_all
+
     en_reviews = load_en_reviews()
     for code, mod in LOCALES.items():
         validate_locale_reviews(code, mod.REVIEWS, en_reviews)
@@ -260,6 +262,8 @@ def main() -> None:
         (out_dir / "index.html").write_text(build_index(mod), encoding="utf-8")
         (out_dir / "legal.html").write_text(build_legal(mod), encoding="utf-8")
         print(f"Wrote {code}/index.html, {code}/legal.html, data/reviews-{code}.json")
+    landing = render_all()
+    print(f"Wrote {len(landing)} landing pages (EN+DE) and sitemap.xml")
 
 
 if __name__ == "__main__":

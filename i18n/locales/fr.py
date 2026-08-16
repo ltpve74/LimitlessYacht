@@ -29,7 +29,7 @@ PAIRS = [
         "Louez le yacht à moteur Maiora de 21,5 m « Limitless » au Club de Mar, Palma de Majorque. Croisière confortable, équipage exceptionnel et les plus belles criques de Majorque — jusqu'à 12 invités de jour, 7 de nuit.",
     ),
     (
-        "yacht charter Mallorca, Maiora yacht, Limitless yacht, Palma de Mallorca boat charter, luxury yacht Mediterranean, Club de Mar charter",
+        "private yacht charter Mallorca, day charter Mallorca, crewed yacht charter Mallorca, luxury boat charter Palma, Maiora yacht charter Mallorca, Club de Mar charter, yacht charter Cabrera",
         "location yacht Majorque, yacht Maiora, yacht Limitless, location bateau Palma de Majorque, yacht de luxe Méditerranée, charter Club de Mar",
     ),
     ('<link rel="canonical" href="https://limitlessyachtcharter.com/" />', '<link rel="canonical" href="https://limitlessyachtcharter.com/fr/" />'),
@@ -96,7 +96,7 @@ PAIRS = [
     (">Scroll</span>", ">Défiler</span>"),
     ("Rates & Booking", "Tarifs & réservation"),
     ("Explore Gallery", "Voir la galerie"),
-    ("Exclusive Maiora Yacht · 21.5 m · Up to 12 Guests Day · 7 Overnight", "Yacht Maiora exclusif · 21,5 m · Jusqu'à 12 invités de jour · 7 de nuit"),
+    ("Private yacht charter in Mallorca · Crewed Maiora 21.5 m · 12 guests day · 7 overnight", "Charter privé à Majorque · Maiora 21,5 m avec équipage · 12 invités de jour · 7 de nuit"),
     (
         'Half-day (4h) from €1,700 · 6h from €2,400 · full day from €3,000',
         'Demi-journée (4h) à partir de 1 700 € · 6h à partir de 2 400 € · journée complète à partir de 3 000 €',
@@ -330,6 +330,9 @@ PAIRS = [
         "✗ Une erreur s'est produite. Réessayez ou écrivez-nous à info@limitlessyachtcharter.com",
     ),
     ("Legal Notice & Privacy", "Mentions légales & confidentialité"),
+    ('<a href="yacht-charter-mallorca/">Private charter</a>', '<a href="yacht-charter-mallorca/">Charter privé</a>'),
+    ('<a href="day-charter-mallorca/">Day charter</a>', '<a href="day-charter-mallorca/">Charter à la journée</a>'),
+    ('<a href="destinations/">Destinations</a>', '<a href="destinations/">Destinations</a>'),
     ("Cookie Settings", "Paramètres des cookies"),
     ("All Rights Reserved.", "Tous droits réservés."),
     ("Sending…", "Envoi en cours…"),
@@ -856,8 +859,8 @@ PAIRS = [
     ('Multi-day &amp; overnight charters available — priced per day. Stay as many days as you like.', 'Croisières de plusieurs jours et avec nuit à bord disponibles — tarif par jour. Restez autant de jours que vous le souhaitez.'),
     # --- 2026 content refresh (auto-added) ---
     (
-        'Private Charter',
-        'Charter Privé',
+        'Private yacht charter',
+        'Charter yacht privé',
     ),
     (
         'Your crew handles everything — you focus on the people and&nbsp;the views.',
@@ -1079,7 +1082,7 @@ PAIRS = [
     # Pricing section — new enquiry-card layout
     ('class="section-label reveal">Charters<', 'class="section-label reveal">Charters<'),
     ('Charter Your<em> Way</em>', 'Votre charter<em> à votre façon</em>'),
-    ("The figures above are a guide — a short message to the captain and crew is what really helps. Share your dates, group size and what you're aiming for; you'll get a personal reply with route options, realistic fuel and mooring estimates, and a clear picture of what's included vs APA on multi-day — everything upfront, nothing held back.", "Les tarifs ci-dessus sont indicatifs — ce qui aide vraiment, c'est un court message au capitaine et à l'équipage. Indiquez vos dates, la taille du groupe et vos envies ; vous recevrez une réponse personnelle avec des itinéraires, des estimations réalistes de carburant et d'amarrage, et une image claire de ce qui est inclus ou en APA sur plusieurs jours — tout est dit d'emblée, sans surprise cachée."),
+    ("The figures above are a guide — a short message to the captain and crew is what really helps. Share your dates, group size and what you're aiming for; you'll get a personal reply with route options, realistic fuel and mooring estimates, and a clear picture of what's included vs APA on multi-day — everything upfront, nothing held back. Looking for a <a href=\"day-charter-mallorca/\">private day charter in Mallorca</a>? Half-day and full-day from Club de Mar.", "Les tarifs ci-dessus sont indicatifs — ce qui aide vraiment, c'est un court message au capitaine et à l'équipage. Indiquez vos dates, la taille du groupe et vos envies ; vous recevrez une réponse personnelle avec des itinéraires, des estimations réalistes de carburant et d'amarrage, et une image claire de ce qui est inclus ou en APA sur plusieurs jours — tout est dit d'emblée, sans surprise cachée. Vous cherchez un <a href=\"day-charter-mallorca/\">charter à la journée à Majorque</a> ? Demi-journée et journée complète au départ du Club de Mar."),
     ('4 – 6 Hours', '4 – 6 heures'),
     ('8 – 10 Hours', '8 – 10 heures'),
     ('2 – 3 Days', '2 – 3 jours'),

@@ -1,0 +1,1 @@
+# Landing-page content package (EN + DE overlays). Not shipped as a site URL.

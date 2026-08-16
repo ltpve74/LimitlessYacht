@@ -1251,7 +1251,7 @@ def check_html(r: Runner, rel: str, html: str) -> None:
         'FOUC guard kills blue links and hides below-fold until main.css',
         'html:not(.ly-main-ready)body>:not(nav):not(#hero){display:none!important}' in fouc_flat
         and 'a:any-link{color:#f5f0e8!important' in fouc_flat
-        and 'a.itinerary-meet-cta,a.mobile-nav-cta{color:#0a1628!important' in fouc_flat,
+        and 'a.itinerary-meet-cta,a.mobile-nav-cta{color:#c9a84c!important' in fouc_flat,
     )
     r.check(
         'nav and desktop hero duplicates ship with inline display:none',
@@ -1370,7 +1370,7 @@ def check_html(r: Runner, rel: str, html: str) -> None:
             or '#hero.hero-actions.btn-ghost,#hero.hero-avail-cta{background:rgba(10,22,40,.55)' in crit_flat
             or '#hero.hero-actions.btn-ghost,#hero.hero-avail-cta{background:rgba(10,22,40,.82)' in crit_flat
         )
-        and 'border:1pxsolidtransparent' in crit_flat.replace(' ', ''),
+        and 'border:1pxsolidvar(--gold)' in crit_flat.replace(' ', ''),
     )
     r.check(
         'critical CSS hides duplicate hero rates and eyebrow links before main.css',
@@ -1907,6 +1907,11 @@ def check_locale_modules(r: Runner) -> None:
     for code, mod in (('de', de), ('es', es), ('fr', fr)):
         r.check(f'i18n/locales/{code}.py defines REVIEWS', hasattr(mod, 'REVIEWS'))
         r.check(f'i18n/locales/{code}.py defines REVIEWS_UI', hasattr(mod, 'REVIEWS_UI'))
+        if code == 'de':
+            r.check(
+                'i18n/locales/de.py defines DAY_CHARTER_PAIRS',
+                hasattr(mod, 'DAY_CHARTER_PAIRS') and len(mod.DAY_CHARTER_PAIRS) > 10,
+            )
         if hasattr(mod, 'REVIEWS'):
             r.check(
                 f'i18n/locales/{code}.py REVIEWS count matches EN',
@@ -2832,7 +2837,7 @@ def check_shared_assets(r: Runner) -> None:
         css is not None
         and '#hero.hero-actions.btn-primary,#hero.hero-actions.btn-ghost{display:inline-flex'
         in re.sub(r'\s+', '', css)
-        and '#hero.hero-actions.btn-primary{border:1pxsolidtransparent'
+        and '#hero.hero-actions.btn-primary{border:1pxsolidvar(--gold)'
         in re.sub(r'\s+', '', css),
     )
     r.check(
@@ -3285,7 +3290,7 @@ def check_shared_assets(r: Runner) -> None:
         and '.hero-avail-cta{' in css,
     )
     r.check(
-        'hero check-available-dates CTA is a solid gold button, not a ghost chip',
+        'hero check-available-dates CTA is gold-outline glass, not a solid fill',
         'class="btn-primary hero-avail-cta"' in index_html
         and 'class="btn-ghost hero-avail-cta"' not in index_html
         and css is not None
@@ -3297,6 +3302,11 @@ def check_shared_assets(r: Runner) -> None:
         is not None
         and re.search(
             r'#hero \.hero-avail-cta\{[^}]*font-weight:700!important',
+            css,
+        )
+        is not None
+        and re.search(
+            r'#hero \.hero-avail-cta\{[^}]*color:#c9a84c!important',
             css,
         )
         is not None
@@ -3346,7 +3356,8 @@ def check_shared_assets(r: Runner) -> None:
     r.check(
         'buttons share unified fill and ghost colour tokens',
         css is not None
-        and re.search(r'--btn-fill:\s*var\(--gold\)', css) is not None
+        and re.search(r'--btn-fill:\s*rgba\(10,\s*22,\s*40,\s*0\.55\)', css) is not None
+        and re.search(r'--btn-on-fill:\s*var\(--gold\)', css) is not None
         and '--btn-ghost-border:' in css
         and re.search(r'--btn-ghost-text:\s*var\(--cream\)', css) is not None
         and re.search(r'\.btn-primary\s*\{', css) is not None
@@ -3882,6 +3893,142 @@ def check_js(r: Runner, rel: str) -> None:
             os.unlink(tmp_path)
 
 
+CORE_LANDINGS = (
+    'yacht-charter-mallorca',
+    'day-charter-mallorca',
+    'sunset-charter-mallorca',
+    'multi-day-charter-balearics',
+    'maiora-yacht-charter',
+    'yacht-charter-palma-club-de-mar',
+    'destinations',
+    'yacht-charter-mallorca-prices',
+    'what-is-included',
+    'best-time-yacht-charter-mallorca',
+)
+
+PRIORITY_DESTS = ('cabrera', 'es-trenc', 'portals-vells', 'sa-dragonera')
+
+
+def check_day_charter_landing(r: Runner) -> None:
+    """EN + DE landing architecture from landingPages/."""
+    sitemap = read_file('sitemap.xml') or ''
+    index = read_file('index.html') or ''
+    de_index = read_file('de/index.html') or ''
+    main_css = read_file('css/main.css') or ''
+    en_day = read_file('day-charter-mallorca/index.html') or ''
+    de_day = read_file('de/day-charter-mallorca/index.html') or ''
+
+    for slug in CORE_LANDINGS:
+        en = read_file(f'{slug}/index.html')
+        de = read_file(f'de/{slug}/index.html')
+        r.check(f'{slug} EN page exists', en is not None)
+        r.check(f'{slug} DE page exists', de is not None)
+        r.check(
+            f'{slug} has no ES or FR copies',
+            read_file(f'es/{slug}/index.html') is None
+            and read_file(f'fr/{slug}/index.html') is None,
+        )
+        if en:
+            r.check(f'{slug} has unique title + h1 + canonical', 
+                    '<title>' in en and '<h1>' in en and 'rel="canonical"' in en)
+            r.check(f'{slug} hreflang is EN+DE+x-default only',
+                    'hreflang="en"' in en and 'hreflang="de"' in en
+                    and 'hreflang="x-default"' in en
+                    and 'hreflang="es"' not in en and 'hreflang="fr"' not in en)
+            r.check(f'{slug} uses inner-page shell',
+                    'class="ly-inner-page"' in en and 'id="hero"' not in en)
+        if de and en:
+            r.check(f'de/{slug} is translated',
+                    '<html lang="de"' in de)
+
+    for slug in PRIORITY_DESTS:
+        r.check(
+            f'destinations/{slug} EN+DE exist',
+            read_file(f'destinations/{slug}/index.html') is not None
+            and read_file(f'de/destinations/{slug}/index.html') is not None,
+        )
+
+    r.check(
+        'EN day-charter title matches publish-ready copy',
+        'Day Charter Mallorca — Full-Day Crewed Yacht from Palma' in en_day,
+    )
+    r.check(
+        'EN day-charter H1 is Day charter in Mallorca',
+        en_day.count('<h1>') == 1 and '<h1>Day charter in Mallorca</h1>' in en_day,
+    )
+    r.check(
+        'Maiora page self-filters the Lürssen name collision',
+        'Lürssen' in (read_file('maiora-yacht-charter/index.html') or ''),
+    )
+    r.check(
+        'Cabrera destination page has TouristAttraction schema',
+        '"@type":"TouristAttraction"' in (read_file('destinations/cabrera/index.html') or '')
+        and 'Cabrera' in (read_file('destinations/cabrera/index.html') or ''),
+    )
+    r.check(
+        'homepage footer links to charter + destinations hubs',
+        'href="yacht-charter-mallorca/">Private charter</a>' in index
+        and 'href="day-charter-mallorca/">Day charter</a>' in index
+        and 'href="destinations/">Destinations</a>' in index,
+    )
+    r.check(
+        'sitemap lists commercial + destination landings',
+        '<loc>https://limitlessyachtcharter.com/yacht-charter-mallorca/</loc>' in sitemap
+        and '<loc>https://limitlessyachtcharter.com/destinations/cabrera/</loc>' in sitemap
+        and '<loc>https://limitlessyachtcharter.com/de/destinations/es-trenc/</loc>' in sitemap,
+    )
+    r.check(
+        'DE day-charter uses Yachtcharter / Tagescharter',
+        'Tagescharter' in de_day and 'lang="de"' in de_day,
+    )
+    r.check(
+        'DE destination assets step up three folders',
+        'href="../../../css/main.css' in (read_file('de/destinations/cabrera/index.html') or ''),
+    )
+    r.check(
+        'main.css defines inner-page + dest-hub layout',
+        'html.ly-inner-page' in main_css and '.ly-dest-list' in main_css and '.ly-crumbs' in main_css,
+    )
+    r.check(
+        'EN homepage title unchanged pending owner approval',
+        '<title>Limitless Yacht Experience – Luxury Maiora Charter in Mallorca</title>' in index,
+    )
+    r.check(
+        'EN homepage lead carries commercial phrase',
+        'Private yacht charter in Mallorca' in index,
+    )
+    r.check(
+        'DE homepage title leads with Yachtcharter / Yacht mieten',
+        'Yachtcharter Mallorca' in de_index and 'Yacht mieten' in de_index,
+    )
+
+    try:
+        sys.path.insert(0, os.path.join(ROOT, 'i18n'))
+        sys.path.insert(0, ROOT)
+        from render_landings import dest_specs, commercial_specs  # noqa: WPS433
+    except Exception as exc:  # noqa: BLE001
+        r.fail('landing renderer importable', str(exc))
+        return
+    expected_map = {s['rel']: s['html'] for s in commercial_specs('de') + dest_specs('de')}
+    sample = 'de/day-charter-mallorca/index.html'
+    got = read_file(sample) or ''
+    expected = expected_map.get(sample, '')
+    if got.count('\n') < 8 and expected:
+        import importlib.util
+
+        minify_path = os.path.join(ROOT, 'scripts', 'minify_html.py')
+        spec = importlib.util.spec_from_file_location('minify_html_landing', minify_path)
+        minify_mod = importlib.util.module_from_spec(spec)
+        assert spec.loader is not None
+        spec.loader.exec_module(minify_mod)
+        expected = minify_mod.minify_html(expected)
+    r.check(
+        'de/day-charter-mallorca matches render_landings output',
+        got == expected,
+        'run: python3 i18n/build-locales.py',
+    )
+
+
 # ── Main ──────────────────────────────────────────────────────────────────────
 
 def main() -> None:
@@ -3930,6 +4077,9 @@ def main() -> None:
 
     print('\n[locale translations]')
     check_locale_translations(r, pages)
+
+    print('\n[day-charter landing]')
+    check_day_charter_landing(r)
 
     print('\n[html integrity]')
     check_html_integrity(r)

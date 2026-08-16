@@ -153,6 +153,35 @@ Do **not** "fix" them without checking here first. Each entry lists what *not* t
   un‑minifying those needs a string‑aware tokenizer; do it with the same proof or not at all.)
 - Locale pages (`de/ es/ fr/`) are generated from `index.html` by `i18n/build-locales.py`. Never
   hand‑edit them. New visible English strings need PAIRS in all three `i18n/locales/*.py`.
+  Landing pages (e.g. `day-charter-mallorca/index.html`) are EN source; DE is generated via
+  `DAY_CHARTER_PAIRS`. **Do not generate ES/FR landing copies** — those locales are not real
+  charter audiences (ES impressions are the 96 m Lürssen name collision; FR is near-zero).
+
+## SEO / extra indexable pages (2026-08-17)
+
+- **Why:** Search Console showed almost all organic as brand/navigational. Four indexable URLs
+  cannot rank for non-brand commercial terms. Real markets are EN (IE/UK/US/NL + on-island) and
+  DE. First extra page: `/day-charter-mallorca/` (+ `/de/day-charter-mallorca/`).
+- **EN homepage `<title>` is unchanged** until the owner approves a more commercial variant
+  (candidate: *Private Yacht Charter Mallorca — Limitless (Crewed Maiora, 12 Guests)*). Commercial
+  intent is in the hero eyebrow + `.hero-sub` ("Private yacht charter in Mallorca") and keywords.
+- **DE homepage title** does lead with *Yachtcharter Mallorca / Tagescharter / Yacht mieten*.
+- **Inner pages skip the cinema hero + inlined net-tier.** They load `layout.css` + `main.css`
+  with relative `../` (or `../../` on locale copies) and use `.ly-inner-page` so the nav is
+  always visible. No LCP image to protect; blocking CSS is acceptable. Do **not** copy the
+  homepage critical-CSS budget onto these pages.
+- **hreflang on landing pages is EN + DE + x-default only** (no `es`/`fr` — those URLs do not
+  exist). Homepage hreflang still lists all four locales.
+- **Copy is draft.** A `.ly-page-draft` note is on the page; owner must finalise before publish
+  to `main`. Do not invent testimonials.
+- **Out of scope:** "yate/barco limitless", chasing `/es/` impressions, ranking the homepage
+  alone for "yacht charter mallorca".
+- **Data-driven landings (2026-08-17):** commercial + destination pages are generated
+  from `landingPages/` (`pages.py`, `pages_de.py`, `destinations.json`) by
+  `i18n/render_landings.py` (called from `build-locales.py`). EN + DE only.
+  Do not hand-edit the generated HTML; edit the data and rebuild.
+- **DO NOT:** publish these pages to `main` without owner sign-off on routes + copy; add thin
+  ES/FR landing stubs; change the EN homepage title without asking.
 
 ---
 
@@ -212,6 +241,10 @@ Do **not** "fix" them without checking here first. Each entry lists what *not* t
   shadow — mirrored in critical CSS; keep both in sync). A guard test asserts no promo remnants.
   For a future campaign, resurrect from git history (`git log --grep=promo`, e.g. ac15354) rather
   than rebuilding from scratch.
+- **Primary CTAs are gold outline + gold type on a transparent navy face** (2026-08-17,
+  owner). Gold fill and solid navy fill were both hard to read. Shared tokens:
+  `--btn-fill: rgba(10,22,40,.55)`, `--btn-on-fill: var(--gold)`, `border: var(--gold)`.
+  No yellow on the button face. Gold still used for nav outline, active tabs, scroll bar.
 - **Reviews Clarity events** (`ly_review_view_<author>`, `ly_review_expand[_<author>]`) — don't touch;
   used to measure reading vs expanding.
 - **Calendar on‑hold dates are selectable for enquiry** (booked/past stay blocked). On‑hold cells are

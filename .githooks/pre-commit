@@ -37,7 +37,7 @@ CHANGED=$(git diff --cached --name-only)
 # a "Publish:" commit merged into the lineage left develop minified for weeks).
 # Minified = almost no newlines. Block the commit before the damage spreads.
 if [ "$BRANCH" != "main" ]; then
-  for f in index.html legal.html css/main.css css/layout.css; do
+  for f in index.html legal.html css/main.css css/layout.css day-charter-mallorca/index.html; do
     if printf '%s\n' "$CHANGED" | grep -qx "$f"; then
       LINES=$(git show ":$f" 2>/dev/null | wc -l)
       if [ "$LINES" -lt 50 ]; then
@@ -51,7 +51,7 @@ if [ "$BRANCH" != "main" ]; then
 fi
 
 LOCALE_REBUILD=0
-if printf '%s\n' "$CHANGED" | grep -qE '^(index\.html|legal\.html|data/reviews\.json|i18n/locales/[^/]+\.py|i18n/build-locales\.py)$'; then
+if printf '%s\n' "$CHANGED" | grep -qE '^(index\.html|legal\.html|data/reviews\.json|i18n/locales/[^/]+\.py|i18n/build-locales\.py|i18n/render_landings\.py|landingPages/)'; then
   LOCALE_REBUILD=1
 fi
 
@@ -61,7 +61,7 @@ if printf '%s\n' "$CHANGED" | grep -qE '^css/layout\.css$'; then
     echo "[pre-commit] ERROR: layout.css cache bump failed — aborting commit." >&2
     exit 1
   fi
-  git add index.html
+  git add index.html day-charter-mallorca/index.html 2>/dev/null || git add index.html
   LOCALE_REBUILD=1
 fi
 
@@ -71,7 +71,7 @@ if printf '%s\n' "$CHANGED" | grep -qE '^css/main\.css$'; then
     echo "[pre-commit] ERROR: main.css cache bump failed — aborting commit." >&2
     exit 1
   fi
-  git add index.html
+  git add index.html day-charter-mallorca/index.html 2>/dev/null || git add index.html
   LOCALE_REBUILD=1
 fi
 
@@ -96,8 +96,15 @@ if [ "$BRANCH" != "main" ]; then
       exit 1
     fi
     git add de/index.html de/legal.html es/index.html es/legal.html fr/index.html fr/legal.html \
-            data/reviews-de.json data/reviews-es.json data/reviews-fr.json
-    echo "[pre-commit] Locales + review JSON rebuilt and staged (no minification on non-main branch)."
+            data/reviews-de.json data/reviews-es.json data/reviews-fr.json sitemap.xml
+    git add day-charter-mallorca yacht-charter-mallorca sunset-charter-mallorca \
+            multi-day-charter-balearics maiora-yacht-charter yacht-charter-palma-club-de-mar \
+            yacht-charter-mallorca-prices what-is-included best-time-yacht-charter-mallorca \
+            destinations de/day-charter-mallorca de/yacht-charter-mallorca de/sunset-charter-mallorca \
+            de/multi-day-charter-balearics de/maiora-yacht-charter de/yacht-charter-palma-club-de-mar \
+            de/yacht-charter-mallorca-prices de/what-is-included de/best-time-yacht-charter-mallorca \
+            de/destinations 2>/dev/null || true
+    echo "[pre-commit] Locales + landing pages + review JSON rebuilt and staged (no minification on non-main branch)."
   fi
   exit 0
 fi
@@ -132,7 +139,14 @@ if [ "$LOCALE_REBUILD" -eq 1 ]; then
     exit 1
   fi
   git add de/index.html de/legal.html es/index.html es/legal.html fr/index.html fr/legal.html \
-          data/reviews-de.json data/reviews-es.json data/reviews-fr.json
+          data/reviews-de.json data/reviews-es.json data/reviews-fr.json sitemap.xml
+  git add day-charter-mallorca yacht-charter-mallorca sunset-charter-mallorca \
+          multi-day-charter-balearics maiora-yacht-charter yacht-charter-palma-club-de-mar \
+          yacht-charter-mallorca-prices what-is-included best-time-yacht-charter-mallorca \
+          destinations de/destinations de/day-charter-mallorca de/yacht-charter-mallorca \
+          de/sunset-charter-mallorca de/multi-day-charter-balearics de/maiora-yacht-charter \
+          de/yacht-charter-palma-club-de-mar de/yacht-charter-mallorca-prices de/what-is-included \
+          de/best-time-yacht-charter-mallorca 2>/dev/null || true
 fi
 
 echo "[pre-commit] Minifying CSS + HTML + js/ for production..."
@@ -151,7 +165,14 @@ fi
 
 git add index.html legal.html css/layout.css css/main.css js/*.js \
         de/index.html de/legal.html es/index.html es/legal.html fr/index.html fr/legal.html \
-        data/reviews-de.json data/reviews-es.json data/reviews-fr.json
+        data/reviews-de.json data/reviews-es.json data/reviews-fr.json sitemap.xml \
+        day-charter-mallorca yacht-charter-mallorca sunset-charter-mallorca \
+        multi-day-charter-balearics maiora-yacht-charter yacht-charter-palma-club-de-mar \
+        yacht-charter-mallorca-prices what-is-included best-time-yacht-charter-mallorca \
+        destinations de/destinations de/day-charter-mallorca de/yacht-charter-mallorca \
+        de/sunset-charter-mallorca de/multi-day-charter-balearics de/maiora-yacht-charter \
+        de/yacht-charter-palma-club-de-mar de/yacht-charter-mallorca-prices de/what-is-included \
+        de/best-time-yacht-charter-mallorca
 echo "[pre-commit] Minified + staged for main."
 
 exit 0

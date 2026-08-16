@@ -18,6 +18,17 @@ TARGETS = [
     'es/index.html', 'es/legal.html',
 ]
 
+
+def _landing_targets():
+    import sys
+    sys.path.insert(0, os.path.join(ROOT, 'i18n'))
+    sys.path.insert(0, ROOT)
+    try:
+        from render_landings import landing_relpaths
+        return landing_relpaths()
+    except Exception:
+        return []
+
 JS_DIR = 'js'
 
 
@@ -123,7 +134,7 @@ def main():
         pct = (before - after) / before * 100
         print(f'  {css_rel}: {before:,} → {after:,} B  ({pct:.0f}% saved)')
 
-    for rel in TARGETS:
+    for rel in TARGETS + _landing_targets():
         path = os.path.join(ROOT, rel)
         if not os.path.exists(path):
             print(f'  skip  {rel}')

@@ -23,15 +23,15 @@ PAIRS = [
     # Meta & SEO
     (
         "Limitless Yacht Experience – Luxury Maiora Charter in Mallorca",
-        "Limitless Yacht Experience – Luxus-Maiora-Charter auf Mallorca",
+        "Yachtcharter Mallorca – Limitless | Tagescharter &amp; Yacht mieten (Maiora, 12 Gäste)",
     ),
     (
         "Charter the 21.5 m Maiora motor yacht 'Limitless' from Club de Mar, Palma de Mallorca. Comfortable cruising, an exceptional crew and Mallorca's most beautiful coves — up to 12 guests by day, 7 overnight.",
         "Chartern Sie die 21,5 m Maiora-Motoryacht „Limitless“ ab Club de Mar, Palma de Mallorca. Entspanntes Cruisen, eine außergewöhnliche Crew und Mallorcas schönste Buchten — bis zu 12 Gäste tagsüber, 7 über Nacht.",
     ),
     (
-        "yacht charter Mallorca, Maiora yacht, Limitless yacht, Palma de Mallorca boat charter, luxury yacht Mediterranean, Club de Mar charter",
-        "Yachtcharter Mallorca, Maiora Yacht, Limitless Yacht, Bootcharter Palma de Mallorca, Luxusyacht Mittelmeer, Club de Mar Charter",
+        "private yacht charter Mallorca, day charter Mallorca, crewed yacht charter Mallorca, luxury boat charter Palma, Maiora yacht charter Mallorca, Club de Mar charter, yacht charter Cabrera",
+        "Yachtcharter Mallorca, Yacht mieten Mallorca, Luxus Yachtcharter Mallorca, Tagescharter Mallorca, Bootscharter Palma, Maiora Charter Mallorca, Club de Mar",
     ),
     ('<link rel="canonical" href="https://limitlessyachtcharter.com/" />', '<link rel="canonical" href="https://limitlessyachtcharter.com/de/" />'),
     ('<meta property="og:locale" content="en_GB" />', '<meta property="og:locale" content="de_DE" />'),
@@ -101,7 +101,7 @@ PAIRS = [
     (">Scroll</span>", ">Scrollen</span>"),
     ("Rates & Booking", "Preise & Buchung"),
     ("Explore Gallery", "Galerie entdecken"),
-    ("Exclusive Maiora Yacht · 21.5 m · Up to 12 Guests Day · 7 Overnight", "Exklusive Maiora-Yacht · 21,5 m · Bis zu 12 Gäste tagsüber · 7 über Nacht"),
+    ("Private yacht charter in Mallorca · Crewed Maiora 21.5 m · 12 guests day · 7 overnight", "Yachtcharter Mallorca · Maiora 21,5 m mit Crew · 12 Gäste tagsüber · 7 über Nacht"),
     (
         'Half-day (4h) from €1,700 · 6h from €2,400 · full day from €3,000',
         'Halbtages-Charter (4h) ab 1.700 € · 6h ab 2.400 € · Ganztag ab 3.000 €',
@@ -346,6 +346,9 @@ PAIRS = [
     ),
     # Footer
     ("Legal Notice & Privacy", "Impressum & Datenschutz"),
+    ('<a href="yacht-charter-mallorca/">Private charter</a>', '<a href="yacht-charter-mallorca/">Privater Charter</a>'),
+    ('<a href="day-charter-mallorca/">Day charter</a>', '<a href="day-charter-mallorca/">Tagescharter</a>'),
+    ('<a href="destinations/">Destinations</a>', '<a href="destinations/">Reiseziele</a>'),
     ("Cookie Settings", "Cookie-Einstellungen"),
     ("All Rights Reserved.", "Alle Rechte vorbehalten."),
     # Form JS
@@ -876,8 +879,8 @@ PAIRS = [
     ('Multi-day &amp; overnight charters available — priced per day. Stay as many days as you like.', 'Mehrtägige Charter und Übernachtungstörns möglich — Preis pro Tag. Bleiben Sie so viele Tage, wie Sie möchten.'),
     # --- 2026 content refresh (auto-added) ---
     (
-        'Private Charter',
-        'Privatcharter',
+        'Private yacht charter',
+        'Privater Yachtcharter',
     ),
     (
         'Your crew handles everything — you focus on the people and&nbsp;the views.',
@@ -1090,7 +1093,7 @@ PAIRS = [
     # Charters section — duration cards
     ('class="section-label reveal">Charters<', 'class="section-label reveal">Charter<'),
     ('Charter Your<em> Way</em>', 'Ihr Charter<em> nach Wunsch</em>'),
-    ("The figures above are a guide — a short message to the captain and crew is what really helps. Share your dates, group size and what you're aiming for; you'll get a personal reply with route options, realistic fuel and mooring estimates, and a clear picture of what's included vs APA on multi-day — everything upfront, nothing held back.", "Die Preise oben sind ein Ausgangspunkt — am meisten hilft eine kurze Nachricht an Kapitän und Crew. Teilen Sie uns Termine, Gruppengröße und Wünsche mit; Sie erhalten eine persönliche Antwort mit Routenoptionen, realistischen Kraftstoff- und Liegeplatzkosten und einem klaren Bild, was inklusive ist und was bei mehrtägigen Törns über die APA läuft — alles offen und ehrlich, ohne versteckte Überraschungen."),
+    ("The figures above are a guide — a short message to the captain and crew is what really helps. Share your dates, group size and what you're aiming for; you'll get a personal reply with route options, realistic fuel and mooring estimates, and a clear picture of what's included vs APA on multi-day — everything upfront, nothing held back. Looking for a <a href=\"day-charter-mallorca/\">private day charter in Mallorca</a>? Half-day and full-day from Club de Mar.", "Die Preise oben sind ein Ausgangspunkt — am meisten hilft eine kurze Nachricht an Kapitän und Crew. Teilen Sie uns Termine, Gruppengröße und Wünsche mit; Sie erhalten eine persönliche Antwort mit Routenoptionen, realistischen Kraftstoff- und Liegeplatzkosten und einem klaren Bild, was inklusive ist und was bei mehrtägigen Törns über die APA läuft — alles offen und ehrlich, ohne versteckte Überraschungen. Sie suchen einen <a href=\"day-charter-mallorca/\">Tagescharter auf Mallorca</a>? Halb- und Ganztag ab Club de Mar."),
     ('4 – 6 Hours', '4 – 6 Stunden'),
     ('8 – 10 Hours', '8 – 10 Stunden'),
     ('2 – 3 Days', '2 – 3 Tage'),
@@ -1408,4 +1411,99 @@ LEGAL_PAIRS = [
     ),
     (">Home</a>", ">Startseite</a>"),
     ('href="#privacy-policy">Privacy Policy</a>', 'href="#privacy-policy">Datenschutzerklärung</a>'),
+]
+
+DAY_CHARTER_PAIRS = [
+    (
+        "Private Day Charter Mallorca — Crewed Maiora from Palma",
+        "Tagescharter Mallorca — Maiora mit Crew ab Palma",
+    ),
+    (
+        "Private day charter in Mallorca on the crewed 21.5 m Maiora Limitless. Half-day from €1,700 and full day from €3,000, departing Club de Mar, Palma. Up to 12 guests. Draft copy — owner to finalise.",
+        "Privater Tagescharter auf Mallorca auf der Maiora Limitless (21,5 m) mit Crew. Halbtag ab 1.700 €, Ganztag ab 3.000 €, Abfahrt Club de Mar, Palma. Bis 12 Gäste. Entwurf — Inhaber prüft den Text.",
+    ),
+    (
+        '<link rel="canonical" href="https://limitlessyachtcharter.com/day-charter-mallorca/" />',
+        '<link rel="canonical" href="https://limitlessyachtcharter.com/de/day-charter-mallorca/" />',
+    ),
+    (
+        '<meta property="og:url" content="https://limitlessyachtcharter.com/day-charter-mallorca/" />',
+        '<meta property="og:url" content="https://limitlessyachtcharter.com/de/day-charter-mallorca/" />',
+    ),
+    ('<meta property="og:locale" content="en_GB" />', '<meta property="og:locale" content="de_DE" />'),
+    (
+        "Half-day and full-day private yacht charter from Club de Mar, Palma. Crew and VAT included. Up to 12 guests.",
+        "Halb- und Ganztages-Yachtcharter ab Club de Mar, Palma. Crew und MwSt. inklusive. Bis 12 Gäste.",
+    ),
+    ("Day charter · Palma · Club de Mar", "Tagescharter · Palma · Club de Mar"),
+    (
+        "Private yacht charter in Mallorca — a crewed day on the water",
+        "Yachtcharter Mallorca — ein Tag auf dem Wasser mit Crew",
+    ),
+    (
+        "A private day charter from Palma: you, your people, and a 21.5&nbsp;m Maiora with captain and crew. Half-day or full day. No other guests. Draft copy for owner review.",
+        "Ein privater Tagescharter ab Palma: Sie, Ihre Gäste und eine 21,5&nbsp;m Maiora mit Kapitän und Crew. Halb- oder Ganztag. Keine fremden Gäste. Entwurf zur Prüfung.",
+    ),
+    ("Check available dates", "Verfügbare Termine prüfen"),
+    ("WhatsApp the crew", "Crew per WhatsApp schreiben"),
+    ("Call +34 643 678 072", "Anrufen +34 643 678 072"),
+    (
+        "Captain and crew usually reply within the hour, and always within 24 hours. Crew and VAT included. Gratuity is never expected.",
+        "Kapitän und Crew antworten meist innerhalb einer Stunde, immer innerhalb von 24 Stunden. Crew und MwSt. inklusive. Trinkgeld wird nicht erwartet.",
+    ),
+    ("What a day charter actually is", "Was ein Tagescharter wirklich ist"),
+    (
+        "A day charter on Limitless is a private hire of the yacht for 4, 6 or 8–10 hours. You leave from Club de Mar in Palma. The crew handle the boat, the route and the rhythm of the day. You decide whether you want swim stops, a long lunch at anchor, or a run down the coast.",
+        "Ein Tagescharter auf der Limitless ist die private Anmietung der Yacht für 4, 6 oder 8–10 Stunden. Start ist Club de Mar in Palma. Die Crew führt das Boot, die Route und den Rhythmus. Sie entscheiden: Schwimmstops, langes Mittagessen vor Anker oder eine Fahrt die Küste entlang.",
+    ),
+    (
+        "This is a crewed yacht charter, not a bareboat. Luigi is on the helm; Laura looks after the deck and the guests. The boat takes up to 12 guests by day. Prices are in euros and include crew and VAT. Fuel and extras such as a beach-club lunch are discussed up front — nothing tucked away.",
+        "Das ist ein Yachtcharter mit Crew, kein Bareboat. Luigi steht am Steuer; Laura kümmert sich um Deck und Gäste. Tagsüber bis 12 Gäste. Preise in Euro, Crew und MwSt. inklusive. Kraftstoff und Extras wie ein Beach-Club-Mittagessen werden vorher besprochen — nichts Verstecktes.",
+    ),
+    ("Half-day or full day from Palma", "Halbtag oder Ganztag ab Palma"),
+    (
+        "Half-day (4 hours) from €1,700 in low season and €2,200 in high season (July–August). Six hours from €2,400 / €3,100. A full day from €3,000 / €4,000. Those figures are a guide. Message the captain and crew with dates and group size and they will send a clear picture of the day, including realistic fuel if you want to go further.",
+        "Halbtag (4 Stunden) ab 1.700 € in der Nebensaison und 2.200 € in der Hochsaison (Juli–August). Sechs Stunden ab 2.400 € / 3.100 €. Ganztag ab 3.000 € / 4.000 €. Das sind Richtwerte. Schreiben Sie Kapitän und Crew mit Terminen und Gruppengröße — Sie bekommen ein klares Bild des Tages, inklusive realistischer Kraftstoffkosten, wenn Sie weiter wollen.",
+    ),
+    (
+        "Typical half-days stay close: Portals Vells, the Malgrats, El Toro. A full day opens Cabrera National Park, Es Trenc, or a longer run along the southwest coast. Formentera is a longer day and needs an early start — ask before you assume it.",
+        "Typische Halbtage bleiben in der Nähe: Portals Vells, die Malgrats, El Toro. Ein Ganztag öffnet den Cabrera-Nationalpark, Es Trenc oder eine längere Strecke an der Südwestküste. Formentera ist ein langer Tag und braucht einen frühen Start — vorher fragen.",
+    ),
+    ("Who it is for", "Für wen das passt"),
+    (
+        "Families, friends, a birthday, or a last-minute day when you are already on the island. Many guests write from a hotel in Palma or the southwest and want a boat for tomorrow or later this week. Check the live calendar, then send a short WhatsApp. If a date is on hold, you can still enquire — the crew will say so honestly.",
+        "Familien, Freunde, ein Geburtstag oder ein spontaner Tag, wenn Sie schon auf der Insel sind. Viele Gäste schreiben aus einem Hotel in Palma oder im Südwesten und wollen ein Boot für morgen oder diese Woche. Kalender prüfen, dann kurz WhatsApp. Ist ein Tag vorläufig belegt, können Sie trotzdem anfragen — die Crew sagt das ehrlich.",
+    ),
+    ("The yacht", "Die Yacht"),
+    (
+        "Limitless is a Maiora 21.5&nbsp;m motor yacht based at Club de Mar. Sun deck, swim platform, tender, Seabob, paddleboard and snorkel kit. You will not confuse her with the 96&nbsp;m Lürssen also named Limitless that sometimes berths in the same marina. This page is the charter yacht — 12 guests, two crew, day and multi-day.",
+        "Limitless ist eine Maiora 21,5&nbsp;m Motoryacht im Club de Mar. Sonnendeck, Badeplattform, Tender, Seabob, SUP und Schnorchelausrüstung. Nicht zu verwechseln mit der 96&nbsp;m Lürssen gleichen Namens, die manchmal in derselben Marina liegt. Diese Seite ist die Charter-Yacht — 12 Gäste, zwei Crew, Tag und Mehrtage.",
+    ),
+    (
+        'Read more about <a href="../#gallery">the yacht</a> and <a href="../#itinerary">destinations</a> on the main site, or go straight to <a href="../#avail-cal">available dates</a>.',
+        'Mehr über <a href="../#gallery">die Yacht</a> und <a href="../#itinerary">Reiseziele</a> auf der Hauptseite, oder direkt zu den <a href="../#avail-cal">freien Terminen</a>.',
+    ),
+    ("See the calendar", "Kalender ansehen"),
+    ("Charter rates", "Charterpreise"),
+    (
+        "Copy on this page is a scaffold from published site facts. Owner to finalise before treating it as signed-off marketing.",
+        "Der Text auf dieser Seite ist ein Gerüst aus veröffentlichten Fakten. Der Inhaber prüft ihn, bevor er als freigegebene Werbung gilt.",
+    ),
+    (">Home</a>", ">Startseite</a>"),
+    (">Dates</a>", ">Termine</a>"),
+    (">Legal</a>", ">Rechtliches</a>"),
+    (
+        '"url":"https://limitlessyachtcharter.com/day-charter-mallorca/"',
+        '"url":"https://limitlessyachtcharter.com/de/day-charter-mallorca/"',
+    ),
+    (
+        '"name":"Private day charter Mallorca — Maiora Limitless"',
+        '"name":"Tagescharter Mallorca — Maiora Limitless"',
+    ),
+    ('"serviceType":"Yacht charter"', '"serviceType":"Yachtcharter"'),
+    (">Check dates</a>", ">Termine prüfen</a>"),
+    (
+        "Hi%2C%20I%27d%20like%20to%20enquire%20about%20a%20day%20charter%20on%20Limitless.",
+        "Hallo%2C%20ich%20interessiere%20mich%20f%C3%BCr%20einen%20Tagescharter%20auf%20der%20Limitless.",
+    ),
 ]
