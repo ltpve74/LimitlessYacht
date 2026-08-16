@@ -102,6 +102,172 @@ function ymdTouchesDay(todayYmd, start, end) {
 }
 
 /**
+ * Parse "HH:MM" or "H:MM" (optional seconds) → minutes from midnight, or null.
+ * @param {string} hm
+ * @returns {number|null}
+ */
+function parseClockMinutes(hm) {
+  var m = String(hm || "")
+    .trim()
+    .match(/^(\d{1,2}):(\d{2})(?::\d{2})?/);
+  if (!m) return null;
+  var h = parseInt(m[1], 10);
+  var min = parseInt(m[2], 10);
+  if (!isFinite(h) || !isFinite(min) || h < 0 || h > 23 || min < 0 || min > 59) return null;
+  return h * 60 + min;
+}
+
+/**
+ * Local wall-clock ms for charter end on ymd.
+ * With endTime → that clock; without → end of that calendar day (23:59:59.999).
+ * @param {string} ymd YYYY-MM-DD
+ * @param {string} [endTime] HH:MM
+ * @returns {number|null}
+ */
+function charterEndLocalMs(ymd, endTime) {
+  var d = String(ymd || "").trim().slice(0, 10);
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(d)) return null;
+  var p = d.split("-");
+  var y = parseInt(p[0], 10);
+  var mo = parseInt(p[1], 10) - 1;
+  var day = parseInt(p[2], 10);
+  if (!isFinite(y) || !isFinite(mo) || !isFinite(day)) return null;
+  var mins = parseClockMinutes(endTime);
+  if (mins == null) return new Date(y, mo, day, 23, 59, 59, 999).getTime();
+  var h = Math.floor(mins / 60);
+  var m = mins % 60;
+  return new Date(y, mo, day, h, m, 0, 0).getTime();
+}
+
+/**
+ * True when now is strictly after the charter end (local).
+ * Multi-day: pass end date as `end` (or same as `date`).
+ * No endTime → end-of-day on that date counts as the deadline.
+ *
+ * @param {{
+ *   date?: string,
+ *   end?: string,
+ *   endTime?: string,
+ *   nowMs?: number
+ * }} opts
+ * @returns {boolean}
+ */
+function isPastCharterEnd(opts) {
+  opts = opts || {};
+  var endYmd = String(opts.end || opts.date || "")
+    .trim()
+    .slice(0, 10);
+  var endMs = charterEndLocalMs(endYmd, opts.endTime);
+  if (endMs == null) return false;
+  var now = opts.nowMs != null ? Number(opts.nowMs) : Date.now();
+  if (!isFinite(now)) now = Date.now();
+  return now > endMs;
+}
+
+/**
+ * Soft name key for matching charge.client ↔ lead.name (accent-fold + lower).
+ * @param {string} s
+ * @returns {string}
+ */
+function softNameKey(s) {
+  return String(s || "")
+    .trim()
+    .toLowerCase()
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "")
+    .replace(/['’]/g, "")
+    .replace(/\s+/g, " ");
+}
+
+/**
+ * Resolve charter end date + clock for an unpaid-due check on a charge.
+ * Prefers linked lead (id / name+date), else charge.date (+ charge.endTime).
+ *
+ * @param {object} c charge
+ * @param {{ leads?: Array }} [opts]
+ * @returns {{ date: string, end: string, endTime: string, leadId: string }}
+ */
+function chargeCharterEndContext(c, opts) {
+  opts = opts || {};
+  var date = String((c && c.date) || "").slice(0, 10);
+  var end = date;
+  var endTime = String((c && (c.endTime || c.charterEndTime)) || "").trim();
+  var leadId = String((c && (c.leadId || c.fromLeadId)) || "").trim();
+  var leads = Array.isArray(opts.leads) ? opts.leads : [];
+  var lead = null;
+  if (leadId) {
+    for (var i = 0; i < leads.length; i++) {
+      if (leads[i] && String(leads[i].id) === leadId) {
+        lead = leads[i];
+        break;
+      }
+    }
+  }
+  if (!lead && date) {
+    var ck = softNameKey(c && (c.client || c.guest || ""));
+    if (ck) {
+      for (var j = 0; j < leads.length; j++) {
+        var L = leads[j];
+        if (!L) continue;
+        var ls = String(L.start || L.cdate || "").slice(0, 10);
+        var le = String(L.end || L.start || L.cdate || "").slice(0, 10);
+        if (!ls) continue;
+        if (!le) le = ls;
+        if (date < ls || date > le) continue;
+        if (softNameKey(L.name || L.icsGuestName || "") === ck) {
+          lead = L;
+          break;
+        }
+      }
+    }
+  }
+  if (lead) {
+    leadId = String(lead.id || leadId || "");
+    var lEnd = String(lead.end || lead.start || lead.cdate || "").slice(0, 10);
+    if (lEnd) end = lEnd;
+    if (!date) date = String(lead.start || lead.cdate || end).slice(0, 10);
+    var letm = String(lead.endTime || "").trim();
+    if (letm) endTime = letm;
+  }
+  if (!end) end = date;
+  return { date: date, end: end, endTime: endTime, leadId: leadId };
+}
+
+/**
+ * Unpaid charge and now is after linked charter end (collect cash / settle).
+ * Paid → always false. No date → false.
+ *
+ * @param {object} c charge
+ * @param {{
+ *   leads?: Array,
+ *   nowMs?: number,
+ *   isPaid?: function
+ * }} [opts]
+ * @returns {boolean}
+ */
+function chargeIsUnpaidDue(c, opts) {
+  opts = opts || {};
+  if (!c) return false;
+  var paid = false;
+  if (typeof opts.isPaid === "function") {
+    paid = !!opts.isPaid(c);
+  } else {
+    paid =
+      String(c.payStatus || c.status || "").toLowerCase() === "paid" ||
+      c.paid === true;
+  }
+  if (paid) return false;
+  var ctx = chargeCharterEndContext(c, { leads: opts.leads });
+  if (!ctx.end && !ctx.date) return false;
+  return isPastCharterEnd({
+    date: ctx.date,
+    end: ctx.end,
+    endTime: ctx.endTime,
+    nowMs: opts.nowMs,
+  });
+}
+
+/**
  * Ops “today” board — pure grouping for the captain day view.
  * Caller supplies plain rows (already denormalised APA start/end if needed).
  *
@@ -167,6 +333,7 @@ function collectTodayOpsBoard(opts) {
   });
 
   var charges = [];
+  var nowMs = opts.nowMs != null ? Number(opts.nowMs) : Date.now();
   (Array.isArray(opts.charges) ? opts.charges : []).forEach(function (c) {
     if (!c || !c.id) return;
     var d = String(c.date || "").slice(0, 10);
@@ -174,13 +341,23 @@ function collectTodayOpsBoard(opts) {
     var paid =
       String(c.payStatus || c.status || "").toLowerCase() === "paid" ||
       c.paid === true;
+    var ctx = chargeCharterEndContext(c, { leads: opts.leads });
+    var unpaidDue =
+      !paid &&
+      chargeIsUnpaidDue(c, {
+        leads: opts.leads,
+        nowMs: nowMs,
+      });
     charges.push({
       kind: "charge",
       id: String(c.id),
       title: String(c.client || c.guest || "Charge").trim() || "Charge",
       start: d,
-      end: d,
-      status: paid ? "paid" : "pending",
+      end: ctx.end || d,
+      startTime: String(c.startTime || "").trim(),
+      endTime: ctx.endTime || "",
+      status: paid ? "paid" : unpaidDue ? "unpaid-due" : "pending",
+      unpaidDue: !!unpaidDue,
       subtitle:
         c.kind === "apa" || c.apaTripId
           ? "APA shortfall"
@@ -299,6 +476,12 @@ function collectTodayOpsBoard(opts) {
     moneyFromBase: moneyFromBase,
     invoiceSplitGross: invoiceSplitGross,
     ymdTouchesDay: ymdTouchesDay,
+    parseClockMinutes: parseClockMinutes,
+    charterEndLocalMs: charterEndLocalMs,
+    isPastCharterEnd: isPastCharterEnd,
+    softNameKey: softNameKey,
+    chargeCharterEndContext: chargeCharterEndContext,
+    chargeIsUnpaidDue: chargeIsUnpaidDue,
     collectTodayOpsBoard: collectTodayOpsBoard,
   };
 });

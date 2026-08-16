@@ -931,8 +931,16 @@
   .item.apa-row.apa-unpaid .title{color:#6b4500}
   .item.apa-row.apa-unpaid .amt{color:#b45309}
   .item.ch-unpaid{
-    border:1.5px solid #ffcc80;background:linear-gradient(180deg,#fffaf0 0%,#fff 60%);
+    border:1.5px solid #E0A800;background:linear-gradient(180deg,#FFF8E1 0%,#fff 55%);
+    box-shadow:0 2px 10px rgba(224,168,0,.16);
   }
+  .item.ch-unpaid .title{color:#6b4500}
+  .item.ch-unpaid .amt{color:#b45309}
+  .item.ld-lead-card.ld-charge-unpaid{
+    border:1.5px solid #E0A800;background:linear-gradient(180deg,#FFF8E1 0%,#fff 55%);
+    box-shadow:0 2px 10px rgba(224,168,0,.14);
+  }
+  .ops-today .item.ch-unpaid{cursor:pointer}
   .item.ch-yday{
     border-left:4px solid #42a5f5;
   }
@@ -2521,7 +2529,9 @@ function opsTodayStatusPill(row){
   if(s==="tentative") return '<span class="pill p-amber">On hold</span>';
   if(s==="confirmed") return '<span class="pill p-green">Confirmed</span>';
   if(s==="paid") return '<span class="pill p-green">Paid</span>';
-  if(s==="pending") return '<span class="pill p-amber">Pending</span>';
+  /* After charter end + still unpaid — gold “Unpaid” (collect now) */
+  if(s==="unpaid-due"||s==="unpaid_due"||(row&&row.unpaidDue)) return '<span class="pill p-amber">Unpaid</span>';
+  if(s==="pending") return '<span class="pill p-grey">Pending</span>';
   if(s==="none"||s==="no_stew"||s==="no-stew") return '<span class="pill p-grey">No stew needed</span>';
   if(s==="unassigned") return '<span class="pill p-amber">Unassigned</span>';
   if(s==="assigned") return '<span class="pill p-green">Crew set</span>';
@@ -2610,7 +2620,9 @@ function renderOpsToday(){
           ?'<span class="pill p-apa">APA ×'+row.apaCount+'</span>'
           :'<span class="pill p-apa">APA</span>';
       }
-      h+='<div class="item" '+openAttr+' role="button" tabindex="0">'+
+      /* Gold border only once charter end has passed and charge still unpaid */
+      var unpaidDueCls=(row.kind==="charge"&&(row.unpaidDue||row.status==="unpaid-due"))?" ch-unpaid":"";
+      h+='<div class="item'+unpaidDueCls+'" '+openAttr+' role="button" tabindex="0">'+
         '<div class="top">'+
           '<div class="title">'+esc(row.title||"—")+'</div>'+
           '<div class="ops-today-right">'+
@@ -3452,6 +3464,58 @@ function chargePay(r){
   if(r.status==="Invoiced"||r.status==="Paid") return "Paid";
   return r.status||"Paid";
 }
+/**
+ * Unpaid charge after the linked charter’s end clock (or end of charge day).
+ * Before end → still “pending”; after end → highlight as unpaid-due.
+ * Paid always false.
+ */
+function chargeIsUnpaidDueNow(r, nowMs){
+  if(!r||chargePay(r)==="Paid") return false;
+  if(LY_MODELS&&typeof LY_MODELS.chargeIsUnpaidDue==="function"){
+    return !!LY_MODELS.chargeIsUnpaidDue(r, {
+      leads:state.leads||[],
+      nowMs:nowMs!=null?nowMs:Date.now(),
+      isPaid:function(c){ return chargePay(c)==="Paid"; }
+    });
+  }
+  /* Fallback: end of charge.date local */
+  var d=String(r.date||"").slice(0,10);
+  if(!/^\d{4}-\d{2}-\d{2}$/.test(d)) return false;
+  var p=d.split("-");
+  var end=new Date(+p[0], +p[1]-1, +p[2], 23, 59, 59, 999).getTime();
+  return (nowMs!=null?Number(nowMs):Date.now())>end;
+}
+/** Unpaid charges for a lead that are past charter end (collect now). */
+function unpaidDueChargesForLead(lead, nowMs){
+  if(!lead||!lead.id) return [];
+  var out=[];
+  var lid=String(lead.id);
+  var nameKey=typeof normName==="function"?normName(lead.name):String(lead.name||"").toLowerCase();
+  var ls=String(lead.start||lead.cdate||"").slice(0,10);
+  var le=String(lead.end||lead.start||lead.cdate||"").slice(0,10);
+  if(!le) le=ls;
+  var potIds={};
+  try{
+    (typeof findApaTripsForLead==="function"?findApaTripsForLead(lead):[]).forEach(function(t){
+      if(t&&t.id) potIds[String(t.id)]=true;
+    });
+  }catch(eP){}
+  (state.charters||[]).forEach(function(c){
+    if(!c||!c.id) return;
+    if(chargePay(c)==="Paid") return;
+    var linked=false;
+    if(String(c.leadId||c.fromLeadId||"")===lid) linked=true;
+    if(!linked&&c.apaTripId&&potIds[String(c.apaTripId)]) linked=true;
+    if(!linked&&nameKey){
+      var cd=String(c.date||"").slice(0,10);
+      var ck=typeof normName==="function"?normName(c.client||c.guest||""):String(c.client||"").toLowerCase();
+      if(ck&&ck===nameKey&&cd&&ls&&cd>=ls&&cd<=le) linked=true;
+    }
+    if(!linked) return;
+    if(chargeIsUnpaidDueNow(c, nowMs)) out.push(c);
+  });
+  return out;
+}
 function chargeInv(r){
   if(r&&(r.invStatus==="Not needed"||r.invStatus==="N/A")) return "Not needed";
   if(r&&!chargeNeedsInvoice(r)) return "Not needed";
@@ -3751,7 +3815,9 @@ function renderCharters(){
       ?'<span class="pill p-cash">Cash</span>'
       :(bt==="mix"?'<span class="pill p-amber">Mix</span>':'<span class="pill p-card">Invoice</span>');
     var d=String(r.date||"").slice(0,10);
-    var cls="item"+(pay!=="Paid"?" ch-unpaid":"")+(d===yday?" ch-yday":"");
+    /* Gold highlight only after charter end (still unpaid). Before end = quiet Pending. */
+    var unpaidDue=pay!=="Paid"&&chargeIsUnpaidDueNow(r);
+    var cls="item"+(unpaidDue?" ch-unpaid":"")+(d===yday?" ch-yday":"");
     html+='<div class="'+cls+'" data-edit-ch="'+esc(r.id)+'">'+
       '<div class="top"><div class="title">'+esc(r.client||"—")+'</div><div class="amt money">'+money0(r.amount)+'</div></div>'+
       '<div class="meta">'+
@@ -3759,7 +3825,11 @@ function renderCharters(){
         (d===yday?'<span class="pill p-blue">Yesterday</span>':'')+
         (d===today?'<span class="pill p-green">Today</span>':'')+
         kindPill+settlePill+
-        (pay==="Paid"?'<span class="pill p-green">Paid</span>':'<span class="pill p-amber">Not paid</span>')+
+        (pay==="Paid"
+          ?'<span class="pill p-green">Paid</span>'
+          :(unpaidDue
+            ?'<span class="pill p-amber">Unpaid</span>'
+            :'<span class="pill p-grey">Not paid yet</span>'))+
       '</div>'+
       chargeMoneySummaryHTML(r)+
       (r.notes?'<div class="notes">'+esc(r.notes)+'</div>':'')+
@@ -5740,10 +5810,17 @@ function renderLeads(){
     }
     if(r.closed) rateBits.push("closed "+esc(fmtDate(r.closed)));
     var calKey=leadCalendarEventKey(r);
+    /* Unpaid charges past charter end — same rule as Today / Charges gold highlight */
+    var dueCh=[];
+    try{ dueCh=unpaidDueChargesForLead(r); }catch(eDue){ dueCh=[]; }
+    var dueAmt=0;
+    dueCh.forEach(function(c){ dueAmt+=(Number(c.amount)||0); });
+    if(dueCh.length) cardCls+=" ld-charge-unpaid";
     whenStatusPills=
       (seasonLab?'<span class="pill p-blue">'+esc(seasonLab)+'</span>':'')+
       (timing==="upcoming"?'<span class="pill p-blue">Scheduled</span>':'')+
-      (timing==="done"?'<span class="pill p-green">Realised</span>':'');
+      (timing==="done"?'<span class="pill p-green">Realised</span>':'')+
+      (dueCh.length?'<span class="pill p-amber">Charge unpaid'+(dueAmt>0.009?" "+money0(dueAmt):"")+'</span>':'');
     var metaBits=
       (isSplit?'<span class="pill p-black">Split</span>':'')+
       ((isSplit||(LY_MODELS&&LY_MODELS.leadIsCashOnlyDeal&&LY_MODELS.leadIsCashOnlyDeal(r)))&&leadCashDest(r)==="owner"?'<span class="pill p-own">'+(leadOwnerPocketCashAmt(r)>0?"Cash → owner pocket":"Cash → owner (pending)")+'</span>':'')+
@@ -5755,7 +5832,8 @@ function renderLeads(){
       (isCaptain()&&closed&&src==="clickboat"&&leadCommissionRatePct(r)>0?'<span class="pill p-amber">Paul comm '+money(leadCommissionAmt(r))+' ('+leadCommissionRatePct(r)+'%)</span>':'')+
       (isCaptain()&&closed&&isOwnerSrc?'<span class="pill p-own">Income · 0% commission</span>':'')+
       (isCaptain()&&ownerConfirmed?'<span class="pill p-own">No boat income · owner benefit</span>':'')+
-      (openN>0?'<span class="pill p-amber">'+openN+' invoice'+(openN>1?'s':'')+' open</span>':'');
+      (openN>0?'<span class="pill p-amber">'+openN+' invoice'+(openN>1?'s':'')+' open</span>':'')+
+      (dueCh.length>1?'<span class="pill p-amber">'+dueCh.length+' charges unpaid</span>':'');
     if(!isOwner&&!isSplit){
       var vatNote=vatModeLabel(r.vatMode);
       if(vatNote&&(Number(r.vatPct)||0)>0) vatNote+=" "+r.vatPct+"%";
