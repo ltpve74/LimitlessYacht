@@ -250,36 +250,9 @@ def build_legal(locale_mod) -> str:
     return html
 
 
-# EN landing pages live one folder down (/day-charter-mallorca/ → ../ = site root).
-# Locale copies live two down (/de/day-charter-mallorca/ → ../../ = site root).
-# ES/FR are not generated: those locales are not real charter audiences (see DECISIONS.md).
-LANDING_PAGES = (
-    ("day-charter-mallorca", "DAY_CHARTER_PAIRS"),
-)
-
-
-def rewrite_landing_paths_for_locale(html: str) -> str:
-    """Step EN landing ../root paths up one more level for /<code>/<slug>/."""
-    for src, dst in (
-        ('href="../css/', 'href="../../css/'),
-        ('src="../js/', 'src="../../js/'),
-        ('href="../favicon.svg"', 'href="../../favicon.svg"'),
-        ('href="../#', 'href="../../#'),
-        ('href="../legal.html"', 'href="../../legal.html"'),
-        ('href="../"', 'href="../../"'),
-    ):
-        html = html.replace(src, dst)
-    return html
-
-
-def build_landing(locale_mod, slug: str, pairs_attr: str) -> str:
-    html = (ROOT / slug / "index.html").read_text(encoding="utf-8")
-    html = patch_html_lang(html, locale_mod.LANG)
-    html = apply_pairs(html, getattr(locale_mod, pairs_attr))
-    return rewrite_landing_paths_for_locale(html)
-
-
 def main() -> None:
+    from render_landings import render_all
+
     en_reviews = load_en_reviews()
     for code, mod in LOCALES.items():
         validate_locale_reviews(code, mod.REVIEWS, en_reviews)
@@ -288,18 +261,9 @@ def main() -> None:
         out_dir.mkdir(parents=True, exist_ok=True)
         (out_dir / "index.html").write_text(build_index(mod), encoding="utf-8")
         (out_dir / "legal.html").write_text(build_legal(mod), encoding="utf-8")
-        extras: list[str] = []
-        for slug, pairs_attr in LANDING_PAGES:
-            if not hasattr(mod, pairs_attr):
-                continue
-            dest = out_dir / slug
-            dest.mkdir(parents=True, exist_ok=True)
-            (dest / "index.html").write_text(
-                build_landing(mod, slug, pairs_attr), encoding="utf-8"
-            )
-            extras.append(f"{code}/{slug}/index.html")
-        extra = (", " + ", ".join(extras)) if extras else ""
-        print(f"Wrote {code}/index.html, {code}/legal.html{extra}, data/reviews-{code}.json")
+        print(f"Wrote {code}/index.html, {code}/legal.html, data/reviews-{code}.json")
+    landing = render_all()
+    print(f"Wrote {len(landing)} landing pages (EN+DE) and sitemap.xml")
 
 
 if __name__ == "__main__":

@@ -176,8 +176,10 @@ Do **not** "fix" them without checking here first. Each entry lists what *not* t
   to `main`. Do not invent testimonials.
 - **Out of scope:** "yate/barco limitless", chasing `/es/` impressions, ranking the homepage
   alone for "yacht charter mallorca".
-- **Next pages (not built yet):** `/destinations/cabrera/` (or Es Trenc) and
-  `/maiora-yacht-charter/` once this pattern is measured.
+- **Data-driven landings (2026-08-17):** commercial + destination pages are generated
+  from `landingPages/` (`pages.py`, `pages_de.py`, `destinations.json`) by
+  `i18n/render_landings.py` (called from `build-locales.py`). EN + DE only.
+  Do not hand-edit the generated HTML; edit the data and rebuild.
 - **DO NOT:** publish these pages to `main` without owner sign-off on routes + copy; add thin
   ES/FR landing stubs; change the EN homepage title without asking.
 

@@ -31,7 +31,7 @@ git config core.hooksPath .githooks          # one-time per clone
 | Local preview without GitHub Pages? | `python3 scripts/dev-server.py` → http://127.0.0.1:8765/ (analytics off on localhost) |
 | Which branch is the source of truth? | **`develop`** — always reflects what's on the live site |
 | Feature work? | Branch from `develop`, work there, merge back into `develop` when done |
-| Which files are source of truth? | `index.html`, `legal.html`, `day-charter-mallorca/index.html`, `css/main.css`, `data/reviews.json`, `i18n/locales/*.py` |
+| Which files are source of truth? | `index.html`, `legal.html`, `landingPages/`, `css/main.css`, `data/reviews.json`, `i18n/locales/*.py` |
 | Which files are generated? | `de/`, `es/`, `fr/` HTML and `data/reviews-{de,es,fr}.json` — never hand-edit |
 | When do locales rebuild? | On commit to `develop` (if EN source changed) |
 | When does minification happen? | On commit to **`main`** only (publish step) |
@@ -316,7 +316,8 @@ curl -sL https://limitlessyachtcharter.com/ | head -c 500
 
 ```
 index.html, legal.html     ← EN source (edit)
-day-charter-mallorca/      ← EN landing (edit); DE generated, no ES/FR
+landingPages/              ← landing copy + dest data (edit)
+generated landings         ← do not hand-edit; build-locales writes EN+DE
 css/main.css               ← shared styles (edit)
 i18n/locales/de.py         ← DE translations (edit)
 i18n/locales/es.py         ← ES translations (edit)

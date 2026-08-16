@@ -9,10 +9,32 @@ from pathlib import Path
 
 ROOT = Path(__file__).resolve().parent.parent
 INDEX = ROOT / 'index.html'
-# Landing pages load CSS with their own ?v= (not generated from index.html).
-EXTRA_HTML = [
-    ROOT / 'day-charter-mallorca' / 'index.html',
-]
+# Generated landing pages carry their own ?v=; keep them in lockstep with index.html.
+def _extra_html() -> list[Path]:
+    extras: list[Path] = []
+    for folder in (
+        'day-charter-mallorca',
+        'yacht-charter-mallorca',
+        'sunset-charter-mallorca',
+        'multi-day-charter-balearics',
+        'maiora-yacht-charter',
+        'yacht-charter-palma-club-de-mar',
+        'yacht-charter-mallorca-prices',
+        'what-is-included',
+        'best-time-yacht-charter-mallorca',
+        'destinations',
+    ):
+        extras.append(ROOT / folder / 'index.html')
+    dest_root = ROOT / 'destinations'
+    if dest_root.is_dir():
+        extras.extend(sorted(dest_root.glob('*/index.html')))
+    de_root = ROOT / 'de'
+    if de_root.is_dir():
+        extras.extend(sorted(p for p in de_root.rglob('index.html') if p.parent.name != 'de'))
+    return extras
+
+
+EXTRA_HTML = _extra_html()
 
 SHEETS = {
     'layout': 'layout.css',

@@ -346,7 +346,9 @@ PAIRS = [
     ),
     # Footer
     ("Legal Notice & Privacy", "Impressum & Datenschutz"),
+    ('<a href="yacht-charter-mallorca/">Private charter</a>', '<a href="yacht-charter-mallorca/">Privater Charter</a>'),
     ('<a href="day-charter-mallorca/">Day charter</a>', '<a href="day-charter-mallorca/">Tagescharter</a>'),
+    ('<a href="destinations/">Destinations</a>', '<a href="destinations/">Reiseziele</a>'),
     ("Cookie Settings", "Cookie-Einstellungen"),
     ("All Rights Reserved.", "Alle Rechte vorbehalten."),
     # Form JS
