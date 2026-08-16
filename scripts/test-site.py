@@ -163,8 +163,17 @@ def check_html(r: Runner, rel: str, html: str) -> None:
     meta = LOCALE_META[rel]
 
     # Enquiry flow
-    r.check('#enquire scroll anchor exists', 'id="enquire"' in html)
-    r.check('enquiry CTAs link to #enquire', 'href="#enquire"' in html)
+    r.check('#enquire quote section is gone', '<span id="enquire"' not in html and 'enquire-section' not in html)
+    r.check('no in-page links point at the removed quote section', 'href="#enquire"' not in html and 'href="#enquire-land"' not in html and 'href="#enquire-form"' not in html)
+    r.check(
+        'page order is gallery → charters → availability → reviews',
+        html.find('id="gallery"') < html.find('id="charters"')
+        and html.find('id="charters"') < html.find('id="availability"')
+        and html.find('id="availability"') < html.find('id="reviews"')
+        and html.find('id="reviews"') < html.find('id="amenities"')
+        and 'id="avail-cal"' in html
+        and html.find('id="availability"') < html.find('id="avail-cal"') < html.find('id="reviews"'),
+    )
     r.check(
         'reviews and specs desktop keep single availability CTA',
         'section-cta-avail--desktop' in html
@@ -307,7 +316,7 @@ def check_html(r: Runner, rel: str, html: str) -> None:
     else:
         r.fail('WhatsApp link(s) present', 'no wa.me links found in page')
 
-    r.check('main contact WhatsApp sits in the quote column', 'class="whatsapp-btn"' in html and 'contact-info' in html)
+    r.check('request-a-quote WhatsApp column is gone', 'class="whatsapp-btn"' not in html and 'enquire-section' not in html)
 
     # WhatsApp soft-conversion system (floating CTA + booked-date capture)
     r.check('ly-wa-softconvert script present', 'id="ly-wa-softconvert"' in html)
@@ -338,8 +347,8 @@ def check_html(r: Runner, rel: str, html: str) -> None:
         and 'id="enquire-form"' not in html,
     )
     r.check(
-        'email fallback mailto lives under calendar and main WhatsApp',
-        html.count('class="email-fallback-link"') >= 2
+        'email fallback mailto lives under the calendar WhatsApp',
+        html.count('class="email-fallback-link"') == 1
         and 'mailto:info@limitlessyachtcharter.com' in html
         and 'id="calMailtoLink"' in html
         and 'ly_email_click' in html,
@@ -2862,7 +2871,10 @@ def check_shared_assets(r: Runner) -> None:
         and 'ly_hero_rates_click' in index_html
         and 'ly_hero_avail_click' in index_html
         and 'ly_email_click' in index_html
-        and 'ly_charters_rates_view' in index_html,
+        and 'ly_charters_rates_view' in index_html
+        and 'ly_cal_entry' in index_html
+        and "LY_setCalEntry('cta')" in index_html
+        and "lySetCalEntry('scroll')" in index_html,
     )
     r.check(
         'hero fires section view on load and skips enquire section event',
@@ -3661,7 +3673,7 @@ def check_shared_assets(r: Runner) -> None:
         'WhatsApp CTA copy uses enquire voice',
         'Ask on WhatsApp' not in index_html
         and 'Enquire on WhatsApp' in index_html
-        and 'Enquire via WhatsApp' in index_html,
+        and 'Enquire via WhatsApp' not in index_html,
     )
     r.check(
         'calendar WhatsApp label reflects selected dates',
@@ -3669,21 +3681,20 @@ def check_shared_assets(r: Runner) -> None:
         and 'function syncCalWaLabel(hasDates)' in index_html
         and 'syncCalWaLabel(true)' in index_html,
     )
-    pair_start = index_html.find('class="contact-cal-pair"')
-    pair_end = index_html.find('id="amenities"', pair_start)
-    pair_html = index_html[pair_start:pair_end] if pair_start != -1 and pair_end != -1 else ''
     r.check(
-        'calendar precedes WhatsApp contact column in page structure',
-        pair_html.find('id="availability"') != -1
-        and pair_html.find('class="enquire-section"') != -1
-        and pair_html.find('id="availability"') < pair_html.find('class="enquire-section"'),
+        'request-a-quote column is gone; calendar is a standalone section',
+        'enquire-section' not in index_html
+        and 'Get a Quote' not in index_html
+        and 'Request Your Quote' not in index_html
+        and 'class="contact-cal-pair"' not in index_html
+        and index_html.find('id="charters"') < index_html.find('id="availability"') < index_html.find('id="reviews"'),
     )
     r.check(
-        'desktop paired layout keeps contact column left of calendar',
-        css is not None
-        and re.search(r'@media\s*\(min-width:\s*769px\)', css) is not None
-        and re.search(r'\.contact-cal-pair\s+\.enquire-section\s*\{\s*order:\s*1', css) is not None
-        and re.search(r'\.contact-cal-pair\s+#availability\s*\{\s*order:\s*2', css) is not None,
+        'calendar entry path is first-touch only',
+        'function lySetCalEntry' in index_html
+        and "sessionStorage.getItem('ly_cal_entry')" in index_html
+        and "tag('set', 'ly_cal_entry', value)" in index_html
+        and 'enquire_click' not in index_html,
     )
     r.check(
         'destination cards use pointer cursor (clickable like gallery)',

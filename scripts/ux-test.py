@@ -81,7 +81,6 @@ BOOKING_SECTION_IDS = (
     "#reviews",
     "#amenities",
     "#specs",
-    ".enquire-section",
 )
 
 CONSENT_CLEAR_INIT = (
@@ -654,16 +653,6 @@ def scenario_home_large_phone_tall(page, base: str, issues: IssueCollector) -> N
     page.goto(base + "/", wait_until="domcontentloaded", timeout=60000)
     page.wait_for_timeout(800)
 
-    fits = page.evaluate(
-        "() => !!(window.LY_enquireSectionFitsViewport && window.LY_enquireSectionFitsViewport())"
-    )
-    if not fits:
-        issues.add(f"{name}: expected enquire section to fit tall large-phone viewport")
-    href = page.evaluate(
-        "() => (window.LY_enquireQuoteHref ? window.LY_enquireQuoteHref() : '')"
-    )
-    if href != "#enquire":
-        issues.add(f"{name}: expected #enquire landing when section fits, got {href!r}")
     assert_enquire_quote_landing(page, name, issues)
 
 
@@ -982,13 +971,11 @@ def scenario_booking_funnel_mobile(page, base: str, issues: IssueCollector) -> N
     else:
         issues.add(f"{name}: hero primary CTA missing on mobile")
 
-    page.locator(".enquire-section").scroll_into_view_if_needed()
+    page.locator("#availability").scroll_into_view_if_needed()
     page.wait_for_timeout(300)
-    page.locator(".enquire-section .contact-info .whatsapp-btn").first.dispatch_event("click")
-    page.wait_for_timeout(200)
-    mail = page.locator(".enquire-section .email-fallback-link")
+    mail = page.locator("#availability .email-fallback-link")
     if mail.count() == 0:
-        issues.add(f"{name}: missing email fallback under main WhatsApp")
+        issues.add(f"{name}: missing email fallback under calendar WhatsApp")
 
 
 def scenario_locales_mobile(page, base: str, issues: IssueCollector) -> None:
