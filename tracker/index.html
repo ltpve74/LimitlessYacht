@@ -2522,6 +2522,7 @@ function opsTodayStatusPill(row){
   if(s==="confirmed") return '<span class="pill p-green">Confirmed</span>';
   if(s==="paid") return '<span class="pill p-green">Paid</span>';
   if(s==="pending") return '<span class="pill p-amber">Pending</span>';
+  if(s==="none"||s==="no_stew"||s==="no-stew") return '<span class="pill p-grey">No stew needed</span>';
   if(s==="unassigned") return '<span class="pill p-amber">Unassigned</span>';
   if(s==="assigned") return '<span class="pill p-green">Crew set</span>';
   if(s==="apa") return '<span class="pill p-apa">APA</span>';

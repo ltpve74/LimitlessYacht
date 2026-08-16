@@ -112,6 +112,38 @@ console.log("[Ops — today board]");
   ok("today board 1 apa", board.apa.length === 1 && board.apa[0].id === "A1");
   ok("today board 1 stew (off skipped)", board.stews.length === 1 && board.stews[0].eventKey === "ek1");
   ok("today board groups 4 keys", board.groups && board.groups.length === 4);
+  ok("today board assigned stew status", board.stews[0].status === "assigned");
+  const boardNone = M.collectTodayOpsBoard({
+    today: "2026-08-03",
+    stews: [
+      {
+        eventKey: "ek-none",
+        summary: "Friends day",
+        start: "2026-08-03",
+        end: "2026-08-03",
+        stewIds: [],
+        noStewNeeded: true,
+      },
+      {
+        eventKey: "ek-gap",
+        summary: "Needs crew",
+        start: "2026-08-03",
+        end: "2026-08-03",
+        stewIds: [],
+      },
+    ],
+    stewIsOff: function () { return false; },
+  });
+  ok("today board noStewNeeded is none not unassigned", boardNone.stews.some(function (x) {
+    return x.eventKey === "ek-none" && x.status === "none";
+  }));
+  ok("today board empty crew still unassigned", boardNone.stews.some(function (x) {
+    return x.eventKey === "ek-gap" && x.status === "unassigned";
+  }));
+  ok(
+    "today board noStewNeeded subtitle",
+    (boardNone.stews.filter(function (x) { return x.eventKey === "ek-none"; })[0] || {}).subtitle === "No stew needed"
+  );
 }
 
 /* ---- Commission: VAT-included total (Joel) ---- */
