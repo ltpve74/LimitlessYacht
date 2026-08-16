@@ -106,177 +106,172 @@
   #tab-stews .sumcard.sum-warn .v{color:var(--amberDeep)}
   #tab-stews .sumcard.sum-ok .v{color:var(--greenInk,#1a5c48)}
   /* Leads money: compact gross/net glimpse; long breakdown in collapsible details */
-  #tab-leads .ld-summary{display:block;margin-bottom:10px;width:100%;box-sizing:border-box}
-  #tab-leads .ld-summary .sumcard{min-width:0;flex:none;padding:12px 14px;box-sizing:border-box}
-  #tab-leads .ld-glimpse{
+  #tab-finance .ld-summary{display:block;margin-bottom:10px;width:100%;box-sizing:border-box}
+  #tab-finance .ld-summary .sumcard{min-width:0;flex:none;padding:12px 14px;box-sizing:border-box}
+  #tab-finance .ld-glimpse{
     padding:10px 12px;background:var(--card);border-radius:14px;
     box-shadow:0 1px 3px rgba(0,0,0,.06);border:1px solid var(--line);
   }
-  #tab-leads .ld-glimpse-row{
+  #tab-finance .ld-glimpse-row{
     display:grid;grid-template-columns:1fr 1fr;gap:10px 14px;align-items:start;
   }
-  #tab-leads .ld-glimpse-metric .k{
+  #tab-finance .ld-glimpse-metric .k{
     font-size:10.5px;font-weight:800;text-transform:uppercase;letter-spacing:.04em;color:var(--muted);
   }
-  #tab-leads .ld-glimpse-metric .big{
+  #tab-finance .ld-glimpse-metric .big{
     font-size:22px;font-weight:800;line-height:1.15;margin-top:3px;font-variant-numeric:tabular-nums;
   }
-  #tab-leads .ld-glimpse-metric.net .k{color:rgba(27,94,32,.9)}
-  #tab-leads .ld-glimpse-metric.net .big{color:#1b5e20}
-  #tab-leads .ld-glimpse .ld-glimpse-sub{
+  #tab-finance .ld-glimpse-metric.net .k{color:rgba(27,94,32,.9)}
+  #tab-finance .ld-glimpse-metric.net .big{color:#1b5e20}
+  #tab-finance .ld-glimpse .ld-glimpse-sub{
     font-size:11.5px;color:var(--muted);font-weight:600;margin-top:6px;line-height:1.35;
   }
-  #tab-leads .ld-glimpse-hd{
+  #tab-finance .ld-glimpse-hd{
     font-size:10.5px;font-weight:800;text-transform:uppercase;letter-spacing:.05em;
     color:var(--muted);margin:0 0 6px;
   }
-  #tab-leads .ld-glimpse-proj{
+  #tab-finance .ld-glimpse-proj{
     margin-top:10px;padding-top:10px;border-top:1px dashed rgba(25,90,160,.35);
   }
-  #tab-leads .ld-glimpse-proj-hd{
+  #tab-finance .ld-glimpse-proj-hd{
     display:flex;align-items:center;justify-content:space-between;gap:8px;flex-wrap:wrap;
     font-size:10.5px;font-weight:800;text-transform:uppercase;letter-spacing:.05em;
     color:rgba(13,71,161,.95);margin:0 0 6px;
   }
-  #tab-leads .ld-glimpse-proj-pill{
+  #tab-finance .ld-glimpse-proj-pill{
     display:inline-block;font-size:10px;font-weight:800;letter-spacing:.04em;text-transform:uppercase;
     padding:2px 8px;border-radius:999px;background:rgba(25,90,160,.1);color:#0d47a1;
     border:1px solid rgba(25,90,160,.28);
   }
-  #tab-leads .ld-glimpse-proj .ld-glimpse-metric .k{color:rgba(13,71,161,.8)}
-  #tab-leads .ld-glimpse-proj .ld-glimpse-metric .big{color:#0d47a1;font-size:19px}
-  #tab-leads .ld-glimpse-proj-note{
+  #tab-finance .ld-glimpse-proj .ld-glimpse-metric .k{color:rgba(13,71,161,.8)}
+  #tab-finance .ld-glimpse-proj .ld-glimpse-metric .big{color:#0d47a1;font-size:19px}
+  #tab-finance .ld-glimpse-proj-note{
     font-size:11px;color:rgba(13,71,161,.72);font-weight:600;margin-top:6px;line-height:1.35;
   }
-  #tab-leads .ld-glimpse-booked{
+  #tab-finance .ld-glimpse-booked{
     margin-top:10px;padding:10px 11px;border-radius:12px;
     background:rgba(0,0,0,.03);border:1px solid var(--line);
   }
-  #tab-leads .ld-glimpse-booked-hd{
+  #tab-finance .ld-glimpse-booked-hd{
     display:flex;align-items:center;justify-content:space-between;gap:8px;flex-wrap:wrap;
     font-size:10.5px;font-weight:800;text-transform:uppercase;letter-spacing:.05em;
     color:var(--muted);margin:0 0 6px;
   }
-  #tab-leads .ld-glimpse-booked .ld-glimpse-metric .big{font-size:19px}
-  #tab-leads .ld-glimpse-booked-note{
+  #tab-finance .ld-glimpse-booked .ld-glimpse-metric .big{font-size:19px}
+  #tab-finance .ld-glimpse-booked-note{
     font-size:11px;color:var(--muted);font-weight:600;margin-top:6px;line-height:1.35;
   }
   /* Source cards — stacked bands (no multi-col table: avoids money collision) */
-  #tab-leads .ld-summary .sumcard.ld-src{
+  #tab-finance .ld-summary .sumcard.ld-src{
     padding:12px 14px;display:flex;flex-direction:column;gap:0;min-width:0;overflow:hidden;
   }
-  #tab-leads .ld-src-head{
+  #tab-finance .ld-src-head{
     display:flex;align-items:center;justify-content:space-between;gap:10px;min-width:0;margin-bottom:8px;
   }
-  #tab-leads .ld-src-head .l{
+  #tab-finance .ld-src-head .l{
     font-size:13px;font-weight:800;line-height:1.25;margin:0;min-width:0;
     overflow:hidden;text-overflow:ellipsis;white-space:nowrap;
   }
-  #tab-leads .ld-src-highlight{
+  #tab-finance .ld-src-highlight{
     display:flex;align-items:center;justify-content:space-between;gap:12px;
     padding:8px 10px;border-radius:10px;background:rgba(0,0,0,.035);border:1px solid var(--line);
     margin-bottom:4px;min-width:0;
   }
-  #tab-leads .ld-src-highlight .k{
+  #tab-finance .ld-src-highlight .k{
     font-size:11px;font-weight:750;color:var(--muted);flex:1 1 auto;min-width:0;
     line-height:1.25;
   }
-  #tab-leads .ld-src-highlight .v{
+  #tab-finance .ld-src-highlight .v{
     font-size:18px;font-weight:800;font-variant-numeric:tabular-nums;line-height:1.15;
     flex:0 0 auto;white-space:nowrap;
   }
-  #tab-leads .ld-src-bands{display:flex;flex-direction:column;gap:0;min-width:0}
-  #tab-leads .ld-src-band{
+  #tab-finance .ld-src-bands{display:flex;flex-direction:column;gap:0;min-width:0}
+  #tab-finance .ld-src-band{
     padding:8px 0;border-top:1px solid var(--line);min-width:0;
   }
-  #tab-leads .ld-src-band:first-child{border-top:0;padding-top:6px}
-  #tab-leads .ld-src-band-title{
+  #tab-finance .ld-src-band:first-child{border-top:0;padding-top:6px}
+  #tab-finance .ld-src-band-title{
     font-size:10px;font-weight:800;text-transform:uppercase;letter-spacing:.04em;
     color:var(--muted);margin:0 0 5px;line-height:1.2;
   }
-  #tab-leads .ld-src-band--proj .ld-src-band-title{color:rgba(13,71,161,.95)}
-  #tab-leads .ld-src-band--proj .ld-src-kv .v{color:#0d47a1}
-  #tab-leads .ld-src-band--booked .ld-src-band-title{color:var(--ink,#1a1a1a)}
-  #tab-leads .ld-src-kv{
+  #tab-finance .ld-src-band--proj .ld-src-band-title{color:rgba(13,71,161,.95)}
+  #tab-finance .ld-src-band--proj .ld-src-kv .v{color:#0d47a1}
+  #tab-finance .ld-src-band--booked .ld-src-band-title{color:var(--ink,#1a1a1a)}
+  #tab-finance .ld-src-kv{
     display:flex;justify-content:space-between;align-items:baseline;gap:12px;
     font-size:12.5px;line-height:1.5;min-width:0;
   }
-  #tab-leads .ld-src-kv .k{
+  #tab-finance .ld-src-kv .k{
     color:var(--muted);font-weight:600;flex:0 1 auto;min-width:0;
   }
-  #tab-leads .ld-src-kv .v{
+  #tab-finance .ld-src-kv .v{
     font-weight:800;font-variant-numeric:tabular-nums;text-align:right;
     flex:0 0 auto;white-space:nowrap;max-width:100%;
   }
-  #tab-leads .ld-src-kv--soft .v{font-weight:700;color:var(--muted);font-size:12px}
-  #tab-leads .ld-src-foot{
+  #tab-finance .ld-src-kv--soft .v{font-weight:700;color:var(--muted);font-size:12px}
+  #tab-finance .ld-src-foot{
     font-size:11px;color:var(--muted);font-weight:600;line-height:1.4;margin-top:8px;
     padding-top:8px;border-top:1px dashed var(--line);
     overflow-wrap:anywhere;word-break:break-word;
   }
-  #tab-leads .ld-src-foot:empty{display:none}
-  #tab-leads .ld-money-toggle{
-    width:100%;margin-top:8px;padding:9px 12px;font-size:12.5px;font-weight:800;
-    border-radius:11px;
+  #tab-finance .ld-src-foot:empty{display:none}
+  #tab-finance .ld-money-details{
+    display:block;margin-top:10px;
   }
-  #tab-leads .ld-money-details{
-    display:none;margin-top:8px;
-  }
-  #tab-leads .ld-money-details.is-open{display:block}
-  #tab-leads .ld-money-details-inner{
+  #tab-finance .ld-money-details-inner{
     display:grid;grid-template-columns:1fr;gap:10px;
   }
   /* Phone / narrow tablet: one card per row (full width → numbers have room) */
   @media(max-width:899px){
-    #tab-leads .ld-money-details-inner{grid-template-columns:1fr}
-    #tab-leads .ld-src-highlight .v{font-size:17px}
+    #tab-finance .ld-money-details-inner{grid-template-columns:1fr}
+    #tab-finance .ld-src-highlight .v{font-size:17px}
   }
   /* Wide tablet / desktop: 3 source columns only when each card is wide enough */
   @media(min-width:900px){
-    #tab-leads .ld-money-details-inner{grid-template-columns:1fr 1fr 1fr;gap:12px;align-items:start}
-    #tab-leads .ld-money-details-inner .ld-detail-block{grid-column:1/-1}
-    #tab-leads .ld-money-details-inner .ld-src{grid-column:auto;min-width:0}
+    #tab-finance .ld-money-details-inner{grid-template-columns:1fr 1fr 1fr;gap:12px;align-items:start}
+    #tab-finance .ld-money-details-inner .ld-detail-block{grid-column:1/-1}
+    #tab-finance .ld-money-details-inner .ld-src{grid-column:auto;min-width:0}
   }
   @media(min-width:1100px){
-    #tab-leads .ld-money-details-inner{gap:14px}
-    #tab-leads .ld-src-kv{font-size:13px}
-    #tab-leads .ld-src-highlight .v{font-size:19px}
+    #tab-finance .ld-money-details-inner{gap:14px}
+    #tab-finance .ld-src-kv{font-size:13px}
+    #tab-finance .ld-src-highlight .v{font-size:19px}
   }
-  #tab-leads .ld-detail-block{
+  #tab-finance .ld-detail-block{
     padding:12px 14px;border-radius:14px;background:var(--card);
     border:1px solid var(--line);box-shadow:0 1px 3px rgba(0,0,0,.05);
   }
-  #tab-leads .ld-detail-block .hd{
+  #tab-finance .ld-detail-block .hd{
     font-size:11px;font-weight:800;text-transform:uppercase;letter-spacing:.04em;
     color:var(--muted);margin:0 0 8px;
   }
-  #tab-leads .ld-detail-block .lines{display:flex;flex-direction:column;gap:3px;font-size:12.5px;font-weight:600}
-  #tab-leads .ld-detail-block .lines span{display:flex;justify-content:space-between;gap:8px}
-  #tab-leads .ld-detail-block .lines .m{font-weight:800;font-variant-numeric:tabular-nums}
-  #tab-leads .ld-snap-cash{
+  #tab-finance .ld-detail-block .lines{display:flex;flex-direction:column;gap:3px;font-size:12.5px;font-weight:600}
+  #tab-finance .ld-detail-block .lines span{display:flex;justify-content:space-between;gap:8px}
+  #tab-finance .ld-detail-block .lines .m{font-weight:800;font-variant-numeric:tabular-nums}
+  #tab-finance .ld-snap-cash{
     padding:10px 12px;border-radius:12px;background:rgba(25,90,160,.07);border:1px solid rgba(25,90,160,.22);
   }
-  #tab-leads .ld-snap-cash .k{color:rgba(25,90,160,.95);font-size:11px;font-weight:800;text-transform:uppercase;letter-spacing:.04em}
-  #tab-leads .ld-snap-cash .big{font-size:20px;font-weight:800;color:#0d47a1;margin-top:3px;font-variant-numeric:tabular-nums}
-  #tab-leads .ld-snap-cash .s{font-size:11.5px;color:rgba(13,71,161,.75);font-weight:600;margin-top:4px;line-height:1.35}
-  #tab-leads .ld-snap-cash .lines{margin-top:8px;display:flex;flex-direction:column;gap:3px;font-size:12px;font-weight:600}
-  #tab-leads .ld-snap-cash .lines span{display:flex;justify-content:space-between;gap:8px}
-  #tab-leads .ld-snap-cash .lines .m{font-weight:800;font-variant-numeric:tabular-nums}
-  #tab-leads .ld-cash-items{margin-top:8px;display:flex;flex-direction:column;gap:4px;max-height:9.5rem;overflow:auto}
-  #tab-leads .ld-cash-item{display:grid;grid-template-columns:1fr auto;gap:4px 10px;font-size:12px;line-height:1.3;padding:4px 0;border-top:1px solid rgba(25,90,160,.12)}
-  #tab-leads .ld-cash-item .nm{font-weight:700;min-width:0;word-break:break-word}
-  #tab-leads .ld-cash-item .meta{grid-column:1/-1;font-size:11px;color:var(--muted);font-weight:600}
-  #tab-leads .ld-cash-item .am{font-weight:800;font-variant-numeric:tabular-nums;white-space:nowrap}
-  #tab-leads .ld-snap-foot{display:grid;grid-template-columns:1fr 1fr;gap:8px 14px;margin-top:10px;padding-top:8px;border-top:1px solid var(--line)}
-  #tab-leads .ld-snap-row{display:flex;flex-direction:column;gap:2px;min-width:0}
-  #tab-leads .ld-snap-row .k{font-size:10.5px;color:var(--muted);text-transform:uppercase;letter-spacing:.03em;font-weight:650;line-height:1.2}
-  #tab-leads .ld-snap-row .v{font-size:16px;font-weight:800;line-height:1.2;font-variant-numeric:tabular-nums}
-  #tab-leads .ld-snap-row .s{font-size:11px;color:var(--muted);font-weight:600;line-height:1.3;margin-top:1px}
-  #tab-leads .ld-snap-note{margin-top:8px;font-size:11px;color:var(--muted);line-height:1.4;font-weight:550}
-  #tab-leads .ld-comm-pill{display:inline-block;font-size:10px;font-weight:800;letter-spacing:.03em;text-transform:uppercase;padding:2px 7px;border-radius:999px;line-height:1.2;white-space:nowrap;flex:0 0 auto}
-  #tab-leads .ld-comm-pill.paid{background:#e8f5e9;color:#1b5e20;border:1px solid #a5d6a7}
-  #tab-leads .ld-comm-pill.outstanding{background:#fff3e0;color:#9a6b00;border:1px solid #ffcc80}
-  #tab-leads .ld-comm-pill.none{background:#f0f3f5;color:var(--muted);border:1px solid var(--line)}
+  #tab-finance .ld-snap-cash .k{color:rgba(25,90,160,.95);font-size:11px;font-weight:800;text-transform:uppercase;letter-spacing:.04em}
+  #tab-finance .ld-snap-cash .big{font-size:20px;font-weight:800;color:#0d47a1;margin-top:3px;font-variant-numeric:tabular-nums}
+  #tab-finance .ld-snap-cash .s{font-size:11.5px;color:rgba(13,71,161,.75);font-weight:600;margin-top:4px;line-height:1.35}
+  #tab-finance .ld-snap-cash .lines{margin-top:8px;display:flex;flex-direction:column;gap:3px;font-size:12px;font-weight:600}
+  #tab-finance .ld-snap-cash .lines span{display:flex;justify-content:space-between;gap:8px}
+  #tab-finance .ld-snap-cash .lines .m{font-weight:800;font-variant-numeric:tabular-nums}
+  #tab-finance .ld-cash-items{margin-top:8px;display:flex;flex-direction:column;gap:4px;max-height:9.5rem;overflow:auto}
+  #tab-finance .ld-cash-item{display:grid;grid-template-columns:1fr auto;gap:4px 10px;font-size:12px;line-height:1.3;padding:4px 0;border-top:1px solid rgba(25,90,160,.12)}
+  #tab-finance .ld-cash-item .nm{font-weight:700;min-width:0;word-break:break-word}
+  #tab-finance .ld-cash-item .meta{grid-column:1/-1;font-size:11px;color:var(--muted);font-weight:600}
+  #tab-finance .ld-cash-item .am{font-weight:800;font-variant-numeric:tabular-nums;white-space:nowrap}
+  #tab-finance .ld-snap-foot{display:grid;grid-template-columns:1fr 1fr;gap:8px 14px;margin-top:10px;padding-top:8px;border-top:1px solid var(--line)}
+  #tab-finance .ld-snap-row{display:flex;flex-direction:column;gap:2px;min-width:0}
+  #tab-finance .ld-snap-row .k{font-size:10.5px;color:var(--muted);text-transform:uppercase;letter-spacing:.03em;font-weight:650;line-height:1.2}
+  #tab-finance .ld-snap-row .v{font-size:16px;font-weight:800;line-height:1.2;font-variant-numeric:tabular-nums}
+  #tab-finance .ld-snap-row .s{font-size:11px;color:var(--muted);font-weight:600;line-height:1.3;margin-top:1px}
+  #tab-finance .ld-snap-note{margin-top:8px;font-size:11px;color:var(--muted);line-height:1.4;font-weight:550}
+  #tab-finance .ld-comm-pill{display:inline-block;font-size:10px;font-weight:800;letter-spacing:.03em;text-transform:uppercase;padding:2px 7px;border-radius:999px;line-height:1.2;white-space:nowrap;flex:0 0 auto}
+  #tab-finance .ld-comm-pill.paid{background:#e8f5e9;color:#1b5e20;border:1px solid #a5d6a7}
+  #tab-finance .ld-comm-pill.outstanding{background:#fff3e0;color:#9a6b00;border:1px solid #ffcc80}
+  #tab-finance .ld-comm-pill.none{background:#f0f3f5;color:var(--muted);border:1px solid var(--line)}
   /* legacy meta/type helpers kept for any residual paint */
   #tab-leads .ld-src-meta{display:none}
   #tab-leads .ld-type-table{display:none}
@@ -614,9 +609,10 @@
     scroll-margin-top:calc(env(safe-area-inset-top,0px) + 120px);
   }
   @media(max-width:899px){
-    #tab-leads .ld-summary{margin-bottom:8px}
+    #tab-finance .ld-summary{margin-bottom:8px}
+    #tab-finance .legend{font-size:12px;line-height:1.35;margin-bottom:8px}
+    #tab-finance .ld-glimpse-metric .big{font-size:20px}
     #tab-leads .legend{font-size:12px;line-height:1.35;margin-bottom:8px}
-    #tab-leads .ld-glimpse-metric .big{font-size:20px}
     .ld-book-tab{flex:1 1 calc(33% - 6px);min-width:3.6rem;font-size:10px;padding:10px 4px}
     .ld-book-tab .n{font-size:15px}
     /* Phone: hide "All" to keep 4 primary buckets readable (Future Past Hold Lost) */
@@ -1089,8 +1085,37 @@
   <main>
     <div class="demo hidden" id="demoNote">Demo preview — sample data in your browser only. Once deployed it reads &amp; writes live data on Netlify.</div>
 
-    <!-- LEADS (default landing) -->
+    <!-- LEADS (default landing) — charter book only; money on Finance tab -->
     <section id="tab-leads">
+      <div class="legend"><b>Live ledger:</b> sticky tabs <b>Future · Past · Hold · Lost</b> (desktop also <b>All</b>). Default <b>Future</b> = confirmed upcoming. Lost splits dropped holds vs cancelled firm charters. Money lives under <b>Finance</b>.</div>
+      <div id="ldFindBar" style="margin:0 0 12px">
+        <input class="ctl" id="ldSearch" type="search" placeholder="Find lead — name, date (e.g. 6 Aug), source, notes…" autocomplete="off" style="width:100%">
+        <div class="meta" id="ldSearchMeta" style="margin-top:6px;display:none"></div>
+      </div>
+      <!-- Sticky book nav (outside #ldList so re-render keeps the control) -->
+      <div id="ldBookTabs" class="ld-book-tabs" role="tablist" aria-label="Lead ledger">
+        <button type="button" class="ld-book-tab ld-book-tab--future" data-ld-book-view="future" aria-selected="true">
+          <span class="n" id="ldTabNFuture">0</span><span>Future</span>
+        </button>
+        <button type="button" class="ld-book-tab ld-book-tab--past" data-ld-book-view="past" aria-selected="false">
+          <span class="n" id="ldTabNPast">0</span><span>Past</span>
+        </button>
+        <button type="button" class="ld-book-tab ld-book-tab--hold" data-ld-book-view="hold" aria-selected="false">
+          <span class="n" id="ldTabNHold">0</span><span>Hold</span>
+        </button>
+        <button type="button" class="ld-book-tab ld-book-tab--lost" data-ld-book-view="lost" aria-selected="false">
+          <span class="n" id="ldTabNLost">0</span><span>Lost</span>
+        </button>
+        <button type="button" class="ld-book-tab ld-book-tab--all" data-ld-book-view="all" aria-selected="false" title="Full book with jump links">
+          <span class="n" id="ldTabNAll">0</span><span>All</span>
+        </button>
+      </div>
+      <div class="list" id="ldList"></div>
+    </section>
+
+    <!-- FINANCE (commercial — lead book money dashboard) -->
+    <section id="tab-finance" class="hidden">
+      <div class="legend" style="margin-bottom:10px"><b>Finance:</b> business to date, projected book, free cash, boat petty (same as Expenses), and source split (Captain / Click&amp;Boat / Owner-sourced). Open <b>Leads</b> for the charter book.</div>
       <div class="ld-summary" id="ldSummary">
         <!-- Always-on: business to date + projection for confirmed future -->
         <div class="ld-glimpse" id="ldSnap">
@@ -1143,10 +1168,9 @@
             <div class="ld-glimpse-sub" id="ldBookedSub">0 confirmed trips (sailed + future)</div>
             <div class="ld-glimpse-booked-note" id="ldBookedNote">Sum of business to date + projected future · white net = before VAT − commissions · free cash only in Net so far when received</div>
           </div>
-          <button type="button" class="btn ghost ld-money-toggle" id="ldMoneyToggle" aria-expanded="false" aria-controls="ldMoneyDetails">Money details ▾</button>
         </div>
-        <!-- Long finance: sources, cash, breakdown — second stage -->
-        <div class="ld-money-details" id="ldMoneyDetails" hidden>
+        <!-- Long finance: sources, cash, breakdown (always open on Finance tab) -->
+        <div class="ld-money-details is-open" id="ldMoneyDetails">
           <div class="ld-money-details-inner">
             <div class="ld-detail-block">
               <div class="hd">How net is built · so far</div>
@@ -1290,30 +1314,6 @@
           </div>
         </div>
       </div>
-      <div class="legend"><b>Live ledger:</b> sticky tabs <b>Future · Past · Hold · Lost</b> (desktop also <b>All</b>). Default <b>Future</b> = confirmed upcoming. Lost splits dropped holds vs cancelled firm charters. Money above is a glance only — open <b>Money details</b> for cash &amp; sources.</div>
-      <div id="ldFindBar" style="margin:0 0 12px">
-        <input class="ctl" id="ldSearch" type="search" placeholder="Find lead — name, date (e.g. 6 Aug), source, notes…" autocomplete="off" style="width:100%">
-        <div class="meta" id="ldSearchMeta" style="margin-top:6px;display:none"></div>
-      </div>
-      <!-- Sticky book nav (outside #ldList so re-render keeps the control) -->
-      <div id="ldBookTabs" class="ld-book-tabs" role="tablist" aria-label="Lead ledger">
-        <button type="button" class="ld-book-tab ld-book-tab--future" data-ld-book-view="future" aria-selected="true">
-          <span class="n" id="ldTabNFuture">0</span><span>Future</span>
-        </button>
-        <button type="button" class="ld-book-tab ld-book-tab--past" data-ld-book-view="past" aria-selected="false">
-          <span class="n" id="ldTabNPast">0</span><span>Past</span>
-        </button>
-        <button type="button" class="ld-book-tab ld-book-tab--hold" data-ld-book-view="hold" aria-selected="false">
-          <span class="n" id="ldTabNHold">0</span><span>Hold</span>
-        </button>
-        <button type="button" class="ld-book-tab ld-book-tab--lost" data-ld-book-view="lost" aria-selected="false">
-          <span class="n" id="ldTabNLost">0</span><span>Lost</span>
-        </button>
-        <button type="button" class="ld-book-tab ld-book-tab--all" data-ld-book-view="all" aria-selected="false" title="Full book with jump links">
-          <span class="n" id="ldTabNAll">0</span><span>All</span>
-        </button>
-      </div>
-      <div class="list" id="ldList"></div>
     </section>
 
     <!-- CHARGES -->
@@ -1461,6 +1461,7 @@
   <nav class="bnav" aria-label="Main">
     <button type="button" data-nav="today" id="navToday" class="hidden"><span class="ic">☀️</span>Today<span class="badge hidden" id="todayBadge">0</span></button>
     <button type="button" data-nav="leads" id="navLeads" class="active"><span class="ic">🌐</span>Leads</button>
+    <button type="button" data-nav="finance" id="navFinance" class="hidden"><span class="ic">📊</span>Finance</button>
     <button type="button" data-nav="charters" id="navCharters"><span class="ic">🧾</span>Charges</button>
     <button type="button" data-nav="ops" id="navOps" class="hidden"><span class="ic">⚓</span>Ops</button>
     <button type="button" data-nav="stews" id="navRoster" class="hidden"><span class="ic">👩‍✈️</span>Roster</button>
@@ -1876,7 +1877,7 @@ function runPostLoadMaintenance(){
   try{
     if(curTab==="today"&&isCaptain()) try{ renderTodayTab(); }catch(e5){}
     if(curTab==="charters"&&canCommercial()) try{ renderCharters(); }catch(e6){}
-    if(curTab==="leads"&&canCommercial()) try{ renderLeads(); }catch(e7){}
+    if((curTab==="leads"||curTab==="finance")&&canCommercial()) try{ renderLeads(); }catch(e7){}
     if(curTab==="stews"&&canRoster()) try{ renderStews({soft:true}); }catch(e8){}
     if(curTab==="expenses"&&isCaptain()) try{ paintExpensesBody(); }catch(e9){}
     if(curTab==="apa"&&canOps()) try{ renderApa(); }catch(e10){}
@@ -1986,6 +1987,7 @@ function configureNavForRole(){
   if(el("navToday")) el("navToday").classList.toggle("hidden", !cap);
   if(el("navCharters")) el("navCharters").classList.toggle("hidden", !canCommercial());
   if(el("navLeads")) el("navLeads").classList.toggle("hidden", !canCommercial());
+  if(el("navFinance")) el("navFinance").classList.toggle("hidden", !canCommercial());
   /* Ops hub: captain (full) + manager (diesel + stews) */
   if(el("navOps")) el("navOps").classList.toggle("hidden", !canOpsHub());
   /* Team uses top-level Roster; captain/manager open Stews from Ops */
@@ -2065,7 +2067,7 @@ function enterApp(){
       curTab="leads";
     } else if(!isCaptain()&&!isManager()&&(isOpsTab(curTab)||curTab==="today")){
       curTab="leads";
-    } else if(isCaptain()&&(isOpsTab(curTab)||curTab==="today"||!curTab||curTab==="leads"||curTab==="charters")){
+    } else if(isCaptain()&&(isOpsTab(curTab)||curTab==="today"||!curTab||curTab==="leads"||curTab==="finance"||curTab==="charters")){
       /* Fresh login / generic commercial tabs → charter-day aware default */
       curTab=defaultLandingTab();
     } else if(canCommercial()&&!curTab){
@@ -2078,6 +2080,7 @@ function enterApp(){
     var tabQ=q.get("tab");
     if(tabQ==="today"&&isCaptain()) curTab="today";
     else if(tabQ==="leads"&&canCommercial()) curTab="leads";
+    else if(tabQ==="finance"&&canCommercial()) curTab="finance";
     else if(tabQ==="ops"&&canOpsHub()) curTab="ops";
     else if(tabQ==="calendar"&&canOpsHub()) curTab="calendar";
     else if(tabQ==="diesel"&&canDiesel()) curTab="diesel";
@@ -2207,7 +2210,7 @@ function tryAutoLogin(){
 }
 
 /* -------- tabs / nav -------- */
-/** Bottom nav: today | leads | charges | ops | roster(team) | security. Ops children under Ops hub. */
+/** Bottom nav: today | leads | finance | charges | ops | roster(team) | security. Ops children under Ops hub. */
 var OPS_CHILD={apa:1,diesel:1,stews:1,expenses:1,commissions:1,calendar:1};
 function isOpsTab(t){
   if(t==="ops") return true;
@@ -2219,6 +2222,7 @@ function navSlotForTab(t){
   if(t==="stews"&&isTeam()) return "stews";
   if(isOpsTab(t)) return "ops";
   if(t==="leads") return "leads";
+  if(t==="finance") return "finance";
   if(t==="security") return "security";
   if(t==="stews") return "ops";
   return "charters";
@@ -2229,7 +2233,7 @@ Array.prototype.forEach.call(document.querySelectorAll(".bnav button"),function(
     if(nav==="today"){ if(isCaptain()) switchTab("today"); return; }
     if(nav==="ops"){ switchTab("ops"); return; }
     if(nav==="stews"&&!canRoster()) return;
-    if((nav==="charters"||nav==="leads")&&!canCommercial()) return;
+    if((nav==="charters"||nav==="leads"||nav==="finance")&&!canCommercial()) return;
     switchTab(nav);
   });
 });
@@ -3069,7 +3073,7 @@ function renderOpsCalendar(){
 function switchTab(t){
   if(t==="stews"&&!canRoster()) return;
   if(t==="diesel"&&!canDiesel()) return;
-  if((t==="charters"||t==="leads")&&!canCommercial()&&t!=="security") return;
+  if((t==="charters"||t==="leads"||t==="finance")&&!canCommercial()&&t!=="security") return;
   if(t==="today"&&!isCaptain()) return;
   if((t==="apa"||t==="expenses"||t==="commissions")&&!isCaptain()) return;
   if(t==="ops"&&!canOpsHub()) return;
@@ -3086,6 +3090,7 @@ function switchTab(t){
   });
   el("tab-charters").classList.toggle("hidden",t!=="charters");
   el("tab-leads").classList.toggle("hidden",t!=="leads");
+  if(el("tab-finance")) el("tab-finance").classList.toggle("hidden",t!=="finance");
   el("tab-apa").classList.toggle("hidden",t!=="apa");
   el("tab-diesel").classList.toggle("hidden",t!=="diesel");
   el("tab-stews").classList.toggle("hidden",t!=="stews");
@@ -3100,7 +3105,8 @@ function switchTab(t){
   updateFab();
   if(t==="today"&&isCaptain()) renderTodayTab();
   if(t==="charters"&&canCommercial()) renderCharters();
-  if(t==="leads"&&canCommercial()) renderLeads();
+  /* Finance reuses lead money dashboard paint inside renderLeads */
+  if((t==="leads"||t==="finance")&&canCommercial()) renderLeads();
   if(t==="ops") renderOpsHub();
   if(t==="calendar"&&canOpsHub()) renderOpsCalendar();
   if(t==="apa"){
@@ -3115,7 +3121,7 @@ function switchTab(t){
 }
 function updateFab(){
   var hide=false;
-  if(curTab==="security"||curTab==="ops"||curTab==="commissions"||curTab==="today") hide=true;
+  if(curTab==="security"||curTab==="ops"||curTab==="commissions"||curTab==="today"||curTab==="finance") hide=true;
   else if(curTab==="calendar") hide=!canCommercial(); /* + add hold on selected day */
   else if(curTab==="apa"){
     if(apaView==="list") hide=false; /* + new trip */
@@ -4918,25 +4924,6 @@ function syncLdBookTabsUi(nFuture, nPast, nHold, nLost){
   if(el("ldTabNLost")) el("ldTabNLost").textContent=String(nl);
   if(el("ldTabNAll")) el("ldTabNAll").textContent=String(nf+np+nh+nl);
 }
-var LD_MONEY_OPEN_KEY="tracker-ld-money-open";
-function isLdMoneyDetailsOpen(){
-  try{ return String(safeGet(LD_MONEY_OPEN_KEY)||"") === "1"; }catch(e){ return false; }
-}
-function setLdMoneyDetailsOpen(on){
-  on=!!on;
-  try{ safeSet(LD_MONEY_OPEN_KEY, on?"1":"0"); }catch(e){}
-  var panel=el("ldMoneyDetails");
-  var btn=el("ldMoneyToggle");
-  if(panel){
-    if(on){ panel.classList.add("is-open"); panel.hidden=false; }
-    else { panel.classList.remove("is-open"); panel.hidden=true; }
-  }
-  if(btn){
-    btn.setAttribute("aria-expanded", on?"true":"false");
-    btn.textContent=on?"Money details ▴":"Money details ▾";
-  }
-  return on;
-}
 var _ldBookTabsBound=false;
 function bindLdBookTabsOnce(){
   if(_ldBookTabsBound) return;
@@ -4961,18 +4948,10 @@ function bindLdBookTabsOnce(){
       }catch(eS){}
     });
   }
-  var moneyBtn=el("ldMoneyToggle");
-  if(moneyBtn){
-    moneyBtn.addEventListener("click",function(ev){
-      ev.preventDefault();
-      setLdMoneyDetailsOpen(!isLdMoneyDetailsOpen());
-    });
-  }
-  try{ setLdMoneyDetailsOpen(isLdMoneyDetailsOpen()); }catch(eOpen){}
   try{
     if(window.matchMedia){
       var mq=window.matchMedia("(max-width:899px)");
-      var onMq=function(){ if(curTab==="leads") try{ renderLeads(); }catch(e){} };
+      var onMq=function(){ if(curTab==="leads"||curTab==="finance") try{ renderLeads(); }catch(e){} };
       if(mq.addEventListener) mq.addEventListener("change", onMq);
       else if(mq.addListener) mq.addListener(onMq);
     }
@@ -6007,7 +5986,6 @@ function renderLeads(){
           :"");
     }
   }
-  try{ setLdMoneyDetailsOpen(isLdMoneyDetailsOpen()); }catch(eMoneyUi){}
   var nUnconf=nPendSrc+nOpenDeal;
   if(el("ldAwait")) el("ldAwait").textContent=String(nUnconf);
   if(el("ldAwaitSub")){
@@ -19203,7 +19181,7 @@ function promptIcsDateMoves(dateMoves){
   if(!accepted.length&&!rejected.length) return Promise.resolve(null);
   return api("applyIcsDateMoves",{accepted:accepted, rejected:rejected}).then(function(j){
     adoptIcsSyncPayload(j);
-    if(curTab==="leads") renderLeads();
+    if(curTab==="leads"||curTab==="finance") renderLeads();
     if(curTab==="stews") try{ paintStewChartersKeepScroll(); }catch(e1){}
     return j;
   });
@@ -19232,7 +19210,7 @@ function promptIcsTimeMoves(timeMoves){
   if(!accepted.length&&!rejected.length) return Promise.resolve(null);
   return api("applyIcsTimeMoves",{accepted:accepted, rejected:rejected}).then(function(j){
     adoptIcsSyncPayload(j);
-    if(curTab==="leads") renderLeads();
+    if(curTab==="leads"||curTab==="finance") renderLeads();
     if(curTab==="stews") try{ paintStewChartersKeepScroll(); }catch(e1){}
     return j;
   });
@@ -19260,7 +19238,7 @@ function syncFreshIcsLeadsQuiet(){
     return promptIcsCalendarChanges(j).then(function(){
       var s=j&&j.stats||{};
       if(j&&(s.created>0||s.autoMoved>0||s.namesUpdated>0||orphans.length||
-        (j.dateMoves&&j.dateMoves.length)||(j.timeMoves&&j.timeMoves.length))&&curTab==="leads") renderLeads();
+        (j.dateMoves&&j.dateMoves.length)||(j.timeMoves&&j.timeMoves.length))&&(curTab==="leads"||curTab==="finance")) renderLeads();
       if(curTab==="stews") try{ paintStewChartersKeepScroll(); }catch(eS){}
       return j;
     });
@@ -21526,7 +21504,7 @@ el("fab").addEventListener("click",function(){
     openLeadFromCalendarDay(day, "hold");
     return;
   }
-  openSheet(curTab==="leads"?"lead":"charter",null);
+  openSheet((curTab==="leads"||curTab==="finance")?"lead":"charter",null);
 });
 document.addEventListener("keydown",function(ev){ if(ev.key==="Escape"&&el("sheet").classList.contains("show")) showSheet(false); });
 /* swipe-down on grip / header to dismiss (mobile) */
@@ -21655,7 +21633,7 @@ function save(coll){
         try{ backupStewAssignLocal(); }catch(eBak){}
         if(curTab==="stews") try{ paintStewChartersKeepScroll(); }catch(eSt){}
       }
-      if(coll==="leads"&&curTab==="leads") try{ renderLeads(); }catch(eR){}
+      if(coll==="leads"&&(curTab==="leads"||curTab==="finance")) try{ renderLeads(); }catch(eR){}
       if(coll==="charters"&&curTab==="charters") try{ renderCharters(); }catch(eC){}
       if(coll==="apa"&&curTab==="apa") try{ renderApa(); }catch(eA){}
     }
