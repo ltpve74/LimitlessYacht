@@ -3258,6 +3258,25 @@ def check_shared_assets(r: Runner) -> None:
         and '.hero-avail-cta{' in css,
     )
     r.check(
+        'hero check-available-dates CTA is a solid gold button, not a ghost chip',
+        'class="btn-primary hero-avail-cta"' in index_html
+        and 'class="btn-ghost hero-avail-cta"' not in index_html
+        and css is not None
+        and 'font-weight:700' in css
+        and re.search(
+            r'\.hero-avail-cta\{[^}]*background:var\(--btn-fill\)',
+            css,
+        )
+        is not None
+        and re.search(
+            r'#hero \.hero-avail-cta\{[^}]*font-weight:700!important',
+            css,
+        )
+        is not None
+        and '#hero .hero-actions .btn-ghost,#hero .hero-avail-cta{background:rgba(10,22,40'
+        not in re.sub(r'\s+', '', index_html),
+    )
+    r.check(
         'desktop nav keeps single row on narrow viewports',
         css is not None
         and re.search(
