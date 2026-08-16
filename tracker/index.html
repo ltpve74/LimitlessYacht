@@ -8518,22 +8518,97 @@ function openApaLinkedChargeSheet(t){
   return true;
 }
 /**
- * Create or re-sync the shortfall charge (clears suppress after a delete).
- * @param {object} t APA trip
- * @param {{open?:boolean}} [opts] open the charge sheet when done
+ * Explicit create/re-sync of the shortfall charge (user tapped Create / Sync).
+ * Clears delete-suppress + stale cash-settled flags, forces allowCreate, and
+ * falls back to a direct create if the planner still skips.
+ * @returns {{ok:boolean, charge?:object, reason?:string}}
  */
 function createOrSyncApaShortfallCharge(t, opts){
   opts=opts||{};
-  if(!t||!canOps()) return null;
+  if(!t) return { ok:false, reason:"no_trip" };
+  if(!canOps()) return { ok:false, reason:"no_ops" };
+  if(!String(t.guest||"").trim()) return { ok:false, reason:"no_guest" };
+  if(!state.charters) state.charters=[];
+
+  /* User intent always wins over “deleted charge, stay gone” */
   t.suppressShortfallCharge=false;
-  saveApa(t, { force:true, allowCreate:true, collapseOrphans:true });
-  var ch=findApaChargeForTrip(t);
-  if(opts.open!==false&&ch&&ch.id){
-    try{
-      if(typeof openSheet==="function") openSheet("charter", ch.id);
-    }catch(eOpen){}
+  /*
+   * Stale cash-settled pin after charge delete: pot shows overspend but planner
+   * returns pin_paid_manual with no row → create never runs. Clear when no
+   * real cash settlement charge remains on this pot.
+   */
+  try{
+    var stillCash=apaLinkedCharges(t).some(function(c){ return isApaCashSettlementCharge(c); });
+    if(t.apaCashSettled&&!stillCash){
+      t.apaCashSettled=false;
+      t.apaCashSettledAmt=0;
+    }
+  }catch(eCs){}
+
+  var over=0;
+  try{ over=apaOverageAmount(t); }catch(eO){ over=0; }
+  /* Raw shortfall: spend − prepaid pot only (ignore paidCovered / cash settle inflate) */
+  var rawOver=0;
+  try{
+    var x=apaTotals(t);
+    var pot=(Number(t.apaSent)||0)+(Number(t.topUps)||0);
+    rawOver=Math.max(0, Math.round(((Number(x.spent)||0)-pot)*100)/100);
+  }catch(eR){ rawOver=0; }
+  if(!(over>0.009)&&rawOver>0.009) over=rawOver;
+
+  var ch=null;
+  try{
+    ch=syncApaToCharge(t, {
+      force:true,
+      allowCreate:true,
+      firstShortfall:true,
+      allowOwnerShortfall:true,
+      overage:over
+    });
+  }catch(eSync){ ch=null; }
+
+  /* Prefer pin after planner */
+  if(!ch&&t.chargeId){
+    ch=(state.charters||[]).filter(function(c){ return c&&String(c.id)===String(t.chargeId); })[0]||null;
   }
-  return ch;
+  if(!ch){
+    try{ ch=findApaChargeForTrip(t); }catch(eF){ ch=null; }
+  }
+
+  /* Hard fallback: user asked to create and money is still due */
+  if(!ch&&over>0.009){
+    try{
+      ch=applyApaShortfallPlan(t, {
+        action:"create",
+        reason:"force_explicit",
+        overage:over,
+        guest:t.guest||"",
+        zeroPot:!apaHasPrepaid(t)
+      });
+    }catch(eCr){ ch=null; }
+  }
+
+  try{ save("apa"); }catch(eA){}
+  try{ save("charters"); }catch(eC){}
+  try{ renderCharters(); }catch(eRc){}
+  try{ renderApa(); }catch(eRa){}
+  try{ refreshTodayAfterMoneyChange(); }catch(eT){}
+
+  if(ch&&ch.id){
+    t.chargeId=ch.id;
+    if(opts.open!==false){
+      try{
+        if(typeof openSheet==="function") openSheet("charter", ch.id);
+      }catch(eOpen){}
+    }
+    return { ok:true, charge:ch };
+  }
+
+  var reason="unknown";
+  if(!(over>0.009)&&!(rawOver>0.009)) reason="no_overage";
+  else if(apaIsCashSettled(t)) reason="cash_settled";
+  else reason="create_failed";
+  return { ok:false, reason:reason, overage:over, rawOver:rawOver };
 }
 /** Status + CTAs for APA ↔ Charges (shared by Overview + Setup). */
 function apaChargeActionsHTML(t){
@@ -8576,6 +8651,14 @@ function apaChargeActionsHTML(t){
     body+
   '</div>';
 }
+function apaCreateChargeFailMessage(res){
+  res=res||{};
+  if(res.reason==="no_ops") return "Captain/ops only — sign in as captain to create the charge.";
+  if(res.reason==="no_guest") return "This APA pot has no guest name — edit the trip, then create the charge.";
+  if(res.reason==="no_overage") return "No shortfall to charge (spend is covered by the pot). Add spend or check diesel/expenses.";
+  if(res.reason==="cash_settled") return "Pot is marked cash-settled. Clear settlement on the old charge or edit the pot, then try again.";
+  return "Could not create a charge (code: "+(res.reason||"unknown")+"). Try again or open Charges and add one manually.";
+}
 function bindApaChargeActions(t){
   if(el("apaOpenCharge")){
     el("apaOpenCharge").addEventListener("click",function(ev){
@@ -8588,16 +8671,19 @@ function bindApaChargeActions(t){
   if(el("apaCreateCharge")){
     el("apaCreateCharge").addEventListener("click",function(ev){
       ev.preventDefault();
-      var ch=createOrSyncApaShortfallCharge(t, { open:true });
-      if(!ch){
-        try{ alert("Could not create a charge — check pot spend and try again."); }catch(eA){}
+      var res=createOrSyncApaShortfallCharge(t, { open:true });
+      if(!res||!res.ok){
+        try{ alert(apaCreateChargeFailMessage(res)); }catch(eA){}
       }
     });
   }
   if(el("apaSyncCharge")){
     el("apaSyncCharge").addEventListener("click",function(ev){
       ev.preventDefault();
-      createOrSyncApaShortfallCharge(t, { open:true });
+      var res=createOrSyncApaShortfallCharge(t, { open:true });
+      if(!res||!res.ok){
+        try{ alert(apaCreateChargeFailMessage(res)); }catch(eA){}
+      }
     });
   }
 }
@@ -8881,6 +8967,7 @@ function syncApaToCharge(t, opts){
     collapseOrphanApaChargesForGuest(t);
     return findReusableApaCharge(t);
   }
+  var overSnap=opts.overage!=null?Number(opts.overage):apaOverageAmount(t);
   var plan=LY_CONTROLLERS.apa.planSaveTrip(apaControllerSnapshot({
     trip:t,
     lead:apaLinkedLead(t),
@@ -8890,7 +8977,7 @@ function syncApaToCharge(t, opts){
     allowOwnerShortfall:!!opts.allowOwnerShortfall,
     paidCovered:apaPaidCovered(t),
     cashSettled:apaIsCashSettled(t),
-    overage:apaOverageAmount(t)
+    overage:overSnap
   }));
   applyApaWritePlan(t, plan);
   return applyApaShortfallPlan(t, plan.shortfall);
@@ -9429,7 +9516,9 @@ function saveApa(trip, opts){
     syncApaToCharge(t, {
       force:opts.force!==false,
       allowCreate:!!opts.allowCreate,
-      firstShortfall:true
+      firstShortfall:true,
+      /* Explicit create (Sync / Create charge) may bill owner’s days too */
+      allowOwnerShortfall:!!opts.allowOwnerShortfall||!!opts.allowCreate
     });
     lead=apaLinkedLead(t);
     if(lead&&snap&&(lead.apas!==snap.apas||Math.abs((Number(lead.apa)||0)-snap.apa)>0.005)) leadDirty=true;
@@ -9659,7 +9748,11 @@ function renderApaList(){
       ev.preventDefault(); ev.stopPropagation();
       var id=btn.getAttribute("data-apa-create-charge");
       var trip=(state.apa||[]).filter(function(x){ return x&&String(x.id)===String(id); })[0];
-      if(trip) createOrSyncApaShortfallCharge(trip, { open:true });
+      if(!trip) return;
+      var res=createOrSyncApaShortfallCharge(trip, { open:true });
+      if(!res||!res.ok){
+        try{ alert(apaCreateChargeFailMessage(res)); }catch(eA){}
+      }
     });
   });
   Array.prototype.forEach.call(wrap.querySelectorAll("[data-apa-del-trip]"),function(x){

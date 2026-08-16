@@ -442,7 +442,7 @@
     });
     if (input.overage != null) over = Number(input.overage) || 0;
 
-    var hasCash =
+    var cashRow =
       !!(chDto && chDto.isCashSettlement) ||
       linked.some(function (c) {
         return models.isApaCashSettlementCharge(c, {
@@ -450,7 +450,10 @@
           chargeBillType: models.chargeBillType,
           isApaChargeRow: isApaChargeRow,
         });
-      }) ||
+      });
+    /* Trip flag alone can go stale after charge delete — only count real rows unless no allowCreate */
+    var hasCash =
+      cashRow ||
       tripForPick.apaCashSettled === true ||
       tripForPick.apaCashSettled === "true" ||
       tripForPick.apaCashSettled === 1;
@@ -469,32 +472,39 @@
     var ownerDays =
       input.ownerDays === true ||
       !!(models.isOwnerLead && lead && models.isOwnerLead(lead));
+    var allowOwner = !!input.allowOwnerShortfall;
     /*
      * First overspend on save (diesel/expense): open a shortfall charge.
      * If user deleted the charge (suppress), still recreate when caller
-     * passes allowCreate (line save / Sync) — not from silent background jobs.
-     * Owner’s days: never auto-open a guest shortfall for APA diesel.
+     * passes allowCreate (line save / Sync / Create charge button).
+     * Owner’s days: never auto-open a guest shortfall unless allowOwnerShortfall.
      */
-    if (!hasReusable && over > 0.009 && !hasCash && !ownerDays) {
-      if (!trip.suppressShortfallCharge) {
+    if (!hasReusable && over > 0.009 && !cashRow && !(ownerDays && !allowOwner)) {
+      if (!trip.suppressShortfallCharge || allowCreate) {
         allowCreate = allowCreate || !!input.firstShortfall;
       }
     }
-    if (ownerDays && !input.allowOwnerShortfall) {
+    if (ownerDays && !allowOwner) {
       allowCreate = false;
     }
+    /*
+     * Explicit create with no cash-settlement row left: ignore stale
+     * apaCashSettled / paidManual ghosts so the charge can be recreated.
+     */
+    var blockCash = cashRow || (hasCash && !allowCreate);
+    var blockPaidManual = paidManual && !(allowCreate && !hasReusable && !cashRow);
 
     var decision = models.planApaShortfallSync({
       overage: over,
       hasReusable: hasReusable,
       allowCreate: allowCreate,
-      suppressShortfall: !!trip.suppressShortfallCharge,
-      paidManual: paidManual,
-      hasCashSettlement: hasCash,
+      suppressShortfall: !!trip.suppressShortfallCharge && !allowCreate,
+      paidManual: blockPaidManual,
+      hasCashSettlement: blockCash,
       force: force,
       chargeLocked: chDto ? !!chDto.locked : false,
       ownerDays: ownerDays,
-      allowOwnerShortfall: !!input.allowOwnerShortfall,
+      allowOwnerShortfall: allowOwner,
       chargeIsPaid: !!(chDto && chDto.isPaid),
     });
 
