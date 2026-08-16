@@ -1027,9 +1027,10 @@ def check_html(r: Runner, rel: str, html: str) -> None:
         and 'id="availability-land"' in html,
     )
     r.check(
-        'desktop nav separates charters, availability, and quote CTA',
+        'desktop nav separates charters, availability, and dates CTA',
         'href="#charters-land"' in html
         and 'href="#availability" class="nav-cta nav-header-cta"' in html
+        and 'Get Quote' not in html
         and 'href="#pricing-land"' not in html
         and 'id="charters"' in html
         and 'id="pricing"' not in html,
@@ -3266,10 +3267,12 @@ def check_shared_assets(r: Runner) -> None:
         is not None,
     )
     r.check(
-        'dest lightbox CTA and Get Quote land on the availability calendar',
+        'dest lightbox CTA and nav dates CTA land on the availability calendar',
         'id="dest-lb-cta"' in index_html
         and 'href="#avail-cal" class="btn-primary dest-lb-cta"' in index_html
         and 'href="#avail-cal" class="mobile-nav-cta"' in index_html
+        and 'class="mobile-nav-cta" onclick="closeMobile()">Check dates</a>' in index_html
+        and 'nav-header-cta" style="display:none">Check dates</a>' in index_html
         and 'function lyEnquireQuoteHref()' not in index_html
         and 'href="#enquire-form" class=' not in index_html,
     )
