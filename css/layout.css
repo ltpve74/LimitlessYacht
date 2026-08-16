@@ -21,9 +21,9 @@
     --btn-size:0.76rem;
     --btn-track:0.1em;
     --btn-weight:700;
-    --btn-fill:var(--ocean);
-    --btn-fill-hover:var(--deep);
-    --btn-on-fill:var(--cream);
+    --btn-fill:rgba(10,22,40,0.55);
+    --btn-fill-hover:rgba(10,22,40,0.82);
+    --btn-on-fill:var(--gold);
     --btn-ghost-text:var(--cream);
     --btn-ghost-text-hover:var(--gold);
     --btn-ghost-border:rgba(245,240,232,0.42);
@@ -308,7 +308,7 @@
     display:inline-block;
     background:var(--btn-fill);
     color:var(--btn-on-fill);
-    border:1px solid rgba(245,240,232,0.82);
+    border:1px solid var(--gold);
     padding:1rem 2.8rem;
     text-decoration:none;
     font-family:var(--btn-font);
@@ -829,7 +829,7 @@
     text-wrap:balance
   }
   .itinerary-bottom-actions .btn-primary{
-    border:1px solid rgba(245,240,232,0.82)
+    border:1px solid var(--gold)
   }
   .itinerary-bottom-actions .btn-ghost{
     background:rgba(10,22,40,0.28);
@@ -1540,7 +1540,7 @@
     display:none;
     background:var(--btn-fill);
     color:var(--btn-on-fill);
-    border:1px solid rgba(245,240,232,0.82);
+    border:1px solid var(--gold);
     padding:0.65rem 2rem;
     font-family:var(--btn-font);
     font-size:.62rem;

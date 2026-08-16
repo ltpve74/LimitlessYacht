@@ -239,10 +239,10 @@ Do **not** "fix" them without checking here first. Each entry lists what *not* t
   shadow — mirrored in critical CSS; keep both in sync). A guard test asserts no promo remnants.
   For a future campaign, resurrect from git history (`git log --grep=promo`, e.g. ac15354) rather
   than rebuilding from scratch.
-- **Primary CTAs are ocean navy + cream type** (2026-08-17, owner). Gold fill was hard to
-  read. Shared tokens: `--btn-fill: var(--ocean)`, `--btn-on-fill: var(--cream)`, cream
-  border. Gold stays as the accent (nav outline, active dest/gallery tabs, scroll bar,
-  hover border). Do not put gold type on a gold fill.
+- **Primary CTAs are gold outline + gold type on a transparent navy face** (2026-08-17,
+  owner). Gold fill and solid navy fill were both hard to read. Shared tokens:
+  `--btn-fill: rgba(10,22,40,.55)`, `--btn-on-fill: var(--gold)`, `border: var(--gold)`.
+  No yellow on the button face. Gold still used for nav outline, active tabs, scroll bar.
 - **Reviews Clarity events** (`ly_review_view_<author>`, `ly_review_expand[_<author>]`) — don't touch;
   used to measure reading vs expanding.
 - **Calendar on‑hold dates are selectable for enquiry** (booked/past stay blocked). On‑hold cells are

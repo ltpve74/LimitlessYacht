@@ -1251,7 +1251,7 @@ def check_html(r: Runner, rel: str, html: str) -> None:
         'FOUC guard kills blue links and hides below-fold until main.css',
         'html:not(.ly-main-ready)body>:not(nav):not(#hero){display:none!important}' in fouc_flat
         and 'a:any-link{color:#f5f0e8!important' in fouc_flat
-        and 'a.itinerary-meet-cta,a.mobile-nav-cta{color:#f5f0e8!important' in fouc_flat,
+        and 'a.itinerary-meet-cta,a.mobile-nav-cta{color:#c9a84c!important' in fouc_flat,
     )
     r.check(
         'nav and desktop hero duplicates ship with inline display:none',
@@ -1370,7 +1370,7 @@ def check_html(r: Runner, rel: str, html: str) -> None:
             or '#hero.hero-actions.btn-ghost,#hero.hero-avail-cta{background:rgba(10,22,40,.55)' in crit_flat
             or '#hero.hero-actions.btn-ghost,#hero.hero-avail-cta{background:rgba(10,22,40,.82)' in crit_flat
         )
-        and 'border:1pxsolidtransparent' in crit_flat.replace(' ', ''),
+        and 'border:1pxsolidvar(--gold)' in crit_flat.replace(' ', ''),
     )
     r.check(
         'critical CSS hides duplicate hero rates and eyebrow links before main.css',
@@ -2837,7 +2837,7 @@ def check_shared_assets(r: Runner) -> None:
         css is not None
         and '#hero.hero-actions.btn-primary,#hero.hero-actions.btn-ghost{display:inline-flex'
         in re.sub(r'\s+', '', css)
-        and '#hero.hero-actions.btn-primary{border:1pxsolidrgba(245,240,232,.82)'
+        and '#hero.hero-actions.btn-primary{border:1pxsolidvar(--gold)'
         in re.sub(r'\s+', '', css),
     )
     r.check(
@@ -3290,7 +3290,7 @@ def check_shared_assets(r: Runner) -> None:
         and '.hero-avail-cta{' in css,
     )
     r.check(
-        'hero check-available-dates CTA is a solid filled button, not a ghost chip',
+        'hero check-available-dates CTA is gold-outline glass, not a solid fill',
         'class="btn-primary hero-avail-cta"' in index_html
         and 'class="btn-ghost hero-avail-cta"' not in index_html
         and css is not None
@@ -3302,6 +3302,11 @@ def check_shared_assets(r: Runner) -> None:
         is not None
         and re.search(
             r'#hero \.hero-avail-cta\{[^}]*font-weight:700!important',
+            css,
+        )
+        is not None
+        and re.search(
+            r'#hero \.hero-avail-cta\{[^}]*color:#c9a84c!important',
             css,
         )
         is not None
@@ -3351,8 +3356,8 @@ def check_shared_assets(r: Runner) -> None:
     r.check(
         'buttons share unified fill and ghost colour tokens',
         css is not None
-        and re.search(r'--btn-fill:\s*var\(--ocean\)', css) is not None
-        and re.search(r'--btn-on-fill:\s*var\(--cream\)', css) is not None
+        and re.search(r'--btn-fill:\s*rgba\(10,\s*22,\s*40,\s*0\.55\)', css) is not None
+        and re.search(r'--btn-on-fill:\s*var\(--gold\)', css) is not None
         and '--btn-ghost-border:' in css
         and re.search(r'--btn-ghost-text:\s*var\(--cream\)', css) is not None
         and re.search(r'\.btn-primary\s*\{', css) is not None
