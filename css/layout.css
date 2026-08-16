@@ -1596,13 +1596,16 @@
   .hero-pull-slide{
     grid-area:1 / 1;
     opacity:0;
-    transition:opacity .85s ease;
+    visibility:hidden;
+    transition:opacity .85s ease,visibility 0s linear .85s;
     pointer-events:none;
     text-align:center;
     max-width:36rem
   }
   .hero-pull-slide.is-active{
     opacity:1;
+    visibility:visible;
+    transition:opacity .85s ease,visibility 0s;
     pointer-events:auto
   }
   @media (prefers-reduced-motion:reduce){
