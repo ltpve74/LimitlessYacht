@@ -230,16 +230,18 @@ function collectTodayOpsBoard(opts) {
     var subtitle;
     if (cancelled) {
       status = "cancelled";
-      subtitle = "Cancelled";
+      /* Status pill already says Cancelled — no duplicate subtitle */
+      subtitle = "";
     } else if (nCrew > 0) {
       status = String(a.payStatus || "") === "Paid" ? "paid" : "assigned";
       subtitle = nCrew + " stew" + (nCrew === 1 ? "" : "s");
     } else if (noStewNeeded) {
       status = "none";
-      subtitle = "No stew needed";
+      /* Status pill already says “No stew needed” — do not repeat in subtitle */
+      subtitle = "";
     } else {
       status = "unassigned";
-      subtitle = "No stews yet";
+      subtitle = "";
     }
     stews.push({
       kind: "stew",
