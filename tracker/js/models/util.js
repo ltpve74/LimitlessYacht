@@ -219,7 +219,28 @@ function collectTodayOpsBoard(opts) {
       a.status === "cancelled" ||
       String(a.status || "").toLowerCase() === "cancelled";
     var nCrew = Array.isArray(a.stewIds) ? a.stewIds.filter(Boolean).length : 0;
+    /* Same as Stews roster: friends / private day is not “unassigned” */
+    var noStewNeeded =
+      a.noStewNeeded === true ||
+      a.noStewNeeded === "true" ||
+      a.noStewNeeded === 1 ||
+      String(a.status || "").toLowerCase() === "none";
     var eventKey = a.eventKey != null ? String(a.eventKey) : "";
+    var status;
+    var subtitle;
+    if (cancelled) {
+      status = "cancelled";
+      subtitle = "Cancelled";
+    } else if (nCrew > 0) {
+      status = String(a.payStatus || "") === "Paid" ? "paid" : "assigned";
+      subtitle = nCrew + " stew" + (nCrew === 1 ? "" : "s");
+    } else if (noStewNeeded) {
+      status = "none";
+      subtitle = "No stew needed";
+    } else {
+      status = "unassigned";
+      subtitle = "No stews yet";
+    }
     stews.push({
       kind: "stew",
       id: eventKey || String(a.id || start),
@@ -230,16 +251,11 @@ function collectTodayOpsBoard(opts) {
       startTime: String(a.startTime || "").trim(),
       endTime: String(a.endTime || "").trim(),
       allDay: !!(a.allDay === true || a.allDay === "true" || a.allDay === 1),
-      status: cancelled
-        ? "cancelled"
-        : nCrew
-          ? String(a.payStatus || "") === "Paid"
-            ? "paid"
-            : "assigned"
-          : "unassigned",
-      subtitle: nCrew ? nCrew + " stew" + (nCrew === 1 ? "" : "s") : "No stews yet",
+      status: status,
+      subtitle: subtitle,
       amount: 0,
       nCrew: nCrew,
+      noStewNeeded: !!noStewNeeded,
     });
   });
 
