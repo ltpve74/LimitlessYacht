@@ -18,9 +18,9 @@
     --hero-cluster-gap:1.25rem;
     --hero-bottom-inset:max(2.75rem,calc(env(safe-area-inset-bottom,0px) + 1.75rem));
     --btn-font:'Montserrat',sans-serif;
-    --btn-size:0.68rem;
-    --btn-track:0.2em;
-    --btn-weight:600;
+    --btn-size:0.76rem;
+    --btn-track:0.1em;
+    --btn-weight:700;
     --btn-fill:var(--gold);
     --btn-fill-hover:var(--gold-light);
     --btn-on-fill:var(--navy);
@@ -1308,8 +1308,8 @@
       max-width:none;
       min-height:2.85rem;
       padding:var(--hero-cinema-btn-pad-y,clamp(0.95rem,5vw,1.18rem)) var(--hero-cinema-btn-pad-x,clamp(0.62rem,3.4vw,0.92rem));
-      font-size:var(--hero-cinema-btn-size,clamp(0.5rem,2.75vw,0.6rem));
-      letter-spacing:0.07em;
+      font-size:var(--hero-cinema-btn-size,clamp(0.64rem,3vw,0.76rem));
+      letter-spacing:0.08em;
       line-height:1.22;
       white-space:normal;
       text-wrap:balance;
@@ -1325,7 +1325,7 @@
       max-width:320px;
       text-align:center;
       white-space:nowrap;
-      letter-spacing:.12em;
+      letter-spacing:.08em;
       padding:0.82rem 1.35rem
     }
     .section-title{

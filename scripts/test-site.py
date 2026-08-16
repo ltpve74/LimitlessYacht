@@ -3298,6 +3298,19 @@ def check_shared_assets(r: Runner) -> None:
         not in re.sub(r'\s+', '', index_html),
     )
     r.check(
+        'gold CTA labels use a medium fallback and 700 weight, not Thin',
+        css is not None
+        and "font-family:'Montserrat Fallback Button'" in css
+        and 'HelveticaNeue-Medium' in css
+        and '--btn-weight:700' in re.sub(r'\s+', '', index_html)
+        and re.search(
+            r'#hero \.hero-actions \.btn-primary,#hero \.hero-actions \.btn-ghost,#hero \.hero-avail-cta\{[^}]*font-weight:700!important',
+            css,
+        )
+        is not None
+        and 'font-synthesis:none!important}#hero .hero-actions .btn-primary' not in re.sub(r'\s+', '', css),
+    )
+    r.check(
         'desktop nav keeps single row on narrow viewports',
         css is not None
         and re.search(
