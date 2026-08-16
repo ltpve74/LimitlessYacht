@@ -307,7 +307,7 @@ def check_html(r: Runner, rel: str, html: str) -> None:
     else:
         r.fail('WhatsApp link(s) present', 'no wa.me links found in page')
 
-    r.check('.form-col-wa WhatsApp button inside form column', 'form-col-wa' in html)
+    r.check('main contact WhatsApp sits in the quote column', 'class="whatsapp-btn"' in html and 'contact-info' in html)
 
     # WhatsApp soft-conversion system (floating CTA + booked-date capture)
     r.check('ly-wa-softconvert script present', 'id="ly-wa-softconvert"' in html)
@@ -329,35 +329,26 @@ def check_html(r: Runner, rel: str, html: str) -> None:
         and 'opacity:0' in html,
     )
 
-    # Contact form
-    form_tag_m = re.search(r'<form\b[^>]*id="contactForm"[^>]*>', html)
-    form_tag = form_tag_m.group(0) if form_tag_m else ''
-    r.check('id="contactForm" exists', bool(form_tag))
-    if form_tag:
-        r.check('form has no novalidate (browser validation on)', 'novalidate' not in form_tag)
-
-    form_name = meta['form']
+    # Contact: WhatsApp + mailto (enquiry form removed)
     r.check(
-        f'Netlify form name is {form_name}',
-        f'name="{form_name}"' in html and f'value="{form_name}"' in html,
-    )
-
-    r.check(
-        'email is the sole required field (name field removed)',
-        any('name="email"' in t and 'required' in t for t in re.findall(r'<input\b[^>]*>', html))
-        and not any('name="name"' in t and 'required' in t for t in re.findall(r'<input\b[^>]*>', html)),
+        'enquiry form and Netlify contact form are gone',
+        'id="contactForm"' not in html
+        and 'id="formDatePopover"' not in html
+        and 'id="emailSheet"' not in html
+        and 'id="enquire-form"' not in html,
     )
     r.check(
-        'honeypot input present and hidden (bot spam guard)',
-        'id="ly_hp"' in html
-        and 'id="cal_ly_hp"' in html
-        and 'cal_ly_hp' in html
-        and 'ly_hp' in html,
+        'email fallback mailto lives under calendar and main WhatsApp',
+        html.count('class="email-fallback-link"') >= 2
+        and 'mailto:info@limitlessyachtcharter.com' in html
+        and 'id="calMailtoLink"' in html
+        and 'ly_email_click' in html,
     )
     r.check(
-        'EU consent line with privacy policy link',
-        'cal-inline-consent' in html
-        and 'legal.html' in html,
+        'privacy policy still linked from the page footer',
+        'legal.html' in html
+        and 'id="ly_hp"' not in html
+        and 'id="cal_ly_hp"' not in html,
     )
 
     # Destination lightbox
@@ -368,17 +359,13 @@ def check_html(r: Runner, rel: str, html: str) -> None:
         and 'class="dest-lb-cta-mobile"' in html,
     )
     r.check(
-        'destination lightbox CTA routes by viewport',
+        'destination lightbox CTA routes to the availability calendar',
         'function syncDestLbCta()' in html
-        and "'#enquire-land'" in html
-        and "lbCta.href = w <= 640 ? '#avail-cal' : (w <= 1100 ? '#availability-land' : '#enquire-land')" in html
+        and "lbCta.href = '#avail-cal'" in html
         and 'function lyGoAvailSectionLand()' in html
         and "a[href=\"#avail-cal\"], a[href=\"#availability\"]" in html
         and 'if (w < 641 || w > 1100) return' in html
-        and "location.hash === '#availability-land'" in html
         and 'function closeDestLbAndGo(hash)' in html
-        and "dest === '#availability-land'" in html
-        and 'lyGoAvailSectionLand();' in html
         and "location.pathname + location.search" in html
         and 'location.hash = dest' in html,
     )
@@ -885,11 +872,7 @@ def check_html(r: Runner, rel: str, html: str) -> None:
         'calendar supports adjacent date range selection',
         'function buildContiguousRange' in html
         and 'id="calSelection"' in html
-        and 'id="calEnquireBtn"' in html
-        and 'preferred_date_end' in html
-        and 'function LY_syncFormDur' in html
-        and "useDurAuto('multi-day')" in html
-        and 'window.LY_setCharterLen' in html
+        and 'id="calWaBtn"' in html
         and 'durOptMultiDay' not in html
         and 'value="multi-day">Multi-Day' not in html
         and 'selected.length === 1' in html
@@ -917,20 +900,13 @@ def check_html(r: Runner, rel: str, html: str) -> None:
         and "tentative.has(selected[hi])" in html,
     )
     r.check(
-        'date picker popup restored on main enquiry form',
-        'class="form-date-icon"' in html
-        and 'class="form-date-apply-btn"' in html
-        and 'id="formDatePopoverDismiss"' in html
-        and 'type="hidden" name="preferred_date"' in html
-        and 'type="hidden" name="preferred_date_end"' in html
-        and 'type="date" name="preferred_date"' not in html
-        and 'function openFormDatePopover' in html
-        and 'function closeFormDatePopover' in html
-        and 'window.LY_updateFormDateTriggers' in html
-        and 'function pickFormDate' in html
-        and 'formDatePickGuard' in html
-        and 'form-date-popup-open' in html
-        and 'formDateModal' not in html
+        'form date picker and form-calendar events are gone',
+        'class="form-date-apply-btn"' not in html
+        and 'id="formDatePopoverDismiss"' not in html
+        and 'function openFormDatePopover' not in html
+        and 'ly_cal_form_open' not in html
+        and 'ly_cal_form_date_select' not in html
+        and 'ly_form_view' not in html
         and 'range-start' in html,
     )
 
@@ -999,7 +975,7 @@ def check_html(r: Runner, rel: str, html: str) -> None:
         'updateScrollHash' in html
         and 'SCROLL_HASH_SECTIONS' in html
         and "'itinerary'" in html.split('SCROLL_HASH_SECTIONS')[1][:160]
-        and "'enquire-form'" in html.split('SCROLL_HASH_SECTIONS')[1][:160]
+        and "'enquire-form'" not in html.split('SCROLL_HASH_SECTIONS')[1][:200]
         and 'history.replaceState(history.state' in html
         and 'LY_hashLockUntil' in html,
     )
@@ -1051,13 +1027,14 @@ def check_html(r: Runner, rel: str, html: str) -> None:
         and 'href="#charters-land"' not in mobile_nav,
     )
     r.check(
-        'mobile menu splits quote form and calendar anchors',
+        'mobile Get Quote and calendar share the availability anchor',
         mobile_nav_m is not None
         and re.search(
-            r'href="#enquire-form"[^>]*class="mobile-nav-cta"',
+            r'href="#avail-cal"[^>]*class="mobile-nav-cta"',
             mobile_nav,
         )
         is not None
+        and 'href="#enquire-form"' not in mobile_nav
         and 'href="#avail-cal"' in mobile_nav
         and 'href="#availability"' not in mobile_nav,
     )
@@ -1077,7 +1054,7 @@ def check_html(r: Runner, rel: str, html: str) -> None:
     )
 
     # Netlify form detection
-    r.check('Netlify form attribute present', ' netlify ' in html or ' netlify>' in html)
+    r.check('Netlify contact form attribute is gone', ' netlify>' not in html and ' netlify ' not in html.split('<footer>')[0])
 
     # Page structure — key sections
     for sid in SECTION_IDS:
@@ -1365,7 +1342,9 @@ def check_html(r: Runner, rel: str, html: str) -> None:
         )
         and (
             '#hero.hero-actions.btn-ghost{background:rgba(10,22,40,.28)' in crit_flat
+            or '#hero.hero-actions.btn-ghost,#hero.hero-avail-cta{background:rgba(10,22,40,.28)' in crit_flat
             or '#hero.hero-actions.btn-ghost{background:rgba(10,22,40,.52)' in crit_flat
+            or '#hero.hero-actions.btn-ghost,#hero.hero-avail-cta{background:rgba(10,22,40,.52)' in crit_flat
         )
         and 'border:1pxsolidtransparent' in crit_flat.replace(' ', ''),
     )
@@ -1599,6 +1578,7 @@ def check_html(r: Runner, rel: str, html: str) -> None:
         (
             '#hero.hero-actions:is(.btn-primary,.btn-ghost){display:inline-flex' in crit_flat
             or '#hero.hero-actions.btn-primary,#hero.hero-actions.btn-ghost{display:inline-flex' in crit_flat.replace(' ', '')
+            or '#hero.hero-actions.btn-primary,#hero.hero-actions.btn-ghost,#hero.hero-avail-cta{display:inline-flex' in crit_flat.replace(' ', '')
         )
         and 'justify-content:center' in crit_flat.replace(' ', '')
         and 'box-shadow:02px18pxrgba(10,22,40,.32)' in crit_flat.replace(' ', '')
@@ -2367,8 +2347,8 @@ def check_shared_assets(r: Runner) -> None:
             # One component for carousel, lightbox and calendar chevrons; the
             # ‹ › glyphs sat off-centre with the metric-adjusted fallback
             # faces (owner screenshots, 2 Jul 2026).
-            index_html.count('ly-chev--prev') == 6
-            and index_html.count('ly-chev--next') == 6
+            index_html.count('ly-chev--prev') == 5
+            and index_html.count('ly-chev--next') == 5
             and '.ly-chev::before{' in re.sub(r'\s+', '', css or '')
             and '&#8249;</button>' not in index_html
             and '‹</button>' not in index_html
@@ -2832,8 +2812,8 @@ def check_shared_assets(r: Runner) -> None:
         in re.sub(r'\s+', '', css),
     )
     r.check(
-        'end date submitted via hidden field only',
-        'type="hidden" name="preferred_date_end"' in index_html
+        'enquiry form date fields are gone',
+        'type="hidden" name="preferred_date_end"' not in index_html
         and 'preferred_date_end_btn' not in index_html
         and 'LY_applyDurDateLayout' not in index_html,
     )
@@ -2860,34 +2840,24 @@ def check_shared_assets(r: Runner) -> None:
         and 'count > 2 && calRoot.closest' in index_html,
     )
     r.check(
-        'availability and form calendars fire distinct Clarity events',
+        'availability calendar and new CTAs fire Clarity events',
         'LY_clarityEvent' in index_html
         and 'ly_cal_avail_month_next' in index_html
         and 'ly_cal_avail_date_select' in index_html
         and 'ly_cal_avail_whatsapp' in index_html
         and 'ly_cal_avail_call' in index_html
-        and 'ly_form_view' in index_html
-        and 'ly_cal_form_open' in index_html
-        and 'ly_cal_form_month_next' in index_html
-        and 'ly_cal_form_date_select' in index_html
+        and 'ly_form_view' not in index_html
+        and 'ly_cal_form_open' not in index_html
         and 'ly_hero_rates_click' in index_html
+        and 'ly_hero_avail_click' in index_html
+        and 'ly_email_click' in index_html
         and 'ly_charters_rates_view' in index_html,
     )
     r.check(
-        'calendar enquire: sheet on mobile, focus main email field on desktop',
-        'window.LY_openEnqSheet' in index_html
-        and "getElementById('cal_inline_email')" in index_html
-        and 'emailInput.focus()' in index_html
-        and "matchMedia('(min-width: 641px)')" in index_html
-        and "getElementById('email')" in index_html
-        and 'ly_form_view' in index_html,
-    )
-    r.check(
-        'inline form has success state with WhatsApp re-offer',
-        'buildInlineSuccessHtml' in index_html
-        and 'calInlineSuccess' in index_html
-        and 'calInlineForm' in index_html
-        and 'cal_ly_hp' in index_html,
+        'hero fires section view on load and skips enquire section event',
+        'function fireHeroSectionView()' in index_html
+        and "lyTrackSectionHash('hero')" in index_html
+        and "hash === 'enquire' || hash === 'enquire-form' || hash === 'enquire-land') return ''" in index_html,
     )
     r.check(
         'calendar WhatsApp CTA is primary with tel fallback',
@@ -2897,10 +2867,10 @@ def check_shared_assets(r: Runner) -> None:
         and re.search(r'tel:\+34\d{9}', index_html) is not None
         and 'cal-wa-label' in index_html
         and 'cal-form-fallback' in index_html
-        and 'id="calEnquireBtn"' in index_html
-        and 'Prefer email?' in index_html
-        and re.search(r'@media\s*\(min-width:\s*769px\)[^{]*\{[^}]*\.form-col-wa[^}]*display:\s*none', css, re.DOTALL) is not None
-        and re.search(r'@media\s*\(min-width:\s*769px\)[^{]*\{[^}]*\.cal-form-fallback[^}]*display:\s*none', css, re.DOTALL) is not None,
+        and 'id="calMailtoLink"' in index_html
+        and 'Prefer email? Write to us' in index_html
+        and 'id="heroAvailCta"' in index_html
+        and 'Check available dates' in index_html,
     )
     r.check(
         'calendar WhatsApp tracks new Clarity events and keeps historical event',
@@ -2917,9 +2887,9 @@ def check_shared_assets(r: Runner) -> None:
         and '.destination-card:hover .destination-card-body::after' in css,
     )
     r.check(
-        'destination lightbox enquire CTA focuses name field on desktop',
+        'destination lightbox CTA does not focus a removed form field',
         'function applyDestLbPrefill()' in index_html
-        and "nameInput.focus({ preventScroll: true })" in index_html
+        and "nameInput.focus({ preventScroll: true })" not in index_html
         and 'dest-lb-cta-secondary' not in index_html,
     )
     r.check(
@@ -3055,11 +3025,11 @@ def check_shared_assets(r: Runner) -> None:
         and 'function isMobile()' not in wire,
     )
     r.check(
-        'calendar enquire opens email sheet (no navigation to separate section)',
-        'function isCalendarFormPaired()' in index_html
-        and 'window.LY_openEnqSheet' in index_html
-        and 'id="emailSheet"' in index_html
-        and 'id="emailSheetBackdrop"' in index_html,
+        'calendar email fallback is a mailto, not a sheet or form',
+        'id="calMailtoLink"' in index_html
+        and 'window.LY_openEnqSheet' not in index_html
+        and 'id="emailSheet"' not in index_html
+        and 'function isCalendarFormPaired()' not in index_html,
     )
     r.check(
         'mobile funnel CTAs route to availability calendar',
@@ -3270,95 +3240,20 @@ def check_shared_assets(r: Runner) -> None:
         is not None,
     )
     r.check(
-        'email sheet has date pre-fill from calendar shown as read-only text',
-        'id="emailSheet"' in index_html
-        and 'id="emailSheetDate"' in index_html
-        and 'id="cal_inline_date"' in index_html
-        and 'id="cal_inline_date_end"' in index_html
-        and 'LY_openEnqSheet' in index_html
-        and 'href="#avail-cal"' in index_html,
+        'dest lightbox CTA and Get Quote land on the availability calendar',
+        'id="dest-lb-cta"' in index_html
+        and 'href="#avail-cal" class="btn-primary dest-lb-cta"' in index_html
+        and 'href="#avail-cal" class="mobile-nav-cta"' in index_html
+        and 'function lyEnquireQuoteHref()' not in index_html
+        and 'href="#enquire-form" class=' not in index_html,
     )
     r.check(
-        'form date popover JS intact for any remaining date picker references',
-        'function openFormDatePopover' in index_html
-        and 'function closeFormDatePopover' in index_html
-        and 'function positionFormDatePopover' in index_html
-        and 'form-date-month-nav' in index_html
-        and '.form-date-prev' not in index_html.split('form-date-popover-toolbar')[1].split('form-date-cal-grid')[0]
-        and 'class="form-date-popover cal opens-up"' in index_html
-        and "formDatePopover.style.position = 'fixed'" not in index_html
-        and 'formDatePopover.style.overflowY' not in index_html
-        and 'opens-down' in index_html
-        and 'form-date-row-open' not in index_html
-        and '.form-row.form-date-row-open' not in css
-        and '.form-row:has(#formDurWrap[hidden])' not in css
-        and re.search(r'max-width:\s*18\.5rem', css) is not None
-        and '.form-date-trigger' in css
-        and '.form-date-icon' in css
-        and '.form-date-popover .cal-cell' in css
-        and '.form-date-apply-btn' in css
-        and 'class="cal-nav form-date-nav form-date-popover-dismiss"' in index_html
-        and '.form-date-popover-dismiss' in css
-        and '.form-date-popover .form-date-clear-btn' in css
-        and 'form-date-close-hint' not in index_html
-        and '.form-date-modal' not in css
-        and '.form-date-backdrop' not in css
-        and re.search(r'\.form-date-popover(?:\.cal)?\s*\{[^}]*background:\s*var\(--deep\)', css) is not None
-        and 'body.form-date-popup-open::before' not in css
-        and 'body.form-date-popup-open .form-date-popover:not([hidden])' not in css
-        and '.form-date-popover.opens-up' in css
-        and re.search(r'\.form-date-popover(?:\.cal)?\s*\{[^}]*position:\s*absolute', css) is not None,
-    )
-    r.check(
-        'mobile quote links pick enquire anchor from viewport height',
+        'email fallback is muted text, not a button',
         css is not None
-        and 'function lyEnquireSectionFitsViewport()' in index_html
-        and 'function lyEnquireQuoteHref()' in index_html
-        and 'function syncEnquireQuoteHrefs()' in index_html
-        and "matchMedia('(max-width: 768px)')" in index_html
-        and 'getComputedStyle(document.documentElement).scrollPaddingTop' not in index_html
-        and 'requestAnimationFrame(function () {' in index_html.split('syncEnquireQuoteHrefs')[1][:500]
-        and "return '#enquire';" in index_html
-        and 'window.LY_enquireSectionFitsViewport = lyEnquireSectionFitsViewport' in index_html
-        and 'visualViewport' in index_html
-        and re.search(
-            r'@media\s*\(\s*max-width:\s*768px\s*\)[\s\S]*?#enquire\s*\{[^}]*scroll-margin-top:\s*0',
-            css,
-        )
-        is not None
-        and re.search(
-            r'@media\s*\(\s*min-width:\s*401px\s*\)\s*and\s*\(\s*max-width:\s*768px\s*\)[\s\S]*?#enquire-land\s*\{[^}]*scroll-margin-top:\s*1rem',
-            css,
-        )
-        is not None,
-    )
-    r.check(
-        'desktop date popover stacks below fixed nav',
-        css is not None
-        and re.search(
-            r'@media\s*\(\s*min-width:\s*769px\s*\)[\s\S]*?\.form-date-wrap\.is-open\s*\{[^}]*z-index:\s*50',
-            css,
-        )
-        is not None
-        and re.search(
-            r'@media\s*\(\s*min-width:\s*769px\s*\)[\s\S]*?\.form-date-popover(?:,\s*\.form-date-popover\.cal)?\s*\{[^}]*z-index:\s*50',
-            css,
-        )
-        is not None,
-    )
-    r.check(
-        'mobile date popover stacks below fixed nav',
-        css is not None
-        and re.search(
-            r'@media\s*\(\s*max-width:\s*768px\s*\)[\s\S]*?\.form-date-wrap\.is-open\s*\{[^}]*z-index:\s*50',
-            css,
-        )
-        is not None
-        and re.search(
-            r'@media\s*\(\s*max-width:\s*768px\s*\)[\s\S]*?\.form-date-popover(?:,\s*\.form-date-popover\.cal)?\s*\{[^}]*z-index:\s*50',
-            css,
-        )
-        is not None,
+        and '.email-fallback{' in css
+        and '.email-fallback-link{' in css
+        and 'text-decoration:underline' in css
+        and '.hero-avail-cta{' in css,
     )
     r.check(
         'desktop nav keeps single row on narrow viewports',
@@ -3692,7 +3587,7 @@ def check_shared_assets(r: Runner) -> None:
     r.check(
         'calendar selection updates WhatsApp enquiry links',
         'function syncWaEnquiryLinks(msg)' in index_html
-        and "document.querySelector('.form-col-wa')" in index_html
+        and "document.querySelector('.contact-info .whatsapp-btn')" in index_html
         and 'syncWaEnquiryLinks(msg)' in index_html
         and 'syncWaEnquiryLinks(null)' in index_html
         and 'function getDefaultWaMsg()' in index_html
@@ -3748,13 +3643,13 @@ def check_shared_assets(r: Runner) -> None:
     pair_end = index_html.find('id="amenities"', pair_start)
     pair_html = index_html[pair_start:pair_end] if pair_start != -1 and pair_end != -1 else ''
     r.check(
-        'calendar precedes enquiry form in page structure',
+        'calendar precedes WhatsApp contact column in page structure',
         pair_html.find('id="availability"') != -1
         and pair_html.find('class="enquire-section"') != -1
         and pair_html.find('id="availability"') < pair_html.find('class="enquire-section"'),
     )
     r.check(
-        'desktop paired layout keeps form left of calendar',
+        'desktop paired layout keeps contact column left of calendar',
         css is not None
         and re.search(r'@media\s*\(min-width:\s*769px\)', css) is not None
         and re.search(r'\.contact-cal-pair\s+\.enquire-section\s*\{\s*order:\s*1', css) is not None
