@@ -16,6 +16,8 @@ TARGETS = [
     'de/index.html', 'de/legal.html',
     'fr/index.html', 'fr/legal.html',
     'es/index.html', 'es/legal.html',
+    'day-charter-mallorca/index.html',
+    'de/day-charter-mallorca/index.html',
 ]
 
 JS_DIR = 'js'

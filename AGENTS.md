@@ -68,7 +68,7 @@ a pre-commit lock; weakening a guard to make a change pass is blocked):
 
 | What | Where |
 |------|-------|
-| Pages (edit) | `index.html`, `legal.html` |
+| Pages (edit) | `index.html`, `legal.html`, `day-charter-mallorca/index.html` |
 | Styles (edit) | `css/main.css`, `css/layout.css` |
 | Translations (edit) | `i18n/locales/{de,es,fr}.py` · reviews: `data/reviews.json` |
 | Generated (never hand-edit) | `de/ es/ fr/` HTML, `data/reviews-{de,es,fr}.json` |

@@ -1907,6 +1907,11 @@ def check_locale_modules(r: Runner) -> None:
     for code, mod in (('de', de), ('es', es), ('fr', fr)):
         r.check(f'i18n/locales/{code}.py defines REVIEWS', hasattr(mod, 'REVIEWS'))
         r.check(f'i18n/locales/{code}.py defines REVIEWS_UI', hasattr(mod, 'REVIEWS_UI'))
+        if code == 'de':
+            r.check(
+                'i18n/locales/de.py defines DAY_CHARTER_PAIRS',
+                hasattr(mod, 'DAY_CHARTER_PAIRS') and len(mod.DAY_CHARTER_PAIRS) > 10,
+            )
         if hasattr(mod, 'REVIEWS'):
             r.check(
                 f'i18n/locales/{code}.py REVIEWS count matches EN',
@@ -3882,6 +3887,158 @@ def check_js(r: Runner, rel: str) -> None:
             os.unlink(tmp_path)
 
 
+def check_day_charter_landing(r: Runner) -> None:
+    """EN + DE day-charter landing (P1 of lean-into-real-markets-seo)."""
+    en = read_file('day-charter-mallorca/index.html')
+    de = read_file('de/day-charter-mallorca/index.html')
+    sitemap = read_file('sitemap.xml') or ''
+    index = read_file('index.html') or ''
+    de_index = read_file('de/index.html') or ''
+    main_css = read_file('css/main.css') or ''
+
+    r.check('day-charter EN page exists', en is not None)
+    r.check('day-charter DE page exists', de is not None)
+    r.check(
+        'day-charter has no ES or FR copies (not real charter audiences)',
+        read_file('es/day-charter-mallorca/index.html') is None
+        and read_file('fr/day-charter-mallorca/index.html') is None,
+    )
+    if not en or not de:
+        return
+
+    r.check(
+        'EN day-charter title targets private day charter Mallorca',
+        '<title>Private Day Charter Mallorca — Crewed Maiora from Palma</title>' in en,
+    )
+    r.check(
+        'EN day-charter has a single commercial H1',
+        en.count('<h1>') == 1
+        and 'Private yacht charter in Mallorca' in en,
+    )
+    r.check(
+        'EN day-charter has unique meta description',
+        'name="description" content="Private day charter in Mallorca' in en,
+    )
+    r.check(
+        'EN day-charter canonical is /day-charter-mallorca/',
+        'rel="canonical" href="https://limitlessyachtcharter.com/day-charter-mallorca/"' in en,
+    )
+    for code, href in (
+        ('en', 'https://limitlessyachtcharter.com/day-charter-mallorca/'),
+        ('de', 'https://limitlessyachtcharter.com/de/day-charter-mallorca/'),
+        ('x-default', 'https://limitlessyachtcharter.com/day-charter-mallorca/'),
+    ):
+        r.check(
+            f'EN day-charter hreflang={code}',
+            f'hreflang="{code}" href="{href}"' in en,
+        )
+    r.check(
+        'EN day-charter has no ES/FR hreflang (page not generated)',
+        'hreflang="es"' not in en and 'hreflang="fr"' not in en,
+    )
+    r.check(
+        'EN day-charter Service JSON-LD with EUR AggregateOffer',
+        '"@type":"Service"' in en
+        and '"@type":"AggregateOffer"' in en
+        and '"priceCurrency":"EUR"' in en
+        and '"lowPrice":"1700"' in en
+        and '"highPrice":"4000"' in en,
+    )
+    r.check(
+        'EN day-charter self-filters the Lürssen name collision',
+        'Lürssen' in en and 'charter yacht' in en.lower(),
+    )
+    r.check(
+        'EN day-charter has WhatsApp + tel CTAs',
+        'wa.me/34643678072' in en and 'tel:+34643678072' in en,
+    )
+    r.check(
+        'EN day-charter uses inner-page shell (no cinema hero)',
+        'class="ly-inner-page"' in en and 'id="hero"' not in en,
+    )
+    r.check(
+        'homepage charters intro links to day-charter landing',
+        'href="day-charter-mallorca/"' in index
+        and 'private day charter in Mallorca' in index,
+    )
+    r.check(
+        'homepage footer links to day-charter landing',
+        'href="day-charter-mallorca/">Day charter</a>' in index,
+    )
+    r.check(
+        'sitemap lists EN + DE day-charter with lastmod',
+        '<loc>https://limitlessyachtcharter.com/day-charter-mallorca/</loc>' in sitemap
+        and '<loc>https://limitlessyachtcharter.com/de/day-charter-mallorca/</loc>' in sitemap
+        and sitemap.count('<lastmod>2026-08-17</lastmod>') >= 2,
+    )
+    r.check(
+        'DE day-charter title uses Yachtcharter / Tagescharter',
+        'Tagescharter Mallorca' in de and '<html' in de and 'lang="de"' in de,
+    )
+    r.check(
+        'DE day-charter canonical is /de/day-charter-mallorca/',
+        'rel="canonical" href="https://limitlessyachtcharter.com/de/day-charter-mallorca/"' in de,
+    )
+    r.check(
+        'DE day-charter assets step up two folders',
+        'href="../../css/layout.css' in de
+        and 'href="../../css/main.css' in de
+        and 'src="../../js/analytics-env.js"' in de
+        and 'href="../../favicon.svg"' in de
+        and 'href="../../#avail-cal"' in de,
+    )
+    r.check(
+        'DE day-charter H1 is German commercial',
+        'Yachtcharter Mallorca' in de and 'Private yacht charter in Mallorca — a crewed day' not in de,
+    )
+    r.check(
+        'main.css defines inner-page layout',
+        'html.ly-inner-page' in main_css and '.ly-page h1' in main_css,
+    )
+    en_main_v = re.search(r'main\.css\?v=(\d+)', index)
+    if en_main_v:
+        v = en_main_v.group(1)
+        r.check(
+            'day-charter pages share homepage main.css cache version',
+            f'main.css?v={v}' in en and f'main.css?v={v}' in de,
+        )
+    r.check(
+        'EN homepage title unchanged pending owner approval',
+        '<title>Limitless Yacht Experience – Luxury Maiora Charter in Mallorca</title>' in index,
+    )
+    r.check(
+        'EN homepage lead carries commercial phrase',
+        'Private yacht charter in Mallorca' in index,
+    )
+    r.check(
+        'DE homepage title leads with Yachtcharter / Yacht mieten',
+        'Yachtcharter Mallorca' in de_index and 'Yacht mieten' in de_index,
+    )
+
+    try:
+        sys.path.insert(0, os.path.join(ROOT, 'i18n'))
+        build_mod = _load_build_locales()
+        from locales import de as de_mod  # noqa: WPS433
+    except Exception as exc:  # noqa: BLE001
+        r.fail('day-charter locale build importable', str(exc))
+        return
+    expected = build_mod.build_landing(de_mod, 'day-charter-mallorca', 'DAY_CHARTER_PAIRS')
+    if de.count('\n') < 8:
+        import importlib.util
+
+        minify_path = os.path.join(ROOT, 'scripts', 'minify_html.py')
+        spec = importlib.util.spec_from_file_location('minify_html_landing', minify_path)
+        minify_mod = importlib.util.module_from_spec(spec)
+        assert spec.loader is not None
+        spec.loader.exec_module(minify_mod)
+        expected = minify_mod.minify_html(expected)
+    r.check(
+        'de/day-charter-mallorca/index.html matches build-locales.py output',
+        de == expected,
+        'run: python3 i18n/build-locales.py',
+    )
+
+
 # ── Main ──────────────────────────────────────────────────────────────────────
 
 def main() -> None:
@@ -3930,6 +4087,9 @@ def main() -> None:
 
     print('\n[locale translations]')
     check_locale_translations(r, pages)
+
+    print('\n[day-charter landing]')
+    check_day_charter_landing(r)
 
     print('\n[html integrity]')
     check_html_integrity(r)

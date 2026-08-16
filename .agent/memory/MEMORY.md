@@ -12,6 +12,7 @@
 - [Agent files off main](agent-files-off-main.md) — all agent files stay off main; working files/memory live in .agent/ (stripped on publish); 4 instruction files stay at root
 - [Google Ads project](project_google_ads.md) — campaign state/setup (folded in from the other agent's local memory/)
 
+- [landing-pages-en-de.md](landing-pages-en-de.md) — extra indexable pages EN+DE only; first is `/day-charter-mallorca/`; no ES/FR stubs; EN title needs owner OK
 - [tracker-always-push-live.md](tracker-always-push-live.md) — always publish tracker to main/live
 
 - [tracker-extra-hours-commission.md](tracker-extra-hours-commission.md) — extra hours on Charges; cash vs invoice commission
