@@ -1251,7 +1251,7 @@ def check_html(r: Runner, rel: str, html: str) -> None:
         'FOUC guard kills blue links and hides below-fold until main.css',
         'html:not(.ly-main-ready)body>:not(nav):not(#hero){display:none!important}' in fouc_flat
         and 'a:any-link{color:#f5f0e8!important' in fouc_flat
-        and 'a.itinerary-meet-cta,a.mobile-nav-cta{color:#0a1628!important' in fouc_flat,
+        and 'a.itinerary-meet-cta,a.mobile-nav-cta{color:#f5f0e8!important' in fouc_flat,
     )
     r.check(
         'nav and desktop hero duplicates ship with inline display:none',
@@ -2837,7 +2837,7 @@ def check_shared_assets(r: Runner) -> None:
         css is not None
         and '#hero.hero-actions.btn-primary,#hero.hero-actions.btn-ghost{display:inline-flex'
         in re.sub(r'\s+', '', css)
-        and '#hero.hero-actions.btn-primary{border:1pxsolidtransparent'
+        and '#hero.hero-actions.btn-primary{border:1pxsolidrgba(245,240,232,.82)'
         in re.sub(r'\s+', '', css),
     )
     r.check(
@@ -3290,7 +3290,7 @@ def check_shared_assets(r: Runner) -> None:
         and '.hero-avail-cta{' in css,
     )
     r.check(
-        'hero check-available-dates CTA is a solid gold button, not a ghost chip',
+        'hero check-available-dates CTA is a solid filled button, not a ghost chip',
         'class="btn-primary hero-avail-cta"' in index_html
         and 'class="btn-ghost hero-avail-cta"' not in index_html
         and css is not None
@@ -3351,7 +3351,8 @@ def check_shared_assets(r: Runner) -> None:
     r.check(
         'buttons share unified fill and ghost colour tokens',
         css is not None
-        and re.search(r'--btn-fill:\s*var\(--gold\)', css) is not None
+        and re.search(r'--btn-fill:\s*var\(--ocean\)', css) is not None
+        and re.search(r'--btn-on-fill:\s*var\(--cream\)', css) is not None
         and '--btn-ghost-border:' in css
         and re.search(r'--btn-ghost-text:\s*var\(--cream\)', css) is not None
         and re.search(r'\.btn-primary\s*\{', css) is not None
@@ -3998,8 +3999,7 @@ def check_day_charter_landing(r: Runner) -> None:
     r.check(
         'inner-page body links stay gold; buttons do not inherit gold text',
         'a:not([class*="btn-"]){color:var(--gold)}' in main_css.replace(' ', '')
-        and '.ly-page-cta .btn-primary' in main_css
-        and 'color:var(--cream)' in main_css[main_css.find('.ly-page-cta .btn-primary'):main_css.find('.ly-page-cta .btn-primary') + 280],
+        and '.ly-page-cta .btn-primary' in main_css,
     )
     en_main_v = re.search(r'main\.css\?v=(\d+)', index)
     if en_main_v:

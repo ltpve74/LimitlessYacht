@@ -239,6 +239,10 @@ Do **not** "fix" them without checking here first. Each entry lists what *not* t
   shadow — mirrored in critical CSS; keep both in sync). A guard test asserts no promo remnants.
   For a future campaign, resurrect from git history (`git log --grep=promo`, e.g. ac15354) rather
   than rebuilding from scratch.
+- **Primary CTAs are ocean navy + cream type** (2026-08-17, owner). Gold fill was hard to
+  read. Shared tokens: `--btn-fill: var(--ocean)`, `--btn-on-fill: var(--cream)`, cream
+  border. Gold stays as the accent (nav outline, active dest/gallery tabs, scroll bar,
+  hover border). Do not put gold type on a gold fill.
 - **Reviews Clarity events** (`ly_review_view_<author>`, `ly_review_expand[_<author>]`) — don't touch;
   used to measure reading vs expanding.
 - **Calendar on‑hold dates are selectable for enquiry** (booked/past stay blocked). On‑hold cells are
