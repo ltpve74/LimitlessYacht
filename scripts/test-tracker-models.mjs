@@ -141,8 +141,8 @@ console.log("[Ops — today board]");
     return x.eventKey === "ek-gap" && x.status === "unassigned";
   }));
   ok(
-    "today board noStewNeeded subtitle",
-    (boardNone.stews.filter(function (x) { return x.eventKey === "ek-none"; })[0] || {}).subtitle === "No stew needed"
+    "today board noStewNeeded no duplicate subtitle",
+    (boardNone.stews.filter(function (x) { return x.eventKey === "ek-none"; })[0] || {}).subtitle === ""
   );
 }
 
