@@ -3995,6 +3995,12 @@ def check_day_charter_landing(r: Runner) -> None:
         'main.css defines inner-page layout',
         'html.ly-inner-page' in main_css and '.ly-page h1' in main_css,
     )
+    r.check(
+        'inner-page body links stay gold; buttons do not inherit gold text',
+        'a:not([class*="btn-"]){color:var(--gold)}' in main_css.replace(' ', '')
+        and '.ly-page-cta .btn-primary' in main_css
+        and 'color:var(--cream)' in main_css[main_css.find('.ly-page-cta .btn-primary'):main_css.find('.ly-page-cta .btn-primary') + 280],
+    )
     en_main_v = re.search(r'main\.css\?v=(\d+)', index)
     if en_main_v:
         v = en_main_v.group(1)
