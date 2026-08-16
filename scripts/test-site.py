@@ -937,6 +937,15 @@ def check_html(r: Runner, rel: str, html: str) -> None:
         and "document.documentElement.classList.remove('ly-past-hero')" in html
         and "destId === 'itinerary-funnel' || destId === 'gallery-funnel'" in html,
     )
+    r.check(
+        'hero Check available dates jump on phone sets cinema offset before native scroll',
+        'function lyPrepareCinemaHashNav' in html
+        and "addEventListener('pointerdown'" in html
+        and "destId === 'avail-cal' || destId === 'availability'" in html
+        and 'window.innerWidth <= 640 && window.scrollY <= 56' in html
+        and "keepHash === 'avail-cal'" in html
+        and 'LY_hashLockUntil = Date.now() + 4000' in html,
+    )
 
     _hero_css = (read_file('css/layout.css') or '') + (read_file('css/main.css') or '')
     _hero_struct = (
