@@ -124,6 +124,15 @@
         var start = Number(report.pettyStart) || 0;
         var boatShort = Math.max(0, Number(report.cashShort) || 0);
         var periodLab = report.monthLabel || report.month || "";
+        var pend = report.cashPending || { total: 0, boat: 0, owner: 0, n: 0, items: [] };
+        var proj = report.cashProjected || { total: 0, boat: 0, owner: 0, n: 0, items: [] };
+        var pendBoat = Number(pend.boat) || 0;
+        var pendOwner = Number(pend.owner) || 0;
+        var projBoat = Number(proj.boat) || 0;
+        var projOwner = Number(proj.owner) || 0;
+        var pendTot = Number(pend.total) || pendBoat + pendOwner;
+        var projTot = Number(proj.total) || projBoat + projOwner;
+        var expectBoat = Math.round((onBoard + pendBoat + projBoat) * 100) / 100;
 
         function wrapLines(t, size, bold, maxW) {
           var f = bold ? fontBold : font;
@@ -313,7 +322,7 @@
           });
           drawText(periodLab || "Month", margin + 12, y - 14, 15, true, navy);
           drawText(
-            "Boat envelope only — cash on board. No charter fees or commissions earned.",
+            "Cash on board + cash still to collect. No charter P&L or commissions earned.",
             margin + 12,
             y - 32,
             9,
@@ -334,7 +343,7 @@
           valColor: slateInk,
         });
         gap(4);
-        kvRow("Cash in", pdfMoney(cashIn), {
+        kvRow("Cash in (received)", pdfMoney(cashIn), {
           big: true,
           boldLab: true,
           bg: greenBg,
@@ -350,13 +359,60 @@
           valColor: slateInk,
         });
         gap(4);
-        kvRow("On board (closing)", pdfMoney(onBoard), {
+        kvRow("On board now", pdfMoney(onBoard), {
           big: true,
           boldLab: true,
           bg: onBoard > 0.009 ? greenBg : amberBg,
           labColor: onBoard > 0.009 ? greenInk : amberInk,
           valColor: onBoard > 0.009 ? greenInk : amberInk,
         });
+        gap(6);
+        kvRow("Pending cash (due now)", pdfMoney(pendTot), {
+          big: true,
+          boldLab: true,
+          bg: pendTot > 0.009 ? amberBg : slateBg,
+          labColor: pendTot > 0.009 ? amberInk : slateInk,
+          valColor: pendTot > 0.009 ? amberInk : slateInk,
+        });
+        if (pendTot > 0.009 && (pendBoat > 0.009 || pendOwner > 0.009)) {
+          gap(2);
+          noteLine(
+            (pendBoat > 0.009 ? "Boat " + pdfMoney(pendBoat) : "") +
+              (pendBoat > 0.009 && pendOwner > 0.009 ? "  ·  " : "") +
+              (pendOwner > 0.009 ? "Owner pocket " + pdfMoney(pendOwner) : ""),
+            muted
+          );
+        }
+        gap(4);
+        kvRow("Projected cash (upcoming)", pdfMoney(projTot), {
+          big: true,
+          boldLab: true,
+          bg: projTot > 0.009 ? greenBg : slateBg,
+          labColor: projTot > 0.009 ? greenInk : slateInk,
+          valColor: projTot > 0.009 ? greenInk : slateInk,
+        });
+        if (projTot > 0.009 && (projBoat > 0.009 || projOwner > 0.009)) {
+          gap(2);
+          noteLine(
+            (projBoat > 0.009 ? "Boat " + pdfMoney(projBoat) : "") +
+              (projBoat > 0.009 && projOwner > 0.009 ? "  ·  " : "") +
+              (projOwner > 0.009 ? "Owner pocket " + pdfMoney(projOwner) : ""),
+            muted
+          );
+        }
+        gap(6);
+        kvRow("Expected on boat (after collect)", pdfMoney(expectBoat), {
+          big: true,
+          boldLab: true,
+          bg: expectBoat > 0.009 ? greenBg : amberBg,
+          labColor: expectBoat > 0.009 ? greenInk : amberInk,
+          valColor: expectBoat > 0.009 ? greenInk : amberInk,
+        });
+        gap(2);
+        noteLine(
+          "On board now + pending to boat + projected to boat. Owner-pocket cash is listed but not added here.",
+          muted
+        );
         if (boatShort > 0.009) {
           gap(8);
           kvRow("Books short", pdfMoney(boatShort), {
@@ -450,9 +506,77 @@
           noteLine("Nothing left the boat envelope this month.", muted);
         }
 
+        /* —— Pending cash (sailed / today, not yet received) —— */
+        sectionHead("PENDING CASH");
+        noteLine(
+          "Confirmed charters already sailed (or today) where free cash / cash deal is still marked not received — e.g. guest or stew still holding notes.",
+          muted
+        );
+        gap(8);
+        var pendItems = Array.isArray(pend.items) ? pend.items : [];
+        if (pendItems.length) {
+          pendItems.forEach(function (r, idx) {
+            if (!r || !(Number(r.cash) > 0.009)) return;
+            var when = r.start ? fmtDate(r.start) : "Date not recorded";
+            var destLab = r.dest === "owner" ? "owner pocket" : "boat";
+            var kindLab = r.kind === "cash" ? "Cash deal" : "Split free cash";
+            lineItem(
+              when + "  ·  " + String(r.name || "Guest"),
+              r.cash,
+              kindLab + " · not received yet · → " + destLab,
+              idx,
+              amberInk,
+              "+"
+            );
+          });
+          gap(6);
+          kvRow("Total pending", pdfMoney(pendTot), {
+            boldLab: true,
+            bg: amberBg,
+            labColor: amberInk,
+            valColor: amberInk,
+          });
+        } else {
+          noteLine("Nothing pending — all sailed cash deals are marked received.", muted);
+        }
+
+        /* —— Projected cash (upcoming confirmed) —— */
+        sectionHead("PROJECTED CASH");
+        noteLine(
+          "Confirmed upcoming charters with free cash or a cash-only fee still to collect (e.g. Friday split deal).",
+          muted
+        );
+        gap(8);
+        var projItems = Array.isArray(proj.items) ? proj.items : [];
+        if (projItems.length) {
+          projItems.forEach(function (r, idx) {
+            if (!r || !(Number(r.cash) > 0.009)) return;
+            var when = r.start ? fmtDate(r.start) : "Date not recorded";
+            var destLab = r.dest === "owner" ? "owner pocket" : "boat";
+            var kindLab = r.kind === "cash" ? "Cash deal" : "Split free cash";
+            lineItem(
+              when + "  ·  " + String(r.name || "Guest"),
+              r.cash,
+              kindLab + " · upcoming · → " + destLab,
+              idx,
+              greenInk,
+              "+"
+            );
+          });
+          gap(6);
+          kvRow("Total projected", pdfMoney(projTot), {
+            boldLab: true,
+            bg: greenBg,
+            labColor: greenInk,
+            valColor: greenInk,
+          });
+        } else {
+          noteLine("No upcoming confirmed cash still to collect.", muted);
+        }
+
         gap(16);
         noteLine(
-          "Opening + cash in - cash out = on board. This report is the physical envelope only.",
+          "Opening + cash in - cash out = on board now. Pending / projected are still to collect (not in the envelope yet).",
           muted
         );
 

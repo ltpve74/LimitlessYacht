@@ -990,6 +990,97 @@ function summarizeLeadCashIncomeRealised(leads, todayYmd) {
 }
 
 /**
+ * Free cash / cash-only still to collect (not yet received).
+ *
+ *  - pending   = charter already sailed / today (e.g. Toni still holding cash)
+ *  - projected = confirmed upcoming (e.g. Friday split €5k)
+ *
+ * Confirmed commercial only (deal closed). Skips cancelled, day off, owner days,
+ * pending-source holds. Destination boat vs owner pocket is labelled on each row.
+ *
+ * @param {Array} leads
+ * @param {string} [todayYmd] YYYY-MM-DD
+ * @returns {{
+ *   pending: { total, boat, owner, boatN, ownerN, n, items },
+ *   projected: { total, boat, owner, boatN, ownerN, n, items },
+ *   todayYmd: string
+ * }}
+ */
+function summarizeLeadCashOutstanding(leads, todayYmd) {
+  var today = String(todayYmd || "").slice(0, 10);
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(today)) {
+    try {
+      var now = new Date();
+      today =
+        now.getFullYear() +
+        "-" +
+        String(now.getMonth() + 1).padStart(2, "0") +
+        "-" +
+        String(now.getDate()).padStart(2, "0");
+    } catch (eT) {
+      today = "";
+    }
+  }
+  function emptyBucket() {
+    return { total: 0, boat: 0, owner: 0, boatN: 0, ownerN: 0, n: 0, items: [] };
+  }
+  var pending = emptyBucket();
+  var projected = emptyBucket();
+
+  (Array.isArray(leads) ? leads : []).forEach(function (r) {
+    if (!r || leadIsCancelled(r)) return;
+    if (leadIsDayOff(r)) return;
+    var src = leadSource(r);
+    if (src === "pending" || src === "owner" || src === "dayoff") return;
+    if (!leadIsDealClosed(r)) return;
+    if (!leadHasCashFee(r)) return;
+    var cash = leadFreeCashAmt(r);
+    if (!(cash > 0.009)) return;
+    if (leadFreeCashIsReceived(r)) return;
+
+    var dest = leadCashDest(r);
+    var timing = leadCharterTiming(r, today);
+    var kind = leadIsCashOnlyDeal(r) ? "cash" : "split";
+    var row = {
+      id: r.id != null ? String(r.id) : "",
+      name: String(r.name || "—").trim() || "—",
+      start: String(r.start || r.cdate || "").slice(0, 10),
+      end: String(r.end || r.start || r.cdate || "").slice(0, 10),
+      cash: cash,
+      dest: dest,
+      source: src,
+      kind: kind,
+      timing: timing,
+      label:
+        (kind === "cash" ? "Cash deal" : "Split free cash") +
+        (dest === "owner" ? " → owner pocket" : " → boat"),
+    };
+    var bucket = timing === "upcoming" ? projected : pending;
+    bucket.items.push(row);
+    if (dest === "owner") {
+      bucket.owner = round2(bucket.owner + cash);
+      bucket.ownerN++;
+    } else {
+      bucket.boat = round2(bucket.boat + cash);
+      bucket.boatN++;
+    }
+    bucket.n++;
+    bucket.total = round2(bucket.boat + bucket.owner);
+  });
+
+  function byStart(a, b) {
+    var da = String(a.start || ""),
+      db = String(b.start || "");
+    if (da && db && da !== db) return da < db ? -1 : 1;
+    return String(a.name || "").localeCompare(String(b.name || ""));
+  }
+  pending.items.sort(byStart);
+  projected.items.sort(byStart);
+
+  return { pending: pending, projected: projected, todayYmd: today };
+}
+
+/**
  * Realised “so far” white net + boat free cash (big net on Leads).
  * Owner pocket cash is reported but not included in doneNet.
  *
@@ -1623,6 +1714,7 @@ function leadCommissionAmt(r) {
     leadIsCancelled: leadIsCancelled,
     summarizeLeadCashIncome: summarizeLeadCashIncome,
     summarizeLeadCashIncomeRealised: summarizeLeadCashIncomeRealised,
+    summarizeLeadCashOutstanding: summarizeLeadCashOutstanding,
     leadListMoney: leadListMoney,
     leadCharterTiming: leadCharterTiming,
     leadCharterTypeKey: leadCharterTypeKey,

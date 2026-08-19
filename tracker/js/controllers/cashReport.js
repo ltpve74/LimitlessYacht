@@ -268,6 +268,17 @@
         })
       : [];
 
+    /* Pending + projected free cash (not yet received) — owner PDF */
+    var todayForCash =
+      String(input.todayYmd || input.today || asOfYmd || "").slice(0, 10) || asOfYmd || "";
+    var cashOutst = models.summarizeLeadCashOutstanding
+      ? models.summarizeLeadCashOutstanding(input.leads || [], todayForCash)
+      : {
+          pending: { total: 0, boat: 0, owner: 0, boatN: 0, ownerN: 0, n: 0, items: [] },
+          projected: { total: 0, boat: 0, owner: 0, boatN: 0, ownerN: 0, n: 0, items: [] },
+          todayYmd: todayForCash,
+        };
+
     return {
       month: month,
       monthLabel: input.monthLabel || month,
@@ -286,6 +297,27 @@
       cashShort: Math.max(0, pettySum.cashShort || 0),
       shortLines: shortLines,
       cashOutLines: potDetailLines,
+
+      /* Lead free cash still to collect (owner PDF) */
+      cashPending: cashOutst.pending || {
+        total: 0,
+        boat: 0,
+        owner: 0,
+        boatN: 0,
+        ownerN: 0,
+        n: 0,
+        items: [],
+      },
+      cashProjected: cashOutst.projected || {
+        total: 0,
+        boat: 0,
+        owner: 0,
+        boatN: 0,
+        ownerN: 0,
+        n: 0,
+        items: [],
+      },
+      cashOutstandingToday: cashOutst.todayYmd || todayForCash,
 
       /* Cash-out buckets — model (crew = fromBoatPot only) */
       outBuckets: {
