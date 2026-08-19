@@ -257,8 +257,8 @@ PAIRS = [
     ("Availability", "Disponibilidad"),
     ("Check the<em> Calendar</em>", "Consulte el<em> calendario</em>"),
     (
-        "See which dates are open — select a day or range, then send a quick message. The captain and crew will confirm availability and reply with an honest sketch of routes and costs — no surprises tucked away. The calendar is kept up to date by our crew.",
-        "Vea las fechas libres — seleccione un día o un rango y envíenos un mensaje breve. El capitán y la tripulación confirmarán la disponibilidad y responderán con un esbozo honesto de rutas y costes — sin sorpresas ocultas. El calendario lo actualiza nuestra tripulación.",
+        "See which dates are open — select one or more days, then send a quick message. The captain and crew will confirm availability and reply with an honest sketch of routes and costs — no surprises tucked away. The calendar is kept up to date by our crew.",
+        "Vea las fechas libres — seleccione uno o más días y envíenos un mensaje breve. El capitán y la tripulación confirmarán la disponibilidad y responderán con un esbozo honesto de rutas y costes — sin sorpresas ocultas. El calendario lo actualiza nuestra tripulación.",
     ),
     ('aria-label="Availability calendar"', 'aria-label="Calendario de disponibilidad"'),
     ('aria-label="Previous month"', 'aria-label="Mes anterior"'),
@@ -268,9 +268,17 @@ PAIRS = [
     ("Booked", "Reservado"),
     ("On hold", "En espera"),
     (
-        "Tap available or on-hold dates — one day or a run of adjacent dates.",
-        "Toque fechas libres o en espera — un día o varios seguidos.",
+        "Tap available or on-hold dates — add or remove as many as you need.",
+        "Toque fechas libres o en espera — añada o quite tantas como necesite.",
     ),
+    ('data-i18n-count-one="{n} day selected"', 'data-i18n-count-one="{n} día seleccionado"'),
+    ('data-i18n-count-many="{n} days selected"', 'data-i18n-count-many="{n} días seleccionados"'),
+    ('data-i18n-enquire="Enquire about these dates"', 'data-i18n-enquire="Consultar estas fechas"'),
+    ('data-i18n-clear="Clear"', 'data-i18n-clear="Borrar"'),
+    ('data-i18n-booked="{date} is booked — try {alts}"', 'data-i18n-booked="{date} está reservado — pruebe {alts}"'),
+    ('data-i18n-or="or"', 'data-i18n-or="o"'),
+    (">Clear</button>", ">Borrar</button>"),
+    (">Enquire about these dates</span>", ">Consultar estas fechas</span>"),
     (
         "On hold dates are in talks with another guest — you can still enquire, and we'll let you know if they free up.",
         "Las fechas en espera están en conversaciones con otro huésped — puede consultar igualmente y le avisaremos si quedan libres.",
@@ -1160,6 +1168,18 @@ REVIEWS_UI = {
 }
 
 REVIEWS = [
+    {
+        "author": 'Rayan',
+        "date": 'Ago 2026',
+        "rating": 5,
+        "text": (
+            "Pasamos un día maravilloso en el agua con el súper capitán Luigi y "
+            "Toni cuidándonos. El barco es cómodo y tiene todos los accesorios "
+            "para pasar un día precioso. La tripulación hizo todo lo posible "
+            "para que este día fuera increíble y el plan que Luigi preparó para "
+            "nosotros fue perfecto."
+        ),
+    },
     {
         "author": 'Simon',
         "date": 'Ago 2026',
