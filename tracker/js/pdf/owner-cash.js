@@ -380,7 +380,51 @@
           labColor: onBoard > 0.009 ? greenInk : amberInk,
           valColor: onBoard > 0.009 ? greenInk : amberInk,
         });
-        gap(6);
+        if (boatShort > 0.009) {
+          gap(6);
+          kvRow("Books short", pdfMoney(boatShort), {
+            big: true,
+            boldLab: true,
+            bg: redBg,
+            labColor: redInk,
+            valColor: redInk,
+          });
+          gap(4);
+          noteLine(
+            "Marked cash-outs exceeded cash on hand this month. Short carries until covered.",
+            redInk
+          );
+        }
+
+        /* Clear break: everything below is NOT in the envelope yet */
+        gap(18);
+        push(52, function (y) {
+          page.drawRectangle({
+            x: margin,
+            y: y - 46,
+            width: contentW,
+            height: 48,
+            color: amberBg,
+          });
+          page.drawRectangle({
+            x: margin,
+            y: y - 46,
+            width: 6,
+            height: 48,
+            color: gold,
+          });
+          drawText("NOT ON BOARD YET", margin + 16, y - 16, 13, true, amberInk, contentW - 28);
+          drawText(
+            "Client cash still to collect — not counted in On board now above.",
+            margin + 16,
+            y - 34,
+            10,
+            false,
+            muted,
+            contentW - 28
+          );
+        });
+        gap(12);
         kvRow("Pending client cash (due now)", pdfMoney(pendTot), {
           big: true,
           boldLab: true,
@@ -406,24 +450,9 @@
         });
         gap(2);
         noteLine(
-          "On board now + pending client cash + projected client cash (boat envelope only).",
+          "On board now + pending + projected (once that client cash is collected).",
           muted
         );
-        if (boatShort > 0.009) {
-          gap(8);
-          kvRow("Books short", pdfMoney(boatShort), {
-            big: true,
-            boldLab: true,
-            bg: redBg,
-            labColor: redInk,
-            valColor: redInk,
-          });
-          gap(4);
-          noteLine(
-            "Marked cash-outs exceeded cash on hand this month. Short carries until covered.",
-            redInk
-          );
-        }
 
         /* —— Cash in lines —— */
         sectionHead("CASH IN");
