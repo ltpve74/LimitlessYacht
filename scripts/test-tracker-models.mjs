@@ -2154,6 +2154,97 @@ console.log("\n[Leads — realised cash + glimpse]");
   ok("owner pocket not in doneNet", near(g.cashOwner, 200));
 }
 
+/* ---- Pending + projected free cash (owner PDF) ---- */
+console.log("\n[Leads — outstanding cash pending/projected]");
+{
+  const book = [
+    {
+      id: "Toni",
+      name: "Toni guest",
+      start: "2026-08-15",
+      source: "captain",
+      dealClosed: true,
+      split: true,
+      invoiceTotal: 2000,
+      invoiceNet: 1652.89,
+      cashAmt: 800,
+      cashSettled: false,
+      cashDest: "boat",
+    },
+    {
+      id: "Fri",
+      name: "Friday client",
+      start: "2026-08-22",
+      source: "captain",
+      dealClosed: true,
+      split: true,
+      invoiceTotal: 3000,
+      invoiceNet: 2479.34,
+      cashAmt: 5000,
+      cashSettled: false,
+      cashDest: "boat",
+    },
+    {
+      id: "Got",
+      name: "Already in",
+      start: "2026-08-10",
+      source: "captain",
+      dealClosed: true,
+      split: true,
+      invoiceTotal: 2000,
+      invoiceNet: 1652.89,
+      cashAmt: 900,
+      cashSettled: true,
+      cashDest: "boat",
+    },
+    {
+      id: "Hold",
+      name: "On hold",
+      start: "2026-08-25",
+      source: "captain",
+      dealClosed: false,
+      split: true,
+      invoiceTotal: 2000,
+      invoiceNet: 1652.89,
+      cashAmt: 1200,
+      cashSettled: false,
+      cashDest: "boat",
+    },
+  ];
+  const out = M.summarizeLeadCashOutstanding(book, "2026-08-19");
+  ok("outstanding has pending Toni", out.pending.n === 1 && out.pending.boat === 800, "n=" + out.pending.n + " boat=" + out.pending.boat);
+  ok(
+    "outstanding pending name Toni",
+    out.pending.items[0] && /Toni/i.test(out.pending.items[0].name)
+  );
+  ok(
+    "outstanding projected Friday 5000",
+    out.projected.n === 1 && out.projected.boat === 5000,
+    "n=" + out.projected.n + " boat=" + out.projected.boat
+  );
+  ok(
+    "outstanding skips received cash",
+    !out.pending.items.some(function (x) { return x.id === "Got"; }) &&
+      !out.projected.items.some(function (x) { return x.id === "Got"; })
+  );
+  ok(
+    "outstanding skips on-hold",
+    !out.projected.items.some(function (x) { return x.id === "Hold"; })
+  );
+  const ctrl = C.cashReport.monthReport({
+    models: M,
+    month: "2026-08",
+    monthLabel: "August 2026",
+    expenses: [],
+    expPetty: [{ month: "2026-08", pettyStart: 100 }],
+    leads: book,
+    charters: [],
+    todayYmd: "2026-08-19",
+  });
+  ok("cashReport exposes cashPending boat 800", near(ctrl.cashPending.boat, 800));
+  ok("cashReport exposes cashProjected boat 5000", near(ctrl.cashProjected.boat, 5000));
+}
+
 /* ---- Stews tip / day pay ---- */
 console.log("\n[Stews — tip on bill + day pay]");
 {
