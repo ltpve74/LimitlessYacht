@@ -53,11 +53,14 @@ function checkTrackerHtmlSyntax() {
     "tracker/js/models/apa.js",
     "tracker/js/models/index.js",
     "tracker/js/controllers/expenses.js",
+    "tracker/js/controllers/cashReport.js",
     "tracker/js/controllers/charges.js",
     "tracker/js/controllers/leads.js",
     "tracker/js/controllers/apa.js",
     "tracker/js/controllers/stews.js",
     "tracker/js/controllers/index.js",
+    "tracker/js/pdf/expenses-cash.js",
+    "tracker/js/pdf/owner-cash.js",
   ];
   for (const rel of modelFiles) {
     const chk = spawnSync(process.execPath, ["--check", join(root, rel)], { encoding: "utf8" });
@@ -67,6 +70,7 @@ function checkTrackerHtmlSyntax() {
 
 checkTrackerHtmlSyntax();
 const C = require(join(root, "tracker/js/controllers/index.js"));
+const OwnerCashPdf = require(join(root, "tracker/js/pdf/owner-cash.js"));
 function near(a, b, eps) {
   eps = eps == null ? 0.02 : eps;
   return Math.abs(Number(a) - Number(b)) <= eps;
@@ -75,6 +79,21 @@ function near(a, b, eps) {
 console.log("━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━");
 console.log("  Tracker domain models (locked rules)");
 console.log("━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n");
+
+/* ---- Owner on-board cash PDF (simple export) ---- */
+console.log("[PDF — owner cash]");
+{
+  ok(
+    "owner cash fileName",
+    OwnerCashPdf.fileName("2026-08") === "Limitless-owner-cash-2026-08.pdf",
+    OwnerCashPdf.fileName("2026-08")
+  );
+  ok(
+    "owner cash public label rewrites you → captain",
+    OwnerCashPdf.safeText("Commission to you") === "Captain commission"
+  );
+  ok("owner cash exports build", typeof OwnerCashPdf.build === "function");
+}
 
 /* ---- Ops today board (day grouping) ---- */
 console.log("[Ops — today board]");
