@@ -1,6 +1,12 @@
 {
   "reviews": [
     {
+      "author": "Rayan",
+      "date": "Aug 2026",
+      "rating": 5,
+      "text": "We spent a wonderful day on the water with super captain Luigi and Toni taking care of us. The boat is comfortable and has all accessories to spend a beautiful day. The crew did everything possible to make this day incredible and the plan Luigi has set up for us was perfect."
+    },
+    {
       "author": "Simon",
       "date": "Aug 2026",
       "rating": 5,

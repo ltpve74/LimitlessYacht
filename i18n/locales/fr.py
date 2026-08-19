@@ -1160,6 +1160,19 @@ REVIEWS_UI = {
 
 REVIEWS = [
     {
+        "author": 'Rayan',
+        "date": 'Août 2026',
+        "rating": 5,
+        "text": (
+            "Nous avons passé une merveilleuse journée sur l'eau avec le super "
+            "capitaine Luigi et Toni qui ont pris soin de nous. Le bateau est "
+            "confortable et dispose de tout ce qu'il faut pour passer une belle "
+            "journée. L'équipage a tout fait pour rendre cette journée "
+            "incroyable et le programme que Luigi avait préparé pour nous était "
+            "parfait."
+        ),
+    },
+    {
         "author": 'Simon',
         "date": 'Août 2026',
         "rating": 5,
