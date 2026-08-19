@@ -1574,6 +1574,7 @@
 <script src="/tracker/js/controllers/stews.js?v=20260811-cashpdf1"></script>
 <script src="/tracker/js/controllers/index.js?v=20260811-cashpdf1"></script>
 <script src="/tracker/js/pdf/expenses-cash.js?v=20260812-pocketchapters1"></script>
+<script src="/tracker/js/pdf/owner-cash.js?v=20260819-owner1"></script>
 <script>
 "use strict";
 var API = "/.netlify/functions/tracker";
@@ -13988,6 +13989,10 @@ function expCashPdfFileName(month){
   if(window.LY_PDF&&LY_PDF.expensesCash&&LY_PDF.expensesCash.fileName) return LY_PDF.expensesCash.fileName(month);
   return "Limitless-cash-expenses-"+String(month||"").slice(0,7)+".pdf";
 }
+function expOwnerCashPdfFileName(month){
+  if(window.LY_PDF&&LY_PDF.ownerCash&&LY_PDF.ownerCash.fileName) return LY_PDF.ownerCash.fileName(month);
+  return "Limitless-owner-cash-"+String(month||"").slice(0,7)+".pdf";
+}
 function expPdfPublicLabel(s){
   if(window.LY_PDF&&LY_PDF.expensesCash&&LY_PDF.expensesCash.safeText) return LY_PDF.expensesCash.safeText(s);
   return String(s==null?"":s);
@@ -14004,6 +14009,19 @@ function buildExpensesCashPdf(month){
       throw new Error("LY_PDF.expensesCash missing — load tracker/js/pdf/expenses-cash.js");
     }
     return LY_PDF.expensesCash.build(report, PDFLib, {
+      fmtDate:typeof fmtDate==="function"?fmtDate:function(d){ return String(d||"").slice(0,10); }
+    });
+  });
+}
+/** Simple owner PDF — on-board opening / in / out / closing + itemised lines. */
+function buildOwnerCashPdf(month){
+  month=String(month||expMonth||expDefaultMonth()).slice(0,7);
+  var report=expCashReportForMonth(month);
+  return loadPdfLib().then(function(PDFLib){
+    if(!(window.LY_PDF&&LY_PDF.ownerCash&&LY_PDF.ownerCash.build)){
+      throw new Error("LY_PDF.ownerCash missing — load tracker/js/pdf/owner-cash.js");
+    }
+    return LY_PDF.ownerCash.build(report, PDFLib, {
       fmtDate:typeof fmtDate==="function"?fmtDate:function(d){ return String(d||"").slice(0,10); }
     });
   });
@@ -14032,7 +14050,30 @@ function expExportMonthCashPdf(month){
     var msg=(err&&err.message)?String(err.message):"unknown error";
     window.alert("Could not build PDF.\n\n"+msg+"\n\nIf this keeps failing, try Export CSV or hard-refresh the app.");
   }).then(function(){
-    if(btn){ btn.disabled=false; btn.textContent="Export PDF"; }
+    if(btn){ btn.disabled=false; btn.textContent="Full PDF"; }
+  });
+}
+function expExportMonthOwnerCashPdf(month){
+  month=String(month||expMonth||expDefaultMonth()).slice(0,7);
+  var name=expOwnerCashPdfFileName(month);
+  var btn=el("expExportOwnerPdf");
+  if(btn){ btn.disabled=true; btn.textContent="Building…"; }
+  return buildOwnerCashPdf(month).then(function(blob){
+    if(!blob) throw new Error("Empty PDF");
+    try{ downloadBlob(blob, name); }catch(eDl){}
+    var p={
+      fileName:name,
+      shareTitle:"Limitless on-board cash "+expMonthLabel(month),
+      shareText:"M/Y Limitless on-board cash (for owner) - "+expMonthLabel(month)
+    };
+    try{ sharePdfBlob(blob, p).catch(function(){}); }catch(eSh){}
+    return blob;
+  }).catch(function(err){
+    console&&console.error&&console.error("[owner cash pdf]", err);
+    var msg=(err&&err.message)?String(err.message):"unknown error";
+    window.alert("Could not build owner PDF.\n\n"+msg+"\n\nTry Full PDF or hard-refresh the app.");
+  }).then(function(){
+    if(btn){ btn.disabled=false; btn.textContent="Export for owner"; }
   });
 }
 function renderExpenses(){
@@ -14203,7 +14244,8 @@ function paintExpensesBody(){
       return '<option value="'+esc(m)+'"'+(m===expMonth?" selected":"")+'>'+esc(m)+'</option>';
     }).join("")+'</select>'+
     '<button type="button" class="btn ghost" id="expExport" style="width:auto;padding:10px 14px">CSV</button>'+
-    '<button type="button" class="btn" id="expExportPdf" style="width:auto;padding:10px 14px" title="Cash only PDF">PDF</button>'+
+    '<button type="button" class="btn ghost" id="expExportPdf" style="width:auto;padding:10px 14px" title="Full cash PDF (includes captain business &amp; pocket)">Full PDF</button>'+
+    '<button type="button" class="btn" id="expExportOwnerPdf" style="width:auto;padding:10px 14px" title="Simple on-board cash for the owner — opening, in, out, closing">Export for owner</button>'+
   '</div>';
   /* Hero: physical notes only */
   h+='<div class="exp-alert ok" style="margin-bottom:10px">'+
@@ -14734,6 +14776,7 @@ function paintExpensesBody(){
   });
   if(el("expExport")) el("expExport").addEventListener("click",function(){ expExportMonthCsv(expMonth); });
   if(el("expExportPdf")) el("expExportPdf").addEventListener("click",function(){ expExportMonthCashPdf(expMonth); });
+  if(el("expExportOwnerPdf")) el("expExportOwnerPdf").addEventListener("click",function(){ expExportMonthOwnerCashPdf(expMonth); });
   if(el("expAdd")) el("expAdd").addEventListener("click",function(){ openExpense(null); });
   Array.prototype.forEach.call(body.querySelectorAll("[data-exp-reimburse]"),function(btn){
     btn.addEventListener("click",function(ev){
