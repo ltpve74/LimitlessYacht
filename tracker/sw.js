@@ -1,5 +1,5 @@
 /* Limitless Tracker service worker — push notifications for the installed PWA */
-/* v2: on push / notification click, tell open tracker windows to soft-refresh data */
+/* v3: silent sync wakes open tabs without a banner; banner only if no open tracker */
 self.addEventListener("install", function (e) {
   self.skipWaiting();
 });
@@ -7,16 +7,8 @@ self.addEventListener("activate", function (e) {
   e.waitUntil(self.clients.claim());
 });
 
-function notifyOpenClients(payload) {
-  return self.clients
-    .matchAll({ type: "window", includeUncontrolled: true })
-    .then(function (list) {
-      list.forEach(function (c) {
-        try {
-          if (c && c.postMessage) c.postMessage(payload || { type: "tracker-data-changed" });
-        } catch (e) {}
-      });
-    });
+function isTrackerClient(c) {
+  return !!(c && c.url && c.url.indexOf("/tracker") !== -1);
 }
 
 self.addEventListener("push", function (event) {
@@ -28,26 +20,39 @@ self.addEventListener("push", function (event) {
       data.body = event.data ? event.data.text() : data.body;
     } catch (e2) {}
   }
+  var silent = !!data.silent;
   var msg = {
     type: "tracker-data-changed",
-    reason: "push",
+    reason: silent ? "push-sync" : "push",
     title: data.title || "",
     body: data.body || "",
     tag: data.tag || "tracker",
+    silent: silent,
   };
   event.waitUntil(
-    Promise.all([
-      self.registration.showNotification(data.title || "Limitless Tracker", {
+    self.clients.matchAll({ type: "window", includeUncontrolled: true }).then(function (list) {
+      var trackerOpen = list.some(isTrackerClient);
+      list.forEach(function (c) {
+        try {
+          if (c && c.postMessage) c.postMessage(msg);
+        } catch (e) {}
+      });
+      /*
+       * Silent sync (cash-in / expenses): refresh open tabs quietly.
+       * Only show a system banner when nothing is open (keeps push healthy +
+       * avoids spam while phone and desktop are both in use).
+       */
+      if (silent && trackerOpen) return;
+      return self.registration.showNotification(data.title || "Limitless Tracker", {
         body: data.body || "",
         icon: "/tracker/icons/icon-192.png",
         badge: "/tracker/icons/icon-192.png",
-        tag: data.tag || "tracker",
-        renotify: true,
+        tag: data.tag || (silent ? "tracker-sync" : "tracker"),
+        renotify: !silent,
+        silent: silent,
         data: { url: data.url || "/tracker/" },
-      }),
-      /* Open app instances refresh immediately — not only after notification click */
-      notifyOpenClients(msg),
-    ])
+      });
+    })
   );
 });
 

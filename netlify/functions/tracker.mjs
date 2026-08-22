@@ -2367,6 +2367,7 @@ async function sendPushes(data, notices, opts) {
       body: n.body,
       tag: n.tag,
       url: n.url || "/tracker/",
+      silent: !!n.silent,
     };
     await webpush.sendNotification(
       { endpoint: sub.endpoint, keys: sub.keys },
@@ -2712,10 +2713,28 @@ export default async (req, context) => {
       });
       data.meta.icsLeadKnownKeys = Array.from(known);
     }
-    const notices =
+    let notices =
       coll === "apa" || coll === "diesel" || coll === "stewCalendar"
         ? []
         : buildNotices(coll, prev, next, who, data);
+    /*
+     * Cash-in / expenses / APA / diesel never produce human banners, so other
+     * open devices used to stay stale until a manual reload. Always emit a
+     * silent sync wake for captain/manager when nothing else was notified.
+     * (SW shows a banner only if that device has no open tracker tab.)
+     */
+    if (!notices.length) {
+      notices = [
+        {
+          title: "Limitless Tracker",
+          body: "Updated on another device",
+          tag: "tracker-sync-" + coll,
+          url: "/tracker/",
+          to: "commercial",
+          silent: true,
+        },
+      ];
+    }
     data[coll] = next;
     if (coll === "leads") {
       /* Public website calendar + team stew roster from leads */
