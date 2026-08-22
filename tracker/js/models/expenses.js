@@ -878,7 +878,78 @@ function isCaptainCommissionExpense(e) {
 }
 
 /**
+ * Cash put back into the boat because commission was over-drawn.
+ * Explicit kind/flag, or source/notes that clearly say commission return/overpay.
+ * @param {object} r cash-in row
+ */
+function isCaptainCommissionReturnCashIn(r) {
+  if (!r) return false;
+  if (r.kind === "commReturn" || r.kind === "commission-return" || r.commReturn === true) return true;
+  var src = String(r.source || "").trim();
+  if (/^commission return\b/i.test(src)) return true;
+  var blob = [r.source, r.note, r.notes, r.label, r.detail]
+    .map(function (x) {
+      return String(x == null ? "" : x);
+    })
+    .join(" ")
+    .toLowerCase();
+  if (!/commission/.test(blob)) return false;
+  return /overpay|over[- ]?paid|return|repay|refund|put\s*back|back\s*to\s*(the\s*)?boat|gave\s*back|returned/.test(
+    blob
+  );
+}
+
+/**
+ * Sum of commission cash returned to petty (offsets draws).
+ * Also counts negative captainComm expense amounts as returns.
+ * @param {Array} cashIns
+ * @param {Array} [expenses]
+ */
+function summarizeCaptainCommissionReturns(cashIns, expenses) {
+  var returned = 0;
+  var items = [];
+  (Array.isArray(cashIns) ? cashIns : []).forEach(function (r) {
+    if (!isCaptainCommissionReturnCashIn(r)) return;
+    var a = round2(num(r.amount));
+    if (!(a > 0.009)) return;
+    returned = round2(returned + a);
+    items.push({
+      id: r.id != null ? String(r.id) : "",
+      date: String(r.date || "").slice(0, 10),
+      amount: a,
+      label: String(r.source || r.note || r.notes || "Commission return").trim() || "Commission return",
+      kind: "cash-in",
+    });
+  });
+  (Array.isArray(expenses) ? expenses : []).forEach(function (e) {
+    if (!isCaptainCommissionExpense(e)) return;
+    if (String(e.payMethod || "") === "Credit Card") return;
+    var pf = expensePaidFrom(e);
+    if (pf === "own" || pf === "card") return;
+    var a = round2(num(e.amount));
+    if (!(a < -0.009)) return;
+    var abs = round2(-a);
+    returned = round2(returned + abs);
+    items.push({
+      id: e.id != null ? String(e.id) : "",
+      date: String(e.date || "").slice(0, 10),
+      amount: abs,
+      label: String(e.description || e.vendor || "Commission return").trim() || "Commission return",
+      kind: "expense",
+    });
+  });
+  items.sort(function (a, b) {
+    var da = String((b && b.date) || "");
+    var db = String((a && a.date) || "");
+    if (da !== db) return da < db ? -1 : 1;
+    return (b.amount || 0) - (a.amount || 0);
+  });
+  return { returned: returned, items: items, n: items.length };
+}
+
+/**
  * Sum of commission cash actually taken from petty (not card / own money).
+ * Positive amounts only — returns are handled separately.
  * @param {Array} expenses
  */
 function summarizeCaptainCommissionPaid(expenses) {
@@ -905,17 +976,23 @@ function summarizeCaptainCommissionPaid(expenses) {
 
 /**
  * Captain commission balance for Leads / Commissions UI.
- *   earned = deals + upsells (caller computes from leads/charges)
- *   paid   = sum of petty commission draws
+ *   earned   = deals + upsells (caller computes from leads/charges)
+ *   drawn    = sum of petty commission draws (gross out)
+ *   returned = cash put back after overpay (cash-in / negative draw)
+ *   paid     = net drawn = drawn − returned
  *   outstanding = max(0, earned − paid)
+ *   overpaid    = max(0, paid − earned)
  *
- * @param {{ earned?: number, expenses?: Array }} opts
+ * @param {{ earned?: number, expenses?: Array, cashIns?: Array }} opts
  */
 function summarizeCaptainCommissionBalance(opts) {
   opts = opts || {};
   var earned = round2(Math.max(0, num(opts.earned)));
   var paidSum = summarizeCaptainCommissionPaid(opts.expenses);
-  var paid = paidSum.paid;
+  var retSum = summarizeCaptainCommissionReturns(opts.cashIns, opts.expenses);
+  var drawn = paidSum.paid;
+  var returned = retSum.returned;
+  var paid = round2(Math.max(0, drawn - returned));
   var outstanding = round2(Math.max(0, earned - paid));
   var overpaid = paid > earned + 0.009 ? round2(paid - earned) : 0;
   var status =
@@ -928,12 +1005,16 @@ function summarizeCaptainCommissionBalance(opts) {
           : "outstanding";
   return {
     earned: earned,
+    drawn: drawn,
+    returned: returned,
     paid: paid,
     outstanding: outstanding,
     overpaid: overpaid,
     status: status,
     payouts: paidSum.payouts,
+    returns: retSum.items,
     nPayouts: paidSum.n,
+    nReturns: retSum.n,
   };
 }
 
@@ -2992,6 +3073,8 @@ function summarizeMonthSettlement(opts) {
     summarizePettyCashInRows: summarizePettyCashInRows,
     collectPettyCashInsFromMonths: collectPettyCashInsFromMonths,
     isCaptainCommissionExpense: isCaptainCommissionExpense,
+    isCaptainCommissionReturnCashIn: isCaptainCommissionReturnCashIn,
+    summarizeCaptainCommissionReturns: summarizeCaptainCommissionReturns,
     summarizeCaptainCommissionPaid: summarizeCaptainCommissionPaid,
     summarizeCaptainCommissionBalance: summarizeCaptainCommissionBalance,
     /* Pocket / liabilities (Keepafloat foundation) */
