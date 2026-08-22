@@ -138,6 +138,17 @@ function expenseHitsPettyCash(e, opts) {
   if (opts.isCrewDayPay || isCrewDayPayExpense(e)) {
     return crewDayPayHitsPetty(e);
   }
+  /*
+   * Manual Crew Salaries (captain/crew salary via Expenses +): honour Paid/Unpaid.
+   * Unpaid = liability only — must not reduce petty until marked Paid.
+   */
+  if (
+    /^crew salaries$/i.test(String(e.category || "")) &&
+    String(e.source || "") === "manual" &&
+    String(e.crewPayStatus || "") === "Unpaid"
+  ) {
+    return false;
+  }
   var pf = expensePaidFrom(e);
   if (pf === "card" || pf === "own" || pf === "owner" || pf === "guest") return false;
   if (isExpenseReimbursement(e)) return pf === "petty";
@@ -238,8 +249,15 @@ function isCrewDayPayExpense(e) {
   if (e.stewPayKind === "dayPay") return true;
   if (e.source === "stew" && (e.stewEventKey || e.stewId)) return true;
   if (e.linkId != null && String(e.linkId).indexOf("stew-day:") === 0) return true;
-  /* Category Crew Salaries = crew day-pay (Stews lines often only set category) */
-  if (/^crew salaries$/i.test(String(e.category || ""))) return true;
+  /*
+   * Category Crew Salaries = crew day-pay for Stews / legacy stew lines.
+   * Manual Expenses “+” salary (source=manual), e.g. captain salary from petty,
+   * is a normal cash ledger line — not an unpaid day-pay liability ghost.
+   */
+  if (/^crew salaries$/i.test(String(e.category || ""))) {
+    if (String(e.source || "") === "manual") return false;
+    return true;
+  }
   return false;
 }
 

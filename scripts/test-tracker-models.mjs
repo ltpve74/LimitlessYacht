@@ -992,6 +992,34 @@ console.log("\n[Expenses — reimbursement & petty (no description regex)]");
   ok("normalize keeps reimburseToId", n.expense.reimburseToId === "stew-toni");
 }
 
+/* ---- Manual Crew Salaries (Expenses + captain salary) ---- */
+console.log("\n[Expenses — manual Crew Salaries not stew day-pay]");
+{
+  const manualUnpaid = {
+    id: "sal-1",
+    source: "manual",
+    category: "Crew Salaries",
+    vendor: "Captain",
+    amount: 2500,
+    payMethod: "Cash",
+    paidFrom: "Petty cash",
+    crewPayStatus: "Unpaid",
+  };
+  const manualPaid = Object.assign({}, manualUnpaid, { crewPayStatus: "Paid" });
+  const stewCatOnly = {
+    id: "stew-legacy",
+    category: "Crew Salaries",
+    amount: 200,
+    crewPayStatus: "Unpaid",
+    stewId: "toni",
+    stewEventKey: "evt1",
+  };
+  ok("manual salary is NOT day-pay", !M.isCrewDayPayExpense(manualUnpaid));
+  ok("stew-linked Crew Salaries still day-pay", M.isCrewDayPayExpense(stewCatOnly));
+  ok("manual unpaid does NOT hit petty", !M.expenseHitsPettyCash(manualUnpaid));
+  ok("manual Paid + petty hits petty", M.expenseHitsPettyCash(manualPaid));
+}
+
 /* ---- Petty cash on board (collapse crew dupes; floatPay only) ---- */
 console.log("\n[Petty cash — crew day-pay collapse & floatPay]");
 {
