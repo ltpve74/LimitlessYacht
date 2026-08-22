@@ -1182,6 +1182,36 @@ console.log("\n[Petty cash — crew day-pay collapse & floatPay]");
   ok("status partial", bal.status === "partial");
   const balPaid = M.summarizeCaptainCommissionBalance({ earned: 997, expenses: draws });
   ok("fully paid status", balPaid.status === "paid" && near(balPaid.outstanding, 0));
+  /* Overpay then return €310 to boat → net paid drops; overpaid clears */
+  const overDraws = [
+    { id: "d3", category: "Captain commission", kind: "captainComm", payMethod: "Cash", paidFrom: "Petty cash", amount: 1307, date: "2026-08-10" },
+  ];
+  const retCash = [
+    { id: "cin1", kind: "commReturn", source: "Commission return — overpay", amount: 310, date: "2026-08-15", notes: "Overpaid commission put back" },
+  ];
+  ok(
+    "commission return cash-in detected",
+    M.isCaptainCommissionReturnCashIn(retCash[0])
+  );
+  ok(
+    "manual note overpay still detected",
+    M.isCaptainCommissionReturnCashIn({
+      source: "Other — put back commission overpay",
+      notes: "returned 310 to boat",
+      amount: 310,
+    })
+  );
+  const balOver = M.summarizeCaptainCommissionBalance({
+    earned: 997,
+    expenses: overDraws,
+    cashIns: retCash,
+  });
+  ok("overpay drawn 1307", near(balOver.drawn, 1307), "got " + balOver.drawn);
+  ok("overpay returned 310", near(balOver.returned, 310), "got " + balOver.returned);
+  ok("overpay net paid 997", near(balOver.paid, 997), "got " + balOver.paid);
+  ok("overpay outstanding 0 after return", near(balOver.outstanding, 0));
+  ok("overpay cleared after return", near(balOver.overpaid, 0), "got " + balOver.overpaid);
+  ok("overpay status paid after return", balOver.status === "paid");
 }
 
 /* ---- Diesel: bunker + sticky active sell ---- */

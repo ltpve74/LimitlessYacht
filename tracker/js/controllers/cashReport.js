@@ -221,10 +221,13 @@
       ? models.summarizeCaptainCommissionBalance({
           earned: bizThrough.comm || 0,
           expenses: paidExpenses,
+          cashIns: cashIns,
         })
       : {
           earned: bizThrough.comm || 0,
           paid: 0,
+          drawn: 0,
+          returned: 0,
           outstanding: bizThrough.comm || 0,
           status: (bizThrough.comm || 0) > 0.009 ? "outstanding" : "none",
         };

@@ -1463,7 +1463,7 @@
       <button type="button" class="ops-back" data-ops-back>← Ops</button>
       <div class="summary">
         <div class="sumcard"><div class="l">Captain earned</div><div class="v money" id="cmCaptTot">€0</div></div>
-        <div class="sumcard sum-ok"><div class="l">Paid from petty</div><div class="v money" id="cmCaptPaid">€0</div></div>
+        <div class="sumcard sum-ok"><div class="l">Net paid (after returns)</div><div class="v money" id="cmCaptPaid">€0</div></div>
         <div class="sumcard sum-warn"><div class="l">Still outstanding</div><div class="v money" id="cmCaptOpen">€0</div></div>
         <div class="sumcard"><div class="l">Click&amp;Boat · paid</div><div class="v money" id="cmCbTot">€0</div></div>
         <div class="sumcard"><div class="l">Owner benefits · notional</div><div class="v money" id="cmOwnTot">€0</div></div>
@@ -1560,14 +1560,14 @@
 <script src="/tracker/js/models/util.js?v=20260808-todayclock1"></script>
 <script src="/tracker/js/models/leads.js?v=20260819-cashout1"></script>
 <script src="/tracker/js/models/charges.js?v=20260812-asof2"></script>
-<script src="/tracker/js/models/expenses.js?v=20260812-pocket1"></script>
+<script src="/tracker/js/models/expenses.js?v=20260822-commreturn1"></script>
 <script src="/tracker/js/models/cash.js?v=20260807-apacash1"></script>
 <script src="/tracker/js/models/diesel.js?v=20260807-apacash1"></script>
 <script src="/tracker/js/models/stews.js?v=20260807-apacash1"></script>
 <script src="/tracker/js/models/apa.js?v=20260807-apacash1"></script>
 <script src="/tracker/js/models/index.js?v=20260807-apacash1"></script>
 <script src="/tracker/js/controllers/expenses.js?v=20260811-cashpdf1"></script>
-<script src="/tracker/js/controllers/cashReport.js?v=20260819-cashout1"></script>
+<script src="/tracker/js/controllers/cashReport.js?v=20260822-commreturn1"></script>
 <script src="/tracker/js/controllers/charges.js?v=20260811-cashpdf1"></script>
 <script src="/tracker/js/controllers/leads.js?v=20260811-cashpdf1"></script>
 <script src="/tracker/js/controllers/apa.js?v=20260811-cashpdf1"></script>
@@ -1671,7 +1671,7 @@ var EXP_CATS=["Crew Salaries","Captain commission","Miscellaneous","Fuel Cars","
 var EXP_METHODS=["Cash","Credit Card"];
 /** Where petty cash top-ups come from (own money = captain float top-up, boat owes captain). */
 /* Tips are NOT petty cash — stay on Stews only (never cash-in sources). */
-var EXP_CASH_IN_SOURCES=["Own money","Charter income","Bank / ATM","Owner float","Other"];
+var EXP_CASH_IN_SOURCES=["Own money","Commission return","Charter income","Bank / ATM","Owner float","Other"];
 /** Cash expense funded from boat float or someone’s pocket (reimburse later). */
 var EXP_PAID_FROM=["Petty cash","Own money","Owner money"];
 /** Sentinel id for captain in paidById / reimburseToId. */
@@ -14258,9 +14258,11 @@ function paintExpensesBody(){
     (pettyEntered
       ?'<div class="meta" style="margin-top:6px">'+
           money(S.physicalStart!=null?S.physicalStart:Math.max(0,pettyStart))+
-          ' start · +'+money(cashInTotal)+' in · −'+money(Math.max(0, cashOut-priorSettledAmt))+' out'+
+          ' start · +'+money(cashInTotal)+' in ('+((cashIns&&cashIns.length)||0)+' line'+(((cashIns&&cashIns.length)||0)===1?"":"s")+') · −'+money(Math.max(0, cashOut-priorSettledAmt))+' out'+
           (priorSettledAmt>0.009?' · −'+money(priorSettledAmt)+' short paid':'')+
-        '</div>'
+          ' · = <b>'+money(pettyCash)+'</b> on board'+
+        '</div>'+
+        '<div class="meta" style="margin-top:4px;opacity:.85">Count the cash-in lines below. Auto lines from Paid charges / lead free cash plus any manual top-up or commission return all add here.</div>'
       :'<div class="meta" style="margin-top:6px">Set start + cash in below</div>')+
   '</div>';
   /*
@@ -14858,27 +14860,43 @@ function paintExpensesBody(){
     });
   });
 }
-function openCashIn(id){
+function openCashIn(id, opts){
   if(!isCaptain()) return;
-  var monthKey=expMonth||expDefaultMonth();
+  opts=opts||{};
+  var monthKey=opts.month||expMonth||expDefaultMonth();
   if(!expMonth) expMonth=monthKey;
   var p0=expEnsurePetty(monthKey);
   var rec=id?(p0.cashIns||[]).filter(function(r){return r&&String(r.id)===String(id);})[0]:null;
   var rowId=rec?rec.id:uid();
-  var r=rec||{id:rowId, date:new Date().toISOString().slice(0,10), source:"Own money", amount:"", notes:""};
-  var src=r.source||"Own money";
+  var defaultSource=opts.commReturn?"Commission return":"Own money";
+  var r=rec||{
+    id:rowId,
+    date:opts.date||new Date().toISOString().slice(0,10),
+    source:defaultSource,
+    amount:opts.amount!=null&&opts.amount!==""?opts.amount:"",
+    notes:opts.notes||(opts.commReturn?"Overpaid commission put back into the boat":""),
+    kind:opts.commReturn?"commReturn":undefined,
+    commReturn:opts.commReturn?true:undefined
+  };
+  var src=r.source||defaultSource;
   /* Match known source even when detail was appended: "Own money — Toni" */
   var baseSrc=EXP_CASH_IN_SOURCES.filter(function(s){ return src===s||src.indexOf(s+" —")===0||src.indexOf(s+" -")===0; })[0]||"";
   var known=!!baseSrc;
   var detailDefault=known&&src!==baseSrc?src.replace(baseSrc,"").replace(/^\s*[—\-]\s*/,""):(!known?src:"");
-  var h='<div class="sheethead"><h2>'+(rec?"Edit cash in":"Add cash in")+'</h2><button type="button" class="sheetx" id="sheetClose" aria-label="Close">×</button></div>';
-  h+='<p style="margin:0 0 12px;font-size:13px;color:var(--muted)">Money put <b>into the boat envelope</b>. Use <b>Own money</b> when you top up the float from your pocket — that increases “Boat owes me”. '+
-    'If you paid a shop or stew from your pocket without taking float, add an expense with <b>Paid from → Own money</b> instead.</p>';
+  if(opts.commReturn&&!rec&&opts.detail) detailDefault=opts.detail;
+  var h='<div class="sheethead"><h2>'+(rec?"Edit cash in":(opts.commReturn?"Return commission to boat":"Add cash in"))+'</h2><button type="button" class="sheetx" id="sheetClose" aria-label="Close">×</button></div>';
+  h+='<p style="margin:0 0 12px;font-size:13px;color:var(--muted)">'+
+    (opts.commReturn
+      ?'Put overpaid commission <b>back into the boat envelope</b>. This raises On board and reduces <b>net paid</b> on Commissions.'
+      :('Money put <b>into the boat envelope</b>. Use <b>Own money</b> when you top up the float from your pocket — that increases “Boat owes me”. '+
+        'Use <b>Commission return</b> when you put back commission you over-drew. '+
+        'If you paid a shop or stew from your pocket without taking float, add an expense with <b>Paid from → Own money</b> instead.'))+
+    '</p>';
   h+=fieldHTML("Date",'<input class="ctl" id="f_cin_date" type="date" value="'+esc(r.date||"")+'">');
   h+=fieldHTML("Source",'<select class="ctl" id="f_cin_source">'+
     EXP_CASH_IN_SOURCES.map(function(s){return '<option'+(s===(baseSrc||(known?src:"Other"))||(!known&&s==="Other"&&!baseSrc)?" selected":"")+'>'+esc(s)+'</option>';}).join("")+
   '</select>');
-  h+=fieldHTML("Source detail (optional)",'<input class="ctl" id="f_cin_detail" value="'+esc(detailDefault)+'" placeholder="e.g. paid Toni day rate from personal">');
+  h+=fieldHTML("Source detail (optional)",'<input class="ctl" id="f_cin_detail" value="'+esc(detailDefault)+'" placeholder="e.g. overpaid commission Aug">');
   h+=fieldHTML("Amount (€)",moneyField("f_cin_amount", r.amount!=null&&r.amount!==""?r.amount:""));
   h+=fieldHTML("Notes",'<input class="ctl" id="f_cin_notes" value="'+esc(r.notes||"")+'" placeholder="optional">');
   if(rec) h+='<div class="sheetbtns"><button type="button" class="btn danger" id="sheetDel">Delete</button></div>';
@@ -14899,10 +14917,15 @@ function openCashIn(id){
     if(source==="Other"&&detail) source=detail;
     else if(detail) source=source+" — "+detail;
     var baseSource=(el("f_cin_source")&&el("f_cin_source").value)||"Other";
+    var isCommReturn=baseSource==="Commission return"||
+      (LY_MODELS&&LY_MODELS.isCaptainCommissionReturnCashIn&&
+        LY_MODELS.isCaptainCommissionReturnCashIn({source:source, notes:(el("f_cin_notes")&&el("f_cin_notes").value)||""}));
     var obj={
       id:rowId, date:date, source:source, amount:amount,
       notes:(el("f_cin_notes")&&el("f_cin_notes").value||"").trim(),
-      fromCaptain: baseSource==="Own money" || expIsOwnMoneyLabel(source)
+      fromCaptain: baseSource==="Own money" || expIsOwnMoneyLabel(source),
+      kind:isCommReturn?"commReturn":(rec&&rec.kind?rec.kind:undefined),
+      commReturn:isCommReturn?true:undefined
     };
     /* Always re-resolve the month record (do not close over a stale p) */
     var p=expEnsurePetty(monthKey);
@@ -14916,7 +14939,10 @@ function openCashIn(id){
     p.pettyIn=expCashInSum(p);
     p.updatedAt=new Date().toISOString();
     showSheet(false);
-    saveExpPetty().then(function(){ paintExpensesBody(); }).catch(function(){ paintExpensesBody(); });
+    saveExpPetty().then(function(){
+      paintExpensesBody();
+      if(isCaptain()&&typeof renderCommissions==="function") try{ renderCommissions(); }catch(eC){}
+    }).catch(function(){ paintExpensesBody(); });
   });
   el("sheetCancel").addEventListener("click",function(){ showSheet(false); });
   el("sheetClose").addEventListener("click",function(){ showSheet(false); });
@@ -14927,7 +14953,10 @@ function openCashIn(id){
     p.pettyIn=expCashInSum(p);
     p.updatedAt=new Date().toISOString();
     showSheet(false);
-    saveExpPetty().then(function(){ paintExpensesBody(); }).catch(function(){ paintExpensesBody(); });
+    saveExpPetty().then(function(){
+      paintExpensesBody();
+      if(isCaptain()&&typeof renderCommissions==="function") try{ renderCommissions(); }catch(eC2){}
+    }).catch(function(){ paintExpensesBody(); });
   });
   showSheet(true);
 }
@@ -19236,6 +19265,17 @@ function expCashInDisplay(r){
       pillClass:"p-own"
     };
   }
+  if((LY_MODELS&&LY_MODELS.isCaptainCommissionReturnCashIn&&LY_MODELS.isCaptainCommissionReturnCashIn(r))||
+     r.kind==="commReturn"||r.kind==="commission-return"||r.commReturn===true||
+     /^commission return\b/i.test(String(r.source||""))){
+    return {
+      purpose:"comm-return",
+      purposeLabel:"Commission return",
+      title:r.source||"Commission return",
+      detail:r.notes||"Overpaid commission put back into the boat envelope",
+      pillClass:"p-amber"
+    };
+  }
   return {
     purpose:"manual",
     purposeLabel:"Manual cash in",
@@ -20012,15 +20052,26 @@ function expIsCaptainCommission(e){
   if(e.kind==="captainComm"||e.commPayout===true) return true;
   return /^captain commission$/i.test(String(e.category||""));
 }
+/** All petty cash-in rows across months (for commission-return detection). */
+function expAllPettyCashIns(){
+  var out=[];
+  (state.expPetty||[]).forEach(function(p){
+    if(!p||!Array.isArray(p.cashIns)) return;
+    p.cashIns.forEach(function(r){ if(r) out.push(r); });
+  });
+  return out;
+}
 /**
- * Captain commission ledger: earned − paid from petty = outstanding.
+ * Captain commission ledger: earned − net paid from petty = outstanding.
+ * Net paid = draws − commission returns (cash put back after overpay).
  * Sole SOT via LY_MODELS.summarizeCaptainCommissionBalance.
  */
 function expCaptainCommissionBalance(earned){
   if(LY_MODELS&&LY_MODELS.summarizeCaptainCommissionBalance){
     return LY_MODELS.summarizeCaptainCommissionBalance({
       earned:earned,
-      expenses:state.expenses||[]
+      expenses:state.expenses||[],
+      cashIns:expAllPettyCashIns()
     });
   }
   var paid=0;
@@ -20028,16 +20079,17 @@ function expCaptainCommissionBalance(earned){
     if(!expIsCaptainCommission(e)) return;
     if(String(e.payMethod||"")==="Credit Card") return;
     if(e.paidFrom==="Own money"||expIsOwnMoneyLabel(e.paidFrom)) return;
-    paid+=apaNum(e.amount);
+    var a=apaNum(e.amount);
+    if(a>0) paid+=a;
   });
   paid=Math.round(paid*100)/100;
   var ern=Math.round(Math.max(0, apaNum(earned))*100)/100;
   return {
-    earned:ern, paid:paid,
+    earned:ern, drawn:paid, returned:0, paid:paid,
     outstanding:Math.round(Math.max(0, ern-paid)*100)/100,
     overpaid:paid>ern+0.009?Math.round((paid-ern)*100)/100:0,
     status:ern<0.01&&paid<0.01?"none":(Math.max(0,ern-paid)<0.01?"paid":(paid>0.009?"partial":"outstanding")),
-    payouts:[], nPayouts:0
+    payouts:[], returns:[], nPayouts:0, nReturns:0
   };
 }
 /** Sum of commission cash-outs from petty (model). */
@@ -20226,8 +20278,11 @@ function renderCommissions(){
   /* Pay / outstanding always on agreed book rates — never preview inflation */
   var captBal=expCaptainCommissionBalance(captEarnedBook);
   var captPaid=captBal.paid;
+  var captDrawn=captBal.drawn!=null?captBal.drawn:captPaid;
+  var captReturned=captBal.returned||0;
   var captOpen=captBal.outstanding;
   var captOverpaid=captBal.overpaid;
+  var captReturns=captBal.returns||[];
   var pettyNow=0;
   try{
     var Sp=expSettlementFigures(expDefaultMonth());
@@ -20274,17 +20329,24 @@ function renderCommissions(){
     '<div style="font-weight:800;margin-bottom:6px">Pay yourself from petty cash</div>'+
     '<div class="meta" style="margin-bottom:10px;line-height:1.45">'+
       'Earned on agreed book rates (confirmed captain deals + upsells): <b class="money">'+money(captEarnedBook)+'</b>. '+
-      'Already drawn from the envelope: <b class="money">'+money(captPaid)+'</b>. '+
+      'Drawn from the envelope: <b class="money">'+money(captDrawn)+'</b>'+
+      (captReturned>0.009?(' · returned to boat: <b class="money">'+money(captReturned)+'</b>'):'')+
+      ' · <b>net paid</b>: <b class="money">'+money(captPaid)+'</b>. '+
       (captOpen>0.009
         ?('Still outstanding: <b class="money" style="color:var(--amberDeep)">'+money(captOpen)+'</b>.')
-        :(captEarnedBook>0.009?'All earned commission drawn.':''))+
-      (captOverpaid>0.009?' <span style="color:var(--danger)">Drawn <b class="money">'+money(captOverpaid)+'</b> over earned.</span>':'')+
+        :(captEarnedBook>0.009?'All earned commission covered (net).':''))+
+      (captOverpaid>0.009?' <span style="color:var(--danger)">Still <b class="money">'+money(captOverpaid)+'</b> over earned after returns.</span>':'')+
       ' Petty on board (this month): <b class="money">'+money(pettyNow)+'</b>.'+
     '</div>'+
-    '<button type="button" class="btn" id="cmPayFromPetty" style="width:auto;padding:10px 16px"'+
-      (pettyNow<0.01&&captOpen<0.01?' disabled':'')+
-    '>Pay from petty cash</button>'+
-    '<p class="meta" style="margin:8px 0 0;line-height:1.4">Partial draws OK — enter any amount up to petty on board. Logs an expense <b>Captain commission</b> · Cash · Petty (cash out).</p>';
+    '<div style="display:flex;flex-wrap:wrap;gap:8px;align-items:center">'+
+      '<button type="button" class="btn" id="cmPayFromPetty" style="width:auto;padding:10px 16px"'+
+        (pettyNow<0.01&&captOpen<0.01?' disabled':'')+
+      '>Pay from petty cash</button>'+
+      ((captOverpaid>0.009||captDrawn>captEarnedBook+0.009)
+        ?('<button type="button" class="btn ghost" id="cmReturnOverpay" style="width:auto;padding:10px 16px" title="Put overpaid commission cash back into the boat envelope">Return overpay to boat'+(captOverpaid>0.009?' · '+money0(captOverpaid):'')+'</button>')
+        :'')+
+    '</div>'+
+    '<p class="meta" style="margin:8px 0 0;line-height:1.4">Partial draws OK — enter any amount up to petty on board. Logs an expense <b>Captain commission</b> · Cash · Petty (cash out). If you over-drew, use <b>Return overpay to boat</b> (cash in · Commission return) so net paid drops.</p>';
   if(payouts.length){
     html+='<div style="margin-top:12px;padding-top:10px;border-top:1px solid var(--line)">'+
       '<div class="meta" style="font-weight:700;margin-bottom:6px">Draws so far</div><div class="list" style="margin:0">';
@@ -20297,6 +20359,22 @@ function renderCommissions(){
           '<div class="amt money" style="font-size:14px">−'+money0(e.amount)+'</div></div>'+
         '<div class="meta">'+(dLab?'<span>📅 '+esc(dLab)+'</span>':'')+
           '<span class="pill p-cash">Petty</span><span class="pill p-green">Paid to you</span></div>'+
+      '</div>';
+    });
+    html+='</div></div>';
+  }
+  if(captReturns.length){
+    html+='<div style="margin-top:12px;padding-top:10px;border-top:1px solid var(--line)">'+
+      '<div class="meta" style="font-weight:700;margin-bottom:6px">Returned to boat</div><div class="list" style="margin:0">';
+    captReturns.forEach(function(r){
+      var dStr=String(r.date||"").slice(0,10);
+      var dLab="";
+      try{ dLab=dStr&&/^\d{4}-\d{2}-\d{2}$/.test(dStr)?fmtDate(dStr):dStr; }catch(eD2){ dLab=dStr; }
+      html+='<div class="item" style="padding:10px 12px"'+(r.kind==="cash-in"&&r.id?' data-cashin-jump="'+esc(r.id)+'"':'')+'>'+
+        '<div class="top"><div class="title" style="font-size:14px">'+esc(r.label||"Commission return")+'</div>'+
+          '<div class="amt money" style="font-size:14px;color:var(--greenInk)">+'+money0(r.amount)+'</div></div>'+
+        '<div class="meta">'+(dLab?'<span>📅 '+esc(dLab)+'</span>':'')+
+          '<span class="pill p-amber">Commission return</span><span class="pill p-cash">Into petty</span></div>'+
       '</div>';
     });
     html+='</div></div>';
@@ -20492,9 +20570,28 @@ function renderCommissions(){
       openCaptainCommPayout(captOpen>0.009?captOpen:pettyNow);
     });
   }
+  if(el("cmReturnOverpay")){
+    el("cmReturnOverpay").addEventListener("click",function(){
+      var suggest=captOverpaid>0.009?captOverpaid:Math.max(0, captDrawn-captEarnedBook);
+      openCashIn(null, {
+        commReturn:true,
+        amount:suggest>0.009?Math.round(suggest*100)/100:"",
+        notes:"Overpaid commission put back into the boat",
+        detail:"overpay return"
+      });
+    });
+  }
   Array.prototype.forEach.call(wrap.querySelectorAll("[data-exp-id]"),function(x){
     x.addEventListener("click",function(){
       openExpense(x.getAttribute("data-exp-id"));
+    });
+  });
+  Array.prototype.forEach.call(wrap.querySelectorAll("[data-cashin-jump]"),function(x){
+    x.addEventListener("click",function(){
+      switchTab("expenses");
+      setTimeout(function(){
+        try{ openCashIn(x.getAttribute("data-cashin-jump")); }catch(eJ){}
+      }, 80);
     });
   });
 
