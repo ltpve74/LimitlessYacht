@@ -357,20 +357,20 @@
           valColor: slateInk,
         });
         gap(4);
-        kvRow("Cash in (received)", pdfMoney(cashIn), {
-          big: true,
-          boldLab: true,
-          bg: greenBg,
-          labColor: greenInk,
-          valColor: greenInk,
-        });
-        gap(4);
         kvRow("Cash out", pdfMoney(cashOut), {
           big: true,
           boldLab: true,
           bg: slateBg,
           labColor: slateInk,
           valColor: slateInk,
+        });
+        gap(4);
+        kvRow("Cash in (received)", pdfMoney(cashIn), {
+          big: true,
+          boldLab: true,
+          bg: greenBg,
+          labColor: greenInk,
+          valColor: greenInk,
         });
         gap(4);
         kvRow("On board now", pdfMoney(onBoard), {
@@ -454,30 +454,7 @@
           muted
         );
 
-        /* —— Cash in lines —— */
-        sectionHead("CASH IN");
-        var inRows = (report.cashIns || []).slice().sort(function (a, b) {
-          return String((a && a.date) || "").localeCompare(String((b && b.date) || ""));
-        });
-        if (inRows.length) {
-          inRows.forEach(function (r, idx) {
-            if (!r || !(Number(r.amount) > 0.009)) return;
-            var when = r.date ? fmtDate(r.date) : "Date not recorded";
-            var lab = String(r.label || "Cash in").replace(/\s+/g, " ").trim();
-            lineItem(when + "  ·  " + lab, r.amount, "", idx, greenInk, "+");
-          });
-          gap(6);
-          kvRow("Total cash in", pdfMoney(cashIn), {
-            boldLab: true,
-            bg: greenBg,
-            labColor: greenInk,
-            valColor: greenInk,
-          });
-        } else {
-          noteLine("No cash came onto the boat this month.", muted);
-        }
-
-        /* —— Cash out lines —— */
+        /* —— Cash out lines (before cash in; newest first) —— */
         sectionHead("CASH OUT");
         var outRows = (report.cashOutLines || []).slice();
         /* Full DTO drops virtual prior-short rows; still part of cashOut total */
@@ -487,7 +464,7 @@
             return r && (r.kind === "prior-short" || r.virtual);
           });
           if (!hasPrior) {
-            outRows.unshift({
+            outRows.push({
               kind: "prior-short",
               virtual: true,
               label: "Brought forward · boat short",
@@ -500,7 +477,7 @@
         outRows.sort(function (a, b) {
           var da = String((a && (a.date || a.charterDate)) || "");
           var db = String((b && (b.date || b.charterDate)) || "");
-          if (da !== db) return da.localeCompare(db);
+          if (da !== db) return db.localeCompare(da); /* newest first */
           return String((a && a.label) || "").localeCompare(String((b && b.label) || ""));
         });
         if (outRows.length) {
@@ -529,6 +506,29 @@
           });
         } else {
           noteLine("Nothing left the boat envelope this month.", muted);
+        }
+
+        /* —— Cash in lines (newest first) —— */
+        sectionHead("CASH IN");
+        var inRows = (report.cashIns || []).slice().sort(function (a, b) {
+          return String((b && b.date) || "").localeCompare(String((a && a.date) || ""));
+        });
+        if (inRows.length) {
+          inRows.forEach(function (r, idx) {
+            if (!r || !(Number(r.amount) > 0.009)) return;
+            var when = r.date ? fmtDate(r.date) : "Date not recorded";
+            var lab = String(r.label || "Cash in").replace(/\s+/g, " ").trim();
+            lineItem(when + "  ·  " + lab, r.amount, "", idx, greenInk, "+");
+          });
+          gap(6);
+          kvRow("Total cash in", pdfMoney(cashIn), {
+            boldLab: true,
+            bg: greenBg,
+            labColor: greenInk,
+            valColor: greenInk,
+          });
+        } else {
+          noteLine("No cash came onto the boat this month.", muted);
         }
 
         /* —— Pending client cash (sailed / today, not yet received) —— */
