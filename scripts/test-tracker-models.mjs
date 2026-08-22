@@ -92,6 +92,14 @@ console.log("[PDF — owner cash]");
     "owner cash public label rewrites you → captain",
     OwnerCashPdf.safeText("Commission to you") === "Captain commission"
   );
+  ok(
+    "owner cash Own money → Captain money",
+    OwnerCashPdf.safeText("Own money") === "Captain money"
+  );
+  ok(
+    "owner cash cash-in Own money label",
+    OwnerCashPdf.safeText("Own money · float top-up").indexOf("Captain money") === 0
+  );
   ok("owner cash exports build", typeof OwnerCashPdf.build === "function");
 }
 
