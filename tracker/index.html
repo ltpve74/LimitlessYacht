@@ -7284,20 +7284,42 @@ function downloadBlob(blob, name){
 function canSharePdfFile(file){
   try{
     if(!navigator.share) return false;
+    if(!file) return false;
     if(navigator.canShare) return navigator.canShare({files:[file]});
-    return true;
+    /* Older Web Share without canShare — still try files */
+    return typeof File!=="undefined";
   }catch(e){ return false; }
 }
+/** Build a real File for Web Share — blob URLs alone get shared as dead links on mobile. */
+function pdfBlobToFile(blob, name){
+  var type=(blob&&blob.type)||"application/pdf";
+  var n=String(name||"document.pdf");
+  if(!/\.pdf$/i.test(n)) n+=".pdf";
+  try{
+    return new File([blob], n, {type:type, lastModified:Date.now()});
+  }catch(e){
+    try{
+      /* Safari quirks: File from Blob parts */
+      return new File([blob.slice(0, blob.size, type)], n, {type:type, lastModified:Date.now()});
+    }catch(e2){
+      return null;
+    }
+  }
+}
 function sharePdfBlob(blob, p){
+  p=p||{};
   var name=p.fileName||invoicePdfFileName(p);
-  var file=new File([blob], name, {type:"application/pdf"});
+  var file=pdfBlobToFile(blob, name);
   var title=p.shareTitle||("Invoice "+(p.invNo||""));
   var text=p.shareText||(title+(p.billName||p.charterer?" — "+(p.billName||p.charterer):""));
-  if(canSharePdfFile(file)){
-    return navigator.share({
-      files:[file],
-      title:title,
-      text:text
+  if(file&&canSharePdfFile(file)){
+    /*
+     * Files-only first. Some mobile apps (WhatsApp) share a useless link/text
+     * when title/text dominate; attaching the PDF file is what the owner needs.
+     */
+    return navigator.share({files:[file]}).catch(function(err){
+      if(err&&err.name==="AbortError") throw err;
+      return navigator.share({files:[file], title:title, text:text});
     }).then(function(){ return "shared"; });
   }
   downloadBlob(blob, name);
@@ -7511,8 +7533,8 @@ function buildYsgInvoicePdf(p){
 }
 function showInvoiceShareSheet(blob, p){
   var name=invoicePdfFileName(p);
-  var file=new File([blob], name, {type:"application/pdf"});
-  var shareOk=canSharePdfFile(file);
+  var file=pdfBlobToFile(blob, name);
+  var shareOk=!!(file&&canSharePdfFile(file));
   var url=URL.createObjectURL(blob);
   var h='<div class="sheethead"><h2>Invoice ready</h2><button type="button" class="sheetx" id="sheetClose" aria-label="Close">×</button></div>';
   h+='<p style="margin:0 0 6px;font-size:15px;font-weight:700">'+esc(p.invNo)+'</p>';
@@ -14064,20 +14086,70 @@ function expExportMonthCashPdf(month){
     if(btn){ btn.disabled=false; btn.textContent="Full PDF"; }
   });
 }
-function expExportMonthOwnerCashPdf(month){
+/** Share sheet for owner PDF — send the file, not a blob link. */
+function showOwnerPdfShareSheet(blob, month){
   month=String(month||expMonth||expDefaultMonth()).slice(0,7);
   var name=expOwnerCashPdfFileName(month);
+  var file=pdfBlobToFile(blob, name);
+  var shareOk=!!(file&&canSharePdfFile(file));
+  var url=URL.createObjectURL(blob);
+  var p={
+    fileName:name,
+    shareTitle:"Limitless on-board cash "+expMonthLabel(month),
+    shareText:"M/Y Limitless on-board cash report - "+expMonthLabel(month)
+  };
+  var h='<div class="sheethead"><h2>Owner PDF ready</h2><button type="button" class="sheetx" id="sheetClose" aria-label="Close">×</button></div>';
+  h+='<p style="margin:0 0 6px;font-size:15px;font-weight:700">'+esc(expMonthLabel(month))+'</p>';
+  h+='<p style="margin:0 0 14px;font-size:13px;color:var(--muted);line-height:1.45">On-board cash for the owner — send the <b>PDF file</b>, not a link.</p>';
+  if(shareOk){
+    h+='<button type="button" class="btn" id="ownerPdfShare" style="margin-bottom:10px">Share PDF file…</button>';
+    h+='<p style="margin:0 0 14px;font-size:12.5px;color:var(--muted);line-height:1.4;text-align:center">Opens the share sheet — pick <b>WhatsApp</b>, Mail, or Files. The attachment is the PDF.</p>';
+  } else {
+    h+='<p style="margin:0 0 12px;font-size:13px;color:var(--muted);line-height:1.45">This browser cannot attach files in Share. Download the PDF, then attach it in WhatsApp (paperclip / +).</p>';
+  }
+  h+='<button type="button" class="btn ghost" id="ownerPdfDl" style="margin-bottom:10px">Download PDF</button>';
+  h+='<a class="btn ghost" id="ownerPdfOpen" href="'+url+'" target="_blank" rel="noopener" style="display:flex;margin-bottom:10px;text-decoration:none">Preview PDF</a>';
+  h+='<div class="sheetfoot"><button type="button" class="btn ghost" id="sheetCancel">Done</button></div>';
+  el("sheetInner").innerHTML=h;
+  showSheet(true);
+  function cleanup(){ try{ URL.revokeObjectURL(url); }catch(e){} }
+  if(el("ownerPdfShare")){
+    el("ownerPdfShare").addEventListener("click",function(){
+      var btn=el("ownerPdfShare");
+      btn.disabled=true; btn.textContent="Opening share…";
+      sharePdfBlob(blob, p).then(function(how){
+        btn.disabled=false; btn.textContent="Share PDF file…";
+        if(how==="download"){
+          window.alert("Share with file attach is not available here — PDF downloaded. Attach that file in WhatsApp.");
+        }
+      }).catch(function(err){
+        btn.disabled=false; btn.textContent="Share PDF file…";
+        if(err&&err.name==="AbortError") return;
+        downloadBlob(blob, name);
+        window.alert("Share cancelled or failed — PDF downloaded instead. Attach it in WhatsApp.");
+      });
+    });
+  }
+  if(el("ownerPdfDl")) el("ownerPdfDl").addEventListener("click",function(){ downloadBlob(blob, name); });
+  if(el("sheetCancel")) el("sheetCancel").addEventListener("click",function(){ cleanup(); showSheet(false); });
+  if(el("sheetClose")) el("sheetClose").addEventListener("click",function(){ cleanup(); showSheet(false); });
+  /* Auto-open file share on capable phones (same pattern as invoices) */
+  if(shareOk){
+    setTimeout(function(){
+      if(!el("ownerPdfShare")) return;
+      sharePdfBlob(blob, p).catch(function(err){
+        if(err&&err.name==="AbortError") return;
+      });
+    }, 350);
+  }
+}
+function expExportMonthOwnerCashPdf(month){
+  month=String(month||expMonth||expDefaultMonth()).slice(0,7);
   var btn=el("expExportOwnerPdf");
   if(btn){ btn.disabled=true; btn.textContent="Building…"; }
   return buildOwnerCashPdf(month).then(function(blob){
     if(!blob) throw new Error("Empty PDF");
-    try{ downloadBlob(blob, name); }catch(eDl){}
-    var p={
-      fileName:name,
-      shareTitle:"Limitless on-board cash "+expMonthLabel(month),
-      shareText:"M/Y Limitless on-board cash (for owner) - "+expMonthLabel(month)
-    };
-    try{ sharePdfBlob(blob, p).catch(function(){}); }catch(eSh){}
+    showOwnerPdfShareSheet(blob, month);
     return blob;
   }).catch(function(err){
     console&&console.error&&console.error("[owner cash pdf]", err);

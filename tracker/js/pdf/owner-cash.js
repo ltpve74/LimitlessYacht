@@ -34,7 +34,17 @@
     t = t.replace(/\bCaptain\s*\(\s*you\s*\)/gi, "Captain");
     t = t.replace(/\(\s*me\s*\)/gi, "");
     t = t.replace(/\(\s*you\s*\)/gi, "");
+    /* Owner-facing: never say “own money” — that is captain-facing jargon */
+    t = t.replace(/\bOwn money\b/gi, "Captain money");
+    t = t.replace(/\bown-money\b/gi, "captain money");
+    t = t.replace(/\bfrom own money\b/gi, "from captain money");
+    t = t.replace(/\bput in \(own money\)/gi, "put in (captain money)");
+    t = t.replace(/\bPaid by captain \(own money\)/gi, "Paid by captain (captain money)");
+    t = t.replace(/\bcaptain'?s? pocket\b/gi, "captain money");
+    t = t.replace(/\bpocket spend\b/gi, "captain money");
+    t = t.replace(/\byou \(pocket repay\)/gi, "captain (repay)");
     t = t.replace(/\bCommission to you\b/gi, "Captain commission");
+    t = t.replace(/\bYour commission\b/gi, "Captain commission");
     t = t.replace(/\bReimbursement to you\b/gi, "Captain reimbursement");
     t = t.replace(/\bRepay you\b/gi, "Repay captain");
     t = t.replace(/\bPaid to you\b/gi, "Paid to captain");
@@ -625,5 +635,6 @@
     fileName: fileName,
     pdfMoney: pdfMoney,
     safeText: safeText,
+    publicLabel: publicLabel,
   };
 });
