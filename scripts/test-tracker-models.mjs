@@ -1242,6 +1242,43 @@ console.log("\n[Petty — cash-in amountManual vs lead sync]");
   ok("lead save force overwrites to 5000", near(forced.row.amount, 5000) && forced.changed && !forced.row.amountManual);
   const create = M.planMergeAutoCashInRow(null, fromLead, {});
   ok("missing row creates from lead", create.changed && near(create.row.amount, 5000));
+
+  const remoteMonth = {
+    month: "2026-08",
+    updatedAt: "2026-08-22T12:00:00.000Z",
+    pettyStart: 1000,
+    cashIns: [
+      {
+        id: "lead-cash:L1",
+        fromLeadId: "L1",
+        amount: 5000,
+        date: "2026-08-22",
+        updatedAt: "2026-08-22T12:00:00.000Z",
+      },
+    ],
+  };
+  const localMonth = {
+    month: "2026-08",
+    updatedAt: "2026-08-22T11:00:00.000Z", /* older month shell */
+    pettyStart: 1000,
+    cashIns: [
+      {
+        id: "lead-cash:L1",
+        fromLeadId: "L1",
+        amount: 4800,
+        date: "2026-08-22",
+        amountManual: true,
+        updatedAt: "2026-08-22T11:30:00.000Z",
+      },
+    ],
+  };
+  const merged = M.mergeExpPettyMonths([localMonth], [remoteMonth]);
+  ok("mergeExpPettyMonths one August row", merged.length === 1);
+  ok(
+    "merge keeps manual 4800 over newer remote 5000",
+    merged[0].cashIns.length === 1 && near(merged[0].cashIns[0].amount, 4800),
+    "got " + (merged[0].cashIns[0] && merged[0].cashIns[0].amount)
+  );
 }
 
 /* ---- Diesel: bunker + sticky active sell ---- */
