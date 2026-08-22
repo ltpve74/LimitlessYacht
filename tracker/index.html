@@ -14635,8 +14635,9 @@ function paintExpensesBody(){
         pills.push('<span class="pill p-cash">From petty</span>');
         purposeNote=e.description||"Guest tip on bill → paid to crew from petty";
       } else if(unpaid){
-        pills.push('<span class="pill p-amber">Unpaid day pay</span>');
-        if(isCrewDay) titleText=(e.vendor||"Crew")+" · day pay";
+        var unpaidSalLabel=(e.source==="stew"||e.stewEventKey||e.stewPayKind==="dayPay")?"Unpaid day pay":"Unpaid salary";
+        pills.push('<span class="pill p-amber">'+unpaidSalLabel+'</span>');
+        if(isCrewDay) titleText=(e.vendor||"Crew")+(e.source==="stew"||e.stewEventKey?" · day pay":" · salary");
       } else if(crewPaidFromOwner){
         titleText=(e.vendor||"Crew")+" · day pay";
         pills.push('<span class="pill p-blue">Day pay</span>');
@@ -14711,12 +14712,14 @@ function paintExpensesBody(){
           showRepayBtn=true;
         }
       } else if(hitsFloat){
-        titleText=(e.vendor||"Crew")+" · day pay";
-        pills.push('<span class="pill p-blue">Day pay</span>');
+        var hitsStew=e.source==="stew"||!!e.stewEventKey||e.stewPayKind==="dayPay";
+        titleText=(e.vendor||"Crew")+(hitsStew?" · day pay":" · salary");
+        pills.push('<span class="pill p-blue">'+(hitsStew?"Day pay":"Salary")+'</span>');
         pills.push('<span class="pill p-cash">From petty</span>');
       } else if(isCrewDay){
-        titleText=(e.vendor||"Crew")+" · day pay";
-        pills.push('<span class="pill p-blue">Day pay</span>');
+        var priorStew=e.source==="stew"||!!e.stewEventKey||e.stewPayKind==="dayPay";
+        titleText=(e.vendor||"Crew")+(priorStew?" · day pay":" · salary");
+        pills.push('<span class="pill p-blue">'+(priorStew?"Day pay":"Salary")+'</span>');
         pills.push('<span class="pill p-grey">Prior · not this float</span>');
       } else {
         if(e.category) pills.push('<span class="pill p-grey">'+esc(e.category)+'</span>');
@@ -15073,6 +15076,14 @@ function openExpense(id, opts){
       (opts.pettyAvail!=null?'Petty on board now ≈ <b class="money">'+money(opts.pettyAvail)+'</b>. ':'')+
       (opts.outstanding>0?'Still owed to you ≈ <b class="money">'+money(opts.outstanding)+'</b>.':'')+
       '</div>';
+  } else if(!fromStew&&(expIsCrewDayPayLine(r)||String(r.category||"")==="Crew Salaries")){
+    var salUnpaid=String(r.crewPayStatus||"")!=="Paid";
+    h+='<div class="banner warn show">'+(salUnpaid
+      ?'<b>Unpaid</b> salary line — set <b>Payment status → Paid</b> and <b>Paid from → Petty cash</b> when the cash actually left the envelope (reduces cash on board).'
+      :(String(r.paidFrom||"")==="Own money"||expIsOwnMoneyLabel(r.paidFrom)
+        ?'Marked <b>Paid</b> from <b>own money</b> — not petty. Boat may owe a reimbursement later.'
+        :'Marked <b>Paid</b> from <b>petty</b> — counts as cash out (reduces petty on board).'))+
+      '</div>';
   } else if(reimburse){
     h+='<div class="banner warn show">Takes cash <b>from petty cash</b> (the envelope — e.g. part of guest free cash) to repay <b>'+esc(reimburseName)+'</b>. '+
       'This is a <b>cash out</b> line: Paid from → Petty cash. The original shop spend stays as Own money; this line shows it was repaid.</div>';
@@ -15084,14 +15095,28 @@ function openExpense(id, opts){
     fieldHTML("Category",'<select class="ctl" id="f_exp_cat"'+(fromStew||reimburse||commPayout?" disabled":"")+'>'+EXP_CATS.map(function(c){return '<option'+(c===(r.category||"")?" selected":"")+'>'+esc(c)+'</option>';}).join("")+'</select>')+
     fieldHTML("Type",'<select class="ctl" id="f_exp_method"'+(fromStew||commPayout?" disabled":"")+'>'+EXP_METHODS.map(function(c){return '<option'+(c===(r.payMethod||"")?" selected":"")+'>'+esc(c)+'</option>';}).join("")+'</select>')+
   '</div>';
-  if(fromStew){
-    var paySel=expIsCrewUnpaid(r)?"Unpaid":"Paid";
-    h+=fieldHTML("Day pay status",'<select class="ctl" id="f_exp_crew_pay">'+
-      '<option value="Unpaid"'+(paySel==="Unpaid"?" selected":"")+'>Unpaid (owe crew)</option>'+
-      '<option value="Paid"'+(paySel==="Paid"?" selected":"")+'>Paid (cash out from float / pocket)</option>'+
-    '</select>');
-    h+='<p style="margin:-6px 0 12px;font-size:12px;color:var(--muted)">Applies to <b>all stews on this charter</b> (same as Stews). Tips stay on Stews only.</p>';
-  }
+  /*
+   * Crew Salaries (stew day-pay OR manual + for captain/crew salary) need an
+   * explicit Paid/Unpaid control. Without it, category Crew Salaries defaults
+   * to unpaid day-pay and never hits petty — and the old form only showed the
+   * toggle for Stews-linked rows.
+   */
+  var isCrewSalCat=fromStew||expIsCrewDayPayLine(r)||String(r.category||"")==="Crew Salaries";
+  /* Existing stew/manual unpaid stays Unpaid; new + salary defaults to Paid (logging a payment). */
+  var paySelDefault=fromStew
+    ?(expIsCrewUnpaid(r)?"Unpaid":"Paid")
+    :(rec?(String(r.crewPayStatus||"")==="Paid"?"Paid":"Unpaid"):"Paid");
+  h+='<div id="f_exp_crew_pay_wrap" style="'+(isCrewSalCat?"":"display:none")+'">'+
+    fieldHTML(fromStew?"Day pay status":"Payment status",'<select class="ctl" id="f_exp_crew_pay">'+
+      '<option value="Unpaid"'+(paySelDefault==="Unpaid"?" selected":"")+'>Unpaid (not paid yet)</option>'+
+      '<option value="Paid"'+(paySelDefault==="Paid"?" selected":"")+'>Paid (cash out from float / pocket)</option>'+
+    '</select>')+
+    '<p id="f_exp_crew_pay_hint" style="margin:-6px 0 12px;font-size:12px;color:var(--muted)">'+
+      (fromStew
+        ?"Applies to <b>all stews on this charter</b> (same as Stews). Tips stay on Stews only."
+        :"<b>Paid</b> + Petty cash reduces cash on board. Leave Unpaid only if you are logging an amount still owed.")+
+    '</p>'+
+  '</div>';
   h+='<div id="f_exp_paidFrom_wrap">'+
     fieldHTML("Paid from (cash only)",'<select class="ctl" id="f_exp_paidFrom"'+(reimburse||commPayout?" disabled":"")+'>'+
       (fromStew
@@ -15177,22 +15202,30 @@ function openExpense(id, opts){
       if(el(fid)) el(fid).disabled=true;
     });
   }
+  function syncCrewPayVis(){
+    var cat=(el("f_exp_cat")&&el("f_exp_cat").value)||"";
+    var show=fromStew||cat==="Crew Salaries";
+    var wrap=el("f_exp_crew_pay_wrap");
+    if(wrap) wrap.style.display=show?"":"none";
+    return show;
+  }
   function syncPaidFromVis(){
     var method=(el("f_exp_method")&&el("f_exp_method").value)||"Cash";
     var wrap=el("f_exp_paidFrom_wrap");
     var byWrap=el("f_exp_paidBy_wrap");
+    var crewSal=syncCrewPayVis();
     var crewPay=el("f_exp_crew_pay")?el("f_exp_crew_pay").value:"Paid";
     var pf=(el("f_exp_paidFrom")&&el("f_exp_paidFrom").value)||"Petty cash";
     if(wrap){
-      if(fromStew){
-        /* Paid from only matters once day pay is Paid */
-        wrap.style.display=crewPay==="Paid"?"":"none";
+      if(fromStew||crewSal){
+        /* Paid from only matters once salary / day pay is Paid */
+        wrap.style.display=crewPay==="Paid"?(method==="Credit Card"?"none":""):"none";
       } else {
         wrap.style.display=method==="Credit Card"?"none":"";
       }
     }
     if(byWrap){
-      byWrap.style.display=(!reimburse&&method!=="Credit Card"&&pf==="Own money"&&(!fromStew||crewPay==="Paid"))?"":"none";
+      byWrap.style.display=(!reimburse&&method!=="Credit Card"&&pf==="Own money"&&(!crewSal||crewPay==="Paid"))?"":"none";
     }
     var gWrap=el("f_exp_guest_wrap");
     if(gWrap) gWrap.style.display=(fromStew&&crewPay==="Paid"&&(pf==="Guest"||pf==="Owner money"))?"":"none";
@@ -15212,7 +15245,10 @@ function openExpense(id, opts){
   if(el("f_exp_method")) el("f_exp_method").addEventListener("change",syncPaidFromVis);
   if(el("f_exp_paidFrom")) el("f_exp_paidFrom").addEventListener("change",syncPaidFromVis);
   if(el("f_exp_crew_pay")) el("f_exp_crew_pay").addEventListener("change",syncPaidFromVis);
-  if(el("f_exp_cat")) el("f_exp_cat").addEventListener("change",syncReimburseVis);
+  if(el("f_exp_cat")) el("f_exp_cat").addEventListener("change",function(){
+    syncReimburseVis();
+    syncPaidFromVis();
+  });
   if(el("f_exp_chargeTo")) el("f_exp_chargeTo").addEventListener("change",syncChargeVis);
   syncPaidFromVis();
   syncReimburseVis();
@@ -15465,21 +15501,38 @@ function openExpense(id, opts){
     }
     var isReimbCat=cat==="Captain reimbursement"||cat==="Crew reimbursement"||cat==="Reimbursement";
     if(isReimbCat||reimburse){ chargeTo="boat"; apaTripId=""; paidFrom="Petty cash"; method="Cash"; }
-    /* Commission draw: warn if over envelope */
-    if((commPayout||cat==="Captain commission")&&paidFrom==="Petty cash"&&method==="Cash"){
+    var isCrewSalSave=cat==="Crew Salaries"||expIsCrewDayPayLine(r);
+    var crewPaySave="Paid";
+    if(isCrewSalSave){
+      chargeTo="boat"; apaTripId="";
+      crewPaySave=(el("f_exp_crew_pay")&&el("f_exp_crew_pay").value)==="Paid"?"Paid":"Unpaid";
+      if(crewPaySave!=="Paid"){
+        /* Unpaid liability — no cash left the boat yet */
+        paidFrom="Petty cash";
+        method="Cash";
+      }
+    }
+    /* Commission / paid salary from petty: warn if over envelope */
+    if(((commPayout||cat==="Captain commission")||(isCrewSalSave&&crewPaySave==="Paid"&&paidFrom==="Petty cash"))&&paidFrom==="Petty cash"&&method==="Cash"){
       var Scomm=expSettlementFigures(expMonthKey(date)||expDefaultMonth());
-      var alreadyComm=rec&&expIsCaptainCommission(rec)&&expExpenseHitsPetty(rec)?apaNum(rec.amount):0;
+      var alreadyComm=0;
+      if(rec){
+        if(expIsCaptainCommission(rec)&&expExpenseHitsPetty(rec)) alreadyComm=apaNum(rec.amount);
+        else if(expIsCrewDayPayLine(rec)&&expCrewPayHitsFloat(rec)) alreadyComm=apaNum(rec.amount);
+      }
       var pettyLeft=Math.round((apaNum(Scomm.pettyCash)+alreadyComm)*100)/100;
       if(amount>pettyLeft+0.009){
         if(!window.confirm(
           "Petty on board is only "+money0(pettyLeft)+".\n"+
-          "Drawing "+money0(amount)+" would make petty "+money0(pettyLeft-amount)+".\n\n"+
+          "Paying "+money0(amount)+" would make petty "+money0(pettyLeft-amount)+".\n\n"+
           "OK = still take it (books short).\nCancel = go back and lower the amount."
         )) return;
       }
     }
     var paidById=EXP_POCKET_CAPTAIN;
-    if(paidFrom==="Owner money"){
+    if(isCrewSalSave&&crewPaySave!=="Paid"){
+      paidById="";
+    } else if(paidFrom==="Owner money"){
       paidById=EXP_POCKET_OWNER;
     } else if(paidFrom==="Own money"&&el("f_exp_paidBy")){
       paidById=String(el("f_exp_paidBy").value||EXP_POCKET_CAPTAIN);
@@ -15516,6 +15569,20 @@ function openExpense(id, opts){
       commPayout:commPayout||cat==="Captain commission"?true:(rec&&rec.commPayout?true:undefined),
       by:session.who||"Captain", updatedAt:new Date().toISOString()
     };
+    if(isCrewSalSave){
+      obj.category="Crew Salaries";
+      obj.crewPayStatus=crewPaySave;
+      obj.payStatusManual=true;
+      /* Paid + Petty = notes left the envelope (same switch as stew day-pay) */
+      if(crewPaySave==="Paid"&&method==="Cash"&&paidFrom==="Petty cash") obj.floatPay=true;
+      else obj.floatPay=false;
+      if(crewPaySave!=="Paid"){ obj.paidFrom="Petty cash"; obj.paidById=""; }
+    } else if(rec&&rec.crewPayStatus!=null){
+      /* Left Crew Salaries — drop day-pay flags so it becomes a normal expense */
+      obj.crewPayStatus="";
+      obj.floatPay=false;
+      obj.payStatusManual=false;
+    }
     if(isReimbCat||reimburse) expNormalizeReimbursement(obj);
     if(rec&&rec.source==="stew"){ obj.source="stew"; /* steward fields preserved only on stew path */ }
     if(!state.expenses) state.expenses=[];
