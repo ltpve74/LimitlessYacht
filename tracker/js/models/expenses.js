@@ -1138,6 +1138,143 @@ function cashInAmountIsManual(r) {
  * @param {{ force?: boolean }} [opts] force=true when lead/charge sheet was saved
  * @returns {{ row: object, changed: boolean, preservedManual: boolean }}
  */
+/**
+ * Merge two cash-in lists by id (phone vs desktop).
+ * Hand-edited amounts (amountManual) win over a newer auto-synced twin.
+ * Otherwise newer updatedAt wins; listB wins timestamp ties.
+ *
+ * @param {Array} listA typically remote
+ * @param {Array} listB typically local
+ * @returns {Array}
+ */
+function mergePettyCashInLists(listA, listB) {
+  var by = {};
+  function keyOf(r) {
+    if (!r) return "";
+    if (r.id != null && String(r.id) !== "") return String(r.id);
+    if (r.fromLeadId) return "lead-cash:" + String(r.fromLeadId);
+    if (r.fromChargeId) return "charge-cash:" + String(r.fromChargeId);
+    return (
+      "anon:" +
+      String(r.date || "") +
+      ":" +
+      String(r.source || "") +
+      ":" +
+      String(r.amount || "")
+    );
+  }
+  function take(r, preferOnTie) {
+    if (!r) return;
+    var k = keyOf(r);
+    if (!k) return;
+    var cur = by[k];
+    if (!cur) {
+      by[k] = r;
+      return;
+    }
+    var manR = cashInAmountIsManual(r);
+    var manC = cashInAmountIsManual(cur);
+    var amtDiff = Math.abs(round2(num(r.amount)) - round2(num(cur.amount))) > 0.009;
+    if (manR && !manC && amtDiff) {
+      by[k] = r;
+      return;
+    }
+    if (manC && !manR && amtDiff) {
+      return;
+    }
+    var ct = String(cur.updatedAt || "");
+    var pt = String(r.updatedAt || "");
+    if (pt > ct) by[k] = r;
+    else if (pt === ct && preferOnTie) by[k] = r;
+  }
+  (Array.isArray(listA) ? listA : []).forEach(function (r) {
+    take(r, false);
+  });
+  (Array.isArray(listB) ? listB : []).forEach(function (r) {
+    take(r, true);
+  });
+  var out = [];
+  Object.keys(by).forEach(function (k) {
+    out.push(by[k]);
+  });
+  out.sort(function (a, b) {
+    var da = String((b && b.date) || "");
+    var db = String((a && a.date) || "");
+    if (da !== db) return da < db ? -1 : 1;
+    return String((b && b.id) || "").localeCompare(String((a && a.id) || ""));
+  });
+  return out;
+}
+
+/**
+ * Merge expPetty month rows (remote then local).
+ * Month shell (start / BF) follows newer updatedAt; cashIns merge by line id
+ * with amountManual protection so phone/desktop do not thrash envelope totals.
+ *
+ * @param {Array} local
+ * @param {Array} remote
+ * @returns {Array}
+ */
+function mergeExpPettyMonths(local, remote) {
+  var by = {};
+  function ensure(month) {
+    month = String(month || "").slice(0, 7);
+    if (!month) return null;
+    if (!by[month]) {
+      by[month] = {
+        month: month,
+        cashIns: [],
+        pettyStart: 0,
+        broughtForwardShort: 0,
+        updatedAt: "",
+      };
+    }
+    return by[month];
+  }
+  function applyShell(p, preferOnTie) {
+    if (!p || !p.month) return;
+    var slot = ensure(p.month);
+    if (!slot) return;
+    if (!Array.isArray(p.cashIns)) p.cashIns = [];
+    var ct = String(slot.updatedAt || "");
+    var pt = String(p.updatedAt || "");
+    var takeShell = !ct || pt > ct || (pt === ct && preferOnTie);
+    if (takeShell) {
+      slot.pettyStart = p.pettyStart;
+      if (p.broughtForwardShort != null) slot.broughtForwardShort = p.broughtForwardShort;
+      if (p.pettyStartManual != null) slot.pettyStartManual = p.pettyStartManual;
+      if (p.pettyStartMode != null) slot.pettyStartMode = p.pettyStartMode;
+      if (p.by != null) slot.by = p.by;
+      slot.updatedAt = p.updatedAt || slot.updatedAt;
+      /* Keep other month fields from newer shell */
+      Object.keys(p).forEach(function (k) {
+        if (k === "cashIns" || k === "month") return;
+        if (p[k] !== undefined) slot[k] = p[k];
+      });
+    }
+    slot.cashIns = mergePettyCashInLists(slot.cashIns, p.cashIns);
+  }
+  (Array.isArray(remote) ? remote : []).forEach(function (p) {
+    applyShell(p, false);
+  });
+  (Array.isArray(local) ? local : []).forEach(function (p) {
+    applyShell(p, true);
+  });
+  var out = [];
+  Object.keys(by)
+    .sort()
+    .forEach(function (m) {
+      var row = by[m];
+      var sum = 0;
+      (row.cashIns || []).forEach(function (r) {
+        if (r) sum += num(r.amount);
+      });
+      row.pettyIn = round2(sum);
+      out.push(row);
+    });
+  return out;
+}
+
 function planMergeAutoCashInRow(existing, nextRow, opts) {
   opts = opts || {};
   if (!nextRow) return { row: existing || null, changed: false, preservedManual: false };
@@ -3136,6 +3273,8 @@ function summarizeMonthSettlement(opts) {
     isAutoSyncedEnvelopeCashIn: isAutoSyncedEnvelopeCashIn,
     cashInAmountIsManual: cashInAmountIsManual,
     planMergeAutoCashInRow: planMergeAutoCashInRow,
+    mergePettyCashInLists: mergePettyCashInLists,
+    mergeExpPettyMonths: mergeExpPettyMonths,
     summarizePettyCashInRows: summarizePettyCashInRows,
     collectPettyCashInsFromMonths: collectPettyCashInsFromMonths,
     isCaptainCommissionExpense: isCaptainCommissionExpense,

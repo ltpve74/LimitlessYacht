@@ -1560,7 +1560,7 @@
 <script src="/tracker/js/models/util.js?v=20260808-todayclock1"></script>
 <script src="/tracker/js/models/leads.js?v=20260819-cashout1"></script>
 <script src="/tracker/js/models/charges.js?v=20260812-asof2"></script>
-<script src="/tracker/js/models/expenses.js?v=20260822-cashinmanual1"></script>
+<script src="/tracker/js/models/expenses.js?v=20260822-pettymerge1"></script>
 <script src="/tracker/js/models/cash.js?v=20260807-apacash1"></script>
 <script src="/tracker/js/models/diesel.js?v=20260807-apacash1"></script>
 <script src="/tracker/js/models/stews.js?v=20260807-apacash1"></script>
@@ -12163,12 +12163,14 @@ function expCashInSum(petty){
   return Math.round(s*100)/100;
 }
 /**
- * Merge monthly petty float (start + cash-ins).
- * Prefer newer updatedAt — never “more cash-in lines wins” (that undid deletes
- * and start clears on the next poll ~20s later).
- * On equal timestamp, local wins (second pass).
+ * Merge monthly petty float (start + cash-ins) across phone/desktop.
+ * Month shell follows newer updatedAt; cash-in lines merge by id and
+ * amountManual wins over a newer auto-synced twin (so €4800 edits stick).
  */
 function mergeExpPetty(local, remote){
+  if(LY_MODELS&&typeof LY_MODELS.mergeExpPettyMonths==="function"){
+    return LY_MODELS.mergeExpPettyMonths(local, remote);
+  }
   var by={}, out=[];
   function take(p){
     if(!p||!p.month) return;
@@ -12178,7 +12180,7 @@ function mergeExpPetty(local, remote){
     var ct=String(cur.updatedAt||"");
     var pt=String(p.updatedAt||"");
     if(pt>ct) by[p.month]=p;
-    else if(pt===ct) by[p.month]=p; /* later pass (local) wins ties */
+    else if(pt===ct) by[p.month]=p;
   }
   (remote||[]).forEach(take);
   (local||[]).forEach(take);
