@@ -11898,6 +11898,8 @@ function saveExpPetty(){
   return api("save",{collection:"expPetty",rows:rows,pushEndpoint:pushMeta.endpoint||""})
     .then(function(){
       touchLocalSave("expPetty");
+      try{ lastSoftSyncFp=dataSyncFingerprint(state); }catch(eFp){}
+      try{ broadcastLocalSave("expPetty"); }catch(eBc){}
       if(hint){ hint.textContent="All changes saved ✓"; hint.className="savehint saved"; }
     })
     .catch(function(e){
@@ -22528,6 +22530,8 @@ function save(coll){
       if(coll==="apa"&&curTab==="apa") try{ renderApa(); }catch(eA){}
     }
     if(coll==="expenses"||coll==="expPetty"||coll==="stewAssign"||coll==="leads"||coll==="charters"||coll==="apa") touchLocalSave(coll);
+    try{ lastSoftSyncFp=dataSyncFingerprint(state); }catch(eFp){}
+    try{ broadcastLocalSave(coll); }catch(eBc){}
     if(hint){
       hint.textContent=j&&j.preserved
         ?("All changes saved ✓ · kept "+j.preserved+" other item"+(j.preserved===1?"":"s"))
@@ -22886,14 +22890,42 @@ function setTrust(id,val){
 var pollTimer=null;
 var softRefreshTimer=null;
 var softRefreshInFlight=false;
+var softPollTimer=null;
+var lySyncBC=null;
+var lastSoftSyncFp="";
+/** Cheap fingerprint so quiet polls skip re-render when nothing remote changed. */
+function dataSyncFingerprint(d){
+  if(!d) return "";
+  function len(a){ return Array.isArray(a)?a.length:0; }
+  var petty=0;
+  (d.expPetty||[]).forEach(function(p){
+    if(!p) return;
+    petty+=Number(p.pettyIn)||0;
+    (Array.isArray(p.cashIns)?p.cashIns:[]).forEach(function(c){
+      petty+=(Number(c&&c.amount)||0)+((c&&c.amountManual)?1:0);
+    });
+  });
+  var exp=0;
+  (d.expenses||[]).forEach(function(e){ exp+=Number(e&&e.amount)||0; });
+  return [len(d.leads),len(d.charters),len(d.expenses),len(d.expPetty),len(d.apa),len(d.stewAssign),petty.toFixed(2),exp.toFixed(2)].join("|");
+}
 /**
- * Soft reload after a push notification (or SW message) so open apps catch up.
+ * Soft reload after a push / BroadcastChannel / visibility poll so open apps catch up.
  * Uses fromPoll merges so a mid-edit device is not wiped by a concurrent save.
  */
 function softRefreshFromServer(opts){
   opts=opts||{};
   if(DEMO||!session||!session.pass) return;
   if(el("app")&&el("app").classList.contains("hidden")) return;
+  /* Skip noisy polls while this device just saved (localSaveIsFresh windows) */
+  if(opts.skipIfFreshLocal){
+    var freshColls=["expPetty","expenses","leads","charters","apa","stewAssign"];
+    var anyFresh=false;
+    for(var fi=0;fi<freshColls.length;fi++){
+      if(localSaveIsFresh(freshColls[fi], 8000)){ anyFresh=true; break; }
+    }
+    if(anyFresh&&(opts.reason==="visible-poll"||opts.reason==="focus")) return;
+  }
   if(softRefreshTimer) clearTimeout(softRefreshTimer);
   softRefreshTimer=setTimeout(function(){
     softRefreshTimer=null;
@@ -22902,7 +22934,17 @@ function softRefreshFromServer(opts){
     api("load",{silent:true}).then(function(d){
       softRefreshInFlight=false;
       if(!d) return;
+      var fp=dataSyncFingerprint(d);
+      var changed=fp!==lastSoftSyncFp;
+      /* First poll after open just records baseline — avoid false "Updated" flash */
+      if(!lastSoftSyncFp){
+        lastSoftSyncFp=fp;
+        if(opts.reason==="visible-poll"||opts.reason==="focus"||opts.reason==="visibility") return;
+      }
+      if(!changed&&(opts.quiet||opts.reason==="visible-poll"||opts.reason==="focus")) return;
+      lastSoftSyncFp=fp;
       try{ applyData(d,{fromPoll:true}); }catch(eA){}
+      if(opts.quiet||!changed) return;
       var hint=el("saveHint");
       if(hint){
         hint.textContent="Updated · change from another device";
@@ -22930,16 +22972,57 @@ function wirePushRefreshListener(){
     }
   });
 }
+/** Same-browser tabs (desktop + second window) sync instantly without waiting for push. */
+function wireBroadcastSync(){
+  if(typeof BroadcastChannel==="undefined"||window.__lySyncBCWired) return;
+  window.__lySyncBCWired=true;
+  try{
+    lySyncBC=new BroadcastChannel("ly-tracker-sync");
+    lySyncBC.onmessage=function(ev){
+      var m=(ev&&ev.data)||{};
+      if(m.type==="tracker-data-changed"){
+        softRefreshFromServer({reason:m.reason||"broadcast", delay:250});
+      }
+    };
+  }catch(eBc){ lySyncBC=null; }
+}
+function broadcastLocalSave(coll){
+  try{
+    if(!lySyncBC) wireBroadcastSync();
+    if(lySyncBC) lySyncBC.postMessage({type:"tracker-data-changed", reason:"local-save", coll:coll||""});
+  }catch(e){}
+}
 /**
- * Production: no background blob refresh.
- * Prototype polling re-applied server data every 20s and fought local deletes/edits.
- * Session is checked on the next user save/action instead.
- * Push notifications trigger softRefreshFromServer via the service worker.
+ * Cross-device sync:
+ * 1) Push (incl. silent sync on cash-in/expenses) → SW → softRefresh
+ * 2) BroadcastChannel for other tabs on this browser
+ * 3) Soft refresh every ~15s while this tab is visible (covers desktop without push)
+ * 4) Soft refresh when the tab becomes visible again
+ * Session ping stays on a long interval (auth only).
  */
 function startPolling(){
   if(pollTimer) return;
   try{ wirePushRefreshListener(); }catch(eW){}
-  /* Optional light session ping only — never applyData / rewrite collections */
+  try{ wireBroadcastSync(); }catch(eB){}
+  function softPollIfVisible(){
+    if(typeof document!=="undefined"&&document.visibilityState&&document.visibilityState!=="visible") return;
+    softRefreshFromServer({reason:"visible-poll", delay:200, quiet:true, skipIfFreshLocal:true});
+  }
+  if(!softPollTimer){
+    softPollTimer=setInterval(softPollIfVisible, 15000);
+  }
+  if(typeof document!=="undefined"&&!document.__lyVisWired){
+    document.__lyVisWired=true;
+    document.addEventListener("visibilitychange",function(){
+      if(document.visibilityState==="visible"){
+        softRefreshFromServer({reason:"visibility", delay:300, quiet:true});
+      }
+    });
+    window.addEventListener("focus",function(){
+      softRefreshFromServer({reason:"focus", delay:400, quiet:true, skipIfFreshLocal:true});
+    });
+  }
+  /* Light session ping — auth only, never applyData */
   pollTimer=setInterval(function(){
     api("load",{silent:true, sessionOnly:true}).then(function(d){
       if(d&&d.role) session.role=d.role;
