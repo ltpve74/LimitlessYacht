@@ -2635,9 +2635,9 @@ export default async (req, context) => {
     let next = Array.isArray(body.rows) ? body.rows.slice(0, 5000) : [];
     let mergeInfo = { preserved: 0, deleted: 0 };
     /*
-     * Leads + charters: never wipe rows the client simply didn't have
-     * (restored calendar lead, concurrent device). Explicit deletes only
-     * via body.deletedIds.
+     * Leads + charters + expenses: never wipe rows the client simply didn't have
+     * (restored calendar lead, concurrent device, salary added on the other phone).
+     * Explicit deletes only via body.deletedIds.
      *
      * stewAssign: same class of race (team self-assign vs captain open tab)
      * but keyed by eventKey + last-write-wins per row — see mergeStewAssignCollection.
@@ -2647,7 +2647,7 @@ export default async (req, context) => {
      *
      * Other collections still full-replace.
      */
-    if (coll === "leads" || coll === "charters") {
+    if (coll === "leads" || coll === "charters" || coll === "expenses") {
       mergeInfo = mergeCollectionPreserveMissing(
         prev,
         next,
@@ -2775,7 +2775,11 @@ export default async (req, context) => {
       preserved: mergeInfo.preserved || 0,
       /* Echo so client can refresh if we kept rows it didn't send */
       rows:
-        coll === "leads" || coll === "charters" || coll === "apa" || coll === "stewAssign"
+        coll === "leads" ||
+        coll === "charters" ||
+        coll === "apa" ||
+        coll === "stewAssign" ||
+        coll === "expenses"
           ? data[coll]
           : undefined,
     });

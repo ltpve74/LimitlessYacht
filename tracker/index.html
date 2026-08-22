@@ -11656,6 +11656,7 @@ function expDeleteExpenseById(id, opts){
   var skipDirty=false;
   if(isStew) skipDirty=expMarkStewDayPaySkipped(rec);
   state.expenses=(state.expenses||[]).filter(function(e){return !e||String(e.id)!==String(id);});
+  try{ voidDeletedId("expenses", id); }catch(eTomb){}
   if(!DEMO){
     saveExpenses();
     if(skipDirty) saveStewAssign();
@@ -12384,6 +12385,11 @@ function expStewAssignForExpense(e){
  * Prior/auto "Paid" stays Paid in the list but is not unpaid debt.
  */
 function expIsCrewUnpaid(e){
+  if(!e) return false;
+  /* Manual Crew Salaries (Expenses + captain/crew salary) honour Payment status */
+  if(String(e.category||"")==="Crew Salaries"&&String(e.source||"")==="manual"){
+    return String(e.crewPayStatus||"")!=="Paid";
+  }
   if(!expIsCrewDayPayLine(e)) return false;
   return e.crewPayStatus!=="Paid";
 }
@@ -15573,9 +15579,19 @@ function openExpense(id, opts){
       obj.category="Crew Salaries";
       obj.crewPayStatus=crewPaySave;
       obj.payStatusManual=true;
-      /* Paid + Petty = notes left the envelope (same switch as stew day-pay) */
-      if(crewPaySave==="Paid"&&method==="Cash"&&paidFrom==="Petty cash") obj.floatPay=true;
-      else obj.floatPay=false;
+      /*
+       * Manual Expenses+ salary is NOT stew day-pay — petty hits via Cash+Petty when Paid.
+       * Stew-linked rows still use floatPay when Paid from petty.
+       */
+      var stewLinked=!!(rec&&(rec.source==="stew"||rec.stewEventKey||rec.stewPayKind==="dayPay"));
+      if(stewLinked){
+        obj.source="stew";
+        if(crewPaySave==="Paid"&&method==="Cash"&&paidFrom==="Petty cash") obj.floatPay=true;
+        else obj.floatPay=false;
+      } else {
+        obj.source="manual";
+        obj.floatPay=false;
+      }
       if(crewPaySave!=="Paid"){ obj.paidFrom="Petty cash"; obj.paidById=""; }
     } else if(rec&&rec.crewPayStatus!=null){
       /* Left Crew Salaries — drop day-pay flags so it becomes a normal expense */
@@ -15584,7 +15600,7 @@ function openExpense(id, opts){
       obj.payStatusManual=false;
     }
     if(isReimbCat||reimburse) expNormalizeReimbursement(obj);
-    if(rec&&rec.source==="stew"){ obj.source="stew"; /* steward fields preserved only on stew path */ }
+    if(rec&&rec.source==="stew"&&!isCrewSalSave){ obj.source="stew"; /* steward fields preserved only on stew path */ }
     if(!state.expenses) state.expenses=[];
     if(rec) state.expenses=state.expenses.map(function(e){return e&&e.id===obj.id?Object.assign({},e,obj):e;});
     else state.expenses.unshift(obj);
@@ -22559,13 +22575,13 @@ function save(coll){
   /* Snapshot now so a concurrent poll cannot mutate the payload mid-flight */
   var rows=state[coll];
   try{ rows=JSON.parse(JSON.stringify(state[coll]||[])); }catch(e){ rows=state[coll]; }
-  if(coll==="leads"||coll==="charters"||coll==="apa"){
+  if(coll==="leads"||coll==="charters"||coll==="apa"||coll==="expenses"){
     rows=filterTombstonedRows(coll, rows||[]);
     /* Keep deletedIds even if already tombstoned (server must drop them) */
   }
-  var deletedIds=(coll==="leads"||coll==="charters"||coll==="apa")?takeDeletedIds(coll):[];
-  /* Always re-send recent tombstones so server drops deleted pots/charges/leads */
-  if(coll==="leads"||coll==="charters"||coll==="apa"){
+  var deletedIds=(coll==="leads"||coll==="charters"||coll==="apa"||coll==="expenses")?takeDeletedIds(coll):[];
+  /* Always re-send recent tombstones so server drops deleted pots/charges/leads/expenses */
+  if(coll==="leads"||coll==="charters"||coll==="apa"||coll==="expenses"){
     try{
       var map=loadTombstones();
       var extra=Object.keys(map[coll]||{});
@@ -22579,14 +22595,18 @@ function save(coll){
   if(coll==="expenses"||coll==="expPetty"||coll==="stewAssign"||coll==="leads"||coll==="charters"||coll==="apa") touchLocalSave(coll);
   api("save",{collection:coll,rows:rows,deletedIds:deletedIds,pushEndpoint:pushMeta.endpoint||""}).then(function(j){
     /*
-     * Server may have preserved leads/charters this client never had
-     * (e.g. calendar restore on another tab). Adopt merged rows.
+     * Server may have preserved leads/charters/expenses this client never had
+     * (e.g. calendar restore or salary added on the other device). Adopt merged rows.
      */
-    if(j&&Array.isArray(j.rows)&&(coll==="leads"||coll==="charters"||coll==="apa"||coll==="stewAssign")){
+    if(j&&Array.isArray(j.rows)&&(coll==="leads"||coll==="charters"||coll==="apa"||coll==="stewAssign"||coll==="expenses")){
       var adopted=coll==="stewAssign"?j.rows:filterTombstonedRows(coll, j.rows);
       if(coll==="leads") state.leads=adopted;
       else if(coll==="charters") state.charters=adopted;
       else if(coll==="apa") state.apa=adopted;
+      else if(coll==="expenses"){
+        state.expenses=adopted;
+        if(curTab==="expenses") try{ renderExpenses(); }catch(eEx){}
+      }
       else if(coll==="stewAssign"){
         state.stewAssign=adopted;
         try{ backupStewAssignLocal(); }catch(eBak){}
@@ -23181,11 +23201,14 @@ function applyData(d, opts){
     if(fromPoll&&localSaveIsFresh("expenses")){
       /* keep local expenses (floatPay / edits) for a few seconds after save */
     } else if(fromPoll){
-      state.expenses=mergeExpensesById(state.expenses, d.expenses);
+      state.expenses=mergeExpensesById(state.expenses, d.expenses, "expenses");
     } else {
-      state.expenses=d.expenses;
+      state.expenses=filterTombstonedRows("expenses", d.expenses);
     }
   } else if(!isCaptain()) state.expenses=[];
+  if(isCaptain()&&Array.isArray(state.expenses)){
+    state.expenses=filterTombstonedRows("expenses", state.expenses);
+  }
   if(isCaptain() && Array.isArray(d.expPetty)){
     if(fromPoll&&localSaveIsFresh("expPetty")){
       /* keep local start/cash-in while save settles on server */
