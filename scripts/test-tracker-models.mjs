@@ -1214,6 +1214,36 @@ console.log("\n[Petty cash — crew day-pay collapse & floatPay]");
   ok("overpay status paid after return", balOver.status === "paid");
 }
 
+/* ---- Petty cash-in: hand-edited amount must survive auto sync ---- */
+console.log("\n[Petty — cash-in amountManual vs lead sync]");
+{
+  const existing = {
+    id: "lead-cash:L1",
+    fromLeadId: "L1",
+    kind: "charter-fee-cash",
+    amount: 4800,
+    date: "2026-08-22",
+    source: "Charter fee · cash only — Guest",
+    amountManual: true,
+  };
+  const fromLead = {
+    id: "lead-cash:L1",
+    fromLeadId: "L1",
+    kind: "charter-fee-cash",
+    amount: 5000,
+    date: "2026-08-22",
+    source: "Charter fee · cash only — Guest",
+    amountManual: false,
+  };
+  ok("cashInAmountIsManual true", M.cashInAmountIsManual(existing));
+  const keep = M.planMergeAutoCashInRow(existing, fromLead, {});
+  ok("sync preserves 4800 when amountManual", near(keep.row.amount, 4800) && keep.preservedManual && !keep.changed);
+  const forced = M.planMergeAutoCashInRow(existing, fromLead, { force: true });
+  ok("lead save force overwrites to 5000", near(forced.row.amount, 5000) && forced.changed && !forced.row.amountManual);
+  const create = M.planMergeAutoCashInRow(null, fromLead, {});
+  ok("missing row creates from lead", create.changed && near(create.row.amount, 5000));
+}
+
 /* ---- Diesel: bunker + sticky active sell ---- */
 console.log("\n[Diesel — bunker buy + sticky active sell]");
 {

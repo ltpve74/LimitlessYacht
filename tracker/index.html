@@ -1560,7 +1560,7 @@
 <script src="/tracker/js/models/util.js?v=20260808-todayclock1"></script>
 <script src="/tracker/js/models/leads.js?v=20260819-cashout1"></script>
 <script src="/tracker/js/models/charges.js?v=20260812-asof2"></script>
-<script src="/tracker/js/models/expenses.js?v=20260822-commreturn1"></script>
+<script src="/tracker/js/models/expenses.js?v=20260822-cashinmanual1"></script>
 <script src="/tracker/js/models/cash.js?v=20260807-apacash1"></script>
 <script src="/tracker/js/models/diesel.js?v=20260807-apacash1"></script>
 <script src="/tracker/js/models/stews.js?v=20260807-apacash1"></script>
@@ -14373,11 +14373,13 @@ function paintExpensesBody(){
     cashIns.slice().sort(function(a,b){ return String(b.date||"").localeCompare(String(a.date||"")); }).forEach(function(r){
       var ownIn=expCashInIsOwnMoney(r);
       var d=expCashInDisplay(r);
+      var amtManual=!!(LY_MODELS&&LY_MODELS.cashInAmountIsManual?LY_MODELS.cashInAmountIsManual(r):(r.amountManual||r.moneyManual));
       h+='<div class="item apa-row'+(ownIn?' exp-own':'')+'" data-cashin-id="'+esc(r.id)+'" role="button" tabindex="0" style="padding:12px">'+
         '<div class="top"><div class="title" style="font-size:14.5px">'+esc(d.title)+'</div>'+
           '<div class="amt money" style="font-size:15px">+'+money0(r.amount)+'</div></div>'+
         '<div class="meta">'+
           '<span class="pill '+esc(d.pillClass)+'">'+esc(d.purposeLabel)+'</span>'+
+          (amtManual?'<span class="pill p-amber" title="Hand-edited — will not be overwritten by lead/charge sync">Amount locked</span>':'')+
           '<span>📅 '+esc(fmtDate(r.date)||r.date||"")+'</span>'+
         '</div>'+
         (d.detail?'<div class="notes" style="font-style:normal;margin-top:4px;font-size:12.5px;color:var(--muted)">'+esc(d.detail)+'</div>':'')+
@@ -14920,29 +14922,65 @@ function openCashIn(id, opts){
     var isCommReturn=baseSource==="Commission return"||
       (LY_MODELS&&LY_MODELS.isCaptainCommissionReturnCashIn&&
         LY_MODELS.isCaptainCommissionReturnCashIn({source:source, notes:(el("f_cin_notes")&&el("f_cin_notes").value)||""}));
+    var prevAmt=rec?apaNum(rec.amount):null;
+    var linkedLeadId=rec&&rec.fromLeadId?String(rec.fromLeadId):"";
+    var linkedChargeId=rec&&rec.fromChargeId?String(rec.fromChargeId):"";
+    var isAutoLinked=!!(linkedLeadId||linkedChargeId||
+      (rec&&LY_MODELS&&LY_MODELS.isAutoSyncedEnvelopeCashIn&&LY_MODELS.isAutoSyncedEnvelopeCashIn(rec)));
+    var amountEdited=rec&&prevAmt!=null&&Math.abs(prevAmt-amount)>0.009;
     var obj={
       id:rowId, date:date, source:source, amount:amount,
       notes:(el("f_cin_notes")&&el("f_cin_notes").value||"").trim(),
       fromCaptain: baseSource==="Own money" || expIsOwnMoneyLabel(source),
       kind:isCommReturn?"commReturn":(rec&&rec.kind?rec.kind:undefined),
-      commReturn:isCommReturn?true:undefined
+      commReturn:isCommReturn?true:undefined,
+      fromLeadId:linkedLeadId||undefined,
+      fromChargeId:linkedChargeId||undefined,
+      /* Lock amount so background sync (expense save / poll) cannot resurrect old lead cash */
+      amountManual:isAutoLinked&&amountEdited?true:(rec&&(rec.amountManual||rec.moneyManual)?true:undefined)
     };
     /* Always re-resolve the month record (do not close over a stale p) */
     var p=expEnsurePetty(monthKey);
     if(!Array.isArray(p.cashIns)) p.cashIns=[];
     var found=false;
     p.cashIns=p.cashIns.map(function(x){
-      if(x&&String(x.id)===String(obj.id)){ found=true; return obj; }
+      if(x&&String(x.id)===String(obj.id)){ found=true; return Object.assign({}, x, obj); }
       return x;
     });
     if(!found) p.cashIns.unshift(obj);
     p.pettyIn=expCashInSum(p);
     p.updatedAt=new Date().toISOString();
+    /* Keep lead SOT in step when captain corrects cash received on the envelope line */
+    var leadDirty=false;
+    if(linkedLeadId&&amountEdited){
+      var L=(state.leads||[]).filter(function(x){ return x&&String(x.id)===linkedLeadId; })[0];
+      if(L){
+        L.cashAmt=amount;
+        L.cashAmtUser=true;
+        L.updatedAt=new Date().toISOString();
+        leadDirty=true;
+        try{ if(typeof leadCashPinSet==="function") leadCashPinSet(L.id, amount); }catch(ePin){}
+      }
+    }
+    if(linkedChargeId&&amountEdited){
+      var Ch=(state.charters||[]).filter(function(x){ return x&&String(x.id)===linkedChargeId; })[0];
+      if(Ch){
+        Ch.cashPaid=amount;
+        Ch.moneyManual=true;
+        Ch.updatedAt=new Date().toISOString();
+        try{ if(!DEMO) save("charters"); }catch(eCh){}
+      }
+    }
     showSheet(false);
-    saveExpPetty().then(function(){
+    var after=function(){
       paintExpensesBody();
+      if(leadDirty){
+        try{ if(!DEMO) save("leads"); }catch(eLd){}
+        try{ if(typeof renderLeads==="function") renderLeads(); }catch(eRl){}
+      }
       if(isCaptain()&&typeof renderCommissions==="function") try{ renderCommissions(); }catch(eC){}
-    }).catch(function(){ paintExpensesBody(); });
+    };
+    saveExpPetty().then(after).catch(after);
   });
   el("sheetCancel").addEventListener("click",function(){ showSheet(false); });
   el("sheetClose").addEventListener("click",function(){ showSheet(false); });
@@ -19314,8 +19352,11 @@ function expRemoveChargeCashIn(chargeId, skipSave){
 /**
  * Upsert or remove boat-float cash-in for one charge.
  * Returns true if expPetty changed.
+ * @param {object} charge
+ * @param {{ force?: boolean }} [opts] force=true after charge sheet save
  */
-function syncChargeCashToPetty(charge){
+function syncChargeCashToPetty(charge, opts){
+  opts=opts||{};
   if(!isCaptain()||!charge||!charge.id) return false;
   var cash=chargeCashToBoat(charge);
   if(!(cash>0.009)){
@@ -19346,17 +19387,34 @@ function syncChargeCashToPetty(charge){
     source:srcLab+(chargePayMethod(charge)==="Split"||chargeBillType(charge)==="mix"?" (part cash)":" (cash)"),
     amount:Math.round(cash*100)/100,
     notes:noteBits.filter(Boolean).join(" · "),
-    updatedAt:new Date().toISOString()
+    updatedAt:new Date().toISOString(),
+    amountManual:false
   };
-  var found=false;
+  var found=false, changed=false;
+  var mergeFn=LY_MODELS&&LY_MODELS.planMergeAutoCashInRow?LY_MODELS.planMergeAutoCashInRow:null;
   p.cashIns=p.cashIns.map(function(r){
     if(r&&(String(r.id)===cid||String(r.fromChargeId||"")===String(charge.id))){
       found=true;
-      return row;
+      if(mergeFn){
+        var m=mergeFn(r, row, {force:!!opts.force});
+        if(m.changed) changed=true;
+        return m.row||r;
+      }
+      /* Fallback without model: never overwrite hand-edited amounts */
+      if(!opts.force&&(r.amountManual===true||r.amountManual==="true"||r.amountManual===1)&&
+         Math.abs(Number(r.amount||0)-row.amount)>0.009){
+        return r;
+      }
+      if(Math.abs(Number(r.amount||0)-row.amount)>0.009||String(r.date||"").slice(0,10)!==row.date||String(r.source||"")!==row.source){
+        changed=true;
+        return row;
+      }
+      return r;
     }
     return r;
   });
-  if(!found) p.cashIns.unshift(row);
+  if(!found){ p.cashIns.unshift(row); changed=true; }
+  if(!changed) return false;
   p.pettyIn=expCashInSum(p);
   p.updatedAt=new Date().toISOString();
   return true;
@@ -19427,8 +19485,14 @@ function expRemoveLeadCashIn(leadId, skipSave){
 /**
  * Post split-deal free cash (€1,800 etc.) into Expenses boat float when received.
  * Does not use Charges — cash never sits on the formal invoice.
+ * Hand-edited cash-in amounts (amountManual) are preserved unless force=true
+ * (lead sheet save), so an expense save on the phone cannot resurrect €5000
+ * over a desktop edit to €4800.
+ * @param {object} lead
+ * @param {{ force?: boolean }} [opts]
  */
-function syncLeadCashToPetty(lead){
+function syncLeadCashToPetty(lead, opts){
+  opts=opts||{};
   if(!isCaptain()||!lead||!lead.id) return false;
   /* Prefer live state row (save may pass a draft) */
   var live=(state.leads||[]).filter(function(x){ return x&&String(x.id)===String(lead.id); })[0]||lead;
@@ -19453,12 +19517,23 @@ function syncLeadCashToPetty(lead){
     source:(cashOnly?"Charter fee · cash only — ":"Charter fee · free cash — ")+name,
     amount:cash,
     notes:(cashOnly?"Cash-only charter fee · on the boat · ":"Split charter fee cash · not on the invoice · on the boat · ")+money0(cash),
-    updatedAt:new Date().toISOString()
+    updatedAt:new Date().toISOString(),
+    amountManual:false
   };
   var found=false, changed=false;
+  var mergeFn=LY_MODELS&&LY_MODELS.planMergeAutoCashInRow?LY_MODELS.planMergeAutoCashInRow:null;
   p.cashIns=p.cashIns.map(function(r){
     if(r&&(String(r.id)===cid||String(r.fromLeadId||"")===String(live.id))){
       found=true;
+      if(mergeFn){
+        var m=mergeFn(r, row, {force:!!opts.force});
+        if(m.changed) changed=true;
+        return m.row||r;
+      }
+      if(!opts.force&&(r.amountManual===true||r.amountManual==="true"||r.amountManual===1)&&
+         Math.abs(Number(r.amount||0)-cash)>0.009){
+        return r;
+      }
       if(Math.abs(Number(r.amount||0)-cash)>0.009||String(r.date||"").slice(0,10)!==String(row.date||"")||String(r.source||"")!==String(row.source||"")){
         changed=true;
         return row;
@@ -21763,7 +21838,7 @@ function saveSheet(type,rec){
     /* Boat float: cash received (cashPaid) when Paid → monthly cash in */
     if(isCaptain()){
       var saved=(state.charters||[]).filter(function(c){return c&&c.id===obj.id;})[0]||obj;
-      syncChargeCashToPetty(saved);
+      syncChargeCashToPetty(saved, {force:true});
       saveExpPetty();
       if(curTab==="expenses") renderExpenses();
       if(curTab==="commissions") renderCommissions();
@@ -22071,9 +22146,10 @@ function saveSheet(type,rec){
       if(isCaptain()){ expRemoveLeadCashIn(liveLead.id, true); saveExpPetty(); }
       if(isCaptain()&&curTab==="stews") renderStews({soft:false});
     }
-    /* Split free cash OR cash-only charter → boat petty when received (not cancelled) */
+    /* Split free cash OR cash-only charter → boat petty when received (not cancelled).
+       force=true: lead sheet is source of truth — clears amountManual lock on cash-in. */
     if(isCaptain()&&(sp.split||cashOnlyOn||o2.cashOnly||o2.dealPayType==="cash")&&bookingSt!=="cancelled"){
-      if(syncLeadCashToPetty(o2)) saveExpPetty();
+      if(syncLeadCashToPetty(o2, {force:true})) saveExpPetty();
       if(curTab==="expenses") renderExpenses();
     } else if(isCaptain()&&bookingSt==="cancelled"){
       if(curTab==="expenses") renderExpenses();
