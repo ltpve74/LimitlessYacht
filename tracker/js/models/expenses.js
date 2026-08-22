@@ -1113,6 +1113,70 @@ function isAutoSyncedEnvelopeCashIn(r) {
 }
 
 /**
+ * True when captain hand-edited the cash-in amount (must not be overwritten by
+ * lead/charge re-sync after an unrelated expense save).
+ * @param {object} r cash-in row
+ */
+function cashInAmountIsManual(r) {
+  if (!r) return false;
+  return (
+    r.amountManual === true ||
+    r.amountManual === "true" ||
+    r.amountManual === 1 ||
+    r.moneyManual === true ||
+    r.moneyManual === "true" ||
+    r.moneyManual === 1
+  );
+}
+
+/**
+ * Merge auto-synced cash-in (from lead/charge) with an existing petty row.
+ * If the existing row was amount-edited by hand, keep that amount unless force.
+ *
+ * @param {object|null} existing
+ * @param {object} nextRow proposed sync row (amount from lead/charge)
+ * @param {{ force?: boolean }} [opts] force=true when lead/charge sheet was saved
+ * @returns {{ row: object, changed: boolean, preservedManual: boolean }}
+ */
+function planMergeAutoCashInRow(existing, nextRow, opts) {
+  opts = opts || {};
+  if (!nextRow) return { row: existing || null, changed: false, preservedManual: false };
+  if (!existing) {
+    var created = Object.assign({}, nextRow);
+    if (created.amountManual == null && opts.force) created.amountManual = false;
+    return { row: created, changed: true, preservedManual: false };
+  }
+  var force = !!opts.force;
+  var manual = cashInAmountIsManual(existing) && !force;
+  if (manual) {
+    var keepAmt = round2(num(existing.amount));
+    var syncedAmt = round2(num(nextRow.amount));
+    /* Preserve hand amount; still allow date/source refresh if identical money */
+    if (Math.abs(keepAmt - syncedAmt) > 0.009) {
+      return {
+        row: existing,
+        changed: false,
+        preservedManual: true,
+      };
+    }
+    /* Amounts already match — clear stale manual flag quietly optional */
+    return { row: existing, changed: false, preservedManual: true };
+  }
+  var same =
+    Math.abs(round2(num(existing.amount)) - round2(num(nextRow.amount))) < 0.01 &&
+    String(existing.date || "").slice(0, 10) === String(nextRow.date || "").slice(0, 10) &&
+    String(existing.source || "") === String(nextRow.source || "");
+  if (same && !force) {
+    return { row: existing, changed: false, preservedManual: false };
+  }
+  var merged = Object.assign({}, nextRow);
+  /* Lead/charge save wins — drop manual lock */
+  merged.amountManual = false;
+  if (existing.id && !merged.id) merged.id = existing.id;
+  return { row: merged, changed: true, preservedManual: false };
+}
+
+/**
  * Flatten + sum petty cash-in rows (envelope top-ups).
  * Controller supplies skip() for tips / auto-synced lead-charge rows if needed.
  *
@@ -3070,6 +3134,8 @@ function summarizeMonthSettlement(opts) {
     resolvePettyMonthClose: resolvePettyMonthClose,
     planPettyCarryMaterialize: planPettyCarryMaterialize,
     isAutoSyncedEnvelopeCashIn: isAutoSyncedEnvelopeCashIn,
+    cashInAmountIsManual: cashInAmountIsManual,
+    planMergeAutoCashInRow: planMergeAutoCashInRow,
     summarizePettyCashInRows: summarizePettyCashInRows,
     collectPettyCashInsFromMonths: collectPettyCashInsFromMonths,
     isCaptainCommissionExpense: isCaptainCommissionExpense,
