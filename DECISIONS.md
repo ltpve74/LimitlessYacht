@@ -76,8 +76,8 @@ Do **not** "fix" them without checking here first. Each entry lists what *not* t
 
 ## CLS reserves — removing these brings the shift back
 
-- **Reviews grid:** `#reviewsLoading` **and** `.reviews-grid` reserve `min-height:128rem` mobile /
-  `56rem` desktop. The grid loads lazily and would jump without this. **Sized for exactly 10
+- **Reviews grid:** `#reviewsLoading` **and** `.reviews-grid` reserve `min-height:141rem` mobile /
+  `68rem` desktop. The grid loads lazily and would jump without this. **Sized for exactly 11
   reviews** — re‑measure both values if the review count changes. (See CLAUDE.md "Reviews snippet + CLS reserve".)
 - **Review snippet:** clamped to **4 lines** with `min-height:4lh` so every card is the same height.
 - **Hero pull‑quote:** `.hero-pull-quote` has its `margin-top` mirrored into the **critical CSS**.
