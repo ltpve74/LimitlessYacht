@@ -670,12 +670,38 @@
   /**
    * Linked lead without Issued/Paid APA: pot must not show lead shortfall € as
    * APA received (Roman €460 bug). Clear mistaken apaSent/linkInvAmount.
+   *
+   * Do NOT clear captain-entered “APA sent to us” from Setup (apaSentManual).
+   * That is real money already received — lead invoice status may still be
+   * Not issued while the pot correctly holds the prepaid amount.
    */
   function planApaSanitizeLinkedPotSeed(input) {
     input = input || {};
     if (!input.leadLinked) return null;
     if (leadApaIsPrepaid(input.leadApas)) return null;
+    /* Setup / Edit trip: captain typed APA received — never wipe on re-open */
+    if (input.apaSentManual === true || input.apaSentManual === "true" || input.apaSentManual === 1) {
+      return null;
+    }
     if (!(num(input.apaSent) > 0) && !(num(input.linkInvAmount) > 0)) return null;
+    /*
+     * Only auto-clear when pot still looks like a mis-seed of lead.apa shortfall
+     * tracking (same €). A different amount is treated as real received money.
+     */
+    var leadApa = num(input.leadApa);
+    var sent = num(input.apaSent);
+    var linkAmt = num(input.linkInvAmount);
+    var sameAsLeadShortfall =
+      leadApa > 0.009 &&
+      ((sent > 0.009 && Math.abs(sent - leadApa) < 0.02) ||
+        (linkAmt > 0.009 && Math.abs(linkAmt - leadApa) < 0.02 && !(sent > 0.009)));
+    if (!sameAsLeadShortfall && sent > 0.009) {
+      /* Distinct amount, no manual flag yet (older saves) — keep it */
+      return null;
+    }
+    if (!sameAsLeadShortfall && !(sent > 0.009) && linkAmt > 0.009 && !(leadApa > 0.009)) {
+      return null;
+    }
     return {
       tripPatch: {
         apaSent: 0,

@@ -1799,6 +1799,42 @@ console.log("\n[APA — charge pick + delete/start plans]");
   ok("delete clears lead even when pot apaSent mis-seeded", leadClearMisSeed && leadClearMisSeed.apa === 0);
   ok("list display €0 for Not issued shortfall", M.leadApaListDisplayAmount(460, "Not issued") === 0);
   ok("list display prepaid for Issued", near(M.leadApaListDisplayAmount(2400, "Issued"), 2400));
+  /* Sanitize linked pot seed — Roman mis-seed vs captain Setup entry */
+  const wipeMisSeed = M.planApaSanitizeLinkedPotSeed({
+    leadLinked: true,
+    leadApas: "Not issued",
+    leadApa: 460,
+    apaSent: 460,
+    linkInvAmount: 460,
+  });
+  ok(
+    "sanitize clears mis-seeded shortfall as APA received",
+    wipeMisSeed && wipeMisSeed.tripPatch && wipeMisSeed.tripPatch.apaSent === 0
+  );
+  const keepManual = M.planApaSanitizeLinkedPotSeed({
+    leadLinked: true,
+    leadApas: "Not issued",
+    leadApa: 460,
+    apaSent: 3000,
+    linkInvAmount: 3000,
+    apaSentManual: true,
+  });
+  ok("sanitize keeps Setup manual APA received", keepManual == null);
+  const keepDistinct = M.planApaSanitizeLinkedPotSeed({
+    leadLinked: true,
+    leadApas: "Not issued",
+    leadApa: 460,
+    apaSent: 3000,
+    linkInvAmount: 3000,
+  });
+  ok("sanitize keeps APA received ≠ lead shortfall €", keepDistinct == null);
+  const keepIssued = M.planApaSanitizeLinkedPotSeed({
+    leadLinked: true,
+    leadApas: "Paid",
+    leadApa: 3000,
+    apaSent: 3000,
+  });
+  ok("sanitize skips when lead APA is Paid", keepIssued == null);
 }
 
 /* ---- APA controller write plans ---- */
