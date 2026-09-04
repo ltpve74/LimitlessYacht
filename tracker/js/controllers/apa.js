@@ -603,8 +603,10 @@
     return models.planApaSanitizeLinkedPotSeed({
       leadLinked: !!(input.leadLinked || lead.id || /^lead:/.test(String(trip.clientKey || ""))),
       leadApas: lead.apas != null ? lead.apas : input.leadApas,
+      leadApa: lead.apa != null ? lead.apa : input.leadApa,
       apaSent: trip.apaSent,
       linkInvAmount: trip.linkInvAmount,
+      apaSentManual: trip.apaSentManual,
     });
   }
 

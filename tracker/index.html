@@ -10759,6 +10759,7 @@ function openApaTrip(id, opts){
   '</div>';
   h+='<p style="margin:-6px 0 12px;font-size:12px;color:var(--muted);line-height:1.4">Tap a date field for the calendar. Same day for a day charter; set end for multi-day.</p>';
   h+='<div class="row2">'+fieldHTML("APA sent to us (0 ok)",moneyField("f_apaSent",r.apaSent!=null?r.apaSent:0))+fieldHTML("Additional top-ups",moneyField("f_topUps",r.topUps!=null?r.topUps:0))+'</div>';
+  h+='<p style="margin:-6px 0 12px;font-size:12px;color:var(--muted);line-height:1.4">Money already received for this pot (bank / cash). Saves on the trip even if the lead invoice is still “Not issued”.</p>';
   var dRateShow=apaDieselPrice(r);
   h+='<div class="row2">'+fieldHTML("Fuel € / litre",moneyField("f_dPrice",dRateShow))+fieldHTML("Generator L/hr",moneyField("f_genBurn",r.genBurn))+'</div>';
   h+='<p style="margin:-6px 0 12px;font-size:12px;color:var(--muted);line-height:1.4">Current fuel rate for this trip. Edit to set a different rate for this charter only.</p>';
@@ -10820,6 +10821,20 @@ function openApaTrip(id, opts){
       by:session.who,
       updatedAt:new Date().toISOString()
     };
+    if(Number(obj.apaSent)<0) obj.apaSent=0;
+    /*
+     * Captain entered APA received in Setup — lock it so openApaDetail sanitize
+     * (Roman mis-seed clearer) cannot wipe it when the lead is still Not issued.
+     */
+    if(Number(obj.apaSent)>0){
+      obj.apaSentManual=true;
+      if(!(Number(obj.linkInvAmount)>0)||Math.abs(Number(obj.linkInvAmount)-Number(obj.apaSent))<0.02){
+        obj.linkInvAmount=Number(obj.apaSent);
+        if(!obj.linkInvLabel) obj.linkInvLabel="APA";
+      }
+    } else {
+      obj.apaSentManual=false;
+    }
     if(rec){
       obj.chargeId=r.chargeId||"";
       /* Free cash stays on the lead — never keep −cash APA fields on save */
@@ -10827,16 +10842,18 @@ function openApaTrip(id, opts){
       obj.cashAmt=0;
       obj.cashSettled=false;
       obj.cashReceived=0;
-      if(Number(obj.apaSent)<0) obj.apaSent=0;
       obj.expenses=r.expenses||[];
       obj.provisions=r.provisions||[];
       obj.diesel=r.diesel||[];
       obj.dieselLoads=r.dieselLoads||[];
-      state.apa=state.apa.map(function(x){return x.id===obj.id?obj:x;});
+      /* Preserve other pot flags from previous row */
+      if(r.suppressShortfallCharge) obj.suppressShortfallCharge=!!r.suppressShortfallCharge;
+      if(r.extraPot) obj.extraPot=true;
+      state.apa=state.apa.map(function(x){return x.id===obj.id?Object.assign({},x,obj):x;});
     } else {
       state.apa.unshift(obj);
     }
-    activeApaId=obj.id; apaView="detail"; apaSub="diesel";
+    activeApaId=obj.id; apaView="detail"; apaSub="overview";
     showSheet(false); saveApa(obj);
   });
   el("sheetCancel").addEventListener("click",function(){ showSheet(false); });
