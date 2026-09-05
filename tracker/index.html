@@ -11945,11 +11945,24 @@ function saveExpPetty(){
   var rows=JSON.parse(JSON.stringify(state.expPetty||[]));
   touchLocalSave("expPetty");
   return api("save",{collection:"expPetty",rows:rows,pushEndpoint:pushMeta.endpoint||""})
-    .then(function(){
+    .then(function(j){
+      /*
+       * Server may have preserved months / cash-ins this device never had
+       * (phone saved while desktop had an older bag). Adopt the merge.
+       */
+      if(j&&Array.isArray(j.rows)){
+        state.expPetty=mergeExpPetty(state.expPetty||[], j.rows);
+        if(curTab==="expenses") try{ renderExpenses(); }catch(eEx){}
+      }
       touchLocalSave("expPetty");
       try{ lastSoftSyncFp=dataSyncFingerprint(state); }catch(eFp){}
       try{ broadcastLocalSave("expPetty"); }catch(eBc){}
-      if(hint){ hint.textContent="All changes saved ✓"; hint.className="savehint saved"; }
+      if(hint){
+        hint.textContent=j&&j.preserved
+          ?("All changes saved ✓ · kept "+j.preserved+" other month"+(j.preserved===1?"":"s"))
+          :"All changes saved ✓";
+        hint.className="savehint saved";
+      }
     })
     .catch(function(e){
       if(hint){ hint.textContent=(e&&e.code===401)?"Session expired — reload":"Couldn't save cash in — check connection"; hint.className="savehint error"; }
@@ -23245,21 +23258,54 @@ var softRefreshInFlight=false;
 var softPollTimer=null;
 var lySyncBC=null;
 var lastSoftSyncFp="";
-/** Cheap fingerprint so quiet polls skip re-render when nothing remote changed. */
+/**
+ * Sync fingerprint — must change when cash numbers change, not only when
+ * row counts / totals collide (two different expense sets with the same sum
+ * used to look “unchanged” and desktop stayed stale).
+ */
 function dataSyncFingerprint(d){
   if(!d) return "";
   function len(a){ return Array.isArray(a)?a.length:0; }
-  var petty=0;
+  function cheapHash(s){
+    var h=0, i=0, str=String(s||"");
+    for(i=0;i<str.length;i++){ h=((h<<5)-h)+str.charCodeAt(i); h|=0; }
+    return String(h);
+  }
+  var petty=0, pettyBits=[], maxPettyUp="";
   (d.expPetty||[]).forEach(function(p){
     if(!p) return;
+    petty+=Number(p.pettyStart)||0;
     petty+=Number(p.pettyIn)||0;
+    var pu=String(p.updatedAt||"");
+    if(pu>maxPettyUp) maxPettyUp=pu;
+    pettyBits.push(String(p.month||"")+":"+String(p.pettyStart||0)+":"+String(p.pettyIn||0));
     (Array.isArray(p.cashIns)?p.cashIns:[]).forEach(function(c){
-      petty+=(Number(c&&c.amount)||0)+((c&&c.amountManual)?1:0);
+      if(!c) return;
+      petty+=(Number(c.amount)||0)+((c.amountManual)?1:0);
+      pettyBits.push(String(c.id||"")+":"+String(c.amount||0)+":"+String(c.updatedAt||"").slice(0,19));
+      var cu=String(c.updatedAt||"");
+      if(cu>maxPettyUp) maxPettyUp=cu;
     });
   });
-  var exp=0;
-  (d.expenses||[]).forEach(function(e){ exp+=Number(e&&e.amount)||0; });
-  return [len(d.leads),len(d.charters),len(d.expenses),len(d.expPetty),len(d.apa),len(d.stewAssign),petty.toFixed(2),exp.toFixed(2)].join("|");
+  var exp=0, expBits=[], maxExpUp="";
+  (d.expenses||[]).forEach(function(e){
+    if(!e) return;
+    exp+=Number(e.amount)||0;
+    var u=String(e.updatedAt||"");
+    if(u>maxExpUp) maxExpUp=u;
+    expBits.push(
+      String(e.id||"")+":"+String(e.amount||0)+":"+String(e.paidFrom||"")+":"+
+      String(e.crewPayStatus||"")+":"+(e.floatPay===true?"1":"0")+":"+u.slice(0,19)
+    );
+  });
+  expBits.sort();
+  pettyBits.sort();
+  return [
+    len(d.leads),len(d.charters),len(d.expenses),len(d.expPetty),len(d.apa),len(d.stewAssign),
+    petty.toFixed(2),exp.toFixed(2),
+    cheapHash(expBits.join("|")),cheapHash(pettyBits.join("|")),
+    maxExpUp.slice(0,19),maxPettyUp.slice(0,19)
+  ].join("|");
 }
 /**
  * Soft reload after a push / BroadcastChannel / visibility poll so open apps catch up.
@@ -23366,7 +23412,8 @@ function startPolling(){
     softRefreshFromServer({reason:"visible-poll", delay:200, quiet:true, skipIfFreshLocal:true});
   }
   if(!softPollTimer){
-    softPollTimer=setInterval(softPollIfVisible, 15000);
+    /* ~8s — cash expenses must catch up phone↔desktop without a long wait */
+    softPollTimer=setInterval(softPollIfVisible, 8000);
   }
   if(typeof document!=="undefined"&&!document.__lyVisWired){
     document.__lyVisWired=true;
@@ -23484,12 +23531,8 @@ function applyData(d, opts){
     state.expenses=filterTombstonedRows("expenses", state.expenses);
   }
   if(isCaptain() && Array.isArray(d.expPetty)){
-    if(fromPoll&&localSaveIsFresh("expPetty")){
-      /* keep local start/cash-in while save settles on server */
-      state.expPetty=mergeExpPetty(state.expPetty, d.expPetty);
-    } else {
-      state.expPetty=mergeExpPetty(state.expPetty||[], d.expPetty);
-    }
+    /* Always merge — never full-replace (phone/desktop cash envelopes must agree) */
+    state.expPetty=mergeExpPetty(state.expPetty||[], d.expPetty||[]);
   } else if(!isCaptain()) state.expPetty=[];
   if(typeof d.pushEnabled==="boolean") pushMeta.server=d.pushEnabled;
   if(d.vapidPublicKey) pushMeta.vapidPublicKey=d.vapidPublicKey;
@@ -23506,6 +23549,13 @@ function applyData(d, opts){
     try{ save("leads"); }catch(eS){} /* under BOOT_QUIET this only queues until after open */
   }
   /*
+   * Re-push local-only cash rows the server is missing (stale full-replace race).
+   * Not a money invent — only echoes ids already on this device.
+   */
+  if(fromPoll&&isCaptain()&&!DEMO){
+    try{ healLocalOnlyCashToServer(d); }catch(eHeal){}
+  }
+  /*
    * Never auto-heal / seed / reassign after load or poll — blob is SOT.
    * Captain can use explicit tools (Restore crew, Sync calendar dates, etc.).
    */
@@ -23513,6 +23563,36 @@ function applyData(d, opts){
     renderAll();
     if(!DEMO) refreshPushStatus();
   }
+}
+/** Push expense / petty rows this device has that the server payload lacks. */
+var __lyCashHealAt=0;
+function healLocalOnlyCashToServer(remote){
+  if(!remote||localSaveIsFresh("expenses", 6000)||localSaveIsFresh("expPetty", 6000)) return;
+  if(Date.now()-__lyCashHealAt<12000) return;
+  var remoteExp={};
+  (remote.expenses||[]).forEach(function(e){ if(e&&e.id!=null) remoteExp[String(e.id)]=1; });
+  var missingExp=(state.expenses||[]).some(function(e){ return e&&e.id!=null&&!remoteExp[String(e.id)]; });
+  var missingPetty=false;
+  var remotePettyMonths={};
+  (remote.expPetty||[]).forEach(function(p){
+    if(!p||!p.month) return;
+    var set={};
+    (Array.isArray(p.cashIns)?p.cashIns:[]).forEach(function(c){ if(c&&c.id!=null) set[String(c.id)]=1; });
+    remotePettyMonths[String(p.month).slice(0,7)]={start:p.pettyStart, cash:set};
+  });
+  (state.expPetty||[]).forEach(function(p){
+    if(!p||!p.month) return;
+    var m=String(p.month).slice(0,7);
+    var rem=remotePettyMonths[m];
+    if(!rem){ missingPetty=true; return; }
+    (Array.isArray(p.cashIns)?p.cashIns:[]).forEach(function(c){
+      if(c&&c.id!=null&&!rem.cash[String(c.id)]) missingPetty=true;
+    });
+  });
+  if(!missingExp&&!missingPetty) return;
+  __lyCashHealAt=Date.now();
+  if(missingExp) try{ saveExpenses(); }catch(eE){}
+  if(missingPetty) try{ saveExpPetty(); }catch(eP){}
 }
 
 /* Fixed IDs match server seed (real spreadsheet trip is first live APA entry) */

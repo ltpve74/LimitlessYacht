@@ -1340,6 +1340,34 @@ console.log("\n[Petty — cash-in amountManual vs lead sync]");
     merged[0].cashIns.length === 1 && near(merged[0].cashIns[0].amount, 4800),
     "got " + (merged[0].cashIns[0] && merged[0].cashIns[0].amount)
   );
+  /* Phone cash-in must survive a stale desktop month bag (envelope diverge bug) */
+  const phoneAug = {
+    month: "2026-08",
+    pettyStart: 1000,
+    updatedAt: "2026-08-20T12:00:00.000Z",
+    cashIns: [
+      { id: "cash-phone", amount: 250, date: "2026-08-18", source: "Bank / ATM", updatedAt: "2026-08-20T12:00:00.000Z" },
+    ],
+  };
+  const desktopStale = {
+    month: "2026-08",
+    pettyStart: 1000,
+    updatedAt: "2026-08-19T09:00:00.000Z",
+    cashIns: [],
+  };
+  const desktopSep = {
+    month: "2026-09",
+    pettyStart: 0,
+    updatedAt: "2026-09-01T10:00:00.000Z",
+    cashIns: [],
+  };
+  const cross = M.mergeExpPettyMonths([desktopStale, desktopSep], [phoneAug]);
+  const crossAug = cross.filter(function (p) { return p && p.month === "2026-08"; })[0];
+  ok("cross-device merge keeps Aug + Sep", cross.length === 2);
+  ok(
+    "cross-device keeps phone cash-in 250",
+    crossAug && crossAug.cashIns.some(function (c) { return c && c.id === "cash-phone" && near(c.amount, 250); })
+  );
 }
 
 /* ---- Diesel: bunker + sticky active sell ---- */
