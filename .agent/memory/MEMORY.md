@@ -16,6 +16,7 @@
 - [tracker-always-push-live.md](tracker-always-push-live.md) — always publish tracker to main/live
 - [tracker-cross-client-sync.md](tracker-cross-client-sync.md) — phone↔desktop: silent sync push + visible soft-refresh + BroadcastChannel
 - [tracker-expenses-preserve-merge.md](tracker-expenses-preserve-merge.md) — expenses merge-preserve so phone/desktop cannot wipe each other’s lines
+- [tracker-salary-disappear-fix.md](tracker-salary-disappear-fix.md) — captain Crew Salaries saved then vanished: save-echo replace + softRefresh fingerprint skip + bare category as day-pay
 
 - [tracker-extra-hours-commission.md](tracker-extra-hours-commission.md) — extra hours on Charges; cash vs invoice commission
 

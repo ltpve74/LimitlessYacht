@@ -250,13 +250,18 @@ function isCrewDayPayExpense(e) {
   if (e.source === "stew" && (e.stewEventKey || e.stewId)) return true;
   if (e.linkId != null && String(e.linkId).indexOf("stew-day:") === 0) return true;
   /*
-   * Category Crew Salaries = crew day-pay for Stews / legacy stew lines.
-   * Manual Expenses “+” salary (source=manual), e.g. captain salary from petty,
-   * is a normal cash ledger line — not an unpaid day-pay liability ghost.
+   * Category Crew Salaries alone is NOT day-pay.
+   * Manual Expenses “+” salary (captain €2000 owner / €2500 petty) must stay a
+   * normal ledger line. Only stew-linked markers count as day-pay — bare
+   * category (missing source) used to be treated as stew and got stripped /
+   * collapsed after save.
    */
   if (/^crew salaries$/i.test(String(e.category || ""))) {
     if (String(e.source || "") === "manual") return false;
-    return true;
+    if (String(e.source || "") === "stew") return true;
+    if (e.stewEventKey || e.stewId) return true;
+    if (e.linkId != null && String(e.linkId).indexOf("stew-day:") === 0) return true;
+    return false;
   }
   return false;
 }

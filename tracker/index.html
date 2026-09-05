@@ -13409,7 +13409,8 @@ function expCleanOrphanStewDayPayLines(){
     if(!e) return false;
     var desc=String(e.description||"").trim();
     var unpaid=isUnpaidCrew(e);
-    if(unpaid&&expIsCrewSalariesCategory(e)&&!desc) return false;
+    /* Stew day-pay ghosts only — never delete manual captain/crew salary lines */
+    if(unpaid&&expIsCrewDayPayLine(e)&&expIsCrewSalariesCategory(e)&&!desc) return false;
     if(!expIsCrewDayPayLine(e)) return true;
     var lid=dayPayLid(e);
     if(lid){
@@ -22741,15 +22742,21 @@ function save(coll){
      */
     if(j&&Array.isArray(j.rows)&&(coll==="leads"||coll==="charters"||coll==="apa"||coll==="stewAssign"||coll==="expenses")){
       var adopted=coll==="stewAssign"?j.rows:filterTombstonedRows(coll, j.rows);
-      if(coll==="leads") state.leads=adopted;
-      else if(coll==="charters") state.charters=adopted;
-      else if(coll==="apa") state.apa=adopted;
+      /*
+       * NEVER full-replace from the save echo. A second salary / lead added while
+       * the first save was in flight used to vanish when the older response landed
+       * (captain €2000 owner + €2500 petty → one or both gone). Merge by id so
+       * local-only rows survive; server-preserved peers still arrive.
+       */
+      if(coll==="leads") state.leads=mergeLeadsById(state.leads||[], adopted);
+      else if(coll==="charters") state.charters=mergeExpensesById(state.charters||[], adopted, "charters");
+      else if(coll==="apa") state.apa=mergeExpensesById(state.apa||[], adopted, "apa");
       else if(coll==="expenses"){
-        state.expenses=adopted;
+        state.expenses=mergeExpensesById(state.expenses||[], adopted, "expenses");
         if(curTab==="expenses") try{ renderExpenses(); }catch(eEx){}
       }
       else if(coll==="stewAssign"){
-        state.stewAssign=adopted;
+        state.stewAssign=mergeExpensesById(state.stewAssign||[], adopted);
         try{ backupStewAssignLocal(); }catch(eBak){}
         if(curTab==="stews") try{ paintStewChartersKeepScroll(); }catch(eSt){}
       }
@@ -23170,8 +23177,13 @@ function softRefreshFromServer(opts){
         if(opts.reason==="visible-poll"||opts.reason==="focus"||opts.reason==="visibility") return;
       }
       if(!changed&&(opts.quiet||opts.reason==="visible-poll"||opts.reason==="focus")) return;
-      lastSoftSyncFp=fp;
       try{ applyData(d,{fromPoll:true}); }catch(eA){}
+      /*
+       * Fingerprint AFTER apply. Setting it before used to mark “up to date”
+       * while localSaveIsFresh skipped the expenses merge — later polls saw
+       * !changed and never pulled salary lines (or re-merged after a wipe).
+       */
+      try{ lastSoftSyncFp=dataSyncFingerprint(d); }catch(eFp){ lastSoftSyncFp=fp; }
       if(opts.quiet||!changed) return;
       var hint=el("saveHint");
       if(hint){
@@ -23339,10 +23351,14 @@ function applyData(d, opts){
   if(d.stewCalendarBy!=null&&d.stewCalendarBy!=="") stewCalendarBy=d.stewCalendarBy;
 
   if(isCaptain() && Array.isArray(d.expenses)){
-    if(fromPoll&&localSaveIsFresh("expenses")){
-      /* keep local expenses (floatPay / edits) for a few seconds after save */
-    } else if(fromPoll){
-      state.expenses=mergeExpensesById(state.expenses, d.expenses, "expenses");
+    if(fromPoll){
+      /*
+       * Always preserve-merge on poll — never skip while fingerprint advances.
+       * Skipping left local salary invisible to later polls; a stale full replace
+       * on the next hard load then wiped captain Crew Salaries. merge-by-id keeps
+       * local-only rows (just-saved €2000 owner / €2500 petty) and takes newer peers.
+       */
+      state.expenses=mergeExpensesById(state.expenses||[], d.expenses||[], "expenses");
     } else {
       state.expenses=filterTombstonedRows("expenses", d.expenses);
     }
