@@ -2201,16 +2201,39 @@ function resolvePettyMonthOpen(month, expPettyList, expenses, opts) {
     }
     source = "poison-normalized";
   } else if (Math.abs(storedStart) > 0.009 || hasLines || hasIns) {
-    /* Legacy row with real activity — treat start as locked for display */
-    pettyStart = round2(Math.max(0, storedStart));
-    brought = storedBf;
-    if (!(brought > 0.009) && priorClose && priorClose.short > 0.009) {
+    /*
+     * Zero stored start + activity, without an explicit manual lock:
+     * inherit prior month close. Common when September got an empty row
+     * (cash-in / expense) with pettyStart 0 before carry was applied —
+     * that used to lock opening at €0 while August closed with thousands.
+     */
+    var lockedManual = !!(row && (row.startMode === "manual" || row.startManual === true));
+    if (
+      !(Math.abs(storedStart) > 0.009) &&
+      !lockedManual &&
+      priorClose &&
+      (priorClose.onboard > 0.009 || priorClose.short > 0.009)
+    ) {
+      pettyStart = priorClose.onboard;
       brought = priorClose.short;
-      source = "legacy+priorShort";
+      startMode = "carry";
+      carriedFrom = prev;
+      source = "carry-zero-legacy";
     } else {
-      source = "legacy";
+      /* Positive start or captain-locked manual — treat start as locked for display */
+      pettyStart = round2(Math.max(0, storedStart));
+      brought = storedBf;
+      if (!(brought > 0.009) && priorClose && priorClose.short > 0.009) {
+        brought = priorClose.short;
+        source = "legacy+priorShort";
+      } else {
+        source = "legacy";
+      }
+      if (lockedManual) startMode = "manual";
+      else if (row && row.startMode) startMode = String(row.startMode);
+      else if (Math.abs(storedStart) > 0.009) startMode = "manual";
+      else startMode = "none";
     }
-    startMode = row && row.startMode ? String(row.startMode) : "manual";
   } else if (priorClose) {
     pettyStart = priorClose.onboard;
     brought = priorClose.short;

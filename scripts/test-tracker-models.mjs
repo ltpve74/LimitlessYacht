@@ -3898,6 +3898,35 @@ console.log("\n[Pocket — own-money repay + open liabilities]");
     ok("Aug close onboard 490 after BF settle", near(augClose.onboard, 490));
     ok("Aug close short 0", near(augClose.short, 0));
     ok("petty rows not mutated by resolve", JSON.stringify(pettyRows) === snap);
+    /* Sep: empty start 0 + cash-in activity must still open from Aug close (€490), not lock at €0 */
+    const pettyWithSep = pettyRows.concat([
+      {
+        month: "2026-09",
+        pettyStart: 0,
+        broughtForwardShort: 0,
+        cashIns: [{ id: "ci3", amount: 100, source: "ATM", date: "2026-09-02" }],
+      },
+    ]);
+    const sepOpen = M.resolvePettyMonthOpen("2026-09", pettyWithSep, [crewFloat], {});
+    ok("Sep open carries Aug close 490 despite zero stored start + cash-in", near(sepOpen.pettyStart, 490));
+    ok("Sep open is carry (not locked legacy 0)", sepOpen.startMode === "carry");
+    const sepOpenManual0 = M.resolvePettyMonthOpen(
+      "2026-09",
+      [
+        pettyRows[0],
+        pettyRows[1],
+        {
+          month: "2026-09",
+          pettyStart: 0,
+          startMode: "manual",
+          startManual: true,
+          cashIns: [{ id: "ci3", amount: 100, source: "ATM", date: "2026-09-02" }],
+        },
+      ],
+      [crewFloat],
+      {}
+    );
+    ok("Sep manual lock 0 stays 0", near(sepOpenManual0.pettyStart, 0));
     const planClear = M.planClearCrewFloatPayOnEmptyEnvelope(
       [crewFloat],
       0,

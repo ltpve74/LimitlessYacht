@@ -12134,8 +12134,9 @@ function expEnsurePetty(month){
     /*
      * Overlay pure carry for display/settlement when not captain-locked manual.
      * In-memory only — never saveExpPetty here.
+     * Zero pettyStart (common empty new-month row) always takes carry when open says so.
      */
-    if(open&&open.startMode!=="manual"&&p.startManual!==true){
+    if(open&&p.startManual!==true&&p.startMode!=="manual"){
       if(open.startMode==="carry"||p.startMode==="carry"||!(Math.abs(apaNum(p.pettyStart))>0.009)){
         p.pettyStart=open.pettyStart;
         p.broughtForwardShort=open.broughtForwardShort;
