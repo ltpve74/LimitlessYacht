@@ -1,5 +1,5 @@
 /* Limitless Tracker service worker — push notifications for the installed PWA */
-/* v7: expense deletes tombstone + deletedIds (no duplicate resurrect) */
+/* v8: idle cash = server SOT (no merge drift between devices) */
 self.addEventListener("install", function (e) {
   self.skipWaiting();
 });

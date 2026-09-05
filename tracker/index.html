@@ -3211,7 +3211,17 @@ function switchTab(t){
   }
   if(t==="diesel"&&canDiesel()) renderDiesel();
   if(t==="stews"&&canRoster()) renderStews();
-  if(t==="expenses"&&isCaptain()) renderExpenses();
+  if(t==="expenses"&&isCaptain()){
+    /*
+     * Opening Expenses: pull server as SOT unless this device just saved.
+     * Stops iPhone/desktop showing different “on board” after local merge drift.
+     */
+    if(!(localSaveIsFresh("expenses")||localSaveIsFresh("expPetty"))){
+      try{ lastSoftSyncFp=""; }catch(eFp){}
+      softRefreshFromServer({reason:"tab-expenses", delay:80, quiet:true});
+    }
+    renderExpenses();
+  }
   if(t==="commissions"&&isCaptain()) renderCommissions();
   if(t==="security") renderSecurity();
 }
@@ -23334,7 +23344,8 @@ function softRefreshFromServer(opts){
   var reason=String(opts.reason||"");
   /* Silent pushes / same-browser broadcasts: refresh quietly — no toast spam */
   var quietSync=!!opts.quiet||reason==="visible-poll"||reason==="focus"||reason==="visibility"||
-    reason==="push-sync"||reason==="local-save"||reason==="broadcast"||reason.indexOf("push-sync")===0;
+    reason==="tab-expenses"||reason==="push-sync"||reason==="local-save"||reason==="broadcast"||
+    reason.indexOf("push-sync")===0;
   /*
    * This device just saved cash — do not soft-pull over it (quiet sync only).
    * Stops iPhone↔desktop from thrashing numbers right after an expense save.
@@ -23540,24 +23551,28 @@ function applyData(d, opts){
   if(d.stewCalendarBy!=null&&d.stewCalendarBy!=="") stewCalendarBy=d.stewCalendarBy;
 
   if(isCaptain() && Array.isArray(d.expenses)){
-    if(fromPoll){
+    if(fromPoll&&localSaveIsFresh("expenses")){
       /*
-       * Always preserve-merge on poll — never skip while fingerprint advances.
-       * Skipping left local salary invisible to later polls; a stale full replace
-       * on the next hard load then wiped captain Crew Salaries. merge-by-id keeps
-       * local-only rows (just-saved €2000 owner / €2500 petty) and takes newer peers.
+       * Mid-save only: merge so a just-typed line is not wiped by a concurrent poll.
+       * Idle devices must NOT merge-prefer-local — that left iPhone at €1128 and
+       * desktop at €1228 forever (each kept its own ghost rows).
        */
       state.expenses=mergeExpensesById(state.expenses||[], d.expenses||[], "expenses");
     } else {
-      state.expenses=filterTombstonedRows("expenses", d.expenses);
+      /* Server is source of truth when idle / on boot */
+      state.expenses=filterTombstonedRows("expenses", d.expenses||[]);
     }
   } else if(!isCaptain()) state.expenses=[];
   if(isCaptain()&&Array.isArray(state.expenses)){
     state.expenses=filterTombstonedRows("expenses", state.expenses);
   }
   if(isCaptain() && Array.isArray(d.expPetty)){
-    /* Always merge — never full-replace (phone/desktop cash envelopes must agree) */
-    state.expPetty=mergeExpPetty(state.expPetty||[], d.expPetty||[]);
+    if(fromPoll&&localSaveIsFresh("expPetty")){
+      state.expPetty=mergeExpPetty(state.expPetty||[], d.expPetty||[]);
+    } else {
+      /* Idle: take server envelope so both devices show the same on-board cash */
+      state.expPetty=Array.isArray(d.expPetty)?d.expPetty:[];
+    }
   } else if(!isCaptain()) state.expPetty=[];
   if(typeof d.pushEnabled==="boolean") pushMeta.server=d.pushEnabled;
   if(d.vapidPublicKey) pushMeta.vapidPublicKey=d.vapidPublicKey;
