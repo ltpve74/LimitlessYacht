@@ -15236,7 +15236,20 @@ function openExpense(id, opts){
     h+='<div class="banner warn show">Takes cash <b>from petty cash</b> (the envelope — e.g. part of guest free cash) to repay <b>'+esc(reimburseName)+'</b>. '+
       'This is a <b>cash out</b> line: Paid from → Petty cash. The original shop spend stays as Own money; this line shows it was repaid.</div>';
   }
-  h+=fieldHTML("Date",'<input class="ctl" id="f_exp_date" type="date" value="'+esc(r.date||"")+'"'+(fromStew?" disabled":"")+'>');
+  h+=fieldHTML(fromStew?"Paid date":"Date",'<input class="ctl" id="f_exp_date" type="date" value="'+esc(r.date||"")+'">');
+  if(fromStew){
+    var charterHint=String(r.charterDate||"").slice(0,10);
+    if(!charterHint&&r.stewEventKey){
+      try{
+        var asgHint=(state.stewAssign||[]).filter(function(a){return a&&String(a.eventKey)===String(r.stewEventKey);})[0];
+        if(asgHint&&asgHint.start) charterHint=String(asgHint.start).slice(0,10);
+      }catch(eCh){}
+    }
+    h+='<p style="margin:-6px 0 12px;font-size:12px;color:var(--muted);line-height:1.4">'+
+      'Change this when cash actually left (or when owner paid). '+
+      (charterHint?'Charter day stays <b>'+esc(fmtDate(charterHint)||charterHint)+'</b> on the roster.':'')+
+    '</p>';
+  }
   h+=fieldHTML("Company / Store",'<input class="ctl" id="f_exp_vendor" value="'+esc(r.vendor||"")+'" placeholder="e.g. Eroski, Makro"'+(fromStew?" disabled":"")+'>');
   h+=fieldHTML("Description",'<input class="ctl" id="f_exp_desc" value="'+esc(r.description||"")+'" placeholder="e.g. Galley supplies"'+(fromStew?" disabled":"")+'>');
   h+='<div class="row2">'+
@@ -15345,8 +15358,8 @@ function openExpense(id, opts){
   '</div>';
   el("sheetInner").innerHTML=h;
   if(fromStew){
-    /* Amount stays editable so captain can reduce pay after cancel; other fields stay linked to Stews */
-    ["f_exp_date","f_exp_vendor","f_exp_desc","f_exp_cat","f_exp_method"].forEach(function(fid){
+    /* Paid date + amount editable; vendor/desc/cat stay linked to Stews roster */
+    ["f_exp_vendor","f_exp_desc","f_exp_cat","f_exp_method"].forEach(function(fid){
       if(el(fid)) el(fid).disabled=true;
     });
   }
@@ -15431,6 +15444,9 @@ function openExpense(id, opts){
       var eventKey=r.stewEventKey||"";
       var newAmt=apaNum(el("f_exp_amount")&&el("f_exp_amount").value);
       if(!(newAmt>0)){ if(el("f_exp_amount")) el("f_exp_amount").focus(); return; }
+      var paidDateIn=String((el("f_exp_date")&&el("f_exp_date").value)||"").slice(0,10);
+      if(paidDateIn&&!/^\d{4}-\d{2}-\d{2}$/.test(paidDateIn)) paidDateIn="";
+      if(!paidDateIn){ if(el("f_exp_date")) el("f_exp_date").focus(); return; }
       /* Warn if marking Paid from petty would overspend the envelope */
       if(crewPay==="Paid"&&!isPrior&&pf==="Petty cash"){
         var Snow=expSettlementFigures(expMonthKey(r.date)||expDefaultMonth());
@@ -15450,11 +15466,24 @@ function openExpense(id, opts){
         e.amount=newAmt;
         e.payStatusManual=true;
         e.crewPayStatus=crewPay==="Paid"?"Paid":"Unpaid";
-        /*
-         * Never rewrite expense date on edit — Aug Laura charter stays Aug when
-         * correcting Owner money / split. Only brand-new petty cash-out may move
-         * to pay day (handled in planStewDayPayExpenseLines).
-         */
+        /* Captain-chosen paid date (editable) — do not auto-stamp today */
+        if(paidDateIn){
+          e.date=paidDateIn;
+          if(!e.charterDate){
+            try{
+              var asgCd=(state.stewAssign||[]).filter(function(a){return a&&String(a.eventKey)===String(eventKey);})[0];
+              if(asgCd&&asgCd.start) e.charterDate=String(asgCd.start).slice(0,10);
+            }catch(eCd){}
+          }
+          /* Keep “· charter YYYY-MM-DD” note when paid date ≠ roster day */
+          var cd=String(e.charterDate||"").slice(0,10);
+          var desc=String(e.description||"");
+          if(cd&&paidDateIn!==cd){
+            if(!/·\s*charter\s+\d{4}-\d{2}-\d{2}/i.test(desc)){
+              e.description=(desc?desc+" · ":"")+"charter "+cd;
+            }
+          }
+        }
         if(crewPay==="Paid"){
           if(isPrior){
             e.paidFrom="Petty cash";
@@ -15591,9 +15620,8 @@ function openExpense(id, opts){
           crewPayStatus:"Paid",
           floatPay:false,
           payStatusManual:true,
-          /* Keep charter / prior expense day — do not stamp today */
-          date:r.date||r.charterDate||localTodayYmd(),
-          charterDate:r.charterDate||r.date||"",
+          date:paidDateIn||r.date||r.charterDate||localTodayYmd(),
+          charterDate:r.charterDate||"",
           vendor:r.vendor||"Stew",
           description:r.description||"Stewardess / day work",
           category:"Crew Salaries",
