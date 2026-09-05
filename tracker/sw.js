@@ -1,5 +1,5 @@
 /* Limitless Tracker service worker — push notifications for the installed PWA */
-/* v6: paint never saves petty; soft-poll 60s; skip pull after local cash save */
+/* v7: expense deletes tombstone + deletedIds (no duplicate resurrect) */
 self.addEventListener("install", function (e) {
   self.skipWaiting();
 });
