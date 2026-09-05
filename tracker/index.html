@@ -3212,15 +3212,8 @@ function switchTab(t){
   if(t==="diesel"&&canDiesel()) renderDiesel();
   if(t==="stews"&&canRoster()) renderStews();
   if(t==="expenses"&&isCaptain()){
-    /*
-     * Opening Expenses: pull server as SOT unless this device just saved.
-     * Stops iPhone/desktop showing different “on board” after local merge drift.
-     */
-    if(!(localSaveIsFresh("expenses")||localSaveIsFresh("expPetty"))){
-      try{ lastSoftSyncFp=""; }catch(eFp){}
-      softRefreshFromServer({reason:"tab-expenses", delay:80, quiet:true});
-    }
-    renderExpenses();
+    /* Always reload cash bags from server when opening Expenses (unless mid-save). */
+    forceCashSnapshotFromServer(function(){ renderExpenses(); });
   }
   if(t==="commissions"&&isCaptain()) renderCommissions();
   if(t==="security") renderSecurity();
@@ -3456,10 +3449,11 @@ function renderAll(opts){
    * Lead/charge cash → petty mirror is still needed for the envelope display,
    * but never auto-save on soft-refresh paint (that spammed the other device).
    */
-  if(isCaptain()){
-    /* Always in-memory only here — never save from paint (phone↔desktop fight) */
-    try{ syncAllChargeCashToPetty({noSave:true}); }catch(eS){}
-  }
+  /*
+   * Do NOT run syncAllChargeCashToPetty on paint. It mutated expPetty in memory
+   * from each device’s (possibly different) leads/charges → €1128 vs €1228 with
+   * nothing saved. Cash-ins are written only on intentional lead/charge save.
+   */
   if(canCommercial()){ safe(renderCharters); safe(renderLeads); }
   safe(renderSecurity);
   if(isCaptain()){
@@ -14229,13 +14223,9 @@ function renderExpenses(opts){
   var body=el("expBody"); if(!body) return;
   if(!expMonth) expMonth=expDefaultMonth();
   /*
-   * Paint from blob only. No on-open money heals (floatPay repair, unpark,
-   * collapse-save, strip, assign heal) — those rewrote the shared store and
-   * re-hit petty / undid captain work. Data fixes: dry-run → DB write only.
-   * Cash-in mirror is display plumbing, not a crew-pay heal.
-   * Soft-refresh: noSave so we do not push and spam the other device.
+   * Paint from blob only. Never mirror lead/charge cash into petty here —
+   * that mutated each device differently and showed split on-board totals.
    */
-  try{ syncAllChargeCashToPetty({noSave:true}); }catch(eSync){}
   paintExpensesBody();
 }
 function paintExpensesBody(){
@@ -23334,6 +23324,37 @@ function dataSyncFingerprint(d){
   ].join("|");
 }
 /**
+ * Hard cash snapshot from server (expenses + expPetty + leads/charters if idle).
+ * Used when opening Expenses so iPhone and desktop cannot keep divergent in-memory totals.
+ */
+function forceCashSnapshotFromServer(done){
+  if(DEMO||!session||!session.pass){ if(typeof done==="function") done(); return; }
+  if(localSaveIsFresh("expenses")||localSaveIsFresh("expPetty")){
+    if(typeof done==="function") done();
+    return;
+  }
+  api("load",{silent:true}).then(function(d){
+    if(!d){ if(typeof done==="function") done(); return; }
+    try{
+      if(Array.isArray(d.expenses)) state.expenses=filterTombstonedRows("expenses", d.expenses);
+      if(Array.isArray(d.expPetty)) state.expPetty=d.expPetty;
+      /* Leads/charges drive historical cash-ins already on server — take SOT when idle */
+      if(Array.isArray(d.leads)&&!localSaveIsFresh("leads")){
+        if(!(canCommercial()&&!d.leads.length&&(state.leads||[]).length)){
+          state.leads=filterTombstonedRows("leads", d.leads);
+        }
+      }
+      if(Array.isArray(d.charters)&&!localSaveIsFresh("charters")){
+        if(!(canCommercial()&&!d.charters.length&&(state.charters||[]).length)){
+          state.charters=filterTombstonedRows("charters", d.charters);
+        }
+      }
+      try{ lastSoftSyncFp=dataSyncFingerprint(d); }catch(eFp){}
+    }catch(eA){}
+    if(typeof done==="function") done();
+  }).catch(function(){ if(typeof done==="function") done(); });
+}
+/**
  * Soft reload after a push / BroadcastChannel / visibility poll so open apps catch up.
  * Uses fromPoll merges so a mid-edit device is not wiped by a concurrent save.
  */
@@ -23489,10 +23510,9 @@ function applyData(d, opts){
     /* Never wipe captain/manager finance with an empty role-bug payload */
     if(canCommercial()&&!d.leads.length&&(state.leads||[]).length){
       /* keep local */
-    } else if(fromPoll){
-      state.leads=mergeLeadsById(state.leads, d.leads);
     } else {
-      state.leads=d.leads;
+      /* Idle: server SOT (merge-prefer-local drifted cash with expenses) */
+      state.leads=filterTombstonedRows("leads", d.leads);
     }
     if(Array.isArray(state.leads)) state.leads=filterTombstonedRows("leads", state.leads);
     /* Do NOT migrate/repair leads on load — blob is SOT; no boot-time writes */
@@ -23502,10 +23522,8 @@ function applyData(d, opts){
   } else if(Array.isArray(d.charters)){
     if(canCommercial()&&!d.charters.length&&(state.charters||[]).length){
       /* keep local */
-    } else if(fromPoll){
-      state.charters=mergeExpensesById(state.charters||[], d.charters||[], "charters");
     } else {
-      state.charters=d.charters;
+      state.charters=filterTombstonedRows("charters", d.charters||[]);
     }
   }
   /* Always drop tombstoned charges (delete must stick across poll/boot) */
