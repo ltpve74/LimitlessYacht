@@ -1014,6 +1014,27 @@ console.log("\n[Expenses — manual Crew Salaries not stew day-pay]");
     crewPayStatus: "Unpaid",
   };
   const manualPaid = Object.assign({}, manualUnpaid, { crewPayStatus: "Paid" });
+  const manualOwnerPaid = {
+    id: "sal-owner-2k",
+    source: "manual",
+    category: "Crew Salaries",
+    vendor: "Captain",
+    amount: 2000,
+    payMethod: "Cash",
+    paidFrom: "Owner money",
+    paidById: "owner",
+    crewPayStatus: "Paid",
+    floatPay: false,
+  };
+  const bareSalaryNoSource = {
+    id: "sal-bare",
+    category: "Crew Salaries",
+    vendor: "Captain",
+    amount: 2500,
+    payMethod: "Cash",
+    paidFrom: "Petty cash",
+    crewPayStatus: "Paid",
+  };
   const stewCatOnly = {
     id: "stew-legacy",
     category: "Crew Salaries",
@@ -1023,9 +1044,13 @@ console.log("\n[Expenses — manual Crew Salaries not stew day-pay]");
     stewEventKey: "evt1",
   };
   ok("manual salary is NOT day-pay", !M.isCrewDayPayExpense(manualUnpaid));
+  ok("bare Crew Salaries (no source) is NOT day-pay", !M.isCrewDayPayExpense(bareSalaryNoSource));
   ok("stew-linked Crew Salaries still day-pay", M.isCrewDayPayExpense(stewCatOnly));
   ok("manual unpaid does NOT hit petty", !M.expenseHitsPettyCash(manualUnpaid));
   ok("manual Paid + petty hits petty", M.expenseHitsPettyCash(manualPaid));
+  ok("manual Paid + Owner money does NOT hit petty", !M.expenseHitsPettyCash(manualOwnerPaid));
+  ok("manual Owner money classifies as owner", M.expensePaidFrom(manualOwnerPaid) === "owner");
+  ok("bare Paid + petty still hits petty (ledger salary)", M.expenseHitsPettyCash(bareSalaryNoSource));
 }
 
 /* ---- Petty cash on board (collapse crew dupes; floatPay only) ---- */
