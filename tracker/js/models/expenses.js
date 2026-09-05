@@ -2162,6 +2162,22 @@ function resolvePettyMonthOpen(month, expPettyList, expenses, opts) {
       brought = round2(Math.abs(storedStart) + storedBf);
       if (!(brought > 0.009) && priorClose) brought = priorClose.short;
       source = "manual-poison";
+      startMode = "manual";
+    } else if (
+      !(Math.abs(storedStart) > 0.009) &&
+      priorClose &&
+      (priorClose.onboard > 0.009 || priorClose.short > 0.009)
+    ) {
+      /*
+       * Accidental “Save start” with empty/€0 locks the month at zero while
+       * prior still has notes on board (Aug €3092 → Sep €0). Treat zero-manual
+       * as carry unless captain typed a positive start.
+       */
+      pettyStart = priorClose.onboard;
+      brought = priorClose.short;
+      startMode = "carry";
+      carriedFrom = prev;
+      source = "carry-zero-manual";
     } else {
       pettyStart = round2(Math.max(0, storedStart));
       brought = storedBf;
@@ -2171,8 +2187,8 @@ function resolvePettyMonthOpen(month, expPettyList, expenses, opts) {
       } else {
         source = "manual";
       }
+      startMode = "manual";
     }
-    startMode = "manual";
   } else if (isCarry) {
     if (priorClose) {
       pettyStart = priorClose.onboard;
