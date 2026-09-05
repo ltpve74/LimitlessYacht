@@ -14710,10 +14710,14 @@ function paintExpensesBody(){
       expNormalizeReimbursement(e);
       var unpaid=expIsCrewUnpaid(e);
       var isCrewDay=expIsCrewDayPayLine(e);
+      var isCrewSalCat=expIsCrewSalariesCategory(e)||isCrewDay;
       var prior=expIsCrewPriorSettled(e);
       var hitsFloat=expCrewPayHitsFloat(e);
       var crewPaidFromOwn=isCrewDay&&!unpaid&&(e.paidFrom==="Own money"||expIsOwnMoneyLabel(e.paidFrom));
-      var crewPaidFromOwner=isCrewDay&&!unpaid&&expIsOwnerMoneyPaid(e);
+      /* Owner money on manual Crew Salaries (captain €2000) — not only stew day-pay */
+      var paidFromOwner=!unpaid&&expIsOwnerMoneyPaid(e);
+      var paidFromGuest=!unpaid&&(e.paidFrom==="Guest"||(LY_MODELS&&LY_MODELS.expensePaidFromLooksGuest&&LY_MODELS.expensePaidFromLooksGuest(e.paidFrom)));
+      var crewPaidFromOwner=isCrewDay&&paidFromOwner;
       var ownPay=expPaidFromOwnMoney(e)||crewPaidFromOwn;
       var pocketWhoId=e.paidById!=null&&String(e.paidById)!==""?String(e.paidById):EXP_POCKET_CAPTAIN;
       var pocketName=ownPay||crewPaidFromOwn?expPocketPersonName(pocketWhoId):"";
@@ -14747,13 +14751,29 @@ function paintExpensesBody(){
         var unpaidSalLabel=(e.source==="stew"||e.stewEventKey||e.stewPayKind==="dayPay")?"Unpaid day pay":"Unpaid salary";
         pills.push('<span class="pill p-amber">'+unpaidSalLabel+'</span>');
         if(isCrewDay) titleText=(e.vendor||"Crew")+(e.source==="stew"||e.stewEventKey?" · day pay":" · salary");
-      } else if(crewPaidFromOwner){
-        titleText=(e.vendor||"Crew")+" · day pay";
-        pills.push('<span class="pill p-blue">Day pay</span>');
+      } else if(paidFromOwner){
+        var ownerStew=e.source==="stew"||!!e.stewEventKey||e.stewPayKind==="dayPay";
+        if(isCrewSalCat){
+          titleText=(e.vendor||"Crew")+(ownerStew?" · day pay":" · salary");
+          pills.push('<span class="pill p-blue">'+(ownerStew?"Day pay":"Salary")+'</span>');
+        } else if(e.category){
+          pills.push('<span class="pill p-grey">'+esc(e.category)+'</span>');
+        }
         pills.push('<span class="pill p-grey">Owner money</span>');
-      } else if(isCrewDay&&!unpaid&&(e.paidFrom==="Guest"||(LY_MODELS&&LY_MODELS.expensePaidFromLooksGuest&&LY_MODELS.expensePaidFromLooksGuest(e.paidFrom)))){
-        titleText=(e.vendor||"Crew")+" · day pay";
-        pills.push('<span class="pill p-blue">Day pay</span>');
+        if(apaNum(e.topUpAmt)>0.009){
+          pills.push('<span class="pill p-amber">+'+money0(e.topUpAmt)+' top-up</span>');
+          purposeNote="Owner paid "+money0(e.guestPaidAmt!=null?e.guestPaidAmt:0)+" · you topped up "+money0(e.topUpAmt)+" ("+(e.topUpFrom==="Petty cash"?"petty":"own money")+")";
+        } else {
+          purposeNote=e.description||"Paid by owner — not boat petty";
+        }
+      } else if(paidFromGuest){
+        var guestStew=e.source==="stew"||!!e.stewEventKey||e.stewPayKind==="dayPay";
+        if(isCrewSalCat){
+          titleText=(e.vendor||"Crew")+(guestStew?" · day pay":" · salary");
+          pills.push('<span class="pill p-blue">'+(guestStew?"Day pay":"Salary")+'</span>');
+        } else if(e.category){
+          pills.push('<span class="pill p-grey">'+esc(e.category)+'</span>');
+        }
         pills.push('<span class="pill p-grey">Guest</span>');
         if(apaNum(e.topUpAmt)>0.009){
           pills.push('<span class="pill p-amber">+'+money0(e.topUpAmt)+' top-up</span>');
@@ -14820,7 +14840,8 @@ function paintExpensesBody(){
           pills.push('<span class="pill p-amber">Awaiting repay</span>');
           showRepayBtn=true;
         }
-      } else if(hitsFloat){
+      } else if(hitsFloat||(!unpaid&&isCrewSalCat&&expExpenseHitsPetty(e))){
+        /* Stew floatPay OR manual Crew Salaries Paid from petty */
         var hitsStew=e.source==="stew"||!!e.stewEventKey||e.stewPayKind==="dayPay";
         titleText=(e.vendor||"Crew")+(hitsStew?" · day pay":" · salary");
         pills.push('<span class="pill p-blue">'+(hitsStew?"Day pay":"Salary")+'</span>');
@@ -14832,7 +14853,13 @@ function paintExpensesBody(){
         pills.push('<span class="pill p-grey">Prior · not this float</span>');
       } else {
         if(e.category) pills.push('<span class="pill p-grey">'+esc(e.category)+'</span>');
-        pills.push('<span class="pill p-cash">From petty</span>');
+        /* Never label Owner/Own/Guest as petty — books were right, list lied */
+        var pfClass=LY_MODELS&&LY_MODELS.expensePaidFrom?LY_MODELS.expensePaidFrom(e):(expIsOwnerMoneyPaid(e)?"owner":(expPaidFromOwnMoney(e)?"own":"petty"));
+        if(pfClass==="owner") pills.push('<span class="pill p-grey">Owner money</span>');
+        else if(pfClass==="own") pills.push('<span class="pill p-own">Own money</span>');
+        else if(pfClass==="guest") pills.push('<span class="pill p-grey">Guest</span>');
+        else if(pfClass==="card") pills.push('<span class="pill p-card">Card</span>');
+        else pills.push('<span class="pill p-cash">From petty</span>');
       }
       var bits=[];
       /* Day pay: prefer charter day; if paid later from petty, show both */
