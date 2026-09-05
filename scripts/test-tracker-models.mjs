@@ -3926,7 +3926,26 @@ console.log("\n[Pocket — own-money repay + open liabilities]");
       [crewFloat],
       {}
     );
-    ok("Sep manual lock 0 stays 0", near(sepOpenManual0.pettyStart, 0));
+    /* Accidental Save start at €0 must not wipe prior on-board notes */
+    ok("Sep zero-manual still carries Aug close 490", near(sepOpenManual0.pettyStart, 490));
+    ok("Sep zero-manual source is carry", sepOpenManual0.startMode === "carry");
+    const sepOpenManualPos = M.resolvePettyMonthOpen(
+      "2026-09",
+      [
+        pettyRows[0],
+        pettyRows[1],
+        {
+          month: "2026-09",
+          pettyStart: 200,
+          startMode: "manual",
+          startManual: true,
+          cashIns: [],
+        },
+      ],
+      [crewFloat],
+      {}
+    );
+    ok("Sep positive manual start stays locked", near(sepOpenManualPos.pettyStart, 200));
     const planClear = M.planClearCrewFloatPayOnEmptyEnvelope(
       [crewFloat],
       0,

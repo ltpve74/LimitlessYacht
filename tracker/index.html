@@ -12132,20 +12132,25 @@ function expEnsurePetty(month){
       p.pettyIn=0;
     }
     /*
-     * Overlay pure carry for display/settlement when not captain-locked manual.
+     * Overlay pure carry for display/settlement.
+     * Positive manual start stays locked. Zero / empty start (incl. accidental
+     * Save start at €0) takes carry when the resolver says so.
      * In-memory only — never saveExpPetty here.
-     * Zero pettyStart (common empty new-month row) always takes carry when open says so.
      */
-    if(open&&p.startManual!==true&&p.startMode!=="manual"){
+    var lockedPositive=(p.startManual===true||p.startMode==="manual")&&apaNum(p.pettyStart)>0.009;
+    if(open&&!lockedPositive){
       if(open.startMode==="carry"||p.startMode==="carry"||!(Math.abs(apaNum(p.pettyStart))>0.009)){
         p.pettyStart=open.pettyStart;
         p.broughtForwardShort=open.broughtForwardShort;
-        p.startMode=open.startMode||p.startMode||"carry";
+        p.startMode=open.startMode||"carry";
         p.carriedFrom=open.carriedFrom||"";
+        if(open.source==="carry-zero-manual"||open.source==="carry-zero-legacy"){
+          p.startManual=false;
+        }
       } else if(!(apaNum(p.broughtForwardShort)>0.009)&&open.broughtForwardShort>0.009){
         p.broughtForwardShort=open.broughtForwardShort;
       }
-    } else if(open&&(p.startMode==="manual"||p.startManual===true)&&!(apaNum(p.broughtForwardShort)>0.009)&&open.broughtForwardShort>0.009){
+    } else if(open&&lockedPositive&&!(apaNum(p.broughtForwardShort)>0.009)&&open.broughtForwardShort>0.009){
       /* Manual physical start may still show prior boat short (display) */
       p.broughtForwardShort=open.broughtForwardShort;
     }
@@ -14208,6 +14213,8 @@ function paintExpensesBody(){
   });
   /* All settlement maths from one helper so the UI cannot drift */
   var S=expSettlementFigures(expMonth);
+  var pettyOpenSnap=null;
+  try{ pettyOpenSnap=expResolvePettyOpen(expMonth); }catch(ePo){ pettyOpenSnap=null; }
   var cashOut=S.cashOut, cardOut=S.cardOut, crewPaid=S.crewPaid, otherCash=S.otherCash, ownMoneyExp=S.ownMoneyExp;
   var crewPrior=S.crewPrior||0;
   var petty=S.petty, pettyStart=S.pettyStart, cashInTotal=S.cashInTotal, cashInHand=S.cashInHand;
@@ -14463,7 +14470,12 @@ function paintExpensesBody(){
     '<div style="font-weight:800;margin-bottom:8px">Cash in · '+esc(expMonth)+'</div>'+
     fieldHTML("Start on board (€)",moneyField("exp_petty_start", startFieldVal))+
     startHint+
-    '<button type="button" class="btn ghost" id="expPettySave" style="width:auto;margin-top:4px;padding:10px 14px">Save start</button>'+
+    '<div style="display:flex;flex-wrap:wrap;gap:8px;margin-top:4px">'+
+      '<button type="button" class="btn ghost" id="expPettySave" style="width:auto;padding:10px 14px">Save start</button>'+
+      (pettyOpenSnap&&apaNum(pettyOpenSnap.priorOnboard)>0.009
+        ?'<button type="button" class="btn" id="expPettyCarry" style="width:auto;padding:10px 14px" title="Set start from last month closing on-board cash ('+money0(pettyOpenSnap.priorOnboard)+')">Use last month close · '+money0(pettyOpenSnap.priorOnboard)+'</button>'
+        :'')+
+    '</div>'+
     '<div class="apa-sect-h" style="margin:14px 0 8px"><h3 style="font-size:13px">Lines</h3>'+
       '<button type="button" class="btn" id="expCashInAdd" style="width:auto;padding:8px 12px;font-size:13px">Add cash in</button></div>';
   if(!cashIns.length){
@@ -14921,11 +14933,50 @@ function paintExpensesBody(){
   if(el("expCashInAdd")) el("expCashInAdd").addEventListener("click",function(){ openCashIn(null); });
   if(el("expPettySave")) el("expPettySave").addEventListener("click",function(){
     var p=expEnsurePetty(expMonth);
-    p.pettyStart=apaNum(el("exp_petty_start")&&el("exp_petty_start").value);
+    var v=apaNum(el("exp_petty_start")&&el("exp_petty_start").value);
+    var open=expResolvePettyOpen(expMonth);
+    var priorOn=open&&open.priorOnboard!=null?apaNum(open.priorOnboard):0;
+    /*
+     * Empty / €0 save while last month still has notes → keep carry, do not
+     * lock this month at zero (that was wiping Aug €3092 → Sep €0).
+     */
+    if(!(v>0.009)&&priorOn>0.009){
+      p.pettyStart=priorOn;
+      p.broughtForwardShort=open.broughtForwardShort||0;
+      p.startMode="carry";
+      p.startManual=false;
+      p.carriedFrom=open.carriedFrom||open.priorMonth||"";
+    } else if(!(v>0.009)&&open&&open.startMode==="carry"&&apaNum(open.pettyStart)>0.009){
+      p.pettyStart=open.pettyStart;
+      p.broughtForwardShort=open.broughtForwardShort||0;
+      p.startMode="carry";
+      p.startManual=false;
+      p.carriedFrom=open.carriedFrom||"";
+    } else {
+      p.pettyStart=v;
+      p.startMode="manual";
+      p.startManual=true;
+      p.carriedFrom="";
+    }
     p.pettyIn=0; /* total now derived from cashIns */
-    p.startMode="manual";
-    p.startManual=true;
-    p.carriedFrom="";
+    p.updatedAt=new Date().toISOString();
+    saveExpPetty();
+    renderExpenses();
+  });
+  if(el("expPettyCarry")) el("expPettyCarry").addEventListener("click",function(){
+    var open=expResolvePettyOpen(expMonth);
+    var priorOn=open&&open.priorOnboard!=null?apaNum(open.priorOnboard):apaNum(open&&open.pettyStart);
+    if(!(priorOn>0.009)&&!(open&&open.broughtForwardShort>0.009)){
+      window.alert("No prior month on-board cash to carry.");
+      return;
+    }
+    var p=expEnsurePetty(expMonth);
+    p.pettyStart=Math.max(0, priorOn);
+    p.broughtForwardShort=open.broughtForwardShort||0;
+    p.startMode="carry";
+    p.startManual=false;
+    p.carriedFrom=open.carriedFrom||open.priorMonth||"";
+    p.pettyIn=0;
     p.updatedAt=new Date().toISOString();
     saveExpPetty();
     renderExpenses();
