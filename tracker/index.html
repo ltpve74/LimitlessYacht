@@ -431,6 +431,9 @@
   .sheet.sheet--lead .field{margin-bottom:10px}
   .sheet.sheet--lead .field label{margin-bottom:4px;font-size:11px}
   .sheet.sheet--lead .ctl{padding:11px 12px;border-radius:10px;font-size:15px}
+  /* Keep € / % gutters — denser .ctl padding must not crush moneywrap/pctwrap */
+  .sheet.sheet--lead .moneywrap .ctl{padding:11px 12px 11px 2rem}
+  .sheet.sheet--lead .pctwrap .ctl{padding:11px 2rem 11px 12px}
   .sheet.sheet--lead select.ctl{background-position:right 12px center}
   .sheet.sheet--lead textarea.ctl{min-height:52px;padding:10px 12px}
   .sheet.sheet--lead .row2{gap:10px}
@@ -857,11 +860,17 @@
   .sheet .row2{display:flex;gap:12px}
   .sheet .row2 .field{flex:1}
   .moneywrap{position:relative}
-  .moneywrap:before{content:"€";position:absolute;left:13px;top:50%;transform:translateY(-50%);color:var(--muted);font-weight:600}
-  .moneywrap .ctl{padding-left:28px}
+  .moneywrap:before{
+    content:"€";position:absolute;left:12px;top:50%;transform:translateY(-50%);
+    color:var(--muted);font-weight:600;line-height:1;pointer-events:none;z-index:1;
+  }
+  .moneywrap .ctl{padding-left:2rem}
   .pctwrap{position:relative}
-  .pctwrap:after{content:"%";position:absolute;right:13px;top:50%;transform:translateY(-50%);color:var(--muted);font-weight:600}
-  .pctwrap .ctl{padding-right:26px}
+  .pctwrap:after{
+    content:"%";position:absolute;right:12px;top:50%;transform:translateY(-50%);
+    color:var(--muted);font-weight:600;line-height:1;pointer-events:none;z-index:1;
+  }
+  .pctwrap .ctl{padding-right:2rem}
   .calcbox{background:#f5f8f9;border:1px solid var(--line);border-radius:12px;padding:10px 13px;margin-bottom:15px;font-size:14px}
   .calcbox .cl{display:flex;justify-content:space-between;padding:3px 0;color:var(--muted)}
   .calcbox .cl b{color:var(--ink)}
