@@ -754,30 +754,27 @@ function planStewDayPayExpenseLines(input) {
     }
     /*
      * Date for the expense row:
-     *  - newly hitting petty (markFloat) → pay day (this month’s envelope)
-     *  - Own / Owner money mark → pay day so “paid today” lands in this month’s books
-     *  - re-save keeping floatPay → keep prior expense date if set
+     *  - existing line → keep its date (editing Owner money on Laura’s Aug week
+     *    must NOT jump to today)
+     *  - newly hitting petty (first floatPay mark) → pay day (this month’s envelope)
+     *  - Own / Owner / Guest with no prior date → charter day (roster week)
      *  - books-only / no float → charter day
      */
-    var lineDate = charterDate;
-    if (markFloat && floatPay && applyMark) lineDate = payDate;
+    var oldDate = old && String(old.date || "").slice(0, 10);
+    if (oldDate && !/^\d{4}-\d{2}-\d{2}$/.test(oldDate)) oldDate = "";
+    var lineDate = oldDate || charterDate;
+    var newlyHittingPetty =
+      markFloat && floatPay && applyMark && !(old && old.floatPay === true);
+    if (newlyHittingPetty) lineDate = payDate || lineDate;
+    else if (floatPay && oldDate) lineDate = oldDate;
+    else if (floatPay && !oldDate) lineDate = payDate || charterDate;
     else if (
       (paidFrom === "Own money" || paidFrom === "Owner money" || paidFrom === "Guest") &&
-      applyMark &&
-      (normalizeDayPayFrom(asg._floatPayFrom) === paidFrom ||
-        normalizeDayPayFrom(asg.paidFrom) === paidFrom ||
-        paidFromDefault === paidFrom)
+      oldDate
     )
-      lineDate = payDate || charterDate;
-    else if (floatPay && old && String(old.date || "").slice(0, 10))
-      lineDate = String(old.date).slice(0, 10);
-    else if (floatPay) lineDate = payDate;
-    else if (
-      (paidFrom === "Own money" || paidFrom === "Owner money" || paidFrom === "Guest") &&
-      old &&
-      String(old.date || "").slice(0, 10)
-    )
-      lineDate = String(old.date).slice(0, 10);
+      lineDate = oldDate;
+    else if (paidFrom === "Own money" || paidFrom === "Owner money" || paidFrom === "Guest")
+      lineDate = charterDate;
     var desc = "Stewardess / day work — " + summary;
     if (paidFrom === "Owner money") desc = desc + " · paid by owner";
     /* Guest: keep description neutral (cash report stays quiet) */
