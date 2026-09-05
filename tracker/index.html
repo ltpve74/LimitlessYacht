@@ -3447,7 +3447,8 @@ function renderAll(opts){
    * but never auto-save on soft-refresh paint (that spammed the other device).
    */
   if(isCaptain()){
-    try{ syncAllChargeCashToPetty({noSave:!!opts.fromPoll}); }catch(eS){}
+    /* Always in-memory only here — never save from paint (phone↔desktop fight) */
+    try{ syncAllChargeCashToPetty({noSave:true}); }catch(eS){}
   }
   if(canCommercial()){ safe(renderCharters); safe(renderLeads); }
   safe(renderSecurity);
@@ -12287,8 +12288,13 @@ function touchLocalSave(coll){
   if(coll) lastLocalSaveAt[coll]=Date.now();
 }
 function localSaveIsFresh(coll, ms){
-  /* Leads + charges + APA: long window so poll cannot resurrect deletes / thrash notes */
-  if(ms==null) ms=(coll==="leads"||coll==="charters"||coll==="apa"?120000:15000);
+  /* Leads + charges + APA: long window so poll cannot resurrect deletes / thrash notes.
+   * Expenses + petty: 25s so the other device’s soft-refresh cannot fight a just-saved cash edit. */
+  if(ms==null){
+    if(coll==="leads"||coll==="charters"||coll==="apa") ms=120000;
+    else if(coll==="expenses"||coll==="expPetty") ms=25000;
+    else ms=15000;
+  }
   var t=lastLocalSaveAt[coll]||0;
   return t>0&&(Date.now()-t)<ms;
 }
@@ -14219,7 +14225,7 @@ function renderExpenses(opts){
    * Cash-in mirror is display plumbing, not a crew-pay heal.
    * Soft-refresh: noSave so we do not push and spam the other device.
    */
-  try{ syncAllChargeCashToPetty({noSave:!!opts.noSave}); }catch(eSync){}
+  try{ syncAllChargeCashToPetty({noSave:true}); }catch(eSync){}
   paintExpensesBody();
 }
 function paintExpensesBody(){
@@ -19911,7 +19917,11 @@ function syncLeadCashToPetty(lead, opts){
   p.updatedAt=new Date().toISOString();
   return true;
 }
-/** Re-sync all charges + lead free cash → petty cash-ins (captain). */
+/**
+ * Re-sync all charges + lead free cash → petty cash-ins (captain).
+ * Default: in-memory only. Pass {save:true} after an intentional lead/charge save.
+ * Paint/soft-refresh must NEVER persist — that made iPhone and desktop fight.
+ */
 function syncAllChargeCashToPetty(opts){
   opts=opts||{};
   if(!isCaptain()) return false;
@@ -19943,8 +19953,7 @@ function syncAllChargeCashToPetty(opts){
       p.updatedAt=new Date().toISOString();
     }
   });
-  /* Soft-refresh paints must not save — that woke the other phone in a loop */
-  if(dirty&&!opts.noSave) saveExpPetty();
+  if(dirty&&opts.save===true) saveExpPetty();
   return dirty;
 }
 function selInvField(val){ var o=["Not issued","Issued"]; return '<select class="ctl" id="f_invStatus">'+o.map(function(s){return '<option'+(s===val?' selected':'')+'>'+s+'</option>';}).join("")+'</select>'; }
@@ -23325,14 +23334,19 @@ function softRefreshFromServer(opts){
   /* Silent pushes / same-browser broadcasts: refresh quietly — no toast spam */
   var quietSync=!!opts.quiet||reason==="visible-poll"||reason==="focus"||reason==="visibility"||
     reason==="push-sync"||reason==="local-save"||reason==="broadcast"||reason.indexOf("push-sync")===0;
-  /* Skip noisy polls while this device just saved (localSaveIsFresh windows) */
+  /*
+   * This device just saved cash — do not soft-pull over it (quiet sync only).
+   * Stops iPhone↔desktop from thrashing numbers right after an expense save.
+   */
+  if(quietSync&&(localSaveIsFresh("expenses")||localSaveIsFresh("expPetty"))) return;
+  /* Skip noisy polls while this device just saved other collections */
   if(opts.skipIfFreshLocal){
     var freshColls=["expPetty","expenses","leads","charters","apa","stewAssign"];
     var anyFresh=false;
     for(var fi=0;fi<freshColls.length;fi++){
       if(localSaveIsFresh(freshColls[fi], 8000)){ anyFresh=true; break; }
     }
-    if(anyFresh&&(reason==="visible-poll"||reason==="focus")) return;
+    if(anyFresh&&(reason==="visible-poll"||reason==="focus"||reason==="visibility")) return;
   }
   if(softRefreshTimer) clearTimeout(softRefreshTimer);
   softRefreshTimer=setTimeout(function(){
@@ -23407,11 +23421,11 @@ function broadcastLocalSave(coll){
   }catch(e){}
 }
 /**
- * Cross-device sync:
- * 1) Push (incl. silent sync on cash-in/expenses) → SW → softRefresh
+ * Cross-device sync (read path only — never save as a side effect):
+ * 1) Push (silent) → softRefresh merge
  * 2) BroadcastChannel for other tabs on this browser
- * 3) Soft refresh every ~15s while this tab is visible (covers desktop without push)
- * 4) Soft refresh when the tab becomes visible again
+ * 3) Soft refresh when the tab becomes visible / focused
+ * 4) Slow backup poll (~60s) only — frequent polls made iPhone↔desktop fight
  * Session ping stays on a long interval (auth only).
  */
 function startPolling(){
@@ -23423,14 +23437,13 @@ function startPolling(){
     softRefreshFromServer({reason:"visible-poll", delay:200, quiet:true, skipIfFreshLocal:true});
   }
   if(!softPollTimer){
-    /* ~8s — cash expenses must catch up phone↔desktop without a long wait */
-    softPollTimer=setInterval(softPollIfVisible, 8000);
+    softPollTimer=setInterval(softPollIfVisible, 60000);
   }
   if(typeof document!=="undefined"&&!document.__lyVisWired){
     document.__lyVisWired=true;
     document.addEventListener("visibilitychange",function(){
       if(document.visibilityState==="visible"){
-        softRefreshFromServer({reason:"visibility", delay:300, quiet:true});
+        softRefreshFromServer({reason:"visibility", delay:300, quiet:true, skipIfFreshLocal:true});
       }
     });
     window.addEventListener("focus",function(){
