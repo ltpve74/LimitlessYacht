@@ -5899,6 +5899,9 @@ function renderLeads(){
         (leadWhatsAppBtnHTML(r,{cls:"btn ghost",label:"WhatsApp"})||"")+
         (isOwner?"":'<button type="button" class="btn" data-inv-lead="'+esc(r.id)+'">Make invoice</button>')+
         (isOwner?"":'<button type="button" class="btn ghost" data-agr-lead="'+esc(r.id)+'">Agreement</button>')+
+        ((canOps()&&typeof findApaTripForLead==="function"&&findApaTripForLead(r))
+          ?'<button type="button" class="btn ghost" data-apa-lead="'+esc(r.id)+'">Open APA</button>'
+          :"")+
       '</div>'+
       '<span class="chev">✎</span></div>';
     confCards.push({
@@ -6584,6 +6587,12 @@ function renderLeads(){
     btn.addEventListener("click",function(ev){
       ev.preventDefault(); ev.stopPropagation();
       openLeadAgreementSheet(btn.getAttribute("data-agr-lead"));
+    });
+  });
+  Array.prototype.forEach.call(wrap.querySelectorAll("[data-apa-lead]"),function(btn){
+    btn.addEventListener("click",function(ev){
+      ev.preventDefault(); ev.stopPropagation();
+      openRelatedApaForLead(btn.getAttribute("data-apa-lead"));
     });
   });
 }
@@ -8455,6 +8464,17 @@ function findApaTripForLead(lead){
   var list=findApaTripsForLead(lead);
   if(!list.length) return null;
   return list.slice().sort(function(a,b){ return apaTripCanonicalScore(b)-apaTripCanonicalScore(a); })[0];
+}
+/** Leads list/sheet → open the linked APA pot (canonical when several). */
+function openRelatedApaForLead(leadId){
+  if(!leadId||!canOps()) return false;
+  var lead=(state.leads||[]).find(function(l){ return l&&String(l.id)===String(leadId); });
+  if(!lead) return false;
+  var trip=typeof findApaTripForLead==="function"?findApaTripForLead(lead):null;
+  if(!trip||!trip.id) return false;
+  switchTab("apa");
+  if(typeof openApaDetail==="function") openApaDetail(trip.id);
+  return true;
 }
 function apaTripGroupKey(t){
   if(!t) return "";
@@ -21554,6 +21574,9 @@ function openSheet(type,id,opts){
     if(type==="lead"){
       h+='<button type="button" class="btn" id="sheetMakeInv">Make invoice</button>';
       h+='<button type="button" class="btn ghost" id="sheetMakeAgr">Agreement</button>';
+      if(canOps()&&typeof findApaTripForLead==="function"&&findApaTripForLead(rec)){
+        h+='<button type="button" class="btn ghost" id="sheetOpenApa">Open APA</button>';
+      }
     }
     if(type==="charter"){
       h+='<button type="button" class="btn" id="sheetMakeInv">Make invoice</button>';
@@ -21581,6 +21604,12 @@ function openSheet(type,id,opts){
     el("sheetMakeAgr").addEventListener("click",function(){
       showSheet(false);
       setTimeout(function(){ openLeadAgreementSheet(rec.id); },80);
+    });
+  }
+  if(el("sheetOpenApa")&&rec&&type==="lead"){
+    el("sheetOpenApa").addEventListener("click",function(){
+      showSheet(false);
+      setTimeout(function(){ openRelatedApaForLead(rec.id); },80);
     });
   }
   if(el("sheetCancelCharter")&&rec&&type==="lead"){
