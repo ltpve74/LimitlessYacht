@@ -22803,9 +22803,10 @@ el("sheetInner").addEventListener("input",function(){ recalcLead(); recalcCharge
 el("sheetInner").addEventListener("change",function(){ recalcLead(); recalcCharge(); });
 
 /* Explicit deletes for merge-safe full-array saves (server keeps missing ids otherwise). */
-var pendingDeletedIds={ leads:[], charters:[], apa:[] };
-var TOMBSTONE_COLLS={ leads:1, charters:1, apa:1 };
-/** Durable tombstones — poll/save merge must not resurrect deleted charges/leads/APA pots. */
+var pendingDeletedIds={ leads:[], charters:[], apa:[], expenses:[] };
+/* expenses MUST be tombstoned — else delete looks gone then resurrect on tab back */
+var TOMBSTONE_COLLS={ leads:1, charters:1, apa:1, expenses:1 };
+/** Durable tombstones — poll/save merge must not resurrect deleted charges/leads/APA/expenses. */
 var TOMBSTONE_KEY="ly_tracker_tombstones_v1";
 function loadTombstones(){
   try{ return JSON.parse(safeGet(TOMBSTONE_KEY)||"{}")||{}; }catch(e){ return {}; }
@@ -22843,7 +22844,7 @@ function voidDeletedId(coll, id){
   if(arr.indexOf(s)<0) arr.push(s);
   addTombstone(coll, s);
 }
-/* Alias — older call sites / mental name “queue” */
+/* Alias — older call sites / mental name "queue" (must not redeclare voidDeletedId) */
 function queueDeletedId(coll, id){ voidDeletedId(coll, id); }
 function takeDeletedIds(coll){
   var arr=(pendingDeletedIds[coll]||[]).slice();
