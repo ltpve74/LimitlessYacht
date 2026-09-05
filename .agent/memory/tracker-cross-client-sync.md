@@ -18,3 +18,8 @@ had been removed earlier because it fought local edits.
    refresh immediately after a local save.
 
 Merges (`mergeExpPetty` / `amountManual` / `fromPoll`) keep mid-edit devices safe.
+
+**2026-09:** Server also preserve-merges `expPetty` by month + cashIn id (was
+full-replace). Soft fingerprint hashes expense/cash-in ids+amounts so desktop
+cannot stay stale when totals collide. Soft poll ~8s. See
+`tracker-phone-desktop-cash-diverge.md`.

@@ -1782,6 +1782,104 @@ function mergeCollectionPreserveMissing(prevRows, nextRows, deletedIds) {
 }
 
 /**
+ * expPetty used to full-replace the whole array. Classic race: phone saves a
+ * cash-in / start edit → desktop still has an older month bag → any expPetty
+ * save from desktop wipes the phone’s cash and the envelopes diverge.
+ *
+ * Merge by month: client shell wins when it sends that month; cashIns merge by
+ * id (newer updatedAt wins; client wins ties); months only on the server stay.
+ */
+function mergeExpPettyCollection(prevRows, nextRows) {
+  const prev = Array.isArray(prevRows) ? prevRows : [];
+  const next = Array.isArray(nextRows) ? nextRows : [];
+  const by = new Map();
+
+  function monthKey(p) {
+    return String((p && p.month) || "").slice(0, 7);
+  }
+  function cashKey(c) {
+    if (!c) return "";
+    if (c.id != null && String(c.id) !== "") return "id:" + String(c.id);
+    if (c.fromLeadId) return "lead:" + String(c.fromLeadId);
+    if (c.fromChargeId) return "charge:" + String(c.fromChargeId);
+    return (
+      "anon:" +
+      String(c.date || "") +
+      ":" +
+      String(c.source || "") +
+      ":" +
+      String(c.amount || "")
+    );
+  }
+  function mergeCashIns(a, b) {
+    const map = new Map();
+    function take(c, preferOnTie) {
+      if (!c) return;
+      const k = cashKey(c);
+      if (!k) return;
+      const cur = map.get(k);
+      if (!cur) {
+        map.set(k, c);
+        return;
+      }
+      const ct = String(cur.updatedAt || "");
+      const pt = String(c.updatedAt || "");
+      if (pt > ct || (pt === ct && preferOnTie)) map.set(k, c);
+    }
+    (Array.isArray(a) ? a : []).forEach((c) => take(c, false));
+    (Array.isArray(b) ? b : []).forEach((c) => take(c, true));
+    return Array.from(map.values());
+  }
+
+  prev.forEach((p) => {
+    const m = monthKey(p);
+    if (!m) return;
+    by.set(m, {
+      ...p,
+      month: m,
+      cashIns: Array.isArray(p.cashIns) ? p.cashIns.slice() : [],
+    });
+  });
+
+  let preservedMonths = 0;
+  const seenNext = new Set();
+  next.forEach((p) => {
+    const m = monthKey(p);
+    if (!m) return;
+    seenNext.add(m);
+    const old = by.get(m);
+    if (!old) {
+      by.set(m, {
+        ...p,
+        month: m,
+        cashIns: Array.isArray(p.cashIns) ? p.cashIns.slice() : [],
+      });
+      return;
+    }
+    const cashIns = mergeCashIns(old.cashIns, p.cashIns);
+    const ot = String(old.updatedAt || "");
+    const pt = String(p.updatedAt || "");
+    const shell = pt >= ot ? { ...old, ...p, month: m, cashIns } : { ...old, cashIns };
+    let sum = 0;
+    cashIns.forEach((c) => {
+      sum += Number(c && c.amount) || 0;
+    });
+    shell.pettyIn = Math.round(sum * 100) / 100;
+    by.set(m, shell);
+  });
+
+  prev.forEach((p) => {
+    const m = monthKey(p);
+    if (m && !seenNext.has(m)) preservedMonths++;
+  });
+
+  const rows = Array.from(by.values()).sort((a, b) =>
+    String(a.month).localeCompare(String(b.month))
+  );
+  return { rows, preserved: preservedMonths, deleted: 0 };
+}
+
+/**
  * stewAssign identity key — eventKey is stable across devices; id can diverge
  * when two clients seed the same charter independently.
  */
@@ -2639,6 +2737,9 @@ export default async (req, context) => {
      * (restored calendar lead, concurrent device, salary added on the other phone).
      * Explicit deletes only via body.deletedIds.
      *
+     * expPetty: merge by month + cashIn id — phone cash-in must survive a stale
+     * desktop save (full-replace used to make envelopes disagree).
+     *
      * stewAssign: same class of race (team self-assign vs captain open tab)
      * but keyed by eventKey + last-write-wins per row — see mergeStewAssignCollection.
      *
@@ -2653,6 +2754,10 @@ export default async (req, context) => {
         next,
         body.deletedIds || body.deleted || []
       );
+      next = mergeInfo.rows;
+    }
+    if (coll === "expPetty") {
+      mergeInfo = mergeExpPettyCollection(prev, next);
       next = mergeInfo.rows;
     }
     if (coll === "stewAssign") {
@@ -2779,7 +2884,8 @@ export default async (req, context) => {
         coll === "charters" ||
         coll === "apa" ||
         coll === "stewAssign" ||
-        coll === "expenses"
+        coll === "expenses" ||
+        coll === "expPetty"
           ? data[coll]
           : undefined,
     });

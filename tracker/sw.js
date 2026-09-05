@@ -1,5 +1,5 @@
 /* Limitless Tracker service worker — push notifications for the installed PWA */
-/* v3: silent sync wakes open tabs without a banner; banner only if no open tracker */
+/* v4: silent sync wakes open tabs; expPetty server merge + stronger sync fingerprint */
 self.addEventListener("install", function (e) {
   self.skipWaiting();
 });
