@@ -1,5 +1,5 @@
 /* Limitless Tracker service worker — push notifications for the installed PWA */
-/* v5: silent sync quiet (no toast storm); no cash heal-on-poll */
+/* v6: paint never saves petty; soft-poll 60s; skip pull after local cash save */
 self.addEventListener("install", function (e) {
   self.skipWaiting();
 });
