@@ -3437,15 +3437,17 @@ function syncCancelledLeadsToStews(){
   });
   return any;
 }
-function renderAll(){
+function renderAll(opts){
+  opts=opts||{};
   function safe(fn){ try{ fn(); }catch(e){ console&&console.error&&console.error(e); } }
   /*
    * Paint only. Do NOT unpark / heal / rewrite money on every render —
    * those writes to the shared blob caused false unpaid stews and petty re-hits.
-   * Lead/charge cash → petty mirror is still needed for the envelope display.
+   * Lead/charge cash → petty mirror is still needed for the envelope display,
+   * but never auto-save on soft-refresh paint (that spammed the other device).
    */
   if(isCaptain()){
-    try{ syncAllChargeCashToPetty(); }catch(eS){}
+    try{ syncAllChargeCashToPetty({noSave:!!opts.fromPoll}); }catch(eS){}
   }
   if(canCommercial()){ safe(renderCharters); safe(renderLeads); }
   safe(renderSecurity);
@@ -3453,7 +3455,7 @@ function renderAll(){
     if(curTab==="today") safe(renderTodayTab);
     else safe(syncTodayNavBadge);
     safe(renderApa);
-    if(curTab==="expenses") safe(renderExpenses);
+    if(curTab==="expenses") safe(function(){ renderExpenses({noSave:!!opts.fromPoll}); });
     if(curTab==="commissions") safe(renderCommissions);
   }
   if(canDiesel()) safe(renderDiesel);
@@ -14205,7 +14207,8 @@ function expExportMonthOwnerCashPdf(month){
     if(btn){ btn.disabled=false; btn.textContent="Export for owner"; }
   });
 }
-function renderExpenses(){
+function renderExpenses(opts){
+  opts=opts||{};
   if(!isCaptain()) return;
   var body=el("expBody"); if(!body) return;
   if(!expMonth) expMonth=expDefaultMonth();
@@ -14214,8 +14217,9 @@ function renderExpenses(){
    * collapse-save, strip, assign heal) — those rewrote the shared store and
    * re-hit petty / undid captain work. Data fixes: dry-run → DB write only.
    * Cash-in mirror is display plumbing, not a crew-pay heal.
+   * Soft-refresh: noSave so we do not push and spam the other device.
    */
-  try{ syncAllChargeCashToPetty(); }catch(eSync){}
+  try{ syncAllChargeCashToPetty({noSave:!!opts.noSave}); }catch(eSync){}
   paintExpensesBody();
 }
 function paintExpensesBody(){
@@ -19908,7 +19912,8 @@ function syncLeadCashToPetty(lead, opts){
   return true;
 }
 /** Re-sync all charges + lead free cash → petty cash-ins (captain). */
-function syncAllChargeCashToPetty(){
+function syncAllChargeCashToPetty(opts){
+  opts=opts||{};
   if(!isCaptain()) return false;
   var dirty=false;
   var seenCharge={}, seenLead={};
@@ -19938,7 +19943,8 @@ function syncAllChargeCashToPetty(){
       p.updatedAt=new Date().toISOString();
     }
   });
-  if(dirty) saveExpPetty();
+  /* Soft-refresh paints must not save — that woke the other phone in a loop */
+  if(dirty&&!opts.noSave) saveExpPetty();
   return dirty;
 }
 function selInvField(val){ var o=["Not issued","Issued"]; return '<select class="ctl" id="f_invStatus">'+o.map(function(s){return '<option'+(s===val?' selected':'')+'>'+s+'</option>';}).join("")+'</select>'; }
@@ -23315,6 +23321,10 @@ function softRefreshFromServer(opts){
   opts=opts||{};
   if(DEMO||!session||!session.pass) return;
   if(el("app")&&el("app").classList.contains("hidden")) return;
+  var reason=String(opts.reason||"");
+  /* Silent pushes / same-browser broadcasts: refresh quietly — no toast spam */
+  var quietSync=!!opts.quiet||reason==="visible-poll"||reason==="focus"||reason==="visibility"||
+    reason==="push-sync"||reason==="local-save"||reason==="broadcast"||reason.indexOf("push-sync")===0;
   /* Skip noisy polls while this device just saved (localSaveIsFresh windows) */
   if(opts.skipIfFreshLocal){
     var freshColls=["expPetty","expenses","leads","charters","apa","stewAssign"];
@@ -23322,7 +23332,7 @@ function softRefreshFromServer(opts){
     for(var fi=0;fi<freshColls.length;fi++){
       if(localSaveIsFresh(freshColls[fi], 8000)){ anyFresh=true; break; }
     }
-    if(anyFresh&&(opts.reason==="visible-poll"||opts.reason==="focus")) return;
+    if(anyFresh&&(reason==="visible-poll"||reason==="focus")) return;
   }
   if(softRefreshTimer) clearTimeout(softRefreshTimer);
   softRefreshTimer=setTimeout(function(){
@@ -23337,9 +23347,9 @@ function softRefreshFromServer(opts){
       /* First poll after open just records baseline — avoid false "Updated" flash */
       if(!lastSoftSyncFp){
         lastSoftSyncFp=fp;
-        if(opts.reason==="visible-poll"||opts.reason==="focus"||opts.reason==="visibility") return;
+        if(quietSync||reason==="visible-poll"||reason==="focus"||reason==="visibility") return;
       }
-      if(!changed&&(opts.quiet||opts.reason==="visible-poll"||opts.reason==="focus")) return;
+      if(!changed&&quietSync) return;
       try{ applyData(d,{fromPoll:true}); }catch(eA){}
       /*
        * Fingerprint AFTER apply. Setting it before used to mark “up to date”
@@ -23347,7 +23357,8 @@ function softRefreshFromServer(opts){
        * !changed and never pulled salary lines (or re-merged after a wipe).
        */
       try{ lastSoftSyncFp=dataSyncFingerprint(d); }catch(eFp){ lastSoftSyncFp=fp; }
-      if(opts.quiet||!changed) return;
+      /* Never toast on silent sync — desktop open was flooding the phone */
+      if(quietSync||!changed) return;
       var hint=el("saveHint");
       if(hint){
         hint.textContent="Updated · change from another device";
@@ -23549,50 +23560,14 @@ function applyData(d, opts){
     try{ save("leads"); }catch(eS){} /* under BOOT_QUIET this only queues until after open */
   }
   /*
-   * Re-push local-only cash rows the server is missing (stale full-replace race).
-   * Not a money invent — only echoes ids already on this device.
-   */
-  if(fromPoll&&isCaptain()&&!DEMO){
-    try{ healLocalOnlyCashToServer(d); }catch(eHeal){}
-  }
-  /*
-   * Never auto-heal / seed / reassign after load or poll — blob is SOT.
-   * Captain can use explicit tools (Restore crew, Sync calendar dates, etc.).
+   * Never auto-heal / re-save cash on poll. A prior “heal local-only rows”
+   * loop made desktop open spam the phone with Updated toasts and could race
+   * away the newest expense. Server preserve-merge is enough.
    */
   if(!opts.fromBoot){
-    renderAll();
+    renderAll({fromPoll:fromPoll});
     if(!DEMO) refreshPushStatus();
   }
-}
-/** Push expense / petty rows this device has that the server payload lacks. */
-var __lyCashHealAt=0;
-function healLocalOnlyCashToServer(remote){
-  if(!remote||localSaveIsFresh("expenses", 6000)||localSaveIsFresh("expPetty", 6000)) return;
-  if(Date.now()-__lyCashHealAt<12000) return;
-  var remoteExp={};
-  (remote.expenses||[]).forEach(function(e){ if(e&&e.id!=null) remoteExp[String(e.id)]=1; });
-  var missingExp=(state.expenses||[]).some(function(e){ return e&&e.id!=null&&!remoteExp[String(e.id)]; });
-  var missingPetty=false;
-  var remotePettyMonths={};
-  (remote.expPetty||[]).forEach(function(p){
-    if(!p||!p.month) return;
-    var set={};
-    (Array.isArray(p.cashIns)?p.cashIns:[]).forEach(function(c){ if(c&&c.id!=null) set[String(c.id)]=1; });
-    remotePettyMonths[String(p.month).slice(0,7)]={start:p.pettyStart, cash:set};
-  });
-  (state.expPetty||[]).forEach(function(p){
-    if(!p||!p.month) return;
-    var m=String(p.month).slice(0,7);
-    var rem=remotePettyMonths[m];
-    if(!rem){ missingPetty=true; return; }
-    (Array.isArray(p.cashIns)?p.cashIns:[]).forEach(function(c){
-      if(c&&c.id!=null&&!rem.cash[String(c.id)]) missingPetty=true;
-    });
-  });
-  if(!missingExp&&!missingPetty) return;
-  __lyCashHealAt=Date.now();
-  if(missingExp) try{ saveExpenses(); }catch(eE){}
-  if(missingPetty) try{ saveExpPetty(); }catch(eP){}
 }
 
 /* Fixed IDs match server seed (real spreadsheet trip is first live APA entry) */
