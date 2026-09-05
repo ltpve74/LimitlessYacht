@@ -17,6 +17,7 @@
 - [tracker-cross-client-sync.md](tracker-cross-client-sync.md) — phone↔desktop: silent sync push + visible soft-refresh + BroadcastChannel
 - [tracker-expenses-preserve-merge.md](tracker-expenses-preserve-merge.md) — expenses merge-preserve so phone/desktop cannot wipe each other’s lines
 - [tracker-salary-disappear-fix.md](tracker-salary-disappear-fix.md) — captain Crew Salaries saved then vanished: save-echo replace + softRefresh fingerprint skip + bare category as day-pay
+- [tracker-owner-split-date-fix.md](tracker-owner-split-date-fix.md) — Owner edit rewrote Aug pay date; desktop boss+petty split collapsed to all-owner
 
 - [tracker-extra-hours-commission.md](tracker-extra-hours-commission.md) — extra hours on Charges; cash vs invoice commission
 

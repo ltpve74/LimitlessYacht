@@ -3143,8 +3143,125 @@ console.log("\n[Write plans — stew expenses + APA shortfall decision]");
   ok("owner money paidById owner", ownerPaid.lines[0] && ownerPaid.lines[0].paidById === "owner");
   ok("owner money floatPay false", ownerPaid.lines[0] && ownerPaid.lines[0].floatPay === false);
   ok(
+    "owner money date stays charter day (not pay-day stamp)",
+    ownerPaid.lines[0] && ownerPaid.lines[0].date === "2026-08-08",
+    "got " + (ownerPaid.lines[0] && ownerPaid.lines[0].date)
+  );
+  ok(
     "owner money does not hit petty",
     ownerPaid.lines[0] && M.crewDayPayHitsPetty(ownerPaid.lines[0]) === false
+  );
+  /* Re-edit Owner money must keep Aug date (Laura last week of Aug bug) */
+  const ownerReedit = M.planStewDayPayExpenseLines({
+    asg: {
+      eventKey: "uid:laura-aug",
+      payStatus: "Paid",
+      start: "2026-08-28",
+      stewIds: ["laura"],
+      summary: "Laura Aug week",
+      payStatusManual: true,
+      paidFrom: "Owner money",
+      _floatPayMark: false,
+      _floatPayFrom: "Owner money",
+      _floatPayPayerId: "owner",
+    },
+    previousLines: [
+      {
+        id: "laura-aug-exp",
+        source: "stew",
+        stewPayKind: "dayPay",
+        stewEventKey: "uid:laura-aug",
+        stewId: "laura",
+        crewPayStatus: "Paid",
+        paidFrom: "Owner money",
+        paidById: "owner",
+        floatPay: false,
+        amount: 200,
+        date: "2026-08-28",
+        charterDate: "2026-08-28",
+      },
+    ],
+    dayPayAmt: function () {
+      return 200;
+    },
+    stewName: function () {
+      return "Laura";
+    },
+    nowIso: "2026-09-06T12:00:00.000Z",
+    payDate: "2026-09-06",
+    newId: function () {
+      return "laura-aug-new";
+    },
+  });
+  ok(
+    "owner re-edit keeps Aug date",
+    ownerReedit.lines[0] && ownerReedit.lines[0].date === "2026-08-28",
+    "got " + (ownerReedit.lines[0] && ownerReedit.lines[0].date)
+  );
+  /* Boss €150 + petty top-up €50 (desktop split must not collapse to all-owner) */
+  const ownerPettySplit = M.planStewDayPayExpenseLines({
+    asg: {
+      eventKey: "uid:laura-split",
+      payStatus: "Paid",
+      start: "2026-08-29",
+      stewIds: ["laura"],
+      summary: "Laura split",
+      payStatusManual: true,
+      paidFrom: "Owner money",
+      guestPaidAmt: 150,
+      topUpFrom: "Petty cash",
+      _floatPayMark: true,
+      _floatPayFrom: "Owner money",
+      _floatPayPayerId: "owner",
+    },
+    previousLines: [
+      {
+        id: "laura-split-exp",
+        source: "stew",
+        stewPayKind: "dayPay",
+        stewEventKey: "uid:laura-split",
+        stewId: "laura",
+        amount: 200,
+        date: "2026-08-29",
+        charterDate: "2026-08-29",
+      },
+    ],
+    dayPayAmt: function () {
+      return 200;
+    },
+    stewName: function () {
+      return "Laura";
+    },
+    nowIso: "2026-09-06T12:00:00.000Z",
+    payDate: "2026-09-06",
+    newId: function () {
+      return "laura-split-new";
+    },
+  });
+  ok(
+    "owner+petty split paidFrom Owner",
+    ownerPettySplit.lines[0] && ownerPettySplit.lines[0].paidFrom === "Owner money"
+  );
+  ok(
+    "owner+petty split primary 150",
+    ownerPettySplit.lines[0] && near(ownerPettySplit.lines[0].guestPaidAmt, 150)
+  );
+  ok(
+    "owner+petty split topUp 50",
+    ownerPettySplit.lines[0] && near(ownerPettySplit.lines[0].topUpAmt, 50)
+  );
+  ok(
+    "owner+petty split topUpFrom Petty",
+    ownerPettySplit.lines[0] && ownerPettySplit.lines[0].topUpFrom === "Petty cash"
+  );
+  ok(
+    "owner+petty split floatPay true",
+    ownerPettySplit.lines[0] && ownerPettySplit.lines[0].floatPay === true
+  );
+  ok(
+    "owner+petty first float moves date to pay day",
+    ownerPettySplit.lines[0] && ownerPettySplit.lines[0].date === "2026-09-06",
+    "got " + (ownerPettySplit.lines[0] && ownerPettySplit.lines[0].date)
   );
   ok(
     "owner money expensePaidFrom class",
