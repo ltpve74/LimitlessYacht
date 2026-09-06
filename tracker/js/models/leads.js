@@ -1738,7 +1738,8 @@ function ownerSourcedNotionalPrice(r) {
 
 /**
  * Money that entered the commercial books for an owner-sourced charter:
- * Issued/Paid deposit + final + APA, plus received free cash.
+ * Issued/Paid deposit + final + APA only.
+ * Do NOT count free cash / owner-pocket guesses — we don’t look into the owner’s pocket.
  */
 function ownerSourcedRecognizedIncome(r) {
   if (!r) return 0;
@@ -1746,13 +1747,6 @@ function ownerSourcedRecognizedIncome(r) {
   if (leadInvLineIssuedOrPaid(r.deps)) sum += num(r.dep);
   if (leadInvLineIssuedOrPaid(r.fins)) sum += num(r.fin);
   if (leadInvLineIssuedOrPaid(r.apas)) sum += num(r.apa);
-  try {
-    if (leadFreeCashIsReceived(r)) sum += leadFreeCashAmt(r) || num(r.cashAmt);
-  } catch (e) {
-    if (r.cashSettled === true || r.cashSettled === "true" || r.cashSettled === 1) {
-      sum += num(r.cashAmt);
-    }
-  }
   return round2(sum);
 }
 
