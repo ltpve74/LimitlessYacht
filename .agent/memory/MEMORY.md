@@ -28,3 +28,5 @@
 - [tracker-floatpay-wipe-bug.md](tracker-floatpay-wipe-bug.md) — petty cash “reverted” after crew pay: floatPay wipe bug + restore
 - [tracker-no-load-heals-db-dryrun.md](tracker-no-load-heals-db-dryrun.md) — **never** load-time money heals; small data fixes = dry-run then DB write; Aug BF was −€110; July open was Laura €200 + tip €100 card only
 - [../briefs/tracker-charter-identity.md](../briefs/tracker-charter-identity.md) — lead.id + ICS uid as source of truth (not date/name)
+- [tracker-owner-sourced-commercial.md](tracker-owner-sourced-commercial.md) — Owner’s days → ownersourced; Paid-only Finance; no pocket UI
+- [tracker-finance-cash-envelope-balance.md](tracker-finance-cash-envelope-balance.md) — Finance net = white + all envelope cash-ins − cash comm − petty outs (owner top-ups must show)
