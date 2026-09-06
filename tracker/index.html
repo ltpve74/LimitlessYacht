@@ -388,6 +388,29 @@
   .item.exp-own{border:1.5px solid #e8d4a8;background:#fffcf5}
   .pill.p-own{background:#f5e6c8;color:#7a5200}
   .pill.p-own-ok{background:var(--green);color:var(--greenInk)}
+  /* Diesel log — unpaid APA fuel (owner / guest) */
+  .item.dsl-unpaid{
+    border:1.5px solid #f0b4b0;background:linear-gradient(180deg,#fdeeee 0%,#fff 58%);
+    box-shadow:0 2px 10px rgba(180,50,40,.14);
+  }
+  .item.dsl-unpaid .title{color:#8a1f18}
+  .item.dsl-unpaid .amt{color:var(--danger);font-weight:900}
+  .item.dsl-unpaid-guest{
+    border:1.5px solid #E0A800;background:linear-gradient(180deg,#FFF8E1 0%,#fff 55%);
+    box-shadow:0 2px 10px rgba(224,168,0,.16);
+  }
+  .item.dsl-unpaid-guest .title{color:#6b4500}
+  .item.dsl-unpaid-guest .amt{color:#b45309;font-weight:900}
+  .dsl-unpaid-hd{
+    display:flex;align-items:baseline;justify-content:space-between;gap:10px;flex-wrap:wrap;
+    margin:4px 2px 8px;padding:0 2px;
+  }
+  .dsl-unpaid-hd h4{margin:0;font-size:13px;font-weight:900;color:var(--danger);letter-spacing:.02em;text-transform:uppercase}
+  .dsl-unpaid-hd .money{font-size:15px;font-weight:900;color:var(--danger)}
+  .dsl-replace-line{
+    margin-top:6px;padding:8px 10px;border-radius:10px;background:rgba(180,50,40,.08);
+    font-size:12.5px;font-weight:700;color:#8a1f18;line-height:1.35;
+  }
   /* Expense cards: no horizontal overflow, compact status */
   #expBody .list,#expBody .item{max-width:100%;box-sizing:border-box}
   #expBody .item{overflow:hidden;padding-right:28px}
@@ -11585,44 +11608,66 @@ function renderDiesel(){
   var spread=activeSell>0&&st.buyPrice>0?Math.round((activeSell-st.buyPrice)*100)/100:null;
   var tankKnown=L.tank!=null;
   var warn=tankKnown&&L.tank<0;
-  var ownerUnpaid=L.ownerCost>0.009;
+  var ownerUnpaid=L.ownerCost>0.009||L.ownerUsed>0.009;
   var marginNeg=L.margin<0;
   /* Guest APA still unpaid (litres only) — secondary to owner deficit */
-  var guestUnpaidL=0, guestUnpaidN=0;
+  var guestUnpaidL=0, guestUnpaidN=0, guestUnpaidEuro=0;
   (L.timeline||[]).forEach(function(row){
     if(!row||row.kind!=="apa") return;
     if(row.ownerExpense||row.ownerDays) return;
     if(row.moneyCounts) return;
     guestUnpaidL+=apaNum(row.litres);
     guestUnpaidN++;
+    guestUnpaidEuro+=apaNum(row.lineEuro);
   });
   guestUnpaidL=apaLit(guestUnpaidL);
+  guestUnpaidEuro=Math.round(guestUnpaidEuro*100)/100;
+  /* € to replace unpaid litres in the tank at current bunker buy */
+  var replaceBuy=L.lastBuyPrice!=null&&L.lastBuyPrice>0?L.lastBuyPrice:(st.buyPrice>0?st.buyPrice:0);
+  var unpaidReplaceL=apaLit(apaNum(L.ownerUsed)+apaNum(guestUnpaidL));
+  var unpaidReplaceEuro=replaceBuy>0?Math.round(unpaidReplaceL*replaceBuy*100)/100:0;
+  var ownerReplaceEuro=replaceBuy>0?Math.round(apaNum(L.ownerUsed)*replaceBuy*100)/100:0;
+  var guestReplaceEuro=replaceBuy>0?Math.round(apaNum(guestUnpaidL)*replaceBuy*100)/100:0;
+  var unpaidTripN=0;
+  (L.timeline||[]).forEach(function(row){
+    if(!row||row.kind!=="apa") return;
+    if(row.ownerExpense||row.ownerDays||!row.moneyCounts) unpaidTripN++;
+  });
   var html='<div class="summary">'+
     '<div class="sumcard"><div class="l">Est. on board</div><div class="v"'+(warn?' style="color:var(--danger)"':'')+'>'+(tankKnown?esc(String(L.tank))+" L":"—")+'</div></div>'+
     '<div class="sumcard"><div class="l">Used (APA)</div><div class="v">'+esc(String(L.apaUsed))+' L</div></div>'+
-    (ownerUnpaid
-      ?'<div class="sumcard sum-danger"><div class="l">Not paid · owner</div><div class="v">−'+esc(String(L.ownerUsed))+' L</div><div class="s money">−'+money(L.ownerCost)+'</div></div>'
+    (unpaidReplaceL>0.009
+      ?'<div class="sumcard sum-danger"><div class="l">To replace unpaid</div><div class="v money">'+money(unpaidReplaceEuro)+'</div><div class="s">'+esc(String(unpaidReplaceL))+' L'+(replaceBuy>0?' @ €'+esc(String(replaceBuy))+'/L':'')+'</div></div>'
       :'')+
   '</div>'+
-  (ownerUnpaid
+  (unpaidReplaceL>0.009
     ?('<div class="exp-alert short" style="margin-bottom:12px">'+
-        '<div style="font-weight:900;margin-bottom:4px">Unpaid diesel · owner</div>'+
-        '<div class="money" style="font-size:26px;font-weight:900;margin:2px 0 6px">−'+money(L.ownerCost)+
-          '<span style="font-size:14px;font-weight:700"> · '+esc(String(L.ownerUsed))+' L</span></div>'+
-        '<div style="font-size:13px;font-weight:600;line-height:1.4">'+
-          'Owner’s days fuel is not recovered — bunker cost stays unpaid. '+
-          (marginNeg
-            ?('That is why <b>margin is negative</b> ('+money(L.margin)+'): '+money(L.outVal)+' out − '+money(L.buyCost)+' buy − '+money(L.ownerCost)+' owner unpaid.')
-            :('Subtracted from margin: '+money(L.outVal)+' out − '+money(L.buyCost)+' buy − '+money(L.ownerCost)+' owner unpaid = '+money(L.margin)+'.'))+
+        '<div style="font-weight:900;margin-bottom:4px">Unpaid litres · money to replace</div>'+
+        '<div class="money" style="font-size:28px;font-weight:900;margin:2px 0 6px">'+money(unpaidReplaceEuro)+
+          '<span style="font-size:14px;font-weight:700"> for '+esc(String(unpaidReplaceL))+' L</span></div>'+
+        '<div style="font-size:13px;font-weight:600;line-height:1.45">'+
+          (replaceBuy>0
+            ?('At last bunker <b>€'+esc(String(replaceBuy))+'/L</b> — what it costs to put those litres back in the tank. ')
+            :('Set a bunker buy price to value the replace cost. '))+
+          (ownerUnpaid
+            ?('<b>Owner</b> '+esc(String(L.ownerUsed))+' L → '+money(ownerReplaceEuro)+(L.ownerCost>0.009?' (booked unpaid '+money(L.ownerCost)+')':'')+'. ')
+            :"")+
+          (guestUnpaidN>0
+            ?('<b>Guest unpaid</b> '+esc(String(guestUnpaidL))+' L → '+money(guestReplaceEuro)+' until charge is Paid. ')
+            :"")+
+          (marginNeg&&ownerUnpaid
+            ?('Margin is negative ('+money(L.margin)+') mainly because owner did not pay.')
+            :"")+
         '</div>'+
-        '<div style="font-size:12px;font-weight:600;margin-top:8px;opacity:.9">Rows marked <b>Owner · unpaid</b> in the log below. Litres still burn the tank and count in Used (APA).</div>'+
+        '<div style="font-size:12px;font-weight:600;margin-top:8px;opacity:.9">'+unpaidTripN+' unpaid trip line'+(unpaidTripN===1?"":"s")+' highlighted in the log below.</div>'+
       '</div>')
     :'')+
-  (guestUnpaidN>0
+  (guestUnpaidN>0&&!(unpaidReplaceL>0.009&&ownerUnpaid)
     ?('<div class="exp-alert owe" style="margin-bottom:12px">'+
         '<div style="font-weight:800;margin-bottom:2px">Guest APA unpaid</div>'+
         '<div style="font-size:13px;line-height:1.4">'+esc(String(guestUnpaidL))+' L on '+guestUnpaidN+' trip'+(guestUnpaidN===1?"":"s")+
-          ' — litres only until the APA shortfall charge is <b>Paid</b> (then it joins Out value).</div>'+
+          (guestReplaceEuro>0?' · replace ≈ '+money(guestReplaceEuro):'')+
+          ' — litres only until the APA shortfall charge is <b>Paid</b>.</div>'+
       '</div>')
     :'')+
   '<div class="legend">After each <b>bunker</b>, set the <b>sale price</b> (default pump + €'+esc(String(DIESEL_MARKUP))+'). APA always burns the tank. <b>Tap any log or APA line to edit</b>. <b>Out value</b> = guest sells + <b>Paid</b> guest APA only. Owner unpaid = red alert above. Unpaid guest APA = litres only. <b>Last charged</b> = guest rate only.</div>'+
@@ -11652,8 +11697,8 @@ function renderDiesel(){
     '<div class="apa-card"><div class="k">Out (sell + APA)</div><div class="n">'+esc(String(L.out))+' L</div></div>'+
     '<div class="apa-card"><div class="k">Buy cost</div><div class="n money">'+money(L.buyCost)+'</div></div>'+
     '<div class="apa-card"><div class="k">Out value</div><div class="n money">'+money(L.outVal)+'</div></div>'+
-    (ownerUnpaid
-      ?'<div class="apa-card" style="border-color:#f0b4b0;background:#fdeeee"><div class="k" style="color:var(--danger)">Owner unpaid</div><div class="n money" style="color:var(--danger)">−'+money(L.ownerCost)+'</div><div style="font-size:11.5px;color:var(--danger);margin-top:4px;font-weight:700">'+esc(String(L.ownerUsed))+' L · not recovered</div></div>'
+    (unpaidReplaceL>0.009
+      ?'<div class="apa-card" style="border-color:#f0b4b0;background:#fdeeee"><div class="k" style="color:var(--danger)">To replace unpaid</div><div class="n money" style="color:var(--danger)">'+money(unpaidReplaceEuro)+'</div><div style="font-size:11.5px;color:var(--danger);margin-top:4px;font-weight:700">'+esc(String(unpaidReplaceL))+' L'+(replaceBuy>0?' @ €'+esc(String(replaceBuy))+'/L':'')+(ownerUnpaid?' · owner '+money(ownerReplaceEuro):'')+(guestUnpaidN>0?' · guest '+money(guestReplaceEuro):'')+'</div></div>'
       :'')+
     '<div class="apa-card wide bal'+(marginNeg?' warn':'')+'"><div class="k">Margin'+(ownerUnpaid?' (out − buy − owner unpaid)':' (out − buy)')+'</div><div class="n money">'+money(L.margin)+'</div>'+
       '<div style="font-size:12px;'+(marginNeg&&ownerUnpaid?'color:var(--danger);font-weight:700':'color:var(--muted)')+';margin-top:6px">'+
@@ -11671,9 +11716,18 @@ function renderDiesel(){
   if(!L.timeline.length){
     html+=emptyBox("⛽","No diesel log yet","Tap + or Add to log a buy (with that day’s €/L), tank level, or sale. APA trip fuel appears with each trip’s sell rate.");
   } else {
-    html+='<div class="list">';
-    L.timeline.slice().reverse().forEach(function(row){
+    function dieselRowIsUnpaid(row){
+      if(!row||row.kind!=="apa") return false;
+      if(row.ownerExpense||row.ownerDays) return true;
+      return !row.moneyCounts;
+    }
+    function dieselRowReplaceEuro(row){
+      if(!(replaceBuy>0)) return 0;
+      return Math.round(apaNum(row.litres)*replaceBuy*100)/100;
+    }
+    function dieselLogRowHTML(row){
       var title, amt, meta="", pillC="p-grey", pillT=row.kind;
+      var isOwnExp=false, isGuestUnpaid=false;
       if(row.kind==="buy"){
         title="Bought diesel"; amt="+"+esc(String(row.litres))+" L"; pillC="p-buy"; pillT="Buy";
         meta='<span class="pill '+pillC+'">'+pillT+'</span><span>'+esc(fmtDate(row.date))+'</span>';
@@ -11693,7 +11747,8 @@ function renderDiesel(){
         if(row.lineEuro!=null) meta+='<span class="money">'+money(row.lineEuro)+'</span>';
       } else {
         title="APA · "+(row.guest||"trip"); amt="−"+esc(String(row.litres))+" L";
-        var isOwnExp=!!(row.ownerExpense||row.ownerDays);
+        isOwnExp=!!(row.ownerExpense||row.ownerDays);
+        isGuestUnpaid=!isOwnExp&&!row.moneyCounts;
         var payLab=row.payLabel||(isOwnExp?"Owner · unpaid":(row.moneyCounts?"APA · Paid":"APA · Unpaid"));
         pillC=isOwnExp?"p-own":(row.moneyCounts?"p-apa":"p-grey");
         pillT=payLab;
@@ -11704,27 +11759,54 @@ function renderDiesel(){
         else if(row.moneyCounts&&row.lineEuro!=null) meta+='<span class="money">'+money(row.lineEuro)+'</span>';
         else if(row.lineEuro!=null&&row.lineEuro>0) meta+='<span class="meta">not charged · '+money(row.lineEuro)+'</span>';
       }
-      /* Manual log + live APA fuel lines are both editable (APA opens the pot line). */
       var editableLog=row.source==="log";
       var apaIds=(!editableLog&&row.source==="apa")?dieselApaIdsFromRow(row):null;
       var editableApa=!!(apaIds&&apaIds.tripId&&apaIds.lineId&&canOps());
       var editable=editableLog||editableApa;
-      var isOwnRow=row.kind==="apa"&&!!(row.ownerExpense||row.ownerDays);
+      var unpaidCls=isOwnExp?" dsl-unpaid":(isGuestUnpaid?" dsl-unpaid-guest":"");
       var openAttr=editableLog
         ?(' data-diesel-edit="'+esc(row.id)+'"')
         :(editableApa
           ?(' data-diesel-apa-trip="'+esc(apaIds.tripId)+'" data-diesel-apa-line="'+esc(apaIds.lineId)+'"')
           :"");
-      html+='<div class="item'+(editable?' apa-row':'')+(isOwnRow?' exp-own':'')+'"'+(editable?openAttr+' role="button" tabindex="0"':'')+'>'+
-        '<div class="top"><div class="title">'+esc(title)+'</div><div class="amt"'+(isOwnRow?' style="color:var(--danger)"':'')+'>'+amt+'</div></div>'+
+      var replaceE=(isOwnExp||isGuestUnpaid)?dieselRowReplaceEuro(row):0;
+      var replaceBlock=(replaceE>0.009
+        ?('<div class="dsl-replace-line">Replace '+esc(String(row.litres))+' L @ €'+esc(String(replaceBuy))+'/L → <b>'+money(replaceE)+'</b>'+
+            (isOwnExp?' · owner not paying':' · guest charge unpaid')+'</div>')
+        :"");
+      return '<div class="item'+(editable?' apa-row':'')+unpaidCls+'"'+(editable?openAttr+' role="button" tabindex="0"':'')+'>'+
+        '<div class="top"><div class="title">'+esc(title)+'</div><div class="amt">'+amt+'</div></div>'+
         '<div class="meta">'+meta+'</div>'+
+        replaceBlock+
         (row.notes?'<div class="notes">'+esc(row.notes)+'</div>':'')+
         (editableLog?'<button type="button" class="apa-x" data-diesel-del="'+esc(row.id)+'" aria-label="Delete">×</button>':'')+
         (editableApa?'<button type="button" class="apa-x" data-diesel-apa-del-trip="'+esc(apaIds.tripId)+'" data-diesel-apa-del-line="'+esc(apaIds.lineId)+'" aria-label="Delete">×</button>':'')+
         (editable?'<span class="chev">✎</span>':'')+
       '</div>';
+    }
+    var chron=L.timeline.slice().reverse();
+    var unpaidRows=[], otherRows=[];
+    chron.forEach(function(row){
+      if(dieselRowIsUnpaid(row)) unpaidRows.push(row);
+      else otherRows.push(row);
     });
-    html+='</div>';
+    if(unpaidRows.length){
+      html+='<div class="dsl-unpaid-hd">'+
+        '<h4>Unpaid trips</h4>'+
+        '<div class="money">'+money(unpaidReplaceEuro)+' to replace · '+esc(String(unpaidReplaceL))+' L</div>'+
+      '</div>';
+      html+='<div class="list" style="margin-bottom:14px">';
+      unpaidRows.forEach(function(row){ html+=dieselLogRowHTML(row); });
+      html+='</div>';
+      if(otherRows.length){
+        html+='<div class="apa-sect-h" style="margin:2px 0 8px"><h3 style="font-size:14px">Other log</h3></div>';
+      }
+    }
+    if(otherRows.length||!unpaidRows.length){
+      html+='<div class="list">';
+      (unpaidRows.length?otherRows:chron).forEach(function(row){ html+=dieselLogRowHTML(row); });
+      html+='</div>';
+    }
   }
   wrap.innerHTML=html;
   if(el("dieselEditPrices")) el("dieselEditPrices").addEventListener("click",function(){ openDieselPrices(); });
