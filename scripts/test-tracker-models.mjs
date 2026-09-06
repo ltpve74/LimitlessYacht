@@ -399,11 +399,11 @@ ok("constrain captain", M.constrainLeadSource("captain") === "captain");
 ok("website → captain", M.constrainLeadSource("website") === "captain");
 ok("paul → clickboat", M.constrainLeadSource("paul") === "clickboat");
 ok("clickboat", M.constrainLeadSource("clickboat") === "clickboat");
-ok("owner", M.constrainLeadSource("owner") === "owner");
-ok("owner-days alias", M.constrainLeadSource("owner-days") === "owner");
+ok("owner → ownersourced", M.constrainLeadSource("owner") === "ownersourced");
+ok("owner-days → ownersourced", M.constrainLeadSource("owner-days") === "ownersourced");
 ok("owner-sourced → ownersourced", M.constrainLeadSource("owner-sourced") === "ownersourced");
 ok("ownersourced", M.constrainLeadSource("ownersourced") === "ownersourced");
-ok("owner-sourced not owner days", M.constrainLeadSource("owner-sourced") !== "owner");
+ok("private → ownersourced", M.constrainLeadSource("private") === "ownersourced");
 ok("pending source", M.constrainLeadSource("pending") === "pending");
 ok("pending rate 0", M.leadCommissionRatePct({ leadSource: "pending" }) === 0);
 ok("dayoff source", M.constrainLeadSource("dayoff") === "dayoff");
@@ -423,7 +423,7 @@ ok(
 ok("isCaptainLead", M.isCaptainLead({ leadSource: "captain" }));
 ok("not captain", !M.isCaptainLead({ leadSource: "other" }));
 ok("clickboat no captain-only flag", !M.leadEarnsCaptainCommission({ leadSource: "clickboat" }));
-ok("owner no captain-only flag", !M.leadEarnsCaptainCommission({ leadSource: "owner" }));
+ok("owner aliased no captain-only flag", !M.leadEarnsCaptainCommission({ leadSource: "owner" }));
 ok("ownersourced no captain-only flag", !M.leadEarnsCaptainCommission({ leadSource: "ownersourced" }));
 ok("captain earns captain flag", M.leadEarnsCaptainCommission({ leadSource: "captain" }));
 ok("clickboat rate 24%", M.leadCommissionRatePct({ leadSource: "clickboat" }) === 24);
@@ -433,16 +433,18 @@ ok("captain target constant 15", M.CAPTAIN_COMMISSION_TARGET_PCT === 15);
 ok("captain stamp 15%", M.leadCommissionRatePct({ leadSource: "captain", captainCommPct: 15 }) === 15);
 ok("captain force preview 15%", M.leadCommissionRatePct({ leadSource: "captain" }, 15) === 15);
 ok("stamp ignored when force 10", M.leadCommissionRatePct({ leadSource: "captain", captainCommPct: 15 }, 10) === 10);
-ok("owner rate 0%", M.leadCommissionRatePct({ leadSource: "owner" }) === 0);
-ok("ownersourced rate 0% for now", M.leadCommissionRatePct({ leadSource: "ownersourced" }) === 0);
+ok("ownersourced provider rate 10%", M.leadCommissionRatePct({ leadSource: "ownersourced" }) === 10);
+ok("ownersourced provider force 15%", M.leadCommissionRatePct({ leadSource: "ownersourced" }, 15) === 15);
+ok("ownersourced book constant 10", M.OWNER_SOURCED_COMMISSION_PCT === 10);
+ok("ownersourced target constant 15", M.OWNER_SOURCED_COMMISSION_TARGET_PCT === 15);
+ok("ownersourced list discount 20%", M.OWNER_SOURCED_LIST_DISCOUNT === 0.2);
 ok("clickboat earns commission", M.leadEarnsCommission({ leadSource: "clickboat" }));
-ok("owner no earns commission", !M.leadEarnsCommission({ leadSource: "owner" }));
-ok("ownersourced no commission for now", !M.leadEarnsCommission({ leadSource: "ownersourced" }));
-ok("isOwnerLead days", M.isOwnerLead({ leadSource: "owner" }));
+ok("ownersourced not captain/CB payable", !M.leadEarnsCommission({ leadSource: "ownersourced" }));
+ok("owner alias is ownersourced lead", M.isOwnerSourcedLead({ leadSource: "owner" }));
+ok("isOwnerLead false after alias", !M.isOwnerLead({ leadSource: "owner" }));
 ok("ownersourced is not owner days", !M.isOwnerLead({ leadSource: "ownersourced" }));
 ok("isOwnerSourcedLead", M.isOwnerSourcedLead({ leadSource: "ownersourced" }));
-ok("owner days not owner-sourced", !M.isOwnerSourcedLead({ leadSource: "owner" }));
-ok("label owner days", M.leadSourceLabel("owner") === "Owner’s days" || M.leadSourceLabel("owner").indexOf("Owner") === 0);
+ok("label owner alias", M.leadSourceLabel("owner") === "Owner-sourced");
 ok("label owner-sourced", M.leadSourceLabel("ownersourced") === "Owner-sourced");
 {
   const cb = M.leadCommissionParts({
@@ -454,33 +456,10 @@ ok("label owner-sourced", M.leadSourceLabel("ownersourced") === "Owner-sourced")
   const base = 4000 / 1.21;
   ok("clickboat base before VAT", Math.abs(cb.base - base) < 0.05, "got " + cb.base);
   ok("clickboat 24% of base", Math.abs(cb.total - base * 0.24) < 0.05, "got " + cb.total);
-  const own = M.leadCommissionParts({
-    leadSource: "owner",
-    total: 4000,
-    vatMode: "include",
-    vatPct: 21,
-  });
-  ok("owner comm total 0", own.total === 0);
-  ok("owner benefit base > 0", own.base > 0);
+  /* owner source aliases to ownersourced — no separate benefits bucket */
   ok(
-    "owner benefit included when confirmed",
-    M.ownerBenefitIncluded({ leadSource: "owner", dealClosed: true })
-  );
-  ok(
-    "owner benefit included legacy (saved, no flag)",
-    M.ownerBenefitIncluded({ id: "own1", leadSource: "owner" })
-  );
-  ok(
-    "owner unconfirmed not in benefits",
-    !M.ownerBenefitIncluded({ id: "own2", leadSource: "owner", dealClosed: false })
-  );
-  ok(
-    "owner draft (no id) not in benefits until confirm",
-    !M.ownerBenefitIncluded({ leadSource: "owner" })
-  );
-  ok(
-    "owner benefit excluded when flagged",
-    !M.ownerBenefitIncluded({ id: "own3", leadSource: "owner", dealClosed: true, ownerBenefitExclude: true })
+    "aliased owner never owner benefit",
+    !M.ownerBenefitIncluded({ id: "own1", leadSource: "owner", dealClosed: true })
   );
   ok(
     "ownersourced never owner benefit",
@@ -492,8 +471,40 @@ ok("label owner-sourced", M.leadSourceLabel("ownersourced") === "Owner-sourced")
     vatMode: "include",
     vatPct: 21,
   });
+  const osBase = 4000 / 1.21;
   ok("ownersourced base before VAT > 0", os.base > 0);
-  ok("ownersourced commission 0 for now", os.total === 0);
+  ok("ownersourced provider commission 10%", Math.abs(os.total - osBase * 0.1) < 0.05, "got " + os.total);
+  ok("ownersourced force 15%", Math.abs(M.leadCommissionParts({ leadSource: "ownersourced", total: 4000, vatMode: "include", vatPct: 21 }, 15).total - osBase * 0.15) < 0.05);
+  {
+    const osLead = {
+      leadSource: "ownersourced",
+      start: "2026-05-10",
+      dur: "8h",
+      deps: "Not issued",
+      fins: "Not issued",
+      apas: "Not issued",
+    };
+    const list = M.ownerSourcedListPrice(osLead);
+    ok("OS list 8h low €3000", list === 3000, "got " + list);
+    const notional = M.ownerSourcedNotionalPrice(osLead);
+    ok("OS notional list−20%", Math.abs(notional - 2400) < 0.05, "got " + notional);
+    ok("OS recognized 0 without invoice", M.ownerSourcedRecognizedIncome(osLead) === 0);
+    ok("OS possible loss = notional", Math.abs(M.ownerSourcedPossibleLoss(osLead) - 2400) < 0.05);
+    const fair = M.ownerSourcedCommissionParts(osLead);
+    ok("OS forgone at 10%", Math.abs(fair.forgoneComm - (2400 / 1.21) * 0.1) < 0.05, "got " + fair.forgoneComm);
+    ok("OS income comm 0 when nothing issued", fair.incomeComm === 0);
+    const issued = Object.assign({}, osLead, { deps: "Issued", dep: 1000, fins: "Paid", fin: 1400 });
+    ok("OS recognized dep+fin", Math.abs(M.ownerSourcedRecognizedIncome(issued) - 2400) < 0.05);
+    ok("OS loss 0 when fully invoiced at notional", M.ownerSourcedPossibleLoss(issued) === 0);
+    const partial = Object.assign({}, osLead, { deps: "Issued", dep: 500 });
+    ok("OS partial recognized 500", M.ownerSourcedRecognizedIncome(partial) === 500);
+    ok("OS partial loss 1900", Math.abs(M.ownerSourcedPossibleLoss(partial) - 1900) < 0.05);
+    const fair15 = M.ownerSourcedCommissionParts(osLead, 15);
+    ok("OS forgone force 15%", Math.abs(fair15.forgoneComm - (2400 / 1.21) * 0.15) < 0.05);
+    const high = { leadSource: "ownersourced", start: "2026-07-15", dur: "4h" };
+    ok("OS list 4h high €2200", M.ownerSourcedListPrice(high) === 2200);
+    ok("OS notional 4h high −20%", Math.abs(M.ownerSourcedNotionalPrice(high) - 1760) < 0.05);
+  }
   ok("cash dest boat default", M.leadCashDest({ split: true, cashAmt: 1800 }) === "boat");
   ok("cash dest owner", M.leadCashDest({ cashDest: "owner" }) === "owner");
   ok(

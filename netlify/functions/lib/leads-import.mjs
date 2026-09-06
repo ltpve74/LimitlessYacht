@@ -53,6 +53,7 @@ export function constrainLeadSource(v) {
     s === "owner_income"
   )
     return "ownersourced";
+  /* Boat is commercial — former owner’s days / private → owner-sourced */
   if (
     s === "owner" ||
     s === "owners" ||
@@ -64,7 +65,7 @@ export function constrainLeadSource(v) {
     s === "owner_use" ||
     s === "private"
   )
-    return "owner";
+    return "ownersourced";
   if (s === "other" || s === "agency" || s === "manager") return "other";
   return "other";
 }
