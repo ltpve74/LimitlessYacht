@@ -1151,15 +1151,20 @@ function summarizeBoatFreeCashCommission(leads, todayYmd) {
 /**
  * Realised “so far” net for Finance:
  *   white net (before VAT − white commissions)
- *   + boat free cash received
- *   − commission on that boat free cash
+ *   + boat envelope cash-ins to date (Expenses cash-ins: owner top-ups, ATM,
+ *     auto-synced lead/charge free cash, … — balanced books)
+ *   − commission on lead free cash to boat
  *   − petty cash expenses (cash left the boat) to date
- * All commissions take from net. Owner pocket cash is never in doneNet.
+ *
+ * Do NOT also add freeCashBoat on top of envelope cash-ins (auto-sync would
+ * double-count). freeCashBoat is kept for labels only.
+ * All commissions take from net.
  *
  * @param {{
  *   whiteEx?: number,
  *   whiteComm?: number,
  *   cashRealised?: { boat?: number, owner?: number, total?: number, n?: number, boatN?: number, ownerN?: number, items?: Array },
+ *   cashIns?: number,
  *   cashExpenses?: number,
  *   cashCommission?: number
  * }} opts
@@ -1172,14 +1177,18 @@ function summarizeRealisedNetGlimpse(opts) {
   var cash = opts.cashRealised || {};
   var cashBoat = round2(num(cash.boat));
   var cashOwner = round2(num(cash.owner));
+  /* Prefer full envelope cash-ins; fall back to lead free cash only if none passed */
+  var cashIns =
+    opts.cashIns != null ? round2(Math.max(0, num(opts.cashIns))) : cashBoat;
   var cashExpenses = round2(Math.max(0, num(opts.cashExpenses)));
   var cashCommission = round2(Math.max(0, num(opts.cashCommission)));
-  var cashNet = round2(cashBoat - cashCommission - cashExpenses);
+  var cashNet = round2(cashIns - cashCommission - cashExpenses);
   var doneNet = round2(whiteNet + cashNet);
   return {
     whiteEx: ex,
     whiteComm: comm,
     whiteNet: whiteNet,
+    cashIns: cashIns,
     cashBoat: cashBoat,
     cashOwner: cashOwner,
     cashExpenses: cashExpenses,

@@ -31,6 +31,9 @@
     input = input || {};
     var models = M(input);
     var cash = models.summarizeLeadCashIncomeRealised(input.leads || [], input.today || "");
+    var cashIn = models.summarizePettyCashInToDate
+      ? models.summarizePettyCashInToDate(input.expPetty || [], input.today || "")
+      : { total: 0 };
     var cashExp = models.summarizePettyCashOutToDate
       ? models.summarizePettyCashOutToDate(input.expenses || [], input.today || "")
       : { total: 0 };
@@ -41,6 +44,7 @@
       whiteEx: input.whiteEx,
       whiteComm: input.whiteComm,
       cashRealised: cash,
+      cashIns: cashIn.total || 0,
       cashExpenses: cashExp.total || 0,
       cashCommission: cashComm.total || 0,
     });
@@ -209,6 +213,9 @@
       chargeExtAmt: models.chargeExtAmt,
     });
     var freeCash = models.summarizeLeadCashIncomeRealised(input.leads || [], input.today || "");
+    var cashIn = models.summarizePettyCashInToDate
+      ? models.summarizePettyCashInToDate(input.expPetty || [], input.today || "")
+      : { total: 0 };
     var cashExp = models.summarizePettyCashOutToDate
       ? models.summarizePettyCashOutToDate(input.expenses || [], input.today || "")
       : { total: 0 };
@@ -219,10 +226,12 @@
       whiteEx: dash.done.ex,
       whiteComm: dash.done.comm,
       cashRealised: freeCash,
+      cashIns: cashIn.total || 0,
       cashExpenses: cashExp.total || 0,
       cashCommission: cashComm.total || 0,
     });
     dash.glimpse = glimpse;
+    dash.cashIns = cashIn;
     dash.cashExpenses = cashExp;
     dash.cashCommission = cashComm;
     dash.cashLedger = boatCashLedger(input);

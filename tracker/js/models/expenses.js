@@ -1414,6 +1414,57 @@ function collectPettyCashInsFromMonths(expPetty) {
 }
 
 /**
+ * All boat-envelope cash-ins up to today (Expenses cash-ins across months).
+ * Includes owner top-ups, ATM, auto-synced lead/charge free cash, etc.
+ * This is the balanced counterpart to petty cash-outs — not “lead free cash only”.
+ */
+function summarizePettyCashInToDate(expPetty, todayYmd) {
+  var today = String(todayYmd || "").slice(0, 10);
+  var hasToday = /^\d{4}-\d{2}-\d{2}$/.test(today);
+  var tot = 0;
+  var autoTot = 0;
+  var manualTot = 0;
+  var n = 0;
+  var autoN = 0;
+  var manualN = 0;
+  var items = [];
+  collectPettyCashInsFromMonths(expPetty).forEach(function (r) {
+    if (!r) return;
+    var d = String(r.date || "").slice(0, 10);
+    if (!/^\d{4}-\d{2}-\d{2}$/.test(d) && r.month) d = String(r.month).slice(0, 7) + "-01";
+    if (hasToday && /^\d{4}-\d{2}-\d{2}$/.test(d) && d > today) return;
+    var amt = num(r.amount);
+    if (!(amt > 0.009)) return;
+    var auto = isAutoSyncedEnvelopeCashIn(r);
+    tot = round2(tot + amt);
+    n++;
+    if (auto) {
+      autoTot = round2(autoTot + amt);
+      autoN++;
+    } else {
+      manualTot = round2(manualTot + amt);
+      manualN++;
+    }
+    items.push({
+      id: r.id,
+      amount: amt,
+      date: d,
+      label: String(r.source || r.note || r.notes || "Cash in").trim() || "Cash in",
+      auto: auto,
+    });
+  });
+  return {
+    total: tot,
+    n: n,
+    items: items,
+    autoTotal: autoTot,
+    autoN: autoN,
+    manualTotal: manualTot,
+    manualN: manualN,
+  };
+}
+
+/**
  * Petty cash left the boat (cash expenses) up to today — for Finance net.
  * Sums expenseHitsPettyCash amounts with date ≤ todayYmd (or all if no today).
  */
@@ -3347,6 +3398,7 @@ function summarizeMonthSettlement(opts) {
     collapseCrewDayPayExpenses: collapseCrewDayPayExpenses,
     clearCrewFloatPayOnEmptyEnvelope: clearCrewFloatPayOnEmptyEnvelope,
     planClearCrewFloatPayOnEmptyEnvelope: planClearCrewFloatPayOnEmptyEnvelope,
+    summarizePettyCashInToDate: summarizePettyCashInToDate,
     summarizePettyCashOutToDate: summarizePettyCashOutToDate,
     summarizePettyCash: summarizePettyCash,
     summarizePettyMonthClose: summarizePettyMonthClose,

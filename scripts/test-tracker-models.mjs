@@ -533,11 +533,41 @@ ok("label owner-sourced", M.leadSourceLabel("ownersourced") === "Owner-sourced")
     ok("glimpse white net 900", Math.abs(g.whiteNet - 900) < 0.05);
     ok("glimpse cash net 300", Math.abs(g.cashNet - 300) < 0.05);
     ok("cash expenses subtract from doneNet", Math.abs(g.doneNet - 1200) < 0.05, "got " + g.doneNet);
+    /* Owner wage top-up €2000 must enter net via cashIns (balanced books) */
+    const gBal = M.summarizeRealisedNetGlimpse({
+      whiteEx: 1000,
+      whiteComm: 100,
+      cashRealised: { boat: 500, owner: 0, total: 500, n: 1, boatN: 1, ownerN: 0, items: [] },
+      cashIns: 2000 + 500, /* owner top-up + synced free cash — do NOT also add cashBoat */
+      cashExpenses: 2000, /* wages paid from petty */
+      cashCommission: 75, /* commission on free cash only */
+    });
+    ok("glimpse cashIns preferred over free cash alone", Math.abs(gBal.cashIns - 2500) < 0.05, "got " + gBal.cashIns);
+    ok("owner top-up balances wage out in doneNet", Math.abs(gBal.doneNet - (900 + 2500 - 75 - 2000)) < 0.05, "got " + gBal.doneNet);
+    ok("free cash label kept when cashIns passed", Math.abs(gBal.cashBoat - 500) < 0.05);
     const out = M.summarizePettyCashOutToDate([
       { amount: 50, date: "2026-08-01", floatPay: true, paidFrom: "Petty cash", category: "Provisions" },
       { amount: 999, date: "2026-09-01", floatPay: true, paidFrom: "Petty cash", category: "Provisions" },
     ], "2026-08-15");
     ok("petty out to-date excludes future", Math.abs(out.total - 50) < 0.05, "got " + out.total);
+    const cin = M.summarizePettyCashInToDate(
+      [
+        {
+          month: "2026-08",
+          cashIns: [
+            { id: "own-wage", amount: 2000, date: "2026-08-01", source: "Owner · wages top-up" },
+            { id: "lead-cash:L1", fromLeadId: "L1", kind: "charter-fee", amount: 500, date: "2026-08-02" },
+            { id: "atm", amount: 100, date: "2026-08-03", source: "ATM" },
+            { id: "future", amount: 999, date: "2026-09-01", source: "Later" },
+          ],
+        },
+      ],
+      "2026-08-15"
+    );
+    ok("cash-in to-date includes owner top-up", Math.abs(cin.total - 2600) < 0.05, "got " + cin.total);
+    ok("cash-in to-date excludes future", cin.n === 3);
+    ok("cash-in manual = owner + ATM", Math.abs(cin.manualTotal - 2100) < 0.05, "got " + cin.manualTotal);
+    ok("cash-in auto = synced free cash", Math.abs(cin.autoTotal - 500) < 0.05, "got " + cin.autoTotal);
   }
 
   }
@@ -2433,6 +2463,76 @@ console.log("\n[Leads — realised cash + glimpse]");
   ok("glimpse subtracts cash expenses", near(g2.doneNet, 1100));
   ok("glimpse cashNet boat−comm−exp", near(g2.cashNet, 250));
   ok("all commissions take from net", near(g2.doneNet, 850 + 500 - 50 - 200));
+  /* Envelope cashIns includes owner top-up; free cash not double-counted */
+  const g3 = M.summarizeRealisedNetGlimpse({
+    whiteEx: 1000,
+    whiteComm: 150,
+    cashRealised: { boat: 500, owner: 200, total: 700, n: 2, boatN: 1, ownerN: 1, items: [] },
+    cashIns: 2500, /* 2000 owner + 500 synced free cash */
+    cashExpenses: 2000,
+    cashCommission: 50,
+  });
+  ok("glimpse uses cashIns not cashBoat+cashIns", near(g3.cashIns, 2500));
+  ok("glimpse doneNet balanced with owner top-up", near(g3.doneNet, 850 + 2500 - 50 - 2000));
+  ok("dashboard cashIns feeds glimpse without double free cash", (() => {
+    const dash = C.leads.moneyDashboard({
+      models: M,
+      month: "2026-08",
+      pettyStart: 0,
+      leads: [
+        {
+          id: "L-boat",
+          name: "Boat free",
+          start: "2026-08-01",
+          captainLead: true,
+          dealClosed: true,
+          split: true,
+          invoiceTotal: 2000,
+          cashAmt: 500,
+          cashSettled: true,
+          cashDest: "boat",
+          fins: "Paid",
+        },
+      ],
+      charters: [],
+      expenses: [
+        {
+          id: "wage",
+          date: "2026-08-05",
+          amount: 2000,
+          category: "Crew Salaries",
+          source: "manual",
+          paidFrom: "Petty cash",
+          payMethod: "Cash",
+          crewPayStatus: "Paid",
+        },
+      ],
+      expPetty: [
+        {
+          month: "2026-08",
+          cashIns: [
+            { id: "own-wage", amount: 2000, date: "2026-08-01", source: "Owner · wages" },
+            {
+              id: "lead-cash:L-boat",
+              fromLeadId: "L-boat",
+              kind: "charter-fee",
+              amount: 500,
+              date: "2026-08-01",
+            },
+          ],
+          pettyStart: 0,
+        },
+      ],
+      today: "2026-08-10",
+    });
+    return (
+      near(dash.cashIns.total, 2500) &&
+      near(dash.cashIns.manualTotal, 2000) &&
+      near(dash.glimpse.cashIns, 2500) &&
+      near(dash.glimpse.cashBoat, 500) &&
+      near(dash.glimpse.doneNet, dash.glimpse.whiteNet + 2500 - dash.glimpse.cashCommission - 2000)
+    );
+  })());
 }
 
 /* ---- Pending + projected free cash (owner PDF) ---- */

@@ -1210,7 +1210,7 @@
 
     <!-- FINANCE (commercial — lead book money dashboard) -->
     <section id="tab-finance" class="hidden">
-      <div class="legend" style="margin-bottom:10px"><b>Finance:</b> business to date, projected book, free cash, boat petty (same as Expenses), and source split (Captain / Click&amp;Boat / Owner-sourced). Open <b>Leads</b> for the charter book.</div>
+      <div class="legend" style="margin-bottom:10px"><b>Finance:</b> business to date, projected book, boat envelope cash-ins (owner top-ups / ATM / free cash) vs petty outs, boat petty (same as Expenses), and source split (Captain / Click&amp;Boat / Owner-sourced). Open <b>Leads</b> for the charter book.</div>
       <div class="ld-summary" id="ldSummary">
         <!-- Always-on: business to date + projection for confirmed future -->
         <div class="ld-glimpse" id="ldSnap">
@@ -1273,7 +1273,7 @@
                 <span><em style="font-style:normal;color:var(--muted);font-weight:600">Before VAT (white / invoice base)</em><span class="m money" id="ldDoneEx">€0</span></span>
                 <span><em style="font-style:normal;color:var(--muted);font-weight:600">− Commissions</em><span class="m money" id="ldDoneComm">€0</span></span>
                 <span><em style="font-style:normal;color:var(--muted);font-weight:600">= White net</em><span class="m money" id="ldDoneWhiteNet">€0</span></span>
-                <span><em style="font-style:normal;color:var(--muted);font-weight:600">+ Free cash → boat</em><span class="m money" id="ldCashInNet">€0</span></span>
+                <span><em style="font-style:normal;color:var(--muted);font-weight:600">+ Boat cash-ins (envelope)</em><span class="m money" id="ldCashInNet">€0</span></span>
                 <span><em style="font-style:normal;color:var(--muted);font-weight:600">− Commission on free cash</em><span class="m money" id="ldCashCommNet">€0</span></span>
                 <span><em style="font-style:normal;color:var(--muted);font-weight:600">− Cash expenses (petty out)</em><span class="m money" id="ldCashExpNet">€0</span></span>
                 <span style="margin-top:4px;padding-top:6px;border-top:1px solid var(--line)"><em style="font-style:normal;font-weight:800;color:var(--ink,#1a1a1a)">= Net so far</em><span class="m money" id="ldDoneNetDetail" style="font-weight:800">€0</span></span>
@@ -1285,11 +1285,12 @@
                 <span><em style="font-style:normal;color:var(--muted);font-weight:600">· upsell commissions</em><span class="m money" id="ldDoneUpsellComm">€0</span></span>
               </div>
               <div class="ld-snap-cash" id="ldCashSnap" style="margin-top:12px">
-                <div class="k">Free cash · received on sailed deals</div>
+                <div class="k">Boat cash-ins · to date (balanced books)</div>
                 <div class="big money" id="ldCashTot">€0</div>
-                <div class="s" id="ldCashSub">Boat free cash is added to net · petty cash expenses are subtracted</div>
+                <div class="s" id="ldCashSub">Owner top-ups, ATM, free cash synced to envelope · petty outs subtracted</div>
                 <div class="lines">
-                  <span><em style="font-style:normal;color:var(--muted);font-weight:600">→ Boat free cash (in net)</em><span class="m money" id="ldCashBoat">€0</span></span>
+                  <span><em style="font-style:normal;color:var(--muted);font-weight:600">→ Envelope cash-ins (in net)</em><span class="m money" id="ldCashBoat">€0</span></span>
+                  <span><em style="font-style:normal;color:var(--muted);font-weight:600">· of which lead free cash</em><span class="m money" id="ldCashFreeBoat">€0</span></span>
                   <span><em style="font-style:normal;color:var(--muted);font-weight:600">→ Cash expenses / petty out (−)</em><span class="m money" id="ldCashExpLine">€0</span></span>
                 </div>
                 <div class="ld-cash-items" id="ldCashItems"></div>
@@ -1312,7 +1313,7 @@
                 <div class="ld-snap-row"><span class="k">Unconfirmed / tentative</span><span class="v" id="ldAwait">0</span><span class="s" id="ldAwaitSub">Not in money totals</span></div>
                 <div class="ld-snap-row"><span class="k">Owner days (notional)</span><span class="v money" id="ldOwn">€0</span><span class="s" id="ldOwnSub">List-rate · not cash</span></div>
               </div>
-              <div class="ld-snap-note">Net so far = white (before VAT − commissions) <b>+ free cash to the boat − commission on that cash − petty cash expenses</b>. All commissions take from net. Boat cash panel below uses the same Expenses petty figures for the current month.</div>
+              <div class="ld-snap-note">Net so far = white (before VAT − commissions) <b>+ all boat envelope cash-ins − commission on lead free cash − petty cash expenses</b>. Cash-ins include owner top-ups / ATM / synced free cash so books stay balanced. Owner-money wages (paid outside the envelope) do not hit this cash side. All commissions take from net. Boat cash panel below uses the same Expenses petty figures for the current month.</div>
             </div>
             <div class="sumcard ld-src">
               <div class="ld-src-head">
@@ -6108,6 +6109,7 @@ function renderLeads(){
         models:LY_MODELS,
         leads:state.leads||[],
         expenses:state.expenses||[],
+        expPetty:state.expPetty||[],
         today:leadTodayYmd(),
         whiteEx:done.ex,
         whiteComm:done.comm
@@ -6124,11 +6126,12 @@ function renderLeads(){
     items:glimpse.cashItems||[]
   };
   var whiteNet=glimpse.whiteNet!=null?glimpse.whiteNet:Math.round(Math.max(0, (done.ex||0)-(done.comm||0))*100)/100;
-  var cashBoat=glimpse.cashBoat||0;
+  var cashBoat=glimpse.cashBoat||0; /* lead free cash → boat (label only; not added on top of envelope) */
   var cashOwner=glimpse.cashOwner||0;
+  var cashIns=glimpse.cashIns!=null?glimpse.cashIns:((dash.cashIns&&dash.cashIns.total)!=null?dash.cashIns.total:cashBoat);
   var cashExpenses=glimpse.cashExpenses!=null?glimpse.cashExpenses:((dash.cashExpenses&&dash.cashExpenses.total)||0);
   var cashCommission=glimpse.cashCommission!=null?glimpse.cashCommission:((dash.cashCommission&&dash.cashCommission.total)||0);
-  var doneNet=glimpse.doneNet!=null?glimpse.doneNet:Math.round((whiteNet+cashBoat-cashCommission-cashExpenses)*100)/100;
+  var doneNet=glimpse.doneNet!=null?glimpse.doneNet:Math.round((whiteNet+cashIns-cashCommission-cashExpenses)*100)/100;
   /* Glimpse: business to date (realised) + projection (confirmed future) */
   if(el("ldDoneTot")) el("ldDoneTot").textContent=money(done.tot);
   if(el("ldDoneNet")) el("ldDoneNet").textContent=money(doneNet);
@@ -6140,10 +6143,10 @@ function renderLeads(){
   if(el("ldNetFormula")){
     var bits=
       'Net = (before VAT <b class="money">'+money(done.ex)+'</b> − commissions <b class="money">'+money(done.comm)+'</b>)'+
-      ' + boat free cash <b class="money">'+money(cashBoat)+'</b>'+
+      ' + boat cash-ins <b class="money">'+money(cashIns)+'</b>'+
       ' − cash commission <b class="money">'+money(cashCommission)+'</b>'+
       ' − cash expenses <b class="money">'+money(cashExpenses)+'</b>';
-    if(cashBoat>0.009||cashCommission>0.009||cashExpenses>0.009||done.comm>0.009||done.ex>0.009){
+    if(cashIns>0.009||cashCommission>0.009||cashExpenses>0.009||done.comm>0.009||done.ex>0.009){
       bits+=' → <b class="money">'+money(doneNet)+'</b>';
     }
     el("ldNetFormula").innerHTML=bits;
@@ -6185,46 +6188,55 @@ function renderLeads(){
   }
   if(el("ldBookedNote")){
     el("ldBookedNote").textContent=
-      "Gross total = so far + projected future · White net = before VAT − commissions · Net so far = white net + boat free cash − cash commissions − petty cash expenses";
+      "Gross total = so far + projected future · White net = before VAT − commissions · Net so far = white net + boat envelope cash-ins − cash commissions − petty cash expenses";
   }
   if(el("ldDoneCharters")) el("ldDoneCharters").textContent=money(done.charters);
   if(el("ldDoneUpsell")) el("ldDoneUpsell").textContent=money(done.upsell);
   if(el("ldDoneEx")) el("ldDoneEx").textContent=money(done.ex);
   if(el("ldDoneComm")) el("ldDoneComm").textContent=money(done.comm);
   if(el("ldDoneWhiteNet")) el("ldDoneWhiteNet").textContent=money(whiteNet);
-  if(el("ldCashInNet")) el("ldCashInNet").textContent=money(cashBoat);
+  if(el("ldCashInNet")) el("ldCashInNet").textContent=money(cashIns);
   if(el("ldCashCommNet")) el("ldCashCommNet").textContent=money(cashCommission);
   if(el("ldCashExpNet")) el("ldCashExpNet").textContent=money(cashExpenses);
   if(el("ldDoneNetDetail")) el("ldDoneNetDetail").textContent=money(doneNet);
   if(el("ldDoneUpsellComm")) el("ldDoneUpsellComm").textContent=money(done.upsellComm);
-  /* Cash: boat free cash in net; petty outs subtracted; no owner-pocket tracking */
-  if(el("ldCashTot")) el("ldCashTot").textContent=money(cashBoat);
-  if(el("ldCashBoat")) el("ldCashBoat").textContent=money(cashBoat);
+  /* Cash: all envelope cash-ins in net (owner top-ups + ATM + synced free cash); petty outs subtracted */
+  if(el("ldCashTot")) el("ldCashTot").textContent=money(cashIns);
+  if(el("ldCashBoat")) el("ldCashBoat").textContent=money(cashIns);
+  if(el("ldCashFreeBoat")) el("ldCashFreeBoat").textContent=money(cashBoat);
   if(el("ldCashExpLine")) el("ldCashExpLine").textContent=money(cashExpenses);
   if(el("ldCashSub")){
-    var cn=cashDone.boatN||0;
-    el("ldCashSub").textContent=cn
-      ?(cn+" boat free-cash deal"+(cn===1?"":"s")+" received · sailed/today · expenses "+money(cashExpenses)+" subtracted in net")
+    var cin=dash.cashIns||{};
+    var cnIn=cin.n||0;
+    var cnFree=cashDone.boatN||0;
+    var manN=cin.manualN||0;
+    el("ldCashSub").textContent=cnIn
+      ?(cnIn+" cash-in line"+(cnIn===1?"":"s")+" to date"+
+        (manN?" · "+manN+" manual/owner/ATM":"")+
+        (cnFree?" · "+cnFree+" free-cash deal"+(cnFree===1?"":"s"):"")+
+        " · expenses "+money(cashExpenses)+" subtracted in net")
       :(cashExpenses>0.009
-        ?"No boat free cash received yet · petty cash expenses "+money(cashExpenses)+" still subtracted in net"
-        :"No boat free cash received on sailed deals yet");
+        ?"No envelope cash-ins yet · petty cash expenses "+money(cashExpenses)+" still subtracted in net — add owner top-ups / ATM in Expenses so books balance"
+        :"No boat envelope cash-ins recorded yet");
   }
   if(el("ldCashItems")){
-    var items=(cashDone.items||[]).filter(function(it){ return it&&it.dest!=="owner"; });
-    if(!items.length){
-      el("ldCashItems").innerHTML='<div class="meta" style="margin-top:6px">Empty until a split lead has free cash to the boat marked received on a sailed/today charter.</div>';
+    var envItems=(dash.cashIns&&dash.cashIns.items)||[];
+    if(!envItems.length){
+      el("ldCashItems").innerHTML='<div class="meta" style="margin-top:6px">Empty until Expenses has cash-ins (owner top-up, ATM, or free cash synced to the boat envelope).</div>';
     } else {
-      el("ldCashItems").innerHTML=items.map(function(it){
+      el("ldCashItems").innerHTML=envItems.slice(0,12).map(function(it){
         var dateLab="";
-        try{ dateLab=it.start?fmtDate(it.start):""; }catch(eD){ dateLab=it.start||""; }
+        try{ dateLab=it.date?fmtDate(it.date):""; }catch(eD){ dateLab=it.date||""; }
         return '<div class="ld-cash-item">'+
-          '<span class="nm">'+esc(it.name||"—")+'</span>'+
-          '<span class="am money">'+money(it.cash)+'</span>'+
-          '<span class="meta">'+esc(dateLab)+(dateLab?" · ":"")+'Boat free cash'+
-            (it.source?' · '+esc(leadSourceLabel(it.source)):"")+
+          '<span class="nm">'+esc(it.label||"Cash in")+'</span>'+
+          '<span class="am money">'+money(it.amount)+'</span>'+
+          '<span class="meta">'+esc(dateLab)+(dateLab?" · ":"")+(it.auto?"Synced free cash / charge":"Manual / owner / ATM")+
           '</span>'+
         '</div>';
-      }).join("");
+      }).join("")+
+      (envItems.length>12
+        ?'<div class="meta" style="margin-top:4px">+'+(envItems.length-12)+' more · see Expenses cash-ins</div>'
+        :"");
     }
   }
   /* Boat cash = Expenses petty (same summarizePettyCash) */
