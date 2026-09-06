@@ -33,14 +33,23 @@ var BILL_TYPES = { cash: 1, invoice: 1, mix: 1 };
  * Charter book source (commission assignment):
  *  - captain = website or direct contact (default CAPTAIN_COMMISSION_PCT; per-lead stamp optional)
  *  - clickboat = Paul / Click&Boat (24% before VAT)
- *  - owner = owner’s days / private guests (no income, no commission; owner benefits)
- *  - ownersourced = owner-sourced commercial charter (income; commission 0 for now, may add later)
+ *  - ownersourced = owner-sourced commercial charter (boat is commercial; former “owner days”
+ *    alias here). Income when invoiced; list−20% notional; provider commission 10% (preview 15%)
+ *    is the owner’s hypothetical take if they played fair — NOT captain petty pay.
+ *  - owner = deprecated alias → ownersourced (kept in LEAD_SOURCES for raw reads only)
  *  - dayoff = vessel closed / day off (blocks calendar; no income, no cost)
  *  - other = legacy / unknown (no commission)
  */
 var LEAD_SOURCES = { pending: 1, captain: 1, clickboat: 1, owner: 1, ownersourced: 1, dayoff: 1, other: 1 };
-/** Owner-sourced charters: income, no commission yet (raise when agreed). */
-var OWNER_SOURCED_COMMISSION_PCT = 0;
+/**
+ * Owner-sourced provider commission (fairness / what-if for the owner as a business provider).
+ * Book default 10%; target / preview 15% — same toggle pattern as captain, but this is NOT
+ * captain pay-from-petty.
+ */
+var OWNER_SOURCED_COMMISSION_PCT = 10;
+var OWNER_SOURCED_COMMISSION_TARGET_PCT = 15;
+/** Owner-sourced notional commercial price = public list × (1 − discount). */
+var OWNER_SOURCED_LIST_DISCOUNT = 0.2;
 /**
  * Public charter fee table (VAT included “from” rates on the site).
  * High season = Jul–Aug (month index 6–7). Multi-day uses full-day rate × nights/days.
@@ -161,40 +170,66 @@ function leadCaptainBookRatePct(r, forcePct) {
 }
 
 /**
+ * Owner-sourced provider rate: book 10%, or forcePct (15% preview).
+ * Not captain petty — fairness display for the owner as a provider.
+ */
+function leadOwnerSourcedBookRatePct(forcePct) {
+  var forced = parseCaptainCommPct(forcePct);
+  if (forced != null) return forced;
+  return OWNER_SOURCED_COMMISSION_PCT;
+}
+
+/**
  * Commission rate % for this lead’s source (0 = none).
+ * Owner-sourced returns the provider rate (10%/force) for breakdown math —
+ * UI must NOT add it to captain pay-from-petty (use leadEarnsCaptainCommission).
  * @param {object} r lead
- * @param {number|object} [forceOrOpts] force captain % (preview) or { forceCaptainPct }
+ * @param {number|object} [forceOrOpts] force % (captain or OS preview) or
+ *   { forceCaptainPct, forceOwnerSourcedPct }
  */
 function leadCommissionRatePct(r, forceOrOpts) {
-  var forcePct = null;
+  var forceCapt = null;
+  var forceOs = null;
   if (forceOrOpts != null && typeof forceOrOpts === "object") {
-    forcePct = forceOrOpts.forceCaptainPct;
+    forceCapt = forceOrOpts.forceCaptainPct;
+    forceOs = forceOrOpts.forceOwnerSourcedPct;
+    /* Single forcePct applies to the active source when set */
+    if (forceOrOpts.forcePct != null) {
+      forceCapt = forceOrOpts.forcePct;
+      forceOs = forceOrOpts.forcePct;
+    }
   } else if (forceOrOpts != null) {
-    forcePct = forceOrOpts;
+    forceCapt = forceOrOpts;
+    forceOs = forceOrOpts;
   }
   var src = leadSource(r);
   if (src === "pending" || src === "dayoff") return 0;
-  if (src === "captain") return leadCaptainBookRatePct(r, forcePct);
+  if (src === "captain") return leadCaptainBookRatePct(r, forceCapt);
   if (src === "clickboat") return CLICKBOAT_COMMISSION_PCT;
-  if (src === "ownersourced") return OWNER_SOURCED_COMMISSION_PCT;
+  if (src === "ownersourced") return leadOwnerSourcedBookRatePct(forceOs);
   return 0;
 }
 
-/** Captain or Click&Boat — any payable commission line. */
+/** Captain or Click&Boat — payable commission lines (excludes owner-sourced provider). */
 function leadEarnsCommission(r) {
-  return leadCommissionRatePct(r) > 0;
+  var src = leadSource(r);
+  if (src === "captain" || src === "clickboat") return leadCommissionRatePct(r) > 0;
+  return false;
 }
 
 function isClickboatLead(r) {
   return leadSource(r) === "clickboat";
 }
 
-/** True owner’s days / private guests — not business income. */
+/**
+ * Legacy owner’s days — always false once constrain aliases owner → ownersourced.
+ * Kept for APA/diesel call sites during migration; prefer isOwnerSourcedLead.
+ */
 function isOwnerLead(r) {
   return leadSource(r) === "owner";
 }
 
-/** Owner-sourced commercial charter — counts as income; commission may be 0 for now. */
+/** Owner-sourced commercial charter — income when invoiced; provider commission what-if. */
 function isOwnerSourcedLead(r) {
   return leadSource(r) === "ownersourced";
 }
@@ -406,6 +441,7 @@ function constrainLeadSource(v) {
     s === "owner_income"
   )
     return "ownersourced";
+  /* Boat is commercial — former owner’s days / private aliases → owner-sourced */
   if (
     s === "owner" ||
     s === "owners" ||
@@ -417,7 +453,7 @@ function constrainLeadSource(v) {
     s === "owner_use" ||
     s === "private"
   )
-    return "owner";
+    return "ownersourced";
   if (s === "other" || s === "agency" || s === "manager") return "other";
   return LEAD_SOURCES[s] ? s : "other";
 }
@@ -427,7 +463,7 @@ function leadSourceLabel(src) {
   if (s === "pending") return "Pending source";
   if (s === "captain") return "Captain";
   if (s === "clickboat") return "Click&Boat (Paul)";
-  if (s === "owner") return "Owner’s days";
+  if (s === "owner") return "Owner-sourced"; /* legacy label if raw slips through */
   if (s === "ownersourced") return "Owner-sourced";
   if (s === "dayoff") return "Day off (closed)";
   return "Other";
@@ -1532,13 +1568,11 @@ function leadCommissionWhiteBeforeVat(r) {
 /**
  * Lead commission breakdown (numbers only — UI formats strings).
  * Rate from source: captain default 10% (or per-lead stamp / force preview),
- * clickboat 24%, ownersourced 0% (for now), owner/other 0%.
+ * clickboat 24%, ownersourced provider 10% (force 15% preview) — not captain petty.
  * Split: rate × white before VAT + rate × cash black.
  * Normal VAT-include: rate × (total÷1.21).
- * Owner’s days: total commission 0; base still = charter before VAT (owner benefit value).
- * Owner-sourced: income line; commission 0 until OWNER_SOURCED_COMMISSION_PCT is raised.
  * @param {object} r lead
- * @param {number|object} [forceOrOpts] force captain % for what-if preview
+ * @param {number|object} [forceOrOpts] force % for what-if preview
  */
 function leadCommissionParts(r, forceOrOpts) {
   var ratePct = leadCommissionRatePct(r, forceOrOpts);
@@ -1657,6 +1691,115 @@ function leadCommissionAmt(r) {
   return leadCommissionParts(r).total;
 }
 
+function leadInvLineIssuedOrPaid(status) {
+  var s = String(status || "").trim();
+  return s === "Issued" || s === "Paid";
+}
+
+/**
+ * Public list price for a lead’s duration/season (VAT-in), before owner-sourced discount.
+ */
+function ownerSourcedListPrice(r) {
+  if (!r) return 0;
+  var start = String(r.start || r.cdate || "").slice(0, 10);
+  var end = String(r.end || r.start || r.cdate || "").slice(0, 10);
+  var season = charterSeason(start);
+  var table = CHARTER_RATES[season] || CHARTER_RATES.low;
+  var dur = String(r.dur || r.duration || "").toLowerCase().trim();
+  var days = num(r.days);
+  if (!(days > 0)) days = charterCalendarDays(start, end, !!r.allDay, r.daysList);
+  if (dur === "multi" || (days > 1 && dur !== "4h" && dur !== "6h" && dur !== "8h")) {
+    return round2((table.day || 0) * Math.max(1, days));
+  }
+  if (dur === "4h" || dur === "6h" || dur === "8h") {
+    return round2(table[dur] != null ? table[dur] : table["8h"]);
+  }
+  var fromEv = charterPriceFromEvent({
+    start: start,
+    end: end,
+    startTime: r.startTime,
+    endTime: r.endTime,
+    allDay: r.allDay,
+    days: r.daysList,
+    summary: String(r.notes || r.name || "") + (dur ? " " + dur : ""),
+  });
+  return round2(fromEv && fromEv.total > 0 ? fromEv.total : table["8h"]);
+}
+
+/** Notional commercial price = list × (1 − 20%). Prefer stamped ownerSourcedNotional. */
+function ownerSourcedNotionalPrice(r) {
+  if (!r) return 0;
+  var stamped = num(r.ownerSourcedNotional);
+  if (stamped > 0) return round2(stamped);
+  var list = ownerSourcedListPrice(r);
+  if (!(list > 0)) return 0;
+  return round2(list * (1 - OWNER_SOURCED_LIST_DISCOUNT));
+}
+
+/**
+ * Money that entered the commercial books for an owner-sourced charter:
+ * Issued/Paid deposit + final + APA, plus received free cash.
+ */
+function ownerSourcedRecognizedIncome(r) {
+  if (!r) return 0;
+  var sum = 0;
+  if (leadInvLineIssuedOrPaid(r.deps)) sum += num(r.dep);
+  if (leadInvLineIssuedOrPaid(r.fins)) sum += num(r.fin);
+  if (leadInvLineIssuedOrPaid(r.apas)) sum += num(r.apa);
+  try {
+    if (leadFreeCashIsReceived(r)) sum += leadFreeCashAmt(r) || num(r.cashAmt);
+  } catch (e) {
+    if (r.cashSettled === true || r.cashSettled === "true" || r.cashSettled === 1) {
+      sum += num(r.cashAmt);
+    }
+  }
+  return round2(sum);
+}
+
+/** Possible lost income = notional − recognized (floored at 0). */
+function ownerSourcedPossibleLoss(r) {
+  return round2(Math.max(0, ownerSourcedNotionalPrice(r) - ownerSourcedRecognizedIncome(r)));
+}
+
+/**
+ * Owner-sourced fairness breakdown (provider commission — not captain petty).
+ * @param {object} r lead
+ * @param {number|object} [forceOrOpts] force provider % (10 book / 15 preview)
+ */
+function ownerSourcedCommissionParts(r, forceOrOpts) {
+  var ratePct = leadOwnerSourcedBookRatePct(
+    forceOrOpts != null && typeof forceOrOpts === "object"
+      ? forceOrOpts.forceOwnerSourcedPct != null
+        ? forceOrOpts.forceOwnerSourcedPct
+        : forceOrOpts.forcePct
+      : forceOrOpts
+  );
+  var pctRate = ratePct / 100;
+  var notional = ownerSourcedNotionalPrice(r);
+  var recognized = ownerSourcedRecognizedIncome(r);
+  var loss = round2(Math.max(0, notional - recognized));
+  var vatPct = commissionVatPct(r);
+  function beforeVat(gross) {
+    if (!(gross > 0)) return 0;
+    return round2(gross / (1 + vatPct / 100));
+  }
+  var incomeBase = beforeVat(recognized);
+  var lossBase = beforeVat(loss);
+  var incomeComm = round2(incomeBase * pctRate);
+  var forgoneComm = round2(lossBase * pctRate);
+  return {
+    notional: notional,
+    list: ownerSourcedListPrice(r),
+    recognized: recognized,
+    loss: loss,
+    incomeBase: incomeBase,
+    lossBase: lossBase,
+    incomeComm: incomeComm,
+    forgoneComm: forgoneComm,
+    ratePct: ratePct,
+    discount: OWNER_SOURCED_LIST_DISCOUNT,
+  };
+}
 
   return {
     CAPTAIN_COMMISSION_PCT: CAPTAIN_COMMISSION_PCT,
@@ -1665,6 +1808,8 @@ function leadCommissionAmt(r) {
     BILL_TYPES: BILL_TYPES,
     LEAD_SOURCES: LEAD_SOURCES,
     OWNER_SOURCED_COMMISSION_PCT: OWNER_SOURCED_COMMISSION_PCT,
+    OWNER_SOURCED_COMMISSION_TARGET_PCT: OWNER_SOURCED_COMMISSION_TARGET_PCT,
+    OWNER_SOURCED_LIST_DISCOUNT: OWNER_SOURCED_LIST_DISCOUNT,
     CHARTER_RATES: CHARTER_RATES,
     leadHasSplit: leadHasSplit,
     leadIsCashOnlyDeal: leadIsCashOnlyDeal,
@@ -1676,11 +1821,17 @@ function leadCommissionAmt(r) {
     leadEarnsCaptainCommission: leadEarnsCaptainCommission,
     parseCaptainCommPct: parseCaptainCommPct,
     leadCaptainBookRatePct: leadCaptainBookRatePct,
+    leadOwnerSourcedBookRatePct: leadOwnerSourcedBookRatePct,
     leadCommissionRatePct: leadCommissionRatePct,
     leadEarnsCommission: leadEarnsCommission,
     isClickboatLead: isClickboatLead,
     isOwnerLead: isOwnerLead,
     isOwnerSourcedLead: isOwnerSourcedLead,
+    ownerSourcedListPrice: ownerSourcedListPrice,
+    ownerSourcedNotionalPrice: ownerSourcedNotionalPrice,
+    ownerSourcedRecognizedIncome: ownerSourcedRecognizedIncome,
+    ownerSourcedPossibleLoss: ownerSourcedPossibleLoss,
+    ownerSourcedCommissionParts: ownerSourcedCommissionParts,
     leadIsDealClosed: leadIsDealClosed,
     leadCharterStartMonth: leadCharterStartMonth,
     leadCharterStartDay: leadCharterStartDay,

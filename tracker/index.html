@@ -1498,10 +1498,11 @@
         <div class="sumcard sum-ok"><div class="l">Net paid (after returns)</div><div class="v money" id="cmCaptPaid">€0</div></div>
         <div class="sumcard sum-warn"><div class="l">Still outstanding</div><div class="v money" id="cmCaptOpen">€0</div></div>
         <div class="sumcard"><div class="l">Click&amp;Boat · paid</div><div class="v money" id="cmCbTot">€0</div></div>
-        <div class="sumcard"><div class="l">Owner benefits · notional</div><div class="v money" id="cmOwnTot">€0</div></div>
+        <div class="sumcard sum-warn"><div class="l">OS possible lost income</div><div class="v money" id="cmOsLoss">€0</div></div>
+        <div class="sumcard"><div class="l">OS forgone provider comm</div><div class="v money" id="cmOsForgone">€0</div></div>
         <div class="sumcard"><div class="l">Owner pocket · received</div><div class="v money" id="cmOwnPocket">€0</div></div>
       </div>
-      <div class="legend">Same rules as <b>Leads</b>: confirmed commercial deals only. <b>Captain</b> agreed <span id="cmLegendPct">10</span>% + upsells (toggle below to preview 15%) — take cash via <b>Pay from petty</b> (reduces boat float). <b>Click&amp;Boat</b> 24% treated as paid after platform deduction. Owner-sourced / owner’s days as before.</div>
+      <div class="legend">Same rules as <b>Leads</b>: confirmed commercial deals only. <b>Captain</b> agreed <span id="cmLegendPct">10</span>% + upsells (toggle to preview 15%) — take cash via <b>Pay from petty</b>. <b>Click&amp;Boat</b> 24% treated as paid. <b>Owner-sourced</b>: provider fairness commission (10%/15% toggle) + possible lost income — not captain pay. Owner’s days retired.</div>
       <div class="list" id="cmList"></div>
     </section>
 
@@ -1748,6 +1749,9 @@ function canCommercial(){ return isCaptain()||isManager(); }
 var CAPTAIN_COMMISSION_PCT=(window.LY_MODELS&&LY_MODELS.CAPTAIN_COMMISSION_PCT)||10;
 var CAPTAIN_COMMISSION_TARGET_PCT=(window.LY_MODELS&&LY_MODELS.CAPTAIN_COMMISSION_TARGET_PCT)||15;
 var CLICKBOAT_COMMISSION_PCT=(window.LY_MODELS&&LY_MODELS.CLICKBOAT_COMMISSION_PCT)||24;
+var OWNER_SOURCED_COMMISSION_PCT=(window.LY_MODELS&&LY_MODELS.OWNER_SOURCED_COMMISSION_PCT)||10;
+var OWNER_SOURCED_COMMISSION_TARGET_PCT=(window.LY_MODELS&&LY_MODELS.OWNER_SOURCED_COMMISSION_TARGET_PCT)||15;
+var OWNER_SOURCED_LIST_DISCOUNT=(window.LY_MODELS&&LY_MODELS.OWNER_SOURCED_LIST_DISCOUNT)!=null?LY_MODELS.OWNER_SOURCED_LIST_DISCOUNT:0.2;
 /** Commissions tab: show target % for what-if (local only; pay from petty stays on agreed book rates). */
 var CM_PREVIEW_LS_KEY="ly_capt_comm_preview_pct";
 function captCommPreviewOn(){
@@ -1759,6 +1763,21 @@ function setCaptCommPreview(on){
 /** Force rate for display when previewing target; null = agreed/stamped book rates. */
 function captCommForcePct(){
   return captCommPreviewOn()?CAPTAIN_COMMISSION_TARGET_PCT:null;
+}
+/** Owner-sourced provider commission preview (fairness what-if — not captain petty). */
+var OS_PREVIEW_LS_KEY="ly_os_comm_preview_pct";
+function osCommPreviewOn(){
+  try{ return safeGet(OS_PREVIEW_LS_KEY)==="1"||safeGet(OS_PREVIEW_LS_KEY)==="15"; }catch(e){ return false; }
+}
+function setOsCommPreview(on){
+  try{ if(on) safeSet(OS_PREVIEW_LS_KEY,"1"); else safeDel(OS_PREVIEW_LS_KEY); }catch(e){}
+}
+function osCommForcePct(){
+  return osCommPreviewOn()?OWNER_SOURCED_COMMISSION_TARGET_PCT:null;
+}
+function ownerSourcedCommissionParts(r, forcePct){
+  if(LY_MODELS&&LY_MODELS.ownerSourcedCommissionParts) return LY_MODELS.ownerSourcedCommissionParts(r, forcePct);
+  return {notional:0,list:0,recognized:0,loss:0,incomeBase:0,lossBase:0,incomeComm:0,forgoneComm:0,ratePct:OWNER_SOURCED_COMMISSION_PCT,discount:OWNER_SOURCED_LIST_DISCOUNT};
 }
 if(!window.LY_MODELS){
   console.error("[tracker] LY_MODELS missing — load /tracker/js/models/*.js then index.js");
@@ -2762,7 +2781,7 @@ function renderOpsHub(){
     {id:"diesel",ic:"⛽",t:"Diesel",d:"Bunker & sell by date (€/L each load)"},
     {id:"stews",ic:"👩‍✈️",t:"Stews",d:"Confirmed charters only · day pay & tips"},
     {id:"expenses",ic:"💶",t:"Expenses",d:"Monthly boat ledger + export for manager", capOnly:true},
-    {id:"commissions",ic:"💸",t:"Commissions",d:"Captain "+CAPTAIN_COMMISSION_PCT+"% (preview "+CAPTAIN_COMMISSION_TARGET_PCT+"%) · Paul "+CLICKBOAT_COMMISSION_PCT+"% · Owner-sourced · Owner’s days", capOnly:true}
+    {id:"commissions",ic:"💸",t:"Commissions",d:"Captain "+CAPTAIN_COMMISSION_PCT+"% (preview "+CAPTAIN_COMMISSION_TARGET_PCT+"%) · Paul "+CLICKBOAT_COMMISSION_PCT+"% · Owner-sourced provider "+OWNER_SOURCED_COMMISSION_PCT+"% / lost income", capOnly:true}
   ];
   /* Manager: Calendar + Diesel + Stews (not APA / Expenses / Commissions) */
   if(isManager()&&!isCaptain()){
@@ -5870,8 +5889,13 @@ function renderLeads(){
       (calKey?'<span class="pill p-grey">Cal linked</span>':'')+
       (isCaptain()&&closed&&src==="captain"&&leadCommissionRatePct(r)>0?'<span class="pill p-green">Comm '+money(leadCommissionAmt(r))+' ('+leadCommissionRatePct(r)+'%)</span>':'')+
       (isCaptain()&&closed&&src==="clickboat"&&leadCommissionRatePct(r)>0?'<span class="pill p-amber">Paul comm '+money(leadCommissionAmt(r))+' ('+leadCommissionRatePct(r)+'%)</span>':'')+
-      (isCaptain()&&closed&&isOwnerSrc?'<span class="pill p-own">Income · 0% commission</span>':'')+
-      (isCaptain()&&ownerConfirmed?'<span class="pill p-own">No boat income · owner benefit</span>':'')+
+      (isCaptain()&&closed&&isOwnerSrc?(function(){
+        var fair=ownerSourcedCommissionParts(r, osCommForcePct());
+        if(fair.loss>0.009) return '<span class="pill p-amber">Possible lost income '+money0(fair.loss)+'</span>';
+        if(fair.recognized>0.009) return '<span class="pill p-own">In books · provider '+fair.ratePct+'%</span>';
+        return '<span class="pill p-own">Owner-sourced</span>';
+      })():'')+
+      (isCaptain()&&ownerConfirmed?'<span class="pill p-own">Legacy owner’s days</span>':'')+
       (openN>0?'<span class="pill p-amber">'+openN+' invoice'+(openN>1?'s':'')+' open</span>':'')+
       (dueCh.length>1?'<span class="pill p-amber">'+dueCh.length+' charges unpaid</span>':'');
     if(!isOwner&&!isSplit){
@@ -5886,23 +5910,13 @@ function renderLeads(){
       (metaBits?'<div class="meta">'+metaBits+'</div>':'')+
       (isOwner?"":leadSplitSummaryHTML(r))+
       (isOwner
-        ?'<div class="notes" style="font-style:normal;color:var(--muted)">Owner’s days — private use or friend pays the owner directly. No income, no commission — list-rate notional (owner benefits).</div>'
+        ?'<div class="notes" style="font-style:normal;color:var(--muted)">Legacy owner’s days — re-save as Owner-sourced (boat is commercial).</div>'
         :'')+
       (isOwnerSrc?(function(){
-        var w=leadHasSplit(r)?(Number(r.invoiceTotal)>0?Number(r.invoiceTotal):(Number(r.invoiceNet)||0)):(Number(r.total)||0);
-        var cash=leadHasSplit(r)?(leadFreeCashAmt(r)||0):0;
-        var dest=leadCashDest(r);
-        var bits='Owner-sourced — business income. ';
-        if(leadHasSplit(r)){
-          bits+='Invoiced <b class="money">'+money0(w)+'</b>';
-          if(cash>0){
-            if(dest==="owner") bits+=' · <b>owner pocket</b> <b class="money">'+money0(cash)+'</b> (income, not boat float)'+(leadOwnerPocketCashAmt(r)>0?"":" · pending receive");
-            else bits+=' · boat cash <b class="money">'+money0(cash)+'</b>'+(leadFreeCashIsOnBoat(r)?"":" · pending");
-          }
-        } else {
-          bits+='Invoiced/client <b class="money">'+money0(w)+'</b>';
-        }
-        bits+='. Commission 0% for now.';
+        var fair=ownerSourcedCommissionParts(r, osCommForcePct());
+        var bits='Owner-sourced — notional <b class="money">'+money0(fair.notional)+'</b> (list − '+(Math.round(OWNER_SOURCED_LIST_DISCOUNT*100))+'%) · in books <b class="money">'+money0(fair.recognized)+'</b>';
+        if(fair.loss>0.009) bits+=' · <b style="color:var(--amberDeep)">possible lost income '+money0(fair.loss)+'</b>';
+        bits+=' · provider '+fair.ratePct+'%: on books '+money0(fair.incomeComm)+(fair.forgoneComm>0.009?' · forgone '+money0(fair.forgoneComm):'');
         return '<div class="notes" style="font-style:normal;color:var(--muted)">'+bits+'</div>';
       })():'')+
       (isOwner?"":('<div class="invtags">'+
@@ -6378,25 +6392,39 @@ function renderLeads(){
     nToDate: cbN,
     foot: cbBookComm>0.009?("Paul comm booked "+money(cbBookComm)):""
   });
-  /* Owner-sourced */
-  if(el("ldOsComm")) el("ldOsComm").textContent=money(osComm);
+  /* Owner-sourced — provider fairness (not captain petty); surface lost income */
+  var osLossDash=0, osForgoneDash=0, osIncomeCommDash=0;
+  (state.leads||[]).forEach(function(L){
+    if(!L||leadIsCancelled(L)||leadSource(L)!=="ownersourced") return;
+    if(!leadIsDealClosed(L)) return;
+    var fair=ownerSourcedCommissionParts(L, osCommForcePct());
+    osLossDash+=fair.loss||0;
+    osForgoneDash+=fair.forgoneComm||0;
+    osIncomeCommDash+=fair.incomeComm||0;
+  });
+  if(el("ldOsComm")) el("ldOsComm").textContent=money(osIncomeCommDash);
   if(el("ldOsCommStatus")){
-    if(osComm>0.009||((dash.ownersourced&&dash.ownersourced.proj&&dash.ownersourced.proj.comm)||0)>0.009){
-      el("ldOsCommStatus").textContent=osComm>0.009?"Open":"Projected";
+    if(osLossDash>0.009){
+      el("ldOsCommStatus").textContent="Lost income";
+      el("ldOsCommStatus").className="ld-comm-pill outstanding";
+    } else if(osIncomeCommDash>0.009){
+      el("ldOsCommStatus").textContent="Provider "+OWNER_SOURCED_COMMISSION_PCT+"%";
       el("ldOsCommStatus").className="ld-comm-pill outstanding";
     } else {
-      el("ldOsCommStatus").textContent="No commission";
+      el("ldOsCommStatus").textContent="Owner-sourced";
       el("ldOsCommStatus").className="ld-comm-pill none";
     }
   }
   var osFoot=[];
+  if(osLossDash>0.009) osFoot.push("possible lost income "+money(osLossDash));
+  if(osForgoneDash>0.009) osFoot.push("forgone provider "+money(osForgoneDash));
   if(osWhite>0.009) osFoot.push("white "+money(osWhite));
   if(osBoat>0.009) osFoot.push("boat cash "+money(osBoat));
   if(osPocket>0.009) osFoot.push("owner pocket "+money(osPocket));
   if(osCashPend>0.009) osFoot.push("cash pending "+money(osCashPend));
   ldSrcPaintMatrix("ldOs", dash.ownersourced, {
     grossToDate: osTot,
-    netToDate: Math.max(0, osExVat-osComm),
+    netToDate: Math.max(0, osExVat-osIncomeCommDash),
     nToDate: osN,
     foot: osFoot.join(" · ")
   });
@@ -6508,7 +6536,7 @@ function renderLeads(){
         if(o&&Number(o.sameDayCount)>0){
           if(!window.confirm("Import this calendar charter?\n\n"+lab+"\n\n⚠ There is already "+o.sameDayCount+" lead(s) on that date"+(o.sameDayNames&&o.sameDayNames.length?": "+o.sameDayNames.join(", "):"")+".\n\nOnly import if this is a different booking (not a duplicate).")) return;
         } else {
-          if(!window.confirm("Import this one as a new pending lead?\n\n"+lab+"\n\nThen set source (Owner-sourced / Owner’s days / Captain / Paul).")) return;
+          if(!window.confirm("Import this one as a new pending lead?\n\n"+lab+"\n\nThen set source (Owner-sourced / Captain / Paul).")) return;
         }
         btn.disabled=true; btn.textContent="Importing…";
         api("restoreIcsOrphans",{eventKeys:[key]}).then(function(j){
@@ -17725,7 +17753,7 @@ function stewSourcePillHTML(ev){
   if(src==="pending") return '<span class="pill p-amber">Pending source</span>';
   if(src==="captain") return '<span class="pill p-blue">Captain</span>';
   if(src==="clickboat") return '<span class="pill p-amber">Click&amp;Boat</span>';
-  if(src==="owner") return '<span class="pill p-own">Owner’s days</span>';
+  if(src==="owner") return '<span class="pill p-own">Owner-sourced</span>';
   if(src==="ownersourced") return '<span class="pill p-own">Owner-sourced</span>';
   if(src==="other") return '<span class="pill p-grey">Other</span>';
   var lab=typeof leadSourceLabel==="function"?leadSourceLabel(src):src;
@@ -20862,14 +20890,16 @@ function renderCommissions(){
   /*
    * Same closed-deal model as Leads summary:
    *  - commercial commission lines = leadIsClosedDeal only (not tentative)
-   *  - owner’s days benefits = ownerBenefitIncluded only (confirmed + not toggled off)
-   *  - unconfirmed owner days listed separately, never inflate benefits total
-   *  - captain upsells = charges with captainComm (same as Leads captain card)
-   * Preview toggle forces CAPTAIN_COMMISSION_TARGET_PCT for display only;
-   * pay-from-petty always uses agreed book rates (default 10% + per-lead stamps).
+   *  - owner-sourced = provider fairness commission (NOT captain petty) + lost income
+   *  - legacy owner’s days bucket emptied by alias → ownersourced
+   *  - captain upsells = charges with captainComm
+   * Captain preview forces CAPTAIN_COMMISSION_TARGET_PCT; OS preview forces
+   * OWNER_SOURCED_COMMISSION_TARGET_PCT. Pay-from-petty = captain book rates only.
    */
   var previewOn=captCommPreviewOn();
   var forceDisp=previewOn?CAPTAIN_COMMISSION_TARGET_PCT:null;
+  var osPreviewOn=osCommPreviewOn();
+  var osForce=osCommForcePct();
   var captItems=[], cbItems=[], ownItems=[], ownTentItems=[], ownSrcItems=[], extItems=[];
   var captBookCom=0, extBookCom=0;
   (state.leads||[]).forEach(function(r){
@@ -20877,7 +20907,8 @@ function renderCommissions(){
     var src=leadSource(r);
     var p=leadCommissionParts(r, forceDisp);
     var pBook=previewOn?leadCommissionParts(r, null):p;
-    var row={sort:String(r.closed||r.start||""), title:r.name||"—", total:p.total, base:p.base, p:p, pBook:pBook, kind:"lead", rec:r, src:src};
+    var osFair=src==="ownersourced"?ownerSourcedCommissionParts(r, osForce):null;
+    var row={sort:String(r.closed||r.start||""), title:r.name||"—", total:p.total, base:p.base, p:p, pBook:pBook, osFair:osFair, kind:"lead", rec:r, src:src};
     if(src==="captain"){
       if(leadIsClosedDeal(r)){
         captItems.push(row);
@@ -20886,10 +20917,12 @@ function renderCommissions(){
     } else if(src==="clickboat"){
       if(leadIsClosedDeal(r)) cbItems.push(row);
     } else if(src==="owner"){
+      /* Legacy only — constrain now aliases owner → ownersourced */
       if(leadIsDealClosed(r)) ownItems.push(row);
       else ownTentItems.push(row);
     } else if(src==="ownersourced"){
-      if(leadIsClosedDeal(r)) ownSrcItems.push(row);
+      /* Include confirmed deals; also list open OS days so lost-income is visible */
+      if(leadIsDealClosed(r)) ownSrcItems.push(row);
     }
   });
   (state.charters||[]).forEach(function(c){
@@ -20921,8 +20954,16 @@ function renderCommissions(){
     if(ownerBenefitIncluded(it.rec)) ownVal+=it.base;
     else ownExcluded+=it.base; /* confirmed but toggled off */
   });
+  var osLossTot=0, osRecognizedTot=0, osNotionalTot=0, osIncomeCommTot=0, osForgoneTot=0;
   ownSrcItems.forEach(function(it){
     ownSrcBase+=it.base; ownSrcCom+=it.total;
+    var fair=it.osFair||ownerSourcedCommissionParts(it.rec, osForce);
+    it.osFair=fair;
+    osNotionalTot+=fair.notional||0;
+    osRecognizedTot+=fair.recognized||0;
+    osLossTot+=fair.loss||0;
+    osIncomeCommTot+=fair.incomeComm||0;
+    osForgoneTot+=fair.forgoneComm||0;
   });
   /* Owner pocket cash — same story as Leads cash income (closed commercial + received for sumcard) */
   (state.leads||[]).forEach(function(r){
@@ -20944,8 +20985,8 @@ function renderCommissions(){
     });
   });
   ownPocketItems.sort(bySort);
-  /* Payable commission only — owner benefits / pocket are not commission */
-  var comTot=captCom+cbCom+ownSrcCom+extCom;
+  /* Payable to captain from petty — never owner-sourced provider commission */
+  var comTot=captCom+cbCom+extCom;
 
   function leadCommCard(it, pillHtml){
     var r=it.rec, p=it.p, rate=p.ratePct!=null?p.ratePct:0;
@@ -20967,26 +21008,25 @@ function renderCommissions(){
         h+='<div class="notes" style="font-style:normal;color:var(--muted)">'+esc(p.detail)+'</div>';
       }
     } else if(it.src==="ownersourced"){
+      var fair=it.osFair||ownerSourcedCommissionParts(r, osForce);
       var pocket=leadOwnerPocketCashAmt(r);
       var cashN=leadFreeCashAmt(r)||0;
-      var whiteA=0;
-      if(leadHasSplit(r)){
-        whiteA=Number(r.invoiceTotal)>0?Number(r.invoiceTotal):(Number(r.invoiceNet)||0);
-      } else {
-        whiteA=Number(r.total)||Number(r.base)||0;
-      }
       var dest=leadCashDest(r);
       h+='<div class="notes" style="font-style:normal;line-height:1.5;color:var(--muted)">'+
-        '<div>Client total <b class="money">'+money(leadClientTotal(r)||Number(r.total)||0)+'</b> · commission 0%</div>'+
-        '<div>Invoiced (white) <b class="money">'+money(whiteA)+'</b></div>'+
-        (leadHasSplit(r)
-          ?(dest==="owner"
-            ?('<div><b>Owner pocket</b> <b class="money">'+money(cashN)+'</b> — income in owner’s pocket'+(pocket>0?" · received":" · not received yet")+' · not boat float</div>')
-            :('<div>Boat cash <b class="money">'+money(cashN)+'</b>'+(leadFreeCashIsOnBoat(r)?" · in petty":" · pending")+'</div>'))
+        '<div>Notional (list − '+(Math.round(OWNER_SOURCED_LIST_DISCOUNT*100))+'%) <b class="money">'+money(fair.notional)+'</b></div>'+
+        '<div>In the books (issued/paid) <b class="money">'+money(fair.recognized)+'</b></div>'+
+        (fair.loss>0.009
+          ?('<div style="color:var(--amberDeep)"><b>Possible lost income</b> <b class="money">'+money(fair.loss)+'</b> — may have gone to owner pocket; exact amount unknown</div>')
+          :'<div style="color:var(--greenInk)">Fully in commercial books</div>')+
+        '<div>Provider commission at '+fair.ratePct+'%: on books <b class="money">'+money(fair.incomeComm)+'</b>'+
+          (fair.forgoneComm>0.009?' · <span style="color:var(--amberDeep)">forgone if fair <b class="money">'+money(fair.forgoneComm)+'</b></span>':'')+
+        '</div>'+
+        (leadHasSplit(r)&&dest==="owner"
+          ?('<div>Owner pocket cash <b class="money">'+money(cashN)+'</b>'+(pocket>0?" · received":" · not received yet")+'</div>')
           :'')+
       '</div>';
     } else {
-      h+='<div class="notes" style="font-style:normal;color:var(--muted)">Before VAT <b class="money">'+money(p.base)+'</b> · no commission (owner’s days)</div>';
+      h+='<div class="notes" style="font-style:normal;color:var(--muted)">Before VAT <b class="money">'+money(p.base)+'</b></div>';
     }
     h+='</div>';
     return h;
@@ -21145,38 +21185,49 @@ function renderCommissions(){
     html+='<div class="meta" style="margin:0 0 14px">No confirmed Click&amp;Boat deals yet.</div>';
   }
 
-  html+='<div class="apa-sect-h"><h3>Owner-sourced · income · 0% commission</h3></div>';
-  html+='<p style="margin:0 0 10px;font-size:12.5px;color:var(--muted);line-height:1.4">Confirmed owner-referred commercial charters only (same as Leads). Split deals show <b>invoiced (white)</b> vs <b>cash in owner’s pocket</b>. Commission <b>0%</b> for now — not payable commission.</p>';
-  var osInvTot=0, osPocketSrc=0, osBoatSrc=0, osClientTot=0, osPocketPend=0;
+  html+='<div class="apa-card" style="margin-bottom:12px" id="cmOsRateToggleCard">'+
+    '<div style="font-weight:800;margin-bottom:6px">Owner-sourced · provider commission (fairness)</div>'+
+    '<div class="meta" style="margin-bottom:10px;line-height:1.45">'+
+      'Not captain pay. This is the <b>hypothetical commission the owner</b> would earn as a business provider if days were booked like other commercial sources — book <b>'+OWNER_SOURCED_COMMISSION_PCT+'%</b>, preview <b>'+OWNER_SOURCED_COMMISSION_TARGET_PCT+'%</b>. '+
+      'Notional price = public list − '+(Math.round(OWNER_SOURCED_LIST_DISCOUNT*100))+'%. Issued/paid invoices count as income; the rest is <b>possible lost income</b> (may have gone to owner pocket).'+
+    '</div>'+
+    '<div style="display:flex;flex-wrap:wrap;gap:8px;align-items:center">'+
+      '<button type="button" class="btn'+(osPreviewOn?' ghost':'')+'" id="cmOsRateAgreed" style="width:auto;padding:8px 14px">Book '+OWNER_SOURCED_COMMISSION_PCT+'%</button>'+
+      '<button type="button" class="btn'+(osPreviewOn?'':' ghost')+'" id="cmOsRatePreview" style="width:auto;padding:8px 14px">Preview '+OWNER_SOURCED_COMMISSION_TARGET_PCT+'%</button>'+
+    '</div>'+
+  '</div>';
+  if(osLossTot>0.009||osForgoneTot>0.009||osIncomeCommTot>0.009){
+    html+='<div class="exp-alert '+(osLossTot>0.009?'owe':'ok')+'" style="margin-bottom:12px">'+
+      '<div style="font-weight:900;margin-bottom:4px">Commercial books vs possible loss</div>'+
+      '<div style="font-size:13px;line-height:1.45">'+
+        'Notional commercial value <b class="money">'+money(osNotionalTot)+'</b> · in the books <b class="money">'+money(osRecognizedTot)+'</b>'+
+        (osLossTot>0.009
+          ?(' · <b style="color:var(--amberDeep)">possible lost income <span class="money">'+money(osLossTot)+'</span></b> — soft reminder that those days take money away from the commercial enterprise.')
+          :' · fully captured.')+
+      '</div>'+
+      '<div style="font-size:13px;margin-top:8px;line-height:1.45">Provider commission at '+(osForce||OWNER_SOURCED_COMMISSION_PCT)+'%: on books <b class="money">'+money(osIncomeCommTot)+'</b>'+
+        (osForgoneTot>0.009?' · <b style="color:var(--amberDeep)">forgone if played fair <span class="money">'+money(osForgoneTot)+'</span></b>':'')+
+      '.</div>'+
+    '</div>';
+  }
+  html+='<div class="apa-sect-h"><h3>Owner-sourced · '+(osForce||OWNER_SOURCED_COMMISSION_PCT)+'% provider · lost income</h3></div>';
+  html+='<p style="margin:0 0 10px;font-size:12.5px;color:var(--muted);line-height:1.4">Owner-referred commercial days (former owner’s days included). Gentle fairness view — not a captain payout.</p>';
   if(ownSrcItems.length){
     ownSrcItems.forEach(function(it){
       var r=it.rec;
-      osClientTot+=leadClientTotal(r)||Number(r.total)||0;
-      if(leadHasSplit(r)){
-        osInvTot+=Number(r.invoiceTotal)>0?Number(r.invoiceTotal):(Number(r.invoiceNet)||0);
-        var cN=leadFreeCashAmt(r)||0;
-        if(leadCashDest(r)==="owner"){
-          osPocketSrc+=cN;
-          if(cN>0&&!leadFreeCashIsReceived(r)) osPocketPend+=cN;
-        } else osBoatSrc+=cN;
-      } else {
-        osInvTot+=Number(r.total)||Number(r.base)||0;
-      }
-      var pills='<span class="pill p-own">Owner-sourced</span><span class="pill p-green">Income</span>';
+      var fair=it.osFair||ownerSourcedCommissionParts(r, osForce);
+      var pills='<span class="pill p-own">Owner-sourced</span>';
+      if(fair.loss>0.009) pills+='<span class="pill p-amber">Possible lost income</span>';
+      else if(fair.recognized>0.009) pills+='<span class="pill p-green">In books</span>';
       if(leadHasSplit(r)&&leadCashDest(r)==="owner"){
         pills+='<span class="pill p-own">Cash → owner pocket</span>';
-        if(leadOwnerPocketCashAmt(r)>0) pills+='<span class="pill p-green">Pocket received</span>';
       }
       html+=leadCommCard(it, pills);
     });
-    html+='<div class="meta" style="margin:0 0 6px">Client total <b class="money">'+money(osClientTot)+'</b> <span style="color:var(--muted)">(business income · not commission)</span></div>';
-    html+='<div class="meta" style="margin:0 0 6px">· Invoiced (white) <b class="money">'+money(osInvTot)+'</b></div>';
-    html+='<div class="meta" style="margin:0 0 6px">· Owner pocket cash <b class="money">'+money(osPocketSrc)+'</b> <span style="color:var(--muted)">(income in owner’s pocket · not boat float)</span>'+
-      (osPocketPend>0?' · <span style="color:#9a6b00">'+money(osPocketPend)+' not marked received</span>':'')+'</div>';
-    if(osBoatSrc>0) html+='<div class="meta" style="margin:0 0 6px">· Boat cash <b class="money">'+money(osBoatSrc)+'</b></div>';
-    html+='<div class="meta" style="margin:0 0 14px">Commission <b class="money">'+money(ownSrcCom)+'</b> (0% for now)</div>';
+    html+='<div class="meta" style="margin:0 0 6px">Notional <b class="money">'+money(osNotionalTot)+'</b> · in books <b class="money">'+money(osRecognizedTot)+'</b> · possible loss <b class="money">'+money(osLossTot)+'</b></div>';
+    html+='<div class="meta" style="margin:0 0 14px">Provider commission (not captain pay): on books <b class="money">'+money(osIncomeCommTot)+'</b> · forgone <b class="money">'+money(osForgoneTot)+'</b></div>';
   } else {
-    html+='<div class="meta" style="margin:0 0 14px">None confirmed yet — set source to <b>Owner-sourced</b> and confirm when we invoice an owner-referred guest.</div>';
+    html+='<div class="meta" style="margin:0 0 14px">None yet — set source to <b>Owner-sourced</b> for owner-referred commercial days.</div>';
   }
 
   html+='<div class="apa-sect-h"><h3>Owner pocket cash · income not on the boat</h3></div>';
@@ -21207,55 +21258,17 @@ function renderCommissions(){
     html+='<div class="meta" style="margin:0 0 14px">None yet — on a confirmed split lead set <b>Cash goes to · Owner’s pocket</b> (and tick <b>Cash received</b> when he has it).</div>';
   }
 
-  html+='<div class="apa-sect-h"><h3>Owner’s days · benefits (not commission)</h3></div>';
-  html+='<p style="margin:0 0 10px;font-size:12.5px;color:var(--muted);line-height:1.4">Private use or friend pays the owner directly — <b>no income</b>, <b>no commission</b>. Amount = charter before VAT (notional benefit). Only <b>confirmed</b> days count (same as Leads). <b>Untick</b> to drop a confirmed day from the total. Unconfirmed owner days are listed separately and never inflate the total.</p>';
-  if(ownItems.length){
-    ownItems.forEach(function(it){
-      var r=it.rec, p=it.p;
-      var on=ownerBenefitIncluded(r);
-      html+='<div class="item'+(on?"":" item--cancelled")+'">'+
-        '<div class="top"><div class="title">'+esc(r.name||"—")+'</div><div class="amt money">'+money(p.base)+'</div></div>'+
-        '<div class="meta">'+
-          (r.start?'<span>'+esc(fmtDate(r.start))+(r.end&&r.end!==r.start?"–"+esc(fmtDate(r.end)):"")+'</span>':'')+
-          '<span class="pill p-own">Owner’s days</span>'+
-          (on?'<span class="pill p-own-ok">In benefits</span>':'<span class="pill p-grey">Off total</span>')+
-        '</div>'+
-        '<label class="checkrow" style="margin-top:8px" data-own-benefit="'+esc(r.id)+'">'+
-          '<input type="checkbox"'+(on?" checked":"")+'>'+
-          '<span><div class="ck">Count in owner benefits total</div>'+
-          '<div class="ch">Notional before VAT '+money(p.base)+(on?"":" — currently excluded")+' · not commission</div></span></label>'+
-        '<button type="button" class="btn ghost" data-edit-ld="'+esc(r.id)+'" style="margin-top:8px;width:auto;padding:6px 12px;font-size:12px">Edit lead</button>'+
-      '</div>';
-    });
-    html+='<div class="meta" style="margin:0 0 14px"><b>Notional benefits</b> <b class="money">'+money(ownVal)+'</b> (not commission)'+
-      (ownExcluded>0?' · excluded '+money(ownExcluded):'')+'</div>';
-  }
-  if(ownTentItems.length){
-    html+='<div class="meta" style="margin:0 0 8px;color:#9a6b00;font-weight:650">'+ownTentItems.length+' unconfirmed owner’s day'+(ownTentItems.length===1?"":"s")+' — not in benefits total:</div>';
-    ownTentItems.forEach(function(it){
-      var r=it.rec, p=it.p;
-      html+='<div class="item item--tentative">'+
-        '<div class="top"><div class="title">'+esc(r.name||"—")+'</div><div class="amt money" style="opacity:.7">'+money(p.base)+'</div></div>'+
-        '<div class="meta">'+
-          (r.start?'<span>'+esc(fmtDate(r.start))+(r.end&&r.end!==r.start?"–"+esc(fmtDate(r.end)):"")+'</span>':'')+
-          '<span class="pill p-own">Owner’s days</span>'+
-          '<span class="pill p-amber">Unconfirmed</span>'+
-        '</div>'+
-        '<div class="notes" style="font-style:normal;color:#9a6b00">Confirm on the lead to count as notional benefit. Not commission.</div>'+
-        '<button type="button" class="btn ghost" data-edit-ld="'+esc(r.id)+'" style="margin-top:8px;width:auto;padding:6px 12px;font-size:12px">Confirm / edit</button>'+
-      '</div>';
-    });
-    html+='<div class="meta" style="margin:0 0 14px"></div>';
-  }
-  if(!ownItems.length&&!ownTentItems.length){
-    html+='<div class="meta" style="margin:0 0 14px">None yet — set source to <b>Owner’s days</b> for private use / friend-pays-owner trips.</div>';
-  } else if(!ownItems.length&&ownTentItems.length){
-    html+='<div class="meta" style="margin:0 0 14px">Benefits total <b class="money">€0</b> until at least one owner’s day is confirmed.</div>';
+  html+='<div class="apa-sect-h"><h3>Owner’s days (retired)</h3></div>';
+  html+='<p style="margin:0 0 10px;font-size:12.5px;color:var(--muted);line-height:1.4">The boat is commercial — former owner’s days now live under <b>Owner-sourced</b> (list − 20%, possible lost income, provider commission what-if). Run the DB migration if any raw <code>owner</code> rows remain.</p>';
+  if(ownItems.length||ownTentItems.length){
+    html+='<div class="meta" style="margin:0 0 14px;color:var(--amberDeep)">'+((ownItems.length||0)+(ownTentItems.length||0))+' legacy owner’s-day row(s) still on source <b>owner</b> — re-save or migrate to Owner-sourced.</div>';
+  } else {
+    html+='<div class="meta" style="margin:0 0 14px">Converted — nothing left in this bucket.</div>';
   }
 
   if(!captItems.length&&!cbItems.length&&!ownItems.length&&!ownTentItems.length&&!ownSrcItems.length&&!ownPocketItems.length&&!extItems.length&&!payouts.length){
     html=emptyBox("💸","No commission lines yet",
-      "Import calendar leads, set source to Captain / Click&amp;Boat / Owner’s days / Owner-sourced, confirm the deal, or mark extra hours with <b>I get commission</b>.");
+      "Import calendar leads, set source to Captain / Click&amp;Boat / Owner-sourced, confirm the deal, or mark extra hours with <b>I get commission</b>.");
   }
   wrap.innerHTML=html;
   /* Sumcards: earned = display rate; paid/open always book */
@@ -21263,7 +21276,9 @@ function renderCommissions(){
   if(el("cmCaptPaid")) el("cmCaptPaid").textContent=money(captPaid);
   if(el("cmCaptOpen")) el("cmCaptOpen").textContent=money(captOpen);
   if(el("cmCbTot")) el("cmCbTot").textContent=money(cbCom);
-  if(el("cmOwnTot")) el("cmOwnTot").textContent=money(ownVal);
+  if(el("cmOsLoss")) el("cmOsLoss").textContent=money(osLossTot);
+  if(el("cmOsForgone")) el("cmOsForgone").textContent=money(osForgoneTot);
+  if(el("cmOwnTot")) el("cmOwnTot").textContent=money(ownVal); /* legacy id */
   if(el("cmOwnPocket")) el("cmOwnPocket").textContent=money(ownPocketTot);
   if(el("cmTot")) el("cmTot").textContent=money(comTot);
   if(el("cmLegendPct")) el("cmLegendPct").textContent=String(previewOn?CAPTAIN_COMMISSION_TARGET_PCT:CAPTAIN_COMMISSION_PCT);
@@ -21281,6 +21296,18 @@ function renderCommissions(){
   if(el("cmRatePreview")){
     el("cmRatePreview").addEventListener("click",function(){
       setCaptCommPreview(true);
+      renderCommissions();
+    });
+  }
+  if(el("cmOsRateAgreed")){
+    el("cmOsRateAgreed").addEventListener("click",function(){
+      setOsCommPreview(false);
+      renderCommissions();
+    });
+  }
+  if(el("cmOsRatePreview")){
+    el("cmOsRatePreview").addEventListener("click",function(){
+      setOsCommPreview(true);
       renderCommissions();
     });
   }
@@ -21329,13 +21356,13 @@ function renderCommissions(){
 }
 function selLeadSourceField(val){
   var v=(LY_MODELS&&LY_MODELS.constrainLeadSource)?LY_MODELS.constrainLeadSource(val):String(val||"other");
-  if(v!=="pending"&&v!=="captain"&&v!=="clickboat"&&v!=="owner"&&v!=="ownersourced"&&v!=="dayoff"&&v!=="other") v="other";
+  if(v==="owner") v="ownersourced";
+  if(v!=="pending"&&v!=="captain"&&v!=="clickboat"&&v!=="ownersourced"&&v!=="dayoff"&&v!=="other") v="other";
   return '<select class="ctl" id="f_leadSource">'+
     '<option value="pending"'+(v==="pending"?" selected":"")+'>Pending source (assign me)</option>'+
     '<option value="captain"'+(v==="captain"?" selected":"")+'>Captain (website / direct — '+CAPTAIN_COMMISSION_PCT+'% default)</option>'+
     '<option value="clickboat"'+(v==="clickboat"?" selected":"")+'>Click&amp;Boat (Paul — '+CLICKBOAT_COMMISSION_PCT+'%)</option>'+
-    '<option value="owner"'+(v==="owner"?" selected":"")+'>Owner’s days (no income · benefits)</option>'+
-    '<option value="ownersourced"'+(v==="ownersourced"?" selected":"")+'>Owner-sourced (income · 0% commission for now)</option>'+
+    '<option value="ownersourced"'+(v==="ownersourced"?" selected":"")+'>Owner-sourced (list − 20% · provider '+OWNER_SOURCED_COMMISSION_PCT+'% / lost income)</option>'+
     '<option value="dayoff"'+(v==="dayoff"?" selected":"")+'>Day off (vessel closed · no earnings)</option>'+
     '<option value="other"'+(v==="other"?" selected":"")+'>Other (no commission)</option>'+
   '</select>';
