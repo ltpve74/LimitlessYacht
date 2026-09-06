@@ -433,8 +433,9 @@ ok("captain target constant 15", M.CAPTAIN_COMMISSION_TARGET_PCT === 15);
 ok("captain stamp 15%", M.leadCommissionRatePct({ leadSource: "captain", captainCommPct: 15 }) === 15);
 ok("captain force preview 15%", M.leadCommissionRatePct({ leadSource: "captain" }, 15) === 15);
 ok("stamp ignored when force 10", M.leadCommissionRatePct({ leadSource: "captain", captainCommPct: 15 }, 10) === 10);
-ok("ownersourced provider rate 10%", M.leadCommissionRatePct({ leadSource: "ownersourced" }) === 10);
-ok("ownersourced provider force 15%", M.leadCommissionRatePct({ leadSource: "ownersourced" }, 15) === 15);
+ok("ownersourced Finance rate 0% (provider separate)", M.leadCommissionRatePct({ leadSource: "ownersourced" }) === 0);
+ok("ownersourced provider book 10%", M.leadOwnerSourcedBookRatePct() === 10);
+ok("ownersourced provider force 15%", M.leadOwnerSourcedBookRatePct(15) === 15);
 ok("ownersourced book constant 10", M.OWNER_SOURCED_COMMISSION_PCT === 10);
 ok("ownersourced target constant 15", M.OWNER_SOURCED_COMMISSION_TARGET_PCT === 15);
 ok("ownersourced list discount 20%", M.OWNER_SOURCED_LIST_DISCOUNT === 0.2);
@@ -471,15 +472,14 @@ ok("label owner-sourced", M.leadSourceLabel("ownersourced") === "Owner-sourced")
     vatMode: "include",
     vatPct: 21,
   });
-  const osBase = 4000 / 1.21;
-  ok("ownersourced base before VAT > 0", os.base > 0);
-  ok("ownersourced provider commission 10%", Math.abs(os.total - osBase * 0.1) < 0.05, "got " + os.total);
-  ok("ownersourced force 15%", Math.abs(M.leadCommissionParts({ leadSource: "ownersourced", total: 4000, vatMode: "include", vatPct: 21 }, 15).total - osBase * 0.15) < 0.05);
+  ok("ownersourced Finance commission 0", os.total === 0);
+  ok("ownersourced base still computed", os.base > 0);
   {
     const osLead = {
       leadSource: "ownersourced",
       start: "2026-05-10",
       dur: "8h",
+      total: 3000,
       deps: "Not issued",
       fins: "Not issued",
       apas: "Not issued",
@@ -489,21 +489,37 @@ ok("label owner-sourced", M.leadSourceLabel("ownersourced") === "Owner-sourced")
     const notional = M.ownerSourcedNotionalPrice(osLead);
     ok("OS notional list−20%", Math.abs(notional - 2400) < 0.05, "got " + notional);
     ok("OS recognized 0 without invoice", M.ownerSourcedRecognizedIncome(osLead) === 0);
+    ok("OS paid income 0 without Paid", M.ownerSourcedPaidIncome(osLead) === 0);
+    ok("OS listMoney 0 without Paid (Finance)", M.leadListMoney(osLead) === 0);
     ok("OS possible loss = notional", Math.abs(M.ownerSourcedPossibleLoss(osLead) - 2400) < 0.05);
     const fair = M.ownerSourcedCommissionParts(osLead);
     ok("OS forgone at 10%", Math.abs(fair.forgoneComm - (2400 / 1.21) * 0.1) < 0.05, "got " + fair.forgoneComm);
     ok("OS income comm 0 when nothing issued", fair.incomeComm === 0);
     const issued = Object.assign({}, osLead, { deps: "Issued", dep: 1000, fins: "Paid", fin: 1400 });
-    ok("OS recognized dep+fin", Math.abs(M.ownerSourcedRecognizedIncome(issued) - 2400) < 0.05);
-    ok("OS loss 0 when fully invoiced at notional", M.ownerSourcedPossibleLoss(issued) === 0);
+    ok("OS recognized Issued+Paid", Math.abs(M.ownerSourcedRecognizedIncome(issued) - 2400) < 0.05);
+    ok("OS paid income Paid lines only", Math.abs(M.ownerSourcedPaidIncome(issued) - 1400) < 0.05);
+    ok("OS listMoney = Paid only", Math.abs(M.leadListMoney(issued) - 1400) < 0.05);
+    ok("OS loss uses recognized not paid", Math.abs(M.ownerSourcedPossibleLoss(issued) - 0) < 0.05);
     const partial = Object.assign({}, osLead, { deps: "Issued", dep: 500 });
     ok("OS partial recognized 500", M.ownerSourcedRecognizedIncome(partial) === 500);
+    ok("OS partial paid 0 (Issued≠Paid)", M.ownerSourcedPaidIncome(partial) === 0);
     ok("OS partial loss 1900", Math.abs(M.ownerSourcedPossibleLoss(partial) - 1900) < 0.05);
     const fair15 = M.ownerSourcedCommissionParts(osLead, 15);
     ok("OS forgone force 15%", Math.abs(fair15.forgoneComm - (2400 / 1.21) * 0.15) < 0.05);
     const high = { leadSource: "ownersourced", start: "2026-07-15", dur: "4h" };
     ok("OS list 4h high €2200", M.ownerSourcedListPrice(high) === 2200);
     ok("OS notional 4h high −20%", Math.abs(M.ownerSourcedNotionalPrice(high) - 1760) < 0.05);
+    /* Dashboard: unpaid OS must not inflate done */
+    const dash = M.summarizeLeadsMoneyDashboard({
+      leads: [
+        Object.assign({}, osLead, { id: "os1", dealClosed: true, start: "2026-05-01", total: 9999 }),
+        Object.assign({}, issued, { id: "os2", dealClosed: true, start: "2026-05-02" }),
+      ],
+      charters: [],
+      today: "2026-06-01",
+    });
+    ok("Finance done ignores unpaid OS notional", Math.abs((dash.done && dash.done.tot) - 1400) < 0.05, "got " + (dash.done && dash.done.tot));
+    ok("Finance done OS card = Paid only", Math.abs((dash.ownersourced && dash.ownersourced.tot) - 1400) < 0.05);
   }
   ok("cash dest boat default", M.leadCashDest({ split: true, cashAmt: 1800 }) === "boat");
   ok("cash dest owner", M.leadCashDest({ cashDest: "owner" }) === "owner");

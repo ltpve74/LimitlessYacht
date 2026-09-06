@@ -206,7 +206,12 @@ function leadCommissionRatePct(r, forceOrOpts) {
   if (src === "pending" || src === "dayoff") return 0;
   if (src === "captain") return leadCaptainBookRatePct(r, forceCapt);
   if (src === "clickboat") return CLICKBOAT_COMMISSION_PCT;
-  if (src === "ownersourced") return leadOwnerSourcedBookRatePct(forceOs);
+  /*
+   * Owner-sourced provider fairness lives in ownerSourcedCommissionParts only.
+   * Returning 0 here keeps Finance white-net commissions = captain/CB only
+   * (do not subtract hypothetical owner-provider % from business net).
+   */
+  if (src === "ownersourced") return 0;
   return 0;
 }
 
@@ -959,12 +964,15 @@ function summarizeProjectedNetExCash(leads, opts) {
  * @param {Array} leads
  */
 /**
- * Client € on list / totals (0 for owner days + pending).
+ * Client € on list / totals (0 for pending).
+ * Owner-sourced: Paid invoice money only — never notional / unpaid list price
+ * (Finance business-to-date must not invent OS income).
  */
 function leadListMoney(r) {
   if (!r || leadIsCancelled(r)) return 0;
   var src = leadSource(r);
   if (src === "owner" || src === "pending") return 0;
+  if (src === "ownersourced") return ownerSourcedPaidIncome(r);
   if (leadHasCashFee(r)) return leadClientTotal(r);
   return num(r.total) || num(r.base) || num(r.price) || 0;
 }
@@ -1353,6 +1361,20 @@ function summarizeLeadsMoneyDashboard(opts) {
     var comm = parts.comm;
     var exVatFull = leadCommissionBase(r);
     var commFull = leadCommissionAmt(r);
+    /*
+     * Owner-sourced Finance numbers = Paid invoices only (leadListMoney).
+     * Before-VAT from that paid gross; commission 0 in business net
+     * (provider fairness is Commissions-only).
+     * Skip OS rows with €0 paid from done/proj so notional never inflates.
+     */
+    if (src === "ownersourced") {
+      if (!(val > 0.009)) return;
+      var vatPctOs = commissionVatPct(r);
+      exVat = round2(val / (1 + vatPctOs / 100));
+      comm = 0;
+      exVatFull = exVat;
+      commFull = 0;
+    }
     if (isUpcoming) addCharter(proj, val, exVat, comm);
     else addCharter(done, val, exVat, comm);
     var tk = leadCharterTypeKey(r);
@@ -1362,21 +1384,10 @@ function summarizeLeadsMoneyDashboard(opts) {
       bumpSourceCard(cb, val, exVatFull, commFull, tk, isUpcoming);
     } else if (src === "ownersourced") {
       bumpSourceCard(os, val, exVatFull, commFull, tk, isUpcoming);
-      /* Cash / white split breakdown stays to-date only (realised-ish) */
+      /* To-date white = Paid invoice money only (same as val) */
       if (isUpcoming) return;
-      osWhite = round2(osWhite + whiteInvoiceAmt(r));
-      if (leadHasCashFee(r)) {
-        var cashN = leadFreeCashAmt(r) || num(r.cashAmt);
-        if (cashN > 0.009) {
-          if (leadCashDest(r) === "owner") {
-            osPocket = round2(osPocket + cashN);
-            if (!leadFreeCashIsReceived(r)) osCashPend = round2(osCashPend + cashN);
-          } else {
-            osBoat = round2(osBoat + cashN);
-            if (!leadFreeCashIsReceived(r)) osCashPend = round2(osCashPend + cashN);
-          }
-        }
-      }
+      osWhite = round2(osWhite + val);
+      /* Do not accumulate OS pocket/boat cash guesses into Finance */
     }
   });
 
@@ -1736,10 +1747,14 @@ function ownerSourcedNotionalPrice(r) {
   return round2(list * (1 - OWNER_SOURCED_LIST_DISCOUNT));
 }
 
+function leadInvLinePaid(status) {
+  return String(status || "").trim() === "Paid";
+}
+
 /**
  * Money that entered the commercial books for an owner-sourced charter:
- * Issued/Paid deposit + final + APA only.
- * Do NOT count free cash / owner-pocket guesses — we don’t look into the owner’s pocket.
+ * Issued/Paid deposit + final + APA only (fairness / Commissions “in books”).
+ * Do NOT count free cash / owner-pocket guesses.
  */
 function ownerSourcedRecognizedIncome(r) {
   if (!r) return 0;
@@ -1747,6 +1762,19 @@ function ownerSourcedRecognizedIncome(r) {
   if (leadInvLineIssuedOrPaid(r.deps)) sum += num(r.dep);
   if (leadInvLineIssuedOrPaid(r.fins)) sum += num(r.fin);
   if (leadInvLineIssuedOrPaid(r.apas)) sum += num(r.apa);
+  return round2(sum);
+}
+
+/**
+ * Finance “business to date” for owner-sourced: Paid invoices only.
+ * Hypothetical list−20% notional must never inflate Gross/Net so far.
+ */
+function ownerSourcedPaidIncome(r) {
+  if (!r) return 0;
+  var sum = 0;
+  if (leadInvLinePaid(r.deps)) sum += num(r.dep);
+  if (leadInvLinePaid(r.fins)) sum += num(r.fin);
+  if (leadInvLinePaid(r.apas)) sum += num(r.apa);
   return round2(sum);
 }
 
@@ -1824,6 +1852,7 @@ function ownerSourcedCommissionParts(r, forceOrOpts) {
     ownerSourcedListPrice: ownerSourcedListPrice,
     ownerSourcedNotionalPrice: ownerSourcedNotionalPrice,
     ownerSourcedRecognizedIncome: ownerSourcedRecognizedIncome,
+    ownerSourcedPaidIncome: ownerSourcedPaidIncome,
     ownerSourcedPossibleLoss: ownerSourcedPossibleLoss,
     ownerSourcedCommissionParts: ownerSourcedCommissionParts,
     leadIsDealClosed: leadIsDealClosed,
