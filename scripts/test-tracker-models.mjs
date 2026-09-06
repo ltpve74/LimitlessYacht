@@ -472,7 +472,7 @@ ok("label owner-sourced", M.leadSourceLabel("ownersourced") === "Owner-sourced")
     vatMode: "include",
     vatPct: 21,
   });
-  ok("ownersourced Finance commission 0", os.total === 0);
+  ok("ownersourced leadCommissionParts total 0 (provider via OS helper)", os.total === 0);
   ok("ownersourced base still computed", os.base > 0);
   {
     const osLead = {
@@ -520,6 +520,8 @@ ok("label owner-sourced", M.leadSourceLabel("ownersourced") === "Owner-sourced")
     });
     ok("Finance done ignores unpaid OS notional", Math.abs((dash.done && dash.done.tot) - 1400) < 0.05, "got " + (dash.done && dash.done.tot));
     ok("Finance done OS card = Paid only", Math.abs((dash.ownersourced && dash.ownersourced.tot) - 1400) < 0.05);
+    const paidBase = 1400 / 1.21;
+    ok("Finance done OS commission takes from net", Math.abs((dash.done && dash.done.comm) - paidBase * 0.1) < 0.05, "got " + (dash.done && dash.done.comm));
 
   {
     const g = M.summarizeRealisedNetGlimpse({
@@ -2416,6 +2418,7 @@ console.log("\n[Leads — realised cash + glimpse]");
     whiteComm: 150,
     cashRealised: { boat: 500, owner: 200, total: 700, n: 2, boatN: 1, ownerN: 1, items: [] },
     cashExpenses: 0,
+    cashCommission: 0,
   });
   ok("glimpse whiteNet 850", near(g.whiteNet, 850));
   ok("glimpse doneNet = white + boat − expenses", near(g.doneNet, 1350));
@@ -2425,9 +2428,11 @@ console.log("\n[Leads — realised cash + glimpse]");
     whiteComm: 150,
     cashRealised: { boat: 500, owner: 200, total: 700, n: 2, boatN: 1, ownerN: 1, items: [] },
     cashExpenses: 200,
+    cashCommission: 50,
   });
-  ok("glimpse subtracts cash expenses", near(g2.doneNet, 1150));
-  ok("glimpse cashNet boat−exp", near(g2.cashNet, 300));
+  ok("glimpse subtracts cash expenses", near(g2.doneNet, 1100));
+  ok("glimpse cashNet boat−comm−exp", near(g2.cashNet, 250));
+  ok("all commissions take from net", near(g2.doneNet, 850 + 500 - 50 - 200));
 }
 
 /* ---- Pending + projected free cash (owner PDF) ---- */

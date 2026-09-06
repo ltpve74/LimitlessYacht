@@ -1125,17 +1125,43 @@ function summarizeLeadCashOutstanding(leads, todayYmd) {
 }
 
 /**
+ * Commission on boat free cash for sailed/today received deals.
+ * Split/cash-only: cashComm must leave Net (all commissions take from net).
+ */
+function summarizeBoatFreeCashCommission(leads, todayYmd) {
+  var tot = 0;
+  var n = 0;
+  (Array.isArray(leads) ? leads : []).forEach(function (r) {
+    if (!r || leadIsCancelled(r)) return;
+    if (!leadIsClosedCommercialIncome(r)) return;
+    if (leadCharterTiming(r, todayYmd) === "upcoming") return;
+    if (!leadHasCashFee(r)) return;
+    if (!leadFreeCashIsReceived(r)) return;
+    if (leadCashDest(r) !== "boat") return;
+    var p = leadCommissionParts(r);
+    var c = round2(p.cashComm || 0);
+    if (!(c > 0.009) && p.cashOnly) c = round2(p.total || 0);
+    if (!(c > 0.009)) return;
+    tot = round2(tot + c);
+    n++;
+  });
+  return { total: tot, n: n };
+}
+
+/**
  * Realised “so far” net for Finance:
- *   white net (before VAT − commissions)
+ *   white net (before VAT − white commissions)
  *   + boat free cash received
+ *   − commission on that boat free cash
  *   − petty cash expenses (cash left the boat) to date
- * Owner pocket cash is reported but never in doneNet.
+ * All commissions take from net. Owner pocket cash is never in doneNet.
  *
  * @param {{
  *   whiteEx?: number,
  *   whiteComm?: number,
  *   cashRealised?: { boat?: number, owner?: number, total?: number, n?: number, boatN?: number, ownerN?: number, items?: Array },
- *   cashExpenses?: number
+ *   cashExpenses?: number,
+ *   cashCommission?: number
  * }} opts
  */
 function summarizeRealisedNetGlimpse(opts) {
@@ -1147,7 +1173,8 @@ function summarizeRealisedNetGlimpse(opts) {
   var cashBoat = round2(num(cash.boat));
   var cashOwner = round2(num(cash.owner));
   var cashExpenses = round2(Math.max(0, num(opts.cashExpenses)));
-  var cashNet = round2(cashBoat - cashExpenses);
+  var cashCommission = round2(Math.max(0, num(opts.cashCommission)));
+  var cashNet = round2(cashBoat - cashCommission - cashExpenses);
   var doneNet = round2(whiteNet + cashNet);
   return {
     whiteEx: ex,
@@ -1156,6 +1183,7 @@ function summarizeRealisedNetGlimpse(opts) {
     cashBoat: cashBoat,
     cashOwner: cashOwner,
     cashExpenses: cashExpenses,
+    cashCommission: cashCommission,
     cashNet: cashNet,
     cashTotal: round2(num(cash.total) || cashBoat + cashOwner),
     cashN: num(cash.n),
@@ -1370,18 +1398,17 @@ function summarizeLeadsMoneyDashboard(opts) {
     var exVatFull = leadCommissionBase(r);
     var commFull = leadCommissionAmt(r);
     /*
-     * Owner-sourced Finance numbers = Paid invoices only (leadListMoney).
-     * Before-VAT from that paid gross; commission 0 in business net
-     * (provider fairness is Commissions-only).
-     * Skip OS rows with €0 paid from done/proj so notional never inflates.
+     * Owner-sourced Finance = Paid invoices only (leadListMoney).
+     * Provider commission (book %) takes from net like other commissions.
+     * Skip OS rows with €0 paid so notional never inflates.
      */
     if (src === "ownersourced") {
       if (!(val > 0.009)) return;
       var vatPctOs = commissionVatPct(r);
       exVat = round2(val / (1 + vatPctOs / 100));
-      comm = 0;
+      comm = round2(exVat * (OWNER_SOURCED_COMMISSION_PCT / 100));
       exVatFull = exVat;
-      commFull = 0;
+      commFull = comm;
     }
     if (isUpcoming) addCharter(proj, val, exVat, comm);
     else addCharter(done, val, exVat, comm);
@@ -1900,6 +1927,7 @@ function ownerSourcedCommissionParts(r, forceOrOpts) {
     leadListMoney: leadListMoney,
     leadCharterTiming: leadCharterTiming,
     leadCharterTypeKey: leadCharterTypeKey,
+    summarizeBoatFreeCashCommission: summarizeBoatFreeCashCommission,
     summarizeRealisedNetGlimpse: summarizeRealisedNetGlimpse,
     summarizeLeadsMoneyDashboard: summarizeLeadsMoneyDashboard,
     leadIsClosedCommercialIncome: leadIsClosedCommercialIncome,

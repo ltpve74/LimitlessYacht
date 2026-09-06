@@ -1274,6 +1274,7 @@
                 <span><em style="font-style:normal;color:var(--muted);font-weight:600">− Commissions</em><span class="m money" id="ldDoneComm">€0</span></span>
                 <span><em style="font-style:normal;color:var(--muted);font-weight:600">= White net</em><span class="m money" id="ldDoneWhiteNet">€0</span></span>
                 <span><em style="font-style:normal;color:var(--muted);font-weight:600">+ Free cash → boat</em><span class="m money" id="ldCashInNet">€0</span></span>
+                <span><em style="font-style:normal;color:var(--muted);font-weight:600">− Commission on free cash</em><span class="m money" id="ldCashCommNet">€0</span></span>
                 <span><em style="font-style:normal;color:var(--muted);font-weight:600">− Cash expenses (petty out)</em><span class="m money" id="ldCashExpNet">€0</span></span>
                 <span style="margin-top:4px;padding-top:6px;border-top:1px solid var(--line)"><em style="font-style:normal;font-weight:800;color:var(--ink,#1a1a1a)">= Net so far</em><span class="m money" id="ldDoneNetDetail" style="font-weight:800">€0</span></span>
               </div>
@@ -1311,7 +1312,7 @@
                 <div class="ld-snap-row"><span class="k">Unconfirmed / tentative</span><span class="v" id="ldAwait">0</span><span class="s" id="ldAwaitSub">Not in money totals</span></div>
                 <div class="ld-snap-row"><span class="k">Owner days (notional)</span><span class="v money" id="ldOwn">€0</span><span class="s" id="ldOwnSub">List-rate · not cash</span></div>
               </div>
-              <div class="ld-snap-note">Net so far = white (before VAT − commissions) <b>+ free cash to the boat − petty cash expenses</b> to date. Boat cash panel below uses the same Expenses petty figures for the current month (start + cash in − cash out = on board).</div>
+              <div class="ld-snap-note">Net so far = white (before VAT − commissions) <b>+ free cash to the boat − commission on that cash − petty cash expenses</b>. All commissions take from net. Boat cash panel below uses the same Expenses petty figures for the current month.</div>
             </div>
             <div class="sumcard ld-src">
               <div class="ld-src-head">
@@ -6126,7 +6127,8 @@ function renderLeads(){
   var cashBoat=glimpse.cashBoat||0;
   var cashOwner=glimpse.cashOwner||0;
   var cashExpenses=glimpse.cashExpenses!=null?glimpse.cashExpenses:((dash.cashExpenses&&dash.cashExpenses.total)||0);
-  var doneNet=glimpse.doneNet!=null?glimpse.doneNet:Math.round((whiteNet+cashBoat-cashExpenses)*100)/100;
+  var cashCommission=glimpse.cashCommission!=null?glimpse.cashCommission:((dash.cashCommission&&dash.cashCommission.total)||0);
+  var doneNet=glimpse.doneNet!=null?glimpse.doneNet:Math.round((whiteNet+cashBoat-cashCommission-cashExpenses)*100)/100;
   /* Glimpse: business to date (realised) + projection (confirmed future) */
   if(el("ldDoneTot")) el("ldDoneTot").textContent=money(done.tot);
   if(el("ldDoneNet")) el("ldDoneNet").textContent=money(doneNet);
@@ -6139,8 +6141,9 @@ function renderLeads(){
     var bits=
       'Net = (before VAT <b class="money">'+money(done.ex)+'</b> − commissions <b class="money">'+money(done.comm)+'</b>)'+
       ' + boat free cash <b class="money">'+money(cashBoat)+'</b>'+
+      ' − cash commission <b class="money">'+money(cashCommission)+'</b>'+
       ' − cash expenses <b class="money">'+money(cashExpenses)+'</b>';
-    if(cashBoat>0.009||cashExpenses>0.009||done.comm>0.009||done.ex>0.009){
+    if(cashBoat>0.009||cashCommission>0.009||cashExpenses>0.009||done.comm>0.009||done.ex>0.009){
       bits+=' → <b class="money">'+money(doneNet)+'</b>';
     }
     el("ldNetFormula").innerHTML=bits;
@@ -6182,7 +6185,7 @@ function renderLeads(){
   }
   if(el("ldBookedNote")){
     el("ldBookedNote").textContent=
-      "Gross total = so far + projected future · White net total = (before VAT − commissions) on the full confirmed book · Net so far = white net + boat free cash − petty cash expenses";
+      "Gross total = so far + projected future · White net = before VAT − commissions · Net so far = white net + boat free cash − cash commissions − petty cash expenses";
   }
   if(el("ldDoneCharters")) el("ldDoneCharters").textContent=money(done.charters);
   if(el("ldDoneUpsell")) el("ldDoneUpsell").textContent=money(done.upsell);
@@ -6190,6 +6193,7 @@ function renderLeads(){
   if(el("ldDoneComm")) el("ldDoneComm").textContent=money(done.comm);
   if(el("ldDoneWhiteNet")) el("ldDoneWhiteNet").textContent=money(whiteNet);
   if(el("ldCashInNet")) el("ldCashInNet").textContent=money(cashBoat);
+  if(el("ldCashCommNet")) el("ldCashCommNet").textContent=money(cashCommission);
   if(el("ldCashExpNet")) el("ldCashExpNet").textContent=money(cashExpenses);
   if(el("ldDoneNetDetail")) el("ldDoneNetDetail").textContent=money(doneNet);
   if(el("ldDoneUpsellComm")) el("ldDoneUpsellComm").textContent=money(done.upsellComm);
