@@ -1010,26 +1010,21 @@ def check_html(r: Runner, rel: str, html: str) -> None:
         and 'LY_flushClaritySectionQueue' in html,
     )
     r.check(
-        'desktop nav uses native landing anchors',
-        re.search(r'class="nav-links"[^>]*>[\s\S]*?href="#about"', html) is not None
-        and 'href="#itinerary-land"' in html
-        and 'href="#gallery-land"' in html
-        and 'href="#charters-land"' in html
-        and re.search(
-            r'class="nav-links"[^>]*>[\s\S]*?href="#availability"',
-            html,
-        )
-        is not None
-        and 'href="#reviews-land"' in html
-        and 'href="#amenities-land"' in html
-        and 'href="#specs-land"' in html
+        'desktop nav uses site-wide commercial links',
+        'data-site-nav="1"' in html
+        and re.search(r'class="nav-links"[^>]*>[\s\S]*?href="#hero"', html) is not None
+        and re.search(r'class="nav-links"[^>]*>[\s\S]*?href="yacht-charter-mallorca/"', html) is not None
+        and re.search(r'class="nav-links"[^>]*>[\s\S]*?href="destinations/"', html) is not None
+        and re.search(r'class="nav-links"[^>]*>[\s\S]*?href="maiora-yacht-charter/"', html) is not None
+        and re.search(r'class="nav-links"[^>]*>[\s\S]*?href="yacht-charter-mallorca-prices/"', html) is not None
+        and re.search(r'class="nav-links"[^>]*>[\s\S]*?href="#avail-cal"', html) is not None
         and 'id="about-land"' in html
         and 'id="charters-land"' in html
         and 'id="availability-land"' in html,
     )
     r.check(
         'desktop nav separates charters, availability, and dates CTA',
-        'href="#charters-land"' in html
+        'href="yacht-charter-mallorca/"' in html
         and 'href="#availability" class="nav-cta nav-header-cta"' in html
         and 'Get Quote' not in html
         and 'href="#pricing-land"' not in html
@@ -1256,7 +1251,7 @@ def check_html(r: Runner, rel: str, html: str) -> None:
     )
     r.check(
         'nav and desktop hero duplicates ship with inline display:none',
-        '<ul class="nav-links" style="display:none">' in html
+        '<ul class="nav-links" style="display:none"' in html
         and 'class="hamburger" id="hamburger" style="display:none"' in html
         and 'class="hero-eyebrow-link--desktop" style="display:none"' in html
         and 'class="hero-rates hero-rates-link season-rates hero-rates-link--desktop" style="display:none"' in html
@@ -3951,6 +3946,15 @@ def check_day_charter_landing(r: Runner) -> None:
         if en:
             r.check(f'{slug} has unique title + h1 + canonical', 
                     '<title>' in en and '<h1>' in en and 'rel="canonical"' in en)
+            r.check(
+                f'{slug} header+footer include site-wide nav links',
+                'data-site-nav="1"' in en
+                and 'yacht-charter-mallorca-prices/' in en
+                and 'what-is-included/' in en
+                and 'best-time-yacht-charter-mallorca/' in en
+                and 'yacht-charter-palma-club-de-mar/' in en
+                and 'class="footer-sitemap"' in en,
+            )
             r.check(f'{slug} hreflang is EN+DE+x-default only',
                     'hreflang="en"' in en and 'hreflang="de"' in en
                     and 'hreflang="x-default"' in en
@@ -3989,7 +3993,62 @@ def check_day_charter_landing(r: Runner) -> None:
         'homepage footer links to charter + destinations hubs',
         'href="yacht-charter-mallorca/">Private charter</a>' in index
         and 'href="day-charter-mallorca/">Day charter</a>' in index
-        and 'href="destinations/">Destinations</a>' in index,
+        and 'href="destinations/">Destinations</a>' in index
+        and 'href="yacht-charter-palma-club-de-mar/"' in index
+        and 'href="yacht-charter-mallorca-prices/"' in index
+        and 'href="what-is-included/"' in index
+        and 'href="best-time-yacht-charter-mallorca/"' in index
+        and 'href="sunset-charter-mallorca/"' in index
+        and 'href="multi-day-charter-balearics/"' in index,
+    )
+    sitewide_pages = list(LOCALE_FILES) + list(LEGAL_FILES)
+    for rel in sitewide_pages:
+        page = read_file(rel) or ''
+        r.check(
+            f'{rel} has shared header nav + footer sitemap',
+            'data-site-nav="1"' in page and 'class="footer-sitemap"' in page,
+        )
+        for path in (
+            'yacht-charter-palma-club-de-mar/',
+            'yacht-charter-mallorca-prices/',
+            'what-is-included/',
+            'best-time-yacht-charter-mallorca/',
+        ):
+            r.check(
+                f'{rel} links {path}',
+                path in page or f'/{path}' in page,
+            )
+    orphans = (
+        'yacht-charter-palma-club-de-mar/',
+        'yacht-charter-mallorca-prices/',
+        'what-is-included/',
+        'best-time-yacht-charter-mallorca/',
+    )
+    for relp in orphans:
+        r.check(
+            f'orphan {relp} has inbound internal links from homepage',
+            index.count(relp) >= 1,
+        )
+        r.check(
+            f'orphan {relp} linked from landing footer template',
+            relp in (read_file('i18n/render_landings.py') or ''),
+        )
+    r.check(
+        'day-charter body links Cabrera / Es Trenc / Sa Dragonera',
+        '../destinations/cabrera/' in en_day
+        and '../destinations/es-trenc/' in en_day
+        and '../destinations/sa-dragonera/' in en_day,
+    )
+    r.check(
+        'multi-day body links Ibiza-Formentera / Menorca / west-coast',
+        '../destinations/ibiza-formentera/' in (read_file('multi-day-charter-balearics/index.html') or '')
+        and '../destinations/menorca-crossing/' in (read_file('multi-day-charter-balearics/index.html') or '')
+        and '../destinations/west-coast-soller/' in (read_file('multi-day-charter-balearics/index.html') or ''),
+    )
+    r.check(
+        'prices page links what-is-included and best-time',
+        'what-is-included/' in (read_file('yacht-charter-mallorca-prices/index.html') or '')
+        and 'best-time-yacht-charter-mallorca/' in (read_file('yacht-charter-mallorca-prices/index.html') or ''),
     )
     r.check(
         'sitemap lists commercial + destination landings',
