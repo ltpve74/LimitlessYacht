@@ -1125,13 +1125,17 @@ function summarizeLeadCashOutstanding(leads, todayYmd) {
 }
 
 /**
- * Realised “so far” white net + boat free cash (big net on Leads).
- * Owner pocket cash is reported but not included in doneNet.
+ * Realised “so far” net for Finance:
+ *   white net (before VAT − commissions)
+ *   + boat free cash received
+ *   − petty cash expenses (cash left the boat) to date
+ * Owner pocket cash is reported but never in doneNet.
  *
  * @param {{
  *   whiteEx?: number,
  *   whiteComm?: number,
- *   cashRealised?: { boat?: number, owner?: number, total?: number, n?: number, boatN?: number, ownerN?: number, items?: Array }
+ *   cashRealised?: { boat?: number, owner?: number, total?: number, n?: number, boatN?: number, ownerN?: number, items?: Array },
+ *   cashExpenses?: number
  * }} opts
  */
 function summarizeRealisedNetGlimpse(opts) {
@@ -1142,13 +1146,17 @@ function summarizeRealisedNetGlimpse(opts) {
   var cash = opts.cashRealised || {};
   var cashBoat = round2(num(cash.boat));
   var cashOwner = round2(num(cash.owner));
-  var doneNet = round2(whiteNet + cashBoat);
+  var cashExpenses = round2(Math.max(0, num(opts.cashExpenses)));
+  var cashNet = round2(cashBoat - cashExpenses);
+  var doneNet = round2(whiteNet + cashNet);
   return {
     whiteEx: ex,
     whiteComm: comm,
     whiteNet: whiteNet,
     cashBoat: cashBoat,
     cashOwner: cashOwner,
+    cashExpenses: cashExpenses,
+    cashNet: cashNet,
     cashTotal: round2(num(cash.total) || cashBoat + cashOwner),
     cashN: num(cash.n),
     cashBoatN: num(cash.boatN),

@@ -31,10 +31,14 @@
     input = input || {};
     var models = M(input);
     var cash = models.summarizeLeadCashIncomeRealised(input.leads || [], input.today || "");
+    var cashExp = models.summarizePettyCashOutToDate
+      ? models.summarizePettyCashOutToDate(input.expenses || [], input.today || "")
+      : { total: 0 };
     return models.summarizeRealisedNetGlimpse({
       whiteEx: input.whiteEx,
       whiteComm: input.whiteComm,
       cashRealised: cash,
+      cashExpenses: cashExp.total || 0,
     });
   }
 
@@ -201,12 +205,17 @@
       chargeExtAmt: models.chargeExtAmt,
     });
     var freeCash = models.summarizeLeadCashIncomeRealised(input.leads || [], input.today || "");
+    var cashExp = models.summarizePettyCashOutToDate
+      ? models.summarizePettyCashOutToDate(input.expenses || [], input.today || "")
+      : { total: 0 };
     var glimpse = models.summarizeRealisedNetGlimpse({
       whiteEx: dash.done.ex,
       whiteComm: dash.done.comm,
       cashRealised: freeCash,
+      cashExpenses: cashExp.total || 0,
     });
     dash.glimpse = glimpse;
+    dash.cashExpenses = cashExp;
     dash.cashLedger = boatCashLedger(input);
     return dash;
   }

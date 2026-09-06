@@ -1413,6 +1413,27 @@ function collectPettyCashInsFromMonths(expPetty) {
   return out;
 }
 
+/**
+ * Petty cash left the boat (cash expenses) up to today — for Finance net.
+ * Sums expenseHitsPettyCash amounts with date ≤ todayYmd (or all if no today).
+ */
+function summarizePettyCashOutToDate(expenses, todayYmd) {
+  var today = String(todayYmd || "").slice(0, 10);
+  var hasToday = /^\d{4}-\d{2}-\d{2}$/.test(today);
+  var tot = 0;
+  var n = 0;
+  (Array.isArray(expenses) ? expenses : []).forEach(function (e) {
+    if (!e || !expenseHitsPettyCash(e)) return;
+    var d = String(e.date || "").slice(0, 10);
+    if (hasToday && /^\d{4}-\d{2}-\d{2}$/.test(d) && d > today) return;
+    var amt = num(e.amount);
+    if (!(amt > 0.009)) return;
+    tot = round2(tot + amt);
+    n++;
+  });
+  return { total: tot, n: n };
+}
+
 function summarizePettyCash(opts) {
   opts = opts || {};
   var storedStart = round2(num(opts.pettyStart));
@@ -3326,6 +3347,7 @@ function summarizeMonthSettlement(opts) {
     collapseCrewDayPayExpenses: collapseCrewDayPayExpenses,
     clearCrewFloatPayOnEmptyEnvelope: clearCrewFloatPayOnEmptyEnvelope,
     planClearCrewFloatPayOnEmptyEnvelope: planClearCrewFloatPayOnEmptyEnvelope,
+    summarizePettyCashOutToDate: summarizePettyCashOutToDate,
     summarizePettyCash: summarizePettyCash,
     summarizePettyMonthClose: summarizePettyMonthClose,
     prevCalendarMonthKey: prevCalendarMonthKey,
