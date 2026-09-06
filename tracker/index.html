@@ -11303,16 +11303,19 @@ function dieselLogEntries(){
  * How APA pot fuel hits the Diesel ledger.
  * - Litres always burn the tank.
  * - Guest Paid shortfall → recovered money (Out value).
+ * - Deposited / prepaid APA (apaSent, paid APA invoice, in-pot) → covered —
+ *   NOT unpaid. Out value still only rises when a shortfall charge is Paid
+ *   (deposit already sits on the pot; don’t double-count as diesel “out”).
  * - Owner’s days → not paid: bunker-cost is an expense / deficit (subtracted
  *   from margin), never “out value”. Does not set “Last charged”.
- * - Unpaid guest APA → litres only (not recovered, not owner expense).
+ * - Unpaid guest shortfall charge → litres only (not recovered, not owner).
  */
 function apaFuelMoneyStatus(t){
   var out={
     ownerDays:false, paid:false,
-    moneyCounts:false, /* guest recovered → out value */
+    moneyCounts:false, /* guest recovered → out value (Paid shortfall / cash) */
     ownerExpense:false, /* owner unpaid → deficit at bunker cost */
-    guestCharged:false, label:"APA", payStatus:""
+    guestCharged:false, potCovered:false, label:"APA", payStatus:""
   };
   if(!t) return out;
   var lead=null;
@@ -11333,16 +11336,58 @@ function apaFuelMoneyStatus(t){
   }
   var ch=null;
   try{ ch=findApaChargeForTrip(t); }catch(eC){}
-  var paid=false;
-  if(ch&&typeof chargePay==="function"&&chargePay(ch)==="Paid") paid=true;
-  else if(ch&&(ch.payStatus==="Paid"||ch.status==="Paid")) paid=true;
-  try{ if(apaIsCashSettled(t)) paid=true; }catch(eS){}
-  out.paid=paid;
-  out.moneyCounts=paid;
-  out.guestCharged=paid;
-  out.ownerExpense=false;
-  out.payStatus=paid?"Paid":(ch?"Unpaid":"No charge");
-  out.label=paid?"APA · Paid":(ch?"APA · Unpaid":"APA");
+  var chargePaid=false;
+  if(ch&&typeof chargePay==="function"&&chargePay(ch)==="Paid") chargePaid=true;
+  else if(ch&&(ch.payStatus==="Paid"||ch.status==="Paid")) chargePaid=true;
+  var cashSettled=false;
+  try{ cashSettled=!!apaIsCashSettled(t); }catch(eS){}
+  if(chargePaid||cashSettled){
+    out.paid=true;
+    out.moneyCounts=true;
+    out.guestCharged=true;
+    out.potCovered=true;
+    out.payStatus="Paid";
+    out.label="APA · Paid";
+    return out;
+  }
+  /* Deposited APA / prepaid invoice / pot credit — fuel is covered, not unpaid */
+  var prepaid=false;
+  try{ prepaid=!!apaHasPrepaid(t); }catch(eP){}
+  var paidCovered=0;
+  try{ paidCovered=apaNum(apaPaidCovered(t)); }catch(ePc){}
+  if(paidCovered>0.009) prepaid=true;
+  if(!prepaid&&lead){
+    try{
+      var apas=typeof leadInvStatus==="function"?leadInvStatus(lead.apas):String(lead.apas||"");
+      if((apas==="Paid"||apas==="Issued")&&apaNum(lead.apa)>0) prepaid=true;
+    }catch(eLead){}
+  }
+  if(!prepaid&&t&&apaNum(t.linkInvAmount)>0&&t.linkInvNo) prepaid=true;
+  var over=0;
+  try{ over=apaNum(apaOverageAmount(t)); }catch(eOv){}
+  var shortfallUnpaid=!!(ch&&!chargePaid&&over>0.009);
+  if(prepaid&&!shortfallUnpaid){
+    out.paid=true; /* covered for unpaid-trip UI */
+    out.moneyCounts=false; /* deposit ≠ diesel Out value (avoid double count) */
+    out.guestCharged=true;
+    out.potCovered=true;
+    out.payStatus="In pot";
+    out.label="APA · In pot";
+    return out;
+  }
+  if(ch&&!chargePaid){
+    out.paid=false;
+    out.moneyCounts=false;
+    out.guestCharged=false;
+    out.payStatus="Unpaid";
+    out.label="APA · Unpaid";
+    return out;
+  }
+  out.paid=false;
+  out.moneyCounts=false;
+  out.guestCharged=false;
+  out.payStatus="No charge";
+  out.label="APA";
   return out;
 }
 /**
@@ -11381,6 +11426,7 @@ function dieselApaEvents(){
         moneyCounts:!!moneySt.moneyCounts,
         ownerExpense:!!moneySt.ownerExpense,
         guestCharged:!!moneySt.guestCharged,
+        potCovered:!!moneySt.potCovered,
         ownerDays:!!moneySt.ownerDays,
         payStatus:moneySt.payStatus||"",
         payLabel:moneySt.label||"APA"
@@ -11541,7 +11587,9 @@ function dieselLedger(){
       ev._moneyCounts=moneyOk;
       ev._ownerExpense=isOwnerExp;
       ev._guestCharged=!!guestOk;
-      ev._payLabel=ev.payLabel||(isOwnerExp?"Owner · unpaid":(moneyOk?"APA · Paid":"APA · Unpaid"));
+      ev._potCovered=!!(ev.potCovered||moneyOk||isOwnerExp===false&&(ev.payStatus==="In pot"||ev.payStatus==="Paid"));
+      ev._payStatus=ev.payStatus||"";
+      ev._payLabel=ev.payLabel||(isOwnerExp?"Owner · unpaid":(moneyOk?"APA · Paid":(ev.potCovered||ev.payStatus==="In pot"?"APA · In pot":(ev.payStatus==="Unpaid"?"APA · Unpaid":"APA"))));
     }
     timeline.push({
       id:ev.id, date:ev.date, kind:ev.kind, litres:apaLit(apaNum(ev.litres)),
@@ -11550,6 +11598,7 @@ function dieselLedger(){
       notes:ev.notes||"", guest:ev.guest||"", tripId:ev.tripId||"", lineId:ev.lineId||"",
       source:ev.source||"log", unitPrice:ev._unitPrice, lineEuro:lineEuro, raw:ev.raw,
       moneyCounts:ev._moneyCounts, ownerExpense:ev._ownerExpense, guestCharged:ev._guestCharged,
+      potCovered:!!ev._potCovered, payStatus:ev._payStatus||"",
       payLabel:ev._payLabel||"", ownerDays:!!ev.ownerDays
     });
   });
@@ -11610,12 +11659,23 @@ function renderDiesel(){
   var warn=tankKnown&&L.tank<0;
   var ownerUnpaid=L.ownerCost>0.009||L.ownerUsed>0.009;
   var marginNeg=L.margin<0;
-  /* Guest APA still unpaid (litres only) — secondary to owner deficit */
+  /* Truly unpaid = owner deficit OR open shortfall — NOT deposited / in-pot APA */
+  function dieselRowIsTrulyUnpaid(row){
+    if(!row||row.kind!=="apa") return false;
+    if(row.ownerExpense||row.ownerDays) return true;
+    if(row.potCovered||row.moneyCounts) return false;
+    if(row.payStatus==="In pot"||row.payStatus==="Paid") return false;
+    if(String(row.payLabel||"").indexOf("In pot")>=0) return false;
+    if(row.payStatus==="Unpaid") return true;
+    if(String(row.payLabel||"").indexOf("Unpaid")>=0) return true;
+    /* No deposit and no paid charge — fuel burned with nothing covering it */
+    if(row.payStatus==="No charge"||!row.payStatus) return true;
+    return false;
+  }
   var guestUnpaidL=0, guestUnpaidN=0, guestUnpaidEuro=0;
   (L.timeline||[]).forEach(function(row){
-    if(!row||row.kind!=="apa") return;
+    if(!dieselRowIsTrulyUnpaid(row)) return;
     if(row.ownerExpense||row.ownerDays) return;
-    if(row.moneyCounts) return;
     guestUnpaidL+=apaNum(row.litres);
     guestUnpaidN++;
     guestUnpaidEuro+=apaNum(row.lineEuro);
@@ -11630,8 +11690,7 @@ function renderDiesel(){
   var guestReplaceEuro=replaceBuy>0?Math.round(apaNum(guestUnpaidL)*replaceBuy*100)/100:0;
   var unpaidTripN=0;
   (L.timeline||[]).forEach(function(row){
-    if(!row||row.kind!=="apa") return;
-    if(row.ownerExpense||row.ownerDays||!row.moneyCounts) unpaidTripN++;
+    if(dieselRowIsTrulyUnpaid(row)) unpaidTripN++;
   });
   var html='<div class="summary">'+
     '<div class="sumcard"><div class="l">Est. on board</div><div class="v"'+(warn?' style="color:var(--danger)"':'')+'>'+(tankKnown?esc(String(L.tank))+" L":"—")+'</div></div>'+
@@ -11717,9 +11776,7 @@ function renderDiesel(){
     html+=emptyBox("⛽","No diesel log yet","Tap + or Add to log a buy (with that day’s €/L), tank level, or sale. APA trip fuel appears with each trip’s sell rate.");
   } else {
     function dieselRowIsUnpaid(row){
-      if(!row||row.kind!=="apa") return false;
-      if(row.ownerExpense||row.ownerDays) return true;
-      return !row.moneyCounts;
+      return dieselRowIsTrulyUnpaid(row);
     }
     function dieselRowReplaceEuro(row){
       if(!(replaceBuy>0)) return 0;
@@ -11748,9 +11805,10 @@ function renderDiesel(){
       } else {
         title="APA · "+(row.guest||"trip"); amt="−"+esc(String(row.litres))+" L";
         isOwnExp=!!(row.ownerExpense||row.ownerDays);
-        isGuestUnpaid=!isOwnExp&&!row.moneyCounts;
-        var payLab=row.payLabel||(isOwnExp?"Owner · unpaid":(row.moneyCounts?"APA · Paid":"APA · Unpaid"));
-        pillC=isOwnExp?"p-own":(row.moneyCounts?"p-apa":"p-grey");
+        isGuestUnpaid=!isOwnExp&&dieselRowIsTrulyUnpaid(row);
+        var inPot=!!(row.potCovered||row.payStatus==="In pot")&&!isOwnExp&&!isGuestUnpaid;
+        var payLab=row.payLabel||(isOwnExp?"Owner · unpaid":(row.moneyCounts?"APA · Paid":(inPot?"APA · In pot":(isGuestUnpaid?"APA · Unpaid":"APA"))));
+        pillC=isOwnExp?"p-own":(row.moneyCounts||inPot?"p-apa":(isGuestUnpaid?"p-grey":"p-apa"));
         pillT=payLab;
         meta='<span class="pill '+pillC+'">'+esc(pillT)+'</span><span>'+esc(fmtDate(row.date))+'</span>';
         if(row.tankAfter!=null) meta+='<span>→ '+esc(String(row.tankAfter))+' L</span>';
