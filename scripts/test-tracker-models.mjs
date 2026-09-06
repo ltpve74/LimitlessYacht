@@ -520,6 +520,24 @@ ok("label owner-sourced", M.leadSourceLabel("ownersourced") === "Owner-sourced")
     });
     ok("Finance done ignores unpaid OS notional", Math.abs((dash.done && dash.done.tot) - 1400) < 0.05, "got " + (dash.done && dash.done.tot));
     ok("Finance done OS card = Paid only", Math.abs((dash.ownersourced && dash.ownersourced.tot) - 1400) < 0.05);
+
+  {
+    const g = M.summarizeRealisedNetGlimpse({
+      whiteEx: 1000,
+      whiteComm: 100,
+      cashRealised: { boat: 500, owner: 0, total: 500, n: 1, boatN: 1, ownerN: 0, items: [] },
+      cashExpenses: 200,
+    });
+    ok("glimpse white net 900", Math.abs(g.whiteNet - 900) < 0.05);
+    ok("glimpse cash net 300", Math.abs(g.cashNet - 300) < 0.05);
+    ok("cash expenses subtract from doneNet", Math.abs(g.doneNet - 1200) < 0.05, "got " + g.doneNet);
+    const out = M.summarizePettyCashOutToDate([
+      { amount: 50, date: "2026-08-01", floatPay: true, paidFrom: "Petty cash", category: "Provisions" },
+      { amount: 999, date: "2026-09-01", floatPay: true, paidFrom: "Petty cash", category: "Provisions" },
+    ], "2026-08-15");
+    ok("petty out to-date excludes future", Math.abs(out.total - 50) < 0.05, "got " + out.total);
+  }
+
   }
   ok("cash dest boat default", M.leadCashDest({ split: true, cashAmt: 1800 }) === "boat");
   ok("cash dest owner", M.leadCashDest({ cashDest: "owner" }) === "owner");
@@ -2397,10 +2415,19 @@ console.log("\n[Leads — realised cash + glimpse]");
     whiteEx: 1000,
     whiteComm: 150,
     cashRealised: { boat: 500, owner: 200, total: 700, n: 2, boatN: 1, ownerN: 1, items: [] },
+    cashExpenses: 0,
   });
   ok("glimpse whiteNet 850", near(g.whiteNet, 850));
-  ok("glimpse doneNet = white + boat only", near(g.doneNet, 1350));
+  ok("glimpse doneNet = white + boat − expenses", near(g.doneNet, 1350));
   ok("owner pocket not in doneNet", near(g.cashOwner, 200));
+  const g2 = M.summarizeRealisedNetGlimpse({
+    whiteEx: 1000,
+    whiteComm: 150,
+    cashRealised: { boat: 500, owner: 200, total: 700, n: 2, boatN: 1, ownerN: 1, items: [] },
+    cashExpenses: 200,
+  });
+  ok("glimpse subtracts cash expenses", near(g2.doneNet, 1150));
+  ok("glimpse cashNet boat−exp", near(g2.cashNet, 300));
 }
 
 /* ---- Pending + projected free cash (owner PDF) ---- */

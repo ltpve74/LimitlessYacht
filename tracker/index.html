@@ -1273,9 +1273,9 @@
                 <span><em style="font-style:normal;color:var(--muted);font-weight:600">Before VAT (white / invoice base)</em><span class="m money" id="ldDoneEx">€0</span></span>
                 <span><em style="font-style:normal;color:var(--muted);font-weight:600">− Commissions</em><span class="m money" id="ldDoneComm">€0</span></span>
                 <span><em style="font-style:normal;color:var(--muted);font-weight:600">= White net</em><span class="m money" id="ldDoneWhiteNet">€0</span></span>
-                <span><em style="font-style:normal;color:var(--muted);font-weight:600">+ Free cash → boat (no commission)</em><span class="m money" id="ldCashInNet">€0</span></span>
+                <span><em style="font-style:normal;color:var(--muted);font-weight:600">+ Free cash → boat</em><span class="m money" id="ldCashInNet">€0</span></span>
+                <span><em style="font-style:normal;color:var(--muted);font-weight:600">− Cash expenses (petty out)</em><span class="m money" id="ldCashExpNet">€0</span></span>
                 <span style="margin-top:4px;padding-top:6px;border-top:1px solid var(--line)"><em style="font-style:normal;font-weight:800;color:var(--ink,#1a1a1a)">= Net so far</em><span class="m money" id="ldDoneNetDetail" style="font-weight:800">€0</span></span>
-                <span id="ldOwnerPocketNoteRow" style="display:none"><em style="font-style:normal;color:var(--muted);font-weight:600">Owner pocket cash (not in net)</em><span class="m money" id="ldOwnerPocketNote">€0</span></span>
               </div>
               <div class="hd" style="margin-top:14px">Gross components</div>
               <div class="lines">
@@ -1286,10 +1286,10 @@
               <div class="ld-snap-cash" id="ldCashSnap" style="margin-top:12px">
                 <div class="k">Free cash · received on sailed deals</div>
                 <div class="big money" id="ldCashTot">€0</div>
-                <div class="s" id="ldCashSub">Boat portion is in net full · owner pocket listed separately (not in big net)</div>
+                <div class="s" id="ldCashSub">Boat free cash is added to net · petty cash expenses are subtracted</div>
                 <div class="lines">
-                  <span><em style="font-style:normal;color:var(--muted);font-weight:600">→ Boat petty (in net)</em><span class="m money" id="ldCashBoat">€0</span></span>
-                  <span><em style="font-style:normal;color:var(--muted);font-weight:600">→ Owner pocket (not in net)</em><span class="m money" id="ldCashOwner">€0</span></span>
+                  <span><em style="font-style:normal;color:var(--muted);font-weight:600">→ Boat free cash (in net)</em><span class="m money" id="ldCashBoat">€0</span></span>
+                  <span><em style="font-style:normal;color:var(--muted);font-weight:600">→ Cash expenses / petty out (−)</em><span class="m money" id="ldCashExpLine">€0</span></span>
                 </div>
                 <div class="ld-cash-items" id="ldCashItems"></div>
               </div>
@@ -1311,7 +1311,7 @@
                 <div class="ld-snap-row"><span class="k">Unconfirmed / tentative</span><span class="v" id="ldAwait">0</span><span class="s" id="ldAwaitSub">Not in money totals</span></div>
                 <div class="ld-snap-row"><span class="k">Owner days (notional)</span><span class="v money" id="ldOwn">€0</span><span class="s" id="ldOwnSub">List-rate · not cash</span></div>
               </div>
-              <div class="ld-snap-note">Glimpse net = white (before VAT − commissions) <b>+ free cash to the boat</b> only. <b>Boat cash</b> uses the same Expenses petty figures (start + cash in − cash out = on board) for the current Expenses month — not a second formula. Owner pocket free cash stays out of both nets.</div>
+              <div class="ld-snap-note">Net so far = white (before VAT − commissions) <b>+ free cash to the boat − petty cash expenses</b> to date. Boat cash panel below uses the same Expenses petty figures for the current month (start + cash in − cash out = on board).</div>
             </div>
             <div class="sumcard ld-src">
               <div class="ld-src-head">
@@ -1319,7 +1319,7 @@
                 <span class="ld-comm-pill outstanding" id="ldCapCommStatus">Outstanding</span>
               </div>
               <div class="ld-src-highlight">
-                <span class="k">Still to pay you</span>
+                <span class="k">Captain commission open</span>
                 <span class="v money" id="ldCapComm">€0</span>
               </div>
               <div class="ld-src-bands" aria-label="Captain book">
@@ -1501,7 +1501,7 @@
         <div class="sumcard sum-warn"><div class="l">OS possible lost income</div><div class="v money" id="cmOsLoss">€0</div></div>
         <div class="sumcard"><div class="l">OS forgone provider comm</div><div class="v money" id="cmOsForgone">€0</div></div>
       </div>
-      <div class="legend">Same rules as <b>Leads</b>: confirmed commercial deals only. <b>Captain</b> agreed <span id="cmLegendPct">10</span>% + upsells (toggle to preview 15%) — take cash via <b>Pay from petty</b>. <b>Click&amp;Boat</b> 24% treated as paid. <b>Owner-sourced</b>: notional list−20% + invoice-in-books vs possible lost income + provider fairness 10%/15% — we do <b>not</b> track owner pocket cash.</div>
+      <div class="legend">Confirmed commercial deals only. <b>Captain</b> book <span id="cmLegendPct">10</span>% + upsells (toggle to preview 15%) — draw via <b>Pay from petty</b>. <b>Click&amp;Boat</b> 24% treated as paid. <b>Owner-sourced</b>: notional list−20% + invoice-in-books vs possible lost income + provider fairness 10%/15% (not a petty payout).</div>
       <div class="list" id="cmList"></div>
     </section>
 
@@ -6101,11 +6101,12 @@ function renderLeads(){
   }
   /* Big net from dashboard glimpse (already realised-only) */
   var glimpse=dash.glimpse||{};
-  if(!glimpse.doneNet&&window.LY_CONTROLLERS&&LY_CONTROLLERS.leads){
+  if(!(glimpse.doneNet!=null)&&window.LY_CONTROLLERS&&LY_CONTROLLERS.leads){
     try{
       glimpse=LY_CONTROLLERS.leads.realisedGlimpse({
         models:LY_MODELS,
         leads:state.leads||[],
+        expenses:state.expenses||[],
         today:leadTodayYmd(),
         whiteEx:done.ex,
         whiteComm:done.comm
@@ -6124,7 +6125,8 @@ function renderLeads(){
   var whiteNet=glimpse.whiteNet!=null?glimpse.whiteNet:Math.round(Math.max(0, (done.ex||0)-(done.comm||0))*100)/100;
   var cashBoat=glimpse.cashBoat||0;
   var cashOwner=glimpse.cashOwner||0;
-  var doneNet=glimpse.doneNet!=null?glimpse.doneNet:Math.round((whiteNet+cashBoat)*100)/100;
+  var cashExpenses=glimpse.cashExpenses!=null?glimpse.cashExpenses:((dash.cashExpenses&&dash.cashExpenses.total)||0);
+  var doneNet=glimpse.doneNet!=null?glimpse.doneNet:Math.round((whiteNet+cashBoat-cashExpenses)*100)/100;
   /* Glimpse: business to date (realised) + projection (confirmed future) */
   if(el("ldDoneTot")) el("ldDoneTot").textContent=money(done.tot);
   if(el("ldDoneNet")) el("ldDoneNet").textContent=money(doneNet);
@@ -6136,11 +6138,9 @@ function renderLeads(){
   if(el("ldNetFormula")){
     var bits=
       'Net = (before VAT <b class="money">'+money(done.ex)+'</b> − commissions <b class="money">'+money(done.comm)+'</b>)'+
-      ' + boat free cash <b class="money">'+money(cashBoat)+'</b> (full · no cut)';
-    if(cashOwner>0.009){
-      bits+=' · owner pocket <b class="money">'+money(cashOwner)+'</b> <span style="font-weight:600">(not in this net)</span>';
-    }
-    if(cashBoat>0.009||done.comm>0.009||done.ex>0.009){
+      ' + boat free cash <b class="money">'+money(cashBoat)+'</b>'+
+      ' − cash expenses <b class="money">'+money(cashExpenses)+'</b>';
+    if(cashBoat>0.009||cashExpenses>0.009||done.comm>0.009||done.ex>0.009){
       bits+=' → <b class="money">'+money(doneNet)+'</b>';
     }
     el("ldNetFormula").innerHTML=bits;
@@ -6160,7 +6160,7 @@ function renderLeads(){
   if(el("ldProjNote")){
     el("ldProjNote").textContent=projN
       ?"Projection only · confirmed future charters · not in Net so far · free cash not counted until received"
-      :"When you confirm future charters, their gross and white net (before VAT − commissions) appear here as a projection.";
+      :"Confirmed future charters appear here as gross and white net (before VAT − commissions).";
   }
   if(el("ldProjBlock")){
     el("ldProjBlock").style.opacity=projN||(proj.tot>0.009)?"":"0.85";
@@ -6182,7 +6182,7 @@ function renderLeads(){
   }
   if(el("ldBookedNote")){
     el("ldBookedNote").textContent=
-      "Gross total = so far + projected future · White net total = (before VAT − commissions) on the full confirmed book · Net so far still includes boat free cash only when received";
+      "Gross total = so far + projected future · White net total = (before VAT − commissions) on the full confirmed book · Net so far = white net + boat free cash − petty cash expenses";
   }
   if(el("ldDoneCharters")) el("ldDoneCharters").textContent=money(done.charters);
   if(el("ldDoneUpsell")) el("ldDoneUpsell").textContent=money(done.upsell);
@@ -6190,36 +6190,33 @@ function renderLeads(){
   if(el("ldDoneComm")) el("ldDoneComm").textContent=money(done.comm);
   if(el("ldDoneWhiteNet")) el("ldDoneWhiteNet").textContent=money(whiteNet);
   if(el("ldCashInNet")) el("ldCashInNet").textContent=money(cashBoat);
+  if(el("ldCashExpNet")) el("ldCashExpNet").textContent=money(cashExpenses);
   if(el("ldDoneNetDetail")) el("ldDoneNetDetail").textContent=money(doneNet);
-  if(el("ldOwnerPocketNoteRow")){
-    el("ldOwnerPocketNoteRow").style.display=cashOwner>0.009?"":"none";
-  }
-  if(el("ldOwnerPocketNote")) el("ldOwnerPocketNote").textContent=money(cashOwner);
   if(el("ldDoneUpsellComm")) el("ldDoneUpsellComm").textContent=money(done.upsellComm);
-  /* Cash income — second stage; boat in net, owner pocket labelled not-in-net */
-  if(el("ldCashTot")) el("ldCashTot").textContent=money(cashDone.total||0);
+  /* Cash: boat free cash in net; petty outs subtracted; no owner-pocket tracking */
+  if(el("ldCashTot")) el("ldCashTot").textContent=money(cashBoat);
   if(el("ldCashBoat")) el("ldCashBoat").textContent=money(cashBoat);
-  if(el("ldCashOwner")) el("ldCashOwner").textContent=money(cashOwner);
+  if(el("ldCashExpLine")) el("ldCashExpLine").textContent=money(cashExpenses);
   if(el("ldCashSub")){
-    var cn=cashDone.n||0;
+    var cn=cashDone.boatN||0;
     el("ldCashSub").textContent=cn
-      ?(cn+" split deal"+(cn===1?"":"s")+" received · sailed/today · boat "+(cashDone.boatN||0)+" in net · owner pocket "+(cashDone.ownerN||0)+" not in big net")
-      :"No free cash received on sailed split deals yet";
+      ?(cn+" boat free-cash deal"+(cn===1?"":"s")+" received · sailed/today · expenses "+money(cashExpenses)+" subtracted in net")
+      :(cashExpenses>0.009
+        ?"No boat free cash received yet · petty cash expenses "+money(cashExpenses)+" still subtracted in net"
+        :"No boat free cash received on sailed deals yet");
   }
   if(el("ldCashItems")){
-    var items=cashDone.items||[];
+    var items=(cashDone.items||[]).filter(function(it){ return it&&it.dest!=="owner"; });
     if(!items.length){
-      el("ldCashItems").innerHTML='<div class="meta" style="margin-top:6px">Empty until a split lead has free cash marked received on a sailed/today charter.</div>';
+      el("ldCashItems").innerHTML='<div class="meta" style="margin-top:6px">Empty until a split lead has free cash to the boat marked received on a sailed/today charter.</div>';
     } else {
       el("ldCashItems").innerHTML=items.map(function(it){
-        var isOwn=it.dest==="owner";
-        var destLab=isOwn?"Owner pocket · not in big net":"Boat petty · in net";
         var dateLab="";
         try{ dateLab=it.start?fmtDate(it.start):""; }catch(eD){ dateLab=it.start||""; }
         return '<div class="ld-cash-item">'+
           '<span class="nm">'+esc(it.name||"—")+'</span>'+
           '<span class="am money">'+money(it.cash)+'</span>'+
-          '<span class="meta">'+esc(dateLab)+(dateLab?" · ":"")+esc(destLab)+
+          '<span class="meta">'+esc(dateLab)+(dateLab?" · ":"")+'Boat free cash'+
             (it.source?' · '+esc(leadSourceLabel(it.source)):"")+
           '</span>'+
         '</div>';
@@ -21025,19 +21022,19 @@ function renderCommissions(){
   html+='<div class="apa-card" style="margin-bottom:12px" id="cmRateToggleCard">'+
     '<div style="font-weight:800;margin-bottom:6px">Captain commission rate</div>'+
     '<div class="meta" style="margin-bottom:10px;line-height:1.45">'+
-      'Agreed book default is <b>'+CAPTAIN_COMMISSION_PCT+'%</b>. Toggle to preview <b>'+CAPTAIN_COMMISSION_TARGET_PCT+'%</b> (what you wanted) and see how much less the current deal pays. Per-trip rate on each lead can stamp 10 or 15 later when new trips renegotiate.'+
+      'Book default is <b>'+CAPTAIN_COMMISSION_PCT+'%</b>. Toggle to preview <b>'+CAPTAIN_COMMISSION_TARGET_PCT+'%</b> and compare. Per-trip rate on each lead can stamp 10 or 15 when renegotiated.'+
     '</div>'+
     '<div style="display:flex;flex-wrap:wrap;gap:8px;align-items:center">'+
-      '<button type="button" class="btn'+(previewOn?' ghost':'')+'" id="cmRateAgreed" style="width:auto;padding:8px 14px">Agreed '+CAPTAIN_COMMISSION_PCT+'%</button>'+
+      '<button type="button" class="btn'+(previewOn?' ghost':'')+'" id="cmRateAgreed" style="width:auto;padding:8px 14px">Book '+CAPTAIN_COMMISSION_PCT+'%</button>'+
       '<button type="button" class="btn'+(previewOn?'':' ghost')+'" id="cmRatePreview" style="width:auto;padding:8px 14px">Preview '+CAPTAIN_COMMISSION_TARGET_PCT+'%</button>'+
     '</div>';
   if(previewOn){
     var less=Math.round((captEarnedDisp-captEarnedBook)*100)/100;
     html+='<div class="meta" style="margin-top:10px;padding:8px 10px;border-radius:8px;background:rgba(201,168,76,.12);line-height:1.45">'+
       '<b>Preview only</b> — lines below use '+CAPTAIN_COMMISSION_TARGET_PCT+'%. '+
-      'At agreed '+CAPTAIN_COMMISSION_PCT+'% you earn <b class="money">'+money(captEarnedBook)+'</b>'+
+      'At book '+CAPTAIN_COMMISSION_PCT+'% earned is <b class="money">'+money(captEarnedBook)+'</b>'+
       (less>0.009?' · <b class="money" style="color:var(--amberDeep)">'+money(less)+' less</b> than this preview':'')+
-      '. Pay from petty always uses agreed book rates.'+
+      '. Petty draws always use book rates.'+
     '</div>';
   } else if(captEarnedBook>0.009){
     var at15=0;
@@ -21047,8 +21044,8 @@ function renderCommissions(){
     var gap=Math.round((at15-captEarnedBook)*100)/100;
     if(gap>0.009){
       html+='<div class="meta" style="margin-top:10px;line-height:1.45;color:var(--muted)">'+
-        'At '+CAPTAIN_COMMISSION_TARGET_PCT+'% you would earn <b class="money">'+money(at15)+'</b> · '+
-        'you are getting <b class="money" style="color:var(--amberDeep)">'+money(gap)+' less</b> under the '+CAPTAIN_COMMISSION_PCT+'% agreement.'+
+        'At '+CAPTAIN_COMMISSION_TARGET_PCT+'% earned would be <b class="money">'+money(at15)+'</b> · '+
+        'book '+CAPTAIN_COMMISSION_PCT+'% is <b class="money" style="color:var(--amberDeep)">'+money(gap)+' less</b>.'+
       '</div>';
     }
   }
@@ -21056,16 +21053,16 @@ function renderCommissions(){
 
   /* Pay from petty — draw commission cash from the boat envelope (book rates) */
   html+='<div class="apa-card" style="margin-bottom:14px" id="cmPayCard">'+
-    '<div style="font-weight:800;margin-bottom:6px">Pay yourself from petty cash</div>'+
+    '<div style="font-weight:800;margin-bottom:6px">Captain commission · pay from petty</div>'+
     '<div class="meta" style="margin-bottom:10px;line-height:1.45">'+
-      'Earned on agreed book rates (confirmed captain deals + upsells): <b class="money">'+money(captEarnedBook)+'</b>. '+
+      'Earned on book rates (confirmed captain deals + upsells): <b class="money">'+money(captEarnedBook)+'</b>. '+
       'Drawn from the envelope: <b class="money">'+money(captDrawn)+'</b>'+
       (captReturned>0.009?(' · returned to boat: <b class="money">'+money(captReturned)+'</b>'):'')+
       ' · <b>net paid</b>: <b class="money">'+money(captPaid)+'</b>. '+
       (captOpen>0.009
         ?('Still outstanding: <b class="money" style="color:var(--amberDeep)">'+money(captOpen)+'</b>.')
         :(captEarnedBook>0.009?'All earned commission covered (net).':''))+
-      (captOverpaid>0.009?' <span style="color:var(--danger)">Still <b class="money">'+money(captOverpaid)+'</b> over earned after returns.</span>':'')+
+      (captOverpaid>0.009?' <span style="color:var(--danger)">Over earned by <b class="money">'+money(captOverpaid)+'</b> after returns.</span>':'')+
       ' Petty on board (this month): <b class="money">'+money(pettyNow)+'</b>.'+
     '</div>'+
     '<div style="display:flex;flex-wrap:wrap;gap:8px;align-items:center">'+
@@ -21073,10 +21070,10 @@ function renderCommissions(){
         (pettyNow<0.01&&captOpen<0.01?' disabled':'')+
       '>Pay from petty cash</button>'+
       ((captOverpaid>0.009||captDrawn>captEarnedBook+0.009)
-        ?('<button type="button" class="btn ghost" id="cmReturnOverpay" style="width:auto;padding:10px 16px" title="Put overpaid commission cash back into the boat envelope">Return overpay to boat'+(captOverpaid>0.009?' · '+money0(captOverpaid):'')+'</button>')
+        ?('<button type="button" class="btn ghost" id="cmReturnOverpay" style="width:auto;padding:10px 16px" title="Return overpaid commission cash to the boat envelope">Return overpay to boat'+(captOverpaid>0.009?' · '+money0(captOverpaid):'')+'</button>')
         :'')+
     '</div>'+
-    '<p class="meta" style="margin:8px 0 0;line-height:1.4">Partial draws OK — enter any amount up to petty on board. Logs an expense <b>Captain commission</b> · Cash · Petty (cash out). If you over-drew, use <b>Return overpay to boat</b> (cash in · Commission return) so net paid drops.</p>';
+    '<p class="meta" style="margin:8px 0 0;line-height:1.4">Partial draws OK — any amount up to petty on board. Logs an expense <b>Captain commission</b> · Cash · Petty (cash out). Over-draws: use <b>Return overpay to boat</b> (cash in · Commission return).</p>';
   if(payouts.length){
     html+='<div style="margin-top:12px;padding-top:10px;border-top:1px solid var(--line)">'+
       '<div class="meta" style="font-weight:700;margin-bottom:6px">Draws so far</div><div class="list" style="margin:0">';
@@ -21088,7 +21085,7 @@ function renderCommissions(){
         '<div class="top"><div class="title" style="font-size:14px">'+esc(e.description||e.vendor||"Commission draw")+'</div>'+
           '<div class="amt money" style="font-size:14px">−'+money0(e.amount)+'</div></div>'+
         '<div class="meta">'+(dLab?'<span>📅 '+esc(dLab)+'</span>':'')+
-          '<span class="pill p-cash">Petty</span><span class="pill p-green">Paid to you</span></div>'+
+          '<span class="pill p-cash">Petty</span><span class="pill p-green">Drawn</span></div>'+
       '</div>';
     });
     html+='</div></div>';
@@ -21115,7 +21112,7 @@ function renderCommissions(){
     ?('Captain · preview '+CAPTAIN_COMMISSION_TARGET_PCT+'% · deals')
     :('Captain · '+CAPTAIN_COMMISSION_PCT+'% agreed · deals');
   html+='<div class="apa-sect-h" style="margin-top:0"><h3>'+rateHead+'</h3></div>';
-  html+='<p style="margin:0 0 10px;font-size:12.5px;color:var(--muted);line-height:1.4">Confirmed captain deals only (same as Leads). Upsells/extensions from charges with <b>I get commission</b>. Use <b>Pay from petty cash</b> above to take cash when the boat has float'+(previewOn?' (always at agreed rates)':'')+'.</p>';
+  html+='<p style="margin:0 0 10px;font-size:12.5px;color:var(--muted);line-height:1.4">Confirmed captain deals only (same as Leads). Upsells/extensions from charges with captain commission. Use <b>Pay from petty cash</b> above when the boat has float'+(previewOn?' (draws always at book rates)':'')+'.</p>';
   if(captItems.length||extItems.length){
     var openPill=captOpen>0.009
       ?('<span class="pill p-amber">Open pool '+money0(captOpen)+'</span>')
