@@ -10921,7 +10921,16 @@ function openApaLine(kind,id){
   var title=kind==="expense"?(rec?"Edit expense":"New expense"):(kind==="provision"?(rec?"Edit provision":"New provision"):(rec?"Edit consumption":"Log consumption"));
   var linkedFromExp=(kind==="expense"||kind==="provision")&&rec&&rec.fromExpenseId;
   var needsReceipt=kind==="expense"||kind==="provision";
+  var fromDieselBoard=kind==="diesel"&&curTab==="diesel";
+  var ownerFuel=false;
+  try{ ownerFuel=kind==="diesel"&&typeof apaTripIsOwnerDays==="function"&&apaTripIsOwnerDays(t); }catch(eOwn){ ownerFuel=false; }
   var h='<div class="sheethead"><h2>'+title+'</h2><button type="button" class="sheetx" id="sheetClose" aria-label="Close">×</button></div>';
+  if(fromDieselBoard){
+    h+='<p style="margin:0 0 12px;font-size:12.5px;color:var(--muted);line-height:1.45">Editing live APA fuel for <b>'+esc(t.guest||"trip")+'</b>. Saved litres update Diesel <b>Used (APA)</b> and est. on board.</p>';
+    if(ownerFuel){
+      h+='<div class="banner warn show" style="margin-bottom:12px"><b>Owner · deficit</b> — this pot is linked to an <b>Owner’s days</b> lead, so cost is unpaid bunker deficit (not Out value). Litres still burn the tank and count in Used (APA). To stop the deficit label, change the lead source away from Owner’s days.</div>';
+    }
+  }
   if(linkedFromExp){
     h+='<div class="banner warn show">Synced from the captain’s <b>monthly Expenses</b>. Edit there to change amount/date (or ask the captain). You can still remove it from this pot with Delete.</div>';
   } else if(needsReceipt&&isCaptain()){
@@ -11341,6 +11350,7 @@ function dieselApaEvents(){
         litres:c.lit,
         guest:t.guest||"",
         tripId:t.id,
+        lineId:r.id,
         notes:r.notes||"",
         source:"apa",
         price:unit>0?unit:tripSell,
@@ -11355,6 +11365,41 @@ function dieselApaEvents(){
     });
   });
   return out;
+}
+/** Parse trip/line ids from a Diesel timeline APA row. */
+function dieselApaIdsFromRow(row){
+  if(!row) return {tripId:"", lineId:""};
+  var tripId=String(row.tripId||"").trim();
+  var lineId=String(row.lineId||"").trim();
+  if(tripId&&lineId) return {tripId:tripId, lineId:lineId};
+  var id=String(row.id||"");
+  if(id.indexOf("apa:")===0){
+    var rest=id.slice(4);
+    var i=rest.indexOf(":");
+    if(i>0){
+      if(!tripId) tripId=rest.slice(0,i);
+      if(!lineId) lineId=rest.slice(i+1);
+    }
+  }
+  return {tripId:tripId, lineId:lineId};
+}
+/** Diesel log → edit live APA pot fuel line (same sheet as APA → Trip fuel). */
+function openDieselApaLine(tripId, lineId){
+  if(!canOps()||!tripId||!lineId) return false;
+  var trip=(state.apa||[]).filter(function(t){ return t&&String(t.id)===String(tripId); })[0];
+  if(!trip){ window.alert("APA pot not found for this fuel line."); return false; }
+  activeApaId=trip.id;
+  openApaLine("diesel", lineId);
+  return true;
+}
+/** Diesel log → delete live APA pot fuel line. */
+function deleteDieselApaLine(tripId, lineId){
+  if(!canOps()||!tripId||!lineId) return false;
+  var trip=(state.apa||[]).filter(function(t){ return t&&String(t.id)===String(tripId); })[0];
+  if(!trip) return false;
+  activeApaId=trip.id;
+  deleteApaLine("diesel", lineId);
+  return true;
 }
 /**
  * After APA fuel add/edit/delete: strip any stored APA-mirror log rows and
@@ -11479,7 +11524,7 @@ function dieselLedger(){
       id:ev.id, date:ev.date, kind:ev.kind, litres:apaLit(apaNum(ev.litres)),
       onboard:ev.hasOnboard||ev.kind==="level"?apaLit(apaNum(ev.onboard)):null,
       tankAfter:tank==null?null:apaLit(tank),
-      notes:ev.notes||"", guest:ev.guest||"", tripId:ev.tripId||"",
+      notes:ev.notes||"", guest:ev.guest||"", tripId:ev.tripId||"", lineId:ev.lineId||"",
       source:ev.source||"log", unitPrice:ev._unitPrice, lineEuro:lineEuro, raw:ev.raw,
       moneyCounts:ev._moneyCounts, ownerExpense:ev._ownerExpense, guestCharged:ev._guestCharged,
       payLabel:ev._payLabel||"", ownerDays:!!ev.ownerDays
@@ -11545,7 +11590,7 @@ function renderDiesel(){
     '<div class="sumcard"><div class="l">Used (APA)</div><div class="v">'+esc(String(L.apaUsed))+' L</div></div>'+
     (L.ownerUsed>0?'<div class="sumcard"><div class="l">Owner deficit (unpaid)</div><div class="v" style="color:var(--danger)">−'+esc(String(L.ownerUsed))+' L</div><div class="s money" style="color:var(--danger)">−'+money(L.ownerCost)+'</div></div>':'')+
   '</div>'+
-  '<div class="legend">After each <b>bunker</b>, set the <b>sale price</b> (default pump + €'+esc(String(DIESEL_MARKUP))+'). APA always burns the tank. <b>Out value</b> = guest sells + <b>Paid</b> guest APA only. <b>Owner’s days</b> at last bunker are an unpaid <b>deficit</b> (subtracted from margin), not recovered out value. Unpaid guest APA = litres only. <b>Last charged</b> = guest rate only.</div>'+
+  '<div class="legend">After each <b>bunker</b>, set the <b>sale price</b> (default pump + €'+esc(String(DIESEL_MARKUP))+'). APA always burns the tank. <b>Tap any log or APA line to edit</b> (litres update Used / on board). <b>Out value</b> = guest sells + <b>Paid</b> guest APA only. <b>Owner’s days</b> at last bunker are an unpaid <b>deficit</b> (subtracted from margin), not recovered out value. Unpaid guest APA = litres only. <b>Last charged</b> = guest rate only.</div>'+
   '<div class="exp-alert ok" style="margin-bottom:12px">'+
     '<div style="font-weight:800;margin-bottom:4px">Active sale price</div>'+
     '<div class="money" style="font-size:28px;font-weight:800;margin-top:4px">€'+esc(String(activeSell))+'<span style="font-size:15px;font-weight:600"> / L</span></div>'+
@@ -11618,12 +11663,23 @@ function renderDiesel(){
         else if(row.moneyCounts&&row.lineEuro!=null) meta+='<span class="money">'+money(row.lineEuro)+'</span>';
         else if(row.lineEuro!=null&&row.lineEuro>0) meta+='<span class="meta">not charged · '+money(row.lineEuro)+'</span>';
       }
-      var editable=row.source==="log";
-      html+='<div class="item'+(editable?' apa-row':'')+'"'+(editable?' data-diesel-edit="'+esc(row.id)+'" role="button" tabindex="0"':'')+'>'+
+      /* Manual log + live APA fuel lines are both editable (APA opens the pot line). */
+      var editableLog=row.source==="log";
+      var apaIds=(!editableLog&&row.source==="apa")?dieselApaIdsFromRow(row):null;
+      var editableApa=!!(apaIds&&apaIds.tripId&&apaIds.lineId&&canOps());
+      var editable=editableLog||editableApa;
+      var openAttr=editableLog
+        ?(' data-diesel-edit="'+esc(row.id)+'"')
+        :(editableApa
+          ?(' data-diesel-apa-trip="'+esc(apaIds.tripId)+'" data-diesel-apa-line="'+esc(apaIds.lineId)+'"')
+          :"");
+      html+='<div class="item'+(editable?' apa-row':'')+'"'+(editable?openAttr+' role="button" tabindex="0"':'')+'>'+
         '<div class="top"><div class="title">'+esc(title)+'</div><div class="amt">'+amt+'</div></div>'+
         '<div class="meta">'+meta+'</div>'+
         (row.notes?'<div class="notes">'+esc(row.notes)+'</div>':'')+
-        (editable?'<button type="button" class="apa-x" data-diesel-del="'+esc(row.id)+'" aria-label="Delete">×</button>':'')+
+        (editableLog?'<button type="button" class="apa-x" data-diesel-del="'+esc(row.id)+'" aria-label="Delete">×</button>':'')+
+        (editableApa?'<button type="button" class="apa-x" data-diesel-apa-del-trip="'+esc(apaIds.tripId)+'" data-diesel-apa-del-line="'+esc(apaIds.lineId)+'" aria-label="Delete">×</button>':'')+
+        (editable?'<span class="chev">✎</span>':'')+
       '</div>';
     });
     html+='</div>';
@@ -11646,14 +11702,26 @@ function renderDiesel(){
   if(el("dieselAdd")) el("dieselAdd").addEventListener("click",function(){ openDieselPicker(); });
   Array.prototype.forEach.call(wrap.querySelectorAll("[data-diesel-edit]"),function(x){
     x.addEventListener("click",function(ev){
-      if(ev.target.closest&&ev.target.closest("[data-diesel-del]")) return;
+      if(ev.target.closest&&(ev.target.closest("[data-diesel-del]")||ev.target.closest("[data-diesel-apa-del-trip]"))) return;
       openDieselEntry(null, x.getAttribute("data-diesel-edit"));
+    });
+  });
+  Array.prototype.forEach.call(wrap.querySelectorAll("[data-diesel-apa-trip]"),function(x){
+    x.addEventListener("click",function(ev){
+      if(ev.target.closest&&(ev.target.closest("[data-diesel-del]")||ev.target.closest("[data-diesel-apa-del-trip]"))) return;
+      openDieselApaLine(x.getAttribute("data-diesel-apa-trip"), x.getAttribute("data-diesel-apa-line"));
     });
   });
   Array.prototype.forEach.call(wrap.querySelectorAll("[data-diesel-del]"),function(x){
     x.addEventListener("click",function(ev){
       ev.preventDefault(); ev.stopPropagation();
       deleteDieselEntry(x.getAttribute("data-diesel-del"));
+    });
+  });
+  Array.prototype.forEach.call(wrap.querySelectorAll("[data-diesel-apa-del-trip]"),function(x){
+    x.addEventListener("click",function(ev){
+      ev.preventDefault(); ev.stopPropagation();
+      deleteDieselApaLine(x.getAttribute("data-diesel-apa-del-trip"), x.getAttribute("data-diesel-apa-del-line"));
     });
   });
 }
