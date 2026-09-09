@@ -1013,10 +1013,10 @@ def check_html(r: Runner, rel: str, html: str) -> None:
         'desktop nav uses site-wide commercial links',
         'data-site-nav="1"' in html
         and re.search(r'class="nav-links"[^>]*>[\s\S]*?href="#hero"', html) is not None
-        and re.search(r'class="nav-links"[^>]*>[\s\S]*?href="yacht-charter-mallorca/"', html) is not None
-        and re.search(r'class="nav-links"[^>]*>[\s\S]*?href="destinations/"', html) is not None
-        and re.search(r'class="nav-links"[^>]*>[\s\S]*?href="maiora-yacht-charter/"', html) is not None
-        and re.search(r'class="nav-links"[^>]*>[\s\S]*?href="yacht-charter-mallorca-prices/"', html) is not None
+        and re.search(r'class="nav-links"[^>]*>[\s\S]*?href="(?:/)?yacht-charter-mallorca/"', html) is not None
+        and re.search(r'class="nav-links"[^>]*>[\s\S]*?href="(?:/)?destinations/"', html) is not None
+        and re.search(r'class="nav-links"[^>]*>[\s\S]*?href="(?:/)?maiora-yacht-charter/"', html) is not None
+        and re.search(r'class="nav-links"[^>]*>[\s\S]*?href="(?:/)?yacht-charter-mallorca-prices/"', html) is not None
         and re.search(r'class="nav-links"[^>]*>[\s\S]*?href="#avail-cal"', html) is not None
         and 'id="about-land"' in html
         and 'id="charters-land"' in html
@@ -1024,7 +1024,7 @@ def check_html(r: Runner, rel: str, html: str) -> None:
     )
     r.check(
         'desktop nav separates charters, availability, and dates CTA',
-        'href="yacht-charter-mallorca/"' in html
+        ('href="yacht-charter-mallorca/"' in html or 'href="/yacht-charter-mallorca/"' in html)
         and 'href="#availability" class="nav-cta nav-header-cta"' in html
         and 'Get Quote' not in html
         and 'href="#pricing-land"' not in html
