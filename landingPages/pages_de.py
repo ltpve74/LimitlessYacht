@@ -11,6 +11,17 @@ UI = {
     "destinations": "Reiseziele",
     "charters": "Charter",
     "the_yacht": "Die Yacht",
+    "prices": "Preise",
+    "contact": "Kontakt",
+    "private_charter": "Privater Charter",
+    "day_charter": "Tagescharter",
+    "sunset": "Halbtag & Sonnenuntergang",
+    "multi_day": "Mehrtage",
+    "club_de_mar": "Club de Mar, Palma",
+    "whats_included": "Was inklusive ist",
+    "best_time": "Beste Reisezeit",
+    "footer_charters": "Charter",
+    "footer_info": "Infos",
     "note": "Kapitän und Crew antworten meist innerhalb einer Stunde, immer innerhalb von 24 Stunden. Crew und MwSt. inklusive. Trinkgeld wird nicht erwartet.",
     "facts": "Auf einen Blick",
     "from_marina": "Ab Club de Mar",
@@ -47,7 +58,7 @@ PAGES = {
                 "Outdoor-Bar mit vier Kühlschränken und Eiswürfelbereiter, großes Sonnendeck, Seabob, SUPs, Schnorchelausrüstung, Lily Pad und Jet-Tender, Bose und Sonos, Klimaanlage und Smart-TVs unten. Alles für den Tag auf dem Wasser ist schon an Bord.",
             ),
         ],
-        "cta": "Schreiben Sie Kapitän und Crew Termine und Gruppengröße — Sie bekommen meist innerhalb von 24 Stunden eine persönliche Antwort mit Routen und einem klaren Gesamtpreis.",
+        "cta": "Schreiben Sie Kapitän und Crew Termine und Gruppengröße — Sie bekommen meist innerhalb von 24 Stunden eine persönliche Antwort mit Routen und einem klaren Gesamtpreis. Siehe <a href=\"../yacht-charter-mallorca-prices/\">Charterpreise</a>.",
         "wa": "Hallo, ich interessiere mich für einen privaten Yachtcharter auf der Limitless.",
         "service_name": "Yachtcharter Mallorca — Maiora Limitless",
         "faq": [
@@ -66,14 +77,14 @@ PAGES = {
         "sections": [
             (
                 "So läuft ein Tag",
-                "Sie steigen morgens im Club de Mar zu, die Crew formt die Route nach Ihnen und dem Wetter — die geschützten türkisen Buchten im Südwesten für einen leichten Tag, oder bei ruhigem Wetter weiter nach Es Trenc, Sa Dragonera oder Cabrera. Schwimmen von der Plattform, Seabob und SUPs, der Tag darf langsam werden. Es ist Ihr Boot; es gibt keinen Plan außer Ihrem.",
+                'Sie steigen morgens im Club de Mar zu, die Crew formt die Route nach Ihnen und dem Wetter — die geschützten türkisen Buchten im Südwesten für einen leichten Tag, oder bei ruhigem Wetter weiter nach <a href="../destinations/es-trenc/">Es Trenc</a>, <a href="../destinations/sa-dragonera/">Sa Dragonera</a> oder <a href="../destinations/cabrera/">Cabrera</a>. Schwimmen von der Plattform, Seabob und SUPs, der Tag darf langsam werden. Es ist Ihr Boot; es gibt keinen Plan außer Ihrem.',
             ),
             (
                 "Mittagessen und Details",
                 "Catering auf Wunsch — vom lockeren Buffet bis zum langen Mittagessen — oder Sie bringen selbst etwas mit. Die Crew ankert, fährt Tender und reserviert Beach Clubs. Crew, Reinigung und MwSt. sind inklusive; Sie haben vorher einen klaren Preis.",
             ),
         ],
-        "cta": "Schicken Sie der Crew Termin und Gruppengröße — Sie bekommen Routenideen und einen Gesamtpreis für den Tagescharter.",
+        "cta": "Schicken Sie der Crew Termin und Gruppengröße — Sie bekommen Routenideen und einen Gesamtpreis für den Tagescharter. Siehe <a href=\"../yacht-charter-mallorca-prices/\">Charterpreise</a>.",
         "wa": "Hallo, ich interessiere mich für einen Tagescharter auf der Limitless.",
         "service_name": "Tagescharter Mallorca — Maiora Limitless",
         "faq": [
@@ -91,14 +102,14 @@ PAGES = {
         "sections": [
             (
                 "Kurz, aber nicht gehetzt",
-                "Unsere Heimatbuchten sind nah — Portals Vells kaum 35 Minuten — deshalb bleibt im Halbtag echte Zeit im Wasser. Morgens schwimmen und paddeln vor dem Mittagessen; ein Nachmittag, der in den Abend gleitet; oder eine Sunset-Fahrt, wenn das Licht über der Bucht gold wird und die Küste leer wird.",
+                'Unsere Heimatbuchten sind nah — <a href="../destinations/portals-vells/">Portals Vells</a> kaum 35 Minuten — deshalb bleibt im Halbtag echte Zeit im Wasser. Morgens schwimmen und paddeln vor dem Mittagessen; ein Nachmittag, der in den Abend gleitet; oder eine Sunset-Fahrt, wenn das Licht über der Bucht gold wird und die Küste leer wird.',
             ),
             (
                 "Inklusive",
                 "Crew, Reinigung und MwSt. gehören zum Preis. Sound, Wasserspielzeug und Outdoor-Bar sind Ihre für die Session. Getränke und Catering auf Wunsch.",
             ),
         ],
-        "cta": "Schreiben Sie der Crew Ihren Termin und ob Sie Morgen, Nachmittag oder Sonnenuntergang wollen — Sie bekommen schnell einen Gesamtpreis.",
+        "cta": "Schreiben Sie der Crew Ihren Termin und ob Sie Morgen, Nachmittag oder Sonnenuntergang wollen — Sie bekommen schnell einen Gesamtpreis. Siehe <a href=\"../yacht-charter-mallorca-prices/\">Charterpreise</a>.",
         "wa": "Hallo, ich interessiere mich für einen Halbtag oder Sunset-Charter auf der Limitless.",
         "service_name": "Halbtag und Sunset-Charter Mallorca — Maiora Limitless",
         "faq": [
@@ -116,14 +127,14 @@ PAGES = {
         "sections": [
             (
                 "Wohin Sie können",
-                "Die wilde Tramuntana-Küste im Nordwesten, Formenteras türkise Sandbänke und Ibizas Ankerplätze, das ruhige Menorca, oder die volle Umschiffung Mallorcas in fünf bis sieben Tagen. Über Nacht bis 7 Gäste; die Crew baut jeden Tag um Wetter und Lust.",
+                'Die wilde Tramuntana-Küste im Nordwesten — <a href="../destinations/west-coast-soller/">Sa Foradada, Sóller und Cala Tuent</a> —, rüber nach <a href="../destinations/ibiza-formentera/">Ibiza und Formentera</a>, das ruhige <a href="../destinations/menorca-crossing/">Menorca</a>, oder die volle Umschiffung Mallorcas in fünf bis sieben Tagen. Über Nacht bis 7 Gäste; die Crew baut jeden Tag um Wetter und Lust.',
             ),
             (
                 "Ehrlich bei den Kosten",
                 "Längere Reisen laufen über eine APA — Advance Provisioning Allowance, typisch rund 10 % der Chartergebühr — für Verpflegung, extra Kraftstoff und Liegeplatz, mit laufender transparenter Abrechnung durch den Kapitän. Was übrig bleibt, kommt zurück. Wir erklären die Zahlen lieber zu genau, als Sie zu überraschen.",
             ),
         ],
-        "cta": "Sagen Sie der Crew Termine und wohin Sie wollen — Sie bekommen eine realistische Route, Meilen und Kostenskizze, nichts zurückgehalten.",
+        "cta": "Sagen Sie der Crew Termine und wohin Sie wollen — Sie bekommen eine realistische Route, Meilen und Kostenskizze, nichts zurückgehalten. Siehe <a href=\"../yacht-charter-mallorca-prices/\">Charterpreise</a>.",
         "wa": "Hallo, ich interessiere mich für einen Mehrtagescharter auf der Limitless.",
         "service_name": "Mehrtages-Yachtcharter Balearen — Maiora Limitless",
         "faq": [
@@ -156,7 +167,7 @@ PAGES = {
                 "Werft: Maiora · Länge: 21,5 m × 5,6 m Breite · Motoren: 2 × MTU, 1.500 PS · Gäste: 12 Tag / 7 Nacht · Crew: 2 · Heimathafen: Club de Mar, Palma de Mallorca. Nicht zu verwechseln mit der 96 m Lürssen gleichen Namens, die manchmal in derselben Marina liegt. Diese Seite ist die Charter-Yacht.",
             ),
         ],
-        "cta": "Schreiben Sie Kapitän und Crew, um Termine zu prüfen und ein Angebot zu bekommen.",
+        "cta": "Schreiben Sie Kapitän und Crew, um Termine zu prüfen und ein Angebot zu bekommen. Siehe <a href=\"../yacht-charter-mallorca-prices/\">Charterpreise</a>.",
         "wa": "Hallo, ich interessiere mich für einen Charter der Maiora Limitless.",
         "service_name": "Maiora 21,5 m Limitless Yachtcharter Mallorca",
         "faq": [],
@@ -178,7 +189,7 @@ PAGES = {
                 "Die Marina ist ein kurzes Taxi aus der Stadt, Kreuzfahrtterminal und Flughafen sind nah — ob Sie in Palma wohnen, in Portals oder gerade gelandet sind.",
             ),
         ],
-        "cta": "Schicken Sie der Crew Termine und Gruppengröße für Routen ab Club de Mar und ein klares Angebot.",
+        "cta": "Schicken Sie der Crew Termine und Gruppengröße für Routen ab Club de Mar und ein klares Angebot. Siehe <a href=\"../yacht-charter-mallorca-prices/\">Charterpreise</a>.",
         "wa": "Hallo, ich interessiere mich für einen Charter ab Club de Mar auf der Limitless.",
         "service_name": "Yachtcharter ab Club de Mar Palma — Maiora Limitless",
         "faq": [],
@@ -223,14 +234,14 @@ PAGES = {
             ),
             (
                 "Was inklusive ist",
-                "Ihre Crew aus zwei Personen, Reinigung und MwSt. gehören zum Preis. Ohne Aufpreis an Bord: Seabob, Jet-Tender, SUPs, Schnorchelausrüstung, Sound und Outdoor-Bar. Eine rückzahlbare Kaution (20 %) gilt.",
+                'Ihre Crew aus zwei Personen, Reinigung und MwSt. gehören zum Preis. Ohne Aufpreis an Bord: Seabob, Jet-Tender, SUPs, Schnorchelausrüstung, Sound und Outdoor-Bar. Eine rückzahlbare Kaution (20 %) gilt. Alle Details auf <a href="../what-is-included/">was inklusive ist</a>.',
             ),
             (
                 "Was extra ist",
                 "Catering und Beach-Club-Reservierungen auf Wunsch. Bei Mehrtagen laufen Verpflegung, Liegeplatz, extra Kraftstoff und die Schlussreinigung über eine transparente APA. Trinkgeld wird nicht erwartet — ganz bei Ihnen.",
             ),
         ],
-        "cta": "Schicken Sie Ihre Termine für ein genaues Angebot — vorher klar, ohne Verpflichtung.",
+        "cta": "Schicken Sie Ihre Termine für ein genaues Angebot — vorher klar, ohne Verpflichtung. Siehe <a href=\"../what-is-included/\">was inklusive ist</a> und die <a href=\"../best-time-yacht-charter-mallorca/\">beste Reisezeit</a>.",
         "wa": "Hallo, ich hätte gern ein Angebot für einen Charter auf der Limitless.",
         "service_name": "Yachtcharter Mallorca Preise — Limitless",
         "faq": [

@@ -244,6 +244,7 @@ def build_legal(locale_mod) -> str:
     html = html.replace('href="favicon.svg"', 'href="../favicon.svg"')
     html = patch_html_lang(html, locale_mod.LANG)
     html = apply_pairs(html, locale_mod.LEGAL_PAIRS)
+    html = html.replace('href="index.html#avail-cal"', 'href="../#avail-cal"')
     html = html.replace('href="index.html"', 'href="../"')
     html = html.replace('href="css/main.css"', 'href="../css/main.css"')
     html = html.replace('src="js/analytics-env.js"', 'src="../js/analytics-env.js"')

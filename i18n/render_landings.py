@@ -40,7 +40,18 @@ UI_EN = {
     "legal": "Legal",
     "destinations": "Destinations",
     "charters": "Charters",
-    "the_yacht": "The yacht",
+    "the_yacht": "The Yacht",
+    "prices": "Prices",
+    "contact": "Contact",
+    "private_charter": "Private charter",
+    "day_charter": "Day charter",
+    "sunset": "Half-day & sunset",
+    "multi_day": "Multi-day",
+    "club_de_mar": "Club de Mar, Palma",
+    "whats_included": "What's included",
+    "best_time": "Best time to charter",
+    "footer_charters": "Charters",
+    "footer_info": "Info",
     "note": "Captain and crew usually reply within the hour, and always within 24 hours. Crew and VAT included. Gratuity is never expected.",
     "facts": "At a glance",
     "from_marina": "From Club de Mar",
@@ -240,6 +251,68 @@ def _hub_cards(dests: list[dict], prefix: str, ui: dict) -> str:
     return "\n".join(bits)
 
 
+FOOTER_DESTS = (
+    ("destinations/cabrera/", "Cabrera"),
+    ("destinations/es-trenc/", "Es Trenc"),
+    ("destinations/sa-dragonera/", "Sa Dragonera"),
+    ("destinations/portals-vells/", "Portals Vells"),
+    ("destinations/ibiza-formentera/", "Ibiza & Formentera"),
+)
+
+
+def _rich(text: str) -> str:
+    """Allow intentional <a> tags in landing copy; escape everything else."""
+    if "<a " in text:
+        return text
+    return _esc(text)
+
+
+def site_nav(home: str, ui: dict) -> str:
+    return (
+        f'<div class="nav-end ly-inner-links" data-site-nav="1">\n'
+        f'<a href="{home}">{_esc(ui["home"])}</a>\n'
+        f'<a href="{home}yacht-charter-mallorca/">{_esc(ui["charters"])}</a>\n'
+        f'<a href="{home}destinations/">{_esc(ui["destinations"])}</a>\n'
+        f'<a href="{home}maiora-yacht-charter/">{_esc(ui["the_yacht"])}</a>\n'
+        f'<a href="{home}yacht-charter-mallorca-prices/">{_esc(ui["prices"])}</a>\n'
+        f'<a href="{home}#avail-cal">{_esc(ui["contact"])}</a>\n'
+        f'<a href="{home}#avail-cal" class="nav-cta nav-header-cta">{_esc(ui["check_dates"])}</a>\n'
+        f"</div>"
+    )
+
+
+def site_footer(home: str, ui: dict) -> str:
+    def a(path: str, label: str) -> str:
+        return f'<a href="{home}{path}">{_esc(label)}</a>'
+
+    dests = "\n".join(a(p, lab) for p, lab in FOOTER_DESTS)
+    return f"""<footer>
+<p class="footer-logo">Limitless Yacht</p>
+<p class="footer-tagline">Club de Mar · Palma de Mallorca</p>
+<div class="footer-sitemap">
+<div class="footer-col"><span class="footer-heading">{_esc(ui["footer_charters"])}</span>
+{a("yacht-charter-mallorca/", ui["private_charter"])}
+{a("day-charter-mallorca/", ui["day_charter"])}
+{a("sunset-charter-mallorca/", ui["sunset"])}
+{a("multi-day-charter-balearics/", ui["multi_day"])}
+{a("maiora-yacht-charter/", ui["the_yacht"])}
+{a("yacht-charter-palma-club-de-mar/", ui["club_de_mar"])}
+</div>
+<div class="footer-col"><span class="footer-heading">{_esc(ui["destinations"])}</span>
+{a("destinations/", ui["destinations"])}
+{dests}
+</div>
+<div class="footer-col"><span class="footer-heading">{_esc(ui["footer_info"])}</span>
+{a("yacht-charter-mallorca-prices/", ui["prices"])}
+{a("what-is-included/", ui["whats_included"])}
+{a("best-time-yacht-charter-mallorca/", ui["best_time"])}
+<a href="{home}legal.html">{_esc(ui["legal"])}</a>
+</div>
+</div>
+<p class="footer-copy">Limitless Opportunities S.L. · VAT B21726427</p>
+</footer>"""
+
+
 def render_page(
     *,
     lang: str,
@@ -276,7 +349,7 @@ def render_page(
         for href, label in crumbs:
             parts.append(f'<a href="{href}">{_esc(label)}</a>' if href else f"<span>{_esc(label)}</span>")
         crumb_html = '<nav class="ly-crumbs" aria-label="Breadcrumb">' + " · ".join(parts) + "</nav>"
-    section_html = "".join(f"<h2>{_esc(h)}</h2>\n<p>{_esc(p)}</p>\n" for h, p in sections)
+    section_html = "".join(f"<h2>{_esc(h)}</h2>\n<p>{_rich(p)}</p>\n" for h, p in sections)
     related_html = ""
     if related:
         links = " · ".join(f'<a href="{href}">{_esc(label)}</a>' for href, label in related)
@@ -307,12 +380,7 @@ def render_page(
 <body>
 <nav id="navbar">
 <a href="{nav_home}" class="nav-logo">Limitless <span>Yacht</span></a>
-<div class="nav-end ly-inner-links">
-<a href="{nav_home}destinations/">{_esc(ui["destinations"])}</a>
-<a href="{nav_home}yacht-charter-mallorca/">{_esc(ui["charters"])}</a>
-<a href="{nav_home}maiora-yacht-charter/">{_esc(ui["the_yacht"])}</a>
-<a href="{nav_home}#avail-cal" class="nav-cta nav-header-cta">{_esc(ui["check_dates"])}</a>
-</div>
+{site_nav(nav_home, ui)}
 </nav>
 <main class="ly-page">
 {crumb_html}
@@ -329,20 +397,10 @@ def render_page(
 <div class="ly-page-cta">
 <a href="{nav_home}#avail-cal" class="btn-primary">{_esc(ui["see_calendar"])}</a>
 </div>
-<p class="ly-page-note">{_esc(cta)}</p>
+<p class="ly-page-note">{_rich(cta)}</p>
 {related_html}
 </main>
-<footer>
-<p class="footer-logo">Limitless Yacht</p>
-<p class="footer-tagline">Club de Mar · Palma de Mallorca</p>
-<div class="footer-links">
-<a href="{nav_home}">{_esc(ui["home"])}</a>
-<a href="{nav_home}destinations/">{_esc(ui["destinations"])}</a>
-<a href="{nav_home}#avail-cal">{_esc(ui["dates"])}</a>
-<a href="{nav_home}legal.html">{_esc(ui["legal"])}</a>
-</div>
-<p class="footer-copy">Limitless Opportunities S.L. · VAT B21726427</p>
-</footer>
+{site_footer(nav_home, ui)}
 {_jsonld(*schema_blocks, _faq_schema(faq))}
 </body>
 </html>
