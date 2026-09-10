@@ -2458,6 +2458,7 @@ async function sendPushes(data, notices, opts) {
   let failed = 0;
   let skipped = 0;
   const keep = [];
+  const subsBefore = data.pushSubs.length;
 
   async function deliverOne(sub, n) {
     const payload = {
@@ -2530,7 +2531,8 @@ async function sendPushes(data, notices, opts) {
     if (!r.dead) keep.push(r.sub);
   }
   data.pushSubs = keep.slice(-SUB_CAP);
-  return { sent, failed, skipped };
+  /* pruned > 0 → caller should persist again so dead-sub cleanup is not lost */
+  return { sent, failed, skipped, pruned: subsBefore - data.pushSubs.length };
 }
 
 export default async (req, context) => {
@@ -2566,7 +2568,8 @@ export default async (req, context) => {
   const browser = parseBrowser(req.headers.get("user-agent"));
   const now = new Date().toISOString();
 
-  const store = getStore("limitless-tracker");
+  /* Test hook: scripts/test-tracker-server.mjs injects an in-memory store. Never set in production. */
+  const store = globalThis.__TRACKER_TEST_STORE__ || getStore("limitless-tracker");
   const data = await loadData(store);
   if (!Array.isArray(data.devices)) data.devices = [];
   if (!Array.isArray(data.log)) data.log = [];
@@ -2693,6 +2696,29 @@ export default async (req, context) => {
       out.siteCalendar = null;
     }
     return json(out);
+  }
+
+  /*
+   * Server-side archive snapshot (captain only) — copies the whole blob to
+   * archive/data-<stamp> so a pre-migration/pre-change backup lives next to
+   * the data, independent of any laptop. Read-only against the live blob:
+   * no saveData, no log write (a whole-blob write just for an audit line
+   * would add race surface for zero benefit).
+   */
+  if (action === "snapshot") {
+    if (role !== "captain" && !isCaptain(who)) {
+      return json({ error: "Snapshot is captain-only" }, 403);
+    }
+    const snapKey = "archive/data-" + now.replace(/[:.]/g, "-");
+    await store.setJSON(snapKey, data);
+    const counts = {};
+    [
+      "charters", "leads", "apa", "diesel", "stews", "stewAssign",
+      "stewCalendar", "expenses", "expPetty", "devices", "log", "pushSubs",
+    ].forEach((c) => {
+      counts[c] = Array.isArray(data[c]) ? data[c].length : 0;
+    });
+    return json({ ok: true, key: snapKey, snapshottedAt: now, counts: counts });
   }
 
   if (action === "save") {
@@ -2869,10 +2895,17 @@ export default async (req, context) => {
           : "") +
         (notices.length ? " (+notify " + notices.length + ")" : "")
     );
+    /*
+     * Persist FIRST, then notify: other devices must never be told "Updated
+     * on another device" for state that failed to save. Dead-sub cleanup
+     * from sendPushes is persisted with a rare second write, only when it
+     * actually pruned something.
+     */
+    await saveData(store, data);
     const pushResult = await sendPushes(data, notices, {
       excludeEndpoint: body.pushEndpoint || "",
     });
-    await saveData(store, data);
+    if (pushResult.pruned > 0) await saveData(store, data);
     return json({
       ok: true,
       notified: notices.length,
@@ -3014,6 +3047,8 @@ export default async (req, context) => {
         (stats.baselined ? stats.knownCount : stats.created) +
         " · site cal from leads"
     );
+    /* Persist first, then notify (same invariant as the save action). */
+    await saveData(store, data);
     let pushResult = { sent: 0 };
     if (stats.created > 0 && !stats.baselined) {
       const notices = [
@@ -3030,8 +3065,9 @@ export default async (req, context) => {
       ];
       pushResult = await sendPushes(data, notices, {});
       addLog("push new ICS leads sent=" + (pushResult.sent || 0));
+      /* Persist the push-result log line + any dead-sub cleanup */
+      await saveData(store, data);
     }
-    await saveData(store, data);
     return json({
       ok: true,
       stats: stats,
