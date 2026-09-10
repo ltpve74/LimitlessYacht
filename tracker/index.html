@@ -1698,7 +1698,7 @@ function selCancelReasonField(cur){
 var EXPECTED_PEOPLE = 2;
 /* Build stamp — shown in Ops → Security so we can verify which code a device
  * actually runs (PWA updates only land after a full close + reopen). */
-var TRACKER_BUILD = "2026-09-11.1";
+var TRACKER_BUILD = "2026-09-11.2";
 var APA_EXP_CATS = ["Drinks & Bar","Dockage / Marina","Crew Tips","Miscellaneous","Fuel / Diesel","Food & Provisions"];
 var APA_PAID_BY = ["APA cash","Ship card","Guest card","Bank transfer"];
 var APA_DASH_CATS = [
@@ -23865,13 +23865,17 @@ function softRefreshFromServer(opts){
         if(quietSync||reason==="visible-poll"||reason==="focus"||reason==="visibility") return;
       }
       if(!changed&&quietSync) return;
-      try{ applyData(d,{fromPoll:true}); }catch(eA){}
+      var applied=null;
+      try{ applied=applyData(d,{fromPoll:true}); }catch(eA){}
       /*
-       * Fingerprint AFTER apply. Setting it before used to mark “up to date”
-       * while localSaveIsFresh skipped the expenses merge — later polls saw
-       * !changed and never pulled salary lines (or re-merged after a wipe).
+       * Fingerprint AFTER apply — and NOT when applyData kept a collection
+       * local because a save is in flight (skippedFresh). Marking “up to
+       * date” over a skipped merge froze the stale view until the next edit:
+       * later polls saw !changed and never re-pulled the missed rows.
        */
-      try{ lastSoftSyncFp=dataSyncFingerprint(d); }catch(eFp){ lastSoftSyncFp=fp; }
+      if(!(applied&&applied.skippedFresh)){
+        try{ lastSoftSyncFp=dataSyncFingerprint(d); }catch(eFp){ lastSoftSyncFp=fp; }
+      }
       /* Never toast on silent sync — desktop open was flooding the phone */
       if(quietSync||!changed) return;
       var hint=el("saveHint");
@@ -23969,11 +23973,17 @@ function applyData(d, opts){
   var fromPoll=!!opts.fromPoll;
   var fromBoot=!!opts.fromBoot;
   if(!d)return;
+  /*
+   * Set when a collection is kept local because a save is in flight. The
+   * caller must NOT mark the server fingerprint as current in that case —
+   * otherwise the skipped change is never re-pulled and the view stays stale.
+   */
+  var skippedFresh=false;
   /* Apply role first so canCommercial / canOps gates see server truth */
   if(d.role) session.role=d.role;
   /* Leads: never let a stale poll wipe free cashAmt (€1800 → €1653 race) */
   if(fromPoll&&localSaveIsFresh("leads")){
-    /* keep local leads while save settles */
+    skippedFresh=true; /* keep local leads while save settles */
   } else if(Array.isArray(d.leads)){
     /* Never wipe captain/manager finance with an empty role-bug payload */
     if(canCommercial()&&!d.leads.length&&(state.leads||[]).length){
@@ -23986,7 +23996,7 @@ function applyData(d, opts){
     /* Do NOT migrate/repair leads on load — blob is SOT; no boot-time writes */
   }
   if(fromPoll&&localSaveIsFresh("charters")){
-    /* keep local charges */
+    skippedFresh=true; /* keep local charges */
   } else if(Array.isArray(d.charters)){
     if(canCommercial()&&!d.charters.length&&(state.charters||[]).length){
       /* keep local */
@@ -24004,7 +24014,7 @@ function applyData(d, opts){
    */
   if((canOps()||canDiesel()) && Array.isArray(d.apa)){
     if(fromPoll&&localSaveIsFresh("apa")&&canOps()){
-      /* keep local APA pots while save settles (captain edits only) */
+      skippedFresh=true; /* keep local APA pots while save settles (captain edits only) */
     } else if(fromPoll&&canOps()){
       state.apa=mergeExpensesById(state.apa||[], d.apa, "apa");
     } else {
@@ -24023,7 +24033,7 @@ function applyData(d, opts){
   } else if(!canRoster()) state.stews=[];
   if(canRoster() && Array.isArray(d.stewAssign)){
     if(fromPoll&&localSaveIsFresh("stewAssign")){
-      /* keep local stew pay marks while save is in flight */
+      skippedFresh=true; /* keep local stew pay marks while save is in flight */
     } else if(fromPoll){
       state.stewAssign=mergeExpensesById(state.stewAssign, d.stewAssign);
     } else {
@@ -24083,6 +24093,7 @@ function applyData(d, opts){
     renderAll({fromPoll:fromPoll});
     if(!DEMO) refreshPushStatus();
   }
+  return { skippedFresh: skippedFresh };
 }
 
 /* Fixed IDs match server seed (real spreadsheet trip is first live APA entry) */

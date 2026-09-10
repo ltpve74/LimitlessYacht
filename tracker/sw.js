@@ -1,5 +1,5 @@
 /* Limitless Tracker service worker — push notifications for the installed PWA */
-/* v10: tombstoned day-pay deletes; build stamp in Security tab (2026-09-11.1) */
+/* v11: skipped-merge no longer marks sync fingerprint current (2026-09-11.2) */
 self.addEventListener("install", function (e) {
   self.skipWaiting();
 });
