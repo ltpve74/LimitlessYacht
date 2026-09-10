@@ -2225,6 +2225,97 @@ function stewNamesFromRoster(stews, ids) {
  * the captain is talking to. Holds/pending → commercial (captain+manager) only.
  * Confirming a hold fires “Charter confirmed · needs crew” for everyone.
  */
+/*
+ * Human one-liner for the silent sync wake — "what changed", not
+ * "something changed". Diffs prev/next by row key and leads with the
+ * most meaningful change (pay-status flips first, then add/remove).
+ */
+function noticeRowKey(coll, r) {
+  if (!r) return "";
+  if (coll === "stewAssign") return String(r.eventKey || r.id || "");
+  if (coll === "expPetty") return String(r.month || r.id || "");
+  return String(r.id || "");
+}
+function noticeMoney(n) {
+  return "€" + Math.round(Number(n) || 0);
+}
+function noticeRowBrief(coll, r) {
+  if (!r) return "";
+  if (coll === "expenses") {
+    return (
+      noticeMoney(r.amount) +
+      " " +
+      String(r.category || r.vendor || r.description || "expense").slice(0, 40)
+    );
+  }
+  if (coll === "stewAssign") {
+    const when = String(r.start || "").slice(5, 10);
+    return String(r.summary || "trip").slice(0, 40) + (when ? " · " + when : "");
+  }
+  if (coll === "expPetty") return "petty " + String(r.month || "").slice(0, 7);
+  if (coll === "charters") {
+    const label = r.invoiceNo || r.invoiceNumber || r.name || r.guest || "charge";
+    return String(label).slice(0, 40) + (r.amount ? " " + noticeMoney(r.amount) : "");
+  }
+  if (coll === "leads") {
+    const when = String(r.start || r.cdate || "").slice(5, 10);
+    return String(r.name || "lead").slice(0, 40) + (when ? " · " + when : "");
+  }
+  if (coll === "stews") return String(r.name || "roster").slice(0, 40);
+  return coll;
+}
+function describeSaveFallback(coll, prevRows, nextRows) {
+  const prev = Array.isArray(prevRows) ? prevRows : [];
+  const next = Array.isArray(nextRows) ? nextRows : [];
+  const prevBy = new Map(prev.map((r) => [noticeRowKey(coll, r), r]));
+  const nextBy = new Map(next.map((r) => [noticeRowKey(coll, r), r]));
+  const added = [];
+  const removed = [];
+  const changed = [];
+  next.forEach((r) => {
+    const k = noticeRowKey(coll, r);
+    if (!k) return;
+    const old = prevBy.get(k);
+    if (!old) added.push(r);
+    else if (JSON.stringify(old) !== JSON.stringify(r)) changed.push({ old: old, row: r });
+  });
+  prev.forEach((r) => {
+    const k = noticeRowKey(coll, r);
+    if (k && !nextBy.has(k)) removed.push(r);
+  });
+  const bits = [];
+  /* Status flips are what people most want to know about */
+  changed.forEach((c) => {
+    if (bits.length >= 2) return;
+    if (coll === "stewAssign" && String(c.old.payStatus || "") !== String(c.row.payStatus || "")) {
+      bits.push("Pay → " + (c.row.payStatus || "Unpaid") + ": " + noticeRowBrief(coll, c.row));
+    } else if (
+      coll === "expenses" &&
+      String(c.old.crewPayStatus || "") !== String(c.row.crewPayStatus || "")
+    ) {
+      bits.push("Crew pay → " + (c.row.crewPayStatus || "") + ": " + noticeRowBrief(coll, c.row));
+    } else if (
+      coll === "charters" &&
+      String(c.old.payStatus || "") !== String(c.row.payStatus || "")
+    ) {
+      bits.push("Charge → " + (c.row.payStatus || "") + ": " + noticeRowBrief(coll, c.row));
+    }
+  });
+  added.slice(0, Math.max(0, 2 - bits.length)).forEach((r) => {
+    bits.push("Added " + noticeRowBrief(coll, r));
+  });
+  removed.slice(0, Math.max(0, 2 - bits.length)).forEach((r) => {
+    bits.push("Removed " + noticeRowBrief(coll, r));
+  });
+  if (!bits.length && changed.length) {
+    bits.push("Updated " + noticeRowBrief(coll, changed[0].row));
+  }
+  const total = added.length + removed.length + changed.length;
+  if (total > bits.length && bits.length) bits.push("+" + (total - bits.length) + " more");
+  if (!bits.length) return "Updated on another device";
+  return bits.join(" · ").slice(0, 150);
+}
+
 function buildNotices(coll, prevRows, nextRows, who, data) {
   const prev = Array.isArray(prevRows) ? prevRows : [];
   const next = Array.isArray(nextRows) ? nextRows : [];
@@ -3062,7 +3153,9 @@ export default async (req, context) => {
       notices = [
         {
           title: "Limitless Tracker",
-          body: "Updated on another device",
+          /* Describe the actual change ("Pay → Unpaid: Aoife · 09-12") —
+           * "Updated on another device" told the captain nothing. */
+          body: (describeSaveFallback(coll, prev, next) + " (by " + who + ")").slice(0, 170),
           /* One shared collapse tag: multi-collection actions (pay mark =
            * stewAssign + expenses) fire several silent wakes; same tag makes
            * the platform REPLACE the banner instead of stacking duplicates. */

@@ -60,10 +60,13 @@ globalThis.__TRACKER_TEST_STORE__ = store;
 /* ── stub push delivery: record, and 410 any endpoint containing "dead" ── */
 webpush.sendNotification = async (sub, payload) => {
   let tag = "";
+  let body = "";
   try {
-    tag = (JSON.parse(payload) || {}).tag || "";
+    const p = JSON.parse(payload) || {};
+    tag = p.tag || "";
+    body = p.body || "";
   } catch (e) {}
-  events.push({ type: "push", endpoint: sub && sub.endpoint, tag: tag });
+  events.push({ type: "push", endpoint: sub && sub.endpoint, tag: tag, body: body });
   if (String(sub && sub.endpoint).includes("dead")) {
     const e = new Error("Gone");
     e.statusCode = 410;
@@ -305,6 +308,69 @@ await test("pushSubs: captain sees list, team forbidden", async () => {
   check(!r.data.subs[0].endpoint, "no full endpoint leaked");
   const denied = await api({ action: "pushSubs" }, { role: "team" });
   check(denied.status === 403, "team → 403");
+});
+
+/* ── 6d. sync wakes describe the actual change ── */
+await test("sync wake describes expense add (amount + label + who)", async () => {
+  seedData();
+  await api({
+    action: "push-subscribe",
+    subscription: { endpoint: "https://push.example/sub/desc1", keys: { p256dh: "k", auth: "a" } },
+  });
+  events.length = 0;
+  await api({
+    action: "save",
+    collection: "expenses",
+    rows: [{ id: "e1", amount: 50, category: "Food", vendor: "Makro" }],
+  });
+  const bodies = events.filter((e) => e.type === "push").map((e) => e.body);
+  check(bodies.length === 1, "one wake, got " + bodies.length);
+  check(bodies[0].indexOf("€50") >= 0, "amount in body: " + bodies[0]);
+  check(bodies[0].indexOf("Food") >= 0, "label in body: " + bodies[0]);
+  check(bodies[0].indexOf("by Captain") >= 0, "who in body: " + bodies[0]);
+  check(bodies[0] !== "Updated on another device (by Captain)", "not the generic text");
+});
+await test("sync wake describes stew pay flip", async () => {
+  seedData({
+    stewAssign: [
+      { id: "a1", eventKey: "ev1", stewIds: ["s1"], payStatus: "Paid", summary: "Aoife", start: "2026-09-12" },
+    ],
+  });
+  await api({
+    action: "push-subscribe",
+    subscription: { endpoint: "https://push.example/sub/desc2", keys: { p256dh: "k", auth: "a" } },
+  });
+  events.length = 0;
+  await api({
+    action: "save",
+    collection: "stewAssign",
+    rows: [
+      { id: "a1", eventKey: "ev1", stewIds: ["s1"], payStatus: "Unpaid", summary: "Aoife", start: "2026-09-12" },
+    ],
+  });
+  const bodies = events.filter((e) => e.type === "push").map((e) => e.body);
+  check(bodies.length === 1, "one wake, got " + bodies.length);
+  check(bodies[0].indexOf("Unpaid") >= 0, "pay status in body: " + bodies[0]);
+  check(bodies[0].indexOf("Aoife") >= 0, "trip name in body: " + bodies[0]);
+});
+await test("sync wake describes charge marked Paid", async () => {
+  seedData({
+    charters: [{ id: "c1", invoiceNo: "INV-001", amount: 750, payStatus: "Invoiced" }],
+  });
+  await api({
+    action: "push-subscribe",
+    subscription: { endpoint: "https://push.example/sub/desc3", keys: { p256dh: "k", auth: "a" } },
+  });
+  events.length = 0;
+  await api({
+    action: "save",
+    collection: "charters",
+    rows: [{ id: "c1", invoiceNo: "INV-001", amount: 750, payStatus: "Paid" }],
+  });
+  const bodies = events.filter((e) => e.type === "push").map((e) => e.body);
+  check(bodies.length === 1, "one wake, got " + bodies.length);
+  check(bodies[0].indexOf("Paid") >= 0, "status in body: " + bodies[0]);
+  check(bodies[0].indexOf("INV-001") >= 0, "invoice in body: " + bodies[0]);
 });
 
 /* ── 7. KNOWN-FAIL in monolith mode: cross-collection write race ── */
