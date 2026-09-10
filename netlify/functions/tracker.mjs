@@ -22,6 +22,26 @@ const BLOB_KEY = "data";
 const PUBLIC_AVAILABILITY_KEY = "public-availability";
 /** Pointer to the most recent server-side archive snapshot (captain Utilities). */
 const LAST_ARCHIVE_KEY = "archive/latest";
+
+/*
+ * Split-blob storage (Phase 2 persistence hardening).
+ * Marker key present → collections live under coll/<name> and shared state
+ * under sys/<name>; a save writes ONLY the keys it actually changed, so
+ * concurrent saves of different collections cannot clobber each other.
+ * Marker absent → legacy whole-blob mode (monolith "data" key), untouched.
+ * Plan: .agent/briefs/2026-09-11-tracker-persistence-hardening.md
+ */
+const MIGRATION_KEY = "sys/migration";
+const COLL_NAMES = [
+  "charters", "leads", "apa", "diesel", "stews", "stewAssign",
+  "stewCalendar", "expenses", "expPetty",
+];
+const SYS_NAMES = ["siteCalendar", "meta", "devices", "log", "pushSubs"];
+/** meta fields that are tombstone sets — union-merged on write, never LWW. */
+const META_SET_FIELDS = ["apaDeletedIds", "icsLeadKnownKeys"];
+function splitKeyFor(n) {
+  return COLL_NAMES.indexOf(n) >= 0 ? "coll/" + n : "sys/" + n;
+}
 const LOG_CAP = 500;
 const DEVICE_CAP = 200;
 const SUB_CAP = 40;
@@ -532,6 +552,53 @@ async function loadData(store) {
       meta: {},
     }
   );
+}
+
+function emptySplitData() {
+  return {
+    charters: [], leads: [], apa: [], diesel: [], stews: [], stewAssign: [],
+    stewCalendar: [], siteCalendar: null, expenses: [], expPetty: [],
+    devices: [], log: [], pushSubs: [], meta: {},
+  };
+}
+
+/** Split mode: assemble the same blob shape from per-collection keys. */
+async function loadDataSplit(store) {
+  const names = COLL_NAMES.concat(SYS_NAMES);
+  const vals = await Promise.all(
+    names.map((n) => store.get(splitKeyFor(n), { type: "json", consistency: "strong" }))
+  );
+  const d = emptySplitData();
+  names.forEach((n, i) => {
+    if (vals[i] != null) d[n] = vals[i];
+  });
+  return d;
+}
+
+/**
+ * sys/meta write with tombstone protection: re-read fresh and union the
+ * set-valued fields (apaDeletedIds, icsLeadKnownKeys) so a concurrent save
+ * cannot drop a tombstone and resurrect a deleted APA pot / calendar lead.
+ * Scalars are last-write-wins. Mutates data.meta in place to the merged
+ * state so fingerprints and later reads agree with what was stored.
+ * (Residual race window is milliseconds; Netlify Blobs has no CAS.)
+ */
+async function writeMetaSplit(store, data) {
+  const key = "sys/meta";
+  const fresh = await store.get(key, { type: "json", consistency: "strong" });
+  const cur = data.meta && typeof data.meta === "object" ? data.meta : {};
+  const merged = Object.assign({}, fresh || {}, cur);
+  META_SET_FIELDS.forEach((f) => {
+    const a = Array.isArray(fresh && fresh[f]) ? fresh[f].map(String) : [];
+    const b = Array.isArray(cur[f]) ? cur[f].map(String) : [];
+    merged[f] = Array.from(new Set(a.concat(b)));
+  });
+  await store.setJSON(key, merged);
+  Object.keys(cur).forEach((k) => {
+    delete cur[k];
+  });
+  Object.assign(cur, merged);
+  data.meta = cur;
 }
 
 /** Public site calendar summary for captain UI (no full events list required). */
@@ -1656,7 +1723,7 @@ function applyIcsTimeMoveDecisions(data, acceptedIds, rejectedIds, who, now) {
   });
   return { applied, dismissed };
 }
-async function saveData(store, data) {
+async function saveData(store, data, ctx) {
   /* Keep site calendar + public key aligned with leads on every persist */
   if (Array.isArray(data.leads) && data.leads.length) {
     rebuildSiteCalendarFromLeads(
@@ -1665,7 +1732,33 @@ async function saveData(store, data) {
       new Date().toISOString()
     );
   }
-  await store.setJSON(BLOB_KEY, data);
+  /* Legacy monolith mode: whole-blob write (pre-migration / rollback path). */
+  if (!ctx || !ctx.splitMode) {
+    await store.setJSON(BLOB_KEY, data);
+    await publishPublicAvailability(store, data);
+    return;
+  }
+  /*
+   * Split mode: write ONLY the keys whose contents changed since load.
+   * A save of expenses never touches coll/stewAssign (and vice versa), so
+   * concurrent saves of different collections cannot clobber each other.
+   * sys/meta goes through writeMetaSplit for tombstone union-merge.
+   */
+  const names = COLL_NAMES.concat(SYS_NAMES);
+  const dirty = names.filter(
+    (n) =>
+      JSON.stringify(data[n] === undefined ? null : data[n]) !== ctx.loadedFp[n]
+  );
+  if (dirty.length) {
+    await Promise.all(
+      dirty.map((n) =>
+        n === "meta" ? writeMetaSplit(store, data) : store.setJSON(splitKeyFor(n), data[n])
+      )
+    );
+    dirty.forEach((n) => {
+      ctx.loadedFp[n] = JSON.stringify(data[n] === undefined ? null : data[n]);
+    });
+  }
   await publishPublicAvailability(store, data);
 }
 
@@ -2572,7 +2665,21 @@ export default async (req, context) => {
 
   /* Test hook: scripts/test-tracker-server.mjs injects an in-memory store. Never set in production. */
   const store = globalThis.__TRACKER_TEST_STORE__ || getStore("limitless-tracker");
-  const data = await loadData(store);
+  /* Split-blob mode is gated on the migration marker; monolith stays the default. */
+  const splitMigration = await store.get(MIGRATION_KEY, {
+    type: "json",
+    consistency: "strong",
+  });
+  const splitMode = !!splitMigration;
+  const data = splitMode ? await loadDataSplit(store) : await loadData(store);
+  /* Persist context: in split mode, saveData writes only keys whose
+   * fingerprint changed since this load. */
+  const pctx = { splitMode: splitMode, loadedFp: {} };
+  if (splitMode) {
+    COLL_NAMES.concat(SYS_NAMES).forEach((n) => {
+      pctx.loadedFp[n] = JSON.stringify(data[n] === undefined ? null : data[n]);
+    });
+  }
   if (!Array.isArray(data.devices)) data.devices = [];
   if (!Array.isArray(data.log)) data.log = [];
   if (!Array.isArray(data.pushSubs)) data.pushSubs = [];
@@ -2630,7 +2737,7 @@ export default async (req, context) => {
       addLog("seed sheet APA (Joel Freeland)");
       dirty = true;
     }
-    if (dirty) await saveData(store, data);
+    if (dirty) await saveData(store, data, pctx);
 
     const out = {
       role,
@@ -2741,6 +2848,81 @@ export default async (req, context) => {
       consistency: "strong",
     });
     return json({ ok: true, latest: latest || null });
+  }
+
+  /* Storage-engine status for the Utilities panel (captain only). */
+  if (action === "splitStatus") {
+    if (role !== "captain" && !isCaptain(who)) {
+      return json({ error: "Captain only" }, 403);
+    }
+    return json({ ok: true, split: splitMode, migration: splitMigration || null });
+  }
+
+  /*
+   * One-time split-blob migration (captain only). Copies every collection
+   * from the monolith into coll/* + sys/* keys, verifies each key
+   * byte-for-byte against the source, and only then writes the marker that
+   * flips the function into split mode. The monolith is NEVER modified —
+   * rollback = splitRollback (deletes the marker). Idempotent: a second
+   * run reports already:true without rewriting anything.
+   */
+  if (action === "migrateSplit") {
+    if (role !== "captain" && !isCaptain(who)) {
+      return json({ error: "Split migration is captain-only" }, 403);
+    }
+    if (splitMode) {
+      return json({ ok: true, already: true, migration: splitMigration });
+    }
+    const names = COLL_NAMES.concat(SYS_NAMES);
+    await Promise.all(
+      names.map((n) =>
+        store.setJSON(splitKeyFor(n), data[n] === undefined ? null : data[n])
+      )
+    );
+    const back = await Promise.all(
+      names.map((n) =>
+        store.get(splitKeyFor(n), { type: "json", consistency: "strong" })
+      )
+    );
+    const mismatches = [];
+    const counts = {};
+    names.forEach((n, i) => {
+      const want = JSON.stringify(data[n] === undefined ? null : data[n]);
+      const got = JSON.stringify(back[i] === undefined ? null : back[i]);
+      if (want !== got) mismatches.push(n);
+      counts[n] = Array.isArray(data[n]) ? data[n].length : 0;
+    });
+    if (mismatches.length) {
+      /* Marker NOT written — still in monolith mode, nothing lost. */
+      return json(
+        { ok: false, error: "Split verify failed: " + mismatches.join(", "), mismatches: mismatches },
+        500
+      );
+    }
+    const marker = { migratedAt: now, by: who, from: "monolith", counts: counts };
+    await store.setJSON(MIGRATION_KEY, marker);
+    return json({ ok: true, migration: marker });
+  }
+
+  /*
+   * Rollback to monolith mode (captain only): deletes the marker. The
+   * monolith was never touched by the migration, so pre-migration state is
+   * intact — but saves made WHILE in split mode live only in coll/* keys
+   * and are NOT carried back. Deliberate, CLI-driven operation.
+   */
+  if (action === "splitRollback") {
+    if (role !== "captain" && !isCaptain(who)) {
+      return json({ error: "Rollback is captain-only" }, 403);
+    }
+    if (!splitMode) {
+      return json({ ok: true, rolledBack: false, note: "Not in split mode" });
+    }
+    await store.delete(MIGRATION_KEY);
+    return json({
+      ok: true,
+      rolledBack: true,
+      note: "Monolith mode restored. Saves made in split mode are NOT in the monolith.",
+    });
   }
 
   if (action === "save") {
@@ -2923,11 +3105,11 @@ export default async (req, context) => {
      * from sendPushes is persisted with a rare second write, only when it
      * actually pruned something.
      */
-    await saveData(store, data);
+    await saveData(store, data, pctx);
     const pushResult = await sendPushes(data, notices, {
       excludeEndpoint: body.pushEndpoint || "",
     });
-    if (pushResult.pruned > 0) await saveData(store, data);
+    if (pushResult.pruned > 0) await saveData(store, data, pctx);
     return json({
       ok: true,
       notified: notices.length,
@@ -2949,7 +3131,7 @@ export default async (req, context) => {
   if (action === "trust") {
     const dev = data.devices.find((d) => d.id === (body.deviceId || ""));
     if (dev) dev.trusted = !!body.trusted;
-    await saveData(store, data);
+    await saveData(store, data, pctx);
     return json({ ok: true });
   }
 
@@ -2972,7 +3154,7 @@ export default async (req, context) => {
     });
     if (data.pushSubs.length > SUB_CAP) data.pushSubs = data.pushSubs.slice(-SUB_CAP);
     addLog("push subscribe");
-    await saveData(store, data);
+    await saveData(store, data, pctx);
     return json({ ok: true, count: data.pushSubs.length });
   }
 
@@ -2980,7 +3162,7 @@ export default async (req, context) => {
     const endpoint = (body.endpoint || (body.subscription && body.subscription.endpoint) || "").toString();
     if (endpoint) data.pushSubs = data.pushSubs.filter((s) => s.endpoint !== endpoint);
     addLog("push unsubscribe");
-    await saveData(store, data);
+    await saveData(store, data, pctx);
     return json({ ok: true });
   }
 
@@ -3013,7 +3195,7 @@ export default async (req, context) => {
         " subs=" +
         (data.pushSubs || []).length
     );
-    await saveData(store, data);
+    await saveData(store, data, pctx);
     if (!(result.sent > 0)) {
       return json(
         {
@@ -3070,7 +3252,7 @@ export default async (req, context) => {
         " · site cal from leads"
     );
     /* Persist first, then notify (same invariant as the save action). */
-    await saveData(store, data);
+    await saveData(store, data, pctx);
     let pushResult = { sent: 0 };
     if (stats.created > 0 && !stats.baselined) {
       const notices = [
@@ -3088,7 +3270,7 @@ export default async (req, context) => {
       pushResult = await sendPushes(data, notices, {});
       addLog("push new ICS leads sent=" + (pushResult.sent || 0));
       /* Persist the push-result log line + any dead-sub cleanup */
-      await saveData(store, data);
+      await saveData(store, data, pctx);
     }
     return json({
       ok: true,
@@ -3145,7 +3327,7 @@ export default async (req, context) => {
     data.meta.icsLeadIgnoredKeys = Array.from(ignored);
     data.meta.icsLeadLastSyncAt = now;
     addLog("ICS orphans dismissed=" + keys.length);
-    await saveData(store, data);
+    await saveData(store, data, pctx);
     return json({
       ok: true,
       dismissed: keys.length,
@@ -3236,7 +3418,7 @@ export default async (req, context) => {
     data.meta.stewCalendarAt = now;
     data.meta.stewCalendarBy = who || "Restore orphans";
     addLog("ICS orphans restored=" + restored);
-    await saveData(store, data);
+    await saveData(store, data, pctx);
     return json({
       ok: true,
       restored,
@@ -3266,7 +3448,7 @@ export default async (req, context) => {
     addLog(
       "ICS date moves applied=" + dec.applied + " dismissed=" + dec.dismissed
     );
-    await saveData(store, data);
+    await saveData(store, data, pctx);
     return json({
       ok: true,
       stats: dec,
@@ -3296,7 +3478,7 @@ export default async (req, context) => {
     addLog(
       "ICS time moves applied=" + dec.applied + " dismissed=" + dec.dismissed
     );
-    await saveData(store, data);
+    await saveData(store, data, pctx);
     return json({
       ok: true,
       stats: dec,
@@ -3336,7 +3518,7 @@ export default async (req, context) => {
           " hold=" +
           (data.siteCalendar.tentative || []).length
       );
-      await saveData(store, data);
+      await saveData(store, data, pctx);
       return json({
         ok: true,
         siteCalendar: siteCalendarSummary(data.siteCalendar),
@@ -3360,7 +3542,7 @@ export default async (req, context) => {
           ? "activate site calendar (website uses leads)"
           : "deactivate site calendar (website falls back to ICS)"
       );
-      await saveData(store, data);
+      await saveData(store, data, pctx);
       return json({
         ok: true,
         siteCalendar: siteCalendarSummary(data.siteCalendar),

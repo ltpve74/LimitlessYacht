@@ -242,8 +242,8 @@ await test("dead push sub is pruned AND the prune is saved", async () => {
   check(!subs.some((e) => e.includes("dead")), "dead sub gone from PERSISTED blob");
 });
 
-/* ── 7. KNOWN-FAIL until Phase 2: cross-collection write race ── */
-await xfail("concurrent saves of different collections both survive", async () => {
+/* ── 7. KNOWN-FAIL in monolith mode: cross-collection write race ── */
+await xfail("monolith mode: concurrent saves of different collections both survive", async () => {
   seedData({
     expenses: [{ id: "e1", amount: 1 }],
     stewAssign: [{ id: "a1", eventKey: "ev1" }],
@@ -301,8 +301,176 @@ await xfail("concurrent saves of different collections both survive", async () =
   );
   check(
     (d.stewAssign || []).some((a) => a.id === "a2"),
-    "team's stewAssign row a2 survived (clobbered by whole-blob write today)"
+    "team's stewAssign row a2 survived (clobbered by whole-blob write in monolith mode)"
   );
+});
+
+/* ── 8. Phase 2: split-blob mode ── */
+const SPLIT_COLLS = ["charters","leads","apa","diesel","stews","stewAssign","stewCalendar","expenses","expPetty"];
+const SPLIT_SYS = ["siteCalendar","meta","devices","log","pushSubs"];
+function splitKeyFor(n) {
+  return SPLIT_COLLS.indexOf(n) >= 0 ? "coll/" + n : "sys/" + n;
+}
+function seedSplitData(patch) {
+  /* Wipe everything, then seed split keys + marker (split mode active). */
+  store._map.clear();
+  const base = {
+    charters: [], leads: [], apa: [], diesel: [], stews: [], stewAssign: [],
+    stewCalendar: [], siteCalendar: null, expenses: [], expPetty: [],
+    devices: [], log: [], pushSubs: [], meta: {},
+  };
+  const d = Object.assign(base, patch || {});
+  SPLIT_COLLS.concat(SPLIT_SYS).forEach((n) => store._map.set(splitKeyFor(n), d[n]));
+  store._map.set("sys/migration", { migratedAt: "2026-09-11T00:00:00.000Z", by: "test", from: "monolith" });
+}
+
+await test("migrateSplit: splits monolith, verifies, writes marker", async () => {
+  seedData({
+    expenses: [{ id: "e1", amount: 5 }],
+    stewAssign: [{ id: "a1", eventKey: "ev1" }],
+    meta: { apaDeletedIds: ["pot-1"] },
+  });
+  const r = await api({ action: "migrateSplit" });
+  check(r.status === 200 && r.data.ok, "migrate ok: " + JSON.stringify(r.data).slice(0, 200));
+  check(r.data.migration && r.data.migration.migratedAt, "marker returned");
+  check(store._map.get("sys/migration"), "marker key written");
+  const exp = store._map.get("coll/expenses");
+  check(Array.isArray(exp) && exp.length === 1 && exp[0].id === "e1", "coll/expenses copied");
+  const meta = store._map.get("sys/meta");
+  check(meta && meta.apaDeletedIds && meta.apaDeletedIds[0] === "pot-1", "sys/meta copied");
+  /* Monolith untouched */
+  const mono = store._map.get("data");
+  check(mono && mono.expenses.length === 1, "monolith still intact");
+  /* Idempotent */
+  const r2 = await api({ action: "migrateSplit" });
+  check(r2.data.ok && r2.data.already === true, "second run reports already");
+  /* Team forbidden */
+  const denied = await api({ action: "migrateSplit" }, { role: "team" });
+  check(denied.status === 403, "team → 403");
+});
+
+await test("split mode: save writes only its own collection key", async () => {
+  seedSplitData({ expenses: [{ id: "e1", amount: 1 }], stewAssign: [{ id: "a1", eventKey: "ev1" }] });
+  events.length = 0;
+  const r = await api({
+    action: "save",
+    collection: "expenses",
+    rows: [{ id: "e1", amount: 1 }, { id: "e2", amount: 2 }],
+  });
+  check(r.data.ok, "save ok");
+  const written = events.filter((e) => e.type === "save").map((e) => e.key);
+  check(written.indexOf("coll/expenses") >= 0, "coll/expenses written, got " + written.join(","));
+  check(written.indexOf("coll/stewAssign") < 0, "coll/stewAssign NOT written");
+  check(written.indexOf("data") < 0, "monolith NOT written in split mode");
+  check((store._map.get("coll/stewAssign") || []).length === 1, "stewAssign key unchanged");
+});
+
+await test("split mode: concurrent saves of different collections both survive", async () => {
+  seedSplitData({
+    expenses: [{ id: "e1", amount: 1 }],
+    stewAssign: [{ id: "a1", eventKey: "ev1" }],
+  });
+  /* Same interleave as the monolith xfail: both fully load, THEN both write. */
+  const origGet = store.get.bind(store);
+  const origSet = store.setJSON.bind(store);
+  let collGets = 0;
+  let saves = 0;
+  let release;
+  const gate = new Promise((r) => (release = r));
+  store.get = async (key, opts) => {
+    const v = await origGet(key, opts);
+    if (/^(coll|sys)\//.test(key) && key !== "sys/migration") {
+      collGets++;
+      if (collGets === 28) release(); /* 2 requests × 14 split keys */
+    }
+    return v;
+  };
+  store.setJSON = async (key, val) => {
+    if (/^coll\//.test(key)) {
+      saves++;
+      if (saves === 1) await gate;
+    }
+    return origSet(key, val);
+  };
+  try {
+    const [rA, rB] = await Promise.all([
+      api({
+        action: "save",
+        collection: "expenses",
+        rows: [{ id: "e1", amount: 1 }, { id: "e2", amount: 2 }],
+      }),
+      api(
+        {
+          action: "save",
+          collection: "stewAssign",
+          rows: [
+            { id: "a1", eventKey: "ev1" },
+            { id: "a2", eventKey: "ev2" },
+          ],
+        },
+        { role: "team" }
+      ),
+    ]);
+    check(rA.data.ok && rB.data.ok, "both saves ok");
+  } finally {
+    store.get = origGet;
+    store.setJSON = origSet;
+  }
+  check(
+    (store._map.get("coll/expenses") || []).some((e) => e.id === "e2"),
+    "captain's expenses row e2 survived"
+  );
+  check(
+    (store._map.get("coll/stewAssign") || []).some((a) => a.id === "a2"),
+    "team's stewAssign row a2 survived"
+  );
+});
+
+await test("split mode: meta tombstones union-merge, never lost", async () => {
+  seedSplitData({
+    apa: [{ id: "trip-1" }],
+    meta: { apaDeletedIds: ["pot-old"] },
+  });
+  const r = await api({
+    action: "save",
+    collection: "apa",
+    rows: [{ id: "trip-2" }],
+    deletedIds: ["pot-new"],
+  });
+  check(r.data.ok, "apa save ok");
+  const meta = store._map.get("sys/meta");
+  const ids = (meta && meta.apaDeletedIds) || [];
+  check(ids.indexOf("pot-old") >= 0, "pre-existing tombstone kept");
+  check(ids.indexOf("pot-new") >= 0, "new tombstone added");
+  const apa = store._map.get("coll/apa") || [];
+  check(!apa.some((t) => t && t.id === "pot-new"), "deleted pot not resurrected");
+});
+
+await test("splitRollback: marker deleted, monolith mode resumes", async () => {
+  seedSplitData({ expenses: [{ id: "e1" }] });
+  store._map.set("data", { expenses: [{ id: "legacy" }], leads: [], meta: {} });
+  const r = await api({ action: "splitRollback" });
+  check(r.data.ok && r.data.rolledBack === true, "rolled back");
+  check(!store._map.get("sys/migration"), "marker gone");
+  const l = await api({ action: "load" });
+  check(
+    (l.data.expenses || []).some((e) => e.id === "legacy"),
+    "load reads monolith again"
+  );
+  const denied = await api({ action: "splitRollback" }, { role: "team" });
+  check(denied.status === 403, "team → 403");
+});
+
+await test("splitStatus: reports mode (captain only)", async () => {
+  seedSplitData();
+  const r = await api({ action: "splitStatus" });
+  check(r.data.ok && r.data.split === true && r.data.migration, "split reported");
+  store._map.delete("sys/migration");
+  seedData();
+  const r2 = await api({ action: "splitStatus" });
+  check(r2.data.ok && r2.data.split === false, "monolith reported");
+  const denied = await api({ action: "splitStatus" }, { role: "team" });
+  check(denied.status === 403, "team → 403");
 });
 
 /* ── summary ── */
