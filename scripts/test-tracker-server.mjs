@@ -179,11 +179,26 @@ await test("snapshot: captain gets archive copy, live blob untouched", async () 
     JSON.stringify(liveData()) === JSON.stringify(before),
     "live blob byte-identical"
   );
+  /* Pointer key written so the Utilities panel can show last archive */
+  const ptr = store._map.get("archive/latest");
+  check(ptr && ptr.key === r.data.key, "archive/latest pointer matches snapshot key");
+  check(ptr.counts && ptr.counts.expenses === 1, "pointer carries counts");
 });
 await test("snapshot: team role → 403", async () => {
   seedData();
   const r = await api({ action: "snapshot" }, { role: "team" });
   check(r.status === 403, "status " + r.status);
+});
+await test("lastArchive: returns pointer after snapshot, null before", async () => {
+  seedData();
+  store._map.delete("archive/latest"); /* earlier tests may have snapshotted */
+  const r0 = await api({ action: "lastArchive" });
+  check(r0.status === 200 && r0.data.ok && r0.data.latest === null, "null before any snapshot");
+  const s = await api({ action: "snapshot" });
+  const r1 = await api({ action: "lastArchive" });
+  check(r1.data.latest && r1.data.latest.key === s.data.key, "pointer returned");
+  const denied = await api({ action: "lastArchive" }, { role: "team" });
+  check(denied.status === 403, "team → 403");
 });
 
 /* ── 5. push ordering: persist BEFORE notify ── */

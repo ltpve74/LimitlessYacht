@@ -1531,7 +1531,7 @@
       <div class="pushcard">
         <h3>Archive backup</h3>
         <p>Snapshot the whole live tracker blob into the server archive. <b>Read-only</b> — nothing in the live books changes. Run one before any maintenance or migration.</p>
-        <div class="st na" id="utilSnapStatus">No archive taken this session.</div>
+        <div class="st na" id="utilSnapStatus">Checking last archive…</div>
         <div class="row">
           <button type="button" class="btn" id="utilSnapRun">Archive backup now</button>
         </div>
@@ -2817,37 +2817,54 @@ function utilSnapSetStatus(kind,text){
   var s=el("utilSnapStatus"); if(!s) return;
   s.className="st "+kind; s.textContent=text;
 }
+function utilSnapPaintCounts(key,counts){
+  var out=el("utilSnapResult"); if(!out) return;
+  var c=counts||{};
+  out.textContent="Key: "+(key||"")+
+    " · expenses "+(c.expenses||0)+
+    " · petty months "+(c.expPetty||0)+
+    " · leads "+(c.leads||0)+
+    " · charters "+(c.charters||0)+
+    " · APA "+(c.apa||0)+
+    " · stews "+(c.stews||0);
+}
+/* Last archive comes from the server pointer (archive/latest) so it
+ * survives reloads and shows on every device, not just this session. */
+function utilSnapRefresh(){
+  utilSnapSetStatus("na","Checking last archive…");
+  api("lastArchive",{}).then(function(r){
+    var L=r&&r.latest;
+    if(L&&L.key){
+      utilSnapSetStatus("on","Last archive ✓ "+(L.snapshottedAt||"")+(L.by?" · by "+L.by:""));
+      utilSnapPaintCounts(L.key,L.counts);
+    }else{
+      utilSnapSetStatus("off","No server archive yet — take one before any maintenance.");
+    }
+  }).catch(function(){
+    utilSnapSetStatus("off","Could not check archive status — connection?");
+  });
+}
 function renderUtilities(){
   if(!isCaptain()) return;
-  if(utilSnapWired) return;
-  utilSnapWired=true;
-  var btn=el("utilSnapRun");
-  if(!btn) return;
-  btn.addEventListener("click",function(){
-    var out=el("utilSnapResult");
-    btn.disabled=true;
-    utilSnapSetStatus("na","Archiving live blob…");
-    if(out) out.textContent="";
-    /* Server: action "snapshot" — read-only copy to archive/data-<stamp> */
-    api("snapshot",{}).then(function(r){
-      btn.disabled=false;
-      utilSnapSetStatus("on","Archived ✓ "+(r.snapshottedAt||""));
-      if(out){
-        var c=r.counts||{};
-        out.textContent="Key: "+(r.key||"")+
-          " · expenses "+(c.expenses||0)+
-          " · petty months "+(c.expPetty||0)+
-          " · leads "+(c.leads||0)+
-          " · charters "+(c.charters||0)+
-          " · APA "+(c.apa||0)+
-          " · stews "+(c.stews||0);
-      }
-    }).catch(function(e){
-      btn.disabled=false;
-      var msg=(e&&(e.error||(e.body&&e.body.error)))||"server unreachable";
-      utilSnapSetStatus("off","Archive failed — "+msg);
+  if(!utilSnapWired){
+    utilSnapWired=true;
+    var btn=el("utilSnapRun");
+    if(btn) btn.addEventListener("click",function(){
+      btn.disabled=true;
+      utilSnapSetStatus("na","Archiving live blob…");
+      /* Server: action "snapshot" — read-only copy to archive/data-<stamp> */
+      api("snapshot",{}).then(function(r){
+        btn.disabled=false;
+        utilSnapSetStatus("on","Archived ✓ "+(r.snapshottedAt||""));
+        utilSnapPaintCounts(r.key,r.counts);
+      }).catch(function(e){
+        btn.disabled=false;
+        var msg=(e&&(e.error||(e.body&&e.body.error)))||"server unreachable";
+        utilSnapSetStatus("off","Archive failed — "+msg);
+      });
     });
-  });
+  }
+  utilSnapRefresh();
 }
 
 /* -------- Ops calendar (leads occupancy) -------- */

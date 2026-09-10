@@ -20,6 +20,8 @@ import {
 const BLOB_KEY = "data";
 /** Small public payload for /api/availability (pending = on hold). */
 const PUBLIC_AVAILABILITY_KEY = "public-availability";
+/** Pointer to the most recent server-side archive snapshot (captain Utilities). */
+const LAST_ARCHIVE_KEY = "archive/latest";
 const LOG_CAP = 500;
 const DEVICE_CAP = 200;
 const SUB_CAP = 40;
@@ -2718,7 +2720,27 @@ export default async (req, context) => {
     ].forEach((c) => {
       counts[c] = Array.isArray(data[c]) ? data[c].length : 0;
     });
+    /* Small pointer so the Utilities panel can show the last archive on any
+     * device, any session. Separate key — the live blob stays untouched. */
+    await store.setJSON(LAST_ARCHIVE_KEY, {
+      key: snapKey,
+      snapshottedAt: now,
+      by: who,
+      counts: counts,
+    });
     return json({ ok: true, key: snapKey, snapshottedAt: now, counts: counts });
+  }
+
+  /* Last archive pointer for the Utilities panel (captain only). */
+  if (action === "lastArchive") {
+    if (role !== "captain" && !isCaptain(who)) {
+      return json({ error: "Captain only" }, 403);
+    }
+    const latest = await store.get(LAST_ARCHIVE_KEY, {
+      type: "json",
+      consistency: "strong",
+    });
+    return json({ ok: true, latest: latest || null });
   }
 
   if (action === "save") {
