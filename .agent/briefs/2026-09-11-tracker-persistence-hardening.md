@@ -1,6 +1,6 @@
 # Tracker persistence hardening plan — split-blob + push ordering
 
-**Date:** 2026-09-11 · **Status:** draft for captain approval · **Author:** agent (code review follow-up)
+**Date:** 2026-09-11 · **Status:** Phase 0+1 shipped ✅ · Phase 2 code shipped ✅ — **awaiting captain to run the migration** (Ops → Utilities → Run split migration) · **Author:** agent (code review follow-up)
 
 **Goal:** eliminate the last data-loss paths in the tracker server without losing a single row of
 live data. The captain relies on this daily — every phase is backup-first, reversible, and
