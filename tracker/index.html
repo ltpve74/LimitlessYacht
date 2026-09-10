@@ -2820,11 +2820,13 @@ function utilSnapSetStatus(kind,text){
 function utilSnapPaintCounts(key,counts){
   var out=el("utilSnapResult"); if(!out) return;
   var c=counts||{};
+  /* Labels use UI language: the "charters" collection is the Charges book
+   * (bills), trips live in "leads" (incl. holds / day-offs / cancelled). */
   out.textContent="Key: "+(key||"")+
+    " · leads/trips "+(c.leads||0)+
+    " · charges/bills "+(c.charters||0)+
     " · expenses "+(c.expenses||0)+
     " · petty months "+(c.expPetty||0)+
-    " · leads "+(c.leads||0)+
-    " · charters "+(c.charters||0)+
     " · APA "+(c.apa||0)+
     " · stews "+(c.stews||0);
 }
