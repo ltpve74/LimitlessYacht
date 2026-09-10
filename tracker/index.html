@@ -1577,6 +1577,7 @@
         </div>
         <div class="sectitle" style="margin-top:14px">Push subscriptions</div>
         <div class="legend" id="pushSubsList">Checking…</div>
+        <div class="legend" id="buildStamp" style="margin-top:10px;opacity:.75"></div>
       </div>
       <div class="sectitle">Who's using the tracker</div>
       <div class="statrow">
@@ -1695,6 +1696,9 @@ function selCancelReasonField(cur){
   return '<select class="ctl" id="f_cancelReason">'+opts+'</select>';
 }
 var EXPECTED_PEOPLE = 2;
+/* Build stamp — shown in Ops → Security so we can verify which code a device
+ * actually runs (PWA updates only land after a full close + reopen). */
+var TRACKER_BUILD = "2026-09-11.1";
 var APA_EXP_CATS = ["Drinks & Bar","Dockage / Marina","Crew Tips","Miscellaneous","Fuel / Diesel","Food & Provisions"];
 var APA_PAID_BY = ["APA cash","Ship card","Guest card","Bank transfer"];
 var APA_DASH_CATS = [
@@ -3393,7 +3397,16 @@ function switchTab(t){
   if(t==="stews"&&canRoster()) renderStews();
   if(t==="expenses"&&isCaptain()){
     /* Always reload cash bags from server when opening Expenses (unless mid-save). */
-    forceCashSnapshotFromServer(function(){ renderExpenses(); });
+    forceCashSnapshotFromServer(function(){
+      /*
+       * Self-heal: Unpaid crew day-pay lines must not exist in the ledger.
+       * Pre-tombstone saves left such ghosts on the server (preserve-missing
+       * kept them); stripping here with tombstones deletes them for good on
+       * every device. No-op when the ledger is clean.
+       */
+      try{ expStripUnpaidStewDayPayExpenses(); }catch(eGs){}
+      renderExpenses();
+    });
   }
   if(t==="commissions"&&isCaptain()) renderCommissions();
   if(t==="utilities"&&isCaptain()) renderUtilities();
@@ -13540,7 +13553,22 @@ function syncStewDayPayExpenses(asg, opts){
       nowIso:new Date().toISOString(), who:session.who||"Captain", newId:uid
     });
   }
-  /* Always drop existing day-pay lines for this charter first */
+  /*
+   * Always drop existing day-pay lines for this charter first.
+   * Tombstone every dropped id the plan does NOT re-create — without this the
+   * server's preserve-missing merge resurrected ghost salary rows on every
+   * device, prev==next after merge, and the sync wake fell back to the
+   * generic "Updated on another device" (the second, meaningless banner).
+   */
+  var keptIds={};
+  if(plan&&plan.lines&&plan.lines.length){
+    plan.lines.forEach(function(line){ if(line&&line.id!=null) keptIds[String(line.id)]=true; });
+  }
+  prevLines.forEach(function(e){
+    if(e&&e.id!=null&&!keptIds[String(e.id)]){
+      try{ voidDeletedId("expenses", e.id); }catch(eV){}
+    }
+  });
   state.expenses=state.expenses.filter(function(e){
     return !(e&&e.source==="stew"&&e.stewPayKind==="dayPay"&&String(e.stewEventKey)===eventKey);
   });
@@ -13554,7 +13582,8 @@ function syncStewDayPayExpenses(asg, opts){
 }
 /**
  * Drop Unpaid stew day-pay expense ghosts (assignment must not leave ledger rows).
- * Paid lines kept. Idempotent; saves when dirty.
+ * Paid lines kept. Idempotent; saves when dirty. Tombstones each removed id so
+ * the server really deletes the row (preserve-missing used to resurrect them).
  */
 function expStripUnpaidStewDayPayExpenses(){
   if(!isCaptain()||!state.expenses||!state.expenses.length) return false;
@@ -13562,6 +13591,7 @@ function expStripUnpaidStewDayPayExpenses(){
   state.expenses=state.expenses.filter(function(e){
     if(!e||!expIsCrewDayPayLine(e)) return true;
     if(String(e.crewPayStatus||"")==="Paid") return true;
+    try{ voidDeletedId("expenses", e.id); }catch(eV){}
     return false; /* Unpaid day-pay — remove */
   });
   var dirty=state.expenses.length!==n0;
@@ -23651,6 +23681,10 @@ function renderSecurity(){
   ll.innerHTML=recent.length?recent.map(function(l){
     return '<div class="logline"><span class="when">'+esc(fmtWhen(l.ts))+'</span><span><b>'+esc(l.who)+'</b> · '+esc(l.action)+'<br><span style="color:#8a97a0;font-size:12px">'+esc([l.country,l.ip].filter(Boolean).join(" · "))+'</span></span></div>';
   }).join(""):'<div class="empty">No activity yet.</div>';
+
+  /* Build stamp — verify a device actually runs the latest code */
+  var bs=el("buildStamp");
+  if(bs) bs.textContent="App build "+TRACKER_BUILD+" · updates land after fully closing and reopening the app";
 
   /* Push subscriptions (captain only) — spot duplicates / missing devices */
   var pl=el("pushSubsList");

@@ -353,6 +353,57 @@ await test("sync wake describes stew pay flip", async () => {
   check(bodies[0].indexOf("Unpaid") >= 0, "pay status in body: " + bodies[0]);
   check(bodies[0].indexOf("Aoife") >= 0, "trip name in body: " + bodies[0]);
 });
+/* ── 6e. pay-mark second save: day-pay delete must be real + described ──
+ * The Unpaid flow drops day-pay expense rows client-side. Without deletedIds
+ * the server preserve-merge resurrected them (ghost rows on every device)
+ * and, prev==next after merge, emitted the generic "Updated on another
+ * device" — the second, meaningless banner the captain saw. */
+await test("pay-mark: untombstoned day-pay drop is preserved + generic wake (old client)", async () => {
+  seedData({
+    expenses: [
+      { id: "dp1", amount: 200, category: "Crew Salaries", vendor: "Aoife", source: "stew", stewPayKind: "dayPay", stewEventKey: "ev1", crewPayStatus: "Paid" },
+    ],
+  });
+  await api({
+    action: "push-subscribe",
+    subscription: { endpoint: "https://push.example/sub/desc4", keys: { p256dh: "k", auth: "a" } },
+  });
+  events.length = 0;
+  await api({ action: "save", collection: "expenses", rows: [] });
+  const kept = (liveData().expenses || []).map((e) => e.id);
+  check(kept.indexOf("dp1") >= 0, "row preserved without deletedIds (documents old behaviour)");
+  const bodies = events.filter((e) => e.type === "push").map((e) => e.body);
+  check(bodies.length === 1 && bodies[0].indexOf("Updated on another device") >= 0,
+    "no diff after merge → generic wake: " + bodies[0]);
+});
+await test("pay-mark: tombstoned day-pay drop really deletes + wake says Removed", async () => {
+  seedData({
+    expenses: [
+      { id: "dp1", amount: 200, category: "Crew Salaries", vendor: "Aoife", source: "stew", stewPayKind: "dayPay", stewEventKey: "ev1", crewPayStatus: "Paid" },
+      { id: "keep1", amount: 40, category: "Food", vendor: "Makro" },
+    ],
+  });
+  await api({
+    action: "push-subscribe",
+    subscription: { endpoint: "https://push.example/sub/desc5", keys: { p256dh: "k", auth: "a" } },
+  });
+  events.length = 0;
+  await api({
+    action: "save",
+    collection: "expenses",
+    rows: [{ id: "keep1", amount: 40, category: "Food", vendor: "Makro" }],
+    deletedIds: ["dp1"],
+  });
+  const ids = (liveData().expenses || []).map((e) => e.id);
+  check(ids.indexOf("dp1") < 0, "ghost row really deleted");
+  check(ids.indexOf("keep1") >= 0, "unrelated row kept");
+  const bodies = events.filter((e) => e.type === "push").map((e) => e.body);
+  check(bodies.length === 1, "one wake, got " + bodies.length);
+  check(bodies[0].indexOf("Removed") >= 0, "says Removed: " + bodies[0]);
+  check(bodies[0].indexOf("Crew Salaries") >= 0, "names the line: " + bodies[0]);
+  check(bodies[0].indexOf("Updated on another device") < 0, "not generic");
+});
+
 await test("sync wake describes charge marked Paid", async () => {
   seedData({
     charters: [{ id: "c1", invoiceNo: "INV-001", amount: 750, payStatus: "Invoiced" }],
