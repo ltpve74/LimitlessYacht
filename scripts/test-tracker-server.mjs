@@ -58,8 +58,12 @@ const store = makeStore();
 globalThis.__TRACKER_TEST_STORE__ = store;
 
 /* ── stub push delivery: record, and 410 any endpoint containing "dead" ── */
-webpush.sendNotification = async (sub) => {
-  events.push({ type: "push", endpoint: sub && sub.endpoint });
+webpush.sendNotification = async (sub, payload) => {
+  let tag = "";
+  try {
+    tag = (JSON.parse(payload) || {}).tag || "";
+  } catch (e) {}
+  events.push({ type: "push", endpoint: sub && sub.endpoint, tag: tag });
   if (String(sub && sub.endpoint).includes("dead")) {
     const e = new Error("Gone");
     e.statusCode = 410;
@@ -240,6 +244,37 @@ await test("dead push sub is pruned AND the prune is saved", async () => {
   check(s.data.ok, "save ok");
   const subs = (liveData().pushSubs || []).map((x) => x.endpoint);
   check(!subs.some((e) => e.includes("dead")), "dead sub gone from PERSISTED blob");
+});
+
+/* ── 6b. multi-save silent wakes share one collapse tag (no duplicate banners) ── */
+await test("multi-collection action wakes share the tracker-sync collapse tag", async () => {
+  /* Seed the assign row as already-crew'd so the pay flip produces NO
+   * banner notice (oldIds === newIds) — only the silent sync wake. */
+  seedData({
+    stewAssign: [{ id: "a1", eventKey: "ev1", stewIds: ["s1"], payStatus: "Paid" }],
+  });
+  await api({
+    action: "push-subscribe",
+    subscription: { endpoint: "https://push.example/sub/tagcheck", keys: { p256dh: "k", auth: "a" } },
+  });
+  events.length = 0;
+  /* Pay-mark pattern: roster save + expenses save = two silent wakes */
+  await api({
+    action: "save",
+    collection: "stewAssign",
+    rows: [{ id: "a1", eventKey: "ev1", stewIds: ["s1"], payStatus: "Unpaid" }],
+  });
+  await api({
+    action: "save",
+    collection: "expenses",
+    rows: [{ id: "e1", amount: 10 }],
+  });
+  const tags = events.filter((e) => e.type === "push").map((e) => e.tag);
+  check(tags.length >= 2, "both saves pushed, got " + tags.length);
+  check(
+    tags.every((t) => t === "tracker-sync"),
+    "all silent wakes use the shared collapse tag, got " + tags.join(",")
+  );
 });
 
 /* ── 7. KNOWN-FAIL in monolith mode: cross-collection write race ── */
