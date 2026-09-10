@@ -3145,7 +3145,13 @@ export default async (req, context) => {
       return json({ error: "bad subscription" }, 400);
     }
     touchDevice();
-    data.pushSubs = data.pushSubs.filter((s) => s.endpoint !== sub.endpoint);
+    /* Dedupe by endpoint AND by device: a reinstall creates a NEW endpoint —
+     * keeping the old row means one phone gets every push twice. */
+    data.pushSubs = data.pushSubs.filter(
+      (s) =>
+        s.endpoint !== sub.endpoint &&
+        (!deviceId || String(s.deviceId || "") !== String(deviceId))
+    );
     data.pushSubs.push({
       endpoint: sub.endpoint,
       keys: { p256dh: sub.keys.p256dh, auth: sub.keys.auth },
@@ -3159,6 +3165,26 @@ export default async (req, context) => {
     addLog("push subscribe");
     await saveData(store, data, pctx);
     return json({ ok: true, count: data.pushSubs.length });
+  }
+
+  /*
+   * Push subscription overview (captain only) — who is subscribed, on which
+   * device/browser, since when. Endpoint shown as tail only (debug aid for
+   * "phone gets every push twice" / "desktop never banners").
+   */
+  if (action === "pushSubs") {
+    if (role !== "captain" && !isCaptain(who)) {
+      return json({ error: "Captain only" }, 403);
+    }
+    const subs = (Array.isArray(data.pushSubs) ? data.pushSubs : []).map((s) => ({
+      who: s.who || "",
+      role: s.role || "",
+      deviceId: s.deviceId || "",
+      browser: s.browser || "",
+      subscribedAt: s.subscribedAt || "",
+      endpointTail: String(s.endpoint || "").slice(-12),
+    }));
+    return json({ ok: true, count: subs.length, subs: subs });
   }
 
   if (action === "push-unsubscribe") {
