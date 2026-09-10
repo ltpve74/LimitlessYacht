@@ -1537,6 +1537,15 @@
         </div>
         <div class="legend" id="utilSnapResult" style="margin-top:10px"></div>
       </div>
+      <div class="pushcard">
+        <h3>Storage engine</h3>
+        <p>One-time migration to <b>per-collection storage</b>: each book (leads, expenses, roster…) gets its own key, so two people saving different things at the same time can no longer overwrite each other. The old single blob is <b>kept untouched</b> as an archive. Take an archive backup above first.</p>
+        <div class="st na" id="utilSplitStatus">Checking storage mode…</div>
+        <div class="row">
+          <button type="button" class="btn" id="utilSplitRun">Run split migration</button>
+        </div>
+        <div class="legend" id="utilSplitResult" style="margin-top:10px"></div>
+      </div>
     </section>
 
     <!-- SECURITY -->
@@ -2846,6 +2855,26 @@ function utilSnapRefresh(){
     utilSnapSetStatus("off","Could not check archive status — connection?");
   });
 }
+function utilSplitSetStatus(kind,text){
+  var s=el("utilSplitStatus"); if(!s) return;
+  s.className="st "+kind; s.textContent=text;
+}
+function utilSplitRefresh(){
+  utilSplitSetStatus("na","Checking storage mode…");
+  api("splitStatus",{}).then(function(r){
+    var btn=el("utilSplitRun");
+    if(r&&r.split){
+      var m=r.migration||{};
+      utilSplitSetStatus("on","Split storage active ✓ "+(m.migratedAt||"")+(m.by?" · by "+m.by:""));
+      if(btn) btn.disabled=true;
+    }else{
+      utilSplitSetStatus("off","Single-blob storage (legacy) — migration not run yet.");
+      if(btn) btn.disabled=false;
+    }
+  }).catch(function(){
+    utilSplitSetStatus("off","Could not check storage mode — connection?");
+  });
+}
 function renderUtilities(){
   if(!isCaptain()) return;
   if(!utilSnapWired){
@@ -2865,8 +2894,40 @@ function renderUtilities(){
         utilSnapSetStatus("off","Archive failed — "+msg);
       });
     });
+    var sbtn=el("utilSplitRun");
+    if(sbtn) sbtn.addEventListener("click",function(){
+      var out=el("utilSplitResult");
+      if(!window.confirm("Run the one-time split migration now?\n\nEach book gets its own storage key. Live data is copied, not modified — the old single blob stays untouched as an archive.")) return;
+      sbtn.disabled=true;
+      utilSplitSetStatus("na","Migrating to split storage…");
+      if(out) out.textContent="";
+      api("migrateSplit",{}).then(function(r){
+        if(r&&r.already){
+          utilSplitSetStatus("on","Split storage already active ✓ "+((r.migration||{}).migratedAt||""));
+          if(out) out.textContent="Migration had already completed — nothing changed.";
+          return;
+        }
+        var m=(r&&r.migration)||{};
+        var c=m.counts||{};
+        utilSplitSetStatus("on","Split storage active ✓ "+(m.migratedAt||""));
+        if(out){
+          out.textContent="Migrated: leads/trips "+(c.leads||0)+
+            " · charges/bills "+(c.charters||0)+
+            " · expenses "+(c.expenses||0)+
+            " · petty months "+(c.expPetty||0)+
+            " · APA "+(c.apa||0)+
+            " · stews "+(c.stews||0)+
+            " — old blob kept as archive.";
+        }
+      }).catch(function(e){
+        sbtn.disabled=false;
+        var msg=(e&&(e.error||(e.body&&e.body.error)))||"server unreachable";
+        utilSplitSetStatus("off","Migration failed — "+msg+" (still on single-blob storage, nothing lost)");
+      });
+    });
   }
   utilSnapRefresh();
+  utilSplitRefresh();
 }
 
 /* -------- Ops calendar (leads occupancy) -------- */
