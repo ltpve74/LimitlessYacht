@@ -23710,11 +23710,30 @@ function dataSyncFingerprint(d){
   });
   expBits.sort();
   pettyBits.sort();
+  /*
+   * stewAssign: hash row CONTENTS, not just count — a pay-status flip
+   * (trip marked Paid/Unpaid) changes no length and no expense total when
+   * the day pay never generated expense lines, and used to be invisible to
+   * every quiet sync path (poll / focus / push soft-refresh).
+   */
+  var asgBits=[], maxAsgUp="";
+  (d.stewAssign||[]).forEach(function(a){
+    if(!a) return;
+    var u=String(a.updatedAt||"");
+    if(u>maxAsgUp) maxAsgUp=u;
+    asgBits.push(
+      String(a.eventKey||a.id||"")+":"+String(a.payStatus||"")+":"+
+      ((Array.isArray(a.stewIds)?a.stewIds:[]).map(String).sort().join(","))+":"+
+      (a.noStewNeeded===true||a.noStewNeeded==="true"||a.noStewNeeded===1?"1":"0")+":"+
+      u.slice(0,19)
+    );
+  });
+  asgBits.sort();
   return [
     len(d.leads),len(d.charters),len(d.expenses),len(d.expPetty),len(d.apa),len(d.stewAssign),
     petty.toFixed(2),exp.toFixed(2),
-    cheapHash(expBits.join("|")),cheapHash(pettyBits.join("|")),
-    maxExpUp.slice(0,19),maxPettyUp.slice(0,19)
+    cheapHash(expBits.join("|")),cheapHash(pettyBits.join("|")),cheapHash(asgBits.join("|")),
+    maxExpUp.slice(0,19),maxPettyUp.slice(0,19),maxAsgUp.slice(0,19)
   ].join("|");
 }
 /**
