@@ -1575,6 +1575,8 @@
           <button type="button" class="btn" id="pushEnable">Enable alerts</button>
           <button type="button" class="btn ghost" id="pushTest">Send test</button>
         </div>
+        <div class="sectitle" style="margin-top:14px">Push subscriptions</div>
+        <div class="legend" id="pushSubsList">Checking…</div>
       </div>
       <div class="sectitle">Who's using the tracker</div>
       <div class="statrow">
@@ -23649,6 +23651,25 @@ function renderSecurity(){
   ll.innerHTML=recent.length?recent.map(function(l){
     return '<div class="logline"><span class="when">'+esc(fmtWhen(l.ts))+'</span><span><b>'+esc(l.who)+'</b> · '+esc(l.action)+'<br><span style="color:#8a97a0;font-size:12px">'+esc([l.country,l.ip].filter(Boolean).join(" · "))+'</span></span></div>';
   }).join(""):'<div class="empty">No activity yet.</div>';
+
+  /* Push subscriptions (captain only) — spot duplicates / missing devices */
+  var pl=el("pushSubsList");
+  if(pl){
+    if(!isCaptain()){
+      pl.textContent="Visible to the captain only.";
+    }else{
+      pl.textContent="Checking…";
+      api("pushSubs",{}).then(function(r){
+        var subs=(r&&r.subs)||[];
+        if(!subs.length){ pl.textContent="No push subscriptions — no device gets banners."; return; }
+        pl.innerHTML=subs.map(function(s){
+          return '<div class="logline"><span><b>'+esc(s.who||"—")+'</b> · '+esc(s.browser||"?")+
+            '<br><span style="color:#8a97a0;font-size:12px">dev '+esc(String(s.deviceId||"—").slice(0,8))+
+            ' · since '+esc(fmtWhen(s.subscribedAt))+' · …'+esc(s.endpointTail||"")+'</span></span></div>';
+        }).join("");
+      }).catch(function(){ pl.textContent="Could not load subscriptions."; });
+    }
+  }
 }
 function setTrust(id,val){
   (state.devices||[]).forEach(function(d){ if(d.id===id)d.trusted=val; });

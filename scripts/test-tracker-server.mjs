@@ -277,6 +277,36 @@ await test("multi-collection action wakes share the tracker-sync collapse tag", 
   );
 });
 
+/* ── 6c. subscribe dedupes by device (reinstall must not double-notify) ── */
+await test("push-subscribe replaces same-device old endpoint", async () => {
+  seedData();
+  await api({
+    action: "push-subscribe",
+    subscription: { endpoint: "https://push.example/sub/old-endpoint", keys: { p256dh: "k", auth: "a" } },
+  });
+  /* Same device, NEW endpoint (PWA reinstall) */
+  await api({
+    action: "push-subscribe",
+    subscription: { endpoint: "https://push.example/sub/new-endpoint", keys: { p256dh: "k", auth: "a" } },
+  });
+  const subs = (liveData().pushSubs || []).map((s) => s.endpoint);
+  check(subs.length === 1, "one sub for the device, got " + subs.length);
+  check(subs[0].includes("new-endpoint"), "new endpoint kept");
+});
+await test("pushSubs: captain sees list, team forbidden", async () => {
+  seedData();
+  await api({
+    action: "push-subscribe",
+    subscription: { endpoint: "https://push.example/sub/visible1", keys: { p256dh: "k", auth: "a" } },
+  });
+  const r = await api({ action: "pushSubs" });
+  check(r.status === 200 && r.data.ok && r.data.count === 1, "count 1");
+  check(r.data.subs[0].endpointTail.length === 12, "endpoint tail only");
+  check(!r.data.subs[0].endpoint, "no full endpoint leaked");
+  const denied = await api({ action: "pushSubs" }, { role: "team" });
+  check(denied.status === 403, "team → 403");
+});
+
 /* ── 7. KNOWN-FAIL in monolith mode: cross-collection write race ── */
 await xfail("monolith mode: concurrent saves of different collections both survive", async () => {
   seedData({
