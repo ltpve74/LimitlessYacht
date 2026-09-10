@@ -1525,6 +1525,20 @@
       <div id="opsCalRoot"></div>
     </section>
 
+    <!-- UTILITIES — captain-only maintenance commands -->
+    <section id="tab-utilities" class="hidden">
+      <button type="button" class="ops-back" data-ops-back>← Ops</button>
+      <div class="pushcard">
+        <h3>Archive backup</h3>
+        <p>Snapshot the whole live tracker blob into the server archive. <b>Read-only</b> — nothing in the live books changes. Run one before any maintenance or migration.</p>
+        <div class="st na" id="utilSnapStatus">No archive taken this session.</div>
+        <div class="row">
+          <button type="button" class="btn" id="utilSnapRun">Archive backup now</button>
+        </div>
+        <div class="legend" id="utilSnapResult" style="margin-top:10px"></div>
+      </div>
+    </section>
+
     <!-- SECURITY -->
     <section id="tab-security" class="hidden">
       <div class="banner" id="secBanner"></div>
@@ -2345,7 +2359,7 @@ function tryAutoLogin(){
 
 /* -------- tabs / nav -------- */
 /** Bottom nav: today | leads | finance | charges | ops | roster(team) | security. Ops children under Ops hub. */
-var OPS_CHILD={apa:1,diesel:1,stews:1,expenses:1,commissions:1,calendar:1};
+var OPS_CHILD={apa:1,diesel:1,stews:1,expenses:1,commissions:1,calendar:1,utilities:1};
 function isOpsTab(t){
   if(t==="ops") return true;
   if(t==="stews"&&isTeam()) return false; /* team uses Roster as top-level */
@@ -2782,7 +2796,8 @@ function renderOpsHub(){
     {id:"diesel",ic:"⛽",t:"Diesel",d:"Bunker & sell by date (€/L each load)"},
     {id:"stews",ic:"👩‍✈️",t:"Stews",d:"Confirmed charters only · day pay & tips"},
     {id:"expenses",ic:"💶",t:"Expenses",d:"Monthly boat ledger + export for manager", capOnly:true},
-    {id:"commissions",ic:"💸",t:"Commissions",d:"Captain "+CAPTAIN_COMMISSION_PCT+"% (preview "+CAPTAIN_COMMISSION_TARGET_PCT+"%) · Paul "+CLICKBOAT_COMMISSION_PCT+"% · Owner-sourced provider "+OWNER_SOURCED_COMMISSION_PCT+"% / lost income", capOnly:true}
+    {id:"commissions",ic:"💸",t:"Commissions",d:"Captain "+CAPTAIN_COMMISSION_PCT+"% (preview "+CAPTAIN_COMMISSION_TARGET_PCT+"%) · Paul "+CLICKBOAT_COMMISSION_PCT+"% · Owner-sourced provider "+OWNER_SOURCED_COMMISSION_PCT+"% / lost income", capOnly:true},
+    {id:"utilities",ic:"🧰",t:"Utilities",d:"Archive backup — server snapshot of the live books", capOnly:true}
   ];
   /* Manager: Calendar + Diesel + Stews (not APA / Expenses / Commissions) */
   if(isManager()&&!isCaptain()){
@@ -2794,6 +2809,45 @@ function renderOpsHub(){
       '<span class="ops-t">'+esc(x.t)+'</span>'+
       '<span class="ops-d">'+esc(x.d)+'</span></button>';
   }).join("");
+}
+
+/* -------- Utilities (captain maintenance commands) -------- */
+var utilSnapWired=false;
+function utilSnapSetStatus(kind,text){
+  var s=el("utilSnapStatus"); if(!s) return;
+  s.className="st "+kind; s.textContent=text;
+}
+function renderUtilities(){
+  if(!isCaptain()) return;
+  if(utilSnapWired) return;
+  utilSnapWired=true;
+  var btn=el("utilSnapRun");
+  if(!btn) return;
+  btn.addEventListener("click",function(){
+    var out=el("utilSnapResult");
+    btn.disabled=true;
+    utilSnapSetStatus("na","Archiving live blob…");
+    if(out) out.textContent="";
+    /* Server: action "snapshot" — read-only copy to archive/data-<stamp> */
+    api("snapshot",{}).then(function(r){
+      btn.disabled=false;
+      utilSnapSetStatus("on","Archived ✓ "+(r.snapshottedAt||""));
+      if(out){
+        var c=r.counts||{};
+        out.textContent="Key: "+(r.key||"")+
+          " · expenses "+(c.expenses||0)+
+          " · petty months "+(c.expPetty||0)+
+          " · leads "+(c.leads||0)+
+          " · charters "+(c.charters||0)+
+          " · APA "+(c.apa||0)+
+          " · stews "+(c.stews||0);
+      }
+    }).catch(function(e){
+      btn.disabled=false;
+      var msg=(e&&(e.error||(e.body&&e.body.error)))||"server unreachable";
+      utilSnapSetStatus("off","Archive failed — "+msg);
+    });
+  });
 }
 
 /* -------- Ops calendar (leads occupancy) -------- */
@@ -3238,6 +3292,7 @@ function switchTab(t){
   if(el("tab-today")) el("tab-today").classList.toggle("hidden",t!=="today");
   if(el("tab-ops")) el("tab-ops").classList.toggle("hidden",t!=="ops");
   if(el("tab-calendar")) el("tab-calendar").classList.toggle("hidden",t!=="calendar");
+  if(el("tab-utilities")) el("tab-utilities").classList.toggle("hidden",t!=="utilities");
   el("tab-security").classList.toggle("hidden",t!=="security");
   /* One-screen calendar: lock page scroll + fill height under app bar */
   try{ document.body.classList.toggle("ops-cal-mode", t==="calendar"); }catch(eCalM){}
@@ -3259,11 +3314,12 @@ function switchTab(t){
     forceCashSnapshotFromServer(function(){ renderExpenses(); });
   }
   if(t==="commissions"&&isCaptain()) renderCommissions();
+  if(t==="utilities"&&isCaptain()) renderUtilities();
   if(t==="security") renderSecurity();
 }
 function updateFab(){
   var hide=false;
-  if(curTab==="security"||curTab==="ops"||curTab==="commissions"||curTab==="today"||curTab==="finance") hide=true;
+  if(curTab==="security"||curTab==="ops"||curTab==="commissions"||curTab==="today"||curTab==="finance"||curTab==="utilities") hide=true;
   else if(curTab==="calendar") hide=!canCommercial(); /* + add hold on selected day */
   else if(curTab==="apa"){
     if(apaView==="list") hide=false; /* + new trip */
