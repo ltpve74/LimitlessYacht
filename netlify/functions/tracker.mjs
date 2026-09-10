@@ -3063,7 +3063,10 @@ export default async (req, context) => {
         {
           title: "Limitless Tracker",
           body: "Updated on another device",
-          tag: "tracker-sync-" + coll,
+          /* One shared collapse tag: multi-collection actions (pay mark =
+           * stewAssign + expenses) fire several silent wakes; same tag makes
+           * the platform REPLACE the banner instead of stacking duplicates. */
+          tag: "tracker-sync",
           url: "/tracker/",
           to: "commercial",
           silent: true,
