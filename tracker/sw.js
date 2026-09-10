@@ -1,5 +1,5 @@
 /* Limitless Tracker service worker — push notifications for the installed PWA */
-/* v9: no paint-time petty mutate; Expenses tab hard-loads server cash */
+/* v10: tombstoned day-pay deletes; build stamp in Security tab (2026-09-11.1) */
 self.addEventListener("install", function (e) {
   self.skipWaiting();
 });
