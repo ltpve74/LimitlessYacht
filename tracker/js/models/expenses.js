@@ -1485,6 +1485,28 @@ function summarizePettyCashOutToDate(expenses, todayYmd) {
   return { total: tot, n: n };
 }
 
+/**
+ * Resolve one month's petty-cash envelope (pure).
+ *
+ * Inputs: the stored pettyStart (a NEGATIVE start is a prior-month boat
+ * short — a note, never physical cash), an explicit broughtForwardShort
+ * carry, this month's cashIns, and the month's expense lines (crew day-pay
+ * is collapsed first so a stew is only paid once).
+ *
+ * Claims order: physical start + cash-ins form the envelope; a brought-
+ * forward boat short is settled from it FIRST (emitted as a virtual
+ * cash-out line), then expense outs — crew day-pay only for the amount
+ * that actually left the pot (floatPay), on-bill tip payouts, captain
+ * commission draws, pocket reimbursements, and ordinary petty expenses.
+ *
+ * Returns pettyCash/pettyOnboard (physical notes, never negative),
+ * booksBalance (may go negative = over-marked outs), cashShort (this-month
+ * overshoot + uncovered prior short) with a shortLines audit trail, and
+ * the newest-first cashOutLines for the captain's cash-out list.
+ *
+ * @param {{ pettyStart?: number, broughtForwardShort?: number, cashIns?: Array, expenses?: Array }} opts
+ * @returns {{ pettyStart, physicalStart, broughtForwardShort, priorStartShort, priorSettled, priorRemain, cashInTotal, cashInHand, cashOut, cashOutLines, booksBalance, pettyCash, pettyOnboard, cashShort, monthShort, shortLines, crewPaidPetty, nCrewPetty, nCrewCollapsed, collapsedExpenses, removedIds }}
+ */
 function summarizePettyCash(opts) {
   opts = opts || {};
   var storedStart = round2(num(opts.pettyStart));

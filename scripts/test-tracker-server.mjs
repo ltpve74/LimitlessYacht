@@ -424,6 +424,44 @@ await test("sync wake describes charge marked Paid", async () => {
   check(bodies[0].indexOf("INV-001") >= 0, "invoice in body: " + bodies[0]);
 });
 
+/* ── 6f. Phase 3: role "other" payload + empty-leads calendar rebuild ── */
+await test('role "other" gets no devices/log/push keys on load', async () => {
+  seedData({
+    devices: [{ id: "d1", who: "Captain", browser: "Safari", ip: "1.2.3.4" }],
+    log: [{ ts: "2026-09-11T00:00:00Z", who: "Captain", action: "login" }],
+  });
+  const r = await api({ action: "load" }, { role: "other", who: "Stranger" });
+  check(r.status === 200, "load ok");
+  check(r.data.role === "other", "role is other, got " + r.data.role);
+  check(Array.isArray(r.data.devices) && r.data.devices.length === 0, "no device list leaked");
+  check(Array.isArray(r.data.log) && r.data.log.length === 0, "no activity log leaked");
+  check(r.data.pushEnabled === false, "push disabled for unnamed device");
+  check(!r.data.vapidPublicKey, "no VAPID key leaked");
+  /* Recognised roles still get the security data (touchDevice adds the
+   * loading device, so just assert the list is visible, not its size) */
+  const c = await api({ action: "load" });
+  check(Array.isArray(c.data.devices) && c.data.devices.length > 0, "captain still sees devices");
+  check(!!c.data.vapidPublicKey, "captain still gets VAPID key");
+});
+await test("deleting all leads empties the public site calendar", async () => {
+  seedData();
+  await api({
+    action: "save",
+    collection: "leads",
+    rows: [{ id: "l1", name: "Test Guest", start: "2026-09-15", dur: "6h", leadSource: "captain" }],
+  });
+  const before = liveData().siteCalendar;
+  const beforeN =
+    ((before && before.booked) || []).length + ((before && before.tentative) || []).length;
+  check(beforeN > 0, "calendar has the charter day, got " + beforeN);
+  await api({ action: "save", collection: "leads", rows: [], deletedIds: ["l1"] });
+  check((liveData().leads || []).length === 0, "lead really deleted");
+  const after = liveData().siteCalendar;
+  const afterN =
+    ((after && after.booked) || []).length + ((after && after.tentative) || []).length;
+  check(afterN === 0, "calendar empty after last lead deleted, got " + afterN);
+});
+
 /* ── 7. KNOWN-FAIL in monolith mode: cross-collection write race ── */
 await xfail("monolith mode: concurrent saves of different collections both survive", async () => {
   seedData({
