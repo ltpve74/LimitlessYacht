@@ -1,6 +1,6 @@
 # Tracker persistence hardening plan — split-blob + push ordering
 
-**Date:** 2026-09-11 · **Status:** Phase 0+1 shipped ✅ · Phase 2 code shipped ✅ — **awaiting captain to run the migration** (Ops → Utilities → Run split migration) · **Author:** agent (code review follow-up)
+**Date:** 2026-09-11 · **Status:** ALL PHASES SHIPPED ✅ — Phase 0+1 (backups + push ordering) ✅ · Phase 2 (split-blob, migration run by captain 2026-09-11) ✅ · Phase 3 (role-"other" payload, empty-leads calendar rebuild, script versions, summarizePettyCash docs) ✅ · Plus same-day sync fixes: day-pay tombstones, ghost self-heal, skippedFresh fingerprint, build stamp · **Author:** agent (code review follow-up)
 
 **Goal:** eliminate the last data-loss paths in the tracker server without losing a single row of
 live data. The captain relies on this daily — every phase is backup-first, reversible, and
