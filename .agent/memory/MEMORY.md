@@ -30,4 +30,5 @@
 - [../briefs/tracker-charter-identity.md](../briefs/tracker-charter-identity.md) — lead.id + ICS uid as source of truth (not date/name)
 - [tracker-owner-sourced-commercial.md](tracker-owner-sourced-commercial.md) — Owner’s days → ownersourced; Paid-only Finance; no pocket UI
 - [tracker-finance-cash-envelope-balance.md](tracker-finance-cash-envelope-balance.md) — Finance net = white + all envelope cash-ins − cash comm − petty outs (owner top-ups must show)
-- [tracker-persistence-hardening-plan.md](tracker-persistence-hardening-plan.md) — split-blob plan for the cross-collection write race; backup-first, monolith kept as archive; awaiting captain go-ahead
+- [tracker-persistence-hardening-plan.md](tracker-persistence-hardening-plan.md) — split-blob hardening COMPLETE (all phases shipped 2026-09-11); monolith frozen as archive
+- [tracker-architecture-handover.md](tracker-architecture-handover.md) — post-hardening map: split-blob keys, tombstone rules, notification + fingerprint flow, build stamp

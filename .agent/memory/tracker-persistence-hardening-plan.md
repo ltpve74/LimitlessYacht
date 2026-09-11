@@ -16,6 +16,7 @@ Plan lives at [.agent/briefs/2026-09-11-tracker-persistence-hardening.md](../bri
   (`coll/*`, `sys/*`); the monolith `data` key is frozen as an archive — never write to it.
   Any future DB script/work must assume split mode (the function dual-reads via the
   `sys/migration` marker). Rollback = `tracker-db-split-migrate.mjs --rollback` (loses
-  split-mode saves — deliberate only). Remaining: Phase 3 follow-ups (P4 role-"other"
-  payload minimization, empty-leads siteCalendar rebuild; P5 script version bumps +
-  summarizePettyCash comment), then the long-term P2 view extraction.
+  split-mode saves — deliberate only). Phase 3 follow-ups shipped 2026-09-11 (role-"other"
+  payload tightened, empty-leads siteCalendar rebuild, script version bumps,
+  summarizePettyCash docblock). **Plan complete.** See the architecture handover memory
+  for the post-hardening map. Long-term: P2 view extraction.
