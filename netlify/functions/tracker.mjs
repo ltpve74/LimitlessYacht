@@ -1724,8 +1724,12 @@ function applyIcsTimeMoveDecisions(data, acceptedIds, rejectedIds, who, now) {
   return { applied, dismissed };
 }
 async function saveData(store, data, ctx) {
-  /* Keep site calendar + public key aligned with leads on every persist */
-  if (Array.isArray(data.leads) && data.leads.length) {
+  /*
+   * Keep site calendar + public key aligned with leads on every persist.
+   * Empty leads MUST rebuild too — otherwise the last deleted charter stays
+   * booked on the public website calendar forever.
+   */
+  if (Array.isArray(data.leads)) {
     rebuildSiteCalendarFromLeads(
       data,
       (data.siteCalendar && data.siteCalendar.updatedBy) || "saveData",
@@ -2830,12 +2834,19 @@ export default async (req, context) => {
     }
     if (dirty) await saveData(store, data, pctx);
 
+    /*
+     * Role "other" (passcode correct but name not recognised) gets NO security
+     * or push data: devices/log leak every user's browser, IP and activity to
+     * any passcode holder, and the VAPID key would let an unnamed device
+     * subscribe to notifications that contain trip details.
+     */
+    const recognised = role !== "other";
     const out = {
       role,
-      devices: data.devices,
-      log: data.log,
-      pushEnabled: vapidConfigured(),
-      vapidPublicKey: process.env.TRACKER_VAPID_PUBLIC_KEY || "",
+      devices: recognised ? data.devices : [],
+      log: recognised ? data.log : [],
+      pushEnabled: recognised ? vapidConfigured() : false,
+      vapidPublicKey: recognised ? process.env.TRACKER_VAPID_PUBLIC_KEY || "" : "",
     };
     /*
      * Payload by role. Captain always gets the full store (who-label is trusted).
