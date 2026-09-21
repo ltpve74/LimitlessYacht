@@ -2516,6 +2516,11 @@ def check_shared_assets(r: Runner) -> None:
         and '--ly-cookie-h' in css,
     )
     r.check(
+        'sticky bar markup is parsed before the calendar script queries it',
+        index_html.find('id="calStickyCta"') < index_html.find("getElementById('calStickyCta')")
+        and 'function lyBindStickyUi' in index_html,
+    )
+    r.check(
         'sticky enquiry bar persists on mobile after dates picked (follows the user off-calendar)',
         'isMobileCta' in index_html
         and '(isMobileCta||calInView)' in index_html.replace(' ', ''),
