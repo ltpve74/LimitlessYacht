@@ -7,6 +7,6 @@
   "mobile funnel sections are viewport-fit (adaptive wrap + nav-measured landing)": "4d118745c584582c00bbfc3e94b10c74dc8dfdea",
   "mobile gallery section fills viewport like itinerary": "9414f29b02528cea127ef91e48a5896970c9fce5",
   "on-hold dates are selectable for enquiry (booked still blocked)": "c0a75d244ba256aee9f1a5ef6a4d7be8f1fa3c95",
-  "review snippet clamps to 4 lines with reserved height (Part 2 + CLS)": "9cfcfbb4a0380a96287fa8b1990bf69cbb259f21",
-  "reviews grid + loading reserve height so lazy-load does not shift (CLS)": "6f9818052510e641cba615254daf69dd696b383f"
+  "review snippet clamps to 3 lines with reserved height (Part 2 + CLS)": "ca5f5aaeeab788af063d8a866b905d42e6c16225",
+  "reviews grid + loading reserve height so lazy-load does not shift (CLS)": "455a76c5dec9798e44896cd143e3e4238f152ed7"
 }
