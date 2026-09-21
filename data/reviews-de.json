@@ -1,6 +1,12 @@
 {
   "reviews": [
     {
+      "author": "Maria",
+      "date": "Sep. 2026",
+      "rating": 5,
+      "text": "Luigi hat super entschieden, wo wir am besten anhalten und schwimmen. Die Verpflegung war großartig, und insgesamt war er wirklich wunderbar. Die Bootstoys haben uns riesig Spaß gemacht."
+    },
+    {
       "author": "Michael",
       "date": "Sep. 2026",
       "rating": 5,

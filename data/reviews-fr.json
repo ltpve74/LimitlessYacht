@@ -1,6 +1,12 @@
 {
   "reviews": [
     {
+      "author": "Maria",
+      "date": "Sept. 2026",
+      "rating": 5,
+      "text": "Luigi a très bien choisi les meilleurs spots pour s'arrêter et nager. Il s'est occupé des provisions avec brio et a été vraiment formidable. On a adoré les jouets du bateau."
+    },
+    {
       "author": "Michael",
       "date": "Sept. 2026",
       "rating": 5,
