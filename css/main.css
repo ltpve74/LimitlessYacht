@@ -3117,14 +3117,48 @@
     z-index:280;
     gap:.4rem;
     padding:.7rem 1rem calc(.7rem + env(safe-area-inset-bottom, 0px));
-    background:rgba(8,18,34,.82);
-    -webkit-backdrop-filter:blur(12px);
-    backdrop-filter:blur(12px);
-    border-top:1px solid rgba(201,168,76,.35);
-    box-shadow:0 -8px 28px rgba(0,0,0,.35)
+    background:rgba(8,18,34,.42);
+    -webkit-backdrop-filter:saturate(160%) blur(18px);
+    backdrop-filter:saturate(160%) blur(18px);
+    border-top:1px solid rgba(201,168,76,.28);
+    box-shadow:0 -6px 18px rgba(0,0,0,.18)
+  }
+  @supports not ((backdrop-filter:blur(1px)) or (-webkit-backdrop-filter:blur(1px))){
+    .cal-sticky-cta{
+      background:rgba(8,18,34,.72)
+    }
   }
   .cal-sticky-cta[hidden]{
     display:none!important
+  }
+  .cal-sticky-cta.is-compact{
+    left:auto;
+    right:.7rem;
+    bottom:calc(var(--ly-cookie-h, 0px) + .7rem + env(safe-area-inset-bottom, 0px));
+    width:auto;
+    max-width:calc(100vw - 1.4rem);
+    flex-direction:row;
+    align-items:center;
+    gap:.35rem;
+    padding:.4rem .45rem .4rem .55rem;
+    border:1px solid rgba(201,168,76,.4);
+    border-radius:999px;
+    background:rgba(8,18,34,.28);
+    -webkit-backdrop-filter:saturate(180%) blur(16px);
+    backdrop-filter:saturate(180%) blur(16px);
+    box-shadow:0 8px 22px rgba(0,0,0,.22)
+  }
+  .cal-sticky-cta.is-compact .cal-sticky-summary,
+  .cal-sticky-cta.is-compact .cal-sticky-clear,
+  .cal-sticky-cta.is-compact .cal-sticky-email,
+  .cal-sticky-cta.is-compact .cal-sticky-alts{
+    display:none!important
+  }
+  .cal-sticky-cta.is-compact .cal-sticky-wa{
+    min-height:2.15rem;
+    padding:.4rem .85rem;
+    font-size:.55rem;
+    border-radius:999px
   }
   .cal-sticky-summary{
     margin:0;
