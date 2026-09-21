@@ -1983,6 +1983,9 @@
     font-family:inherit;
     font-weight:500
   }
+  .review-expand[hidden]{
+    display:none
+  }
   .review-expand:hover{
     color:var(--gold-light)
   }

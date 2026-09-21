@@ -197,6 +197,15 @@ def check_html(r: Runner, rel: str, html: str) -> None:
         and "ly_review_expand_'+(_ec.getAttribute('data-rv-slug')" in html,
     )
     r.check(
+        'review more button only shows when the 4-line clamp overflows',
+        'function lySyncReviewExpand' in html
+        and 'function lyReviewOverflows' in html
+        and 'tx.scrollHeight' in html
+        and 'btn.hidden=false' in html
+        and 'btn.hidden=true' in html
+        and 'hidden aria-expanded="false"' in html,
+    )
+    r.check(
         'charters desktop cross-nav nudges availability and reviews',
         re.search(
             r'<section id="charters">[\s\S]*?href="#availability"[^>]*class="btn-ghost"'
@@ -2507,6 +2516,11 @@ def check_shared_assets(r: Runner) -> None:
         and '--ly-cookie-h' in css,
     )
     r.check(
+        'sticky enquiry bar persists on mobile after dates picked (follows the user off-calendar)',
+        'isMobileCta' in index_html
+        and '(isMobileCta||calInView)' in index_html.replace(' ', ''),
+    )
+    r.check(
         'booked date recovery uses sticky chips, not a popup',
         'function showBookedRecovery' in index_html
         and 'LY_showBookedRecovery' in index_html
@@ -3592,6 +3606,11 @@ def check_shared_assets(r: Runner) -> None:
         # 4-line snippet (was 2) with a reserved clamp height so cards are uniform
         and '-webkit-line-clamp:4' in css
         and re.search(r'\.review-text--clamped\{[^}]*min-height:4lh', css) is not None,
+    )
+    r.check(
+        'review more button stays hidden when the clamp is not overflowing',
+        css is not None
+        and re.search(r'\.review-expand\[hidden\]\s*\{[^}]*display:\s*none', css) is not None,
     )
     r.check(
         'reviews grid + loading reserve height so lazy-load does not shift (CLS)',  # DECISION (see DECISIONS.md — do not weaken to pass)
