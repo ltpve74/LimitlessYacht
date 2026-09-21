@@ -3732,9 +3732,11 @@ def check_shared_assets(r: Runner) -> None:
         and '.footer-links a[href*="wa.me"]' in index_html,
     )
     r.check(
-        'WhatsApp prefill prompts dates guests and charter type',
-        'Charter: (half-day / full-day / multi-day)' in index_html
-        and 'captain and crew confirm availability' in index_html,
+        'WhatsApp prefill states dates and inferred charter type',
+        'Please confirm these dates and send a quote.' in index_html
+        and "Type: " in index_html
+        and 'function buildWaMsg(sel)' in index_html
+        and 'Charter: (half-day / full-day / multi-day)' not in index_html,
     )
     r.check(
         'multi-day cards mention planning once in touch',
