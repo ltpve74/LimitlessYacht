@@ -2538,6 +2538,15 @@ def check_shared_assets(r: Runner) -> None:
         and '(isMobileCta||calInView)' in index_html.replace(' ', ''),
     )
     r.check(
+        'sticky bar goes compact and glassier when scrolling away on mobile',
+        'is-compact' in index_html
+        and 'ly-cal-sticky-compact' in index_html
+        and css is not None
+        and '.cal-sticky-cta.is-compact' in css
+        and 'rgba(8,18,34,.42)' in css
+        and '-webkit-backdrop-filter' in css,
+    )
+    r.check(
         'mobile calendar grid uses full card width for larger day tap targets',
         css is not None
         and '#availCal .cal-months' in css
