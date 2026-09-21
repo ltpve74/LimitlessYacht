@@ -306,7 +306,6 @@ PAIRS = [
     ("Check Availability", "Ver disponibilidad"),
     ("Enquire on WhatsApp", "Consultar por WhatsApp"),
     ("WhatsApp these dates", "Enviar estas fechas por WhatsApp"),
-    ("Contact", "Contacto"),
     ("Get in<em> Touch</em>", "Póngase en <em>contacto</em>"),
     (
         "For bookings, availability enquiries or special requests, we are always at your disposal.",
