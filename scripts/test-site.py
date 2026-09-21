@@ -197,7 +197,7 @@ def check_html(r: Runner, rel: str, html: str) -> None:
         and "ly_review_expand_'+(_ec.getAttribute('data-rv-slug')" in html,
     )
     r.check(
-        'review more button only shows when the 4-line clamp overflows',
+        'review more button only shows when the snippet clamp overflows',
         'function lySyncReviewExpand' in html
         and 'function lyReviewOverflows' in html
         and 'tx.scrollHeight' in html
@@ -3601,11 +3601,11 @@ def check_shared_assets(r: Runner) -> None:
         and reviews_grid_desktop > reviews_grid_base,
     )
     r.check(
-        'review snippet clamps to 4 lines with reserved height (Part 2 + CLS)',  # DECISION (see DECISIONS.md — do not weaken to pass)
+        'review snippet clamps to 3 lines with reserved height (Part 2 + CLS)',  # DECISION (see DECISIONS.md — do not weaken to pass)
         css is not None
-        # 4-line snippet (was 2) with a reserved clamp height so cards are uniform
-        and '-webkit-line-clamp:4' in css
-        and re.search(r'\.review-text--clamped\{[^}]*min-height:4lh', css) is not None,
+        # 3-line snippet (was 4, then 2) with a reserved clamp height so cards are uniform
+        and re.search(r'\.review-text--clamped\{[^}]*-webkit-line-clamp:3', css) is not None
+        and re.search(r'\.review-text--clamped\{[^}]*min-height:3lh', css) is not None,
     )
     r.check(
         'review more button stays hidden when the clamp is not overflowing',
@@ -3615,10 +3615,10 @@ def check_shared_assets(r: Runner) -> None:
     r.check(
         'reviews grid + loading reserve height so lazy-load does not shift (CLS)',  # DECISION (see DECISIONS.md — do not weaken to pass)
         css is not None
-        # Placeholder and grid reserve the loaded height (mobile 141rem / desktop 68rem — 11 reviews)
-        and re.search(r'\.reviews-loading\{[^}]*min-height:141rem', css) is not None
-        and re.search(r'\.reviews-grid\{[^}]*min-height:141rem', css) is not None
-        and 'min-height:68rem' in css,
+        # Placeholder and grid reserve the loaded height (mobile 145rem / desktop 70rem — 13 reviews)
+        and re.search(r'\.reviews-loading\{[^}]*min-height:145rem', css) is not None
+        and re.search(r'\.reviews-grid\{[^}]*min-height:145rem', css) is not None
+        and 'min-height:70rem' in css,
     )
     r.check(
         'mobile carousel-nav reserves height so position indicator does not shift (CLS)',  # DECISION (see DECISIONS.md — do not weaken to pass)
