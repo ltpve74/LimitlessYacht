@@ -2007,6 +2007,12 @@ def check_locale_translations(r: Runner, pages: dict[str, str]) -> None:
         return
 
     locale_mods = {'de': de, 'es': es, 'fr': fr}
+    es_src = read_file('i18n/locales/es.py') or ''
+    r.check(
+        'Spanish Contact pair is not a substring replace (avoids Contactoo)',
+        '("Contact", "Contacto")' not in es_src
+        and "('Contact', 'Contacto')" not in es_src,
+    )
 
     for code, mod in locale_mods.items():
         index_rel = f'{code}/index.html'
@@ -2016,6 +2022,12 @@ def check_locale_translations(r: Runner, pages: dict[str, str]) -> None:
         if loc_index is None or loc_legal is None:
             r.fail(f'{code} locale pages present', 'index or legal missing')
             continue
+        if code == 'es':
+            r.check(
+                'Spanish nav Contact is Contacto, not Contactoo',
+                'Contactoo' not in loc_index
+                and '>Contacto</a>' in loc_index,
+            )
 
         expected_index = build_mod.build_index(mod)
         expected_legal = build_mod.build_legal(mod)
