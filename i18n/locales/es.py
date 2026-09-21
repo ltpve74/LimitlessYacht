@@ -88,6 +88,7 @@ PAIRS = [
         "No se pudieron cargar las reseñas. Inténtelo de nuevo más tarde.",
     ),
     ('href="#charters-land">Charters</a>', 'href="#charters-land">Chárteres</a>'),
+    ('href="#charters-land">Prices</a>', 'href="#charters-land">Precios</a>'),
     ('onclick="closeMobile()">Charters</a>', 'onclick="closeMobile()">Chárteres</a>'),
     ('class="mobile-nav-cta" onclick="closeMobile()">Check dates</a>', 'class="mobile-nav-cta" onclick="closeMobile()">Ver fechas</a>'),
     ('class="nav-cta nav-header-cta" style="display:none">Check dates</a>', 'class="nav-cta nav-header-cta" style="display:none">Ver fechas</a>'),

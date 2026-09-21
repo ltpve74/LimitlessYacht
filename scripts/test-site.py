@@ -1018,15 +1018,27 @@ def check_html(r: Runner, rel: str, html: str) -> None:
         and "ly_section_view_' + String(section).replace(/-/g, '_')" in html
         and 'LY_flushClaritySectionQueue' in html,
     )
+    nav_ul_m = re.search(r'<ul class="nav-links"[^>]*data-site-nav="1">[\s\S]*?</ul>', html)
+    nav_ul = nav_ul_m.group(0) if nav_ul_m else ''
     r.check(
-        'desktop nav uses site-wide commercial links',
+        'desktop nav uses in-page section anchors (SEO pages demoted to footer)',
         'data-site-nav="1"' in html
-        and re.search(r'class="nav-links"[^>]*>[\s\S]*?href="#hero"', html) is not None
-        and re.search(r'class="nav-links"[^>]*>[\s\S]*?href="(?:/)?yacht-charter-mallorca/"', html) is not None
-        and re.search(r'class="nav-links"[^>]*>[\s\S]*?href="(?:/)?destinations/"', html) is not None
-        and re.search(r'class="nav-links"[^>]*>[\s\S]*?href="(?:/)?maiora-yacht-charter/"', html) is not None
-        and re.search(r'class="nav-links"[^>]*>[\s\S]*?href="(?:/)?yacht-charter-mallorca-prices/"', html) is not None
-        and re.search(r'class="nav-links"[^>]*>[\s\S]*?href="#avail-cal"', html) is not None
+        and nav_ul_m is not None
+        # top nav jumps to on-page sections, not the SEO landing pages
+        and 'href="#hero"' in nav_ul
+        and 'href="#charters-land"' in nav_ul
+        and 'href="#itinerary-land"' in nav_ul
+        and 'href="#gallery-land"' in nav_ul
+        and 'href="#avail-cal"' in nav_ul
+        # the commercial SEO pages are no longer in the top nav ...
+        and 'yacht-charter-mallorca/' not in nav_ul
+        and 'destinations/' not in nav_ul
+        and 'maiora-yacht-charter/' not in nav_ul
+        # ... but stay reachable from the footer sitemap (no orphans; locale-agnostic)
+        and 'class="footer-sitemap"' in html
+        and 'yacht-charter-mallorca/' in html
+        and 'maiora-yacht-charter/' in html
+        and 'yacht-charter-mallorca-prices/' in html
         and 'id="about-land"' in html
         and 'id="charters-land"' in html
         and 'id="availability-land"' in html,
@@ -2524,6 +2536,12 @@ def check_shared_assets(r: Runner) -> None:
         'sticky enquiry bar persists on mobile after dates picked (follows the user off-calendar)',
         'isMobileCta' in index_html
         and '(isMobileCta||calInView)' in index_html.replace(' ', ''),
+    )
+    r.check(
+        'mobile calendar grid uses full card width for larger day tap targets',
+        css is not None
+        and '#availCal .cal-months' in css
+        and '#availCal .cal-nav' in css,
     )
     r.check(
         'booked date recovery uses sticky chips, not a popup',
