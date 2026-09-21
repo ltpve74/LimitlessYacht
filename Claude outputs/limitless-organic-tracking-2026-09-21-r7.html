@@ -1,0 +1,209 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Limitless — Organic Search Tracking (Report #7)</title>
+<style>
+  :root{
+    --ink:#0f1b2d; --ink-2:#33465c; --muted:#6b7d92; --line:#e3e9f0;
+    --surface:#ffffff; --surface-2:#f5f8fb; --navy:#123152; --gold:#b8893a;
+    --good:#1f7a4d; --good-bg:#e6f3ec; --neutral:#5b6b7d; --neutral-bg:#eef2f6;
+    --warn:#9a6a12; --warn-bg:#faf1dd; --accent:#1d6fb8; --accent-bg:#e7f0f9;
+    --up:#1f7a4d; --down:#b0522a; --alert:#a12f2f; --alert-bg:#fbe9e9;
+  }
+  *{box-sizing:border-box;}
+  body{margin:0;background:var(--surface-2);color:var(--ink);
+    font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Helvetica,Arial,sans-serif;
+    line-height:1.5;-webkit-font-smoothing:antialiased;}
+  .wrap{max-width:980px;margin:0 auto;padding:40px 28px 64px;}
+  header{border-bottom:3px solid var(--navy);padding-bottom:22px;margin-bottom:8px;}
+  .eyebrow{font-size:12px;letter-spacing:.16em;text-transform:uppercase;color:var(--gold);font-weight:700;margin:0 0 8px;}
+  h1{font-size:25px;line-height:1.2;margin:0 0 6px;color:var(--navy);font-weight:700;}
+  .sub{color:var(--muted);font-size:15px;margin:0;}
+  .tags{margin-top:14px;display:flex;flex-wrap:wrap;gap:8px;}
+  .tag{display:inline-block;background:var(--navy);color:#fff;font-size:12.5px;font-weight:600;padding:5px 13px;border-radius:20px;}
+  .tag.alt{background:var(--accent-bg);color:var(--accent);}
+  .tag.good{background:var(--good-bg);color:var(--good);}
+  h2{font-size:15px;letter-spacing:.06em;text-transform:uppercase;color:var(--ink-2);margin:38px 0 8px;font-weight:700;}
+  .h2sub{font-size:13px;color:var(--muted);margin:0 0 16px;}
+  .tiles{display:grid;grid-template-columns:repeat(4,1fr);gap:14px;margin-top:20px;}
+  .tile{background:var(--surface);border:1px solid var(--line);border-radius:12px;padding:18px 16px;}
+  .tile .n{font-size:29px;font-weight:700;color:var(--navy);line-height:1;}
+  .tile .n small{font-size:14px;font-weight:600;color:var(--muted);}
+  .tile .l{font-size:12.5px;color:var(--muted);margin-top:8px;}
+  .delta{font-size:12px;font-weight:700;margin-top:7px;display:flex;align-items:center;gap:5px;}
+  .delta.up{color:var(--up);}.delta.down{color:var(--down);}.delta.flat{color:var(--muted);}
+  .delta .from{color:var(--muted);font-weight:500;}
+  table{width:100%;border-collapse:collapse;background:var(--surface);border:1px solid var(--line);border-radius:12px;overflow:hidden;font-size:14px;}
+  thead th{background:var(--navy);color:#fff;text-align:left;padding:11px 14px;font-weight:600;font-size:12px;letter-spacing:.03em;text-transform:uppercase;}
+  th.num,td.num{text-align:right;}
+  tbody td{padding:11px 14px;border-top:1px solid var(--line);vertical-align:middle;}
+  tbody tr:nth-child(even){background:var(--surface-2);}
+  .term{font-weight:600;color:var(--ink);}
+  .url{font-family:ui-monospace,SFMono-Regular,Menlo,monospace;font-size:12.5px;color:var(--ink);}
+  .mono{font-variant-numeric:tabular-nums;}
+  .pos{font-weight:700;color:var(--gold);}
+  .badge{display:inline-block;font-size:11.5px;font-weight:700;padding:2px 9px;border-radius:20px;white-space:nowrap;}
+  .b-good{background:var(--good-bg);color:var(--good);}.b-noise{background:var(--neutral-bg);color:var(--neutral);}
+  .b-accent{background:var(--accent-bg);color:var(--accent);}.b-new{background:var(--warn-bg);color:var(--warn);}
+  .card{background:var(--surface);border:1px solid var(--line);border-radius:12px;padding:20px 22px;}
+  .card p{margin:0 0 10px;font-size:14px;color:var(--ink-2);}.card p:last-child{margin-bottom:0;}
+  .win{border-left:4px solid var(--good);background:var(--good-bg);border-radius:8px;padding:16px 20px;margin-top:16px;font-size:14.5px;color:#11412a;}
+  .win strong{color:var(--good);}
+  .wait{border-left:4px solid var(--accent);background:var(--accent-bg);border-radius:8px;padding:16px 20px;margin-top:16px;font-size:14.5px;color:#0d3a5c;}
+  .wait strong{color:var(--accent);}
+  ul.clean{margin:6px 0 0;padding-left:18px;font-size:14px;color:var(--ink-2);}
+  ul.clean li{margin-bottom:7px;}
+  .note{font-size:13px;color:var(--muted);background:var(--surface);border:1px dashed var(--line);border-radius:10px;padding:13px 16px;margin-top:12px;}
+  .future td{color:var(--muted);font-style:italic;background:repeating-linear-gradient(45deg,#fbfcfe,#fbfcfe 8px,#f5f8fb 8px,#f5f8fb 16px);}
+  code{background:var(--surface-2);border:1px solid var(--line);border-radius:5px;padding:1px 6px;font-size:12.5px;}
+  footer{margin-top:40px;padding-top:18px;border-top:1px solid var(--line);font-size:12.5px;color:var(--muted);}
+  @media(max-width:720px){.tiles{grid-template-columns:repeat(2,1fr);}.wrap{padding:28px 16px 48px;}table{font-size:13px;}thead th,tbody td{padding:9px 10px;}}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <header>
+    <p class="eyebrow">Organic Search Tracking · Report #7</p>
+    <h1>Limitless Yacht Experience — Organic Performance</h1>
+    <p class="sub">limitlessyachtcharter.com · Maiora 21.5 m private charter · Club de Mar, Palma de Mallorca</p>
+    <div class="tags">
+      <span class="tag">Source: Google Search Console</span>
+      <span class="tag alt">Windows: last 28 days &amp; 3 months (through 19 Sep 2026)</span>
+      <span class="tag alt">Generated: 21 Sep 2026</span>
+    </div>
+  </header>
+
+  <div class="win">
+    <strong>The breakthrough landed: indexation broke through.</strong> When Report #6 shipped, the new pages were live but invisible to Google — <strong>4 pages indexed, the new ones at literal zero</strong>. Twelve days after we finally submitted the sitemap (10 Sep), Google has crawled it (<strong>Success · 48 URLs discovered</strong>) and <strong>indexed pages have jumped from 4 to 19</strong>. Seven of the new pages are now in the index <em>and pulling impressions</em> — including the first genuine non-brand charter queries we've ever seen. The engine we built has started turning over.
+  </div>
+
+  <div class="wait">
+    <strong>The catch: it's early, and it's off-season.</strong> The new pages are indexed but ranking on pages 3–9 (they're brand new, with little authority yet), so they earn impressions but almost no clicks so far — that's the next hurdle. Meanwhile <strong>raw clicks dipped this month</strong>, which is seasonal: charter search demand falls after the August peak, and every market softened (Ireland, the top market, went 13 → 3). Read this report for the <em>structural</em> wins — indexation and the arrival of real-market queries — not the headline click count.
+  </div>
+
+  <h2>Headline metrics (last 28 days)</h2>
+  <p class="h2sub">Unpaid search only. Arrows vs Report #6 (28 days through 3 Sep: 50 clicks · 795 impr · 6.3% CTR · pos 6.7).</p>
+  <div class="tiles">
+    <div class="tile"><div class="n">26</div><div class="l">Clicks from Google</div><div class="delta down">▼ −24 <span class="from">from 50</span></div></div>
+    <div class="tile"><div class="n">545</div><div class="l">Impressions</div><div class="delta down">▼ −250 <span class="from">from 795</span></div></div>
+    <div class="tile"><div class="n">4.8<small>%</small></div><div class="l">Click-through rate</div><div class="delta down">▼ −1.5pp <span class="from">from 6.3%</span></div></div>
+    <div class="tile"><div class="n">11.1</div><div class="l">Average position</div><div class="delta down">▼ +4.4 <span class="from">from 6.7 (worse)</span></div></div>
+  </div>
+  <div class="note">Don't over-read the red arrows. Two forces are behind them, both expected: <strong>(1) Seasonality</strong> — it's the tail of the booking season, so demand fell across the board (the 28-day window has rolled off the August peak). <strong>(2) The average position "worsening" is mostly an accounting artifact</strong> — the site now ranks for <strong>22 URLs instead of 4</strong>, and the new pages sit at positions 20–90, which drags the <em>average</em> down even though brand terms still rank 1–3. More pages in the race pulls the average the "wrong" way. This is what early progress looks like.</div>
+
+  <h2>Indexation — the number that matters this report</h2>
+  <p class="h2sub">Page Indexing &amp; Sitemaps reports · last updated 18–19 Sep 2026.</p>
+  <div class="tiles">
+    <div class="tile"><div class="n">19</div><div class="l">Pages indexed</div><div class="delta up">▲ +15 <span class="from">from 4</span></div></div>
+    <div class="tile"><div class="n">48</div><div class="l">URLs discovered in sitemap</div><div class="delta up">▲ <span class="from">Status: Success</span></div></div>
+    <div class="tile"><div class="n">7</div><div class="l">New pages now earning impressions</div><div class="delta up">▲ <span class="from">from 0</span></div></div>
+    <div class="tile"><div class="n">29</div><div class="l">Discovered, not yet indexed</div><div class="delta flat">◷ <span class="from">in the queue</span></div></div>
+  </div>
+  <div class="card" style="margin-top:16px;">
+    <p><strong>What the "not indexed" bucket actually contains (37 pages):</strong></p>
+    <ul class="clean">
+      <li><strong>29 — "Discovered, currently not indexed."</strong> Google knows about them (via the sitemap) but hasn't got round to indexing them yet. This is the normal waiting room for a new site with little authority. Nothing is broken; it clears with time, crawling and internal/external links.</li>
+      <li><strong>4 — "Excluded by noindex."</strong> All four are the <code>/legal</code> pages (ES, FR, DE + one <code>.html</code> variant). Intentional and correct — legal/privacy pages shouldn't be in Search. ✅ Verified, no action.</li>
+      <li><strong>3 — "Page with redirect"</strong> and <strong>1 — "Alternate page with canonical."</strong> Standard housekeeping (trailing-slash / language de-duplication). Expected, no action.</li>
+    </ul>
+  </div>
+
+  <h2>New pages are now in the index — and appearing in search</h2>
+  <p class="h2sub">Last 3 months. In Report #6 every one of these read "0 — not yet indexed." That column has changed.</p>
+  <table>
+    <thead><tr><th>New page</th><th class="num">Clicks</th><th class="num">Impr.</th><th class="num">Pos.</th><th>Read</th></tr></thead>
+    <tbody>
+      <tr><td class="url">/yacht-charter-mallorca/</td><td class="num mono">1</td><td class="num mono">16</td><td class="num pos">5.1</td><td>Core commercial page — indexed, page 1. First clicks.</td></tr>
+      <tr><td class="url">/maiora-yacht-charter/</td><td class="num mono">1</td><td class="num mono">8</td><td class="num pos">5.1</td><td>The-yacht page — indexed, page 1, 12.5% CTR.</td></tr>
+      <tr><td class="url">/best-time-yacht-charter-mallorca/</td><td class="num mono">0</td><td class="num mono">40</td><td class="num pos">17.3</td><td>Winning the "season / month" queries — most impressions of any new page.</td></tr>
+      <tr><td class="url">/day-charter-mallorca/</td><td class="num mono">0</td><td class="num mono">28</td><td class="num pos">38.6</td><td>Appearing for "day charter mallorca" — but on page 4. Clearest climb opportunity.</td></tr>
+      <tr><td class="url">/yacht-charter-palma-club-de-mar/</td><td class="num mono">0</td><td class="num mono">3</td><td class="num pos">7.3</td><td>Indexed, edge of page 1 for the marina term.</td></tr>
+      <tr><td class="url">/destinations/es-trenc/</td><td class="num mono">0</td><td class="num mono">2</td><td class="num pos">1.0</td><td>Ranks <strong>#1</strong> for "es trenc dunes" — destination pages can own niche terms.</td></tr>
+      <tr><td class="url">/de/destinations/es-trenc/</td><td class="num mono">0</td><td class="num mono">1</td><td class="num pos">10.0</td><td>The German build is indexing too — the DE side is alive.</td></tr>
+    </tbody>
+  </table>
+  <div class="note">This is the exact signal we said to wait for. The pages are <strong>indexed and visible</strong>; the remaining job is to move them from page 3–9 up toward page 1, which is a ranking (authority + links + age) task, not an indexing one.</div>
+
+  <h2>Genuine demand vs noise</h2>
+  <p class="h2sub">Approximate segment split, last 3 months (89 clicks · 1,450 impr overall).</p>
+  <table>
+    <thead><tr><th>Segment</th><th class="num">Clicks</th><th class="num">Impr.</th><th class="num">CTR</th><th>Trend</th></tr></thead>
+    <tbody>
+      <tr><td class="term">✅ Genuine charter (brand)</td><td class="num mono">~38</td><td class="num mono">~146</td><td class="num mono">~26%</td><td>Strong and converting — people who know the name.</td></tr>
+      <tr><td class="term">🟡 Genuine non-brand (NEW)</td><td class="num mono">~3</td><td class="num mono">~85</td><td class="num mono">~4%</td><td><strong>First real appearance</strong> — "day charter", "yacht charter club de mar", seasonal terms.</td></tr>
+      <tr><td class="term">🚫 Superyacht name-collision</td><td class="num mono">~1</td><td class="num mono">~370</td><td class="num mono">~0.3%</td><td>Big impressions, near-zero clicks. Still pure noise ("limitless yacht" alone: 168 impr, 0 clicks).</td></tr>
+      <tr><td class="term">❔ Anonymised / other</td><td class="num mono">~47</td><td class="num mono">~850</td><td class="num mono">—</td><td>Clicks Google won't attribute to a query — mostly homepage/brand.</td></tr>
+    </tbody>
+  </table>
+  <div class="note">The collision story is unchanged: roughly <strong>a quarter of all impressions</strong> come from people hunting the 96 m Lürssen superyacht "Limitless" (incl. "who is owner", "quem é o dono?"), and they essentially never click. Keep filtering it out of every read.</div>
+
+  <h2>Top queries</h2>
+  <p class="h2sub">Last 3 months. Note the new cluster of genuine, non-brand charter terms — these did not exist before.</p>
+  <table>
+    <thead><tr><th>Query</th><th>Type</th><th class="num">Clicks</th><th class="num">Impr.</th><th class="num">CTR</th><th class="num">Pos.</th></tr></thead>
+    <tbody>
+      <tr><td class="term">limitless yacht mallorca</td><td><span class="badge b-good">Brand</span></td><td class="num mono">23</td><td class="num mono">98</td><td class="num mono">23.5%</td><td class="num pos">1.4</td></tr>
+      <tr><td class="term">limitless yacht charter</td><td><span class="badge b-good">Brand</span></td><td class="num mono">10</td><td class="num mono">36</td><td class="num mono">27.8%</td><td class="num pos">1.6</td></tr>
+      <tr><td class="term">limitless mallorca</td><td><span class="badge b-good">Brand</span></td><td class="num mono">4</td><td class="num mono">11</td><td class="num mono">36.4%</td><td class="num pos">3.0</td></tr>
+      <tr><td class="term">club de mar palma</td><td><span class="badge b-new">Non-brand</span></td><td class="num mono">3</td><td class="num mono">16</td><td class="num mono">18.8%</td><td class="num pos">4.8</td></tr>
+      <tr><td class="term">day charter mallorca</td><td><span class="badge b-new">Non-brand</span></td><td class="num mono">0</td><td class="num mono">25</td><td class="num mono">0%</td><td class="num pos">42.9</td></tr>
+      <tr><td class="term">superyacht charter mallorca in september / autumn / winter …</td><td><span class="badge b-new">Non-brand</span></td><td class="num mono">0</td><td class="num mono">~20</td><td class="num mono">0%</td><td class="num pos">12–24</td></tr>
+      <tr><td class="term">how long is a yacht charter season</td><td><span class="badge b-new">Non-brand</span></td><td class="num mono">0</td><td class="num mono">6</td><td class="num mono">0%</td><td class="num pos">36.2</td></tr>
+      <tr><td class="term">yacht charter club de mar</td><td><span class="badge b-new">Non-brand</span></td><td class="num mono">0</td><td class="num mono">2</td><td class="num mono">0%</td><td class="num pos">7.5</td></tr>
+      <tr><td class="term">es trenc dunes</td><td><span class="badge b-new">Non-brand</span></td><td class="num mono">0</td><td class="num mono">1</td><td class="num mono">0%</td><td class="num pos">1.0</td></tr>
+      <tr><td class="term">limitless yacht</td><td><span class="badge b-noise">Superyacht</span></td><td class="num mono">0</td><td class="num mono">168</td><td class="num mono">0%</td><td class="num pos">9.7</td></tr>
+      <tr><td class="term">limitless yate · yate limitless · barco limitless</td><td><span class="badge b-noise">Superyacht</span></td><td class="num mono">1</td><td class="num mono">~165</td><td class="num mono">~0.6%</td><td class="num pos">8–10</td></tr>
+    </tbody>
+  </table>
+  <div class="note"><strong>The most important row is "day charter mallorca":</strong> a genuine, high-intent commercial query where we now appear (25 impressions) — but at position <strong>42.9</strong> (page 4). That's the single clearest "get this page ranking" target for the next phase.</div>
+
+  <h2>Real markets — where genuine interest lives</h2>
+  <p class="h2sub">Last 3 months by country. The market story is unchanged and healthy.</p>
+  <table>
+    <thead><tr><th>Country</th><th class="num">Clicks</th><th class="num">Impr.</th><th class="num">CTR</th><th>Read</th></tr></thead>
+    <tbody>
+      <tr><td class="term">🇮🇪 Ireland</td><td class="num mono">13</td><td class="num mono">23</td><td class="num mono">56.5%</td><td>The standout — highest intent, top of page 1 (pos 1.5).</td></tr>
+      <tr><td class="term">🇩🇪 Germany</td><td class="num mono">10</td><td class="num mono">303</td><td class="num mono">3.3%</td><td>Core market; impressions inflated by German superyacht searches.</td></tr>
+      <tr><td class="term">🇬🇧 United Kingdom</td><td class="num mono">10</td><td class="num mono">169</td><td class="num mono">5.9%</td><td>Strong, consistent English demand.</td></tr>
+      <tr><td class="term">🇺🇸 United States</td><td class="num mono">8</td><td class="num mono">102</td><td class="num mono">7.8%</td><td>Reliable English demand.</td></tr>
+      <tr><td class="term">🇪🇸 Spain (location)</td><td class="num mono">37</td><td class="num mono">617</td><td class="num mono">6.0%</td><td>On-island views + the bulk of superyacht noise. Not your client market.</td></tr>
+      <tr><td class="term">🇦🇹 AT · 🇧🇪 BE · 🇨🇭 CH · 🇮🇹 IT · 🇳🇱 NL</td><td class="num mono">7</td><td class="num mono">~150</td><td class="num mono">—</td><td>The healthy long tail of English &amp; German-speaking Europe.</td></tr>
+    </tbody>
+  </table>
+  <div class="note"><strong>The month-on-month dip is seasonal, and broad.</strong> In the last 28 days: Ireland 13 → 3, UK 6 → 5, US 5 → 3, Germany 4 → 2, Spain 18 → 8. Every market softened together — the signature of end-of-season demand, not a site problem. Ireland (60% CTR even now), the UK, US and Germany remain your genuine English- and German-speaking markets, exactly as before.</div>
+
+  <h2>What this means &amp; what to do next</h2>
+  <div class="card">
+    <p><strong>Where we are:</strong> the strategy has cleared its first real gate. The content shipped (Report #6), the sitemap was submitted, and Google has now indexed 19 pages with 7 new ones live in search and drawing their first impressions — including genuine, non-brand charter queries that never appeared before. That's the leading indicator we were waiting for.</p>
+    <p><strong>The next job changes from "get indexed" to "get ranking."</strong> The new pages sit on pages 3–9. Moving them up is about authority and relevance, not indexing:</p>
+    <ul class="clean">
+      <li><strong>Let the 29 queued pages finish indexing</strong> — they'll clear over the coming weeks. Optionally nudge the priority ones (day-charter, the-Maiora, Cabrera, Es Trenc) with "Request Indexing" if Google's daily quota allows.</li>
+      <li><strong>Prioritise <code>/day-charter-mallorca/</code></strong> — it's a genuine commercial query (25 impr) sitting at position 42.9. The best single target for on-page tightening + internal links from the homepage and destination pages.</li>
+      <li><strong>Earn a few external signals.</strong> A handful of quality links / directory listings (charter directories, Club de Mar, tourism sites) would lift the whole new-page set out of the "discovered, not indexed" queue faster and help them rank.</li>
+      <li><strong>Keep leaning on the real markets</strong> — Ireland, UK, US, Germany. Nothing here suggests changing the market focus.</li>
+    </ul>
+    <p><strong>When to judge it:</strong> next check ~mid-October (Report #8). By then more of the 29 should be indexed, and we'll see whether the new pages start climbing and converting impressions into clicks. That's the number that will prove the whole plan.</p>
+  </div>
+
+  <h2>Tracking log</h2>
+  <table>
+    <thead><tr><th>Report</th><th>Window</th><th class="num">Genuine clicks*</th><th class="num">Blended clicks</th><th class="num">Blended impr.</th><th class="num">Indexed</th><th>Milestone</th></tr></thead>
+    <tbody>
+      <tr><td class="term">#4</td><td>to 3 Aug</td><td class="num mono">~13</td><td class="num mono">21</td><td class="num mono">286</td><td class="num mono">4</td><td>—</td></tr>
+      <tr><td class="term">#5 (revised)</td><td>to 13 Aug</td><td class="num mono">26</td><td class="num mono">43</td><td class="num mono">695</td><td class="num mono">4</td><td>Superyacht collision identified.</td></tr>
+      <tr><td class="term">#6</td><td>to 3 Sep</td><td class="num mono">~24</td><td class="num mono">50</td><td class="num mono">795</td><td class="num mono">4</td><td>Full content architecture shipped (48 URLs).</td></tr>
+      <tr><td class="term">#7</td><td>to 19 Sep</td><td class="num mono">~18</td><td class="num mono">26</td><td class="num mono">545</td><td class="num mono"><strong>19</strong></td><td><strong>Sitemap submitted &amp; crawled; indexation broke through (4 → 19); 7 new pages live in search.</strong></td></tr>
+      <tr class="future"><td>#8</td><td>~ mid-Oct</td><td class="num">—</td><td class="num">—</td><td class="num">—</td><td class="num">—</td><td>Do the new pages start climbing &amp; converting?</td></tr>
+    </tbody>
+  </table>
+  <div class="note">*Genuine clicks = genuine-market clicks (Ireland, UK, US, Germany, and the AT/BE/CH/IT long tail), excluding Spain and superyacht-collision noise; approximate. The #7 dip is seasonal — the real story this report is the <strong>Indexed</strong> column moving off 4 for the first time.</div>
+
+  <footer>
+    Organic Search Tracking · Report #7 · Limitless Yacht Experience (Limitless Opportunities S.L.).<br>
+    Source: Google Search Console — 28-day &amp; 3-month windows through 19 Sep 2026, Page Indexing &amp; Sitemaps through 18–19 Sep 2026 · Generated 21 Sep 2026 · Google Ads traffic excluded · segment splits approximate.
+  </footer>
+</div>
+</body>
+</html>
