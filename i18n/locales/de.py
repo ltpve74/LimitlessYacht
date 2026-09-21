@@ -91,6 +91,7 @@ PAIRS = [
         "Bewertungen konnten nicht geladen werden. Bitte versuchen Sie es später erneut.",
     ),
     ('href="#charters-land">Charters</a>', 'href="#charters-land">Charter</a>'),
+    ('href="#charters-land">Prices</a>', 'href="#charters-land">Preise</a>'),
     ('onclick="closeMobile()">Charters</a>', 'onclick="closeMobile()">Charter</a>'),
     ('class="mobile-nav-cta" onclick="closeMobile()">Check dates</a>', 'class="mobile-nav-cta" onclick="closeMobile()">Termine prüfen</a>'),
     ('class="nav-cta nav-header-cta" style="display:none">Check dates</a>', 'class="nav-cta nav-header-cta" style="display:none">Termine prüfen</a>'),

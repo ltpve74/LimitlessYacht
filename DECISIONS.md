@@ -183,6 +183,18 @@ Do **not** "fix" them without checking here first. Each entry lists what *not* t
   Do not hand-edit the generated HTML; edit the data and rebuild.
 - **DO NOT:** publish these pages to `main` without owner sign-off on routes + copy; add thin
   ES/FR landing stubs; change the EN homepage title without asking.
+- **Homepage top nav = in-page section jumps; SEO pages live in the FOOTER (2026-09-21, owner).**
+  The desktop nav (`data-site-nav="1"`) and the mobile menu link to on-page section anchors —
+  `#hero`, Charters→`#charters-land`, Destinations→`#itinerary-land`, The Yacht→`#gallery-land`,
+  Prices→`#charters-land`, Contact→`#avail-cal` — so the scroll-spy + `-land` landing offset work
+  and the homepage behaves as a single-page site again. The commercial SEO pages
+  (`yacht-charter-mallorca/`, `destinations/`, `maiora-yacht-charter/`,
+  `yacht-charter-mallorca-prices/`, …) were briefly wired into the top nav for internal-link weight;
+  the owner reverted that — they now live **only in the `footer-sitemap`** (still ≥1 homepage inbound
+  link each, so the orphan guards still pass). Sub-page navs are unchanged (they keep cross-linking
+  the commercial pages — there are no on-page sections to jump to there). Guard test: *"desktop nav
+  uses in-page section anchors (SEO pages demoted to footer)"*. Do **not** re-point the top nav at
+  the SEO pages on a "the nav should link the money pages" hunch — confirm with the owner first.
 
 ---
 

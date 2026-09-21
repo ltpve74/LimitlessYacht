@@ -2915,6 +2915,40 @@
       width:100%;
       align-self:stretch
     }
+    /* Mobile: give the day grid the full card width so tap targets are ~40px (were ~24px).
+       The month arrows float onto the title row instead of flanking + squeezing the grid. */
+    #availCal{
+      padding-left:.75rem;
+      padding-right:.75rem
+    }
+    #availCal .cal-bar{
+      position:relative;
+      gap:0
+    }
+    #availCal .cal-months{
+      flex:1 1 100%;
+      width:100%
+    }
+    #availCal .cal-nav{
+      position:absolute;
+      top:0;
+      z-index:2
+    }
+    #availCal .cal-nav.ly-chev--prev{
+      left:0
+    }
+    #availCal .cal-nav.ly-chev--next{
+      right:0
+    }
+    #availCal .cal-title{
+      padding:0 2.6rem
+    }
+    #availCal .cal-grid{
+      gap:4px
+    }
+    #availCal .cal-cell{
+      font-size:.95rem
+    }
     .cal-contact-actions{
       flex-direction:row;
       flex-wrap:nowrap
@@ -3083,8 +3117,9 @@
     z-index:280;
     gap:.4rem;
     padding:.7rem 1rem calc(.7rem + env(safe-area-inset-bottom, 0px));
-    background:rgba(8,18,34,.97);
-    backdrop-filter:blur(8px);
+    background:rgba(8,18,34,.82);
+    -webkit-backdrop-filter:blur(12px);
+    backdrop-filter:blur(12px);
     border-top:1px solid rgba(201,168,76,.35);
     box-shadow:0 -8px 28px rgba(0,0,0,.35)
   }
