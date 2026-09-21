@@ -1,6 +1,12 @@
 {
   "reviews": [
     {
+      "author": "Maria",
+      "date": "Sep 2026",
+      "rating": 5,
+      "text": "Luigi did a great job figuring out where was best to stop and swim. He did great with providing provisions and overall was really wonderful. We really enjoyed all the boat toys."
+    },
+    {
       "author": "Michael",
       "date": "Sep 2026",
       "rating": 5,

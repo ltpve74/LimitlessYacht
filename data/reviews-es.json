@@ -1,6 +1,12 @@
 {
   "reviews": [
     {
+      "author": "Maria",
+      "date": "Sep 2026",
+      "rating": 5,
+      "text": "Luigi acertó con los mejores sitios para parar y nadar. Se ocupó muy bien del avituallamiento y en general fue realmente maravilloso. Disfrutamos mucho de los juguetes del barco."
+    },
+    {
       "author": "Michael",
       "date": "Sep 2026",
       "rating": 5,
