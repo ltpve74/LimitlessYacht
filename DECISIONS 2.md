@@ -56,6 +56,17 @@ Do **not** "fix" them without checking here first. Each entry lists what *not* t
   the inline copy but not the file, which trips the drift guard. The fallbacks are dead code anyway
   (`LY_*_CSS_HREF` is always set).
 
+### 2a. Availability calendar is an external module, not an inline IIFE
+- **Decision:** calendar behaviour + sticky WhatsApp bar live in `js/avail-cal.js`, loaded
+  `<script src="js/avail-cal.js?v=…" defer>` **after** `#availCal` and `#calStickyCta` in the markup.
+  Month and weekday labels are `data-i18n-months` / `data-i18n-dow` on `#availCal` so
+  `i18n/build-locales.py` patches HTML, not the JS file.
+- **Why:** the IIFE was ~25 KB inside `index.html`, which also made `getElementById('calStickyCta')`
+  run before the node existed. A deferred file after the markup cannot bind that way. Locales share
+  one JS file.
+- **DO NOT:** paste the calendar IIFE back into `index.html`. **DO NOT** put MONTHS/DOW arrays in the
+  JS as the locale source of truth.
+
 ### 3. `main.css` loads ~300 ms after `layout.css` — this gap is intentional
 - **Decision:** the boot script defers `main.css` by **300 ms** after `layout.css` applies.
 - **Why:** `main.css` (~13 KB) loading dead‑parallel with the hero would compete with the **LCP image**

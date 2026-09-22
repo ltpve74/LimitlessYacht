@@ -100,6 +100,7 @@ def patch_subfolder_assets(html: str) -> str:
     html = html.replace('href="/favicon.svg"', 'href="../favicon.svg"')
     html = re.sub(r'src="js/net-tier\.js([^"]*)"', r'src="../js/net-tier.js\1"', html)
     html = html.replace('src="js/analytics-env.js"', 'src="../js/analytics-env.js"')
+    html = re.sub(r'src="js/avail-cal\.js([^"]*)"', r'src="../js/avail-cal.js\1"', html)
     return html
 
 
@@ -181,15 +182,16 @@ def patch_reviews_fallback(html: str, review: dict) -> str:
 
 
 def patch_calendar(html: str, months: list[str], dow: list[str]) -> str:
+    """Locale month/dow labels live on #availCal so js/avail-cal.js stays shared."""
     html = re.sub(
-        r"var MONTHS = \[[^\]]+\];",
-        "var MONTHS = " + json.dumps(months, ensure_ascii=False) + ";",
+        r'data-i18n-months="[^"]*"',
+        'data-i18n-months="' + ",".join(months) + '"',
         html,
         count=1,
     )
     html = re.sub(
-        r"var DOW = \[[^\]]+\];",
-        "var DOW = " + json.dumps(dow, ensure_ascii=False) + ";",
+        r'data-i18n-dow="[^"]*"',
+        'data-i18n-dow="' + ",".join(dow) + '"',
         html,
         count=1,
     )
