@@ -1188,6 +1188,12 @@ PAIRS = [
 REVIEWS_UI = {
     "guest": "Gast",
     "stars_suffix": " von 5 Sternen",
+    "stars": "{n} von 5 Sternen",
+    "more": "\u2026mehr",
+    "less": "weniger",
+    "count_one": "1 verifizierte Bewertung",
+    "count_many": "{n} verifizierte Bewertungen",
+    "empty": "Noch keine Bewertungen vorhanden.",
 }
 
 REVIEWS = [

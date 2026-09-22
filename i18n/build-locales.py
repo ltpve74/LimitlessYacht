@@ -101,6 +101,7 @@ def patch_subfolder_assets(html: str) -> str:
     html = re.sub(r'src="js/net-tier\.js([^"]*)"', r'src="../js/net-tier.js\1"', html)
     html = html.replace('src="js/analytics-env.js"', 'src="../js/analytics-env.js"')
     html = re.sub(r'src="js/avail-cal\.js([^"]*)"', r'src="../js/avail-cal.js\1"', html)
+    html = re.sub(r'src="js/reviews\.js([^"]*)"', r'src="../js/reviews.js\1"', html)
     return html
 
 
@@ -158,27 +159,39 @@ def write_locale_reviews(code: str, reviews: list[dict]) -> None:
 
 
 def patch_reviews_fetch(html: str, code: str) -> str:
-    return html.replace(
-        "fetch((window.LY_BASE || '') + '/data/reviews.json')",
-        f"fetch((window.LY_BASE || '') + '/data/reviews-{code}.json')",
+    """Locale review JSON path lives on #reviewsGrid so js/reviews.js stays shared."""
+    return re.sub(
+        r'data-reviews-src="[^"]*"',
+        f'data-reviews-src="/data/reviews-{code}.json"',
+        html,
+        count=1,
     )
 
 
 def patch_reviews_ui(html: str, ui: dict) -> str:
-    html = html.replace("r.author || 'Guest'", f"r.author || '{ui['guest']}'")
-    html = html.replace("' out of 5 stars'", f"'{ui['stars_suffix']}'")
+    """Copy REVIEWS_UI onto #reviewsGrid data-i18n-* attributes."""
+    mapping = {
+        "guest": ui.get("guest", "Guest"),
+        "stars": ui.get("stars") or ("{n}" + ui.get("stars_suffix", " out of 5 stars")),
+        "more": ui.get("more", "\u2026more"),
+        "less": ui.get("less", "less"),
+        "count-one": ui.get("count_one", "1 verified review"),
+        "count-many": ui.get("count_many", "{n} verified reviews"),
+        "empty": ui.get("empty", "No reviews to display yet."),
+    }
+    for key, val in mapping.items():
+        html = re.sub(
+            rf'data-i18n-{re.escape(key)}="[^"]*"',
+            f'data-i18n-{key}="' + val.replace('"', "&quot;") + '"',
+            html,
+            count=1,
+        )
     return html
 
 
 def patch_reviews_fallback(html: str, review: dict) -> str:
-    """Replace the English fallback review text in the catch block."""
-    text = review["text"].replace("\\", "\\\\").replace('"', '\\"')
-    return re.sub(
-        r'text: "Our group of six had a fantastic day on Limitless[^"]*"',
-        f'text: "{text}"',
-        html,
-        count=1,
-    )
+    """Fallback copy lives in js/reviews.js (English only; fetch is the locale source)."""
+    return html
 
 
 def patch_calendar(html: str, months: list[str], dow: list[str]) -> str:

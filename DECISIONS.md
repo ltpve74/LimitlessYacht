@@ -67,6 +67,12 @@ Do **not** "fix" them without checking here first. Each entry lists what *not* t
 - **DO NOT:** paste the calendar IIFE back into `index.html`. **DO NOT** put MONTHS/DOW arrays in the
   JS as the locale source of truth.
 
+### 2b. Reviews loader is an external module, not an inline IIFE
+- **Decision:** reviews fetch/clamp/…more live in `js/reviews.js`, loaded
+  `<script src="js/reviews.js?v=…" defer>` after `#reviewsGrid`. Locale copy and the JSON path
+  are `data-i18n-*` / `data-reviews-src` on the grid.
+- **DO NOT:** paste the reviews IIFE back into `index.html`.
+
 ### 3. `main.css` loads ~300 ms after `layout.css` — this gap is intentional
 - **Decision:** the boot script defers `main.css` by **300 ms** after `layout.css` applies.
 - **Why:** `main.css` (~13 KB) loading dead‑parallel with the hero would compete with the **LCP image**

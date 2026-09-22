@@ -161,6 +161,8 @@ def read_site_css() -> str | None:
 
 def check_html(r: Runner, rel: str, html: str) -> None:
     meta = LOCALE_META[rel]
+    rev_js = read_file('js/reviews.js') or ''
+    rev = html + '\n' + rev_js
 
     # Enquiry flow
     r.check('#enquire quote section is gone', '<span id="enquire"' not in html and 'enquire-section' not in html)
@@ -174,7 +176,9 @@ def check_html(r: Runner, rel: str, html: str) -> None:
         and 'id="avail-cal"' in html
         and html.find('id="availability"') < html.find('id="avail-cal"') < html.find('id="reviews"')
         and 'avail-cal.js' in html
-        and 'data-i18n-months=' in html,
+        and 'data-i18n-months=' in html
+        and 'reviews.js' in html
+        and 'data-reviews-src=' in html,
     )
     r.check(
         'reviews and specs desktop keep single availability CTA',
@@ -193,19 +197,19 @@ def check_html(r: Runner, rel: str, html: str) -> None:
         'reviews fire per-review Clarity engagement events',
         # Each card is tagged with an author slug, dwell-views fire
         # ly_review_view_<slug>, and expands fire ly_review_expand_<slug>
-        'function lyRvSlug(' in html
-        and 'data-rv-slug="' in html
-        and "ly_review_view_'+s" in html
-        and "ly_review_expand_'+(_ec.getAttribute('data-rv-slug')" in html,
+        'function lyRvSlug(' in rev
+        and 'data-rv-slug="' in rev
+        and "ly_review_view_'+s" in rev
+        and "ly_review_expand_'+(_ec.getAttribute('data-rv-slug')" in rev,
     )
     r.check(
         'review more button only shows when the snippet clamp overflows',
-        'function lySyncReviewExpand' in html
-        and 'function lyReviewOverflows' in html
-        and 'tx.scrollHeight' in html
-        and 'btn.hidden=false' in html
-        and 'btn.hidden=true' in html
-        and 'hidden aria-expanded="false"' in html,
+        'function lySyncReviewExpand' in rev
+        and 'function lyReviewOverflows' in rev
+        and 'tx.scrollHeight' in rev
+        and 'btn.hidden=false' in rev
+        and 'btn.hidden=true' in rev
+        and 'hidden aria-expanded="false"' in rev,
     )
     r.check(
         'charters desktop cross-nav nudges availability and reviews',
@@ -1666,10 +1670,14 @@ def check_html(r: Runner, rel: str, html: str) -> None:
     reviews_json = meta['reviews_json']
     r.check(
         f'reviews fetch uses {reviews_json}',
-        f"'{reviews_json}'" in html and 'LY_BASE' in html,
+        f'data-reviews-src="{reviews_json}"' in html
+        and ('LY_BASE' in html or 'LY_BASE' in rev),
     )
     if rel != 'index.html':
-        r.check('does not fetch English reviews.json', "'/data/reviews.json'" not in html)
+        r.check(
+            'does not fetch English reviews.json',
+            'data-reviews-src="/data/reviews.json"' not in html,
+        )
     r.check('availability API fetch', '/api/availability' in cal)
     if rel == 'index.html':
         r.check(
@@ -1679,8 +1687,8 @@ def check_html(r: Runner, rel: str, html: str) -> None:
         r.check('LY_BASE set for GitHub Pages subpath', 'window.LY_BASE' in html)
     r.check(
         'reviews fetch deferred until section nears viewport',
-        'LY_whenNearSection' in html
-        and "LY_whenNearSection('reviews'" in html,
+        'LY_whenNearSection' in rev
+        and "LY_whenNearSection('reviews'" in rev,
     )
     r.check(
         'availability fetch deferred until section nears viewport',
@@ -2143,7 +2151,8 @@ def check_shared_assets(r: Runner) -> None:
     r.check('css/main.css exists', main_css is not None)
     html_only = read_file('index.html') or ''
     cal_js = read_file('js/avail-cal.js') or ''
-    index_html = html_only + '\n' + cal_js
+    rev_js = read_file('js/reviews.js') or ''
+    index_html = html_only + '\n' + cal_js + '\n' + rev_js
     en_layout_v = re.search(r'layout\.css\?v=(\d+)', index_html)
     en_main_v = re.search(r'main\.css\?v=(\d+)', index_html)
     r.check(
@@ -2544,6 +2553,15 @@ def check_shared_assets(r: Runner) -> None:
         and css is not None
         and '.cal-sticky-cta' in css
         and '--ly-cookie-h' in css,
+    )
+    r.check(
+        'reviews behaviour lives in js/reviews.js',
+        'src="js/reviews.js' in html_only
+        and 'defer' in html_only
+        and "getElementById('reviewsGrid')" not in html_only
+        and 'function rvAttr' in rev_js
+        and 'data-reviews-src=' in html_only
+        and html_only.find('id="reviewsGrid"') < html_only.find('src="js/reviews.js'),
     )
     r.check(
         'availability calendar behaviour lives in js/avail-cal.js',
@@ -4278,6 +4296,36 @@ def main() -> None:
                 r.warn('node not installed — skipping JS syntax checks')
             except subprocess.TimeoutExpired:
                 r.warn(f'node --check timed out for {cal_rel}')
+            finally:
+                if tmp_path and os.path.exists(tmp_path):
+                    os.unlink(tmp_path)
+        rev_rel = 'js/reviews.js'
+        rev_src = read_file(rev_rel)
+        if rev_src is None:
+            r.fail(f'{rev_rel} readable for JS check', 'file not found')
+        else:
+            tmp_path = None
+            try:
+                with tempfile.NamedTemporaryFile(
+                    suffix='.js', mode='w', encoding='utf-8', delete=False,
+                ) as tf:
+                    tf.write(rev_src)
+                    tmp_path = tf.name
+                result = subprocess.run(
+                    ['node', '--check', tmp_path],
+                    capture_output=True,
+                    text=True,
+                    timeout=15,
+                )
+                if result.returncode == 0:
+                    r.ok(f'{rev_rel} syntax valid ({len(rev_src):,} chars)')
+                else:
+                    first_err = result.stderr.strip().split('\n')[0].replace(tmp_path, rev_rel)
+                    r.fail(f'{rev_rel} syntax', first_err)
+            except FileNotFoundError:
+                r.warn('node not installed — skipping JS syntax checks')
+            except subprocess.TimeoutExpired:
+                r.warn(f'node --check timed out for {rev_rel}')
             finally:
                 if tmp_path and os.path.exists(tmp_path):
                     os.unlink(tmp_path)
