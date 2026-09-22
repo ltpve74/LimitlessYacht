@@ -172,7 +172,9 @@ def check_html(r: Runner, rel: str, html: str) -> None:
         and html.find('id="availability"') < html.find('id="reviews"')
         and html.find('id="reviews"') < html.find('id="amenities"')
         and 'id="avail-cal"' in html
-        and html.find('id="availability"') < html.find('id="avail-cal"') < html.find('id="reviews"'),
+        and html.find('id="availability"') < html.find('id="avail-cal"') < html.find('id="reviews"')
+        and 'avail-cal.js' in html
+        and 'data-i18n-months=' in html,
     )
     r.check(
         'reviews and specs desktop keep single availability CTA',
@@ -884,29 +886,31 @@ def check_html(r: Runner, rel: str, html: str) -> None:
         and 'swiped || window.innerWidth > 640' not in html,
     )
 
-    # Availability calendar
+    # Availability calendar (behaviour in js/avail-cal.js; markup stays in the page)
+    cal_js = read_file('js/avail-cal.js') or ''
+    cal = html + '\n' + cal_js
     r.check('id="availCal" calendar widget exists', 'id="availCal"' in html)
     r.check(
         'calendar supports multi-date toggle selection',
-        'function toggleDate' in html
-        and 'selected.filter(function(k){ return k !== date; })' in html
+        'function toggleDate' in cal
+        and 'selected.filter(function(k){ return k !== date; })' in cal
         and 'id="calSelection"' in html
         and 'id="calWaBtn"' in html
-        and 'durOptMultiDay' not in html
+        and 'durOptMultiDay' not in cal
         and 'value="multi-day">Multi-Day' not in html
         and 'preferred_date_end_btn' not in html
         and 'class="form-field form-end-date"' not in html
-        and 'data-selected=' in html
-        and "node.closest('.cal-cell[data-date]')" in html
-        and 'function isContiguousList' in html,
+        and 'data-selected=' in cal
+        and "node.closest('.cal-cell[data-date]')" in cal
+        and 'function isContiguousList' in cal,
     )
     r.check(
         'on-hold dates are selectable for enquiry (booked still blocked)',  # DECISION (see DECISIONS.md — do not weaken to pass)
         # isSelectable blocks past + booked only — tentative (on-hold) is allowed
-        'if (booked.has(k) || tentative.has(k)) return false' not in html
-        and 'if (booked.has(k)) return false; return true;' in html
+        'if (booked.has(k) || tentative.has(k)) return false' not in cal
+        and 'if (booked.has(k)) return false; return true;' in cal
         # on-hold cells get data-date so they are interactive
-        and 'var onHold = tentative.has(k) && !isPast' in html
+        and 'var onHold = tentative.has(k) && !isPast' in cal
         # explanatory note + interactive on-hold cell styling
         and 'class="cal-hold-note"' in html
         and re.search(r'\.cal-cell\.tentative\{[^}]*cursor:pointer', read_file('css/main.css') or '') is not None,
@@ -914,19 +918,19 @@ def check_html(r: Runner, rel: str, html: str) -> None:
     r.check(
         'on-hold explanation shows only when a hold date is selected',
         'id="calHoldNote"' in html
-        and 'function syncHoldNote' in html
-        and 'holdNoteEl.hidden' in html
-        and "tentative.has(selected[hi])" in html,
+        and 'function syncHoldNote' in cal
+        and 'holdNoteEl.hidden' in cal
+        and "tentative.has(selected[hi])" in cal,
     )
     r.check(
         'form date picker and form-calendar events are gone',
         'class="form-date-apply-btn"' not in html
         and 'id="formDatePopoverDismiss"' not in html
-        and 'function openFormDatePopover' not in html
-        and 'ly_cal_form_open' not in html
-        and 'ly_cal_form_date_select' not in html
+        and 'function openFormDatePopover' not in cal
+        and 'ly_cal_form_open' not in cal
+        and 'ly_cal_form_date_select' not in cal
         and 'ly_form_view' not in html
-        and 'range-start' in html,
+        and 'range-start' in cal,
     )
 
     # Nav
@@ -1666,11 +1670,11 @@ def check_html(r: Runner, rel: str, html: str) -> None:
     )
     if rel != 'index.html':
         r.check('does not fetch English reviews.json', "'/data/reviews.json'" not in html)
-    r.check('availability API fetch', '/api/availability' in html)
+    r.check('availability API fetch', '/api/availability' in cal)
     if rel == 'index.html':
         r.check(
             'availability uses production API on GitHub Pages preview',
-            'limitlessyachtcharter.com' in html and '.github.io' in html,
+            'limitlessyachtcharter.com' in cal and '.github.io' in cal,
         )
         r.check('LY_BASE set for GitHub Pages subpath', 'window.LY_BASE' in html)
     r.check(
@@ -1680,12 +1684,12 @@ def check_html(r: Runner, rel: str, html: str) -> None:
     )
     r.check(
         'availability fetch deferred until section nears viewport',
-        "LY_whenNearSection('availability'" in html,
+        "LY_whenNearSection('availability'" in cal,
     )
     if rel == 'index.html':
         r.check(
             'availability applies feed data with explicit calendar re-render',
-            'lyApplyAvailCal' in html and 'lyScheduleAvailCalLoad' in html,
+            'lyApplyAvailCal' in cal and 'lyScheduleAvailCalLoad' in cal,
         )
 
     # Structured data + social share (OG / WhatsApp / Twitter use same hero as #hero)
@@ -2137,7 +2141,9 @@ def check_shared_assets(r: Runner) -> None:
             and '.hero-actions{flex-direction:column' not in layout_flat,
         )
     r.check('css/main.css exists', main_css is not None)
-    index_html = read_file('index.html') or ''
+    html_only = read_file('index.html') or ''
+    cal_js = read_file('js/avail-cal.js') or ''
+    index_html = html_only + '\n' + cal_js
     en_layout_v = re.search(r'layout\.css\?v=(\d+)', index_html)
     en_main_v = re.search(r'main\.css\?v=(\d+)', index_html)
     r.check(
@@ -2540,9 +2546,19 @@ def check_shared_assets(r: Runner) -> None:
         and '--ly-cookie-h' in css,
     )
     r.check(
+        'availability calendar behaviour lives in js/avail-cal.js',
+        'src="js/avail-cal.js' in html_only
+        and 'defer' in html_only
+        and "getElementById('availCal')" not in html_only
+        and 'function lyCsvAttr' in cal_js
+        and 'data-i18n-months=' in html_only
+        and 'data-i18n-dow=' in html_only,
+    )
+    r.check(
         'sticky bar markup is parsed before the calendar script queries it',
-        index_html.find('id="calStickyCta"') < index_html.find("getElementById('calStickyCta')")
-        and 'function lyBindStickyUi' in index_html,
+        html_only.find('id="calStickyCta"') < html_only.find('src="js/avail-cal.js')
+        and 'function lyBindStickyUi' in cal_js
+        and "getElementById('calStickyCta')" in cal_js,
     )
     r.check(
         'sticky enquiry bar persists on mobile after dates picked (follows the user off-calendar)',
@@ -2774,7 +2790,6 @@ def check_shared_assets(r: Runner) -> None:
             and 'getElementById(\'mobileClose\')' in loc_html,
         )
     r.check('lighthouse budgets file exists', os.path.isfile(os.path.join(ROOT, 'scripts/lighthouse-budgets.json')))
-    index_html = read_file('index.html') or ''
     crit_block = index_html[index_html.find('id="critical-css"'):index_html.find('</style>', index_html.find('id="critical-css"'))]
     crit_flat = re.sub(r'\s+', '', crit_block)
     net_tier_src = read_file('js/net-tier.js') or ''
@@ -4235,6 +4250,36 @@ def main() -> None:
         print('\n[JS syntax]')
         for rel in LOCALE_FILES:
             check_js(r, rel)
+        cal_rel = 'js/avail-cal.js'
+        cal_src = read_file(cal_rel)
+        if cal_src is None:
+            r.fail(f'{cal_rel} readable for JS check', 'file not found')
+        else:
+            tmp_path = None
+            try:
+                with tempfile.NamedTemporaryFile(
+                    suffix='.js', mode='w', encoding='utf-8', delete=False,
+                ) as tf:
+                    tf.write(cal_src)
+                    tmp_path = tf.name
+                result = subprocess.run(
+                    ['node', '--check', tmp_path],
+                    capture_output=True,
+                    text=True,
+                    timeout=15,
+                )
+                if result.returncode == 0:
+                    r.ok(f'{cal_rel} syntax valid ({len(cal_src):,} chars)')
+                else:
+                    first_err = result.stderr.strip().split('\n')[0].replace(tmp_path, cal_rel)
+                    r.fail(f'{cal_rel} syntax', first_err)
+            except FileNotFoundError:
+                r.warn('node not installed — skipping JS syntax checks')
+            except subprocess.TimeoutExpired:
+                r.warn(f'node --check timed out for {cal_rel}')
+            finally:
+                if tmp_path and os.path.exists(tmp_path):
+                    os.unlink(tmp_path)
 
     passed = r.summary()
     sys.exit(0 if passed else 1)
