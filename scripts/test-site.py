@@ -163,6 +163,9 @@ def check_html(r: Runner, rel: str, html: str) -> None:
     meta = LOCALE_META[rel]
     rev_js = read_file('js/reviews.js') or ''
     rev = html + '\n' + rev_js
+    wa_js = read_file('js/wa-softconvert.js') or ''
+    chrome_js = read_file('js/cookie-chrome.js') or ''
+    wa = html + '\n' + wa_js + '\n' + chrome_js
 
     # Enquiry flow
     r.check('#enquire quote section is gone', '<span id="enquire"' not in html and 'enquire-section' not in html)
@@ -334,23 +337,23 @@ def check_html(r: Runner, rel: str, html: str) -> None:
     r.check('request-a-quote WhatsApp column is gone', 'class="whatsapp-btn"' not in html and 'enquire-section' not in html)
 
     # WhatsApp soft-conversion system (floating CTA + booked-date capture)
-    r.check('ly-wa-softconvert script present', 'id="ly-wa-softconvert"' in html)
+    r.check('ly-wa-softconvert script present', 'id="ly-wa-softconvert"' in html and 'src="js/wa-softconvert.js' in html.replace('../js/', 'js/'))
     r.check(
         'soft-conversion fires owner-gated Clarity events via LY_clarityEvent',
-        'window.LY_clarityEvent' in html
-        and all(e in html for e in ('ly_wa_fab_click', 'ly_cal_booked_tap',
+        'window.LY_clarityEvent' in wa
+        and all(e in wa for e in ('ly_wa_fab_click', 'ly_cal_booked_tap',
             'ly_cal_booked_whatsapp', 'ly_cal_show_open_dates')),
     )
     r.check(
         'soft-conversion only intercepts booked (not on-hold/free) dates',
-        "classList.contains(\"booked\")" in html,
+        "classList.contains(\"booked\")" in wa,
     )
     r.check(
         'WA FAB hides on hero and animates in after scroll past',
-        'watchFab' in html
-        and '.ly-wa-fab.is-in' in html
-        and 'IntersectionObserver' in html
-        and 'opacity:0' in html,
+        'watchFab' in wa
+        and '.ly-wa-fab.is-in' in wa
+        and 'IntersectionObserver' in wa
+        and 'opacity:0' in wa,
     )
 
     # Contact: WhatsApp + mailto (enquiry form removed)
@@ -1089,7 +1092,7 @@ def check_html(r: Runner, rel: str, html: str) -> None:
         'about and amenities offer mobile forward links',
         'section-forward-cta' in html
         and re.search(
-            r'<section id="about">[\s\S]*?section-forward-cta[\s\S]*?href="#charters"',
+            r'<section id="about">[\s\S]*?section-forward-cta[\s\S]*?href="#(?:charters|itinerary-land|gallery-land)"',
             html,
         )
         is not None
@@ -1641,16 +1644,16 @@ def check_html(r: Runner, rel: str, html: str) -> None:
     r.check('cookie accept + decline controls', 'id="cookie-accept"' in html and 'id="cookie-decline"' in html)
     r.check(
         'cookie banner delayed past LCP window (6000ms)',
-        'setTimeout(show, 6000)' in html and 'setTimeout(show, 1400)' not in html,
+        'setTimeout(show, 6000)' in chrome_js and 'setTimeout(show, 1400)' not in chrome_js,
     )
     r.check(
         'cookie auto-accept on first interaction',
-        re.search(r"function auto\w+OnInteraction\(\)", html) is not None,
+        re.search(r"function auto\w+OnInteraction\(\)", chrome_js) is not None,
     )
     r.check(
         'cookie auto-accept listens on window scroll (scroll does not bubble on document)',
-        re.search(r"window\.addEventListener\('scroll', auto\w+OnInteraction", html) is not None
-        and re.search(r"document\.addEventListener\('scroll', auto\w+OnInteraction", html) is None,
+        re.search(r"window\.addEventListener\('scroll', auto\w+OnInteraction", chrome_js) is not None
+        and re.search(r"document\.addEventListener\('scroll', auto\w+OnInteraction", chrome_js) is None,
     )
 
     # Conversion tracking
@@ -2152,7 +2155,9 @@ def check_shared_assets(r: Runner) -> None:
     html_only = read_file('index.html') or ''
     cal_js = read_file('js/avail-cal.js') or ''
     rev_js = read_file('js/reviews.js') or ''
-    index_html = html_only + '\n' + cal_js + '\n' + rev_js
+    wa_js = read_file('js/wa-softconvert.js') or ''
+    chrome_js = read_file('js/cookie-chrome.js') or ''
+    index_html = html_only + '\n' + cal_js + '\n' + rev_js + '\n' + wa_js + '\n' + chrome_js
     en_layout_v = re.search(r'layout\.css\?v=(\d+)', index_html)
     en_main_v = re.search(r'main\.css\?v=(\d+)', index_html)
     r.check(
@@ -2553,6 +2558,16 @@ def check_shared_assets(r: Runner) -> None:
         and css is not None
         and '.cal-sticky-cta' in css
         and '--ly-cookie-h' in css,
+    )
+    r.check(
+        'cookie chrome and WhatsApp FAB live in deferred modules',
+        'src="js/cookie-chrome.js' in html_only
+        and 'src="js/wa-softconvert.js' in html_only
+        and 'function lyMeasureCookie' in chrome_js
+        and 'window.LY_syncBottomChrome' in chrome_js
+        and 'window.__lyWA' in wa_js
+        and html_only.find('id="cookie-consent"') < html_only.find('src="js/cookie-chrome.js')
+        and html_only.find('src="js/cookie-chrome.js') < html_only.find('src="js/avail-cal.js'),
     )
     r.check(
         'reviews behaviour lives in js/reviews.js',
@@ -4326,6 +4341,36 @@ def main() -> None:
                 r.warn('node not installed — skipping JS syntax checks')
             except subprocess.TimeoutExpired:
                 r.warn(f'node --check timed out for {rev_rel}')
+            finally:
+                if tmp_path and os.path.exists(tmp_path):
+                    os.unlink(tmp_path)
+        for extra_rel in ('js/cookie-chrome.js', 'js/wa-softconvert.js'):
+            extra_src = read_file(extra_rel)
+            if extra_src is None:
+                r.fail(f'{extra_rel} readable for JS check', 'file not found')
+                continue
+            tmp_path = None
+            try:
+                with tempfile.NamedTemporaryFile(
+                    suffix='.js', mode='w', encoding='utf-8', delete=False,
+                ) as tf:
+                    tf.write(extra_src)
+                    tmp_path = tf.name
+                result = subprocess.run(
+                    ['node', '--check', tmp_path],
+                    capture_output=True,
+                    text=True,
+                    timeout=15,
+                )
+                if result.returncode == 0:
+                    r.ok(f'{extra_rel} syntax valid ({len(extra_src):,} chars)')
+                else:
+                    first_err = result.stderr.strip().split('\n')[0].replace(tmp_path, extra_rel)
+                    r.fail(f'{extra_rel} syntax', first_err)
+            except FileNotFoundError:
+                r.warn('node not installed — skipping JS syntax checks')
+            except subprocess.TimeoutExpired:
+                r.warn(f'node --check timed out for {extra_rel}')
             finally:
                 if tmp_path and os.path.exists(tmp_path):
                     os.unlink(tmp_path)

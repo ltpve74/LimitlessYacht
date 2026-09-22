@@ -102,6 +102,8 @@ def patch_subfolder_assets(html: str) -> str:
     html = html.replace('src="js/analytics-env.js"', 'src="../js/analytics-env.js"')
     html = re.sub(r'src="js/avail-cal\.js([^"]*)"', r'src="../js/avail-cal.js\1"', html)
     html = re.sub(r'src="js/reviews\.js([^"]*)"', r'src="../js/reviews.js\1"', html)
+    html = re.sub(r'src="js/cookie-chrome\.js([^"]*)"', r'src="../js/cookie-chrome.js\1"', html)
+    html = re.sub(r'src="js/wa-softconvert\.js([^"]*)"', r'src="../js/wa-softconvert.js\1"', html)
     return html
 
 

@@ -73,6 +73,12 @@ Do **not** "fix" them without checking here first. Each entry lists what *not* t
   are `data-i18n-*` / `data-reviews-src` on the grid.
 - **DO NOT:** paste the reviews IIFE back into `index.html`.
 
+### 2c. WhatsApp FAB + cookie chrome are external modules
+- **Decision:** `js/wa-softconvert.js` (FAB + booked-day intercept) and `js/cookie-chrome.js`
+  (`LY_syncBottomChrome` + consent banner) load deferred. Cookie chrome is **before**
+  `avail-cal.js` so the sticky bar can measure `--ly-cookie-h`.
+- **DO NOT:** inline these IIFEs again. **DO NOT** fold the calendar sticky bar into cookie-chrome.
+
 ### 3. `main.css` loads ~300 ms after `layout.css` — this gap is intentional
 - **Decision:** the boot script defers `main.css` by **300 ms** after `layout.css` applies.
 - **Why:** `main.css` (~13 KB) loading dead‑parallel with the hero would compete with the **LCP image**
