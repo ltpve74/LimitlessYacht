@@ -144,12 +144,11 @@
   function syncStickyCta() {
     lyBindStickyUi();
     if (!stickyCta) return;
-    /* Mobile: once dates are picked, the enquiry bar follows the user anywhere on the page
-       (not gated to the calendar being in view) so a wandered-off selection is never lost.
-       Desktop keeps the in-view behaviour. Booked-date recovery stays gated to the calendar. */
-    var isMobileCta = window.matchMedia('(max-width: 640px)').matches;
-    var on = (selected.length > 0 && (isMobileCta || calInView)) || (!!recoveryIso && calInView);
-    var compact = !!(on && isMobileCta && selected.length && !calInView && !recoveryIso);
+    /* Dates selected: keep an enquiry control on screen. Full frosted bar while the
+       calendar is in view; shrink to a corner chip when the user scrolls away
+       (gallery, etc.) on any viewport. Booked-date recovery stays calendar-gated. */
+    var on = (selected.length > 0) || (!!recoveryIso && calInView);
+    var compact = !!(selected.length && !calInView && !recoveryIso);
     stickyCta.hidden = !on;
     stickyCta.setAttribute('aria-hidden', on ? 'false' : 'true');
     stickyCta.classList.toggle('is-recovery', !!recoveryIso);
@@ -194,11 +193,23 @@
   if (stickyClear) stickyClear.addEventListener('click', function(){ if (window.LY_clarityEvent) window.LY_clarityEvent('ly_cal_avail_clear'); selected = []; recoveryIso = ''; updateSelectionUi(); });
   if (stickyWaBtn) stickyWaBtn.addEventListener('click', function(e){ if (!selected.length) { e.preventDefault(); return; } setDatesCountTag(selected.length); if (window.LY_clarityEvent) window.LY_clarityEvent('ly_cal_sticky_whatsapp'); if (window.LY_clarityEvent) window.LY_clarityEvent('ly_cal_avail_whatsapp'); if (window.LY_clarityEvent) window.LY_clarityEvent('ly_cal_avail_enquire'); if (!window.LY_OWNER_MODE) { try { gtag('consent', 'update', { 'ad_storage': 'granted', 'ad_user_data': 'granted', 'ad_personalization': 'granted' }); gtag_report_conversion(); } catch (err) {} } });
   if (stickyAlts) stickyAlts.addEventListener('click', function(e){ var chip = e.target.closest && e.target.closest('.cal-alt-chip'); if (!chip) return; var alt = chip.getAttribute('data-date'); if (!alt || !isSelectable(alt)) return; if (window.LY_clarityEvent) window.LY_clarityEvent('ly_cal_booked_alt_select'); recoveryIso = ''; if (!selectedLookup[alt]) { selected.push(alt); selected.sort(); } updateSelectionUi(); });
+  function refreshCalInView() {
+    var el = document.getElementById('availability') || calRoot;
+    if (!el) return;
+    var r = el.getBoundingClientRect();
+    var next = r.bottom > 72 && r.top < (window.innerHeight - 56);
+    if (next === calInView) return;
+    calInView = next;
+    syncStickyCta();
+  }
   if (window.IntersectionObserver) {
     var calWatch = document.getElementById('availability') || calRoot;
-    var calIo = new IntersectionObserver(function(ents){ var e0 = ents[0]; calInView = !!(e0 && e0.isIntersecting); syncStickyCta(); }, { threshold: 0.08 });
+    var calIo = new IntersectionObserver(function () { refreshCalInView(); }, { threshold: [0, 0.08, 0.25] });
     calIo.observe(calWatch);
   }
+  window.addEventListener('scroll', refreshCalInView, { passive: true });
+  window.addEventListener('resize', refreshCalInView, { passive: true });
   try { barShownOnce = !!sessionStorage.getItem('ly_cal_bar_shown'); } catch (e) {}
+  refreshCalInView();
   syncStickyCta();
  var availabilityFetchState = 'idle'; var availabilityWaiters = []; function lyDrainAvailWaiters() { var w = availabilityWaiters.splice(0); w.forEach(function(fn) { fn(); }); } function lyApplyAvailCal(data) { if (!data) return; booked = new Set(data.booked || []); tentative = new Set(data.tentative || []); /* firm booked wins if both */ booked.forEach(function(d){ tentative.delete(d); }); selected = selected.filter(function(k){ return isSelectable(k); }); rebuildLookup(); jumpViewToOpenMonth(); if (selected.length) updateSelectionUi(); else { syncCalMailto(); render(); syncStickyCta(); } } function lyLoadAvailCal(cb, force) { if (typeof cb === 'function') availabilityWaiters.push(cb); if (availabilityFetchState === 'loading') return; if (availabilityFetchState === 'done' && !force) { lyDrainAvailWaiters(); return; } availabilityFetchState = 'loading'; fetch((location.hostname.endsWith('.github.io') ? 'https://limitlessyachtcharter.com' : '') + '/api/availability?fresh=1', { cache: 'no-store' }) .then(function(r){ return r.ok ? r.json() : null; }) .then(function(data){ availabilityFetchState = 'done'; lyApplyAvailCal(data); }) .catch(function(){ availabilityFetchState = 'idle'; }) .finally(function() { if (availabilityFetchState === 'loading') availabilityFetchState = 'idle'; lyDrainAvailWaiters(); }); } window.LY_loadAvailCalNow = lyLoadAvailCal; function lyScheduleAvailCalLoad() { if (window.LY_whenNearSection) window.LY_whenNearSection('availability', lyLoadAvailCal); else lyLoadAvailCal(); var hash = (location.hash || '').replace(/^#/, ''); if (hash === 'availability' || hash === 'availability-land' || hash === 'avail-cal') { lyLoadAvailCal(); } } lyScheduleAvailCalLoad(); })();

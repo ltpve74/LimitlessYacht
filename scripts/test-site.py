@@ -2561,17 +2561,18 @@ def check_shared_assets(r: Runner) -> None:
         and "getElementById('calStickyCta')" in cal_js,
     )
     r.check(
-        'sticky enquiry bar persists on mobile after dates picked (follows the user off-calendar)',
-        'isMobileCta' in index_html
-        and '(isMobileCta||calInView)' in index_html.replace(' ', ''),
+        'sticky enquiry bar persists after dates picked (follows the user off-calendar)',
+        'refreshCalInView' in index_html
+        and 'is-compact' in index_html
+        and 'ly-cal-sticky-compact' in index_html,
     )
     r.check(
-        'sticky bar goes compact and glassier when scrolling away on mobile',
+        'sticky bar goes compact and glassier when scrolling away from the calendar',
         'is-compact' in index_html
         and 'ly-cal-sticky-compact' in index_html
         and css is not None
         and '.cal-sticky-cta.is-compact' in css
-        and 'rgba(8,18,34,.42)' in css
+        and 'rgba(8,18,34,.22)' in css
         and '-webkit-backdrop-filter' in css,
     )
     r.check(

@@ -3117,15 +3117,15 @@
     z-index:280;
     gap:.4rem;
     padding:.7rem 1rem calc(.7rem + env(safe-area-inset-bottom, 0px));
-    background:rgba(8,18,34,.42);
-    -webkit-backdrop-filter:saturate(160%) blur(18px);
-    backdrop-filter:saturate(160%) blur(18px);
-    border-top:1px solid rgba(201,168,76,.28);
-    box-shadow:0 -6px 18px rgba(0,0,0,.18)
+    background:rgba(8,18,34,.22);
+    -webkit-backdrop-filter:saturate(180%) blur(20px);
+    backdrop-filter:saturate(180%) blur(20px);
+    border-top:1px solid rgba(201,168,76,.32);
+    box-shadow:0 -4px 16px rgba(0,0,0,.12)
   }
   @supports not ((backdrop-filter:blur(1px)) or (-webkit-backdrop-filter:blur(1px))){
     .cal-sticky-cta{
-      background:rgba(8,18,34,.72)
+      background:rgba(8,18,34,.55)
     }
   }
   .cal-sticky-cta[hidden]{
@@ -3143,10 +3143,10 @@
     padding:.4rem .45rem .4rem .55rem;
     border:1px solid rgba(201,168,76,.4);
     border-radius:999px;
-    background:rgba(8,18,34,.28);
+    background:rgba(8,18,34,.16);
     -webkit-backdrop-filter:saturate(180%) blur(16px);
     backdrop-filter:saturate(180%) blur(16px);
-    box-shadow:0 8px 22px rgba(0,0,0,.22)
+    box-shadow:0 6px 18px rgba(0,0,0,.18)
   }
   .cal-sticky-cta.is-compact .cal-sticky-summary,
   .cal-sticky-cta.is-compact .cal-sticky-clear,
@@ -3210,7 +3210,10 @@
     padding:.7rem 1rem;
     font-size:.62rem;
     letter-spacing:.08em;
-    text-align:center
+    text-align:center;
+    background:rgba(10,22,40,.2)!important;
+    color:var(--gold)!important;
+    border:1px solid var(--gold)!important
   }
   .cal-sticky-email{
     margin:0;
