@@ -2,11 +2,14 @@
  * Receipt photo → shop, date, euro total.
  * Calls the xAI responses API (image understanding). The key stays on the server.
  * Normalization of the JSON is the pure model in tracker/js/models/receipt.js.
+ *
+ * Static import on purpose. Netlify bundles functions with esbuild and does not
+ * follow a runtime require(), so the model was left out of the lambda and every
+ * photo failed with "Cannot find module".
  */
-import { createRequire } from "module";
+import receiptModel from "../../../tracker/js/models/receipt.js";
 
-const require = createRequire(import.meta.url);
-const { normalizeReceiptRead } = require("../../../tracker/js/models/receipt.js");
+const normalizeReceiptRead = receiptModel.normalizeReceiptRead;
 
 export const RECEIPT_MODEL = "grok-4.7";
 

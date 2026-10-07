@@ -4665,6 +4665,11 @@ console.log("\n[Receipt photo read — suggest only, never a ledger write]");
   ok("expense sheet asks for a receipt read", html.indexOf("expStartReceiptRead") !== -1 && html.indexOf("f_exp_photo_read") !== -1);
   ok("APA sheet asks for a receipt read", html.indexOf("f_apa_file_read") !== -1);
   ok("receipt read does not save by itself", html.indexOf("Does not save") !== -1 || html.indexOf("check before you save") !== -1);
+  const readerSrc = readFileSync(join(root, "netlify/functions/lib/receipt-read.mjs"), "utf8");
+  ok(
+    "receipt reader static-imports the model so Netlify bundles it",
+    readerSrc.indexOf('from "../../../tracker/js/models/receipt.js"') !== -1 && readerSrc.indexOf("createRequire") === -1
+  );
 }
 
 console.log("\n──────────────────────────────────────────────────────────");
