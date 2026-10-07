@@ -1,5 +1,5 @@
 /* Limitless Tracker service worker — push notifications for the installed PWA */
-/* v11: skipped-merge no longer marks sync fingerprint current (2026-09-11.2) */
+/* v12: receipt photo read suggests shop, date, total (2026-10-01.1) */
 self.addEventListener("install", function (e) {
   self.skipWaiting();
 });

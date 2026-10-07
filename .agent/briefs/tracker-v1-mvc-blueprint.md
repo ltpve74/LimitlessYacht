@@ -150,6 +150,7 @@ LY_CONTROLLERS.stews.tipLiabilityRows({ assigns })
 | Diesel bunker/sell | ✅ | — | wrappers |
 | APA diesel *active rate lookup* | diesel model | view injects price | thin |
 | **Write plans** (day-pay lines, tip payout, APA shortfall decision) | ✅ pure planners | ✅ | view applies to `state` + save |
+| **Receipt photo read** | ✅ `normalizeReceiptRead` + `planReceiptFieldFill` | — (server calls the model) | suggests shop / date / total only; captain saves |
 | Collapse dup charges / tombstones | — | — | still view (I/O) |
 
 ---
