@@ -2,7 +2,7 @@
  * LY_MODELS composition — merges domain modules.
  *
  * Browser (tracker/index.html) load order:
- *   util → leads → charges → expenses → cash → diesel → stews → apa → index
+ *   util → leads → charges → expenses → cash → diesel → stews → apa → receipt → index
  * Node: require("tracker/js/models.js")
  *
  * Boundaries: no sideways domain imports (only util; charges may read leads.CAPTAIN_COMMISSION_PCT).
@@ -27,9 +27,10 @@
   var diesel = isNode ? require("./diesel.js") : parts.diesel;
   var stews = isNode ? require("./stews.js") : parts.stews;
   var apa = isNode ? require("./apa.js") : parts.apa;
-  if (!util || !leads || !charges || !expenses || !cash || !diesel || !stews || !apa) {
+  var receipt = isNode ? require("./receipt.js") : parts.receipt;
+  if (!util || !leads || !charges || !expenses || !cash || !diesel || !stews || !apa || !receipt) {
     throw new Error(
-      "LY_MODELS parts missing — load models/{util,leads,charges,expenses,cash,diesel,stews,apa}.js before index.js"
+      "LY_MODELS parts missing — load models/{util,leads,charges,expenses,cash,diesel,stews,apa,receipt}.js before index.js"
     );
   }
   function assign(target, src) {
@@ -47,6 +48,7 @@
   assign(api, diesel);
   assign(api, stews);
   assign(api, apa);
+  assign(api, receipt);
   if (api.BILL_TYPES && !Array.isArray(api.BILL_TYPES)) api.BILL_TYPES = Object.keys(api.BILL_TYPES);
   if (api.LEAD_SOURCES && !Array.isArray(api.LEAD_SOURCES)) api.LEAD_SOURCES = Object.keys(api.LEAD_SOURCES);
   if (api.EXP_REIMBURSE_CATS && !Array.isArray(api.EXP_REIMBURSE_CATS))

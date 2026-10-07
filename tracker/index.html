@@ -1617,24 +1617,25 @@
 
 <!-- Domain models + controllers (MVC blueprint) — tests: node scripts/test-tracker-models.mjs -->
 <!-- LY_MODELS → LY_CONTROLLERS → view. See .agent/briefs/tracker-v1-mvc-blueprint.md -->
-<script src="/tracker/js/models/util.js?v=20260911-phase3"></script>
-<script src="/tracker/js/models/leads.js?v=20260911-phase3"></script>
-<script src="/tracker/js/models/charges.js?v=20260911-phase3"></script>
-<script src="/tracker/js/models/expenses.js?v=20260911-phase3"></script>
-<script src="/tracker/js/models/cash.js?v=20260911-phase3"></script>
-<script src="/tracker/js/models/diesel.js?v=20260911-phase3"></script>
-<script src="/tracker/js/models/stews.js?v=20260911-phase3"></script>
-<script src="/tracker/js/models/apa.js?v=20260911-phase3"></script>
-<script src="/tracker/js/models/index.js?v=20260911-phase3"></script>
-<script src="/tracker/js/controllers/expenses.js?v=20260911-phase3"></script>
-<script src="/tracker/js/controllers/cashReport.js?v=20260911-phase3"></script>
-<script src="/tracker/js/controllers/charges.js?v=20260911-phase3"></script>
-<script src="/tracker/js/controllers/leads.js?v=20260911-phase3"></script>
-<script src="/tracker/js/controllers/apa.js?v=20260911-phase3"></script>
-<script src="/tracker/js/controllers/stews.js?v=20260911-phase3"></script>
-<script src="/tracker/js/controllers/index.js?v=20260911-phase3"></script>
-<script src="/tracker/js/pdf/expenses-cash.js?v=20260911-phase3"></script>
-<script src="/tracker/js/pdf/owner-cash.js?v=20260911-phase3"></script>
+<script src="/tracker/js/models/util.js?v=20261001-receipt"></script>
+<script src="/tracker/js/models/leads.js?v=20261001-receipt"></script>
+<script src="/tracker/js/models/charges.js?v=20261001-receipt"></script>
+<script src="/tracker/js/models/expenses.js?v=20261001-receipt"></script>
+<script src="/tracker/js/models/cash.js?v=20261001-receipt"></script>
+<script src="/tracker/js/models/diesel.js?v=20261001-receipt"></script>
+<script src="/tracker/js/models/stews.js?v=20261001-receipt"></script>
+<script src="/tracker/js/models/apa.js?v=20261001-receipt"></script>
+<script src="/tracker/js/models/receipt.js?v=20261001-receipt"></script>
+<script src="/tracker/js/models/index.js?v=20261001-receipt"></script>
+<script src="/tracker/js/controllers/expenses.js?v=20261001-receipt"></script>
+<script src="/tracker/js/controllers/cashReport.js?v=20261001-receipt"></script>
+<script src="/tracker/js/controllers/charges.js?v=20261001-receipt"></script>
+<script src="/tracker/js/controllers/leads.js?v=20261001-receipt"></script>
+<script src="/tracker/js/controllers/apa.js?v=20261001-receipt"></script>
+<script src="/tracker/js/controllers/stews.js?v=20261001-receipt"></script>
+<script src="/tracker/js/controllers/index.js?v=20261001-receipt"></script>
+<script src="/tracker/js/pdf/expenses-cash.js?v=20261001-receipt"></script>
+<script src="/tracker/js/pdf/owner-cash.js?v=20261001-receipt"></script>
 <script>
 "use strict";
 var API = "/.netlify/functions/tracker";
@@ -1698,7 +1699,7 @@ function selCancelReasonField(cur){
 var EXPECTED_PEOPLE = 2;
 /* Build stamp — shown in Ops → Security so we can verify which code a device
  * actually runs (PWA updates only land after a full close + reopen). */
-var TRACKER_BUILD = "2026-09-11.2";
+var TRACKER_BUILD = "2026-10-01.1";
 var APA_EXP_CATS = ["Drinks & Bar","Dockage / Marina","Crew Tips","Miscellaneous","Fuel / Diesel","Food & Provisions"];
 var APA_PAID_BY = ["APA cash","Ship card","Guest card","Bank transfer"];
 var APA_DASH_CATS = [
@@ -11176,7 +11177,9 @@ function openApaLine(kind,id){
     h+='<div class="field"><label>Receipt (photo or PDF)</label>'+
       '<input class="ctl" id="f_apa_file" type="file" accept="image/*,application/pdf,.pdf"'+ (linkedFromExp?" disabled":"")+'>'+
       '<div id="f_apa_file_prev" style="margin-top:8px">'+expReceiptPreviewHTML(expIsReceiptData(r.receipt)?r.receipt:"")+'</div>'+
+      '<p id="f_apa_file_read" style="margin:8px 0 0;font-size:12.5px;color:var(--muted);line-height:1.4"></p>'+
       (expIsReceiptData(r.receipt)&&!linkedFromExp?'<button type="button" class="btn ghost" id="f_apa_file_clear" style="width:auto;margin-top:8px;padding:8px 12px">Remove receipt</button>':'')+
+      (linkedFromExp?'':'<p style="margin:8px 0 0;font-size:12px;color:var(--muted)">A photo can fill the shop, date, and total. Check them before you save.</p>')+
     '</div>';
     if(legacyRef) h+=fieldHTML("Receipt ref (legacy)",'<input class="ctl" id="f_receipt_ref" value="'+esc(legacyRef)+'"'+(linkedFromExp?" disabled":"")+'>');
   }
@@ -11190,18 +11193,32 @@ function openApaLine(kind,id){
     });
   }
   var receiptData=expIsReceiptData(r.receipt)?r.receipt:"";
+  var apaReceiptReadGen=0;
   if(el("f_apa_file")) el("f_apa_file").addEventListener("change",function(){
     var f=el("f_apa_file").files&&el("f_apa_file").files[0];
     if(!f) return;
+    var myRead=++apaReceiptReadGen;
     expCompressReceipt(f).then(function(data){
       receiptData=data;
       var prev=el("f_apa_file_prev");
       if(prev) prev.innerHTML=expReceiptPreviewHTML(data);
     }).catch(function(err){ window.alert(err&&err.message?err.message:"Could not use file"); });
+    if(!linkedFromExp){
+      expStartReceiptRead(f, {
+        statusId:"f_apa_file_read",
+        dateId:"f_date",
+        vendorId:kind==="provision"?"f_supplier":"f_vendor",
+        amountId:"f_amount",
+        replaceDate:!rec,
+        still:function(){ return myRead===apaReceiptReadGen; }
+      });
+    }
   });
   if(el("f_apa_file_clear")) el("f_apa_file_clear").addEventListener("click",function(){
+    apaReceiptReadGen++;
     receiptData="";
     if(el("f_apa_file_prev")) el("f_apa_file_prev").innerHTML="";
+    if(el("f_apa_file_read")) el("f_apa_file_read").textContent="";
     if(el("f_apa_file")) el("f_apa_file").value="";
   });
   function dslRecalc(){
@@ -14212,6 +14229,140 @@ function expCompressReceipt(file){
     img.src=url;
   });
 }
+var RECEIPT_READ_API="/.netlify/functions/tracker-receipt";
+/** Sharper JPEG for reading only. The stored copy stays the smaller compress. */
+function expCanvasToOcrJpegDataUrl(canvas){
+  if(!canvas) throw new Error("No image");
+  var data=canvas.toDataURL("image/jpeg",0.86);
+  if(data.length>2800000) data=canvas.toDataURL("image/jpeg",0.72);
+  if(data.length>3200000){
+    var c2=document.createElement("canvas");
+    c2.width=Math.max(1, Math.round(canvas.width*0.7));
+    c2.height=Math.max(1, Math.round(canvas.height*0.7));
+    c2.getContext("2d").drawImage(canvas,0,0,c2.width,c2.height);
+    data=c2.toDataURL("image/jpeg",0.68);
+  }
+  if(data.length>4000000) throw new Error("Photo is too large to read — crop closer and try again");
+  return data;
+}
+function expLoadImageEl(file){
+  return new Promise(function(resolve, reject){
+    var url=URL.createObjectURL(file);
+    var img=new Image();
+    img.onload=function(){ URL.revokeObjectURL(url); resolve(img); };
+    img.onerror=function(){ URL.revokeObjectURL(url); reject(new Error("Could not read photo")); };
+    img.src=url;
+  });
+}
+function expLoadBitmap(file){
+  if(typeof createImageBitmap==="function"){
+    try{
+      return createImageBitmap(file, {imageOrientation:"from-image"}).catch(function(){
+        return expLoadImageEl(file);
+      });
+    }catch(e){}
+  }
+  return expLoadImageEl(file);
+}
+function expDrawBitmap(src, maxEdge){
+  var w=src.width||src.naturalWidth||0, h=src.height||src.naturalHeight||0;
+  var scale=Math.min(1, maxEdge/Math.max(w,h,1));
+  var canvas=document.createElement("canvas");
+  canvas.width=Math.max(1, Math.round(w*scale));
+  canvas.height=Math.max(1, Math.round(h*scale));
+  canvas.getContext("2d").drawImage(src,0,0,canvas.width,canvas.height);
+  if(src.close){ try{ src.close(); }catch(eClose){} }
+  return canvas;
+}
+function expFileToOcrJpeg(file){
+  return expLoadBitmap(file).then(function(src){
+    return expCanvasToOcrJpegDataUrl(expDrawBitmap(src, 2000));
+  });
+}
+function expRequestReceiptRead(dataUrl){
+  var ctrl=typeof AbortController!=="undefined"?new AbortController():null;
+  var timer=setTimeout(function(){ if(ctrl) ctrl.abort(); }, 25000);
+  return fetch(RECEIPT_READ_API,{
+    method:"POST",
+    headers:{"Content-Type":"application/json","x-tracker-pass":(session&&session.pass)||""},
+    body:JSON.stringify({
+      who:session&&session.who,
+      role:(session&&session.role)||(typeof sessionRole==="function"?sessionRole():"captain"),
+      image:dataUrl
+    }),
+    signal:ctrl?ctrl.signal:undefined
+  }).then(function(r){
+    return r.text().then(function(t){
+      var j=null;
+      try{ j=t?JSON.parse(t):null; }catch(eParse){}
+      if(!r.ok){
+        var msg=j&&j.error?String(j.error):"Could not read the receipt";
+        if(r.status===401) msg="Sign in again to read receipts";
+        throw new Error(msg);
+      }
+      return j||{};
+    });
+  }).then(function(j){ clearTimeout(timer); return j; }, function(err){ clearTimeout(timer); throw err; });
+}
+function expApplyReceiptSuggestion(sug, opts){
+  if(!sug||!window.LY_MODELS||typeof LY_MODELS.planReceiptFieldFill!=="function") return null;
+  var dateEl=el(opts.dateId), vendorEl=el(opts.vendorId), amountEl=el(opts.amountId);
+  var plan=LY_MODELS.planReceiptFieldFill({
+    suggestion:sug,
+    allowDate:!!opts.allowDate,
+    allowVendor:!!opts.allowVendor,
+    allowAmount:!!opts.allowAmount,
+    currentVendor:vendorEl?vendorEl.value:"",
+    currentAmount:amountEl?amountEl.value:""
+  });
+  if(plan.date&&dateEl&&!dateEl.disabled) dateEl.value=plan.date;
+  if(plan.vendor&&vendorEl&&!vendorEl.disabled) vendorEl.value=plan.vendor;
+  if(plan.amount&&amountEl&&!amountEl.disabled) amountEl.value=plan.amount;
+  return plan;
+}
+/** Read the original photo. Fills empty shop / date / total. Does not save. */
+function expStartReceiptRead(file, opts){
+  opts=opts||{};
+  var status=el(opts.statusId);
+  if(status) status.textContent="Reading receipt…";
+  var touched={date:false,vendor:false,amount:false};
+  function watch(id, key){
+    var node=el(id);
+    if(!node) return;
+    node.addEventListener("input", function(){ touched[key]=true; });
+  }
+  watch(opts.dateId,"date");
+  watch(opts.vendorId,"vendor");
+  watch(opts.amountId,"amount");
+  var type=String(file&&file.type||"").toLowerCase();
+  var name=String(file&&file.name||"").toLowerCase();
+  var isPdf=type==="application/pdf"||/\.pdf$/i.test(name);
+  var prep=isPdf?expPdfFileToJpegDataUrl(file):expFileToOcrJpeg(file);
+  return prep.then(function(dataUrl){
+    if(opts.still&&!opts.still()) return null;
+    if(!expIsImageReceipt(dataUrl)) throw new Error("Could not read the receipt");
+    return expRequestReceiptRead(dataUrl);
+  }).then(function(sug){
+    if(!sug||(opts.still&&!opts.still())) return;
+    var plan=expApplyReceiptSuggestion(sug, {
+      dateId:opts.dateId,
+      vendorId:opts.vendorId,
+      amountId:opts.amountId,
+      allowDate:!!opts.replaceDate&&!touched.date,
+      allowVendor:!touched.vendor,
+      allowAmount:!touched.amount
+    })||{};
+    var line=plan.summary||sug.summary||"";
+    if(!status) return;
+    if(!line) status.textContent="Could not read a shop, date, or total on this photo.";
+    else if(!plan.date&&!plan.vendor&&!plan.amount) status.textContent=line+" — left what you already typed.";
+    else status.textContent=line+" — check before you save.";
+  }).catch(function(err){
+    if(opts.still&&!opts.still()) return;
+    var aborted=err&&(err.name==="AbortError"||/aborted|abort/i.test(String(err&&err.message||"")));
+    if(status) status.textContent=aborted?"Reading took too long — type the total.":((err&&err.message)||"Could not read the receipt");
+  });
+}
 /** Map APA paid-by → monthly pay method / paid-from. */
 function apaPaidByToMonthly(paidBy){
   var p=String(paidBy||"");
@@ -15884,9 +16035,10 @@ function openExpense(id, opts){
   h+='<div class="field"><label>Receipt (photo or PDF)</label>'+
     '<input class="ctl" id="f_exp_photo" type="file" accept="image/*,application/pdf,.pdf">'+
     '<div id="f_exp_photo_prev" style="margin-top:8px">'+expReceiptPreviewHTML(r.receipt||"")+'</div>'+
+    '<p id="f_exp_photo_read" style="margin:8px 0 0;font-size:12.5px;color:var(--muted);line-height:1.4"></p>'+
     (r.receipt?'<button type="button" class="btn ghost" id="f_exp_photo_clear" style="width:auto;margin-top:8px;padding:8px 12px">Remove receipt</button>':'')+
   '</div>';
-  h+='<p style="margin:0 0 12px;font-size:12px;color:var(--muted)">Photo or PDF (Files / Drive). Photos are compressed; PDFs are turned into a compressed image on your phone (first 1–2 pages). Export CSV has no receipt files.</p>';
+  h+='<p style="margin:0 0 12px;font-size:12px;color:var(--muted)">A photo can fill the shop, date, and total. Check them before you save. Photos are compressed; PDFs become an image on your phone (first 1–2 pages).</p>';
   if(rec) h+='<div class="sheetbtns"><button type="button" class="btn danger" id="sheetDel">Delete</button></div>';
   h+='<div class="sheetfoot"><button type="button" class="btn ghost" id="sheetCancel">Cancel</button>'+
     '<button type="button" class="btn" id="sheetSave">Save</button>'+
@@ -15950,18 +16102,32 @@ function openExpense(id, opts){
   syncReimburseVis();
   syncChargeVis();
   var receiptData=r.receipt||"";
+  var expPhotoReadGen=0;
   if(el("f_exp_photo")) el("f_exp_photo").addEventListener("change",function(){
     var f=el("f_exp_photo").files&&el("f_exp_photo").files[0];
     if(!f) return;
+    var myRead=++expPhotoReadGen;
     expCompressReceipt(f).then(function(data){
       receiptData=data;
       var prev=el("f_exp_photo_prev");
       if(prev) prev.innerHTML=expReceiptPreviewHTML(data);
     }).catch(function(err){ window.alert(err&&err.message?err.message:"Could not use file"); });
+    if(!fromStew&&!reimburse&&!commPayout){
+      expStartReceiptRead(f, {
+        statusId:"f_exp_photo_read",
+        dateId:"f_exp_date",
+        vendorId:"f_exp_vendor",
+        amountId:"f_exp_amount",
+        replaceDate:!rec,
+        still:function(){ return myRead===expPhotoReadGen; }
+      });
+    }
   });
   if(el("f_exp_photo_clear")) el("f_exp_photo_clear").addEventListener("click",function(){
+    expPhotoReadGen++;
     receiptData="";
     if(el("f_exp_photo_prev")) el("f_exp_photo_prev").innerHTML="";
+    if(el("f_exp_photo_read")) el("f_exp_photo_read").textContent="";
     if(el("f_exp_photo")) el("f_exp_photo").value="";
   });
   el("sheetSave").addEventListener("click",function(){

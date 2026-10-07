@@ -20,6 +20,15 @@
   to = "/.netlify/functions/tracker"
   status = 200
 
+# Receipt photo read (captain). Same auth header as /api/tracker.
+[[redirects]]
+  from = "/api/tracker-receipt"
+  to = "/.netlify/functions/tracker-receipt"
+  status = 200
+
+[functions."tracker-receipt"]
+  timeout = 26
+
 # Tracker is private ops tooling — never cache HTML
 [[headers]]
   for = "/tracker/*"

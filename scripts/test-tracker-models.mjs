@@ -51,6 +51,7 @@ function checkTrackerHtmlSyntax() {
     "tracker/js/models/diesel.js",
     "tracker/js/models/stews.js",
     "tracker/js/models/apa.js",
+    "tracker/js/models/receipt.js",
     "tracker/js/models/index.js",
     "tracker/js/controllers/expenses.js",
     "tracker/js/controllers/cashReport.js",
@@ -4569,6 +4570,101 @@ console.log("\n[Stew roster — assigned / unassigned / cancelled]");
     });
     ok("evening card unassigned", rowX2 && rowX2.status === "unassigned");
   }
+}
+
+console.log("\n[Receipt photo read — suggest only, never a ledger write]");
+{
+  const euro = M.normalizeReceiptRead(
+    { vendor: "  Makro  ", date: "12/09/2026", amount: "84,30", currency: "EUR" },
+    "2026-10-01"
+  );
+  ok("receipt EU date is 12 Sep", euro.date === "2026-09-12", euro.date);
+  ok("receipt EU amount 84.30", near(euro.amount, 84.3));
+  ok("receipt vendor trimmed", euro.vendor === "Makro");
+  ok("receipt summary names the shop", euro.summary.indexOf("Makro") !== -1 && euro.summary.indexOf("84.30") !== -1);
+  const thousands = M.normalizeReceiptRead(
+    { vendor: "Repsol", date: "2026-08-02", amount: "1.234,56", currency: "" },
+    "2026-10-01"
+  );
+  ok("receipt thousands comma-decimal", near(thousands.amount, 1234.56));
+  const us = M.normalizeReceiptRead({ vendor: "Shop", date: "2026-08-02", amount: "1,234.56", currency: "€" }, "2026-10-01");
+  ok("receipt US grouping still euros", near(us.amount, 1234.56));
+  const zero = M.normalizeReceiptRead({ vendor: "X", date: "2026-08-02", amount: 0, currency: "EUR" }, "2026-10-01");
+  ok("receipt zero total is not a suggestion", zero.amount == null);
+  const huge = M.normalizeReceiptRead({ vendor: "X", date: "2026-08-02", amount: 25000, currency: "EUR" }, "2026-10-01");
+  ok("receipt wild total is dropped", huge.amount == null);
+  const badDay = M.normalizeReceiptRead({ vendor: "X", date: "31/02/2026", amount: 10, currency: "EUR" }, "2026-10-01");
+  ok("receipt impossible date dropped", badDay.date === "");
+  const future = M.normalizeReceiptRead({ vendor: "X", date: "2030-01-01", amount: 10, currency: "EUR" }, "2026-10-01");
+  ok("receipt far-future date dropped", future.date === "");
+  const usd = M.normalizeReceiptRead({ vendor: "Shop", date: "2026-08-02", amount: 40, currency: "USD" }, "2026-10-01");
+  ok("receipt non-euro total is not filled", usd.amount == null && usd.summary.indexOf("USD") !== -1);
+  const fill = M.planReceiptFieldFill({
+    suggestion: euro,
+    allowDate: true,
+    allowVendor: true,
+    allowAmount: true,
+    currentVendor: "",
+    currentAmount: "",
+  });
+  ok("receipt plan fills empty shop and total", fill.vendor === "Makro" && fill.amount === "84.30" && fill.date === "2026-09-12");
+  const keep = M.planReceiptFieldFill({
+    suggestion: euro,
+    allowDate: false,
+    allowVendor: true,
+    allowAmount: true,
+    currentVendor: "Eroski",
+    currentAmount: "12",
+  });
+  ok("receipt plan leaves typed shop, date, and total", keep.vendor == null && keep.date == null && keep.amount == null);
+  const { textFromXaiResponse, rawFromReceiptText, readReceiptImage } = await import(
+    join(root, "netlify/functions/lib/receipt-read.mjs")
+  );
+  const wrapped = {
+    output: [{ type: "message", content: [{ type: "output_text", text: '{"vendor":"Mercadona","date":"2026-09-01","amount":12.5,"currency":"EUR"}' }] }],
+  };
+  ok("receipt reader finds output_text", textFromXaiResponse(wrapped).indexOf("Mercadona") !== -1);
+  const loose = rawFromReceiptText('```json\n{"vendor":"Dia","date":"2026-09-01","amount":3,"currency":"EUR"}\n```');
+  ok("receipt reader unwraps fenced JSON", loose && loose.vendor === "Dia");
+  const jpeg = "data:image/jpeg;base64," + "qqqq";
+  const read = await readReceiptImage({
+    image: jpeg,
+    apiKey: "test-key",
+    today: "2026-10-01",
+    fetchImpl: async function (url, init) {
+      ok("receipt reader calls xAI", String(url).indexOf("api.x.ai/v1/responses") !== -1);
+      const sent = JSON.parse(init.body);
+      ok("receipt reader does not store the photo", sent.store === false && sent.model === "grok-4.7");
+      ok("receipt reader sends the image", sent.input[0].content[0].image_url === jpeg);
+      return {
+        ok: true,
+        text: async function () {
+          return JSON.stringify({
+            output_text: JSON.stringify({ vendor: "Makro", date: "12/09/2026", amount: 84.3, currency: "EUR" }),
+          });
+        },
+      };
+    },
+  });
+  ok("receipt reader returns normalised total", read && read.vendor === "Makro" && near(read.amount, 84.3) && read.date === "2026-09-12");
+  let missingKey = 0;
+  try {
+    await readReceiptImage({ image: jpeg, apiKey: "", fetchImpl: async function () { throw new Error("should not call"); } });
+  } catch (err) {
+    missingKey = err && err.status;
+  }
+  ok("receipt reader refuses when XAI_API_KEY is missing", missingKey === 503);
+  let badImg = 0;
+  try {
+    await readReceiptImage({ image: "data:text/plain;base64,YQ==", apiKey: "k", fetchImpl: async function () { throw new Error("no"); } });
+  } catch (err2) {
+    badImg = err2 && err2.status;
+  }
+  ok("receipt reader rejects a non-image", badImg === 400);
+  const html = readFileSync(join(root, "tracker/index.html"), "utf8");
+  ok("expense sheet asks for a receipt read", html.indexOf("expStartReceiptRead") !== -1 && html.indexOf("f_exp_photo_read") !== -1);
+  ok("APA sheet asks for a receipt read", html.indexOf("f_apa_file_read") !== -1);
+  ok("receipt read does not save by itself", html.indexOf("Does not save") !== -1 || html.indexOf("check before you save") !== -1);
 }
 
 console.log("\n──────────────────────────────────────────────────────────");
