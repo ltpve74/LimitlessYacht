@@ -1230,9 +1230,36 @@ function mergePettyCashInLists(listA, listB) {
 }
 
 /**
+ * Union of "id1|id2" dismiss keys. Order does not matter. Empty keys drop out.
+ * @param {Array|string} a
+ * @param {Array|string} b
+ * @returns {Array<string>}
+ */
+function unionDupDismissLists(a, b) {
+  var seen = {};
+  var out = [];
+  function add(list) {
+    var arr = list;
+    if (typeof list === "string") arr = [list];
+    if (!Array.isArray(arr)) return;
+    arr.forEach(function (k) {
+      var s = String(k == null ? "" : k).trim();
+      if (!s || seen[s]) return;
+      seen[s] = 1;
+      out.push(s);
+    });
+  }
+  add(a);
+  add(b);
+  out.sort();
+  return out;
+}
+
+/**
  * Merge expPetty month rows (remote then local).
  * Month shell (start / BF) follows newer updatedAt; cashIns merge by line id
  * with amountManual protection so phone/desktop do not thrash envelope totals.
+ * dupDismiss is the union of both shells, even when the newer row lacks a key.
  *
  * @param {Array} local
  * @param {Array} remote
@@ -1262,6 +1289,8 @@ function mergeExpPettyMonths(local, remote) {
     var ct = String(slot.updatedAt || "");
     var pt = String(p.updatedAt || "");
     var takeShell = !ct || pt > ct || (pt === ct && preferOnTie);
+    /* Capture before the newer shell overwrites the month row. */
+    var priorDismiss = slot.dupDismiss;
     if (takeShell) {
       slot.pettyStart = p.pettyStart;
       if (p.broughtForwardShort != null) slot.broughtForwardShort = p.broughtForwardShort;
@@ -1275,6 +1304,10 @@ function mergeExpPettyMonths(local, remote) {
         if (p[k] !== undefined) slot[k] = p[k];
       });
     }
+    /* A newer save that never saw a dismiss must not drop it. */
+    var unitedDismiss = unionDupDismissLists(priorDismiss, p.dupDismiss);
+    if (unitedDismiss.length) slot.dupDismiss = unitedDismiss;
+    else delete slot.dupDismiss;
     slot.cashIns = mergePettyCashInLists(slot.cashIns, p.cashIns);
   }
   (Array.isArray(remote) ? remote : []).forEach(function (p) {
@@ -3692,6 +3725,427 @@ function summarizeMonthSettlement(opts) {
     };
   }
 
+  /**
+   * Likely duplicate expenses for one month.
+   * Near amount (≤ €0.05), vendor containment, dates within 5 days.
+   * The same APA line on two expenses is a duplicate even when the shop text differs.
+   * Two crew day-pay lines for different charters are not duplicates.
+   * Nothing here deletes a row.
+   * @param {{ month?: string, expenses?: Array, apa?: Array, dismissed?: Array }} opts
+   */
+  function findExpenseDuplicates(opts) {
+    opts = opts || {};
+    var month = String(opts.month || "").slice(0, 7);
+    var expenses = Array.isArray(opts.expenses) ? opts.expenses : [];
+    var apa = Array.isArray(opts.apa) ? opts.apa : [];
+    var dismissed = unionDupDismissLists(opts.dismissed, []);
+    var empty = {
+      month: month,
+      monthLabel: cardExpenseMonthLabel(month),
+      groups: [],
+      n: 0,
+    };
+    if (!/^\d{4}-\d{2}$/.test(month)) return empty;
+
+    var guestByLine = {};
+    apa.forEach(function (trip) {
+      if (!trip) return;
+      var guest = String(trip.guest || trip.guestName || trip.name || "").trim();
+      ["expenses", "provisions"].forEach(function (kind) {
+        var list = trip[kind];
+        if (!Array.isArray(list)) return;
+        list.forEach(function (line) {
+          if (!line || line.id == null || String(line.id) === "") return;
+          guestByLine[String(line.id)] = guest;
+        });
+      });
+    });
+
+    var monthRows = [];
+    expenses.forEach(function (e) {
+      if (!e || e.id == null || String(e.id) === "") return;
+      if (expenseMonthKey(e.date) !== month) return;
+      monthRows.push(e);
+    });
+
+    var n = monthRows.length;
+    var parent = [];
+    for (var i = 0; i < n; i++) parent.push(i);
+    function find(i) {
+      while (parent[i] !== i) {
+        parent[i] = parent[parent[i]];
+        i = parent[i];
+      }
+      return i;
+    }
+    function component(root) {
+      var out = [];
+      for (var k = 0; k < n; k++) if (find(k) === root) out.push(k);
+      return out;
+    }
+    function spanOk(idxs) {
+      var minA = Infinity;
+      var maxA = -Infinity;
+      var minD = Infinity;
+      var maxD = -Infinity;
+      for (var k = 0; k < idxs.length; k++) {
+        var rec = monthRows[idxs[k]];
+        var amt = round2(num(rec.amount));
+        if (amt < minA) minA = amt;
+        if (amt > maxA) maxA = amt;
+        var day = dupDayNumber(rec.date);
+        if (day == null) return false;
+        if (day < minD) minD = day;
+        if (day > maxD) maxD = day;
+      }
+      if (maxA - minA > 0.05 + 1e-9) return false;
+      if (maxD - minD > 5) return false;
+      return true;
+    }
+
+    var byLine = {};
+    monthRows.forEach(function (e, idx) {
+      var lid = e.fromApaLineId != null ? String(e.fromApaLineId).trim() : "";
+      if (!lid) return;
+      if (!byLine[lid]) byLine[lid] = [];
+      byLine[lid].push(idx);
+    });
+    Object.keys(byLine).forEach(function (lid) {
+      var idxs = byLine[lid];
+      var anchor = idxs[0];
+      for (var k = 1; k < idxs.length; k++) {
+        var lineRel = dupPairRelation(monthRows[anchor], monthRows[idxs[k]]);
+        if (!lineRel || !lineRel.sameApaLine) continue;
+        parent[find(idxs[k])] = find(anchor);
+      }
+    });
+
+    for (var a = 0; a < n; a++) {
+      for (var b = a + 1; b < n; b++) {
+        var rel = dupPairRelation(monthRows[a], monthRows[b]);
+        if (!rel || rel.sameApaLine) continue;
+        var ra = find(a);
+        var rb = find(b);
+        if (ra === rb) continue;
+        if (!spanOk(component(ra).concat(component(rb)))) continue;
+        parent[rb] = ra;
+      }
+    }
+
+    var seenRoot = {};
+    var groups = [];
+    for (var r = 0; r < n; r++) {
+      var root = find(r);
+      if (seenRoot[root]) continue;
+      var idxs = component(root);
+      if (idxs.length < 2) continue;
+      seenRoot[root] = 1;
+      var best = null;
+      for (var p = 0; p < idxs.length; p++) {
+        for (var q = p + 1; q < idxs.length; q++) {
+          var pair = dupPairRelation(monthRows[idxs[p]], monthRows[idxs[q]]);
+          if (!pair) continue;
+          if (!best || pair.rank > best.rank) best = pair;
+          else if (pair.rank === best.rank && pair.confidence === "high") best.confidence = "high";
+        }
+      }
+      if (!best) continue;
+      var members = idxs.map(function (ix) { return monthRows[ix]; });
+      var gid = members.map(function (e) { return String(e.id); }).sort().join("|");
+      if (dupDismissHides(gid, dismissed)) continue;
+      groups.push(dupBuildGroup(gid, best, members, guestByLine));
+    }
+    groups.sort(function (a, b) {
+      var da = a.rows.length ? a.rows[0].date : "";
+      var db = b.rows.length ? b.rows[0].date : "";
+      if (da !== db) return da < db ? -1 : 1;
+      return a.id < b.id ? -1 : 1;
+    });
+    return {
+      month: month,
+      monthLabel: cardExpenseMonthLabel(month),
+      groups: groups,
+      n: groups.length,
+    };
+  }
+
+  function dupDayNumber(date) {
+    var s = String(date || "").slice(0, 10);
+    var m = /^(\d{4})-(\d{2})-(\d{2})$/.exec(s);
+    if (!m) return null;
+    var t = Date.UTC(+m[1], +m[2] - 1, +m[3]);
+    if (!isFinite(t)) return null;
+    return Math.round(t / 86400000);
+  }
+
+  function dupVendorKey(name) {
+    var s = String(name || "");
+    try { s = s.normalize("NFD"); } catch (eN) {}
+    s = s.replace(/[\u0300-\u036f]/g, "");
+    s = s.toLowerCase().replace(/[^a-z0-9]+/g, " ").replace(/\s+/g, " ").trim();
+    return s;
+  }
+
+  /** "equal" | "contain" | "" — containment needs the shorter name to be at least 4 characters. */
+  function dupVendorRelation(a, b) {
+    if (!a || !b) return "";
+    if (a === b) return "equal";
+    var shorter = a.length <= b.length ? a : b;
+    var longer = a.length <= b.length ? b : a;
+    if (shorter.length >= 4 && longer.indexOf(shorter) !== -1) return "contain";
+    return "";
+  }
+
+  function dupApaLineId(e) {
+    if (!e || e.fromApaLineId == null) return "";
+    return String(e.fromApaLineId).trim();
+  }
+
+  function dupApaLinked(e) {
+    if (!e) return false;
+    if (dupApaLineId(e)) return true;
+    if (e.source === "apa") return true;
+    return e.chargeTo === "apa";
+  }
+
+  function dupCharterKey(e) {
+    if (!e) return "";
+    var ek = e.stewEventKey != null && String(e.stewEventKey).trim() !== "" ? String(e.stewEventKey).trim() : "";
+    if (ek) return "ek:" + ek;
+    var lid = e.linkId != null && String(e.linkId).trim() !== "" ? String(e.linkId).trim() : "";
+    if (lid) return "link:" + lid;
+    var d = String(e.charterDate || "").slice(0, 10);
+    if (!/^\d{4}-\d{2}-\d{2}$/.test(d)) d = "";
+    var guest = "";
+    try { guest = crewPayGuestFromDescription(e.description || ""); } catch (eG) { guest = ""; }
+    if (!guest) guest = String(e.guest || e.charterGuest || "").trim();
+    if (d || guest) return "day:" + d + "|" + guest.toLowerCase();
+    return "";
+  }
+
+  /**
+   * Why two expenses look like the same charge, or null.
+   * sameApaLine pairs ignore shop, amount, and date.
+   */
+  function dupPairRelation(a, b) {
+    if (!a || !b) return null;
+    var ida = String(a.id || "");
+    var idb = String(b.id || "");
+    if (!ida || !idb || ida === idb) return null;
+    if (isCrewDayPayExpense(a) && isCrewDayPayExpense(b)) {
+      var ka = dupCharterKey(a);
+      var kb = dupCharterKey(b);
+      if (ka && kb && ka !== kb) return null;
+    }
+    var lineA = dupApaLineId(a);
+    var lineB = dupApaLineId(b);
+    if (lineA && lineA === lineB) {
+      return {
+        confidence: "high",
+        reason: "Same APA line on two expenses",
+        rank: 4,
+        sameApaLine: true,
+      };
+    }
+    var amtA = round2(num(a.amount));
+    var amtB = round2(num(b.amount));
+    if (!(Math.abs(amtA) > 0.009) || !(Math.abs(amtB) > 0.009)) return null;
+    if (Math.abs(amtA - amtB) > 0.05 + 1e-9) return null;
+    var dayA = dupDayNumber(a.date);
+    var dayB = dupDayNumber(b.date);
+    if (dayA == null || dayB == null) return null;
+    if (Math.abs(dayA - dayB) > 5) return null;
+    var va = dupVendorKey(a.vendor || "");
+    var vb = dupVendorKey(b.vendor || "");
+    var vendorRel = dupVendorRelation(va, vb);
+    if (!vendorRel) return null;
+    var oneApa = dupApaLinked(a) !== dupApaLinked(b);
+    if (oneApa) {
+      return {
+        confidence: "high",
+        reason: "APA copy and a separate entry",
+        rank: 3,
+        sameApaLine: false,
+      };
+    }
+    if (vendorRel === "equal") {
+      return {
+        confidence: "high",
+        reason: "Same shop, amount, and a few days apart",
+        rank: 2,
+        sameApaLine: false,
+      };
+    }
+    var shorter = Math.min(va.length, vb.length);
+    return {
+      confidence: shorter >= 8 ? "high" : "medium",
+      reason: "Shop name matches, amount and dates are close",
+      rank: 1,
+      sameApaLine: false,
+    };
+  }
+
+  function dupPaidLabel(e) {
+    var method = String((e && e.payMethod) || "");
+    if (method.toLowerCase().indexOf("card") !== -1) return "Credit Card";
+    var from = String((e && e.paidFrom) || "").trim();
+    if (!from) {
+      var pf = expensePaidFrom(e);
+      if (pf === "own") from = "Own money";
+      else if (pf === "owner") from = "Owner money";
+      else if (pf === "guest") from = "Guest";
+      else if (pf === "card") return "Credit Card";
+      else from = "Petty cash";
+    }
+    return "Cash · " + from;
+  }
+
+  function dupChargeLabel(e) {
+    return dupApaLinked(e) ? "APA" : "Boat";
+  }
+
+  function dupKeepScore(e, vendorBonus) {
+    var score = 0;
+    if (cardReceiptPhoto(e && e.receipt)) score += 100;
+    if (dupApaLinked(e)) score += 40;
+    if (String((e && e.description) || "").trim()) score += 10;
+    if (vendorBonus) score += 5;
+    return score;
+  }
+
+  function dupBuildGroup(gid, best, members, guestByLine) {
+    var maxLen = 0;
+    members.forEach(function (e) {
+      var len = String((e && e.vendor) || "").trim().length;
+      if (len > maxLen) maxLen = len;
+    });
+    var anyShorter = members.some(function (e) {
+      return String((e && e.vendor) || "").trim().length < maxLen;
+    });
+    var ranked = members.map(function (e) {
+      var len = String((e && e.vendor) || "").trim().length;
+      return {
+        e: e,
+        score: dupKeepScore(e, anyShorter && len === maxLen && maxLen > 0),
+      };
+    });
+    ranked.sort(function (a, b) {
+      if (b.score !== a.score) return b.score - a.score;
+      var da = String(a.e.date || "").slice(0, 10);
+      var db = String(b.e.date || "").slice(0, 10);
+      if (da !== db) return da < db ? -1 : 1;
+      return String(a.e.id).localeCompare(String(b.e.id));
+    });
+    var keepId = ranked.length ? String(ranked[0].e.id) : "";
+    var rows = members.map(function (e) {
+      var lineId = dupApaLineId(e);
+      var guest = lineId ? guestByLine[lineId] || "" : "";
+      return {
+        id: String(e.id),
+        date: String(e.date || "").slice(0, 10),
+        vendor: String(e.vendor || "").trim(),
+        description: String(e.description || "").trim(),
+        paidLabel: dupPaidLabel(e),
+        chargeTo: dupChargeLabel(e),
+        apaLink: lineId ? (guest ? guest + " · " + lineId : lineId) : "",
+        amount: round2(num(e.amount)),
+        hasReceipt: !!cardReceiptPhoto(e.receipt),
+        keep: String(e.id) === keepId,
+        apaLinked: dupApaLinked(e),
+        crewDayPay: isCrewDayPayExpense(e),
+      };
+    });
+    rows.sort(function (a, b) {
+      if (a.date !== b.date) return a.date < b.date ? -1 : 1;
+      return a.id < b.id ? -1 : 1;
+    });
+    return {
+      id: gid,
+      confidence: best.confidence,
+      reason: best.reason,
+      keepId: keepId,
+      rows: rows,
+    };
+  }
+
+  function dupDismissKeyIds(key) {
+    return String(key || "").split("|").map(function (s) { return s.trim(); }).filter(Boolean);
+  }
+
+  /** Hidden when the group is exactly a dismissed set, or a subset of one. */
+  function dupDismissHides(groupKey, dismissed) {
+    var g = dupDismissKeyIds(groupKey);
+    if (!g.length) return false;
+    for (var i = 0; i < dismissed.length; i++) {
+      var d = dupDismissKeyIds(dismissed[i]);
+      if (g.length > d.length) continue;
+      var set = {};
+      d.forEach(function (id) { set[id] = 1; });
+      var all = true;
+      for (var j = 0; j < g.length; j++) {
+        if (!set[g[j]]) { all = false; break; }
+      }
+      if (all) return true;
+    }
+    return false;
+  }
+
+  /**
+   * Next dismiss list after "Not a duplicate". Does not touch expenses.
+   * @param {Array} existingList
+   * @param {Array|string} groupIds
+   * @returns {Array<string>}
+   */
+  function planExpenseDuplicateDismiss(existingList, groupIds) {
+    var ids = Array.isArray(groupIds) ? groupIds : String(groupIds || "").split("|");
+    var key = ids.map(function (id) { return String(id || "").trim(); }).filter(Boolean).sort().join("|");
+    return unionDupDismissLists(existingList, key ? [key] : []);
+  }
+
+  function dupCsvCell(v) {
+    var s = String(v == null ? "" : v);
+    if (/[",\n\r]/.test(s)) return '"' + s.replace(/"/g, '""') + '"';
+    return s;
+  }
+
+  /**
+   * CSV of the duplicate report. Receipt photos are yes/no, never the file itself.
+   * @param {{ month?: string, expenses?: Array, apa?: Array, dismissed?: Array }} opts
+   */
+  function expenseDuplicatesExportCsv(opts) {
+    var pack = findExpenseDuplicates(opts);
+    var lines = ["Group,Confidence,Reason,Suggested keep,Date,Vendor,Description,Type,Charge to,APA,Amount,Receipt"];
+    if (!pack.groups.length) {
+      lines.push(["", "", "No likely duplicates", "", "", "", "", "", "", "", "", ""].join(","));
+    }
+    pack.groups.forEach(function (g, gi) {
+      g.rows.forEach(function (r) {
+        lines.push([
+          String(gi + 1),
+          g.confidence,
+          g.reason,
+          r.keep ? "keep" : "",
+          r.date,
+          r.vendor,
+          r.description,
+          r.paidLabel,
+          r.chargeTo,
+          r.apaLink,
+          round2(num(r.amount)).toFixed(2),
+          r.hasReceipt ? "yes" : "no",
+        ].map(dupCsvCell).join(","));
+      });
+    });
+    return {
+      csv: lines.join("\n"),
+      fileName: "Limitless-duplicate-expenses-" + (pack.month || "month") + ".csv",
+      month: pack.month,
+      monthLabel: pack.monthLabel,
+      groups: pack.groups,
+      n: pack.n,
+    };
+  }
+
   return {
     EXP_REIMBURSE_CATS: EXP_REIMBURSE_CATS,
     EXP_POCKET_CAPTAIN: EXP_POCKET_CAPTAIN,
@@ -3767,6 +4221,9 @@ function summarizeMonthSettlement(opts) {
     buildCardExpenseReport: buildCardExpenseReport,
     cardExpensesExportCsv: cardExpensesExportCsv,
     cardExpensesExportExcelXml: cardExpensesExportExcelXml,
+    findExpenseDuplicates: findExpenseDuplicates,
+    expenseDuplicatesExportCsv: expenseDuplicatesExportCsv,
+    planExpenseDuplicateDismiss: planExpenseDuplicateDismiss,
     /** Sum cash-in lines that count toward petty (caller already filtered tips). */
     sumCashInAmounts: function (rows) {
       var s = 0;

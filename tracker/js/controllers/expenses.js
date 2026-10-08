@@ -373,6 +373,43 @@
     });
   }
 
+  /**
+   * Likely duplicates for one month. The view passes the ledger and the dismiss list.
+   * @param {{ month?: string, expenses?: Array, apa?: Array, dismissed?: Array, models?: object }} input
+   */
+  function duplicateMonthReport(input) {
+    input = input || {};
+    return M(input).findExpenseDuplicates({
+      month: input.month,
+      expenses: input.expenses || [],
+      apa: input.apa || [],
+      dismissed: input.dismissed || [],
+    });
+  }
+
+  /** CSV download of that report. */
+  function duplicateMonthCsv(input) {
+    input = input || {};
+    return M(input).expenseDuplicatesExportCsv({
+      month: input.month,
+      expenses: input.expenses || [],
+      apa: input.apa || [],
+      dismissed: input.dismissed || [],
+    });
+  }
+
+  /**
+   * Next remembered "not a duplicate" list. Does not delete anything.
+   * @param {{ dismissed?: Array, existing?: Array, groupIds?: Array, ids?: Array, models?: object }} input
+   */
+  function planDuplicateDismiss(input) {
+    input = input || {};
+    return M(input).planExpenseDuplicateDismiss(
+      input.dismissed || input.existing || [],
+      input.groupIds || input.ids || []
+    );
+  }
+
   return {
     monthSettlement: monthSettlement,
     openPocketOuts: openPocketOuts,
@@ -390,5 +427,8 @@
     cardMonthReport: cardMonthReport,
     cardMonthExcel: cardMonthExcel,
     cardMonthCsv: cardMonthCsv,
+    duplicateMonthReport: duplicateMonthReport,
+    duplicateMonthCsv: duplicateMonthCsv,
+    planDuplicateDismiss: planDuplicateDismiss,
   };
 });

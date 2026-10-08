@@ -1694,14 +1694,14 @@
 <script src="/tracker/js/models/util.js?v=20261008-receipt-copy"></script>
 <script src="/tracker/js/models/leads.js?v=20261008-receipt-copy"></script>
 <script src="/tracker/js/models/charges.js?v=20261008-receipt-copy"></script>
-<script src="/tracker/js/models/expenses.js?v=20261008-card-report"></script>
+<script src="/tracker/js/models/expenses.js?v=20261008-dup-detect"></script>
 <script src="/tracker/js/models/cash.js?v=20261008-receipt-copy"></script>
 <script src="/tracker/js/models/diesel.js?v=20261008-receipt-copy"></script>
 <script src="/tracker/js/models/stews.js?v=20261008-receipt-copy"></script>
 <script src="/tracker/js/models/apa.js?v=20261008-receipt-copy"></script>
 <script src="/tracker/js/models/receipt.js?v=20261008-receipt-copy"></script>
 <script src="/tracker/js/models/index.js?v=20261008-receipt-copy"></script>
-<script src="/tracker/js/controllers/expenses.js?v=20261008-card-report"></script>
+<script src="/tracker/js/controllers/expenses.js?v=20261008-dup-detect"></script>
 <script src="/tracker/js/controllers/cashReport.js?v=20261008-receipt-copy"></script>
 <script src="/tracker/js/controllers/charges.js?v=20261008-receipt-copy"></script>
 <script src="/tracker/js/controllers/leads.js?v=20261008-receipt-copy"></script>
@@ -1774,7 +1774,7 @@ function selCancelReasonField(cur){
 var EXPECTED_PEOPLE = 2;
 /* Build stamp — shown in Ops → Security so we can verify which code a device
  * actually runs (PWA updates only land after a full close + reopen). */
-var TRACKER_BUILD = "2026-10-08.7";
+var TRACKER_BUILD = "2026-10-08.8";
 var APA_EXP_CATS = ["Drinks & Bar","Dockage / Marina","Crew Tips","Miscellaneous","Fuel / Diesel","Food & Provisions"];
 var APA_PAID_BY = ["APA cash","Ship card","Guest card","Bank transfer"];
 var APA_DASH_CATS = [
@@ -14744,6 +14744,175 @@ function expExportCardReceiptsPdf(month){
     if(btn){ btn.disabled=false; btn.textContent="Card receipts"; }
   });
 }
+/** Ledger snapshot for the duplicate report. The model decides what matches. */
+function expDuplicateMonthInput(month){
+  var m=String(month||expMonth||expDefaultMonth()).slice(0,7);
+  var petty=expPettyFor(m);
+  return {
+    month:m,
+    expenses:state.expenses||[],
+    apa:state.apa||[],
+    dismissed:(petty&&petty.dupDismiss)||[]
+  };
+}
+var expDupPack=null;
+/** Open the duplicate report for the month. Nothing is deleted here. */
+function expOpenDuplicateReport(month){
+  if(!isCaptain()) return;
+  var pack=null;
+  try{
+    if(!(window.LY_CONTROLLERS&&LY_CONTROLLERS.expenses&&LY_CONTROLLERS.expenses.duplicateMonthReport)){
+      throw new Error("Duplicate check is not loaded");
+    }
+    pack=LY_CONTROLLERS.expenses.duplicateMonthReport(expDuplicateMonthInput(month));
+  }catch(eD){
+    window.alert("Could not look for duplicates.\n\n"+(eD&&eD.message?eD.message:eD));
+    return;
+  }
+  expDupPack=pack;
+  expPaintDuplicateSheet(pack);
+}
+function expPaintDuplicateSheet(pack){
+  pack=pack||{month:"",monthLabel:"",groups:[],n:0};
+  var n=pack.n||0;
+  var h='<div class="sheethead"><h2>Possible duplicates</h2><button type="button" class="sheetx" id="sheetClose" aria-label="Close">×</button></div>';
+  h+='<p class="meta" style="margin:0 0 8px">'+esc(pack.monthLabel||pack.month||"")+
+    " · "+n+" group"+(n===1?"":"s")+
+    ". Tick the copies to remove. The suggested keep is only a hint.</p>";
+  h+='<button type="button" class="btn ghost" id="expDupCsv" style="width:auto;padding:10px 14px">Download CSV</button>';
+  if(!n){
+    h+='<p style="margin:14px 0">No likely duplicates this month.</p>';
+  }
+  (pack.groups||[]).forEach(function(g){
+    h+='<div data-dup-group="'+esc(g.id)+'" style="border:1px solid rgba(0,0,0,.12);border-radius:12px;padding:10px;margin:12px 0">';
+    h+='<div style="font-weight:800">'+(g.confidence==="high"?"High":"Medium")+" · "+esc(g.reason)+"</div>";
+    h+='<div style="display:flex;flex-wrap:wrap;gap:8px;margin-top:8px">';
+    (g.rows||[]).forEach(function(r){
+      h+='<label style="flex:1 1 calc(50% - 8px);min-width:140px;display:flex;gap:8px;align-items:flex-start;border:1px solid rgba(0,0,0,.08);border-radius:10px;padding:8px">';
+      h+='<input type="checkbox" data-dup-del="'+esc(r.id)+'" data-dup-group="'+esc(g.id)+'" aria-label="Remove '+esc(r.vendor||"expense")+'">';
+      h+='<span style="min-width:0"><b>'+esc(r.date)+"</b> · "+esc(r.vendor||"Expense")+" · "+esc(money(r.amount));
+      if(r.keep) h+='<br><b>Suggested keep</b>';
+      h+='<br><span class="meta">'+esc(r.description||"—")+" · "+esc(r.paidLabel)+" · Charge to "+esc(r.chargeTo);
+      if(r.apaLink) h+=" · APA "+esc(r.apaLink);
+      h+=" · "+(r.hasReceipt?"Receipt photo":"No receipt photo")+"</span></span></label>";
+    });
+    h+="</div>";
+    h+='<div style="display:flex;gap:8px;flex-wrap:wrap;margin-top:10px">';
+    h+='<button type="button" class="btn" data-dup-delete="'+esc(g.id)+'" style="width:auto;padding:10px 14px">Delete selected</button>';
+    h+='<button type="button" class="btn ghost" data-dup-dismiss="'+esc(g.id)+'" style="width:auto;padding:10px 14px">Not a duplicate</button>';
+    h+="</div></div>";
+  });
+  el("sheetInner").innerHTML=h;
+  showSheet(true);
+  if(el("sheetClose")) el("sheetClose").addEventListener("click",function(){ showSheet(false); });
+  if(el("expDupCsv")) el("expDupCsv").addEventListener("click",function(){ expDownloadDuplicateCsv(); });
+  Array.prototype.forEach.call(el("sheet").querySelectorAll("[data-dup-delete]"),function(btn){
+    btn.addEventListener("click",function(){ expDeleteDuplicatePicks(btn.getAttribute("data-dup-delete")); });
+  });
+  Array.prototype.forEach.call(el("sheet").querySelectorAll("[data-dup-dismiss]"),function(btn){
+    btn.addEventListener("click",function(){ expDismissDuplicateGroup(btn.getAttribute("data-dup-dismiss")); });
+  });
+}
+/**
+ * Delete the ticked rows in one group. Uses the normal expense delete
+ * (tombstone, APA line, stew skip). Asks first. Never deletes on its own.
+ */
+function expDeleteDuplicatePicks(groupId){
+  if(!isCaptain()) return;
+  var boxes=Array.prototype.filter.call(el("sheet").querySelectorAll("input[data-dup-del]"),function(box){
+    return box.getAttribute("data-dup-group")===groupId && box.checked;
+  });
+  if(!boxes.length){
+    window.alert("Tick the copies to remove. Nothing is deleted on its own.");
+    return;
+  }
+  var recs=[];
+  boxes.forEach(function(box){
+    var id=box.getAttribute("data-dup-del");
+    var rec=(state.expenses||[]).filter(function(e){return e&&String(e.id)===String(id);})[0];
+    if(rec) recs.push(rec);
+  });
+  if(!recs.length){
+    window.alert("Those entries are already gone.");
+    expOpenDuplicateReport(expMonth);
+    return;
+  }
+  var lines=recs.map(function(r){
+    return String(r.date||"").slice(0,10)+" · "+(r.vendor||"Expense")+" · "+money(r.amount);
+  });
+  var msg="Delete these expenses?\n\n"+lines.join("\n");
+  var g=(expDupPack&&expDupPack.groups||[]).filter(function(x){return x&&x.id===groupId;})[0];
+  if(g&&recs.length>=(g.rows||[]).length){
+    msg+="\n\nThis removes every copy in the group, including the one marked keep.";
+  }
+  var anyApa=recs.some(function(r){
+    return !!(r&&(r.chargeTo==="apa"||r.source==="apa"||(r.fromApaLineId!=null&&String(r.fromApaLineId)!=="")));
+  });
+  if(anyApa) msg+="\n\nIt will also be removed from the linked APA pot.";
+  var anyStew=recs.some(function(r){ return !!(r&&(r.source==="stew"||expIsCrewDayPayLine(r))); });
+  if(anyStew) msg+="\n\nCrew day-pay from Stews will stay off Expenses until you re-save that charter in Stews.";
+  if(!window.confirm(msg)) return;
+  recs.forEach(function(r){
+    expDeleteExpenseById(r.id,{silent:true});
+  });
+  try{ renderExpenses(); }catch(eR){}
+  expOpenDuplicateReport(expMonth);
+}
+/** Remember this group so the report does not show it again. Does not delete. */
+function expDismissDuplicateGroup(groupId){
+  if(!isCaptain()) return;
+  var ids=String(groupId||"").split("|");
+  expRememberDuplicateDismiss(expMonth, ids);
+  expOpenDuplicateReport(expMonth);
+}
+/**
+ * Store the dismiss on this month's petty row.
+ * A brand-new row has no petty start, so a dismiss does not lock the float.
+ */
+function expRememberDuplicateDismiss(month, groupIds){
+  var m=String(month||expMonth||"").slice(0,7);
+  if(!/^\d{4}-\d{2}$/.test(m)) return;
+  var row=expPettyFor(m);
+  if(!row){
+    row={month:m,cashIns:[],dupDismiss:[]};
+    if(!state.expPetty) state.expPetty=[];
+    state.expPetty.push(row);
+  }
+  var next=[];
+  try{
+    if(!(window.LY_CONTROLLERS&&LY_CONTROLLERS.expenses&&LY_CONTROLLERS.expenses.planDuplicateDismiss)){
+      throw new Error("Duplicate check is not loaded");
+    }
+    next=LY_CONTROLLERS.expenses.planDuplicateDismiss({
+      dismissed:row.dupDismiss||[],
+      groupIds:groupIds
+    });
+  }catch(eP){
+    window.alert("Could not remember that dismissal.\n\n"+(eP&&eP.message?eP.message:eP));
+    return;
+  }
+  row.dupDismiss=next;
+  row.updatedAt=new Date().toISOString();
+  saveExpPetty();
+}
+function expDownloadDuplicateCsv(){
+  var pack=null;
+  try{
+    if(!(window.LY_CONTROLLERS&&LY_CONTROLLERS.expenses&&LY_CONTROLLERS.expenses.duplicateMonthCsv)){
+      throw new Error("Duplicate check is not loaded");
+    }
+    pack=LY_CONTROLLERS.expenses.duplicateMonthCsv(expDuplicateMonthInput(expMonth));
+  }catch(eC){
+    window.alert("Could not build the duplicate report.\n\n"+(eC&&eC.message?eC.message:eC));
+    return;
+  }
+  if(!pack||!pack.csv){
+    window.alert("Could not build the duplicate report.");
+    return;
+  }
+  var blob=new Blob([pack.csv],{type:"text/csv;charset=utf-8"});
+  if(typeof downloadBlob==="function") downloadBlob(blob, pack.fileName);
+}
 /** True when line is cash (boat petty / own pocket cash) — not ship credit card. */
 function expIsCashExpenseLine(e){
   if(!e) return false;
@@ -15296,8 +15465,9 @@ function paintExpensesBody(){
     '<button type="button" class="btn" id="expExportOwnerPdf" style="width:auto;padding:10px 14px" title="Simple on-board cash for the owner — opening, in, out, closing">Export for owner</button>'+
     '<button type="button" class="btn ghost" id="expExportCardExcel" style="width:auto;padding:10px 14px" title="This month, card only. Cash, APA cash, and bank transfers are left out. Amounts are real euro numbers.">Card Excel</button>'+
     '<button type="button" class="btn ghost" id="expExportCardPdf" style="width:auto;padding:10px 14px" title="Receipt photo for each card expense this month, in the same order as Card Excel.">Card receipts</button>'+
+    '<button type="button" class="btn ghost" id="expFindDuplicates" style="width:auto;padding:10px 14px" title="Card and cash for this month. Nothing is deleted until you confirm.">Find duplicates</button>'+
   '</div>'+
-  '<p class="meta" style="margin:-4px 0 12px">Card Excel and Card receipts use the month above. Cash, APA cash, and bank transfers stay out.</p>';
+  '<p class="meta" style="margin:-4px 0 12px">Card Excel and Card receipts use the month above. Cash, APA cash, and bank transfers stay out. Find duplicates checks every expense in that month, card and cash.</p>';
   /* Hero: physical notes only */
   h+='<div class="exp-alert ok" style="margin-bottom:10px">'+
     '<div style="font-weight:800">On board</div>'+
@@ -15869,6 +16039,7 @@ function paintExpensesBody(){
   if(el("expExportOwnerPdf")) el("expExportOwnerPdf").addEventListener("click",function(){ expExportMonthOwnerCashPdf(expMonth); });
   if(el("expExportCardExcel")) el("expExportCardExcel").addEventListener("click",function(){ expExportCardExcel(expMonth); });
   if(el("expExportCardPdf")) el("expExportCardPdf").addEventListener("click",function(){ expExportCardReceiptsPdf(expMonth); });
+  if(el("expFindDuplicates")) el("expFindDuplicates").addEventListener("click",function(){ expOpenDuplicateReport(expMonth); });
   if(el("expAdd")) el("expAdd").addEventListener("click",function(){ openExpense(null); });
   Array.prototype.forEach.call(body.querySelectorAll("[data-exp-reimburse]"),function(btn){
     btn.addEventListener("click",function(ev){

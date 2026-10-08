@@ -1880,6 +1880,26 @@ function mergeCollectionPreserveMissing(prevRows, nextRows, deletedIds) {
   return { rows: out, preserved, deleted: del.size };
 }
 
+/** Union of duplicate-dismiss keys ("id1|id2"). Empty keys drop out. */
+function unionDupDismissLists(a, b) {
+  const seen = new Set();
+  const out = [];
+  function add(list) {
+    const arr = typeof list === "string" ? [list] : list;
+    if (!Array.isArray(arr)) return;
+    arr.forEach((k) => {
+      const s = String(k == null ? "" : k).trim();
+      if (!s || seen.has(s)) return;
+      seen.add(s);
+      out.push(s);
+    });
+  }
+  add(a);
+  add(b);
+  out.sort();
+  return out;
+}
+
 /**
  * expPetty used to full-replace the whole array. Classic race: phone saves a
  * cash-in / start edit → desktop still has an older month bag → any expPetty
@@ -1959,6 +1979,10 @@ function mergeExpPettyCollection(prevRows, nextRows) {
     const ot = String(old.updatedAt || "");
     const pt = String(p.updatedAt || "");
     const shell = pt >= ot ? { ...old, ...p, month: m, cashIns } : { ...old, cashIns };
+    /* Dismiss keys are remembered. A newer shell must not drop one it never loaded. */
+    const unitedDismiss = unionDupDismissLists(old.dupDismiss, p.dupDismiss);
+    if (unitedDismiss.length) shell.dupDismiss = unitedDismiss;
+    else delete shell.dupDismiss;
     let sum = 0;
     cashIns.forEach((c) => {
       sum += Number(c && c.amount) || 0;

@@ -19,6 +19,7 @@
 - [tracker-salary-disappear-fix.md](tracker-salary-disappear-fix.md) — captain Crew Salaries saved then vanished: save-echo replace + softRefresh fingerprint skip + bare category as day-pay
 - [tracker-owner-split-date-fix.md](tracker-owner-split-date-fix.md) — Owner edit rewrote Aug pay date; desktop boss+petty split collapsed to all-owner
 - [tracker-phone-desktop-cash-diverge.md](tracker-phone-desktop-cash-diverge.md) — phone↔desktop cash disagree: expPetty full-replace + weak sync fingerprint
+- [tracker-duplicate-expenses.md](tracker-duplicate-expenses.md) — Expenses month Find duplicates; dismiss remembered on the petty row; delete uses the existing expense path
 
 - [tracker-extra-hours-commission.md](tracker-extra-hours-commission.md) — extra hours on Charges; cash vs invoice commission
 
