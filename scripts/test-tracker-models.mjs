@@ -4686,6 +4686,18 @@ console.log("\n[Receipt photo read — suggest only, never a ledger write]");
   const otherShop = M.findReceiptCopies({ vendor: "Dia", date: "2026-09-12", amount: 84.3, rows: books });
   ok("receipt copy does not match a different shop", otherShop.matches.length === 0);
   ok("sheet warns before saving a copied receipt", html.indexOf("Save this copy anyway?") !== -1 && html.indexOf("findReceiptCopies") !== -1);
+  ok(
+    "new expense leads with the camera",
+    html.indexOf("Take receipt photo") !== -1 &&
+      html.indexOf('capture="environment"') !== -1 &&
+      html.indexOf("f_exp_photo_lib") !== -1 &&
+      html.indexOf("id=\"expQuickShot\"") !== -1
+  );
+  ok("new expense can pick a saved receipt", html.indexOf("Choose a saved photo or PDF") !== -1);
+  ok(
+    "new expense can save and open the next receipt",
+    html.indexOf("sheetSaveNext") !== -1 && html.indexOf("Save and next") !== -1 && html.indexOf("openExpense(null)") !== -1
+  );
 }
 
 console.log("\n──────────────────────────────────────────────────────────");
