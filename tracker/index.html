@@ -1694,14 +1694,14 @@
 <script src="/tracker/js/models/util.js?v=20261008-receipt-copy"></script>
 <script src="/tracker/js/models/leads.js?v=20261008-receipt-copy"></script>
 <script src="/tracker/js/models/charges.js?v=20261008-receipt-copy"></script>
-<script src="/tracker/js/models/expenses.js?v=20261008-receipt-copy"></script>
+<script src="/tracker/js/models/expenses.js?v=20261008-card-report"></script>
 <script src="/tracker/js/models/cash.js?v=20261008-receipt-copy"></script>
 <script src="/tracker/js/models/diesel.js?v=20261008-receipt-copy"></script>
 <script src="/tracker/js/models/stews.js?v=20261008-receipt-copy"></script>
 <script src="/tracker/js/models/apa.js?v=20261008-receipt-copy"></script>
 <script src="/tracker/js/models/receipt.js?v=20261008-receipt-copy"></script>
 <script src="/tracker/js/models/index.js?v=20261008-receipt-copy"></script>
-<script src="/tracker/js/controllers/expenses.js?v=20261008-receipt-copy"></script>
+<script src="/tracker/js/controllers/expenses.js?v=20261008-card-report"></script>
 <script src="/tracker/js/controllers/cashReport.js?v=20261008-receipt-copy"></script>
 <script src="/tracker/js/controllers/charges.js?v=20261008-receipt-copy"></script>
 <script src="/tracker/js/controllers/leads.js?v=20261008-receipt-copy"></script>
@@ -1710,6 +1710,7 @@
 <script src="/tracker/js/controllers/index.js?v=20261008-receipt-copy"></script>
 <script src="/tracker/js/pdf/expenses-cash.js?v=20261008-receipt-copy"></script>
 <script src="/tracker/js/pdf/owner-cash.js?v=20261008-receipt-copy"></script>
+<script src="/tracker/js/pdf/card-receipts.js?v=20261008-card-report"></script>
 <script>
 "use strict";
 var API = "/.netlify/functions/tracker";
@@ -1773,7 +1774,7 @@ function selCancelReasonField(cur){
 var EXPECTED_PEOPLE = 2;
 /* Build stamp — shown in Ops → Security so we can verify which code a device
  * actually runs (PWA updates only land after a full close + reopen). */
-var TRACKER_BUILD = "2026-10-08.6";
+var TRACKER_BUILD = "2026-10-08.7";
 var APA_EXP_CATS = ["Drinks & Bar","Dockage / Marina","Crew Tips","Miscellaneous","Fuel / Diesel","Food & Provisions"];
 var APA_PAID_BY = ["APA cash","Ship card","Guest card","Bank transfer"];
 var APA_DASH_CATS = [
@@ -14683,6 +14684,66 @@ function expExportMonthCsv(month){
   document.body.appendChild(a); a.click();
   setTimeout(function(){ try{ document.body.removeChild(a); URL.revokeObjectURL(a.href); }catch(e){} }, 800);
 }
+/** Snapshot for the card-month report. The model decides which rows are card. */
+function expCardMonthInput(month){
+  return {
+    month:String(month||expMonth||expDefaultMonth()).slice(0,7),
+    expenses:state.expenses||[],
+    apa:state.apa||[]
+  };
+}
+/** Card expenses for the selected month — Excel, same shape as the charges sheet. */
+function expExportCardExcel(month){
+  var pack=null;
+  try{
+    if(!(window.LY_CONTROLLERS&&LY_CONTROLLERS.expenses&&LY_CONTROLLERS.expenses.cardMonthExcel)){
+      throw new Error("Card export is not loaded");
+    }
+    pack=LY_CONTROLLERS.expenses.cardMonthExcel(expCardMonthInput(month));
+  }catch(eX){
+    window.alert("Could not build the card spreadsheet.\n\n"+(eX&&eX.message?eX.message:eX));
+    return;
+  }
+  if(!pack||!pack.xml){
+    window.alert("Could not build the card spreadsheet.");
+    return;
+  }
+  var blob=new Blob([pack.xml],{type:pack.mime||"application/vnd.ms-excel"});
+  if(typeof downloadBlob==="function") downloadBlob(blob, pack.fileName);
+}
+/** Receipt PDF for those same card rows, one photo per page. */
+function expExportCardReceiptsPdf(month){
+  var btn=el("expExportCardPdf");
+  if(btn){ btn.disabled=true; btn.textContent="Building…"; }
+  var report;
+  try{
+    if(!(window.LY_CONTROLLERS&&LY_CONTROLLERS.expenses&&LY_CONTROLLERS.expenses.cardMonthReport)){
+      throw new Error("Card report is not loaded");
+    }
+    report=LY_CONTROLLERS.expenses.cardMonthReport(expCardMonthInput(month));
+  }catch(eR){
+    if(btn){ btn.disabled=false; btn.textContent="Card receipts"; }
+    window.alert("Could not build the receipt PDF.\n\n"+(eR&&eR.message?eR.message:eR));
+    return;
+  }
+  var name=(window.LY_PDF&&LY_PDF.cardReceipts&&LY_PDF.cardReceipts.fileName)
+    ?LY_PDF.cardReceipts.fileName(report.month)
+    :("Limitless-card-receipts-"+String(report.month||"").slice(0,7)+".pdf");
+  return loadPdfLib().then(function(PDFLib){
+    if(!(window.LY_PDF&&LY_PDF.cardReceipts&&LY_PDF.cardReceipts.build)){
+      throw new Error("LY_PDF.cardReceipts missing — load tracker/js/pdf/card-receipts.js");
+    }
+    return LY_PDF.cardReceipts.build(report, PDFLib);
+  }).then(function(blob){
+    if(!blob) throw new Error("Empty PDF");
+    if(typeof downloadBlob==="function") downloadBlob(blob, name);
+  }).catch(function(err){
+    console&&console.error&&console.error("[card receipts pdf]", err);
+    window.alert("Could not build the receipt PDF.\n\n"+((err&&err.message)||"unknown error"));
+  }).then(function(){
+    if(btn){ btn.disabled=false; btn.textContent="Card receipts"; }
+  });
+}
 /** True when line is cash (boat petty / own pocket cash) — not ship credit card. */
 function expIsCashExpenseLine(e){
   if(!e) return false;
@@ -15233,7 +15294,10 @@ function paintExpensesBody(){
     '<button type="button" class="btn ghost" id="expExport" style="width:auto;padding:10px 14px">CSV</button>'+
     '<button type="button" class="btn ghost" id="expExportPdf" style="width:auto;padding:10px 14px" title="Full cash PDF (includes captain business &amp; pocket)">Full PDF</button>'+
     '<button type="button" class="btn" id="expExportOwnerPdf" style="width:auto;padding:10px 14px" title="Simple on-board cash for the owner — opening, in, out, closing">Export for owner</button>'+
-  '</div>';
+    '<button type="button" class="btn ghost" id="expExportCardExcel" style="width:auto;padding:10px 14px" title="This month, card only. Cash, APA cash, and bank transfers are left out. Amounts are real euro numbers.">Card Excel</button>'+
+    '<button type="button" class="btn ghost" id="expExportCardPdf" style="width:auto;padding:10px 14px" title="Receipt photo for each card expense this month, in the same order as Card Excel.">Card receipts</button>'+
+  '</div>'+
+  '<p class="meta" style="margin:-4px 0 12px">Card Excel and Card receipts use the month above. Cash, APA cash, and bank transfers stay out.</p>';
   /* Hero: physical notes only */
   h+='<div class="exp-alert ok" style="margin-bottom:10px">'+
     '<div style="font-weight:800">On board</div>'+
@@ -15803,6 +15867,8 @@ function paintExpensesBody(){
   if(el("expExport")) el("expExport").addEventListener("click",function(){ expExportMonthCsv(expMonth); });
   if(el("expExportPdf")) el("expExportPdf").addEventListener("click",function(){ expExportMonthCashPdf(expMonth); });
   if(el("expExportOwnerPdf")) el("expExportOwnerPdf").addEventListener("click",function(){ expExportMonthOwnerCashPdf(expMonth); });
+  if(el("expExportCardExcel")) el("expExportCardExcel").addEventListener("click",function(){ expExportCardExcel(expMonth); });
+  if(el("expExportCardPdf")) el("expExportCardPdf").addEventListener("click",function(){ expExportCardReceiptsPdf(expMonth); });
   if(el("expAdd")) el("expAdd").addEventListener("click",function(){ openExpense(null); });
   Array.prototype.forEach.call(body.querySelectorAll("[data-exp-reimburse]"),function(btn){
     btn.addEventListener("click",function(ev){

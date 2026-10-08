@@ -62,6 +62,7 @@ function checkTrackerHtmlSyntax() {
     "tracker/js/controllers/index.js",
     "tracker/js/pdf/expenses-cash.js",
     "tracker/js/pdf/owner-cash.js",
+    "tracker/js/pdf/card-receipts.js",
   ];
   for (const rel of modelFiles) {
     const chk = spawnSync(process.execPath, ["--check", join(root, rel)], { encoding: "utf8" });
@@ -72,6 +73,7 @@ function checkTrackerHtmlSyntax() {
 checkTrackerHtmlSyntax();
 const C = require(join(root, "tracker/js/controllers/index.js"));
 const OwnerCashPdf = require(join(root, "tracker/js/pdf/owner-cash.js"));
+const CardReceiptsPdf = require(join(root, "tracker/js/pdf/card-receipts.js"));
 function near(a, b, eps) {
   eps = eps == null ? 0.02 : eps;
   return Math.abs(Number(a) - Number(b)) <= eps;
@@ -4858,6 +4860,140 @@ console.log("\n[Receipt photo read — suggest only, never a ledger write]");
       html.indexOf("Company card") !== -1 &&
       html.indexOf('expChoosePay("card")') !== -1 &&
       html.indexOf('expChoosePay("petty")') !== -1
+  );
+  ok(
+    "expenses month bar exports the card spreadsheet and receipt PDF",
+    html.indexOf('id="expExportCardExcel"') !== -1 &&
+      html.indexOf('id="expExportCardPdf"') !== -1 &&
+      html.indexOf("Card Excel") !== -1 &&
+      html.indexOf("Card receipts") !== -1 &&
+      html.indexOf("expExportCardExcel(expMonth)") !== -1 &&
+      html.indexOf("cardMonthExcel") !== -1 &&
+      html.indexOf("cardMonthReport") !== -1 &&
+      html.indexOf("LY_PDF.cardReceipts") !== -1
+  );
+}
+
+/* ---- Monthly card expenses (spreadsheet + receipt PDF) ---- */
+console.log("[Expenses — card month]");
+{
+  const PNG =
+    "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mP8z8BQDwAEhQGAhKmMIQAAAABJRU5ErkJggg==";
+  const books = {
+    month: "2026-09",
+    expenses: [
+      { id: "cash1", date: "2026-09-02", vendor: "Cash shop", amount: 10, payMethod: "Cash", receipt: PNG },
+      { id: "card-late", date: "2026-09-20", vendor: "Repsol", amount: 80, payMethod: "Credit Card" },
+      { id: "card-early", date: "2026-09-03", vendor: "Mercadona", amount: 12.5, payMethod: "Credit Card", receipt: PNG },
+      { id: "oct", date: "2026-10-01", vendor: "October card", amount: 9, payMethod: "Credit Card" },
+      {
+        id: "bank-exp",
+        date: "2026-09-05",
+        vendor: "Marina transfer",
+        amount: 300,
+        payMethod: "Credit Card",
+        fromApaLineId: "line-bank",
+      },
+      {
+        id: "ship-exp",
+        date: "2026-09-08",
+        vendor: "Makro",
+        amount: 40,
+        payMethod: "Credit Card",
+        fromApaLineId: "line-ship",
+        receipt: PNG,
+      },
+    ],
+    apa: [
+      {
+        id: "trip1",
+        expenses: [
+          { id: "line-bank", paidBy: "Bank transfer", date: "2026-09-05", amount: 300, vendor: "Marina transfer", expenseId: "bank-exp" },
+          { id: "line-ship", paidBy: "Ship card", date: "2026-09-08", amount: 40, vendor: "Makro", expenseId: "ship-exp", receipt: PNG },
+          { id: "line-cash", paidBy: "APA cash", date: "2026-09-04", amount: 15, vendor: "Taxi" },
+          { id: "line-guest", paidBy: "Guest card", date: "2026-09-11", amount: 22, vendor: "Guest fuel", receipt: PNG },
+        ],
+        provisions: [
+          { id: "line-prov", paidBy: "Ship card", date: "2026-09-01", amount: 18, supplier: "Mercadona provis", items: "food" },
+        ],
+      },
+    ],
+  };
+  const report = M.buildCardExpenseReport(books);
+  ok("card month keeps five card rows", report.n === 5, "got " + report.n + " " + report.rows.map(function (r) { return r.vendor; }).join(", "));
+  ok(
+    "card month is date order and skips cash, bank, APA cash, and other months",
+    report.rows.map(function (r) { return r.vendor; }).join("|") === "Mercadona provis|Mercadona|Makro|Guest fuel|Repsol"
+  );
+  ok("card month total is the card rows only", near(report.total, 18 + 12.5 + 40 + 22 + 80));
+  ok("ship card already on an expense is not listed twice", report.rows.filter(function (r) { return r.vendor === "Makro"; }).length === 1);
+  ok("card row with a photo keeps it, and a missing photo stays blank", report.rows[1].hasReceipt === true && report.rows[4].hasReceipt === false);
+  ok("September label", report.monthLabel === "September 2026");
+  const csv = M.cardExpensesExportCsv(books);
+  ok(
+    "card csv columns, order, and total",
+    csv.csv.indexOf("Date,Vendor,Amount\n2026-09-01,Mercadona provis,18.00") === 0 &&
+      csv.csv.indexOf("\n,TOTAL,172.50") !== -1 &&
+      csv.csv.indexOf("Cash shop") === -1 &&
+      csv.csv.indexOf("Marina transfer") === -1 &&
+      csv.fileName === "Limitless-card-expenses-2026-09.csv"
+  );
+  const xls = M.cardExpensesExportExcelXml(books);
+  ok(
+    "card excel is the 3-column sheet with a euro total",
+    xls.xml.indexOf("Date") !== -1 &&
+      xls.xml.indexOf("Vendor") !== -1 &&
+      xls.xml.indexOf("Amount") !== -1 &&
+      xls.xml.indexOf(">TOTAL<") !== -1 &&
+      xls.xml.indexOf(">172.5<") !== -1 &&
+      xls.xml.indexOf('ExpandedColumnCount="3"') !== -1 &&
+      xls.xml.indexOf("Cash shop") === -1 &&
+      xls.xml.indexOf("data:image") === -1 &&
+      xls.fileName === "Limitless-card-expenses-2026-09.xls" &&
+      xls.mime === "application/vnd.ms-excel"
+  );
+  ok(
+    "controller card report matches the model",
+    C.expenses.cardMonthReport(books).n === 5 && C.expenses.cardMonthExcel(books).total === xls.total
+  );
+  const empty = M.buildCardExpenseReport({ month: "2026-09", expenses: books.expenses.filter(function (e) { return e.payMethod === "Cash"; }), apa: [] });
+  ok("cash-only month has no card rows", empty.n === 0 && empty.total === 0);
+  ok("card receipt pdf file name", CardReceiptsPdf.fileName("2026-09") === "Limitless-card-receipts-2026-09.pdf");
+  const PDFLib = require(join(root, "tracker/lib/pdf-lib.min.js"));
+  const { inflateSync } = await import("zlib");
+  async function cardPdfText(rep) {
+    const blob = await CardReceiptsPdf.build(rep, PDFLib);
+    const bytes = new Uint8Array(await blob.arrayBuffer());
+    const loaded = await PDFLib.PDFDocument.load(bytes);
+    const raw = Buffer.from(bytes).toString("latin1");
+    const streams = [];
+    const re = /stream\r?\n([\s\S]*?)\r?\nendstream/g;
+    let m;
+    while ((m = re.exec(raw))) {
+      try {
+        streams.push(inflateSync(Buffer.from(m[1], "latin1")).toString("latin1"));
+      } catch (e) {}
+    }
+    const text = (streams.join("\n").match(/<([0-9A-Fa-f]+)>\s*Tj/g) || [])
+      .map(function (tok) {
+        return Buffer.from(tok.slice(1, tok.indexOf(">")), "hex").toString("latin1");
+      })
+      .join("\n");
+    return { pages: loaded.getPageCount(), text: text, hasImage: raw.indexOf("/Image") !== -1 };
+  }
+  const packed = await cardPdfText(report);
+  ok("card receipt pdf has one page per row", packed.pages === 5, "pages " + packed.pages);
+  ok(
+    "card receipt pdf labels follow the spreadsheet and keeps a photo",
+    packed.text.indexOf("Mercadona provis") !== -1 &&
+      packed.text.indexOf("Mercadona provis") < packed.text.indexOf("Repsol") &&
+      packed.text.indexOf("No receipt photo") !== -1 &&
+      packed.hasImage
+  );
+  const quiet = await cardPdfText(empty);
+  ok(
+    "empty card month still makes a one-page PDF",
+    quiet.pages === 1 && quiet.text.indexOf("No card expenses this month") !== -1 && !quiet.hasImage
   );
 }
 

@@ -340,6 +340,39 @@
     );
   }
 
+  /**
+   * Card expenses for one month. Cash, APA cash, and bank transfers are left out.
+   * @param {{ month?: string, expenses?: Array, apa?: Array, models?: object }} input
+   */
+  function cardMonthReport(input) {
+    input = input || {};
+    return M(input).buildCardExpenseReport({
+      month: input.month,
+      expenses: input.expenses || [],
+      apa: input.apa || [],
+    });
+  }
+
+  /** Excel SpreadsheetML for that card month. Amounts are real € numbers. */
+  function cardMonthExcel(input) {
+    input = input || {};
+    return M(input).cardExpensesExportExcelXml({
+      month: input.month,
+      expenses: input.expenses || [],
+      apa: input.apa || [],
+    });
+  }
+
+  /** CSV twin. The Expenses screen downloads the Excel file. */
+  function cardMonthCsv(input) {
+    input = input || {};
+    return M(input).cardExpensesExportCsv({
+      month: input.month,
+      expenses: input.expenses || [],
+      apa: input.apa || [],
+    });
+  }
+
   return {
     monthSettlement: monthSettlement,
     openPocketOuts: openPocketOuts,
@@ -354,5 +387,8 @@
     pettyMonthOpen: pettyMonthOpen,
     pettyMonthClose: pettyMonthClose,
     planPettyCarryMaterialize: planPettyCarryMaterialize,
+    cardMonthReport: cardMonthReport,
+    cardMonthExcel: cardMonthExcel,
+    cardMonthCsv: cardMonthCsv,
   };
 });

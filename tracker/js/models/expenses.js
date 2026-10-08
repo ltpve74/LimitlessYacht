@@ -3392,6 +3392,306 @@ function summarizeMonthSettlement(opts) {
 }
 
 
+  /**
+   * APA paid-by label → card | cash | bank | "".
+   * Bank transfer is stored on the monthly expense as payMethod Credit Card,
+   * so the label (not payMethod alone) is what keeps it off the card report.
+   */
+  function cardPaidByKind(label) {
+    var p = String(label || "").trim().toLowerCase();
+    if (!p) return "";
+    if (p.indexOf("bank") !== -1) return "bank";
+    if (p.indexOf("cash") !== -1) return "cash";
+    if (p.indexOf("card") !== -1) return "card";
+    return "";
+  }
+
+  function cardExpenseMonthLabel(month) {
+    var m = String(month || "").slice(0, 7);
+    var p = m.split("-");
+    var names = [
+      "January", "February", "March", "April", "May", "June",
+      "July", "August", "September", "October", "November", "December",
+    ];
+    var mi = parseInt(p[1], 10) - 1;
+    if (p.length !== 2 || !(mi >= 0 && mi < 12)) return m || "Month";
+    return names[mi] + " " + p[0];
+  }
+
+  /** JPEG or PNG data URL kept for the receipt PDF. A stored PDF is not a photo. */
+  function cardReceiptPhoto(s) {
+    var t = String(s || "").trim();
+    if (/^data:image\/(png|jpeg|jpg);base64,/i.test(t)) return t;
+    return "";
+  }
+
+  function cardExpenseVendor(e, fallback) {
+    var v = String((e && (e.vendor || e.description || e.supplier || e.category)) || "").trim();
+    return v || fallback || "Expense";
+  }
+
+  /**
+   * True for a company-card expense, or an APA ship/guest card.
+   * Cash, APA cash, and bank transfer are false.
+   */
+  function expenseCountsAsCardPayment(e, apaByLine) {
+    if (!e) return false;
+    var lineId = e.fromApaLineId != null ? String(e.fromApaLineId) : "";
+    var line = lineId && apaByLine ? apaByLine[lineId] : null;
+    var kind = cardPaidByKind(line ? line.paidBy : e.paidBy);
+    if (kind === "bank" || kind === "cash") return false;
+    if (kind === "card") return true;
+    return String(e.payMethod || "").toLowerCase().indexOf("card") !== -1;
+  }
+
+  function cardExpenseRow(id, date, vendor, amount, receipt) {
+    var photo = cardReceiptPhoto(receipt);
+    return {
+      id: String(id || ""),
+      date: String(date || "").slice(0, 10),
+      vendor: vendor,
+      amount: round2(num(amount)),
+      receipt: photo,
+      hasReceipt: !!photo,
+    };
+  }
+
+  /**
+   * Card expenses for one month, oldest first.
+   * Monthly expenses win. An APA ship/guest card that was never copied
+   * onto an expense is included once, with its own receipt.
+   * @param {{ month?: string, expenses?: Array, apa?: Array }} opts
+   */
+  function buildCardExpenseReport(opts) {
+    opts = opts || {};
+    var month = String(opts.month || "").slice(0, 7);
+    var expenses = Array.isArray(opts.expenses) ? opts.expenses : [];
+    var apa = Array.isArray(opts.apa) ? opts.apa : [];
+    var apaByLine = {};
+    var coveredLine = {};
+    var coveredExpense = {};
+    apa.forEach(function (trip) {
+      if (!trip) return;
+      ["expenses", "provisions"].forEach(function (kind) {
+        var list = trip[kind];
+        if (!Array.isArray(list)) return;
+        list.forEach(function (line) {
+          if (!line || line.id == null || String(line.id) === "") return;
+          apaByLine[String(line.id)] = line;
+        });
+      });
+    });
+    expenses.forEach(function (e) {
+      if (!e) return;
+      if (e.id != null && String(e.id) !== "") coveredExpense[String(e.id)] = 1;
+      if (e.fromApaLineId != null && String(e.fromApaLineId) !== "") coveredLine[String(e.fromApaLineId)] = 1;
+    });
+    var rows = [];
+    expenses.forEach(function (e) {
+      if (!e || expenseMonthKey(e.date) !== month) return;
+      if (!expenseCountsAsCardPayment(e, apaByLine)) return;
+      rows.push(cardExpenseRow(e.id, e.date, cardExpenseVendor(e, "Expense"), e.amount, e.receipt));
+    });
+    apa.forEach(function (trip) {
+      if (!trip) return;
+      ["expenses", "provisions"].forEach(function (kind) {
+        var list = trip[kind];
+        if (!Array.isArray(list)) return;
+        list.forEach(function (line) {
+          if (!line || cardPaidByKind(line.paidBy) !== "card") return;
+          var lid = line.id != null ? String(line.id) : "";
+          if (lid && coveredLine[lid]) return;
+          var eid = line.expenseId != null ? String(line.expenseId) : "";
+          var from = line.fromExpenseId != null ? String(line.fromExpenseId) : "";
+          if ((eid && coveredExpense[eid]) || (from && coveredExpense[from])) return;
+          if (expenseMonthKey(line.date) !== month) return;
+          var vendor =
+            kind === "provisions"
+              ? String(line.supplier || line.vendor || line.items || "Provisions").trim() || "Provisions"
+              : cardExpenseVendor(line, "APA");
+          rows.push(cardExpenseRow(lid ? "apa:" + lid : "", line.date, vendor, line.amount, line.receipt));
+        });
+      });
+    });
+    rows.sort(function (a, b) {
+      var c = String(a.date).localeCompare(String(b.date));
+      if (c) return c;
+      c = String(a.vendor).localeCompare(String(b.vendor));
+      if (c) return c;
+      return String(a.id).localeCompare(String(b.id));
+    });
+    var total = 0;
+    rows.forEach(function (r, i) {
+      r.n = i + 1;
+      total = round2(total + r.amount);
+    });
+    return {
+      month: month,
+      monthLabel: cardExpenseMonthLabel(month),
+      rows: rows,
+      n: rows.length,
+      total: total,
+    };
+  }
+
+  function cardExportCsvCell(v) {
+    var s = String(v == null ? "" : v);
+    if (/[",\n\r]/.test(s)) return '"' + s.replace(/"/g, '""') + '"';
+    return s;
+  }
+
+  function cardExportMoneyPlain(n) {
+    return round2(num(n)).toFixed(2);
+  }
+
+  /**
+   * CSV twin of the card sheet. Amounts are plain 0.00 numbers.
+   * @param {{ month?: string, expenses?: Array, apa?: Array }} opts
+   */
+  function cardExpensesExportCsv(opts) {
+    var pack = buildCardExpenseReport(opts);
+    var lines = ["Date,Vendor,Amount"];
+    pack.rows.forEach(function (r) {
+      lines.push(
+        [cardExportCsvCell(r.date), cardExportCsvCell(r.vendor), cardExportMoneyPlain(r.amount)].join(",")
+      );
+    });
+    lines.push(["", cardExportCsvCell("TOTAL"), cardExportMoneyPlain(pack.total)].join(","));
+    return {
+      csv: lines.join("\n"),
+      fileName: "Limitless-card-expenses-" + (pack.month || "month") + ".csv",
+      n: pack.n,
+      total: pack.total,
+      rows: pack.rows,
+      month: pack.month,
+      monthLabel: pack.monthLabel,
+    };
+  }
+
+  function cardExportXmlEsc(s) {
+    return String(s == null ? "" : s)
+      .replace(/&/g, "&amp;")
+      .replace(/</g, "&lt;")
+      .replace(/>/g, "&gt;")
+      .replace(/"/g, "&quot;");
+  }
+
+  /**
+   * Excel SpreadsheetML for one month of card expenses.
+   * Same workbook shape as the charges bank list. Amounts are real € numbers.
+   * @param {{ month?: string, expenses?: Array, apa?: Array }} opts
+   */
+  function cardExpensesExportExcelXml(opts) {
+    var pack = buildCardExpenseReport(opts);
+    var currencyFmt = cardExportXmlEsc("€#,##0.00");
+    var xml = [];
+    xml.push('<?xml version="1.0" encoding="UTF-8"?>');
+    xml.push('<?mso-application progid="Excel.Sheet"?>');
+    xml.push(
+      '<Workbook xmlns="urn:schemas-microsoft-com:office:spreadsheet" ' +
+        'xmlns:o="urn:schemas-microsoft-com:office:office" ' +
+        'xmlns:x="urn:schemas-microsoft-com:office:excel" ' +
+        'xmlns:ss="urn:schemas-microsoft-com:office:spreadsheet" ' +
+        'xmlns:html="http://www.w3.org/TR/REC-html40">'
+    );
+    xml.push("<Styles>");
+    xml.push('<Style ss:ID="Default" ss:Name="Normal"><Font ss:FontName="Calibri" ss:Size="11"/></Style>');
+    xml.push(
+      '<Style ss:ID="Title"><Font ss:FontName="Calibri" ss:Size="14" ss:Bold="1" ss:Color="#FFFFFF"/>' +
+        '<Interior ss:Color="#1B2A4A" ss:Pattern="Solid"/></Style>'
+    );
+    xml.push(
+      '<Style ss:ID="Header"><Font ss:FontName="Calibri" ss:Size="11" ss:Bold="1"/>' +
+        '<Interior ss:Color="#E8EEF5" ss:Pattern="Solid"/></Style>'
+    );
+    xml.push(
+      '<Style ss:ID="Money"><NumberFormat ss:Format="' +
+        currencyFmt +
+        '"/><Font ss:FontName="Calibri" ss:Size="11"/></Style>'
+    );
+    xml.push(
+      '<Style ss:ID="MoneyBold"><NumberFormat ss:Format="' +
+        currencyFmt +
+        '"/><Font ss:FontName="Calibri" ss:Size="11" ss:Bold="1"/>' +
+        '<Interior ss:Color="#FFF3CD" ss:Pattern="Solid"/></Style>'
+    );
+    xml.push(
+      '<Style ss:ID="TotalLabel"><Font ss:FontName="Calibri" ss:Size="11" ss:Bold="1"/>' +
+        '<Interior ss:Color="#FFF3CD" ss:Pattern="Solid"/></Style>'
+    );
+    xml.push("</Styles>");
+    xml.push('<Worksheet ss:Name="Card expenses">');
+    xml.push(
+      '<Table ss:ExpandedColumnCount="3" ss:ExpandedRowCount="' +
+        (pack.n + 3) +
+        '" x:FullColumns="1" x:FullRows="1">'
+    );
+    [90, 220, 100].forEach(function (w) {
+      xml.push('<Column ss:AutoFitWidth="0" ss:Width="' + w + '"/>');
+    });
+    function textCell(v, style) {
+      return (
+        '<Cell' +
+        (style ? ' ss:StyleID="' + style + '"' : "") +
+        '><Data ss:Type="String">' +
+        cardExportXmlEsc(v) +
+        "</Data></Cell>"
+      );
+    }
+    function numCell(v, style) {
+      return (
+        '<Cell ss:StyleID="' +
+        (style || "Money") +
+        '"><Data ss:Type="Number">' +
+        round2(num(v)) +
+        "</Data></Cell>"
+      );
+    }
+    xml.push("<Row>");
+    xml.push(
+      '<Cell ss:MergeAcross="2" ss:StyleID="Title"><Data ss:Type="String">' +
+        cardExportXmlEsc(
+          "M/Y LIMITLESS · Card expenses · " +
+            pack.monthLabel +
+            " · " +
+            pack.n +
+            (pack.n === 1 ? " expense" : " expenses")
+        ) +
+        "</Data></Cell>"
+    );
+    xml.push("</Row>");
+    xml.push("<Row>");
+    ["Date", "Vendor", "Amount"].forEach(function (h) {
+      xml.push(textCell(h, "Header"));
+    });
+    xml.push("</Row>");
+    pack.rows.forEach(function (r) {
+      xml.push("<Row>");
+      xml.push(textCell(r.date || ""));
+      xml.push(textCell(r.vendor || ""));
+      xml.push(numCell(r.amount, "Money"));
+      xml.push("</Row>");
+    });
+    xml.push("<Row>");
+    xml.push(textCell("", "TotalLabel"));
+    xml.push(textCell("TOTAL", "TotalLabel"));
+    xml.push(numCell(pack.total, "MoneyBold"));
+    xml.push("</Row>");
+    xml.push("</Table>");
+    xml.push("</Worksheet>");
+    xml.push("</Workbook>");
+    return {
+      xml: xml.join(""),
+      fileName: "Limitless-card-expenses-" + (pack.month || "month") + ".xls",
+      mime: "application/vnd.ms-excel",
+      n: pack.n,
+      total: pack.total,
+      rows: pack.rows,
+      month: pack.month,
+      monthLabel: pack.monthLabel,
+    };
+  }
+
   return {
     EXP_REIMBURSE_CATS: EXP_REIMBURSE_CATS,
     EXP_POCKET_CAPTAIN: EXP_POCKET_CAPTAIN,
@@ -3462,6 +3762,11 @@ function summarizeMonthSettlement(opts) {
     collectOpenTipPayouts: collectOpenTipPayouts,
     summarizeOpenTipOwedByPerson: summarizeOpenTipOwedByPerson,
     summarizeMonthSettlement: summarizeMonthSettlement,
+    cardPaidByKind: cardPaidByKind,
+    expenseCountsAsCardPayment: expenseCountsAsCardPayment,
+    buildCardExpenseReport: buildCardExpenseReport,
+    cardExpensesExportCsv: cardExpensesExportCsv,
+    cardExpensesExportExcelXml: cardExpensesExportExcelXml,
     /** Sum cash-in lines that count toward petty (caller already filtered tips). */
     sumCashInAmounts: function (rows) {
       var s = 0;
