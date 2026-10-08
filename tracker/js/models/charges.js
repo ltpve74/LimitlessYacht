@@ -670,11 +670,96 @@ function chargeExportPaidBy(c) {
 }
 
 /**
+ * One-line address for a spreadsheet cell (street, city, tax ID).
+ * @param {string} s
+ * @returns {string}
+ */
+function chargeExportAddressText(s) {
+  return String(s || "")
+    .replace(/\r\n/g, "\n")
+    .split("\n")
+    .map(function (line) {
+      return String(line || "").trim();
+    })
+    .filter(Boolean)
+    .join(", ");
+}
+
+/**
+ * Lead behind a charge, when we can see one.
+ * Id on the charge, then the APA pot’s lead: key, then guest name inside the charter dates.
+ * @param {object} c
+ * @param {{ leads?: Array, apa?: Array }} [opts]
+ * @returns {object|null}
+ */
+function chargeExportFindLead(c, opts) {
+  opts = opts || {};
+  var list = Array.isArray(opts.leads) ? opts.leads : [];
+  var trips = Array.isArray(opts.apa) ? opts.apa : [];
+  var leadId = String((c && (c.leadId || c.fromLeadId)) || "").trim();
+  if (!leadId && c && c.apaTripId) {
+    var tripId = String(c.apaTripId);
+    for (var a = 0; a < trips.length; a++) {
+      var trip = trips[a];
+      if (!trip || String(trip.id) !== tripId) continue;
+      var key = String(trip.clientKey || "");
+      if (key.indexOf("lead:") === 0) leadId = key.slice(5);
+      else if (trip.leadId) leadId = String(trip.leadId);
+      break;
+    }
+  }
+  if (leadId) {
+    for (var i = 0; i < list.length; i++) {
+      if (list[i] && String(list[i].id) === leadId) return list[i];
+    }
+  }
+  var date = String((c && c.date) || "").slice(0, 10);
+  var nameKey = util.softNameKey ? util.softNameKey(c && (c.client || c.guest || "")) : "";
+  if (!nameKey || !date) return null;
+  for (var j = 0; j < list.length; j++) {
+    var L = list[j];
+    if (!L) continue;
+    var ls = String(L.start || L.cdate || "").slice(0, 10);
+    var le = String(L.end || L.start || L.cdate || "").slice(0, 10);
+    if (!ls) continue;
+    if (!le) le = ls;
+    if (date < ls || date > le) continue;
+    var leadKey = util.softNameKey(L.name || L.icsGuestName || "");
+    if (leadKey && leadKey === nameKey) return L;
+  }
+  return null;
+}
+
+/**
+ * Who the charge is for on the spreadsheet.
+ * A lead with a name and address fills both. Click & Boat and owner-sourced
+ * leads have no billing details, so the name is that label and the address stays blank.
+ * @param {object} c
+ * @param {object|null} lead
+ * @returns {{ name: string, address: string }}
+ */
+function chargeExportParty(c, lead) {
+  var src = lead && leads.leadSource ? leads.leadSource(lead) : "";
+  if (src === "clickboat") return { name: "Click & Boat", address: "" };
+  if (src === "ownersourced") return { name: "Owner sourced", address: "" };
+  var name = "";
+  var address = "";
+  if (lead) {
+    name = String(lead.billToName || lead.name || "").trim();
+    address = chargeExportAddressText(lead.billToAddr || "");
+  }
+  if (!name) name = String((c && (c.client || c.guest)) || "").trim();
+  if (!address) address = chargeExportAddressText((c && c.billToAddr) || "");
+  if (!name) name = "—";
+  return { name: name, address: address };
+}
+
+/**
  * Flat rows for spreadsheet export of charges (to date).
  * Pure — no DOM. Sort oldest → newest for manager books.
  *
  * @param {Array} charters
- * @param {{ asOfYmd?: string }} [opts] asOfYmd YYYY-MM-DD — exclude dates after (default: include all)
+ * @param {{ asOfYmd?: string, leads?: Array, apa?: Array }} [opts] asOfYmd YYYY-MM-DD — exclude dates after (default: include all)
  * @returns {{ rows: Array, n: number, total: number, cashTotal: number, cardTotal: number, asOf: string }}
  */
 function buildChargesExportRows(charters, opts) {
@@ -693,10 +778,12 @@ function buildChargesExportRows(charters, opts) {
     var invP = chargeInvoicePart(c);
     var paidBy = chargeExportPaidBy(c);
     var paid = chargeIsPaid(c);
+    var party = chargeExportParty(c, chargeExportFindLead(c, opts));
     rows.push({
       id: c.id || "",
       date: date,
-      name: String(c.client || "").trim() || "—",
+      name: party.name,
+      address: party.address,
       amount: amount,
       paidBy: paidBy,
       status: paid ? "Paid" : "Pending",
@@ -747,9 +834,9 @@ function chargeExportMoneyText(n) {
 /**
  * CSV text for charges export (UTF-8).
  * Amount columns use € display text (CSV cannot store Excel currency formats).
- * Columns: Date, Name, Amount, Paid by, Status, Cash amount, Card amount, Type, Notes
+ * Columns: Date, Name, Address, Amount, Paid by, Status, Cash amount, Card amount, Type, Notes
  * @param {Array} charters
- * @param {{ asOfYmd?: string }} [opts]
+ * @param {{ asOfYmd?: string, leads?: Array, apa?: Array }} [opts]
  * @returns {{ csv: string, fileName: string, n: number, total: number }}
  */
 function chargesExportCsv(charters, opts) {
@@ -759,12 +846,13 @@ function chargesExportCsv(charters, opts) {
     if (/[",\n\r]/.test(s)) return '"' + s.replace(/"/g, '""') + '"';
     return s;
   }
-  var lines = ["Date,Name,Amount,Paid by,Status,Cash amount,Card amount,Type,Notes"];
+  var lines = ["Date,Name,Address,Amount,Paid by,Status,Cash amount,Card amount,Type,Notes"];
   pack.rows.forEach(function (r) {
     lines.push(
       [
         cell(r.date),
         cell(r.name),
+        cell(r.address),
         cell(chargeExportMoneyText(r.amount)),
         cell(r.paidBy),
         cell(r.status),
@@ -781,6 +869,7 @@ function chargesExportCsv(charters, opts) {
       [
         cell(""),
         cell("TOTAL"),
+        cell(""),
         cell(chargeExportMoneyText(pack.total)),
         cell(""),
         cell(pack.n + " charges"),
@@ -821,7 +910,7 @@ function chargeExportXmlEsc(s) {
  * Excel SpreadsheetML export — amount columns are true numbers + € currency format.
  * CSV cannot do that; this file can. Opens in Excel, Numbers, Google Sheets (upload).
  * @param {Array} charters
- * @param {{ asOfYmd?: string }} [opts]
+ * @param {{ asOfYmd?: string, leads?: Array, apa?: Array }} [opts]
  * @returns {{ xml: string, fileName: string, mime: string, n: number, total: number, rows: Array }}
  */
 function chargesExportExcelXml(charters, opts) {
@@ -863,12 +952,12 @@ function chargesExportExcelXml(charters, opts) {
   xml.push("</Styles>");
   xml.push('<Worksheet ss:Name="Charges">');
   xml.push(
-    '<Table ss:ExpandedColumnCount="9" ss:ExpandedRowCount="' +
+    '<Table ss:ExpandedColumnCount="10" ss:ExpandedRowCount="' +
       (pack.n + 2) +
       '" x:FullColumns="1" x:FullRows="1">'
   );
   /* Column widths (approximate) */
-  [72, 140, 90, 70, 90, 90, 90, 100, 160].forEach(function (w) {
+  [72, 140, 200, 90, 70, 90, 90, 90, 100, 160].forEach(function (w) {
     xml.push('<Column ss:AutoFitWidth="0" ss:Width="' + w + '"/>');
   });
   function textCell(v, style) {
@@ -892,7 +981,7 @@ function chargesExportExcelXml(charters, opts) {
   }
   /* Header */
   xml.push("<Row>");
-  ["Date", "Name", "Amount", "Paid by", "Status", "Cash amount", "Card amount", "Type", "Notes"].forEach(
+  ["Date", "Name", "Address", "Amount", "Paid by", "Status", "Cash amount", "Card amount", "Type", "Notes"].forEach(
     function (h) {
       xml.push(textCell(h, "Header"));
     }
@@ -902,6 +991,7 @@ function chargesExportExcelXml(charters, opts) {
     xml.push("<Row>");
     xml.push(textCell(r.date || ""));
     xml.push(textCell(r.name || ""));
+    xml.push(textCell(r.address || ""));
     xml.push(numCell(r.amount, "Money"));
     xml.push(textCell(r.paidBy || ""));
     xml.push(textCell(r.status || ""));
@@ -915,6 +1005,7 @@ function chargesExportExcelXml(charters, opts) {
     xml.push("<Row>");
     xml.push(textCell("", "TotalLabel"));
     xml.push(textCell("TOTAL", "TotalLabel"));
+    xml.push(textCell("", "TotalLabel"));
     xml.push(numCell(pack.total, "MoneyBold"));
     xml.push(textCell("", "TotalLabel"));
     xml.push(textCell(pack.n + " charges", "TotalLabel"));
@@ -966,6 +1057,8 @@ function chargesExportExcelXml(charters, opts) {
     chargeExportKindLabel: chargeExportKindLabel,
     chargeExportPaidBy: chargeExportPaidBy,
     chargeExportMoneyText: chargeExportMoneyText,
+    chargeExportFindLead: chargeExportFindLead,
+    chargeExportParty: chargeExportParty,
     buildChargesExportRows: buildChargesExportRows,
     chargesExportCsv: chargesExportCsv,
     chargesExportExcelXml: chargesExportExcelXml,

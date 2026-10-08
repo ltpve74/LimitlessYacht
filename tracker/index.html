@@ -1773,7 +1773,7 @@ function selCancelReasonField(cur){
 var EXPECTED_PEOPLE = 2;
 /* Build stamp — shown in Ops → Security so we can verify which code a device
  * actually runs (PWA updates only land after a full close + reopen). */
-var TRACKER_BUILD = "2026-10-08.3";
+var TRACKER_BUILD = "2026-10-08.4";
 var APA_EXP_CATS = ["Drinks & Bar","Dockage / Marina","Crew Tips","Miscellaneous","Fuel / Diesel","Food & Provisions"];
 var APA_PAID_BY = ["APA cash","Ship card","Guest card","Bank transfer"];
 var APA_DASH_CATS = [
@@ -3929,10 +3929,12 @@ function chExportCsvToDate(){
       pack=LY_CONTROLLERS.charges.exportCsv({
         models:typeof LY_MODELS!=="undefined"?LY_MODELS:null,
         charges:state.charters||[],
+        leads:state.leads||[],
+        apa:state.apa||[],
         asOfYmd:asOf
       });
     }else if(typeof LY_MODELS!=="undefined"&&LY_MODELS.chargesExportCsv){
-      pack=LY_MODELS.chargesExportCsv(state.charters||[],{asOfYmd:asOf});
+      pack=LY_MODELS.chargesExportCsv(state.charters||[],{asOfYmd:asOf,leads:state.leads||[],apa:state.apa||[]});
     }
   }catch(eX){
     window.alert("Could not build charges export.\n\n"+(eX&&eX.message?eX.message:eX));
@@ -3970,10 +3972,12 @@ function chExportExcelToDate(){
       pack=LY_CONTROLLERS.charges.exportExcel({
         models:typeof LY_MODELS!=="undefined"?LY_MODELS:null,
         charges:state.charters||[],
+        leads:state.leads||[],
+        apa:state.apa||[],
         asOfYmd:asOf
       });
     }else if(typeof LY_MODELS!=="undefined"&&LY_MODELS.chargesExportExcelXml){
-      pack=LY_MODELS.chargesExportExcelXml(state.charters||[],{asOfYmd:asOf});
+      pack=LY_MODELS.chargesExportExcelXml(state.charters||[],{asOfYmd:asOf,leads:state.leads||[],apa:state.apa||[]});
     }
   }catch(eX){
     window.alert("Could not build Excel export.\n\n"+(eX&&eX.message?eX.message:eX));
