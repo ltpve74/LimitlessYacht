@@ -8,7 +8,7 @@ See [`.agent/briefs/tracker-v1-mvc-blueprint.md`](../../../.agent/briefs/tracker
 |------|------|
 | `util.js` | `num`, `round2`, `moneyFromBase`, `invoiceSplitGross` |
 | `leads.js` | Sources, free cash, commission, projected net, realised glimpse helpers |
-| `charges.js` | Bill type, cash-to-boat, VAT parts, captain upsell commission, charges spreadsheet (name and address from the lead) |
+| `charges.js` | Bill type, cash-to-boat, VAT parts, captain upsell commission, charges spreadsheet (bank list: name, address, cash left out, paid and unpaid split) |
 | `expenses.js` | Petty cash, reimbursement, crew day-pay, pocket liabilities, month settlement |
 | `apa.js` | Guest pot totals / overage (diesel costs injected) |
 | `receipt.js` | Photo read → shop, date, euro total. Suggests fields only; flags a same shop/day/total already in the books. Never a ledger write |

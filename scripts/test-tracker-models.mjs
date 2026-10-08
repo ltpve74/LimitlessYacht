@@ -1625,7 +1625,7 @@ console.log("\n[Charges — cashToBoat / VAT]");
     ) === false
   );
 
-  /* Spreadsheet export — date, name, amount, card/cash */
+  /* Spreadsheet export — bank only (cash left out), paid and unpaid split */
   const exportList = [
     {
       id: "c-cash",
@@ -1665,19 +1665,36 @@ console.log("\n[Charges — cashToBoat / VAT]");
       cashPaid: 400,
       payStatus: "Paid",
     },
+    {
+      id: "c-due",
+      date: "2026-07-20",
+      client: "Due Guest",
+      amount: 300,
+      billType: "invoice",
+      payMethod: "Card",
+      payStatus: "Pending",
+    },
   ];
   const expPack = M.buildChargesExportRows(exportList, { asOfYmd: "2026-07-31" });
-  ok("export n excludes future", expPack.n === 3);
-  ok("export oldest first", expPack.rows[0].name === "Cash Guest");
-  ok("export cash paidBy", expPack.rows[0].paidBy === "Cash");
-  ok("export mix paidBy", expPack.rows[1].paidBy === "Mix");
-  ok("export card paidBy", expPack.rows[2].paidBy === "Card");
-  ok("export mix cash slice 400", near(expPack.rows[1].cashAmount, 400));
-  ok("export mix card slice 600", near(expPack.rows[1].cardAmount, 600));
-  ok("export total amount sum", near(expPack.total, 500 + 1210 + 1000));
+  ok("export n excludes future and cash", expPack.n === 3);
+  ok("export omits a cash charge", expPack.rows.every((r) => r.name !== "Cash Guest"));
+  ok("export paid block is oldest first", expPack.paidRows[0].name === "Mix Guest, Jr.");
+  ok("export unpaid is its own block", expPack.unpaidRows.length === 1 && expPack.unpaidRows[0].name === "Due Guest");
+  ok("export mix paidBy", expPack.paidRows[0].paidBy === "Mix");
+  ok("export card paidBy", expPack.paidRows[1].paidBy === "Card");
+  ok("export mix amount is the bank part only", near(expPack.paidRows[0].amount, 600));
+  ok("export card amount is the full invoice", near(expPack.paidRows[1].amount, 1210));
+  ok("export paid total excludes cash", near(expPack.paidTotal, 600 + 1210));
+  ok("export unpaid total", near(expPack.unpaidTotal, 300));
+  ok("export total is paid plus unpaid bank", near(expPack.total, 600 + 1210 + 300));
+  ok(
+    "export omits cash even when the notes differ from the ledger",
+    M.buildChargesExportRows([loose], { asOfYmd: "2026-07-31" }).n === 0
+  );
   const csvPack = M.chargesExportCsv(exportList, { asOfYmd: "2026-07-31" });
-  ok("export csv has header", csvPack.csv.indexOf("Date,Name,Address,Amount,Paid by") === 0);
-  ok("export unlinked charge keeps client name", expPack.rows[0].name === "Cash Guest" && expPack.rows[0].address === "");
+  ok("export csv has header", csvPack.csv.indexOf("Date,Name,Address,Amount,Paid by,Status,Type,Notes") === 0);
+  ok("export csv has no cash column", csvPack.csv.indexOf("Cash amount") < 0);
+  ok("export unlinked charge keeps client name", expPack.paidRows[1].name === "Card Guest" && expPack.paidRows[1].address === "");
   const billed = M.buildChargesExportRows(
     [{ id: "c-bill", date: "2026-07-10", client: "Ana", leadId: "L-ana", amount: 500, billType: "invoice", payMethod: "Card", payStatus: "Paid" }],
     {
@@ -1712,27 +1729,29 @@ console.log("\n[Charges — cashToBoat / VAT]");
   ok("export click and boat has no personal name", sourced.rows[1].name === "Click & Boat" && sourced.rows[1].address === "");
   ok("export owner sourced uses the apa lead", sourced.rows[0].name === "Owner sourced" && sourced.rows[0].address === "");
   const onCharge = M.buildChargesExportRows(
-    [{ id: "c-addr", date: "2026-07-08", client: "Walk-in", billToAddr: "Portixol, Palma", amount: 200, billType: "cash", payMethod: "Cash", payStatus: "Paid", cashPaid: 200 }],
+    [{ id: "c-addr", date: "2026-07-08", client: "Walk-in", billToAddr: "Portixol, Palma", amount: 200, billType: "invoice", payMethod: "Card", payStatus: "Paid" }],
     { asOfYmd: "2026-07-31" }
   );
   ok("export address from the charge when no lead", onCharge.rows[0].name === "Walk-in" && onCharge.rows[0].address === "Portixol, Palma");
   ok("export csv escapes comma name", csvPack.csv.indexOf('"Mix Guest, Jr."') >= 0);
   ok("export csv fileName uses asOf", csvPack.fileName === "Limitless-charges-2026-07-31.csv");
   ok("export csv n 3", csvPack.n === 3);
-  ok("export csv has TOTAL row", /TOTAL/.test(csvPack.csv));
+  ok("export csv splits paid and unpaid", csvPack.csv.indexOf("\nPaid,") >= 0 && csvPack.csv.indexOf("\nUnpaid,") >= 0);
+  ok("export csv has no cash guest", csvPack.csv.indexOf("Cash Guest") < 0);
+  ok("export csv paid total is the bank part", csvPack.csv.indexOf("€1.810,00") >= 0 && csvPack.csv.indexOf("2 charges") >= 0);
   ok("export money text euro", M.chargeExportMoneyText(1210) === "€1.210,00");
-  ok("export csv amounts as euro text", csvPack.csv.indexOf("€500,00") >= 0 || csvPack.csv.indexOf("€500.00") >= 0 || /€/.test(csvPack.csv));
+  ok("export csv amounts as euro text", csvPack.csv.indexOf("€1.210,00") >= 0);
   const lastLine = csvPack.csv.trim().split("\n").pop();
-  ok("export csv last line is TOTAL", lastLine.indexOf("TOTAL") >= 0);
-  ok("export csv TOTAL count label", lastLine.indexOf("3 charges") >= 0);
+  ok("export csv last line is the unpaid TOTAL", lastLine.indexOf("TOTAL") >= 0 && lastLine.indexOf("1 charge") >= 0);
   const xls = M.chargesExportExcelXml(exportList, { asOfYmd: "2026-07-31" });
   ok("export excel n 3", xls.n === 3);
   ok("export excel fileName xls", xls.fileName === "Limitless-charges-2026-07-31.xls");
   ok("export excel is SpreadsheetML", xls.xml.indexOf("urn:schemas-microsoft-com:office:spreadsheet") >= 0);
   ok("export excel has currency format", xls.xml.indexOf("NumberFormat") >= 0 && xls.xml.indexOf("€") >= 0);
   ok("export excel number cells", xls.xml.indexOf('ss:Type="Number"') >= 0);
-  ok("export excel has TOTAL", xls.xml.indexOf("TOTAL") >= 0);
-  ok("export excel has address column", xls.xml.indexOf("Address") >= 0 && xls.xml.indexOf('ExpandedColumnCount="10"') >= 0);
+  ok("export excel splits paid and unpaid", xls.xml.indexOf(">Paid<") >= 0 && xls.xml.indexOf(">Unpaid<") >= 0);
+  ok("export excel has no cash column", xls.xml.indexOf("Cash amount") < 0 && xls.xml.indexOf("Cash Guest") < 0);
+  ok("export excel has address column", xls.xml.indexOf("Address") >= 0 && xls.xml.indexOf('ExpandedColumnCount="8"') >= 0);
   const xlsBill = M.chargesExportExcelXml(
     [{ id: "c-bill", date: "2026-07-10", client: "Ana", leadId: "L-ana", amount: 500, billType: "invoice", payMethod: "Card", payStatus: "Paid" }],
     {
@@ -1741,7 +1760,8 @@ console.log("\n[Charges — cashToBoat / VAT]");
     }
   );
   ok("export excel writes the address", xlsBill.xml.indexOf("Ana Ruiz") >= 0 && xlsBill.xml.indexOf("Carrer de la Mar 1, Palma") >= 0);
-  ok("export excel total amount cell", xls.xml.indexOf(">" + String(500 + 1210 + 1000) + "<") >= 0 || xls.xml.indexOf(">2710<") >= 0);
+  ok("export excel paid total is the bank part", xls.xml.indexOf(">1810<") >= 0);
+  ok("export excel unpaid total", xls.xml.indexOf(">300<") >= 0);
 }
 
 /* ---- APA pot totals (model) ---- */
@@ -3870,13 +3890,12 @@ console.log("\n[Controllers — expenses + charges + leads + apa + stews]");
     ],
     asOfYmd: "2026-06-30",
   });
-  ok("ctrl export csv n 2", ctrlCsv.n === 2);
-  ok("ctrl export csv has Card", ctrlCsv.csv.indexOf("Card") >= 0);
-  ok("ctrl export csv has Cash", ctrlCsv.csv.indexOf("Cash") >= 0);
+  ok("ctrl export csv omits cash", ctrlCsv.n === 1 && ctrlCsv.csv.indexOf("Cash") < 0);
+  ok("ctrl export csv has Card", ctrlCsv.csv.indexOf("Card") >= 0 && ctrlCsv.csv.indexOf("\nPaid,") >= 0);
   const ctrlXls = C.charges.exportExcel({
     models: M,
     charges: [
-      { date: "2026-06-01", client: "A", amount: 50, billType: "cash", payMethod: "Cash", payStatus: "Paid", cashPaid: 50 },
+      { date: "2026-06-01", client: "A", amount: 50, billType: "invoice", payMethod: "Card", payStatus: "Paid" },
     ],
     asOfYmd: "2026-06-30",
   });
