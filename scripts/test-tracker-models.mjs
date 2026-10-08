@@ -62,6 +62,7 @@ function checkTrackerHtmlSyntax() {
     "tracker/js/controllers/index.js",
     "tracker/js/pdf/expenses-cash.js",
     "tracker/js/pdf/owner-cash.js",
+    "tracker/js/pdf/card-receipts.js",
   ];
   for (const rel of modelFiles) {
     const chk = spawnSync(process.execPath, ["--check", join(root, rel)], { encoding: "utf8" });
@@ -72,6 +73,7 @@ function checkTrackerHtmlSyntax() {
 checkTrackerHtmlSyntax();
 const C = require(join(root, "tracker/js/controllers/index.js"));
 const OwnerCashPdf = require(join(root, "tracker/js/pdf/owner-cash.js"));
+const CardReceiptsPdf = require(join(root, "tracker/js/pdf/card-receipts.js"));
 function near(a, b, eps) {
   eps = eps == null ? 0.02 : eps;
   return Math.abs(Number(a) - Number(b)) <= eps;
@@ -4858,6 +4860,353 @@ console.log("\n[Receipt photo read — suggest only, never a ledger write]");
       html.indexOf("Company card") !== -1 &&
       html.indexOf('expChoosePay("card")') !== -1 &&
       html.indexOf('expChoosePay("petty")') !== -1
+  );
+  ok(
+    "expenses month bar exports the card spreadsheet and receipt PDF",
+    html.indexOf('id="expExportCardExcel"') !== -1 &&
+      html.indexOf('id="expExportCardPdf"') !== -1 &&
+      html.indexOf("Card Excel") !== -1 &&
+      html.indexOf("Card receipts") !== -1 &&
+      html.indexOf("expExportCardExcel(expMonth)") !== -1 &&
+      html.indexOf("cardMonthExcel") !== -1 &&
+      html.indexOf("cardMonthReport") !== -1 &&
+      html.indexOf("LY_PDF.cardReceipts") !== -1
+  );
+}
+
+/* ---- Monthly card expenses (spreadsheet + receipt PDF) ---- */
+console.log("[Expenses — card month]");
+{
+  const PNG =
+    "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mP8z8BQDwAEhQGAhKmMIQAAAABJRU5ErkJggg==";
+  const books = {
+    month: "2026-09",
+    expenses: [
+      { id: "cash1", date: "2026-09-02", vendor: "Cash shop", amount: 10, payMethod: "Cash", receipt: PNG },
+      { id: "card-late", date: "2026-09-20", vendor: "Repsol", amount: 80, payMethod: "Credit Card" },
+      { id: "card-early", date: "2026-09-03", vendor: "Mercadona", amount: 12.5, payMethod: "Credit Card", receipt: PNG },
+      { id: "oct", date: "2026-10-01", vendor: "October card", amount: 9, payMethod: "Credit Card" },
+      {
+        id: "bank-exp",
+        date: "2026-09-05",
+        vendor: "Marina transfer",
+        amount: 300,
+        payMethod: "Credit Card",
+        fromApaLineId: "line-bank",
+      },
+      {
+        id: "ship-exp",
+        date: "2026-09-08",
+        vendor: "Makro",
+        amount: 40,
+        payMethod: "Credit Card",
+        fromApaLineId: "line-ship",
+        receipt: PNG,
+      },
+    ],
+    apa: [
+      {
+        id: "trip1",
+        expenses: [
+          { id: "line-bank", paidBy: "Bank transfer", date: "2026-09-05", amount: 300, vendor: "Marina transfer", expenseId: "bank-exp" },
+          { id: "line-ship", paidBy: "Ship card", date: "2026-09-08", amount: 40, vendor: "Makro", expenseId: "ship-exp", receipt: PNG },
+          { id: "line-cash", paidBy: "APA cash", date: "2026-09-04", amount: 15, vendor: "Taxi" },
+          { id: "line-guest", paidBy: "Guest card", date: "2026-09-11", amount: 22, vendor: "Guest fuel", receipt: PNG },
+        ],
+        provisions: [
+          { id: "line-prov", paidBy: "Ship card", date: "2026-09-01", amount: 18, supplier: "Mercadona provis", items: "food" },
+        ],
+      },
+    ],
+  };
+  const report = M.buildCardExpenseReport(books);
+  ok("card month keeps five card rows", report.n === 5, "got " + report.n + " " + report.rows.map(function (r) { return r.vendor; }).join(", "));
+  ok(
+    "card month is date order and skips cash, bank, APA cash, and other months",
+    report.rows.map(function (r) { return r.vendor; }).join("|") === "Mercadona provis|Mercadona|Makro|Guest fuel|Repsol"
+  );
+  ok("card month total is the card rows only", near(report.total, 18 + 12.5 + 40 + 22 + 80));
+  ok("ship card already on an expense is not listed twice", report.rows.filter(function (r) { return r.vendor === "Makro"; }).length === 1);
+  ok("card row with a photo keeps it, and a missing photo stays blank", report.rows[1].hasReceipt === true && report.rows[4].hasReceipt === false);
+  ok("September label", report.monthLabel === "September 2026");
+  const csv = M.cardExpensesExportCsv(books);
+  ok(
+    "card csv columns, order, and total",
+    csv.csv.indexOf("Date,Vendor,Amount\n2026-09-01,Mercadona provis,18.00") === 0 &&
+      csv.csv.indexOf("\n,TOTAL,172.50") !== -1 &&
+      csv.csv.indexOf("Cash shop") === -1 &&
+      csv.csv.indexOf("Marina transfer") === -1 &&
+      csv.fileName === "Limitless-card-expenses-2026-09.csv"
+  );
+  const xls = M.cardExpensesExportExcelXml(books);
+  ok(
+    "card excel is the 3-column sheet with a euro total",
+    xls.xml.indexOf("Date") !== -1 &&
+      xls.xml.indexOf("Vendor") !== -1 &&
+      xls.xml.indexOf("Amount") !== -1 &&
+      xls.xml.indexOf(">TOTAL<") !== -1 &&
+      xls.xml.indexOf(">172.5<") !== -1 &&
+      xls.xml.indexOf('ExpandedColumnCount="3"') !== -1 &&
+      xls.xml.indexOf("Cash shop") === -1 &&
+      xls.xml.indexOf("data:image") === -1 &&
+      xls.fileName === "Limitless-card-expenses-2026-09.xls" &&
+      xls.mime === "application/vnd.ms-excel"
+  );
+  ok(
+    "controller card report matches the model",
+    C.expenses.cardMonthReport(books).n === 5 && C.expenses.cardMonthExcel(books).total === xls.total
+  );
+  const empty = M.buildCardExpenseReport({ month: "2026-09", expenses: books.expenses.filter(function (e) { return e.payMethod === "Cash"; }), apa: [] });
+  ok("cash-only month has no card rows", empty.n === 0 && empty.total === 0);
+  ok("card receipt pdf file name", CardReceiptsPdf.fileName("2026-09") === "Limitless-card-receipts-2026-09.pdf");
+  const PDFLib = require(join(root, "tracker/lib/pdf-lib.min.js"));
+  const { inflateSync } = await import("zlib");
+  async function cardPdfText(rep) {
+    const blob = await CardReceiptsPdf.build(rep, PDFLib);
+    const bytes = new Uint8Array(await blob.arrayBuffer());
+    const loaded = await PDFLib.PDFDocument.load(bytes);
+    const raw = Buffer.from(bytes).toString("latin1");
+    const streams = [];
+    const re = /stream\r?\n([\s\S]*?)\r?\nendstream/g;
+    let m;
+    while ((m = re.exec(raw))) {
+      try {
+        streams.push(inflateSync(Buffer.from(m[1], "latin1")).toString("latin1"));
+      } catch (e) {}
+    }
+    const text = (streams.join("\n").match(/<([0-9A-Fa-f]+)>\s*Tj/g) || [])
+      .map(function (tok) {
+        return Buffer.from(tok.slice(1, tok.indexOf(">")), "hex").toString("latin1");
+      })
+      .join("\n");
+    return { pages: loaded.getPageCount(), text: text, hasImage: raw.indexOf("/Image") !== -1 };
+  }
+  const packed = await cardPdfText(report);
+  ok("card receipt pdf has one page per row", packed.pages === 5, "pages " + packed.pages);
+  ok(
+    "card receipt pdf labels follow the spreadsheet and keeps a photo",
+    packed.text.indexOf("Mercadona provis") !== -1 &&
+      packed.text.indexOf("Mercadona provis") < packed.text.indexOf("Repsol") &&
+      packed.text.indexOf("No receipt photo") !== -1 &&
+      packed.hasImage
+  );
+  const quiet = await cardPdfText(empty);
+  ok(
+    "empty card month still makes a one-page PDF",
+    quiet.pages === 1 && quiet.text.indexOf("No card expenses this month") !== -1 && !quiet.hasImage
+  );
+}
+
+/* ---- Duplicate expenses for one month ---- */
+console.log("[Expenses — duplicate detection]");
+{
+  const JPEG = "data:image/jpeg;base64,/9j/4AAQSkZJRgABAQAAAQABAAD/2wCEAAk";
+  const sep = {
+    month: "2026-09",
+    expenses: [
+      { id: "ef1", date: "2026-09-01", vendor: "Efoil riders", description: "Riders", amount: 1680.01, payMethod: "Credit Card", chargeTo: "boat", source: "manual", receipt: JPEG },
+      { id: "ef2", date: "2026-09-04", vendor: "Efoil riders", description: "APA line", amount: 1680, payMethod: "Credit Card", chargeTo: "apa", source: "apa", fromApaLineId: "apa-efoil" },
+      { id: "m1", date: "2026-09-04", vendor: "Marina tramontana", description: "", amount: 445.01, payMethod: "Credit Card", chargeTo: "boat", source: "manual" },
+      { id: "m2", date: "2026-09-04", vendor: "Marina tramontana, Sóller", description: "Berth", amount: 445, payMethod: "Credit Card", chargeTo: "apa", source: "apa", fromApaLineId: "apa-marina" },
+      { id: "er96a", date: "2026-09-02", vendor: "Eroski", amount: 96.58, payMethod: "Cash", paidFrom: "Petty cash", chargeTo: "boat" },
+      { id: "er96b", date: "2026-09-04", vendor: "Eroski", amount: 96.58, payMethod: "Credit Card", chargeTo: "boat" },
+      { id: "tf1", date: "2026-09-02", vendor: "tender fuel", amount: 50, payMethod: "Cash", paidFrom: "Petty cash", chargeTo: "boat" },
+      { id: "tf2", date: "2026-09-04", vendor: "Tender fuel", amount: 50, payMethod: "Credit Card", chargeTo: "boat" },
+      { id: "su1", date: "2026-09-03", vendor: "Suculenta", amount: 18, payMethod: "Cash", paidFrom: "Petty cash" },
+      { id: "su2", date: "2026-09-04", vendor: "Suculenta", amount: 18, payMethod: "Credit Card" },
+      { id: "er15a", date: "2026-09-06", vendor: "Eroski", amount: 15.99, payMethod: "Credit Card" },
+      { id: "er15b", date: "2026-09-08", vendor: "Eroski", amount: 15.99, payMethod: "Cash", paidFrom: "Petty cash" },
+      { id: "er39a", date: "2026-09-10", vendor: "Eroski", amount: 39.2, payMethod: "Credit Card" },
+      { id: "er39b", date: "2026-09-11", vendor: "Eroski", amount: 39.2, payMethod: "Credit Card" },
+      { id: "ts1", date: "2026-09-14", vendor: "Tender service", amount: 20, payMethod: "Cash", paidFrom: "Petty cash" },
+      { id: "ts2", date: "2026-09-15", vendor: "Tender service", amount: 20, payMethod: "Credit Card" },
+      { id: "crew1", date: "2026-09-05", vendor: "Toni", description: "Day pay — Guest A", amount: 150, payMethod: "Cash", paidFrom: "Petty cash", category: "Crew Salaries", source: "stew", stewPayKind: "dayPay", stewId: "toni", stewEventKey: "lead:charter-a" },
+      { id: "crew2", date: "2026-09-08", vendor: "Toni", description: "Day pay — Guest B", amount: 150, payMethod: "Cash", paidFrom: "Petty cash", category: "Crew Salaries", source: "stew", stewPayKind: "dayPay", stewId: "toni", stewEventKey: "lead:charter-b" },
+      { id: "crew3", date: "2026-09-12", vendor: "Laura", description: "Day pay — Guest C", amount: 150, payMethod: "Cash", paidFrom: "Petty cash", category: "Crew Salaries", source: "stew", stewPayKind: "dayPay", stewId: "laura", stewEventKey: "lead:charter-c" },
+      { id: "crew4", date: "2026-09-12", vendor: "Laura", description: "Day pay — Guest C", amount: 150, payMethod: "Cash", paidFrom: "Petty cash", category: "Crew Salaries", source: "stew", stewPayKind: "dayPay", stewId: "laura", stewEventKey: "lead:charter-c" },
+      { id: "solo", date: "2026-09-20", vendor: "Repsol", amount: 80, payMethod: "Credit Card" },
+      { id: "oct-er", date: "2026-10-02", vendor: "Eroski", amount: 15.99, payMethod: "Credit Card" },
+    ],
+    apa: [
+      {
+        id: "trip-sep",
+        guest: "Smith",
+        expenses: [
+          { id: "apa-efoil", vendor: "Efoil riders", amount: 1680, date: "2026-09-04" },
+          { id: "apa-marina", vendor: "Marina tramontana, Sóller", amount: 445, date: "2026-09-04" },
+        ],
+        provisions: [],
+      },
+    ],
+  };
+  const report = M.findExpenseDuplicates(sep);
+  const ids = report.groups.map(function (g) { return g.id; });
+  ok(
+    "september fixture finds the nine duplicate groups",
+    ids.join(",") === "ef1|ef2,er96a|er96b,tf1|tf2,su1|su2,m1|m2,er15a|er15b,er39a|er39b,crew3|crew4,ts1|ts2",
+    ids.join(",")
+  );
+  function group(id) {
+    return report.groups.filter(function (g) { return g.id === id; })[0];
+  }
+  const efoil = group("ef1|ef2");
+  ok(
+    "efoil is a high-confidence APA copy and the receipt is the keep",
+    efoil && efoil.confidence === "high" && efoil.reason === "APA copy and a separate entry" && efoil.keepId === "ef1" &&
+      efoil.rows[0].hasReceipt === true && efoil.rows[1].hasReceipt === false &&
+      efoil.rows[1].chargeTo === "APA" && efoil.rows[1].apaLink === "Smith · apa-efoil" &&
+      efoil.rows[0].paidLabel === "Credit Card"
+  );
+  const marina = group("m1|m2");
+  ok(
+    "marina matches the longer shop name and keeps the APA row",
+    marina && marina.confidence === "high" && marina.reason === "APA copy and a separate entry" && marina.keepId === "m2" &&
+      marina.rows.some(function (r) { return r.vendor.indexOf("Sóller") !== -1 && r.amount === 445; })
+  );
+  const eroskiCash = group("er96a|er96b");
+  ok(
+    "eroski 96.58 pairs cash with card",
+    eroskiCash && eroskiCash.confidence === "high" && eroskiCash.reason === "Same shop, amount, and a few days apart" &&
+      eroskiCash.rows.some(function (r) { return r.paidLabel === "Cash · Petty cash"; }) &&
+      eroskiCash.rows.some(function (r) { return r.paidLabel === "Credit Card"; })
+  );
+  ok("tender fuel pairs across case and cash versus card", group("tf1|tf2") && group("tf1|tf2").confidence === "high");
+  ok("suculenta on consecutive days is one group", group("su1|su2") && group("su1|su2").confidence === "high");
+  ok("eroski 15.99 stays separate from 39.20 and 96.58", group("er15a|er15b") && group("er15a|er15b").rows.every(function (r) { return r.amount === 15.99; }));
+  ok("eroski 39.20 and 39.2 are one group", group("er39a|er39b") && group("er39a|er39b").rows.every(function (r) { return r.amount === 39.2; }));
+  ok("tender service does not join tender fuel", group("ts1|ts2") && group("ts1|ts2").rows.every(function (r) { return r.vendor === "Tender service"; }));
+  ok(
+    "toni day-pay on two charters is not a duplicate",
+    ids.join(",").indexOf("crew1") === -1 && ids.join(",").indexOf("crew2") === -1
+  );
+  ok(
+    "the same charter entered twice is a duplicate",
+    group("crew3|crew4") && group("crew3|crew4").confidence === "high" && group("crew3|crew4").rows.every(function (r) { return r.crewDayPay === true; })
+  );
+  ok("a one-off repsol line is not a duplicate", ids.join(",").indexOf("solo") === -1);
+  ok("another month does not join this month", ids.join(",").indexOf("oct-er") === -1);
+  const hidden = M.findExpenseDuplicates(Object.assign({}, sep, { dismissed: ["er15a|er15b"] }));
+  ok(
+    "a dismissed pair stays hidden and the other groups remain",
+    hidden.n === 8 && hidden.groups.every(function (g) { return g.id !== "er15a|er15b"; })
+  );
+  const three = {
+    month: "2026-09",
+    expenses: [
+      { id: "er15a", date: "2026-09-06", vendor: "Eroski", amount: 15.99, payMethod: "Credit Card" },
+      { id: "er15b", date: "2026-09-08", vendor: "Eroski", amount: 15.99, payMethod: "Cash", paidFrom: "Petty cash" },
+      { id: "er15c", date: "2026-09-07", vendor: "Eroski", amount: 15.99, payMethod: "Credit Card" },
+    ],
+  };
+  const still = M.findExpenseDuplicates(Object.assign({}, three, { dismissed: ["er15a|er15b"] }));
+  ok(
+    "a new row joining a dismissed pair is shown again",
+    still.n === 1 && still.groups[0].id === "er15a|er15b|er15c"
+  );
+  const pairOnly = M.findExpenseDuplicates({
+    month: "2026-09",
+    expenses: three.expenses.slice(0, 2),
+    dismissed: ["er15c|er15a|er15b"],
+  });
+  ok("a group that is a subset of a dismissed set stays hidden", pairOnly.n === 0);
+  ok(
+    "dismiss plan remembers the sorted pair once",
+    JSON.stringify(M.planExpenseDuplicateDismiss(["su1|su2"], ["er15b", "er15a"])) === JSON.stringify(["er15a|er15b", "su1|su2"]) &&
+      JSON.stringify(M.planExpenseDuplicateDismiss(["er15a|er15b"], ["er15a", "er15b"])) === JSON.stringify(["er15a|er15b"])
+  );
+  const newerBare = {
+    month: "2026-09",
+    updatedAt: "2026-10-08T00:00:00.000Z",
+    pettyStart: 90,
+    cashIns: [],
+  };
+  const olderDismiss = {
+    month: "2026-09",
+    updatedAt: "2026-09-30T00:00:00.000Z",
+    pettyStart: 40,
+    cashIns: [],
+    dupDismiss: ["er15a|er15b"],
+  };
+  const kept = M.mergeExpPettyMonths([newerBare], [olderDismiss]);
+  ok(
+    "a newer petty shell keeps a dismiss it did not have",
+    kept.length === 1 && kept[0].pettyStart === 90 && (kept[0].dupDismiss || []).indexOf("er15a|er15b") !== -1
+  );
+  const bothKeys = M.mergeExpPettyMonths(
+    [{ month: "2026-09", updatedAt: "2026-10-08T00:00:00.000Z", pettyStart: 90, cashIns: [], dupDismiss: ["su1|su2"] }],
+    [{ month: "2026-09", updatedAt: "2026-09-30T00:00:00.000Z", pettyStart: 40, cashIns: [], dupDismiss: ["tf1|tf2", "er15a|er15b"] }]
+  );
+  ok(
+    "petty merge unions dismiss keys from both shells",
+    (bothKeys[0].dupDismiss || []).join(",") === "er15a|er15b,su1|su2,tf1|tf2"
+  );
+  const boundary = M.findExpenseDuplicates({
+    month: "2026-08",
+    expenses: [
+      { id: "near-a", date: "2026-08-01", vendor: "Boundary shop", amount: 10, payMethod: "Cash", paidFrom: "Petty cash" },
+      { id: "near-b", date: "2026-08-01", vendor: "Boundary shop", amount: 10.05, payMethod: "Credit Card" },
+      { id: "far-b", date: "2026-08-01", vendor: "Boundary shop", amount: 10.06, payMethod: "Credit Card" },
+      { id: "day-a", date: "2026-08-01", vendor: "Boundary days", amount: 7, payMethod: "Cash", paidFrom: "Petty cash" },
+      { id: "day-b", date: "2026-08-06", vendor: "Boundary days", amount: 7, payMethod: "Credit Card" },
+      { id: "day-c", date: "2026-08-01", vendor: "Boundary week", amount: 8, payMethod: "Cash", paidFrom: "Petty cash" },
+      { id: "day-d", date: "2026-08-07", vendor: "Boundary week", amount: 8, payMethod: "Credit Card" },
+      { id: "med-a", date: "2026-08-02", vendor: "Fuel", amount: 12, payMethod: "Cash", paidFrom: "Petty cash" },
+      { id: "med-b", date: "2026-08-02", vendor: "Fuel bay", amount: 12, payMethod: "Credit Card" },
+      { id: "line-a", date: "2026-08-03", vendor: "Foo shop", amount: 10, payMethod: "Credit Card", fromApaLineId: "line-same" },
+      { id: "line-b", date: "2026-08-09", vendor: "Completely different", amount: 80, payMethod: "Credit Card", fromApaLineId: "line-same", chargeTo: "apa", source: "apa" },
+    ],
+  });
+  const bIds = boundary.groups.map(function (g) { return g.id; });
+  ok("five cents still matches and six cents does not", bIds.indexOf("near-a|near-b") !== -1 && bIds.join(",").indexOf("far-b") === -1, bIds.join(","));
+  ok("five days still matches and six days does not", bIds.indexOf("day-a|day-b") !== -1 && bIds.join(",").indexOf("day-c") === -1, bIds.join(","));
+  const medium = boundary.groups.filter(function (g) { return g.id === "med-a|med-b"; })[0];
+  ok(
+    "a short shop-name overlap is medium confidence",
+    medium && medium.confidence === "medium" && medium.reason === "Shop name matches, amount and dates are close"
+  );
+  const sameLine = boundary.groups.filter(function (g) { return g.id === "line-a|line-b"; })[0];
+  ok(
+    "the same APA line is a duplicate even when the shop and amount differ",
+    sameLine && sameLine.confidence === "high" && sameLine.reason === "Same APA line on two expenses"
+  );
+  const csv = M.expenseDuplicatesExportCsv(sep);
+  ok(
+    "duplicate csv names the groups and does not embed the receipt",
+    csv.csv.indexOf("Group,Confidence,Reason,Suggested keep,Date,Vendor,Description,Type,Charge to,APA,Amount,Receipt") === 0 &&
+      csv.csv.indexOf("Efoil riders") !== -1 &&
+      csv.csv.indexOf("APA copy and a separate entry") !== -1 &&
+      csv.csv.indexOf("data:image") === -1 &&
+      csv.csv.indexOf("Toni") === -1 &&
+      csv.fileName === "Limitless-duplicate-expenses-2026-09.csv"
+  );
+  const none = M.expenseDuplicatesExportCsv({ month: "2026-09", expenses: [], apa: [] });
+  ok("an empty month still downloads a sheet that says none", none.n === 0 && none.csv.indexOf("No likely duplicates") !== -1);
+  ok(
+    "controller duplicate report matches the model",
+    C.expenses.duplicateMonthReport(sep).n === report.n &&
+      C.expenses.duplicateMonthCsv(sep).fileName === csv.fileName &&
+      JSON.stringify(C.expenses.planDuplicateDismiss({ dismissed: [], groupIds: ["ef2", "ef1"] })) === JSON.stringify(["ef1|ef2"])
+  );
+  const htmlDup = readFileSync(join(root, "tracker/index.html"), "utf8");
+  const paintAt = htmlDup.indexOf("function expPaintDuplicateSheet");
+  const deleteAt = htmlDup.indexOf("function expDeleteDuplicatePicks");
+  const paintSrc = htmlDup.slice(paintAt, deleteAt);
+  const deleteSrc = htmlDup.slice(deleteAt, htmlDup.indexOf("function expDismissDuplicateGroup"));
+  ok(
+    "expenses month bar has Find duplicates",
+    htmlDup.indexOf('id="expFindDuplicates"') !== -1 &&
+      htmlDup.indexOf("Find duplicates") !== -1 &&
+      htmlDup.indexOf("expOpenDuplicateReport(expMonth)") !== -1 &&
+      htmlDup.indexOf("Not a duplicate") !== -1 &&
+      htmlDup.indexOf("Download CSV") !== -1
+  );
+  ok(
+    "duplicate delete uses the existing expense delete after a confirm",
+    deleteSrc.indexOf("expDeleteExpenseById(r.id,{silent:true})") !== -1 &&
+      deleteSrc.indexOf("window.confirm(msg)") !== -1 &&
+      deleteSrc.indexOf("It will also be removed from the linked APA pot.") !== -1 &&
+      deleteSrc.indexOf("Crew day-pay from Stews will stay off Expenses until you re-save that charter in Stews.") !== -1 &&
+      paintSrc.indexOf("checked") === -1
   );
 }
 

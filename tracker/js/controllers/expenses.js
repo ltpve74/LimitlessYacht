@@ -340,6 +340,76 @@
     );
   }
 
+  /**
+   * Card expenses for one month. Cash, APA cash, and bank transfers are left out.
+   * @param {{ month?: string, expenses?: Array, apa?: Array, models?: object }} input
+   */
+  function cardMonthReport(input) {
+    input = input || {};
+    return M(input).buildCardExpenseReport({
+      month: input.month,
+      expenses: input.expenses || [],
+      apa: input.apa || [],
+    });
+  }
+
+  /** Excel SpreadsheetML for that card month. Amounts are real € numbers. */
+  function cardMonthExcel(input) {
+    input = input || {};
+    return M(input).cardExpensesExportExcelXml({
+      month: input.month,
+      expenses: input.expenses || [],
+      apa: input.apa || [],
+    });
+  }
+
+  /** CSV twin. The Expenses screen downloads the Excel file. */
+  function cardMonthCsv(input) {
+    input = input || {};
+    return M(input).cardExpensesExportCsv({
+      month: input.month,
+      expenses: input.expenses || [],
+      apa: input.apa || [],
+    });
+  }
+
+  /**
+   * Likely duplicates for one month. The view passes the ledger and the dismiss list.
+   * @param {{ month?: string, expenses?: Array, apa?: Array, dismissed?: Array, models?: object }} input
+   */
+  function duplicateMonthReport(input) {
+    input = input || {};
+    return M(input).findExpenseDuplicates({
+      month: input.month,
+      expenses: input.expenses || [],
+      apa: input.apa || [],
+      dismissed: input.dismissed || [],
+    });
+  }
+
+  /** CSV download of that report. */
+  function duplicateMonthCsv(input) {
+    input = input || {};
+    return M(input).expenseDuplicatesExportCsv({
+      month: input.month,
+      expenses: input.expenses || [],
+      apa: input.apa || [],
+      dismissed: input.dismissed || [],
+    });
+  }
+
+  /**
+   * Next remembered "not a duplicate" list. Does not delete anything.
+   * @param {{ dismissed?: Array, existing?: Array, groupIds?: Array, ids?: Array, models?: object }} input
+   */
+  function planDuplicateDismiss(input) {
+    input = input || {};
+    return M(input).planExpenseDuplicateDismiss(
+      input.dismissed || input.existing || [],
+      input.groupIds || input.ids || []
+    );
+  }
+
   return {
     monthSettlement: monthSettlement,
     openPocketOuts: openPocketOuts,
@@ -354,5 +424,11 @@
     pettyMonthOpen: pettyMonthOpen,
     pettyMonthClose: pettyMonthClose,
     planPettyCarryMaterialize: planPettyCarryMaterialize,
+    cardMonthReport: cardMonthReport,
+    cardMonthExcel: cardMonthExcel,
+    cardMonthCsv: cardMonthCsv,
+    duplicateMonthReport: duplicateMonthReport,
+    duplicateMonthCsv: duplicateMonthCsv,
+    planDuplicateDismiss: planDuplicateDismiss,
   };
 });

@@ -1,5 +1,5 @@
 /* Limitless Tracker service worker — push notifications for the installed PWA */
-/* v18: PDF receipt read includes later pages, where the total often is (2026-10-08.6) */
+/* v20: duplicate expense check on the Expenses month (2026-10-08.8) */
 self.addEventListener("install", function (e) {
   self.skipWaiting();
 });
