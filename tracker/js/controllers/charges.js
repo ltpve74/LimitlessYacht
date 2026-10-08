@@ -53,7 +53,7 @@
   }
 
   /**
-   * CSV payload for download (Date, Name, Amount, Paid by, …).
+   * CSV payload for the bank sheet (cash omitted; paid and unpaid split).
    * Amounts as € text — CSV has no real currency cell format.
    * @param {{ charges?: Array, charters?: Array, asOfYmd?: string, models?: object }} input
    */
@@ -67,7 +67,7 @@
   }
 
   /**
-   * Excel SpreadsheetML — real number cells + € currency format.
+   * Excel SpreadsheetML for the bank. Cash omitted. Paid and unpaid on one sheet.
    * @param {{ charges?: Array, charters?: Array, asOfYmd?: string, models?: object }} input
    */
   function exportExcel(input) {

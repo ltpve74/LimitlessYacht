@@ -755,48 +755,33 @@ function chargeExportParty(c, lead) {
 }
 
 /**
- * Flat rows for spreadsheet export of charges (to date).
- * Pure — no DOM. Sort oldest → newest for manager books.
- *
- * @param {Array} charters
- * @param {{ asOfYmd?: string, leads?: Array, apa?: Array }} [opts] asOfYmd YYYY-MM-DD — exclude dates after (default: include all)
- * @returns {{ rows: Array, n: number, total: number, cashTotal: number, cardTotal: number, asOf: string }}
+ * Part of a charge that belongs on the bank statement.
+ * Cash is left out: this sheet reconciles the bank, and cash never appears there.
+ * A cash-only charge returns 0. A mix returns the invoice/card part only.
+ * @param {object} c
+ * @returns {number}
  */
-function buildChargesExportRows(charters, opts) {
-  opts = opts || {};
-  var asOf = opts.asOfYmd != null ? String(opts.asOfYmd).slice(0, 10) : "";
-  var rows = [];
-  var total = 0;
-  var cashTotal = 0;
-  var cardTotal = 0;
-  (Array.isArray(charters) ? charters : []).forEach(function (c) {
-    if (!c) return;
-    var date = String(c.date || "").slice(0, 10);
-    if (asOf && date && date > asOf) return;
-    var amount = round2(num(c.amount));
-    var cashP = chargeCashPart(c);
-    var invP = chargeInvoicePart(c);
-    var paidBy = chargeExportPaidBy(c);
-    var paid = chargeIsPaid(c);
-    var party = chargeExportParty(c, chargeExportFindLead(c, opts));
-    rows.push({
-      id: c.id || "",
-      date: date,
-      name: party.name,
-      address: party.address,
-      amount: amount,
-      paidBy: paidBy,
-      status: paid ? "Paid" : "Pending",
-      settlement: chargeBillType(c) === "cash" ? "Cash only" : chargeBillType(c) === "mix" ? "Mix" : "Invoice only",
-      cashAmount: round2(cashP),
-      cardAmount: round2(invP),
-      kind: chargeExportKindLabel(c),
-      notes: String(c.notes || "").trim(),
-    });
-    total = round2(total + amount);
-    cashTotal = round2(cashTotal + cashP);
-    cardTotal = round2(cardTotal + invP);
-  });
+function chargeExportBankAmount(c) {
+  if (!c) return 0;
+  if (chargeExportPaidBy(c) === "Cash") return 0;
+  var bank = chargeInvoicePart(c);
+  return bank > 0.009 ? round2(bank) : 0;
+}
+
+/**
+ * @param {number} n
+ * @returns {string}
+ */
+function chargeExportCountLabel(n) {
+  n = Math.round(num(n));
+  return n === 1 ? "1 charge" : String(n) + " charges";
+}
+
+/**
+ * @param {Array} rows
+ * @returns {Array}
+ */
+function chargeExportSortRows(rows) {
   rows.sort(function (a, b) {
     var da = String(a.date || "");
     var db = String(b.date || "");
@@ -805,12 +790,67 @@ function buildChargesExportRows(charters, opts) {
     if (db && !da) return 1;
     return String(a.name || "").localeCompare(String(b.name || ""));
   });
+  return rows;
+}
+
+/**
+ * Flat rows for the bank spreadsheet (to date).
+ * Cash-only charges are omitted. Mix charges keep the bank part only.
+ * Paid and unpaid stay in separate lists; rows is paid first, then unpaid.
+ * Pure — no DOM. Each list is oldest → newest.
+ *
+ * @param {Array} charters
+ * @param {{ asOfYmd?: string, leads?: Array, apa?: Array }} [opts] asOfYmd YYYY-MM-DD — exclude dates after (default: include all)
+ * @returns {{ rows: Array, paidRows: Array, unpaidRows: Array, n: number, paidN: number, unpaidN: number, total: number, paidTotal: number, unpaidTotal: number, asOf: string }}
+ */
+function buildChargesExportRows(charters, opts) {
+  opts = opts || {};
+  var asOf = opts.asOfYmd != null ? String(opts.asOfYmd).slice(0, 10) : "";
+  var paidRows = [];
+  var unpaidRows = [];
+  (Array.isArray(charters) ? charters : []).forEach(function (c) {
+    if (!c) return;
+    var date = String(c.date || "").slice(0, 10);
+    if (asOf && date && date > asOf) return;
+    var bank = chargeExportBankAmount(c);
+    if (!(bank > 0.009)) return;
+    var paid = chargeIsPaid(c);
+    var party = chargeExportParty(c, chargeExportFindLead(c, opts));
+    var row = {
+      id: c.id || "",
+      date: date,
+      name: party.name,
+      address: party.address,
+      amount: bank,
+      paidBy: chargeExportPaidBy(c),
+      status: paid ? "Paid" : "Pending",
+      settlement: chargeBillType(c) === "mix" ? "Mix" : "Invoice only",
+      kind: chargeExportKindLabel(c),
+      notes: String(c.notes || "").trim(),
+    };
+    if (paid) paidRows.push(row);
+    else unpaidRows.push(row);
+  });
+  chargeExportSortRows(paidRows);
+  chargeExportSortRows(unpaidRows);
+  var paidTotal = 0;
+  var unpaidTotal = 0;
+  paidRows.forEach(function (r) {
+    paidTotal = round2(paidTotal + r.amount);
+  });
+  unpaidRows.forEach(function (r) {
+    unpaidTotal = round2(unpaidTotal + r.amount);
+  });
   return {
-    rows: rows,
-    n: rows.length,
-    total: total,
-    cashTotal: cashTotal,
-    cardTotal: cardTotal,
+    rows: paidRows.concat(unpaidRows),
+    paidRows: paidRows,
+    unpaidRows: unpaidRows,
+    n: paidRows.length + unpaidRows.length,
+    paidN: paidRows.length,
+    unpaidN: unpaidRows.length,
+    total: round2(paidTotal + unpaidTotal),
+    paidTotal: paidTotal,
+    unpaidTotal: unpaidTotal,
     asOf: asOf || "",
   };
 }
@@ -832,12 +872,13 @@ function chargeExportMoneyText(n) {
 }
 
 /**
- * CSV text for charges export (UTF-8).
- * Amount columns use € display text (CSV cannot store Excel currency formats).
- * Columns: Date, Name, Address, Amount, Paid by, Status, Cash amount, Card amount, Type, Notes
+ * CSV text for the bank charges sheet (UTF-8).
+ * Cash is omitted. Paid and unpaid are two blocks on the same sheet.
+ * Amount is € display text (CSV cannot store Excel currency formats).
+ * Columns: Date, Name, Address, Amount, Paid by, Status, Type, Notes
  * @param {Array} charters
  * @param {{ asOfYmd?: string, leads?: Array, apa?: Array }} [opts]
- * @returns {{ csv: string, fileName: string, n: number, total: number }}
+ * @returns {{ csv: string, fileName: string, n: number, total: number, paidTotal: number, unpaidTotal: number }}
  */
 function chargesExportCsv(charters, opts) {
   var pack = buildChargesExportRows(charters, opts);
@@ -846,40 +887,39 @@ function chargesExportCsv(charters, opts) {
     if (/[",\n\r]/.test(s)) return '"' + s.replace(/"/g, '""') + '"';
     return s;
   }
-  var lines = ["Date,Name,Address,Amount,Paid by,Status,Cash amount,Card amount,Type,Notes"];
-  pack.rows.forEach(function (r) {
-    lines.push(
-      [
-        cell(r.date),
-        cell(r.name),
-        cell(r.address),
-        cell(chargeExportMoneyText(r.amount)),
-        cell(r.paidBy),
-        cell(r.status),
-        cell(chargeExportMoneyText(r.cashAmount)),
-        cell(chargeExportMoneyText(r.cardAmount)),
-        cell(r.kind),
-        cell(r.notes),
-      ].join(",")
-    );
-  });
-  /* Totals row after all records — Amount + cash/card splits */
-  if (pack.n > 0) {
+  var lines = ["Date,Name,Address,Amount,Paid by,Status,Type,Notes"];
+  function pushSection(title, sectionRows, sectionTotal) {
+    lines.push([cell(title), "", "", "", "", "", "", ""].join(","));
+    sectionRows.forEach(function (r) {
+      lines.push(
+        [
+          cell(r.date),
+          cell(r.name),
+          cell(r.address),
+          cell(chargeExportMoneyText(r.amount)),
+          cell(r.paidBy),
+          cell(r.status),
+          cell(r.kind),
+          cell(r.notes),
+        ].join(",")
+      );
+    });
     lines.push(
       [
         cell(""),
         cell("TOTAL"),
         cell(""),
-        cell(chargeExportMoneyText(pack.total)),
+        cell(chargeExportMoneyText(sectionTotal)),
         cell(""),
-        cell(pack.n + " charges"),
-        cell(chargeExportMoneyText(pack.cashTotal)),
-        cell(chargeExportMoneyText(pack.cardTotal)),
+        cell(chargeExportCountLabel(sectionRows.length)),
         cell(""),
         cell(""),
       ].join(",")
     );
   }
+  pushSection("Paid", pack.paidRows, pack.paidTotal);
+  lines.push(["", "", "", "", "", "", "", ""].join(","));
+  pushSection("Unpaid", pack.unpaidRows, pack.unpaidTotal);
   var asOf = pack.asOf || "";
   var stamp = asOf || "all";
   return {
@@ -887,8 +927,8 @@ function chargesExportCsv(charters, opts) {
     fileName: "Limitless-charges-" + stamp + ".csv",
     n: pack.n,
     total: pack.total,
-    cashTotal: pack.cashTotal,
-    cardTotal: pack.cardTotal,
+    paidTotal: pack.paidTotal,
+    unpaidTotal: pack.unpaidTotal,
     rows: pack.rows,
   };
 }
@@ -907,18 +947,19 @@ function chargeExportXmlEsc(s) {
 }
 
 /**
- * Excel SpreadsheetML export — amount columns are true numbers + € currency format.
- * CSV cannot do that; this file can. Opens in Excel, Numbers, Google Sheets (upload).
+ * Excel SpreadsheetML — the bank list. Cash is omitted.
+ * Paid and unpaid are two blocks on the same sheet.
+ * Amount cells are true numbers + € currency format.
  * @param {Array} charters
  * @param {{ asOfYmd?: string, leads?: Array, apa?: Array }} [opts]
- * @returns {{ xml: string, fileName: string, mime: string, n: number, total: number, rows: Array }}
+ * @returns {{ xml: string, fileName: string, mime: string, n: number, total: number, paidTotal: number, unpaidTotal: number, rows: Array }}
  */
 function chargesExportExcelXml(charters, opts) {
   var pack = buildChargesExportRows(charters, opts);
   var asOf = pack.asOf || "";
   var stamp = asOf || "all";
   /* ss:Format currency — Excel shows €1,234.56 (or locale equivalent) */
-  var currencyFmt = chargeExportXmlEsc('€#,##0.00');
+  var currencyFmt = chargeExportXmlEsc("€#,##0.00");
   var xml = [];
   xml.push('<?xml version="1.0" encoding="UTF-8"?>');
   xml.push('<?mso-application progid="Excel.Sheet"?>');
@@ -936,6 +977,10 @@ function chargesExportExcelXml(charters, opts) {
       '<Interior ss:Color="#E8EEF5" ss:Pattern="Solid"/></Style>'
   );
   xml.push(
+    '<Style ss:ID="Section"><Font ss:FontName="Calibri" ss:Size="12" ss:Bold="1"/>' +
+      '<Interior ss:Color="#D6E2F0" ss:Pattern="Solid"/></Style>'
+  );
+  xml.push(
     '<Style ss:ID="Money"><NumberFormat ss:Format="' +
       currencyFmt +
       '"/><Font ss:FontName="Calibri" ss:Size="11"/></Style>'
@@ -951,13 +996,13 @@ function chargesExportExcelXml(charters, opts) {
   );
   xml.push("</Styles>");
   xml.push('<Worksheet ss:Name="Charges">');
+  /* header + Paid bar + paid rows + paid total + blank + Unpaid bar + unpaid rows + unpaid total */
   xml.push(
-    '<Table ss:ExpandedColumnCount="10" ss:ExpandedRowCount="' +
-      (pack.n + 2) +
+    '<Table ss:ExpandedColumnCount="8" ss:ExpandedRowCount="' +
+      (pack.n + 6) +
       '" x:FullColumns="1" x:FullRows="1">'
   );
-  /* Column widths (approximate) */
-  [72, 140, 200, 90, 70, 90, 90, 90, 100, 160].forEach(function (w) {
+  [72, 140, 200, 90, 70, 90, 100, 160].forEach(function (w) {
     xml.push('<Column ss:AutoFitWidth="0" ss:Width="' + w + '"/>');
   });
   function textCell(v, style) {
@@ -979,42 +1024,45 @@ function chargesExportExcelXml(charters, opts) {
       "</Data></Cell>"
     );
   }
-  /* Header */
-  xml.push("<Row>");
-  ["Date", "Name", "Address", "Amount", "Paid by", "Status", "Cash amount", "Card amount", "Type", "Notes"].forEach(
-    function (h) {
-      xml.push(textCell(h, "Header"));
-    }
-  );
-  xml.push("</Row>");
-  pack.rows.forEach(function (r) {
+  function pushSection(title, sectionRows, sectionTotal) {
     xml.push("<Row>");
-    xml.push(textCell(r.date || ""));
-    xml.push(textCell(r.name || ""));
-    xml.push(textCell(r.address || ""));
-    xml.push(numCell(r.amount, "Money"));
-    xml.push(textCell(r.paidBy || ""));
-    xml.push(textCell(r.status || ""));
-    xml.push(numCell(r.cashAmount, "Money"));
-    xml.push(numCell(r.cardAmount, "Money"));
-    xml.push(textCell(r.kind || ""));
-    xml.push(textCell(r.notes || ""));
+    xml.push(
+      '<Cell ss:MergeAcross="7" ss:StyleID="Section"><Data ss:Type="String">' +
+        chargeExportXmlEsc(title) +
+        "</Data></Cell>"
+    );
     xml.push("</Row>");
-  });
-  if (pack.n > 0) {
+    sectionRows.forEach(function (r) {
+      xml.push("<Row>");
+      xml.push(textCell(r.date || ""));
+      xml.push(textCell(r.name || ""));
+      xml.push(textCell(r.address || ""));
+      xml.push(numCell(r.amount, "Money"));
+      xml.push(textCell(r.paidBy || ""));
+      xml.push(textCell(r.status || ""));
+      xml.push(textCell(r.kind || ""));
+      xml.push(textCell(r.notes || ""));
+      xml.push("</Row>");
+    });
     xml.push("<Row>");
     xml.push(textCell("", "TotalLabel"));
     xml.push(textCell("TOTAL", "TotalLabel"));
     xml.push(textCell("", "TotalLabel"));
-    xml.push(numCell(pack.total, "MoneyBold"));
+    xml.push(numCell(sectionTotal, "MoneyBold"));
     xml.push(textCell("", "TotalLabel"));
-    xml.push(textCell(pack.n + " charges", "TotalLabel"));
-    xml.push(numCell(pack.cashTotal, "MoneyBold"));
-    xml.push(numCell(pack.cardTotal, "MoneyBold"));
+    xml.push(textCell(chargeExportCountLabel(sectionRows.length), "TotalLabel"));
     xml.push(textCell("", "TotalLabel"));
     xml.push(textCell("", "TotalLabel"));
     xml.push("</Row>");
   }
+  xml.push("<Row>");
+  ["Date", "Name", "Address", "Amount", "Paid by", "Status", "Type", "Notes"].forEach(function (h) {
+    xml.push(textCell(h, "Header"));
+  });
+  xml.push("</Row>");
+  pushSection("Paid", pack.paidRows, pack.paidTotal);
+  xml.push("<Row></Row>");
+  pushSection("Unpaid", pack.unpaidRows, pack.unpaidTotal);
   xml.push("</Table>");
   xml.push("</Worksheet>");
   xml.push("</Workbook>");
@@ -1024,8 +1072,8 @@ function chargesExportExcelXml(charters, opts) {
     mime: "application/vnd.ms-excel",
     n: pack.n,
     total: pack.total,
-    cashTotal: pack.cashTotal,
-    cardTotal: pack.cardTotal,
+    paidTotal: pack.paidTotal,
+    unpaidTotal: pack.unpaidTotal,
     rows: pack.rows,
   };
 }
@@ -1059,6 +1107,7 @@ function chargesExportExcelXml(charters, opts) {
     chargeExportMoneyText: chargeExportMoneyText,
     chargeExportFindLead: chargeExportFindLead,
     chargeExportParty: chargeExportParty,
+    chargeExportBankAmount: chargeExportBankAmount,
     buildChargesExportRows: buildChargesExportRows,
     chargesExportCsv: chargesExportCsv,
     chargesExportExcelXml: chargesExportExcelXml,

@@ -6,4 +6,6 @@ A charge linked to a lead uses that lead’s bill-to name and address (street li
 
 Link order: `leadId` / `fromLeadId`, then the APA pot’s `clientKey` `lead:…`, then the same guest name inside the charter dates.
 
-Build `2026-10-08.4`. Service worker comment v16.
+The same sheet is the bank reconciliation list. Cash-only charges are left out. A mix shows only the invoice/card part in Amount. Paid and unpaid are two blocks on the one sheet, each with its own total.
+
+Build `2026-10-08.5`. Service worker comment v17.

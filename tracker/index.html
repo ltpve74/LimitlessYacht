@@ -1496,10 +1496,10 @@
         <div class="sumcard"><div class="l">Invoices to issue</div><div class="v" id="chPending">0</div></div>
       </div>
       <div class="exp-month" style="margin:0 0 10px;justify-content:flex-end;gap:8px">
-        <button type="button" class="btn" id="chExportExcel" style="width:auto;padding:10px 14px" title="Excel with € currency format on amount columns">Export Excel</button>
-        <button type="button" class="btn ghost" id="chExportCsv" style="width:auto;padding:10px 14px" title="CSV — amounts shown as € text (CSV cannot store currency formats)">Export CSV</button>
+        <button type="button" class="btn" id="chExportExcel" style="width:auto;padding:10px 14px" title="Bank list. Cash is left out. Paid and unpaid are separate. Amounts are real € numbers.">Export Excel</button>
+        <button type="button" class="btn ghost" id="chExportCsv" style="width:auto;padding:10px 14px" title="Same bank list as Excel. Cash is left out. Amounts are shown as € text.">Export CSV</button>
       </div>
-      <div class="legend">Filter <b>Yesterday</b> for catch-up after a busy day. APA shortfall = pot overspend. <b>Export Excel</b> preferred for € currency columns.</div>
+      <div class="legend">Filter <b>Yesterday</b> for catch-up after a busy day. APA shortfall = pot overspend. <b>Export Excel</b> is the bank list: cash is left out, and paid and unpaid are split on the sheet.</div>
       <div id="chFilterTabs" class="ch-filter-tabs" role="tablist" aria-label="Charges filter">
         <button type="button" class="ch-f-yday is-on" data-ch-filter="yesterday" aria-selected="true"><span class="n" id="chTabNYday">0</span><span>Yesterday</span></button>
         <button type="button" class="ch-f-today" data-ch-filter="today" aria-selected="false"><span class="n" id="chTabNToday">0</span><span>Today</span></button>
@@ -1773,7 +1773,7 @@ function selCancelReasonField(cur){
 var EXPECTED_PEOPLE = 2;
 /* Build stamp — shown in Ops → Security so we can verify which code a device
  * actually runs (PWA updates only land after a full close + reopen). */
-var TRACKER_BUILD = "2026-10-08.4";
+var TRACKER_BUILD = "2026-10-08.5";
 var APA_EXP_CATS = ["Drinks & Bar","Dockage / Marina","Crew Tips","Miscellaneous","Fuel / Diesel","Food & Provisions"];
 var APA_PAID_BY = ["APA cash","Ship card","Guest card","Bank transfer"];
 var APA_DASH_CATS = [
