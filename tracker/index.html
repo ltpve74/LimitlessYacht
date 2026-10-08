@@ -1773,7 +1773,7 @@ function selCancelReasonField(cur){
 var EXPECTED_PEOPLE = 2;
 /* Build stamp — shown in Ops → Security so we can verify which code a device
  * actually runs (PWA updates only land after a full close + reopen). */
-var TRACKER_BUILD = "2026-10-08.5";
+var TRACKER_BUILD = "2026-10-08.6";
 var APA_EXP_CATS = ["Drinks & Bar","Dockage / Marina","Crew Tips","Miscellaneous","Fuel / Diesel","Food & Provisions"];
 var APA_PAID_BY = ["APA cash","Ship card","Guest card","Bank transfer"];
 var APA_DASH_CATS = [
@@ -14265,6 +14265,68 @@ function expPdfFileToJpegDataUrl(file){
     });
   });
 }
+/** One JPEG per page the reader should see. Later pages stay separate so the total is not crushed. */
+function expCanvasToPdfReadJpeg(canvas){
+  var c=canvas;
+  var data=c.toDataURL("image/jpeg",0.7);
+  var guard=0;
+  while(data.length>520000&&guard<4){
+    guard++;
+    var n=document.createElement("canvas");
+    n.width=Math.max(1, Math.round(c.width*0.75));
+    n.height=Math.max(1, Math.round(c.height*0.75));
+    n.getContext("2d").drawImage(c,0,0,n.width,n.height);
+    c=n;
+    data=c.toDataURL("image/jpeg",0.62);
+  }
+  if(data.length>4000000) throw new Error("A PDF page is too large to read");
+  return data;
+}
+function expPdfFileToOcrJpegs(file){
+  var maxIn=12*1024*1024;
+  if(file.size>maxIn){
+    return Promise.reject(new Error("PDF over 12 MB — export a smaller PDF or photograph the receipt"));
+  }
+  return expLoadPdfJs().then(function(pdfjsLib){
+    var bufP=file.arrayBuffer?file.arrayBuffer():new Promise(function(res,rej){
+      var fr=new FileReader();
+      fr.onload=function(){ res(fr.result); };
+      fr.onerror=function(){ rej(new Error("Could not read PDF")); };
+      fr.readAsArrayBuffer(file);
+    });
+    return bufP.then(function(buf){
+      return pdfjsLib.getDocument({data:new Uint8Array(buf)}).promise;
+    }).then(function(pdf){
+      var pages=(window.LY_MODELS&&LY_MODELS.receiptPdfReadPages)
+        ?LY_MODELS.receiptPdfReadPages(pdf.numPages||1)
+        :[1];
+      var urls=[];
+      var chain=Promise.resolve();
+      pages.forEach(function(pageNum){
+        chain=chain.then(function(){
+          return pdf.getPage(pageNum).then(function(page){
+            var base=page.getViewport({scale:1});
+            var edge=Math.max(base.width, base.height, 1);
+            var vp=page.getViewport({scale:Math.min(1.8, 1500/edge)});
+            var canvas=document.createElement("canvas");
+            canvas.width=Math.max(1, Math.floor(vp.width));
+            canvas.height=Math.max(1, Math.floor(vp.height));
+            var ctx=canvas.getContext("2d");
+            ctx.fillStyle="#fff";
+            ctx.fillRect(0,0,canvas.width,canvas.height);
+            return page.render({canvasContext:ctx, viewport:vp}).promise.then(function(){
+              urls.push(expCanvasToPdfReadJpeg(canvas));
+            });
+          });
+        });
+      });
+      return chain.then(function(){
+        if(!urls.length) throw new Error("Empty PDF");
+        return urls;
+      });
+    });
+  });
+}
 /**
  * Read receipt for storage: photos compressed; PDFs rasterised to JPEG on the phone.
  * Resolves to a data: URL string (almost always image/jpeg).
@@ -14366,7 +14428,8 @@ function expFileToOcrJpeg(file){
     return expCanvasToOcrJpegDataUrl(expDrawBitmap(src, 2000));
   });
 }
-function expRequestReceiptRead(dataUrl){
+function expRequestReceiptRead(dataUrlOrList){
+  var images=Array.isArray(dataUrlOrList)?dataUrlOrList:[dataUrlOrList];
   var ctrl=typeof AbortController!=="undefined"?new AbortController():null;
   var timer=setTimeout(function(){ if(ctrl) ctrl.abort(); }, 25000);
   return fetch(RECEIPT_READ_API,{
@@ -14375,7 +14438,8 @@ function expRequestReceiptRead(dataUrl){
     body:JSON.stringify({
       who:session&&session.who,
       role:(session&&session.role)||(typeof sessionRole==="function"?sessionRole():"captain"),
-      image:dataUrl
+      image:images[0]||"",
+      images:images
     }),
     signal:ctrl?ctrl.signal:undefined
   }).then(function(r){
@@ -14479,11 +14543,11 @@ function expStartReceiptRead(file, opts){
   var type=String(file&&file.type||"").toLowerCase();
   var name=String(file&&file.name||"").toLowerCase();
   var isPdf=type==="application/pdf"||/\.pdf$/i.test(name);
-  var prep=isPdf?expPdfFileToJpegDataUrl(file):expFileToOcrJpeg(file);
-  return prep.then(function(dataUrl){
+  var prep=isPdf?expPdfFileToOcrJpegs(file):expFileToOcrJpeg(file).then(function(one){ return [one]; });
+  return prep.then(function(pages){
     if(opts.still&&!opts.still()) return null;
-    if(!expIsImageReceipt(dataUrl)) throw new Error("Could not read the receipt");
-    return expRequestReceiptRead(dataUrl);
+    if(!pages||!pages.length||!expIsImageReceipt(pages[0])) throw new Error("Could not read the receipt");
+    return expRequestReceiptRead(pages);
   }).then(function(sug){
     if(!sug||(opts.still&&!opts.still())) return;
     var plan=expApplyReceiptSuggestion(sug, {
@@ -16228,7 +16292,7 @@ function openExpense(id, opts){
       '<p id="f_exp_photo_read" style="margin:8px 0 0;font-size:12.5px;color:var(--muted);line-height:1.4"></p>'+
       (r.receipt?'<button type="button" class="btn ghost" id="f_exp_photo_clear" style="width:auto;margin-top:8px;padding:8px 12px">Remove receipt</button>':'')+
     '</div>';
-    h+='<p style="margin:0 0 12px;font-size:12px;color:var(--muted)">A photo can fill the shop, date, and total. Check them before you save. Photos are compressed; PDFs become an image on your phone (first 1–2 pages).</p>';
+    h+='<p style="margin:0 0 12px;font-size:12px;color:var(--muted)">A photo can fill the shop, date, and total. Check them before you save. A PDF is read page by page, including a total printed on a later page.</p>';
     if(rec) h+='<div class="sheetbtns"><button type="button" class="btn danger" id="sheetDel">Delete</button></div>';
     h+='<div class="sheetfoot"><button type="button" class="btn ghost" id="sheetCancel">Cancel</button>'+
       '<button type="button" class="btn" id="sheetSave">Save</button>'+

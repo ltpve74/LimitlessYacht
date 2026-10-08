@@ -4756,6 +4756,10 @@ console.log("\n[Receipt photo read — suggest only, never a ledger write]");
       const sent = JSON.parse(init.body);
       ok("receipt reader does not store the photo", sent.store === false && sent.model === "grok-4.7");
       ok("receipt reader sends the image", sent.input[0].content[0].image_url === jpeg);
+      ok(
+        "receipt reader knows a total may be on a later page",
+        sent.input[0].content[sent.input[0].content.length - 1].text.indexOf("later page") !== -1
+      );
       return {
         ok: true,
         text: async function () {
@@ -4781,7 +4785,32 @@ console.log("\n[Receipt photo read — suggest only, never a ledger write]");
     badImg = err2 && err2.status;
   }
   ok("receipt reader rejects a non-image", badImg === 400);
+  const page2 = "data:image/jpeg;base64," + "rrrr";
+  let multi = 0;
+  await readReceiptImage({
+    images: [jpeg, page2],
+    apiKey: "test-key",
+    today: "2026-10-01",
+    fetchImpl: async function (_url, init) {
+      const sent = JSON.parse(init.body);
+      const content = sent.input[0].content;
+      multi = content.filter(function (part) { return part.type === "input_image"; }).length;
+      ok("receipt reader sends each PDF page", content[0].image_url === jpeg && content[1].image_url === page2 && content[2].type === "input_text");
+      return {
+        ok: true,
+        text: async function () {
+          return JSON.stringify({
+            output_text: JSON.stringify({ vendor: "Makro", date: "2026-09-12", amount: 3100, currency: "EUR" }),
+          });
+        },
+      };
+    },
+  });
+  ok("receipt reader page count", multi === 2);
+  ok("pdf read keeps a short file whole", JSON.stringify(M.receiptPdfReadPages(3)) === "[1,2,3]");
+  ok("pdf read keeps the first page and the last pages of a long file", JSON.stringify(M.receiptPdfReadPages(12)) === "[1,6,7,8,9,10,11,12]");
   const html = readFileSync(join(root, "tracker/index.html"), "utf8");
+  ok("pdf receipt read asks for every page image", html.indexOf("expPdfFileToOcrJpegs") !== -1 && html.indexOf("images:images") !== -1);
   ok("expense sheet asks for a receipt read", html.indexOf("expStartReceiptRead") !== -1 && html.indexOf("f_exp_photo_read") !== -1);
   ok("APA sheet asks for a receipt read", html.indexOf("f_apa_file_read") !== -1);
   ok("receipt read does not save by itself", html.indexOf("Does not save") !== -1 || html.indexOf("check before you save") !== -1);
