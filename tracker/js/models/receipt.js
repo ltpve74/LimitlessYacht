@@ -231,10 +231,33 @@
     return { matches: hits, notice: notice };
   }
 
+  /**
+   * Pages of one PDF to send to the receipt reader, in order.
+   * A short file is read whole. A long file keeps page 1 and the last pages,
+   * because the amount due is often printed after the line items.
+   * @param {number} numPages
+   * @returns {number[]}
+   */
+  function receiptPdfReadPages(numPages) {
+    var n = Math.round(Number(numPages) || 0);
+    if (!(n > 0)) n = 1;
+    var cap = 8;
+    var pages = [];
+    var i;
+    if (n <= cap) {
+      for (i = 1; i <= n; i++) pages.push(i);
+      return pages;
+    }
+    pages.push(1);
+    for (i = n - cap + 2; i <= n; i++) pages.push(i);
+    return pages;
+  }
+
   return {
     normalizeReceiptRead: normalizeReceiptRead,
     planReceiptFieldFill: planReceiptFieldFill,
     parseReceiptDate: parseReceiptDate,
     findReceiptCopies: findReceiptCopies,
+    receiptPdfReadPages: receiptPdfReadPages,
   };
 });

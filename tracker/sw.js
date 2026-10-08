@@ -1,5 +1,5 @@
 /* Limitless Tracker service worker — push notifications for the installed PWA */
-/* v17: charges spreadsheet is the bank list — cash left out, paid and unpaid split (2026-10-08.5) */
+/* v18: PDF receipt read includes later pages, where the total often is (2026-10-08.6) */
 self.addEventListener("install", function (e) {
   self.skipWaiting();
 });

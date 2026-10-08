@@ -56,6 +56,7 @@ export default async (req) => {
   try {
     const read = await readReceiptImage({
       image: body && body.image,
+      images: body && body.images,
       apiKey: process.env.XAI_API_KEY || "",
       today: new Date().toISOString().slice(0, 10),
     });

@@ -14,13 +14,14 @@ const normalizeReceiptRead = receiptModel.normalizeReceiptRead;
 export const RECEIPT_MODEL = "grok-4.7";
 
 const PROMPT = [
-  "This is one shop receipt or invoice photo, usually from Spain (euros, day before month).",
-  "Read only what is printed.",
+  "These images are the pages of one shop receipt or invoice, in order, usually from Spain (euros, day before month).",
+  "Read only what is printed. The shop and the date are often on the first page.",
+  "The amount paid may be on a later page. Use that later total when it is the amount due for the whole document.",
   "vendor: the shop or merchant name, short, as printed. Empty string if you cannot see it.",
   "date: the receipt date as YYYY-MM-DD. Empty string if there is no readable date.",
   "When the slip is European, the day is first: 12/09/2026 is 12 September 2026.",
   "amount: the final amount paid, as a number. Use TOTAL, IMPORTE, TOTAL A PAGAR, or the card charge.",
-  "Do not use a line item, the VAT-only line, the change, or a subtotal when a larger total is printed.",
+  "Do not use a line item, the VAT-only line, the change, or a page subtotal when a later page shows a larger total.",
   "null if you are not sure which number is the total.",
   "currency: EUR when the slip is in euros or shows €, or when a Spanish till shows no currency.",
   "Otherwise the currency code. Empty if unknown.",
@@ -96,16 +97,37 @@ function assertImage(image) {
   return s;
 }
 
+/** One photo, or each page of a PDF, in order. At most 8 images. */
+function collectReceiptImages(opts) {
+  opts = opts || {};
+  const raw = Array.isArray(opts.images) && opts.images.length ? opts.images : [opts.image];
+  const images = [];
+  let total = 0;
+  for (let i = 0; i < raw.length && images.length < 8; i++) {
+    if (raw[i] == null || raw[i] === "") continue;
+    const image = assertImage(raw[i]);
+    total += image.length;
+    if (total > 5000000) throw failReceipt(413, "Those pages are too large to read");
+    images.push(image);
+  }
+  if (!images.length) throw failReceipt(400, "Send a JPEG or PNG receipt photo");
+  return images;
+}
+
 /**
- * @param {{ image: string, apiKey?: string, fetchImpl?: typeof fetch, today?: string, model?: string }} opts
+ * @param {{ image?: string, images?: string[], apiKey?: string, fetchImpl?: typeof fetch, today?: string, model?: string }} opts
  */
 export async function readReceiptImage(opts) {
   opts = opts || {};
-  const image = assertImage(opts.image);
+  const images = collectReceiptImages(opts);
   const apiKey = String(opts.apiKey || "");
   if (!apiKey) throw failReceipt(503, "Receipt reading is not configured");
   const fetchImpl = opts.fetchImpl || fetch;
   const model = opts.model || RECEIPT_MODEL;
+  const content = images.map(function (image) {
+    return { type: "input_image", image_url: image, detail: "high" };
+  });
+  content.push({ type: "input_text", text: PROMPT });
   let res;
   try {
     res = await fetchImpl("https://api.x.ai/v1/responses", {
@@ -120,10 +142,7 @@ export async function readReceiptImage(opts) {
         input: [
           {
             role: "user",
-            content: [
-              { type: "input_image", image_url: image, detail: "high" },
-              { type: "input_text", text: PROMPT },
-            ],
+            content: content,
           },
         ],
         text: {
