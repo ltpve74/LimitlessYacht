@@ -1676,7 +1676,46 @@ console.log("\n[Charges — cashToBoat / VAT]");
   ok("export mix card slice 600", near(expPack.rows[1].cardAmount, 600));
   ok("export total amount sum", near(expPack.total, 500 + 1210 + 1000));
   const csvPack = M.chargesExportCsv(exportList, { asOfYmd: "2026-07-31" });
-  ok("export csv has header", csvPack.csv.indexOf("Date,Name,Amount,Paid by") === 0);
+  ok("export csv has header", csvPack.csv.indexOf("Date,Name,Address,Amount,Paid by") === 0);
+  ok("export unlinked charge keeps client name", expPack.rows[0].name === "Cash Guest" && expPack.rows[0].address === "");
+  const billed = M.buildChargesExportRows(
+    [{ id: "c-bill", date: "2026-07-10", client: "Ana", leadId: "L-ana", amount: 500, billType: "invoice", payMethod: "Card", payStatus: "Paid" }],
+    {
+      asOfYmd: "2026-07-31",
+      leads: [{ id: "L-ana", name: "Ana", billToName: "Ana Ruiz", billToAddr: "Carrer de la Mar 1\nPalma", leadSource: "captain", start: "2026-07-10" }],
+    }
+  );
+  ok("export uses lead bill-to name", billed.rows[0].name === "Ana Ruiz");
+  ok("export joins lead address lines", billed.rows[0].address === "Carrer de la Mar 1, Palma");
+  const billedCsv = M.chargesExportCsv(
+    [{ id: "c-bill", date: "2026-07-10", client: "Ana", leadId: "L-ana", amount: 500, billType: "invoice", payMethod: "Card", payStatus: "Paid" }],
+    {
+      asOfYmd: "2026-07-31",
+      leads: [{ id: "L-ana", name: "Ana", billToName: "Ana Ruiz", billToAddr: "Carrer de la Mar 1\nPalma", leadSource: "captain", start: "2026-07-10" }],
+    }
+  );
+  ok("export csv quotes an address that contains a comma", billedCsv.csv.indexOf('"Carrer de la Mar 1, Palma"') >= 0);
+  const sourced = M.buildChargesExportRows(
+    [
+      { id: "c-cb", date: "2026-07-12", client: "Paul guest", amount: 1210, billType: "invoice", payMethod: "Card", payStatus: "Paid" },
+      { id: "c-own", date: "2026-07-11", client: "Owner guest", apaTripId: "trip-own", amount: 800, billType: "invoice", payMethod: "Card", payStatus: "Paid" },
+    ],
+    {
+      asOfYmd: "2026-07-31",
+      leads: [
+        { id: "L-cb", name: "Paul guest", leadSource: "clickboat", start: "2026-07-12", billToAddr: "should not show" },
+        { id: "L-own", name: "Owner guest", leadSource: "ownersourced", start: "2026-07-11" },
+      ],
+      apa: [{ id: "trip-own", clientKey: "lead:L-own" }],
+    }
+  );
+  ok("export click and boat has no personal name", sourced.rows[1].name === "Click & Boat" && sourced.rows[1].address === "");
+  ok("export owner sourced uses the apa lead", sourced.rows[0].name === "Owner sourced" && sourced.rows[0].address === "");
+  const onCharge = M.buildChargesExportRows(
+    [{ id: "c-addr", date: "2026-07-08", client: "Walk-in", billToAddr: "Portixol, Palma", amount: 200, billType: "cash", payMethod: "Cash", payStatus: "Paid", cashPaid: 200 }],
+    { asOfYmd: "2026-07-31" }
+  );
+  ok("export address from the charge when no lead", onCharge.rows[0].name === "Walk-in" && onCharge.rows[0].address === "Portixol, Palma");
   ok("export csv escapes comma name", csvPack.csv.indexOf('"Mix Guest, Jr."') >= 0);
   ok("export csv fileName uses asOf", csvPack.fileName === "Limitless-charges-2026-07-31.csv");
   ok("export csv n 3", csvPack.n === 3);
@@ -1693,6 +1732,15 @@ console.log("\n[Charges — cashToBoat / VAT]");
   ok("export excel has currency format", xls.xml.indexOf("NumberFormat") >= 0 && xls.xml.indexOf("€") >= 0);
   ok("export excel number cells", xls.xml.indexOf('ss:Type="Number"') >= 0);
   ok("export excel has TOTAL", xls.xml.indexOf("TOTAL") >= 0);
+  ok("export excel has address column", xls.xml.indexOf("Address") >= 0 && xls.xml.indexOf('ExpandedColumnCount="10"') >= 0);
+  const xlsBill = M.chargesExportExcelXml(
+    [{ id: "c-bill", date: "2026-07-10", client: "Ana", leadId: "L-ana", amount: 500, billType: "invoice", payMethod: "Card", payStatus: "Paid" }],
+    {
+      asOfYmd: "2026-07-31",
+      leads: [{ id: "L-ana", name: "Ana", billToName: "Ana Ruiz", billToAddr: "Carrer de la Mar 1, Palma", leadSource: "captain", start: "2026-07-10" }],
+    }
+  );
+  ok("export excel writes the address", xlsBill.xml.indexOf("Ana Ruiz") >= 0 && xlsBill.xml.indexOf("Carrer de la Mar 1, Palma") >= 0);
   ok("export excel total amount cell", xls.xml.indexOf(">" + String(500 + 1210 + 1000) + "<") >= 0 || xls.xml.indexOf(">2710<") >= 0);
 }
 
@@ -4697,6 +4745,10 @@ console.log("\n[Receipt photo read — suggest only, never a ledger write]");
   ok(
     "new expense can save and open the next receipt",
     html.indexOf("sheetSaveNext") !== -1 && html.indexOf("Save and next") !== -1 && html.indexOf("openExpense(null)") !== -1
+  );
+  ok(
+    "charges export passes leads into the spreadsheet",
+    html.indexOf("leads:state.leads||[]") !== -1 && html.indexOf("apa:state.apa||[]") !== -1
   );
   ok(
     "new expense chooses company card or petty cash",

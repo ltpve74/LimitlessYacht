@@ -47,6 +47,8 @@
     input = input || {};
     return M(input).buildChargesExportRows(input.charters || input.charges || [], {
       asOfYmd: input.asOfYmd,
+      leads: input.leads,
+      apa: input.apa,
     });
   }
 
@@ -59,6 +61,8 @@
     input = input || {};
     return M(input).chargesExportCsv(input.charters || input.charges || [], {
       asOfYmd: input.asOfYmd,
+      leads: input.leads,
+      apa: input.apa,
     });
   }
 
@@ -70,6 +74,8 @@
     input = input || {};
     return M(input).chargesExportExcelXml(input.charters || input.charges || [], {
       asOfYmd: input.asOfYmd,
+      leads: input.leads,
+      apa: input.apa,
     });
   }
 

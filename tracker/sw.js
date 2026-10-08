@@ -1,5 +1,5 @@
 /* Limitless Tracker service worker — push notifications for the installed PWA */
-/* v15: new receipt chooses company card or petty cash (2026-10-08.3) */
+/* v16: charges spreadsheet includes lead name and address (2026-10-08.4) */
 self.addEventListener("install", function (e) {
   self.skipWaiting();
 });
