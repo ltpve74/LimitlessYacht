@@ -350,11 +350,11 @@
   .exp-rcpt{width:56px;height:56px;border-radius:10px;object-fit:cover;border:1px solid var(--line);background:#f0f3f5;flex-shrink:0}
   .exp-rcpt-lg{max-width:100%;max-height:220px;border-radius:12px;border:1px solid var(--line);display:block;margin:8px 0}
   /* New expense: camera first, then the three fields a receipt fills */
-  .exp-shot{position:relative;margin:2px 0 14px}
+  .exp-shot{position:relative;margin:2px 0 8px}
   .exp-shot-file{position:absolute;width:1px;height:1px;padding:0;margin:-1px;overflow:hidden;clip:rect(0,0,0,0);clip-path:inset(50%);white-space:nowrap;border:0;pointer-events:none}
   .exp-shot-cam{
     display:flex;flex-direction:column;align-items:center;justify-content:center;gap:4px;
-    min-height:148px;padding:22px 16px;border-radius:18px;text-align:center;cursor:pointer;
+    min-height:96px;padding:14px 16px;border-radius:18px;text-align:center;cursor:pointer;
     background:#0e4a62;color:#fff;box-shadow:0 10px 24px rgba(14,74,98,.28);
   }
   .exp-shot-cam:active{transform:scale(.985)}
@@ -374,9 +374,18 @@
   .exp-shot.has-photo .exp-shot-ic{font-size:22px}
   .exp-shot.has-photo .exp-shot-title{font-size:17px}
   .exp-shot.has-photo .exp-shot-sub{display:none}
+  .exp-quick .field{margin-bottom:10px}
   .exp-quick .ctl{font-size:18px;min-height:52px}
   .exp-quick-amt .ctl{font-size:32px;font-weight:800;letter-spacing:-.03em;padding:16px 14px 16px 2.6rem;min-height:64px}
   .exp-quick-amt .moneywrap:before{font-size:26px;font-weight:800;left:14px}
+  .exp-pay{display:flex;gap:8px;margin:0 0 8px}
+  .exp-pay-btn{
+    flex:1 1 0;min-height:48px;padding:10px 8px;border-radius:14px;
+    border:1.5px solid var(--line);background:#fff;color:var(--brand);
+    font-weight:800;font-size:16px;line-height:1.15;
+  }
+  .exp-pay-btn.is-on{background:#0e4a62;color:#fff;border-color:#0e4a62}
+  .exp-pay-btn:active{transform:scale(.985)}
   .exp-quick-more{margin:0 0 8px;border-top:1px solid var(--line)}
   .exp-quick-more > summary{
     font-weight:800;font-size:15px;color:var(--brand);cursor:pointer;
@@ -396,16 +405,23 @@
   .sheetfoot.exp-quick-foot{position:static;flex:none;flex-wrap:wrap;margin-top:0;background:#fff}
   .sheetfoot.exp-quick-foot .exp-next{flex:1 1 100%;order:-1;min-height:52px;font-size:17px}
   @media(max-height:720px){
-    .exp-shot-cam{min-height:72px;padding:10px 12px}
-    .exp-shot-ic{font-size:26px}
-    .exp-shot-title{font-size:19px}
+    .exp-shot-cam{min-height:0;padding:8px 12px;flex-direction:row;gap:8px}
+    .exp-shot-ic{font-size:22px}
+    .exp-shot-title{font-size:17px}
     .exp-shot-sub{display:none}
-    .exp-shot-lib{min-height:44px;margin-top:8px;padding:8px 12px;font-size:16px}
-    .exp-quick .field{margin-bottom:8px}
-    .exp-quick-amt .ctl{min-height:52px;font-size:28px;padding:10px 12px 10px 2.4rem}
+    .exp-shot-lib{min-height:40px;margin-top:6px;padding:8px 12px;font-size:15px}
+    .exp-quick .field{margin-bottom:6px}
+    .exp-quick .ctl{min-height:44px}
+    .exp-quick-amt .ctl{min-height:48px;font-size:26px;padding:8px 10px 8px 2.3rem}
+    .exp-pay{gap:6px;margin:0 0 8px}
+    .exp-pay-btn{min-height:44px;padding:8px 6px;font-size:15px}
     .sheetfoot.exp-quick-foot{padding-top:8px}
     .sheetfoot.exp-quick-foot .exp-next{min-height:48px}
     .sheetfoot.exp-quick-foot .btn{padding:12px 10px}
+  }
+  @media(min-width:620px){
+    .exp-shot-cam{min-height:72px;padding:12px 16px}
+    .exp-shot-lib{min-height:44px;margin-top:8px;padding:10px 12px}
   }
   .exp-month{display:flex;gap:8px;flex-wrap:wrap;align-items:center;margin:0 0 12px}
   .exp-month select.ctl{width:auto;min-width:9.5rem;padding:10px 12px}
@@ -1757,7 +1773,7 @@ function selCancelReasonField(cur){
 var EXPECTED_PEOPLE = 2;
 /* Build stamp — shown in Ops → Security so we can verify which code a device
  * actually runs (PWA updates only land after a full close + reopen). */
-var TRACKER_BUILD = "2026-10-08.2";
+var TRACKER_BUILD = "2026-10-08.3";
 var APA_EXP_CATS = ["Drinks & Bar","Dockage / Marina","Crew Tips","Miscellaneous","Fuel / Diesel","Food & Provisions"];
 var APA_PAID_BY = ["APA cash","Ship card","Guest card","Bank transfer"];
 var APA_DASH_CATS = [
@@ -16188,8 +16204,12 @@ function openExpense(id, opts){
       '<button type="button" class="btn ghost exp-shot-clear hidden" id="f_exp_photo_clear">Remove photo</button>'+
     '</div>';
     h+='<div class="exp-quick"><div class="exp-quick-amt">'+amountField+'</div>'+
+      '<div class="exp-pay" id="expPayPick" role="group" aria-label="Paid with">'+
+        '<button type="button" class="exp-pay-btn" id="expPayCard" aria-pressed="false">Company card</button>'+
+        '<button type="button" class="exp-pay-btn is-on" id="expPayPetty" aria-pressed="true">Petty cash</button>'+
+      '</div>'+
       vendorField+dateField+
-      '<details class="exp-quick-more"><summary>Category, card, and who paid</summary>'+
+      '<details class="exp-quick-more"><summary>Category and more</summary>'+
       descField+catRow+crewBlock+paidFromBlock+reimburseBlock+chargeBlock+
       '</details></div></div>';
     h+='<div class="sheetfoot exp-quick-foot">'+
@@ -16244,6 +16264,30 @@ function openExpense(id, opts){
     }
     var gWrap=el("f_exp_guest_wrap");
     if(gWrap) gWrap.style.display=(fromStew&&crewPay==="Paid"&&(pf==="Guest"||pf==="Owner money"))?"":"none";
+    expPaintPayPick();
+  }
+  function expPaintPayPick(){
+    var cardBtn=el("expPayCard"), pettyBtn=el("expPayPetty");
+    if(!cardBtn||!pettyBtn) return;
+    var method=(el("f_exp_method")&&el("f_exp_method").value)||"Cash";
+    var pf=(el("f_exp_paidFrom")&&el("f_exp_paidFrom").value)||"Petty cash";
+    var isCard=method==="Credit Card";
+    var isPetty=!isCard&&(pf==="Petty cash"||pf==="");
+    cardBtn.classList.toggle("is-on", isCard);
+    pettyBtn.classList.toggle("is-on", isPetty);
+    cardBtn.setAttribute("aria-pressed", isCard?"true":"false");
+    pettyBtn.setAttribute("aria-pressed", isPetty?"true":"false");
+  }
+  function expChoosePay(which){
+    var method=el("f_exp_method");
+    var pf=el("f_exp_paidFrom");
+    if(which==="card"){
+      if(method) method.value="Credit Card";
+    } else {
+      if(method) method.value="Cash";
+      if(pf) pf.value="Petty cash";
+    }
+    syncPaidFromVis();
   }
   function syncReimburseVis(){
     var wrap=el("f_exp_reimburseTo_wrap");
@@ -16259,6 +16303,8 @@ function openExpense(id, opts){
   }
   if(el("f_exp_method")) el("f_exp_method").addEventListener("change",syncPaidFromVis);
   if(el("f_exp_paidFrom")) el("f_exp_paidFrom").addEventListener("change",syncPaidFromVis);
+  if(el("expPayCard")) el("expPayCard").addEventListener("click",function(){ expChoosePay("card"); });
+  if(el("expPayPetty")) el("expPayPetty").addEventListener("click",function(){ expChoosePay("petty"); });
   if(el("f_exp_crew_pay")) el("f_exp_crew_pay").addEventListener("change",syncPaidFromVis);
   if(el("f_exp_cat")) el("f_exp_cat").addEventListener("change",function(){
     syncReimburseVis();
