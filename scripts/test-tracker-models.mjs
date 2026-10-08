@@ -4670,6 +4670,22 @@ console.log("\n[Receipt photo read — suggest only, never a ledger write]");
     "receipt reader static-imports the model so Netlify bundles it",
     readerSrc.indexOf('from "../../../tracker/js/models/receipt.js"') !== -1 && readerSrc.indexOf("createRequire") === -1
   );
+  const books = [
+    { id: "e1", vendor: "Makro", date: "2026-09-12", amount: 84.3, where: "Expenses", linkId: "apa1" },
+    { id: "apa1", vendor: "MAKRO Palma", date: "2026-09-12", amount: "84,30", where: "APA · Smith", linkId: "e1" },
+    { id: "e2", vendor: "Mercadona S.A.", date: "2026-09-12", amount: 12.5, where: "Expenses" },
+    { id: "e3", vendor: "Makro", date: "2026-09-13", amount: 84.3, where: "Expenses" },
+  ];
+  const copy = M.findReceiptCopies({ vendor: "Makro Cash & Carry", date: "2026-09-12", amount: "84.30", rows: books });
+  ok("receipt copy matches the same shop, day, and total once", copy.matches.length === 1 && copy.matches[0].id === "e1");
+  ok("receipt copy notice names where it was entered", copy.notice.indexOf("Already entered in Expenses") !== -1 && copy.notice.indexOf("84.30") !== -1);
+  const editing = M.findReceiptCopies({ vendor: "Makro", date: "2026-09-12", amount: 84.3, skipIds: ["e1"], rows: books });
+  ok("receipt copy ignores the row being edited and its linked line", editing.matches.length === 0);
+  const otherDay = M.findReceiptCopies({ vendor: "Makro", date: "2026-09-13", amount: 84.3, skipIds: ["e3"], rows: books });
+  ok("receipt copy does not treat a different day as this row", otherDay.matches.length === 0 && M.findReceiptCopies({ vendor: "Makro", date: "2026-09-13", amount: 84.3, rows: books }).matches.length === 1);
+  const otherShop = M.findReceiptCopies({ vendor: "Dia", date: "2026-09-12", amount: 84.3, rows: books });
+  ok("receipt copy does not match a different shop", otherShop.matches.length === 0);
+  ok("sheet warns before saving a copied receipt", html.indexOf("Save this copy anyway?") !== -1 && html.indexOf("findReceiptCopies") !== -1);
 }
 
 console.log("\n──────────────────────────────────────────────────────────");

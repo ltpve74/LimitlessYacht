@@ -1617,25 +1617,25 @@
 
 <!-- Domain models + controllers (MVC blueprint) — tests: node scripts/test-tracker-models.mjs -->
 <!-- LY_MODELS → LY_CONTROLLERS → view. See .agent/briefs/tracker-v1-mvc-blueprint.md -->
-<script src="/tracker/js/models/util.js?v=20261001-receipt"></script>
-<script src="/tracker/js/models/leads.js?v=20261001-receipt"></script>
-<script src="/tracker/js/models/charges.js?v=20261001-receipt"></script>
-<script src="/tracker/js/models/expenses.js?v=20261001-receipt"></script>
-<script src="/tracker/js/models/cash.js?v=20261001-receipt"></script>
-<script src="/tracker/js/models/diesel.js?v=20261001-receipt"></script>
-<script src="/tracker/js/models/stews.js?v=20261001-receipt"></script>
-<script src="/tracker/js/models/apa.js?v=20261001-receipt"></script>
-<script src="/tracker/js/models/receipt.js?v=20261001-receipt"></script>
-<script src="/tracker/js/models/index.js?v=20261001-receipt"></script>
-<script src="/tracker/js/controllers/expenses.js?v=20261001-receipt"></script>
-<script src="/tracker/js/controllers/cashReport.js?v=20261001-receipt"></script>
-<script src="/tracker/js/controllers/charges.js?v=20261001-receipt"></script>
-<script src="/tracker/js/controllers/leads.js?v=20261001-receipt"></script>
-<script src="/tracker/js/controllers/apa.js?v=20261001-receipt"></script>
-<script src="/tracker/js/controllers/stews.js?v=20261001-receipt"></script>
-<script src="/tracker/js/controllers/index.js?v=20261001-receipt"></script>
-<script src="/tracker/js/pdf/expenses-cash.js?v=20261001-receipt"></script>
-<script src="/tracker/js/pdf/owner-cash.js?v=20261001-receipt"></script>
+<script src="/tracker/js/models/util.js?v=20261008-receipt-copy"></script>
+<script src="/tracker/js/models/leads.js?v=20261008-receipt-copy"></script>
+<script src="/tracker/js/models/charges.js?v=20261008-receipt-copy"></script>
+<script src="/tracker/js/models/expenses.js?v=20261008-receipt-copy"></script>
+<script src="/tracker/js/models/cash.js?v=20261008-receipt-copy"></script>
+<script src="/tracker/js/models/diesel.js?v=20261008-receipt-copy"></script>
+<script src="/tracker/js/models/stews.js?v=20261008-receipt-copy"></script>
+<script src="/tracker/js/models/apa.js?v=20261008-receipt-copy"></script>
+<script src="/tracker/js/models/receipt.js?v=20261008-receipt-copy"></script>
+<script src="/tracker/js/models/index.js?v=20261008-receipt-copy"></script>
+<script src="/tracker/js/controllers/expenses.js?v=20261008-receipt-copy"></script>
+<script src="/tracker/js/controllers/cashReport.js?v=20261008-receipt-copy"></script>
+<script src="/tracker/js/controllers/charges.js?v=20261008-receipt-copy"></script>
+<script src="/tracker/js/controllers/leads.js?v=20261008-receipt-copy"></script>
+<script src="/tracker/js/controllers/apa.js?v=20261008-receipt-copy"></script>
+<script src="/tracker/js/controllers/stews.js?v=20261008-receipt-copy"></script>
+<script src="/tracker/js/controllers/index.js?v=20261008-receipt-copy"></script>
+<script src="/tracker/js/pdf/expenses-cash.js?v=20261008-receipt-copy"></script>
+<script src="/tracker/js/pdf/owner-cash.js?v=20261008-receipt-copy"></script>
 <script>
 "use strict";
 var API = "/.netlify/functions/tracker";
@@ -1699,7 +1699,7 @@ function selCancelReasonField(cur){
 var EXPECTED_PEOPLE = 2;
 /* Build stamp — shown in Ops → Security so we can verify which code a device
  * actually runs (PWA updates only land after a full close + reopen). */
-var TRACKER_BUILD = "2026-10-01.1";
+var TRACKER_BUILD = "2026-10-08.1";
 var APA_EXP_CATS = ["Drinks & Bar","Dockage / Marina","Crew Tips","Miscellaneous","Fuel / Diesel","Food & Provisions"];
 var APA_PAID_BY = ["APA cash","Ship card","Guest card","Bank transfer"];
 var APA_DASH_CATS = [
@@ -11210,6 +11210,7 @@ function openApaLine(kind,id){
         vendorId:kind==="provision"?"f_supplier":"f_vendor",
         amountId:"f_amount",
         replaceDate:!rec,
+        skipIds:[r.id, r.expenseId, r.fromExpenseId].filter(Boolean),
         still:function(){ return myRead===apaReceiptReadGen; }
       });
     }
@@ -11258,6 +11259,10 @@ function openApaLine(kind,id){
       obj.expenseId=r.expenseId||"";
       if(r.fromExpenseId) obj.fromExpenseId=r.fromExpenseId;
       if(!obj.amount){ el("f_amount").focus(); return; }
+      if(!expConfirmNewReceiptCopy({
+        vendor:obj.vendor, date:obj.date, amount:obj.amount,
+        skipIds:[r.id, r.expenseId, r.fromExpenseId].filter(Boolean)
+      })) return;
     } else if(kind==="provision"){
       obj.supplier=el("f_supplier").value.trim(); obj.items=el("f_items").value.trim()||"provisions";
       obj.amount=apaNum(el("f_amount").value);
@@ -11266,6 +11271,10 @@ function openApaLine(kind,id){
       obj.expenseId=r.expenseId||"";
       if(r.fromExpenseId) obj.fromExpenseId=r.fromExpenseId;
       if(!obj.amount){ el("f_amount").focus(); return; }
+      if(!expConfirmNewReceiptCopy({
+        vendor:obj.supplier, date:obj.date, amount:obj.amount,
+        skipIds:[r.id, r.expenseId, r.fromExpenseId].filter(Boolean)
+      })) return;
     } else {
       obj.enginePortL=el("f_engine_port")&&el("f_engine_port").value!==""?apaNum(el("f_engine_port").value):"";
       obj.engineStbdL=el("f_engine_stbd")&&el("f_engine_stbd").value!==""?apaNum(el("f_engine_stbd").value):"";
@@ -14320,6 +14329,61 @@ function expApplyReceiptSuggestion(sug, opts){
   if(plan.amount&&amountEl&&!amountEl.disabled) amountEl.value=plan.amount;
   return plan;
 }
+/** Expenses plus APA expense/provision lines, for “this receipt is already in the book”. */
+function expReceiptBookRows(){
+  var rows=[];
+  (state.expenses||[]).forEach(function(e){
+    if(!e||e.id==null) return;
+    var cat=String(e.category||"");
+    if(e.source==="stew"||e.stewPayKind==="dayPay"||cat==="Crew Salaries") return;
+    if(e.commPayout||e.kind==="captainComm"||cat==="Captain commission") return;
+    if(cat==="Captain reimbursement"||cat==="Crew reimbursement"||cat==="Reimbursement") return;
+    rows.push({
+      id:String(e.id),
+      vendor:e.vendor||"",
+      date:String(e.date||"").slice(0,10),
+      amount:e.amount,
+      where:"Expenses",
+      linkId:e.fromApaLineId?String(e.fromApaLineId):""
+    });
+  });
+  (state.apa||[]).forEach(function(t){
+    if(!t) return;
+    var guest=String(t.guest||"").trim();
+    var where=guest?("APA · "+guest):"APA";
+    function pushLine(line, vendor){
+      if(!line||line.id==null) return;
+      rows.push({
+        id:String(line.id),
+        vendor:vendor||"",
+        date:String(line.date||"").slice(0,10),
+        amount:line.amount,
+        where:where,
+        linkId:line.expenseId?String(line.expenseId):(line.fromExpenseId?String(line.fromExpenseId):"")
+      });
+    }
+    (t.expenses||[]).forEach(function(line){ pushLine(line, line.vendor||""); });
+    (t.provisions||[]).forEach(function(line){ pushLine(line, line.supplier||line.vendor||""); });
+  });
+  return rows;
+}
+function expReceiptCopyNotice(fields){
+  fields=fields||{};
+  if(!window.LY_MODELS||typeof LY_MODELS.findReceiptCopies!=="function") return {matches:[],notice:""};
+  return LY_MODELS.findReceiptCopies({
+    vendor:fields.vendor,
+    date:fields.date,
+    amount:fields.amount,
+    skipIds:fields.skipIds||[],
+    rows:expReceiptBookRows()
+  })||{matches:[],notice:""};
+}
+/** False when the captain backs out of saving a likely copy. */
+function expConfirmNewReceiptCopy(fields){
+  var found=expReceiptCopyNotice(fields);
+  if(!found.notice) return true;
+  return window.confirm(found.notice+".\n\nSave this copy anyway?");
+}
 /** Read the original photo. Fills empty shop / date / total. Does not save. */
 function expStartReceiptRead(file, opts){
   opts=opts||{};
@@ -14354,9 +14418,22 @@ function expStartReceiptRead(file, opts){
     })||{};
     var line=plan.summary||sug.summary||"";
     if(!status) return;
-    if(!line) status.textContent="Could not read a shop, date, or total on this photo.";
-    else if(!plan.date&&!plan.vendor&&!plan.amount) status.textContent=line+" — left what you already typed.";
-    else status.textContent=line+" — check before you save.";
+    status.style.color="";
+    if(!line){
+      status.textContent="Could not read a shop, date, or total on this photo.";
+      return;
+    }
+    var tail=(!plan.date&&!plan.vendor&&!plan.amount)?" — left what you already typed.":" — check before you save.";
+    var copy=expReceiptCopyNotice({
+      vendor:el(opts.vendorId)?el(opts.vendorId).value:"",
+      date:el(opts.dateId)?el(opts.dateId).value:"",
+      amount:el(opts.amountId)?el(opts.amountId).value:"",
+      skipIds:opts.skipIds||[]
+    });
+    if(copy.notice){
+      status.style.color="#9a6b00";
+      status.textContent=line+tail+" "+copy.notice+".";
+    } else status.textContent=line+tail;
   }).catch(function(err){
     if(opts.still&&!opts.still()) return;
     var aborted=err&&(err.name==="AbortError"||/aborted|abort/i.test(String(err&&err.message||"")));
@@ -16119,6 +16196,7 @@ function openExpense(id, opts){
         vendorId:"f_exp_vendor",
         amountId:"f_exp_amount",
         replaceDate:!rec,
+        skipIds:[r.id, r.fromApaLineId].filter(Boolean),
         still:function(){ return myRead===expPhotoReadGen; }
       });
     }
@@ -16354,6 +16432,17 @@ function openExpense(id, opts){
     if(!date){ if(el("f_exp_date")) el("f_exp_date").focus(); return; }
     if(!vendor){ if(el("f_exp_vendor")) el("f_exp_vendor").focus(); return; }
     if(!(amount>0)){ if(el("f_exp_amount")) el("f_exp_amount").focus(); return; }
+    if(!fromStew&&!reimburse&&!commPayout){
+      var catPeek=(el("f_exp_cat")&&el("f_exp_cat").value)||"";
+      var salaryPeek=catPeek==="Crew Salaries"||(typeof expIsCrewDayPayLine==="function"&&expIsCrewDayPayLine(r));
+      var reimbPeek=catPeek==="Captain reimbursement"||catPeek==="Crew reimbursement"||catPeek==="Reimbursement";
+      if(!salaryPeek&&!reimbPeek&&catPeek!=="Captain commission"){
+        if(!expConfirmNewReceiptCopy({
+          vendor:vendor, date:date, amount:amount,
+          skipIds:[r.id, r.fromApaLineId].filter(Boolean)
+        })) return;
+      }
+    }
     var method=(el("f_exp_method")&&el("f_exp_method").value)==="Credit Card"?"Credit Card":"Cash";
     var paidFromRaw=method==="Credit Card"?"":((el("f_exp_paidFrom")&&el("f_exp_paidFrom").value)||"Petty cash");
     var paidFrom=method==="Credit Card"?"":(paidFromRaw==="Owner money"?"Owner money":(paidFromRaw==="Own money"?"Own money":"Petty cash"));
