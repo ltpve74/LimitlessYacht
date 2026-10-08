@@ -349,6 +349,64 @@
   .item .stew-row{margin-top:8px;display:flex;flex-wrap:wrap;gap:6px 12px;align-items:center}
   .exp-rcpt{width:56px;height:56px;border-radius:10px;object-fit:cover;border:1px solid var(--line);background:#f0f3f5;flex-shrink:0}
   .exp-rcpt-lg{max-width:100%;max-height:220px;border-radius:12px;border:1px solid var(--line);display:block;margin:8px 0}
+  /* New expense: camera first, then the three fields a receipt fills */
+  .exp-shot{position:relative;margin:2px 0 14px}
+  .exp-shot-file{position:absolute;width:1px;height:1px;padding:0;margin:-1px;overflow:hidden;clip:rect(0,0,0,0);clip-path:inset(50%);white-space:nowrap;border:0;pointer-events:none}
+  .exp-shot-cam{
+    display:flex;flex-direction:column;align-items:center;justify-content:center;gap:4px;
+    min-height:148px;padding:22px 16px;border-radius:18px;text-align:center;cursor:pointer;
+    background:#0e4a62;color:#fff;box-shadow:0 10px 24px rgba(14,74,98,.28);
+  }
+  .exp-shot-cam:active{transform:scale(.985)}
+  .exp-shot-ic{font-size:36px;line-height:1}
+  .exp-shot-title{font-size:22px;font-weight:800;letter-spacing:-.02em;line-height:1.15}
+  .exp-shot-sub{font-size:13.5px;font-weight:650;opacity:.92;line-height:1.35;max-width:18rem}
+  .exp-shot-lib{
+    display:flex;align-items:center;justify-content:center;margin-top:10px;
+    min-height:56px;padding:14px 14px;border-radius:14px;cursor:pointer;
+    border:1.5px solid var(--line);background:#fff;color:var(--brand);font-weight:800;font-size:17px;
+  }
+  .exp-shot-lib:active{background:#f4f8fb}
+  .exp-shot .exp-rcpt-lg{width:100%;max-height:220px;object-fit:contain;background:#f4f7f8;margin:12px 0 0}
+  .exp-shot #f_exp_photo_read{margin:10px 0 0;font-size:15px;font-weight:700;line-height:1.4}
+  .exp-shot-clear{width:auto;margin-top:10px;padding:10px 14px}
+  .exp-shot.has-photo .exp-shot-cam{min-height:0;padding:14px 16px;flex-direction:row;gap:10px;background:#153a4a;box-shadow:none}
+  .exp-shot.has-photo .exp-shot-ic{font-size:22px}
+  .exp-shot.has-photo .exp-shot-title{font-size:17px}
+  .exp-shot.has-photo .exp-shot-sub{display:none}
+  .exp-quick .ctl{font-size:18px;min-height:52px}
+  .exp-quick-amt .ctl{font-size:32px;font-weight:800;letter-spacing:-.03em;padding:16px 14px 16px 2.6rem;min-height:64px}
+  .exp-quick-amt .moneywrap:before{font-size:26px;font-weight:800;left:14px}
+  .exp-quick-more{margin:0 0 8px;border-top:1px solid var(--line)}
+  .exp-quick-more > summary{
+    font-weight:800;font-size:15px;color:var(--brand);cursor:pointer;
+    padding:14px 0;min-height:48px;list-style:none;
+  }
+  .exp-quick-more > summary::-webkit-details-marker{display:none}
+  /* Pin the actions to the sheet so a photo never pushes Save off the phone */
+  .sheet:has(.exp-quick-foot){
+    height:min(90vh, calc(var(--vvh, 100vh) * 0.9));
+    display:flex;flex-direction:column;overflow:hidden;padding-bottom:0;
+  }
+  .sheet:has(.exp-quick-foot) > .grip{flex:none}
+  .sheet:has(.exp-quick-foot) #sheetInner{
+    display:flex;flex-direction:column;flex:1 1 auto;min-height:0;overflow:hidden;
+  }
+  .exp-quick-scroll{flex:1 1 auto;min-height:0;overflow-x:hidden;overflow-y:auto;-webkit-overflow-scrolling:touch}
+  .sheetfoot.exp-quick-foot{position:static;flex:none;flex-wrap:wrap;margin-top:0;background:#fff}
+  .sheetfoot.exp-quick-foot .exp-next{flex:1 1 100%;order:-1;min-height:52px;font-size:17px}
+  @media(max-height:720px){
+    .exp-shot-cam{min-height:72px;padding:10px 12px}
+    .exp-shot-ic{font-size:26px}
+    .exp-shot-title{font-size:19px}
+    .exp-shot-sub{display:none}
+    .exp-shot-lib{min-height:44px;margin-top:8px;padding:8px 12px;font-size:16px}
+    .exp-quick .field{margin-bottom:8px}
+    .exp-quick-amt .ctl{min-height:52px;font-size:28px;padding:10px 12px 10px 2.4rem}
+    .sheetfoot.exp-quick-foot{padding-top:8px}
+    .sheetfoot.exp-quick-foot .exp-next{min-height:48px}
+    .sheetfoot.exp-quick-foot .btn{padding:12px 10px}
+  }
   .exp-month{display:flex;gap:8px;flex-wrap:wrap;align-items:center;margin:0 0 12px}
   .exp-month select.ctl{width:auto;min-width:9.5rem;padding:10px 12px}
   .sumcard.sum-warn{background:#FFE8A3;border:1.5px solid #E0A800}
@@ -1699,7 +1757,7 @@ function selCancelReasonField(cur){
 var EXPECTED_PEOPLE = 2;
 /* Build stamp — shown in Ops → Security so we can verify which code a device
  * actually runs (PWA updates only land after a full close + reopen). */
-var TRACKER_BUILD = "2026-10-08.1";
+var TRACKER_BUILD = "2026-10-08.2";
 var APA_EXP_CATS = ["Drinks & Bar","Dockage / Marina","Crew Tips","Miscellaneous","Fuel / Diesel","Food & Provisions"];
 var APA_PAID_BY = ["APA cash","Ship card","Guest card","Bank transfer"];
 var APA_DASH_CATS = [
@@ -15424,7 +15482,7 @@ function paintExpensesBody(){
     });
   }
   h+='</div>';
-  h+='<div class="apa-sect-h" style="margin-top:4px"><h3>Expenses</h3><button type="button" class="btn" id="expAdd">Add expense</button></div>';
+  h+='<div class="apa-sect-h" style="margin-top:4px"><h3>Expenses</h3><button type="button" class="btn" id="expAdd">Add receipt</button></div>';
   if(!lines.length){
     var otherMonths=monthList.filter(function(m){ return m!==expMonth; });
     var hasDataElsewhere=otherMonths.some(function(m){
@@ -15965,7 +16023,8 @@ function openExpense(id, opts){
   var chargeToSel=r.chargeTo==="apa"?"apa":"boat";
   var pocketOpts=expPocketPeopleOptions();
   var apaOpts=expListApaPickerOptions();
-  var h='<div class="sheethead"><h2>'+(rec?(fromStew?"Crew salary (from Stews)":"Edit expense"):(commPayout?"Pay commission from petty":(reimburse?"Log reimbursement":"New expense")))+'</h2><button type="button" class="sheetx" id="sheetClose" aria-label="Close">×</button></div>';
+  var quickNew=!rec&&!reimburse&&!commPayout;
+  var h='<div class="sheethead"><h2>'+(rec?(fromStew?"Crew salary (from Stews)":"Edit expense"):(commPayout?"Pay commission from petty":(reimburse?"Log reimbursement":"New receipt")))+'</h2><button type="button" class="sheetx" id="sheetClose" aria-label="Close">×</button></div>';
   if(fromStew){
     var unp=expIsCrewUnpaid(r);
     var hitsPetty=expCrewPayHitsFloat(r);
@@ -15999,7 +16058,8 @@ function openExpense(id, opts){
     h+='<div class="banner warn show">Takes cash <b>from petty cash</b> (the envelope — e.g. part of guest free cash) to repay <b>'+esc(reimburseName)+'</b>. '+
       'This is a <b>cash out</b> line: Paid from → Petty cash. The original shop spend stays as Own money; this line shows it was repaid.</div>';
   }
-  h+=fieldHTML(fromStew?"Paid date":"Date",'<input class="ctl" id="f_exp_date" type="date" value="'+esc(r.date||"")+'">');
+  var dateField=fieldHTML(fromStew?"Paid date":"Date",'<input class="ctl" id="f_exp_date" type="date" value="'+esc(r.date||"")+'">');
+  var dateHint="";
   if(fromStew){
     var charterHint=String(r.charterDate||"").slice(0,10);
     if(!charterHint&&r.stewEventKey){
@@ -16008,14 +16068,14 @@ function openExpense(id, opts){
         if(asgHint&&asgHint.start) charterHint=String(asgHint.start).slice(0,10);
       }catch(eCh){}
     }
-    h+='<p style="margin:-6px 0 12px;font-size:12px;color:var(--muted);line-height:1.4">'+
+    dateHint='<p style="margin:-6px 0 12px;font-size:12px;color:var(--muted);line-height:1.4">'+
       'Change this when cash actually left (or when owner paid). '+
       (charterHint?'Charter day stays <b>'+esc(fmtDate(charterHint)||charterHint)+'</b> on the roster.':'')+
     '</p>';
   }
-  h+=fieldHTML("Company / Store",'<input class="ctl" id="f_exp_vendor" value="'+esc(r.vendor||"")+'" placeholder="e.g. Eroski, Makro"'+(fromStew?" disabled":"")+'>');
-  h+=fieldHTML("Description",'<input class="ctl" id="f_exp_desc" value="'+esc(r.description||"")+'" placeholder="e.g. Galley supplies"'+(fromStew?" disabled":"")+'>');
-  h+='<div class="row2">'+
+  var vendorField=fieldHTML(quickNew?"Shop":"Company / Store",'<input class="ctl" id="f_exp_vendor" value="'+esc(r.vendor||"")+'" placeholder="'+(quickNew?"Makro, Mercadona…":"e.g. Eroski, Makro")+'"'+(fromStew?" disabled":"")+'>');
+  var descField=fieldHTML("Description",'<input class="ctl" id="f_exp_desc" value="'+esc(r.description||"")+'" placeholder="e.g. Galley supplies"'+(fromStew?" disabled":"")+'>');
+  var catRow='<div class="row2">'+
     fieldHTML("Category",'<select class="ctl" id="f_exp_cat"'+(fromStew||reimburse||commPayout?" disabled":"")+'>'+EXP_CATS.map(function(c){return '<option'+(c===(r.category||"")?" selected":"")+'>'+esc(c)+'</option>';}).join("")+'</select>')+
     fieldHTML("Type",'<select class="ctl" id="f_exp_method"'+(fromStew||commPayout?" disabled":"")+'>'+EXP_METHODS.map(function(c){return '<option'+(c===(r.payMethod||"")?" selected":"")+'>'+esc(c)+'</option>';}).join("")+'</select>')+
   '</div>';
@@ -16030,7 +16090,7 @@ function openExpense(id, opts){
   var paySelDefault=fromStew
     ?(expIsCrewUnpaid(r)?"Unpaid":"Paid")
     :(rec?(String(r.crewPayStatus||"")==="Paid"?"Paid":"Unpaid"):"Paid");
-  h+='<div id="f_exp_crew_pay_wrap" style="'+(isCrewSalCat?"":"display:none")+'">'+
+  var crewBlock='<div id="f_exp_crew_pay_wrap" style="'+(isCrewSalCat?"":"display:none")+'">'+
     fieldHTML(fromStew?"Day pay status":"Payment status",'<select class="ctl" id="f_exp_crew_pay">'+
       '<option value="Unpaid"'+(paySelDefault==="Unpaid"?" selected":"")+'>Unpaid (not paid yet)</option>'+
       '<option value="Paid"'+(paySelDefault==="Paid"?" selected":"")+'>Paid (cash out from float / pocket)</option>'+
@@ -16041,7 +16101,7 @@ function openExpense(id, opts){
         :"<b>Paid</b> + Petty cash reduces cash on board. Leave Unpaid only if you are logging an amount still owed.")+
     '</p>'+
   '</div>';
-  h+='<div id="f_exp_paidFrom_wrap">'+
+  var paidFromBlock='<div id="f_exp_paidFrom_wrap">'+
     fieldHTML("Paid from (cash only)",'<select class="ctl" id="f_exp_paidFrom"'+(reimburse||commPayout?" disabled":"")+'>'+
       (fromStew
         ?('<option value="Petty cash"'+(paidFromSel==="Petty cash"?" selected":"")+'>Petty cash (reduces on-board)</option>'+
@@ -16074,8 +16134,9 @@ function openExpense(id, opts){
         :'<b>Petty cash</b> = left the boat envelope. <b>Own money</b> = captain or crew pocket — pick who below. <b>Owner money</b> = owner paid (not your pocket claim).')+
     '</p>'+
   '</div>';
+  var reimburseBlock="";
   if(!fromStew){
-    h+='<div id="f_exp_reimburseTo_wrap" style="'+(expIsReimbursement(r)||reimburse?"":"display:none")+'">'+
+    reimburseBlock='<div id="f_exp_reimburseTo_wrap" style="'+(expIsReimbursement(r)||reimburse?"":"display:none")+'">'+
       fieldHTML("Reimburse who",'<select class="ctl" id="f_exp_reimburseTo"'+(reimburse?" disabled":"")+'>'+
         pocketOpts.map(function(o){
           var sel=String(r.reimburseToId||reimburseToId||EXP_POCKET_CAPTAIN)===String(o.id);
@@ -16086,8 +16147,9 @@ function openExpense(id, opts){
     '</div>';
   }
   /* Charge to boat vs APA pot */
+  var chargeBlock="";
   if(!fromStew&&!reimburse&&!commPayout){
-    h+='<div id="f_exp_charge_wrap">'+
+    chargeBlock='<div id="f_exp_charge_wrap">'+
       fieldHTML("Charge to",'<select class="ctl" id="f_exp_chargeTo">'+
         '<option value="boat"'+(chargeToSel==="boat"?" selected":"")+'>Boat (running costs)</option>'+
         '<option value="apa"'+(chargeToSel==="apa"?" selected":"")+'>APA / charter client</option>'+
@@ -16105,21 +16167,49 @@ function openExpense(id, opts){
         'Category <b>Provisions</b> → APA <b>Provisions</b> tab; other categories → APA <b>Expenses</b>.</p>'+
     '</div>';
   }
-  h+=fieldHTML("Amount (€)",moneyField("f_exp_amount", r.amount!=null&&r.amount!==""?r.amount:""));
+  var amountField=fieldHTML(quickNew?"Total (€)":"Amount (€)",moneyField("f_exp_amount", r.amount!=null&&r.amount!==""?r.amount:""));
+  var amountHint="";
   if(fromStew){
-    h+='<p style="margin:-6px 0 12px;font-size:12px;color:var(--muted)">Editable for reduced pay (e.g. €50 after a cancelled charter). Syncs back to Stews day rate for this person.</p>';
+    amountHint='<p style="margin:-6px 0 12px;font-size:12px;color:var(--muted)">Editable for reduced pay (e.g. €50 after a cancelled charter). Syncs back to Stews day rate for this person.</p>';
   }
-  h+='<div class="field"><label>Receipt (photo or PDF)</label>'+
-    '<input class="ctl" id="f_exp_photo" type="file" accept="image/*,application/pdf,.pdf">'+
-    '<div id="f_exp_photo_prev" style="margin-top:8px">'+expReceiptPreviewHTML(r.receipt||"")+'</div>'+
-    '<p id="f_exp_photo_read" style="margin:8px 0 0;font-size:12.5px;color:var(--muted);line-height:1.4"></p>'+
-    (r.receipt?'<button type="button" class="btn ghost" id="f_exp_photo_clear" style="width:auto;margin-top:8px;padding:8px 12px">Remove receipt</button>':'')+
-  '</div>';
-  h+='<p style="margin:0 0 12px;font-size:12px;color:var(--muted)">A photo can fill the shop, date, and total. Check them before you save. Photos are compressed; PDFs become an image on your phone (first 1–2 pages).</p>';
-  if(rec) h+='<div class="sheetbtns"><button type="button" class="btn danger" id="sheetDel">Delete</button></div>';
-  h+='<div class="sheetfoot"><button type="button" class="btn ghost" id="sheetCancel">Cancel</button>'+
-    '<button type="button" class="btn" id="sheetSave">Save</button>'+
-  '</div>';
+  if(quickNew){
+    h+='<div class="exp-quick-scroll">'+
+    '<div class="exp-shot" id="expQuickShot">'+
+      '<input class="exp-shot-file" id="f_exp_photo" type="file" accept="image/*" capture="environment">'+
+      '<input class="exp-shot-file" id="f_exp_photo_lib" type="file" accept="image/*,application/pdf,.pdf">'+
+      '<label class="exp-shot-cam" for="f_exp_photo">'+
+        '<span class="exp-shot-ic" aria-hidden="true">📷</span>'+
+        '<span class="exp-shot-title" id="expShotTitle">Take receipt photo</span>'+
+        '<span class="exp-shot-sub" id="expShotSub">Shop, date, and total fill in. Check them before you save.</span>'+
+      '</label>'+
+      '<label class="exp-shot-lib" for="f_exp_photo_lib">Choose a saved photo or PDF</label>'+
+      '<div id="f_exp_photo_prev"></div>'+
+      '<p id="f_exp_photo_read"></p>'+
+      '<button type="button" class="btn ghost exp-shot-clear hidden" id="f_exp_photo_clear">Remove photo</button>'+
+    '</div>';
+    h+='<div class="exp-quick"><div class="exp-quick-amt">'+amountField+'</div>'+
+      vendorField+dateField+
+      '<details class="exp-quick-more"><summary>Category, card, and who paid</summary>'+
+      descField+catRow+crewBlock+paidFromBlock+reimburseBlock+chargeBlock+
+      '</details></div></div>';
+    h+='<div class="sheetfoot exp-quick-foot">'+
+      '<button type="button" class="btn exp-next" id="sheetSaveNext">Save and next</button>'+
+      '<button type="button" class="btn ghost" id="sheetCancel">Cancel</button>'+
+      '<button type="button" class="btn ghost" id="sheetSave">Save</button></div>';
+  } else {
+    h+=dateField+dateHint+vendorField+descField+catRow+crewBlock+paidFromBlock+reimburseBlock+chargeBlock+amountField+amountHint;
+    h+='<div class="field"><label>Receipt (photo or PDF)</label>'+
+      '<input class="ctl" id="f_exp_photo" type="file" accept="image/*,application/pdf,.pdf">'+
+      '<div id="f_exp_photo_prev" style="margin-top:8px">'+expReceiptPreviewHTML(r.receipt||"")+'</div>'+
+      '<p id="f_exp_photo_read" style="margin:8px 0 0;font-size:12.5px;color:var(--muted);line-height:1.4"></p>'+
+      (r.receipt?'<button type="button" class="btn ghost" id="f_exp_photo_clear" style="width:auto;margin-top:8px;padding:8px 12px">Remove receipt</button>':'')+
+    '</div>';
+    h+='<p style="margin:0 0 12px;font-size:12px;color:var(--muted)">A photo can fill the shop, date, and total. Check them before you save. Photos are compressed; PDFs become an image on your phone (first 1–2 pages).</p>';
+    if(rec) h+='<div class="sheetbtns"><button type="button" class="btn danger" id="sheetDel">Delete</button></div>';
+    h+='<div class="sheetfoot"><button type="button" class="btn ghost" id="sheetCancel">Cancel</button>'+
+      '<button type="button" class="btn" id="sheetSave">Save</button>'+
+    '</div>';
+  }
   el("sheetInner").innerHTML=h;
   if(fromStew){
     /* Paid date + amount editable; vendor/desc/cat stay linked to Stews roster */
@@ -16180,35 +16270,73 @@ function openExpense(id, opts){
   syncChargeVis();
   var receiptData=r.receipt||"";
   var expPhotoReadGen=0;
-  if(el("f_exp_photo")) el("f_exp_photo").addEventListener("change",function(){
-    var f=el("f_exp_photo").files&&el("f_exp_photo").files[0];
-    if(!f) return;
-    var myRead=++expPhotoReadGen;
-    expCompressReceipt(f).then(function(data){
-      receiptData=data;
-      var prev=el("f_exp_photo_prev");
-      if(prev) prev.innerHTML=expReceiptPreviewHTML(data);
-    }).catch(function(err){ window.alert(err&&err.message?err.message:"Could not use file"); });
-    if(!fromStew&&!reimburse&&!commPayout){
-      expStartReceiptRead(f, {
-        statusId:"f_exp_photo_read",
-        dateId:"f_exp_date",
-        vendorId:"f_exp_vendor",
-        amountId:"f_exp_amount",
-        replaceDate:!rec,
-        skipIds:[r.id, r.fromApaLineId].filter(Boolean),
-        still:function(){ return myRead===expPhotoReadGen; }
+  function expMarkShot(){
+    var shot=el("expQuickShot");
+    if(shot) shot.classList.add("has-photo");
+    var title=el("expShotTitle");
+    if(title) title.textContent="Retake photo";
+    var clr=el("f_exp_photo_clear");
+    if(clr) clr.classList.remove("hidden");
+  }
+  function expClearShotUi(){
+    var shot=el("expQuickShot");
+    if(shot) shot.classList.remove("has-photo");
+    var title=el("expShotTitle");
+    if(title) title.textContent="Take receipt photo";
+    var clr=el("f_exp_photo_clear");
+    if(clr&&shot) clr.classList.add("hidden");
+    if(el("f_exp_photo")) el("f_exp_photo").value="";
+    if(el("f_exp_photo_lib")) el("f_exp_photo_lib").value="";
+  }
+  function expBindPhotoInput(id){
+    var input=el(id);
+    if(!input) return;
+    input.addEventListener("change",function(){
+      var f=input.files&&input.files[0];
+      if(!f) return;
+      var myRead=++expPhotoReadGen;
+      expMarkShot();
+      expCompressReceipt(f).then(function(data){
+        if(myRead!==expPhotoReadGen) return;
+        receiptData=data;
+        var prev=el("f_exp_photo_prev");
+        if(prev) prev.innerHTML=expReceiptPreviewHTML(data);
+      }).catch(function(err){
+        if(myRead!==expPhotoReadGen) return;
+        window.alert(err&&err.message?err.message:"Could not use file");
       });
-    }
-  });
+      if(!fromStew&&!reimburse&&!commPayout){
+        expStartReceiptRead(f, {
+          statusId:"f_exp_photo_read",
+          dateId:"f_exp_date",
+          vendorId:"f_exp_vendor",
+          amountId:"f_exp_amount",
+          replaceDate:!rec,
+          skipIds:[r.id, r.fromApaLineId].filter(Boolean),
+          still:function(){ return myRead===expPhotoReadGen; }
+        });
+      }
+      /* Same file can be chosen again on the next receipt. */
+      input.value="";
+    });
+  }
+  expBindPhotoInput("f_exp_photo");
+  expBindPhotoInput("f_exp_photo_lib");
   if(el("f_exp_photo_clear")) el("f_exp_photo_clear").addEventListener("click",function(){
     expPhotoReadGen++;
     receiptData="";
     if(el("f_exp_photo_prev")) el("f_exp_photo_prev").innerHTML="";
-    if(el("f_exp_photo_read")) el("f_exp_photo_read").textContent="";
-    if(el("f_exp_photo")) el("f_exp_photo").value="";
+    if(el("f_exp_photo_read")){ el("f_exp_photo_read").textContent=""; el("f_exp_photo_read").style.color=""; }
+    expClearShotUi();
+  });
+  var wantNext=false;
+  if(el("sheetSaveNext")) el("sheetSaveNext").addEventListener("click",function(){
+    wantNext=true;
+    if(el("sheetSave")) el("sheetSave").click();
   });
   el("sheetSave").addEventListener("click",function(){
+    var goNext=!!wantNext;
+    wantNext=false;
     if(fromStew){
       var pfRaw=(el("f_exp_paidFrom")&&el("f_exp_paidFrom").value)||"Petty cash";
       var isPrior=pfRaw==="Prior"||pfRaw==="Prior / not this pot";
@@ -16562,13 +16690,17 @@ function openExpense(id, opts){
     if(rec) state.expenses=state.expenses.map(function(e){return e&&e.id===obj.id?Object.assign({},e,obj):e;});
     else state.expenses.unshift(obj);
     expMonth=expMonthKey(date)||expMonth;
-    showSheet(false);
     saveExpenses();
     expSyncExpenseToApaAndSave(obj);
     if(curTab==="commissions") renderCommissions();
     else renderExpenses();
     /* Pocket balances feed Stews “money owed” — refresh if that tab is open */
     if(typeof renderStews==="function"&&curTab==="stews") renderStews({soft:true});
+    if(goNext&&!rec){
+      openExpense(null);
+      return;
+    }
+    showSheet(false);
   });
   el("sheetCancel").addEventListener("click",function(){ showSheet(false); });
   el("sheetClose").addEventListener("click",function(){ showSheet(false); });
@@ -23461,6 +23593,8 @@ document.addEventListener("keydown",function(ev){ if(ev.key==="Escape"&&el("shee
   sh.addEventListener("touchstart",function(e){
     if(!sh.classList.contains("show")||!inDragZone(e.target)){ dragging=false; return; }
     if(sh.scrollTop>2){ dragging=false; return; }
+    var quickScroll=sh.querySelector(".exp-quick-scroll");
+    if(quickScroll&&quickScroll.scrollTop>2){ dragging=false; return; }
     wide=window.matchMedia&&window.matchMedia("(min-width:620px)").matches;
     startY=e.touches[0].clientY; dragging=true;
   },{passive:true});
