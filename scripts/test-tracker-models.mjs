@@ -4698,6 +4698,14 @@ console.log("\n[Receipt photo read — suggest only, never a ledger write]");
     "new expense can save and open the next receipt",
     html.indexOf("sheetSaveNext") !== -1 && html.indexOf("Save and next") !== -1 && html.indexOf("openExpense(null)") !== -1
   );
+  ok(
+    "new expense chooses company card or petty cash",
+    html.indexOf('id="expPayCard"') !== -1 &&
+      html.indexOf('id="expPayPetty"') !== -1 &&
+      html.indexOf("Company card") !== -1 &&
+      html.indexOf('expChoosePay("card")') !== -1 &&
+      html.indexOf('expChoosePay("petty")') !== -1
+  );
 }
 
 console.log("\n──────────────────────────────────────────────────────────");

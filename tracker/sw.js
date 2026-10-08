@@ -1,5 +1,5 @@
 /* Limitless Tracker service worker — push notifications for the installed PWA */
-/* v14: new expense opens on the receipt photo (2026-10-08.2) */
+/* v15: new receipt chooses company card or petty cash (2026-10-08.3) */
 self.addEventListener("install", function (e) {
   self.skipWaiting();
 });
