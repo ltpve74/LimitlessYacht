@@ -152,9 +152,89 @@
     return out;
   }
 
+  /** Shop name for “is this the same till?”. Drops legal suffixes and punctuation. */
+  function vendorKey(v) {
+    return String(v == null ? "" : v)
+      .toLowerCase()
+      .replace(/&/g, " and ")
+      .replace(/\b(s\.?\s*l\.?\s*u?\.?|s\.?\s*a\.?)\b/g, " ")
+      .replace(/[^a-z0-9]+/g, " ")
+      .replace(/\s+/g, " ")
+      .trim();
+  }
+
+  function vendorsAlike(a, b) {
+    a = vendorKey(a);
+    b = vendorKey(b);
+    if (!a || !b) return false;
+    if (a === b) return true;
+    if (a.length >= 4 && b.length >= 4 && (a.indexOf(b) !== -1 || b.indexOf(a) !== -1)) return true;
+    var aw = a.split(" ")[0];
+    var bw = b.split(" ")[0];
+    return aw.length >= 4 && aw === bw;
+  }
+
+  /**
+   * Same shop, same day, same euro total as a row already in the books.
+   * A linked APA line and its expense count once. skipIds is the row being edited.
+   * Does not write anything.
+   */
+  function findReceiptCopies(input) {
+    input = input || {};
+    var vendor = String(input.vendor == null ? "" : input.vendor).trim();
+    var date = String(input.date || "").slice(0, 10);
+    var amount = util.round2(util.num(input.amount));
+    var empty = { matches: [], notice: "" };
+    if (!vendor || !/^\d{4}-\d{2}-\d{2}$/.test(date) || !(amount > 0)) return empty;
+    var skip = {};
+    var skipIds = Array.isArray(input.skipIds) ? input.skipIds : [];
+    for (var s = 0; s < skipIds.length; s++) {
+      if (skipIds[s]) skip[String(skipIds[s])] = true;
+    }
+    var rows = Array.isArray(input.rows) ? input.rows : [];
+    var hits = [];
+    var seen = {};
+    for (var i = 0; i < rows.length; i++) {
+      var row = rows[i];
+      if (!row || row.id == null) continue;
+      var id = String(row.id);
+      if (!id || skip[id]) continue;
+      var link = row.linkId ? String(row.linkId) : "";
+      if (link && skip[link]) continue;
+      if (seen[id] || (link && seen[link])) continue;
+      if (!vendorsAlike(vendor, row.vendor)) continue;
+      if (String(row.date || "").slice(0, 10) !== date) continue;
+      var amt = util.round2(util.num(row.amount));
+      if (Math.abs(amt - amount) > 0.009) continue;
+      seen[id] = true;
+      if (link) seen[link] = true;
+      hits.push({
+        id: id,
+        vendor: String(row.vendor || "").trim(),
+        date: date,
+        amount: amt,
+        where: String(row.where || "").trim(),
+      });
+    }
+    if (!hits.length) return empty;
+    var h = hits[0];
+    var notice =
+      "Already entered" +
+      (h.where ? " in " + h.where : "") +
+      ": " +
+      (h.vendor || vendor) +
+      " · " +
+      prettyDate(h.date) +
+      " · " +
+      euroLabel(h.amount);
+    if (hits.length > 1) notice += " (+" + (hits.length - 1) + " more)";
+    return { matches: hits, notice: notice };
+  }
+
   return {
     normalizeReceiptRead: normalizeReceiptRead,
     planReceiptFieldFill: planReceiptFieldFill,
     parseReceiptDate: parseReceiptDate,
+    findReceiptCopies: findReceiptCopies,
   };
 });

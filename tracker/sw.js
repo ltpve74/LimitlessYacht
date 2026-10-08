@@ -1,5 +1,5 @@
 /* Limitless Tracker service worker — push notifications for the installed PWA */
-/* v12: receipt photo read suggests shop, date, total (2026-10-01.1) */
+/* v13: receipt copy warning — same shop, day, and total (2026-10-08.1) */
 self.addEventListener("install", function (e) {
   self.skipWaiting();
 });

@@ -11,7 +11,7 @@ See [`.agent/briefs/tracker-v1-mvc-blueprint.md`](../../../.agent/briefs/tracker
 | `charges.js` | Bill type, cash-to-boat, VAT parts, captain upsell commission, charges CSV export |
 | `expenses.js` | Petty cash, reimbursement, crew day-pay, pocket liabilities, month settlement |
 | `apa.js` | Guest pot totals / overage (diesel costs injected) |
-| `receipt.js` | Photo read → shop, date, euro total. Suggests fields only; never a ledger write |
+| `receipt.js` | Photo read → shop, date, euro total. Suggests fields only; flags a same shop/day/total already in the books. Never a ledger write |
 | `diesel.js` | Bunker buy + sticky guest sell |
 | `stews.js` | Roster, tip on-bill, day-pay amounts |
 | `index.js` | Merges → `window.LY_MODELS` / `module.exports` |
