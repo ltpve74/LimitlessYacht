@@ -451,18 +451,25 @@
           valColor: projTot > 0.009 ? greenInk : slateInk,
         });
         gap(6);
-        kvRow("Expected on boat (after collect)", pdfMoney(expectBoat), {
-          big: true,
-          boldLab: true,
-          bg: expectBoat > 0.009 ? greenBg : amberBg,
-          labColor: expectBoat > 0.009 ? greenInk : amberInk,
-          valColor: expectBoat > 0.009 ? greenInk : amberInk,
-        });
-        gap(2);
-        noteLine(
-          "On board now + pending + projected (once that client cash is collected).",
-          muted
-        );
+        if (pendTot > 0.009 || projTot > 0.009) {
+          kvRow("Expected on boat (after collect)", pdfMoney(expectBoat), {
+            big: true,
+            boldLab: true,
+            bg: expectBoat > 0.009 ? greenBg : amberBg,
+            labColor: expectBoat > 0.009 ? greenInk : amberInk,
+            valColor: expectBoat > 0.009 ? greenInk : amberInk,
+          });
+          gap(2);
+          noteLine(
+            "On board now + pending + projected (once that client cash is collected).",
+            muted
+          );
+        } else {
+          noteLine(
+            "Nothing left to collect: all sailed client cash is received or invoiced.",
+            muted
+          );
+        }
 
         /* —— Cash out lines (before cash in; newest first) —— */
         sectionHead("CASH OUT");

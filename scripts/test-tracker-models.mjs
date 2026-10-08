@@ -102,6 +102,59 @@ console.log("[PDF — owner cash]");
     OwnerCashPdf.safeText("Own money · float top-up").indexOf("Captain money") === 0
   );
   ok("owner cash exports build", typeof OwnerCashPdf.build === "function");
+  const PDFLib = require(join(root, "tracker/lib/pdf-lib.min.js"));
+  const { inflateSync } = await import("zlib");
+  async function ownerCashText(report) {
+    const blob = await OwnerCashPdf.build(report, PDFLib);
+    const raw = Buffer.from(await blob.arrayBuffer()).toString("latin1");
+    const streams = [];
+    const re = /stream\r?\n([\s\S]*?)\r?\nendstream/g;
+    let m;
+    while ((m = re.exec(raw))) {
+      try {
+        streams.push(inflateSync(Buffer.from(m[1], "latin1")).toString("latin1"));
+      } catch (e) {}
+    }
+    return (streams.join("\n").match(/<([0-9A-Fa-f]+)>\s*Tj/g) || [])
+      .map(function (tok) {
+        return Buffer.from(tok.slice(1, tok.indexOf(">")), "hex").toString("latin1");
+      })
+      .join("\n");
+  }
+  const quiet = {
+    month: "2026-09",
+    monthLabel: "September 2026",
+    pettyStart: 100,
+    cashInTotal: 0,
+    cashOut: 0,
+    pettyOnboard: 100,
+    cashShort: 0,
+    cashPending: { total: 0, items: [] },
+    cashProjected: { total: 0, items: [] },
+    cashOutLines: [],
+    cashIns: [],
+  };
+  const quietPdf = await ownerCashText(quiet);
+  ok(
+    "owner cash says nothing left to collect when pending and projected are zero",
+    quietPdf.indexOf("Nothing left to collect: all sailed client cash is received or invoiced.") !== -1 &&
+      quietPdf.indexOf("Expected on boat") === -1 &&
+      quietPdf.indexOf("once that client cash is collected") === -1
+  );
+  const duePdf = await ownerCashText(
+    Object.assign({}, quiet, {
+      cashPending: {
+        total: 50,
+        items: [{ name: "Ada", cash: 50, dest: "boat", start: "2026-09-01", kind: "cash" }],
+      },
+    })
+  );
+  ok(
+    "owner cash keeps the expected line when client cash is still to collect",
+    duePdf.indexOf("Expected on boat (after collect)") !== -1 &&
+      duePdf.indexOf("once that client cash is collected") !== -1 &&
+      duePdf.indexOf("Nothing left to collect") === -1
+  );
 }
 
 /* ---- Ops today board (day grouping) ---- */
