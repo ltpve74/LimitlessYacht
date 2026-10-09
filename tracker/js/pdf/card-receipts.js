@@ -2,7 +2,7 @@
  * LY_PDF.cardReceipts — one page per card expense, same order as the spreadsheet.
  *
  * Paint only. Rows come from LY_CONTROLLERS.expenses.cardMonthReport.
- * A row with no JPEG/PNG still gets its date, vendor, and amount, plus an empty box.
+ * A row with no JPEG/PNG is left out. Page numbers count only the photos.
  */
 (function (root, factory) {
   "use strict";
@@ -91,7 +91,6 @@
         var gold = rgb(0.79, 0.66, 0.3);
         var ink = rgb(0.12, 0.13, 0.15);
         var muted = rgb(0.42, 0.45, 0.5);
-        var boxFill = rgb(0.96, 0.97, 0.98);
         var rows = Array.isArray(report.rows) ? report.rows : [];
         var monthLabel = safeText(report.monthLabel || report.month || "");
 
@@ -115,19 +114,6 @@
               color: color || ink,
             });
           } catch (e) {}
-        }
-        function drawEmpty(page, top) {
-          var h = Math.max(80, top - margin);
-          page.drawRectangle({
-            x: margin,
-            y: margin,
-            width: W - margin * 2,
-            height: h,
-            color: boxFill,
-            borderColor: muted,
-            borderWidth: 1,
-          });
-          draw(page, "No receipt photo", margin + 16, margin + h / 2, 14, false, muted);
         }
         function drawImage(page, img, top) {
           var maxW = W - margin * 2;
@@ -159,52 +145,58 @@
           draw(page, label, margin, H - 98, 13, true, ink);
           return H - 116;
         }
-        function paintOne(page, row, index, total) {
+        function paintNotice(title, line) {
+          var page = doc.addPage([W, H]);
+          paintChrome(page, 0, 0, title);
+          if (line) draw(page, line, margin, H - 124, 11, false, muted);
+        }
+        function embedRow(row) {
+          var photo = row && row.receipt;
+          var bytes = photo ? dataUrlBytes(photo) : null;
+          if (!bytes) return Promise.resolve(null);
+          var pending = /^data:image\/png/i.test(photo) ? doc.embedPng(bytes) : doc.embedJpg(bytes);
+          return Promise.resolve(pending)
+            .then(function (img) {
+              return { row: row, img: img };
+            })
+            .catch(function () {
+              return null;
+            });
+        }
+        function paintPhoto(item, index, total) {
+          var row = item.row || {};
           var label =
             (row.date || "") +
             "  ·  " +
             (row.vendor || "Expense") +
             "  ·  " +
             pdfMoney(row.amount);
+          var page = doc.addPage([W, H]);
           var top = paintChrome(page, index, total, fit(label, 13, true, W - margin * 2));
-          var photo = row && row.receipt;
-          var bytes = photo ? dataUrlBytes(photo) : null;
-          if (!bytes) {
-            drawEmpty(page, top);
-            return Promise.resolve();
-          }
-          var pending = /^data:image\/png/i.test(photo) ? doc.embedPng(bytes) : doc.embedJpg(bytes);
-          return Promise.resolve(pending)
-            .then(function (img) {
-              drawImage(page, img, top);
-            })
-            .catch(function () {
-              drawEmpty(page, top);
-            });
+          drawImage(page, item.img, top);
         }
 
         if (!rows.length) {
-          var blank = doc.addPage([W, H]);
-          paintChrome(blank, 0, 0, "No card expenses this month");
-          draw(
-            blank,
-            "Cash, APA cash, and bank transfers are left out.",
-            margin,
-            H - 124,
-            11,
-            false,
-            muted
-          );
+          paintNotice("No card expenses this month", "Cash, APA cash, and bank transfers are left out.");
           return doc.save();
         }
-        var chain = Promise.resolve();
-        rows.forEach(function (row, i) {
-          chain = chain.then(function () {
-            var page = doc.addPage([W, H]);
-            return paintOne(page, row, i + 1, rows.length);
+        var chain = Promise.resolve([]);
+        rows.forEach(function (row) {
+          chain = chain.then(function (kept) {
+            return embedRow(row).then(function (item) {
+              if (item) kept.push(item);
+              return kept;
+            });
           });
         });
-        return chain.then(function () {
+        return chain.then(function (kept) {
+          if (!kept.length) {
+            paintNotice("No receipt photos this month", "Charges without a photo are left out.");
+            return doc.save();
+          }
+          kept.forEach(function (item, i) {
+            paintPhoto(item, i + 1, kept.length);
+          });
           return doc.save();
         });
       });

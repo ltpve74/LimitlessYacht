@@ -3,7 +3,7 @@
 On the Expenses month bar, next to CSV / Full PDF / Export for owner:
 
 - **Card CSV** — `Limitless-card-expenses-<month>.csv`. Columns Date, Vendor, Amount, oldest first, total row. Amounts are plain euro numbers.
-- **Card receipts** — one PDF page per row, in that same order. Date, vendor, and amount sit above the receipt photo. A row with no JPEG/PNG still has the label and an empty box.
+- **Card receipts** — one PDF page per receipt photo, in the same order as the CSV. Date, vendor, and amount sit above the photo. A charge with no JPEG/PNG is left out. If none of the card rows have a photo, the file is one note, not a blank page per charge.
 
 The month is the picker already on that screen.
 
