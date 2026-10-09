@@ -693,6 +693,142 @@ await test("splitStatus: reports mode (captain only)", async () => {
   check(denied.status === 403, "team → 403");
 });
 
+/* ── archive missing / restore (captain, selected rows only) ── */
+const ARCH_KEY = "archive/data-2026-09-10T22-43-09-600Z";
+function seedArchiveCase() {
+  seedData({
+    expenses: [
+      { id: "eKeep", amount: 10, vendor: "Keep", date: "2026-09-01" },
+      { id: "eLive", amount: 7, vendor: "Later", date: "2026-09-20" },
+    ],
+    apa: [
+      {
+        id: "t1",
+        guest: "Smith",
+        expenses: [{ id: "L2", date: "2026-09-04", supplier: "Stay", amount: 5 }],
+        provisions: [],
+      },
+    ],
+    stewAssign: [{ eventKey: "ek1", dayPaySkip: { s1: true, s9: true } }],
+    meta: { apaDeletedIds: ["tDeleted"] },
+  });
+  store._map.set("archive/latest", { key: ARCH_KEY, snapshottedAt: "2026-09-10T22:43:09.600Z" });
+  store._map.set(ARCH_KEY, {
+    expenses: [
+      { id: "eKeep", amount: 1, vendor: "Keep", date: "2026-09-01" },
+      {
+        id: "eGone",
+        amount: 18,
+        vendor: "Suculenta",
+        date: "2026-09-03",
+        receipt: "data:image/jpeg;base64,AAAA",
+      },
+      { id: "eStay", amount: 50, vendor: "Fuel", date: "2026-09-02" },
+      {
+        id: "eCrew",
+        amount: 150,
+        vendor: "Laura",
+        date: "2026-09-05",
+        source: "stew",
+        stewEventKey: "ek1",
+        stewId: "s1",
+      },
+    ],
+    charters: [{ id: "cGone", name: "Old bill", date: "2026-08-01", amount: 100 }],
+    leads: [{ id: "lGone", name: "Old trip", start: "2026-08-02" }],
+    apa: [
+      {
+        id: "t1",
+        guest: "Smith",
+        expenses: [
+          { id: "L2", date: "2026-09-04", supplier: "Stay", amount: 5 },
+          { id: "L1", date: "2026-09-01", supplier: "Marina", amount: 20 },
+        ],
+        provisions: [],
+      },
+      { id: "tDeleted", guest: "Old pot", dates: "1–3 Aug", expenses: [], provisions: [] },
+    ],
+  });
+}
+await test("archiveMissing: lists only rows absent from the live books, no receipt bytes", async () => {
+  seedArchiveCase();
+  const before = JSON.stringify(liveData());
+  const r = await api({ action: "archiveMissing", key: ARCH_KEY });
+  check(r.status === 200 && r.data.ok, "ok");
+  const ids = (r.data.missing.expenses || []).map((e) => e.id).sort();
+  check(ids.join(",") === "eCrew,eGone,eStay", "missing expenses, got " + ids.join(","));
+  check((r.data.missing.charters || []).some((c) => c.id === "cGone"), "missing charge");
+  check((r.data.missing.leads || []).some((c) => c.id === "lGone"), "missing trip");
+  check((r.data.missing.apa || []).some((c) => c.id === "tDeleted"), "missing apa pot");
+  check(
+    (r.data.missing.apaLines || []).some((c) => c.id === "L1" && c.tripId === "t1"),
+    "missing apa line"
+  );
+  check(
+    !(r.data.missing.apaLines || []).some((c) => c.id === "L2"),
+    "kept apa line is not listed"
+  );
+  check(JSON.stringify(r.data).indexOf("data:image") === -1, "brief has no receipt");
+  check(JSON.stringify(liveData()) === before, "live books untouched");
+  check(!store._map.has("archive/pre-restore-" + "x"), "no safety write on a list");
+});
+await test("archiveMissing: bad key, missing key, team", async () => {
+  seedArchiveCase();
+  const bad = await api({ action: "archiveMissing", key: "archive/../data" });
+  check(bad.status === 400, "bad key " + bad.status);
+  const gone = await api({ action: "archiveMissing", key: "archive/data-2026-01-01T00-00-00-000Z" });
+  check(gone.status === 404, "missing key " + gone.status);
+  const team = await api({ action: "archiveMissing", key: ARCH_KEY }, { role: "team" });
+  check(team.status === 403, "team " + team.status);
+});
+await test("archiveRestore: puts back only the ticked rows and keeps the rest", async () => {
+  seedArchiveCase();
+  const ptrBefore = JSON.stringify(store._map.get("archive/latest"));
+  const r = await api({
+    action: "archiveRestore",
+    key: ARCH_KEY,
+    picks: [
+      { coll: "expenses", id: "eGone" },
+      { coll: "expenses", id: "eCrew" },
+      { coll: "expenses", id: "eKeep" },
+      { coll: "apaLine", tripId: "t1", id: "L1", list: "expenses" },
+      { coll: "apa", id: "tDeleted" },
+    ],
+  });
+  check(r.status === 200 && r.data.ok, "restore ok " + (r.data && r.data.error));
+  check(r.data.safetyKey && String(r.data.safetyKey).indexOf("archive/pre-restore-") === 0, "safety key");
+  check(store._map.has(r.data.safetyKey), "safety blob stored");
+  check(JSON.stringify(store._map.get("archive/latest")) === ptrBefore, "latest pointer unchanged");
+  const live = liveData();
+  const gone = live.expenses.find((e) => e.id === "eGone");
+  check(gone && gone.amount === 18 && gone.receipt.indexOf("data:image") === 0, "receipt row restored");
+  check(!live.expenses.some((e) => e.id === "eStay"), "unticked expense stays gone");
+  check(live.expenses.find((e) => e.id === "eKeep").amount === 10, "live amount not overwritten");
+  check(live.expenses.some((e) => e.id === "eLive"), "later live row kept");
+  const trip = live.apa.find((t) => t.id === "t1");
+  check(trip.expenses.some((l) => l.id === "L1" && l.amount === 20), "apa line restored");
+  check(trip.expenses.some((l) => l.id === "L2"), "existing apa line kept");
+  check(live.apa.some((t) => t.id === "tDeleted"), "deleted pot restored");
+  check((live.meta.apaDeletedIds || []).indexOf("tDeleted") === -1, "pot tombstone cleared");
+  const asg = live.stewAssign.find((a) => a.eventKey === "ek1");
+  check(asg && !asg.dayPaySkip.s1 && asg.dayPaySkip.s9, "only the restored day-pay skip is cleared");
+  const arch = store._map.get(ARCH_KEY);
+  check(arch.expenses.length === 4, "archive itself unchanged");
+});
+await test("archiveRestore: no-op selection does not write", async () => {
+  seedArchiveCase();
+  const before = JSON.stringify(liveData());
+  const keysBefore = Array.from(store._map.keys()).sort().join(",");
+  const r = await api({
+    action: "archiveRestore",
+    key: ARCH_KEY,
+    picks: [{ coll: "expenses", id: "eKeep" }],
+  });
+  check(r.status === 200 && r.data.safetyKey === "", "no safety key");
+  check(JSON.stringify(liveData()) === before, "live unchanged");
+  check(Array.from(store._map.keys()).sort().join(",") === keysBefore, "no new blob keys");
+});
+
 /* ── summary ── */
 console.log(
   "\n" +

@@ -1,5 +1,5 @@
 /* Limitless Tracker service worker — push notifications for the installed PWA */
-/* v20: duplicate expense check on the Expenses month (2026-10-08.8) */
+/* v21: put back rows missing from the server archive (2026-10-09.1) */
 self.addEventListener("install", function (e) {
   self.skipWaiting();
 });
