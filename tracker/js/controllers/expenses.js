@@ -363,7 +363,7 @@
     });
   }
 
-  /** CSV twin. The Expenses screen downloads the Excel file. */
+  /** CSV for that card month. The Expenses screen downloads this file. */
   function cardMonthCsv(input) {
     input = input || {};
     return M(input).cardExpensesExportCsv({

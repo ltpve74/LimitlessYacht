@@ -1,6 +1,6 @@
 # Duplicate expenses for one month
 
-On the Expenses month bar, next to Card Excel and Card receipts: **Find duplicates**.
+On the Expenses month bar, next to Card CSV and Card receipts: **Find duplicates**.
 
 The check covers every expense in the selected month, card and cash. It does not delete anything by itself.
 

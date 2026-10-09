@@ -4870,13 +4870,15 @@ console.log("\n[Receipt photo read — suggest only, never a ledger write]");
       html.indexOf('EXP_METHODS=["Cash","Credit Card","Bank transfer"]') !== -1
   );
   ok(
-    "expenses month bar exports the card spreadsheet and receipt PDF",
-    html.indexOf('id="expExportCardExcel"') !== -1 &&
+    "expenses month bar exports the card CSV and receipt PDF",
+    html.indexOf('id="expExportCardCsv"') !== -1 &&
       html.indexOf('id="expExportCardPdf"') !== -1 &&
-      html.indexOf("Card Excel") !== -1 &&
+      html.indexOf(">Card CSV<") !== -1 &&
       html.indexOf("Card receipts") !== -1 &&
-      html.indexOf("expExportCardExcel(expMonth)") !== -1 &&
-      html.indexOf("cardMonthExcel") !== -1 &&
+      html.indexOf("expExportCardCsv(expMonth)") !== -1 &&
+      html.indexOf("cardMonthCsv") !== -1 &&
+      html.indexOf("cardMonthExcel") === -1 &&
+      html.indexOf("expExportCardExcel") === -1 &&
       html.indexOf("cardMonthReport") !== -1 &&
       html.indexOf("LY_PDF.cardReceipts") !== -1
   );
