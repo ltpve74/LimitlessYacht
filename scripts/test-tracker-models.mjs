@@ -4854,6 +4854,15 @@ console.log("\n[Receipt photo read — suggest only, never a ledger write]");
     html.indexOf("leads:state.leads||[]") !== -1 && html.indexOf("apa:state.apa||[]") !== -1
   );
   ok(
+    "charges screen downloads the bank list as a CSV",
+    html.indexOf('id="chExportCsv"') !== -1 &&
+      html.indexOf(">Export CSV<") !== -1 &&
+      html.indexOf("chExportCsvToDate()") !== -1 &&
+      html.indexOf("chExportExcel") === -1 &&
+      html.indexOf("Export Excel") === -1 &&
+      html.indexOf("chExportExcelToDate") === -1
+  );
+  ok(
     "new expense chooses company card or petty cash",
     html.indexOf('id="expPayCard"') !== -1 &&
       html.indexOf('id="expPayPetty"') !== -1 &&

@@ -1,6 +1,6 @@
 # Charges spreadsheet: name and address
 
-Excel and CSV exports (Charges → Export Excel) add an Address column after Name.
+The charges CSV (Charges → Export CSV) adds an Address column after Name.
 
 A charge linked to a lead uses that lead’s bill-to name and address (street lines joined with a comma). Click & Boat leads are labelled `Click & Boat`. Owner-sourced leads are labelled `Owner sourced`. Those two have no billing details, so the address stays blank. A charge with no lead keeps its own client name and any address stored on the charge.
 
