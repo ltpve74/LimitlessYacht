@@ -2749,6 +2749,157 @@ async function sendPushes(data, notices, opts) {
   return { sent, failed, skipped, pruned: subsBefore - data.pushSubs.length };
 }
 
+/** Captain archive keys written by the snapshot action. No other blob keys. */
+function isArchiveDataKey(key) {
+  return /^archive\/data-\d{4}-\d{2}-\d{2}T\d{2}-\d{2}-\d{2}-\d{3}Z$/.test(
+    String(key || "")
+  );
+}
+function clipText(v, n) {
+  return String(v == null ? "" : v)
+    .replace(/\s+/g, " ")
+    .trim()
+    .slice(0, n || 80);
+}
+function moneyBrief(n) {
+  const x = Number(n);
+  return Number.isFinite(x) ? Math.round(x * 100) / 100 : 0;
+}
+function rowIdSet(rows) {
+  const s = new Set();
+  (Array.isArray(rows) ? rows : []).forEach((r) => {
+    if (r && r.id != null && r.id !== "") s.add(String(r.id));
+  });
+  return s;
+}
+function expenseBrief(e) {
+  return {
+    id: String(e.id),
+    date: String(e.date || "").slice(0, 10),
+    vendor: clipText(e.vendor, 80),
+    description: clipText(e.description, 80),
+    amount: moneyBrief(e.amount),
+    category: clipText(e.category, 40),
+    payMethod: clipText(e.payMethod, 40),
+    chargeTo: clipText(e.chargeTo, 20),
+  };
+}
+function charterBrief(r) {
+  return {
+    id: String(r.id),
+    date: String(r.date || r.closed || "").slice(0, 10),
+    name: clipText(r.name || r.guest || r.client || r.invoiceNo || "", 80),
+    amount: moneyBrief(r.amount != null ? r.amount : r.total),
+  };
+}
+function leadBrief(r) {
+  return {
+    id: String(r.id),
+    name: clipText(r.name, 80),
+    start: String(r.start || "").slice(0, 10),
+    end: String(r.end || "").slice(0, 10),
+  };
+}
+function apaTripBrief(r) {
+  return {
+    id: String(r.id),
+    guest: clipText(r.guest, 80),
+    dates: clipText(r.dates, 40),
+  };
+}
+const ARCHIVE_LIST_CAP = 250;
+function missingById(archiveRows, liveRows, briefFn) {
+  const live = rowIdSet(liveRows);
+  const all = [];
+  (Array.isArray(archiveRows) ? archiveRows : []).forEach((r) => {
+    if (!r || r.id == null || r.id === "") return;
+    if (live.has(String(r.id))) return;
+    all.push(briefFn(r));
+  });
+  all.sort((a, b) =>
+    String(a.date || a.start || a.guest || a.name || "").localeCompare(
+      String(b.date || b.start || b.guest || b.name || "")
+    )
+  );
+  return { rows: all.slice(0, ARCHIVE_LIST_CAP), total: all.length };
+}
+function missingApaLines(archiveTrips, liveTrips) {
+  const liveBy = new Map();
+  (Array.isArray(liveTrips) ? liveTrips : []).forEach((t) => {
+    if (t && t.id != null) liveBy.set(String(t.id), t);
+  });
+  const all = [];
+  (Array.isArray(archiveTrips) ? archiveTrips : []).forEach((trip) => {
+    if (!trip || trip.id == null) return;
+    const live = liveBy.get(String(trip.id));
+    if (!live) return;
+    ["expenses", "provisions"].forEach((list) => {
+      const have = rowIdSet(live[list]);
+      (Array.isArray(trip[list]) ? trip[list] : []).forEach((line) => {
+        if (!line || line.id == null || line.id === "") return;
+        if (have.has(String(line.id))) return;
+        all.push({
+          tripId: String(trip.id),
+          guest: clipText(trip.guest, 60),
+          list: list,
+          id: String(line.id),
+          date: String(line.date || "").slice(0, 10),
+          label: clipText(
+            line.supplier || line.vendor || line.items || line.description || "",
+            80
+          ),
+          amount: moneyBrief(line.amount),
+        });
+      });
+    });
+  });
+  all.sort((a, b) => String(a.date || "").localeCompare(String(b.date || "")));
+  return { rows: all.slice(0, ARCHIVE_LIST_CAP), total: all.length };
+}
+function findRowById(rows, id) {
+  const want = String(id);
+  return (
+    (Array.isArray(rows) ? rows : []).find((r) => r && String(r.id) === want) ||
+    null
+  );
+}
+function stewSkipKeys(expense) {
+  let ek = String((expense && expense.stewEventKey) || "").trim();
+  let sid = String((expense && expense.stewId) || "").trim();
+  if (!ek || !sid) {
+    const lid = String((expense && expense.linkId) || "");
+    if (lid.indexOf("stew-day:") === 0) {
+      const rest = lid.slice("stew-day:".length);
+      const last = rest.lastIndexOf(":");
+      if (last > 0) {
+        ek = rest.slice(0, last);
+        sid = rest.slice(last + 1);
+      }
+    }
+  }
+  return { ek: ek, sid: sid };
+}
+function clearStewDayPaySkip(assigns, expense, now) {
+  const keys = stewSkipKeys(expense);
+  if (!keys.ek || !keys.sid) return false;
+  const asg = (Array.isArray(assigns) ? assigns : []).find(
+    (a) => a && String(a.eventKey || "") === keys.ek
+  );
+  if (!asg || !asg.dayPaySkip || typeof asg.dayPaySkip !== "object") return false;
+  if (!asg.dayPaySkip[keys.sid]) return false;
+  delete asg.dayPaySkip[keys.sid];
+  asg.updatedAt = now;
+  return true;
+}
+function forgetApaDeletedId(data, id) {
+  if (!data.meta || typeof data.meta !== "object") return;
+  if (!Array.isArray(data.meta.apaDeletedIds)) return;
+  const want = String(id);
+  data.meta.apaDeletedIds = data.meta.apaDeletedIds.filter(
+    (x) => String(x) !== want
+  );
+}
+
 export default async (req, context) => {
   if (req.method !== "POST") return json({ error: "method" }, 405);
 
@@ -2974,6 +3125,151 @@ export default async (req, context) => {
       consistency: "strong",
     });
     return json({ ok: true, latest: latest || null });
+  }
+
+  /*
+   * Rows that were in a server archive and are missing from the live books.
+   * Read-only. Briefs only — receipt photos stay in the archive blob.
+   * Captain ticks which rows to put back; this does not write.
+   */
+  if (action === "archiveMissing" || action === "archiveRestore") {
+    if (role !== "captain" && !isCaptain(who)) {
+      return json({ error: "Captain only" }, 403);
+    }
+    const archiveKey = String(body.key || "");
+    if (!isArchiveDataKey(archiveKey)) {
+      return json({ error: "bad archive key" }, 400);
+    }
+    const snap = await store.get(archiveKey, {
+      type: "json",
+      consistency: "strong",
+    });
+    if (!snap || typeof snap !== "object") {
+      return json({ error: "archive not found" }, 404);
+    }
+
+    if (action === "archiveMissing") {
+      const expenses = missingById(snap.expenses, data.expenses, expenseBrief);
+      const charters = missingById(snap.charters, data.charters, charterBrief);
+      const leads = missingById(snap.leads, data.leads, leadBrief);
+      const apa = missingById(snap.apa, data.apa, apaTripBrief);
+      const apaLines = missingApaLines(snap.apa, data.apa);
+      const truncated =
+        expenses.total > expenses.rows.length ||
+        charters.total > charters.rows.length ||
+        leads.total > leads.rows.length ||
+        apa.total > apa.rows.length ||
+        apaLines.total > apaLines.rows.length;
+      return json({
+        ok: true,
+        key: archiveKey,
+        missing: {
+          expenses: expenses.rows,
+          charters: charters.rows,
+          leads: leads.rows,
+          apa: apa.rows,
+          apaLines: apaLines.rows,
+        },
+        totals: {
+          expenses: expenses.total,
+          charters: charters.total,
+          leads: leads.total,
+          apa: apa.total,
+          apaLines: apaLines.total,
+        },
+        truncated: truncated,
+      });
+    }
+
+    const picks = Array.isArray(body.picks) ? body.picks.slice(0, 200) : [];
+    if (!picks.length) return json({ error: "no rows selected" }, 400);
+    /* Pre-image first. Written only when at least one row is actually put back. */
+    const safetyCopy = structuredClone(data);
+    const restored = { expenses: [], charters: [], leads: [], apa: [], apaLines: [] };
+    const skipped = [];
+    function skip(pick, reason) {
+      if (skipped.length < 30) skipped.push({ id: pick && pick.id, reason: reason });
+    }
+    picks.forEach((pick) => {
+      if (!pick || pick.id == null || String(pick.id) === "") {
+        skip(pick, "missing id");
+        return;
+      }
+      const id = String(pick.id).slice(0, 120);
+      const coll = String(pick.coll || "");
+      if (coll === "expenses" || coll === "charters" || coll === "leads" || coll === "apa") {
+        if (!Array.isArray(data[coll])) data[coll] = [];
+        if (findRowById(data[coll], id)) {
+          skip(pick, "already in the live books");
+          return;
+        }
+        const from = findRowById(snap[coll], id);
+        if (!from) {
+          skip(pick, "not in the archive");
+          return;
+        }
+        data[coll].push(structuredClone(from));
+        restored[coll].push(id);
+        if (coll === "expenses") clearStewDayPaySkip(data.stewAssign, from, now);
+        if (coll === "apa") forgetApaDeletedId(data, id);
+        return;
+      }
+      if (coll === "apaLine") {
+        const tripId = String(pick.tripId || "").slice(0, 120);
+        const list = pick.list === "provisions" ? "provisions" : pick.list === "expenses" ? "expenses" : "";
+        if (!tripId || !list) {
+          skip(pick, "bad apa line");
+          return;
+        }
+        const liveTrip = findRowById(data.apa, tripId);
+        const archTrip = findRowById(snap.apa, tripId);
+        if (!liveTrip || !archTrip) {
+          skip(pick, "apa pot is not in both copies");
+          return;
+        }
+        if (!Array.isArray(liveTrip[list])) liveTrip[list] = [];
+        if (findRowById(liveTrip[list], id) || findRowById(liveTrip.expenses, id) || findRowById(liveTrip.provisions, id)) {
+          skip(pick, "line already in the pot");
+          return;
+        }
+        const line = findRowById(archTrip[list], id);
+        if (!line) {
+          skip(pick, "line not in the archive");
+          return;
+        }
+        liveTrip[list].push(structuredClone(line));
+        liveTrip.updatedAt = now;
+        restored.apaLines.push({ tripId: tripId, id: id, list: list });
+        return;
+      }
+      skip(pick, "bad collection");
+    });
+    const n =
+      restored.expenses.length +
+      restored.charters.length +
+      restored.leads.length +
+      restored.apa.length +
+      restored.apaLines.length;
+    if (!n) {
+      return json({
+        ok: true,
+        key: archiveKey,
+        safetyKey: "",
+        restored: restored,
+        skipped: skipped,
+      });
+    }
+    const safetyKey = "archive/pre-restore-" + now.replace(/[:.]/g, "-");
+    await store.setJSON(safetyKey, safetyCopy);
+    addLog("archive restore " + n + " from " + archiveKey);
+    await saveData(store, data, pctx);
+    return json({
+      ok: true,
+      key: archiveKey,
+      safetyKey: safetyKey,
+      restored: restored,
+      skipped: skipped,
+    });
   }
 
   /* Storage-engine status for the Utilities panel (captain only). */

@@ -1612,6 +1612,16 @@
         <div class="legend" id="utilSnapResult" style="margin-top:10px"></div>
       </div>
       <div class="pushcard">
+        <h3>Put back deleted rows</h3>
+        <p>Lists rows that are in the last archive and missing from the live books. Tick only the ones you deleted by mistake. Rows you leave unticked stay gone. Do this on the phone or computer that deleted them, so that device forgets the delete.</p>
+        <div class="st na" id="utilRestoreStatus">Uses the last archive. Nothing is written until you put rows back.</div>
+        <div class="row">
+          <button type="button" class="btn" id="utilRestoreList">List missing rows</button>
+          <button type="button" class="btn" id="utilRestoreRun" disabled>Put selected back</button>
+        </div>
+        <div id="utilRestoreListBox" style="margin-top:10px;max-height:50vh;overflow:auto"></div>
+      </div>
+      <div class="pushcard">
         <h3>Storage engine</h3>
         <p>One-time migration to <b>per-collection storage</b>: each book (leads, expenses, roster…) gets its own key, so two people saving different things at the same time can no longer overwrite each other. The old single blob is <b>kept untouched</b> as an archive. Take an archive backup above first.</p>
         <div class="st na" id="utilSplitStatus">Checking storage mode…</div>
@@ -1774,7 +1784,7 @@ function selCancelReasonField(cur){
 var EXPECTED_PEOPLE = 2;
 /* Build stamp — shown in Ops → Security so we can verify which code a device
  * actually runs (PWA updates only land after a full close + reopen). */
-var TRACKER_BUILD = "2026-10-08.8";
+var TRACKER_BUILD = "2026-10-09.1";
 var APA_EXP_CATS = ["Drinks & Bar","Dockage / Marina","Crew Tips","Miscellaneous","Fuel / Diesel","Food & Provisions"];
 var APA_PAID_BY = ["APA cash","Ship card","Guest card","Bank transfer"];
 var APA_DASH_CATS = [
@@ -2957,6 +2967,130 @@ function utilSplitRefresh(){
     utilSplitSetStatus("off","Could not check storage mode — connection?");
   });
 }
+var utilRestoreArchiveKey="";
+function utilRestoreSetStatus(kind,text){
+  var s=el("utilRestoreStatus"); if(!s) return;
+  s.className="st "+kind; s.textContent=text;
+}
+function utilRestoreMoney(n){
+  var x=Number(n);
+  if(!isFinite(x)) return "";
+  return "€"+(Math.round(x*100)/100).toFixed(2);
+}
+function utilForgetDeleted(coll, ids){
+  if(!ids||!ids.length||!coll) return;
+  var map=loadTombstones();
+  if(map[coll]){
+    ids.forEach(function(id){ delete map[coll][String(id)]; });
+    saveTombstones(map);
+  }
+  var drop={};
+  ids.forEach(function(id){ drop[String(id)]=1; });
+  pendingDeletedIds[coll]=(pendingDeletedIds[coll]||[]).filter(function(id){ return !drop[String(id)]; });
+}
+function utilRestoreCheck(coll, extra, label){
+  return '<label style="display:flex;gap:8px;align-items:flex-start;margin:6px 0">'+
+    '<input type="checkbox" data-restore-coll="'+esc(coll)+'" '+extra+'>'+
+    '<span>'+esc(label)+'</span></label>';
+}
+function utilPaintRestoreList(r){
+  var box=el("utilRestoreListBox");
+  var runBtn=el("utilRestoreRun");
+  var miss=r&&r.missing||{};
+  var tot=r&&r.totals||{};
+  var n=(tot.expenses||0)+(tot.charters||0)+(tot.leads||0)+(tot.apa||0)+(tot.apaLines||0);
+  if(!n){
+    if(box) box.innerHTML="";
+    if(runBtn) runBtn.disabled=true;
+    utilRestoreSetStatus("on","Nothing in that archive is missing from the live books.");
+    return;
+  }
+  var html="";
+  function group(title, rows, render){
+    if(!rows||!rows.length) return;
+    html+='<div style="margin:12px 0 4px;font-weight:600">'+esc(title)+'</div>';
+    rows.forEach(function(row){ html+=render(row); });
+  }
+  group("Expenses", miss.expenses, function(e){
+    var bits=[e.date||"no date", e.vendor||e.description||"expense", utilRestoreMoney(e.amount)];
+    if(e.category) bits.push(e.category);
+    if(e.payMethod) bits.push(e.payMethod);
+    if(e.chargeTo) bits.push(e.chargeTo);
+    return utilRestoreCheck("expenses", 'data-restore-id="'+esc(e.id)+'"', bits.filter(Boolean).join(" · "));
+  });
+  group("Charges", miss.charters, function(e){
+    return utilRestoreCheck("charters", 'data-restore-id="'+esc(e.id)+'"', [e.date||"no date", e.name||"charge", utilRestoreMoney(e.amount)].filter(Boolean).join(" · "));
+  });
+  group("Trips", miss.leads, function(e){
+    return utilRestoreCheck("leads", 'data-restore-id="'+esc(e.id)+'"', [e.name||"trip", e.start||""].filter(Boolean).join(" · "));
+  });
+  group("APA pots", miss.apa, function(e){
+    return utilRestoreCheck("apa", 'data-restore-id="'+esc(e.id)+'"', [e.guest||"APA", e.dates||""].filter(Boolean).join(" · "));
+  });
+  group("APA lines", miss.apaLines, function(e){
+    var extra='data-restore-id="'+esc(e.id)+'" data-restore-trip="'+esc(e.tripId)+'" data-restore-list="'+esc(e.list)+'"';
+    return utilRestoreCheck("apaLine", extra, [e.date||"no date", e.guest||"APA", e.list||"", e.label||"line", utilRestoreMoney(e.amount)].filter(Boolean).join(" · "));
+  });
+  if(box) box.innerHTML=html;
+  if(runBtn) runBtn.disabled=false;
+  utilRestoreSetStatus("na", n+" missing from the live books"+(r.truncated?" (list shortened)":"")+". Tick only the ones you deleted by mistake.");
+}
+function utilRestoreSelected(){
+  var box=el("utilRestoreListBox");
+  if(!box||!utilRestoreArchiveKey) return;
+  var picks=[];
+  Array.prototype.forEach.call(box.querySelectorAll("input[type=checkbox]:checked"), function(inp){
+    var coll=inp.getAttribute("data-restore-coll")||"";
+    var id=inp.getAttribute("data-restore-id")||"";
+    if(!coll||!id) return;
+    var pick={coll:coll, id:id};
+    if(coll==="apaLine"){
+      pick.tripId=inp.getAttribute("data-restore-trip")||"";
+      pick.list=inp.getAttribute("data-restore-list")||"";
+    }
+    var span=inp.parentNode&&inp.parentNode.querySelector("span");
+    pick.label=span?span.textContent:id;
+    picks.push(pick);
+  });
+  if(!picks.length){
+    utilRestoreSetStatus("off","Tick the rows to put back.");
+    return;
+  }
+  var preview=picks.slice(0,8).map(function(p){ return p.label||p.id; });
+  if(picks.length>8) preview.push("and "+(picks.length-8)+" more");
+  if(!window.confirm("Put back "+picks.length+" row"+(picks.length===1?"":"s")+" from the archive?\n\n"+preview.join("\n")+"\n\nRows already in the live books stay as they are.")) return;
+  var runBtn=el("utilRestoreRun");
+  if(runBtn) runBtn.disabled=true;
+  utilRestoreSetStatus("na","Putting rows back…");
+  api("archiveRestore",{key:utilRestoreArchiveKey, picks:picks.map(function(p){
+    var out={coll:p.coll, id:p.id};
+    if(p.coll==="apaLine"){ out.tripId=p.tripId; out.list=p.list; }
+    return out;
+  })}).then(function(r){
+    var back=r&&r.restored||{};
+    utilForgetDeleted("expenses", back.expenses||[]);
+    utilForgetDeleted("charters", back.charters||[]);
+    utilForgetDeleted("leads", back.leads||[]);
+    utilForgetDeleted("apa", back.apa||[]);
+    var n=(back.expenses||[]).length+(back.charters||[]).length+(back.leads||[]).length+(back.apa||[]).length+(back.apaLines||[]).length;
+    return api("load",{silent:true}).then(function(d){
+      try{ applyData(d); }catch(eA){}
+      try{ if(curTab==="expenses") paintExpensesBody(); }catch(eE){}
+      try{ if(curTab==="apa") renderApa(); }catch(eP){}
+      try{ if(curTab==="leads"||curTab==="finance") renderLeads(); }catch(eL){}
+      try{ if(curTab==="charters") renderCharters(); }catch(eC){}
+      if(!n){
+        utilRestoreSetStatus("off","None of the ticked rows were put back. Nothing in the live books changed.");
+      }else{
+        utilRestoreSetStatus("on","Put back "+n+" row"+(n===1?"":"s")+". Fully close and reopen the tracker on any other phone that also deleted them.");
+      }
+      if(runBtn) runBtn.disabled=false;
+    });
+  }).catch(function(e){
+    if(runBtn) runBtn.disabled=false;
+    utilRestoreSetStatus("off",(e&&(e.error||(e.body&&e.body.error)))||"Could not put the rows back.");
+  });
+}
 function renderUtilities(){
   if(!isCaptain()) return;
   if(!utilSnapWired){
@@ -3007,9 +3141,32 @@ function renderUtilities(){
         utilSplitSetStatus("off","Migration failed — "+msg+" (still on single-blob storage, nothing lost)");
       });
     });
+    var rList=el("utilRestoreList");
+    if(rList) rList.addEventListener("click", utilRestoreList);
+    var rRun=el("utilRestoreRun");
+    if(rRun) rRun.addEventListener("click", utilRestoreSelected);
   }
   utilSnapRefresh();
   utilSplitRefresh();
+}
+function utilRestoreList(){
+  var listBtn=el("utilRestoreList");
+  var runBtn=el("utilRestoreRun");
+  if(listBtn) listBtn.disabled=true;
+  if(runBtn) runBtn.disabled=true;
+  utilRestoreSetStatus("na","Reading the archive…");
+  api("lastArchive",{}).then(function(r){
+    var L=r&&r.latest;
+    if(!L||!L.key) throw {error:"No server archive yet."};
+    utilRestoreArchiveKey=L.key;
+    return api("archiveMissing",{key:L.key});
+  }).then(function(r){
+    if(listBtn) listBtn.disabled=false;
+    utilPaintRestoreList(r);
+  }).catch(function(e){
+    if(listBtn) listBtn.disabled=false;
+    utilRestoreSetStatus("off",(e&&(e.error||(e.body&&e.body.error)))||"Could not read the archive.");
+  });
 }
 
 /* -------- Ops calendar (leads occupancy) -------- */

@@ -5208,6 +5208,15 @@ console.log("[Expenses — duplicate detection]");
       deleteSrc.indexOf("Crew day-pay from Stews will stay off Expenses until you re-save that charter in Stews.") !== -1 &&
       paintSrc.indexOf("checked") === -1
   );
+  ok(
+    "utilities lists archive rows before putting any back",
+    htmlDup.indexOf('id="utilRestoreList"') !== -1 &&
+      htmlDup.indexOf('id="utilRestoreRun"') !== -1 &&
+      htmlDup.indexOf('api("archiveMissing"') !== -1 &&
+      htmlDup.indexOf('api("archiveRestore"') !== -1 &&
+      htmlDup.indexOf("utilForgetDeleted(\"expenses\"") !== -1 &&
+      htmlDup.indexOf("Tick only the ones you deleted by mistake") !== -1
+  );
 }
 
 console.log("\n──────────────────────────────────────────────────────────");
