@@ -1,5 +1,5 @@
 /* Limitless Tracker service worker — push notifications for the installed PWA */
-/* v22: expense bank transfer stays off cash and card reports (2026-10-09.2) */
+/* v23: card month download is a CSV (2026-10-09.3) */
 self.addEventListener("install", function (e) {
   self.skipWaiting();
 });
