@@ -5041,13 +5041,33 @@ console.log("[Expenses — card month]");
     return { pages: loaded.getPageCount(), text: text, hasImage: raw.indexOf("/Image") !== -1 };
   }
   const packed = await cardPdfText(report);
-  ok("card receipt pdf has one page per row", packed.pages === 5, "pages " + packed.pages);
+  ok("card receipt pdf has one page per photo", packed.pages === 3, "pages " + packed.pages);
   ok(
-    "card receipt pdf labels follow the spreadsheet and keeps a photo",
-    packed.text.indexOf("Mercadona provis") !== -1 &&
-      packed.text.indexOf("Mercadona provis") < packed.text.indexOf("Repsol") &&
-      packed.text.indexOf("No receipt photo") !== -1 &&
+    "card receipt pdf skips a charge with no photo",
+    packed.text.indexOf("Mercadona provis") === -1 &&
+      packed.text.indexOf("Repsol") === -1 &&
+      packed.text.indexOf("No receipt photo") === -1 &&
+      packed.text.indexOf("Mercadona") !== -1 &&
+      packed.text.indexOf("Mercadona") < packed.text.indexOf("Makro") &&
+      packed.text.indexOf("Makro") < packed.text.indexOf("Guest fuel") &&
+      packed.text.indexOf("1 of 3") !== -1 &&
       packed.hasImage
+  );
+  const noPhotos = await cardPdfText({
+    month: "2026-09",
+    monthLabel: "September 2026",
+    rows: [
+      { date: "2026-09-01", vendor: "No Photo Shop", amount: 10, receipt: "" },
+      { date: "2026-09-02", vendor: "Also None", amount: 20 },
+    ],
+  });
+  ok(
+    "card receipt pdf does not add a blank page per missing photo",
+    noPhotos.pages === 1 &&
+      noPhotos.text.indexOf("No receipt photos this month") !== -1 &&
+      noPhotos.text.indexOf("No Photo Shop") === -1 &&
+      noPhotos.text.indexOf("Also None") === -1 &&
+      !noPhotos.hasImage
   );
   const quiet = await cardPdfText(empty);
   ok(

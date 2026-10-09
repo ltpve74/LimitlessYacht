@@ -1783,7 +1783,7 @@ function selCancelReasonField(cur){
 var EXPECTED_PEOPLE = 2;
 /* Build stamp — shown in Ops → Security so we can verify which code a device
  * actually runs (PWA updates only land after a full close + reopen). */
-var TRACKER_BUILD = "2026-10-09.4";
+var TRACKER_BUILD = "2026-10-09.5";
 var APA_EXP_CATS = ["Drinks & Bar","Dockage / Marina","Crew Tips","Miscellaneous","Fuel / Diesel","Food & Provisions"];
 var APA_PAID_BY = ["APA cash","Ship card","Guest card","Bank transfer"];
 var APA_DASH_CATS = [
@@ -15572,10 +15572,10 @@ function paintExpensesBody(){
     '<button type="button" class="btn ghost" id="expExportPdf" style="width:auto;padding:10px 14px" title="Full cash PDF (includes captain business &amp; pocket)">Full PDF</button>'+
     '<button type="button" class="btn" id="expExportOwnerPdf" style="width:auto;padding:10px 14px" title="Simple on-board cash for the owner — opening, in, out, closing">Export for owner</button>'+
     '<button type="button" class="btn ghost" id="expExportCardCsv" style="width:auto;padding:10px 14px" title="This month, card only, as a CSV. Cash, APA cash, and bank transfers are left out.">Card CSV</button>'+
-    '<button type="button" class="btn ghost" id="expExportCardPdf" style="width:auto;padding:10px 14px" title="Receipt photo for each card expense this month, in the same order as the card CSV.">Card receipts</button>'+
+    '<button type="button" class="btn ghost" id="expExportCardPdf" style="width:auto;padding:10px 14px" title="Receipt photo for each card expense that has one, in the same order as the card CSV. A charge with no photo is left out.">Card receipts</button>'+
     '<button type="button" class="btn ghost" id="expFindDuplicates" style="width:auto;padding:10px 14px" title="Card and cash for this month. Nothing is deleted until you confirm.">Find duplicates</button>'+
   '</div>'+
-  '<p class="meta" style="margin:-4px 0 12px">Card CSV and Card receipts use the month above. Cash, APA cash, and bank transfers stay out. Find duplicates checks every expense in that month, card and cash.</p>';
+  '<p class="meta" style="margin:-4px 0 12px">Card CSV and Card receipts use the month above. Cash, APA cash, and bank transfers stay out. Card receipts skips a charge with no photo. Find duplicates checks every expense in that month, card and cash.</p>';
   /* Hero: physical notes only */
   h+='<div class="exp-alert ok" style="margin-bottom:10px">'+
     '<div style="font-weight:800">On board</div>'+

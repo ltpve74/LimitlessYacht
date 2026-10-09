@@ -1,5 +1,5 @@
 /* Limitless Tracker service worker — push notifications for the installed PWA */
-/* v24: charges bank list downloads as a CSV (2026-10-09.4) */
+/* v25: card receipt PDF skips charges with no photo (2026-10-09.5) */
 self.addEventListener("install", function (e) {
   self.skipWaiting();
 });
