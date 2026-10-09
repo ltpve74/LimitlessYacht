@@ -20,6 +20,7 @@
 - [tracker-owner-split-date-fix.md](tracker-owner-split-date-fix.md) — Owner edit rewrote Aug pay date; desktop boss+petty split collapsed to all-owner
 - [tracker-phone-desktop-cash-diverge.md](tracker-phone-desktop-cash-diverge.md) — phone↔desktop cash disagree: expPetty full-replace + weak sync fingerprint
 - [tracker-duplicate-expenses.md](tracker-duplicate-expenses.md) — Expenses month Find duplicates; dismiss remembered on the petty row; delete uses the existing expense path
+- [tracker-expense-bank-transfer.md](tracker-expense-bank-transfer.md) — Bank transfer on an expense stays out of the cash report and the card report
 
 - [tracker-extra-hours-commission.md](tracker-extra-hours-commission.md) — extra hours on Charges; cash vs invoice commission
 

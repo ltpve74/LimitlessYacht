@@ -380,9 +380,9 @@
   .exp-quick-amt .moneywrap:before{font-size:26px;font-weight:800;left:14px}
   .exp-pay{display:flex;gap:8px;margin:0 0 8px}
   .exp-pay-btn{
-    flex:1 1 0;min-height:48px;padding:10px 8px;border-radius:14px;
+    flex:1 1 0;min-width:0;min-height:48px;padding:10px 6px;border-radius:14px;
     border:1.5px solid var(--line);background:#fff;color:var(--brand);
-    font-weight:800;font-size:16px;line-height:1.15;
+    font-weight:800;font-size:14px;line-height:1.15;
   }
   .exp-pay-btn.is-on{background:#0e4a62;color:#fff;border-color:#0e4a62}
   .exp-pay-btn:active{transform:scale(.985)}
@@ -414,7 +414,7 @@
     .exp-quick .ctl{min-height:44px}
     .exp-quick-amt .ctl{min-height:48px;font-size:26px;padding:8px 10px 8px 2.3rem}
     .exp-pay{gap:6px;margin:0 0 8px}
-    .exp-pay-btn{min-height:44px;padding:8px 6px;font-size:15px}
+    .exp-pay-btn{min-height:44px;padding:8px 4px;font-size:13px}
     .sheetfoot.exp-quick-foot{padding-top:8px}
     .sheetfoot.exp-quick-foot .exp-next{min-height:48px}
     .sheetfoot.exp-quick-foot .btn{padding:12px 10px}
@@ -1784,7 +1784,7 @@ function selCancelReasonField(cur){
 var EXPECTED_PEOPLE = 2;
 /* Build stamp — shown in Ops → Security so we can verify which code a device
  * actually runs (PWA updates only land after a full close + reopen). */
-var TRACKER_BUILD = "2026-10-09.1";
+var TRACKER_BUILD = "2026-10-09.2";
 var APA_EXP_CATS = ["Drinks & Bar","Dockage / Marina","Crew Tips","Miscellaneous","Fuel / Diesel","Food & Provisions"];
 var APA_PAID_BY = ["APA cash","Ship card","Guest card","Bank transfer"];
 var APA_DASH_CATS = [
@@ -1817,7 +1817,7 @@ var stewCalendarBy="";
 
 /** Categories aligned with monthly expenses spreadsheet (+ common boat ones). */
 var EXP_CATS=["Crew Salaries","Captain commission","Miscellaneous","Fuel Cars","Dockage / Marina","Provisions","Maintenance","Insurance","Captain reimbursement","Crew reimbursement","Other"];
-var EXP_METHODS=["Cash","Credit Card"];
+var EXP_METHODS=["Cash","Credit Card","Bank transfer"];
 /** Where petty cash top-ups come from (own money = captain float top-up, boat owes captain). */
 /* Tips are NOT petty cash — stay on Stews only (never cash-in sources). */
 var EXP_CASH_IN_SOURCES=["Own money","Commission return","Charter income","Bank / ATM","Owner float","Other"];
@@ -12462,12 +12462,14 @@ function expMapCategoryToApa(cat){
   return "Miscellaneous";
 }
 function expMapPaidByToApa(e){
+  if(e&&e.payMethod==="Bank transfer") return "Bank transfer";
   if(e&&e.payMethod==="Credit Card") return "Ship card";
   return "APA cash";
 }
 function expApaNotesFromMonthly(e){
   var notes=(e&&e.description||"").trim();
-  if(e&&e.payMethod==="Credit Card") notes=(notes?notes+" · ":"")+"Card";
+  if(e&&e.payMethod==="Bank transfer") notes=(notes?notes+" · ":"")+"Bank transfer";
+  else if(e&&e.payMethod==="Credit Card") notes=(notes?notes+" · ":"")+"Card";
   else if(e&&(e.paidFrom==="Owner money"||String(e.paidById||"")==="owner")) notes=(notes?notes+" · ":"")+"Owner money";
   else if(e&&expPaidFromOwnMoney(e)) notes=(notes?notes+" · ":"")+"Own money"+(expPocketWhoId(e)?" · "+expPocketPersonName(expPocketWhoId(e)):"");
   else notes=(notes?notes+" · ":"")+"Petty cash";
@@ -13209,7 +13211,7 @@ function expCrewPayHitsFloat(e){
   if(LY_MODELS&&LY_MODELS.crewDayPayHitsPetty) return !!LY_MODELS.crewDayPayHitsPetty(e);
   if(!expIsCrewDayPayLine(e)) return false;
   if(e.crewPayStatus!=="Paid") return false;
-  if(e.payMethod==="Credit Card") return false;
+  if(e.payMethod==="Credit Card"||e.payMethod==="Bank transfer") return false;
   if(e.paidFrom==="Own money"||expIsOwnMoneyLabel(e.paidFrom)) return false;
   if(expIsOwnerMoneyPaid(e)) return false;
   return e.floatPay===true;
@@ -13218,7 +13220,7 @@ function expCrewPayHitsFloat(e){
 function expIsCrewPriorSettled(e){
   if(!expIsCrewDayPayLine(e)) return false;
   if(e.crewPayStatus!=="Paid") return false;
-  if(e.payMethod==="Credit Card") return false;
+  if(e.payMethod==="Credit Card"||e.payMethod==="Bank transfer") return false;
   if(e.paidFrom==="Own money"||expIsOwnMoneyLabel(e.paidFrom)) return false;
   if(expIsOwnerMoneyPaid(e)) return false;
   return e.floatPay!==true;
@@ -13234,7 +13236,7 @@ function expExpenseHitsPetty(e){
     if(expIsTipExpense(e)) return false;
     return LY_MODELS.expenseHitsPettyCash(e);
   }
-  if(e.payMethod==="Credit Card") return false;
+  if(e.payMethod==="Credit Card"||e.payMethod==="Bank transfer") return false;
   if(e.paidFrom==="Own money"||expIsOwnMoneyLabel(e.paidFrom)) return false;
   /* Explicit own-money already excluded; anything else cash is petty envelope */
   return true;
@@ -14743,7 +14745,8 @@ function expStartReceiptRead(file, opts){
 /** Map APA paid-by → monthly pay method / paid-from. */
 function apaPaidByToMonthly(paidBy){
   var p=String(paidBy||"");
-  if(/ship card|guest card|bank/i.test(p)) return {payMethod:"Credit Card", paidFrom:""};
+  if(/bank/i.test(p)) return {payMethod:"Bank transfer", paidFrom:""};
+  if(/ship card|guest card/i.test(p)) return {payMethod:"Credit Card", paidFrom:""};
   return {payMethod:"Cash", paidFrom:"Petty cash"};
 }
 /** Map APA expense category → monthly EXP_CATS. */
@@ -14826,8 +14829,8 @@ function expExportMonthCsv(month){
   }
   lines=["Date,Company/Store,Description,Category,Type,Paid from,Pocket who,Reimburse who,Charge to,APA,Amount"];
   rows.forEach(function(e){
-    var typ=expIsCrewUnpaid(e)?"Unpaid":(e.payMethod==="Credit Card"?"Credit Card":"Cash");
-    var from=expIsCrewUnpaid(e)?"":(e.payMethod==="Credit Card"?"Card":(expPaidFromOwnMoney(e)?"Own money":"Petty cash"));
+    var typ=expIsCrewUnpaid(e)?"Unpaid":(e.payMethod==="Bank transfer"?"Bank transfer":(e.payMethod==="Credit Card"?"Credit Card":"Cash"));
+    var from=expIsCrewUnpaid(e)||e.payMethod==="Bank transfer"?"":(e.payMethod==="Credit Card"?"Card":(expPaidFromOwnMoney(e)?"Own money":"Petty cash"));
     var pocket=expPaidFromOwnMoney(e)?expPocketPersonName(expPocketWhoId(e)):"";
     var reimb=expIsReimbursement(e)?expPocketPersonName(expReimburseWhoId(e)):"";
     var charge=e.chargeTo==="apa"?"APA":"Boat";
@@ -15073,7 +15076,7 @@ function expDownloadDuplicateCsv(){
 /** True when line is cash (boat petty / own pocket cash) — not ship credit card. */
 function expIsCashExpenseLine(e){
   if(!e) return false;
-  if(String(e.payMethod||"")==="Credit Card") return false;
+  if(String(e.payMethod||"")==="Credit Card"||String(e.payMethod||"")==="Bank transfer") return false;
   /* Unpaid day-pay liabilities are not cash out yet */
   if(typeof expIsCrewUnpaid==="function"&&expIsCrewUnpaid(e)) return false;
   return true;
@@ -16006,7 +16009,10 @@ function paintExpensesBody(){
       var isTipPay=e.kind==="tipPayout"||e.stewPayKind==="tipPayout"||/^crew tip payout$/i.test(String(e.category||""));
       var titleText=e.vendor||"—";
       var purposeNote="";
-      if(isComm){
+      if(String(e.payMethod||"")==="Bank transfer"){
+        if(e.category) pills.push('<span class="pill p-grey">'+esc(e.category)+'</span>');
+        pills.push('<span class="pill p-grey">Bank transfer</span>');
+      } else if(isComm){
         titleText=e.vendor&&!/^captain/i.test(e.vendor)?e.vendor:"Commission to you";
         pills.push('<span class="pill p-blue">Your commission</span>');
         pills.push('<span class="pill p-cash">From petty</span>');
@@ -16128,6 +16134,7 @@ function paintExpensesBody(){
         else if(pfClass==="own") pills.push('<span class="pill p-own">Own money</span>');
         else if(pfClass==="guest") pills.push('<span class="pill p-grey">Guest</span>');
         else if(pfClass==="card") pills.push('<span class="pill p-card">Card</span>');
+        else if(pfClass==="bank") pills.push('<span class="pill p-grey">Bank transfer</span>');
         else pills.push('<span class="pill p-cash">From petty</span>');
       }
       var bits=[];
@@ -16669,6 +16676,7 @@ function openExpense(id, opts){
       '<div class="exp-pay" id="expPayPick" role="group" aria-label="Paid with">'+
         '<button type="button" class="exp-pay-btn" id="expPayCard" aria-pressed="false">Company card</button>'+
         '<button type="button" class="exp-pay-btn is-on" id="expPayPetty" aria-pressed="true">Petty cash</button>'+
+        '<button type="button" class="exp-pay-btn" id="expPayBank" aria-pressed="false">Bank transfer</button>'+
       '</div>'+
       vendorField+dateField+
       '<details class="exp-quick-more"><summary>Category and more</summary>'+
@@ -16706,6 +16714,9 @@ function openExpense(id, opts){
     if(wrap) wrap.style.display=show?"":"none";
     return show;
   }
+  function expMethodIsCash(method){
+    return method!=="Credit Card"&&method!=="Bank transfer";
+  }
   function syncPaidFromVis(){
     var method=(el("f_exp_method")&&el("f_exp_method").value)||"Cash";
     var wrap=el("f_exp_paidFrom_wrap");
@@ -16713,38 +16724,44 @@ function openExpense(id, opts){
     var crewSal=syncCrewPayVis();
     var crewPay=el("f_exp_crew_pay")?el("f_exp_crew_pay").value:"Paid";
     var pf=(el("f_exp_paidFrom")&&el("f_exp_paidFrom").value)||"Petty cash";
+    var cashMethod=expMethodIsCash(method);
     if(wrap){
       if(fromStew||crewSal){
-        /* Paid from only matters once salary / day pay is Paid */
-        wrap.style.display=crewPay==="Paid"?(method==="Credit Card"?"none":""):"none";
+        /* Paid from only matters once salary / day pay is Paid, and only for cash */
+        wrap.style.display=crewPay==="Paid"&&cashMethod?"":"none";
       } else {
-        wrap.style.display=method==="Credit Card"?"none":"";
+        wrap.style.display=cashMethod?"":"none";
       }
     }
     if(byWrap){
-      byWrap.style.display=(!reimburse&&method!=="Credit Card"&&pf==="Own money"&&(!crewSal||crewPay==="Paid"))?"":"none";
+      byWrap.style.display=(!reimburse&&cashMethod&&pf==="Own money"&&(!crewSal||crewPay==="Paid"))?"":"none";
     }
     var gWrap=el("f_exp_guest_wrap");
     if(gWrap) gWrap.style.display=(fromStew&&crewPay==="Paid"&&(pf==="Guest"||pf==="Owner money"))?"":"none";
     expPaintPayPick();
   }
   function expPaintPayPick(){
-    var cardBtn=el("expPayCard"), pettyBtn=el("expPayPetty");
+    var cardBtn=el("expPayCard"), pettyBtn=el("expPayPetty"), bankBtn=el("expPayBank");
     if(!cardBtn||!pettyBtn) return;
     var method=(el("f_exp_method")&&el("f_exp_method").value)||"Cash";
     var pf=(el("f_exp_paidFrom")&&el("f_exp_paidFrom").value)||"Petty cash";
     var isCard=method==="Credit Card";
-    var isPetty=!isCard&&(pf==="Petty cash"||pf==="");
+    var isBank=method==="Bank transfer";
+    var isPetty=!isCard&&!isBank&&(pf==="Petty cash"||pf==="");
     cardBtn.classList.toggle("is-on", isCard);
     pettyBtn.classList.toggle("is-on", isPetty);
+    if(bankBtn) bankBtn.classList.toggle("is-on", isBank);
     cardBtn.setAttribute("aria-pressed", isCard?"true":"false");
     pettyBtn.setAttribute("aria-pressed", isPetty?"true":"false");
+    if(bankBtn) bankBtn.setAttribute("aria-pressed", isBank?"true":"false");
   }
   function expChoosePay(which){
     var method=el("f_exp_method");
     var pf=el("f_exp_paidFrom");
     if(which==="card"){
       if(method) method.value="Credit Card";
+    } else if(which==="bank"){
+      if(method) method.value="Bank transfer";
     } else {
       if(method) method.value="Cash";
       if(pf) pf.value="Petty cash";
@@ -16767,6 +16784,7 @@ function openExpense(id, opts){
   if(el("f_exp_paidFrom")) el("f_exp_paidFrom").addEventListener("change",syncPaidFromVis);
   if(el("expPayCard")) el("expPayCard").addEventListener("click",function(){ expChoosePay("card"); });
   if(el("expPayPetty")) el("expPayPetty").addEventListener("click",function(){ expChoosePay("petty"); });
+  if(el("expPayBank")) el("expPayBank").addEventListener("click",function(){ expChoosePay("bank"); });
   if(el("f_exp_crew_pay")) el("f_exp_crew_pay").addEventListener("change",syncPaidFromVis);
   if(el("f_exp_cat")) el("f_exp_cat").addEventListener("change",function(){
     syncReimburseVis();
@@ -17079,9 +17097,10 @@ function openExpense(id, opts){
         })) return;
       }
     }
-    var method=(el("f_exp_method")&&el("f_exp_method").value)==="Credit Card"?"Credit Card":"Cash";
-    var paidFromRaw=method==="Credit Card"?"":((el("f_exp_paidFrom")&&el("f_exp_paidFrom").value)||"Petty cash");
-    var paidFrom=method==="Credit Card"?"":(paidFromRaw==="Owner money"?"Owner money":(paidFromRaw==="Own money"?"Own money":"Petty cash"));
+    var methodRaw=(el("f_exp_method")&&el("f_exp_method").value)||"Cash";
+    var method=methodRaw==="Credit Card"?"Credit Card":(methodRaw==="Bank transfer"?"Bank transfer":"Cash");
+    var paidFromRaw=method==="Cash"?((el("f_exp_paidFrom")&&el("f_exp_paidFrom").value)||"Petty cash"):"";
+    var paidFrom=method==="Cash"?(paidFromRaw==="Owner money"?"Owner money":(paidFromRaw==="Own money"?"Own money":"Petty cash")):"";
     var chargeTo=reimburse||commPayout?"boat":((el("f_exp_chargeTo")&&el("f_exp_chargeTo").value)==="apa"?"apa":"boat");
     var apaTripId="";
     if(chargeTo==="apa"){

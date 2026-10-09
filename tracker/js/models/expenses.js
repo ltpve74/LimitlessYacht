@@ -85,9 +85,19 @@ function expensePaidFromLooksGuest(label) {
 }
 
 /**
- * Paid-from envelope: petty | own | owner | guest | card.
+ * Paid from the bank, not the envelope and not the company card.
+ * Exact label only — cash-in "Bank / ATM" is a different field.
+ */
+function expensePayIsBank(e) {
+  var m = String((e && e.payMethod) || "").trim().toLowerCase();
+  return m === "bank transfer" || m === "bank";
+}
+
+/**
+ * Paid-from envelope: petty | own | owner | guest | card | bank.
  * Own (capt pocket / crew pocket / paidById) NEVER counts as petty out.
  * Guest = cash guest→crew (outside boat envelope).
+ * Bank transfer never hits petty and never counts as a card payment.
  *
  * Crew day-pay is special:
  *  - floatPay true → petty (cash left the boat) — or guest top-up from petty
@@ -98,6 +108,7 @@ function expensePaidFromLooksGuest(label) {
  */
 function expensePaidFrom(e) {
   if (!e) return "petty";
+  if (expensePayIsBank(e)) return "bank";
   if (String(e.payMethod || "") === "Credit Card") return "card";
   if (isCrewDayPayExpense(e)) {
     if (String(e.crewPayStatus || "") !== "Paid") return "petty";
@@ -150,7 +161,7 @@ function expenseHitsPettyCash(e, opts) {
     return false;
   }
   var pf = expensePaidFrom(e);
-  if (pf === "card" || pf === "own" || pf === "owner" || pf === "guest") return false;
+  if (pf === "card" || pf === "bank" || pf === "own" || pf === "owner" || pf === "guest") return false;
   if (isExpenseReimbursement(e)) return pf === "petty";
   return true;
 }
@@ -210,7 +221,7 @@ function classifyExpenseCash(e, opts) {
   return {
     amount: a,
     isReimbursement: reimb,
-    paidFrom: pf, /* petty | own | owner | guest | card */
+    paidFrom: pf, /* petty | own | owner | guest | card | bank */
     hitsPettyCash: hitsPetty,
     hitsOwnMoneyPocket: ownSpend,
     ownMoneyAmount: ownAmt,
@@ -360,7 +371,7 @@ function crewDayPayHitsPetty(e) {
   if (!isCrewDayPayExpense(e)) return false;
   if (String(e.crewPayStatus || "") !== "Paid") return false;
   var pf = expensePaidFrom(e);
-  if (pf === "own" || pf === "card") return false;
+  if (pf === "own" || pf === "card" || pf === "bank") return false;
   if (pf === "guest" || pf === "owner") {
     var g = crewDayPayPrimarySplit(e);
     if (!g.primary && pf === "owner") return false; /* full owner, no pot */
@@ -397,6 +408,7 @@ function crewDayPayPettyOutAmount(e) {
 function crewDayPayFundSource(e) {
   if (!isCrewDayPayExpense(e)) return "";
   if (String(e.crewPayStatus || "") !== "Paid") return "unpaid";
+  if (expensePayIsBank(e)) return "bank";
   if (String(e.payMethod || "") === "Credit Card") return "card";
   var pf = expensePaidFrom(e);
   if (pf === "guest") return "guest";
@@ -666,6 +678,8 @@ function summarizeCrewPayMonth(expenses, month, opts) {
       paidTotal = round2(paidTotal + a);
       return;
     }
+    /* Bank transfer is off the cash PDF and off the card report. */
+    if (fund === "bank") return;
     nPaid++;
     paidTotal = round2(paidTotal + a);
     if (fund === "guest" || (fund === "owner" && hasSplit)) {
@@ -774,7 +788,7 @@ function summarizePettyCashOutBuckets(monthExpenses) {
       return;
     }
     if (isCaptainCommissionExpense(e)) {
-      if (expensePaidFrom(e) === "own" || expensePaidFrom(e) === "card") return;
+      if (expensePaidFrom(e) === "own" || expensePaidFrom(e) === "card" || expensePaidFrom(e) === "bank") return;
       if (String(e.payMethod || "") === "Credit Card") return;
       b.commission = round2(b.commission + a);
       commissionLines.push({
@@ -948,7 +962,7 @@ function summarizeCaptainCommissionReturns(cashIns, expenses) {
     if (!isCaptainCommissionExpense(e)) return;
     if (String(e.payMethod || "") === "Credit Card") return;
     var pf = expensePaidFrom(e);
-    if (pf === "own" || pf === "card") return;
+    if (pf === "own" || pf === "card" || pf === "bank") return;
     var a = round2(num(e.amount));
     if (!(a < -0.009)) return;
     var abs = round2(-a);
@@ -982,7 +996,7 @@ function summarizeCaptainCommissionPaid(expenses) {
     if (!isCaptainCommissionExpense(e)) return;
     if (String(e.payMethod || "") === "Credit Card") return;
     var pf = expensePaidFrom(e);
-    if (pf === "own" || pf === "card") return;
+    if (pf === "own" || pf === "card" || pf === "bank") return;
     var a = round2(num(e.amount));
     if (!(a > 0)) return;
     paid = round2(paid + a);
@@ -1070,7 +1084,7 @@ function clearCrewFloatPayOnEmptyEnvelope(expenses, pettyStart, cashIns, opts) {
   list.forEach(function (e) {
     if (!isCrewDayPayExpense(e)) return;
     if (String(e.crewPayStatus || "") !== "Paid") return;
-    if (expensePaidFrom(e) === "own" || expensePaidFrom(e) === "card") return;
+    if (expensePaidFrom(e) === "own" || expensePaidFrom(e) === "card" || expensePaidFrom(e) === "bank") return;
     if (e.floatPay !== true) return;
     /* Never wipe captain-marked pays (payStatusManual) — empty start often means
      * cash-ins not loaded yet; clearing floatPay put cash back on board wrongly. */
@@ -1633,7 +1647,7 @@ function summarizePettyCash(opts) {
       e.stewPayKind === "tipPayout" ||
       /^crew tip payout$/i.test(String(e.category || ""))
     ) {
-      if (expensePaidFrom(e) === "own" || expensePaidFrom(e) === "card") return;
+      if (expensePaidFrom(e) === "own" || expensePaidFrom(e) === "card" || expensePaidFrom(e) === "bank") return;
       cashOut += a;
       cashOutLines.push({
         kind: "tip",
@@ -1649,7 +1663,7 @@ function summarizePettyCash(opts) {
     }
     /* Captain commission draw to self */
     if (isCaptainCommissionExpense(e)) {
-      if (expensePaidFrom(e) === "own" || expensePaidFrom(e) === "card") return;
+      if (expensePaidFrom(e) === "own" || expensePaidFrom(e) === "card" || expensePaidFrom(e) === "bank") return;
       cashOut += a;
       cashOutLines.push({
         kind: "commission",
@@ -2553,7 +2567,7 @@ function planClearCrewFloatPayOnEmptyEnvelope(expenses, pettyStart, cashIns, opt
   list.forEach(function (e) {
     if (!isCrewDayPayExpense(e)) return;
     if (String(e.crewPayStatus || "") !== "Paid") return;
-    if (expensePaidFrom(e) === "own" || expensePaidFrom(e) === "card") return;
+    if (expensePaidFrom(e) === "own" || expensePaidFrom(e) === "card" || expensePaidFrom(e) === "bank") return;
     if (e.floatPay !== true) return;
     if (opts.keepManual !== false && e.payStatusManual === true) return;
     if (e.id != null) clearIds.push(String(e.id));
@@ -3427,8 +3441,9 @@ function summarizeMonthSettlement(opts) {
 
   /**
    * APA paid-by label → card | cash | bank | "".
-   * Bank transfer is stored on the monthly expense as payMethod Credit Card,
-   * so the label (not payMethod alone) is what keeps it off the card report.
+   * An APA bank line copied onto Expenses used to be stored as Credit Card.
+   * The APA label still keeps that copy off the card report. A direct expense
+   * marked Bank transfer is excluded by payMethod, before this label.
    */
   function cardPaidByKind(label) {
     var p = String(label || "").trim().toLowerCase();
@@ -3469,6 +3484,7 @@ function summarizeMonthSettlement(opts) {
    */
   function expenseCountsAsCardPayment(e, apaByLine) {
     if (!e) return false;
+    if (expensePayIsBank(e)) return false;
     var lineId = e.fromApaLineId != null ? String(e.fromApaLineId) : "";
     var line = lineId && apaByLine ? apaByLine[lineId] : null;
     var kind = cardPaidByKind(line ? line.paidBy : e.paidBy);
@@ -3986,6 +4002,7 @@ function summarizeMonthSettlement(opts) {
   }
 
   function dupPaidLabel(e) {
+    if (expensePayIsBank(e)) return "Bank transfer";
     var method = String((e && e.payMethod) || "");
     if (method.toLowerCase().indexOf("card") !== -1) return "Credit Card";
     var from = String((e && e.paidFrom) || "").trim();
@@ -3995,6 +4012,7 @@ function summarizeMonthSettlement(opts) {
       else if (pf === "owner") from = "Owner money";
       else if (pf === "guest") from = "Guest";
       else if (pf === "card") return "Credit Card";
+      else if (pf === "bank") return "Bank transfer";
       else from = "Petty cash";
     }
     return "Cash · " + from;

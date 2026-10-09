@@ -1,5 +1,5 @@
 /* Limitless Tracker service worker — push notifications for the installed PWA */
-/* v21: put back rows missing from the server archive (2026-10-09.1) */
+/* v22: expense bank transfer stays off cash and card reports (2026-10-09.2) */
 self.addEventListener("install", function (e) {
   self.skipWaiting();
 });

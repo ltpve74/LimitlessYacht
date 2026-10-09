@@ -4862,6 +4862,14 @@ console.log("\n[Receipt photo read — suggest only, never a ledger write]");
       html.indexOf('expChoosePay("petty")') !== -1
   );
   ok(
+    "new expense can be marked paid by bank transfer",
+    html.indexOf('id="expPayBank"') !== -1 &&
+      html.indexOf(">Bank transfer</button>") !== -1 &&
+      html.indexOf('expChoosePay("bank")') !== -1 &&
+      html.indexOf('methodRaw==="Bank transfer"') !== -1 &&
+      html.indexOf('EXP_METHODS=["Cash","Credit Card","Bank transfer"]') !== -1
+  );
+  ok(
     "expenses month bar exports the card spreadsheet and receipt PDF",
     html.indexOf('id="expExportCardExcel"') !== -1 &&
       html.indexOf('id="expExportCardPdf"') !== -1 &&
@@ -4883,6 +4891,7 @@ console.log("[Expenses — card month]");
     month: "2026-09",
     expenses: [
       { id: "cash1", date: "2026-09-02", vendor: "Cash shop", amount: 10, payMethod: "Cash", receipt: PNG },
+      { id: "bank-direct", date: "2026-09-06", vendor: "Harbour dues", amount: 500, payMethod: "Bank transfer", paidFrom: "Petty cash" },
       { id: "card-late", date: "2026-09-20", vendor: "Repsol", amount: 80, payMethod: "Credit Card" },
       { id: "card-early", date: "2026-09-03", vendor: "Mercadona", amount: 12.5, payMethod: "Credit Card", receipt: PNG },
       { id: "oct", date: "2026-10-01", vendor: "October card", amount: 9, payMethod: "Credit Card" },
@@ -4925,6 +4934,7 @@ console.log("[Expenses — card month]");
     "card month is date order and skips cash, bank, APA cash, and other months",
     report.rows.map(function (r) { return r.vendor; }).join("|") === "Mercadona provis|Mercadona|Makro|Guest fuel|Repsol"
   );
+  ok("a direct bank transfer is not a card row", report.rows.every(function (r) { return r.vendor !== "Harbour dues"; }));
   ok("card month total is the card rows only", near(report.total, 18 + 12.5 + 40 + 22 + 80));
   ok("ship card already on an expense is not listed twice", report.rows.filter(function (r) { return r.vendor === "Makro"; }).length === 1);
   ok("card row with a photo keeps it, and a missing photo stays blank", report.rows[1].hasReceipt === true && report.rows[4].hasReceipt === false);
@@ -4936,6 +4946,7 @@ console.log("[Expenses — card month]");
       csv.csv.indexOf("\n,TOTAL,172.50") !== -1 &&
       csv.csv.indexOf("Cash shop") === -1 &&
       csv.csv.indexOf("Marina transfer") === -1 &&
+      csv.csv.indexOf("Harbour dues") === -1 &&
       csv.fileName === "Limitless-card-expenses-2026-09.csv"
   );
   const xls = M.cardExpensesExportExcelXml(books);
@@ -4948,6 +4959,7 @@ console.log("[Expenses — card month]");
       xls.xml.indexOf(">172.5<") !== -1 &&
       xls.xml.indexOf('ExpandedColumnCount="3"') !== -1 &&
       xls.xml.indexOf("Cash shop") === -1 &&
+      xls.xml.indexOf("Harbour dues") === -1 &&
       xls.xml.indexOf("data:image") === -1 &&
       xls.fileName === "Limitless-card-expenses-2026-09.xls" &&
       xls.mime === "application/vnd.ms-excel"
@@ -4956,6 +4968,42 @@ console.log("[Expenses — card month]");
     "controller card report matches the model",
     C.expenses.cardMonthReport(books).n === 5 && C.expenses.cardMonthExcel(books).total === xls.total
   );
+  const bankDirect = books.expenses.filter(function (e) { return e.id === "bank-direct"; })[0];
+  ok("bank transfer is not petty even if paid-from still says petty", M.expensePaidFrom(bankDirect) === "bank" && !M.expenseHitsPettyCash(bankDirect));
+  ok("bank transfer is not a card payment", M.expenseCountsAsCardPayment(bankDirect, {}) === false);
+  const cashSum = M.summarizePettyCash({
+    pettyStart: 1000,
+    cashIns: [],
+    expenses: [
+      bankDirect,
+      { id: "eroski", date: "2026-09-02", vendor: "Eroski", amount: 20, payMethod: "Cash", paidFrom: "Petty cash" },
+      { id: "repsol-card", date: "2026-09-03", vendor: "Repsol card", amount: 40, payMethod: "Credit Card" },
+    ],
+  });
+  ok("cash report total skips bank transfer and card", near(cashSum.cashOut, 20));
+  ok(
+    "cash report lines omit the bank transfer",
+    cashSum.cashOutLines.every(function (r) { return r && r.id !== "bank-direct" && r.label !== "Harbour dues"; })
+  );
+  const settle = M.summarizeMonthSettlement({
+    expenses: [bankDirect, { id: "repsol-card", date: "2026-09-03", vendor: "Repsol card", amount: 40, payMethod: "Credit Card", category: "Fuel Cars" }],
+    pettyStart: 0,
+    cashIns: [],
+  });
+  ok("month card total skips a bank transfer", near(settle.cardOut, 40));
+  const crewBank = {
+    amount: 250,
+    category: "Crew Salaries",
+    source: "stew",
+    stewEventKey: "ev",
+    stewId: "st",
+    crewPayStatus: "Paid",
+    floatPay: true,
+    payMethod: "Bank transfer",
+    date: "2026-09-01",
+    vendor: "Toni",
+  };
+  ok("crew paid by bank transfer does not leave the petty envelope", M.crewDayPayHitsPetty(crewBank) === false);
   const empty = M.buildCardExpenseReport({ month: "2026-09", expenses: books.expenses.filter(function (e) { return e.payMethod === "Cash"; }), apa: [] });
   ok("cash-only month has no card rows", empty.n === 0 && empty.total === 0);
   ok("card receipt pdf file name", CardReceiptsPdf.fileName("2026-09") === "Limitless-card-receipts-2026-09.pdf");
